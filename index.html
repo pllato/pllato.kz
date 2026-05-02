@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pllato — Custom CRM Solutions</title>
+<meta name="description" content="Разрабатываем кастомные CRM-системы под задачи вашего бизнеса. Алматы.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F5F3EE;
+    --ink: #1A1814;
+    --ink2: #6B6760;
+    --accent: #2D5BE3;
+    --accent2: #E8E4DC;
+    --line: rgba(26,24,20,0.12);
+    --serif: 'DM Serif Display', Georgia, serif;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 16px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 48px;
+    height: 68px;
+    background: rgba(245,243,238,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .nav-logo {
+    font-family: var(--serif);
+    font-size: 22px;
+    letter-spacing: -0.5px;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--accent); }
+
+  .nav-links {
+    display: flex; gap: 36px; list-style: none;
+  }
+  .nav-links a {
+    font-size: 14px; font-weight: 400; color: var(--ink2);
+    text-decoration: none; letter-spacing: 0.02em;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--ink); }
+
+  .nav-cta {
+    font-size: 14px; font-weight: 500;
+    color: var(--bg);
+    background: var(--ink);
+    padding: 10px 22px;
+    border-radius: 100px;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.15s;
+  }
+  .nav-cta:hover { background: var(--accent); transform: translateY(-1px); }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding-top: 68px;
+  }
+
+  .hero-left {
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 80px 48px 80px 48px;
+    border-right: 1px solid var(--line);
+  }
+
+  .hero-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--ink2);
+    margin-bottom: 32px;
+  }
+  .hero-tag::before {
+    content: '';
+    width: 24px; height: 1px; background: var(--ink2);
+  }
+
+  .hero-h1 {
+    font-family: var(--serif);
+    font-size: clamp(44px, 5vw, 72px);
+    line-height: 1.05;
+    letter-spacing: -1px;
+    color: var(--ink);
+    margin-bottom: 28px;
+  }
+  .hero-h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .hero-sub {
+    font-size: 17px; font-weight: 300; color: var(--ink2);
+    max-width: 420px; line-height: 1.7;
+    margin-bottom: 48px;
+  }
+
+  .hero-actions { display: flex; gap: 16px; align-items: center; }
+
+  .btn-primary {
+    font-family: var(--sans); font-size: 15px; font-weight: 500;
+    color: var(--bg); background: var(--accent);
+    padding: 14px 32px; border-radius: 100px;
+    text-decoration: none; border: none; cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+  }
+  .btn-primary:hover { background: #1a3fcc; transform: translateY(-2px); }
+
+  .btn-ghost {
+    font-family: var(--sans); font-size: 15px; font-weight: 400; color: var(--ink);
+    text-decoration: none;
+    display: flex; align-items: center; gap: 8px;
+    transition: gap 0.2s;
+  }
+  .btn-ghost:hover { gap: 14px; }
+  .btn-ghost::after { content: '→'; }
+
+  .hero-right {
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 48px;
+    position: relative; overflow: hidden;
+  }
+
+  .hero-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  .hero-card {
+    position: relative; z-index: 1;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 16px;
+    transform: translateY(0);
+    transition: transform 0.3s;
+  }
+  .hero-card:hover { transform: translateY(-4px); }
+
+  .card-label {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink2); margin-bottom: 12px;
+  }
+  .card-stat {
+    font-family: var(--serif); font-size: 38px; color: var(--ink);
+    line-height: 1;
+  }
+  .card-desc { font-size: 13px; color: var(--ink2); margin-top: 6px; }
+
+  .hero-cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; position: relative; z-index: 1; }
+
+  .hero-card-sm {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px;
+    transition: transform 0.3s;
+  }
+  .hero-card-sm:hover { transform: translateY(-3px); }
+
+  /* ── SECTION COMMON ── */
+  section { padding: 100px 48px; }
+  .section-label {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--ink2); margin-bottom: 20px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--line); max-width: 80px; }
+
+  .section-title {
+    font-family: var(--serif);
+    font-size: clamp(32px, 4vw, 52px);
+    line-height: 1.1; letter-spacing: -0.5px;
+    margin-bottom: 16px;
+  }
+  .section-sub {
+    font-size: 17px; font-weight: 300; color: var(--ink2); max-width: 500px; line-height: 1.7;
+  }
+
+  /* ── SERVICES ── */
+  #services {
+    border-top: 1px solid var(--line);
+  }
+
+  .services-header { margin-bottom: 64px; }
+
+  .services-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .service-item {
+    background: var(--bg);
+    padding: 40px 36px;
+    transition: background 0.25s;
+    cursor: default;
+  }
+  .service-item:hover { background: #fff; }
+
+  .service-num {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.1em;
+    color: var(--accent); margin-bottom: 20px;
+  }
+
+  .service-icon {
+    width: 44px; height: 44px;
+    background: var(--accent2);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 20px;
+    font-size: 20px;
+  }
+
+  .service-name {
+    font-family: var(--serif);
+    font-size: 22px; margin-bottom: 12px;
+  }
+
+  .service-desc {
+    font-size: 14px; color: var(--ink2); line-height: 1.7;
+  }
+
+  /* ── PROCESS ── */
+  #process {
+    background: var(--ink);
+    color: #F5F3EE;
+    border-radius: 32px;
+    margin: 0 24px;
+    padding: 80px 64px;
+  }
+  #process .section-label { color: rgba(245,243,238,0.4); }
+  #process .section-label::after { background: rgba(245,243,238,0.15); }
+  #process .section-title { color: #F5F3EE; }
+  #process .section-sub { color: rgba(245,243,238,0.5); }
+
+  .process-steps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 40px;
+    margin-top: 64px;
+  }
+
+  .process-step { position: relative; }
+  .process-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 20px; left: calc(100% + 0px);
+    width: 40px; height: 1px;
+    background: rgba(245,243,238,0.15);
+  }
+
+  .step-num {
+    width: 40px; height: 40px;
+    border: 1px solid rgba(245,243,238,0.2);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: rgba(245,243,238,0.4);
+    margin-bottom: 20px;
+  }
+
+  .step-name {
+    font-family: var(--serif);
+    font-size: 20px; color: #F5F3EE;
+    margin-bottom: 10px;
+  }
+
+  .step-desc {
+    font-size: 14px; color: rgba(245,243,238,0.45); line-height: 1.7;
+  }
+
+  /* ── WHY ── */
+  #why { border-top: 1px solid var(--line); }
+
+  .why-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+    margin-top: 64px;
+  }
+
+  .why-items { display: flex; flex-direction: column; gap: 32px; }
+
+  .why-item {
+    display: flex; gap: 20px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--line);
+  }
+  .why-item:last-child { border-bottom: none; padding-bottom: 0; }
+
+  .why-icon {
+    width: 40px; height: 40px; flex-shrink: 0;
+    background: var(--accent2);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  .why-name {
+    font-size: 16px; font-weight: 500; margin-bottom: 6px;
+  }
+  .why-desc { font-size: 14px; color: var(--ink2); line-height: 1.7; }
+
+  .why-visual {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 40px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+
+  .why-stat { text-align: center; padding: 20px; background: var(--bg); border-radius: 12px; }
+  .why-stat-num { font-family: var(--serif); font-size: 44px; color: var(--accent); line-height: 1; }
+  .why-stat-label { font-size: 13px; color: var(--ink2); margin-top: 6px; }
+  .why-stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ── CONTACT ── */
+  #contact {
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: start;
+  }
+
+  .contact-form {
+    display: flex; flex-direction: column; gap: 16px;
+    margin-top: 40px;
+  }
+
+  .form-field {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+
+  label { font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: var(--ink2); text-transform: uppercase; }
+
+  input, textarea {
+    font-family: var(--sans); font-size: 15px;
+    background: #fff; border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 16px;
+    color: var(--ink); outline: none;
+    transition: border-color 0.2s;
+    resize: none;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  textarea { height: 110px; }
+
+  .form-submit {
+    font-family: var(--sans); font-size: 15px; font-weight: 500;
+    color: #fff; background: var(--accent);
+    border: none; border-radius: 100px;
+    padding: 15px 32px; cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    align-self: flex-start;
+  }
+  .form-submit:hover { background: #1a3fcc; transform: translateY(-2px); }
+
+  .contact-info { padding-top: 48px; }
+
+  .contact-detail {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .contact-detail:first-child { border-top: 1px solid var(--line); margin-top: 40px; }
+
+  .contact-key { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink2); }
+  .contact-val { font-size: 17px; font-weight: 400; color: var(--ink); }
+  .contact-val a { color: var(--ink); text-decoration: none; }
+  .contact-val a:hover { color: var(--accent); }
+
+  /* ── FOOTER ── */
+  footer {
+    padding: 32px 48px;
+    border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+
+  .footer-logo {
+    font-family: var(--serif); font-size: 18px; color: var(--ink); text-decoration: none;
+  }
+  .footer-logo span { color: var(--accent); }
+
+  .footer-copy { font-size: 13px; color: var(--ink2); }
+
+  /* ── ANIMATIONS ── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.65s ease, transform 0.65s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* ── MOBILE ── */
+  @media (max-width: 900px) {
+    nav { padding: 0 24px; }
+    .nav-links { display: none; }
+    section { padding: 64px 24px; }
+
+    .hero { grid-template-columns: 1fr; min-height: auto; }
+    .hero-left { padding: 60px 24px 40px; border-right: none; border-bottom: 1px solid var(--line); }
+    .hero-right { padding: 40px 24px 60px; min-height: 320px; }
+
+    .services-grid { grid-template-columns: 1fr; }
+    #process { margin: 0 12px; padding: 48px 24px; }
+    .process-steps { grid-template-columns: 1fr 1fr; }
+    .process-step::after { display: none; }
+
+    .why-grid { grid-template-columns: 1fr; gap: 40px; }
+    #contact { grid-template-columns: 1fr; gap: 0; }
+    footer { flex-direction: column; gap: 12px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">Pllato<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="#services">Услуги</a></li>
+    <li><a href="#process">Процесс</a></li>
+    <li><a href="#why">Почему мы</a></li>
+    <li><a href="#contact">Контакты</a></li>
+  </ul>
+  <a href="#contact" class="nav-cta">Обсудить проект</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-tag">CRM-разработка · Алматы</div>
+    <h1 class="hero-h1">
+      CRM под ваш<br>бизнес — <em>точно</em><br>и без лишнего
+    </h1>
+    <p class="hero-sub">
+      Разрабатываем кастомные CRM-системы, которые работают именно так, как нужно вашей команде — без чужих ограничений и переплат за лишний функционал.
+    </p>
+    <div class="hero-actions">
+      <a href="#contact" class="btn-primary">Получить консультацию</a>
+      <a href="#services" class="btn-ghost">Наши услуги</a>
+    </div>
+  </div>
+  <div class="hero-right">
+    <div class="hero-grid"></div>
+    <div class="hero-card">
+      <div class="card-label">Проектов запущено</div>
+      <div class="card-stat">40+</div>
+      <div class="card-desc">CRM-систем для бизнеса разного масштаба</div>
+    </div>
+    <div class="hero-cards-row">
+      <div class="hero-card-sm">
+        <div class="card-label">Срок запуска</div>
+        <div class="card-stat" style="font-family: var(--serif); font-size:28px">4–8 нед.</div>
+      </div>
+      <div class="hero-card-sm">
+        <div class="card-label">Поддержка</div>
+        <div class="card-stat" style="font-family: var(--serif); font-size:28px">24 / 7</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section id="services">
+  <div class="services-header reveal">
+    <div class="section-label">Что мы делаем</div>
+    <h2 class="section-title">Услуги</h2>
+    <p class="section-sub">Полный цикл — от анализа процессов до запуска и поддержки системы.</p>
+  </div>
+  <div class="services-grid reveal">
+    <div class="service-item">
+      <div class="service-num">01</div>
+      <div class="service-icon">⚙️</div>
+      <div class="service-name">Кастомная CRM</div>
+      <p class="service-desc">Разрабатываем систему с нуля под ваши процессы — без лишних модулей и ограничений коробочных решений.</p>
+    </div>
+    <div class="service-item">
+      <div class="service-num">02</div>
+      <div class="service-icon">🔗</div>
+      <div class="service-name">Интеграции</div>
+      <p class="service-desc">Подключаем телефонию, мессенджеры, 1С, платёжные системы и любые сторонние сервисы через API.</p>
+    </div>
+    <div class="service-item">
+      <div class="service-num">03</div>
+      <div class="service-icon">📊</div>
+      <div class="service-name">Аналитика и отчёты</div>
+      <p class="service-desc">Выстраиваем дашборды и авто-отчёты — вы видите воронку, конверсии и KPI команды в реальном времени.</p>
+    </div>
+    <div class="service-item">
+      <div class="service-num">04</div>
+      <div class="service-icon">🔄</div>
+      <div class="service-name">Автоматизация</div>
+      <p class="service-desc">Настраиваем триггеры, задачи, уведомления и воронки — рутина выполняется сама, команда фокусируется на продажах.</p>
+    </div>
+    <div class="service-item">
+      <div class="service-num">05</div>
+      <div class="service-icon">🚀</div>
+      <div class="service-name">Миграция данных</div>
+      <p class="service-desc">Переносим клиентскую базу и историю из Excel, старой CRM или любой другой системы без потерь.</p>
+    </div>
+    <div class="service-item">
+      <div class="service-num">06</div>
+      <div class="service-icon">🛡️</div>
+      <div class="service-name">Поддержка и развитие</div>
+      <p class="service-desc">Сопровождаем после запуска — вносим правки, добавляем модули, реагируем на запросы в течение дня.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PROCESS -->
+<section id="process">
+  <div class="reveal">
+    <div class="section-label">Как мы работаем</div>
+    <h2 class="section-title">Процесс</h2>
+    <p class="section-sub" style="color:rgba(245,243,238,0.5)">Прозрачный цикл от первого звонка до живой системы.</p>
+  </div>
+  <div class="process-steps reveal">
+    <div class="process-step">
+      <div class="step-num">01</div>
+      <div class="step-name">Анализ</div>
+      <p class="step-desc">Изучаем ваши бизнес-процессы, болевые точки и цели. Составляем техническое задание.</p>
+    </div>
+    <div class="process-step">
+      <div class="step-num">02</div>
+      <div class="step-name">Проектирование</div>
+      <p class="step-desc">Создаём архитектуру системы, прототипы интерфейсов и согласовываем с командой.</p>
+    </div>
+    <div class="process-step">
+      <div class="step-num">03</div>
+      <div class="step-name">Разработка</div>
+      <p class="step-desc">Пишем систему итерациями — вы видите прогресс на каждом этапе и можете вносить правки.</p>
+    </div>
+    <div class="process-step">
+      <div class="step-num">04</div>
+      <div class="step-name">Запуск</div>
+      <p class="step-desc">Тестируем, мигрируем данные, обучаем команду и переходим в продакшн.</p>
+    </div>
+  </div>
+</section>
+
+<!-- WHY -->
+<section id="why">
+  <div class="why-grid">
+    <div>
+      <div class="section-label reveal">Наши преимущества</div>
+      <h2 class="section-title reveal">Почему Pllato</h2>
+      <div class="why-items">
+        <div class="why-item reveal">
+          <div class="why-icon">🎯</div>
+          <div>
+            <div class="why-name">Только под вас</div>
+            <p class="why-desc">Никаких чужих ограничений. Система строится вокруг ваших процессов, а не наоборот.</p>
+          </div>
+        </div>
+        <div class="why-item reveal">
+          <div class="why-icon">⚡</div>
+          <div>
+            <div class="why-name">Быстрый старт</div>
+            <p class="why-desc">MVP запускаем за 4–8 недель. Вы начинаете работать в системе до полной готовности.</p>
+          </div>
+        </div>
+        <div class="why-item reveal">
+          <div class="why-icon">💬</div>
+          <div>
+            <div class="why-name">Живое общение</div>
+            <p class="why-desc">Вы общаетесь напрямую с разработчиком, а не менеджером. Решения принимаются быстро.</p>
+          </div>
+        </div>
+        <div class="why-item reveal">
+          <div class="why-icon">📍</div>
+          <div>
+            <div class="why-name">Мы в Алматы</div>
+            <p class="why-desc">Встречаемся лично, работаем в том же часовом поясе, понимаем локальный рынок.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="why-visual reveal">
+      <div class="why-stats-row">
+        <div class="why-stat">
+          <div class="why-stat-num">40+</div>
+          <div class="why-stat-label">Проектов</div>
+        </div>
+        <div class="why-stat">
+          <div class="why-stat-num">5+</div>
+          <div class="why-stat-label">Лет опыта</div>
+        </div>
+      </div>
+      <div class="why-stat">
+        <div class="why-stat-num">98%</div>
+        <div class="why-stat-label">Клиентов остаются на поддержке</div>
+      </div>
+      <div style="background:var(--bg); border-radius:12px; padding:24px;">
+        <div style="font-size:13px; color:var(--ink2); margin-bottom:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.07em;">Технологии</div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          <span style="font-size:13px; background:#fff; border:1px solid var(--line); border-radius:100px; padding:5px 14px;">React</span>
+          <span style="font-size:13px; background:#fff; border:1px solid var(--line); border-radius:100px; padding:5px 14px;">Node.js</span>
+          <span style="font-size:13px; background:#fff; border:1px solid var(--line); border-radius:100px; padding:5px 14px;">PostgreSQL</span>
+          <span style="font-size:13px; background:#fff; border:1px solid var(--line); border-radius:100px; padding:5px 14px;">REST API</span>
+          <span style="font-size:13px; background:#fff; border:1px solid var(--line); border-radius:100px; padding:5px 14px;">Docker</span>
+          <span style="font-size:13px; background:#fff; border:1px solid var(--line); border-radius:100px; padding:5px 14px;">1С</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div>
+    <div class="section-label reveal">Напишите нам</div>
+    <h2 class="section-title reveal">Обсудим проект</h2>
+    <p class="section-sub reveal">Расскажите о задаче — ответим в течение одного рабочего дня и предложим решение.</p>
+    <form class="contact-form reveal" onsubmit="handleSubmit(event)">
+      <div class="form-field">
+        <label for="name">Ваше имя</label>
+        <input type="text" id="name" placeholder="Иван Иванов" required>
+      </div>
+      <div class="form-field">
+        <label for="phone">Телефон</label>
+        <input type="tel" id="phone" placeholder="+7 700 000 00 00" required>
+      </div>
+      <div class="form-field">
+        <label for="msg">О проекте</label>
+        <textarea id="msg" placeholder="Кратко опишите задачу..." required></textarea>
+      </div>
+      <button type="submit" class="form-submit" id="submitBtn">Отправить заявку</button>
+    </form>
+  </div>
+  <div class="contact-info reveal">
+    <div class="section-label">Контакты</div>
+    <div class="contact-detail">
+      <div class="contact-key">Телефон</div>
+      <div class="contact-val"><a href="tel:+77777777777">+7 777 777 77 77</a></div>
+    </div>
+    <div class="contact-detail">
+      <div class="contact-key">Город</div>
+      <div class="contact-val">Алматы, Казахстан</div>
+    </div>
+    <div class="contact-detail">
+      <div class="contact-key">Режим работы</div>
+      <div class="contact-val">Пн–Пт, 09:00–18:00</div>
+    </div>
+    <div class="contact-detail">
+      <div class="contact-key">Ответ на заявку</div>
+      <div class="contact-val">В течение 1 рабочего дня</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <a href="#" class="footer-logo">Pllato<span>.</span></a>
+  <div class="footer-copy">© 2026 Pllato Custom CRM Solutions. Алматы, Казахстан.</div>
+</footer>
+
+<script>
+  // Scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => e.target.classList.add('visible'), i * 80);
+        obs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  reveals.forEach(el => obs.observe(el));
+
+  // Hero immediate reveal
+  document.querySelectorAll('.hero .reveal').forEach(el => el.classList.add('visible'));
+
+  // Form submit
+  function handleSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    btn.textContent = 'Отправлено ✓';
+    btn.style.background = '#16a34a';
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.textContent = 'Отправить заявку';
+      btn.style.background = '';
+      btn.disabled = false;
+      e.target.reset();
+    }, 3000);
+  }
+</script>
+</body>
+</html>
