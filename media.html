@@ -181,6 +181,80 @@ section.media-section .lead strong { color: var(--text); font-weight: 600; }
   color: var(--text-3); display: block;
 }
 
+/* Founder card */
+.founder-card {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r-lg); padding: 32px;
+  display: grid; grid-template-columns: 160px 1fr; gap: 32px;
+  align-items: start;
+  box-shadow: var(--shadow-sm);
+}
+@media (max-width: 720px) {
+  .founder-card { grid-template-columns: 1fr; gap: 20px; padding: 24px 22px; }
+}
+.founder-photo {
+  width: 160px; height: 160px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--bronze) 0%, var(--bronze-deep) 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 64px; font-weight: 800; color: #fff;
+  letter-spacing: -0.04em;
+  box-shadow: 0 16px 40px -12px rgba(184, 137, 90, 0.4);
+}
+@media (max-width: 720px) { .founder-photo { width: 120px; height: 120px; font-size: 48px; margin: 0 auto; } }
+.founder-info h3 {
+  font-size: 24px; font-weight: 800; letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+.founder-role {
+  font-size: 13px; color: var(--bronze-deep); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px;
+}
+.founder-bio { font-size: 14.5px; line-height: 1.6; color: var(--text-2); margin-bottom: 12px; }
+.founder-bio strong { color: var(--text); font-weight: 600; }
+.founder-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.founder-link {
+  font-size: 13px; color: var(--text); text-decoration: none;
+  padding: 7px 13px; border: 1px solid var(--line);
+  border-radius: 100px; font-weight: 500; transition: all 0.2s;
+}
+.founder-link:hover { border-color: var(--bronze); color: var(--bronze); }
+
+/* Approach */
+.approach-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+}
+@media (max-width: 900px) { .approach-grid { grid-template-columns: 1fr; } }
+.approach-card {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r-md); padding: 22px 24px;
+}
+.approach-num {
+  font-size: 30px; font-weight: 800; color: var(--bronze);
+  letter-spacing: -0.04em; line-height: 1; margin-bottom: 12px;
+}
+.approach-card h3 {
+  font-size: 17px; font-weight: 800; letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+.approach-card p { font-size: 13.5px; color: var(--text-2); line-height: 1.55; }
+
+/* Stats */
+.stats-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;
+  text-align: center;
+}
+@media (max-width: 720px) { .stats-grid { grid-template-columns: 1fr 1fr; gap: 24px 18px; } }
+.stat-num {
+  font-size: clamp(32px, 4.5vw, 48px); font-weight: 800;
+  color: var(--bronze); letter-spacing: -0.035em; line-height: 1;
+  margin-bottom: 8px;
+}
+.stat-label {
+  font-size: 12.5px; color: var(--text-2);
+  font-weight: 500; line-height: 1.4;
+}
+
 /* Services */
 .services-grid {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
@@ -281,9 +355,9 @@ footer {
 
 <section class="page-hero">
   <div class="wrap">
-    <span class="page-eyebrow">Для медиа · Press kit</span>
-    <h1>Pllato — <em>информация для прессы</em></h1>
-    <p class="lead">Здесь собрана информация о студии для журналистов, авторов статей и партнёров. Все материалы можно использовать со ссылкой на pllato.kz.</p>
+    <span class="page-eyebrow">Команда · Press kit</span>
+    <h1>Pllato — <em>команда и медиа-материалы</em></h1>
+    <p class="lead">Здесь собрана информация о студии и команде, материалы для прессы, логотипы и реквизиты. Все материалы можно использовать со ссылкой на pllato.kz.</p>
     <div class="quick-contact">
       <a href="mailto:uurraa@gmail.com" class="btn btn-bronze">Связаться для интервью</a>
       <a href="#legal" class="btn btn-ghost">Реквизиты</a>
@@ -319,6 +393,79 @@ footer {
       <div class="label">Специализация</div>
       <h3>5 ниш с экспертизой</h3>
       <p>Девелопмент, опт и дистрибуция, производство на заказ, медицинские центры, B2B-услуги.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Founder -->
+<section class="media-section">
+  <h2>Основатель</h2>
+  <p class="lead">Pllato — небольшая студия. Не агентство-конвейер с десятком одинаковых проектов в работе. Берём ограниченное количество клиентов и погружаемся в каждый бизнес.</p>
+  <div class="founder-card">
+    <div class="founder-photo">ПЦ</div>
+    <div class="founder-info">
+      <h3>Платон Цай</h3>
+      <div class="founder-role">Основатель · CEO</div>
+      <p class="founder-bio">
+        Основал Pllato в <strong>2026 году</strong> с одной целью — сделать CRM-разработку, которая работает на бизнес клиента, а не на привычки разработчиков.
+      </p>
+      <p class="founder-bio">
+        До Pllato работал в продуктовой разработке, видел изнутри, как «коробочные» CRM ломаются о реальные процессы — особенно в нишах со сложной логикой: девелопмент, опт, производство, медицина.
+      </p>
+      <p class="founder-bio">
+        Принцип студии — на разборе говорить честно: если коробка решит вашу задачу за 50 000 ₸/мес — мы сами это скажем. Кастомная разработка нужна не всем, и это нормально.
+      </p>
+      <div class="founder-links">
+        <a href="tel:+77011239999" class="founder-link">+7 701 123 99 99</a>
+        <a href="mailto:uurraa@gmail.com" class="founder-link">uurraa@gmail.com</a>
+        <a href="https://wa.me/77011239999" class="founder-link" target="_blank" rel="noopener">WhatsApp</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Approach -->
+<section class="media-section">
+  <h2>Как мы работаем</h2>
+  <p class="lead">Три принципа, на которых построена студия.</p>
+  <div class="approach-grid">
+    <div class="approach-card">
+      <div class="approach-num">01</div>
+      <h3>Сначала проектируем, потом кодим</h3>
+      <p>До строки кода рисуем интерфейсы, описываем процессы, согласовываем с клиентом. Изменить дизайн в Figma за час дешевле, чем переписывать систему через два месяца.</p>
+    </div>
+    <div class="approach-card">
+      <div class="approach-num">02</div>
+      <h3>Берём ответственность за результат</h3>
+      <p>Сопровождаем после запуска. Если что-то не работает — исправляем без счёта в первые 30 дней. Студия не уходит после акта приёмки — мы остаёмся на связи.</p>
+    </div>
+    <div class="approach-card">
+      <div class="approach-num">03</div>
+      <h3>Код передаётся клиенту полностью</h3>
+      <p>С первого дня. Полные исходники, документация, права. Это ваш актив. Мы не привязываем клиента к себе — захотите развивать с другой командой, спокойно передадим.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Stats -->
+<section class="media-section">
+  <h2>Pllato в цифрах</h2>
+  <div class="stats-grid">
+    <div>
+      <div class="stat-num">2026</div>
+      <div class="stat-label">Год основания студии</div>
+    </div>
+    <div>
+      <div class="stat-num">5</div>
+      <div class="stat-label">Ниш с глубокой экспертизой</div>
+    </div>
+    <div>
+      <div class="stat-num">100%</div>
+      <div class="stat-label">Передача кода клиенту</div>
+    </div>
+    <div>
+      <div class="stat-num">30</div>
+      <div class="stat-label">Дней гарантийной поддержки</div>
     </div>
   </div>
 </section>
@@ -507,8 +654,7 @@ footer {
       <div class="footer-col">
         <h4>Студия</h4>
         <ul>
-          <li><a href="team.html">Команда</a></li>
-          <li><a href="media.html">Для медиа</a></li>
+          <li><a href="https://pllato.kz/team">Команда</a></li>
           <li><a href="crm-builder.html">Схема CRM</a></li>
           <li><a href="index.html#quiz">Подобрать систему</a></li>
         </ul>
@@ -516,6 +662,7 @@ footer {
       <div class="footer-col">
         <h4>Документы</h4>
         <ul>
+          <li><a href="media.html">Для медиа</a></li>
           <li><a href="privacy.html">Политика конфиденциальности</a></li>
           <li><a href="terms.html">Пользовательское соглашение</a></li>
           <li><a href="media.html#legal">Реквизиты</a></li>
@@ -526,7 +673,6 @@ footer {
         <ul>
           <li><a href="index.html#contact">Получить разбор</a></li>
           <li><a href="https://wa.me/77011239999" target="_blank" rel="noopener">WhatsApp</a></li>
-          <li><a href="https://t.me/Pllato_bot" target="_blank" rel="noopener">Telegram</a></li>
         </ul>
       </div>
     </div>
