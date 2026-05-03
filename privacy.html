@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Политика конфиденциальности — Pllato</title>
+<meta name="description" content="Политика конфиденциальности Pllato — порядок обработки и защиты персональных данных в соответствии с законодательством РК.">
+<link rel="icon" type="image/svg+xml" href="pllato_favicon_64.svg">
+<meta name="robots" content="noindex">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --navy: #0a1628;
+  --bronze: #b8895a;
+  --bronze-deep: #8b6740;
+  --bronze-tint: rgba(184, 137, 90, 0.08);
+  --bg: #fafaf6;
+  --surface: #ffffff;
+  --surface-2: #f3f0e8;
+  --text: #0f1620;
+  --text-2: #4a5163;
+  --text-3: #8a8d96;
+  --line: #e8e2d4;
+  --line-2: #ede9de;
+  --max: 1280px;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; overflow-x: hidden; }
+body {
+  font-family: var(--sans); background: var(--bg); color: var(--text);
+  line-height: 1.6; -webkit-font-smoothing: antialiased;
+  overflow-x: hidden; width: 100%;
+}
+img, svg { max-width: 100%; }
+a { color: var(--bronze-deep); }
+.wrap { max-width: var(--max); margin: 0 auto; padding: 0 28px; width: 100%; box-sizing: border-box; }
+@media (max-width: 640px) { .wrap { padding: 0 16px; } }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 10px; font-weight: 600; font-size: 14px; text-decoration: none; transition: all 0.2s; }
+.btn-bronze { background: var(--bronze); color: #fff; }
+.btn-bronze:hover { background: var(--bronze-deep); }
+
+.site-header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(250, 250, 246, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid transparent;
+  padding: 16px 0; transition: all 0.2s;
+}
+.site-header.scrolled { border-color: var(--line); background: rgba(250, 250, 246, 0.96); }
+.header-inner { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.logo img { height: 32px; display: block; }
+
+/* Doc page */
+.doc-page { padding: 56px 0 80px; }
+.doc-wrap { max-width: 800px; margin: 0 auto; }
+.doc-meta {
+  display: inline-block;
+  font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--bronze-deep);
+  padding: 6px 12px; border-radius: 100px;
+  background: var(--bronze-tint); margin-bottom: 16px;
+}
+.doc-page h1 {
+  font-size: clamp(28px, 4vw, 44px); line-height: 1.1;
+  letter-spacing: -0.025em; font-weight: 800;
+  margin-bottom: 14px;
+}
+.doc-page .updated {
+  font-size: 13.5px; color: var(--text-3);
+  margin-bottom: 32px;
+}
+.doc-page .updated b { color: var(--text); font-weight: 600; }
+.doc-page h2 {
+  font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
+  margin-top: 36px; margin-bottom: 12px; line-height: 1.3;
+}
+.doc-page h3 {
+  font-size: 16px; font-weight: 700;
+  margin-top: 22px; margin-bottom: 8px;
+}
+.doc-page p {
+  font-size: 15.5px; color: var(--text-2);
+  margin-bottom: 14px; line-height: 1.65;
+}
+.doc-page p strong { color: var(--text); font-weight: 600; }
+.doc-page ul, .doc-page ol {
+  margin: 12px 0 18px 24px; color: var(--text-2);
+  font-size: 15px; line-height: 1.65;
+}
+.doc-page ul li, .doc-page ol li { margin-bottom: 8px; }
+.doc-page .toc {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: 14px; padding: 20px 24px; margin-bottom: 36px;
+}
+.doc-page .toc h4 {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-3); font-weight: 700; margin-bottom: 12px;
+}
+.doc-page .toc ol { margin: 0; padding-left: 18px; font-size: 14px; }
+.doc-page .toc ol li { margin-bottom: 6px; }
+.doc-page .toc a { color: var(--text); text-decoration: none; }
+.doc-page .toc a:hover { color: var(--bronze); }
+
+.doc-page .callout {
+  background: var(--bronze-tint);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--bronze);
+  border-radius: 8px;
+  padding: 16px 20px; margin: 20px 0;
+  font-size: 14.5px; color: var(--text);
+}
+.doc-page .callout b { font-weight: 700; }
+
+/* Footer */
+footer {
+  margin-top: 60px;
+  padding: 56px 0 28px; background: var(--surface-2);
+  border-top: 1px solid var(--line-2);
+}
+.footer-cols {
+  display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  gap: 40px; padding-bottom: 36px;
+  border-bottom: 1px solid var(--line-2);
+}
+@media (max-width: 900px) { .footer-cols { grid-template-columns: 1fr 1fr; gap: 28px; } }
+@media (max-width: 540px) { .footer-cols { grid-template-columns: 1fr; gap: 24px; } }
+.footer-brand img { height: 26px; opacity: 0.9; margin-bottom: 12px; display: block; }
+.footer-brand p { color: var(--text-2); font-size: 13px; line-height: 1.5; margin-bottom: 12px; max-width: 300px; }
+.footer-col h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); font-weight: 700; margin-bottom: 12px; }
+.footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; }
+.footer-col a { color: var(--text); text-decoration: none; font-size: 13.5px; }
+.footer-col a:hover { color: var(--bronze); }
+.footer-legal { padding-top: 24px; }
+.footer-legal p { font-size: 12px; color: var(--text-3); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<header class="site-header" id="header">
+  <div class="wrap">
+    <div class="header-inner">
+      <a href="index.html" class="logo"><img src="pllato_logo_transparent_navy.svg" alt="Pllato"></a>
+      <a href="index.html#contact" class="btn btn-bronze">Заявка</a>
+    </div>
+  </div>
+</header>
+
+<div class="doc-page">
+  <div class="wrap">
+    <div class="doc-wrap">
+      <span class="doc-meta">Документ</span>
+      <h1>Политика конфиденциальности</h1>
+      <p class="updated">Действует с <b>4 мая 2026 года</b>. Опубликована на pllato.kz</p>
+
+      <div class="toc">
+        <h4>Содержание</h4>
+        <ol>
+          <li><a href="#s1">Общие положения</a></li>
+          <li><a href="#s2">Определения</a></li>
+          <li><a href="#s3">Какие данные мы собираем</a></li>
+          <li><a href="#s4">Цели обработки</a></li>
+          <li><a href="#s5">Правовые основания</a></li>
+          <li><a href="#s6">Передача данных третьим лицам</a></li>
+          <li><a href="#s7">Сроки хранения</a></li>
+          <li><a href="#s8">Защита данных</a></li>
+          <li><a href="#s9">Cookies и веб-аналитика</a></li>
+          <li><a href="#s10">Права субъекта данных</a></li>
+          <li><a href="#s11">Контакты</a></li>
+          <li><a href="#s12">Изменения политики</a></li>
+        </ol>
+      </div>
+
+      <h2 id="s1">1. Общие положения</h2>
+      <p>Настоящая Политика конфиденциальности (далее — «Политика») регулирует порядок обработки и защиты персональных данных пользователей сайта <a href="https://pllato.kz">pllato.kz</a> (далее — «Сайт»).</p>
+      <p>Оператор персональных данных: <strong>ИП «STUDYSTORIES.APP»</strong>, БИН 880607300110, г. Алматы, мкр. Орбита-4, д. 3, оф. 2 (далее — «Pllato», «мы»).</p>
+      <p>Политика разработана в соответствии с Законом Республики Казахстан от 21 мая 2013 года № 94-V «О персональных данных и их защите».</p>
+      <p>Используя Сайт и оставляя заявку, вы подтверждаете согласие с условиями настоящей Политики.</p>
+
+      <h2 id="s2">2. Определения</h2>
+      <ul>
+        <li><strong>Персональные данные</strong> — сведения, относящиеся к определённому или определяемому на их основе субъекту персональных данных, зафиксированные на электронном, бумажном и (или) ином материальном носителе.</li>
+        <li><strong>Субъект персональных данных</strong> — физическое лицо, к которому относятся персональные данные.</li>
+        <li><strong>Обработка персональных данных</strong> — действия, направленные на сбор, накопление, хранение, изменение, использование, распространение, обезличивание, блокирование и уничтожение персональных данных.</li>
+        <li><strong>Субъект</strong> — посетитель Сайта, заполнивший форму обратной связи, форму заявки или передавший персональные данные иным образом.</li>
+      </ul>
+
+      <h2 id="s3">3. Какие данные мы собираем</h2>
+      <p>Pllato обрабатывает следующие персональные данные:</p>
+
+      <h3>3.1. Данные, которые субъект предоставляет добровольно</h3>
+      <ul>
+        <li>Имя (через форму квиза)</li>
+        <li>Номер телефона (через формы заявки и квиза)</li>
+        <li>Email (если указан в обращении на почту)</li>
+        <li>Дополнительная информация, переданная в свободной форме (название компании, ниша бизнеса, размер команды, текущие проблемы — через квиз и обращения)</li>
+      </ul>
+
+      <h3>3.2. Данные, собираемые автоматически</h3>
+      <ul>
+        <li>IP-адрес устройства</li>
+        <li>Тип и версия браузера, операционная система, тип устройства (мобильное / десктоп)</li>
+        <li>Источник перехода (referrer), URL посещённых страниц</li>
+        <li>Дата и время посещения</li>
+        <li>Cookies (см. раздел 9)</li>
+      </ul>
+
+      <h2 id="s4">4. Цели обработки персональных данных</h2>
+      <p>Мы используем персональные данные исключительно для:</p>
+      <ul>
+        <li>Обратной связи по запросам и заявкам, поступившим через формы Сайта</li>
+        <li>Проведения бесплатной консультации (разбора текущей CRM)</li>
+        <li>Подготовки коммерческих предложений и расчётов</li>
+        <li>Заключения и исполнения договоров на разработку CRM-систем и других IT-продуктов</li>
+        <li>Информирования о ходе реализации проектов клиентов</li>
+        <li>Анализа посещаемости сайта и улучшения его работы</li>
+        <li>Соблюдения требований законодательства Республики Казахстан</li>
+      </ul>
+
+      <div class="callout">
+        <b>Важно:</b> мы не передаём персональные данные третьим лицам в коммерческих целях. Не используем их для рассылок, не продаём, не предоставляем в аренду.
+      </div>
+
+      <h2 id="s5">5. Правовые основания обработки</h2>
+      <p>Обработка персональных данных осуществляется на основании:</p>
+      <ul>
+        <li>Согласия субъекта, выраженного через заполнение форм на Сайте</li>
+        <li>Заключённого договора на оказание услуг (для клиентов)</li>
+        <li>Положений Закона РК «О персональных данных и их защите»</li>
+      </ul>
+
+      <h2 id="s6">6. Передача данных третьим лицам</h2>
+      <p>Pllato может передавать персональные данные следующим категориям получателей в технических целях:</p>
+      <ul>
+        <li><strong>Telegram</strong> — для отправки уведомлений о заявках через Telegram Bot API. Передаются: имя, телефон, ответы на вопросы квиза.</li>
+        <li><strong>WhatsApp (через сервис CallMeBot)</strong> — для дублирования уведомлений о заявках. Передаются те же данные, что и в Telegram.</li>
+        <li><strong>Хостинг-провайдеры</strong> (GitHub Pages, провайдеры облачной инфраструктуры) — для технического хранения и работы Сайта.</li>
+      </ul>
+      <p>Все указанные сервисы соответствуют международным стандартам защиты данных. Pllato не передаёт данные в маркетинговых целях.</p>
+      <p>Передача персональных данных в иных целях, в том числе государственным органам, осуществляется только в случаях, прямо предусмотренных законодательством Республики Казахстан.</p>
+
+      <h2 id="s7">7. Сроки хранения</h2>
+      <ul>
+        <li><strong>Заявки потенциальных клиентов</strong> — до 24 месяцев с момента последнего взаимодействия. По истечении этого срока данные удаляются или обезличиваются, если иное не предусмотрено заключённым договором.</li>
+        <li><strong>Данные клиентов по заключённым договорам</strong> — в течение действия договора и 3 (три) года после его прекращения, в соответствии с требованиями налогового и гражданского законодательства РК.</li>
+        <li><strong>Технические данные (IP, cookies)</strong> — до 12 месяцев.</li>
+      </ul>
+
+      <h2 id="s8">8. Защита данных</h2>
+      <p>Pllato принимает технические и организационные меры для защиты персональных данных от неправомерного доступа, изменения, раскрытия и уничтожения:</p>
+      <ul>
+        <li>Передача данных через Сайт защищена SSL/TLS-шифрованием (HTTPS)</li>
+        <li>Доступ к персональным данным имеет только Платон Цай (CEO), и сотрудники, чья работа требует такого доступа</li>
+        <li>Сотрудники подписывают соглашения о неразглашении (NDA)</li>
+        <li>Регулярно проводится аудит безопасности и обновление систем защиты</li>
+        <li>Резервное копирование данных шифруется и хранится изолированно</li>
+      </ul>
+
+      <h2 id="s9">9. Cookies и веб-аналитика</h2>
+      <p>Сайт использует <strong>cookies</strong> — небольшие текстовые файлы, которые сохраняются в браузере посетителя для улучшения работы Сайта.</p>
+      <p>Также Сайт может использовать сервисы веб-аналитики (Google Analytics, Yandex.Metrika) для анализа посещаемости и поведения пользователей. Эти сервисы могут собирать обезличенные данные о посещениях.</p>
+      <p>Вы можете отключить cookies в настройках вашего браузера. Это может ограничить работу некоторых функций Сайта.</p>
+
+      <h2 id="s10">10. Права субъекта персональных данных</h2>
+      <p>В соответствии с Законом РК «О персональных данных и их защите», вы имеете право:</p>
+      <ul>
+        <li>Получать информацию о факте обработки своих персональных данных, целях обработки, перечне используемых данных</li>
+        <li>Требовать изменения или дополнения своих персональных данных при наличии оснований</li>
+        <li>Требовать блокирования обработки персональных данных в случаях, предусмотренных законом</li>
+        <li>Требовать уничтожения своих персональных данных, обработка которых проводится с нарушением законодательства</li>
+        <li>Отозвать согласие на обработку персональных данных в любой момент</li>
+        <li>Защищать свои права и законные интересы, включая обжалование действий или бездействия оператора</li>
+      </ul>
+
+      <p>Для реализации указанных прав направьте письменный запрос на email <a href="mailto:uurraa@gmail.com">uurraa@gmail.com</a> с пометкой «Запрос по персональным данным». Ответ будет предоставлен в течение 15 (пятнадцати) рабочих дней с момента получения запроса.</p>
+
+      <h2 id="s11">11. Контакты</h2>
+      <p>По вопросам обработки персональных данных и реализации прав субъекта обращайтесь:</p>
+      <ul>
+        <li><strong>Email:</strong> <a href="mailto:uurraa@gmail.com">uurraa@gmail.com</a></li>
+        <li><strong>Телефон:</strong> <a href="tel:+77011239999">+7 701 123 99 99</a></li>
+        <li><strong>Адрес:</strong> Республика Казахстан, г. Алматы, мкр. Орбита-4, д. 3, оф. 2</li>
+        <li><strong>Юридическое лицо:</strong> ИП «STUDYSTORIES.APP», БИН 880607300110</li>
+      </ul>
+
+      <h2 id="s12">12. Изменения политики</h2>
+      <p>Pllato оставляет за собой право вносить изменения в настоящую Политику. Актуальная версия Политики всегда доступна по адресу <a href="https://pllato.kz/privacy.html">pllato.kz/privacy.html</a>. Существенные изменения публикуются с указанием новой даты вступления в силу.</p>
+
+      <p style="margin-top: 36px; font-size: 13.5px; color: var(--text-3);">Дата последнего обновления: 4 мая 2026 года.</p>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-cols">
+      <div class="footer-brand">
+        <img src="pllato_logo_transparent_navy.svg" alt="Pllato">
+        <p>Кастомные CRM-системы для бизнеса, который перерос коробку.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Студия</h4>
+        <ul>
+          <li><a href="team.html">Команда</a></li>
+          <li><a href="media.html">Для медиа</a></li>
+          <li><a href="crm-builder.html">Схема CRM</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Документы</h4>
+        <ul>
+          <li><a href="privacy.html">Политика конфиденциальности</a></li>
+          <li><a href="terms.html">Пользовательское соглашение</a></li>
+          <li><a href="media.html#legal">Реквизиты</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Контакт</h4>
+        <ul>
+          <li><a href="index.html#contact">Получить разбор</a></li>
+          <li><a href="https://wa.me/77011239999" target="_blank" rel="noopener">WhatsApp</a></li>
+          <li><a href="https://t.me/Pllato_bot" target="_blank" rel="noopener">Telegram</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-legal">
+      <p>© 2026 Pllato · ИП «STUDYSTORIES.APP» · БИН 880607300110 · Алматы</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+const header = document.getElementById('header');
+window.addEventListener('scroll', () => header.classList.toggle('scrolled', window.scrollY > 20));
+</script>
+</body>
+</html>
