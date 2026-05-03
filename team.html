@@ -1428,8 +1428,37 @@ function renderMigration(el) {
     </div>
 
     <div class="card">
-      <h3>Шаг 8: Миграция дел, задач, файлов</h3>
-      <div style="font-size:12px;color:var(--t3)">Будет доступно после диагностики выше — там увидим объёмы и решим как переносить</div>
+      <h3>Шаг 8: Миграция дел (CRM activity)</h3>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:10px">
+        ~146 262 дел — звонки, письма, чаты мессенджеров, заметки. Батчами по 50, ~2.5 часа.
+        Файлы (~20k шт) НЕ качаются на этом шаге — сохраняются их Bitrix ID для миграции в R2 отдельно (Шаг 11).
+        Структура: <code>/timeline/{deal|contact|company}_{id}/activity_{xxx}</code>.
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-sm" onclick="migrateActivities()" style="background:var(--gn);color:#0e0e12">📞 Перенести дела (~146 262)</button>
+      </div>
+      <div id="activities-mig-result" class="log-area" style="display:none;margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Шаг 9: Миграция задач</h3>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:10px">
+        ~38 637 задач из модуля "Задачи и проекты". Сами задачи — батчами по 50, ~40 минут.
+        Комментарии (~88% задач имеют) переносятся отдельно вторым шагом — батч-API позволяет 50 запросов в одном subrequest.
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-sm" onclick="migrateTasks()" style="background:var(--gn);color:#0e0e12">✅ Перенести задачи (~38 637)</button>
+        <button class="btn btn-sm" onclick="migrateTaskComments()">💬 Перенести комментарии задач</button>
+      </div>
+      <div id="tasks-mig-result" class="log-area" style="display:none;margin-top:10px"></div>
+      <div id="task-comments-mig-result" class="log-area" style="display:none;margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Шаг 10: Миграция файлов в R2</h3>
+      <div style="font-size:12px;color:var(--t3)">
+        Будет доступно после миграции дел и задач. Качает все собранные <code>bitrixFileIds</code> и заливает в Cloudflare R2 (записи звонков, вложения чатов, файлы задач). Самая длинная часть, можно делать фоном с прерываниями.
+      </div>
     </div>
   `;
 }
@@ -1841,6 +1870,209 @@ window.diagnoseTasks = async function() {
   } catch (e) {
     el.innerHTML = `<div style="color:var(--rd)">✗ ${e.message}</div>`;
   }
+};
+
+
+// ═══════════════════════════════════════════════════════════════
+//   Универсальный runner для батчевых миграций
+//   Опции:
+//     endpoint         — URL endpoint в worker
+//     stateKey         — путь в Firebase /migrationState/{key}
+//     resultElId       — id <div> для логов
+//     entityName       — "контактов"/"дел"/"задач" (для сообщений)
+//     entityNameShort  — "контакт"/"дело"/"задача" (для скорости)
+//     totalLabel       — "143 741" (для confirm)
+//     extraBody        — дополнительные поля в JSON body (опционально)
+//     extraStats       — функция (response, accumulator) для накопления stats (опционально)
+//     extraStatsRender — функция (accumulator) → HTML строка для показа (опционально)
+//     onComplete       — callback после успешного завершения (опционально)
+//     confirmText      — текст confirm перед запуском (опционально)
+// ═══════════════════════════════════════════════════════════════
+async function runBatchMigration(opts) {
+  if (opts.confirmText && !confirm(opts.confirmText)) return;
+
+  // Wake Lock
+  let wakeLock = null;
+  if ('wakeLock' in navigator) {
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+  }
+
+  const el = document.getElementById(opts.resultElId);
+  el.style.display = '';
+  el.innerHTML = '⏳ Запускаем миграцию ' + opts.entityName + '...\n';
+
+  // Auto-resume из migrationState
+  let offset = 0;
+  let totalProcessed = 0;
+  let resumeOffset = 0;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const stateUrl = firebaseConfig.databaseURL.replace(/\/$/,'') + '/migrationState/' + opts.stateKey + '.json?auth=' + idToken;
+    const stateR = await fetch(stateUrl);
+    if (stateR.ok) {
+      const st = await stateR.json();
+      if (st && st.processed && !st.isLast) {
+        offset = st.processed;
+        totalProcessed = st.processed;
+        resumeOffset = st.processed;
+        el.innerHTML += '<span class="info">↪ Продолжаем с offset ' + offset.toLocaleString('ru') + '</span>\n';
+      }
+    }
+  } catch {}
+
+  let totalErrors = 0;
+  let total = null;
+  let retry429 = 0;
+  const MAX_429_RETRIES = 20;
+  const RETRY_WAIT_MS = 60_000;
+  const accumulator = {};
+  const startedAt = Date.now();
+
+  while (true) {
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const body = Object.assign({ idToken, offset, limit: 50 }, opts.extraBody || {});
+      const r = await fetch(WORKER_URL + opts.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const d = await r.json();
+
+      if (!d.ok) {
+        const errStr = d.error || '';
+        const isRateLimit = errStr.includes('429') || errStr.includes('401') || errStr.includes('403');
+        if (isRateLimit && retry429 < MAX_429_RETRIES) {
+          retry429++;
+          const baseHtml = el.innerHTML;
+          const waitS = RETRY_WAIT_MS / 1000;
+          for (let i = waitS; i > 0; i--) {
+            el.innerHTML = baseHtml + '\n<span class="warn">[пауза] Bitrix лимит (' + errStr + '). Ждём ' + i + ' сек... (попытка ' + retry429 + '/' + MAX_429_RETRIES + ', offset ' + offset.toLocaleString('ru') + ')</span>';
+            el.scrollTop = el.scrollHeight;
+            await new Promise(res => setTimeout(res, 1000));
+          }
+          el.innerHTML = baseHtml + '\n<span class="info">[повтор] Возобновляем запрос...</span>\n';
+          continue;
+        }
+        el.innerHTML += '\n<span class="err">✗ Ошибка: ' + errStr + '</span>\n';
+        el.innerHTML += '<span class="info">Можно нажать снова — продолжится с offset ' + offset + '</span>\n';
+        if (wakeLock) { wakeLock.release(); wakeLock = null; }
+        return;
+      }
+
+      retry429 = 0;
+      total = d.total;
+      totalProcessed += d.processed;
+      totalErrors += d.errors || 0;
+      if (opts.extraStats) opts.extraStats(d, accumulator);
+
+      const elapsed = Math.round((Date.now() - startedAt) / 1000);
+      const elapsedSafe = Math.max(elapsed, 1);
+      const speedNum = (totalProcessed - resumeOffset) / elapsedSafe;
+      const speed = speedNum > 0 ? speedNum.toFixed(1) : '0.0';
+      const remaining = total - totalProcessed;
+      const etaSec = speedNum > 0 ? Math.round(remaining / speedNum) : 0;
+      const etaH = Math.floor(etaSec / 3600);
+      const etaMin = Math.floor((etaSec % 3600) / 60);
+      const etaS = etaSec % 60;
+      const pct = total > 0 ? Math.round(totalProcessed / total * 100) : 0;
+      const etaText = etaH > 0 ? etaH + 'ч ' + etaMin + 'м' : etaMin + 'м ' + etaS + 'с';
+      const elapsedText = elapsed >= 3600
+        ? Math.floor(elapsed/3600) + 'ч ' + Math.floor((elapsed%3600)/60) + 'м'
+        : Math.floor(elapsed/60) + 'м ' + (elapsed%60) + 'с';
+
+      let html = '<span class="info">⚙ Обработано ' + totalProcessed.toLocaleString('ru') + ' из ' + total.toLocaleString('ru') + ' (' + pct + '%)</span>\n\n';
+      html += 'Прошло: ' + elapsedText + ' · Скорость: ' + speed + ' ' + opts.entityNameShort + '/сек · Осталось: ~' + etaText + '\n';
+      html += 'Ошибок: ' + (totalErrors > 0 ? '<span class="err">' + totalErrors + '</span>' : 0) + '\n';
+      if (opts.extraStatsRender) html += opts.extraStatsRender(accumulator) + '\n';
+      html += '\n<span class="ok">█</span>'.repeat(Math.floor(pct/2)) + '<span class="gray">░</span>'.repeat(50 - Math.floor(pct/2)) + ' ' + pct + '%\n';
+      el.innerHTML = html;
+      el.scrollTop = el.scrollHeight;
+
+      if (d.isLast) {
+        el.innerHTML += '\n<span class="ok">✓ Миграция ' + opts.entityName + ' завершена!</span>\n\n';
+        el.innerHTML += 'Всего обработано: <span class="ok">' + totalProcessed.toLocaleString('ru') + '</span>\n';
+        el.innerHTML += 'Время: ' + elapsedText + '\n';
+        el.innerHTML += 'Ошибок: ' + totalErrors + '\n';
+        if (opts.extraStatsRender) el.innerHTML += opts.extraStatsRender(accumulator) + '\n';
+        if (wakeLock) { wakeLock.release(); wakeLock = null; }
+        loadDashboardStatsIfPossible();
+        if (opts.onComplete) opts.onComplete(accumulator);
+        return;
+      }
+
+      offset = d.nextOffset;
+      await new Promise(r => setTimeout(r, 200));
+    } catch (e) {
+      el.innerHTML += '\n<span class="err">✗ ' + e.message + '</span>\n';
+      el.innerHTML += '<span class="info">Можно нажать снова — продолжится с offset ' + offset + '</span>\n';
+      if (wakeLock) { wakeLock.release(); wakeLock = null; }
+      return;
+    }
+  }
+}
+
+window.migrateActivities = async function() {
+  await runBatchMigration({
+    endpoint: '/api/migrate-activities',
+    stateKey: 'activities',
+    resultElId: 'activities-mig-result',
+    entityName: 'дел',
+    entityNameShort: 'дел',
+    confirmText: 'Запустить миграцию ~146 262 дел?\n\nЗаймёт ~2.5 часа. Файлы (~20k) пока НЕ качаются — только их Bitrix ID сохраняются для последующей миграции в R2. Можно прервать и продолжить.',
+    extraStats: (d, acc) => {
+      acc.totalFileIds = d.totalFileIds || 0;
+      acc.ownerStats = acc.ownerStats || {};
+      if (d.ownerTypeStats) {
+        for (const [k, v] of Object.entries(d.ownerTypeStats)) {
+          acc.ownerStats[k] = (acc.ownerStats[k] || 0) + v;
+        }
+      }
+    },
+    extraStatsRender: (acc) => {
+      const owners = Object.entries(acc.ownerStats || {})
+        .map(([k, v]) => k + ': ' + v.toLocaleString('ru'))
+        .join(' · ');
+      return 'Файлов накоплено: ' + (acc.totalFileIds || 0).toLocaleString('ru') +
+        (owners ? '\nПо владельцам: ' + owners : '');
+    },
+  });
+};
+
+window.migrateTasks = async function() {
+  await runBatchMigration({
+    endpoint: '/api/migrate-tasks',
+    stateKey: 'tasks',
+    resultElId: 'tasks-mig-result',
+    entityName: 'задач',
+    entityNameShort: 'задач',
+    confirmText: 'Запустить миграцию ~38 637 задач?\n\nЗаймёт ~40 минут. Это только сами задачи без комментариев — комментарии переносятся отдельной кнопкой "Перенести комментарии задач".',
+    extraStats: (d, acc) => {
+      acc.totalFileIds = d.totalFileIds || 0;
+    },
+    extraStatsRender: (acc) => {
+      return 'Файлов в задачах накоплено: ' + (acc.totalFileIds || 0).toLocaleString('ru');
+    },
+  });
+};
+
+window.migrateTaskComments = async function() {
+  await runBatchMigration({
+    endpoint: '/api/migrate-task-comments',
+    stateKey: 'taskComments',
+    resultElId: 'task-comments-mig-result',
+    entityName: 'комментариев задач',
+    entityNameShort: 'задач',
+    confirmText: 'Запустить миграцию комментариев задач?\n\nИдёт по задачам у которых есть комментарии. Через batch-API ~50 списков комментов в одном subrequest, поэтому быстро.',
+    extraStats: (d, acc) => {
+      acc.cumulativeComments = d.cumulativeComments || 0;
+      acc.cumulativeAttachments = d.cumulativeAttachments || 0;
+    },
+    extraStatsRender: (acc) => {
+      return 'Комментариев перенесено: ' + (acc.cumulativeComments || 0).toLocaleString('ru') +
+        '\nВложений в комментариях: ' + (acc.cumulativeAttachments || 0).toLocaleString('ru');
+    },
+  });
 };
 
 window.diagnosePipeline = async function() {
