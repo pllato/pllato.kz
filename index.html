@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -87,8 +86,11 @@ h1, h2, h3, h4, p {
   word-wrap: break-word;
 }
 
-.wrap { max-width: var(--max); margin: 0 auto; padding: 0 28px; }
+.wrap { max-width: var(--max); margin: 0 auto; padding: 0 28px; width: 100%; box-sizing: border-box; }
 @media (max-width: 640px) { .wrap { padding: 0 16px; } }
+.hero-inner, .hero-grid { width: 100%; max-width: 100%; min-width: 0; }
+.hero-grid > * { min-width: 0; }
+section { width: 100%; max-width: 100vw; overflow-x: hidden; }
 
 h1, h2, h3, h4 { color: var(--text); font-weight: 700; letter-spacing: -0.025em; }
 em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
@@ -129,6 +131,9 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 .btn-ghost:hover { border-color: var(--text); }
 .btn-arrow::after { content: '→'; transition: transform 0.2s; }
 .btn-arrow:hover::after { transform: translateX(3px); }
+@media (max-width: 540px) {
+  .btn-arrow::after { display: none; }
+}
 @media (max-width: 480px) {
   .btn { padding: 12px 16px; font-size: 14px; }
 }
@@ -165,7 +170,7 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 }
 .header-phone:hover { color: var(--bronze); }
 .header-phone svg { width: 16px; height: 16px; color: var(--bronze); flex-shrink: 0; }
-@media (max-width: 720px) { .header-phone span { display: none; } }
+@media (max-width: 720px) { .header-phone { display: none; } }
 @media (max-width: 380px) { .header-right .btn { padding: 10px 12px; font-size: 13px; } }
 
 /* ============== HERO ============== */
@@ -1034,13 +1039,14 @@ footer {
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    margin: 0 -16px;
-    padding: 6px 16px 14px;
+    margin: 0;
+    padding: 6px 0 14px;
     gap: 12px;
+    max-width: 100%;
   }
   .previews::-webkit-scrollbar { display: none; }
   .preview {
-    flex: 0 0 78%;
+    flex: 0 0 75%;
     max-width: 320px;
     scroll-snap-align: start;
     aspect-ratio: 4 / 3;
@@ -1112,178 +1118,168 @@ footer {
   .final-cta-card { padding: 28px 18px; }
 }
 </style>
-
 </head>
 <body>
 
 <!-- ============== HEADER ============== -->
-
 <header class="site-header" id="header">
   <div class="header-inner">
     <a href="#top" class="logo" aria-label="Pllato">
       <img src="pllato_logo_transparent_navy.svg" alt="Pllato" width="118" height="32">
     </a>
 
-```
-<div class="header-right">
-  <a href="tel:+77011239999" class="header-phone">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-    <span>+7 701 123 99 99</span>
-  </a>
-  <a href="#contact" class="btn btn-bronze">Заявка</a>
-</div>
-```
-
+    <div class="header-right">
+      <a href="tel:+77011239999" class="header-phone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <span>+7 701 123 99 99</span>
+      </a>
+      <a href="#contact" class="btn btn-bronze">Заявка</a>
+    </div>
   </div>
 </header>
 
 <!-- ============== HERO ============== -->
-
 <section class="hero" id="top">
   <div class="wrap hero-inner">
     <div class="hero-grid">
 
-```
-  <!-- LEFT: text + form -->
-  <div>
-    <div class="hero-status">
-      <span class="status-dot"></span>
-      Бесплатный разбор · перезваниваем за 30 минут
-    </div>
-    <h1>CRM под ваш бизнес.<br><em class="b">Не наоборот.</em></h1>
-    <p class="hero-sub">
-      За 30 минут разбора покажем, что не так в вашей текущей CRM, какие процессы упираются в коробку и нужна ли вам кастомная система. Без обязательств.
-    </p>
+      <!-- LEFT: text + form -->
+      <div>
+        <div class="hero-status">
+          <span class="status-dot"></span>
+          Бесплатный разбор · перезваниваем за 30 минут
+        </div>
+        <h1>CRM под ваш бизнес.<br><em class="b">Не наоборот.</em></h1>
+        <p class="hero-sub">
+          За 30 минут разбора покажем, что не так в вашей текущей CRM, какие процессы упираются в коробку и нужна ли вам кастомная система. Без обязательств.
+        </p>
 
-    <div class="form-success" id="success-1">
-      <div class="form-success-mark">✓</div>
-      <div><b>Заявка получена</b>Перезвоним в течение 30 минут.</div>
-    </div>
-    <div class="form-error-state" id="error-1">
-      Не удалось отправить. Позвоните напрямую: <a href="tel:+77011239999">+7 701 123 99 99</a>
-    </div>
+        <div class="form-success" id="success-1">
+          <div class="form-success-mark">✓</div>
+          <div><b>Заявка получена</b>Перезвоним в течение 30 минут.</div>
+        </div>
+        <div class="form-error-state" id="error-1">
+          Не удалось отправить. Позвоните напрямую: <a href="tel:+77011239999">+7 701 123 99 99</a>
+        </div>
 
-    <form class="lead-form js-lead-form" novalidate>
-      <input type="tel" name="phone" placeholder="+7 701 234 56 78" required autocomplete="tel" inputmode="tel">
-      <button type="submit" class="btn btn-bronze btn-arrow">Получить разбор</button>
-    </form>
-    <div class="form-note">
-      <span>Бесплатно</span>
-      <span>Без обязательств</span>
-      <span>Перезвоним за 30 минут</span>
-    </div>
+        <form class="lead-form js-lead-form" novalidate>
+          <input type="tel" name="phone" placeholder="+7 701 234 56 78" required autocomplete="tel" inputmode="tel">
+          <button type="submit" class="btn btn-bronze btn-arrow">Получить разбор</button>
+        </form>
+        <div class="form-note">
+          <span>Бесплатно</span>
+          <span>Без обязательств</span>
+          <span>Перезвоним за 30 минут</span>
+        </div>
 
-    <div class="niches-strip">
-      <span class="label">Делаем для:</span>
-      <span class="niche-chip">Девелопмент</span>
-      <span class="niche-chip">Опт</span>
-      <span class="niche-chip">Производство</span>
-      <span class="niche-chip">Клиники</span>
-      <span class="niche-chip">+ другие</span>
-    </div>
-  </div>
-
-  <!-- RIGHT: 4 mini mockup previews — all in different designs -->
-  <div class="previews-wrap">
-  <div class="previews">
-
-    <!-- Preview 1: Real estate — grid -->
-    <div class="preview preview-1">
-      <div class="preview-bar">
-        <div class="preview-dots"><span></span><span></span><span></span></div>
-        <span class="preview-niche">Недвижимость</span>
-      </div>
-      <div class="preview-body">
-        <div class="p1-title">ЖК «Алатау» <small>54 квартиры · 8 в брони</small></div>
-        <div class="p1-grid">
-          <div class="p1-cell free"></div><div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div>
-          <div class="p1-cell sold"></div><div class="p1-cell free"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div>
-          <div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div><div class="p1-cell sold"></div>
-          <div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div>
+        <div class="niches-strip">
+          <span class="label">Делаем для:</span>
+          <span class="niche-chip">Девелопмент</span>
+          <span class="niche-chip">Опт</span>
+          <span class="niche-chip">Производство</span>
+          <span class="niche-chip">Клиники</span>
+          <span class="niche-chip">+ другие</span>
         </div>
       </div>
+
+      <!-- RIGHT: 4 mini mockup previews — all in different designs -->
+      <div class="previews-wrap">
+      <div class="previews">
+
+        <!-- Preview 1: Real estate — grid -->
+        <div class="preview preview-1">
+          <div class="preview-bar">
+            <div class="preview-dots"><span></span><span></span><span></span></div>
+            <span class="preview-niche">Недвижимость</span>
+          </div>
+          <div class="preview-body">
+            <div class="p1-title">ЖК «Алатау» <small>54 квартиры · 8 в брони</small></div>
+            <div class="p1-grid">
+              <div class="p1-cell free"></div><div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div>
+              <div class="p1-cell sold"></div><div class="p1-cell free"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div>
+              <div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div><div class="p1-cell sold"></div>
+              <div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview 2: Wholesale — map + stats -->
+        <div class="preview preview-2">
+          <div class="preview-bar">
+            <div class="preview-dots"><span></span><span></span><span></span></div>
+            <span class="preview-niche">Опт</span>
+          </div>
+          <div class="preview-body">
+            <div class="p2-stats">
+              <div class="p2-stat"><b>8.1М</b><small>собрано</small></div>
+              <div class="p2-stat"><b>62%</b><small>маршрута</small></div>
+            </div>
+            <div class="p2-map">
+              <svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+                <g stroke="#bbf7d0" stroke-width="0.5" opacity="0.8">
+                  <path d="M0 25 L200 25"/><path d="M0 50 L200 50"/><path d="M0 75 L200 75"/>
+                  <path d="M40 0 L40 100"/><path d="M90 0 L90 100"/><path d="M140 0 L140 100"/>
+                </g>
+                <path d="M20 25 L90 25 L90 50 L140 50 L140 25 L180 25 L180 75" stroke="#16a34a" stroke-width="1.2" fill="none"/>
+                <circle cx="20" cy="25" r="3" fill="#16a34a"/>
+                <circle cx="90" cy="25" r="3" fill="#16a34a"/>
+                <circle cx="90" cy="50" r="3" fill="#16a34a"/>
+                <circle cx="140" cy="50" r="3" fill="#16a34a"/>
+                <circle cx="140" cy="25" r="3" fill="#16a34a"/>
+                <circle cx="180" cy="25" r="5" fill="#16a34a">
+                  <animate attributeName="r" values="5;7;5" dur="2s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="180" cy="75" r="2.5" fill="#fff" stroke="#86efac" stroke-width="1"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview 3: Production — gantt bars -->
+        <div class="preview preview-3">
+          <div class="preview-bar">
+            <div class="preview-dots"><span></span><span></span><span></span></div>
+            <span class="preview-niche">Производство</span>
+          </div>
+          <div class="preview-body">
+            <div class="p3-head">
+              <b>Цех · 31 заказ</b>
+              <span class="p3-load">87%</span>
+            </div>
+            <div class="p3-row"><span class="p3-row-label">Сериков</span><div class="p3-track"><div class="p3-bar p3-bar-1"></div><div class="p3-bar p3-bar-2"></div></div></div>
+            <div class="p3-row"><span class="p3-row-label">Лебедева</span><div class="p3-track"><div class="p3-bar p3-bar-3"></div><div class="p3-bar p3-bar-4"></div></div></div>
+            <div class="p3-row"><span class="p3-row-label">Жакиев</span><div class="p3-track"><div class="p3-bar p3-bar-5"></div></div></div>
+            <div class="p3-row"><span class="p3-row-label">Иванова</span><div class="p3-track"><div class="p3-bar p3-bar-3"></div></div></div>
+          </div>
+        </div>
+
+        <!-- Preview 4: Clinic — calendar + appointments -->
+        <div class="preview preview-4">
+          <div class="preview-bar">
+            <div class="preview-dots"><span></span><span></span><span></span></div>
+            <span class="preview-niche">Клиника</span>
+          </div>
+          <div class="preview-body">
+            <div class="p4-cal">
+              <div class="p4-cal-d muted">28</div><div class="p4-cal-d muted">29</div><div class="p4-cal-d muted">30</div><div class="p4-cal-d has">1</div><div class="p4-cal-d has">2</div><div class="p4-cal-d">3</div><div class="p4-cal-d muted">4</div>
+              <div class="p4-cal-d today">4</div><div class="p4-cal-d has">5</div><div class="p4-cal-d has">6</div><div class="p4-cal-d has">7</div><div class="p4-cal-d has">8</div><div class="p4-cal-d">9</div><div class="p4-cal-d">10</div>
+              <div class="p4-cal-d has">11</div><div class="p4-cal-d has">12</div><div class="p4-cal-d has">13</div><div class="p4-cal-d">14</div><div class="p4-cal-d">15</div><div class="p4-cal-d">16</div><div class="p4-cal-d">17</div>
+            </div>
+            <div class="p4-list">
+              <div class="p4-item"><b>Бекенова А.</b><small>14:00</small></div>
+              <div class="p4-item"><b>Жумаш К.</b><small>14:30</small></div>
+              <div class="p4-item"><b>Алина С.</b><small>15:00</small></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      </div>
     </div>
-
-    <!-- Preview 2: Wholesale — map + stats -->
-    <div class="preview preview-2">
-      <div class="preview-bar">
-        <div class="preview-dots"><span></span><span></span><span></span></div>
-        <span class="preview-niche">Опт</span>
-      </div>
-      <div class="preview-body">
-        <div class="p2-stats">
-          <div class="p2-stat"><b>8.1М</b><small>собрано</small></div>
-          <div class="p2-stat"><b>62%</b><small>маршрута</small></div>
-        </div>
-        <div class="p2-map">
-          <svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
-            <g stroke="#bbf7d0" stroke-width="0.5" opacity="0.8">
-              <path d="M0 25 L200 25"/><path d="M0 50 L200 50"/><path d="M0 75 L200 75"/>
-              <path d="M40 0 L40 100"/><path d="M90 0 L90 100"/><path d="M140 0 L140 100"/>
-            </g>
-            <path d="M20 25 L90 25 L90 50 L140 50 L140 25 L180 25 L180 75" stroke="#16a34a" stroke-width="1.2" fill="none"/>
-            <circle cx="20" cy="25" r="3" fill="#16a34a"/>
-            <circle cx="90" cy="25" r="3" fill="#16a34a"/>
-            <circle cx="90" cy="50" r="3" fill="#16a34a"/>
-            <circle cx="140" cy="50" r="3" fill="#16a34a"/>
-            <circle cx="140" cy="25" r="3" fill="#16a34a"/>
-            <circle cx="180" cy="25" r="5" fill="#16a34a">
-              <animate attributeName="r" values="5;7;5" dur="2s" repeatCount="indefinite"/>
-            </circle>
-            <circle cx="180" cy="75" r="2.5" fill="#fff" stroke="#86efac" stroke-width="1"/>
-          </svg>
-        </div>
-      </div>
-    </div>
-
-    <!-- Preview 3: Production — gantt bars -->
-    <div class="preview preview-3">
-      <div class="preview-bar">
-        <div class="preview-dots"><span></span><span></span><span></span></div>
-        <span class="preview-niche">Производство</span>
-      </div>
-      <div class="preview-body">
-        <div class="p3-head">
-          <b>Цех · 31 заказ</b>
-          <span class="p3-load">87%</span>
-        </div>
-        <div class="p3-row"><span class="p3-row-label">Сериков</span><div class="p3-track"><div class="p3-bar p3-bar-1"></div><div class="p3-bar p3-bar-2"></div></div></div>
-        <div class="p3-row"><span class="p3-row-label">Лебедева</span><div class="p3-track"><div class="p3-bar p3-bar-3"></div><div class="p3-bar p3-bar-4"></div></div></div>
-        <div class="p3-row"><span class="p3-row-label">Жакиев</span><div class="p3-track"><div class="p3-bar p3-bar-5"></div></div></div>
-        <div class="p3-row"><span class="p3-row-label">Иванова</span><div class="p3-track"><div class="p3-bar p3-bar-3"></div></div></div>
-      </div>
-    </div>
-
-    <!-- Preview 4: Clinic — calendar + appointments -->
-    <div class="preview preview-4">
-      <div class="preview-bar">
-        <div class="preview-dots"><span></span><span></span><span></span></div>
-        <span class="preview-niche">Клиника</span>
-      </div>
-      <div class="preview-body">
-        <div class="p4-cal">
-          <div class="p4-cal-d muted">28</div><div class="p4-cal-d muted">29</div><div class="p4-cal-d muted">30</div><div class="p4-cal-d has">1</div><div class="p4-cal-d has">2</div><div class="p4-cal-d">3</div><div class="p4-cal-d muted">4</div>
-          <div class="p4-cal-d today">4</div><div class="p4-cal-d has">5</div><div class="p4-cal-d has">6</div><div class="p4-cal-d has">7</div><div class="p4-cal-d has">8</div><div class="p4-cal-d">9</div><div class="p4-cal-d">10</div>
-          <div class="p4-cal-d has">11</div><div class="p4-cal-d has">12</div><div class="p4-cal-d has">13</div><div class="p4-cal-d">14</div><div class="p4-cal-d">15</div><div class="p4-cal-d">16</div><div class="p4-cal-d">17</div>
-        </div>
-        <div class="p4-list">
-          <div class="p4-item"><b>Бекенова А.</b><small>14:00</small></div>
-          <div class="p4-item"><b>Жумаш К.</b><small>14:30</small></div>
-          <div class="p4-item"><b>Алина С.</b><small>15:00</small></div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-  </div>
-</div>
-```
-
   </div>
 </section>
 
 <!-- ============== QUIZ ============== -->
-
 <section class="quiz" id="quiz">
   <div class="wrap">
     <div class="quiz-head reveal">
@@ -1292,170 +1288,166 @@ footer {
       <p>5 быстрых вопросов — и мы поймём, какая CRM решит вашу задачу. Дальше — бесплатный 30-минутный разбор по телефону.</p>
     </div>
 
-```
-<div class="quiz-card reveal" id="quiz-card">
-  <div class="quiz-progress">
-    <div class="quiz-dots" id="quiz-dots"></div>
-    <span class="quiz-step-label">Шаг <b id="quiz-current-step">1</b> из 5</span>
-  </div>
-
-  <!-- Step 1 — Niche -->
-  <div class="quiz-step active" data-step="1" data-key="niche" data-mode="single">
-    <div class="quiz-question">Какая у вас сфера?</div>
-    <div class="quiz-hint">Это поможет нам сразу показать релевантные решения</div>
-    <div class="quiz-options cols-2">
-      <button class="quiz-option" data-val="realestate">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Недвижимость<small>Девелопмент, агентства</small></span>
-      </button>
-      <button class="quiz-option" data-val="wholesale">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Опт и дистрибуция<small>FMCG, торгпреды, склад</small></span>
-      </button>
-      <button class="quiz-option" data-val="production">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Производство<small>На заказ, цех, монтаж</small></span>
-      </button>
-      <button class="quiz-option" data-val="clinic">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Клиника / медцентр<small>Расписание, ДМС, направления</small></span>
-      </button>
-      <button class="quiz-option" data-val="services">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Услуги · B2B<small>Агентства, консалтинг, IT</small></span>
-      </button>
-      <button class="quiz-option" data-val="other">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Другая сфера<small>Расскажем, как подойдём</small></span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Step 2 — Team size -->
-  <div class="quiz-step" data-step="2" data-key="team" data-mode="single">
-    <div class="quiz-question">Сколько у вас человек?</div>
-    <div class="quiz-hint">Считаем тех, кто будет работать в системе</div>
-    <div class="quiz-options chips">
-      <button class="quiz-option" data-val="5-15">5–15 человек</button>
-      <button class="quiz-option" data-val="16-30">16–30</button>
-      <button class="quiz-option" data-val="31-60">31–60</button>
-      <button class="quiz-option" data-val="61-100">61–100</button>
-      <button class="quiz-option" data-val="100+">Больше 100</button>
-    </div>
-  </div>
-
-  <!-- Step 3 — Current state -->
-  <div class="quiz-step" data-step="3" data-key="current" data-mode="single">
-    <div class="quiz-question">С чем работаете сейчас?</div>
-    <div class="quiz-hint">Чтобы понимать, что мигрировать и как лучше переходить</div>
-    <div class="quiz-options">
-      <button class="quiz-option" data-val="boxed">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Bitrix24 / amoCRM<small>Подписка + платные доработки</small></span>
-      </button>
-      <button class="quiz-option" data-val="excel">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Excel и Google Sheets<small>Таблицы, документы, общий доступ</small></span>
-      </button>
-      <button class="quiz-option" data-val="custom">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Самописное решение<small>Подрядчик ушёл или система устарела</small></span>
-      </button>
-      <button class="quiz-option" data-val="mixed">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Несколько разных систем<small>CRM + 1С + мессенджеры + Excel</small></span>
-      </button>
-      <button class="quiz-option" data-val="none">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Ничего системного<small>Только мессенджеры и звонки</small></span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Step 4 — Pains -->
-  <div class="quiz-step" data-step="4" data-key="pains" data-mode="multi">
-    <div class="quiz-question">Что мешает работать?</div>
-    <div class="quiz-hint">Выберите всё, что отзывается. Можно несколько.</div>
-    <div class="quiz-counter" id="quiz-pains-counter"></div>
-    <div class="quiz-options cols-2">
-      <button class="quiz-option multi" data-val="leads_lost">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Сделки теряются<small>Между менеджерами, в переписке</small></span>
-      </button>
-      <button class="quiz-option multi" data-val="no_visibility">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Не вижу, кто чем занят<small>Команда в чёрном ящике</small></span>
-      </button>
-      <button class="quiz-option multi" data-val="processes">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Процессы не помещаются<small>Воронка чужая, костыли везде</small></span>
-      </button>
-      <button class="quiz-option multi" data-val="expensive">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Дорого платим<small>Подписки + доработки + интеграторы</small></span>
-      </button>
-      <button class="quiz-option multi" data-val="no_changes">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Невозможно доработать<small>Любая мелочь — недели и счёт</small></span>
-      </button>
-      <button class="quiz-option multi" data-val="data_split">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Данные в разных местах<small>CRM, Excel, 1С, чаты</small></span>
-      </button>
-      <button class="quiz-option multi" data-val="no_analytics">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Нет нормальной аналитики<small>Считаем в Excel руками</small></span>
-      </button>
-      <button class="quiz-option multi" data-val="onboarding">
-        <span class="quiz-option-mark"></span>
-        <span class="quiz-option-text">Сложно вводить новых<small>Обучение — недели</small></span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Step 5 — Contact -->
-  <div class="quiz-step" data-step="5" data-key="contact">
-    <div class="quiz-question">Куда прислать разбор?</div>
-    <div class="quiz-hint">Перезвоним в течение 30 минут на удобный номер</div>
-
-    <div class="quiz-summary" id="quiz-summary">
-      <div class="quiz-summary-title">Ваш профиль</div>
-      <!-- Заполняется динамически -->
-    </div>
-
-    <div class="quiz-fields">
-      <div class="quiz-field" id="quiz-field-name">
-        <input type="text" id="quiz-name" placeholder="Имя" autocomplete="given-name" maxlength="60">
+    <div class="quiz-card reveal" id="quiz-card">
+      <div class="quiz-progress">
+        <div class="quiz-dots" id="quiz-dots"></div>
+        <span class="quiz-step-label">Шаг <b id="quiz-current-step">1</b> из 5</span>
       </div>
-      <div class="quiz-field" id="quiz-field-phone">
-        <input type="tel" id="quiz-phone" placeholder="+7 701 234 56 78" autocomplete="tel" inputmode="tel">
+
+      <!-- Step 1 — Niche -->
+      <div class="quiz-step active" data-step="1" data-key="niche" data-mode="single">
+        <div class="quiz-question">Какая у вас сфера?</div>
+        <div class="quiz-hint">Это поможет нам сразу показать релевантные решения</div>
+        <div class="quiz-options cols-2">
+          <button class="quiz-option" data-val="realestate">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Недвижимость<small>Девелопмент, агентства</small></span>
+          </button>
+          <button class="quiz-option" data-val="wholesale">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Опт и дистрибуция<small>FMCG, торгпреды, склад</small></span>
+          </button>
+          <button class="quiz-option" data-val="production">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Производство<small>На заказ, цех, монтаж</small></span>
+          </button>
+          <button class="quiz-option" data-val="clinic">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Клиника / медцентр<small>Расписание, ДМС, направления</small></span>
+          </button>
+          <button class="quiz-option" data-val="services">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Услуги · B2B<small>Агентства, консалтинг, IT</small></span>
+          </button>
+          <button class="quiz-option" data-val="other">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Другая сфера<small>Расскажем, как подойдём</small></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2 — Team size -->
+      <div class="quiz-step" data-step="2" data-key="team" data-mode="single">
+        <div class="quiz-question">Сколько у вас человек?</div>
+        <div class="quiz-hint">Считаем тех, кто будет работать в системе</div>
+        <div class="quiz-options chips">
+          <button class="quiz-option" data-val="5-15">5–15 человек</button>
+          <button class="quiz-option" data-val="16-30">16–30</button>
+          <button class="quiz-option" data-val="31-60">31–60</button>
+          <button class="quiz-option" data-val="61-100">61–100</button>
+          <button class="quiz-option" data-val="100+">Больше 100</button>
+        </div>
+      </div>
+
+      <!-- Step 3 — Current state -->
+      <div class="quiz-step" data-step="3" data-key="current" data-mode="single">
+        <div class="quiz-question">С чем работаете сейчас?</div>
+        <div class="quiz-hint">Чтобы понимать, что мигрировать и как лучше переходить</div>
+        <div class="quiz-options">
+          <button class="quiz-option" data-val="boxed">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Bitrix24 / amoCRM<small>Подписка + платные доработки</small></span>
+          </button>
+          <button class="quiz-option" data-val="excel">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Excel и Google Sheets<small>Таблицы, документы, общий доступ</small></span>
+          </button>
+          <button class="quiz-option" data-val="custom">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Самописное решение<small>Подрядчик ушёл или система устарела</small></span>
+          </button>
+          <button class="quiz-option" data-val="mixed">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Несколько разных систем<small>CRM + 1С + мессенджеры + Excel</small></span>
+          </button>
+          <button class="quiz-option" data-val="none">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Ничего системного<small>Только мессенджеры и звонки</small></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 4 — Pains -->
+      <div class="quiz-step" data-step="4" data-key="pains" data-mode="multi">
+        <div class="quiz-question">Что мешает работать?</div>
+        <div class="quiz-hint">Выберите всё, что отзывается. Можно несколько.</div>
+        <div class="quiz-counter" id="quiz-pains-counter"></div>
+        <div class="quiz-options cols-2">
+          <button class="quiz-option multi" data-val="leads_lost">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Сделки теряются<small>Между менеджерами, в переписке</small></span>
+          </button>
+          <button class="quiz-option multi" data-val="no_visibility">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Не вижу, кто чем занят<small>Команда в чёрном ящике</small></span>
+          </button>
+          <button class="quiz-option multi" data-val="processes">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Процессы не помещаются<small>Воронка чужая, костыли везде</small></span>
+          </button>
+          <button class="quiz-option multi" data-val="expensive">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Дорого платим<small>Подписки + доработки + интеграторы</small></span>
+          </button>
+          <button class="quiz-option multi" data-val="no_changes">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Невозможно доработать<small>Любая мелочь — недели и счёт</small></span>
+          </button>
+          <button class="quiz-option multi" data-val="data_split">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Данные в разных местах<small>CRM, Excel, 1С, чаты</small></span>
+          </button>
+          <button class="quiz-option multi" data-val="no_analytics">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Нет нормальной аналитики<small>Считаем в Excel руками</small></span>
+          </button>
+          <button class="quiz-option multi" data-val="onboarding">
+            <span class="quiz-option-mark"></span>
+            <span class="quiz-option-text">Сложно вводить новых<small>Обучение — недели</small></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 5 — Contact -->
+      <div class="quiz-step" data-step="5" data-key="contact">
+        <div class="quiz-question">Куда прислать разбор?</div>
+        <div class="quiz-hint">Перезвоним в течение 30 минут на удобный номер</div>
+
+        <div class="quiz-summary" id="quiz-summary">
+          <div class="quiz-summary-title">Ваш профиль</div>
+          <!-- Заполняется динамически -->
+        </div>
+
+        <div class="quiz-fields">
+          <div class="quiz-field" id="quiz-field-name">
+            <input type="text" id="quiz-name" placeholder="Имя" autocomplete="given-name" maxlength="60">
+          </div>
+          <div class="quiz-field" id="quiz-field-phone">
+            <input type="tel" id="quiz-phone" placeholder="+7 701 234 56 78" autocomplete="tel" inputmode="tel">
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-bronze btn-arrow quiz-submit" id="quiz-submit">Получить разбор</button>
+        <p class="quiz-consent">Без обязательств. Не передаём данные третьим лицам.</p>
+      </div>
+
+      <!-- Success state -->
+      <div class="quiz-success" id="quiz-success">
+        <div class="quiz-success-mark">✓</div>
+        <h3>Заявка получена</h3>
+        <p>Перезвоним в течение 30 минут. Если что-то срочное — звоните напрямую: <a href="tel:+77011239999"><b>+7 701 123 99 99</b></a></p>
+      </div>
+
+      <!-- Navigation -->
+      <div class="quiz-nav" id="quiz-nav">
+        <button type="button" class="quiz-back" id="quiz-back">← Назад</button>
+        <button type="button" class="btn btn-bronze btn-arrow" id="quiz-next">Далее</button>
       </div>
     </div>
-
-    <button type="button" class="btn btn-bronze btn-arrow quiz-submit" id="quiz-submit">Получить разбор</button>
-    <p class="quiz-consent">Без обязательств. Не передаём данные третьим лицам.</p>
-  </div>
-
-  <!-- Success state -->
-  <div class="quiz-success" id="quiz-success">
-    <div class="quiz-success-mark">✓</div>
-    <h3>Заявка получена</h3>
-    <p>Перезвоним в течение 30 минут. Если что-то срочное — звоните напрямую: <a href="tel:+77011239999"><b>+7 701 123 99 99</b></a></p>
-  </div>
-
-  <!-- Navigation -->
-  <div class="quiz-nav" id="quiz-nav">
-    <button type="button" class="quiz-back" id="quiz-back">← Назад</button>
-    <button type="button" class="btn btn-bronze btn-arrow" id="quiz-next">Далее</button>
-  </div>
-</div>
-```
-
   </div>
 </section>
 
 <!-- ============== WHY CUSTOM ============== -->
-
 <section class="why">
   <div class="wrap">
     <div class="why-head reveal">
@@ -1464,37 +1456,33 @@ footer {
       <p>Подписка на Bitrix24 или amoCRM — только верх айсберга. Реальная цена коробки вылезает там, где её сложно посчитать.</p>
     </div>
 
-```
-<div class="why-grid">
-  <div class="why-card reveal">
-    <div class="why-card-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+    <div class="why-grid">
+      <div class="why-card reveal">
+        <div class="why-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+        </div>
+        <h3>Менеджеры воюют с интерфейсом</h3>
+        <p>5–7 кликов вместо 2 на каждое действие. Обучение нового — недели. Половина функционала никем не используется.</p>
+      </div>
+      <div class="why-card reveal">
+        <div class="why-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <h3>Платите за лицензии, а не за результат</h3>
+        <p>Команда растёт — счёт растёт. Доработка — платите интеграторам сверху и зависите от их сроков.</p>
+      </div>
+      <div class="why-card reveal">
+        <div class="why-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h3>Данные клиентов — не у вас</h3>
+        <p>Вся история, сделки, контакты — в чужой инфраструктуре. Вендор меняет тарифы — данные становятся заложниками.</p>
+      </div>
     </div>
-    <h3>Менеджеры воюют с интерфейсом</h3>
-    <p>5–7 кликов вместо 2 на каждое действие. Обучение нового — недели. Половина функционала никем не используется.</p>
-  </div>
-  <div class="why-card reveal">
-    <div class="why-card-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-    </div>
-    <h3>Платите за лицензии, а не за результат</h3>
-    <p>Команда растёт — счёт растёт. Доработка — платите интеграторам сверху и зависите от их сроков.</p>
-  </div>
-  <div class="why-card reveal">
-    <div class="why-card-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-    </div>
-    <h3>Данные клиентов — не у вас</h3>
-    <p>Вся история, сделки, контакты — в чужой инфраструктуре. Вендор меняет тарифы — данные становятся заложниками.</p>
-  </div>
-</div>
-```
-
   </div>
 </section>
 
 <!-- ============== OBJECTIONS ============== -->
-
 <section class="objections">
   <div class="wrap">
     <div class="obj-head reveal">
@@ -1503,40 +1491,36 @@ footer {
       <p>Если вашего вопроса нет — оставьте телефон, ответим на разборе.</p>
     </div>
 
-```
-<div class="obj-grid">
-  <div class="obj-card reveal">
-    <div class="obj-card-q">Сколько <em class="b">стоит?</em></div>
-    <div class="obj-card-a">
-      Зависит от объёма функционала и сложности процессов. MVP стоит дороже годовой подписки на коробку — но через <b>1–2 года экономика разворачивается в вашу сторону</b>: вы перестаёте платить за пользователей и доработки.
+    <div class="obj-grid">
+      <div class="obj-card reveal">
+        <div class="obj-card-q">Сколько <em class="b">стоит?</em></div>
+        <div class="obj-card-a">
+          Зависит от объёма функционала и сложности процессов. MVP стоит дороже годовой подписки на коробку — но через <b>1–2 года экономика разворачивается в вашу сторону</b>: вы перестаёте платить за пользователей и доработки.
+        </div>
+      </div>
+      <div class="obj-card reveal">
+        <div class="obj-card-q">Сколько <em class="b">по времени?</em></div>
+        <div class="obj-card-a">
+          Первая рабочая версия — обычно <b>2–4 месяца</b> от старта проектирования. Полноценная система с интеграциями и миграцией — 4–8 месяцев.
+        </div>
+      </div>
+      <div class="obj-card reveal">
+        <div class="obj-card-q">А если разработчики <em class="b">уйдут?</em></div>
+        <div class="obj-card-a">
+          <b>Код принадлежит вам</b>, написан на стандартных технологиях с документацией. Любая команда сможет его подхватить.
+        </div>
+      </div>
+      <div class="obj-card reveal">
+        <div class="obj-card-q">А <em class="b">миграция данных?</em></div>
+        <div class="obj-card-a">
+          Переносим из <b>Bitrix24, amoCRM, 1С, Excel</b>: контакты, сделки, переписку, документы. Параллельный режим в день перехода — без простоев.
+        </div>
+      </div>
     </div>
-  </div>
-  <div class="obj-card reveal">
-    <div class="obj-card-q">Сколько <em class="b">по времени?</em></div>
-    <div class="obj-card-a">
-      Первая рабочая версия — обычно <b>2–4 месяца</b> от старта проектирования. Полноценная система с интеграциями и миграцией — 4–8 месяцев.
-    </div>
-  </div>
-  <div class="obj-card reveal">
-    <div class="obj-card-q">А если разработчики <em class="b">уйдут?</em></div>
-    <div class="obj-card-a">
-      <b>Код принадлежит вам</b>, написан на стандартных технологиях с документацией. Любая команда сможет его подхватить.
-    </div>
-  </div>
-  <div class="obj-card reveal">
-    <div class="obj-card-q">А <em class="b">миграция данных?</em></div>
-    <div class="obj-card-a">
-      Переносим из <b>Bitrix24, amoCRM, 1С, Excel</b>: контакты, сделки, переписку, документы. Параллельный режим в день перехода — без простоев.
-    </div>
-  </div>
-</div>
-```
-
   </div>
 </section>
 
 <!-- ============== FINAL CTA ============== -->
-
 <section class="final-cta" id="contact">
   <div class="wrap">
     <div class="final-cta-card">
@@ -1545,54 +1529,50 @@ footer {
         <h2>Хотите такую <em class="b">под свой бизнес?</em></h2>
         <p>Оставьте телефон — за 30 минут разбора покажем, что не так в вашей текущей CRM и какой будет ваша система. Бесплатно, без обязательств.</p>
 
-```
-    <div class="form-success" id="success-2">
-      <div class="form-success-mark">✓</div>
-      <div><b>Заявка получена</b>Перезвоним в течение 30 минут.</div>
-    </div>
-    <div class="form-error-state" id="error-2">
-      Не удалось отправить. Позвоните напрямую: <a href="tel:+77011239999">+7 701 123 99 99</a>
-    </div>
+        <div class="form-success" id="success-2">
+          <div class="form-success-mark">✓</div>
+          <div><b>Заявка получена</b>Перезвоним в течение 30 минут.</div>
+        </div>
+        <div class="form-error-state" id="error-2">
+          Не удалось отправить. Позвоните напрямую: <a href="tel:+77011239999">+7 701 123 99 99</a>
+        </div>
 
-    <form class="lead-form js-lead-form" novalidate>
-      <input type="tel" name="phone" placeholder="+7 701 234 56 78" required autocomplete="tel" inputmode="tel">
-      <button type="submit" class="btn btn-bronze btn-arrow">Получить разбор</button>
-    </form>
-    <div class="form-note">
-      <span>Бесплатно</span>
-      <span>Без обязательств</span>
-      <span>Перезвоним за 30 минут</span>
-    </div>
+        <form class="lead-form js-lead-form" novalidate>
+          <input type="tel" name="phone" placeholder="+7 701 234 56 78" required autocomplete="tel" inputmode="tel">
+          <button type="submit" class="btn btn-bronze btn-arrow">Получить разбор</button>
+        </form>
+        <div class="form-note">
+          <span>Бесплатно</span>
+          <span>Без обязательств</span>
+          <span>Перезвоним за 30 минут</span>
+        </div>
 
-    <div class="final-cta-contacts">
-      <a href="tel:+77011239999" class="final-cta-contact">
-        <div class="final-cta-contact-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <div class="final-cta-contacts">
+          <a href="tel:+77011239999" class="final-cta-contact">
+            <div class="final-cta-contact-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            </div>
+            <div class="final-cta-contact-info">
+              <small>Телефон</small>
+              <b>+7 701 123 99 99</b>
+            </div>
+          </a>
+          <a href="mailto:uurraa@gmail.com" class="final-cta-contact">
+            <div class="final-cta-contact-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="m4 7 8 6 8-6"/></svg>
+            </div>
+            <div class="final-cta-contact-info">
+              <small>Email</small>
+              <b>uurraa@gmail.com</b>
+            </div>
+          </a>
         </div>
-        <div class="final-cta-contact-info">
-          <small>Телефон</small>
-          <b>+7 701 123 99 99</b>
-        </div>
-      </a>
-      <a href="mailto:uurraa@gmail.com" class="final-cta-contact">
-        <div class="final-cta-contact-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="m4 7 8 6 8-6"/></svg>
-        </div>
-        <div class="final-cta-contact-info">
-          <small>Email</small>
-          <b>uurraa@gmail.com</b>
-        </div>
-      </a>
+      </div>
     </div>
-  </div>
-</div>
-```
-
   </div>
 </section>
 
 <!-- ============== FOOTER ============== -->
-
 <footer>
   <div class="wrap footer-inner">
     <img src="pllato_logo_transparent_navy.svg" alt="Pllato">
@@ -1605,7 +1585,6 @@ footer {
 </footer>
 
 <!-- ============== STICKY MOBILE BAR ============== -->
-
 <div class="sticky-bar" id="sticky-bar">
   <a href="tel:+77011239999" class="sticky-call">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -2076,6 +2055,5 @@ document.querySelectorAll('.js-lead-form').forEach((form, idx) => {
   });
 });
 </script>
-
 </body>
 </html>
