@@ -515,6 +515,246 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 .project-card.niche-production .project-tag { background: rgba(234, 125, 75, 0.1); color: #c2410c; }
 .project-card.niche-clinic .project-tag { background: rgba(77, 124, 254, 0.08); color: #2952c4; }
 
+/* ============== CALCULATOR ============== */
+.calc { padding: 100px 0; background: var(--surface-2); }
+.calc-head { text-align: center; max-width: 720px; margin: 0 auto 48px; }
+.calc-head h2 {
+  font-size: clamp(30px, 4.5vw, 52px); line-height: 1.05;
+  font-weight: 800; letter-spacing: -0.035em; margin: 14px 0 16px;
+}
+.calc-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
+.calc-head p { font-size: 16px; color: var(--text-2); line-height: 1.6; }
+
+.calc-grid {
+  display: grid; grid-template-columns: 1.15fr 1fr; gap: 28px;
+  align-items: start;
+}
+@media (max-width: 900px) { .calc-grid { grid-template-columns: 1fr; gap: 20px; } }
+
+.calc-inputs {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  padding: 32px;
+  box-shadow: var(--shadow-sm);
+}
+@media (max-width: 600px) { .calc-inputs { padding: 22px; } }
+
+.calc-block { margin-bottom: 24px; }
+.calc-block:last-child { margin-bottom: 0; }
+.calc-block h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-2);
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.calc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font-family: var(--sans);
+  font-size: 13.5px;
+  padding: 9px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.chip:hover { border-color: var(--bronze); color: var(--bronze-deep); }
+.chip.active {
+  background: var(--navy);
+  color: #fff;
+  border-color: var(--navy);
+}
+
+.calc-modules {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+@media (max-width: 480px) { .calc-modules { grid-template-columns: 1fr; } }
+
+.module {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s;
+  user-select: none;
+}
+.module:hover { border-color: var(--bronze); }
+.module input { display: none; }
+.module-check {
+  width: 18px; height: 18px;
+  border-radius: 4px;
+  border: 1.5px solid var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  background: #fff;
+}
+.module input:checked ~ .module-check {
+  background: var(--bronze);
+  border-color: var(--bronze);
+}
+.module input:checked ~ .module-check::after {
+  content: '';
+  width: 4px; height: 8px;
+  border: solid #fff; border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translateY(-1px);
+}
+.module-name { flex: 1; color: var(--text); }
+.module-cost {
+  color: var(--text-3); font-size: 12px; font-weight: 700;
+  font-feature-settings: 'tnum';
+}
+.module:has(input:checked) {
+  background: var(--bronze-tint);
+  border-color: var(--bronze);
+}
+.module:has(input:checked) .module-cost { color: var(--bronze-deep); }
+
+.calc-spend {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 4px 14px 4px 14px;
+  transition: border-color 0.2s;
+}
+.calc-spend:focus-within { border-color: var(--bronze); }
+.calc-spend input {
+  flex: 1; min-width: 0;
+  border: none; background: transparent;
+  font-size: 18px; font-weight: 700;
+  font-family: var(--sans);
+  color: var(--text);
+  outline: none;
+  padding: 10px 0;
+  font-feature-settings: 'tnum';
+  -moz-appearance: textfield;
+}
+.calc-spend input::-webkit-outer-spin-button,
+.calc-spend input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.calc-spend > span {
+  color: var(--text-2); font-size: 14px; font-weight: 600;
+  flex-shrink: 0;
+}
+.calc-hint { font-size: 12.5px; color: var(--text-3); margin-top: 8px; line-height: 1.5; }
+
+/* Result panel */
+.calc-result-wrap { position: sticky; top: 84px; }
+@media (max-width: 900px) { .calc-result-wrap { position: static; } }
+
+.calc-result-card {
+  background: var(--navy);
+  color: #fff;
+  border-radius: var(--r-lg);
+  padding: 32px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+@media (max-width: 600px) { .calc-result-card { padding: 24px; } }
+.calc-result-card::before {
+  content: '';
+  position: absolute; top: -120px; right: -120px;
+  width: 320px; height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(184,137,90,0.22), transparent 60%);
+}
+.calc-result-eyebrow {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--bronze-light); font-weight: 700;
+  margin-bottom: 12px; position: relative;
+}
+.calc-result-price {
+  display: flex; align-items: baseline; gap: 6px;
+  margin-bottom: 6px; position: relative;
+  flex-wrap: wrap;
+}
+.calc-result-price strong {
+  font-size: clamp(36px, 5vw, 52px);
+  font-weight: 800;
+  color: var(--bronze-light);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-feature-settings: 'tnum';
+  transition: opacity 0.15s;
+}
+.calc-result-price strong.flash { opacity: 0.4; }
+.calc-result-price .currency {
+  font-size: 22px; font-weight: 700; color: var(--bronze-light);
+}
+.calc-result-sub {
+  font-size: 13px; color: rgba(255,255,255,0.6);
+  margin-bottom: 22px;
+  position: relative;
+}
+.calc-result-sub b { color: rgba(255,255,255,0.85); font-weight: 600; }
+
+.calc-compare {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--r-md);
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  position: relative;
+}
+.calc-compare h4 {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.55); font-weight: 700;
+  margin-bottom: 10px;
+  color: #fff;
+}
+.compare-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0;
+  font-size: 14px;
+}
+.compare-row > span { color: rgba(255,255,255,0.7); }
+.compare-row > strong { color: #fff; font-weight: 700; font-feature-settings: 'tnum'; }
+.compare-row.total {
+  border-top: 1px solid rgba(255,255,255,0.1);
+  margin-top: 4px; padding-top: 10px;
+}
+.compare-row.total > span { font-weight: 600; color: #fff; }
+.compare-row.total > strong {
+  color: #86efac; font-size: 16px;
+}
+.compare-row.total.loss > strong { color: #fca5a5; }
+
+.calc-breakeven {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(184, 137, 90, 0.18);
+  border: 1px solid rgba(184, 137, 90, 0.4);
+  border-radius: var(--r-md);
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  font-size: 14px; font-weight: 600;
+  color: var(--bronze-light);
+  position: relative;
+}
+.calc-breakeven svg { width: 18px; height: 18px; color: var(--bronze-light); flex-shrink: 0; }
+.calc-breakeven.hidden { display: none; }
+
+.calc-result-card .btn {
+  width: 100%; position: relative;
+}
+
 /* ============== WHY CUSTOM ============== */
 .why { padding: 100px 0; background: var(--bronze-tint); }
 .why-head { text-align: center; max-width: 720px; margin: 0 auto 56px; }
@@ -611,7 +851,10 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
   border-color: var(--bronze-light);
   box-shadow: 0 0 0 4px rgba(184,137,90,0.18);
 }
-.final-cta .lead-form input { color: #fff; }
+.final-cta .lead-form input {
+  color: #fff !important;
+  caret-color: var(--bronze-light);
+}
 .final-cta .lead-form input::placeholder { color: rgba(255,255,255,0.45); }
 .final-cta .form-note { color: rgba(255,255,255,0.6); }
 .final-cta .form-note span::before { color: var(--bronze-light); }
@@ -785,10 +1028,11 @@ footer {
     </a>
 
     <nav class="nav">
-      <a href="#projects">Проекты под вашу нишу</a>
+      <a href="#projects">Проекты</a>
+      <a href="#calc">Цены</a>
       <a href="crm-builder.html" class="has-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-        Нарисовать схему CRM
+        Схема CRM
       </a>
     </nav>
 
@@ -1094,6 +1338,151 @@ footer {
   </div>
 </section>
 
+<!-- ============== CALCULATOR ============== -->
+<section class="calc" id="calc">
+  <div class="wrap">
+    <div class="calc-head reveal">
+      <span class="eyebrow">Прозрачные цены</span>
+      <h2>Сколько стоит CRM <em class="b">под ваш бизнес?</em></h2>
+      <p>Базовая разработка от 500 000 ₸. Выберите параметры — увидите оценку и сравнение с тем, сколько вы платите за коробку сейчас.</p>
+    </div>
+
+    <div class="calc-grid">
+
+      <!-- LEFT: inputs -->
+      <div class="calc-inputs reveal">
+
+        <div class="calc-block">
+          <h3>Сфера бизнеса</h3>
+          <div class="calc-chips" data-group="niche">
+            <button type="button" class="chip" data-val="services">Услуги · B2B</button>
+            <button type="button" class="chip" data-val="realestate">Недвижимость</button>
+            <button type="button" class="chip" data-val="wholesale">Опт</button>
+            <button type="button" class="chip" data-val="production">Производство</button>
+            <button type="button" class="chip" data-val="clinic">Клиника</button>
+            <button type="button" class="chip" data-val="other">Другое</button>
+          </div>
+        </div>
+
+        <div class="calc-block">
+          <h3>Размер команды</h3>
+          <div class="calc-chips" data-group="team">
+            <button type="button" class="chip" data-val="small">5–10 чел.</button>
+            <button type="button" class="chip" data-val="medium">11–25</button>
+            <button type="button" class="chip" data-val="large">26–50</button>
+            <button type="button" class="chip" data-val="big">51–100</button>
+            <button type="button" class="chip" data-val="enterprise">100+</button>
+          </div>
+        </div>
+
+        <div class="calc-block">
+          <h3>Что нужно в системе</h3>
+          <div class="calc-modules">
+            <label class="module">
+              <input type="checkbox" data-cost="200000">
+              <span class="module-check"></span>
+              <span class="module-name">Складской учёт</span>
+              <span class="module-cost">+200K</span>
+            </label>
+            <label class="module">
+              <input type="checkbox" data-cost="400000">
+              <span class="module-check"></span>
+              <span class="module-name">Производство</span>
+              <span class="module-cost">+400K</span>
+            </label>
+            <label class="module">
+              <input type="checkbox" data-cost="600000">
+              <span class="module-check"></span>
+              <span class="module-name">Мобайл для команды</span>
+              <span class="module-cost">+600K</span>
+            </label>
+            <label class="module">
+              <input type="checkbox" data-cost="300000">
+              <span class="module-check"></span>
+              <span class="module-name">Кабинет клиента</span>
+              <span class="module-cost">+300K</span>
+            </label>
+            <label class="module">
+              <input type="checkbox" data-cost="200000">
+              <span class="module-check"></span>
+              <span class="module-name">Аналитика и отчёты</span>
+              <span class="module-cost">+200K</span>
+            </label>
+            <label class="module">
+              <input type="checkbox" data-cost="250000">
+              <span class="module-check"></span>
+              <span class="module-name">Интеграция с 1С</span>
+              <span class="module-cost">+250K</span>
+            </label>
+            <label class="module">
+              <input type="checkbox" data-cost="150000">
+              <span class="module-check"></span>
+              <span class="module-name">Мессенджеры · телефония</span>
+              <span class="module-cost">+150K</span>
+            </label>
+            <label class="module">
+              <input type="checkbox" data-cost="200000">
+              <span class="module-check"></span>
+              <span class="module-name">Миграция из текущей CRM</span>
+              <span class="module-cost">+200K</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="calc-block">
+          <h3>Сколько платите за CRM сейчас</h3>
+          <div class="calc-spend">
+            <input type="number" id="current-spend" value="100000" step="10000" min="0" max="5000000">
+            <span>₸ / мес</span>
+          </div>
+          <p class="calc-hint">Bitrix24, amoCRM, доработки и интеграторы. Если CRM нет — оставьте 0.</p>
+        </div>
+
+      </div>
+
+      <!-- RIGHT: result -->
+      <div class="calc-result-wrap reveal">
+        <div class="calc-result-card">
+          <div class="calc-result-eyebrow">Pllato CRM · ваш проект</div>
+          <div class="calc-result-price">
+            <strong id="calc-price">1 200 000</strong>
+            <span class="currency">₸</span>
+          </div>
+          <div class="calc-result-sub">
+            единоразово · поддержка <b>50 000 ₸/мес</b>
+          </div>
+
+          <div class="calc-compare">
+            <h4>За 3 года владения</h4>
+            <div class="compare-row">
+              <span>Pllato (разработка + поддержка)</span>
+              <strong id="calc-3y-pllato">3 000 000 ₸</strong>
+            </div>
+            <div class="compare-row">
+              <span>Текущая CRM</span>
+              <strong id="calc-3y-current">3 600 000 ₸</strong>
+            </div>
+            <div class="compare-row total" id="compare-savings">
+              <span>Экономия с Pllato</span>
+              <strong id="calc-savings">600 000 ₸</strong>
+            </div>
+          </div>
+
+          <div class="calc-breakeven" id="calc-breakeven-block">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M13 2 L4 14 H12 L11 22 L20 10 H12 Z"/>
+            </svg>
+            <span id="calc-breakeven">Окупится через 14 месяцев</span>
+          </div>
+
+          <a href="#contact" class="btn btn-bronze btn-arrow">Получить точный расчёт</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
 <!-- ============== WHY CUSTOM ============== -->
 <section class="why">
   <div class="wrap">
@@ -1204,13 +1593,13 @@ footer {
               <b>+7 701 123 99 99</b>
             </div>
           </a>
-          <a href="mailto:info@pllato.kz" class="final-cta-contact">
+          <a href="mailto:uurraa@gmail.com" class="final-cta-contact">
             <div class="final-cta-contact-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="m4 7 8 6 8-6"/></svg>
             </div>
             <div class="final-cta-contact-info">
               <small>Email</small>
-              <b>info@pllato.kz</b>
+              <b>uurraa@gmail.com</b>
             </div>
           </a>
         </div>
@@ -1259,7 +1648,7 @@ footer {
 ============================================================ */
 
 const TELEGRAM_BOT_TOKEN = '8719630290:AAHuiK54ouQKZt_SVrV9K4oJyPHayJprVss';
-const TELEGRAM_CHAT_ID   = ''; // <-- ВСТАВЬТЕ chat_id от @userinfobot
+const TELEGRAM_CHAT_ID   = '-5297917142'; // группа «Заявки с сайта pllato.kz»
 
 const WHATSAPP_TARGET_PHONE = '+77011239999';   // куда слать заявки
 const CALLMEBOT_APIKEY      = '';               // <-- ВСТАВЬТЕ APIKEY от CallMeBot
@@ -1305,15 +1694,12 @@ function formatPhone(value) {
 document.querySelectorAll('.lead-form input[name="phone"]').forEach(input => {
   input.addEventListener('input', () => {
     const cursorAtEnd = input.selectionStart === input.value.length;
-    input.value = formatPhone(input.value);
-    if (cursorAtEnd) input.setSelectionRange(input.value.length, input.value.length);
-    input.closest('.lead-form').classList.remove('error');
-  });
-  input.addEventListener('focus', () => {
-    if (!input.value) {
-      input.value = '+7 (';
-      setTimeout(() => input.setSelectionRange(4, 4), 0);
+    const formatted = formatPhone(input.value);
+    if (formatted !== input.value) {
+      input.value = formatted;
+      if (cursorAtEnd) input.setSelectionRange(input.value.length, input.value.length);
     }
+    input.closest('.lead-form').classList.remove('error');
   });
 });
 
@@ -1377,6 +1763,162 @@ function saveLeadBackup(phone, source) {
     localStorage.setItem('pllato_leads_backup', JSON.stringify(stored));
   } catch (e) { /* localStorage might be disabled */ }
 }
+
+/* ============== CALCULATOR LOGIC ============== */
+const CALC_BASE = 500000;
+const CALC_NICHE_MULT = {
+  services: 1.0,
+  realestate: 1.5,
+  wholesale: 1.3,
+  production: 1.6,
+  clinic: 1.4,
+  other: 1.2,
+};
+const CALC_TEAM_MULT = {
+  small: 1.0,       // 5-10
+  medium: 1.4,      // 11-25
+  large: 1.8,       // 26-50
+  big: 2.4,         // 51-100
+  enterprise: 3.0,  // 100+
+};
+const CALC_SUPPORT_MONTHLY = 50000;
+
+const calcState = {
+  niche: 'services',
+  team: 'medium',
+  modules: [],          // array of costs (ints)
+  currentSpend: 100000,
+};
+
+function fmtMoney(n) {
+  return new Intl.NumberFormat('ru-RU').format(Math.round(n));
+}
+
+function calcAnimateNumber(el, newValue) {
+  el.classList.add('flash');
+  setTimeout(() => {
+    el.textContent = newValue;
+    el.classList.remove('flash');
+  }, 80);
+}
+
+function calculate() {
+  const nicheMult = CALC_NICHE_MULT[calcState.niche] || 1;
+  const teamMult = CALC_TEAM_MULT[calcState.team] || 1;
+  const moduleSum = calcState.modules.reduce((s, c) => s + c, 0);
+
+  let total = CALC_BASE * nicheMult * teamMult + moduleSum;
+  total = Math.ceil(total / 50000) * 50000; // round up to nearest 50K
+
+  const pllato3y = total + CALC_SUPPORT_MONTHLY * 36;
+  const current3y = calcState.currentSpend * 36;
+  const savings = current3y - pllato3y;
+
+  // Update price (with tiny flash animation)
+  const priceEl = document.getElementById('calc-price');
+  calcAnimateNumber(priceEl, fmtMoney(total));
+
+  // 3-year comparison
+  document.getElementById('calc-3y-pllato').textContent = fmtMoney(pllato3y) + ' ₸';
+  document.getElementById('calc-3y-current').textContent = fmtMoney(current3y) + ' ₸';
+
+  const savingsRow = document.getElementById('compare-savings');
+  const savingsLabel = savingsRow.querySelector('span');
+  const savingsValue = document.getElementById('calc-savings');
+
+  if (savings > 0) {
+    savingsLabel.textContent = 'Экономия с Pllato';
+    savingsValue.textContent = fmtMoney(savings) + ' ₸';
+    savingsRow.classList.remove('loss');
+  } else if (savings < 0) {
+    savingsLabel.textContent = 'Доплата (но это ваш код)';
+    savingsValue.textContent = fmtMoney(Math.abs(savings)) + ' ₸';
+    savingsRow.classList.add('loss');
+  } else {
+    savingsLabel.textContent = 'Равная стоимость';
+    savingsValue.textContent = '0 ₸';
+    savingsRow.classList.remove('loss');
+  }
+
+  // Breakeven
+  const monthlyDiff = calcState.currentSpend - CALC_SUPPORT_MONTHLY;
+  const beBlock = document.getElementById('calc-breakeven-block');
+  const beText = document.getElementById('calc-breakeven');
+
+  if (monthlyDiff > 0) {
+    const months = Math.ceil(total / monthlyDiff);
+    if (months <= 60) {
+      let text;
+      if (months <= 12) text = `Окупится через ${months} мес.`;
+      else if (months < 24) text = `Окупится за ${months} мес. (~${Math.round(months/12*10)/10} года)`;
+      else text = `Окупится через ${Math.round(months/12*10)/10} года`;
+      beText.textContent = text;
+      beBlock.classList.remove('hidden');
+    } else {
+      beBlock.classList.add('hidden');
+    }
+  } else {
+    beBlock.classList.add('hidden');
+  }
+}
+
+// Set initial active chips
+function initCalcChips() {
+  document.querySelectorAll('.calc-chips').forEach(group => {
+    const groupName = group.dataset.group;
+    const initial = calcState[groupName];
+    group.querySelectorAll('.chip').forEach(chip => {
+      if (chip.dataset.val === initial) chip.classList.add('active');
+      chip.addEventListener('click', () => {
+        group.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        calcState[groupName] = chip.dataset.val;
+
+        // Smart default: update current spend placeholder based on team size
+        if (groupName === 'team') {
+          const defaults = { small: 30000, medium: 100000, large: 200000, big: 400000, enterprise: 800000 };
+          const input = document.getElementById('current-spend');
+          // Only auto-update if user hasn't set custom value (currentSpend matches old default)
+          if (!input.dataset.userTouched) {
+            input.value = defaults[chip.dataset.val] || 100000;
+            calcState.currentSpend = parseInt(input.value);
+          }
+        }
+
+        calculate();
+      });
+    });
+  });
+}
+
+function initCalcModules() {
+  document.querySelectorAll('.module input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const cost = parseInt(cb.dataset.cost) || 0;
+      if (cb.checked) {
+        calcState.modules.push(cost);
+      } else {
+        const idx = calcState.modules.indexOf(cost);
+        if (idx >= 0) calcState.modules.splice(idx, 1);
+      }
+      calculate();
+    });
+  });
+}
+
+function initCalcSpend() {
+  const input = document.getElementById('current-spend');
+  input.addEventListener('input', () => {
+    input.dataset.userTouched = '1';
+    calcState.currentSpend = parseInt(input.value) || 0;
+    calculate();
+  });
+}
+
+initCalcChips();
+initCalcModules();
+initCalcSpend();
+calculate();
 
 /* ============== FORM HANDLING — OPTIMISTIC UI ============== */
 document.querySelectorAll('.js-lead-form').forEach((form, idx) => {
