@@ -1927,11 +1927,13 @@ async function runBatchMigration(opts) {
   const RETRY_WAIT_MS = 60_000;
   const accumulator = {};
   const startedAt = Date.now();
+  // Адаптивный лимит для случаев когда сервер просит уменьшить (комменты задач)
+  let currentLimit = opts.initialLimit || 50;
 
   while (true) {
     try {
       const idToken = await fbAuth.currentUser.getIdToken();
-      const body = Object.assign({ idToken, offset, limit: 50 }, opts.extraBody || {});
+      const body = Object.assign({ idToken, offset, limit: currentLimit }, opts.extraBody || {});
       const r = await fetch(WORKER_URL + opts.endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1940,11 +1942,16 @@ async function runBatchMigration(opts) {
       const d = await r.json();
 
       if (!d.ok) {
+        // Сервер просит попробовать меньшим лимитом (комменты задач)
+        if (d.shouldRetryWithSmallerLimit && currentLimit > 1) {
+          const newLimit = Math.max(1, Math.floor(currentLimit / 2));
+          el.innerHTML += '\n<span class="warn">[адаптация] Уменьшаем размер батча: ' + currentLimit + ' → ' + newLimit + ' (offset ' + offset + ')</span>\n';
+          currentLimit = newLimit;
+          continue;
+        }
         const errStr = d.error || '';
-        // Извлекаем HTTP код из ошибки (формат "HTTP 500", "Bitrix batch: HTTP 500" и т.д.)
         const httpMatch = errStr.match(/HTTP\s+(\d+)/);
         const httpCode = httpMatch ? parseInt(httpMatch[1]) : null;
-        // Ретраим: rate limit (429), auth-сбои (401/403) и 5xx (временные сбои Битрикса)
         const isRetryable = httpCode === 429 || httpCode === 401 || httpCode === 403 ||
                             (httpCode !== null && httpCode >= 500 && httpCode < 600);
         if (isRetryable && retry429 < MAX_429_RETRIES) {
@@ -1966,6 +1973,10 @@ async function runBatchMigration(opts) {
       }
 
       retry429 = 0;
+      // После успешного батча — пробуем понемногу увеличивать лимит обратно (если был сброшен)
+      if (currentLimit < (opts.initialLimit || 50)) {
+        currentLimit = Math.min((opts.initialLimit || 50), currentLimit * 2);
+      }
       total = d.total;
       totalProcessed += d.processed;
       totalErrors += d.errors || 0;
@@ -1989,6 +2000,7 @@ async function runBatchMigration(opts) {
       let html = '<span class="info">⚙ Обработано ' + totalProcessed.toLocaleString('ru') + ' из ' + total.toLocaleString('ru') + ' (' + pct + '%)</span>\n\n';
       html += 'Прошло: ' + elapsedText + ' · Скорость: ' + speed + ' ' + opts.entityNameShort + '/сек · Осталось: ~' + etaText + '\n';
       html += 'Ошибок: ' + (totalErrors > 0 ? '<span class="err">' + totalErrors + '</span>' : 0) + '\n';
+      if (currentLimit !== (opts.initialLimit || 50)) html += 'Текущий размер батча: ' + currentLimit + '\n';
       if (opts.extraStatsRender) html += opts.extraStatsRender(accumulator) + '\n';
       html += '\n<span class="ok">█</span>'.repeat(Math.floor(pct/2)) + '<span class="gray">░</span>'.repeat(50 - Math.floor(pct/2)) + ' ' + pct + '%\n';
       el.innerHTML = html;
@@ -2068,7 +2080,8 @@ window.migrateTaskComments = async function() {
     resultElId: 'task-comments-mig-result',
     entityName: 'комментариев задач',
     entityNameShort: 'задач',
-    confirmText: 'Запустить миграцию комментариев задач?\n\nИдёт по задачам у которых есть комментарии. Через batch-API ~50 списков комментов в одном subrequest, поэтому быстро.',
+    initialLimit: 25, // Cloudflare 50-subrequest лимит, нужен запас
+    confirmText: 'Запустить миграцию комментариев задач?\n\nПо 25 задач за вызов worker (нужен запас под лимит Cloudflare 50 subrequest). Если упрёмся в payload too large — UI сам уменьшит размер батча до 12, 6, 3, 1 и продолжит.',
     extraStats: (d, acc) => {
       acc.cumulativeComments = d.cumulativeComments || 0;
       acc.cumulativeAttachments = d.cumulativeAttachments || 0;
