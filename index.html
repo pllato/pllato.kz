@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Pllato — кастомные CRM-системы под ваш бизнес</title>
-<meta name="description" content="Pllato разрабатывает кастомные CRM под конкретный бизнес. Бесплатный разбор за 30 минут — покажем, что не так в вашей текущей CRM.">
+<meta name="description" content="Pllato разрабатывает кастомные CRM под конкретный бизнес. Бесплатный разбор за 30 минут — покажем, что не так в текущей CRM.">
 <meta name="theme-color" content="#fafaf6">
 
 <meta property="og:title" content="Pllato — кастомные CRM. Бесплатный разбор за 30 минут.">
@@ -22,7 +22,6 @@
 
 <style>
 :root {
-  /* Brand */
   --navy: #0a1628;
   --bronze: #b8895a;
   --bronze-deep: #a07749;
@@ -30,45 +29,30 @@
   --bronze-tint: #faf5ee;
   --bronze-tint-2: #f3e9d7;
 
-  /* Light surfaces */
   --bg: #fafaf6;
-  --bg-2: #f5f1ea;
   --surface: #ffffff;
   --surface-2: #faf8f3;
 
-  /* Text */
   --text: #0a1628;
   --text-2: #5a6478;
   --text-3: #94a3b8;
-  --text-on-dark: #ffffff;
-  --muted-on-dark: rgba(255, 255, 255, 0.62);
-  --muted-on-dark-2: rgba(255, 255, 255, 0.45);
 
-  /* Lines */
   --line: #e8e3d6;
   --line-2: #efeae0;
-  --line-on-dark: rgba(255, 255, 255, 0.1);
-  --line-on-dark-strong: rgba(255, 255, 255, 0.18);
 
-  /* Internal mockup palette (dark — used inside .frame.* sections) */
-  --m-navy: #0a1628;
-  --m-navy-2: #0f1e36;
-  --m-navy-3: #142847;
-  --m-navy-4: #1b3258;
-  --m-bronze: #b8895a;
-  --m-bronze-light: #d4a373;
-  --m-bronze-dim: #8a6543;
-  --m-bronze-deep: #6b4e33;
+  /* Distinct accent colors for 4 niches */
+  --c-realestate: #b8895a;     /* Bronze (brand) — недвижимость */
+  --c-wholesale:  #16a34a;     /* Зелёный — опт */
+  --c-production: #ea7d4b;     /* Коралловый — производство */
+  --c-clinic:     #4d7cfe;     /* Голубой — клиники */
 
-  /* Status */
   --green: #16a34a;
   --green-tint: #dcfce7;
   --red: #dc2626;
   --red-tint: #fee2e2;
 
-  /* Misc */
   --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --max: 1240px;
+  --max: 1280px;
   --r-sm: 8px;
   --r-md: 12px;
   --r-lg: 16px;
@@ -94,9 +78,11 @@ body {
 }
 
 .wrap { max-width: var(--max); margin: 0 auto; padding: 0 28px; }
-@media (max-width: 640px) { .wrap { padding: 0 18px; } }
+@media (max-width: 640px) { .wrap { padding: 0 16px; } }
 
-/* ============== TYPOGRAPHY UTILITIES ============== */
+h1, h2, h3, h4 { color: var(--text); font-weight: 700; letter-spacing: -0.025em; }
+em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
+
 .eyebrow {
   display: inline-flex; align-items: center; gap: 8px;
   font-size: 12px; font-weight: 600;
@@ -108,13 +94,6 @@ body {
   display: inline-block;
 }
 
-h1, h2, h3, h4 {
-  font-family: var(--sans); letter-spacing: -0.025em;
-  color: var(--text); font-weight: 700;
-}
-
-em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
-
 /* ============== BUTTONS ============== */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -125,29 +104,23 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
   white-space: nowrap;
 }
 .btn-primary {
-  background: var(--navy); color: var(--text-on-dark);
+  background: var(--navy); color: #fff;
   box-shadow: var(--shadow-sm);
 }
-.btn-primary:hover {
-  background: #1a2a44; transform: translateY(-1px); box-shadow: var(--shadow-md);
-}
+.btn-primary:hover { background: #1a2a44; transform: translateY(-1px); box-shadow: var(--shadow-md); }
 .btn-primary:disabled { opacity: 0.6; cursor: wait; transform: none; }
 .btn-bronze {
-  background: var(--bronze); color: var(--text-on-dark);
-  box-shadow: 0 1px 2px rgba(184, 137, 90, 0.2), 0 0 0 1px rgba(184, 137, 90, 0.1) inset;
+  background: var(--bronze); color: #fff;
+  box-shadow: 0 1px 2px rgba(184, 137, 90, 0.2);
 }
-.btn-bronze:hover {
-  background: var(--bronze-deep); transform: translateY(-1px);
-  box-shadow: 0 8px 20px -6px rgba(184, 137, 90, 0.4);
-}
-.btn-ghost {
-  background: transparent; color: var(--text); border-color: var(--line);
-}
+.btn-bronze:hover { background: var(--bronze-deep); transform: translateY(-1px); box-shadow: 0 8px 20px -6px rgba(184, 137, 90, 0.4); }
+.btn-bronze:disabled { opacity: 0.7; cursor: wait; transform: none; }
+.btn-ghost { background: transparent; color: var(--text); border-color: var(--line); }
 .btn-ghost:hover { border-color: var(--text); }
 .btn-arrow::after { content: '→'; transition: transform 0.2s; }
 .btn-arrow:hover::after { transform: translateX(3px); }
 @media (max-width: 480px) {
-  .btn { padding: 12px 18px; font-size: 14px; }
+  .btn { padding: 12px 16px; font-size: 14px; }
 }
 
 /* ============== HEADER ============== */
@@ -158,7 +131,7 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
   border-bottom: 1px solid transparent;
 }
 .site-header.scrolled {
-  background: rgba(250, 250, 246, 0.85);
+  background: rgba(250, 250, 246, 0.9);
   backdrop-filter: blur(20px) saturate(1.4);
   -webkit-backdrop-filter: blur(20px) saturate(1.4);
   border-bottom-color: var(--line);
@@ -166,14 +139,26 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 .header-inner {
   display: flex; justify-content: space-between; align-items: center;
   max-width: var(--max); margin: 0 auto; padding: 0 28px;
+  gap: 16px;
 }
-@media (max-width: 640px) { .header-inner { padding: 0 18px; } }
+@media (max-width: 640px) { .header-inner { padding: 0 16px; gap: 8px; } }
 
-.logo { display: flex; align-items: center; text-decoration: none; }
+.logo { display: flex; align-items: center; text-decoration: none; flex-shrink: 0; }
 .logo img { height: 32px; width: auto; display: block; }
-@media (max-width: 480px) { .logo img { height: 28px; } }
+@media (max-width: 480px) { .logo img { height: 26px; } }
 
-.header-right { display: flex; align-items: center; gap: 14px; }
+.nav { display: flex; align-items: center; gap: 24px; }
+.nav a {
+  font-size: 14.5px; font-weight: 500; color: var(--text-2);
+  text-decoration: none; transition: color 0.2s;
+  white-space: nowrap;
+}
+.nav a:hover { color: var(--text); }
+.nav a.has-icon { display: inline-flex; align-items: center; gap: 6px; }
+.nav a.has-icon svg { width: 14px; height: 14px; color: var(--bronze); }
+@media (max-width: 1000px) { .nav { display: none; } }
+
+.header-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .header-phone {
   color: var(--text); text-decoration: none; font-weight: 600; font-size: 14.5px;
   display: flex; align-items: center; gap: 8px;
@@ -182,32 +167,37 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 .header-phone:hover { color: var(--bronze); }
 .header-phone svg { width: 16px; height: 16px; color: var(--bronze); flex-shrink: 0; }
 @media (max-width: 720px) { .header-phone span { display: none; } }
+@media (max-width: 380px) { .header-right .btn { padding: 10px 12px; font-size: 13px; } }
 
 /* ============== HERO ============== */
 .hero {
-  min-height: 100vh; padding: 120px 0 80px;
+  min-height: 100vh; padding: 110px 0 80px;
   display: flex; align-items: center; position: relative; overflow: hidden;
   background:
-    radial-gradient(ellipse 1000px 600px at 80% 20%, rgba(184, 137, 90, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse 800px 500px at 10% 80%, rgba(184, 137, 90, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 1100px 700px at 100% 20%, rgba(184, 137, 90, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 800px 500px at 0% 90%, rgba(77, 124, 254, 0.05) 0%, transparent 55%),
     var(--bg);
 }
 .hero::before {
   content: ''; position: absolute; inset: 0;
-  background-image:
-    radial-gradient(circle at 1px 1px, rgba(10, 22, 40, 0.06) 1px, transparent 0);
+  background-image: radial-gradient(circle at 1px 1px, rgba(10, 22, 40, 0.06) 1px, transparent 0);
   background-size: 32px 32px;
   mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black, transparent);
   -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black, transparent);
   pointer-events: none;
 }
 .hero-inner { position: relative; z-index: 1; width: 100%; }
+.hero-grid {
+  display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center;
+}
+@media (max-width: 1100px) { .hero-grid { gap: 40px; } }
+@media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; gap: 48px; } }
 
 .hero-status {
   display: inline-flex; align-items: center; gap: 10px;
   padding: 8px 14px;
   background: var(--surface); border: 1px solid var(--line); border-radius: 100px;
-  font-size: 13px; color: var(--text-2); margin-bottom: 28px;
+  font-size: 13px; color: var(--text-2); margin-bottom: 24px;
   box-shadow: var(--shadow-sm);
 }
 .status-dot {
@@ -218,11 +208,11 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
 .hero h1 {
-  font-size: clamp(40px, 6.5vw, 84px);
+  font-size: clamp(34px, 5.5vw, 72px);
   line-height: 1.0;
   letter-spacing: -0.035em;
   font-weight: 800;
-  max-width: 1100px; margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 .hero h1 em.b {
   color: var(--bronze); font-style: italic; font-weight: 800;
@@ -230,14 +220,13 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 }
 
 .hero-sub {
-  font-size: clamp(16px, 1.5vw, 19px); line-height: 1.55;
-  color: var(--text-2); max-width: 600px; margin-bottom: 36px;
-  font-weight: 400;
+  font-size: clamp(15px, 1.4vw, 17.5px); line-height: 1.55;
+  color: var(--text-2); max-width: 540px; margin-bottom: 28px;
 }
 
 /* ============== LEAD FORM ============== */
 .lead-form {
-  display: flex; gap: 8px; max-width: 540px; margin-bottom: 14px;
+  display: flex; gap: 8px; max-width: 520px; margin-bottom: 12px;
   background: var(--surface); padding: 6px;
   border: 1px solid var(--line); border-radius: var(--r-md);
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -266,45 +255,39 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 .lead-form button { flex-shrink: 0; }
 @media (max-width: 540px) {
   .lead-form { flex-direction: column; padding: 8px; gap: 8px; }
-  .lead-form button { width: 100%; padding: 14px; }
+  .lead-form button { width: 100%; padding: 14px; font-size: 15px; }
 }
 
 .form-note {
-  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  font-size: 13px; color: var(--text-2); margin-bottom: 36px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  font-size: 13px; color: var(--text-2); margin-bottom: 28px;
   font-weight: 500;
 }
 .form-note span { display: flex; align-items: center; gap: 6px; }
-.form-note span::before {
-  content: '✓'; color: var(--green); font-weight: 700; font-size: 12px;
-}
+.form-note span::before { content: '✓'; color: var(--green); font-weight: 700; }
 
 /* Form states */
 .form-success, .form-error-state {
   display: none; align-items: flex-start; gap: 14px; padding: 14px 18px;
-  border-radius: var(--r-md); max-width: 540px; margin-bottom: 14px;
+  border-radius: var(--r-md); max-width: 520px; margin-bottom: 14px;
   font-size: 14.5px; line-height: 1.45;
   border: 1px solid transparent;
 }
 .form-success.show, .form-error-state.show { display: flex; }
-.form-success {
-  background: var(--green-tint); border-color: rgba(22, 163, 74, 0.3); color: var(--text);
-}
+.form-success { background: var(--green-tint); border-color: rgba(22, 163, 74, 0.3); }
 .form-success-mark {
   flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
-  background: var(--green); color: white;
+  background: var(--green); color: #fff;
   display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;
 }
-.form-success b { color: var(--green); display: block; font-weight: 700; margin-bottom: 2px; }
-.form-error-state {
-  background: var(--red-tint); border-color: rgba(220, 38, 38, 0.25); color: var(--text);
-}
+.form-success b { color: var(--green); display: block; font-weight: 700; }
+.form-error-state { background: var(--red-tint); border-color: rgba(220, 38, 38, 0.25); }
 .form-error-state a { color: var(--red); text-decoration: underline; font-weight: 600; }
 
 /* Niches strip */
 .niches-strip {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
-  padding-top: 36px; max-width: 760px;
+  padding-top: 28px; max-width: 760px;
   border-top: 1px solid var(--line);
 }
 .niches-strip > .label {
@@ -312,436 +295,235 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
   color: var(--text-3); font-weight: 600; margin-right: 4px;
 }
 .niche-chip {
-  font-size: 13.5px; font-weight: 500; padding: 6px 14px;
+  font-size: 13px; font-weight: 500; padding: 5px 12px;
   background: var(--surface); border: 1px solid var(--line); border-radius: 100px;
   color: var(--text); transition: all 0.2s; cursor: default;
   box-shadow: var(--shadow-sm);
 }
-.niche-chip:hover {
-  border-color: var(--bronze); color: var(--bronze);
-  transform: translateY(-1px);
+.niche-chip:hover { border-color: var(--bronze); color: var(--bronze); transform: translateY(-1px); }
+
+/* ===========================================================
+   HERO RIGHT — 4 МИНИ-МОКАПА В РАЗНЫХ ДИЗАЙНАХ
+   =========================================================== */
+.previews {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  position: relative;
+}
+@media (max-width: 900px) { .previews { gap: 14px; } }
+@media (max-width: 480px) { .previews { gap: 10px; } }
+
+.preview {
+  position: relative;
+  background: var(--surface);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  aspect-ratio: 4 / 3;
+  font-size: 11px;
+  display: flex; flex-direction: column;
+}
+.preview:hover { transform: translateY(-4px); box-shadow: var(--shadow-xl); }
+
+/* Slight stagger to add dynamism on desktop */
+@media (min-width: 901px) {
+  .preview-1 { transform: translateY(-12px); }
+  .preview-1:hover { transform: translateY(-16px); }
+  .preview-4 { transform: translateY(12px); }
+  .preview-4:hover { transform: translateY(8px); }
 }
 
-/* ============== EXAMPLES SECTION ============== */
-.examples { padding: 100px 0 80px; background: var(--bg); }
-.examples-head { text-align: center; max-width: 760px; margin: 0 auto 64px; }
-.examples-head h2 {
-  font-size: clamp(32px, 5vw, 56px); line-height: 1.05;
+.preview-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-2);
+}
+.preview-dots { display: flex; gap: 3px; }
+.preview-dots span { width: 6px; height: 6px; border-radius: 50%; background: #d8d3c5; }
+.preview-niche {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin-left: auto;
+  padding: 2px 7px; border-radius: 100px;
+}
+.preview-body { flex: 1; padding: 10px; min-height: 0; overflow: hidden; }
+
+/* ===== Preview 1 — REAL ESTATE (грид квартир, бронзовый акцент) ===== */
+.preview-1 .preview-niche { background: rgba(184, 137, 90, 0.12); color: var(--c-realestate); }
+.preview-1 .preview-body { background: var(--surface); }
+.p1-title { font-size: 11px; font-weight: 700; margin-bottom: 8px; }
+.p1-title small { display: block; font-size: 9px; color: var(--text-3); font-weight: 500; margin-top: 1px; }
+.p1-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; }
+.p1-cell {
+  aspect-ratio: 1; border-radius: 2px;
+  background: #f0ece0;
+}
+.p1-cell.sold { background: #e3ddca; }
+.p1-cell.booked { background: var(--c-realestate); }
+.p1-cell.free { background: #d4dfe8; }
+
+/* ===== Preview 2 — WHOLESALE (карта маршрута, зелёный акцент) ===== */
+.preview-2 .preview-niche { background: rgba(22, 163, 74, 0.1); color: var(--c-wholesale); }
+.preview-2 .preview-body {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  position: relative;
+  display: flex; flex-direction: column;
+}
+.p2-stats { display: flex; gap: 8px; margin-bottom: 8px; }
+.p2-stat {
+  flex: 1; background: rgba(255,255,255,0.7); border-radius: 6px;
+  padding: 5px 7px; border: 1px solid rgba(22, 163, 74, 0.1);
+}
+.p2-stat b { display: block; font-size: 12px; font-weight: 800; color: var(--c-wholesale); line-height: 1; }
+.p2-stat small { font-size: 8px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.p2-map {
+  flex: 1; position: relative; border-radius: 6px;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(22, 163, 74, 0.1);
+  overflow: hidden;
+}
+.p2-map svg { width: 100%; height: 100%; display: block; }
+
+/* ===== Preview 3 — PRODUCTION (gantt бары, коралловый) ===== */
+.preview-3 .preview-niche { background: rgba(234, 125, 75, 0.12); color: var(--c-production); }
+.preview-3 .preview-body { background: #fff8f3; }
+.p3-head { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: baseline; }
+.p3-head b { font-size: 11px; font-weight: 700; }
+.p3-load {
+  font-size: 9px; font-weight: 700; color: var(--c-production);
+  background: rgba(234, 125, 75, 0.12);
+  padding: 2px 6px; border-radius: 4px;
+}
+.p3-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 5px; height: 13px;
+}
+.p3-row-label {
+  flex: 0 0 55px; font-size: 9px; font-weight: 600; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.p3-track { flex: 1; height: 8px; background: #fceee2; border-radius: 3px; position: relative; }
+.p3-bar { position: absolute; height: 100%; border-radius: 3px; }
+.p3-bar-1 { background: var(--c-production); left: 0; width: 65%; }
+.p3-bar-2 { background: #f3a47a; left: 65%; width: 25%; }
+.p3-bar-3 { background: var(--c-production); left: 10%; width: 50%; }
+.p3-bar-4 { background: #f3a47a; left: 60%; width: 30%; }
+.p3-bar-5 { background: #ec8b5d; left: 15%; width: 70%; }
+
+/* ===== Preview 4 — CLINIC (календарь, голубой) ===== */
+.preview-4 .preview-niche { background: rgba(77, 124, 254, 0.12); color: var(--c-clinic); }
+.preview-4 .preview-body { background: #f5f8ff; display: flex; gap: 8px; }
+.p4-cal {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+  flex: 1.4; align-content: start;
+}
+.p4-cal-d {
+  aspect-ratio: 1; border-radius: 50%; font-size: 8px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-2); background: rgba(255,255,255,0.6);
+}
+.p4-cal-d.muted { opacity: 0.4; }
+.p4-cal-d.today { background: var(--c-clinic); color: #fff; font-weight: 800; }
+.p4-cal-d.has { background: rgba(77, 124, 254, 0.1); }
+.p4-list { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.p4-item {
+  background: #fff; border-radius: 5px;
+  border-left: 2px solid var(--c-clinic);
+  padding: 5px 7px; font-size: 8.5px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.p4-item b { display: block; font-weight: 700; font-size: 9px; line-height: 1.2; }
+.p4-item small { color: var(--text-3); font-size: 8px; font-weight: 500; }
+
+/* ===========================================================
+   PROJECTS SECTION — компактные карточки 2x2
+   =========================================================== */
+.projects { padding: 100px 0; background: var(--surface-2); }
+.projects-head { text-align: center; max-width: 720px; margin: 0 auto 56px; }
+.projects-head h2 {
+  font-size: clamp(30px, 4.5vw, 52px); line-height: 1.05;
   font-weight: 800; letter-spacing: -0.035em; margin: 14px 0 16px;
 }
-.examples-head h2 em.b {
-  color: var(--bronze); font-style: italic; font-weight: 800;
-}
-.examples-head p {
-  font-size: 17px; color: var(--text-2); line-height: 1.6;
-  max-width: 580px; margin: 0 auto;
-}
+.projects-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
+.projects-head p { font-size: 16px; color: var(--text-2); line-height: 1.6; }
 
-.example {
-  margin-bottom: 80px;
+.projects-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
 }
-.example:last-child { margin-bottom: 0; }
-.example-header {
-  display: grid; grid-template-columns: 80px 1fr; gap: 24px;
-  align-items: start; margin-bottom: 24px; max-width: 920px;
-}
-@media (max-width: 640px) { .example-header { grid-template-columns: 60px 1fr; gap: 16px; } }
-.example-num {
-  font-family: var(--sans); font-weight: 800; font-size: 56px;
-  color: var(--bronze); line-height: 0.9; letter-spacing: -0.04em;
-  font-feature-settings: 'tnum';
-}
-@media (max-width: 640px) { .example-num { font-size: 40px; } }
-.example-title h3 {
-  font-size: clamp(22px, 3vw, 32px); line-height: 1.15;
-  font-weight: 700; letter-spacing: -0.025em; margin-bottom: 12px;
-}
-.example-title h3 em.b { color: var(--bronze); font-style: italic; }
-.example-title p {
-  font-size: 15.5px; line-height: 1.6; color: var(--text-2); max-width: 720px;
-}
+@media (max-width: 900px) { .projects-grid { grid-template-columns: 1fr; gap: 18px; } }
 
-/* Mockup wrapper — gives the dark mockup a "screenshot lift" on light bg */
-.mockup-wrap {
-  border-radius: var(--r-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-xl);
-  background: var(--m-navy);
-  position: relative;
+.project-card {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r-lg); overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.25s, box-shadow 0.25s;
+  display: flex; flex-direction: column;
 }
-.mockup-wrap::before {
-  content: ''; position: absolute; inset: 0;
-  border-radius: inherit;
-  border: 1px solid rgba(10, 22, 40, 0.12);
-  pointer-events: none; z-index: 2;
-}
+.project-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
 
-/* Tags strip below each example */
-.example-tags {
-  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px;
-}
-.example-tag {
-  font-size: 13px; font-weight: 500;
-  padding: 7px 12px; background: var(--surface); border: 1px solid var(--line);
-  border-radius: 100px; color: var(--text-2);
-  display: flex; align-items: center; gap: 6px;
-}
-.example-tag::before {
-  content: ''; width: 5px; height: 5px; border-radius: 50%;
-  background: var(--bronze);
-}
-
-/* ============== APP FRAME COMMON (mockup internals — DARK) ============== */
-.frame {
-  background: var(--m-navy);
-  position: relative;
-  color: var(--text-on-dark);
-}
-.frame-bar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 11px 16px; border-bottom: 1px solid var(--line-on-dark);
-  background: var(--m-navy-3);
-}
-.frame-bar-dots { display: flex; gap: 6px; }
-.frame-bar-dots span { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.18); }
-.frame-bar-url {
-  flex: 1; background: var(--m-navy); padding: 5px 12px; border-radius: 4px;
-  font-size: 11px; color: var(--muted-on-dark);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-}
-.frame-bar-tag {
-  font-size: 10px; padding: 3px 8px; background: rgba(184,137,90,0.2);
-  border: 1px solid rgba(184,137,90,0.35); border-radius: 100px;
-  color: var(--m-bronze-light); font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;
-}
-
-/* ============================================================
-   PANEL 1: REAL ESTATE — ШАХМАТКА
-============================================================ */
-.re-toolbar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 20px; border-bottom: 1px solid var(--line-on-dark);
-  background: var(--m-navy-2); flex-wrap: wrap; gap: 12px;
-}
-.re-title { font-weight: 700; font-size: 17px; letter-spacing: -0.015em; }
-.re-title small { display: block; font-size: 12px; color: var(--muted-on-dark); margin-top: 3px; font-weight: 400; }
-.re-filters { display: flex; gap: 6px; flex-wrap: wrap; }
-.re-filter {
-  font-size: 11.5px; padding: 5px 10px; border-radius: 6px;
-  border: 1px solid var(--line-on-dark); color: var(--muted-on-dark);
-  display: flex; align-items: center; gap: 6px; font-weight: 500;
-}
-.re-filter.active { background: var(--m-bronze); color: var(--m-navy); border-color: var(--m-bronze); font-weight: 600; }
-.re-filter-dot { width: 7px; height: 7px; border-radius: 1px; }
-.re-body { display: grid; grid-template-columns: 1fr 280px; }
-@media (max-width: 800px) { .re-body { grid-template-columns: 1fr; } }
-.re-grid-area { padding: 20px; border-right: 1px solid var(--line-on-dark); }
-@media (max-width: 800px) { .re-grid-area { border-right: none; border-bottom: 1px solid var(--line-on-dark); } }
-.re-floor-label {
-  font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.14em;
-  color: var(--muted-on-dark); margin-bottom: 8px; padding-left: 4px; font-weight: 600;
-}
-.re-floors { display: flex; flex-direction: column; gap: 5px; }
-.re-floor { display: grid; grid-template-columns: 28px repeat(6, 1fr); gap: 5px; align-items: center; }
-.re-floor-num {
-  font-weight: 700; font-size: 15px;
-  color: var(--muted-on-dark); text-align: center;
-}
-.re-cell {
-  aspect-ratio: 1.4 / 1; border-radius: 4px; padding: 6px 7px;
-  display: flex; flex-direction: column; justify-content: space-between;
-  font-size: 9.5px; cursor: default; transition: transform 0.15s;
+.project-mockup {
+  aspect-ratio: 16 / 10;
   position: relative; overflow: hidden;
+  border-bottom: 1px solid var(--line-2);
+  font-size: 11px;
 }
-.re-cell:hover { transform: scale(1.04); z-index: 2; }
-.re-cell-num { font-weight: 700; font-size: 11px; }
-.re-cell-area { font-size: 10.5px; opacity: 0.85; font-weight: 500; }
-.re-cell.sold { background: var(--m-navy-3); color: var(--muted-on-dark-2); }
-.re-cell.sold .re-cell-area { opacity: 0.5; }
-.re-cell.free { background: var(--m-navy-4); color: var(--text-on-dark); }
-.re-cell.free::after {
-  content: ''; position: absolute; top: 0; right: 0; width: 0; height: 0;
-  border-style: solid; border-width: 0 8px 8px 0;
-  border-color: transparent #16a34a transparent transparent;
-}
-.re-cell.booked { background: var(--m-bronze); color: var(--m-navy); }
-.re-cell.booked::after {
-  content: ''; position: absolute; top: 0; right: 0; width: 0; height: 0;
-  border-style: solid; border-width: 0 8px 8px 0;
-  border-color: transparent var(--m-navy) transparent transparent;
-  animation: pulse 2s ease-in-out infinite;
-}
-.re-cell.selected { outline: 2px solid var(--m-bronze-light); outline-offset: 2px; }
+.project-mockup .preview-bar { padding: 10px 12px; }
+.project-mockup .preview-body { padding: 14px; }
 
-.re-side { padding: 22px; }
-.re-detail-eyebrow {
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.16em;
-  color: var(--m-bronze-light); font-weight: 700; margin-bottom: 10px;
-}
-.re-detail-title {
-  font-weight: 700; font-size: 20px; letter-spacing: -0.015em; margin-bottom: 4px;
-}
-.re-detail-meta { font-size: 12px; color: var(--muted-on-dark); margin-bottom: 16px; }
-.re-detail-price {
-  font-weight: 800; font-size: 30px; color: var(--m-bronze-light);
-  letter-spacing: -0.025em; margin-bottom: 18px; line-height: 1;
-}
-.re-detail-row {
-  display: flex; justify-content: space-between; padding: 9px 0;
-  border-bottom: 1px solid var(--line-on-dark); font-size: 12.5px;
-}
-.re-detail-row span:first-child { color: var(--muted-on-dark); }
-.re-detail-row span:last-child { color: var(--text-on-dark); font-weight: 600; }
-.re-detail-status {
-  background: rgba(184,137,90,0.15); border-left: 2px solid var(--m-bronze);
-  padding: 12px 14px; margin-top: 16px; font-size: 12.5px;
-  border-radius: 0 4px 4px 0;
-}
-.re-detail-status b { display: block; color: var(--m-bronze-light); font-size: 10px;
-  text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; font-weight: 700; }
+/* Real estate medium */
+.pm-1 .preview-niche { background: rgba(184, 137, 90, 0.12); color: var(--c-realestate); }
+.pm-1 .preview-body { background: #fff; }
+.pm-1 .p1-grid { grid-template-columns: repeat(8, 1fr); gap: 4px; }
 
-.re-stats {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
-  background: var(--line-on-dark); margin-top: 16px; border-radius: 4px; overflow: hidden;
-}
-.re-stat { background: var(--m-navy); padding: 11px; }
-.re-stat-num {
-  font-weight: 800; font-size: 22px; color: var(--m-bronze-light);
-  line-height: 1; letter-spacing: -0.02em;
-}
-.re-stat-label { font-size: 9.5px; color: var(--muted-on-dark); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 6px; font-weight: 600; }
+/* Wholesale medium */
+.pm-2 .preview-niche { background: rgba(22, 163, 74, 0.1); color: var(--c-wholesale); }
+.pm-2 .preview-body { background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); display: flex; flex-direction: column; gap: 8px; }
+.pm-2 .p2-stats { gap: 8px; margin-bottom: 0; }
 
-/* ============================================================
-   PANEL 2: WHOLESALE — КАРТА МАРШРУТА
-============================================================ */
-.ws-body { display: grid; grid-template-columns: 240px 1fr; min-height: 480px; }
-@media (max-width: 800px) { .ws-body { grid-template-columns: 1fr; } }
-.ws-aside { border-right: 1px solid var(--line-on-dark); padding: 18px; background: var(--m-navy-2); }
-@media (max-width: 800px) { .ws-aside { border-right: none; border-bottom: 1px solid var(--line-on-dark); } }
-.ws-rep-card {
-  border: 1px solid var(--line-on-dark); border-radius: 8px; padding: 14px;
-  background: var(--m-navy-3); margin-bottom: 16px;
-}
-.ws-rep-name { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.ws-rep-avatar {
-  width: 34px; height: 34px; border-radius: 50%;
-  background: var(--m-bronze); color: var(--m-navy);
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 13px; flex-shrink: 0;
-}
-.ws-rep-name b { font-size: 13.5px; font-weight: 700; }
-.ws-rep-name small { display: block; font-size: 10.5px; color: var(--muted-on-dark); margin-top: 2px; font-weight: 400; }
-.ws-rep-progress { height: 5px; background: var(--m-navy); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
-.ws-rep-progress::before { content: ''; display: block; height: 100%; width: 62%; background: var(--m-bronze); border-radius: 3px; }
-.ws-rep-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted-on-dark); font-weight: 500; }
+/* Production medium */
+.pm-3 .preview-niche { background: rgba(234, 125, 75, 0.12); color: var(--c-production); }
+.pm-3 .preview-body { background: #fff8f3; }
+.pm-3 .p3-row { height: 16px; margin-bottom: 7px; }
+.pm-3 .p3-row-label { flex: 0 0 80px; font-size: 10px; }
+.pm-3 .p3-track { height: 11px; }
 
-.ws-aside h5 {
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em;
-  color: var(--m-bronze-dim); font-weight: 700; margin: 16px 0 10px;
-}
-.ws-stop {
-  display: flex; gap: 10px; padding: 10px 0; align-items: flex-start;
-  border-bottom: 1px solid var(--line-on-dark); font-size: 11.5px;
-}
-.ws-stop:last-child { border-bottom: none; }
-.ws-stop-marker {
-  width: 14px; height: 14px; border-radius: 50%;
-  border: 1.5px solid var(--m-bronze-dim); flex-shrink: 0; margin-top: 2px;
-  background: var(--m-navy); position: relative;
-}
-.ws-stop.done .ws-stop-marker { background: var(--m-bronze); border-color: var(--m-bronze); }
-.ws-stop.done .ws-stop-marker::after {
-  content: ''; position: absolute; left: 3px; top: 1px;
-  width: 4px; height: 7px; border: solid var(--m-navy);
-  border-width: 0 1.5px 1.5px 0; transform: rotate(45deg);
-}
-.ws-stop.now .ws-stop-marker {
-  background: var(--m-bronze); border-color: var(--m-bronze);
-  box-shadow: 0 0 0 4px rgba(184,137,90,0.25);
-  animation: pulse 2s ease-in-out infinite;
-}
-.ws-stop-info { flex: 1; }
-.ws-stop-info b { font-weight: 600; color: var(--text-on-dark); display: block; line-height: 1.3; }
-.ws-stop-info small { color: var(--muted-on-dark); font-size: 10.5px; display: block; margin-top: 2px; font-weight: 500; }
+/* Clinic medium */
+.pm-4 .preview-niche { background: rgba(77, 124, 254, 0.12); color: var(--c-clinic); }
+.pm-4 .preview-body { background: #f5f8ff; gap: 12px; }
+.pm-4 .p4-cal-d { font-size: 9px; }
 
-.ws-map {
-  position: relative; padding: 22px; background:
-    radial-gradient(ellipse at 30% 30%, rgba(184,137,90,0.05) 0%, transparent 50%),
-    var(--m-navy);
+.project-info {
+  padding: 24px;
 }
-.ws-map-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
-.ws-map-title { font-weight: 700; font-size: 17px; letter-spacing: -0.015em; }
-.ws-map-title small { display: block; font-size: 12px; color: var(--muted-on-dark); margin-top: 3px; font-weight: 400; }
-.ws-map-stats {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;
+.project-info h3 {
+  font-size: 20px; font-weight: 700; letter-spacing: -0.02em;
+  margin-bottom: 10px; line-height: 1.2;
 }
-.ws-mini-stat { background: var(--m-navy-2); border: 1px solid var(--line-on-dark); padding: 11px 12px; border-radius: 8px; }
-.ws-mini-stat-num { font-weight: 800; font-size: 19px; color: var(--m-bronze-light); line-height: 1; letter-spacing: -0.02em; }
-.ws-mini-stat-label { font-size: 10px; color: var(--muted-on-dark); margin-top: 5px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
-.ws-map-svg { width: 100%; height: 280px; border-radius: 8px; }
+.project-info h3 em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
+.project-info p {
+  font-size: 14.5px; color: var(--text-2); line-height: 1.55;
+  margin-bottom: 16px;
+}
+.project-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.project-tag {
+  font-size: 12px; font-weight: 500;
+  padding: 4px 10px;
+  background: var(--bronze-tint); color: var(--bronze-deep);
+  border-radius: 100px;
+}
+.project-card.niche-wholesale .project-tag { background: rgba(22, 163, 74, 0.08); color: #15803d; }
+.project-card.niche-production .project-tag { background: rgba(234, 125, 75, 0.1); color: #c2410c; }
+.project-card.niche-clinic .project-tag { background: rgba(77, 124, 254, 0.08); color: #2952c4; }
 
-/* ============================================================
-   PANEL 3: PRODUCTION — GANTT
-============================================================ */
-.pr-toolbar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 20px; border-bottom: 1px solid var(--line-on-dark);
-  background: var(--m-navy-2); flex-wrap: wrap; gap: 12px;
-}
-.pr-title { font-weight: 700; font-size: 17px; letter-spacing: -0.015em; }
-.pr-title small { display: block; font-size: 12px; color: var(--muted-on-dark); margin-top: 3px; font-weight: 400; }
-.pr-load { display: flex; align-items: center; gap: 12px; }
-.pr-load-bar { width: 120px; height: 6px; background: var(--m-navy-3); border-radius: 3px; overflow: hidden; }
-.pr-load-bar::before { content: ''; display: block; height: 100%; width: 87%; background: linear-gradient(90deg, var(--m-bronze-dim), var(--m-bronze)); border-radius: 3px; }
-.pr-load-text { font-size: 11.5px; color: var(--muted-on-dark); font-weight: 500; }
-.pr-load-text b { color: var(--m-bronze-light); font-weight: 800; font-size: 14px; }
-
-.pr-legend { padding: 12px 20px; border-bottom: 1px solid var(--line-on-dark); display: flex; gap: 18px; flex-wrap: wrap; }
-.pr-legend-item { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted-on-dark); font-weight: 500; }
-.pr-legend-swatch { width: 14px; height: 8px; border-radius: 2px; }
-.pr-legend-swatch.measure { background: var(--m-bronze-deep); }
-.pr-legend-swatch.design { background: var(--m-bronze-dim); }
-.pr-legend-swatch.cut { background: var(--m-bronze); }
-.pr-legend-swatch.assembly { background: var(--m-bronze-light); }
-.pr-legend-swatch.install { background: #d4b896; }
-
-.pr-gantt { padding: 16px 20px 20px; overflow-x: auto; }
-.pr-timeline {
-  display: grid;
-  grid-template-columns: 130px repeat(7, minmax(70px, 1fr));
-  border-bottom: 1px solid var(--line-on-dark);
-  padding-bottom: 8px; margin-bottom: 4px;
-}
-.pr-day { text-align: center; font-size: 10.5px; color: var(--muted-on-dark); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
-.pr-day b { display: block; color: var(--text-on-dark); font-weight: 800; font-size: 17px; margin-top: 3px; letter-spacing: -0.02em; }
-.pr-day.today b, .pr-day.today { color: var(--m-bronze-light); }
-
-.pr-row {
-  display: grid;
-  grid-template-columns: 130px repeat(7, minmax(70px, 1fr));
-  align-items: center;
-  padding: 8px 0; border-bottom: 1px solid var(--line-on-dark);
-  position: relative;
-}
-.pr-row:last-child { border-bottom: none; }
-.pr-row-label { font-size: 12px; padding-right: 12px; }
-.pr-row-label b { display: block; color: var(--text-on-dark); font-weight: 700; line-height: 1.3; }
-.pr-row-label small { color: var(--muted-on-dark); font-size: 10.5px; display: block; margin-top: 2px; font-weight: 500; }
-.pr-track { grid-column: 2 / -1; position: relative; height: 26px; }
-.pr-bar {
-  position: absolute; height: 22px; top: 2px;
-  border-radius: 4px;
-  display: flex; align-items: center;
-  padding: 0 8px; font-size: 10.5px; font-weight: 700;
-  color: var(--m-navy); white-space: nowrap; overflow: hidden;
-}
-.pr-bar.is-now { box-shadow: 0 0 0 1.5px var(--m-bronze-light), 0 0 12px rgba(212,163,115,0.4); }
-.pr-grid-line {
-  position: absolute; top: -10px; bottom: -10px; width: 1px;
-  background: var(--line-on-dark); pointer-events: none;
-}
-
-/* ============================================================
-   PANEL 4: CLINIC
-============================================================ */
-.cl-body { display: grid; grid-template-columns: 280px 1fr; min-height: 500px; }
-@media (max-width: 800px) { .cl-body { grid-template-columns: 1fr; } }
-.cl-aside { padding: 20px; border-right: 1px solid var(--line-on-dark); background: var(--m-navy-2); }
-@media (max-width: 800px) { .cl-aside { border-right: none; border-bottom: 1px solid var(--line-on-dark); } }
-.cl-month { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.cl-month-name { font-weight: 700; font-size: 16px; letter-spacing: -0.015em; }
-.cl-month-arrow {
-  width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line-on-dark);
-  display: flex; align-items: center; justify-content: center;
-  color: var(--muted-on-dark); font-size: 13px;
-}
-.cl-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 20px; }
-.cl-cal-dow {
-  text-align: center; font-size: 9.5px; color: var(--muted-on-dark);
-  text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 0; font-weight: 700;
-}
-.cl-cal-day {
-  aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
-  font-size: 12.5px; color: var(--muted-on-dark); border-radius: 50%;
-  cursor: default; position: relative; font-weight: 500;
-}
-.cl-cal-day.has::after {
-  content: ''; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
-  width: 3px; height: 3px; border-radius: 50%; background: var(--m-bronze);
-}
-.cl-cal-day.muted { color: var(--muted-on-dark-2); opacity: 0.5; }
-.cl-cal-day.today { background: var(--m-bronze); color: var(--m-navy); font-weight: 800; }
-.cl-cal-day.today.has::after { background: var(--m-navy); }
-
-.cl-aside h5 {
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em;
-  color: var(--m-bronze-dim); font-weight: 700; margin: 12px 0 10px;
-}
-.cl-branch {
-  padding: 11px 12px; border: 1px solid var(--line-on-dark); border-radius: 8px;
-  margin-bottom: 6px; font-size: 12.5px; display: flex; justify-content: space-between; align-items: center;
-  font-weight: 500;
-}
-.cl-branch.active { background: rgba(184,137,90,0.12); border-color: rgba(184,137,90,0.35); color: var(--m-bronze-light); }
-.cl-branch small { color: var(--muted-on-dark); font-weight: 700; font-size: 13px; }
-.cl-branch.active small { color: var(--m-bronze-light); }
-
-.cl-day { padding: 22px; }
-.cl-day-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  margin-bottom: 4px; flex-wrap: wrap; gap: 8px;
-}
-.cl-day-title { font-weight: 700; font-size: 20px; letter-spacing: -0.02em; }
-.cl-day-title em { font-style: normal; color: var(--m-bronze-light); }
-.cl-day-stats { display: flex; gap: 16px; font-size: 11.5px; color: var(--muted-on-dark); flex-wrap: wrap; font-weight: 500; }
-.cl-day-stats b { color: var(--text-on-dark); font-weight: 800; font-size: 14.5px; }
-
-.cl-hour {
-  display: grid; grid-template-columns: 60px 1fr; gap: 14px;
-  padding: 14px 0; border-top: 1px solid var(--line-on-dark);
-}
-.cl-hour:first-of-type { margin-top: 18px; }
-.cl-hour-time { font-weight: 800; font-size: 22px; color: var(--m-bronze-light); line-height: 1; letter-spacing: -0.02em; }
-.cl-hour-time small {
-  display: block; font-weight: 600;
-  font-size: 9.5px; color: var(--muted-on-dark); text-transform: uppercase;
-  letter-spacing: 0.12em; margin-top: 6px;
-}
-.cl-visits { display: flex; flex-direction: column; gap: 6px; }
-.cl-visit {
-  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
-  background: var(--m-navy-2); border: 1px solid var(--line-on-dark); border-radius: 8px;
-  border-left: 2px solid var(--m-bronze); font-size: 12.5px;
-}
-.cl-visit.warm { border-left-color: #ef9a9a; background: rgba(239,154,154,0.06); }
-.cl-visit.dms { border-left-color: #86efac; background: rgba(134,239,172,0.05); }
-.cl-visit-patient { flex: 1; min-width: 0; }
-.cl-visit-patient b { display: block; font-weight: 700; line-height: 1.3; }
-.cl-visit-patient small { color: var(--muted-on-dark); font-size: 10.5px; font-weight: 500; }
-.cl-visit-doctor { font-size: 11px; color: var(--muted-on-dark); text-align: right; font-weight: 500; }
-.cl-visit-doctor b { color: var(--text-on-dark); display: block; font-weight: 600; }
-.cl-visit-tag {
-  font-size: 10px; padding: 3px 8px; border-radius: 4px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.06em;
-  background: rgba(184,137,90,0.2); color: var(--m-bronze-light);
-}
-.cl-visit.warm .cl-visit-tag { background: rgba(239,154,154,0.18); color: #ef9a9a; }
-.cl-visit.dms .cl-visit-tag { background: rgba(134,239,172,0.15); color: #86efac; }
-
-/* ============== WHY CUSTOM (Pain) ============== */
+/* ============== WHY CUSTOM ============== */
 .why { padding: 100px 0; background: var(--bronze-tint); }
-.why-head { text-align: center; max-width: 760px; margin: 0 auto 56px; }
+.why-head { text-align: center; max-width: 720px; margin: 0 auto 56px; }
 .why-head h2 {
-  font-size: clamp(32px, 5vw, 56px); line-height: 1.05;
+  font-size: clamp(30px, 4.5vw, 52px); line-height: 1.05;
   font-weight: 800; letter-spacing: -0.035em; margin: 14px 0 16px;
 }
 .why-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
-.why-head p {
-  font-size: 17px; color: var(--text-2); line-height: 1.6;
-  max-width: 580px; margin: 0 auto;
-}
+.why-head p { font-size: 16px; color: var(--text-2); line-height: 1.6; }
 
 .why-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 @media (max-width: 900px) { .why-grid { grid-template-columns: 1fr; gap: 14px; } }
@@ -759,45 +541,40 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
   margin-bottom: 18px;
 }
 .why-card-icon svg { width: 22px; height: 22px; }
-.why-card h3 {
-  font-weight: 700; font-size: 19px; letter-spacing: -0.015em;
-  margin-bottom: 10px;
-}
+.why-card h3 { font-weight: 700; font-size: 18px; letter-spacing: -0.015em; margin-bottom: 10px; }
 .why-card p { font-size: 14.5px; color: var(--text-2); line-height: 1.6; }
 
 /* ============== OBJECTIONS ============== */
 .objections { padding: 100px 0; background: var(--bg); }
 .obj-head { text-align: center; max-width: 720px; margin: 0 auto 56px; }
 .obj-head h2 {
-  font-size: clamp(32px, 5vw, 56px); line-height: 1.05;
+  font-size: clamp(30px, 4.5vw, 52px); line-height: 1.05;
   font-weight: 800; letter-spacing: -0.035em; margin: 14px 0 16px;
 }
 .obj-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
-.obj-head p { font-size: 17px; color: var(--text-2); line-height: 1.6; }
+.obj-head p { font-size: 16px; color: var(--text-2); line-height: 1.6; }
 
-.obj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.obj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 @media (max-width: 800px) { .obj-grid { grid-template-columns: 1fr; gap: 14px; } }
 .obj-card {
-  padding: 28px; background: var(--surface);
+  padding: 26px; background: var(--surface);
   border: 1px solid var(--line-2); border-radius: var(--r-lg);
   box-shadow: var(--shadow-sm);
-  transition: transform 0.2s, box-shadow 0.2s;
 }
-.obj-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .obj-card-q {
-  font-weight: 700; font-size: 22px;
-  letter-spacing: -0.02em; margin-bottom: 14px; line-height: 1.25;
+  font-weight: 700; font-size: 20px;
+  letter-spacing: -0.02em; margin-bottom: 12px; line-height: 1.25;
 }
 .obj-card-q em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
-.obj-card-a { font-size: 15px; color: var(--text-2); line-height: 1.65; }
+.obj-card-a { font-size: 14.5px; color: var(--text-2); line-height: 1.65; }
 .obj-card-a b { color: var(--text); font-weight: 700; }
 
 /* ============== FINAL CTA ============== */
 .final-cta { padding: 100px 0 80px; background: var(--bg); }
 .final-cta-card {
-  padding: 64px 56px;
+  padding: 56px 48px;
   background: var(--navy);
-  color: var(--text-on-dark);
+  color: #fff;
   border-radius: var(--r-xl);
   position: relative; overflow: hidden;
   box-shadow: var(--shadow-xl);
@@ -816,12 +593,12 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 .final-cta .eyebrow { color: var(--bronze-light); }
 .final-cta .eyebrow::before { background: var(--bronze-light); }
 .final-cta h2 {
-  font-size: clamp(30px, 4.5vw, 50px); line-height: 1.05; letter-spacing: -0.035em;
-  margin: 14px 0 16px; color: var(--text-on-dark); font-weight: 800;
+  font-size: clamp(28px, 4vw, 46px); line-height: 1.05; letter-spacing: -0.035em;
+  margin: 14px 0 16px; color: #fff; font-weight: 800;
 }
 .final-cta h2 em.b { color: var(--bronze-light); font-style: italic; font-weight: 800; }
 .final-cta-card p {
-  color: var(--muted-on-dark); font-size: 16px; line-height: 1.6;
+  color: rgba(255,255,255,0.7); font-size: 16px; line-height: 1.6;
   margin-bottom: 28px; max-width: 560px;
 }
 
@@ -834,17 +611,17 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
   border-color: var(--bronze-light);
   box-shadow: 0 0 0 4px rgba(184,137,90,0.18);
 }
-.final-cta .lead-form input { color: var(--text-on-dark); }
-.final-cta .lead-form input::placeholder { color: var(--muted-on-dark-2); }
-.final-cta .form-note { color: var(--muted-on-dark); }
+.final-cta .lead-form input { color: #fff; }
+.final-cta .lead-form input::placeholder { color: rgba(255,255,255,0.45); }
+.final-cta .form-note { color: rgba(255,255,255,0.6); }
 .final-cta .form-note span::before { color: var(--bronze-light); }
 
 .final-cta-contacts {
-  display: flex; gap: 28px; flex-wrap: wrap;
+  display: flex; gap: 24px; flex-wrap: wrap;
   margin-top: 32px; padding-top: 28px; border-top: 1px solid rgba(255,255,255,0.1);
   position: relative;
 }
-.final-cta-contact { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--text-on-dark); transition: color 0.2s; }
+.final-cta-contact { display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff; transition: color 0.2s; }
 .final-cta-contact:hover { color: var(--bronze-light); }
 .final-cta-contact-icon {
   width: 42px; height: 42px; border-radius: 50%;
@@ -855,12 +632,10 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 .final-cta-contact-icon svg { width: 18px; height: 18px; }
 .final-cta-contact-info small {
   display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
-  color: var(--muted-on-dark); margin-bottom: 2px; font-weight: 600;
+  color: rgba(255,255,255,0.6); margin-bottom: 2px; font-weight: 600;
 }
 .final-cta-contact-info b { display: block; font-weight: 700; font-size: 15.5px; }
-@media (max-width: 600px) {
-  .final-cta-card { padding: 36px 24px; }
-}
+@media (max-width: 600px) { .final-cta-card { padding: 32px 22px; } }
 
 /* ============== FOOTER ============== */
 footer {
@@ -871,16 +646,18 @@ footer {
   display: flex; justify-content: space-between; align-items: center;
   flex-wrap: wrap; gap: 16px;
 }
-.footer-inner img { height: 24px; opacity: 0.8; }
+.footer-inner img { height: 24px; opacity: 0.85; }
 .footer-inner p { color: var(--text-2); font-size: 13px; }
+.footer-inner-links { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
 .footer-inner a { color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px; }
 .footer-inner a:hover { color: var(--bronze); }
+.footer-inner a.ghost { font-weight: 500; color: var(--text-2); }
 
 /* ============== STICKY MOBILE BAR ============== */
 .sticky-bar {
   display: none;
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px) saturate(1.4);
   -webkit-backdrop-filter: blur(20px) saturate(1.4);
   border-top: 1px solid var(--line);
@@ -902,14 +679,13 @@ footer {
 
 @media (max-width: 720px) {
   body { padding-bottom: 70px; }
-  .sticky-bar.show { display: flex; }
 }
 
 /* ============== REVEAL ============== */
 .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.7s ease, transform 0.7s ease; }
 .reveal.in { opacity: 1; transform: none; }
 
-.hero-status, .hero h1, .hero-sub, .lead-form, .form-note, .niches-strip {
+.hero-status, .hero h1, .hero-sub, .lead-form, .form-note, .niches-strip, .previews {
   opacity: 0; transform: translateY(20px); animation: heroIn 0.9s ease forwards;
 }
 .hero-status { animation-delay: 0.05s; }
@@ -918,7 +694,24 @@ footer {
 .hero .lead-form { animation-delay: 0.45s; }
 .hero .form-note { animation-delay: 0.55s; }
 .hero .niches-strip { animation-delay: 0.7s; }
+.previews { animation-delay: 0.4s; }
 @keyframes heroIn { to { opacity: 1; transform: none; } }
+
+/* ============== MOBILE TWEAKS ============== */
+@media (max-width: 640px) {
+  .hero { padding: 100px 0 60px; min-height: 0; }
+  .hero h1 { font-size: 38px; line-height: 1.05; }
+  .hero h1 br { display: none; }
+  .hero-sub { font-size: 15px; margin-bottom: 22px; }
+  .niches-strip { padding-top: 22px; }
+  .preview { aspect-ratio: 5 / 4; }
+  .projects, .why, .objections, .final-cta { padding: 64px 0; }
+  .final-cta-card { padding: 32px 22px; border-radius: 16px; }
+  .why-card, .obj-card { padding: 22px; }
+  .project-info { padding: 20px; }
+  .footer-inner { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .footer-inner-links { width: 100%; justify-content: space-between; }
+}
 </style>
 </head>
 <body>
@@ -929,12 +722,21 @@ footer {
     <a href="#top" class="logo" aria-label="Pllato">
       <img src="pllato_logo_transparent_navy.svg" alt="Pllato" width="118" height="32">
     </a>
+
+    <nav class="nav">
+      <a href="#projects">Проекты под вашу нишу</a>
+      <a href="crm-builder.html" class="has-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+        Нарисовать схему CRM
+      </a>
+    </nav>
+
     <div class="header-right">
       <a href="tel:+77011239999" class="header-phone">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
         <span>+7 701 123 99 99</span>
       </a>
-      <a href="#contact" class="btn btn-bronze">Заявка на разбор</a>
+      <a href="#contact" class="btn btn-bronze">Заявка</a>
     </div>
   </div>
 </header>
@@ -942,528 +744,289 @@ footer {
 <!-- ============== HERO ============== -->
 <section class="hero" id="top">
   <div class="wrap hero-inner">
-    <div class="hero-status">
-      <span class="status-dot"></span>
-      Бесплатный разбор · перезваниваем за 30 минут
-    </div>
-    <h1>CRM, спроектированная<br>под ваш бизнес.<br><em class="b">Не наоборот.</em></h1>
-    <p class="hero-sub">
-      За 30 минут разбора покажем, что не так в вашей текущей CRM, какие процессы упираются в коробку и нужна ли вам кастомная система. Без обязательств.
-    </p>
+    <div class="hero-grid">
 
-    <div class="form-success" id="success-1">
-      <div class="form-success-mark">✓</div>
-      <div><b>Заявка получена</b>Перезвоним в течение 30 минут на указанный номер.</div>
-    </div>
-    <div class="form-error-state" id="error-1">
-      Не удалось отправить. Позвоните напрямую: <a href="tel:+77011239999">+7 701 123 99 99</a>
-    </div>
+      <!-- LEFT: text + form -->
+      <div>
+        <div class="hero-status">
+          <span class="status-dot"></span>
+          Бесплатный разбор · перезваниваем за 30 минут
+        </div>
+        <h1>CRM, спроектированная<br>под ваш бизнес.<br><em class="b">Не наоборот.</em></h1>
+        <p class="hero-sub">
+          За 30 минут разбора покажем, что не так в вашей текущей CRM, какие процессы упираются в коробку и нужна ли вам кастомная система. Без обязательств.
+        </p>
 
-    <form class="lead-form js-lead-form" novalidate>
-      <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required autocomplete="tel" inputmode="tel" maxlength="18">
-      <button type="submit" class="btn btn-bronze btn-arrow">Получить разбор</button>
-    </form>
-    <div class="form-note">
-      <span>Бесплатно</span>
-      <span>Без обязательств</span>
-      <span>Перезвоним за 30 минут</span>
-    </div>
+        <div class="form-success" id="success-1">
+          <div class="form-success-mark">✓</div>
+          <div><b>Заявка получена</b>Перезвоним в течение 30 минут.</div>
+        </div>
+        <div class="form-error-state" id="error-1">
+          Не удалось отправить. Позвоните напрямую: <a href="tel:+77011239999">+7 701 123 99 99</a>
+        </div>
 
-    <div class="niches-strip">
-      <span class="label">Делаем для:</span>
-      <span class="niche-chip">Девелопмент</span>
-      <span class="niche-chip">Опт и дистрибуция</span>
-      <span class="niche-chip">Производство</span>
-      <span class="niche-chip">Сети клиник</span>
-      <span class="niche-chip">+ другие ниши</span>
-    </div>
-  </div>
-</section>
+        <form class="lead-form js-lead-form" novalidate>
+          <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required autocomplete="tel" inputmode="tel" maxlength="18">
+          <button type="submit" class="btn btn-bronze btn-arrow">Получить разбор</button>
+        </form>
+        <div class="form-note">
+          <span>Бесплатно</span>
+          <span>Без обязательств</span>
+          <span>Перезвоним за 30 минут</span>
+        </div>
 
-<!-- ============== EXAMPLES (4 stacked mockups) ============== -->
-<section class="examples" id="examples">
-  <div class="wrap">
-    <div class="examples-head reveal">
-      <span class="eyebrow">Как это выглядит</span>
-      <h2>4 ниши — <em class="b">4 разных интерфейса.</em></h2>
-      <p>Мы не красим один шаблон в разные цвета. Под каждый бизнес — отдельный интерфейс, структура данных и сценарии. Ниже — реальные экраны, спроектированные под конкретный тип компании.</p>
-    </div>
-
-    <!-- Example 1: Real estate -->
-    <div class="example reveal">
-      <div class="example-header">
-        <div class="example-num">01</div>
-        <div class="example-title">
-          <h3>Девелопмент: <em class="b">шахматка квартир</em> и ипотечный конвейер</h3>
-          <p>Застройщик с 2–3 ЖК и отделом продаж 30+ человек. Главный экран — живая шахматка по корпусу со статусами квартир в реальном времени, прямой переход в карточку лида и ипотечный конвейер.</p>
+        <div class="niches-strip">
+          <span class="label">Делаем для:</span>
+          <span class="niche-chip">Девелопмент</span>
+          <span class="niche-chip">Опт</span>
+          <span class="niche-chip">Производство</span>
+          <span class="niche-chip">Клиники</span>
+          <span class="niche-chip">+ другие</span>
         </div>
       </div>
 
-      <div class="mockup-wrap">
-        <div class="frame">
-          <div class="frame-bar">
-            <div class="frame-bar-dots"><span></span><span></span><span></span></div>
-            <div class="frame-bar-url">crm.devstudio.kz / шахматка / алатау-к3</div>
-            <span class="frame-bar-tag">Live</span>
+      <!-- RIGHT: 4 mini mockup previews — all in different designs -->
+      <div class="previews">
+
+        <!-- Preview 1: Real estate — grid -->
+        <div class="preview preview-1">
+          <div class="preview-bar">
+            <div class="preview-dots"><span></span><span></span><span></span></div>
+            <span class="preview-niche">Недвижимость</span>
           </div>
-          <div class="re-toolbar">
-            <div class="re-title">ЖК «Алатау» · Корпус 3<small>9 этажей · 6 квартир на этаже · 54 квартиры</small></div>
-            <div class="re-filters">
-              <span class="re-filter"><span class="re-filter-dot" style="background:var(--m-navy-3)"></span> Продано · 32</span>
-              <span class="re-filter"><span class="re-filter-dot" style="background:var(--m-navy-4)"></span> Свободно · 14</span>
-              <span class="re-filter active"><span class="re-filter-dot" style="background:var(--m-navy)"></span> Бронь · 8</span>
-            </div>
-          </div>
-          <div class="re-body">
-            <div class="re-grid-area">
-              <div class="re-floor-label">Этаж · Квартиры 1–6</div>
-              <div class="re-floors">
-                <div class="re-floor"><div class="re-floor-num">9</div>
-                  <div class="re-cell free"><span class="re-cell-num">901</span><span class="re-cell-area">42м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">902</span><span class="re-cell-area">58м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">903</span><span class="re-cell-area">78м²</span></div>
-                  <div class="re-cell booked"><span class="re-cell-num">904</span><span class="re-cell-area">78м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">905</span><span class="re-cell-area">58м²</span></div>
-                  <div class="re-cell free"><span class="re-cell-num">906</span><span class="re-cell-area">42м²</span></div>
-                </div>
-                <div class="re-floor"><div class="re-floor-num">8</div>
-                  <div class="re-cell sold"><span class="re-cell-num">801</span><span class="re-cell-area">42м²</span></div>
-                  <div class="re-cell free"><span class="re-cell-num">802</span><span class="re-cell-area">58м²</span></div>
-                  <div class="re-cell booked selected"><span class="re-cell-num">803</span><span class="re-cell-area">78м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">804</span><span class="re-cell-area">78м²</span></div>
-                  <div class="re-cell booked"><span class="re-cell-num">805</span><span class="re-cell-area">58м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">806</span><span class="re-cell-area">42м²</span></div>
-                </div>
-                <div class="re-floor"><div class="re-floor-num">7</div>
-                  <div class="re-cell sold"><span class="re-cell-num">701</span><span class="re-cell-area">42м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">702</span><span class="re-cell-area">58м²</span></div>
-                  <div class="re-cell free"><span class="re-cell-num">703</span><span class="re-cell-area">78м²</span></div>
-                  <div class="re-cell booked"><span class="re-cell-num">704</span><span class="re-cell-area">78м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">705</span><span class="re-cell-area">58м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">706</span><span class="re-cell-area">42м²</span></div>
-                </div>
-                <div class="re-floor"><div class="re-floor-num">6</div>
-                  <div class="re-cell sold"><span class="re-cell-num">601</span><span class="re-cell-area">42м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">602</span><span class="re-cell-area">58м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">603</span><span class="re-cell-area">78м²</span></div>
-                  <div class="re-cell free"><span class="re-cell-num">604</span><span class="re-cell-area">78м²</span></div>
-                  <div class="re-cell booked"><span class="re-cell-num">605</span><span class="re-cell-area">58м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">606</span><span class="re-cell-area">42м²</span></div>
-                </div>
-                <div class="re-floor"><div class="re-floor-num">5</div>
-                  <div class="re-cell sold"><span class="re-cell-num">501</span><span class="re-cell-area">42м²</span></div>
-                  <div class="re-cell free"><span class="re-cell-num">502</span><span class="re-cell-area">58м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">503</span><span class="re-cell-area">78м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">504</span><span class="re-cell-area">78м²</span></div>
-                  <div class="re-cell free"><span class="re-cell-num">505</span><span class="re-cell-area">58м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">506</span><span class="re-cell-area">42м²</span></div>
-                </div>
-                <div class="re-floor"><div class="re-floor-num">4</div>
-                  <div class="re-cell sold"><span class="re-cell-num">401</span><span class="re-cell-area">42м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">402</span><span class="re-cell-area">58м²</span></div>
-                  <div class="re-cell booked"><span class="re-cell-num">403</span><span class="re-cell-area">78м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">404</span><span class="re-cell-area">78м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">405</span><span class="re-cell-area">58м²</span></div>
-                  <div class="re-cell free"><span class="re-cell-num">406</span><span class="re-cell-area">42м²</span></div>
-                </div>
-                <div class="re-floor"><div class="re-floor-num">3</div>
-                  <div class="re-cell sold"><span class="re-cell-num">301</span><span class="re-cell-area">42м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">302</span><span class="re-cell-area">58м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">303</span><span class="re-cell-area">78м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">304</span><span class="re-cell-area">78м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">305</span><span class="re-cell-area">58м²</span></div>
-                  <div class="re-cell sold"><span class="re-cell-num">306</span><span class="re-cell-area">42м²</span></div>
-                </div>
-              </div>
-            </div>
-            <div class="re-side">
-              <div class="re-detail-eyebrow">Квартира 803</div>
-              <div class="re-detail-title">3-комн · 78 м²</div>
-              <div class="re-detail-meta">8 этаж · вид на горы</div>
-              <div class="re-detail-price">47.4 М ₸</div>
-              <div class="re-detail-row"><span>Цена за м²</span><span>608K ₸</span></div>
-              <div class="re-detail-row"><span>Тип отделки</span><span>Чистовая</span></div>
-              <div class="re-detail-row"><span>Сдача</span><span>IV кв. 2026</span></div>
-              <div class="re-detail-row"><span>Лид</span><span>Айгерим Н.</span></div>
-              <div class="re-detail-status">
-                <b>Бронь</b>
-                До 15.05 · ипотека Halyk Bank в работе
-              </div>
-              <div class="re-stats">
-                <div class="re-stat"><div class="re-stat-num">47</div><div class="re-stat-label">в работе</div></div>
-                <div class="re-stat"><div class="re-stat-num">9</div><div class="re-stat-label">сделок</div></div>
-                <div class="re-stat"><div class="re-stat-num">11%</div><div class="re-stat-label">конверсия</div></div>
-              </div>
+          <div class="preview-body">
+            <div class="p1-title">ЖК «Алатау» <small>54 квартиры · 8 в брони</small></div>
+            <div class="p1-grid">
+              <div class="p1-cell free"></div><div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div>
+              <div class="p1-cell sold"></div><div class="p1-cell free"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div>
+              <div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div><div class="p1-cell sold"></div>
+              <div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="example-tags">
-        <span class="example-tag">Шахматка в реальном времени</span>
-        <span class="example-tag">Ипотечный конвейер</span>
-        <span class="example-tag">Платёжные графики</span>
-        <span class="example-tag">Кабинет покупателя</span>
-      </div>
-    </div>
-
-    <!-- Example 2: Wholesale -->
-    <div class="example reveal">
-      <div class="example-header">
-        <div class="example-num">02</div>
-        <div class="example-title">
-          <h3>Опт: <em class="b">живой маршрут торгпреда</em> и точки на карте</h3>
-          <p>Дистрибьютор: 8 торговых, 600+ точек, склад. Главный экран супервайзера — карта маршрутов с прогрессом по каждому торгпреду в реальном времени.</p>
-        </div>
-      </div>
-
-      <div class="mockup-wrap">
-        <div class="frame">
-          <div class="frame-bar">
-            <div class="frame-bar-dots"><span></span><span></span><span></span></div>
-            <div class="frame-bar-url">crm.optorg.kz / маршрут / серик-а</div>
-            <span class="frame-bar-tag">На маршруте</span>
+        <!-- Preview 2: Wholesale — map + stats -->
+        <div class="preview preview-2">
+          <div class="preview-bar">
+            <div class="preview-dots"><span></span><span></span><span></span></div>
+            <span class="preview-niche">Опт</span>
           </div>
-          <div class="ws-body">
-            <aside class="ws-aside">
-              <div class="ws-rep-card">
-                <div class="ws-rep-name">
-                  <div class="ws-rep-avatar">СА</div>
-                  <div><b>Серик А.</b><small>Алматы Центр-Восток</small></div>
-                </div>
-                <div class="ws-rep-progress"></div>
-                <div class="ws-rep-meta"><span>5 из 8 точек</span><span>14:32</span></div>
-              </div>
-
-              <h5>Маршрут на сегодня</h5>
-              <div class="ws-stop done"><div class="ws-stop-marker"></div><div class="ws-stop-info"><b>Магнум · Сатпаева</b><small>09:20 · 2.4М ₸</small></div></div>
-              <div class="ws-stop done"><div class="ws-stop-marker"></div><div class="ws-stop-info"><b>Small · Самал</b><small>10:35 · 860K ₸</small></div></div>
-              <div class="ws-stop done"><div class="ws-stop-marker"></div><div class="ws-stop-info"><b>Galmart · Достык</b><small>11:50 · 3.1М ₸</small></div></div>
-              <div class="ws-stop done"><div class="ws-stop-marker"></div><div class="ws-stop-info"><b>Toymart · Жибек Жолы</b><small>13:10 · 540K</small></div></div>
-              <div class="ws-stop done"><div class="ws-stop-marker"></div><div class="ws-stop-info"><b>Skif · Панфилова</b><small>14:00 · 1.2М</small></div></div>
-              <div class="ws-stop now"><div class="ws-stop-marker"></div><div class="ws-stop-info"><b>Smart · Гоголя</b><small>14:30 · сейчас</small></div></div>
-              <div class="ws-stop"><div class="ws-stop-marker"></div><div class="ws-stop-info"><b>Дина · Абая</b><small>≈15:30</small></div></div>
-              <div class="ws-stop"><div class="ws-stop-marker"></div><div class="ws-stop-info"><b>Береке · Кунаева</b><small>≈16:30</small></div></div>
-            </aside>
-
-            <div class="ws-map">
-              <div class="ws-map-head">
-                <div class="ws-map-title">Маршрут «Центр-Восток»<small>Понедельник, 4 мая · 14:32</small></div>
-              </div>
-              <div class="ws-map-stats">
-                <div class="ws-mini-stat"><div class="ws-mini-stat-num">8.1М ₸</div><div class="ws-mini-stat-label">собрано</div></div>
-                <div class="ws-mini-stat"><div class="ws-mini-stat-num">62%</div><div class="ws-mini-stat-label">маршрута</div></div>
-                <div class="ws-mini-stat"><div class="ws-mini-stat-num">23.4М</div><div class="ws-mini-stat-label">дебиторка</div></div>
-              </div>
-
-              <svg class="ws-map-svg" viewBox="0 0 600 280" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <pattern id="dotPattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-                    <circle cx="1" cy="1" r="0.5" fill="#1b3258"/>
-                  </pattern>
-                </defs>
-                <rect width="600" height="280" fill="url(#dotPattern)"/>
-                <g stroke="#1b3258" stroke-width="1" fill="none" opacity="0.7">
-                  <path d="M 0 70 L 600 70"/><path d="M 0 140 L 600 140"/><path d="M 0 210 L 600 210"/>
-                  <path d="M 100 0 L 100 280"/><path d="M 230 0 L 230 280"/><path d="M 380 0 L 380 280"/><path d="M 510 0 L 510 280"/>
+          <div class="preview-body">
+            <div class="p2-stats">
+              <div class="p2-stat"><b>8.1М</b><small>собрано</small></div>
+              <div class="p2-stat"><b>62%</b><small>маршрута</small></div>
+            </div>
+            <div class="p2-map">
+              <svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+                <g stroke="#bbf7d0" stroke-width="0.5" opacity="0.8">
+                  <path d="M0 25 L200 25"/><path d="M0 50 L200 50"/><path d="M0 75 L200 75"/>
+                  <path d="M40 0 L40 100"/><path d="M90 0 L90 100"/><path d="M140 0 L140 100"/>
                 </g>
-                <path d="M 0 240 Q 150 220 300 245 T 600 230" stroke="#142847" stroke-width="3" fill="none" opacity="0.6"/>
-                <path d="M 70 70 L 230 70 L 230 140 L 380 140 L 380 70 L 510 70 L 510 210 L 380 210 L 230 210" stroke="#b8895a" stroke-width="2" fill="none" stroke-dasharray="4 4" opacity="0.7"/>
-                <path d="M 70 70 L 230 70 L 230 140 L 380 140 L 380 70 L 510 70 L 510 210" stroke="#b8895a" stroke-width="2.5" fill="none"/>
-                <g><circle cx="70" cy="70" r="8" fill="#b8895a"/><text x="70" y="74" text-anchor="middle" fill="#0a1628" font-size="9" font-weight="700">1</text></g>
-                <g><circle cx="230" cy="70" r="8" fill="#b8895a"/><text x="230" y="74" text-anchor="middle" fill="#0a1628" font-size="9" font-weight="700">2</text></g>
-                <g><circle cx="230" cy="140" r="8" fill="#b8895a"/><text x="230" y="144" text-anchor="middle" fill="#0a1628" font-size="9" font-weight="700">3</text></g>
-                <g><circle cx="380" cy="140" r="8" fill="#b8895a"/><text x="380" y="144" text-anchor="middle" fill="#0a1628" font-size="9" font-weight="700">4</text></g>
-                <g><circle cx="380" cy="70" r="8" fill="#b8895a"/><text x="380" y="74" text-anchor="middle" fill="#0a1628" font-size="9" font-weight="700">5</text></g>
-                <g>
-                  <circle cx="510" cy="70" r="14" fill="rgba(184,137,90,0.25)">
-                    <animate attributeName="r" values="14;22;14" dur="2s" repeatCount="indefinite"/>
-                    <animate attributeName="opacity" values="1;0;1" dur="2s" repeatCount="indefinite"/>
-                  </circle>
-                  <circle cx="510" cy="70" r="9" fill="#b8895a"/>
-                  <text x="510" y="74" text-anchor="middle" fill="#0a1628" font-size="9" font-weight="700">6</text>
-                  <text x="510" y="50" text-anchor="middle" fill="#d4a373" font-size="10" font-weight="600">сейчас</text>
-                </g>
-                <g><circle cx="510" cy="210" r="6" fill="#0a1628" stroke="#8a6543" stroke-width="1.5"/><text x="510" y="227" text-anchor="middle" fill="#8a6543" font-size="9" font-weight="600">7</text></g>
-                <g><circle cx="380" cy="210" r="6" fill="#0a1628" stroke="#8a6543" stroke-width="1.5"/><text x="380" y="227" text-anchor="middle" fill="#8a6543" font-size="9" font-weight="600">8</text></g>
-                <text x="60" y="55" fill="rgba(255,255,255,0.45)" font-size="9" text-anchor="end">Магнум</text>
-                <text x="220" y="55" fill="rgba(255,255,255,0.45)" font-size="9" text-anchor="end">Small</text>
-                <text x="245" y="144" fill="rgba(255,255,255,0.45)" font-size="9">Galmart</text>
-                <text x="395" y="144" fill="rgba(255,255,255,0.45)" font-size="9">Toymart</text>
-                <text x="370" y="55" fill="rgba(255,255,255,0.45)" font-size="9" text-anchor="end">Skif</text>
-                <text x="525" y="74" fill="#d4a373" font-size="9" font-weight="600">Smart</text>
-                <text x="525" y="214" fill="rgba(255,255,255,0.35)" font-size="9">Дина</text>
-                <text x="365" y="214" fill="rgba(255,255,255,0.35)" font-size="9" text-anchor="end">Береке</text>
+                <path d="M20 25 L90 25 L90 50 L140 50 L140 25 L180 25 L180 75" stroke="#16a34a" stroke-width="1.2" fill="none"/>
+                <circle cx="20" cy="25" r="3" fill="#16a34a"/>
+                <circle cx="90" cy="25" r="3" fill="#16a34a"/>
+                <circle cx="90" cy="50" r="3" fill="#16a34a"/>
+                <circle cx="140" cy="50" r="3" fill="#16a34a"/>
+                <circle cx="140" cy="25" r="3" fill="#16a34a"/>
+                <circle cx="180" cy="25" r="5" fill="#16a34a">
+                  <animate attributeName="r" values="5;7;5" dur="2s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="180" cy="75" r="2.5" fill="#fff" stroke="#86efac" stroke-width="1"/>
               </svg>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="example-tags">
-        <span class="example-tag">Мобайл для торгпреда (офлайн)</span>
-        <span class="example-tag">Карта маршрутов в реальном времени</span>
-        <span class="example-tag">Матрица цен</span>
-        <span class="example-tag">Дебиторка по точкам</span>
+        <!-- Preview 3: Production — gantt bars -->
+        <div class="preview preview-3">
+          <div class="preview-bar">
+            <div class="preview-dots"><span></span><span></span><span></span></div>
+            <span class="preview-niche">Производство</span>
+          </div>
+          <div class="preview-body">
+            <div class="p3-head">
+              <b>Цех · 31 заказ</b>
+              <span class="p3-load">87%</span>
+            </div>
+            <div class="p3-row"><span class="p3-row-label">Сериков</span><div class="p3-track"><div class="p3-bar p3-bar-1"></div><div class="p3-bar p3-bar-2"></div></div></div>
+            <div class="p3-row"><span class="p3-row-label">Лебедева</span><div class="p3-track"><div class="p3-bar p3-bar-3"></div><div class="p3-bar p3-bar-4"></div></div></div>
+            <div class="p3-row"><span class="p3-row-label">Жакиев</span><div class="p3-track"><div class="p3-bar p3-bar-5"></div></div></div>
+            <div class="p3-row"><span class="p3-row-label">Иванова</span><div class="p3-track"><div class="p3-bar p3-bar-3"></div></div></div>
+          </div>
+        </div>
+
+        <!-- Preview 4: Clinic — calendar + appointments -->
+        <div class="preview preview-4">
+          <div class="preview-bar">
+            <div class="preview-dots"><span></span><span></span><span></span></div>
+            <span class="preview-niche">Клиника</span>
+          </div>
+          <div class="preview-body">
+            <div class="p4-cal">
+              <div class="p4-cal-d muted">28</div><div class="p4-cal-d muted">29</div><div class="p4-cal-d muted">30</div><div class="p4-cal-d has">1</div><div class="p4-cal-d has">2</div><div class="p4-cal-d">3</div><div class="p4-cal-d muted">4</div>
+              <div class="p4-cal-d today">4</div><div class="p4-cal-d has">5</div><div class="p4-cal-d has">6</div><div class="p4-cal-d has">7</div><div class="p4-cal-d has">8</div><div class="p4-cal-d">9</div><div class="p4-cal-d">10</div>
+              <div class="p4-cal-d has">11</div><div class="p4-cal-d has">12</div><div class="p4-cal-d has">13</div><div class="p4-cal-d">14</div><div class="p4-cal-d">15</div><div class="p4-cal-d">16</div><div class="p4-cal-d">17</div>
+            </div>
+            <div class="p4-list">
+              <div class="p4-item"><b>Бекенова А.</b><small>14:00</small></div>
+              <div class="p4-item"><b>Жумаш К.</b><small>14:30</small></div>
+              <div class="p4-item"><b>Алина С.</b><small>15:00</small></div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
+  </div>
+</section>
 
-    <!-- Example 3: Production -->
-    <div class="example reveal">
-      <div class="example-header">
-        <div class="example-num">03</div>
-        <div class="example-title">
+<!-- ============== PROJECTS SECTION ============== -->
+<section class="projects" id="projects">
+  <div class="wrap">
+    <div class="projects-head reveal">
+      <span class="eyebrow">Проекты под вашу нишу</span>
+      <h2>4 ниши — <em class="b">4 разных интерфейса.</em></h2>
+      <p>Мы не красим один шаблон в разные цвета. Под каждый бизнес — свой интерфейс, своя структура данных, свои сценарии.</p>
+    </div>
+
+    <div class="projects-grid">
+
+      <!-- Project 1: Real estate -->
+      <article class="project-card reveal niche-realestate">
+        <div class="project-mockup pm-1">
+          <div class="preview-bar">
+            <div class="preview-dots"><span></span><span></span><span></span></div>
+            <span class="preview-niche">Недвижимость</span>
+          </div>
+          <div class="preview-body">
+            <div class="p1-title">ЖК «Алатау» · Корпус 3 <small>9 этажей · 54 квартиры</small></div>
+            <div class="p1-grid" style="margin-top: 10px;">
+              <div class="p1-cell free"></div><div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div>
+              <div class="p1-cell sold"></div><div class="p1-cell free"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div><div class="p1-cell sold"></div>
+              <div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div>
+              <div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div><div class="p1-cell booked"></div><div class="p1-cell sold"></div><div class="p1-cell sold"></div><div class="p1-cell free"></div>
+            </div>
+          </div>
+        </div>
+        <div class="project-info">
+          <h3>Девелопмент: <em class="b">шахматка</em> и ипотечный конвейер</h3>
+          <p>Застройщик с 2–3 ЖК и отделом продаж 30+ человек. Главный экран — живая шахматка по корпусу со статусами квартир в реальном времени.</p>
+          <div class="project-tags">
+            <span class="project-tag">Шахматка</span>
+            <span class="project-tag">Ипотека</span>
+            <span class="project-tag">Платёжные графики</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Project 2: Wholesale -->
+      <article class="project-card reveal niche-wholesale">
+        <div class="project-mockup pm-2">
+          <div class="preview-bar">
+            <div class="preview-dots"><span></span><span></span><span></span></div>
+            <span class="preview-niche">Опт</span>
+          </div>
+          <div class="preview-body">
+            <div class="p2-stats">
+              <div class="p2-stat"><b>8.1М ₸</b><small>собрано</small></div>
+              <div class="p2-stat"><b>62%</b><small>маршрута</small></div>
+              <div class="p2-stat"><b>23.4М</b><small>дебиторка</small></div>
+            </div>
+            <div class="p2-map" style="min-height: 100px;">
+              <svg viewBox="0 0 300 130" xmlns="http://www.w3.org/2000/svg">
+                <g stroke="#bbf7d0" stroke-width="0.5" opacity="0.8">
+                  <path d="M0 30 L300 30"/><path d="M0 65 L300 65"/><path d="M0 100 L300 100"/>
+                  <path d="M50 0 L50 130"/><path d="M120 0 L120 130"/><path d="M200 0 L200 130"/><path d="M260 0 L260 130"/>
+                </g>
+                <path d="M30 30 L120 30 L120 65 L200 65 L200 30 L260 30 L260 100" stroke="#16a34a" stroke-width="1.5" fill="none"/>
+                <circle cx="30" cy="30" r="4" fill="#16a34a"/><text x="30" y="34" text-anchor="middle" fill="#fff" font-size="5" font-weight="700">1</text>
+                <circle cx="120" cy="30" r="4" fill="#16a34a"/><text x="120" y="34" text-anchor="middle" fill="#fff" font-size="5" font-weight="700">2</text>
+                <circle cx="120" cy="65" r="4" fill="#16a34a"/><text x="120" y="69" text-anchor="middle" fill="#fff" font-size="5" font-weight="700">3</text>
+                <circle cx="200" cy="65" r="4" fill="#16a34a"/><text x="200" y="69" text-anchor="middle" fill="#fff" font-size="5" font-weight="700">4</text>
+                <circle cx="200" cy="30" r="4" fill="#16a34a"/><text x="200" y="34" text-anchor="middle" fill="#fff" font-size="5" font-weight="700">5</text>
+                <circle cx="260" cy="30" r="7" fill="rgba(22, 163, 74, 0.25)">
+                  <animate attributeName="r" values="7;11;7" dur="2s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="260" cy="30" r="5" fill="#16a34a"/><text x="260" y="34" text-anchor="middle" fill="#fff" font-size="6" font-weight="700">6</text>
+                <circle cx="260" cy="100" r="3" fill="#fff" stroke="#86efac" stroke-width="1"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <div class="project-info">
+          <h3>Опт: <em class="b">маршрут торгпреда</em> и точки на карте</h3>
+          <p>Дистрибьютор: 8 торговых, 600+ точек. Супервайзер видит карту маршрутов с прогрессом по каждому торгпреду в реальном времени.</p>
+          <div class="project-tags">
+            <span class="project-tag">Мобайл торгпреда</span>
+            <span class="project-tag">Дебиторка</span>
+            <span class="project-tag">Матрица цен</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Project 3: Production -->
+      <article class="project-card reveal niche-production">
+        <div class="project-mockup pm-3">
+          <div class="preview-bar">
+            <div class="preview-dots"><span></span><span></span><span></span></div>
+            <span class="preview-niche">Производство</span>
+          </div>
+          <div class="preview-body">
+            <div class="p3-head">
+              <b>Производственный план · 31 заказ</b>
+              <span class="p3-load">Загрузка 87%</span>
+            </div>
+            <div class="p3-row"><span class="p3-row-label">Сериков · кухня</span><div class="p3-track"><div class="p3-bar p3-bar-1"></div><div class="p3-bar p3-bar-2"></div></div></div>
+            <div class="p3-row"><span class="p3-row-label">Лебедева · ТВ</span><div class="p3-track"><div class="p3-bar p3-bar-3"></div><div class="p3-bar p3-bar-4"></div></div></div>
+            <div class="p3-row"><span class="p3-row-label">Жакиев</span><div class="p3-track"><div class="p3-bar p3-bar-5"></div></div></div>
+            <div class="p3-row"><span class="p3-row-label">Иванова</span><div class="p3-track"><div class="p3-bar p3-bar-3"></div></div></div>
+            <div class="p3-row"><span class="p3-row-label">Алтаев</span><div class="p3-track"><div class="p3-bar p3-bar-4"></div></div></div>
+          </div>
+        </div>
+        <div class="project-info">
           <h3>Производство: <em class="b">Gantt по заказам</em> и загрузка цеха</h3>
-          <p>Фабрика кухонь и шкафов на заказ. Каждый заказ — полоса с этапами производства. Сразу видно загрузку цеха и какие сроки можно обещать клиенту честно.</p>
+          <p>Фабрика на заказ. Каждый заказ — полоса с этапами. Сразу видно загрузку цеха и какие сроки можно обещать клиенту честно.</p>
+          <div class="project-tags">
+            <span class="project-tag">Спецификации</span>
+            <span class="project-tag">Загрузка цеха</span>
+            <span class="project-tag">Кабинет клиента</span>
+          </div>
         </div>
-      </div>
+      </article>
 
-      <div class="mockup-wrap">
-        <div class="frame">
-          <div class="frame-bar">
-            <div class="frame-bar-dots"><span></span><span></span><span></span></div>
-            <div class="frame-bar-url">crm.kuhnistudio.kz / цех / неделя</div>
-            <span class="frame-bar-tag">31 заказ</span>
+      <!-- Project 4: Clinic -->
+      <article class="project-card reveal niche-clinic">
+        <div class="project-mockup pm-4">
+          <div class="preview-bar">
+            <div class="preview-dots"><span></span><span></span><span></span></div>
+            <span class="preview-niche">Клиника</span>
           </div>
-          <div class="pr-toolbar">
-            <div class="pr-title">Производственный план<small>Неделя 4–10 мая · цех Алматы</small></div>
-            <div class="pr-load">
-              <div class="pr-load-text">Загрузка цеха <b>87%</b></div>
-              <div class="pr-load-bar"></div>
+          <div class="preview-body">
+            <div class="p4-cal">
+              <div class="p4-cal-d muted">28</div><div class="p4-cal-d muted">29</div><div class="p4-cal-d muted">30</div><div class="p4-cal-d has">1</div><div class="p4-cal-d has">2</div><div class="p4-cal-d">3</div><div class="p4-cal-d muted">4</div>
+              <div class="p4-cal-d today">4</div><div class="p4-cal-d has">5</div><div class="p4-cal-d has">6</div><div class="p4-cal-d has">7</div><div class="p4-cal-d has">8</div><div class="p4-cal-d">9</div><div class="p4-cal-d">10</div>
+              <div class="p4-cal-d has">11</div><div class="p4-cal-d has">12</div><div class="p4-cal-d has">13</div><div class="p4-cal-d has">14</div><div class="p4-cal-d has">15</div><div class="p4-cal-d">16</div><div class="p4-cal-d">17</div>
+              <div class="p4-cal-d">18</div><div class="p4-cal-d">19</div><div class="p4-cal-d">20</div><div class="p4-cal-d">21</div><div class="p4-cal-d">22</div><div class="p4-cal-d">23</div><div class="p4-cal-d">24</div>
             </div>
-          </div>
-          <div class="pr-legend">
-            <div class="pr-legend-item"><span class="pr-legend-swatch measure"></span> Замер</div>
-            <div class="pr-legend-item"><span class="pr-legend-swatch design"></span> Проект</div>
-            <div class="pr-legend-item"><span class="pr-legend-swatch cut"></span> Распил/Кромка</div>
-            <div class="pr-legend-item"><span class="pr-legend-swatch assembly"></span> Сборка</div>
-            <div class="pr-legend-item"><span class="pr-legend-swatch install"></span> Доставка/Монтаж</div>
-          </div>
-
-          <div class="pr-gantt">
-            <div class="pr-timeline">
-              <div></div>
-              <div class="pr-day today">Пн<b>4</b></div>
-              <div class="pr-day">Вт<b>5</b></div>
-              <div class="pr-day">Ср<b>6</b></div>
-              <div class="pr-day">Чт<b>7</b></div>
-              <div class="pr-day">Пт<b>8</b></div>
-              <div class="pr-day">Сб<b>9</b></div>
-              <div class="pr-day">Вс<b>10</b></div>
-            </div>
-
-            <div class="pr-row">
-              <div class="pr-row-label"><b>Сериков · кухня</b><small>3.8м · 1.8М ₸</small></div>
-              <div class="pr-track">
-                <div class="pr-grid-line" style="left: 14.28%"></div>
-                <div class="pr-grid-line" style="left: 28.57%"></div>
-                <div class="pr-grid-line" style="left: 42.85%"></div>
-                <div class="pr-grid-line" style="left: 57.14%"></div>
-                <div class="pr-grid-line" style="left: 71.42%"></div>
-                <div class="pr-grid-line" style="left: 85.71%"></div>
-                <div class="pr-bar is-now" style="background: var(--m-bronze); left: 0; width: 28.5%;">Распил 80%</div>
-                <div class="pr-bar" style="background: var(--m-bronze-light); left: 28.5%; width: 28.5%;">Сборка</div>
-                <div class="pr-bar" style="background: #d4b896; left: 71.4%; width: 14.2%;">Монтаж</div>
-              </div>
-            </div>
-
-            <div class="pr-row">
-              <div class="pr-row-label"><b>Лебедева · ТВ</b><small>920K ₸</small></div>
-              <div class="pr-track">
-                <div class="pr-grid-line" style="left: 14.28%"></div>
-                <div class="pr-grid-line" style="left: 28.57%"></div>
-                <div class="pr-grid-line" style="left: 42.85%"></div>
-                <div class="pr-grid-line" style="left: 57.14%"></div>
-                <div class="pr-grid-line" style="left: 71.42%"></div>
-                <div class="pr-grid-line" style="left: 85.71%"></div>
-                <div class="pr-bar" style="background: var(--m-bronze); left: 14.28%; width: 14.28%;">Кромка</div>
-                <div class="pr-bar" style="background: var(--m-bronze-light); left: 28.57%; width: 14.28%;">Сборка</div>
-                <div class="pr-bar" style="background: #d4b896; left: 57.14%; width: 14.28%;">Монтаж</div>
-              </div>
-            </div>
-
-            <div class="pr-row">
-              <div class="pr-row-label"><b>Жакиев · гардероб</b><small>1.5М ₸</small></div>
-              <div class="pr-track">
-                <div class="pr-grid-line" style="left: 14.28%"></div>
-                <div class="pr-grid-line" style="left: 28.57%"></div>
-                <div class="pr-grid-line" style="left: 42.85%"></div>
-                <div class="pr-grid-line" style="left: 57.14%"></div>
-                <div class="pr-grid-line" style="left: 71.42%"></div>
-                <div class="pr-grid-line" style="left: 85.71%"></div>
-                <div class="pr-bar" style="background: var(--m-bronze-light); left: 0; width: 14.28%;">Готов</div>
-                <div class="pr-bar" style="background: #d4b896; left: 14.28%; width: 14.28%;">Доставка</div>
-              </div>
-            </div>
-
-            <div class="pr-row">
-              <div class="pr-row-label"><b>Иванова · угловая</b><small>2.1М ₸</small></div>
-              <div class="pr-track">
-                <div class="pr-grid-line" style="left: 14.28%"></div>
-                <div class="pr-grid-line" style="left: 28.57%"></div>
-                <div class="pr-grid-line" style="left: 42.85%"></div>
-                <div class="pr-grid-line" style="left: 57.14%"></div>
-                <div class="pr-grid-line" style="left: 71.42%"></div>
-                <div class="pr-grid-line" style="left: 85.71%"></div>
-                <div class="pr-bar is-now" style="background: var(--m-bronze-dim); left: 0; width: 28.57%;">Согласование</div>
-                <div class="pr-bar" style="background: var(--m-bronze); left: 28.57%; width: 42.85%;">Распил → Сборка</div>
-              </div>
-            </div>
-
-            <div class="pr-row">
-              <div class="pr-row-label"><b>Алтаев · кухня 4.2м</b><small>1.4М ₸</small></div>
-              <div class="pr-track">
-                <div class="pr-grid-line" style="left: 14.28%"></div>
-                <div class="pr-grid-line" style="left: 28.57%"></div>
-                <div class="pr-grid-line" style="left: 42.85%"></div>
-                <div class="pr-grid-line" style="left: 57.14%"></div>
-                <div class="pr-grid-line" style="left: 71.42%"></div>
-                <div class="pr-grid-line" style="left: 85.71%"></div>
-                <div class="pr-bar" style="background: var(--m-bronze-deep); left: 14.28%; width: 14.28%;">Замер</div>
-                <div class="pr-bar" style="background: var(--m-bronze-dim); left: 28.57%; width: 14.28%;">Проект</div>
-              </div>
+            <div class="p4-list">
+              <div class="p4-item"><b>Бекенова А.</b><small>14:00 · Терапевт</small></div>
+              <div class="p4-item"><b>Жумаш К.</b><small>14:30 · Кардиолог</small></div>
+              <div class="p4-item"><b>Сериков Д.</b><small>15:00 · Стоматолог</small></div>
+              <div class="p4-item"><b>Алина С.</b><small>15:30 · ДМС</small></div>
             </div>
           </div>
         </div>
-      </div>
-
-      <div class="example-tags">
-        <span class="example-tag">Спецификации с автоподсчётом</span>
-        <span class="example-tag">Загрузка цеха</span>
-        <span class="example-tag">Календарь монтажников</span>
-        <span class="example-tag">Кабинет клиента</span>
-      </div>
-    </div>
-
-    <!-- Example 4: Clinic -->
-    <div class="example reveal">
-      <div class="example-header">
-        <div class="example-num">04</div>
-        <div class="example-title">
-          <h3>Клиника: <em class="b">календарь, день</em> и история пациента</h3>
-          <p>Сеть из 4 филиалов, 35 врачей, 8 направлений. Главный экран администратора — календарь месяца с занятостью + день со списком визитов по времени.</p>
-        </div>
-      </div>
-
-      <div class="mockup-wrap">
-        <div class="frame">
-          <div class="frame-bar">
-            <div class="frame-bar-dots"><span></span><span></span><span></span></div>
-            <div class="frame-bar-url">crm.medplus.kz / расписание / 4-мая</div>
-            <span class="frame-bar-tag">28 визитов</span>
-          </div>
-          <div class="cl-body">
-            <aside class="cl-aside">
-              <div class="cl-month">
-                <span class="cl-month-arrow">‹</span>
-                <span class="cl-month-name">Май 2026</span>
-                <span class="cl-month-arrow">›</span>
-              </div>
-              <div class="cl-cal">
-                <div class="cl-cal-dow">пн</div><div class="cl-cal-dow">вт</div><div class="cl-cal-dow">ср</div><div class="cl-cal-dow">чт</div><div class="cl-cal-dow">пт</div><div class="cl-cal-dow">сб</div><div class="cl-cal-dow">вс</div>
-                <div class="cl-cal-day muted">28</div><div class="cl-cal-day muted">29</div><div class="cl-cal-day muted">30</div><div class="cl-cal-day has">1</div><div class="cl-cal-day has">2</div><div class="cl-cal-day">3</div><div class="cl-cal-day muted">4</div>
-                <div class="cl-cal-day today has">4</div><div class="cl-cal-day has">5</div><div class="cl-cal-day has">6</div><div class="cl-cal-day has">7</div><div class="cl-cal-day has">8</div><div class="cl-cal-day has">9</div><div class="cl-cal-day">10</div>
-                <div class="cl-cal-day has">11</div><div class="cl-cal-day has">12</div><div class="cl-cal-day has">13</div><div class="cl-cal-day has">14</div><div class="cl-cal-day has">15</div><div class="cl-cal-day">16</div><div class="cl-cal-day">17</div>
-                <div class="cl-cal-day has">18</div><div class="cl-cal-day has">19</div><div class="cl-cal-day has">20</div><div class="cl-cal-day">21</div><div class="cl-cal-day">22</div><div class="cl-cal-day">23</div><div class="cl-cal-day">24</div>
-                <div class="cl-cal-day">25</div><div class="cl-cal-day">26</div><div class="cl-cal-day">27</div><div class="cl-cal-day">28</div><div class="cl-cal-day">29</div><div class="cl-cal-day">30</div><div class="cl-cal-day">31</div>
-              </div>
-
-              <h5>Филиалы</h5>
-              <div class="cl-branch active"><span>Сатпаева</span><small>28</small></div>
-              <div class="cl-branch"><span>Достык</span><small>22</small></div>
-              <div class="cl-branch"><span>Самал-2</span><small>17</small></div>
-              <div class="cl-branch"><span>Шымкент</span><small>14</small></div>
-            </aside>
-
-            <div class="cl-day">
-              <div class="cl-day-head">
-                <div class="cl-day-title">Понедельник, <em>4 мая</em></div>
-                <div class="cl-day-stats">
-                  <span><b>28</b> визитов</span>
-                  <span><b>62%</b> повторные</span>
-                  <span><b>34.2М ₸</b> мес.</span>
-                </div>
-              </div>
-
-              <div class="cl-hour">
-                <div class="cl-hour-time">14:00<small>Сейчас</small></div>
-                <div class="cl-visits">
-                  <div class="cl-visit">
-                    <div class="cl-visit-patient"><b>Бекенова А.</b><small>Первичный · 25 мин</small></div>
-                    <div class="cl-visit-doctor">Иванова А.А.<b>Терапевт</b></div>
-                    <span class="cl-visit-tag">12K</span>
-                  </div>
-                  <div class="cl-visit warm">
-                    <div class="cl-visit-patient"><b>Жумаш К.</b><small>Повторный · 30 мин · 2 раз</small></div>
-                    <div class="cl-visit-doctor">Касымов Б.Р.<b>Кардиолог</b></div>
-                    <span class="cl-visit-tag">Повтор</span>
-                  </div>
-                  <div class="cl-visit">
-                    <div class="cl-visit-patient"><b>Тлеу М.</b><small>УЗИ ОБП · 20 мин</small></div>
-                    <div class="cl-visit-doctor">Нурсеитов А.<b>УЗИ</b></div>
-                    <span class="cl-visit-tag">15K</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="cl-hour">
-                <div class="cl-hour-time">14:30</div>
-                <div class="cl-visits">
-                  <div class="cl-visit warm">
-                    <div class="cl-visit-patient"><b>Жумаш К.</b><small>Лечение · продолжение</small></div>
-                    <div class="cl-visit-doctor">Касымов Б.Р.<b>Кардиолог</b></div>
-                    <span class="cl-visit-tag">Повтор</span>
-                  </div>
-                  <div class="cl-visit">
-                    <div class="cl-visit-patient"><b>Сериков Д.</b><small>Лечение · 45 мин</small></div>
-                    <div class="cl-visit-doctor">Ким Е.С.<b>Стоматолог</b></div>
-                    <span class="cl-visit-tag">38K</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="cl-hour">
-                <div class="cl-hour-time">15:00</div>
-                <div class="cl-visits">
-                  <div class="cl-visit dms">
-                    <div class="cl-visit-patient"><b>Алина С.</b><small>Консультация · ДМС Евразия</small></div>
-                    <div class="cl-visit-doctor">Иванова А.А.<b>Терапевт</b></div>
-                    <span class="cl-visit-tag">ДМС</span>
-                  </div>
-                  <div class="cl-visit">
-                    <div class="cl-visit-patient"><b>Айгуль М.</b><small>УЗИ щитовидки</small></div>
-                    <div class="cl-visit-doctor">Нурсеитов А.<b>УЗИ</b></div>
-                    <span class="cl-visit-tag">14K</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="cl-hour">
-                <div class="cl-hour-time">15:30</div>
-                <div class="cl-visits">
-                  <div class="cl-visit">
-                    <div class="cl-visit-patient"><b>Бек А.</b><small>Первичный приём</small></div>
-                    <div class="cl-visit-doctor">Иванова А.А.<b>Терапевт</b></div>
-                    <span class="cl-visit-tag">12K</span>
-                  </div>
-                  <div class="cl-visit warm">
-                    <div class="cl-visit-patient"><b>Лебедев Н.</b><small>ЭКГ + расшифровка</small></div>
-                    <div class="cl-visit-doctor">Касымов Б.Р.<b>Кардиолог</b></div>
-                    <span class="cl-visit-tag">Повтор</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+        <div class="project-info">
+          <h3>Клиника: <em class="b">календарь и день</em>, история пациента</h3>
+          <p>Сеть из 4 филиалов, 35 врачей. Расписание по врачам и кабинетам, электронная карта пациента, ДМС и страховые.</p>
+          <div class="project-tags">
+            <span class="project-tag">Электронная карта</span>
+            <span class="project-tag">Возвратность</span>
+            <span class="project-tag">ДМС</span>
           </div>
         </div>
-      </div>
+      </article>
 
-      <div class="example-tags">
-        <span class="example-tag">Электронная карта пациента</span>
-        <span class="example-tag">Автонапоминания о повторных</span>
-        <span class="example-tag">Абонементы и ДМС</span>
-        <span class="example-tag">Финансы по врачам</span>
-      </div>
     </div>
   </div>
 </section>
@@ -1483,21 +1046,21 @@ footer {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
         </div>
         <h3>Менеджеры воюют с интерфейсом</h3>
-        <p>5–7 кликов вместо 2 на каждое действие. Обучение нового — недели. Половина функционала никем не используется, но мешает работать.</p>
+        <p>5–7 кликов вместо 2 на каждое действие. Обучение нового — недели. Половина функционала никем не используется.</p>
       </div>
       <div class="why-card reveal">
         <div class="why-card-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         </div>
         <h3>Платите за лицензии, а не за результат</h3>
-        <p>Команда растёт — счёт растёт. Глубокая доработка — платите интеграторам сверху и зависите от их сроков. Скидку у вендора не получить.</p>
+        <p>Команда растёт — счёт растёт. Доработка — платите интеграторам сверху и зависите от их сроков.</p>
       </div>
       <div class="why-card reveal">
         <div class="why-card-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </div>
         <h3>Данные клиентов — не у вас</h3>
-        <p>Вся история, сделки, контакты — в чужой инфраструктуре. Вендор меняет тарифы или политику — ваши данные становятся заложниками.</p>
+        <p>Вся история, сделки, контакты — в чужой инфраструктуре. Вендор меняет тарифы — данные становятся заложниками.</p>
       </div>
     </div>
   </div>
@@ -1516,25 +1079,25 @@ footer {
       <div class="obj-card reveal">
         <div class="obj-card-q">Сколько <em class="b">стоит?</em></div>
         <div class="obj-card-a">
-          Зависит от объёма функционала и сложности процессов. Минимальный жизнеспособный продукт стоит ощутимо дороже годовой подписки на коробку — но через <b>1–2 года экономика разворачивается в вашу сторону</b>: вы перестаёте платить за пользователей и доработки.
+          Зависит от объёма функционала и сложности процессов. MVP стоит дороже годовой подписки на коробку — но через <b>1–2 года экономика разворачивается в вашу сторону</b>: вы перестаёте платить за пользователей и доработки.
         </div>
       </div>
       <div class="obj-card reveal">
         <div class="obj-card-q">Сколько <em class="b">по времени?</em></div>
         <div class="obj-card-a">
-          Первая рабочая версия — обычно <b>2–4 месяца</b> от старта проектирования. Полноценная система с интеграциями и миграцией данных — 4–8 месяцев. Точные сроки фиксируются после этапа проектирования.
+          Первая рабочая версия — обычно <b>2–4 месяца</b> от старта проектирования. Полноценная система с интеграциями и миграцией — 4–8 месяцев.
         </div>
       </div>
       <div class="obj-card reveal">
         <div class="obj-card-q">А если разработчики <em class="b">уйдут?</em></div>
         <div class="obj-card-a">
-          <b>Код принадлежит вам</b>, написан на стандартных технологиях с документацией. Любая команда сможет его подхватить. Мы не запираем функционал за лицензией и не привязываем вас к себе.
+          <b>Код принадлежит вам</b>, написан на стандартных технологиях с документацией. Любая команда сможет его подхватить.
         </div>
       </div>
       <div class="obj-card reveal">
         <div class="obj-card-q">А <em class="b">миграция данных?</em></div>
         <div class="obj-card-a">
-          Переносим из <b>Bitrix24, amoCRM, 1С, Excel</b>: контакты, сделки, переписку, документы, остатки. Тестовый перенос → полный → параллельный режим. Команда работает в обеих системах в день перехода — без простоев.
+          Переносим из <b>Bitrix24, amoCRM, 1С, Excel</b>: контакты, сделки, переписку, документы. Параллельный режим в день перехода — без простоев.
         </div>
       </div>
     </div>
@@ -1597,8 +1160,11 @@ footer {
 <footer>
   <div class="wrap footer-inner">
     <img src="pllato_logo_transparent_navy.svg" alt="Pllato">
-    <p>© 2026 Pllato · Кастомные CRM-системы · Алматы, Казахстан</p>
-    <a href="tel:+77011239999">+7 701 123 99 99</a>
+    <p>© 2026 Pllato · Кастомные CRM-системы · Алматы</p>
+    <div class="footer-inner-links">
+      <a href="crm-builder.html" class="ghost">Нарисовать схему CRM</a>
+      <a href="tel:+77011239999">+7 701 123 99 99</a>
+    </div>
   </div>
 </footer>
 
@@ -1614,25 +1180,19 @@ footer {
 <script>
 /* ============================================================
    TELEGRAM BOT INTEGRATION
-   ============================================================
-   Чтобы заявки приходили в Telegram, заполните 2 переменные.
 
-   КАК ПОЛУЧИТЬ TOKEN И CHAT_ID (5 минут):
-   1. Telegram → @BotFather → /newbot
-   2. Имя бота → username (заканчивается на _bot)
-   3. Скопировать token в TELEGRAM_BOT_TOKEN
-   4. Найти своего бота, нажать START (важно!)
-   5. @userinfobot → /start → получить chat_id (число)
-   6. Вставить chat_id в TELEGRAM_CHAT_ID
-
-   БЕЗОПАСНОСТЬ: token виден в коде. Если беспокоит —
-   используйте Cloudflare Worker как прокси.
+   Заполните 2 переменные ниже. Инструкция:
+   1. Telegram → @BotFather → /newbot → имя → username (_bot)
+   2. Скопировать TOKEN в TELEGRAM_BOT_TOKEN
+   3. Найти своего бота, нажать START (важно!)
+   4. @userinfobot → /start → получить chat_id
+   5. Вставить chat_id в TELEGRAM_CHAT_ID
 ============================================================ */
 
-const TELEGRAM_BOT_TOKEN = ''; // <-- сюда токен
-const TELEGRAM_CHAT_ID   = ''; // <-- сюда chat_id
+const TELEGRAM_BOT_TOKEN = '8719630290:AAHuiK54ouQKZt_SVrV9K4oJyPHayJprVss';
+const TELEGRAM_CHAT_ID   = ''; // <-- ВСТАВЬТЕ chat_id от @userinfobot
 
-/* ============== HEADER SCROLL ============== */
+/* ============== HEADER & STICKY BAR SCROLL ============== */
 const header = document.getElementById('header');
 const stickyBar = document.getElementById('sticky-bar');
 window.addEventListener('scroll', () => {
