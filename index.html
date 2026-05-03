@@ -697,20 +697,81 @@ footer {
 .previews { animation-delay: 0.4s; }
 @keyframes heroIn { to { opacity: 1; transform: none; } }
 
+/* Visual scroll hint on mobile — small fade gradient on right edge */
+@media (max-width: 720px) {
+  .previews-wrap { position: relative; }
+  .previews-wrap::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 14px;
+    width: 32px; pointer-events: none;
+    background: linear-gradient(90deg, transparent, var(--bg));
+    z-index: 1;
+  }
+}
+
 /* ============== MOBILE TWEAKS ============== */
-@media (max-width: 640px) {
-  .hero { padding: 100px 0 60px; min-height: 0; }
-  .hero h1 { font-size: 38px; line-height: 1.05; }
+@media (max-width: 720px) {
+  .hero { padding: 96px 0 48px; min-height: 0; }
+  .hero h1 { font-size: clamp(30px, 9vw, 44px); line-height: 1.04; margin-bottom: 18px; }
   .hero h1 br { display: none; }
-  .hero-sub { font-size: 15px; margin-bottom: 22px; }
-  .niches-strip { padding-top: 22px; }
-  .preview { aspect-ratio: 5 / 4; }
-  .projects, .why, .objections, .final-cta { padding: 64px 0; }
-  .final-cta-card { padding: 32px 22px; border-radius: 16px; }
+  .hero-sub { font-size: 15px; line-height: 1.5; margin-bottom: 22px; }
+  .hero-status { padding: 6px 12px; font-size: 12px; margin-bottom: 18px; }
+  .niches-strip { padding-top: 22px; gap: 6px; }
+  .niche-chip { font-size: 12px; padding: 4px 10px; }
+
+  /* Previews — horizontal swipeable scroll on mobile */
+  .previews {
+    display: flex;
+    grid-template-columns: none;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin: 0 -16px;
+    padding: 6px 16px 14px;
+    gap: 12px;
+  }
+  .previews::-webkit-scrollbar { display: none; }
+  .preview {
+    flex: 0 0 80%;
+    max-width: 320px;
+    scroll-snap-align: start;
+    aspect-ratio: 4 / 3;
+    transform: none !important;
+  }
+  .preview-body { padding: 12px; }
+
+  /* Sections */
+  .projects, .why, .objections, .final-cta { padding: 56px 0; }
+  .projects-head, .why-head, .obj-head { margin-bottom: 36px; }
+  .projects-head h2, .why-head h2, .obj-head h2 { font-size: clamp(26px, 7vw, 36px); }
+  .projects-head p, .why-head p, .obj-head p { font-size: 15px; }
+
+  .projects-grid { gap: 14px; }
+  .project-info { padding: 18px; }
+  .project-info h3 { font-size: 18px; margin-bottom: 8px; }
+  .project-info p { font-size: 14px; margin-bottom: 14px; }
+
   .why-card, .obj-card { padding: 22px; }
-  .project-info { padding: 20px; }
-  .footer-inner { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .why-card h3 { font-size: 17px; }
+  .obj-card-q { font-size: 18px; }
+  .obj-card-a { font-size: 14px; }
+
+  .final-cta-card { padding: 32px 22px; border-radius: 16px; }
+  .final-cta-contacts { gap: 14px; }
+  .final-cta-contact-icon { width: 36px; height: 36px; }
+  .final-cta-contact-info b { font-size: 14px; }
+
+  .footer-inner { flex-direction: column; align-items: flex-start; gap: 12px; }
   .footer-inner-links { width: 100%; justify-content: space-between; }
+}
+
+/* Very narrow phones (<380px) */
+@media (max-width: 380px) {
+  .hero h1 { font-size: 28px; }
+  .header-right .btn { padding: 9px 12px; font-size: 13px; }
+  .preview { flex: 0 0 85%; }
 }
 </style>
 </head>
@@ -786,6 +847,7 @@ footer {
       </div>
 
       <!-- RIGHT: 4 mini mockup previews — all in different designs -->
+      <div class="previews-wrap">
       <div class="previews">
 
         <!-- Preview 1: Real estate — grid -->
@@ -875,6 +937,7 @@ footer {
           </div>
         </div>
 
+      </div>
       </div>
     </div>
   </div>
@@ -1179,18 +1242,27 @@ footer {
 
 <script>
 /* ============================================================
-   TELEGRAM BOT INTEGRATION
+   УВЕДОМЛЕНИЯ О ЗАЯВКАХ — Telegram + WhatsApp параллельно
 
-   Заполните 2 переменные ниже. Инструкция:
-   1. Telegram → @BotFather → /newbot → имя → username (_bot)
-   2. Скопировать TOKEN в TELEGRAM_BOT_TOKEN
-   3. Найти своего бота, нажать START (важно!)
-   4. @userinfobot → /start → получить chat_id
-   5. Вставить chat_id в TELEGRAM_CHAT_ID
+   TELEGRAM: бот @BotFather → /newbot → получить токен.
+             Затем @userinfobot → /start → получить chat_id.
+             Найти своего бота, нажать START.
+
+   WHATSAPP: CallMeBot. Добавить в контакты +34 611 021 695,
+             отправить «I allow callmebot to send me messages»,
+             получить APIKEY в ответе. Подробнее:
+             https://www.callmebot.com/blog/free-api-whatsapp-messages/
+
+   Форма работает мгновенно (optimistic UI): "Заявка получена"
+   показывается сразу, отправка идёт в фоне в оба сервиса параллельно.
+   Если оба упадут — заявка сохраняется в localStorage как бэкап.
 ============================================================ */
 
 const TELEGRAM_BOT_TOKEN = '8719630290:AAHuiK54ouQKZt_SVrV9K4oJyPHayJprVss';
 const TELEGRAM_CHAT_ID   = ''; // <-- ВСТАВЬТЕ chat_id от @userinfobot
+
+const WHATSAPP_TARGET_PHONE = '+77011239999';   // куда слать заявки
+const CALLMEBOT_APIKEY      = '';               // <-- ВСТАВЬТЕ APIKEY от CallMeBot
 
 /* ============== HEADER & STICKY BAR SCROLL ============== */
 const header = document.getElementById('header');
@@ -1238,59 +1310,86 @@ document.querySelectorAll('.lead-form input[name="phone"]').forEach(input => {
     input.closest('.lead-form').classList.remove('error');
   });
   input.addEventListener('focus', () => {
-    if (!input.value) input.value = '+7 (';
+    if (!input.value) {
+      input.value = '+7 (';
+      setTimeout(() => input.setSelectionRange(4, 4), 0);
+    }
   });
 });
 
-/* ============== TELEGRAM SEND ============== */
-async function sendToTelegram(phone, sourceLabel) {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-    console.warn('[Pllato] Telegram не настроен. Заявка:', { phone, sourceLabel });
-    return;
-  }
-
+/* ============== LEAD MESSAGE BUILDERS ============== */
+function buildLeadText(phone, source) {
   const time = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' });
   const ref = document.referrer || 'Прямой заход';
-  const ua = navigator.userAgent.includes('Mobile') ? '📱 Мобайл' : '💻 Десктоп';
-
-  const text = [
-    '🆕 *Новая заявка с pllato.kz*',
+  const device = navigator.userAgent.includes('Mobile') ? 'Мобайл' : 'Десктоп';
+  return [
+    '🆕 Новая заявка с pllato.kz',
     '',
-    `📞 Телефон: \`${phone}\``,
-    `📍 Блок: ${sourceLabel}`,
-    `🕐 Время: ${time} (Алматы)`,
-    `🌐 Источник: ${ref}`,
-    `${ua}`,
+    `Телефон: ${phone}`,
+    `Блок: ${source}`,
+    `Время: ${time} (Алматы)`,
+    `Источник: ${ref}`,
+    `Устройство: ${device}`,
   ].join('\n');
+}
 
+/* ============== SEND TO TELEGRAM ============== */
+async function sendToTelegram(text) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    return { service: 'telegram', skipped: true, reason: 'not configured' };
+  }
   const r = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: TELEGRAM_CHAT_ID,
-      text,
-      parse_mode: 'Markdown',
-    }),
+    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text }),
   });
-
   if (!r.ok) {
-    console.error('Telegram error:', await r.text());
-    throw new Error('Telegram API failed');
+    const err = await r.text();
+    throw new Error('Telegram: ' + err);
   }
+  return { service: 'telegram', ok: true };
 }
 
-/* ============== FORM HANDLING ============== */
+/* ============== SEND TO WHATSAPP (via CallMeBot) ==============
+   CallMeBot не поддерживает CORS — используем mode:'no-cors'.
+   Запрос уходит, ответ непрочитываемый, но если apikey и номер
+   валидны, сообщение придёт в WhatsApp на ваш номер.
+============================================================ */
+async function sendToWhatsApp(text) {
+  if (!CALLMEBOT_APIKEY) {
+    return { service: 'whatsapp', skipped: true, reason: 'not configured' };
+  }
+  const url = 'https://api.callmebot.com/whatsapp.php?' + new URLSearchParams({
+    phone: WHATSAPP_TARGET_PHONE,
+    text: text,
+    apikey: CALLMEBOT_APIKEY,
+  });
+  await fetch(url, { method: 'GET', mode: 'no-cors' });
+  return { service: 'whatsapp', ok: true };
+}
+
+/* ============== LOCALSTORAGE BACKUP ============== */
+function saveLeadBackup(phone, source) {
+  try {
+    const stored = JSON.parse(localStorage.getItem('pllato_leads_backup') || '[]');
+    stored.push({ phone, source, time: new Date().toISOString() });
+    if (stored.length > 50) stored.splice(0, stored.length - 50);
+    localStorage.setItem('pllato_leads_backup', JSON.stringify(stored));
+  } catch (e) { /* localStorage might be disabled */ }
+}
+
+/* ============== FORM HANDLING — OPTIMISTIC UI ============== */
 document.querySelectorAll('.js-lead-form').forEach((form, idx) => {
   const sourceLabel = idx === 0 ? 'Hero (главный экран)' : 'Финальный CTA';
   const successId = idx === 0 ? 'success-1' : 'success-2';
-  const errorId = idx === 0 ? 'error-1' : 'error-2';
+  const errorId   = idx === 0 ? 'error-1'   : 'error-2';
 
-  form.addEventListener('submit', async (e) => {
+  form.addEventListener('submit', (e) => {
     e.preventDefault();
     const input = form.querySelector('input[name="phone"]');
-    const btn = form.querySelector('button');
     const phone = input.value.trim();
 
+    // Валидация — должно быть 11 цифр
     const digits = phone.replace(/\D/g, '');
     if (digits.length !== 11) {
       form.classList.add('error');
@@ -1299,30 +1398,55 @@ document.querySelectorAll('.js-lead-form').forEach((form, idx) => {
       return;
     }
 
+    // ОПТИМИСТИЧНЫЙ UI: показываем успех СРАЗУ
     const success = document.getElementById(successId);
-    const error = document.getElementById(errorId);
+    const error   = document.getElementById(errorId);
 
-    btn.disabled = true;
-    const oldText = btn.textContent;
-    btn.textContent = 'Отправляем…';
+    form.style.display = 'none';
+    const note = form.nextElementSibling;
+    if (note && note.classList.contains('form-note')) note.style.display = 'none';
     error.classList.remove('show');
+    success.classList.add('show');
 
-    try {
-      await sendToTelegram(phone, sourceLabel);
-      form.style.display = 'none';
-      const note = form.nextElementSibling;
-      if (note && note.classList.contains('form-note')) note.style.display = 'none';
-      success.classList.add('show');
+    // Бэкап в localStorage на случай, если оба API упадут
+    saveLeadBackup(phone, sourceLabel);
 
-      if (typeof gtag === 'function') gtag('event', 'lead_submitted', { source: sourceLabel });
-      if (typeof ym === 'function' && window.YANDEX_METRIKA_ID) ym(window.YANDEX_METRIKA_ID, 'reachGoal', 'lead_submitted');
-    } catch (err) {
-      console.error(err);
-      success.classList.remove('show');
-      error.classList.add('show');
-      btn.disabled = false;
-      btn.textContent = oldText;
-    }
+    // Аналитика (если подключены)
+    if (typeof gtag === 'function') gtag('event', 'lead_submitted', { source: sourceLabel });
+    if (typeof ym === 'function' && window.YANDEX_METRIKA_ID) ym(window.YANDEX_METRIKA_ID, 'reachGoal', 'lead_submitted');
+
+    // Параллельная отправка в Telegram + WhatsApp в фоне
+    const text = buildLeadText(phone, sourceLabel);
+    Promise.allSettled([
+      sendToTelegram(text),
+      sendToWhatsApp(text),
+    ]).then(results => {
+      const services = ['telegram', 'whatsapp'];
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled') {
+          if (r.value.skipped) {
+            console.warn(`[Pllato] ${services[i]}: пропущен (${r.value.reason})`);
+          } else {
+            console.log(`[Pllato] ${services[i]}: отправлено ✓`);
+          }
+        } else {
+          console.error(`[Pllato] ${services[i]} ошибка:`, r.reason);
+        }
+      });
+
+      const successCount = results.filter(r =>
+        r.status === 'fulfilled' && r.value.ok
+      ).length;
+      const skippedAll = results.every(r =>
+        r.status === 'fulfilled' && r.value.skipped
+      );
+
+      if (skippedAll) {
+        console.warn('[Pllato] Уведомления не настроены. Заявка сохранена в localStorage.');
+      } else if (successCount === 0) {
+        console.error('[Pllato] Все сервисы упали. Заявка в localStorage. Phone:', phone);
+      }
+    });
   });
 });
 </script>
