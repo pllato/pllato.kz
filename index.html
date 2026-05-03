@@ -157,17 +157,6 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 .logo img { height: 32px; width: auto; display: block; }
 @media (max-width: 480px) { .logo img { height: 26px; } }
 
-.nav { display: flex; align-items: center; gap: 24px; }
-.nav a {
-  font-size: 14.5px; font-weight: 500; color: var(--text-2);
-  text-decoration: none; transition: color 0.2s;
-  white-space: nowrap;
-}
-.nav a:hover { color: var(--text); }
-.nav a.has-icon { display: inline-flex; align-items: center; gap: 6px; }
-.nav a.has-icon svg { width: 14px; height: 14px; color: var(--bronze); }
-@media (max-width: 1000px) { .nav { display: none !important; } }
-
 .header-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .header-phone {
   color: var(--text); text-decoration: none; font-weight: 600; font-size: 14.5px;
@@ -200,8 +189,7 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 .hero-grid {
   display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center;
 }
-@media (max-width: 1100px) { .hero-grid { gap: 40px; } }
-@media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; gap: 48px; } }
+@media (max-width: 1100px) { .hero-grid { grid-template-columns: 1fr; gap: 40px; } }
 
 .hero-status {
   display: inline-flex; align-items: center; gap: 10px;
@@ -218,9 +206,9 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
 .hero h1 {
-  font-size: clamp(34px, 5.5vw, 72px);
-  line-height: 1.0;
-  letter-spacing: -0.035em;
+  font-size: clamp(32px, 5vw, 60px);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
   font-weight: 800;
   margin-bottom: 24px;
   overflow-wrap: break-word;
@@ -1005,9 +993,6 @@ footer {
 }
 
 /* ============== MOBILE TWEAKS ============== */
-@media (max-width: 900px) {
-  .nav { display: none; }
-}
 
 @media (max-width: 720px) {
   /* Header */
@@ -1021,15 +1006,14 @@ footer {
   .hero { padding: 92px 0 48px; min-height: 0; }
   .hero-grid { gap: 32px; }
   .hero h1 {
-    font-size: 30px;
-    line-height: 1.08;
-    letter-spacing: -0.02em;
+    font-size: 36px;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
     margin-bottom: 16px;
     overflow-wrap: break-word;
     hyphens: auto;
     -webkit-hyphens: auto;
   }
-  .hero h1 br { display: none; }
   .hero-sub {
     font-size: 15px; line-height: 1.5; margin-bottom: 22px;
     overflow-wrap: break-word;
@@ -1141,14 +1125,6 @@ footer {
     </a>
 
 ```
-<nav class="nav">
-  <a href="#quiz">Подобрать CRM</a>
-  <a href="crm-builder.html" class="has-icon">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-    Схема CRM
-  </a>
-</nav>
-
 <div class="header-right">
   <a href="tel:+77011239999" class="header-phone">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -1174,7 +1150,7 @@ footer {
       <span class="status-dot"></span>
       Бесплатный разбор · перезваниваем за 30 минут
     </div>
-    <h1>CRM, спроектированная<br>под ваш бизнес.<br><em class="b">Не наоборот.</em></h1>
+    <h1>CRM под ваш бизнес.<br><em class="b">Не наоборот.</em></h1>
     <p class="hero-sub">
       За 30 минут разбора покажем, что не так в вашей текущей CRM, какие процессы упираются в коробку и нужна ли вам кастомная система. Без обязательств.
     </p>
