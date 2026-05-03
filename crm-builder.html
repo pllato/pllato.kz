@@ -151,14 +151,18 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 .modal-close:hover{background:var(--border);color:var(--ink)}
 .modal-close svg{width:14px;height:14px}
 .modal-body{padding:20px 32px 28px;overflow-y:auto}
-.templates-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-.template-card{border:1px solid var(--border-strong);border-radius:10px;padding:16px;cursor:pointer;transition:all .12s;background:var(--surface);text-align:left;font:inherit}
+.templates-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.template-search{margin-bottom:14px;position:relative}
+.template-search input{width:100%;padding:10px 12px 10px 36px;border:1px solid var(--border-strong);border-radius:8px;font:inherit;font-size:13px;background:var(--surface-2);outline:none}
+.template-search input:focus{background:var(--surface);border-color:var(--ink-3)}
+.template-search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--ink-3)}
+.template-card{border:1px solid var(--border-strong);border-radius:10px;padding:14px;cursor:pointer;transition:all .12s;background:var(--surface);text-align:left;font:inherit}
 .template-card:hover{border-color:var(--ink);transform:translateY(-1px);box-shadow:var(--shadow-md)}
-.template-card .template-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);color:var(--ink);margin-bottom:10px}
-.template-card .template-icon svg{width:18px;height:18px}
+.template-card .template-icon{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);color:var(--ink);margin-bottom:8px}
+.template-card .template-icon svg{width:16px;height:16px}
 .template-card.blank .template-icon{background:var(--ink);color:#fff}
-.template-card h3{font-size:14px;font-weight:600;margin-bottom:4px}
-.template-card p{font-size:12px;color:var(--ink-3);line-height:1.45}
+.template-card h3{font-size:13px;font-weight:600;margin-bottom:3px;line-height:1.25}
+.template-card p{font-size:11.5px;color:var(--ink-3);line-height:1.4}
 .boards-list{display:flex;flex-direction:column;gap:4px}
 .board-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:all .12s}
 .board-row:hover{background:var(--surface-2);border-color:var(--border-strong)}
@@ -189,6 +193,23 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 .readonly-banner.show{display:flex}
 .readonly-banner svg{width:14px;height:14px}
 .readonly-banner button{border:none;background:var(--ink);color:#fff;padding:4px 10px;border-radius:4px;font-size:11px;font-family:inherit;font-weight:500;cursor:pointer;margin-left:6px}
+.user-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;background:var(--surface-2);border:1px solid var(--border);border-radius:20px;font-size:12px;color:var(--ink-2);cursor:pointer;transition:all .12s}
+.user-chip:hover{background:var(--bg);border-color:var(--border-strong)}
+.user-chip-avatar{width:22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600}
+.onboarding-form{display:flex;flex-direction:column;gap:14px}
+.form-row label{display:block;font-size:11px;color:var(--ink-3);margin-bottom:5px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.06em}
+.form-row input{width:100%;padding:10px 12px;border:1px solid var(--border-strong);border-radius:7px;font:inherit;font-size:13.5px;background:var(--surface-2);outline:none;transition:all .12s}
+.form-row input:focus{background:var(--surface);border-color:var(--ink)}
+.form-row input.invalid{border-color:var(--accent-rose);background:var(--accent-rose-bg)}
+.form-row .hint{font-size:11px;color:var(--ink-3);margin-top:4px}
+.form-checkbox{display:flex;align-items:flex-start;gap:8px;margin-top:4px;cursor:pointer;font-size:12px;color:var(--ink-2);line-height:1.5}
+.form-checkbox input{margin-top:2px;flex-shrink:0;cursor:pointer}
+.form-actions{display:flex;gap:10px;align-items:center;margin-top:8px}
+.form-actions .skip{margin-left:auto;color:var(--ink-3);font-size:11.5px;text-decoration:underline;cursor:pointer;background:none;border:none;font-family:inherit}
+.form-actions .skip:hover{color:var(--ink-2)}
+.btn-whatsapp{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:7px;font:inherit;font-size:12px;font-weight:500;background:#25D366;color:#fff;border:1px solid #25D366;cursor:pointer;transition:all .12s}
+.btn-whatsapp:hover{background:#1EB553;border-color:#1EB553}
+.btn-whatsapp svg{width:14px;height:14px}
 </style>
 </head>
 <body>
@@ -199,6 +220,8 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 <div class="meta" id="metaCounter">0 блоков · 0 связей</div>
 <div class="save-status" id="saveStatus"></div>
 <div class="topbar-actions">
+<div class="user-chip" id="userChip" style="display:none" title="Изменить мои данные"><div class="user-chip-avatar" id="userAvatar">?</div><span id="userName">Гость</span></div>
+<button class="btn-whatsapp" id="btnContactStudio" title="Связаться со студией Pllato"><i data-lucide="message-circle"></i> Студии</button>
 <button class="btn ghost" id="btnTemplates"><i data-lucide="layout-template" class="icon"></i> Шаблоны</button>
 <button class="btn ghost" id="btnBoards"><i data-lucide="folder" class="icon"></i> Мои схемы</button>
 <div class="menu-wrap">
@@ -266,7 +289,9 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 <div class="modal-title">Соберите архитектуру вашей CRM<br>за 15 минут</div>
 <div class="modal-subtitle">Выберите шаблон под вашу нишу или начните с пустого холста</div>
 </div>
-<div class="modal-body"><div class="templates-grid" id="templatesGrid"></div></div>
+<div class="modal-body">
+<div class="template-search"><i data-lucide="search"></i><input type="text" id="templateSearch" placeholder="Поиск по нишам — например, «салон» или «ресторан»..."></div>
+<div class="templates-grid" id="templatesGrid"></div></div>
 </div></div>
 <div class="modal-overlay" id="boardsModal"><div class="modal">
 <div class="modal-header">
@@ -286,9 +311,10 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 <div class="share-block">
 <h4>Ссылка с встроенной схемой</h4>
 <p>Получатель открывает её и видит ровно вашу доску — без регистрации. Подходит для отправки в WhatsApp / Telegram.</p>
+<label class="form-checkbox" style="margin-bottom:10px"><input type="checkbox" id="sharePublicConsent"><span><b>Сделать схему публичной.</b> Любой, у кого есть ссылка, сможет её открыть и просмотреть.</span></label>
 <div class="share-url">
-<input type="text" id="shareUrlInput" readonly>
-<button class="btn primary" id="btnCopyShare"><i data-lucide="copy" class="icon"></i> Копировать</button>
+<input type="text" id="shareUrlInput" readonly placeholder="Поставьте галочку выше, чтобы получить ссылку">
+<button class="btn primary" id="btnCopyShare" disabled><i data-lucide="copy" class="icon"></i> Копировать</button>
 </div>
 </div>
 <div class="share-block">
@@ -302,6 +328,49 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 </div>
 </div></div>
 <input type="file" id="fileInput" accept=".json,application/json" style="display:none">
+
+<div class="modal-overlay" id="onboardingModal"><div class="modal" style="width:560px">
+<div class="modal-header">
+<div class="modal-title">Добро пожаловать в<br>конструктор CRM от Pllato</div>
+<div class="modal-subtitle">Расскажите о себе — это поможет нам подготовить персональное предложение по вашей будущей CRM</div>
+</div>
+<div class="modal-body">
+<div class="onboarding-form">
+<div class="form-row"><label>Как вас зовут *</label><input type="text" id="obName" placeholder="Имя и фамилия" autocomplete="name"></div>
+<div class="form-row"><label>Email *</label><input type="email" id="obEmail" placeholder="you@company.kz" autocomplete="email"></div>
+<div class="form-row"><label>Телефон / WhatsApp *</label><input type="tel" id="obPhone" placeholder="+7 (___) ___ __ __" autocomplete="tel"></div>
+<div class="form-row"><label>Название компании или проекта</label><input type="text" id="obCompany" placeholder="Например: ELC Kids" autocomplete="organization"></div>
+<label class="form-checkbox"><input type="checkbox" id="obConsent"><span>Согласен на обработку контактов и связь со мной по вопросам разработки CRM</span></label>
+<div class="form-actions">
+<button class="btn primary" id="obSubmit"><i data-lucide="arrow-right" class="icon"></i> Начать работу</button>
+<button class="skip" id="obSkip">Пропустить</button>
+</div>
+</div>
+</div>
+</div></div>
+
+<div class="modal-overlay" id="contactStudioModal"><div class="modal" style="width:520px">
+<div class="modal-header">
+<button class="modal-close" data-close="contactStudioModal"><i data-lucide="x"></i></button>
+<div class="modal-title">Связаться со студией</div>
+<div class="modal-subtitle">Pllato подготовит вам предложение по вашей схеме</div>
+</div>
+<div class="modal-body">
+<div class="share-block">
+<h4>Отправить через WhatsApp</h4>
+<p>Откроется WhatsApp с готовым сообщением: ваши контакты, название проекта и краткая сводка по схеме.</p>
+<button class="btn-whatsapp" id="btnSendWhatsApp" style="width:100%;justify-content:center;padding:10px"><i data-lucide="message-circle"></i> Написать в WhatsApp</button>
+</div>
+<div class="share-block">
+<h4>Или напишите на email</h4>
+<p>Скопируйте адрес и напишите на email с приложенной схемой (JSON или PNG).</p>
+<div class="share-url">
+<input type="text" value="hello@pllato.kz" readonly id="studioEmail">
+<button class="btn" id="btnCopyEmail"><i data-lucide="copy" class="icon"></i> Копировать</button>
+</div>
+</div>
+</div>
+</div></div>
 <div class="toast" id="toast"></div>
 <script>
 'use strict';
@@ -380,18 +449,51 @@ const LIBRARY=[
 const TYPE_TO_DEF={};LIBRARY.forEach(c=>c.items.forEach(it=>{TYPE_TO_DEF[it.type]=Object.assign({},it,{cat:c.cat})}));
 const TEMPLATES={
 blank:{name:'Чистый холст',desc:'Начните с нуля',icon:'plus',isBlank:true,nodes:[],edges:[]},
-services:{name:'CRM для услуг',desc:'Лиды → сделки → клиенты',icon:'sparkles',
+services:{name:'CRM для услуг',desc:'Лиды → сделки → клиенты + WhatsApp',icon:'sparkles',
 nodes:[{type:'site',x:100,y:200,label:'Сайт'},{type:'whatsapp',x:100,y:320,label:'WhatsApp'},{type:'telephony',x:100,y:440,label:'Телефония'},{type:'leads',x:380,y:320,label:'Лиды'},{type:'pipeline',x:660,y:280,label:'Воронка продаж'},{type:'contacts',x:1080,y:320,label:'Контакты'},{type:'tasks',x:660,y:480,label:'Задачи менеджеров'},{type:'role-sales',x:1080,y:480,label:'Менеджер по продажам'}],
-edges:[{source:0,target:3,label:'форма захвата'},{source:1,target:3,label:'входящий чат'},{source:2,target:3,label:'входящий звонок'},{source:3,target:4,label:'квалификация'},{source:4,target:5,label:'после продажи'},{source:4,target:6},{source:6,target:7}]},
+edges:[{source:0,target:3,label:'форма'},{source:1,target:3,label:'чат'},{source:2,target:3,label:'звонок'},{source:3,target:4,label:'квалификация'},{source:4,target:5,label:'после продажи'},{source:4,target:6},{source:6,target:7}]},
 ecommerce:{name:'CRM для интернет-магазина',desc:'Заказы, оплаты, склад, Kaspi',icon:'shopping-bag',
 nodes:[{type:'site',x:100,y:240,label:'Интернет-магазин'},{type:'leads',x:380,y:200,label:'Заказы'},{type:'kaspi',x:380,y:360,label:'Kaspi Pay'},{type:'warehouse',x:700,y:280,label:'Склад'},{type:'contacts',x:1020,y:200,label:'Контакты'},{type:'finances',x:700,y:480,label:'Финансы'},{type:'sms',x:1020,y:360,label:'SMS уведомления'},{type:'reports',x:1340,y:280,label:'Отчёты'}],
 edges:[{source:0,target:1,label:'оформление'},{source:1,target:2,label:'оплата'},{source:2,target:5},{source:1,target:3,label:'резерв'},{source:1,target:4},{source:1,target:6,label:'статус'},{source:5,target:7}]},
-agency:{name:'CRM для агентства',desc:'Проекты, задачи, тайм-трекинг',icon:'briefcase',
+agency:{name:'CRM для агентства',desc:'Проекты, задачи, тайм-трекинг, инвойсы',icon:'briefcase',
 nodes:[{type:'leads',x:100,y:280,label:'Лиды'},{type:'deals',x:380,y:280,label:'Сделки'},{type:'contacts',x:380,y:460,label:'Клиенты'},{type:'tasks',x:700,y:200,label:'Проекты и задачи'},{type:'calendar',x:700,y:380,label:'Тайм-трекинг'},{type:'documents',x:1020,y:280,label:'Договоры и инвойсы'},{type:'finances',x:1020,y:460,label:'Финансы'},{type:'role-manager',x:700,y:560,label:'РОП'}],
 edges:[{source:0,target:1},{source:1,target:2,label:'после подписания'},{source:1,target:3,label:'в работу'},{source:3,target:4},{source:3,target:5},{source:5,target:6},{source:7,target:3}]},
-school:{name:'CRM для онлайн-школы',desc:'Ученики, расписание, оплаты',icon:'graduation-cap',
+school:{name:'CRM для онлайн-школы',desc:'Ученики, расписание, оплаты, прогресс',icon:'graduation-cap',
 nodes:[{type:'site',x:100,y:220,label:'Лендинг'},{type:'whatsapp',x:100,y:360,label:'WhatsApp'},{type:'leads',x:380,y:280,label:'Лиды'},{type:'contacts',x:660,y:200,label:'Ученики'},{type:'calendar',x:660,y:360,label:'Расписание'},{type:'finances',x:660,y:520,label:'Оплаты'},{type:'reports',x:980,y:280,label:'Прогресс ученика'},{type:'notification',x:980,y:460,label:'Напоминания родителям'},{type:'note',x:100,y:540,label:'ЦА: дети 7-11',noteColor:'pink'}],
-edges:[{source:0,target:2},{source:1,target:2},{source:2,target:3,label:'после оплаты'},{source:3,target:4},{source:5,target:3},{source:4,target:6},{source:6,target:7}]}
+edges:[{source:0,target:2},{source:1,target:2},{source:2,target:3,label:'после оплаты'},{source:3,target:4},{source:5,target:3},{source:4,target:6},{source:6,target:7}]},
+beauty:{name:'CRM для салона красоты',desc:'Онлайн-запись, мастера, клиенты',icon:'scissors',
+nodes:[{type:'site',x:100,y:200,label:'Онлайн-запись на сайте'},{type:'whatsapp',x:100,y:340,label:'WhatsApp подтверждения'},{type:'leads',x:400,y:280,label:'Записи'},{type:'calendar',x:700,y:200,label:'Расписание мастеров'},{type:'contacts',x:700,y:380,label:'Клиенты + история'},{type:'finances',x:1000,y:200,label:'Касса'},{type:'reports',x:1000,y:380,label:'Отчёты по мастерам'},{type:'notification',x:400,y:480,label:'SMS-напоминания'},{type:'note',x:1000,y:540,label:'Программа лояльности',noteColor:'pink'}],
+edges:[{source:0,target:2},{source:1,target:2},{source:2,target:3},{source:2,target:4},{source:3,target:5,label:'оплата'},{source:4,target:6},{source:2,target:7,label:'за день до'}]},
+clinic:{name:'CRM для медклиники',desc:'Запись пациентов, карты, врачи',icon:'stethoscope',
+nodes:[{type:'site',x:100,y:200,label:'Сайт клиники'},{type:'whatsapp',x:100,y:320,label:'WhatsApp запись'},{type:'telephony',x:100,y:440,label:'Колл-центр'},{type:'leads',x:400,y:320,label:'Запись на приём'},{type:'calendar',x:700,y:200,label:'Расписание врачей'},{type:'contacts',x:700,y:380,label:'Карта пациента'},{type:'documents',x:1000,y:200,label:'Анализы, заключения'},{type:'finances',x:1000,y:380,label:'Кассовые операции'},{type:'role-sales',x:400,y:480,label:'Регистратура'}],
+edges:[{source:0,target:3},{source:1,target:3},{source:2,target:3},{source:3,target:4},{source:3,target:5},{source:5,target:6},{source:5,target:7,label:'оплата'},{source:8,target:3}]},
+fitness:{name:'CRM для фитнес-клуба',desc:'Абонементы, тренировки, клиенты',icon:'dumbbell',
+nodes:[{type:'site',x:100,y:220,label:'Сайт + лендинги'},{type:'whatsapp',x:100,y:360,label:'WhatsApp'},{type:'leads',x:400,y:280,label:'Заявки'},{type:'contacts',x:700,y:200,label:'Клиенты'},{type:'finances',x:700,y:380,label:'Абонементы'},{type:'calendar',x:1000,y:200,label:'Расписание тренировок'},{type:'notification',x:1000,y:380,label:'Напоминания'},{type:'reports',x:1300,y:290,label:'Активность клиентов'}],
+edges:[{source:0,target:2},{source:1,target:2},{source:2,target:3,label:'после оплаты'},{source:3,target:4},{source:3,target:5},{source:5,target:6,label:'за час до'},{source:3,target:7}]},
+restaurant:{name:'CRM для ресторана и доставки',desc:'Заказы, кухня, курьеры',icon:'utensils',
+nodes:[{type:'site',x:100,y:200,label:'Сайт / приложение'},{type:'whatsapp',x:100,y:320,label:'Заказы в чате'},{type:'telephony',x:100,y:440,label:'Заказы по телефону'},{type:'leads',x:400,y:320,label:'Заказы'},{type:'pipeline',x:700,y:280,label:'Стадии заказа'},{type:'kaspi',x:1100,y:200,label:'Kaspi Pay'},{type:'contacts',x:1100,y:340,label:'База гостей'},{type:'sms',x:1100,y:480,label:'SMS статус'},{type:'note',x:400,y:480,label:'Программа лояльности',noteColor:'green'}],
+edges:[{source:0,target:3},{source:1,target:3},{source:2,target:3},{source:3,target:4,label:'принят'},{source:4,target:5,label:'оплата'},{source:4,target:6},{source:4,target:7}]},
+autoservice:{name:'CRM для автосервиса',desc:'Запись, заказ-наряды, склад запчастей',icon:'car',
+nodes:[{type:'whatsapp',x:100,y:280,label:'Запись на сервис'},{type:'leads',x:400,y:280,label:'Заявки'},{type:'pipeline',x:700,y:240,label:'Этапы работы'},{type:'contacts',x:1100,y:160,label:'Клиенты + автомобили'},{type:'documents',x:1100,y:300,label:'Заказ-наряды'},{type:'warehouse',x:1100,y:440,label:'Склад запчастей'},{type:'calendar',x:400,y:440,label:'Запись на бокс'},{type:'finances',x:700,y:440,label:'Оплата работ'}],
+edges:[{source:0,target:1},{source:1,target:2,label:'принято'},{source:2,target:3},{source:2,target:4},{source:2,target:5,label:'списание'},{source:1,target:6},{source:2,target:7,label:'выдача'}]},
+realestate:{name:'CRM для недвижимости',desc:'Объекты, показы, сделки, риэлторы',icon:'home',
+nodes:[{type:'site',x:100,y:200,label:'Сайт с объектами'},{type:'whatsapp',x:100,y:340,label:'Чаты с клиентами'},{type:'leads',x:400,y:280,label:'Заявки на просмотр'},{type:'pipeline',x:700,y:240,label:'Воронка сделок'},{type:'contacts',x:1100,y:160,label:'База покупателей'},{type:'companies',x:1100,y:300,label:'Объекты недвижимости'},{type:'documents',x:1100,y:440,label:'Договоры'},{type:'role-sales',x:400,y:440,label:'Риэлтор'},{type:'calendar',x:700,y:440,label:'Календарь показов'}],
+edges:[{source:0,target:2},{source:1,target:2},{source:2,target:3},{source:3,target:4,label:'после сделки'},{source:3,target:5},{source:3,target:6},{source:7,target:3},{source:2,target:8}]},
+construction:{name:'CRM для строительной компании',desc:'Заявки, сметы, бригады, объекты',icon:'hammer',
+nodes:[{type:'site',x:100,y:280,label:'Сайт + калькулятор'},{type:'leads',x:380,y:280,label:'Заявки на ремонт'},{type:'pipeline',x:680,y:200,label:'Этапы: замер → договор → работы'},{type:'documents',x:1080,y:160,label:'Сметы и договоры'},{type:'tasks',x:1080,y:300,label:'Задачи бригад'},{type:'warehouse',x:1080,y:440,label:'Стройматериалы'},{type:'finances',x:680,y:440,label:'Поэтапная оплата'},{type:'role-manager',x:380,y:440,label:'Прораб'}],
+edges:[{source:0,target:1},{source:1,target:2},{source:2,target:3},{source:2,target:4},{source:4,target:5,label:'списание'},{source:2,target:6},{source:7,target:4}]},
+legal:{name:'CRM для юрфирмы',desc:'Дела, документы, клиенты, гонорары',icon:'gavel',
+nodes:[{type:'site',x:100,y:280,label:'Сайт + консультация'},{type:'whatsapp',x:100,y:420,label:'WhatsApp'},{type:'leads',x:400,y:340,label:'Заявки клиентов'},{type:'deals',x:700,y:200,label:'Дела / кейсы'},{type:'contacts',x:700,y:480,label:'Клиенты'},{type:'documents',x:1000,y:200,label:'Документы по делам'},{type:'calendar',x:1000,y:340,label:'Календарь судов'},{type:'finances',x:1000,y:480,label:'Гонорары'},{type:'role-sales',x:400,y:200,label:'Юристы'}],
+edges:[{source:0,target:2},{source:1,target:2},{source:2,target:3},{source:3,target:4},{source:3,target:5},{source:3,target:6},{source:3,target:7},{source:8,target:3}]},
+logistics:{name:'CRM для логистики',desc:'Заявки, водители, маршруты, доставка',icon:'truck',
+nodes:[{type:'site',x:100,y:200,label:'Сайт / форма'},{type:'whatsapp',x:100,y:340,label:'WhatsApp'},{type:'leads',x:400,y:280,label:'Заявки на перевозку'},{type:'pipeline',x:700,y:240,label:'Этапы: принят → загрузка → в пути → доставлено'},{type:'contacts',x:1100,y:160,label:'Клиенты'},{type:'companies',x:1100,y:300,label:'Транспорт + водители'},{type:'finances',x:1100,y:440,label:'Тарифы и оплаты'},{type:'sms',x:400,y:440,label:'SMS статусы клиенту'}],
+edges:[{source:0,target:2},{source:1,target:2},{source:2,target:3},{source:3,target:4},{source:3,target:5},{source:3,target:6},{source:3,target:7,label:'на каждом этапе'}]},
+travel:{name:'CRM для турагентства',desc:'Заявки, туры, бронирования',icon:'plane',
+nodes:[{type:'site',x:100,y:200,label:'Лендинг туров'},{type:'whatsapp',x:100,y:340,label:'Заявки в WhatsApp'},{type:'instagram',x:100,y:480,label:'Instagram Direct'},{type:'leads',x:400,y:340,label:'Заявки'},{type:'deals',x:700,y:280,label:'Брони туров'},{type:'contacts',x:1000,y:200,label:'Туристы'},{type:'documents',x:1000,y:340,label:'Ваучеры, билеты'},{type:'finances',x:1000,y:480,label:'Платежи'},{type:'calendar',x:700,y:480,label:'Календарь вылетов'}],
+edges:[{source:0,target:3},{source:1,target:3},{source:2,target:3},{source:3,target:4},{source:4,target:5,label:'после оплаты'},{source:4,target:6},{source:4,target:7},{source:4,target:8}]},
+events:{name:'CRM для event-агентства',desc:'Мероприятия, команды, договоры',icon:'party-popper',
+nodes:[{type:'site',x:100,y:280,label:'Сайт + кейсы'},{type:'instagram',x:100,y:420,label:'Instagram'},{type:'leads',x:400,y:340,label:'Заявки на мероприятия'},{type:'pipeline',x:700,y:240,label:'Этапы: ТЗ → договор → проведение'},{type:'tasks',x:1100,y:160,label:'Задачи команды'},{type:'calendar',x:1100,y:300,label:'Календарь событий'},{type:'documents',x:1100,y:440,label:'Договоры и сметы'},{type:'contacts',x:400,y:480,label:'Клиенты'},{type:'finances',x:700,y:440,label:'Оплаты'}],
+edges:[{source:0,target:2},{source:1,target:2},{source:2,target:3},{source:3,target:4},{source:3,target:5},{source:3,target:6},{source:2,target:7},{source:3,target:8,label:'предоплата'}]}
 };
 const dom={canvasWrap:document.getElementById('canvasWrap'),world:document.getElementById('world'),edgesSvg:document.getElementById('edgesSvg'),canvasBg:document.getElementById('canvasBg'),library:document.getElementById('library'),search:document.getElementById('searchInput'),projectName:document.getElementById('projectName'),meta:document.getElementById('metaCounter'),saveStatus:document.getElementById('saveStatus'),zoomLevel:document.getElementById('zoomLevel'),emptyHint:document.getElementById('emptyHint'),propsPanel:document.getElementById('propertiesPanel'),propsBody:document.getElementById('propsBody'),propsTitle:document.getElementById('propsTitle'),btnDelete:document.getElementById('btnDelete'),templatesGrid:document.getElementById('templatesGrid'),boardsList:document.getElementById('boardsList'),shareUrlInput:document.getElementById('shareUrlInput'),toast:document.getElementById('toast'),fileInput:document.getElementById('fileInput'),readonlyBanner:document.getElementById('readonlyBanner'),menuDropdown:document.getElementById('menuDropdown')};
 const uid=()=>'b'+Date.now().toString(36).slice(-4)+Math.random().toString(36).slice(2,6);
@@ -723,7 +825,8 @@ function setSaveStatus(text,cls=''){
 }
 
 function serializeBoard(){
-  return{id:state.boardId,name:dom.projectName.value||'Без названия',nodes:state.nodes,edges:state.edges,viewport:state.viewport,updatedAt:Date.now(),version:2};
+  const p=getProfile();
+  return{id:state.boardId,name:dom.projectName.value||'Без названия',nodes:state.nodes,edges:state.edges,viewport:state.viewport,updatedAt:Date.now(),version:2,ownerEmail:p?p.email:null,ownerName:p?p.name:null};
 }
 function loadBoardData(b){
   state.nodes.forEach(n=>{const el=document.getElementById(n.id);if(el)el.remove()});
@@ -770,9 +873,9 @@ function parseShareUrl(){
 
 document.getElementById('btnShare').onclick=()=>{
   if(state.nodes.length===0){showToast('Сначала добавьте блоки','alert-circle');return}
-  const url=buildShareUrl();
-  if(url.length>30000){showToast('Схема слишком большая для ссылки — используйте JSON','alert-circle');return}
-  dom.shareUrlInput.value=url;
+  document.getElementById('sharePublicConsent').checked=false;
+  document.getElementById('shareUrlInput').value='';
+  document.getElementById('btnCopyShare').disabled=true;
   showModal('shareModal');
 };
 document.getElementById('btnCopyShare').onclick=async()=>{
@@ -917,7 +1020,7 @@ function exportPng(){
 
   // Title and footer
   parts.push(`<text x="${PAD}" y="${PAD-20}" font-family="Georgia,serif" font-style="italic" font-size="22" fill="#1A1A18">${escapeXml(dom.projectName.value)}</text>`);
-  parts.push(`<text x="${W-PAD}" y="${H-20}" text-anchor="end" font-family="sans-serif" font-size="10" fill="#8B8B85">Создано в CRM Builder · ${new Date().toLocaleDateString('ru-RU')}</text>`);
+  parts.push(`<text x="${W-PAD}" y="${H-20}" text-anchor="end" font-family="sans-serif" font-size="11" fill="#8B8B85">Создано в Pllato.kz · ${new Date().toLocaleDateString('ru-RU')}</text>`);
   parts.push(`</svg>`);
 
   const svgStr=parts.join('');
@@ -952,11 +1055,14 @@ function exportPng(){
   img.src=url;
 }
 
-function renderTemplatesGrid(){
+function renderTemplatesGrid(filter=''){
+  const f=(filter||'').trim().toLowerCase();
   let html='';
   Object.entries(TEMPLATES).forEach(([key,t])=>{
+    if(f&&!t.name.toLowerCase().includes(f)&&!t.desc.toLowerCase().includes(f))return;
     html+=`<button class="template-card ${t.isBlank?'blank':''}" data-key="${key}"><div class="template-icon"><i data-lucide="${t.icon}"></i></div><h3>${escapeHtml(t.name)}</h3><p>${escapeHtml(t.desc)}</p></button>`;
   });
+  if(!html)html=`<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--ink-3);font-size:13px">Ничего не найдено</div>`;
   dom.templatesGrid.innerHTML=html;
   if(window.lucide)lucide.createIcons({nodes:[dom.templatesGrid]});
   dom.templatesGrid.querySelectorAll('.template-card').forEach(c=>{
@@ -1030,7 +1136,8 @@ function showModal(id){document.getElementById(id).classList.add('show');if(id==
 function hideModal(id){document.getElementById(id).classList.remove('show')}
 document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show')})});
 document.querySelectorAll('[data-close]').forEach(b=>{b.addEventListener('click',()=>hideModal(b.dataset.close))});
-document.getElementById('btnTemplates').onclick=()=>showModal('templatesModal');
+document.getElementById('btnTemplates').onclick=()=>{document.getElementById('templateSearch').value='';renderTemplatesGrid();showModal('templatesModal')};
+document.getElementById('templateSearch').addEventListener('input',e=>renderTemplatesGrid(e.target.value));
 document.getElementById('btnBoards').onclick=()=>showModal('boardsModal');
 document.getElementById('btnDownloadJson').onclick=()=>{downloadJson();hideModal('shareModal')};
 document.getElementById('btnDownloadPng').onclick=()=>{exportPng();hideModal('shareModal')};
@@ -1066,8 +1173,133 @@ document.getElementById('menuClearAll').onclick=()=>{
 
 dom.search.addEventListener('input',()=>renderLibrary(dom.search.value));
 
+// ============================================================
+// USER PROFILE / ONBOARDING / STUDIO CONTACT
+// ============================================================
+const STUDIO_WHATSAPP='77000000000'; // ← ВАЖНО: замените на реальный номер Pllato (формат: 7XXXXXXXXXX без + и пробелов)
+const STUDIO_EMAIL='hello@pllato.kz'; // ← замените на реальный email
+const KEY_PROFILE=PFX+':profile';
+
+function getProfile(){
+  const r=Storage.g(KEY_PROFILE);
+  if(!r)return null;
+  try{return JSON.parse(r)}catch(e){return null}
+}
+function saveProfile(p){
+  Storage.s(KEY_PROFILE,JSON.stringify(p));
+  refreshUserChip();
+}
+function refreshUserChip(){
+  const p=getProfile();
+  const chip=document.getElementById('userChip');
+  if(p&&p.name){
+    chip.style.display='inline-flex';
+    document.getElementById('userName').textContent=p.name.split(' ')[0];
+    document.getElementById('userAvatar').textContent=(p.name||'?').trim().charAt(0).toUpperCase();
+  }else{
+    chip.style.display='none';
+  }
+}
+document.getElementById('userChip').onclick=()=>{
+  const p=getProfile();
+  if(p){
+    document.getElementById('obName').value=p.name||'';
+    document.getElementById('obEmail').value=p.email||'';
+    document.getElementById('obPhone').value=p.phone||'';
+    document.getElementById('obCompany').value=p.company||'';
+    document.getElementById('obConsent').checked=true;
+  }
+  showModal('onboardingModal');
+};
+
+function validateOnboarding(){
+  const name=document.getElementById('obName');
+  const email=document.getElementById('obEmail');
+  const phone=document.getElementById('obPhone');
+  const consent=document.getElementById('obConsent').checked;
+  let ok=true;
+  [name,email,phone].forEach(el=>el.classList.remove('invalid'));
+  if(!name.value.trim()){name.classList.add('invalid');ok=false}
+  if(!email.value.trim()||!email.value.includes('@')){email.classList.add('invalid');ok=false}
+  if(!phone.value.trim()||phone.value.replace(/\D/g,'').length<10){phone.classList.add('invalid');ok=false}
+  if(!consent){showToast('Поставьте галочку согласия','alert-circle');ok=false}
+  return ok;
+}
+document.getElementById('obSubmit').onclick=()=>{
+  if(!validateOnboarding())return;
+  saveProfile({
+    name:document.getElementById('obName').value.trim(),
+    email:document.getElementById('obEmail').value.trim(),
+    phone:document.getElementById('obPhone').value.trim(),
+    company:document.getElementById('obCompany').value.trim(),
+    createdAt:Date.now()
+  });
+  hideModal('onboardingModal');
+  // After first onboarding — show templates
+  if(state.nodes.length===0&&!state.boardId)showModal('templatesModal');
+  showToast('Спасибо! Хорошей работы','check');
+};
+document.getElementById('obSkip').onclick=()=>{
+  hideModal('onboardingModal');
+  if(state.nodes.length===0&&!state.boardId)showModal('templatesModal');
+};
+
+// Studio contact via WhatsApp
+function buildStudioMessage(){
+  const p=getProfile()||{};
+  const lines=[
+    'Здравствуйте, Pllato!',
+    'Я собрал схему CRM в вашем конструкторе.',
+    '',
+    `Имя: ${p.name||'(не указано)'}`,
+    `Email: ${p.email||'(не указан)'}`,
+    `Телефон: ${p.phone||'(не указан)'}`,
+    `Компания: ${p.company||'(не указана)'}`,
+    '',
+    `Проект: ${dom.projectName.value}`,
+    `Блоков: ${state.nodes.length}, связей: ${state.edges.length}`,
+  ];
+  // Try to attach share link if board has content
+  if(state.nodes.length>0){
+    const url=buildShareUrl();
+    if(url.length<2000)lines.push('','Схема: '+url);
+    else lines.push('','(схема большая — пришлю отдельно файлом JSON / PNG)');
+  }
+  lines.push('','Можете прислать предложение?');
+  return lines.join('\n');
+}
+document.getElementById('btnContactStudio').onclick=()=>showModal('contactStudioModal');
+document.getElementById('btnSendWhatsApp').onclick=()=>{
+  const msg=encodeURIComponent(buildStudioMessage());
+  window.open(`https://wa.me/${STUDIO_WHATSAPP}?text=${msg}`,'_blank');
+  hideModal('contactStudioModal');
+};
+document.getElementById('btnCopyEmail').onclick=async()=>{
+  try{await navigator.clipboard.writeText(STUDIO_EMAIL);showToast('Email скопирован','check')}
+  catch(e){const i=document.getElementById('studioEmail');i.select();document.execCommand('copy');showToast('Email скопирован','check')}
+};
+
+// Share consent checkbox — link generated only after agreement
+const shareConsent=document.getElementById('sharePublicConsent');
+shareConsent.addEventListener('change',()=>{
+  const btn=document.getElementById('btnCopyShare');
+  const inp=document.getElementById('shareUrlInput');
+  if(shareConsent.checked){
+    const url=buildShareUrl();
+    if(url.length>30000){
+      shareConsent.checked=false;
+      showToast('Схема слишком большая — используйте JSON','alert-circle');
+      return;
+    }
+    inp.value=url;btn.disabled=false;
+  }else{
+    inp.value='';btn.disabled=true;
+  }
+});
+
 function init(){
   renderLibrary();renderTemplatesGrid();applyViewport();updateMeta();
+  refreshUserChip();
   // 1) URL share
   const fromUrl=parseShareUrl();
   if(fromUrl){
@@ -1086,8 +1318,9 @@ function init(){
   // 2) Continue last session
   const cur=Storage.getCur();
   if(cur){const b=Storage.loadBoard(cur);if(b){loadBoardData(b);setTimeout(fitView,50);return}}
-  // 3) Empty — show templates modal
-  showModal('templatesModal');
+  // 3) First visit — show onboarding (then templates after submit)
+  if(!getProfile())showModal('onboardingModal');
+  else showModal('templatesModal');
 }
 
 if(window.lucide){lucide.createIcons();init()}
