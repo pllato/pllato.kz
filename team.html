@@ -1857,6 +1857,11 @@ function renderMigration(el) {
       </div>
       <div id="chats-diag-result" style="display:none;margin-top:10px"></div>
       <div id="chat-test-result" style="display:none;margin-top:10px"></div>
+
+      <div class="btn-row" style="margin-top:14px;border-top:1px solid var(--bg3);padding-top:14px">
+        <button class="btn btn-sm" onclick="migrateOpenlines()" style="background:var(--gn);color:#0e0e12">📲 Перенести открытые линии (~1 935 за 6 мес)</button>
+      </div>
+      <div id="openlines-mig-result" class="log-area" style="display:none;margin-top:10px"></div>
     </div>
   `;
 }
@@ -2823,6 +2828,29 @@ window.migrateFilesRun = async function() {
       return;
     }
   }
+};
+
+window.migrateOpenlines = async function() {
+  await runBatchMigration({
+    endpoint: '/api/migrate-openlines',
+    stateKey: 'openlines',
+    resultElId: 'openlines-mig-result',
+    entityName: 'открытых линий',
+    entityNameShort: 'сесс',
+    initialLimit: 20,
+    confirmText: 'Запустить миграцию открытых линий за последние 6 месяцев?\n\n~1935 сессий с реальной перепиской WhatsApp/Telegram. Идёт по 20 сессий за вызов через batch API. Можно прерывать — auto-resume сработает.',
+    extraStats: (d, acc) => {
+      acc.cumulativeMessages = d.cumulativeMessages || 0;
+      acc.cumulativeAttachments = d.cumulativeAttachments || 0;
+      acc.sixMonthsAgo = d.sixMonthsAgoUsed;
+    },
+    extraStatsRender: (acc) => {
+      let s = 'Сообщений перенесено: ' + (acc.cumulativeMessages || 0).toLocaleString('ru');
+      if (acc.cumulativeAttachments) s += '\nВложений в сообщениях: ' + acc.cumulativeAttachments.toLocaleString('ru');
+      if (acc.sixMonthsAgo) s += '\nДата отсечки: ' + acc.sixMonthsAgo;
+      return s;
+    },
+  });
 };
 
 window.testChatHistory = async function() {
