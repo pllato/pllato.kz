@@ -1864,6 +1864,13 @@ function renderMigration(el) {
         <button class="btn btn-sm" onclick="migrateOpenlines()" style="background:var(--gn);color:#0e0e12">📲 Перенести открытые линии (~1 935 за 6 мес)</button>
       </div>
       <div id="openlines-mig-result" class="log-area" style="display:none;margin-top:10px"></div>
+
+      <div class="btn-row" style="margin-top:14px;border-top:1px solid var(--bg3);padding-top:14px">
+        <button class="btn btn-sm" onclick="migrateGroupChatsList()">📋 Собрать список групповых чатов</button>
+        <button class="btn btn-sm" onclick="migrateGroupChatsFetch()" style="background:var(--gn);color:#0e0e12">📥 Качать историю выбранных чатов</button>
+      </div>
+      <div id="group-chats-list-result" style="display:none;margin-top:10px"></div>
+      <div id="group-chats-fetch-result" class="log-area" style="display:none;margin-top:10px"></div>
     </div>
   `;
 }
@@ -2830,6 +2837,161 @@ window.migrateFilesRun = async function() {
       return;
     }
   }
+};
+
+window.migrateGroupChatsList = async function() {
+  const el = document.getElementById('group-chats-list-result');
+  el.style.display = '';
+  el.innerHTML = '<div style="font-size:12px;color:var(--t3)">⏳ Получаем список групповых чатов из Битрикса...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/migrate-group-chats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, mode: 'list' })
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(d.error || 'Ошибка')}</div>`;
+      return;
+    }
+
+    if (!d.chats || d.chats.length === 0) {
+      el.innerHTML = `<div style="background:rgba(240,162,58,.06);border:1px solid rgba(240,162,58,.3);border-radius:10px;padding:14px 18px">
+        <div style="color:#f0a23a;font-weight:600;font-size:13px;margin-bottom:6px">⚠️ Групповые чаты не найдены</div>
+        <div style="font-size:11px;color:var(--t2)">Проверено ${d.totalRecentItems} записей в im.recent.list, но настоящих групповых чатов (type=chat, chatType=chat) нет. Возможно webhook от лица пользователя который не состоит в групповых чатах.</div>
+      </div>`;
+      return;
+    }
+
+    let html = `<div style="background:rgba(63,216,142,.06);border:1px solid rgba(63,216,142,.3);border-radius:10px;padding:14px 18px">
+      <div style="color:var(--gn);font-weight:600;font-size:13px;margin-bottom:10px">✓ Найдено ${d.groupChatsFound} групповых чатов из ${d.totalRecentItems} записей</div>
+      <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Сохранены в /groupChats со статусом pending. Ниже список — отметь галочками что переносить (по умолчанию все):</div>
+      <div style="max-height:320px;overflow-y:auto;background:rgba(0,0,0,.2);padding:10px;border-radius:8px">`;
+
+    for (const c of d.chats) {
+      html += `<label style="display:flex;align-items:center;gap:10px;padding:6px 4px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04)">
+        <input type="checkbox" data-chat-id="${escapeHtml(c.chatId)}" checked style="width:16px;height:16px;cursor:pointer">
+        <div style="flex:1;font-size:12px;color:var(--t1)">
+          <div><b>${escapeHtml(c.title || '(без названия)')}</b></div>
+          <div style="font-size:10px;color:var(--t3)">chat_${escapeHtml(c.chatId)} · ${c.members || '?'} участников</div>
+        </div>
+      </label>`;
+    }
+
+    html += `</div>
+      <div style="margin-top:10px;display:flex;gap:8px;font-size:11px">
+        <button onclick="document.querySelectorAll('#group-chats-list-result input[type=checkbox]').forEach(c=>c.checked=true)" class="btn btn-sm" style="font-size:11px;padding:4px 10px">Выбрать все</button>
+        <button onclick="document.querySelectorAll('#group-chats-list-result input[type=checkbox]').forEach(c=>c.checked=false)" class="btn btn-sm" style="font-size:11px;padding:4px 10px">Снять выбор</button>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--t3)">После выбора нажми <b>"📥 Качать историю выбранных чатов"</b></div>
+    </div>`;
+
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(e.message)}</div>`;
+  }
+};
+
+window.migrateGroupChatsFetch = async function() {
+  // Собираем выбранные chatId из чекбоксов
+  const checkboxes = document.querySelectorAll('#group-chats-list-result input[type=checkbox]:checked');
+  const selectedIds = Array.from(checkboxes).map(c => c.dataset.chatId);
+
+  if (selectedIds.length === 0) {
+    alert('Сначала собери список (📋) и отметь галочками какие чаты переносить.');
+    return;
+  }
+
+  if (!confirm(`Качать историю ${selectedIds.length} групповых чатов?\n\nИдёт по чатам последовательно, страницами по 100 сообщений. Можно прервать — следующий запуск продолжит.`)) return;
+
+  let wakeLock = null;
+  if ('wakeLock' in navigator) {
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+  }
+
+  const el = document.getElementById('group-chats-fetch-result');
+  el.style.display = '';
+  el.innerHTML = `⏳ Качаем ${selectedIds.length} чатов...\n`;
+
+  const startedAt = Date.now();
+  let totalChats = 0;
+  let totalMessages = 0;
+  let totalErrors = 0;
+
+  for (const chatId of selectedIds) {
+    let lastId = null;
+    let chatPagesDone = 0;
+    let chatMessages = 0;
+    let chatRetry = 0;
+    const MAX_RETRY = 10;
+
+    el.innerHTML += `\n<span class="info">⚙ chat_${chatId}</span>\n`;
+
+    while (true) {
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(WORKER_URL + '/api/migrate-group-chats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken, mode: 'fetch', chatId, lastId })
+        });
+        const d = await r.json();
+
+        if (!d.ok) {
+          const errStr = d.error || '';
+          const httpMatch = errStr.match(/HTTP\s+(\d+)/);
+          const httpCode = httpMatch ? parseInt(httpMatch[1]) : null;
+          if ((httpCode === 429 || httpCode === 401 || (httpCode >= 500 && httpCode < 600)) && chatRetry < MAX_RETRY) {
+            chatRetry++;
+            for (let i = 30; i > 0; i--) {
+              await new Promise(res => setTimeout(res, 1000));
+            }
+            continue;
+          }
+          el.innerHTML += `  <span class="err">✗ ${escapeHtml(errStr).slice(0, 100)}</span>\n`;
+          totalErrors++;
+          break;
+        }
+        chatRetry = 0;
+
+        chatPagesDone++;
+        chatMessages += (d.messagesInBatch || 0);
+        totalMessages += (d.messagesInBatch || 0);
+
+        if (d.done) {
+          el.innerHTML += `  <span class="ok">✓ ${chatMessages} сообщ. за ${chatPagesDone} стр.</span>\n`;
+          el.scrollTop = el.scrollHeight;
+          totalChats++;
+          break;
+        }
+
+        lastId = d.nextLastId;
+        await new Promise(r => setTimeout(r, 200));
+      } catch (e) {
+        const isNetwork = e.message && (e.message.includes('Failed to fetch') || e.message.includes('NetworkError') || e.name === 'TypeError');
+        if (isNetwork && chatRetry < MAX_RETRY) {
+          chatRetry++;
+          await new Promise(res => setTimeout(res, 30000));
+          continue;
+        }
+        el.innerHTML += `  <span class="err">✗ ${escapeHtml(e.message).slice(0, 100)}</span>\n`;
+        totalErrors++;
+        break;
+      }
+    }
+  }
+
+  const elapsed = Math.round((Date.now() - startedAt) / 1000);
+  const elapsedText = elapsed >= 60 ? Math.floor(elapsed/60) + 'м ' + (elapsed%60) + 'с' : elapsed + 'с';
+
+  el.innerHTML += `\n<span class="ok">✓ Миграция групповых чатов завершена</span>\n`;
+  el.innerHTML += `Чатов обработано: ${totalChats} из ${selectedIds.length}\n`;
+  el.innerHTML += `Сообщений перенесено: <span class="ok">${totalMessages.toLocaleString('ru')}</span>\n`;
+  if (totalErrors > 0) el.innerHTML += `<span class="warn">Ошибок чатов: ${totalErrors}</span>\n`;
+  el.innerHTML += `Время: ${elapsedText}\n`;
+
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
 };
 
 window.diagnoseGroupChats = async function() {
