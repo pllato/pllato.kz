@@ -574,6 +574,130 @@ tr:hover td { background: var(--bg3); }
   .cf-grid { grid-template-columns: 1fr; }
   .kanban-col { width: 240px; }
 }
+
+/* ─── Таймлайн дел сделки/контакта ─── */
+.tl-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.tl-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg3);
+  border: 1px solid transparent;
+  color: var(--t3);
+  padding: 5px 10px;
+  border-radius: 18px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tl-filter:hover { background: var(--bg2); }
+.tl-filter.active { background: rgba(127,99,232,.15); color: var(--t1); border-color: rgba(127,99,232,.4); }
+.tl-filter .tl-count {
+  background: rgba(0,0,0,.3);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 10px;
+}
+.tl-filter.active .tl-count { background: rgba(127,99,232,.3); }
+
+.tl-wrap {
+  border-left: 1px solid var(--bg3);
+  margin-left: 14px;
+  padding-left: 18px;
+  position: relative;
+}
+.tl-day-label {
+  font-size: 11px;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin: 18px 0 8px -32px;
+  padding-left: 32px;
+  font-weight: 600;
+}
+.tl-day-label:first-child { margin-top: 0; }
+
+.tl-item {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.tl-item:last-child { border-bottom: none; }
+
+.tl-icon {
+  position: absolute;
+  left: -32px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+  border: 2px solid var(--bg2);
+}
+
+.tl-body { flex: 1; min-width: 0; padding-left: 4px; }
+
+.tl-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--t3);
+  margin-bottom: 3px;
+}
+.tl-type-label { color: var(--t2); font-weight: 600; }
+.tl-time { margin-left: auto; }
+.tl-provider { background: rgba(127,99,232,.15); color: var(--ac2); padding: 1px 7px; border-radius: 8px; font-size: 10px; }
+.tl-dir.incoming { color: #3fd88e; font-size: 10px; }
+.tl-dir.outgoing { color: #f0a23a; font-size: 10px; }
+.tl-duration { color: var(--t3); font-size: 11px; }
+.tl-completed { color: #3fd88e; font-weight: 700; }
+
+.tl-subject {
+  font-size: 13px;
+  color: var(--t1);
+  font-weight: 500;
+  margin-bottom: 3px;
+  word-break: break-word;
+}
+.tl-desc {
+  font-size: 12px;
+  color: var(--t2);
+  line-height: 1.5;
+  word-break: break-word;
+}
+.tl-files {
+  font-size: 11px;
+  color: var(--t3);
+  margin-top: 6px;
+  padding: 5px 10px;
+  background: var(--bg3);
+  border-radius: 6px;
+  display: inline-block;
+}
+.tl-files-status {
+  margin-left: 6px;
+  font-size: 10px;
+  color: var(--t3);
+}
+@media (max-width: 600px) {
+  .tl-wrap { margin-left: 8px; padding-left: 14px; }
+  .tl-icon { left: -25px; width: 22px; height: 22px; font-size: 11px; }
+  .tl-head { font-size: 10px; }
+  .tl-time { width: 100%; margin-left: 0; }
+}
 </style>
 </head>
 <body>
@@ -1185,7 +1309,7 @@ function getUsersForFilter() {
   return arr.sort((a, b) => a.fullName.localeCompare(b.fullName, 'ru'));
 }
 
-function openDealCard(bitrixId) {
+async function openDealCard(bitrixId) {
   const deal = dealsState.deals.find(d => d.bitrixId === bitrixId);
   if (!deal) return;
 
@@ -1199,6 +1323,45 @@ function openDealCard(bitrixId) {
 
   // Bitrix URL
   const bitrixUrl = `https://elcalmaty.bitrix24.kz/crm/deal/details/${deal.bitrixId}/`;
+
+  // Параллельно подтягиваем контакт и таймлайн
+  const idToken = await fbAuth.currentUser.getIdToken();
+  const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+  const fetches = [];
+
+  // Контакт сделки (если есть)
+  if (deal.contactId) {
+    fetches.push(
+      fetch(`${dbUrl}/contacts/${deal.contactId}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null)
+    );
+  } else {
+    fetches.push(Promise.resolve(null));
+  }
+
+  // Компания сделки (если есть)
+  if (deal.companyId) {
+    fetches.push(
+      fetch(`${dbUrl}/companies/${deal.companyId}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null)
+    );
+  } else {
+    fetches.push(Promise.resolve(null));
+  }
+
+  // Таймлайн дел сделки
+  fetches.push(
+    fetch(`${dbUrl}/timeline/deal_${deal.bitrixId}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null)
+  );
+
+  const [contact, company, timelineRaw] = await Promise.all(fetches);
+
+  // Превращаем timeline объект в массив, сортируем по дате (новые сверху)
+  const timeline = timelineRaw
+    ? Object.entries(timelineRaw).map(([k, v]) => ({ ...v, _key: k })).sort((a, b) => {
+        const da = a.bitrixCreated || a.start || '';
+        const db = b.bitrixCreated || b.start || '';
+        return db.localeCompare(da);
+      })
+    : [];
 
   let html = `<div class="modal-overlay" onclick="if(event.target===this)closeDealCard()">
     <div class="modal">
@@ -1234,10 +1397,13 @@ function openDealCard(bitrixId) {
         <div class="fl">Закрыто</div>
         <div class="fv">${deal.closed ? '<span style="color:var(--gn)">✓ Да</span> ' + (deal.closeDate ? new Date(deal.closeDate).toLocaleDateString('ru') : '') : '<span class="muted">Нет</span>'}</div>
         
-        ${deal.contactId ? `<div class="fl">Контакт</div><div class="fv"><span class="muted">${escapeHtml(deal.contactId)}</span> <span style="color:var(--t3);font-size:11px">(контакты ещё не мигрированы)</span></div>` : ''}
+        ${renderContactRow(contact, deal.contactId)}
+        ${renderCompanyRow(company, deal.companyId)}
       </div>
 
       ${deal.comments ? `<div class="section-h">Комментарии</div><div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px">${escapeHtml(deal.comments)}</div>` : ''}
+
+      ${renderTimelineBlock(timeline)}
 
       ${renderCustomFieldsBlock(deal.customFields)}
     </div>
@@ -1246,8 +1412,200 @@ function openDealCard(bitrixId) {
   // Add to body
   const div = document.createElement('div');
   div.innerHTML = html;
-  document.body.appendChild(div.firstElementChild);
+  const modal = div.firstElementChild;
+  document.body.appendChild(modal);
   document.body.style.overflow = 'hidden';
+
+  // Timeline filters: клик по типу — toggle видимости элементов этого типа
+  modal.querySelectorAll('.tl-filter').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('active');
+      const type = btn.dataset.type;
+      const active = btn.classList.contains('active');
+      modal.querySelectorAll(`.tl-item[data-type="${type}"]`).forEach(it => {
+        it.style.display = active ? '' : 'none';
+      });
+      // Скрываем дни в которых не осталось видимых элементов
+      modal.querySelectorAll('.tl-day-label').forEach(dayLabel => {
+        let next = dayLabel.nextElementSibling;
+        let hasVisible = false;
+        while (next && !next.classList.contains('tl-day-label')) {
+          if (next.classList.contains('tl-item') && next.style.display !== 'none') {
+            hasVisible = true;
+            break;
+          }
+          next = next.nextElementSibling;
+        }
+        dayLabel.style.display = hasVisible ? '' : 'none';
+      });
+    });
+  });
+}
+
+function renderCompanyRow(company, companyId) {
+  if (!companyId) return '';
+  if (!company) return `<div class="fl">Компания</div><div class="fv"><span class="muted">${escapeHtml(companyId)}</span> <span style="color:var(--t3);font-size:11px">(не найдена)</span></div>`;
+  return `<div class="fl">Компания</div><div class="fv"><b>${escapeHtml(company.title || '(без названия)')}</b></div>`;
+}
+
+function renderContactRow(contact, contactId) {
+  if (!contactId) return '';
+  if (!contact) return `<div class="fl">Контакт</div><div class="fv"><span class="muted">${escapeHtml(contactId)}</span> <span style="color:var(--t3);font-size:11px">(не найден)</span></div>`;
+  const name = [contact.lastName, contact.name, contact.secondName].filter(Boolean).join(' ').trim() || '(без имени)';
+  const phone = contact.phones?.[0]?.value || '';
+  const email = contact.emails?.[0]?.value || '';
+  const parts = [];
+  if (phone) parts.push(`<a href="tel:${escapeHtml(phone)}" style="color:var(--ac2)">${escapeHtml(phone)}</a>`);
+  if (email) parts.push(`<a href="mailto:${escapeHtml(email)}" style="color:var(--ac2)">${escapeHtml(email)}</a>`);
+  return `<div class="fl">Контакт</div><div class="fv"><b>${escapeHtml(name)}</b>${parts.length ? '<br><span style="font-size:12px">' + parts.join(' · ') + '</span>' : ''}</div>`;
+}
+
+// ═════════════════════════════════════════════════════════════
+//   Таймлайн дел сделки/контакта
+// ═════════════════════════════════════════════════════════════
+const ACTIVITY_TYPE_META = {
+  call:     { icon: '📞', label: 'Звонок', color: '#3fd88e' },
+  email:    { icon: '✉️', label: 'Email', color: '#7f63e8' },
+  meeting:  { icon: '📅', label: 'Встреча', color: '#f0a23a' },
+  task:     { icon: '✓', label: 'Задача', color: '#7f63e8' },
+  provider: { icon: '💬', label: 'Чат', color: '#3fd88e' },
+  activity: { icon: '📝', label: 'Активность', color: '#7c869a' },
+  unknown:  { icon: '•',  label: 'Дело', color: '#7c869a' },
+};
+
+const PROVIDER_NAMES = {
+  'IMOPENLINES_SESSION': 'Открытая линия',
+  'IMOL': 'Открытая линия',
+  'CRM_WHATSAPP': 'WhatsApp',
+  'CRM_TELEGRAMBOT': 'Telegram',
+  'CRM_INSTAGRAM': 'Instagram',
+  'VOXIMPLANT_CALL': 'Звонок Битрикс',
+  'CALL': 'Звонок',
+  'CRM_EMAIL': 'Email',
+  'REST_APP': 'Внешнее приложение',
+};
+
+function renderTimelineBlock(timeline) {
+  if (!timeline || timeline.length === 0) {
+    return `<div class="section-h">Таймлайн</div>
+      <div style="font-size:13px;color:var(--t3);padding:12px 0">Нет дел в таймлайне</div>`;
+  }
+
+  // Группировка по дням
+  const groups = {};
+  for (const a of timeline) {
+    const dateStr = a.bitrixCreated || a.start || a.bitrixLastUpdated || '';
+    const dateKey = dateStr ? dateStr.slice(0, 10) : 'unknown';
+    if (!groups[dateKey]) groups[dateKey] = [];
+    groups[dateKey].push(a);
+  }
+  const sortedDays = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+
+  // Подсчёт по типам для фильтра
+  const byType = {};
+  for (const a of timeline) {
+    const t = a.type || 'unknown';
+    byType[t] = (byType[t] || 0) + 1;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400_000).toISOString().slice(0, 10);
+
+  let html = `<div class="section-h">Таймлайн (${timeline.length})</div>`;
+
+  // Фильтры по типам
+  const typeFilters = Object.entries(byType)
+    .sort((a, b) => b[1] - a[1])
+    .map(([t, n]) => {
+      const meta = ACTIVITY_TYPE_META[t] || ACTIVITY_TYPE_META.unknown;
+      return `<button class="tl-filter active" data-type="${escapeHtml(t)}">${meta.icon} ${escapeHtml(meta.label)} <span class="tl-count">${n}</span></button>`;
+    }).join('');
+  html += `<div class="tl-filters">${typeFilters}</div>`;
+
+  html += `<div class="tl-wrap">`;
+  for (const day of sortedDays) {
+    let label = day;
+    if (day === today) label = 'Сегодня';
+    else if (day === yesterday) label = 'Вчера';
+    else if (day !== 'unknown') label = new Date(day).toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' });
+    else label = 'Без даты';
+
+    html += `<div class="tl-day-label">${label}</div>`;
+    for (const a of groups[day]) {
+      html += renderTimelineItem(a);
+    }
+  }
+  html += `</div>`;
+  return html;
+}
+
+function renderTimelineItem(a) {
+  const type = a.type || 'unknown';
+  const meta = ACTIVITY_TYPE_META[type] || ACTIVITY_TYPE_META.unknown;
+  const author = a.responsibleUid ? dealsState.users[a.responsibleUid] : null;
+  const authorName = author ? `${author.lastName || ''} ${author.name || ''}`.trim() : '';
+  const time = a.bitrixCreated ? new Date(a.bitrixCreated).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }) : '';
+
+  // Subject (тема/название)
+  const subject = a.subject || '';
+
+  // Description: чистим от HTML тегов для краткого превью если type=html, иначе как есть
+  let desc = a.description || '';
+  if (a.descriptionType === '3' || a.descriptionType === 3) {
+    // HTML — убираем теги для превью
+    desc = desc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  if (desc.length > 300) desc = desc.slice(0, 300) + '...';
+
+  // Provider/направление для звонков
+  let providerInfo = '';
+  if (a.providerId) {
+    const provName = PROVIDER_NAMES[a.providerId] || a.providerId;
+    providerInfo = `<span class="tl-provider">${escapeHtml(provName)}</span>`;
+  }
+  let directionInfo = '';
+  if (a.direction === '1' || a.direction === 1) directionInfo = '<span class="tl-dir incoming">↓ входящий</span>';
+  else if (a.direction === '2' || a.direction === 2) directionInfo = '<span class="tl-dir outgoing">↑ исходящий</span>';
+
+  // Длительность звонка
+  let durationInfo = '';
+  if (a.callDuration && parseInt(a.callDuration) > 0) {
+    const sec = parseInt(a.callDuration);
+    const min = Math.floor(sec / 60);
+    const s = sec % 60;
+    durationInfo = `<span class="tl-duration">⏱ ${min}:${String(s).padStart(2, '0')}</span>`;
+  }
+
+  // Файлы
+  let filesInfo = '';
+  if (a.hasFiles && Array.isArray(a.files) && a.files.length > 0) {
+    const fileCount = a.files.length;
+    const word = fileCount === 1 ? 'файл' : (fileCount < 5 ? 'файла' : 'файлов');
+    const status = a.filesMigrated ? '✓ в R2' : '⏳ в Битриксе';
+    filesInfo = `<div class="tl-files">📎 ${fileCount} ${word} <span class="tl-files-status">${status}</span></div>`;
+  } else if (a.recordFileId) {
+    filesInfo = `<div class="tl-files">🎙 запись звонка <span class="tl-files-status">${a.filesMigrated ? '✓ в R2' : '⏳ в Битриксе'}</span></div>`;
+  }
+
+  // Completed badge
+  const completedBadge = a.completed ? '<span class="tl-completed">✓</span>' : '';
+
+  return `<div class="tl-item" data-type="${escapeHtml(type)}">
+    <div class="tl-icon" style="background:${meta.color}22;color:${meta.color}">${meta.icon}</div>
+    <div class="tl-body">
+      <div class="tl-head">
+        <span class="tl-type-label">${escapeHtml(meta.label)}</span>
+        ${providerInfo}
+        ${directionInfo}
+        ${durationInfo}
+        ${completedBadge}
+        <span class="tl-time">${time}${authorName ? ' · ' + escapeHtml(authorName) : ''}</span>
+      </div>
+      ${subject ? `<div class="tl-subject">${escapeHtml(subject)}</div>` : ''}
+      ${desc ? `<div class="tl-desc">${escapeHtml(desc)}</div>` : ''}
+      ${filesInfo}
+    </div>
+  </div>`;
 }
 
 window.closeDealCard = function() {
