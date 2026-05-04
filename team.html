@@ -1814,9 +1814,20 @@ function renderMigration(el) {
 
     <div class="card">
       <h3>Шаг 10: Миграция файлов в R2</h3>
-      <div style="font-size:12px;color:var(--t3)">
-        Будет доступно после миграции дел и задач. Качает все собранные <code>bitrixFileIds</code> и заливает в Cloudflare R2 (записи звонков, вложения чатов, файлы задач). Самая длинная часть, можно делать фоном с прерываниями.
+      <div style="font-size:12px;color:var(--t3);margin-bottom:10px">
+        ~25 000 файлов (~40-100 ГБ): записи звонков Voximplant, вложения чатов, файлы задач. Заливаются в Cloudflare R2.
+        <br><br>
+        <b>Шаг 10.1 — Тест скачивания:</b> определяем рабочий метод доставания файлов из Битрикса. Качает один файл и заливает в R2 как <code>test/file_{id}</code>. Если работает — двигаемся дальше.
       </div>
+      <div class="btn-row">
+        <button class="btn btn-sm" onclick="testFileDownload()">🧪 Тест скачивания одного файла</button>
+      </div>
+      <div id="file-test-result" style="display:none;margin-top:10px"></div>
+    </div>
+
+    <div class="card" id="step-11-card">
+      <h3>Шаг 11: Массовая миграция файлов</h3>
+      <div style="font-size:12px;color:var(--t3)">Будет доступно после успешного теста (Шаг 10.1). Идёт фоном, можно прерывать и продолжать.</div>
     </div>
   `;
 }
@@ -2449,6 +2460,78 @@ window.migrateTaskComments = async function() {
         '\nВложений в комментариях: ' + (acc.cumulativeAttachments || 0).toLocaleString('ru');
     },
   });
+};
+
+window.testFileDownload = async function(bitrixFileId = null) {
+  const el = document.getElementById('file-test-result');
+  el.style.display = '';
+  el.innerHTML = '<div style="font-size:12px;color:var(--t3)">⏳ Тестируем разные методы скачивания файла из Битрикса...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/test-file-download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bitrixFileId ? { idToken, bitrixFileId } : { idToken })
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(d.error || 'Ошибка')}</div>`;
+      return;
+    }
+
+    const isSuccess = d.downloadResult?.r2Status === 'uploaded';
+    const bgColor = isSuccess ? 'rgba(63,216,142,.06)' : 'rgba(240,162,58,.06)';
+    const borderColor = isSuccess ? 'rgba(63,216,142,.3)' : 'rgba(240,162,58,.3)';
+    const titleColor = isSuccess ? 'var(--gn)' : '#f0a23a';
+
+    let html = `<div style="background:${bgColor};border:1px solid ${borderColor};border-radius:10px;padding:14px 18px">
+      <div style="color:${titleColor};font-weight:600;font-size:13px;margin-bottom:10px">${escapeHtml(d.summary)}</div>
+      <div style="font-size:12px;color:var(--t2);line-height:1.7">
+        <b>FileID:</b> ${escapeHtml(String(d.fileId))} · <b>Найден в:</b> ${escapeHtml(d.foundIn || '(передан явно)')}<br>
+        <b>Portal:</b> ${escapeHtml(d.portalBase)}<br>
+      </div>`;
+
+    html += `<div style="margin-top:12px"><div style="font-size:11px;color:var(--t3);margin-bottom:4px">Попытки методов:</div>`;
+    for (const a of d.attempts) {
+      const icon = a.ok ? '<span style="color:var(--gn)">✓</span>' : '<span style="color:var(--rd)">✗</span>';
+      html += `<div style="font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+        ${icon} <code>${escapeHtml(a.method)}</code>`;
+      if (a.ok && a.result) {
+        const r = a.result;
+        const bits = [];
+        if (r.NAME) bits.push(`name=${escapeHtml(String(r.NAME))}`);
+        if (r.SIZE) bits.push(`size=${escapeHtml(String(r.SIZE))}`);
+        if (r.TYPE) bits.push(`type=${escapeHtml(String(r.TYPE))}`);
+        if (r.DOWNLOAD_URL) bits.push(`<span style="color:var(--gn)">DOWNLOAD_URL ✓</span>`);
+        if (a.contentType) bits.push(`ct=${escapeHtml(a.contentType)}`);
+        if (a.contentLength) bits.push(`size=${escapeHtml(a.contentLength)}`);
+        if (a.status !== undefined) bits.push(`status=${a.status}`);
+        if (bits.length) html += ` — <span style="color:var(--t3)">${bits.join(' · ')}</span>`;
+      } else if (!a.ok) {
+        const errStr = a.result?.error || a.error || 'failed';
+        html += ` — <span style="color:var(--rd);font-size:10px">${escapeHtml(typeof errStr === 'object' ? JSON.stringify(errStr) : String(errStr).slice(0, 100))}</span>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+
+    if (d.downloadResult) {
+      const dr = d.downloadResult;
+      html += `<div style="margin-top:12px;padding:10px 12px;background:rgba(0,0,0,.2);border-radius:8px;font-size:11px;color:var(--t2)">
+        <b>Скачивание:</b> ${dr.ok ? '<span style="color:var(--gn)">успех</span>' : '<span style="color:var(--rd)">ошибка</span>'}<br>
+        ${dr.from ? '<b>Метод:</b> ' + escapeHtml(dr.from) + '<br>' : ''}
+        ${dr.sizeBytes !== undefined ? '<b>Размер:</b> ' + (dr.sizeBytes / 1024).toFixed(1) + ' КБ<br>' : ''}
+        ${dr.contentType ? '<b>Content-Type:</b> ' + escapeHtml(dr.contentType) + '<br>' : ''}
+        ${dr.r2Key ? '<b>R2 ключ:</b> <code>' + escapeHtml(dr.r2Key) + '</code><br>' : ''}
+        ${dr.error ? '<b>Ошибка:</b> ' + escapeHtml(dr.error) : ''}
+      </div>`;
+    }
+
+    html += `</div>`;
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(e.message)}</div>`;
+  }
 };
 
 window.diagnosePipeline = async function() {
