@@ -1842,6 +1842,20 @@ function renderMigration(el) {
       </div>
       <div id="files-mig-result" class="log-area" style="display:none;margin-top:10px"></div>
     </div>
+
+    <div class="card">
+      <h3>Шаг 12: Диагностика чатов</h3>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:10px">
+        Read-only. Считает:
+        <br>· <b>Открытые линии</b> (внешние WhatsApp/Telegram/Instagram) — всего и за последние 6 месяцев
+        <br>· <b>Внутренние чаты</b> сотрудников — личные диалоги и групповые
+        <br>· Пробует получить пример переписки (3 сессии), оценивает среднее число сообщений
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-sm" onclick="diagnoseChats()">💬 Запустить диагностику чатов</button>
+      </div>
+      <div id="chats-diag-result" style="display:none;margin-top:10px"></div>
+    </div>
   `;
 }
 
@@ -2806,6 +2820,119 @@ window.migrateFilesRun = async function() {
       if (wakeLock) { wakeLock.release(); wakeLock = null; }
       return;
     }
+  }
+};
+
+window.diagnoseChats = async function() {
+  const el = document.getElementById('chats-diag-result');
+  el.style.display = '';
+  el.innerHTML = '<div style="font-size:12px;color:var(--t3)">⏳ Анализируем чаты (~30 сек)...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/diagnose-chats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(d.error || 'Ошибка')}</div>`;
+      return;
+    }
+
+    const ol = d.openlinesSessions || {};
+    const olm = d.openlinesMessagesSample || {};
+    const im = d.imChats || {};
+    const grp = d.imGroupChats || {};
+    const est = d.estimates || {};
+
+    let html = `<div style="background:rgba(127,99,232,.06);border:1px solid rgba(127,99,232,.3);border-radius:10px;padding:14px 18px">
+      <div style="color:var(--ac2);font-weight:600;font-size:13px;margin-bottom:10px">💬 Диагностика чатов</div>`;
+
+    // Открытые линии
+    html += `<div style="font-size:12px;color:var(--t2);line-height:1.7;margin-bottom:14px">
+      <b>📱 Открытые линии (внешние мессенджеры):</b><br>`;
+    if (ol.error) {
+      html += `<span style="color:var(--rd)">Ошибка: ${escapeHtml(JSON.stringify(ol.error))}</span><br>`;
+    } else {
+      html += `Всего сессий: <b>${(ol.total || 0).toLocaleString('ru')}</b><br>
+        За последние 6 месяцев (с ${escapeHtml(d.sixMonthsAgo)}): <b>${(ol.last6Months || 0).toLocaleString('ru')}</b><br>`;
+      if (olm.perSessionAvg !== null && olm.perSessionAvg !== undefined) {
+        html += `Среднее число сообщений в сессии (sample): <b>${olm.perSessionAvg}</b><br>`;
+        html += `<b>Оценка сообщений за 6 мес:</b> ~${(est.openlinesMessagesEstimated || 0).toLocaleString('ru')}<br>`;
+        if (est.openlinesMigrationMinutes) {
+          html += `<b>Оценка времени миграции:</b> ~${est.openlinesMigrationMinutes} мин<br>`;
+        }
+      } else {
+        html += `<span style="color:var(--rd)">Не удалось получить пример сообщений — возможно нужны другие права webhook'а (imopenlines, im)</span><br>`;
+      }
+    }
+    html += `</div>`;
+
+    // Sample sessions
+    if (ol.sample && ol.sample.length > 0) {
+      html += `<div style="font-size:11px;color:var(--t3);margin-bottom:14px">
+        <div style="margin-bottom:4px">Примеры последних сессий:</div>`;
+      for (const s of ol.sample) {
+        html += `<div style="padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+          ID ${escapeHtml(s.id)} · session_${escapeHtml(s.sessionId || '?')} · ${escapeHtml(s.created || '')}<br>
+          <span style="color:var(--t2)">${escapeHtml((s.subject || '').slice(0, 80))}</span>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+
+    // Sample messages
+    if (olm.samples && olm.samples.length > 0) {
+      html += `<div style="font-size:11px;color:var(--t3);margin-bottom:14px;padding:10px 12px;background:rgba(0,0,0,.2);border-radius:8px">
+        <div style="margin-bottom:6px"><b>Тест получения сообщений:</b></div>`;
+      for (const s of olm.samples) {
+        if (s.error) {
+          html += `<div style="padding:3px 0;color:var(--rd)">session_${escapeHtml(s.sessionId)}: ${escapeHtml(JSON.stringify(s.error).slice(0, 100))}</div>`;
+        } else {
+          html += `<div style="padding:3px 0">
+            <span style="color:var(--gn)">✓</span> session_${escapeHtml(s.sessionId)}: ${s.messagesCount} сообщ.
+            ${s.firstMessage ? '<br><span style="color:var(--t3);margin-left:14px">первое: "' + escapeHtml(String(s.firstMessage.text).slice(0, 80)) + '"</span>' : ''}
+          </div>`;
+        }
+      }
+      html += `</div>`;
+    }
+
+    // Внутренние чаты
+    html += `<div style="font-size:12px;color:var(--t2);line-height:1.7;margin-bottom:14px">
+      <b>💼 Внутренние чаты сотрудников (im.recent):</b><br>`;
+    if (im.error) {
+      html += `<span style="color:var(--rd)">Ошибка: ${escapeHtml(JSON.stringify(im.error))}</span><br>`;
+    } else {
+      html += `Доступно через webhook (видит то что у админа): <b>${(im.totalRecent || im.total || 0)}</b><br>`;
+      if (im.byType && Object.keys(im.byType).length > 0) {
+        html += `Типы: ${Object.entries(im.byType).map(([k, v]) => k + '=' + v).join(', ')}<br>`;
+      }
+    }
+    html += `</div>`;
+
+    // Групповые чаты
+    html += `<div style="font-size:12px;color:var(--t2);line-height:1.7">
+      <b>👥 Групповые чаты (im.search.chat.list):</b><br>`;
+    if (grp.error) {
+      html += `<span style="color:var(--rd)">Ошибка: ${escapeHtml(JSON.stringify(grp.error)).slice(0, 200)}</span><br>`;
+    } else {
+      html += `Найдено: <b>${grp.total || 0}</b><br>`;
+      if (grp.sample && grp.sample.length > 0) {
+        html += `<div style="font-size:11px;color:var(--t3);margin-top:6px">Примеры:`;
+        for (const c of grp.sample) {
+          html += `<div style="padding:2px 0">· ${escapeHtml(c.title || 'без названия')} (${c.userCount || '?'} участников)</div>`;
+        }
+        html += `</div>`;
+      }
+    }
+    html += `</div>`;
+
+    html += `</div>`;
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(e.message)}</div>`;
   }
 };
 
