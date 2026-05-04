@@ -1853,8 +1853,10 @@ function renderMigration(el) {
       </div>
       <div class="btn-row">
         <button class="btn btn-sm" onclick="diagnoseChats()">💬 Запустить диагностику чатов</button>
+        <button class="btn btn-sm" onclick="testChatHistory()">🔬 Тест получения истории сессии</button>
       </div>
       <div id="chats-diag-result" style="display:none;margin-top:10px"></div>
+      <div id="chat-test-result" style="display:none;margin-top:10px"></div>
     </div>
   `;
 }
@@ -2820,6 +2822,67 @@ window.migrateFilesRun = async function() {
       if (wakeLock) { wakeLock.release(); wakeLock = null; }
       return;
     }
+  }
+};
+
+window.testChatHistory = async function() {
+  const el = document.getElementById('chat-test-result');
+  el.style.display = '';
+  el.innerHTML = '<div style="font-size:12px;color:var(--t3)">⏳ Тестируем разные методы получения истории сессии (~10 сек)...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/test-chat-history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(d.error || 'Ошибка')}</div>`;
+      return;
+    }
+
+    let html = `<div style="background:rgba(127,99,232,.06);border:1px solid rgba(127,99,232,.3);border-radius:10px;padding:14px 18px">
+      <div style="color:var(--ac2);font-weight:600;font-size:13px;margin-bottom:10px">🔬 Тест истории сессии</div>
+      <div style="font-size:12px;color:var(--t2);line-height:1.7;margin-bottom:14px">
+        <b>Activity ID:</b> ${escapeHtml(String(d.activityId))} · <b>Subject:</b> ${escapeHtml(String(d.activitySubject || '').slice(0, 80))}<br>
+        <b>SESSION_ID (ASSOCIATED_ENTITY_ID):</b> ${escapeHtml(String(d.sessionAssocId || 'нет'))}<br>
+        <b>CHAT_ID найден:</b> ${escapeHtml(String(d.possibleChatId || 'нет'))}<br>
+        <b>Keys в activity:</b> <span style="font-size:10px">${escapeHtml((d.activityKeys || []).join(', '))}</span><br>
+        <b>Keys в PROVIDER_PARAMS:</b> <span style="font-size:10px">${escapeHtml((d.providerParamsKeys || []).join(', ') || '(пусто)')}</span><br>
+        <b>Keys в SETTINGS:</b> <span style="font-size:10px">${escapeHtml((d.settingsKeys || []).join(', ') || '(пусто)')}</span>
+      </div>`;
+
+    html += `<div style="font-size:11px;color:var(--t3);margin-bottom:6px">Тесты методов:</div>`;
+    for (const t of (d.tests || [])) {
+      const icon = t.ok ? '<span style="color:var(--gn)">✓</span>' : '<span style="color:var(--rd)">✗</span>';
+      html += `<div style="padding:6px 10px;margin:4px 0;background:rgba(0,0,0,.2);border-radius:6px;font-size:11px">
+        ${icon} <code>${escapeHtml(t.method)}</code>`;
+      if (t.error) {
+        html += `<br><span style="color:var(--rd);margin-left:14px">${escapeHtml(typeof t.error === 'object' ? JSON.stringify(t.error) : String(t.error)).slice(0, 200)}</span>`;
+      }
+      if (t.resultKeys) {
+        html += `<br><span style="color:var(--t3);margin-left:14px">keys: ${escapeHtml(t.resultKeys.join(', ').slice(0, 200))}</span>`;
+      }
+      if (t.messagesCount !== undefined && t.messagesCount !== null) {
+        html += `<br><span style="color:var(--gn);margin-left:14px"><b>сообщений: ${t.messagesCount}</b></span>`;
+      }
+      if (t.firstMessage) {
+        const fm = t.firstMessage;
+        const text = String(fm.text || fm.MESSAGE || '').slice(0, 150);
+        html += `<br><span style="color:var(--t2);margin-left:14px">первое: "${escapeHtml(text)}"</span>`;
+      }
+      if (t.sample && !t.firstMessage && !t.resultKeys) {
+        const s = JSON.stringify(t.sample).slice(0, 300);
+        html += `<br><span style="color:var(--t3);margin-left:14px;font-family:monospace;font-size:10px">${escapeHtml(s)}</span>`;
+      }
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(e.message)}</div>`;
   }
 };
 
