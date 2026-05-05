@@ -1822,16 +1822,39 @@ async function loadAndRenderChatThread(sessionId, threadEl) {
       }
 
       // Обычное сообщение от клиента или сотрудника
-      const isClient = m.isFromClient;
-      const senderName = m.senderName || (isClient ? 'Клиент' : 'Сотрудник');
-      // Текст: можем рендерить textLegacy (HTML) если есть, но безопасно — через escapeHtml текста + обработка переносов
+      let isClient = m.isFromClient;
       let textRender = String(m.text || '');
-      // Убираем BBCode типа [b]...[/b], [URL=...], [USER=...]
+
+      // ── WAZZUP специфика: парсим служебный префикс и определяем направление
+      // Формат: "=== Исходящее сообщение, автор: Имя ===" или "=== Входящее сообщение, автор: Имя ==="
+      const wazzupMatch = textRender.match(/^={2,}\s*(Входящее|Исходящее)\s+сообщение,?\s*автор:?\s*([^=]+?)\s*={2,}\s*\n?/i);
+      let wazzupAuthor = null;
+      if (wazzupMatch) {
+        const direction = wazzupMatch[1].toLowerCase();
+        wazzupAuthor = wazzupMatch[2].trim();
+        // "Исходящее" = от сотрудника к клиенту, "Входящее" = от клиента к сотруднику
+        isClient = direction === 'входящее';
+        // Удаляем служебный префикс из текста
+        textRender = textRender.slice(wazzupMatch[0].length);
+      }
+
+      const senderName = wazzupAuthor || m.senderName || (isClient ? 'Клиент' : 'Сотрудник');
+
+      // BBCode и форматирование
       textRender = textRender
-        .replace(/\[b\]/g, '<b>').replace(/\[\/b\]/g, '</b>')
-        .replace(/\[i\]/g, '<i>').replace(/\[\/i\]/g, '</i>')
+        .replace(/\[b\]/gi, '<b>').replace(/\[\/b\]/gi, '</b>')
+        .replace(/\[i\]/gi, '<i>').replace(/\[\/i\]/gi, '</i>')
         .replace(/\[USER=\d+ REPLACE\]([^[]+)\[\/USER\]/g, '<u>$1</u>')
-        .replace(/\[URL=([^\]]+)\]([^[]+)\[\/URL\]/g, '<a href="$1" target="_blank">$2</a>');
+        // [URL=...]label[/URL] — с лейблом
+        .replace(/\[URL=([^\]]+)\]([^[]+)\[\/URL\]/g, '<a href="$1" target="_blank">$2</a>')
+        // [URL]https://...[/URL] — без лейбла, ссылка = текст
+        .replace(/\[URL\](https?:\/\/[^[]+)\[\/URL\]/g, '<a href="$1" target="_blank">$1</a>');
+
+      // Автоконверсия голых URL в ссылки (после BBCode чтобы не пересекалось)
+      textRender = textRender.replace(/(^|\s)(https?:\/\/[^\s<]+)/g, (match, p1, p2) => {
+        return p1 + `<a href="${p2}" target="_blank">${p2}</a>`;
+      });
+
       // Защита: убираем все теги кроме разрешённых
       textRender = textRender.replace(/<(?!\/?(b|i|u|a|br)(?:\s|>|\/))/g, '&lt;');
       // Переносы строк
