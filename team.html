@@ -692,11 +692,126 @@ tr:hover td { background: var(--bg3); }
   font-size: 10px;
   color: var(--t3);
 }
+
+/* ─── Кнопка показать переписку и сама переписка ─── */
+.tl-show-chat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: rgba(63,216,142,.1);
+  border: 1px solid rgba(63,216,142,.3);
+  color: var(--gn);
+  border-radius: 18px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tl-show-chat:hover {
+  background: rgba(63,216,142,.18);
+}
+.tl-show-chat.active {
+  background: var(--gn);
+  color: #0e0e12;
+}
+
+.tl-chat-thread {
+  margin-top: 10px;
+  background: var(--bg3);
+  border-radius: 10px;
+  padding: 12px 14px;
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid rgba(255,255,255,.04);
+}
+
+.chat-thread-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chat-day {
+  text-align: center;
+  font-size: 10px;
+  color: var(--t3);
+  padding: 8px 0 4px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+.chat-msg {
+  display: flex;
+  margin: 2px 0;
+}
+.chat-msg.client { justify-content: flex-start; }
+.chat-msg.staff { justify-content: flex-end; }
+
+.chat-bubble {
+  max-width: 75%;
+  padding: 8px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.chat-msg.client .chat-bubble {
+  background: rgba(255,255,255,.06);
+  color: var(--t1);
+  border-bottom-left-radius: 4px;
+}
+.chat-msg.staff .chat-bubble {
+  background: rgba(127,99,232,.2);
+  color: var(--t1);
+  border-bottom-right-radius: 4px;
+}
+
+.chat-sender {
+  font-size: 10px;
+  color: var(--t3);
+  margin-bottom: 2px;
+  font-weight: 600;
+}
+.chat-text {
+  font-size: 13px;
+  color: var(--t1);
+}
+.chat-text a { color: var(--ac2); text-decoration: underline; }
+.chat-text b { font-weight: 600; }
+
+.chat-time {
+  font-size: 10px;
+  color: var(--t3);
+  margin-top: 4px;
+  text-align: right;
+}
+
+.chat-msg-sys {
+  text-align: center;
+  font-size: 11px;
+  color: var(--t3);
+  padding: 4px 8px;
+  background: rgba(0,0,0,.2);
+  border-radius: 8px;
+  margin: 4px auto;
+  max-width: 80%;
+  font-style: italic;
+}
+.chat-msg-sys .chat-time {
+  display: inline;
+  margin-left: 6px;
+  color: var(--t3);
+  opacity: .7;
+}
+
 @media (max-width: 600px) {
   .tl-wrap { margin-left: 8px; padding-left: 14px; }
   .tl-icon { left: -25px; width: 22px; height: 22px; font-size: 11px; }
   .tl-head { font-size: 10px; }
   .tl-time { width: 100%; margin-left: 0; }
+  .chat-bubble { max-width: 90%; font-size: 12px; }
+  .tl-chat-thread { padding: 10px; }
 }
 </style>
 </head>
@@ -1440,6 +1555,29 @@ async function openDealCard(bitrixId) {
       });
     });
   });
+
+  // Кнопки "Показать переписку" — раскрытие/скрытие чата
+  modal.querySelectorAll('.tl-show-chat').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const sessionId = btn.dataset.sessionId;
+      const threadEl = modal.querySelector(`#thread-${CSS.escape(sessionId)}`);
+      if (!threadEl) return;
+      const isOpen = threadEl.style.display !== 'none';
+      if (isOpen) {
+        threadEl.style.display = 'none';
+        btn.classList.remove('active');
+        btn.innerHTML = btn.innerHTML.replace('▼', '💬').replace('Скрыть переписку', `Показать переписку (${btn.dataset.msgCount || ''})`);
+      } else {
+        threadEl.style.display = '';
+        btn.classList.add('active');
+        // Загружаем только если ещё не загружали
+        if (!threadEl.dataset.loaded) {
+          await loadAndRenderChatThread(sessionId, threadEl);
+          threadEl.dataset.loaded = '1';
+        }
+      }
+    });
+  });
 }
 
 function renderCompanyRow(company, companyId) {
@@ -1590,6 +1728,17 @@ function renderTimelineItem(a) {
   // Completed badge
   const completedBadge = a.completed ? '<span class="tl-completed">✓</span>' : '';
 
+  // Openlines: ссылка на переписку (если activity связана с сессией openlines)
+  let openlinesBlock = '';
+  if (a.openlinesSessionId) {
+    const msgCount = a.openlinesMessageCount || 0;
+    const provName = a.openlinesProvider ? PROVIDER_NAMES_NORMALIZED[a.openlinesProvider] || a.openlinesProvider : 'мессенджер';
+    openlinesBlock = `<button class="tl-show-chat" data-session-id="${escapeHtml(a.openlinesSessionId)}" data-activity-key="${escapeHtml(a._key || '')}">
+      💬 Показать переписку (${msgCount} сообщ.)
+    </button>
+    <div class="tl-chat-thread" id="thread-${escapeHtml(a.openlinesSessionId)}" style="display:none"></div>`;
+  }
+
   return `<div class="tl-item" data-type="${escapeHtml(type)}">
     <div class="tl-icon" style="background:${meta.color}22;color:${meta.color}">${meta.icon}</div>
     <div class="tl-body">
@@ -1604,8 +1753,104 @@ function renderTimelineItem(a) {
       ${subject ? `<div class="tl-subject">${escapeHtml(subject)}</div>` : ''}
       ${desc ? `<div class="tl-desc">${escapeHtml(desc)}</div>` : ''}
       ${filesInfo}
+      ${openlinesBlock}
     </div>
   </div>`;
+}
+
+// Имена провайдеров после миграции (нормализованные значения, см. worker)
+const PROVIDER_NAMES_NORMALIZED = {
+  'whatsapp_green_api': 'WhatsApp',
+  'whatsapp': 'WhatsApp',
+  'whatsapp_twilio': 'WhatsApp',
+  'wazzup': 'WAZZUP',
+  'telegram': 'Telegram',
+  'instagram': 'Instagram',
+  'avito': 'Avito',
+  'vk': 'ВКонтакте',
+  'facebook': 'Facebook',
+  'livechat': 'Онлайн-чат',
+  'network': 'Битрикс24',
+};
+
+// Загрузка и рендер чата-сессии
+async function loadAndRenderChatThread(sessionId, threadEl) {
+  threadEl.innerHTML = '<div style="padding:12px;color:var(--t3);font-size:11px">⏳ Загружаем переписку...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const r = await fetch(`${dbUrl}/openlinesSessions/${encodeURIComponent(sessionId)}.json?auth=${idToken}`);
+    if (!r.ok) {
+      threadEl.innerHTML = `<div style="padding:12px;color:var(--rd);font-size:11px">✗ Не удалось загрузить переписку</div>`;
+      return;
+    }
+    const session = await r.json();
+    if (!session) {
+      threadEl.innerHTML = `<div style="padding:12px;color:var(--t3);font-size:11px">Переписка не найдена в базе. Возможно session_id некорректный.</div>`;
+      return;
+    }
+
+    const messagesObj = session.messages || {};
+    const messages = Object.values(messagesObj);
+
+    if (messages.length === 0) {
+      threadEl.innerHTML = `<div style="padding:12px;color:var(--t3);font-size:11px">Сообщений нет</div>`;
+      return;
+    }
+
+    // Сортируем по дате (старые сверху, как в обычной переписке)
+    messages.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+    let html = '<div class="chat-thread-inner">';
+    let lastDay = null;
+    for (const m of messages) {
+      const dateStr = m.date ? m.date.slice(0, 10) : '';
+      // День-разделитель
+      if (dateStr && dateStr !== lastDay) {
+        const day = new Date(dateStr).toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' });
+        html += `<div class="chat-day">${day}</div>`;
+        lastDay = dateStr;
+      }
+
+      const time = m.date ? new Date(m.date).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }) : '';
+
+      if (m.isSystem) {
+        // Системные сообщения — компактно, серым
+        const sysText = (m.textLegacy || m.text || '').replace(/<[^>]+>/g, ' ').replace(/\[USER=\d+ REPLACE\]([^[]+)\[\/USER\]/g, '$1').replace(/\[URL=[^\]]+\]([^[]+)\[\/URL\]/g, '$1').replace(/\[\/?b\]/g, '').replace(/\s+/g, ' ').trim();
+        html += `<div class="chat-msg-sys">${escapeHtml(sysText)} <span class="chat-time">${time}</span></div>`;
+        continue;
+      }
+
+      // Обычное сообщение от клиента или сотрудника
+      const isClient = m.isFromClient;
+      const senderName = m.senderName || (isClient ? 'Клиент' : 'Сотрудник');
+      // Текст: можем рендерить textLegacy (HTML) если есть, но безопасно — через escapeHtml текста + обработка переносов
+      let textRender = String(m.text || '');
+      // Убираем BBCode типа [b]...[/b], [URL=...], [USER=...]
+      textRender = textRender
+        .replace(/\[b\]/g, '<b>').replace(/\[\/b\]/g, '</b>')
+        .replace(/\[i\]/g, '<i>').replace(/\[\/i\]/g, '</i>')
+        .replace(/\[USER=\d+ REPLACE\]([^[]+)\[\/USER\]/g, '<u>$1</u>')
+        .replace(/\[URL=([^\]]+)\]([^[]+)\[\/URL\]/g, '<a href="$1" target="_blank">$2</a>');
+      // Защита: убираем все теги кроме разрешённых
+      textRender = textRender.replace(/<(?!\/?(b|i|u|a|br)(?:\s|>|\/))/g, '&lt;');
+      // Переносы строк
+      textRender = textRender.replace(/\n/g, '<br>');
+
+      html += `<div class="chat-msg ${isClient ? 'client' : 'staff'}">
+        <div class="chat-bubble">
+          <div class="chat-sender">${escapeHtml(senderName)}</div>
+          <div class="chat-text">${textRender}</div>
+          <div class="chat-time">${time}</div>
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+
+    threadEl.innerHTML = html;
+  } catch (e) {
+    threadEl.innerHTML = `<div style="padding:12px;color:var(--rd);font-size:11px">✗ ${escapeHtml(e.message)}</div>`;
+  }
 }
 
 window.closeDealCard = function() {
