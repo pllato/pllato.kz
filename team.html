@@ -4,11 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pllato CRM</title>
+<script>
+  // Применяем тему до загрузки CSS чтобы избежать вспышки тёмного при светлой
+  (function() {
+    try {
+      var saved = localStorage.getItem('pllato:theme');
+      if (!saved) {
+        // Используем системные настройки если ничего не сохранено
+        saved = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+      if (saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    } catch (e) {}
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Unbounded:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
+  /* Dark theme (default) */
   --bg: #0e0e12;
   --bg2: #16161d;
   --bg3: #1e1e28;
@@ -35,8 +49,42 @@
   --fd: 'Unbounded', sans-serif;
   --fb: 'Manrope', sans-serif;
   --shadow: 0 4px 24px rgba(0,0,0,.45);
+  --modal-overlay: rgba(0,0,0,0.7);
+  --bubble-client: rgba(255,255,255,0.06);
+  --bubble-staff: rgba(127,99,232,0.2);
+  --skeleton: rgba(255,255,255,0.04);
   /* legacy aliases */
   --yl: var(--am);
+}
+
+/* Light theme */
+:root[data-theme="light"] {
+  --bg: #f6f5fb;
+  --bg2: #ffffff;
+  --bg3: #f0eef7;
+  --bg4: #e6e2f0;
+  --b1: rgba(20,18,40,0.08);
+  --b2: rgba(20,18,40,0.16);
+  --t1: #1a1730;
+  --t2: #5a5772;
+  --t3: #8a87a0;
+  --ac: #6e4ef5;
+  --ac2: #5836e4;
+  --acbg: rgba(110,78,245,0.09);
+  --acb: rgba(110,78,245,0.32);
+  --gn: #1fa869;
+  --gnbg: rgba(31,168,105,0.1);
+  --am: #c79318;
+  --ambg: rgba(199,147,24,0.1);
+  --rd: #d63654;
+  --rdbg: rgba(214,54,84,0.08);
+  --tl: #1894a3;
+  --tlbg: rgba(24,148,163,0.09);
+  --shadow: 0 4px 24px rgba(20,18,40,.10);
+  --modal-overlay: rgba(20,18,40,0.45);
+  --bubble-client: rgba(20,18,40,0.06);
+  --bubble-staff: rgba(110,78,245,0.13);
+  --skeleton: rgba(20,18,40,0.05);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -93,12 +141,17 @@ body {
 .btn:hover { opacity: .85; }
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn.google {
-  background: white;
-  color: #1f1f2a;
+  background: var(--bg2);
+  color: var(--t1);
+  border: 1px solid var(--b2);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+}
+:root[data-theme="light"] .btn.google {
+  background: #fff;
+  border-color: var(--b2);
 }
 .btn.secondary {
   background: var(--bg3);
@@ -451,6 +504,28 @@ body {
   width: 100%;
 }
 .signout-btn:hover { color: var(--rd); border-color: var(--rd); }
+
+.theme-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--b1);
+  color: var(--t2);
+  cursor: pointer;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all .15s;
+  padding: 0;
+}
+.theme-toggle:hover {
+  background: var(--bg4);
+  color: var(--ac2);
+  border-color: var(--acb);
+}
 
 .main {
   flex: 1;
@@ -845,7 +920,7 @@ tr:hover td { background: var(--bg3); }
   background: var(--bg2);
   border: 1px solid var(--b2);
   border-radius: 10px;
-  box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  box-shadow: var(--shadow);
   padding: 6px;
   min-width: 200px;
   max-height: 360px;
@@ -892,7 +967,7 @@ tr:hover td { background: var(--bg3); }
   border-radius: 10px;
   font-size: 13px;
   font-family: var(--fb);
-  box-shadow: 0 6px 20px rgba(0,0,0,.4);
+  box-shadow: var(--shadow);
   opacity: 0;
   transition: all .25s;
   z-index: 10000;
@@ -1013,7 +1088,7 @@ tr:hover td { background: var(--bg3); }
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.7);
+  background: var(--modal-overlay);
   z-index: 100;
   display: flex;
   align-items: flex-start;
@@ -1247,7 +1322,7 @@ tr:hover td { background: var(--bg3); }
   display: flex;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px solid rgba(255,255,255,.04);
+  border-bottom: 1px solid var(--b1);
 }
 .tl-item:last-child { border-bottom: none; }
 
@@ -1342,7 +1417,7 @@ tr:hover td { background: var(--bg3); }
   padding: 12px 14px;
   max-height: 500px;
   overflow-y: auto;
-  border: 1px solid rgba(255,255,255,.04);
+  border: 1px solid var(--b1);
 }
 
 .chat-thread-inner {
@@ -1376,12 +1451,12 @@ tr:hover td { background: var(--bg3); }
   word-break: break-word;
 }
 .chat-msg.client .chat-bubble {
-  background: rgba(255,255,255,.06);
+  background: var(--bubble-client);
   color: var(--t1);
   border-bottom-left-radius: 4px;
 }
 .chat-msg.staff .chat-bubble {
-  background: rgba(127,99,232,.2);
+  background: var(--bubble-staff);
   color: var(--t1);
   border-bottom-right-radius: 4px;
 }
@@ -1499,6 +1574,7 @@ tr:hover td { background: var(--bg3); }
         <div class="user-name" id="ux-name">—</div>
         <div class="user-email" id="ux-email">—</div>
       </div>
+      <button class="theme-toggle" id="theme-toggle" title="Сменить тему" aria-label="Сменить тему">🌙</button>
     </div>
     <button class="signout-btn" onclick="signOut()">Выйти</button>
   </div>
@@ -1646,6 +1722,37 @@ async function initApp(user) {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.onclick = () => navigate(el.dataset.page);
   });
+
+  // Theme toggle
+  const themeBtn = document.getElementById('theme-toggle');
+  if (themeBtn) {
+    updateThemeButton();
+    themeBtn.onclick = toggleTheme;
+  }
+}
+
+function applyTheme(theme) {
+  if (theme === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+}
+
+function updateThemeButton() {
+  const btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+  const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  btn.textContent = current === 'light' ? '☀️' : '🌙';
+  btn.title = current === 'light' ? 'Переключить на тёмную тему' : 'Переключить на светлую тему';
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  const next = current === 'light' ? 'dark' : 'light';
+  applyTheme(next);
+  try { localStorage.setItem('pllato:theme', next); } catch {}
+  updateThemeButton();
 }
 
 function navigate(page) {
@@ -5015,7 +5122,7 @@ window.testFileDownload = async function(bitrixFileId = null) {
     html += `<div style="margin-top:12px"><div style="font-size:11px;color:var(--t3);margin-bottom:4px">Попытки методов:</div>`;
     for (const a of d.attempts) {
       const icon = a.ok ? '<span style="color:var(--gn)">✓</span>' : '<span style="color:var(--rd)">✗</span>';
-      html += `<div style="font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+      html += `<div style="font-size:11px;padding:4px 0;border-bottom:1px solid var(--b1)">
         ${icon} <code>${escapeHtml(a.method)}</code>`;
       if (a.ok && a.result) {
         const r = a.result;
@@ -5348,7 +5455,7 @@ window.migrateGroupChatsList = async function() {
       <div style="max-height:320px;overflow-y:auto;background:rgba(0,0,0,.2);padding:10px;border-radius:8px">`;
 
     for (const c of d.chats) {
-      html += `<label style="display:flex;align-items:center;gap:10px;padding:6px 4px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04)">
+      html += `<label style="display:flex;align-items:center;gap:10px;padding:6px 4px;cursor:pointer;border-bottom:1px solid var(--b1)">
         <input type="checkbox" data-chat-id="${escapeHtml(c.chatId)}" checked style="width:16px;height:16px;cursor:pointer">
         <div style="flex:1;font-size:12px;color:var(--t1)">
           <div><b>${escapeHtml(c.title || '(без названия)')}</b></div>
