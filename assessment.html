@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Ассесмент — Pllato CRM</title>
-<meta name="description" content="Диагностика бизнеса и сборка персональной карты CRM. 5 блоков, 30 минут, реальные цифры по бюджету и срокам.">
+<meta name="description" content="Диагностика бизнеса и сборка персональной карты CRM. 8 блоков, 30 минут, реальные цифры по бюджету и срокам.">
 <meta property="og:title" content="Ассесмент — Pllato CRM">
 <meta property="og:description" content="Соберите карту своей будущей CRM за 30 минут. С бюджетом, сроками и окупаемостью.">
 <meta property="og:type" content="website">
@@ -90,7 +90,6 @@ main { padding: 32px 0 80px; }
 .btn.bronze { background: var(--bronze); color: #fff; border-color: var(--bronze); }
 .btn.bronze:hover { background: var(--bronze-deep); border-color: var(--bronze-deep); }
 .btn.sm { padding: 10px 16px; font-size: 13.5px; }
-.btn.icon { padding: 10px; width: 40px; height: 40px; justify-content: center; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .hero-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 56px; padding-top: 36px; border-top: 1px solid var(--line); }
@@ -99,9 +98,9 @@ main { padding: 32px 0 80px; }
 .hero-feat-t { font-size: 16px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.01em; }
 .hero-feat-d { font-size: 14px; color: var(--text-2); line-height: 1.55; }
 
-/* PROGRESS / TALLY */
+/* BAR / TALLY */
 .bar-section { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-md); padding: 20px; margin: 0 0 28px; }
-.bar-prog { display: flex; gap: 6px; margin: 0 0 16px; }
+.bar-prog { display: flex; gap: 4px; margin: 0 0 16px; }
 .bar-prog span { flex: 1; height: 4px; background: var(--line-2); border-radius: 2px; transition: background 0.4s; }
 .bar-prog span.on { background: var(--bronze); }
 .bar-tally { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
@@ -132,6 +131,9 @@ main { padding: 32px 0 80px; }
 .rng-wrap input::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--bronze); cursor: pointer; border: none; }
 .rng-out { font-size: 14px; font-weight: 600; min-width: 80px; text-align: right; font-variant-numeric: tabular-nums; color: var(--bronze); }
 
+.text-input { width: 100%; padding: 12px 14px; font-family: inherit; font-size: 14.5px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg); color: var(--text); outline: none; transition: border-color 0.15s; }
+.text-input:focus { border-color: var(--bronze); }
+
 .blk-action { display: flex; gap: 10px; margin: 28px 0 0; align-items: center; flex-wrap: wrap; }
 
 .rev { display: none; margin: 28px 0 0; padding: 24px; background: var(--bronze-soft); border-left: 3px solid var(--bronze); border-radius: var(--r-md); }
@@ -146,7 +148,7 @@ main { padding: 32px 0 80px; }
 .rev-mod-p { font-weight: 700; color: var(--bronze); font-variant-numeric: tabular-nums; }
 
 /* FINAL */
-.fin-hdr { padding: 60px 0 32px; text-align: left; }
+.fin-hdr { padding: 60px 0 32px; }
 .fin-eb { font-size: 12px; color: var(--bronze); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 14px; }
 .fin-h1 { font-size: clamp(34px, 5vw, 52px); font-weight: 800; letter-spacing: -0.035em; line-height: 1.05; margin: 0 0 16px; }
 .fin-sub { font-size: 17px; color: var(--text-2); margin: 0; line-height: 1.5; max-width: 700px; }
@@ -198,7 +200,6 @@ main { padding: 32px 0 80px; }
 .share-btn-d { display: block; font-size: 12px; color: var(--text-2); }
 .share-btn.prim .share-btn-d { color: rgba(255,255,255,0.85); }
 
-/* SAVED VIEW */
 .saved-list { display: flex; flex-direction: column; gap: 10px; }
 .saved-row { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-md); cursor: pointer; transition: border-color 0.15s; }
 .saved-row:hover { border-color: var(--bronze); }
@@ -206,7 +207,6 @@ main { padding: 32px 0 80px; }
 .saved-row-d { font-size: 12.5px; color: var(--text-3); margin-top: 4px; }
 .saved-empty { padding: 40px; text-align: center; color: var(--text-3); font-size: 14px; background: var(--surface); border: 1px dashed var(--line); border-radius: var(--r-md); }
 
-/* MODAL */
 .mdl-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
 .mdl-bg.show { display: flex; animation: mdl-in 0.25s ease; }
 @keyframes mdl-in { from { opacity: 0; } to { opacity: 1; } }
@@ -216,19 +216,17 @@ main { padding: 32px 0 80px; }
 .mdl-d { font-size: 14.5px; color: var(--text-2); line-height: 1.55; margin: 0 0 24px; }
 .field { margin: 0 0 14px; }
 .field label { display: block; font-size: 12.5px; color: var(--text-2); margin: 0 0 6px; font-weight: 500; }
-.field input, .field textarea { width: 100%; padding: 12px 14px; font-family: inherit; font-size: 14.5px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg); color: var(--text); outline: none; transition: border-color 0.15s; }
-.field input:focus, .field textarea:focus { border-color: var(--bronze); }
+.field input { width: 100%; padding: 12px 14px; font-family: inherit; font-size: 14.5px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg); color: var(--text); outline: none; transition: border-color 0.15s; }
+.field input:focus { border-color: var(--bronze); }
 .field-check { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--text-2); line-height: 1.5; cursor: pointer; margin: 8px 0 20px; }
 .field-check input { flex-shrink: 0; margin-top: 2px; accent-color: var(--bronze); }
 .mdl-footer { display: flex; gap: 10px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
 .mdl-close { background: none; border: none; font-size: 14px; color: var(--text-3); cursor: pointer; padding: 10px; }
 .mdl-close:hover { color: var(--text); }
 
-/* TOAST */
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 12px 20px; border-radius: 100px; font-size: 13.5px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 200; box-shadow: var(--shadow-md); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
 
-/* FOOTER */
 .ftr { border-top: 1px solid var(--line); margin-top: 80px; padding: 40px 0 60px; }
 .ftr-grid { max-width: 1180px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 36px; }
 @media (max-width: 720px) { .ftr-grid { grid-template-columns: 1fr 1fr; gap: 24px; } }
@@ -249,7 +247,6 @@ main { padding: 32px 0 80px; }
 </head>
 <body>
 
-<!-- HEADER -->
 <header class="hdr">
   <div class="hdr-in">
     <a href="/" class="brand"><span class="brand-dot"></span>Pllato</a>
@@ -265,11 +262,10 @@ main { padding: 32px 0 80px; }
 
 <main class="wrap">
 
-<!-- HERO -->
 <section id="heroView" class="hero">
   <p class="hero-eb">Pllato · Диагностика бизнеса</p>
   <h1 class="hero-h1">Соберите карту своей CRM <em>за 30 минут</em></h1>
-  <p class="hero-lead">5 блоков по 4 вопроса. После каждого блока виден диагноз и список модулей. В финале — архитектурная карта, бюджет и сроки. Не каждой компании нужна кастомная CRM — этот ассесмент честно покажет, где вам стоит идти в разработку, а где хватит коробки.</p>
+  <p class="hero-lead">8 блоков по 3-4 вопроса. После каждого блока виден диагноз — где у вас пробелы и какие модули их закрывают. В финале — архитектурная карта с названием вашей компании, бюджет и сроки.</p>
   <div class="hero-cta">
     <button id="heroStart" type="button" class="btn prim">Начать ассесмент →</button>
     <button id="heroSaved" type="button" class="btn">Мои ассесменты</button>
@@ -277,8 +273,8 @@ main { padding: 32px 0 80px; }
   <div class="hero-features">
     <div>
       <p class="hero-feat-n">01</p>
-      <p class="hero-feat-t">Честный диагноз</p>
-      <p class="hero-feat-d">Если коробка справится — скажем сразу. Не каждый клиент должен заказывать кастом.</p>
+      <p class="hero-feat-t">Видите свои пробелы</p>
+      <p class="hero-feat-d">Какие каналы не используете, где не считаете цифры, что теряете на удержании.</p>
     </div>
     <div>
       <p class="hero-feat-n">02</p>
@@ -293,10 +289,9 @@ main { padding: 32px 0 80px; }
   </div>
 </section>
 
-<!-- ASSESSMENT -->
 <section id="assessView" class="hidden">
   <div class="bar-section">
-    <div class="bar-prog" id="barProg"><span class="on"></span><span></span><span></span><span></span><span></span></div>
+    <div class="bar-prog" id="barProg"><span class="on"></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
     <div class="bar-tally">
       <div><div class="tally-l">Модулей</div><div class="tally-v" id="talC">0</div></div>
       <div><div class="tally-l">Бюджет</div><div class="tally-v bronze" id="talB">—</div></div>
@@ -305,65 +300,234 @@ main { padding: 32px 0 80px; }
     </div>
   </div>
 
+  <!-- BLOCK 0: КОМПАНИЯ -->
   <section class="blk" data-blk="0">
-    <div class="blk-hd"><span class="blk-num">01 / 05</span><h2 class="blk-t">Контекст</h2></div>
-    <p class="blk-d">Кто перед нами — ниша, размер, география. Из этого считается фундамент системы.</p>
-    <div class="q" data-q="niche"><p class="q-l"><b>1.</b>Сфера бизнеса</p><div class="chips"><button class="chip" data-v="services">Услуги B2B</button><button class="chip" data-v="realty">Девелопмент</button><button class="chip" data-v="wholesale">Опт / дистрибуция</button><button class="chip" data-v="manufact">Производство</button><button class="chip" data-v="medical">Медцентр</button><button class="chip" data-v="other">Другое</button></div></div>
-    <div class="q" data-q="team"><p class="q-l"><b>2.</b>Размер команды</p><div class="chips"><button class="chip" data-v="5-10">5–10</button><button class="chip" data-v="11-25">11–25</button><button class="chip" data-v="26-50">26–50</button><button class="chip" data-v="51-100">51–100</button><button class="chip" data-v="100+">100+</button></div></div>
-    <div class="q" data-q="rev"><p class="q-l"><b>3.</b>Годовая выручка</p><div class="chips"><button class="chip" data-v="<100">До 100 млн ₸</button><button class="chip" data-v="100-500">100–500 млн</button><button class="chip" data-v="500-1000">500 млн – 1 млрд</button><button class="chip" data-v="1000+">1 млрд +</button></div></div>
-    <div class="q" data-q="geo"><p class="q-l"><b>4.</b>География</p><div class="chips"><button class="chip" data-v="single">Один офис</button><button class="chip" data-v="few">2–3 филиала</button><button class="chip" data-v="many">4–10 филиалов</button><button class="chip" data-v="huge">10+ или несколько стран</button></div></div>
+    <div class="blk-hd"><span class="blk-num">01 / 08</span><h2 class="blk-t">Компания</h2></div>
+    <p class="blk-d">Кто перед нами и в каких рамках работаем. Эти данные попадут в карту проекта.</p>
+
+    <div class="q" data-q="company_name" data-type="text"><p class="q-l"><b>1.</b>Название компании</p>
+      <input type="text" class="text-input" placeholder="ТОО Лучший Дом / Best Home Group">
+    </div>
+    <div class="q" data-q="contact_name" data-type="text"><p class="q-l"><b>2.</b>Контактное лицо (имя)</p>
+      <input type="text" class="text-input" placeholder="Айгерим Назарбаева">
+    </div>
+    <div class="q" data-q="niche"><p class="q-l"><b>3.</b>Сфера бизнеса</p><div class="chips"><button class="chip" data-v="services">Услуги B2B</button><button class="chip" data-v="realty">Девелопмент</button><button class="chip" data-v="wholesale">Опт / дистрибуция</button><button class="chip" data-v="manufact">Производство</button><button class="chip" data-v="medical">Медцентр</button><button class="chip" data-v="other">Другое</button></div></div>
+    <div class="q" data-q="team"><p class="q-l"><b>4.</b>Размер команды</p><div class="chips"><button class="chip" data-v="5-10">5–10</button><button class="chip" data-v="11-25">11–25</button><button class="chip" data-v="26-50">26–50</button><button class="chip" data-v="51-100">51–100</button><button class="chip" data-v="100+">100+</button></div></div>
+    <div class="q" data-q="rev"><p class="q-l"><b>5.</b>Годовая выручка</p><div class="chips"><button class="chip" data-v="<100">До 100 млн ₸</button><button class="chip" data-v="100-500">100–500 млн</button><button class="chip" data-v="500-1000">500 млн – 1 млрд</button><button class="chip" data-v="1000+">1 млрд +</button></div></div>
+    <div class="q" data-q="geo"><p class="q-l"><b>6.</b>География</p><div class="chips"><button class="chip" data-v="single">Один офис</button><button class="chip" data-v="few">2–3 филиала</button><button class="chip" data-v="many">4–10 филиалов</button><button class="chip" data-v="huge">10+ или несколько стран</button></div></div>
+
     <div class="blk-action"><button class="btn bronze" data-show="0">Показать что видим →</button><button class="btn" data-next="0" disabled>К блоку 2 →</button></div>
     <div class="rev" id="rev0"><p class="rev-eb">Что видим</p><h3 class="rev-t" id="rev0t"></h3><p class="rev-d" id="rev0d"></p><div class="rev-mods" id="rev0m"></div></div>
   </section>
 
+  <!-- BLOCK 1: КАНАЛЫ ПРИВЛЕЧЕНИЯ -->
   <section class="blk" data-blk="1">
-    <div class="blk-hd"><span class="blk-num">02 / 05</span><h2 class="blk-t">Текущая боль</h2></div>
-    <p class="blk-d">Что используете сейчас, где данные текут, сколько уходит на ручной труд.</p>
-    <div class="q" data-q="curr"><p class="q-l"><b>5.</b>Что используете сейчас</p><div class="chips"><button class="chip" data-v="excel">Excel / Sheets</button><button class="chip" data-v="bitrix">Bitrix24</button><button class="chip" data-v="amo">amoCRM</button><button class="chip" data-v="self">Самописная</button><button class="chip" data-v="none">Ничего</button></div></div>
-    <div class="q" data-q="loss" data-multi="1"><p class="q-l"><b>6.</b>Где терятся данные / лиды (можно несколько)</p><div class="chips"><button class="chip" data-v="leads">Заявки без обработки</button><button class="chip" data-v="follow">Забытые follow-up</button><button class="chip" data-v="dup">Дубли клиентов</button><button class="chip" data-v="post">После продажи теряются</button><button class="chip" data-v="hidden">«В голове менеджеров»</button></div></div>
-    <div class="q" data-q="hours" data-type="range"><p class="q-l"><b>7.</b>Часов в неделю на ручную работу с данными</p><div class="rng-wrap"><input type="range" min="0" max="80" step="5" value="10"><span class="rng-out">10 ч/нед</span></div></div>
-    <div class="q" data-q="lossM"><p class="q-l"><b>8.</b>Оценка потерь от неудобной системы (₸/мес)</p><div class="chips"><button class="chip" data-v="0.5">До 500 тыс</button><button class="chip" data-v="1.5">500 тыс – 2 млн</button><button class="chip" data-v="5">2–10 млн</button><button class="chip" data-v="15">10 млн +</button></div></div>
+    <div class="blk-hd"><span class="blk-num">02 / 08</span><h2 class="blk-t">Каналы привлечения</h2></div>
+    <p class="blk-d">Откуда приходят клиенты. Каждый канал, который вы не используете — это упущенная воронка продаж.</p>
+
+    <div class="q" data-q="channels" data-multi="1"><p class="q-l"><b>7.</b>Какие каналы используете (можно несколько)</p>
+      <div class="chips">
+        <button class="chip" data-v="word">Сарафан / рекомендации</button>
+        <button class="chip" data-v="cold">Холодные звонки</button>
+        <button class="chip" data-v="instagram">Instagram / TikTok</button>
+        <button class="chip" data-v="context">Контекст (Google/Yandex)</button>
+        <button class="chip" data-v="target">Таргет в соцсетях</button>
+        <button class="chip" data-v="seo">SEO / органический поиск</button>
+        <button class="chip" data-v="email">Email-маркетинг</button>
+        <button class="chip" data-v="partner">Партнёрские программы</button>
+        <button class="chip" data-v="market">Маркетплейсы / агрегаторы</button>
+        <button class="chip" data-v="events">Выставки / конференции</button>
+      </div>
+    </div>
+    <div class="q" data-q="leads_per_month"><p class="q-l"><b>8.</b>Сколько лидов в месяц приходит</p>
+      <div class="chips">
+        <button class="chip" data-v="<20">До 20</button>
+        <button class="chip" data-v="20-50">20–50</button>
+        <button class="chip" data-v="50-200">50–200</button>
+        <button class="chip" data-v="200-500">200–500</button>
+        <button class="chip" data-v="500+">500+</button>
+        <button class="chip" data-v="?">Не считаем</button>
+      </div>
+    </div>
+    <div class="q" data-q="cac"><p class="q-l"><b>9.</b>Знаете стоимость привлечения одного лида (CAC)</p>
+      <div class="chips">
+        <button class="chip" data-v="exact">Точно по каналам</button>
+        <button class="chip" data-v="approx">Примерно знаем</button>
+        <button class="chip" data-v="no">Не считаем</button>
+        <button class="chip" data-v="what">Что это?</button>
+      </div>
+    </div>
+    <div class="q" data-q="ad_routing"><p class="q-l"><b>10.</b>Заявки с рекламы попадают в работу автоматически</p>
+      <div class="chips">
+        <button class="chip" data-v="manual">Распределяем руками</button>
+        <button class="chip" data-v="partial">Часть автоматизирована</button>
+        <button class="chip" data-v="full">Полностью автоматически</button>
+        <button class="chip" data-v="none">Заявок мало, не нужно</button>
+      </div>
+    </div>
+
     <div class="blk-action"><button class="btn bronze" data-show="1">Показать что видим →</button><button class="btn" data-next="1" disabled>К блоку 3 →</button></div>
     <div class="rev" id="rev1"><p class="rev-eb">Что видим</p><h3 class="rev-t" id="rev1t"></h3><p class="rev-d" id="rev1d"></p><div class="rev-mods" id="rev1m"></div></div>
   </section>
 
+  <!-- BLOCK 2: ВОРОНКА И МЕТРИКИ -->
   <section class="blk" data-blk="2">
-    <div class="blk-hd"><span class="blk-num">03 / 05</span><h2 class="blk-t">Что автоматизируем</h2></div>
-    <p class="blk-d">Какие куски бизнеса должна закрыть система. Каждый ответ — конкретный модуль.</p>
-    <div class="q" data-q="i1c"><p class="q-l"><b>9.</b>Интеграция с 1С</p><div class="chips"><button class="chip" data-v="no">Не нужна</button><button class="chip" data-v="one">Односторонняя (выгрузка)</button><button class="chip" data-v="two">Двусторонняя (полная)</button></div></div>
-    <div class="q" data-q="wh"><p class="q-l"><b>10.</b>Складской учёт</p><div class="chips"><button class="chip" data-v="no">Не нужен</button><button class="chip" data-v="basic">Базовый (остатки, движения)</button><button class="chip" data-v="full">Полный (резервы, партии, локации)</button></div></div>
-    <div class="q" data-q="prod"><p class="q-l"><b>11.</b>Производственный модуль</p><div class="chips"><button class="chip" data-v="no">Не производим</button><button class="chip" data-v="simple">Простой (заказы → исполнение)</button><button class="chip" data-v="full">Полный (BOM, маршруты, операции)</button></div></div>
-    <div class="q" data-q="cab"><p class="q-l"><b>12.</b>Личный кабинет клиента</p><div class="chips"><button class="chip" data-v="no">Нет</button><button class="chip" data-v="basic">Базовый (заказы, статусы)</button><button class="chip" data-v="full">Полный (онлайн-оплата, документы, чат)</button></div></div>
+    <div class="blk-hd"><span class="blk-num">03 / 08</span><h2 class="blk-t">Воронка и метрики</h2></div>
+    <p class="blk-d">Знаете свои цифры — управляете бизнесом. Не знаете — управляет интуиция, а это самая дорогая ошибка.</p>
+
+    <div class="q" data-q="funnel"><p class="q-l"><b>11.</b>Знаете конверсию каждого этапа воронки</p>
+      <div class="chips">
+        <button class="chip" data-v="stages_managers">По этапам и по менеджерам</button>
+        <button class="chip" data-v="stages">По этапам в целом</button>
+        <button class="chip" data-v="total">Только общую (лиды → продажи)</button>
+        <button class="chip" data-v="no">Не отслеживаем</button>
+      </div>
+    </div>
+    <div class="q" data-q="touch_time"><p class="q-l"><b>12.</b>Среднее время от заявки до первого касания менеджера</p>
+      <div class="chips">
+        <button class="chip" data-v="<5">До 5 минут</button>
+        <button class="chip" data-v="5-30">5–30 минут</button>
+        <button class="chip" data-v="30-2h">30 минут – 2 часа</button>
+        <button class="chip" data-v="hours">Несколько часов</button>
+        <button class="chip" data-v="?">Не знаю / зависит</button>
+      </div>
+    </div>
+    <div class="q" data-q="ltv"><p class="q-l"><b>13.</b>Знаете LTV — сколько в среднем приносит клиент за всё время</p>
+      <div class="chips">
+        <button class="chip" data-v="exact">Считаем точно</button>
+        <button class="chip" data-v="approx">Примерно</button>
+        <button class="chip" data-v="no">Не считаем</button>
+        <button class="chip" data-v="what">Что это?</button>
+      </div>
+    </div>
+    <div class="q" data-q="reports" data-multi="1"><p class="q-l"><b>14.</b>Какие отчёты делаете руками (можно несколько)</p>
+      <div class="chips">
+        <button class="chip" data-v="sales">Продажи по менеджерам</button>
+        <button class="chip" data-v="finance">Финансы</button>
+        <button class="chip" data-v="production">Производство</button>
+        <button class="chip" data-v="kpi">KPI команды</button>
+        <button class="chip" data-v="plan">План-факт</button>
+        <button class="chip" data-v="none">Никаких — всё автоматически</button>
+      </div>
+    </div>
+    <div class="q" data-q="forecast"><p class="q-l"><b>15.</b>Прогноз продаж на месяц-квартал</p>
+      <div class="chips">
+        <button class="chip" data-v="ml">Системно, по историческим данным</button>
+        <button class="chip" data-v="excel">Считаем руками в Excel</button>
+        <button class="chip" data-v="gut">На глаз</button>
+        <button class="chip" data-v="no">Не прогнозируем</button>
+      </div>
+    </div>
+
     <div class="blk-action"><button class="btn bronze" data-show="2">Показать что видим →</button><button class="btn" data-next="2" disabled>К блоку 4 →</button></div>
     <div class="rev" id="rev2"><p class="rev-eb">Что видим</p><h3 class="rev-t" id="rev2t"></h3><p class="rev-d" id="rev2d"></p><div class="rev-mods" id="rev2m"></div></div>
   </section>
 
+  <!-- BLOCK 3: ТЕКУЩАЯ БОЛЬ -->
   <section class="blk" data-blk="3">
-    <div class="blk-hd"><span class="blk-num">04 / 05</span><h2 class="blk-t">Команда и метрики</h2></div>
-    <p class="blk-d">Кто реально работает с системой — мобайл, аналитика, мессенджеры, владелец.</p>
-    <div class="q" data-q="mob"><p class="q-l"><b>13.</b>Сотрудники работают вне офиса</p><div class="chips"><button class="chip" data-v="no">Все за компами в офисе</button><button class="chip" data-v="few">Часть на выездах</button><button class="chip" data-v="most">Большинство в полях / на объектах</button></div></div>
-    <div class="q" data-q="ana"><p class="q-l"><b>14.</b>Аналитика и BI-дашборды</p><div class="chips"><button class="chip" data-v="no">Не нужны, хватает выгрузок</button><button class="chip" data-v="basic">Базовая (продажи, воронка)</button><button class="chip" data-v="full">Полная (когорты, прогнозы, P&L)</button></div></div>
-    <div class="q" data-q="msg"><p class="q-l"><b>15.</b>Мессенджеры</p><div class="chips"><button class="chip" data-v="no">Не критично</button><button class="chip" data-v="one">WhatsApp в одном окне</button><button class="chip" data-v="omni">Все каналы (omnichannel)</button></div></div>
-    <div class="q" data-q="own"><p class="q-l"><b>16.</b>Внутренний владелец проекта</p><div class="chips"><button class="chip" data-v="ceo">Я, собственник</button><button class="chip" data-v="dedicated">Выделенный сотрудник</button><button class="chip" data-v="it">IT-отдел</button><button class="chip" data-v="none">Пока такого нет</button></div></div>
+    <div class="blk-hd"><span class="blk-num">04 / 08</span><h2 class="blk-t">Текущая боль</h2></div>
+    <p class="blk-d">Что используете сейчас, где данные текут, сколько уходит на ручной труд.</p>
+
+    <div class="q" data-q="curr"><p class="q-l"><b>16.</b>Что используете сейчас</p><div class="chips"><button class="chip" data-v="excel">Excel / Sheets</button><button class="chip" data-v="bitrix">Bitrix24</button><button class="chip" data-v="amo">amoCRM</button><button class="chip" data-v="self">Самописная</button><button class="chip" data-v="none">Ничего</button></div></div>
+    <div class="q" data-q="loss" data-multi="1"><p class="q-l"><b>17.</b>Где терятся данные / лиды (можно несколько)</p><div class="chips"><button class="chip" data-v="leads">Заявки без обработки</button><button class="chip" data-v="follow">Забытые follow-up</button><button class="chip" data-v="dup">Дубли клиентов</button><button class="chip" data-v="post">После продажи теряются</button><button class="chip" data-v="hidden">«В голове менеджеров»</button></div></div>
+    <div class="q" data-q="hours" data-type="range"><p class="q-l"><b>18.</b>Часов в неделю на ручную работу с данными</p><div class="rng-wrap"><input type="range" min="0" max="80" step="5" value="10"><span class="rng-out">10 ч/нед</span></div></div>
+    <div class="q" data-q="lossM"><p class="q-l"><b>19.</b>Оценка потерь от неудобной системы (₸/мес)</p><div class="chips"><button class="chip" data-v="0.5">До 500 тыс</button><button class="chip" data-v="1.5">500 тыс – 2 млн</button><button class="chip" data-v="5">2–10 млн</button><button class="chip" data-v="15">10 млн +</button></div></div>
+
     <div class="blk-action"><button class="btn bronze" data-show="3">Показать что видим →</button><button class="btn" data-next="3" disabled>К блоку 5 →</button></div>
     <div class="rev" id="rev3"><p class="rev-eb">Что видим</p><h3 class="rev-t" id="rev3t"></h3><p class="rev-d" id="rev3d"></p><div class="rev-mods" id="rev3m"></div></div>
   </section>
 
+  <!-- BLOCK 4: УДЕРЖАНИЕ И ПОВТОРНЫЕ ПРОДАЖИ -->
   <section class="blk" data-blk="4">
-    <div class="blk-hd"><span class="blk-num">05 / 05</span><h2 class="blk-t">Сроки и старт</h2></div>
+    <div class="blk-hd"><span class="blk-num">05 / 08</span><h2 class="blk-t">Удержание и повторные продажи</h2></div>
+    <p class="blk-d">Привлечь клиента в 5 раз дороже, чем удержать. Если после продажи у вас тишина — половина выручки уходит мимо.</p>
+
+    <div class="q" data-q="after_sale" data-multi="1"><p class="q-l"><b>20.</b>Что делаете с клиентом после продажи (несколько)</p>
+      <div class="chips">
+        <button class="chip" data-v="nothing">Ничего, ждём пока сами вернутся</button>
+        <button class="chip" data-v="calls">Иногда звоним вручную</button>
+        <button class="chip" data-v="nps">NPS-опросы</button>
+        <button class="chip" data-v="regular">Регулярные касания (рассылки)</button>
+        <button class="chip" data-v="loyalty">Программа лояльности</button>
+        <button class="chip" data-v="cabinet">Личный кабинет</button>
+        <button class="chip" data-v="reactivation">Реактивация спящих</button>
+        <button class="chip" data-v="cross">Cross-sell / upsell</button>
+      </div>
+    </div>
+    <div class="q" data-q="repeat_share"><p class="q-l"><b>21.</b>Какой % выручки приносят повторные продажи</p>
+      <div class="chips">
+        <button class="chip" data-v="<10">Меньше 10%</button>
+        <button class="chip" data-v="10-30">10–30%</button>
+        <button class="chip" data-v="30-50">30–50%</button>
+        <button class="chip" data-v="50+">50% и больше</button>
+        <button class="chip" data-v="?">Не считаем</button>
+      </div>
+    </div>
+    <div class="q" data-q="sleeping"><p class="q-l"><b>22.</b>Спящие клиенты (полгода ничего не покупали)</p>
+      <div class="chips">
+        <button class="chip" data-v="ignore">Есть, не трогаем</button>
+        <button class="chip" data-v="adhoc">Иногда обзваниваем</button>
+        <button class="chip" data-v="system">Реактивируем системно</button>
+        <button class="chip" data-v="none">Такой проблемы нет</button>
+      </div>
+    </div>
+    <div class="q" data-q="messaging"><p class="q-l"><b>23.</b>Массовые рассылки / WhatsApp / SMS по клиентам</p>
+      <div class="chips">
+        <button class="chip" data-v="segmented">Регулярно по сегментам</button>
+        <button class="chip" data-v="manual">Иногда вручную</button>
+        <button class="chip" data-v="onebyone">Только по одному пишем</button>
+        <button class="chip" data-v="thinking">Думаем как начать</button>
+      </div>
+    </div>
+
+    <div class="blk-action"><button class="btn bronze" data-show="4">Показать что видим →</button><button class="btn" data-next="4" disabled>К блоку 6 →</button></div>
+    <div class="rev" id="rev4"><p class="rev-eb">Что видим</p><h3 class="rev-t" id="rev4t"></h3><p class="rev-d" id="rev4d"></p><div class="rev-mods" id="rev4m"></div></div>
+  </section>
+
+  <!-- BLOCK 5: ЧТО АВТОМАТИЗИРУЕМ -->
+  <section class="blk" data-blk="5">
+    <div class="blk-hd"><span class="blk-num">06 / 08</span><h2 class="blk-t">Что автоматизируем</h2></div>
+    <p class="blk-d">Какие куски бизнеса должна закрыть система. Каждый ответ — конкретный модуль.</p>
+
+    <div class="q" data-q="i1c"><p class="q-l"><b>24.</b>Интеграция с 1С</p><div class="chips"><button class="chip" data-v="no">Не нужна</button><button class="chip" data-v="one">Односторонняя (выгрузка)</button><button class="chip" data-v="two">Двусторонняя (полная)</button></div></div>
+    <div class="q" data-q="wh"><p class="q-l"><b>25.</b>Складской учёт</p><div class="chips"><button class="chip" data-v="no">Не нужен</button><button class="chip" data-v="basic">Базовый (остатки, движения)</button><button class="chip" data-v="full">Полный (резервы, партии, локации)</button></div></div>
+    <div class="q" data-q="prod"><p class="q-l"><b>26.</b>Производственный модуль</p><div class="chips"><button class="chip" data-v="no">Не производим</button><button class="chip" data-v="simple">Простой (заказы → исполнение)</button><button class="chip" data-v="full">Полный (BOM, маршруты, операции)</button></div></div>
+    <div class="q" data-q="cab"><p class="q-l"><b>27.</b>Личный кабинет клиента</p><div class="chips"><button class="chip" data-v="no">Нет</button><button class="chip" data-v="basic">Базовый (заказы, статусы)</button><button class="chip" data-v="full">Полный (онлайн-оплата, документы, чат)</button></div></div>
+
+    <div class="blk-action"><button class="btn bronze" data-show="5">Показать что видим →</button><button class="btn" data-next="5" disabled>К блоку 7 →</button></div>
+    <div class="rev" id="rev5"><p class="rev-eb">Что видим</p><h3 class="rev-t" id="rev5t"></h3><p class="rev-d" id="rev5d"></p><div class="rev-mods" id="rev5m"></div></div>
+  </section>
+
+  <!-- BLOCK 6: КОМАНДА И ИНТЕРФЕЙСЫ -->
+  <section class="blk" data-blk="6">
+    <div class="blk-hd"><span class="blk-num">07 / 08</span><h2 class="blk-t">Команда и интерфейсы</h2></div>
+    <p class="blk-d">Кто реально работает с системой — мобайл, мессенджеры, владелец проекта.</p>
+
+    <div class="q" data-q="mob"><p class="q-l"><b>28.</b>Сотрудники работают вне офиса</p><div class="chips"><button class="chip" data-v="no">Все за компами в офисе</button><button class="chip" data-v="few">Часть на выездах</button><button class="chip" data-v="most">Большинство в полях / на объектах</button></div></div>
+    <div class="q" data-q="msg"><p class="q-l"><b>29.</b>Мессенджеры в одном окне CRM</p><div class="chips"><button class="chip" data-v="no">Не критично</button><button class="chip" data-v="one">WhatsApp в одном окне</button><button class="chip" data-v="omni">Все каналы (omnichannel)</button></div></div>
+    <div class="q" data-q="own"><p class="q-l"><b>30.</b>Внутренний владелец проекта</p><div class="chips"><button class="chip" data-v="ceo">Я, собственник</button><button class="chip" data-v="dedicated">Выделенный сотрудник</button><button class="chip" data-v="it">IT-отдел</button><button class="chip" data-v="none">Пока такого нет</button></div></div>
+
+    <div class="blk-action"><button class="btn bronze" data-show="6">Показать что видим →</button><button class="btn" data-next="6" disabled>К блоку 8 →</button></div>
+    <div class="rev" id="rev6"><p class="rev-eb">Что видим</p><h3 class="rev-t" id="rev6t"></h3><p class="rev-d" id="rev6d"></p><div class="rev-mods" id="rev6m"></div></div>
+  </section>
+
+  <!-- BLOCK 7: СРОКИ И СТАРТ -->
+  <section class="blk" data-blk="7">
+    <div class="blk-hd"><span class="blk-num">08 / 08</span><h2 class="blk-t">Сроки и старт</h2></div>
     <p class="blk-d">Бюджет, дедлайн, формат запуска.</p>
-    <div class="q" data-q="bud"><p class="q-l"><b>17.</b>Бюджет на проект</p><div class="chips"><button class="chip" data-v="<1">До 1 млн ₸</button><button class="chip" data-v="1-3">1–3 млн</button><button class="chip" data-v="3-7">3–7 млн</button><button class="chip" data-v="7+">7 млн +</button><button class="chip" data-v="?">Не определён</button></div></div>
-    <div class="q" data-q="when"><p class="q-l"><b>18.</b>Когда нужно запустить</p><div class="chips"><button class="chip" data-v="asap">Чем быстрее, тем лучше</button><button class="chip" data-v="3m">1–3 месяца</button><button class="chip" data-v="6m">3–6 месяцев</button><button class="chip" data-v="late">Не горит</button></div></div>
-    <div class="q" data-q="phase"><p class="q-l"><b>19.</b>Формат разработки</p><div class="chips"><button class="chip" data-v="all">Хочу всё сразу</button><button class="chip" data-v="mvp">MVP, потом доработки</button><button class="chip" data-v="iter">Итерациями, по бюджету</button></div></div>
-    <div class="blk-action"><button class="btn bronze" data-show="4">Собрать карту проекта →</button></div>
+
+    <div class="q" data-q="bud"><p class="q-l"><b>31.</b>Бюджет на проект</p><div class="chips"><button class="chip" data-v="<1">До 1 млн</button><button class="chip" data-v="1-3">1–3 млн</button><button class="chip" data-v="3-7">3–7 млн</button><button class="chip" data-v="7+">7 млн +</button><button class="chip" data-v="?">Не определён</button></div></div>
+    <div class="q" data-q="when"><p class="q-l"><b>32.</b>Когда нужно запустить</p><div class="chips"><button class="chip" data-v="asap">Чем быстрее</button><button class="chip" data-v="3m">1–3 мес</button><button class="chip" data-v="6m">3–6 мес</button><button class="chip" data-v="late">Не горит</button></div></div>
+    <div class="q" data-q="phase"><p class="q-l"><b>33.</b>Формат разработки</p><div class="chips"><button class="chip" data-v="all">Всё сразу</button><button class="chip" data-v="mvp">MVP → доработки</button><button class="chip" data-v="iter">Итерациями</button></div></div>
+
+    <div class="blk-action"><button class="btn bronze" data-show="7">Собрать карту проекта →</button></div>
   </section>
 </section>
 
-<!-- FINAL -->
 <section id="finalView" class="hidden">
   <div class="fin-hdr">
     <p class="fin-eb">Карта проекта</p>
-    <h1 class="fin-h1" id="finT">Pllato CRM</h1>
+    <h1 class="fin-h1" id="finT">Карта проекта</h1>
     <p class="fin-sub" id="finS"></p>
   </div>
 
@@ -404,7 +568,6 @@ main { padding: 32px 0 80px; }
   </div>
 </section>
 
-<!-- SAVED -->
 <section id="savedView" class="hidden">
   <div class="fin-hdr">
     <p class="fin-eb">Локальная история</p>
@@ -419,7 +582,6 @@ main { padding: 32px 0 80px; }
 
 </main>
 
-<!-- KP MODAL -->
 <div class="mdl-bg" id="kpModal">
   <div class="mdl">
     <p class="mdl-eb">Pllato</p>
@@ -428,7 +590,7 @@ main { padding: 32px 0 80px; }
     <div class="field"><label>Имя</label><input id="kpName" type="text" placeholder="Платон Цай"></div>
     <div class="field"><label>Email</label><input id="kpEmail" type="email" placeholder="name@company.com"></div>
     <div class="field"><label>WhatsApp / телефон</label><input id="kpPhone" type="tel" placeholder="+7 ___ ___ ____"></div>
-    <div class="field"><label>Компания (необязательно)</label><input id="kpCompany" type="text" placeholder="Название"></div>
+    <div class="field"><label>Компания</label><input id="kpCompany" type="text" placeholder="Название"></div>
     <label class="field-check"><input type="checkbox" id="kpAgree" checked><span>Согласен на обработку контактов и связь со мной по вопросам разработки CRM</span></label>
     <div class="mdl-footer">
       <button type="button" class="mdl-close" id="kpCancel">Отмена</button>
@@ -437,7 +599,6 @@ main { padding: 32px 0 80px; }
   </div>
 </div>
 
-<!-- FOOTER -->
 <footer class="ftr">
   <div class="ftr-grid">
     <div>
@@ -477,8 +638,8 @@ main { padding: 32px 0 80px; }
 
   let state = { answers:{}, modules:[], lead:null };
 
-  const $ = sel => document.querySelector(sel);
-  const $$ = sel => document.querySelectorAll(sel);
+  const $ = s => document.querySelector(s);
+  const $$ = s => document.querySelectorAll(s);
   const fmtK = n => n >= 1000000 ? (n/1000000).toFixed(1).replace('.0','') + ' млн ₸' : Math.round(n/1000) + 'К ₸';
 
   function toast(msg) {
@@ -495,16 +656,20 @@ main { padding: 32px 0 80px; }
   }
 
   function init() {
-    // Wire up question handlers
     $$('.q').forEach(q => {
       const id = q.dataset.q;
       const isMulti = q.dataset.multi === '1';
       const isRange = q.dataset.type === 'range';
+      const isText = q.dataset.type === 'text';
       if (isRange) {
         const r = q.querySelector('input');
         const out = q.querySelector('.rng-out');
         r.addEventListener('input', () => { out.textContent = r.value + ' ч/нед'; state.answers[id] = +r.value; });
         state.answers[id] = +r.value;
+      } else if (isText) {
+        const inp = q.querySelector('input');
+        inp.addEventListener('input', () => { state.answers[id] = inp.value.trim(); });
+        state.answers[id] = '';
       } else {
         state.answers[id] = isMulti ? [] : null;
         q.querySelectorAll('.chip').forEach(c => {
@@ -522,10 +687,9 @@ main { padding: 32px 0 80px; }
       }
     });
 
-    // Reveal handlers
     $$('[data-show]').forEach(b => b.addEventListener('click', () => {
       const id = +b.dataset.show;
-      if (id === 4) showFinal();
+      if (id === 7) showFinal();
       else reveal(id);
     }));
     $$('[data-next]').forEach(b => b.addEventListener('click', () => {
@@ -537,15 +701,13 @@ main { padding: 32px 0 80px; }
       }
     }));
 
-    // Hero / nav buttons
-    $('#heroStart').addEventListener('click', startAssessment);
-    $('#navStart').addEventListener('click', startAssessment);
+    $('#heroStart').addEventListener('click', () => showView('assessView'));
+    $('#navStart').addEventListener('click', () => showView('assessView'));
     $('#heroSaved').addEventListener('click', showSaved);
     $('#navSaved').addEventListener('click', showSaved);
     $('#savedBack').addEventListener('click', () => showView('heroView'));
     $('#resetBtn').addEventListener('click', resetAll);
 
-    // Share buttons
     $('#shareKp').addEventListener('click', openKpModal);
     $('#shareLink').addEventListener('click', shareLink);
     $('#shareWa').addEventListener('click', shareWhatsApp);
@@ -553,26 +715,22 @@ main { padding: 32px 0 80px; }
     $('#shareJson').addEventListener('click', shareJson);
     $('#shareSave').addEventListener('click', saveLocal);
 
-    // Modal
     $('#kpCancel').addEventListener('click', closeKpModal);
     $('#kpSubmit').addEventListener('click', submitKp);
     $('#kpModal').addEventListener('click', e => { if (e.target.id === 'kpModal') closeKpModal(); });
 
-    // Try restoring from URL hash
     if (location.hash && location.hash.length > 1) {
       try {
         const decoded = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(1)))));
         if (decoded && decoded.answers && decoded.modules) {
           state = decoded;
-          showFinal(true);
+          showFinal();
           toast('Карта проекта загружена по ссылке');
           return;
         }
       } catch(e) { console.warn('Bad URL hash', e); }
     }
   }
-
-  function startAssessment() { showView('assessView'); }
 
   function clearBlk(id) { state.modules = state.modules.filter(m => m.blk !== id); }
 
@@ -595,14 +753,82 @@ main { padding: 32px 0 80px; }
 
     if (blkId === 0) {
       const niche = NICHE[a.niche], team = TEAM[a.team];
-      if (!niche || !team) { toast('Заполните блок 1 до конца'); return; }
+      if (!niche || !team) { toast('Выберите сферу и размер команды'); return; }
       const base = Math.round(500000 * niche.coef * team.coef / 50000) * 50000;
-      title = niche.name + ', команда ' + team.name + ' — это и есть фундамент';
-      desc = 'База — воронки, задачи, сделки, права доступа, отчёты. Коэффициент по нише и команде определяет сложность фундамента.' + ((a.geo === 'many' || a.geo === 'huge') ? ' Многофилиальность добавляет логику разделения данных.' : '');
+      const compName = a.company_name || 'Ваша компания';
+      title = compName + ' — фундамент проекта';
+      desc = niche.name + ', команда ' + team.name + '. База — воронки, задачи, сделки, права доступа, отчёты. Коэффициент по нише и команде определяет сложность фундамента.' + ((a.geo === 'many' || a.geo === 'huge') ? ' Многофилиальность добавляет логику разделения данных.' : '');
       mods.push({ name: 'CRM Core (база)', price: base, cat: 'core' });
       if (a.geo === 'many' || a.geo === 'huge') mods.push({ name: 'Мультифилиалы', price: 200000, cat: 'core' });
     }
     else if (blkId === 1) {
+      const ch = a.channels || [];
+      const keyChannels = ['email','target','partner','market','seo','context'];
+      const missing = keyChannels.filter(k => !ch.includes(k));
+      const usingFew = ch.length <= 2;
+      const noEmail = !ch.includes('email');
+      const noTarget = !ch.includes('target');
+      const noContextOrSeo = !ch.includes('context') && !ch.includes('seo');
+      const noCAC = a.cac === 'no' || a.cac === 'what';
+      const manualRouting = a.ad_routing === 'manual';
+
+      const gaps = [];
+      if (usingFew) gaps.push('задействованы 1-2 канала, остальные не работают');
+      if (noEmail) gaps.push('нет email-маркетинга');
+      if (noTarget) gaps.push('не используется таргет в соцсетях');
+      if (noContextOrSeo) gaps.push('нет ни контекста, ни SEO — горячий поисковый трафик мимо');
+      if (noCAC) gaps.push('не считается стоимость лида (CAC) — непонятно какие каналы окупаются');
+      if (manualRouting) gaps.push('лиды распределяются руками — часть остывает в первые часы');
+
+      if (gaps.length >= 3) {
+        title = 'Воронка привлечения недозагружена';
+        desc = 'Сейчас у вас: ' + gaps.join('; ') + '. Каждый из этих пунктов — упущенные продажи. По нашему опыту в вашей нише, если задействовать 5-6 каналов вместо 1-2, поток лидов растёт в 3-4 раза без увеличения CAC.';
+      } else if (gaps.length >= 1) {
+        title = 'Несколько точек роста в привлечении';
+        desc = 'Вы покрываете основные каналы, но: ' + gaps.join('; ') + '. Каждый закрытый пробел — плюс 15-30% к воронке.';
+      } else {
+        title = 'Привлечение покрыто, фокус на качество';
+        desc = 'Вы используете большинство каналов и считаете CAC — это редко. Дальнейшее ускорение — через автоматизацию и SLA по обработке.';
+      }
+
+      mods.push({ name: 'Лид-роутер с SLA', price: 150000, cat: 'attract' });
+      if (manualRouting || ch.length >= 3) mods.push({ name: 'Интеграция рекламных площадок', price: 200000, cat: 'attract' });
+      if (ch.includes('instagram') || ch.includes('target')) mods.push({ name: 'Чат-бот первого касания', price: 250000, cat: 'attract' });
+      if (noEmail) mods.push({ name: 'Сбор email-базы и lead magnets', price: 150000, cat: 'attract' });
+    }
+    else if (blkId === 2) {
+      const noFunnel = a.funnel === 'no' || a.funnel === 'total';
+      const slowTouch = a.touch_time === '30-2h' || a.touch_time === 'hours' || a.touch_time === '?';
+      const noLTV = a.ltv === 'no' || a.ltv === 'what';
+      const reports = a.reports || [];
+      const manyManualReports = reports.length >= 2 && !reports.includes('none');
+      const noForecast = a.forecast === 'no' || a.forecast === 'gut';
+
+      const gaps = [];
+      if (noFunnel) gaps.push('воронка не отслеживается по этапам');
+      if (slowTouch) gaps.push('первое касание дольше 30 минут — лид остывает');
+      if (noLTV) gaps.push('не считается LTV');
+      if (manyManualReports) gaps.push('отчёты собираются руками вместо реал-тайм');
+      if (noForecast) gaps.push('нет прогноза продаж');
+
+      if (gaps.length >= 3) {
+        title = 'Управление вслепую — самая дорогая ошибка';
+        desc = 'Сейчас: ' + gaps.join('; ') + '. Без этих цифр вы принимаете решения интуитивно — какие каналы окупаются, какие менеджеры работают, сколько можно тратить на рекламу. По нашим наблюдениям компании с прозрачной аналитикой растут в 2-3 раза быстрее при том же объёме продаж.';
+      } else if (gaps.length >= 1) {
+        title = 'Метрики частично есть, но не хватает целостности';
+        desc = 'Что не достроено: ' + gaps.join('; ') + '. Закрытие этих пробелов даёт 15-30% к выручке за счёт перераспределения усилий на реально работающие сегменты.';
+      } else {
+        title = 'Аналитика на хорошем уровне';
+        desc = 'Вы знаете свои цифры — это редкое преимущество. Дальнейший рост — через ML-прогнозы и сквозную аналитику до уровня источника лида.';
+      }
+
+      mods.push({ name: 'BI-дашборды по воронке', price: 200000, cat: 'metrics' });
+      if (slowTouch) mods.push({ name: 'SLA-таймеры и эскалации', price: 150000, cat: 'metrics' });
+      if (noLTV) mods.push({ name: 'Сквозная аналитика (LTV/CAC)', price: 300000, cat: 'metrics' });
+      if (manyManualReports) mods.push({ name: 'Автоотчёты руководителю', price: 150000, cat: 'metrics' });
+      if (noForecast && (a.team === '26-50' || a.team === '51-100' || a.team === '100+')) mods.push({ name: 'Прогноз продаж на ML', price: 400000, cat: 'metrics' });
+    }
+    else if (blkId === 3) {
       const losses = a.loss || [], items = [];
       if (a.curr === 'bitrix' || a.curr === 'amo' || a.curr === 'self') items.push('миграция данных');
       if (losses.includes('leads') || losses.includes('follow')) items.push('SLA по лидам и автонапоминания');
@@ -618,7 +844,45 @@ main { padding: 32px 0 80px; }
       const lossM = parseFloat(a.lossM || 0);
       if (lossM >= 5) mods.push({ name: 'Аудит точек потерь', price: 150000, cat: 'core' });
     }
-    else if (blkId === 2) {
+    else if (blkId === 4) {
+      const after = a.after_sale || [];
+      const passive = after.length === 0 || (after.length <= 1 && (after.includes('nothing') || after.includes('calls')));
+      const noNps = !after.includes('nps');
+      const noRegular = !after.includes('regular');
+      const noLoyalty = !after.includes('loyalty');
+      const noCabinet = !after.includes('cabinet');
+      const noReact = !after.includes('reactivation');
+      const noCross = !after.includes('cross');
+      const lowRepeat = a.repeat_share === '<10' || a.repeat_share === '10-30';
+      const sleepingIgnored = a.sleeping === 'ignore' || a.sleeping === 'adhoc';
+      const onebyone = a.messaging === 'onebyone' || a.messaging === 'thinking';
+
+      const gaps = [];
+      if (passive) gaps.push('после продажи у вас тишина');
+      if (sleepingIgnored) gaps.push('спящие клиенты не реактивируются');
+      if (onebyone) gaps.push('массовых рассылок нет, каждое касание — час менеджера');
+      if (noLoyalty) gaps.push('нет программы лояльности');
+      if (noNps) gaps.push('не собираете обратную связь (NPS)');
+      if (noCross) gaps.push('cross-sell не автоматизирован');
+
+      if (gaps.length >= 3 || passive) {
+        title = 'Половина выручки утекает мимо';
+        desc = 'Привлечь нового клиента в 5 раз дороже, чем удержать существующего. Сейчас: ' + gaps.join('; ') + '. В вашей нише LTV/CAC обычно 3-5x — то есть существующий клиент приносит в 3-5 раз больше денег за всё время, чем стоило его привлечь. Если 50% забыты — это половина потенциальной выручки в год.';
+      } else if (gaps.length >= 1) {
+        title = 'Удержание частично есть, есть куда расти';
+        desc = 'Что не достроено: ' + gaps.join('; ') + '. Каждый закрытый пробел — плюс 10-25% к среднему чеку клиента за весь жизненный цикл.';
+      } else {
+        title = 'Удержание налажено';
+        desc = 'Редкая ситуация — большинство компаний на этом теряет половину прибыли. Можно усилить триггерными сценариями и предсказательными моделями оттока.';
+      }
+
+      if (noRegular || passive) mods.push({ name: 'Триггерные рассылки (Email/WhatsApp/SMS)', price: 300000, cat: 'retain' });
+      if (sleepingIgnored) mods.push({ name: 'Реактивационные кампании', price: 200000, cat: 'retain' });
+      if (noLoyalty && (a.niche === 'medical' || a.niche === 'wholesale' || a.niche === 'services')) mods.push({ name: 'Программа лояльности', price: 300000, cat: 'retain' });
+      if (noNps) mods.push({ name: 'NPS и обратная связь', price: 100000, cat: 'retain' });
+      if (noCross) mods.push({ name: 'Cross-sell автоматизация', price: 250000, cat: 'retain' });
+    }
+    else if (blkId === 5) {
       const items = [];
       if (a.i1c === 'one') { mods.push({ name: '1С (выгрузка)', price: 150000, cat: 'data' }); items.push('1С'); }
       if (a.i1c === 'two') { mods.push({ name: '1С (двусторонняя)', price: 250000, cat: 'data' }); items.push('двусторонняя 1С'); }
@@ -631,13 +895,11 @@ main { padding: 32px 0 80px; }
       title = items.length ? 'Сюда уходит основной вес проекта' : 'Без отраслевых модулей — только база';
       desc = items.length ? 'Добавляем: ' + items.join(', ') + '. Это ровно те модули, ради которых имеет смысл идти в кастом, а не оставаться на коробке.' : 'Если фокус только на воронке и продажах — базы хватит.';
     }
-    else if (blkId === 3) {
+    else if (blkId === 6) {
       const items = [];
       if (a.mob === 'few') { mods.push({ name: 'Мобильный (PWA)', price: 350000, cat: 'ui' }); items.push('PWA для выездных'); }
       if (a.mob === 'most') { mods.push({ name: 'Мобильное (нативное)', price: 600000, cat: 'ui' }); items.push('нативное мобильное'); }
-      if (a.ana === 'basic') { mods.push({ name: 'Аналитика', price: 200000, cat: 'analytics' }); items.push('аналитика'); }
-      if (a.ana === 'full') { mods.push({ name: 'BI и прогнозы', price: 400000, cat: 'analytics' }); items.push('BI'); }
-      if (a.msg === 'one') { mods.push({ name: 'WhatsApp', price: 100000, cat: 'ui' }); items.push('WhatsApp'); }
+      if (a.msg === 'one') { mods.push({ name: 'WhatsApp в CRM', price: 100000, cat: 'ui' }); items.push('WhatsApp'); }
       if (a.msg === 'omni') { mods.push({ name: 'Омниканальность', price: 250000, cat: 'ui' }); items.push('омниканальность'); }
       title = items.length ? 'Каналы и интерфейсы для команды' : 'Базовый веб-интерфейс закрывает работу';
       desc = items.length ? 'Добавляем: ' + items.join(', ') + '.' : 'Без дополнительных интерфейсов хватит браузерной CRM.';
@@ -665,12 +927,12 @@ main { padding: 32px 0 80px; }
     const a = state.answers;
     const phaseSplit = Math.ceil(mods.length * 0.55);
     const isPhased = a.phase !== 'all';
-    const cx = 380, cy = 240;
+    const cx = 380, cy = 280;
     const N = mods.length;
-    const radius = N <= 4 ? 130 : N <= 7 ? 165 : 195;
-    const h = Math.max(440, 240 + radius + 90);
+    const radius = N <= 4 ? 130 : N <= 7 ? 165 : N <= 10 ? 200 : 230;
+    const h = Math.max(520, 280 + radius + 100);
+    const compName = (a.company_name || 'CRM Core').slice(0, 18);
     let svg = '<svg class="map-svg" viewBox="0 0 760 ' + h + '" xmlns="http://www.w3.org/2000/svg" id="archSvg">';
-    // Connections
     mods.forEach((m, i) => {
       const angle = (i/N)*2*Math.PI - Math.PI/2;
       const x = cx + radius*Math.cos(angle);
@@ -678,25 +940,23 @@ main { padding: 32px 0 80px; }
       const isMvp = !isPhased || i < phaseSplit;
       svg += '<line x1="' + cx + '" y1="' + cy + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="' + (isMvp ? '#B8895A' : '#9A9A95') + '" stroke-width="' + (isMvp ? '1.5' : '1') + '" stroke-dasharray="' + (isMvp ? '' : '4 4') + '" opacity="0.5"/>';
     });
-    // Center
-    svg += '<g><rect x="' + (cx-78) + '" y="' + (cy-30) + '" width="156" height="60" rx="10" fill="#1A1A1A"/><text x="' + cx + '" y="' + (cy-4) + '" text-anchor="middle" font-size="15" font-weight="800" fill="#fff" font-family="Inter">CRM Core</text><text x="' + cx + '" y="' + (cy+15) + '" text-anchor="middle" font-size="11" fill="#B8895A" font-family="Inter" letter-spacing="1.5">PLLATO</text></g>';
-    // Satellites
+    svg += '<g><rect x="' + (cx-90) + '" y="' + (cy-32) + '" width="180" height="64" rx="10" fill="#1A1A1A"/><text x="' + cx + '" y="' + (cy-6) + '" text-anchor="middle" font-size="14" font-weight="800" fill="#fff" font-family="Inter">' + compName + '</text><text x="' + cx + '" y="' + (cy+15) + '" text-anchor="middle" font-size="10.5" fill="#B8895A" font-family="Inter" letter-spacing="2">CRM · PLLATO</text></g>';
     mods.forEach((m, i) => {
       const angle = (i/N)*2*Math.PI - Math.PI/2;
       const x = cx + radius*Math.cos(angle);
       const y = cy + radius*Math.sin(angle);
       const isMvp = !isPhased || i < phaseSplit;
-      const w = 145, hh = 44;
+      const w = 150, hh = 44;
       const rx = x - w/2, ry = y - hh/2;
       const stroke = isMvp ? '#B8895A' : '#9A9A95';
       const dashAttr = isMvp ? '' : ' stroke-dasharray="3 3"';
-      svg += '<g><rect x="' + rx.toFixed(1) + '" y="' + ry.toFixed(1) + '" width="' + w + '" height="' + hh + '" rx="6" fill="#FFF" stroke="' + stroke + '" stroke-width="' + (isMvp ? '1.5' : '1') + '"' + dashAttr + '/><text x="' + x.toFixed(1) + '" y="' + (y-3).toFixed(1) + '" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1A1A1A" font-family="Inter">' + (m.name.length > 20 ? m.name.slice(0, 19) + '…' : m.name) + '</text><text x="' + x.toFixed(1) + '" y="' + (y+13).toFixed(1) + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="#B8895A" font-family="Inter">' + fmtK(m.price) + '</text></g>';
+      svg += '<g><rect x="' + rx.toFixed(1) + '" y="' + ry.toFixed(1) + '" width="' + w + '" height="' + hh + '" rx="6" fill="#FFF" stroke="' + stroke + '" stroke-width="' + (isMvp ? '1.5' : '1') + '"' + dashAttr + '/><text x="' + x.toFixed(1) + '" y="' + (y-3).toFixed(1) + '" text-anchor="middle" font-size="11" font-weight="600" fill="#1A1A1A" font-family="Inter">' + (m.name.length > 22 ? m.name.slice(0, 21) + '…' : m.name) + '</text><text x="' + x.toFixed(1) + '" y="' + (y+13).toFixed(1) + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="#B8895A" font-family="Inter">' + fmtK(m.price) + '</text></g>';
     });
     svg += '</svg>';
     return svg;
   }
 
-  function showFinal(skipScroll) {
+  function showFinal() {
     showView('finalView');
     const total = state.modules.reduce((s,m) => s + m.price, 0);
     const low = Math.round(total * 0.95 / 50000) * 50000;
@@ -704,6 +964,8 @@ main { padding: 32px 0 80px; }
     const months = Math.max(2, Math.ceil(total/700000));
     const a = state.answers;
 
+    const title = a.company_name ? a.company_name + ' CRM' : 'Карта проекта';
+    $('#finT').textContent = title;
     $('#finS').textContent = state.modules.length + ' модулей · ' + (a.niche ? NICHE[a.niche].name : '—') + ' · команда ' + (a.team ? TEAM[a.team].name : '—');
     $('#stBud').textContent = fmtK(low) + ' – ' + fmtK(high);
     $('#stTime').textContent = months + ' мес';
@@ -726,6 +988,9 @@ main { padding: 32px 0 80px; }
     $('#roiD').textContent = lossM > 0
       ? 'Заявленные потери — ' + fmtK(lossM) + '/мес. При среднем бюджете ' + fmtK((low + high)/2) + ' проект окупается за ' + Math.ceil(((low + high)/2) / lossM) + ' месяцев. После — система работает напрямую на маржу.'
       : 'ROI считается через сравнение с текущей CRM (~150К/мес коробка) и стоимостью ручных часов команды. Подробный расчёт прикладываем к КП.';
+
+    if (a.contact_name) $('#kpName').value = a.contact_name;
+    if (a.company_name) $('#kpCompany').value = a.company_name;
 
     $$('#barProg span').forEach(s => s.classList.add('on'));
   }
@@ -754,8 +1019,9 @@ main { padding: 32px 0 80px; }
     const total = state.modules.reduce((s,m) => s + m.price, 0);
     const months = Math.max(2, Math.ceil(total/700000));
     const url = location.origin + location.pathname + '#' + encodeState();
-    const text = 'Pllato CRM — карта проекта\n\n' +
-      (a.niche ? NICHE[a.niche].name : '—') + ', команда ' + (a.team ? TEAM[a.team].name : '—') + '\n' +
+    const cName = a.company_name || (a.niche ? NICHE[a.niche].name : 'Проект');
+    const text = 'Pllato CRM — карта проекта' + (a.company_name ? ' ' + a.company_name : '') + '\n\n' +
+      cName + ', команда ' + (a.team ? TEAM[a.team].name : '—') + '\n' +
       'Модулей: ' + state.modules.length + '\n' +
       'Бюджет: ' + fmtK(total*0.95) + ' – ' + fmtK(total*1.15) + '\n' +
       'Сроки: ' + months + ' мес\n\n' + url;
@@ -771,7 +1037,7 @@ main { padding: 32px 0 80px; }
     img.onload = () => {
       const canvas = document.createElement('canvas');
       const w = svgEl.clientWidth || 760;
-      const h = svgEl.clientHeight || 480;
+      const h = svgEl.clientHeight || 520;
       canvas.width = w * 2; canvas.height = h * 2;
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = '#FAFAF8'; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -779,7 +1045,8 @@ main { padding: 32px 0 80px; }
       canvas.toBlob(blob => {
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = 'pllato-crm-map-' + Date.now() + '.png';
+        const slug = (state.answers.company_name || 'pllato-crm').toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-').slice(0, 40);
+        link.download = slug + '-' + Date.now() + '.png';
         link.click();
         toast('PNG скачан');
       });
@@ -801,11 +1068,11 @@ main { padding: 32px 0 80px; }
     try {
       const list = JSON.parse(localStorage.getItem('pllato_assessments') || '[]');
       const a = state.answers;
-      const niche = a.niche ? NICHE[a.niche].name : 'Без названия';
+      const company = a.company_name && a.company_name.length > 0 ? a.company_name : (a.niche ? NICHE[a.niche].name : 'Без названия');
       const total = state.modules.reduce((s,m) => s + m.price, 0);
       list.unshift({
         id: Date.now(),
-        title: niche + (a.team ? ', ' + TEAM[a.team].name : ''),
+        title: company + (a.team ? ' · команда ' + TEAM[a.team].name : ''),
         date: new Date().toLocaleDateString('ru-RU'),
         budget: fmtK(total),
         modules: state.modules.length,
@@ -864,15 +1131,15 @@ main { padding: 32px 0 80px; }
 
     state.lead = { name, email, phone, company };
 
-    // Compose WhatsApp message to studio
     const a = state.answers;
     const total = state.modules.reduce((s,m) => s + m.price, 0);
     const months = Math.max(2, Math.ceil(total/700000));
     const url = location.origin + location.pathname + '#' + encodeState();
+    const cName = company || a.company_name || '—';
     const text = 'Здравствуйте, Pllato! Прошёл ассесмент, хочу получить КП.\n\n' +
       'Контакт: ' + name + '\n' +
       'Email: ' + email + '\n' +
-      'Компания: ' + (company || '—') + '\n\n' +
+      'Компания: ' + cName + '\n\n' +
       'Параметры проекта:\n' +
       (a.niche ? NICHE[a.niche].name : '—') + ', команда ' + (a.team ? TEAM[a.team].name : '—') + '\n' +
       'Модулей: ' + state.modules.length + '\n' +
