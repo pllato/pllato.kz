@@ -1590,7 +1590,8 @@ import {
   sendPasswordResetEmail, onAuthStateChanged, signOut as fbSignOut
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import {
-  getDatabase, ref, get, set, onValue, push, update
+  getDatabase, ref, get, set, onValue, off, push, update,
+  onChildAdded, onChildChanged, onChildRemoved, query, orderByChild, limitToLast, startAt
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 
 // ── Config ───────────────────────────────────────────────
@@ -1617,8 +1618,16 @@ window.dbRef = ref;
 window.dbGet = get;
 window.dbSet = set;
 window.dbOn = onValue;
+window.dbOff = off;
 window.dbPush = push;
 window.dbUpdate = update;
+window.dbOnChildAdded = onChildAdded;
+window.dbOnChildChanged = onChildChanged;
+window.dbOnChildRemoved = onChildRemoved;
+window.dbQuery = query;
+window.dbOrderByChild = orderByChild;
+window.dbStartAt = startAt;
+window.dbLimitToLast = limitToLast;
 
 // ── Auth: Google sign-in ─────────────────────────────────
 window.loginGoogle = async function() {
@@ -1729,6 +1738,43 @@ async function initApp(user) {
     updateThemeButton();
     themeBtn.onclick = toggleTheme;
   }
+
+  // Фоновая прелоадка — пока пользователь смотрит дашборд, грузим данные
+  // Поэтапно (не разом) чтобы не нагружать сеть
+  setTimeout(() => preloadInBackground(), 800);
+}
+
+async function preloadInBackground() {
+  // 1. Users — самые маленькие (88), нужны всем разделам
+  await ensureUsersLoaded();
+  // 2. Reference lists — копейки
+  ensureRefListsLoaded();
+  // 3. Сделки (22k, ~3-5 МБ) — параллельно
+  if (!dealsState.loaded) {
+    loadDealsData().then(() => {
+      // После загрузки — подключаем live-listener
+      attachDealsLiveListener();
+    });
+  } else {
+    attachDealsLiveListener();
+  }
+  // 4. Задачи (38k, ~30 МБ) — самые тяжёлые, через 2 секунды после сделок
+  setTimeout(() => {
+    if (!tasksState.loaded) {
+      loadTasks().then(() => {
+        populateTaskAssigneeFilter();
+        attachTasksLiveListener();
+      });
+    } else {
+      attachTasksLiveListener();
+    }
+  }, 2000);
+  // 5. Контакты (143k, самые тяжёлые) — через 5 секунд
+  setTimeout(() => {
+    if (!contactsState.loaded) {
+      loadContacts();
+    }
+  }, 5000);
 }
 
 function applyTheme(theme) {
@@ -2007,6 +2053,91 @@ async function refreshDealsBackground() {
       }
     }
   } catch (e) {}
+}
+
+// ─── Realtime listener для сделок ────────────────────────────────
+let _dealsListenerAttached = false;
+let _dealsListenerLastSync = null;
+function attachDealsLiveListener() {
+  if (_dealsListenerAttached) return;
+  if (!dealsState.loaded) return;
+  _dealsListenerAttached = true;
+
+  // Слушаем только новые/изменённые после нашего последнего sync
+  // Используем bitrixDateModify (есть на каждой сделке) для фильтрации
+  // ВАЖНО: indexOn для bitrixDateModify должен быть в Firebase rules
+  // Иначе фолбэк на простой child_changed без фильтра
+  const dealsRef = window.dbRef(window.fbDb, 'deals');
+
+  // Последний модифицированный момент в наших данных
+  const lastTs = dealsState.deals.reduce((max, d) => {
+    const t = d.bitrixDateModify || d.bitrixDateCreate || '';
+    return t > max ? t : max;
+  }, '');
+  _dealsListenerLastSync = lastTs;
+
+  // child_added — для новых сделок (которые появились после нашего sync)
+  // Listener срабатывает СРАЗУ для всех существующих детей; мы фильтруем по дате
+  window.dbOnChildAdded(dealsRef, (snap) => {
+    const deal = snap.val();
+    if (!deal) return;
+    const ts = deal.bitrixDateModify || deal.bitrixDateCreate || '';
+    // Игнорируем уже известные (initial flush) — мы их видели в snapshot
+    if (lastTs && ts <= lastTs) return;
+    // Новая сделка — добавляем в state
+    const existsIdx = dealsState.deals.findIndex(d => d.bitrixId === deal.bitrixId);
+    if (existsIdx === -1) {
+      dealsState.deals.unshift(deal);
+      console.log('[Live] new deal:', deal.bitrixId, deal.title);
+      // Если открыта страница — перерисовываем
+      if (document.querySelector('[data-page="deals"].active')) {
+        renderDealsContent();
+      }
+      saveCacheDealsThrottled();
+    }
+  });
+
+  window.dbOnChildChanged(dealsRef, (snap) => {
+    const deal = snap.val();
+    if (!deal) return;
+    const idx = dealsState.deals.findIndex(d => d.bitrixId === deal.bitrixId);
+    if (idx >= 0) {
+      // Обновляем сохраняя позицию
+      dealsState.deals[idx] = deal;
+      console.log('[Live] deal changed:', deal.bitrixId);
+      if (document.querySelector('[data-page="deals"].active')) {
+        renderDealsContent();
+      }
+      saveCacheDealsThrottled();
+    }
+  });
+
+  window.dbOnChildRemoved(dealsRef, (snap) => {
+    const deal = snap.val();
+    if (!deal) return;
+    const idx = dealsState.deals.findIndex(d => d.bitrixId === deal.bitrixId);
+    if (idx >= 0) {
+      dealsState.deals.splice(idx, 1);
+      console.log('[Live] deal removed:', deal.bitrixId);
+      if (document.querySelector('[data-page="deals"].active')) {
+        renderDealsContent();
+      }
+      saveCacheDealsThrottled();
+    }
+  });
+}
+
+let _saveCacheDealsTimer = null;
+function saveCacheDealsThrottled() {
+  if (_saveCacheDealsTimer) clearTimeout(_saveCacheDealsTimer);
+  _saveCacheDealsTimer = setTimeout(() => {
+    cacheSet('deals:full:v1', {
+      deals: dealsState.deals,
+      pipeline: dealsState.pipeline,
+      customSchema: dealsState.customSchema,
+      users: dealsState.users,
+    });
+  }, 5000);
 }
 
 function renderDealsLayout(el) {
@@ -3822,18 +3953,96 @@ async function loadTasks() {
       tasksState.loading = false;
       return;
     }
-    const list = parseTasksToList(data);
+    // Прогрессивный парсинг чанками — не блокируем UI
+    const list = await parseTasksProgressive(data);
     tasksState.list = list;
     tasksState.loaded = true;
     console.log(`Loaded ${list.length} tasks in ${Date.now() - t0}ms`);
     cacheSet('tasks:list:v1', list);
+    // Если страница задач сейчас открыта — финальный рендер с правильным subtasksCount
+    if (document.getElementById('tasks-content')) {
+      populateTaskAssigneeFilter();
+      filterAndRenderTasks();
+    }
   } catch (e) {
     console.error('loadTasks error:', e);
-    document.getElementById('tasks-content').innerHTML =
-      `<div class="empty-state"><div class="empty-icon">✗</div><div class="empty-text">Ошибка загрузки: ${escapeHtml(e.message)}</div></div>`;
+    if (document.getElementById('tasks-content')) {
+      document.getElementById('tasks-content').innerHTML =
+        `<div class="empty-state"><div class="empty-icon">✗</div><div class="empty-text">Ошибка загрузки: ${escapeHtml(e.message)}</div></div>`;
+    }
   } finally {
     tasksState.loading = false;
   }
+}
+
+// Прогрессивный парсинг — рендерим первые 1000 сразу, остальные чанками
+async function parseTasksProgressive(data) {
+  const entries = Object.entries(data);
+  const total = entries.length;
+  const list = [];
+  const FIRST_CHUNK = 1000;
+  const CHUNK = 5000;
+
+  function processOne(key, t) {
+    if (!t) return;
+    list.push({
+      key,
+      bitrixId: t.bitrixId || key.replace('task_', ''),
+      title: t.title || '(без названия)',
+      status: String(t.status || '1'),
+      priority: String(t.priority || '1'),
+      responsibleUid: t.responsibleUid || null,
+      createdByUid: t.createdByUid || null,
+      deadline: t.deadline || null,
+      bitrixCreated: t.bitrixCreated || null,
+      commentsCount: t.commentsCount || 0,
+      groupId: t.groupId || null,
+      parentId: t.parentId || null,
+      bitrixParentId: t.bitrixParentId || null,
+      searchable: (t.title || '').toLowerCase(),
+      subtasksCount: 0,
+    });
+  }
+
+  // Первый чанк — синхронно, чтобы пользователь увидел начало быстро
+  for (let i = 0; i < Math.min(FIRST_CHUNK, total); i++) {
+    processOne(entries[i][0], entries[i][1]);
+  }
+
+  // Промежуточный рендер если страница задач уже открыта
+  if (document.getElementById('tasks-content') && total > FIRST_CHUNK) {
+    list.sort((a, b) => (b.bitrixCreated || '').localeCompare(a.bitrixCreated || ''));
+    tasksState.list = list;
+    populateTaskAssigneeFilter();
+    filterAndRenderTasks();
+  }
+
+  // Остальные — чанками через rAF
+  for (let i = FIRST_CHUNK; i < total; i += CHUNK) {
+    const end = Math.min(i + CHUNK, total);
+    for (let j = i; j < end; j++) {
+      processOne(entries[j][0], entries[j][1]);
+    }
+    // Промежуточный апдейт каждые 10000
+    if (document.getElementById('tasks-content') && (i % 10000 === 0)) {
+      list.sort((a, b) => (b.bitrixCreated || '').localeCompare(a.bitrixCreated || ''));
+      tasksState.list = list;
+      filterAndRenderTasks();
+    }
+    // Уступаем поток UI
+    await new Promise(resolve => requestAnimationFrame(resolve));
+  }
+
+  // Финальная сортировка + subtasksCount
+  list.sort((a, b) => (b.bitrixCreated || '').localeCompare(a.bitrixCreated || ''));
+  const subtaskCounts = {};
+  for (const t of list) {
+    if (t.parentId) subtaskCounts[t.parentId] = (subtaskCounts[t.parentId] || 0) + 1;
+  }
+  for (const t of list) {
+    t.subtasksCount = subtaskCounts[t.key] || 0;
+  }
+  return list;
 }
 
 function parseTasksToList(data) {
@@ -3891,6 +4100,113 @@ async function refreshTasksBackground() {
       }
     }
   } catch (e) {}
+}
+
+// ─── Realtime listener для задач ────────────────────────────────
+let _tasksListenerAttached = false;
+function attachTasksLiveListener() {
+  if (_tasksListenerAttached) return;
+  if (!tasksState.loaded) return;
+  _tasksListenerAttached = true;
+
+  const tasksRef = window.dbRef(window.fbDb, 'tasks');
+  // Последний modify-момент среди наших задач (chenge tasks have bitrixModified, lite-list has bitrixCreated)
+  const lastTs = tasksState.list.reduce((max, t) => {
+    const ts = t.bitrixCreated || '';
+    return ts > max ? ts : max;
+  }, '');
+
+  // child_added — initial flush + новые задачи. Фильтруем по дате
+  window.dbOnChildAdded(tasksRef, (snap) => {
+    const key = snap.key;
+    const t = snap.val();
+    if (!t) return;
+    const ts = t.bitrixCreated || '';
+    if (lastTs && ts <= lastTs) return; // уже знаем
+    // Проверим что её нет в списке
+    if (tasksState.list.find(x => x.key === key)) return;
+    // Превращаем в lite-формат
+    const lite = {
+      key,
+      bitrixId: t.bitrixId || key.replace('task_', ''),
+      title: t.title || '(без названия)',
+      status: String(t.status || '1'),
+      priority: String(t.priority || '1'),
+      responsibleUid: t.responsibleUid || null,
+      createdByUid: t.createdByUid || null,
+      deadline: t.deadline || null,
+      bitrixCreated: t.bitrixCreated || null,
+      commentsCount: t.commentsCount || 0,
+      groupId: t.groupId || null,
+      parentId: t.parentId || null,
+      bitrixParentId: t.bitrixParentId || null,
+      searchable: (t.title || '').toLowerCase(),
+      subtasksCount: 0,
+    };
+    tasksState.list.unshift(lite);
+    // Пересчитываем subtasksCount у родителя
+    if (lite.parentId) {
+      const parent = tasksState.list.find(x => x.key === lite.parentId);
+      if (parent) parent.subtasksCount = (parent.subtasksCount || 0) + 1;
+    }
+    console.log('[Live] new task:', key, lite.title);
+    if (document.querySelector('[data-page="tasks"].active')) {
+      populateTaskAssigneeFilter();
+      filterAndRenderTasks();
+    }
+    saveCacheTasksThrottled();
+  });
+
+  window.dbOnChildChanged(tasksRef, (snap) => {
+    const key = snap.key;
+    const t = snap.val();
+    if (!t) return;
+    const idx = tasksState.list.findIndex(x => x.key === key);
+    if (idx < 0) return;
+    const old = tasksState.list[idx];
+    tasksState.list[idx] = {
+      ...old,
+      title: t.title || old.title,
+      status: String(t.status || old.status),
+      priority: String(t.priority || old.priority),
+      responsibleUid: t.responsibleUid || old.responsibleUid,
+      deadline: t.deadline || old.deadline,
+      commentsCount: t.commentsCount ?? old.commentsCount,
+      parentId: t.parentId || old.parentId,
+      searchable: (t.title || '').toLowerCase(),
+    };
+    console.log('[Live] task changed:', key);
+    if (document.querySelector('[data-page="tasks"].active')) {
+      filterAndRenderTasks();
+    }
+    saveCacheTasksThrottled();
+  });
+
+  window.dbOnChildRemoved(tasksRef, (snap) => {
+    const key = snap.key;
+    const idx = tasksState.list.findIndex(x => x.key === key);
+    if (idx < 0) return;
+    const removed = tasksState.list[idx];
+    tasksState.list.splice(idx, 1);
+    // Уменьшаем subtasksCount у родителя
+    if (removed.parentId) {
+      const parent = tasksState.list.find(x => x.key === removed.parentId);
+      if (parent && parent.subtasksCount > 0) parent.subtasksCount -= 1;
+    }
+    console.log('[Live] task removed:', key);
+    if (document.querySelector('[data-page="tasks"].active')) {
+      filterAndRenderTasks();
+    }
+    saveCacheTasksThrottled();
+  });
+}
+
+let _saveCacheTasksTimer = null;
+function saveCacheTasksThrottled() {
+  if (_saveCacheTasksTimer) clearTimeout(_saveCacheTasksTimer);
+  _saveCacheTasksTimer = setTimeout(() => {
+    cacheSet('tasks:list:v1', tasksState.list);
+  }, 5000);
 }
 
 function populateTaskAssigneeFilter() {
@@ -4456,6 +4772,18 @@ function renderMigration(el) {
         <button class="btn btn-sm" onclick="diagnoseBizproc()">⚙️ Проанализировать процессы</button>
         <div id="bizproc-diag-result" style="display:none;margin-top:10px"></div>
       </div>
+    </div>
+
+    <div class="card" style="border:1px solid var(--gn)">
+      <h3>🔄 Дельта-синхронизация (если Битрикс остаётся боевым)</h3>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:10px">
+        Подтягивает из Битрикса только сделки/задачи/контакты, изменённые с момента последней синхронизации. Идемпотентно. Работает с live-listener'ами фронтенда — обновления появятся в портале мгновенно.
+        <br>· По умолчанию: за последние 24 часа
+        <br>· Лимиты для безопасности: ~500 сделок/300 задач/500 контактов за вызов
+        <br>· Если нужно «догнать» больше — запусти повторно
+      </div>
+      <button class="btn btn-sm" onclick="syncDelta()" style="background:var(--gn);color:#0e0e12">🔄 Синхронизировать сейчас</button>
+      <div id="delta-sync-result" style="display:none;margin-top:10px"></div>
     </div>
   `;
 }
@@ -6198,6 +6526,40 @@ window.diagnoseBizproc = async function() {
     html += `</div>`;
 
     html += `</div>`;
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(e.message)}</div>`;
+  }
+};
+
+window.syncDelta = async function() {
+  const el = document.getElementById('delta-sync-result');
+  el.style.display = '';
+  el.innerHTML = '<div style="font-size:12px;color:var(--t3)">⏳ Подтягиваем изменения из Битрикса...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/sync-delta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(d.error || 'Ошибка')}</div>`;
+      return;
+    }
+    let html = `<div class="summary" style="background:rgba(63,216,142,.06);border:1px solid rgba(63,216,142,.3);border-radius:10px;padding:14px 18px">
+      <div style="color:var(--gn);font-weight:600;font-size:13px;margin-bottom:8px">✓ Дельта-синхронизация выполнена</div>
+      <div style="font-size:12px;color:var(--t2);line-height:1.7">
+        <div>📅 С момента: <code>${escapeHtml(d.since || '—')}</code></div>
+        <div>💼 Сделок обновлено: <span style="color:var(--ac2)">${d.deals.updated}</span>${d.deals.errors.length ? ` <span style="color:var(--rd)">(ошибок: ${d.deals.errors.length})</span>` : ''}</div>
+        <div>✓ Задач обновлено: <span style="color:var(--ac2)">${d.tasks.updated}</span>${d.tasks.errors.length ? ` <span style="color:var(--rd)">(ошибок: ${d.tasks.errors.length})</span>` : ''}</div>
+        <div>👥 Контактов обновлено: <span style="color:var(--ac2)">${d.contacts.updated}</span>${d.contacts.errors.length ? ` <span style="color:var(--rd)">(ошибок: ${d.contacts.errors.length})</span>` : ''}</div>
+      </div>
+      ${(d.deals.updated > 0 || d.tasks.updated > 0 || d.contacts.updated > 0)
+        ? '<div style="font-size:11px;color:var(--t3);margin-top:8px;font-style:italic">💡 Если у тебя сейчас открыта вкладка с порталом — изменения должны появиться через несколько секунд (live listeners)</div>'
+        : '<div style="font-size:11px;color:var(--t3);margin-top:8px">Изменений нет — портал актуален</div>'}
+    </div>`;
     el.innerHTML = html;
   } catch (e) {
     el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(e.message)}</div>`;
