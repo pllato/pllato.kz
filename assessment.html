@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Ассесмент — Pllato CRM</title>
+<meta name="description" content="Диагностика бизнеса и сборка персональной карты CRM. 5 блоков, 30 минут, реальные цифры по бюджету и срокам.">
+<meta property="og:title" content="Ассесмент — Pllato CRM">
+<meta property="og:description" content="Соберите карту своей будущей CRM за 30 минут. С бюджетом, сроками и окупаемостью.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #FAFAF8;
+  --surface: #FFFFFF;
+  --surface-2: #F5F3EE;
+  --text: #1A1A1A;
+  --text-2: #6B6B68;
+  --text-3: #9A9A95;
+  --line: rgba(0,0,0,0.08);
+  --line-2: rgba(0,0,0,0.05);
+  --bronze: #B8895A;
+  --bronze-deep: #8B6240;
+  --bronze-soft: rgba(184, 137, 90, 0.08);
+  --bronze-mid: rgba(184, 137, 90, 0.18);
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 8px 24px -8px rgba(0,0,0,0.10);
+  --shadow-bronze: 0 16px 40px -12px rgba(184, 137, 90, 0.4);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0F0E0C;
+    --surface: #1A1816;
+    --surface-2: #221F1B;
+    --text: #F5F2EC;
+    --text-2: #A09C95;
+    --text-3: #6B6862;
+    --line: rgba(255,255,255,0.08);
+    --line-2: rgba(255,255,255,0.05);
+    --bronze-soft: rgba(184, 137, 90, 0.14);
+    --bronze-mid: rgba(184, 137, 90, 0.22);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-md: 0 8px 24px -8px rgba(0,0,0,0.5);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; line-height: 1.5; min-height: 100vh; }
+
+button { font-family: inherit; cursor: pointer; }
+a { color: inherit; }
+
+/* HEADER */
+.hdr { position: sticky; top: 0; z-index: 50; background: rgba(250, 250, 248, 0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--line); }
+@media (prefers-color-scheme: dark) { .hdr { background: rgba(15, 14, 12, 0.85); } }
+.hdr-in { max-width: 1180px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.brand { font-weight: 800; font-size: 17px; letter-spacing: -0.02em; text-decoration: none; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bronze); }
+.nav { display: flex; gap: 4px; align-items: center; }
+.nav a, .nav button { font-size: 13.5px; color: var(--text-2); text-decoration: none; padding: 8px 14px; border-radius: 100px; transition: color 0.2s, background 0.2s; background: transparent; border: none; }
+.nav a:hover, .nav button:hover { color: var(--text); background: var(--surface-2); }
+.nav .nav-cta { color: var(--text); border: 1px solid var(--line); margin-left: 6px; }
+.nav .nav-cta:hover { border-color: var(--bronze); color: var(--bronze); }
+@media (max-width: 720px) { .nav a:not(.nav-cta), .nav button:not(.nav-cta) { display: none; } }
+
+/* MAIN */
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+main { padding: 32px 0 80px; }
+
+/* HERO */
+.hero { padding: 60px 0 40px; }
+.hero-eb { font-size: 12px; color: var(--bronze); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 16px; }
+.hero-h1 { font-size: clamp(38px, 6vw, 64px); font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; margin: 0 0 20px; max-width: 900px; }
+.hero-h1 em { font-style: normal; color: var(--bronze); }
+.hero-lead { font-size: 18px; color: var(--text-2); line-height: 1.55; max-width: 640px; margin: 0 0 36px; }
+.hero-cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.btn { font-family: inherit; font-size: 15px; font-weight: 500; padding: 14px 24px; border-radius: 100px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; line-height: 1; }
+.btn:hover { border-color: var(--text-2); }
+.btn.prim { background: var(--text); color: var(--bg); border-color: var(--text); }
+.btn.prim:hover { background: var(--bronze-deep); border-color: var(--bronze-deep); color: #fff; box-shadow: var(--shadow-bronze); }
+.btn.bronze { background: var(--bronze); color: #fff; border-color: var(--bronze); }
+.btn.bronze:hover { background: var(--bronze-deep); border-color: var(--bronze-deep); }
+.btn.sm { padding: 10px 16px; font-size: 13.5px; }
+.btn.icon { padding: 10px; width: 40px; height: 40px; justify-content: center; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.hero-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 56px; padding-top: 36px; border-top: 1px solid var(--line); }
+@media (max-width: 720px) { .hero-features { grid-template-columns: 1fr; gap: 20px; } }
+.hero-feat-n { font-size: 14px; font-weight: 700; color: var(--bronze); margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+.hero-feat-t { font-size: 16px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.01em; }
+.hero-feat-d { font-size: 14px; color: var(--text-2); line-height: 1.55; }
+
+/* PROGRESS / TALLY */
+.bar-section { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-md); padding: 20px; margin: 0 0 28px; }
+.bar-prog { display: flex; gap: 6px; margin: 0 0 16px; }
+.bar-prog span { flex: 1; height: 4px; background: var(--line-2); border-radius: 2px; transition: background 0.4s; }
+.bar-prog span.on { background: var(--bronze); }
+.bar-tally { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+@media (max-width: 600px) { .bar-tally { grid-template-columns: repeat(2, 1fr); } }
+.tally-l { font-size: 11px; color: var(--text-3); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; font-weight: 600; }
+.tally-v { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tally-v.bronze { color: var(--bronze); }
+
+/* BLOCKS */
+.blk { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-lg); padding: 36px; margin: 0 0 20px; box-shadow: var(--shadow-sm); }
+@media (max-width: 600px) { .blk { padding: 24px 20px; border-radius: var(--r-md); } }
+.blk-hd { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+.blk-num { font-size: 12px; color: var(--bronze); font-weight: 700; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
+.blk-t { font-size: 26px; font-weight: 800; letter-spacing: -0.025em; margin: 0; }
+.blk-d { font-size: 15px; color: var(--text-2); margin: 0 0 28px; line-height: 1.55; }
+
+.q { margin: 0 0 22px; }
+.q-l { font-size: 15px; margin: 0 0 10px; line-height: 1.4; font-weight: 500; }
+.q-l b { font-weight: 500; color: var(--text-3); margin-right: 8px; font-variant-numeric: tabular-nums; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: inherit; font-size: 13.5px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 100px; background: transparent; cursor: pointer; color: var(--text); transition: all 0.15s; }
+.chip:hover { border-color: var(--text-2); }
+.chip.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.rng-wrap { display: flex; align-items: center; gap: 16px; padding: 4px 0; }
+.rng-wrap input { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: var(--line); outline: none; }
+.rng-wrap input::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--bronze); cursor: pointer; transition: transform 0.15s; }
+.rng-wrap input::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.rng-wrap input::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--bronze); cursor: pointer; border: none; }
+.rng-out { font-size: 14px; font-weight: 600; min-width: 80px; text-align: right; font-variant-numeric: tabular-nums; color: var(--bronze); }
+
+.blk-action { display: flex; gap: 10px; margin: 28px 0 0; align-items: center; flex-wrap: wrap; }
+
+.rev { display: none; margin: 28px 0 0; padding: 24px; background: var(--bronze-soft); border-left: 3px solid var(--bronze); border-radius: var(--r-md); }
+.rev.show { display: block; animation: rev-in 0.4s ease; }
+@keyframes rev-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.rev-eb { font-size: 11px; color: var(--bronze); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 10px; }
+.rev-t { font-size: 18px; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 12px; line-height: 1.3; }
+.rev-d { font-size: 14.5px; color: var(--text); line-height: 1.6; margin: 0 0 16px; }
+.rev-mods { display: flex; flex-direction: column; gap: 6px; }
+.rev-mod { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-sm); font-size: 14px; }
+.rev-mod-n { font-weight: 500; }
+.rev-mod-p { font-weight: 700; color: var(--bronze); font-variant-numeric: tabular-nums; }
+
+/* FINAL */
+.fin-hdr { padding: 60px 0 32px; text-align: left; }
+.fin-eb { font-size: 12px; color: var(--bronze); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 14px; }
+.fin-h1 { font-size: clamp(34px, 5vw, 52px); font-weight: 800; letter-spacing: -0.035em; line-height: 1.05; margin: 0 0 16px; }
+.fin-sub { font-size: 17px; color: var(--text-2); margin: 0; line-height: 1.5; max-width: 700px; }
+
+.fin-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 0 0 40px; }
+@media (max-width: 720px) { .fin-stats { grid-template-columns: repeat(2, 1fr); gap: 12px; } }
+.fin-stat { padding: 24px; background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-md); }
+.fin-stat-l { font-size: 11px; color: var(--text-3); letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 8px; font-weight: 600; }
+.fin-stat-v { font-size: clamp(22px, 3vw, 28px); font-weight: 800; letter-spacing: -0.025em; margin: 0; font-variant-numeric: tabular-nums; color: var(--bronze); }
+.fin-stat-x { font-size: 12.5px; color: var(--text-3); margin: 6px 0 0; }
+
+.map-card { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-lg); padding: 32px; margin: 0 0 32px; box-shadow: var(--shadow-sm); }
+.map-hdr { display: flex; justify-content: space-between; align-items: center; margin: 0 0 20px; flex-wrap: wrap; gap: 12px; }
+.map-t { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+.map-leg { display: flex; gap: 16px; font-size: 12px; color: var(--text-2); }
+.map-leg span { display: flex; align-items: center; gap: 6px; }
+.map-leg span::before { content: ''; width: 10px; height: 10px; border-radius: 2px; }
+.map-leg .mvp::before { background: var(--bronze); }
+.map-leg .ph2::before { background: transparent; border: 1.5px dashed var(--text-3); }
+.map-svg { width: 100%; height: auto; display: block; }
+
+.fin-phases { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 0 0 32px; }
+@media (max-width: 720px) { .fin-phases { grid-template-columns: 1fr; } }
+.phase { padding: 24px; background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-md); }
+.phase-h { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 14px; padding: 0 0 14px; border-bottom: 1px solid var(--line-2); }
+.phase-t { font-size: 16px; font-weight: 800; letter-spacing: -0.015em; margin: 0; }
+.phase-x { font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.phase ul { list-style: none; font-size: 13.5px; }
+.phase li { padding: 7px 0; display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.phase li span:last-child { color: var(--bronze); font-variant-numeric: tabular-nums; flex-shrink: 0; font-weight: 600; }
+
+.roi-card { padding: 24px; background: var(--bronze-soft); border-radius: var(--r-md); margin: 0 0 32px; }
+.roi-t { font-size: 16px; font-weight: 800; letter-spacing: -0.015em; margin: 0 0 10px; }
+.roi-d { font-size: 14.5px; color: var(--text); line-height: 1.6; margin: 0; }
+
+.share { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-lg); padding: 32px; margin: 0 0 24px; }
+.share-t { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; }
+.share-d { font-size: 14.5px; color: var(--text-2); margin: 0 0 24px; line-height: 1.5; }
+.share-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (max-width: 600px) { .share-grid { grid-template-columns: 1fr; } }
+.share-btn { display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: transparent; border: 1px solid var(--line); border-radius: var(--r-md); cursor: pointer; font-family: inherit; font-size: 14px; color: var(--text); text-align: left; transition: all 0.15s; }
+.share-btn:hover { border-color: var(--bronze); background: var(--bronze-soft); }
+.share-btn.prim { border-color: var(--bronze); background: var(--bronze); color: #fff; }
+.share-btn.prim:hover { background: var(--bronze-deep); border-color: var(--bronze-deep); }
+.share-btn-i { width: 32px; height: 32px; border-radius: var(--r-sm); background: var(--bronze-soft); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--bronze); }
+.share-btn.prim .share-btn-i { background: rgba(255,255,255,0.2); color: #fff; }
+.share-btn-i svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+.share-btn-l { display: block; font-weight: 600; margin-bottom: 2px; }
+.share-btn-d { display: block; font-size: 12px; color: var(--text-2); }
+.share-btn.prim .share-btn-d { color: rgba(255,255,255,0.85); }
+
+/* SAVED VIEW */
+.saved-list { display: flex; flex-direction: column; gap: 10px; }
+.saved-row { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-md); cursor: pointer; transition: border-color 0.15s; }
+.saved-row:hover { border-color: var(--bronze); }
+.saved-row-t { font-weight: 600; font-size: 15px; }
+.saved-row-d { font-size: 12.5px; color: var(--text-3); margin-top: 4px; }
+.saved-empty { padding: 40px; text-align: center; color: var(--text-3); font-size: 14px; background: var(--surface); border: 1px dashed var(--line); border-radius: var(--r-md); }
+
+/* MODAL */
+.mdl-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+.mdl-bg.show { display: flex; animation: mdl-in 0.25s ease; }
+@keyframes mdl-in { from { opacity: 0; } to { opacity: 1; } }
+.mdl { background: var(--surface); border-radius: var(--r-lg); max-width: 460px; width: 100%; padding: 36px; max-height: 90vh; overflow-y: auto; }
+.mdl-eb { font-size: 12px; color: var(--bronze); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 12px; }
+.mdl-t { font-size: 26px; font-weight: 800; letter-spacing: -0.025em; line-height: 1.2; margin: 0 0 10px; }
+.mdl-d { font-size: 14.5px; color: var(--text-2); line-height: 1.55; margin: 0 0 24px; }
+.field { margin: 0 0 14px; }
+.field label { display: block; font-size: 12.5px; color: var(--text-2); margin: 0 0 6px; font-weight: 500; }
+.field input, .field textarea { width: 100%; padding: 12px 14px; font-family: inherit; font-size: 14.5px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg); color: var(--text); outline: none; transition: border-color 0.15s; }
+.field input:focus, .field textarea:focus { border-color: var(--bronze); }
+.field-check { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--text-2); line-height: 1.5; cursor: pointer; margin: 8px 0 20px; }
+.field-check input { flex-shrink: 0; margin-top: 2px; accent-color: var(--bronze); }
+.mdl-footer { display: flex; gap: 10px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.mdl-close { background: none; border: none; font-size: 14px; color: var(--text-3); cursor: pointer; padding: 10px; }
+.mdl-close:hover { color: var(--text); }
+
+/* TOAST */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 12px 20px; border-radius: 100px; font-size: 13.5px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 200; box-shadow: var(--shadow-md); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+/* FOOTER */
+.ftr { border-top: 1px solid var(--line); margin-top: 80px; padding: 40px 0 60px; }
+.ftr-grid { max-width: 1180px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 36px; }
+@media (max-width: 720px) { .ftr-grid { grid-template-columns: 1fr 1fr; gap: 24px; } }
+.ftr-brand-d { font-size: 13px; color: var(--text-2); margin: 12px 0 0; line-height: 1.5; max-width: 280px; }
+.ftr-col h4 { font-size: 12.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 14px; }
+.ftr-col a { display: block; font-size: 13.5px; color: var(--text-2); text-decoration: none; padding: 4px 0; transition: color 0.15s; }
+.ftr-col a:hover { color: var(--bronze); }
+.ftr-bottom { max-width: 1180px; margin: 32px auto 0; padding: 24px 24px 0; border-top: 1px solid var(--line); font-size: 12px; color: var(--text-3); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+.hidden { display: none !important; }
+
+@media print {
+  .hdr, .ftr, .share, .blk, .bar-section, .nav { display: none !important; }
+  body { background: white; color: black; }
+  .map-card, .phase, .fin-stat, .roi-card { break-inside: avoid; box-shadow: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="hdr-in">
+    <a href="/" class="brand"><span class="brand-dot"></span>Pllato</a>
+    <nav class="nav">
+      <a href="/index.html#projects">Проекты</a>
+      <a href="/index.html#pricing">Цены</a>
+      <a href="/crm-builder.html">CRM Builder</a>
+      <button id="navSaved" type="button">Мои ассесменты</button>
+      <button id="navStart" type="button" class="nav-cta">Начать ассесмент</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- HERO -->
+<section id="heroView" class="hero">
+  <p class="hero-eb">Pllato · Диагностика бизнеса</p>
+  <h1 class="hero-h1">Соберите карту своей CRM <em>за 30 минут</em></h1>
+  <p class="hero-lead">5 блоков по 4 вопроса. После каждого блока виден диагноз и список модулей. В финале — архитектурная карта, бюджет и сроки. Не каждой компании нужна кастомная CRM — этот ассесмент честно покажет, где вам стоит идти в разработку, а где хватит коробки.</p>
+  <div class="hero-cta">
+    <button id="heroStart" type="button" class="btn prim">Начать ассесмент →</button>
+    <button id="heroSaved" type="button" class="btn">Мои ассесменты</button>
+  </div>
+  <div class="hero-features">
+    <div>
+      <p class="hero-feat-n">01</p>
+      <p class="hero-feat-t">Честный диагноз</p>
+      <p class="hero-feat-d">Если коробка справится — скажем сразу. Не каждый клиент должен заказывать кастом.</p>
+    </div>
+    <div>
+      <p class="hero-feat-n">02</p>
+      <p class="hero-feat-t">Реальные цифры</p>
+      <p class="hero-feat-d">Бюджет и сроки считаются по тем же коэффициентам, что в нашем калькуляторе.</p>
+    </div>
+    <div>
+      <p class="hero-feat-n">03</p>
+      <p class="hero-feat-t">Можно поделиться</p>
+      <p class="hero-feat-d">Карта проекта пакуется в ссылку — отправили партнёру или CFO, открыли, обсудили.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ASSESSMENT -->
+<section id="assessView" class="hidden">
+  <div class="bar-section">
+    <div class="bar-prog" id="barProg"><span class="on"></span><span></span><span></span><span></span><span></span></div>
+    <div class="bar-tally">
+      <div><div class="tally-l">Модулей</div><div class="tally-v" id="talC">0</div></div>
+      <div><div class="tally-l">Бюджет</div><div class="tally-v bronze" id="talB">—</div></div>
+      <div><div class="tally-l">Сроки</div><div class="tally-v" id="talT">—</div></div>
+      <div><div class="tally-l">Поддержка</div><div class="tally-v">50К/мес</div></div>
+    </div>
+  </div>
+
+  <section class="blk" data-blk="0">
+    <div class="blk-hd"><span class="blk-num">01 / 05</span><h2 class="blk-t">Контекст</h2></div>
+    <p class="blk-d">Кто перед нами — ниша, размер, география. Из этого считается фундамент системы.</p>
+    <div class="q" data-q="niche"><p class="q-l"><b>1.</b>Сфера бизнеса</p><div class="chips"><button class="chip" data-v="services">Услуги B2B</button><button class="chip" data-v="realty">Девелопмент</button><button class="chip" data-v="wholesale">Опт / дистрибуция</button><button class="chip" data-v="manufact">Производство</button><button class="chip" data-v="medical">Медцентр</button><button class="chip" data-v="other">Другое</button></div></div>
+    <div class="q" data-q="team"><p class="q-l"><b>2.</b>Размер команды</p><div class="chips"><button class="chip" data-v="5-10">5–10</button><button class="chip" data-v="11-25">11–25</button><button class="chip" data-v="26-50">26–50</button><button class="chip" data-v="51-100">51–100</button><button class="chip" data-v="100+">100+</button></div></div>
+    <div class="q" data-q="rev"><p class="q-l"><b>3.</b>Годовая выручка</p><div class="chips"><button class="chip" data-v="<100">До 100 млн ₸</button><button class="chip" data-v="100-500">100–500 млн</button><button class="chip" data-v="500-1000">500 млн – 1 млрд</button><button class="chip" data-v="1000+">1 млрд +</button></div></div>
+    <div class="q" data-q="geo"><p class="q-l"><b>4.</b>География</p><div class="chips"><button class="chip" data-v="single">Один офис</button><button class="chip" data-v="few">2–3 филиала</button><button class="chip" data-v="many">4–10 филиалов</button><button class="chip" data-v="huge">10+ или несколько стран</button></div></div>
+    <div class="blk-action"><button class="btn bronze" data-show="0">Показать что видим →</button><button class="btn" data-next="0" disabled>К блоку 2 →</button></div>
+    <div class="rev" id="rev0"><p class="rev-eb">Что видим</p><h3 class="rev-t" id="rev0t"></h3><p class="rev-d" id="rev0d"></p><div class="rev-mods" id="rev0m"></div></div>
+  </section>
+
+  <section class="blk" data-blk="1">
+    <div class="blk-hd"><span class="blk-num">02 / 05</span><h2 class="blk-t">Текущая боль</h2></div>
+    <p class="blk-d">Что используете сейчас, где данные текут, сколько уходит на ручной труд.</p>
+    <div class="q" data-q="curr"><p class="q-l"><b>5.</b>Что используете сейчас</p><div class="chips"><button class="chip" data-v="excel">Excel / Sheets</button><button class="chip" data-v="bitrix">Bitrix24</button><button class="chip" data-v="amo">amoCRM</button><button class="chip" data-v="self">Самописная</button><button class="chip" data-v="none">Ничего</button></div></div>
+    <div class="q" data-q="loss" data-multi="1"><p class="q-l"><b>6.</b>Где терятся данные / лиды (можно несколько)</p><div class="chips"><button class="chip" data-v="leads">Заявки без обработки</button><button class="chip" data-v="follow">Забытые follow-up</button><button class="chip" data-v="dup">Дубли клиентов</button><button class="chip" data-v="post">После продажи теряются</button><button class="chip" data-v="hidden">«В голове менеджеров»</button></div></div>
+    <div class="q" data-q="hours" data-type="range"><p class="q-l"><b>7.</b>Часов в неделю на ручную работу с данными</p><div class="rng-wrap"><input type="range" min="0" max="80" step="5" value="10"><span class="rng-out">10 ч/нед</span></div></div>
+    <div class="q" data-q="lossM"><p class="q-l"><b>8.</b>Оценка потерь от неудобной системы (₸/мес)</p><div class="chips"><button class="chip" data-v="0.5">До 500 тыс</button><button class="chip" data-v="1.5">500 тыс – 2 млн</button><button class="chip" data-v="5">2–10 млн</button><button class="chip" data-v="15">10 млн +</button></div></div>
+    <div class="blk-action"><button class="btn bronze" data-show="1">Показать что видим →</button><button class="btn" data-next="1" disabled>К блоку 3 →</button></div>
+    <div class="rev" id="rev1"><p class="rev-eb">Что видим</p><h3 class="rev-t" id="rev1t"></h3><p class="rev-d" id="rev1d"></p><div class="rev-mods" id="rev1m"></div></div>
+  </section>
+
+  <section class="blk" data-blk="2">
+    <div class="blk-hd"><span class="blk-num">03 / 05</span><h2 class="blk-t">Что автоматизируем</h2></div>
+    <p class="blk-d">Какие куски бизнеса должна закрыть система. Каждый ответ — конкретный модуль.</p>
+    <div class="q" data-q="i1c"><p class="q-l"><b>9.</b>Интеграция с 1С</p><div class="chips"><button class="chip" data-v="no">Не нужна</button><button class="chip" data-v="one">Односторонняя (выгрузка)</button><button class="chip" data-v="two">Двусторонняя (полная)</button></div></div>
+    <div class="q" data-q="wh"><p class="q-l"><b>10.</b>Складской учёт</p><div class="chips"><button class="chip" data-v="no">Не нужен</button><button class="chip" data-v="basic">Базовый (остатки, движения)</button><button class="chip" data-v="full">Полный (резервы, партии, локации)</button></div></div>
+    <div class="q" data-q="prod"><p class="q-l"><b>11.</b>Производственный модуль</p><div class="chips"><button class="chip" data-v="no">Не производим</button><button class="chip" data-v="simple">Простой (заказы → исполнение)</button><button class="chip" data-v="full">Полный (BOM, маршруты, операции)</button></div></div>
+    <div class="q" data-q="cab"><p class="q-l"><b>12.</b>Личный кабинет клиента</p><div class="chips"><button class="chip" data-v="no">Нет</button><button class="chip" data-v="basic">Базовый (заказы, статусы)</button><button class="chip" data-v="full">Полный (онлайн-оплата, документы, чат)</button></div></div>
+    <div class="blk-action"><button class="btn bronze" data-show="2">Показать что видим →</button><button class="btn" data-next="2" disabled>К блоку 4 →</button></div>
+    <div class="rev" id="rev2"><p class="rev-eb">Что видим</p><h3 class="rev-t" id="rev2t"></h3><p class="rev-d" id="rev2d"></p><div class="rev-mods" id="rev2m"></div></div>
+  </section>
+
+  <section class="blk" data-blk="3">
+    <div class="blk-hd"><span class="blk-num">04 / 05</span><h2 class="blk-t">Команда и метрики</h2></div>
+    <p class="blk-d">Кто реально работает с системой — мобайл, аналитика, мессенджеры, владелец.</p>
+    <div class="q" data-q="mob"><p class="q-l"><b>13.</b>Сотрудники работают вне офиса</p><div class="chips"><button class="chip" data-v="no">Все за компами в офисе</button><button class="chip" data-v="few">Часть на выездах</button><button class="chip" data-v="most">Большинство в полях / на объектах</button></div></div>
+    <div class="q" data-q="ana"><p class="q-l"><b>14.</b>Аналитика и BI-дашборды</p><div class="chips"><button class="chip" data-v="no">Не нужны, хватает выгрузок</button><button class="chip" data-v="basic">Базовая (продажи, воронка)</button><button class="chip" data-v="full">Полная (когорты, прогнозы, P&L)</button></div></div>
+    <div class="q" data-q="msg"><p class="q-l"><b>15.</b>Мессенджеры</p><div class="chips"><button class="chip" data-v="no">Не критично</button><button class="chip" data-v="one">WhatsApp в одном окне</button><button class="chip" data-v="omni">Все каналы (omnichannel)</button></div></div>
+    <div class="q" data-q="own"><p class="q-l"><b>16.</b>Внутренний владелец проекта</p><div class="chips"><button class="chip" data-v="ceo">Я, собственник</button><button class="chip" data-v="dedicated">Выделенный сотрудник</button><button class="chip" data-v="it">IT-отдел</button><button class="chip" data-v="none">Пока такого нет</button></div></div>
+    <div class="blk-action"><button class="btn bronze" data-show="3">Показать что видим →</button><button class="btn" data-next="3" disabled>К блоку 5 →</button></div>
+    <div class="rev" id="rev3"><p class="rev-eb">Что видим</p><h3 class="rev-t" id="rev3t"></h3><p class="rev-d" id="rev3d"></p><div class="rev-mods" id="rev3m"></div></div>
+  </section>
+
+  <section class="blk" data-blk="4">
+    <div class="blk-hd"><span class="blk-num">05 / 05</span><h2 class="blk-t">Сроки и старт</h2></div>
+    <p class="blk-d">Бюджет, дедлайн, формат запуска.</p>
+    <div class="q" data-q="bud"><p class="q-l"><b>17.</b>Бюджет на проект</p><div class="chips"><button class="chip" data-v="<1">До 1 млн ₸</button><button class="chip" data-v="1-3">1–3 млн</button><button class="chip" data-v="3-7">3–7 млн</button><button class="chip" data-v="7+">7 млн +</button><button class="chip" data-v="?">Не определён</button></div></div>
+    <div class="q" data-q="when"><p class="q-l"><b>18.</b>Когда нужно запустить</p><div class="chips"><button class="chip" data-v="asap">Чем быстрее, тем лучше</button><button class="chip" data-v="3m">1–3 месяца</button><button class="chip" data-v="6m">3–6 месяцев</button><button class="chip" data-v="late">Не горит</button></div></div>
+    <div class="q" data-q="phase"><p class="q-l"><b>19.</b>Формат разработки</p><div class="chips"><button class="chip" data-v="all">Хочу всё сразу</button><button class="chip" data-v="mvp">MVP, потом доработки</button><button class="chip" data-v="iter">Итерациями, по бюджету</button></div></div>
+    <div class="blk-action"><button class="btn bronze" data-show="4">Собрать карту проекта →</button></div>
+  </section>
+</section>
+
+<!-- FINAL -->
+<section id="finalView" class="hidden">
+  <div class="fin-hdr">
+    <p class="fin-eb">Карта проекта</p>
+    <h1 class="fin-h1" id="finT">Pllato CRM</h1>
+    <p class="fin-sub" id="finS"></p>
+  </div>
+
+  <div class="fin-stats">
+    <div class="fin-stat"><div class="fin-stat-l">Бюджет</div><div class="fin-stat-v" id="stBud">—</div><div class="fin-stat-x">единоразово</div></div>
+    <div class="fin-stat"><div class="fin-stat-l">Сроки</div><div class="fin-stat-v" id="stTime">—</div><div class="fin-stat-x" id="stTimeX"></div></div>
+    <div class="fin-stat"><div class="fin-stat-l">Модулей</div><div class="fin-stat-v" id="stMods">—</div><div class="fin-stat-x">включая базу</div></div>
+    <div class="fin-stat"><div class="fin-stat-l">Поддержка</div><div class="fin-stat-v">50К ₸</div><div class="fin-stat-x">в месяц</div></div>
+  </div>
+
+  <div class="map-card">
+    <div class="map-hdr"><h2 class="map-t">Архитектура CRM</h2><div class="map-leg"><span class="mvp">MVP</span><span class="ph2">Этап 2</span></div></div>
+    <div id="map"></div>
+  </div>
+
+  <div class="fin-phases" id="phases"></div>
+
+  <div class="roi-card">
+    <h3 class="roi-t">Окупаемость</h3>
+    <p class="roi-d" id="roiD"></p>
+  </div>
+
+  <div class="share">
+    <h2 class="share-t">Сохранить и поделиться</h2>
+    <p class="share-d">Карту можно отправить партнёру, скачать в PNG для презентации, или передать нам — подготовим КП и договор.</p>
+    <div class="share-grid">
+      <button class="share-btn prim" id="shareKp"><span class="share-btn-i"><svg viewBox="0 0 24 24"><path d="M5 12h14m-7-7l7 7-7 7"/></svg></span><span><span class="share-btn-l">Получить КП и договор</span><span class="share-btn-d">Передадим в работу студии</span></span></button>
+      <button class="share-btn" id="shareLink"><span class="share-btn-i"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1m-2 9a5 5 0 01-7 0l-3-3a5 5 0 017-7m1 11l5-5"/></svg></span><span><span class="share-btn-l">Ссылка на карту</span><span class="share-btn-d">Открыть на любом устройстве</span></span></button>
+      <button class="share-btn" id="shareWa"><span class="share-btn-i"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 01-1.2 4.3 8.5 8.5 0 01-7.3 4.2 8.4 8.4 0 01-4.3-1.2L3 20l1.3-5.2A8.5 8.5 0 0116.7 4.3 8.5 8.5 0 0121 11.5z"/></svg></span><span><span class="share-btn-l">WhatsApp</span><span class="share-btn-d">Сводка + ссылка</span></span></button>
+      <button class="share-btn" id="sharePng"><span class="share-btn-i"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5m-5 5V3"/></svg></span><span><span class="share-btn-l">Скачать PNG</span><span class="share-btn-d">Карту для КП</span></span></button>
+      <button class="share-btn" id="shareJson"><span class="share-btn-i"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm0 0v6h6"/></svg></span><span><span class="share-btn-l">Скачать JSON</span><span class="share-btn-d">Структурированные данные</span></span></button>
+      <button class="share-btn" id="shareSave"><span class="share-btn-i"><svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></span><span><span class="share-btn-l">Сохранить локально</span><span class="share-btn-d">В «Мои ассесменты»</span></span></button>
+    </div>
+  </div>
+
+  <div style="text-align:center; padding: 24px 0;">
+    <button class="btn sm" id="resetBtn">Начать новый ассесмент</button>
+  </div>
+</section>
+
+<!-- SAVED -->
+<section id="savedView" class="hidden">
+  <div class="fin-hdr">
+    <p class="fin-eb">Локальная история</p>
+    <h1 class="fin-h1">Мои ассесменты</h1>
+    <p class="fin-sub">Сохранённые на этом устройстве. Не передаются на сервер.</p>
+  </div>
+  <div id="savedList"></div>
+  <div style="text-align:center; padding: 32px 0;">
+    <button class="btn sm" id="savedBack">← К началу</button>
+  </div>
+</section>
+
+</main>
+
+<!-- KP MODAL -->
+<div class="mdl-bg" id="kpModal">
+  <div class="mdl">
+    <p class="mdl-eb">Pllato</p>
+    <h2 class="mdl-t">Подготовим КП по вашей карте</h2>
+    <p class="mdl-d">Оставьте контакты — пришлём детальное предложение с разбивкой по этапам, сроками и графиком работ. Без спама и звонков-роботов.</p>
+    <div class="field"><label>Имя</label><input id="kpName" type="text" placeholder="Платон Цай"></div>
+    <div class="field"><label>Email</label><input id="kpEmail" type="email" placeholder="name@company.com"></div>
+    <div class="field"><label>WhatsApp / телефон</label><input id="kpPhone" type="tel" placeholder="+7 ___ ___ ____"></div>
+    <div class="field"><label>Компания (необязательно)</label><input id="kpCompany" type="text" placeholder="Название"></div>
+    <label class="field-check"><input type="checkbox" id="kpAgree" checked><span>Согласен на обработку контактов и связь со мной по вопросам разработки CRM</span></label>
+    <div class="mdl-footer">
+      <button type="button" class="mdl-close" id="kpCancel">Отмена</button>
+      <button type="button" class="btn prim" id="kpSubmit">Отправить →</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="ftr">
+  <div class="ftr-grid">
+    <div>
+      <a href="/" class="brand"><span class="brand-dot"></span>Pllato</a>
+      <p class="ftr-brand-d">Студия кастомной разработки CRM. Алматы, 2026 — работаем по Казахстану и СНГ.</p>
+    </div>
+    <div class="ftr-col">
+      <h4>Студия</h4>
+      <a href="https://pllato.kz/team">Команда</a>
+      <a href="/index.html#scheme">Схема CRM</a>
+      <a href="/crm-builder.html">CRM Builder</a>
+    </div>
+    <div class="ftr-col">
+      <h4>Документы</h4>
+      <a href="/media.html">Для медиа</a>
+      <a href="/privacy.html">Политика</a>
+      <a href="/terms.html">Соглашение</a>
+    </div>
+    <div class="ftr-col">
+      <h4>Контакт</h4>
+      <a href="mailto:uurraa@gmail.com">uurraa@gmail.com</a>
+      <a href="https://wa.me/77011239999" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+  <div class="ftr-bottom">
+    <span>© 2026 Pllato. Все права защищены.</span>
+    <span>Алматы · Казахстан</span>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const NICHE = {services:{name:'Услуги B2B',coef:1.0},realty:{name:'Девелопмент',coef:1.6},wholesale:{name:'Опт/дистрибуция',coef:1.4},manufact:{name:'Производство',coef:1.5},medical:{name:'Медцентр',coef:1.3},other:{name:'Своя ниша',coef:1.2}};
+  const TEAM = {'5-10':{name:'5–10',coef:1.0},'11-25':{name:'11–25',coef:1.4},'26-50':{name:'26–50',coef:2.0},'51-100':{name:'51–100',coef:2.5},'100+':{name:'100+',coef:3.0}};
+
+  let state = { answers:{}, modules:[], lead:null };
+
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => document.querySelectorAll(sel);
+  const fmtK = n => n >= 1000000 ? (n/1000000).toFixed(1).replace('.0','') + ' млн ₸' : Math.round(n/1000) + 'К ₸';
+
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._tm);
+    t._tm = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  function showView(id) {
+    ['heroView','assessView','finalView','savedView'].forEach(v => $('#' + v).classList.toggle('hidden', v !== id));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function init() {
+    // Wire up question handlers
+    $$('.q').forEach(q => {
+      const id = q.dataset.q;
+      const isMulti = q.dataset.multi === '1';
+      const isRange = q.dataset.type === 'range';
+      if (isRange) {
+        const r = q.querySelector('input');
+        const out = q.querySelector('.rng-out');
+        r.addEventListener('input', () => { out.textContent = r.value + ' ч/нед'; state.answers[id] = +r.value; });
+        state.answers[id] = +r.value;
+      } else {
+        state.answers[id] = isMulti ? [] : null;
+        q.querySelectorAll('.chip').forEach(c => {
+          c.addEventListener('click', () => {
+            if (isMulti) {
+              c.classList.toggle('on');
+              state.answers[id] = Array.from(q.querySelectorAll('.chip.on')).map(x => x.dataset.v);
+            } else {
+              q.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+              c.classList.add('on');
+              state.answers[id] = c.dataset.v;
+            }
+          });
+        });
+      }
+    });
+
+    // Reveal handlers
+    $$('[data-show]').forEach(b => b.addEventListener('click', () => {
+      const id = +b.dataset.show;
+      if (id === 4) showFinal();
+      else reveal(id);
+    }));
+    $$('[data-next]').forEach(b => b.addEventListener('click', () => {
+      const id = +b.dataset.next;
+      const next = $('[data-blk="'+(id+1)+'"]');
+      if (next) {
+        $$('#barProg span').forEach((s, i) => s.classList.toggle('on', i <= id+1));
+        next.scrollIntoView({ behavior:'smooth', block:'start' });
+      }
+    }));
+
+    // Hero / nav buttons
+    $('#heroStart').addEventListener('click', startAssessment);
+    $('#navStart').addEventListener('click', startAssessment);
+    $('#heroSaved').addEventListener('click', showSaved);
+    $('#navSaved').addEventListener('click', showSaved);
+    $('#savedBack').addEventListener('click', () => showView('heroView'));
+    $('#resetBtn').addEventListener('click', resetAll);
+
+    // Share buttons
+    $('#shareKp').addEventListener('click', openKpModal);
+    $('#shareLink').addEventListener('click', shareLink);
+    $('#shareWa').addEventListener('click', shareWhatsApp);
+    $('#sharePng').addEventListener('click', sharePng);
+    $('#shareJson').addEventListener('click', shareJson);
+    $('#shareSave').addEventListener('click', saveLocal);
+
+    // Modal
+    $('#kpCancel').addEventListener('click', closeKpModal);
+    $('#kpSubmit').addEventListener('click', submitKp);
+    $('#kpModal').addEventListener('click', e => { if (e.target.id === 'kpModal') closeKpModal(); });
+
+    // Try restoring from URL hash
+    if (location.hash && location.hash.length > 1) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(1)))));
+        if (decoded && decoded.answers && decoded.modules) {
+          state = decoded;
+          showFinal(true);
+          toast('Карта проекта загружена по ссылке');
+          return;
+        }
+      } catch(e) { console.warn('Bad URL hash', e); }
+    }
+  }
+
+  function startAssessment() { showView('assessView'); }
+
+  function clearBlk(id) { state.modules = state.modules.filter(m => m.blk !== id); }
+  function tagBlk(id, count) { for (let i = state.modules.length - count; i < state.modules.length; i++) state.modules[i].blk = id; }
+
+  function updateTally() {
+    const total = state.modules.reduce((s,m)=>s+m.price,0);
+    $('#talC').textContent = state.modules.length;
+    $('#talB').textContent = total ? fmtK(total) : '—';
+    const months = total ? Math.max(1, Math.ceil(total/700000)) : 0;
+    $('#talT').textContent = months ? months + ' мес' : '—';
+  }
+
+  function renderMods(elId, mods) {
+    $('#' + elId).innerHTML = mods.map(m => '<div class="rev-mod"><span class="rev-mod-n">' + m.name + '</span><span class="rev-mod-p">+ ' + fmtK(m.price) + '</span></div>').join('');
+  }
+
+  function reveal(blkId) {
+    clearBlk(blkId);
+    let title='', desc='', mods=[];
+    const a = state.answers;
+
+    if (blkId === 0) {
+      const niche = NICHE[a.niche], team = TEAM[a.team];
+      if (!niche || !team) { toast('Заполните блок 1 до конца'); return; }
+      const base = Math.round(500000 * niche.coef * team.coef / 50000) * 50000;
+      title = niche.name + ', команда ' + team.name + ' — это и есть фундамент';
+      desc = 'База — воронки, задачи, сделки, права доступа, отчёты. Коэффициент по нише и команде определяет сложность фундамента.' + ((a.geo === 'many' || a.geo === 'huge') ? ' Многофилиальность добавляет логику разделения данных.' : '');
+      mods.push({ name: 'CRM Core (база)', price: base, cat: 'core' });
+      if (a.geo === 'many' || a.geo === 'huge') mods.push({ name: 'Мультифилиалы', price: 200000, cat: 'core' });
+    }
+    else if (blkId === 1) {
+      const losses = a.loss || [], items = [];
+      if (a.curr === 'bitrix' || a.curr === 'amo' || a.curr === 'self') items.push('миграция данных');
+      if (losses.includes('leads') || losses.includes('follow')) items.push('SLA по лидам и автонапоминания');
+      if (losses.includes('dup')) items.push('антидубль');
+      if (losses.includes('post')) items.push('пост-продажный цикл');
+      if (a.hours >= 20) items.push('автоматизация ручного труда (~' + Math.round(a.hours * 4 * 2000).toLocaleString('ru-RU') + ' ₸/мес экономии)');
+      title = items.length ? 'Боль конвертируется в модули' : 'Боль умеренная — фокус на базе';
+      desc = items.length ? 'Закрываем: ' + items.join(', ') + '.' : 'Базы хватит для основных процессов.';
+      if (a.curr === 'bitrix') mods.push({ name: 'Миграция из Bitrix24', price: 200000, cat: 'data' });
+      else if (a.curr === 'amo') mods.push({ name: 'Миграция из amoCRM', price: 200000, cat: 'data' });
+      else if (a.curr === 'self') mods.push({ name: 'Миграция из самописной', price: 250000, cat: 'data' });
+      else if (a.curr === 'excel') mods.push({ name: 'Импорт из Excel', price: 100000, cat: 'data' });
+      const lossM = parseFloat(a.lossM || 0);
+      if (lossM >= 5) mods.push({ name: 'Аудит точек потерь', price: 150000, cat: 'core' });
+    }
+    else if (blkId === 2) {
+      const items = [];
+      if (a.i1c === 'one') { mods.push({ name: '1С (выгрузка)', price: 150000, cat: 'data' }); items.push('1С'); }
+      if (a.i1c === 'two') { mods.push({ name: '1С (двусторонняя)', price: 250000, cat: 'data' }); items.push('двусторонняя 1С'); }
+      if (a.wh === 'basic') { mods.push({ name: 'Склад (базовый)', price: 200000, cat: 'ops' }); items.push('склад'); }
+      if (a.wh === 'full') { mods.push({ name: 'Склад (полный)', price: 350000, cat: 'ops' }); items.push('полный склад'); }
+      if (a.prod === 'simple') { mods.push({ name: 'Производство', price: 250000, cat: 'ops' }); items.push('производство'); }
+      if (a.prod === 'full') { mods.push({ name: 'Производство BOM', price: 400000, cat: 'ops' }); items.push('производство с BOM'); }
+      if (a.cab === 'basic') { mods.push({ name: 'Кабинет клиента', price: 200000, cat: 'client' }); items.push('кабинет'); }
+      if (a.cab === 'full') { mods.push({ name: 'Кабинет (расширенный)', price: 300000, cat: 'client' }); items.push('расширенный кабинет'); }
+      title = items.length ? 'Сюда уходит основной вес проекта' : 'Без отраслевых модулей — только база';
+      desc = items.length ? 'Добавляем: ' + items.join(', ') + '. Это ровно те модули, ради которых имеет смысл идти в кастом, а не оставаться на коробке.' : 'Если фокус только на воронке и продажах — базы хватит.';
+    }
+    else if (blkId === 3) {
+      const items = [];
+      if (a.mob === 'few') { mods.push({ name: 'Мобильный (PWA)', price: 350000, cat: 'ui' }); items.push('PWA для выездных'); }
+      if (a.mob === 'most') { mods.push({ name: 'Мобильное (нативное)', price: 600000, cat: 'ui' }); items.push('нативное мобильное'); }
+      if (a.ana === 'basic') { mods.push({ name: 'Аналитика', price: 200000, cat: 'analytics' }); items.push('аналитика'); }
+      if (a.ana === 'full') { mods.push({ name: 'BI и прогнозы', price: 400000, cat: 'analytics' }); items.push('BI'); }
+      if (a.msg === 'one') { mods.push({ name: 'WhatsApp', price: 100000, cat: 'ui' }); items.push('WhatsApp'); }
+      if (a.msg === 'omni') { mods.push({ name: 'Омниканальность', price: 250000, cat: 'ui' }); items.push('омниканальность'); }
+      title = items.length ? 'Каналы и интерфейсы для команды' : 'Базовый веб-интерфейс закрывает работу';
+      desc = items.length ? 'Добавляем: ' + items.join(', ') + '.' : 'Без дополнительных интерфейсов хватит браузерной CRM.';
+      if (a.own === 'none') {
+        title += '. Внимание: нужен внутренний владелец';
+        desc += ' Без выделенного человека внутри проект буксует — заложим консультанта-сопровождение от Pllato.';
+        mods.push({ name: 'Сопровождение Pllato', price: 200000, cat: 'core' });
+      }
+    }
+
+    updateTally();
+    $('#rev' + blkId + 't').textContent = title;
+    $('#rev' + blkId + 'd').textContent = desc;
+    renderMods('rev' + blkId + 'm', mods);
+    $('#rev' + blkId).classList.add('show');
+    const nextBtn = $('[data-next="' + blkId + '"]');
+    if (nextBtn) nextBtn.disabled = false;
+    tagBlk(blkId, mods.length);
+  }
+
+  function buildArchSvg() {
+    const mods = state.modules;
+    if (!mods.length) return '<p style="color:var(--text-3);text-align:center;padding:40px">Нет модулей</p>';
+    const a = state.answers;
+    const phaseSplit = Math.ceil(mods.length * 0.55);
+    const isPhased = a.phase !== 'all';
+    const cx = 380, cy = 240;
+    const N = mods.length;
+    const radius = N <= 4 ? 130 : N <= 7 ? 165 : 195;
+    const h = Math.max(440, 240 + radius + 90);
+    let svg = '<svg class="map-svg" viewBox="0 0 760 ' + h + '" xmlns="http://www.w3.org/2000/svg" id="archSvg">';
+    // Connections
+    mods.forEach((m, i) => {
+      const angle = (i/N)*2*Math.PI - Math.PI/2;
+      const x = cx + radius*Math.cos(angle);
+      const y = cy + radius*Math.sin(angle);
+      const isMvp = !isPhased || i < phaseSplit;
+      svg += '<line x1="' + cx + '" y1="' + cy + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="' + (isMvp ? '#B8895A' : '#9A9A95') + '" stroke-width="' + (isMvp ? '1.5' : '1') + '" stroke-dasharray="' + (isMvp ? '' : '4 4') + '" opacity="0.5"/>';
+    });
+    // Center
+    svg += '<g><rect x="' + (cx-78) + '" y="' + (cy-30) + '" width="156" height="60" rx="10" fill="#1A1A1A"/><text x="' + cx + '" y="' + (cy-4) + '" text-anchor="middle" font-size="15" font-weight="800" fill="#fff" font-family="Inter">CRM Core</text><text x="' + cx + '" y="' + (cy+15) + '" text-anchor="middle" font-size="11" fill="#B8895A" font-family="Inter" letter-spacing="1.5">PLLATO</text></g>';
+    // Satellites
+    mods.forEach((m, i) => {
+      const angle = (i/N)*2*Math.PI - Math.PI/2;
+      const x = cx + radius*Math.cos(angle);
+      const y = cy + radius*Math.sin(angle);
+      const isMvp = !isPhased || i < phaseSplit;
+      const w = 145, hh = 44;
+      const rx = x - w/2, ry = y - hh/2;
+      const stroke = isMvp ? '#B8895A' : '#9A9A95';
+      const dashAttr = isMvp ? '' : ' stroke-dasharray="3 3"';
+      svg += '<g><rect x="' + rx.toFixed(1) + '" y="' + ry.toFixed(1) + '" width="' + w + '" height="' + hh + '" rx="6" fill="#FFF" stroke="' + stroke + '" stroke-width="' + (isMvp ? '1.5' : '1') + '"' + dashAttr + '/><text x="' + x.toFixed(1) + '" y="' + (y-3).toFixed(1) + '" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1A1A1A" font-family="Inter">' + (m.name.length > 20 ? m.name.slice(0, 19) + '…' : m.name) + '</text><text x="' + x.toFixed(1) + '" y="' + (y+13).toFixed(1) + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="#B8895A" font-family="Inter">' + fmtK(m.price) + '</text></g>';
+    });
+    svg += '</svg>';
+    return svg;
+  }
+
+  function showFinal(skipScroll) {
+    showView('finalView');
+    const total = state.modules.reduce((s,m) => s + m.price, 0);
+    const low = Math.round(total * 0.95 / 50000) * 50000;
+    const high = Math.round(total * 1.15 / 50000) * 50000;
+    const months = Math.max(2, Math.ceil(total/700000));
+    const a = state.answers;
+
+    $('#finS').textContent = state.modules.length + ' модулей · ' + (a.niche ? NICHE[a.niche].name : '—') + ' · команда ' + (a.team ? TEAM[a.team].name : '—');
+    $('#stBud').textContent = fmtK(low) + ' – ' + fmtK(high);
+    $('#stTime').textContent = months + ' мес';
+    $('#stTimeX').textContent = a.phase === 'mvp' ? 'MVP за ~' + Math.ceil(months*0.55) + ' мес' : 'до полного запуска';
+    $('#stMods').textContent = state.modules.length;
+
+    $('#map').innerHTML = buildArchSvg();
+
+    const phaseHtml = a.phase === 'all'
+      ? '<div class="phase"><div class="phase-h"><h4 class="phase-t">Один этап</h4><span class="phase-x">' + months + ' мес · ' + fmtK(total) + '</span></div><ul>' + state.modules.map(m => '<li><span>' + m.name + '</span><span>' + fmtK(m.price) + '</span></li>').join('') + '</ul></div>'
+      : (() => {
+          const split = Math.ceil(state.modules.length * 0.55);
+          const p1 = state.modules.slice(0, split), p2 = state.modules.slice(split);
+          const p1s = p1.reduce((s,m) => s + m.price, 0), p2s = p2.reduce((s,m) => s + m.price, 0);
+          return '<div class="phase"><div class="phase-h"><h4 class="phase-t">MVP — этап 1</h4><span class="phase-x">' + Math.ceil(months*0.55) + ' мес · ' + fmtK(p1s) + '</span></div><ul>' + p1.map(m => '<li><span>' + m.name + '</span><span>' + fmtK(m.price) + '</span></li>').join('') + '</ul></div><div class="phase"><div class="phase-h"><h4 class="phase-t">Этап 2</h4><span class="phase-x">' + Math.ceil(months*0.45) + ' мес · ' + fmtK(p2s) + '</span></div><ul>' + p2.map(m => '<li><span>' + m.name + '</span><span>' + fmtK(m.price) + '</span></li>').join('') + '</ul></div>';
+        })();
+    $('#phases').innerHTML = phaseHtml;
+
+    const lossM = parseFloat(a.lossM || 0) * 1000000;
+    $('#roiD').textContent = lossM > 0
+      ? 'Заявленные потери — ' + fmtK(lossM) + '/мес. При среднем бюджете ' + fmtK((low + high)/2) + ' проект окупается за ' + Math.ceil(((low + high)/2) / lossM) + ' месяцев. После — система работает напрямую на маржу.'
+      : 'ROI считается через сравнение с текущей CRM (~150К/мес коробка) и стоимостью ручных часов команды. Подробный расчёт прикладываем к КП.';
+
+    $$('#barProg span').forEach(s => s.classList.add('on'));
+  }
+
+  function encodeState() {
+    return btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+  }
+
+  function shareLink() {
+    const url = location.origin + location.pathname + '#' + encodeState();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => toast('Ссылка скопирована')).catch(() => fallbackCopy(url));
+    } else {
+      fallbackCopy(url);
+    }
+  }
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); toast('Ссылка скопирована'); } catch(e) { toast('Не удалось скопировать'); }
+    document.body.removeChild(ta);
+  }
+
+  function shareWhatsApp() {
+    const a = state.answers;
+    const total = state.modules.reduce((s,m) => s + m.price, 0);
+    const months = Math.max(2, Math.ceil(total/700000));
+    const url = location.origin + location.pathname + '#' + encodeState();
+    const text = 'Pllato CRM — карта проекта\n\n' +
+      (a.niche ? NICHE[a.niche].name : '—') + ', команда ' + (a.team ? TEAM[a.team].name : '—') + '\n' +
+      'Модулей: ' + state.modules.length + '\n' +
+      'Бюджет: ' + fmtK(total*0.95) + ' – ' + fmtK(total*1.15) + '\n' +
+      'Сроки: ' + months + ' мес\n\n' + url;
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  }
+
+  function sharePng() {
+    const svgEl = $('#archSvg');
+    if (!svgEl) { toast('Нет карты для экспорта'); return; }
+    const xml = new XMLSerializer().serializeToString(svgEl);
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const w = svgEl.clientWidth || 760;
+      const h = svgEl.clientHeight || 480;
+      canvas.width = w * 2; canvas.height = h * 2;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FAFAF8'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.scale(2, 2); ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'pllato-crm-map-' + Date.now() + '.png';
+        link.click();
+        toast('PNG скачан');
+      });
+    };
+    img.onerror = () => toast('Не удалось экспортировать');
+    img.src = url;
+  }
+
+  function shareJson() {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'pllato-assessment-' + Date.now() + '.json';
+    link.click();
+    toast('JSON скачан');
+  }
+
+  function saveLocal() {
+    try {
+      const list = JSON.parse(localStorage.getItem('pllato_assessments') || '[]');
+      const a = state.answers;
+      const niche = a.niche ? NICHE[a.niche].name : 'Без названия';
+      const total = state.modules.reduce((s,m) => s + m.price, 0);
+      list.unshift({
+        id: Date.now(),
+        title: niche + (a.team ? ', ' + TEAM[a.team].name : ''),
+        date: new Date().toLocaleDateString('ru-RU'),
+        budget: fmtK(total),
+        modules: state.modules.length,
+        state: state
+      });
+      localStorage.setItem('pllato_assessments', JSON.stringify(list.slice(0, 50)));
+      toast('Сохранено в «Мои ассесменты»');
+    } catch(e) {
+      toast('Сохранение недоступно — используйте ссылку');
+    }
+  }
+
+  function showSaved() {
+    showView('savedView');
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem('pllato_assessments') || '[]'); } catch(e) {}
+    if (!list.length) {
+      $('#savedList').innerHTML = '<div class="saved-empty">Пока нет сохранённых ассесментов. Пройдите ассесмент и нажмите «Сохранить локально» в финале.</div>';
+      return;
+    }
+    $('#savedList').innerHTML = '<div class="saved-list">' + list.map(item =>
+      '<div class="saved-row" data-id="' + item.id + '">' +
+        '<div><div class="saved-row-t">' + item.title + '</div><div class="saved-row-d">' + item.date + ' · ' + item.modules + ' модулей · ' + item.budget + '</div></div>' +
+        '<div style="display:flex;gap:6px;align-items:center"><button class="btn sm" data-load="' + item.id + '">Открыть</button><button class="btn sm" data-del="' + item.id + '" style="color:var(--text-3)" aria-label="Удалить">×</button></div>' +
+      '</div>'
+    ).join('') + '</div>';
+    $$('[data-load]').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = +b.dataset.load;
+      const item = list.find(x => x.id === id);
+      if (item) { state = item.state; showFinal(); }
+    }));
+    $$('[data-del]').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      if (!confirm('Удалить ассесмент?')) return;
+      const id = +b.dataset.del;
+      const filtered = list.filter(x => x.id !== id);
+      localStorage.setItem('pllato_assessments', JSON.stringify(filtered));
+      showSaved();
+    }));
+  }
+
+  function openKpModal() { $('#kpModal').classList.add('show'); $('#kpName').focus(); }
+  function closeKpModal() { $('#kpModal').classList.remove('show'); }
+
+  function submitKp() {
+    const name = $('#kpName').value.trim();
+    const email = $('#kpEmail').value.trim();
+    const phone = $('#kpPhone').value.trim();
+    const company = $('#kpCompany').value.trim();
+    const agree = $('#kpAgree').checked;
+
+    if (!name || !email || !phone) { toast('Заполните имя, email и телефон'); return; }
+    if (!agree) { toast('Нужно согласие на обработку'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Проверьте email'); return; }
+
+    state.lead = { name, email, phone, company };
+
+    // Compose WhatsApp message to studio
+    const a = state.answers;
+    const total = state.modules.reduce((s,m) => s + m.price, 0);
+    const months = Math.max(2, Math.ceil(total/700000));
+    const url = location.origin + location.pathname + '#' + encodeState();
+    const text = 'Здравствуйте, Pllato! Прошёл ассесмент, хочу получить КП.\n\n' +
+      'Контакт: ' + name + '\n' +
+      'Email: ' + email + '\n' +
+      'Компания: ' + (company || '—') + '\n\n' +
+      'Параметры проекта:\n' +
+      (a.niche ? NICHE[a.niche].name : '—') + ', команда ' + (a.team ? TEAM[a.team].name : '—') + '\n' +
+      'Модулей: ' + state.modules.length + '\n' +
+      'Бюджет: ' + fmtK(total*0.95) + ' – ' + fmtK(total*1.15) + '\n' +
+      'Сроки: ' + months + ' мес\n\n' +
+      'Карта: ' + url;
+
+    window.open('https://wa.me/77011239999?text=' + encodeURIComponent(text), '_blank');
+    closeKpModal();
+    toast('Открываем WhatsApp со студией');
+  }
+
+  function resetAll() {
+    if (!confirm('Начать новый ассесмент? Текущая карта будет сброшена.')) return;
+    location.hash = '';
+    location.reload();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
