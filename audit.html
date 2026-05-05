@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Аудит бизнеса — Pllato</title>
+<meta name="description" content="Диагностика 9 отделов компании за 30-40 минут. Радар-карта показывает где провалы и точки роста.">
+<meta property="og:title" content="Аудит бизнеса — Pllato">
+<meta property="og:description" content="Визуальная карта вашего бизнеса по 9 отделам. Видно где провалы, видно куда расти.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #FAFAF8;
+  --surface: #FFFFFF;
+  --surface-2: #F5F3EE;
+  --text: #1A1A1A;
+  --text-2: #6B6B68;
+  --text-3: #9A9A95;
+  --line: rgba(0,0,0,0.08);
+  --line-2: rgba(0,0,0,0.05);
+  --bronze: #B8895A;
+  --bronze-deep: #8B6240;
+  --bronze-soft: rgba(184, 137, 90, 0.08);
+  --bronze-mid: rgba(184, 137, 90, 0.20);
+  --bronze-fill: rgba(184, 137, 90, 0.25);
+  --green: #4A7A4A;
+  --red: #B85A5A;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 8px 24px -8px rgba(0,0,0,0.10);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0F0E0C;
+    --surface: #1A1816;
+    --surface-2: #221F1B;
+    --text: #F5F2EC;
+    --text-2: #A09C95;
+    --text-3: #6B6862;
+    --line: rgba(255,255,255,0.08);
+    --line-2: rgba(255,255,255,0.05);
+    --bronze-soft: rgba(184, 137, 90, 0.14);
+    --bronze-mid: rgba(184, 137, 90, 0.25);
+    --bronze-fill: rgba(184, 137, 90, 0.30);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; line-height: 1.5; min-height: 100vh; }
+
+button { font-family: inherit; cursor: pointer; }
+
+.hdr { position: sticky; top: 0; z-index: 50; background: rgba(250,250,248,0.85); backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--line); }
+@media (prefers-color-scheme: dark) { .hdr { background: rgba(15,14,12,0.85); } }
+.hdr-in { max-width: 1180px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.brand { font-weight: 800; font-size: 17px; letter-spacing: -0.02em; text-decoration: none; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bronze); }
+.nav { display: flex; gap: 4px; align-items: center; }
+.nav a, .nav button { font-size: 13.5px; color: var(--text-2); text-decoration: none; padding: 8px 14px; border-radius: 100px; background: transparent; border: none; }
+.nav a:hover, .nav button:hover { color: var(--text); background: var(--surface-2); }
+.nav .nav-cta { color: var(--text); border: 1px solid var(--line); margin-left: 6px; }
+.nav .nav-cta:hover { border-color: var(--bronze); color: var(--bronze); }
+@media (max-width: 720px) { .nav a:not(.nav-cta), .nav button:not(.nav-cta) { display: none; } }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+main { padding: 32px 0 80px; }
+
+.hero { padding: 60px 0 40px; }
+.hero-eb { font-size: 12px; color: var(--bronze); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 16px; }
+.hero-h1 { font-size: clamp(38px, 6vw, 64px); font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; margin-bottom: 20px; max-width: 900px; }
+.hero-h1 em { font-style: normal; color: var(--bronze); }
+.hero-lead { font-size: 18px; color: var(--text-2); line-height: 1.55; max-width: 640px; margin-bottom: 36px; }
+.hero-form { max-width: 480px; margin-bottom: 24px; display: flex; flex-direction: column; gap: 12px; }
+.hero-input { width: 100%; padding: 14px 18px; font-family: inherit; font-size: 15px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); color: var(--text); outline: none; transition: border-color 0.15s; }
+.hero-input:focus { border-color: var(--bronze); }
+.btn { font-family: inherit; font-size: 15px; font-weight: 500; padding: 14px 24px; border-radius: 100px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; line-height: 1; }
+.btn:hover { border-color: var(--text-2); }
+.btn.prim { background: var(--text); color: var(--bg); border-color: var(--text); }
+.btn.prim:hover { background: var(--bronze-deep); border-color: var(--bronze-deep); color: #fff; }
+.btn.bronze { background: var(--bronze); color: #fff; border-color: var(--bronze); }
+.btn.bronze:hover { background: var(--bronze-deep); border-color: var(--bronze-deep); }
+.btn.sm { padding: 10px 16px; font-size: 13.5px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.hero-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 56px; padding-top: 36px; border-top: 1px solid var(--line); }
+@media (max-width: 720px) { .hero-features { grid-template-columns: 1fr; } }
+.hero-feat-n { font-size: 14px; font-weight: 700; color: var(--bronze); margin-bottom: 6px; }
+.hero-feat-t { font-size: 16px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.01em; }
+.hero-feat-d { font-size: 14px; color: var(--text-2); line-height: 1.55; }
+
+/* AUDIT VIEW */
+.audit-top { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-lg); padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow-sm); }
+.audit-stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+@media (max-width: 600px) { .audit-stat-row { grid-template-columns: repeat(3, 1fr); gap: 8px; } }
+.audit-stat-l { font-size: 11px; color: var(--text-3); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+.audit-stat-v { font-size: clamp(20px, 3vw, 28px); font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.audit-stat-v.bronze { color: var(--bronze); }
+.audit-stat-x { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+.radar-wrap { display: flex; justify-content: center; padding: 8px 0 0; }
+.radar { max-width: 520px; width: 100%; }
+
+.dept { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-md); margin-bottom: 12px; box-shadow: var(--shadow-sm); overflow: hidden; transition: border-color 0.2s; }
+.dept.active { border-color: var(--bronze-mid); }
+.dept-hd { padding: 18px 24px; display: flex; align-items: center; gap: 16px; cursor: pointer; user-select: none; }
+.dept-hd:hover { background: var(--surface-2); }
+.dept-icon { width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px; background: var(--bronze-soft); color: var(--bronze); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
+.dept-meta { flex: 1; min-width: 0; }
+.dept-name { font-size: 17px; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 2px; }
+.dept-sub { font-size: 12.5px; color: var(--text-3); }
+.dept-score { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 64px; text-align: right; }
+.dept-score.zero { color: var(--text-3); }
+.dept-score.low { color: var(--red); }
+.dept-score.mid { color: var(--bronze); }
+.dept-score.high { color: var(--green); }
+.dept-chev { color: var(--text-3); transition: transform 0.2s; }
+.dept.open .dept-chev { transform: rotate(180deg); }
+.dept-body { padding: 0 24px; max-height: 0; overflow: hidden; transition: max-height 0.3s, padding 0.3s; }
+.dept.open .dept-body { max-height: 4000px; padding: 0 24px 24px; }
+
+.q-row { padding: 14px 0; border-top: 1px solid var(--line-2); display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+.q-row:first-child { border-top: 0; padding-top: 6px; }
+@media (max-width: 600px) { .q-row { grid-template-columns: 1fr; gap: 10px; } }
+.q-text { font-size: 14.5px; line-height: 1.5; }
+.q-text b { color: var(--text-3); font-weight: 500; margin-right: 8px; font-variant-numeric: tabular-nums; }
+.q-opts { display: flex; gap: 6px; flex-shrink: 0; }
+.q-opt { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 14px; border: 1px solid var(--line); border-radius: 100px; background: transparent; color: var(--text); cursor: pointer; transition: all 0.15s; }
+.q-opt:hover { border-color: var(--text-2); }
+.q-opt.on-yes { background: var(--green); color: #fff; border-color: var(--green); }
+.q-opt.on-partial { background: var(--bronze); color: #fff; border-color: var(--bronze); }
+.q-opt.on-no { background: var(--red); color: #fff; border-color: var(--red); }
+
+.audit-action { padding: 24px 0; text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* FINAL */
+.fin-hdr { padding: 60px 0 32px; }
+.fin-eb { font-size: 12px; color: var(--bronze); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; }
+.fin-h1 { font-size: clamp(34px, 5vw, 52px); font-weight: 800; letter-spacing: -0.035em; line-height: 1.05; margin-bottom: 16px; }
+.fin-sub { font-size: 17px; color: var(--text-2); max-width: 700px; }
+
+.fin-score-card { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-lg); padding: 36px; margin-bottom: 24px; display: grid; grid-template-columns: auto 1fr; gap: 32px; align-items: center; box-shadow: var(--shadow-sm); }
+@media (max-width: 720px) { .fin-score-card { grid-template-columns: 1fr; gap: 16px; text-align: center; } }
+.fin-score-big { font-size: clamp(64px, 10vw, 96px); font-weight: 800; letter-spacing: -0.04em; line-height: 0.95; color: var(--bronze); font-variant-numeric: tabular-nums; }
+.fin-score-big-x { font-size: 0.4em; color: var(--text-3); font-weight: 600; letter-spacing: 0; margin-left: 2px; }
+.fin-score-meta-l { font-size: 11px; color: var(--text-3); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; margin-bottom: 6px; }
+.fin-score-meta-t { font-size: clamp(20px, 3vw, 28px); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
+.fin-score-meta-d { font-size: 14.5px; color: var(--text-2); line-height: 1.55; }
+
+.map-card { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-lg); padding: 32px; margin-bottom: 24px; box-shadow: var(--shadow-sm); }
+.map-t { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 24px; }
+
+.fin-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+@media (max-width: 720px) { .fin-cols { grid-template-columns: 1fr; } }
+.fin-col { padding: 24px; background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-md); }
+.fin-col-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line-2); }
+.fin-col-t { font-size: 16px; font-weight: 800; letter-spacing: -0.015em; }
+.fin-col-x { font-size: 12.5px; color: var(--text-2); }
+.fin-col ul { list-style: none; }
+.fin-col li { padding: 8px 0; display: flex; justify-content: space-between; gap: 10px; align-items: center; font-size: 14px; }
+.fin-col li .badge { font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0; padding: 2px 10px; border-radius: 100px; font-size: 12.5px; }
+.fin-col li .badge.high { background: rgba(74,122,74,0.15); color: var(--green); }
+.fin-col li .badge.low { background: rgba(184,90,90,0.15); color: var(--red); }
+
+.actions-card { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-lg); padding: 32px; margin-bottom: 24px; box-shadow: var(--shadow-sm); }
+.actions-t { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
+.actions-d { font-size: 14.5px; color: var(--text-2); margin-bottom: 24px; }
+.actions-list { display: flex; flex-direction: column; gap: 10px; }
+.action { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; padding: 14px 16px; background: var(--surface-2); border-radius: var(--r-sm); align-items: center; }
+.action-n { width: 28px; height: 28px; border-radius: 50%; background: var(--bronze); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0; }
+.action-t { font-size: 14px; line-height: 1.4; }
+.action-dept { font-size: 11.5px; color: var(--text-3); letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; flex-shrink: 0; }
+
+.share { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-lg); padding: 32px; margin-bottom: 24px; box-shadow: var(--shadow-sm); }
+.share-t { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
+.share-d { font-size: 14.5px; color: var(--text-2); margin-bottom: 24px; }
+.share-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (max-width: 600px) { .share-grid { grid-template-columns: 1fr; } }
+.share-btn { display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: transparent; border: 1px solid var(--line); border-radius: var(--r-md); cursor: pointer; font-family: inherit; font-size: 14px; color: var(--text); text-align: left; transition: all 0.15s; }
+.share-btn:hover { border-color: var(--bronze); background: var(--bronze-soft); }
+.share-btn.prim { border-color: var(--bronze); background: var(--bronze); color: #fff; }
+.share-btn.prim:hover { background: var(--bronze-deep); border-color: var(--bronze-deep); }
+.share-btn-i { width: 32px; height: 32px; border-radius: var(--r-sm); background: var(--bronze-soft); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--bronze); }
+.share-btn.prim .share-btn-i { background: rgba(255,255,255,0.2); color: #fff; }
+.share-btn-i svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+.share-btn-l { display: block; font-weight: 600; margin-bottom: 2px; }
+.share-btn-d { display: block; font-size: 12px; color: var(--text-2); }
+.share-btn.prim .share-btn-d { color: rgba(255,255,255,0.85); }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 12px 20px; border-radius: 100px; font-size: 13.5px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 200; box-shadow: var(--shadow-md); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+.ftr { border-top: 1px solid var(--line); margin-top: 80px; padding: 40px 0 60px; }
+.ftr-grid { max-width: 1180px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 36px; }
+@media (max-width: 720px) { .ftr-grid { grid-template-columns: 1fr 1fr; gap: 24px; } }
+.ftr-brand-d { font-size: 13px; color: var(--text-2); margin-top: 12px; line-height: 1.5; max-width: 280px; }
+.ftr-col h4 { font-size: 12.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 14px; }
+.ftr-col a { display: block; font-size: 13.5px; color: var(--text-2); text-decoration: none; padding: 4px 0; }
+.ftr-col a:hover { color: var(--bronze); }
+.ftr-bottom { max-width: 1180px; margin: 32px auto 0; padding: 24px 24px 0; border-top: 1px solid var(--line); font-size: 12px; color: var(--text-3); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+.hidden { display: none !important; }
+
+@media print {
+  .hdr, .ftr, .share, .audit-action, .nav, .dept-body { display: none !important; }
+  .dept-body { max-height: none; padding: 0 24px 24px; }
+  body { background: white; color: black; }
+  .map-card, .fin-col, .actions-card, .fin-score-card { break-inside: avoid; box-shadow: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-in">
+    <a href="/" class="brand"><span class="brand-dot"></span>Pllato</a>
+    <nav class="nav">
+      <a href="/index.html">Главная</a>
+      <a href="/assessment.html">Ассесмент CRM</a>
+      <a href="/crm-builder.html">CRM Builder</a>
+      <button id="navStart" type="button" class="nav-cta">Начать аудит</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section id="heroView" class="hero">
+  <p class="hero-eb">Pllato · Аудит бизнеса</p>
+  <h1 class="hero-h1">Карта вашего бизнеса <em>за 30-40 минут</em></h1>
+  <p class="hero-lead">Чек-лист по 9 отделам компании: администрация, найм, продажи, маркетинг, производство, финансы, удержание клиентов, качество. На каждый вопрос — три варианта: «есть», «частично», «нет». В реальном времени собирается радар-карта: видно где работает, где провалы, какие точки роста.</p>
+  <div class="hero-form">
+    <input id="heroCompany" class="hero-input" type="text" placeholder="Название компании">
+    <input id="heroContact" class="hero-input" type="text" placeholder="Контактное лицо (имя)">
+  </div>
+  <div>
+    <button id="heroStart" type="button" class="btn prim">Начать аудит →</button>
+  </div>
+  <div class="hero-features">
+    <div>
+      <p class="hero-feat-n">76</p>
+      <p class="hero-feat-t">вопросов</p>
+      <p class="hero-feat-d">9 отделов компании. От найма и продаж до производства и качества.</p>
+    </div>
+    <div>
+      <p class="hero-feat-n">Радар</p>
+      <p class="hero-feat-t">в реальном времени</p>
+      <p class="hero-feat-d">Карта строится по ходу опроса — видно как заполняются сильные и слабые зоны.</p>
+    </div>
+    <div>
+      <p class="hero-feat-n">Финал</p>
+      <p class="hero-feat-t">точки роста</p>
+      <p class="hero-feat-d">Топ-3 провала, топ-3 силы, конкретный список «что делать в первую очередь».</p>
+    </div>
+  </div>
+</section>
+
+<section id="auditView" class="hidden">
+  <div class="audit-top">
+    <div class="audit-stat-row">
+      <div>
+        <div class="audit-stat-l">Компания</div>
+        <div class="audit-stat-v" id="topCompany" style="font-size: 18px; line-height: 1.3;">—</div>
+      </div>
+      <div>
+        <div class="audit-stat-l">Балл</div>
+        <div class="audit-stat-v bronze" id="topScore">0<span style="font-size:0.5em;color:var(--text-3);font-weight:600">/100</span></div>
+        <div class="audit-stat-x" id="topScoreLabel">Начните отвечать</div>
+      </div>
+      <div>
+        <div class="audit-stat-l">Отвечено</div>
+        <div class="audit-stat-v" id="topAnswered">0<span style="font-size:0.5em;color:var(--text-3);font-weight:600">/76</span></div>
+        <div class="audit-stat-x" id="topProgress">0%</div>
+      </div>
+    </div>
+    <div class="radar-wrap"><div class="radar" id="radar"></div></div>
+  </div>
+
+  <div id="depts"></div>
+
+  <div class="audit-action">
+    <button id="finishBtn" type="button" class="btn bronze">Финальный отчёт →</button>
+  </div>
+</section>
+
+<section id="finalView" class="hidden">
+  <div class="fin-hdr">
+    <p class="fin-eb">Карта бизнеса</p>
+    <h1 class="fin-h1" id="finT">Аудит бизнеса</h1>
+    <p class="fin-sub" id="finS"></p>
+  </div>
+
+  <div class="fin-score-card">
+    <div>
+      <div class="fin-score-big"><span id="finBig">0</span><span class="fin-score-big-x">/100</span></div>
+    </div>
+    <div>
+      <div class="fin-score-meta-l">Уровень зрелости</div>
+      <div class="fin-score-meta-t" id="finLabel">—</div>
+      <div class="fin-score-meta-d" id="finLabelD">—</div>
+    </div>
+  </div>
+
+  <div class="map-card">
+    <h2 class="map-t">Радар компании</h2>
+    <div class="radar-wrap"><div class="radar" id="finRadar"></div></div>
+  </div>
+
+  <div class="fin-cols">
+    <div class="fin-col">
+      <div class="fin-col-h"><span class="fin-col-t">Сильные стороны</span><span class="fin-col-x">топ-3</span></div>
+      <ul id="finStrengths"></ul>
+    </div>
+    <div class="fin-col">
+      <div class="fin-col-h"><span class="fin-col-t">Точки роста</span><span class="fin-col-x">топ-3 провала</span></div>
+      <ul id="finGaps"></ul>
+    </div>
+  </div>
+
+  <div class="actions-card">
+    <h2 class="actions-t">Что делать в первую очередь</h2>
+    <p class="actions-d">Конкретные пробелы из самых слабых отделов — закрытие даст наибольший прирост к выручке и контролю.</p>
+    <div class="actions-list" id="finActions"></div>
+  </div>
+
+  <div class="share">
+    <h2 class="share-t">Что дальше</h2>
+    <p class="share-d">Сохраните карту, поделитесь с партнёром или передайте нам — поможем закрыть приоритетные пробелы.</p>
+    <div class="share-grid">
+      <button class="share-btn prim" id="shareKp"><span class="share-btn-i"><svg viewBox="0 0 24 24"><path d="M5 12h14m-7-7l7 7-7 7"/></svg></span><span><span class="share-btn-l">Записаться на разбор</span><span class="share-btn-d">Платон + ваша карта = план</span></span></button>
+      <button class="share-btn" id="shareLink"><span class="share-btn-i"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1m-2 9a5 5 0 01-7 0l-3-3a5 5 0 017-7m1 11l5-5"/></svg></span><span><span class="share-btn-l">Ссылка на карту</span><span class="share-btn-d">Сохранить или поделиться</span></span></button>
+      <button class="share-btn" id="shareWa"><span class="share-btn-i"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 01-1.2 4.3 8.5 8.5 0 01-7.3 4.2 8.4 8.4 0 01-4.3-1.2L3 20l1.3-5.2A8.5 8.5 0 0116.7 4.3 8.5 8.5 0 0121 11.5z"/></svg></span><span><span class="share-btn-l">WhatsApp</span><span class="share-btn-d">Сводка + ссылка</span></span></button>
+      <button class="share-btn" id="sharePng"><span class="share-btn-i"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5m-5 5V3"/></svg></span><span><span class="share-btn-l">Скачать PNG</span><span class="share-btn-d">Радар-карту</span></span></button>
+      <button class="share-btn" id="shareJson"><span class="share-btn-i"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm0 0v6h6"/></svg></span><span><span class="share-btn-l">Скачать JSON</span><span class="share-btn-d">Все ответы</span></span></button>
+      <button class="share-btn" id="shareSave"><span class="share-btn-i"><svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></span><span><span class="share-btn-l">Сохранить локально</span><span class="share-btn-d">В историю аудитов</span></span></button>
+    </div>
+  </div>
+
+  <div style="text-align:center; padding: 24px 0;">
+    <button class="btn sm" id="resetBtn">Начать новый аудит</button>
+  </div>
+</section>
+
+</main>
+
+<footer class="ftr">
+  <div class="ftr-grid">
+    <div>
+      <a href="/" class="brand"><span class="brand-dot"></span>Pllato</a>
+      <p class="ftr-brand-d">Студия кастомной разработки CRM. Алматы, 2026.</p>
+    </div>
+    <div class="ftr-col">
+      <h4>Инструменты</h4>
+      <a href="/assessment.html">Ассесмент CRM</a>
+      <a href="/crm-builder.html">CRM Builder</a>
+      <a href="/audit.html">Аудит бизнеса</a>
+    </div>
+    <div class="ftr-col">
+      <h4>Контакт</h4>
+      <a href="mailto:uurraa@gmail.com">uurraa@gmail.com</a>
+      <a href="https://wa.me/77011239999" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+  <div class="ftr-bottom">
+    <span>© 2026 Pllato. Все права защищены.</span>
+    <span>Алматы · Казахстан</span>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DEPARTMENTS = [
+  {id:'admin',name:'Администрирование',short:'Админ',questions:[
+    {id:'a1',text:'Зафиксирована оргструктура с должностями'},
+    {id:'a2',text:'Прописаны KPI на каждую роль'},
+    {id:'a3',text:'Регулярные совещания по графику с протоколами'},
+    {id:'a4',text:'Юридические документы (договоры, оферта, политика) в порядке'},
+    {id:'a5',text:'Налоговая отчётность сдаётся вовремя без авралов'},
+    {id:'a6',text:'Защита персональных данных по ЗРК настроена'},
+    {id:'a7',text:'Есть план на критические сбои (потеря данных, ключевой сотрудник)'},
+    {id:'a8',text:'Документооборот оцифрован, бумаги в обороте нет'}
+  ]},
+  {id:'hr',name:'Найм и персонал',short:'Найм',questions:[
+    {id:'h1',text:'Описаны портреты вакансий с требованиями и задачами'},
+    {id:'h2',text:'Воронка найма ведётся системно (источники → этапы → офферы)'},
+    {id:'h3',text:'Считается стоимость найма одного сотрудника'},
+    {id:'h4',text:'Есть структурированный онбординг (план первых 30/60/90 дней)'},
+    {id:'h5',text:'У каждой роли актуальная должностная инструкция'},
+    {id:'h6',text:'Регулярное обучение сотрудников (внутреннее или внешнее)'},
+    {id:'h7',text:'Замеряется удовлетворённость команды (eNPS / опросы)'},
+    {id:'h8',text:'Есть грейды и план карьерного роста для сотрудников'}
+  ]},
+  {id:'time',name:'Учёт времени и дисциплина',short:'Время',questions:[
+    {id:'t1',text:'Учёт рабочего времени (приход / уход)'},
+    {id:'t2',text:'Таск-трекинг по каждому сотруднику'},
+    {id:'t3',text:'Регулярные отчёты о проделанной работе'},
+    {id:'t4',text:'KPI выполнения задач отслеживаются'},
+    {id:'t5',text:'Контроль удалённой работы организован'},
+    {id:'t6',text:'Прогнозирование загрузки команды есть'},
+    {id:'t7',text:'Видна продуктивность каждого сотрудника'}
+  ]},
+  {id:'lead',name:'Лидогенерация и маркетинг',short:'Маркетинг',questions:[
+    {id:'l1',text:'Сайт работает, есть аналитика по конверсии'},
+    {id:'l2',text:'Считается стоимость лида (CAC) по каналам'},
+    {id:'l3',text:'Задействованы 5 и более каналов привлечения'},
+    {id:'l4',text:'Ведётся контент-маркетинг (статьи, видео, кейсы)'},
+    {id:'l5',text:'Email-база собирается и сегментирована'},
+    {id:'l6',text:'Запущена реклама в соцсетях (таргет)'},
+    {id:'l7',text:'Запущена контекстная реклама (Google / Yandex)'},
+    {id:'l8',text:'SEO-оптимизация ведётся'},
+    {id:'l9',text:'Сквозная аналитика по всем каналам'},
+    {id:'l10',text:'Маркетинговый план на квартал есть'}
+  ]},
+  {id:'sales',name:'Продажи',short:'Продажи',questions:[
+    {id:'s1',text:'Скрипты разговоров написаны и обновляются'},
+    {id:'s2',text:'CRM используется всеми менеджерами по регламенту'},
+    {id:'s3',text:'Конверсии по этапам воронки видны'},
+    {id:'s4',text:'Звонки прослушиваются и разбираются'},
+    {id:'s5',text:'У каждого менеджера KPI и план продаж'},
+    {id:'s6',text:'Follow-up автоматизирован (напоминания, серии)'},
+    {id:'s7',text:'Утеплительные касания между этапами есть'},
+    {id:'s8',text:'Собирается NPS от закрытых сделок'},
+    {id:'s9',text:'Регулярное обучение отдела продаж'},
+    {id:'s10',text:'Прогноз продаж на месяц делается'}
+  ]},
+  {id:'prod',name:'Производство и услуги',short:'Произв',questions:[
+    {id:'p1',text:'Процессы оцифрованы (BOM или регламенты услуг)'},
+    {id:'p2',text:'Контроль качества с чек-листами'},
+    {id:'p3',text:'Время на единицу продукта/услуги известно'},
+    {id:'p4',text:'Рекламации и брак учитываются'},
+    {id:'p5',text:'Складские остатки в реальном времени'},
+    {id:'p6',text:'Прогнозирование загрузки производства'},
+    {id:'p7',text:'Поставщики и закупки в системе'},
+    {id:'p8',text:'Себестоимость считается на каждый продукт/услугу'},
+    {id:'p9',text:'Есть SLA на сроки выполнения'}
+  ]},
+  {id:'fin',name:'Финансы и учёт',short:'Финансы',questions:[
+    {id:'f1',text:'Управленческий учёт ведётся отдельно от налогового'},
+    {id:'f2',text:'P&L (отчёт о прибылях) ежемесячно'},
+    {id:'f3',text:'Кэш-флоу прогноз на 3 месяца вперёд'},
+    {id:'f4',text:'Дебиторская задолженность под контролем'},
+    {id:'f5',text:'Бюджетирование по отделам'},
+    {id:'f6',text:'Юнит-экономика по каждому продукту'},
+    {id:'f7',text:'Точка безубыточности известна'},
+    {id:'f8',text:'Финансовый дашборд для собственника'},
+    {id:'f9',text:'Контроль расходов с лимитами'}
+  ]},
+  {id:'retain',name:'Удержание и сервис',short:'Сервис',questions:[
+    {id:'r1',text:'Поддержка после продажи (тикетная система или процесс)'},
+    {id:'r2',text:'Регулярные касания с клиентами (рассылки, события)'},
+    {id:'r3',text:'Программа лояльности или скидочная система'},
+    {id:'r4',text:'NPS-опросы регулярно'},
+    {id:'r5',text:'Реактивация спящих клиентов'},
+    {id:'r6',text:'Личный кабинет клиента'},
+    {id:'r7',text:'База знаний / FAQ для клиентов'},
+    {id:'r8',text:'Регламент обработки жалоб'}
+  ]},
+  {id:'qual',name:'Качество и развитие',short:'Качество',questions:[
+    {id:'q1',text:'Аудит процессов раз в квартал'},
+    {id:'q2',text:'Регламенты пишутся и обновляются'},
+    {id:'q3',text:'Сбор обратной связи от команды'},
+    {id:'q4',text:'IT-инфраструктура (бэкапы, безопасность) настроена'},
+    {id:'q5',text:'Стратегический план на год есть'},
+    {id:'q6',text:'Ключевые метрики (north star) отслеживаются'},
+    {id:'q7',text:'BI-дашборд по компании'}
+  ]}
+];
+
+const SCORE_LEVELS = [
+  {min:0,max:30,label:'Стартап в хаосе',desc:'Бизнес держится на собственнике и ручном управлении. Огромный потенциал — даже базовая систематизация даст кратный рост.'},
+  {min:30,max:50,label:'Базовый бизнес',desc:'Половина возможностей не задействована. Зоны роста очевидны — нужен план их закрытия.'},
+  {min:50,max:70,label:'Нормальный бизнес',desc:'Системно работает, но с существенными провалами. Точечная автоматизация даст 30-50% к выручке.'},
+  {min:70,max:85,label:'Зрелый бизнес',desc:'Большинство процессов под контролем. Дальнейший рост — через тонкие настройки и масштабирование.'},
+  {min:85,max:101,label:'Топ-бизнес',desc:'Контроль и масштаб. Уникальная позиция — сосредоточьтесь на стратегических ставках и инновациях.'}
+];
+
+(function(){
+  let state = { company:'', contact:'', answers:{} };
+
+  const $ = s => document.querySelector(s);
+  const $$ = s => document.querySelectorAll(s);
+
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._tm);
+    t._tm = setTimeout(()=>t.classList.remove('show'), 2400);
+  }
+
+  function showView(id) {
+    ['heroView','auditView','finalView'].forEach(v => $('#'+v).classList.toggle('hidden', v !== id));
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function deptScore(deptIdx) {
+    const dept = DEPARTMENTS[deptIdx];
+    let total = 0;
+    dept.questions.forEach(q => {
+      const a = state.answers[q.id];
+      if (a !== undefined && a !== null) total += a;
+    });
+    const max = dept.questions.length * 2;
+    return max ? Math.round((total/max)*100) : 0;
+  }
+
+  function totalScore() {
+    let sum = 0;
+    for (let i = 0; i < DEPARTMENTS.length; i++) sum += deptScore(i);
+    return Math.round(sum / DEPARTMENTS.length);
+  }
+
+  function answeredCount() {
+    return Object.keys(state.answers).filter(k => state.answers[k] !== undefined && state.answers[k] !== null).length;
+  }
+
+  function totalQuestions() {
+    return DEPARTMENTS.reduce((s,d) => s + d.questions.length, 0);
+  }
+
+  function scoreClass(pct) {
+    if (pct === 0) return 'zero';
+    if (pct < 40) return 'low';
+    if (pct < 70) return 'mid';
+    return 'high';
+  }
+
+  function getScoreLevel(score) {
+    return SCORE_LEVELS.find(l => score >= l.min && score < l.max) || SCORE_LEVELS[0];
+  }
+
+  function buildRadar(elId, options) {
+    options = options || {};
+    const size = options.size || 480;
+    const cx = size/2, cy = size/2;
+    const radius = size * 0.35;
+    const N = DEPARTMENTS.length;
+    const labelOffset = radius + 28;
+    let svg = '<svg viewBox="0 0 ' + size + ' ' + size + '" xmlns="http://www.w3.org/2000/svg" id="' + (options.svgId || 'radarSvg') + '" style="width:100%;height:auto;display:block">';
+    
+    // Grid rings
+    [0.25, 0.5, 0.75, 1.0].forEach((r, i) => {
+      svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (radius*r).toFixed(1) + '" fill="none" stroke="rgba(0,0,0,0.07)" stroke-width="1"' + (i === 3 ? '' : ' stroke-dasharray="2 4"') + '/>';
+    });
+    
+    // Spokes
+    for (let i = 0; i < N; i++) {
+      const angle = -Math.PI/2 + (i * 2*Math.PI/N);
+      const x = cx + radius * Math.cos(angle);
+      const y = cy + radius * Math.sin(angle);
+      svg += '<line x1="' + cx + '" y1="' + cy + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="rgba(0,0,0,0.07)" stroke-width="1"/>';
+    }
+
+    // Data polygon
+    const points = [];
+    for (let i = 0; i < N; i++) {
+      const angle = -Math.PI/2 + (i * 2*Math.PI/N);
+      const score = deptScore(i);
+      const r = radius * (score / 100);
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      points.push(x.toFixed(1) + ',' + y.toFixed(1));
+    }
+    svg += '<polygon points="' + points.join(' ') + '" fill="rgba(184,137,90,0.30)" stroke="#B8895A" stroke-width="2" stroke-linejoin="round"/>';
+
+    // Data dots
+    for (let i = 0; i < N; i++) {
+      const angle = -Math.PI/2 + (i * 2*Math.PI/N);
+      const score = deptScore(i);
+      const r = radius * (score / 100);
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      if (score > 0) {
+        svg += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="3.5" fill="#B8895A"/>';
+      }
+    }
+
+    // Labels
+    for (let i = 0; i < N; i++) {
+      const angle = -Math.PI/2 + (i * 2*Math.PI/N);
+      const x = cx + labelOffset * Math.cos(angle);
+      const y = cy + labelOffset * Math.sin(angle);
+      const cosA = Math.cos(angle);
+      let anchor = 'middle';
+      if (cosA > 0.2) anchor = 'start';
+      else if (cosA < -0.2) anchor = 'end';
+      const score = deptScore(i);
+      const labelColor = score === 0 ? '#9A9A95' : score < 40 ? '#B85A5A' : score < 70 ? '#8B6240' : '#4A7A4A';
+      svg += '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" text-anchor="' + anchor + '" dominant-baseline="middle" font-size="12" font-weight="600" fill="currentColor" font-family="Inter">' + DEPARTMENTS[i].short + '</text>';
+      if (options.showScores) {
+        const scoreY = y + 14;
+        svg += '<text x="' + x.toFixed(1) + '" y="' + scoreY.toFixed(1) + '" text-anchor="' + anchor + '" font-size="11" font-weight="700" fill="' + labelColor + '" font-family="Inter">' + score + '%</text>';
+      }
+    }
+
+    svg += '</svg>';
+    $('#'+elId).innerHTML = svg;
+  }
+
+  function updateAll() {
+    buildRadar('radar', {size: 480, svgId: 'radarSvgMain'});
+    
+    // Update top stats
+    const score = totalScore();
+    const ans = answeredCount();
+    const total = totalQuestions();
+    $('#topScore').innerHTML = score + '<span style="font-size:0.5em;color:var(--text-3);font-weight:600">/100</span>';
+    $('#topScoreLabel').textContent = ans > 0 ? getScoreLevel(score).label : 'Начните отвечать';
+    $('#topAnswered').innerHTML = ans + '<span style="font-size:0.5em;color:var(--text-3);font-weight:600">/' + total + '</span>';
+    $('#topProgress').textContent = Math.round(ans/total*100) + '%';
+
+    // Update each department's score
+    DEPARTMENTS.forEach((dept, i) => {
+      const sc = deptScore(i);
+      const el = document.querySelector('[data-dept="' + dept.id + '"] .dept-score');
+      if (el) {
+        el.textContent = sc + '%';
+        el.className = 'dept-score ' + scoreClass(sc);
+      }
+    });
+  }
+
+  function renderDepartments() {
+    const html = DEPARTMENTS.map((dept, i) => {
+      const qsHtml = dept.questions.map((q, qi) => {
+        return '<div class="q-row" data-q="' + q.id + '">' +
+          '<div class="q-text"><b>' + (qi+1) + '.</b>' + q.text + '</div>' +
+          '<div class="q-opts">' +
+            '<button class="q-opt" data-q="' + q.id + '" data-v="2">Есть</button>' +
+            '<button class="q-opt" data-q="' + q.id + '" data-v="1">Частично</button>' +
+            '<button class="q-opt" data-q="' + q.id + '" data-v="0">Нет</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      return '<div class="dept" data-dept="' + dept.id + '" data-deptidx="' + i + '">' +
+        '<div class="dept-hd">' +
+          '<div class="dept-icon">' + (i+1).toString().padStart(2, '0') + '</div>' +
+          '<div class="dept-meta">' +
+            '<div class="dept-name">' + dept.name + '</div>' +
+            '<div class="dept-sub">' + dept.questions.length + ' вопросов</div>' +
+          '</div>' +
+          '<div class="dept-score zero">0%</div>' +
+          '<svg class="dept-chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>' +
+        '</div>' +
+        '<div class="dept-body">' + qsHtml + '</div>' +
+      '</div>';
+    }).join('');
+    $('#depts').innerHTML = html;
+
+    // Wire up department headers (toggle)
+    $$('.dept-hd').forEach(hd => {
+      hd.addEventListener('click', () => {
+        const dept = hd.parentElement;
+        dept.classList.toggle('open');
+      });
+    });
+
+    // Wire up question buttons
+    $$('.q-opt').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const qId = btn.dataset.q;
+        const v = +btn.dataset.v;
+        state.answers[qId] = v;
+        // Update visuals on this question
+        const row = btn.closest('.q-row');
+        row.querySelectorAll('.q-opt').forEach(b => {
+          b.classList.remove('on-yes','on-partial','on-no');
+        });
+        if (v === 2) btn.classList.add('on-yes');
+        else if (v === 1) btn.classList.add('on-partial');
+        else btn.classList.add('on-no');
+        updateAll();
+      });
+    });
+
+    // Open first department by default
+    document.querySelector('.dept').classList.add('open');
+  }
+
+  function startAudit() {
+    state.company = $('#heroCompany').value.trim();
+    state.contact = $('#heroContact').value.trim();
+    if (!state.company) { 
+      $('#heroCompany').focus(); 
+      toast('Введите название компании'); 
+      return; 
+    }
+    $('#topCompany').textContent = state.company;
+    showView('auditView');
+    updateAll();
+  }
+
+  function showFinal() {
+    const ans = answeredCount();
+    if (ans < 10) { toast('Ответьте хотя бы на 10 вопросов'); return; }
+
+    showView('finalView');
+    const score = totalScore();
+    const level = getScoreLevel(score);
+
+    $('#finT').textContent = state.company || 'Аудит бизнеса';
+    $('#finS').textContent = state.contact ? ('Контакт: ' + state.contact + ' · ' + ans + ' из ' + totalQuestions() + ' вопросов') : (ans + ' из ' + totalQuestions() + ' вопросов отвечено');
+    $('#finBig').textContent = score;
+    $('#finLabel').textContent = level.label;
+    $('#finLabelD').textContent = level.desc;
+
+    buildRadar('finRadar', {size: 560, svgId: 'archSvg', showScores: true});
+
+    // Strengths and gaps
+    const sorted = DEPARTMENTS.map((d, i) => ({dept: d, idx: i, score: deptScore(i)}));
+    const strengths = [...sorted].sort((a,b) => b.score - a.score).slice(0, 3);
+    const gaps = [...sorted].sort((a,b) => a.score - b.score).slice(0, 3);
+
+    $('#finStrengths').innerHTML = strengths.map(s => 
+      '<li><span>' + s.dept.name + '</span><span class="badge high">' + s.score + '%</span></li>'
+    ).join('');
+    $('#finGaps').innerHTML = gaps.map(g => 
+      '<li><span>' + g.dept.name + '</span><span class="badge low">' + g.score + '%</span></li>'
+    ).join('');
+
+    // Action list — collect "no" answers from worst-scoring departments
+    const actions = [];
+    sorted.sort((a,b) => a.score - b.score);
+    for (const s of sorted) {
+      for (const q of s.dept.questions) {
+        if (state.answers[q.id] === 0) {
+          actions.push({text: q.text, dept: s.dept.short, deptName: s.dept.name});
+          if (actions.length >= 8) break;
+        }
+      }
+      if (actions.length >= 8) break;
+    }
+
+    $('#finActions').innerHTML = actions.length === 0 
+      ? '<div style="text-align:center;color:var(--text-3);padding:24px">У вас нет однозначных «нет» в самых слабых отделах. Поздравляем — это редкость.</div>'
+      : actions.map((a, i) => 
+          '<div class="action"><div class="action-n">' + (i+1) + '</div><div class="action-t">' + a.text + '</div><div class="action-dept">' + a.deptName + '</div></div>'
+        ).join('');
+  }
+
+  function encodeState() {
+    return btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+  }
+
+  function shareLink() {
+    const url = location.origin + location.pathname + '#' + encodeState();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => toast('Ссылка скопирована')).catch(() => fallbackCopy(url));
+    } else {
+      fallbackCopy(url);
+    }
+  }
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); toast('Ссылка скопирована'); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+
+  function shareWhatsApp() {
+    const score = totalScore();
+    const level = getScoreLevel(score);
+    const url = location.origin + location.pathname + '#' + encodeState();
+    const text = 'Аудит бизнеса от Pllato\n\n' +
+      (state.company || '—') + '\n' +
+      'Балл: ' + score + ' / 100 · ' + level.label + '\n' +
+      'Отделов: ' + DEPARTMENTS.length + '\n\n' +
+      'Карта: ' + url;
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  }
+
+  function sharePng() {
+    const svgEl = $('#archSvg');
+    if (!svgEl) { toast('Нет карты для экспорта'); return; }
+    const xml = new XMLSerializer().serializeToString(svgEl);
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1120; canvas.height = 1120;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FAFAF8'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(img, 0, 0, 1120, 1120);
+      canvas.toBlob(blob => {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        const slug = (state.company || 'audit').toLowerCase().replace(/[^a-zа-я0-9]+/gi,'-').slice(0,40);
+        link.download = slug + '-audit-' + Date.now() + '.png';
+        link.click();
+        toast('PNG скачан');
+      });
+    };
+    img.onerror = () => toast('Не удалось экспортировать');
+    img.src = url;
+  }
+
+  function shareJson() {
+    const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'pllato-audit-' + Date.now() + '.json';
+    link.click();
+    toast('JSON скачан');
+  }
+
+  function saveLocal() {
+    try {
+      const list = JSON.parse(localStorage.getItem('pllato_audits') || '[]');
+      list.unshift({
+        id: Date.now(),
+        company: state.company || 'Без названия',
+        date: new Date().toLocaleDateString('ru-RU'),
+        score: totalScore(),
+        state: state
+      });
+      localStorage.setItem('pllato_audits', JSON.stringify(list.slice(0, 50)));
+      toast('Сохранено локально');
+    } catch(e) { toast('Сохранение недоступно'); }
+  }
+
+  function shareKp() {
+    const score = totalScore();
+    const level = getScoreLevel(score);
+    const sorted = DEPARTMENTS.map((d, i) => ({name: d.name, score: deptScore(i)})).sort((a,b)=>a.score-b.score);
+    const gaps = sorted.slice(0,3).map(g => g.name + ' (' + g.score + '%)').join(', ');
+    const url = location.origin + location.pathname + '#' + encodeState();
+    const text = 'Здравствуйте, Pllato! Прошли аудит бизнеса.\n\n' +
+      'Компания: ' + (state.company || '—') + '\n' +
+      (state.contact ? 'Контакт: ' + state.contact + '\n' : '') +
+      'Балл: ' + score + ' / 100 — ' + level.label + '\n' +
+      'Слабые зоны: ' + gaps + '\n\n' +
+      'Хочу обсудить план развития.\n\n' +
+      'Карта: ' + url;
+    window.open('https://wa.me/77011239999?text=' + encodeURIComponent(text), '_blank');
+  }
+
+  function resetAll() {
+    if (!confirm('Начать новый аудит? Текущие ответы сбросятся.')) return;
+    location.hash = '';
+    location.reload();
+  }
+
+  function init() {
+    renderDepartments();
+    
+    $('#heroStart').addEventListener('click', startAudit);
+    $('#navStart').addEventListener('click', () => {
+      if (state.company) showView('auditView');
+      else showView('heroView');
+    });
+    $('#finishBtn').addEventListener('click', showFinal);
+    $('#resetBtn').addEventListener('click', resetAll);
+    $('#shareKp').addEventListener('click', shareKp);
+    $('#shareLink').addEventListener('click', shareLink);
+    $('#shareWa').addEventListener('click', shareWhatsApp);
+    $('#sharePng').addEventListener('click', sharePng);
+    $('#shareJson').addEventListener('click', shareJson);
+    $('#shareSave').addEventListener('click', saveLocal);
+
+    // Try restore from URL hash
+    if (location.hash && location.hash.length > 1) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(1)))));
+        if (decoded && decoded.answers) {
+          state = Object.assign(state, decoded);
+          $('#topCompany').textContent = state.company || '—';
+          showFinal();
+          toast('Карта аудита загружена по ссылке');
+          // Restore answer button states
+          Object.keys(state.answers).forEach(qId => {
+            const v = state.answers[qId];
+            const row = document.querySelector('[data-q="' + qId + '"]');
+            if (row) {
+              const btn = row.querySelector('[data-v="' + v + '"]');
+              if (btn) {
+                if (v === 2) btn.classList.add('on-yes');
+                else if (v === 1) btn.classList.add('on-partial');
+                else btn.classList.add('on-no');
+              }
+            }
+          });
+          updateAll();
+          return;
+        }
+      } catch(e) { console.warn('Bad URL hash', e); }
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
