@@ -575,7 +575,6 @@ main { padding: 32px 0 80px; }
   function startAssessment() { showView('assessView'); }
 
   function clearBlk(id) { state.modules = state.modules.filter(m => m.blk !== id); }
-  function tagBlk(id, count) { for (let i = state.modules.length - count; i < state.modules.length; i++) state.modules[i].blk = id; }
 
   function updateTally() {
     const total = state.modules.reduce((s,m)=>s+m.price,0);
@@ -649,6 +648,8 @@ main { padding: 32px 0 80px; }
       }
     }
 
+    mods.forEach(m => { m.blk = blkId; state.modules.push(m); });
+
     updateTally();
     $('#rev' + blkId + 't').textContent = title;
     $('#rev' + blkId + 'd').textContent = desc;
@@ -656,7 +657,6 @@ main { padding: 32px 0 80px; }
     $('#rev' + blkId).classList.add('show');
     const nextBtn = $('[data-next="' + blkId + '"]');
     if (nextBtn) nextBtn.disabled = false;
-    tagBlk(blkId, mods.length);
   }
 
   function buildArchSvg() {
