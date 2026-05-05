@@ -976,6 +976,59 @@ tr:hover td { background: var(--bg3); }
 .app-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .app-toast.err { border-color: var(--rd); }
 
+/* Task unread indicators */
+.task-unread-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ac);
+  margin-right: 7px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px rgba(124,92,252,0.18);
+}
+.task-unread-kids-badge {
+  display: inline-block;
+  margin-left: 8px;
+  background: var(--acbg);
+  color: var(--ac2);
+  border: 1px solid var(--acb);
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  vertical-align: middle;
+}
+.row.unread .name-cell {
+  background: linear-gradient(90deg, var(--acbg) 0%, transparent 100%);
+}
+.task-more-row {
+  background: var(--bg3);
+  cursor: pointer;
+  transition: background .12s;
+}
+.task-more-row:hover {
+  background: var(--bg4);
+}
+.task-card-subs {
+  font-size: 10px;
+  color: var(--ac2);
+  margin-top: 2px;
+}
+.task-card-deadline {
+  font-size: 11px;
+  margin-top: 4px;
+}
+.task-card-comments {
+  font-size: 10px;
+  color: var(--t3);
+  margin-left: auto;
+}
+.kanban-card.unread {
+  border-color: var(--acb);
+}
+
 /* Parent task card */
 .parent-task-card {
   display: flex;
@@ -3839,9 +3892,98 @@ const tasksState = {
   filterStatus: 'all',
   filterAssignee: 'all',
   searchTerm: '',
-  hierarchyMode: 'flat', // 'flat' | 'root' | 'tree'
+  hierarchyMode: 'smart',  // smart | flat | root | tree
+  view: 'list',            // list | kanban
   loading: false,
+  expandedRows: new Set(), // ключи задач у которых раскрыты подзадачи в smart-режиме
 };
+
+// Состояние "прочитанности" задач — lastReadAt timestamps по ключу задачи
+const taskReadState = {
+  loaded: false,
+  loading: false,
+  data: {}, // { task_123: '2026-05-05T14:00:00Z' }
+};
+
+async function ensureTaskReadState() {
+  if (taskReadState.loaded || taskReadState.loading) return;
+  taskReadState.loading = true;
+  try {
+    const uid = fbAuth.currentUser?.uid;
+    if (!uid) return;
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const r = await fetch(`${dbUrl}/taskReadState/${uid}.json?auth=${idToken}`);
+    if (r.ok) {
+      taskReadState.data = await r.json() || {};
+    }
+    taskReadState.loaded = true;
+  } catch (e) {
+    console.warn('readState load:', e);
+  } finally {
+    taskReadState.loading = false;
+  }
+}
+
+// Помечаем задачу прочитанной в этот момент
+async function markTaskRead(taskKey) {
+  const uid = fbAuth.currentUser?.uid;
+  if (!uid) return;
+  const now = new Date().toISOString();
+  taskReadState.data[taskKey] = now;
+  // Запись в Firebase асинхронно — не блокируем UI
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    await fetch(`${dbUrl}/taskReadState/${uid}/${encodeURIComponent(taskKey)}.json?auth=${idToken}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(now),
+    });
+  } catch (e) {
+    console.warn('markTaskRead:', e);
+  }
+}
+
+// Помечаем все задачи прочитанными (за один батч)
+async function markAllTasksRead() {
+  if (!confirm('Отметить все задачи прочитанными?')) return;
+  const uid = fbAuth.currentUser?.uid;
+  if (!uid) return;
+  const now = new Date().toISOString();
+  const updates = {};
+  for (const t of tasksState.list) {
+    taskReadState.data[t.key] = now;
+    updates[t.key] = now;
+  }
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    await fetch(`${dbUrl}/taskReadState/${uid}.json?auth=${idToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    showToast('Все задачи отмечены прочитанными');
+    filterAndRenderTasks();
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, true);
+  }
+}
+
+// Возвращает true если у задачи есть непрочитанные изменения для текущего пользователя
+function isTaskUnread(task) {
+  if (!task) return false;
+  const lastRead = taskReadState.data[task.key];
+  // Что считаем "обновлением": bitrixDateModify (если есть), иначе bitrixCreated
+  // Также: если в задаче появились новые комментарии — это тоже обновление
+  // Эмулируем "modify" через max(bitrixDateModify, bitrixCreated)
+  // Backend: каждый коммент должен апдейтить bitrixDateModify задачи
+  const taskTs = task.bitrixDateModify || task.bitrixCreated;
+  if (!taskTs) return false;
+  if (!lastRead) return true; // никогда не открывали
+  return taskTs > lastRead;
+}
 
 const TASK_STATUS_META = {
   '1': { label: 'Новая', color: 'var(--ac2)', class: 'badge-ac' },
@@ -3864,9 +4006,13 @@ async function renderTasks(el) {
   el.innerHTML = `
     <div class="page-head">
       <h1>Задачи <span class="count" id="tasks-count">загрузка…</span></h1>
+      <div class="view-toggle">
+        <button class="vt-btn ${tasksState.view === 'kanban' ? 'active' : ''}" data-view="kanban">📊 Канбан</button>
+        <button class="vt-btn ${tasksState.view === 'list' ? 'active' : ''}" data-view="list">📋 Список</button>
+      </div>
     </div>
     <div class="tb">
-      <input class="tb-search" id="tasks-search" placeholder="🔍 Поиск по названию (Enter)" autocomplete="off">
+      <input class="tb-search" id="tasks-search" placeholder="🔍 Поиск по названию (Enter)" autocomplete="off" value="${escapeHtml(tasksState.searchTerm)}">
       <select class="tb-select" id="tasks-status">
         <option value="all">Все статусы</option>
         <option value="active">Активные (1-3)</option>
@@ -3880,16 +4026,26 @@ async function renderTasks(el) {
       <select class="tb-select" id="tasks-assignee">
         <option value="all">Все исполнители</option>
       </select>
-      <select class="tb-select" id="tasks-hierarchy" title="Показать структуру задач">
-        <option value="flat">📋 Все задачи</option>
-        <option value="root">🌳 Только корневые (без подзадач)</option>
-        <option value="tree">🌲 Дерево (родители + подзадачи)</option>
+      <select class="tb-select" id="tasks-hierarchy" title="Показать структуру задач" style="${tasksState.view === 'kanban' ? 'display:none' : ''}">
+        <option value="smart">🔥 Умный (с непрочитанными подзадачами)</option>
+        <option value="flat">📋 Все плоско</option>
+        <option value="root">🌳 Только корневые</option>
+        <option value="tree">🌲 Полное дерево</option>
       </select>
+      <button class="tbtn tbtn-xs" id="tasks-mark-all-read" title="Отметить всё прочитанным" style="margin-left:auto">✓ Отметить всё прочитанным</button>
     </div>
     <div id="tasks-content">
       <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Загружаем задачи... (это может занять 10-20 секунд)</div></div>
     </div>
   `;
+
+  // Восстановить выбранные значения фильтров
+  const statusEl = document.getElementById('tasks-status');
+  if (statusEl) statusEl.value = tasksState.filterStatus;
+  const assigneeEl = document.getElementById('tasks-assignee');
+  if (assigneeEl) assigneeEl.value = tasksState.filterAssignee;
+  const hierEl = document.getElementById('tasks-hierarchy');
+  if (hierEl) hierEl.value = tasksState.hierarchyMode;
 
   document.getElementById('tasks-search').addEventListener('keydown', e => {
     if (e.key === 'Enter') {
@@ -3914,13 +4070,26 @@ async function renderTasks(el) {
     filterAndRenderTasks();
   });
 
+  // View toggle
+  el.querySelectorAll('.vt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tasksState.view = btn.dataset.view;
+      renderTasks(el); // Полная перерисовка
+    });
+  });
+
+  // Mark all read
+  document.getElementById('tasks-mark-all-read').addEventListener('click', markAllTasksRead);
+
   if (!tasksState.loaded) {
     await Promise.all([
       loadTasks(),
       ensureUsersLoaded(),
+      ensureTaskReadState(),
     ]);
   } else {
     ensureUsersLoaded();
+    ensureTaskReadState();
   }
   populateTaskAssigneeFilter();
   filterAndRenderTasks();
@@ -3994,7 +4163,8 @@ async function parseTasksProgressive(data) {
       responsibleUid: t.responsibleUid || null,
       createdByUid: t.createdByUid || null,
       deadline: t.deadline || null,
-      bitrixCreated: t.bitrixCreated || null,
+      bitrixCreated: t.bitrixCreated || t.bitrixCreatedDate || null,
+      bitrixDateModify: t.bitrixChangedDate || t.bitrixDateModify || t.bitrixCreated || t.bitrixCreatedDate || null,
       commentsCount: t.commentsCount || 0,
       groupId: t.groupId || null,
       parentId: t.parentId || null,
@@ -4058,7 +4228,8 @@ function parseTasksToList(data) {
       responsibleUid: t.responsibleUid || null,
       createdByUid: t.createdByUid || null,
       deadline: t.deadline || null,
-      bitrixCreated: t.bitrixCreated || null,
+      bitrixCreated: t.bitrixCreated || t.bitrixCreatedDate || null,
+      bitrixDateModify: t.bitrixChangedDate || t.bitrixDateModify || t.bitrixCreated || t.bitrixCreatedDate || null,
       commentsCount: t.commentsCount || 0,
       groupId: t.groupId || null,
       parentId: t.parentId || null,
@@ -4135,7 +4306,8 @@ function attachTasksLiveListener() {
       responsibleUid: t.responsibleUid || null,
       createdByUid: t.createdByUid || null,
       deadline: t.deadline || null,
-      bitrixCreated: t.bitrixCreated || null,
+      bitrixCreated: t.bitrixCreated || t.bitrixCreatedDate || null,
+      bitrixDateModify: t.bitrixChangedDate || t.bitrixDateModify || t.bitrixCreated || t.bitrixCreatedDate || null,
       commentsCount: t.commentsCount || 0,
       groupId: t.groupId || null,
       parentId: t.parentId || null,
@@ -4240,13 +4412,30 @@ function filterAndRenderTasks() {
     arr = arr.filter(t => t.searchable.includes(term));
   }
 
-  // Hierarchy filtering
+  // Если view = kanban — рендерим по-другому, hierarchyMode игнорируется
+  if (tasksState.view === 'kanban') {
+    tasksState.filtered = arr;
+    const countEl = document.getElementById('tasks-count');
+    if (countEl) {
+      countEl.textContent = (arr.length === tasksState.list.length)
+        ? tasksState.list.length.toLocaleString('ru')
+        : `${arr.length.toLocaleString('ru')} из ${tasksState.list.length.toLocaleString('ru')}`;
+    }
+    renderTasksKanban();
+    return;
+  }
+
+  // List view: hierarchy filtering
   if (tasksState.hierarchyMode === 'root') {
-    // Только корневые (без родителя)
     arr = arr.filter(t => !t.parentId);
+    arr = sortTasksByActivity(arr);
   } else if (tasksState.hierarchyMode === 'tree') {
-    // Дерево: родитель → подзадачи (дети идут сразу за родителем с глубиной)
     arr = buildTaskTree(arr);
+  } else if (tasksState.hierarchyMode === 'smart') {
+    arr = buildSmartList(arr);
+  } else {
+    // flat
+    arr = sortTasksByActivity(arr);
   }
   tasksState.filtered = arr;
 
@@ -4258,6 +4447,119 @@ function filterAndRenderTasks() {
   }
 
   renderTasksTable();
+}
+
+// Сортировка задач: непрочитанные с активностью наверху, потом по дате модификации
+function sortTasksByActivity(arr) {
+  return arr.slice().sort((a, b) => {
+    const aUnread = isTaskUnread(a) ? 1 : 0;
+    const bUnread = isTaskUnread(b) ? 1 : 0;
+    if (aUnread !== bUnread) return bUnread - aUnread; // непрочитанные наверх
+    // Внутри группы — по дате модификации (свежие наверх)
+    const aTs = a.bitrixDateModify || a.bitrixCreated || '';
+    const bTs = b.bitrixDateModify || b.bitrixCreated || '';
+    return bTs.localeCompare(aTs);
+  });
+}
+
+// SMART режим: корневые задачи + все непрочитанные раскрытые подзадачи под родителями
+// Гибрид: ≤3 непрочитанных подзадач — показываем все, >3 — показываем 3 + кнопку "ещё N"
+function buildSmartList(filtered) {
+  // Индекс детей по родителю (из ПОЛНОГО списка, чтобы видеть подзадачи родителей которые сами могут не пройти фильтр)
+  const childrenOf = {};
+  for (const t of tasksState.list) {
+    if (t.parentId) {
+      if (!childrenOf[t.parentId]) childrenOf[t.parentId] = [];
+      childrenOf[t.parentId].push(t);
+    }
+  }
+
+  // Корневые задачи + сироты (родитель не в нашем filtered и не в общем списке)
+  const filteredKeys = new Set(filtered.map(t => t.key));
+  const allKeysSet = new Set(tasksState.list.map(t => t.key));
+  const roots = filtered.filter(t => !t.parentId || !allKeysSet.has(t.parentId));
+
+  // Для каждой корневой считаем "имеет ли непрочитанные подзадачи (рекурсивно)"
+  // и собираем сами непрочитанные подзадачи (сразу с глубиной)
+  function walkUnreadKids(parentKey, depth, accumulator) {
+    const kids = childrenOf[parentKey] || [];
+    for (const k of kids) {
+      const kUnread = isTaskUnread(k);
+      // Рекурсивно собираем все непрочитанные на любой глубине
+      if (kUnread) {
+        accumulator.push({ ...k, _depth: depth });
+      }
+      walkUnreadKids(k.key, depth + 1, accumulator);
+    }
+  }
+
+  // Для бейджа "+N новых" считаем общее число непрочитанных подзадач задачи
+  function countUnreadKids(parentKey) {
+    let count = 0;
+    const stack = [parentKey];
+    while (stack.length) {
+      const cur = stack.pop();
+      const kids = childrenOf[cur] || [];
+      for (const k of kids) {
+        if (isTaskUnread(k)) count++;
+        stack.push(k.key);
+      }
+    }
+    return count;
+  }
+
+  // Добавляем root flag к корневым с подсчётом непрочитанных подзадач
+  const enrichedRoots = roots.map(r => {
+    const unreadKidsCount = countUnreadKids(r.key);
+    return { ...r, _unreadKidsCount: unreadKidsCount };
+  });
+
+  // Сортируем корни: сначала те у кого есть свои непрочитанные ИЛИ непрочитанные подзадачи
+  enrichedRoots.sort((a, b) => {
+    const aActive = (isTaskUnread(a) ? 1 : 0) + (a._unreadKidsCount > 0 ? 1 : 0);
+    const bActive = (isTaskUnread(b) ? 1 : 0) + (b._unreadKidsCount > 0 ? 1 : 0);
+    if (aActive !== bActive) return bActive - aActive;
+    // Внутри группы — по дате
+    const aTs = a.bitrixDateModify || a.bitrixCreated || '';
+    const bTs = b.bitrixDateModify || b.bitrixCreated || '';
+    return bTs.localeCompare(aTs);
+  });
+
+  // Строим плоский массив для рендера: root → его непрочитанные дети (если развёрнут)
+  const result = [];
+  for (const root of enrichedRoots) {
+    const rootEntry = { ...root, _depth: 0, _unreadKidsCount: root._unreadKidsCount };
+    result.push(rootEntry);
+
+    if (root._unreadKidsCount === 0) continue;
+
+    const isExpanded = tasksState.expandedRows.has(root.key);
+    // Гибрид: ≤3 непрочитанных всегда показываем; >3 — показываем 3 + кнопку
+    const SHOW_LIMIT = 3;
+    const allUnreadKids = [];
+    walkUnreadKids(root.key, 1, allUnreadKids);
+    // Сортируем непрочитанные дети по свежести
+    allUnreadKids.sort((a, b) => {
+      const aTs = a.bitrixDateModify || a.bitrixCreated || '';
+      const bTs = b.bitrixDateModify || b.bitrixCreated || '';
+      return bTs.localeCompare(aTs);
+    });
+
+    if (allUnreadKids.length <= SHOW_LIMIT || isExpanded) {
+      // Показываем всех
+      for (const k of allUnreadKids) result.push(k);
+    } else {
+      // Показываем первые 3 + строку "ещё N"
+      for (let i = 0; i < SHOW_LIMIT; i++) result.push(allUnreadKids[i]);
+      result.push({
+        _isMoreRow: true,
+        _parentKey: root.key,
+        _hiddenCount: allUnreadKids.length - SHOW_LIMIT,
+        _depth: 1,
+      });
+    }
+  }
+  return result;
 }
 
 // Строим плоский массив с deep-полем — родитель сверху, потом подзадачи (рекурсивно)
@@ -4346,13 +4648,26 @@ function renderTasksTable() {
     let html = '';
     for (let i = start; i < end; i++) {
       const t = tasksState.filtered[i];
+
+      // "Ещё N" строка в smart режиме
+      if (t._isMoreRow) {
+        const indent = t._depth * 18;
+        html += `<tr class="row task-more-row" data-parent-key="${escapeHtml(t._parentKey)}" style="height:${ROW_HEIGHT}px">
+          <td colspan="6" style="padding-left:${indent + 24}px;color:var(--ac2);cursor:pointer;font-size:12px">
+            <span>↓ Показать ещё ${t._hiddenCount} непрочитанных подзадач</span>
+          </td>
+        </tr>`;
+        continue;
+      }
+
       const stMeta = TASK_STATUS_META[t.status] || TASK_STATUS_META['1'];
       const prMeta = TASK_PRIORITY_META[t.priority] || TASK_PRIORITY_META['1'];
       const respUser = getUserById(t.responsibleUid);
       const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
       const created = t.bitrixCreated ? new Date(t.bitrixCreated).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+      const unread = isTaskUnread(t);
 
-      // Иерархия: для tree-режима показываем отступ + ↳, для flat — значок если есть подзадачи или родитель
+      // Иерархия: для tree/smart — отступ + ↳, для flat — значок если есть подзадачи или родитель
       const depth = t._depth || 0;
       const indentPx = depth * 18;
       let prefix = '';
@@ -4368,8 +4683,17 @@ function renderTasksTable() {
         prefix = `<span style="color:var(--ac2);margin-right:4px;font-size:10px">📂 ${t.subtasksCount}</span>`;
       }
 
-      html += `<tr class="row" data-key="${escapeHtml(t.key)}" style="height:${ROW_HEIGHT}px">
-        <td class="name-cell" style="width:48%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${prefix}${escapeHtml(t.title)}</td>
+      // В smart режиме у корневой с непрочитанными подзадачами — бейдж "+N"
+      let unreadKidsBadge = '';
+      if (tasksState.hierarchyMode === 'smart' && depth === 0 && t._unreadKidsCount > 0) {
+        unreadKidsBadge = `<span class="task-unread-kids-badge">+${t._unreadKidsCount} новых</span>`;
+      }
+      // Сама задача непрочитана — точка
+      const unreadDot = unread ? `<span class="task-unread-dot" title="Непрочитано"></span>` : '';
+      const titleStyle = unread ? 'font-weight:700;color:var(--t1)' : '';
+
+      html += `<tr class="row${unread ? ' unread' : ''}" data-key="${escapeHtml(t.key)}" style="height:${ROW_HEIGHT}px">
+        <td class="name-cell" style="width:48%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${titleStyle}">${unreadDot}${prefix}${escapeHtml(t.title)}${unreadKidsBadge}</td>
         <td style="width:14%"><span class="badge ${stMeta.class}">${escapeHtml(stMeta.label)}</span></td>
         <td style="width:11%"><span class="badge ${prMeta.class}">${escapeHtml(prMeta.label)}</span></td>
         <td style="width:15%;color:var(--ac2);font-size:11px">${escapeHtml(respName)}</td>
@@ -4379,12 +4703,206 @@ function renderTasksTable() {
     }
     vbody.innerHTML = html;
     vbody.querySelectorAll('tr.row').forEach(tr => {
-      tr.addEventListener('click', () => openTaskCard(tr.dataset.key));
+      if (tr.classList.contains('task-more-row')) {
+        tr.addEventListener('click', () => {
+          const parentKey = tr.dataset.parentKey;
+          if (parentKey) {
+            tasksState.expandedRows.add(parentKey);
+            filterAndRenderTasks();
+          }
+        });
+      } else if (tr.dataset.key) {
+        tr.addEventListener('click', () => openTaskCard(tr.dataset.key));
+      }
     });
   }
 
   wrap.addEventListener('scroll', renderVisible, { passive: true });
   renderVisible();
+}
+
+// ─── KANBAN задач ─────────────────────────────────────────────
+let _taskDragId = null;
+let _taskKanbanScrollTimer = null;
+
+const TASK_KANBAN_COLUMNS = [
+  { id: '1', label: 'Новые', color: '#3fc8d8' },
+  { id: '2', label: 'Ждут', color: '#a87fff' },
+  { id: '3', label: 'Выполняются', color: '#7c5cfc' },
+  { id: '4', label: 'Завершённые', color: '#3fd88e' },
+  { id: '5', label: 'Отложенные', color: '#f5c842' },
+  { id: '6', label: 'Отклонённые', color: '#f05975' },
+];
+
+function renderTasksKanban() {
+  const c = document.getElementById('tasks-content');
+  if (!c) return;
+  const arr = tasksState.filtered;
+  if (arr.length === 0) {
+    c.innerHTML = `<div class="empty-state"><div class="empty-icon">✓</div><div class="empty-text">Задач не найдено</div></div>`;
+    return;
+  }
+
+  // Группируем по статусу
+  const byStatus = {};
+  for (const col of TASK_KANBAN_COLUMNS) byStatus[col.id] = [];
+  for (const t of arr) {
+    if (byStatus[t.status]) byStatus[t.status].push(t);
+    else (byStatus['1'] = byStatus['1'] || []).push(t);
+  }
+
+  let html = `<div class="kanban-wrap" id="tasks-kanban-wrap">`;
+  const MAX_PER_COL = 100;
+  for (const col of TASK_KANBAN_COLUMNS) {
+    const cards = sortTasksByActivity(byStatus[col.id] || []);
+    const unreadCount = cards.filter(t => isTaskUnread(t)).length;
+
+    html += `<div class="kanban-col" data-status="${col.id}">
+      <div class="kanban-col-header" style="border-top:3px solid ${col.color}">
+        <div style="display:flex;align-items:center;gap:7px;min-width:0">
+          <span class="stage-dot" style="background:${col.color}"></span>
+          <span style="color:${col.color};font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em">${escapeHtml(col.label)}</span>
+        </div>
+        <span class="col-count" style="color:${col.color};background:${col.color}22;border:1px solid ${col.color}55">${cards.length.toLocaleString('ru')}${unreadCount > 0 ? ` <span style="color:var(--rd);font-weight:700">·${unreadCount}</span>` : ''}</span>
+      </div>
+      <div class="kanban-col-cards" data-status="${col.id}">`;
+
+    for (const t of cards.slice(0, MAX_PER_COL)) {
+      html += buildTaskKanbanCard(t, col.color);
+    }
+    if (cards.length > MAX_PER_COL) {
+      html += `<div class="kanban-more">… ещё ${(cards.length - MAX_PER_COL).toLocaleString('ru')}</div>`;
+    }
+    if (cards.length === 0) {
+      html += `<div class="kanban-empty" data-status="${col.id}">Перетащи сюда</div>`;
+    }
+    html += `</div></div>`;
+  }
+  html += `</div>`;
+
+  c.innerHTML = html;
+  initTaskKanbanDragDrop();
+  c.addEventListener('click', handleTaskKanbanCardAction);
+}
+
+function buildTaskKanbanCard(t, colColor) {
+  const respUser = getUserById(t.responsibleUid);
+  const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '';
+  const respShort = respName ? respName.split(' ').filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() : '?';
+  const prMeta = TASK_PRIORITY_META[t.priority] || TASK_PRIORITY_META['1'];
+
+  const created = t.bitrixCreated ? new Date(t.bitrixCreated).toLocaleDateString('ru', { day: '2-digit', month: '2-digit' }) : '';
+  const deadline = t.deadline ? new Date(t.deadline) : null;
+  const isOverdue = deadline && deadline < new Date() && !['4', '5', '6', '7'].includes(t.status);
+  const deadlineStr = deadline ? deadline.toLocaleDateString('ru', { day: '2-digit', month: '2-digit' }) : '';
+
+  const unread = isTaskUnread(t);
+  const titleStyle = unread ? 'font-weight:700' : '';
+  const cardStyle = unread ? 'box-shadow:inset 4px 0 0 var(--ac);' : '';
+
+  return `<div class="kanban-card${unread ? ' unread' : ''}" draggable="true" data-task-key="${escapeHtml(t.key)}" data-status="${escapeHtml(t.status)}" style="border-left:3px solid ${colColor};${cardStyle}">
+    <div class="kanban-card-title" style="${titleStyle}">${unread ? '<span class="task-unread-dot"></span>' : ''}${escapeHtml(t.title || '(без названия)')}</div>
+    ${t.subtasksCount > 0 ? `<div class="task-card-subs">📂 ${t.subtasksCount} подзадач(и)</div>` : ''}
+    ${deadline ? `<div class="task-card-deadline" style="${isOverdue ? 'color:var(--rd);font-weight:600' : 'color:var(--t3)'}">📅 ${deadlineStr}${isOverdue ? ' · просрочено' : ''}</div>` : ''}
+    <div class="kanban-card-foot">
+      <div class="kanban-card-resp" title="${escapeHtml(respName || 'Без исполнителя')}">
+        <span class="kanban-av">${escapeHtml(respShort)}</span>
+        <span class="kanban-card-resp-name">${escapeHtml(respName.split(' ')[0] || '—')}</span>
+      </div>
+      ${t.priority && t.priority !== '1' ? `<span class="badge ${prMeta.class}" style="font-size:9px;padding:1px 6px">${escapeHtml(prMeta.label)}</span>` : ''}
+      ${t.commentsCount > 0 ? `<span class="task-card-comments">💬 ${t.commentsCount}</span>` : ''}
+    </div>
+  </div>`;
+}
+
+function handleTaskKanbanCardAction(e) {
+  const card = e.target.closest('.kanban-card');
+  if (card && !e.defaultPrevented) {
+    openTaskCard(card.dataset.taskKey);
+  }
+}
+
+function initTaskKanbanDragDrop() {
+  const wrap = document.getElementById('tasks-kanban-wrap');
+  if (!wrap) return;
+
+  wrap.querySelectorAll('.kanban-col-cards, .kanban-empty').forEach(col => {
+    col.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      col.classList.add('drag-over');
+      const rect = wrap.getBoundingClientRect();
+      const edge = 80;
+      if (e.clientX > rect.right - edge) {
+        if (!_taskKanbanScrollTimer) _taskKanbanScrollTimer = setInterval(() => { wrap.scrollLeft += 18; }, 16);
+      } else if (e.clientX < rect.left + edge) {
+        if (!_taskKanbanScrollTimer) _taskKanbanScrollTimer = setInterval(() => { wrap.scrollLeft -= 18; }, 16);
+      } else {
+        clearInterval(_taskKanbanScrollTimer);
+        _taskKanbanScrollTimer = null;
+      }
+    });
+    col.addEventListener('dragleave', () => {
+      col.classList.remove('drag-over');
+    });
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      col.classList.remove('drag-over');
+      clearInterval(_taskKanbanScrollTimer);
+      _taskKanbanScrollTimer = null;
+      const newStatus = col.dataset.status;
+      if (newStatus && _taskDragId) {
+        moveTaskToStatus(_taskDragId, newStatus);
+      }
+    });
+  });
+
+  wrap.querySelectorAll('.kanban-card[draggable]').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      _taskDragId = card.dataset.taskKey;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      clearInterval(_taskKanbanScrollTimer);
+      _taskKanbanScrollTimer = null;
+      wrap.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      _taskDragId = null;
+    });
+  });
+}
+
+async function moveTaskToStatus(taskKey, newStatus) {
+  const task = tasksState.list.find(t => t.key === taskKey);
+  if (!task) return;
+  if (task.status === newStatus) return;
+
+  const oldStatus = task.status;
+  task.status = newStatus;
+  task.bitrixDateModify = new Date().toISOString();
+  filterAndRenderTasks();
+
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const r = await fetch(`${dbUrl}/tasks/${encodeURIComponent(taskKey)}.json?auth=${idToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: parseInt(newStatus),
+        bitrixChangedDate: new Date().toISOString(),
+      }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    saveCacheTasksThrottled();
+    showToast('Статус обновлён');
+  } catch (e) {
+    task.status = oldStatus;
+    filterAndRenderTasks();
+    showToast('Ошибка: ' + e.message, true);
+  }
 }
 
 async function openTaskCard(key) {
@@ -4396,6 +4914,13 @@ async function openTaskCard(key) {
       alert('Задача не найдена');
       return;
     }
+    // Помечаем прочитанной асинхронно
+    markTaskRead(key).then(() => {
+      // После записи — перерисуем список/канбан если страница задач активна
+      if (document.querySelector('[data-page="tasks"].active')) {
+        filterAndRenderTasks();
+      }
+    });
     const stMeta = TASK_STATUS_META[String(t.status || '1')] || TASK_STATUS_META['1'];
     const prMeta = TASK_PRIORITY_META[String(t.priority || '1')] || TASK_PRIORITY_META['1'];
     const respUser = getUserById(t.responsibleUid);
