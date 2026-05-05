@@ -901,6 +901,114 @@ tr:hover td { background: var(--bg3); }
 .app-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .app-toast.err { border-color: var(--rd); }
 
+/* Parent task card */
+.parent-task-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg3);
+  border: 1px solid var(--b1);
+  border-left: 3px solid var(--ac);
+  border-radius: 10px;
+  padding: 11px 14px;
+  cursor: pointer;
+  transition: all .15s;
+  margin-bottom: 8px;
+}
+.parent-task-card:hover {
+  background: var(--bg4);
+  border-color: var(--ac);
+  transform: translateX(2px);
+}
+.ptc-arrow {
+  font-size: 16px;
+  color: var(--ac2);
+  flex-shrink: 0;
+}
+.ptc-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--t1);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ptc-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+.ptc-resp {
+  color: var(--ac2);
+}
+.ptc-open {
+  font-size: 11px;
+  color: var(--t3);
+  flex-shrink: 0;
+}
+
+/* Subtasks list */
+.subtasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.subtask-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--bg3);
+  border: 1px solid var(--b1);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all .12s;
+}
+.subtask-row:hover {
+  background: var(--bg4);
+  border-color: var(--b2);
+  transform: translateX(2px);
+}
+.subtask-row.closed {
+  opacity: .58;
+}
+.subtask-row.closed .st-title {
+  text-decoration: line-through;
+  text-decoration-color: var(--t3);
+}
+.st-arrow {
+  color: var(--t3);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.st-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t1);
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.st-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  flex-wrap: wrap;
+}
+.st-resp {
+  color: var(--ac2);
+}
+.st-comments, .st-subs {
+  color: var(--t3);
+  font-size: 10px;
+}
+
 /* Deal card modal */
 .modal-overlay {
   position: fixed;
@@ -1700,6 +1808,8 @@ async function renderDeals(el) {
   if (!dealsState.loaded) {
     await loadDealsData();
   }
+  // Параллельно (не блокируя) — справочники для resolve sourceId → "Instagram"
+  ensureRefListsLoaded();
 
   if (!dealsState.deals.length) {
     document.getElementById('deals-loader').innerHTML = `
@@ -2376,6 +2486,8 @@ async function openDealCard(bitrixId) {
             <div class="fv">${deal.bitrixDateModify ? new Date(deal.bitrixDateModify).toLocaleString('ru') : '—'}</div>
             <div class="fl">Закрыто</div>
             <div class="fv">${deal.closed ? '<span style="color:var(--gn)">✓ Да</span> ' + (deal.closeDate ? new Date(deal.closeDate).toLocaleDateString('ru') : '') : '<span class="muted">Нет</span>'}</div>
+            ${deal.sourceId ? `<div class="fl">Источник</div>
+              <div class="fv">${escapeHtml(getSourceName(deal.sourceId))}${deal.sourceDescription ? ` <span class="muted">· ${escapeHtml(deal.sourceDescription)}</span>` : ''}</div>` : ''}
           </div>
 
           ${contact ? `<div class="dc-section-h">Контакт</div>
@@ -3052,6 +3164,66 @@ async function refreshUsersBackground() {
   } catch (e) {}
 }
 
+// Справочники (источники, типы и т.п.)
+const refListsState = {
+  loaded: false,
+  loading: false,
+  SOURCE: {},
+  CONTACT_TYPE: {},
+  COMPANY_TYPE: {},
+  INDUSTRY: {},
+  EMPLOYEES: {},
+  DEAL_TYPE: {},
+};
+
+async function ensureRefListsLoaded() {
+  if (refListsState.loaded || refListsState.loading) return;
+  refListsState.loading = true;
+  try {
+    const cached = await cacheGet('refLists:v1');
+    if (cached) {
+      Object.assign(refListsState, cached);
+      refListsState.loaded = true;
+      refListsState.loading = false;
+      return;
+    }
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const r = await fetch(`${dbUrl}/referenceLists.json?auth=${idToken}`);
+    if (!r.ok) return;
+    const data = await r.json() || {};
+    refListsState.SOURCE = data.SOURCE || {};
+    refListsState.CONTACT_TYPE = data.CONTACT_TYPE || {};
+    refListsState.COMPANY_TYPE = data.COMPANY_TYPE || {};
+    refListsState.INDUSTRY = data.INDUSTRY || {};
+    refListsState.EMPLOYEES = data.EMPLOYEES || {};
+    refListsState.DEAL_TYPE = data.DEAL_TYPE || {};
+    refListsState.loaded = true;
+    cacheSet('refLists:v1', {
+      SOURCE: refListsState.SOURCE,
+      CONTACT_TYPE: refListsState.CONTACT_TYPE,
+      COMPANY_TYPE: refListsState.COMPANY_TYPE,
+      INDUSTRY: refListsState.INDUSTRY,
+      EMPLOYEES: refListsState.EMPLOYEES,
+      DEAL_TYPE: refListsState.DEAL_TYPE,
+    });
+  } catch (e) {
+    console.warn('refLists load:', e);
+  } finally {
+    refListsState.loading = false;
+  }
+}
+
+function getSourceName(sourceId) {
+  if (!sourceId) return '—';
+  return refListsState.SOURCE?.[sourceId]?.name || sourceId;
+}
+
+function getContactTypeName(typeId) {
+  if (!typeId) return '—';
+  return refListsState.CONTACT_TYPE?.[typeId]?.name || typeId;
+}
+
 // Универсальный геттер пользователя из usersState или dealsState (фолбэк)
 function getUserById(uid) {
   if (!uid) return null;
@@ -3429,6 +3601,7 @@ const tasksState = {
   filterStatus: 'all',
   filterAssignee: 'all',
   searchTerm: '',
+  hierarchyMode: 'flat', // 'flat' | 'root' | 'tree'
   loading: false,
 };
 
@@ -3469,6 +3642,11 @@ async function renderTasks(el) {
       <select class="tb-select" id="tasks-assignee">
         <option value="all">Все исполнители</option>
       </select>
+      <select class="tb-select" id="tasks-hierarchy" title="Показать структуру задач">
+        <option value="flat">📋 Все задачи</option>
+        <option value="root">🌳 Только корневые (без подзадач)</option>
+        <option value="tree">🌲 Дерево (родители + подзадачи)</option>
+      </select>
     </div>
     <div id="tasks-content">
       <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Загружаем задачи... (это может занять 10-20 секунд)</div></div>
@@ -3491,6 +3669,10 @@ async function renderTasks(el) {
   });
   document.getElementById('tasks-assignee').addEventListener('change', e => {
     tasksState.filterAssignee = e.target.value;
+    filterAndRenderTasks();
+  });
+  document.getElementById('tasks-hierarchy').addEventListener('change', e => {
+    tasksState.hierarchyMode = e.target.value;
     filterAndRenderTasks();
   });
 
@@ -3563,10 +3745,24 @@ function parseTasksToList(data) {
       bitrixCreated: t.bitrixCreated || null,
       commentsCount: t.commentsCount || 0,
       groupId: t.groupId || null,
+      parentId: t.parentId || null,
+      bitrixParentId: t.bitrixParentId || null,
       searchable: (t.title || '').toLowerCase(),
     });
   }
   list.sort((a, b) => (b.bitrixCreated || '').localeCompare(a.bitrixCreated || ''));
+
+  // Считаем количество подзадач для каждой задачи
+  const subtaskCounts = {};
+  for (const t of list) {
+    if (t.parentId) {
+      subtaskCounts[t.parentId] = (subtaskCounts[t.parentId] || 0) + 1;
+    }
+  }
+  for (const t of list) {
+    t.subtasksCount = subtaskCounts[t.key] || 0;
+  }
+
   return list;
 }
 
@@ -3620,6 +3816,15 @@ function filterAndRenderTasks() {
   if (term) {
     arr = arr.filter(t => t.searchable.includes(term));
   }
+
+  // Hierarchy filtering
+  if (tasksState.hierarchyMode === 'root') {
+    // Только корневые (без родителя)
+    arr = arr.filter(t => !t.parentId);
+  } else if (tasksState.hierarchyMode === 'tree') {
+    // Дерево: родитель → подзадачи (дети идут сразу за родителем с глубиной)
+    arr = buildTaskTree(arr);
+  }
   tasksState.filtered = arr;
 
   const countEl = document.getElementById('tasks-count');
@@ -3630,6 +3835,43 @@ function filterAndRenderTasks() {
   }
 
   renderTasksTable();
+}
+
+// Строим плоский массив с deep-полем — родитель сверху, потом подзадачи (рекурсивно)
+function buildTaskTree(filtered) {
+  // Индекс всех задач из tasksState.list (не filtered) — нужен для подгрузки детей
+  const allByKey = {};
+  for (const t of tasksState.list) allByKey[t.key] = t;
+
+  // Включаем в выборку только корни ИЛИ задачи родителя которых нет в filtered
+  const filteredKeys = new Set(filtered.map(t => t.key));
+  const rootCandidates = filtered.filter(t => !t.parentId || !filteredKeys.has(t.parentId));
+
+  // Индекс детей в полном списке
+  const childrenOf = {};
+  for (const t of tasksState.list) {
+    if (t.parentId) {
+      if (!childrenOf[t.parentId]) childrenOf[t.parentId] = [];
+      childrenOf[t.parentId].push(t);
+    }
+  }
+
+  const result = [];
+  const visited = new Set();
+  function walk(t, depth) {
+    if (visited.has(t.key)) return; // защита от циклов
+    visited.add(t.key);
+    result.push({ ...t, _depth: depth });
+    const kids = childrenOf[t.key] || [];
+    // Сортируем детей по дате создания (старые сверху)
+    kids.sort((a, b) => (a.bitrixCreated || '').localeCompare(b.bitrixCreated || ''));
+    for (const k of kids) walk(k, depth + 1);
+  }
+  // Сортируем корни по дате (новые сверху)
+  rootCandidates.sort((a, b) => (b.bitrixCreated || '').localeCompare(a.bitrixCreated || ''));
+  for (const r of rootCandidates) walk(r, 0);
+
+  return result;
 }
 
 function renderTasksTable() {
@@ -3686,8 +3928,25 @@ function renderTasksTable() {
       const respUser = getUserById(t.responsibleUid);
       const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
       const created = t.bitrixCreated ? new Date(t.bitrixCreated).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+
+      // Иерархия: для tree-режима показываем отступ + ↳, для flat — значок если есть подзадачи или родитель
+      const depth = t._depth || 0;
+      const indentPx = depth * 18;
+      let prefix = '';
+      if (depth > 0) {
+        prefix = `<span style="display:inline-block;width:${indentPx}px"></span><span style="color:var(--t3);margin-right:4px">↳</span>`;
+      } else if (tasksState.hierarchyMode === 'flat') {
+        if (t.subtasksCount > 0) {
+          prefix = `<span style="color:var(--ac2);margin-right:4px;font-size:10px" title="${t.subtasksCount} подзадач(и)">📂 ${t.subtasksCount}</span>`;
+        } else if (t.parentId) {
+          prefix = `<span style="color:var(--t3);margin-right:4px;font-size:10px" title="Подзадача">↳</span>`;
+        }
+      } else if (depth === 0 && t.subtasksCount > 0) {
+        prefix = `<span style="color:var(--ac2);margin-right:4px;font-size:10px">📂 ${t.subtasksCount}</span>`;
+      }
+
       html += `<tr class="row" data-key="${escapeHtml(t.key)}" style="height:${ROW_HEIGHT}px">
-        <td class="name-cell" style="width:48%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</td>
+        <td class="name-cell" style="width:48%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${prefix}${escapeHtml(t.title)}</td>
         <td style="width:14%"><span class="badge ${stMeta.class}">${escapeHtml(stMeta.label)}</span></td>
         <td style="width:11%"><span class="badge ${prMeta.class}">${escapeHtml(prMeta.label)}</span></td>
         <td style="width:15%;color:var(--ac2);font-size:11px">${escapeHtml(respName)}</td>
@@ -3726,6 +3985,22 @@ async function openTaskCard(key) {
     const commentsObj = t.comments || {};
     const comments = Object.values(commentsObj).sort((a, b) => (a.bitrixPostDate || '').localeCompare(b.bitrixPostDate || ''));
 
+    // Родитель и подзадачи
+    let parentTask = null;
+    if (t.parentId) {
+      // Сначала ищем в кэше (lite-list)
+      parentTask = tasksState.list.find(x => x.key === t.parentId);
+      if (!parentTask) {
+        // Подгружаем из Firebase
+        try {
+          const pr = await fetch(`${dbUrl}/tasks/${encodeURIComponent(t.parentId)}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null);
+          if (pr) parentTask = { key: t.parentId, ...pr };
+        } catch {}
+      }
+    }
+    // Дочерние задачи — только из tasksState.list (там у всех есть parentId)
+    const subtasks = tasksState.list.filter(x => x.parentId === key);
+
     let html = `<div class="modal-overlay" onclick="if(event.target===this)closeDealCard()">
       <div class="modal">
         <button class="close-x" onclick="closeDealCard()">×</button>
@@ -3733,7 +4008,24 @@ async function openTaskCard(key) {
         <div class="modal-sub">
           ID: <code>${escapeHtml(t.bitrixId || key)}</code> ·
           <a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a>
+          ${parentTask || subtasks.length > 0 ? ` · <span style="color:var(--t3)">${parentTask ? '↳ подзадача' : ''}${subtasks.length > 0 ? `📂 ${subtasks.length} подзадач(и)` : ''}</span>` : ''}
         </div>
+
+        ${parentTask ? `<div class="section-h">Родительская задача</div>
+          <div class="parent-task-card" data-task-key="${escapeHtml(parentTask.key)}">
+            <div class="ptc-arrow">↑</div>
+            <div style="flex:1;min-width:0">
+              <div class="ptc-title">${escapeHtml(parentTask.title || '(без названия)')}</div>
+              <div class="ptc-meta">
+                ${(() => {
+                  const stat = TASK_STATUS_META[String(parentTask.status || '1')] || TASK_STATUS_META['1'];
+                  return `<span class="badge ${stat.class}">${escapeHtml(stat.label)}</span>`;
+                })()}
+                ${parentTask.responsibleUid ? `<span class="ptc-resp">${escapeHtml(getUserDisplayName(parentTask.responsibleUid))}</span>` : ''}
+              </div>
+            </div>
+            <span class="ptc-open">Открыть →</span>
+          </div>` : ''}
 
         <div class="section-h">Параметры</div>
         <div class="field-grid">
@@ -3752,6 +4044,29 @@ async function openTaskCard(key) {
 
         ${t.description ? `<div class="section-h">Описание</div>
           <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.6">${escapeHtml(t.description)}</div>` : ''}
+
+        ${subtasks.length > 0 ? `<div class="section-h">Подзадачи (${subtasks.length})</div>
+          <div class="subtasks-list">
+            ${subtasks.sort((a, b) => (a.bitrixCreated || '').localeCompare(b.bitrixCreated || '')).map(st => {
+              const sMeta = TASK_STATUS_META[String(st.status || '1')] || TASK_STATUS_META['1'];
+              const sPr = TASK_PRIORITY_META[String(st.priority || '1')] || TASK_PRIORITY_META['1'];
+              const sResp = getUserDisplayName(st.responsibleUid);
+              const isClosed = ['4', '5', '6', '7'].includes(st.status);
+              return `<div class="subtask-row ${isClosed ? 'closed' : ''}" data-task-key="${escapeHtml(st.key)}">
+                <span class="st-arrow">↳</span>
+                <div style="flex:1;min-width:0">
+                  <div class="st-title">${escapeHtml(st.title || '(без названия)')}</div>
+                  <div class="st-meta">
+                    <span class="badge ${sMeta.class}">${escapeHtml(sMeta.label)}</span>
+                    ${st.priority !== '1' ? `<span class="badge ${sPr.class}">${escapeHtml(sPr.label)}</span>` : ''}
+                    <span class="st-resp">${escapeHtml(sResp)}</span>
+                    ${st.commentsCount > 0 ? `<span class="st-comments">💬 ${st.commentsCount}</span>` : ''}
+                    ${st.subtasksCount > 0 ? `<span class="st-subs">📂 ${st.subtasksCount}</span>` : ''}
+                  </div>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>` : ''}
 
         ${comments.length > 0 ? `<div class="section-h">Комментарии (${comments.length})</div>
           <div style="display:flex;flex-direction:column;gap:8px;max-height:500px;overflow-y:auto;padding-right:6px">
@@ -3773,8 +4088,20 @@ async function openTaskCard(key) {
 
     const div = document.createElement('div');
     div.innerHTML = html;
-    document.body.appendChild(div.firstElementChild);
+    const modal = div.firstElementChild;
+    document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
+
+    // Клик по родителю или подзадаче — переоткрыть карточку
+    modal.querySelectorAll('.parent-task-card, .subtask-row').forEach(el => {
+      el.addEventListener('click', () => {
+        const targetKey = el.dataset.taskKey;
+        if (!targetKey) return;
+        // Закрываем текущую модалку и открываем новую
+        closeDealCard();
+        setTimeout(() => openTaskCard(targetKey), 80);
+      });
+    });
   } catch (e) {
     alert('Ошибка загрузки задачи: ' + e.message);
   }
@@ -3985,6 +4312,43 @@ function renderMigration(el) {
       </div>
       <div id="group-chats-list-result" style="display:none;margin-top:10px"></div>
       <div id="group-chats-fetch-result" class="log-area" style="display:none;margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Шаг 13: Дополнительные данные</h3>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:10px">
+        Финальные миграции: справочники, отделы, диагностика бизнес-процессов.
+      </div>
+
+      <div style="margin-bottom:14px;border-bottom:1px solid var(--bg3);padding-bottom:14px">
+        <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:6px">📚 Справочники источников и типов</div>
+        <div style="font-size:12px;color:var(--t3);margin-bottom:8px">
+          Переносит справочники в <code>/referenceLists/*</code>: SOURCE (Instagram/Сайт/Звонок/...), CONTACT_TYPE, COMPANY_TYPE, INDUSTRY, DEAL_TYPE.
+          После переноса в карточках сделок будет видно <b>«Instagram»</b> вместо <code>sourceId: "1"</code>.
+        </div>
+        <button class="btn btn-sm" onclick="migrateSources()" style="background:var(--gn);color:#0e0e12">📚 Перенести справочники</button>
+        <div id="sources-mig-result" style="display:none;margin-top:10px"></div>
+      </div>
+
+      <div style="margin-bottom:14px;border-bottom:1px solid var(--bg3);padding-bottom:14px">
+        <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:6px">🏢 Структура отделов</div>
+        <div style="font-size:12px;color:var(--t3);margin-bottom:8px">
+          Переносит дерево отделов компании из Битрикса в <code>/departments/*</code>.
+          С разрешением UF_HEAD (руководитель) в <code>firebaseUid</code> и подсчётом сотрудников через <code>UF_DEPARTMENT</code>.
+        </div>
+        <button class="btn btn-sm" onclick="migrateDepartments()" style="background:var(--gn);color:#0e0e12">🏢 Перенести отделы</button>
+        <div id="departments-mig-result" style="display:none;margin-top:10px"></div>
+      </div>
+
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:6px">⚙️ Диагностика бизнес-процессов (read-only)</div>
+        <div style="font-size:12px;color:var(--t3);margin-bottom:8px">
+          Бизнес-процессы и автоматизации Битрикса <b>нельзя</b> перенести автоматически — это XML-конструкции которые работают только внутри Битрикс24.
+          Эта диагностика покажет список настроенных шаблонов и триггеров — используй как чек-лист для ручной пересборки в Pllato CRM.
+        </div>
+        <button class="btn btn-sm" onclick="diagnoseBizproc()">⚙️ Проанализировать процессы</button>
+        <div id="bizproc-diag-result" style="display:none;margin-top:10px"></div>
+      </div>
     </div>
   `;
 }
@@ -5600,6 +5964,136 @@ window.migrateUsers = async function() {
       if (wakeLock) { wakeLock.release(); wakeLock = null; }
       break;
     }
+  }
+};
+
+// ─── Шаг 13: Дополнительные миграции ──────────────────────────────
+window.migrateSources = async function() {
+  const el = document.getElementById('sources-mig-result');
+  el.style.display = '';
+  el.innerHTML = '<div style="font-size:12px;color:var(--t3)">⏳ Переносим справочники...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/migrate-sources', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(d.error)}</div>`;
+      return;
+    }
+    let html = `<div class="summary" style="background:rgba(63,216,142,.06);border:1px solid rgba(63,216,142,.3);border-radius:10px;padding:14px 18px">
+      <div style="color:var(--gn);font-weight:600;font-size:13px;margin-bottom:8px">✓ Справочники перенесены</div>
+      <div style="font-size:12px;color:var(--t2);line-height:1.7">`;
+    for (const [entity, info] of Object.entries(d.summary || {})) {
+      if (info.error) {
+        html += `<div><b>${escapeHtml(entity)}</b> — <span style="color:var(--rd)">✗ ${escapeHtml(info.error)}</span></div>`;
+      } else {
+        html += `<div>📚 <b>${escapeHtml(info.label || entity)}</b>: <span style="color:var(--ac2)">${info.count}</span> записей</div>`;
+      }
+    }
+    html += `</div></div>`;
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(e.message)}</div>`;
+  }
+};
+
+window.migrateDepartments = async function() {
+  const el = document.getElementById('departments-mig-result');
+  el.style.display = '';
+  el.innerHTML = '<div style="font-size:12px;color:var(--t3)">⏳ Переносим структуру отделов...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/migrate-departments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(d.error)}</div>`;
+      return;
+    }
+    let html = `<div class="summary" style="background:rgba(63,216,142,.06);border:1px solid rgba(63,216,142,.3);border-radius:10px;padding:14px 18px">
+      <div style="color:var(--gn);font-weight:600;font-size:13px;margin-bottom:10px">✓ Перенесено отделов: ${d.total}</div>
+      <div style="font-size:12px;color:var(--t2);max-height:280px;overflow-y:auto">`;
+    for (const dep of d.departments || []) {
+      const indent = dep.parent && dep.parent !== '0' ? 'margin-left:16px' : '';
+      html += `<div style="${indent};padding:3px 0">
+        🏢 <b>${escapeHtml(dep.name)}</b>
+        ${dep.employees > 0 ? `<span style="color:var(--ac2);font-size:11px;margin-left:6px">${dep.employees} сотр.</span>` : ''}
+        ${dep.head ? `<span style="color:var(--t3);font-size:10px;margin-left:6px">руководитель: ${escapeHtml(dep.head)}</span>` : ''}
+      </div>`;
+    }
+    html += `</div></div>`;
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(e.message)}</div>`;
+  }
+};
+
+window.diagnoseBizproc = async function() {
+  const el = document.getElementById('bizproc-diag-result');
+  el.style.display = '';
+  el.innerHTML = '<div style="font-size:12px;color:var(--t3)">⏳ Анализируем бизнес-процессы...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/diagnose-bizproc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(d.error)}</div>`;
+      return;
+    }
+
+    let html = `<div class="summary" style="background:rgba(245,200,66,.06);border:1px solid rgba(245,200,66,.3);border-radius:10px;padding:14px 18px">
+      <div style="color:var(--am);font-weight:600;font-size:13px;margin-bottom:10px">⚠ Read-only анализ — данные НЕ переносятся</div>`;
+
+    if (d.note) {
+      html += `<div style="font-size:11px;color:var(--t3);margin-bottom:10px;font-style:italic">${escapeHtml(d.note)}</div>`;
+    }
+
+    // Workflow templates
+    if (d.workflows.error) {
+      html += `<div style="color:var(--rd);margin-bottom:8px"><b>Шаблоны БП:</b> ${escapeHtml(d.workflows.error)}</div>`;
+    } else if (d.workflows.total === 0) {
+      html += `<div style="color:var(--t3);margin-bottom:8px;font-size:12px">Шаблонов бизнес-процессов не найдено</div>`;
+    } else {
+      html += `<div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:6px">📋 Шаблоны БП: ${d.workflows.total}</div>
+        <div style="font-size:11px;color:var(--t2);max-height:200px;overflow-y:auto;background:var(--bg3);border-radius:8px;padding:8px 10px;margin-bottom:10px">`;
+      for (const t of d.workflows.templates) {
+        const autoStr = t.autoExecute === '2' ? 'при создании' : t.autoExecute === '3' ? 'при изменении' : 'вручную';
+        html += `<div style="padding:5px 0;border-bottom:1px solid var(--b1)">
+          <b>${escapeHtml(t.name)}</b>
+          <span style="color:var(--t3);font-size:10px;margin-left:6px">[${escapeHtml(t.entity || t.moduleId || '?')}]</span>
+          <span style="color:var(--ac2);font-size:10px;margin-left:6px">${autoStr}</span>
+          ${t.description ? `<div style="color:var(--t3);font-size:10px;margin-top:2px">${escapeHtml(t.description)}</div>` : ''}
+        </div>`;
+      }
+      html += `</div>`;
+    }
+
+    // Triggers по сущностям
+    html += `<div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:6px">🎯 Триггеры автоматизации</div><div style="font-size:11px;color:var(--t2);background:var(--bg3);border-radius:8px;padding:8px 10px">`;
+    for (const [entity, info] of Object.entries(d.triggers.byEntity || {})) {
+      if (info.error) {
+        html += `<div style="padding:3px 0"><b>${escapeHtml(entity)}</b>: <span style="color:var(--t3)">${escapeHtml(info.error)}</span></div>`;
+      } else {
+        html += `<div style="padding:3px 0"><b>${escapeHtml(entity)}</b>: <span style="color:var(--ac2)">${info.count}</span> триггеров</div>`;
+      }
+    }
+    html += `</div>`;
+
+    html += `</div>`;
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(e.message)}</div>`;
   }
 };
 
