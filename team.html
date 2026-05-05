@@ -790,7 +790,116 @@ tr:hover td { background: var(--bg3); }
   font-size: 11px;
   border: 1px dashed var(--b2);
   border-radius: 8px;
+  transition: all .15s;
 }
+.kanban-card.dragging {
+  opacity: .35;
+  cursor: grabbing;
+}
+.kanban-col-cards.drag-over,
+.kanban-empty.drag-over {
+  background: rgba(124,92,252,.08);
+  border-color: var(--ac);
+  box-shadow: inset 0 0 0 2px var(--ac);
+  border-radius: 8px;
+}
+.kanban-card-phone {
+  font-size: 11px;
+  color: var(--t3);
+  margin-top: -2px;
+}
+.kanban-stale {
+  font-size: 10px;
+  color: var(--rd);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.kanban-card-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  align-items: center;
+}
+.kca-btn {
+  border: 1px solid var(--b2);
+  background: var(--bg4);
+  color: var(--t2);
+  border-radius: 5px;
+  cursor: pointer;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: var(--fb);
+  transition: all .12s;
+}
+.kca-btn:hover { background: var(--bg2); transform: translateY(-1px); }
+.kca-wa { background: rgba(63,216,142,.1); border-color: rgba(63,216,142,.3); color: var(--gn); }
+.kca-wa:hover { background: var(--gn); color: var(--bg); }
+.kca-call { background: rgba(124,92,252,.1); border-color: rgba(124,92,252,.3); color: var(--ac2); }
+.kca-call:hover { background: var(--ac); color: #fff; }
+.kca-stage { font-size: 10px; padding: 3px 9px; }
+
+/* Stage quick pick popover */
+.stage-quick-pick {
+  position: fixed;
+  z-index: 9999;
+  background: var(--bg2);
+  border: 1px solid var(--b2);
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  padding: 6px;
+  min-width: 200px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.sqp-header {
+  font-size: 10px;
+  color: var(--t3);
+  padding: 4px 9px 7px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.sqp-item {
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--t1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background .12s;
+}
+.sqp-item:hover { background: var(--bg3); }
+.sqp-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* Toast */
+.app-toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--bg2);
+  border: 1px solid var(--gn);
+  color: var(--t1);
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: var(--fb);
+  box-shadow: 0 6px 20px rgba(0,0,0,.4);
+  opacity: 0;
+  transition: all .25s;
+  z-index: 10000;
+  pointer-events: none;
+}
+.app-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.app-toast.err { border-color: var(--rd); }
 
 /* Deal card modal */
 .modal-overlay {
@@ -814,6 +923,10 @@ tr:hover td { background: var(--bg3); }
   margin: 20px auto;
   position: relative;
 }
+.modal.modal-xl {
+  max-width: 1100px;
+  width: 96vw;
+}
 .modal .close-x {
   position: absolute;
   top: 14px;
@@ -829,8 +942,116 @@ tr:hover td { background: var(--bg3); }
   line-height: 1;
 }
 .modal .close-x:hover { color: var(--t1); }
-.modal h2 { font-size: 18px; margin-bottom: 4px; padding-right: 30px; }
+.modal h2 { font-size: 18px; margin-bottom: 4px; padding-right: 30px; font-family: var(--fd); font-weight: 700; }
 .modal-sub { color: var(--t3); font-size: 12px; margin-bottom: 18px; }
+
+/* Deal card layout (2-col with chat) */
+.dc-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.dc-head .close-x { position: static; flex-shrink: 0; }
+
+.dc-stagebar {
+  display: flex;
+  gap: 0;
+  margin-bottom: 18px;
+  border: 1px solid var(--b1);
+  border-radius: var(--r);
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+.dc-stage-btn {
+  flex: 1;
+  min-width: 100px;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--fb);
+  border: none;
+  border-right: 1px solid var(--b1);
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dc-stage-btn:last-child { border-right: none; }
+.dc-stage-btn:hover { filter: brightness(1.15); }
+.dc-stage-btn.active { font-weight: 700; box-shadow: inset 0 -3px 0 rgba(255,255,255,.25); }
+
+.dc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+@media (max-width: 900px) {
+  .dc-grid { grid-template-columns: 1fr; }
+}
+.dc-left, .dc-right { min-width: 0; }
+.dc-section-h {
+  font-size: 11px;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin: 14px 0 8px;
+  font-weight: 600;
+}
+.dc-section-h:first-child { margin-top: 0; }
+
+.dc-contact-card {
+  background: var(--bg3);
+  border: 1px solid var(--b1);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.dc-contact-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--t1);
+  margin-bottom: 6px;
+}
+.dc-contact-phone {
+  font-size: 13px;
+  color: var(--t2);
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.dc-contact-email a {
+  color: var(--ac2);
+  font-size: 12px;
+  text-decoration: none;
+}
+.dc-contact-email a:hover { text-decoration: underline; }
+.dc-contact-actions {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+.dc-chat-wrap {
+  background: var(--bg3);
+  border: 1px solid var(--b1);
+  border-radius: 10px;
+  padding: 8px;
+  min-height: 200px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+.dc-timeline-side {
+  background: var(--bg3);
+  border: 1px solid var(--b1);
+  border-radius: 10px;
+  padding: 6px 10px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+.dc-timeline-side .tl-wrap { margin: 0; }
+
 .field-grid {
   display: grid;
   grid-template-columns: 180px 1fr;
@@ -1307,6 +1528,12 @@ async function initApp(user) {
   // Default page
   navigate('dashboard');
 
+  // Если есть deep link — открываем после загрузки
+  if (location.hash.startsWith('#deal/')) {
+    navigate('deals');
+    setTimeout(() => handleDeepLink(), 500);
+  }
+
   // Setup nav
   document.querySelectorAll('.nav-item').forEach(el => {
     el.onclick = () => navigate(el.dataset.page);
@@ -1393,18 +1620,20 @@ async function loadDashboardDataStatus() {
 
 async function loadDashboardStats() {
   try {
-    // Используем shallow=true чтобы не качать всё содержимое 22к сделок —
-    // получим только список ключей
     const [contactsKeys, dealsKeys, tasksKeys, usersKeys] = await Promise.all([
       fetchShallowKeys('contacts'),
       fetchShallowKeys('deals'),
       fetchShallowKeys('tasks'),
       fetchShallowKeys('users'),
     ]);
-    document.getElementById('s-contacts').textContent = contactsKeys.toLocaleString('ru');
-    document.getElementById('s-deals').textContent = dealsKeys.toLocaleString('ru');
-    document.getElementById('s-tasks').textContent = tasksKeys.toLocaleString('ru');
-    document.getElementById('s-users').textContent = usersKeys.toLocaleString('ru');
+    const setText = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+    setText('s-contacts', contactsKeys.toLocaleString('ru'));
+    setText('s-deals', dealsKeys.toLocaleString('ru'));
+    setText('s-tasks', tasksKeys.toLocaleString('ru'));
+    setText('s-users', usersKeys.toLocaleString('ru'));
   } catch (e) {
     console.warn('stats error:', e);
   }
@@ -1724,81 +1953,293 @@ function renderDealsList(c, arr) {
   });
 }
 
+// Универсальная сортировка сделок в канбане:
+// сначала непрочитанные/недавние сверху
+function sortDealsForKanban(deals) {
+  return deals.slice().sort((a, b) => {
+    const da = a.bitrixDateModify || a.bitrixDateCreate || '';
+    const db = b.bitrixDateModify || b.bitrixDateCreate || '';
+    return db.localeCompare(da);
+  });
+}
+
+let _kanbanDragId = null;
+let _kanbanScrollTimer = null;
+
 function renderDealsKanban(c, arr) {
   const stages = getStagesSorted();
   if (!stages.length) {
-    c.innerHTML = `<div class="card"><div class="empty">Нет стадий воронки</div></div>`;
+    c.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Нет стадий воронки</div></div>`;
     return;
   }
 
-  // Группируем по стадии
   const byStage = {};
   for (const s of stages) byStage[s.statusId] = [];
   for (const d of arr) {
     if (byStage[d.stageId]) byStage[d.stageId].push(d);
-    else {
-      if (!byStage['__other']) byStage['__other'] = [];
-      byStage['__other'].push(d);
-    }
   }
 
-  let html = `<div class="kanban-wrap">`;
+  let html = `<div class="kanban-wrap" id="kanban-wrap">`;
   const MAX_PER_COL = 100;
 
   for (const s of stages) {
-    const cards = byStage[s.statusId] || [];
+    const cards = sortDealsForKanban(byStage[s.statusId] || []);
     const totalSum = cards.reduce((acc, d) => acc + (d.opportunity || 0), 0);
-    const stageColor = s.semantics === 'S' ? 'var(--gn)' : s.semantics === 'F' ? 'var(--rd)' : 'var(--ac2)';
-    const stageBg = s.semantics === 'S' ? 'var(--gnbg)' : s.semantics === 'F' ? 'var(--rdbg)' : 'var(--acbg)';
+    const stageColor = s.semantics === 'S' ? '#3fd88e' : s.semantics === 'F' ? '#f05975' : '#a87fff';
 
-    html += `<div class="kanban-col">
-      <div class="kanban-col-header" style="border-top:3px solid ${stageColor};padding-top:10px">
-        <div style="display:flex;align-items:center;gap:8px">
+    html += `<div class="kanban-col" data-stage="${escapeHtml(s.statusId)}">
+      <div class="kanban-col-header" style="border-top:3px solid ${stageColor}">
+        <div style="display:flex;align-items:center;gap:7px;min-width:0">
           <span class="stage-dot" style="background:${stageColor}"></span>
-          <span style="color:${stageColor};font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em">${escapeHtml(s.name)}</span>
+          <span style="color:${stageColor};font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(s.name)}</span>
         </div>
-        <span class="col-count" style="background:${stageBg};color:${stageColor};border:1px solid ${stageColor}33">${cards.length.toLocaleString('ru')}</span>
+        <span class="col-count" style="color:${stageColor};background:${stageColor}22;border:1px solid ${stageColor}55">${cards.length.toLocaleString('ru')}</span>
       </div>
       ${totalSum > 0 ? `<div class="kanban-col-sum">${totalSum.toLocaleString('ru')} ₸</div>` : ''}
-      <div class="kanban-col-cards">`;
+      <div class="kanban-col-cards" data-stage="${escapeHtml(s.statusId)}">`;
 
     for (const d of cards.slice(0, MAX_PER_COL)) {
-      const respUser = dealsState.users[d.responsibleUid];
-      const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '';
-      const respShort = respName ? respName.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() : '?';
-      const opp = d.opportunity || 0;
-      const phone = (Array.isArray(d.phones) && d.phones.length > 0 && d.phones[0].value)
-        ? d.phones[0].value
-        : (d._contactPhone || '');
-      const created = d.bitrixDateCreate ? new Date(d.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit' }) : '';
-
-      html += `<div class="kanban-card" data-deal-id="${escapeHtml(d.bitrixId)}" style="border-left:3px solid ${stageColor}">
-        <div class="kanban-card-title">${escapeHtml(d.title || '(без названия)')}</div>
-        ${opp > 0 ? `<div class="kanban-card-money">${opp.toLocaleString('ru')} ₸</div>` : ''}
-        <div class="kanban-card-foot">
-          <div class="kanban-card-resp">
-            <span class="kanban-av" title="${escapeHtml(respName)}">${escapeHtml(respShort)}</span>
-            <span class="kanban-card-resp-name">${escapeHtml(respName.split(' ')[0] || '—')}</span>
-          </div>
-          ${created ? `<span class="kanban-card-date">${created}</span>` : ''}
-        </div>
-      </div>`;
+      html += buildDealCard(d, stageColor);
     }
     if (cards.length > MAX_PER_COL) {
       html += `<div class="kanban-more">… ещё ${(cards.length - MAX_PER_COL).toLocaleString('ru')}</div>`;
     }
     if (cards.length === 0) {
-      html += `<div class="kanban-empty">Пусто</div>`;
+      html += `<div class="kanban-empty" data-stage="${escapeHtml(s.statusId)}">Перетащи сюда</div>`;
     }
-
     html += `</div></div>`;
   }
   html += `</div>`;
 
   c.innerHTML = html;
 
-  c.querySelectorAll('.kanban-card').forEach(card => {
-    card.addEventListener('click', () => openDealCard(card.dataset.dealId));
+  initKanbanDragDrop();
+
+  // Кнопки действий внутри карточек — нужны event delegation
+  c.addEventListener('click', handleKanbanCardAction);
+}
+
+function buildDealCard(d, stageColor) {
+  const respUser = getUserById(d.responsibleUid);
+  const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '';
+  const respShort = respName ? respName.split(' ').filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() : '?';
+  const opp = d.opportunity || 0;
+
+  // Контактный телефон — приоритет d.phones потом ищем у контакта
+  let phone = '';
+  if (Array.isArray(d.phones) && d.phones.length > 0) phone = d.phones[0]?.value || '';
+  else if (d._contactPhone) phone = d._contactPhone;
+  // Поиск телефона у привязанного контакта
+  if (!phone && d.contactId) {
+    // dealsState.contactPhones — кэш телефонов контактов (см. ниже buildDealCard cache)
+    phone = dealsState.contactPhones?.[d.contactId] || '';
+  }
+
+  // Дата последнего изменения (если давно — пометить stale)
+  const lastDate = d.bitrixDateModify || d.bitrixDateCreate;
+  const daysSince = lastDate ? Math.floor((Date.now() - new Date(lastDate).getTime()) / 86400000) : null;
+  const staleWarn = daysSince !== null && daysSince > 7;
+  const created = d.bitrixDateCreate ? new Date(d.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit' }) : '';
+
+  // Граница карточки по приоритету
+  const borderColor = staleWarn ? 'rgba(240,89,117,.35)' : 'var(--b1)';
+  const stageBorderLeft = `3px solid ${stageColor}`;
+
+  return `<div class="kanban-card" draggable="true" data-deal-id="${escapeHtml(d.bitrixId)}" data-stage="${escapeHtml(d.stageId)}" style="border-left:${stageBorderLeft};border-color:${borderColor}">
+    <div class="kanban-card-title">${escapeHtml(d.title || '(без названия)')}</div>
+    ${opp > 0 ? `<div class="kanban-card-money">${opp.toLocaleString('ru')} ₸</div>` : ''}
+    ${phone ? `<div class="kanban-card-phone">📱 ${escapeHtml(phone)}</div>` : ''}
+    <div class="kanban-card-foot">
+      <div class="kanban-card-resp" title="${escapeHtml(respName || 'Без ответственного')}">
+        <span class="kanban-av">${escapeHtml(respShort)}</span>
+        <span class="kanban-card-resp-name">${escapeHtml(respName.split(' ')[0] || '—')}</span>
+      </div>
+      ${staleWarn ? `<span class="kanban-stale">${daysSince}д</span>` : (created ? `<span class="kanban-card-date">${created}</span>` : '')}
+    </div>
+    <div class="kanban-card-actions">
+      ${phone ? `<button class="kca-btn kca-wa" data-action="wa" data-phone="${escapeHtml(phone)}" title="Открыть WhatsApp">💬</button>` : ''}
+      ${phone ? `<button class="kca-btn kca-call" data-action="call" data-phone="${escapeHtml(phone)}" title="Позвонить">📞</button>` : ''}
+      <button class="kca-btn kca-stage" data-action="stage" data-deal-id="${escapeHtml(d.bitrixId)}" title="Сменить стадию" style="margin-left:auto">→</button>
+    </div>
+  </div>`;
+}
+
+function handleKanbanCardAction(e) {
+  const btn = e.target.closest('[data-action]');
+  if (btn) {
+    e.stopPropagation();
+    e.preventDefault();
+    const action = btn.dataset.action;
+    if (action === 'wa') {
+      const phone = (btn.dataset.phone || '').replace(/\D/g, '');
+      if (phone) window.open(`https://wa.me/${phone}`, '_blank');
+    } else if (action === 'call') {
+      const phone = btn.dataset.phone || '';
+      if (phone) window.location.href = `tel:${phone}`;
+    } else if (action === 'stage') {
+      showStageQuickPick(btn.dataset.dealId, btn);
+    }
+    return;
+  }
+  // Иначе — обычный клик по карточке
+  const card = e.target.closest('.kanban-card');
+  if (card && !e.defaultPrevented) {
+    openDealCard(card.dataset.dealId);
+  }
+}
+
+// Quick stage picker — поповер со списком стадий
+function showStageQuickPick(dealId, anchorBtn) {
+  document.getElementById('_stage-pick')?.remove();
+  const stages = getStagesSorted();
+  const rect = anchorBtn.getBoundingClientRect();
+  const pick = document.createElement('div');
+  pick.id = '_stage-pick';
+  pick.className = 'stage-quick-pick';
+  const spaceBelow = window.innerHeight - rect.bottom;
+  if (spaceBelow > 240) {
+    pick.style.top = (rect.bottom + 4) + 'px';
+    pick.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+  } else {
+    pick.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+    pick.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+  }
+  let html = `<div class="sqp-header">Перенести в стадию</div>`;
+  for (const s of stages) {
+    const stageColor = s.semantics === 'S' ? '#3fd88e' : s.semantics === 'F' ? '#f05975' : '#a87fff';
+    html += `<div class="sqp-item" data-stage-id="${escapeHtml(s.statusId)}">
+      <span class="sqp-dot" style="background:${stageColor}"></span>
+      <span>${escapeHtml(s.name)}</span>
+    </div>`;
+  }
+  pick.innerHTML = html;
+  document.body.appendChild(pick);
+
+  pick.querySelectorAll('.sqp-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const newStageId = item.dataset.stageId;
+      moveDealToStage(dealId, newStageId);
+      pick.remove();
+    });
+  });
+
+  setTimeout(() => {
+    document.addEventListener('click', function h(e) {
+      if (!pick.contains(e.target)) {
+        pick.remove();
+        document.removeEventListener('click', h, true);
+      }
+    }, { capture: true });
+  }, 10);
+}
+
+// Перенести сделку в новую стадию
+async function moveDealToStage(bitrixId, newStageId) {
+  const deal = dealsState.deals.find(d => String(d.bitrixId) === String(bitrixId));
+  if (!deal) return;
+  if (deal.stageId === newStageId) return; // ничего не менять
+
+  const oldStageId = deal.stageId;
+  // Optimistic update
+  deal.stageId = newStageId;
+  deal.bitrixDateModify = new Date().toISOString();
+  // Перерисовываем
+  renderDealsContent();
+
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dealKey = `deal_${bitrixId}`;
+    const r = await fetch(`${dbUrl}/deals/${dealKey}.json?auth=${idToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        stageId: newStageId,
+        bitrixDateModify: new Date().toISOString(),
+      }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    // Обновим кеш сделок
+    cacheSet('deals:full:v1', {
+      deals: dealsState.deals,
+      pipeline: dealsState.pipeline,
+      customSchema: dealsState.customSchema,
+      users: dealsState.users,
+    });
+    showToast('Стадия обновлена');
+  } catch (e) {
+    // Revert on failure
+    deal.stageId = oldStageId;
+    renderDealsContent();
+    showToast('Ошибка: ' + e.message, true);
+  }
+}
+
+function showToast(msg, isError = false) {
+  const t = document.createElement('div');
+  t.className = 'app-toast' + (isError ? ' err' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add('show'), 10);
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 250);
+  }, 2200);
+}
+
+function initKanbanDragDrop() {
+  const wrap = document.getElementById('kanban-wrap');
+  if (!wrap) return;
+
+  // Колонки и пустые-зоны принимают drop
+  wrap.querySelectorAll('.kanban-col-cards, .kanban-empty').forEach(col => {
+    col.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const target = col.classList.contains('kanban-empty') ? col : col;
+      target.classList.add('drag-over');
+      // Auto-scroll wrap при приближении к краям
+      const rect = wrap.getBoundingClientRect();
+      const edge = 80;
+      if (e.clientX > rect.right - edge) {
+        if (!_kanbanScrollTimer) _kanbanScrollTimer = setInterval(() => { wrap.scrollLeft += 18; }, 16);
+      } else if (e.clientX < rect.left + edge) {
+        if (!_kanbanScrollTimer) _kanbanScrollTimer = setInterval(() => { wrap.scrollLeft -= 18; }, 16);
+      } else {
+        clearInterval(_kanbanScrollTimer);
+        _kanbanScrollTimer = null;
+      }
+    });
+    col.addEventListener('dragleave', () => {
+      col.classList.remove('drag-over');
+    });
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      col.classList.remove('drag-over');
+      clearInterval(_kanbanScrollTimer);
+      _kanbanScrollTimer = null;
+      const newStageId = col.dataset.stage;
+      if (newStageId && _kanbanDragId) {
+        moveDealToStage(_kanbanDragId, newStageId);
+      }
+    });
+  });
+
+  // Карточки — draggable
+  wrap.querySelectorAll('.kanban-card[draggable]').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      _kanbanDragId = card.dataset.dealId;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      clearInterval(_kanbanScrollTimer);
+      _kanbanScrollTimer = null;
+      wrap.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      _kanbanDragId = null;
+    });
   });
 }
 
@@ -1830,48 +2271,39 @@ async function openDealCard(bitrixId) {
   const deal = dealsState.deals.find(d => d.bitrixId === bitrixId);
   if (!deal) return;
 
+  // Обновляем URL для глубокой ссылки
+  const newHash = `#deal/${bitrixId}`;
+  if (location.hash !== newHash) {
+    history.pushState({ deal: bitrixId }, '', newHash);
+  }
+
   const stage = dealsState.pipeline?.stages?.[deal.stageId];
   const stageName = stage?.name || deal.stageId || '—';
-  const respUser = dealsState.users[deal.responsibleUid];
+  const respUser = getUserById(deal.responsibleUid);
   const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
   const respEmail = respUser?.email || '';
-  const createdByUser = dealsState.users[deal.createdByUid];
+  const createdByUser = getUserById(deal.createdByUid);
   const createdByName = createdByUser ? `${createdByUser.lastName || ''} ${createdByUser.name || ''}`.trim() : '—';
 
-  // Bitrix URL
   const bitrixUrl = `https://elcalmaty.bitrix24.kz/crm/deal/details/${deal.bitrixId}/`;
 
-  // Параллельно подтягиваем контакт и таймлайн
   const idToken = await fbAuth.currentUser.getIdToken();
   const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
   const fetches = [];
-
-  // Контакт сделки (если есть)
   if (deal.contactId) {
-    fetches.push(
-      fetch(`${dbUrl}/contacts/${deal.contactId}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null)
-    );
+    fetches.push(fetch(`${dbUrl}/contacts/${deal.contactId}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null));
   } else {
     fetches.push(Promise.resolve(null));
   }
-
-  // Компания сделки (если есть)
   if (deal.companyId) {
-    fetches.push(
-      fetch(`${dbUrl}/companies/${deal.companyId}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null)
-    );
+    fetches.push(fetch(`${dbUrl}/companies/${deal.companyId}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null));
   } else {
     fetches.push(Promise.resolve(null));
   }
-
-  // Таймлайн дел сделки
-  fetches.push(
-    fetch(`${dbUrl}/timeline/deal_${deal.bitrixId}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null)
-  );
+  fetches.push(fetch(`${dbUrl}/timeline/deal_${deal.bitrixId}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null));
 
   const [contact, company, timelineRaw] = await Promise.all(fetches);
 
-  // Превращаем timeline объект в массив, сортируем по дате (новые сверху)
   const timeline = timelineRaw
     ? Object.entries(timelineRaw).map(([k, v]) => ({ ...v, _key: k })).sort((a, b) => {
         const da = a.bitrixCreated || a.start || '';
@@ -1880,60 +2312,150 @@ async function openDealCard(bitrixId) {
       })
     : [];
 
+  // Поиск активной openlines-сессии для отображения переписки в правой колонке
+  const openlinesActivities = timeline.filter(a => a.openlinesSessionId);
+  const latestOpenlinesActivity = openlinesActivities[0] || null;
+
+  // Контактный телефон
+  let contactPhone = '';
+  let contactName = '';
+  if (contact) {
+    contactName = [contact.lastName, contact.name, contact.secondName].filter(Boolean).join(' ').trim();
+    if (Array.isArray(contact.phones) && contact.phones.length > 0) {
+      contactPhone = contact.phones[0]?.value || '';
+    }
+    // Кешируем для канбана
+    if (!dealsState.contactPhones) dealsState.contactPhones = {};
+    if (deal.contactId && contactPhone) dealsState.contactPhones[deal.contactId] = contactPhone;
+  }
+
+  // Stage pipeline bar — горизонтальные стадии
+  const stages = getStagesSorted();
+  const currentStageIdx = stages.findIndex(s => s.statusId === deal.stageId);
+  const stageBarHtml = stages.map((s, idx) => {
+    const isPast = currentStageIdx >= 0 && idx < currentStageIdx;
+    const isCurrent = s.statusId === deal.stageId;
+    const sColor = s.semantics === 'S' ? '#3fd88e' : s.semantics === 'F' ? '#f05975' : '#a87fff';
+    const bg = isCurrent ? sColor : (isPast ? `${sColor}33` : 'var(--bg3)');
+    const color = isCurrent ? '#fff' : (isPast ? sColor : 'var(--t3)');
+    return `<button class="dc-stage-btn ${isCurrent ? 'active' : ''}" data-stage-id="${escapeHtml(s.statusId)}" style="background:${bg};color:${color};border-color:${isCurrent || isPast ? sColor + '55' : 'var(--b1)'}">
+      ${escapeHtml(s.name)}
+    </button>`;
+  }).join('');
+
   let html = `<div class="modal-overlay" onclick="if(event.target===this)closeDealCard()">
-    <div class="modal">
-      <button class="close-x" onclick="closeDealCard()">×</button>
-      <h2>${escapeHtml(deal.title || '(без названия)')}</h2>
-      <div class="modal-sub">
-        ID: <code>${escapeHtml(deal.bitrixId)}</code> · 
-        <a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a>
+    <div class="modal modal-xl">
+      <div class="dc-head">
+        <div style="flex:1;min-width:0">
+          <h2 style="margin:0">${escapeHtml(deal.title || '(без названия)')}</h2>
+          <div class="modal-sub" style="margin-top:4px">
+            ID: <code>${escapeHtml(deal.bitrixId)}</code> ·
+            <a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a> ·
+            <button class="tbtn-xs dc-copy-link" data-deal-id="${escapeHtml(deal.bitrixId)}" style="background:none;border:none;color:var(--ac2);cursor:pointer;font-size:11px;padding:0">🔗 Копировать ссылку</button>
+          </div>
+        </div>
+        <button class="close-x" onclick="closeDealCard()">×</button>
       </div>
 
-      <div class="section-h">Основное</div>
-      <div class="field-grid">
-        <div class="fl">Стадия</div>
-        <div class="fv"><span class="stage-badge ${stage?.semantics === 'S' ? 'success' : stage?.semantics === 'F' ? 'failed' : ''}">${escapeHtml(stageName)}</span></div>
-        
-        <div class="fl">Сумма</div>
-        <div class="fv">${deal.opportunity ? `<span class="money">${deal.opportunity.toLocaleString('ru')} ${escapeHtml(deal.currency || '')}</span>` : '<span class="empty-cell">не указана</span>'}</div>
-        
-        ${deal.probability ? `<div class="fl">Вероятность</div><div class="fv">${deal.probability}%</div>` : ''}
-        
-        <div class="fl">Ответственный</div>
-        <div class="fv">${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}</div>
-        
-        <div class="fl">Создал</div>
-        <div class="fv">${escapeHtml(createdByName)}</div>
-        
-        <div class="fl">Дата создания</div>
-        <div class="fv">${deal.bitrixDateCreate ? new Date(deal.bitrixDateCreate).toLocaleString('ru') : '—'}</div>
-        
-        <div class="fl">Изменено</div>
-        <div class="fv">${deal.bitrixDateModify ? new Date(deal.bitrixDateModify).toLocaleString('ru') : '—'}</div>
-        
-        <div class="fl">Закрыто</div>
-        <div class="fv">${deal.closed ? '<span style="color:var(--gn)">✓ Да</span> ' + (deal.closeDate ? new Date(deal.closeDate).toLocaleDateString('ru') : '') : '<span class="muted">Нет</span>'}</div>
-        
-        ${renderContactRow(contact, deal.contactId)}
-        ${renderCompanyRow(company, deal.companyId)}
+      <div class="dc-stagebar">${stageBarHtml}</div>
+
+      <div class="dc-grid">
+        <div class="dc-left">
+          <div class="dc-section-h">Основное</div>
+          <div class="field-grid">
+            <div class="fl">Сумма</div>
+            <div class="fv">${deal.opportunity ? `<span class="money">${deal.opportunity.toLocaleString('ru')} ${escapeHtml(deal.currency || '')}</span>` : '<span class="empty-cell">не указана</span>'}</div>
+            ${deal.probability ? `<div class="fl">Вероятность</div><div class="fv">${deal.probability}%</div>` : ''}
+            <div class="fl">Ответственный</div>
+            <div class="fv">${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}</div>
+            <div class="fl">Создал</div>
+            <div class="fv">${escapeHtml(createdByName)}</div>
+            <div class="fl">Создана</div>
+            <div class="fv">${deal.bitrixDateCreate ? new Date(deal.bitrixDateCreate).toLocaleString('ru') : '—'}</div>
+            <div class="fl">Изменена</div>
+            <div class="fv">${deal.bitrixDateModify ? new Date(deal.bitrixDateModify).toLocaleString('ru') : '—'}</div>
+            <div class="fl">Закрыто</div>
+            <div class="fv">${deal.closed ? '<span style="color:var(--gn)">✓ Да</span> ' + (deal.closeDate ? new Date(deal.closeDate).toLocaleDateString('ru') : '') : '<span class="muted">Нет</span>'}</div>
+          </div>
+
+          ${contact ? `<div class="dc-section-h">Контакт</div>
+            <div class="dc-contact-card">
+              <div class="dc-contact-name">${escapeHtml(contactName || '(без имени)')}</div>
+              ${contactPhone ? `<div class="dc-contact-phone">📱 ${escapeHtml(contactPhone)}</div>
+                <div class="dc-contact-actions">
+                  <button class="tbtn tbtn-g tbtn-xs" onclick="window.open('https://wa.me/${contactPhone.replace(/\\D/g, '')}', '_blank')">💬 WhatsApp</button>
+                  <button class="tbtn tbtn-xs" onclick="window.location.href='tel:${escapeHtml(contactPhone)}'">📞 Позвонить</button>
+                  <button class="tbtn tbtn-xs" onclick="navigator.clipboard.writeText('${escapeHtml(contactPhone)}');showToast('Телефон скопирован')">📋 Копировать</button>
+                </div>` : ''}
+              ${Array.isArray(contact.emails) && contact.emails[0]?.value ? `<div class="dc-contact-email">📧 <a href="mailto:${escapeHtml(contact.emails[0].value)}">${escapeHtml(contact.emails[0].value)}</a></div>` : ''}
+              <button class="tbtn tbtn-xs" style="margin-top:8px" onclick="closeDealCard();setTimeout(()=>openContactCard('${escapeHtml(deal.contactId)}'),100)">Открыть карточку контакта →</button>
+            </div>` : ''}
+
+          ${company ? `<div class="dc-section-h">Компания</div>
+            <div class="dc-contact-card">
+              <div class="dc-contact-name">${escapeHtml(company.title || '—')}</div>
+            </div>` : ''}
+
+          ${deal.comments ? `<div class="dc-section-h">Комментарии</div>
+            <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.5">${escapeHtml(deal.comments)}</div>` : ''}
+
+          ${renderCustomFieldsBlock(deal.customFields)}
+        </div>
+
+        <div class="dc-right">
+          <div class="dc-section-h">${latestOpenlinesActivity ? '💬 Переписка' : '📜 События'}</div>
+          ${latestOpenlinesActivity
+            ? `<div class="dc-chat-wrap" id="dc-chat-wrap" data-session-id="${escapeHtml(latestOpenlinesActivity.openlinesSessionId)}">
+                <div style="padding:14px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем переписку...</div>
+              </div>
+              ${openlinesActivities.length > 1 ? `<div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:center">Других сессий: ${openlinesActivities.length - 1}</div>` : ''}`
+            : `<div class="dc-timeline-side">${renderTimelineBlock(timeline)}</div>`
+          }
+        </div>
       </div>
 
-      ${deal.comments ? `<div class="section-h">Комментарии</div><div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px">${escapeHtml(deal.comments)}</div>` : ''}
-
-      ${renderTimelineBlock(timeline)}
-
-      ${renderCustomFieldsBlock(deal.customFields)}
+      ${latestOpenlinesActivity && timeline.length > 0 ? `
+        <div class="dc-section-h">Все события (${timeline.length})</div>
+        ${renderTimelineBlock(timeline)}
+      ` : ''}
     </div>
   </div>`;
 
-  // Add to body
   const div = document.createElement('div');
   div.innerHTML = html;
   const modal = div.firstElementChild;
   document.body.appendChild(modal);
   document.body.style.overflow = 'hidden';
 
-  // Timeline filters: клик по типу — toggle видимости элементов этого типа
+  // Stage bar — клик переносит в новую стадию
+  modal.querySelectorAll('.dc-stage-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const newStageId = btn.dataset.stageId;
+      if (newStageId === deal.stageId) return;
+      await moveDealToStage(bitrixId, newStageId);
+      // Перерисовываем модалку
+      closeDealCard();
+      setTimeout(() => openDealCard(bitrixId), 50);
+    });
+  });
+
+  // Copy link
+  const copyBtn = modal.querySelector('.dc-copy-link');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      const url = `${location.origin}${location.pathname}#deal/${bitrixId}`;
+      navigator.clipboard.writeText(url);
+      showToast('Ссылка скопирована');
+    });
+  }
+
+  // Лоадим переписку в правую колонку, если есть openlines-сессия
+  if (latestOpenlinesActivity) {
+    const chatEl = modal.querySelector('#dc-chat-wrap');
+    if (chatEl) loadAndRenderChatThread(latestOpenlinesActivity.openlinesSessionId, chatEl);
+  }
+
+  // Timeline filters: остаются как раньше
   modal.querySelectorAll('.tl-filter').forEach(btn => {
     btn.addEventListener('click', () => {
       btn.classList.toggle('active');
@@ -2282,7 +2804,34 @@ window.closeDealCard = function() {
   const m = document.querySelector('.modal-overlay');
   if (m) m.remove();
   document.body.style.overflow = '';
+  // Очищаем deep-link hash
+  if (location.hash.startsWith('#deal/') || location.hash.startsWith('#contact/') || location.hash.startsWith('#task/')) {
+    history.pushState({}, '', location.pathname + location.search);
+  }
 };
+
+// При загрузке страницы — обрабатываем deep link
+window.addEventListener('hashchange', handleDeepLink);
+function handleDeepLink() {
+  const h = location.hash;
+  if (h.startsWith('#deal/')) {
+    const id = h.slice('#deal/'.length);
+    if (id) {
+      // Дождёмся загрузки данных
+      const open = () => {
+        if (dealsState.loaded && dealsState.deals.find(d => d.bitrixId === id)) {
+          openDealCard(id);
+        } else if (dealsState.loaded) {
+          // Сделка не найдена — вычистим hash
+          history.pushState({}, '', location.pathname + location.search);
+        } else {
+          setTimeout(open, 200);
+        }
+      };
+      open();
+    }
+  }
+}
 
 function renderCustomFieldsBlock(cfData) {
   if (!cfData || Object.keys(cfData).length === 0) return '';
@@ -2437,6 +2986,85 @@ async function cacheClear() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════
+//   ОБЩЕЕ СОСТОЯНИЕ — пользователи (нужны Контактам, Сделкам, Задачам)
+// ═════════════════════════════════════════════════════════════════════════
+const usersState = {
+  loaded: false,
+  loading: false,
+  users: {},
+};
+
+async function ensureUsersLoaded() {
+  if (usersState.loaded) return;
+  if (usersState.loading) {
+    // Ждём завершения текущей загрузки (опрос с интервалом 50мс)
+    await new Promise(resolve => {
+      const check = () => usersState.loaded ? resolve() : setTimeout(check, 50);
+      check();
+    });
+    return;
+  }
+  usersState.loading = true;
+  try {
+    // Сначала кеш
+    const cached = await cacheGet('users:map:v1');
+    if (cached && typeof cached === 'object' && Object.keys(cached).length > 0) {
+      usersState.users = cached;
+      usersState.loaded = true;
+      // Также прокидываем в dealsState для совместимости
+      if (!dealsState.users || Object.keys(dealsState.users).length === 0) {
+        dealsState.users = cached;
+      }
+      // Фоновое обновление
+      setTimeout(() => refreshUsersBackground(), 200);
+      return;
+    }
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const r = await fetch(`${dbUrl}/users.json?auth=${idToken}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    usersState.users = data || {};
+    usersState.loaded = true;
+    if (!dealsState.users || Object.keys(dealsState.users).length === 0) {
+      dealsState.users = usersState.users;
+    }
+    cacheSet('users:map:v1', usersState.users);
+  } catch (e) {
+    console.error('ensureUsersLoaded:', e);
+  } finally {
+    usersState.loading = false;
+  }
+}
+
+async function refreshUsersBackground() {
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const r = await fetch(`${dbUrl}/users.json?auth=${idToken}`);
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data && Object.keys(data).length > 0) {
+      usersState.users = data;
+      dealsState.users = data;
+      cacheSet('users:map:v1', data);
+    }
+  } catch (e) {}
+}
+
+// Универсальный геттер пользователя из usersState или dealsState (фолбэк)
+function getUserById(uid) {
+  if (!uid) return null;
+  return usersState.users?.[uid] || dealsState.users?.[uid] || null;
+}
+
+function getUserDisplayName(uid) {
+  const u = getUserById(uid);
+  if (!u) return '—';
+  return `${u.lastName || ''} ${u.name || ''}`.trim() || u.email || '—';
+}
+
+// ═════════════════════════════════════════════════════════════════════════
 //   КОНТАКТЫ (143k+ записей с виртуальным скроллом)
 // ═════════════════════════════════════════════════════════════════════════
 const contactsState = {
@@ -2485,7 +3113,14 @@ async function renderContacts(el) {
   });
 
   if (!contactsState.loaded) {
-    await loadContacts();
+    // Параллельно: грузим контакты И пользователей
+    await Promise.all([
+      loadContacts(),
+      ensureUsersLoaded(),
+    ]);
+  } else {
+    // Контакты уже из кеша — но юзеры могут быть не загружены
+    ensureUsersLoaded();
   }
   filterAndRenderContacts();
 }
@@ -2632,13 +3267,12 @@ function renderContactsTable() {
 
   // Виртуальный скролл: рендерим только видимые ~80 строк
   const ROW_HEIGHT = 44;
-  const VIEWPORT_HEIGHT = 600;
+  // Используем calc — растягиваем по высоте окна минус ~280px на header+toolbar
   const totalHeight = contactsState.filtered.length * ROW_HEIGHT;
-  const visibleRows = Math.ceil(VIEWPORT_HEIGHT / ROW_HEIGHT) + 8;
 
   c.innerHTML = `
     <div class="dtable-wrap">
-      <table class="dtable">
+      <table class="dtable" style="table-layout:fixed">
         <thead>
           <tr>
             <th style="width:30%">Имя</th>
@@ -2649,9 +3283,9 @@ function renderContactsTable() {
           </tr>
         </thead>
       </table>
-      <div class="vscroll-wrap" id="contacts-vscroll" style="height:${VIEWPORT_HEIGHT}px;overflow-y:auto;background:var(--bg2)">
+      <div class="vscroll-wrap" id="contacts-vscroll" style="height:calc(100vh - 240px);min-height:400px;overflow-y:auto;background:var(--bg2)">
         <div class="vscroll-spacer" style="height:${totalHeight}px;position:relative">
-          <table class="dtable" style="position:absolute;top:0;left:0;width:100%" id="contacts-vtable">
+          <table class="dtable" style="table-layout:fixed;position:absolute;top:0;left:0;width:100%" id="contacts-vtable">
             <tbody id="contacts-vbody"></tbody>
           </table>
         </div>
@@ -2664,6 +3298,8 @@ function renderContactsTable() {
   const vtable = document.getElementById('contacts-vtable');
 
   function renderVisible() {
+    const VH = wrap.clientHeight;
+    const visibleRows = Math.ceil(VH / ROW_HEIGHT) + 8;
     const scrollTop = wrap.scrollTop;
     const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 4);
     const end = Math.min(contactsState.filtered.length, start + visibleRows);
@@ -2671,7 +3307,7 @@ function renderContactsTable() {
     let html = '';
     for (let i = start; i < end; i++) {
       const c = contactsState.filtered[i];
-      const respUser = c.responsibleUid ? dealsState?.users?.[c.responsibleUid] : null;
+      const respUser = getUserById(c.responsibleUid);
       const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
       const created = c.bitrixCreated ? new Date(c.bitrixCreated).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
       html += `<tr class="row" data-key="${escapeHtml(c.key)}" style="height:${ROW_HEIGHT}px">
@@ -2693,7 +3329,7 @@ function renderContactsTable() {
   renderVisible();
 }
 
-async function openContactCard(key) {
+window.openContactCard = async function(key) {
   // Загружаем полную карточку контакта + связанные сделки
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
@@ -2706,7 +3342,7 @@ async function openContactCard(key) {
     const fullName = [contact.lastName, contact.name, contact.secondName].filter(Boolean).join(' ').trim() || '(без имени)';
     const phones = Array.isArray(contact.phones) ? contact.phones : [];
     const emails = Array.isArray(contact.emails) ? contact.emails : [];
-    const respUser = contact.responsibleUid ? dealsState?.users?.[contact.responsibleUid] : null;
+    const respUser = getUserById(contact.responsibleUid);
     const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
     const bitrixUrl = `https://elcalmaty.bitrix24.kz/crm/contact/details/${contact.bitrixId}/`;
 
@@ -2781,7 +3417,7 @@ async function openContactCard(key) {
   } catch (e) {
     alert('Ошибка загрузки контакта: ' + e.message);
   }
-}
+};
 
 // ═════════════════════════════════════════════════════════════════════════
 //   ЗАДАЧИ (38k+ записей с фильтрами)
@@ -2859,7 +3495,12 @@ async function renderTasks(el) {
   });
 
   if (!tasksState.loaded) {
-    await loadTasks();
+    await Promise.all([
+      loadTasks(),
+      ensureUsersLoaded(),
+    ]);
+  } else {
+    ensureUsersLoaded();
   }
   populateTaskAssigneeFilter();
   filterAndRenderTasks();
@@ -2951,13 +3592,13 @@ async function refreshTasksBackground() {
 
 function populateTaskAssigneeFilter() {
   const sel = document.getElementById('tasks-assignee');
-  if (!sel || !dealsState?.users) return;
+  if (!sel) return;
   // Уникальные responsibleUid из задач
   const usedUids = new Set();
   for (const t of tasksState.list) if (t.responsibleUid) usedUids.add(t.responsibleUid);
   const opts = [];
   for (const uid of usedUids) {
-    const u = dealsState.users[uid];
+    const u = getUserById(uid);
     if (u) opts.push({ uid, name: `${u.lastName || ''} ${u.name || ''}`.trim() });
   }
   opts.sort((a, b) => a.name.localeCompare(b.name));
@@ -3000,13 +3641,11 @@ function renderTasksTable() {
   }
 
   const ROW_HEIGHT = 48;
-  const VIEWPORT_HEIGHT = 600;
   const totalHeight = tasksState.filtered.length * ROW_HEIGHT;
-  const visibleRows = Math.ceil(VIEWPORT_HEIGHT / ROW_HEIGHT) + 8;
 
   c.innerHTML = `
     <div class="dtable-wrap">
-      <table class="dtable">
+      <table class="dtable" style="table-layout:fixed">
         <thead>
           <tr>
             <th style="width:48%">Название</th>
@@ -3018,9 +3657,9 @@ function renderTasksTable() {
           </tr>
         </thead>
       </table>
-      <div class="vscroll-wrap" id="tasks-vscroll" style="height:${VIEWPORT_HEIGHT}px;overflow-y:auto;background:var(--bg2)">
+      <div class="vscroll-wrap" id="tasks-vscroll" style="height:calc(100vh - 240px);min-height:400px;overflow-y:auto;background:var(--bg2)">
         <div class="vscroll-spacer" style="height:${totalHeight}px;position:relative">
-          <table class="dtable" style="position:absolute;top:0;left:0;width:100%" id="tasks-vtable">
+          <table class="dtable" style="table-layout:fixed;position:absolute;top:0;left:0;width:100%" id="tasks-vtable">
             <tbody id="tasks-vbody"></tbody>
           </table>
         </div>
@@ -3033,6 +3672,8 @@ function renderTasksTable() {
   const vtable = document.getElementById('tasks-vtable');
 
   function renderVisible() {
+    const VH = wrap.clientHeight;
+    const visibleRows = Math.ceil(VH / ROW_HEIGHT) + 8;
     const scrollTop = wrap.scrollTop;
     const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 4);
     const end = Math.min(tasksState.filtered.length, start + visibleRows);
@@ -3042,7 +3683,7 @@ function renderTasksTable() {
       const t = tasksState.filtered[i];
       const stMeta = TASK_STATUS_META[t.status] || TASK_STATUS_META['1'];
       const prMeta = TASK_PRIORITY_META[t.priority] || TASK_PRIORITY_META['1'];
-      const respUser = t.responsibleUid ? dealsState?.users?.[t.responsibleUid] : null;
+      const respUser = getUserById(t.responsibleUid);
       const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
       const created = t.bitrixCreated ? new Date(t.bitrixCreated).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
       html += `<tr class="row" data-key="${escapeHtml(t.key)}" style="height:${ROW_HEIGHT}px">
@@ -3075,9 +3716,9 @@ async function openTaskCard(key) {
     }
     const stMeta = TASK_STATUS_META[String(t.status || '1')] || TASK_STATUS_META['1'];
     const prMeta = TASK_PRIORITY_META[String(t.priority || '1')] || TASK_PRIORITY_META['1'];
-    const respUser = t.responsibleUid ? dealsState?.users?.[t.responsibleUid] : null;
+    const respUser = getUserById(t.responsibleUid);
     const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
-    const createdByUser = t.createdByUid ? dealsState?.users?.[t.createdByUid] : null;
+    const createdByUser = getUserById(t.createdByUid);
     const createdByName = createdByUser ? `${createdByUser.lastName || ''} ${createdByUser.name || ''}`.trim() : '—';
     const bitrixUrl = `https://elcalmaty.bitrix24.kz/company/personal/user/1/tasks/task/view/${t.bitrixId}/`;
 
@@ -3115,7 +3756,7 @@ async function openTaskCard(key) {
         ${comments.length > 0 ? `<div class="section-h">Комментарии (${comments.length})</div>
           <div style="display:flex;flex-direction:column;gap:8px;max-height:500px;overflow-y:auto;padding-right:6px">
             ${comments.map(c => {
-              const author = c.authorUid ? dealsState?.users?.[c.authorUid] : null;
+              const author = getUserById(c.authorUid);
               const authorName = author ? `${author.lastName || ''} ${author.name || ''}`.trim() : (c.authorName || '—');
               const time = c.bitrixPostDate ? new Date(c.bitrixPostDate).toLocaleString('ru') : '';
               return `<div style="background:var(--bg3);border:1px solid var(--b1);border-radius:10px;padding:10px 12px">
