@@ -4,26 +4,39 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pllato CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Unbounded:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #0e0e12;
   --bg2: #16161d;
-  --bg3: #1f1f2a;
-  --bg4: #27273a;
-  --b1: rgba(255,255,255,.08);
-  --b2: rgba(255,255,255,.15);
+  --bg3: #1e1e28;
+  --bg4: #252532;
+  --b1: rgba(255,255,255,0.07);
+  --b2: rgba(255,255,255,0.13);
   --t1: #f0eefc;
-  --t2: #c5c2db;
-  --t3: #9896b0;
+  --t2: #9896b0;
+  --t3: #5e5c78;
   --ac: #7c5cfc;
   --ac2: #a87fff;
-  --acbg: rgba(124,92,252,.12);
-  --acb: rgba(124,92,252,.3);
+  --acbg: rgba(124,92,252,0.13);
+  --acb: rgba(124,92,252,0.38);
   --gn: #3fd88e;
+  --gnbg: rgba(63,216,142,0.1);
+  --am: #f5c842;
+  --ambg: rgba(245,200,66,0.1);
   --rd: #f05975;
-  --yl: #f5c14b;
+  --rdbg: rgba(240,89,117,0.1);
+  --tl: #3fc8d8;
+  --tlbg: rgba(63,200,216,0.1);
   --r: 10px;
-  --fb: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --rl: 14px;
+  --fd: 'Unbounded', sans-serif;
+  --fb: 'Manrope', sans-serif;
+  --shadow: 0 4px 24px rgba(0,0,0,.45);
+  /* legacy aliases */
+  --yl: var(--am);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -148,6 +161,204 @@ body {
 }
 .link:hover { text-decoration: underline; }
 
+/* ── Buttons (robeng-style, distinct from login .btn) ─────────── */
+.tbtn {
+  padding: 7px 15px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--fb);
+  border-radius: var(--r);
+  border: 1px solid var(--b2);
+  background: var(--bg3);
+  color: var(--t2);
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.tbtn:hover { background: var(--bg4); color: var(--t1); }
+.tbtn-a { background: var(--ac); border-color: var(--ac); color: #fff; }
+.tbtn-a:hover { background: var(--ac2); border-color: var(--ac2); color: #fff; }
+.tbtn-g { background: var(--gnbg); border-color: rgba(63,216,142,.3); color: var(--gn); }
+.tbtn-g:hover { background: var(--gn); color: var(--bg); }
+.tbtn-r { background: var(--rdbg); border-color: rgba(240,89,117,.3); color: var(--rd); }
+.tbtn-r:hover { background: var(--rd); color: #fff; }
+.tbtn-sm { padding: 5px 11px; font-size: 12px; }
+.tbtn-xs { padding: 3px 8px; font-size: 11px; }
+
+/* ── Stat cards ──────────────────────────────────── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.stat {
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: var(--rl);
+  padding: 15px 17px;
+}
+.stat-lbl {
+  font-size: 10px;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 600;
+  margin-bottom: 7px;
+}
+.stat-val {
+  font-family: var(--fd);
+  font-size: 22px;
+  font-weight: 700;
+}
+.cv { color: var(--ac2); }
+.cg { color: var(--gn); }
+.ca { color: var(--am); }
+.ct { color: var(--tl); }
+.cr { color: var(--rd); }
+
+/* ── Toolbars (search + filters) ──────────────────── */
+.tb {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.tb-search {
+  flex: 1;
+  min-width: 200px;
+  background: var(--bg3);
+  border: 1px solid var(--b2);
+  border-radius: var(--r);
+  color: var(--t1);
+  font-family: var(--fb);
+  font-size: 13px;
+  padding: 8px 12px;
+}
+.tb-search:focus { outline: none; border-color: var(--ac); }
+.tb-select {
+  background: var(--bg3);
+  border: 1px solid var(--b2);
+  border-radius: var(--r);
+  color: var(--t1);
+  font-family: var(--fb);
+  font-size: 12px;
+  padding: 7px 11px;
+  cursor: pointer;
+}
+
+/* ── Data table ───────────────────────────────────── */
+.dtable-wrap {
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: var(--rl);
+  overflow: hidden;
+}
+.dtable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.dtable th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  border-bottom: 1px solid var(--b1);
+  background: var(--bg3);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.dtable td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--b1);
+  color: var(--t2);
+  vertical-align: middle;
+}
+.dtable tr:last-child td { border-bottom: none; }
+.dtable tr.row { cursor: pointer; transition: background .12s; }
+.dtable tr.row:hover td { background: var(--bg3); }
+.dtable .name-cell {
+  color: var(--t1);
+  font-weight: 600;
+}
+
+/* ── Badges/chips ─────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.badge-ac { background: var(--acbg); border-color: var(--acb); color: var(--ac2); }
+.badge-g { background: var(--gnbg); border-color: rgba(63,216,142,.3); color: var(--gn); }
+.badge-a { background: var(--ambg); border-color: rgba(245,200,66,.3); color: var(--am); }
+.badge-r { background: var(--rdbg); border-color: rgba(240,89,117,.3); color: var(--rd); }
+.badge-t { background: var(--tlbg); border-color: rgba(63,200,216,.3); color: var(--tl); }
+.badge-n { background: var(--bg3); border-color: var(--b2); color: var(--t3); }
+
+/* ── Empty state ──────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--t3);
+}
+.empty-icon { font-size: 36px; margin-bottom: 10px; opacity: .5; }
+.empty-text { font-size: 13px; }
+
+/* ── Page header ──────────────────────────────────── */
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.page-head h1 {
+  font-family: var(--fd);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--t1);
+}
+.page-head .count {
+  font-size: 12px;
+  color: var(--t3);
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+/* ── View toggle (kanban / list) ──────────────────── */
+.view-toggle {
+  display: flex;
+  background: var(--bg3);
+  border: 1px solid var(--b2);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.vt-btn {
+  padding: 6px 13px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--fb);
+  border: none;
+  background: transparent;
+  color: var(--t2);
+  cursor: pointer;
+  transition: all .15s;
+}
+.vt-btn:hover { color: var(--t1); }
+.vt-btn.active { background: var(--ac); color: #fff; }
+
 /* ── App layout ───────────────────────────────────── */
 .app { display: none; min-height: 100vh; }
 .app.active { display: flex; }
@@ -160,7 +371,15 @@ body {
   flex-direction: column;
   padding: 18px 14px;
 }
-.sidebar .logo { font-size: 18px; margin-bottom: 22px; padding: 0 6px; }
+.sidebar .logo {
+  font-family: var(--fd);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ac2);
+  margin-bottom: 22px;
+  padding: 0 6px;
+  letter-spacing: .02em;
+}
 .nav-section {
   font-size: 10px;
   text-transform: uppercase;
@@ -431,56 +650,77 @@ tr:hover td { background: var(--bg3); }
 }
 .kanban-col {
   flex-shrink: 0;
-  width: 280px;
+  width: 240px;
   background: var(--bg2);
   border: 1px solid var(--b1);
-  border-radius: 12px;
-  padding: 10px;
+  border-radius: var(--rl);
+  padding: 0;
   max-height: calc(100vh - 240px);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 .kanban-col-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 8px 8px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--b1);
-  margin-bottom: 8px;
   font-size: 12px;
   color: var(--t2);
   font-weight: 600;
+  flex-shrink: 0;
+  background: var(--bg2);
+}
+.kanban-col-header .stage-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 .kanban-col-header .col-count {
-  color: var(--t3);
-  font-weight: 500;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  letter-spacing: .03em;
+}
+.kanban-col-sum {
+  font-family: var(--fd);
   font-size: 11px;
-  background: var(--bg3);
-  padding: 2px 7px;
-  border-radius: 10px;
+  color: var(--t3);
+  padding: 6px 12px 4px;
+  border-bottom: 1px solid var(--b1);
+  background: var(--bg2);
+  font-weight: 600;
+  flex-shrink: 0;
 }
 .kanban-col-cards {
   flex: 1;
   overflow-y: auto;
-  padding: 0 4px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
+  background: var(--bg);
 }
 .kanban-card {
   background: var(--bg3);
   border: 1px solid var(--b1);
-  border-radius: 8px;
-  padding: 9px 11px;
+  border-radius: 10px;
+  padding: 10px 12px;
   cursor: pointer;
-  transition: border-color .15s;
+  transition: border-color .12s, transform .12s;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  user-select: none;
 }
-.kanban-card:hover { border-color: var(--ac); }
+.kanban-card:hover { border-color: var(--b2); transform: translateY(-1px); }
 .kanban-card-title {
   font-size: 12px;
   color: var(--t1);
   font-weight: 600;
-  margin-bottom: 5px;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -488,18 +728,68 @@ tr:hover td { background: var(--bg3); }
   -webkit-box-orient: vertical;
   line-height: 1.4;
 }
-.kanban-card-meta {
-  font-size: 11px;
-  color: var(--t3);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
 .kanban-card-money {
   color: var(--gn);
-  font-weight: 600;
-  font-size: 11px;
+  font-weight: 700;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
+  font-family: var(--fd);
+}
+.kanban-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+.kanban-card-resp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.kanban-av {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--acbg);
+  color: var(--ac2);
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: var(--fd);
+  border: 1px solid var(--acb);
+}
+.kanban-card-resp-name {
+  font-size: 11px;
+  color: var(--t2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kanban-card-date {
+  font-size: 10px;
+  color: var(--t3);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.kanban-more {
+  text-align: center;
+  padding: 8px;
+  color: var(--t3);
+  font-size: 11px;
+  border: 1px dashed var(--b2);
+  border-radius: 8px;
+}
+.kanban-empty {
+  text-align: center;
+  padding: 24px 8px;
+  color: var(--t3);
+  font-size: 11px;
+  border: 1px dashed var(--b2);
+  border-radius: 8px;
 }
 
 /* Deal card modal */
@@ -1029,46 +1319,76 @@ function navigate(page) {
   });
   const main = document.getElementById('main');
   if (page === 'dashboard') renderDashboard(main);
-  else if (page === 'contacts') renderEmptyPage(main, 'Контакты', 'Здесь будут все контакты CRM. Сейчас данных нет — мигрируем из Битрикса.');
+  else if (page === 'contacts') renderContacts(main);
   else if (page === 'deals') renderDeals(main);
-  else if (page === 'tasks') renderEmptyPage(main, 'Задачи', 'Здесь будут задачи. Сейчас данных нет — мигрируем из Битрикса.');
+  else if (page === 'tasks') renderTasks(main);
   else if (page === 'users') renderUsers(main);
   else if (page === 'migration') renderMigration(main);
 }
 
 function renderDashboard(el) {
   el.innerHTML = `
-    <div class="page-title">👋 Добро пожаловать в Pllato CRM</div>
-    <div class="page-sub">Внутренний портал, скоро здесь будут все ваши данные</div>
-
-    <div class="stats-grid">
-      <div class="stat"><div class="stat-label">Контакты</div><div class="stat-value" id="s-contacts">0</div></div>
-      <div class="stat"><div class="stat-label">Сделки</div><div class="stat-value" id="s-deals">0</div></div>
-      <div class="stat"><div class="stat-label">Задачи</div><div class="stat-value" id="s-tasks">0</div></div>
-      <div class="stat"><div class="stat-label">Сотрудники</div><div class="stat-value" id="s-users">0</div></div>
+    <div class="page-head">
+      <h1>Главная</h1>
     </div>
 
-    <div class="card">
-      <h3>🚀 Что дальше</h3>
-      <div style="font-size:13px;color:var(--t2);line-height:1.7">
-        Эта инфраструктура только что развёрнута. Следующие шаги:
-        <br>1. Миграция 88 пользователей из Битрикса (раздел "Миграция Bitrix")
-        <br>2. Миграция воронки UniqBook Старт со сделками
-        <br>3. Миграция задач
-        <br>4. Подключение модулей (CRM, чаты, телефония)
+    <div class="stats-row">
+      <div class="stat">
+        <div class="stat-lbl">Контакты</div>
+        <div class="stat-val cv" id="s-contacts">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Сделки</div>
+        <div class="stat-val cg" id="s-deals">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Задачи</div>
+        <div class="stat-val ca" id="s-tasks">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Сотрудники</div>
+        <div class="stat-val ct" id="s-users">—</div>
       </div>
     </div>
 
+    <div class="card" style="margin-bottom:14px">
+      <div style="font-size:14px;font-weight:600;color:var(--t1);margin-bottom:10px;font-family:var(--fd)">📊 Состояние данных</div>
+      <div id="dashboard-data-status" style="font-size:12px;color:var(--t2);line-height:1.7"></div>
+    </div>
+
     <div class="card">
-      <h3>✅ Проверка соединения</h3>
+      <div style="font-size:14px;font-weight:600;color:var(--t1);margin-bottom:10px;font-family:var(--fd)">✅ Проверка соединения</div>
       <div id="conn-status" style="font-size:12px;color:var(--t3)">Проверяем...</div>
     </div>
   `;
 
-  // Стат-счётчики
   loadDashboardStats();
-  // Тест соединения
+  loadDashboardDataStatus();
   testConnection();
+}
+
+async function loadDashboardDataStatus() {
+  const el = document.getElementById('dashboard-data-status');
+  if (!el) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const [openlines, groupChats, files] = await Promise.all([
+      fetch(`${dbUrl}/migrationState/openlines.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`${dbUrl}/migrationState/groupChats.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`${dbUrl}/migrationState/files.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
+    const lines = [];
+    if (openlines?.cumulativeMessages) lines.push(`<span class="badge badge-g">📲 Открытые линии</span> ${openlines.cumulativeMessages.toLocaleString('ru')} сообщ. за 6 мес.`);
+    if (groupChats?.total) lines.push(`<span class="badge badge-ac">👥 Групповые чаты</span> ${groupChats.total} чата(ов)`);
+    if (files?.cumulativeMigrated) {
+      const mb = files.cumulativeBytes ? (files.cumulativeBytes / 1024 / 1024).toFixed(1) : '?';
+      lines.push(`<span class="badge badge-t">📁 Файлы в R2</span> ${files.cumulativeMigrated.toLocaleString('ru')} (${mb} МБ)`);
+    }
+    el.innerHTML = lines.length ? lines.join('<br>') : '<span style="color:var(--t3)">Данные миграции загружаются...</span>';
+  } catch (e) {
+    el.textContent = 'Не удалось загрузить статус миграции';
+  }
 }
 
 async function loadDashboardStats() {
@@ -1132,7 +1452,7 @@ const dealsState = {
   pipeline: null,     // структура воронки
   customSchema: null, // схема кастомных полей
   users: {},          // map: uid -> {name, lastName, email}
-  view: 'list',       // 'list' | 'kanban'
+  view: 'kanban',       // 'list' | 'kanban'
   search: '',
   stageFilter: '',
   responsibleFilter: '',
@@ -1142,24 +1462,20 @@ const dealsState = {
 
 async function renderDeals(el) {
   el.innerHTML = `
-    <div class="page-title">💼 Сделки</div>
-    <div class="page-sub">Воронка UniqBook Старт</div>
-    <div class="card" id="deals-loader">
-      <div class="empty">⏳ Загружаем данные из Firebase...</div>
+    <div class="page-head">
+      <h1>Сделки <span class="count" id="deals-count">загрузка…</span></h1>
     </div>
+    <div class="empty-state" id="deals-loader"><div class="empty-icon">⏳</div><div class="empty-text">Загружаем данные из Firebase...</div></div>
   `;
 
-  // Один раз загружаем всё что нужно
   if (!dealsState.loaded) {
     await loadDealsData();
   }
 
   if (!dealsState.deals.length) {
     document.getElementById('deals-loader').innerHTML = `
-      <div class="empty">
-        Сделки не найдены в базе.<br>
-        Запустите миграцию из раздела <b>Миграция Bitrix</b>.
-      </div>
+      <div class="empty-icon">💼</div>
+      <div class="empty-text">Сделки не найдены в базе. Запустите миграцию из раздела «Миграция Bitrix».</div>
     `;
     return;
   }
@@ -1195,46 +1511,52 @@ async function loadDealsData() {
 }
 
 function renderDealsLayout(el) {
+  const filtered = getFilteredDeals();
   el.innerHTML = `
-    <div class="page-title">💼 Сделки</div>
-    <div class="page-sub">Воронка <b>${escapeHtml(dealsState.pipeline?.name || 'Неизвестно')}</b> · ${dealsState.deals.length.toLocaleString('ru')} сделок</div>
+    <div class="page-head">
+      <h1>Сделки
+        <span class="count" id="deals-count">${dealsState.deals.length.toLocaleString('ru')}${filtered.length !== dealsState.deals.length ? ` · отф. ${filtered.length.toLocaleString('ru')}` : ''}</span>
+      </h1>
+      <div class="view-toggle">
+        <button class="vt-btn ${dealsState.view === 'kanban' ? 'active' : ''}" data-view="kanban">📊 Канбан</button>
+        <button class="vt-btn ${dealsState.view === 'list' ? 'active' : ''}" data-view="list">📋 Список</button>
+      </div>
+    </div>
 
-    <div class="toolbar">
-      <input type="text" id="deal-search" placeholder="🔍 Поиск по названию..." value="${escapeHtml(dealsState.search)}">
-      <select id="stage-filter">
+    <div class="tb">
+      <input class="tb-search" id="deal-search" placeholder="🔍 Поиск по названию..." value="${escapeHtml(dealsState.search)}">
+      <select class="tb-select" id="stage-filter">
         <option value="">Все стадии</option>
         ${getStagesSorted().map(s => `<option value="${escapeHtml(s.statusId)}" ${s.statusId === dealsState.stageFilter ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}
       </select>
-      <select id="resp-filter">
+      <select class="tb-select" id="resp-filter">
         <option value="">Все ответственные</option>
         ${getUsersForFilter().map(u => `<option value="${escapeHtml(u.uid)}" ${u.uid === dealsState.responsibleFilter ? 'selected' : ''}>${escapeHtml(u.fullName)}</option>`).join('')}
       </select>
-      <div class="view-tabs">
-        <div class="view-tab ${dealsState.view === 'list' ? 'active' : ''}" data-view="list">📋 Список</div>
-        <div class="view-tab ${dealsState.view === 'kanban' ? 'active' : ''}" data-view="kanban">📊 Канбан</div>
-      </div>
     </div>
 
     <div id="deals-content"></div>
   `;
 
-  // Listeners
   document.getElementById('deal-search').addEventListener('input', e => {
     dealsState.search = e.target.value;
     dealsState.page = 0;
+    updateDealsCount();
     renderDealsContent();
   });
   document.getElementById('stage-filter').addEventListener('change', e => {
     dealsState.stageFilter = e.target.value;
     dealsState.page = 0;
+    updateDealsCount();
     renderDealsContent();
   });
   document.getElementById('resp-filter').addEventListener('change', e => {
     dealsState.responsibleFilter = e.target.value;
     dealsState.page = 0;
+    updateDealsCount();
     renderDealsContent();
   });
-  document.querySelectorAll('[data-view]').forEach(t => {
+  el.querySelectorAll('[data-view]').forEach(t => {
     t.addEventListener('click', () => {
       dealsState.view = t.dataset.view;
       renderDealsLayout(el);
@@ -1242,6 +1564,17 @@ function renderDealsLayout(el) {
   });
 
   renderDealsContent();
+}
+
+function updateDealsCount() {
+  const total = dealsState.deals.length;
+  const filtered = getFilteredDeals().length;
+  const el = document.getElementById('deals-count');
+  if (el) {
+    el.textContent = filtered === total
+      ? total.toLocaleString('ru')
+      : `${total.toLocaleString('ru')} · отф. ${filtered.toLocaleString('ru')}`;
+  }
 }
 
 function getFilteredDeals() {
@@ -1273,7 +1606,7 @@ function renderDealsContent() {
 
 function renderDealsList(c, arr) {
   if (!arr.length) {
-    c.innerHTML = `<div class="card"><div class="empty">Не найдено сделок по фильтрам</div></div>`;
+    c.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Не найдено сделок по фильтрам</div></div>`;
     return;
   }
   const totalPages = Math.ceil(arr.length / dealsState.pageSize);
@@ -1282,15 +1615,15 @@ function renderDealsList(c, arr) {
   const end = Math.min(start + dealsState.pageSize, arr.length);
   const slice = arr.slice(start, end);
 
-  let html = `<div class="card" style="padding:0;overflow:auto">
-    <table class="deals-table">
+  let html = `<div class="dtable-wrap" style="overflow-x:auto">
+    <table class="dtable">
       <thead>
         <tr>
-          <th>Название</th>
-          <th>Стадия</th>
-          <th>Сумма</th>
-          <th>Ответственный</th>
-          <th>Создано</th>
+          <th style="width:42%">Название</th>
+          <th style="width:18%">Стадия</th>
+          <th style="width:14%">Сумма</th>
+          <th style="width:18%">Ответственный</th>
+          <th style="width:8%">Создано</th>
         </tr>
       </thead>
       <tbody>`;
@@ -1298,23 +1631,22 @@ function renderDealsList(c, arr) {
   for (const d of slice) {
     const stage = dealsState.pipeline?.stages?.[d.stageId];
     const stageName = stage?.name || d.stageId || '—';
-    const stageCls = stage?.semantics === 'S' ? 'success' : stage?.semantics === 'F' ? 'failed' : '';
+    const stageColor = stage?.semantics === 'S' ? 'var(--gn)' : (stage?.semantics === 'F' ? 'var(--rd)' : 'var(--ac2)');
     const respUser = dealsState.users[d.responsibleUid];
     const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
     const opp = d.opportunity || 0;
-    const date = d.bitrixDateCreate ? d.bitrixDateCreate.slice(0, 10) : '—';
+    const date = d.bitrixDateCreate ? new Date(d.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
 
     html += `<tr class="row" data-deal-id="${escapeHtml(d.bitrixId)}">
-      <td><div class="deal-title">${escapeHtml(d.title || '(без названия)')}</div></td>
-      <td><span class="stage-badge ${stageCls}">${escapeHtml(stageName)}</span></td>
-      <td class="money ${opp === 0 ? 'zero' : ''}">${opp ? opp.toLocaleString('ru') + ' ' + (d.currency || '') : '—'}</td>
-      <td>${escapeHtml(respName)}</td>
-      <td class="muted">${date}</td>
+      <td class="name-cell" style="width:42%">${escapeHtml(d.title || '(без названия)')}</td>
+      <td style="width:18%"><span class="badge" style="color:${stageColor};border-color:${stageColor}55;background:${stageColor}22">${escapeHtml(stageName)}</span></td>
+      <td style="width:14%;color:${opp ? 'var(--gn)' : 'var(--t3)'};font-variant-numeric:tabular-nums;font-weight:600">${opp ? opp.toLocaleString('ru') + ' ' + (d.currency || '') : '—'}</td>
+      <td style="width:18%;color:var(--ac2)">${escapeHtml(respName)}</td>
+      <td style="width:8%;color:var(--t3);font-size:11px">${date}</td>
     </tr>`;
   }
   html += `</tbody></table></div>`;
 
-  // Pagination
   html += `<div class="pagination">
     <button class="pg-btn" data-pg="first" ${page === 0 ? 'disabled' : ''}>« Первая</button>
     <button class="pg-btn" data-pg="prev" ${page === 0 ? 'disabled' : ''}>‹ Назад</button>
@@ -1325,11 +1657,9 @@ function renderDealsList(c, arr) {
 
   c.innerHTML = html;
 
-  // Click on row
   c.querySelectorAll('tr.row').forEach(r => {
     r.addEventListener('click', () => openDealCard(r.dataset.dealId));
   });
-  // Pagination
   c.querySelectorAll('[data-pg]').forEach(b => {
     b.addEventListener('click', () => {
       if (b.dataset.pg === 'first') dealsState.page = 0;
@@ -1353,40 +1683,59 @@ function renderDealsKanban(c, arr) {
   for (const s of stages) byStage[s.statusId] = [];
   for (const d of arr) {
     if (byStage[d.stageId]) byStage[d.stageId].push(d);
-    else { // если стадия не из этой воронки
+    else {
       if (!byStage['__other']) byStage['__other'] = [];
       byStage['__other'].push(d);
     }
   }
 
   let html = `<div class="kanban-wrap">`;
-  // Лимит карточек на колонку чтобы DOM не зависал
-  const MAX_PER_COL = 200;
+  const MAX_PER_COL = 100;
 
   for (const s of stages) {
     const cards = byStage[s.statusId] || [];
-    const cls = s.semantics === 'S' ? 'success' : s.semantics === 'F' ? 'failed' : '';
+    const totalSum = cards.reduce((acc, d) => acc + (d.opportunity || 0), 0);
+    const stageColor = s.semantics === 'S' ? 'var(--gn)' : s.semantics === 'F' ? 'var(--rd)' : 'var(--ac2)';
+    const stageBg = s.semantics === 'S' ? 'var(--gnbg)' : s.semantics === 'F' ? 'var(--rdbg)' : 'var(--acbg)';
+
     html += `<div class="kanban-col">
-      <div class="kanban-col-header">
-        <span><span class="stage-badge ${cls}" style="margin-right:6px;font-size:10px;padding:2px 6px">${escapeHtml(s.name)}</span></span>
-        <span class="col-count">${cards.length.toLocaleString('ru')}</span>
+      <div class="kanban-col-header" style="border-top:3px solid ${stageColor};padding-top:10px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="stage-dot" style="background:${stageColor}"></span>
+          <span style="color:${stageColor};font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em">${escapeHtml(s.name)}</span>
+        </div>
+        <span class="col-count" style="background:${stageBg};color:${stageColor};border:1px solid ${stageColor}33">${cards.length.toLocaleString('ru')}</span>
       </div>
+      ${totalSum > 0 ? `<div class="kanban-col-sum">${totalSum.toLocaleString('ru')} ₸</div>` : ''}
       <div class="kanban-col-cards">`;
 
     for (const d of cards.slice(0, MAX_PER_COL)) {
       const respUser = dealsState.users[d.responsibleUid];
-      const respShort = respUser ? (respUser.lastName || respUser.name || '').slice(0, 12) : '';
+      const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '';
+      const respShort = respName ? respName.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() : '?';
       const opp = d.opportunity || 0;
-      html += `<div class="kanban-card" data-deal-id="${escapeHtml(d.bitrixId)}">
+      const phone = (Array.isArray(d.phones) && d.phones.length > 0 && d.phones[0].value)
+        ? d.phones[0].value
+        : (d._contactPhone || '');
+      const created = d.bitrixDateCreate ? new Date(d.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit' }) : '';
+
+      html += `<div class="kanban-card" data-deal-id="${escapeHtml(d.bitrixId)}" style="border-left:3px solid ${stageColor}">
         <div class="kanban-card-title">${escapeHtml(d.title || '(без названия)')}</div>
-        <div class="kanban-card-meta">
-          <span>${escapeHtml(respShort)}</span>
-          ${opp ? `<span class="kanban-card-money">${opp.toLocaleString('ru')}</span>` : ''}
+        ${opp > 0 ? `<div class="kanban-card-money">${opp.toLocaleString('ru')} ₸</div>` : ''}
+        <div class="kanban-card-foot">
+          <div class="kanban-card-resp">
+            <span class="kanban-av" title="${escapeHtml(respName)}">${escapeHtml(respShort)}</span>
+            <span class="kanban-card-resp-name">${escapeHtml(respName.split(' ')[0] || '—')}</span>
+          </div>
+          ${created ? `<span class="kanban-card-date">${created}</span>` : ''}
         </div>
       </div>`;
     }
     if (cards.length > MAX_PER_COL) {
-      html += `<div style="text-align:center;padding:8px;color:var(--t3);font-size:11px">… ещё ${(cards.length - MAX_PER_COL).toLocaleString('ru')}</div>`;
+      html += `<div class="kanban-more">… ещё ${(cards.length - MAX_PER_COL).toLocaleString('ru')}</div>`;
+    }
+    if (cards.length === 0) {
+      html += `<div class="kanban-empty">Пусто</div>`;
     }
 
     html += `</div></div>`;
@@ -1932,6 +2281,608 @@ function renderEmptyPage(el, title, sub) {
     <div class="page-sub">${sub}</div>
     <div class="card"><div class="empty">Пусто. Запустите миграцию из Битрикса.</div></div>
   `;
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+//   КОНТАКТЫ (143k+ записей с виртуальным скроллом)
+// ═════════════════════════════════════════════════════════════════════════
+const contactsState = {
+  loaded: false,
+  list: [],          // массив всех контактов (lite-объекты для скролла)
+  filtered: [],      // отфильтрованные
+  searchTerm: '',
+  loading: false,
+};
+
+async function renderContacts(el) {
+  el.innerHTML = `
+    <div class="page-head">
+      <h1>Контакты <span class="count" id="contacts-count">загрузка…</span></h1>
+    </div>
+    <div class="tb">
+      <input class="tb-search" id="contacts-search" placeholder="🔍 Поиск по имени или телефону (Enter)" autocomplete="off">
+      <button class="tbtn tbtn-sm" id="contacts-clear" style="display:none">Сброс</button>
+    </div>
+    <div id="contacts-content">
+      <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Загружаем контакты...</div></div>
+    </div>
+  `;
+
+  const searchInp = document.getElementById('contacts-search');
+  const clearBtn = document.getElementById('contacts-clear');
+
+  searchInp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      contactsState.searchTerm = searchInp.value.trim().toLowerCase();
+      clearBtn.style.display = contactsState.searchTerm ? '' : 'none';
+      filterAndRenderContacts();
+    } else if (e.key === 'Escape') {
+      searchInp.value = '';
+      contactsState.searchTerm = '';
+      clearBtn.style.display = 'none';
+      filterAndRenderContacts();
+    }
+  });
+  clearBtn.addEventListener('click', () => {
+    searchInp.value = '';
+    contactsState.searchTerm = '';
+    clearBtn.style.display = 'none';
+    filterAndRenderContacts();
+    searchInp.focus();
+  });
+
+  if (!contactsState.loaded) {
+    await loadContacts();
+  }
+  filterAndRenderContacts();
+}
+
+async function loadContacts() {
+  if (contactsState.loading) return;
+  contactsState.loading = true;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    // Качаем сразу все 143k контактов одним запросом — Firebase отдаст
+    // Но качаем lite-версию (только нужные поля) через REST с ?print=pretty не нужен
+    // В Firebase RTDB selective fetch только через query params, поэтому забираем всё
+    const r = await fetch(`${dbUrl}/contacts.json?auth=${idToken}`);
+    if (!r.ok) {
+      contactsState.loading = false;
+      throw new Error(`HTTP ${r.status}`);
+    }
+    const data = await r.json();
+    if (!data) {
+      contactsState.list = [];
+      contactsState.loaded = true;
+      contactsState.loading = false;
+      return;
+    }
+    // Сохраняем только нужные поля для списка
+    const list = [];
+    for (const [key, c] of Object.entries(data)) {
+      if (!c) continue;
+      const phones = Array.isArray(c.phones) ? c.phones : [];
+      const emails = Array.isArray(c.emails) ? c.emails : [];
+      const fullName = [c.lastName, c.name, c.secondName].filter(Boolean).join(' ').trim();
+      list.push({
+        key,
+        bitrixId: c.bitrixId || key.replace('contact_', ''),
+        fullName: fullName || '(без имени)',
+        searchable: (fullName + ' ' + phones.map(p => p.value || '').join(' ') + ' ' + emails.map(e => e.value || '').join(' ')).toLowerCase(),
+        phone: phones[0]?.value || '',
+        email: emails[0]?.value || '',
+        responsibleUid: c.responsibleUid || null,
+        bitrixCreated: c.bitrixCreated || null,
+      });
+    }
+    // Сортируем по дате создания (новые сверху)
+    list.sort((a, b) => (b.bitrixCreated || '').localeCompare(a.bitrixCreated || ''));
+    contactsState.list = list;
+    contactsState.loaded = true;
+  } catch (e) {
+    console.error('loadContacts error:', e);
+    document.getElementById('contacts-content').innerHTML =
+      `<div class="empty-state"><div class="empty-icon">✗</div><div class="empty-text">Ошибка загрузки: ${escapeHtml(e.message)}</div></div>`;
+  } finally {
+    contactsState.loading = false;
+  }
+}
+
+function filterAndRenderContacts() {
+  if (!contactsState.loaded) return;
+  const term = contactsState.searchTerm;
+  contactsState.filtered = term
+    ? contactsState.list.filter(c => c.searchable.includes(term))
+    : contactsState.list;
+
+  const countEl = document.getElementById('contacts-count');
+  if (countEl) {
+    countEl.textContent = term
+      ? `${contactsState.filtered.length.toLocaleString('ru')} из ${contactsState.list.length.toLocaleString('ru')}`
+      : contactsState.list.length.toLocaleString('ru');
+  }
+
+  renderContactsTable();
+}
+
+function renderContactsTable() {
+  const c = document.getElementById('contacts-content');
+  if (!c) return;
+
+  if (contactsState.filtered.length === 0) {
+    c.innerHTML = `<div class="empty-state"><div class="empty-icon">${contactsState.searchTerm ? '🔍' : '👥'}</div><div class="empty-text">${contactsState.searchTerm ? 'По запросу ничего не найдено' : 'Нет контактов'}</div></div>`;
+    return;
+  }
+
+  // Виртуальный скролл: рендерим только видимые ~80 строк
+  const ROW_HEIGHT = 44;
+  const VIEWPORT_HEIGHT = 600;
+  const totalHeight = contactsState.filtered.length * ROW_HEIGHT;
+  const visibleRows = Math.ceil(VIEWPORT_HEIGHT / ROW_HEIGHT) + 8;
+
+  c.innerHTML = `
+    <div class="dtable-wrap">
+      <table class="dtable">
+        <thead>
+          <tr>
+            <th style="width:30%">Имя</th>
+            <th style="width:22%">Телефон</th>
+            <th style="width:22%">Email</th>
+            <th style="width:18%">Ответственный</th>
+            <th style="width:8%">Создан</th>
+          </tr>
+        </thead>
+      </table>
+      <div class="vscroll-wrap" id="contacts-vscroll" style="height:${VIEWPORT_HEIGHT}px;overflow-y:auto;background:var(--bg2)">
+        <div class="vscroll-spacer" style="height:${totalHeight}px;position:relative">
+          <table class="dtable" style="position:absolute;top:0;left:0;width:100%" id="contacts-vtable">
+            <tbody id="contacts-vbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const wrap = document.getElementById('contacts-vscroll');
+  const vbody = document.getElementById('contacts-vbody');
+  const vtable = document.getElementById('contacts-vtable');
+
+  function renderVisible() {
+    const scrollTop = wrap.scrollTop;
+    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 4);
+    const end = Math.min(contactsState.filtered.length, start + visibleRows);
+    vtable.style.transform = `translateY(${start * ROW_HEIGHT}px)`;
+    let html = '';
+    for (let i = start; i < end; i++) {
+      const c = contactsState.filtered[i];
+      const respUser = c.responsibleUid ? dealsState?.users?.[c.responsibleUid] : null;
+      const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
+      const created = c.bitrixCreated ? new Date(c.bitrixCreated).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+      html += `<tr class="row" data-key="${escapeHtml(c.key)}" style="height:${ROW_HEIGHT}px">
+        <td class="name-cell" style="width:30%">${escapeHtml(c.fullName)}</td>
+        <td style="width:22%">${c.phone ? `<a href="tel:${escapeHtml(c.phone)}" style="color:var(--ac2)" onclick="event.stopPropagation()">${escapeHtml(c.phone)}</a>` : '<span style="color:var(--t3)">—</span>'}</td>
+        <td style="width:22%">${c.email ? `<a href="mailto:${escapeHtml(c.email)}" style="color:var(--ac2)" onclick="event.stopPropagation()">${escapeHtml(c.email)}</a>` : '<span style="color:var(--t3)">—</span>'}</td>
+        <td style="width:18%;color:var(--ac2)">${escapeHtml(respName)}</td>
+        <td style="width:8%;color:var(--t3);font-size:11px">${created}</td>
+      </tr>`;
+    }
+    vbody.innerHTML = html;
+    // Click handlers
+    vbody.querySelectorAll('tr.row').forEach(tr => {
+      tr.addEventListener('click', () => openContactCard(tr.dataset.key));
+    });
+  }
+
+  wrap.addEventListener('scroll', renderVisible, { passive: true });
+  renderVisible();
+}
+
+async function openContactCard(key) {
+  // Загружаем полную карточку контакта + связанные сделки
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const contact = await fetch(`${dbUrl}/contacts/${encodeURIComponent(key)}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null);
+    if (!contact) {
+      alert('Контакт не найден');
+      return;
+    }
+    const fullName = [contact.lastName, contact.name, contact.secondName].filter(Boolean).join(' ').trim() || '(без имени)';
+    const phones = Array.isArray(contact.phones) ? contact.phones : [];
+    const emails = Array.isArray(contact.emails) ? contact.emails : [];
+    const respUser = contact.responsibleUid ? dealsState?.users?.[contact.responsibleUid] : null;
+    const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
+    const bitrixUrl = `https://elcalmaty.bitrix24.kz/crm/contact/details/${contact.bitrixId}/`;
+
+    // Связанные сделки — ищем по contactId в dealsState (если загружено)
+    const relatedDeals = (dealsState?.deals || []).filter(d => d.contactId === key);
+
+    let html = `<div class="modal-overlay" onclick="if(event.target===this)closeDealCard()">
+      <div class="modal">
+        <button class="close-x" onclick="closeDealCard()">×</button>
+        <h2>${escapeHtml(fullName)}</h2>
+        <div class="modal-sub">
+          ID: <code>${escapeHtml(contact.bitrixId || '?')}</code> ·
+          <a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a>
+        </div>
+        <div class="section-h">Контактная информация</div>
+        <div class="field-grid">`;
+
+    if (phones.length > 0) {
+      html += `<div class="fl">Телефон${phones.length > 1 ? 'ы' : ''}</div><div class="fv">`;
+      html += phones.map(p => `<div><a href="tel:${escapeHtml(p.value)}" style="color:var(--ac2)">${escapeHtml(p.value)}</a> ${p.type ? `<span class="muted" style="font-size:11px">· ${escapeHtml(p.type)}</span>` : ''}</div>`).join('');
+      html += `</div>`;
+    }
+
+    if (emails.length > 0) {
+      html += `<div class="fl">Email</div><div class="fv">`;
+      html += emails.map(em => `<div><a href="mailto:${escapeHtml(em.value)}" style="color:var(--ac2)">${escapeHtml(em.value)}</a></div>`).join('');
+      html += `</div>`;
+    }
+
+    html += `<div class="fl">Ответственный</div><div class="fv">${escapeHtml(respName)}</div>`;
+    if (contact.bitrixCreated) html += `<div class="fl">Создан</div><div class="fv">${new Date(contact.bitrixCreated).toLocaleString('ru')}</div>`;
+    if (contact.bitrixDateModify) html += `<div class="fl">Изменён</div><div class="fv">${new Date(contact.bitrixDateModify).toLocaleString('ru')}</div>`;
+    if (contact.companyId) html += `<div class="fl">Компания</div><div class="fv"><span class="muted">${escapeHtml(contact.companyId)}</span></div>`;
+    html += `</div>`;
+
+    if (contact.comments) {
+      html += `<div class="section-h">Комментарий</div>
+        <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px">${escapeHtml(contact.comments)}</div>`;
+    }
+
+    if (relatedDeals.length > 0) {
+      html += `<div class="section-h">Связанные сделки (${relatedDeals.length})</div>
+        <div style="display:flex;flex-direction:column;gap:6px">`;
+      for (const d of relatedDeals.slice(0, 20)) {
+        const stage = dealsState.pipeline?.stages?.[d.stageId];
+        const stageName = stage?.name || d.stageId || '—';
+        const stageColor = stage?.semantics === 'S' ? 'var(--gn)' : (stage?.semantics === 'F' ? 'var(--rd)' : 'var(--ac2)');
+        html += `<div onclick="closeDealCard();setTimeout(()=>openDealCard('${escapeHtml(d.bitrixId)}'),100)" style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:10px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.title || '(без названия)')}</div>
+            <div style="font-size:11px;color:var(--t3);margin-top:2px">${d.opportunity ? d.opportunity.toLocaleString('ru') + ' ' + (d.currency || '') : '—'}</div>
+          </div>
+          <span class="badge" style="color:${stageColor};border-color:${stageColor}55;background:${stageColor}22">${escapeHtml(stageName)}</span>
+        </div>`;
+      }
+      if (relatedDeals.length > 20) {
+        html += `<div style="font-size:11px;color:var(--t3);text-align:center;padding:6px">и ещё ${relatedDeals.length - 20}...</div>`;
+      }
+      html += `</div>`;
+    } else if (dealsState?.deals?.length > 0) {
+      html += `<div class="section-h">Связанные сделки</div><div style="font-size:13px;color:var(--t3)">Нет привязанных сделок</div>`;
+    }
+
+    html += `${renderCustomFieldsBlock(contact.customFields)}
+      </div>
+    </div>`;
+
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div.firstElementChild);
+    document.body.style.overflow = 'hidden';
+  } catch (e) {
+    alert('Ошибка загрузки контакта: ' + e.message);
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+//   ЗАДАЧИ (38k+ записей с фильтрами)
+// ═════════════════════════════════════════════════════════════════════════
+const tasksState = {
+  loaded: false,
+  list: [],
+  filtered: [],
+  filterStatus: 'all',
+  filterAssignee: 'all',
+  searchTerm: '',
+  loading: false,
+};
+
+const TASK_STATUS_META = {
+  '1': { label: 'Новая', color: 'var(--ac2)', class: 'badge-ac' },
+  '2': { label: 'Ждёт', color: 'var(--am)', class: 'badge-a' },
+  '3': { label: 'Выполняется', color: 'var(--tl)', class: 'badge-t' },
+  '4': { label: 'Завершена', color: 'var(--gn)', class: 'badge-g' },
+  '5': { label: 'Отложена', color: 'var(--t3)', class: 'badge-n' },
+  '6': { label: 'Отклонена', color: 'var(--rd)', class: 'badge-r' },
+  '7': { label: 'Не принята', color: 'var(--rd)', class: 'badge-r' },
+};
+
+const TASK_PRIORITY_META = {
+  '0': { label: 'Низкий', class: 'badge-n' },
+  '1': { label: 'Обычный', class: 'badge-n' },
+  '2': { label: 'Высокий', class: 'badge-r' },
+  '3': { label: 'Срочный', class: 'badge-r' },
+};
+
+async function renderTasks(el) {
+  el.innerHTML = `
+    <div class="page-head">
+      <h1>Задачи <span class="count" id="tasks-count">загрузка…</span></h1>
+    </div>
+    <div class="tb">
+      <input class="tb-search" id="tasks-search" placeholder="🔍 Поиск по названию (Enter)" autocomplete="off">
+      <select class="tb-select" id="tasks-status">
+        <option value="all">Все статусы</option>
+        <option value="active">Активные (1-3)</option>
+        <option value="1">Новые</option>
+        <option value="2">Ждут</option>
+        <option value="3">Выполняются</option>
+        <option value="4">Завершённые</option>
+        <option value="5">Отложенные</option>
+        <option value="6">Отклонённые</option>
+      </select>
+      <select class="tb-select" id="tasks-assignee">
+        <option value="all">Все исполнители</option>
+      </select>
+    </div>
+    <div id="tasks-content">
+      <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Загружаем задачи... (это может занять 10-20 секунд)</div></div>
+    </div>
+  `;
+
+  document.getElementById('tasks-search').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      tasksState.searchTerm = e.target.value.trim().toLowerCase();
+      filterAndRenderTasks();
+    } else if (e.key === 'Escape') {
+      e.target.value = '';
+      tasksState.searchTerm = '';
+      filterAndRenderTasks();
+    }
+  });
+  document.getElementById('tasks-status').addEventListener('change', e => {
+    tasksState.filterStatus = e.target.value;
+    filterAndRenderTasks();
+  });
+  document.getElementById('tasks-assignee').addEventListener('change', e => {
+    tasksState.filterAssignee = e.target.value;
+    filterAndRenderTasks();
+  });
+
+  if (!tasksState.loaded) {
+    await loadTasks();
+  }
+  populateTaskAssigneeFilter();
+  filterAndRenderTasks();
+}
+
+async function loadTasks() {
+  if (tasksState.loading) return;
+  tasksState.loading = true;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const r = await fetch(`${dbUrl}/tasks.json?auth=${idToken}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    if (!data) {
+      tasksState.list = [];
+      tasksState.loaded = true;
+      tasksState.loading = false;
+      return;
+    }
+    const list = [];
+    for (const [key, t] of Object.entries(data)) {
+      if (!t) continue;
+      list.push({
+        key,
+        bitrixId: t.bitrixId || key.replace('task_', ''),
+        title: t.title || '(без названия)',
+        status: String(t.status || '1'),
+        priority: String(t.priority || '1'),
+        responsibleUid: t.responsibleUid || null,
+        createdByUid: t.createdByUid || null,
+        deadline: t.deadline || null,
+        bitrixCreated: t.bitrixCreated || null,
+        commentsCount: t.commentsCount || 0,
+        groupId: t.groupId || null,
+        searchable: (t.title || '').toLowerCase(),
+      });
+    }
+    list.sort((a, b) => (b.bitrixCreated || '').localeCompare(a.bitrixCreated || ''));
+    tasksState.list = list;
+    tasksState.loaded = true;
+  } catch (e) {
+    console.error('loadTasks error:', e);
+    document.getElementById('tasks-content').innerHTML =
+      `<div class="empty-state"><div class="empty-icon">✗</div><div class="empty-text">Ошибка загрузки: ${escapeHtml(e.message)}</div></div>`;
+  } finally {
+    tasksState.loading = false;
+  }
+}
+
+function populateTaskAssigneeFilter() {
+  const sel = document.getElementById('tasks-assignee');
+  if (!sel || !dealsState?.users) return;
+  // Уникальные responsibleUid из задач
+  const usedUids = new Set();
+  for (const t of tasksState.list) if (t.responsibleUid) usedUids.add(t.responsibleUid);
+  const opts = [];
+  for (const uid of usedUids) {
+    const u = dealsState.users[uid];
+    if (u) opts.push({ uid, name: `${u.lastName || ''} ${u.name || ''}`.trim() });
+  }
+  opts.sort((a, b) => a.name.localeCompare(b.name));
+  sel.innerHTML = '<option value="all">Все исполнители</option>' +
+    opts.map(o => `<option value="${escapeHtml(o.uid)}">${escapeHtml(o.name)}</option>`).join('');
+}
+
+function filterAndRenderTasks() {
+  const term = tasksState.searchTerm;
+  let arr = tasksState.list;
+  if (tasksState.filterStatus === 'active') {
+    arr = arr.filter(t => ['1', '2', '3'].includes(t.status));
+  } else if (tasksState.filterStatus !== 'all') {
+    arr = arr.filter(t => t.status === tasksState.filterStatus);
+  }
+  if (tasksState.filterAssignee !== 'all') {
+    arr = arr.filter(t => t.responsibleUid === tasksState.filterAssignee);
+  }
+  if (term) {
+    arr = arr.filter(t => t.searchable.includes(term));
+  }
+  tasksState.filtered = arr;
+
+  const countEl = document.getElementById('tasks-count');
+  if (countEl) {
+    countEl.textContent = (arr.length === tasksState.list.length)
+      ? tasksState.list.length.toLocaleString('ru')
+      : `${arr.length.toLocaleString('ru')} из ${tasksState.list.length.toLocaleString('ru')}`;
+  }
+
+  renderTasksTable();
+}
+
+function renderTasksTable() {
+  const c = document.getElementById('tasks-content');
+  if (!c) return;
+  if (tasksState.filtered.length === 0) {
+    c.innerHTML = `<div class="empty-state"><div class="empty-icon">✓</div><div class="empty-text">Задачи не найдены</div></div>`;
+    return;
+  }
+
+  const ROW_HEIGHT = 48;
+  const VIEWPORT_HEIGHT = 600;
+  const totalHeight = tasksState.filtered.length * ROW_HEIGHT;
+  const visibleRows = Math.ceil(VIEWPORT_HEIGHT / ROW_HEIGHT) + 8;
+
+  c.innerHTML = `
+    <div class="dtable-wrap">
+      <table class="dtable">
+        <thead>
+          <tr>
+            <th style="width:48%">Название</th>
+            <th style="width:14%">Статус</th>
+            <th style="width:11%">Приоритет</th>
+            <th style="width:15%">Исполнитель</th>
+            <th style="width:7%">💬</th>
+            <th style="width:5%">Дата</th>
+          </tr>
+        </thead>
+      </table>
+      <div class="vscroll-wrap" id="tasks-vscroll" style="height:${VIEWPORT_HEIGHT}px;overflow-y:auto;background:var(--bg2)">
+        <div class="vscroll-spacer" style="height:${totalHeight}px;position:relative">
+          <table class="dtable" style="position:absolute;top:0;left:0;width:100%" id="tasks-vtable">
+            <tbody id="tasks-vbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const wrap = document.getElementById('tasks-vscroll');
+  const vbody = document.getElementById('tasks-vbody');
+  const vtable = document.getElementById('tasks-vtable');
+
+  function renderVisible() {
+    const scrollTop = wrap.scrollTop;
+    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 4);
+    const end = Math.min(tasksState.filtered.length, start + visibleRows);
+    vtable.style.transform = `translateY(${start * ROW_HEIGHT}px)`;
+    let html = '';
+    for (let i = start; i < end; i++) {
+      const t = tasksState.filtered[i];
+      const stMeta = TASK_STATUS_META[t.status] || TASK_STATUS_META['1'];
+      const prMeta = TASK_PRIORITY_META[t.priority] || TASK_PRIORITY_META['1'];
+      const respUser = t.responsibleUid ? dealsState?.users?.[t.responsibleUid] : null;
+      const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
+      const created = t.bitrixCreated ? new Date(t.bitrixCreated).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+      html += `<tr class="row" data-key="${escapeHtml(t.key)}" style="height:${ROW_HEIGHT}px">
+        <td class="name-cell" style="width:48%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</td>
+        <td style="width:14%"><span class="badge ${stMeta.class}">${escapeHtml(stMeta.label)}</span></td>
+        <td style="width:11%"><span class="badge ${prMeta.class}">${escapeHtml(prMeta.label)}</span></td>
+        <td style="width:15%;color:var(--ac2);font-size:11px">${escapeHtml(respName)}</td>
+        <td style="width:7%;color:var(--t3)">${t.commentsCount > 0 ? t.commentsCount : ''}</td>
+        <td style="width:5%;color:var(--t3);font-size:10px">${created}</td>
+      </tr>`;
+    }
+    vbody.innerHTML = html;
+    vbody.querySelectorAll('tr.row').forEach(tr => {
+      tr.addEventListener('click', () => openTaskCard(tr.dataset.key));
+    });
+  }
+
+  wrap.addEventListener('scroll', renderVisible, { passive: true });
+  renderVisible();
+}
+
+async function openTaskCard(key) {
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const t = await fetch(`${dbUrl}/tasks/${encodeURIComponent(key)}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null);
+    if (!t) {
+      alert('Задача не найдена');
+      return;
+    }
+    const stMeta = TASK_STATUS_META[String(t.status || '1')] || TASK_STATUS_META['1'];
+    const prMeta = TASK_PRIORITY_META[String(t.priority || '1')] || TASK_PRIORITY_META['1'];
+    const respUser = t.responsibleUid ? dealsState?.users?.[t.responsibleUid] : null;
+    const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
+    const createdByUser = t.createdByUid ? dealsState?.users?.[t.createdByUid] : null;
+    const createdByName = createdByUser ? `${createdByUser.lastName || ''} ${createdByUser.name || ''}`.trim() : '—';
+    const bitrixUrl = `https://elcalmaty.bitrix24.kz/company/personal/user/1/tasks/task/view/${t.bitrixId}/`;
+
+    // Сортируем комментарии
+    const commentsObj = t.comments || {};
+    const comments = Object.values(commentsObj).sort((a, b) => (a.bitrixPostDate || '').localeCompare(b.bitrixPostDate || ''));
+
+    let html = `<div class="modal-overlay" onclick="if(event.target===this)closeDealCard()">
+      <div class="modal">
+        <button class="close-x" onclick="closeDealCard()">×</button>
+        <h2>${escapeHtml(t.title || '(без названия)')}</h2>
+        <div class="modal-sub">
+          ID: <code>${escapeHtml(t.bitrixId || key)}</code> ·
+          <a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a>
+        </div>
+
+        <div class="section-h">Параметры</div>
+        <div class="field-grid">
+          <div class="fl">Статус</div>
+          <div class="fv"><span class="badge ${stMeta.class}">${escapeHtml(stMeta.label)}</span></div>
+          <div class="fl">Приоритет</div>
+          <div class="fv"><span class="badge ${prMeta.class}">${escapeHtml(prMeta.label)}</span></div>
+          <div class="fl">Исполнитель</div>
+          <div class="fv">${escapeHtml(respName)}</div>
+          <div class="fl">Постановщик</div>
+          <div class="fv">${escapeHtml(createdByName)}</div>
+          ${t.deadline ? `<div class="fl">Дедлайн</div><div class="fv">${new Date(t.deadline).toLocaleString('ru')}</div>` : ''}
+          ${t.bitrixCreated ? `<div class="fl">Создана</div><div class="fv">${new Date(t.bitrixCreated).toLocaleString('ru')}</div>` : ''}
+          ${t.bitrixDateClosed ? `<div class="fl">Закрыта</div><div class="fv">${new Date(t.bitrixDateClosed).toLocaleString('ru')}</div>` : ''}
+        </div>
+
+        ${t.description ? `<div class="section-h">Описание</div>
+          <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.6">${escapeHtml(t.description)}</div>` : ''}
+
+        ${comments.length > 0 ? `<div class="section-h">Комментарии (${comments.length})</div>
+          <div style="display:flex;flex-direction:column;gap:8px;max-height:500px;overflow-y:auto;padding-right:6px">
+            ${comments.map(c => {
+              const author = c.authorUid ? dealsState?.users?.[c.authorUid] : null;
+              const authorName = author ? `${author.lastName || ''} ${author.name || ''}`.trim() : (c.authorName || '—');
+              const time = c.bitrixPostDate ? new Date(c.bitrixPostDate).toLocaleString('ru') : '';
+              return `<div style="background:var(--bg3);border:1px solid var(--b1);border-radius:10px;padding:10px 12px">
+                <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px">
+                  <span style="color:var(--ac2);font-weight:600">${escapeHtml(authorName)}</span>
+                  <span style="color:var(--t3)">${time}</span>
+                </div>
+                <div style="font-size:13px;color:var(--t1);white-space:pre-wrap;line-height:1.5">${escapeHtml(c.text || '')}</div>
+              </div>`;
+            }).join('')}
+          </div>` : '<div class="section-h">Комментарии</div><div style="font-size:13px;color:var(--t3)">Нет комментариев</div>'}
+      </div>
+    </div>`;
+
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div.firstElementChild);
+    document.body.style.overflow = 'hidden';
+  } catch (e) {
+    alert('Ошибка загрузки задачи: ' + e.message);
+  }
 }
 
 function renderUsers(el) {
