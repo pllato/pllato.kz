@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pllato CRM — Мастер миграции</title>
+<script>
+  (function() {
+    try {
+      var saved = localStorage.getItem('pllato:theme');
+      if (!saved) saved = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      if (saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    } catch (e) {}
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Unbounded:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0e0e12; --bg2: #16161d; --bg3: #1e1e28; --bg4: #252532;
+  --b1: rgba(255,255,255,0.07); --b2: rgba(255,255,255,0.13);
+  --t1: #f0eefc; --t2: #9896b0; --t3: #5e5c78;
+  --ac: #7c5cfc; --ac2: #a87fff;
+  --acbg: rgba(124,92,252,0.13); --acb: rgba(124,92,252,0.38);
+  --gn: #3fd88e; --gnbg: rgba(63,216,142,0.1);
+  --am: #f5c842; --ambg: rgba(245,200,66,0.1);
+  --rd: #f05975; --rdbg: rgba(240,89,117,0.1);
+  --tl: #3fc8d8;
+  --r: 10px; --rl: 14px;
+  --fd: 'Unbounded', sans-serif; --fb: 'Manrope', sans-serif;
+  --shadow: 0 4px 24px rgba(0,0,0,.45);
+}
+:root[data-theme="light"] {
+  --bg: #f6f5fb; --bg2: #ffffff; --bg3: #f0eef7; --bg4: #e6e2f0;
+  --b1: rgba(20,18,40,0.08); --b2: rgba(20,18,40,0.16);
+  --t1: #1a1730; --t2: #5a5772; --t3: #8a87a0;
+  --ac: #6e4ef5; --ac2: #5836e4;
+  --acbg: rgba(110,78,245,0.09); --acb: rgba(110,78,245,0.32);
+  --gn: #1fa869; --gnbg: rgba(31,168,105,0.1);
+  --am: #c79318; --ambg: rgba(199,147,24,0.1);
+  --rd: #d63654; --rdbg: rgba(214,54,84,0.08);
+  --shadow: 0 4px 24px rgba(20,18,40,.10);
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: var(--fb); background: var(--bg); color: var(--t1); font-size: 14px; line-height: 1.5; min-height: 100vh; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 32px 24px 80px; }
+.brand { font-family: var(--fd); font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.brand .ac { color: var(--ac); }
+.subtitle { color: var(--t3); font-size: 13px; margin-bottom: 32px; }
+.stepper { display: flex; gap: 4px; margin-bottom: 24px; background: var(--bg2); border: 1px solid var(--b1); border-radius: 12px; padding: 4px; overflow-x: auto; }
+.step { flex: 1; min-width: 110px; padding: 8px 12px; font-size: 11px; font-weight: 600; color: var(--t3); background: transparent; border-radius: 8px; text-align: center; white-space: nowrap; border: none; cursor: pointer; font-family: var(--fb); transition: all .15s; }
+.step.done { color: var(--gn); }
+.step.active { background: var(--acbg); color: var(--ac2); }
+.step.done::before { content: '✓ '; }
+.card { background: var(--bg2); border: 1px solid var(--b1); border-radius: 14px; padding: 24px 28px; margin-bottom: 18px; }
+.card h2 { font-family: var(--fd); font-size: 18px; margin: 0 0 6px; font-weight: 700; }
+.card .desc { color: var(--t3); font-size: 13px; margin-bottom: 18px; line-height: 1.6; }
+label { display: block; font-size: 12px; color: var(--t2); margin-bottom: 6px; margin-top: 12px; font-weight: 500; }
+label:first-child { margin-top: 0; }
+.input, .textarea { width: 100%; padding: 10px 13px; background: var(--bg3); border: 1px solid var(--b1); border-radius: 8px; color: var(--t1); font-family: var(--fb); font-size: 13px; outline: none; transition: border-color .15s; }
+.input:focus, .textarea:focus { border-color: var(--ac); }
+.textarea { min-height: 140px; font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 11px; line-height: 1.5; resize: vertical; }
+.hint { font-size: 11px; color: var(--t3); margin-top: 4px; line-height: 1.5; }
+.hint code, code.k { background: var(--bg3); padding: 2px 7px; border-radius: 4px; font-size: 11px; font-family: 'SF Mono', Monaco, Consolas, monospace; }
+.btn { background: var(--ac); border: 1px solid var(--ac); color: #fff; padding: 10px 18px; border-radius: 9px; font-family: var(--fb); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: 8px; }
+.btn:hover:not(:disabled) { background: var(--ac2); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.gn { background: var(--gn); border-color: var(--gn); color: #0e0e12; }
+.btn.gn:hover:not(:disabled) { filter: brightness(1.1); }
+.btn.ghost { background: transparent; color: var(--t2); border-color: var(--b2); }
+.btn.ghost:hover:not(:disabled) { color: var(--t1); border-color: var(--ac); }
+.btn.sm { padding: 7px 13px; font-size: 12px; }
+.btn-row { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.alert { padding: 11px 15px; border-radius: 9px; font-size: 12px; margin: 10px 0; line-height: 1.5; }
+.alert.ok { background: var(--gnbg); border: 1px solid var(--gn); color: var(--gn); }
+.alert.err { background: var(--rdbg); border: 1px solid var(--rd); color: var(--rd); }
+.alert.warn { background: var(--ambg); border: 1px solid var(--am); color: var(--am); }
+.alert.info { background: var(--acbg); border: 1px solid var(--acb); color: var(--ac2); }
+.login-screen { max-width: 420px; margin: 100px auto; padding: 32px; background: var(--bg2); border: 1px solid var(--b1); border-radius: 16px; text-align: center; }
+.login-screen h1 { font-family: var(--fd); font-size: 24px; margin-bottom: 8px; }
+.btn-google { width: 100%; background: var(--bg2); color: var(--t1); border: 1px solid var(--b2); padding: 12px; border-radius: 9px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; font-family: var(--fb); }
+:root[data-theme="light"] .btn-google { background: #fff; }
+.mstep { background: var(--bg3); border: 1px solid var(--b1); border-radius: 11px; padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; }
+.mstep-icon { width: 32px; height: 32px; border-radius: 50%; background: var(--bg4); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; font-weight: 700; }
+.mstep.done .mstep-icon { background: var(--gn); color: #0e0e12; }
+.mstep.running .mstep-icon { background: var(--ac); color: #fff; animation: pulse 1.5s infinite; }
+.mstep.error .mstep-icon { background: var(--rd); color: #fff; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+.mstep-body { flex: 1; min-width: 0; }
+.mstep-title { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+.mstep-meta { font-size: 11px; color: var(--t3); line-height: 1.4; }
+.progress { height: 4px; background: var(--bg4); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.progress-bar { height: 100%; background: var(--ac); width: 0; transition: width .3s; }
+.tenant-card { background: var(--bg3); border: 1px solid var(--b1); border-radius: 11px; padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; cursor: pointer; transition: all .15s; }
+.tenant-card:hover { border-color: var(--ac); background: var(--bg4); }
+.tname { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+.tmeta { font-size: 11px; color: var(--t3); }
+.arrow { font-size: 18px; color: var(--t3); }
+.muted { color: var(--t3); }
+.theme-toggle { position: fixed; top: 16px; right: 16px; background: var(--bg2); border: 1px solid var(--b1); border-radius: 8px; width: 36px; height: 36px; font-size: 16px; cursor: pointer; z-index: 100; }
+@media (max-width: 700px) {
+  .stepper { flex-wrap: wrap; }
+  .step { min-width: calc(50% - 4px); }
+}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" id="theme-toggle">🌙</button>
+
+<div id="app"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+
+// Используем pllato-crm Firebase для admin auth
+const ADMIN_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBnTbb56UuKHjpmw6FwaZJV7xwK6jYZiI8",
+  authDomain: "pllato-crm.firebaseapp.com",
+  databaseURL: "https://pllato-crm-default-rtdb.firebaseio.com",
+  projectId: "pllato-crm",
+  storageBucket: "pllato-crm.firebasestorage.app",
+  appId: "1:344558826086:web:7e8f1ea9d6f7e9f1c87f3d"
+};
+
+const MIGRATOR_WORKER_URL = 'https://pllato-migrator.uurraa.workers.dev';
+const ADMIN_EMAILS = ['uurraa@gmail.com'];
+
+const adminApp = initializeApp(ADMIN_FIREBASE_CONFIG);
+const adminAuth = getAuth(adminApp);
+
+function updateThemeBtn() {
+  const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  document.getElementById('theme-toggle').textContent = cur === 'light' ? '☀️' : '🌙';
+}
+document.getElementById('theme-toggle').onclick = () => {
+  const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  const next = cur === 'light' ? 'dark' : 'light';
+  if (next === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  else document.documentElement.removeAttribute('data-theme');
+  localStorage.setItem('pllato:theme', next);
+  updateThemeBtn();
+};
+updateThemeBtn();
+
+// State + storage
+const state = { user: null, tenant: null, step: 'list' };
+
+function saveTenant(t) {
+  if (!t.tenantId) return;
+  localStorage.setItem(`pllato:tenant:${t.tenantId}`, JSON.stringify(t));
+  const list = JSON.parse(localStorage.getItem('pllato:tenants') || '[]');
+  if (!list.includes(t.tenantId)) {
+    list.push(t.tenantId);
+    localStorage.setItem('pllato:tenants', JSON.stringify(list));
+  }
+}
+function loadTenant(id) {
+  const raw = localStorage.getItem(`pllato:tenant:${id}`);
+  return raw ? JSON.parse(raw) : null;
+}
+function listTenants() {
+  const ids = JSON.parse(localStorage.getItem('pllato:tenants') || '[]');
+  return ids.map(loadTenant).filter(Boolean);
+}
+function deleteTenantLocal(id) {
+  localStorage.removeItem(`pllato:tenant:${id}`);
+  const list = JSON.parse(localStorage.getItem('pllato:tenants') || '[]').filter(x => x !== id);
+  localStorage.setItem('pllato:tenants', JSON.stringify(list));
+}
+
+// Auth
+onAuthStateChanged(adminAuth, async (user) => {
+  if (user && ADMIN_EMAILS.includes(user.email)) {
+    state.user = user;
+    render();
+  } else if (user) {
+    await signOut(adminAuth);
+    state.user = null;
+    alert(`Доступ запрещён: ${user.email} не в списке админов.`);
+    render();
+  } else {
+    state.user = null;
+    render();
+  }
+});
+
+window.signInWithGoogle = async () => {
+  const provider = new GoogleAuthProvider();
+  try { await signInWithPopup(adminAuth, provider); }
+  catch (e) { alert('Ошибка входа: ' + e.message); }
+};
+window.signOutAdmin = async () => { await signOut(adminAuth); };
+
+// API call
+async function callMigrator(path, extra = {}) {
+  const idToken = await state.user.getIdToken();
+  const body = {
+    idToken,
+    tenantConfig: state.tenant ? {
+      tenantId: state.tenant.tenantId,
+      bitrixWebhook: state.tenant.bitrixWebhook,
+      firebase: state.tenant.firebase,
+      r2Bucket: state.tenant.r2Bucket,
+    } : null,
+    ...extra,
+  };
+  const r = await fetch(MIGRATOR_WORKER_URL + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return await r.json();
+}
+
+// Views
+function render() {
+  const app = document.getElementById('app');
+  if (!state.user) return renderLogin(app);
+  if (state.step === 'list') return renderList(app);
+  if (state.step === 'basics') return renderBasics(app);
+  if (state.step === 'firebase') return renderFirebase(app);
+  if (state.step === 'bitrix') return renderBitrix(app);
+  if (state.step === 'migrate') return renderMigrate(app);
+}
+
+function renderLogin(app) {
+  app.innerHTML = `
+    <div class="login-screen">
+      <div class="brand"><span class="ac">Pllato</span>.crm</div>
+      <h1 style="margin-top:8px">Мастер миграции</h1>
+      <div class="subtitle">Только для администраторов</div>
+      <button class="btn-google" onclick="signInWithGoogle()">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Войти через Google
+      </button>
+    </div>
+  `;
+}
+
+function renderList(app) {
+  const tenants = listTenants();
+  app.innerHTML = `
+    <div class="wrap">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;gap:16px">
+        <div>
+          <div class="brand"><span class="ac">Pllato</span>.crm</div>
+          <div class="subtitle">Мастер миграции из Битрикс24 · ${escapeHtml(state.user.email)}</div>
+        </div>
+        <button class="btn ghost sm" onclick="signOutAdmin()">Выйти</button>
+      </div>
+
+      <div class="card">
+        <h2>Клиенты</h2>
+        <div class="desc">Выбери существующего клиента или создай нового.</div>
+
+        ${tenants.length === 0 ? '<div class="alert info">Пока нет клиентов. Создай первого ↓</div>' : ''}
+
+        ${tenants.map(t => `
+          <div class="tenant-card" data-tid="${escapeHtml(t.tenantId)}">
+            <div style="flex:1;min-width:0">
+              <div class="tname">${escapeHtml(t.name || t.tenantId)}</div>
+              <div class="tmeta">
+                <code class="k">${escapeHtml(t.subdomain || t.tenantId)}.pllato.kz</code>
+                ${t.bitrixWebhook ? ' · ✓ Bitrix' : ''}
+                ${t.firebase?.projectId ? ' · ✓ Firebase' : ''}
+                ${countDoneSteps(t)} / ${MIGRATION_STEPS.length} шагов
+              </div>
+            </div>
+            <span class="arrow">→</span>
+          </div>
+        `).join('')}
+
+        <div class="btn-row">
+          <button class="btn" id="new-tenant-btn">+ Новый клиент</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  app.querySelectorAll('.tenant-card').forEach(card => {
+    card.onclick = () => {
+      state.tenant = loadTenant(card.dataset.tid);
+      state.step = 'migrate';
+      render();
+    };
+  });
+  document.getElementById('new-tenant-btn').onclick = () => {
+    state.tenant = {
+      tenantId: '', name: '', subdomain: '',
+      firebase: {}, bitrixWebhook: '', r2Bucket: '',
+      categoryIds: [], showLeads: false, progress: {},
+    };
+    state.step = 'basics';
+    render();
+  };
+}
+
+function countDoneSteps(t) {
+  const p = t.progress || {};
+  return Object.values(p).filter(s => s.completed).length;
+}
+
+function renderStepper(active) {
+  const steps = [
+    { id: 'basics', label: '1. Основное' },
+    { id: 'firebase', label: '2. Firebase' },
+    { id: 'bitrix', label: '3. Bitrix' },
+    { id: 'migrate', label: '4. Миграция' },
+  ];
+  const order = ['basics', 'firebase', 'bitrix', 'migrate'];
+  const activeIdx = order.indexOf(active);
+  return `<div class="stepper">${steps.map((s, i) => `
+    <div class="step ${s.id === active ? 'active' : ''} ${i < activeIdx ? 'done' : ''}">${s.label}</div>
+  `).join('')}</div>`;
+}
+
+function renderBasics(app) {
+  const t = state.tenant;
+  app.innerHTML = `
+    <div class="wrap">
+      <div class="brand"><span class="ac">Pllato</span>.crm</div>
+      <div class="subtitle">Мастер миграции — Шаг 1 из 4</div>
+      ${renderStepper('basics')}
+
+      <div class="card">
+        <h2>Основная информация о клиенте</h2>
+        <div class="desc">Базовые параметры. Не привязаны к Firebase или Битриксу — просто как назвать.</div>
+
+        <label>Идентификатор (короткий, латиница)</label>
+        <input class="input" id="i-tid" value="${escapeHtml(t.tenantId)}" placeholder="cpb">
+        <div class="hint">Используется в поддомене и URL. Только латиница, цифры, дефис. Например: <code>cpb</code></div>
+
+        <label>Полное название</label>
+        <input class="input" id="i-name" value="${escapeHtml(t.name)}" placeholder="ЦентрПолистиролБетон">
+
+        <label>Поддомен</label>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input class="input" id="i-sub" value="${escapeHtml(t.subdomain || t.tenantId)}" placeholder="cpb" style="flex:1">
+          <span class="muted">.pllato.kz</span>
+        </div>
+        <div class="hint">CNAME для этого поддомена настраивается отдельно в DNS. По умолчанию = идентификатор.</div>
+
+        <div class="btn-row">
+          <button class="btn ghost" id="back-btn">← Назад</button>
+          <button class="btn" id="next-btn">Далее →</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('back-btn').onclick = () => { state.step = 'list'; render(); };
+  document.getElementById('next-btn').onclick = () => {
+    const tid = document.getElementById('i-tid').value.trim();
+    const name = document.getElementById('i-name').value.trim();
+    const sub = document.getElementById('i-sub').value.trim();
+    if (!tid || !/^[a-z0-9-]+$/.test(tid)) { alert('Идентификатор: только латиница строчная, цифры, дефис'); return; }
+    if (!name) { alert('Введи название'); return; }
+    state.tenant.tenantId = tid;
+    state.tenant.name = name;
+    state.tenant.subdomain = sub || tid;
+    saveTenant(state.tenant);
+    state.step = 'firebase';
+    render();
+  };
+}
+
+function renderFirebase(app) {
+  const t = state.tenant;
+  const fb = t.firebase || {};
+  app.innerHTML = `
+    <div class="wrap">
+      <div class="brand"><span class="ac">Pllato</span>.crm</div>
+      <div class="subtitle">Мастер миграции — Шаг 2 из 4 · ${escapeHtml(t.name)}</div>
+      ${renderStepper('firebase')}
+
+      <div class="card">
+        <h2>Firebase для <code class="k">${escapeHtml(t.tenantId)}</code></h2>
+        <div class="desc">
+          Создай Firebase проект клиента в <a href="https://console.firebase.google.com" target="_blank" style="color:var(--ac2)">Firebase Console ↗</a>:
+          <br>1. <b>New Project</b> → имя любое (например <code>${escapeHtml(t.tenantId)}-crm</code>)
+          <br>2. Включи <b>Realtime Database</b> (region: europe-west1, режим: Locked)
+          <br>3. Включи <b>Authentication → Sign-in → Google</b>
+          <br>4. <b>Project Settings → Service accounts → Generate new private key</b> → скачай JSON
+          <br>5. <b>Project Settings → General → Add web app</b> → создай и скопируй config
+        </div>
+
+        <label>Project ID</label>
+        <input class="input" id="i-pid" value="${escapeHtml(fb.projectId || '')}" placeholder="cpb-crm">
+
+        <label>Database URL</label>
+        <input class="input" id="i-dburl" value="${escapeHtml(fb.databaseURL || '')}" placeholder="https://cpb-crm-default-rtdb.europe-west1.firebasedatabase.app">
+
+        <label>API Key</label>
+        <input class="input" id="i-apikey" value="${escapeHtml(fb.apiKey || '')}" placeholder="AIzaSy...">
+
+        <label>Auth Domain</label>
+        <input class="input" id="i-authdomain" value="${escapeHtml(fb.authDomain || '')}" placeholder="cpb-crm.firebaseapp.com">
+
+        <label>Storage Bucket</label>
+        <input class="input" id="i-bucket" value="${escapeHtml(fb.storageBucket || '')}" placeholder="cpb-crm.firebasestorage.app">
+
+        <label>App ID</label>
+        <input class="input" id="i-appid" value="${escapeHtml(fb.appId || '')}" placeholder="1:123456:web:abc...">
+
+        <label>Service Account JSON (полностью)</label>
+        <textarea class="textarea" id="i-sa" placeholder='{"type":"service_account","project_id":"...","private_key":"...","client_email":"..."}'>${escapeHtml(fb.serviceAccountJSON || '')}</textarea>
+        <div class="hint">Вставь содержимое скачанного JSON-файла целиком. Хранится локально в браузере.</div>
+
+        <label>R2 Bucket name (для файлов)</label>
+        <input class="input" id="i-r2" value="${escapeHtml(t.r2Bucket || '')}" placeholder="cpb-crm-files">
+        <div class="hint">Создаётся в Cloudflare R2 заранее. Имя глобально уникальное.</div>
+
+        <div class="btn-row">
+          <button class="btn ghost" id="back-btn">← Назад</button>
+          <button class="btn" id="next-btn">Далее →</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('back-btn').onclick = () => { state.step = 'basics'; render(); };
+  document.getElementById('next-btn').onclick = () => {
+    const sa = document.getElementById('i-sa').value.trim();
+    if (sa) {
+      try {
+        const parsed = JSON.parse(sa);
+        if (!parsed.private_key || !parsed.client_email) {
+          alert('Service Account JSON неполный — должны быть private_key и client_email');
+          return;
+        }
+      } catch (e) { alert('Service Account JSON невалиден: ' + e.message); return; }
+    }
+    state.tenant.firebase = {
+      projectId: document.getElementById('i-pid').value.trim(),
+      databaseURL: document.getElementById('i-dburl').value.trim(),
+      apiKey: document.getElementById('i-apikey').value.trim(),
+      authDomain: document.getElementById('i-authdomain').value.trim(),
+      storageBucket: document.getElementById('i-bucket').value.trim(),
+      appId: document.getElementById('i-appid').value.trim(),
+      serviceAccountJSON: sa,
+    };
+    state.tenant.r2Bucket = document.getElementById('i-r2').value.trim();
+    saveTenant(state.tenant);
+    state.step = 'bitrix';
+    render();
+  };
+}
+
+function renderBitrix(app) {
+  const t = state.tenant;
+  app.innerHTML = `
+    <div class="wrap">
+      <div class="brand"><span class="ac">Pllato</span>.crm</div>
+      <div class="subtitle">Мастер миграции — Шаг 3 из 4 · ${escapeHtml(t.name)}</div>
+      ${renderStepper('bitrix')}
+
+      <div class="card">
+        <h2>Битрикс24 webhook</h2>
+        <div class="desc">
+          В Битриксе клиента: <b>Разработчикам → Другое → Входящий вебхук → Создать вебхук</b>.
+          Дай <b>все права</b> (CRM, Tasks, IM, Disk, Department, User, Lists).
+          Скопируй полный URL.
+        </div>
+
+        <label>URL входящего webhook</label>
+        <input class="input" id="i-wh" value="${escapeHtml(t.bitrixWebhook || '')}" placeholder="https://centrpolistirolbetona.bitrix24.kz/rest/1/abc.../">
+
+        <div class="btn-row">
+          <button class="btn ghost" id="back-btn">← Назад</button>
+          <button class="btn ghost" id="test-btn">Проверить связь</button>
+          <button class="btn" id="next-btn">К миграции →</button>
+        </div>
+
+        <div id="test-result"></div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('back-btn').onclick = () => { state.step = 'firebase'; render(); };
+  document.getElementById('test-btn').onclick = async () => {
+    const wh = document.getElementById('i-wh').value.trim();
+    if (!wh) { alert('Введи URL webhook'); return; }
+    state.tenant.bitrixWebhook = wh;
+    saveTenant(state.tenant);
+    const out = document.getElementById('test-result');
+    out.innerHTML = '<div class="alert info">⏳ Проверяем подключение к Битриксу и Firebase...</div>';
+    try {
+      const d = await callMigrator('/api/test-tenant');
+      if (d.ok) {
+        out.innerHTML = `<div class="alert ok">
+          ✓ Bitrix: <code class="k">${escapeHtml(d.bitrix?.domain || '?')}</code> · ${escapeHtml(d.bitrix?.userName || '')}<br>
+          ✓ Firebase: <code class="k">${escapeHtml(d.firebase?.projectId || '?')}</code><br>
+          ${d.firebase?.r2 ? '✓ R2 bucket доступен' : ''}
+        </div>`;
+      } else {
+        out.innerHTML = `<div class="alert err">✗ ${escapeHtml(d.error || 'Ошибка')}<br>${escapeHtml(d.details || '')}</div>`;
+      }
+    } catch (e) {
+      out.innerHTML = `<div class="alert err">✗ ${escapeHtml(e.message)}</div>`;
+    }
+  };
+  document.getElementById('next-btn').onclick = () => {
+    const wh = document.getElementById('i-wh').value.trim();
+    if (!wh) { alert('Введи URL webhook'); return; }
+    state.tenant.bitrixWebhook = wh;
+    saveTenant(state.tenant);
+    state.step = 'migrate';
+    render();
+  };
+}
+
+const MIGRATION_STEPS = [
+  { id: 'diagnose', title: '🔍 Диагностика портала', desc: 'Объёмы, воронки, поля', endpoint: '/api/diagnose-portal' },
+  { id: 'users', title: '👥 Пользователи', desc: 'Сотрудники + Firebase Auth', endpoint: '/api/migrate-users' },
+  { id: 'pipelines', title: '📊 Воронки и стадии', desc: 'Все воронки сделок', endpoint: '/api/migrate-pipelines' },
+  { id: 'departments', title: '🏢 Структура отделов', desc: 'Дерево отделов', endpoint: '/api/migrate-departments' },
+  { id: 'sources', title: '📚 Справочники', desc: 'Источники, типы, отрасли', endpoint: '/api/migrate-sources' },
+  { id: 'companies', title: '🏛 Компании', desc: 'Юр. лица', endpoint: '/api/migrate-companies' },
+  { id: 'contacts', title: '👤 Контакты', desc: 'Все контакты (батчами)', endpoint: '/api/migrate-contacts', batched: true },
+  { id: 'leads', title: '📞 Лиды', desc: 'Все лиды (батчами)', endpoint: '/api/migrate-leads', batched: true, optional: true },
+  { id: 'deals', title: '💼 Сделки (все воронки)', desc: 'Сделки во всех категориях', endpoint: '/api/migrate-deals', batched: true },
+  { id: 'tasks', title: '✓ Задачи', desc: 'Задачи и подзадачи', endpoint: '/api/migrate-tasks', batched: true, optional: true },
+  { id: 'task-comments', title: '💬 Комментарии задач', desc: 'История по задачам', endpoint: '/api/migrate-task-comments', batched: true, optional: true },
+  { id: 'activities', title: '📜 Активности (timeline)', desc: 'Звонки, email, события', endpoint: '/api/migrate-activities', batched: true },
+  { id: 'openlines', title: '💬 Открытые линии', desc: 'WhatsApp, TG переписки', endpoint: '/api/migrate-openlines', batched: true, optional: true },
+  { id: 'files-queue', title: '📎 Очередь файлов', desc: 'Сборка списка файлов', endpoint: '/api/build-file-queue', optional: true },
+  { id: 'files', title: '⬇ Файлы → R2', desc: 'Качаем файлы (часы)', endpoint: '/api/migrate-files', batched: true, optional: true },
+  { id: 'bizproc', title: '⚙️ Анализ бизнес-процессов', desc: 'Read-only — для ручной пересборки', endpoint: '/api/diagnose-bizproc' },
+];
+
+function renderMigrate(app) {
+  const t = state.tenant;
+  const progress = t.progress || {};
+
+  app.innerHTML = `
+    <div class="wrap">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;gap:16px;flex-wrap:wrap">
+        <div>
+          <div class="brand"><span class="ac">Pllato</span>.crm</div>
+          <div class="subtitle">${escapeHtml(t.name)} · <code class="k">${escapeHtml(t.subdomain || t.tenantId)}.pllato.kz</code></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn ghost sm" id="back-btn">← Клиенты</button>
+          <button class="btn ghost sm" id="edit-btn">⚙ Изменить</button>
+          <button class="btn ghost sm" id="export-btn">⤓ Конфиг</button>
+          <button class="btn ghost sm" id="open-portal-btn">🌐 Портал</button>
+        </div>
+      </div>
+
+      ${renderStepper('migrate')}
+
+      <div class="card">
+        <h2>Миграция данных</h2>
+        <div class="desc">
+          Шаги выполняются по порядку. Тяжёлые шаги (контакты, сделки, активности, файлы) — батчевые с auto-resume.
+          Можно нажимать на нужный шаг отдельно или запустить всё подряд.
+        </div>
+
+        <div class="btn-row" style="margin-bottom:18px">
+          <button class="btn gn" id="run-all-btn">▶ Запустить всё подряд</button>
+          <button class="btn ghost sm" id="reset-progress-btn">⟲ Сбросить прогресс</button>
+        </div>
+
+        <div id="steps-container">${renderStepsList(progress)}</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('back-btn').onclick = () => { state.step = 'list'; render(); };
+  document.getElementById('edit-btn').onclick = () => { state.step = 'basics'; render(); };
+  document.getElementById('export-btn').onclick = exportTenantConfig;
+  document.getElementById('open-portal-btn').onclick = () => {
+    window.open(`https://${t.subdomain || t.tenantId}.pllato.kz/team`, '_blank');
+  };
+  document.getElementById('run-all-btn').onclick = runAllSteps;
+  document.getElementById('reset-progress-btn').onclick = () => {
+    if (!confirm('Сбросить прогресс миграции? (данные в Firebase останутся)')) return;
+    state.tenant.progress = {};
+    saveTenant(state.tenant);
+    render();
+  };
+
+  bindStepActions();
+}
+
+function renderStepsList(progress) {
+  return MIGRATION_STEPS.map(s => {
+    const p = progress[s.id] || {};
+    const klass = p.error ? 'error' : (p.completed ? 'done' : (p.running ? 'running' : ''));
+    const icon = p.error ? '✗' : (p.completed ? '✓' : (p.running ? '⏳' : '·'));
+    return `<div class="mstep ${klass}" data-step="${s.id}">
+      <div class="mstep-icon">${icon}</div>
+      <div class="mstep-body">
+        <div class="mstep-title">${s.title}${s.optional ? ' <span class="muted" style="font-weight:400;font-size:11px">(опционально)</span>' : ''}</div>
+        <div class="mstep-meta">${escapeHtml(s.desc)}${p.summary ? ' · ' + escapeHtml(p.summary) : ''}${p.error ? ' · <span style="color:var(--rd)">' + escapeHtml(p.error) + '</span>' : ''}</div>
+        ${p.running && p.percent != null ? `<div class="progress"><div class="progress-bar" style="width:${p.percent}%"></div></div>` : ''}
+      </div>
+      <button class="btn sm ${p.completed ? 'ghost' : ''}" data-run="${s.id}" ${p.running ? 'disabled' : ''}>${p.completed ? '↻ Повтор' : (p.running ? '⏳ ...' : '▶ Запустить')}</button>
+    </div>`;
+  }).join('');
+}
+
+function bindStepActions() {
+  document.querySelectorAll('[data-run]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      runStep(btn.dataset.run);
+    };
+  });
+}
+
+function partialRender() {
+  const cont = document.getElementById('steps-container');
+  if (!cont) { render(); return; }
+  cont.innerHTML = renderStepsList(state.tenant.progress || {});
+  bindStepActions();
+}
+
+async function runStep(stepId) {
+  const step = MIGRATION_STEPS.find(s => s.id === stepId);
+  if (!step) return;
+  const t = state.tenant;
+  if (!t.progress) t.progress = {};
+  t.progress[stepId] = { running: true };
+  saveTenant(t);
+  partialRender();
+
+  try {
+    if (step.batched) {
+      let calls = 0, totalProcessed = 0;
+      while (calls++ < 1000) {
+        const d = await callMigrator(step.endpoint);
+        if (!d.ok) {
+          t.progress[stepId] = { error: d.error || 'Ошибка', running: false };
+          saveTenant(t); partialRender();
+          return;
+        }
+        if (d.processed) totalProcessed += d.processed;
+        const summary = d.summary || (d.totalSoFar
+          ? `${d.totalSoFar.toLocaleString('ru')} обработано из ~${(d.totalEstimate || '?').toLocaleString?.('ru') || d.totalEstimate || '?'}`
+          : `${totalProcessed.toLocaleString('ru')} за ${calls} вызовов`);
+        t.progress[stepId] = {
+          running: !d.done,
+          completed: d.done,
+          summary,
+          percent: d.percent || null,
+        };
+        saveTenant(t); partialRender();
+        if (d.done) break;
+        await new Promise(r => setTimeout(r, 250));
+      }
+    } else {
+      const d = await callMigrator(step.endpoint);
+      if (!d.ok) {
+        t.progress[stepId] = { error: d.error || 'Ошибка', running: false };
+      } else {
+        t.progress[stepId] = {
+          completed: true, running: false,
+          summary: d.summary || formatDiagnostic(d),
+          ts: new Date().toISOString(),
+        };
+      }
+      saveTenant(t); partialRender();
+    }
+  } catch (e) {
+    t.progress[stepId] = { error: e.message, running: false };
+    saveTenant(t); partialRender();
+  }
+}
+
+async function runAllSteps() {
+  if (!confirm('Запустить миграцию всех шагов подряд? Это может занять часы.\n\nОпциональные шаги (лиды, задачи, файлы, открытые линии) будут спрашивать подтверждение.')) return;
+  for (const step of MIGRATION_STEPS) {
+    if (step.optional) {
+      if (!confirm(`Выполнить опциональный шаг: ${step.title}?`)) continue;
+    }
+    const cur = (state.tenant.progress || {})[step.id];
+    if (cur?.completed) continue;
+    await runStep(step.id);
+    const updated = (state.tenant.progress || {})[step.id];
+    if (updated?.error) {
+      if (!confirm(`Шаг "${step.title}" упал:\n${updated.error}\n\nПродолжить со следующего?`)) break;
+    }
+  }
+  alert('Миграция завершена!');
+}
+
+function formatDiagnostic(d) {
+  if (!d) return 'OK';
+  const parts = [];
+  if (d.totalUsers != null) parts.push(`${d.totalUsers} юзеров`);
+  if (d.total != null) parts.push(`${d.total.toLocaleString('ru')} записей`);
+  if (typeof d.summary === 'string') return d.summary;
+  return parts.join(' · ') || 'OK';
+}
+
+function exportTenantConfig() {
+  const t = state.tenant;
+  const cfg = {
+    tenantId: t.tenantId,
+    name: t.name,
+    subdomain: t.subdomain,
+    firebase: {
+      projectId: t.firebase.projectId,
+      databaseURL: t.firebase.databaseURL,
+      apiKey: t.firebase.apiKey,
+      authDomain: t.firebase.authDomain,
+      storageBucket: t.firebase.storageBucket,
+      appId: t.firebase.appId,
+    },
+    workerUrl: MIGRATOR_WORKER_URL,
+    bitrixDomain: extractBitrixDomain(t.bitrixWebhook),
+    showLeads: t.showLeads || false,
+  };
+  const blob = new Blob([JSON.stringify(cfg, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `tenant-${t.tenantId}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function extractBitrixDomain(webhook) {
+  if (!webhook) return '';
+  try { return new URL(webhook).hostname; } catch { return ''; }
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+
+</body>
+</html>
