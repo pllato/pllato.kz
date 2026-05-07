@@ -1468,6 +1468,17 @@ tr:hover td { background: var(--bg3); }
   font-size: 10px;
   color: var(--t3);
 }
+.tl-files-block {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: var(--bg3);
+  border-radius: 6px;
+}
+.tl-files-block .tl-files-head {
+  font-size: 11px;
+  color: var(--t2);
+  font-weight: 600;
+}
 
 /* ─── Кнопка показать переписку и сама переписка ─── */
 .tl-show-chat {
@@ -2893,6 +2904,9 @@ async function openDealCard(bitrixId) {
     if (chatEl) loadAndRenderChatThread(latestOpenlinesActivity.openlinesSessionId, chatEl);
   }
 
+  // Подгружаем файлы во всех timeline-элементах (звонки, email, переписка)
+  wireUpTimelineFiles(modal);
+
   // Timeline filters: остаются как раньше
   modal.querySelectorAll('.tl-filter').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -3076,15 +3090,21 @@ function renderTimelineItem(a) {
     durationInfo = `<span class="tl-duration">⏱ ${min}:${String(s).padStart(2, '0')}</span>`;
   }
 
-  // Файлы
+  // Файлы — собираем все ID активности (вложения + запись звонка)
+  const tlFileIds = [];
+  if (Array.isArray(a.bitrixFileIds)) for (const fid of a.bitrixFileIds) tlFileIds.push(String(fid));
+  if (a.recordFileId && !tlFileIds.includes(String(a.recordFileId))) tlFileIds.push(String(a.recordFileId));
   let filesInfo = '';
-  if (a.hasFiles && Array.isArray(a.files) && a.files.length > 0) {
-    const fileCount = a.files.length;
+  if (tlFileIds.length > 0) {
+    const fileCount = tlFileIds.length;
     const word = fileCount === 1 ? 'файл' : (fileCount < 5 ? 'файла' : 'файлов');
-    const status = a.filesMigrated ? '✓ в R2' : '⏳ в Битриксе';
-    filesInfo = `<div class="tl-files">📎 ${fileCount} ${word} <span class="tl-files-status">${status}</span></div>`;
-  } else if (a.recordFileId) {
-    filesInfo = `<div class="tl-files">🎙 запись звонка <span class="tl-files-status">${a.filesMigrated ? '✓ в R2' : '⏳ в Битриксе'}</span></div>`;
+    const headerIcon = a.recordFileId ? '🎙' : '📎';
+    filesInfo = `<div class="tl-files-block">
+      <div class="tl-files-head">${headerIcon} ${fileCount} ${word}</div>
+      <div class="tl-files-list" id="tl-files-${escapeHtml(a._key || a.bitrixId || '')}" data-fids="${escapeHtml(tlFileIds.join(','))}" style="display:flex;flex-direction:column;gap:4px;margin-top:4px">
+        <div style="font-size:11px;color:var(--t3)">⏳ Загрузка...</div>
+      </div>
+    </div>`;
   }
 
   // Completed badge
@@ -5272,6 +5292,21 @@ async function resolveDiskFileRefs(rootEl) {
   } catch (e) {
     console.error('resolveDiskFileRefs:', e);
   }
+}
+
+// ─── Подгружаем файлы во всех timeline-элементах внутри контейнера
+// (вызывается после рендера карточки сделки)
+function wireUpTimelineFiles(rootEl) {
+  if (!rootEl) return;
+  const blocks = rootEl.querySelectorAll('.tl-files-list[data-fids]');
+  blocks.forEach(el => {
+    const fidsRaw = el.dataset.fids || '';
+    const fileIds = fidsRaw.split(',').filter(Boolean);
+    if (fileIds.length === 0) return;
+    if (el.id) {
+      loadFilesIntoContainer(el.id, fileIds, '');
+    }
+  });
 }
 
 // ─── Файлы (для задач, комментариев, активностей): подгрузка из /filesQueue + скачивание через worker
