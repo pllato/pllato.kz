@@ -1657,6 +1657,9 @@ tr:hover td { background: var(--bg3); }
     <div class="nav-item" data-page="users">
       <span class="nav-icon">🧑‍💼</span><span>Сотрудники</span>
     </div>
+    <div class="nav-item" data-page="chats">
+      <span class="nav-icon">💬</span><span>Чаты</span>
+    </div>
 
     <div class="nav-section">Инструменты</div>
     <div class="nav-item" data-page="migration">
@@ -1908,6 +1911,7 @@ function navigate(page) {
   else if (page === 'deals') renderDeals(main);
   else if (page === 'tasks') renderTasks(main);
   else if (page === 'users') renderUsers(main);
+  else if (page === 'chats') renderChats(main);
   else if (page === 'migration') renderMigration(main);
 }
 
@@ -5814,6 +5818,242 @@ function taskFileIcon(contentType, name) {
   if (ct.includes('zip') || ['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return '🗜';
   if (ct.includes('presentation') || ['pptx', 'ppt'].includes(ext)) return '📽';
   return '📎';
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+//   ЧАТЫ (внутренние групповые + внешние openlines)
+// ═════════════════════════════════════════════════════════════════════════
+const chatsState = {
+  tab: 'group',          // group | openlines
+  groupChats: null,
+  openlinesSessions: null,
+  selectedChatId: null,  // открытый чат (для центральной панели)
+};
+
+async function renderChats(el) {
+  el.innerHTML = `
+    <div class="page-title">💬 Чаты</div>
+    <div class="page-sub">Внутренние групповые чаты сотрудников и переписка с клиентами через мессенджеры.</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="vt-btn ${chatsState.tab === 'group' ? 'active' : ''}" data-tab="group">👥 Сотрудники</button>
+      <button class="vt-btn ${chatsState.tab === 'openlines' ? 'active' : ''}" data-tab="openlines">🌐 Внешние мессенджеры</button>
+    </div>
+    <div id="chats-content" style="display:flex;gap:14px;height:calc(100vh - 220px);min-height:500px">
+      <div id="chats-list" style="flex:0 0 360px;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;overflow-y:auto">
+        <div style="padding:14px;color:var(--t3);font-size:12px">⏳ Загрузка...</div>
+      </div>
+      <div id="chat-thread" style="flex:1;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;padding:0;display:flex;flex-direction:column;min-height:0">
+        <div style="padding:30px;color:var(--t3);font-size:13px;text-align:center;margin:auto">Выберите чат слева</div>
+      </div>
+    </div>
+  `;
+  el.querySelectorAll('.vt-btn[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      chatsState.tab = btn.dataset.tab;
+      chatsState.selectedChatId = null;
+      renderChats(el);
+    });
+  });
+  await ensureUsersLoaded();
+  if (chatsState.tab === 'group') {
+    await loadAndRenderGroupChats();
+  } else {
+    await loadAndRenderOpenlinesList();
+  }
+}
+
+async function loadAndRenderGroupChats() {
+  const listEl = document.getElementById('chats-list');
+  if (!listEl) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const r = await fetch(`${dbUrl}/groupChats.json?auth=${idToken}`);
+    const data = await r.json();
+    chatsState.groupChats = data || {};
+    const arr = Object.entries(chatsState.groupChats)
+      .map(([id, c]) => ({ id, ...c }))
+      .sort((a, b) => (b.bitrixDateMessage || '').localeCompare(a.bitrixDateMessage || ''));
+    if (arr.length === 0) {
+      listEl.innerHTML = '<div style="padding:14px;color:var(--t3);font-size:12px">Групповых чатов нет</div>';
+      return;
+    }
+    let html = '';
+    for (const c of arr) {
+      const last = c.bitrixDateMessage ? new Date(c.bitrixDateMessage).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
+      const status = c.migrationStatus === 'done' ? '✓' : (c.migrationStatus === 'in_progress' ? '⏳' : '·');
+      html += `<div class="chat-list-item" data-chat-id="${escapeHtml(c.id)}" style="padding:12px 14px;border-bottom:1px solid var(--b1);cursor:pointer;transition:background 0.1s">
+        <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px">
+          <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;color:var(--t1)">${escapeHtml(c.title || 'Без названия')}</div>
+          <span style="font-size:10px;color:var(--t3)">${last}</span>
+        </div>
+        <div style="display:flex;gap:8px;font-size:11px;color:var(--t3)">
+          <span>👥 ${c.memberCount || '?'}</span>
+          <span>💬 ${c.messageCount || 0}</span>
+          <span title="Статус миграции">${status}</span>
+        </div>
+        ${c.lastMessageText ? `<div style="font-size:11px;color:var(--t2);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(c.lastMessageText.slice(0, 80))}</div>` : ''}
+      </div>`;
+    }
+    listEl.innerHTML = html;
+    listEl.querySelectorAll('.chat-list-item').forEach(it => {
+      it.addEventListener('mouseenter', () => it.style.background = 'var(--bg3)');
+      it.addEventListener('mouseleave', () => it.style.background = '');
+      it.addEventListener('click', () => openGroupChat(it.dataset.chatId));
+    });
+  } catch (e) {
+    listEl.innerHTML = `<div style="padding:14px;color:var(--rd);font-size:12px">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function openGroupChat(chatId) {
+  chatsState.selectedChatId = chatId;
+  document.querySelectorAll('.chat-list-item').forEach(it => {
+    it.style.background = it.dataset.chatId === chatId ? 'var(--acbg)' : '';
+  });
+  const threadEl = document.getElementById('chat-thread');
+  if (!threadEl) return;
+  threadEl.innerHTML = '<div style="padding:30px;color:var(--t3);font-size:12px;text-align:center;margin:auto">⏳ Загружаем сообщения...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const r = await fetch(`${dbUrl}/groupChats/${encodeURIComponent(chatId)}.json?auth=${idToken}`);
+    const chat = await r.json();
+    if (!chat) {
+      threadEl.innerHTML = '<div style="padding:30px;color:var(--rd);font-size:12px;text-align:center;margin:auto">Чат не найден</div>';
+      return;
+    }
+    const msgs = Object.values(chat.messages || {})
+      .sort((a, b) => parseInt(a.bitrixMessageId) - parseInt(b.bitrixMessageId));
+    let msgsHtml = '';
+    let lastDate = '';
+    for (const m of msgs) {
+      const d = m.date ? m.date.slice(0, 10) : '';
+      if (d && d !== lastDate) {
+        msgsHtml += `<div style="text-align:center;font-size:10px;color:var(--t3);padding:14px 0 6px">${new Date(d).toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' })}</div>`;
+        lastDate = d;
+      }
+      const time = m.date ? new Date(m.date).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }) : '';
+      const author = m.senderFirebaseUid ? getUserById(m.senderFirebaseUid) : null;
+      const authorName = author ? `${author.lastName || ''} ${author.name || ''}`.trim() : (m.senderName || 'Неизвестный');
+      const fileBlock = Array.isArray(m.attachedFileIds) && m.attachedFileIds.length > 0
+        ? `<div style="margin-top:6px;font-size:11px;color:var(--ac2)">📎 ${m.attachedFileIds.length} файл(ов)</div>` : '';
+      msgsHtml += `<div style="display:flex;flex-direction:column;gap:2px;padding:6px 14px;font-size:13px">
+        <div style="display:flex;gap:8px;align-items:baseline">
+          <span style="color:var(--ac);font-weight:600;font-size:12px">${escapeHtml(authorName)}</span>
+          <span style="color:var(--t3);font-size:10px">${time}</span>
+        </div>
+        <div style="color:var(--t1);white-space:pre-wrap;line-height:1.45">${renderBitrixBBCode(m.text || '')}</div>
+        ${fileBlock}
+      </div>`;
+    }
+    const headerHtml = `<div style="padding:12px 16px;border-bottom:1px solid var(--b1);background:var(--bg3)">
+      <div style="font-size:14px;font-weight:600;color:var(--t1)">${escapeHtml(chat.title || 'Без названия')}</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:2px">👥 ${chat.memberCount || '?'} участников · 💬 ${chat.messageCount || 0} сообщений · ${chat.migrationStatus === 'done' ? 'миграция завершена' : 'миграция: ' + (chat.migrationStatus || 'не запущена')}</div>
+    </div>`;
+    threadEl.innerHTML = `${headerHtml}<div style="flex:1;overflow-y:auto;min-height:0">${msgsHtml || '<div style="padding:30px;color:var(--t3);font-size:12px;text-align:center">Сообщений нет</div>'}</div>`;
+    // Авто-скролл вниз (как в мессенджере)
+    const scrollEl = threadEl.querySelector('div[style*="overflow-y:auto"]');
+    if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+    // Резолвим disk-file-ref внутри отрендеренных сообщений
+    resolveDiskFileRefs(threadEl);
+  } catch (e) {
+    threadEl.innerHTML = `<div style="padding:30px;color:var(--rd);font-size:12px;text-align:center;margin:auto">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function loadAndRenderOpenlinesList() {
+  const listEl = document.getElementById('chats-list');
+  if (!listEl) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    // 780 сессий — берём только мета (shallow + потом limited fetch)
+    // Чтобы не качать всё, грузим только ключи + последнее сообщение через orderBy
+    const r = await fetch(`${dbUrl}/openlinesSessions.json?orderBy=%22lastMessageAt%22&limitToLast=200&auth=${idToken}`);
+    const data = await r.json();
+    const arr = Object.entries(data || {})
+      .map(([id, c]) => ({ id, ...c }))
+      .sort((a, b) => (b.lastMessageAt || '').localeCompare(a.lastMessageAt || ''));
+    if (arr.length === 0) {
+      listEl.innerHTML = '<div style="padding:14px;color:var(--t3);font-size:12px">Нет внешних чатов</div>';
+      return;
+    }
+    let html = `<div style="padding:10px 14px;font-size:11px;color:var(--t3);background:var(--bg3);border-bottom:1px solid var(--b1)">Последние ${arr.length} сессий (всего 780)</div>`;
+    for (const c of arr) {
+      const last = c.lastMessageAt ? new Date(c.lastMessageAt).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
+      const provName = PROVIDER_NAMES_NORMALIZED[c.provider] || c.provider || 'мессенджер';
+      html += `<div class="chat-list-item ol" data-session-id="${escapeHtml(c.id)}" style="padding:12px 14px;border-bottom:1px solid var(--b1);cursor:pointer">
+        <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px">
+          <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;color:var(--t1)">${escapeHtml(c.subject || 'Без темы')}</div>
+          <span style="font-size:10px;color:var(--t3)">${last}</span>
+        </div>
+        <div style="display:flex;gap:8px;font-size:11px;color:var(--t3)">
+          <span style="color:var(--ac2)">${escapeHtml(provName)}</span>
+          <span>💬 ${c.messageCount || 0}</span>
+        </div>
+      </div>`;
+    }
+    listEl.innerHTML = html;
+    listEl.querySelectorAll('.chat-list-item.ol').forEach(it => {
+      it.addEventListener('mouseenter', () => it.style.background = 'var(--bg3)');
+      it.addEventListener('mouseleave', () => it.style.background = '');
+      it.addEventListener('click', () => openOpenlinesSession(it.dataset.sessionId));
+    });
+  } catch (e) {
+    listEl.innerHTML = `<div style="padding:14px;color:var(--rd);font-size:12px">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function openOpenlinesSession(sessionId) {
+  document.querySelectorAll('.chat-list-item').forEach(it => {
+    it.style.background = it.dataset.sessionId === sessionId ? 'var(--acbg)' : '';
+  });
+  const threadEl = document.getElementById('chat-thread');
+  if (!threadEl) return;
+  // Используем существующую функцию для openlines
+  threadEl.innerHTML = '<div style="padding:30px;color:var(--t3);font-size:12px;text-align:center;margin:auto">⏳ Загружаем переписку...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const r = await fetch(`${dbUrl}/openlinesSessions/${encodeURIComponent(sessionId)}.json?auth=${idToken}`);
+    const session = await r.json();
+    if (!session) {
+      threadEl.innerHTML = '<div style="padding:30px;color:var(--rd);font-size:12px;text-align:center;margin:auto">Сессия не найдена</div>';
+      return;
+    }
+    const msgs = Object.values(session.messages || {}).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    let msgsHtml = '';
+    let lastDate = '';
+    for (const m of msgs) {
+      const d = m.date ? m.date.slice(0, 10) : '';
+      if (d && d !== lastDate) {
+        msgsHtml += `<div style="text-align:center;font-size:10px;color:var(--t3);padding:14px 0 6px">${new Date(d).toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' })}</div>`;
+        lastDate = d;
+      }
+      const time = m.date ? new Date(m.date).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }) : '';
+      const align = m.isFromClient ? 'flex-start' : 'flex-end';
+      const bg = m.isFromClient ? 'var(--bg3)' : 'var(--acbg)';
+      const sysMark = m.isSystem ? ' (система)' : '';
+      msgsHtml += `<div style="display:flex;justify-content:${align};padding:4px 14px">
+        <div style="max-width:75%;background:${bg};border:1px solid var(--b1);border-radius:10px;padding:8px 12px;font-size:13px">
+          <div style="font-size:10px;color:var(--t3);margin-bottom:4px">${escapeHtml(m.senderName || '')}${sysMark} · ${time}</div>
+          <div style="color:var(--t1);white-space:pre-wrap;line-height:1.45">${renderBitrixBBCode(m.text || '')}</div>
+        </div>
+      </div>`;
+    }
+    const provName = PROVIDER_NAMES_NORMALIZED[session.provider] || session.provider || 'мессенджер';
+    const headerHtml = `<div style="padding:12px 16px;border-bottom:1px solid var(--b1);background:var(--bg3)">
+      <div style="font-size:14px;font-weight:600;color:var(--t1)">${escapeHtml(session.subject || 'Без темы')}</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:2px">${escapeHtml(provName)} · 💬 ${session.messageCount || 0} сообщений</div>
+    </div>`;
+    threadEl.innerHTML = `${headerHtml}<div style="flex:1;overflow-y:auto;min-height:0">${msgsHtml || '<div style="padding:30px;color:var(--t3);font-size:12px;text-align:center">Сообщений нет</div>'}</div>`;
+    const scrollEl = threadEl.querySelector('div[style*="overflow-y:auto"]');
+    if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+    resolveDiskFileRefs(threadEl);
+  } catch (e) {
+    threadEl.innerHTML = `<div style="padding:30px;color:var(--rd);font-size:12px;text-align:center;margin:auto">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
 }
 
 function renderUsers(el) {
