@@ -5015,7 +5015,7 @@ async function openTaskCard(key) {
         </div>
 
         ${t.description ? `<div class="section-h">Описание</div>
-          <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.6">${escapeHtml(t.description)}</div>` : ''}
+          <div class="task-bbcode" style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.6">${renderBitrixBBCode(t.description)}</div>` : ''}
 
         ${t.hasFiles && Array.isArray(t.bitrixFileIds) && t.bitrixFileIds.length > 0 ? `<div class="section-h">📎 Файлы (${t.bitrixFileIds.length})</div>
           <div class="task-files-list" id="task-files-${escapeHtml(key)}" style="display:flex;flex-direction:column;gap:6px">
@@ -5062,7 +5062,7 @@ async function openTaskCard(key) {
                   <span style="color:var(--ac2);font-weight:600">${escapeHtml(authorName)}</span>
                   <span style="color:var(--t3)">${time}</span>
                 </div>
-                <div style="font-size:13px;color:var(--t1);white-space:pre-wrap;line-height:1.5">${escapeHtml(c.text || '')}</div>
+                <div class="task-bbcode" style="font-size:13px;color:var(--t1);white-space:pre-wrap;line-height:1.5">${renderBitrixBBCode(c.text || '')}</div>
                 ${filesBlock}
               </div>`;
             }).join('')}
@@ -5098,8 +5098,137 @@ async function openTaskCard(key) {
         loadFilesIntoContainer('comment-files-' + c.bitrixId, c.attachedFileIds, key);
       }
     }
+
+    // Резолвим [DISK FILE ID=...] BBCode-ссылки внутри описания и комментариев:
+    // подтягиваем имена файлов, навешиваем download/retry handlers
+    resolveDiskFileRefs(modal);
   } catch (e) {
     alert('Ошибка загрузки задачи: ' + e.message);
+  }
+}
+
+// ─── Простейший рендер Битрикс-BBCode в HTML.
+// Поддерживается:
+//   [DISK FILE ID=xxx]      → плейсхолдер, потом resolveDiskFileRefs
+//                             подтянет имя и привесит download-обработчик
+//   [URL=link]label[/URL]   → <a href="link">label</a>
+//   [URL]link[/URL]         → <a href="link">link</a>
+//   просто http(s)://...    → <a href> (не трогаем если уже внутри тега)
+function renderBitrixBBCode(text) {
+  if (!text) return '';
+  // Защищаем от инъекций
+  let h = escapeHtml(text);
+
+  // [DISK FILE ID=xxx] — плейсхолдер. ID может быть с префиксом 'n' или без;
+  // у Битрикса 'n' появляется когда файл вставлен из редактора (n = "new").
+  // Реальный bitrixFileId — без 'n'.
+  h = h.replace(/\[DISK FILE ID=([A-Za-z0-9_-]+)\]/g, (m, id) => {
+    const cleanId = String(id).replace(/^n/i, '');
+    return `<span class="disk-file-ref" data-fid="${escapeHtml(cleanId)}" data-orig-id="${escapeHtml(id)}" style="display:inline-flex;align-items:center;gap:4px;background:var(--bg2);border:1px solid var(--b1);border-radius:4px;padding:1px 8px;cursor:pointer;color:var(--ac2);font-size:12px;font-weight:500;vertical-align:baseline;text-decoration:none">📎 файл ${escapeHtml(id)}</span>`;
+  });
+
+  // [URL=link]label[/URL] и [URL]link[/URL]
+  h = h.replace(/\[URL=([^\]]+?)\]([\s\S]*?)\[\/URL\]/gi, (m, url, label) => {
+    const clean = url.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+    return `<a href="${escapeHtml(clean)}" target="_blank" rel="noopener" style="color:var(--ac2);text-decoration:underline;word-break:break-all">${label}</a>`;
+  });
+  h = h.replace(/\[URL\]([\s\S]*?)\[\/URL\]/gi, (m, url) => {
+    const clean = url.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+    return `<a href="${escapeHtml(clean)}" target="_blank" rel="noopener" style="color:var(--ac2);text-decoration:underline;word-break:break-all">${escapeHtml(clean)}</a>`;
+  });
+
+  // Голые http(s)://... и mailto: — делаем кликабельными.
+  // Учитываем что мы уже завернули некоторые в <a> — не дублируем (negative lookahead на href=).
+  h = h.replace(/(^|[\s(])(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?()])/g, (m, pre, url) =>
+    `${pre}<a href="${escapeHtml(url)}" target="_blank" rel="noopener" style="color:var(--ac2);text-decoration:underline;word-break:break-all">${escapeHtml(url)}</a>`);
+
+  return h;
+}
+
+// ─── Резолвинг всех плейсхолдеров [DISK FILE ID=...] внутри контейнера.
+// Параллельно фетчит метаданные из /filesQueue, после чего:
+//   - если файл в R2 → показывает имя и навешивает downloadTaskFile
+//   - если нет в очереди / провалился → 🔄 retry (worker сам тащит из Битрикса)
+async function resolveDiskFileRefs(rootEl) {
+  const refs = rootEl.querySelectorAll('.disk-file-ref');
+  if (!refs.length) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const idsSet = new Set();
+    refs.forEach(el => { if (el.dataset.fid) idsSet.add(el.dataset.fid); });
+    const ids = Array.from(idsSet);
+    const metas = await Promise.all(ids.map(id =>
+      fetch(`${dbUrl}/filesQueue/${encodeURIComponent(id)}.json?auth=${idToken}`)
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null)
+    ));
+    const byId = {};
+    ids.forEach((id, i) => { byId[id] = metas[i]; });
+
+    refs.forEach(el => {
+      const id = el.dataset.fid;
+      const meta = byId[id];
+      if (meta && meta.migrated && meta.r2Key && !meta.permanentlyFailed) {
+        const name = meta.fileName || `file_${id}`;
+        const size = meta.fileSize ? humanFileSize(meta.fileSize) : '';
+        el.innerHTML = `<span style="font-size:14px">${taskFileIcon(meta.contentType, name)}</span> <span style="text-decoration:underline">${escapeHtml(name)}</span>${size ? ` <span style="color:var(--t3);font-size:10px;font-weight:400">(${escapeHtml(size)})</span>` : ''}`;
+        el.title = `Скачать ${name}`;
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          downloadTaskFile(id, name, null);
+        });
+      } else {
+        // Файла нет в R2 / нет в очереди — клик попробует rescue из Битрикса
+        const origId = el.dataset.origId || id;
+        el.innerHTML = `🔄 <span style="text-decoration:underline">файл ${escapeHtml(origId)}</span>`;
+        el.title = 'Попробовать вытащить файл из Битрикса';
+        el.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const old = el.innerHTML;
+          el.innerHTML = '⏳ ...';
+          try {
+            const r = await fetch(WORKER_URL + '/api/file/' + encodeURIComponent(id), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ idToken: await fbAuth.currentUser.getIdToken() }),
+            });
+            if (!r.ok) {
+              let msg = `HTTP ${r.status}`;
+              try { const j = await r.json(); if (j && j.error) msg = j.error; } catch {}
+              el.innerHTML = `<span style="color:var(--rd)">✗ ${escapeHtml(msg.slice(0, 60))}</span>`;
+              el.title = msg;
+              return;
+            }
+            // Имя из Content-Disposition
+            let name = `file_${id}`;
+            const cd = r.headers.get('content-disposition') || '';
+            const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="([^"]+)"/i);
+            if (m) { try { name = decodeURIComponent(m[1]); } catch { name = m[1]; } }
+            const blob = await r.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = name;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+            // Обновляем плейсхолдер
+            el.innerHTML = `<span style="font-size:14px">${taskFileIcon(r.headers.get('content-type'), name)}</span> <span style="text-decoration:underline">${escapeHtml(name)}</span>`;
+            el.title = `Скачать ${name}`;
+            // Перевешиваем обработчик — теперь обычное скачивание
+            el.replaceWith(el.cloneNode(true));
+            const fresh = rootEl.querySelector(`.disk-file-ref[data-fid="${id}"]`);
+            if (fresh) fresh.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              downloadTaskFile(id, name, null);
+            });
+          } catch (err) {
+            el.innerHTML = `<span style="color:var(--rd)">✗ ${escapeHtml(err.message)}</span>`;
+          }
+        });
+      }
+    });
+  } catch (e) {
+    console.error('resolveDiskFileRefs:', e);
   }
 }
 
