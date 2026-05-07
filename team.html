@@ -1029,6 +1029,8 @@ tr:hover td { background: var(--bg3); }
   padding: 1px 7px;
   vertical-align: middle;
 }
+.row.selected { background: var(--acbg) !important; }
+.row.selected td { border-bottom-color: var(--acb); }
 .row.unread .name-cell {
   background: linear-gradient(90deg, var(--acbg) 0%, transparent 100%);
 }
@@ -3984,6 +3986,7 @@ const tasksState = {
   view: 'list',            // list | kanban
   loading: false,
   expandedRows: new Set(), // ключи задач у которых раскрыты подзадачи в smart-режиме
+  selected: new Set(),     // ключи задач выбранных чекбоксами для bulk-операций
 };
 
 // Состояние "прочитанности" задач — lastReadAt timestamps по ключу задачи
@@ -4721,7 +4724,8 @@ function renderTasksTable() {
       <table class="dtable" style="table-layout:fixed">
         <thead>
           <tr>
-            <th style="width:48%">Название</th>
+            <th style="width:4%;text-align:center"><input type="checkbox" id="tasks-select-all-visible" title="Выделить все видимые" style="cursor:pointer;width:14px;height:14px"></th>
+            <th style="width:44%">Название</th>
             <th style="width:14%">Статус</th>
             <th style="width:11%">Приоритет</th>
             <th style="width:15%">Исполнитель</th>
@@ -4759,7 +4763,7 @@ function renderTasksTable() {
       if (t._isMoreRow) {
         const indent = t._depth * 18;
         html += `<tr class="row task-more-row" data-parent-key="${escapeHtml(t._parentKey)}" style="height:${ROW_HEIGHT}px">
-          <td colspan="6" style="padding-left:${indent + 24}px;color:var(--ac2);cursor:pointer;font-size:12px">
+          <td colspan="7" style="padding-left:${indent + 24}px;color:var(--ac2);cursor:pointer;font-size:12px">
             <span>↓ Показать ещё ${t._hiddenCount} непрочитанных подзадач</span>
           </td>
         </tr>`;
@@ -4799,8 +4803,10 @@ function renderTasksTable() {
       const unreadDot = unread ? `<span class="task-unread-dot" title="Непрочитано"></span>` : '';
       const titleStyle = unread ? 'font-weight:700;color:var(--t1)' : '';
 
-      html += `<tr class="row${unread ? ' unread' : ''}" data-key="${escapeHtml(t.key)}" style="height:${ROW_HEIGHT}px">
-        <td class="name-cell" style="width:48%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${titleStyle}">${unreadDot}${prefix}${escapeHtml(t.title)}${unreadKidsBadge}</td>
+      const isSelected = tasksState.selected.has(t.key);
+      html += `<tr class="row${unread ? ' unread' : ''}${isSelected ? ' selected' : ''}" data-key="${escapeHtml(t.key)}" style="height:${ROW_HEIGHT}px">
+        <td class="select-cell" style="width:4%;text-align:center"><input type="checkbox" class="task-select-cb" data-key="${escapeHtml(t.key)}" ${isSelected ? 'checked' : ''} style="cursor:pointer;width:14px;height:14px"></td>
+        <td class="name-cell" style="width:44%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${titleStyle}">${unreadDot}${prefix}${escapeHtml(t.title)}${unreadKidsBadge}</td>
         <td style="width:14%"><span class="badge ${stMeta.class}">${escapeHtml(stMeta.label)}</span></td>
         <td style="width:11%"><span class="badge ${prMeta.class}">${escapeHtml(prMeta.label)}</span></td>
         <td style="width:15%;color:var(--ac2);font-size:11px">${escapeHtml(respName)}</td>
@@ -4819,7 +4825,21 @@ function renderTasksTable() {
           }
         });
       } else if (tr.dataset.key) {
+        // Чекбокс — отдельный handler, не пробрасывает к строке
+        const cb = tr.querySelector('.task-select-cb');
+        if (cb) {
+          cb.addEventListener('click', (e) => e.stopPropagation());
+          cb.addEventListener('change', () => {
+            const k = cb.dataset.key;
+            if (cb.checked) tasksState.selected.add(k);
+            else tasksState.selected.delete(k);
+            tr.classList.toggle('selected', cb.checked);
+            updateBulkActionBar();
+          });
+        }
         tr.addEventListener('click', (e) => {
+          // Клик по чекбоксу — пропускаем (handler выше)
+          if (e.target.closest('.select-cell')) return;
           // Клик по chevron'у — раскрыть/свернуть, не открывать карточку
           const toggle = e.target.closest('.task-expand-toggle');
           if (toggle && toggle.dataset.toggleKey) {
@@ -4838,6 +4858,204 @@ function renderTasksTable() {
 
   wrap.addEventListener('scroll', renderVisible, { passive: true });
   renderVisible();
+  updateBulkActionBar();
+
+  // Header checkbox: выделить/снять всё видимое (filtered)
+  const selAllCb = document.getElementById('tasks-select-all-visible');
+  if (selAllCb) {
+    selAllCb.addEventListener('change', () => {
+      if (selAllCb.checked) {
+        for (const t of tasksState.filtered) {
+          if (t._isMoreRow) continue;
+          if (t.key) tasksState.selected.add(t.key);
+        }
+      } else {
+        for (const t of tasksState.filtered) {
+          if (t.key) tasksState.selected.delete(t.key);
+        }
+      }
+      renderVisible();
+      updateBulkActionBar();
+    });
+  }
+}
+
+// ─── Bulk edit modal: даёт изменить статус/приоритет/исполнителя
+//     для всех выбранных задач за одну операцию (через worker)
+function openBulkEditModal() {
+  const count = tasksState.selected.size;
+  if (count === 0) return;
+
+  // Список пользователей для select исполнителя
+  const userOptions = Object.entries(tasksState.users || {})
+    .map(([uid, u]) => ({ uid, name: `${u.lastName || ''} ${u.name || ''}`.trim() || u.email || uid, bitrixId: u.bitrixId }))
+    .filter(u => u.bitrixId)
+    .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+
+  const html = `<div class="modal-overlay" id="bulk-edit-overlay" onclick="if(event.target===this)closeBulkEditModal()">
+    <div class="modal" style="max-width:500px">
+      <button class="close-x" onclick="closeBulkEditModal()">×</button>
+      <h2>Массовое изменение задач</h2>
+      <div class="modal-sub" style="margin-bottom:16px">Будут изменены <b style="color:var(--ac)">${count}</b> задач(и). Меняется только то что отмечено флажком.</div>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:12px 14px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t1);cursor:pointer">
+            <input type="checkbox" id="be-status-on" style="width:14px;height:14px;cursor:pointer">
+            <span>Изменить <b>статус</b> на:</span>
+          </label>
+          <select id="be-status-val" style="margin-top:8px;width:100%;padding:8px 10px;background:var(--bg2);color:var(--t1);border:1px solid var(--b1);border-radius:6px;font-size:13px" disabled>
+            <option value="2">Выполняется</option>
+            <option value="3">Ждёт контроля</option>
+            <option value="5">Завершена</option>
+            <option value="6">Отложена</option>
+            <option value="7">Отклонена</option>
+          </select>
+        </div>
+
+        <div style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:12px 14px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t1);cursor:pointer">
+            <input type="checkbox" id="be-priority-on" style="width:14px;height:14px;cursor:pointer">
+            <span>Изменить <b>приоритет</b> на:</span>
+          </label>
+          <select id="be-priority-val" style="margin-top:8px;width:100%;padding:8px 10px;background:var(--bg2);color:var(--t1);border:1px solid var(--b1);border-radius:6px;font-size:13px" disabled>
+            <option value="0">Низкий</option>
+            <option value="1">Средний</option>
+            <option value="2">Высокий</option>
+          </select>
+        </div>
+
+        <div style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:12px 14px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t1);cursor:pointer">
+            <input type="checkbox" id="be-resp-on" style="width:14px;height:14px;cursor:pointer">
+            <span>Изменить <b>исполнителя</b> на:</span>
+          </label>
+          <select id="be-resp-val" style="margin-top:8px;width:100%;padding:8px 10px;background:var(--bg2);color:var(--t1);border:1px solid var(--b1);border-radius:6px;font-size:13px" disabled>
+            ${userOptions.map(u => `<option value="${escapeHtml(u.bitrixId)}">${escapeHtml(u.name)}</option>`).join('')}
+          </select>
+        </div>
+
+        <div id="bulk-edit-result" style="font-size:12px;color:var(--t3);min-height:18px"></div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px">
+          <button onclick="closeBulkEditModal()" style="padding:9px 18px;background:var(--bg3);color:var(--t1);border:1px solid var(--b1);border-radius:8px;cursor:pointer;font-size:13px">Отмена</button>
+          <button id="be-apply-btn" style="padding:9px 22px;background:var(--ac);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">Применить (${count})</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div.firstElementChild);
+  document.body.style.overflow = 'hidden';
+
+  // Чекбокс активирует/деактивирует select рядом
+  ['status', 'priority', 'resp'].forEach(k => {
+    const onEl = document.getElementById(`be-${k}-on`);
+    const valEl = document.getElementById(`be-${k}-val`);
+    onEl.addEventListener('change', () => valEl.disabled = !onEl.checked);
+  });
+
+  document.getElementById('be-apply-btn').addEventListener('click', applyBulkEdit);
+}
+
+function closeBulkEditModal() {
+  const o = document.getElementById('bulk-edit-overlay');
+  if (o) o.remove();
+  document.body.style.overflow = '';
+}
+
+async function applyBulkEdit() {
+  const updates = {};
+  if (document.getElementById('be-status-on').checked) {
+    updates.status = parseInt(document.getElementById('be-status-val').value);
+  }
+  if (document.getElementById('be-priority-on').checked) {
+    updates.priority = parseInt(document.getElementById('be-priority-val').value);
+  }
+  if (document.getElementById('be-resp-on').checked) {
+    updates.responsibleBitrixId = document.getElementById('be-resp-val').value;
+  }
+  if (Object.keys(updates).length === 0) {
+    document.getElementById('bulk-edit-result').innerHTML = '<span style="color:var(--rd)">Ничего не выбрано для изменения.</span>';
+    return;
+  }
+  const taskKeys = Array.from(tasksState.selected);
+  // Извлекаем bitrixId из ключей формата task_NNNNN
+  const bitrixTaskIds = taskKeys.map(k => k.replace(/^task_/, '')).filter(Boolean);
+  if (bitrixTaskIds.length === 0) {
+    document.getElementById('bulk-edit-result').innerHTML = '<span style="color:var(--rd)">Не удалось определить ID задач.</span>';
+    return;
+  }
+  const btn = document.getElementById('be-apply-btn');
+  const resultEl = document.getElementById('bulk-edit-result');
+  btn.disabled = true;
+  btn.textContent = '⏳ Применяю...';
+  resultEl.innerHTML = '<span style="color:var(--ac2)">Отправляю изменения в Битрикс...</span>';
+
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/tasks/bulk-update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, taskIds: bitrixTaskIds, updates }),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) {
+      resultEl.innerHTML = `<span style="color:var(--rd)">Ошибка: ${escapeHtml(data.error || `HTTP ${r.status}`)}</span>`;
+      btn.disabled = false;
+      btn.textContent = `Повторить`;
+      return;
+    }
+    resultEl.innerHTML = `<span style="color:var(--gn)">✓ Успешно: ${data.success || 0}, ошибок: ${data.errors || 0}. Закрываю...</span>`;
+    if (data.errorDetails && data.errorDetails.length > 0) {
+      resultEl.innerHTML += `<div style="margin-top:6px;font-size:11px;color:var(--rd)">Примеры ошибок: ${data.errorDetails.slice(0, 3).map(e => escapeHtml(e.taskId + ': ' + e.error)).join('; ')}</div>`;
+    }
+    setTimeout(() => {
+      tasksState.selected.clear();
+      closeBulkEditModal();
+      // Перерисовываем список — задачи изменены в Firebase, live listener подтянет
+      filterAndRenderTasks();
+    }, 1500);
+  } catch (e) {
+    resultEl.innerHTML = `<span style="color:var(--rd)">Сеть: ${escapeHtml(e.message)}</span>`;
+    btn.disabled = false;
+    btn.textContent = `Повторить`;
+  }
+}
+
+// Floating action bar — появляется снизу когда что-то выделено
+function updateBulkActionBar() {
+  let bar = document.getElementById('bulk-action-bar');
+  const count = tasksState.selected.size;
+  if (count === 0) {
+    if (bar) bar.remove();
+    return;
+  }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'bulk-action-bar';
+    bar.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--ac);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);z-index:9999;font-size:13px';
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = `
+    <span style="color:var(--t1);font-weight:600">Выбрано: <span style="color:var(--ac)">${count}</span></span>
+    <button id="bulk-select-filtered" style="padding:6px 12px;background:var(--bg3);color:var(--t1);border:1px solid var(--b1);border-radius:8px;cursor:pointer;font-size:12px">Выделить все по фильтру (${tasksState.filtered.filter(t => !t._isMoreRow).length})</button>
+    <button id="bulk-edit-btn" style="padding:6px 12px;background:var(--ac);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">✏️ Изменить</button>
+    <button id="bulk-clear-btn" style="padding:6px 10px;background:var(--bg3);color:var(--t2);border:1px solid var(--b1);border-radius:8px;cursor:pointer;font-size:12px">× Снять</button>
+  `;
+  document.getElementById('bulk-select-filtered').addEventListener('click', () => {
+    for (const t of tasksState.filtered) {
+      if (!t._isMoreRow && t.key) tasksState.selected.add(t.key);
+    }
+    filterAndRenderTasks();
+  });
+  document.getElementById('bulk-edit-btn').addEventListener('click', openBulkEditModal);
+  document.getElementById('bulk-clear-btn').addEventListener('click', () => {
+    tasksState.selected.clear();
+    filterAndRenderTasks();
+  });
 }
 
 // ─── KANBAN задач ─────────────────────────────────────────────
