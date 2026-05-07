@@ -4471,10 +4471,17 @@ function buildSmartList(filtered) {
     }
   }
 
-  // Корневые задачи + сироты (родитель не в нашем filtered и не в общем списке)
+  // Корневые задачи + сироты (родитель не в общем списке) +
+  // подзадачи у которых родитель не прошёл текущий фильтр
+  // (иначе при поиске по тексту, который матчит только подзадачу,
+  // она бы пропала — потому что мы показываем только корни).
   const filteredKeys = new Set(filtered.map(t => t.key));
   const allKeysSet = new Set(tasksState.list.map(t => t.key));
-  const roots = filtered.filter(t => !t.parentId || !allKeysSet.has(t.parentId));
+  const roots = filtered.filter(t =>
+    !t.parentId ||
+    !allKeysSet.has(t.parentId) ||
+    !filteredKeys.has(t.parentId)
+  );
 
   // Для каждой корневой считаем "имеет ли непрочитанные подзадачи (рекурсивно)"
   // и собираем сами непрочитанные подзадачи (сразу с глубиной)
