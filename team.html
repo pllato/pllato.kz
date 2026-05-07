@@ -2863,6 +2863,24 @@ async function openDealCard(bitrixId) {
         </div>
       </div>
 
+      ${(() => {
+        // Сводный блок Файлы по сделке: все file ids из всех активностей
+        const allFids = new Set();
+        for (const a of timeline) {
+          if (Array.isArray(a.bitrixFileIds)) for (const f of a.bitrixFileIds) allFids.add(String(f));
+          if (a.recordFileId) allFids.add(String(a.recordFileId));
+        }
+        if (allFids.size === 0) return '';
+        const fids = Array.from(allFids).join(',');
+        return `<details class="dc-files-summary" style="margin-top:24px;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;padding:14px 16px">
+          <summary style="cursor:pointer;font-size:14px;font-weight:600;color:var(--t1);user-select:none;list-style:none;display:flex;align-items:center;gap:8px">
+            <span>📎</span> Все файлы по сделке (${allFids.size})
+            <span style="margin-left:auto;font-size:11px;color:var(--t3);font-weight:400">кликни чтобы развернуть</span>
+          </summary>
+          <div class="deal-files-list" id="deal-files-${escapeHtml(deal.bitrixId || '')}" data-fids="${escapeHtml(fids)}" style="display:flex;flex-direction:column;gap:6px;margin-top:14px"></div>
+        </details>`;
+      })()}
+
       ${latestOpenlinesActivity && timeline.length > 0 ? `
         <div class="dc-section-h">Все события (${timeline.length})</div>
         ${renderTimelineBlock(timeline)}
@@ -2906,6 +2924,21 @@ async function openDealCard(bitrixId) {
 
   // Подгружаем файлы во всех timeline-элементах (звонки, email, переписка)
   wireUpTimelineFiles(modal);
+
+  // Сводный блок 'Все файлы по сделке' — рендерим только при раскрытии
+  // <details>, чтобы не качать все превью сразу
+  modal.querySelectorAll('.dc-files-summary').forEach(d => {
+    const list = d.querySelector('.deal-files-list[data-fids]');
+    if (!list) return;
+    let loaded = false;
+    d.addEventListener('toggle', () => {
+      if (!d.open || loaded) return;
+      loaded = true;
+      const fids = (list.dataset.fids || '').split(',').filter(Boolean);
+      if (fids.length === 0) { list.innerHTML = '<div style="font-size:12px;color:var(--t3)">Нет файлов</div>'; return; }
+      if (list.id) loadFilesIntoContainer(list.id, fids, '');
+    });
+  });
 
   // Timeline filters: остаются как раньше
   modal.querySelectorAll('.tl-filter').forEach(btn => {
