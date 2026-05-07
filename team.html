@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pllato CRM</title>
+<title>ELC — English Lifestyle Communication</title>
 <script>
   // Применяем тему до загрузки CSS чтобы избежать вспышки тёмного при светлой
   (function() {
@@ -22,68 +22,74 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Unbounded:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  /* Dark theme (default) */
-  --bg: #0e0e12;
-  --bg2: #16161d;
-  --bg3: #1e1e28;
-  --bg4: #252532;
-  --b1: rgba(255,255,255,0.07);
-  --b2: rgba(255,255,255,0.13);
-  --t1: #f0eefc;
-  --t2: #9896b0;
-  --t3: #5e5c78;
-  --ac: #7c5cfc;
-  --ac2: #a87fff;
-  --acbg: rgba(124,92,252,0.13);
-  --acb: rgba(124,92,252,0.38);
+  /* ─── ELC brand palette ───
+   * Blue   #373D8D (Pantone 2117 C) — primary accent
+   * Red    #E31E24 (Pantone 485 C)  — danger / highlight
+   * Yellow #FFCC00 (Pantone 116 C)  — secondary accent
+   * см. брендбук, стр. 9
+   */
+  /* Dark theme (default) — синяя ночь */
+  --bg: #0d1024;
+  --bg2: #161a35;
+  --bg3: #1f2447;
+  --bg4: #2a305a;
+  --b1: rgba(255,255,255,0.08);
+  --b2: rgba(255,255,255,0.15);
+  --t1: #f0f1ff;
+  --t2: #a4a8c8;
+  --t3: #6f7398;
+  --ac: #6168c4;        /* ELC blue, brightened для контраста на тёмном */
+  --ac2: #8b91dc;
+  --acbg: rgba(55,61,141,0.22);
+  --acb: rgba(55,61,141,0.50);
   --gn: #3fd88e;
-  --gnbg: rgba(63,216,142,0.1);
-  --am: #f5c842;
-  --ambg: rgba(245,200,66,0.1);
-  --rd: #f05975;
-  --rdbg: rgba(240,89,117,0.1);
+  --gnbg: rgba(63,216,142,0.12);
+  --am: #ffcc00;        /* ELC yellow — для warning/важных */
+  --ambg: rgba(255,204,0,0.14);
+  --rd: #e31e24;        /* ELC red */
+  --rdbg: rgba(227,30,36,0.14);
   --tl: #3fc8d8;
   --tlbg: rgba(63,200,216,0.1);
   --r: 10px;
   --rl: 14px;
-  --fd: 'Unbounded', sans-serif;
-  --fb: 'Manrope', sans-serif;
+  --fd: 'Trebuchet MS', 'Manrope', Verdana, sans-serif;
+  --fb: 'Manrope', Tahoma, Verdana, sans-serif;
   --shadow: 0 4px 24px rgba(0,0,0,.45);
-  --modal-overlay: rgba(0,0,0,0.7);
+  --modal-overlay: rgba(8,10,28,0.78);
   --bubble-client: rgba(255,255,255,0.06);
-  --bubble-staff: rgba(127,99,232,0.2);
+  --bubble-staff: rgba(97,104,196,0.22);
   --skeleton: rgba(255,255,255,0.04);
   /* legacy aliases */
   --yl: var(--am);
 }
 
-/* Light theme */
+/* Light theme — фирменная ELC */
 :root[data-theme="light"] {
-  --bg: #f6f5fb;
+  --bg: #f5f6fb;
   --bg2: #ffffff;
-  --bg3: #f0eef7;
-  --bg4: #e6e2f0;
-  --b1: rgba(20,18,40,0.08);
-  --b2: rgba(20,18,40,0.16);
-  --t1: #1a1730;
-  --t2: #5a5772;
-  --t3: #8a87a0;
-  --ac: #6e4ef5;
-  --ac2: #5836e4;
-  --acbg: rgba(110,78,245,0.09);
-  --acb: rgba(110,78,245,0.32);
+  --bg3: #eef0fa;
+  --bg4: #dde1f3;
+  --b1: rgba(55,61,141,0.10);
+  --b2: rgba(55,61,141,0.20);
+  --t1: #161a35;
+  --t2: #4a4f72;
+  --t3: #7d82a0;
+  --ac: #373d8d;        /* ELC blue exact */
+  --ac2: #2a2f70;       /* darker для hover */
+  --acbg: rgba(55,61,141,0.08);
+  --acb: rgba(55,61,141,0.30);
   --gn: #1fa869;
   --gnbg: rgba(31,168,105,0.1);
-  --am: #c79318;
-  --ambg: rgba(199,147,24,0.1);
-  --rd: #d63654;
-  --rdbg: rgba(214,54,84,0.08);
+  --am: #b58700;        /* приглушённый ELC yellow для читаемости */
+  --ambg: rgba(255,204,0,0.20);
+  --rd: #e31e24;        /* ELC red */
+  --rdbg: rgba(227,30,36,0.08);
   --tl: #1894a3;
   --tlbg: rgba(24,148,163,0.09);
-  --shadow: 0 4px 24px rgba(20,18,40,.10);
-  --modal-overlay: rgba(20,18,40,0.45);
+  --shadow: 0 4px 24px rgba(55,61,141,.12);
+  --modal-overlay: rgba(22,26,53,0.50);
   --bubble-client: rgba(20,18,40,0.06);
-  --bubble-staff: rgba(110,78,245,0.13);
+  --bubble-staff: rgba(55,61,141,0.13);
   --skeleton: rgba(20,18,40,0.05);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -113,11 +119,29 @@ body {
   max-width: 420px;
 }
 .logo {
-  font-size: 22px;
+  font-family: var(--fd);
+  font-size: 28px;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.04em;
   margin-bottom: 4px;
+  color: var(--ac);
+  display: flex;
+  align-items: baseline;
+  gap: 0;
 }
+.logo .l-red { color: var(--rd); }
+.logo-sub {
+  display: block;
+  font-family: var(--fd);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--t2);
+  margin-top: 2px;
+  margin-bottom: 24px;
+}
+.login-wrap .logo-sub { margin-bottom: 24px; }
+.sidebar .logo-sub { margin-bottom: 0; }
 .logo .accent { color: var(--ac); }
 .tagline {
   font-size: 13px;
@@ -426,12 +450,17 @@ body {
 }
 .sidebar .logo {
   font-family: var(--fd);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ac2);
-  margin-bottom: 22px;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ac);
+  margin-bottom: 4px;
   padding: 0 6px;
-  letter-spacing: .02em;
+  letter-spacing: .04em;
+}
+.sidebar .logo-sub {
+  padding: 0 6px;
+  margin-bottom: 22px;
+  font-size: 7px;
 }
 .nav-section {
   font-size: 10px;
@@ -1567,7 +1596,10 @@ tr:hover td { background: var(--bg3); }
 <!-- ── Login Screen ───────────────────────────────────────────── -->
 <div id="login" class="login-wrap">
   <div class="login-card">
-    <div class="logo">Pllato<span class="accent">.crm</span></div>
+    <div>
+      <div class="logo">E<span class="l-red">L</span>C</div>
+      <div class="logo-sub">ENGLISH&nbsp;LIFESTYLE&nbsp;COMMUNICATION</div>
+    </div>
     <div class="tagline">Внутренний портал управления</div>
 
     <div id="login-error" class="error" style="display:none"></div>
@@ -1591,7 +1623,10 @@ tr:hover td { background: var(--bg3); }
 <!-- ── Main App ───────────────────────────────────────────────── -->
 <div id="app" class="app">
   <div class="sidebar">
-    <div class="logo">Pllato<span class="accent">.crm</span></div>
+    <div>
+      <div class="logo">E<span class="l-red">L</span>C</div>
+      <div class="logo-sub">ENGLISH&nbsp;LIFESTYLE&nbsp;COMMUNICATION</div>
+    </div>
 
     <div class="nav-section">Главное</div>
     <div class="nav-item" data-page="dashboard">
