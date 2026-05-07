@@ -5051,12 +5051,19 @@ async function openTaskCard(key) {
               const author = getUserById(c.authorUid);
               const authorName = author ? `${author.lastName || ''} ${author.name || ''}`.trim() : (c.authorName || '—');
               const time = c.bitrixPostDate ? new Date(c.bitrixPostDate).toLocaleString('ru') : '';
+              const cFiles = Array.isArray(c.attachedFileIds) ? c.attachedFileIds : [];
+              const filesBlock = cFiles.length > 0
+                ? `<div class="comment-files-list" id="comment-files-${escapeHtml(c.bitrixId || '')}" style="display:flex;flex-direction:column;gap:4px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--b1)">
+                    <div style="font-size:11px;color:var(--t3)">⏳ Загрузка ${cFiles.length} ${cFiles.length === 1 ? 'файла' : 'файлов'}...</div>
+                  </div>`
+                : '';
               return `<div style="background:var(--bg3);border:1px solid var(--b1);border-radius:10px;padding:10px 12px">
                 <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px">
                   <span style="color:var(--ac2);font-weight:600">${escapeHtml(authorName)}</span>
                   <span style="color:var(--t3)">${time}</span>
                 </div>
                 <div style="font-size:13px;color:var(--t1);white-space:pre-wrap;line-height:1.5">${escapeHtml(c.text || '')}</div>
+                ${filesBlock}
               </div>`;
             }).join('')}
           </div>` : '<div class="section-h">Комментарии</div><div style="font-size:13px;color:var(--t3)">Нет комментариев</div>'}
@@ -5082,16 +5089,23 @@ async function openTaskCard(key) {
 
     // Подгружаем метаданные файлов задачи (если есть)
     if (t.hasFiles && Array.isArray(t.bitrixFileIds) && t.bitrixFileIds.length > 0) {
-      loadTaskFiles(key, t.bitrixFileIds);
+      loadFilesIntoContainer('task-files-' + key, t.bitrixFileIds, key);
+    }
+
+    // Подгружаем файлы каждого комментария (как в Битриксе)
+    for (const c of comments) {
+      if (Array.isArray(c.attachedFileIds) && c.attachedFileIds.length > 0 && c.bitrixId) {
+        loadFilesIntoContainer('comment-files-' + c.bitrixId, c.attachedFileIds, key);
+      }
     }
   } catch (e) {
     alert('Ошибка загрузки задачи: ' + e.message);
   }
 }
 
-// ─── Файлы задач: подгрузка из /filesQueue + скачивание через worker
-async function loadTaskFiles(taskKey, fileIds) {
-  const container = document.getElementById('task-files-' + taskKey);
+// ─── Файлы (для задач, комментариев, активностей): подгрузка из /filesQueue + скачивание через worker
+async function loadFilesIntoContainer(containerId, fileIds, taskKey) {
+  const container = document.getElementById(containerId);
   if (!container) return;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
