@@ -5346,6 +5346,13 @@ async function loadFilesIntoContainer(containerId, fileIds, taskKey) {
       const btnHtml = migrated
         ? `<button class="tf-dl" data-fid="${escapeHtml(String(id))}" data-name="${escapeHtml(name)}" data-task="${escapeHtml(taskKey)}" style="padding:4px 10px;background:var(--ac1);color:#0e0e12;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">↓ Скачать</button>`
         : `<button class="tf-retry" data-fid="${escapeHtml(String(id))}" data-name="${escapeHtml(name)}" data-task="${escapeHtml(taskKey)}" title="Попробовать вытащить файл из Битрикса заново" style="padding:4px 10px;background:var(--bg3);color:var(--ac2);border:1px solid var(--ac2);border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">🔄 Попробовать</button>`;
+      // Inline-превью для картинок
+      const isImage = migrated && typeof m.contentType === 'string' && m.contentType.startsWith('image/');
+      if (isImage) {
+        html += `<div class="tf-img-thumb" data-fid="${escapeHtml(String(id))}" data-name="${escapeHtml(name)}" style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:8px;display:flex;align-items:center;justify-content:center;min-height:80px;cursor:pointer">
+          <span style="font-size:11px;color:var(--t3)">⏳ загружаю превью...</span>
+        </div>`;
+      }
       html += `<div class="task-file-item" data-fid="${escapeHtml(String(id))}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border:1px solid var(--b1);border-radius:8px;font-size:13px">
         <span style="font-size:16px;flex-shrink:0">${taskFileIcon(m.contentType, name)}</span>
         <span class="tf-name" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t1)" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
@@ -5361,6 +5368,22 @@ async function loadFilesIntoContainer(containerId, fileIds, taskKey) {
     container.querySelectorAll('.tf-retry').forEach(btn => {
       btn.addEventListener('click', () => retryTaskFile(btn.dataset.fid, btn.dataset.task, btn));
     });
+    // Подгружаем превьюшки картинок (lazy-load через IntersectionObserver,
+    // чтобы не качать сразу 20 картинок при открытии длинной задачи)
+    const thumbs = container.querySelectorAll('.tf-img-thumb[data-fid]');
+    if (thumbs.length > 0 && 'IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries, obs) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            obs.unobserve(entry.target);
+            loadImageThumb(entry.target);
+          }
+        }
+      }, { rootMargin: '200px' });
+      thumbs.forEach(el => io.observe(el));
+    } else {
+      thumbs.forEach(el => loadImageThumb(el));
+    }
   } catch (e) {
     container.innerHTML = `<div style="font-size:12px;color:var(--rd)">Ошибка загрузки файлов: ${escapeHtml(e.message)}</div>`;
   }
@@ -5462,6 +5485,66 @@ async function retryTaskFile(fileId, taskKey, btn) {
     return;
   }
   if (btn && btn.isConnected) btn.disabled = false;
+}
+
+// ─── Inline-превью картинок: фетчит blob через worker, рендерит <img>,
+// клик → лайтбокс. Кэширует blobURL на узле — нет повторного фетча
+// при кнопке Скачать.
+async function loadImageThumb(el) {
+  const fid = el.dataset.fid;
+  const name = el.dataset.name || `file_${fid}`;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/file/' + encodeURIComponent(fid), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+    if (!r.ok) {
+      el.innerHTML = `<span style="font-size:11px;color:var(--t3)">не удалось загрузить превью</span>`;
+      return;
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    el._cachedBlobUrl = url;
+    el._cachedBlob = blob;
+    el.innerHTML = '';
+    el.style.padding = '0';
+    el.style.minHeight = '0';
+    el.style.overflow = 'hidden';
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = name;
+    img.loading = 'lazy';
+    img.style.cssText = 'display:block;max-width:100%;max-height:280px;width:auto;height:auto;object-fit:contain;border-radius:8px;background:var(--bg2)';
+    img.title = `${name} — клик для увеличения`;
+    el.appendChild(img);
+    el.addEventListener('click', () => openImageLightbox(url, name));
+  } catch (e) {
+    el.innerHTML = `<span style="font-size:11px;color:var(--rd)">${escapeHtml(e.message)}</span>`;
+  }
+}
+
+// Простой лайтбокс для просмотра картинок в полный размер
+function openImageLightbox(src, name) {
+  const overlay = document.createElement('div');
+  overlay.className = 'img-lightbox';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:zoom-out;padding:20px';
+  overlay.innerHTML = `
+    <div style="position:absolute;top:14px;right:18px;color:#fff;font-size:13px;cursor:pointer;padding:6px 14px;background:rgba(255,255,255,0.12);border-radius:8px;font-weight:600">✕ Закрыть (Esc)</div>
+    <div style="color:#fff;font-size:13px;margin-bottom:14px;text-align:center;max-width:80%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name || '')}</div>
+  `;
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:96vw;max-height:84vh;object-fit:contain;border-radius:6px;background:#fff;box-shadow:0 12px 40px rgba(0,0,0,0.5)';
+  img.addEventListener('click', e => e.stopPropagation());
+  overlay.appendChild(img);
+  overlay.addEventListener('click', () => { overlay.remove(); document.removeEventListener('keydown', escHandler); });
+  function escHandler(e) {
+    if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); }
+  }
+  document.addEventListener('keydown', escHandler);
+  document.body.appendChild(overlay);
 }
 
 function humanFileSize(bytes) {
