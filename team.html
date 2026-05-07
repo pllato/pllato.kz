@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ELC — English Lifestyle Communication</title>
+<link rel="icon" type="image/png" href="elc-favicon-source.png">
 <script>
   // Применяем тему до загрузки CSS чтобы избежать вспышки тёмного при светлой
   (function() {
@@ -118,31 +119,28 @@ body {
   width: 100%;
   max-width: 420px;
 }
-.logo {
-  font-family: var(--fd);
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  margin-bottom: 4px;
-  color: var(--ac);
-  display: flex;
-  align-items: baseline;
-  gap: 0;
-}
-.logo .l-red { color: var(--rd); }
-.logo-sub {
-  display: block;
-  font-family: var(--fd);
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  color: var(--t2);
-  margin-top: 2px;
+.elc-brand {
   margin-bottom: 24px;
 }
-.login-wrap .logo-sub { margin-bottom: 24px; }
-.sidebar .logo-sub { margin-bottom: 0; }
-.logo .accent { color: var(--ac); }
+.elc-brand-img {
+  display: block;
+  height: 36px;
+  width: auto;
+  max-width: 100%;
+}
+/* На тёмной теме — белая подложка под лого (правило брендбука стр 5) */
+:root:not([data-theme="light"]) .elc-brand-img {
+  background: #ffffff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  box-sizing: content-box;
+}
+/* Sidebar: чуть меньше, влево */
+.sidebar .elc-brand { margin-bottom: 22px; padding: 0 6px; }
+.sidebar .elc-brand-img { height: 26px; }
+/* Login screen: больше */
+.login-wrap .elc-brand { margin-bottom: 20px; }
+.login-wrap .elc-brand-img { height: 44px; }
 .tagline {
   font-size: 13px;
   color: var(--t3);
@@ -1609,9 +1607,8 @@ tr:hover td { background: var(--bg3); }
 <!-- ── Login Screen ───────────────────────────────────────────── -->
 <div id="login" class="login-wrap">
   <div class="login-card">
-    <div>
-      <div class="logo">E<span class="l-red">L</span>C</div>
-      <div class="logo-sub">ENGLISH&nbsp;LIFESTYLE&nbsp;COMMUNICATION</div>
+    <div class="elc-brand">
+      <img src="elc-logo.png" alt="ELC — English Lifestyle Communication" class="elc-brand-img">
     </div>
     <div class="tagline">Внутренний портал управления</div>
 
@@ -1636,9 +1633,8 @@ tr:hover td { background: var(--bg3); }
 <!-- ── Main App ───────────────────────────────────────────────── -->
 <div id="app" class="app">
   <div class="sidebar">
-    <div>
-      <div class="logo">E<span class="l-red">L</span>C</div>
-      <div class="logo-sub">ENGLISH&nbsp;LIFESTYLE&nbsp;COMMUNICATION</div>
+    <div class="elc-brand">
+      <img src="elc-logo.png" alt="ELC — English Lifestyle Communication" class="elc-brand-img">
     </div>
 
     <div class="nav-section">Главное</div>
