@@ -1535,8 +1535,20 @@ footer {
   .final-cta-card { padding: 28px 18px; }
 }
 </style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-M5N2WR2B');</script>
+<!-- End Google Tag Manager -->
+
 </head>
 <body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-M5N2WR2B"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
 
 <!-- ============== HEADER ============== -->
 <header class="site-header" id="header">
@@ -2894,8 +2906,8 @@ footer {
         <h4>Студия</h4>
         <ul>
           <li><a href="https://pllato.kz/team">Команда</a></li>
-          <li><a href="automation.html">Готовые модули</a></li>
           <li><a href="crm-builder.html">Схема CRM</a></li>
+          <li><a href="#quiz">Подобрать систему</a></li>
         </ul>
       </div>
 
@@ -3206,8 +3218,17 @@ function handleFormSubmit(form, isExtended) {
 
   saveLeadBackup(phone, sourceLabel);
 
+  // Отправка события в GTM dataLayer (а оттуда — в GA4, Метрику, Meta Pixel)
+  if (window.dataLayer) {
+    window.dataLayer.push({
+      event: 'lead_submitted',
+      lead_source: sourceLabel,
+    });
+  }
+  // Прямые вызовы — на случай, если счётчики подключены не через GTM
   if (typeof gtag === 'function') gtag('event', 'lead_submitted', { source: sourceLabel });
   if (typeof ym === 'function' && window.YANDEX_METRIKA_ID) ym(window.YANDEX_METRIKA_ID, 'reachGoal', 'lead_submitted');
+  if (typeof fbq === 'function') fbq('track', 'Lead', { source: sourceLabel });
 
   // Build text with extra data
   let text = buildLeadText(phone, sourceLabel);
