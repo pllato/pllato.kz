@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Pllato — отцифровка операционки бизнеса</title>
-<meta name="description" content="Pllato — партнёр по операционной отцифровке. Не пишем код по ТЗ — приносим готовые системы управления бизнесом по нишам. Бесплатный разбор за 30 минут.">
+<title>Кастомная CRM под ваш бизнес за 4–8 недель | Pllato</title>
+<meta name="description" content="Разрабатываем свою CRM под ваш процесс. Канбан, карточки, чаты, интеграции — всё то же, что в Bitrix или Amo, но сделано лично под вас. С передачей кода в собственность.">
 <meta name="theme-color" content="#fafaf6">
 
-<meta property="og:title" content="Pllato — отцифровка операционки бизнеса">
-<meta property="og:description" content="Не код — а готовые системы управления для девелопмента, опта, производства, клиник. Знания + внедрение.">
+<meta property="og:title" content="Своя CRM под ваш бизнес за 4 недели | Pllato">
+<meta property="og:description" content="То же, что Bitrix и Amo, но под ваш процесс. С передачей кода. Без подписок.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://pllato.kz">
 <meta property="og:image" content="https://pllato.kz/pllato_icon_512.svg">
@@ -836,281 +836,6 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
   font-size: 11px;
 }
 
-/* ============== QUIZ ============== */
-.quiz { padding: 96px 0; background: var(--surface-2); }
-.quiz-head { text-align: center; max-width: 720px; margin: 0 auto 40px; }
-.quiz-head h2 {
-  font-size: clamp(30px, 4.5vw, 52px); line-height: 1.05;
-  font-weight: 800; letter-spacing: -0.035em; margin: 14px 0 14px;
-}
-.quiz-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
-.quiz-head p { font-size: 16px; color: var(--text-2); line-height: 1.6; }
-
-.quiz-card {
-  max-width: 760px; margin: 0 auto;
-  background: var(--surface);
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-lg);
-  padding: 36px;
-  box-shadow: var(--shadow-md);
-  position: relative;
-  min-height: 480px;
-}
-
-/* Progress */
-.quiz-progress {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 28px;
-  gap: 16px;
-}
-.quiz-dots { display: flex; gap: 6px; flex: 1; }
-.quiz-dot {
-  height: 4px; border-radius: 2px; flex: 1;
-  background: var(--line);
-  transition: background 0.3s ease;
-}
-.quiz-dot.done { background: var(--bronze); }
-.quiz-dot.active { background: var(--bronze); }
-.quiz-step-label {
-  font-size: 12px; color: var(--text-3); font-weight: 600;
-  white-space: nowrap;
-}
-.quiz-step-label b { color: var(--text); font-weight: 700; }
-
-/* Steps */
-.quiz-step { display: none; animation: quizFade 0.3s ease; }
-.quiz-step.active { display: block; }
-@keyframes quizFade {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
-}
-
-.quiz-question {
-  font-size: clamp(22px, 3vw, 30px);
-  font-weight: 700; line-height: 1.15;
-  letter-spacing: -0.025em;
-  margin-bottom: 8px;
-}
-.quiz-hint {
-  font-size: 13.5px; color: var(--text-3);
-  font-weight: 500; margin-bottom: 24px;
-}
-.quiz-counter {
-  display: inline-block;
-  font-size: 13px; font-weight: 600;
-  color: var(--bronze-deep);
-  background: var(--bronze-tint);
-  padding: 4px 12px;
-  border-radius: 100px;
-  margin-bottom: 18px;
-  min-height: 0;
-}
-.quiz-counter:empty { display: none; }
-
-/* Option buttons */
-.quiz-options {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
-.quiz-options.cols-2 { grid-template-columns: 1fr 1fr; }
-@media (max-width: 600px) { .quiz-options.cols-2 { grid-template-columns: 1fr; } }
-.quiz-options.chips {
-  grid-template-columns: none;
-  display: flex; flex-wrap: wrap;
-  gap: 8px;
-}
-
-.quiz-option {
-  font-family: var(--sans);
-  text-align: left;
-  background: var(--surface-2);
-  border: 2px solid var(--line);
-  border-radius: 10px;
-  padding: 14px 16px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text);
-  min-height: 56px;
-  -webkit-tap-highlight-color: transparent;
-}
-.quiz-option small {
-  display: block;
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--text-2);
-  margin-top: 3px;
-  line-height: 1.4;
-}
-.quiz-option-text { flex: 1; min-width: 0; }
-.quiz-option:hover {
-  border-color: var(--bronze);
-  background: var(--surface);
-  transform: translateY(-1px);
-}
-.quiz-option:active { transform: translateY(0); }
-.quiz-option.selected {
-  border-color: var(--bronze);
-  background: var(--bronze-tint);
-}
-.quiz-option-mark {
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  border: 2px solid var(--line);
-  flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  background: #fff;
-  transition: all 0.15s;
-}
-.quiz-option.multi .quiz-option-mark {
-  border-radius: 6px;
-}
-.quiz-option.selected .quiz-option-mark {
-  background: var(--bronze);
-  border-color: var(--bronze);
-}
-.quiz-option.selected .quiz-option-mark::after {
-  content: '';
-  width: 5px; height: 9px;
-  border: solid #fff;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg) translateY(-1px);
-}
-
-/* Chip-style options (for team size) */
-.quiz-options.chips .quiz-option {
-  padding: 10px 16px;
-  border-radius: 100px;
-  min-height: 0;
-  font-size: 14.5px;
-  font-weight: 600;
-}
-.quiz-options.chips .quiz-option-mark { display: none; }
-
-/* Navigation */
-.quiz-nav {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-top: 28px; padding-top: 24px;
-  border-top: 1px solid var(--line);
-  gap: 12px;
-}
-.quiz-back {
-  background: transparent;
-  border: 1px solid var(--line);
-  color: var(--text-2);
-  padding: 11px 18px;
-  border-radius: var(--r-md);
-  font-size: 14px; font-weight: 600;
-  cursor: pointer;
-  font-family: var(--sans);
-  transition: all 0.15s;
-}
-.quiz-back:hover:not(:disabled) { color: var(--text); border-color: var(--text-3); }
-.quiz-back:disabled { opacity: 0.35; cursor: not-allowed; }
-.quiz-next:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
-
-/* Step 5 — contact form */
-.quiz-summary {
-  background: var(--bronze-tint);
-  border: 1px solid var(--bronze-tint-2);
-  border-radius: var(--r-md);
-  padding: 18px 20px;
-  margin-bottom: 24px;
-}
-.quiz-summary-title {
-  font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
-  color: var(--bronze-deep); font-weight: 700;
-  margin-bottom: 10px;
-}
-.quiz-summary-row {
-  display: flex; gap: 10px;
-  padding: 5px 0;
-  font-size: 14px;
-  align-items: baseline;
-}
-.quiz-summary-row > span { color: var(--text-2); flex-shrink: 0; }
-.quiz-summary-row > b { color: var(--text); font-weight: 600; }
-.quiz-summary-row.pains { align-items: flex-start; }
-.quiz-summary-row.pains b {
-  font-weight: 500;
-  font-size: 13.5px;
-  line-height: 1.5;
-}
-
-.quiz-fields {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-  margin-bottom: 8px;
-}
-@media (max-width: 540px) { .quiz-fields { grid-template-columns: 1fr; } }
-.quiz-field {
-  position: relative;
-}
-.quiz-field input {
-  width: 100%;
-  padding: 14px 16px;
-  font-family: var(--sans);
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--text);
-  background: var(--surface-2);
-  border: 2px solid var(--line);
-  border-radius: 10px;
-  outline: none;
-  transition: border-color 0.15s, background 0.15s;
-}
-.quiz-field input:focus {
-  border-color: var(--bronze);
-  background: var(--surface);
-}
-.quiz-field input::placeholder { color: var(--text-3); font-weight: 400; }
-.quiz-field.error input { border-color: var(--red); }
-.quiz-field.error input:focus { border-color: var(--red); }
-
-.quiz-submit {
-  width: 100%;
-  margin-top: 6px;
-  padding: 16px;
-  font-size: 15.5px;
-}
-.quiz-consent {
-  font-size: 12px; color: var(--text-3);
-  margin-top: 12px; line-height: 1.5;
-  text-align: center;
-}
-
-/* Success state */
-.quiz-success {
-  display: none;
-  text-align: center;
-  padding: 32px 16px 16px;
-  animation: quizFade 0.4s ease;
-}
-.quiz-success.show { display: block; }
-.quiz-success-mark {
-  width: 64px; height: 64px;
-  border-radius: 50%;
-  background: var(--green);
-  color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 30px; font-weight: 800;
-  margin: 0 auto 20px;
-  box-shadow: 0 8px 24px -8px rgba(22, 163, 74, 0.5);
-}
-.quiz-success h3 {
-  font-size: 24px; font-weight: 800;
-  letter-spacing: -0.02em;
-  margin-bottom: 8px;
-}
-.quiz-success p {
-  color: var(--text-2); font-size: 15px; line-height: 1.55;
-  max-width: 460px; margin: 0 auto;
-}
-
 /* ============== WHY CUSTOM ============== */
 .why { padding: 100px 0; background: var(--bronze-tint); }
 .why-head { text-align: center; max-width: 720px; margin: 0 auto 56px; }
@@ -1140,261 +865,403 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 .why-card h3 { font-weight: 700; font-size: 18px; letter-spacing: -0.015em; margin-bottom: 10px; }
 .why-card p { font-size: 14.5px; color: var(--text-2); line-height: 1.6; }
 
-/* ============== EXPERTISE ============== */
-.expertise { padding: 100px 0; background: var(--bg); }
-.exp-head { text-align: center; max-width: 760px; margin: 0 auto 56px; }
-.exp-head h2 {
-  font-size: clamp(30px, 4.5vw, 52px); line-height: 1.05;
-  font-weight: 800; letter-spacing: -0.035em; margin: 14px 0 18px;
+/* ============== HEADER NAV ============== */
+.header-nav {
+  display: flex; align-items: center; gap: 28px;
+  position: absolute; left: 50%; transform: translateX(-50%);
 }
-.exp-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
-.exp-head p { font-size: 16.5px; color: var(--text-2); line-height: 1.6; max-width: 720px; margin: 0 auto; }
+.header-nav a {
+  font-size: 14px; font-weight: 500; color: var(--text-2);
+  text-decoration: none; transition: color 0.2s;
+}
+.header-nav a:hover { color: var(--text); }
+@media (max-width: 1100px) { .header-nav { display: none; } }
+.header-inner { position: relative; }
 
-.exp-grid {
+/* ============== HERO SECONDARY LINK ============== */
+.hero-secondary { margin-top: 14px; }
+.hero-secondary-link {
+  font-size: 14px; color: var(--text-2);
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px dashed var(--text-3);
+  padding-bottom: 1px;
+  transition: all 0.2s;
+}
+.hero-secondary-link:hover {
+  color: var(--bronze-deep);
+  border-bottom-color: var(--bronze);
+}
+
+/* ============== CHANGED ============== */
+.changed { padding: 96px 0; background: var(--bg); }
+.changed-head { text-align: center; max-width: 760px; margin: 0 auto 48px; }
+.changed-head h2 {
+  font-size: clamp(28px, 4vw, 44px); line-height: 1.1;
+  font-weight: 800; letter-spacing: -0.025em; margin: 14px 0 14px;
+}
+.changed-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
+
+.changed-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
-  margin-bottom: 56px;
+  max-width: 980px; margin: 0 auto;
 }
-@media (max-width: 800px) { .exp-grid { grid-template-columns: 1fr; gap: 14px; margin-bottom: 40px; } }
-
-.exp-card {
+@media (max-width: 720px) { .changed-grid { grid-template-columns: 1fr; gap: 14px; } }
+.changed-col {
   background: var(--surface); border: 1px solid var(--line-2);
-  border-radius: var(--r-lg); padding: 28px 28px 26px;
-  border-top: 3px solid var(--exp-accent, var(--bronze));
+  border-radius: var(--r-lg); padding: 30px 28px;
   box-shadow: var(--shadow-sm);
-  transition: transform 0.25s, box-shadow 0.25s;
 }
-.exp-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
-}
-.exp-card.c-realestate { --exp-accent: var(--c-realestate); --exp-tint: rgba(184, 137, 90, 0.12); }
-.exp-card.c-wholesale { --exp-accent: var(--c-wholesale); --exp-tint: rgba(22, 163, 74, 0.1); }
-.exp-card.c-production { --exp-accent: var(--c-production); --exp-tint: rgba(234, 125, 75, 0.12); }
-.exp-card.c-clinic { --exp-accent: var(--c-clinic); --exp-tint: rgba(77, 124, 254, 0.1); }
-
-.exp-niche-tag {
+.changed-tag {
   display: inline-block;
   font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--exp-accent);
-  background: var(--exp-tint);
+  text-transform: uppercase; letter-spacing: 0.1em;
   padding: 5px 11px; border-radius: 100px;
-  margin-bottom: 14px;
-}
-.exp-card.c-realestate .exp-niche-tag { color: var(--bronze-deep); }
-.exp-card.c-wholesale .exp-niche-tag { color: #15803d; }
-.exp-card.c-production .exp-niche-tag { color: #c2410c; }
-.exp-card.c-clinic .exp-niche-tag { color: #2952c4; }
-.exp-card h3 {
-  font-size: 19px; font-weight: 800;
-  letter-spacing: -0.02em; line-height: 1.25;
   margin-bottom: 16px;
 }
-.exp-points {
-  list-style: none; display: flex; flex-direction: column; gap: 9px;
+.changed-tag.was { background: var(--surface-2); color: var(--text-3); }
+.changed-tag.now { background: var(--bronze-tint); color: var(--bronze-deep); }
+.changed-col p { font-size: 15px; line-height: 1.65; color: var(--text); }
+.changed-col:nth-child(1) p { color: var(--text-2); }
+
+/* ============== FEATURES ============== */
+.features { padding: 96px 0; background: var(--surface-2); }
+.features-head { text-align: center; max-width: 720px; margin: 0 auto 48px; }
+.features-head h2 {
+  font-size: clamp(28px, 4vw, 44px); line-height: 1.1;
+  font-weight: 800; letter-spacing: -0.025em; margin: 14px 0 14px;
 }
-.exp-points li {
-  font-size: 14px; line-height: 1.5; color: var(--text-2);
-  padding-left: 22px; position: relative; font-weight: 500;
+.features-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
+
+.features-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
 }
-.exp-points li::before {
+@media (max-width: 900px) { .features-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 540px) { .features-grid { grid-template-columns: 1fr; } }
+
+.feature-card {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r-lg); padding: 28px 26px;
+  transition: all 0.2s;
+}
+.feature-card:hover { border-color: var(--bronze-tint-2); transform: translateY(-2px); }
+.feature-icon {
+  width: 44px; height: 44px; border-radius: 11px;
+  background: var(--bronze-tint); color: var(--bronze-deep);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
+}
+.feature-icon svg { width: 22px; height: 22px; }
+.feature-card h3 {
+  font-size: 17px; font-weight: 800; letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+.feature-card p { font-size: 14px; color: var(--text-2); line-height: 1.55; }
+
+.features-note {
+  text-align: center; margin-top: 36px;
+  font-size: 14px; color: var(--text-3); line-height: 1.6;
+  max-width: 640px; margin-left: auto; margin-right: auto;
+}
+
+/* ============== TIERS ============== */
+.tiers { padding: 96px 0; background: var(--bg); }
+.tiers-head { text-align: center; max-width: 760px; margin: 0 auto 48px; }
+.tiers-head h2 {
+  font-size: clamp(28px, 4vw, 44px); line-height: 1.1;
+  font-weight: 800; letter-spacing: -0.025em; margin: 14px 0 14px;
+}
+.tiers-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
+.tiers-head p { font-size: 15.5px; color: var(--text-2); line-height: 1.6; max-width: 640px; margin: 0 auto; }
+
+.tiers-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+  align-items: stretch;
+}
+@media (max-width: 980px) { .tiers-grid { grid-template-columns: 1fr; } }
+
+.tier-card {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r-lg); padding: 32px 28px;
+  display: flex; flex-direction: column;
+  position: relative;
+  box-shadow: var(--shadow-sm);
+}
+.tier-featured {
+  border-color: var(--bronze);
+  box-shadow: 0 12px 36px -12px rgba(184, 137, 90, 0.25);
+}
+.tier-badge {
+  position: absolute; top: -12px; left: 28px;
+  background: var(--bronze); color: #fff;
+  font-size: 11px; font-weight: 700;
+  padding: 5px 12px; border-radius: 100px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.tier-name {
+  font-size: 22px; font-weight: 800;
+  letter-spacing: -0.025em; margin-bottom: 6px;
+}
+.tier-meta {
+  font-size: 13.5px; color: var(--text-2);
+  margin-bottom: 14px; font-weight: 500;
+}
+.tier-meta b { color: var(--text); font-weight: 700; }
+.tier-desc {
+  font-size: 14px; color: var(--text-2);
+  margin-bottom: 18px; line-height: 1.55;
+  padding-bottom: 18px; border-bottom: 1px solid var(--line-2);
+}
+.tier-list {
+  list-style: none; display: flex; flex-direction: column; gap: 10px;
+  flex: 1;
+}
+.tier-list li {
+  font-size: 14px; line-height: 1.45; color: var(--text);
+  padding-left: 22px; position: relative;
+}
+.tier-list li::before {
   content: ''; position: absolute; left: 0; top: 6px;
-  width: 13px; height: 7px;
-  border: solid var(--exp-accent);
+  width: 12px; height: 7px;
+  border: solid var(--bronze);
   border-width: 0 0 2px 2px;
   transform: rotate(-45deg);
 }
+.tier-list li b { color: var(--text-3); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+.tier-list li:has(b)::before { display: none; }
+.tier-list li:has(b) { padding-left: 0; }
 
-/* Quote */
-.exp-quote {
-  max-width: 820px; margin: 0 auto;
-  background: var(--navy); color: #fff;
-  border-radius: var(--r-lg);
-  padding: 44px 52px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: var(--shadow-lg);
+.tiers-cta {
+  text-align: center; margin-top: 40px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
 }
-.exp-quote::before {
-  content: ''; position: absolute;
-  top: -120px; right: -120px;
-  width: 320px; height: 320px;
+.tiers-cta p { font-size: 15px; color: var(--text-2); }
+
+/* ============== HOWTO ============== */
+.howto { padding: 96px 0; background: var(--surface-2); }
+.howto-head { text-align: center; max-width: 760px; margin: 0 auto 48px; }
+.howto-head h2 {
+  font-size: clamp(28px, 4vw, 44px); line-height: 1.1;
+  font-weight: 800; letter-spacing: -0.025em; margin: 14px 0 14px;
+}
+.howto-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
+
+.howto-steps {
+  max-width: 760px; margin: 0 auto;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.howto-step {
+  display: grid; grid-template-columns: 56px 1fr; gap: 22px;
+  align-items: start;
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r-lg); padding: 24px 28px;
+  transition: all 0.2s;
+}
+.howto-step:hover { border-color: var(--bronze-tint-2); }
+@media (max-width: 540px) { .howto-step { grid-template-columns: 44px 1fr; gap: 16px; padding: 20px 22px; } }
+.howto-num {
+  width: 44px; height: 44px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(184,137,90,0.18), transparent 65%);
-}
-@media (max-width: 600px) { .exp-quote { padding: 32px 26px; } }
-
-.exp-quote-mark {
-  width: 32px; height: 32px;
-  color: var(--bronze-light);
-  margin-bottom: 18px;
-  position: relative;
-}
-.exp-quote-text {
-  font-size: clamp(18px, 2.2vw, 22px);
-  font-weight: 600;
-  line-height: 1.5;
-  color: #fff;
-  margin-bottom: 26px;
-  letter-spacing: -0.015em;
-  position: relative;
-}
-.exp-quote-text em {
-  color: var(--bronze-light);
-  font-style: italic; font-weight: 600;
-}
-.exp-quote-author {
-  display: flex; align-items: center; gap: 14px;
-  padding-top: 22px;
-  border-top: 1px solid rgba(255,255,255,0.12);
-  position: relative;
-}
-.exp-quote-avatar {
-  width: 46px; height: 46px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--bronze) 0%, var(--bronze-deep) 100%);
+  background: var(--bronze); color: #fff;
   display: flex; align-items: center; justify-content: center;
-  color: #fff; font-weight: 800; font-size: 16px;
-  flex-shrink: 0;
+  font-size: 18px; font-weight: 800;
+  letter-spacing: -0.02em;
 }
-.exp-quote-author b { display: block; font-weight: 700; font-size: 15px; line-height: 1.2; }
-.exp-quote-author small { color: rgba(255,255,255,0.65); font-size: 13px; }
-
-/* ============== GUARANTEES ============== */
-.guarantees { padding: 100px 0; background: var(--bg); position: relative; }
-.guarantees::before {
-  content: ''; position: absolute; inset: 0;
-  background-image: radial-gradient(circle at 1px 1px, rgba(10, 22, 40, 0.04) 1px, transparent 0);
-  background-size: 32px 32px;
-  mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black, transparent);
-  -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black, transparent);
-  pointer-events: none;
+.howto-info h3 {
+  font-size: 17px; font-weight: 800; letter-spacing: -0.02em;
+  margin-bottom: 6px; line-height: 1.3;
 }
-.guarantees > .wrap { position: relative; }
-
-.g-head { text-align: center; max-width: 720px; margin: 0 auto 48px; }
-.g-head h2 {
-  font-size: clamp(30px, 4.5vw, 52px); line-height: 1.05;
-  font-weight: 800; letter-spacing: -0.035em; margin: 14px 0 16px;
+.howto-info h3 small {
+  font-weight: 500; color: var(--text-3);
+  font-size: 13px; margin-left: 6px;
 }
-.g-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
-.g-head p { font-size: 16px; color: var(--text-2); line-height: 1.6; }
+.howto-info p { font-size: 14px; color: var(--text-2); line-height: 1.55; }
 
-.g-grid {
+/* ============== FIT ============== */
+.fit { padding: 96px 0; background: var(--bg); }
+.fit-head { text-align: center; max-width: 720px; margin: 0 auto 40px; }
+.fit-head h2 {
+  font-size: clamp(28px, 4vw, 44px); line-height: 1.1;
+  font-weight: 800; letter-spacing: -0.025em; margin: 14px 0 14px;
+}
+.fit-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
+
+.fit-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+  max-width: 980px; margin: 0 auto;
 }
-@media (max-width: 800px) { .g-grid { grid-template-columns: 1fr; gap: 14px; } }
+@media (max-width: 720px) { .fit-grid { grid-template-columns: 1fr; gap: 14px; } }
 
-.g-card {
-  background: var(--surface);
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-lg);
-  padding: 30px 28px;
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.25s, box-shadow 0.25s;
-  position: relative;
-  overflow: hidden;
+.fit-col {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r-lg); padding: 30px 28px;
+  border-top: 3px solid var(--fit-accent, var(--bronze));
 }
-.g-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
+.fit-yes { --fit-accent: #15803d; }
+.fit-no { --fit-accent: #b45309; }
+.fit-col h3 {
+  font-size: 18px; font-weight: 800;
+  letter-spacing: -0.02em; margin-bottom: 16px;
 }
-.g-card::before {
-  content: ''; position: absolute;
-  top: 0; left: 0; right: 0; height: 3px;
-  background: var(--g-accent, var(--bronze));
+.fit-col ul {
+  list-style: none; display: flex; flex-direction: column; gap: 10px;
+}
+.fit-col li {
+  font-size: 14.5px; line-height: 1.5; color: var(--text);
+  padding-left: 22px; position: relative;
+}
+.fit-yes li::before {
+  content: ''; position: absolute; left: 0; top: 6px;
+  width: 12px; height: 7px;
+  border: solid #15803d; border-width: 0 0 2px 2px;
+  transform: rotate(-45deg);
+}
+.fit-no li::before {
+  content: ''; position: absolute; left: 2px; top: 8px;
+  width: 10px; height: 2px;
+  background: #b45309;
+}
+.fit-col li a { color: var(--bronze-deep); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+
+.fit-note {
+  text-align: center; margin-top: 32px;
+  font-size: 15px; color: var(--text-2); line-height: 1.6;
+  max-width: 640px; margin-left: auto; margin-right: auto;
+  font-style: italic;
 }
 
-.g-card-head {
-  display: flex; align-items: center; gap: 14px;
-  margin-bottom: 16px;
+/* ============== FAQ ============== */
+.faq { padding: 96px 0; background: var(--surface-2); }
+.faq-head { text-align: center; max-width: 720px; margin: 0 auto 40px; }
+.faq-head h2 {
+  font-size: clamp(28px, 4vw, 44px); line-height: 1.1;
+  font-weight: 800; letter-spacing: -0.025em; margin: 14px 0 14px;
 }
-.g-card-icon {
-  width: 48px; height: 48px; border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  background: var(--g-icon-bg, rgba(184, 137, 90, 0.12));
-  color: var(--g-accent, var(--bronze));
+.faq-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
+
+.faq-list {
+  max-width: 760px; margin: 0 auto;
+  display: flex; flex-direction: column; gap: 10px;
 }
-.g-card-icon svg { width: 24px; height: 24px; }
-.g-card-tag {
-  font-size: 10.5px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.1em;
-  padding: 4px 10px; border-radius: 100px;
-  background: var(--g-icon-bg, rgba(184, 137, 90, 0.12));
-  color: var(--g-accent, var(--bronze-deep));
+.faq-item {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: 12px; overflow: hidden;
+  transition: all 0.2s;
 }
-.g-card h3 {
-  font-size: 21px; font-weight: 800;
-  letter-spacing: -0.02em; line-height: 1.2;
+.faq-item[open] { border-color: var(--bronze-tint-2); }
+.faq-item summary {
+  padding: 18px 24px;
+  font-size: 16px; font-weight: 700;
+  letter-spacing: -0.015em;
+  cursor: pointer; list-style: none;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after {
+  content: '+'; font-size: 24px; font-weight: 400;
+  color: var(--bronze); flex-shrink: 0;
+  transition: transform 0.2s; line-height: 1;
+}
+.faq-item[open] summary::after { transform: rotate(45deg); }
+.faq-answer {
+  padding: 0 24px 22px; border-top: 1px solid var(--line-2); margin-top: -2px;
+  padding-top: 16px;
+}
+.faq-answer p {
+  font-size: 14.5px; color: var(--text-2); line-height: 1.65;
   margin-bottom: 12px;
 }
-.g-card > p {
-  font-size: 14.5px; line-height: 1.6;
-  color: var(--text-2);
-  margin-bottom: 16px;
+.faq-answer p:last-child { margin-bottom: 0; }
+.faq-answer a { color: var(--bronze-deep); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 540px) {
+  .faq-item summary { padding: 16px 18px; font-size: 15px; }
+  .faq-answer { padding: 0 18px 18px; padding-top: 14px; }
 }
-.g-card ul {
-  list-style: none;
-  display: flex; flex-direction: column; gap: 8px;
+
+/* ============== EXTENDED LEAD FORM ============== */
+.lead-form-extended {
+  display: flex; flex-direction: column; gap: 10px;
+  max-width: 540px;
 }
-.g-card li {
-  font-size: 13.5px; line-height: 1.5;
-  color: var(--text);
-  padding-left: 22px;
-  position: relative;
+.lf-row { display: flex; gap: 10px; }
+.lf-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 540px) { .lf-row-2 { grid-template-columns: 1fr; } }
+
+.lead-form-extended input,
+.lead-form-extended select {
+  width: 100%;
+  padding: 14px 16px;
+  font-family: var(--sans);
+  font-size: 15px;
   font-weight: 500;
+  color: #fff;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  outline: none;
+  transition: all 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
 }
-.g-card li::before {
-  content: '';
-  position: absolute; left: 0; top: 6px;
-  width: 14px; height: 8px;
-  border: solid var(--g-accent, var(--bronze));
-  border-width: 0 0 2px 2px;
-  transform: rotate(-45deg);
+.lead-form-extended input::placeholder { color: rgba(255,255,255,0.45); }
+.lead-form-extended input:focus,
+.lead-form-extended select:focus {
+  border-color: var(--bronze-light);
+  background: rgba(255,255,255,0.12);
+}
+.lead-form-extended select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23d4a978' stroke-width='2'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 40px;
+  cursor: pointer;
+}
+.lead-form-extended select option {
+  background: #0a1628; color: #fff;
+}
+.lead-form-extended.error input,
+.lead-form-extended.error select { border-color: #ef4444; }
+.lf-submit {
+  width: 100%; margin-top: 4px;
+  padding: 16px;
+  font-size: 15.5px;
+}
+.form-note-light {
+  font-size: 13px; color: rgba(255,255,255,0.55);
+  margin-top: 12px; line-height: 1.55;
 }
 
-/* Per-card accent colors */
-.g-card.c-asset {
-  --g-accent: #15803d;
-  --g-icon-bg: rgba(22, 163, 74, 0.1);
+/* ============== FLOATING WHATSAPP ============== */
+.float-wa {
+  position: fixed; bottom: 20px; right: 20px; z-index: 95;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: #25D366;
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 24px -4px rgba(37, 211, 102, 0.5);
+  text-decoration: none;
+  transition: all 0.2s;
 }
-.g-card.c-security {
-  --g-accent: #2952c4;
-  --g-icon-bg: rgba(77, 124, 254, 0.1);
+.float-wa:hover { transform: scale(1.05); box-shadow: 0 12px 32px -4px rgba(37, 211, 102, 0.6); }
+.float-wa svg { width: 30px; height: 30px; }
+.float-wa-tooltip {
+  position: absolute;
+  right: 70px; bottom: 50%; transform: translateY(50%);
+  background: #0f1620; color: #fff;
+  font-size: 12.5px; font-weight: 600;
+  padding: 8px 12px; border-radius: 8px;
+  white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
 }
-.g-card.c-migration {
-  --g-accent: #c2410c;
-  --g-icon-bg: rgba(234, 125, 75, 0.1);
+.float-wa:hover .float-wa-tooltip { opacity: 1; }
+@media (max-width: 720px) {
+  .float-wa { bottom: 80px; right: 14px; width: 50px; height: 50px; }
+  .float-wa svg { width: 26px; height: 26px; }
+  .float-wa-tooltip { display: none; }
 }
-.g-card.c-vision {
-  --g-accent: var(--bronze-deep);
-  --g-icon-bg: rgba(184, 137, 90, 0.12);
-}
-
-/* ============== OBJECTIONS ============== */
-.objections { padding: 100px 0; background: var(--bg); }
-.obj-head { text-align: center; max-width: 720px; margin: 0 auto 56px; }
-.obj-head h2 {
-  font-size: clamp(30px, 4.5vw, 52px); line-height: 1.05;
-  font-weight: 800; letter-spacing: -0.035em; margin: 14px 0 16px;
-}
-.obj-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
-.obj-head p { font-size: 16px; color: var(--text-2); line-height: 1.6; }
-
-.obj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-@media (max-width: 800px) { .obj-grid { grid-template-columns: 1fr; gap: 14px; } }
-.obj-card {
-  padding: 26px; background: var(--surface);
-  border: 1px solid var(--line-2); border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
-}
-.obj-card-q {
-  font-weight: 700; font-size: 20px;
-  letter-spacing: -0.02em; margin-bottom: 12px; line-height: 1.25;
-}
-.obj-card-q em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
-.obj-card-a { font-size: 14.5px; color: var(--text-2); line-height: 1.65; }
-.obj-card-a b { color: var(--text); font-weight: 700; }
 
 /* ============== FINAL CTA ============== */
 .final-cta { padding: 100px 0 80px; background: var(--bg); }
@@ -1678,12 +1545,19 @@ footer {
       <img src="pllato_logo_transparent_navy.svg" alt="Pllato" width="118" height="32">
     </a>
 
+    <nav class="header-nav">
+      <a href="#top">Главная</a>
+      <a href="automation.html">Готовые модули</a>
+      <a href="#faq">FAQ</a>
+      <a href="#contact">Контакты</a>
+    </nav>
+
     <div class="header-right">
       <a href="tel:+77011239999" class="header-phone">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
         <span>+7 701 123 99 99</span>
       </a>
-      <a href="#contact" class="btn btn-bronze">Заявка</a>
+      <a href="#contact" class="btn btn-bronze">Диагностика</a>
     </div>
   </div>
 </header>
@@ -1697,11 +1571,11 @@ footer {
       <div>
         <div class="hero-status">
           <span class="status-dot"></span>
-          Бесплатный разбор бизнеса · 30 минут
+          Бесплатная диагностика · 30 минут · без презентаций
         </div>
-        <h1>Отцифруем операционку.<br><em class="b">По-настоящему.</em></h1>
+        <h1>Своя CRM под ваш бизнес.<br><em class="b">Готова за 4 недели.</em></h1>
         <p class="hero-sub">
-          Не пишем код по ТЗ — приносим готовую модель работы вашей ниши и встраиваем её в команду. Продаём не строки, а результат: больше сделок, меньше потерь, выше маржа.
+          Канбан, карточки, чаты, интеграции — всё то же, что в Bitrix и Amo. Только сделано под ваш процесс. Передаём код вам в собственность. Без ежемесячных подписок.
         </p>
 
         <div class="form-success" id="success-1">
@@ -1714,16 +1588,20 @@ footer {
 
         <form class="lead-form js-lead-form" novalidate>
           <input type="tel" name="phone" placeholder="+7 701 234 56 78" required autocomplete="tel" inputmode="tel">
-          <button type="submit" class="btn btn-bronze btn-arrow">Получить разбор</button>
+          <button type="submit" class="btn btn-bronze btn-arrow">Бесплатная диагностика</button>
         </form>
         <div class="form-note">
-          <span>Бесплатно</span>
-          <span>Без обязательств</span>
-          <span>Перезвоним за 30 минут</span>
+          <span>30 минут</span>
+          <span>Без презентаций</span>
+          <span>Скажем честно — нужен ли кастом</span>
+        </div>
+
+        <div class="hero-secondary">
+          <a href="automation.html" class="hero-secondary-link">Или посмотрите готовые модули от $500 →</a>
         </div>
 
         <div class="niche-tabs" id="niche-tabs">
-          <span class="niche-tabs-label">Делаем для:</span>
+          <span class="niche-tabs-label">Примеры под нишу:</span>
           <button type="button" class="niche-chip active" data-target="realestate">Девелопмент</button>
           <button type="button" class="niche-chip" data-target="wholesale">Опт</button>
           <button type="button" class="niche-chip" data-target="production">Производство</button>
@@ -2600,401 +2478,330 @@ footer {
   </div>
 </section>
 
-<!-- ============== QUIZ ============== -->
-<section class="quiz" id="quiz">
-  <div class="wrap">
-    <div class="quiz-head reveal">
-      <span class="eyebrow">Подбор системы</span>
-      <h2>Что вам <em class="b">точно нужно?</em></h2>
-      <p>5 быстрых вопросов — и мы поймём, какая CRM решит вашу задачу. Дальше — бесплатный 30-минутный разбор по телефону.</p>
-    </div>
-
-    <div class="quiz-card reveal" id="quiz-card">
-      <div class="quiz-progress">
-        <div class="quiz-dots" id="quiz-dots"></div>
-        <span class="quiz-step-label">Шаг <b id="quiz-current-step">1</b> из 5</span>
-      </div>
-
-      <!-- Step 1 — Niche -->
-      <div class="quiz-step active" data-step="1" data-key="niche" data-mode="single">
-        <div class="quiz-question">Какая у вас сфера?</div>
-        <div class="quiz-hint">Это поможет нам сразу показать релевантные решения</div>
-        <div class="quiz-options cols-2">
-          <button class="quiz-option" data-val="realestate">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Недвижимость<small>Девелопмент, агентства</small></span>
-          </button>
-          <button class="quiz-option" data-val="wholesale">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Опт и дистрибуция<small>FMCG, торгпреды, склад</small></span>
-          </button>
-          <button class="quiz-option" data-val="production">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Производство<small>На заказ, цех, монтаж</small></span>
-          </button>
-          <button class="quiz-option" data-val="clinic">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Клиника / медцентр<small>Расписание, ДМС, направления</small></span>
-          </button>
-          <button class="quiz-option" data-val="services">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Услуги · B2B<small>Агентства, консалтинг, IT</small></span>
-          </button>
-          <button class="quiz-option" data-val="other">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Другая сфера<small>Расскажем, как подойдём</small></span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 2 — Team size -->
-      <div class="quiz-step" data-step="2" data-key="team" data-mode="single">
-        <div class="quiz-question">Сколько у вас человек?</div>
-        <div class="quiz-hint">Считаем тех, кто будет работать в системе</div>
-        <div class="quiz-options chips">
-          <button class="quiz-option" data-val="5-15">5–15 человек</button>
-          <button class="quiz-option" data-val="16-30">16–30</button>
-          <button class="quiz-option" data-val="31-60">31–60</button>
-          <button class="quiz-option" data-val="61-100">61–100</button>
-          <button class="quiz-option" data-val="100+">Больше 100</button>
-        </div>
-      </div>
-
-      <!-- Step 3 — Current state -->
-      <div class="quiz-step" data-step="3" data-key="current" data-mode="single">
-        <div class="quiz-question">С чем работаете сейчас?</div>
-        <div class="quiz-hint">Чтобы понимать, что мигрировать и как лучше переходить</div>
-        <div class="quiz-options">
-          <button class="quiz-option" data-val="boxed">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Bitrix24 / amoCRM<small>Подписка + платные доработки</small></span>
-          </button>
-          <button class="quiz-option" data-val="excel">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Excel и Google Sheets<small>Таблицы, документы, общий доступ</small></span>
-          </button>
-          <button class="quiz-option" data-val="custom">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Самописное решение<small>Подрядчик ушёл или система устарела</small></span>
-          </button>
-          <button class="quiz-option" data-val="mixed">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Несколько разных систем<small>CRM + 1С + мессенджеры + Excel</small></span>
-          </button>
-          <button class="quiz-option" data-val="none">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Ничего системного<small>Только мессенджеры и звонки</small></span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 4 — Pains -->
-      <div class="quiz-step" data-step="4" data-key="pains" data-mode="multi">
-        <div class="quiz-question">Что мешает работать?</div>
-        <div class="quiz-hint">Выберите всё, что отзывается. Можно несколько.</div>
-        <div class="quiz-counter" id="quiz-pains-counter"></div>
-        <div class="quiz-options cols-2">
-          <button class="quiz-option multi" data-val="leads_lost">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Сделки теряются<small>Между менеджерами, в переписке</small></span>
-          </button>
-          <button class="quiz-option multi" data-val="no_visibility">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Не вижу, кто чем занят<small>Команда в чёрном ящике</small></span>
-          </button>
-          <button class="quiz-option multi" data-val="processes">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Процессы не помещаются<small>Воронка чужая, костыли везде</small></span>
-          </button>
-          <button class="quiz-option multi" data-val="expensive">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Дорого платим<small>Подписки + доработки + интеграторы</small></span>
-          </button>
-          <button class="quiz-option multi" data-val="no_changes">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Невозможно доработать<small>Любая мелочь — недели и счёт</small></span>
-          </button>
-          <button class="quiz-option multi" data-val="data_split">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Данные в разных местах<small>CRM, Excel, 1С, чаты</small></span>
-          </button>
-          <button class="quiz-option multi" data-val="no_analytics">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Нет нормальной аналитики<small>Считаем в Excel руками</small></span>
-          </button>
-          <button class="quiz-option multi" data-val="onboarding">
-            <span class="quiz-option-mark"></span>
-            <span class="quiz-option-text">Сложно вводить новых<small>Обучение — недели</small></span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 5 — Contact -->
-      <div class="quiz-step" data-step="5" data-key="contact">
-        <div class="quiz-question">Куда прислать разбор?</div>
-        <div class="quiz-hint">Перезвоним в течение 30 минут на удобный номер</div>
-
-        <div class="quiz-summary" id="quiz-summary">
-          <div class="quiz-summary-title">Ваш профиль</div>
-          <!-- Заполняется динамически -->
-        </div>
-
-        <div class="quiz-fields">
-          <div class="quiz-field" id="quiz-field-name">
-            <input type="text" id="quiz-name" placeholder="Имя" autocomplete="given-name" maxlength="60">
-          </div>
-          <div class="quiz-field" id="quiz-field-phone">
-            <input type="tel" id="quiz-phone" placeholder="+7 701 234 56 78" autocomplete="tel" inputmode="tel">
-          </div>
-        </div>
-
-        <button type="button" class="btn btn-bronze btn-arrow quiz-submit" id="quiz-submit">Получить разбор</button>
-        <p class="quiz-consent">Без обязательств. Не передаём данные третьим лицам.</p>
-      </div>
-
-      <!-- Success state -->
-      <div class="quiz-success" id="quiz-success">
-        <div class="quiz-success-mark">✓</div>
-        <h3>Заявка получена</h3>
-        <p>Перезвоним в течение 30 минут. Если что-то срочное — звоните напрямую: <a href="tel:+77011239999"><b>+7 701 123 99 99</b></a></p>
-      </div>
-
-      <!-- Navigation -->
-      <div class="quiz-nav" id="quiz-nav">
-        <button type="button" class="quiz-back" id="quiz-back">← Назад</button>
-        <button type="button" class="btn btn-bronze btn-arrow" id="quiz-next">Далее</button>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============== WHY CUSTOM ============== -->
-<section class="why">
+<!-- ============== ЗНАКОМО ============== -->
+<section class="why" id="problems">
   <div class="wrap">
     <div class="why-head reveal">
-      <span class="eyebrow">Почему операционка ломается</span>
-      <h2>Бизнес растёт. Хаос <em class="b">растёт быстрее.</em></h2>
-      <p>Когда команда 50–100 человек, проблемы перестают быть «не хватает CRM». Они системные: процессы в головах, данные в Excel, решения с задержкой в неделю.</p>
+      <span class="eyebrow">Знакомо?</span>
+      <h2>Три причины, почему <em class="b">бизнесы уходят с коробок.</em></h2>
     </div>
 
     <div class="why-grid">
       <div class="why-card reveal">
         <div class="why-card-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
-        </div>
-        <h3>Процессы держатся на людях, не на системе</h3>
-        <p>Уволился ключевой сотрудник — встала половина бизнеса. Знания в головах, не в процессах. Новых вводить — недели и нервы.</p>
-      </div>
-      <div class="why-card reveal">
-        <div class="why-card-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         </div>
-        <h3>Деньги теряются между этапами</h3>
-        <p>Лиды — в одной системе, сделки — в другой, склад — в третьей. Маржа уплывает в дыры между ними. Никто не видит общей картины.</p>
+        <h3>Дорого в долгую</h3>
+        <p>Bitrix или Amo = $30/мес × 30 пользователей × 36 месяцев = больше $30 000 за 3 года аренды чужого софта.</p>
       </div>
       <div class="why-card reveal">
         <div class="why-card-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h6M3 15h6"/></svg>
         </div>
-        <h3>Решения принимаются вслепую</h3>
-        <p>Цифры собираете руками раз в неделю в Excel. К моменту обсуждения — уже неактуальны. Реагируете на проблемы постфактум, не управляете на опережение.</p>
+        <h3>Не лезет в шаблон</h3>
+        <p>Половина процессов живёт в Excel — потому что в коробку «не помещается». Менеджеры путают, где что вести.</p>
+      </div>
+      <div class="why-card reveal">
+        <div class="why-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        </div>
+        <h3>Раньше боялись своей</h3>
+        <p>Думали о собственной CRM, но останавливала цена ($50k+) и сроки (полгода+). Теперь это не так.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ============== EXPERTISE ============== -->
-<section class="expertise">
+<!-- ============== ЧТО ИЗМЕНИЛОСЬ ============== -->
+<section class="changed" id="changed">
   <div class="wrap">
-    <div class="exp-head reveal">
-      <span class="eyebrow">Наша сильная сторона</span>
-      <h2>Не подрядчик. <em class="b">Партнёр с экспертизой</em> в вашей нише.</h2>
-      <p>Мы не пишем код по вашему ТЗ — мы видели десятки бизнесов в каждой нише и знаем, какие процессы реально работают, а какие убивают команду. Не нужно описывать «что вам надо» — принесём готовую модель, проверенную у других.</p>
+    <div class="changed-head reveal">
+      <span class="eyebrow">Что изменилось</span>
+      <h2>Своя CRM теперь стоит как небольшой автомобиль, <em class="b">а не как квартира.</em></h2>
     </div>
-
-    <div class="exp-grid">
-      <div class="exp-card c-realestate reveal">
-        <span class="exp-niche-tag">Девелопмент</span>
-        <h3>Знаем как устроены продажи в стройке</h3>
-        <ul class="exp-points">
-          <li>Воронка от рекламы до акта приёмки — без потери лидов</li>
-          <li>Шахматка: цены, скидки, спецпредложения, бронь</li>
-          <li>Какие банки реально дают одобрение, как ускорить скоринг</li>
-          <li>Работа с агентствами, маркетингом, аналитика по ЖК</li>
-        </ul>
+    <div class="changed-grid">
+      <div class="changed-col reveal">
+        <span class="changed-tag was">Раньше</span>
+        <p>Своя CRM = от $50 000 и от 6 месяцев разработки. Поэтому большинство мирилось с шаблонами и кастомизировало их «костылями» поверх.</p>
       </div>
-
-      <div class="exp-card c-wholesale reveal">
-        <span class="exp-niche-tag">Опт · Дистрибуция</span>
-        <h3>Знаем как реально работают торгпреды</h3>
-        <ul class="exp-points">
-          <li>Маршруты в полях, заявки, мобильный учёт</li>
-          <li>Сегментные цены и скидки без хаоса с прайсами</li>
-          <li>Как закрывать дебиторку без потери клиента</li>
-          <li>Связка склад ↔ 1С ↔ маркетплейсы</li>
-        </ul>
-      </div>
-
-      <div class="exp-card c-production reveal">
-        <span class="exp-niche-tag">Производство на заказ</span>
-        <h3>Знаем где в цеху теряется маржа</h3>
-        <ul class="exp-points">
-          <li>План производства без срывов сроков</li>
-          <li>Спецификация заказа: материалы, время, реальная маржа</li>
-          <li>Контроль бригад замера и монтажа на местах</li>
-          <li>Связка продажа → проект → цех → монтаж</li>
-        </ul>
-      </div>
-
-      <div class="exp-card c-clinic reveal">
-        <span class="exp-niche-tag">Клиники</span>
-        <h3>Знаем как растут лояльность и LTV пациента</h3>
-        <ul class="exp-points">
-          <li>Расписание врачей и кабинетов без коллизий</li>
-          <li>Карта пациента, история визитов, направления, диагнозы</li>
-          <li>ДМС-программы, страховые, лимиты, согласования</li>
-          <li>Контрольные звонки, повторные приёмы, удержание</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="exp-quote reveal">
-      <svg class="exp-quote-mark" viewBox="0 0 32 32" fill="none">
-        <path d="M9 7c-3.3 0-6 2.7-6 6v9h9v-9H7c0-1.1.9-2 2-2V7zm14 0c-3.3 0-6 2.7-6 6v9h9v-9h-5c0-1.1.9-2 2-2V7z" fill="currentColor"/>
-      </svg>
-      <p class="exp-quote-text">Когда к нам приходит клиент из девелопмента, мы не спрашиваем <em>«опишите что вам нужно».</em> Мы говорим <em>«вот как продают успешные ЖК — давайте подберём то, что сработает у вас.»</em> Это сильно сокращает путь от запроса до результата.</p>
-      <div class="exp-quote-author">
-        <div class="exp-quote-avatar">ПЦ</div>
-        <div>
-          <b>Платон Цай</b>
-          <small>Основатель Pllato</small>
-        </div>
+      <div class="changed-col reveal">
+        <span class="changed-tag now">Сейчас</span>
+        <p>Современные инструменты разработки и архитектурные подходы позволили сократить время и стоимость в 5–10 раз. Та же функциональность, что в Bitrix или Amo — только сделанная лично под ваш процесс. Без подписок. С передачей кода.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ============== GUARANTEES ============== -->
-<section class="guarantees">
+<!-- ============== ЧТО ВХОДИТ ============== -->
+<section class="features" id="features">
   <div class="wrap">
-    <div class="g-head reveal">
+    <div class="features-head reveal">
       <span class="eyebrow">Что вы получаете</span>
-      <h2>Не просто код — <em class="b">актив для бизнеса.</em></h2>
-      <p>Главные опасения, с которыми приходят клиенты, и наши ответы на каждое.</p>
+      <h2>Базовое — в любую разработку. <em class="b">Без доплат.</em></h2>
     </div>
 
-    <div class="g-grid">
-
-      <!-- 1. Собственность и капитализация -->
-      <div class="g-card c-asset reveal">
-        <div class="g-card-head">
-          <div class="g-card-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4z"/><path d="m9 12 2 2 4-4"/></svg>
-          </div>
-          <span class="g-card-tag">Ваш актив</span>
+    <div class="features-grid">
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
         </div>
-        <h3>Код в собственности с первого дня</h3>
-        <p>CRM становится нематериальным активом на балансе вашей компании. При продаже бизнеса — это пункт в оценке, а не графа расходов как подписка.</p>
-        <ul>
-          <li>Полные исходники, дизайн, документация передаются вам</li>
-          <li>Права на коммерческое использование без ограничений</li>
-          <li>Любая команда сможет дальше развивать систему</li>
-          <li>Не привязка к нам — вы свободны в выборе подрядчика</li>
+        <h3>Карточки клиентов</h3>
+        <p>Под ваши поля и логику, а не под чужой шаблон.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="11" y="3" width="6" height="13" rx="1"/><rect x="19" y="3" width="2" height="9" rx="1"/></svg>
+        </div>
+        <h3>Канбан-доска</h3>
+        <p>Ваши воронки, статусы, цвета и переходы — как удобно команде.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <h3>Внутренние чаты</h3>
+        <p>Переписка по сделке между менеджером, РОПом и бухгалтерией.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-3 18-7-7-8-3z"/></svg>
+        </div>
+        <h3>Интеграции с мессенджерами</h3>
+        <p>WhatsApp, Telegram, Instagram Direct — переписка падает в карточку.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.97.36 1.92.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.89.34 1.84.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+        <h3>Телефония и 1С</h3>
+        <p>Звонки в карточке, синхронизация платежей и документов с 1С.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4z"/><path d="m9 12 2 2 4-4"/></svg>
+        </div>
+        <h3>Передача кода</h3>
+        <p>В конце проекта код, документация и сервер становятся вашими.</p>
+      </div>
+    </div>
+
+    <p class="features-note reveal">
+      Дополнительные модули (AI-помощник РОПа, расшифровка звонков, прогноз сделок) подключаются отдельно по желанию.
+    </p>
+  </div>
+</section>
+
+<!-- ============== TIERS ============== -->
+<section class="tiers" id="tiers">
+  <div class="wrap">
+    <div class="tiers-head reveal">
+      <span class="eyebrow">Уровни сложности</span>
+      <h2>Три уровня <em class="b">под размер бизнеса.</em></h2>
+      <p>Точную стоимость и сроки называем после диагностики — зависит от объёма функций и интеграций. Указываем диапазон сроков, чтобы вы понимали масштаб.</p>
+    </div>
+
+    <div class="tiers-grid">
+      <div class="tier-card reveal">
+        <div class="tier-name">Простой проект</div>
+        <div class="tier-meta"><b>3–4 недели</b> · команда 5–15 человек</div>
+        <p class="tier-desc">Простой, понятный процесс продаж. Команде нужна базовая система без избыточности.</p>
+        <ul class="tier-list">
+          <li>Карточки клиентов под вашу логику</li>
+          <li>Канбан-доска (до 3 воронок)</li>
+          <li>Внутренние чаты команды</li>
+          <li>Интеграция с WhatsApp / Telegram</li>
+          <li>Базовые отчёты</li>
+          <li>Мобильная версия</li>
+          <li>Хостинг на нашем сервере 6 месяцев</li>
         </ul>
       </div>
 
-      <!-- 2. Безопасность данных -->
-      <div class="g-card c-security reveal">
-        <div class="g-card-head">
-          <div class="g-card-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1.5"/></svg>
-          </div>
-          <span class="g-card-tag">Защищено</span>
-        </div>
-        <h3>Безопасность по умолчанию</h3>
-        <p>Данные ваших клиентов не покидают ваш периметр. Мы — не вендор облака, мы разработчики, которые передают вам код и уходят.</p>
-        <ul>
-          <li>NDA подписываем до старта проекта</li>
-          <li>Деплой на ваш сервер или в выбранное вами облако</li>
-          <li>Шифрование данных, регулярные бэкапы, журналирование</li>
-          <li>Изолированная разработка — не пересекаемся с другими клиентами</li>
+      <div class="tier-card tier-featured reveal">
+        <div class="tier-badge">Самый частый выбор</div>
+        <div class="tier-name">Средний проект</div>
+        <div class="tier-meta"><b>5–6 недель</b> · команда 15–50 человек</div>
+        <p class="tier-desc">Есть РОП, нужна автоматизация и аналитика. Бизнес уже не помещается в коробку.</p>
+        <ul class="tier-list">
+          <li><b>Всё из простого, плюс:</b></li>
+          <li>До 7 воронок и сложные переходы между ними</li>
+          <li>Интеграция с телефонией (звонок из карточки)</li>
+          <li>Двусторонняя интеграция с 1С</li>
+          <li>Кастомные отчёты под ваши KPI</li>
+          <li>Автоматизация рутинных задач</li>
+          <li>Роли и права доступа</li>
+          <li>Хостинг на нашем сервере 12 месяцев</li>
         </ul>
       </div>
 
-      <!-- 3. Стабильность переезда -->
-      <div class="g-card c-migration reveal">
-        <div class="g-card-head">
-          <div class="g-card-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3l4 4-4 4"/><path d="M3 7h18"/><path d="M7 21l-4-4 4-4"/><path d="M21 17H3"/></svg>
-          </div>
-          <span class="g-card-tag">Без сбоев</span>
-        </div>
-        <h3>Переход без остановки бизнеса</h3>
-        <p>Самый страшный сценарий клиента — «новая система упала, продажи встали». У нас этого не бывает: переключаемся когда вы готовы, не раньше.</p>
-        <ul>
-          <li>Параллельный режим: 1–2 недели обе системы работают</li>
-          <li>Тестовый перенос → проверка → полный перенос</li>
-          <li>Откат возможен в любой момент первые 30 дней</li>
-          <li>Команда обучается на старой системе, переходит на новую</li>
+      <div class="tier-card reveal">
+        <div class="tier-name">Сложный проект</div>
+        <div class="tier-meta"><b>8 недель и больше</b> · команда 50+ человек</div>
+        <p class="tier-desc">Мульти-филиальная структура, сложные процессы, серьёзные интеграции.</p>
+        <ul class="tier-list">
+          <li><b>Всё из среднего, плюс:</b></li>
+          <li>Многофилиальная структура (раздельные контуры с общей аналитикой)</li>
+          <li>Сложные сценарии автоматизации</li>
+          <li>Интеграция с маркетплейсами (WB, Ozon, Kaspi)</li>
+          <li>AI-помощник для РОПа (опциональный модуль)</li>
+          <li>Передача кода и обучение команды</li>
+          <li>Поддержка 3 месяца включена</li>
         </ul>
       </div>
+    </div>
 
-      <!-- 4. Реализация хотелок -->
-      <div class="g-card c-vision reveal">
-        <div class="g-card-head">
-          <div class="g-card-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 6.4L21 9l-5 4.5 1.5 6.5L12 16.5 6.5 20 8 13.5 3 9l6.6-.6L12 2z"/></svg>
-          </div>
-          <span class="g-card-tag">100% видения</span>
-        </div>
-        <h3>Реализуем именно то, что вы задумали</h3>
-        <p>В коробке вы слышите «это технически невозможно». В кастомной разработке возможно всё — но важно дойти до старта с правильным ТЗ.</p>
-        <ul>
-          <li>Этап проектирования: рисуем интерфейсы до строки кода</li>
-          <li>Видите будущую систему до начала разработки</li>
-          <li>Все «хотелки» фиксируются в ТЗ — ничего не забудется</li>
-          <li>Изменения на этапе разработки — без переплаты в рамках ТЗ</li>
-        </ul>
-      </div>
-
+    <div class="tiers-cta reveal">
+      <p>Не уверены, какой уровень нужен?</p>
+      <a href="#contact" class="btn btn-bronze btn-arrow">Записаться на бесплатную диагностику</a>
     </div>
   </div>
 </section>
 
-<!-- ============== OBJECTIONS ============== -->
-<section class="objections">
+<!-- ============== HOW IT WORKS ============== -->
+<section class="howto">
   <div class="wrap">
-    <div class="obj-head reveal">
-      <span class="eyebrow">Частые вопросы</span>
-      <h2>Что обычно <em class="b">спрашивают первым.</em></h2>
-      <p>Если вашего вопроса нет — оставьте телефон, ответим на разборе.</p>
+    <div class="howto-head reveal">
+      <span class="eyebrow">Как это работает</span>
+      <h2>От первого созвона <em class="b">до боевой системы.</em></h2>
     </div>
 
-    <div class="obj-grid">
-      <div class="obj-card reveal">
-        <div class="obj-card-q">Сколько <em class="b">стоит?</em></div>
-        <div class="obj-card-a">
-          Зависит от объёма функционала и сложности процессов. MVP стоит дороже годовой подписки на коробку — но через <b>1–2 года экономика разворачивается в вашу сторону</b>: вы перестаёте платить за пользователей и доработки.
+    <div class="howto-steps">
+      <div class="howto-step reveal">
+        <div class="howto-num">1</div>
+        <div class="howto-info">
+          <h3>Диагностика <small>30 минут, бесплатно</small></h3>
+          <p>Обсуждаем ваши процессы, узкие места, выбираем уровень. Без презентаций и продаж.</p>
         </div>
       </div>
-      <div class="obj-card reveal">
-        <div class="obj-card-q">Сколько <em class="b">по времени?</em></div>
-        <div class="obj-card-a">
-          Первая рабочая версия — обычно <b>2–4 месяца</b> от старта проектирования. Полноценная система с интеграциями и миграцией — 4–8 месяцев.
+      <div class="howto-step reveal">
+        <div class="howto-num">2</div>
+        <div class="howto-info">
+          <h3>Карта процессов <small>1 неделя</small></h3>
+          <p>Подробно описываем все воронки, роли, точки автоматизации. Вы согласовываете прежде чем мы начинаем код.</p>
         </div>
       </div>
-      <div class="obj-card reveal">
-        <div class="obj-card-q">А если разработчики <em class="b">уйдут?</em></div>
-        <div class="obj-card-a">
-          <b>Код принадлежит вам</b>, написан на стандартных технологиях с документацией. Любая команда сможет его подхватить.
+      <div class="howto-step reveal">
+        <div class="howto-num">3</div>
+        <div class="howto-info">
+          <h3>Разработка <small>2–6 недель</small></h3>
+          <p>Каждые 5 рабочих дней показываем готовый кусок. Можно вносить правки по ходу.</p>
         </div>
       </div>
-      <div class="obj-card reveal">
-        <div class="obj-card-q">А <em class="b">миграция данных?</em></div>
-        <div class="obj-card-a">
-          Переносим из <b>Bitrix24, amoCRM, 1С, Excel</b>: контакты, сделки, переписку, документы. Параллельный режим в день перехода — без простоев.
+      <div class="howto-step reveal">
+        <div class="howto-num">4</div>
+        <div class="howto-info">
+          <h3>Доработка по фидбеку <small>1 неделя</small></h3>
+          <p>Команда уже пробует систему в работе, мы дорабатываем по реальным сценариям.</p>
         </div>
       </div>
+      <div class="howto-step reveal">
+        <div class="howto-num">5</div>
+        <div class="howto-info">
+          <h3>Передача и обучение <small>3–5 дней</small></h3>
+          <p>Передаём код, документацию, обучаем команду. Вы — собственник системы.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== FIT / NOT FIT ============== -->
+<section class="fit">
+  <div class="wrap">
+    <div class="fit-head reveal">
+      <span class="eyebrow">Честно</span>
+      <h2>Серьёзно: <em class="b">вам это может не понадобиться.</em></h2>
+    </div>
+
+    <div class="fit-grid">
+      <div class="fit-col fit-yes reveal">
+        <h3>Подходит, если:</h3>
+        <ul>
+          <li>В команде 5+ человек</li>
+          <li>Есть процесс продаж, который повторяется</li>
+          <li>Bitrix или Amo не закрывают потребности или дороги в долгую</li>
+          <li>Хотите владеть системой, а не арендовать</li>
+          <li>Есть один человек, который может курировать проект</li>
+        </ul>
+      </div>
+      <div class="fit-col fit-no reveal">
+        <h3>НЕ подходит, если:</h3>
+        <ul>
+          <li>Команда меньше 5 человек, простой процесс → берите AmoCRM ($30/мес)</li>
+          <li>Нужна не CRM, а конкретная автоматизация одного процесса → посмотрите <a href="automation.html">Готовые модули</a></li>
+          <li>Не готовы выделить контактное лицо проекта</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="fit-note reveal">Если не подходит — скажем честно на диагностике. Не хотим браться за то, где не сможем дать ценность.</p>
+  </div>
+</section>
+
+<!-- ============== FAQ ============== -->
+<section class="faq" id="faq">
+  <div class="wrap">
+    <div class="faq-head reveal">
+      <span class="eyebrow">Частые вопросы</span>
+      <h2>Отвечаем <em class="b">прямо.</em></h2>
+    </div>
+
+    <div class="faq-list">
+      <details class="faq-item reveal">
+        <summary>Сколько это стоит?</summary>
+        <div class="faq-answer">
+          <p>Стоимость зависит от трёх факторов: объёма функций, сложности интеграций, и срочности. Типичные проекты укладываются в диапазон от стоимости годовой подписки на средний тариф Bitrix24 до стоимости найма одного дополнительного менеджера на полгода.</p>
+          <p>На бесплатной 30-минутной диагностике мы посмотрим ваши процессы и назовём точную вилку под ваш случай — без обязательств. Если нужна не полноценная CRM, а конкретная автоматизация — посмотрите <a href="automation.html">готовые модули</a> от $500.</p>
+        </div>
+      </details>
+
+      <details class="faq-item reveal">
+        <summary>Чем это отличается от Bitrix24 или AmoCRM?</summary>
+        <div class="faq-answer">
+          <p>Функционально — тем же базовым набором: карточки, канбан, интеграции. Принципиально — тем, что система делается под ваши процессы, а не вы подстраиваетесь под чужой шаблон. Плюс единоразовый платёж вместо аренды.</p>
+        </div>
+      </details>
+
+      <details class="faq-item reveal">
+        <summary>Чей код после завершения проекта?</summary>
+        <div class="faq-answer">
+          <p>Ваш. После приёмки вы получаете репозиторий с кодом, документацию и можете дальше развивать систему сами или с любым другим разработчиком.</p>
+        </div>
+      </details>
+
+      <details class="faq-item reveal">
+        <summary>Что если через год нужно что-то добавить?</summary>
+        <div class="faq-answer">
+          <p>Можно вернуться к нам или нанять любого разработчика на стандартных технологиях. Никакого vendor lock-in.</p>
+        </div>
+      </details>
+
+      <details class="faq-item reveal">
+        <summary>Что с переносом данных из текущей CRM?</summary>
+        <div class="faq-answer">
+          <p>Перенос данных из AmoCRM, Bitrix24, Excel — стандартная задача, делаем на этапе разработки.</p>
+        </div>
+      </details>
+
+      <details class="faq-item reveal">
+        <summary>Кто будет поддерживать систему после сдачи?</summary>
+        <div class="faq-answer">
+          <p>Первые 3 месяца поддержки включены в сложный проект, в среднем — 1 месяц, в простом — по запросу. Дальше — абонемент или передаёте своему разработчику.</p>
+        </div>
+      </details>
+
+      <details class="faq-item reveal">
+        <summary>Сколько компаний уже работают на ваших CRM?</summary>
+        <div class="faq-answer">
+          <p>Мы запустили это направление недавно после нескольких лет разработки кастомных решений на проектной основе. Цены и сроки — отражение этого опыта.</p>
+        </div>
+      </details>
+
+      <details class="faq-item reveal">
+        <summary>Что если что-то пойдёт не так?</summary>
+        <div class="faq-answer">
+          <p>Работа разделена на этапы с приёмкой. Между этапами можно остановиться или поменять условия. Полная предоплата не требуется — оплата по этапам.</p>
+        </div>
+      </details>
     </div>
   </div>
 </section>
@@ -3004,35 +2811,53 @@ footer {
   <div class="wrap">
     <div class="final-cta-card">
       <div class="final-cta-inner">
-        <span class="eyebrow">Заявка на разбор</span>
-        <h2>Готовы <em class="b">отцифровать операционку?</em></h2>
-        <p>Оставьте телефон — за 30 минут разбора покажем, где у вас теряется маржа, какие процессы пора отдать системе, и какой будет ваша готовая модель. Бесплатно, без обязательств.</p>
+        <span class="eyebrow">Бесплатная диагностика</span>
+        <h2>30 минут — и вы поймёте, <em class="b">нужен ли вам кастом.</em></h2>
+        <p>Без презентаций. Расскажете про процессы — скажу честно, что вам подойдёт лучше: своя CRM, готовая коробка или вообще ничего не менять.</p>
 
         <div class="form-success" id="success-2">
           <div class="form-success-mark">✓</div>
           <div><b>Заявка получена</b>Перезвоним в течение 30 минут.</div>
         </div>
         <div class="form-error-state" id="error-2">
-          Не удалось отправить. Позвоните напрямую: <a href="tel:+77011239999">+7 701 123 99 99</a>
+          Не удалось отправить. Напишите в <a href="https://wa.me/77011239999" target="_blank" rel="noopener">WhatsApp</a> или позвоните: <a href="tel:+77011239999">+7 701 123 99 99</a>
         </div>
 
-        <form class="lead-form js-lead-form" novalidate>
-          <input type="tel" name="phone" placeholder="+7 701 234 56 78" required autocomplete="tel" inputmode="tel">
-          <button type="submit" class="btn btn-bronze btn-arrow">Получить разбор</button>
+        <form class="lead-form-extended js-lead-form-extended" novalidate>
+          <div class="lf-row">
+            <input type="text" name="name" placeholder="Имя" required autocomplete="given-name" maxlength="60">
+          </div>
+          <div class="lf-row">
+            <input type="tel" name="phone" placeholder="+7 701 234 56 78 (WhatsApp / Telegram)" required autocomplete="tel" inputmode="tel">
+          </div>
+          <div class="lf-row lf-row-2">
+            <select name="team" required>
+              <option value="" disabled selected>Размер команды</option>
+              <option value="5-15">5–15 человек</option>
+              <option value="15-50">15–50 человек</option>
+              <option value="50+">50+ человек</option>
+              <option value="other">Другое</option>
+            </select>
+            <select name="current" required>
+              <option value="" disabled selected>Что используете</option>
+              <option value="bitrix">Bitrix24</option>
+              <option value="amo">AmoCRM</option>
+              <option value="excel">Excel</option>
+              <option value="own">Своё</option>
+              <option value="none">Ничего</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-bronze btn-arrow lf-submit">Записаться на диагностику</button>
         </form>
-        <div class="form-note">
-          <span>Бесплатно</span>
-          <span>Без обязательств</span>
-          <span>Перезвоним за 30 минут</span>
-        </div>
+        <p class="form-note-light">Не понравится — не будете тратить ваше время. Если кастом не подходит — скажу прямо. Это в наших интересах.</p>
 
         <div class="final-cta-contacts">
-          <a href="tel:+77011239999" class="final-cta-contact">
+          <a href="https://wa.me/77011239999" class="final-cta-contact" target="_blank" rel="noopener">
             <div class="final-cta-contact-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.6-.8-1.9-.9-.3-.1-.5-.1-.6.1-.2.2-.7.8-.8 1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.7-1.4-1.7-1.6-2-.2-.3 0-.4.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.2-.5.1-.2 0-.4-.1-.5-.1-.1-.6-1.5-.8-2-.2-.5-.4-.5-.6-.5h-.5c-.2 0-.5.1-.7.3-.2.2-.9.9-.9 2.2 0 1.3.9 2.5 1 2.7.1.2 1.8 2.7 4.3 3.8.6.2 1.1.4 1.4.5.6.2 1.2.2 1.6.1.5-.1 1.6-.6 1.8-1.3.2-.7.2-1.2.2-1.3-.1-.1-.3-.2-.5-.3z"/><path d="M12 2C6.5 2 2 6.5 2 12c0 1.7.4 3.3 1.2 4.7L2 22l5.4-1.4c1.4.7 2.9 1.1 4.6 1.1 5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18c-1.5 0-2.9-.4-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3C4.4 14.9 4 13.5 4 12c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8z"/></svg>
             </div>
             <div class="final-cta-contact-info">
-              <small>Телефон</small>
+              <small>WhatsApp</small>
               <b>+7 701 123 99 99</b>
             </div>
           </a>
@@ -3069,8 +2894,8 @@ footer {
         <h4>Студия</h4>
         <ul>
           <li><a href="https://pllato.kz/team">Команда</a></li>
+          <li><a href="automation.html">Готовые модули</a></li>
           <li><a href="crm-builder.html">Схема CRM</a></li>
-          <li><a href="#quiz">Подобрать систему</a></li>
         </ul>
       </div>
 
@@ -3100,13 +2925,19 @@ footer {
   </div>
 </footer>
 
+<!-- ============== FLOATING WHATSAPP BUTTON ============== -->
+<a href="https://wa.me/77011239999?text=Здравствуйте!%20Хочу%20обсудить%20проект%20CRM" class="float-wa" target="_blank" rel="noopener" aria-label="WhatsApp">
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.6-.8-1.9-.9-.3-.1-.5-.1-.6.1-.2.2-.7.8-.8 1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.7-1.4-1.7-1.6-2-.2-.3 0-.4.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.2-.5.1-.2 0-.4-.1-.5-.1-.1-.6-1.5-.8-2-.2-.5-.4-.5-.6-.5h-.5c-.2 0-.5.1-.7.3-.2.2-.9.9-.9 2.2 0 1.3.9 2.5 1 2.7.1.2 1.8 2.7 4.3 3.8.6.2 1.1.4 1.4.5.6.2 1.2.2 1.6.1.5-.1 1.6-.6 1.8-1.3.2-.7.2-1.2.2-1.3-.1-.1-.3-.2-.5-.3z"/><path d="M12 2C6.5 2 2 6.5 2 12c0 1.7.4 3.3 1.2 4.7L2 22l5.4-1.4c1.4.7 2.9 1.1 4.6 1.1 5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18c-1.5 0-2.9-.4-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3C4.4 14.9 4 13.5 4 12c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8z"/></svg>
+  <span class="float-wa-tooltip">Напишите — отвечаем за час</span>
+</a>
+
 <!-- ============== STICKY MOBILE BAR ============== -->
 <div class="sticky-bar" id="sticky-bar">
   <a href="tel:+77011239999" class="sticky-call">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
     Позвонить
   </a>
-  <a href="#contact" class="btn btn-bronze">Получить разбор</a>
+  <a href="#contact" class="btn btn-bronze">Диагностика</a>
 </div>
 
 <script>
@@ -3307,330 +3138,135 @@ document.querySelectorAll('.psd').forEach(dot => {
 const initialActive = document.querySelector('.preview.active');
 if (initialActive) startScreenCycle(initialActive);
 
-/* ============== QUIZ LOGIC ============== */
-const QUIZ_TOTAL_STEPS = 5;
-const quizState = {
-  step: 1,
-  answers: { niche: null, team: null, current: null, pains: [], name: '', phone: '' },
-};
-
-const QUIZ_LABELS = {
-  niche: {
-    realestate: 'Недвижимость', wholesale: 'Опт и дистрибуция',
-    production: 'Производство', clinic: 'Клиника / медцентр',
-    services: 'Услуги · B2B', other: 'Другая сфера',
-  },
-  team: {
-    '5-15': '5–15 человек', '16-30': '16–30 человек',
-    '31-60': '31–60 человек', '61-100': '61–100 человек', '100+': 'Более 100',
-  },
-  current: {
-    boxed: 'Bitrix24 / amoCRM', excel: 'Excel и Google Sheets',
-    custom: 'Самописное решение', mixed: 'Несколько разных систем',
-    none: 'Ничего системного',
-  },
-  pains: {
-    leads_lost: 'Сделки теряются',
-    no_visibility: 'Не вижу занятость команды',
-    processes: 'Процессы не помещаются в коробку',
-    expensive: 'Дорого платим за подписки',
-    no_changes: 'Невозможно доработать под себя',
-    data_split: 'Данные в разных системах',
-    no_analytics: 'Нет нормальной аналитики',
-    onboarding: 'Сложно вводить новых сотрудников',
-  },
-};
-
-// Render progress dots
-function quizRenderDots() {
-  const container = document.getElementById('quiz-dots');
-  container.innerHTML = '';
-  for (let i = 1; i <= QUIZ_TOTAL_STEPS; i++) {
-    const dot = document.createElement('span');
-    dot.className = 'quiz-dot';
-    if (i < quizState.step) dot.classList.add('done');
-    if (i === quizState.step) dot.classList.add('active');
-    container.appendChild(dot);
-  }
-  document.getElementById('quiz-current-step').textContent = quizState.step;
-}
-
-function quizShowStep(n) {
-  quizState.step = n;
-  document.querySelectorAll('.quiz-step').forEach(s => {
-    s.classList.toggle('active', parseInt(s.dataset.step) === n);
-  });
-  quizRenderDots();
-  quizUpdateNav();
-  if (n === 5) quizRenderSummary();
-}
-
-function quizUpdateNav() {
-  const back = document.getElementById('quiz-back');
-  const next = document.getElementById('quiz-next');
-  const nav = document.getElementById('quiz-nav');
-
-  back.disabled = quizState.step === 1;
-
-  if (quizState.step === 5) {
-    nav.style.display = 'none'; // на финальном шаге своя кнопка
-    return;
-  }
-  nav.style.display = 'flex';
-
-  // Disable Next until step is answered
-  const stepEl = document.querySelector(`.quiz-step[data-step="${quizState.step}"]`);
-  const key = stepEl.dataset.key;
-  const mode = stepEl.dataset.mode;
-  let answered = false;
-
-  if (mode === 'single') answered = !!quizState.answers[key];
-  else if (mode === 'multi') answered = quizState.answers[key].length > 0;
-
-  next.disabled = !answered;
-  next.textContent = quizState.step === 4 ? 'Дальше' : 'Далее';
-}
-
-// Handle option clicks
-function quizBindOptions() {
-  document.querySelectorAll('.quiz-step').forEach(stepEl => {
-    const key = stepEl.dataset.key;
-    const mode = stepEl.dataset.mode;
-    if (!key || key === 'contact') return;
-
-    stepEl.querySelectorAll('.quiz-option').forEach(opt => {
-      opt.addEventListener('click', () => {
-        const val = opt.dataset.val;
-
-        if (mode === 'single') {
-          stepEl.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
-          opt.classList.add('selected');
-          quizState.answers[key] = val;
-          quizUpdateNav();
-
-          // авто-переход для single через 250мс — приятная динамика
-          setTimeout(() => {
-            if (quizState.step < QUIZ_TOTAL_STEPS) {
-              quizShowStep(quizState.step + 1);
-            }
-          }, 280);
-
-        } else if (mode === 'multi') {
-          const arr = quizState.answers[key];
-          const idx = arr.indexOf(val);
-          if (idx >= 0) {
-            arr.splice(idx, 1);
-            opt.classList.remove('selected');
-          } else {
-            arr.push(val);
-            opt.classList.add('selected');
-          }
-          // Update counter
-          if (key === 'pains') {
-            const counter = document.getElementById('quiz-pains-counter');
-            counter.textContent = arr.length > 0 ? `Выбрано: ${arr.length}` : '';
-          }
-          quizUpdateNav();
-        }
-      });
-    });
-  });
-}
-
-function quizRenderSummary() {
-  const sum = document.getElementById('quiz-summary');
-  const a = quizState.answers;
-
-  let html = '<div class="quiz-summary-title">Ваш профиль</div>';
-  if (a.niche)   html += `<div class="quiz-summary-row"><span>Сфера:</span><b>${QUIZ_LABELS.niche[a.niche]}</b></div>`;
-  if (a.team)    html += `<div class="quiz-summary-row"><span>Команда:</span><b>${QUIZ_LABELS.team[a.team]}</b></div>`;
-  if (a.current) html += `<div class="quiz-summary-row"><span>Сейчас:</span><b>${QUIZ_LABELS.current[a.current]}</b></div>`;
-  if (a.pains.length > 0) {
-    const list = a.pains.map(p => '• ' + QUIZ_LABELS.pains[p]).join('<br>');
-    html += `<div class="quiz-summary-row pains"><span>Боли:</span><b>${list}</b></div>`;
-  }
-  sum.innerHTML = html;
-}
-
-// Navigation buttons
-document.getElementById('quiz-next').addEventListener('click', () => {
-  if (quizState.step < QUIZ_TOTAL_STEPS) quizShowStep(quizState.step + 1);
-});
-document.getElementById('quiz-back').addEventListener('click', () => {
-  if (quizState.step > 1) quizShowStep(quizState.step - 1);
-});
-
-// Submit handler
-document.getElementById('quiz-submit').addEventListener('click', () => {
-  const nameInput  = document.getElementById('quiz-name');
-  const phoneInput = document.getElementById('quiz-phone');
-  const fieldName  = document.getElementById('quiz-field-name');
-  const fieldPhone = document.getElementById('quiz-field-phone');
-  const btn = document.getElementById('quiz-submit');
-
-  const name = nameInput.value.trim();
-  const phone = phoneInput.value.trim();
-  const digits = phone.replace(/\D/g, '');
-
-  let valid = true;
-  if (name.length < 2) { fieldName.classList.add('error'); valid = false; } else fieldName.classList.remove('error');
-  if (digits.length < 7 || digits.length > 15) { fieldPhone.classList.add('error'); valid = false; } else fieldPhone.classList.remove('error');
-  if (!valid) {
-    if (fieldName.classList.contains('error')) nameInput.focus();
-    else phoneInput.focus();
-    return;
-  }
-
-  quizState.answers.name = name;
-  quizState.answers.phone = phone;
-
-  // Optimistic UI: сразу показать success, отправка в фоне
-  document.getElementById('quiz-card').querySelectorAll('.quiz-step, .quiz-progress, .quiz-nav').forEach(el => {
-    el.style.display = 'none';
-  });
-  document.getElementById('quiz-success').classList.add('show');
-
-  // Send to telegram + whatsapp
-  const text = quizBuildLeadText();
-  saveLeadBackup(phone, 'Quiz / ' + (quizState.answers.niche || '?'));
-
-  if (typeof gtag === 'function') gtag('event', 'lead_submitted', { source: 'Quiz' });
-  if (typeof ym === 'function' && window.YANDEX_METRIKA_ID) ym(window.YANDEX_METRIKA_ID, 'reachGoal', 'lead_submitted');
-
-  Promise.allSettled([sendToTelegram(text), sendToWhatsApp(text)]).then(results => {
-    const services = ['telegram', 'whatsapp'];
-    results.forEach((r, i) => {
-      if (r.status === 'fulfilled' && !r.value.skipped) console.log(`[Pllato] ${services[i]}: отправлено ✓`);
-      else if (r.status === 'fulfilled' && r.value.skipped) console.warn(`[Pllato] ${services[i]} пропущен: ${r.value.reason}`);
-      else console.error(`[Pllato] ${services[i]} ошибка:`, r.reason);
-    });
-  });
-});
-
-// Phone international cleanup for quiz field
-document.getElementById('quiz-phone').addEventListener('input', () => {
-  const input = document.getElementById('quiz-phone');
-  const oldVal = input.value;
-  const cursor = input.selectionStart;
-  const newVal = cleanPhone(oldVal);
-  if (newVal !== oldVal) {
-    input.value = newVal;
-    const diff = oldVal.length - newVal.length;
-    input.setSelectionRange(Math.max(0, cursor - diff), Math.max(0, cursor - diff));
-  }
-  document.getElementById('quiz-field-phone').classList.remove('error');
-});
-document.getElementById('quiz-name').addEventListener('input', () => {
-  document.getElementById('quiz-field-name').classList.remove('error');
-});
-
-// Build telegram message from quiz answers
-function quizBuildLeadText() {
-  const a = quizState.answers;
-  const time = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' });
-  const ref = document.referrer || 'Прямой заход';
-  const device = navigator.userAgent.includes('Mobile') ? 'Мобайл' : 'Десктоп';
-
-  const lines = [
-    '🆕 Новая заявка с разбора (pllato.kz)',
-    '',
-    `👤 ${a.name}`,
-    `📞 ${a.phone}`,
-    '',
-    '📊 ПРОФИЛЬ:',
-    `• Сфера: ${QUIZ_LABELS.niche[a.niche] || '—'}`,
-    `• Команда: ${QUIZ_LABELS.team[a.team] || '—'}`,
-    `• Сейчас: ${QUIZ_LABELS.current[a.current] || '—'}`,
-  ];
-  if (a.pains.length > 0) {
-    lines.push('');
-    lines.push(`❗ ПРОБЛЕМЫ (${a.pains.length}):`);
-    a.pains.forEach(p => lines.push(`• ${QUIZ_LABELS.pains[p]}`));
-  }
-  lines.push('');
-  lines.push(`🕐 ${time} (Алматы)`);
-  lines.push(`🌐 ${ref}`);
-  lines.push(device === 'Мобайл' ? '📱 Мобайл' : '💻 Десктоп');
-
-  return lines.join('\n');
-}
-
-// Init quiz
-quizBindOptions();
-quizRenderDots();
-quizUpdateNav();
-
 /* ============== FORM HANDLING — OPTIMISTIC UI ============== */
-document.querySelectorAll('.js-lead-form').forEach((form, idx) => {
-  const sourceLabel = idx === 0 ? 'Hero (главный экран)' : 'Финальный CTA';
-  const successId = idx === 0 ? 'success-1' : 'success-2';
-  const errorId   = idx === 0 ? 'error-1'   : 'error-2';
 
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const input = form.querySelector('input[name="phone"]');
-    const phone = input.value.trim();
+// Helper: process form submission
+function handleFormSubmit(form, isExtended) {
+  const sourceLabel = isExtended ? 'Финальный CTA (расширенная)' : 'Hero (главный экран)';
+  const successId = isExtended ? 'success-2' : 'success-1';
+  const errorId   = isExtended ? 'error-2'   : 'error-1';
 
-    // Валидация: международный формат E.164 — 7-15 цифр
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length < 7 || digits.length > 15) {
+  const phoneInput = form.querySelector('input[name="phone"]');
+  const phone = phoneInput.value.trim();
+
+  // Phone validation
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 7 || digits.length > 15) {
+    form.classList.add('error');
+    phoneInput.focus();
+    setTimeout(() => form.classList.remove('error'), 500);
+    return;
+  }
+
+  // Extended form additional validation
+  let extra = {};
+  if (isExtended) {
+    const nameInput = form.querySelector('input[name="name"]');
+    const teamSelect = form.querySelector('select[name="team"]');
+    const currentSelect = form.querySelector('select[name="current"]');
+
+    const name = nameInput.value.trim();
+    if (name.length < 2) {
       form.classList.add('error');
-      input.focus();
+      nameInput.focus();
+      setTimeout(() => form.classList.remove('error'), 500);
+      return;
+    }
+    if (!teamSelect.value) {
+      form.classList.add('error');
+      teamSelect.focus();
+      setTimeout(() => form.classList.remove('error'), 500);
+      return;
+    }
+    if (!currentSelect.value) {
+      form.classList.add('error');
+      currentSelect.focus();
       setTimeout(() => form.classList.remove('error'), 500);
       return;
     }
 
-    // ОПТИМИСТИЧНЫЙ UI: показываем успех СРАЗУ
-    const success = document.getElementById(successId);
-    const error   = document.getElementById(errorId);
+    extra = {
+      name,
+      team: teamSelect.options[teamSelect.selectedIndex].text,
+      current: currentSelect.options[currentSelect.selectedIndex].text,
+    };
+  }
 
-    form.style.display = 'none';
-    const note = form.nextElementSibling;
-    if (note && note.classList.contains('form-note')) note.style.display = 'none';
-    error.classList.remove('show');
-    success.classList.add('show');
+  // OPTIMISTIC UI
+  const success = document.getElementById(successId);
+  const error   = document.getElementById(errorId);
 
-    // Бэкап в localStorage на случай, если оба API упадут
-    saveLeadBackup(phone, sourceLabel);
+  form.style.display = 'none';
+  const next = form.nextElementSibling;
+  if (next && (next.classList.contains('form-note') || next.classList.contains('form-note-light'))) {
+    next.style.display = 'none';
+  }
+  error.classList.remove('show');
+  success.classList.add('show');
 
-    // Аналитика (если подключены)
-    if (typeof gtag === 'function') gtag('event', 'lead_submitted', { source: sourceLabel });
-    if (typeof ym === 'function' && window.YANDEX_METRIKA_ID) ym(window.YANDEX_METRIKA_ID, 'reachGoal', 'lead_submitted');
+  saveLeadBackup(phone, sourceLabel);
 
-    // Параллельная отправка в Telegram + WhatsApp в фоне
-    const text = buildLeadText(phone, sourceLabel);
-    Promise.allSettled([
-      sendToTelegram(text),
-      sendToWhatsApp(text),
-    ]).then(results => {
-      const services = ['telegram', 'whatsapp'];
-      results.forEach((r, i) => {
-        if (r.status === 'fulfilled') {
-          if (r.value.skipped) {
-            console.warn(`[Pllato] ${services[i]}: пропущен (${r.value.reason})`);
-          } else {
-            console.log(`[Pllato] ${services[i]}: отправлено ✓`);
-          }
-        } else {
-          console.error(`[Pllato] ${services[i]} ошибка:`, r.reason);
-        }
-      });
+  if (typeof gtag === 'function') gtag('event', 'lead_submitted', { source: sourceLabel });
+  if (typeof ym === 'function' && window.YANDEX_METRIKA_ID) ym(window.YANDEX_METRIKA_ID, 'reachGoal', 'lead_submitted');
 
-      const successCount = results.filter(r =>
-        r.status === 'fulfilled' && r.value.ok
-      ).length;
-      const skippedAll = results.every(r =>
-        r.status === 'fulfilled' && r.value.skipped
-      );
+  // Build text with extra data
+  let text = buildLeadText(phone, sourceLabel);
+  if (isExtended && extra.name) {
+    const time = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' });
+    text = [
+      '🆕 Заявка на диагностику · pllato.kz',
+      '',
+      `👤 ${extra.name}`,
+      `📞 ${phone}`,
+      '',
+      '📊 ПРОФИЛЬ:',
+      `• Команда: ${extra.team}`,
+      `• Сейчас использует: ${extra.current}`,
+      '',
+      `🕐 ${time} (Алматы)`,
+      `🌐 ${document.referrer || 'Прямой заход'}`,
+      navigator.userAgent.includes('Mobile') ? '📱 Мобайл' : '💻 Десктоп',
+    ].join('\n');
+  }
 
-      if (skippedAll) {
-        console.warn('[Pllato] Уведомления не настроены. Заявка сохранена в localStorage.');
-      } else if (successCount === 0) {
-        console.error('[Pllato] Все сервисы упали. Заявка в localStorage. Phone:', phone);
+  Promise.allSettled([
+    sendToTelegram(text),
+    sendToWhatsApp(text),
+  ]).then(results => {
+    const services = ['telegram', 'whatsapp'];
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled') {
+        if (r.value.skipped) console.warn(`[Pllato] ${services[i]}: пропущен (${r.value.reason})`);
+        else console.log(`[Pllato] ${services[i]}: отправлено ✓`);
+      } else {
+        console.error(`[Pllato] ${services[i]} ошибка:`, r.reason);
       }
     });
   });
+}
+
+// Bind simple lead forms (Hero)
+document.querySelectorAll('.js-lead-form').forEach(form => {
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    handleFormSubmit(form, false);
+  });
 });
+
+// Bind extended lead forms (Final CTA)
+document.querySelectorAll('.js-lead-form-extended').forEach(form => {
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    handleFormSubmit(form, true);
+  });
+
+  // Clear error on input
+  form.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('input', () => form.classList.remove('error'));
+    el.addEventListener('change', () => form.classList.remove('error'));
+  });
+});
+
 </script>
 </body>
 </html>
