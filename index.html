@@ -3158,6 +3158,29 @@ function handleFormSubmit(form, isExtended) {
   const successId = isExtended ? 'success-2' : 'success-1';
   const errorId   = isExtended ? 'error-2'   : 'error-1';
 
+  // === ЗАЩИТА 1: Honeypot — поле, видимое только ботам ===
+  const honeypot = form.querySelector('input[name="website"]');
+  if (honeypot && honeypot.value.trim() !== '') {
+    console.warn('[Pllato] Honeypot заполнен — это бот, заявка отброшена');
+    return;
+  }
+
+  // === ЗАЩИТА 2: Time-trap — слишком быстрая отправка = бот ===
+  const formLoadTime = parseInt(form.dataset.loadedAt || '0', 10);
+  const elapsedSeconds = (Date.now() - formLoadTime) / 1000;
+  if (formLoadTime > 0 && elapsedSeconds < 3) {
+    console.warn(`[Pllato] Форма отправлена за ${elapsedSeconds.toFixed(1)} сек — это бот`);
+    return;
+  }
+
+  // === ЗАЩИТА 3: Защита от двойной отправки ===
+  if (form.dataset.submitting === '1') {
+    console.warn('[Pllato] Повторная отправка отброшена');
+    return;
+  }
+  form.dataset.submitting = '1';
+  setTimeout(() => { form.dataset.submitting = '0'; }, 5000);
+
   const phoneInput = form.querySelector('input[name="phone"]');
   const phone = phoneInput.value.trim();
 
@@ -3167,6 +3190,21 @@ function handleFormSubmit(form, isExtended) {
     form.classList.add('error');
     phoneInput.focus();
     setTimeout(() => form.classList.remove('error'), 500);
+    return;
+  }
+
+  // === ЗАЩИТА 4: Самотестирование — не отправлять уведомления, если номер владельца ===
+  const ownerNumbers = ['77011239999', '7011239999']; // основной + без 7
+  if (ownerNumbers.includes(digits)) {
+    console.log('[Pllato] Тестовая отправка с номером владельца — уведомления не отправляются');
+    // Покажем UI успеха для проверки, но не шлём в Telegram/WhatsApp
+    const success = document.getElementById(successId);
+    form.style.display = 'none';
+    const next = form.nextElementSibling;
+    if (next && (next.classList.contains('form-note') || next.classList.contains('form-note-light'))) {
+      next.style.display = 'none';
+    }
+    success.classList.add('show');
     return;
   }
 
@@ -3266,8 +3304,28 @@ function handleFormSubmit(form, isExtended) {
   });
 }
 
+// === ИНИЦИАЛИЗАЦИЯ ФОРМ — добавление honeypot и времени загрузки ===
+function initLeadForm(form) {
+  // Запоминаем время загрузки формы для time-trap
+  form.dataset.loadedAt = Date.now().toString();
+
+  // Добавляем honeypot — невидимое поле "website"
+  // Боты заполняют все поля, человек — нет
+  if (!form.querySelector('input[name="website"]')) {
+    const trap = document.createElement('input');
+    trap.type = 'text';
+    trap.name = 'website';
+    trap.tabIndex = -1;
+    trap.autocomplete = 'off';
+    trap.setAttribute('aria-hidden', 'true');
+    trap.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
+    form.insertBefore(trap, form.firstChild);
+  }
+}
+
 // Bind simple lead forms (Hero)
 document.querySelectorAll('.js-lead-form').forEach(form => {
+  initLeadForm(form);
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     handleFormSubmit(form, false);
@@ -3276,6 +3334,7 @@ document.querySelectorAll('.js-lead-form').forEach(form => {
 
 // Bind extended lead forms (Final CTA)
 document.querySelectorAll('.js-lead-form-extended').forEach(form => {
+  initLeadForm(form);
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     handleFormSubmit(form, true);
