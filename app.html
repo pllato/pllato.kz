@@ -51,7 +51,6 @@ body {
 }
 .container { max-width: 1200px; margin: 0 auto; }
 
-/* Loading state */
 .loading-screen {
   display: flex; align-items: center; justify-content: center;
   min-height: 60vh; flex-direction: column; gap: 14px;
@@ -66,7 +65,6 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-screen p { color: var(--text-3); font-size: 14px; }
 
-/* Top bar */
 .top-bar {
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px; flex-wrap: wrap;
@@ -82,7 +80,6 @@ body {
   padding-left: 14px; border-left: 1px solid var(--line);
   text-transform: uppercase; letter-spacing: 0.06em;
 }
-
 .user-block {
   display: flex; align-items: center; gap: 14px;
 }
@@ -90,12 +87,8 @@ body {
   text-align: right;
   font-size: 13px;
 }
-.user-name {
-  font-weight: 700; color: var(--text);
-}
-.user-email {
-  color: var(--text-3); font-size: 11.5px;
-}
+.user-name { font-weight: 700; color: var(--text); }
+.user-email { color: var(--text-3); font-size: 11.5px; }
 .user-avatar {
   width: 38px; height: 38px;
   border-radius: 50%;
@@ -123,10 +116,7 @@ body {
   color: var(--text);
 }
 
-/* Welcome */
-.welcome {
-  margin-bottom: 32px;
-}
+.welcome { margin-bottom: 32px; }
 .welcome h1 {
   font-size: 32px; font-weight: 800;
   letter-spacing: -0.025em;
@@ -136,7 +126,6 @@ body {
   font-size: 15px; color: var(--text-2);
 }
 
-/* Section title */
 .section-title {
   font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.12em;
@@ -144,7 +133,6 @@ body {
   margin: 28px 0 14px;
 }
 
-/* Tools grid */
 .tools-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -168,9 +156,7 @@ body {
   border-color: var(--bronze-tint-2);
   box-shadow: var(--shadow-md);
 }
-.tool-card.disabled {
-  opacity: 0.55; cursor: not-allowed;
-}
+.tool-card.disabled { opacity: 0.55; cursor: not-allowed; }
 .tool-card.disabled:hover {
   transform: none; box-shadow: var(--shadow-sm);
 }
@@ -231,13 +217,11 @@ body {
 
 <div class="container">
 
-  <!-- Loading state shown initially -->
   <div class="loading-screen" id="loading">
     <div class="spinner"></div>
-    <p>Проверка доступа...</p>
+    <p id="loading-text">Проверка доступа...</p>
   </div>
 
-  <!-- Main content (hidden until auth verified) -->
   <div id="main-content" style="display:none;">
 
     <div class="top-bar">
@@ -245,7 +229,6 @@ body {
         <a href="app.html" style="text-decoration:none;"><img src="pllato_logo_transparent_navy.svg" alt="Pllato" style="height:28px; display:block;"></a>
         <span class="tag">Панель команды</span>
       </div>
-
       <div class="user-block">
         <div class="user-info">
           <div class="user-name" id="user-name-display">—</div>
@@ -261,7 +244,6 @@ body {
       <p>Все инструменты для работы команды Pllato в одном месте.</p>
     </div>
 
-    <!-- РАБОТА С КЛИЕНТАМИ -->
     <div class="section-title">Работа с клиентами</div>
     <div class="tools-grid">
 
@@ -270,7 +252,7 @@ body {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 8h18M3 16h18M9 4v16M15 4v16"/></svg>
         </div>
         <h3>CRM Команды (ELC)</h3>
-        <p>База клиентов, сделки, воронка продаж, чаты, задачи. Внутренний портал ELC.</p>
+        <p>База клиентов, сделки, воронка продаж, чаты, задачи. Внутренний портал.</p>
         <span class="tool-cta">Открыть CRM →</span>
         <span class="tool-badge external">CRM</span>
       </a>
@@ -290,7 +272,7 @@ body {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
         <h3>Командный чат</h3>
-        <p>Внутренний чат для команды. Telegram-группа со всеми уведомлениями.</p>
+        <p>Внутренний чат для команды.</p>
         <span class="tool-cta">Скоро</span>
         <span class="tool-badge coming">В работе</span>
       </a>
@@ -307,7 +289,6 @@ body {
 
     </div>
 
-    <!-- ИНСТРУМЕНТЫ ДЛЯ ПРОДАЖ -->
     <div class="section-title">Инструменты для продаж</div>
     <div class="tools-grid">
 
@@ -345,67 +326,204 @@ body {
 
 </div>
 
-<script>
-const TOKEN_TTL_MS = 7 * 86400 * 1000; // 7 дней
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import {
+  getAuth, onAuthStateChanged, signOut as fbSignOut
+} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+import {
+  getDatabase, ref, get
+} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 
-// Проверяем авторизацию
-async function checkAuth() {
-  const token = localStorage.getItem('pllato_google_token');
-  const userJson = localStorage.getItem('pllato_user');
+// Тот же Firebase project что и team.html
+const firebaseConfig = {
+  apiKey: "AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",
+  authDomain: "pllato-crm.firebaseapp.com",
+  databaseURL: "https://pllato-crm-default-rtdb.firebaseio.com",
+  projectId: "pllato-crm",
+  storageBucket: "pllato-crm.firebasestorage.app",
+  messagingSenderId: "690738857241",
+  appId: "1:690738857241:web:2356e97c435656890ab188"
+};
 
-  if (!token || !userJson) {
-    redirectToLogin();
-    return;
-  }
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
 
-  let user;
-  try {
-    user = JSON.parse(userJson);
-  } catch (e) {
-    redirectToLogin();
-    return;
-  }
-
-  // Проверяем что токен не старше TTL
-  if (!user.loginAt || Date.now() - user.loginAt > TOKEN_TTL_MS) {
-    redirectToLogin();
-    return;
-  }
-
-  // Проверяем что email всё ещё в whitelist
-  // (на случай если человека убрали из команды пока сессия активна)
-  try {
-    const r = await fetch('team-members.json?t=' + Date.now());
-    if (r.ok) {
-      const data = await r.json();
-      const allowed = (data.allowedEmails || []).map(e => e.toLowerCase().trim());
-      const userEmail = (user.email || '').toLowerCase().trim();
-      if (!allowed.includes(userEmail)) {
-        // Email больше не в списке — выкидываем
-        alert('Ваш доступ был отозван. Обратитесь к администратору.');
-        localStorage.removeItem('pllato_google_token');
-        localStorage.removeItem('pllato_user');
-        redirectToLogin();
-        return;
-      }
-    }
-  } catch (e) {
-    // Если не смогли проверить — пускаем (проверим в следующий раз)
-  }
-
-  showApp(user);
-}
+const loadingEl = document.getElementById('loading');
+const loadingTextEl = document.getElementById('loading-text');
+const mainEl = document.getElementById('main-content');
 
 function redirectToLogin() {
   window.location.href = 'login.html';
 }
 
-function showApp(user) {
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('main-content').style.display = 'block';
+function setLoading(text) {
+  loadingTextEl.textContent = text;
+}
 
-  // Welcome message
-  const firstName = (user.name || '').split(' ')[0] || 'друг';
+// Слушаем состояние авторизации Firebase
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    redirectToLogin();
+    return;
+  }
+
+  // Сначала пробуем показать UI из кэша (быстро), потом проверим в Firebase
+  let cachedUser = null;
+  try {
+    const cached = localStorage.getItem('pllato_user_cache');
+    if (cached) cachedUser = JSON.parse(cached);
+  } catch (e) {}
+
+  // Если есть свежий кэш (< 1 час) — показываем сразу
+  const CACHE_FRESH_MS = 60 * 60 * 1000;
+  if (cachedUser && cachedUser.email && cachedUser.cachedAt &&
+      Date.now() - cachedUser.cachedAt < CACHE_FRESH_MS &&
+      cachedUser.email.toLowerCase() === (user.email || '').toLowerCase()) {
+    showApp({
+      email: user.email,
+      name: cachedUser.name || user.displayName || user.email.split('@')[0],
+      photoURL: cachedUser.photoURL || user.photoURL || '',
+      crmUserData: cachedUser.crmUserData || {},
+    });
+    // Тихо обновим кэш в фоне
+    refreshUserDataInBackground(user);
+    return;
+  }
+
+  // Кэша нет/устарел — проверяем в Firebase
+  setLoading('Проверяем ваш доступ в команде...');
+  try {
+    const snap = await get(ref(db, 'users'));
+    if (!snap.exists()) {
+      await fbSignOut(auth);
+      alert('База пользователей пуста. Обратитесь к администратору.');
+      redirectToLogin();
+      return;
+    }
+    const users = snap.val();
+    const userEmail = (user.email || '').toLowerCase().trim();
+
+    let foundUser = null;
+    let foundCrmUid = null;
+    for (const [uid, u] of Object.entries(users)) {
+      if (u && u.email && u.email.toLowerCase().trim() === userEmail) {
+        foundUser = u;
+        foundCrmUid = uid;
+        break;
+      }
+    }
+
+    if (!foundUser) {
+      await fbSignOut(auth);
+      alert(`Email ${userEmail} больше не в базе сотрудников. Доступ отозван.`);
+      localStorage.removeItem('pllato_user_cache');
+      redirectToLogin();
+      return;
+    }
+
+    // Сохраняем кэш
+    const userData = {
+      email: user.email,
+      name: user.displayName || foundUser.name || user.email.split('@')[0],
+      photoURL: user.photoURL || '',
+      authUid: user.uid,
+      crmUid: foundCrmUid,
+      crmUserData: {
+        name: foundUser.name || '',
+        lastName: foundUser.lastName || '',
+        position: foundUser.position || '',
+      },
+      cachedAt: Date.now(),
+    };
+    localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
+
+    showApp({
+      email: user.email,
+      name: userData.name,
+      photoURL: user.photoURL || '',
+      crmUserData: userData.crmUserData,
+    });
+  } catch (e) {
+    console.error('check error:', e);
+    const isPermission = (e.code || '').includes('PERMISSION_DENIED') || (e.message || '').includes('permission_denied');
+    if (isPermission) {
+      // Нет прав на чтение users — но если есть свежий кэш, пользуемся им
+      if (cachedUser && cachedUser.email && cachedUser.email.toLowerCase() === (user.email || '').toLowerCase()) {
+        showApp({
+          email: user.email,
+          name: cachedUser.name || user.displayName || user.email.split('@')[0],
+          photoURL: cachedUser.photoURL || user.photoURL || '',
+          crmUserData: cachedUser.crmUserData || {},
+        });
+        return;
+      }
+      await fbSignOut(auth);
+      alert('Нет прав на чтение базы. Нужно обновить Firebase rules — обратитесь к администратору.');
+      redirectToLogin();
+      return;
+    }
+    // Прочая ошибка — если есть кэш, пускаем
+    if (cachedUser && cachedUser.email && cachedUser.email.toLowerCase() === (user.email || '').toLowerCase()) {
+      showApp({
+        email: user.email,
+        name: cachedUser.name || user.displayName || user.email.split('@')[0],
+        photoURL: cachedUser.photoURL || user.photoURL || '',
+        crmUserData: cachedUser.crmUserData || {},
+      });
+      return;
+    }
+    await fbSignOut(auth);
+    alert('Ошибка проверки доступа: ' + e.message);
+    redirectToLogin();
+  }
+});
+
+async function refreshUserDataInBackground(user) {
+  try {
+    const snap = await get(ref(db, 'users'));
+    if (!snap.exists()) return;
+    const users = snap.val();
+    const userEmail = (user.email || '').toLowerCase().trim();
+    let foundUser = null;
+    let foundCrmUid = null;
+    for (const [uid, u] of Object.entries(users)) {
+      if (u && u.email && u.email.toLowerCase().trim() === userEmail) {
+        foundUser = u;
+        foundCrmUid = uid;
+        break;
+      }
+    }
+    if (!foundUser) {
+      // Email убрали из базы — выкидываем при следующей загрузке
+      localStorage.removeItem('pllato_user_cache');
+      return;
+    }
+    const userData = {
+      email: user.email,
+      name: user.displayName || foundUser.name || user.email.split('@')[0],
+      photoURL: user.photoURL || '',
+      authUid: user.uid,
+      crmUid: foundCrmUid,
+      crmUserData: {
+        name: foundUser.name || '',
+        lastName: foundUser.lastName || '',
+        position: foundUser.position || '',
+      },
+      cachedAt: Date.now(),
+    };
+    localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
+  } catch (e) {
+    // тихо игнорим
+  }
+}
+
+function showApp(user) {
+  loadingEl.style.display = 'none';
+  mainEl.style.display = 'block';
+
+  const firstName = (user.name || '').split(' ')[0] || (user.crmUserData?.name || '').split(' ')[0] || 'друг';
   const hour = new Date().getHours();
   let greeting = 'С возвращением';
   if (hour < 12) greeting = 'Доброе утро';
@@ -413,32 +531,28 @@ function showApp(user) {
   else greeting = 'Добрый вечер';
   document.getElementById('welcome-text').textContent = `${greeting}, ${firstName}!`;
 
-  // User info
-  document.getElementById('user-name-display').textContent = user.name || '—';
+  // Полное имя из CRM-данных приоритет, иначе из Google
+  const fullName = user.crmUserData?.lastName || user.crmUserData?.name
+    ? `${user.crmUserData.lastName || ''} ${user.crmUserData.name || ''}`.trim()
+    : (user.name || '—');
+  document.getElementById('user-name-display').textContent = fullName;
   document.getElementById('user-email-display').textContent = user.email || '—';
 
-  // Avatar — picture from Google or initials
   const avatarEl = document.getElementById('user-avatar');
-  if (user.picture) {
-    avatarEl.innerHTML = `<img src="${user.picture}" alt="${user.name || ''}" referrerpolicy="no-referrer">`;
+  if (user.photoURL) {
+    avatarEl.innerHTML = `<img src="${user.photoURL}" alt="${fullName}" referrerpolicy="no-referrer">`;
   } else {
-    const initials = (user.name || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+    const initials = fullName.split(' ').filter(Boolean).map(s => s[0]).slice(0, 2).join('').toUpperCase() || '?';
     avatarEl.textContent = initials;
   }
 }
 
-// Logout
-document.getElementById('btn-logout').addEventListener('click', () => {
-  localStorage.removeItem('pllato_google_token');
-  localStorage.removeItem('pllato_user');
-  // Также отзываем Google session
-  if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-    try { google.accounts.id.disableAutoSelect(); } catch (e) {}
-  }
-  window.location.href = 'login.html';
+document.getElementById('btn-logout').addEventListener('click', async () => {
+  localStorage.removeItem('pllato_user_cache');
+  try { await fbSignOut(auth); } catch (e) {}
+  redirectToLogin();
 });
 
-// Disabled tools — show alert
 document.querySelectorAll('.tool-card.disabled').forEach(card => {
   card.addEventListener('click', (e) => {
     e.preventDefault();
@@ -446,9 +560,6 @@ document.querySelectorAll('.tool-card.disabled').forEach(card => {
     alert(name + ' в разработке. Скоро будет доступен.');
   });
 });
-
-// Запускаем проверку авторизации
-checkAuth();
 </script>
 
 </body>
