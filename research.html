@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Голос рынка — Pllato</title>
+<meta name="description" content="Открытое исследование того, как казахстанский бизнес ведёт операционку. Опрос предпринимателей о CRM, Excel и бизнес-процессах.">
+<link rel="icon" type="image/svg+xml" href="pllato_favicon_64.svg">
+<link rel="apple-touch-icon" href="pllato_icon_512.svg">
+
+<meta property="og:title" content="Голос рынка — исследование Pllato">
+<meta property="og:description" content="Как казахстанский бизнес ведёт операционку. Открытые результаты опроса.">
+<meta property="og:url" content="https://pllato.kz/research.html">
+<meta property="og:image" content="https://pllato.kz/pllato_icon_512.svg">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-M5N2WR2B');</script>
+<!-- End Google Tag Manager -->
+
+<style>
+:root {
+  --navy: #0a1628;
+  --bronze: #b8895a;
+  --bronze-deep: #8b6740;
+  --bronze-light: #d4a978;
+  --bronze-tint: rgba(184, 137, 90, 0.08);
+  --bronze-tint-2: rgba(184, 137, 90, 0.18);
+  --bg: #fafaf6;
+  --surface: #ffffff;
+  --surface-2: #f3f0e8;
+  --text: #0f1620;
+  --text-2: #4a5163;
+  --text-3: #8a8d96;
+  --line: #e8e2d4;
+  --line-2: #ede9de;
+  --green: #16a34a;
+  --red: #dc2626;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(20, 30, 50, 0.04);
+  --shadow-md: 0 8px 24px -8px rgba(20, 30, 50, 0.08);
+  --max: 1280px;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; overflow-x: hidden; }
+body {
+  font-family: var(--sans);
+  background: var(--bg); color: var(--text);
+  line-height: 1.55; -webkit-font-smoothing: antialiased;
+  overflow-x: hidden; width: 100%;
+  font-feature-settings: 'cv11', 'ss01';
+}
+img, svg { max-width: 100%; }
+h1, h2, h3, h4, p { overflow-wrap: break-word; }
+a { color: inherit; }
+.wrap { max-width: var(--max); margin: 0 auto; padding: 0 28px; width: 100%; box-sizing: border-box; }
+@media (max-width: 640px) { .wrap { padding: 0 16px; } }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px 22px; border-radius: 10px; font-weight: 600; font-size: 14.5px;
+  text-decoration: none; border: none; cursor: pointer;
+  transition: all 0.2s; font-family: var(--sans);
+}
+.btn-bronze { background: var(--bronze); color: #fff; }
+.btn-bronze:hover { background: var(--bronze-deep); transform: translateY(-1px); }
+.btn-ghost { background: var(--surface); color: var(--text); border: 1px solid var(--line); }
+.btn-ghost:hover { border-color: var(--bronze); color: var(--bronze); }
+.btn-lg { padding: 16px 28px; font-size: 15.5px; }
+
+/* Header */
+.site-header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(250, 250, 246, 0.92);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid transparent;
+  padding: 16px 0; transition: all 0.2s;
+}
+.site-header.scrolled { border-color: var(--line); background: rgba(250, 250, 246, 0.96); }
+.header-inner { display: flex; justify-content: space-between; align-items: center; gap: 16px; position: relative; }
+.logo img { height: 32px; display: block; }
+@media (max-width: 480px) { .logo img { height: 26px; } }
+
+.header-nav {
+  display: flex; align-items: center; gap: 28px;
+  position: absolute; left: 50%; transform: translateX(-50%);
+}
+.header-nav a {
+  font-size: 14px; font-weight: 500; color: var(--text-2);
+  text-decoration: none; transition: color 0.2s;
+}
+.header-nav a:hover { color: var(--text); }
+@media (max-width: 1100px) { .header-nav { display: none; } }
+
+/* Page hero */
+.page-hero { padding: 64px 0 48px; }
+.page-eyebrow {
+  display: inline-block;
+  font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--bronze-deep); padding: 6px 12px;
+  background: var(--bronze-tint); border-radius: 100px;
+  margin-bottom: 18px;
+}
+.page-hero h1 {
+  font-size: clamp(34px, 5vw, 60px); line-height: 1.05;
+  letter-spacing: -0.035em; font-weight: 800;
+  margin-bottom: 18px;
+}
+.page-hero h1 em { color: var(--bronze); font-style: italic; font-weight: 800; }
+.page-hero .lead {
+  font-size: 17px; color: var(--text-2); line-height: 1.55;
+  max-width: 700px; margin-bottom: 24px;
+}
+.page-hero .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* Stats strip */
+.stats-strip {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  padding: 28px 32px;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-bottom: 60px;
+  box-shadow: var(--shadow-sm);
+}
+@media (max-width: 720px) { .stats-strip { grid-template-columns: 1fr 1fr; gap: 22px; padding: 22px; } }
+.stat-block { text-align: center; }
+.stat-num {
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 800; color: var(--bronze);
+  letter-spacing: -0.03em; line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-label {
+  font-size: 12.5px; color: var(--text-2); font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Section */
+.section { padding: 72px 0; }
+.section-alt { background: var(--surface-2); }
+.section-head { text-align: center; max-width: 760px; margin: 0 auto 48px; }
+.section-head .eyebrow {
+  display: inline-block;
+  font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--bronze-deep);
+  padding: 6px 12px; background: var(--bronze-tint);
+  border-radius: 100px; margin-bottom: 14px;
+}
+.section-head h2 {
+  font-size: clamp(28px, 4vw, 44px); line-height: 1.1;
+  font-weight: 800; letter-spacing: -0.025em;
+  margin-bottom: 14px;
+}
+.section-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
+.section-head p { font-size: 16px; color: var(--text-2); line-height: 1.6; }
+
+/* About research */
+.about-research {
+  max-width: 800px; margin: 0 auto;
+}
+.about-research p {
+  font-size: 16.5px; color: var(--text); line-height: 1.7;
+  margin-bottom: 16px;
+}
+.about-research strong { color: var(--bronze-deep); font-weight: 700; }
+
+/* Findings preview cards */
+.findings {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+  max-width: 1120px; margin: 0 auto;
+}
+@media (max-width: 900px) { .findings { grid-template-columns: 1fr; } }
+.finding-card {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r-lg); padding: 28px 26px;
+  border-top: 3px solid var(--bronze);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+}
+.finding-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.finding-card.coming-soon { border-top-color: var(--text-3); opacity: 0.7; }
+.finding-num {
+  font-size: 38px; font-weight: 800;
+  color: var(--bronze); letter-spacing: -0.03em;
+  line-height: 1; margin-bottom: 8px;
+}
+.finding-card.coming-soon .finding-num { color: var(--text-3); }
+.finding-label {
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--text-3);
+  font-weight: 700; margin-bottom: 12px;
+}
+.finding-card h3 {
+  font-size: 18px; font-weight: 800;
+  letter-spacing: -0.02em; line-height: 1.3;
+  margin-bottom: 8px;
+}
+.finding-card p {
+  font-size: 13.5px; color: var(--text-2); line-height: 1.55;
+}
+
+/* Mode toggle (interview / public) */
+.mode-toggle {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  padding: 4px;
+  margin-bottom: 32px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.mode-toggle button {
+  background: transparent; border: none; cursor: pointer;
+  padding: 9px 18px; border-radius: 100px;
+  font-family: var(--sans);
+  font-size: 13.5px; font-weight: 600;
+  color: var(--text-3);
+  transition: all 0.2s;
+}
+.mode-toggle button.active {
+  background: var(--bronze); color: #fff;
+}
+.mode-help {
+  font-size: 13px; color: var(--text-3); margin-top: -16px; margin-bottom: 24px;
+  font-style: italic;
+}
+
+/* Survey form */
+.survey-card {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  padding: 40px;
+  max-width: 760px; margin: 0 auto;
+  box-shadow: var(--shadow-md);
+}
+@media (max-width: 640px) { .survey-card { padding: 26px 22px; } }
+
+.survey-progress {
+  display: flex; gap: 6px; margin-bottom: 28px;
+}
+.survey-progress .pdot {
+  flex: 1; height: 4px; border-radius: 2px;
+  background: var(--line);
+  transition: background 0.3s;
+}
+.survey-progress .pdot.done { background: var(--bronze); }
+.survey-progress .pdot.current { background: var(--bronze-light); }
+
+.survey-step { display: none; }
+.survey-step.active { display: block; }
+
+.survey-step-num {
+  font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-3); margin-bottom: 8px;
+}
+.survey-question {
+  font-size: 22px; font-weight: 800;
+  letter-spacing: -0.02em; line-height: 1.25;
+  margin-bottom: 8px;
+}
+.survey-hint {
+  font-size: 13.5px; color: var(--text-3);
+  margin-bottom: 22px; line-height: 1.5;
+}
+
+/* Choice cards */
+.choices {
+  display: grid; gap: 8px; margin-bottom: 24px;
+}
+.choices.grid-2 { grid-template-columns: 1fr 1fr; }
+.choices.grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 540px) { .choices.grid-2, .choices.grid-3 { grid-template-columns: 1fr; } }
+
+.choice {
+  display: block;
+  padding: 14px 18px;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 14.5px; font-weight: 500;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.choice:hover { border-color: var(--bronze-tint-2); background: var(--bronze-tint); }
+.choice input[type="radio"], .choice input[type="checkbox"] {
+  position: absolute; opacity: 0; pointer-events: none;
+}
+.choice.selected {
+  border-color: var(--bronze);
+  background: var(--bronze-tint);
+  font-weight: 600;
+}
+.choice.selected::after {
+  content: '✓'; float: right;
+  color: var(--bronze); font-weight: 800; margin-left: 8px;
+}
+
+/* Text input */
+.survey-input,
+.survey-textarea {
+  width: 100%;
+  padding: 14px 16px;
+  font-family: var(--sans);
+  font-size: 15px; font-weight: 500;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  outline: none; resize: vertical;
+  transition: border 0.15s;
+}
+.survey-input:focus,
+.survey-textarea:focus { border-color: var(--bronze); }
+.survey-textarea { min-height: 100px; }
+
+/* Navigation */
+.survey-nav {
+  display: flex; gap: 10px; margin-top: 28px;
+  justify-content: space-between;
+}
+.survey-nav .btn-back {
+  background: transparent; color: var(--text-2);
+  border: 1px solid var(--line);
+}
+.survey-nav .btn-back:hover { border-color: var(--text-3); color: var(--text); }
+.survey-nav .btn-back:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Success state */
+.survey-success {
+  display: none; text-align: center;
+  padding: 40px 20px;
+}
+.survey-success.show { display: block; }
+.survey-success-mark {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: var(--green); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; font-weight: 800;
+  margin: 0 auto 18px;
+}
+.survey-success h3 {
+  font-size: 24px; font-weight: 800;
+  letter-spacing: -0.02em; margin-bottom: 8px;
+}
+.survey-success p { font-size: 15px; color: var(--text-2); line-height: 1.6; margin-bottom: 16px; }
+.survey-success-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
+
+/* Methodology */
+.method-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  max-width: 1120px; margin: 0 auto;
+}
+@media (max-width: 800px) { .method-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .method-grid { grid-template-columns: 1fr; } }
+.method-card {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r-md); padding: 22px 24px;
+}
+.method-card .num {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--bronze); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 14px;
+  margin-bottom: 14px;
+}
+.method-card h4 {
+  font-size: 15px; font-weight: 800;
+  margin-bottom: 6px;
+}
+.method-card p {
+  font-size: 13px; color: var(--text-2); line-height: 1.5;
+}
+
+/* Floating WhatsApp */
+.float-wa {
+  position: fixed; bottom: 20px; right: 20px; z-index: 95;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: #25D366; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 24px -4px rgba(37, 211, 102, 0.5);
+  text-decoration: none; transition: all 0.2s;
+}
+.float-wa:hover { transform: scale(1.05); }
+.float-wa svg { width: 30px; height: 30px; }
+@media (max-width: 720px) {
+  .float-wa { bottom: 20px; right: 14px; width: 50px; height: 50px; }
+  .float-wa svg { width: 26px; height: 26px; }
+}
+
+/* Footer */
+footer {
+  padding: 56px 0 28px; background: var(--surface-2);
+  border-top: 1px solid var(--line-2);
+}
+.footer-cols {
+  display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  gap: 40px; padding-bottom: 36px;
+  border-bottom: 1px solid var(--line-2);
+}
+@media (max-width: 900px) { .footer-cols { grid-template-columns: 1fr 1fr; gap: 28px; } }
+@media (max-width: 540px) { .footer-cols { grid-template-columns: 1fr; gap: 24px; } }
+.footer-brand img { height: 26px; opacity: 0.9; margin-bottom: 12px; display: block; }
+.footer-brand p { color: var(--text-2); font-size: 13px; line-height: 1.5; margin-bottom: 12px; max-width: 300px; }
+.footer-col h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); font-weight: 700; margin-bottom: 12px; }
+.footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.footer-col a { color: var(--text); text-decoration: none; font-size: 13.5px; transition: color 0.2s; }
+.footer-col a:hover { color: var(--bronze); }
+.footer-legal { padding-top: 24px; }
+.footer-legal p { font-size: 12px; color: var(--text-3); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-M5N2WR2B"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+
+<header class="site-header" id="header">
+  <div class="wrap">
+    <div class="header-inner">
+      <a href="index.html" class="logo"><img src="pllato_logo_transparent_navy.svg" alt="Pllato"></a>
+      <nav class="header-nav">
+        <a href="index.html">Главная</a>
+        <a href="automation.html">Готовые модули</a>
+        <a href="research.html">Исследование</a>
+        <a href="index.html#contact">Контакты</a>
+      </nav>
+      <a href="https://wa.me/77011239999" class="btn btn-bronze" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="wrap">
+    <span class="page-eyebrow">Голос рынка · Исследование 2026</span>
+    <h1>Как казахстанский бизнес <em>ведёт операционку.</em></h1>
+    <p class="lead">Открытое исследование: опрашиваем владельцев и операционных директоров компаний в Алматы и СНГ. Что работает, что мешает, на чём теряются деньги. Все результаты — публичные, обезличенные.</p>
+    <div class="actions">
+      <a href="#take-survey" class="btn btn-bronze btn-lg">Пройти опрос · 5 минут</a>
+      <a href="#findings" class="btn btn-ghost btn-lg">Что узнали</a>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+
+<!-- Stats strip -->
+<div class="stats-strip">
+  <div class="stat-block">
+    <div class="stat-num" id="stat-respondents">—</div>
+    <div class="stat-label">Опрошенных предпринимателей</div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-num">7</div>
+    <div class="stat-label">Ниш в исследовании</div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-num">5 мин</div>
+    <div class="stat-label">Среднее время прохождения</div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-num">100%</div>
+    <div class="stat-label">Анонимность данных</div>
+  </div>
+</div>
+
+</div>
+
+<!-- About -->
+<section class="section section-alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">О проекте</span>
+      <h2>Зачем мы это <em class="b">делаем.</em></h2>
+    </div>
+    <div class="about-research">
+      <p>В Казахстане нет открытых данных о том, как малый и средний бизнес ведёт операционку. Какой процент в Excel, какой в Bitrix, какие реальные боли. Все говорят за всех, но конкретных цифр нет.</p>
+      <p>Pllato делает <strong>открытое исследование рынка</strong>. Опрашиваем 100+ предпринимателей в Казахстане и СНГ. Все результаты публикуем здесь без привязки к конкретным компаниям. Это полезно и нам — лучше понимаем рынок, и вам — видите, что у других та же ситуация.</p>
+      <p>Мы сами — предприниматели. У основателя Платона Цая параллельно работает сеть школ английского StudyStories. Поэтому исследование не «маркетинговое», а от практика к практику. Узнать, как ведут учёт другие, — само по себе ценно.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Methodology -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Методология</span>
+      <h2>Как проходит <em class="b">исследование.</em></h2>
+    </div>
+    <div class="method-grid">
+      <div class="method-card">
+        <div class="num">1</div>
+        <h4>Опрашиваем</h4>
+        <p>Предпринимателей и операционных директоров напрямую — звонком или через эту страницу.</p>
+      </div>
+      <div class="method-card">
+        <div class="num">2</div>
+        <h4>Записываем</h4>
+        <p>Структурируем ответы. Одинаковые вопросы для всех, чтобы можно было сравнивать.</p>
+      </div>
+      <div class="method-card">
+        <div class="num">3</div>
+        <h4>Анализируем</h4>
+        <p>Раз в месяц публикуем срез: тренды, общие боли, разница между нишами.</p>
+      </div>
+      <div class="method-card">
+        <div class="num">4</div>
+        <h4>Делимся</h4>
+        <p>Все результаты открытые. Вы видите итоги, ваши данные обезличены и в общей статистике.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Findings -->
+<section class="section section-alt" id="findings">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Что узнали · апрель 2026</span>
+      <h2>Промежуточные <em class="b">результаты.</em></h2>
+      <p>Здесь будет статистика по мере накопления ответов. Первый срез — после 30 опрошенных.</p>
+    </div>
+    <div class="findings">
+      <div class="finding-card coming-soon">
+        <div class="finding-num">—%</div>
+        <div class="finding-label">Excel</div>
+        <h3>Сколько предпринимателей ведёт в Excel?</h3>
+        <p>Соберём после 30 ответов. Гипотеза: 60–70% малого бизнеса до сих пор в таблицах.</p>
+      </div>
+      <div class="finding-card coming-soon">
+        <div class="finding-num">—%</div>
+        <div class="finding-label">Потери</div>
+        <h3>Сколько теряли клиентов из-за системы?</h3>
+        <p>Конкретные истории: «менеджер уволился — забрал базу», «забыли перезвонить», «зависла сделка».</p>
+      </div>
+      <div class="finding-card coming-soon">
+        <div class="finding-num">—K ₸</div>
+        <div class="finding-label">Готовность платить</div>
+        <h3>Сколько готовы платить за решение?</h3>
+        <p>Реальный ценовой якорь рынка. Что готовы тратить в месяц малый и средний бизнес.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Survey -->
+<section class="section" id="take-survey">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Принять участие</span>
+      <h2>Ответьте на <em class="b">7 вопросов.</em></h2>
+      <p>5 минут вашего времени. Анонимно. Контакт — только если сами захотите.</p>
+    </div>
+
+    <div style="text-align: center;">
+      <div class="mode-toggle" role="tablist" aria-label="Режим опроса">
+        <button id="mode-public" class="active" type="button">Публичный</button>
+        <button id="mode-interview" type="button">Звонок</button>
+      </div>
+      <div class="mode-help" id="mode-help">Если вы предприниматель — отвечайте сами. Если вы интервьюер — переключите на «Звонок».</div>
+    </div>
+
+    <div class="survey-card">
+
+      <!-- Progress -->
+      <div class="survey-progress" id="survey-progress">
+        <div class="pdot current"></div>
+        <div class="pdot"></div>
+        <div class="pdot"></div>
+        <div class="pdot"></div>
+        <div class="pdot"></div>
+        <div class="pdot"></div>
+        <div class="pdot"></div>
+      </div>
+
+      <!-- Step 1: Industry -->
+      <div class="survey-step active" data-step="1">
+        <div class="survey-step-num">Вопрос 1 из 7</div>
+        <h3 class="survey-question">В какой сфере ваш бизнес?</h3>
+        <p class="survey-hint">Выберите ближайшее описание.</p>
+        <div class="choices grid-2" data-field="industry" data-type="single">
+          <label class="choice"><input type="radio" name="industry" value="Девелопмент"> Девелопмент / стройка</label>
+          <label class="choice"><input type="radio" name="industry" value="Опт"> Опт / дистрибуция</label>
+          <label class="choice"><input type="radio" name="industry" value="Производство"> Производство</label>
+          <label class="choice"><input type="radio" name="industry" value="Клиника"> Клиника / медицина</label>
+          <label class="choice"><input type="radio" name="industry" value="Услуги"> B2B-услуги</label>
+          <label class="choice"><input type="radio" name="industry" value="Ритейл"> Ритейл / e-commerce</label>
+          <label class="choice"><input type="radio" name="industry" value="Образование"> Образование</label>
+          <label class="choice"><input type="radio" name="industry" value="Другое"> Другое</label>
+        </div>
+      </div>
+
+      <!-- Step 2: Team size -->
+      <div class="survey-step" data-step="2">
+        <div class="survey-step-num">Вопрос 2 из 7</div>
+        <h3 class="survey-question">Сколько человек в команде?</h3>
+        <p class="survey-hint">Включая вас, всех сотрудников и фрилансеров.</p>
+        <div class="choices" data-field="team_size" data-type="single">
+          <label class="choice"><input type="radio" name="team_size" value="1-4"> До 5 человек</label>
+          <label class="choice"><input type="radio" name="team_size" value="5-15"> 5–15 человек</label>
+          <label class="choice"><input type="radio" name="team_size" value="15-50"> 15–50 человек</label>
+          <label class="choice"><input type="radio" name="team_size" value="50-100"> 50–100 человек</label>
+          <label class="choice"><input type="radio" name="team_size" value="100+"> Больше 100</label>
+        </div>
+      </div>
+
+      <!-- Step 3: Current system -->
+      <div class="survey-step" data-step="3">
+        <div class="survey-step-num">Вопрос 3 из 7</div>
+        <h3 class="survey-question">В чём сейчас ведёте клиентов и сделки?</h3>
+        <p class="survey-hint">Можно выбрать несколько вариантов, если используете комбинацию.</p>
+        <div class="choices grid-2" data-field="current_system" data-type="multi">
+          <label class="choice"><input type="checkbox" name="current_system" value="Excel"> Excel / Google Таблицы</label>
+          <label class="choice"><input type="checkbox" name="current_system" value="WhatsApp"> WhatsApp / Telegram</label>
+          <label class="choice"><input type="checkbox" name="current_system" value="Bitrix24"> Bitrix24</label>
+          <label class="choice"><input type="checkbox" name="current_system" value="AmoCRM"> AmoCRM</label>
+          <label class="choice"><input type="checkbox" name="current_system" value="1С"> 1С</label>
+          <label class="choice"><input type="checkbox" name="current_system" value="Своё решение"> Своё решение</label>
+          <label class="choice"><input type="checkbox" name="current_system" value="Бумага"> Бумага / блокноты</label>
+          <label class="choice"><input type="checkbox" name="current_system" value="Ничего"> Ничего системного</label>
+        </div>
+      </div>
+
+      <!-- Step 4: Pains -->
+      <div class="survey-step" data-step="4">
+        <div class="survey-step-num">Вопрос 4 из 7</div>
+        <h3 class="survey-question">Что в вашей операционке раздражает больше всего?</h3>
+        <p class="survey-hint">Выберите все актуальные.</p>
+        <div class="choices" data-field="pains" data-type="multi">
+          <label class="choice"><input type="checkbox" name="pains" value="Терялись клиенты"> Бывало, что теряли клиентов из-за бардака</label>
+          <label class="choice"><input type="checkbox" name="pains" value="Менеджер уволился — забрал базу"> Менеджер уволился — забрал базу</label>
+          <label class="choice"><input type="checkbox" name="pains" value="Не вижу что делают сотрудники"> Не вижу, чем сотрудники реально занимаются</label>
+          <label class="choice"><input type="checkbox" name="pains" value="Цифры собираю руками"> Цифры собираю вручную в пятницу к вечеру</label>
+          <label class="choice"><input type="checkbox" name="pains" value="Сделки висят месяцами"> Сделки висят месяцами, никто не дёрнет</label>
+          <label class="choice"><input type="checkbox" name="pains" value="Половина в Excel параллельно"> Половина процессов в Excel параллельно</label>
+          <label class="choice"><input type="checkbox" name="pains" value="Долго обучать нового"> Нового сотрудника обучать неделями</label>
+          <label class="choice"><input type="checkbox" name="pains" value="Меня всё устраивает"> Меня всё устраивает</label>
+        </div>
+      </div>
+
+      <!-- Step 5: Lost deals -->
+      <div class="survey-step" data-step="5">
+        <div class="survey-step-num">Вопрос 5 из 7</div>
+        <h3 class="survey-question">Бывало, что теряли клиента из-за того, что что-то выпало из системы?</h3>
+        <p class="survey-hint">Например, забыли перезвонить, потеряли контекст, недосмотрели.</p>
+        <div class="choices" data-field="lost_clients" data-type="single">
+          <label class="choice"><input type="radio" name="lost_clients" value="Да, часто"> Да, такое бывает регулярно</label>
+          <label class="choice"><input type="radio" name="lost_clients" value="Да, пару раз"> Да, пару раз ловил себя на этом</label>
+          <label class="choice"><input type="radio" name="lost_clients" value="Не уверен"> Не уверен, может и теряли</label>
+          <label class="choice"><input type="radio" name="lost_clients" value="Нет"> Нет, всё под контролем</label>
+        </div>
+      </div>
+
+      <!-- Step 6: Budget -->
+      <div class="survey-step" data-step="6">
+        <div class="survey-step-num">Вопрос 6 из 7</div>
+        <h3 class="survey-question">Если бы появился сервис, который закрывает ваши боли — сколько готовы платить в месяц?</h3>
+        <p class="survey-hint">Условный максимум, который для вас разумен.</p>
+        <div class="choices" data-field="budget" data-type="single">
+          <label class="choice"><input type="radio" name="budget" value="до 30K ₸"> До 30 000 ₸ / мес</label>
+          <label class="choice"><input type="radio" name="budget" value="30-100K ₸"> 30 000 – 100 000 ₸ / мес</label>
+          <label class="choice"><input type="radio" name="budget" value="100-300K ₸"> 100 000 – 300 000 ₸ / мес</label>
+          <label class="choice"><input type="radio" name="budget" value="300K+"> Больше 300 000 ₸ / мес</label>
+          <label class="choice"><input type="radio" name="budget" value="Лучше один раз"> Лучше один раз заплатить и владеть</label>
+          <label class="choice"><input type="radio" name="budget" value="Не готов платить"> Не готов платить за это</label>
+        </div>
+      </div>
+
+      <!-- Step 7: Optional contact -->
+      <div class="survey-step" data-step="7">
+        <div class="survey-step-num">Последний вопрос</div>
+        <h3 class="survey-question">Хотите получить итоги исследования?</h3>
+        <p class="survey-hint">Когда соберём 100+ ответов — пришлём вам полный анализ. Контакт только для этого, без рассылок и продаж. Поле необязательное.</p>
+        <input type="text" class="survey-input" id="contact-name" placeholder="Имя (необязательно)" maxlength="60">
+        <div style="height: 10px;"></div>
+        <input type="text" class="survey-input" id="contact-phone" placeholder="WhatsApp / Telegram / Email — необязательно" maxlength="100">
+        <div style="height: 14px;"></div>
+        <textarea class="survey-textarea" id="contact-comment" placeholder="Хотите что-то добавить? Любой комментарий, история, мысль — необязательно" maxlength="500"></textarea>
+      </div>
+
+      <!-- Success -->
+      <div class="survey-success" id="survey-success">
+        <div class="survey-success-mark">✓</div>
+        <h3>Спасибо!</h3>
+        <p>Ваши ответы записаны. Когда соберём срез по 30+ ответам — опубликуем здесь, на этой странице.</p>
+        <p>Если интересно подробнее — посмотрите наши <a href="index.html" style="color: var(--bronze-deep); font-weight: 600;">кастомные CRM</a> или <a href="automation.html" style="color: var(--bronze-deep); font-weight: 600;">готовые модули автоматизации</a>.</p>
+        <div class="survey-success-actions">
+          <a href="index.html" class="btn btn-ghost">На главную</a>
+          <button type="button" class="btn btn-bronze" onclick="restartSurvey()">Заполнить ещё раз</button>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="survey-nav" id="survey-nav">
+        <button type="button" class="btn btn-back" id="btn-back" disabled>← Назад</button>
+        <button type="button" class="btn btn-bronze" id="btn-next">Дальше →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<a href="https://wa.me/77011239999?text=Здравствуйте!%20Хочу%20обсудить%20исследование%20Pllato" class="float-wa" target="_blank" rel="noopener" aria-label="WhatsApp">
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.6-.8-1.9-.9-.3-.1-.5-.1-.6.1-.2.2-.7.8-.8 1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.7-1.4-1.7-1.6-2-.2-.3 0-.4.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.2-.5.1-.2 0-.4-.1-.5-.1-.1-.6-1.5-.8-2-.2-.5-.4-.5-.6-.5h-.5c-.2 0-.5.1-.7.3-.2.2-.9.9-.9 2.2 0 1.3.9 2.5 1 2.7.1.2 1.8 2.7 4.3 3.8.6.2 1.1.4 1.4.5.6.2 1.2.2 1.6.1.5-.1 1.6-.6 1.8-1.3.2-.7.2-1.2.2-1.3-.1-.1-.3-.2-.5-.3z"/><path d="M12 2C6.5 2 2 6.5 2 12c0 1.7.4 3.3 1.2 4.7L2 22l5.4-1.4c1.4.7 2.9 1.1 4.6 1.1 5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18c-1.5 0-2.9-.4-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3C4.4 14.9 4 13.5 4 12c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8z"/></svg>
+</a>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-cols">
+      <div class="footer-brand">
+        <img src="pllato_logo_transparent_navy.svg" alt="Pllato">
+        <p>Партнёр по операционной отцифровке. Знания о нишах + готовые системы управления.</p>
+        <p style="font-size: 13px; color: var(--text-2);">
+          <a href="tel:+77011239999" style="color: inherit; text-decoration: none;">+7 701 123 99 99</a><br>
+          <a href="mailto:uurraa@gmail.com" style="color: inherit; text-decoration: none;">uurraa@gmail.com</a>
+        </p>
+      </div>
+      <div class="footer-col">
+        <h4>Студия</h4>
+        <ul>
+          <li><a href="https://pllato.kz/team">Команда</a></li>
+          <li><a href="automation.html">Готовые модули</a></li>
+          <li><a href="research.html">Исследование</a></li>
+          <li><a href="crm-builder.html">Схема CRM</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Документы</h4>
+        <ul>
+          <li><a href="media.html">Для медиа</a></li>
+          <li><a href="privacy.html">Политика конфиденциальности</a></li>
+          <li><a href="terms.html">Пользовательское соглашение</a></li>
+          <li><a href="media.html#legal">Реквизиты</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Контакт</h4>
+        <ul>
+          <li><a href="index.html#contact">Получить разбор</a></li>
+          <li><a href="https://wa.me/77011239999" target="_blank" rel="noopener">WhatsApp</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-legal">
+      <p>© 2026 Pllato · ИП «STUDYSTORIES.APP» · БИН 880607300110 · Алматы</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+const TELEGRAM_BOT_TOKEN = '8719630290:AAHA0SwlavUEU_i3bWYLVMv5xwAQO3g1gos';
+const TELEGRAM_CHAT_ID   = '-5297917142';
+
+// Header scroll
+const header = document.getElementById('header');
+window.addEventListener('scroll', () => header.classList.toggle('scrolled', window.scrollY > 20));
+
+// === SURVEY LOGIC ===
+const TOTAL_STEPS = 7;
+let currentStep = 1;
+let mode = 'public'; // 'public' | 'interview'
+const answers = {};
+
+const $progress = () => document.querySelectorAll('.pdot');
+const $steps = () => document.querySelectorAll('.survey-step');
+const btnBack = document.getElementById('btn-back');
+const btnNext = document.getElementById('btn-next');
+const successBlock = document.getElementById('survey-success');
+const navBlock = document.getElementById('survey-nav');
+
+// Mode toggle
+const modePublic = document.getElementById('mode-public');
+const modeInterview = document.getElementById('mode-interview');
+const modeHelp = document.getElementById('mode-help');
+
+modePublic.addEventListener('click', () => setMode('public'));
+modeInterview.addEventListener('click', () => setMode('interview'));
+
+function setMode(m) {
+  mode = m;
+  modePublic.classList.toggle('active', m === 'public');
+  modeInterview.classList.toggle('active', m === 'interview');
+  modeHelp.textContent = m === 'public'
+    ? 'Если вы предприниматель — отвечайте сами. Если вы интервьюер — переключите на «Звонок».'
+    : '🎙 Режим звонка. Заполняйте по ходу разговора. Ответ улетает в Telegram при отправке.';
+}
+
+// Choice click handlers
+document.querySelectorAll('.choices').forEach(group => {
+  const type = group.dataset.type; // 'single' | 'multi'
+  const field = group.dataset.field;
+  group.querySelectorAll('.choice').forEach(choice => {
+    const input = choice.querySelector('input');
+    choice.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (type === 'single') {
+        // Single choice: deselect others
+        group.querySelectorAll('.choice').forEach(c => {
+          c.classList.remove('selected');
+          c.querySelector('input').checked = false;
+        });
+        choice.classList.add('selected');
+        input.checked = true;
+        answers[field] = input.value;
+      } else {
+        // Multi choice: toggle
+        choice.classList.toggle('selected');
+        input.checked = !input.checked;
+        if (!answers[field]) answers[field] = [];
+        if (input.checked) {
+          if (!answers[field].includes(input.value)) answers[field].push(input.value);
+        } else {
+          answers[field] = answers[field].filter(v => v !== input.value);
+        }
+      }
+    });
+  });
+});
+
+// Navigation
+btnNext.addEventListener('click', () => {
+  // Validate current step
+  if (currentStep < TOTAL_STEPS) {
+    const stepEl = document.querySelector(`.survey-step[data-step="${currentStep}"]`);
+    const choiceGroup = stepEl.querySelector('.choices');
+    if (choiceGroup) {
+      const field = choiceGroup.dataset.field;
+      if (!answers[field] || (Array.isArray(answers[field]) && answers[field].length === 0)) {
+        // Skip allowed? For now require answer except step 7
+        alert('Выберите хотя бы один вариант, чтобы продолжить.');
+        return;
+      }
+    }
+    goToStep(currentStep + 1);
+  } else {
+    // Final step — submit
+    submitSurvey();
+  }
+});
+
+btnBack.addEventListener('click', () => {
+  if (currentStep > 1) goToStep(currentStep - 1);
+});
+
+function goToStep(step) {
+  currentStep = step;
+  $steps().forEach(s => s.classList.toggle('active', parseInt(s.dataset.step) === step));
+  $progress().forEach((dot, idx) => {
+    dot.classList.remove('current', 'done');
+    if (idx + 1 < step) dot.classList.add('done');
+    else if (idx + 1 === step) dot.classList.add('current');
+  });
+  btnBack.disabled = step === 1;
+  btnNext.textContent = step === TOTAL_STEPS ? 'Отправить ответы →' : 'Дальше →';
+  // Scroll to top of card
+  document.querySelector('.survey-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function submitSurvey() {
+  // Collect optional contact fields
+  const name = document.getElementById('contact-name').value.trim();
+  const phone = document.getElementById('contact-phone').value.trim();
+  const comment = document.getElementById('contact-comment').value.trim();
+
+  // Build Telegram message
+  const time = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' });
+  const ref = document.referrer || 'Прямой заход';
+  const device = navigator.userAgent.includes('Mobile') ? '📱 Мобайл' : '💻 Десктоп';
+  const modeIcon = mode === 'interview' ? '🎙 Звонок' : '🌐 Сайт';
+
+  const lines = [
+    `📊 Опрос «Голос рынка» · ${modeIcon}`,
+    '',
+    `🏢 Сфера: ${answers.industry || '—'}`,
+    `👥 Команда: ${answers.team_size || '—'}`,
+    `💻 Сейчас использует: ${Array.isArray(answers.current_system) ? answers.current_system.join(', ') : '—'}`,
+    `🔥 Боли: ${Array.isArray(answers.pains) ? answers.pains.join('; ') : '—'}`,
+    `❓ Терял клиентов: ${answers.lost_clients || '—'}`,
+    `💰 Готов платить: ${answers.budget || '—'}`,
+  ];
+
+  if (name || phone) {
+    lines.push('');
+    lines.push('📞 КОНТАКТ:');
+    if (name) lines.push(`👤 ${name}`);
+    if (phone) lines.push(`📱 ${phone}`);
+  }
+
+  if (comment) {
+    lines.push('');
+    lines.push('💬 КОММЕНТАРИЙ:');
+    lines.push(comment);
+  }
+
+  lines.push('');
+  lines.push(`🕐 ${time} (Алматы)`);
+  lines.push(`🌐 ${ref}`);
+  lines.push(device);
+
+  const text = lines.join('\n');
+
+  // Optimistic UI: show success immediately
+  $steps().forEach(s => s.classList.remove('active'));
+  navBlock.style.display = 'none';
+  document.getElementById('survey-progress').style.display = 'none';
+  successBlock.classList.add('show');
+
+  // Save backup
+  try {
+    const backups = JSON.parse(localStorage.getItem('pllato_surveys') || '[]');
+    backups.push({ ts: Date.now(), mode, answers: { ...answers, name, phone, comment } });
+    localStorage.setItem('pllato_surveys', JSON.stringify(backups.slice(-100)));
+  } catch (e) {}
+
+  // Push to GTM
+  if (window.dataLayer) {
+    window.dataLayer.push({
+      event: 'survey_submitted',
+      survey_industry: answers.industry,
+      survey_mode: mode,
+    });
+  }
+
+  // Send to Telegram
+  fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text }),
+  })
+    .then(r => {
+      if (!r.ok) console.error('[Pllato Survey] Telegram error:', r.status);
+      else console.log('[Pllato Survey] Sent ✓');
+    })
+    .catch(e => console.error('[Pllato Survey] Telegram fail:', e));
+}
+
+function restartSurvey() {
+  // Reset
+  currentStep = 1;
+  Object.keys(answers).forEach(k => delete answers[k]);
+  document.querySelectorAll('.choice').forEach(c => {
+    c.classList.remove('selected');
+    const input = c.querySelector('input');
+    if (input) input.checked = false;
+  });
+  document.getElementById('contact-name').value = '';
+  document.getElementById('contact-phone').value = '';
+  document.getElementById('contact-comment').value = '';
+
+  successBlock.classList.remove('show');
+  navBlock.style.display = '';
+  document.getElementById('survey-progress').style.display = '';
+  goToStep(1);
+}
+</script>
+
+</body>
+</html>
