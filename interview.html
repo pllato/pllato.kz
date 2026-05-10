@@ -240,6 +240,107 @@ input.field:focus { border-color: var(--bronze); }
   font-style: italic;
 }
 
+/* ===== Current question block — что клиент видит сейчас ===== */
+.current-question-block {
+  background: var(--bronze-tint);
+  border: 2px solid var(--bronze);
+  border-radius: 14px;
+  padding: 22px 22px 20px;
+  margin-bottom: 20px;
+  position: relative;
+}
+.current-question-block::before {
+  content: 'ВИДИТ КЛИЕНТ СЕЙЧАС';
+  position: absolute;
+  top: -10px; left: 18px;
+  background: var(--bronze);
+  color: #fff;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 0.1em;
+  padding: 4px 10px; border-radius: 100px;
+}
+.cq-group {
+  display: inline-block;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--bronze-deep);
+  background: rgba(255,255,255,0.7);
+  padding: 3px 9px; border-radius: 100px;
+  margin-bottom: 10px;
+}
+.cq-num {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-3);
+  margin-bottom: 6px;
+}
+.cq-question {
+  font-size: 17px; font-weight: 800;
+  letter-spacing: -0.015em; line-height: 1.3;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+.cq-hint {
+  font-size: 13px; color: var(--text-2);
+  line-height: 1.5; margin-bottom: 14px;
+}
+.cq-options {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+@media (max-width: 540px) { .cq-options { grid-template-columns: 1fr; } }
+.cq-opt {
+  font-size: 12.5px;
+  padding: 8px 12px 8px 30px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.55);
+  color: var(--text-2);
+  position: relative;
+  line-height: 1.35;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+.cq-opt::before {
+  content: '○';
+  position: absolute;
+  left: 11px; top: 50%; transform: translateY(-50%);
+  color: var(--text-3);
+  font-size: 14px;
+}
+.cq-opt.selected {
+  background: var(--bronze);
+  color: #fff;
+  font-weight: 600;
+  border-color: var(--bronze-deep);
+}
+.cq-opt.selected::before {
+  content: '✓';
+  color: #fff;
+  font-weight: 800;
+}
+.cq-text-answer {
+  background: rgba(255,255,255,0.7);
+  padding: 12px 14px; border-radius: 8px;
+  font-size: 13.5px;
+  color: var(--text-2);
+  font-style: italic;
+  border-left: 3px solid var(--bronze);
+}
+.cq-text-answer.empty {
+  color: var(--text-3);
+}
+
+/* History */
+.answers-history { margin-top: 8px; }
+.ah-title {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-3);
+  margin-bottom: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-2);
+}
+
 .completed-badge {
   display: inline-block;
   background: var(--green); color: #fff;
@@ -349,8 +450,19 @@ input.field:focus { border-color: var(--bronze); }
 
       <div class="progress-bar" id="progress-bar"></div>
 
-      <div class="live-answers" id="live-answers">
-        <div class="no-answers-yet">Ответы появятся здесь автоматически.</div>
+      <!-- Текущий вопрос — крупно, что видит клиент сейчас -->
+      <div id="current-question-block" class="current-question-block" style="display:none;">
+        <div class="cq-group" id="cq-group">—</div>
+        <div class="cq-num" id="cq-num">Вопрос 1 из 15</div>
+        <div class="cq-question" id="cq-question">—</div>
+        <div class="cq-hint" id="cq-hint">—</div>
+        <div class="cq-options" id="cq-options"></div>
+      </div>
+
+      <!-- История уже данных ответов -->
+      <div class="answers-history" id="answers-history-block" style="display:none;">
+        <div class="ah-title">Уже ответил:</div>
+        <div class="live-answers" id="live-answers"></div>
       </div>
     </div>
 
@@ -365,27 +477,116 @@ input.field:focus { border-color: var(--bronze); }
 
 <script>
 // ============== КОНФИГУРАЦИЯ ==============
-const WORKER_URL = 'https://pllato-research.uurraa.workers.dev';
+// !!! ЗАМЕНИТЕ НА ВАШ URL Cloudflare Worker'а ПОСЛЕ ДЕПЛОЯ !!!
+const WORKER_URL = 'https://pllato-research.YOUR-SUBDOMAIN.workers.dev';
 const SITE_URL = 'https://pllato.kz'; // или window.location.origin для теста на локалхосте
 const POLL_INTERVAL_MS = 2000; // обновление каждые 2 секунды
 
-// ============== КОНФИГ ВОПРОСОВ (для отображения labels) ==============
+// ============== ПОЛНАЯ СТРУКТУРА ВОПРОСОВ — 1 в 1 как в research.html ==============
 const QUESTIONS = [
-  { id: 'search_channel', label: 'Где искал бы CRM' },
-  { id: 'key_function', label: 'Что в CRM важнее всего' },
-  { id: 'usage_level', label: 'Использует ли всё в системе' },
-  { id: 'first_module', label: 'Первый модуль с нуля' },
-  { id: 'ideal_crm', label: 'Что должна делать идеальная CRM' },
-  { id: 'money_loss_area', label: 'Где теряются деньги' },
-  { id: 'lost_clients', label: 'Терял клиентов' },
-  { id: 'sales_metric', label: 'Метрики продаж' },
-  { id: 'budget', label: 'Готов платить' },
-  { id: 'barriers', label: 'Что останавливает' },
-  { id: 'industry', label: 'Сфера' },
-  { id: 'team_size', label: 'Размер команды' },
-  { id: 'current_system', label: 'Что использует сейчас' },
-  { id: 'next_step', label: 'Хочет получить' },
-  { id: 'contact', label: 'Контакт' },
+  {
+    id: 'search_channel', label: 'Где искал бы CRM', group: 'Осознание', type: 'multi',
+    question: 'Если бы вы решили внедрить CRM — где бы вы её искали?',
+    hint: 'Откуда чаще всего узнаёте о новых инструментах для бизнеса?',
+    options: ['Google / поиск', 'Рекомендация коллег', 'Instagram / соцсети', 'YouTube',
+              'Telegram-каналы', 'Бизнес-форумы', 'Реклама', 'Не знаю'],
+  },
+  {
+    id: 'key_function', label: 'Что в CRM важнее всего', group: 'Осознание', type: 'single',
+    question: 'Что в CRM для вас самое важное?',
+    hint: 'Если бы могли оставить только одну функцию — какую?',
+    options: ['База клиентов', 'Воронка продаж', 'Задачи и напоминания', 'Аналитика',
+              'Интеграция с мессенджерами', 'Контроль менеджеров', 'Финансы и оплаты', 'Сложно сказать'],
+  },
+  {
+    id: 'usage_level', label: 'Использует ли всё в системе', group: 'Осознание', type: 'single',
+    question: 'Используете ли всё, что есть в вашей текущей системе?',
+    hint: 'Сколько процентов функционала реально работает у команды?',
+    options: ['Использую всё', 'Половину', 'Малую часть', 'Не уверен что там есть', 'Нет системы'],
+  },
+  {
+    id: 'first_module', label: 'Первый модуль с нуля', group: 'Осознание', type: 'single',
+    question: 'Если бы делали CRM с нуля под себя — что было бы первым модулем?',
+    hint: 'С чего бы начали, что критичнее всего для бизнеса?',
+    options: ['Карточка клиента под наши поля', 'Воронка под наш процесс',
+              'Дашборд собственника', 'Связка с мессенджерами',
+              'Учёт денег и сделок', 'Никогда не задумывался'],
+  },
+  {
+    id: 'ideal_crm', label: 'Что должна делать идеальная CRM', group: 'Осознание', type: 'text',
+    question: 'Что должна делать идеальная CRM, чего не делают существующие?',
+    hint: 'В свободной форме — одно-два предложения. Самый ценный вопрос для нас.',
+    options: [],
+  },
+  {
+    id: 'money_loss_area', label: 'Где теряются деньги', group: 'Деньги', type: 'single',
+    question: 'В какой видимой области у вас сейчас наибольшая потеря денег?',
+    hint: 'Где собственнику больше всего «больно» сейчас?',
+    options: ['Обработка заявок', 'Удержание клиентов', 'Работа менеджеров',
+              'Скорость закрытия сделок', 'Производство / исполнение',
+              'Дебиторка', 'Маркетинг', 'Не вижу потерь'],
+  },
+  {
+    id: 'lost_clients', label: 'Терял клиентов', group: 'Деньги', type: 'single',
+    question: 'Бывало, что теряли клиента из-за того, что задача выпала из системы?',
+    hint: 'Забыли перезвонить, пропал контекст, никто не дёрнул сделку.',
+    options: ['Да, регулярно', 'Да, пару раз', 'Скорее всего да, не отслеживаю', 'Нет'],
+  },
+  {
+    id: 'sales_metric', label: 'Метрики продаж', group: 'Деньги', type: 'multi',
+    question: 'Как вы сейчас понимаете, что отдел продаж работает эффективно?',
+    hint: 'По каким показателям оцениваете?',
+    options: ['По выручке', 'По количеству сделок', 'По конверсии',
+              'По активности менеджеров', 'По LTV', 'По ощущениям', 'Не оцениваю'],
+  },
+  {
+    id: 'budget', label: 'Готов платить', group: 'Деньги', type: 'single',
+    question: 'Сколько готовы платить за решение, которое реально закрывает ваши боли?',
+    hint: 'Условный максимум, который для вас разумен в месяц.',
+    options: ['до 30K ₸', '30-100K ₸', '100-300K ₸', '300K+',
+              'Лучше один раз', 'Не готов платить'],
+  },
+  {
+    id: 'barriers', label: 'Что останавливает', group: 'Барьеры', type: 'multi',
+    question: 'Что главное вас останавливает от внедрения новой CRM?',
+    hint: 'Можно несколько вариантов.',
+    options: ['Дорого', 'Сложно переехать', 'Команду тяжело переучить',
+              'Не знаю кому доверить', 'Не понимаю что выбрать',
+              'Сейчас и так работает', 'Нет ответственного', 'Ничего не останавливает'],
+  },
+  {
+    id: 'industry', label: 'Сфера', group: 'О компании', type: 'single',
+    question: 'В какой сфере ваш бизнес?',
+    hint: 'Выберите ближайшее описание.',
+    options: ['Девелопмент', 'Опт', 'Производство', 'Клиника',
+              'Услуги', 'Ритейл', 'Образование', 'Другое'],
+  },
+  {
+    id: 'team_size', label: 'Размер команды', group: 'О компании', type: 'single',
+    question: 'Сколько человек в команде?',
+    hint: 'Включая всех сотрудников и фрилансеров.',
+    options: ['1-4', '5-15', '15-50', '50-100', '100+'],
+  },
+  {
+    id: 'current_system', label: 'Что использует сейчас', group: 'О компании', type: 'multi',
+    question: 'В чём сейчас ведёте клиентов и сделки?',
+    hint: 'Можно несколько вариантов.',
+    options: ['Excel', 'WhatsApp', 'Bitrix24', 'AmoCRM',
+              '1С', 'Своё решение', 'Бумага', 'Ничего'],
+  },
+  {
+    id: 'next_step', label: 'Хочет получить', group: 'Что дальше', type: 'multi',
+    question: 'Что вам было бы интереснее получить?',
+    hint: 'Можно несколько вариантов.',
+    options: ['Результаты в сравнении', 'Кейсы других в нише',
+              'Разбор именно у меня', 'Ничего, спасибо'],
+  },
+  {
+    id: 'contact', label: 'Контакт', group: 'Контакт', type: 'text',
+    question: 'Куда отправить материалы?',
+    hint: 'Имя · Телефон · Компания',
+    options: [],
+  },
 ];
 
 // ============== СОЗДАНИЕ СЕССИИ ==============
@@ -489,13 +690,23 @@ async function pollSession(sessionId) {
 function renderSession(session) {
   // Status
   const statusEl = document.getElementById('live-status-text');
+  const cqBlock = document.getElementById('current-question-block');
+  const historyBlock = document.getElementById('answers-history-block');
+
+  const hasStarted = session.currentStep > 0 && (session.currentStep > 1 || Object.keys(session.answers || {}).length > 0);
+
   if (session.completed) {
-    statusEl.textContent = 'Опрос завершён';
+    statusEl.textContent = 'Опрос завершён · все ответы получены';
     document.getElementById('completed-marker').style.display = 'block';
-  } else if (session.currentStep > 1 || Object.keys(session.answers || {}).length > 0) {
+    cqBlock.style.display = 'none';
+  } else if (hasStarted) {
     statusEl.textContent = `Клиент на вопросе ${session.currentStep} из 15`;
+    document.getElementById('completed-marker').style.display = 'none';
   } else {
     statusEl.textContent = 'Ждём, когда клиент откроет ссылку...';
+    cqBlock.style.display = 'none';
+    historyBlock.style.display = 'none';
+    document.getElementById('completed-marker').style.display = 'none';
   }
 
   // Progress bar
@@ -506,17 +717,56 @@ function renderSession(session) {
     else if (idx + 1 === session.currentStep) dot.classList.add('current');
   });
 
-  // Answers
-  const answersEl = document.getElementById('live-answers');
   const answers = session.answers || {};
 
-  if (Object.keys(answers).length === 0) {
-    answersEl.innerHTML = '<div class="no-answers-yet">Ответы появятся здесь автоматически.</div>';
+  // === ТЕКУЩИЙ ВОПРОС ===
+  if (hasStarted && !session.completed) {
+    const stepIdx = Math.max(0, session.currentStep - 1);
+    const q = QUESTIONS[stepIdx];
+    if (q) {
+      cqBlock.style.display = 'block';
+      document.getElementById('cq-group').textContent = q.group;
+      document.getElementById('cq-num').textContent = `Вопрос ${session.currentStep} из 15`;
+      document.getElementById('cq-question').textContent = q.question;
+      document.getElementById('cq-hint').textContent = q.hint;
+
+      const optsEl = document.getElementById('cq-options');
+      const currentValue = answers[q.id];
+
+      if (q.type === 'text') {
+        // Свободный ввод — показываем что клиент пишет
+        const text = currentValue || '';
+        optsEl.innerHTML = `<div class="cq-text-answer ${text ? '' : 'empty'}" style="grid-column: 1 / -1;">${text ? escapeHtml(text) : '(пока пусто — клиент печатает...)'}</div>`;
+      } else {
+        // Выбор из вариантов
+        const selected = Array.isArray(currentValue) ? currentValue : (currentValue ? [currentValue] : []);
+        optsEl.innerHTML = q.options.map(opt => {
+          const isSelected = selected.includes(opt);
+          return `<div class="cq-opt ${isSelected ? 'selected' : ''}">${escapeHtml(opt)}</div>`;
+        }).join('');
+      }
+    }
+  }
+
+  // === ИСТОРИЯ УЖЕ ДАННЫХ ОТВЕТОВ ===
+  const answersEl = document.getElementById('live-answers');
+
+  // Считаем сколько уже отвечено (на пройденных вопросах)
+  const answeredKeys = Object.keys(answers).filter(key => {
+    const v = answers[key];
+    return v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0);
+  });
+
+  if (answeredKeys.length === 0) {
+    historyBlock.style.display = 'none';
     return;
   }
 
+  // Показать историю всех ответов кроме текущего вопроса
   let html = '';
   QUESTIONS.forEach((q, idx) => {
+    // Пропускаем текущий вопрос — он показан выше
+    if (idx + 1 === session.currentStep && !session.completed) return;
     const value = answers[q.id];
     if (value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && value.length === 0)) {
       const display = Array.isArray(value) ? value.join(', ') : value;
@@ -530,8 +780,9 @@ function renderSession(session) {
   });
 
   if (!html) {
-    answersEl.innerHTML = '<div class="no-answers-yet">Ответы появятся здесь автоматически.</div>';
+    historyBlock.style.display = 'none';
   } else {
+    historyBlock.style.display = 'block';
     answersEl.innerHTML = html;
   }
 }

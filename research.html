@@ -460,6 +460,198 @@ footer {
 .footer-col a:hover { color: var(--bronze); }
 .footer-legal { padding-top: 24px; }
 .footer-legal p { font-size: 12px; color: var(--text-3); line-height: 1.5; }
+/* ============== SESSION MODE (mobile-first, для клиента по ссылке) ============== */
+body.session-mode {
+  background: var(--bg);
+  padding: 0;
+}
+
+/* Скрываем всё что не нужно клиенту в session-режиме */
+body.session-mode .site-header,
+body.session-mode .page-hero,
+body.session-mode .stats-strip,
+body.session-mode .section.section-alt,
+body.session-mode #findings,
+body.session-mode footer,
+body.session-mode .float-wa,
+body.session-mode .section-head,
+body.session-mode .mode-toggle,
+body.session-mode .mode-help,
+body.session-mode .survey-step-num {
+  display: none !important;
+}
+
+/* Контейнер опроса на полный экран */
+body.session-mode #take-survey {
+  padding: 0;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+body.session-mode #take-survey .wrap {
+  padding: 0;
+  max-width: 100%;
+}
+
+/* Session badge — компактнее, наверху */
+body.session-mode #session-badge {
+  margin: 0 0 0 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid #f0d9aa !important;
+  padding: 12px 16px !important;
+  font-size: 13px;
+}
+body.session-mode #session-badge > div:first-child {
+  font-size: 13px !important;
+}
+body.session-mode #session-badge > div:last-child {
+  font-size: 12px !important;
+}
+
+/* Карточка опроса — на весь экран без бордера */
+body.session-mode .survey-card {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+  max-width: 100%;
+  padding: 24px 18px 100px;
+  background: transparent;
+  min-height: calc(100vh - 60px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Прогресс-бар — компактнее */
+body.session-mode .survey-progress {
+  margin-bottom: 20px;
+}
+body.session-mode .survey-progress .pdot {
+  height: 5px;
+}
+
+/* Группа-метка наверху */
+body.session-mode .survey-group-label {
+  font-size: 11px;
+  margin-bottom: 12px;
+}
+
+/* Вопрос — крупнее на мобайл */
+body.session-mode .survey-question {
+  font-size: 22px;
+  line-height: 1.25;
+  margin-bottom: 8px;
+  font-weight: 800;
+}
+@media (min-width: 600px) {
+  body.session-mode .survey-question { font-size: 26px; }
+}
+
+body.session-mode .survey-hint {
+  font-size: 14px;
+  margin-bottom: 22px;
+  color: var(--text-2);
+}
+
+/* Варианты — крупные тап-зоны, минимум 56px */
+body.session-mode .choices {
+  grid-template-columns: 1fr !important;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+body.session-mode .choices.grid-2,
+body.session-mode .choices.grid-3 {
+  grid-template-columns: 1fr !important;
+}
+
+body.session-mode .choice {
+  padding: 18px 20px;
+  font-size: 15.5px;
+  font-weight: 500;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+  border-width: 2px;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+body.session-mode .choice:active {
+  transform: scale(0.98);
+  transition: transform 0.05s;
+}
+body.session-mode .choice.selected::after {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  float: none;
+  margin: 0;
+  font-size: 18px;
+}
+
+body.session-mode .choice-rich {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 18px 50px 18px 20px;
+  min-height: 80px;
+  gap: 4px;
+}
+body.session-mode .choice-rich b {
+  font-size: 15.5px;
+}
+body.session-mode .choice-rich small {
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* Поля ввода — крупнее */
+body.session-mode .survey-input,
+body.session-mode .survey-textarea {
+  padding: 16px 18px;
+  font-size: 16px; /* 16px важно — iOS не зумит при фокусе */
+  border-radius: 12px;
+  border-width: 2px;
+}
+body.session-mode .survey-textarea {
+  min-height: 120px;
+}
+
+/* Кнопки навигации — фиксированы внизу, всегда видны */
+body.session-mode .survey-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 14px 16px max(14px, env(safe-area-inset-bottom));
+  background: rgba(250, 250, 246, 0.97);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--line);
+  z-index: 50;
+  gap: 10px;
+}
+body.session-mode .survey-nav .btn {
+  min-height: 52px;
+  font-size: 15px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+body.session-mode .survey-nav .btn-bronze {
+  flex: 2;
+}
+body.session-mode .survey-nav .btn-back {
+  flex: 1;
+  max-width: 100px;
+}
+
+/* Success — на весь экран */
+body.session-mode .survey-success {
+  padding: 48px 24px;
+}
+
 </style>
 </head>
 <body>
@@ -952,19 +1144,26 @@ let mode = 'public'; // 'public' | 'interview'
 const answers = {};
 
 // === SESSION SYNC (для интерактивных опросов через interview.html) ===
-const WORKER_URL = 'https://pllato-research.uurraa.workers.dev';
+const WORKER_URL = 'https://pllato-research.YOUR-SUBDOMAIN.workers.dev'; // !!! ЗАМЕНИТЕ НА СВОЙ
 const urlParams = new URLSearchParams(window.location.search);
 const SESSION_ID = urlParams.get('session');
 
 // Если открыли с ?session=XXXX — автоматически переключаем в режим звонка
 if (SESSION_ID) {
   mode = 'interview';
+  // Включаем мобильно-первый режим: скрываем всё лишнее, увеличиваем тап-зоны
+  document.body.classList.add('session-mode');
   // Показать session-бейдж
   const badge = document.getElementById('session-badge');
   if (badge) badge.style.display = 'block';
   // Скрыть mode-toggle (клиенту он не нужен)
   const toggle = document.querySelector('.mode-toggle');
   if (toggle) toggle.parentElement.style.display = 'none';
+  // Прокрутить к вопросам сразу
+  setTimeout(() => {
+    const target = document.getElementById('take-survey');
+    if (target) target.scrollIntoView({ behavior: 'instant', block: 'start' });
+  }, 50);
 }
 
 // Шлём прогресс на Worker (после каждого ответа)
