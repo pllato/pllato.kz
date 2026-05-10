@@ -2970,7 +2970,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
    Если оба упадут — заявка сохраняется в localStorage как бэкап.
 ============================================================ */
 
-const TELEGRAM_BOT_TOKEN = '8719630290:AAHuiK54ouQKZt_SVrV9K4oJyPHayJprVss';
+const TELEGRAM_BOT_TOKEN = '8719630290:AAHA0SwlavUEU_i3bWYLVMv5xwAQO3g1gos';
 const TELEGRAM_CHAT_ID   = '-5297917142'; // группа «Заявки с сайта pllato.kz»
 
 const WHATSAPP_TARGET_PHONE = '+77011239999';   // куда слать заявки
@@ -3030,6 +3030,12 @@ document.querySelectorAll('.lead-form input[name="phone"]').forEach(input => {
 
 /* ============== LEAD MESSAGE BUILDERS ============== */
 function buildLeadText(phone, source) {
+  // Защита: не строим сообщение, если телефон пустой или некорректный
+  const digits = (phone || '').replace(/\D/g, '');
+  if (digits.length < 7 || digits.length > 15) {
+    console.warn('[Pllato] Попытка отправить заявку с пустым/невалидным телефоном — отменено');
+    return null;
+  }
   const time = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' });
   const ref = document.referrer || 'Прямой заход';
   const device = navigator.userAgent.includes('Mobile') ? 'Мобайл' : 'Десктоп';
@@ -3046,6 +3052,9 @@ function buildLeadText(phone, source) {
 
 /* ============== SEND TO TELEGRAM ============== */
 async function sendToTelegram(text) {
+  if (!text) {
+    return { service: 'telegram', skipped: true, reason: 'empty text — validation failed' };
+  }
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
     return { service: 'telegram', skipped: true, reason: 'not configured' };
   }
@@ -3067,6 +3076,9 @@ async function sendToTelegram(text) {
    валидны, сообщение придёт в WhatsApp на ваш номер.
 ============================================================ */
 async function sendToWhatsApp(text) {
+  if (!text) {
+    return { service: 'whatsapp', skipped: true, reason: 'empty text — validation failed' };
+  }
   if (!CALLMEBOT_APIKEY) {
     return { service: 'whatsapp', skipped: true, reason: 'not configured' };
   }
@@ -3270,6 +3282,13 @@ function handleFormSubmit(form, isExtended) {
 
   // Build text with extra data
   let text = buildLeadText(phone, sourceLabel);
+
+  // Финальная защита: не шлём, если buildLeadText вернул null (телефон не прошёл валидацию)
+  if (!text) {
+    console.warn('[Pllato] Уведомления не отправлены — телефон не прошёл валидацию');
+    return;
+  }
+
   if (isExtended && extra.name) {
     const time = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' });
     text = [
