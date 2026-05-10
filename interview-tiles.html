@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Интервью · Плитки — Pllato</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="pllato_favicon_64.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --navy: #0a1628;
+  --bronze: #b8895a;
+  --bronze-deep: #8b6740;
+  --bronze-light: #d4a978;
+  --bronze-tint: rgba(184, 137, 90, 0.08);
+  --bronze-tint-2: rgba(184, 137, 90, 0.18);
+  --bg: #fafaf6;
+  --surface: #ffffff;
+  --surface-2: #f3f0e8;
+  --text: #0f1620;
+  --text-2: #4a5163;
+  --text-3: #8a8d96;
+  --line: #e8e2d4;
+  --line-2: #ede9de;
+  --green: #16a34a;
+  --green-tint: rgba(22, 163, 74, 0.08);
+  --r-md: 10px;
+  --r-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(20, 30, 50, 0.04);
+  --shadow-md: 0 8px 24px -8px rgba(20, 30, 50, 0.08);
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { overflow-x: hidden; }
+body {
+  font-family: var(--sans);
+  background: var(--bg); color: var(--text);
+  line-height: 1.55; -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  padding: 16px 16px 80px;
+}
+.container { max-width: 1200px; margin: 0 auto; }
+
+/* Header */
+.top-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-2);
+}
+.brand-row { display: flex; align-items: center; gap: 14px; }
+.logo img { height: 26px; }
+.tag {
+  font-size: 12px; font-weight: 600;
+  color: var(--text-2);
+  padding-left: 14px; border-left: 1px solid var(--line);
+}
+
+.session-display {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--text-2);
+}
+.session-display b {
+  font-family: var(--mono);
+  color: var(--bronze-deep);
+  background: var(--bronze-tint);
+  padding: 3px 9px; border-radius: 6px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+/* Setup card */
+.setup-card {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.setup-card h1 {
+  font-size: 22px; font-weight: 800;
+  letter-spacing: -0.02em; margin-bottom: 6px;
+}
+.setup-card .subtitle {
+  font-size: 14px; color: var(--text-2);
+  margin-bottom: 18px;
+}
+
+label {
+  display: block;
+  font-size: 12px; font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 5px;
+  margin-top: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+label:first-child { margin-top: 0; }
+
+input.field, textarea.field {
+  width: 100%;
+  padding: 11px 14px;
+  font-family: var(--sans);
+  font-size: 14.5px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  outline: none;
+  transition: border 0.15s;
+}
+input.field:focus, textarea.field:focus { border-color: var(--bronze); }
+textarea.field { min-height: 70px; resize: vertical; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px; padding: 11px 18px; border-radius: 10px;
+  font-weight: 600; font-size: 14px;
+  text-decoration: none; border: none; cursor: pointer;
+  transition: all 0.15s; font-family: var(--sans);
+}
+.btn-bronze { background: var(--bronze); color: #fff; }
+.btn-bronze:hover { background: var(--bronze-deep); }
+.btn-ghost {
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--line);
+}
+.btn-ghost:hover { border-color: var(--bronze); }
+.btn-sm { padding: 7px 12px; font-size: 13px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.actions { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Progress overall */
+.progress-overall {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 14px;
+}
+.po-stats {
+  font-size: 13px; color: var(--text-2);
+  flex-shrink: 0;
+}
+.po-stats b {
+  font-size: 16px; color: var(--text); font-weight: 800;
+}
+.po-bar {
+  flex: 1; height: 6px;
+  background: var(--line); border-radius: 3px;
+  overflow: hidden;
+}
+.po-bar-fill {
+  height: 100%; background: var(--bronze);
+  transition: width 0.3s;
+  width: 0%;
+}
+.po-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* Tiles grid */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+@media (max-width: 540px) { .tiles { grid-template-columns: 1fr; } }
+
+.tile {
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+  display: flex; flex-direction: column;
+  min-height: 100px;
+}
+.tile:hover { border-color: var(--bronze-tint-2); }
+.tile.expanded {
+  border-color: var(--bronze);
+  background: var(--bronze-tint);
+}
+.tile.completed {
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+.tile.completed .tile-num {
+  background: var(--green);
+}
+
+.tile-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 6px;
+}
+.tile-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--bronze);
+  color: #fff;
+  font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.tile-group {
+  font-size: 9.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-3);
+}
+.tile-status {
+  margin-left: auto;
+  font-size: 11px; font-weight: 700;
+  color: var(--text-3);
+}
+.tile.completed .tile-status {
+  color: var(--green);
+}
+
+.tile-q {
+  font-size: 13.5px; font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.tile-answer-preview {
+  font-size: 12.5px;
+  color: var(--text-2);
+  line-height: 1.4;
+  background: rgba(255,255,255,0.6);
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-top: auto;
+  border-left: 3px solid var(--bronze);
+}
+.tile.completed .tile-answer-preview {
+  border-left-color: var(--green);
+  background: rgba(255,255,255,0.7);
+}
+.tile-empty-marker {
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--text-3);
+  font-style: italic;
+}
+
+/* Expanded tile content */
+.tile-expanded-content {
+  display: none;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--bronze-tint-2);
+}
+.tile.expanded .tile-expanded-content { display: block; }
+
+.tile-hint {
+  font-size: 12px; color: var(--text-2);
+  margin-bottom: 10px;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.tile-options {
+  display: flex; flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.opt-btn {
+  display: block;
+  padding: 9px 12px;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.1s;
+  text-align: left;
+  font-family: var(--sans);
+  width: 100%;
+}
+.opt-btn:hover {
+  border-color: var(--bronze-tint-2);
+  background: var(--bronze-tint);
+}
+.opt-btn.selected {
+  border-color: var(--bronze);
+  background: var(--bronze);
+  color: #fff;
+  font-weight: 600;
+}
+.opt-btn.selected::after {
+  content: ' ✓';
+  font-weight: 800;
+}
+
+/* Custom answer input */
+.custom-answer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+.custom-answer label {
+  font-size: 10px;
+  margin: 0 0 4px 0;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.custom-answer input,
+.custom-answer textarea {
+  width: 100%;
+  padding: 8px 10px;
+  font-family: var(--sans);
+  font-size: 13px;
+  border: 1.5px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  outline: none;
+  resize: vertical;
+}
+.custom-answer textarea { min-height: 50px; }
+.custom-answer input:focus,
+.custom-answer textarea:focus { border-color: var(--bronze); }
+.custom-saved {
+  font-size: 11px; color: var(--green);
+  margin-top: 4px;
+  font-weight: 600;
+  display: none;
+}
+.custom-saved.show { display: block; }
+
+/* Tile actions */
+.tile-actions {
+  display: flex; gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--bronze-tint-2);
+}
+.tile-actions .btn-sm {
+  flex: 1;
+}
+
+/* Final card */
+.final-card {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+  margin-top: 16px;
+  display: flex; align-items: center; gap: 14px;
+  flex-wrap: wrap;
+}
+.final-card-text {
+  flex: 1; font-size: 13.5px; color: var(--text-2);
+  min-width: 200px;
+}
+.final-card-text b { color: var(--text); font-weight: 700; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--navy); color: #fff;
+  padding: 10px 18px; border-radius: 100px;
+  font-size: 13.5px; font-weight: 600;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 100;
+}
+.toast.show { opacity: 1; }
+.toast.green { background: var(--green); }
+
+/* Error message */
+.error-msg {
+  padding: 12px 16px;
+  background: #fef2f2; color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  font-size: 13.5px;
+  margin-bottom: 14px;
+  display: none;
+}
+.error-msg.show { display: block; }
+
+/* Live indicator */
+.live-indicator {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-3);
+  font-weight: 600;
+}
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green);
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Hide setup when session active */
+.setup-block.hidden { display: none; }
+.tiles-block { display: none; }
+.tiles-block.show { display: block; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="top-bar">
+    <div class="brand-row">
+      <a href="index.html" class="logo"><img src="pllato_logo_transparent_navy.svg" alt="Pllato"></a>
+      <span class="tag">Опрос · Режим плиток</span>
+    </div>
+    <div class="session-display" id="session-display" style="display:none;">
+      <span class="live-indicator"><span class="live-dot"></span>LIVE</span>
+      <span>Сессия:</span>
+      <b id="session-id-text">—</b>
+      <span id="client-name-text" style="color: var(--text);"></span>
+    </div>
+  </div>
+
+  <!-- ===== SETUP ===== -->
+  <div class="setup-block" id="setup-block">
+    <div class="setup-card">
+      <h1>Начать опрос в режиме плиток</h1>
+      <p class="subtitle">Все 15 вопросов сразу на экране. Нажимаете на любую плитку → выбираете ответ или вводите свой.</p>
+
+      <div class="error-msg" id="setup-error"></div>
+
+      <label>Имя клиента / название компании</label>
+      <input type="text" class="field" id="client-name" placeholder="Например: Айгуль · ЖК Алатау" maxlength="100">
+
+      <label>Телефон / WhatsApp клиента (необязательно)</label>
+      <input type="text" class="field" id="client-phone" placeholder="+7 701 ..." maxlength="50">
+
+      <div class="actions">
+        <button class="btn btn-bronze" id="btn-start">Начать опрос →</button>
+        <button class="btn btn-ghost" id="btn-load-existing">Открыть существующую сессию</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TILES ===== -->
+  <div class="tiles-block" id="tiles-block">
+
+    <!-- Progress overall -->
+    <div class="progress-overall">
+      <div class="po-stats">
+        <b id="po-completed">0</b> / <b>15</b> ответов
+      </div>
+      <div class="po-bar">
+        <div class="po-bar-fill" id="po-bar-fill"></div>
+      </div>
+      <div class="po-actions">
+        <button class="btn btn-ghost btn-sm" id="btn-copy-link">Копировать ссылку клиента</button>
+      </div>
+    </div>
+
+    <!-- Tiles grid -->
+    <div class="tiles" id="tiles-grid"></div>
+
+    <!-- Final card -->
+    <div class="final-card">
+      <div class="final-card-text">
+        <b>Все ответы сохраняются автоматически.</b><br>
+        Когда закончите — нажмите «Завершить и отправить в Telegram».
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="btn btn-ghost" id="btn-new-session-tiles">+ Новая сессия</button>
+        <button class="btn btn-bronze" id="btn-finish">Завершить и отправить →</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============== КОНФИГУРАЦИЯ ==============
+const WORKER_URL = 'https://pllato-research.uurraa.workers.dev'; // !!! ЗАМЕНИТЕ НА СВОЙ
+const SITE_URL = window.location.origin || 'https://pllato.kz';
+const TELEGRAM_BOT_TOKEN = '8719630290:AAHA0SwlavUEU_i3bWYLVMv5xwAQO3g1gos';
+const TELEGRAM_CHAT_ID   = '-5297917142';
+const POLL_INTERVAL_MS = 3000;
+
+// ============== ВОПРОСЫ ==============
+const QUESTIONS = [
+  {
+    id: 'search_channel', label: 'Где искал бы CRM', group: 'Осознание', type: 'multi',
+    question: 'Где бы искал CRM?',
+    hint: 'Откуда чаще всего узнаёт о новых инструментах для бизнеса.',
+    options: ['Google / поиск', 'Рекомендация коллег', 'Instagram / соцсети', 'YouTube',
+              'Telegram-каналы', 'Бизнес-форумы', 'Реклама', 'Не знаю'],
+    allowCustom: true,
+  },
+  {
+    id: 'key_function', label: 'Что важнее всего в CRM', group: 'Осознание', type: 'single',
+    question: 'Что в CRM важнее всего?',
+    hint: 'Если бы могли оставить только одну функцию — какую.',
+    options: ['База клиентов', 'Воронка продаж', 'Задачи и напоминания', 'Аналитика',
+              'Интеграция с мессенджерами', 'Контроль менеджеров', 'Финансы и оплаты', 'Сложно сказать'],
+    allowCustom: true,
+  },
+  {
+    id: 'usage_level', label: 'Использует ли всё в системе', group: 'Осознание', type: 'single',
+    question: 'Использует ли всё, что есть в текущей системе?',
+    hint: 'Сколько процентов функционала реально работает у команды.',
+    options: ['Использую всё', 'Половину', 'Малую часть', 'Не уверен что там есть', 'Нет системы'],
+    allowCustom: true,
+  },
+  {
+    id: 'first_module', label: 'Первый модуль с нуля', group: 'Осознание', type: 'single',
+    question: 'Если бы делал CRM с нуля — что было бы первым модулем?',
+    hint: 'С чего бы начал, что критичнее всего для бизнеса.',
+    options: ['Карточка клиента под наши поля', 'Воронка под наш процесс',
+              'Дашборд собственника', 'Связка с мессенджерами',
+              'Учёт денег и сделок', 'Никогда не задумывался'],
+    allowCustom: true,
+  },
+  {
+    id: 'ideal_crm', label: 'Идеальная CRM', group: 'Осознание', type: 'text',
+    question: 'Что должна делать идеальная CRM?',
+    hint: 'Чего не делают существующие. Свободный текст. Самый ценный вопрос.',
+    options: [],
+    allowCustom: false, // Это уже текстовое поле
+  },
+  {
+    id: 'money_loss_area', label: 'Где теряются деньги', group: 'Деньги', type: 'single',
+    question: 'Где наибольшая видимая потеря денег?',
+    hint: 'Где собственнику больше всего «больно» сейчас.',
+    options: ['Обработка заявок', 'Удержание клиентов', 'Работа менеджеров',
+              'Скорость закрытия сделок', 'Производство / исполнение',
+              'Дебиторка', 'Маркетинг', 'Не вижу потерь'],
+    allowCustom: true,
+  },
+  {
+    id: 'lost_clients', label: 'Терял клиентов', group: 'Деньги', type: 'single',
+    question: 'Терял клиентов из-за выпавшей из системы задачи?',
+    hint: 'Забыли перезвонить, пропал контекст, никто не дёрнул сделку.',
+    options: ['Да, регулярно', 'Да, пару раз', 'Скорее всего да, не отслеживаю', 'Нет'],
+    allowCustom: true,
+  },
+  {
+    id: 'sales_metric', label: 'Метрики продаж', group: 'Деньги', type: 'multi',
+    question: 'Как понимает что отдел продаж эффективен?',
+    hint: 'По каким показателям оценивает.',
+    options: ['По выручке', 'По количеству сделок', 'По конверсии',
+              'По активности менеджеров', 'По LTV', 'По ощущениям', 'Не оцениваю'],
+    allowCustom: true,
+  },
+  {
+    id: 'budget', label: 'Готов платить', group: 'Деньги', type: 'single',
+    question: 'Сколько готов платить за решение в месяц?',
+    hint: 'Условный максимум, который для него разумен.',
+    options: ['до 30K ₸', '30-100K ₸', '100-300K ₸', '300K+',
+              'Лучше один раз', 'Не готов платить'],
+    allowCustom: true,
+  },
+  {
+    id: 'barriers', label: 'Что останавливает', group: 'Барьеры', type: 'multi',
+    question: 'Что останавливает от внедрения новой CRM?',
+    hint: 'Можно несколько вариантов.',
+    options: ['Дорого', 'Сложно переехать', 'Команду тяжело переучить',
+              'Не знаю кому доверить', 'Не понимаю что выбрать',
+              'Сейчас и так работает', 'Нет ответственного', 'Ничего не останавливает'],
+    allowCustom: true,
+  },
+  {
+    id: 'industry', label: 'Сфера', group: 'О компании', type: 'single',
+    question: 'Сфера бизнеса?',
+    hint: '',
+    options: ['Девелопмент', 'Опт', 'Производство', 'Клиника',
+              'Услуги', 'Ритейл', 'Образование', 'Другое'],
+    allowCustom: true,
+  },
+  {
+    id: 'team_size', label: 'Размер команды', group: 'О компании', type: 'single',
+    question: 'Размер команды?',
+    hint: 'Включая всех сотрудников.',
+    options: ['1-4', '5-15', '15-50', '50-100', '100+'],
+    allowCustom: true,
+  },
+  {
+    id: 'current_system', label: 'Что используют сейчас', group: 'О компании', type: 'multi',
+    question: 'Что используют сейчас?',
+    hint: 'Можно несколько.',
+    options: ['Excel', 'WhatsApp', 'Bitrix24', 'AmoCRM',
+              '1С', 'Своё решение', 'Бумага', 'Ничего'],
+    allowCustom: true,
+  },
+  {
+    id: 'next_step', label: 'Хочет получить', group: 'Что дальше', type: 'multi',
+    question: 'Что хотел бы получить?',
+    hint: 'Можно несколько.',
+    options: ['Результаты в сравнении', 'Кейсы других в нише',
+              'Разбор именно у меня', 'Ничего, спасибо'],
+    allowCustom: false,
+  },
+  {
+    id: 'contact', label: 'Контакт и заметки', group: 'Контакт', type: 'text',
+    question: 'Контакт + заметки интервьюера',
+    hint: 'Имя, телефон, компания, любые наблюдения по разговору.',
+    options: [],
+    allowCustom: false,
+  },
+];
+
+// ============== STATE ==============
+let sessionId = null;
+let clientName = '';
+let clientPhone = '';
+const answers = {}; // { fieldId: value | array | string }
+const customAnswers = {}; // { fieldId: 'свободный текст помимо вариантов' }
+let pollIntervalId = null;
+let saveTimer = null;
+
+// ============== DOM ==============
+const setupBlock = document.getElementById('setup-block');
+const tilesBlock = document.getElementById('tiles-block');
+const errorEl = document.getElementById('setup-error');
+const tilesGrid = document.getElementById('tiles-grid');
+
+// ============== СОЗДАНИЕ СЕССИИ ==============
+document.getElementById('btn-start').addEventListener('click', async () => {
+  const name = document.getElementById('client-name').value.trim();
+  const phone = document.getElementById('client-phone').value.trim();
+
+  if (!name) {
+    showError('Введите имя клиента');
+    return;
+  }
+  hideError();
+
+  try {
+    const r = await fetch(WORKER_URL + '/api/session/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientName: name, clientPhone: phone }),
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Ошибка');
+
+    sessionId = data.sessionId;
+    clientName = name;
+    clientPhone = phone;
+    enterTilesMode();
+  } catch (e) {
+    showError('Не удалось создать сессию: ' + e.message + '. Проверьте Worker URL.');
+  }
+});
+
+// Загрузить существующую сессию
+document.getElementById('btn-load-existing').addEventListener('click', async () => {
+  const id = prompt('Введите ID сессии (5 символов):');
+  if (!id) return;
+  try {
+    const r = await fetch(`${WORKER_URL}/api/session/get?id=${encodeURIComponent(id.trim().toUpperCase())}`);
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Сессия не найдена');
+
+    sessionId = data.session.id;
+    clientName = data.session.clientName || '';
+    clientPhone = data.session.clientPhone || '';
+
+    // Применяем существующие ответы
+    if (data.session.answers) {
+      Object.assign(answers, data.session.answers);
+    }
+    enterTilesMode();
+  } catch (e) {
+    showError('Ошибка: ' + e.message);
+  }
+});
+
+function enterTilesMode() {
+  setupBlock.classList.add('hidden');
+  tilesBlock.classList.add('show');
+
+  // Show session info
+  document.getElementById('session-display').style.display = 'flex';
+  document.getElementById('session-id-text').textContent = sessionId;
+  document.getElementById('client-name-text').textContent = clientName ? `· ${clientName}` : '';
+
+  // Render tiles
+  renderTiles();
+  updateProgress();
+
+  // Start polling — для синхронизации если клиент тоже отвечает
+  startPolling();
+}
+
+// ============== ПЛИТКИ ==============
+function renderTiles() {
+  tilesGrid.innerHTML = '';
+  QUESTIONS.forEach((q, idx) => {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.dataset.fieldId = q.id;
+    tile.dataset.index = idx;
+
+    if (isAnswered(q.id)) tile.classList.add('completed');
+
+    tile.innerHTML = renderTileContent(q, idx);
+    tile.addEventListener('click', (e) => {
+      // Не сворачивать при клике внутри тайла на интерактивных элементах
+      if (e.target.closest('.opt-btn, input, textarea, .btn, .custom-answer')) return;
+      toggleTile(tile);
+    });
+
+    tilesGrid.appendChild(tile);
+  });
+}
+
+function renderTileContent(q, idx) {
+  const num = idx + 1;
+  const completed = isAnswered(q.id);
+  const status = completed ? 'Готово' : 'Пусто';
+
+  let preview = '';
+  if (completed) {
+    const v = answers[q.id];
+    let text = Array.isArray(v) ? v.join(', ') : v;
+    if (customAnswers[q.id]) text = (text ? text + ' · ' : '') + customAnswers[q.id];
+    preview = `<div class="tile-answer-preview">${escapeHtml(text)}</div>`;
+  } else {
+    preview = `<div class="tile-empty-marker">— нет ответа</div>`;
+  }
+
+  let expanded = '';
+  if (q.type !== 'text') {
+    const opts = q.options.map(opt => {
+      const sel = isOptionSelected(q.id, q.type, opt);
+      return `<button class="opt-btn ${sel ? 'selected' : ''}" data-opt="${escapeHtml(opt)}" data-field="${q.id}" data-type="${q.type}">${escapeHtml(opt)}</button>`;
+    }).join('');
+
+    expanded = `
+      <div class="tile-expanded-content">
+        <div class="tile-hint">${escapeHtml(q.hint)}</div>
+        <div class="tile-options">${opts}</div>
+        ${q.allowCustom ? `
+          <div class="custom-answer">
+            <label>Свой вариант / комментарий</label>
+            <input type="text" data-custom="${q.id}" value="${escapeHtml(customAnswers[q.id] || '')}" placeholder="Если ответ не из списка...">
+            <div class="custom-saved">✓ Сохранено</div>
+          </div>
+        ` : ''}
+        <div class="tile-actions">
+          <button class="btn btn-ghost btn-sm" data-action="clear" data-field="${q.id}">Очистить</button>
+          <button class="btn btn-bronze btn-sm" data-action="close" data-field="${q.id}">Готово</button>
+        </div>
+      </div>
+    `;
+  } else {
+    // Text question
+    expanded = `
+      <div class="tile-expanded-content">
+        <div class="tile-hint">${escapeHtml(q.hint)}</div>
+        <textarea data-text="${q.id}" placeholder="Ответ клиента (свободно)..." rows="3">${escapeHtml(answers[q.id] || '')}</textarea>
+        <div class="custom-saved">✓ Сохранено</div>
+        <div class="tile-actions">
+          <button class="btn btn-ghost btn-sm" data-action="clear" data-field="${q.id}">Очистить</button>
+          <button class="btn btn-bronze btn-sm" data-action="close" data-field="${q.id}">Готово</button>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="tile-head">
+      <div class="tile-num">${num}</div>
+      <div class="tile-group">${escapeHtml(q.group)}</div>
+      <div class="tile-status">${status}</div>
+    </div>
+    <div class="tile-q">${escapeHtml(q.question)}</div>
+    ${preview}
+    ${expanded}
+  `;
+}
+
+function toggleTile(tile) {
+  const wasExpanded = tile.classList.contains('expanded');
+  // Закрыть все остальные
+  document.querySelectorAll('.tile.expanded').forEach(t => {
+    if (t !== tile) t.classList.remove('expanded');
+  });
+  if (wasExpanded) {
+    tile.classList.remove('expanded');
+  } else {
+    tile.classList.add('expanded');
+    // Скролл к плитке
+    setTimeout(() => tile.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+  }
+}
+
+// Обработчики кликов на варианты, кастом-инпуты, кнопки внутри плиток
+tilesGrid.addEventListener('click', (e) => {
+  const optBtn = e.target.closest('.opt-btn');
+  if (optBtn) {
+    handleOptionClick(optBtn);
+    return;
+  }
+  const actionBtn = e.target.closest('[data-action]');
+  if (actionBtn) {
+    handleAction(actionBtn);
+    return;
+  }
+});
+
+tilesGrid.addEventListener('input', (e) => {
+  const customInput = e.target.closest('[data-custom]');
+  if (customInput) {
+    const field = customInput.dataset.custom;
+    customAnswers[field] = customInput.value.trim();
+    if (!customAnswers[field]) delete customAnswers[field];
+    showSaved(customInput);
+    debouncedSync();
+    refreshPreview(field);
+    return;
+  }
+  const textInput = e.target.closest('[data-text]');
+  if (textInput) {
+    const field = textInput.dataset.text;
+    answers[field] = textInput.value.trim();
+    if (!answers[field]) delete answers[field];
+    showSaved(textInput);
+    debouncedSync();
+    refreshPreview(field);
+  }
+});
+
+function handleOptionClick(btn) {
+  const field = btn.dataset.field;
+  const type = btn.dataset.type;
+  const opt = btn.dataset.opt;
+
+  if (type === 'single') {
+    answers[field] = opt;
+    // Снять выделение со всех в этой группе и поставить на эту
+    btn.parentElement.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  } else {
+    if (!Array.isArray(answers[field])) answers[field] = [];
+    const idx = answers[field].indexOf(opt);
+    if (idx >= 0) {
+      answers[field].splice(idx, 1);
+      btn.classList.remove('selected');
+    } else {
+      answers[field].push(opt);
+      btn.classList.add('selected');
+    }
+    if (answers[field].length === 0) delete answers[field];
+  }
+  refreshPreview(field);
+  debouncedSync();
+}
+
+function handleAction(btn) {
+  const action = btn.dataset.action;
+  const field = btn.dataset.field;
+  if (action === 'clear') {
+    delete answers[field];
+    delete customAnswers[field];
+    // Перерисовать плитку
+    const tile = btn.closest('.tile');
+    const idx = parseInt(tile.dataset.index);
+    tile.classList.remove('completed');
+    tile.innerHTML = renderTileContent(QUESTIONS[idx], idx);
+    tile.classList.add('expanded');
+    debouncedSync();
+    updateProgress();
+    showToast('Очищено');
+  } else if (action === 'close') {
+    btn.closest('.tile').classList.remove('expanded');
+  }
+}
+
+function refreshPreview(field) {
+  const tile = tilesGrid.querySelector(`[data-field-id="${field}"]`);
+  if (!tile) return;
+  const idx = parseInt(tile.dataset.index);
+  const q = QUESTIONS[idx];
+
+  // Toggle completed class
+  if (isAnswered(q.id)) {
+    tile.classList.add('completed');
+  } else {
+    tile.classList.remove('completed');
+  }
+
+  // Update preview block (without re-rendering whole tile to keep input focus)
+  const previewEl = tile.querySelector('.tile-answer-preview, .tile-empty-marker');
+  if (previewEl) {
+    if (isAnswered(q.id)) {
+      const v = answers[q.id];
+      let text = Array.isArray(v) ? v.join(', ') : (v || '');
+      if (customAnswers[q.id]) text = (text ? text + ' · ' : '') + customAnswers[q.id];
+      previewEl.outerHTML = `<div class="tile-answer-preview">${escapeHtml(text)}</div>`;
+    } else {
+      previewEl.outerHTML = `<div class="tile-empty-marker">— нет ответа</div>`;
+    }
+  }
+
+  // Update status text
+  const statusEl = tile.querySelector('.tile-status');
+  if (statusEl) statusEl.textContent = isAnswered(q.id) ? 'Готово' : 'Пусто';
+
+  updateProgress();
+}
+
+function isAnswered(fieldId) {
+  const v = answers[fieldId];
+  const c = customAnswers[fieldId];
+  if (c) return true;
+  if (v === undefined || v === null || v === '') return false;
+  if (Array.isArray(v) && v.length === 0) return false;
+  return true;
+}
+
+function isOptionSelected(fieldId, type, opt) {
+  const v = answers[fieldId];
+  if (v === undefined || v === null) return false;
+  if (type === 'single') return v === opt;
+  if (Array.isArray(v)) return v.includes(opt);
+  return false;
+}
+
+function updateProgress() {
+  const completed = QUESTIONS.filter(q => isAnswered(q.id)).length;
+  document.getElementById('po-completed').textContent = completed;
+  const pct = (completed / QUESTIONS.length) * 100;
+  document.getElementById('po-bar-fill').style.width = pct + '%';
+}
+
+function showSaved(inputEl) {
+  const wrapper = inputEl.closest('.custom-answer, .tile-expanded-content');
+  if (!wrapper) return;
+  const saved = wrapper.querySelector('.custom-saved');
+  if (!saved) return;
+  saved.classList.add('show');
+  clearTimeout(saved._timer);
+  saved._timer = setTimeout(() => saved.classList.remove('show'), 1200);
+}
+
+// ============== СИНХРОНИЗАЦИЯ С WORKER ==============
+function debouncedSync() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => syncToWorker(false), 400);
+}
+
+async function syncToWorker(completed = false) {
+  if (!sessionId) return;
+  try {
+    // Объединяем answers + customAnswers
+    const combinedAnswers = {};
+    for (const k of Object.keys(answers)) combinedAnswers[k] = answers[k];
+    for (const k of Object.keys(customAnswers)) {
+      if (customAnswers[k]) {
+        combinedAnswers[k + '_custom'] = customAnswers[k];
+      }
+    }
+
+    await fetch(WORKER_URL + '/api/session/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId, currentStep: 1, // в режиме плиток нет «текущего шага»
+        answers: combinedAnswers,
+        completed,
+      }),
+    });
+  } catch (e) {
+    console.warn('Sync failed:', e);
+  }
+}
+
+// ============== POLLING (если клиент сам тоже отвечает) ==============
+function startPolling() {
+  if (pollIntervalId) clearInterval(pollIntervalId);
+  pollIntervalId = setInterval(async () => {
+    try {
+      const r = await fetch(`${WORKER_URL}/api/session/get?id=${encodeURIComponent(sessionId)}`);
+      const data = await r.json();
+      if (!data.ok) return;
+      // Применяем ответы клиента, не затирая локальные правки интервьюера
+      const remoteAnswers = data.session.answers || {};
+      let changed = false;
+      for (const k of Object.keys(remoteAnswers)) {
+        // Если интервьюер уже что-то ввёл — не перезаписываем
+        if (answers[k] !== undefined) continue;
+        if (k.endsWith('_custom')) {
+          const baseKey = k.slice(0, -7);
+          if (!customAnswers[baseKey]) {
+            customAnswers[baseKey] = remoteAnswers[k];
+            changed = true;
+          }
+        } else {
+          answers[k] = remoteAnswers[k];
+          changed = true;
+        }
+      }
+      if (changed) {
+        renderTiles();
+        updateProgress();
+      }
+    } catch (e) { /* silent */ }
+  }, POLL_INTERVAL_MS);
+}
+
+// ============== ФИНАЛИЗАЦИЯ ==============
+document.getElementById('btn-finish').addEventListener('click', async () => {
+  const completed = QUESTIONS.filter(q => isAnswered(q.id)).length;
+  if (completed === 0) {
+    if (!confirm('Нет ни одного ответа. Отправить пустой опрос?')) return;
+  }
+
+  // Финальный sync с completed=true
+  await syncToWorker(true);
+
+  // Шлём в Telegram
+  const text = buildTelegramMessage();
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text }),
+    });
+    showToast('✓ Отправлено в Telegram', 'green');
+  } catch (e) {
+    showToast('Ошибка отправки в Telegram');
+  }
+});
+
+function buildTelegramMessage() {
+  const time = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' });
+  const lines = [
+    `📊 Опрос «Голос рынка» · 🎙 Плитки`,
+    '',
+    `👤 Клиент: ${clientName || '—'}`,
+  ];
+  if (clientPhone) lines.push(`📱 ${clientPhone}`);
+  lines.push(`🆔 Сессия: ${sessionId}`);
+  lines.push('');
+
+  let currentGroup = null;
+  QUESTIONS.forEach(q => {
+    if (q.group !== currentGroup) {
+      lines.push('');
+      lines.push(`── ${q.group.toUpperCase()} ──`);
+      currentGroup = q.group;
+    }
+    if (isAnswered(q.id)) {
+      const v = answers[q.id];
+      let text = Array.isArray(v) ? v.join(', ') : (v || '');
+      if (customAnswers[q.id]) text = (text ? text + ' · 💬 ' : '💬 ') + customAnswers[q.id];
+      lines.push(`▸ ${q.label}: ${text}`);
+    } else {
+      lines.push(`▸ ${q.label}: —`);
+    }
+  });
+
+  lines.push('');
+  lines.push(`🕐 ${time} (Алматы)`);
+  return lines.join('\n');
+}
+
+// ============== ВСПОМОГАТЕЛЬНОЕ ==============
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function showError(msg) {
+  errorEl.textContent = msg;
+  errorEl.classList.add('show');
+}
+function hideError() {
+  errorEl.classList.remove('show');
+}
+
+function showToast(text, color) {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.remove('green');
+  if (color === 'green') t.classList.add('green');
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// Копирование ссылки клиента
+document.getElementById('btn-copy-link').addEventListener('click', () => {
+  if (!sessionId) return;
+  const link = `${SITE_URL}/research.html?session=${sessionId}`;
+  navigator.clipboard.writeText(link).then(() => showToast('Ссылка скопирована', 'green'));
+});
+
+document.getElementById('btn-new-session-tiles').addEventListener('click', () => {
+  if (pollIntervalId) clearInterval(pollIntervalId);
+  sessionId = null;
+  clientName = '';
+  clientPhone = '';
+  Object.keys(answers).forEach(k => delete answers[k]);
+  Object.keys(customAnswers).forEach(k => delete customAnswers[k]);
+  document.getElementById('client-name').value = '';
+  document.getElementById('client-phone').value = '';
+  setupBlock.classList.remove('hidden');
+  tilesBlock.classList.remove('show');
+  document.getElementById('session-display').style.display = 'none';
+});
+
+// Auto-load session if ?id= in URL
+const urlParams = new URLSearchParams(window.location.search);
+const sessionFromUrl = urlParams.get('id') || urlParams.get('session');
+if (sessionFromUrl) {
+  fetch(`${WORKER_URL}/api/session/get?id=${encodeURIComponent(sessionFromUrl)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok && data.session) {
+        sessionId = data.session.id;
+        clientName = data.session.clientName || '';
+        clientPhone = data.session.clientPhone || '';
+        if (data.session.answers) {
+          for (const k of Object.keys(data.session.answers)) {
+            if (k.endsWith('_custom')) {
+              customAnswers[k.slice(0, -7)] = data.session.answers[k];
+            } else {
+              answers[k] = data.session.answers[k];
+            }
+          }
+        }
+        enterTilesMode();
+      }
+    })
+    .catch(() => {});
+}
+</script>
+
+</body>
+</html>
