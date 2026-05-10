@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Вход для команды — Pllato</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="pllato_favicon_64.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --navy: #0a1628;
+  --bronze: #b8895a;
+  --bronze-deep: #8b6740;
+  --bronze-light: #d4a978;
+  --bronze-tint: rgba(184, 137, 90, 0.08);
+  --bronze-tint-2: rgba(184, 137, 90, 0.18);
+  --bg: #fafaf6;
+  --surface: #ffffff;
+  --text: #0f1620;
+  --text-2: #4a5163;
+  --text-3: #8a8d96;
+  --line: #e8e2d4;
+  --line-2: #ede9de;
+  --red: #dc2626;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: var(--sans);
+  background: var(--bg); color: var(--text);
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+.login-container {
+  width: 100%;
+  max-width: 420px;
+}
+.brand-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; margin-bottom: 36px;
+}
+.brand-row img { height: 32px; }
+.brand-row .tag {
+  font-size: 12px; font-weight: 600;
+  color: var(--text-3); padding-left: 14px; border-left: 1px solid var(--line);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 16px;
+  padding: 40px 32px;
+  box-shadow: 0 10px 40px -12px rgba(20, 30, 50, 0.08);
+}
+@media (max-width: 480px) { .login-card { padding: 28px 22px; } }
+
+.login-card h1 {
+  font-size: 24px; font-weight: 800;
+  letter-spacing: -0.025em;
+  margin-bottom: 6px;
+}
+.login-card .subtitle {
+  font-size: 14px; color: var(--text-2);
+  margin-bottom: 28px;
+}
+
+label {
+  display: block;
+  font-size: 12px; font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 6px;
+  margin-top: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+label:first-of-type { margin-top: 0; }
+
+input.field {
+  width: 100%;
+  padding: 13px 16px;
+  font-family: var(--sans);
+  font-size: 15px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  transition: border 0.15s;
+}
+input.field:focus { border-color: var(--bronze); }
+
+.btn {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; padding: 14px 22px; border-radius: 10px;
+  font-weight: 700; font-size: 14.5px;
+  text-decoration: none; border: none; cursor: pointer;
+  transition: all 0.15s; font-family: var(--sans);
+  width: 100%;
+  margin-top: 24px;
+}
+.btn-bronze { background: var(--bronze); color: #fff; }
+.btn-bronze:hover { background: var(--bronze-deep); }
+.btn-bronze:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.error {
+  display: none;
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 13.5px;
+  margin-top: 16px;
+  line-height: 1.5;
+}
+.error.show { display: block; }
+
+.back-link {
+  display: block;
+  text-align: center;
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--text-3);
+  text-decoration: none;
+}
+.back-link:hover { color: var(--bronze-deep); }
+
+.spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="login-container">
+
+  <div class="brand-row">
+    <img src="pllato_logo_transparent_navy.svg" alt="Pllato">
+    <span class="tag">Вход для команды</span>
+  </div>
+
+  <div class="login-card">
+    <h1>Войти в панель</h1>
+    <p class="subtitle">Доступ к инструментам команды Pllato.</p>
+
+    <form id="login-form" autocomplete="on" novalidate>
+      <label for="email">Email</label>
+      <input type="email" class="field" id="email" name="email"
+             placeholder="name@pllato.kz" required autocomplete="email">
+
+      <label for="password">Пароль</label>
+      <input type="password" class="field" id="password" name="password"
+             required autocomplete="current-password" minlength="4">
+
+      <div class="error" id="error-msg"></div>
+
+      <button type="submit" class="btn btn-bronze" id="btn-submit">Войти</button>
+    </form>
+
+    <a href="index.html" class="back-link">← На главную</a>
+  </div>
+
+</div>
+
+<script>
+const WORKER_URL = 'https://pllato-research.uurraa.workers.dev';
+
+const form = document.getElementById('login-form');
+const btnSubmit = document.getElementById('btn-submit');
+const errorEl = document.getElementById('error-msg');
+
+// Проверка существующего токена при загрузке
+const existingToken = localStorage.getItem('pllato_auth_token');
+if (existingToken) {
+  // Проверяем токен молча — если валиден, редиректим в панель
+  fetch(WORKER_URL + '/api/auth/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: existingToken }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        window.location.href = 'app.html';
+      } else {
+        localStorage.removeItem('pllato_auth_token');
+        localStorage.removeItem('pllato_auth_user');
+      }
+    })
+    .catch(() => {});
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  errorEl.classList.remove('show');
+
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+
+  if (!email || !password) {
+    showError('Введите email и пароль');
+    return;
+  }
+
+  btnSubmit.disabled = true;
+  btnSubmit.innerHTML = '<span class="spinner"></span> Проверка...';
+
+  try {
+    const r = await fetch(WORKER_URL + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await r.json();
+
+    if (!data.ok) {
+      showError(data.error === 'Invalid credentials'
+        ? 'Неверный email или пароль'
+        : 'Ошибка: ' + (data.error || 'неизвестная'));
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = 'Войти';
+      return;
+    }
+
+    // Save token + user info
+    localStorage.setItem('pllato_auth_token', data.token);
+    localStorage.setItem('pllato_auth_user', JSON.stringify(data.user));
+
+    // Redirect to app
+    window.location.href = 'app.html';
+  } catch (e) {
+    showError('Ошибка соединения. Проверьте интернет.');
+    btnSubmit.disabled = false;
+    btnSubmit.textContent = 'Войти';
+  }
+});
+
+function showError(msg) {
+  errorEl.textContent = msg;
+  errorEl.classList.add('show');
+}
+</script>
+
+</body>
+</html>

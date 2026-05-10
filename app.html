@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Панель команды — Pllato</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="pllato_favicon_64.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --navy: #0a1628;
+  --bronze: #b8895a;
+  --bronze-deep: #8b6740;
+  --bronze-light: #d4a978;
+  --bronze-tint: rgba(184, 137, 90, 0.08);
+  --bronze-tint-2: rgba(184, 137, 90, 0.18);
+  --bg: #fafaf6;
+  --surface: #ffffff;
+  --surface-2: #f3f0e8;
+  --text: #0f1620;
+  --text-2: #4a5163;
+  --text-3: #8a8d96;
+  --line: #e8e2d4;
+  --line-2: #ede9de;
+  --green: #16a34a;
+  --blue: #2563eb;
+  --purple: #7c3aed;
+  --orange: #ea580c;
+  --pink: #db2777;
+  --teal: #0891b2;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(20, 30, 50, 0.04);
+  --shadow-md: 0 8px 24px -8px rgba(20, 30, 50, 0.08);
+  --shadow-lg: 0 12px 32px -8px rgba(20, 30, 50, 0.12);
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { overflow-x: hidden; }
+body {
+  font-family: var(--sans);
+  background: var(--bg); color: var(--text);
+  line-height: 1.55; -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  padding: 16px 16px 60px;
+}
+.container { max-width: 1200px; margin: 0 auto; }
+
+/* Loading state */
+.loading-screen {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 60vh; flex-direction: column; gap: 14px;
+}
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--line);
+  border-top-color: var(--bronze);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-screen p { color: var(--text-3); font-size: 14px; }
+
+/* Top bar */
+.top-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  margin-bottom: 28px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line-2);
+}
+.brand-row { display: flex; align-items: center; gap: 14px; }
+.logo img { height: 28px; }
+.tag {
+  font-size: 12px; font-weight: 600;
+  color: var(--text-2);
+  padding-left: 14px; border-left: 1px solid var(--line);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+
+.user-block {
+  display: flex; align-items: center; gap: 14px;
+}
+.user-info {
+  text-align: right;
+  font-size: 13px;
+}
+.user-name {
+  font-weight: 700; color: var(--text);
+}
+.user-email {
+  color: var(--text-3); font-size: 11.5px;
+}
+.user-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--bronze), var(--bronze-deep));
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 14px;
+}
+.btn-logout {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  padding: 8px 14px; border-radius: 8px;
+  font-family: var(--sans);
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-logout:hover {
+  border-color: var(--text-3);
+  color: var(--text);
+}
+
+/* Welcome */
+.welcome {
+  margin-bottom: 32px;
+}
+.welcome h1 {
+  font-size: 32px; font-weight: 800;
+  letter-spacing: -0.025em;
+  margin-bottom: 6px;
+}
+.welcome p {
+  font-size: 15px; color: var(--text-2);
+}
+
+/* Section title */
+.section-title {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--text-3);
+  margin: 28px 0 14px;
+}
+
+/* Tools grid */
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.tool-card {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  padding: 22px 22px 20px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.18s;
+  display: flex; flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+.tool-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--bronze-tint-2);
+  box-shadow: var(--shadow-md);
+}
+.tool-card.disabled {
+  opacity: 0.55; cursor: not-allowed;
+}
+.tool-card.disabled:hover {
+  transform: none; box-shadow: var(--shadow-sm);
+}
+
+.tool-icon {
+  width: 44px; height: 44px;
+  border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+.tool-icon svg { width: 22px; height: 22px; stroke-width: 2; }
+
+.tool-icon.color-bronze { background: var(--bronze-tint); color: var(--bronze-deep); }
+.tool-icon.color-blue   { background: rgba(37, 99, 235, 0.1); color: var(--blue); }
+.tool-icon.color-green  { background: rgba(22, 163, 74, 0.1); color: var(--green); }
+.tool-icon.color-purple { background: rgba(124, 58, 237, 0.1); color: var(--purple); }
+.tool-icon.color-orange { background: rgba(234, 88, 12, 0.1); color: var(--orange); }
+.tool-icon.color-pink   { background: rgba(219, 39, 119, 0.1); color: var(--pink); }
+.tool-icon.color-teal   { background: rgba(8, 145, 178, 0.1); color: var(--teal); }
+
+.tool-card h3 {
+  font-size: 17px; font-weight: 800;
+  letter-spacing: -0.015em;
+  margin-bottom: 6px;
+  line-height: 1.25;
+}
+.tool-card p {
+  font-size: 13.5px; color: var(--text-2);
+  line-height: 1.5;
+  margin-bottom: 12px;
+  flex: 1;
+}
+.tool-cta {
+  font-size: 12.5px; font-weight: 700;
+  color: var(--bronze-deep);
+  display: flex; align-items: center; gap: 6px;
+  margin-top: auto;
+}
+.tool-card.disabled .tool-cta {
+  color: var(--text-3);
+}
+
+.tool-badge {
+  position: absolute;
+  top: 14px; right: 14px;
+  font-size: 9px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 3px 8px; border-radius: 100px;
+}
+.tool-badge.coming { background: var(--surface-2); color: var(--text-3); }
+.tool-badge.new { background: var(--green); color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Loading state shown initially -->
+  <div class="loading-screen" id="loading">
+    <div class="spinner"></div>
+    <p>Проверка доступа...</p>
+  </div>
+
+  <!-- Main content (hidden until auth verified) -->
+  <div id="main-content" style="display:none;">
+
+    <div class="top-bar">
+      <div class="brand-row">
+        <a href="app.html" style="text-decoration:none;"><img src="pllato_logo_transparent_navy.svg" alt="Pllato" style="height:28px; display:block;"></a>
+        <span class="tag">Панель команды</span>
+      </div>
+
+      <div class="user-block">
+        <div class="user-info">
+          <div class="user-name" id="user-name-display">—</div>
+          <div class="user-email" id="user-email-display">—</div>
+        </div>
+        <div class="user-avatar" id="user-avatar">—</div>
+        <button class="btn-logout" id="btn-logout">Выйти</button>
+      </div>
+    </div>
+
+    <div class="welcome">
+      <h1 id="welcome-text">С возвращением!</h1>
+      <p>Все инструменты для работы команды Pllato в одном месте.</p>
+    </div>
+
+    <!-- РАБОТА С КЛИЕНТАМИ -->
+    <div class="section-title">Работа с клиентами</div>
+    <div class="tools-grid">
+
+      <a href="team.html" class="tool-card">
+        <div class="tool-icon color-bronze">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 8h18M3 16h18M9 4v16M15 4v16"/></svg>
+        </div>
+        <h3>CRM Команды</h3>
+        <p>База клиентов, сделки, воронка продаж. Управление пользователями.</p>
+        <span class="tool-cta">Открыть →</span>
+      </a>
+
+      <a href="interview-tiles.html" class="tool-card">
+        <div class="tool-icon color-purple">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <h3>Опросы клиентов</h3>
+        <p>Голос рынка — структурированные интервью с предпринимателями. Режим плиток.</p>
+        <span class="tool-cta">Запустить опрос →</span>
+        <span class="tool-badge new">Новое</span>
+      </a>
+
+      <a href="#" class="tool-card disabled" id="tool-chat">
+        <div class="tool-icon color-blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <h3>Командный чат</h3>
+        <p>Внутренний чат для команды. Telegram-группа со всеми уведомлениями.</p>
+        <span class="tool-cta">Скоро</span>
+        <span class="tool-badge coming">В работе</span>
+      </a>
+
+      <a href="#" class="tool-card disabled" id="tool-tasks">
+        <div class="tool-icon color-green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+        <h3>Задачи</h3>
+        <p>Канбан задач команды. Распределение работ, дедлайны, статусы.</p>
+        <span class="tool-cta">Скоро</span>
+        <span class="tool-badge coming">В работе</span>
+      </a>
+
+    </div>
+
+    <!-- ИНСТРУМЕНТЫ ДЛЯ ПРОДАЖ -->
+    <div class="section-title">Инструменты для продаж</div>
+    <div class="tools-grid">
+
+      <a href="crm-builder.html" class="tool-card">
+        <div class="tool-icon color-orange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </div>
+        <h3>Конструктор CRM</h3>
+        <p>Визуальный конструктор схемы CRM для клиента. Показ на встречах.</p>
+        <span class="tool-cta">Открыть →</span>
+      </a>
+
+      <a href="#" class="tool-card disabled" id="tool-bitrix">
+        <div class="tool-icon color-pink">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        </div>
+        <h3>Мигратор Bitrix</h3>
+        <p>Анализ существующей CRM Bitrix24 клиента. Выявление точек миграции.</p>
+        <span class="tool-cta">Скоро</span>
+        <span class="tool-badge coming">В работе</span>
+      </a>
+
+      <a href="research.html" class="tool-card" target="_blank">
+        <div class="tool-icon color-teal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="M18 17l-5-5-4 4-3-3"/></svg>
+        </div>
+        <h3>Исследование рынка</h3>
+        <p>Публичная страница «Голос рынка» — для отправки клиентам и сбора данных.</p>
+        <span class="tool-cta">Открыть →</span>
+      </a>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+const WORKER_URL = 'https://pllato-research.uurraa.workers.dev';
+
+const token = localStorage.getItem('pllato_auth_token');
+const userJson = localStorage.getItem('pllato_auth_user');
+
+if (!token) {
+  // No token — redirect to login
+  window.location.href = 'login.html';
+} else {
+  // Verify token
+  fetch(WORKER_URL + '/api/auth/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) {
+        // Token invalid or expired
+        localStorage.removeItem('pllato_auth_token');
+        localStorage.removeItem('pllato_auth_user');
+        window.location.href = 'login.html';
+        return;
+      }
+      showApp(data.user);
+    })
+    .catch(() => {
+      // Network error — try to use cached user info
+      if (userJson) {
+        try {
+          showApp(JSON.parse(userJson));
+        } catch (e) {
+          window.location.href = 'login.html';
+        }
+      } else {
+        window.location.href = 'login.html';
+      }
+    });
+}
+
+function showApp(user) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('main-content').style.display = 'block';
+
+  // Welcome message
+  const firstName = (user.name || '').split(' ')[0] || 'друг';
+  const hour = new Date().getHours();
+  let greeting = 'С возвращением';
+  if (hour < 12) greeting = 'Доброе утро';
+  else if (hour < 18) greeting = 'Добрый день';
+  else greeting = 'Добрый вечер';
+  document.getElementById('welcome-text').textContent = `${greeting}, ${firstName}!`;
+
+  // User info
+  document.getElementById('user-name-display').textContent = user.name || '—';
+  document.getElementById('user-email-display').textContent = user.email || '—';
+
+  // Avatar — initials
+  const initials = (user.name || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+  document.getElementById('user-avatar').textContent = initials;
+
+  // Update cached user info
+  localStorage.setItem('pllato_auth_user', JSON.stringify(user));
+}
+
+// Logout
+document.getElementById('btn-logout').addEventListener('click', async () => {
+  const t = localStorage.getItem('pllato_auth_token');
+  if (t) {
+    try {
+      await fetch(WORKER_URL + '/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: t }),
+      });
+    } catch (e) {}
+  }
+  localStorage.removeItem('pllato_auth_token');
+  localStorage.removeItem('pllato_auth_user');
+  window.location.href = 'login.html';
+});
+
+// Disabled tools — show toast
+document.querySelectorAll('.tool-card.disabled').forEach(card => {
+  card.addEventListener('click', (e) => {
+    e.preventDefault();
+    alert('Этот инструмент в разработке. Скоро будет доступен.');
+  });
+});
+</script>
+
+</body>
+</html>
