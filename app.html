@@ -32,6 +32,7 @@
   --orange: #ea580c;
   --pink: #db2777;
   --teal: #0891b2;
+  --indigo: #4f46e5;
   --r-md: 10px;
   --r-lg: 16px;
   --shadow-sm: 0 1px 2px rgba(20, 30, 50, 0.04);
@@ -102,6 +103,10 @@ body {
   color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-weight: 800; font-size: 14px;
+  overflow: hidden;
+}
+.user-avatar img {
+  width: 100%; height: 100%; object-fit: cover;
 }
 .btn-logout {
   background: transparent;
@@ -186,6 +191,7 @@ body {
 .tool-icon.color-orange { background: rgba(234, 88, 12, 0.1); color: var(--orange); }
 .tool-icon.color-pink   { background: rgba(219, 39, 119, 0.1); color: var(--pink); }
 .tool-icon.color-teal   { background: rgba(8, 145, 178, 0.1); color: var(--teal); }
+.tool-icon.color-indigo { background: rgba(79, 70, 229, 0.1); color: var(--indigo); }
 
 .tool-card h3 {
   font-size: 17px; font-weight: 800;
@@ -218,6 +224,7 @@ body {
 }
 .tool-badge.coming { background: var(--surface-2); color: var(--text-3); }
 .tool-badge.new { background: var(--green); color: #fff; }
+.tool-badge.external { background: var(--indigo); color: #fff; }
 </style>
 </head>
 <body>
@@ -262,9 +269,10 @@ body {
         <div class="tool-icon color-bronze">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 8h18M3 16h18M9 4v16M15 4v16"/></svg>
         </div>
-        <h3>CRM Команды</h3>
-        <p>База клиентов, сделки, воронка продаж. Управление пользователями.</p>
-        <span class="tool-cta">Открыть →</span>
+        <h3>CRM Команды (ELC)</h3>
+        <p>База клиентов, сделки, воронка продаж, чаты, задачи. Внутренний портал ELC.</p>
+        <span class="tool-cta">Открыть CRM →</span>
+        <span class="tool-badge external">CRM</span>
       </a>
 
       <a href="interview-tiles.html" class="tool-card">
@@ -277,7 +285,7 @@ body {
         <span class="tool-badge new">Новое</span>
       </a>
 
-      <a href="#" class="tool-card disabled" id="tool-chat">
+      <a href="#" class="tool-card disabled" data-coming="Командный чат">
         <div class="tool-icon color-blue">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
@@ -287,7 +295,7 @@ body {
         <span class="tool-badge coming">В работе</span>
       </a>
 
-      <a href="#" class="tool-card disabled" id="tool-tasks">
+      <a href="#" class="tool-card disabled" data-coming="Задачи">
         <div class="tool-icon color-green">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         </div>
@@ -312,7 +320,7 @@ body {
         <span class="tool-cta">Открыть →</span>
       </a>
 
-      <a href="#" class="tool-card disabled" id="tool-bitrix">
+      <a href="#" class="tool-card disabled" data-coming="Мигратор Bitrix">
         <div class="tool-icon color-pink">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
         </div>
@@ -338,44 +346,58 @@ body {
 </div>
 
 <script>
-const WORKER_URL = 'https://pllato-research.uurraa.workers.dev';
+const TOKEN_TTL_MS = 7 * 86400 * 1000; // 7 дней
 
-const token = localStorage.getItem('pllato_auth_token');
-const userJson = localStorage.getItem('pllato_auth_user');
+// Проверяем авторизацию
+async function checkAuth() {
+  const token = localStorage.getItem('pllato_google_token');
+  const userJson = localStorage.getItem('pllato_user');
 
-if (!token) {
-  // No token — redirect to login
-  window.location.href = 'login.html';
-} else {
-  // Verify token
-  fetch(WORKER_URL + '/api/auth/verify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
-  })
-    .then(r => r.json())
-    .then(data => {
-      if (!data.ok) {
-        // Token invalid or expired
-        localStorage.removeItem('pllato_auth_token');
-        localStorage.removeItem('pllato_auth_user');
-        window.location.href = 'login.html';
+  if (!token || !userJson) {
+    redirectToLogin();
+    return;
+  }
+
+  let user;
+  try {
+    user = JSON.parse(userJson);
+  } catch (e) {
+    redirectToLogin();
+    return;
+  }
+
+  // Проверяем что токен не старше TTL
+  if (!user.loginAt || Date.now() - user.loginAt > TOKEN_TTL_MS) {
+    redirectToLogin();
+    return;
+  }
+
+  // Проверяем что email всё ещё в whitelist
+  // (на случай если человека убрали из команды пока сессия активна)
+  try {
+    const r = await fetch('team-members.json?t=' + Date.now());
+    if (r.ok) {
+      const data = await r.json();
+      const allowed = (data.allowedEmails || []).map(e => e.toLowerCase().trim());
+      const userEmail = (user.email || '').toLowerCase().trim();
+      if (!allowed.includes(userEmail)) {
+        // Email больше не в списке — выкидываем
+        alert('Ваш доступ был отозван. Обратитесь к администратору.');
+        localStorage.removeItem('pllato_google_token');
+        localStorage.removeItem('pllato_user');
+        redirectToLogin();
         return;
       }
-      showApp(data.user);
-    })
-    .catch(() => {
-      // Network error — try to use cached user info
-      if (userJson) {
-        try {
-          showApp(JSON.parse(userJson));
-        } catch (e) {
-          window.location.href = 'login.html';
-        }
-      } else {
-        window.location.href = 'login.html';
-      }
-    });
+    }
+  } catch (e) {
+    // Если не смогли проверить — пускаем (проверим в следующий раз)
+  }
+
+  showApp(user);
+}
+
+function redirectToLogin() {
+  window.location.href = 'login.html';
 }
 
 function showApp(user) {
@@ -395,38 +417,38 @@ function showApp(user) {
   document.getElementById('user-name-display').textContent = user.name || '—';
   document.getElementById('user-email-display').textContent = user.email || '—';
 
-  // Avatar — initials
-  const initials = (user.name || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
-  document.getElementById('user-avatar').textContent = initials;
-
-  // Update cached user info
-  localStorage.setItem('pllato_auth_user', JSON.stringify(user));
+  // Avatar — picture from Google or initials
+  const avatarEl = document.getElementById('user-avatar');
+  if (user.picture) {
+    avatarEl.innerHTML = `<img src="${user.picture}" alt="${user.name || ''}" referrerpolicy="no-referrer">`;
+  } else {
+    const initials = (user.name || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+    avatarEl.textContent = initials;
+  }
 }
 
 // Logout
-document.getElementById('btn-logout').addEventListener('click', async () => {
-  const t = localStorage.getItem('pllato_auth_token');
-  if (t) {
-    try {
-      await fetch(WORKER_URL + '/api/auth/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: t }),
-      });
-    } catch (e) {}
+document.getElementById('btn-logout').addEventListener('click', () => {
+  localStorage.removeItem('pllato_google_token');
+  localStorage.removeItem('pllato_user');
+  // Также отзываем Google session
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+    try { google.accounts.id.disableAutoSelect(); } catch (e) {}
   }
-  localStorage.removeItem('pllato_auth_token');
-  localStorage.removeItem('pllato_auth_user');
   window.location.href = 'login.html';
 });
 
-// Disabled tools — show toast
+// Disabled tools — show alert
 document.querySelectorAll('.tool-card.disabled').forEach(card => {
   card.addEventListener('click', (e) => {
     e.preventDefault();
-    alert('Этот инструмент в разработке. Скоро будет доступен.');
+    const name = card.dataset.coming || 'Этот инструмент';
+    alert(name + ' в разработке. Скоро будет доступен.');
   });
 });
+
+// Запускаем проверку авторизации
+checkAuth();
 </script>
 
 </body>

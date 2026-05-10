@@ -15,9 +15,7 @@
   --navy: #0a1628;
   --bronze: #b8895a;
   --bronze-deep: #8b6740;
-  --bronze-light: #d4a978;
   --bronze-tint: rgba(184, 137, 90, 0.08);
-  --bronze-tint-2: rgba(184, 137, 90, 0.18);
   --bg: #fafaf6;
   --surface: #ffffff;
   --text: #0f1620;
@@ -26,6 +24,7 @@
   --line: #e8e2d4;
   --line-2: #ede9de;
   --red: #dc2626;
+  --green: #16a34a;
   --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -39,7 +38,7 @@ body {
 }
 .login-container {
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
 }
 .brand-row {
   display: flex; align-items: center; justify-content: center;
@@ -56,58 +55,54 @@ body {
   background: var(--surface);
   border: 1px solid var(--line-2);
   border-radius: 16px;
-  padding: 40px 32px;
+  padding: 40px 32px 32px;
   box-shadow: 0 10px 40px -12px rgba(20, 30, 50, 0.08);
+  text-align: center;
 }
 @media (max-width: 480px) { .login-card { padding: 28px 22px; } }
 
 .login-card h1 {
   font-size: 24px; font-weight: 800;
   letter-spacing: -0.025em;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .login-card .subtitle {
   font-size: 14px; color: var(--text-2);
-  margin-bottom: 28px;
+  margin-bottom: 32px;
+  line-height: 1.5;
 }
 
-label {
-  display: block;
-  font-size: 12px; font-weight: 600;
-  color: var(--text-2);
-  margin-bottom: 6px;
-  margin-top: 16px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-label:first-of-type { margin-top: 0; }
-
-input.field {
+#google-signin-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 12px;
   width: 100%;
-  padding: 13px 16px;
-  font-family: var(--sans);
-  font-size: 15px;
+  padding: 14px 22px;
+  background: var(--surface);
   border: 1.5px solid var(--line);
   border-radius: 10px;
-  background: var(--surface);
   color: var(--text);
-  outline: none;
-  transition: border 0.15s;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 8px;
 }
-input.field:focus { border-color: var(--bronze); }
+#google-signin-btn:hover {
+  border-color: var(--bronze);
+  background: var(--bronze-tint);
+}
+#google-signin-btn:disabled {
+  opacity: 0.5; cursor: not-allowed;
+}
+.google-icon { width: 20px; height: 20px; flex-shrink: 0; }
 
-.btn {
-  display: flex; align-items: center; justify-content: center;
-  gap: 8px; padding: 14px 22px; border-radius: 10px;
-  font-weight: 700; font-size: 14.5px;
-  text-decoration: none; border: none; cursor: pointer;
-  transition: all 0.15s; font-family: var(--sans);
-  width: 100%;
-  margin-top: 24px;
+.note {
+  margin-top: 20px;
+  font-size: 12.5px;
+  color: var(--text-3);
+  line-height: 1.6;
 }
-.btn-bronze { background: var(--bronze); color: #fff; }
-.btn-bronze:hover { background: var(--bronze-deep); }
-.btn-bronze:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .error {
   display: none;
@@ -115,32 +110,42 @@ input.field:focus { border-color: var(--bronze); }
   color: #991b1b;
   border: 1px solid #fecaca;
   border-radius: 10px;
-  padding: 11px 14px;
+  padding: 12px 16px;
   font-size: 13.5px;
-  margin-top: 16px;
+  margin-bottom: 20px;
   line-height: 1.5;
+  text-align: left;
 }
 .error.show { display: block; }
+.error strong { display: block; margin-bottom: 4px; font-size: 13px; }
+
+.loading {
+  display: none;
+  margin-bottom: 16px;
+  font-size: 13.5px; color: var(--text-2);
+}
+.loading.show { display: block; }
+.spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid var(--line);
+  border-top-color: var(--bronze);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .back-link {
   display: block;
   text-align: center;
-  margin-top: 20px;
+  margin-top: 24px;
   font-size: 13px;
   color: var(--text-3);
   text-decoration: none;
 }
 .back-link:hover { color: var(--bronze-deep); }
-
-.spinner {
-  display: inline-block;
-  width: 14px; height: 14px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -154,21 +159,25 @@ input.field:focus { border-color: var(--bronze); }
 
   <div class="login-card">
     <h1>Войти в панель</h1>
-    <p class="subtitle">Доступ к инструментам команды Pllato.</p>
+    <p class="subtitle">Используйте Google-аккаунт, выданный вам для работы.</p>
 
-    <form id="login-form" autocomplete="on" novalidate>
-      <label for="email">Email</label>
-      <input type="email" class="field" id="email" name="email"
-             placeholder="name@pllato.kz" required autocomplete="email">
+    <div class="error" id="error-msg"></div>
+    <div class="loading" id="loading-msg"><span class="spinner"></span>Проверяем доступ...</div>
 
-      <label for="password">Пароль</label>
-      <input type="password" class="field" id="password" name="password"
-             required autocomplete="current-password" minlength="4">
+    <button id="google-signin-btn">
+      <svg class="google-icon" viewBox="0 0 48 48">
+        <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34.4 5.8 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.2-2.6-.4-3.9z"/>
+        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34.4 5.8 29.4 4 24 4c-7.7 0-14.4 4.4-17.7 10.7z"/>
+        <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3c-2.1 1.4-4.6 2.5-7.3 2.5-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+        <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.6l6.3 5.3C41.4 35.5 44 30.2 44 24c0-1.3-.2-2.6-.4-3.9z"/>
+      </svg>
+      <span id="google-btn-text">Войти через Google</span>
+    </button>
 
-      <div class="error" id="error-msg"></div>
-
-      <button type="submit" class="btn btn-bronze" id="btn-submit">Войти</button>
-    </form>
+    <div class="note">
+      Доступ только для членов команды Pllato.<br>
+      Если ваш email не в списке — обратитесь к администратору.
+    </div>
 
     <a href="index.html" class="back-link">← На главную</a>
   </div>
@@ -176,82 +185,191 @@ input.field:focus { border-color: var(--bronze); }
 </div>
 
 <script>
-const WORKER_URL = 'https://pllato-research.uurraa.workers.dev';
+// ============== КОНФИГУРАЦИЯ ==============
+// Google OAuth Client ID — Web application credentials
+// (создаётся в Google Cloud Console, см. SETUP_GOOGLE_OAUTH.md)
+const GOOGLE_CLIENT_ID = 'REPLACE_WITH_YOUR_GOOGLE_CLIENT_ID';
 
-const form = document.getElementById('login-form');
-const btnSubmit = document.getElementById('btn-submit');
+// Whitelist разрешённых emails — берётся из team-members.json
+let ALLOWED_EMAILS = [];
+
+// ============== STATE ==============
 const errorEl = document.getElementById('error-msg');
+const loadingEl = document.getElementById('loading-msg');
+const btn = document.getElementById('google-signin-btn');
+const btnText = document.getElementById('google-btn-text');
 
-// Проверка существующего токена при загрузке
-const existingToken = localStorage.getItem('pllato_auth_token');
-if (existingToken) {
-  // Проверяем токен молча — если валиден, редиректим в панель
-  fetch(WORKER_URL + '/api/auth/verify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: existingToken }),
-  })
-    .then(r => r.json())
-    .then(data => {
-      if (data.ok) {
-        window.location.href = 'app.html';
-      } else {
-        localStorage.removeItem('pllato_auth_token');
-        localStorage.removeItem('pllato_auth_user');
-      }
-    })
-    .catch(() => {});
+// ============== AUTH HANDLER ==============
+function showError(title, detail) {
+  errorEl.innerHTML = `<strong>${title}</strong>${detail || ''}`;
+  errorEl.classList.add('show');
+  loadingEl.classList.remove('show');
 }
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
+function hideError() {
   errorEl.classList.remove('show');
+}
 
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
+function showLoading() {
+  hideError();
+  loadingEl.classList.add('show');
+  btn.disabled = true;
+}
 
-  if (!email || !password) {
-    showError('Введите email и пароль');
+function hideLoading() {
+  loadingEl.classList.remove('show');
+  btn.disabled = false;
+}
+
+// Декодируем JWT (только base64-decode payload — без проверки подписи на клиенте)
+function decodeJwtPayload(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
+
+// Колбэк после успешного Google Sign-In
+window.handleGoogleCredential = function(response) {
+  showLoading();
+
+  const payload = decodeJwtPayload(response.credential);
+  if (!payload || !payload.email) {
+    showError('Ошибка', 'Не удалось получить email из Google. Попробуйте ещё раз.');
     return;
   }
 
-  btnSubmit.disabled = true;
-  btnSubmit.innerHTML = '<span class="spinner"></span> Проверка...';
+  const email = payload.email.toLowerCase().trim();
+  const emailVerified = payload.email_verified;
 
-  try {
-    const r = await fetch(WORKER_URL + '/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await r.json();
-
-    if (!data.ok) {
-      showError(data.error === 'Invalid credentials'
-        ? 'Неверный email или пароль'
-        : 'Ошибка: ' + (data.error || 'неизвестная'));
-      btnSubmit.disabled = false;
-      btnSubmit.textContent = 'Войти';
-      return;
-    }
-
-    // Save token + user info
-    localStorage.setItem('pllato_auth_token', data.token);
-    localStorage.setItem('pllato_auth_user', JSON.stringify(data.user));
-
-    // Redirect to app
-    window.location.href = 'app.html';
-  } catch (e) {
-    showError('Ошибка соединения. Проверьте интернет.');
-    btnSubmit.disabled = false;
-    btnSubmit.textContent = 'Войти';
+  if (!emailVerified) {
+    showError('Email не подтверждён', 'Используйте подтверждённый Google-аккаунт.');
+    return;
   }
-});
 
-function showError(msg) {
-  errorEl.textContent = msg;
-  errorEl.classList.add('show');
+  // Проверяем whitelist
+  if (!ALLOWED_EMAILS.includes(email)) {
+    showError(
+      'Доступ запрещён',
+      `Ваш email <code>${email}</code> не в списке разрешённых.<br>Обратитесь к администратору, чтобы вас добавили.`
+    );
+    return;
+  }
+
+  // Сохраняем токен и данные пользователя
+  const userData = {
+    email: payload.email,
+    name: payload.name || payload.email.split('@')[0],
+    picture: payload.picture || '',
+    sub: payload.sub, // уникальный Google ID
+    loginAt: Date.now(),
+  };
+
+  localStorage.setItem('pllato_google_token', response.credential);
+  localStorage.setItem('pllato_user', JSON.stringify(userData));
+
+  // Редиректим в панель
+  window.location.href = 'app.html';
+};
+
+// ============== ИНИЦИАЛИЗАЦИЯ ==============
+async function init() {
+  // Если уже залогинен — сразу редиректим
+  const existingToken = localStorage.getItem('pllato_google_token');
+  const existingUser = localStorage.getItem('pllato_user');
+  if (existingToken && existingUser) {
+    try {
+      const user = JSON.parse(existingUser);
+      // Проверяем что токен не старше 7 дней
+      if (user.loginAt && Date.now() - user.loginAt < 7 * 86400 * 1000) {
+        window.location.href = 'app.html';
+        return;
+      }
+    } catch (e) {}
+  }
+
+  // Загружаем whitelist
+  try {
+    const r = await fetch('team-members.json?t=' + Date.now());
+    if (!r.ok) throw new Error('Не удалось загрузить список доступа');
+    const data = await r.json();
+    ALLOWED_EMAILS = (data.allowedEmails || []).map(e => e.toLowerCase().trim());
+  } catch (e) {
+    showError('Ошибка конфигурации', 'Не удалось загрузить список доступа. Свяжитесь с администратором.');
+    btn.disabled = true;
+    return;
+  }
+
+  if (GOOGLE_CLIENT_ID === 'REPLACE_WITH_YOUR_GOOGLE_CLIENT_ID') {
+    showError(
+      'Настройка не завершена',
+      'Google Client ID не подставлен в код. Откройте файл инструкции SETUP_GOOGLE_OAUTH.md.'
+    );
+    btn.disabled = true;
+    return;
+  }
+
+  // Инициализируем Google Identity Services
+  if (typeof google === 'undefined' || !google.accounts) {
+    showError('Ошибка', 'Google Identity Services не загрузились. Проверьте интернет.');
+    return;
+  }
+
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleCredential,
+    auto_select: false,
+    cancel_on_tap_outside: true,
+  });
+
+  btn.addEventListener('click', () => {
+    hideError();
+    google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        // Если One Tap не показался — открываем popup-режим
+        // Создаём временный div для рендера кнопки и сразу её "нажимаем"
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'fixed';
+        tempDiv.style.opacity = '0';
+        tempDiv.style.pointerEvents = 'none';
+        document.body.appendChild(tempDiv);
+        google.accounts.id.renderButton(tempDiv, {
+          type: 'standard',
+          theme: 'outline',
+          size: 'large',
+          click_listener: () => {},
+        });
+        // Симулируем клик через небольшую задержку
+        setTimeout(() => {
+          const innerBtn = tempDiv.querySelector('div[role="button"]');
+          if (innerBtn) innerBtn.click();
+        }, 100);
+        // Убираем temp-div через несколько секунд
+        setTimeout(() => tempDiv.remove(), 5000);
+      }
+    });
+  });
 }
+
+// Загружаем Google скрипт
+const script = document.createElement('script');
+script.src = 'https://accounts.google.com/gsi/client';
+script.async = true;
+script.defer = true;
+script.onload = init;
+script.onerror = () => {
+  showError('Ошибка загрузки', 'Не удалось загрузить Google авторизацию. Проверьте подключение.');
+};
+document.head.appendChild(script);
 </script>
 
 </body>
