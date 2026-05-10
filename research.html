@@ -311,6 +311,41 @@ a { color: inherit; }
   color: var(--bronze); font-weight: 800; margin-left: 8px;
 }
 
+/* Rich choice cards (with description) */
+.choices-rich { gap: 10px; }
+.choice-rich {
+  padding: 16px 18px;
+}
+.choice-rich b {
+  display: block; font-size: 15px; font-weight: 700;
+  letter-spacing: -0.01em; margin-bottom: 4px;
+  color: var(--text);
+}
+.choice-rich small {
+  display: block; font-size: 13px;
+  font-weight: 400; line-height: 1.5;
+  color: var(--text-2);
+}
+.choice-rich.selected b { color: var(--bronze-deep); }
+.choice-rich.selected small { color: var(--text); }
+.choice-rich.selected::after {
+  position: absolute; right: 18px; top: 16px; float: none;
+  margin: 0;
+}
+.choice-rich { position: relative; padding-right: 40px; }
+
+/* Survey group label */
+.survey-group-label {
+  display: inline-block;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--bronze-deep);
+  background: var(--bronze-tint);
+  padding: 4px 10px; border-radius: 100px;
+  margin-bottom: 16px;
+}
+.survey-group-label:empty { display: none; }
+
 /* Text input */
 .survey-input,
 .survey-textarea {
@@ -455,7 +490,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <h1>Как казахстанский бизнес <em>ведёт операционку.</em></h1>
     <p class="lead">Открытое исследование: опрашиваем владельцев и операционных директоров компаний в Алматы и СНГ. Что работает, что мешает, на чём теряются деньги. Все результаты — публичные, обезличенные.</p>
     <div class="actions">
-      <a href="#take-survey" class="btn btn-bronze btn-lg">Пройти опрос · 5 минут</a>
+      <a href="#take-survey" class="btn btn-bronze btn-lg">Пройти опрос · 10 минут</a>
       <a href="#findings" class="btn btn-ghost btn-lg">Что узнали</a>
     </div>
   </div>
@@ -474,7 +509,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="stat-label">Ниш в исследовании</div>
   </div>
   <div class="stat-block">
-    <div class="stat-num">5 мин</div>
+    <div class="stat-num">10 мин</div>
     <div class="stat-label">Среднее время прохождения</div>
   </div>
   <div class="stat-block">
@@ -566,10 +601,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- Survey -->
 <section class="section" id="take-survey">
   <div class="wrap">
+    <div id="session-badge" style="display:none; max-width:760px; margin:0 auto 20px; padding:14px 20px; background:#fef9f0; border:1px solid #f7d9aa; border-radius:12px; text-align:center;">
+      <div style="font-size:13px; color:#8b6740; font-weight:600;">
+        🎙 Совместный опрос с интервьюером
+      </div>
+      <div style="font-size:12.5px; color:#a07b56; margin-top:4px;">
+        Ваши ответы видит интервьюер в реальном времени и сможет прокомментировать в разговоре.
+      </div>
+    </div>
     <div class="section-head">
       <span class="eyebrow">Принять участие</span>
-      <h2>Ответьте на <em class="b">7 вопросов.</em></h2>
-      <p>5 минут вашего времени. Анонимно. Контакт — только если сами захотите.</p>
+      <h2>Ответьте на <em class="b">15 вопросов.</em></h2>
+      <p>10 минут — и вы получите доступ к итогам исследования. Анонимно. Без рассылок и продаж.</p>
     </div>
 
     <div style="text-align: center;">
@@ -583,19 +626,163 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="survey-card">
 
       <!-- Progress -->
-      <div class="survey-progress" id="survey-progress">
-        <div class="pdot current"></div>
-        <div class="pdot"></div>
-        <div class="pdot"></div>
-        <div class="pdot"></div>
-        <div class="pdot"></div>
-        <div class="pdot"></div>
-        <div class="pdot"></div>
+      <div class="survey-progress" id="survey-progress"></div>
+
+      <!-- Group label -->
+      <div class="survey-group-label" id="survey-group-label"></div>
+
+      <!-- Step 1: Where would search -->
+      <div class="survey-step active" data-step="1" data-group="Осознание">
+        <div class="survey-step-num">Вопрос 1 из 15</div>
+        <h3 class="survey-question">Если бы вы решили внедрить CRM — где бы вы её искали?</h3>
+        <p class="survey-hint">Откуда чаще всего узнаёте о новых инструментах для бизнеса?</p>
+        <div class="choices grid-2" data-field="search_channel" data-type="multi">
+          <label class="choice"><input type="checkbox" name="search_channel" value="Google / поиск"> Google / поисковик</label>
+          <label class="choice"><input type="checkbox" name="search_channel" value="Рекомендация коллег"> По рекомендации коллег</label>
+          <label class="choice"><input type="checkbox" name="search_channel" value="Instagram / соцсети"> Instagram / соцсети</label>
+          <label class="choice"><input type="checkbox" name="search_channel" value="YouTube"> YouTube-обзоры</label>
+          <label class="choice"><input type="checkbox" name="search_channel" value="Telegram-каналы"> Telegram-каналы</label>
+          <label class="choice"><input type="checkbox" name="search_channel" value="Бизнес-форумы"> Бизнес-форумы / клубы</label>
+          <label class="choice"><input type="checkbox" name="search_channel" value="Реклама"> Платная реклама</label>
+          <label class="choice"><input type="checkbox" name="search_channel" value="Не знаю"> Честно — не знаю с чего начать</label>
+        </div>
       </div>
 
-      <!-- Step 1: Industry -->
-      <div class="survey-step active" data-step="1">
-        <div class="survey-step-num">Вопрос 1 из 7</div>
+      <!-- Step 2: Most important function -->
+      <div class="survey-step" data-step="2" data-group="Осознание">
+        <div class="survey-step-num">Вопрос 2 из 15</div>
+        <h3 class="survey-question">Что в CRM для вас самое важное?</h3>
+        <p class="survey-hint">Если бы могли оставить только одну функцию — какую?</p>
+        <div class="choices" data-field="key_function" data-type="single">
+          <label class="choice"><input type="radio" name="key_function" value="База клиентов"> База клиентов с историей</label>
+          <label class="choice"><input type="radio" name="key_function" value="Воронка продаж"> Воронка продаж и Канбан</label>
+          <label class="choice"><input type="radio" name="key_function" value="Задачи и напоминания"> Задачи и автоматические напоминания</label>
+          <label class="choice"><input type="radio" name="key_function" value="Аналитика"> Аналитика и отчёты для собственника</label>
+          <label class="choice"><input type="radio" name="key_function" value="Интеграция с мессенджерами"> Интеграция с WhatsApp / Telegram</label>
+          <label class="choice"><input type="radio" name="key_function" value="Контроль менеджеров"> Контроль работы менеджеров</label>
+          <label class="choice"><input type="radio" name="key_function" value="Финансы и оплаты"> Учёт финансов и оплат</label>
+          <label class="choice"><input type="radio" name="key_function" value="Сложно сказать"> Сложно сказать — не пользовался</label>
+        </div>
+      </div>
+
+      <!-- Step 3: Using everything? -->
+      <div class="survey-step" data-step="3" data-group="Осознание">
+        <div class="survey-step-num">Вопрос 3 из 15</div>
+        <h3 class="survey-question">Используете ли всё, что есть в вашей текущей системе?</h3>
+        <p class="survey-hint">Сколько процентов функционала реально работает у вашей команды?</p>
+        <div class="choices" data-field="usage_level" data-type="single">
+          <label class="choice"><input type="radio" name="usage_level" value="Использую всё"> Да, используем почти всё (80%+)</label>
+          <label class="choice"><input type="radio" name="usage_level" value="Половину"> Около половины — остальное «не для нас»</label>
+          <label class="choice"><input type="radio" name="usage_level" value="Малую часть"> Только базу клиентов и пару функций</label>
+          <label class="choice"><input type="radio" name="usage_level" value="Не уверен что там есть"> Честно — не уверен что там вообще есть</label>
+          <label class="choice"><input type="radio" name="usage_level" value="Нет системы"> Системы нет — Excel / WhatsApp</label>
+        </div>
+      </div>
+
+      <!-- Step 4: First module if from scratch -->
+      <div class="survey-step" data-step="4" data-group="Осознание">
+        <div class="survey-step-num">Вопрос 4 из 15</div>
+        <h3 class="survey-question">Если бы делали CRM с нуля под себя — что было бы первым модулем?</h3>
+        <p class="survey-hint">С чего бы начали, что критичнее всего для вашего бизнеса?</p>
+        <div class="choices" data-field="first_module" data-type="single">
+          <label class="choice"><input type="radio" name="first_module" value="Карточка клиента под наши поля"> Карточка клиента под наши поля</label>
+          <label class="choice"><input type="radio" name="first_module" value="Воронка под наш процесс"> Воронка под наш процесс продаж</label>
+          <label class="choice"><input type="radio" name="first_module" value="Дашборд собственника"> Дашборд собственника с цифрами</label>
+          <label class="choice"><input type="radio" name="first_module" value="Связка с мессенджерами"> Связка с WhatsApp и заявками</label>
+          <label class="choice"><input type="radio" name="first_module" value="Учёт денег и сделок"> Учёт денег и сделок в одном месте</label>
+          <label class="choice"><input type="radio" name="first_module" value="Никогда не задумывался"> Никогда об этом не задумывался</label>
+        </div>
+      </div>
+
+      <!-- Step 5: What ideal CRM should do -->
+      <div class="survey-step" data-step="5" data-group="Осознание">
+        <div class="survey-step-num">Вопрос 5 из 15</div>
+        <h3 class="survey-question">Что должна делать идеальная CRM, чего не делают существующие?</h3>
+        <p class="survey-hint">В свободной форме — одно-два предложения. Это самый ценный для нас вопрос.</p>
+        <textarea class="survey-textarea" id="ideal_crm_input" placeholder="Например: «понимать специфику стройки», «работать с агентствами недвижимости», «быстро обучать новых сотрудников»..." maxlength="500"></textarea>
+      </div>
+
+      <!-- Step 6: Where money is lost -->
+      <div class="survey-step" data-step="6" data-group="Деньги">
+        <div class="survey-step-num">Вопрос 6 из 15</div>
+        <h3 class="survey-question">В какой видимой области у вас сейчас наибольшая потеря денег?</h3>
+        <p class="survey-hint">Где собственнику больше всего «больно» сейчас?</p>
+        <div class="choices grid-2" data-field="money_loss_area" data-type="single">
+          <label class="choice"><input type="radio" name="money_loss_area" value="Обработка заявок"> Обработка входящих заявок</label>
+          <label class="choice"><input type="radio" name="money_loss_area" value="Удержание клиентов"> Удержание текущих клиентов</label>
+          <label class="choice"><input type="radio" name="money_loss_area" value="Работа менеджеров"> Эффективность менеджеров</label>
+          <label class="choice"><input type="radio" name="money_loss_area" value="Скорость закрытия сделок"> Скорость закрытия сделок</label>
+          <label class="choice"><input type="radio" name="money_loss_area" value="Производство / исполнение"> Производство и исполнение заказов</label>
+          <label class="choice"><input type="radio" name="money_loss_area" value="Дебиторка"> Дебиторка / неоплаты</label>
+          <label class="choice"><input type="radio" name="money_loss_area" value="Маркетинг"> Маркетинг — приходят не те</label>
+          <label class="choice"><input type="radio" name="money_loss_area" value="Не вижу потерь"> Не вижу явных потерь</label>
+        </div>
+      </div>
+
+      <!-- Step 7: Lost client -->
+      <div class="survey-step" data-step="7" data-group="Деньги">
+        <div class="survey-step-num">Вопрос 7 из 15</div>
+        <h3 class="survey-question">Бывало, что теряли клиента из-за того, что задача выпала из системы?</h3>
+        <p class="survey-hint">Забыли перезвонить, пропал контекст, никто не дёрнул сделку.</p>
+        <div class="choices" data-field="lost_clients" data-type="single">
+          <label class="choice"><input type="radio" name="lost_clients" value="Да, регулярно"> Да, такое бывает регулярно</label>
+          <label class="choice"><input type="radio" name="lost_clients" value="Да, пару раз"> Да, пару раз ловил себя на этом</label>
+          <label class="choice"><input type="radio" name="lost_clients" value="Скорее всего да, не отслеживаю"> Скорее всего да — просто не отслеживаю</label>
+          <label class="choice"><input type="radio" name="lost_clients" value="Нет"> Нет, всё под контролем</label>
+        </div>
+      </div>
+
+      <!-- Step 8: How do you measure sales effectiveness -->
+      <div class="survey-step" data-step="8" data-group="Деньги">
+        <div class="survey-step-num">Вопрос 8 из 15</div>
+        <h3 class="survey-question">Как вы сейчас понимаете, что отдел продаж работает эффективно?</h3>
+        <p class="survey-hint">По каким показателям оцениваете?</p>
+        <div class="choices grid-2" data-field="sales_metric" data-type="multi">
+          <label class="choice"><input type="checkbox" name="sales_metric" value="По выручке"> По общей выручке</label>
+          <label class="choice"><input type="checkbox" name="sales_metric" value="По количеству сделок"> По количеству закрытых сделок</label>
+          <label class="choice"><input type="checkbox" name="sales_metric" value="По конверсии"> По конверсии лида в сделку</label>
+          <label class="choice"><input type="checkbox" name="sales_metric" value="По активности менеджеров"> По активности менеджеров (звонки, встречи)</label>
+          <label class="choice"><input type="checkbox" name="sales_metric" value="По LTV"> По LTV / повторным продажам</label>
+          <label class="choice"><input type="checkbox" name="sales_metric" value="По ощущениям"> По общим ощущениям</label>
+          <label class="choice"><input type="checkbox" name="sales_metric" value="Не оцениваю"> Честно — никак не оцениваю системно</label>
+        </div>
+      </div>
+
+      <!-- Step 9: Budget -->
+      <div class="survey-step" data-step="9" data-group="Деньги">
+        <div class="survey-step-num">Вопрос 9 из 15</div>
+        <h3 class="survey-question">Сколько готовы платить за решение, которое реально закрывает ваши боли?</h3>
+        <p class="survey-hint">Условный максимум, который для вас разумен в месяц.</p>
+        <div class="choices" data-field="budget" data-type="single">
+          <label class="choice"><input type="radio" name="budget" value="до 30K ₸"> До 30 000 ₸ / мес</label>
+          <label class="choice"><input type="radio" name="budget" value="30-100K ₸"> 30 000 – 100 000 ₸ / мес</label>
+          <label class="choice"><input type="radio" name="budget" value="100-300K ₸"> 100 000 – 300 000 ₸ / мес</label>
+          <label class="choice"><input type="radio" name="budget" value="300K+"> Больше 300 000 ₸ / мес</label>
+          <label class="choice"><input type="radio" name="budget" value="Лучше один раз"> Лучше один раз заплатить и владеть</label>
+          <label class="choice"><input type="radio" name="budget" value="Не готов платить"> Не готов платить за это</label>
+        </div>
+      </div>
+
+      <!-- Step 10: Barriers -->
+      <div class="survey-step" data-step="10" data-group="Барьеры">
+        <div class="survey-step-num">Вопрос 10 из 15</div>
+        <h3 class="survey-question">Что главное вас останавливает от внедрения новой CRM?</h3>
+        <p class="survey-hint">Можно несколько вариантов.</p>
+        <div class="choices grid-2" data-field="barriers" data-type="multi">
+          <label class="choice"><input type="checkbox" name="barriers" value="Дорого"> Дорого</label>
+          <label class="choice"><input type="checkbox" name="barriers" value="Сложно переехать"> Сложно переехать с текущей</label>
+          <label class="choice"><input type="checkbox" name="barriers" value="Команду тяжело переучить"> Команду тяжело переучить</label>
+          <label class="choice"><input type="checkbox" name="barriers" value="Не знаю кому доверить"> Не знаю кому доверить разработку</label>
+          <label class="choice"><input type="checkbox" name="barriers" value="Не понимаю что выбрать"> Не понимаю что именно выбрать</label>
+          <label class="choice"><input type="checkbox" name="barriers" value="Сейчас и так работает"> И так работает, не до этого</label>
+          <label class="choice"><input type="checkbox" name="barriers" value="Нет ответственного"> Некому курировать проект</label>
+          <label class="choice"><input type="checkbox" name="barriers" value="Ничего не останавливает"> Ничего, готов внедрять</label>
+        </div>
+      </div>
+
+      <!-- Step 11: Industry -->
+      <div class="survey-step" data-step="11" data-group="О компании">
+        <div class="survey-step-num">Вопрос 11 из 15</div>
         <h3 class="survey-question">В какой сфере ваш бизнес?</h3>
         <p class="survey-hint">Выберите ближайшее описание.</p>
         <div class="choices grid-2" data-field="industry" data-type="single">
@@ -610,9 +797,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
       </div>
 
-      <!-- Step 2: Team size -->
-      <div class="survey-step" data-step="2">
-        <div class="survey-step-num">Вопрос 2 из 7</div>
+      <!-- Step 12: Team size -->
+      <div class="survey-step" data-step="12" data-group="О компании">
+        <div class="survey-step-num">Вопрос 12 из 15</div>
         <h3 class="survey-question">Сколько человек в команде?</h3>
         <p class="survey-hint">Включая вас, всех сотрудников и фрилансеров.</p>
         <div class="choices" data-field="team_size" data-type="single">
@@ -624,11 +811,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
       </div>
 
-      <!-- Step 3: Current system -->
-      <div class="survey-step" data-step="3">
-        <div class="survey-step-num">Вопрос 3 из 7</div>
+      <!-- Step 13: Current system -->
+      <div class="survey-step" data-step="13" data-group="О компании">
+        <div class="survey-step-num">Вопрос 13 из 15</div>
         <h3 class="survey-question">В чём сейчас ведёте клиентов и сделки?</h3>
-        <p class="survey-hint">Можно выбрать несколько вариантов, если используете комбинацию.</p>
+        <p class="survey-hint">Можно несколько — если используете комбинацию инструментов.</p>
         <div class="choices grid-2" data-field="current_system" data-type="multi">
           <label class="choice"><input type="checkbox" name="current_system" value="Excel"> Excel / Google Таблицы</label>
           <label class="choice"><input type="checkbox" name="current_system" value="WhatsApp"> WhatsApp / Telegram</label>
@@ -641,68 +828,50 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
       </div>
 
-      <!-- Step 4: Pains -->
-      <div class="survey-step" data-step="4">
-        <div class="survey-step-num">Вопрос 4 из 7</div>
-        <h3 class="survey-question">Что в вашей операционке раздражает больше всего?</h3>
-        <p class="survey-hint">Выберите все актуальные.</p>
-        <div class="choices" data-field="pains" data-type="multi">
-          <label class="choice"><input type="checkbox" name="pains" value="Терялись клиенты"> Бывало, что теряли клиентов из-за бардака</label>
-          <label class="choice"><input type="checkbox" name="pains" value="Менеджер уволился — забрал базу"> Менеджер уволился — забрал базу</label>
-          <label class="choice"><input type="checkbox" name="pains" value="Не вижу что делают сотрудники"> Не вижу, чем сотрудники реально занимаются</label>
-          <label class="choice"><input type="checkbox" name="pains" value="Цифры собираю руками"> Цифры собираю вручную в пятницу к вечеру</label>
-          <label class="choice"><input type="checkbox" name="pains" value="Сделки висят месяцами"> Сделки висят месяцами, никто не дёрнет</label>
-          <label class="choice"><input type="checkbox" name="pains" value="Половина в Excel параллельно"> Половина процессов в Excel параллельно</label>
-          <label class="choice"><input type="checkbox" name="pains" value="Долго обучать нового"> Нового сотрудника обучать неделями</label>
-          <label class="choice"><input type="checkbox" name="pains" value="Меня всё устраивает"> Меня всё устраивает</label>
+      <!-- Step 14: Three-way choice -->
+      <div class="survey-step" data-step="14" data-group="Что дальше">
+        <div class="survey-step-num">Вопрос 14 из 15</div>
+        <h3 class="survey-question">Что вам было бы интереснее получить?</h3>
+        <p class="survey-hint">Можно несколько — выберите всё, что интересно.</p>
+        <div class="choices choices-rich" data-field="next_step" data-type="multi">
+          <label class="choice choice-rich"><input type="checkbox" name="next_step" value="Результаты в сравнении">
+            <b>Результаты исследования</b>
+            <small>Когда соберём 100+ ответов — пришлём сравнение: где вы по рынку, что используют другие, какие самые частые боли в вашей нише.</small>
+          </label>
+          <label class="choice choice-rich"><input type="checkbox" name="next_step" value="Кейсы других в нише">
+            <b>Кейсы других компаний в вашей нише</b>
+            <small>Покажем интерфейсы, схемы процессов, как у успешных компаний устроена операционка. Конкретные примеры — не теория.</small>
+          </label>
+          <label class="choice choice-rich"><input type="checkbox" name="next_step" value="Разбор именно у меня">
+            <b>Разбор именно вашей ситуации</b>
+            <small>Бесплатно посмотрим вашу текущую систему, по вашим ответам найдём 3 точки утечки, дадим конкретные рекомендации. 30 минут.</small>
+          </label>
+          <label class="choice choice-rich"><input type="checkbox" name="next_step" value="Ничего, спасибо">
+            <b>Ничего, спасибо</b>
+            <small>Просто хотел поделиться мнением. Контакт оставлять не буду.</small>
+          </label>
         </div>
       </div>
 
-      <!-- Step 5: Lost deals -->
-      <div class="survey-step" data-step="5">
-        <div class="survey-step-num">Вопрос 5 из 7</div>
-        <h3 class="survey-question">Бывало, что теряли клиента из-за того, что что-то выпало из системы?</h3>
-        <p class="survey-hint">Например, забыли перезвонить, потеряли контекст, недосмотрели.</p>
-        <div class="choices" data-field="lost_clients" data-type="single">
-          <label class="choice"><input type="radio" name="lost_clients" value="Да, часто"> Да, такое бывает регулярно</label>
-          <label class="choice"><input type="radio" name="lost_clients" value="Да, пару раз"> Да, пару раз ловил себя на этом</label>
-          <label class="choice"><input type="radio" name="lost_clients" value="Не уверен"> Не уверен, может и теряли</label>
-          <label class="choice"><input type="radio" name="lost_clients" value="Нет"> Нет, всё под контролем</label>
-        </div>
-      </div>
-
-      <!-- Step 6: Budget -->
-      <div class="survey-step" data-step="6">
-        <div class="survey-step-num">Вопрос 6 из 7</div>
-        <h3 class="survey-question">Если бы появился сервис, который закрывает ваши боли — сколько готовы платить в месяц?</h3>
-        <p class="survey-hint">Условный максимум, который для вас разумен.</p>
-        <div class="choices" data-field="budget" data-type="single">
-          <label class="choice"><input type="radio" name="budget" value="до 30K ₸"> До 30 000 ₸ / мес</label>
-          <label class="choice"><input type="radio" name="budget" value="30-100K ₸"> 30 000 – 100 000 ₸ / мес</label>
-          <label class="choice"><input type="radio" name="budget" value="100-300K ₸"> 100 000 – 300 000 ₸ / мес</label>
-          <label class="choice"><input type="radio" name="budget" value="300K+"> Больше 300 000 ₸ / мес</label>
-          <label class="choice"><input type="radio" name="budget" value="Лучше один раз"> Лучше один раз заплатить и владеть</label>
-          <label class="choice"><input type="radio" name="budget" value="Не готов платить"> Не готов платить за это</label>
-        </div>
-      </div>
-
-      <!-- Step 7: Optional contact -->
-      <div class="survey-step" data-step="7">
-        <div class="survey-step-num">Последний вопрос</div>
-        <h3 class="survey-question">Хотите получить итоги исследования?</h3>
-        <p class="survey-hint">Когда соберём 100+ ответов — пришлём вам полный анализ. Контакт только для этого, без рассылок и продаж. Поле необязательное.</p>
-        <input type="text" class="survey-input" id="contact-name" placeholder="Имя (необязательно)" maxlength="60">
+      <!-- Step 15: Contact (only if next_step is not "ничего") -->
+      <div class="survey-step" data-step="15" data-group="Контакт">
+        <div class="survey-step-num">Последний шаг</div>
+        <h3 class="survey-question">Куда отправить материалы?</h3>
+        <p class="survey-hint">Используем контакт только для того, что вы сами выбрали — никаких рассылок и продаж.</p>
+        <input type="text" class="survey-input" id="contact-name" placeholder="Имя" maxlength="60">
         <div style="height: 10px;"></div>
-        <input type="text" class="survey-input" id="contact-phone" placeholder="WhatsApp / Telegram / Email — необязательно" maxlength="100">
+        <input type="text" class="survey-input" id="contact-phone" placeholder="WhatsApp / Telegram / Email" maxlength="100">
         <div style="height: 14px;"></div>
-        <textarea class="survey-textarea" id="contact-comment" placeholder="Хотите что-то добавить? Любой комментарий, история, мысль — необязательно" maxlength="500"></textarea>
+        <input type="text" class="survey-input" id="contact-company" placeholder="Название компании (необязательно)" maxlength="100">
+        <div style="height: 14px;"></div>
+        <textarea class="survey-textarea" id="contact-comment" placeholder="Хотите что-то добавить? Любой комментарий или мысль — необязательно" maxlength="500"></textarea>
       </div>
 
       <!-- Success -->
       <div class="survey-success" id="survey-success">
         <div class="survey-success-mark">✓</div>
         <h3>Спасибо!</h3>
-        <p>Ваши ответы записаны. Когда соберём срез по 30+ ответам — опубликуем здесь, на этой странице.</p>
+        <p id="success-text">Ваши ответы записаны. Свяжемся с вами по выбранным пунктам.</p>
         <p>Если интересно подробнее — посмотрите наши <a href="index.html" style="color: var(--bronze-deep); font-weight: 600;">кастомные CRM</a> или <a href="automation.html" style="color: var(--bronze-deep); font-weight: 600;">готовые модули автоматизации</a>.</p>
         <div class="survey-success-actions">
           <a href="index.html" class="btn btn-ghost">На главную</a>
@@ -718,6 +887,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
   </div>
 </section>
+
+
 
 <a href="https://wa.me/77011239999?text=Здравствуйте!%20Хочу%20обсудить%20исследование%20Pllato" class="float-wa" target="_blank" rel="noopener" aria-label="WhatsApp">
   <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.6-.8-1.9-.9-.3-.1-.5-.1-.6.1-.2.2-.7.8-.8 1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.7-1.4-1.7-1.6-2-.2-.3 0-.4.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.2-.5.1-.2 0-.4-.1-.5-.1-.1-.6-1.5-.8-2-.2-.5-.4-.5-.6-.5h-.5c-.2 0-.5.1-.7.3-.2.2-.9.9-.9 2.2 0 1.3.9 2.5 1 2.7.1.2 1.8 2.7 4.3 3.8.6.2 1.1.4 1.4.5.6.2 1.2.2 1.6.1.5-.1 1.6-.6 1.8-1.3.2-.7.2-1.2.2-1.3-.1-.1-.3-.2-.5-.3z"/><path d="M12 2C6.5 2 2 6.5 2 12c0 1.7.4 3.3 1.2 4.7L2 22l5.4-1.4c1.4.7 2.9 1.1 4.6 1.1 5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18c-1.5 0-2.9-.4-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3C4.4 14.9 4 13.5 4 12c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8z"/></svg>
@@ -775,10 +946,52 @@ const header = document.getElementById('header');
 window.addEventListener('scroll', () => header.classList.toggle('scrolled', window.scrollY > 20));
 
 // === SURVEY LOGIC ===
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 15;
 let currentStep = 1;
 let mode = 'public'; // 'public' | 'interview'
 const answers = {};
+
+// === SESSION SYNC (для интерактивных опросов через interview.html) ===
+const WORKER_URL = 'https://pllato-research.uurraa.workers.dev';
+const urlParams = new URLSearchParams(window.location.search);
+const SESSION_ID = urlParams.get('session');
+
+// Если открыли с ?session=XXXX — автоматически переключаем в режим звонка
+if (SESSION_ID) {
+  mode = 'interview';
+  // Показать session-бейдж
+  const badge = document.getElementById('session-badge');
+  if (badge) badge.style.display = 'block';
+  // Скрыть mode-toggle (клиенту он не нужен)
+  const toggle = document.querySelector('.mode-toggle');
+  if (toggle) toggle.parentElement.style.display = 'none';
+}
+
+// Шлём прогресс на Worker (после каждого ответа)
+async function syncToWorker(completed = false) {
+  if (!SESSION_ID) return;
+  try {
+    await fetch(WORKER_URL + '/api/session/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: SESSION_ID,
+        currentStep: currentStep,
+        answers: answers,
+        completed: completed,
+      }),
+    });
+  } catch (e) {
+    console.warn('[Survey Sync]', e);
+  }
+}
+
+// Дебаунс для свободных полей (textarea — не каждое нажатие клавиши)
+let syncDebounceTimer = null;
+function syncDebounced() {
+  if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+  syncDebounceTimer = setTimeout(() => syncToWorker(), 500);
+}
 
 const $progress = () => document.querySelectorAll('.pdot');
 const $steps = () => document.querySelectorAll('.survey-step');
@@ -786,6 +999,56 @@ const btnBack = document.getElementById('btn-back');
 const btnNext = document.getElementById('btn-next');
 const successBlock = document.getElementById('survey-success');
 const navBlock = document.getElementById('survey-nav');
+const groupLabel = document.getElementById('survey-group-label');
+const successText = document.getElementById('success-text');
+
+// Build progress dots dynamically
+function buildProgressDots() {
+  const wrap = document.getElementById('survey-progress');
+  wrap.innerHTML = '';
+  for (let i = 0; i < TOTAL_STEPS; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'pdot' + (i === 0 ? ' current' : '');
+    wrap.appendChild(dot);
+  }
+}
+buildProgressDots();
+
+// Set initial group label
+function updateGroupLabel(step) {
+  const stepEl = document.querySelector(`.survey-step[data-step="${step}"]`);
+  if (stepEl && stepEl.dataset.group) {
+    groupLabel.textContent = stepEl.dataset.group;
+  } else {
+    groupLabel.textContent = '';
+  }
+}
+updateGroupLabel(1);
+
+// Sync inputs in real-time for textarea and contact fields
+['ideal_crm_input', 'contact-name', 'contact-phone', 'contact-company', 'contact-comment'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    if (id === 'ideal_crm_input') {
+      const v = el.value.trim();
+      if (v) answers.ideal_crm = v;
+      else delete answers.ideal_crm;
+    } else if (id === 'contact-name' || id === 'contact-phone' || id === 'contact-company') {
+      const name = (document.getElementById('contact-name').value || '').trim();
+      const phone = (document.getElementById('contact-phone').value || '').trim();
+      const company = (document.getElementById('contact-company').value || '').trim();
+      const parts = [name, phone, company].filter(Boolean);
+      if (parts.length) answers.contact = parts.join(' · ');
+      else delete answers.contact;
+    } else if (id === 'contact-comment') {
+      const v = el.value.trim();
+      if (v) answers.comment = v;
+      else delete answers.comment;
+    }
+    syncDebounced();
+  });
+});
 
 // Mode toggle
 const modePublic = document.getElementById('mode-public');
@@ -813,7 +1076,6 @@ document.querySelectorAll('.choices').forEach(group => {
     choice.addEventListener('click', (e) => {
       e.preventDefault();
       if (type === 'single') {
-        // Single choice: deselect others
         group.querySelectorAll('.choice').forEach(c => {
           c.classList.remove('selected');
           c.querySelector('input').checked = false;
@@ -822,7 +1084,6 @@ document.querySelectorAll('.choices').forEach(group => {
         input.checked = true;
         answers[field] = input.value;
       } else {
-        // Multi choice: toggle
         choice.classList.toggle('selected');
         input.checked = !input.checked;
         if (!answers[field]) answers[field] = [];
@@ -832,27 +1093,52 @@ document.querySelectorAll('.choices').forEach(group => {
           answers[field] = answers[field].filter(v => v !== input.value);
         }
       }
+      // Синхронизация с Worker после каждого выбора
+      syncToWorker();
     });
   });
 });
 
+// Determine if step 15 (contact) should be skipped based on next_step answer
+function shouldSkipContactStep() {
+  const ns = answers.next_step;
+  if (!ns || !Array.isArray(ns)) return false;
+  // If user only chose "Ничего, спасибо" — skip contact
+  return ns.length === 1 && ns[0] === 'Ничего, спасибо';
+}
+
 // Navigation
 btnNext.addEventListener('click', () => {
-  // Validate current step
-  if (currentStep < TOTAL_STEPS) {
-    const stepEl = document.querySelector(`.survey-step[data-step="${currentStep}"]`);
-    const choiceGroup = stepEl.querySelector('.choices');
-    if (choiceGroup) {
-      const field = choiceGroup.dataset.field;
-      if (!answers[field] || (Array.isArray(answers[field]) && answers[field].length === 0)) {
-        // Skip allowed? For now require answer except step 7
-        alert('Выберите хотя бы один вариант, чтобы продолжить.');
-        return;
-      }
+  // Validate current step (steps with required answer)
+  const stepEl = document.querySelector(`.survey-step[data-step="${currentStep}"]`);
+  const choiceGroup = stepEl ? stepEl.querySelector('.choices') : null;
+
+  // Step 5 (textarea ideal_crm) — optional, can skip
+  // Step 15 (contact) — optional fields, no required
+  if (choiceGroup && currentStep !== 5 && currentStep !== 15) {
+    const field = choiceGroup.dataset.field;
+    if (!answers[field] || (Array.isArray(answers[field]) && answers[field].length === 0)) {
+      alert('Выберите хотя бы один вариант, чтобы продолжить.');
+      return;
     }
+  }
+
+  // Step 5 — save textarea
+  if (currentStep === 5) {
+    const txt = document.getElementById('ideal_crm_input').value.trim();
+    if (txt) answers.ideal_crm = txt;
+    syncToWorker();
+  }
+
+  // After step 14 (next_step) — check if we should skip step 15
+  if (currentStep === 14 && shouldSkipContactStep()) {
+    submitSurvey();
+    return;
+  }
+
+  if (currentStep < TOTAL_STEPS) {
     goToStep(currentStep + 1);
   } else {
-    // Final step — submit
     submitSurvey();
   }
 });
@@ -871,15 +1157,31 @@ function goToStep(step) {
   });
   btnBack.disabled = step === 1;
   btnNext.textContent = step === TOTAL_STEPS ? 'Отправить ответы →' : 'Дальше →';
-  // Scroll to top of card
+  updateGroupLabel(step);
   document.querySelector('.survey-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Синхронизация прогресса
+  syncToWorker();
 }
 
 function submitSurvey() {
   // Collect optional contact fields
-  const name = document.getElementById('contact-name').value.trim();
-  const phone = document.getElementById('contact-phone').value.trim();
-  const comment = document.getElementById('contact-comment').value.trim();
+  const name = (document.getElementById('contact-name').value || '').trim();
+  const phone = (document.getElementById('contact-phone').value || '').trim();
+  const company = (document.getElementById('contact-company').value || '').trim();
+  const comment = (document.getElementById('contact-comment').value || '').trim();
+
+  // Сохраняем контакт в общий объект answers (для live-вида)
+  if (name || phone || company || comment) {
+    const contactParts = [];
+    if (name) contactParts.push(name);
+    if (phone) contactParts.push(phone);
+    if (company) contactParts.push(company);
+    answers.contact = contactParts.join(' · ');
+    if (comment) answers.comment = comment;
+  }
+
+  // Финальная синхронизация — отмечаем как завершённый
+  syncToWorker(true);
 
   // Build Telegram message
   const time = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' });
@@ -887,22 +1189,51 @@ function submitSurvey() {
   const device = navigator.userAgent.includes('Mobile') ? '📱 Мобайл' : '💻 Десктоп';
   const modeIcon = mode === 'interview' ? '🎙 Звонок' : '🌐 Сайт';
 
+  const fmt = (v) => Array.isArray(v) ? v.join(', ') : (v || '—');
+
   const lines = [
     `📊 Опрос «Голос рынка» · ${modeIcon}`,
     '',
-    `🏢 Сфера: ${answers.industry || '—'}`,
-    `👥 Команда: ${answers.team_size || '—'}`,
-    `💻 Сейчас использует: ${Array.isArray(answers.current_system) ? answers.current_system.join(', ') : '—'}`,
-    `🔥 Боли: ${Array.isArray(answers.pains) ? answers.pains.join('; ') : '—'}`,
-    `❓ Терял клиентов: ${answers.lost_clients || '—'}`,
-    `💰 Готов платить: ${answers.budget || '—'}`,
+    '── ОСОЗНАНИЕ ──',
+    `🔍 Где искал бы CRM: ${fmt(answers.search_channel)}`,
+    `⭐ Самое важное: ${fmt(answers.key_function)}`,
+    `📊 Использует системы на: ${fmt(answers.usage_level)}`,
+    `🧱 Первый модуль с нуля: ${fmt(answers.first_module)}`,
   ];
 
-  if (name || phone) {
+  if (answers.ideal_crm) {
+    lines.push(`💡 Идеальная CRM должна: ${answers.ideal_crm}`);
+  }
+
+  lines.push('');
+  lines.push('── ДЕНЬГИ ──');
+  lines.push(`💸 Где теряются деньги: ${fmt(answers.money_loss_area)}`);
+  lines.push(`❓ Терял клиентов: ${fmt(answers.lost_clients)}`);
+  lines.push(`📈 Метрики продаж: ${fmt(answers.sales_metric)}`);
+  lines.push(`💰 Готов платить: ${fmt(answers.budget)}`);
+
+  lines.push('');
+  lines.push('── БАРЬЕРЫ ──');
+  lines.push(`🚧 Что останавливает: ${fmt(answers.barriers)}`);
+
+  lines.push('');
+  lines.push('── О КОМПАНИИ ──');
+  lines.push(`🏢 Сфера: ${fmt(answers.industry)}`);
+  lines.push(`👥 Команда: ${fmt(answers.team_size)}`);
+  lines.push(`💻 Сейчас использует: ${fmt(answers.current_system)}`);
+
+  if (answers.next_step) {
     lines.push('');
-    lines.push('📞 КОНТАКТ:');
+    lines.push('── ХОЧЕТ ПОЛУЧИТЬ ──');
+    lines.push(`✉ ${fmt(answers.next_step)}`);
+  }
+
+  if (name || phone || company) {
+    lines.push('');
+    lines.push('── КОНТАКТ ──');
     if (name) lines.push(`👤 ${name}`);
     if (phone) lines.push(`📱 ${phone}`);
+    if (company) lines.push(`🏢 ${company}`);
   }
 
   if (comment) {
@@ -918,16 +1249,33 @@ function submitSurvey() {
 
   const text = lines.join('\n');
 
+  // Customize success message based on choice
+  if (answers.next_step) {
+    const choices = answers.next_step;
+    let msg = 'Ваши ответы записаны.';
+    if (choices.includes('Разбор именно у меня')) {
+      msg = 'Спасибо! Свяжемся с вами в ближайшее время для разбора вашей ситуации.';
+    } else if (choices.includes('Кейсы других в нише')) {
+      msg = 'Спасибо! Подготовим примеры по вашей нише и пришлём в течение пары дней.';
+    } else if (choices.includes('Результаты в сравнении')) {
+      msg = 'Спасибо! Когда соберём 100+ ответов — пришлём срез результатов.';
+    } else if (choices.includes('Ничего, спасибо')) {
+      msg = 'Спасибо за ответы! Они анонимно войдут в общий срез исследования.';
+    }
+    if (successText) successText.textContent = msg;
+  }
+
   // Optimistic UI: show success immediately
   $steps().forEach(s => s.classList.remove('active'));
   navBlock.style.display = 'none';
   document.getElementById('survey-progress').style.display = 'none';
+  groupLabel.style.display = 'none';
   successBlock.classList.add('show');
 
   // Save backup
   try {
     const backups = JSON.parse(localStorage.getItem('pllato_surveys') || '[]');
-    backups.push({ ts: Date.now(), mode, answers: { ...answers, name, phone, comment } });
+    backups.push({ ts: Date.now(), mode, answers: { ...answers, name, phone, company, comment } });
     localStorage.setItem('pllato_surveys', JSON.stringify(backups.slice(-100)));
   } catch (e) {}
 
@@ -937,6 +1285,7 @@ function submitSurvey() {
       event: 'survey_submitted',
       survey_industry: answers.industry,
       survey_mode: mode,
+      survey_next_step: Array.isArray(answers.next_step) ? answers.next_step.join(',') : '',
     });
   }
 
@@ -954,7 +1303,6 @@ function submitSurvey() {
 }
 
 function restartSurvey() {
-  // Reset
   currentStep = 1;
   Object.keys(answers).forEach(k => delete answers[k]);
   document.querySelectorAll('.choice').forEach(c => {
@@ -962,13 +1310,16 @@ function restartSurvey() {
     const input = c.querySelector('input');
     if (input) input.checked = false;
   });
-  document.getElementById('contact-name').value = '';
-  document.getElementById('contact-phone').value = '';
-  document.getElementById('contact-comment').value = '';
+  ['contact-name', 'contact-phone', 'contact-company', 'contact-comment', 'ideal_crm_input'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
 
   successBlock.classList.remove('show');
   navBlock.style.display = '';
   document.getElementById('survey-progress').style.display = '';
+  groupLabel.style.display = '';
+  buildProgressDots();
   goToStep(1);
 }
 </script>

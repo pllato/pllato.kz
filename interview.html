@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Интервью — Pllato</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="pllato_favicon_64.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --navy: #0a1628;
+  --bronze: #b8895a;
+  --bronze-deep: #8b6740;
+  --bronze-tint: rgba(184, 137, 90, 0.08);
+  --bronze-tint-2: rgba(184, 137, 90, 0.18);
+  --bg: #fafaf6;
+  --surface: #ffffff;
+  --surface-2: #f3f0e8;
+  --text: #0f1620;
+  --text-2: #4a5163;
+  --text-3: #8a8d96;
+  --line: #e8e2d4;
+  --line-2: #ede9de;
+  --green: #16a34a;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(20, 30, 50, 0.04);
+  --shadow-md: 0 8px 24px -8px rgba(20, 30, 50, 0.08);
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { overflow-x: hidden; }
+body {
+  font-family: var(--sans);
+  background: var(--bg); color: var(--text);
+  line-height: 1.55; -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  padding: 24px 16px 48px;
+}
+.container { max-width: 720px; margin: 0 auto; }
+
+.header {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 32px;
+}
+.logo img { height: 28px; }
+.header-title {
+  font-size: 13px; font-weight: 600;
+  color: var(--text-2);
+  padding-left: 14px; border-left: 1px solid var(--line);
+}
+
+h1 {
+  font-size: 28px; font-weight: 800;
+  letter-spacing: -0.025em; margin-bottom: 8px;
+}
+.subtitle {
+  font-size: 14.5px; color: var(--text-2);
+  margin-bottom: 32px;
+}
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px; padding: 12px 20px; border-radius: 10px;
+  font-weight: 600; font-size: 14.5px;
+  text-decoration: none; border: none; cursor: pointer;
+  transition: all 0.15s; font-family: var(--sans);
+}
+.btn-bronze { background: var(--bronze); color: #fff; }
+.btn-bronze:hover { background: var(--bronze-deep); }
+.btn-ghost {
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--line);
+}
+.btn-ghost:hover { border-color: var(--bronze); }
+.btn-sm { padding: 7px 12px; font-size: 13px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 18px;
+}
+.card h2 {
+  font-size: 16px; font-weight: 700;
+  letter-spacing: -0.015em;
+  margin-bottom: 14px;
+}
+
+label {
+  display: block;
+  font-size: 13px; font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 6px;
+  margin-top: 14px;
+}
+label:first-child { margin-top: 0; }
+
+input.field {
+  width: 100%;
+  padding: 12px 14px;
+  font-family: var(--sans);
+  font-size: 14.5px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  outline: none;
+  transition: border 0.15s;
+}
+input.field:focus { border-color: var(--bronze); }
+
+.actions { margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Session info */
+.session-info {
+  display: none;
+}
+.session-info.show { display: block; }
+
+.session-id {
+  font-family: var(--mono);
+  font-size: 24px; font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--bronze-deep);
+  background: var(--bronze-tint);
+  padding: 8px 16px; border-radius: 10px;
+  display: inline-block;
+  margin-bottom: 14px;
+}
+
+.link-row {
+  display: flex; gap: 8px; align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+}
+.link-row .label-tag {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+.link-row code {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--text);
+  flex: 1; overflow-x: auto;
+  white-space: nowrap;
+}
+.link-row .copy-btn {
+  flex-shrink: 0;
+}
+
+.whatsapp-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 18px; border-radius: 10px;
+  background: #25D366; color: #fff;
+  font-weight: 600; font-size: 14px;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.whatsapp-btn:hover { background: #1ea957; }
+.whatsapp-btn svg { width: 18px; height: 18px; }
+
+.divider {
+  height: 1px; background: var(--line-2);
+  margin: 22px 0;
+}
+
+/* Live view */
+.live-view {
+  display: none;
+}
+.live-view.show { display: block; }
+
+.live-status {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--text-2);
+  margin-bottom: 18px;
+}
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green);
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.progress-bar {
+  display: flex; gap: 4px;
+  margin-bottom: 18px;
+}
+.progress-bar .pdot {
+  flex: 1; height: 4px; border-radius: 2px;
+  background: var(--line);
+  transition: background 0.3s;
+}
+.progress-bar .pdot.done { background: var(--bronze); }
+.progress-bar .pdot.current { background: var(--bronze-deep); }
+
+.live-answers {
+  display: flex; flex-direction: column; gap: 12px;
+}
+.answer-card {
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  border-left: 3px solid var(--bronze);
+}
+.answer-q {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-3); margin-bottom: 4px;
+}
+.answer-v {
+  font-size: 14.5px; font-weight: 600;
+  color: var(--text);
+}
+.answer-card.empty .answer-v {
+  color: var(--text-3); font-style: italic; font-weight: 400;
+}
+
+.no-answers-yet {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-3);
+  font-size: 14px;
+  font-style: italic;
+}
+
+.completed-badge {
+  display: inline-block;
+  background: var(--green); color: #fff;
+  padding: 4px 10px; border-radius: 100px;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 14px;
+}
+
+.error-msg {
+  padding: 12px 16px;
+  background: #fef2f2; color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  font-size: 13.5px;
+  margin-bottom: 16px;
+  display: none;
+}
+.error-msg.show { display: block; }
+
+.toast {
+  position: fixed;
+  bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--navy); color: #fff;
+  padding: 12px 20px; border-radius: 100px;
+  font-size: 14px; font-weight: 600;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 100;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <a href="index.html" class="logo"><img src="pllato_logo_transparent_navy.svg" alt="Pllato"></a>
+    <span class="header-title">Интервью · Голос рынка</span>
+  </div>
+
+  <!-- ===== Создание сессии ===== -->
+  <div id="create-block">
+    <h1>Начать новый опрос</h1>
+    <p class="subtitle">Создайте сессию и отправьте клиенту ссылку. Будете видеть его ответы в реальном времени.</p>
+
+    <div class="error-msg" id="create-error"></div>
+
+    <div class="card">
+      <h2>Кто будет проходить опрос?</h2>
+
+      <label>Имя клиента (или название компании)</label>
+      <input type="text" class="field" id="client-name" placeholder="Например: Айгуль · ЖК Алатау" maxlength="100">
+
+      <label>Телефон / WhatsApp клиента (необязательно)</label>
+      <input type="text" class="field" id="client-phone" placeholder="+7 701 ..." maxlength="50">
+
+      <div class="actions">
+        <button class="btn btn-bronze" id="btn-create">Создать сессию →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Информация о сессии ===== -->
+  <div class="session-info" id="session-info">
+    <h1>Сессия создана</h1>
+    <p class="subtitle">
+      <span style="font-weight: 600;" id="session-client-display"></span>
+    </p>
+
+    <div class="card">
+      <h2>ID сессии</h2>
+      <div class="session-id" id="session-id-display">—</div>
+
+      <div class="divider"></div>
+
+      <h2>Ссылка для клиента</h2>
+      <p style="font-size: 13px; color: var(--text-2); margin-bottom: 10px;">
+        Отправьте эту ссылку клиенту. Он откроет на телефоне, начнёт отвечать.
+      </p>
+      <div class="link-row">
+        <span class="label-tag">URL</span>
+        <code id="client-link">—</code>
+        <button class="btn btn-ghost btn-sm copy-btn" data-copy="client-link">Копировать</button>
+      </div>
+
+      <div class="actions">
+        <a class="whatsapp-btn" id="whatsapp-share" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.6-.8-1.9-.9-.3-.1-.5-.1-.6.1-.2.2-.7.8-.8 1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.7-1.4-1.7-1.6-2-.2-.3 0-.4.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.2-.5.1-.2 0-.4-.1-.5-.1-.1-.6-1.5-.8-2-.2-.5-.4-.5-.6-.5h-.5c-.2 0-.5.1-.7.3-.2.2-.9.9-.9 2.2 0 1.3.9 2.5 1 2.7.1.2 1.8 2.7 4.3 3.8.6.2 1.1.4 1.4.5.6.2 1.2.2 1.6.1.5-.1 1.6-.6 1.8-1.3.2-.7.2-1.2.2-1.3-.1-.1-.3-.2-.5-.3z"/><path d="M12 2C6.5 2 2 6.5 2 12c0 1.7.4 3.3 1.2 4.7L2 22l5.4-1.4c1.4.7 2.9 1.1 4.6 1.1 5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18c-1.5 0-2.9-.4-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3C4.4 14.9 4 13.5 4 12c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8z"/></svg>
+          Открыть в WhatsApp
+        </a>
+      </div>
+    </div>
+
+    <!-- ===== Live view ===== -->
+    <div class="card live-view show">
+      <h2>Ответы в реальном времени</h2>
+      <div class="live-status">
+        <div class="live-dot"></div>
+        <span id="live-status-text">Ждём, когда клиент откроет ссылку...</span>
+      </div>
+
+      <div id="completed-marker" style="display:none;">
+        <span class="completed-badge">✓ Опрос завершён</span>
+      </div>
+
+      <div class="progress-bar" id="progress-bar"></div>
+
+      <div class="live-answers" id="live-answers">
+        <div class="no-answers-yet">Ответы появятся здесь автоматически.</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" id="btn-new-session">+ Новая сессия</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast">Скопировано</div>
+
+<script>
+// ============== КОНФИГУРАЦИЯ ==============
+const WORKER_URL = 'https://pllato-research.uurraa.workers.dev';
+const SITE_URL = 'https://pllato.kz'; // или window.location.origin для теста на локалхосте
+const POLL_INTERVAL_MS = 2000; // обновление каждые 2 секунды
+
+// ============== КОНФИГ ВОПРОСОВ (для отображения labels) ==============
+const QUESTIONS = [
+  { id: 'search_channel', label: 'Где искал бы CRM' },
+  { id: 'key_function', label: 'Что в CRM важнее всего' },
+  { id: 'usage_level', label: 'Использует ли всё в системе' },
+  { id: 'first_module', label: 'Первый модуль с нуля' },
+  { id: 'ideal_crm', label: 'Что должна делать идеальная CRM' },
+  { id: 'money_loss_area', label: 'Где теряются деньги' },
+  { id: 'lost_clients', label: 'Терял клиентов' },
+  { id: 'sales_metric', label: 'Метрики продаж' },
+  { id: 'budget', label: 'Готов платить' },
+  { id: 'barriers', label: 'Что останавливает' },
+  { id: 'industry', label: 'Сфера' },
+  { id: 'team_size', label: 'Размер команды' },
+  { id: 'current_system', label: 'Что использует сейчас' },
+  { id: 'next_step', label: 'Хочет получить' },
+  { id: 'contact', label: 'Контакт' },
+];
+
+// ============== СОЗДАНИЕ СЕССИИ ==============
+const btnCreate = document.getElementById('btn-create');
+const inputName = document.getElementById('client-name');
+const inputPhone = document.getElementById('client-phone');
+const errorBlock = document.getElementById('create-error');
+const createBlock = document.getElementById('create-block');
+const sessionInfo = document.getElementById('session-info');
+
+let currentSessionId = null;
+let pollIntervalId = null;
+
+btnCreate.addEventListener('click', async () => {
+  const clientName = inputName.value.trim();
+  const clientPhone = inputPhone.value.trim();
+
+  if (!clientName) {
+    errorBlock.textContent = 'Введите имя клиента';
+    errorBlock.classList.add('show');
+    return;
+  }
+
+  errorBlock.classList.remove('show');
+  btnCreate.disabled = true;
+  btnCreate.textContent = 'Создаём...';
+
+  try {
+    const response = await fetch(WORKER_URL + '/api/session/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientName, clientPhone }),
+    });
+    const data = await response.json();
+
+    if (!data.ok) {
+      throw new Error(data.error || 'Не удалось создать сессию');
+    }
+
+    currentSessionId = data.sessionId;
+    showSession(currentSessionId, clientName);
+  } catch (e) {
+    errorBlock.textContent = 'Ошибка: ' + e.message + '. Проверьте, что Worker URL настроен правильно (см. CLOUDFLARE_SETUP.md)';
+    errorBlock.classList.add('show');
+    btnCreate.disabled = false;
+    btnCreate.textContent = 'Создать сессию →';
+  }
+});
+
+function showSession(sessionId, clientName) {
+  document.getElementById('session-id-display').textContent = sessionId;
+  document.getElementById('session-client-display').textContent = clientName;
+
+  const clientLink = `${SITE_URL}/research.html?session=${sessionId}`;
+  document.getElementById('client-link').textContent = clientLink;
+
+  // WhatsApp share
+  const phone = inputPhone.value.trim().replace(/\D/g, '');
+  const text = `Здравствуйте! Это ссылка на короткий опрос (15 вопросов, 10 минут): ${clientLink}\n\nКак откроете — я заодно буду видеть ваши ответы и комментировать.`;
+  const waUrl = phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+    : `https://wa.me/?text=${encodeURIComponent(text)}`;
+  document.getElementById('whatsapp-share').href = waUrl;
+
+  // Switch view
+  createBlock.style.display = 'none';
+  sessionInfo.classList.add('show');
+
+  // Start polling
+  startPolling(sessionId);
+}
+
+// ============== POLLING ==============
+function startPolling(sessionId) {
+  if (pollIntervalId) clearInterval(pollIntervalId);
+  // Build progress bar
+  const bar = document.getElementById('progress-bar');
+  bar.innerHTML = '';
+  for (let i = 0; i < 15; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'pdot';
+    bar.appendChild(dot);
+  }
+
+  // Initial poll
+  pollSession(sessionId);
+  pollIntervalId = setInterval(() => pollSession(sessionId), POLL_INTERVAL_MS);
+}
+
+async function pollSession(sessionId) {
+  try {
+    const r = await fetch(`${WORKER_URL}/api/session/get?id=${encodeURIComponent(sessionId)}`);
+    const data = await r.json();
+    if (!data.ok) return;
+    renderSession(data.session);
+  } catch (e) {
+    console.error('Poll error:', e);
+  }
+}
+
+function renderSession(session) {
+  // Status
+  const statusEl = document.getElementById('live-status-text');
+  if (session.completed) {
+    statusEl.textContent = 'Опрос завершён';
+    document.getElementById('completed-marker').style.display = 'block';
+  } else if (session.currentStep > 1 || Object.keys(session.answers || {}).length > 0) {
+    statusEl.textContent = `Клиент на вопросе ${session.currentStep} из 15`;
+  } else {
+    statusEl.textContent = 'Ждём, когда клиент откроет ссылку...';
+  }
+
+  // Progress bar
+  const dots = document.querySelectorAll('#progress-bar .pdot');
+  dots.forEach((dot, idx) => {
+    dot.classList.remove('done', 'current');
+    if (idx + 1 < session.currentStep) dot.classList.add('done');
+    else if (idx + 1 === session.currentStep) dot.classList.add('current');
+  });
+
+  // Answers
+  const answersEl = document.getElementById('live-answers');
+  const answers = session.answers || {};
+
+  if (Object.keys(answers).length === 0) {
+    answersEl.innerHTML = '<div class="no-answers-yet">Ответы появятся здесь автоматически.</div>';
+    return;
+  }
+
+  let html = '';
+  QUESTIONS.forEach((q, idx) => {
+    const value = answers[q.id];
+    if (value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && value.length === 0)) {
+      const display = Array.isArray(value) ? value.join(', ') : value;
+      html += `
+        <div class="answer-card">
+          <div class="answer-q">${idx + 1}. ${q.label}</div>
+          <div class="answer-v">${escapeHtml(display)}</div>
+        </div>
+      `;
+    }
+  });
+
+  if (!html) {
+    answersEl.innerHTML = '<div class="no-answers-yet">Ответы появятся здесь автоматически.</div>';
+  } else {
+    answersEl.innerHTML = html;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+// ============== КОПИРОВАНИЕ ==============
+document.querySelectorAll('.copy-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const targetId = btn.dataset.copy;
+    const text = document.getElementById(targetId).textContent;
+    navigator.clipboard.writeText(text).then(() => showToast('Скопировано'));
+  });
+});
+
+function showToast(text) {
+  const toast = document.getElementById('toast');
+  toast.textContent = text;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+// ============== НОВАЯ СЕССИЯ ==============
+document.getElementById('btn-new-session').addEventListener('click', () => {
+  if (pollIntervalId) clearInterval(pollIntervalId);
+  currentSessionId = null;
+  inputName.value = '';
+  inputPhone.value = '';
+  sessionInfo.classList.remove('show');
+  createBlock.style.display = '';
+  btnCreate.disabled = false;
+  btnCreate.textContent = 'Создать сессию →';
+});
+
+// Auto-load session if ?id= in URL (allows returning to existing session)
+const urlParams = new URLSearchParams(window.location.search);
+const sessionFromUrl = urlParams.get('id');
+if (sessionFromUrl) {
+  // Try to load existing session
+  fetch(`${WORKER_URL}/api/session/get?id=${encodeURIComponent(sessionFromUrl)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok && data.session) {
+        currentSessionId = data.session.id;
+        inputName.value = data.session.clientName || '';
+        inputPhone.value = data.session.clientPhone || '';
+        showSession(data.session.id, data.session.clientName || 'Клиент');
+      }
+    })
+    .catch(() => {});
+}
+</script>
+
+</body>
+</html>
