@@ -341,6 +341,325 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 .ai-suggestion-bar button:hover{background:rgba(255,255,255,.28)}
 .ai-suggestion-bar .close-x{background:none;padding:4px}
 .ai-suggestion-bar .close-x svg{width:12px;height:12px}
+
+/* ============ FLOATING RECORDING PANEL ============ */
+.float-rec{
+  position:fixed;
+  top:80px;
+  right:20px;
+  width:260px;
+  background:var(--surface);
+  border:1px solid var(--border-strong);
+  border-radius:14px;
+  box-shadow:var(--shadow-xl);
+  z-index:700;
+  user-select:none;
+  display:none;
+  flex-direction:column;
+  overflow:hidden;
+  font-size:12.5px;
+}
+.float-rec.show{display:flex}
+.float-rec.minimized{
+  width:auto;
+  height:auto;
+}
+.float-rec.minimized .float-rec-body,
+.float-rec.minimized .float-rec-actions{display:none}
+.float-rec.minimized .float-rec-head{padding:8px 14px;cursor:grab}
+.float-rec.minimized .float-rec-head .rec-mini-time{display:inline}
+.float-rec-head{
+  padding:10px 12px 8px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  cursor:grab;
+  background:linear-gradient(to bottom,var(--surface-2),var(--surface));
+  border-bottom:1px solid var(--border);
+}
+.float-rec-head:active{cursor:grabbing}
+.float-rec-dot{
+  width:10px;height:10px;border-radius:50%;
+  background:var(--ink-4);flex-shrink:0;
+}
+.float-rec-dot.active{
+  background:var(--accent-rose);
+  box-shadow:0 0 0 3px rgba(184,62,95,.18);
+  animation:dotPulse 1s ease-in-out infinite
+}
+.float-rec-title{
+  flex:1;font-weight:600;font-size:12px;color:var(--ink);
+}
+.rec-mini-time{
+  display:none;
+  font-family:var(--font-mono);font-size:11.5px;color:var(--ink-2);font-weight:600;
+}
+.float-rec-icon-btn{
+  width:22px;height:22px;border-radius:5px;border:none;
+  background:transparent;color:var(--ink-3);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.float-rec-icon-btn:hover{background:var(--surface-2);color:var(--ink)}
+.float-rec-icon-btn svg{width:13px;height:13px}
+.float-rec-body{
+  padding:10px 12px;
+}
+.float-rec-time{
+  font-family:var(--font-mono);
+  font-size:20px;font-weight:600;color:var(--ink);
+  margin-bottom:4px;
+}
+.float-rec-state{
+  font-size:11px;color:var(--ink-3);
+}
+.float-rec-state.ai-thinking{color:var(--accent-blue);font-weight:500}
+.float-rec-transcript-mini{
+  max-height:64px;overflow-y:auto;
+  background:var(--bg);border:1px solid var(--border);border-radius:7px;
+  padding:7px 9px;
+  font-size:11.5px;line-height:1.45;color:var(--ink-2);
+  margin-top:8px;white-space:pre-wrap;word-wrap:break-word;
+}
+.float-rec-transcript-mini:empty{display:none}
+.float-rec-transcript-mini .interim{color:var(--ink-3);font-style:italic}
+.float-rec-actions{
+  display:flex;gap:6px;
+  padding:8px 12px 12px;
+  border-top:1px solid var(--border);
+  background:var(--surface-2);
+}
+.float-rec-actions button{
+  flex:1;
+  padding:6px 8px;
+  border-radius:6px;
+  border:1px solid var(--border-strong);
+  background:var(--surface);
+  color:var(--ink);
+  font:inherit;font-size:11.5px;font-weight:500;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:4px;
+}
+.float-rec-actions button:hover{border-color:var(--ink-3)}
+.float-rec-actions button.primary{
+  background:var(--ink);color:#fff;border-color:var(--ink);
+}
+.float-rec-actions button.primary:hover{background:#000}
+.float-rec-actions button.danger{
+  background:var(--accent-rose-bg);color:var(--accent-rose);border-color:var(--accent-rose-bg);
+}
+.float-rec-actions button:disabled{opacity:.4;cursor:not-allowed}
+.float-rec-actions button svg{width:11px;height:11px}
+
+.float-rec-progress{
+  height:3px;background:var(--bg);position:relative;overflow:hidden;
+}
+.float-rec-progress-bar{
+  height:100%;background:linear-gradient(to right,var(--accent-blue),var(--accent-purple));
+  width:0;transition:width 0.3s;
+}
+.float-rec-progress.indeterminate .float-rec-progress-bar{
+  width:30%;animation:indet 1.4s linear infinite;
+}
+@keyframes indet{
+  0%{transform:translateX(-100%)}
+  100%{transform:translateX(400%)}
+}
+
+/* ============ DIFF HIGHLIGHTS на схеме ============ */
+.block.diff-add{
+  border-color:var(--accent-green) !important;
+  border-style:dashed !important;
+  border-width:2px !important;
+  box-shadow:0 0 0 4px rgba(47,122,79,.12) !important;
+  animation:diffPulse 1.5s ease-in-out infinite;
+}
+.block.diff-edit{
+  border-color:var(--accent-amber) !important;
+  border-style:dashed !important;
+  border-width:2px !important;
+  box-shadow:0 0 0 4px rgba(176,125,26,.12) !important;
+  animation:diffPulse 1.5s ease-in-out infinite;
+}
+.block.diff-remove{
+  border-color:var(--accent-rose) !important;
+  border-style:dashed !important;
+  border-width:2px !important;
+  box-shadow:0 0 0 4px rgba(184,62,95,.12) !important;
+  opacity:.7 !important;
+  animation:diffPulse 1.5s ease-in-out infinite;
+}
+@keyframes diffPulse{
+  0%,100%{box-shadow:0 0 0 4px rgba(47,122,79,.12)}
+  50%{box-shadow:0 0 0 8px rgba(47,122,79,.04)}
+}
+.block.diff-add::after,
+.block.diff-edit::after,
+.block.diff-remove::after{
+  content:'';
+  position:absolute;
+  top:-10px;right:-10px;
+  width:22px;height:22px;
+  border-radius:50%;
+  background:var(--accent-green);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;
+}
+.block.diff-add::after{content:'+';background:var(--accent-green)}
+.block.diff-edit::after{content:'✎';background:var(--accent-amber);font-size:11px}
+.block.diff-remove::after{content:'×';background:var(--accent-rose);font-size:15px}
+
+/* ============ AI SUGGESTIONS PANEL (правый сайдбар) ============ */
+.diff-panel{
+  position:fixed;
+  top:64px;right:0;
+  width:340px;
+  height:calc(100vh - 64px);
+  background:var(--surface);
+  border-left:1px solid var(--border-strong);
+  box-shadow:-8px 0 24px rgba(26,26,24,.06);
+  z-index:550;
+  display:none;
+  flex-direction:column;
+  transform:translateX(100%);
+  transition:transform 0.25s ease-out;
+}
+.diff-panel.show{display:flex;transform:translateX(0)}
+.diff-panel-head{
+  padding:14px 18px;
+  border-bottom:1px solid var(--border);
+  background:var(--surface-2);
+  display:flex;align-items:center;gap:10px;
+}
+.diff-panel-title{
+  flex:1;
+  font-size:13px;font-weight:600;color:var(--ink);
+}
+.diff-panel-title small{
+  display:block;font-size:11px;color:var(--ink-3);font-weight:400;margin-top:2px;
+}
+.diff-panel-close{
+  width:26px;height:26px;border:none;background:transparent;
+  color:var(--ink-3);cursor:pointer;border-radius:5px;
+  display:flex;align-items:center;justify-content:center;
+}
+.diff-panel-close:hover{background:var(--bg);color:var(--ink)}
+.diff-panel-close svg{width:14px;height:14px}
+.diff-panel-summary{
+  padding:12px 18px;
+  background:var(--accent-blue-bg);
+  border-bottom:1px solid var(--border);
+  font-size:12px;color:var(--accent-blue);line-height:1.5;
+}
+.diff-panel-summary b{color:var(--ink)}
+.diff-panel-actions{
+  display:flex;gap:6px;
+  padding:10px 14px;
+  border-bottom:1px solid var(--border);
+}
+.diff-panel-actions button{
+  flex:1;
+  padding:7px 10px;
+  border-radius:6px;
+  font:inherit;font-size:11.5px;font-weight:500;
+  cursor:pointer;border:1px solid var(--border-strong);
+  background:var(--surface);color:var(--ink-2);
+}
+.diff-panel-actions button:hover{border-color:var(--ink-3);color:var(--ink)}
+.diff-panel-actions button.primary{
+  background:var(--ink);color:#fff;border-color:var(--ink);
+}
+.diff-panel-actions button.primary:hover{background:#000}
+.diff-list{
+  flex:1;overflow-y:auto;
+  padding:10px 14px;
+}
+.diff-item{
+  border:1px solid var(--border);
+  border-radius:9px;
+  padding:10px 12px;
+  margin-bottom:8px;
+  background:var(--surface);
+  transition:all 0.15s;
+}
+.diff-item:hover{border-color:var(--border-strong)}
+.diff-item.accepted{
+  background:rgba(47,122,79,.05);border-color:var(--accent-green);
+}
+.diff-item.rejected{
+  opacity:.5;background:var(--surface-2);
+}
+.diff-item-head{
+  display:flex;align-items:center;gap:8px;margin-bottom:6px;
+}
+.diff-action-icon{
+  width:20px;height:20px;border-radius:5px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#fff;
+}
+.diff-action-icon.add{background:var(--accent-green)}
+.diff-action-icon.edit{background:var(--accent-amber)}
+.diff-action-icon.link{background:var(--accent-blue)}
+.diff-action-icon.remove{background:var(--accent-rose)}
+.diff-action-icon.note{background:var(--accent-purple)}
+.diff-item-label{
+  flex:1;
+  font-size:12.5px;font-weight:600;color:var(--ink);
+  line-height:1.3;
+}
+.diff-item-type{
+  font-size:10px;color:var(--ink-3);font-family:var(--font-mono);
+  text-transform:uppercase;letter-spacing:.04em;
+  margin-top:2px;
+}
+.diff-item-reason{
+  font-size:11.5px;color:var(--ink-2);
+  font-style:italic;
+  margin:4px 0 8px;
+  padding-left:28px;line-height:1.4;
+}
+.diff-item-buttons{
+  display:flex;gap:5px;padding-left:28px;
+}
+.diff-item-buttons button{
+  padding:4px 9px;border-radius:5px;
+  font:inherit;font-size:11px;font-weight:500;
+  cursor:pointer;border:1px solid var(--border-strong);
+  background:var(--surface);color:var(--ink-2);
+}
+.diff-item-buttons button.accept{
+  background:var(--accent-green);color:#fff;border-color:var(--accent-green);
+}
+.diff-item-buttons button.reject{
+  background:var(--surface);color:var(--accent-rose);border-color:var(--accent-rose);
+}
+.diff-item-buttons button.accept:hover{background:#256340}
+.diff-item-buttons button.reject:hover{background:var(--accent-rose);color:#fff}
+
+/* ============ PRESENTATION LINK INFO ============ */
+.presentation-block{
+  background:linear-gradient(135deg,#F4EFFB,#EEF2FB);
+  border:1px solid var(--accent-purple);
+  border-radius:10px;
+  padding:14px 16px;
+  margin-top:14px;
+}
+.presentation-block h4{
+  font-size:12px;color:var(--accent-purple);font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;
+}
+.presentation-block p{
+  font-size:12px;color:var(--ink-2);margin-bottom:10px;line-height:1.5;
+}
+.presentation-block .preview-link{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 12px;background:var(--surface);
+  border:1px solid var(--accent-purple);border-radius:7px;
+  font-family:var(--font-mono);font-size:11px;color:var(--accent-purple);
+}
+.presentation-block .preview-link input{
+  flex:1;border:none;background:transparent;font:inherit;color:inherit;outline:none;
+}
 </style>
 </head>
 <body>
@@ -510,13 +829,39 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 </div></div>
 <div class="toast" id="toast"></div>
 
-<!-- ============ AI SUGGESTION BAR (после AI-схемы) ============ -->
-<div class="ai-suggestion-bar" id="aiSuggestionBar">
-<i data-lucide="sparkles" style="width:14px;height:14px"></i>
-<span id="aiSuggestionText">Добавлено блоков из записи: 0</span>
-<button id="btnAcceptAi">Оставить</button>
-<button id="btnRejectAi">Откатить</button>
-<button class="close-x" id="btnDismissAi"><i data-lucide="x"></i></button>
+<!-- ============ FLOATING RECORDING PANEL ============ -->
+<div class="float-rec" id="floatRec">
+  <div class="float-rec-head" id="floatRecHead">
+    <div class="float-rec-dot" id="floatRecDot"></div>
+    <div class="float-rec-title">Запись встречи <span class="rec-mini-time" id="floatRecMiniTime"></span></div>
+    <button class="float-rec-icon-btn" id="floatRecMinimize" title="Свернуть"><i data-lucide="minus"></i></button>
+    <button class="float-rec-icon-btn" id="floatRecExpand" title="Развернуть в окно"><i data-lucide="maximize-2"></i></button>
+  </div>
+  <div class="float-rec-progress" id="floatRecProgress"><div class="float-rec-progress-bar" id="floatRecProgressBar"></div></div>
+  <div class="float-rec-body">
+    <div class="float-rec-time" id="floatRecTime">00:00</div>
+    <div class="float-rec-state" id="floatRecState">Готов к записи</div>
+    <div class="float-rec-transcript-mini" id="floatRecTranscript"></div>
+  </div>
+  <div class="float-rec-actions">
+    <button id="floatBtnStart"><i data-lucide="mic"></i> Старт</button>
+    <button id="floatBtnStop" style="display:none" class="danger"><i data-lucide="square"></i> Стоп</button>
+    <button id="floatBtnAnalyze" style="display:none" class="primary"><i data-lucide="sparkles"></i> AI</button>
+  </div>
+</div>
+
+<!-- ============ AI SUGGESTIONS PANEL ============ -->
+<div class="diff-panel" id="diffPanel">
+  <div class="diff-panel-head">
+    <div class="diff-panel-title">Правки от AI <small id="diffPanelCount">0 предложений</small></div>
+    <button class="diff-panel-close" id="diffPanelClose"><i data-lucide="x"></i></button>
+  </div>
+  <div class="diff-panel-summary" id="diffPanelSummary" style="display:none"></div>
+  <div class="diff-panel-actions">
+    <button id="btnAcceptAll" class="primary"><i data-lucide="check-check" style="width:11px;height:11px;display:inline-block;vertical-align:middle;margin-right:4px"></i> Принять все</button>
+    <button id="btnRejectAll"><i data-lucide="x" style="width:11px;height:11px;display:inline-block;vertical-align:middle;margin-right:4px"></i> Отклонить все</button>
+  </div>
+  <div class="diff-list" id="diffList"></div>
 </div>
 
 <!-- ============ PROJECTS ARCHIVE MODAL ============ -->
@@ -737,6 +1082,15 @@ const LIBRARY=[
 {type:'tender',label:'Тендеры',icon:'award',desc:'Госзакупки и тендеры'},
 {type:'certificates',label:'Сертификаты и РУ',icon:'badge-check',desc:'Регистр. удостоверения'},
 {type:'service',label:'Сервис и ТО',icon:'wrench',desc:'Гарантия и ремонты'}
+]},
+{name:'Системные модули',cat:'blue',items:[
+{type:'users',label:'Пользователи',icon:'users-round',desc:'Сотрудники компании'},
+{type:'permissions',label:'Роли и права',icon:'shield-check',desc:'Кто что видит и может'},
+{type:'search',label:'Глобальный поиск',icon:'search',desc:'По всей CRM'},
+{type:'audit-log',label:'Журнал действий',icon:'history',desc:'Кто что и когда менял'},
+{type:'backup',label:'Бэкапы',icon:'database-backup',desc:'Автоматическое сохранение'},
+{type:'settings',label:'Настройки системы',icon:'settings',desc:'Брендинг, домен, валюта'},
+{type:'import-export',label:'Импорт / экспорт',icon:'file-spreadsheet',desc:'CSV, Excel, миграция данных'}
 ]},
 {name:'Воронки',cat:'blue',items:[
 {type:'pipeline',label:'Воронка продаж',icon:'git-merge',desc:'Стадии сделки',isPipeline:true,stages:['Новый','Квалификация','Переговоры','Закрыта']}
@@ -1510,9 +1864,35 @@ function loadTemplate(key){
       state.edges.push({id:'e'+Math.random().toString(36).slice(2,9),source:idMap[e.source],target:idMap[e.target],label:e.label||''});
     }
   });
+  // Авто-добавление системных модулей (если их ещё нет в шаблоне)
+  injectSystemModules();
   redrawEdges();updateMeta();
   setTimeout(fitView,50);
   scheduleAutoSave();
+}
+
+// Системные блоки — автоматически добавляются в каждый шаблон
+function injectSystemModules(){
+  const existing=new Set(state.nodes.map(n=>n.type));
+  const systemBlocks=[
+    {type:'users',label:'Пользователи системы',x:100,y:1000},
+    {type:'permissions',label:'Роли и права доступа',x:340,y:1000},
+    {type:'search',label:'Глобальный поиск',x:580,y:1000},
+    {type:'audit-log',label:'Журнал действий',x:820,y:1000},
+    {type:'settings',label:'Настройки системы',x:1060,y:1000},
+    {type:'backup',label:'Резервные копии',x:1300,y:1000},
+    {type:'import-export',label:'Импорт / экспорт',x:1540,y:1000},
+  ];
+  // Заголовок-стикер
+  const hasLabel=state.nodes.some(n=>n.isNote&&(n.label||'').includes('Системные модули'));
+  if(!hasLabel){
+    addNode({type:'note',x:100,y:900,label:'⚙️ Системные модули (входят в стандарт любой CRM)',noteColor:'blue'});
+  }
+  systemBlocks.forEach(b=>{
+    if(!existing.has(b.type)){
+      addNode(b);
+    }
+  });
 }
 
 function renderBoardsList(){
@@ -1716,26 +2096,44 @@ shareConsent.addEventListener('change',()=>{
 });
 
 // ============================================================
-// RECORDING — Web Speech API + MediaRecorder + R2 upload + Claude AI
+// GLOBAL STATE — projects, recording, AI suggestions
 // ============================================================
 const WORKER_URL='https://pllato-research.uurraa.workers.dev';
+
+// projectsState — глобально для доступа из recording
+const projectsState={projects:[],activeProject:null};
+
+// Recording state
 const rec={
   recognition:null,
   startTime:0,
   timer:null,
-  transcript:'',
+  transcript:'',          // полный накопленный транскрипт
   interim:'',
+  lastAnalyzedLen:0,      // длина транскрипта на момент последнего анализа
   isRecording:false,
+  isPaused:false,
   supported:false,
-  // MediaRecorder для аудио
   mediaRecorder:null,
   audioChunks:[],
   audioStream:null,
   audioBlob:null,
-  audioKey:null, // ключ в R2 после загрузки
-  // Wake Lock — не даёт телефону/ноуту уснуть
+  audioKey:null,
   wakeLock:null,
 };
+
+// AI diff suggestions
+const diff={
+  actions:[],          // массив действий от AI
+  appliedIndexes:new Set(),  // индексы уже принятых
+  rejectedIndexes:new Set(),
+  preview:new Map(),   // id блока в схеме → 'add'|'edit'|'remove' для подсветки
+  schemaSnapshot:null, // snapshot для отката
+};
+
+// ============================================================
+// RECORDING — Floating panel + MediaRecorder + auto AI
+// ============================================================
 
 function initRecording(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -1747,89 +2145,135 @@ function initRecording(){
       showToast('Запись работает только в Chrome / Edge','alert-circle');
       return;
     }
-    showModal('recordingModal');
-    if(!rec.isRecording&&!rec.transcript)resetRecUI();
+    // Открываем плавающую панель вместо модалки
+    showFloatingPanel();
   });
 
+  // Кнопки в плавающей панели
+  document.getElementById('floatBtnStart').addEventListener('click',startRecording);
+  document.getElementById('floatBtnStop').addEventListener('click',stopRecording);
+  document.getElementById('floatBtnAnalyze').addEventListener('click',()=>analyzeTranscript(false));
+  document.getElementById('floatRecMinimize').addEventListener('click',toggleMinimize);
+  document.getElementById('floatRecExpand').addEventListener('click',openExpandedView);
+
+  // Кнопки в большой модалке (для просмотра полного транскрипта)
   document.getElementById('btnRecStart').addEventListener('click',startRecording);
   document.getElementById('btnRecStop').addEventListener('click',stopRecording);
   document.getElementById('btnRecClear').addEventListener('click',clearRecording);
-  document.getElementById('btnRecBuild').addEventListener('click',buildSchemaFromTranscript);
+  document.getElementById('btnRecBuild').addEventListener('click',()=>analyzeTranscript(false));
+
+  // Drag-and-drop плавающей панели
+  makeDraggable(document.getElementById('floatRec'),document.getElementById('floatRecHead'));
 
   if(!rec.supported){
-    const w=document.getElementById('recWarning');
-    w.innerHTML='<b>Ваш браузер не поддерживает запись.</b> Используйте Chrome, Edge или Arc. В Safari и Firefox функция распознавания речи не работает или работает нестабильно.';
-    w.classList.add('show');
+    document.getElementById('floatRecState').textContent='Браузер не поддерживает запись';
+    document.getElementById('floatBtnStart').disabled=true;
   }
 }
 
-function resetRecUI(){
-  rec.transcript='';rec.interim='';rec.audioBlob=null;rec.audioKey=null;
-  rec.audioChunks=[];
-  document.getElementById('transcriptBox').textContent='';
-  document.getElementById('recTime').textContent='00:00';
-  document.getElementById('recDot').classList.remove('active');
-  document.getElementById('recStateText').textContent='Нажмите «Начать запись», чтобы начать';
-  document.getElementById('btnRecStart').style.display='inline-flex';
-  document.getElementById('btnRecStop').style.display='none';
-  document.getElementById('btnRecClear').style.display='none';
-  document.getElementById('btnRecBuild').style.display='none';
-  document.getElementById('aiThinking').classList.remove('show');
+function showFloatingPanel(){
+  document.getElementById('floatRec').classList.add('show');
+  if(window.lucide)lucide.createIcons({nodes:[document.getElementById('floatRec')]});
+}
+
+function toggleMinimize(){
+  const panel=document.getElementById('floatRec');
+  panel.classList.toggle('minimized');
+  // Если свернули — показать таймер в заголовке
+  if(panel.classList.contains('minimized')){
+    document.getElementById('floatRecMiniTime').textContent='· '+document.getElementById('floatRecTime').textContent;
+  }
+}
+
+function openExpandedView(){
+  // Открыть полную модалку чтобы посмотреть весь транскрипт
+  document.getElementById('transcriptBox').textContent=rec.transcript+(rec.interim?'\n'+rec.interim:'');
+  document.getElementById('recTime').textContent=document.getElementById('floatRecTime').textContent;
+  if(rec.isRecording){
+    document.getElementById('btnRecStart').style.display='none';
+    document.getElementById('btnRecStop').style.display='inline-flex';
+    document.getElementById('recDot').classList.add('active');
+    document.getElementById('recStateText').textContent='Идёт запись... (можно работать со схемой)';
+  }else if(rec.transcript){
+    document.getElementById('btnRecStart').innerHTML='<i data-lucide="mic"></i> Продолжить';
+    document.getElementById('btnRecStop').style.display='none';
+    document.getElementById('btnRecClear').style.display='inline-flex';
+    document.getElementById('btnRecBuild').style.display='inline-flex';
+    document.getElementById('recStateText').textContent='Можно построить схему или продолжить запись';
+  }
+  showModal('recordingModal');
+  if(window.lucide)lucide.createIcons({nodes:[document.getElementById('btnRecStart')]});
+}
+
+function makeDraggable(panel,handle){
+  let isDown=false,startX,startY,initLeft,initTop;
+  handle.addEventListener('mousedown',e=>{
+    if(e.target.closest('.float-rec-icon-btn'))return;
+    isDown=true;
+    startX=e.clientX;startY=e.clientY;
+    const r=panel.getBoundingClientRect();
+    initLeft=r.left;initTop=r.top;
+    panel.style.right='auto'; // снимаем right если был
+    panel.style.left=initLeft+'px';
+    panel.style.top=initTop+'px';
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove',e=>{
+    if(!isDown)return;
+    const dx=e.clientX-startX,dy=e.clientY-startY;
+    let nx=initLeft+dx,ny=initTop+dy;
+    // Ограничения границ
+    nx=Math.max(0,Math.min(window.innerWidth-panel.offsetWidth,nx));
+    ny=Math.max(0,Math.min(window.innerHeight-panel.offsetHeight,ny));
+    panel.style.left=nx+'px';
+    panel.style.top=ny+'px';
+  });
+  window.addEventListener('mouseup',()=>{isDown=false});
 }
 
 async function startRecording(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){showToast('Браузер не поддерживает запись','alert-circle');return}
 
-  // 1) Запрашиваем микрофон СНАЧАЛА (для MediaRecorder)
+  // Если уже идёт запись — игнор
+  if(rec.isRecording)return;
+
   let stream=null;
   try{
     stream=await navigator.mediaDevices.getUserMedia({audio:{
-      echoCancellation:true,
-      noiseSuppression:true,
-      autoGainControl:true,
-      sampleRate:48000,
+      echoCancellation:true,noiseSuppression:true,autoGainControl:true,sampleRate:48000,
     }});
   }catch(err){
     if(err.name==='NotAllowedError'){
-      showToast('Доступ к микрофону запрещён','alert-circle');
-      const w=document.getElementById('recWarning');
-      w.innerHTML='<b>Браузер не дал доступ к микрофону.</b> Нажмите 🔒 в адресной строке → разрешите микрофон → перезагрузите страницу.';
-      w.classList.add('show');
+      showToast('Доступ к микрофону запрещён. Разрешите в 🔒 в адресной строке','alert-circle');
     }else{
-      showToast('Не удалось открыть микрофон: '+err.message,'alert-circle');
+      showToast('Не открыть микрофон: '+err.message,'alert-circle');
     }
     return;
   }
   rec.audioStream=stream;
 
-  // 2) Запускаем MediaRecorder для аудио (для архива)
+  // MediaRecorder
   try{
     let mimeType='audio/webm;codecs=opus';
     if(!MediaRecorder.isTypeSupported(mimeType))mimeType='audio/webm';
     if(!MediaRecorder.isTypeSupported(mimeType))mimeType='';
     rec.mediaRecorder=new MediaRecorder(stream,mimeType?{mimeType,audioBitsPerSecond:32000}:{audioBitsPerSecond:32000});
     rec.audioChunks=[];
-    rec.mediaRecorder.ondataavailable=e=>{
-      if(e.data&&e.data.size>0)rec.audioChunks.push(e.data);
-    };
-    rec.mediaRecorder.start(10000); // сохранять чанк каждые 10 сек (на случай краша)
+    rec.mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size>0)rec.audioChunks.push(e.data)};
+    rec.mediaRecorder.start(10000);
   }catch(err){
     console.warn('MediaRecorder failed:',err);
-    showToast('Аудио не будет сохранено, но транскрипция работает','alert-circle');
   }
 
-  // 3) Запрашиваем Wake Lock — не даём системе уснуть во время записи
+  // Wake Lock
   try{
     if('wakeLock' in navigator){
       rec.wakeLock=await navigator.wakeLock.request('screen');
-      rec.wakeLock.addEventListener('release',()=>{rec.wakeLock=null});
     }
-  }catch(err){
-    console.warn('Wake Lock not available:',err);
-  }
+  }catch(err){console.warn('Wake Lock not available:',err)}
 
-  // 4) Запускаем Web Speech API для транскрипции
+  // Speech Recognition
   try{
     rec.recognition=new SR();
     rec.recognition.continuous=true;
@@ -1846,29 +2290,23 @@ async function startRecording(){
       }
       if(final)rec.transcript+=final;
       rec.interim=interim;
-      renderTranscript();
+      renderRecUI();
     };
 
     rec.recognition.onerror=(event)=>{
-      console.error('SpeechRecognition error:',event.error);
+      console.error('SR error:',event.error);
       if(event.error==='not-allowed'){
         showToast('Доступ к микрофону запрещён','alert-circle');
         stopRecording();
-      }else if(event.error==='no-speech'){
-        // часто, ничего критичного
       }else if(event.error==='network'){
-        showToast('Нет интернета. Распознавание остановлено','alert-circle');
+        showToast('Нет интернета','alert-circle');
         stopRecording();
-      }else if(event.error==='aborted'){
-        // нормально
-      }else{
-        console.warn('SR error:',event.error);
       }
     };
 
     rec.recognition.onend=()=>{
-      // Web Speech API "автостопится" — если мы всё ещё в режиме записи, перезапустим
-      if(rec.isRecording){
+      // Auto-restart если ещё в режиме записи
+      if(rec.isRecording&&!rec.isPaused){
         try{rec.recognition.start()}catch(e){}
       }
     };
@@ -1876,14 +2314,18 @@ async function startRecording(){
     rec.recognition.start();
     rec.isRecording=true;
     rec.startTime=Date.now();
-    rec.timer=setInterval(updateRecTime,500);
+    rec.lastAnalyzedLen=0;
+    rec.timer=setInterval(updateRecTimer,500);
 
-    document.getElementById('btnRecStart').style.display='none';
-    document.getElementById('btnRecStop').style.display='inline-flex';
-    document.getElementById('recDot').classList.add('active');
-    document.getElementById('recStateText').textContent='Запись и транскрипция активны. Говорите естественно.';
+    // UI
+    document.getElementById('floatBtnStart').style.display='none';
+    document.getElementById('floatBtnStop').style.display='flex';
+    document.getElementById('floatBtnAnalyze').style.display='flex';
+    document.getElementById('floatRecDot').classList.add('active');
+    document.getElementById('floatRecState').textContent='Запись идёт... Нажмите AI когда захотите получить правки';
     document.getElementById('btnRecord').classList.add('recording');
     document.getElementById('btnRecordText').textContent='Запись...';
+    showToast('Запись началась. Можно работать со схемой','mic');
   }catch(e){
     console.error('start recording failed:',e);
     showToast('Не удалось запустить запись','alert-circle');
@@ -1894,14 +2336,9 @@ async function stopRecording(){
   if(!rec.isRecording)return;
   rec.isRecording=false;
 
-  // 1) Останавливаем Web Speech API
-  if(rec.recognition){
-    try{rec.recognition.stop()}catch(e){}
-    rec.recognition=null;
-  }
+  if(rec.recognition){try{rec.recognition.stop()}catch(e){}rec.recognition=null}
   if(rec.timer){clearInterval(rec.timer);rec.timer=null}
 
-  // 2) Останавливаем MediaRecorder и формируем blob
   if(rec.mediaRecorder&&rec.mediaRecorder.state!=='inactive'){
     await new Promise(resolve=>{
       rec.mediaRecorder.onstop=()=>{
@@ -1914,42 +2351,69 @@ async function stopRecording(){
   }
   rec.mediaRecorder=null;
 
-  // 3) Освобождаем микрофон
-  if(rec.audioStream){
-    rec.audioStream.getTracks().forEach(t=>t.stop());
-    rec.audioStream=null;
-  }
+  if(rec.audioStream){rec.audioStream.getTracks().forEach(t=>t.stop());rec.audioStream=null}
+  if(rec.wakeLock){try{await rec.wakeLock.release()}catch(e){}rec.wakeLock=null}
 
-  // 4) Освобождаем Wake Lock
-  if(rec.wakeLock){
-    try{await rec.wakeLock.release()}catch(e){}
-    rec.wakeLock=null;
-  }
-
-  document.getElementById('btnRecStop').style.display='none';
-  document.getElementById('btnRecStart').style.display='inline-flex';
-  document.getElementById('btnRecStart').innerHTML='<i data-lucide="mic"></i> Продолжить';
-  document.getElementById('recDot').classList.remove('active');
+  document.getElementById('floatBtnStart').style.display='flex';
+  document.getElementById('floatBtnStop').style.display='none';
+  document.getElementById('floatBtnStart').innerHTML='<i data-lucide="mic"></i> Продолжить';
+  document.getElementById('floatRecDot').classList.remove('active');
   document.getElementById('btnRecord').classList.remove('recording');
   document.getElementById('btnRecordText').textContent='Запись';
-  if(window.lucide)lucide.createIcons({nodes:[document.getElementById('btnRecStart')]});
+  if(window.lucide)lucide.createIcons({nodes:[document.getElementById('floatBtnStart')]});
 
   if(rec.transcript.trim()){
     const audioInfo=rec.audioBlob?` · Аудио: ${(rec.audioBlob.size/1024/1024).toFixed(1)} МБ`:'';
-    document.getElementById('recStateText').innerHTML='Запись остановлена. Можно построить схему.'+audioInfo;
-    document.getElementById('btnRecClear').style.display='inline-flex';
-    document.getElementById('btnRecBuild').style.display='inline-flex';
-
-    // 5) Загружаем аудио в R2 в фоне (не блокируем UX)
+    document.getElementById('floatRecState').innerHTML='Остановлено'+audioInfo;
+    // Авто-запуск финального анализа
+    if(rec.transcript.length-rec.lastAnalyzedLen>30){
+      setTimeout(()=>analyzeTranscript(false),500);
+    }
+    // Загрузка аудио в R2 в фоне
     if(rec.audioBlob)uploadAudioInBackground();
   }else{
-    document.getElementById('recStateText').textContent='Ничего не записано. Попробуйте ещё раз.';
+    document.getElementById('floatRecState').textContent='Ничего не записано';
+  }
+}
+
+function clearRecording(){
+  if(!confirm('Очистить транскрипт? Запись будет утеряна.'))return;
+  rec.transcript='';rec.interim='';rec.audioBlob=null;rec.audioKey=null;rec.audioChunks=[];
+  rec.lastAnalyzedLen=0;
+  renderRecUI();
+  document.getElementById('recStateText').textContent='Нажмите «Начать запись», чтобы начать';
+  document.getElementById('transcriptBox').textContent='';
+}
+
+function updateRecTimer(){
+  const sec=Math.floor((Date.now()-rec.startTime)/1000);
+  const m=Math.floor(sec/60),s=sec%60;
+  const t=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  document.getElementById('floatRecTime').textContent=t;
+  document.getElementById('recTime').textContent=t;
+  if(document.getElementById('floatRec').classList.contains('minimized')){
+    document.getElementById('floatRecMiniTime').textContent='· '+t;
+  }
+}
+
+function renderRecUI(){
+  // Мини-транскрипт в плавающей панели — последние 200 символов
+  const mini=document.getElementById('floatRecTranscript');
+  const recent=rec.transcript.slice(-200);
+  const safe=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  mini.innerHTML=safe(recent)+(rec.interim?`<span class="interim">${safe(rec.interim)}</span>`:'');
+  mini.scrollTop=mini.scrollHeight;
+
+  // Полный транскрипт в модалке
+  const full=document.getElementById('transcriptBox');
+  if(full){
+    full.innerHTML=safe(rec.transcript)+(rec.interim?`<span class="interim">${safe(rec.interim)}</span>`:'');
+    full.scrollTop=full.scrollHeight;
   }
 }
 
 async function uploadAudioInBackground(){
   if(!rec.audioBlob)return;
-  // Если есть активный проект — сохраняем по пути проекта, иначе по дате
   const project=projectsState.activeProject||{id:'unsorted',name:'Без проекта'};
   const ts=Date.now();
   const ext=rec.audioBlob.type.includes('webm')?'webm':'audio';
@@ -1965,60 +2429,44 @@ async function uploadAudioInBackground(){
     if(data.ok){
       rec.audioKey=data.key;
       showToast('Аудио сохранено в облако','check');
-      // Если есть активный проект — записываем мету в него
       if(projectsState.activeProject){
         addMeetingToProject(projectsState.activeProject.id,{
-          ts,
-          audioKey:key,
-          audioSize:data.size,
+          ts,audioKey:key,audioSize:data.size,
           transcript:rec.transcript,
           duration:Math.floor((Date.now()-rec.startTime)/1000),
         });
       }
     }else{
-      console.warn('upload failed:',data);
-      showToast('Не удалось загрузить аудио, но транскрипт сохранён','alert-circle');
+      showToast('Не удалось загрузить аудио, транскрипт сохранён','alert-circle');
     }
   }catch(e){
     console.error('uploadAudio:',e);
-    showToast('Ошибка загрузки аудио, но транскрипт сохранён','alert-circle');
+    showToast('Ошибка загрузки аудио','alert-circle');
   }
 }
 
-function clearRecording(){
-  if(!confirm('Очистить транскрипт? Запись будет утеряна.'))return;
-  resetRecUI();
-}
+// ============================================================
+// AI ANALYSIS — periodic and final
+// ============================================================
 
-function renderTranscript(){
-  const box=document.getElementById('transcriptBox');
-  const safe=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-  box.innerHTML=safe(rec.transcript)+(rec.interim?`<span class="interim">${safe(rec.interim)}</span>`:'');
-  box.scrollTop=box.scrollHeight;
-}
-
-function updateRecTime(){
-  const sec=Math.floor((Date.now()-rec.startTime)/1000);
-  const m=Math.floor(sec/60),s=sec%60;
-  document.getElementById('recTime').textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-}
-
-async function buildSchemaFromTranscript(){
+async function analyzeTranscript(isAuto){
   const transcript=rec.transcript.trim();
   if(transcript.length<30){
-    showToast('Транскрипт слишком короткий','alert-circle');
+    if(!isAuto)showToast('Транскрипт слишком короткий','alert-circle');
     return;
   }
-  document.getElementById('aiThinking').classList.add('show');
-  document.getElementById('btnRecBuild').disabled=true;
 
-  // Сохраняем текущее состояние схемы — нужно для отката
-  const snapshot={
-    nodes:state.nodes.map(n=>({...n})),
-    edges:state.edges.map(e=>({...e})),
-  };
+  // Показываем индикатор работы
+  const progress=document.getElementById('floatRecProgress');
+  progress.classList.add('indeterminate');
+  document.getElementById('floatRecState').textContent='AI анализирует...';
+  document.getElementById('floatRecState').classList.add('ai-thinking');
+  document.getElementById('floatBtnAnalyze').disabled=true;
 
-  // Передаём существующую схему чтобы AI добавил только новое
+  // Сохраняем длину для трекинга
+  rec.lastAnalyzedLen=rec.transcript.length;
+
+  // Существующая схема для diff-режима
   const existingSchema=state.nodes.length>0?{
     nodes:state.nodes.map(n=>({type:n.type,label:n.label,color:n.color})),
   }:null;
@@ -2030,112 +2478,286 @@ async function buildSchemaFromTranscript(){
       body:JSON.stringify({transcript,existingSchema}),
     });
     const data=await r.json();
-    if(!data.ok)throw new Error(data.error||'Unknown error');
+    if(!data.ok)throw new Error(data.error||'Unknown');
 
-    const schema=data.schema;
-    const addedNodeIds=[];
-
-    if(state.nodes.length===0){
-      // Пустая канва — обычная загрузка (как было)
-      dom.projectName.value=schema.name||'Схема из разговора';
+    if(data.mode==='full'){
+      // Пустая канва — обычная загрузка
+      const schema=data.schema;
+      dom.projectName.value=schema.name||'Из разговора';
       const idMap=[];
       (schema.nodes||[]).forEach((d,i)=>{
-        if(!TYPE_TO_DEF[d.type]){
-          d.type='note';d.isNote=true;d.noteColor=d.noteColor||'yellow';
-        }
-        const node=addNode(d);
-        idMap[i]=node.id;
-        addedNodeIds.push(node.id);
+        if(!TYPE_TO_DEF[d.type]){d.type='note';d.isNote=true;d.noteColor=d.noteColor||'yellow'}
+        idMap[i]=addNode(d).id;
       });
       (schema.edges||[]).forEach(e=>{
         if(idMap[e.source]&&idMap[e.target]){
           state.edges.push({id:'e'+Math.random().toString(36).slice(2,9),source:idMap[e.source],target:idMap[e.target],label:e.label||''});
         }
       });
+      redrawEdges();updateMeta();
+      setTimeout(fitView,80);
+      scheduleAutoSave();
+      showToast(`Схема построена: ${schema.nodes.length} блоков`,'sparkles');
     }else{
-      // Уже есть ручная схема — добавляем СПРАВА с пометкой "из записи"
-      // Находим самый правый блок
-      let maxX=0;
-      state.nodes.forEach(n=>{const el=document.getElementById(n.id);const w=el?el.offsetWidth:220;if(n.x+w>maxX)maxX=n.x+w});
-      const offsetX=Math.max(maxX+80,1800);
-
-      // Добавляем заголовок-стикер "Из записи разговора"
-      const header=addNode({
-        type:'note',
-        x:offsetX,
-        y:60,
-        label:`📍 Из записи разговора (${new Date().toLocaleDateString('ru-RU')})`,
-        noteColor:'blue',
-        _fromAi:true,
-      });
-      addedNodeIds.push(header.id);
-
-      // Добавляем блоки от AI со сдвигом
-      const idMap=[];
-      (schema.nodes||[]).forEach((d,i)=>{
-        if(!TYPE_TO_DEF[d.type]){
-          d.type='note';d.isNote=true;d.noteColor=d.noteColor||'yellow';
-        }
-        d.x=(d.x||100)+offsetX-100;
-        d._fromAi=true;
-        const node=addNode(d);
-        idMap[i]=node.id;
-        addedNodeIds.push(node.id);
-      });
-      (schema.edges||[]).forEach(e=>{
-        if(idMap[e.source]&&idMap[e.target]){
-          state.edges.push({id:'e'+Math.random().toString(36).slice(2,9),source:idMap[e.source],target:idMap[e.target],label:e.label||''});
-        }
-      });
+      // DIFF режим — показываем предложения
+      const actions=data.actions||[];
+      if(actions.length===0){
+        if(!isAuto)showToast('AI не нашёл что добавить','info');
+        document.getElementById('floatRecState').textContent='AI: всё уже учтено в схеме';
+        document.getElementById('floatRecState').classList.remove('ai-thinking');
+      }else{
+        showDiffPanel(actions,data.summary);
+        showToast(`AI предлагает ${actions.length} ${plural(actions.length,'правку','правки','правок')}`,'sparkles');
+      }
     }
-
-    redrawEdges();updateMeta();
-    setTimeout(fitView,80);
-    scheduleAutoSave();
-
-    // Показываем баннер с возможностью откатить
-    showAiSuggestionBar(addedNodeIds.length,snapshot,addedNodeIds);
-
-    hideModal('recordingModal');
-    showToast(`AI добавил ${addedNodeIds.length} блок(ов) справа`,'sparkles');
-    resetRecUI();
   }catch(err){
-    console.error('buildSchemaFromTranscript:',err);
-    showToast('Не удалось построить: '+err.message,'alert-circle');
-    document.getElementById('aiThinking').classList.remove('show');
-    document.getElementById('btnRecBuild').disabled=false;
+    console.error('analyzeTranscript:',err);
+    showToast('Ошибка AI: '+err.message,'alert-circle');
+    document.getElementById('floatRecState').textContent='Ошибка AI-анализа';
+    document.getElementById('floatRecState').classList.remove('ai-thinking');
+  }finally{
+    progress.classList.remove('indeterminate');
+    document.getElementById('floatBtnAnalyze').disabled=false;
+    if(rec.isRecording){
+      setTimeout(()=>{
+        document.getElementById('floatRecState').textContent='Запись идёт... Нажмите AI когда нужны правки';
+        document.getElementById('floatRecState').classList.remove('ai-thinking');
+      },3000);
+    }
   }
 }
 
-function showAiSuggestionBar(count,snapshot,addedIds){
-  const bar=document.getElementById('aiSuggestionBar');
-  document.getElementById('aiSuggestionText').textContent=`Добавлено блоков из записи: ${count}`;
-  bar.classList.add('show');
-  if(window.lucide)lucide.createIcons({nodes:[bar]});
+// ============================================================
+// DIFF SUGGESTIONS PANEL
+// ============================================================
 
-  document.getElementById('btnAcceptAi').onclick=()=>{
-    bar.classList.remove('show');
-    showToast('Изменения сохранены','check');
+function showDiffPanel(actions,summary){
+  // Снапшот для отката
+  diff.schemaSnapshot={
+    nodes:state.nodes.map(n=>({...n})),
+    edges:state.edges.map(e=>({...e})),
   };
-  document.getElementById('btnRejectAi').onclick=()=>{
-    if(!confirm('Откатить добавленные блоки?'))return;
-    // Восстанавливаем снапшот
-    state.nodes.forEach(n=>{const el=document.getElementById(n.id);if(el)el.remove()});
-    state.nodes=[];state.edges=[];
-    snapshot.nodes.forEach(n=>{state.nodes.push({...n});renderNode(n)});
-    snapshot.edges.forEach(e=>state.edges.push({...e}));
-    redrawEdges();updateMeta();scheduleAutoSave();
-    bar.classList.remove('show');
-    showToast('Откатили','rotate-ccw');
-  };
-  document.getElementById('btnDismissAi').onclick=()=>{
-    bar.classList.remove('show');
-  };
-  // Auto-hide через 30 сек если не отреагировали
-  clearTimeout(showAiSuggestionBar._t);
-  showAiSuggestionBar._t=setTimeout(()=>{
-    bar.classList.remove('show');
-  },30000);
+  diff.actions=actions;
+  diff.appliedIndexes=new Set();
+  diff.rejectedIndexes=new Set();
+
+  const panel=document.getElementById('diffPanel');
+  const list=document.getElementById('diffList');
+  document.getElementById('diffPanelCount').textContent=`${actions.length} ${plural(actions.length,'предложение','предложения','предложений')}`;
+  if(summary){
+    const sumEl=document.getElementById('diffPanelSummary');
+    sumEl.textContent=summary;
+    sumEl.style.display='block';
+  }else{
+    document.getElementById('diffPanelSummary').style.display='none';
+  }
+
+  list.innerHTML='';
+  actions.forEach((a,i)=>{
+    const item=document.createElement('div');
+    item.className='diff-item';
+    item.dataset.actionIdx=i;
+    const icon=actionIcon(a.action);
+    const label=actionLabel(a);
+    const typeText=actionTypeText(a);
+    item.innerHTML=`
+      <div class="diff-item-head">
+        <div class="diff-action-icon ${a.action}">${icon}</div>
+        <div style="flex:1;min-width:0">
+          <div class="diff-item-label">${escapeHtml(label)}</div>
+          <div class="diff-item-type">${typeText}</div>
+        </div>
+      </div>
+      ${a.reason?`<div class="diff-item-reason">«${escapeHtml(a.reason)}»</div>`:''}
+      <div class="diff-item-buttons">
+        <button class="accept" data-i="${i}">✓ Принять</button>
+        <button class="reject" data-i="${i}">✗ Отклонить</button>
+      </div>
+    `;
+    list.appendChild(item);
+  });
+
+  panel.classList.add('show');
+  if(window.lucide)lucide.createIcons({nodes:[panel]});
+
+  // Подсветка предполагаемых изменений на схеме
+  highlightDiffActions(actions);
+
+  // Слушатели
+  list.querySelectorAll('button.accept').forEach(btn=>{
+    btn.addEventListener('click',()=>acceptAction(+btn.dataset.i));
+  });
+  list.querySelectorAll('button.reject').forEach(btn=>{
+    btn.addEventListener('click',()=>rejectAction(+btn.dataset.i));
+  });
+}
+
+function actionIcon(act){
+  return {add:'+',edit:'✎',link:'→',remove:'×',note:'📝'}[act]||'•';
+}
+function actionLabel(a){
+  if(a.action==='add')return `Добавить «${a.label||a.type}»`;
+  if(a.action==='edit')return `Изменить блок #${a.targetIndex}`;
+  if(a.action==='link')return `Связать #${a.sourceIndex} → #${a.targetIndex}`;
+  if(a.action==='remove')return `Удалить блок #${a.targetIndex}`;
+  if(a.action==='note')return `Заметка: «${a.label}»`;
+  return a.action;
+}
+function actionTypeText(a){
+  if(a.action==='add')return `тип: ${a.type}${a.color?', цвет: '+a.color:''}`;
+  if(a.action==='edit'){
+    const parts=[];
+    if(a.newLabel)parts.push('label');
+    if(a.newDescription)parts.push('desc');
+    if(a.newColor)parts.push('color: '+a.newColor);
+    return parts.join(', ');
+  }
+  if(a.action==='link')return a.label||'без подписи';
+  if(a.action==='remove')return 'удаление';
+  if(a.action==='note')return `цвет: ${a.noteColor||'yellow'}`;
+  return '';
+}
+
+function highlightDiffActions(actions){
+  // Подсветка: EDIT/REMOVE — на существующих блоках
+  actions.forEach(a=>{
+    if(a.action==='edit'||a.action==='remove'){
+      const targetNode=state.nodes[a.targetIndex];
+      if(targetNode){
+        const el=document.getElementById(targetNode.id);
+        if(el){
+          el.classList.add('diff-'+a.action);
+          diff.preview.set(targetNode.id,a.action);
+        }
+      }
+    }
+    // ADD блоки будут подсвечены при применении (их пока нет)
+  });
+}
+
+function clearHighlights(){
+  diff.preview.forEach((act,id)=>{
+    const el=document.getElementById(id);
+    if(el)el.classList.remove('diff-add','diff-edit','diff-remove');
+  });
+  diff.preview.clear();
+}
+
+function acceptAction(i){
+  const a=diff.actions[i];
+  if(!a||diff.appliedIndexes.has(i)||diff.rejectedIndexes.has(i))return;
+  applyAction(a);
+  diff.appliedIndexes.add(i);
+  document.querySelector(`.diff-item[data-action-idx="${i}"]`).classList.add('accepted');
+}
+
+function rejectAction(i){
+  if(diff.appliedIndexes.has(i)||diff.rejectedIndexes.has(i))return;
+  diff.rejectedIndexes.add(i);
+  document.querySelector(`.diff-item[data-action-idx="${i}"]`).classList.add('rejected');
+  // Снимаем подсветку с этого таргета если был
+  const a=diff.actions[i];
+  if(a&&(a.action==='edit'||a.action==='remove')){
+    const targetNode=state.nodes[a.targetIndex];
+    if(targetNode){
+      const el=document.getElementById(targetNode.id);
+      if(el)el.classList.remove('diff-'+a.action);
+    }
+  }
+}
+
+function applyAction(a){
+  if(a.action==='add'){
+    // Найдём где разместить
+    let x=200,y=200;
+    if(typeof a.near==='number'&&state.nodes[a.near]){
+      const near=state.nodes[a.near];
+      x=near.x+260;y=near.y;
+    }else{
+      // Самый правый блок + сдвиг
+      let mx=0;
+      state.nodes.forEach(n=>{const el=document.getElementById(n.id);const w=el?el.offsetWidth:220;if(n.x+w>mx)mx=n.x+w});
+      x=mx+50;y=200+Math.random()*200;
+    }
+    if(!TYPE_TO_DEF[a.type]){a.type='note'}
+    const node=addNode({
+      type:a.type,x,y,
+      label:a.label||a.type,
+      description:a.description||'',
+      color:a.color,
+      stages:a.stages||null,
+    });
+    // Подсветить добавленный
+    const el=document.getElementById(node.id);
+    if(el)el.classList.add('diff-add');
+    diff.preview.set(node.id,'add');
+  }else if(a.action==='edit'){
+    const target=state.nodes[a.targetIndex];
+    if(target){
+      if(a.newLabel)target.label=a.newLabel;
+      if(a.newDescription)target.description=a.newDescription;
+      if(a.newColor)target.color=a.newColor;
+      renderNode(target);
+    }
+  }else if(a.action==='link'){
+    const s=state.nodes[a.sourceIndex];
+    const t=state.nodes[a.targetIndex];
+    if(s&&t){
+      state.edges.push({id:'e'+Math.random().toString(36).slice(2,9),source:s.id,target:t.id,label:a.label||''});
+      redrawEdges();
+    }
+  }else if(a.action==='remove'){
+    const target=state.nodes[a.targetIndex];
+    if(target){
+      state.nodes=state.nodes.filter(n=>n.id!==target.id);
+      state.edges=state.edges.filter(e=>e.source!==target.id&&e.target!==target.id);
+      const el=document.getElementById(target.id);
+      if(el)el.remove();
+    }
+  }else if(a.action==='note'){
+    let x=200,y=60;
+    if(typeof a.near==='number'&&state.nodes[a.near]){
+      const near=state.nodes[a.near];
+      x=near.x;y=near.y-100;
+      if(y<0)y=near.y+200;
+    }
+    const node=addNode({
+      type:'note',x,y,
+      label:a.label,
+      noteColor:a.noteColor||'yellow',
+    });
+    const el=document.getElementById(node.id);
+    if(el)el.classList.add('diff-add');
+    diff.preview.set(node.id,'add');
+  }
+  redrawEdges();updateMeta();scheduleAutoSave();
+}
+
+function initDiffPanel(){
+  document.getElementById('diffPanelClose').addEventListener('click',()=>{
+    clearHighlights();
+    document.getElementById('diffPanel').classList.remove('show');
+  });
+  document.getElementById('btnAcceptAll').addEventListener('click',()=>{
+    diff.actions.forEach((a,i)=>{
+      if(!diff.appliedIndexes.has(i)&&!diff.rejectedIndexes.has(i))acceptAction(i);
+    });
+    showToast('Все правки приняты','check-check');
+  });
+  document.getElementById('btnRejectAll').addEventListener('click',()=>{
+    if(!confirm('Откатить все принятые правки и отклонить остальные?'))return;
+    // Восстанавливаем snapshot
+    if(diff.schemaSnapshot){
+      state.nodes.forEach(n=>{const el=document.getElementById(n.id);if(el)el.remove()});
+      state.nodes=[];state.edges=[];
+      diff.schemaSnapshot.nodes.forEach(n=>{state.nodes.push({...n});renderNode(n)});
+      diff.schemaSnapshot.edges.forEach(e=>state.edges.push({...e}));
+      redrawEdges();updateMeta();scheduleAutoSave();
+    }
+    clearHighlights();
+    document.getElementById('diffPanel').classList.remove('show');
+    showToast('Откатили все правки','rotate-ccw');
+  });
 }
 
 function safeKey(s){return String(s||'').replace(/[^a-zA-Z0-9._-]+/g,'-').slice(0,60)}
@@ -2948,7 +3570,6 @@ function numberToWords(n){
 // PROJECTS ARCHIVE — клиенты, встречи, аудио, документы
 // ============================================================
 const KEY_PROJECTS=PFX+':projects';
-const projectsState={projects:[],activeProject:null};
 
 function loadProjects(){
   const r=Storage.g(KEY_PROJECTS);
@@ -3115,6 +3736,7 @@ function renderProjectBody(p,wrap){
           <div class="project-asset-label"><b>${escapeHtml(b.name||'Без названия')}</b>${isCurrent?' · <span style="color:var(--accent-green)">открыта сейчас</span>':''}</div>
           <div class="project-asset-meta">${(b.nodes||[]).length} блок(ов)</div>
           ${isCurrent?'':`<button class="project-asset-btn" data-open-board="${bid}">Открыть</button>`}
+          <button class="project-asset-btn" data-voice-edit="${bid}" title="Открыть и начать запись для голосовой правки" style="background:var(--accent-rose-bg);color:var(--accent-rose);border-color:var(--accent-rose-bg)">🎤 Правка</button>
         </div>`;
       }
     });
@@ -3148,6 +3770,27 @@ function renderProjectBody(p,wrap){
       const bid=btn.dataset.openBoard;
       const b=Storage.loadBoard(bid);
       if(b){loadBoardData(b);Storage.setCur(bid);hideModal('projectsModal');setTimeout(fitView,50)}
+    });
+  });
+  wrap.querySelectorAll('[data-voice-edit]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const bid=btn.dataset.voiceEdit;
+      const b=Storage.loadBoard(bid);
+      if(!b){showToast('Схема не найдена','alert-circle');return}
+      // Открываем схему
+      loadBoardData(b);
+      Storage.setCur(bid);
+      hideModal('projectsModal');
+      setTimeout(()=>{
+        fitView();
+        // Открываем плавающую запись
+        if(rec.supported){
+          showFloatingPanel();
+          showToast('Схема открыта. Нажмите Старт чтобы начать запись для правки','mic');
+        }else{
+          showToast('Схема открыта, но запись не работает в этом браузере','alert-circle');
+        }
+      },80);
     });
   });
   wrap.querySelectorAll('[data-play-audio]').forEach(btn=>{
@@ -3184,12 +3827,522 @@ function renderProjectBody(p,wrap){
   });
 }
 
+// ============================================================
+// SCREENSHOT + PRESENTATION PAGE
+// ============================================================
+
+// Генерируем SVG-схему как строку (используем существующий exportPng но возвращаем blob)
+async function generateSchemaScreenshot(){
+  if(state.nodes.length===0)return null;
+  return new Promise((resolve)=>{
+    let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
+    state.nodes.forEach(n=>{
+      const el=document.getElementById(n.id);
+      const w=el?.offsetWidth||estW(n),h=el?.offsetHeight||estH(n);
+      mnX=Math.min(mnX,n.x);mnY=Math.min(mnY,n.y);
+      mxX=Math.max(mxX,n.x+w);mxY=Math.max(mxY,n.y+h);
+    });
+    const PAD=60;
+    const W=mxX-mnX+PAD*2;
+    const H=mxY-mnY+PAD*2+30;
+    const OX=-mnX+PAD;
+    const OY=-mnY+PAD+20;
+
+    const parts=[`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`];
+    parts.push(`<rect width="${W}" height="${H}" fill="#FAFAF7"/>`);
+    parts.push(`<defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="rgba(26,26,24,0.10)"/></pattern><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8B8B85"/></marker></defs>`);
+    parts.push(`<rect width="${W}" height="${H}" fill="url(#dots)"/>`);
+
+    state.edges.forEach(edge=>{
+      const pts=getEdgePoints(edge.source,edge.target);if(!pts)return;
+      const adj={sx:pts.sx+OX,sy:pts.sy+OY,tx:pts.tx+OX,ty:pts.ty+OY};
+      parts.push(`<path d="${bezierPath(adj)}" fill="none" stroke="#8B8B85" stroke-width="1.5" marker-end="url(#ah)"/>`);
+      if(edge.label){
+        const mx=(adj.sx+adj.tx)/2,my=(adj.sy+adj.ty)/2,tw=edge.label.length*6.5+14;
+        parts.push(`<rect x="${mx-tw/2}" y="${my-9}" width="${tw}" height="18" rx="4" fill="#FFFFFF" stroke="#E8E6E0"/><text x="${mx}" y="${my+4}" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#4A4A47">${escapeXml(edge.label)}</text>`);
+      }
+    });
+
+    state.nodes.forEach(node=>{
+      const el=document.getElementById(node.id);if(!el)return;
+      const w=el.offsetWidth,h=el.offsetHeight;
+      const x=node.x+OX,y=node.y+OY;
+      let bgFill='#FFFFFF',bgStroke='#D6D3CC';
+      if(node.isNote){
+        const nc=NOTE_COLORS[node.noteColor]||NOTE_COLORS.default;
+        bgFill=nc[0];bgStroke=nc[1];
+      }
+      parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="${bgFill}" stroke="${bgStroke}" stroke-width="1"/>`);
+      if(!node.isNote){
+        const ic=ICONS_PALETTE[node.color]||ICONS_PALETTE.blue;
+        parts.push(`<rect x="${x+14}" y="${y+12}" width="32" height="32" rx="7" fill="${ic[0]}"/>`);
+        const iconInner=extractIconSvg(el);
+        if(iconInner){
+          const iconX=x+14+8,iconY=y+12+8;
+          parts.push(`<g transform="translate(${iconX},${iconY}) scale(${16/24})" stroke="${ic[1]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">${iconInner}</g>`);
+        }
+      }
+      const textX=x+(node.isNote?16:56);
+      if(node.isNote){
+        parts.push(`<text x="${textX}" y="${y+30}" font-family="Georgia,serif" font-size="15" font-style="italic" fill="#1A1A18">${escapeXml(node.label)}</text>`);
+      }else{
+        parts.push(`<text x="${textX}" y="${y+26}" font-family="sans-serif" font-size="13" font-weight="600" fill="#1A1A18">${escapeXml(node.label)}</text>`);
+        if(node.description){
+          parts.push(`<text x="${textX}" y="${y+44}" font-family="Georgia,serif" font-size="11" font-style="italic" fill="#8B8B85">${escapeXml(node.description)}</text>`);
+        }
+      }
+      if(node.isPipeline&&node.stages){
+        let sx=x+14;const sy=y+(node.description?60:54);
+        node.stages.forEach(stage=>{
+          const sw=stage.length*6.8+16;
+          parts.push(`<rect x="${sx}" y="${sy}" width="${sw}" height="20" rx="4" fill="#F8F8F5" stroke="#E8E6E0"/><text x="${sx+8}" y="${sy+13}" font-family="monospace" font-size="11" fill="#4A4A47">${escapeXml(stage)}</text>`);
+          sx+=sw+4;
+        });
+      }
+    });
+    parts.push(`</svg>`);
+
+    const svgStr=parts.join('');
+    const blob=new Blob([svgStr],{type:'image/svg+xml;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement('canvas');
+      const SCALE=1.5;
+      c.width=W*SCALE;c.height=H*SCALE;
+      const ctx=c.getContext('2d');
+      ctx.fillStyle='#FAFAF7';ctx.fillRect(0,0,c.width,c.height);
+      ctx.scale(SCALE,SCALE);
+      ctx.drawImage(img,0,0);
+      URL.revokeObjectURL(url);
+      c.toBlob(pngBlob=>resolve(pngBlob),'image/png');
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);resolve(null)};
+    img.src=url;
+  });
+}
+
+async function uploadScreenshotToR2(projectId){
+  const blob=await generateSchemaScreenshot();
+  if(!blob)return null;
+  const key=`screens/${safeKey(projectId||'project')}/${Date.now()}.png`;
+  try{
+    const r=await fetch(WORKER_URL+'/api/page/upload?key='+encodeURIComponent(key),{
+      method:'POST',
+      headers:{'Content-Type':'image/png'},
+      body:blob,
+    });
+    const data=await r.json();
+    return data.ok?data:null;
+  }catch(e){
+    console.error('uploadScreenshot:',e);
+    return null;
+  }
+}
+
+// Презентация-страница для клиента (HTML загружается в R2 как public)
+// ============================================================
+// MOCKUPS — статичные SVG UI-мокапы для презентации
+// ============================================================
+// Каждый мокап — функция возвращающая SVG строку
+// viewBox 800x500 единый для всех
+
+const MOCKUPS = {
+  leads: () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><rect x="20" y="20" width="760" height="460" rx="12" fill="#fff" stroke="#E8E6E0"/><text x="40" y="60" font-family="Geist,sans-serif" font-size="18" font-weight="600" fill="#1A1A18">Лиды</text><text x="40" y="82" font-family="Geist,sans-serif" font-size="11" fill="#8B8B85">42 новых · 187 в работе · 56 закрыты</text><rect x="640" y="42" width="120" height="34" rx="8" fill="#1A1A18"/><text x="700" y="64" font-family="Geist,sans-serif" font-size="12" fill="#fff" text-anchor="middle">+ Добавить</text><line x1="40" y1="110" x2="760" y2="110" stroke="#E8E6E0"/><g font-family="Geist,sans-serif" font-size="10" fill="#8B8B85"><text x="50" y="135">ИМЯ</text><text x="240" y="135">ТЕЛЕФОН</text><text x="380" y="135">ИСТОЧНИК</text><text x="520" y="135">СТАТУС</text><text x="660" y="135">ДАТА</text></g><g font-family="Geist,sans-serif" font-size="13" fill="#1A1A18"><line x1="40" y1="150" x2="760" y2="150" stroke="#F3F0E8"/><text x="50" y="175">Айдар Сулейменов</text><text x="240" y="175" fill="#4A4A47" font-family="monospace" font-size="12">+7 705 123 45 67</text><circle cx="395" cy="170" r="9" fill="#25D366"/><text x="395" y="174" font-size="10" fill="#fff" text-anchor="middle">W</text><text x="415" y="175" fill="#4A4A47">WhatsApp</text><rect x="510" y="161" width="80" height="20" rx="10" fill="#ECF5EF"/><text x="550" y="175" fill="#2F7A4F" font-size="11" text-anchor="middle">Новый</text><text x="660" y="175" fill="#8B8B85" font-size="11">сегодня</text></g><g font-family="Geist,sans-serif" font-size="13" fill="#1A1A18"><line x1="40" y1="195" x2="760" y2="195" stroke="#F3F0E8"/><text x="50" y="220">Жанар Касымова</text><text x="240" y="220" fill="#4A4A47" font-family="monospace" font-size="12">+7 778 234 56 78</text><circle cx="395" cy="215" r="9" fill="#E1306C"/><text x="395" y="219" font-size="10" fill="#fff" text-anchor="middle">I</text><text x="415" y="220" fill="#4A4A47">Instagram</text><rect x="510" y="206" width="80" height="20" rx="10" fill="#FBF5E7"/><text x="550" y="220" fill="#B07D1A" font-size="11" text-anchor="middle">В работе</text><text x="660" y="220" fill="#8B8B85" font-size="11">вчера</text></g><g font-family="Geist,sans-serif" font-size="13" fill="#1A1A18"><line x1="40" y1="240" x2="760" y2="240" stroke="#F3F0E8"/><text x="50" y="265">Иван Петров</text><text x="240" y="265" fill="#4A4A47" font-family="monospace" font-size="12">+7 701 345 67 89</text><circle cx="395" cy="260" r="9" fill="#3B5FB8"/><text x="395" y="264" font-size="10" fill="#fff" text-anchor="middle">F</text><text x="415" y="265" fill="#4A4A47">Сайт</text><rect x="510" y="251" width="80" height="20" rx="10" fill="#EEF2FB"/><text x="550" y="265" fill="#3B5FB8" font-size="11" text-anchor="middle">Связались</text><text x="660" y="265" fill="#8B8B85" font-size="11">2 дня</text></g><g font-family="Geist,sans-serif" font-size="13" fill="#1A1A18"><line x1="40" y1="285" x2="760" y2="285" stroke="#F3F0E8"/><text x="50" y="310">Алия Нурбаева</text><text x="240" y="310" fill="#4A4A47" font-family="monospace" font-size="12">+7 707 456 78 90</text><circle cx="395" cy="305" r="9" fill="#25D366"/><text x="395" y="309" font-size="10" fill="#fff" text-anchor="middle">W</text><text x="415" y="310" fill="#4A4A47">WhatsApp</text><rect x="510" y="296" width="80" height="20" rx="10" fill="#ECF5EF"/><text x="550" y="310" fill="#2F7A4F" font-size="11" text-anchor="middle">Сделка</text><text x="660" y="310" fill="#8B8B85" font-size="11">3 дня</text></g><g font-family="Geist,sans-serif" font-size="13" fill="#1A1A18"><line x1="40" y1="330" x2="760" y2="330" stroke="#F3F0E8"/><text x="50" y="355">Марат Жумабаев</text><text x="240" y="355" fill="#4A4A47" font-family="monospace" font-size="12">+7 747 567 89 01</text><circle cx="395" cy="350" r="9" fill="#B07D1A"/><text x="395" y="354" font-size="10" fill="#fff" text-anchor="middle">☎</text><text x="415" y="355" fill="#4A4A47">Звонок</text><rect x="510" y="341" width="80" height="20" rx="10" fill="#FBECF1"/><text x="550" y="355" fill="#B83E5F" font-size="11" text-anchor="middle">Отказ</text><text x="660" y="355" fill="#8B8B85" font-size="11">неделя</text></g></svg>`,
+
+  pipeline: () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><text x="20" y="30" font-family="Geist,sans-serif" font-size="18" font-weight="600" fill="#1A1A18">Воронка продаж</text><text x="20" y="50" font-family="Geist,sans-serif" font-size="11" fill="#8B8B85">Декабрь 2025 · 47 сделок на ₸ 12 400 000</text><g><rect x="20" y="70" width="180" height="420" rx="10" fill="#EEF2FB" stroke="#A4C0E8"/><text x="35" y="95" font-family="Geist,sans-serif" font-size="13" font-weight="600" fill="#3B5FB8">Новые</text><text x="180" y="95" font-family="Geist,sans-serif" font-size="11" fill="#3B5FB8" text-anchor="end">12</text><g font-family="Geist,sans-serif"><rect x="32" y="110" width="156" height="56" rx="7" fill="#fff" stroke="#E8E6E0"/><text x="42" y="128" font-size="12" font-weight="600">Айгуль Назарбаева</text><text x="42" y="146" font-size="10" fill="#8B8B85">Салон красоты</text><text x="42" y="160" font-size="11" font-weight="600" font-family="monospace" fill="#1A1A18">₸ 350 000</text><rect x="32" y="172" width="156" height="56" rx="7" fill="#fff" stroke="#E8E6E0"/><text x="42" y="190" font-size="12" font-weight="600">Канат Жалгасов</text><text x="42" y="208" font-size="10" fill="#8B8B85">Автосервис</text><text x="42" y="222" font-size="11" font-weight="600" font-family="monospace" fill="#1A1A18">₸ 480 000</text><rect x="32" y="234" width="156" height="56" rx="7" fill="#fff" stroke="#E8E6E0"/><text x="42" y="252" font-size="12" font-weight="600">Олжас Ибраев</text><text x="42" y="270" font-size="10" fill="#8B8B85">Школа английского</text><text x="42" y="284" font-size="11" font-weight="600" font-family="monospace" fill="#1A1A18">₸ 220 000</text></g></g><g><rect x="220" y="70" width="180" height="420" rx="10" fill="#FBF5E7" stroke="#F0D87A"/><text x="235" y="95" font-family="Geist,sans-serif" font-size="13" font-weight="600" fill="#B07D1A">Переговоры</text><text x="380" y="95" font-family="Geist,sans-serif" font-size="11" fill="#B07D1A" text-anchor="end">8</text><g font-family="Geist,sans-serif"><rect x="232" y="110" width="156" height="56" rx="7" fill="#fff" stroke="#E8E6E0"/><text x="242" y="128" font-size="12" font-weight="600">Жанна Сериккызы</text><text x="242" y="146" font-size="10" fill="#8B8B85">Медцентр</text><text x="242" y="160" font-size="11" font-weight="600" font-family="monospace" fill="#1A1A18">₸ 1 200 000</text><rect x="232" y="172" width="156" height="56" rx="7" fill="#fff" stroke="#E8E6E0"/><text x="242" y="190" font-size="12" font-weight="600">Серик Тимуров</text><text x="242" y="208" font-size="10" fill="#8B8B85">MLM-партнёр</text><text x="242" y="222" font-size="11" font-weight="600" font-family="monospace" fill="#1A1A18">₸ 850 000</text></g></g><g><rect x="420" y="70" width="180" height="420" rx="10" fill="#FBF1EB" stroke="#E8B591"/><text x="435" y="95" font-family="Geist,sans-serif" font-size="13" font-weight="600" fill="#C2542B">Договор</text><text x="580" y="95" font-family="Geist,sans-serif" font-size="11" fill="#C2542B" text-anchor="end">5</text><g font-family="Geist,sans-serif"><rect x="432" y="110" width="156" height="56" rx="7" fill="#fff" stroke="#E8E6E0"/><text x="442" y="128" font-size="12" font-weight="600">Алия Каратаева</text><text x="442" y="146" font-size="10" fill="#8B8B85">Турагентство</text><text x="442" y="160" font-size="11" font-weight="600" font-family="monospace" fill="#1A1A18">₸ 2 800 000</text><rect x="432" y="172" width="156" height="56" rx="7" fill="#fff" stroke="#E8E6E0"/><text x="442" y="190" font-size="12" font-weight="600">Дамир Канафин</text><text x="442" y="208" font-size="10" fill="#8B8B85">Логистика</text><text x="442" y="222" font-size="11" font-weight="600" font-family="monospace" fill="#1A1A18">₸ 4 500 000</text></g></g><g><rect x="620" y="70" width="180" height="420" rx="10" fill="#ECF5EF" stroke="#9DCDA8"/><text x="635" y="95" font-family="Geist,sans-serif" font-size="13" font-weight="600" fill="#2F7A4F">Оплачено</text><text x="780" y="95" font-family="Geist,sans-serif" font-size="11" fill="#2F7A4F" text-anchor="end">22</text><g font-family="Geist,sans-serif"><rect x="632" y="110" width="156" height="56" rx="7" fill="#fff" stroke="#E8E6E0"/><text x="642" y="128" font-size="12" font-weight="600">Гульнара Аскарова</text><text x="642" y="146" font-size="10" fill="#8B8B85">Фитнес-клуб ✓</text><text x="642" y="160" font-size="11" font-weight="600" font-family="monospace" fill="#2F7A4F">₸ 1 500 000</text><rect x="632" y="172" width="156" height="56" rx="7" fill="#fff" stroke="#E8E6E0"/><text x="642" y="190" font-size="12" font-weight="600">Бахыт Тулегенова</text><text x="642" y="208" font-size="10" fill="#8B8B85">Стоматология ✓</text><text x="642" y="222" font-size="11" font-weight="600" font-family="monospace" fill="#2F7A4F">₸ 980 000</text></g></g></svg>`,
+
+  whatsapp: () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><rect x="20" y="20" width="760" height="460" rx="12" fill="#fff" stroke="#E8E6E0"/><rect x="20" y="20" width="280" height="460" rx="12" fill="#F8F8F5"/><rect x="20" y="20" width="280" height="60" rx="12" fill="#fff" stroke="#E8E6E0"/><text x="40" y="55" font-family="Geist,sans-serif" font-size="15" font-weight="600" fill="#1A1A18">WhatsApp Business</text><g font-family="Geist,sans-serif"><rect x="30" y="90" width="260" height="58" rx="8" fill="#E8F7EC"/><circle cx="50" cy="118" r="14" fill="#25D366"/><text x="50" y="123" font-size="11" font-weight="600" fill="#fff" text-anchor="middle">АН</text><text x="76" y="112" font-size="12" font-weight="600">Айгуль Назарбаева</text><text x="76" y="128" font-size="10" fill="#4A4A47">Здравствуйте! Записаться можно?</text><text x="280" y="105" font-size="9" fill="#8B8B85" text-anchor="end">12:32</text><circle cx="275" cy="135" r="7" fill="#25D366"/><text x="275" y="139" font-size="9" fill="#fff" text-anchor="middle">2</text><rect x="30" y="158" width="260" height="58" rx="8" fill="#fff"/><circle cx="50" cy="186" r="14" fill="#3B5FB8"/><text x="50" y="191" font-size="11" font-weight="600" fill="#fff" text-anchor="middle">КЖ</text><text x="76" y="180" font-size="12" font-weight="600">Канат Жалгасов</text><text x="76" y="196" font-size="10" fill="#8B8B85">Спасибо, до завтра</text><text x="280" y="173" font-size="9" fill="#8B8B85" text-anchor="end">вчера</text><rect x="30" y="226" width="260" height="58" rx="8" fill="#fff"/><circle cx="50" cy="254" r="14" fill="#B07D1A"/><text x="50" y="259" font-size="11" font-weight="600" fill="#fff" text-anchor="middle">ОИ</text><text x="76" y="248" font-size="12" font-weight="600">Олжас Ибраев</text><text x="76" y="264" font-size="10" fill="#8B8B85">А когда будет скидка?</text><text x="280" y="241" font-size="9" fill="#8B8B85" text-anchor="end">пн</text></g><rect x="300" y="20" width="500" height="60" fill="#fff" stroke="#E8E6E0"/><circle cx="335" cy="50" r="20" fill="#25D366"/><text x="335" y="55" font-family="Geist,sans-serif" font-size="14" font-weight="600" fill="#fff" text-anchor="middle">АН</text><text x="370" y="46" font-family="Geist,sans-serif" font-size="14" font-weight="600" fill="#1A1A18">Айгуль Назарбаева</text><text x="370" y="64" font-family="Geist,sans-serif" font-size="11" fill="#2F7A4F">● в сети</text><g font-family="Geist,sans-serif"><rect x="320" y="100" width="240" height="44" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="335" y="120" font-size="12" fill="#1A1A18">Здравствуйте! Записаться</text><text x="335" y="136" font-size="12" fill="#1A1A18">на маникюр можно?</text><text x="540" y="138" font-size="9" fill="#8B8B85" text-anchor="end">12:32</text><rect x="540" y="160" width="240" height="44" rx="10" fill="#DCF8C6"/><text x="555" y="180" font-size="12" fill="#1A1A18">Конечно, Айгуль! На какое</text><text x="555" y="196" font-size="12" fill="#1A1A18">время удобно? ✓✓</text><text x="760" y="198" font-size="9" fill="#8B8B85" text-anchor="end">12:33</text><rect x="320" y="220" width="240" height="44" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="335" y="240" font-size="12" fill="#1A1A18">Завтра в 15:00 свободно?</text><text x="540" y="258" font-size="9" fill="#8B8B85" text-anchor="end">12:34</text><rect x="540" y="280" width="240" height="68" rx="10" fill="#DCF8C6"/><text x="555" y="300" font-size="12" fill="#1A1A18">Да, записала вас!</text><text x="555" y="318" font-size="12" fill="#1A1A18">Жду в 15:00. Адрес:</text><text x="555" y="336" font-size="12" fill="#3B5FB8">ул. Абая 150 ✓✓</text></g><rect x="320" y="430" width="460" height="36" rx="18" fill="#F8F8F5" stroke="#E8E6E0"/><text x="335" y="453" font-family="Geist,sans-serif" font-size="12" fill="#8B8B85">Напишите сообщение...</text><circle cx="760" cy="448" r="14" fill="#25D366"/><text x="760" y="453" font-size="12" fill="#fff" text-anchor="middle">➤</text></svg>`,
+
+  telegram: () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><rect x="20" y="20" width="760" height="460" rx="12" fill="#fff" stroke="#E8E6E0"/><rect x="20" y="20" width="760" height="56" fill="#0088cc"/><circle cx="50" cy="48" r="20" fill="#fff"/><text x="50" y="54" font-family="Geist,sans-serif" font-size="14" font-weight="600" fill="#0088cc" text-anchor="middle">🤖</text><text x="85" y="46" font-family="Geist,sans-serif" font-size="14" font-weight="600" fill="#fff">@pllato_crm_bot</text><text x="85" y="64" font-family="Geist,sans-serif" font-size="11" fill="rgba(255,255,255,.8)">бот · ваша CRM</text><g font-family="Geist,sans-serif"><rect x="40" y="100" width="380" height="50" rx="12" fill="#F0F4F7"/><text x="60" y="122" font-size="12" fill="#1A1A18">🤖 Привет! Вы получили новую заявку:</text><text x="60" y="140" font-size="12" font-weight="600" fill="#1A1A18">Айгуль Назарбаева, ₸ 350 000</text><rect x="40" y="160" width="380" height="50" rx="12" fill="#F0F4F7"/><text x="60" y="180" font-size="12" fill="#4A4A47">Источник: Instagram · 5 минут назад</text><text x="60" y="198" font-size="12" fill="#4A4A47">Услуга: Маникюр + педикюр</text><g><rect x="40" y="225" width="120" height="36" rx="8" fill="#0088cc"/><text x="100" y="248" font-size="12" font-weight="600" fill="#fff" text-anchor="middle">✓ Взять в работу</text><rect x="172" y="225" width="100" height="36" rx="8" fill="#fff" stroke="#0088cc"/><text x="222" y="248" font-size="12" font-weight="600" fill="#0088cc" text-anchor="middle">📅 Перенести</text><rect x="284" y="225" width="100" height="36" rx="8" fill="#fff" stroke="#FF3B30"/><text x="334" y="248" font-size="12" font-weight="600" fill="#FF3B30" text-anchor="middle">✕ Отклонить</text></g><rect x="380" y="285" width="380" height="50" rx="12" fill="#DCF2FF"/><text x="400" y="307" font-size="12" fill="#1A1A18">Вы → Взять в работу ✓</text><text x="400" y="325" font-size="11" fill="#0088cc">Сделка перешла в "Переговоры"</text><rect x="40" y="350" width="380" height="74" rx="12" fill="#F0F4F7"/><text x="60" y="372" font-size="12" font-weight="600" fill="#1A1A18">🔔 Напоминание</text><text x="60" y="392" font-size="11" fill="#4A4A47">Завтра в 10:00 — встреча с Канатом Жалгасовым</text><text x="60" y="410" font-size="11" fill="#4A4A47">(Автосервис, обсуждение проекта)</text></g></svg>`,
+
+  kaspi: () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><rect x="200" y="40" width="400" height="420" rx="20" fill="#fff" stroke="#E8E6E0"/><rect x="200" y="40" width="400" height="80" rx="20" fill="#F14635"/><text x="400" y="80" font-family="Geist,sans-serif" font-size="22" font-weight="700" fill="#fff" text-anchor="middle">Kaspi.kz</text><text x="400" y="102" font-family="Geist,sans-serif" font-size="11" fill="rgba(255,255,255,.85)" text-anchor="middle">Оплата заказа</text><text x="400" y="160" font-family="Geist,sans-serif" font-size="14" fill="#8B8B85" text-anchor="middle">Сумма к оплате</text><text x="400" y="200" font-family="Geist,sans-serif" font-size="36" font-weight="700" fill="#1A1A18" text-anchor="middle">₸ 350 000</text><line x1="240" y1="240" x2="560" y2="240" stroke="#E8E6E0"/><g font-family="Geist,sans-serif" font-size="13"><text x="240" y="270" fill="#8B8B85">Получатель:</text><text x="560" y="270" fill="#1A1A18" font-weight="600" text-anchor="end">Beauty Almaty</text><text x="240" y="295" fill="#8B8B85">Номер заказа:</text><text x="560" y="295" fill="#1A1A18" font-family="monospace" text-anchor="end">№ 2025-12-001</text><text x="240" y="320" fill="#8B8B85">Услуга:</text><text x="560" y="320" fill="#1A1A18" text-anchor="end">Маникюр + педикюр</text></g><rect x="280" y="350" width="240" height="60" rx="8" fill="#F8F8F5" stroke="#E8E6E0"/><g transform="translate(310,366)"><rect x="0" y="0" width="28" height="28" fill="#1A1A18"/><rect x="3" y="3" width="22" height="22" fill="#fff"/><rect x="6" y="6" width="4" height="4" fill="#1A1A18"/><rect x="14" y="6" width="4" height="4" fill="#1A1A18"/><rect x="6" y="14" width="4" height="4" fill="#1A1A18"/><rect x="14" y="14" width="4" height="4" fill="#1A1A18"/><rect x="18" y="14" width="4" height="4" fill="#1A1A18"/></g><text x="355" y="385" font-family="Geist,sans-serif" font-size="12" fill="#1A1A18">Отсканируйте QR в Kaspi</text><text x="355" y="402" font-family="Geist,sans-serif" font-size="10" fill="#8B8B85">или нажмите кнопку ниже</text><rect x="240" y="420" width="320" height="44" rx="22" fill="#F14635"/><text x="400" y="448" font-family="Geist,sans-serif" font-size="14" font-weight="600" fill="#fff" text-anchor="middle">Оплатить через Kaspi →</text></svg>`,
+
+  warehouse: () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><rect x="20" y="20" width="760" height="460" rx="12" fill="#fff" stroke="#E8E6E0"/><text x="40" y="60" font-family="Geist,sans-serif" font-size="18" font-weight="600" fill="#1A1A18">Склад</text><text x="40" y="82" font-family="Geist,sans-serif" font-size="11" fill="#8B8B85">847 наименований · ₸ 12 400 000 остаток · 8 заканчиваются</text><g><rect x="600" y="42" width="160" height="34" rx="8" fill="#fff" stroke="#1A1A18"/><text x="680" y="64" font-family="Geist,sans-serif" font-size="12" fill="#1A1A18" text-anchor="middle">+ Поступление</text></g><line x1="40" y1="110" x2="760" y2="110" stroke="#E8E6E0"/><g font-family="Geist,sans-serif" font-size="10" fill="#8B8B85"><text x="50" y="135">АРТИКУЛ</text><text x="160" y="135">НАИМЕНОВАНИЕ</text><text x="430" y="135">ОСТАТОК</text><text x="550" y="135">ЦЕНА</text><text x="660" y="135">СТАТУС</text></g><g font-family="Geist,sans-serif" font-size="13" fill="#1A1A18"><line x1="40" y1="150" x2="760" y2="150" stroke="#F3F0E8"/><text x="50" y="178" font-family="monospace" font-size="11" fill="#4A4A47">SK-001</text><text x="160" y="178" font-weight="600">Гель-лак OPI Red Passion</text><text x="160" y="194" font-size="10" fill="#8B8B85">Маникюрные материалы</text><text x="475" y="178" font-family="monospace" font-weight="600" text-anchor="end">142 шт</text><text x="595" y="178" font-family="monospace" text-anchor="end">₸ 4 500</text><rect x="640" y="165" width="80" height="20" rx="10" fill="#ECF5EF"/><text x="680" y="179" fill="#2F7A4F" font-size="11" text-anchor="middle">В наличии</text></g><g font-family="Geist,sans-serif" font-size="13" fill="#1A1A18"><line x1="40" y1="210" x2="760" y2="210" stroke="#F3F0E8"/><text x="50" y="238" font-family="monospace" font-size="11" fill="#4A4A47">SK-002</text><text x="160" y="238" font-weight="600">Шампунь Loreal Professional</text><text x="160" y="254" font-size="10" fill="#8B8B85">Уход за волосами</text><text x="475" y="238" font-family="monospace" font-weight="600" fill="#B07D1A" text-anchor="end">8 шт</text><text x="595" y="238" font-family="monospace" text-anchor="end">₸ 12 800</text><rect x="640" y="225" width="80" height="20" rx="10" fill="#FBF5E7"/><text x="680" y="239" fill="#B07D1A" font-size="11" text-anchor="middle">Мало</text></g><g font-family="Geist,sans-serif" font-size="13" fill="#1A1A18"><line x1="40" y1="270" x2="760" y2="270" stroke="#F3F0E8"/><text x="50" y="298" font-family="monospace" font-size="11" fill="#4A4A47">SK-003</text><text x="160" y="298" font-weight="600">Маска для лица CeraVe</text><text x="160" y="314" font-size="10" fill="#8B8B85">Косметология</text><text x="475" y="298" font-family="monospace" font-weight="600" fill="#B83E5F" text-anchor="end">0 шт</text><text x="595" y="298" font-family="monospace" text-anchor="end">₸ 8 200</text><rect x="640" y="285" width="80" height="20" rx="10" fill="#FBECF1"/><text x="680" y="299" fill="#B83E5F" font-size="11" text-anchor="middle">Закончился</text></g><g font-family="Geist,sans-serif" font-size="13" fill="#1A1A18"><line x1="40" y1="330" x2="760" y2="330" stroke="#F3F0E8"/><text x="50" y="358" font-family="monospace" font-size="11" fill="#4A4A47">SK-004</text><text x="160" y="358" font-weight="600">Ножницы парикмахерские Jaguar</text><text x="160" y="374" font-size="10" fill="#8B8B85">Инструменты</text><text x="475" y="358" font-family="monospace" font-weight="600" text-anchor="end">23 шт</text><text x="595" y="358" font-family="monospace" text-anchor="end">₸ 45 000</text><rect x="640" y="345" width="80" height="20" rx="10" fill="#ECF5EF"/><text x="680" y="359" fill="#2F7A4F" font-size="11" text-anchor="middle">В наличии</text></g><g font-family="Geist,sans-serif" font-size="13" fill="#1A1A18"><line x1="40" y1="390" x2="760" y2="390" stroke="#F3F0E8"/><text x="50" y="418" font-family="monospace" font-size="11" fill="#4A4A47">SK-005</text><text x="160" y="418" font-weight="600">Воск для депиляции 1кг</text><text x="160" y="434" font-size="10" fill="#8B8B85">Расходники</text><text x="475" y="418" font-family="monospace" font-weight="600" text-anchor="end">56 шт</text><text x="595" y="418" font-family="monospace" text-anchor="end">₸ 3 500</text><rect x="640" y="405" width="80" height="20" rx="10" fill="#ECF5EF"/><text x="680" y="419" fill="#2F7A4F" font-size="11" text-anchor="middle">В наличии</text></g></svg>`,
+
+  finances: () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><text x="20" y="40" font-family="Geist,sans-serif" font-size="20" font-weight="600" fill="#1A1A18">Финансы</text><text x="20" y="62" font-family="Geist,sans-serif" font-size="12" fill="#8B8B85">Декабрь 2025</text><g><rect x="20" y="80" width="180" height="100" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="35" y="105" font-family="Geist,sans-serif" font-size="11" fill="#8B8B85">Выручка</text><text x="35" y="138" font-family="Geist,sans-serif" font-size="22" font-weight="700" fill="#1A1A18">₸ 4.2M</text><text x="35" y="158" font-family="Geist,sans-serif" font-size="11" fill="#2F7A4F">↑ +18% к ноябрю</text></g><g><rect x="210" y="80" width="180" height="100" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="225" y="105" font-family="Geist,sans-serif" font-size="11" fill="#8B8B85">Расходы</text><text x="225" y="138" font-family="Geist,sans-serif" font-size="22" font-weight="700" fill="#1A1A18">₸ 2.8M</text><text x="225" y="158" font-family="Geist,sans-serif" font-size="11" fill="#B83E5F">↑ +5% к ноябрю</text></g><g><rect x="400" y="80" width="180" height="100" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="415" y="105" font-family="Geist,sans-serif" font-size="11" fill="#8B8B85">Прибыль</text><text x="415" y="138" font-family="Geist,sans-serif" font-size="22" font-weight="700" fill="#2F7A4F">₸ 1.4M</text><text x="415" y="158" font-family="Geist,sans-serif" font-size="11" fill="#2F7A4F">↑ +52% к ноябрю</text></g><g><rect x="590" y="80" width="180" height="100" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="605" y="105" font-family="Geist,sans-serif" font-size="11" fill="#8B8B85">Долги клиентов</text><text x="605" y="138" font-family="Geist,sans-serif" font-size="22" font-weight="700" fill="#B07D1A">₸ 340K</text><text x="605" y="158" font-family="Geist,sans-serif" font-size="11" fill="#B07D1A">12 счетов</text></g><rect x="20" y="200" width="760" height="280" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="35" y="225" font-family="Geist,sans-serif" font-size="13" font-weight="600" fill="#1A1A18">Динамика выручки за 6 месяцев</text><g><line x1="50" y1="450" x2="770" y2="450" stroke="#E8E6E0"/><line x1="50" y1="260" x2="770" y2="260" stroke="#E8E6E0" stroke-dasharray="2,4"/><line x1="50" y1="310" x2="770" y2="310" stroke="#E8E6E0" stroke-dasharray="2,4"/><line x1="50" y1="360" x2="770" y2="360" stroke="#E8E6E0" stroke-dasharray="2,4"/><line x1="50" y1="410" x2="770" y2="410" stroke="#E8E6E0" stroke-dasharray="2,4"/><text x="40" y="265" font-family="monospace" font-size="9" fill="#8B8B85" text-anchor="end">4M</text><text x="40" y="315" font-family="monospace" font-size="9" fill="#8B8B85" text-anchor="end">3M</text><text x="40" y="365" font-family="monospace" font-size="9" fill="#8B8B85" text-anchor="end">2M</text><text x="40" y="415" font-family="monospace" font-size="9" fill="#8B8B85" text-anchor="end">1M</text><path d="M 100 380 L 220 360 L 340 340 L 460 320 L 580 290 L 700 240" fill="none" stroke="#3B5FB8" stroke-width="3"/><path d="M 100 380 L 220 360 L 340 340 L 460 320 L 580 290 L 700 240 L 700 450 L 100 450 Z" fill="#EEF2FB" opacity="0.5"/><g font-family="Geist,sans-serif"><circle cx="100" cy="380" r="5" fill="#3B5FB8"/><circle cx="220" cy="360" r="5" fill="#3B5FB8"/><circle cx="340" cy="340" r="5" fill="#3B5FB8"/><circle cx="460" cy="320" r="5" fill="#3B5FB8"/><circle cx="580" cy="290" r="5" fill="#3B5FB8"/><circle cx="700" cy="240" r="6" fill="#3B5FB8"/><text x="100" y="470" font-size="10" fill="#8B8B85" text-anchor="middle">июл</text><text x="220" y="470" font-size="10" fill="#8B8B85" text-anchor="middle">авг</text><text x="340" y="470" font-size="10" fill="#8B8B85" text-anchor="middle">сен</text><text x="460" y="470" font-size="10" fill="#8B8B85" text-anchor="middle">окт</text><text x="580" y="470" font-size="10" fill="#8B8B85" text-anchor="middle">ноя</text><text x="700" y="470" font-size="10" font-weight="600" fill="#1A1A18" text-anchor="middle">дек</text></g></g></svg>`,
+
+  dashboards: () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><text x="20" y="40" font-family="Geist,sans-serif" font-size="20" font-weight="600" fill="#1A1A18">Дашборд</text><text x="20" y="62" font-family="Geist,sans-serif" font-size="12" fill="#8B8B85">Ключевые показатели в реальном времени</text><g><rect x="20" y="80" width="240" height="120" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="40" y="108" font-family="Geist,sans-serif" font-size="11" fill="#8B8B85">КОНВЕРСИЯ ЛИДОВ</text><text x="40" y="148" font-family="Geist,sans-serif" font-size="32" font-weight="700" fill="#1A1A18">23.4%</text><text x="40" y="170" font-family="Geist,sans-serif" font-size="12" fill="#2F7A4F">↑ +4.2% за месяц</text><rect x="40" y="180" width="80" height="8" rx="4" fill="#ECF5EF"/><rect x="40" y="180" width="40" height="8" rx="4" fill="#2F7A4F"/></g><g><rect x="280" y="80" width="240" height="120" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="300" y="108" font-family="Geist,sans-serif" font-size="11" fill="#8B8B85">СРЕДНИЙ ЧЕК</text><text x="300" y="148" font-family="Geist,sans-serif" font-size="32" font-weight="700" fill="#1A1A18">₸ 89K</text><text x="300" y="170" font-family="Geist,sans-serif" font-size="12" fill="#2F7A4F">↑ +12% за месяц</text></g><g><rect x="540" y="80" width="240" height="120" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="560" y="108" font-family="Geist,sans-serif" font-size="11" fill="#8B8B85">АКТИВНЫХ КЛИЕНТОВ</text><text x="560" y="148" font-family="Geist,sans-serif" font-size="32" font-weight="700" fill="#1A1A18">1 247</text><text x="560" y="170" font-family="Geist,sans-serif" font-size="12" fill="#B07D1A">↓ -3.1% за месяц</text></g><g><rect x="20" y="220" width="370" height="260" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="40" y="245" font-family="Geist,sans-serif" font-size="13" font-weight="600">Лиды по источникам</text><circle cx="200" cy="370" r="80" fill="none" stroke="#F3F0E8" stroke-width="32"/><path d="M 200 290 A 80 80 0 0 1 270 380" fill="none" stroke="#25D366" stroke-width="32"/><path d="M 270 380 A 80 80 0 0 1 220 446" fill="none" stroke="#E1306C" stroke-width="32"/><path d="M 220 446 A 80 80 0 0 1 130 380" fill="none" stroke="#3B5FB8" stroke-width="32"/><text x="200" y="367" font-size="22" font-weight="700" fill="#1A1A18" text-anchor="middle">847</text><text x="200" y="385" font-size="10" fill="#8B8B85" text-anchor="middle">лидов</text><g font-family="Geist,sans-serif" font-size="11"><circle cx="305" cy="290" r="5" fill="#25D366"/><text x="315" y="294" fill="#1A1A18">WhatsApp · 42%</text><circle cx="305" cy="315" r="5" fill="#E1306C"/><text x="315" y="319" fill="#1A1A18">Instagram · 31%</text><circle cx="305" cy="340" r="5" fill="#3B5FB8"/><text x="315" y="344" fill="#1A1A18">Сайт · 27%</text></g></g><g><rect x="410" y="220" width="370" height="260" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="430" y="245" font-family="Geist,sans-serif" font-size="13" font-weight="600">Воронка продаж</text><g font-family="Geist,sans-serif"><rect x="430" y="265" width="320" height="32" rx="6" fill="#3B5FB8"/><text x="445" y="285" font-size="12" fill="#fff">Новые лиды</text><text x="735" y="285" font-size="12" font-weight="600" fill="#fff" text-anchor="end">847</text><rect x="430" y="305" width="270" height="32" rx="6" fill="#6B89C7"/><text x="445" y="325" font-size="12" fill="#fff">Квалифицированы</text><text x="685" y="325" font-size="12" font-weight="600" fill="#fff" text-anchor="end">534</text><rect x="430" y="345" width="200" height="32" rx="6" fill="#9DB3D7"/><text x="445" y="365" font-size="12" fill="#fff">Переговоры</text><text x="615" y="365" font-size="12" font-weight="600" fill="#fff" text-anchor="end">312</text><rect x="430" y="385" width="140" height="32" rx="6" fill="#B5C5DE"/><text x="445" y="405" font-size="12" fill="#1A1A18">Договор</text><text x="555" y="405" font-size="12" font-weight="600" fill="#1A1A18" text-anchor="end">178</text><rect x="430" y="425" width="80" height="32" rx="6" fill="#2F7A4F"/><text x="445" y="445" font-size="12" fill="#fff">Оплачено</text><text x="495" y="445" font-size="12" font-weight="600" fill="#fff" text-anchor="end">98</text></g></g></svg>`,
+
+  calendar: () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><rect x="20" y="20" width="760" height="460" rx="12" fill="#fff" stroke="#E8E6E0"/><text x="40" y="58" font-family="Geist,sans-serif" font-size="18" font-weight="600">Календарь · декабрь 2025</text><rect x="600" y="40" width="160" height="32" rx="8" fill="#1A1A18"/><text x="680" y="61" font-family="Geist,sans-serif" font-size="12" fill="#fff" text-anchor="middle">+ Новая встреча</text><g font-family="Geist,sans-serif"><g font-size="11" fill="#8B8B85"><text x="80" y="100" text-anchor="middle">ПН</text><text x="180" y="100" text-anchor="middle">ВТ</text><text x="280" y="100" text-anchor="middle">СР</text><text x="380" y="100" text-anchor="middle">ЧТ</text><text x="480" y="100" text-anchor="middle">ПТ</text><text x="580" y="100" text-anchor="middle">СБ</text><text x="680" y="100" text-anchor="middle">ВС</text></g><g><rect x="40" y="115" width="80" height="100" rx="6" fill="#F8F8F5" stroke="#E8E6E0"/><text x="80" y="135" font-size="14" text-anchor="middle" fill="#1A1A18">8</text><rect x="46" y="150" width="68" height="14" rx="3" fill="#3B5FB8"/><text x="80" y="161" font-size="9" fill="#fff" text-anchor="middle">10:00 Айгуль</text><rect x="46" y="168" width="68" height="14" rx="3" fill="#2F7A4F"/><text x="80" y="179" font-size="9" fill="#fff" text-anchor="middle">14:30 Канат</text><rect x="46" y="186" width="68" height="14" rx="3" fill="#B07D1A"/><text x="80" y="197" font-size="9" fill="#fff" text-anchor="middle">17:00 Олжас</text><rect x="140" y="115" width="80" height="100" rx="6" fill="#F8F8F5" stroke="#E8E6E0"/><text x="180" y="135" font-size="14" text-anchor="middle">9</text><rect x="146" y="150" width="68" height="14" rx="3" fill="#3B5FB8"/><text x="180" y="161" font-size="9" fill="#fff" text-anchor="middle">11:00 Жанна</text><rect x="240" y="115" width="80" height="100" rx="6" fill="#FBF1EB" stroke="#E8B591"/><text x="280" y="135" font-size="14" font-weight="700" text-anchor="middle" fill="#C2542B">10</text><rect x="246" y="150" width="68" height="14" rx="3" fill="#C2542B"/><text x="280" y="161" font-size="9" fill="#fff" text-anchor="middle">09:00 ВСТРЕЧА</text><rect x="246" y="168" width="68" height="14" rx="3" fill="#3B5FB8"/><text x="280" y="179" font-size="9" fill="#fff" text-anchor="middle">12:30 Алия</text><rect x="246" y="186" width="68" height="14" rx="3" fill="#2F7A4F"/><text x="280" y="197" font-size="9" fill="#fff" text-anchor="middle">15:00 Серик</text><rect x="340" y="115" width="80" height="100" rx="6" fill="#F8F8F5" stroke="#E8E6E0"/><text x="380" y="135" font-size="14" text-anchor="middle">11</text><rect x="346" y="150" width="68" height="14" rx="3" fill="#B07D1A"/><text x="380" y="161" font-size="9" fill="#fff" text-anchor="middle">11:00 Дамир</text><rect x="440" y="115" width="80" height="100" rx="6" fill="#F8F8F5" stroke="#E8E6E0"/><text x="480" y="135" font-size="14" text-anchor="middle">12</text><rect x="446" y="150" width="68" height="14" rx="3" fill="#3B5FB8"/><text x="480" y="161" font-size="9" fill="#fff" text-anchor="middle">14:00 Бахыт</text><rect x="540" y="115" width="80" height="100" rx="6" fill="#fff" stroke="#E8E6E0" opacity="0.6"/><text x="580" y="135" font-size="14" text-anchor="middle" fill="#8B8B85">13</text><rect x="640" y="115" width="80" height="100" rx="6" fill="#fff" stroke="#E8E6E0" opacity="0.6"/><text x="680" y="135" font-size="14" text-anchor="middle" fill="#8B8B85">14</text></g></g><line x1="20" y1="240" x2="780" y2="240" stroke="#E8E6E0"/><text x="40" y="270" font-family="Geist,sans-serif" font-size="13" font-weight="600">Сегодня · 10 декабря</text><g font-family="Geist,sans-serif"><rect x="40" y="290" width="720" height="50" rx="8" fill="#FBF1EB"/><text x="60" y="312" font-size="12" font-weight="600" fill="#C2542B">09:00 — 10:30 · Встреча с командой</text><text x="60" y="330" font-size="11" fill="#4A4A47">Обсуждение KPI декабря, планы на январь</text><rect x="40" y="350" width="720" height="50" rx="8" fill="#fff" stroke="#A4C0E8"/><text x="60" y="372" font-size="12" font-weight="600" fill="#3B5FB8">12:30 — 13:30 · Алия Каратаева (турагентство)</text><text x="60" y="390" font-size="11" fill="#4A4A47">Презентация CRM, обсуждение брони и интеграций</text><rect x="40" y="410" width="720" height="50" rx="8" fill="#fff" stroke="#9DCDA8"/><text x="60" y="432" font-size="12" font-weight="600" fill="#2F7A4F">15:00 — 16:00 · Серик Тимуров (MLM)</text><text x="60" y="450" font-size="11" fill="#4A4A47">Финал переговоров по этапу 1 разработки</text></g></svg>`,
+
+  tasks: () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><text x="20" y="40" font-family="Geist,sans-serif" font-size="20" font-weight="600">Задачи команды</text><g><rect x="20" y="70" width="240" height="410" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="40" y="100" font-family="Geist,sans-serif" font-size="13" font-weight="600" fill="#1A1A18">К выполнению</text><rect x="200" y="86" width="30" height="20" rx="10" fill="#F3F0E8"/><text x="215" y="100" font-family="Geist,sans-serif" font-size="11" fill="#4A4A47" text-anchor="middle">7</text><g font-family="Geist,sans-serif"><rect x="32" y="120" width="216" height="80" rx="8" fill="#F8F8F5"/><text x="46" y="140" font-size="12" font-weight="600" fill="#1A1A18">Перезвонить Айгуль</text><text x="46" y="160" font-size="11" fill="#4A4A47">Уточнить детали по записи</text><rect x="46" y="170" width="60" height="18" rx="9" fill="#FBECF1"/><text x="76" y="183" font-size="10" fill="#B83E5F" text-anchor="middle">срочно</text><text x="160" y="183" font-size="10" fill="#8B8B85">⏱ 10:00</text><rect x="32" y="212" width="216" height="80" rx="8" fill="#F8F8F5"/><text x="46" y="232" font-size="12" font-weight="600">Отправить договор</text><text x="46" y="252" font-size="11" fill="#4A4A47">Канат Жалгасов (автосервис)</text><rect x="46" y="262" width="60" height="18" rx="9" fill="#FBF5E7"/><text x="76" y="275" font-size="10" fill="#B07D1A" text-anchor="middle">сегодня</text><rect x="32" y="304" width="216" height="80" rx="8" fill="#F8F8F5"/><text x="46" y="324" font-size="12" font-weight="600">Подготовить КП</text><text x="46" y="344" font-size="11" fill="#4A4A47">Для Жанны (медцентр)</text><rect x="46" y="354" width="60" height="18" rx="9" fill="#F3F0E8"/><text x="76" y="367" font-size="10" fill="#4A4A47" text-anchor="middle">завтра</text></g></g><g><rect x="280" y="70" width="240" height="410" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="300" y="100" font-family="Geist,sans-serif" font-size="13" font-weight="600" fill="#1A1A18">В работе</text><rect x="460" y="86" width="30" height="20" rx="10" fill="#FBF5E7"/><text x="475" y="100" font-family="Geist,sans-serif" font-size="11" fill="#B07D1A" text-anchor="middle">4</text><g font-family="Geist,sans-serif"><rect x="292" y="120" width="216" height="80" rx="8" fill="#FBF5E7"/><text x="306" y="140" font-size="12" font-weight="600">Встреча с Алиёй</text><text x="306" y="160" font-size="11" fill="#4A4A47">Турагентство · обсуждение CRM</text><rect x="306" y="170" width="50" height="18" rx="9" fill="#FBF1EB"/><text x="331" y="183" font-size="10" fill="#C2542B" text-anchor="middle">сейчас</text><text x="420" y="183" font-size="10" fill="#8B8B85">⏱ 12:30</text><rect x="292" y="212" width="216" height="80" rx="8" fill="#FBF5E7"/><text x="306" y="232" font-size="12" font-weight="600">Согласование сметы</text><text x="306" y="252" font-size="11" fill="#4A4A47">Дамир (логистика)</text><rect x="306" y="262" width="80" height="18" rx="9" fill="#FBF1EB"/><text x="346" y="275" font-size="10" fill="#C2542B" text-anchor="middle">в работе</text></g></g><g><rect x="540" y="70" width="240" height="410" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="560" y="100" font-family="Geist,sans-serif" font-size="13" font-weight="600" fill="#1A1A18">Готово</text><rect x="720" y="86" width="30" height="20" rx="10" fill="#ECF5EF"/><text x="735" y="100" font-family="Geist,sans-serif" font-size="11" fill="#2F7A4F" text-anchor="middle">12</text><g font-family="Geist,sans-serif"><rect x="552" y="120" width="216" height="80" rx="8" fill="#ECF5EF"/><text x="566" y="140" font-size="12" font-weight="600">✓ Заключён договор</text><text x="566" y="160" font-size="11" fill="#4A4A47">Гульнара (фитнес)</text><text x="566" y="183" font-size="10" fill="#2F7A4F">₸ 1 500 000</text><rect x="552" y="212" width="216" height="80" rx="8" fill="#ECF5EF"/><text x="566" y="232" font-size="12" font-weight="600">✓ Оплата получена</text><text x="566" y="252" font-size="11" fill="#4A4A47">Бахыт (стоматология)</text><text x="566" y="183" font-size="10" fill="#2F7A4F">₸ 980 000</text><rect x="552" y="304" width="216" height="80" rx="8" fill="#ECF5EF"/><text x="566" y="324" font-size="12" font-weight="600">✓ Запуск проекта</text><text x="566" y="344" font-size="11" fill="#4A4A47">Beauty Almaty</text></g></g></svg>`,
+
+  contacts: () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><rect x="20" y="20" width="760" height="460" rx="12" fill="#fff" stroke="#E8E6E0"/><text x="40" y="60" font-family="Geist,sans-serif" font-size="18" font-weight="600">Контакты</text><text x="40" y="82" font-family="Geist,sans-serif" font-size="11" fill="#8B8B85">1 247 контактов · 312 активных в этом месяце</text><rect x="40" y="105" width="500" height="40" rx="8" fill="#F8F8F5" stroke="#E8E6E0"/><text x="55" y="130" font-family="Geist,sans-serif" font-size="13" fill="#8B8B85">🔍 Поиск по имени, телефону, email...</text><rect x="560" y="105" width="200" height="40" rx="8" fill="#1A1A18"/><text x="660" y="131" font-family="Geist,sans-serif" font-size="13" fill="#fff" text-anchor="middle">+ Новый контакт</text><g font-family="Geist,sans-serif"><rect x="40" y="170" width="240" height="120" rx="10" fill="#fff" stroke="#E8E6E0"/><circle cx="80" cy="210" r="22" fill="#FBF1EB"/><text x="80" y="218" font-size="16" font-weight="700" fill="#C2542B" text-anchor="middle">АН</text><text x="115" y="200" font-size="14" font-weight="600" fill="#1A1A18">Айгуль Назарбаева</text><text x="115" y="218" font-size="11" fill="#8B8B85">Beauty Almaty · директор</text><text x="60" y="252" font-size="11" font-family="monospace" fill="#4A4A47">📱 +7 705 123 45 67</text><rect x="60" y="262" width="50" height="18" rx="9" fill="#ECF5EF"/><text x="85" y="275" font-size="10" fill="#2F7A4F" text-anchor="middle">VIP</text><rect x="115" y="262" width="70" height="18" rx="9" fill="#EEF2FB"/><text x="150" y="275" font-size="10" fill="#3B5FB8" text-anchor="middle">5 сделок</text></g><g font-family="Geist,sans-serif"><rect x="290" y="170" width="240" height="120" rx="10" fill="#fff" stroke="#E8E6E0"/><circle cx="330" cy="210" r="22" fill="#EEF2FB"/><text x="330" y="218" font-size="16" font-weight="700" fill="#3B5FB8" text-anchor="middle">КЖ</text><text x="365" y="200" font-size="14" font-weight="600">Канат Жалгасов</text><text x="365" y="218" font-size="11" fill="#8B8B85">Авто-Сервис KZ · владелец</text><text x="310" y="252" font-size="11" font-family="monospace" fill="#4A4A47">📱 +7 778 234 56 78</text><rect x="310" y="262" width="80" height="18" rx="9" fill="#FBF5E7"/><text x="350" y="275" font-size="10" fill="#B07D1A" text-anchor="middle">В работе</text></g><g font-family="Geist,sans-serif"><rect x="540" y="170" width="240" height="120" rx="10" fill="#fff" stroke="#E8E6E0"/><circle cx="580" cy="210" r="22" fill="#ECF5EF"/><text x="580" y="218" font-size="16" font-weight="700" fill="#2F7A4F" text-anchor="middle">ОИ</text><text x="615" y="200" font-size="14" font-weight="600">Олжас Ибраев</text><text x="615" y="218" font-size="11" fill="#8B8B85">English School · преподаватель</text><text x="560" y="252" font-size="11" font-family="monospace" fill="#4A4A47">📱 +7 701 345 67 89</text><rect x="560" y="262" width="60" height="18" rx="9" fill="#ECF5EF"/><text x="590" y="275" font-size="10" fill="#2F7A4F" text-anchor="middle">Клиент</text></g><g font-family="Geist,sans-serif"><rect x="40" y="305" width="240" height="120" rx="10" fill="#fff" stroke="#E8E6E0"/><circle cx="80" cy="345" r="22" fill="#FBECF1"/><text x="80" y="353" font-size="16" font-weight="700" fill="#B83E5F" text-anchor="middle">АН</text><text x="115" y="335" font-size="14" font-weight="600">Алия Каратаева</text><text x="115" y="353" font-size="11" fill="#8B8B85">SkyTravel · CEO</text><text x="60" y="387" font-size="11" font-family="monospace" fill="#4A4A47">📱 +7 707 456 78 90</text><rect x="60" y="397" width="70" height="18" rx="9" fill="#FBECF1"/><text x="95" y="410" font-size="10" fill="#B83E5F" text-anchor="middle">Лид</text></g><g font-family="Geist,sans-serif"><rect x="290" y="305" width="240" height="120" rx="10" fill="#fff" stroke="#E8E6E0"/><circle cx="330" cy="345" r="22" fill="#F4EFFB"/><text x="330" y="353" font-size="16" font-weight="700" fill="#6B46C1" text-anchor="middle">СТ</text><text x="365" y="335" font-size="14" font-weight="600">Серик Тимуров</text><text x="365" y="353" font-size="11" fill="#8B8B85">MLM-партнёр</text><text x="310" y="387" font-size="11" font-family="monospace" fill="#4A4A47">📱 +7 747 567 89 01</text><rect x="310" y="397" width="90" height="18" rx="9" fill="#F4EFFB"/><text x="355" y="410" font-size="10" fill="#6B46C1" text-anchor="middle">Партнёр L2</text></g><g font-family="Geist,sans-serif"><rect x="540" y="305" width="240" height="120" rx="10" fill="#fff" stroke="#E8E6E0"/><circle cx="580" cy="345" r="22" fill="#FBF5E7"/><text x="580" y="353" font-size="16" font-weight="700" fill="#B07D1A" text-anchor="middle">МЖ</text><text x="615" y="335" font-size="14" font-weight="600">Марат Жумабаев</text><text x="615" y="353" font-size="11" fill="#8B8B85">JumaBuild · директор</text><text x="560" y="387" font-size="11" font-family="monospace" fill="#4A4A47">📱 +7 727 678 90 12</text><rect x="560" y="397" width="70" height="18" rx="9" fill="#F3F0E8"/><text x="595" y="410" font-size="10" fill="#4A4A47" text-anchor="middle">Холодный</text></g></svg>`,
+
+  reports: () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><text x="20" y="40" font-family="Geist,sans-serif" font-size="20" font-weight="600">Отчёты</text><text x="20" y="62" font-family="Geist,sans-serif" font-size="12" fill="#8B8B85">Декабрь 2025 · автоматически обновляются</text><g><rect x="20" y="80" width="370" height="180" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="40" y="105" font-family="Geist,sans-serif" font-size="13" font-weight="600">Конверсия по месяцам</text><g><line x1="60" y1="240" x2="370" y2="240" stroke="#E8E6E0"/><rect x="80" y="180" width="35" height="60" fill="#3B5FB8"/><rect x="135" y="160" width="35" height="80" fill="#3B5FB8"/><rect x="190" y="155" width="35" height="85" fill="#3B5FB8"/><rect x="245" y="140" width="35" height="100" fill="#3B5FB8"/><rect x="300" y="130" width="35" height="110" fill="#3B5FB8"/><rect x="355" y="125" width="35" height="115" fill="#b8895a"/><g font-family="Geist,sans-serif" font-size="9" fill="#8B8B85" text-anchor="middle"><text x="97" y="255">июл</text><text x="152" y="255">авг</text><text x="207" y="255">сен</text><text x="262" y="255">окт</text><text x="317" y="255">ноя</text><text x="372" y="255" font-weight="600" fill="#1A1A18">дек</text></g></g></g><g><rect x="410" y="80" width="370" height="180" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="430" y="105" font-family="Geist,sans-serif" font-size="13" font-weight="600">Топ менеджеры</text><g font-family="Geist,sans-serif"><text x="430" y="140" font-size="12" fill="#1A1A18">Алия Касенова</text><rect x="430" y="148" width="280" height="10" rx="5" fill="#F3F0E8"/><rect x="430" y="148" width="240" height="10" rx="5" fill="#2F7A4F"/><text x="755" y="156" font-size="11" font-family="monospace" text-anchor="end" fill="#2F7A4F">₸ 4.2M</text><text x="430" y="180" font-size="12" fill="#1A1A18">Талгат Дюсембаев</text><rect x="430" y="188" width="280" height="10" rx="5" fill="#F3F0E8"/><rect x="430" y="188" width="195" height="10" rx="5" fill="#3B5FB8"/><text x="755" y="196" font-size="11" font-family="monospace" text-anchor="end" fill="#3B5FB8">₸ 3.4M</text><text x="430" y="220" font-size="12" fill="#1A1A18">Айдос Сериков</text><rect x="430" y="228" width="280" height="10" rx="5" fill="#F3F0E8"/><rect x="430" y="228" width="140" height="10" rx="5" fill="#B07D1A"/><text x="755" y="236" font-size="11" font-family="monospace" text-anchor="end" fill="#B07D1A">₸ 2.4M</text></g></g><g><rect x="20" y="280" width="370" height="200" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="40" y="305" font-family="Geist,sans-serif" font-size="13" font-weight="600">Воронка конверсии</text><g font-family="Geist,sans-serif"><rect x="40" y="320" width="330" height="26" rx="4" fill="#3B5FB8"/><text x="55" y="338" font-size="12" fill="#fff">Заявки</text><text x="355" y="338" font-size="12" font-weight="600" fill="#fff" text-anchor="end">847</text><rect x="40" y="350" width="260" height="26" rx="4" fill="#6B89C7"/><text x="55" y="368" font-size="12" fill="#fff">Связались</text><text x="285" y="368" font-size="12" font-weight="600" fill="#fff" text-anchor="end">534 (63%)</text><rect x="40" y="380" width="180" height="26" rx="4" fill="#9DB3D7"/><text x="55" y="398" font-size="12" fill="#fff">Презентация</text><text x="205" y="398" font-size="12" font-weight="600" fill="#fff" text-anchor="end">312 (37%)</text><rect x="40" y="410" width="120" height="26" rx="4" fill="#B5C5DE"/><text x="55" y="428" font-size="12" fill="#1A1A18">Договор</text><text x="145" y="428" font-size="12" font-weight="600" fill="#1A1A18" text-anchor="end">178 (21%)</text><rect x="40" y="440" width="70" height="26" rx="4" fill="#2F7A4F"/><text x="55" y="458" font-size="12" fill="#fff">Оплата</text><text x="95" y="458" font-size="12" font-weight="600" fill="#fff" text-anchor="end">98</text></g></g><g><rect x="410" y="280" width="370" height="200" rx="10" fill="#fff" stroke="#E8E6E0"/><text x="430" y="305" font-family="Geist,sans-serif" font-size="13" font-weight="600">Сделки по источникам</text><g font-family="Geist,sans-serif" font-size="12"><rect x="430" y="325" width="14" height="14" fill="#25D366"/><text x="455" y="337" fill="#1A1A18">WhatsApp</text><text x="755" y="337" font-family="monospace" font-weight="600" text-anchor="end">42 сделки · ₸ 5.8M</text><rect x="430" y="350" width="14" height="14" fill="#E1306C"/><text x="455" y="362" fill="#1A1A18">Instagram</text><text x="755" y="362" font-family="monospace" font-weight="600" text-anchor="end">31 сделка · ₸ 3.4M</text><rect x="430" y="375" width="14" height="14" fill="#3B5FB8"/><text x="455" y="387" fill="#1A1A18">Сайт</text><text x="755" y="387" font-family="monospace" font-weight="600" text-anchor="end">18 сделок · ₸ 2.1M</text><rect x="430" y="400" width="14" height="14" fill="#B07D1A"/><text x="455" y="412" fill="#1A1A18">Звонки</text><text x="755" y="412" font-family="monospace" font-weight="600" text-anchor="end">7 сделок · ₸ 1.1M</text></g></g></svg>`,
+
+  'mobile-app': () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><text x="20" y="40" font-family="Geist,sans-serif" font-size="20" font-weight="600">Мобильное приложение клиента</text><g transform="translate(60,80)"><rect width="200" height="400" rx="24" fill="#1A1A18"/><rect x="6" y="6" width="188" height="388" rx="18" fill="#fff"/><rect x="6" y="6" width="188" height="24" rx="0" fill="#1A1A18"/><rect x="80" y="14" width="40" height="6" rx="3" fill="#1A1A18"/><text x="100" y="60" font-family="Geist,sans-serif" font-size="15" font-weight="700" fill="#1A1A18" text-anchor="middle">Beauty Almaty</text><text x="100" y="80" font-family="Geist,sans-serif" font-size="10" fill="#8B8B85" text-anchor="middle">Личный кабинет</text><circle cx="100" cy="115" r="22" fill="#FBF1EB"/><text x="100" y="123" font-family="Geist,sans-serif" font-size="14" font-weight="700" fill="#C2542B" text-anchor="middle">АН</text><text x="100" y="155" font-family="Geist,sans-serif" font-size="11" fill="#1A1A18" text-anchor="middle">Айгуль</text><rect x="20" y="180" width="160" height="50" rx="8" fill="#1A1A18"/><text x="100" y="200" font-family="Geist,sans-serif" font-size="11" fill="#fff" text-anchor="middle">МОИ БАЛЛЫ</text><text x="100" y="220" font-family="Geist,sans-serif" font-size="18" font-weight="700" fill="#b8895a" text-anchor="middle">2 450</text><rect x="20" y="250" width="160" height="36" rx="8" fill="#F8F8F5"/><text x="35" y="272" font-family="Geist,sans-serif" font-size="11" fill="#1A1A18">📅 Записаться</text><rect x="20" y="294" width="160" height="36" rx="8" fill="#F8F8F5"/><text x="35" y="316" font-family="Geist,sans-serif" font-size="11" fill="#1A1A18">📜 История посещений</text><rect x="20" y="338" width="160" height="36" rx="8" fill="#F8F8F5"/><text x="35" y="360" font-family="Geist,sans-serif" font-size="11" fill="#1A1A18">💳 Способы оплаты</text></g><g transform="translate(300,80)"><rect width="200" height="400" rx="24" fill="#1A1A18"/><rect x="6" y="6" width="188" height="388" rx="18" fill="#fff"/><rect x="6" y="6" width="188" height="24" rx="0" fill="#1A1A18"/><text x="100" y="58" font-family="Geist,sans-serif" font-size="13" font-weight="700" text-anchor="middle">Запись на услугу</text><rect x="20" y="80" width="160" height="50" rx="8" fill="#FBF1EB" stroke="#E8B591"/><text x="35" y="100" font-family="Geist,sans-serif" font-size="12" font-weight="600">Маникюр</text><text x="35" y="118" font-family="Geist,sans-serif" font-size="10" fill="#8B8B85">от 60 мин · от ₸ 8 000</text><rect x="20" y="138" width="160" height="50" rx="8" fill="#F8F8F5"/><text x="35" y="158" font-family="Geist,sans-serif" font-size="12">Педикюр</text><text x="35" y="176" font-family="Geist,sans-serif" font-size="10" fill="#8B8B85">от 90 мин · от ₸ 12 000</text><rect x="20" y="196" width="160" height="50" rx="8" fill="#F8F8F5"/><text x="35" y="216" font-family="Geist,sans-serif" font-size="12">Окрашивание</text><text x="35" y="234" font-family="Geist,sans-serif" font-size="10" fill="#8B8B85">от 2ч · от ₸ 25 000</text><text x="100" y="270" font-family="Geist,sans-serif" font-size="11" font-weight="600" text-anchor="middle">Выбрать время</text><g><rect x="20" y="280" width="50" height="34" rx="6" fill="#fff" stroke="#E8E6E0"/><text x="45" y="296" font-size="9" fill="#8B8B85" text-anchor="middle">пн</text><text x="45" y="308" font-size="11" font-weight="600" text-anchor="middle">8</text><rect x="75" y="280" width="50" height="34" rx="6" fill="#1A1A18"/><text x="100" y="296" font-size="9" fill="rgba(255,255,255,.6)" text-anchor="middle">вт</text><text x="100" y="308" font-size="11" font-weight="600" fill="#fff" text-anchor="middle">9</text><rect x="130" y="280" width="50" height="34" rx="6" fill="#fff" stroke="#E8E6E0"/><text x="155" y="296" font-size="9" fill="#8B8B85" text-anchor="middle">ср</text><text x="155" y="308" font-size="11" font-weight="600" text-anchor="middle">10</text></g><rect x="20" y="324" width="160" height="50" rx="8" fill="#b8895a"/><text x="100" y="354" font-family="Geist,sans-serif" font-size="13" font-weight="600" fill="#fff" text-anchor="middle">Подтвердить запись</text></g><g transform="translate(540,80)"><rect width="200" height="400" rx="24" fill="#1A1A18"/><rect x="6" y="6" width="188" height="388" rx="18" fill="#fff"/><rect x="6" y="6" width="188" height="24" rx="0" fill="#1A1A18"/><text x="100" y="58" font-family="Geist,sans-serif" font-size="13" font-weight="700" text-anchor="middle">Уведомления</text><g><rect x="20" y="76" width="160" height="74" rx="8" fill="#FBF1EB"/><text x="35" y="98" font-family="Geist,sans-serif" font-size="10" font-weight="600" fill="#C2542B">✓ Запись подтверждена</text><text x="35" y="116" font-family="Geist,sans-serif" font-size="10" fill="#1A1A18">Вт, 9 дек, 15:00</text><text x="35" y="132" font-family="Geist,sans-serif" font-size="10" fill="#4A4A47">Маникюр у Айнур</text><rect x="20" y="158" width="160" height="74" rx="8" fill="#EEF2FB"/><text x="35" y="180" font-family="Geist,sans-serif" font-size="10" font-weight="600" fill="#3B5FB8">🎁 Скидка 20% сегодня</text><text x="35" y="198" font-family="Geist,sans-serif" font-size="10" fill="#4A4A47">На любую услугу до 22:00</text><rect x="35" y="208" width="50" height="18" rx="9" fill="#3B5FB8"/><text x="60" y="221" font-family="Geist,sans-serif" font-size="10" fill="#fff" text-anchor="middle">Активировать</text><rect x="20" y="240" width="160" height="74" rx="8" fill="#ECF5EF"/><text x="35" y="262" font-family="Geist,sans-serif" font-size="10" font-weight="600" fill="#2F7A4F">+50 баллов за визит</text><text x="35" y="280" font-family="Geist,sans-serif" font-size="10" fill="#4A4A47">Спасибо! Накоплено 2 450</text><text x="35" y="298" font-family="Geist,sans-serif" font-size="10" fill="#4A4A47">До бесплатной услуги: 550</text><rect x="20" y="322" width="160" height="60" rx="8" fill="#F8F8F5"/><text x="35" y="344" font-family="Geist,sans-serif" font-size="10" font-weight="600">⏰ Напоминание</text><text x="35" y="362" font-family="Geist,sans-serif" font-size="10" fill="#4A4A47">Завтра в 15:00 — маникюр</text></g></g></svg>`,
+
+  'ai-assistant': () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><rect x="20" y="20" width="760" height="460" rx="12" fill="#fff" stroke="#E8E6E0"/><rect x="20" y="20" width="760" height="60" fill="#1A1A18"/><circle cx="55" cy="50" r="18" fill="#b8895a"/><text x="55" y="56" font-family="Geist,sans-serif" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">AI</text><text x="85" y="46" font-family="Geist,sans-serif" font-size="14" font-weight="600" fill="#fff">AI-ассистент Pllato</text><text x="85" y="64" font-family="Geist,sans-serif" font-size="11" fill="rgba(255,255,255,.6)">отвечает за 2 секунды</text><circle cx="745" cy="50" r="6" fill="#2F7A4F"/><text x="725" y="55" font-family="Geist,sans-serif" font-size="11" fill="#2F7A4F" text-anchor="end">онлайн</text><g font-family="Geist,sans-serif"><rect x="40" y="100" width="380" height="44" rx="12" fill="#F0F4F7"/><text x="60" y="120" font-size="12" fill="#1A1A18">🤖 Здравствуйте! Я AI-ассистент Beauty Almaty.</text><text x="60" y="138" font-size="12" fill="#1A1A18">Чем могу помочь?</text><rect x="380" y="160" width="380" height="44" rx="12" fill="#1A1A18"/><text x="755" y="180" font-size="12" fill="#fff" text-anchor="end">Хочу записаться на маникюр</text><text x="755" y="198" font-size="12" fill="#fff" text-anchor="end">в субботу днём</text><rect x="40" y="220" width="380" height="60" rx="12" fill="#F0F4F7"/><text x="60" y="240" font-size="12" fill="#1A1A18">🤖 Отлично! В субботу 13 декабря у нас</text><text x="60" y="258" font-size="12" fill="#1A1A18">свободны:</text><text x="60" y="274" font-size="11" fill="#3B5FB8">→ 12:00 (Айнур) → 14:30 (Жанна) → 17:00 (Камила)</text><rect x="40" y="296" width="380" height="44" rx="12" fill="#F0F4F7"/><g><rect x="55" y="306" width="100" height="24" rx="12" fill="#fff" stroke="#1A1A18"/><text x="105" y="322" font-size="11" font-weight="600" text-anchor="middle">12:00 Айнур</text><rect x="160" y="306" width="100" height="24" rx="12" fill="#fff" stroke="#1A1A18"/><text x="210" y="322" font-size="11" text-anchor="middle">14:30 Жанна</text><rect x="265" y="306" width="100" height="24" rx="12" fill="#fff" stroke="#1A1A18"/><text x="315" y="322" font-size="11" text-anchor="middle">17:00 Камила</text></g><rect x="380" y="356" width="380" height="44" rx="12" fill="#1A1A18"/><text x="755" y="382" font-size="12" fill="#fff" text-anchor="end">12:00 у Айнур, пожалуйста</text><rect x="40" y="416" width="380" height="44" rx="12" fill="#ECF5EF"/><text x="60" y="438" font-size="12" fill="#2F7A4F">🤖 ✓ Записал вас! Подтверждение на WhatsApp</text></g></svg>`,
+
+  structure: () => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><text x="20" y="40" font-family="Geist,sans-serif" font-size="20" font-weight="600">Структура сети партнёров</text><text x="20" y="62" font-family="Geist,sans-serif" font-size="12" fill="#8B8B85">147 партнёров · 5 уровней глубины · ₸ 12.4M оборот</text><g font-family="Geist,sans-serif"><circle cx="400" cy="100" r="35" fill="#b8895a" stroke="#0a1628" stroke-width="3"/><text x="400" y="105" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">ВЫ</text><text x="400" y="160" font-size="11" fill="#1A1A18" text-anchor="middle" font-weight="600">Серик Тимуров</text><text x="400" y="176" font-size="10" fill="#8B8B85" text-anchor="middle">Уровень 1 · Лидер</text><line x1="400" y1="178" x2="180" y2="220" stroke="#E8E6E0" stroke-width="1.5"/><line x1="400" y1="178" x2="400" y2="220" stroke="#E8E6E0" stroke-width="1.5"/><line x1="400" y1="178" x2="620" y2="220" stroke="#E8E6E0" stroke-width="1.5"/><circle cx="180" cy="240" r="25" fill="#3B5FB8"/><text x="180" y="245" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">АК</text><text x="180" y="285" font-size="10" fill="#1A1A18" text-anchor="middle" font-weight="600">Айгерим</text><text x="180" y="298" font-size="9" fill="#8B8B85" text-anchor="middle">23 человека ниже</text><text x="180" y="312" font-size="9" font-family="monospace" fill="#2F7A4F" text-anchor="middle">₸ 3.4M</text><circle cx="400" cy="240" r="25" fill="#2F7A4F"/><text x="400" y="245" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">ДН</text><text x="400" y="285" font-size="10" fill="#1A1A18" text-anchor="middle" font-weight="600">Данияр</text><text x="400" y="298" font-size="9" fill="#8B8B85" text-anchor="middle">31 человек ниже</text><text x="400" y="312" font-size="9" font-family="monospace" fill="#2F7A4F" text-anchor="middle">₸ 4.8M</text><circle cx="620" cy="240" r="25" fill="#B07D1A"/><text x="620" y="245" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">МК</text><text x="620" y="285" font-size="10" fill="#1A1A18" text-anchor="middle" font-weight="600">Мадина</text><text x="620" y="298" font-size="9" fill="#8B8B85" text-anchor="middle">18 человек ниже</text><text x="620" y="312" font-size="9" font-family="monospace" fill="#2F7A4F" text-anchor="middle">₸ 2.1M</text><line x1="180" y1="313" x2="100" y2="350" stroke="#F3F0E8"/><line x1="180" y1="313" x2="180" y2="350" stroke="#F3F0E8"/><line x1="180" y1="313" x2="260" y2="350" stroke="#F3F0E8"/><line x1="400" y1="313" x2="320" y2="350" stroke="#F3F0E8"/><line x1="400" y1="313" x2="400" y2="350" stroke="#F3F0E8"/><line x1="400" y1="313" x2="480" y2="350" stroke="#F3F0E8"/><line x1="620" y1="313" x2="540" y2="350" stroke="#F3F0E8"/><line x1="620" y1="313" x2="620" y2="350" stroke="#F3F0E8"/><line x1="620" y1="313" x2="700" y2="350" stroke="#F3F0E8"/><circle cx="100" cy="370" r="15" fill="#fff" stroke="#E8E6E0"/><text x="100" y="374" font-size="9" font-weight="600" fill="#3B5FB8" text-anchor="middle">+8</text><circle cx="180" cy="370" r="15" fill="#fff" stroke="#E8E6E0"/><text x="180" y="374" font-size="9" font-weight="600" fill="#3B5FB8" text-anchor="middle">+5</text><circle cx="260" cy="370" r="15" fill="#fff" stroke="#E8E6E0"/><text x="260" y="374" font-size="9" font-weight="600" fill="#3B5FB8" text-anchor="middle">+10</text><circle cx="320" cy="370" r="15" fill="#fff" stroke="#E8E6E0"/><text x="320" y="374" font-size="9" font-weight="600" fill="#2F7A4F" text-anchor="middle">+12</text><circle cx="400" cy="370" r="15" fill="#fff" stroke="#E8E6E0"/><text x="400" y="374" font-size="9" font-weight="600" fill="#2F7A4F" text-anchor="middle">+9</text><circle cx="480" cy="370" r="15" fill="#fff" stroke="#E8E6E0"/><text x="480" y="374" font-size="9" font-weight="600" fill="#2F7A4F" text-anchor="middle">+10</text><circle cx="540" cy="370" r="15" fill="#fff" stroke="#E8E6E0"/><text x="540" y="374" font-size="9" font-weight="600" fill="#B07D1A" text-anchor="middle">+6</text><circle cx="620" cy="370" r="15" fill="#fff" stroke="#E8E6E0"/><text x="620" y="374" font-size="9" font-weight="600" fill="#B07D1A" text-anchor="middle">+4</text><circle cx="700" cy="370" r="15" fill="#fff" stroke="#E8E6E0"/><text x="700" y="374" font-size="9" font-weight="600" fill="#B07D1A" text-anchor="middle">+8</text></g><g font-family="Geist,sans-serif" font-size="11"><text x="40" y="430" fill="#8B8B85">МОЙ БОНУС</text><text x="40" y="455" font-size="20" font-weight="700" fill="#1A1A18">₸ 824 000</text><text x="40" y="470" fill="#2F7A4F">↑ +18% к прошлому месяцу</text><text x="240" y="430" fill="#8B8B85">ДО НОВОГО РАНГА</text><text x="240" y="455" font-size="20" font-weight="700" fill="#b8895a">₸ 176 000</text><text x="240" y="470" fill="#8B8B85">оборот в команде</text><text x="440" y="430" fill="#8B8B85">АКТИВНОСТЬ КОМАНДЫ</text><text x="440" y="455" font-size="20" font-weight="700" fill="#2F7A4F">87%</text><text x="440" y="470" fill="#8B8B85">128 из 147 активны</text></g></svg>`,
+};
+
+// Fallback мокап если AI не сгенерил и нет статичного
+function genericMockup(label){
+  const safe=String(label||'Модуль CRM').replace(/[<>&"]/g,'');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500"><rect width="800" height="500" fill="#FAFAF7"/><rect x="20" y="20" width="760" height="460" rx="12" fill="#fff" stroke="#E8E6E0"/><text x="40" y="60" font-family="Geist,sans-serif" font-size="18" font-weight="600" fill="#1A1A18">${safe}</text><text x="40" y="82" font-family="Geist,sans-serif" font-size="11" fill="#8B8B85">Модуль CRM — внешний вид настраивается под ваш бизнес</text><g opacity="0.5"><rect x="40" y="120" width="220" height="120" rx="8" fill="#F8F8F5"/><rect x="280" y="120" width="220" height="120" rx="8" fill="#F8F8F5"/><rect x="520" y="120" width="220" height="120" rx="8" fill="#F8F8F5"/><rect x="40" y="260" width="700" height="200" rx="8" fill="#F8F8F5"/></g><text x="400" y="350" font-family="'Instrument Serif',Georgia,serif" font-size="22" font-style="italic" fill="#8B8B85" text-anchor="middle">Дизайн интерфейса разрабатывается</text><text x="400" y="378" font-family="'Instrument Serif',Georgia,serif" font-size="22" font-style="italic" fill="#8B8B85" text-anchor="middle">по согласованию с заказчиком</text></svg>`;
+}
+
+// Возвращает SVG-мокап для блока (статичный если есть, иначе fallback)
+function getMockupForBlock(type, label){
+  if(MOCKUPS[type]){
+    return MOCKUPS[type]();
+  }
+  return genericMockup(label||type);
+}
+
+// Список типов для которых у нас есть мокап (для презентации)
+const MOCKUPS_AVAILABLE = Object.keys(MOCKUPS);
+
+async function generatePresentationPage(){
+  const project=projectsState.activeProject;
+  if(!project){
+    showToast('Сначала создайте проект и сделайте его активным','alert-circle');
+    return;
+  }
+  if(state.nodes.length===0){
+    showToast('Сначала создайте схему','alert-circle');
+    return;
+  }
+
+  showToast('Генерирую презентацию...','loader');
+
+  // 1. Скриншот схемы
+  const screen=await uploadScreenshotToR2(project.id);
+  if(!screen){
+    showToast('Ошибка генерации скриншота','alert-circle');
+    return;
+  }
+  const screenUrl=WORKER_URL+'/api/page/view?key='+encodeURIComponent(screen.key);
+
+  // 2. Данные документов (если уже заполнены)
+  const c=getCustomerData();
+
+  // 3. Этапы
+  const stages=docState.stages.length>0?docState.stages:extractStagesFromSchema();
+  const totalKzt=stages.reduce((a,b)=>a+b.price,0);
+  const totalWeeks=stages.reduce((a,b)=>a+b.weeks,0);
+  const fullPriceKzt=Math.round(totalKzt*0.9);
+
+  // 4. Собираем мокапы UI для блоков из схемы
+  // Берём уникальные типы, отдаём приоритет тем что в MOCKUPS, потом остальным до лимита
+  const uniqueTypes=new Map();
+  state.nodes.forEach(n=>{
+    if(n.isNote||n.type==='note')return;
+    if(!uniqueTypes.has(n.type))uniqueTypes.set(n.type,n.label||n.type);
+  });
+
+  // Сортируем: сначала те для которых есть статичный мокап
+  const sortedTypes=[...uniqueTypes.entries()].sort((a,b)=>{
+    const aHas=MOCKUPS_AVAILABLE.includes(a[0])?0:1;
+    const bHas=MOCKUPS_AVAILABLE.includes(b[0])?0:1;
+    return aHas-bHas;
+  });
+
+  const mockups=[];
+  let aiCallsRemaining=3; // лимит AI-мокапов на презентацию (~$0.30)
+
+  for(const [type,label] of sortedTypes){
+    if(mockups.length>=10)break; // максимум 10 мокапов в презентации
+    if(MOCKUPS[type]){
+      mockups.push({type,label,svg:MOCKUPS[type]()});
+    }else if(aiCallsRemaining>0){
+      // Генерируем через AI
+      try{
+        showToast(`AI рисует «${label}»...`,'loader');
+        const r=await fetch(WORKER_URL+'/api/generate-mockup',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({blockType:type,blockLabel:label,context:dom.projectName.value}),
+        });
+        const data=await r.json();
+        if(data.ok&&data.svg){
+          mockups.push({type,label,svg:data.svg,fromAi:true});
+          aiCallsRemaining--;
+        }else{
+          mockups.push({type,label,svg:genericMockup(label)});
+        }
+      }catch(e){
+        console.warn('AI mockup failed:',e);
+        mockups.push({type,label,svg:genericMockup(label)});
+      }
+    }else{
+      mockups.push({type,label,svg:genericMockup(label)});
+    }
+  }
+
+  // 5. Строим HTML
+  const html=buildPresentationHtml({
+    project,
+    customer:c,
+    screenUrl,
+    stages,
+    totalKzt,
+    totalWeeks,
+    fullPriceKzt,
+    schema:dom.projectName.value,
+    nodesCount:state.nodes.length,
+    edgesCount:state.edges.length,
+    mockups,
+  });
+
+  // 5. Загружаем в R2
+  const pageKey=`p/${safeKey(project.id)}-${Date.now()}.html`;
+  try{
+    const r=await fetch(WORKER_URL+'/api/page/upload?key='+encodeURIComponent(pageKey),{
+      method:'POST',
+      headers:{'Content-Type':'text/html;charset=utf-8'},
+      body:html,
+    });
+    const data=await r.json();
+    if(data.ok){
+      const url=data.viewUrl;
+      project.presentationUrl=url;
+      project.presentationKey=pageKey;
+      project.screenshotKey=screen.key;
+      project.updatedAt=Date.now();
+      saveProjects();
+      showToast('Презентация готова!','sparkles');
+      return url;
+    }else{
+      throw new Error(data.error||'upload failed');
+    }
+  }catch(e){
+    console.error('upload page:',e);
+    showToast('Ошибка загрузки: '+e.message,'alert-circle');
+    return null;
+  }
+}
+
+function buildPresentationHtml(d){
+  const stagesHtml=d.stages.map((s,i)=>{
+    const colors=['#2F7A4F','#B07D1A','#C2542B','#3B5FB8'];
+    const stageColor=colors[i%4];
+    return `<div class="stage-card" style="border-left-color:${stageColor}">
+      <div class="stage-num" style="background:${stageColor}">Этап ${i+1}</div>
+      <h3>${escapeHtml(s.name)}</h3>
+      <div class="stage-meta">
+        <span>⏱ ${s.weeks} ${plural(s.weeks,'неделя','недели','недель')}</span>
+        <span>💰 ${new Intl.NumberFormat('ru-RU').format(s.price)} ₸</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const paymentsHtml=d.stages.map((s,i)=>`
+    <tr><td>${i+1}</td><td>${escapeHtml(s.name)}</td><td>${i===0?'Аванс':'После сдачи Этапа '+i}</td><td style="text-align:right;font-family:monospace">${new Intl.NumberFormat('ru-RU').format(s.price)} ₸</td></tr>
+  `).join('');
+
+  return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${escapeHtml(d.customer.projectName||d.project.name)} — Pllato</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Geist',-apple-system,sans-serif;background:#FAFAF7;color:#1A1A18;line-height:1.6;font-size:15px}
+.container{max-width:1100px;margin:0 auto;padding:60px 24px}
+.hero{margin-bottom:60px;border-bottom:1px solid #E8E6E0;padding-bottom:40px}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:24px}
+.brand-mark{width:36px;height:36px;border-radius:8px;background:#0a1628;display:flex;align-items:center;justify-content:center}
+.brand-mark svg{display:block}
+.brand-name{font-family:'Instrument Serif',Georgia,serif;font-size:22px;font-style:italic}
+.brand-tag{font-size:10px;color:#8B8B85;text-transform:uppercase;letter-spacing:.12em;font-weight:500;padding-left:14px;border-left:1px solid #E8E6E0;margin-left:6px}
+h1{font-family:'Instrument Serif',Georgia,serif;font-size:54px;line-height:1.1;letter-spacing:-.01em;margin-bottom:14px;font-style:italic}
+.subtitle{font-size:18px;color:#4A4A47;max-width:680px;line-height:1.5}
+.section{margin-bottom:60px}
+.section-tag{font-size:11px;color:#8B8B85;text-transform:uppercase;letter-spacing:.12em;font-weight:600;font-family:'Geist',monospace;margin-bottom:8px}
+.section h2{font-family:'Instrument Serif',Georgia,serif;font-size:36px;font-style:italic;margin-bottom:20px;letter-spacing:-.01em}
+.section p{color:#4A4A47;margin-bottom:14px;max-width:760px}
+.schema-image{width:100%;max-width:100%;background:#fff;border:1px solid #E8E6E0;border-radius:14px;padding:20px;margin:24px 0;box-shadow:0 8px 24px rgba(26,26,24,.06)}
+.schema-image img{width:100%;height:auto;display:block;border-radius:8px}
+.stages-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:24px}
+.stage-card{background:#fff;border:1px solid #E8E6E0;border-left:4px solid;border-radius:10px;padding:18px 20px}
+.stage-num{display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#fff;padding:3px 9px;border-radius:100px;margin-bottom:10px;font-weight:600}
+.stage-card h3{font-size:15px;font-weight:600;margin-bottom:8px;color:#1A1A18}
+.stage-meta{display:flex;gap:14px;font-size:12.5px;color:#4A4A47}
+.payment-summary{background:#fff;border:1px solid #E8E6E0;border-radius:12px;padding:24px;margin-top:24px}
+.payment-options{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+.mockups-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:18px;margin-top:24px}
+.mockup-card{background:#fff;border:1px solid #E8E6E0;border-radius:14px;padding:0;overflow:hidden;box-shadow:0 4px 12px rgba(26,26,24,.04)}
+.mockup-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #F3F0E8;background:#FAFAF7}
+.mockup-header h4{font-size:13px;font-weight:600;color:#1A1A18}
+.ai-badge{display:inline-block;font-size:9px;font-weight:700;background:linear-gradient(135deg,#6B46C1,#3B5FB8);color:#fff;padding:3px 8px;border-radius:100px;letter-spacing:.04em}
+.mockup-svg-wrap{padding:8px}
+.mockup-svg-wrap svg{display:block;width:100%;height:auto;border-radius:6px}
+.payment-option{background:#FAFAF7;border:2px solid #E8E6E0;border-radius:10px;padding:18px}
+.payment-option.highlight{border-color:#2F7A4F;background:#ECF5EF}
+.payment-option h4{font-size:14px;font-weight:600;margin-bottom:8px}
+.payment-option .price{font-family:monospace;font-size:24px;font-weight:700;color:#1A1A18;margin:8px 0}
+.payment-option .price small{font-size:13px;color:#8B8B85;text-decoration:line-through;font-weight:400;margin-left:6px}
+.payment-option .badge{display:inline-block;font-size:10px;font-weight:700;color:#fff;background:#2F7A4F;padding:3px 9px;border-radius:100px;letter-spacing:.04em}
+.payment-option p{font-size:12px;color:#4A4A47;margin:6px 0 0}
+table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}
+table th{text-align:left;padding:8px 10px;background:#F3F0E8;color:#4A4A47;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+table td{padding:10px;border-bottom:1px solid #E8E6E0;color:#1A1A18}
+.contacts{background:#0a1628;color:#fff;border-radius:14px;padding:36px;margin-top:60px}
+.contacts h2{color:#fff;margin-bottom:24px}
+.contact-row{display:grid;grid-template-columns:120px 1fr;gap:14px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.1)}
+.contact-row:last-child{border:none}
+.contact-row dt{color:rgba(255,255,255,.6);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.contact-row dd{color:#fff;font-weight:500}
+.cta-button{display:inline-flex;align-items:center;gap:8px;background:#b8895a;color:#fff;padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:600;margin-top:24px;transition:all .2s}
+.cta-button:hover{background:#8b6740;transform:translateY(-1px)}
+.foot{margin-top:60px;padding-top:30px;border-top:1px solid #E8E6E0;text-align:center;color:#8B8B85;font-size:12px}
+@media(max-width:640px){
+  h1{font-size:36px}
+  .section h2{font-size:28px}
+  .payment-options{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="hero">
+    <div class="brand">
+      <div class="brand-mark"><svg width="22" height="22" viewBox="0 0 32 32"><rect x="13" y="10" width="2" height="12" fill="#b8895a"/><rect x="17" y="10" width="2" height="12" fill="#b8895a"/></svg></div>
+      <div class="brand-name">Pllato</div>
+      <span class="brand-tag">Коммерческое предложение</span>
+    </div>
+    <h1>${escapeHtml(d.customer.projectName||d.project.name)}</h1>
+    <p class="subtitle">Кастомная CRM-система для ${d.customer._nameFilled?escapeHtml(d.customer.name):'вашего бизнеса'}. Архитектура, этапы, сроки и стоимость — в одном документе.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-tag">Архитектура системы</div>
+    <h2>Как всё будет устроено</h2>
+    <p>Визуальная схема CRM с ${d.nodesCount} модулями и ${d.edgesCount} связями. Каждый блок — отдельный компонент системы. Цветами выделены этапы разработки.</p>
+    <div class="schema-image">
+      <img src="${d.screenUrl}" alt="Архитектура CRM">
+    </div>
+  </div>
+
+  ${d.mockups&&d.mockups.length>0?`<div class="section">
+    <div class="section-tag">Интерфейсы CRM</div>
+    <h2>Так это будет выглядеть в работе</h2>
+    <p>Примеры готовых интерфейсов модулей вашей CRM. Финальный дизайн будет согласован отдельно — у нас более 50 шаблонов на выбор.</p>
+    <div class="mockups-grid">
+      ${d.mockups.map(m=>`
+        <div class="mockup-card">
+          <div class="mockup-header">
+            <h4>${escapeHtml(m.label)}</h4>
+            ${m.fromAi?'<span class="ai-badge">AI</span>':''}
+          </div>
+          <div class="mockup-svg-wrap">${m.svg}</div>
+        </div>
+      `).join('')}
+    </div>
+  </div>`:''}
+
+  <div class="section">
+    <div class="section-tag">План работ</div>
+    <h2>${d.stages.length} ${plural(d.stages.length,'этап','этапа','этапов')} разработки</h2>
+    <p>Общий срок: <b>${d.totalWeeks} ${plural(d.totalWeeks,'неделя','недели','недель')}</b>. Каждый этап — самостоятельный продукт, приносящий ценность. Между этапами 1-2 недели тестирования.</p>
+    <div class="stages-grid">
+      ${stagesHtml}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-tag">Стоимость</div>
+    <h2>Варианты оплаты</h2>
+    <div class="payment-summary">
+      <div class="payment-options">
+        <div class="payment-option">
+          <h4>Поэтапная оплата</h4>
+          <div class="price">${new Intl.NumberFormat('ru-RU').format(d.totalKzt)} ₸</div>
+          <p>Платите за каждый этап после сдачи. Удобно для длительных проектов.</p>
+        </div>
+        <div class="payment-option highlight">
+          <h4>Полная предоплата</h4>
+          <div class="price">${new Intl.NumberFormat('ru-RU').format(d.fullPriceKzt)} ₸ <small>${new Intl.NumberFormat('ru-RU').format(d.totalKzt)} ₸</small></div>
+          <span class="badge">−10% СКИДКА</span>
+          <p>Один платёж до начала работ. Экономия ${new Intl.NumberFormat('ru-RU').format(d.totalKzt-d.fullPriceKzt)} ₸.</p>
+        </div>
+      </div>
+      <h4 style="margin:24px 0 10px;font-size:13px;color:#4A4A47;text-transform:uppercase;letter-spacing:.06em">График платежей (поэтапно)</h4>
+      <table>
+        <thead><tr><th>№</th><th>За что</th><th>Когда</th><th style="text-align:right">Сумма</th></tr></thead>
+        <tbody>${paymentsHtml}</tbody>
+        <tfoot><tr style="font-weight:700"><td colspan="3" style="text-align:right;padding-top:14px">ИТОГО:</td><td style="text-align:right;font-family:monospace;padding-top:14px">${new Intl.NumberFormat('ru-RU').format(d.totalKzt)} ₸</td></tr></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="contacts">
+    <h2>Связаться</h2>
+    <dl>
+      <div class="contact-row"><dt>Студия</dt><dd>Pllato · ИП «STUDYSTORIES.APP»</dd></div>
+      <div class="contact-row"><dt>WhatsApp</dt><dd><a href="https://wa.me/77011239999" style="color:#b8895a;text-decoration:none">+7 701 123 99 99</a></dd></div>
+      <div class="contact-row"><dt>Email</dt><dd><a href="mailto:uurraa@gmail.com" style="color:#b8895a;text-decoration:none">uurraa@gmail.com</a></dd></div>
+      <div class="contact-row"><dt>Сайт</dt><dd><a href="https://pllato.kz" style="color:#b8895a;text-decoration:none">pllato.kz</a></dd></div>
+    </dl>
+    <a href="https://wa.me/77011239999?text=${encodeURIComponent('Здравствуйте, Pllato! Я посмотрел презентацию по проекту "'+(d.customer.projectName||d.project.name)+'". Готов обсудить.')}" class="cta-button">💬 Написать в WhatsApp</a>
+  </div>
+
+  <div class="foot">
+    Презентация создана ${new Date().toLocaleDateString('ru-RU')} · pllato.kz
+  </div>
+
+</div>
+</body>
+</html>`;
+}
+
+function initPresentation(){
+  // Кнопка "Поделиться" — добавим опцию "Презентация" в существующую модалку
+  const shareModal=document.getElementById('shareModal');
+  if(!shareModal)return;
+  const body=shareModal.querySelector('.modal-body');
+  if(body&&!document.getElementById('presBlock')){
+    const block=document.createElement('div');
+    block.id='presBlock';
+    block.className='presentation-block';
+    block.innerHTML=`
+      <h4>✨ Презентация для клиента</h4>
+      <p>Красивая публичная страница: схема + план работ + оплата + контакты. Отправьте ссылку клиенту в WhatsApp — он откроет с телефона.</p>
+      <button class="btn primary" id="btnGenPresentation" style="width:100%;justify-content:center"><i data-lucide="sparkles" class="icon"></i> Создать презентацию</button>
+      <div id="presLink" style="display:none;margin-top:10px"></div>
+    `;
+    body.appendChild(block);
+    if(window.lucide)lucide.createIcons({nodes:[block]});
+
+    document.getElementById('btnGenPresentation').addEventListener('click',async()=>{
+      const btn=document.getElementById('btnGenPresentation');
+      btn.disabled=true;
+      btn.innerHTML='Генерирую...';
+      const url=await generatePresentationPage();
+      btn.disabled=false;
+      btn.innerHTML='<i data-lucide="refresh-cw" class="icon"></i> Пересоздать';
+      if(window.lucide)lucide.createIcons({nodes:[btn]});
+      if(url){
+        const linkDiv=document.getElementById('presLink');
+        linkDiv.style.display='block';
+        linkDiv.innerHTML=`<div class="preview-link"><input type="text" readonly value="${url}"><button class="btn primary" id="btnCopyPres" style="padding:6px 12px"><i data-lucide="copy" class="icon"></i></button><a href="${url}" target="_blank" class="btn" style="padding:6px 12px;text-decoration:none;color:inherit"><i data-lucide="external-link" class="icon"></i></a></div>`;
+        if(window.lucide)lucide.createIcons({nodes:[linkDiv]});
+        document.getElementById('btnCopyPres').addEventListener('click',async()=>{
+          try{await navigator.clipboard.writeText(url);showToast('Ссылка скопирована','check')}
+          catch(e){const i=linkDiv.querySelector('input');i.select();document.execCommand('copy');showToast('Ссылка скопирована','check')}
+        });
+      }
+    });
+  }
+}
+
 function init(){
   renderLibrary();renderTemplatesGrid();applyViewport();updateMeta();
   refreshUserChip();
   initRecording();
   initDocuments();
   initProjects();
+  initDiffPanel();
+  initPresentation();
   const fromUrl=parseShareUrl();
   if(fromUrl){
     state.readonly=true;state.boardId=uid();
