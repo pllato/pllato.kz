@@ -11,6 +11,13 @@
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+if(typeof pdfjsLib!=='undefined'){
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.7.2/mammoth.browser.min.js"></script>
 <style>
 :root{--bg:#FAFAF7;--bg-canvas:#F5F5F1;--surface:#fff;--surface-2:#F8F8F5;--border:#E8E6E0;--border-strong:#D6D3CC;--ink:#1A1A18;--ink-2:#4A4A47;--ink-3:#8B8B85;--ink-4:#B5B5AE;--accent-blue:#3B5FB8;--accent-blue-bg:#EEF2FB;--accent-purple:#6B46C1;--accent-purple-bg:#F4EFFB;--accent-orange:#C2542B;--accent-orange-bg:#FBF1EB;--accent-green:#2F7A4F;--accent-green-bg:#ECF5EF;--accent-amber:#B07D1A;--accent-amber-bg:#FBF5E7;--accent-rose:#B83E5F;--accent-rose-bg:#FBECF1;--shadow-sm:0 1px 2px rgba(26,26,24,.04),0 1px 1px rgba(26,26,24,.03);--shadow-md:0 2px 8px rgba(26,26,24,.06),0 1px 2px rgba(26,26,24,.04);--shadow-lg:0 8px 24px rgba(26,26,24,.08),0 2px 6px rgba(26,26,24,.04);--shadow-xl:0 24px 48px rgba(26,26,24,.12),0 4px 12px rgba(26,26,24,.06);--font-sans:'Geist',-apple-system,BlinkMacSystemFont,sans-serif;--font-mono:'Geist Mono',ui-monospace,monospace;--font-display:'Instrument Serif',Georgia,serif}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -528,6 +535,150 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
   text-transform:uppercase;letter-spacing:.06em;
   margin:0 24px 10px;padding-top:18px;
 }
+
+/* AI block in new project modal */
+.new-proj-ai-section{
+  margin:14px 24px 0;
+  padding:18px 20px;
+  background:linear-gradient(135deg,#F4EFFB 0%,#EEF2FB 100%);
+  border:1px solid #D4C5EE;
+  border-radius:12px;
+}
+.new-proj-ai-header{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:10px;
+}
+.new-proj-ai-icon{
+  width:28px;height:28px;border-radius:7px;
+  background:linear-gradient(135deg,#6B46C1,#3B5FB8);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;flex-shrink:0;
+}
+.new-proj-ai-icon svg{width:14px;height:14px}
+.new-proj-ai-title{
+  font-size:13px;font-weight:700;color:var(--ink);letter-spacing:-.01em;
+  flex:1;
+}
+.new-proj-ai-title span{font-weight:400;color:var(--ink-3);font-size:11.5px;margin-left:6px}
+.new-proj-ai-textarea{
+  width:100%;
+  min-height:80px;max-height:200px;
+  padding:11px 12px;
+  border:1px solid var(--border-strong);border-radius:8px;
+  font:inherit;font-size:13.5px;line-height:1.5;
+  background:#fff;outline:none;resize:vertical;
+  font-family:var(--font-sans);
+  color:var(--ink);
+  transition:border-color .12s;
+}
+.new-proj-ai-textarea:focus{border-color:#6B46C1}
+.new-proj-ai-textarea::placeholder{color:var(--ink-4)}
+.new-proj-ai-actions{
+  display:flex;gap:10px;margin-top:10px;align-items:center;flex-wrap:wrap;
+}
+.new-proj-ai-file-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:7px 12px;
+  background:#fff;color:var(--ink-2);
+  border:1px solid var(--border-strong);border-radius:7px;
+  font:inherit;font-size:12px;font-weight:500;
+  cursor:pointer;
+  transition:all .12s;
+}
+.new-proj-ai-file-btn:hover{border-color:var(--ink-3);color:var(--ink)}
+.new-proj-ai-file-btn svg{width:13px;height:13px}
+.new-proj-ai-file-status{
+  font-size:11.5px;color:var(--accent-green);
+  display:inline-flex;align-items:center;gap:5px;
+}
+.new-proj-ai-go{
+  margin-left:auto;
+  display:inline-flex;align-items:center;gap:7px;
+  padding:9px 18px;
+  background:linear-gradient(135deg,#6B46C1,#3B5FB8);
+  color:#fff;border:none;border-radius:8px;
+  font:inherit;font-size:13px;font-weight:600;
+  cursor:pointer;
+  transition:all .12s;
+  white-space:nowrap;
+}
+.new-proj-ai-go:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 12px rgba(107,70,193,0.3)}
+.new-proj-ai-go:disabled{opacity:.5;cursor:not-allowed;background:var(--ink-3)}
+.new-proj-ai-go svg{width:14px;height:14px}
+.new-proj-or{
+  display:flex;align-items:center;gap:14px;
+  margin:18px 24px 6px;
+  color:var(--ink-3);font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;font-weight:600;
+}
+.new-proj-or::before,.new-proj-or::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* AI special template card (первая в сетке) */
+.template-card.ai-special{
+  background:linear-gradient(135deg,#F4EFFB 0%,#EEF2FB 100%);
+  border-color:#D4C5EE;
+}
+.template-card.ai-special:hover{border-color:#6B46C1;transform:translateY(-2px)}
+.template-card.ai-special .template-icon{
+  background:linear-gradient(135deg,#6B46C1,#3B5FB8);
+  color:#fff;
+}
+.template-card.ai-special h3{color:#6B46C1}
+
+/* AI loader overlay */
+.ai-loader-overlay{
+  position:fixed;inset:0;
+  background:rgba(26,26,24,0.55);
+  backdrop-filter:blur(4px);
+  z-index:10000;
+  display:none;
+  align-items:center;justify-content:center;
+  padding:24px;
+}
+.ai-loader-overlay.show{display:flex}
+.ai-loader-card{
+  background:#fff;border-radius:16px;
+  padding:36px 40px;text-align:center;
+  max-width:480px;width:100%;
+  box-shadow:0 24px 60px rgba(0,0,0,0.3);
+}
+.ai-loader-icon{
+  width:64px;height:64px;border-radius:16px;
+  background:linear-gradient(135deg,#6B46C1,#3B5FB8);
+  display:inline-flex;align-items:center;justify-content:center;
+  margin-bottom:18px;
+  color:#fff;
+  animation:ai-pulse 1.5s ease-in-out infinite;
+}
+.ai-loader-icon svg{width:30px;height:30px}
+@keyframes ai-pulse{
+  0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(107,70,193,0.4)}
+  50%{transform:scale(1.05);box-shadow:0 0 0 16px rgba(107,70,193,0)}
+}
+.ai-loader-title{
+  font-family:var(--font-display);font-style:italic;
+  font-size:24px;color:var(--ink);margin-bottom:6px;letter-spacing:-.01em;
+}
+.ai-loader-stage{
+  font-size:13px;color:var(--ink-2);line-height:1.5;
+  margin-bottom:18px;min-height:40px;
+}
+.ai-loader-bar{
+  width:100%;height:4px;background:var(--surface-2);
+  border-radius:2px;overflow:hidden;position:relative;
+}
+.ai-loader-bar::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;
+  width:40%;background:linear-gradient(90deg,#6B46C1,#3B5FB8);
+  animation:ai-bar 1.4s ease-in-out infinite;
+}
+@keyframes ai-bar{
+  0%{transform:translateX(-100%)}
+  100%{transform:translateX(350%)}
+}
+.ai-loader-tip{
+  font-size:11px;color:var(--ink-3);margin-top:14px;font-style:italic;
+}
 .new-project-form input{flex:1;padding:8px 12px;border:1px solid var(--border-strong);border-radius:7px;font:inherit;font-size:13px;background:var(--surface-2);outline:none}
 .new-project-form input:focus{background:var(--surface);border-color:var(--ink)}
 .new-project-form button{padding:8px 14px;border-radius:7px;background:var(--ink);color:#fff;border:none;font:inherit;font-size:12.5px;font-weight:500;cursor:pointer}
@@ -984,14 +1135,42 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 <input type="text" id="npClientContact" class="new-proj-input" placeholder="+7 777 ..." maxlength="80" autocomplete="off">
 </div>
 </div>
-<div class="new-proj-tip">Имя обязательно — оно будет использоваться в архиве и документах. Контакт можно указать позже. <b>После выбора шаблона ниже</b> создастся проект и сразу откроется канва.</div>
+<div class="new-proj-tip">Имя обязательно — оно будет использоваться в архиве и документах. <b>Опишите нишу и функционал ниже</b> чтобы AI собрал схему автоматически, или выберите готовый шаблон.</div>
 </div>
-<div class="new-proj-templates-title">Выберите шаблон CRM (или начните с пустого холста)</div>
+
+<!-- AI description block -->
+<div class="new-proj-ai-section">
+<div class="new-proj-ai-header">
+<div class="new-proj-ai-icon"><i data-lucide="sparkles"></i></div>
+<div class="new-proj-ai-title">Собрать схему с AI <span>опишите бизнес или прикрепите ТЗ</span></div>
+</div>
+<textarea id="npAiDescription" class="new-proj-ai-textarea" placeholder="Например: Онлайн-школа казахского языка для русскоговорящих. Преподаватели проводят занятия по Zoom. Принимаем оплату через Kaspi. Хотим вести базу учеников, расписание, прогресс. На третьем этапе — Telegram-бот для напоминаний." maxlength="50000"></textarea>
+<div class="new-proj-ai-actions">
+<input type="file" id="npAiFile" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" style="display:none">
+<button class="new-proj-ai-file-btn" id="npAiFileBtn"><i data-lucide="paperclip"></i> Прикрепить файл (PDF / Word / TXT)</button>
+<span class="new-proj-ai-file-status" id="npAiFileStatus" style="display:none"></span>
+<button class="new-proj-ai-go" id="npAiGoBtn" disabled><i data-lucide="sparkles"></i> Собрать схему</button>
+</div>
+</div>
+
+<div class="new-proj-or">или выберите готовый шаблон</div>
+
 <div class="modal-body" style="padding-top:0">
 <div class="templates-grid" id="npTemplatesGrid"></div>
 </div>
 </div>
 </div></div>
+
+<!-- AI Loader overlay -->
+<div class="ai-loader-overlay" id="aiLoaderOverlay">
+<div class="ai-loader-card">
+<div class="ai-loader-icon"><i data-lucide="sparkles"></i></div>
+<div class="ai-loader-title" id="aiLoaderTitle">AI собирает вашу схему</div>
+<div class="ai-loader-stage" id="aiLoaderStage">Анализируем описание...</div>
+<div class="ai-loader-bar"></div>
+<div class="ai-loader-tip">Это займёт 20-40 секунд. AI продумывает архитектуру, разбивает на этапы и расставляет связи.</div>
+</div>
+</div>
 
 <div class="modal-overlay" id="templatesModal"><div class="modal">
 <div class="modal-header">
@@ -5266,12 +5445,234 @@ function showWelcomeScreen(){
   });
 }
 
+// Состояние AI-описания (текст + загруженный файл)
+const npAiState={fileText:'',fileName:''};
+
 function openNewProjectModal(){
   document.getElementById('npClientName').value='';
   document.getElementById('npClientContact').value='';
+  document.getElementById('npAiDescription').value='';
+  document.getElementById('npAiFileStatus').style.display='none';
+  document.getElementById('npAiFileStatus').textContent='';
+  npAiState.fileText='';npAiState.fileName='';
+  updateNpAiGoState();
   renderNpTemplatesGrid();
   showModal('newProjectModal');
   setTimeout(()=>document.getElementById('npClientName').focus(),100);
+}
+
+// Активность кнопки "Собрать схему" зависит от того, есть ли текст или файл
+function updateNpAiGoState(){
+  const txt=(document.getElementById('npAiDescription').value||'').trim();
+  const hasContent=txt.length>=20||npAiState.fileText.length>=20;
+  document.getElementById('npAiGoBtn').disabled=!hasContent;
+}
+
+// Чтение PDF
+async function readPdfFile(file){
+  if(typeof pdfjsLib==='undefined')throw new Error('PDF.js не загружен');
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  let text='';
+  const maxPages=Math.min(pdf.numPages,50);
+  for(let i=1;i<=maxPages;i++){
+    const page=await pdf.getPage(i);
+    const content=await page.getTextContent();
+    const pageText=content.items.map(it=>it.str).join(' ');
+    text+=pageText+'\n\n';
+  }
+  if(pdf.numPages>50)text+=`\n[Документ имеет ${pdf.numPages} страниц, обработаны первые 50]`;
+  return text.trim();
+}
+
+// Чтение DOCX
+async function readDocxFile(file){
+  if(typeof mammoth==='undefined')throw new Error('Mammoth не загружен');
+  const buf=await file.arrayBuffer();
+  const result=await mammoth.extractRawText({arrayBuffer:buf});
+  return (result.value||'').trim();
+}
+
+// Чтение TXT
+function readTxtFile(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=e=>resolve((e.target.result||'').toString());
+    reader.onerror=()=>reject(new Error('Не удалось прочитать файл'));
+    reader.readAsText(file,'utf-8');
+  });
+}
+
+async function handleNpAiFile(file){
+  if(!file)return;
+  const maxSize=10*1024*1024; // 10MB
+  if(file.size>maxSize){
+    showToast('Файл слишком большой (максимум 10 МБ)','alert-circle');
+    return;
+  }
+  const statusEl=document.getElementById('npAiFileStatus');
+  statusEl.style.display='inline-flex';
+  statusEl.innerHTML=`<i data-lucide="loader" style="width:13px;height:13px"></i> Читаю «${escapeHtml(file.name)}»...`;
+  statusEl.style.color='var(--ink-3)';
+  if(window.lucide)lucide.createIcons({nodes:[statusEl]});
+
+  try{
+    let text='';
+    const ext=(file.name.split('.').pop()||'').toLowerCase();
+    if(ext==='pdf'||file.type==='application/pdf'){
+      text=await readPdfFile(file);
+    }else if(ext==='docx'||file.type.includes('wordprocessingml')){
+      text=await readDocxFile(file);
+    }else if(ext==='txt'||file.type==='text/plain'){
+      text=await readTxtFile(file);
+    }else{
+      throw new Error('Поддерживаются PDF, DOCX, TXT');
+    }
+    if(!text||text.length<20){
+      throw new Error('Из файла извлечено мало текста');
+    }
+    if(text.length>50000)text=text.slice(0,50000)+'\n\n[...текст обрезан]';
+    npAiState.fileText=text;
+    npAiState.fileName=file.name;
+    statusEl.style.color='var(--accent-green)';
+    statusEl.innerHTML=`<i data-lucide="check-circle" style="width:13px;height:13px"></i> ${escapeHtml(file.name)} (${text.length.toLocaleString('ru-RU')} симв.)`;
+    if(window.lucide)lucide.createIcons({nodes:[statusEl]});
+    updateNpAiGoState();
+  }catch(err){
+    console.error('File read error:',err);
+    statusEl.style.color='var(--accent-rose)';
+    statusEl.innerHTML=`<i data-lucide="alert-circle" style="width:13px;height:13px"></i> Ошибка: ${escapeHtml(err.message)}`;
+    if(window.lucide)lucide.createIcons({nodes:[statusEl]});
+    npAiState.fileText='';npAiState.fileName='';
+    updateNpAiGoState();
+  }
+}
+
+// AI loader overlay
+function showAiLoader(stage){
+  const ov=document.getElementById('aiLoaderOverlay');
+  ov.classList.add('show');
+  if(stage)document.getElementById('aiLoaderStage').textContent=stage;
+  if(window.lucide)lucide.createIcons({nodes:[ov]});
+}
+function setAiLoaderStage(text){
+  document.getElementById('aiLoaderStage').textContent=text;
+}
+function hideAiLoader(){
+  document.getElementById('aiLoaderOverlay').classList.remove('show');
+}
+
+// Сборка проекта через AI
+async function buildProjectWithAi(){
+  const name=document.getElementById('npClientName').value.trim();
+  if(!name){
+    showToast('Сначала введите имя клиента','alert-circle');
+    document.getElementById('npClientName').focus();
+    document.getElementById('npClientName').style.borderColor='#B83E5F';
+    setTimeout(()=>{document.getElementById('npClientName').style.borderColor=''},2000);
+    return;
+  }
+  const txt=(document.getElementById('npAiDescription').value||'').trim();
+  // Собираем описание: текст из textarea + текст из файла
+  let description=txt;
+  if(npAiState.fileText){
+    if(description)description+='\n\n=== ДОПОЛНИТЕЛЬНО ИЗ ФАЙЛА ===\n\n'+npAiState.fileText;
+    else description='[Из файла '+npAiState.fileName+']\n\n'+npAiState.fileText;
+  }
+  if(description.length<20){
+    showToast('Опишите бизнес подробнее или прикрепите файл','alert-circle');
+    return;
+  }
+
+  const contact=document.getElementById('npClientContact').value.trim();
+  hideModal('newProjectModal');
+  showAiLoader('Подключаемся к AI...');
+
+  // Прогрессивные сообщения чтобы пользователь видел движение
+  const stages=[
+    'Подключаемся к AI...',
+    'Анализируем описание бизнеса...',
+    'Определяем структуру этапов...',
+    'Подбираем модули CRM...',
+    'Расставляем блоки и связи...',
+    'Финализируем архитектуру...',
+  ];
+  let sIdx=0;
+  const stageTimer=setInterval(()=>{
+    sIdx=(sIdx+1)%stages.length;
+    setAiLoaderStage(stages[sIdx]);
+  },4000);
+
+  try{
+    const r=await fetch(WORKER_URL+'/api/build-schema-from-description',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({description}),
+    });
+    const data=await r.json();
+    clearInterval(stageTimer);
+    if(!data.ok){
+      hideAiLoader();
+      showToast('AI ошибка: '+(data.error||'неизвестная'),'alert-circle');
+      showModal('newProjectModal');
+      return;
+    }
+    setAiLoaderStage('Загружаем схему на холст...');
+    // 1. Создаём проект
+    const proj=createProject(name);
+    if(contact)proj.clientContact=contact;
+    projectsState.activeProject=proj;
+    saveProjects();
+
+    // 2. Очищаем текущие ноды
+    state.nodes.forEach(n=>{const el=document.getElementById(n.id);if(el)el.remove()});
+    state.nodes=[];state.edges=[];
+    state.boardId=uid();state.readonly=false;
+    dom.readonlyBanner.classList.remove('show');
+    dom.projectName.value=data.schema.name||name;
+
+    // 3. Добавляем nodes из AI
+    const idMap=[];
+    data.schema.nodes.forEach((d,i)=>{
+      try{
+        // Защита от мусора
+        if(!d.type){d.type='note';d.label=d.label||'AI: без типа'}
+        const n=addNode(d);
+        idMap[i]=n.id;
+      }catch(e){
+        console.warn('Skip bad AI node',i,d,e);
+        idMap[i]=null;
+      }
+    });
+
+    // 4. Edges
+    (data.schema.edges||[]).forEach(e=>{
+      if(idMap[e.source]&&idMap[e.target]){
+        state.edges.push({
+          id:'e'+Math.random().toString(36).slice(2,9),
+          source:idMap[e.source],target:idMap[e.target],
+          label:e.label||'',
+        });
+      }
+    });
+
+    // 5. Системные модули
+    injectSystemModules();
+
+    redrawEdges();updateMeta();
+    setTimeout(fitView,80);
+    scheduleAutoSave();
+    attachCurrentBoardToProject(proj.id);
+
+    hideAiLoader();
+    showToast(`Проект «${name}» собран AI: ${data.schema.nodes.length} блоков`,'sparkles');
+  }catch(err){
+    clearInterval(stageTimer);
+    hideAiLoader();
+    console.error('AI build failed:',err);
+    showToast('Ошибка: '+err.message,'alert-circle');
+    showModal('newProjectModal');
+  }
 }
 
 function renderNpTemplatesGrid(){
@@ -5293,20 +5694,31 @@ function renderNpTemplatesGrid(){
         return;
       }
       const contact=document.getElementById('npClientContact').value.trim();
-      // 1. Создаём проект
       const proj=createProject(name);
       if(contact)proj.clientContact=contact;
       projectsState.activeProject=proj;
       saveProjects();
-      // 2. Закрываем модалку
       hideModal('newProjectModal');
-      // 3. Загружаем шаблон (он автоматически привяжется к активному проекту)
       setTimeout(()=>{
         loadTemplate(c.dataset.npKey);
         showToast(`Проект «${name}» создан`,'folder-plus');
       },150);
     };
   });
+
+  // Привязка к AI блоку (один раз)
+  if(!grid.dataset.aiBound){
+    grid.dataset.aiBound='1';
+    document.getElementById('npAiDescription').addEventListener('input',updateNpAiGoState);
+    document.getElementById('npAiFileBtn').addEventListener('click',()=>{
+      document.getElementById('npAiFile').click();
+    });
+    document.getElementById('npAiFile').addEventListener('change',e=>{
+      const f=e.target.files[0];
+      if(f)handleNpAiFile(f);
+    });
+    document.getElementById('npAiGoBtn').addEventListener('click',buildProjectWithAi);
+  }
 }
 
 function goHome(){
