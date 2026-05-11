@@ -288,6 +288,59 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 .doc-del-stage{background:transparent;border:none;color:var(--ink-3);cursor:pointer;padding:4px}
 .doc-del-stage:hover{color:var(--accent-rose)}
 .doc-del-stage svg{width:13px;height:13px}
+
+/* ============ PROJECTS ARCHIVE ============ */
+.btn-projects{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:7px;font:inherit;font-size:12px;font-weight:500;background:var(--surface);color:var(--ink);border:1px solid var(--border-strong);cursor:pointer;transition:all .12s}
+.btn-projects:hover{border-color:var(--ink-3);background:var(--surface-2)}
+.btn-projects svg{width:14px;height:14px}
+
+.projects-list{display:flex;flex-direction:column;gap:8px}
+.project-card{border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all .12s;background:var(--surface)}
+.project-card:hover{border-color:var(--border-strong);background:var(--surface-2)}
+.project-card.expanded{background:var(--surface-2);border-color:var(--ink-3)}
+.project-card-head{display:flex;align-items:center;gap:12px}
+.project-card-icon{width:36px;height:36px;border-radius:8px;background:var(--accent-blue-bg);color:var(--accent-blue);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;font-size:14px}
+.project-card-icon.has-audio{background:var(--accent-rose-bg);color:var(--accent-rose)}
+.project-card-info{flex:1;min-width:0}
+.project-card-name{font-weight:600;font-size:14px;color:var(--ink);margin-bottom:2px;display:flex;align-items:center;gap:8px}
+.project-card-meta{font-size:11.5px;color:var(--ink-3);font-family:var(--font-mono);display:flex;gap:10px;flex-wrap:wrap}
+.project-card-meta .meta-item{display:inline-flex;align-items:center;gap:4px}
+.project-card-meta .meta-item svg{width:11px;height:11px}
+.project-card-actions{display:flex;gap:4px;opacity:0;transition:opacity .12s}
+.project-card:hover .project-card-actions,.project-card.expanded .project-card-actions{opacity:1}
+.project-icon-btn{width:28px;height:28px;border-radius:6px;border:none;background:transparent;cursor:pointer;color:var(--ink-3);display:flex;align-items:center;justify-content:center;transition:all .12s}
+.project-icon-btn:hover{background:var(--bg);color:var(--ink)}
+.project-icon-btn.danger:hover{background:var(--accent-rose-bg);color:var(--accent-rose)}
+.project-icon-btn svg{width:14px;height:14px}
+
+.project-card-body{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.project-card.expanded .project-card-body{display:block}
+.project-asset{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:7px;margin-bottom:6px;font-size:12.5px}
+.project-asset:last-child{margin-bottom:0}
+.project-asset-icon{width:24px;height:24px;border-radius:5px;background:var(--surface-2);color:var(--ink-2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.project-asset-icon svg{width:13px;height:13px}
+.project-asset-label{flex:1;color:var(--ink-2);min-width:0}
+.project-asset-label b{color:var(--ink);font-weight:600}
+.project-asset-meta{color:var(--ink-3);font-size:11px;font-family:var(--font-mono);flex-shrink:0}
+.project-asset-btn{padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--ink-2);font:inherit;font-size:11px;cursor:pointer;flex-shrink:0}
+.project-asset-btn:hover{border-color:var(--ink);color:var(--ink)}
+.project-asset audio{flex:1;height:32px}
+
+.project-empty{padding:50px 20px;text-align:center;color:var(--ink-3);border:1px dashed var(--border-strong);border-radius:10px}
+.project-empty h3{font-family:var(--font-display);font-style:italic;font-size:22px;color:var(--ink-2);margin-bottom:6px;letter-spacing:-.01em}
+.project-empty p{font-size:13px;max-width:380px;margin:0 auto;line-height:1.55}
+
+.new-project-form{display:flex;gap:8px;padding:14px;border:1px dashed var(--border-strong);border-radius:10px;margin-bottom:14px}
+.new-project-form input{flex:1;padding:8px 12px;border:1px solid var(--border-strong);border-radius:7px;font:inherit;font-size:13px;background:var(--surface-2);outline:none}
+.new-project-form input:focus{background:var(--surface);border-color:var(--ink)}
+.new-project-form button{padding:8px 14px;border-radius:7px;background:var(--ink);color:#fff;border:none;font:inherit;font-size:12.5px;font-weight:500;cursor:pointer}
+
+.ai-suggestion-bar{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:100px;font-size:12.5px;font-weight:500;box-shadow:var(--shadow-xl);z-index:600;display:none;align-items:center;gap:12px}
+.ai-suggestion-bar.show{display:inline-flex}
+.ai-suggestion-bar button{background:rgba(255,255,255,.18);border:none;color:#fff;padding:5px 10px;border-radius:5px;font:inherit;font-size:11.5px;font-weight:500;cursor:pointer}
+.ai-suggestion-bar button:hover{background:rgba(255,255,255,.28)}
+.ai-suggestion-bar .close-x{background:none;padding:4px}
+.ai-suggestion-bar .close-x svg{width:12px;height:12px}
 </style>
 </head>
 <body>
@@ -306,6 +359,7 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 <button class="btn-docs" id="btnDocs" title="Сформировать документы для клиента"><i data-lucide="file-text"></i> Документы</button>
 <button class="btn-whatsapp" id="btnContactStudio" title="Связаться со студией Pllato через WhatsApp"><i data-lucide="message-circle"></i> Связаться</button>
 <button class="btn ghost" id="btnTemplates"><i data-lucide="layout-template" class="icon"></i> Шаблоны</button>
+<button class="btn-projects" id="btnProjects" title="Архив проектов клиентов"><i data-lucide="folder-tree"></i> Проекты</button>
 <button class="btn ghost" id="btnBoards"><i data-lucide="folder" class="icon"></i> Мои схемы</button>
 <div class="menu-wrap">
 <button class="btn ghost" id="btnMenu"><i data-lucide="more-horizontal" class="icon"></i></button>
@@ -455,6 +509,31 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 </div>
 </div></div>
 <div class="toast" id="toast"></div>
+
+<!-- ============ AI SUGGESTION BAR (после AI-схемы) ============ -->
+<div class="ai-suggestion-bar" id="aiSuggestionBar">
+<i data-lucide="sparkles" style="width:14px;height:14px"></i>
+<span id="aiSuggestionText">Добавлено блоков из записи: 0</span>
+<button id="btnAcceptAi">Оставить</button>
+<button id="btnRejectAi">Откатить</button>
+<button class="close-x" id="btnDismissAi"><i data-lucide="x"></i></button>
+</div>
+
+<!-- ============ PROJECTS ARCHIVE MODAL ============ -->
+<div class="modal-overlay" id="projectsModal"><div class="modal" style="width:780px">
+<div class="modal-header">
+<button class="modal-close" data-close="projectsModal"><i data-lucide="x"></i></button>
+<div class="modal-title">Проекты клиентов</div>
+<div class="modal-subtitle">Архив встреч, схем, записей и документов по каждому клиенту</div>
+</div>
+<div class="modal-body">
+<div class="new-project-form">
+<input type="text" id="newProjectName" placeholder="Имя клиента / название проекта" maxlength="80">
+<button id="btnCreateProject"><i data-lucide="plus" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:3px"></i> Создать</button>
+</div>
+<div id="projectsList"></div>
+</div>
+</div></div>
 
 <!-- ============ RECORDING MODAL ============ -->
 <div class="modal-overlay" id="recordingModal"><div class="modal" style="width:640px">
@@ -1637,10 +1716,26 @@ shareConsent.addEventListener('change',()=>{
 });
 
 // ============================================================
-// RECORDING — Web Speech API + Claude AI schema generation
+// RECORDING — Web Speech API + MediaRecorder + R2 upload + Claude AI
 // ============================================================
 const WORKER_URL='https://pllato-research.uurraa.workers.dev';
-const rec={recognition:null,startTime:0,timer:null,transcript:'',interim:'',isRecording:false,supported:false};
+const rec={
+  recognition:null,
+  startTime:0,
+  timer:null,
+  transcript:'',
+  interim:'',
+  isRecording:false,
+  supported:false,
+  // MediaRecorder для аудио
+  mediaRecorder:null,
+  audioChunks:[],
+  audioStream:null,
+  audioBlob:null,
+  audioKey:null, // ключ в R2 после загрузки
+  // Wake Lock — не даёт телефону/ноуту уснуть
+  wakeLock:null,
+};
 
 function initRecording(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -1669,7 +1764,8 @@ function initRecording(){
 }
 
 function resetRecUI(){
-  rec.transcript='';rec.interim='';
+  rec.transcript='';rec.interim='';rec.audioBlob=null;rec.audioKey=null;
+  rec.audioChunks=[];
   document.getElementById('transcriptBox').textContent='';
   document.getElementById('recTime').textContent='00:00';
   document.getElementById('recDot').classList.remove('active');
@@ -1681,10 +1777,59 @@ function resetRecUI(){
   document.getElementById('aiThinking').classList.remove('show');
 }
 
-function startRecording(){
+async function startRecording(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){showToast('Браузер не поддерживает запись','alert-circle');return}
 
+  // 1) Запрашиваем микрофон СНАЧАЛА (для MediaRecorder)
+  let stream=null;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:{
+      echoCancellation:true,
+      noiseSuppression:true,
+      autoGainControl:true,
+      sampleRate:48000,
+    }});
+  }catch(err){
+    if(err.name==='NotAllowedError'){
+      showToast('Доступ к микрофону запрещён','alert-circle');
+      const w=document.getElementById('recWarning');
+      w.innerHTML='<b>Браузер не дал доступ к микрофону.</b> Нажмите 🔒 в адресной строке → разрешите микрофон → перезагрузите страницу.';
+      w.classList.add('show');
+    }else{
+      showToast('Не удалось открыть микрофон: '+err.message,'alert-circle');
+    }
+    return;
+  }
+  rec.audioStream=stream;
+
+  // 2) Запускаем MediaRecorder для аудио (для архива)
+  try{
+    let mimeType='audio/webm;codecs=opus';
+    if(!MediaRecorder.isTypeSupported(mimeType))mimeType='audio/webm';
+    if(!MediaRecorder.isTypeSupported(mimeType))mimeType='';
+    rec.mediaRecorder=new MediaRecorder(stream,mimeType?{mimeType,audioBitsPerSecond:32000}:{audioBitsPerSecond:32000});
+    rec.audioChunks=[];
+    rec.mediaRecorder.ondataavailable=e=>{
+      if(e.data&&e.data.size>0)rec.audioChunks.push(e.data);
+    };
+    rec.mediaRecorder.start(10000); // сохранять чанк каждые 10 сек (на случай краша)
+  }catch(err){
+    console.warn('MediaRecorder failed:',err);
+    showToast('Аудио не будет сохранено, но транскрипция работает','alert-circle');
+  }
+
+  // 3) Запрашиваем Wake Lock — не даём системе уснуть во время записи
+  try{
+    if('wakeLock' in navigator){
+      rec.wakeLock=await navigator.wakeLock.request('screen');
+      rec.wakeLock.addEventListener('release',()=>{rec.wakeLock=null});
+    }
+  }catch(err){
+    console.warn('Wake Lock not available:',err);
+  }
+
+  // 4) Запускаем Web Speech API для транскрипции
   try{
     rec.recognition=new SR();
     rec.recognition.continuous=true;
@@ -1708,9 +1853,6 @@ function startRecording(){
       console.error('SpeechRecognition error:',event.error);
       if(event.error==='not-allowed'){
         showToast('Доступ к микрофону запрещён','alert-circle');
-        const w=document.getElementById('recWarning');
-        w.innerHTML='<b>Браузер не дал доступ к микрофону.</b> Нажмите на иконку 🔒 в адресной строке → разрешите микрофон → перезагрузите страницу.';
-        w.classList.add('show');
         stopRecording();
       }else if(event.error==='no-speech'){
         // часто, ничего критичного
@@ -1720,12 +1862,12 @@ function startRecording(){
       }else if(event.error==='aborted'){
         // нормально
       }else{
-        showToast('Ошибка распознавания: '+event.error,'alert-circle');
+        console.warn('SR error:',event.error);
       }
     };
 
     rec.recognition.onend=()=>{
-      // Web Speech API любит "автостопиться" — если мы всё ещё в режиме записи, перезапустим
+      // Web Speech API "автостопится" — если мы всё ещё в режиме записи, перезапустим
       if(rec.isRecording){
         try{rec.recognition.start()}catch(e){}
       }
@@ -1739,7 +1881,7 @@ function startRecording(){
     document.getElementById('btnRecStart').style.display='none';
     document.getElementById('btnRecStop').style.display='inline-flex';
     document.getElementById('recDot').classList.add('active');
-    document.getElementById('recStateText').textContent='Идёт запись... Говорите естественно.';
+    document.getElementById('recStateText').textContent='Запись и транскрипция активны. Говорите естественно.';
     document.getElementById('btnRecord').classList.add('recording');
     document.getElementById('btnRecordText').textContent='Запись...';
   }catch(e){
@@ -1748,14 +1890,41 @@ function startRecording(){
   }
 }
 
-function stopRecording(){
+async function stopRecording(){
   if(!rec.isRecording)return;
   rec.isRecording=false;
+
+  // 1) Останавливаем Web Speech API
   if(rec.recognition){
     try{rec.recognition.stop()}catch(e){}
     rec.recognition=null;
   }
   if(rec.timer){clearInterval(rec.timer);rec.timer=null}
+
+  // 2) Останавливаем MediaRecorder и формируем blob
+  if(rec.mediaRecorder&&rec.mediaRecorder.state!=='inactive'){
+    await new Promise(resolve=>{
+      rec.mediaRecorder.onstop=()=>{
+        const mime=rec.mediaRecorder.mimeType||'audio/webm';
+        rec.audioBlob=new Blob(rec.audioChunks,{type:mime});
+        resolve();
+      };
+      rec.mediaRecorder.stop();
+    });
+  }
+  rec.mediaRecorder=null;
+
+  // 3) Освобождаем микрофон
+  if(rec.audioStream){
+    rec.audioStream.getTracks().forEach(t=>t.stop());
+    rec.audioStream=null;
+  }
+
+  // 4) Освобождаем Wake Lock
+  if(rec.wakeLock){
+    try{await rec.wakeLock.release()}catch(e){}
+    rec.wakeLock=null;
+  }
 
   document.getElementById('btnRecStop').style.display='none';
   document.getElementById('btnRecStart').style.display='inline-flex';
@@ -1766,11 +1935,53 @@ function stopRecording(){
   if(window.lucide)lucide.createIcons({nodes:[document.getElementById('btnRecStart')]});
 
   if(rec.transcript.trim()){
-    document.getElementById('recStateText').textContent='Запись остановлена. Можно построить схему.';
+    const audioInfo=rec.audioBlob?` · Аудио: ${(rec.audioBlob.size/1024/1024).toFixed(1)} МБ`:'';
+    document.getElementById('recStateText').innerHTML='Запись остановлена. Можно построить схему.'+audioInfo;
     document.getElementById('btnRecClear').style.display='inline-flex';
     document.getElementById('btnRecBuild').style.display='inline-flex';
+
+    // 5) Загружаем аудио в R2 в фоне (не блокируем UX)
+    if(rec.audioBlob)uploadAudioInBackground();
   }else{
     document.getElementById('recStateText').textContent='Ничего не записано. Попробуйте ещё раз.';
+  }
+}
+
+async function uploadAudioInBackground(){
+  if(!rec.audioBlob)return;
+  // Если есть активный проект — сохраняем по пути проекта, иначе по дате
+  const project=projectsState.activeProject||{id:'unsorted',name:'Без проекта'};
+  const ts=Date.now();
+  const ext=rec.audioBlob.type.includes('webm')?'webm':'audio';
+  const key=`audio/${safeKey(project.id)}/meeting-${ts}.${ext}`;
+  try{
+    showToast('Загружаю аудио в облако...','loader');
+    const r=await fetch(WORKER_URL+'/api/audio/upload?key='+encodeURIComponent(key),{
+      method:'POST',
+      headers:{'Content-Type':rec.audioBlob.type||'audio/webm'},
+      body:rec.audioBlob,
+    });
+    const data=await r.json();
+    if(data.ok){
+      rec.audioKey=data.key;
+      showToast('Аудио сохранено в облако','check');
+      // Если есть активный проект — записываем мету в него
+      if(projectsState.activeProject){
+        addMeetingToProject(projectsState.activeProject.id,{
+          ts,
+          audioKey:key,
+          audioSize:data.size,
+          transcript:rec.transcript,
+          duration:Math.floor((Date.now()-rec.startTime)/1000),
+        });
+      }
+    }else{
+      console.warn('upload failed:',data);
+      showToast('Не удалось загрузить аудио, но транскрипт сохранён','alert-circle');
+    }
+  }catch(e){
+    console.error('uploadAudio:',e);
+    showToast('Ошибка загрузки аудио, но транскрипт сохранён','alert-circle');
   }
 }
 
@@ -1801,47 +2012,92 @@ async function buildSchemaFromTranscript(){
   document.getElementById('aiThinking').classList.add('show');
   document.getElementById('btnRecBuild').disabled=true;
 
+  // Сохраняем текущее состояние схемы — нужно для отката
+  const snapshot={
+    nodes:state.nodes.map(n=>({...n})),
+    edges:state.edges.map(e=>({...e})),
+  };
+
+  // Передаём существующую схему чтобы AI добавил только новое
+  const existingSchema=state.nodes.length>0?{
+    nodes:state.nodes.map(n=>({type:n.type,label:n.label,color:n.color})),
+  }:null;
+
   try{
     const r=await fetch(WORKER_URL+'/api/transcript-to-schema',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({transcript})
+      body:JSON.stringify({transcript,existingSchema}),
     });
     const data=await r.json();
-
-    if(!data.ok){
-      throw new Error(data.error||'Unknown error');
-    }
+    if(!data.ok)throw new Error(data.error||'Unknown error');
 
     const schema=data.schema;
-    // Загружаем схему как новую доску
-    state.nodes.forEach(n=>{const el=document.getElementById(n.id);if(el)el.remove()});
-    state.nodes=[];state.edges=[];
-    state.boardId=uid();state.readonly=false;
-    dom.readonlyBanner.classList.remove('show');
-    dom.projectName.value=schema.name||'Схема из разговора';
-    history.replaceState(null,'',location.pathname);
+    const addedNodeIds=[];
 
-    const idMap=[];
-    (schema.nodes||[]).forEach((d,i)=>{
-      // Гарантируем что type существует в нашей библиотеке (если нет — fallback на 'note')
-      if(!TYPE_TO_DEF[d.type]){
-        console.warn('Unknown type from AI:',d.type,'→ using note');
-        d.type='note';d.isNote=true;d.noteColor=d.noteColor||'yellow';
-      }
-      idMap[i]=addNode(d).id;
-    });
-    (schema.edges||[]).forEach(e=>{
-      if(idMap[e.source]&&idMap[e.target]){
-        state.edges.push({id:'e'+Math.random().toString(36).slice(2,9),source:idMap[e.source],target:idMap[e.target],label:e.label||''});
-      }
-    });
+    if(state.nodes.length===0){
+      // Пустая канва — обычная загрузка (как было)
+      dom.projectName.value=schema.name||'Схема из разговора';
+      const idMap=[];
+      (schema.nodes||[]).forEach((d,i)=>{
+        if(!TYPE_TO_DEF[d.type]){
+          d.type='note';d.isNote=true;d.noteColor=d.noteColor||'yellow';
+        }
+        const node=addNode(d);
+        idMap[i]=node.id;
+        addedNodeIds.push(node.id);
+      });
+      (schema.edges||[]).forEach(e=>{
+        if(idMap[e.source]&&idMap[e.target]){
+          state.edges.push({id:'e'+Math.random().toString(36).slice(2,9),source:idMap[e.source],target:idMap[e.target],label:e.label||''});
+        }
+      });
+    }else{
+      // Уже есть ручная схема — добавляем СПРАВА с пометкой "из записи"
+      // Находим самый правый блок
+      let maxX=0;
+      state.nodes.forEach(n=>{const el=document.getElementById(n.id);const w=el?el.offsetWidth:220;if(n.x+w>maxX)maxX=n.x+w});
+      const offsetX=Math.max(maxX+80,1800);
+
+      // Добавляем заголовок-стикер "Из записи разговора"
+      const header=addNode({
+        type:'note',
+        x:offsetX,
+        y:60,
+        label:`📍 Из записи разговора (${new Date().toLocaleDateString('ru-RU')})`,
+        noteColor:'blue',
+        _fromAi:true,
+      });
+      addedNodeIds.push(header.id);
+
+      // Добавляем блоки от AI со сдвигом
+      const idMap=[];
+      (schema.nodes||[]).forEach((d,i)=>{
+        if(!TYPE_TO_DEF[d.type]){
+          d.type='note';d.isNote=true;d.noteColor=d.noteColor||'yellow';
+        }
+        d.x=(d.x||100)+offsetX-100;
+        d._fromAi=true;
+        const node=addNode(d);
+        idMap[i]=node.id;
+        addedNodeIds.push(node.id);
+      });
+      (schema.edges||[]).forEach(e=>{
+        if(idMap[e.source]&&idMap[e.target]){
+          state.edges.push({id:'e'+Math.random().toString(36).slice(2,9),source:idMap[e.source],target:idMap[e.target],label:e.label||''});
+        }
+      });
+    }
+
     redrawEdges();updateMeta();
     setTimeout(fitView,80);
     scheduleAutoSave();
 
+    // Показываем баннер с возможностью откатить
+    showAiSuggestionBar(addedNodeIds.length,snapshot,addedNodeIds);
+
     hideModal('recordingModal');
-    showToast(`Схема построена! ${schema.nodes.length} блоков`,'sparkles');
+    showToast(`AI добавил ${addedNodeIds.length} блок(ов) справа`,'sparkles');
     resetRecUI();
   }catch(err){
     console.error('buildSchemaFromTranscript:',err);
@@ -1850,6 +2106,39 @@ async function buildSchemaFromTranscript(){
     document.getElementById('btnRecBuild').disabled=false;
   }
 }
+
+function showAiSuggestionBar(count,snapshot,addedIds){
+  const bar=document.getElementById('aiSuggestionBar');
+  document.getElementById('aiSuggestionText').textContent=`Добавлено блоков из записи: ${count}`;
+  bar.classList.add('show');
+  if(window.lucide)lucide.createIcons({nodes:[bar]});
+
+  document.getElementById('btnAcceptAi').onclick=()=>{
+    bar.classList.remove('show');
+    showToast('Изменения сохранены','check');
+  };
+  document.getElementById('btnRejectAi').onclick=()=>{
+    if(!confirm('Откатить добавленные блоки?'))return;
+    // Восстанавливаем снапшот
+    state.nodes.forEach(n=>{const el=document.getElementById(n.id);if(el)el.remove()});
+    state.nodes=[];state.edges=[];
+    snapshot.nodes.forEach(n=>{state.nodes.push({...n});renderNode(n)});
+    snapshot.edges.forEach(e=>state.edges.push({...e}));
+    redrawEdges();updateMeta();scheduleAutoSave();
+    bar.classList.remove('show');
+    showToast('Откатили','rotate-ccw');
+  };
+  document.getElementById('btnDismissAi').onclick=()=>{
+    bar.classList.remove('show');
+  };
+  // Auto-hide через 30 сек если не отреагировали
+  clearTimeout(showAiSuggestionBar._t);
+  showAiSuggestionBar._t=setTimeout(()=>{
+    bar.classList.remove('show');
+  },30000);
+}
+
+function safeKey(s){return String(s||'').replace(/[^a-zA-Z0-9._-]+/g,'-').slice(0,60)}
 
 // ============================================================
 // DOCUMENTS — PDF generation via pdfmake
@@ -2051,22 +2340,29 @@ function renderPayments(){
 
 function getCustomerData(){
   const get=id=>(document.getElementById(id).value||'').trim();
+  // Если поле пустое — даём подчёркивание для ручного заполнения
+  const blank=(n=40)=>'_'.repeat(n);
   return {
     type:get('dfCustType'),
-    name:get('dfCustName')||'(не указано)',
-    bin:get('dfCustBin')||'(не указан)',
-    director:get('dfCustDirector')||'(не указано)',
+    name:get('dfCustName')||blank(50),
+    bin:get('dfCustBin')||blank(14),
+    director:get('dfCustDirector')||blank(35),
     position:get('dfCustPosition')||'Директор',
     basis:get('dfCustBasis')||'Устава',
-    address:get('dfCustAddress')||'(не указан)',
-    phone:get('dfCustPhone')||'',
-    email:get('dfCustEmail')||'',
-    bank:get('dfCustBank')||'',
-    projectName:get('dfProjectName')||'Проект CRM',
+    address:get('dfCustAddress')||blank(55),
+    phone:get('dfCustPhone')||blank(20),
+    email:get('dfCustEmail')||blank(25),
+    bank:get('dfCustBank')||blank(60),
+    projectName:get('dfProjectName')||(dom.projectName.value||blank(40)),
     projectDate:get('dfProjectDate')||new Date().toISOString().slice(0,10),
-    projectDesc:get('dfProjectDesc')||'Кастомная CRM-система',
+    projectDesc:get('dfProjectDesc')||'Кастомная CRM-система согласно технического задания',
     invoiceNum:get('dfInvoiceNum')||'001',
     invoicePurpose:get('dfInvoicePurpose')||'За разработку CRM-системы',
+    // Флаги "заполнено ли" для условного форматирования
+    _nameFilled:!!get('dfCustName'),
+    _binFilled:!!get('dfCustBin'),
+    _addressFilled:!!get('dfCustAddress'),
+    _directorFilled:!!get('dfCustDirector'),
   };
 }
 
@@ -2648,11 +2944,252 @@ function numberToWords(n){
   return result.charAt(0).toUpperCase()+result.slice(1);
 }
 
+// ============================================================
+// PROJECTS ARCHIVE — клиенты, встречи, аудио, документы
+// ============================================================
+const KEY_PROJECTS=PFX+':projects';
+const projectsState={projects:[],activeProject:null};
+
+function loadProjects(){
+  const r=Storage.g(KEY_PROJECTS);
+  if(!r){projectsState.projects=[];return}
+  try{projectsState.projects=JSON.parse(r)||[]}
+  catch(e){projectsState.projects=[]}
+}
+function saveProjects(){
+  try{Storage.s(KEY_PROJECTS,JSON.stringify(projectsState.projects))}
+  catch(e){console.error('save projects failed',e)}
+}
+
+function createProject(name){
+  const id='p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  const p={
+    id,name:name||'Новый клиент',
+    createdAt:Date.now(),
+    updatedAt:Date.now(),
+    boardIds:[], // схемы в "Мои схемы"
+    meetings:[], // встречи [{ts,audioKey,audioSize,transcript,duration}]
+    documents:[], // сохранённые данные документов (заполненные формы)
+    notes:'',
+  };
+  projectsState.projects.unshift(p);
+  saveProjects();
+  return p;
+}
+
+function addMeetingToProject(projectId,meeting){
+  const p=projectsState.projects.find(x=>x.id===projectId);
+  if(!p)return;
+  p.meetings.unshift(meeting);
+  p.updatedAt=Date.now();
+  saveProjects();
+}
+
+function attachCurrentBoardToProject(projectId){
+  const p=projectsState.projects.find(x=>x.id===projectId);
+  if(!p||!state.boardId)return;
+  if(!p.boardIds.includes(state.boardId)){
+    p.boardIds.unshift(state.boardId);
+    p.updatedAt=Date.now();
+    saveProjects();
+  }
+}
+
+function initProjects(){
+  loadProjects();
+
+  document.getElementById('btnProjects').addEventListener('click',()=>{
+    showModal('projectsModal');
+    renderProjectsList();
+  });
+
+  document.getElementById('btnCreateProject').addEventListener('click',()=>{
+    const input=document.getElementById('newProjectName');
+    const name=input.value.trim();
+    if(!name){input.focus();return}
+    const p=createProject(name);
+    projectsState.activeProject=p;
+    input.value='';
+    renderProjectsList();
+    showToast(`Проект «${name}» создан`,'folder-plus');
+  });
+
+  document.getElementById('newProjectName').addEventListener('keydown',e=>{
+    if(e.key==='Enter')document.getElementById('btnCreateProject').click();
+  });
+}
+
+function renderProjectsList(){
+  const wrap=document.getElementById('projectsList');
+  if(projectsState.projects.length===0){
+    wrap.innerHTML=`<div class="project-empty">
+      <h3>Пока нет проектов</h3>
+      <p>Создайте первый проект — введите имя клиента выше и нажмите «Создать». Все встречи, записи, схемы и документы будут привязаны к этому проекту.</p>
+    </div>`;
+    return;
+  }
+  let html='<div class="projects-list">';
+  projectsState.projects.forEach(p=>{
+    const isActive=projectsState.activeProject&&projectsState.activeProject.id===p.id;
+    const hasAudio=p.meetings.some(m=>m.audioKey);
+    const initial=(p.name||'?').trim().charAt(0).toUpperCase();
+    const meetingsCount=p.meetings.length;
+    const boardsCount=p.boardIds.length;
+    const date=new Date(p.updatedAt);
+    const dateStr=date.toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:date.getFullYear()===new Date().getFullYear()?undefined:'numeric'});
+
+    html+=`<div class="project-card" data-pid="${p.id}">
+      <div class="project-card-head">
+        <div class="project-card-icon ${hasAudio?'has-audio':''}">${initial}</div>
+        <div class="project-card-info">
+          <div class="project-card-name">${escapeHtml(p.name)}${isActive?' <span style="font-size:10px;color:var(--accent-green);background:var(--accent-green-bg);padding:2px 7px;border-radius:100px;font-weight:600;letter-spacing:.04em">АКТИВНЫЙ</span>':''}</div>
+          <div class="project-card-meta">
+            <span class="meta-item"><i data-lucide="calendar"></i> ${dateStr}</span>
+            <span class="meta-item"><i data-lucide="layers"></i> ${boardsCount} ${plural(boardsCount,'схема','схемы','схем')}</span>
+            <span class="meta-item"><i data-lucide="mic"></i> ${meetingsCount} ${plural(meetingsCount,'встреча','встречи','встреч')}</span>
+          </div>
+        </div>
+        <div class="project-card-actions">
+          ${isActive?'':`<button class="project-icon-btn" data-action="activate" data-pid="${p.id}" title="Сделать активным"><i data-lucide="check-circle"></i></button>`}
+          <button class="project-icon-btn" data-action="expand" data-pid="${p.id}" title="Развернуть"><i data-lucide="chevron-down"></i></button>
+          <button class="project-icon-btn danger" data-action="delete" data-pid="${p.id}" title="Удалить проект"><i data-lucide="trash-2"></i></button>
+        </div>
+      </div>
+      <div class="project-card-body" id="body-${p.id}"></div>
+    </div>`;
+  });
+  html+='</div>';
+  wrap.innerHTML=html;
+  if(window.lucide)lucide.createIcons({nodes:[wrap]});
+
+  // Обработчики
+  wrap.querySelectorAll('[data-action]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const action=btn.dataset.action;
+      const pid=btn.dataset.pid;
+      const p=projectsState.projects.find(x=>x.id===pid);
+      if(!p)return;
+
+      if(action==='activate'){
+        projectsState.activeProject=p;
+        attachCurrentBoardToProject(pid);
+        renderProjectsList();
+        showToast(`Проект «${p.name}» теперь активный. Новые встречи и схемы будут привязаны к нему.`,'check');
+      }else if(action==='expand'){
+        const card=btn.closest('.project-card');
+        const body=document.getElementById('body-'+pid);
+        if(card.classList.contains('expanded')){
+          card.classList.remove('expanded');
+        }else{
+          card.classList.add('expanded');
+          renderProjectBody(p,body);
+        }
+      }else if(action==='delete'){
+        if(!confirm(`Удалить проект «${p.name}» и всю его историю? Действие нельзя отменить.\n\nСхемы в «Мои схемы» останутся, но потеряют связь с проектом.\nАудиозаписи в R2 нужно удалять отдельно через Cloudflare Dashboard.`))return;
+        projectsState.projects=projectsState.projects.filter(x=>x.id!==pid);
+        if(projectsState.activeProject&&projectsState.activeProject.id===pid){
+          projectsState.activeProject=null;
+        }
+        saveProjects();
+        renderProjectsList();
+        showToast('Проект удалён','trash-2');
+      }
+    });
+  });
+}
+
+function renderProjectBody(p,wrap){
+  let html='';
+
+  // Схемы
+  if(p.boardIds.length===0){
+    html+=`<div class="project-asset" style="opacity:.6"><div class="project-asset-icon"><i data-lucide="layers"></i></div><div class="project-asset-label">Нет привязанных схем</div></div>`;
+  }else{
+    p.boardIds.forEach(bid=>{
+      const b=Storage.loadBoard(bid);
+      if(b){
+        const isCurrent=state.boardId===bid;
+        html+=`<div class="project-asset">
+          <div class="project-asset-icon" style="background:var(--accent-bronze,#f4ecdc);color:var(--bronze-deep,#8b6740)"><i data-lucide="layers"></i></div>
+          <div class="project-asset-label"><b>${escapeHtml(b.name||'Без названия')}</b>${isCurrent?' · <span style="color:var(--accent-green)">открыта сейчас</span>':''}</div>
+          <div class="project-asset-meta">${(b.nodes||[]).length} блок(ов)</div>
+          ${isCurrent?'':`<button class="project-asset-btn" data-open-board="${bid}">Открыть</button>`}
+        </div>`;
+      }
+    });
+  }
+
+  // Встречи
+  if(p.meetings.length===0){
+    html+=`<div class="project-asset" style="opacity:.6"><div class="project-asset-icon"><i data-lucide="mic"></i></div><div class="project-asset-label">Встреч пока нет</div></div>`;
+  }else{
+    p.meetings.forEach((m,i)=>{
+      const date=new Date(m.ts);
+      const dateStr=date.toLocaleDateString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      const dur=m.duration?`${Math.floor(m.duration/60)}:${String(m.duration%60).padStart(2,'0')}`:'';
+      const sizeStr=m.audioSize?` · ${(m.audioSize/1024/1024).toFixed(1)} МБ`:'';
+      html+=`<div class="project-asset">
+        <div class="project-asset-icon" style="background:var(--accent-rose-bg);color:var(--accent-rose)"><i data-lucide="mic"></i></div>
+        <div class="project-asset-label"><b>Встреча ${i+1}</b> · ${dateStr}${dur?' · '+dur:''}${sizeStr}</div>
+        ${m.audioKey?`<button class="project-asset-btn" data-play-audio="${m.audioKey}">▶ Аудио</button>`:''}
+        ${m.transcript?`<button class="project-asset-btn" data-show-transcript="${i}" data-pid="${p.id}">Транскрипт</button>`:''}
+        ${m.audioKey?`<button class="project-asset-btn" data-download-audio="${m.audioKey}">⬇</button>`:''}
+      </div>`;
+    });
+  }
+
+  wrap.innerHTML=html;
+  if(window.lucide)lucide.createIcons({nodes:[wrap]});
+
+  // Обработчики кнопок
+  wrap.querySelectorAll('[data-open-board]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const bid=btn.dataset.openBoard;
+      const b=Storage.loadBoard(bid);
+      if(b){loadBoardData(b);Storage.setCur(bid);hideModal('projectsModal');setTimeout(fitView,50)}
+    });
+  });
+  wrap.querySelectorAll('[data-play-audio]').forEach(btn=>{
+    btn.addEventListener('click',async()=>{
+      const key=btn.dataset.playAudio;
+      const url=WORKER_URL+'/api/audio/get?key='+encodeURIComponent(key);
+      // Заменяем кнопку на audio элемент
+      const audio=document.createElement('audio');
+      audio.controls=true;
+      audio.src=url;
+      audio.style.flex='1';
+      btn.parentNode.replaceChild(audio,btn);
+      audio.play().catch(e=>console.warn('autoplay blocked:',e));
+    });
+  });
+  wrap.querySelectorAll('[data-download-audio]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const key=btn.dataset.downloadAudio;
+      const a=document.createElement('a');
+      a.href=WORKER_URL+'/api/audio/get?key='+encodeURIComponent(key);
+      a.download=key.split('/').pop();
+      a.click();
+    });
+  });
+  wrap.querySelectorAll('[data-show-transcript]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const i=+btn.dataset.showTranscript;
+      const pid=btn.dataset.pid;
+      const proj=projectsState.projects.find(x=>x.id===pid);
+      if(!proj||!proj.meetings[i])return;
+      const t=proj.meetings[i].transcript||'(транскрипт пуст)';
+      alert('ТРАНСКРИПТ ВСТРЕЧИ:\n\n'+t.slice(0,3000)+(t.length>3000?'\n\n...(обрезано, всего '+t.length+' символов)':''));
+    });
+  });
+}
+
 function init(){
   renderLibrary();renderTemplatesGrid();applyViewport();updateMeta();
   refreshUserChip();
   initRecording();
   initDocuments();
+  initProjects();
   const fromUrl=parseShareUrl();
   if(fromUrl){
     state.readonly=true;state.boardId=uid();
