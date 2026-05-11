@@ -407,7 +407,11 @@ const LIBRARY=[
 {type:'reports',label:'Отчёты',icon:'bar-chart-3',desc:'Аналитика'},
 {type:'dashboards',label:'Дашборды',icon:'layout-dashboard',desc:'KPI'},
 {type:'warehouse',label:'Склад',icon:'package',desc:'Учёт товаров'},
-{type:'finances',label:'Финансы',icon:'wallet',desc:'Платежи, выручка'}
+{type:'finances',label:'Финансы',icon:'wallet',desc:'Платежи, выручка'},
+{type:'structure',label:'Структура сети',icon:'network',desc:'Иерархия партнёров'},
+{type:'tender',label:'Тендеры',icon:'award',desc:'Госзакупки и тендеры'},
+{type:'certificates',label:'Сертификаты и РУ',icon:'badge-check',desc:'Регистр. удостоверения'},
+{type:'service',label:'Сервис и ТО',icon:'wrench',desc:'Гарантия и ремонты'}
 ]},
 {name:'Воронки',cat:'blue',items:[
 {type:'pipeline',label:'Воронка продаж',icon:'git-merge',desc:'Стадии сделки',isPipeline:true,stages:['Новый','Квалификация','Переговоры','Закрыта']}
@@ -422,7 +426,12 @@ const LIBRARY=[
 {type:'kaspi',label:'Kaspi Pay',icon:'credit-card',desc:'Платежи'},
 {type:'1c',label:'1С',icon:'database',desc:'Учёт и бухгалтерия'},
 {type:'sms',label:'SMS-шлюз',icon:'message-square',desc:'Уведомления'},
-{type:'analytics',label:'GA4 / Метрика',icon:'line-chart',desc:'Веб-аналитика'}
+{type:'analytics',label:'GA4 / Метрика',icon:'line-chart',desc:'Веб-аналитика'},
+{type:'ai-assistant',label:'AI-ассистент',icon:'bot',desc:'Чат-помощник на ИИ'},
+{type:'voice-ai',label:'AI анализ звонков',icon:'mic',desc:'Транскрипты + оценка'},
+{type:'mobile-app',label:'Mobile App',icon:'smartphone',desc:'Приложение клиента/партнёра'},
+{type:'visa',label:'Visa / Mastercard',icon:'credit-card',desc:'Международный эквайринг'},
+{type:'crypto',label:'USDT / Crypto',icon:'bitcoin',desc:'Крипто-платежи'}
 ]},
 {name:'Автоматизация',cat:'orange',items:[
 {type:'trigger',label:'Триггер',icon:'zap',desc:'Когда происходит событие'},
@@ -499,7 +508,98 @@ nodes:[{type:'site',x:100,y:200,label:'Лендинг туров'},{type:'whatsa
 edges:[{source:0,target:3},{source:1,target:3},{source:2,target:3},{source:3,target:4},{source:4,target:5,label:'после оплаты'},{source:4,target:6},{source:4,target:7},{source:4,target:8}]},
 events:{name:'CRM для event-агентства',desc:'Мероприятия, команды, договоры',icon:'party-popper',
 nodes:[{type:'site',x:100,y:280,label:'Сайт + кейсы'},{type:'instagram',x:100,y:420,label:'Instagram'},{type:'leads',x:400,y:340,label:'Заявки на мероприятия'},{type:'pipeline',x:700,y:240,label:'Этапы: ТЗ → договор → проведение'},{type:'tasks',x:1100,y:160,label:'Задачи команды'},{type:'calendar',x:1100,y:300,label:'Календарь событий'},{type:'documents',x:1100,y:440,label:'Договоры и сметы'},{type:'contacts',x:400,y:480,label:'Клиенты'},{type:'finances',x:700,y:440,label:'Оплаты'}],
-edges:[{source:0,target:2},{source:1,target:2},{source:2,target:3},{source:3,target:4},{source:3,target:5},{source:3,target:6},{source:2,target:7},{source:3,target:8,label:'предоплата'}]}
+edges:[{source:0,target:2},{source:1,target:2},{source:2,target:3},{source:3,target:4},{source:3,target:5},{source:3,target:6},{source:2,target:7},{source:3,target:8,label:'предоплата'}]},
+mlm:{name:'CRM для MLM-бизнеса (по этапам)',desc:'4 этапа: MVP → Бонусы → AI → Международка',icon:'network',
+nodes:[
+{type:'note',x:80,y:60,label:'ЭТАП 1 — MVP / База. 4-5 нед., от $2,500. Партнёры в системе, иерархия, история закупок.',noteColor:'green'},
+{type:'site',x:80,y:200,label:'Лендинг рекрутинга',color:'green'},
+{type:'whatsapp',x:80,y:340,label:'WhatsApp воронка',color:'green'},
+{type:'leads',x:380,y:270,label:'Заявки на регистрацию',color:'green'},
+{type:'pipeline',x:380,y:440,label:'Воронка рекрутинга',stages:['Заявка','Встреча','Презентация','Подключение'],color:'green'},
+{type:'contacts',x:80,y:560,label:'База партнёров',color:'green'},
+{type:'structure',x:380,y:640,label:'Структура сети (иерархия)',color:'green'},
+{type:'deals',x:80,y:700,label:'Закупки и активность',color:'green'},
+
+{type:'note',x:740,y:60,label:'ЭТАП 2 — Бонусы и кабинет. 4 нед., от $3,000. Авто-расчёт, Mobile App, Kaspi.'},
+{type:'documents',x:740,y:200,label:'Marketing Plan и ранги',color:'amber'},
+{type:'finances',x:740,y:340,label:'Расчёт бонусов',color:'amber'},
+{type:'mobile-app',x:740,y:480,label:'Mobile App партнёра',color:'amber'},
+{type:'notification',x:1020,y:480,label:'Уведомления о бонусах',color:'amber'},
+{type:'kaspi',x:740,y:640,label:'Kaspi Pay (РК)',color:'amber'},
+
+{type:'note',x:1300,y:60,label:'ЭТАП 3 — AI-автоматизация. 4-6 нед., от $3,500. AI квалификация, follow-up, анализ звонков.',noteColor:'pink'},
+{type:'telegram',x:1300,y:200,label:'Telegram-бот',color:'orange'},
+{type:'ai-assistant',x:1300,y:340,label:'AI-квалификация лида',color:'orange'},
+{type:'voice-ai',x:1300,y:480,label:'AI follow-up партнёру',color:'orange'},
+{type:'voice-ai',x:1580,y:340,label:'AI анализ звонков',color:'orange'},
+
+{type:'note',x:1860,y:60,label:'ЭТАП 4 — Международка. 4-6 нед., от $3,500. Visa, USDT, аналитика по странам.',noteColor:'blue'},
+{type:'visa',x:1860,y:200,label:'Visa / Mastercard',color:'blue'},
+{type:'crypto',x:1860,y:340,label:'USDT / Crypto',color:'blue'},
+{type:'reports',x:1860,y:480,label:'Аналитика по странам',color:'blue'}
+],
+edges:[
+{source:1,target:3},
+{source:2,target:3},
+{source:3,target:4,label:'квалификация'},
+{source:4,target:5,label:'после подключения'},
+{source:5,target:6,label:'в иерархию'},
+{source:5,target:7},
+{source:9,target:10,label:'правила'},
+{source:7,target:10,label:'авто-расчёт'},
+{source:6,target:10,label:'структура'},
+{source:10,target:11,label:'личный кабинет'},
+{source:11,target:12},
+{source:11,target:13,label:'оплата РК'},
+{source:15,target:3,label:'2-й канал'},
+{source:16,target:3,label:'AI на входе'},
+{source:17,target:5,label:'follow-up партнёрам'},
+{source:18,target:4,label:'оценка встреч'},
+{source:20,target:11,label:'международ.'},
+{source:21,target:11,label:'крипто'},
+{source:13,target:22},
+{source:20,target:22},
+{source:21,target:22}
+]},
+medsupplies:{name:'CRM для медицинских товаров',desc:'Расходники и оборудование, контроль РУ, тендеры',icon:'stethoscope',
+nodes:[
+{type:'site',x:100,y:200,label:'Сайт + каталог'},
+{type:'whatsapp',x:100,y:340,label:'WhatsApp клиник'},
+{type:'tender',x:100,y:480,label:'Тендеры и госзакупки'},
+{type:'role-sales',x:100,y:620,label:'Региональные представители'},
+{type:'leads',x:400,y:340,label:'Заявки от клиник'},
+{type:'companies',x:400,y:520,label:'Клиники и аптеки'},
+{type:'pipeline',x:720,y:200,label:'Воронка B2B-продаж',stages:['Заявка','КП','Договор','Отгрузка']},
+{type:'certificates',x:720,y:420,label:'Контроль РУ'},
+{type:'documents',x:720,y:580,label:'Договоры и спецификации'},
+{type:'warehouse',x:1080,y:200,label:'Склад: партии и серии'},
+{type:'calendar',x:1080,y:380,label:'Сроки годности'},
+{type:'role-manager',x:1080,y:540,label:'Логистика и доставка'},
+{type:'service',x:1440,y:200,label:'Сервис и ТО оборудования'},
+{type:'finances',x:1440,y:360,label:'Финансы и счета'},
+{type:'reports',x:1440,y:520,label:'Аналитика по клиникам'},
+{type:'notification',x:720,y:740,label:'Алерты: РУ за 60/30/7 дней'},
+{type:'note',x:1080,y:720,label:'РУ истекают незаметно — без авто-напоминаний партия товара становится нелегальной',noteColor:'pink'}
+],
+edges:[
+{source:0,target:4},
+{source:1,target:4},
+{source:2,target:4,label:'тендер выигран'},
+{source:3,target:4,label:'визит'},
+{source:4,target:6,label:'квалификация'},
+{source:6,target:5,label:'клиент'},
+{source:6,target:8,label:'договор'},
+{source:7,target:6,label:'проверка РУ'},
+{source:6,target:9,label:'отгрузка'},
+{source:9,target:10},
+{source:9,target:11},
+{source:9,target:12,label:'оборудование'},
+{source:6,target:13,label:'оплата'},
+{source:13,target:14},
+{source:12,target:14},
+{source:7,target:15,label:'мониторинг'},
+{source:10,target:15,label:'мониторинг'}
+]}
 };
 const dom={canvasWrap:document.getElementById('canvasWrap'),world:document.getElementById('world'),edgesSvg:document.getElementById('edgesSvg'),canvasBg:document.getElementById('canvasBg'),library:document.getElementById('library'),search:document.getElementById('searchInput'),projectName:document.getElementById('projectName'),meta:document.getElementById('metaCounter'),saveStatus:document.getElementById('saveStatus'),zoomLevel:document.getElementById('zoomLevel'),emptyHint:document.getElementById('emptyHint'),propsPanel:document.getElementById('propertiesPanel'),propsBody:document.getElementById('propsBody'),propsTitle:document.getElementById('propsTitle'),btnDelete:document.getElementById('btnDelete'),templatesGrid:document.getElementById('templatesGrid'),boardsList:document.getElementById('boardsList'),shareUrlInput:document.getElementById('shareUrlInput'),toast:document.getElementById('toast'),fileInput:document.getElementById('fileInput'),readonlyBanner:document.getElementById('readonlyBanner'),menuDropdown:document.getElementById('menuDropdown')};
 const uid=()=>'b'+Date.now().toString(36).slice(-4)+Math.random().toString(36).slice(2,6);
@@ -627,10 +727,10 @@ function addNode(opts){
     type:opts.type,x:opts.x??200,y:opts.y??200,
     label:opts.label||def.label||'Без названия',
     description:opts.description??def.desc??'',
-    color:def.cat,icon:def.icon,
+    color:opts.color||def.cat,icon:def.icon,
     isPipeline:!!def.isPipeline,isNote:!!def.isNote,
     noteColor:def.noteColor||opts.noteColor||null,
-    stages:def.stages?[...def.stages]:null
+    stages:opts.stages||(def.stages?[...def.stages]:null)
   };
   state.nodes.push(node);
   renderNode(node);
@@ -667,6 +767,10 @@ function renderNode(node){
       }
     });
   }
+  // Update class to handle color changes
+  el.className=`block cat-${node.color||'blue'}`;
+  if(node.isPipeline)el.classList.add('type-pipeline');
+  if(node.isNote){el.classList.add('type-note');if(node.noteColor)el.classList.add(`color-${node.noteColor}`)}
   el.style.left=node.x+'px';el.style.top=node.y+'px';
   if(node.isPipeline){
     el.innerHTML=`<div class="block-inner"><div class="block-icon"><i data-lucide="${node.icon}"></i></div><div class="block-body"><div class="block-title" data-id="${node.id}">${escapeHtml(node.label)}</div>${node.description?`<div class="block-desc">${escapeHtml(node.description)}</div>`:''}</div></div><div class="pipeline-stages">${(node.stages||[]).map(s=>`<div class="pipeline-stage">${escapeHtml(s)}</div>`).join('')}</div>`+handlesHtml();
@@ -734,7 +838,7 @@ function bezierPath(p){
   const horiz=Math.abs(p.tx-p.sx)>Math.abs(p.ty-p.sy);
   let c1x,c1y,c2x,c2y;
   if(horiz){c1x=p.sx+(p.tx>p.sx?off:-off);c1y=p.sy;c2x=p.tx+(p.tx>p.sx?-off:off);c2y=p.ty}
-  else{c1x=p.sx;c1y=p.sy+(p.ty>p.sy?off:-off);c2x=p.tx;c2y=p.ty+(p.ty>p.sy?-off:off)}
+  else{c1x=p.sx;c1y=p.sy+(p.ty>p.sy?-off:off);c2x=p.tx;c2y=p.ty+(p.ty>p.sy?-off:off)}
   return`M ${p.sx} ${p.sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p.tx} ${p.ty}`;
 }
 function redrawEdges(){
@@ -933,10 +1037,9 @@ const ICONS_PALETTE={
 const NOTE_COLORS={pink:['#FFE8EE','#F0A9BD'],blue:['#E1ECFB','#A4C0E8'],green:['#E1F1E5','#9DCDA8'],default:['#FFF7D9','#F0D87A']};
 
 function extractIconSvg(blockEl){
-  // Get the rendered lucide SVG inside .block-icon and return its <path>/<line>/etc inner content
   const iconSvg=blockEl.querySelector('.block-icon svg');
   if(!iconSvg)return null;
-  return iconSvg.innerHTML; // the inner <path>/<line>/<circle>/<rect> elements
+  return iconSvg.innerHTML;
 }
 
 function exportPng(){
@@ -958,12 +1061,10 @@ function exportPng(){
 
   const parts=[];
   parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`);
-  // Background + grid
   parts.push(`<rect width="${W}" height="${H}" fill="#FAFAF7"/>`);
   parts.push(`<defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="rgba(26,26,24,0.10)"/></pattern><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8B8B85"/></marker></defs>`);
   parts.push(`<rect width="${W}" height="${H}" fill="url(#dots)"/>`);
 
-  // Edges
   state.edges.forEach(edge=>{
     const pts=getEdgePoints(edge.source,edge.target);if(!pts)return;
     const adj={sx:pts.sx+OX,sy:pts.sy+OY,tx:pts.tx+OX,ty:pts.ty+OY};
@@ -974,13 +1075,11 @@ function exportPng(){
     }
   });
 
-  // Nodes — drawn natively as SVG primitives
   state.nodes.forEach(node=>{
     const el=document.getElementById(node.id);if(!el)return;
     const w=el.offsetWidth,h=el.offsetHeight;
     const x=node.x+OX,y=node.y+OY;
 
-    // Background
     let bgFill='#FFFFFF',bgStroke='#D6D3CC';
     if(node.isNote){
       const nc=NOTE_COLORS[node.noteColor]||NOTE_COLORS.default;
@@ -990,21 +1089,16 @@ function exportPng(){
 
     if(!node.isNote){
       const ic=ICONS_PALETTE[node.color]||ICONS_PALETTE.blue;
-      // Icon background
       parts.push(`<rect x="${x+14}" y="${y+12}" width="32" height="32" rx="7" fill="${ic[0]}"/>`);
-      // Icon (lucide rendered SVG content)
       const iconInner=extractIconSvg(el);
       if(iconInner){
-        // lucide icons are 24x24, we want 16x16 centered in 32x32 box → scale 16/24 ≈ 0.667, offset (32-16)/2 = 8
         const iconX=x+14+8,iconY=y+12+8;
         parts.push(`<g transform="translate(${iconX},${iconY}) scale(${16/24})" stroke="${ic[1]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">${iconInner}</g>`);
       }
     }
 
-    // Text — title and description
     const textX=x+(node.isNote?16:56);
     if(node.isNote){
-      // single-line italic title
       parts.push(`<text x="${textX}" y="${y+30}" font-family="Georgia,serif" font-size="15" font-style="italic" fill="#1A1A18">${escapeXml(node.label)}</text>`);
     }else{
       parts.push(`<text x="${textX}" y="${y+26}" font-family="sans-serif" font-size="13" font-weight="600" fill="#1A1A18">${escapeXml(node.label)}</text>`);
@@ -1013,7 +1107,6 @@ function exportPng(){
       }
     }
 
-    // Pipeline stages
     if(node.isPipeline&&node.stages){
       let sx=x+14;const sy=y+(node.description?60:54);
       node.stages.forEach(stage=>{
@@ -1024,9 +1117,7 @@ function exportPng(){
     }
   });
 
-  // Title and footer
   parts.push(`<text x="${PAD}" y="${PAD-20}" font-family="Georgia,serif" font-style="italic" font-size="22" fill="#1A1A18">${escapeXml(dom.projectName.value)}</text>`);
-  // Pllato logo + caption in bottom-right corner
   const logoX=W-PAD-6;
   parts.push(`<g transform="translate(${logoX-148},${H-32})"><rect width="18" height="18" rx="4" fill="#0a1628"/><rect x="7" y="4" width="1.5" height="10" fill="#b8895a"/><rect x="9.5" y="4" width="1.5" height="10" fill="#b8895a"/></g>`);
   parts.push(`<text x="${logoX-124}" y="${H-19}" font-family="sans-serif" font-size="11" fill="#4A4A47">Создано в <tspan font-weight="600" fill="#0a1628">Pllato.kz</tspan> · ${new Date().toLocaleDateString('ru-RU')}</text>`);
@@ -1182,11 +1273,8 @@ document.getElementById('menuClearAll').onclick=()=>{
 
 dom.search.addEventListener('input',()=>renderLibrary(dom.search.value));
 
-// ============================================================
-// USER PROFILE / ONBOARDING / STUDIO CONTACT
-// ============================================================
-const STUDIO_WHATSAPP='77011239999'; // Pllato studio WhatsApp
-const STUDIO_EMAIL='uurraa@gmail.com'; // Pllato studio email
+const STUDIO_WHATSAPP='77011239999';
+const STUDIO_EMAIL='uurraa@gmail.com';
 const KEY_PROFILE=PFX+':profile';
 
 function getProfile(){
@@ -1244,7 +1332,6 @@ document.getElementById('obSubmit').onclick=()=>{
     createdAt:Date.now()
   });
   hideModal('onboardingModal');
-  // After first onboarding — show templates
   if(state.nodes.length===0&&!state.boardId)showModal('templatesModal');
   showToast('Спасибо! Хорошей работы','check');
 };
@@ -1253,7 +1340,6 @@ document.getElementById('obSkip').onclick=()=>{
   if(state.nodes.length===0&&!state.boardId)showModal('templatesModal');
 };
 
-// Studio contact via WhatsApp
 function buildStudioMessage(){
   const p=getProfile()||{};
   const lines=[
@@ -1268,7 +1354,6 @@ function buildStudioMessage(){
     `Проект: ${dom.projectName.value}`,
     `Блоков: ${state.nodes.length}, связей: ${state.edges.length}`,
   ];
-  // Try to attach share link if board has content
   if(state.nodes.length>0){
     const url=buildShareUrl();
     if(url.length<2000)lines.push('','Схема: '+url);
@@ -1288,7 +1373,6 @@ document.getElementById('btnCopyEmail').onclick=async()=>{
   catch(e){const i=document.getElementById('studioEmail');i.select();document.execCommand('copy');showToast('Email скопирован','check')}
 };
 
-// Share consent checkbox — link generated only after agreement
 const shareConsent=document.getElementById('sharePublicConsent');
 shareConsent.addEventListener('change',()=>{
   const btn=document.getElementById('btnCopyShare');
@@ -1309,7 +1393,6 @@ shareConsent.addEventListener('change',()=>{
 function init(){
   renderLibrary();renderTemplatesGrid();applyViewport();updateMeta();
   refreshUserChip();
-  // 1) URL share
   const fromUrl=parseShareUrl();
   if(fromUrl){
     state.readonly=true;state.boardId=uid();
@@ -1324,10 +1407,8 @@ function init(){
     if(window.lucide)lucide.createIcons({nodes:[dom.readonlyBanner]});
     return;
   }
-  // 2) Continue last session
   const cur=Storage.getCur();
   if(cur){const b=Storage.loadBoard(cur);if(b){loadBoardData(b);setTimeout(fitView,50);return}}
-  // 3) First visit — show onboarding (then templates after submit)
   if(!getProfile())showModal('onboardingModal');
   else showModal('templatesModal');
 }
