@@ -3646,6 +3646,8 @@ function extractStagesFromSchema(){
         blocks:stageBlocks,
         stageNum,
         stageColor:c,
+        isFirstStage:stageNum===1,    // Этап 1 — твёрдая цена
+        isApproximate:stageNum>1,      // Этапы 2+ — ориентир, уточняется
       });
       stageNum++;
     }
@@ -3664,6 +3666,8 @@ function extractStagesFromSchema(){
       breakdown:baseCalc.breakdown,
       blockCount:Math.ceil(realBlocks.length/2),
       stageNum:1,
+      isFirstStage:true,
+      isApproximate:false,
     });
     if(extCalc.totalUsd>1500){
       result.push({
@@ -3674,6 +3678,8 @@ function extractStagesFromSchema(){
         breakdown:extCalc.breakdown,
         blockCount:Math.floor(realBlocks.length/2),
         stageNum:2,
+        isFirstStage:false,
+        isApproximate:true,
       });
     }
   }
@@ -5065,17 +5071,26 @@ function buildPresentationHtml(d){
     const blockListHtml=blocks.length>0
       ? `<ul class="stage-blocks">${blocks.slice(0,8).map(b=>`<li>${escapeHtml(b.label)}</li>`).join('')}${blocks.length>8?`<li class="more">+ ещё ${blocks.length-8}</li>`:''}</ul>`
       : '';
-    return `<div class="stage-card" style="border-left-color:${stageColor}">
-      <div class="stage-num" style="background:${stageColor}">Этап ${i+1}</div>
+    const isFirst=!!s.isFirstStage;
+    const isApprox=!!s.isApproximate;
+    const stageBadgeText=isFirst?'СТАРТОВЫЙ ЭТАП':`Этап ${i+1}`;
+    const priceHtml=isApprox
+      ? `<div class="stage-price">
+          <span class="stage-price-usd" style="color:#8B8B85">~${fmtUsd2(s.priceUsd||0)}</span>
+          <span class="stage-price-kzt">уточняется</span>
+        </div>`
+      : `<div class="stage-price">
+          <span class="stage-price-usd">${fmtUsd2(s.priceUsd||0)}</span>
+          <span class="stage-price-kzt">≈ ${fmtKzt2(s.price||0)}</span>
+        </div>`;
+    return `<div class="stage-card ${isFirst?'stage-card-first':''}" style="border-left-color:${stageColor}">
+      <div class="stage-num" style="background:${stageColor}">${stageBadgeText}</div>
       <h3>${escapeHtml(s.name)}</h3>
       <div class="stage-meta">
         <span>⏱ ${s.weeks} ${plural(s.weeks,'неделя','недели','недель')}</span>
       </div>
       ${blockListHtml}
-      <div class="stage-price">
-        <span class="stage-price-usd">${fmtUsd2(s.priceUsd||0)}</span>
-        <span class="stage-price-kzt">≈ ${fmtKzt2(s.price||0)}</span>
-      </div>
+      ${priceHtml}
     </div>`;
   }).join('');
 
@@ -5110,9 +5125,14 @@ function buildPresentationHtml(d){
     </div>`;
   }).filter(Boolean).join('');
 
-  const paymentsHtml=d.stages.map((s,i)=>`
-    <tr><td>${i+1}</td><td>${escapeHtml(s.name)}</td><td>${i===0?'Аванс':'После сдачи Этапа '+i}</td><td style="text-align:right;font-family:monospace">${fmtUsd2(s.priceUsd||0)}</td><td style="text-align:right;font-family:monospace;color:#8B8B85">${fmtKzt2(s.price||0)}</td></tr>
-  `).join('');
+  const paymentsHtml=d.stages.map((s,i)=>{
+    const isApprox=!!s.isApproximate;
+    const priceCell=isApprox
+      ? `<td style="text-align:right;font-family:monospace;color:#8B8B85">~${fmtUsd2(s.priceUsd||0)}<br><span style="font-size:10.5px;font-style:italic">уточняется</span></td>`
+      : `<td style="text-align:right;font-family:monospace"><b>${fmtUsd2(s.priceUsd||0)}</b><br><span style="font-size:10.5px;color:#8B8B85">${fmtKzt2(s.price||0)}</span></td>`;
+    const stageLabel=i===0?'<b style="color:#b8895a">✦ Старт</b>':`Этап ${i+1}`;
+    return `<tr><td>${stageLabel}</td><td>${escapeHtml(s.name)}</td><td>${s.weeks} ${plural(s.weeks,'нед.','нед.','нед.')}</td>${priceCell}</tr>`;
+  }).join('');
 
   return `<!DOCTYPE html>
 <html lang="ru">
@@ -5144,6 +5164,8 @@ h1{font-family:'Instrument Serif',Georgia,serif;font-size:54px;line-height:1.1;l
 .stages-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:24px}
 .stage-card{background:#fff;border:1px solid #E8E6E0;border-left:4px solid;border-radius:10px;padding:18px 20px}
 .stage-num{display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#fff;padding:3px 9px;border-radius:100px;margin-bottom:10px;font-weight:600}
+.stage-card.stage-card-first{box-shadow:0 8px 24px rgba(184,137,90,0.18);border:2px solid #b8895a;background:linear-gradient(135deg,#FBF5EB 0%,#FFFFFF 100%);position:relative}
+.stage-card.stage-card-first::before{content:'✦ С ЭТОГО НАЧИНАЕМ';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#b8895a;color:#fff;padding:4px 14px;font-size:10px;font-weight:700;letter-spacing:.1em;border-radius:100px;white-space:nowrap}
 .stage-card h3{font-size:15px;font-weight:600;margin-bottom:8px;color:#1A1A18}
 .stage-meta{display:flex;gap:14px;font-size:12.5px;color:#4A4A47}
 .payment-summary{background:#fff;border:1px solid #E8E6E0;border-radius:12px;padding:24px;margin-top:24px}
@@ -5164,6 +5186,8 @@ h1{font-family:'Instrument Serif',Georgia,serif;font-size:54px;line-height:1.1;l
 .separate-tz-body p{font-size:12.5px;color:#7A5710;line-height:1.55;margin:0}
 .payment-option{background:#FAFAF7;border:2px solid #E8E6E0;border-radius:10px;padding:18px}
 .payment-option.highlight{border-color:#2F7A4F;background:#ECF5EF}
+.payment-option.starter-option{border:2px solid #b8895a;background:linear-gradient(135deg,#FBF5EB 0%,#FFFFFF 100%);box-shadow:0 8px 24px rgba(184,137,90,0.12);position:relative}
+.starter-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#b8895a;color:#fff;padding:5px 14px;font-size:10px;font-weight:700;letter-spacing:.1em;border-radius:100px;white-space:nowrap}
 .payment-option h4{font-size:14px;font-weight:600;margin-bottom:8px}
 .payment-option .price{font-family:monospace;font-size:24px;font-weight:700;color:#1A1A18;margin:8px 0}
 .payment-option .price-secondary{font-family:monospace;font-size:13px;color:#8B8B85;margin:-4px 0 8px}
@@ -5272,30 +5296,35 @@ table td{padding:10px;border-bottom:1px solid #E8E6E0;color:#1A1A18}
 
   <div class="section">
     <div class="section-tag">Стоимость</div>
-    <h2>Варианты оплаты</h2>
+    <h2>Начинаем с базы — фиксированная цена</h2>
+    <p>Мы предлагаем стартовать с базового этапа CRM. Это рабочая система, которой можно пользоваться уже через ${d.stages[0]?d.stages[0].weeks:4} ${plural(d.stages[0]?d.stages[0].weeks:4,'неделю','недели','недель')}. Дальнейшие этапы согласуем после запуска базы — вы платите только за то, что действительно нужно.</p>
+
     <div class="payment-summary">
       <div class="payment-options">
-        <div class="payment-option">
-          <h4>Поэтапная оплата</h4>
-          <div class="price">${fmtUsd2(d.totalUsd)}</div>
-          <div class="price-secondary">≈ ${fmtKzt2(d.totalKzt)}</div>
-          <p>Платите за каждый этап после сдачи. Удобно для длительных проектов.</p>
+        <div class="payment-option highlight starter-option">
+          <div class="starter-badge">✦ С ЭТОГО НАЧИНАЕМ</div>
+          <h4>Стартовый этап</h4>
+          <div class="price">${fmtUsd2(d.stages[0]?(d.stages[0].priceUsd||0):0)}</div>
+          <div class="price-secondary">≈ ${fmtKzt2(d.stages[0]?(d.stages[0].price||0):0)}</div>
+          <p><b>${d.stages[0]?d.stages[0].weeks:4} ${plural(d.stages[0]?d.stages[0].weeks:4,'неделя','недели','недель')}</b> · рабочая CRM с базовыми модулями</p>
+          <p style="margin-top:8px;font-size:11.5px;color:#5A5A55">Фиксированная цена, не меняется. Это всё что нужно чтобы начать работать с клиентами в системе.</p>
         </div>
-        <div class="payment-option highlight">
-          <h4>Полная предоплата</h4>
-          <div class="price">${fmtUsd2(d.fullPriceUsd)} <small>${fmtUsd2(d.totalUsd)}</small></div>
-          <div class="price-secondary">≈ ${fmtKzt2(d.fullPriceKzt)}</div>
-          <span class="badge">−10% СКИДКА</span>
-          <p>Один платёж до начала работ. Экономия ${fmtUsd2(d.totalUsd-d.fullPriceUsd)}.</p>
+        <div class="payment-option">
+          <h4>Дальнейшее развитие</h4>
+          <div class="price" style="color:#8B8B85">~${fmtUsd2((d.totalUsd-(d.stages[0]?(d.stages[0].priceUsd||0):0)))}</div>
+          <div class="price-secondary">${d.stages.length>1?`${d.stages.length-1} ${plural(d.stages.length-1,'этап','этапа','этапов')}`:'0 этапов'} · уточняется</div>
+          <p><b>Ориентировочно ~$1,500 за этап</b>. Конкретный объём и цена согласуются после запуска базы.</p>
+          <p style="margin-top:8px;font-size:11.5px;color:#5A5A55">Вы решаете что и когда добавлять. Можно остановиться на базе или развивать дальше — это ваш выбор.</p>
         </div>
       </div>
       <p style="font-size:11px;color:#8B8B85;margin-top:14px;text-align:center">Цены указаны в USD. Расчёт в KZT по курсу 1 USD = ${d.usdRate} ₸ на дату подготовки предложения.</p>
-      <h4 style="margin:24px 0 10px;font-size:13px;color:#4A4A47;text-transform:uppercase;letter-spacing:.06em">График платежей (поэтапно)</h4>
+
+      <h4 style="margin:24px 0 10px;font-size:13px;color:#4A4A47;text-transform:uppercase;letter-spacing:.06em">Полный план разработки</h4>
       <table>
-        <thead><tr><th>№</th><th>За что</th><th>Когда</th><th style="text-align:right">Сумма (USD)</th><th style="text-align:right">≈ ₸</th></tr></thead>
+        <thead><tr><th>№</th><th>За что</th><th>Срок</th><th style="text-align:right">Стоимость</th></tr></thead>
         <tbody>${paymentsHtml}</tbody>
-        <tfoot><tr style="font-weight:700"><td colspan="3" style="text-align:right;padding-top:14px">ИТОГО:</td><td style="text-align:right;font-family:monospace;padding-top:14px">${fmtUsd2(d.totalUsd)}</td><td style="text-align:right;font-family:monospace;padding-top:14px;color:#8B8B85">${fmtKzt2(d.totalKzt)}</td></tr></tfoot>
       </table>
+      <p style="font-size:11px;color:#8B8B85;margin-top:10px;font-style:italic">Этап 1 — фиксированная цена. Этапы 2+ — ориентировочные цифры, уточняются после запуска базы по согласованию с вами.</p>
     </div>
   </div>
 
@@ -5596,9 +5625,21 @@ async function generatePresentationPDF(){
   stages.forEach((s,i)=>{
     const stageColor=STAGE_HEX[i%6];
     const blocks=s.blocks||[];
+    const isFirst=!!s.isFirstStage;
+    const isApprox=!!s.isApproximate;
     const blockListContent=blocks.length>0
       ? {ul:blocks.slice(0,12).map(b=>b.label),style:'stageBlocks',margin:[0,0,0,8]}
       : {text:'Модули будут уточнены после согласования предыдущих этапов.',style:'stageBlocksPlaceholder',italics:true,margin:[0,0,0,8]};
+    const stageBadgeText=isFirst?'✦ С ЭТОГО НАЧИНАЕМ':`ЭТАП ${i+1}`;
+    const priceColumns=isApprox
+      ? [
+          {text:`~${fmtUsd(s.priceUsd||0)}`,style:'stagePriceMuted',width:'*'},
+          {text:'уточняется',style:'stagePriceKzt',width:'auto',alignment:'right',italics:true},
+        ]
+      : [
+          {text:fmtUsd(s.priceUsd||0),style:'stagePrice',width:'*'},
+          {text:`≈ ${fmtKzt(s.price||0)}`,style:'stagePriceKzt',width:'auto',alignment:'right'},
+        ];
     content.push({
       unbreakable:true,
       table:{
@@ -5607,7 +5648,7 @@ async function generatePresentationPDF(){
           stack:[
             {
               columns:[
-                {text:`ЭТАП ${i+1}`,color:'#fff',fillColor:stageColor,style:'stageBadge',width:'auto'},
+                {text:stageBadgeText,color:'#fff',fillColor:isFirst?'#b8895a':stageColor,style:'stageBadge',width:'auto'},
                 {text:`⏱ ${s.weeks} ${plural(s.weeks,'неделя','недели','недель')}`,style:'stageMetaRight',width:'auto',alignment:'right'},
               ],
               columnGap:8,
@@ -5615,22 +5656,20 @@ async function generatePresentationPDF(){
             {text:s.name,style:'stageName',margin:[0,8,0,8]},
             blockListContent,
             {
-              columns:[
-                {text:fmtUsd(s.priceUsd||0),style:'stagePrice',width:'*'},
-                {text:`≈ ${fmtKzt(s.price||0)}`,style:'stagePriceKzt',width:'auto',alignment:'right'},
-              ],
+              columns:priceColumns,
               margin:[0,4,0,0],
             },
           ],
         }]],
       },
       layout:{
-        hLineWidth:()=>0,
-        vLineWidth:(i)=>i===0?3:0,
-        vLineColor:()=>stageColor,
+        hLineWidth:()=>isFirst?2:0,
+        vLineWidth:(i)=>i===0?(isFirst?0:3):(isFirst?2:0),
+        vLineColor:()=>isFirst?'#b8895a':stageColor,
+        hLineColor:()=>'#b8895a',
         paddingLeft:()=>14,paddingRight:()=>14,
         paddingTop:()=>12,paddingBottom:()=>12,
-        fillColor:()=>'#FFFFFF',
+        fillColor:()=>isFirst?'#FBF5EB':'#FFFFFF',
       },
       margin:[0,0,0,14],
     });
@@ -5719,44 +5758,53 @@ async function generatePresentationPDF(){
   // --- Варианты оплаты ---
   content.push({text:'',pageBreak:'after'});
   content.push({text:'Стоимость',style:'sectionTag'});
-  content.push({text:'Варианты оплаты',style:'h2',margin:[0,4,0,16]});
+  content.push({text:'Начинаем с базы — фиксированная цена',style:'h2',margin:[0,4,0,8]});
+
+  const firstStage=stages[0];
+  const firstStageUsd=firstStage?(firstStage.priceUsd||0):0;
+  const firstStageKzt=firstStage?(firstStage.price||0):0;
+  const firstStageWeeks=firstStage?firstStage.weeks:4;
+  const restStagesUsd=Math.max(0,totalUsd-firstStageUsd);
+  const restStagesCount=Math.max(0,stages.length-1);
+
+  content.push({text:`Мы предлагаем стартовать с базового этапа CRM. Это рабочая система, которой можно пользоваться уже через ${firstStageWeeks} ${plural(firstStageWeeks,'неделю','недели','недель')}. Дальнейшие этапы согласуем после запуска базы — вы платите только за то, что действительно нужно.`,style:'p',margin:[0,0,0,16]});
 
   content.push({
     columns:[
       {
         table:{widths:['*'],body:[[{
           stack:[
-            {text:'Поэтапная оплата',style:'paymentTitle'},
-            {text:fmtUsd(totalUsd),style:'paymentPrice',margin:[0,8,0,0]},
-            {text:`≈ ${fmtKzt(totalKzt)}`,style:'paymentPriceKzt'},
-            {text:'Платите за каждый этап после сдачи. Удобно для длительных проектов.',style:'paymentDesc',margin:[0,8,0,0]},
+            {text:'✦ С ЭТОГО НАЧИНАЕМ',style:'starterBadge'},
+            {text:'Стартовый этап',style:'paymentTitle',margin:[0,8,0,0]},
+            {text:fmtUsd(firstStageUsd),style:'paymentPrice',margin:[0,8,0,0]},
+            {text:`≈ ${fmtKzt(firstStageKzt)}`,style:'paymentPriceKzt'},
+            {text:`${firstStageWeeks} ${plural(firstStageWeeks,'неделя','недели','недель')} · рабочая CRM`,style:'paymentDescBold',margin:[0,10,0,4]},
+            {text:'Фиксированная цена. Это всё что нужно чтобы начать работать с клиентами в системе.',style:'paymentDesc'},
           ],
         }]]},
         layout:{
-          hLineWidth:()=>1,vLineWidth:()=>1,
-          hLineColor:()=>'#E8E6E0',vLineColor:()=>'#E8E6E0',
+          hLineWidth:()=>2,vLineWidth:()=>2,
+          hLineColor:()=>'#b8895a',vLineColor:()=>'#b8895a',
           paddingLeft:()=>16,paddingRight:()=>16,paddingTop:()=>14,paddingBottom:()=>14,
+          fillColor:()=>'#FBF5EB',
         },
         width:'*',
       },
       {
         table:{widths:['*'],body:[[{
           stack:[
-            {text:'Полная предоплата',style:'paymentTitle'},
-            {columns:[
-              {text:fmtUsd(fullPriceUsd),style:'paymentPrice',width:'auto'},
-              {text:fmtUsd(totalUsd),style:'paymentPriceOld',width:'auto',margin:[6,4,0,0]},
-            ],margin:[0,8,0,0]},
-            {text:`≈ ${fmtKzt(fullPriceKzt)}`,style:'paymentPriceKzt'},
-            {text:'−10% СКИДКА',style:'paymentBadge',margin:[0,6,0,0]},
-            {text:`Один платёж до начала работ. Экономия ${fmtUsd(totalUsd-fullPriceUsd)}.`,style:'paymentDesc',margin:[0,6,0,0]},
+            {text:'ПОСЛЕ БАЗЫ',style:'paymentSubBadge'},
+            {text:'Дальнейшее развитие',style:'paymentTitle',margin:[0,8,0,0]},
+            {text:`~${fmtUsd(restStagesUsd)}`,style:'paymentPriceMuted',margin:[0,8,0,0]},
+            {text:`${restStagesCount} ${plural(restStagesCount,'этап','этапа','этапов')} · уточняется`,style:'paymentPriceKzt'},
+            {text:'Ориентировочно ~$1,500 за этап.',style:'paymentDescBold',margin:[0,10,0,4]},
+            {text:'Объём и цена согласуются после запуска базы. Вы решаете что и когда добавлять.',style:'paymentDesc'},
           ],
         }]]},
         layout:{
           hLineWidth:()=>1,vLineWidth:()=>1,
-          hLineColor:()=>'#b8895a',vLineColor:()=>'#b8895a',
+          hLineColor:()=>'#E8E6E0',vLineColor:()=>'#E8E6E0',
           paddingLeft:()=>16,paddingRight:()=>16,paddingTop:()=>14,paddingBottom:()=>14,
-          fillColor:()=>'#FBF5EB',
         },
         width:'*',
       },
@@ -5768,40 +5816,55 @@ async function generatePresentationPDF(){
   content.push({text:`Цены указаны в USD. Расчёт в KZT по курсу 1 USD = ${usdRate} ₸ на дату подготовки предложения.`,style:'small',alignment:'center',margin:[0,4,0,16]});
 
   // График платежей таблицей
-  content.push({text:'График платежей (поэтапно)',style:'h3',margin:[0,12,0,8]});
+  content.push({text:'Полный план разработки',style:'h3',margin:[0,12,0,8]});
   const paymentRows=[
     [
       {text:'№',style:'tableHead'},
       {text:'За что',style:'tableHead'},
-      {text:'Когда',style:'tableHead'},
-      {text:'USD',style:'tableHead',alignment:'right'},
-      {text:'≈ ₸',style:'tableHead',alignment:'right'},
+      {text:'Срок',style:'tableHead'},
+      {text:'Стоимость',style:'tableHead',alignment:'right'},
     ],
   ];
   stages.forEach((s,i)=>{
+    const isApprox=!!s.isApproximate;
+    const stageLabel=i===0
+      ? {text:'✦ Старт',style:'tableCellAccent'}
+      : {text:`Этап ${i+1}`,style:'tableCell'};
+    const priceCell=isApprox
+      ? {
+          stack:[
+            {text:'~'+fmtUsd(s.priceUsd||0),style:'tableCellMuted',alignment:'right'},
+            {text:'уточняется',style:'tableCellMutedSmall',alignment:'right',italics:true},
+          ],
+        }
+      : {
+          stack:[
+            {text:fmtUsd(s.priceUsd||0),style:'tableCellBoldRight',alignment:'right'},
+            {text:fmtKzt(s.price||0),style:'tableCellMutedSmall',alignment:'right'},
+          ],
+        };
     paymentRows.push([
-      {text:String(i+1),style:'tableCell'},
+      stageLabel,
       {text:s.name,style:'tableCell'},
-      {text:i===0?'Аванс':'После сдачи Этапа '+i,style:'tableCell'},
-      {text:fmtUsd(s.priceUsd||0),style:'tableCell',alignment:'right'},
-      {text:fmtKzt(s.price||0),style:'tableCellMuted',alignment:'right'},
+      {text:`${s.weeks} ${plural(s.weeks,'нед.','нед.','нед.')}`,style:'tableCell'},
+      priceCell,
     ]);
   });
-  paymentRows.push([
-    {text:'',colSpan:3,style:'tableTotal'},'','',
-    {text:fmtUsd(totalUsd),style:'tableTotal',alignment:'right'},
-    {text:fmtKzt(totalKzt),style:'tableTotal',alignment:'right'},
-  ]);
   content.push({
-    table:{widths:[24,'*',110,72,90],body:paymentRows,headerRows:1},
+    table:{widths:[60,'*',60,90],body:paymentRows,headerRows:1},
     layout:{
-      hLineWidth:(i)=>i===0||i===1||i===paymentRows.length-1||i===paymentRows.length?1:0.5,
+      hLineWidth:(i)=>i===0||i===1||i===paymentRows.length?1:0.5,
       vLineWidth:()=>0,
       hLineColor:()=>'#E8E6E0',
-      paddingLeft:()=>6,paddingRight:()=>6,paddingTop:()=>6,paddingBottom:()=>6,
+      paddingLeft:()=>8,paddingRight:()=>8,paddingTop:()=>8,paddingBottom:()=>8,
+      fillColor:(rowIndex)=>{
+        // Подсветить строку Этапа 1 (rowIndex=1, потому что 0 — заголовок)
+        return rowIndex===1?'#FBF5EB':null;
+      },
     },
-    margin:[0,0,0,12],
+    margin:[0,0,0,8],
   });
+  content.push({text:'Этап 1 — фиксированная цена. Этапы 2+ — ориентировочные цифры, уточняются после запуска базы по согласованию с вами.',style:'small',italics:true,margin:[0,4,0,16]});
 
   // --- Дополнительные возможности ---
   if(separateTzItems.length>0){
@@ -5965,6 +6028,7 @@ async function generatePresentationPDF(){
       stageName:{fontSize:14,bold:true,color:'#1A1A18'},
       stageBlocks:{fontSize:10,color:'#4A4A47',lineHeight:1.4},
       stagePrice:{fontSize:18,bold:true,color:'#1A1A18'},
+      stagePriceMuted:{fontSize:16,bold:true,color:'#8B8B85'},
       stagePriceKzt:{fontSize:11,color:'#8B8B85'},
       stageMetaRight:{fontSize:11,color:'#4A4A47'},
       stageDetailTitle:{fontSize:15,bold:true,color:'#1A1A18',margin:[0,2,0,0]},
@@ -5975,17 +6039,24 @@ async function generatePresentationPDF(){
       mockupTitle:{fontSize:11,bold:true,color:'#1A1A18'},
 
       paymentTitle:{fontSize:13,bold:true,color:'#1A1A18'},
-      paymentPrice:{fontSize:20,bold:true,color:'#1A1A18'},
+      paymentPrice:{fontSize:22,bold:true,color:'#1A1A18'},
+      paymentPriceMuted:{fontSize:20,bold:true,color:'#8B8B85'},
       paymentPriceOld:{fontSize:11,color:'#8B8B85',decoration:'lineThrough'},
       paymentPriceKzt:{fontSize:11,color:'#8B8B85',margin:[0,2,0,0]},
       paymentBadge:{fontSize:9,bold:true,color:'#b8895a',characterSpacing:1},
+      paymentSubBadge:{fontSize:9,bold:true,color:'#8B8B85',characterSpacing:1},
       paymentDesc:{fontSize:10,color:'#4A4A47',lineHeight:1.4},
+      paymentDescBold:{fontSize:11,bold:true,color:'#1A1A18',lineHeight:1.4},
+      starterBadge:{fontSize:9,bold:true,color:'#b8895a',characterSpacing:1.5},
 
       tableHead:{fontSize:9,bold:true,color:'#8B8B85',characterSpacing:0.5},
       tableCell:{fontSize:10,color:'#4A4A47'},
+      tableCellAccent:{fontSize:10,bold:true,color:'#b8895a'},
       tableCellBold:{fontSize:10,bold:true,color:'#1A1A18'},
+      tableCellBoldRight:{fontSize:11,bold:true,color:'#1A1A18'},
       tableCellMono:{fontSize:10,color:'#4A4A47'},
-      tableCellMuted:{fontSize:9,color:'#8B8B85'},
+      tableCellMuted:{fontSize:11,color:'#8B8B85'},
+      tableCellMutedSmall:{fontSize:9,color:'#8B8B85'},
       tableTotal:{fontSize:11,bold:true,color:'#1A1A18'},
 
       tzTitle:{fontSize:12,bold:true,color:'#1A1A18'},
@@ -6106,9 +6177,82 @@ function initPresentation(){
         <p style="margin-bottom:8px">Полная версия презентации в формате PDF — для архива, печати или отправки по email. С указанием авторских прав Pllato.</p>
         <button class="btn" id="btnGenPDF" style="width:100%;justify-content:center;background:var(--accent-bronze-bg,#F4ECDC);color:var(--bronze-deep,#8b6740);border-color:#E8D5B7"><i data-lucide="file-down" class="icon"></i> Скачать PDF</button>
       </div>
+      <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px">
+        <h4 style="margin-bottom:6px">💬 Сообщение клиенту</h4>
+        <p style="margin-bottom:8px">Готовое сообщение для отправки клиенту в WhatsApp с резюме предложения и ссылками. Сначала создайте презентацию и прототип, потом скопируйте этот текст.</p>
+        <textarea id="waMessage" readonly style="width:100%;min-height:200px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6;background:var(--bg);resize:vertical;color:var(--ink-2)">Сначала создайте презентацию и прототип — потом нажмите «Скопировать сообщение».</textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn primary" id="btnCopyWaMessage" style="flex:1;justify-content:center;background:#25D366;border-color:#25D366"><i data-lucide="copy" class="icon"></i> Скопировать сообщение</button>
+          <button class="btn" id="btnRefreshWaMessage" title="Пересобрать сообщение"><i data-lucide="refresh-cw"></i></button>
+        </div>
+      </div>
     `;
     body.appendChild(block);
     if(window.lucide)lucide.createIcons({nodes:[block]});
+
+    // Функция для построения сообщения клиенту
+    function buildWaMessage(){
+      const project=projectsState.activeProject;
+      if(!project)return 'Создайте проект и сгенерируйте презентацию.';
+      const c=getCustomerData();
+      const stages=docState.stages.length>0?docState.stages:extractStagesFromSchema();
+      const firstStage=stages[0];
+      const totalUsd=stages.reduce((a,b)=>a+(b.priceUsd||0),0);
+      const restCount=Math.max(0,stages.length-1);
+      const fmtUsdSimple=n=>'$'+new Intl.NumberFormat('en-US').format(Math.round(n));
+      const customerName=c.customerName||project.name||'';
+      const projectName=project.name||'CRM-системы';
+      // Главные модули первого этапа
+      const firstStageBlocks=firstStage&&firstStage.blocks
+        ? firstStage.blocks.slice(0,6).map(b=>b.label).join(', ')
+        : 'лиды, воронка, клиенты, задачи, календарь, документы';
+      const presUrl=project.presentationUrl||'';
+      const protoUrl=project.prototypeUrl||'';
+
+      let msg=`Здравствуйте${customerName?', '+customerName.split(' ')[0]:''}!\n\n`;
+      msg+=`Спасибо за встречу. Подготовили для вас предложение по разработке ${projectName}.\n\n`;
+      msg+=`📌 КЛЮЧЕВОЕ:\n`;
+      msg+=`Предлагаем начать со стартового этапа — это рабочая CRM, которой можно пользоваться уже через ${firstStage?firstStage.weeks:4} ${plural(firstStage?firstStage.weeks:4,'неделю','недели','недель')}.\n\n`;
+      msg+=`💰 Стартовый этап: ${fmtUsdSimple(firstStage?(firstStage.priceUsd||0):1500)} (фиксированная цена)\n`;
+      msg+=`📦 Входит: ${firstStageBlocks}\n\n`;
+      if(restCount>0){
+        msg+=`После запуска базы — продолжим развитие по согласованным этапам (~$1,500 каждый, ${restCount} ${plural(restCount,'этап','этапа','этапов')} в плане). Вы решаете что и когда добавлять.\n\n`;
+      }
+      if(presUrl){
+        msg+=`📎 Полная презентация:\n${presUrl}\n\n`;
+      }
+      if(protoUrl){
+        msg+=`🚀 Тестовый CRM (можно потыкать):\n${protoUrl}\n\n`;
+      }
+      msg+=`Готовы обсудить детали в любое время.\n\n`;
+      msg+=`— Pllato CRM Studio\nWhatsApp: +7 701 123 99 99\npllato.kz`;
+      return msg;
+    }
+
+    function refreshWaMessage(){
+      const ta=document.getElementById('waMessage');
+      if(ta)ta.value=buildWaMessage();
+    }
+
+    document.getElementById('btnRefreshWaMessage').addEventListener('click',()=>{
+      refreshWaMessage();
+      showToast('Сообщение обновлено','check');
+    });
+    document.getElementById('btnCopyWaMessage').addEventListener('click',async()=>{
+      refreshWaMessage();
+      const ta=document.getElementById('waMessage');
+      const text=ta.value;
+      try{
+        await navigator.clipboard.writeText(text);
+        showToast('Сообщение скопировано — вставьте в WhatsApp','check');
+      }catch(e){
+        ta.select();
+        document.execCommand('copy');
+        showToast('Сообщение скопировано','check');
+      }
+    });
+    // Авто-обновление при открытии модалки
+    refreshWaMessage();
 
     document.getElementById('btnGenPresentation').addEventListener('click',async()=>{
       const btn=document.getElementById('btnGenPresentation');
@@ -6149,6 +6293,8 @@ function initPresentation(){
             try{await navigator.clipboard.writeText(url);showToast('Ссылка скопирована','check')}
             catch(e){const i=linkDiv.querySelector('input');i.select();document.execCommand('copy');showToast('Ссылка скопирована','check')}
           });
+          // Обновим WhatsApp сообщение, теперь с URL презентации
+          if(typeof refreshWaMessage==='function')refreshWaMessage();
         }
       }catch(err){
         clearInterval(stageTimer);
@@ -6198,6 +6344,8 @@ function initPresentation(){
             try{await navigator.clipboard.writeText(url);showToast('Ссылка на прототип скопирована','check')}
             catch(e){const i=linkDiv.querySelector('input');i.select();document.execCommand('copy');showToast('Ссылка скопирована','check')}
           });
+          // Обновим WhatsApp сообщение, теперь с URL прототипа
+          if(typeof refreshWaMessage==='function')refreshWaMessage();
         }
       }catch(err){
         clearInterval(stageTimer);
