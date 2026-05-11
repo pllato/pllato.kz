@@ -126,6 +126,57 @@ body{font-family:var(--font-sans);color:var(--ink);background:var(--bg);font-siz
   line-height:1.2;
   white-space:nowrap;
 }
+
+/* ============ STAGE FRAME (зона этапа на схеме) ============ */
+.block.type-stage-frame{
+  width:auto;min-width:340px;
+  padding:0;
+  border-width:2px;
+  border-style:dashed;
+  background:transparent;
+  z-index:1; /* под обычными блоками */
+  cursor:default;
+  pointer-events:auto;
+}
+.block.type-stage-frame .block-inner{padding:0}
+.block.type-stage-frame .stage-frame-header{
+  padding:14px 18px;
+  border-bottom:2px dashed currentColor;
+  background:rgba(255,255,255,0.65);
+  backdrop-filter:blur(4px);
+}
+.block.type-stage-frame .stage-frame-num{
+  display:inline-block;
+  padding:3px 10px;
+  background:currentColor;
+  border-radius:100px;
+  font-size:10px;font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:8px;
+}
+.block.type-stage-frame .stage-frame-num span{color:#fff}
+.block.type-stage-frame .stage-frame-title{
+  font-family:var(--font-sans);font-size:15px;font-weight:700;color:var(--ink);
+  line-height:1.2;
+  margin-bottom:6px;
+}
+.block.type-stage-frame .stage-frame-meta{
+  font-size:12px;color:var(--ink-2);line-height:1.5;
+  white-space:pre-wrap;
+}
+.block.type-stage-frame .stage-frame-meta b{color:var(--ink);font-family:var(--font-mono)}
+.block.type-stage-frame .stage-frame-body{
+  flex:1;min-height:200px;
+}
+.block.type-stage-frame.stage-green{border-color:#2F7A4F;color:#2F7A4F;background:rgba(47,122,79,0.05)}
+.block.type-stage-frame.stage-amber{border-color:#B07D1A;color:#B07D1A;background:rgba(176,125,26,0.05)}
+.block.type-stage-frame.stage-orange{border-color:#C2542B;color:#C2542B;background:rgba(194,84,43,0.05)}
+.block.type-stage-frame.stage-blue{border-color:#3B5FB8;color:#3B5FB8;background:rgba(59,95,184,0.05)}
+.block.type-stage-frame.stage-purple{border-color:#6B46C1;color:#6B46C1;background:rgba(107,70,193,0.05)}
+.block.type-stage-frame.stage-rose{border-color:#B83E5F;color:#B83E5F;background:rgba(184,62,95,0.05)}
+.block.type-stage-frame.selected{box-shadow:0 0 0 4px rgba(26,26,24,0.08)}
+.block.type-stage-frame .handle{display:none} /* зоны не соединяются */
 .block.type-pipeline{width:320px}
 .pipeline-stages{display:flex;gap:4px;padding:0 14px 12px;flex-wrap:wrap}
 .pipeline-stage{padding:4px 8px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;font-size:11px;color:var(--ink-2);font-family:var(--font-mono)}
@@ -1220,7 +1271,7 @@ nodes:[{type:'site',x:100,y:280,label:'Сайт + кейсы'},{type:'instagram'
 edges:[{source:0,target:2},{source:1,target:2},{source:2,target:3},{source:3,target:4},{source:3,target:5},{source:3,target:6},{source:2,target:7},{source:3,target:8,label:'предоплата'}]},
 mlm:{name:'CRM для MLM-бизнеса (по этапам)',desc:'4 этапа: База → Бонусы → AI → Международка',icon:'network',
 nodes:[
-{type:'note',x:80,y:40,label:'ЭТАП 1 — База CRM',description:'4 недели\nПартнёры в системе, иерархия, история закупок\nЦена рассчитывается автоматически по блокам',noteColor:'green',isStageHeader:true},
+{type:'stage-frame',x:40,y:20,frameWidth:620,frameHeight:820,stageColor:'green',stageNum:1,label:'База CRM',description:'4 недели\nПартнёры, иерархия, история закупок\nЦена считается автоматически'},
 {type:'site',x:80,y:220,label:'Лендинг рекрутинга',color:'green'},
 {type:'whatsapp',x:80,y:360,label:'WhatsApp воронка',color:'green'},
 {type:'leads',x:380,y:290,label:'Заявки на регистрацию',color:'green'},
@@ -1229,20 +1280,20 @@ nodes:[
 {type:'structure',x:380,y:660,label:'Структура сети (иерархия)',color:'green'},
 {type:'deals',x:80,y:720,label:'Закупки и активность',color:'green'},
 
-{type:'note',x:740,y:40,label:'ЭТАП 2 — Бонусы и кабинет',description:'4-5 недель\nАвто-расчёт бонусов, ранги, оплата Kaspi\nMobile App — отдельным ТЗ',noteColor:'yellow',isStageHeader:true},
+{type:'stage-frame',x:700,y:20,frameWidth:620,frameHeight:820,stageColor:'amber',stageNum:2,label:'Бонусы и кабинет',description:'4-5 недель\nАвто-расчёт бонусов, ранги, оплата Kaspi\nMobile App — отдельным ТЗ'},
 {type:'documents',x:740,y:220,label:'Marketing Plan и ранги',color:'amber'},
 {type:'finances',x:740,y:360,label:'Расчёт бонусов',color:'amber'},
 {type:'mobile-app',x:740,y:500,label:'Mobile App партнёра',color:'amber',requiresSeparateTz:true},
 {type:'notification',x:1080,y:500,label:'Уведомления о бонусах',color:'amber'},
 {type:'kaspi',x:740,y:660,label:'Kaspi Pay (РК)',color:'amber'},
 
-{type:'note',x:1440,y:40,label:'ЭТАП 3 — AI-автоматизация',description:'5-6 недель\nAI квалификация лидов, follow-up\nAnaлиз звонков — отдельным ТЗ',noteColor:'pink',isStageHeader:true},
+{type:'stage-frame',x:1400,y:20,frameWidth:680,frameHeight:820,stageColor:'orange',stageNum:3,label:'AI-автоматизация',description:'5-6 недель\nAI квалификация лидов, follow-up\nAI анализ звонков — отдельным ТЗ'},
 {type:'telegram',x:1440,y:220,label:'Telegram-бот',color:'orange'},
 {type:'ai-assistant',x:1440,y:360,label:'AI-квалификация лида',color:'orange'},
 {type:'voice-ai',x:1440,y:500,label:'AI follow-up партнёру',color:'orange',requiresSeparateTz:true},
 {type:'voice-ai',x:1780,y:360,label:'AI анализ звонков',color:'orange',requiresSeparateTz:true},
 
-{type:'note',x:2140,y:40,label:'ЭТАП 4 — Международка',description:'4 недели\nАналитика по странам\nVisa/MC, USDT — отдельным ТЗ',noteColor:'blue',isStageHeader:true},
+{type:'stage-frame',x:2120,y:20,frameWidth:420,frameHeight:820,stageColor:'blue',stageNum:4,label:'Международка',description:'4 недели\nАналитика по странам\nVisa/MC, USDT — отдельным ТЗ'},
 {type:'visa',x:2140,y:220,label:'Visa / Mastercard',color:'blue',requiresSeparateTz:true},
 {type:'crypto',x:2140,y:360,label:'USDT / Crypto',color:'blue',requiresSeparateTz:true},
 {type:'reports',x:2140,y:500,label:'Аналитика по странам',color:'blue'}
@@ -1438,17 +1489,25 @@ function addNode(opts){
   const requiresSeparateTz=opts.requiresSeparateTz!==undefined
     ? !!opts.requiresSeparateTz
     : SEPARATE_TZ_TYPES.has(opts.type);
+  const isStageFrame=opts.type==='stage-frame';
   const node={
     id:'n'+Math.random().toString(36).slice(2,9),
     type:opts.type,x:opts.x??200,y:opts.y??200,
     label:opts.label||def.label||'Без названия',
     description:opts.description??def.desc??'',
     color:opts.color||def.cat,icon:def.icon,
-    isPipeline:!!def.isPipeline,isNote:!!def.isNote,
+    isPipeline:!!def.isPipeline,
+    isNote:!!def.isNote,
+    isStageFrame,
     isStageHeader:!!opts.isStageHeader,
     noteColor:def.noteColor||opts.noteColor||null,
     stages:opts.stages||(def.stages?[...def.stages]:null),
     requiresSeparateTz,
+    // Размер для зоны этапа
+    frameWidth:opts.frameWidth||null,
+    frameHeight:opts.frameHeight||null,
+    stageColor:opts.stageColor||null, // для зон: green/amber/orange/blue/purple
+    stageNum:opts.stageNum||null,
   };
   state.nodes.push(node);
   renderNode(node);
@@ -1467,6 +1526,10 @@ function renderNode(node){
       el.classList.add('type-note');
       if(node.noteColor)el.classList.add(`color-${node.noteColor}`);
       if(node.isStageHeader)el.classList.add('stage-header');
+    }
+    if(node.isStageFrame){
+      el.classList.add('type-stage-frame');
+      el.classList.add('stage-'+(node.stageColor||'blue'));
     }
     dom.world.appendChild(el);
     el.addEventListener('mousedown',e=>{
@@ -1497,8 +1560,18 @@ function renderNode(node){
     if(node.noteColor)el.classList.add(`color-${node.noteColor}`);
     if(node.isStageHeader)el.classList.add('stage-header');
   }
+  if(node.isStageFrame){
+    el.classList.add('type-stage-frame');
+    el.classList.add('stage-'+(node.stageColor||'blue'));
+  }
   el.style.left=node.x+'px';el.style.top=node.y+'px';
-  if(node.isPipeline){
+  if(node.isStageFrame){
+    // Размеры зоны
+    if(node.frameWidth)el.style.width=node.frameWidth+'px';
+    if(node.frameHeight)el.style.height=node.frameHeight+'px';
+    const num=node.stageNum||'';
+    el.innerHTML=`<div class="block-inner"><div class="stage-frame-header"><div class="stage-frame-num"><span>ЭТАП ${num}</span></div><div class="stage-frame-title">${escapeHtml(node.label)}</div>${node.description?`<div class="stage-frame-meta">${escapeHtml(node.description)}</div>`:''}</div><div class="stage-frame-body"></div></div>`;
+  }else if(node.isPipeline){
     el.innerHTML=`<div class="block-inner"><div class="block-icon"><i data-lucide="${node.icon}"></i></div><div class="block-body"><div class="block-title" data-id="${node.id}">${escapeHtml(node.label)}</div>${node.description?`<div class="block-desc">${escapeHtml(node.description)}</div>`:''}</div></div><div class="pipeline-stages">${(node.stages||[]).map(s=>`<div class="pipeline-stage">${escapeHtml(s)}</div>`).join('')}</div>`+handlesHtml();
   }else if(node.isNote){
     el.innerHTML=`<div class="block-inner"><div class="block-body"><div class="block-title" data-id="${node.id}">${escapeHtml(node.label)}</div>${node.description?`<div class="block-desc">${escapeHtml(node.description)}</div>`:''}</div></div>`+handlesHtml();
@@ -3138,9 +3211,22 @@ function extractStagesFromSchema(){
       const calc=calculateStageUSD(blocks,stageNum);
       const weeks=calculateStageWeeks(blocks);
 
-      // Попытка взять название из стикера-этапа (если есть)
+      // Поиск названия этапа: сначала stage-frame, потом старый stage-header note, потом дефолт
+      const stageFrame=state.nodes.find(n=>n.isStageFrame&&n.stageColor===c);
       const headerNote=blocks.find(b=>b.isNote&&b.isStageHeader);
-      const name=headerNote?headerNote.label:stageNamesByColor[c]||`Этап ${stageNum}`;
+      let name;
+      if(stageFrame){
+        name=`Этап ${stageFrame.stageNum||stageNum} — ${stageFrame.label}`;
+      }else if(headerNote){
+        name=headerNote.label;
+      }else{
+        name=stageNamesByColor[c]||`Этап ${stageNum}`;
+      }
+
+      // Список блоков для презентации (без заметок, frames, separateTz)
+      const stageBlocks=blocks
+        .filter(b=>!b.isNote&&!b.isStageFrame&&!b.requiresSeparateTz)
+        .map(b=>({label:b.label||b.type,type:b.type,description:b.description||''}));
 
       result.push({
         name,
@@ -3148,8 +3234,10 @@ function extractStagesFromSchema(){
         priceUsd:calc.totalUsd,
         price:usdToKzt(calc.totalUsd),
         breakdown:calc.breakdown,
-        blockCount:blocks.filter(b=>!b.isNote).length,
+        blockCount:blocks.filter(b=>!b.isNote&&!b.isStageFrame).length,
+        blocks:stageBlocks,
         stageNum,
+        stageColor:c,
       });
       stageNum++;
     }
@@ -4241,7 +4329,40 @@ async function generateSchemaScreenshot(){
       }
     });
 
-    state.nodes.forEach(node=>{
+    // Сначала рисуем зоны этапов (они должны быть под обычными блоками)
+    const STAGE_COLORS_SVG={
+      green:{stroke:'#2F7A4F',fill:'rgba(47,122,79,0.05)'},
+      amber:{stroke:'#B07D1A',fill:'rgba(176,125,26,0.05)'},
+      orange:{stroke:'#C2542B',fill:'rgba(194,84,43,0.05)'},
+      blue:{stroke:'#3B5FB8',fill:'rgba(59,95,184,0.05)'},
+      purple:{stroke:'#6B46C1',fill:'rgba(107,70,193,0.05)'},
+      rose:{stroke:'#B83E5F',fill:'rgba(184,62,95,0.05)'},
+    };
+    state.nodes.filter(n=>n.isStageFrame).forEach(node=>{
+      const el=document.getElementById(node.id);
+      const w=el?el.offsetWidth:(node.frameWidth||400),h=el?el.offsetHeight:(node.frameHeight||500);
+      const x=node.x+OX,y=node.y+OY;
+      const c=STAGE_COLORS_SVG[node.stageColor||'blue']||STAGE_COLORS_SVG.blue;
+      parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" fill="${c.fill}" stroke="${c.stroke}" stroke-width="2" stroke-dasharray="6,4"/>`);
+      // Header плашка
+      parts.push(`<rect x="${x}" y="${y}" width="${w}" height="84" rx="12" fill="rgba(255,255,255,0.65)"/>`);
+      parts.push(`<rect x="${x}" y="${y+82}" width="${w}" height="2" fill="${c.stroke}" opacity="0.4"/>`);
+      // Pill номера этапа
+      const pillText=`ЭТАП ${node.stageNum||''}`;
+      const pillW=pillText.length*6.5+18;
+      parts.push(`<rect x="${x+18}" y="${y+14}" width="${pillW}" height="20" rx="10" fill="${c.stroke}"/>`);
+      parts.push(`<text x="${x+18+pillW/2}" y="${y+28}" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="700" fill="#fff" letter-spacing="0.8">${escapeXml(pillText)}</text>`);
+      // Title
+      parts.push(`<text x="${x+18}" y="${y+54}" font-family="sans-serif" font-size="15" font-weight="700" fill="#1A1A18">${escapeXml(node.label)}</text>`);
+      // Description (первая строка)
+      if(node.description){
+        const firstLine=(node.description||'').split('\n')[0]||'';
+        parts.push(`<text x="${x+18}" y="${y+72}" font-family="sans-serif" font-size="11" fill="#4A4A47">${escapeXml(firstLine)}</text>`);
+      }
+    });
+
+    // Затем обычные блоки и заметки поверх зон
+    state.nodes.filter(n=>!n.isStageFrame).forEach(node=>{
       const el=document.getElementById(node.id);if(!el)return;
       const w=el.offsetWidth,h=el.offsetHeight;
       const x=node.x+OX,y=node.y+OY;
@@ -4528,18 +4649,54 @@ function buildPresentationHtml(d){
   const stagesHtml=d.stages.map((s,i)=>{
     const colors=['#2F7A4F','#B07D1A','#C2542B','#3B5FB8','#6B46C1','#B83E5F'];
     const stageColor=colors[i%6];
+    const blocks=s.blocks||[];
+    const blockListHtml=blocks.length>0
+      ? `<ul class="stage-blocks">${blocks.slice(0,8).map(b=>`<li>${escapeHtml(b.label)}</li>`).join('')}${blocks.length>8?`<li class="more">+ ещё ${blocks.length-8}</li>`:''}</ul>`
+      : '';
     return `<div class="stage-card" style="border-left-color:${stageColor}">
       <div class="stage-num" style="background:${stageColor}">Этап ${i+1}</div>
       <h3>${escapeHtml(s.name)}</h3>
       <div class="stage-meta">
         <span>⏱ ${s.weeks} ${plural(s.weeks,'неделя','недели','недель')}</span>
       </div>
+      ${blockListHtml}
       <div class="stage-price">
         <span class="stage-price-usd">${fmtUsd2(s.priceUsd||0)}</span>
         <span class="stage-price-kzt">≈ ${fmtKzt2(s.price||0)}</span>
       </div>
     </div>`;
   }).join('');
+
+  // Развёрнутая секция "Детально по этапам"
+  const detailedStagesHtml=d.stages.map((s,i)=>{
+    const colors=['#2F7A4F','#B07D1A','#C2542B','#3B5FB8','#6B46C1','#B83E5F'];
+    const stageColor=colors[i%6];
+    const blocks=s.blocks||[];
+    if(blocks.length===0)return '';
+    const blocksHtml=blocks.map(b=>`
+      <div class="stage-detail-block">
+        <div class="stage-detail-bullet" style="background:${stageColor}"></div>
+        <div class="stage-detail-content">
+          <h5>${escapeHtml(b.label)}</h5>
+          ${b.description?`<p>${escapeHtml(b.description)}</p>`:''}
+        </div>
+      </div>
+    `).join('');
+    return `<div class="stage-detail" style="--stage-color:${stageColor}">
+      <div class="stage-detail-header">
+        <div class="stage-detail-num" style="background:${stageColor}">Этап ${i+1}</div>
+        <h3>${escapeHtml(s.name)}</h3>
+        <div class="stage-detail-meta">
+          <span>⏱ ${s.weeks} ${plural(s.weeks,'неделя','недели','недель')}</span>
+          <span class="stage-detail-price">${fmtUsd2(s.priceUsd||0)} <small>≈ ${fmtKzt2(s.price||0)}</small></span>
+        </div>
+      </div>
+      <div class="stage-detail-body">
+        <div class="stage-detail-subtitle">Что разрабатываем в этом этапе:</div>
+        ${blocksHtml}
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
 
   const paymentsHtml=d.stages.map((s,i)=>`
     <tr><td>${i+1}</td><td>${escapeHtml(s.name)}</td><td>${i===0?'Аванс':'После сдачи Этапа '+i}</td><td style="text-align:right;font-family:monospace">${fmtUsd2(s.priceUsd||0)}</td><td style="text-align:right;font-family:monospace;color:#8B8B85">${fmtKzt2(s.price||0)}</td></tr>
@@ -4601,6 +4758,27 @@ h1{font-family:'Instrument Serif',Georgia,serif;font-size:54px;line-height:1.1;l
 .stage-card .stage-price{display:flex;flex-direction:column;gap:2px;margin-top:10px;padding-top:10px;border-top:1px solid #F3F0E8}
 .stage-card .stage-price-usd{font-family:monospace;font-size:18px;font-weight:700;color:#1A1A18}
 .stage-card .stage-price-kzt{font-family:monospace;font-size:11.5px;color:#8B8B85}
+.stage-blocks{list-style:none;margin:12px 0;padding:0;font-size:12px;color:#4A4A47;line-height:1.65}
+.stage-blocks li{padding-left:14px;position:relative}
+.stage-blocks li::before{content:'•';position:absolute;left:0;color:#8B8B85}
+.stage-blocks li.more{color:#8B8B85;font-style:italic;padding-left:14px}
+.stage-blocks li.more::before{content:'+'}
+.stage-details{display:flex;flex-direction:column;gap:30px;margin-top:30px}
+.stage-detail{background:#fff;border:1px solid #E8E6E0;border-left:4px solid var(--stage-color);border-radius:12px;overflow:hidden}
+.stage-detail-header{padding:20px 24px;background:#FAFAF7;border-bottom:1px solid #E8E6E0;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.stage-detail-num{display:inline-block;padding:4px 10px;background:#1A1A18;color:#fff;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.stage-detail-header h3{flex:1;font-family:'Geist',sans-serif;font-style:normal;font-size:18px;font-weight:600;color:#1A1A18;letter-spacing:-.01em;margin:0;min-width:200px}
+.stage-detail-meta{display:flex;gap:14px;align-items:center;font-size:12.5px;color:#4A4A47;flex-wrap:wrap}
+.stage-detail-price{font-family:monospace;font-weight:700;font-size:15px;color:#1A1A18}
+.stage-detail-price small{font-weight:400;font-size:11.5px;color:#8B8B85;margin-left:6px}
+.stage-detail-body{padding:20px 24px}
+.stage-detail-subtitle{font-size:11px;font-weight:600;color:#8B8B85;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px}
+.stage-detail-block{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #F3F0E8}
+.stage-detail-block:last-child{border-bottom:none}
+.stage-detail-bullet{width:6px;height:6px;border-radius:50%;margin-top:8px;flex-shrink:0}
+.stage-detail-content{flex:1}
+.stage-detail-content h5{font-size:13px;font-weight:600;color:#1A1A18;margin-bottom:2px}
+.stage-detail-content p{font-size:12px;color:#4A4A47;line-height:1.5;margin:0}
 .payment-option .price small{font-size:13px;color:#8B8B85;text-decoration:line-through;font-weight:400;margin-left:6px}
 .payment-option .badge{display:inline-block;font-size:10px;font-weight:700;color:#fff;background:#2F7A4F;padding:3px 9px;border-radius:100px;letter-spacing:.04em}
 .payment-option p{font-size:12px;color:#4A4A47;margin:6px 0 0}
@@ -4670,6 +4848,15 @@ table td{padding:10px;border-bottom:1px solid #E8E6E0;color:#1A1A18}
       ${stagesHtml}
     </div>
   </div>
+
+  ${detailedStagesHtml?`<div class="section">
+    <div class="section-tag">Детально по этапам</div>
+    <h2>Что разрабатываем в каждом этапе</h2>
+    <p>Подробный состав работ. Каждый блок — отдельный модуль системы со своим интерфейсом и логикой.</p>
+    <div class="stage-details">
+      ${detailedStagesHtml}
+    </div>
+  </div>`:''}
 
   <div class="section">
     <div class="section-tag">Стоимость</div>
