@@ -1135,14 +1135,14 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 <input type="text" id="npClientContact" class="new-proj-input" placeholder="+7 777 ..." maxlength="80" autocomplete="off">
 </div>
 </div>
-<div class="new-proj-tip">Имя обязательно — оно будет использоваться в архиве и документах. <b>Опишите нишу и функционал ниже</b> чтобы AI собрал схему автоматически, или выберите готовый шаблон.</div>
+<div class="new-proj-tip">Имя обязательно — оно будет использоваться в архиве и документах. <b>Опишите нишу и функционал ниже</b> чтобы Pllato CRM Agent собрал схему автоматически, или выберите готовый шаблон.</div>
 </div>
 
 <!-- AI description block -->
 <div class="new-proj-ai-section">
 <div class="new-proj-ai-header">
 <div class="new-proj-ai-icon"><i data-lucide="sparkles"></i></div>
-<div class="new-proj-ai-title">Собрать схему с AI <span>опишите бизнес или прикрепите ТЗ</span></div>
+<div class="new-proj-ai-title">Собрать схему с Pllato CRM Agent <span>опишите бизнес или прикрепите ТЗ</span></div>
 </div>
 <textarea id="npAiDescription" class="new-proj-ai-textarea" placeholder="Например: Онлайн-школа казахского языка для русскоговорящих. Преподаватели проводят занятия по Zoom. Принимаем оплату через Kaspi. Хотим вести базу учеников, расписание, прогресс. На третьем этапе — Telegram-бот для напоминаний." maxlength="50000"></textarea>
 <div class="new-proj-ai-actions">
@@ -1165,7 +1165,7 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 <div class="ai-loader-overlay" id="aiLoaderOverlay">
 <div class="ai-loader-card">
 <div class="ai-loader-icon"><i data-lucide="sparkles"></i></div>
-<div class="ai-loader-title" id="aiLoaderTitle">AI собирает вашу схему</div>
+<div class="ai-loader-title" id="aiLoaderTitle">Pllato CRM Agent собирает вашу схему</div>
 <div class="ai-loader-stage" id="aiLoaderStage">Анализируем описание...</div>
 <div class="ai-loader-bar"></div>
 <div class="ai-loader-tip">Это займёт 20-40 секунд. AI продумывает архитектуру, разбивает на этапы и расставляет связи.</div>
@@ -1401,7 +1401,7 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 <input type="number" id="dfUsdRate" min="100" max="10000" step="1" style="width:120px;padding:8px 10px;border:1px solid var(--border-strong);border-radius:7px;font-family:var(--font-mono);font-size:13px" placeholder="525">
 </div>
 <button id="btnRecalcStages" class="btn ghost" style="white-space:nowrap"><i data-lucide="refresh-cw" class="icon"></i> Пересчитать по схеме</button>
-<button id="btnAiEstimateStages" class="btn ghost" style="white-space:nowrap"><i data-lucide="sparkles" class="icon"></i> AI: уточнить сроки</button>
+<button id="btnAiEstimateStages" class="btn ghost" style="white-space:nowrap"><i data-lucide="sparkles" class="icon"></i> Pllato Agent: уточнить сроки</button>
 </div>
 <table class="doc-stages-table" id="stagesTable">
 <thead><tr><th style="width:30px"></th><th>Название этапа</th><th style="width:120px">Срок (нед.)</th><th style="width:120px">Сумма ($)</th><th style="width:140px">Сумма (₸)</th><th style="width:36px"></th></tr></thead>
@@ -2623,6 +2623,29 @@ shareConsent.addEventListener('change',()=>{
 // GLOBAL STATE — projects, recording, AI suggestions
 // ============================================================
 const WORKER_URL='https://pllato-research.uurraa.workers.dev';
+// Базовый URL для красивых ссылок. После настройки CNAME crm.pllato.kz → меняем на 'https://crm.pllato.kz'.
+// Пока ссылки идут через workers.dev (тоже работает с маршрутами /p/X и /crm/X)
+const SHARE_BASE='https://pllato-research.uurraa.workers.dev';
+
+// Генерация ID для ссылки на основе имени клиента
+function generateShareId(name){
+  // Транслитерация для русских/казахских букв
+  const map={
+    'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'e','ж':'zh','з':'z',
+    'и':'i','й':'i','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r',
+    'с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'ts','ч':'ch','ш':'sh','щ':'sch',
+    'ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',
+    'ә':'a','і':'i','ң':'n','ғ':'g','ү':'u','ұ':'u','қ':'k','ө':'o','һ':'h'
+  };
+  const slug=(name||'project').toLowerCase()
+    .split('').map(c=>map[c]!==undefined?map[c]:c).join('')
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/^-+|-+$/g,'')
+    .slice(0,40)||'project';
+  // Короткий хэш для уникальности
+  const hash=Math.random().toString(36).slice(2,7).toLowerCase();
+  return slug+'-'+hash;
+}
 
 // projectsState — глобально для доступа из recording
 const projectsState={projects:[],activeProject:null};
@@ -3027,17 +3050,17 @@ async function analyzeTranscript(isAuto){
       // DIFF режим — показываем предложения
       const actions=data.actions||[];
       if(actions.length===0){
-        if(!isAuto)showToast('AI не нашёл что добавить','info');
-        document.getElementById('floatRecState').textContent='AI: всё уже учтено в схеме';
+        if(!isAuto)showToast('Pllato Agent не нашёл что добавить','info');
+        document.getElementById('floatRecState').textContent='Pllato Agent: всё уже учтено в схеме';
         document.getElementById('floatRecState').classList.remove('ai-thinking');
       }else{
         showDiffPanel(actions,data.summary);
-        showToast(`AI предлагает ${actions.length} ${plural(actions.length,'правку','правки','правок')}`,'sparkles');
+        showToast(`Pllato Agent предлагает ${actions.length} ${plural(actions.length,'правку','правки','правок')}`,'sparkles');
       }
     }
   }catch(err){
     console.error('analyzeTranscript:',err);
-    showToast('Ошибка AI: '+err.message,'alert-circle');
+    showToast('Ошибка Pllato Agent: '+err.message,'alert-circle');
     document.getElementById('floatRecState').textContent='Ошибка AI-анализа';
     document.getElementById('floatRecState').classList.remove('ai-thinking');
   }finally{
@@ -3748,9 +3771,9 @@ async function aiEstimateAllStages(){
     renderStagesTable();
     if(updated>0){
       const totalWeeks=docState.stages.reduce((a,b)=>a+b.weeks,0);
-      showToast(`AI уточнил ${updated} этапов. Общий срок: ${totalWeeks} нед`,'sparkles');
+      showToast(`Pllato Agent уточнил ${updated} этапов. Общий срок: ${totalWeeks} нед`,'sparkles');
     }else{
-      showToast('AI не смог уточнить — оставлены текущие сроки','alert-circle');
+      showToast('Pllato Agent не смог уточнить — оставлены текущие сроки','alert-circle');
     }
   }catch(e){
     console.error('aiEstimateAllStages:',e);
@@ -4921,7 +4944,7 @@ async function generatePresentationPage(){
     }else if(aiCallsRemaining>0){
       // Генерируем через AI
       try{
-        showToast(`AI рисует «${label}»...`,'loader');
+        showToast(`Pllato Agent рисует «${label}»...`,'loader');
         const r=await fetch(WORKER_URL+'/api/generate-mockup',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
@@ -4980,10 +5003,12 @@ async function generatePresentationPage(){
     edgesCount:state.edges.length,
     mockups,
     separateTzItems,
+    prototypeUrl:project.prototypeUrl||null,
   });
 
-  // 5. Загружаем в R2
-  const pageKey=`p/${safeKey(project.id)}-${Date.now()}.html`;
+  // 5. Загружаем в R2 — ключ с именем клиента для красивых ссылок /p/<safeId>
+  const safeId=generateShareId(project.name||'project');
+  const pageKey=`p/${safeId}.html`;
   try{
     const r=await fetch(WORKER_URL+'/api/page/upload?key='+encodeURIComponent(pageKey),{
       method:'POST',
@@ -4992,9 +5017,11 @@ async function generatePresentationPage(){
     });
     const data=await r.json();
     if(data.ok){
-      const url=data.viewUrl;
+      // Красивая ссылка /p/<safeId> (через SHARE_BASE)
+      const url=SHARE_BASE+'/p/'+safeId;
       project.presentationUrl=url;
       project.presentationKey=pageKey;
+      project.presentationSafeId=safeId;
       project.screenshotKey=screen.key;
       project.updatedAt=Date.now();
       saveProjects();
@@ -5272,6 +5299,16 @@ table td{padding:10px;border-bottom:1px solid #E8E6E0;color:#1A1A18}
     </div>
   </div>`:''}
 
+  ${d.prototypeUrl?`<div class="section" style="background:linear-gradient(135deg,#F4EFFB 0%,#EEF2FB 100%);padding:32px;border-radius:16px;margin:30px 0">
+    <div class="section-tag">Тестовый прототип</div>
+    <h2>Попробуйте CRM прямо сейчас</h2>
+    <p>Мы подготовили интерактивный прототип вашей CRM-системы с тестовыми данными. Откройте ссылку — можно добавлять лидов, перетаскивать карточки в воронке, ставить задачи. Это позволит почувствовать как будет работать система в реальной жизни.</p>
+    <div style="margin-top:24px;text-align:center">
+      <a href="${d.prototypeUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:10px;padding:16px 28px;background:linear-gradient(135deg,#6B46C1,#3B5FB8);color:#fff;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px;box-shadow:0 8px 24px rgba(107,70,193,0.3)">🚀 Открыть тестовый CRM →</a>
+    </div>
+    <p style="font-size:12px;color:#8B8B85;margin-top:14px;text-align:center;font-style:italic">Прототип — это демонстрация интерфейса. Финальная система разрабатывается согласно одобренной презентации.</p>
+  </div>`:''}
+
   <div class="contacts">
     <h2>Связаться</h2>
     <dl>
@@ -5287,9 +5324,669 @@ table td{padding:10px;border-bottom:1px solid #E8E6E0;color:#1A1A18}
     Презентация создана ${new Date().toLocaleDateString('ru-RU')} · pllato.kz
   </div>
 
+  <div style="max-width:840px;margin:30px auto 0;padding:18px 24px;background:#FAFAF7;border:1px solid #E8E6E0;border-radius:10px;font-size:11.5px;color:#8B8B85;line-height:1.6">
+    <p style="font-weight:600;color:#4A4A47;margin-bottom:6px">© Pllato.kz, ${new Date().getFullYear()} · Авторская разработка</p>
+    <p>Архитектура CRM, план работ и методология, представленные в этом документе, являются результатом интеллектуальной деятельности студии Pllato (ИП «STUDYSTORIES.APP», БИН 880607300110) и охраняются авторским правом РК. Воспроизведение, копирование, передача третьим лицам или коммерческое использование без письменного согласия автора запрещены.</p>
+  </div>
+
 </div>
 </body>
 </html>`;
+}
+
+// ============================================================
+// ГЕНЕРАЦИЯ PDF ПРЕЗЕНТАЦИИ
+// ============================================================
+// Использует pdfmake (уже подключён). Все картинки конвертируются в PNG base64.
+
+// Конвертация SVG-строки в PNG dataURL (для pdfmake)
+function svgStringToPngDataUrl(svgString, targetWidth, targetHeight){
+  return new Promise((resolve,reject)=>{
+    try{
+      // Парсим viewBox если есть, иначе берём заданный размер
+      const viewBoxMatch=svgString.match(/viewBox=["']([^"']+)["']/);
+      let vbW=800, vbH=500;
+      if(viewBoxMatch){
+        const parts=viewBoxMatch[1].trim().split(/\s+/);
+        if(parts.length===4){vbW=parseFloat(parts[2]);vbH=parseFloat(parts[3])}
+      }
+      // Целевые размеры (если не заданы — пропорционально)
+      const w=targetWidth||vbW;
+      const h=targetHeight||Math.round(w*vbH/vbW);
+
+      // Убедимся что в SVG есть xmlns
+      let svgFixed=svgString;
+      if(!/xmlns=/.test(svgFixed)){
+        svgFixed=svgFixed.replace(/<svg/,'<svg xmlns="http://www.w3.org/2000/svg"');
+      }
+      // Убедимся что есть width/height для корректного рендера
+      if(!/<svg[^>]+width=/.test(svgFixed)){
+        svgFixed=svgFixed.replace(/<svg/,`<svg width="${w}" height="${h}"`);
+      }
+
+      const blob=new Blob([svgFixed],{type:'image/svg+xml;charset=utf-8'});
+      const url=URL.createObjectURL(blob);
+      const img=new Image();
+      const timeout=setTimeout(()=>{
+        URL.revokeObjectURL(url);
+        reject(new Error('SVG render timeout'));
+      },8000);
+      img.onload=()=>{
+        clearTimeout(timeout);
+        try{
+          const SCALE=1.5;
+          const c=document.createElement('canvas');
+          c.width=w*SCALE;c.height=h*SCALE;
+          const ctx=c.getContext('2d');
+          ctx.fillStyle='#FAFAF7';ctx.fillRect(0,0,c.width,c.height);
+          ctx.drawImage(img,0,0,c.width,c.height);
+          const dataUrl=c.toDataURL('image/png',0.85);
+          URL.revokeObjectURL(url);
+          resolve({dataUrl,width:w,height:h});
+        }catch(e){
+          URL.revokeObjectURL(url);
+          reject(e);
+        }
+      };
+      img.onerror=()=>{
+        clearTimeout(timeout);
+        URL.revokeObjectURL(url);
+        reject(new Error('SVG image load error'));
+      };
+      img.src=url;
+    }catch(e){reject(e)}
+  });
+}
+
+// Главная функция: собирает PDF и запускает скачивание
+async function generatePresentationPDF(){
+  if(typeof pdfMake==='undefined')throw new Error('pdfmake не загружен');
+  if(state.nodes.length===0)throw new Error('Схема пуста');
+
+  showToast('Готовлю PDF... (10-20 сек)','loader');
+
+  const project=projectsState.activeProject||{name:dom.projectName.value||'Проект',id:'tmp'};
+  const c=getCustomerData();
+  const stages=docState.stages.length>0?docState.stages:extractStagesFromSchema();
+  const totalUsd=stages.reduce((a,b)=>a+(b.priceUsd||0),0);
+  const totalKzt=stages.reduce((a,b)=>a+(b.price||0),0);
+  const totalWeeks=stages.reduce((a,b)=>a+b.weeks,0);
+  const fullPriceUsd=Math.round(totalUsd*0.9);
+  const fullPriceKzt=Math.round(totalKzt*0.9);
+  const usdRate=getUsdRate();
+
+  // === 1. Скриншот схемы ===
+  let schemaImageData=null;
+  try{
+    const blob=await generateSchemaScreenshot();
+    if(blob){
+      schemaImageData=await new Promise((resolve,reject)=>{
+        const r=new FileReader();
+        r.onload=()=>resolve(r.result);
+        r.onerror=reject;
+        r.readAsDataURL(blob);
+      });
+    }
+  }catch(e){console.warn('Schema screenshot failed:',e)}
+
+  // === 2. Собираем UI-мокапы (то же что в онлайн-презентации) ===
+  const uniqueTypes=new Map();
+  state.nodes.forEach(n=>{
+    if(n.isNote||n.isStageFrame||n.type==='note'||n.type==='stage-frame')return;
+    if(!uniqueTypes.has(n.type))uniqueTypes.set(n.type,n.label||n.type);
+  });
+  // Сначала те для которых есть статичный мокап
+  const sortedTypes=[...uniqueTypes.entries()].sort((a,b)=>{
+    const aHas=MOCKUPS_AVAILABLE.includes(a[0])?0:1;
+    const bHas=MOCKUPS_AVAILABLE.includes(b[0])?0:1;
+    return aHas-bHas;
+  });
+
+  // Лимит для PDF — 8 мокапов чтобы файл не разрастался
+  const PDF_MOCKUP_LIMIT=8;
+  const mockupsForPdf=[];
+  for(const [type,label] of sortedTypes){
+    if(mockupsForPdf.length>=PDF_MOCKUP_LIMIT)break;
+    if(MOCKUPS[type]){
+      try{
+        const svg=MOCKUPS[type]();
+        const png=await svgStringToPngDataUrl(svg,640,400);
+        mockupsForPdf.push({type,label,dataUrl:png.dataUrl,w:png.width,h:png.height});
+      }catch(e){
+        console.warn('Mockup PDF skip:',type,e);
+      }
+    }
+  }
+
+  // === 3. Собираем separateTzItems (как в онлайн) ===
+  const TZ_NOTES={
+    'mobile-app':'Разработка мобильного приложения (iOS+Android) или PWA. Требует отдельного ТЗ, проектирования UX, согласования с App Store / Google Play. Срок 8-12 недель, стоимость от $5,000.',
+    'visa':'Подключение эквайринга Visa/Mastercard. Договор с банком-эквайером (минимум 2 месяца на одобрение), проверки безопасности, лицензирование. Стоимость по итогу переговоров с банком.',
+    'crypto':'Приём USDT и других крипто-платежей. Лицензирование, договор с криптопровайдером, юридическая проработка для РК. Стоимость по итогу.',
+    '1c':'Двусторонняя интеграция с 1С: Бухгалтерия / 1С: Управление торговлей. Требует доступа к серверу 1С и доработок на стороне 1С (отдельные специалисты). Срок 3-5 недель, от $1,500.',
+    'voice-ai':'AI-анализ звонков: транскрипция + оценка качества разговора. Требует контракта с провайдером (OpenAI/Deepgram), интеграции с телефонией. Срок 2-3 недели, от $1,500.',
+  };
+  const seenTypes=new Set();
+  const separateTzItems=[];
+  state.nodes.forEach(n=>{
+    if(!n.requiresSeparateTz||n.isNote||n.isStageFrame)return;
+    if(seenTypes.has(n.type))return;
+    seenTypes.add(n.type);
+    separateTzItems.push({
+      label:n.label||n.type,
+      note:TZ_NOTES[n.type]||'Требует отдельного ТЗ и согласований. Сроки и стоимость определяются по итогу обсуждения.',
+    });
+  });
+
+  // === 4. Форматирование ===
+  const fmtUsd=n=>'$'+new Intl.NumberFormat('en-US').format(Math.round(n));
+  const fmtKzt=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n))+' ₸';
+  const today=new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+
+  // Цвета этапов
+  const STAGE_HEX=['#2F7A4F','#B07D1A','#C2542B','#3B5FB8','#6B46C1','#B83E5F'];
+
+  // === 5. Строим content для pdfmake ===
+  const content=[];
+
+  // --- HERO страница ---
+  content.push(
+    {text:'Pllato',style:'brandName',margin:[0,40,0,0]},
+    {text:'CRM BUILDER',style:'brandTag',margin:[0,0,0,40]},
+    {text:'Коммерческое предложение',style:'heroLabel'},
+    {text:project.name||'Проект',style:'heroTitle',margin:[0,8,0,16]},
+    c.customerName?{text:`Для: ${c.customerName}`,style:'heroCustomer',margin:[0,0,0,6]}:{text:''},
+    {text:today,style:'heroDate',margin:[0,0,0,40]},
+    {
+      table:{
+        widths:['*','*'],
+        body:[[
+          {text:[{text:'Срок\n',style:'heroStatLabel'},{text:`${totalWeeks} ${plural(totalWeeks,'неделя','недели','недель')}`,style:'heroStatValue'}],border:[false,false,false,false]},
+          {text:[{text:'Стоимость\n',style:'heroStatLabel'},{text:fmtUsd(totalUsd),style:'heroStatValue'},{text:` · ${fmtKzt(totalKzt)}`,style:'heroStatSub'}],border:[false,false,false,false]},
+        ]],
+      },
+      margin:[0,20,0,0],
+    },
+    {text:'',pageBreak:'after'},
+  );
+
+  // --- Схема архитектуры ---
+  content.push({text:'Архитектура CRM',style:'sectionTag'});
+  content.push({text:'Как всё будет устроено',style:'h2',margin:[0,4,0,8]});
+  content.push({text:`Визуальная схема с ${state.nodes.filter(n=>!n.isStageFrame&&!n.isNote).length} модулями. Каждый блок — отдельный компонент системы. Цветом обозначены этапы разработки.`,style:'p',margin:[0,0,0,16]});
+  if(schemaImageData){
+    content.push({image:schemaImageData,fit:[500,600],alignment:'center',margin:[0,10,0,20]});
+  }
+  content.push({text:'',pageBreak:'after'});
+
+  // --- План работ (этапы) ---
+  content.push({text:'План работ',style:'sectionTag'});
+  content.push({text:`${stages.length} ${plural(stages.length,'этап','этапа','этапов')} разработки`,style:'h2',margin:[0,4,0,8]});
+  content.push({text:`Общий срок: ${totalWeeks} ${plural(totalWeeks,'неделя','недели','недель')}. Каждый этап — самостоятельный продукт. Между этапами 1-2 недели тестирования.`,style:'p',margin:[0,0,0,16]});
+
+  stages.forEach((s,i)=>{
+    const stageColor=STAGE_HEX[i%6];
+    const blocks=s.blocks||[];
+    content.push({
+      table:{
+        widths:['*'],
+        body:[[{
+          stack:[
+            {
+              columns:[
+                {text:`ЭТАП ${i+1}`,color:'#fff',fillColor:stageColor,style:'stageBadge',width:'auto'},
+                {text:`⏱ ${s.weeks} ${plural(s.weeks,'неделя','недели','недель')}`,style:'stageMetaRight',width:'auto',alignment:'right'},
+              ],
+              columnGap:8,
+            },
+            {text:s.name,style:'stageName',margin:[0,8,0,8]},
+            blocks.length>0?{
+              ul:blocks.slice(0,12).map(b=>b.label),
+              style:'stageBlocks',margin:[0,0,0,8],
+            }:{text:''},
+            {
+              columns:[
+                {text:fmtUsd(s.priceUsd||0),style:'stagePrice',width:'*'},
+                {text:`≈ ${fmtKzt(s.price||0)}`,style:'stagePriceKzt',width:'auto',alignment:'right'},
+              ],
+              margin:[0,4,0,0],
+            },
+          ],
+        }]],
+      },
+      layout:{
+        hLineWidth:()=>0,
+        vLineWidth:(i)=>i===0?3:0,
+        vLineColor:()=>stageColor,
+        paddingLeft:()=>14,paddingRight:()=>14,
+        paddingTop:()=>12,paddingBottom:()=>12,
+        fillColor:()=>'#FFFFFF',
+      },
+      margin:[0,0,0,12],
+    });
+  });
+
+  // --- Детально по этапам ---
+  if(stages.some(s=>s.blocks&&s.blocks.length>0)){
+    content.push({text:'',pageBreak:'after'});
+    content.push({text:'Детально по этапам',style:'sectionTag'});
+    content.push({text:'Что разрабатываем в каждом этапе',style:'h2',margin:[0,4,0,8]});
+    content.push({text:'Подробный состав работ. Каждый блок — отдельный модуль системы со своим интерфейсом и логикой.',style:'p',margin:[0,0,0,16]});
+
+    stages.forEach((s,i)=>{
+      const stageColor=STAGE_HEX[i%6];
+      const blocks=s.blocks||[];
+      if(blocks.length===0)return;
+
+      content.push({
+        columns:[
+          {text:`ЭТАП ${i+1}`,color:'#fff',fillColor:stageColor,style:'stageBadge',width:'auto'},
+          {text:s.name,style:'stageDetailTitle',width:'*'},
+        ],
+        columnGap:10,
+        margin:[0,16,0,4],
+      });
+      content.push({
+        columns:[
+          {text:`⏱ ${s.weeks} ${plural(s.weeks,'неделя','недели','недель')}`,style:'stageMetaRight',width:'auto'},
+          {text:`${fmtUsd(s.priceUsd||0)} · ≈ ${fmtKzt(s.price||0)}`,style:'stageMetaRight',width:'*',alignment:'right'},
+        ],
+        margin:[0,0,0,10],
+      });
+
+      blocks.forEach(b=>{
+        content.push({
+          columns:[
+            {text:'●',color:stageColor,width:10,fontSize:11,margin:[0,2,0,0]},
+            {
+              stack:[
+                {text:b.label,style:'detailBlockTitle'},
+                b.description?{text:b.description,style:'detailBlockDesc'}:{text:''},
+              ],
+              width:'*',
+            },
+          ],
+          columnGap:8,
+          margin:[0,4,0,4],
+        });
+      });
+    });
+  }
+
+  // --- UI Мокапы ---
+  if(mockupsForPdf.length>0){
+    content.push({text:'',pageBreak:'after'});
+    content.push({text:'Интерфейсы CRM',style:'sectionTag'});
+    content.push({text:'Так это будет выглядеть в работе',style:'h2',margin:[0,4,0,8]});
+    content.push({text:`Примеры интерфейсов модулей вашей CRM. Финальный дизайн будет согласован отдельно — у нас более 50 шаблонов на выбор.`,style:'p',margin:[0,0,0,16]});
+
+    mockupsForPdf.forEach((m,idx)=>{
+      content.push({text:m.label,style:'mockupTitle',margin:[0,8,0,4]});
+      content.push({image:m.dataUrl,fit:[500,320],alignment:'center',margin:[0,0,0,16]});
+      // Перенос на новую страницу после каждых 2 мокапов чтобы не сжимались
+      if((idx+1)%2===0&&idx<mockupsForPdf.length-1){
+        content.push({text:'',pageBreak:'after'});
+      }
+    });
+  }
+
+  // --- Варианты оплаты ---
+  content.push({text:'',pageBreak:'after'});
+  content.push({text:'Стоимость',style:'sectionTag'});
+  content.push({text:'Варианты оплаты',style:'h2',margin:[0,4,0,16]});
+
+  content.push({
+    columns:[
+      {
+        table:{widths:['*'],body:[[{
+          stack:[
+            {text:'Поэтапная оплата',style:'paymentTitle'},
+            {text:fmtUsd(totalUsd),style:'paymentPrice',margin:[0,8,0,0]},
+            {text:`≈ ${fmtKzt(totalKzt)}`,style:'paymentPriceKzt'},
+            {text:'Платите за каждый этап после сдачи. Удобно для длительных проектов.',style:'paymentDesc',margin:[0,8,0,0]},
+          ],
+        }]]},
+        layout:{
+          hLineWidth:()=>1,vLineWidth:()=>1,
+          hLineColor:()=>'#E8E6E0',vLineColor:()=>'#E8E6E0',
+          paddingLeft:()=>16,paddingRight:()=>16,paddingTop:()=>14,paddingBottom:()=>14,
+        },
+        width:'*',
+      },
+      {
+        table:{widths:['*'],body:[[{
+          stack:[
+            {text:'Полная предоплата',style:'paymentTitle'},
+            {columns:[
+              {text:fmtUsd(fullPriceUsd),style:'paymentPrice',width:'auto'},
+              {text:fmtUsd(totalUsd),style:'paymentPriceOld',width:'auto',margin:[6,4,0,0]},
+            ],margin:[0,8,0,0]},
+            {text:`≈ ${fmtKzt(fullPriceKzt)}`,style:'paymentPriceKzt'},
+            {text:'−10% СКИДКА',style:'paymentBadge',margin:[0,6,0,0]},
+            {text:`Один платёж до начала работ. Экономия ${fmtUsd(totalUsd-fullPriceUsd)}.`,style:'paymentDesc',margin:[0,6,0,0]},
+          ],
+        }]]},
+        layout:{
+          hLineWidth:()=>1,vLineWidth:()=>1,
+          hLineColor:()=>'#b8895a',vLineColor:()=>'#b8895a',
+          paddingLeft:()=>16,paddingRight:()=>16,paddingTop:()=>14,paddingBottom:()=>14,
+          fillColor:()=>'#FBF5EB',
+        },
+        width:'*',
+      },
+    ],
+    columnGap:10,
+    margin:[0,0,0,12],
+  });
+
+  content.push({text:`Цены указаны в USD. Расчёт в KZT по курсу 1 USD = ${usdRate} ₸ на дату подготовки предложения.`,style:'small',alignment:'center',margin:[0,4,0,16]});
+
+  // График платежей таблицей
+  content.push({text:'График платежей (поэтапно)',style:'h3',margin:[0,12,0,8]});
+  const paymentRows=[
+    [
+      {text:'№',style:'tableHead'},
+      {text:'За что',style:'tableHead'},
+      {text:'Когда',style:'tableHead'},
+      {text:'USD',style:'tableHead',alignment:'right'},
+      {text:'≈ ₸',style:'tableHead',alignment:'right'},
+    ],
+  ];
+  stages.forEach((s,i)=>{
+    paymentRows.push([
+      {text:String(i+1),style:'tableCell'},
+      {text:s.name,style:'tableCell'},
+      {text:i===0?'Аванс':'После сдачи Этапа '+i,style:'tableCell'},
+      {text:fmtUsd(s.priceUsd||0),style:'tableCell',alignment:'right'},
+      {text:fmtKzt(s.price||0),style:'tableCellMuted',alignment:'right'},
+    ]);
+  });
+  paymentRows.push([
+    {text:'',colSpan:3,style:'tableTotal'},'','',
+    {text:fmtUsd(totalUsd),style:'tableTotal',alignment:'right'},
+    {text:fmtKzt(totalKzt),style:'tableTotal',alignment:'right'},
+  ]);
+  content.push({
+    table:{widths:[20,'*',100,60,80],body:paymentRows,headerRows:1},
+    layout:{
+      hLineWidth:(i)=>i===0||i===1||i===paymentRows.length-1||i===paymentRows.length?1:0.5,
+      vLineWidth:()=>0,
+      hLineColor:()=>'#E8E6E0',
+      paddingLeft:()=>6,paddingRight:()=>6,paddingTop:()=>6,paddingBottom:()=>6,
+    },
+    margin:[0,0,0,12],
+  });
+
+  // --- Дополнительные возможности ---
+  if(separateTzItems.length>0){
+    content.push({text:'',pageBreak:'after'});
+    content.push({text:'Дополнительные возможности',style:'sectionTag'});
+    content.push({text:'По отдельному договору',style:'h2',margin:[0,4,0,8]});
+    content.push({text:'Эти модули требуют отдельного ТЗ и согласований с партнёрами (банки, провайдеры лицензий). В базовое предложение не входят.',style:'p',margin:[0,0,0,16]});
+
+    separateTzItems.forEach(it=>{
+      content.push({
+        table:{widths:['*'],body:[[{
+          stack:[
+            {text:`⚠️ ${it.label}`,style:'tzTitle'},
+            {text:it.note,style:'tzNote',margin:[0,4,0,0]},
+          ],
+        }]]},
+        layout:{
+          hLineWidth:()=>1,vLineWidth:()=>1,
+          hLineColor:()=>'#F0D87A',vLineColor:()=>'#F0D87A',
+          paddingLeft:()=>14,paddingRight:()=>14,paddingTop:()=>12,paddingBottom:()=>12,
+          fillColor:()=>'#FBF5E7',
+        },
+        margin:[0,0,0,10],
+      });
+    });
+  }
+
+  // --- Прототип (если есть) ---
+  const protoUrl=(projectsState.activeProject&&projectsState.activeProject.prototypeUrl)||null;
+  if(protoUrl){
+    content.push({text:'',pageBreak:'after'});
+    content.push({text:'Тестовый прототип',style:'sectionTag'});
+    content.push({text:'Попробуйте CRM прямо сейчас',style:'h2',margin:[0,4,0,8]});
+    content.push({text:'Мы подготовили интерактивный прототип вашей CRM-системы с тестовыми данными. Откройте ссылку ниже — можно добавлять лидов, перетаскивать карточки в воронке, ставить задачи. Это позволит почувствовать как будет работать система в реальной жизни.',style:'p',margin:[0,0,0,16]});
+
+    content.push({
+      table:{widths:['*'],body:[[{
+        stack:[
+          {text:'🚀 Откройте прототип:',style:'pBold',alignment:'center'},
+          {text:protoUrl,link:protoUrl,style:'protoLink',alignment:'center',margin:[0,8,0,0]},
+        ],
+      }]]},
+      layout:{
+        hLineWidth:()=>1,vLineWidth:()=>1,
+        hLineColor:()=>'#6B46C1',vLineColor:()=>'#6B46C1',
+        paddingLeft:()=>20,paddingRight:()=>20,paddingTop:()=>20,paddingBottom:()=>20,
+        fillColor:()=>'#F4EFFB',
+      },
+      margin:[0,0,0,12],
+    });
+    content.push({text:'Прототип — это демонстрация интерфейса. Финальная система разрабатывается согласно одобренной презентации.',style:'small',italics:true,margin:[0,4,0,0]});
+  }
+
+  // --- Контакты ---
+  content.push({text:'',pageBreak:'after'});
+  content.push({text:'Контакты',style:'sectionTag'});
+  content.push({text:'Связаться со студией',style:'h2',margin:[0,4,0,16]});
+
+  const contactTable=[
+    [{text:'Студия',style:'tableCell'},{text:'Pllato · ИП «STUDYSTORIES.APP»',style:'tableCellBold'}],
+    [{text:'БИН',style:'tableCell'},{text:'880607300110',style:'tableCellMono'}],
+    [{text:'WhatsApp',style:'tableCell'},{text:'+7 701 123 99 99',style:'tableCellBold',color:'#b8895a'}],
+    [{text:'Email',style:'tableCell'},{text:'uurraa@gmail.com',style:'tableCellBold',color:'#b8895a'}],
+    [{text:'Сайт',style:'tableCell'},{text:'pllato.kz',style:'tableCellBold',color:'#b8895a'}],
+    [{text:'Адрес',style:'tableCell'},{text:'г. Алматы, мкр. Орбита-4, дом 3, оф. 2',style:'tableCell'}],
+  ];
+  content.push({
+    table:{widths:[120,'*'],body:contactTable},
+    layout:{
+      hLineWidth:(i,n)=>i===0||i===n.table.body.length?0:0.5,
+      vLineWidth:()=>0,
+      hLineColor:()=>'#F3F0E8',
+      paddingLeft:()=>6,paddingRight:()=>6,paddingTop:()=>10,paddingBottom:()=>10,
+    },
+    margin:[0,0,0,20],
+  });
+
+  // --- Правовая информация (отдельная страница в конце) ---
+  content.push({text:'',pageBreak:'after'});
+  content.push({text:'Правовая информация',style:'sectionTag'});
+  content.push({text:'Авторские права',style:'h2',margin:[0,4,0,16]});
+
+  content.push({text:'Настоящий документ является результатом интеллектуальной деятельности студии «Pllato» (ИП «STUDYSTORIES.APP», БИН 880607300110, юр.адрес: г. Алматы, мкр. Орбита-4, дом 3, оф. 2).',style:'p',margin:[0,0,0,10]});
+
+  content.push({text:'Архитектура CRM-системы, план работ, методология реализации, предложенные технические решения и состав модулей охраняются авторским правом в соответствии с Законом Республики Казахстан от 10.06.1996 № 6-I «Об авторском праве и смежных правах».',style:'p',margin:[0,0,0,10]});
+
+  content.push({text:'Запрещается:',style:'pBold',margin:[0,10,0,4]});
+  content.push({
+    ul:[
+      'Воспроизведение, копирование или распространение настоящего документа, в том числе в электронной форме, без письменного согласия автора;',
+      'Передача документа третьим лицам, не являющимся непосредственными получателями коммерческого предложения;',
+      'Использование описанных в документе решений, архитектуры и методологии в коммерческих целях иными исполнителями;',
+      'Извлечение материалов документа для последующей реализации идентичных или схожих проектов сторонними разработчиками.',
+    ],
+    style:'p',margin:[10,0,0,12],
+  });
+
+  content.push({text:'Настоящий документ предназначен исключительно для лица или организации, которым он был направлен в качестве коммерческого предложения. Его получение не означает заключение договора и не накладывает на автора обязательств по реализации описанных решений без подписания соответствующего соглашения.',style:'p',margin:[0,0,0,10]});
+
+  content.push({text:'При выявлении нарушений авторских прав студия Pllato оставляет за собой право обращения в судебные органы РК с требованием компенсации в порядке, установленном законодательством.',style:'p',margin:[0,0,0,16]});
+
+  content.push({
+    table:{widths:['*'],body:[[{
+      stack:[
+        {text:'© Pllato.kz, '+new Date().getFullYear(),style:'copyrightLine',alignment:'center'},
+        {text:'Авторская разработка студии Pllato',style:'copyrightSubLine',alignment:'center',margin:[0,4,0,0]},
+      ],
+    }]]},
+    layout:{
+      hLineWidth:()=>1,vLineWidth:()=>1,
+      hLineColor:()=>'#D6D3CC',vLineColor:()=>'#D6D3CC',
+      paddingLeft:()=>20,paddingRight:()=>20,paddingTop:()=>14,paddingBottom:()=>14,
+      fillColor:()=>'#FAFAF7',
+    },
+  });
+
+  // === 6. Документ pdfmake ===
+  const docDef={
+    pageSize:'A4',
+    pageMargins:[40,50,40,60],
+    info:{
+      title:`Презентация · ${project.name||'Pllato'}`,
+      author:'Pllato',
+      creator:'Pllato CRM Builder',
+      subject:'Коммерческое предложение по разработке CRM',
+    },
+    // Футер с копирайтом на каждой странице
+    footer:(currentPage,pageCount)=>({
+      columns:[
+        {text:`© Pllato.kz, ${new Date().getFullYear()} · Авторская разработка`,style:'footerLeft',width:'*'},
+        {text:`Стр. ${currentPage} из ${pageCount}`,style:'footerRight',width:'auto',alignment:'right'},
+      ],
+      margin:[40,20,40,0],
+    }),
+    content,
+    styles:{
+      brandName:{font:'Roboto',fontSize:28,bold:true,color:'#0a1628'},
+      brandTag:{fontSize:10,bold:true,color:'#b8895a',characterSpacing:2},
+      heroLabel:{fontSize:10,color:'#8B8B85',characterSpacing:1.5,bold:true},
+      heroTitle:{fontSize:32,bold:true,color:'#1A1A18'},
+      heroCustomer:{fontSize:14,color:'#4A4A47'},
+      heroDate:{fontSize:11,color:'#8B8B85'},
+      heroStatLabel:{fontSize:10,color:'#8B8B85',bold:true,characterSpacing:1},
+      heroStatValue:{fontSize:20,bold:true,color:'#1A1A18'},
+      heroStatSub:{fontSize:11,color:'#8B8B85'},
+
+      sectionTag:{fontSize:10,bold:true,color:'#b8895a',characterSpacing:2},
+      h2:{fontSize:22,bold:true,color:'#1A1A18'},
+      h3:{fontSize:14,bold:true,color:'#1A1A18'},
+      p:{fontSize:11,color:'#4A4A47',lineHeight:1.5},
+      pBold:{fontSize:11,bold:true,color:'#1A1A18'},
+      small:{fontSize:9,color:'#8B8B85'},
+
+      stageBadge:{fontSize:9,bold:true,characterSpacing:1,margin:[6,3,6,3]},
+      stageName:{fontSize:14,bold:true,color:'#1A1A18'},
+      stageBlocks:{fontSize:10,color:'#4A4A47',lineHeight:1.4},
+      stagePrice:{fontSize:18,bold:true,color:'#1A1A18'},
+      stagePriceKzt:{fontSize:11,color:'#8B8B85'},
+      stageMetaRight:{fontSize:11,color:'#4A4A47'},
+      stageDetailTitle:{fontSize:15,bold:true,color:'#1A1A18',margin:[0,2,0,0]},
+
+      detailBlockTitle:{fontSize:11,bold:true,color:'#1A1A18'},
+      detailBlockDesc:{fontSize:10,color:'#4A4A47',italics:true,margin:[0,2,0,0]},
+
+      mockupTitle:{fontSize:11,bold:true,color:'#1A1A18'},
+
+      paymentTitle:{fontSize:13,bold:true,color:'#1A1A18'},
+      paymentPrice:{fontSize:20,bold:true,color:'#1A1A18'},
+      paymentPriceOld:{fontSize:11,color:'#8B8B85',decoration:'lineThrough'},
+      paymentPriceKzt:{fontSize:11,color:'#8B8B85',margin:[0,2,0,0]},
+      paymentBadge:{fontSize:9,bold:true,color:'#b8895a',characterSpacing:1},
+      paymentDesc:{fontSize:10,color:'#4A4A47',lineHeight:1.4},
+
+      tableHead:{fontSize:9,bold:true,color:'#8B8B85',characterSpacing:0.5},
+      tableCell:{fontSize:10,color:'#4A4A47'},
+      tableCellBold:{fontSize:10,bold:true,color:'#1A1A18'},
+      tableCellMono:{fontSize:10,color:'#4A4A47'},
+      tableCellMuted:{fontSize:9,color:'#8B8B85'},
+      tableTotal:{fontSize:11,bold:true,color:'#1A1A18'},
+
+      tzTitle:{fontSize:12,bold:true,color:'#1A1A18'},
+      tzNote:{fontSize:10,color:'#7A5710',lineHeight:1.5},
+
+      protoLink:{fontSize:13,bold:true,color:'#6B46C1',decoration:'underline'},
+
+      copyrightLine:{fontSize:11,bold:true,color:'#4A4A47'},
+      copyrightSubLine:{fontSize:10,color:'#8B8B85',italics:true},
+
+      footerLeft:{fontSize:8,color:'#B5B5AE'},
+      footerRight:{fontSize:8,color:'#B5B5AE'},
+    },
+    defaultStyle:{font:'Roboto',fontSize:11,lineHeight:1.4},
+  };
+
+  // === 7. Скачивание ===
+  const safeName=(project.name||'Pllato').replace(/[^a-zA-Z0-9а-яА-ЯёЁ\s_-]/g,'').trim().replace(/\s+/g,'_').slice(0,40);
+  const dateStr=new Date().toISOString().slice(0,10);
+  const fileName=`Pllato_Презентация_${safeName}_${dateStr}.pdf`;
+
+  return new Promise((resolve,reject)=>{
+    try{
+      pdfMake.createPdf(docDef).download(fileName,()=>{
+        showToast('PDF готов!','check');
+        resolve();
+      });
+    }catch(e){reject(e)}
+  });
+}
+
+// ============================================================
+// ГЕНЕРАЦИЯ ТЕСТОВОГО CRM ПРОТОТИПА
+// ============================================================
+// Pllato CRM Agent → JSON-конфиг → upload в R2 → ссылка /crm/<safeId>
+
+async function generatePrototype(){
+  if(state.nodes.length===0)throw new Error('Схема пуста');
+
+  const project=projectsState.activeProject||{name:dom.projectName.value||'Проект',id:'tmp'};
+
+  // 1. Собираем данные для Agent: какие модули у клиента в схеме
+  const moduleTypes=new Set();
+  state.nodes.forEach(n=>{
+    if(n.isNote||n.isStageFrame)return;
+    moduleTypes.add(n.type);
+  });
+  const modules=Array.from(moduleTypes);
+
+  // Стадии воронки (если есть)
+  const pipelineNode=state.nodes.find(n=>n.isPipeline);
+  const pipelineStages=pipelineNode&&pipelineNode.stages?pipelineNode.stages:null;
+
+  // Контекст из описания (если есть)
+  let industryHint=project.name||'';
+  // Берём первую заметку как описание ниши, если есть
+  const firstNote=state.nodes.find(n=>n.isNote&&!n.isStageHeader&&!n.isStageFrame);
+  if(firstNote&&firstNote.description)industryHint+=' · '+firstNote.description;
+
+  // 2. Запрашиваем Agent
+  const r=await fetch(WORKER_URL+'/api/build-prototype',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      companyName:project.name||'Компания',
+      industry:industryHint,
+      modules,
+      pipelineStages,
+    }),
+  });
+  const data=await r.json();
+  if(!data.ok)throw new Error(data.error||'Pllato Agent не смог сгенерировать конфиг');
+
+  // 3. Загружаем конфиг в R2 под красивым ID
+  const safeId=generateShareId(project.name||'crm');
+  const upR=await fetch(WORKER_URL+'/api/prototype/upload?id='+encodeURIComponent(safeId),{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data.config),
+  });
+  const upData=await upR.json();
+  if(!upData.ok)throw new Error('Не удалось загрузить конфиг: '+(upData.error||''));
+
+  // 4. Формируем ссылку
+  const url=SHARE_BASE+'/crm/'+safeId;
+
+  // Сохраняем в проект
+  project.prototypeUrl=url;
+  project.prototypeSafeId=safeId;
+  project.updatedAt=Date.now();
+  if(typeof saveProjects==='function')saveProjects();
+
+  return url;
 }
 
 function initPresentation(){
@@ -5304,8 +6001,19 @@ function initPresentation(){
     block.innerHTML=`
       <h4>✨ Презентация для клиента</h4>
       <p>Красивая публичная страница: схема + план работ + оплата + контакты. Отправьте ссылку клиенту в WhatsApp — он откроет с телефона.</p>
-      <button class="btn primary" id="btnGenPresentation" style="width:100%;justify-content:center"><i data-lucide="sparkles" class="icon"></i> Создать презентацию</button>
+      <button class="btn primary" id="btnGenPresentation" style="width:100%;justify-content:center"><i data-lucide="sparkles" class="icon"></i> Создать онлайн-презентацию</button>
       <div id="presLink" style="display:none;margin-top:10px"></div>
+      <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px">
+        <h4 style="margin-bottom:6px">🚀 Тестовый CRM прототип</h4>
+        <p style="margin-bottom:8px">Кликабельный прототип CRM с тестовыми данными под нишу клиента. Можно потыкать: добавить лида, перетащить карточку в воронке. Данные сохраняются в браузере клиента.</p>
+        <button class="btn primary" id="btnGenPrototype" style="width:100%;justify-content:center;background:linear-gradient(135deg,#6B46C1,#3B5FB8);border:none"><i data-lucide="rocket" class="icon"></i> Создать тестовый CRM</button>
+        <div id="protoLink" style="display:none;margin-top:10px"></div>
+      </div>
+      <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px">
+        <h4 style="margin-bottom:6px">📄 Скачать PDF</h4>
+        <p style="margin-bottom:8px">Полная версия презентации в формате PDF — для архива, печати или отправки по email. С указанием авторских прав Pllato.</p>
+        <button class="btn" id="btnGenPDF" style="width:100%;justify-content:center;background:var(--accent-bronze-bg,#F4ECDC);color:var(--bronze-deep,#8b6740);border-color:#E8D5B7"><i data-lucide="file-down" class="icon"></i> Скачать PDF</button>
+      </div>
     `;
     body.appendChild(block);
     if(window.lucide)lucide.createIcons({nodes:[block]});
@@ -5313,21 +6021,119 @@ function initPresentation(){
     document.getElementById('btnGenPresentation').addEventListener('click',async()=>{
       const btn=document.getElementById('btnGenPresentation');
       btn.disabled=true;
-      btn.innerHTML='Генерирую...';
-      const url=await generatePresentationPage();
-      btn.disabled=false;
-      btn.innerHTML='<i data-lucide="refresh-cw" class="icon"></i> Пересоздать';
+      const origHtml=btn.innerHTML;
+      btn.innerHTML='<i data-lucide="loader" class="icon"></i> Создаю...';
       if(window.lucide)lucide.createIcons({nodes:[btn]});
-      if(url){
-        const linkDiv=document.getElementById('presLink');
-        linkDiv.style.display='block';
-        linkDiv.innerHTML=`<div class="preview-link"><input type="text" readonly value="${url}"><button class="btn primary" id="btnCopyPres" style="padding:6px 12px"><i data-lucide="copy" class="icon"></i></button><a href="${url}" target="_blank" class="btn" style="padding:6px 12px;text-decoration:none;color:inherit"><i data-lucide="external-link" class="icon"></i></a></div>`;
-        if(window.lucide)lucide.createIcons({nodes:[linkDiv]});
-        document.getElementById('btnCopyPres').addEventListener('click',async()=>{
-          try{await navigator.clipboard.writeText(url);showToast('Ссылка скопирована','check')}
-          catch(e){const i=linkDiv.querySelector('input');i.select();document.execCommand('copy');showToast('Ссылка скопирована','check')}
-        });
+
+      // Прогресс через тот же лоадер что у Agent
+      document.getElementById('aiLoaderTitle').textContent='Готовлю онлайн-презентацию';
+      showAiLoader('[1/4] Делаю скриншот схемы...');
+      // Этапы — переключаются по таймеру (для эффекта движения)
+      const stages=[
+        '[1/4] Делаю скриншот схемы...',
+        '[2/4] Готовлю UI мокапы интерфейсов...',
+        '[3/4] Собираю презентацию...',
+        '[4/4] Загружаю на сервер...',
+      ];
+      let sIdx=0;
+      const stageTimer=setInterval(()=>{
+        sIdx=Math.min(sIdx+1,stages.length-1);
+        setAiLoaderStage(stages[sIdx]);
+      },2500);
+
+      try{
+        const url=await generatePresentationPage();
+        clearInterval(stageTimer);
+        hideAiLoader();
+        btn.disabled=false;
+        btn.innerHTML='<i data-lucide="refresh-cw" class="icon"></i> Пересоздать';
+        if(window.lucide)lucide.createIcons({nodes:[btn]});
+        if(url){
+          const linkDiv=document.getElementById('presLink');
+          linkDiv.style.display='block';
+          linkDiv.innerHTML=`<div class="preview-link"><input type="text" readonly value="${url}"><button class="btn primary" id="btnCopyPres" style="padding:6px 12px"><i data-lucide="copy" class="icon"></i></button><a href="${url}" target="_blank" class="btn" style="padding:6px 12px;text-decoration:none;color:inherit"><i data-lucide="external-link" class="icon"></i></a></div>`;
+          if(window.lucide)lucide.createIcons({nodes:[linkDiv]});
+          document.getElementById('btnCopyPres').addEventListener('click',async()=>{
+            try{await navigator.clipboard.writeText(url);showToast('Ссылка скопирована','check')}
+            catch(e){const i=linkDiv.querySelector('input');i.select();document.execCommand('copy');showToast('Ссылка скопирована','check')}
+          });
+        }
+      }catch(err){
+        clearInterval(stageTimer);
+        hideAiLoader();
+        btn.disabled=false;
+        btn.innerHTML=origHtml;
+        if(window.lucide)lucide.createIcons({nodes:[btn]});
+        showToast('Ошибка: '+err.message,'alert-circle');
       }
+    });
+
+    // PROTOTYPE button — создаёт тестовый CRM прототип
+    document.getElementById('btnGenPrototype').addEventListener('click',async()=>{
+      const btn=document.getElementById('btnGenPrototype');
+      btn.disabled=true;
+      const origHtml=btn.innerHTML;
+      btn.innerHTML='<i data-lucide="loader" class="icon"></i> Создаю прототип...';
+      if(window.lucide)lucide.createIcons({nodes:[btn]});
+
+      document.getElementById('aiLoaderTitle').textContent='Pllato CRM Agent готовит ваш прототип';
+      showAiLoader('[1/4] Анализирую вашу схему...');
+      const stages=[
+        '[1/4] Анализирую вашу схему...',
+        '[2/4] Подбираю дизайн под нишу...',
+        '[3/4] Генерирую тестовые данные...',
+        '[4/4] Публикую прототип...',
+      ];
+      let sIdx=0;
+      const stageTimer=setInterval(()=>{
+        sIdx=Math.min(sIdx+1,stages.length-1);
+        setAiLoaderStage(stages[sIdx]);
+      },3500);
+
+      try{
+        const url=await generatePrototype();
+        clearInterval(stageTimer);
+        hideAiLoader();
+        btn.disabled=false;
+        btn.innerHTML='<i data-lucide="refresh-cw" class="icon"></i> Пересоздать прототип';
+        if(window.lucide)lucide.createIcons({nodes:[btn]});
+        if(url){
+          const linkDiv=document.getElementById('protoLink');
+          linkDiv.style.display='block';
+          linkDiv.innerHTML=`<div class="preview-link"><input type="text" readonly value="${url}"><button class="btn primary" id="btnCopyProto" style="padding:6px 12px"><i data-lucide="copy" class="icon"></i></button><a href="${url}" target="_blank" class="btn" style="padding:6px 12px;text-decoration:none;color:inherit"><i data-lucide="external-link" class="icon"></i></a></div>`;
+          if(window.lucide)lucide.createIcons({nodes:[linkDiv]});
+          document.getElementById('btnCopyProto').addEventListener('click',async()=>{
+            try{await navigator.clipboard.writeText(url);showToast('Ссылка на прототип скопирована','check')}
+            catch(e){const i=linkDiv.querySelector('input');i.select();document.execCommand('copy');showToast('Ссылка скопирована','check')}
+          });
+        }
+      }catch(err){
+        clearInterval(stageTimer);
+        hideAiLoader();
+        btn.disabled=false;
+        btn.innerHTML=origHtml;
+        if(window.lucide)lucide.createIcons({nodes:[btn]});
+        console.error('Prototype gen failed:',err);
+        showToast('Ошибка прототипа: '+err.message,'alert-circle');
+      }
+    });
+
+    // PDF download button
+    document.getElementById('btnGenPDF').addEventListener('click',async()=>{
+      const btn=document.getElementById('btnGenPDF');
+      btn.disabled=true;
+      const origHtml=btn.innerHTML;
+      btn.innerHTML='<i data-lucide="loader" class="icon"></i> Готовлю PDF...';
+      if(window.lucide)lucide.createIcons({nodes:[btn]});
+      try{
+        await generatePresentationPDF();
+      }catch(e){
+        console.error('PDF gen failed:',e);
+        showToast('Ошибка PDF: '+e.message,'alert-circle');
+      }
+      btn.disabled=false;
+      btn.innerHTML=origHtml;
+      if(window.lucide)lucide.createIcons({nodes:[btn]});
     });
   }
 }
@@ -5563,6 +6369,75 @@ function hideAiLoader(){
 }
 
 // Сборка проекта через AI
+// ============================================================
+// БАЗОВЫЙ КАРКАС CRM — одинаковый для всех проектов
+// ============================================================
+// Загружается ВСЕГДА при AI-сборке.
+// AI потом ДОБАВЛЯЕТ к нему специфичные модули по описанию ниши.
+
+const BASE_TEMPLATE_NODES = [
+  // === ЭТАП 1 ЗОНА ===
+  {type:'stage-frame',x:40,y:20,frameWidth:620,frameHeight:820,stageColor:'green',stageNum:1,label:'База CRM',description:'4 недели\nЛиды, контакты, воронка продаж, задачи, календарь'},
+  // === Модули Этап 1 ===
+  {type:'leads',x:80,y:220,label:'Лиды (заявки)',color:'green'},
+  {type:'pipeline',x:380,y:220,label:'Воронка продаж',stages:['Новый','В работе','Договор','Оплата'],color:'green'},
+  {type:'contacts',x:80,y:380,label:'Клиенты',color:'green'},
+  {type:'tasks',x:380,y:380,label:'Задачи команды',color:'green'},
+  {type:'calendar',x:80,y:520,label:'Календарь',color:'green'},
+  {type:'documents',x:380,y:520,label:'Документы',color:'green'},
+  {type:'deals',x:80,y:660,label:'Сделки',color:'green'},
+
+  // === ЭТАП 2 ЗОНА (пустая, AI может заполнить) ===
+  {type:'stage-frame',x:700,y:20,frameWidth:620,frameHeight:820,stageColor:'amber',stageNum:2,label:'Расширение',description:'Интеграции, финансы, документооборот\n(зависит от ниши)'},
+
+  // === ЭТАП 3 ЗОНА (пустая) ===
+  {type:'stage-frame',x:1360,y:20,frameWidth:620,frameHeight:820,stageColor:'orange',stageNum:3,label:'Автоматизация',description:'AI, боты, авто-триггеры\n(зависит от ниши)'},
+
+  // === ЭТАП 4 ЗОНА (пустая) ===
+  {type:'stage-frame',x:2020,y:20,frameWidth:620,frameHeight:820,stageColor:'blue',stageNum:4,label:'Доп. возможности',description:'Аналитика, отчёты, спец.интеграции\n(зависит от ниши)'},
+];
+
+const BASE_TEMPLATE_EDGES = [
+  // Лиды → Воронка
+  {sourceIdx:1, targetIdx:2, label:'квалификация'},
+  // Воронка → Сделки
+  {sourceIdx:2, targetIdx:7, label:'договор'},
+  // Сделки → Клиенты
+  {sourceIdx:7, targetIdx:3, label:'после оплаты'},
+];
+
+// Загружает базовый каркас CRM (используется при AI-сборке)
+function loadBaseTemplate(){
+  state.nodes.forEach(n=>{const el=document.getElementById(n.id);if(el)el.remove()});
+  state.nodes=[];state.edges=[];
+  state.boardId=uid();state.readonly=false;
+  dom.readonlyBanner.classList.remove('show');
+  history.replaceState(null,'',location.pathname);
+
+  // Добавляем все ноды базы
+  const idMap=[];
+  BASE_TEMPLATE_NODES.forEach((d,i)=>{
+    idMap[i]=addNode(d).id;
+  });
+
+  // Связи базы
+  BASE_TEMPLATE_EDGES.forEach(e=>{
+    if(idMap[e.sourceIdx]&&idMap[e.targetIdx]){
+      state.edges.push({
+        id:'e'+Math.random().toString(36).slice(2,9),
+        source:idMap[e.sourceIdx],
+        target:idMap[e.targetIdx],
+        label:e.label||'',
+      });
+    }
+  });
+
+  // Системные модули (внизу)
+  injectSystemModules();
+
+  return {idMap, baseNodeCount:state.nodes.length};
+}
+
 async function buildProjectWithAi(){
   const name=document.getElementById('npClientName').value.trim();
   if(!name){
@@ -5573,7 +6448,6 @@ async function buildProjectWithAi(){
     return;
   }
   const txt=(document.getElementById('npAiDescription').value||'').trim();
-  // Собираем описание: текст из textarea + текст из файла
   let description=txt;
   if(npAiState.fileText){
     if(description)description+='\n\n=== ДОПОЛНИТЕЛЬНО ИЗ ФАЙЛА ===\n\n'+npAiState.fileText;
@@ -5586,24 +6460,35 @@ async function buildProjectWithAi(){
 
   const contact=document.getElementById('npClientContact').value.trim();
   hideModal('newProjectModal');
-  showAiLoader('Подключаемся к AI...');
+  showAiLoader('Загружаем базовую CRM...');
 
-  // Прогрессивные сообщения чтобы пользователь видел движение
+  // 1. Создаём проект СРАЗУ
+  const proj=createProject(name);
+  if(contact)proj.clientContact=contact;
+  projectsState.activeProject=proj;
+  saveProjects();
+  dom.projectName.value=name;
+
+  // 2. Загружаем БАЗОВЫЙ КАРКАС (мгновенно)
+  loadBaseTemplate();
+  setAiLoaderStage('Анализируем описание ниши...');
+
+  // 3. Прогрессивные сообщения
   const stages=[
-    'Подключаемся к AI...',
-    'Анализируем описание бизнеса...',
-    'Определяем структуру этапов...',
-    'Подбираем модули CRM...',
-    'Расставляем блоки и связи...',
+    'Анализируем описание ниши...',
+    'Подбираем специфичные модули...',
+    'Расставляем блоки в этапах...',
+    'Добавляем связи...',
     'Финализируем архитектуру...',
   ];
   let sIdx=0;
   const stageTimer=setInterval(()=>{
     sIdx=(sIdx+1)%stages.length;
     setAiLoaderStage(stages[sIdx]);
-  },4000);
+  },3500);
 
   try{
+    // 4. Запрашиваем AI добавления к базе
     const r=await fetch(WORKER_URL+'/api/build-schema-from-description',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -5611,53 +6496,82 @@ async function buildProjectWithAi(){
     });
     const data=await r.json();
     clearInterval(stageTimer);
+
     if(!data.ok){
       hideAiLoader();
-      showToast('AI ошибка: '+(data.error||'неизвестная'),'alert-circle');
-      showModal('newProjectModal');
+      showToast('Pllato Agent ошибка: '+(data.error||'неизвестная')+'. Базовая CRM загружена.','alert-circle');
+      // База уже загружена — пользователь работает с ней
+      redrawEdges();updateMeta();
+      setTimeout(fitView,80);
+      scheduleAutoSave();
+      attachCurrentBoardToProject(proj.id);
       return;
     }
-    setAiLoaderStage('Загружаем схему на холст...');
-    // 1. Создаём проект
-    const proj=createProject(name);
-    if(contact)proj.clientContact=contact;
-    projectsState.activeProject=proj;
-    saveProjects();
 
-    // 2. Очищаем текущие ноды
-    state.nodes.forEach(n=>{const el=document.getElementById(n.id);if(el)el.remove()});
-    state.nodes=[];state.edges=[];
-    state.boardId=uid();state.readonly=false;
-    dom.readonlyBanner.classList.remove('show');
-    dom.projectName.value=data.schema.name||name;
+    setAiLoaderStage('Добавляем модули на канву...');
+    const result=data.result;
 
-    // 3. Добавляем nodes из AI
-    const idMap=[];
-    data.schema.nodes.forEach((d,i)=>{
+    // 5. Обновляем имя проекта если AI дал лучше
+    if(result.name&&result.name.length>3){
+      dom.projectName.value=result.name;
+    }
+
+    // 6. Обновляем pipeline.stages если AI предложил
+    if(result.pipelineStages&&result.pipelineStages.length>=2){
+      const pipelineNode=state.nodes.find(n=>n.isPipeline);
+      if(pipelineNode){
+        pipelineNode.stages=result.pipelineStages.slice(0,8);
+        renderNode(pipelineNode);
+      }
+    }
+
+    // 7. Добавляем AI-блоки (additions)
+    const addedIdsByType={};
+    let added=0,skipped=0;
+    (result.additions||[]).forEach((d,i)=>{
       try{
-        // Защита от мусора
-        if(!d.type){d.type='note';d.label=d.label||'AI: без типа'}
-        const n=addNode(d);
-        idMap[i]=n.id;
+        if(!d.type){console.warn('Skip: no type',d);skipped++;return}
+        // Защита: не добавляем дубликаты типов которые уже в базе
+        const existing=state.nodes.find(n=>n.type===d.type&&!n.isStageFrame);
+        if(existing&&['leads','contacts','tasks','calendar','documents','deals'].includes(d.type)){
+          console.log('Skip duplicate base module:',d.type);
+          skipped++;
+          return;
+        }
+        const node=addNode(d);
+        added++;
+        // Запоминаем последний добавленный блок каждого типа для связей
+        addedIdsByType[d.type]=node.id;
       }catch(e){
-        console.warn('Skip bad AI node',i,d,e);
-        idMap[i]=null;
+        console.warn('Skip bad AI node:',d,e);
+        skipped++;
       }
     });
 
-    // 4. Edges
-    (data.schema.edges||[]).forEach(e=>{
-      if(idMap[e.source]&&idMap[e.target]){
-        state.edges.push({
-          id:'e'+Math.random().toString(36).slice(2,9),
-          source:idMap[e.source],target:idMap[e.target],
-          label:e.label||'',
-        });
+    // 8. Связи через sourceType/targetType
+    let edgesAdded=0;
+    (result.edges||[]).forEach(e=>{
+      // Резолвим через тип: сначала ищем в новых, потом в базе
+      const findByType=(t)=>{
+        if(addedIdsByType[t])return addedIdsByType[t];
+        const n=state.nodes.find(x=>x.type===t&&!x.isStageFrame);
+        return n?n.id:null;
+      };
+      const sId=findByType(e.sourceType||e.source);
+      const tId=findByType(e.targetType||e.target);
+      if(sId&&tId&&sId!==tId){
+        // Не дублируем
+        const exists=state.edges.some(ex=>ex.source===sId&&ex.target===tId);
+        if(!exists){
+          state.edges.push({
+            id:'e'+Math.random().toString(36).slice(2,9),
+            source:sId,target:tId,
+            label:e.label||'',
+          });
+          edgesAdded++;
+        }
       }
     });
-
-    // 5. Системные модули
-    injectSystemModules();
 
     redrawEdges();updateMeta();
     setTimeout(fitView,80);
@@ -5665,13 +6579,19 @@ async function buildProjectWithAi(){
     attachCurrentBoardToProject(proj.id);
 
     hideAiLoader();
-    showToast(`Проект «${name}» собран AI: ${data.schema.nodes.length} блоков`,'sparkles');
+    const msg=`Проект «${name}» готов: база CRM + ${added} модулей для вашей ниши`;
+    showToast(msg,'sparkles');
+    console.log('AI build done:',{added,skipped,edgesAdded,summary:result.summary});
   }catch(err){
     clearInterval(stageTimer);
     hideAiLoader();
     console.error('AI build failed:',err);
-    showToast('Ошибка: '+err.message,'alert-circle');
-    showModal('newProjectModal');
+    showToast('Ошибка Pllato Agent: '+err.message+'. Базовая CRM загружена.','alert-circle');
+    // База уже на канве — продолжаем работать
+    redrawEdges();updateMeta();
+    setTimeout(fitView,80);
+    scheduleAutoSave();
+    attachCurrentBoardToProject(proj.id);
   }
 }
 
