@@ -2627,6 +2627,20 @@ const WORKER_URL='https://pllato-research.uurraa.workers.dev';
 // Пока ссылки идут через workers.dev (тоже работает с маршрутами /p/X и /crm/X)
 const SHARE_BASE='https://pllato-research.uurraa.workers.dev';
 
+// ============================================================
+// УТВЕРЖДЕНИЕ ЦЕН — конфигурация
+// ============================================================
+const STAGE_RANGE_DEFAULT={minKzt:490000,maxKzt:900000};
+const STARTER_INCLUDES_DEFAULT=[
+  {id:'transfer',label:'Перенос данных из Bitrix24, AmoCRM и других CRM',enabled:true},
+  {id:'channels',label:'Интеграция каналов: WhatsApp, Instagram, входящие звонки',enabled:true},
+  {id:'analytics',label:'Аналитика лидов и Дашборд работы CRM — 10 ключевых KPI',enabled:true},
+  {id:'pipeline',label:'CRM-воронка с автоматическими сообщениями по стадиям',enabled:true},
+  {id:'tasks',label:'Управление задачами, контактами и клиентской базой',enabled:true},
+  {id:'users',label:'Управление пользователями, ролями и правами доступа',enabled:true},
+  {id:'base',label:'Базовые функции: логин, чаты, уведомления, документы',enabled:true},
+];
+
 // Генерация ID для ссылки на основе имени клиента
 function generateShareId(name){
   // Транслитерация для русских/казахских букв
@@ -3574,6 +3588,61 @@ function setUsdRate(rate){
 
 function usdToKzt(usd){return Math.round(usd*getUsdRate())}
 function fmtUsd(n){return '$'+new Intl.NumberFormat('en-US').format(Math.round(n))}
+
+// ============================================================
+// УТВЕРЖДЕНИЕ ЦЕН — функции
+// ============================================================
+function getSchemaSignature(){
+  const realNodes=state.nodes.filter(n=>!n.isStageFrame&&!n.isNote);
+  const counts={};
+  realNodes.forEach(n=>{counts[n.type]=(counts[n.type]||0)+1});
+  return {totalBlocks:realNodes.length,typesCount:Object.keys(counts).length};
+}
+function schemaChangedSignificantly(approvedSig){
+  if(!approvedSig)return true;
+  const current=getSchemaSignature();
+  const blocksDiff=Math.abs(current.totalBlocks-approvedSig.totalBlocks);
+  const typesDiff=Math.abs(current.typesCount-(approvedSig.typesCount||0));
+  return blocksDiff>=4||typesDiff>=3;
+}
+function computeDefaultPricing(){
+  const stages=extractStagesFromSchema();
+  const firstStage=stages[0];
+  const stage1Usd=firstStage?(firstStage.priceUsd||1500):1500;
+  const stage1Kzt=usdToKzt(stage1Usd);
+  const stage1Weeks=firstStage?firstStage.weeks:4;
+  return {
+    stage1Kzt,stage1Usd,stage1Weeks,
+    rangeMinKzt:STAGE_RANGE_DEFAULT.minKzt,
+    rangeMaxKzt:STAGE_RANGE_DEFAULT.maxKzt,
+    includes:STARTER_INCLUDES_DEFAULT.map(it=>({...it})),
+  };
+}
+function getApprovedPricing(){
+  const project=projectsState.activeProject;
+  const computed=computeDefaultPricing();
+  if(!project||!project.approvedPricing)return {...computed,isApproved:false};
+  if(schemaChangedSignificantly(project.approvedPricing.schemaSnapshot)){
+    return {...computed,isApproved:false,wasReset:true};
+  }
+  return {...project.approvedPricing,isApproved:true};
+}
+function saveApprovedPricing(data){
+  const project=projectsState.activeProject;
+  if(!project)return;
+  project.approvedPricing={
+    stage1Kzt:Math.round(data.stage1Kzt||0),
+    stage1Usd:Math.round((data.stage1Kzt||0)/getUsdRate()),
+    stage1Weeks:Math.max(1,parseInt(data.stage1Weeks||4)),
+    rangeMinKzt:Math.round(data.rangeMinKzt||STAGE_RANGE_DEFAULT.minKzt),
+    rangeMaxKzt:Math.round(data.rangeMaxKzt||STAGE_RANGE_DEFAULT.maxKzt),
+    includes:(data.includes||[]).filter(it=>it.label&&it.label.trim()),
+    schemaSnapshot:getSchemaSignature(),
+    approvedAt:Date.now(),
+  };
+  project.updatedAt=Date.now();
+  saveProjects();
+}
 
 function extractStagesFromSchema(){
   // Группируем блоки по цвету (этапу)
@@ -5027,6 +5096,7 @@ async function generatePresentationPage(){
     mockups,
     separateTzItems,
     prototypeUrl:project.prototypeUrl||null,
+    approvedPricing:getApprovedPricing(),
   });
 
   // 5. Загружаем в R2 — ключ с именем клиента для красивых ссылок /p/<safeId>
@@ -5064,6 +5134,15 @@ function buildPresentationHtml(d){
   const fmtKzt2=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n))+' ₸';
   const fmtUsd2=n=>'$'+new Intl.NumberFormat('en-US').format(Math.round(n));
 
+  // Утверждённые цены (или расчётные если не утверждены)
+  const approvedP=d.approvedPricing||{};
+  const rangeMinKzt=approvedP.rangeMinKzt||490000;
+  const rangeMaxKzt=approvedP.rangeMaxKzt||900000;
+  const stage1KztApproved=approvedP.stage1Kzt||(d.stages[0]?d.stages[0].price:0)||0;
+  const stage1WeeksApproved=approvedP.stage1Weeks||(d.stages[0]?d.stages[0].weeks:4)||4;
+  const finalIncludes=Array.isArray(approvedP.includes)?approvedP.includes.filter(it=>it.enabled&&it.label&&it.label.trim()):[];
+  const restStagesCount=Math.max(0,d.stages.length-1);
+
   const stagesHtml=d.stages.map((s,i)=>{
     const colors=['#2F7A4F','#B07D1A','#C2542B','#3B5FB8','#6B46C1','#B83E5F'];
     const stageColor=colors[i%6];
@@ -5071,23 +5150,27 @@ function buildPresentationHtml(d){
     const blockListHtml=blocks.length>0
       ? `<ul class="stage-blocks">${blocks.slice(0,8).map(b=>`<li>${escapeHtml(b.label)}</li>`).join('')}${blocks.length>8?`<li class="more">+ ещё ${blocks.length-8}</li>`:''}</ul>`
       : '';
-    const isFirst=!!s.isFirstStage;
-    const isApprox=!!s.isApproximate;
+    const isFirst=i===0;
     const stageBadgeText=isFirst?'СТАРТОВЫЙ ЭТАП':`Этап ${i+1}`;
-    const priceHtml=isApprox
-      ? `<div class="stage-price">
-          <span class="stage-price-usd" style="color:#8B8B85">~${fmtUsd2(s.priceUsd||0)}</span>
-          <span class="stage-price-kzt">уточняется</span>
-        </div>`
-      : `<div class="stage-price">
-          <span class="stage-price-usd">${fmtUsd2(s.priceUsd||0)}</span>
-          <span class="stage-price-kzt">≈ ${fmtKzt2(s.price||0)}</span>
-        </div>`;
+    let priceHtml;
+    let weeksDisplay=s.weeks;
+    if(isFirst){
+      weeksDisplay=stage1WeeksApproved;
+      priceHtml=`<div class="stage-price">
+        <span class="stage-price-usd">${fmtKzt2(stage1KztApproved)}</span>
+        <span class="stage-price-kzt" style="color:#b8895a;font-weight:600">фиксированная цена</span>
+      </div>`;
+    }else{
+      priceHtml=`<div class="stage-price">
+        <span class="stage-price-usd" style="color:#8B8B85;font-size:15px">${fmtKzt2(rangeMinKzt)} — ${fmtKzt2(rangeMaxKzt)}</span>
+        <span class="stage-price-kzt">требует доп. согласования</span>
+      </div>`;
+    }
     return `<div class="stage-card ${isFirst?'stage-card-first':''}" style="border-left-color:${stageColor}">
       <div class="stage-num" style="background:${stageColor}">${stageBadgeText}</div>
       <h3>${escapeHtml(s.name)}</h3>
       <div class="stage-meta">
-        <span>⏱ ${s.weeks} ${plural(s.weeks,'неделя','недели','недель')}</span>
+        <span>⏱ ${weeksDisplay} ${plural(weeksDisplay,'неделя','недели','недель')}</span>
       </div>
       ${blockListHtml}
       ${priceHtml}
@@ -5126,13 +5209,22 @@ function buildPresentationHtml(d){
   }).filter(Boolean).join('');
 
   const paymentsHtml=d.stages.map((s,i)=>{
-    const isApprox=!!s.isApproximate;
-    const priceCell=isApprox
-      ? `<td style="text-align:right;font-family:monospace;color:#8B8B85">~${fmtUsd2(s.priceUsd||0)}<br><span style="font-size:10.5px;font-style:italic">уточняется</span></td>`
-      : `<td style="text-align:right;font-family:monospace"><b>${fmtUsd2(s.priceUsd||0)}</b><br><span style="font-size:10.5px;color:#8B8B85">${fmtKzt2(s.price||0)}</span></td>`;
-    const stageLabel=i===0?'<b style="color:#b8895a">✦ Старт</b>':`Этап ${i+1}`;
-    return `<tr><td>${stageLabel}</td><td>${escapeHtml(s.name)}</td><td>${s.weeks} ${plural(s.weeks,'нед.','нед.','нед.')}</td>${priceCell}</tr>`;
+    const isFirst=i===0;
+    let priceCell;
+    if(isFirst){
+      priceCell=`<td style="text-align:right;font-family:monospace"><b>${fmtKzt2(stage1KztApproved)}</b><br><span style="font-size:10.5px;color:#b8895a;font-weight:600">фиксированная</span></td>`;
+    }else{
+      priceCell=`<td style="text-align:right;font-family:monospace;color:#8B8B85">${fmtKzt2(rangeMinKzt)} — ${fmtKzt2(rangeMaxKzt)}<br><span style="font-size:10.5px;font-style:italic">требует доп. согласования</span></td>`;
+    }
+    const weeksDisplay=isFirst?stage1WeeksApproved:s.weeks;
+    const stageLabel=isFirst?'<b style="color:#b8895a">✦ Старт</b>':`Этап ${i+1}`;
+    return `<tr><td>${stageLabel}</td><td>${escapeHtml(s.name)}</td><td>${weeksDisplay} ${plural(weeksDisplay,'нед.','нед.','нед.')}</td>${priceCell}</tr>`;
   }).join('');
+
+  // Список "Что входит в стартовый этап" — рендерится в карточку оплаты
+  const includesListHtml=finalIncludes.length>0
+    ? `<ul style="margin:10px 0 0;padding:0;list-style:none">${finalIncludes.map(it=>`<li style="padding:5px 0 5px 22px;position:relative;font-size:13px;color:#3A3A37;line-height:1.5"><span style="position:absolute;left:0;top:5px;color:#2F7A4F;font-weight:700">✓</span>${escapeHtml(it.label)}</li>`).join('')}</ul>`
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="ru">
@@ -5297,34 +5389,33 @@ table td{padding:10px;border-bottom:1px solid #E8E6E0;color:#1A1A18}
   <div class="section">
     <div class="section-tag">Стоимость</div>
     <h2>Начинаем с базы — фиксированная цена</h2>
-    <p>Мы предлагаем стартовать с базового этапа CRM. Это рабочая система, которой можно пользоваться уже через ${d.stages[0]?d.stages[0].weeks:4} ${plural(d.stages[0]?d.stages[0].weeks:4,'неделю','недели','недель')}. Дальнейшие этапы согласуем после запуска базы — вы платите только за то, что действительно нужно.</p>
+    <p>Мы предлагаем стартовать с базового этапа CRM. Это рабочая система, которой можно пользоваться уже через ${stage1WeeksApproved} ${plural(stage1WeeksApproved,'неделю','недели','недель')}. Дальнейшие этапы согласуем после запуска базы — вы платите только за то, что действительно нужно.</p>
 
     <div class="payment-summary">
       <div class="payment-options">
         <div class="payment-option highlight starter-option">
           <div class="starter-badge">✦ С ЭТОГО НАЧИНАЕМ</div>
           <h4>Стартовый этап</h4>
-          <div class="price">${fmtUsd2(d.stages[0]?(d.stages[0].priceUsd||0):0)}</div>
-          <div class="price-secondary">≈ ${fmtKzt2(d.stages[0]?(d.stages[0].price||0):0)}</div>
-          <p><b>${d.stages[0]?d.stages[0].weeks:4} ${plural(d.stages[0]?d.stages[0].weeks:4,'неделя','недели','недель')}</b> · рабочая CRM с базовыми модулями</p>
-          <p style="margin-top:8px;font-size:11.5px;color:#5A5A55">Фиксированная цена, не меняется. Это всё что нужно чтобы начать работать с клиентами в системе.</p>
+          <div class="price">${fmtKzt2(stage1KztApproved)}</div>
+          <div class="price-secondary" style="color:#b8895a;font-weight:600">фиксированная цена</div>
+          <p style="margin-top:10px"><b>${stage1WeeksApproved} ${plural(stage1WeeksApproved,'неделя','недели','недель')}</b> · рабочая CRM с базовыми модулями</p>
+          ${includesListHtml?`<div style="margin-top:14px;padding-top:14px;border-top:1px solid #E8D5B7"><div style="font-size:11px;font-weight:700;color:#b8895a;letter-spacing:.06em;margin-bottom:4px">ЧТО ВХОДИТ</div>${includesListHtml}</div>`:''}
         </div>
         <div class="payment-option">
           <h4>Дальнейшее развитие</h4>
-          <div class="price" style="color:#8B8B85">~${fmtUsd2((d.totalUsd-(d.stages[0]?(d.stages[0].priceUsd||0):0)))}</div>
-          <div class="price-secondary">${d.stages.length>1?`${d.stages.length-1} ${plural(d.stages.length-1,'этап','этапа','этапов')}`:'0 этапов'} · уточняется</div>
-          <p><b>Ориентировочно ~$1,500 за этап</b>. Конкретный объём и цена согласуются после запуска базы.</p>
-          <p style="margin-top:8px;font-size:11.5px;color:#5A5A55">Вы решаете что и когда добавлять. Можно остановиться на базе или развивать дальше — это ваш выбор.</p>
+          <div class="price" style="color:#8B8B85;font-size:18px">${fmtKzt2(rangeMinKzt)} — ${fmtKzt2(rangeMaxKzt)}</div>
+          <div class="price-secondary">за этап · требует доп. согласования</div>
+          ${restStagesCount>0?`<p style="margin-top:10px"><b>${restStagesCount} ${plural(restStagesCount,'этап','этапа','этапов')} в плане</b>. Конкретный объём и цена согласуются после запуска базы.</p>`:'<p style="margin-top:10px">После запуска базовой CRM согласуем какие функции добавить.</p>'}
+          <p style="margin-top:8px;font-size:11.5px;color:#5A5A55">Вы решаете что и когда добавлять. Можно остановиться на базе или развивать дальше.</p>
         </div>
       </div>
-      <p style="font-size:11px;color:#8B8B85;margin-top:14px;text-align:center">Цены указаны в USD. Расчёт в KZT по курсу 1 USD = ${d.usdRate} ₸ на дату подготовки предложения.</p>
 
       <h4 style="margin:24px 0 10px;font-size:13px;color:#4A4A47;text-transform:uppercase;letter-spacing:.06em">Полный план разработки</h4>
       <table>
         <thead><tr><th>№</th><th>За что</th><th>Срок</th><th style="text-align:right">Стоимость</th></tr></thead>
         <tbody>${paymentsHtml}</tbody>
       </table>
-      <p style="font-size:11px;color:#8B8B85;margin-top:10px;font-style:italic">Этап 1 — фиксированная цена. Этапы 2+ — ориентировочные цифры, уточняются после запуска базы по согласованию с вами.</p>
+      <p style="font-size:11px;color:#8B8B85;margin-top:10px;font-style:italic">Этап 1 — фиксированная цена. Этапы 2+ — диапазон, требует дополнительного согласования после запуска базы.</p>
     </div>
   </div>
 
@@ -6162,6 +6253,52 @@ function initPresentation(){
     block.id='presBlock';
     block.className='presentation-block';
     block.innerHTML=`
+      <div id="pricingApprovalBlock" style="background:linear-gradient(135deg,#FBF5EB 0%,#FFFFFF 100%);border:2px solid #b8895a;border-radius:12px;padding:18px;margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <div>
+            <h4 style="margin:0;font-size:14px;color:#1A1A18">💰 Утверждение цен</h4>
+            <div style="font-size:11.5px;color:#8B8B85;margin-top:2px">Проверьте перед созданием материалов для клиента</div>
+          </div>
+          <button class="btn" id="btnPricingReset" style="font-size:11.5px;padding:6px 10px"><i data-lucide="rotate-ccw" class="icon"></i>Сбросить</button>
+        </div>
+        <div style="background:#FFFFFF;border:1px solid #E8D5B7;border-radius:10px;padding:14px;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <span style="background:#b8895a;color:#fff;padding:3px 9px;font-size:10px;font-weight:700;letter-spacing:.08em;border-radius:100px">✦ С ЭТОГО НАЧИНАЕМ</span>
+            <span style="font-weight:600;font-size:13px;color:#1A1A18">Стартовый этап</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <label style="display:block">
+              <span style="font-size:11px;color:#8B8B85;font-weight:500">Стоимость, ₸</span>
+              <input type="number" id="pricingStage1Kzt" min="0" step="10000" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:14px;font-weight:600;margin-top:3px;box-sizing:border-box">
+            </label>
+            <label style="display:block">
+              <span style="font-size:11px;color:#8B8B85;font-weight:500">Срок, недель</span>
+              <input type="number" id="pricingStage1Weeks" min="1" max="20" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:14px;font-weight:600;margin-top:3px;box-sizing:border-box">
+            </label>
+          </div>
+          <div style="margin-top:14px">
+            <div style="font-size:11px;color:#8B8B85;font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Что входит в этап (увидит клиент)</div>
+            <div id="pricingIncludesList" style="display:flex;flex-direction:column;gap:6px"></div>
+            <button class="btn" id="btnPricingAddInclude" style="margin-top:8px;font-size:12px;padding:6px 10px;width:100%;justify-content:center"><i data-lucide="plus" class="icon"></i>Добавить пункт</button>
+          </div>
+        </div>
+        <div style="background:#F7F8FA;border:1px solid #E5E7EB;border-radius:10px;padding:14px">
+          <div style="font-weight:600;font-size:13px;color:#1A1A18;margin-bottom:4px">Следующие этапы (после базы)</div>
+          <div style="font-size:11.5px;color:#8B8B85;margin-bottom:10px">Диапазон для одного этапа · уточняется после запуска базы</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <label style="display:block">
+              <span style="font-size:11px;color:#8B8B85;font-weight:500">От, ₸</span>
+              <input type="number" id="pricingRangeMin" min="0" step="10000" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:14px;font-weight:600;margin-top:3px;box-sizing:border-box">
+            </label>
+            <label style="display:block">
+              <span style="font-size:11px;color:#8B8B85;font-weight:500">До, ₸</span>
+              <input type="number" id="pricingRangeMax" min="0" step="10000" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:14px;font-weight:600;margin-top:3px;box-sizing:border-box">
+            </label>
+          </div>
+        </div>
+        <div id="pricingStatusLine" style="font-size:11.5px;color:#8B8B85;text-align:center;margin-top:10px"></div>
+      </div>
+
       <h4>✨ Презентация для клиента</h4>
       <p>Красивая публичная страница: схема + план работ + оплата + контакты. Отправьте ссылку клиенту в WhatsApp — он откроет с телефона.</p>
       <button class="btn primary" id="btnGenPresentation" style="width:100%;justify-content:center"><i data-lucide="sparkles" class="icon"></i> Создать онлайн-презентацию</button>
@@ -6190,34 +6327,152 @@ function initPresentation(){
     body.appendChild(block);
     if(window.lucide)lucide.createIcons({nodes:[block]});
 
+    // ============================================================
+    // УТВЕРЖДЕНИЕ ЦЕН — логика
+    // ============================================================
+    let pricingDraft=null;
+
+    function loadPricingDraft(){
+      const data=getApprovedPricing();
+      pricingDraft={
+        stage1Kzt:data.stage1Kzt,
+        stage1Weeks:data.stage1Weeks,
+        rangeMinKzt:data.rangeMinKzt,
+        rangeMaxKzt:data.rangeMaxKzt,
+        includes:(data.includes||[]).map(it=>({...it})),
+      };
+      document.getElementById('pricingStage1Kzt').value=pricingDraft.stage1Kzt;
+      document.getElementById('pricingStage1Weeks').value=pricingDraft.stage1Weeks;
+      document.getElementById('pricingRangeMin').value=pricingDraft.rangeMinKzt;
+      document.getElementById('pricingRangeMax').value=pricingDraft.rangeMaxKzt;
+      renderPricingIncludesList();
+      updatePricingStatusLine(data);
+    }
+
+    function updatePricingStatusLine(data){
+      const line=document.getElementById('pricingStatusLine');
+      if(!line)return;
+      if(data.wasReset){
+        line.innerHTML='⚠ Схема значительно изменилась — цены сброшены на расчётные';
+        line.style.color='#B07D1A';
+      }else if(data.isApproved){
+        line.innerHTML='✓ Утверждены ранее · можно подправить';
+        line.style.color='#2F7A4F';
+      }else{
+        line.innerHTML='Расчётные значения по схеме · можете подправить';
+        line.style.color='#8B8B85';
+      }
+    }
+
+    function renderPricingIncludesList(){
+      const list=document.getElementById('pricingIncludesList');
+      if(!list||!pricingDraft)return;
+      list.innerHTML='';
+      pricingDraft.includes.forEach((item,idx)=>{
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 8px;background:#FAFAF7;border-radius:7px;border:1px solid #F0EBE2';
+        const safeLabel=String(item.label||'').replace(/"/g,'&quot;');
+        row.innerHTML='<input type="checkbox" data-idx="'+idx+'" class="pi-check" '+(item.enabled?'checked':'')+' style="width:16px;height:16px;cursor:pointer;flex-shrink:0">'+
+          '<input type="text" data-idx="'+idx+'" class="pi-text" value="'+safeLabel+'" style="flex:1;border:none;background:transparent;font-size:12.5px;color:'+(item.enabled?'#1A1A18':'#9AA0A6')+';outline:none;padding:2px 0;'+(!item.enabled?'text-decoration:line-through':'')+'">'+
+          '<button class="pi-del" data-idx="'+idx+'" style="background:none;border:none;cursor:pointer;color:#9AA0A6;padding:2px;font-size:14px;line-height:1">✕</button>';
+        list.appendChild(row);
+      });
+      list.querySelectorAll('.pi-check').forEach(cb=>{
+        cb.addEventListener('change',e=>{
+          const i=parseInt(e.target.dataset.idx);
+          pricingDraft.includes[i].enabled=e.target.checked;
+          renderPricingIncludesList();
+          if(typeof refreshWaMessage==='function')refreshWaMessage();
+        });
+      });
+      list.querySelectorAll('.pi-text').forEach(inp=>{
+        inp.addEventListener('input',e=>{
+          const i=parseInt(e.target.dataset.idx);
+          pricingDraft.includes[i].label=e.target.value;
+        });
+        inp.addEventListener('blur',()=>{if(typeof refreshWaMessage==='function')refreshWaMessage();});
+      });
+      list.querySelectorAll('.pi-del').forEach(btn=>{
+        btn.addEventListener('click',e=>{
+          const i=parseInt(e.target.dataset.idx);
+          pricingDraft.includes.splice(i,1);
+          renderPricingIncludesList();
+          if(typeof refreshWaMessage==='function')refreshWaMessage();
+        });
+      });
+    }
+
+    ['pricingStage1Kzt','pricingStage1Weeks','pricingRangeMin','pricingRangeMax'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(!el)return;
+      el.addEventListener('input',e=>{
+        const val=parseFloat(e.target.value)||0;
+        if(id==='pricingStage1Kzt')pricingDraft.stage1Kzt=val;
+        else if(id==='pricingStage1Weeks')pricingDraft.stage1Weeks=val;
+        else if(id==='pricingRangeMin')pricingDraft.rangeMinKzt=val;
+        else if(id==='pricingRangeMax')pricingDraft.rangeMaxKzt=val;
+      });
+      el.addEventListener('blur',()=>{if(typeof refreshWaMessage==='function')refreshWaMessage();});
+    });
+
+    document.getElementById('btnPricingAddInclude').addEventListener('click',()=>{
+      if(!pricingDraft)return;
+      pricingDraft.includes.push({id:'custom_'+Date.now(),label:'',enabled:true});
+      renderPricingIncludesList();
+      setTimeout(()=>{
+        const inputs=document.querySelectorAll('.pi-text');
+        if(inputs.length>0)inputs[inputs.length-1].focus();
+      },50);
+    });
+
+    document.getElementById('btnPricingReset').addEventListener('click',()=>{
+      if(!confirm('Сбросить цены на расчётные по схеме?'))return;
+      const project=projectsState.activeProject;
+      if(project)delete project.approvedPricing;
+      saveProjects();
+      loadPricingDraft();
+      if(typeof refreshWaMessage==='function')refreshWaMessage();
+      showToast('Цены сброшены','check');
+    });
+
+    function approveAndSavePricing(){
+      if(pricingDraft)saveApprovedPricing(pricingDraft);
+    }
+    window.__pricingApproveAndSave=approveAndSavePricing;
+    window.__getPricingDraft=()=>pricingDraft;
+
+    loadPricingDraft();
+
     // Функция для построения сообщения клиенту
     function buildWaMessage(){
       const project=projectsState.activeProject;
       if(!project)return 'Создайте проект и сгенерируйте презентацию.';
       const c=getCustomerData();
-      const stages=docState.stages.length>0?docState.stages:extractStagesFromSchema();
-      const firstStage=stages[0];
-      const totalUsd=stages.reduce((a,b)=>a+(b.priceUsd||0),0);
-      const restCount=Math.max(0,stages.length-1);
-      const fmtUsdSimple=n=>'$'+new Intl.NumberFormat('en-US').format(Math.round(n));
+      // Берём цены из draft (живые) либо утверждённые/расчётные
+      const draft=(typeof window.__getPricingDraft==='function')?window.__getPricingDraft():null;
+      const p=draft||getApprovedPricing();
       const customerName=c.customerName||project.name||'';
       const projectName=project.name||'CRM-системы';
-      // Главные модули первого этапа
-      const firstStageBlocks=firstStage&&firstStage.blocks
-        ? firstStage.blocks.slice(0,6).map(b=>b.label).join(', ')
-        : 'лиды, воронка, клиенты, задачи, календарь, документы';
       const presUrl=project.presentationUrl||'';
       const protoUrl=project.prototypeUrl||'';
+
+      const fmtKztMsg=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n||0))+' ₸';
+      const enabledIncludes=(p.includes||[]).filter(it=>it.enabled&&it.label&&it.label.trim());
 
       let msg=`Здравствуйте${customerName?', '+customerName.split(' ')[0]:''}!\n\n`;
       msg+=`Спасибо за встречу. Подготовили для вас предложение по разработке ${projectName}.\n\n`;
       msg+=`📌 КЛЮЧЕВОЕ:\n`;
-      msg+=`Предлагаем начать со стартового этапа — это рабочая CRM, которой можно пользоваться уже через ${firstStage?firstStage.weeks:4} ${plural(firstStage?firstStage.weeks:4,'неделю','недели','недель')}.\n\n`;
-      msg+=`💰 Стартовый этап: ${fmtUsdSimple(firstStage?(firstStage.priceUsd||0):1500)} (фиксированная цена)\n`;
-      msg+=`📦 Входит: ${firstStageBlocks}\n\n`;
-      if(restCount>0){
-        msg+=`После запуска базы — продолжим развитие по согласованным этапам (~$1,500 каждый, ${restCount} ${plural(restCount,'этап','этапа','этапов')} в плане). Вы решаете что и когда добавлять.\n\n`;
+      msg+=`Предлагаем начать со стартового этапа — это рабочая CRM, которой можно пользоваться уже через ${p.stage1Weeks} ${plural(p.stage1Weeks,'неделю','недели','недель')}.\n\n`;
+      msg+=`💰 Стартовый этап: ${fmtKztMsg(p.stage1Kzt)} (фиксированная цена)\n`;
+      msg+=`⏱ Срок: ${p.stage1Weeks} ${plural(p.stage1Weeks,'неделя','недели','недель')}\n\n`;
+      if(enabledIncludes.length>0){
+        msg+=`📦 Что входит:\n`;
+        enabledIncludes.forEach(it=>{msg+=`• ${it.label}\n`});
+        msg+=`\n`;
       }
+      msg+=`Следующие этапы (после запуска базы):\n`;
+      msg+=`${fmtKztMsg(p.rangeMinKzt)} — ${fmtKztMsg(p.rangeMaxKzt)} за этап.\n`;
+      msg+=`Требуют дополнительного согласования — вы решаете что и когда добавлять.\n\n`;
       if(presUrl){
         msg+=`📎 Полная презентация:\n${presUrl}\n\n`;
       }
@@ -6239,6 +6494,7 @@ function initPresentation(){
       showToast('Сообщение обновлено','check');
     });
     document.getElementById('btnCopyWaMessage').addEventListener('click',async()=>{
+      if(typeof window.__pricingApproveAndSave==='function')window.__pricingApproveAndSave();
       refreshWaMessage();
       const ta=document.getElementById('waMessage');
       const text=ta.value;
@@ -6255,6 +6511,7 @@ function initPresentation(){
     refreshWaMessage();
 
     document.getElementById('btnGenPresentation').addEventListener('click',async()=>{
+      if(typeof window.__pricingApproveAndSave==='function')window.__pricingApproveAndSave();
       const btn=document.getElementById('btnGenPresentation');
       btn.disabled=true;
       const origHtml=btn.innerHTML;
@@ -6308,6 +6565,7 @@ function initPresentation(){
 
     // PROTOTYPE button — создаёт тестовый CRM прототип
     document.getElementById('btnGenPrototype').addEventListener('click',async()=>{
+      if(typeof window.__pricingApproveAndSave==='function')window.__pricingApproveAndSave();
       const btn=document.getElementById('btnGenPrototype');
       btn.disabled=true;
       const origHtml=btn.innerHTML;
@@ -6360,6 +6618,7 @@ function initPresentation(){
 
     // PDF download button
     document.getElementById('btnGenPDF').addEventListener('click',async()=>{
+      if(typeof window.__pricingApproveAndSave==='function')window.__pricingApproveAndSave();
       const btn=document.getElementById('btnGenPDF');
       btn.disabled=true;
       const origHtml=btn.innerHTML;
