@@ -97,13 +97,35 @@ body{font-family:var(--font-sans);color:var(--ink);background:var(--bg);font-siz
 .block-title{font-size:13px;font-weight:600;color:var(--ink);line-height:1.35;word-wrap:break-word;outline:none}
 .block-desc{font-size:11.5px;color:var(--ink-3);line-height:1.45;margin-top:2px;word-wrap:break-word;outline:none;font-style:italic;font-family:var(--font-display)}
 .block-title[contenteditable]:focus,.block-desc[contenteditable]:focus{background:var(--surface-2);border-radius:3px;box-shadow:0 0 0 2px rgba(59,95,184,.2)}
-.block.type-note{background:#FFF7D9;border-color:#F0D87A}
+.block.type-note{background:#FFF7D9;border-color:#F0D87A;width:280px}
 .block.type-note.color-pink{background:#FFE8EE;border-color:#F0A9BD}
 .block.type-note.color-blue{background:#E1ECFB;border-color:#A4C0E8}
 .block.type-note.color-green{background:#E1F1E5;border-color:#9DCDA8}
 .block.type-note .block-icon{display:none}
 .block.type-note .block-inner{padding:14px 16px}
-.block.type-note .block-title{font-family:var(--font-display);font-style:italic;font-weight:400;font-size:15px}
+.block.type-note .block-title{font-family:var(--font-display);font-style:italic;font-weight:400;font-size:15px;line-height:1.3;white-space:pre-wrap;word-wrap:break-word}
+.block.type-note .block-desc{font-style:normal;font-family:var(--font-sans);font-size:11.5px;color:var(--ink-2);line-height:1.45;margin-top:6px;white-space:pre-wrap;word-wrap:break-word;font-weight:400}
+.block.type-note.color-pink .block-desc{color:#8B2A4A}
+.block.type-note.color-blue .block-desc{color:#2D4877}
+.block.type-note.color-green .block-desc{color:#1F5734}
+/* Стикер-этап — крупная плашка для группировки */
+.block.type-note.stage-header{width:340px;padding:0;border-width:2px}
+.block.type-note.stage-header .block-inner{padding:18px 20px}
+.block.type-note.stage-header .block-title{font-family:var(--font-sans);font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-style:normal;line-height:1.2}
+.block.type-note.stage-header .block-desc{font-size:12.5px;line-height:1.5;margin-top:8px}
+/* TZ-бадж для блоков требующих отдельного согласования */
+.tz-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  margin-top:6px;padding:3px 8px;
+  background:var(--accent-amber-bg);color:var(--accent-amber);
+  border:1px solid var(--accent-amber);
+  border-radius:100px;
+  font-size:10px;font-weight:600;
+  letter-spacing:.02em;
+  font-family:var(--font-sans);
+  line-height:1.2;
+  white-space:nowrap;
+}
 .block.type-pipeline{width:320px}
 .pipeline-stages{display:flex;gap:4px;padding:0 14px 12px;flex-wrap:wrap}
 .pipeline-stage{padding:4px 8px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;font-size:11px;color:var(--ink-2);font-family:var(--font-mono)}
@@ -1190,32 +1212,32 @@ nodes:[{type:'site',x:100,y:280,label:'Сайт + кейсы'},{type:'instagram'
 edges:[{source:0,target:2},{source:1,target:2},{source:2,target:3},{source:3,target:4},{source:3,target:5},{source:3,target:6},{source:2,target:7},{source:3,target:8,label:'предоплата'}]},
 mlm:{name:'CRM для MLM-бизнеса (по этапам)',desc:'4 этапа: MVP → Бонусы → AI → Международка',icon:'network',
 nodes:[
-{type:'note',x:80,y:60,label:'ЭТАП 1 — MVP / База. 4-5 нед., от $2,500. Партнёры в системе, иерархия, история закупок.',noteColor:'green'},
-{type:'site',x:80,y:200,label:'Лендинг рекрутинга',color:'green'},
-{type:'whatsapp',x:80,y:340,label:'WhatsApp воронка',color:'green'},
-{type:'leads',x:380,y:270,label:'Заявки на регистрацию',color:'green'},
-{type:'pipeline',x:380,y:440,label:'Воронка рекрутинга',stages:['Заявка','Встреча','Презентация','Подключение'],color:'green'},
-{type:'contacts',x:80,y:560,label:'База партнёров',color:'green'},
-{type:'structure',x:380,y:640,label:'Структура сети (иерархия)',color:'green'},
-{type:'deals',x:80,y:700,label:'Закупки и активность',color:'green'},
+{type:'note',x:80,y:40,label:'ЭТАП 1 — MVP / База',description:'4-5 недель · от $2,500\nПартнёры в системе, иерархия, история закупок',noteColor:'green',isStageHeader:true},
+{type:'site',x:80,y:220,label:'Лендинг рекрутинга',color:'green'},
+{type:'whatsapp',x:80,y:360,label:'WhatsApp воронка',color:'green'},
+{type:'leads',x:380,y:290,label:'Заявки на регистрацию',color:'green'},
+{type:'pipeline',x:380,y:460,label:'Воронка рекрутинга',stages:['Заявка','Встреча','Презентация','Подключение'],color:'green'},
+{type:'contacts',x:80,y:580,label:'База партнёров',color:'green'},
+{type:'structure',x:380,y:660,label:'Структура сети (иерархия)',color:'green'},
+{type:'deals',x:80,y:720,label:'Закупки и активность',color:'green'},
 
-{type:'note',x:740,y:60,label:'ЭТАП 2 — Бонусы и кабинет. 4 нед., от $3,000. Авто-расчёт, Mobile App, Kaspi.'},
-{type:'documents',x:740,y:200,label:'Marketing Plan и ранги',color:'amber'},
-{type:'finances',x:740,y:340,label:'Расчёт бонусов',color:'amber'},
-{type:'mobile-app',x:740,y:480,label:'Mobile App партнёра',color:'amber'},
-{type:'notification',x:1020,y:480,label:'Уведомления о бонусах',color:'amber'},
-{type:'kaspi',x:740,y:640,label:'Kaspi Pay (РК)',color:'amber'},
+{type:'note',x:740,y:40,label:'ЭТАП 2 — Бонусы и кабинет',description:'4 недели · от $3,000\nАвто-расчёт бонусов, Mobile App, Kaspi',noteColor:'yellow',isStageHeader:true},
+{type:'documents',x:740,y:220,label:'Marketing Plan и ранги',color:'amber'},
+{type:'finances',x:740,y:360,label:'Расчёт бонусов',color:'amber'},
+{type:'mobile-app',x:740,y:500,label:'Mobile App партнёра',color:'amber',requiresSeparateTz:true},
+{type:'notification',x:1080,y:500,label:'Уведомления о бонусах',color:'amber'},
+{type:'kaspi',x:740,y:660,label:'Kaspi Pay (РК)',color:'amber'},
 
-{type:'note',x:1300,y:60,label:'ЭТАП 3 — AI-автоматизация. 4-6 нед., от $3,500. AI квалификация, follow-up, анализ звонков.',noteColor:'pink'},
-{type:'telegram',x:1300,y:200,label:'Telegram-бот',color:'orange'},
-{type:'ai-assistant',x:1300,y:340,label:'AI-квалификация лида',color:'orange'},
-{type:'voice-ai',x:1300,y:480,label:'AI follow-up партнёру',color:'orange'},
-{type:'voice-ai',x:1580,y:340,label:'AI анализ звонков',color:'orange'},
+{type:'note',x:1440,y:40,label:'ЭТАП 3 — AI-автоматизация',description:'4-6 недель · от $3,500\nAI квалификация, follow-up, анализ звонков',noteColor:'pink',isStageHeader:true},
+{type:'telegram',x:1440,y:220,label:'Telegram-бот',color:'orange'},
+{type:'ai-assistant',x:1440,y:360,label:'AI-квалификация лида',color:'orange'},
+{type:'voice-ai',x:1440,y:500,label:'AI follow-up партнёру',color:'orange',requiresSeparateTz:true},
+{type:'voice-ai',x:1780,y:360,label:'AI анализ звонков',color:'orange',requiresSeparateTz:true},
 
-{type:'note',x:1860,y:60,label:'ЭТАП 4 — Международка. 4-6 нед., от $3,500. Visa, USDT, аналитика по странам.',noteColor:'blue'},
-{type:'visa',x:1860,y:200,label:'Visa / Mastercard',color:'blue'},
-{type:'crypto',x:1860,y:340,label:'USDT / Crypto',color:'blue'},
-{type:'reports',x:1860,y:480,label:'Аналитика по странам',color:'blue'}
+{type:'note',x:2140,y:40,label:'ЭТАП 4 — Международка',description:'4-6 недель · от $3,500\nVisa/MC, USDT, аналитика по странам',noteColor:'blue',isStageHeader:true},
+{type:'visa',x:2140,y:220,label:'Visa / Mastercard',color:'blue',requiresSeparateTz:true},
+{type:'crypto',x:2140,y:360,label:'USDT / Crypto',color:'blue',requiresSeparateTz:true},
+{type:'reports',x:2140,y:500,label:'Аналитика по странам',color:'blue'}
 ],
 edges:[
 {source:1,target:3},
@@ -1399,8 +1421,15 @@ dom.canvasWrap.addEventListener('drop',e=>{
   scheduleAutoSave();
 });
 
+// Типы блоков которые требуют отдельного ТЗ и согласования
+// (Mobile App, банковский эквайринг, USDT, 1C — это не "доделать в основном проекте")
+const SEPARATE_TZ_TYPES=new Set(['mobile-app','visa','crypto','1c','voice-ai']);
+
 function addNode(opts){
   const def=TYPE_TO_DEF[opts.type]||{};
+  const requiresSeparateTz=opts.requiresSeparateTz!==undefined
+    ? !!opts.requiresSeparateTz
+    : SEPARATE_TZ_TYPES.has(opts.type);
   const node={
     id:'n'+Math.random().toString(36).slice(2,9),
     type:opts.type,x:opts.x??200,y:opts.y??200,
@@ -1408,8 +1437,10 @@ function addNode(opts){
     description:opts.description??def.desc??'',
     color:opts.color||def.cat,icon:def.icon,
     isPipeline:!!def.isPipeline,isNote:!!def.isNote,
+    isStageHeader:!!opts.isStageHeader,
     noteColor:def.noteColor||opts.noteColor||null,
-    stages:opts.stages||(def.stages?[...def.stages]:null)
+    stages:opts.stages||(def.stages?[...def.stages]:null),
+    requiresSeparateTz,
   };
   state.nodes.push(node);
   renderNode(node);
@@ -1424,7 +1455,11 @@ function renderNode(node){
     el.id=node.id;
     el.className=`block cat-${node.color||'blue'}`;
     if(node.isPipeline)el.classList.add('type-pipeline');
-    if(node.isNote){el.classList.add('type-note');if(node.noteColor)el.classList.add(`color-${node.noteColor}`)}
+    if(node.isNote){
+      el.classList.add('type-note');
+      if(node.noteColor)el.classList.add(`color-${node.noteColor}`);
+      if(node.isStageHeader)el.classList.add('stage-header');
+    }
     dom.world.appendChild(el);
     el.addEventListener('mousedown',e=>{
       if(e.target.closest('.handle'))return;
@@ -1449,14 +1484,19 @@ function renderNode(node){
   // Update class to handle color changes
   el.className=`block cat-${node.color||'blue'}`;
   if(node.isPipeline)el.classList.add('type-pipeline');
-  if(node.isNote){el.classList.add('type-note');if(node.noteColor)el.classList.add(`color-${node.noteColor}`)}
+  if(node.isNote){
+    el.classList.add('type-note');
+    if(node.noteColor)el.classList.add(`color-${node.noteColor}`);
+    if(node.isStageHeader)el.classList.add('stage-header');
+  }
   el.style.left=node.x+'px';el.style.top=node.y+'px';
   if(node.isPipeline){
     el.innerHTML=`<div class="block-inner"><div class="block-icon"><i data-lucide="${node.icon}"></i></div><div class="block-body"><div class="block-title" data-id="${node.id}">${escapeHtml(node.label)}</div>${node.description?`<div class="block-desc">${escapeHtml(node.description)}</div>`:''}</div></div><div class="pipeline-stages">${(node.stages||[]).map(s=>`<div class="pipeline-stage">${escapeHtml(s)}</div>`).join('')}</div>`+handlesHtml();
   }else if(node.isNote){
-    el.innerHTML=`<div class="block-inner"><div class="block-body"><div class="block-title" data-id="${node.id}">${escapeHtml(node.label)}</div></div></div>`+handlesHtml();
+    el.innerHTML=`<div class="block-inner"><div class="block-body"><div class="block-title" data-id="${node.id}">${escapeHtml(node.label)}</div>${node.description?`<div class="block-desc">${escapeHtml(node.description)}</div>`:''}</div></div>`+handlesHtml();
   }else{
-    el.innerHTML=`<div class="block-inner"><div class="block-icon"><i data-lucide="${node.icon||'square'}"></i></div><div class="block-body"><div class="block-title" data-id="${node.id}">${escapeHtml(node.label)}</div>${node.description?`<div class="block-desc">${escapeHtml(node.description)}</div>`:''}</div></div>`+handlesHtml();
+    const tzBadge=node.requiresSeparateTz?`<div class="tz-badge" title="Требует отдельного ТЗ и согласования">⚠️ Отдельное ТЗ</div>`:'';
+    el.innerHTML=`<div class="block-inner"><div class="block-icon"><i data-lucide="${node.icon||'square'}"></i></div><div class="block-body"><div class="block-title" data-id="${node.id}">${escapeHtml(node.label)}</div>${node.description?`<div class="block-desc">${escapeHtml(node.description)}</div>`:''}${tzBadge}</div></div>`+handlesHtml();
   }
   if(window.lucide)lucide.createIcons({nodes:[el]});
   el.querySelectorAll('.handle').forEach(h=>{
@@ -1584,13 +1624,44 @@ function updateProperties(){
     const node=state.nodes.find(n=>n.id===state.selection.id);if(!node)return;
     dom.propsTitle.textContent='Свойства блока';
     const colors=['blue','purple','orange','green','amber','rose'];
-    dom.propsBody.innerHTML=`<div class="prop-row"><div class="prop-label">Заголовок</div><input class="prop-input" type="text" id="propLabel" value="${escapeHtml(node.label)}"></div><div class="prop-row"><div class="prop-label">Описание</div><textarea class="prop-input" id="propDesc">${escapeHtml(node.description||'')}</textarea></div>${!node.isNote?`<div class="prop-row"><div class="prop-label">Цвет категории</div><div class="color-palette">${colors.map(c=>`<div class="color-swatch ${c} ${node.color===c?'selected':''}" data-color="${c}"></div>`).join('')}</div></div>`:''}${node.isPipeline?`<div class="prop-row"><div class="prop-label">Стадии (по строкам)</div><textarea class="prop-input" id="propStages" rows="4">${escapeHtml((node.stages||[]).join('\n'))}</textarea></div>`:''}`;
-    document.getElementById('propLabel').oninput=e=>{node.label=e.target.value;const t=document.querySelector(`#${node.id} .block-title`);if(t)t.textContent=node.label;scheduleAutoSave()};
+    const noteColors=['yellow','pink','blue','green'];
+    let html=`<div class="prop-row"><div class="prop-label">Заголовок</div><input class="prop-input" type="text" id="propLabel" value="${escapeHtml(node.label)}"></div>`;
+    html+=`<div class="prop-row"><div class="prop-label">Описание</div><textarea class="prop-input" id="propDesc" rows="${node.isNote?3:2}">${escapeHtml(node.description||'')}</textarea></div>`;
+    if(!node.isNote){
+      html+=`<div class="prop-row"><div class="prop-label">Цвет категории</div><div class="color-palette">${colors.map(c=>`<div class="color-swatch ${c} ${node.color===c?'selected':''}" data-color="${c}"></div>`).join('')}</div></div>`;
+      html+=`<div class="prop-row"><label style="display:flex;align-items:flex-start;gap:7px;cursor:pointer;font-size:11.5px;color:var(--ink-2);line-height:1.45"><input type="checkbox" id="propRequiresTz" ${node.requiresSeparateTz?'checked':''} style="margin-top:2px;cursor:pointer"><span><b>Требует отдельного ТЗ</b><br><span style="color:var(--ink-3);font-size:10.5px">Помечает что разработка этого модуля выходит за рамки базового предложения и требует доп.согласования</span></span></label></div>`;
+    }else{
+      // для note — выбор цвета
+      html+=`<div class="prop-row"><div class="prop-label">Цвет стикера</div><div class="color-palette">${noteColors.map(c=>{
+        const bg={yellow:'#FFF7D9',pink:'#FFE8EE',blue:'#E1ECFB',green:'#E1F1E5'}[c];
+        return `<div class="color-swatch" style="background:${bg};${(node.noteColor||'yellow')===c?'border-color:var(--ink)':''}" data-note-color="${c}"></div>`;
+      }).join('')}</div></div>`;
+      html+=`<div class="prop-row"><label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:11.5px;color:var(--ink-2)"><input type="checkbox" id="propIsStageHeader" ${node.isStageHeader?'checked':''} style="cursor:pointer"><span>Стикер-этап (крупный)</span></label></div>`;
+    }
+    if(node.isPipeline){
+      html+=`<div class="prop-row"><div class="prop-label">Стадии (по строкам)</div><textarea class="prop-input" id="propStages" rows="4">${escapeHtml((node.stages||[]).join('\n'))}</textarea></div>`;
+    }
+    dom.propsBody.innerHTML=html;
+
+    document.getElementById('propLabel').oninput=e=>{node.label=e.target.value;renderNode(node);scheduleAutoSave()};
     document.getElementById('propDesc').oninput=e=>{node.description=e.target.value;renderNode(node);redrawEdges();scheduleAutoSave()};
     if(!node.isNote){
-      dom.propsBody.querySelectorAll('.color-swatch').forEach(sw=>{
-        sw.onclick=()=>{node.color=sw.dataset.color;dom.propsBody.querySelectorAll('.color-swatch').forEach(x=>x.classList.remove('selected'));sw.classList.add('selected');renderNode(node);scheduleAutoSave()};
+      dom.propsBody.querySelectorAll('.color-swatch[data-color]').forEach(sw=>{
+        sw.onclick=()=>{node.color=sw.dataset.color;dom.propsBody.querySelectorAll('.color-swatch[data-color]').forEach(x=>x.classList.remove('selected'));sw.classList.add('selected');renderNode(node);scheduleAutoSave()};
       });
+      const tz=document.getElementById('propRequiresTz');
+      if(tz)tz.onchange=()=>{node.requiresSeparateTz=tz.checked;renderNode(node);scheduleAutoSave()};
+    }else{
+      dom.propsBody.querySelectorAll('.color-swatch[data-note-color]').forEach(sw=>{
+        sw.onclick=()=>{
+          node.noteColor=sw.dataset.noteColor;
+          renderNode(node);
+          updateProperties(); // перерисовать выбор
+          scheduleAutoSave();
+        };
+      });
+      const sh=document.getElementById('propIsStageHeader');
+      if(sh)sh.onchange=()=>{node.isStageHeader=sh.checked;renderNode(node);redrawEdges();scheduleAutoSave()};
     }
     if(node.isPipeline){
       document.getElementById('propStages').oninput=e=>{node.stages=e.target.value.split('\n').map(s=>s.trim()).filter(Boolean);renderNode(node);redrawEdges();scheduleAutoSave()};
@@ -1869,6 +1940,10 @@ function loadTemplate(key){
   redrawEdges();updateMeta();
   setTimeout(fitView,50);
   scheduleAutoSave();
+  // Привязка к активному проекту если есть
+  if(projectsState.activeProject){
+    attachCurrentBoardToProject(projectsState.activeProject.id);
+  }
 }
 
 // Системные блоки — автоматически добавляются в каждый шаблон
@@ -2129,6 +2204,7 @@ const diff={
   rejectedIndexes:new Set(),
   preview:new Map(),   // id блока в схеме → 'add'|'edit'|'remove' для подсветки
   schemaSnapshot:null, // snapshot для отката
+  baseNodeIds:null,    // ID нод на момент создания diff (для стабильного резолва индексов)
 };
 
 // ============================================================
@@ -2537,6 +2613,10 @@ function showDiffPanel(actions,summary){
     nodes:state.nodes.map(n=>({...n})),
     edges:state.edges.map(e=>({...e})),
   };
+  // Фиксируем ID-карту на момент когда AI получил схему.
+  // Это нужно чтобы targetIndex/sourceIndex резолвили правильные ноды
+  // даже после ADD действий, которые меняют state.nodes.
+  diff.baseNodeIds=state.nodes.map(n=>n.id);
   diff.actions=actions;
   diff.appliedIndexes=new Set();
   diff.rejectedIndexes=new Set();
@@ -2618,23 +2698,6 @@ function actionTypeText(a){
   return '';
 }
 
-function highlightDiffActions(actions){
-  // Подсветка: EDIT/REMOVE — на существующих блоках
-  actions.forEach(a=>{
-    if(a.action==='edit'||a.action==='remove'){
-      const targetNode=state.nodes[a.targetIndex];
-      if(targetNode){
-        const el=document.getElementById(targetNode.id);
-        if(el){
-          el.classList.add('diff-'+a.action);
-          diff.preview.set(targetNode.id,a.action);
-        }
-      }
-    }
-    // ADD блоки будут подсвечены при применении (их пока нет)
-  });
-}
-
 function clearHighlights(){
   diff.preview.forEach((act,id)=>{
     const el=document.getElementById(id);
@@ -2645,36 +2708,77 @@ function clearHighlights(){
 
 function acceptAction(i){
   const a=diff.actions[i];
-  if(!a||diff.appliedIndexes.has(i)||diff.rejectedIndexes.has(i))return;
-  applyAction(a);
-  diff.appliedIndexes.add(i);
-  document.querySelector(`.diff-item[data-action-idx="${i}"]`).classList.add('accepted');
+  if(!a||diff.appliedIndexes.has(i)||diff.rejectedIndexes.has(i))return false;
+  try{
+    applyAction(a);
+    diff.appliedIndexes.add(i);
+    const el=document.querySelector(`.diff-item[data-action-idx="${i}"]`);
+    if(el)el.classList.add('accepted');
+    return true;
+  }catch(err){
+    console.error('acceptAction failed for #'+i,err,a);
+    // Помечаем как ошибочное, но не блокируем остальные
+    diff.rejectedIndexes.add(i);
+    const el=document.querySelector(`.diff-item[data-action-idx="${i}"]`);
+    if(el){
+      el.classList.add('rejected');
+      el.title='Ошибка: '+err.message;
+    }
+    return false;
+  }
 }
 
 function rejectAction(i){
   if(diff.appliedIndexes.has(i)||diff.rejectedIndexes.has(i))return;
   diff.rejectedIndexes.add(i);
-  document.querySelector(`.diff-item[data-action-idx="${i}"]`).classList.add('rejected');
+  const el=document.querySelector(`.diff-item[data-action-idx="${i}"]`);
+  if(el)el.classList.add('rejected');
   // Снимаем подсветку с этого таргета если был
   const a=diff.actions[i];
-  if(a&&(a.action==='edit'||a.action==='remove')){
-    const targetNode=state.nodes[a.targetIndex];
-    if(targetNode){
-      const el=document.getElementById(targetNode.id);
-      if(el)el.classList.remove('diff-'+a.action);
+  if(a&&(a.action==='edit'||a.action==='remove')&&typeof a.targetIndex==='number'){
+    const baseId=diff.baseNodeIds&&diff.baseNodeIds[a.targetIndex];
+    if(baseId){
+      const tEl=document.getElementById(baseId);
+      if(tEl)tEl.classList.remove('diff-'+a.action);
     }
   }
 }
 
+function highlightDiffActions(actions){
+  // Подсветка: EDIT/REMOVE — на существующих блоках через baseNodeIds
+  actions.forEach(a=>{
+    if((a.action==='edit'||a.action==='remove')&&typeof a.targetIndex==='number'){
+      const baseId=diff.baseNodeIds&&diff.baseNodeIds[a.targetIndex];
+      if(!baseId)return;
+      const el=document.getElementById(baseId);
+      if(el){
+        el.classList.add('diff-'+a.action);
+        diff.preview.set(baseId,a.action);
+      }
+    }
+  });
+}
+
 function applyAction(a){
+  if(!a||!a.action)return;
+  // Helper для резолва индекса с момента создания diff
+  const resolveByIndex=(idx)=>{
+    if(typeof idx!=='number')return null;
+    // Сначала ищем в базовой карте ID (правильный способ)
+    if(diff.baseNodeIds&&idx>=0&&idx<diff.baseNodeIds.length){
+      const id=diff.baseNodeIds[idx];
+      return state.nodes.find(n=>n.id===id)||null;
+    }
+    // Fallback на прямой индекс
+    return state.nodes[idx]||null;
+  };
+
   if(a.action==='add'){
-    // Найдём где разместить
     let x=200,y=200;
-    if(typeof a.near==='number'&&state.nodes[a.near]){
-      const near=state.nodes[a.near];
-      x=near.x+260;y=near.y;
+    const nearNode=typeof a.near==='number'?resolveByIndex(a.near):null;
+    if(nearNode){
+      x=nearNode.x+260;y=nearNode.y;
     }else{
-      // Самый правый блок + сдвиг
       let mx=0;
       state.nodes.forEach(n=>{const el=document.getElementById(n.id);const w=el?el.offsetWidth:220;if(n.x+w>mx)mx=n.x+w});
       x=mx+50;y=200+Math.random()*200;
@@ -2687,43 +2791,42 @@ function applyAction(a){
       color:a.color,
       stages:a.stages||null,
     });
-    // Подсветить добавленный
     const el=document.getElementById(node.id);
     if(el)el.classList.add('diff-add');
     diff.preview.set(node.id,'add');
   }else if(a.action==='edit'){
-    const target=state.nodes[a.targetIndex];
-    if(target){
-      if(a.newLabel)target.label=a.newLabel;
-      if(a.newDescription)target.description=a.newDescription;
-      if(a.newColor)target.color=a.newColor;
-      renderNode(target);
-    }
+    const target=resolveByIndex(a.targetIndex);
+    if(!target){console.warn('edit: target not found',a.targetIndex);return}
+    if(a.newLabel)target.label=a.newLabel;
+    if(a.newDescription)target.description=a.newDescription;
+    if(a.newColor)target.color=a.newColor;
+    renderNode(target);
   }else if(a.action==='link'){
-    const s=state.nodes[a.sourceIndex];
-    const t=state.nodes[a.targetIndex];
-    if(s&&t){
-      state.edges.push({id:'e'+Math.random().toString(36).slice(2,9),source:s.id,target:t.id,label:a.label||''});
-      redrawEdges();
-    }
+    const s=resolveByIndex(a.sourceIndex);
+    const t=resolveByIndex(a.targetIndex);
+    if(!s||!t){console.warn('link: nodes not found',a.sourceIndex,a.targetIndex);return}
+    if(s.id===t.id)return;
+    const exists=state.edges.some(e=>e.source===s.id&&e.target===t.id);
+    if(exists)return;
+    state.edges.push({id:'e'+Math.random().toString(36).slice(2,9),source:s.id,target:t.id,label:a.label||''});
+    redrawEdges();
   }else if(a.action==='remove'){
-    const target=state.nodes[a.targetIndex];
-    if(target){
-      state.nodes=state.nodes.filter(n=>n.id!==target.id);
-      state.edges=state.edges.filter(e=>e.source!==target.id&&e.target!==target.id);
-      const el=document.getElementById(target.id);
-      if(el)el.remove();
-    }
+    const target=resolveByIndex(a.targetIndex);
+    if(!target){console.warn('remove: target not found',a.targetIndex);return}
+    state.nodes=state.nodes.filter(n=>n.id!==target.id);
+    state.edges=state.edges.filter(e=>e.source!==target.id&&e.target!==target.id);
+    const el=document.getElementById(target.id);
+    if(el)el.remove();
   }else if(a.action==='note'){
     let x=200,y=60;
-    if(typeof a.near==='number'&&state.nodes[a.near]){
-      const near=state.nodes[a.near];
-      x=near.x;y=near.y-100;
-      if(y<0)y=near.y+200;
+    const nearNode=typeof a.near==='number'?resolveByIndex(a.near):null;
+    if(nearNode){
+      x=nearNode.x;y=nearNode.y-100;
+      if(y<0)y=nearNode.y+200;
     }
     const node=addNode({
       type:'note',x,y,
-      label:a.label,
+      label:a.label||'Заметка',
       noteColor:a.noteColor||'yellow',
     });
     const el=document.getElementById(node.id);
@@ -2739,10 +2842,32 @@ function initDiffPanel(){
     document.getElementById('diffPanel').classList.remove('show');
   });
   document.getElementById('btnAcceptAll').addEventListener('click',()=>{
-    diff.actions.forEach((a,i)=>{
-      if(!diff.appliedIndexes.has(i)&&!diff.rejectedIndexes.has(i))acceptAction(i);
+    // Применяем по порядку: сначала ADD и NOTE (чтобы индексы не сдвинулись для link/remove),
+    // потом EDIT/LINK, потом REMOVE (последним чтобы не сбить чужие индексы)
+    // REMOVE сортируем по убыванию targetIndex — чтобы удаление не сдвигало индексы для других remove
+    let applied=0,failed=0;
+    const orderSimple=['add','note','edit','link'];
+    orderSimple.forEach(actionType=>{
+      diff.actions.forEach((a,i)=>{
+        if(a.action!==actionType)return;
+        if(diff.appliedIndexes.has(i)||diff.rejectedIndexes.has(i))return;
+        if(acceptAction(i))applied++;
+        else failed++;
+      });
     });
-    showToast('Все правки приняты','check-check');
+    // REMOVE: индексы по убыванию
+    const removes=diff.actions.map((a,i)=>({a,i}))
+      .filter(x=>x.a.action==='remove'&&!diff.appliedIndexes.has(x.i)&&!diff.rejectedIndexes.has(x.i))
+      .sort((a,b)=>(b.a.targetIndex||0)-(a.a.targetIndex||0));
+    removes.forEach(({i})=>{
+      if(acceptAction(i))applied++;
+      else failed++;
+    });
+    if(failed>0){
+      showToast(`Принято ${applied}, пропущено ${failed} (см. консоль)`,'check-check');
+    }else{
+      showToast(`Принято ${applied} правок`,'check-check');
+    }
   });
   document.getElementById('btnRejectAll').addEventListener('click',()=>{
     if(!confirm('Откатить все принятые правки и отклонить остальные?'))return;
@@ -3631,8 +3756,10 @@ function initProjects(){
     const p=createProject(name);
     projectsState.activeProject=p;
     input.value='';
-    renderProjectsList();
     showToast(`Проект «${name}» создан`,'folder-plus');
+    // Закрываем архив, открываем шаблоны для выбора стартовой схемы
+    hideModal('projectsModal');
+    setTimeout(()=>showModal('templatesModal'),200);
   });
 
   document.getElementById('newProjectName').addEventListener('keydown',e=>{
@@ -4073,6 +4200,26 @@ async function generatePresentationPage(){
     }
   }
 
+  // Собираем блоки требующие отдельного ТЗ для отдельной секции
+  const TZ_NOTES={
+    'mobile-app':'Разработка мобильного приложения (iOS+Android) или PWA. Требует отдельного ТЗ, проектирования UX, согласования с App Store / Google Play. Срок 8-12 недель, стоимость от $5,000.',
+    'visa':'Подключение эквайринга Visa/Mastercard. Договор с банком-эквайером (минимум 2 месяца на одобрение), проверки безопасности, лицензирование. Стоимость по итогу переговоров с банком.',
+    'crypto':'Приём USDT и других крипто-платежей. Лицензирование, договор с криптопровайдером, юридическая проработка для РК. Стоимость по итогу.',
+    '1c':'Двусторонняя интеграция с 1С: Бухгалтерия / 1С: Управление торговлей. Требует доступа к серверу 1С и доработок на стороне 1С (отдельные специалисты). Срок 3-5 недель, от $1,500.',
+    'voice-ai':'AI-анализ звонков: транскрипция + оценка качества разговора. Требует контракта с провайдером (OpenAI/Deepgram), интеграции с телефонией. Срок 2-3 недели, от $1,500.',
+  };
+  const seenTypes=new Set();
+  const separateTzItems=[];
+  state.nodes.forEach(n=>{
+    if(!n.requiresSeparateTz||n.isNote)return;
+    if(seenTypes.has(n.type))return;
+    seenTypes.add(n.type);
+    separateTzItems.push({
+      label:n.label||n.type,
+      note:TZ_NOTES[n.type]||'Требует отдельного ТЗ и согласований. Сроки и стоимость определяются по итогу обсуждения.',
+    });
+  });
+
   // 5. Строим HTML
   const html=buildPresentationHtml({
     project,
@@ -4086,6 +4233,7 @@ async function generatePresentationPage(){
     nodesCount:state.nodes.length,
     edgesCount:state.edges.length,
     mockups,
+    separateTzItems,
   });
 
   // 5. Загружаем в R2
@@ -4175,6 +4323,13 @@ h1{font-family:'Instrument Serif',Georgia,serif;font-size:54px;line-height:1.1;l
 .ai-badge{display:inline-block;font-size:9px;font-weight:700;background:linear-gradient(135deg,#6B46C1,#3B5FB8);color:#fff;padding:3px 8px;border-radius:100px;letter-spacing:.04em}
 .mockup-svg-wrap{padding:8px}
 .mockup-svg-wrap svg{display:block;width:100%;height:auto;border-radius:6px}
+/* Дополнительные возможности (по отдельному договору) */
+.separate-tz-list{display:flex;flex-direction:column;gap:12px;margin-top:24px}
+.separate-tz-item{display:flex;gap:14px;padding:18px 20px;background:#FBF5E7;border:1px solid #F0D87A;border-radius:10px}
+.separate-tz-icon{font-size:22px;flex-shrink:0;line-height:1}
+.separate-tz-body{flex:1}
+.separate-tz-body h4{font-size:14px;font-weight:600;margin-bottom:4px;color:#1A1A18}
+.separate-tz-body p{font-size:12.5px;color:#7A5710;line-height:1.55;margin:0}
 .payment-option{background:#FAFAF7;border:2px solid #E8E6E0;border-radius:10px;padding:18px}
 .payment-option.highlight{border-color:#2F7A4F;background:#ECF5EF}
 .payment-option h4{font-size:14px;font-weight:600;margin-bottom:8px}
@@ -4275,6 +4430,23 @@ table td{padding:10px;border-bottom:1px solid #E8E6E0;color:#1A1A18}
     </div>
   </div>
 
+  ${d.separateTzItems&&d.separateTzItems.length>0?`<div class="section">
+    <div class="section-tag">Дополнительные возможности</div>
+    <h2>По отдельному договору</h2>
+    <p>Эти модули требуют отдельного технического задания и согласований с партнёрами (банки, провайдеры лицензий). В базовое предложение не входят, но могут быть реализованы как следующий этап работ.</p>
+    <div class="separate-tz-list">
+      ${d.separateTzItems.map(it=>`
+        <div class="separate-tz-item">
+          <div class="separate-tz-icon">⚠️</div>
+          <div class="separate-tz-body">
+            <h4>${escapeHtml(it.label)}</h4>
+            <p>${escapeHtml(it.note)}</p>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  </div>`:''}
+
   <div class="contacts">
     <h2>Связаться</h2>
     <dl>
@@ -4359,8 +4531,14 @@ function init(){
   }
   const cur=Storage.getCur();
   if(cur){const b=Storage.loadBoard(cur);if(b){loadBoardData(b);setTimeout(fitView,50);return}}
-  if(!getProfile())showModal('onboardingModal');
-  else showModal('templatesModal');
+
+  // Старт инструмента: если есть проекты — показываем архив с кнопкой «+ Новый»
+  // Если нет — сразу шаблоны для создания первого
+  if(projectsState.projects.length>0){
+    showModal('projectsModal');
+  }else{
+    showModal('templatesModal');
+  }
 }
 
 if(window.lucide){lucide.createIcons();init()}
