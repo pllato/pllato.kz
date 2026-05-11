@@ -404,6 +404,130 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 .project-empty p{font-size:13px;max-width:380px;margin:0 auto;line-height:1.55}
 
 .new-project-form{display:flex;gap:8px;padding:14px;border:1px dashed var(--border-strong);border-radius:10px;margin-bottom:14px}
+
+/* ============ WELCOME SCREEN ============ */
+.welcome-hero{
+  padding:28px 32px 24px;
+  text-align:center;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,var(--surface-2) 0%,transparent 100%);
+}
+.welcome-brand{
+  display:inline-flex;align-items:center;gap:10px;margin-bottom:16px;
+}
+.welcome-brand-mark{
+  width:32px;height:32px;border-radius:8px;background:#0a1628;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.welcome-brand-mark svg{display:block}
+.welcome-brand-name{font-family:var(--font-display);font-style:italic;font-size:22px;color:var(--ink);letter-spacing:-.01em}
+.welcome-brand-tag{font-size:9px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.16em;font-weight:600;padding-left:12px;border-left:1px solid var(--border);margin-left:4px;font-family:var(--font-mono)}
+.welcome-title{font-family:var(--font-display);font-style:italic;font-size:32px;line-height:1.1;letter-spacing:-.01em;margin-bottom:6px;color:var(--ink)}
+.welcome-subtitle{font-size:13px;color:var(--ink-3);max-width:440px;margin:0 auto;line-height:1.5}
+
+.welcome-resume{
+  margin:18px 24px 0;
+  padding:14px 18px;
+  background:linear-gradient(135deg,#FBF1EB,#F4ECDC);
+  border:1px solid #E8B591;
+  border-radius:10px;
+  display:flex;align-items:center;gap:12px;
+}
+.welcome-resume-icon{
+  width:38px;height:38px;border-radius:8px;background:#fff;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  color:#b8895a;
+}
+.welcome-resume-icon svg{width:18px;height:18px}
+.welcome-resume-body{flex:1;min-width:0}
+.welcome-resume-label{font-size:10px;font-weight:700;color:#8b6740;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+.welcome-resume-name{font-size:14px;font-weight:600;color:var(--ink);text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+.welcome-resume-meta{font-size:11px;color:#8b6740;font-family:var(--font-mono);margin-top:2px}
+.welcome-resume-btn{
+  background:#b8895a;color:#fff;border:none;
+  padding:9px 18px;border-radius:8px;
+  font:inherit;font-size:12.5px;font-weight:600;
+  cursor:pointer;flex-shrink:0;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.welcome-resume-btn:hover{background:#8b6740}
+.welcome-resume-btn svg{width:13px;height:13px}
+
+.welcome-divider{
+  display:flex;align-items:center;gap:14px;
+  margin:20px 24px 14px;
+  color:var(--ink-3);font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;
+}
+.welcome-divider::before,.welcome-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.welcome-cta-new{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  margin:0 24px 8px;
+  padding:14px;
+  background:var(--ink);color:#fff;
+  border:none;border-radius:10px;
+  font:inherit;font-size:14px;font-weight:600;
+  cursor:pointer;
+  width:calc(100% - 48px);
+  transition:all .12s;
+}
+.welcome-cta-new:hover{background:#000;transform:translateY(-1px)}
+.welcome-cta-new svg{width:16px;height:16px}
+
+.welcome-projects-title{
+  margin:24px 24px 10px;
+  font-size:11px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.08em;
+}
+.welcome-projects-list{padding:0 24px 20px}
+.welcome-project-item{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 14px;
+  border:1px solid var(--border);border-radius:9px;
+  margin-bottom:8px;cursor:pointer;
+  transition:all .12s;background:var(--surface);
+}
+.welcome-project-item:hover{border-color:var(--ink-3);background:var(--surface-2);transform:translateX(2px)}
+.welcome-project-item-avatar{
+  width:36px;height:36px;border-radius:8px;
+  background:var(--accent-blue-bg);color:var(--accent-blue);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:14px;flex-shrink:0;
+}
+.welcome-project-item-info{flex:1;min-width:0}
+.welcome-project-item-name{font-weight:600;font-size:13.5px;color:var(--ink);margin-bottom:2px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+.welcome-project-item-meta{font-size:11px;color:var(--ink-3);font-family:var(--font-mono);display:flex;gap:10px}
+.welcome-project-item-arrow{color:var(--ink-3);flex-shrink:0}
+.welcome-project-item-arrow svg{width:16px;height:16px}
+
+.welcome-empty{
+  padding:30px 24px;text-align:center;color:var(--ink-3);
+}
+.welcome-empty p{font-size:12.5px;line-height:1.5;max-width:340px;margin:0 auto}
+
+/* ============ NEW PROJECT — single screen (имя + шаблоны) ============ */
+.new-proj-screen{display:flex;flex-direction:column;height:100%}
+.new-proj-head{
+  padding:18px 24px;border-bottom:1px solid var(--border);
+  background:var(--surface-2);
+}
+.new-proj-head-row{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+.new-proj-head-col{flex:1;min-width:200px}
+.new-proj-label{display:block;font-size:11px;color:var(--ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;font-family:var(--font-mono)}
+.new-proj-input{
+  width:100%;padding:10px 12px;
+  border:1px solid var(--border-strong);border-radius:8px;
+  font:inherit;font-size:14px;background:#fff;
+  outline:none;transition:border-color .12s;
+}
+.new-proj-input:focus{border-color:var(--ink)}
+.new-proj-tip{font-size:11px;color:var(--ink-3);margin-top:8px;line-height:1.5}
+.new-proj-tip b{color:var(--ink-2)}
+.new-proj-templates-title{
+  font-size:11px;font-weight:600;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.06em;
+  margin:0 24px 10px;padding-top:18px;
+}
 .new-project-form input{flex:1;padding:8px 12px;border:1px solid var(--border-strong);border-radius:7px;font:inherit;font-size:13px;background:var(--surface-2);outline:none}
 .new-project-form input:focus{background:var(--surface);border-color:var(--ink)}
 .new-project-form button{padding:8px 14px;border-radius:7px;background:var(--ink);color:#fff;border:none;font:inherit;font-size:12.5px;font-weight:500;cursor:pointer}
@@ -747,6 +871,7 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 <div class="save-status" id="saveStatus"></div>
 <div class="topbar-actions">
 <div class="user-chip" id="userChip" style="display:none" title="Изменить мои данные"><div class="user-chip-avatar" id="userAvatar">?</div><span id="userName">Гость</span></div>
+<button class="btn ghost" id="btnHome" title="На главную (сохранить и выйти к списку проектов)"><i data-lucide="home" class="icon"></i></button>
 <button class="btn-record" id="btnRecord" title="Записать встречу с клиентом — AI построит схему"><i data-lucide="mic"></i> <span id="btnRecordText">Запись</span></button>
 <button class="btn-docs" id="btnDocs" title="Сформировать документы для клиента"><i data-lucide="file-text"></i> Документы</button>
 <button class="btn-whatsapp" id="btnContactStudio" title="Связаться со студией Pllato через WhatsApp"><i data-lucide="message-circle"></i> Связаться</button>
@@ -763,6 +888,7 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 <button class="menu-item" id="menuNew"><i data-lucide="plus"></i>Новая схема</button>
 <button class="menu-item" id="menuDuplicate"><i data-lucide="copy"></i>Создать копию</button>
 <div class="menu-divider"></div>
+<button class="menu-item" id="menuHome"><i data-lucide="home"></i>На главный экран</button>
 <button class="menu-item" id="menuClearAll" style="color:var(--accent-rose)"><i data-lucide="trash-2"></i>Очистить хранилище</button>
 </div>
 </div>
@@ -812,6 +938,61 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 </div>
 </div>
 </div>
+
+<!-- ============ WELCOME SCREEN ============ -->
+<div class="modal-overlay" id="welcomeModal"><div class="modal" style="width:600px;padding:0">
+<div class="welcome-hero">
+<div class="welcome-brand">
+<div class="welcome-brand-mark"><svg width="22" height="22" viewBox="0 0 32 32"><rect x="13" y="10" width="2" height="12" fill="#b8895a"/><rect x="17" y="10" width="2" height="12" fill="#b8895a"/></svg></div>
+<div class="welcome-brand-name">Pllato</div>
+<span class="welcome-brand-tag">CRM Builder</span>
+</div>
+<div class="welcome-title">С чего начнём?</div>
+<div class="welcome-subtitle">Инструмент для подготовки CRM-проектов: запись встреч, сборка архитектуры с клиентом, генерация документов и презентационной ссылки.</div>
+</div>
+
+<div id="welcomeResume" style="display:none"></div>
+
+<button class="welcome-cta-new" id="welcomeBtnNew" style="margin-top:20px"><i data-lucide="plus"></i> Новый проект</button>
+
+<div id="welcomeProjectsBlock" style="display:none">
+<div class="welcome-projects-title">Мои проекты <span id="welcomeProjectsCount" style="opacity:.6;font-weight:500">(0)</span></div>
+<div class="welcome-projects-list" id="welcomeProjectsList"></div>
+</div>
+
+<div class="welcome-empty" id="welcomeEmpty">
+<p>У вас пока нет проектов. Создайте первый — введите имя клиента, выберите шаблон CRM и начните работу.</p>
+</div>
+</div></div>
+
+<!-- ============ NEW PROJECT — combined screen ============ -->
+<div class="modal-overlay" id="newProjectModal"><div class="modal" style="width:920px;padding:0">
+<div class="modal-header" style="padding-right:20px">
+<button class="modal-close" data-close="newProjectModal"><i data-lucide="x"></i></button>
+<div class="modal-title">Новый проект</div>
+<div class="modal-subtitle">Введите имя клиента и выберите шаблон CRM</div>
+</div>
+<div class="new-proj-screen">
+<div class="new-proj-head">
+<div class="new-proj-head-row">
+<div class="new-proj-head-col">
+<label class="new-proj-label" for="npClientName">Имя клиента или компания *</label>
+<input type="text" id="npClientName" class="new-proj-input" placeholder="Например: Серик / MLM International" maxlength="80" autocomplete="off">
+</div>
+<div class="new-proj-head-col">
+<label class="new-proj-label" for="npClientContact">Контакт <span style="text-transform:none;color:var(--ink-4)">(телефон / email — опционально)</span></label>
+<input type="text" id="npClientContact" class="new-proj-input" placeholder="+7 777 ..." maxlength="80" autocomplete="off">
+</div>
+</div>
+<div class="new-proj-tip">Имя обязательно — оно будет использоваться в архиве и документах. Контакт можно указать позже. <b>После выбора шаблона ниже</b> создастся проект и сразу откроется канва.</div>
+</div>
+<div class="new-proj-templates-title">Выберите шаблон CRM (или начните с пустого холста)</div>
+<div class="modal-body" style="padding-top:0">
+<div class="templates-grid" id="npTemplatesGrid"></div>
+</div>
+</div>
+</div></div>
+
 <div class="modal-overlay" id="templatesModal"><div class="modal">
 <div class="modal-header">
 <button class="modal-close" data-close="templatesModal"><i data-lucide="x"></i></button>
@@ -2126,6 +2307,14 @@ document.getElementById('menuDuplicate').onclick=()=>{
   scheduleAutoSave();
   showToast('Создана копия','copy');
   dom.menuDropdown.classList.remove('show');
+};
+// Кнопка "🏠 На главный экран" в топбаре и меню
+document.getElementById('btnHome').onclick=()=>{
+  goHome();
+};
+document.getElementById('menuHome').onclick=()=>{
+  dom.menuDropdown.classList.remove('show');
+  goHome();
 };
 document.getElementById('menuClearAll').onclick=()=>{
   if(!confirm('Удалить ВСЕ схемы из этого браузера? Действие нельзя отменить.'))return;
@@ -4964,6 +5153,186 @@ function initPresentation(){
   }
 }
 
+// ============================================================
+// WELCOME SCREEN + NEW PROJECT FLOW
+// ============================================================
+
+function showWelcomeScreen(){
+  // Текущая открытая схема (для "Продолжить с прошлого")
+  const curBoardId=Storage.getCur();
+  let resumeBoard=null,resumeProject=null;
+  if(curBoardId){
+    resumeBoard=Storage.loadBoard(curBoardId);
+    if(resumeBoard){
+      // Найдём к какому проекту принадлежит
+      resumeProject=projectsState.projects.find(p=>(p.boardIds||[]).includes(curBoardId));
+    }
+  }
+
+  // 1. Блок "Продолжить" — только если есть открытая схема
+  const resumeEl=document.getElementById('welcomeResume');
+  if(resumeBoard){
+    const projectName=resumeProject?resumeProject.name:'(без проекта)';
+    const boardName=resumeBoard.name||'Без названия';
+    const updatedAt=resumeBoard.updatedAt?new Date(resumeBoard.updatedAt).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+    resumeEl.style.display='block';
+    resumeEl.innerHTML=`
+      <div class="welcome-resume">
+        <div class="welcome-resume-icon"><i data-lucide="play-circle"></i></div>
+        <div class="welcome-resume-body">
+          <div class="welcome-resume-label">Продолжить с прошлого</div>
+          <div class="welcome-resume-name">${escapeHtml(boardName)}</div>
+          <div class="welcome-resume-meta">${escapeHtml(projectName)}${updatedAt?' · '+escapeHtml(updatedAt):''}</div>
+        </div>
+        <button class="welcome-resume-btn" id="welcomeBtnResume"><i data-lucide="arrow-right"></i> Открыть</button>
+      </div>
+    `;
+  }else{
+    resumeEl.style.display='none';
+    resumeEl.innerHTML='';
+  }
+
+  // 2. Список проектов
+  const projectsBlock=document.getElementById('welcomeProjectsBlock');
+  const projectsList=document.getElementById('welcomeProjectsList');
+  const emptyEl=document.getElementById('welcomeEmpty');
+  if(projectsState.projects.length>0){
+    projectsBlock.style.display='block';
+    emptyEl.style.display='none';
+    document.getElementById('welcomeProjectsCount').textContent=`(${projectsState.projects.length})`;
+    const itemsHtml=projectsState.projects.map(p=>{
+      const initials=(p.name||'??').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase()||'??';
+      const meetings=p.meetings?p.meetings.length:0;
+      const boards=(p.boardIds||[]).length;
+      const updatedAt=p.updatedAt?new Date(p.updatedAt).toLocaleDateString('ru-RU',{day:'numeric',month:'short'}):'';
+      return `<div class="welcome-project-item" data-project-id="${p.id}">
+        <div class="welcome-project-item-avatar">${escapeHtml(initials)}</div>
+        <div class="welcome-project-item-info">
+          <div class="welcome-project-item-name">${escapeHtml(p.name)}</div>
+          <div class="welcome-project-item-meta">${updatedAt?'<span>'+escapeHtml(updatedAt)+'</span>':''}${boards?'<span>'+boards+' схем</span>':''}${meetings?'<span>'+meetings+' встреч</span>':''}</div>
+        </div>
+        <div class="welcome-project-item-arrow"><i data-lucide="chevron-right"></i></div>
+      </div>`;
+    }).join('');
+    projectsList.innerHTML=itemsHtml;
+  }else{
+    projectsBlock.style.display='none';
+    emptyEl.style.display='block';
+  }
+
+  showModal('welcomeModal');
+  if(window.lucide)lucide.createIcons();
+
+  // Handlers
+  const resumeBtn=document.getElementById('welcomeBtnResume');
+  if(resumeBtn){
+    resumeBtn.onclick=()=>{
+      if(resumeBoard){
+        loadBoardData(resumeBoard);
+        if(resumeProject)projectsState.activeProject=resumeProject;
+        hideModal('welcomeModal');
+        setTimeout(fitView,80);
+      }
+    };
+  }
+
+  document.getElementById('welcomeBtnNew').onclick=()=>{
+    hideModal('welcomeModal');
+    setTimeout(openNewProjectModal,150);
+  };
+
+  projectsList.querySelectorAll('.welcome-project-item').forEach(el=>{
+    el.onclick=()=>{
+      const pid=el.dataset.projectId;
+      const p=projectsState.projects.find(x=>x.id===pid);
+      if(!p)return;
+      projectsState.activeProject=p;
+      p.updatedAt=Date.now();
+      saveProjects();
+      hideModal('welcomeModal');
+      // Если у проекта есть схема — открываем последнюю, иначе показываем выбор шаблона
+      const lastBoardId=(p.boardIds||[]).slice(-1)[0];
+      if(lastBoardId){
+        const b=Storage.loadBoard(lastBoardId);
+        if(b){
+          loadBoardData(b);
+          Storage.setCur(lastBoardId);
+          setTimeout(fitView,80);
+          return;
+        }
+      }
+      setTimeout(()=>showModal('templatesModal'),150);
+    };
+  });
+}
+
+function openNewProjectModal(){
+  document.getElementById('npClientName').value='';
+  document.getElementById('npClientContact').value='';
+  renderNpTemplatesGrid();
+  showModal('newProjectModal');
+  setTimeout(()=>document.getElementById('npClientName').focus(),100);
+}
+
+function renderNpTemplatesGrid(){
+  const grid=document.getElementById('npTemplatesGrid');
+  let html='';
+  Object.entries(TEMPLATES).forEach(([key,t])=>{
+    html+=`<button class="template-card ${t.isBlank?'blank':''}" data-np-key="${key}"><div class="template-icon"><i data-lucide="${t.icon}"></i></div><h3>${escapeHtml(t.name)}</h3><p>${escapeHtml(t.desc)}</p></button>`;
+  });
+  grid.innerHTML=html;
+  if(window.lucide)lucide.createIcons({nodes:[grid]});
+  grid.querySelectorAll('.template-card').forEach(c=>{
+    c.onclick=()=>{
+      const name=document.getElementById('npClientName').value.trim();
+      if(!name){
+        showToast('Введите имя клиента','alert-circle');
+        document.getElementById('npClientName').focus();
+        document.getElementById('npClientName').style.borderColor='#B83E5F';
+        setTimeout(()=>{document.getElementById('npClientName').style.borderColor=''},2000);
+        return;
+      }
+      const contact=document.getElementById('npClientContact').value.trim();
+      // 1. Создаём проект
+      const proj=createProject(name);
+      if(contact)proj.clientContact=contact;
+      projectsState.activeProject=proj;
+      saveProjects();
+      // 2. Закрываем модалку
+      hideModal('newProjectModal');
+      // 3. Загружаем шаблон (он автоматически привяжется к активному проекту)
+      setTimeout(()=>{
+        loadTemplate(c.dataset.npKey);
+        showToast(`Проект «${name}» создан`,'folder-plus');
+      },150);
+    };
+  });
+}
+
+function goHome(){
+  // Сохраняем текущую схему в активный проект (если есть)
+  if(state.boardId&&state.nodes.length>0){
+    try{Storage.saveBoard(serializeBoard())}catch(e){console.warn('goHome save failed',e)}
+    if(projectsState.activeProject){
+      attachCurrentBoardToProject(projectsState.activeProject.id);
+    }
+  }
+  // Очищаем "текущую" чтобы не было автозагрузки
+  try{localStorage.removeItem(PFX+':current')}catch(e){}
+  // Сбрасываем состояние канвы
+  state.nodes.forEach(n=>{const el=document.getElementById(n.id);if(el)el.remove()});
+  state.nodes=[];state.edges=[];state.boardId=null;state.selection=null;
+  redrawEdges();updateMeta();
+  // Перерисуем имя
+  if(dom.projectName)dom.projectName.value='';
+  // Сбрасываем активный проект (можно потом перевыбрать)
+  projectsState.activeProject=null;
+  // Перезагружаем список проектов
+  loadProjects();
+  // Показываем стартовый экран
+  showWelcomeScreen();
+}
+
 function init(){
   renderLibrary();renderTemplatesGrid();applyViewport();updateMeta();
   refreshUserChip();
@@ -4986,16 +5355,9 @@ function init(){
     if(window.lucide)lucide.createIcons({nodes:[dom.readonlyBanner]});
     return;
   }
-  const cur=Storage.getCur();
-  if(cur){const b=Storage.loadBoard(cur);if(b){loadBoardData(b);setTimeout(fitView,50);return}}
-
-  // Старт инструмента: если есть проекты — показываем архив с кнопкой «+ Новый»
-  // Если нет — сразу шаблоны для создания первого
-  if(projectsState.projects.length>0){
-    showModal('projectsModal');
-  }else{
-    showModal('templatesModal');
-  }
+  // СТАРТОВЫЙ ЭКРАН ВСЕГДА ПОКАЗЫВАЕТСЯ ПЕРВЫМ
+  // (никакой автозагрузки — текущая схема доступна через кнопку "Продолжить")
+  showWelcomeScreen();
 }
 
 if(window.lucide){lucide.createIcons();init()}
