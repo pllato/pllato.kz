@@ -9,6 +9,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js"></script>
 <style>
 :root{--bg:#FAFAF7;--bg-canvas:#F5F5F1;--surface:#fff;--surface-2:#F8F8F5;--border:#E8E6E0;--border-strong:#D6D3CC;--ink:#1A1A18;--ink-2:#4A4A47;--ink-3:#8B8B85;--ink-4:#B5B5AE;--accent-blue:#3B5FB8;--accent-blue-bg:#EEF2FB;--accent-purple:#6B46C1;--accent-purple-bg:#F4EFFB;--accent-orange:#C2542B;--accent-orange-bg:#FBF1EB;--accent-green:#2F7A4F;--accent-green-bg:#ECF5EF;--accent-amber:#B07D1A;--accent-amber-bg:#FBF5E7;--accent-rose:#B83E5F;--accent-rose-bg:#FBECF1;--shadow-sm:0 1px 2px rgba(26,26,24,.04),0 1px 1px rgba(26,26,24,.03);--shadow-md:0 2px 8px rgba(26,26,24,.06),0 1px 2px rgba(26,26,24,.04);--shadow-lg:0 8px 24px rgba(26,26,24,.08),0 2px 6px rgba(26,26,24,.04);--shadow-xl:0 24px 48px rgba(26,26,24,.12),0 4px 12px rgba(26,26,24,.06);--font-sans:'Geist',-apple-system,BlinkMacSystemFont,sans-serif;--font-mono:'Geist Mono',ui-monospace,monospace;--font-display:'Instrument Serif',Georgia,serif}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -213,6 +215,79 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 .btn-whatsapp{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:7px;font:inherit;font-size:12px;font-weight:500;background:#25D366;color:#fff;border:1px solid #25D366;cursor:pointer;transition:all .12s}
 .btn-whatsapp:hover{background:#1EB553;border-color:#1EB553}
 .btn-whatsapp svg{width:14px;height:14px}
+
+/* ============ RECORDING MODAL ============ */
+.btn-record{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:7px;font:inherit;font-size:12px;font-weight:500;background:var(--surface);color:var(--ink);border:1px solid var(--border-strong);cursor:pointer;transition:all .12s}
+.btn-record:hover{border-color:var(--ink-3);background:var(--surface-2)}
+.btn-record.recording{background:var(--accent-rose-bg);color:var(--accent-rose);border-color:var(--accent-rose);animation:pulseRec 1.5s ease-in-out infinite}
+.btn-record svg{width:14px;height:14px}
+@keyframes pulseRec{0%,100%{box-shadow:0 0 0 0 rgba(184,62,95,.35)}50%{box-shadow:0 0 0 6px rgba(184,62,95,0)}}
+.btn-docs{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:7px;font:inherit;font-size:12px;font-weight:500;background:var(--surface);color:var(--ink);border:1px solid var(--border-strong);cursor:pointer;transition:all .12s}
+.btn-docs:hover{border-color:var(--ink-3);background:var(--surface-2)}
+.btn-docs svg{width:14px;height:14px}
+
+.rec-status{display:flex;align-items:center;gap:14px;padding:18px 20px;background:var(--surface-2);border-radius:10px;margin-bottom:16px}
+.rec-dot{width:14px;height:14px;border-radius:50%;background:var(--ink-4);flex-shrink:0;transition:all .2s}
+.rec-dot.active{background:var(--accent-rose);box-shadow:0 0 0 4px rgba(184,62,95,.18);animation:dotPulse 1s ease-in-out infinite}
+@keyframes dotPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+.rec-time{font-family:var(--font-mono);font-size:22px;font-weight:600;color:var(--ink);min-width:80px}
+.rec-state-text{font-size:13px;color:var(--ink-2);flex:1}
+.transcript-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;min-height:160px;max-height:280px;overflow-y:auto;font-size:13.5px;line-height:1.6;color:var(--ink);margin-bottom:14px;white-space:pre-wrap}
+.transcript-box:empty::before{content:'Здесь появится транскрипция разговора...';color:var(--ink-3);font-style:italic}
+.transcript-box .interim{color:var(--ink-3);font-style:italic}
+.rec-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.rec-actions .btn{padding:9px 16px}
+.rec-warning{padding:10px 14px;background:var(--accent-amber-bg);border:1px solid var(--accent-amber);border-radius:8px;font-size:12px;color:var(--accent-amber);line-height:1.5;margin-bottom:14px;display:none}
+.rec-warning.show{display:block}
+.rec-warning b{color:var(--ink)}
+.ai-thinking{display:none;align-items:center;gap:12px;padding:14px 16px;background:var(--accent-blue-bg);border:1px solid var(--accent-blue);border-radius:10px;margin-top:14px;color:var(--accent-blue);font-size:13px}
+.ai-thinking.show{display:flex}
+.ai-thinking::before{content:'';width:16px;height:16px;border:2px solid var(--accent-blue);border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ============ DOCS MODAL ============ */
+.docs-tabs{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--border)}
+.docs-tab{padding:10px 14px;border:none;background:transparent;font:inherit;font-size:13px;font-weight:500;color:var(--ink-3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .12s}
+.docs-tab:hover{color:var(--ink-2)}
+.docs-tab.active{color:var(--ink);border-bottom-color:var(--ink)}
+.docs-pane{display:none}
+.docs-pane.active{display:block}
+.doc-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.doc-form-grid .full{grid-column:1/-1}
+.doc-form-row{display:flex;flex-direction:column;gap:5px}
+.doc-form-row label{font-size:11px;color:var(--ink-3);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.06em}
+.doc-form-row input,.doc-form-row select,.doc-form-row textarea{padding:9px 11px;border:1px solid var(--border-strong);border-radius:7px;font:inherit;font-size:13px;background:var(--surface-2);outline:none;transition:all .12s;font-family:var(--font-sans)}
+.doc-form-row input:focus,.doc-form-row select:focus,.doc-form-row textarea:focus{background:var(--surface);border-color:var(--ink)}
+.doc-form-row .hint{font-size:11px;color:var(--ink-3)}
+.doc-section-title{font-family:var(--font-display);font-style:italic;font-size:18px;color:var(--ink);margin:22px 0 10px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.doc-section-title:first-child{margin-top:0}
+.doc-summary{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:13px;color:var(--ink-2);line-height:1.6;margin-bottom:14px}
+.doc-summary b{color:var(--ink)}
+.doc-summary table{width:100%;margin-top:8px;font-size:12.5px}
+.doc-summary td{padding:4px 0;vertical-align:top}
+.doc-summary td:first-child{color:var(--ink-3);width:50%}
+.doc-summary td:last-child{font-weight:500;color:var(--ink)}
+.doc-actions-row{display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid var(--border);margin-top:18px}
+.doc-payment-options{display:flex;gap:10px;margin-top:6px}
+.doc-payment-option{flex:1;padding:14px;border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:all .12s;background:var(--surface)}
+.doc-payment-option:hover{border-color:var(--border-strong)}
+.doc-payment-option.selected{border-color:var(--ink);background:var(--surface-2)}
+.doc-payment-option h5{font-size:13px;font-weight:600;margin-bottom:4px}
+.doc-payment-option .desc{font-size:11.5px;color:var(--ink-3);line-height:1.4;margin-bottom:8px}
+.doc-payment-option .price{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--ink)}
+.doc-payment-option .price small{color:var(--ink-3);font-weight:400;font-size:11px;text-decoration:line-through;margin-left:6px}
+.doc-payment-option .discount{display:inline-block;margin-top:4px;font-size:10px;font-weight:700;color:var(--accent-green);background:var(--accent-green-bg);padding:2px 7px;border-radius:100px;letter-spacing:.04em}
+.doc-stages-table{width:100%;font-size:12.5px;margin-top:10px;border-collapse:collapse}
+.doc-stages-table th{text-align:left;padding:8px 10px;font-size:11px;color:var(--ink-3);text-transform:uppercase;font-family:var(--font-mono);letter-spacing:.04em;border-bottom:1px solid var(--border)}
+.doc-stages-table td{padding:10px;border-bottom:1px solid var(--border);vertical-align:top}
+.doc-stages-table td input{width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font:inherit;font-size:12.5px;font-family:var(--font-sans);background:var(--surface);outline:none}
+.doc-stages-table td input:focus{border-color:var(--ink)}
+.doc-stages-table tr.total td{font-weight:700;color:var(--ink);border-bottom:none}
+.doc-add-stage{margin-top:8px;padding:6px 12px;font-size:11.5px;color:var(--ink-3);background:transparent;border:1px dashed var(--border-strong);border-radius:6px;cursor:pointer;font-family:inherit}
+.doc-add-stage:hover{color:var(--ink);border-color:var(--ink-3)}
+.doc-del-stage{background:transparent;border:none;color:var(--ink-3);cursor:pointer;padding:4px}
+.doc-del-stage:hover{color:var(--accent-rose)}
+.doc-del-stage svg{width:13px;height:13px}
 </style>
 </head>
 <body>
@@ -227,6 +302,8 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 <div class="save-status" id="saveStatus"></div>
 <div class="topbar-actions">
 <div class="user-chip" id="userChip" style="display:none" title="Изменить мои данные"><div class="user-chip-avatar" id="userAvatar">?</div><span id="userName">Гость</span></div>
+<button class="btn-record" id="btnRecord" title="Записать встречу с клиентом — AI построит схему"><i data-lucide="mic"></i> <span id="btnRecordText">Запись</span></button>
+<button class="btn-docs" id="btnDocs" title="Сформировать документы для клиента"><i data-lucide="file-text"></i> Документы</button>
 <button class="btn-whatsapp" id="btnContactStudio" title="Связаться со студией Pllato через WhatsApp"><i data-lucide="message-circle"></i> Связаться</button>
 <button class="btn ghost" id="btnTemplates"><i data-lucide="layout-template" class="icon"></i> Шаблоны</button>
 <button class="btn ghost" id="btnBoards"><i data-lucide="folder" class="icon"></i> Мои схемы</button>
@@ -378,6 +455,175 @@ textarea.prop-input{resize:vertical;min-height:56px;font-family:var(--font-sans)
 </div>
 </div></div>
 <div class="toast" id="toast"></div>
+
+<!-- ============ RECORDING MODAL ============ -->
+<div class="modal-overlay" id="recordingModal"><div class="modal" style="width:640px">
+<div class="modal-header">
+<button class="modal-close" data-close="recordingModal"><i data-lucide="x"></i></button>
+<div class="modal-title">Запись встречи с клиентом</div>
+<div class="modal-subtitle">Браузер транскрибирует речь в реальном времени.<br>После остановки AI построит схему CRM из разговора.</div>
+</div>
+<div class="modal-body">
+<div class="rec-warning" id="recWarning"></div>
+<div class="rec-status">
+<div class="rec-dot" id="recDot"></div>
+<div class="rec-time" id="recTime">00:00</div>
+<div class="rec-state-text" id="recStateText">Нажмите «Начать запись», чтобы начать</div>
+</div>
+<div class="transcript-box" id="transcriptBox"></div>
+<div class="rec-actions">
+<button class="btn primary" id="btnRecStart"><i data-lucide="mic" class="icon"></i> Начать запись</button>
+<button class="btn" id="btnRecStop" style="display:none"><i data-lucide="square" class="icon"></i> Остановить</button>
+<button class="btn" id="btnRecClear" style="display:none"><i data-lucide="trash-2" class="icon"></i> Очистить</button>
+<button class="btn primary" id="btnRecBuild" style="display:none;background:var(--accent-blue);border-color:var(--accent-blue)"><i data-lucide="sparkles" class="icon"></i> Построить схему</button>
+</div>
+<div class="ai-thinking" id="aiThinking">Анализирую разговор и строю схему CRM... Это может занять 20-40 секунд.</div>
+</div>
+</div></div>
+
+<!-- ============ DOCUMENTS MODAL ============ -->
+<div class="modal-overlay" id="documentsModal"><div class="modal" style="width:860px">
+<div class="modal-header">
+<button class="modal-close" data-close="documentsModal"><i data-lucide="x"></i></button>
+<div class="modal-title">Документы для клиента</div>
+<div class="modal-subtitle">Заполните данные заказчика и условия — сгенерирую PDF на основе текущей схемы CRM</div>
+</div>
+<div class="modal-body">
+<div class="docs-tabs">
+<button class="docs-tab active" data-pane="paneClient">1. Данные</button>
+<button class="docs-tab" data-pane="paneStages">2. План работ</button>
+<button class="docs-tab" data-pane="panePayment">3. Оплата</button>
+<button class="docs-tab" data-pane="paneExport">4. PDF документы</button>
+</div>
+
+<!-- PANE: данные клиента -->
+<div class="docs-pane active" id="paneClient">
+<div class="doc-section-title">Заказчик</div>
+<div class="doc-form-grid">
+<div class="doc-form-row full"><label>Тип заказчика</label>
+<select id="dfCustType"><option value="ip">ИП (индивидуальный предприниматель)</option><option value="too">ТОО (товарищество с ограниченной ответственностью)</option><option value="ao">АО (акционерное общество)</option><option value="fl">Физическое лицо</option></select></div>
+<div class="doc-form-row full"><label>Полное название организации</label>
+<input type="text" id="dfCustName" placeholder='Например: ТОО "Mint Pharma"'></div>
+<div class="doc-form-row"><label>БИН / ИИН</label>
+<input type="text" id="dfCustBin" placeholder="12 цифр"></div>
+<div class="doc-form-row"><label>В лице (ФИО)</label>
+<input type="text" id="dfCustDirector" placeholder="Иванов Иван Иванович"></div>
+<div class="doc-form-row"><label>Должность</label>
+<input type="text" id="dfCustPosition" placeholder="Директор"></div>
+<div class="doc-form-row"><label>Действует на основании</label>
+<input type="text" id="dfCustBasis" value="Устава" placeholder="Устава / Свидетельства о регистрации ИП"></div>
+<div class="doc-form-row full"><label>Юридический адрес</label>
+<input type="text" id="dfCustAddress" placeholder="г. Алматы, ул. ___, дом ___, офис ___"></div>
+<div class="doc-form-row"><label>Телефон / WhatsApp</label>
+<input type="text" id="dfCustPhone" placeholder="+7 ___ ___ __ __"></div>
+<div class="doc-form-row"><label>Email</label>
+<input type="email" id="dfCustEmail" placeholder="contact@company.kz"></div>
+<div class="doc-form-row full"><label>Банковские реквизиты (для счёта)</label>
+<textarea id="dfCustBank" rows="3" placeholder='ИИК: KZ___&#10;Банк: АО "___"&#10;БИК: ___&#10;КБе: ___' style="font-family:var(--font-mono);font-size:12px"></textarea></div>
+</div>
+<div class="doc-section-title">Проект</div>
+<div class="doc-form-grid">
+<div class="doc-form-row"><label>Название проекта</label>
+<input type="text" id="dfProjectName" placeholder="Возьмётся из имени схемы"></div>
+<div class="doc-form-row"><label>Дата подписания</label>
+<input type="date" id="dfProjectDate"></div>
+<div class="doc-form-row full"><label>Краткое описание (для договора)</label>
+<textarea id="dfProjectDesc" rows="2" placeholder="Кастомная CRM для дистрибуции медицинских товаров. Учёт регистрационных удостоверений, тендеры, сроки годности."></textarea></div>
+</div>
+</div>
+
+<!-- PANE: план работ -->
+<div class="docs-pane" id="paneStages">
+<div class="doc-section-title">Этапы работ и сметы</div>
+<div class="doc-summary" id="stagesAutoFill">
+<b>Если в схеме есть этапы</b> (зелёный / жёлтый / оранжевый / синий блоки), они подтянутся автоматически. Можно скорректировать названия, сроки и суммы.
+</div>
+<table class="doc-stages-table" id="stagesTable">
+<thead><tr><th style="width:30px"></th><th>Название этапа</th><th style="width:140px">Срок (нед.)</th><th style="width:160px">Сумма (₸)</th><th style="width:36px"></th></tr></thead>
+<tbody id="stagesTbody"></tbody>
+<tfoot><tr class="total"><td colspan="3" style="text-align:right">ИТОГО:</td><td id="stagesTotal" style="font-family:var(--font-mono)">0 ₸</td><td></td></tr></tfoot>
+</table>
+<button class="doc-add-stage" id="btnAddStage"><i data-lucide="plus" style="width:11px;height:11px;display:inline-block;vertical-align:middle;margin-right:4px"></i> Добавить этап</button>
+</div>
+
+<!-- PANE: оплата -->
+<div class="docs-pane" id="panePayment">
+<div class="doc-section-title">Вариант оплаты</div>
+<div class="doc-payment-options" id="paymentOptions">
+<div class="doc-payment-option selected" data-payment="staged">
+<h5>Поэтапная оплата</h5>
+<div class="desc">Оплата за каждый этап после его выполнения. Удобно для крупных проектов.</div>
+<div class="price"><span id="priceStaged">0 ₸</span></div>
+</div>
+<div class="doc-payment-option" data-payment="full">
+<h5>Полная предоплата</h5>
+<div class="desc">Один платёж за весь проект до начала работ.</div>
+<div class="price"><span id="priceFull">0 ₸</span> <small id="priceFullOriginal">0 ₸</small></div>
+<span class="discount">−10% скидка</span>
+</div>
+</div>
+<div class="doc-section-title">График платежей</div>
+<table class="doc-stages-table" id="paymentsTable">
+<thead><tr><th>Платёж</th><th>Когда</th><th style="width:160px">Сумма (₸)</th></tr></thead>
+<tbody id="paymentsTbody"></tbody>
+<tfoot><tr class="total"><td colspan="2" style="text-align:right">ИТОГО:</td><td id="paymentsTotal" style="font-family:var(--font-mono)">0 ₸</td></tr></tfoot>
+</table>
+<div class="doc-section-title">Реквизиты счёта</div>
+<div class="doc-form-grid">
+<div class="doc-form-row"><label>Номер счёта</label>
+<input type="text" id="dfInvoiceNum" placeholder="Например: 001"></div>
+<div class="doc-form-row"><label>Назначение платежа</label>
+<input type="text" id="dfInvoicePurpose" value="За разработку CRM-системы согласно договору"></div>
+</div>
+</div>
+
+<!-- PANE: экспорт -->
+<div class="docs-pane" id="paneExport">
+<div class="doc-section-title">Готовые документы</div>
+<div class="doc-summary" id="exportSummary">
+Сначала заполните данные заказчика и план работ. Затем скачайте каждый документ в PDF.
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+
+<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px">
+<div>
+<div style="font-weight:600;font-size:14px;color:var(--ink)">Договор на разработку</div>
+<div style="font-size:12px;color:var(--ink-3);margin-top:2px">Договор оказания услуг по разработке CRM. ~5-6 страниц.</div>
+</div>
+<button class="btn primary" data-doc="contract"><i data-lucide="download" class="icon"></i> Скачать PDF</button>
+</div>
+
+<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px">
+<div>
+<div style="font-weight:600;font-size:14px;color:var(--ink)">План работ <span style="color:var(--ink-3);font-weight:400">(Приложение №1)</span></div>
+<div style="font-size:12px;color:var(--ink-3);margin-top:2px">Этапы, сроки, сумма за этап + график платежей.</div>
+</div>
+<button class="btn primary" data-doc="workplan"><i data-lucide="download" class="icon"></i> Скачать PDF</button>
+</div>
+
+<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px">
+<div>
+<div style="font-weight:600;font-size:14px;color:var(--ink)">NDA (Соглашение о конфиденциальности)</div>
+<div style="font-size:12px;color:var(--ink-3);margin-top:2px">Двустороннее соглашение о неразглашении конфиденциальной информации.</div>
+</div>
+<button class="btn primary" data-doc="nda"><i data-lucide="download" class="icon"></i> Скачать PDF</button>
+</div>
+
+<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px">
+<div>
+<div style="font-weight:600;font-size:14px;color:var(--ink)">Счёт на оплату</div>
+<div style="font-size:12px;color:var(--ink-3);margin-top:2px">Счёт согласно выбранному плану оплат. Реквизиты ИП «STUDYSTORIES.APP».</div>
+</div>
+<button class="btn primary" data-doc="invoice"><i data-lucide="download" class="icon"></i> Скачать PDF</button>
+</div>
+
+</div>
+<div class="doc-summary" style="margin-top:18px;background:var(--accent-amber-bg);border-color:var(--accent-amber);color:var(--accent-amber);font-size:12px">
+<b>⚠️ Перед использованием</b> с реальными клиентами — рекомендуем дать договор и NDA на проверку юристу. Шаблоны типовые, но конкретная сделка может требовать дополнительных условий.
+</div>
+</div>
+</div>
+</div></div>
 <script>
 'use strict';
 const PFX='crmbuilder',KI=PFX+':index',KC=PFX+':current',KB=id=>PFX+':b:'+id;
@@ -1390,9 +1636,1023 @@ shareConsent.addEventListener('change',()=>{
   }
 });
 
+// ============================================================
+// RECORDING — Web Speech API + Claude AI schema generation
+// ============================================================
+const WORKER_URL='https://pllato-research.uurraa.workers.dev';
+const rec={recognition:null,startTime:0,timer:null,transcript:'',interim:'',isRecording:false,supported:false};
+
+function initRecording(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  rec.supported=!!SR;
+
+  const btnRecord=document.getElementById('btnRecord');
+  btnRecord.addEventListener('click',()=>{
+    if(!rec.supported){
+      showToast('Запись работает только в Chrome / Edge','alert-circle');
+      return;
+    }
+    showModal('recordingModal');
+    if(!rec.isRecording&&!rec.transcript)resetRecUI();
+  });
+
+  document.getElementById('btnRecStart').addEventListener('click',startRecording);
+  document.getElementById('btnRecStop').addEventListener('click',stopRecording);
+  document.getElementById('btnRecClear').addEventListener('click',clearRecording);
+  document.getElementById('btnRecBuild').addEventListener('click',buildSchemaFromTranscript);
+
+  if(!rec.supported){
+    const w=document.getElementById('recWarning');
+    w.innerHTML='<b>Ваш браузер не поддерживает запись.</b> Используйте Chrome, Edge или Arc. В Safari и Firefox функция распознавания речи не работает или работает нестабильно.';
+    w.classList.add('show');
+  }
+}
+
+function resetRecUI(){
+  rec.transcript='';rec.interim='';
+  document.getElementById('transcriptBox').textContent='';
+  document.getElementById('recTime').textContent='00:00';
+  document.getElementById('recDot').classList.remove('active');
+  document.getElementById('recStateText').textContent='Нажмите «Начать запись», чтобы начать';
+  document.getElementById('btnRecStart').style.display='inline-flex';
+  document.getElementById('btnRecStop').style.display='none';
+  document.getElementById('btnRecClear').style.display='none';
+  document.getElementById('btnRecBuild').style.display='none';
+  document.getElementById('aiThinking').classList.remove('show');
+}
+
+function startRecording(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){showToast('Браузер не поддерживает запись','alert-circle');return}
+
+  try{
+    rec.recognition=new SR();
+    rec.recognition.continuous=true;
+    rec.recognition.interimResults=true;
+    rec.recognition.lang='ru-RU';
+    rec.recognition.maxAlternatives=1;
+
+    rec.recognition.onresult=(event)=>{
+      let interim='',final='';
+      for(let i=event.resultIndex;i<event.results.length;i++){
+        const t=event.results[i][0].transcript;
+        if(event.results[i].isFinal)final+=t+' ';
+        else interim+=t;
+      }
+      if(final)rec.transcript+=final;
+      rec.interim=interim;
+      renderTranscript();
+    };
+
+    rec.recognition.onerror=(event)=>{
+      console.error('SpeechRecognition error:',event.error);
+      if(event.error==='not-allowed'){
+        showToast('Доступ к микрофону запрещён','alert-circle');
+        const w=document.getElementById('recWarning');
+        w.innerHTML='<b>Браузер не дал доступ к микрофону.</b> Нажмите на иконку 🔒 в адресной строке → разрешите микрофон → перезагрузите страницу.';
+        w.classList.add('show');
+        stopRecording();
+      }else if(event.error==='no-speech'){
+        // часто, ничего критичного
+      }else if(event.error==='network'){
+        showToast('Нет интернета. Распознавание остановлено','alert-circle');
+        stopRecording();
+      }else if(event.error==='aborted'){
+        // нормально
+      }else{
+        showToast('Ошибка распознавания: '+event.error,'alert-circle');
+      }
+    };
+
+    rec.recognition.onend=()=>{
+      // Web Speech API любит "автостопиться" — если мы всё ещё в режиме записи, перезапустим
+      if(rec.isRecording){
+        try{rec.recognition.start()}catch(e){}
+      }
+    };
+
+    rec.recognition.start();
+    rec.isRecording=true;
+    rec.startTime=Date.now();
+    rec.timer=setInterval(updateRecTime,500);
+
+    document.getElementById('btnRecStart').style.display='none';
+    document.getElementById('btnRecStop').style.display='inline-flex';
+    document.getElementById('recDot').classList.add('active');
+    document.getElementById('recStateText').textContent='Идёт запись... Говорите естественно.';
+    document.getElementById('btnRecord').classList.add('recording');
+    document.getElementById('btnRecordText').textContent='Запись...';
+  }catch(e){
+    console.error('start recording failed:',e);
+    showToast('Не удалось запустить запись','alert-circle');
+  }
+}
+
+function stopRecording(){
+  if(!rec.isRecording)return;
+  rec.isRecording=false;
+  if(rec.recognition){
+    try{rec.recognition.stop()}catch(e){}
+    rec.recognition=null;
+  }
+  if(rec.timer){clearInterval(rec.timer);rec.timer=null}
+
+  document.getElementById('btnRecStop').style.display='none';
+  document.getElementById('btnRecStart').style.display='inline-flex';
+  document.getElementById('btnRecStart').innerHTML='<i data-lucide="mic"></i> Продолжить';
+  document.getElementById('recDot').classList.remove('active');
+  document.getElementById('btnRecord').classList.remove('recording');
+  document.getElementById('btnRecordText').textContent='Запись';
+  if(window.lucide)lucide.createIcons({nodes:[document.getElementById('btnRecStart')]});
+
+  if(rec.transcript.trim()){
+    document.getElementById('recStateText').textContent='Запись остановлена. Можно построить схему.';
+    document.getElementById('btnRecClear').style.display='inline-flex';
+    document.getElementById('btnRecBuild').style.display='inline-flex';
+  }else{
+    document.getElementById('recStateText').textContent='Ничего не записано. Попробуйте ещё раз.';
+  }
+}
+
+function clearRecording(){
+  if(!confirm('Очистить транскрипт? Запись будет утеряна.'))return;
+  resetRecUI();
+}
+
+function renderTranscript(){
+  const box=document.getElementById('transcriptBox');
+  const safe=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  box.innerHTML=safe(rec.transcript)+(rec.interim?`<span class="interim">${safe(rec.interim)}</span>`:'');
+  box.scrollTop=box.scrollHeight;
+}
+
+function updateRecTime(){
+  const sec=Math.floor((Date.now()-rec.startTime)/1000);
+  const m=Math.floor(sec/60),s=sec%60;
+  document.getElementById('recTime').textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+async function buildSchemaFromTranscript(){
+  const transcript=rec.transcript.trim();
+  if(transcript.length<30){
+    showToast('Транскрипт слишком короткий','alert-circle');
+    return;
+  }
+  document.getElementById('aiThinking').classList.add('show');
+  document.getElementById('btnRecBuild').disabled=true;
+
+  try{
+    const r=await fetch(WORKER_URL+'/api/transcript-to-schema',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({transcript})
+    });
+    const data=await r.json();
+
+    if(!data.ok){
+      throw new Error(data.error||'Unknown error');
+    }
+
+    const schema=data.schema;
+    // Загружаем схему как новую доску
+    state.nodes.forEach(n=>{const el=document.getElementById(n.id);if(el)el.remove()});
+    state.nodes=[];state.edges=[];
+    state.boardId=uid();state.readonly=false;
+    dom.readonlyBanner.classList.remove('show');
+    dom.projectName.value=schema.name||'Схема из разговора';
+    history.replaceState(null,'',location.pathname);
+
+    const idMap=[];
+    (schema.nodes||[]).forEach((d,i)=>{
+      // Гарантируем что type существует в нашей библиотеке (если нет — fallback на 'note')
+      if(!TYPE_TO_DEF[d.type]){
+        console.warn('Unknown type from AI:',d.type,'→ using note');
+        d.type='note';d.isNote=true;d.noteColor=d.noteColor||'yellow';
+      }
+      idMap[i]=addNode(d).id;
+    });
+    (schema.edges||[]).forEach(e=>{
+      if(idMap[e.source]&&idMap[e.target]){
+        state.edges.push({id:'e'+Math.random().toString(36).slice(2,9),source:idMap[e.source],target:idMap[e.target],label:e.label||''});
+      }
+    });
+    redrawEdges();updateMeta();
+    setTimeout(fitView,80);
+    scheduleAutoSave();
+
+    hideModal('recordingModal');
+    showToast(`Схема построена! ${schema.nodes.length} блоков`,'sparkles');
+    resetRecUI();
+  }catch(err){
+    console.error('buildSchemaFromTranscript:',err);
+    showToast('Не удалось построить: '+err.message,'alert-circle');
+    document.getElementById('aiThinking').classList.remove('show');
+    document.getElementById('btnRecBuild').disabled=false;
+  }
+}
+
+// ============================================================
+// DOCUMENTS — PDF generation via pdfmake
+// ============================================================
+
+// Реквизиты Pllato / ИП STUDYSTORIES.APP
+const PLLATO_DATA={
+  brand:'Pllato',
+  legal:'Индивидуальный предприниматель «STUDYSTORIES.APP»',
+  shortLegal:'ИП «STUDYSTORIES.APP»',
+  bin:'880607300110',
+  director:'Цай Платон',
+  basis:'Свидетельства о регистрации индивидуального предпринимателя',
+  address:'Республика Казахстан, г. Алматы, мкр. Орбита-4, дом 3, оф. 2',
+  phone:'+7 701 123 99 99',
+  email:'uurraa@gmail.com',
+  bank:'АО "Kaspi Bank"',
+  bik:'CASPKZKA',
+  kbe:'19',
+  iik:'KZ31722S000010366450',
+  website:'https://pllato.kz',
+};
+
+const docState={
+  payment:'staged', // 'staged' | 'full'
+  stages:[],
+  totalKzt:0,
+};
+
+function initDocuments(){
+  document.getElementById('btnDocs').addEventListener('click',()=>{
+    if(state.nodes.length===0){
+      showToast('Сначала создайте схему','alert-circle');
+      return;
+    }
+    prefillDocsForm();
+    showModal('documentsModal');
+  });
+
+  // Tabs
+  document.querySelectorAll('.docs-tab').forEach(tab=>{
+    tab.addEventListener('click',()=>{
+      document.querySelectorAll('.docs-tab').forEach(t=>t.classList.remove('active'));
+      document.querySelectorAll('.docs-pane').forEach(p=>p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.pane).classList.add('active');
+      if(tab.dataset.pane==='panePayment')renderPayments();
+    });
+  });
+
+  // Payment selection
+  document.querySelectorAll('.doc-payment-option').forEach(opt=>{
+    opt.addEventListener('click',()=>{
+      document.querySelectorAll('.doc-payment-option').forEach(o=>o.classList.remove('selected'));
+      opt.classList.add('selected');
+      docState.payment=opt.dataset.payment;
+      renderPayments();
+    });
+  });
+
+  // Add stage
+  document.getElementById('btnAddStage').addEventListener('click',()=>{
+    docState.stages.push({name:'Новый этап',weeks:2,price:500000});
+    renderStagesTable();
+  });
+
+  // PDF buttons
+  document.querySelectorAll('[data-doc]').forEach(btn=>{
+    btn.addEventListener('click',()=>generatePdf(btn.dataset.doc));
+  });
+}
+
+function prefillDocsForm(){
+  // Если поля уже заполнены — не трогаем
+  if(!document.getElementById('dfProjectName').value){
+    document.getElementById('dfProjectName').value=dom.projectName.value||'Проект CRM';
+  }
+  if(!document.getElementById('dfProjectDate').value){
+    const today=new Date();
+    document.getElementById('dfProjectDate').value=today.toISOString().slice(0,10);
+  }
+  if(!document.getElementById('dfInvoiceNum').value){
+    document.getElementById('dfInvoiceNum').value=String(Date.now()).slice(-6);
+  }
+
+  // Подтягиваем этапы из схемы по цветам блоков
+  if(docState.stages.length===0){
+    docState.stages=extractStagesFromSchema();
+  }
+  renderStagesTable();
+}
+
+function extractStagesFromSchema(){
+  // Группируем блоки по цвету (этапу)
+  const stageColors=['green','amber','orange','blue'];
+  const stageNames={
+    green:'Этап 1 — MVP / Базовый функционал',
+    amber:'Этап 2 — Расширение',
+    orange:'Этап 3 — Автоматизация',
+    blue:'Этап 4 — Дополнительные модули'
+  };
+  const stagePrices={green:2500*475,amber:3000*475,orange:3500*475,blue:3500*475}; // ~USD * KZT_rate
+  const stageWeeks={green:5,amber:4,orange:5,blue:5};
+
+  const found={};
+  state.nodes.forEach(n=>{
+    if(stageColors.includes(n.color))found[n.color]=true;
+  });
+
+  const result=[];
+  stageColors.forEach(c=>{
+    if(found[c]){
+      result.push({name:stageNames[c],weeks:stageWeeks[c],price:stagePrices[c]});
+    }
+  });
+
+  // Если этапов в схеме нет — делаем стандартный план
+  if(result.length===0){
+    const nodes=state.nodes.length;
+    const baseKzt=Math.max(700000,nodes*120000);
+    result.push({name:'Этап 1 — Анализ и проектирование',weeks:1,price:Math.round(baseKzt*0.2)});
+    result.push({name:'Этап 2 — Разработка ядра',weeks:3,price:Math.round(baseKzt*0.5)});
+    result.push({name:'Этап 3 — Интеграции и запуск',weeks:2,price:Math.round(baseKzt*0.3)});
+  }
+  return result;
+}
+
+function fmtKzt(n){return new Intl.NumberFormat('ru-RU').format(Math.round(n))+' ₸'}
+
+function renderStagesTable(){
+  const tbody=document.getElementById('stagesTbody');
+  tbody.innerHTML='';
+  docState.totalKzt=0;
+  docState.stages.forEach((s,i)=>{
+    docState.totalKzt+=s.price;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td style="color:var(--ink-3);font-family:var(--font-mono);font-size:11px">${i+1}</td>
+      <td><input type="text" data-field="name" data-i="${i}" value="${escapeHtml(s.name)}"></td>
+      <td><input type="number" min="1" step="1" data-field="weeks" data-i="${i}" value="${s.weeks}"></td>
+      <td><input type="number" min="0" step="10000" data-field="price" data-i="${i}" value="${s.price}"></td>
+      <td><button class="doc-del-stage" data-del-i="${i}" title="Удалить"><i data-lucide="x"></i></button></td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('stagesTotal').textContent=fmtKzt(docState.totalKzt);
+  if(window.lucide)lucide.createIcons({nodes:[tbody]});
+
+  tbody.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input',e=>{
+      const i=+e.target.dataset.i,f=e.target.dataset.f||e.target.dataset.field;
+      if(f==='name')docState.stages[i].name=e.target.value;
+      else if(f==='weeks')docState.stages[i].weeks=Math.max(1,parseInt(e.target.value)||1);
+      else if(f==='price'){
+        docState.stages[i].price=Math.max(0,parseInt(e.target.value)||0);
+        // обновляем итого без полного рендера
+        docState.totalKzt=docState.stages.reduce((a,b)=>a+b.price,0);
+        document.getElementById('stagesTotal').textContent=fmtKzt(docState.totalKzt);
+      }
+    });
+  });
+  tbody.querySelectorAll('[data-del-i]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const i=+btn.dataset.delI;
+      docState.stages.splice(i,1);
+      renderStagesTable();
+    });
+  });
+}
+
+function renderPayments(){
+  const total=docState.totalKzt;
+  document.getElementById('priceStaged').textContent=fmtKzt(total);
+  const discounted=Math.round(total*0.9);
+  document.getElementById('priceFull').textContent=fmtKzt(discounted);
+  document.getElementById('priceFullOriginal').textContent=fmtKzt(total);
+
+  const tbody=document.getElementById('paymentsTbody');
+  tbody.innerHTML='';
+  let totalRow=0;
+
+  if(docState.payment==='full'){
+    const amount=discounted;
+    totalRow+=amount;
+    tbody.innerHTML=`<tr><td>Полная предоплата (со скидкой 10%)</td><td>До начала работ</td><td style="font-family:var(--font-mono)">${fmtKzt(amount)}</td></tr>`;
+  }else{
+    // поэтапная: за каждый этап после подписания акта
+    docState.stages.forEach((s,i)=>{
+      totalRow+=s.price;
+      const when=i===0?'Аванс — до начала работ':`После сдачи Этапа ${i}`;
+      tbody.innerHTML+=`<tr><td>Платёж за ${escapeHtml(s.name)}</td><td>${when}</td><td style="font-family:var(--font-mono)">${fmtKzt(s.price)}</td></tr>`;
+    });
+  }
+  document.getElementById('paymentsTotal').textContent=fmtKzt(totalRow);
+}
+
+// ============================================================
+// PDF GENERATION
+// ============================================================
+
+function getCustomerData(){
+  const get=id=>(document.getElementById(id).value||'').trim();
+  return {
+    type:get('dfCustType'),
+    name:get('dfCustName')||'(не указано)',
+    bin:get('dfCustBin')||'(не указан)',
+    director:get('dfCustDirector')||'(не указано)',
+    position:get('dfCustPosition')||'Директор',
+    basis:get('dfCustBasis')||'Устава',
+    address:get('dfCustAddress')||'(не указан)',
+    phone:get('dfCustPhone')||'',
+    email:get('dfCustEmail')||'',
+    bank:get('dfCustBank')||'',
+    projectName:get('dfProjectName')||'Проект CRM',
+    projectDate:get('dfProjectDate')||new Date().toISOString().slice(0,10),
+    projectDesc:get('dfProjectDesc')||'Кастомная CRM-система',
+    invoiceNum:get('dfInvoiceNum')||'001',
+    invoicePurpose:get('dfInvoicePurpose')||'За разработку CRM-системы',
+  };
+}
+
+function fmtDateRu(iso){
+  if(!iso)return '';
+  const d=new Date(iso);
+  const months=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  return `«${d.getDate()}» ${months[d.getMonth()]} ${d.getFullYear()} г.`;
+}
+
+function generatePdf(type){
+  // pdfmake setup
+  if(!window.pdfMake){
+    showToast('Библиотека PDF ещё загружается, попробуйте через 2 сек','alert-circle');
+    return;
+  }
+  pdfMake.fonts={
+    Roboto:{
+      normal:'Roboto-Regular.ttf',
+      bold:'Roboto-Medium.ttf',
+      italics:'Roboto-Italic.ttf',
+      bolditalics:'Roboto-MediumItalic.ttf'
+    }
+  };
+
+  const c=getCustomerData();
+  let doc,filename;
+
+  if(type==='contract')[doc,filename]=buildContractPdf(c);
+  else if(type==='workplan')[doc,filename]=buildWorkplanPdf(c);
+  else if(type==='nda')[doc,filename]=buildNdaPdf(c);
+  else if(type==='invoice')[doc,filename]=buildInvoicePdf(c);
+  else return;
+
+  try{
+    pdfMake.createPdf(doc).download(filename);
+    showToast('PDF сохранён','download');
+  }catch(e){
+    console.error('PDF error:',e);
+    showToast('Ошибка генерации PDF','alert-circle');
+  }
+}
+
+const PDF_STYLES={
+  defaultStyle:{font:'Roboto',fontSize:10,lineHeight:1.35,color:'#1A1A18'},
+  styles:{
+    docTitle:{fontSize:14,bold:true,alignment:'center',margin:[0,0,0,4]},
+    docSubtitle:{fontSize:10,alignment:'center',color:'#4A4A47',margin:[0,0,0,16]},
+    sectionH:{fontSize:11,bold:true,margin:[0,12,0,6]},
+    small:{fontSize:9,color:'#4A4A47'},
+    th:{bold:true,fillColor:'#F3F0E8',fontSize:9.5},
+    cell:{fontSize:9.5},
+    sigLabel:{fontSize:9,color:'#4A4A47',margin:[0,0,0,2]},
+    sigName:{fontSize:10,bold:true},
+    sigLine:{margin:[0,18,0,2]},
+  },
+  pageMargins:[50,55,50,55],
+  pageSize:'A4',
+};
+
+function header(title){
+  return {columns:[
+    {text:'Pllato',font:'Roboto',fontSize:13,bold:true,color:'#0a1628'},
+    {text:'pllato.kz · '+PLLATO_DATA.phone,alignment:'right',fontSize:9,color:'#8B8B85'}
+  ],margin:[0,0,0,18]};
+}
+
+function footer(currentPage,pageCount){
+  return {text:`Pllato · ${currentPage} / ${pageCount}`,alignment:'center',fontSize:8,color:'#B5B5AE',margin:[0,10,0,0]};
+}
+
+// ─── ДОГОВОР НА РАЗРАБОТКУ ─────────────────────────────────
+function buildContractPdf(c){
+  const dateStr=fmtDateRu(c.projectDate);
+  const num='№ '+c.invoiceNum;
+
+  const content=[
+    header(),
+    {text:'ДОГОВОР '+num,style:'docTitle'},
+    {text:'на разработку программного обеспечения (CRM-системы)',style:'docSubtitle'},
+    {columns:[
+      {text:'г. Алматы',fontSize:10},
+      {text:dateStr,alignment:'right',fontSize:10}
+    ],margin:[0,0,0,14]},
+
+    {text:[
+      {text:'Индивидуальный предприниматель «STUDYSTORIES.APP»',bold:true},
+      {text:` (БИН ${PLLATO_DATA.bin}), действующий под брендом `},
+      {text:'«Pllato»',italics:true},
+      {text:`, в лице ${PLLATO_DATA.director}, действующего на основании ${PLLATO_DATA.basis}, именуемый в дальнейшем «`},
+      {text:'Исполнитель',bold:true},
+      {text:'», с одной стороны, и\n\n'},
+      {text:c.name,bold:true},
+      {text:` (БИН/ИИН ${c.bin}), в лице ${c.position} ${c.director}, действующего на основании ${c.basis}, именуемый в дальнейшем «`},
+      {text:'Заказчик',bold:true},
+      {text:'», с другой стороны, совместно именуемые «Стороны», заключили настоящий Договор о нижеследующем:'}
+    ],margin:[0,0,0,10]},
+
+    {text:'1. ПРЕДМЕТ ДОГОВОРА',style:'sectionH'},
+    {ol:[
+      `Исполнитель обязуется по заданию Заказчика выполнить работы по разработке программного обеспечения — CRM-системы (далее — «Программное обеспечение» или «ПО») в соответствии с техническим заданием и Планом работ (Приложение №1), являющимся неотъемлемой частью настоящего Договора.`,
+      `Наименование проекта: «${c.projectName}».`,
+      `Краткое описание: ${c.projectDesc}`,
+      `Заказчик обязуется принять результаты работ и оплатить их в порядке, установленном настоящим Договором.`,
+    ]},
+
+    {text:'2. СРОКИ И ПОРЯДОК ВЫПОЛНЕНИЯ',style:'sectionH'},
+    {ol:[
+      `Работы выполняются поэтапно согласно Плану работ (Приложение №1). Общий срок: ${docState.stages.reduce((a,b)=>a+b.weeks,0)} недель с даты подписания Договора и поступления первого платежа.`,
+      `По завершении каждого этапа Исполнитель направляет Заказчику акт сдачи-приёмки выполненных работ. Заказчик в течение 5 (пяти) рабочих дней подписывает акт либо направляет мотивированный отказ.`,
+      `Если в течение указанного срока Заказчик не подписал акт и не направил мотивированный отказ, работы по соответствующему этапу считаются принятыми.`,
+    ]},
+
+    {text:'3. СТОИМОСТЬ И ПОРЯДОК ОПЛАТЫ',style:'sectionH'},
+    {ol:[
+      `Общая стоимость работ составляет ${fmtKzt(docState.totalKzt)} (${numberToWords(docState.totalKzt)} тенге). НДС не облагается (специальный налоговый режим).`,
+      docState.payment==='full'
+        ? `Оплата производится единым платежом до начала работ в размере ${fmtKzt(Math.round(docState.totalKzt*0.9))} (с применением скидки 10% за полную предоплату).`
+        : `Оплата производится поэтапно согласно графику платежей, указанному в Плане работ (Приложение №1).`,
+      `Оплата производится в безналичной форме на расчётный счёт Исполнителя.`,
+      `Обязательства Заказчика по оплате считаются исполненными с момента поступления денежных средств на счёт Исполнителя.`,
+    ]},
+
+    {text:'4. ПРАВА И ОБЯЗАННОСТИ СТОРОН',style:'sectionH'},
+    {text:'4.1. Исполнитель обязуется:',bold:true,margin:[0,4,0,4]},
+    {ul:[
+      'Выполнить работы качественно и в установленные сроки.',
+      'Предоставлять Заказчику отчёты о ходе работ не реже одного раза в неделю.',
+      'Передать Заказчику все исходные коды и техническую документацию по итогу проекта.',
+      'Соблюдать конфиденциальность согласно отдельному Соглашению о неразглашении (NDA).',
+    ]},
+    {text:'4.2. Заказчик обязуется:',bold:true,margin:[0,8,0,4]},
+    {ul:[
+      'Своевременно предоставлять Исполнителю необходимую информацию, материалы, доступы к системам и обратную связь.',
+      'Назначить ответственное лицо для оперативной коммуникации (в течение 1 рабочего дня).',
+      'Производить оплату в сроки, установленные настоящим Договором.',
+      'Подписывать акты сдачи-приёмки или направлять мотивированный отказ в установленные сроки.',
+    ]},
+
+    {text:'5. ИНТЕЛЛЕКТУАЛЬНАЯ СОБСТВЕННОСТЬ',style:'sectionH'},
+    {ol:[
+      'С момента полной оплаты работ исключительные права на разработанное ПО переходят к Заказчику.',
+      'Исполнитель сохраняет право использовать общедоступные программные компоненты, библиотеки и фреймворки, использованные при разработке.',
+      'Исполнитель вправе указывать факт выполнения работ в портфолио без раскрытия конфиденциальной информации Заказчика.',
+    ]},
+
+    {text:'6. ГАРАНТИЙНЫЕ ОБЯЗАТЕЛЬСТВА',style:'sectionH'},
+    {ol:[
+      'Исполнитель предоставляет гарантию на разработанное ПО в течение 60 (шестидесяти) календарных дней с даты подписания итогового акта сдачи-приёмки.',
+      'В гарантийный период Исполнитель обязуется бесплатно устранять ошибки в работе ПО, возникшие не по вине Заказчика.',
+      'Гарантия не распространяется на: ошибки, вызванные изменением исходного кода Заказчиком или третьими лицами; ошибки сторонних сервисов и API; ошибки, вызванные использованием ПО не по назначению.',
+    ]},
+
+    {text:'7. ОТВЕТСТВЕННОСТЬ СТОРОН',style:'sectionH'},
+    {ol:[
+      'За нарушение сроков выполнения работ Исполнитель уплачивает Заказчику пеню в размере 0,1% от стоимости соответствующего этапа за каждый день просрочки, но не более 10% от стоимости этапа.',
+      'За нарушение сроков оплаты Заказчик уплачивает Исполнителю пеню в размере 0,1% от суммы просроченного платежа за каждый день просрочки, но не более 10% от суммы платежа.',
+      'Стороны освобождаются от ответственности при наступлении обстоятельств непреодолимой силы (форс-мажор).',
+    ]},
+
+    {text:'8. КОНФИДЕНЦИАЛЬНОСТЬ',style:'sectionH'},
+    {text:'Условия конфиденциальности регулируются отдельным Соглашением о неразглашении (NDA), подписываемым одновременно с настоящим Договором и являющимся его неотъемлемой частью.'},
+
+    {text:'9. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ',style:'sectionH'},
+    {ol:[
+      'Настоящий Договор вступает в силу с момента подписания обеими Сторонами и действует до полного исполнения обязательств.',
+      'Все изменения и дополнения к настоящему Договору оформляются дополнительными соглашениями, подписываемыми обеими Сторонами.',
+      'Споры разрешаются путём переговоров. При недостижении соглашения — в судебном порядке по месту нахождения Исполнителя в соответствии с законодательством Республики Казахстан.',
+      'Договор составлен в 2 (двух) экземплярах, имеющих одинаковую юридическую силу, по одному для каждой Стороны.',
+    ]},
+
+    {text:'10. РЕКВИЗИТЫ И ПОДПИСИ СТОРОН',style:'sectionH'},
+    {columns:[
+      [
+        {text:'ИСПОЛНИТЕЛЬ',style:'sigLabel',bold:true},
+        {text:PLLATO_DATA.legal,style:'sigName'},
+        {text:[
+          {text:'\nБИН: ',color:'#8B8B85'},PLLATO_DATA.bin,
+          {text:'\nАдрес: ',color:'#8B8B85'},PLLATO_DATA.address,
+          {text:'\nБанк: ',color:'#8B8B85'},PLLATO_DATA.bank,
+          {text:'\nБИК: ',color:'#8B8B85'},PLLATO_DATA.bik,
+          {text:'\nКБе: ',color:'#8B8B85'},PLLATO_DATA.kbe,
+          {text:'\nИИК: ',color:'#8B8B85'},PLLATO_DATA.iik,
+          {text:'\nТелефон: ',color:'#8B8B85'},PLLATO_DATA.phone,
+          {text:'\nEmail: ',color:'#8B8B85'},PLLATO_DATA.email,
+        ],fontSize:9},
+        {text:'_______________________ / '+PLLATO_DATA.director+' /',style:'sigLine'},
+        {text:'м.п.',style:'small',italics:true}
+      ],
+      [
+        {text:'ЗАКАЗЧИК',style:'sigLabel',bold:true},
+        {text:c.name,style:'sigName'},
+        {text:[
+          {text:'\nБИН/ИИН: ',color:'#8B8B85'},c.bin,
+          {text:'\nАдрес: ',color:'#8B8B85'},c.address,
+          {text:'\nВ лице: ',color:'#8B8B85'},c.director,
+          {text:'\nДолжность: ',color:'#8B8B85'},c.position,
+          {text:'\nТелефон: ',color:'#8B8B85'},c.phone,
+          {text:'\nEmail: ',color:'#8B8B85'},c.email,
+          c.bank?{text:'\n\n'+c.bank,fontSize:9}:'',
+        ],fontSize:9},
+        {text:'_______________________ / '+c.director+' /',style:'sigLine'},
+        {text:'м.п.',style:'small',italics:true}
+      ]
+    ],columnGap:30}
+  ];
+
+  return [{
+    ...PDF_STYLES,
+    content,
+    footer,
+    info:{title:'Договор — '+c.projectName,author:'Pllato',creator:'Pllato CRM Builder'}
+  },`Договор_${safeFn(c.name)}_${c.invoiceNum}.pdf`];
+}
+
+// ─── ПЛАН РАБОТ ─────────────────────────────────
+function buildWorkplanPdf(c){
+  const totalKzt=docState.totalKzt;
+  const totalWeeks=docState.stages.reduce((a,b)=>a+b.weeks,0);
+  const finalAmount=docState.payment==='full'?Math.round(totalKzt*0.9):totalKzt;
+
+  const stagesRows=docState.stages.map((s,i)=>[
+    {text:String(i+1),style:'cell',alignment:'center'},
+    {text:s.name,style:'cell'},
+    {text:s.weeks+' нед.',style:'cell',alignment:'center'},
+    {text:fmtKzt(s.price),style:'cell',alignment:'right'},
+  ]);
+
+  // График платежей
+  let paymentRows;
+  if(docState.payment==='full'){
+    paymentRows=[
+      [{text:'1',style:'cell',alignment:'center'},
+       {text:'Полная предоплата (со скидкой 10%)',style:'cell'},
+       {text:'До начала работ',style:'cell'},
+       {text:fmtKzt(finalAmount),style:'cell',alignment:'right',bold:true}]
+    ];
+  }else{
+    paymentRows=docState.stages.map((s,i)=>[
+      {text:String(i+1),style:'cell',alignment:'center'},
+      {text:'За '+s.name,style:'cell'},
+      {text:i===0?'Аванс — до начала работ':'После сдачи Этапа '+i,style:'cell'},
+      {text:fmtKzt(s.price),style:'cell',alignment:'right'}
+    ]);
+  }
+
+  const content=[
+    header(),
+    {text:'ПРИЛОЖЕНИЕ №1',style:'docTitle',fontSize:12},
+    {text:`к Договору № ${c.invoiceNum} от ${fmtDateRu(c.projectDate)}`,style:'docSubtitle'},
+    {text:'ПЛАН РАБОТ',style:'docTitle'},
+    {text:`по разработке проекта «${c.projectName}»`,style:'docSubtitle'},
+
+    {text:'1. ОБЩАЯ ИНФОРМАЦИЯ',style:'sectionH'},
+    {table:{
+      widths:['*','*'],
+      body:[
+        [{text:'Исполнитель',style:'th'},{text:PLLATO_DATA.shortLegal,style:'cell'}],
+        [{text:'Заказчик',style:'th'},{text:c.name,style:'cell'}],
+        [{text:'Проект',style:'th'},{text:c.projectName,style:'cell'}],
+        [{text:'Общий срок',style:'th'},{text:totalWeeks+' недель',style:'cell'}],
+        [{text:'Общая стоимость',style:'th'},{text:fmtKzt(totalKzt),style:'cell',bold:true}],
+        [{text:'Вариант оплаты',style:'th'},{text:docState.payment==='full'?'Полная предоплата (скидка 10%)':'Поэтапная оплата',style:'cell'}],
+      ]
+    },layout:'lightHorizontalLines'},
+
+    {text:'2. ЭТАПЫ РАБОТ',style:'sectionH'},
+    {table:{
+      widths:[28,'*',60,90],
+      headerRows:1,
+      body:[
+        [{text:'№',style:'th',alignment:'center'},{text:'Название этапа',style:'th'},{text:'Срок',style:'th',alignment:'center'},{text:'Стоимость',style:'th',alignment:'right'}],
+        ...stagesRows,
+        [{text:'',style:'th'},{text:'ИТОГО:',style:'th',alignment:'right'},{text:totalWeeks+' нед.',style:'th',alignment:'center'},{text:fmtKzt(totalKzt),style:'th',alignment:'right'}]
+      ]
+    },layout:'lightHorizontalLines'},
+
+    {text:'3. ГРАФИК ПЛАТЕЖЕЙ',style:'sectionH'},
+    docState.payment==='full' ?
+      {text:[
+        {text:'Вариант: ',bold:true},
+        'Полная предоплата.\n',
+        {text:'Скидка: ',bold:true,color:'#2F7A4F'},
+        {text:'−10% от полной стоимости.\n',color:'#2F7A4F'},
+        {text:'Сумма к оплате: ',bold:true},
+        {text:fmtKzt(finalAmount)+' (вместо '+fmtKzt(totalKzt)+').\n',bold:true},
+        {text:'Экономия: ',bold:true,color:'#2F7A4F'},
+        {text:fmtKzt(totalKzt-finalAmount)+'.',color:'#2F7A4F'}
+      ],margin:[0,0,0,10]}
+      :
+      {text:[
+        {text:'Вариант: ',bold:true},
+        'Поэтапная оплата.\nКаждый этап оплачивается после подписания акта сдачи-приёмки.'
+      ],margin:[0,0,0,10]},
+    {table:{
+      widths:[28,'*',150,90],
+      headerRows:1,
+      body:[
+        [{text:'№',style:'th',alignment:'center'},{text:'Назначение',style:'th'},{text:'Срок оплаты',style:'th'},{text:'Сумма',style:'th',alignment:'right'}],
+        ...paymentRows,
+        [{text:'',style:'th'},{text:'ИТОГО к оплате:',style:'th',alignment:'right',colSpan:2},'',{text:fmtKzt(finalAmount),style:'th',alignment:'right'}]
+      ]
+    },layout:'lightHorizontalLines'},
+
+    {text:'4. ОПИСАНИЕ ПРОЕКТА',style:'sectionH'},
+    {text:c.projectDesc,margin:[0,0,0,6]},
+    {text:[{text:'Архитектура CRM включает: ',bold:true},`${state.nodes.length} модулей и ${state.edges.length} связей. Подробная визуальная схема прилагается отдельным PNG-файлом.`]},
+
+    {text:'5. ПОДПИСИ СТОРОН',style:'sectionH'},
+    {columns:[
+      [
+        {text:'ИСПОЛНИТЕЛЬ',style:'sigLabel',bold:true},
+        {text:PLLATO_DATA.shortLegal,style:'sigName'},
+        {text:'_______________________ / '+PLLATO_DATA.director+' /',style:'sigLine'},
+      ],
+      [
+        {text:'ЗАКАЗЧИК',style:'sigLabel',bold:true},
+        {text:c.name,style:'sigName'},
+        {text:'_______________________ / '+c.director+' /',style:'sigLine'},
+      ]
+    ],columnGap:30}
+  ];
+
+  return [{
+    ...PDF_STYLES,
+    content,
+    footer,
+    info:{title:'План работ — '+c.projectName,author:'Pllato',creator:'Pllato CRM Builder'}
+  },`План_работ_${safeFn(c.name)}_${c.invoiceNum}.pdf`];
+}
+
+// ─── NDA ─────────────────────────────────
+function buildNdaPdf(c){
+  const dateStr=fmtDateRu(c.projectDate);
+
+  const content=[
+    header(),
+    {text:'СОГЛАШЕНИЕ',style:'docTitle'},
+    {text:'о неразглашении конфиденциальной информации (NDA)',style:'docSubtitle'},
+    {columns:[
+      {text:'г. Алматы',fontSize:10},
+      {text:dateStr,alignment:'right',fontSize:10}
+    ],margin:[0,0,0,14]},
+
+    {text:[
+      {text:'Индивидуальный предприниматель «STUDYSTORIES.APP»',bold:true},
+      {text:` (БИН ${PLLATO_DATA.bin}), действующий под брендом «Pllato», в лице ${PLLATO_DATA.director}, именуемый в дальнейшем «`},
+      {text:'Сторона 1',bold:true},
+      {text:'», с одной стороны, и\n\n'},
+      {text:c.name,bold:true},
+      {text:` (БИН/ИИН ${c.bin}), в лице ${c.position} ${c.director}, именуемый в дальнейшем «`},
+      {text:'Сторона 2',bold:true},
+      {text:'», с другой стороны, совместно именуемые «Стороны», заключили настоящее Соглашение о нижеследующем:'}
+    ],margin:[0,0,0,10]},
+
+    {text:'1. ПРЕДМЕТ СОГЛАШЕНИЯ',style:'sectionH'},
+    {ol:[
+      'Настоящее Соглашение регулирует порядок передачи и использования конфиденциальной информации, которой Стороны обмениваются в рамках обсуждения и реализации проекта по разработке CRM-системы и связанных работ.',
+      'Соглашение является двусторонним: обе Стороны несут одинаковые обязательства по сохранению конфиденциальности информации, полученной от другой Стороны.',
+    ]},
+
+    {text:'2. КОНФИДЕНЦИАЛЬНАЯ ИНФОРМАЦИЯ',style:'sectionH'},
+    {text:'Под конфиденциальной информацией Стороны понимают любую информацию, которая:',margin:[0,0,0,4]},
+    {ul:[
+      'Прямо обозначена передающей Стороной как конфиденциальная (устно, письменно или через маркировку);',
+      'По своей природе является коммерческой тайной, ноу-хау, технической, организационной, финансовой, маркетинговой, клиентской или иной информацией, не являющейся общедоступной;',
+      'Включает: бизнес-планы, финансовые показатели, базы клиентов и контрагентов, ценовые политики, технические разработки, исходный код, архитектуру систем, переписку, протоколы встреч, презентации, договоры и иные документы.',
+    ]},
+
+    {text:'3. ОБЯЗАТЕЛЬСТВА СТОРОН',style:'sectionH'},
+    {text:'Каждая Сторона обязуется:',margin:[0,0,0,4]},
+    {ol:[
+      'Сохранять конфиденциальность полученной информации и не разглашать её третьим лицам без письменного согласия передающей Стороны.',
+      'Использовать конфиденциальную информацию исключительно в целях реализации проекта.',
+      'Обеспечить защиту конфиденциальной информации от несанкционированного доступа, утечки, копирования или иных действий третьих лиц.',
+      'Передавать конфиденциальную информацию только тем своим сотрудникам и подрядчикам, которым она необходима для выполнения работ, обеспечив их обязательством соблюдать конфиденциальность.',
+      'По первому требованию передающей Стороны вернуть или уничтожить все носители с конфиденциальной информацией.',
+    ]},
+
+    {text:'4. ИСКЛЮЧЕНИЯ',style:'sectionH'},
+    {text:'Обязательства по сохранению конфиденциальности не распространяются на информацию, которая:',margin:[0,0,0,4]},
+    {ul:[
+      'Является общедоступной не по вине получающей Стороны;',
+      'Была законно известна получающей Стороне до получения от передающей Стороны (что должно быть документально подтверждено);',
+      'Получена от третьих лиц на законном основании без обязательств о конфиденциальности;',
+      'Подлежит раскрытию по требованию государственных органов в порядке, установленном законодательством Республики Казахстан (с предварительным письменным уведомлением другой Стороны).',
+    ]},
+
+    {text:'5. СРОК ДЕЙСТВИЯ',style:'sectionH'},
+    {ol:[
+      'Настоящее Соглашение вступает в силу с момента подписания обеими Сторонами.',
+      'Обязательства по сохранению конфиденциальности действуют в течение всего срока сотрудничества Сторон и в течение 3 (трёх) лет после его прекращения.',
+    ]},
+
+    {text:'6. ОТВЕТСТВЕННОСТЬ',style:'sectionH'},
+    {ol:[
+      'В случае разглашения конфиденциальной информации виновная Сторона обязана возместить пострадавшей Стороне причинённые убытки в полном объёме, включая упущенную выгоду.',
+      'Споры по настоящему Соглашению разрешаются путём переговоров, при недостижении соглашения — в судебном порядке по законодательству Республики Казахстан.',
+    ]},
+
+    {text:'7. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ',style:'sectionH'},
+    {ol:[
+      'Соглашение составлено в 2 (двух) экземплярах, имеющих равную юридическую силу, по одному для каждой Стороны.',
+      'Все изменения и дополнения к Соглашению оформляются дополнительными соглашениями, подписываемыми обеими Сторонами.',
+    ]},
+
+    {text:'8. ПОДПИСИ СТОРОН',style:'sectionH'},
+    {columns:[
+      [
+        {text:'СТОРОНА 1 (Pllato)',style:'sigLabel',bold:true},
+        {text:PLLATO_DATA.shortLegal,style:'sigName'},
+        {text:[
+          {text:'\nБИН: ',color:'#8B8B85'},PLLATO_DATA.bin,
+          {text:'\n'+PLLATO_DATA.address,fontSize:9},
+        ],fontSize:9},
+        {text:'_______________________ / '+PLLATO_DATA.director+' /',style:'sigLine'},
+        {text:'м.п.',style:'small',italics:true}
+      ],
+      [
+        {text:'СТОРОНА 2 (Заказчик)',style:'sigLabel',bold:true},
+        {text:c.name,style:'sigName'},
+        {text:[
+          {text:'\nБИН/ИИН: ',color:'#8B8B85'},c.bin,
+          {text:'\n'+c.address,fontSize:9},
+        ],fontSize:9},
+        {text:'_______________________ / '+c.director+' /',style:'sigLine'},
+        {text:'м.п.',style:'small',italics:true}
+      ]
+    ],columnGap:30}
+  ];
+
+  return [{
+    ...PDF_STYLES,
+    content,
+    footer,
+    info:{title:'NDA — '+c.projectName,author:'Pllato',creator:'Pllato CRM Builder'}
+  },`NDA_${safeFn(c.name)}_${c.invoiceNum}.pdf`];
+}
+
+// ─── СЧЁТ НА ОПЛАТУ ─────────────────────────────────
+function buildInvoicePdf(c){
+  const isFull=docState.payment==='full';
+  const totalKzt=docState.totalKzt;
+  const amount=isFull?Math.round(totalKzt*0.9):docState.stages[0].price;
+  const description=isFull
+    ?`Полная предоплата за разработку CRM-системы «${c.projectName}» по договору № ${c.invoiceNum} от ${fmtDateRu(c.projectDate)} (со скидкой 10%)`
+    :`Аванс за Этап 1 («${docState.stages[0].name}») за разработку CRM-системы «${c.projectName}» по договору № ${c.invoiceNum} от ${fmtDateRu(c.projectDate)}`;
+
+  const content=[
+    header(),
+    {table:{
+      widths:['*'],
+      body:[[{
+        text:[
+          {text:'Внимание! ',bold:true,color:'#B07D1A'},
+          {text:'Оплата данного счёта означает согласие с условиями договора. Уведомление об оплате обязательно, в противном случае не гарантируется отгрузка/выполнение работ. Товар отпускается по факту прихода денег на расчётный счёт Поставщика.',fontSize:9,color:'#4A4A47'}
+        ],
+        fillColor:'#FBF5E7',
+        margin:[10,8,10,8],
+      }]]
+    },layout:'noBorders',margin:[0,0,0,10]},
+
+    {table:{
+      widths:[170,'*'],
+      body:[
+        [{text:'Бенефициар',style:'th',colSpan:2,alignment:'center'},''],
+        [{text:'Наименование',style:'cell',bold:true},{text:PLLATO_DATA.shortLegal,style:'cell'}],
+        [{text:'БИН',style:'cell'},{text:PLLATO_DATA.bin,style:'cell'}],
+        [{text:'ИИК',style:'cell'},{text:PLLATO_DATA.iik,style:'cell'}],
+        [{text:'БИК',style:'cell'},{text:PLLATO_DATA.bik,style:'cell'}],
+        [{text:'Кбе',style:'cell'},{text:PLLATO_DATA.kbe,style:'cell'}],
+        [{text:'Банк бенефициара',style:'cell'},{text:PLLATO_DATA.bank,style:'cell'}],
+      ]
+    },layout:'lightHorizontalLines'},
+
+    {text:`СЧЁТ НА ОПЛАТУ № ${c.invoiceNum} от ${fmtDateRu(c.projectDate)}`,style:'docTitle',margin:[0,16,0,12]},
+
+    {table:{
+      widths:[80,'*'],
+      body:[
+        [{text:'Поставщик:',style:'cell',bold:true},{text:`${PLLATO_DATA.shortLegal}, БИН ${PLLATO_DATA.bin}, ${PLLATO_DATA.address}, тел.: ${PLLATO_DATA.phone}`,style:'cell'}],
+        [{text:'Покупатель:',style:'cell',bold:true},{text:`${c.name}, БИН/ИИН ${c.bin}, ${c.address}${c.phone?', тел.: '+c.phone:''}`,style:'cell'}],
+        [{text:'Договор:',style:'cell',bold:true},{text:`№ ${c.invoiceNum} от ${fmtDateRu(c.projectDate)}`,style:'cell'}],
+      ]
+    },layout:'noBorders',margin:[0,0,0,12]},
+
+    {table:{
+      widths:[28,'*',45,90],
+      headerRows:1,
+      body:[
+        [{text:'№',style:'th',alignment:'center'},{text:'Наименование работ/услуг',style:'th'},{text:'Кол-во',style:'th',alignment:'center'},{text:'Сумма, ₸',style:'th',alignment:'right'}],
+        [
+          {text:'1',style:'cell',alignment:'center'},
+          {text:description,style:'cell'},
+          {text:'1',style:'cell',alignment:'center'},
+          {text:fmtKzt(amount).replace(' ₸',''),style:'cell',alignment:'right'}
+        ],
+        [{text:'',style:'th'},{text:'ИТОГО:',style:'th',alignment:'right'},{text:'',style:'th'},{text:fmtKzt(amount).replace(' ₸',''),style:'th',alignment:'right'}],
+        [{text:'',style:'th'},{text:'В том числе НДС:',style:'th',alignment:'right'},{text:'',style:'th'},{text:'без НДС',style:'th',alignment:'right'}]
+      ]
+    },layout:'lightHorizontalLines'},
+
+    {text:[
+      {text:'\nВсего наименований 1, на сумму ',fontSize:10},
+      {text:fmtKzt(amount),bold:true,fontSize:10},
+    ]},
+    {text:[
+      {text:'Сумма прописью: ',fontSize:9,color:'#4A4A47'},
+      {text:numberToWords(amount)+' тенге 00 тиын',italics:true,fontSize:10}
+    ],margin:[0,4,0,16]},
+
+    {text:'Примечание: ИП «STUDYSTORIES.APP» работает на специальном налоговом режиме, НДС не облагается.',fontSize:9,color:'#8B8B85',italics:true,margin:[0,0,0,20]},
+
+    {columns:[
+      [
+        {text:'Исполнитель:',style:'sigLabel'},
+        {text:'_______________________ / '+PLLATO_DATA.director+' /',style:'sigLine'},
+        {text:'м.п.',style:'small',italics:true}
+      ]
+    ]}
+  ];
+
+  return [{
+    ...PDF_STYLES,
+    content,
+    footer,
+    info:{title:'Счёт № '+c.invoiceNum+' — '+c.name,author:'Pllato',creator:'Pllato CRM Builder'}
+  },`Счёт_${c.invoiceNum}_${safeFn(c.name)}.pdf`];
+}
+
+function safeFn(s){return (s||'doc').replace(/[^a-zа-я0-9_\-]+/gi,'_').slice(0,40)}
+
+// Сумма прописью для тенге (упрощённая русская реализация)
+function numberToWords(n){
+  if(n===0)return 'ноль';
+  const ones=['','один','два','три','четыре','пять','шесть','семь','восемь','девять'];
+  const onesF=['','одна','две','три','четыре','пять','шесть','семь','восемь','девять'];
+  const teens=['десять','одиннадцать','двенадцать','тринадцать','четырнадцать','пятнадцать','шестнадцать','семнадцать','восемнадцать','девятнадцать'];
+  const tens=['','','двадцать','тридцать','сорок','пятьдесят','шестьдесят','семьдесят','восемьдесят','девяносто'];
+  const hundreds=['','сто','двести','триста','четыреста','пятьсот','шестьсот','семьсот','восемьсот','девятьсот'];
+
+  function under1000(num,fem){
+    if(num===0)return '';
+    let r=[];
+    const h=Math.floor(num/100);
+    const t=Math.floor((num%100)/10);
+    const o=num%10;
+    if(h)r.push(hundreds[h]);
+    if(t===1)r.push(teens[o]);
+    else{
+      if(t)r.push(tens[t]);
+      if(o)r.push(fem?onesF[o]:ones[o]);
+    }
+    return r.join(' ');
+  }
+
+  function pluralize(num,a,b,c){
+    const m10=num%10,m100=num%100;
+    if(m10===1&&m100!==11)return a;
+    if(m10>=2&&m10<=4&&(m100<12||m100>14))return b;
+    return c;
+  }
+
+  n=Math.round(n);
+  const mil=Math.floor(n/1000000);
+  const ths=Math.floor((n%1000000)/1000);
+  const rest=n%1000;
+  let parts=[];
+  if(mil){
+    parts.push(under1000(mil,false)+' '+pluralize(mil,'миллион','миллиона','миллионов'));
+  }
+  if(ths){
+    parts.push(under1000(ths,true)+' '+pluralize(ths,'тысяча','тысячи','тысяч'));
+  }
+  if(rest){
+    parts.push(under1000(rest,false));
+  }
+  let result=parts.join(' ').trim();
+  return result.charAt(0).toUpperCase()+result.slice(1);
+}
+
 function init(){
   renderLibrary();renderTemplatesGrid();applyViewport();updateMeta();
   refreshUserChip();
+  initRecording();
+  initDocuments();
   const fromUrl=parseShareUrl();
   if(fromUrl){
     state.readonly=true;state.boardId=uid();
