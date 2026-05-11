@@ -3607,7 +3607,13 @@ function extractStagesFromSchema(){
       const headerNote=blocks.find(b=>b.isNote&&b.isStageHeader);
       let name;
       if(stageFrame){
-        name=`Этап ${stageFrame.stageNum||stageNum} — ${stageFrame.label}`;
+        // Если в названии зоны уже есть "Этап" — берём как есть, иначе добавляем префикс
+        const frameLabel=(stageFrame.label||'').trim();
+        if(/^этап\s/i.test(frameLabel)){
+          name=frameLabel;
+        }else{
+          name=`Этап ${stageFrame.stageNum||stageNum} — ${frameLabel}`;
+        }
       }else if(headerNote){
         name=headerNote.label;
       }else{
@@ -3615,9 +3621,20 @@ function extractStagesFromSchema(){
       }
 
       // Список блоков для презентации (без заметок, frames, separateTz)
+      // Дефолтные описания из TYPE_TO_DEF не передаём — они не несут смысла в PDF/презентации
       const stageBlocks=blocks
         .filter(b=>!b.isNote&&!b.isStageFrame&&!b.requiresSeparateTz)
-        .map(b=>({label:b.label||b.type,type:b.type,description:b.description||''}));
+        .map(b=>{
+          const def=TYPE_TO_DEF[b.type]||{};
+          const desc=b.description||'';
+          // Если описание совпадает с дефолтным из библиотеки — считаем что его нет
+          const isDefault=desc&&def.desc&&desc.trim()===def.desc.trim();
+          return {
+            label:b.label||b.type,
+            type:b.type,
+            description:isDefault?'':desc,
+          };
+        });
 
       result.push({
         name,
@@ -5490,30 +5507,82 @@ async function generatePresentationPDF(){
   const content=[];
 
   // --- HERO страница ---
+  const realModulesCount=state.nodes.filter(n=>!n.isStageFrame&&!n.isNote&&!n.requiresSeparateTz).length;
+  const stagesCount=stages.length;
+
   content.push(
     {text:'Pllato',style:'brandName',margin:[0,40,0,0]},
-    {text:'CRM BUILDER',style:'brandTag',margin:[0,0,0,40]},
+    {text:'CRM BUILDER · СТУДИЯ РАЗРАБОТКИ',style:'brandTag',margin:[0,0,0,60]},
+
     {text:'Коммерческое предложение',style:'heroLabel'},
-    {text:project.name||'Проект',style:'heroTitle',margin:[0,8,0,16]},
-    c.customerName?{text:`Для: ${c.customerName}`,style:'heroCustomer',margin:[0,0,0,6]}:{text:''},
-    {text:today,style:'heroDate',margin:[0,0,0,40]},
+    {text:project.name||'CRM-система',style:'heroTitle',margin:[0,8,0,12]},
+
+    c.customerName?{text:`Подготовлено для: ${c.customerName}`,style:'heroCustomer',margin:[0,0,0,4]}:{text:''},
+    {text:today,style:'heroDate',margin:[0,0,0,28]},
+
+    {text:'Что вы получите',style:'heroSectionLabel',margin:[0,16,0,8]},
+    {text:`Кастомная CRM-система из ${realModulesCount} модулей под вашу бизнес-нишу. Разработка ведётся ${stagesCount} ${plural(stagesCount,'этапом','этапами','этапами')} — каждый этап даёт самостоятельный результат, не нужно ждать «всё сразу».`,style:'heroDesc',margin:[0,0,0,28]},
+
     {
       table:{
-        widths:['*','*'],
+        widths:['*','*','*'],
         body:[[
-          {text:[{text:'Срок\n',style:'heroStatLabel'},{text:`${totalWeeks} ${plural(totalWeeks,'неделя','недели','недель')}`,style:'heroStatValue'}],border:[false,false,false,false]},
-          {text:[{text:'Стоимость\n',style:'heroStatLabel'},{text:fmtUsd(totalUsd),style:'heroStatValue'},{text:` · ${fmtKzt(totalKzt)}`,style:'heroStatSub'}],border:[false,false,false,false]},
+          {
+            stack:[
+              {text:'СРОК',style:'heroStatLabel'},
+              {text:`${totalWeeks}`,style:'heroStatBigValue',margin:[0,4,0,2]},
+              {text:plural(totalWeeks,'неделя','недели','недель'),style:'heroStatLabel'},
+            ],
+            border:[false,false,true,false],
+            margin:[0,12,0,12],
+          },
+          {
+            stack:[
+              {text:'СТОИМОСТЬ',style:'heroStatLabel'},
+              {text:fmtUsd(totalUsd),style:'heroStatBigValue',margin:[0,4,0,2]},
+              {text:`≈ ${fmtKzt(totalKzt)}`,style:'heroStatLabel'},
+            ],
+            border:[false,false,true,false],
+            margin:[0,12,0,12],
+          },
+          {
+            stack:[
+              {text:'МОДУЛЕЙ',style:'heroStatLabel'},
+              {text:`${realModulesCount}`,style:'heroStatBigValue',margin:[0,4,0,2]},
+              {text:`в ${stagesCount} ${plural(stagesCount,'этапе','этапах','этапах')}`,style:'heroStatLabel'},
+            ],
+            border:[false,false,false,false],
+            margin:[0,12,0,12],
+          },
         ]],
       },
-      margin:[0,20,0,0],
+      layout:{
+        defaultBorder:false,
+        vLineWidth:(i,n)=>(i>0&&i<n.table.widths.length)?0.5:0,
+        vLineColor:()=>'#E8E6E0',
+      },
+      margin:[0,0,0,28],
     },
+
+    {text:'В этом документе',style:'heroSectionLabel',margin:[0,16,0,8]},
+    {
+      ul:[
+        'Архитектура CRM — визуальная схема всех модулей',
+        `План работ — ${stagesCount} ${plural(stagesCount,'этап','этапа','этапов')} с сроками и стоимостью`,
+        'Интерфейсы CRM — макеты ключевых экранов системы',
+        'Варианты оплаты — поэтапно или с предоплатой со скидкой',
+        'Контакты и правовая информация',
+      ],
+      style:'heroToc',
+    },
+
     {text:'',pageBreak:'after'},
   );
 
   // --- Схема архитектуры ---
   content.push({text:'Архитектура CRM',style:'sectionTag'});
   content.push({text:'Как всё будет устроено',style:'h2',margin:[0,4,0,8]});
-  content.push({text:`Визуальная схема с ${state.nodes.filter(n=>!n.isStageFrame&&!n.isNote).length} модулями. Каждый блок — отдельный компонент системы. Цветом обозначены этапы разработки.`,style:'p',margin:[0,0,0,16]});
+  content.push({text:`Визуальная схема с ${realModulesCount} модулями. Каждый блок — отдельный компонент системы. Цветом обозначены этапы разработки.`,style:'p',margin:[0,0,0,16]});
   if(schemaImageData){
     content.push({image:schemaImageData,fit:[500,600],alignment:'center',margin:[0,10,0,20]});
   }
@@ -5527,7 +5596,11 @@ async function generatePresentationPDF(){
   stages.forEach((s,i)=>{
     const stageColor=STAGE_HEX[i%6];
     const blocks=s.blocks||[];
+    const blockListContent=blocks.length>0
+      ? {ul:blocks.slice(0,12).map(b=>b.label),style:'stageBlocks',margin:[0,0,0,8]}
+      : {text:'Модули будут уточнены после согласования предыдущих этапов.',style:'stageBlocksPlaceholder',italics:true,margin:[0,0,0,8]};
     content.push({
+      unbreakable:true,
       table:{
         widths:['*'],
         body:[[{
@@ -5540,10 +5613,7 @@ async function generatePresentationPDF(){
               columnGap:8,
             },
             {text:s.name,style:'stageName',margin:[0,8,0,8]},
-            blocks.length>0?{
-              ul:blocks.slice(0,12).map(b=>b.label),
-              style:'stageBlocks',margin:[0,0,0,8],
-            }:{text:''},
+            blockListContent,
             {
               columns:[
                 {text:fmtUsd(s.priceUsd||0),style:'stagePrice',width:'*'},
@@ -5562,7 +5632,7 @@ async function generatePresentationPDF(){
         paddingTop:()=>12,paddingBottom:()=>12,
         fillColor:()=>'#FFFFFF',
       },
-      margin:[0,0,0,12],
+      margin:[0,0,0,14],
     });
   });
 
@@ -5578,38 +5648,48 @@ async function generatePresentationPDF(){
       const blocks=s.blocks||[];
       if(blocks.length===0)return;
 
-      content.push({
+      // Группируем header + meta + первые 3 блока как одну неделимую группу
+      // (чтобы заголовок не отрывался от содержимого этапа)
+      const blockItems=blocks.map(b=>({
         columns:[
-          {text:`ЭТАП ${i+1}`,color:'#fff',fillColor:stageColor,style:'stageBadge',width:'auto'},
-          {text:s.name,style:'stageDetailTitle',width:'*'},
+          {text:'●',color:stageColor,width:10,fontSize:11,margin:[0,2,0,0]},
+          {
+            stack:[
+              {text:b.label,style:'detailBlockTitle'},
+              b.description?{text:b.description,style:'detailBlockDesc'}:{text:''},
+            ],
+            width:'*',
+          },
         ],
-        columnGap:10,
-        margin:[0,16,0,4],
-      });
-      content.push({
-        columns:[
-          {text:`⏱ ${s.weeks} ${plural(s.weeks,'неделя','недели','недель')}`,style:'stageMetaRight',width:'auto'},
-          {text:`${fmtUsd(s.priceUsd||0)} · ≈ ${fmtKzt(s.price||0)}`,style:'stageMetaRight',width:'*',alignment:'right'},
-        ],
-        margin:[0,0,0,10],
-      });
+        columnGap:8,
+        margin:[0,4,0,4],
+      }));
 
-      blocks.forEach(b=>{
-        content.push({
-          columns:[
-            {text:'●',color:stageColor,width:10,fontSize:11,margin:[0,2,0,0]},
-            {
-              stack:[
-                {text:b.label,style:'detailBlockTitle'},
-                b.description?{text:b.description,style:'detailBlockDesc'}:{text:''},
-              ],
-              width:'*',
-            },
-          ],
-          columnGap:8,
-          margin:[0,4,0,4],
-        });
-      });
+      // Заголовок этапа + первые 3-4 блока вместе (чтобы не оторвалось)
+      const headerBlock={
+        unbreakable:true,
+        stack:[
+          {
+            columns:[
+              {text:`ЭТАП ${i+1}`,color:'#fff',fillColor:stageColor,style:'stageBadge',width:'auto'},
+              {text:s.name,style:'stageDetailTitle',width:'*'},
+            ],
+            columnGap:10,
+            margin:[0,16,0,4],
+          },
+          {
+            columns:[
+              {text:`⏱ ${s.weeks} ${plural(s.weeks,'неделя','недели','недель')}`,style:'stageMetaRight',width:'auto'},
+              {text:`${fmtUsd(s.priceUsd||0)} · ≈ ${fmtKzt(s.price||0)}`,style:'stageMetaRight',width:'*',alignment:'right'},
+            ],
+            margin:[0,0,0,10],
+          },
+          ...blockItems.slice(0,3),
+        ],
+      };
+      content.push(headerBlock);
+      // Остальные блоки — отдельно (могут переноситься на следующую страницу)
+      blockItems.slice(3).forEach(item=>content.push(item));
     });
   }
 
@@ -5621,8 +5701,14 @@ async function generatePresentationPDF(){
     content.push({text:`Примеры интерфейсов модулей вашей CRM. Финальный дизайн будет согласован отдельно — у нас более 50 шаблонов на выбор.`,style:'p',margin:[0,0,0,16]});
 
     mockupsForPdf.forEach((m,idx)=>{
-      content.push({text:m.label,style:'mockupTitle',margin:[0,8,0,4]});
-      content.push({image:m.dataUrl,fit:[500,320],alignment:'center',margin:[0,0,0,16]});
+      // Заголовок + картинка как одна неделимая группа
+      content.push({
+        unbreakable:true,
+        stack:[
+          {text:m.label,style:'mockupTitle',margin:[0,8,0,6]},
+          {image:m.dataUrl,fit:[500,320],alignment:'center',margin:[0,0,0,14]},
+        ],
+      });
       // Перенос на новую страницу после каждых 2 мокапов чтобы не сжимались
       if((idx+1)%2===0&&idx<mockupsForPdf.length-1){
         content.push({text:'',pageBreak:'after'});
@@ -5707,7 +5793,7 @@ async function generatePresentationPDF(){
     {text:fmtKzt(totalKzt),style:'tableTotal',alignment:'right'},
   ]);
   content.push({
-    table:{widths:[20,'*',100,60,80],body:paymentRows,headerRows:1},
+    table:{widths:[24,'*',110,72,90],body:paymentRows,headerRows:1},
     layout:{
       hLineWidth:(i)=>i===0||i===1||i===paymentRows.length-1||i===paymentRows.length?1:0.5,
       vLineWidth:()=>0,
@@ -5853,12 +5939,16 @@ async function generatePresentationPDF(){
     content,
     styles:{
       brandName:{font:'Roboto',fontSize:28,bold:true,color:'#0a1628'},
-      brandTag:{fontSize:10,bold:true,color:'#b8895a',characterSpacing:2},
+      brandTag:{fontSize:9,bold:true,color:'#b8895a',characterSpacing:2},
       heroLabel:{fontSize:10,color:'#8B8B85',characterSpacing:1.5,bold:true},
       heroTitle:{fontSize:32,bold:true,color:'#1A1A18'},
       heroCustomer:{fontSize:14,color:'#4A4A47'},
       heroDate:{fontSize:11,color:'#8B8B85'},
-      heroStatLabel:{fontSize:10,color:'#8B8B85',bold:true,characterSpacing:1},
+      heroSectionLabel:{fontSize:9,bold:true,color:'#b8895a',characterSpacing:1.5},
+      heroDesc:{fontSize:12,color:'#4A4A47',lineHeight:1.55},
+      heroToc:{fontSize:11,color:'#4A4A47',lineHeight:1.7},
+      heroStatLabel:{fontSize:9,color:'#8B8B85',bold:true,characterSpacing:1,alignment:'center'},
+      heroStatBigValue:{fontSize:24,bold:true,color:'#1A1A18',alignment:'center'},
       heroStatValue:{fontSize:20,bold:true,color:'#1A1A18'},
       heroStatSub:{fontSize:11,color:'#8B8B85'},
 
@@ -5868,6 +5958,8 @@ async function generatePresentationPDF(){
       p:{fontSize:11,color:'#4A4A47',lineHeight:1.5},
       pBold:{fontSize:11,bold:true,color:'#1A1A18'},
       small:{fontSize:9,color:'#8B8B85'},
+
+      stageBlocksPlaceholder:{fontSize:10,color:'#8B8B85'},
 
       stageBadge:{fontSize:9,bold:true,characterSpacing:1,margin:[6,3,6,3]},
       stageName:{fontSize:14,bold:true,color:'#1A1A18'},
