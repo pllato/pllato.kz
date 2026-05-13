@@ -4,6 +4,7 @@
 
 import { Store } from "../store.js";
 import { ICONS } from "../icons.js";
+import { openCommunicate } from "../communicate.js";
 import { parseImport, findDuplicate } from "../import_contacts.js";
 import { getStages } from "../stages.js";
 
@@ -239,8 +240,15 @@ function renderDetail(c) {
       </div>
 
       <div class="detail-grid">
-        ${c.email ? row(ICONS.mail, "Email", `<a href="mailto:${escape(c.email)}">${escape(c.email)}</a>`) : ""}
-        ${c.phone ? row(ICONS.phone, "Телефон", `<a href="tel:${escape(c.phone)}">${escape(c.phone)}</a>`) : ""}
+        ${c.email ? row(ICONS.mail, "Email", `<a href="mailto:${escape(c.email)}">${escape(c.email)}</a>
+          <span class="comm-btn-group">
+            <button class="comm-btn" data-comm-email="${escape(c.email)}" data-comm-name="${escape(c.name || "")}" data-comm-contact="${escape(c.id)}" title="Письмо через канал">✉</button>
+          </span>`) : ""}
+        ${c.phone ? row(ICONS.phone, "Телефон", `<a href="tel:${escape(c.phone)}">${escape(c.phone)}</a>
+          <span class="comm-btn-group">
+            <button class="comm-btn" data-comm-call="${escape(c.phone)}" data-comm-name="${escape(c.name || "")}" data-comm-contact="${escape(c.id)}" title="Позвонить через канал">📞</button>
+            <button class="comm-btn" data-comm-wa="${escape(c.phone)}" data-comm-name="${escape(c.name || "")}" data-comm-contact="${escape(c.id)}" title="WhatsApp">💬</button>
+          </span>`) : ""}
         ${c.company ? row(ICONS.building, "Компания", escape(c.company)) : ""}
         ${row(ICONS.dashboard, "Источник", sourceLabel(c.source))}
       </div>
@@ -559,6 +567,23 @@ function wireEvents(container) {
   container.querySelector("#importConfirm")?.addEventListener("click", () => {
     confirmImport(container);
   });
+
+  // Кнопки коммуникации (email / call / WhatsApp)
+  container.querySelectorAll("[data-comm-email]").forEach(b => b.addEventListener("click", e => {
+    e.preventDefault(); e.stopPropagation();
+    openCommunicate({ type: "email", to: b.dataset.commEmail, contactName: b.dataset.commName,
+      context: { collection: "contact_activities", fk: { contactId: b.dataset.commContact } } });
+  }));
+  container.querySelectorAll("[data-comm-call]").forEach(b => b.addEventListener("click", e => {
+    e.preventDefault(); e.stopPropagation();
+    openCommunicate({ type: "call", to: b.dataset.commCall, contactName: b.dataset.commName,
+      context: { collection: "contact_activities", fk: { contactId: b.dataset.commContact } } });
+  }));
+  container.querySelectorAll("[data-comm-wa]").forEach(b => b.addEventListener("click", e => {
+    e.preventDefault(); e.stopPropagation();
+    openCommunicate({ type: "whatsapp", to: b.dataset.commWa, contactName: b.dataset.commName,
+      context: { collection: "contact_activities", fk: { contactId: b.dataset.commContact } } });
+  }));
 
   // Кнопка дубликатов
   container.querySelector("#openDupes")?.addEventListener("click", () => {

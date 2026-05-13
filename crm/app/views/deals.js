@@ -6,6 +6,7 @@ import { Store } from "../store.js";
 import { ICONS } from "../icons.js";
 import { getStages, saveStages, newStageId, STAGE_COLORS, findStage } from "../stages.js";
 import { getDealFields } from "../custom_fields.js";
+import { openCommunicate } from "../communicate.js";
 import { listEmployees, getEmployee, currentEmployee, avatar, initialsOf } from "../employees.js";
 import { renderTypeahead, attachTypeahead } from "../typeahead.js";
 
@@ -185,6 +186,9 @@ function renderDealModal(d, contacts, stages) {
         <header class="modal-header">
           <h2>${isNew ? "Новая сделка" : escape(d.title || "Без названия")}</h2>
           <div class="modal-actions">
+            ${!isNew && contact?.phone ? `<button type="button" class="btn-ghost icon-only" id="dealCall" title="Позвонить ${escape(contact.name || "")}">📞</button>` : ""}
+            ${!isNew && contact?.phone ? `<button type="button" class="btn-ghost icon-only" id="dealWA" title="WhatsApp">💬</button>` : ""}
+            ${!isNew && contact?.email ? `<button type="button" class="btn-ghost icon-only" id="dealEmail" title="Письмо">✉</button>` : ""}
             ${!isNew ? `<button type="button" class="btn-ghost icon-only" id="copyLink" title="Скопировать ссылку">${ICONS.link}</button>` : ""}
             <button type="button" class="btn-ghost icon-only" id="closeModal" aria-label="Закрыть">${ICONS.x}</button>
           </div>
@@ -539,6 +543,32 @@ function wireEvents(container) {
         closeDealModal(container);
       }
     });
+    // Кнопки коммуникации в шапке карточки сделки
+    container.querySelector("#dealCall")?.addEventListener("click", () => {
+      const deal = Store.get(COLLECTION, state.modalDealId);
+      const c = contacts.find(x => x.id === deal?.contactId);
+      if (!c?.phone) return;
+      openCommunicate({ type: "call", to: c.phone, contactName: c.name,
+        context: { collection: ACTIVITIES, fk: { dealId: state.modalDealId } },
+        onDone: () => renderDeals(container) });
+    });
+    container.querySelector("#dealWA")?.addEventListener("click", () => {
+      const deal = Store.get(COLLECTION, state.modalDealId);
+      const c = contacts.find(x => x.id === deal?.contactId);
+      if (!c?.phone) return;
+      openCommunicate({ type: "whatsapp", to: c.phone, contactName: c.name,
+        context: { collection: ACTIVITIES, fk: { dealId: state.modalDealId } },
+        onDone: () => renderDeals(container) });
+    });
+    container.querySelector("#dealEmail")?.addEventListener("click", () => {
+      const deal = Store.get(COLLECTION, state.modalDealId);
+      const c = contacts.find(x => x.id === deal?.contactId);
+      if (!c?.email) return;
+      openCommunicate({ type: "email", to: c.email, contactName: c.name,
+        context: { collection: ACTIVITIES, fk: { dealId: state.modalDealId } },
+        onDone: () => renderDeals(container) });
+    });
+
     container.querySelector("#copyLink")?.addEventListener("click", () => {
       const url = `${location.origin}${location.pathname}#crm/${state.modalDealId}`;
       navigator.clipboard?.writeText(url).then(
