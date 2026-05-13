@@ -101,7 +101,7 @@ body {
 .user-avatar img {
   width: 100%; height: 100%; object-fit: cover;
 }
-.btn-logout {
+.btn-logout, .btn-admin {
   background: transparent;
   border: 1px solid var(--line);
   color: var(--text-2);
@@ -111,9 +111,161 @@ body {
   cursor: pointer;
   transition: all 0.15s;
 }
-.btn-logout:hover {
+.btn-logout:hover, .btn-admin:hover {
   border-color: var(--text-3);
   color: var(--text);
+}
+.btn-admin {
+  border-color: var(--bronze);
+  color: var(--bronze-deep);
+  background: var(--bronze-tint);
+}
+.btn-admin:hover {
+  border-color: var(--bronze);
+  color: var(--text);
+  background: var(--bronze-tint-2);
+}
+
+/* ===== Admin modal ===== */
+.admin-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 22, 32, 0.5);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: flex-start; justify-content: center;
+  padding: 40px 20px;
+  z-index: 100;
+  overflow-y: auto;
+}
+.admin-overlay.open { display: flex; }
+.admin-modal {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%; max-width: 880px;
+  max-height: calc(100vh - 80px);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.admin-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--line-2);
+  flex-shrink: 0;
+}
+.admin-head h2 {
+  font-size: 17px; font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.admin-head .close {
+  width: 32px; height: 32px;
+  border: 0; background: transparent;
+  cursor: pointer; color: var(--text-3);
+  font-size: 22px; line-height: 1;
+  border-radius: 8px;
+}
+.admin-head .close:hover { background: var(--surface-2); color: var(--text); }
+.admin-body { padding: 18px 22px; overflow-y: auto; }
+.admin-add-row {
+  display: flex; gap: 8px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line-2);
+}
+.admin-add-row input {
+  flex: 1; padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit; font-size: 13.5px;
+}
+.admin-add-row input:focus { outline: none; border-color: var(--bronze); }
+.btn-add-user {
+  padding: 10px 18px;
+  background: var(--bronze);
+  color: #fff;
+  border: 0; border-radius: 8px;
+  font: inherit; font-weight: 700; font-size: 13.5px;
+  cursor: pointer;
+}
+.btn-add-user:hover { background: var(--bronze-deep); }
+
+.user-row {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.user-row-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px;
+}
+.user-row-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--bronze), var(--bronze-deep));
+  color: #fff;
+  display: grid; place-items: center;
+  font-weight: 800; font-size: 11px;
+  flex-shrink: 0;
+}
+.user-row-info { flex: 1; min-width: 0; }
+.user-row-name { font-weight: 700; font-size: 14px; }
+.user-row-email { font-size: 12px; color: var(--text-3); }
+.user-row-flags {
+  display: flex; gap: 8px;
+  align-items: center;
+}
+.user-row-flags label {
+  display: inline-flex; gap: 5px; align-items: center;
+  font-size: 12px; font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.user-row-flags label.on { background: var(--bronze-tint); color: var(--bronze-deep); border-color: var(--bronze); }
+.user-row-flags input { accent-color: var(--bronze); }
+.user-row-flags .badge-super {
+  background: rgba(124, 58, 237, 0.1);
+  color: var(--purple);
+  border-color: var(--purple);
+}
+.user-row-flags .badge-super.on { background: var(--purple); color: #fff; }
+.btn-remove-user {
+  margin-left: auto;
+  width: 28px; height: 28px;
+  border: 0; background: transparent;
+  cursor: pointer; color: var(--text-3);
+  font-size: 18px; line-height: 1;
+  border-radius: 6px;
+}
+.btn-remove-user:hover { background: #fee; color: #c00; }
+
+.app-perms {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.app-perm {
+  display: inline-flex; gap: 5px; align-items: center;
+  font-size: 11.5px; font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  color: var(--text-2);
+}
+.app-perm.on { background: var(--bronze-tint); color: var(--bronze-deep); border-color: var(--bronze); }
+.app-perm input { display: none; }
+
+.admin-msg { font-size: 12px; color: var(--text-3); padding: 8px 0; }
+.admin-msg.err { color: #c00; }
+.admin-msg.ok { color: var(--green); }
+@media (max-width: 640px) {
+  .user-row-head { flex-wrap: wrap; }
+  .user-row-flags { width: 100%; }
 }
 
 .welcome { margin-bottom: 32px; }
@@ -230,6 +382,7 @@ body {
         <span class="tag">Панель команды</span>
       </div>
       <div class="user-block">
+        <button class="btn-admin" id="btn-admin" style="display:none">⚙ Пользователи</button>
         <div class="user-info">
           <div class="user-name" id="user-name-display">—</div>
           <div class="user-email" id="user-email-display">—</div>
@@ -247,7 +400,7 @@ body {
     <div class="section-title">Работа с клиентами</div>
     <div class="tools-grid">
 
-      <a href="crm/" class="tool-card">
+      <a href="crm/" class="tool-card" data-app-id="pllato_crm">
         <div class="tool-icon color-bronze">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="m7 15 4-4 4 4 6-6"/><path d="M17 9h4v4"/></svg>
         </div>
@@ -257,7 +410,7 @@ body {
         <span class="tool-badge new">Новое</span>
       </a>
 
-      <a href="team.html" class="tool-card">
+      <a href="team.html" class="tool-card" data-app-id="team_crm">
         <div class="tool-icon color-teal">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 8h18M3 16h18M9 4v16M15 4v16"/></svg>
         </div>
@@ -267,7 +420,7 @@ body {
         <span class="tool-badge external">CRM</span>
       </a>
 
-      <a href="https://pllato.github.io/testing-robeng/" class="tool-card" target="_blank" rel="noopener">
+      <a href="https://pllato.github.io/testing-robeng/" class="tool-card" data-app-id="robeng_crm" target="_blank" rel="noopener">
         <div class="tool-icon color-teal">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 8h18M3 16h18M9 4v16M15 4v16"/></svg>
         </div>
@@ -277,7 +430,7 @@ body {
         <span class="tool-badge external">CRM</span>
       </a>
 
-      <a href="interview-tiles.html" class="tool-card">
+      <a href="interview-tiles.html" class="tool-card" data-app-id="interview_tiles">
         <div class="tool-icon color-purple">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
@@ -287,7 +440,7 @@ body {
         <span class="tool-badge new">Новое</span>
       </a>
 
-      <a href="#" class="tool-card disabled" data-coming="Командный чат">
+      <a href="#" class="tool-card disabled" data-app-id="team_chat" data-coming="Командный чат">
         <div class="tool-icon color-blue">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
@@ -297,7 +450,7 @@ body {
         <span class="tool-badge coming">В работе</span>
       </a>
 
-      <a href="#" class="tool-card disabled" data-coming="Задачи">
+      <a href="#" class="tool-card disabled" data-app-id="team_tasks" data-coming="Задачи">
         <div class="tool-icon color-green">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         </div>
@@ -312,7 +465,7 @@ body {
     <div class="section-title">Инструменты для продаж</div>
     <div class="tools-grid">
 
-      <a href="crm-builder.html" class="tool-card">
+      <a href="crm-builder.html" class="tool-card" data-app-id="crm_builder">
         <div class="tool-icon color-orange">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         </div>
@@ -321,7 +474,7 @@ body {
         <span class="tool-cta">Открыть →</span>
       </a>
 
-      <a href="#" class="tool-card disabled" data-coming="Мигратор Bitrix">
+      <a href="#" class="tool-card disabled" data-app-id="bitrix_migrator" data-coming="Мигратор Bitrix">
         <div class="tool-icon color-pink">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
         </div>
@@ -335,6 +488,25 @@ body {
 
   </div>
 
+  <!-- ===== Admin Modal ===== -->
+  <div class="admin-overlay" id="admin-overlay">
+    <div class="admin-modal">
+      <div class="admin-head">
+        <h2>Пользователи и права</h2>
+        <button class="close" id="admin-close" aria-label="Закрыть">×</button>
+      </div>
+      <div class="admin-body">
+        <form class="admin-add-row" id="admin-add-form" autocomplete="off">
+          <input type="email" id="admin-add-email" placeholder="email@example.com" required>
+          <input type="text" id="admin-add-name" placeholder="Имя Фамилия">
+          <button type="submit" class="btn-add-user">+ Добавить</button>
+        </form>
+        <div class="admin-msg" id="admin-msg"></div>
+        <div id="admin-users-list"></div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script type="module">
@@ -343,8 +515,23 @@ import {
   getAuth, onAuthStateChanged, signOut as fbSignOut
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import {
-  getDatabase, ref, get
+  getDatabase, ref, get, set, push, update, remove
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+
+// ===== Каталог приложений (синхронизируй с data-app-id у карточек) =====
+const APPS_CATALOG = [
+  { id: "pllato_crm",       label: "Pllato CRM" },
+  { id: "team_crm",         label: "CRM Команды (ELC)" },
+  { id: "robeng_crm",       label: "RobEng CRM" },
+  { id: "interview_tiles",  label: "Опросы клиентов" },
+  { id: "team_chat",        label: "Командный чат" },
+  { id: "team_tasks",       label: "Задачи команды" },
+  { id: "crm_builder",      label: "Конструктор CRM" },
+  { id: "bitrix_migrator",  label: "Мигратор Bitrix" },
+];
+
+// Главный супер-админ (системный) — всегда имеет полный доступ независимо от записей в /users
+const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
 
 // Тот же Firebase project что и team.html
 const firebaseConfig = {
@@ -364,6 +551,34 @@ const db = getDatabase(app);
 const loadingEl = document.getElementById('loading');
 const loadingTextEl = document.getElementById('loading-text');
 const mainEl = document.getElementById('main-content');
+
+// Текущий пользователь (после аутентификации)
+let CURRENT = null;  // { email, name, photoURL, crmUid, isAdmin, isSuperAdmin, apps: {...} }
+
+function isRootSuper(email) {
+  return (email || "").toLowerCase().trim() === ROOT_SUPER_ADMIN;
+}
+
+// Сборка прав пользователя для текущей сессии
+function buildCurrent(userAuth, foundUser, foundUid) {
+  const isRoot = isRootSuper(userAuth.email);
+  const isSuper = isRoot || (foundUser?.isSuperAdmin === true);
+  const isAdmin = isSuper || (foundUser?.isAdmin === true);
+  // Дефолтные права: для admin / super — все приложения, для остальных — только то что задано
+  let apps = foundUser?.apps || {};
+  if (isAdmin) {
+    // Все известные приложения видны
+    apps = Object.fromEntries(APPS_CATALOG.map(a => [a.id, true]));
+  }
+  return {
+    email: userAuth.email,
+    name: userAuth.displayName || foundUser?.name || (userAuth.email || '').split('@')[0],
+    photoURL: userAuth.photoURL || '',
+    crmUid: foundUid,
+    isAdmin, isSuperAdmin: isSuper, isRootSuper: isRoot,
+    apps,
+  };
+}
 
 function redirectToLogin() {
   window.location.href = 'login.html';
@@ -392,6 +607,16 @@ onAuthStateChanged(auth, async (user) => {
   if (cachedUser && cachedUser.email && cachedUser.cachedAt &&
       Date.now() - cachedUser.cachedAt < CACHE_FRESH_MS &&
       cachedUser.email.toLowerCase() === (user.email || '').toLowerCase()) {
+    CURRENT = {
+      email: user.email,
+      name: cachedUser.name || user.displayName || user.email.split('@')[0],
+      photoURL: cachedUser.photoURL || user.photoURL || '',
+      crmUid: cachedUser.crmUid,
+      isAdmin: cachedUser.flags?.isAdmin || isRootSuper(user.email),
+      isSuperAdmin: cachedUser.flags?.isSuperAdmin || isRootSuper(user.email),
+      isRootSuper: isRootSuper(user.email),
+      apps: cachedUser.apps || {},
+    };
     showApp({
       email: user.email,
       name: cachedUser.name || user.displayName || user.email.split('@')[0],
@@ -407,13 +632,7 @@ onAuthStateChanged(auth, async (user) => {
   setLoading('Проверяем ваш доступ в команде...');
   try {
     const snap = await get(ref(db, 'users'));
-    if (!snap.exists()) {
-      await fbSignOut(auth);
-      alert('База пользователей пуста. Обратитесь к администратору.');
-      redirectToLogin();
-      return;
-    }
-    const users = snap.val();
+    const users = snap.exists() ? snap.val() : {};
     const userEmail = (user.email || '').toLowerCase().trim();
 
     let foundUser = null;
@@ -426,18 +645,40 @@ onAuthStateChanged(auth, async (user) => {
       }
     }
 
+    // Если главный супер-админ заходит впервые — авто-создаём ему запись
+    if (!foundUser && isRootSuper(userEmail)) {
+      try {
+        const newRef = push(ref(db, 'users'));
+        const seed = {
+          email: userEmail,
+          name: user.displayName || 'Pllato Admin',
+          isAdmin: true,
+          isSuperAdmin: true,
+          apps: Object.fromEntries(APPS_CATALOG.map(a => [a.id, true])),
+          createdAt: Date.now(),
+        };
+        await set(newRef, seed);
+        foundUser = seed;
+        foundCrmUid = newRef.key;
+      } catch (e) {
+        // тихо — даже если запись не создалась, доступ пускаем (root всегда пускаем)
+      }
+    }
+
     if (!foundUser) {
       await fbSignOut(auth);
-      alert(`Email ${userEmail} больше не в базе сотрудников. Доступ отозван.`);
+      alert(`Email ${userEmail} не в базе сотрудников. Обратись к администратору, чтобы добавил тебя.`);
       localStorage.removeItem('pllato_user_cache');
       redirectToLogin();
       return;
     }
 
+    CURRENT = buildCurrent(user, foundUser, foundCrmUid);
+
     // Сохраняем кэш
     const userData = {
       email: user.email,
-      name: user.displayName || foundUser.name || user.email.split('@')[0],
+      name: CURRENT.name,
       photoURL: user.photoURL || '',
       authUid: user.uid,
       crmUid: foundCrmUid,
@@ -446,6 +687,8 @@ onAuthStateChanged(auth, async (user) => {
         lastName: foundUser.lastName || '',
         position: foundUser.position || '',
       },
+      flags: { isAdmin: CURRENT.isAdmin, isSuperAdmin: CURRENT.isSuperAdmin },
+      apps: CURRENT.apps,
       cachedAt: Date.now(),
     };
     localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
@@ -507,13 +750,13 @@ async function refreshUserDataInBackground(user) {
       }
     }
     if (!foundUser) {
-      // Email убрали из базы — выкидываем при следующей загрузке
       localStorage.removeItem('pllato_user_cache');
       return;
     }
+    CURRENT = buildCurrent(user, foundUser, foundCrmUid);
     const userData = {
       email: user.email,
-      name: user.displayName || foundUser.name || user.email.split('@')[0],
+      name: CURRENT.name,
       photoURL: user.photoURL || '',
       authUid: user.uid,
       crmUid: foundCrmUid,
@@ -522,12 +765,38 @@ async function refreshUserDataInBackground(user) {
         lastName: foundUser.lastName || '',
         position: foundUser.position || '',
       },
+      flags: { isAdmin: CURRENT.isAdmin, isSuperAdmin: CURRENT.isSuperAdmin },
+      apps: CURRENT.apps,
       cachedAt: Date.now(),
     };
     localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
+    // Перерисовать карточки и кнопку админа (вдруг права изменились)
+    applyPermissionsAndAdminUI();
   } catch (e) {
     // тихо игнорим
   }
+}
+
+function applyPermissionsAndAdminUI() {
+  if (!CURRENT) return;
+  // Фильтрация карточек
+  document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
+    const appId = card.dataset.appId;
+    const allowed = CURRENT.isAdmin || CURRENT.apps?.[appId];
+    card.style.display = allowed ? '' : 'none';
+  });
+  // Скрытие пустых секций
+  document.querySelectorAll('.tools-grid').forEach(grid => {
+    const anyVisible = Array.from(grid.querySelectorAll('.tool-card')).some(c => c.style.display !== 'none');
+    grid.style.display = anyVisible ? '' : 'none';
+    const prev = grid.previousElementSibling;
+    if (prev && prev.classList.contains('section-title')) {
+      prev.style.display = anyVisible ? '' : 'none';
+    }
+  });
+  // Кнопка «Пользователи» для админов
+  const btnAdmin = document.getElementById('btn-admin');
+  if (btnAdmin) btnAdmin.style.display = CURRENT.isAdmin ? '' : 'none';
 }
 
 function showApp(user) {
@@ -556,7 +825,191 @@ function showApp(user) {
     const initials = fullName.split(' ').filter(Boolean).map(s => s[0]).slice(0, 2).join('').toUpperCase() || '?';
     avatarEl.textContent = initials;
   }
+  applyPermissionsAndAdminUI();
 }
+
+// ===== Admin Modal =====
+const adminOverlay = document.getElementById('admin-overlay');
+const adminBtn = document.getElementById('btn-admin');
+const adminCloseBtn = document.getElementById('admin-close');
+const adminMsg = document.getElementById('admin-msg');
+const adminUsersList = document.getElementById('admin-users-list');
+const adminAddForm = document.getElementById('admin-add-form');
+
+let adminUsersCache = {};  // uid -> userData
+
+function showAdminMsg(text, kind) {
+  if (!adminMsg) return;
+  adminMsg.textContent = text || '';
+  adminMsg.className = 'admin-msg' + (kind ? ' ' + kind : '');
+  if (text) setTimeout(() => { if (adminMsg.textContent === text) showAdminMsg(''); }, 3500);
+}
+
+async function openAdminModal() {
+  if (!CURRENT?.isAdmin) return;
+  adminOverlay.classList.add('open');
+  await loadAdminUsers();
+}
+function closeAdminModal() { adminOverlay.classList.remove('open'); }
+
+async function loadAdminUsers() {
+  showAdminMsg('Загрузка пользователей...', '');
+  try {
+    const snap = await get(ref(db, 'users'));
+    adminUsersCache = snap.exists() ? snap.val() : {};
+    renderAdminUsers();
+    showAdminMsg('');
+  } catch (e) {
+    showAdminMsg('Ошибка загрузки: ' + (e.message || e), 'err');
+  }
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function initials(name) {
+  const parts = (name || '?').trim().split(/\s+/);
+  return ((parts[0]?.[0] || '?') + (parts[1]?.[0] || '')).toUpperCase();
+}
+
+function renderAdminUsers() {
+  const entries = Object.entries(adminUsersCache);
+  // Главный супер всегда сверху
+  entries.sort((a, b) => {
+    const sa = isRootSuper(a[1]?.email) ? 0 : (a[1]?.isSuperAdmin ? 1 : 2);
+    const sb = isRootSuper(b[1]?.email) ? 0 : (b[1]?.isSuperAdmin ? 1 : 2);
+    if (sa !== sb) return sa - sb;
+    return (a[1]?.email || '').localeCompare(b[1]?.email || '');
+  });
+
+  adminUsersList.innerHTML = entries.map(([uid, u]) => {
+    if (!u) return '';
+    const isRoot = isRootSuper(u.email);
+    const isSelf = (u.email || '').toLowerCase() === (CURRENT?.email || '').toLowerCase();
+    const userApps = u.apps || {};
+    return `
+      <div class="user-row" data-uid="${uid}">
+        <div class="user-row-head">
+          <div class="user-row-avatar">${initials(u.name || u.email)}</div>
+          <div class="user-row-info">
+            <div class="user-row-name">${escapeHtml(u.name || '(без имени)')} ${isRoot ? '<span style="color:var(--purple);font-size:11px">★ root</span>' : ''}${isSelf ? '<span style="color:var(--text-3);font-size:11px"> · это вы</span>' : ''}</div>
+            <div class="user-row-email">${escapeHtml(u.email || '')}</div>
+          </div>
+          <div class="user-row-flags">
+            <label class="${u.isAdmin || isRoot ? 'on' : ''}">
+              <input type="checkbox" data-flag="isAdmin" data-uid="${uid}" ${u.isAdmin || isRoot ? 'checked' : ''} ${isRoot ? 'disabled' : ''}>
+              Админ
+            </label>
+            ${CURRENT?.isSuperAdmin ? `
+              <label class="badge-super ${u.isSuperAdmin || isRoot ? 'on' : ''}">
+                <input type="checkbox" data-flag="isSuperAdmin" data-uid="${uid}" ${u.isSuperAdmin || isRoot ? 'checked' : ''} ${isRoot ? 'disabled' : ''}>
+                Супер
+              </label>
+            ` : ''}
+            ${!isRoot && !isSelf ? `<button class="btn-remove-user" data-remove="${uid}" title="Удалить">×</button>` : ''}
+          </div>
+        </div>
+        <div class="app-perms" data-perm-uid="${uid}">
+          ${APPS_CATALOG.map(a => {
+            const on = (u.isAdmin || isRoot) ? true : !!userApps[a.id];
+            return `<label class="app-perm ${on ? 'on' : ''}">
+              <input type="checkbox" data-app="${a.id}" data-uid="${uid}" ${on ? 'checked' : ''} ${(u.isAdmin || isRoot) ? 'disabled' : ''}>
+              ${escapeHtml(a.label)}
+            </label>`;
+          }).join("")}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Bindings
+  adminUsersList.querySelectorAll('input[data-flag]').forEach(inp => {
+    inp.addEventListener('change', async () => {
+      const uid = inp.dataset.uid;
+      const flag = inp.dataset.flag;
+      const val = inp.checked;
+      try {
+        await update(ref(db, 'users/' + uid), { [flag]: val });
+        adminUsersCache[uid][flag] = val;
+        renderAdminUsers();
+        showAdminMsg('Сохранено', 'ok');
+      } catch (e) {
+        showAdminMsg('Ошибка: ' + (e.message || e), 'err');
+        inp.checked = !val;
+      }
+    });
+  });
+  adminUsersList.querySelectorAll('input[data-app]').forEach(inp => {
+    inp.addEventListener('change', async () => {
+      const uid = inp.dataset.uid;
+      const appId = inp.dataset.app;
+      const val = inp.checked;
+      try {
+        await update(ref(db, 'users/' + uid + '/apps'), { [appId]: val });
+        adminUsersCache[uid].apps = adminUsersCache[uid].apps || {};
+        adminUsersCache[uid].apps[appId] = val;
+        // Обновим лейбл (on)
+        inp.parentElement.classList.toggle('on', val);
+        showAdminMsg('Сохранено', 'ok');
+      } catch (e) {
+        showAdminMsg('Ошибка: ' + (e.message || e), 'err');
+        inp.checked = !val;
+      }
+    });
+  });
+  adminUsersList.querySelectorAll('[data-remove]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const uid = btn.dataset.remove;
+      const u = adminUsersCache[uid];
+      if (!confirm(`Удалить пользователя ${u?.email || ''}? Доступ будет отозван.`)) return;
+      try {
+        await remove(ref(db, 'users/' + uid));
+        delete adminUsersCache[uid];
+        renderAdminUsers();
+        showAdminMsg('Пользователь удалён', 'ok');
+      } catch (e) {
+        showAdminMsg('Ошибка: ' + (e.message || e), 'err');
+      }
+    });
+  });
+}
+
+adminBtn?.addEventListener('click', openAdminModal);
+adminCloseBtn?.addEventListener('click', closeAdminModal);
+adminOverlay?.addEventListener('click', (e) => {
+  if (e.target === adminOverlay) closeAdminModal();
+});
+
+adminAddForm?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!CURRENT?.isAdmin) return;
+  const email = document.getElementById('admin-add-email').value.trim().toLowerCase();
+  const name = document.getElementById('admin-add-name').value.trim() || email.split('@')[0];
+  if (!email) return;
+  // Уже есть?
+  const exists = Object.values(adminUsersCache).some(u => (u?.email || '').toLowerCase() === email);
+  if (exists) { showAdminMsg('Этот email уже добавлен', 'err'); return; }
+  try {
+    const newRef = push(ref(db, 'users'));
+    // По умолчанию даём доступ к Pllato CRM (как явное минимальное право)
+    const seed = {
+      email, name,
+      isAdmin: false,
+      isSuperAdmin: false,
+      apps: { pllato_crm: true },
+      createdAt: Date.now(),
+      createdBy: CURRENT.email,
+    };
+    await set(newRef, seed);
+    adminUsersCache[newRef.key] = seed;
+    renderAdminUsers();
+    document.getElementById('admin-add-email').value = '';
+    document.getElementById('admin-add-name').value = '';
+    showAdminMsg('Пользователь добавлен. Скажи ему зайти через Google.', 'ok');
+  } catch (e) {
+    showAdminMsg('Ошибка: ' + (e.message || e), 'err');
+  }
+});
 
 document.getElementById('btn-logout').addEventListener('click', async () => {
   localStorage.removeItem('pllato_user_cache');
