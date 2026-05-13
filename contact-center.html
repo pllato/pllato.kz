@@ -542,13 +542,31 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
+let CHANNEL_SECRETS = {};  // только для админов
+
 async function loadChannels() {
   try {
-    const snap = await get(ref(db, 'channels'));
-    CHANNELS = snap.exists() ? snap.val() : {};
+    const [pubSnap, secretSnap] = await Promise.all([
+      get(ref(db, 'channels')),
+      get(ref(db, 'channel_secrets')),
+    ]);
+    CHANNELS = pubSnap.exists() ? pubSnap.val() : {};
+    CHANNEL_SECRETS = secretSnap.exists() ? secretSnap.val() : {};
   } catch (e) {
     CHANNELS = {};
+    CHANNEL_SECRETS = {};
   }
+}
+
+// Разделить config на public-поля и секреты
+const SECRET_FIELD_NAMES = ["api_secret", "api_token_instance", "pass", "access_token", "page_token"];
+function splitConfig(type, config) {
+  const pub = {}, secret = {};
+  Object.entries(config || {}).forEach(([k, v]) => {
+    if (SECRET_FIELD_NAMES.includes(k)) secret[k] = v;
+    else pub[k] = v;
+  });
+  return { public: pub, secret };
 }
 
 function escapeHtml(s) {
@@ -665,6 +683,7 @@ chType.addEventListener('change', () => {
 function openEditModal(id) {
   EDITING_ID = id;
   const ch = id ? CHANNELS[id] : null;
+  const sec = id ? (CHANNEL_SECRETS[id] || {}) : {};
   document.getElementById('modal-title').textContent = id ? 'Настройки канала' : 'Новый канал';
   chDelete.style.display = id ? '' : 'none';
   if (ch) {
@@ -672,7 +691,8 @@ function openEditModal(id) {
     chType.disabled = true;
     chName.value = ch.name || '';
     chActive.checked = ch.active !== false;
-    renderConfigFields(ch.type, ch.config || {});
+    // Объединяем публичные поля и секреты для UI
+    renderConfigFields(ch.type, { ...(ch.config || {}), ...sec });
     renderAppsPicker(ch.apps || {});
   } else {
     chType.value = 'binotel';
@@ -712,26 +732,34 @@ document.getElementById('ch-save').addEventListener('click', async () => {
     apps[a.id] = !!(inp && inp.checked);
   });
 
-  const data = {
-    type, name, config, apps,
+  // Разделяем на публичные данные и секреты
+  const split = splitConfig(type, config);
+  const publicData = {
+    type, name,
+    config: split.public,
+    apps,
     active: chActive.checked,
     updatedAt: Date.now(),
     updatedBy: CURRENT?.email || null,
   };
 
   try {
-    if (EDITING_ID) {
-      await update(ref(db, 'channels/' + EDITING_ID), data);
-      CHANNELS[EDITING_ID] = { ...CHANNELS[EDITING_ID], ...data };
-      showMsg('Сохранено', 'ok');
+    let id = EDITING_ID;
+    if (id) {
+      await update(ref(db, 'channels/' + id), publicData);
+      CHANNELS[id] = { ...CHANNELS[id], ...publicData };
     } else {
       const newRef = push(ref(db, 'channels'));
-      data.createdAt = Date.now();
-      data.createdBy = CURRENT?.email || null;
-      await set(newRef, data);
-      CHANNELS[newRef.key] = data;
-      showMsg('Канал добавлен', 'ok');
+      publicData.createdAt = Date.now();
+      publicData.createdBy = CURRENT?.email || null;
+      await set(newRef, publicData);
+      id = newRef.key;
+      CHANNELS[id] = publicData;
     }
+    // Секреты пишем в отдельную ноду (защищённую правилами для админов)
+    await set(ref(db, 'channel_secrets/' + id), split.secret);
+    CHANNEL_SECRETS[id] = split.secret;
+    showMsg('Сохранено', 'ok');
     setTimeout(() => { closeModal(); renderChannels(); }, 600);
   } catch (e) {
     showMsg('Ошибка: ' + (e.message || e), 'err');
@@ -743,8 +771,12 @@ async function removeChannel(id) {
   if (!ch) return;
   if (!confirm(`Удалить канал «${ch.name}»? Это нельзя отменить, креды будут стёрты.`)) return;
   try {
-    await remove(ref(db, 'channels/' + id));
+    await Promise.all([
+      remove(ref(db, 'channels/' + id)),
+      remove(ref(db, 'channel_secrets/' + id)),
+    ]);
     delete CHANNELS[id];
+    delete CHANNEL_SECRETS[id];
     renderChannels();
   } catch (e) {
     alert('Ошибка удаления: ' + (e.message || e));

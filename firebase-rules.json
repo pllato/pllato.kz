@@ -1,0 +1,38 @@
+{
+  "rules": {
+    ".read":  false,
+    ".write": false,
+
+    "admin_emails": {
+      ".read":  "auth != null",
+      "$emailKey": {
+        ".write": "auth != null && (auth.token.email.toLowerCase().replace('.', ',') === 'uurraa@gmail,com' || root.child('admin_emails').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)"
+      }
+    },
+
+    "users": {
+      ".read":  "auth != null",
+      ".write": "auth != null && (auth.token.email.toLowerCase().replace('.', ',') === 'uurraa@gmail,com' || root.child('admin_emails').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)"
+    },
+
+    "channels": {
+      ".read":  "auth != null",
+      ".write": "auth != null && (auth.token.email.toLowerCase().replace('.', ',') === 'uurraa@gmail,com' || root.child('admin_emails').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)"
+    },
+
+    "channel_secrets": {
+      ".read":  "auth != null && (auth.token.email.toLowerCase().replace('.', ',') === 'uurraa@gmail,com' || root.child('admin_emails').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)",
+      ".write": "auth != null && (auth.token.email.toLowerCase().replace('.', ',') === 'uurraa@gmail,com' || root.child('admin_emails').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)"
+    },
+
+    "calls":     { ".read": "auth != null", ".write": "auth != null" },
+    "messages":  { ".read": "auth != null", ".write": "auth != null" },
+    "tasks":     { ".read": "auth != null", ".write": "auth != null" },
+    "deals":     { ".read": "auth != null", ".write": "auth != null" },
+    "contacts":  { ".read": "auth != null", ".write": "auth != null" },
+    "feed":      { ".read": "auth != null", ".write": "auth != null" },
+    "chats":     { ".read": "auth != null", ".write": "auth != null" },
+    "research":  { ".read": "auth != null", ".write": "auth != null" },
+    "interviews":{ ".read": "auth != null", ".write": "auth != null" }
+  }
+}

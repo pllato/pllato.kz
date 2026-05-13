@@ -544,6 +544,12 @@ const APPS_CATALOG = [
 // Главный супер-админ (системный) — всегда имеет полный доступ независимо от записей в /users
 const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
 
+// /admin_emails — реестр email-ов админов для Firebase rules.
+// Ключ — email с заменой "." на "," (т.к. в Firebase keys нельзя точки).
+function emailKey(email) {
+  return (email || "").toLowerCase().trim().replace(/\./g, ',');
+}
+
 // Тот же Firebase project что и team.html
 const firebaseConfig = {
   apiKey: "AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",
@@ -675,6 +681,9 @@ onAuthStateChanged(auth, async (user) => {
         // тихо — даже если запись не создалась, доступ пускаем (root всегда пускаем)
       }
     }
+    // Обновим /admin_emails — на основе текущих isAdmin/isSuperAdmin в /users.
+    // Это нужно для Firebase rules: они проверяют /admin_emails при write-операциях.
+    syncAdminEmailsRegistry(users).catch(() => {});
 
     if (!foundUser) {
       await fbSignOut(auth);
@@ -786,6 +795,32 @@ async function refreshUserDataInBackground(user) {
   } catch (e) {
     // тихо игнорим
   }
+}
+
+// Поддерживает /admin_emails в актуальном состоянии (для rules)
+async function syncAdminEmailsRegistry(users) {
+  try {
+    const desired = {};
+    desired[emailKey(ROOT_SUPER_ADMIN)] = true;  // root всегда
+    Object.values(users || {}).forEach(u => {
+      if (u && u.email && (u.isAdmin || u.isSuperAdmin)) {
+        desired[emailKey(u.email)] = true;
+      }
+    });
+    const snap = await get(ref(db, 'admin_emails'));
+    const existing = snap.exists() ? snap.val() : {};
+    const updates = {};
+    let changed = false;
+    // Добавить новых
+    Object.keys(desired).forEach(k => {
+      if (existing[k] !== true) { updates[k] = true; changed = true; }
+    });
+    // Удалить выбывших
+    Object.keys(existing).forEach(k => {
+      if (!desired[k]) { updates[k] = null; changed = true; }
+    });
+    if (changed) await update(ref(db, 'admin_emails'), updates);
+  } catch (e) { /* тихо */ }
 }
 
 function applyPermissionsAndAdminUI() {
@@ -942,6 +977,8 @@ function renderAdminUsers() {
       try {
         await update(ref(db, 'users/' + uid), { [flag]: val });
         adminUsersCache[uid][flag] = val;
+        // Синхронизируем /admin_emails (для Firebase rules)
+        await syncAdminEmailsRegistry(adminUsersCache);
         renderAdminUsers();
         showAdminMsg('Сохранено', 'ok');
       } catch (e) {
@@ -976,6 +1013,7 @@ function renderAdminUsers() {
       try {
         await remove(ref(db, 'users/' + uid));
         delete adminUsersCache[uid];
+        await syncAdminEmailsRegistry(adminUsersCache);
         renderAdminUsers();
         showAdminMsg('Пользователь удалён', 'ok');
       } catch (e) {
