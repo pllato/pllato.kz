@@ -1,12 +1,28 @@
 // Pllato CRM — сотрудники (общий модуль, используется всеми view).
+// Источник правды — Firebase /users (общая база сотрудников всей команды Pllato).
+// Эта обёртка кеширует в localStorage и предоставляет синхронный API.
 
 import { Store } from "./store.js";
 
 const COLLECTION = "employees";
+const FB_SYNC_FLAG = "pllato_employees_fb_sync";  // если true, демо-seed не работает
 
 const COLORS = ["#b8895a", "#3b82f6", "#22c55e", "#a855f7", "#f59e0b", "#ec4899", "#06b6d4", "#ef4444"];
 
+// Стабильный цвет по id/email (хэш)
+function colorFor(seed) {
+  let h = 0;
+  for (let i = 0; i < (seed || "").length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return COLORS[h % COLORS.length];
+}
+
+export function isFirebaseSynced() {
+  return localStorage.getItem(FB_SYNC_FLAG) === "1";
+}
+
 export function seedEmployees() {
+  // Если уже подгрузили из Firebase — никаких демо-данных.
+  if (isFirebaseSynced()) return;
   if (Store.list(COLLECTION).length > 0) return;
   const samples = [
     { name: "Pllato",        email: "pllato@example.com", role: "admin",   isCurrent: true },
@@ -15,6 +31,87 @@ export function seedEmployees() {
     { name: "Сергей Ким",    email: "sergey@pllato.kz",   role: "viewer" },
   ];
   samples.forEach((e, i) => Store.create(COLLECTION, { ...e, color: COLORS[i % COLORS.length] }));
+}
+
+/**
+ * Полная замена коллекции сотрудников из Firebase /users.
+ * @param {Object} usersMap — { uid: { email, name, lastName, position, isAdmin, isSuperAdmin } }
+ * @param {string} currentEmail — email текущего залогиненного пользователя
+ * @returns {{ id, name, email, role }[]} — синхронизированные сотрудники + map старых ID на новые
+ */
+export function replaceEmployeesFromFirebase(usersMap, currentEmail) {
+  const me = (currentEmail || "").toLowerCase().trim();
+  // Старая коллекция — для миграции assigneeId по email
+  const oldList = Store.list(COLLECTION);
+  const oldByEmail = {};
+  oldList.forEach(e => { if (e.email) oldByEmail[(e.email || "").toLowerCase().trim()] = e.id; });
+
+  // Удаляем всё старое
+  oldList.forEach(e => Store.remove(COLLECTION, e.id));
+
+  // Маппинг старый id → новый id (для миграции assigneeId)
+  const idMap = {};
+
+  const newItems = [];
+  Object.entries(usersMap || {}).forEach(([uid, u]) => {
+    if (!u || !u.email) return;
+    const emailNorm = u.email.toLowerCase().trim();
+    const name = (u.lastName || u.name)
+      ? `${u.lastName || ""} ${u.name || ""}`.trim()
+      : (u.name || u.email.split("@")[0]);
+    const role = u.isSuperAdmin ? "admin" : u.isAdmin ? "admin" : "manager";
+    const fbId = "fb_" + uid;
+    const now = Date.now();
+    const items = JSON.parse(localStorage.getItem("pllato_core_" + COLLECTION) || "[]");
+    items.unshift({
+      id: fbId,
+      name,
+      email: u.email,
+      position: u.position || "",
+      role,
+      isAdmin: !!u.isAdmin,
+      isSuperAdmin: !!u.isSuperAdmin,
+      isCurrent: emailNorm === me,
+      color: colorFor(uid),
+      createdAt: now,
+      updatedAt: now,
+    });
+    localStorage.setItem("pllato_core_" + COLLECTION, JSON.stringify(items));
+    newItems.push({ id: fbId, email: emailNorm });
+    if (oldByEmail[emailNorm]) idMap[oldByEmail[emailNorm]] = fbId;
+  });
+
+  // Миграция assigneeId / participantIds / authorId по email
+  migrateReferences(idMap);
+
+  localStorage.setItem(FB_SYNC_FLAG, "1");
+  return newItems;
+}
+
+function migrateReferences(idMap) {
+  const keys = Object.keys(idMap);
+  if (keys.length === 0) return;
+  function rewriteCollection(coll, fields) {
+    const items = JSON.parse(localStorage.getItem("pllato_core_" + coll) || "[]");
+    let changed = false;
+    items.forEach(item => {
+      fields.forEach(f => {
+        if (typeof item[f] === "string" && idMap[item[f]]) {
+          item[f] = idMap[item[f]]; changed = true;
+        } else if (Array.isArray(item[f])) {
+          item[f] = item[f].map(v => idMap[v] || v);
+          changed = true;
+        }
+      });
+    });
+    if (changed) localStorage.setItem("pllato_core_" + coll, JSON.stringify(items));
+  }
+  rewriteCollection("deals", ["assigneeId"]);
+  rewriteCollection("tasks", ["assigneeId", "participantIds"]);
+  rewriteCollection("feed",  ["authorId"]);
+  rewriteCollection("task_comments", ["authorId"]);
+  rewriteCollection("deal_activities", ["authorId"]);
+  rewriteCollection("notifications", ["authorId"]);
 }
 
 export function listEmployees() {
