@@ -10,7 +10,7 @@ import { renderChat } from "./app/views/chat.js";
 import { renderDashboard } from "./app/views/dashboard.js";
 import { renderSettings } from "./app/views/settings.js";
 import { listNotifications, unreadCount, markRead, markAllRead, typeMeta, seedDemoNotifications } from "./app/notifications.js";
-import { hasPermission, currentPermissions } from "./app/employees.js";
+import { hasPermission, currentPermissions, replaceEmployeesFromFirebase } from "./app/employees.js";
 import { VERSION, REVISION } from "./app/version.js";
 
 const $app = document.getElementById("app");
@@ -80,6 +80,8 @@ async function initFirebase() {
       localStorage.setItem(USER_CACHE_KEY, JSON.stringify(cached));
       state.user = cached;
       authError = null;
+      // Синхронизируем общий список сотрудников из Firebase
+      try { replaceEmployeesFromFirebase(result.allUsers, u.email); } catch (e) { console.warn("emp sync failed:", e); }
       render();
     } else {
       // Залогинен в Google, но не в команде — выходим
@@ -98,12 +100,23 @@ async function checkUserInTeam(user) {
     if (!snap.exists()) return { ok: false, message: "База сотрудников пуста. Обратитесь к администратору." };
     const users = snap.val();
     const userEmail = (user.email || "").toLowerCase().trim();
+    let found = null, foundUid = null;
     for (const [uid, u] of Object.entries(users)) {
       if (u && u.email && u.email.toLowerCase().trim() === userEmail) {
-        return { ok: true, user: u, crmUid: uid };
+        found = u; foundUid = uid;
+        break;
       }
     }
-    return { ok: false, message: `Email <code>${userEmail}</code> не найден в команде. Обратитесь к администратору.` };
+    if (!found) {
+      return { ok: false, message: `Email <code>${userEmail}</code> не найден в команде. Обратитесь к администратору.` };
+    }
+    // Проверяем доступ к Pllato CRM (если флаг есть в /users/{uid}/apps/pllato_crm — должен быть true; если admin — всегда пускаем).
+    const isAdmin = found.isAdmin || found.isSuperAdmin;
+    const hasAccess = isAdmin || (found.apps && found.apps.pllato_crm !== false);
+    if (!hasAccess) {
+      return { ok: false, message: `У тебя нет доступа к Pllato CRM. Попроси админа открыть приложение в <a href="https://pllato.kz/app.html" target="_blank">pllato.kz/app.html</a>.` };
+    }
+    return { ok: true, user: found, crmUid: foundUid, allUsers: users };
   } catch (e) {
     const isPermission = String(e.code || e.message || "").includes("permission");
     return {

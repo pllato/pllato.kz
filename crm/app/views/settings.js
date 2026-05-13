@@ -3,7 +3,7 @@
 
 import { Store } from "../store.js";
 import { ICONS } from "../icons.js";
-import { listEmployees, getEmployee, currentEmployee, createEmployee, updateEmployee, removeEmployee, avatar, ROLES } from "../employees.js";
+import { listEmployees, getEmployee, currentEmployee, createEmployee, updateEmployee, removeEmployee, avatar, ROLES, isFirebaseSynced } from "../employees.js";
 import { getDealFields, saveDealFields, newFieldId, FIELD_TYPES } from "../custom_fields.js";
 import { VERSION, REVISION, BUILD_DATE, COMMIT_SHORT, HISTORY } from "../version.js";
 
@@ -144,16 +144,25 @@ export function renderSettings(container) {
       <section class="settings-block">
         <header class="settings-head">
           <h3>Сотрудники <span style="font-weight:500;color:var(--text-muted)">(${employees.length})</span></h3>
-          <p>Люди, у которых есть доступ к рабочему пространству.</p>
+          <p>${isFirebaseSynced()
+            ? "Единая база сотрудников всех приложений Pllato. Управление — в админке на pllato.kz/app.html."
+            : "Локальный список (DEMO). После входа через Google синхронизируется с pllato.kz/app.html."}</p>
         </header>
         <div class="settings-body">
+          ${isFirebaseSynced() ? `
+            <div class="settings-hint" style="margin-bottom:14px">
+              Список сотрудников приходит из общей базы Pllato. Чтобы добавить, удалить или поменять права —
+              открой <a href="https://pllato.kz/app.html" target="_blank" style="color:var(--accent)">pllato.kz/app.html</a>
+              и используй раздел «⚙ Пользователи». Изменения подтянутся при следующем входе.
+            </div>
+          ` : ""}
           <div class="employees-list">
             ${employees.map(e => renderEmployeeRow(e, roles)).join("")}
           </div>
-          ${state.editingEmployee === "new" ? renderEmployeeForm(null, roles) : ""}
-          <div>
+          ${!isFirebaseSynced() && state.editingEmployee === "new" ? renderEmployeeForm(null, roles) : ""}
+          ${!isFirebaseSynced() ? `<div>
             <button class="btn-ghost" id="addEmployee">${ICONS.plus}<span>Добавить сотрудника</span></button>
-          </div>
+          </div>` : ""}
         </div>
       </section>
 
@@ -305,18 +314,20 @@ function renderCustomFieldsList() {
 }
 
 function renderEmployeeRow(e, roles) {
-  if (state.editingEmployee === e.id) return renderEmployeeForm(e, roles);
+  if (state.editingEmployee === e.id && !isFirebaseSynced()) return renderEmployeeForm(e, roles);
+  const fbManaged = isFirebaseSynced();
+  const roleLabel = e.isSuperAdmin ? "Супер-админ" : e.isAdmin ? "Админ" : (roles.find(r => r.id === e.roleId)?.name || e.role || "Сотрудник");
   return `
     <div class="employee-row" data-id="${e.id}">
       ${avatar(e, "md")}
       <div class="employee-body">
         <div class="employee-name">${escape(e.name)}${e.isCurrent ? ' <span class="badge">это вы</span>' : ""}</div>
-        <div class="employee-meta">${escape(e.email)} · ${escape(roles.find(r => r.id === e.roleId)?.name || e.role || "—")}</div>
+        <div class="employee-meta">${escape(e.email)} · ${escape(roleLabel)}${e.position ? ` · ${escape(e.position)}` : ""}</div>
       </div>
-      <div class="employee-actions">
+      ${fbManaged ? "" : `<div class="employee-actions">
         <button class="btn-ghost icon-only" data-edit-emp="${e.id}">${ICONS.edit}</button>
         ${!e.isCurrent ? `<button class="btn-ghost icon-only danger" data-remove-emp="${e.id}">${ICONS.trash}</button>` : ""}
-      </div>
+      </div>`}
     </div>
   `;
 }
