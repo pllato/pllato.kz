@@ -5,6 +5,7 @@ import { Store } from "../store.js";
 import { ICONS } from "../icons.js";
 import { listEmployees, getEmployee, currentEmployee, createEmployee, updateEmployee, removeEmployee, avatar, ROLES, isFirebaseSynced } from "../employees.js";
 import { getDealFields, saveDealFields, newFieldId, FIELD_TYPES } from "../custom_fields.js";
+import { listChannels, typeMeta, isChannelsSynced } from "../channels.js";
 import { VERSION, REVISION, BUILD_DATE, COMMIT_SHORT, HISTORY } from "../version.js";
 
 const ROLES_COLLECTION = "roles";
@@ -199,6 +200,21 @@ export function renderSettings(container) {
         </div>
       </section>
 
+      <!-- Каналы связи (из Контакт-центра) -->
+      <section class="settings-block">
+        <header class="settings-head">
+          <h3>Каналы связи ${(() => { const all = listChannels({ onlyActive: false }); return all.length ? `<span style="font-weight:500;color:var(--text-muted)">(${all.length})</span>` : ''; })()}</h3>
+          <p>Линии телефонии, WhatsApp, почты — подключаются в Контакт-центре, доступны во всех приложениях Pllato.</p>
+        </header>
+        <div class="settings-body">
+          <div class="settings-hint" style="margin-bottom:14px">
+            Управление линиями — в общей админке <a href="https://pllato.kz/contact-center.html" target="_blank" style="color:var(--accent)">pllato.kz/contact-center.html</a>.
+            Здесь — только просмотр доступных в Pllato CRM. Создание сделок, звонки и сообщения будут идти через эти каналы (когда подключим Worker).
+          </div>
+          ${renderChannelsList()}
+        </div>
+      </section>
+
       <!-- Интеграции -->
       <section class="settings-block">
         <header class="settings-head">
@@ -292,6 +308,32 @@ export function renderSettings(container) {
   `;
 
   wireEvents(container);
+}
+
+function renderChannelsList() {
+  const list = listChannels({ onlyActive: false });
+  if (list.length === 0) {
+    if (!isChannelsSynced()) {
+      return `<div class="tl-empty">Каналы не загружены. Войди через Google, чтобы подтянуть их из Firebase.</div>`;
+    }
+    return `<div class="tl-empty">Pllato CRM ещё не привязана ни к одному каналу. Открой <a href="https://pllato.kz/contact-center.html" target="_blank" style="color:var(--accent)">Контакт-центр</a> и в карточке нужного канала отметь «Pllato CRM».</div>`;
+  }
+  return `
+    <div class="employees-list">
+      ${list.map(c => {
+        const meta = typeMeta(c.type);
+        return `
+          <div class="employee-row">
+            <div class="avatar avatar-md" style="background:var(--accent-tint);color:var(--accent-hover);font-size:18px">${meta.icon}</div>
+            <div class="employee-body">
+              <div class="employee-name">${escape(c.name)} ${c.active === false ? '<span class="badge warn">выкл</span>' : ''}</div>
+              <div class="employee-meta">${meta.label}${c.public?.phone_number ? ' · ' + escape(c.public.phone_number) : ''}${c.public?.host ? ' · ' + escape(c.public.host) : ''}${c.public?.account ? ' · ' + escape(c.public.account) : ''}</div>
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
 }
 
 function renderCustomFieldsList() {

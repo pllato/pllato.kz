@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Контакт-центр — Pllato</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="pllato_favicon_64.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --navy: #0a1628;
+  --bronze: #b8895a;
+  --bronze-deep: #8b6740;
+  --bronze-light: #d4a978;
+  --bronze-tint: rgba(184, 137, 90, 0.08);
+  --bronze-tint-2: rgba(184, 137, 90, 0.18);
+  --bg: #fafaf6;
+  --surface: #ffffff;
+  --surface-2: #f3f0e8;
+  --text: #0f1620;
+  --text-2: #4a5163;
+  --text-3: #8a8d96;
+  --line: #e8e2d4;
+  --line-2: #ede9de;
+  --green: #16a34a;
+  --blue: #2563eb;
+  --purple: #7c3aed;
+  --orange: #ea580c;
+  --pink: #db2777;
+  --teal: #0891b2;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(20, 30, 50, 0.04);
+  --shadow-md: 0 8px 24px -8px rgba(20, 30, 50, 0.08);
+  --shadow-lg: 0 12px 32px -8px rgba(20, 30, 50, 0.12);
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { overflow-x: hidden; }
+body {
+  font-family: var(--sans);
+  background: var(--bg); color: var(--text);
+  line-height: 1.55; -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  padding: 16px 16px 60px;
+}
+.container { max-width: 1100px; margin: 0 auto; }
+
+.loading-screen {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 60vh; flex-direction: column; gap: 14px;
+}
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--line);
+  border-top-color: var(--bronze);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.top-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  margin-bottom: 28px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line-2);
+}
+.brand-row { display: flex; align-items: center; gap: 14px; }
+.logo img { height: 28px; }
+.tag {
+  font-size: 12px; font-weight: 600;
+  color: var(--text-2);
+  padding-left: 14px; border-left: 1px solid var(--line);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.back-link {
+  font-size: 13px; color: var(--text-3);
+  text-decoration: none;
+  margin-left: auto;
+  padding-right: 14px;
+}
+.back-link:hover { color: var(--bronze); }
+
+.welcome { margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.welcome h1 {
+  font-size: 28px; font-weight: 800;
+  letter-spacing: -0.025em;
+  margin-bottom: 4px;
+}
+.welcome p { font-size: 14px; color: var(--text-2); }
+
+.btn-add {
+  padding: 10px 18px;
+  background: var(--bronze);
+  color: #fff;
+  border: 0; border-radius: 10px;
+  font: inherit; font-weight: 700; font-size: 14px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-add:hover { background: var(--bronze-deep); }
+
+.filter-row {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.filter-chip {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-2);
+  border-radius: 999px;
+  font: inherit; font-size: 12.5px; font-weight: 600;
+  cursor: pointer;
+}
+.filter-chip:hover { border-color: var(--bronze); color: var(--text); }
+.filter-chip.on {
+  background: var(--bronze-tint);
+  color: var(--bronze-deep);
+  border-color: var(--bronze);
+}
+
+.channels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+.channel-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  position: relative;
+}
+.channel-card:hover { border-color: var(--bronze); box-shadow: var(--shadow-md); }
+.channel-card.off { opacity: 0.6; }
+.channel-head { display: flex; align-items: center; gap: 12px; }
+.channel-icon {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  display: grid; place-items: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.channel-icon.binotel       { background: rgba(37, 99, 235, 0.12);  color: var(--blue); }
+.channel-icon.greenapi_wa   { background: rgba(22, 163, 74, 0.12);  color: var(--green); }
+.channel-icon.smtp          { background: rgba(124, 58, 237, 0.12); color: var(--purple); }
+.channel-icon.instagram     { background: rgba(219, 39, 119, 0.12); color: var(--pink); }
+.channel-icon.facebook      { background: rgba(37, 99, 235, 0.18);  color: var(--blue); }
+
+.channel-title { flex: 1; min-width: 0; }
+.channel-title h3 {
+  font-size: 14px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.channel-title .type-label {
+  font-size: 11px; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.channel-status {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 3px 8px; border-radius: 999px;
+}
+.channel-status.on { background: rgba(22, 163, 74, 0.12); color: var(--green); }
+.channel-status.off { background: var(--surface-2); color: var(--text-3); }
+
+.channel-body { font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
+.channel-body code { font-family: inherit; background: var(--surface-2); padding: 1px 6px; border-radius: 4px; }
+
+.channel-apps { display: flex; flex-wrap: wrap; gap: 4px; }
+.channel-app-chip {
+  padding: 3px 8px;
+  background: var(--bronze-tint);
+  color: var(--bronze-deep);
+  border: 1px solid var(--bronze);
+  border-radius: 999px;
+  font-size: 10.5px; font-weight: 700;
+}
+
+.channel-actions {
+  display: flex; gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-2);
+}
+.channel-actions button {
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-2);
+  border-radius: 8px;
+  font: inherit; font-size: 12.5px; font-weight: 600;
+  cursor: pointer;
+}
+.channel-actions button:hover { border-color: var(--bronze); color: var(--text); }
+.channel-actions button.danger:hover { border-color: #c00; color: #c00; }
+.channel-actions .spacer { flex: 1; }
+
+.empty-state {
+  text-align: center;
+  padding: 60px 24px;
+  color: var(--text-3);
+}
+.empty-state h3 { font-size: 16px; font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
+.empty-state p { font-size: 13px; }
+
+/* ===== Modal ===== */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 22, 32, 0.55);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: flex-start; justify-content: center;
+  padding: 40px 20px;
+  z-index: 100;
+  overflow-y: auto;
+}
+.overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%; max-width: 600px;
+  max-height: calc(100vh - 80px);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--line-2);
+}
+.modal-head h2 { font-size: 17px; font-weight: 700; }
+.modal-head .close {
+  width: 32px; height: 32px;
+  border: 0; background: transparent;
+  cursor: pointer; color: var(--text-3);
+  font-size: 22px; line-height: 1;
+  border-radius: 8px;
+}
+.modal-head .close:hover { background: var(--surface-2); color: var(--text); }
+.modal-body { padding: 18px 22px; overflow-y: auto; }
+.modal-foot {
+  display: flex; gap: 10px; justify-content: space-between;
+  padding: 14px 22px;
+  border-top: 1px solid var(--line-2);
+  background: var(--surface-2);
+}
+.modal-foot .right { display: flex; gap: 10px; }
+.modal-foot button {
+  padding: 9px 18px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 8px;
+  font: inherit; font-weight: 600; font-size: 13.5px;
+  cursor: pointer;
+}
+.modal-foot button.primary { background: var(--bronze); color: #fff; border-color: var(--bronze); }
+.modal-foot button.primary:hover { background: var(--bronze-deep); }
+.modal-foot button.danger { color: #c00; border-color: var(--line); }
+.modal-foot button.danger:hover { background: #fee; border-color: #c00; }
+
+.field { margin-bottom: 14px; }
+.field label {
+  display: block;
+  font-size: 11px; font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+.field input, .field select, .field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit; font-size: 13.5px;
+  background: var(--surface);
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: none; border-color: var(--bronze);
+}
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field-help {
+  font-size: 11.5px; color: var(--text-3);
+  margin-top: 4px;
+}
+.apps-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.apps-grid label {
+  display: inline-flex; gap: 5px; align-items: center;
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  text-transform: none; letter-spacing: 0;
+  color: var(--text-2);
+}
+.apps-grid label.on { background: var(--bronze-tint); color: var(--bronze-deep); border-color: var(--bronze); }
+.apps-grid input { display: none; }
+
+.msg { font-size: 12.5px; padding: 4px 0; }
+.msg.err { color: #c00; }
+.msg.ok { color: var(--green); }
+
+.access-denied {
+  text-align: center;
+  padding: 80px 24px;
+}
+.access-denied h2 { font-size: 22px; font-weight: 800; margin-bottom: 10px; }
+.access-denied p { font-size: 14px; color: var(--text-2); max-width: 440px; margin: 0 auto 16px; }
+.access-denied a {
+  display: inline-block;
+  padding: 9px 18px;
+  background: var(--bronze); color: #fff;
+  border-radius: 10px;
+  text-decoration: none; font-weight: 700; font-size: 13.5px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="loading-screen" id="loading">
+    <div class="spinner"></div>
+    <p>Загрузка...</p>
+  </div>
+
+  <div id="main-content" style="display:none;">
+    <div class="top-bar">
+      <div class="brand-row">
+        <a href="app.html" style="text-decoration:none;"><img src="pllato_logo_transparent_navy.svg" alt="Pllato" style="height:28px; display:block;"></a>
+        <span class="tag">Контакт-центр</span>
+        <a href="app.html" class="back-link">← К панели</a>
+      </div>
+    </div>
+
+    <div class="welcome">
+      <div>
+        <h1>Каналы связи</h1>
+        <p>Один центр настроек для всей команды: телефония, WhatsApp, почта, соцсети. Подключённые здесь каналы доступны во всех приложениях Pllato.</p>
+      </div>
+      <button class="btn-add" id="add-channel">+ Добавить канал</button>
+    </div>
+
+    <div class="filter-row" id="filter-row">
+      <button class="filter-chip on" data-filter="all">Все</button>
+      <button class="filter-chip" data-filter="binotel">Телефония</button>
+      <button class="filter-chip" data-filter="greenapi_wa">WhatsApp</button>
+      <button class="filter-chip" data-filter="smtp">Email</button>
+      <button class="filter-chip" data-filter="instagram">Instagram</button>
+      <button class="filter-chip" data-filter="facebook">Facebook</button>
+    </div>
+
+    <div id="channels-grid" class="channels-grid"></div>
+  </div>
+
+  <div id="access-denied-screen" style="display:none;" class="access-denied">
+    <h2>Только для администраторов</h2>
+    <p>Контакт-центр доступен только админам Pllato. Если думаешь, что это ошибка — попроси главного админа открыть тебе доступ.</p>
+    <a href="app.html">← На главную</a>
+  </div>
+
+  <!-- ===== Edit Channel Modal ===== -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="modal-title">Новый канал</h2>
+        <button class="close" id="modal-close">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="channel-form" autocomplete="off">
+          <div class="field">
+            <label>Тип канала *</label>
+            <select name="type" id="ch-type" required>
+              <option value="binotel">📞 Телефония — Binotel</option>
+              <option value="greenapi_wa">💬 WhatsApp — Green-API</option>
+              <option value="smtp">✉ Email — SMTP</option>
+              <option value="instagram">📷 Instagram</option>
+              <option value="facebook">f Facebook</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Название *</label>
+            <input type="text" name="name" id="ch-name" required placeholder="Например: Binotel — главная линия">
+            <div class="field-help">Понятное имя — будет показано в списках выбора канала.</div>
+          </div>
+
+          <!-- Поля зависят от типа -->
+          <div id="ch-config-fields"></div>
+
+          <div class="field">
+            <label>Доступно в приложениях</label>
+            <div class="apps-grid" id="ch-apps"></div>
+            <div class="field-help">Какие приложения смогут использовать этот канал.</div>
+          </div>
+
+          <div class="field">
+            <label style="display:inline-flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
+              <input type="checkbox" name="active" id="ch-active" checked>
+              <span style="font-size:13.5px;font-weight:600;color:var(--text)">Канал активен</span>
+            </label>
+            <div class="field-help">Выкл — канал не виден в приложениях, но настройки сохраняются.</div>
+          </div>
+
+          <div class="msg" id="ch-msg"></div>
+        </form>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="danger" id="ch-delete" style="display:none">Удалить</button>
+        <div class="right">
+          <button type="button" id="ch-cancel">Отмена</button>
+          <button type="button" class="primary" id="ch-save">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import {
+  getAuth, onAuthStateChanged, signOut as fbSignOut
+} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+import {
+  getDatabase, ref, get, set, push, update, remove
+} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",
+  authDomain: "pllato-crm.firebaseapp.com",
+  databaseURL: "https://pllato-crm-default-rtdb.firebaseio.com",
+  projectId: "pllato-crm",
+  storageBucket: "pllato-crm.firebasestorage.app",
+  messagingSenderId: "690738857241",
+  appId: "1:690738857241:web:2356e97c435656890ab188"
+};
+
+const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
+
+const APPS_CATALOG = [
+  { id: "pllato_crm",      label: "Pllato CRM" },
+  { id: "team_crm",        label: "CRM Команды (ELC)" },
+  { id: "robeng_crm",      label: "RobEng CRM" },
+  { id: "interview_tiles", label: "Опросы" },
+  { id: "team_chat",       label: "Командный чат" },
+  { id: "team_tasks",      label: "Задачи команды" },
+];
+
+const TYPE_META = {
+  binotel:     { icon: "📞", label: "Телефония — Binotel" },
+  greenapi_wa: { icon: "💬", label: "WhatsApp — Green-API" },
+  smtp:        { icon: "✉",  label: "Email — SMTP" },
+  instagram:   { icon: "📷", label: "Instagram" },
+  facebook:    { icon: "f",  label: "Facebook" },
+};
+
+const CONFIG_FIELDS = {
+  binotel: [
+    { name: "api_key",     label: "API Key *", required: true, help: "Из ЛК Binotel → Настройки → API" },
+    { name: "api_secret",  label: "API Secret *", required: true, type: "password" },
+    { name: "default_inner", label: "Внутренний номер по умолчанию", help: "Если оператор не выбран" },
+    { name: "webhook_path", label: "Webhook URL", help: "Передать в Binotel: https://<наш-worker>/binotel/webhook (после деплоя Worker)", readonly: true, value: "https://<worker>/binotel/webhook" },
+  ],
+  greenapi_wa: [
+    { name: "id_instance",       label: "ID Instance *", required: true, help: "Из Green-API кабинета" },
+    { name: "api_token_instance", label: "API Token Instance *", required: true, type: "password" },
+    { name: "phone_number",      label: "Номер WhatsApp", help: "В формате 77001234567" },
+  ],
+  smtp: [
+    { name: "host", label: "SMTP Host *", required: true, placeholder: "smtp.gmail.com" },
+    { name: "port", label: "Port", placeholder: "587" },
+    { name: "user", label: "User *", required: true, placeholder: "noreply@pllato.kz" },
+    { name: "pass", label: "Password *", required: true, type: "password" },
+    { name: "from_name", label: "От имени", placeholder: "Pllato Sales" },
+  ],
+  instagram: [
+    { name: "account", label: "Username *", required: true, placeholder: "@pllato" },
+    { name: "access_token", label: "Long-lived Access Token *", required: true, type: "password" },
+  ],
+  facebook: [
+    { name: "page_id", label: "Page ID *", required: true },
+    { name: "page_token", label: "Page Token *", required: true, type: "password" },
+  ],
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+const loadingEl = document.getElementById('loading');
+const mainEl = document.getElementById('main-content');
+const accessDeniedEl = document.getElementById('access-denied-screen');
+
+function isRootSuper(email) { return (email || "").toLowerCase().trim() === ROOT_SUPER_ADMIN; }
+
+let CURRENT = null;
+let CHANNELS = {};
+let EDITING_ID = null;  // id текущего редактируемого канала
+let FILTER_TYPE = "all";
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.href = 'login.html';
+    return;
+  }
+  // Проверяем что админ
+  try {
+    const snap = await get(ref(db, 'users'));
+    const users = snap.exists() ? snap.val() : {};
+    const emailNorm = (user.email || "").toLowerCase().trim();
+    let me = null;
+    for (const [uid, u] of Object.entries(users)) {
+      if (u?.email?.toLowerCase().trim() === emailNorm) { me = { uid, ...u }; break; }
+    }
+    const isRoot = isRootSuper(user.email);
+    const isAdmin = isRoot || me?.isAdmin || me?.isSuperAdmin;
+    if (!isAdmin) {
+      loadingEl.style.display = 'none';
+      accessDeniedEl.style.display = 'block';
+      return;
+    }
+    CURRENT = { email: user.email, isAdmin, isSuperAdmin: isRoot || me?.isSuperAdmin };
+    await loadChannels();
+    loadingEl.style.display = 'none';
+    mainEl.style.display = 'block';
+    renderChannels();
+  } catch (e) {
+    loadingEl.querySelector('p').textContent = 'Ошибка: ' + (e.message || e);
+  }
+});
+
+async function loadChannels() {
+  try {
+    const snap = await get(ref(db, 'channels'));
+    CHANNELS = snap.exists() ? snap.val() : {};
+  } catch (e) {
+    CHANNELS = {};
+  }
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function renderChannels() {
+  const grid = document.getElementById('channels-grid');
+  const entries = Object.entries(CHANNELS)
+    .filter(([id, ch]) => FILTER_TYPE === "all" || ch?.type === FILTER_TYPE);
+  if (entries.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <h3>Каналов пока нет</h3>
+      <p>${FILTER_TYPE === "all" ? "Нажми «+ Добавить канал» сверху, чтобы подключить первую линию." : "По этому типу каналов ещё не подключено."}</p>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = entries.map(([id, ch]) => {
+    const meta = TYPE_META[ch.type] || { icon: "•", label: ch.type };
+    const apps = Object.entries(ch.apps || {}).filter(([k, v]) => v).map(([k]) => k);
+    return `
+      <div class="channel-card ${ch.active === false ? 'off' : ''}">
+        <div class="channel-head">
+          <div class="channel-icon ${ch.type}">${meta.icon}</div>
+          <div class="channel-title">
+            <h3>${escapeHtml(ch.name || '(без имени)')}</h3>
+            <div class="type-label">${meta.label}</div>
+          </div>
+          <span class="channel-status ${ch.active === false ? 'off' : 'on'}">${ch.active === false ? 'Выкл' : '● Активен'}</span>
+        </div>
+        ${apps.length > 0 ? `<div class="channel-apps">
+          ${apps.map(a => `<span class="channel-app-chip">${escapeHtml(APPS_CATALOG.find(x => x.id === a)?.label || a)}</span>`).join('')}
+        </div>` : `<div style="font-size:11.5px;color:var(--text-3)">Не привязан ни к одному приложению</div>`}
+        <div class="channel-actions">
+          <button data-edit="${id}">Настроить</button>
+          <div class="spacer"></div>
+          <button class="danger" data-remove="${id}">Удалить</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  grid.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => openEditModal(b.dataset.edit)));
+  grid.querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', () => removeChannel(b.dataset.remove)));
+}
+
+// Фильтры
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    FILTER_TYPE = chip.dataset.filter;
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.toggle('on', c === chip));
+    renderChannels();
+  });
+});
+
+// ===== Edit Modal =====
+const overlay = document.getElementById('overlay');
+const form = document.getElementById('channel-form');
+const chType = document.getElementById('ch-type');
+const chName = document.getElementById('ch-name');
+const chActive = document.getElementById('ch-active');
+const chMsg = document.getElementById('ch-msg');
+const chDelete = document.getElementById('ch-delete');
+
+function showMsg(text, kind) {
+  chMsg.textContent = text || '';
+  chMsg.className = 'msg' + (kind ? ' ' + kind : '');
+  if (text) setTimeout(() => { if (chMsg.textContent === text) showMsg(''); }, 3500);
+}
+
+function renderConfigFields(type, existingConfig = {}) {
+  const wrap = document.getElementById('ch-config-fields');
+  const fields = CONFIG_FIELDS[type] || [];
+  wrap.innerHTML = fields.map(f => {
+    const val = f.readonly ? f.value : (existingConfig[f.name] || '');
+    return `
+      <div class="field">
+        <label>${escapeHtml(f.label)}</label>
+        <input
+          type="${f.type || 'text'}"
+          name="${f.name}"
+          ${f.required ? 'required' : ''}
+          ${f.readonly ? 'readonly style="background:var(--surface-2);color:var(--text-3)"' : ''}
+          ${f.placeholder ? `placeholder="${escapeHtml(f.placeholder)}"` : ''}
+          value="${escapeHtml(val)}"
+        >
+        ${f.help ? `<div class="field-help">${escapeHtml(f.help)}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderAppsPicker(currentApps = {}) {
+  const wrap = document.getElementById('ch-apps');
+  wrap.innerHTML = APPS_CATALOG.map(a => `
+    <label class="${currentApps[a.id] ? 'on' : ''}" data-app="${a.id}">
+      <input type="checkbox" name="app_${a.id}" ${currentApps[a.id] ? 'checked' : ''}>
+      ${escapeHtml(a.label)}
+    </label>
+  `).join('');
+  wrap.querySelectorAll('input[type=checkbox]').forEach(inp => {
+    inp.addEventListener('change', () => inp.parentElement.classList.toggle('on', inp.checked));
+  });
+}
+
+document.getElementById('add-channel').addEventListener('click', () => openEditModal(null));
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('ch-cancel').addEventListener('click', closeModal);
+overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+
+chType.addEventListener('change', () => {
+  renderConfigFields(chType.value);
+});
+
+function openEditModal(id) {
+  EDITING_ID = id;
+  const ch = id ? CHANNELS[id] : null;
+  document.getElementById('modal-title').textContent = id ? 'Настройки канала' : 'Новый канал';
+  chDelete.style.display = id ? '' : 'none';
+  if (ch) {
+    chType.value = ch.type || 'binotel';
+    chType.disabled = true;
+    chName.value = ch.name || '';
+    chActive.checked = ch.active !== false;
+    renderConfigFields(ch.type, ch.config || {});
+    renderAppsPicker(ch.apps || {});
+  } else {
+    chType.value = 'binotel';
+    chType.disabled = false;
+    chName.value = '';
+    chActive.checked = true;
+    renderConfigFields('binotel');
+    renderAppsPicker({ pllato_crm: true });
+  }
+  overlay.classList.add('open');
+}
+
+function closeModal() {
+  overlay.classList.remove('open');
+  EDITING_ID = null;
+}
+
+document.getElementById('ch-save').addEventListener('click', async () => {
+  const type = chType.value;
+  const name = chName.value.trim();
+  if (!name) { showMsg('Укажи название канала', 'err'); return; }
+
+  // Собираем config
+  const config = {};
+  const fields = CONFIG_FIELDS[type] || [];
+  fields.forEach(f => {
+    if (f.readonly) return;
+    const inp = form.querySelector(`input[name="${f.name}"]`);
+    if (inp) config[f.name] = inp.value.trim();
+    if (f.required && !config[f.name]) showMsg(`Заполни «${f.label.replace(' *','')}»`, 'err');
+  });
+
+  // Apps
+  const apps = {};
+  APPS_CATALOG.forEach(a => {
+    const inp = form.querySelector(`input[name="app_${a.id}"]`);
+    apps[a.id] = !!(inp && inp.checked);
+  });
+
+  const data = {
+    type, name, config, apps,
+    active: chActive.checked,
+    updatedAt: Date.now(),
+    updatedBy: CURRENT?.email || null,
+  };
+
+  try {
+    if (EDITING_ID) {
+      await update(ref(db, 'channels/' + EDITING_ID), data);
+      CHANNELS[EDITING_ID] = { ...CHANNELS[EDITING_ID], ...data };
+      showMsg('Сохранено', 'ok');
+    } else {
+      const newRef = push(ref(db, 'channels'));
+      data.createdAt = Date.now();
+      data.createdBy = CURRENT?.email || null;
+      await set(newRef, data);
+      CHANNELS[newRef.key] = data;
+      showMsg('Канал добавлен', 'ok');
+    }
+    setTimeout(() => { closeModal(); renderChannels(); }, 600);
+  } catch (e) {
+    showMsg('Ошибка: ' + (e.message || e), 'err');
+  }
+});
+
+async function removeChannel(id) {
+  const ch = CHANNELS[id];
+  if (!ch) return;
+  if (!confirm(`Удалить канал «${ch.name}»? Это нельзя отменить, креды будут стёрты.`)) return;
+  try {
+    await remove(ref(db, 'channels/' + id));
+    delete CHANNELS[id];
+    renderChannels();
+  } catch (e) {
+    alert('Ошибка удаления: ' + (e.message || e));
+  }
+}
+
+chDelete.addEventListener('click', () => {
+  if (EDITING_ID) {
+    const id = EDITING_ID;
+    closeModal();
+    removeChannel(id);
+  }
+});
+</script>
+
+</body>
+</html>

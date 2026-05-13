@@ -11,6 +11,7 @@ import { renderDashboard } from "./app/views/dashboard.js";
 import { renderSettings } from "./app/views/settings.js";
 import { listNotifications, unreadCount, markRead, markAllRead, typeMeta, seedDemoNotifications } from "./app/notifications.js";
 import { hasPermission, currentPermissions, replaceEmployeesFromFirebase } from "./app/employees.js";
+import { syncChannelsFromFirebase } from "./app/channels.js";
 import { VERSION, REVISION } from "./app/version.js";
 
 const $app = document.getElementById("app");
@@ -82,6 +83,8 @@ async function initFirebase() {
       authError = null;
       // Синхронизируем общий список сотрудников из Firebase
       try { replaceEmployeesFromFirebase(result.allUsers, u.email); } catch (e) { console.warn("emp sync failed:", e); }
+      // Параллельно тянем каналы связи (Контакт-центр)
+      syncChannelsFromFirebase(fb).catch(e => console.warn("ch sync failed:", e));
       render();
     } else {
       // Залогинен в Google, но не в команде — выходим
