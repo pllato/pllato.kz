@@ -13,6 +13,7 @@ import { listNotifications, unreadCount, markRead, markAllRead, typeMeta, seedDe
 import { hasPermission, currentPermissions, replaceEmployeesFromFirebase } from "./app/employees.js";
 import { syncChannelsFromFirebase } from "./app/channels.js";
 import { VERSION, REVISION } from "./app/version.js";
+import { Store } from "./app/store.js";
 
 const $app = document.getElementById("app");
 
@@ -85,6 +86,10 @@ async function initFirebase() {
       try { replaceEmployeesFromFirebase(result.allUsers, u.email); } catch (e) { console.warn("emp sync failed:", e); }
       // Параллельно тянем каналы связи (Контакт-центр)
       syncChannelsFromFirebase(fb).catch(e => console.warn("ch sync failed:", e));
+      // Подтянуть/смержить данные CRM из Cloudflare Store (гибридная схема)
+      // до первого полноценного рендера разделов, чтобы не насидеть demo-данные.
+      try { await Store.cloudBootstrap(); }
+      catch (e) { console.warn("cloud bootstrap failed:", e); }
       render();
     } else {
       // Залогинен в Google, но не в команде — выходим

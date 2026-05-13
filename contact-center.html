@@ -432,11 +432,8 @@ body {
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {
-  getAuth, onAuthStateChanged, signOut as fbSignOut
+  getAuth, onAuthStateChanged
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
-import {
-  getDatabase, ref, get, set, push, update, remove
-} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",
@@ -498,7 +495,7 @@ const CONFIG_FIELDS = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getDatabase(app);
+const WORKER_BASE = "https://pllato-comm.uurraa.workers.dev";
 
 const loadingEl = document.getElementById('loading');
 const mainEl = document.getElementById('main-content');
@@ -516,46 +513,75 @@ onAuthStateChanged(auth, async (user) => {
     window.location.href = 'login.html';
     return;
   }
-  // Проверяем что админ
   try {
-    const snap = await get(ref(db, 'users'));
-    const users = snap.exists() ? snap.val() : {};
-    const emailNorm = (user.email || "").toLowerCase().trim();
-    let me = null;
-    for (const [uid, u] of Object.entries(users)) {
-      if (u?.email?.toLowerCase().trim() === emailNorm) { me = { uid, ...u }; break; }
-    }
-    const isRoot = isRootSuper(user.email);
-    const isAdmin = isRoot || me?.isAdmin || me?.isSuperAdmin;
-    if (!isAdmin) {
-      loadingEl.style.display = 'none';
-      accessDeniedEl.style.display = 'block';
-      return;
-    }
-    CURRENT = { email: user.email, isAdmin, isSuperAdmin: isRoot || me?.isSuperAdmin };
+    CURRENT = { email: user.email, isAdmin: true, isSuperAdmin: isRootSuper(user.email) };
     await loadChannels();
     loadingEl.style.display = 'none';
     mainEl.style.display = 'block';
     renderChannels();
   } catch (e) {
-    loadingEl.querySelector('p').textContent = 'Ошибка: ' + (e.message || e);
+    const msg = String(e?.message || e);
+    if (msg.includes("403")) {
+      loadingEl.style.display = 'none';
+      accessDeniedEl.style.display = 'block';
+      return;
+    }
+    loadingEl.querySelector('p').textContent = 'Ошибка: ' + msg;
   }
 });
 
 let CHANNEL_SECRETS = {};  // только для админов
+let CHANNELS_MIGRATE_ATTEMPTED = false;
 
 async function loadChannels() {
   try {
-    const [pubSnap, secretSnap] = await Promise.all([
-      get(ref(db, 'channels')),
-      get(ref(db, 'channel_secrets')),
-    ]);
-    CHANNELS = pubSnap.exists() ? pubSnap.val() : {};
-    CHANNEL_SECRETS = secretSnap.exists() ? secretSnap.val() : {};
+    let data = await workerApi("/channels/list", { onlyActive: false, includeSecrets: true });
+    if ((!data.channels || data.channels.length === 0) && !CHANNELS_MIGRATE_ATTEMPTED) {
+      CHANNELS_MIGRATE_ATTEMPTED = true;
+      try {
+        await workerApi("/channels/migrate-from-firebase", {});
+        data = await workerApi("/channels/list", { onlyActive: false, includeSecrets: true });
+      } catch (e) {
+        console.warn("channels migrate skipped:", e);
+      }
+    }
+    CHANNELS = {};
+    CHANNEL_SECRETS = {};
+    (data.channels || []).forEach(ch => {
+      CHANNELS[ch.id] = {
+        type: ch.type,
+        name: ch.name || "",
+        apps: ch.apps || {},
+        active: ch.active !== false,
+        config: ch.config || {},
+      };
+      CHANNEL_SECRETS[ch.id] = ch.secrets || {};
+    });
   } catch (e) {
     CHANNELS = {};
     CHANNEL_SECRETS = {};
+    throw e;
   }
+}
+
+async function workerApi(path, payload = {}) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Нет активной сессии");
+  const token = await user.getIdToken();
+
+  const res = await fetch(WORKER_BASE + path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json?.ok) {
+    throw new Error(json?.error || `HTTP ${res.status}`);
+  }
+  return json;
 }
 
 // Разделить config на public-поля и секреты
@@ -640,7 +666,10 @@ function renderConfigFields(type, existingConfig = {}) {
   const wrap = document.getElementById('ch-config-fields');
   const fields = CONFIG_FIELDS[type] || [];
   wrap.innerHTML = fields.map(f => {
-    const val = f.readonly ? f.value : (existingConfig[f.name] || '');
+    const readonlyValue = f.name === "webhook_path"
+      ? `${WORKER_BASE}/binotel/webhook`
+      : f.value;
+    const val = f.readonly ? readonlyValue : (existingConfig[f.name] || '');
     return `
       <div class="field">
         <label>${escapeHtml(f.label)}</label>
@@ -744,21 +773,25 @@ document.getElementById('ch-save').addEventListener('click', async () => {
   };
 
   try {
-    let id = EDITING_ID;
-    if (id) {
-      await update(ref(db, 'channels/' + id), publicData);
-      CHANNELS[id] = { ...CHANNELS[id], ...publicData };
-    } else {
-      const newRef = push(ref(db, 'channels'));
-      publicData.createdAt = Date.now();
-      publicData.createdBy = CURRENT?.email || null;
-      await set(newRef, publicData);
-      id = newRef.key;
-      CHANNELS[id] = publicData;
-    }
-    // Секреты пишем в отдельную ноду (защищённую правилами для админов)
-    await set(ref(db, 'channel_secrets/' + id), split.secret);
-    CHANNEL_SECRETS[id] = split.secret;
+    const resp = await workerApi("/channels/upsert", {
+      id: EDITING_ID || undefined,
+      type,
+      name,
+      config: split.public,
+      secrets: split.secret,
+      apps,
+      active: chActive.checked,
+    });
+    const ch = resp.channel;
+    const id = ch.id;
+    CHANNELS[id] = {
+      type: ch.type,
+      name: ch.name || "",
+      apps: ch.apps || {},
+      active: ch.active !== false,
+      config: ch.config || {},
+    };
+    CHANNEL_SECRETS[id] = ch.secrets || {};
     showMsg('Сохранено', 'ok');
     setTimeout(() => { closeModal(); renderChannels(); }, 600);
   } catch (e) {
@@ -771,10 +804,7 @@ async function removeChannel(id) {
   if (!ch) return;
   if (!confirm(`Удалить канал «${ch.name}»? Это нельзя отменить, креды будут стёрты.`)) return;
   try {
-    await Promise.all([
-      remove(ref(db, 'channels/' + id)),
-      remove(ref(db, 'channel_secrets/' + id)),
-    ]);
+    await workerApi("/channels/delete", { id });
     delete CHANNELS[id];
     delete CHANNEL_SECRETS[id];
     renderChannels();

@@ -1,19 +1,93 @@
 // Pllato CRM — действия коммуникации (звонок, WhatsApp, письмо).
-// Открывает мини-модалку с выбором канала и логирует активность в Store.
-// Реальный вызов через Worker — будет позже, пока пишет alert + activity.
+// Открывает мини-модалку с выбором канала и отправляет через Cloudflare Worker.
+// Activity пишется только после успешной отправки/инициации.
 
 import { Store } from "./store.js";
 import { listChannels, typeMeta } from "./channels.js";
 import { currentEmployee } from "./employees.js";
 
 const TYPES = {
-  call:     { channelType: "binotel",     title: "Позвонить",       activityType: "call",     icon: "📞", verb: "позвонить" },
-  whatsapp: { channelType: "greenapi_wa", title: "WhatsApp",        activityType: "whatsapp", icon: "💬", verb: "написать в WhatsApp" },
-  email:    { channelType: "smtp",        title: "Отправить письмо", activityType: "email",   icon: "✉",  verb: "отправить письмо" },
+  call:     { channelType: "binotel",     title: "Позвонить",        activityType: "call",     icon: "📞", verb: "позвонить",       endpoint: "/binotel/call" },
+  whatsapp: { channelType: "greenapi_wa", title: "WhatsApp",         activityType: "whatsapp", icon: "💬", verb: "написать в WhatsApp", endpoint: "/wa/send" },
+  email:    { channelType: "smtp",        title: "Отправить письмо", activityType: "email",    icon: "✉",  verb: "отправить письмо", endpoint: "/email/send" },
 };
 
 function escape(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function workerBase() {
+  return String(window.PLLATO_API_BASE || "").trim().replace(/\/+$/, "");
+}
+
+async function firebaseIdToken() {
+  const cfg = window.PLLATO_FIREBASE_CONFIG || {};
+  if (!cfg.apiKey || !cfg.authDomain) return null;
+
+  const appMod = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
+  const authMod = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js");
+
+  const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(cfg);
+  const auth = authMod.getAuth(app);
+  const user = auth.currentUser;
+  if (!user) return null;
+  return user.getIdToken();
+}
+
+async function workerFetch(path, payload) {
+  const base = workerBase();
+  if (!base) throw new Error("Не задан URL Worker (`window.PLLATO_API_BASE` в firebase.config.js).");
+
+  const token = await firebaseIdToken();
+  if (!token) throw new Error("Нет активной Firebase-сессии. Перелогинься в CRM и повтори.");
+
+  const res = await fetch(base + path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  let data = null;
+  try { data = await res.json(); } catch {}
+
+  if (!res.ok || !data?.ok) {
+    const msg = data?.error || `Ошибка API (${res.status})`;
+    const details = data?.details ? ` ${typeof data.details === "string" ? data.details : JSON.stringify(data.details)}` : "";
+    throw new Error(msg + details);
+  }
+  return data;
+}
+
+function setFormMsg(host, text, kind = "err") {
+  if (!host) return;
+  host.textContent = text || "";
+  host.className = "comm-msg" + (text ? ` ${kind}` : "");
+}
+
+function buildPayload(cfg, channel, opts, { text, subject }) {
+  if (cfg.activityType === "call") {
+    return {
+      channelId: channel.id,
+      externalNumber: opts.to,
+      internalNumber: channel.public?.default_inner || "",
+    };
+  }
+  if (cfg.activityType === "whatsapp") {
+    return {
+      channelId: channel.id,
+      to: opts.to,
+      text,
+    };
+  }
+  return {
+    channelId: channel.id,
+    to: opts.to,
+    subject,
+    text,
+  };
 }
 
 /**
@@ -51,7 +125,7 @@ export function openCommunicate(opts) {
   }
 
   const form = wrap.querySelector("form");
-  form?.addEventListener("submit", e => {
+  form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(form);
     const channelId = fd.get("channel");
@@ -59,29 +133,54 @@ export function openCommunicate(opts) {
     if (!channel) return;
     const text = (fd.get("text") || "").trim();
     const subject = (fd.get("subject") || "").trim();
+    const msgEl = wrap.querySelector("[data-comm-msg]");
+    const submitBtn = form.querySelector("button[type='submit']");
+    const initialBtnText = submitBtn?.textContent || "";
 
-    // Запись активности (если контекст передан)
-    if (opts.context) {
-      const me = currentEmployee();
-      Store.create(opts.context.collection, {
-        ...opts.context.fk,
-        type: cfg.activityType,
-        channelId: channel.id,
-        channelName: channel.name,
-        to: opts.to,
-        text,
-        subject,
-        authorId: me?.id,
-        ts: Date.now(),
-      });
+    if (cfg.activityType === "email" && (!subject || !text)) {
+      setFormMsg(msgEl, "Для письма нужны тема и текст.", "err");
+      return;
+    }
+    if (cfg.activityType === "whatsapp" && !text) {
+      setFormMsg(msgEl, "Текст сообщения пустой.", "err");
+      return;
     }
 
-    // Простой alert вместо реального API-вызова (Worker появится позже)
-    const human = `${cfg.icon} ${cfg.verb} ${opts.contactName || opts.to}\n\nКанал: ${channel.name}\nКуда: ${opts.to}${subject ? "\nТема: " + subject : ""}${text ? "\n\n" + text : ""}\n\n(Реальная отправка появится после деплоя Worker)`;
-    alert(human);
+    setFormMsg(msgEl, "", "err");
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = cfg.activityType === "call" ? "Инициализируем звонок..." : "Отправляем...";
+    }
 
-    wrap.remove();
-    opts.onDone?.();
+    try {
+      await workerFetch(cfg.endpoint, buildPayload(cfg, channel, opts, { text, subject }));
+
+      // Запись активности (только после успешного ответа Worker)
+      if (opts.context) {
+        const me = currentEmployee();
+        Store.create(opts.context.collection, {
+          ...opts.context.fk,
+          type: cfg.activityType,
+          channelId: channel.id,
+          channelName: channel.name,
+          to: opts.to,
+          text,
+          subject,
+          authorId: me?.id,
+          ts: Date.now(),
+        });
+      }
+
+      wrap.remove();
+      opts.onDone?.();
+    } catch (err) {
+      setFormMsg(msgEl, err?.message || String(err), "err");
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = initialBtnText;
+      }
+    }
   });
 }
 
@@ -108,6 +207,7 @@ function renderModal(cfg, channels, opts) {
       <header><h3>${cfg.icon} ${cfg.title}</h3><button type="button" data-close aria-label="Закрыть">×</button></header>
       <form>
         <div class="comm-body">
+          <div class="comm-msg" data-comm-msg></div>
           <div class="comm-field">
             <label>Кому</label>
             <input type="text" value="${escape(opts.to || "")}" readonly>
@@ -119,8 +219,8 @@ function renderModal(cfg, channels, opts) {
               ${channels.map(c => `<option value="${c.id}">${escape(c.name)}</option>`).join("")}
             </select>
           </div>
-          ${showSubject ? `<div class="comm-field"><label>Тема</label><input type="text" name="subject" placeholder="Тема письма"></div>` : ""}
-          ${showText ? `<div class="comm-field"><label>${cfg.activityType === "email" ? "Текст письма" : "Сообщение"}</label><textarea name="text" rows="${cfg.activityType === "email" ? 5 : 3}" placeholder="${cfg.activityType === "whatsapp" ? "Текст сообщения..." : "Содержание..."}"></textarea></div>` : ""}
+          ${showSubject ? `<div class="comm-field"><label>Тема</label><input type="text" name="subject" required placeholder="Тема письма"></div>` : ""}
+          ${showText ? `<div class="comm-field"><label>${cfg.activityType === "email" ? "Текст письма" : "Сообщение"}</label><textarea name="text" rows="${cfg.activityType === "email" ? 5 : 3}" ${cfg.activityType !== "call" ? "required" : ""} placeholder="${cfg.activityType === "whatsapp" ? "Текст сообщения..." : "Содержание..."}"></textarea></div>` : ""}
         </div>
         <footer>
           <button type="button" class="ghost" data-close>Отмена</button>
@@ -144,6 +244,9 @@ if (!document.getElementById(STYLE_ID)) {
     .comm-modal header button[data-close] { width:30px; height:30px; border:0; background:transparent; font-size:20px; line-height:1; color:var(--text-muted); cursor:pointer; border-radius:6px; }
     .comm-modal header button[data-close]:hover { background:var(--surface-2); color:var(--text); }
     .comm-body { padding:18px; overflow-y:auto; flex:1; }
+    .comm-msg { display:none; margin:0 0 10px; padding:10px 12px; border-radius:10px; font-size:12.5px; line-height:1.35; }
+    .comm-msg.err { display:block; background:rgba(239,68,68,.11); color:#fecaca; border:1px solid rgba(239,68,68,.35); }
+    .comm-msg.ok  { display:block; background:rgba(34,197,94,.11); color:#bbf7d0; border:1px solid rgba(34,197,94,.35); }
     .comm-empty { color:var(--text-muted); margin-bottom:12px; }
     .comm-field { margin-bottom:14px; }
     .comm-field label { display:block; font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:5px; }
@@ -153,6 +256,7 @@ if (!document.getElementById(STYLE_ID)) {
     .comm-hint { font-size:11.5px; color:var(--text-dim); margin-top:4px; }
     .comm-modal footer { display:flex; justify-content:flex-end; gap:10px; padding:12px 18px; border-top:1px solid var(--border-soft); background:var(--surface-2); }
     .comm-modal footer button { padding:9px 16px; border-radius:var(--radius-sm); font:inherit; font-size:13px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:transparent; color:var(--text); }
+    .comm-modal footer button:disabled { opacity:.65; cursor:not-allowed; }
     .comm-modal footer button.primary { background:var(--accent); color:var(--brand-navy); border-color:var(--accent); }
     .comm-modal footer button.primary:hover { background:var(--accent-hover); }
     .comm-modal footer button.ghost:hover { background:var(--surface-hover); }

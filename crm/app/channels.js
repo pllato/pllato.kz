@@ -1,9 +1,9 @@
 // Pllato CRM — каналы связи.
-// Источник правды — Firebase /channels (управляется в pllato.kz/contact-center.html).
+// Источник правды: Cloudflare Worker (/channels/*), fallback: Firebase.
 // Здесь — кэш + синхронный API для view.
 
 const COLLECTION = "pllato_channels_cache";
-const FB_SYNC_FLAG = "pllato_channels_fb_sync";
+const SYNC_FLAG = "pllato_channels_sync";
 
 // Этот app — pllato_crm (для фильтрации каналов по apps[pllato_crm])
 const APP_ID = "pllato_crm";
@@ -29,14 +29,18 @@ export function listChannels({ onlyActive = true, type = null } = {}) {
 }
 
 export function isChannelsSynced() {
-  return localStorage.getItem(FB_SYNC_FLAG) === "1";
+  return localStorage.getItem(SYNC_FLAG) === "1";
 }
 
 /**
- * Полная синхронизация из Firebase.
+ * Полная синхронизация каналов.
+ * Сначала пытаемся читать из Cloudflare Worker, fallback — Firebase.
  * @param {object} fb — { db, dbm } из app.js (инициализированный Firebase)
  */
 export async function syncChannelsFromFirebase(fb) {
+  const fromWorker = await syncChannelsFromWorker(fb);
+  if (fromWorker) return;
+
   if (!fb?.db || !fb?.dbm) return;
   try {
     const snap = await fb.dbm.get(fb.dbm.ref(fb.db, "channels"));
@@ -55,10 +59,49 @@ export async function syncChannelsFromFirebase(fb) {
         apps: ch.apps,
       }));
     localStorage.setItem(COLLECTION, JSON.stringify(arr));
-    localStorage.setItem(FB_SYNC_FLAG, "1");
+    localStorage.setItem(SYNC_FLAG, "1");
   } catch (e) {
     // тихо — пользоваться кэшем если есть
     console.warn("channels sync failed:", e);
+  }
+}
+
+async function syncChannelsFromWorker(fb) {
+  const base = String(window.PLLATO_API_BASE || "").trim().replace(/\/+$/, "");
+  if (!base) return false;
+
+  try {
+    const user = fb?.authInstance?.currentUser;
+    if (!user) return false;
+    const token = await user.getIdToken();
+
+    const res = await fetch(base + "/channels/list", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ onlyActive: false }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json?.ok || !Array.isArray(json.channels)) return false;
+
+    const arr = json.channels
+      .filter((ch) => ch && ch.apps && ch.apps[APP_ID])
+      .map((ch) => ({
+        id: ch.id,
+        type: ch.type,
+        name: ch.name || "",
+        active: ch.active !== false,
+        public: pickPublic(ch.type, ch.config || ch.public || {}),
+        apps: ch.apps || {},
+      }));
+
+    localStorage.setItem(COLLECTION, JSON.stringify(arr));
+    localStorage.setItem(SYNC_FLAG, "1");
+    return true;
+  } catch {
+    return false;
   }
 }
 
