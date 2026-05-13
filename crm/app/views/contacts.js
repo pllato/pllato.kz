@@ -4,6 +4,8 @@
 
 import { Store } from "../store.js";
 import { ICONS } from "../icons.js";
+import { parseImport, findDuplicate } from "../import_contacts.js";
+import { getStages } from "../stages.js";
 
 const COLLECTION = "contacts";
 
@@ -19,7 +21,7 @@ function loadState() {
   try { return JSON.parse(sessionStorage.getItem("pllato_state_contacts") || "null") || {}; } catch { return {}; }
 }
 function saveState() {
-  const { dupesModalOpen, ...persist } = state;  // модалку не сохраняем
+  const { dupesModalOpen, importOpen, importData, ...persist } = state;
   sessionStorage.setItem("pllato_state_contacts", JSON.stringify(persist));
 }
 const _saved = loadState();
@@ -28,6 +30,8 @@ const state = {
   mode: "view",
   search: _saved.search || "",
   dupesModalOpen: false,
+  importOpen: false,
+  importData: null,        // { contacts: [...], createDeals: boolean }
 };
 
 function dealsForContact(cid) {
@@ -135,6 +139,7 @@ export function renderContacts(container) {
             <span class="search-ico">${ICONS.search}</span>
             <input type="search" id="contactSearch" placeholder="Поиск по имени, email, тегу…" value="${escape(state.search)}">
           </div>
+          <button class="btn-ghost icon-only" id="importContacts" title="Импорт контактов">⬆</button>
           <button class="btn-primary" id="newContact">${ICONS.plus}<span>Контакт</span></button>
         </div>
         <div class="list-meta">
@@ -157,6 +162,7 @@ export function renderContacts(container) {
       </section>
 
       ${state.dupesModalOpen ? renderDupesModal(dupes) : ""}
+      ${state.importOpen ? renderImportModal() : ""}
     </div>
   `;
 
@@ -262,6 +268,119 @@ function renderDetail(c) {
       <div class="detail-footer">
         <span>Добавлен: ${fmtDate(c.createdAt)}</span>
         ${c.updatedAt && c.updatedAt !== c.createdAt ? `<span> · Обновлён: ${fmtDate(c.updatedAt)}</span>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function runImportParse(container, text) {
+  const parsed = parseImport(text);
+  const existing = Store.list(COLLECTION);
+  // помечаем дубликаты
+  parsed.forEach(c => { if (findDuplicate(c, existing)) c._dupe = true; });
+  state.importData = { contacts: parsed, createDeals: true, skipDupes: true };
+  renderContacts(container);
+}
+
+function confirmImport(container) {
+  const data = state.importData;
+  if (!data) return;
+  const stages = getStages();
+  const firstStage = stages[0]?.id || "new";
+  let createdContacts = 0, createdDeals = 0;
+  data.contacts.forEach(c => {
+    if (c._dupe && data.skipDupes !== false) return;
+    const { _dupe, ...payload } = c;
+    const created = Store.create(COLLECTION, {
+      name: payload.name || "(без имени)",
+      email: payload.email || "",
+      phone: payload.phone || "",
+      company: payload.company || "",
+      position: payload.position || "",
+      source: "import",
+      tags: payload.tags || [],
+      notes: payload.notes || "",
+    });
+    createdContacts++;
+    if (data.createDeals) {
+      Store.create("deals", {
+        title: created.name,
+        amount: 0,
+        stage: firstStage,
+        contactId: created.id,
+        dueDate: null,
+        notes: "",
+      });
+      createdDeals++;
+    }
+  });
+  alert(`Импортировано: ${createdContacts} контактов${data.createDeals ? `, ${createdDeals} сделок` : ""}.`);
+  state.importOpen = false;
+  state.importData = null;
+  renderContacts(container);
+}
+
+function renderImportModal() {
+  const data = state.importData;
+  const existing = Store.list(COLLECTION);
+  return `
+    <div class="modal-backdrop" id="importBackdrop">
+      <div class="modal modal-xl" role="dialog" aria-modal="true">
+        <header class="modal-header">
+          <h2>Импорт контактов</h2>
+          <button class="btn-ghost icon-only" id="closeImport">${ICONS.x}</button>
+        </header>
+        <div class="import-body">
+          ${!data ? `
+            <div class="import-step1">
+              <p class="settings-hint">Загрузи CSV/TXT файл или просто вставь текст со списком клиентов. Распознаются имена, телефоны, email — даже из «грязных» данных.</p>
+              <div class="import-drop" id="importDrop">
+                <div>📁 Перетащи файл сюда или</div>
+                <label class="btn-primary" style="display:inline-flex;cursor:pointer;width:auto;margin-top:10px;">
+                  Выбрать файл
+                  <input type="file" id="importFile" style="display:none" accept=".csv,.tsv,.txt,.vcf">
+                </label>
+              </div>
+              <div style="text-align:center;color:var(--text-dim);font-size:12px;margin:14px 0;">или</div>
+              <textarea id="importText" rows="6" placeholder="Иван Иванов, +7 701 555 1122, ivan@example.com&#10;Мария Петрова +7 707 333 4455"></textarea>
+              <button class="btn-primary" id="importParse" style="margin-top:10px;width:auto;">Распознать</button>
+            </div>
+          ` : `
+            <div class="import-step2">
+              <div class="import-summary">
+                <strong>Найдено: ${data.contacts.length}</strong>
+                ${data.contacts.filter(c => c._dupe).length > 0 ? ` · <span style="color:var(--warning)">дубликатов: ${data.contacts.filter(c => c._dupe).length}</span>` : ""}
+              </div>
+              <div class="import-options">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="optCreateDeals" ${data.createDeals ? "checked" : ""}>
+                  <span>Создать сделку для каждого нового контакта (стадия «${escape(getStages()[0]?.title || "Новые")}»)</span>
+                </label>
+                <label class="checkbox-label">
+                  <input type="checkbox" id="optSkipDupes" ${data.skipDupes !== false ? "checked" : ""}>
+                  <span>Пропустить дубликаты (по email/телефону)</span>
+                </label>
+              </div>
+              <div class="import-list">
+                ${data.contacts.slice(0, 50).map((c, i) => `
+                  <div class="import-row ${c._dupe ? "dupe" : ""}">
+                    <span class="import-i">${i + 1}</span>
+                    <div class="import-cell">
+                      <div class="import-name">${escape(c.name || "(без имени)")}</div>
+                      <div class="import-sub">${escape(c.phone || "")} ${c.email ? "· " + escape(c.email) : ""} ${c.company ? "· " + escape(c.company) : ""}</div>
+                    </div>
+                    ${c._dupe ? `<span class="import-badge">дубликат</span>` : ""}
+                  </div>
+                `).join("")}
+                ${data.contacts.length > 50 ? `<div class="import-more">…и ещё ${data.contacts.length - 50}</div>` : ""}
+              </div>
+              <div class="form-buttons">
+                <button class="btn-ghost" id="importBack">Назад</button>
+                <button class="btn" id="importConfirm">Импортировать ${data.contacts.filter(c => !c._dupe || data.skipDupes === false).length}</button>
+              </div>
+            </div>
+          `}
+        </div>
       </div>
     </div>
   `;
@@ -391,6 +510,56 @@ function renderForm(c) {
 }
 
 function wireEvents(container) {
+  // ===== Импорт =====
+  container.querySelector("#importContacts")?.addEventListener("click", () => {
+    state.importOpen = true;
+    state.importData = null;
+    renderContacts(container);
+  });
+  container.querySelector("#closeImport")?.addEventListener("click", () => {
+    state.importOpen = false; state.importData = null; renderContacts(container);
+  });
+  container.querySelector("#importBackdrop")?.addEventListener("click", e => {
+    if (e.target.id === "importBackdrop") { state.importOpen = false; state.importData = null; renderContacts(container); }
+  });
+  // Шаг 1: загрузка файла или вставка текста
+  const fileInput = container.querySelector("#importFile");
+  fileInput?.addEventListener("change", async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    runImportParse(container, text);
+  });
+  const drop = container.querySelector("#importDrop");
+  if (drop) {
+    drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+    drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+    drop.addEventListener("drop", async e => {
+      e.preventDefault(); drop.classList.remove("over");
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      const text = await file.text();
+      runImportParse(container, text);
+    });
+  }
+  container.querySelector("#importParse")?.addEventListener("click", () => {
+    const text = container.querySelector("#importText")?.value || "";
+    runImportParse(container, text);
+  });
+  // Шаг 2: подтверждение
+  container.querySelector("#importBack")?.addEventListener("click", () => {
+    state.importData = null; renderContacts(container);
+  });
+  container.querySelector("#optCreateDeals")?.addEventListener("change", e => {
+    if (state.importData) state.importData.createDeals = e.target.checked;
+  });
+  container.querySelector("#optSkipDupes")?.addEventListener("change", e => {
+    if (state.importData) { state.importData.skipDupes = e.target.checked; renderContacts(container); }
+  });
+  container.querySelector("#importConfirm")?.addEventListener("click", () => {
+    confirmImport(container);
+  });
+
   // Кнопка дубликатов
   container.querySelector("#openDupes")?.addEventListener("click", () => {
     state.dupesModalOpen = true;

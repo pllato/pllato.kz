@@ -7,6 +7,7 @@ import { ICONS } from "../icons.js";
 import { getStages, saveStages, newStageId, STAGE_COLORS, findStage } from "../stages.js";
 import { getDealFields } from "../custom_fields.js";
 import { listEmployees, getEmployee, currentEmployee, avatar, initialsOf } from "../employees.js";
+import { renderTypeahead, attachTypeahead } from "../typeahead.js";
 
 const COLLECTION = "deals";
 const CONTACTS = "contacts";
@@ -206,20 +207,23 @@ function renderDealModal(d, contacts, stages) {
                 <label>Дедлайн</label>
                 <input name="dueDate" type="date" value="${fmtDateInput(d.dueDate)}">
               </div>
-              <div class="field">
-                <label>Контакт</label>
-                <select name="contactId">
-                  <option value="">— не выбран —</option>
-                  ${contacts.map(c => `<option value="${c.id}" ${d.contactId === c.id ? "selected" : ""}>${escape(c.name)}${c.company ? " · " + escape(c.company) : ""}</option>`).join("")}
-                </select>
-              </div>
-              <div class="field">
-                <label>Ответственный</label>
-                <select name="assigneeId">
-                  <option value="">— не назначен —</option>
-                  ${employees.map(e => `<option value="${e.id}" ${d.assigneeId === e.id ? "selected" : ""}>${escape(e.name)}</option>`).join("")}
-                </select>
-              </div>
+              ${renderTypeahead({
+                name: "contactId",
+                value: d.contactId,
+                items: contacts.map(c => ({ id: c.id, name: c.name || "(без имени)", sub: c.company || c.email || c.phone || "" })),
+                label: "Контакт",
+                placeholder: "Поиск по имени, компании, email…",
+                createLabel: "Создать контакт",
+                emptyText: "— не выбран —",
+              })}
+              ${renderTypeahead({
+                name: "assigneeId",
+                value: d.assigneeId,
+                items: employees.map(e => ({ id: e.id, name: e.name, sub: e.email || "" })),
+                label: "Ответственный",
+                placeholder: "Поиск сотрудника…",
+                emptyText: "— не назначен —",
+              })}
               ${renderCustomFields(d)}
               <div class="field field-wide">
                 <label>Заметки</label>
@@ -493,6 +497,34 @@ function wireEvents(container) {
   // ----- Deal Modal -----
   const dealForm = container.querySelector("#dealForm");
   if (dealForm) {
+    // Подгружаем items для typeahead в window.__taItems
+    window.__taItems = window.__taItems || {};
+    window.__taItems.contactId = Store.list(CONTACTS).map(c => ({ id: c.id, name: c.name || "(без имени)", sub: c.company || c.email || c.phone || "" }));
+    window.__taItems.assigneeId = listEmployees().map(e => ({ id: e.id, name: e.name, sub: e.email || "" }));
+    attachTypeahead(dealForm, {
+      onCreate: async (name, query) => {
+        if (name === "contactId") {
+          let contactName = query;
+          if (!contactName) contactName = (prompt("Имя нового контакта:") || "").trim();
+          if (!contactName) return null;
+          const phone = (prompt("Телефон (необязательно):") || "").trim();
+          const created = Store.create(CONTACTS, {
+            name: contactName,
+            phone,
+            email: "",
+            company: "",
+            position: "",
+            source: "site",
+            tags: [],
+            notes: "",
+          });
+          // обновим items
+          window.__taItems.contactId = Store.list(CONTACTS).map(c => ({ id: c.id, name: c.name || "(без имени)", sub: c.company || c.email || c.phone || "" }));
+          return { id: created.id, name: contactName, sub: phone || "" };
+        }
+        return null;
+      },
+    });
     container.querySelector("#closeModal")?.addEventListener("click", () => closeDealModal(container));
     container.querySelector("#modalBackdrop")?.addEventListener("click", e => {
       if (e.target.id === "modalBackdrop") closeDealModal(container);
