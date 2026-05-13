@@ -519,28 +519,45 @@ onAuthStateChanged(auth, async (user) => {
     loadingEl.style.display = 'none';
     mainEl.style.display = 'block';
     renderChannels();
+    if (!CHANNELS_WITH_SECRETS) {
+      showMsg('Каналы загружены в безопасном режиме (без секретов). Редактирование секретных полей временно отключено.', 'err');
+    }
   } catch (e) {
     const msg = String(e?.message || e);
-    if (msg.includes("403")) {
+    const details = e?.details ? ` (${typeof e.details === 'string' ? e.details : JSON.stringify(e.details)})` : '';
+    if (e?.status === 403 || msg.includes("403")) {
       loadingEl.style.display = 'none';
       accessDeniedEl.style.display = 'block';
       return;
     }
-    loadingEl.querySelector('p').textContent = 'Ошибка: ' + msg;
+    loadingEl.querySelector('p').textContent = 'Ошибка: ' + msg + details;
   }
 });
 
 let CHANNEL_SECRETS = {};  // только для админов
 let CHANNELS_MIGRATE_ATTEMPTED = false;
+let CHANNELS_WITH_SECRETS = true;
 
 async function loadChannels() {
   try {
-    let data = await workerApi("/channels/list", { onlyActive: false, includeSecrets: true });
+    let data;
+    CHANNELS_WITH_SECRETS = true;
+    try {
+      data = await workerApi("/channels/list", { onlyActive: false, includeSecrets: true });
+    } catch (e) {
+      // Деградация без падения страницы:
+      // если секреты недоступны (или backend вернул 500), подтягиваем публичный список.
+      CHANNELS_WITH_SECRETS = false;
+      data = await workerApi("/channels/list", { onlyActive: false, includeSecrets: false });
+    }
     if ((!data.channels || data.channels.length === 0) && !CHANNELS_MIGRATE_ATTEMPTED) {
       CHANNELS_MIGRATE_ATTEMPTED = true;
       try {
         await workerApi("/channels/migrate-from-firebase", {});
-        data = await workerApi("/channels/list", { onlyActive: false, includeSecrets: true });
+        data = await workerApi("/channels/list", {
+          onlyActive: false,
+          includeSecrets: CHANNELS_WITH_SECRETS,
+        });
       } catch (e) {
         console.warn("channels migrate skipped:", e);
       }
@@ -579,7 +596,10 @@ async function workerApi(path, payload = {}) {
   });
   const json = await res.json().catch(() => null);
   if (!res.ok || !json?.ok) {
-    throw new Error(json?.error || `HTTP ${res.status}`);
+    const err = new Error(json?.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.details = json?.details || null;
+    throw err;
   }
   return json;
 }
@@ -773,15 +793,21 @@ document.getElementById('ch-save').addEventListener('click', async () => {
   };
 
   try {
-    const resp = await workerApi("/channels/upsert", {
+    const payload = {
       id: EDITING_ID || undefined,
       type,
       name,
       config: split.public,
-      secrets: split.secret,
       apps,
       active: chActive.checked,
-    });
+    };
+    // Если секреты не были загружены (fallback-режим), не отправляем пустой объект,
+    // чтобы случайно не стереть существующие креды канала.
+    if (!(EDITING_ID && !CHANNELS_WITH_SECRETS)) {
+      payload.secrets = split.secret;
+    }
+
+    const resp = await workerApi("/channels/upsert", payload);
     const ch = resp.channel;
     const id = ch.id;
     CHANNELS[id] = {
