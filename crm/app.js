@@ -97,12 +97,14 @@ async function initFirebase() {
   });
 }
 
+const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
+
 async function checkUserInTeam(user) {
   try {
     const snap = await fb.dbm.get(fb.dbm.ref(fb.db, "users"));
-    if (!snap.exists()) return { ok: false, message: "База сотрудников пуста. Обратитесь к администратору." };
-    const users = snap.val();
+    const users = snap.exists() ? snap.val() : {};
     const userEmail = (user.email || "").toLowerCase().trim();
+    const isRoot = userEmail === ROOT_SUPER_ADMIN;
     let found = null, foundUid = null;
     for (const [uid, u] of Object.entries(users)) {
       if (u && u.email && u.email.toLowerCase().trim() === userEmail) {
@@ -110,14 +112,22 @@ async function checkUserInTeam(user) {
         break;
       }
     }
-    if (!found) {
-      return { ok: false, message: `Email <code>${userEmail}</code> не найден в команде. Обратитесь к администратору.` };
+    // Главный супер-админ — пускаем всегда, даже если записи в /users нет
+    if (isRoot) {
+      if (!found) {
+        // Виртуальная запись для текущей сессии (реальная создастся в app.html)
+        found = { email: userEmail, name: user.displayName || "Pllato Admin", isAdmin: true, isSuperAdmin: true };
+      }
+      return { ok: true, user: found, crmUid: foundUid, allUsers: users };
     }
-    // Проверяем доступ к Pllato CRM (если флаг есть в /users/{uid}/apps/pllato_crm — должен быть true; если admin — всегда пускаем).
+    if (!found) {
+      return { ok: false, message: `Email <code>${userEmail}</code> не найден в команде. Попроси админа добавить тебя в <a href="https://pllato.kz/app.html" target="_blank">pllato.kz/app.html</a>.` };
+    }
+    // Доступ к Pllato CRM: admin → всегда; иначе пускаем, кроме случая когда apps.pllato_crm === false (явно отключено).
     const isAdmin = found.isAdmin || found.isSuperAdmin;
-    const hasAccess = isAdmin || (found.apps && found.apps.pllato_crm !== false);
-    if (!hasAccess) {
-      return { ok: false, message: `У тебя нет доступа к Pllato CRM. Попроси админа открыть приложение в <a href="https://pllato.kz/app.html" target="_blank">pllato.kz/app.html</a>.` };
+    const explicitDeny = found.apps && found.apps.pllato_crm === false;
+    if (!isAdmin && explicitDeny) {
+      return { ok: false, message: `У тебя нет доступа к Pllato CRM. Попроси админа включить приложение в <a href="https://pllato.kz/app.html" target="_blank">pllato.kz/app.html</a>.` };
     }
     return { ok: true, user: found, crmUid: foundUid, allUsers: users };
   } catch (e) {
