@@ -1,4 +1,4 @@
-// Pllato CORE CRM — сотрудники (общий модуль, используется всеми view).
+// Pllato CRM — сотрудники (общий модуль, используется всеми view).
 
 import { Store } from "./store.js";
 
