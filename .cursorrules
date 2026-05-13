@@ -1,0 +1,25 @@
+# Cursor rules — Pllato CRM
+
+Прочитай docs/HANDOFF.md перед началом работы — там вся архитектура, доступы, и текущее состояние.
+
+Stack: vanilla HTML/CSS/JS (ES modules), Firebase RTDB, Firebase Auth (Google Sign-In), GitHub Pages, Cloudflare Workers (планируются).
+
+Pllato (uurraa@gmail.com) — solo-разработчик, не профессионал. Отвечать по-русски, простыми словами. Когда выбор — давать интерактивный picker, не текстовый опрос.
+
+Workflow:
+- Изменения CRM-кода ВСЕГДА сначала в pllato-core-crm/, потом sync в pllato.kz/crm/.
+- Прямой push в main блокируется. Использовать PR-flow: feature-branch → gh pr create → gh pr merge --merge --delete-branch.
+- gh CLI установлен в ~/.local/bin/gh, авторизован под pllato.
+- Wrangler в ~/.local/bin/wrangler. Cloudflare API token в ~/.cloudflare-api-token.
+
+Не делать:
+- TypeScript, фреймворки (React/Vue), сборщики (Vite/Webpack), npm-зависимости.
+- Трогать pllato.kz/team.html без явного запроса.
+- Коммитить секреты, .wrangler/, firebase-service-account.json.
+
+Приоритетные таски (top-3):
+1. Cloudflare Worker для Binotel (worker/, endpoints /binotel/webhook и /binotel/call).
+2. Переход хранилища с localStorage на Firebase RTDB (переписать app/store.js, сохранить API).
+3. Связка Worker'а с UI (заменить alert() в app/communicate.js на реальный fetch).
+
+Контекст: docs/HANDOFF.md, docs/ARCHITECTURE.md, docs/CREDENTIALS.md, docs/CHANGELOG.md, docs/BOOTSTRAP_PROMPT.md.
