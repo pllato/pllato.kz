@@ -1,4 +1,4 @@
-// Pllato CORE CRM — центр уведомлений.
+// Pllato CRM — центр уведомлений.
 // Хранит события в localStorage. UI открывается из колокольчика в topbar.
 
 import { Store } from "./store.js";
@@ -47,7 +47,7 @@ export function seedDemoNotifications() {
     { type: "deal",   title: "Сделка перешла в «Предложение»",     description: "CRM на 50 пользователей", link: "#crm", _ts: now - 30 * 60000, read: false },
     { type: "task",   title: "Новая задача от Айданы",             description: "Подготовить демо для Tech Solutions", link: "#tasks", _ts: now - 90 * 60000, read: false },
     { type: "comment",title: "Тимур прокомментировал задачу",       description: "Слайды по архитектуре в работе...", link: "#tasks", _ts: now - 3 * 3600000, read: true },
-    { type: "system", title: "Pllato CORE обновлён до v0.2",        description: "Появились центр уведомлений и графики на дашборде.", link: "#dashboard", _ts: now - 6 * 3600000, read: true },
+    { type: "system", title: "Pllato CRM обновлён до v0.2",         description: "Появились центр уведомлений и графики на дашборде.", link: "#dashboard", _ts: now - 6 * 3600000, read: true },
   ];
   seed.forEach(s => {
     const { _ts, ...data } = s;
