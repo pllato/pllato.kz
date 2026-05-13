@@ -1,4 +1,4 @@
-// Pllato CORE CRM — корневой модуль (boot, Auth, Theme, router, shell).
+// Pllato CRM — корневой модуль (boot, Auth, Theme, router, shell).
 // Бизнес-логика по разделам — в ./app/views/*.js.
 
 import { ICONS } from "./app/icons.js";
@@ -136,8 +136,7 @@ function renderLogin() {
     <div class="login-wrap">
       <div class="login-brand">
         <img src="./assets/pllato_icon.svg" alt="Pllato">
-        <h1>Pllato CORE</h1>
-        <div class="tagline">CRM Workspace</div>
+        <h1>Pllato CRM</h1>
       </div>
       <div class="login-card">
         <p class="sub">${USE_FIREBASE
@@ -208,8 +207,8 @@ function renderShell() {
         <div class="brand" id="brandTag" title="Открыть «О приложении»">
           <img src="./assets/pllato_icon.svg" alt="Pllato">
           <div class="brand-title">
-            <span class="name">Pllato CORE</span>
-            <span class="sub">CRM · v${VERSION} · ${REVISION}</span>
+            <span class="name">Pllato CRM</span>
+            <span class="sub">v${VERSION} · ${REVISION}</span>
           </div>
         </div>
         ${navHtml}

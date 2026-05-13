@@ -1,4 +1,4 @@
-// Pllato CORE CRM — стадии воронки.
+// Pllato CRM — стадии воронки.
 // Хранятся в localStorage, редактируются пользователем (порядок + название + цвет).
 
 const KEY = "pllato_core_stages";

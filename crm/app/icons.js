@@ -1,4 +1,4 @@
-// Pllato CORE CRM — набор inline-иконок (Lucide-style, stroke=1.75).
+// Pllato CRM — набор inline-иконок (Lucide-style, stroke=1.75).
 // Каждая — самостоятельный SVG, currentColor.
 
 export const ICONS = {

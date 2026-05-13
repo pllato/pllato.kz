@@ -1,4 +1,4 @@
-// Pllato CORE CRM — Настройки v2.
+// Pllato CRM — Настройки v2.
 // Профиль / Workspace / Внешний вид / Сотрудники / Роли / Интеграции / Опасная зона.
 
 import { Store } from "../store.js";

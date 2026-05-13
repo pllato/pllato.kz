@@ -1,4 +1,4 @@
-# Pllato CORE CRM
+# Pllato CRM
 
 Мультитенантное ядро CRM для проектов Pllato. Vanilla HTML/CSS/JS на фронте, Cloudflare Worker для API, Firebase Realtime Database для данных, Cloudflare R2 для файлов.
 

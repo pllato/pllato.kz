@@ -1,4 +1,4 @@
-// Pllato CORE CRM — модуль Чаты.
+// Pllato CRM — модуль Чаты.
 // Список собеседников + переписка. Demo-сотрудники, сообщения в localStorage.
 
 import { Store } from "../store.js";

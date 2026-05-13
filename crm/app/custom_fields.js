@@ -1,4 +1,4 @@
-// Pllato CORE CRM — кастомные поля сделок.
+// Pllato CRM — кастомные поля сделок.
 // Конфиг полей хранится в localStorage; значения — в каждой сделке в .customFields.
 
 const KEY = "pllato_deal_fields";
