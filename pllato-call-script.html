@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pllato · Скрипт холодного звонка</title>
+<meta name="description" content="Pllato — рабочий скрипт холодного обзвона. Две версии: тёплый заход (база Уколовой) и холодный (2GIS).">
+<style>
+:root {
+  --navy: #1a1f3a;
+  --navy-2: #2d3561;
+  --navy-3: #c9d1eb;
+  --gold: #c9a961;
+  --gold-soft: #fefce8;
+  --cream: #fafaf6;
+  --paper: #ffffff;
+  --line: #ebe9e0;
+  --line-2: #e5e3da;
+  --text: #1a1f3a;
+  --text-2: #4a5170;
+  --text-3: #6b7280;
+  --green: #047857;
+  --green-bg: #ecfdf5;
+  --amber: #92400e;
+  --amber-bg: #fef3c7;
+  --red: #991b1b;
+  --red-bg: #fee2e2;
+  --blue: #1e40af;
+  --blue-bg: #dbeafe;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--cream);
+  color: var(--text);
+  line-height: 1.5;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+}
+
+/* ===== Header ===== */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.brand {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--navy);
+}
+.brand .dot { color: var(--gold); }
+.brand-tag {
+  font-size: 11px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+.h-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.h-actions input {
+  font-size: 13px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  width: 160px;
+  font-family: inherit;
+  color: var(--text);
+}
+.h-actions input::placeholder { color: var(--text-3); }
+.h-actions input:focus { outline: 2px solid var(--gold); outline-offset: -1px; border-color: var(--gold); }
+
+.title-block { margin-bottom: 16px; }
+.title-block h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+.title-block p {
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 0;
+  max-width: 720px;
+}
+
+/* ===== Tabs ===== */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.tab {
+  flex-shrink: 0;
+  padding: 12px 18px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-3);
+  margin-bottom: -1px;
+  font-family: inherit;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab.active { color: var(--text); border-bottom-color: var(--navy); }
+.tab .tab-meta {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--text-3);
+  font-weight: 400;
+  margin-left: 6px;
+}
+.tab.active .tab-meta { color: var(--gold); }
+
+/* ===== Banner ===== */
+.banner {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  margin-bottom: 20px;
+  border: 1px solid;
+}
+.banner.warm { background: var(--green-bg); border-color: #a7f3d0; color: #064e3b; }
+.banner.cold { background: var(--blue-bg); border-color: #93c5fd; color: var(--blue); }
+.banner strong { font-weight: 600; }
+
+/* ===== Main layout ===== */
+.main {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 20px;
+}
+@media (max-width: 768px) {
+  .main { grid-template-columns: 1fr; gap: 12px; }
+}
+
+/* ===== Nav ===== */
+.nav { display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 768px) {
+  .nav { flex-direction: row; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .nav-step { flex: 0 0 auto; min-width: 130px; }
+}
+
+.nav-step {
+  padding: 11px 13px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+  color: var(--text);
+  position: relative;
+}
+.nav-step:hover { background: #f5f3ea; }
+.nav-step.active { background: var(--navy); border-color: var(--navy); color: var(--cream); }
+.nav-step.completed::after {
+  content: '✓';
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 12px;
+  color: var(--green);
+  font-weight: 700;
+}
+.nav-step.active.completed::after { color: var(--gold); }
+
+.nav-num {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  font-weight: 500;
+}
+.nav-step.active .nav-num { color: var(--gold); }
+.nav-name { font-size: 14px; font-weight: 500; margin-top: 2px; }
+
+.nav-bottom {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+@media (max-width: 768px) { .nav-bottom { display: none; } }
+
+.nav-btn {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-2);
+}
+.nav-btn:hover { background: #f5f3ea; }
+
+/* ===== Panel ===== */
+.panel {
+  background: var(--paper);
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  padding: 24px 28px;
+}
+@media (max-width: 768px) { .panel { padding: 18px 18px; border-radius: 10px; } }
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.panel-head h2 {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.panel-step-badge {
+  font-size: 11px;
+  color: var(--gold);
+  background: var(--gold-soft);
+  border: 1px solid #f0d97f;
+  padding: 3px 9px;
+  border-radius: 100px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.h-label {
+  font-size: 11px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+  margin: 18px 0 6px;
+}
+.h-label:first-child { margin-top: 14px; }
+
+.goal {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.say {
+  background: var(--cream);
+  border-left: 3px solid var(--gold);
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-size: 16px;
+  line-height: 1.65;
+  position: relative;
+  padding-right: 100px;
+}
+.say .placeholder {
+  background: var(--gold-soft);
+  border-bottom: 1px dashed var(--gold);
+  padding: 0 2px;
+  font-weight: 500;
+  color: var(--amber);
+}
+.say .placeholder.filled {
+  background: transparent;
+  border-bottom: none;
+  color: var(--text);
+  font-weight: 600;
+}
+.copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  cursor: pointer;
+  color: var(--text-2);
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.copy-btn:hover { background: var(--navy); color: var(--cream); border-color: var(--navy); }
+.copy-btn.copied { background: var(--green); color: white; border-color: var(--green); }
+
+@media (max-width: 600px) {
+  .say { padding-right: 16px; padding-bottom: 50px; }
+  .copy-btn { top: auto; bottom: 10px; right: 10px; }
+}
+
+.transitions { display: flex; flex-direction: column; gap: 8px; }
+.transition {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--paper);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text);
+  transition: background 0.15s, border-color 0.15s;
+}
+.transition:hover { background: #f5f3ea; border-color: var(--gold); }
+.transition-arrow {
+  flex: 0 0 auto;
+  color: var(--gold);
+  font-weight: 700;
+}
+.transition-body { flex: 1; }
+.transition-trigger { font-weight: 500; color: var(--text); }
+.transition-next { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+.tip {
+  background: var(--gold-soft);
+  border: 1px solid #f0d97f;
+  border-radius: 7px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #422006;
+}
+.tip-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--amber);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.objections { display: flex; flex-direction: column; gap: 6px; }
+.obj {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.obj-q {
+  width: 100%;
+  text-align: left;
+  background: var(--paper);
+  border: none;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text);
+  transition: background 0.15s;
+}
+.obj-q:hover { background: var(--cream); }
+.obj-q .obj-toggle { color: var(--text-3); font-size: 14px; flex-shrink: 0; transition: transform 0.15s; }
+.obj.open .obj-q .obj-toggle { transform: rotate(45deg); }
+.obj-a {
+  padding: 0 14px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-2);
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease, padding 0.2s ease;
+}
+.obj.open .obj-a {
+  padding: 0 14px 12px 14px;
+  max-height: 200px;
+}
+
+/* ===== Action bar ===== */
+.action-bar {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+}
+.action-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 14px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+.btn:hover { background: #f5f3ea; }
+.btn-primary { background: var(--navy); color: var(--cream); border-color: var(--navy); }
+.btn-primary:hover { background: var(--navy-2); }
+.btn-gold { background: var(--gold); color: var(--navy); border-color: var(--gold); }
+.btn-gold:hover { background: #b59348; }
+
+/* ===== Footer ===== */
+.foot {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--text-3);
+  text-align: center;
+}
+.foot a { color: var(--text-2); text-decoration: none; }
+.foot a:hover { color: var(--navy); }
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--navy);
+  color: var(--cream);
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ===== Print ===== */
+@media print {
+  body { background: white; }
+  .header .h-actions, .tabs, .nav, .action-bar, .copy-btn { display: none; }
+  .main { grid-template-columns: 1fr; }
+  .panel { border: 1px solid #ccc; page-break-inside: avoid; }
+  .obj-a { max-height: none !important; padding: 0 14px 12px !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="brand">Pllato<span class="dot">.</span></div>
+      <div class="brand-tag">Скрипт холодного звонка</div>
+    </div>
+    <div class="h-actions">
+      <input type="text" id="caller-name" placeholder="Имя звонящего" autocomplete="off">
+      <input type="text" id="customer-name" placeholder="Имя контакта" autocomplete="off">
+      <input type="tel" id="customer-phone" placeholder="Телефон" autocomplete="off">
+      <button class="btn" onclick="resetProgress()" title="Сбросить прогресс">Сбросить</button>
+    </div>
+  </div>
+
+  <!-- Title -->
+  <div class="title-block">
+    <h1>Два сценария — выбери под базу</h1>
+    <p>Слева этапы разговора. Справа — что говорить, куда переходить дальше, какие возражения возможны. Прогресс сохраняется в браузере.</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" role="tablist">
+    <button class="tab active" id="tab-a" onclick="setVersion('a')" role="tab">
+      Версия А · Уколова<span class="tab-meta">тёплый вход</span>
+    </button>
+    <button class="tab" id="tab-b" onclick="setVersion('b')" role="tab">
+      Версия Б · 2GIS<span class="tab-meta">холодный обзвон</span>
+    </button>
+  </div>
+
+  <!-- Banner -->
+  <div id="banner"></div>
+
+  <!-- Main -->
+  <div class="main">
+    <div>
+      <div class="nav" id="nav" role="tablist"></div>
+      <div class="nav-bottom">
+        <button class="nav-btn" onclick="prevStep()">← Предыдущий шаг</button>
+        <button class="nav-btn" onclick="nextStep()">Следующий шаг →</button>
+      </div>
+    </div>
+    <div class="panel" id="panel"></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="foot">
+    Pllato · <a href="https://pllato.kz" target="_blank" rel="noopener">pllato.kz</a> · Скрипт обзвона v1 · Прогресс сохраняется только у вас в браузере
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// SCRIPT DATA — обе версии
+// ============================================================
+
+const SCRIPTS = {
+  a: {
+    banner: '<div class="banner warm"><strong>Тёплый заход.</strong> У вас и лида общая точка — оба были на интенсиве Уколовой. Звонящий говорит как равный: предприниматель + партнёр по развитию Pllato. Подходит для Платона и партнёра-равного.</div>',
+    steps: [
+      {
+        num: "01",
+        name: "Тёплый вход",
+        goal: "За 15 секунд снять статус холодного звонка через общую точку — интенсив Уколовой",
+        say: 'Здравствуйте, {customer_name}! Меня зовут {caller_name}. Я взял ваш телефон из чата интенсива Екатерины Уколовой — я тоже там был. Удобно сейчас минуту поговорить?',
+        transitions: [
+          { trigger: '«Да, удобно»', next: 'Шаг 2 — Позиционирование', targetIdx: 1 },
+          { trigger: '«Не сейчас»', next: 'Договориться когда перезвонить → закрыть звонок', targetIdx: 5 },
+          { trigger: '«Откуда у вас номер»', next: 'Честно: из чата интенсива → шаг 2', targetIdx: 1 }
+        ],
+        tip: 'Не «вам удобно говорить?» (легко получить нет), а «минуту поговорить» — конкретно и мало.',
+        objections: []
+      },
+      {
+        num: "02",
+        name: "Позиционирование",
+        goal: "Представить себя как такого же предпринимателя + партнёра по развитию Pllato",
+        say: 'Я звоню познакомиться. У меня с партнёром Платоном проект Pllato — мы помогаем предпринимателям с разработкой кастомных CRM под бизнес-процессы. Я тоже был на интенсиве, как и вы. А у вас какой бизнес?',
+        transitions: [
+          { trigger: 'Рассказывает про бизнес', next: 'Шаг 3 — Узнаю про бизнес', targetIdx: 2 },
+          { trigger: 'Короткий ответ', next: 'Уточняющий вопрос из шага 3', targetIdx: 2 }
+        ],
+        tip: 'Связка «я тоже был + у меня с Платоном проект» создаёт двойную легитимность. Не «я продавец из CRM-компании», а «я предприниматель и партнёр по развитию проекта». Ключевое — после представления СРАЗУ задать вопрос про их бизнес. Не давать паузу.',
+        objections: [
+          { q: 'А что вы продаёте?', a: 'Сейчас ничего не продаю — звоню по чату познакомиться с участниками. Pllato у нас тоже есть, но я не для этого звоню. У вас какой бизнес?' }
+        ]
+      },
+      {
+        num: "03",
+        name: "Узнаю про бизнес",
+        goal: "В формате диалога услышать масштаб, команду, как ведут процессы, болевые точки",
+        say: 'Интересно! А давно занимаетесь? Сколько у вас сейчас человек в команде? Как клиентов ведёте — Excel, Bitrix, блокнот? А что в работе самое затратное по времени — заявки теряются, в Excel мешать, что-то ещё?',
+        transitions: [
+          { trigger: 'Команда 5+ или есть боли', next: 'Шаг 4 — Мостик', targetIdx: 3 },
+          { trigger: 'Соло, без команды, мелкий', next: 'Вежливо завершить → шаг 6', targetIdx: 5 },
+          { trigger: 'Жалуется на текущую CRM', next: 'Шаг 4 — Мостик', targetIdx: 3 }
+        ],
+        tip: 'Не задавай списком — реагируй на ответы. «О, тоже в Excel — частая история». Цель — услышать конкретную боль. Если рассказал про потерянные заявки — запомнил, потом в шаге 4 на неё сошлёшься.',
+        objections: [
+          { q: 'А зачем вам это знать?', a: 'Сам пробовал разные форматы — смотрю что у других работает. Поделитесь?' }
+        ]
+      },
+      {
+        num: "04",
+        name: "Мостик",
+        goal: "Связать его боль с тем, что Pllato решает — без давления",
+        say: 'Слушайте, то, что вы описываете [ссылка на его боль] — мы как раз с этим работаем. У нас в Pllato подход такой: не коробка типа Bitrix, а ровно под ваши процессы. У вас сейчас как с CRM — что-то используете?',
+        transitions: [
+          { trigger: '«Используем Bitrix/amoCRM»', next: '«Часто помогаем когда коробка не садится» → шаг 5', targetIdx: 4 },
+          { trigger: '«Ничего не используем»', next: '«Тогда тем более стоит посмотреть» → шаг 5', targetIdx: 4 },
+          { trigger: '«Не интересно»', next: 'Вежливо завершить → шаг 6', targetIdx: 5 }
+        ],
+        tip: 'Главный приём — сослаться на его конкретную боль из шага 3. «Вы говорили что заявки теряются — мы как раз это решаем». Не общая фраза про CRM, а конкретный кейс из его рассказа.',
+        objections: [
+          { q: 'У нас уже есть Bitrix/amoCRM', a: 'Это нормально. Мы помогаем когда коробка не садится — дорабатываем под процессы. На разборе можно посмотреть, есть ли смысл что-то менять.' },
+          { q: 'Сколько стоит?', a: 'Зависит от объёма — ядро от 890 тысяч тенге, дальше модулями. Но я не для этого звоню — давайте посмотрим, есть ли вообще смысл. Разбор бесплатный, 30 минут.' }
+        ]
+      },
+      {
+        num: "05",
+        name: "Приглашение",
+        goal: "Перевести в конкретное действие — встреча 30 минут",
+        say: 'Я вас хочу позвать на разбор с Платоном — он мой партнёр, занимается технической частью. 30 минут, бесплатно. Без презентаций — пройдёмся по вашим процессам, скажем честно есть ли смысл. Когда вам удобнее — на этой неделе или на следующей?',
+        transitions: [
+          { trigger: 'Конкретное время', next: 'Шаг 6 — Договорённость', targetIdx: 5 },
+          { trigger: '«Подумаю»', next: '«Пришлю кейсы в WhatsApp» → шаг 6', targetIdx: 5 },
+          { trigger: 'Категоричное «нет»', next: '«Был рад познакомиться» → шаг 6', targetIdx: 5 }
+        ],
+        tip: 'Не «интересно?» (закрытый вопрос с лёгким нет), а «когда удобнее — на этой неделе или на следующей?» — выбор без выбора. Платон представлен как партнёр, не как босс. Звонящий не должен звучать как «помощник большого человека».',
+        objections: [
+          { q: 'Что мне это даст?', a: 'Минимум — взгляд со стороны на процессы. Платон видел десятки бизнесов, обычно подсказывает 2-3 точки которые не видны изнутри. Максимум — если что-то ляжет, обсудим формат.' },
+          { q: 'У меня нет времени', a: 'Понимаю. Тогда давайте я пришлю короткое видео — 5 минут, посмотрите когда удобно. Если зацепит — спишемся.' }
+        ]
+      },
+      {
+        num: "06",
+        name: "Договорённость",
+        goal: "Закрепить встречу или мягко выйти, оставив дверь открытой",
+        say: 'Отлично! Тогда {meeting_date}, {meeting_time}. Сейчас скину вам в WhatsApp подтверждение и короткий бриф — чтобы вы понимали, к чему пришли. До связи!',
+        whatsapp: 'Здравствуйте, {customer_name}! Это {caller_name}, мы только что говорили. Подтверждаю встречу-разбор с Платоном {meeting_date} в {meeting_time}. Перед встречей подумайте над 3 вопросами: 1) какие 2-3 процесса в бизнесе самые проблемные, 2) что используете сейчас (Bitrix/Excel/блокнот), 3) сколько человек в команде. Ссылка на Zoom придёт за час. До связи!',
+        transitions: [
+          { trigger: 'Встреча назначена', next: 'WhatsApp в течение 5 минут (кнопка ниже)', targetIdx: 5 },
+          { trigger: 'Встречи не было', next: 'WhatsApp: «Был рад знакомству, на связи»', targetIdx: 5 }
+        ],
+        tip: 'WhatsApp ОБЯЗАТЕЛЬНО в течение 5 минут после звонка. Иначе через час не вспомнит кто звонил.',
+        objections: []
+      }
+    ]
+  },
+  b: {
+    banner: '<div class="banner cold"><strong>Холодный заход.</strong> Общей точки нет — контакт из справочника 2GIS, человек вас не знает. Заход короткий и прямой, без претензии «я свой». За 30 секунд показать, что вы не очередной продавец.</div>',
+    steps: [
+      {
+        num: "01",
+        name: "Прямой вход",
+        goal: "За 20 секунд представиться + получить разрешение задать вопрос. Не дать сбросить",
+        say: 'Здравствуйте! Меня зовут {caller_name}, я из Pllato — мы помогаем предпринимателям с разработкой CRM. Звоню по справочнику 2GIS — там нашёл ваш номер. Не продаю ничего сейчас, хочу узнать пару моментов про ваш бизнес. Минуту найдётся?',
+        transitions: [
+          { trigger: '«Да, минуту найдётся»', next: 'Шаг 2 — Открытый вопрос', targetIdx: 1 },
+          { trigger: '«А что нужно?»', next: '«Пару вопросов про процессы. Меньше минуты» → шаг 2', targetIdx: 1 },
+          { trigger: '«Не сейчас»', next: 'Договориться о перезвоне → шаг 6', targetIdx: 5 },
+          { trigger: '«Нет, спасибо» / сброс', next: 'Отметить отказ, следующий контакт', targetIdx: 5 }
+        ],
+        tip: 'Главное — фраза «не продаю ничего сейчас». Снимает защитный рефлекс холодного звонка. Без неё первые 10 секунд человек ищет момент сбросить. С ней — даёт минуту из любопытства. И не упоминай Уколову, не выдумывай общих точек — сразу читается.',
+        objections: [
+          { q: 'Откуда вы знаете что мы тут?', a: 'Из 2GIS — у вас же там профиль компании. Я по вашей нише обзваниваю — смотрю кто как устроен.' }
+        ]
+      },
+      {
+        num: "02",
+        name: "Открытый вопрос",
+        goal: "Заставить рассказать о бизнесе. Никаких рассказов про себя — только вопросы",
+        say: 'Расскажите коротко, чем занимаетесь — давно работаете, сколько человек в команде?',
+        transitions: [
+          { trigger: 'Рассказывает', next: 'Шаг 3 — Зондирую боли', targetIdx: 2 },
+          { trigger: 'Короткий ответ', next: 'Второй вопрос: «А по нагрузке как — много клиентов в день?»', targetIdx: 2 }
+        ],
+        tip: 'У 2GIS-лида НЕТ интереса слушать про тебя. Все 60-90 секунд звонка он должен рассказывать, ты — слушать и задавать уточняющие. Чем больше говорит, тем больше вкладывается в разговор. Никаких «у меня тоже бизнес» — здесь не работает, тебя не знают.',
+        objections: [
+          { q: 'А зачем рассказывать?', a: 'Я ничего не продаю — мне просто интересно как устроены бизнесы в Алматы. У нас в Pllato клиенты разные, я смотрю где у кого боли совпадают.' }
+        ]
+      },
+      {
+        num: "03",
+        name: "Зондирую боли",
+        goal: "Услышать конкретную боль с процессами, клиентами, заявками",
+        say: 'Понял. А скажите — где у вас сейчас сложнее всего? Где руками что-то делаете по сто раз, или заявки где-то проседают, или клиентов теряете? Самое больное место в процессах?',
+        transitions: [
+          { trigger: 'Называет конкретную боль', next: 'Шаг 4 — Мостик', targetIdx: 3 },
+          { trigger: '«Всё нормально, нас устраивает»', next: 'Шаг 5 — Приглашение (мягко)', targetIdx: 4 },
+          { trigger: 'Отвечает поверхностно', next: 'Дожать: «А если бы автоматизировали одну вещь — что бы выбрали?»', targetIdx: 2 }
+        ],
+        tip: 'Прямой вопрос про «самое больное» работает лучше списка. У холодного лида нет терпения отвечать на 5 вопросов подряд — он ждёт когда ты начнёшь продавать. Один точный вопрос, в который он попадёт.',
+        objections: [
+          { q: 'У нас всё хорошо', a: 'Здорово. А если по-честному — нет одного процесса, который бесит каждый день? У всех такое есть, это нормально.' }
+        ]
+      },
+      {
+        num: "04",
+        name: "Мостик",
+        goal: "Связать его боль с Pllato. Здесь впервые рассказываешь что делаешь",
+        say: 'Слушайте, то, что вы описываете [его боль] — мы как раз это решаем в Pllato. Делаем кастомные CRM под конкретные процессы — не коробку типа Bitrix, а ровно под то, как у вас работает. У нас уже несколько клиентов в Алматы запустились. У вас сейчас что-то используете?',
+        transitions: [
+          { trigger: '«Bitrix/amoCRM»', next: '«Часто помогаем когда не садится» → шаг 5', targetIdx: 4 },
+          { trigger: '«Ничего»', next: '«Тогда тем более стоит посмотреть» → шаг 5', targetIdx: 4 },
+          { trigger: '«Не интересно»', next: 'Шаг 6 — Финал', targetIdx: 5 }
+        ],
+        tip: 'Здесь — и только здесь — впервые рассказываешь про Pllato. До этого был чужим, теперь стал релевантным потому что услышал его боль и говоришь «мы это решаем». В холодном звонке нельзя рассказывать про себя до того как услышал боль — это самый частый провал.',
+        objections: [
+          { q: 'Уже есть Bitrix', a: 'Нормально. Мы помогаем когда коробка не садится — что-то дорабатываем. На разборе посмотрим есть ли смысл.' },
+          { q: 'Сколько стоит?', a: 'Ядро от 890 тысяч тенге, дальше модулями. Но я не для этого звоню — давайте посмотрим, есть ли смысл. Разбор 30 минут, бесплатно.' },
+          { q: 'А кейсы есть?', a: 'Конечно, могу прислать в WhatsApp 2-3 примера. Дайте номер на ватсап.' }
+        ]
+      },
+      {
+        num: "05",
+        name: "Приглашение",
+        goal: "Договориться о разборе или выйти с открытой дверью",
+        say: 'Я вас хочу позвать на разбор с моим партнёром Платоном — он технический. 30 минут по видеосвязи, бесплатно. Пройдёмся по вашим процессам, покажет 2-3 конкретные точки где CRM реально даст результат. Когда удобнее — на этой неделе или на следующей?',
+        transitions: [
+          { trigger: 'Конкретное время', next: 'Шаг 6 — Финал', targetIdx: 5 },
+          { trigger: '«Подумаю»', next: 'Пришлю кейсы → перезвоню через 2 дня', targetIdx: 5 },
+          { trigger: '«Нет»', next: '«Если будет нужно — мой номер у вас» → шаг 6', targetIdx: 5 }
+        ],
+        tip: 'У холодного лида согласие на встречу даётся ТЯЖЕЛЕЕ чем у тёплого. Конверсия примерно вдвое ниже. Если «подумаю» — не дожимай, отправь кейсы и перезвони через 2 дня. Лучше иметь живой второй контакт, чем выжать сейчас и потерять.',
+        objections: [
+          { q: 'Что это мне даст?', a: 'Минимум — взгляд со стороны на процессы. Платон видел десятки бизнесов, подсказывает 2-3 точки которые изнутри не видны. Максимум — если что-то ляжет, обсудим формат.' },
+          { q: 'Я не покупаю по телефону', a: 'И правильно. На разборе вам ничего не продают — только показывают точки роста. После решаете сами, без давления.' }
+        ]
+      },
+      {
+        num: "06",
+        name: "Финал",
+        goal: "Закрепить договорённость, или вежливо выйти с открытой дверью",
+        say: 'Отлично, тогда {meeting_date}, {meeting_time}. Сейчас в WhatsApp пришлю подтверждение и короткий бриф — чтобы за 30 минут разобрались по существу. Спасибо за разговор!',
+        whatsapp: 'Здравствуйте, {customer_name}! Это {caller_name} из Pllato, мы только что говорили. Подтверждаю встречу-разбор с Платоном {meeting_date} в {meeting_time}. К встрече подумайте над 3 вопросами: 1) какой процесс самый болезненный, 2) что сейчас используете для учёта, 3) сколько человек в команде. Ссылка на Zoom придёт за час. До связи!',
+        transitions: [
+          { trigger: 'Встреча', next: 'WhatsApp в 5 минут (кнопка ниже)', targetIdx: 5 },
+          { trigger: 'Без встречи, был интерес', next: 'Кейсы в WhatsApp + «на связи»', targetIdx: 5 },
+          { trigger: 'Твёрдое «нет»', next: 'Не отправлять, пометить cold_rejected', targetIdx: 5 }
+        ],
+        tip: 'По 2GIS-базе процент отказов выше. Это нормально. Главное — не сжигать контакт неуместным follow-up. Если человек сказал твёрдое «нет» — не дёргай, через полгода ситуация может измениться.',
+        objections: []
+      }
+    ]
+  }
+};
+
+// ============================================================
+// STATE
+// ============================================================
+
+let state = {
+  version: 'a',
+  step: 0,
+  completed: { a: [], b: [] },
+  callerName: '',
+  customerName: '',
+  customerPhone: ''
+};
+
+const STORAGE_KEY = 'pllato_call_script_v1';
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {}
+}
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      state = { ...state, ...parsed };
+      if (!state.completed) state.completed = { a: [], b: [] };
+      if (!state.completed.a) state.completed.a = [];
+      if (!state.completed.b) state.completed.b = [];
+    }
+  } catch (e) {}
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+
+const bannerEl = document.getElementById('banner');
+const navEl = document.getElementById('nav');
+const panelEl = document.getElementById('panel');
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[m]);
+}
+
+function fillPlaceholders(text, asHtml = true) {
+  const repl = {
+    '{customer_name}': state.customerName.trim(),
+    '{caller_name}': state.callerName.trim(),
+    '{meeting_date}': '',
+    '{meeting_time}': ''
+  };
+  let out = text;
+  if (asHtml) {
+    out = escapeHtml(out);
+    for (const k in repl) {
+      const escapedK = k.replace(/[{}]/g, c => `\\${c}`);
+      const re = new RegExp(escapedK, 'g');
+      if (repl[k]) {
+        out = out.replace(re, `<span class="placeholder filled">${escapeHtml(repl[k])}</span>`);
+      } else {
+        out = out.replace(re, `<span class="placeholder">${escapeHtml(k)}</span>`);
+      }
+    }
+  } else {
+    for (const k in repl) {
+      if (repl[k]) out = out.split(k).join(repl[k]);
+    }
+  }
+  return out;
+}
+
+function render() {
+  const script = SCRIPTS[state.version];
+  const steps = script.steps;
+  const step = steps[state.step];
+  const completed = state.completed[state.version];
+
+  // Tabs
+  document.getElementById('tab-a').classList.toggle('active', state.version === 'a');
+  document.getElementById('tab-b').classList.toggle('active', state.version === 'b');
+
+  // Banner
+  bannerEl.innerHTML = script.banner;
+
+  // Nav
+  navEl.innerHTML = steps.map((s, i) => `
+    <button class="nav-step ${i === state.step ? 'active' : ''} ${completed.includes(i) ? 'completed' : ''}"
+            onclick="selectStep(${i})" role="tab">
+      <div class="nav-num">${s.num}</div>
+      <div class="nav-name">${escapeHtml(s.name)}</div>
+    </button>
+  `).join('');
+
+  // Panel
+  const hasWhatsapp = step.whatsapp;
+  const phone = state.customerPhone.replace(/[^\d]/g, '');
+  const waUrl = phone && step.whatsapp
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(fillPlaceholders(step.whatsapp, false))}`
+    : '';
+
+  panelEl.innerHTML = `
+    <div class="panel-head">
+      <h2>${escapeHtml(step.name)}</h2>
+      <span class="panel-step-badge">Шаг ${step.num}</span>
+    </div>
+
+    <div class="h-label">Цель этапа</div>
+    <div class="goal">${escapeHtml(step.goal)}</div>
+
+    <div class="h-label">Что говорю</div>
+    <div class="say">
+      ${fillPlaceholders(step.say)}
+      <button class="copy-btn" onclick="copySay(this)" data-text="${escapeHtml(fillPlaceholders(step.say, false))}">Копировать</button>
+    </div>
+
+    <div class="h-label">Куда переходим</div>
+    <div class="transitions">
+      ${step.transitions.map(t => `
+        <button class="transition" onclick="goToStep(${t.targetIdx})">
+          <span class="transition-arrow">→</span>
+          <span class="transition-body">
+            <div class="transition-trigger">${escapeHtml(t.trigger)}</div>
+            <div class="transition-next">${escapeHtml(t.next)}</div>
+          </span>
+        </button>
+      `).join('')}
+    </div>
+
+    ${step.tip ? `
+      <div class="h-label">Главное</div>
+      <div class="tip">
+        <div class="tip-label">Совет</div>
+        ${escapeHtml(step.tip)}
+      </div>
+    ` : ''}
+
+    ${step.objections.length ? `
+      <div class="h-label">Возражения</div>
+      <div class="objections">
+        ${step.objections.map((o, i) => `
+          <div class="obj" id="obj-${i}">
+            <button class="obj-q" onclick="toggleObj(${i})">
+              <span>— ${escapeHtml(o.q)}</span>
+              <span class="obj-toggle">+</span>
+            </button>
+            <div class="obj-a">${escapeHtml(o.a)}</div>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+
+    <div class="action-bar">
+      <div class="action-group">
+        ${state.customerPhone ? `
+          <a class="btn btn-primary" href="tel:${escapeHtml(state.customerPhone)}">📞 Позвонить</a>
+          <a class="btn" href="https://wa.me/${phone}" target="_blank" rel="noopener">WhatsApp</a>
+        ` : `
+          <span style="font-size: 12px; color: var(--text-3);">Введите телефон в шапке — появятся кнопки звонка</span>
+        `}
+      </div>
+      <div class="action-group">
+        ${hasWhatsapp && waUrl ? `
+          <a class="btn btn-gold" href="${waUrl}" target="_blank" rel="noopener">Отправить шаблон в WhatsApp</a>
+        ` : ''}
+        <button class="btn" onclick="markComplete()">${completed.includes(state.step) ? '✓ Пройден' : 'Отметить пройденным'}</button>
+      </div>
+    </div>
+  `;
+
+  saveState();
+}
+
+// ============================================================
+// HANDLERS
+// ============================================================
+
+function setVersion(v) {
+  state.version = v;
+  state.step = 0;
+  render();
+}
+
+function selectStep(i) {
+  state.step = i;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goToStep(i) {
+  const completed = state.completed[state.version];
+  if (!completed.includes(state.step)) {
+    completed.push(state.step);
+  }
+  state.step = i;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function prevStep() {
+  if (state.step > 0) selectStep(state.step - 1);
+}
+
+function nextStep() {
+  const max = SCRIPTS[state.version].steps.length - 1;
+  if (state.step < max) selectStep(state.step + 1);
+}
+
+function markComplete() {
+  const completed = state.completed[state.version];
+  const idx = completed.indexOf(state.step);
+  if (idx >= 0) {
+    completed.splice(idx, 1);
+  } else {
+    completed.push(state.step);
+  }
+  render();
+}
+
+function toggleObj(i) {
+  const el = document.getElementById('obj-' + i);
+  if (el) el.classList.toggle('open');
+}
+
+function copySay(btn) {
+  const text = btn.dataset.text;
+  navigator.clipboard.writeText(text).then(() => {
+    const original = btn.textContent;
+    btn.textContent = '✓ Скопировано';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.classList.remove('copied');
+    }, 1500);
+  }).catch(() => {
+    showToast('Не удалось скопировать');
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function resetProgress() {
+  if (!confirm('Сбросить прогресс по обоим сценариям? Имена и телефон сохранятся.')) return;
+  state.completed = { a: [], b: [] };
+  state.step = 0;
+  render();
+  showToast('Прогресс сброшен');
+}
+
+// Hookup inputs
+document.getElementById('caller-name').addEventListener('input', e => {
+  state.callerName = e.target.value;
+  saveState();
+  render();
+});
+document.getElementById('customer-name').addEventListener('input', e => {
+  state.customerName = e.target.value;
+  saveState();
+  render();
+});
+document.getElementById('customer-phone').addEventListener('input', e => {
+  state.customerPhone = e.target.value;
+  saveState();
+  render();
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key >= '1' && e.key <= '6') {
+    const i = parseInt(e.key) - 1;
+    if (i < SCRIPTS[state.version].steps.length) selectStep(i);
+  } else if (e.key === 'ArrowLeft') {
+    prevStep();
+  } else if (e.key === 'ArrowRight') {
+    nextStep();
+  }
+});
+
+// Init
+loadState();
+document.getElementById('caller-name').value = state.callerName;
+document.getElementById('customer-name').value = state.customerName;
+document.getElementById('customer-phone').value = state.customerPhone;
+render();
+</script>
+
+</body>
+</html>
