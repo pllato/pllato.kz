@@ -13,6 +13,7 @@ const PERMISSIONS = [
   { id: "dashboard", label: "Дашборд" },
   { id: "contacts",  label: "Контакты" },
   { id: "crm",       label: "CRM" },
+  { id: "calls",     label: "Звонки" },
   { id: "tasks",     label: "Задачи" },
   { id: "feed",      label: "Лента" },
   { id: "chat",      label: "Чаты" },
@@ -32,10 +33,19 @@ function getWorkspace() {
 function saveWorkspace(ws) { localStorage.setItem("pllato_workspace", JSON.stringify(ws)); }
 
 function seedRoles() {
-  if (Store.list(ROLES_COLLECTION).length > 0) return;
-  Store.create(ROLES_COLLECTION, { name: "Администратор", system: true, permissions: PERMISSIONS.map(p => p.id) });
-  Store.create(ROLES_COLLECTION, { name: "Менеджер",      system: true, permissions: ["dashboard", "contacts", "crm", "tasks", "feed", "chat"] });
-  Store.create(ROLES_COLLECTION, { name: "Наблюдатель",   system: true, permissions: ["dashboard", "feed"] });
+  const existing = Store.list(ROLES_COLLECTION);
+  if (existing.length === 0) {
+    Store.create(ROLES_COLLECTION, { name: "Администратор", system: true, permissions: PERMISSIONS.map(p => p.id) });
+    Store.create(ROLES_COLLECTION, { name: "Менеджер",      system: true, permissions: ["dashboard", "contacts", "crm", "calls", "tasks", "feed", "chat"] });
+    Store.create(ROLES_COLLECTION, { name: "Наблюдатель",   system: true, permissions: ["dashboard", "feed"] });
+    return;
+  }
+  existing.forEach((r) => {
+    const perms = Array.isArray(r.permissions) ? r.permissions.slice() : [];
+    if (perms.includes("crm") && !perms.includes("calls")) {
+      Store.update(ROLES_COLLECTION, r.id, { permissions: [...perms, "calls"] });
+    }
+  });
 }
 
 const INTEGRATIONS = [

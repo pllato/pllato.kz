@@ -145,7 +145,7 @@ export function ROLES() {
 }
 
 // Все возможные права (по разделам CRM)
-export const ALL_PERMISSIONS = ["dashboard", "contacts", "crm", "tasks", "feed", "chat", "settings"];
+export const ALL_PERMISSIONS = ["dashboard", "contacts", "crm", "calls", "tasks", "feed", "chat", "settings"];
 
 // Возвращает permissions для текущего пользователя.
 // Если у текущего сотрудника НЕТ roleId — даём полный доступ (исторический pllato = admin).
@@ -154,8 +154,8 @@ export function currentPermissions() {
   const me = currentEmployee();
   if (!me) return ALL_PERMISSIONS.slice();
   // Текущий пользователь со старым строковым полем role
-  if (!me.roleId) {
-    if (me.role === "admin")   return ALL_PERMISSIONS.slice();
+    if (!me.roleId) {
+      if (me.role === "admin")   return ALL_PERMISSIONS.slice();
     if (me.role === "manager") return ALL_PERMISSIONS.filter(p => p !== "settings");
     if (me.role === "viewer")  return ["dashboard", "feed"];
     return ALL_PERMISSIONS.slice();
@@ -167,7 +167,10 @@ export function currentPermissions() {
     role = arr.find(r => r.id === me.roleId);
   } catch {}
   if (!role) return ALL_PERMISSIONS.slice();
-  return role.permissions || [];
+  const perms = Array.isArray(role.permissions) ? role.permissions.slice() : [];
+  // Backward compatibility: old role snapshots had "crm" but not "calls".
+  if (perms.includes("crm") && !perms.includes("calls")) perms.push("calls");
+  return perms;
 }
 
 export function hasPermission(routeId) {
