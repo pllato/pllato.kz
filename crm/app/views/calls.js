@@ -468,6 +468,10 @@ function normalizePhone(value) {
   return String(value || "").replace(/[^\d+]/g, "");
 }
 
+function normalizeInternalLine(value) {
+  return String(value || "").replace(/[^\d]/g, "");
+}
+
 async function startBinotelCallFromQueue() {
   const assignment = state.queueActive?.assignment;
   if (!assignment) throw new Error("Сначала выбери контакт");
@@ -481,9 +485,13 @@ async function startBinotelCallFromQueue() {
   if (!externalNumber) throw new Error("У контакта не заполнен номер телефона");
 
   const channel = channels[0];
+  const me = currentEmployee();
+  const personalLine = normalizeInternalLine(me?.binotelLine || me?.binotel_line || "");
+  const fallbackLine = normalizeInternalLine(channel.public?.default_inner || "");
   return CallsApi.binotelCall({
     channelId: channel.id,
     externalNumber,
+    internalNumber: personalLine || fallbackLine || undefined,
   });
 }
 
