@@ -132,4 +132,12 @@ export const CallsApi = {
   binotelCall(payload) {
     return request("/binotel/call", { method: "POST", body: payload || {} });
   },
+
+  binotelHistory(params = null) {
+    return request("/binotel/history", { method: "GET", query: params || undefined });
+  },
+
+  binotelRecording(payload) {
+    return request("/binotel/recording", { method: "POST", body: payload || {} });
+  },
 };

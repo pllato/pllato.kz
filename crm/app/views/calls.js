@@ -52,6 +52,12 @@ const state = {
   quickCallSubmitting: false,
   quickCallError: "",
   quickCallResult: "",
+
+  historyList: [],
+  historyLoading: false,
+  historyError: "",
+  historyRecordLoadingId: "",
+  historyLoadedOnce: false,
 };
 
 function escape(s) {
@@ -76,11 +82,12 @@ function formatPct(v) {
 
 function parseHashRoute() {
   const parts = (location.hash || "#calls").replace(/^#/, "").split("/").filter(Boolean);
-  if (parts[0] !== "calls") return { page: "list" };
+  if (parts[0] !== "calls") return { page: "dial" };
   if (parts[1] === "queue") return { page: "queue", campaignId: parts[2] ? decodeURIComponent(parts[2]) : "" };
   if (parts[1] === "dial") return { page: "dial" };
+  if (parts[1] === "history") return { page: "history" };
   if (parts[1] === "campaigns" && parts[2]) return { page: "campaign", campaignId: decodeURIComponent(parts[2]) };
-  return { page: "list" };
+  return { page: "dial" };
 }
 
 function rerender() {
@@ -139,9 +146,8 @@ function ensureQuickCallDefaults() {
 function routeTabs(route) {
   return `
     <div class="calls-tabs">
-      <a class="calls-tab ${route.page === "list" ? "active" : ""}" href="#calls">Кампании</a>
-      <a class="calls-tab ${route.page === "queue" ? "active" : ""}" href="#calls/queue">Очередь</a>
       <a class="calls-tab ${route.page === "dial" ? "active" : ""}" href="#calls/dial">Быстрый звонок</a>
+      <a class="calls-tab ${route.page === "history" ? "active" : ""}" href="#calls/history">История звонков</a>
     </div>
   `;
 }
@@ -507,6 +513,21 @@ function normalizeInternalLine(value) {
   return String(value || "").replace(/[^\d]/g, "");
 }
 
+function friendlyBinotelError(err) {
+  const msg = String(err?.message || err || "").trim();
+  const low = msg.toLowerCase();
+  if (low.includes("\"code\":121") || (low.includes("binotel") && low.includes("key or secret"))) {
+    return "Binotel: неверные API Key / API Secret в канале.";
+  }
+  if (low.includes("internalnumber") || low.includes("линия сотрудника")) {
+    return "У сотрудника не задана внутренняя линия. Укажи её в Пользователях.";
+  }
+  if (low.includes("externalnumber")) {
+    return "Некорректный номер клиента.";
+  }
+  return msg || "Ошибка Binotel";
+}
+
 async function startBinotelCallFromQueue() {
   const assignment = state.queueActive?.assignment;
   if (!assignment) throw new Error("Сначала выбери контакт");
@@ -739,12 +760,108 @@ function renderDialPage() {
           <h3>Быстрый звонок</h3>
           <p>Режим без очереди: вручную вводишь номер и звонишь сразу из CRM.</p>
         </div>
-        <div class="calls-head-actions">
-          <a class="btn-ghost" href="#calls/queue">Открыть очередь</a>
-        </div>
       </div>
 
       ${renderQuickDialCard()}
+    </div>
+  `;
+}
+
+async function loadHistory() {
+  if (state.historyLoading) return;
+  state.historyLoading = true;
+  state.historyError = "";
+  rerender();
+  try {
+    const res = await CallsApi.binotelHistory({ limit: 100 });
+    state.historyList = Array.isArray(res.calls) ? res.calls : [];
+  } catch (e) {
+    state.historyError = e?.message || String(e);
+  } finally {
+    state.historyLoading = false;
+    state.historyLoadedOnce = true;
+    rerender();
+  }
+}
+
+async function openHistoryRecording(callId) {
+  const id = String(callId || "").trim();
+  if (!id) return;
+  const channelId = String(state.quickCallChannelId || activeBinotelChannels()[0]?.id || "").trim();
+  if (!channelId) {
+    alert("Сначала подключи и выбери Binotel-канал.");
+    return;
+  }
+  state.historyRecordLoadingId = id;
+  state.historyError = "";
+  rerender();
+  try {
+    const rec = await CallsApi.binotelRecording({ channelId, callId: id });
+    const url = String(rec.recordUrl || "").trim();
+    if (!url) throw new Error("Запись не найдена");
+    window.open(url, "_blank", "noopener,noreferrer");
+  } catch (e) {
+    state.historyError = friendlyBinotelError(e);
+  } finally {
+    state.historyRecordLoadingId = "";
+    rerender();
+  }
+}
+
+function renderHistoryPage() {
+  return `
+    <div class="calls-page">
+      <div class="calls-head">
+        <div>
+          <h3>История звонков</h3>
+          <p>Последние завершённые звонки из webhook Binotel. Отсюда можно открыть запись и перезвонить.</p>
+        </div>
+        <div class="calls-head-actions">
+          <button class="btn-ghost" id="refreshHistoryBtn">Обновить</button>
+        </div>
+      </div>
+
+      ${state.historyError ? `<div class="calls-error">${escape(state.historyError)}</div>` : ""}
+
+      <div class="calls-table-wrap">
+        <table class="calls-table">
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Клиент</th>
+              <th>Линия</th>
+              <th>Статус</th>
+              <th>Длит.</th>
+              <th>Call ID</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${state.historyLoading
+              ? `<tr><td colspan="7" class="calls-empty">Загрузка истории...</td></tr>`
+              : state.historyList.length === 0
+                ? `<tr><td colspan="7" class="calls-empty">История пока пустая. Нужны webhook-и Binotel по завершённым звонкам.</td></tr>`
+                : state.historyList.map((row) => `
+                  <tr>
+                    <td>${formatDateTime(row.at)}</td>
+                    <td>${escape(row.externalNumber || "—")}</td>
+                    <td>${escape(row.internalNumber || "—")}</td>
+                    <td>${escape(row.disposition || row.callType || "—")}</td>
+                    <td>${Number(row.durationSeconds || 0)} c</td>
+                    <td>${escape(row.callId || "—")}</td>
+                    <td>
+                      <div class="history-actions">
+                        <button class="btn-ghost" data-history-redial="${escape(row.externalNumber || "")}" ${row.externalNumber ? "" : "disabled"}>Перезвонить</button>
+                        <button class="btn-ghost" data-history-record="${escape(row.callId || "")}" ${row.callId ? "" : "disabled"}>
+                          ${state.historyRecordLoadingId === row.callId ? "Открываю..." : "Запись"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                `).join("")}
+          </tbody>
+        </table>
+      </div>
     </div>
   `;
 }
@@ -897,7 +1014,7 @@ async function handleQuickCall(form) {
     });
     state.quickCallResult = "Звонок отправлен в Binotel. Жди входящий на своей линии.";
   } catch (e) {
-    state.quickCallError = e?.message || String(e);
+    state.quickCallError = friendlyBinotelError(e);
   } finally {
     state.quickCallSubmitting = false;
     rerender();
@@ -999,6 +1116,31 @@ function wireCallsEvents(route) {
       rerender();
     }
   });
+
+  if (route.page === "history") {
+    document.getElementById("refreshHistoryBtn")?.addEventListener("click", () => {
+      loadHistory();
+    });
+
+    document.querySelectorAll("[data-history-redial]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const phone = String(el.dataset.historyRedial || "").trim();
+        if (!phone) return;
+        state.quickCallNumber = phone;
+        state.quickCallError = "";
+        state.quickCallResult = "";
+        location.hash = "#calls/dial";
+      });
+    });
+
+    document.querySelectorAll("[data-history-record]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const callId = String(el.dataset.historyRecord || "").trim();
+        if (!callId) return;
+        openHistoryRecording(callId);
+      });
+    });
+  }
 
   if (route.page === "campaign" && route.campaignId) {
     document.getElementById("campaignImportFile")?.addEventListener("change", (e) => {
@@ -1161,12 +1303,19 @@ export function renderCalls(container) {
     }
   }
 
-  if (state.campaigns.length === 0 && !state.loadingCampaigns) ensureCampaigns();
+  if (route.page === "history" && !state.historyLoadedOnce && !state.historyLoading) {
+    loadHistory();
+  }
+
+  if (["list", "queue", "campaign"].includes(route.page) && state.campaigns.length === 0 && !state.loadingCampaigns) {
+    ensureCampaigns();
+  }
 
   let pageHtml = "";
   if (route.page === "campaign") pageHtml = renderCampaignDetail(route);
   else if (route.page === "queue") pageHtml = renderQueuePage(route);
   else if (route.page === "dial") pageHtml = renderDialPage(route);
+  else if (route.page === "history") pageHtml = renderHistoryPage(route);
   else pageHtml = renderCampaignList();
 
   container.innerHTML = routeTabs(route) + pageHtml;
