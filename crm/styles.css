@@ -498,11 +498,12 @@ body {
 /* ---------- Контакты ---------- */
 .contacts-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) 1fr;
+  grid-template-columns: minmax(260px, 320px) minmax(380px, 1fr) minmax(340px, 460px);
   gap: 16px;
   height: calc(100vh - 56px - 48px);
   margin: -24px;
   padding: 24px;
+  align-items: stretch;
 }
 
 .contacts-list-pane {
@@ -515,6 +516,53 @@ body {
 }
 .contacts-detail-pane {
   overflow: auto;
+  min-width: 0;
+}
+.contacts-chat-pane {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  min-width: 0;
+  display: flex;
+}
+.contact-chat-card {
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.contact-chat-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.contact-chat-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+.contact-chat-sub {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.contact-chat-messages {
+  padding: 14px 16px;
+}
+.contact-chat-card .detail-empty {
+  margin: auto;
+  padding: 24px 18px;
+}
+.contact-chat-card .detail-empty h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+.contact-chat-card .detail-empty p {
+  margin: 0;
 }
 
 .list-toolbar {
@@ -1394,6 +1442,42 @@ body {
 .act-task-title { font-weight: 600; }
 .act-task-due { color: var(--accent); font-size: 12px; }
 
+.deal-chat-pane {
+  border-top: 1px solid var(--border-soft);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+  max-height: 46%;
+}
+.deal-chat-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.deal-chat-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+.deal-chat-sub {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.deal-chat-messages {
+  padding: 12px 14px;
+}
+.deal-chat-pane .chat-compose {
+  padding: 10px 14px;
+}
+.deal-chat-pane .chat-compose-media {
+  padding: 0 14px 10px;
+}
+
 /* ----- Редактор стадий ----- */
 .stages-edit {
   display: flex;
@@ -2212,6 +2296,21 @@ body {
   .chat-compose-media {
     grid-template-columns: 1fr;
   }
+  .contacts-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(200px, 34vh) minmax(300px, auto) minmax(260px, auto);
+    height: auto;
+  }
+  .contacts-list-pane {
+    max-height: 34vh;
+  }
+  .contacts-chat-pane {
+    min-height: 300px;
+  }
+  .deal-chat-pane {
+    min-height: 240px;
+    max-height: none;
+  }
 }
 
 /* ---------- Дашборд ---------- */
@@ -2880,9 +2979,11 @@ body {
 
   .contacts-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(200px, 40vh) 1fr;
+    grid-template-rows: minmax(180px, 34vh) auto minmax(240px, 1fr);
     height: auto;
   }
+  .contacts-list-pane { max-height: 34vh; }
+  .contacts-chat-pane { min-height: 260px; }
   .detail-grid { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
 }
