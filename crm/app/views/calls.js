@@ -45,6 +45,13 @@ const state = {
   finishSaving: false,
   waRendered: "",
   waUrl: "",
+
+  quickCallNumber: "",
+  quickCallChannelId: "",
+  quickCallInternalNumber: "",
+  quickCallSubmitting: false,
+  quickCallError: "",
+  quickCallResult: "",
 };
 
 function escape(s) {
@@ -71,6 +78,7 @@ function parseHashRoute() {
   const parts = (location.hash || "#calls").replace(/^#/, "").split("/").filter(Boolean);
   if (parts[0] !== "calls") return { page: "list" };
   if (parts[1] === "queue") return { page: "queue", campaignId: parts[2] ? decodeURIComponent(parts[2]) : "" };
+  if (parts[1] === "dial") return { page: "dial" };
   if (parts[1] === "campaigns" && parts[2]) return { page: "campaign", campaignId: decodeURIComponent(parts[2]) };
   return { page: "list" };
 }
@@ -102,11 +110,38 @@ function callerName(uid) {
   return callers.find((c) => c.id === uid)?.name || uid;
 }
 
+function activeBinotelChannels() {
+  return listChannels({ type: "binotel" }).filter((c) => c.active !== false);
+}
+
+function ensureQuickCallDefaults() {
+  const channels = activeBinotelChannels();
+  if (state.quickCallChannelId && !channels.some((c) => c.id === state.quickCallChannelId)) {
+    state.quickCallChannelId = "";
+  }
+  if (!state.quickCallChannelId && channels[0]?.id) {
+    state.quickCallChannelId = channels[0].id;
+  }
+
+  if (!state.quickCallInternalNumber) {
+    const me = currentEmployee();
+    const personalLine = normalizeInternalLine(me?.binotelLine || me?.binotel_line || "");
+    if (personalLine) {
+      state.quickCallInternalNumber = personalLine;
+    } else {
+      const selected = channels.find((c) => c.id === state.quickCallChannelId) || channels[0];
+      const defaultLine = normalizeInternalLine(selected?.public?.default_inner || "");
+      if (defaultLine) state.quickCallInternalNumber = defaultLine;
+    }
+  }
+}
+
 function routeTabs(route) {
   return `
     <div class="calls-tabs">
       <a class="calls-tab ${route.page === "list" ? "active" : ""}" href="#calls">Кампании</a>
       <a class="calls-tab ${route.page === "queue" ? "active" : ""}" href="#calls/queue">Очередь</a>
+      <a class="calls-tab ${route.page === "dial" ? "active" : ""}" href="#calls/dial">Быстрый звонок</a>
     </div>
   `;
 }
@@ -476,7 +511,7 @@ async function startBinotelCallFromQueue() {
   const assignment = state.queueActive?.assignment;
   if (!assignment) throw new Error("Сначала выбери контакт");
 
-  const channels = listChannels({ type: "binotel" }).filter((c) => c.active !== false);
+  const channels = activeBinotelChannels();
   if (channels.length === 0) {
     throw new Error("Нет активного канала Binotel. Подключи телефонию в Контакт-центре.");
   }
@@ -626,6 +661,94 @@ function renderQueueRightPane() {
   `;
 }
 
+function renderQuickDialCard({ compact = false } = {}) {
+  ensureQuickCallDefaults();
+  const channels = activeBinotelChannels();
+  const hasChannels = channels.length > 0;
+  const currentLine = normalizeInternalLine(state.quickCallInternalNumber || "");
+  const waDigits = String(state.quickCallNumber || "").replace(/\D/g, "");
+
+  return `
+    <section class="quick-call-card ${compact ? "compact" : ""}">
+      <div class="quick-call-head">
+        <h4>Быстрый звонок</h4>
+        <p>Введи номер и сразу запускай звонок через Binotel.</p>
+      </div>
+
+      ${state.quickCallError ? `<div class="calls-error">${escape(state.quickCallError)}</div>` : ""}
+      ${state.quickCallResult ? `<div class="calls-ok">${escape(state.quickCallResult)}</div>` : ""}
+
+      <form id="quickCallForm" class="quick-call-grid">
+        <label>
+          Номер клиента
+          <input
+            id="quickCallNumber"
+            name="external_number"
+            type="tel"
+            placeholder="+77011234567"
+            value="${escape(state.quickCallNumber)}"
+            required
+          >
+        </label>
+
+        <label>
+          Канал Binotel
+          <select id="quickCallChannel">
+            ${hasChannels
+              ? channels.map((ch) => `
+                <option value="${escape(ch.id)}" ${state.quickCallChannelId === ch.id ? "selected" : ""}>
+                  ${escape(ch.name || ch.id)}
+                </option>
+              `).join("")
+              : `<option value="">Нет активного Binotel-канала</option>`}
+          </select>
+        </label>
+
+        <label>
+          Внутренняя линия сотрудника
+          <input
+            id="quickCallInternal"
+            name="internal_number"
+            type="text"
+            inputmode="numeric"
+            placeholder="Например, 1905"
+            value="${escape(currentLine)}"
+          >
+        </label>
+
+        <div class="quick-call-actions">
+          <button class="btn-primary" type="submit" ${state.quickCallSubmitting || !hasChannels ? "disabled" : ""}>
+            ${ICONS.phone}<span>Позвонить</span>
+          </button>
+          <a class="btn-ghost ${waDigits ? "" : "disabled"}" ${waDigits ? `target="_blank" rel="noopener noreferrer" href="https://wa.me/${escape(waDigits)}"` : ""}>
+            ${ICONS.chat}<span>WhatsApp</span>
+          </a>
+        </div>
+      </form>
+
+      ${!hasChannels ? `<div class="calls-sub">Подключи Binotel в Контакт-центре, затем обнови страницу.</div>` : ""}
+    </section>
+  `;
+}
+
+function renderDialPage() {
+  return `
+    <div class="calls-page">
+      <div class="calls-head">
+        <div>
+          <h3>Быстрый звонок</h3>
+          <p>Режим без очереди: вручную вводишь номер и звонишь сразу из CRM.</p>
+        </div>
+        <div class="calls-head-actions">
+          <a class="btn-ghost" href="#calls/queue">Открыть очередь</a>
+        </div>
+      </div>
+
+      ${renderQuickDialCard()}
+    </div>
+  `;
+}
+
 function renderQueuePage(route) {
   const campaignsOptions = state.campaigns.map((c) => `<option value="${escape(c.id)}" ${state.queueCampaignId === c.id ? "selected" : ""}>${escape(c.name)}</option>`).join("");
 
@@ -643,6 +766,8 @@ function renderQueuePage(route) {
       </div>
 
       ${state.queueError ? `<div class="calls-error">${escape(state.queueError)}</div>` : ""}
+
+      ${renderQuickDialCard({ compact: true })}
 
       <div class="queue-layout">
         <aside class="queue-left">
@@ -728,6 +853,57 @@ async function handleAssignSelected(campaignId) {
   }
 }
 
+async function handleQuickCall(form) {
+  const fd = new FormData(form);
+  const externalNumber = normalizePhone(fd.get("external_number"));
+  const internalNumber = normalizeInternalLine(fd.get("internal_number"));
+  const channels = activeBinotelChannels();
+  const channelId = String(state.quickCallChannelId || "");
+  const selectedChannel = channels.find((c) => c.id === channelId);
+
+  state.quickCallError = "";
+  state.quickCallResult = "";
+  if (!externalNumber) {
+    state.quickCallError = "Введи номер клиента";
+    rerender();
+    return;
+  }
+  if (channels.length === 0) {
+    state.quickCallError = "Нет активного Binotel-канала. Подключи его в Контакт-центре.";
+    rerender();
+    return;
+  }
+  if (!channelId) {
+    state.quickCallError = "Выбери Binotel-канал";
+    rerender();
+    return;
+  }
+  if (!selectedChannel) {
+    state.quickCallError = "Выбранный канал недоступен, обнови страницу.";
+    rerender();
+    return;
+  }
+
+  state.quickCallSubmitting = true;
+  state.quickCallNumber = externalNumber;
+  state.quickCallInternalNumber = internalNumber;
+  rerender();
+
+  try {
+    await CallsApi.binotelCall({
+      channelId,
+      externalNumber,
+      internalNumber: internalNumber || undefined,
+    });
+    state.quickCallResult = "Звонок отправлен в Binotel. Жди входящий на своей линии.";
+  } catch (e) {
+    state.quickCallError = e?.message || String(e);
+  } finally {
+    state.quickCallSubmitting = false;
+    rerender();
+  }
+}
+
 async function handleFinishSubmit(form) {
   if (!state.callLogId) {
     await ensureCallStarted();
@@ -793,6 +969,35 @@ function wireCallsEvents(route) {
   document.getElementById("newCampaignForm")?.addEventListener("submit", (e) => {
     e.preventDefault();
     handleCreateCampaign(e.currentTarget);
+  });
+
+  document.getElementById("quickCallForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    handleQuickCall(e.currentTarget);
+  });
+
+  document.getElementById("quickCallNumber")?.addEventListener("input", (e) => {
+    state.quickCallNumber = e.target.value;
+    state.quickCallError = "";
+    state.quickCallResult = "";
+  });
+
+  document.getElementById("quickCallInternal")?.addEventListener("input", (e) => {
+    state.quickCallInternalNumber = normalizeInternalLine(e.target.value || "");
+    state.quickCallError = "";
+    state.quickCallResult = "";
+  });
+
+  document.getElementById("quickCallChannel")?.addEventListener("change", (e) => {
+    state.quickCallChannelId = e.target.value || "";
+    state.quickCallError = "";
+    state.quickCallResult = "";
+    if (!state.quickCallInternalNumber) {
+      const selected = activeBinotelChannels().find((c) => c.id === state.quickCallChannelId);
+      const defaultLine = normalizeInternalLine(selected?.public?.default_inner || "");
+      if (defaultLine) state.quickCallInternalNumber = defaultLine;
+      rerender();
+    }
   });
 
   if (route.page === "campaign" && route.campaignId) {
@@ -961,6 +1166,7 @@ export function renderCalls(container) {
   let pageHtml = "";
   if (route.page === "campaign") pageHtml = renderCampaignDetail(route);
   else if (route.page === "queue") pageHtml = renderQueuePage(route);
+  else if (route.page === "dial") pageHtml = renderDialPage(route);
   else pageHtml = renderCampaignList();
 
   container.innerHTML = routeTabs(route) + pageHtml;
