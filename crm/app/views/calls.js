@@ -2,6 +2,7 @@
 
 import { ICONS } from "../icons.js";
 import { CallsApi } from "../calls_api.js";
+import { listChannels } from "../channels.js";
 import { currentEmployee, listEmployees } from "../employees.js";
 
 const QUEUE_CAMPAIGN_KEY = "pllato_calls_queue_campaign";
@@ -463,6 +464,29 @@ async function patchLiveLog(extra = {}) {
   });
 }
 
+function normalizePhone(value) {
+  return String(value || "").replace(/[^\d+]/g, "");
+}
+
+async function startBinotelCallFromQueue() {
+  const assignment = state.queueActive?.assignment;
+  if (!assignment) throw new Error("Сначала выбери контакт");
+
+  const channels = listChannels({ type: "binotel" }).filter((c) => c.active !== false);
+  if (channels.length === 0) {
+    throw new Error("Нет активного канала Binotel. Подключи телефонию в Контакт-центре.");
+  }
+
+  const externalNumber = normalizePhone(assignment.customer?.phone || assignment.customer?.phone_digits || "");
+  if (!externalNumber) throw new Error("У контакта не заполнен номер телефона");
+
+  const channel = channels[0];
+  return CallsApi.binotelCall({
+    channelId: channel.id,
+    externalNumber,
+  });
+}
+
 async function onTransitionClick(tr) {
   if (!state.queueActive?.script) return;
   await ensureCallStarted();
@@ -510,7 +534,7 @@ function renderQueueRightPane() {
         <div class="queue-card-actions">
           <a class="btn-ghost" href="tel:${escape(telPhone)}">${ICONS.phone}<span>Позвонить</span></a>
           <a class="btn-ghost" target="_blank" rel="noopener noreferrer" href="https://wa.me/${escape(waPhone)}">${ICONS.chat}<span>WhatsApp</span></a>
-          <button class="btn-primary" id="startCallBtn" ${state.callLogId ? "disabled" : ""}>Начать звонок</button>
+          <button class="btn-primary" id="startCallBtn" ${state.callLogId ? "disabled" : ""}>Начать звонок (CRM)</button>
         </div>
       </div>
 
@@ -834,6 +858,7 @@ function wireCallsEvents(route) {
     document.getElementById("startCallBtn")?.addEventListener("click", async () => {
       try {
         await ensureCallStarted();
+        await startBinotelCallFromQueue();
         rerender();
       } catch (e) {
         alert(e?.message || String(e));

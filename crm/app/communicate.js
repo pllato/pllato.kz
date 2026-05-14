@@ -20,6 +20,10 @@ function workerBase() {
   return String(window.PLLATO_API_BASE || "").trim().replace(/\/+$/, "");
 }
 
+function normalizeInternalLine(value) {
+  return String(value || "").replace(/[^\d]/g, "");
+}
+
 async function firebaseIdToken() {
   const cfg = window.PLLATO_FIREBASE_CONFIG || {};
   if (!cfg.apiKey || !cfg.authDomain) return null;
@@ -69,10 +73,13 @@ function setFormMsg(host, text, kind = "err") {
 
 function buildPayload(cfg, channel, opts, { text, subject, waFileUrl, waFileName, waAsVoice }) {
   if (cfg.activityType === "call") {
+    const me = currentEmployee();
+    const personalLine = normalizeInternalLine(me?.binotelLine || me?.binotel_line || "");
+    const channelDefaultLine = normalizeInternalLine(channel.public?.default_inner || "");
     return {
       channelId: channel.id,
       externalNumber: opts.to,
-      internalNumber: channel.public?.default_inner || "",
+      internalNumber: personalLine || channelDefaultLine || "",
     };
   }
   if (cfg.activityType === "whatsapp") {

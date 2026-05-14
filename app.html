@@ -213,6 +213,30 @@ body {
 .user-row-info { flex: 1; min-width: 0; }
 .user-row-name { font-weight: 700; font-size: 14px; }
 .user-row-email { font-size: 12px; color: var(--text-3); }
+.user-row-line {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.user-row-line label {
+  font-size: 11px;
+  color: var(--text-3);
+  min-width: 98px;
+}
+.user-row-line input {
+  width: 130px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  font: inherit;
+  font-size: 12.5px;
+}
+.user-row-line input:focus {
+  outline: none;
+  border-color: var(--bronze);
+}
 .user-row-flags {
   display: flex; gap: 8px;
   align-items: center;
@@ -927,6 +951,9 @@ function initials(name) {
   const parts = (name || '?').trim().split(/\s+/);
   return ((parts[0]?.[0] || '?') + (parts[1]?.[0] || '')).toUpperCase();
 }
+function normalizeInternalLine(value) {
+  return String(value || '').replace(/[^\d]/g, '');
+}
 
 function renderAdminUsers() {
   const entries = Object.entries(adminUsersCache);
@@ -950,6 +977,17 @@ function renderAdminUsers() {
           <div class="user-row-info">
             <div class="user-row-name">${escapeHtml(u.name || '(без имени)')} ${isRoot ? '<span style="color:var(--purple);font-size:11px">★ root</span>' : ''}${isSelf ? '<span style="color:var(--text-3);font-size:11px"> · это вы</span>' : ''}</div>
             <div class="user-row-email">${escapeHtml(u.email || '')}</div>
+            <div class="user-row-line">
+              <label>Линия Binotel</label>
+              <input
+                type="text"
+                inputmode="numeric"
+                maxlength="8"
+                data-binotel-line="${uid}"
+                value="${escapeHtml(normalizeInternalLine(u.binotelLine || u.binotel_line || ''))}"
+                placeholder="1905"
+              >
+            </div>
           </div>
           <div class="user-row-flags">
             <label class="${u.isAdmin || isRoot ? 'on' : ''}">
@@ -1015,6 +1053,26 @@ function renderAdminUsers() {
       }
     });
   });
+  adminUsersList.querySelectorAll('input[data-binotel-line]').forEach(inp => {
+    const saveLine = async () => {
+      const uid = inp.dataset.binotelLine;
+      if (!uid || !adminUsersCache[uid]) return;
+      const nextLine = normalizeInternalLine(inp.value);
+      const prevLine = normalizeInternalLine(adminUsersCache[uid].binotelLine || adminUsersCache[uid].binotel_line || '');
+      inp.value = nextLine;
+      if (nextLine === prevLine) return;
+      try {
+        await update(ref(db, 'users/' + uid), { binotelLine: nextLine || null });
+        adminUsersCache[uid].binotelLine = nextLine || '';
+        showAdminMsg('Линия сохранена', 'ok');
+      } catch (e) {
+        showAdminMsg('Ошибка: ' + (e.message || e), 'err');
+        inp.value = prevLine;
+      }
+    };
+    inp.addEventListener('change', saveLine);
+    inp.addEventListener('blur', saveLine);
+  });
   adminUsersList.querySelectorAll('[data-remove]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const uid = btn.dataset.remove;
@@ -1055,6 +1113,7 @@ adminAddForm?.addEventListener('submit', async (e) => {
       email, name,
       isAdmin: false,
       isSuperAdmin: false,
+      binotelLine: "",
       apps: { pllato_crm: true },
       createdAt: Date.now(),
       createdBy: CURRENT.email,
