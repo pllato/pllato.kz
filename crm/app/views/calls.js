@@ -117,6 +117,15 @@ function callerName(uid) {
   return callers.find((c) => c.id === uid)?.name || uid;
 }
 
+function employeeBinotelLines() {
+  const uniq = new Set();
+  listEmployees().forEach((e) => {
+    const line = normalizeInternalLine(e?.binotelLine || e?.binotel_line || "");
+    if (line) uniq.add(line);
+  });
+  return [...uniq];
+}
+
 function activeBinotelChannels() {
   return listChannels({ type: "binotel" }).filter((c) => c.active !== false);
 }
@@ -773,8 +782,15 @@ async function loadHistory() {
   state.historyError = "";
   rerender();
   try {
-    const res = await CallsApi.binotelHistory({ limit: 100 });
-    state.historyList = Array.isArray(res.calls) ? res.calls : [];
+    const lines = employeeBinotelLines();
+    const res = await CallsApi.binotelHistory({
+      limit: 100,
+      internal_numbers: lines.join(","),
+    });
+    const all = Array.isArray(res.calls) ? res.calls : [];
+    state.historyList = lines.length > 0
+      ? all.filter((row) => lines.includes(normalizeInternalLine(row.internalNumber || "")))
+      : [];
   } catch (e) {
     state.historyError = e?.message || String(e);
   } finally {
@@ -809,12 +825,14 @@ async function openHistoryRecording(callId) {
 }
 
 function renderHistoryPage() {
+  const lines = employeeBinotelLines();
+  const linesHint = lines.length > 0 ? lines.join(", ") : "не заданы";
   return `
     <div class="calls-page">
       <div class="calls-head">
         <div>
           <h3>История звонков</h3>
-          <p>Последние завершённые звонки из webhook Binotel. Отсюда можно открыть запись и перезвонить.</p>
+          <p>Показываются только линии сотрудников из системы: ${escape(linesHint)}.</p>
         </div>
         <div class="calls-head-actions">
           <button class="btn-ghost" id="refreshHistoryBtn">Обновить</button>
@@ -840,7 +858,7 @@ function renderHistoryPage() {
             ${state.historyLoading
               ? `<tr><td colspan="7" class="calls-empty">Загрузка истории...</td></tr>`
               : state.historyList.length === 0
-                ? `<tr><td colspan="7" class="calls-empty">История пока пустая. Нужны webhook-и Binotel по завершённым звонкам.</td></tr>`
+                ? `<tr><td colspan="7" class="calls-empty">${lines.length === 0 ? "У сотрудников не заполнены внутренние линии (1905/1914 и т.д.). Заполни их в Пользователях." : "По указанным линиям пока нет завершённых звонков в webhook Binotel."}</td></tr>`
                 : state.historyList.map((row) => `
                   <tr>
                     <td>${formatDateTime(row.at)}</td>
