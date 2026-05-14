@@ -7,6 +7,7 @@ import { renderDeals, tryOpenDealFromHash } from "./app/views/deals.js";
 import { renderTasks } from "./app/views/tasks.js";
 import { renderFeed } from "./app/views/feed.js";
 import { renderChat } from "./app/views/chat.js";
+import { renderCalls } from "./app/views/calls.js";
 import { renderDashboard } from "./app/views/dashboard.js";
 import { renderSettings } from "./app/views/settings.js";
 import { listNotifications, unreadCount, markRead, markAllRead, typeMeta, seedDemoNotifications } from "./app/notifications.js";
@@ -188,6 +189,7 @@ const ROUTES = [
   { id: "dashboard", title: "Дашборд",   icon: "dashboard", group: "workspace" },
   { id: "contacts",  title: "Контакты",  icon: "users",     group: "workspace" },
   { id: "crm",       title: "CRM",       icon: "deals",     group: "workspace" },
+  { id: "calls",     title: "Звонки",    icon: "phone",     group: "workspace" },
   { id: "tasks",     title: "Задачи",    icon: "tasks",     group: "workspace" },
   { id: "feed",      title: "Лента",     icon: "feed",      group: "team" },
   { id: "chat",      title: "Чаты",      icon: "chat",      group: "team" },
@@ -399,6 +401,10 @@ function renderMain(route, container) {
   }
   if (route === "tasks") {
     renderTasks(container);
+    return;
+  }
+  if (route === "calls") {
+    renderCalls(container);
     return;
   }
   if (route === "feed") {
