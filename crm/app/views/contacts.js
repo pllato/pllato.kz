@@ -117,6 +117,9 @@ function seedDemo() {
 function escape(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+function escapeAttr(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
 function initialsOf(name) {
   const parts = (name || "").trim().split(/\s+/);
   return ((parts[0]?.[0] || "?") + (parts[1]?.[0] || "")).toUpperCase();
@@ -171,12 +174,22 @@ function renderContactChatPane(c) {
 
   const messages = messagesForChat(chat.id);
   const channelHint = channel?.name ? `Канал: ${escape(channel.name)}` : "WhatsApp канал не настроен";
+  const phoneDigits = String(c.phone || "").replace(/[^\d]/g, "");
+  const waHref = phoneDigits ? `https://wa.me/${phoneDigits}` : "";
+  const telHref = phoneDigits ? `tel:+${phoneDigits}` : "";
   return `
     <div class="contact-chat-card" data-chat-id="${escape(chat.id)}" data-channel-id="${escape(channel?.id || "")}">
       <div class="contact-chat-head">
-        <div>
-          <div class="contact-chat-title">Диалог: ${escape(c.name || c.phone)}</div>
-          <div class="contact-chat-sub">${escape(channelHint)}</div>
+        <div class="wa-dialog-user">
+          <div class="avatar avatar-md">${escape(initialsOf(c.name || c.phone || "?"))}</div>
+          <div>
+            <div class="contact-chat-title">${escape(c.name || c.phone)}</div>
+            <div class="contact-chat-sub">${escape(channelHint)}</div>
+          </div>
+        </div>
+        <div class="wa-dialog-actions">
+          ${telHref ? `<a class="wa-action-link" href="${escapeAttr(telHref)}">Позвонить</a>` : ""}
+          ${waHref ? `<a class="wa-action-link" href="${escapeAttr(waHref)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ""}
         </div>
       </div>
       <div class="chat-messages contact-chat-messages" id="contactChatMessages">
@@ -184,7 +197,7 @@ function renderContactChatPane(c) {
       </div>
       <form class="chat-compose" id="contactChatForm">
         <input name="text" type="text" placeholder="Напиши сообщение..." autocomplete="off">
-        <button type="submit" class="btn-primary">${ICONS.plus}</button>
+        <button type="submit" class="btn-primary" title="Отправить">${ICONS.send}</button>
       </form>
       <form class="chat-compose chat-compose-media" id="contactChatMedia">
         <input name="fileUrl" type="url" placeholder="Ссылка на файл (опц.)">

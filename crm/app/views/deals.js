@@ -37,6 +37,9 @@ const state = {
 function escape(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+function escapeAttr(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
 function fmtAmount(n) {
   if (!n && n !== 0) return "—";
   return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n) + " ₸";
@@ -403,12 +406,22 @@ function renderDealChatPane(contact) {
   }
 
   const messages = messagesForChat(chat.id);
+  const phoneDigits = String(contact.phone || "").replace(/[^\d]/g, "");
+  const waHref = phoneDigits ? `https://wa.me/${phoneDigits}` : "";
+  const telHref = phoneDigits ? `tel:+${phoneDigits}` : "";
   return `
     <div class="deal-chat-pane" data-chat-id="${escape(chat.id)}" data-channel-id="${escape(channel?.id || "")}">
       <div class="deal-chat-head">
-        <div>
-          <div class="deal-chat-title">Диалог: ${escape(contact.name || contact.phone)}</div>
-          <div class="deal-chat-sub">${escape(channel?.name ? `Канал: ${channel.name}` : "WhatsApp канал не настроен")}</div>
+        <div class="wa-dialog-user">
+          <div class="avatar avatar-md">${escape(initialsOf(contact.name || contact.phone || "?"))}</div>
+          <div>
+            <div class="deal-chat-title">${escape(contact.name || contact.phone)}</div>
+            <div class="deal-chat-sub">${escape(channel?.name ? `Канал: ${channel.name}` : "WhatsApp канал не настроен")}</div>
+          </div>
+        </div>
+        <div class="wa-dialog-actions">
+          ${telHref ? `<a class="wa-action-link" href="${escapeAttr(telHref)}">Позвонить</a>` : ""}
+          ${waHref ? `<a class="wa-action-link" href="${escapeAttr(waHref)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ""}
         </div>
       </div>
       <div class="chat-messages deal-chat-messages" id="dealChatMessages">
@@ -416,7 +429,7 @@ function renderDealChatPane(contact) {
       </div>
       <form class="chat-compose" id="dealChatForm">
         <input name="text" type="text" placeholder="Сообщение клиенту...">
-        <button type="submit" class="btn-primary">${ICONS.plus}</button>
+        <button type="submit" class="btn-primary" title="Отправить">${ICONS.send}</button>
       </form>
       <form class="chat-compose chat-compose-media" id="dealChatMedia">
         <input name="fileUrl" type="url" placeholder="Ссылка на файл (опц.)">

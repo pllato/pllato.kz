@@ -205,6 +205,13 @@ function normalizeWaRecipient(to) {
   return digits ? `${digits}@c.us` : "";
 }
 
+function phoneDigitsFromWaChatId(value) {
+  const raw = String(value || "").trim();
+  const direct = raw.match(/^(\d+)@c\.us$/i);
+  if (direct?.[1]) return direct[1];
+  return raw.replace(/[^\d]/g, "");
+}
+
 export function renderChat(container, opts = {}) {
   seedDemo();
 
@@ -215,6 +222,9 @@ export function renderChat(container, opts = {}) {
   }
 
   const activeChat = state.activeChatId ? Store.get(CHATS, state.activeChatId) : null;
+  const activePhoneDigits = phoneDigitsFromWaChatId(activeChat?.waChatId || activeChat?.phone || "");
+  const activeWaHref = activePhoneDigits ? `https://wa.me/${activePhoneDigits}` : "";
+  const activeTelHref = activePhoneDigits ? `tel:+${activePhoneDigits}` : "";
   const allMessages = Store.list(MESSAGES)
     .filter(m => m.chatId === state.activeChatId)
     .reverse();
@@ -247,10 +257,16 @@ export function renderChat(container, opts = {}) {
       <section class="chat-thread-pane">
         ${activeChat ? `
           <header class="chat-thread-head">
-            <div class="avatar avatar-md ${activeChat.isGroup ? "group" : ""}">${activeChat.isGroup ? "#" : initialsOf(activeChat.name)}</div>
-            <div>
-              <div class="chat-thread-name">${escape(activeChat.name)}</div>
-              <div class="chat-thread-sub">${escape(activeChat.role || (activeChat.wa ? "WhatsApp" : ""))}</div>
+            <div class="wa-dialog-user">
+              <div class="avatar avatar-md ${activeChat.isGroup ? "group" : ""}">${activeChat.isGroup ? "#" : initialsOf(activeChat.name)}</div>
+              <div>
+                <div class="chat-thread-name">${escape(activeChat.name)}</div>
+                <div class="chat-thread-sub">${escape(activeChat.role || (activeChat.wa ? "WhatsApp" : ""))}</div>
+              </div>
+            </div>
+            <div class="wa-dialog-actions">
+              ${activeTelHref && !activeChat.isGroup ? `<a class="wa-action-link" href="${escapeAttr(activeTelHref)}">Позвонить</a>` : ""}
+              ${activeWaHref && activeChat.wa ? `<a class="wa-action-link" href="${escapeAttr(activeWaHref)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ""}
             </div>
           </header>
 
@@ -270,7 +286,7 @@ export function renderChat(container, opts = {}) {
 
           <form class="chat-compose" id="chatCompose">
             <input name="text" type="text" placeholder="Напиши сообщение..." autocomplete="off" value="${escape(state.draft)}">
-            <button type="submit" class="btn-primary" title="Отправить">${ICONS.plus}</button>
+            <button type="submit" class="btn-primary" title="Отправить">${ICONS.send}</button>
           </form>
           <form class="chat-compose chat-compose-media" id="chatComposeMedia">
             <input name="fileUrl" type="url" placeholder="Ссылка на файл (опц.)" value="${escape(state.fileUrl)}">
