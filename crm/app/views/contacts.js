@@ -7,6 +7,15 @@ import { ICONS } from "../icons.js";
 import { openCommunicate } from "../communicate.js";
 import { parseImport, findDuplicate } from "../import_contacts.js";
 import { getStages } from "../stages.js";
+import { listChannels } from "../channels.js";
+import {
+  waCloudEnabled,
+  syncWaCollections,
+  resolveOrCreateDirectWaChat,
+  messagesForChat,
+  renderDialogMessages,
+  sendWaFromDialog,
+} from "../wa_dialog.js";
 
 const COLLECTION = "contacts";
 
@@ -33,6 +42,8 @@ const state = {
   dupesModalOpen: false,
   importOpen: false,
   importData: null,        // { contacts: [...], createDeals: boolean }
+  chatSyncing: false,
+  chatSyncTimer: null,
 };
 
 function dealsForContact(cid) {
@@ -106,6 +117,9 @@ function seedDemo() {
 function escape(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+function escapeAttr(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
 function initialsOf(name) {
   const parts = (name || "").trim().split(/\s+/);
   return ((parts[0]?.[0] || "?") + (parts[1]?.[0] || "")).toUpperCase();
@@ -118,13 +132,109 @@ function fmtDate(ts) {
 function sourceLabel(id) {
   return SOURCES.find(s => s.id === id)?.label || "—";
 }
+function fmtChatTime(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+}
 function matchesSearch(contact, q) {
   if (!q) return true;
   const hay = `${contact.name} ${contact.email} ${contact.phone} ${contact.company} ${(contact.tags || []).join(" ")}`.toLowerCase();
   return hay.includes(q.toLowerCase());
 }
 
-export function renderContacts(container) {
+function renderContactChatEmpty(title = "Выбери контакт") {
+  return `
+    <div class="detail-empty">
+      <div class="detail-empty-ico">${ICONS.chat}</div>
+      <h3>${title}</h3>
+      <p>Здесь будет полноценный диалог с клиентом.</p>
+    </div>
+  `;
+}
+
+function renderContactChatPane(c) {
+  if (!c?.phone) {
+    return `
+      <div class="contact-chat-card">
+        <div class="contact-chat-head">Диалог</div>
+        ${renderContactChatEmpty("Нет телефона")}
+      </div>
+    `;
+  }
+
+  const { chat, channel } = resolveOrCreateDirectWaChat({ name: c.name, phone: c.phone });
+  if (!chat) {
+    return `
+      <div class="contact-chat-card">
+        <div class="contact-chat-head">Диалог</div>
+        ${renderContactChatEmpty("Не удалось открыть чат")}
+      </div>
+    `;
+  }
+
+  const messages = messagesForChat(chat.id);
+  const channelHint = channel?.name ? `Канал: ${escape(channel.name)}` : "WhatsApp канал не настроен";
+  const phoneDigits = String(c.phone || "").replace(/[^\d]/g, "");
+  const waHref = phoneDigits ? `https://wa.me/${phoneDigits}` : "";
+  const telHref = phoneDigits ? `tel:+${phoneDigits}` : "";
+  return `
+    <div class="contact-chat-card" data-chat-id="${escape(chat.id)}" data-channel-id="${escape(channel?.id || "")}">
+      <div class="contact-chat-head">
+        <div class="wa-dialog-user">
+          <div class="avatar avatar-md">${escape(initialsOf(c.name || c.phone || "?"))}</div>
+          <div>
+            <div class="contact-chat-title">${escape(c.name || c.phone)}</div>
+            <div class="contact-chat-sub">${escape(channelHint)}</div>
+          </div>
+        </div>
+        <div class="wa-dialog-actions">
+          ${telHref ? `<a class="wa-action-link" href="${escapeAttr(telHref)}">Позвонить</a>` : ""}
+          ${waHref ? `<a class="wa-action-link" href="${escapeAttr(waHref)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ""}
+        </div>
+      </div>
+      <div class="chat-messages contact-chat-messages" id="contactChatMessages">
+        ${renderDialogMessages(messages, { timeFormatter: fmtChatTime })}
+      </div>
+      <form class="chat-compose" id="contactChatForm">
+        <input name="text" type="text" placeholder="Напиши сообщение..." autocomplete="off">
+        <button type="submit" class="btn-primary" title="Отправить">${ICONS.send}</button>
+      </form>
+      <form class="chat-compose chat-compose-media" id="contactChatMedia">
+        <input name="fileUrl" type="url" placeholder="Ссылка на файл (опц.)">
+        <input name="fileName" type="text" placeholder="Имя файла (опц.)">
+        <label class="chat-voice-opt"><input name="asVoice" type="checkbox"> voice</label>
+      </form>
+    </div>
+  `;
+}
+
+async function syncContactChatCloud(container) {
+  if (!waCloudEnabled()) return;
+  if (state.chatSyncing) return;
+  state.chatSyncing = true;
+  try {
+    await syncWaCollections();
+    if (container?.isConnected) renderContacts(container, { skipChatSyncKick: true });
+  } catch (e) {
+    console.warn("contacts chat sync failed:", e);
+  } finally {
+    state.chatSyncing = false;
+  }
+}
+
+function ensureContactChatLoop(container) {
+  if (!waCloudEnabled() || state.chatSyncTimer) return;
+  state.chatSyncTimer = setInterval(() => {
+    if (!container?.isConnected) {
+      clearInterval(state.chatSyncTimer);
+      state.chatSyncTimer = null;
+      return;
+    }
+    syncContactChatCloud(container);
+  }, 12000);
+}
+
+export function renderContacts(container, opts = {}) {
   seedDemo();
 
   const list = Store.list(COLLECTION).filter(c => matchesSearch(c, state.search));
@@ -162,12 +272,20 @@ export function renderContacts(container) {
               : renderNothing()}
       </section>
 
+      <aside class="contacts-chat-pane">
+        ${state.mode === "view" && selected ? renderContactChatPane(selected) : renderContactChatEmpty()}
+      </aside>
+
       ${state.dupesModalOpen ? renderDupesModal(dupes) : ""}
       ${state.importOpen ? renderImportModal() : ""}
     </div>
   `;
 
   wireEvents(container);
+  ensureContactChatLoop(container);
+  if (!opts.skipChatSyncKick) {
+    setTimeout(() => { syncContactChatCloud(container); }, 0);
+  }
 }
 
 function pluralRu(n, one, few, many) {
@@ -581,8 +699,11 @@ function wireEvents(container) {
   }));
   container.querySelectorAll("[data-comm-wa]").forEach(b => b.addEventListener("click", e => {
     e.preventDefault(); e.stopPropagation();
-    openCommunicate({ type: "whatsapp", to: b.dataset.commWa, contactName: b.dataset.commName,
-      context: { collection: "contact_activities", fk: { contactId: b.dataset.commContact } } });
+    state.selectedId = b.dataset.commContact || state.selectedId;
+    state.mode = "view";
+    renderContacts(container, { skipChatSyncKick: true });
+    const input = container.querySelector("#contactChatForm input[name='text']");
+    if (input) input.focus();
   }));
 
   // Кнопка дубликатов
@@ -693,4 +814,55 @@ function wireEvents(container) {
       renderContacts(container);
     });
   }
+
+  const chatForm = container.querySelector("#contactChatForm");
+  chatForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const selected = state.selectedId ? Store.get(COLLECTION, state.selectedId) : null;
+    if (!selected) return;
+
+    const card = container.querySelector(".contact-chat-card");
+    const chatId = card?.dataset.chatId || "";
+    const channelId = card?.dataset.channelId || "";
+    const chat = chatId ? Store.get("chats", chatId) : null;
+    const text = String(chatForm.querySelector("input[name='text']")?.value || "").trim();
+    const mediaForm = container.querySelector("#contactChatMedia");
+    const fileUrl = String(mediaForm?.querySelector("input[name='fileUrl']")?.value || "").trim();
+    const fileName = String(mediaForm?.querySelector("input[name='fileName']")?.value || "").trim();
+    const asVoice = !!mediaForm?.querySelector("input[name='asVoice']")?.checked;
+
+    if (!chat || !channelId) {
+      alert("Сначала настрой активный WhatsApp канал в Контакт-центре.");
+      return;
+    }
+
+    const channel = listChannels({ type: "greenapi_wa" }).find(x => x.id === channelId) || null;
+    if (!channel) {
+      alert("WhatsApp канал не найден. Обнови страницу.");
+      return;
+    }
+
+    const btn = chatForm.querySelector("button[type='submit']");
+    btn?.setAttribute("disabled", "disabled");
+    try {
+      await sendWaFromDialog({
+        chat,
+        channel,
+        text,
+        urlFile: fileUrl,
+        fileName,
+        asVoice,
+      });
+    } catch (err) {
+      alert(err?.message || String(err));
+      return;
+    } finally {
+      if (btn) btn.removeAttribute("disabled");
+    }
+
+    chatForm.reset();
+    mediaForm?.reset();
+    renderContacts(container, { skipChatSyncKick: true });
+    setTimeout(() => { syncContactChatCloud(container); }, 700);
+  });
 }

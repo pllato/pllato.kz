@@ -9,6 +9,15 @@ import { getDealFields } from "../custom_fields.js";
 import { openCommunicate } from "../communicate.js";
 import { listEmployees, getEmployee, currentEmployee, avatar, initialsOf } from "../employees.js";
 import { renderTypeahead, attachTypeahead } from "../typeahead.js";
+import { listChannels } from "../channels.js";
+import {
+  waCloudEnabled,
+  syncWaCollections,
+  resolveOrCreateDirectWaChat,
+  messagesForChat,
+  renderDialogMessages,
+  sendWaFromDialog,
+} from "../wa_dialog.js";
 
 const COLLECTION = "deals";
 const CONTACTS = "contacts";
@@ -21,9 +30,14 @@ const state = {
   dragId: null,
   scrollTimer: null,
   stagesModalOpen: false,
+  dealChatSyncing: false,
+  dealChatSyncTimer: null,
 };
 
 function escape(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function escapeAttr(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 function fmtAmount(n) {
@@ -41,6 +55,10 @@ function fmtDateInput(ts) {
 function fmtTime(ts) {
   if (!ts) return "";
   return new Date(ts).toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+function fmtChatTime(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
 
 // Привести сделки к актуальному списку стадий: если стадия удалена — переносим в первую
@@ -130,6 +148,10 @@ export function renderDeals(container) {
   `;
 
   wireEvents(container);
+  ensureDealChatLoop(container);
+  if (state.modalOpen && state.modalDealId) {
+    setTimeout(() => { syncDealChatCloud(container); }, 0);
+  }
 }
 
 function renderColumn(stage, deals, contactMap) {
@@ -257,6 +279,8 @@ function renderDealModal(d, contacts, stages) {
                   ? `<div class="tl-empty">Активности по сделке появятся здесь. Добавь первую — заметку, письмо, дело или звонок.</div>`
                   : acts.map(a => renderActivity(a)).join("")}
               </div>
+
+              ${renderDealChatPane(contact)}
             </div>
           ` : ""}
         </div>
@@ -361,6 +385,87 @@ function renderActivity(a) {
   `;
 }
 
+function renderDealChatPane(contact) {
+  if (!contact?.phone) {
+    return `
+      <div class="deal-chat-pane">
+        <div class="deal-chat-head">Диалог</div>
+        <div class="tl-empty">У контакта нет телефона для WhatsApp.</div>
+      </div>
+    `;
+  }
+
+  const { chat, channel } = resolveOrCreateDirectWaChat({ name: contact.name, phone: contact.phone });
+  if (!chat) {
+    return `
+      <div class="deal-chat-pane">
+        <div class="deal-chat-head">Диалог</div>
+        <div class="tl-empty">Не удалось открыть чат.</div>
+      </div>
+    `;
+  }
+
+  const messages = messagesForChat(chat.id);
+  const phoneDigits = String(contact.phone || "").replace(/[^\d]/g, "");
+  const waHref = phoneDigits ? `https://wa.me/${phoneDigits}` : "";
+  const telHref = phoneDigits ? `tel:+${phoneDigits}` : "";
+  return `
+    <div class="deal-chat-pane" data-chat-id="${escape(chat.id)}" data-channel-id="${escape(channel?.id || "")}">
+      <div class="deal-chat-head">
+        <div class="wa-dialog-user">
+          <div class="avatar avatar-md">${escape(initialsOf(contact.name || contact.phone || "?"))}</div>
+          <div>
+            <div class="deal-chat-title">${escape(contact.name || contact.phone)}</div>
+            <div class="deal-chat-sub">${escape(channel?.name ? `Канал: ${channel.name}` : "WhatsApp канал не настроен")}</div>
+          </div>
+        </div>
+        <div class="wa-dialog-actions">
+          ${telHref ? `<a class="wa-action-link" href="${escapeAttr(telHref)}">Позвонить</a>` : ""}
+          ${waHref ? `<a class="wa-action-link" href="${escapeAttr(waHref)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ""}
+        </div>
+      </div>
+      <div class="chat-messages deal-chat-messages" id="dealChatMessages">
+        ${renderDialogMessages(messages, { timeFormatter: fmtChatTime })}
+      </div>
+      <form class="chat-compose" id="dealChatForm">
+        <input name="text" type="text" placeholder="Сообщение клиенту...">
+        <button type="submit" class="btn-primary" title="Отправить">${ICONS.send}</button>
+      </form>
+      <form class="chat-compose chat-compose-media" id="dealChatMedia">
+        <input name="fileUrl" type="url" placeholder="Ссылка на файл (опц.)">
+        <input name="fileName" type="text" placeholder="Имя файла (опц.)">
+        <label class="chat-voice-opt"><input name="asVoice" type="checkbox"> voice</label>
+      </form>
+    </div>
+  `;
+}
+
+async function syncDealChatCloud(container) {
+  if (!waCloudEnabled()) return;
+  if (state.dealChatSyncing) return;
+  state.dealChatSyncing = true;
+  try {
+    await syncWaCollections();
+    if (container?.isConnected) renderDeals(container);
+  } catch (e) {
+    console.warn("deals chat sync failed:", e);
+  } finally {
+    state.dealChatSyncing = false;
+  }
+}
+
+function ensureDealChatLoop(container) {
+  if (!waCloudEnabled() || state.dealChatSyncTimer) return;
+  state.dealChatSyncTimer = setInterval(() => {
+    if (!container?.isConnected) {
+      clearInterval(state.dealChatSyncTimer);
+      state.dealChatSyncTimer = null;
+      return;
+    }
+    if (state.modalOpen && state.modalDealId) syncDealChatCloud(container);
+  }, 12000);
+}
+
 // =========================================================================
 // Модалка УПРАВЛЕНИЯ СТАДИЯМИ
 // =========================================================================
@@ -433,6 +538,7 @@ export function tryOpenDealFromHash() {
 // Events
 // =========================================================================
 function wireEvents(container) {
+  const contacts = Store.list(CONTACTS);
   container.querySelector("#newDeal")?.addEventListener("click", () => openDealModal(container, null));
   container.querySelector("#manageStages")?.addEventListener("click", () => {
     state.stagesModalOpen = true;
@@ -655,6 +761,60 @@ function wireEvents(container) {
       });
     }
     bindTimelineSubmit();
+
+    const dealChatForm = container.querySelector("#dealChatForm");
+    dealChatForm?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!state.modalDealId) return;
+
+      const deal = Store.get(COLLECTION, state.modalDealId);
+      const c = contacts.find(x => x.id === deal?.contactId);
+      if (!c) return;
+
+      const pane = container.querySelector(".deal-chat-pane");
+      const chatId = pane?.dataset.chatId || "";
+      const channelId = pane?.dataset.channelId || "";
+      const chat = chatId ? Store.get("chats", chatId) : null;
+      const channel = listChannels({ type: "greenapi_wa" }).find(x => x.id === channelId) || null;
+
+      if (!chat || !channel) {
+        alert("Нет активного WhatsApp канала или чат не найден.");
+        return;
+      }
+
+      const text = String(dealChatForm.querySelector("input[name='text']")?.value || "").trim();
+      const mediaForm = container.querySelector("#dealChatMedia");
+      const fileUrl = String(mediaForm?.querySelector("input[name='fileUrl']")?.value || "").trim();
+      const fileName = String(mediaForm?.querySelector("input[name='fileName']")?.value || "").trim();
+      const asVoice = !!mediaForm?.querySelector("input[name='asVoice']")?.checked;
+
+      const btn = dealChatForm.querySelector("button[type='submit']");
+      btn?.setAttribute("disabled", "disabled");
+      try {
+        await sendWaFromDialog({
+          chat,
+          channel,
+          text,
+          urlFile: fileUrl,
+          fileName,
+          asVoice,
+        });
+      } catch (err) {
+        alert(err?.message || String(err));
+        return;
+      } finally {
+        btn?.removeAttribute("disabled");
+      }
+
+      addActivity(state.modalDealId, "whatsapp", {
+        text: text || (fileUrl ? `[Файл] ${fileName || fileUrl}` : ""),
+      });
+
+      dealChatForm.reset();
+      mediaForm?.reset();
+      renderDeals(container);
+      setTimeout(() => { syncDealChatCloud(container); }, 700);
+    });
   }
 
   // ----- Stages Modal -----
