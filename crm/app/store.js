@@ -234,6 +234,32 @@ async function cloudBootstrapInternal({ collections } = {}) {
   return { ok: true };
 }
 
+async function cloudSyncCollectionsInternal(collections, { pushLocalDivergence = true } = {}) {
+  if (!cloudEnabled()) return { ok: false, reason: "cloud-disabled" };
+  const list = (Array.isArray(collections) && collections.length > 0)
+    ? collections.filter(Boolean)
+    : extractCollectionsFromLocal();
+  if (list.length === 0) return { ok: true, collections: [], pulled: 0 };
+
+  const pull = await workerCall("/store/pull", { collections: list, limitPerCollection: 10000 });
+  const toPush = [];
+  let pulled = 0;
+  for (const collection of list) {
+    const remoteItems = Array.isArray(pull.collections?.[collection]) ? pull.collections[collection] : [];
+    pulled += remoteItems.length;
+    toPush.push(...mergeRemoteIntoLocal(collection, remoteItems));
+  }
+
+  if (pushLocalDivergence && toPush.length > 0) {
+    const q = queueRead();
+    queueWrite([...toPush, ...q]);
+    await flushQueue();
+  }
+
+  localStorage.setItem(SYNC_TS_KEY, String(Date.now()));
+  return { ok: true, collections: list, pulled };
+}
+
 export const Store = {
   list(collection) {
     return sortByUpdatedDesc(read(collection));
@@ -314,5 +340,9 @@ export const Store = {
 
   async cloudFlushNow() {
     return flushQueue();
+  },
+
+  async cloudSyncCollections(collections, opts = {}) {
+    return cloudSyncCollectionsInternal(collections, opts);
   },
 };

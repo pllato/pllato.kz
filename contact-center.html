@@ -474,7 +474,10 @@ const CONFIG_FIELDS = {
   greenapi_wa: [
     { name: "id_instance",       label: "ID Instance *", required: true, help: "Из Green-API кабинета" },
     { name: "api_token_instance", label: "API Token Instance *", required: true, type: "password" },
+    { name: "api_url",           label: "API URL *", required: true, help: "Например: https://7103.api.greenapi.com" },
     { name: "phone_number",      label: "Номер WhatsApp", help: "В формате 77001234567" },
+    { name: "webhook_token",     label: "Webhook Token (Bearer ...)", type: "password", help: "Опционально: тот же токен укажи в Green-API webhookUrlToken" },
+    { name: "wa_webhook_path",   label: "Webhook URL", help: "Передать в Green-API: https://<наш-worker>/wa/webhook", readonly: true, value: "https://<worker>/wa/webhook" },
   ],
   smtp: [
     { name: "host", label: "SMTP Host *", required: true, placeholder: "smtp.gmail.com" },
@@ -605,7 +608,7 @@ async function workerApi(path, payload = {}) {
 }
 
 // Разделить config на public-поля и секреты
-const SECRET_FIELD_NAMES = ["api_secret", "api_token_instance", "pass", "access_token", "page_token"];
+const SECRET_FIELD_NAMES = ["api_secret", "api_token_instance", "pass", "access_token", "page_token", "webhook_token"];
 function splitConfig(type, config) {
   const pub = {}, secret = {};
   Object.entries(config || {}).forEach(([k, v]) => {
@@ -688,7 +691,9 @@ function renderConfigFields(type, existingConfig = {}) {
   wrap.innerHTML = fields.map(f => {
     const readonlyValue = f.name === "webhook_path"
       ? `${WORKER_BASE}/binotel/webhook`
-      : f.value;
+      : f.name === "wa_webhook_path"
+        ? `${WORKER_BASE}/wa/webhook`
+        : f.value;
     const val = f.readonly ? readonlyValue : (existingConfig[f.name] || '');
     return `
       <div class="field">

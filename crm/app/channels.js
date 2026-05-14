@@ -111,7 +111,11 @@ function pickPublic(type, config) {
     return { default_inner: config.default_inner || null };
   }
   if (type === "greenapi_wa") {
-    return { phone_number: config.phone_number || null };
+    return {
+      phone_number: config.phone_number || null,
+      api_url: config.api_url || null,
+      id_instance: config.id_instance || null,
+    };
   }
   if (type === "smtp") {
     return { host: config.host || null, port: config.port || null, user: config.user || null, from_name: config.from_name || null };

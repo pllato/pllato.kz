@@ -67,7 +67,7 @@ function setFormMsg(host, text, kind = "err") {
   host.className = "comm-msg" + (text ? ` ${kind}` : "");
 }
 
-function buildPayload(cfg, channel, opts, { text, subject }) {
+function buildPayload(cfg, channel, opts, { text, subject, waFileUrl, waFileName, waAsVoice }) {
   if (cfg.activityType === "call") {
     return {
       channelId: channel.id,
@@ -76,10 +76,17 @@ function buildPayload(cfg, channel, opts, { text, subject }) {
     };
   }
   if (cfg.activityType === "whatsapp") {
+    const fileUrl = String(waFileUrl || "").trim();
+    const fileName = String(waFileName || "").trim();
     return {
       channelId: channel.id,
       to: opts.to,
-      text,
+      text: text || "",
+      chatName: opts.contactName || "",
+      urlFile: fileUrl || undefined,
+      fileName: fileName || undefined,
+      caption: fileUrl ? (text || "") : undefined,
+      asVoice: Boolean(waAsVoice),
     };
   }
   return {
@@ -133,6 +140,9 @@ export function openCommunicate(opts) {
     if (!channel) return;
     const text = (fd.get("text") || "").trim();
     const subject = (fd.get("subject") || "").trim();
+    const waFileUrl = (fd.get("wa_file_url") || "").trim();
+    const waFileName = (fd.get("wa_file_name") || "").trim();
+    const waAsVoice = fd.get("wa_as_voice") === "on";
     const msgEl = wrap.querySelector("[data-comm-msg]");
     const submitBtn = form.querySelector("button[type='submit']");
     const initialBtnText = submitBtn?.textContent || "";
@@ -141,8 +151,12 @@ export function openCommunicate(opts) {
       setFormMsg(msgEl, "Для письма нужны тема и текст.", "err");
       return;
     }
-    if (cfg.activityType === "whatsapp" && !text) {
-      setFormMsg(msgEl, "Текст сообщения пустой.", "err");
+    if (cfg.activityType === "whatsapp" && !text && !waFileUrl) {
+      setFormMsg(msgEl, "Для WhatsApp укажи текст или ссылку на файл.", "err");
+      return;
+    }
+    if (cfg.activityType === "whatsapp" && waFileUrl && !/^https?:\/\//i.test(waFileUrl)) {
+      setFormMsg(msgEl, "Ссылка на файл должна начинаться с http:// или https://", "err");
       return;
     }
 
@@ -153,7 +167,13 @@ export function openCommunicate(opts) {
     }
 
     try {
-      await workerFetch(cfg.endpoint, buildPayload(cfg, channel, opts, { text, subject }));
+      await workerFetch(cfg.endpoint, buildPayload(cfg, channel, opts, {
+        text,
+        subject,
+        waFileUrl,
+        waFileName,
+        waAsVoice,
+      }));
 
       // Запись активности (только после успешного ответа Worker)
       if (opts.context) {
@@ -166,6 +186,9 @@ export function openCommunicate(opts) {
           to: opts.to,
           text,
           subject,
+          waFileUrl: waFileUrl || null,
+          waFileName: waFileName || null,
+          waAsVoice: waAsVoice || false,
           authorId: me?.id,
           ts: Date.now(),
         });
@@ -202,6 +225,7 @@ function renderModal(cfg, channels, opts) {
   }
   const showSubject = cfg.activityType === "email";
   const showText = cfg.activityType !== "call";
+  const showWaMedia = cfg.activityType === "whatsapp";
   return `
     <div class="comm-modal">
       <header><h3>${cfg.icon} ${cfg.title}</h3><button type="button" data-close aria-label="Закрыть">×</button></header>
@@ -220,7 +244,21 @@ function renderModal(cfg, channels, opts) {
             </select>
           </div>
           ${showSubject ? `<div class="comm-field"><label>Тема</label><input type="text" name="subject" required placeholder="Тема письма"></div>` : ""}
-          ${showText ? `<div class="comm-field"><label>${cfg.activityType === "email" ? "Текст письма" : "Сообщение"}</label><textarea name="text" rows="${cfg.activityType === "email" ? 5 : 3}" ${cfg.activityType !== "call" ? "required" : ""} placeholder="${cfg.activityType === "whatsapp" ? "Текст сообщения..." : "Содержание..."}"></textarea></div>` : ""}
+          ${showText ? `<div class="comm-field"><label>${cfg.activityType === "email" ? "Текст письма" : "Сообщение"}</label><textarea name="text" rows="${cfg.activityType === "email" ? 5 : 3}" ${cfg.activityType === "email" ? "required" : ""} placeholder="${cfg.activityType === "whatsapp" ? "Текст сообщения (или оставь пустым и укажи ссылку на файл)..." : "Содержание..."}"></textarea></div>` : ""}
+          ${showWaMedia ? `
+            <div class="comm-field">
+              <label>Ссылка на файл (опционально)</label>
+              <input type="url" name="wa_file_url" placeholder="https://.../file.mp4">
+              <div class="comm-hint">Фото/видео/аудио/документы до 100MB. Для больших файлов отправляй внешнюю ссылку.</div>
+            </div>
+            <div class="comm-field">
+              <label>Имя файла (опционально)</label>
+              <input type="text" name="wa_file_name" placeholder="voice.ogg / photo.jpg / file.pdf">
+            </div>
+            <div class="comm-field">
+              <label><input type="checkbox" name="wa_as_voice"> Отправить как голосовое (recording)</label>
+            </div>
+          ` : ""}
         </div>
         <footer>
           <button type="button" class="ghost" data-close>Отмена</button>
