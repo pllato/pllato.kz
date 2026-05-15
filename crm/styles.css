@@ -3804,3 +3804,217 @@ body {
   .detail-grid { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
 }
+
+/* ===========================================================================
+   Карточка сделки v2: блок контакта, нижняя панель действий, плавающее WA-окно
+   ─ добавлено в рамках редизайна модалки (см. app/views/deals.js).
+   =========================================================================== */
+
+/* --- Блок контакта в карточке сделки --- */
+.deal-contact-block { margin-bottom: 14px; }
+.deal-contact-block .dcc-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* Карточка контакта (режим view) */
+.deal-contact-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+.dcc-info { flex: 1; min-width: 0; }
+.dcc-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dcc-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.dcc-line svg { width: 12px; height: 12px; stroke-width: 1.75; flex-shrink: 0; }
+.dcc-line span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dcc-line.dcc-meta { color: var(--text-dim); font-size: 12px; }
+.dcc-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+/* Picker-режим (typeahead inline) */
+.deal-contact-pick .dcc-cancel { margin-top: 6px; font-size: 12px; }
+
+/* Edit-режим — inline-форма правки полей контакта */
+.deal-contact-editing {
+  padding: 12px 14px;
+  background: var(--accent-tint);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+}
+.dce-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.dce-grid input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.dce-grid input:focus { outline: none; border-color: var(--accent); }
+.dce-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Маленькая модификация кнопок */
+.btn-sm { font-size: 12px; padding: 6px 12px; }
+.btn-ghost.btn-sm { padding: 6px 10px; }
+.btn-primary.btn-sm { padding: 6px 12px; }
+
+/* --- Нижняя панель действий карточки сделки --- */
+.deal-action-bar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 22px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+.deal-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.deal-action-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+.deal-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.deal-action-btn svg { width: 14px; height: 14px; stroke-width: 1.75; }
+.deal-action-btn .dab-emoji { font-size: 14px; line-height: 1; }
+/* WhatsApp как главное действие — фирменный зелёный */
+.deal-action-btn-primary {
+  background: #25d366;
+  border-color: #1fb95a;
+  color: white;
+  flex: 1.4;
+}
+.deal-action-btn-primary:hover:not(:disabled) {
+  background: #1fb95a;
+  border-color: #1fb95a;
+  color: white;
+}
+
+/* --- Плавающее WhatsApp-окно (поверх карточки сделки) --- */
+.wa-float {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 48px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .35), 0 4px 12px rgba(0, 0, 0, .15);
+  display: flex;
+  flex-direction: column;
+  z-index: 200; /* выше modal-backdrop (100) */
+  overflow: hidden;
+  animation: slideUp .2s ease-out;
+}
+.wa-float-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+.wa-float-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.wa-float-meta { flex: 1; min-width: 0; }
+.wa-float-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wa-float-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.wa-float-empty {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+.wa-float-messages {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 240px;
+  max-height: 380px;
+  padding: 12px 14px;
+  background: var(--surface);
+}
+.wa-float .chat-compose {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-soft);
+}
+.wa-float .chat-compose-media {
+  padding: 0 12px 10px;
+  border-top: 0;
+}
+
+/* Мобильная адаптация — окно во всю ширину */
+@media (max-width: 640px) {
+  .wa-float {
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    width: auto;
+  }
+}
