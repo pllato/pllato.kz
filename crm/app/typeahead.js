@@ -30,8 +30,7 @@ export function renderTypeahead({ name, value, items, label, placeholder = "По
         <div class="typeahead-dropdown" hidden>
           <input type="text" class="typeahead-search" placeholder="${placeholder}">
           <div class="typeahead-list" data-create-label="${createLabel || ""}">
-            ${renderItems(items, value)}
-            ${createLabel ? `<button type="button" class="typeahead-create-btn" data-create>+ ${escape(createLabel)}</button>` : ""}
+            <div class="typeahead-empty typeahead-empty-hint">Начни печатать для поиска</div>
           </div>
         </div>
       </div>
@@ -51,18 +50,34 @@ function renderItems(items, selectedId) {
   `).join("");
 }
 
+function renderSearchResults(items, selectedId, query, createLabel = "") {
+  const q = String(query || "").toLowerCase().trim();
+  if (!q) {
+    return '<div class="typeahead-empty typeahead-empty-hint">Начни печатать для поиска</div>';
+  }
+
+  const filtered = (items || []).filter(it =>
+    (it.name || "").toLowerCase().includes(q) ||
+    (it.sub || "").toLowerCase().includes(q)
+  );
+
+  const createBtn = createLabel
+    ? `<button type="button" class="typeahead-create-btn" data-create>+ ${escape(createLabel)} «${escape(query)}»</button>`
+    : "";
+
+  return renderItems(filtered, selectedId) + createBtn;
+}
+
 function escape(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 function closeAllTypeaheads(exceptTa = null) {
-  document.querySelectorAll('.typeahead').forEach((otherTa) => {
+  document.querySelectorAll(".typeahead").forEach((otherTa) => {
     if (otherTa === exceptTa) return;
-    const otherDropdown = otherTa.querySelector('.typeahead-dropdown');
-    if (otherDropdown) {
-      otherDropdown.hidden = true;
-    }
-    otherTa.classList.remove('open');
+    const otherDropdown = otherTa.querySelector(".typeahead-dropdown");
+    if (otherDropdown) otherDropdown.hidden = true;
+    otherTa.classList.remove("open");
   });
 }
 
@@ -75,9 +90,17 @@ export function attachTypeahead(rootEl, opts = {}) {
     const list = ta.querySelector(".typeahead-list");
     const hidden = ta.querySelector('input[type="hidden"]');
 
-    function close() { dropdown.hidden = true; ta.classList.remove("open"); }
+    function close() {
+      dropdown.hidden = true;
+      ta.classList.remove("open");
+    }
+
     function open() {
       closeAllTypeaheads(ta);
+      search.value = "";
+      const items = (window.__taItems && window.__taItems[ta.dataset.name]) || [];
+      list.innerHTML = renderSearchResults(items, hidden.value, "", list.dataset.createLabel || "");
+      bindItemClicks();
       dropdown.hidden = false;
       ta.classList.add("open");
       setTimeout(() => search.focus(), 10);
@@ -89,14 +112,9 @@ export function attachTypeahead(rootEl, opts = {}) {
     });
 
     search.addEventListener("input", () => {
-      const q = search.value.toLowerCase().trim();
+      const q = search.value;
       const items = (window.__taItems && window.__taItems[ta.dataset.name]) || [];
-      const filtered = !q ? items : items.filter(it =>
-        (it.name || "").toLowerCase().includes(q) ||
-        (it.sub || "").toLowerCase().includes(q)
-      );
-      list.innerHTML = renderItems(filtered, hidden.value) +
-        (list.dataset.createLabel ? `<button type="button" class="typeahead-create-btn" data-create>+ ${escape(list.dataset.createLabel)}${q ? ` «${escape(q)}»` : ""}</button>` : "");
+      list.innerHTML = renderSearchResults(items, hidden.value, q, list.dataset.createLabel || "");
       bindItemClicks();
     });
 
@@ -104,7 +122,6 @@ export function attachTypeahead(rootEl, opts = {}) {
       list.querySelectorAll(".typeahead-item").forEach(item => {
         item.addEventListener("click", () => {
           hidden.value = item.dataset.id;
-          // Обновить trigger
           const items = (window.__taItems && window.__taItems[ta.dataset.name]) || [];
           const sel = items.find(x => x.id === item.dataset.id);
           if (sel) {
@@ -115,8 +132,10 @@ export function attachTypeahead(rootEl, opts = {}) {
           hidden.dispatchEvent(new Event("change", { bubbles: true }));
         });
       });
+
       list.querySelector("[data-create]")?.addEventListener("click", async () => {
         const query = search.value.trim();
+        if (!query) return;
         if (typeof onCreate !== "function") return;
         const created = await onCreate(ta.dataset.name, query);
         if (created && created.id) {
@@ -128,6 +147,7 @@ export function attachTypeahead(rootEl, opts = {}) {
         }
       });
     }
+
     bindItemClicks();
 
     document.addEventListener("click", function clickOutside(e) {
