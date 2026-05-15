@@ -262,8 +262,13 @@ a { color: inherit; text-decoration: none; }
   place-items: center;
   width: 98px;
   height: 98px;
-  color: var(--bronze-light);
-  filter: drop-shadow(10px 14px 18px rgba(0, 0, 0, 0.46));
+  --person-accent: #f0a500;
+  --person-fill: #fff1bf;
+  --person-stroke: rgba(255, 244, 205, 0.96);
+  color: var(--person-accent);
+  filter:
+    drop-shadow(0 0 18px rgba(240, 165, 0, 0.32))
+    drop-shadow(10px 14px 18px rgba(0, 0, 0, 0.5));
 }
 
 .cto-label {
@@ -369,8 +374,13 @@ a { color: inherit; text-decoration: none; }
   place-items: center;
   width: 70px;
   height: 70px;
-  color: #dbeafe;
-  filter: drop-shadow(8px 10px 12px rgba(0, 0, 0, 0.42));
+  --person-accent: #4fc3f7;
+  --person-fill: #dff6ff;
+  --person-stroke: rgba(226, 250, 255, 0.96);
+  color: var(--person-accent);
+  filter:
+    drop-shadow(0 0 14px rgba(79, 195, 247, 0.34))
+    drop-shadow(8px 10px 12px rgba(0, 0, 0, 0.44));
   transition: color 0.35s ease, opacity 0.35s ease, filter 0.35s ease;
 }
 
@@ -378,22 +388,68 @@ a { color: inherit; text-decoration: none; }
   display: block;
   width: 100%;
   height: 100%;
+  overflow: visible;
+}
+
+.person-head,
+.person-body {
+  fill: var(--person-fill);
+  stroke: var(--person-stroke);
+  stroke-width: 3.5;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.2));
+}
+
+.person-body {
+  rx: 8;
+}
+
+.person-limb,
+.person-neck {
+  fill: none;
+  stroke: var(--person-accent);
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.24));
+}
+
+.person-face {
+  fill: none;
+  stroke: var(--person-accent);
+  stroke-width: 2.7;
+  stroke-linecap: round;
+}
+
+.person-detail {
+  fill: var(--person-accent);
+  opacity: 0.9;
 }
 
 .worker-station.is-waiting .avatar {
-  color: #64748b;
-  opacity: 0.62;
-  filter: grayscale(1) drop-shadow(8px 10px 12px rgba(0, 0, 0, 0.28));
+  --person-accent: #6c757d;
+  --person-fill: #e2e6ea;
+  --person-stroke: rgba(248, 249, 250, 0.88);
+  color: var(--person-accent);
+  opacity: 0.94;
+  filter:
+    drop-shadow(0 0 10px rgba(226, 230, 234, 0.2))
+    drop-shadow(8px 10px 12px rgba(0, 0, 0, 0.34));
 }
 
 .worker-station.is-complete .avatar,
 .worker-station.is-done .avatar {
-  color: var(--green);
+  --person-accent: #4fc3f7;
+  --person-fill: #dff6ff;
+  --person-stroke: rgba(226, 250, 255, 0.96);
+  color: var(--person-accent);
 }
 
 .worker-station.is-error .avatar,
 .worker-station.is-failed .avatar {
-  color: var(--red);
+  --person-accent: #4fc3f7;
+  --person-fill: #dff6ff;
+  --person-stroke: rgba(226, 250, 255, 0.96);
+  color: var(--person-accent);
 }
 
 .task-icon {
@@ -689,11 +745,13 @@ a { color: inherit; text-decoration: none; }
             <div class="cto-person">
               <div class="cto-avatar" aria-hidden="true">
                 <svg class="person-svg" viewBox="0 0 96 96" role="img">
-                  <circle cx="48" cy="24" r="15" fill="currentColor" opacity="0.96"/>
-                  <path d="M23 86c2.6-22.2 12-35 25-35s22.4 12.8 25 35H23Z" fill="currentColor" opacity="0.86"/>
-                  <path d="M31 56c-7.8 6.2-12.4 14.2-15.6 25.4" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" opacity="0.72"/>
-                  <path d="M65 56c7.8 6.2 12.4 14.2 15.6 25.4" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" opacity="0.72"/>
-                  <path d="M35 86V64M61 86V64" fill="none" stroke="#07111f" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+                  <circle class="person-head" cx="48" cy="22" r="15"/>
+                  <path class="person-neck" d="M48 38v6"/>
+                  <rect class="person-body" x="29" y="43" width="38" height="28" rx="8"/>
+                  <path class="person-limb" d="M31 50 16 65M65 50l15 15M39 72l-8 15M57 72l8 15"/>
+                  <circle class="person-detail" cx="43" cy="21" r="2.1"/>
+                  <circle class="person-detail" cx="53" cy="21" r="2.1"/>
+                  <path class="person-face" d="M43 29c3.1 2 6.9 2 10 0"/>
                 </svg>
               </div>
               <div class="cto-label">CTO · главный стол</div>
@@ -817,11 +875,13 @@ function shortId(id) {
 function personSvg() {
   return `
     <svg class="person-svg" viewBox="0 0 72 72" aria-hidden="true">
-      <circle cx="36" cy="17" r="10.5" fill="currentColor" opacity="0.96"/>
-      <path d="M18.5 64c2-16.6 8.4-26.4 17.5-26.4S51.5 47.4 53.5 64h-35Z" fill="currentColor" opacity="0.84"/>
-      <path d="M24 41.5c-6.2 4.8-10.1 11.7-12.3 20.3" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" opacity="0.68"/>
-      <path d="M48 41.5c6.2 4.8 10.1 11.7 12.3 20.3" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" opacity="0.68"/>
-      <path d="M28.5 64V48.5M43.5 64V48.5" fill="none" stroke="#07111f" stroke-width="4" stroke-linecap="round" opacity="0.58"/>
+      <circle class="person-head" cx="36" cy="15" r="10.5"/>
+      <path class="person-neck" d="M36 26v5"/>
+      <rect class="person-body" x="22" y="31" width="28" height="22" rx="7"/>
+      <path class="person-limb" d="M23 36 11 49M49 36l12 13M29 54l-6 11M43 54l6 11"/>
+      <circle class="person-detail" cx="32.5" cy="14.5" r="1.55"/>
+      <circle class="person-detail" cx="39.5" cy="14.5" r="1.55"/>
+      <path class="person-face" d="M32.5 20c2.2 1.4 4.8 1.4 7 0"/>
     </svg>
   `;
 }
@@ -850,7 +910,7 @@ function renderOffice(sessions) {
   ];
 
   workersEl.innerHTML = display.map((session, index) => {
-    const muted = session.placeholder ? " opacity: .72;" : "";
+    const muted = session.placeholder ? " opacity: .9;" : "";
     return `
       <article class="worker-station ${stationClass(session.status)}" style="${muted}">
         <div class="task-card">
