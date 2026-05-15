@@ -16,7 +16,7 @@ import {
   syncWaCollections,
   resolveOrCreateDirectWaChat,
   messagesForChat,
-  renderDialogMessages,
+  renderMessageMedia,
   sendWaFromDialog,
 } from "../wa_dialog.js";
 
@@ -37,9 +37,11 @@ const state = {
   crmTab: "deals",
   callsRoute: { page: "dial" },
   // Плавающее WhatsApp-окно (открывается из карточки сделки).
-  waFloat: { open: false, contactId: null, dealId: null },
-  // Режим блока контакта в карточке сделки: view (просмотр) / edit (правка полей) / change (выбор другого).
+  waFloat: { open: false, contactId: null, dealId: null, mediaOpen: false, searchOpen: false, searchQuery: "", draftText: "" },
+  // Режим блока контакта в карточке сделки: view (просмотр) / edit (правка полей) / change (выбор другого) / create (новый контакт).
   contactMode: "view",
+  contactCreateDraft: null,
+  activityFilter: "all",
 };
 
 function escape(s) {
@@ -56,6 +58,10 @@ function fmtDate(ts) {
   if (!ts) return "";
   return new Date(ts).toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
 }
+function fmtDayMonth(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
 function fmtDateInput(ts) {
   if (!ts) return "";
   return new Date(ts).toISOString().slice(0, 10);
@@ -67,6 +73,23 @@ function fmtTime(ts) {
 function fmtChatTime(ts) {
   if (!ts) return "";
   return new Date(ts).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtTimeShort(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+}
+
+function defaultContactCreateDraft(name = "") {
+  return {
+    type: "individual",
+    name: String(name || "").trim(),
+    company: "",
+    phone: "",
+    email: "",
+    source: "",
+    note: "",
+  };
 }
 
 function textNorm(v) {
@@ -145,6 +168,137 @@ function resolveCallsTabFromHash() {
   const parts = (location.hash || "#crm").replace(/^#/, "").split("/").filter(Boolean);
   if (parts[0] === "calls") return true;
   return parts[0] === "crm" && parts[1] === "calls";
+}
+
+function normalizeSourceName(row) {
+  if (typeof row === "string") return row.trim();
+  if (!row || typeof row !== "object") return "";
+  return String(row.title || row.name || row.label || row.value || "").trim();
+}
+
+function contactSourceOptions() {
+  const rows = Store.list("customer_sources");
+  const values = rows.map(normalizeSourceName).filter(Boolean);
+  const unique = Array.from(new Set(values));
+  if (unique.length) return unique;
+  return ["WhatsApp", "Звонок", "Рекомендация", "Сайт", "Дилеры"];
+}
+
+function stageTitleById(stageId) {
+  if (!stageId) return "";
+  return findStage(stageId)?.title || String(stageId);
+}
+
+function isWinStage(stage) {
+  const key = `${stage?.id || ""} ${stage?.title || ""}`.toLowerCase();
+  return key.includes("won") || key.includes("win") || key.includes("выиг");
+}
+
+function isLossStage(stage) {
+  const key = `${stage?.id || ""} ${stage?.title || ""}`.toLowerCase();
+  return key.includes("lost") || key.includes("loss") || key.includes("проиг");
+}
+
+function activityMatchesFilter(a, filter) {
+  if (!a) return false;
+  if (filter === "wa") return a.type === "whatsapp";
+  if (filter === "call") return a.type === "call";
+  if (filter === "note") return a.type === "note";
+  return true;
+}
+
+function filterActivities(activities, filter) {
+  return (activities || []).filter((a) => activityMatchesFilter(a, filter || "all"));
+}
+
+function activityCounts(activities) {
+  const counts = { all: activities.length, wa: 0, call: 0, note: 0 };
+  activities.forEach((a) => {
+    if (a.type === "whatsapp") counts.wa += 1;
+    if (a.type === "call") counts.call += 1;
+    if (a.type === "note") counts.note += 1;
+  });
+  return counts;
+}
+
+function renderActivityFilterTabs(activities) {
+  const current = state.activityFilter || "all";
+  const counts = activityCounts(activities || []);
+  const tabs = [
+    { id: "all", label: "Все" },
+    { id: "wa", label: "WhatsApp", count: counts.wa },
+    { id: "call", label: "Звонки", count: counts.call },
+    { id: "note", label: "Заметки", count: counts.note },
+  ];
+  return `
+    <div class="timeline-filters" id="timelineFilterTabs">
+      ${tabs.map((tab) => `
+        <button type="button" class="timeline-filter-btn ${current === tab.id ? "active" : ""}" data-filter="${tab.id}">
+          <span>${tab.label}</span>
+          ${tab.count > 0 ? `<span class="timeline-filter-count">●${tab.count}</span>` : ""}
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function dayKey(ts) {
+  const d = new Date(ts || Date.now());
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function waDayLabel(ts) {
+  const current = new Date();
+  const prev = new Date(Date.now() - 86400000);
+  const key = dayKey(ts);
+  if (key === dayKey(current.getTime())) return "сегодня";
+  if (key === dayKey(prev.getTime())) return "вчера";
+  return fmtDayMonth(ts);
+}
+
+function messageSearchBlob(m) {
+  const media = m?.media || {};
+  return textNorm([m?.text, media?.caption, media?.fileName].filter(Boolean).join(" "));
+}
+
+function renderMessageStatus(m) {
+  if (m?.from !== "me") return "";
+  if (m.delivered) return `<span class="msg-status delivered">✓✓</span>`;
+  if (m.sent || m.ts || m.createdAt) return `<span class="msg-status">✓</span>`;
+  return "";
+}
+
+function renderWaMessages(messages, searchQuery = "") {
+  const query = textNorm(searchQuery || "").trim();
+  const filtered = query
+    ? (messages || []).filter((m) => messageSearchBlob(m).includes(query))
+    : (messages || []);
+
+  if (filtered.length === 0) {
+    return `<div class="chat-empty">${query ? "Поиск не дал результатов." : "Сообщений пока нет."}</div>`;
+  }
+
+  const asc = [...filtered].sort((a, b) => (a.ts || a.createdAt || 0) - (b.ts || b.createdAt || 0));
+  let prevKey = "";
+
+  return asc.map((m) => {
+    const ts = m.ts || m.createdAt || Date.now();
+    const key = dayKey(ts);
+    const divider = key !== prevKey
+      ? `<div class="wa-day-divider"><span>${escape(waDayLabel(ts))}</span></div>`
+      : "";
+    prevKey = key;
+
+    return `${divider}
+      <div class="msg ${m.from === "me" ? "me" : "them"}">
+        <div class="msg-bubble">
+          ${m.text ? `<div class="msg-text">${escape(m.text).replace(/\n/g, "<br>")}</div>` : ""}
+          ${renderMessageMedia(m)}
+        </div>
+        <div class="msg-time">${fmtChatTime(ts)} ${renderMessageStatus(m)}</div>
+      </div>
+    `;
+  }).join("");
 }
 
 // Привести сделки к актуальному списку стадий: если стадия удалена — переносим в первую
@@ -342,12 +496,20 @@ function renderDealModal(d, contacts, stages) {
   const contact = contacts.find(c => c.id === d.contactId);
   const assignee = getEmployee(d.assigneeId);
   const acts = isNew ? [] : activitiesFor(d.id);
+  const shownActs = filterActivities(acts, state.activityFilter);
+  const createdLabel = fmtDayMonth(d.createdAt || d.ts);
+  const compactId = String(d.id || "").slice(-6);
 
   return `
     <div class="modal-backdrop" id="modalBackdrop">
       <div class="modal modal-xl" role="dialog" aria-modal="true">
         <header class="modal-header">
-          <h2>${isNew ? "Новая сделка" : escape(d.title || "Без названия")}</h2>
+          <div class="deal-head-main">
+            ${!isNew
+              ? `<div class="deal-meta-line">Сделка #${escape(compactId || d.id || "")}${createdLabel ? ` · открыта ${escape(createdLabel)}` : ""}</div>`
+              : ""}
+            <h2>${isNew ? "Новая сделка" : escape(d.title || "Без названия")}</h2>
+          </div>
           <div class="modal-actions">
             ${!isNew ? `<button type="button" class="btn-ghost icon-only" id="copyLink" title="Скопировать ссылку">${ICONS.link}</button>` : ""}
             <button type="button" class="btn-ghost icon-only" id="closeModal" aria-label="Закрыть">${ICONS.x}</button>
@@ -398,10 +560,11 @@ function renderDealModal(d, contacts, stages) {
               <div class="timeline-input" id="timelineInput">
                 ${renderTimelineInput("note")}
               </div>
+              ${renderActivityFilterTabs(acts)}
               <div class="timeline-list">
-                ${acts.length === 0
+                ${shownActs.length === 0
                   ? `<div class="tl-empty">Активности по сделке появятся здесь. Добавь первую — заметку, письмо, дело или звонок.</div>`
-                  : acts.map(a => renderActivity(a)).join("")}
+                  : shownActs.map(a => renderActivity(a)).join("")}
               </div>
             </div>
           ` : ""}
@@ -435,10 +598,13 @@ function renderCustomFields(d) {
 function renderStageBar(activeId, stages) {
   return `
     <div class="deal-stage-bar">
-      ${stages.map(s => `
-        <button class="deal-stage-bar-btn ${s.id === activeId ? "active" : ""}" data-stage="${s.id}" style="--stage-color:${s.color}">
-          ${escape(s.title)}
-        </button>
+      ${stages.map((s, idx) => `
+        <div class="deal-stage-step ${s.id === activeId ? "active" : ""} ${isWinStage(s) ? "is-win" : ""} ${isLossStage(s) ? "is-loss" : ""}" style="--stage-color:${s.color}">
+          <button class="deal-stage-bar-btn ${s.id === activeId ? "active" : ""}" data-stage="${s.id}" style="--stage-color:${s.color}">
+            ${escape(s.title)}
+          </button>
+          ${idx < stages.length - 1 ? `<span class="deal-stage-arrow" aria-hidden="true">${ICONS.arrowRight}</span>` : ""}
+        </div>
       `).join("")}
     </div>
   `;
@@ -483,6 +649,28 @@ function renderActivity(a) {
   const type = a.type || "note";
   const icons = { note: "📝", email: "✉", task: "⚙", whatsapp: "💬", call: "📞" };
   const labels = { note: "Заметка", email: "Письмо", task: "Дело", whatsapp: "WhatsApp", call: "Звонок" };
+  const by = escape(author?.name || "Я");
+  const time = fmtTimeShort(a.ts || a.createdAt);
+
+  if (type === "stage") {
+    const from = stageTitleById(a.fromStage);
+    const to = stageTitleById(a.toStage);
+    return `
+      <div class="tl-stage-event">
+        <span class="tl-stage-mark">↗</span>
+        <span>Стадия: ${escape(from)} → ${escape(to)} · ${by}, ${escape(time)}</span>
+      </div>
+    `;
+  }
+
+  if (type === "deal_created") {
+    return `
+      <div class="tl-stage-event">
+        <span class="tl-stage-mark">+</span>
+        <span>Сделка создана · ${by}, ${escape(time)}</span>
+      </div>
+    `;
+  }
 
   let body = "";
   if (type === "email") {
@@ -498,7 +686,7 @@ function renderActivity(a) {
       <div class="tl-ico">${icons[type] || "•"}</div>
       <div class="tl-body">
         <div class="tl-head">
-          <span class="tl-author">${escape(author?.name || "Я")}</span>
+          <span class="tl-author">${by}</span>
           <span class="tl-type">${labels[type] || type}</span>
           <span class="tl-time">${fmtTime(a.ts || a.createdAt)}</span>
         </div>
@@ -514,9 +702,12 @@ function renderActivity(a) {
 function renderDealContactBlock(contact, d) {
   const contacts = Store.list(CONTACTS);
   const mode = state.contactMode || "view";
+  const draft = { ...defaultContactCreateDraft(), ...(state.contactCreateDraft || {}) };
+  const sourceOptions = contactSourceOptions();
+  const sourceValue = sourceOptions.includes(draft.source) ? draft.source : (sourceOptions[0] || "");
 
   // Режим выбора другого контакта (или первичный выбор для новой сделки).
-  if (mode === "change" || (!contact && mode !== "edit")) {
+  if (mode === "change" || (!contact && mode !== "edit" && mode !== "create")) {
     return `
       <div class="deal-contact-block deal-contact-pick">
         ${renderTypeahead({
@@ -528,7 +719,59 @@ function renderDealContactBlock(contact, d) {
           createLabel: "Создать контакт",
           emptyText: "— не выбран —",
         })}
-        ${contact ? `<button type="button" class="btn-ghost btn-sm dcc-cancel" id="cancelContactChange">Отмена</button>` : ""}
+        <div class="dcc-pick-actions">
+          <button type="button" class="btn-ghost btn-sm" id="createContactInline">+ Создать новый контакт</button>
+          ${contact ? `<button type="button" class="btn-ghost btn-sm dcc-cancel" id="cancelContactChange">Отмена</button>` : ""}
+        </div>
+      </div>
+    `;
+  }
+
+  // Режим создания нового контакта и мгновенной привязки к сделке.
+  if (mode === "create") {
+    const isCompany = draft.type === "company";
+    return `
+      <div class="deal-contact-block deal-contact-creating">
+        <div class="dcc-label">Новый контакт</div>
+        <input type="hidden" name="contactId" value="${escapeAttr(d.contactId || "")}">
+        <div class="dcc-type-toggle">
+          <button type="button" class="dcc-type-btn ${!isCompany ? "active" : ""}" data-contact-type="individual">Физлицо</button>
+          <button type="button" class="dcc-type-btn ${isCompany ? "active" : ""}" data-contact-type="company">Компания</button>
+        </div>
+        <div class="dcc-create-grid">
+          <div class="field field-wide">
+            <label>${isCompany ? "Название компании" : "Имя"}</label>
+            <input type="text" id="dccCreateName" value="${escapeAttr(draft.name)}" placeholder="${isCompany ? "Например: Boutique Almaty" : "Имя и фамилия"}">
+          </div>
+          ${!isCompany ? `
+            <div class="field field-wide">
+              <label>Компания</label>
+              <input type="text" id="dccCreateCompany" value="${escapeAttr(draft.company)}" placeholder="Компания (опционально)">
+            </div>
+          ` : ""}
+          <div class="field">
+            <label>Телефон</label>
+            <input type="tel" id="dccCreatePhone" value="${escapeAttr(draft.phone)}" placeholder="+7...">
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="dccCreateEmail" value="${escapeAttr(draft.email)}" placeholder="example@mail.com">
+          </div>
+          <div class="field">
+            <label>Источник</label>
+            <select id="dccCreateSource">
+              ${sourceOptions.map((opt) => `<option value="${escapeAttr(opt)}" ${sourceValue === opt ? "selected" : ""}>${escape(opt)}</option>`).join("")}
+            </select>
+          </div>
+          <div class="field field-wide">
+            <label>Примечание</label>
+            <textarea id="dccCreateNote" rows="2" placeholder="Комментарий (опционально)">${escape(draft.note || "")}</textarea>
+          </div>
+        </div>
+        <div class="dcc-create-actions">
+          <button type="button" class="btn-ghost btn-sm" id="cancelContactCreate">Отмена</button>
+          <button type="button" class="btn-primary btn-sm" id="createContactAndBind">Создать и привязать</button>
+        </div>
       </div>
     `;
   }
@@ -554,6 +797,25 @@ function renderDealContactBlock(contact, d) {
   }
 
   // Режим карточки (по умолчанию).
+  if (!contact) {
+    return `
+      <div class="deal-contact-block deal-contact-pick">
+        ${renderTypeahead({
+          name: "contactId",
+          value: d.contactId,
+          items: contacts.map(c => ({ id: c.id, name: c.name || "(без имени)", sub: c.company || c.email || c.phone || "" })),
+          label: "Контакт",
+          placeholder: "Поиск по имени, компании, email…",
+          createLabel: "Создать контакт",
+          emptyText: "— не выбран —",
+        })}
+        <div class="dcc-pick-actions">
+          <button type="button" class="btn-ghost btn-sm" id="createContactInline">+ Создать новый контакт</button>
+        </div>
+      </div>
+    `;
+  }
+
   return `
     <div class="deal-contact-block">
       <div class="dcc-label">Контакт</div>
@@ -596,6 +858,10 @@ function renderDealActionBar(d, contact) {
 
 // Плавающее WhatsApp-окно (фиксировано снизу справа). Использует те же утилиты wa_dialog.js.
 function renderWaFloat(deal, contact) {
+  const searchQuery = state.waFloat.searchQuery || "";
+  const draftText = state.waFloat.draftText || "";
+  const sendIcon = draftText.trim() ? ICONS.send : ICONS.mic;
+
   if (!contact?.phone) {
     return `
       <div class="wa-float" id="waFloat">
@@ -622,8 +888,9 @@ function renderWaFloat(deal, contact) {
   }
 
   const messages = messagesForChat(chat.id);
+  const phoneToCall = contact?.phone || "";
   return `
-    <div class="wa-float" id="waFloat" data-chat-id="${escapeAttr(chat.id)}" data-channel-id="${escapeAttr(channel?.id || "")}">
+    <div class="wa-float" id="waFloat" data-chat-id="${escapeAttr(chat.id)}" data-channel-id="${escapeAttr(channel?.id || "")}" data-phone="${escapeAttr(phoneToCall)}">
       <div class="wa-float-head">
         <div class="wa-float-user">
           <div class="avatar avatar-sm">${escape(initialsOf(contact.name || contact.phone || "?"))}</div>
@@ -632,19 +899,33 @@ function renderWaFloat(deal, contact) {
             <div class="wa-float-sub">${escape(channel?.name ? `Канал: ${channel.name}` : "WhatsApp канал не настроен")}</div>
           </div>
         </div>
-        <button type="button" class="btn-ghost icon-only" id="closeWaFloat" aria-label="Закрыть">${ICONS.x}</button>
+        <div class="wa-float-head-actions">
+          <button type="button" class="btn-ghost icon-only" id="waFloatSearchToggle" title="Поиск по сообщениям">${ICONS.search}</button>
+          <button type="button" class="btn-ghost icon-only" id="waFloatCall" title="Позвонить">${ICONS.phone}</button>
+          <button type="button" class="btn-ghost icon-only" id="closeWaFloat" aria-label="Закрыть">${ICONS.x}</button>
+        </div>
       </div>
+      ${state.waFloat.searchOpen ? `
+        <div class="wa-float-search">
+          <input type="search" id="waFloatSearchInput" value="${escapeAttr(searchQuery)}" placeholder="Поиск в переписке...">
+        </div>
+      ` : ""}
       <div class="chat-messages wa-float-messages" id="waFloatMessages">
-        ${renderDialogMessages(messages, { timeFormatter: fmtChatTime })}
+        ${renderWaMessages(messages, searchQuery)}
       </div>
-      <form class="chat-compose" id="waFloatForm">
-        <input name="text" type="text" placeholder="Сообщение клиенту...">
-        <button type="submit" class="btn-primary" title="Отправить">${ICONS.send}</button>
+      <form class="wa-float-compose" id="waFloatForm">
+        <button type="button" class="wa-compose-icon-btn" id="waToggleMedia" title="Файл">${ICONS.paperclip}</button>
+        <button type="button" class="wa-compose-icon-btn" id="waCameraStub" title="Камера (в разработке)" disabled>${ICONS.camera}</button>
+        <input name="text" type="text" id="waFloatText" value="${escapeAttr(draftText)}" placeholder="Сообщение клиенту...">
+        <button type="button" class="wa-compose-icon-btn" id="waSmileStub" title="Эмодзи (скоро)">${ICONS.smile}</button>
+        <button type="submit" class="wa-compose-send-btn" id="waFloatSendBtn" title="Отправить">
+          ${sendIcon}
+        </button>
       </form>
-      <form class="chat-compose chat-compose-media" id="waFloatMedia">
+      <form class="chat-compose chat-compose-media ${state.waFloat.mediaOpen ? "" : "is-hidden"}" id="waFloatMedia">
         <input name="fileUrl" type="url" placeholder="Ссылка на файл (опц.)">
         <input name="fileName" type="text" placeholder="Имя файла (опц.)">
-        <label class="chat-voice-opt"><input name="asVoice" type="checkbox"> voice</label>
+        <label class="chat-voice-opt"><input name="asVoice" id="waAsVoice" type="checkbox"> voice</label>
       </form>
     </div>
   `;
@@ -731,7 +1012,9 @@ function openDealModal(container, dealId = null) {
   state.modalOpen = true;
   state.modalDealId = dealId;
   state.contactMode = "view";
-  state.waFloat = { open: false, contactId: null, dealId: null };
+  state.contactCreateDraft = null;
+  state.activityFilter = "all";
+  state.waFloat = { open: false, contactId: null, dealId: null, mediaOpen: false, searchOpen: false, searchQuery: "", draftText: "" };
   if (dealId) location.hash = `#crm/${dealId}`;
   renderDeals(container);
 }
@@ -739,7 +1022,9 @@ function closeDealModal(container) {
   state.modalOpen = false;
   state.modalDealId = null;
   state.contactMode = "view";
-  state.waFloat = { open: false, contactId: null, dealId: null };
+  state.contactCreateDraft = null;
+  state.activityFilter = "all";
+  state.waFloat = { open: false, contactId: null, dealId: null, mediaOpen: false, searchOpen: false, searchQuery: "", draftText: "" };
   if (location.hash.startsWith("#crm/")) location.hash = "#crm";
   renderDeals(container);
 }
@@ -752,6 +1037,7 @@ export function tryOpenDealFromHash() {
     state.crmTab = "calls";
     state.modalOpen = false;
     state.modalDealId = null;
+    state.waFloat = { open: false, contactId: null, dealId: null, mediaOpen: false, searchOpen: false, searchQuery: "", draftText: "" };
     return;
   }
 
@@ -779,6 +1065,7 @@ function wireEvents(container) {
         state.modalOpen = false;
         state.modalDealId = null;
         state.stagesModalOpen = false;
+        state.waFloat = { open: false, contactId: null, dealId: null, mediaOpen: false, searchOpen: false, searchQuery: "", draftText: "" };
         if (!/^#crm\/calls(?:\/|$)/.test(location.hash || "")) {
           location.hash = "#crm/calls/dial";
           return;
@@ -879,23 +1166,10 @@ function wireEvents(container) {
     attachTypeahead(dealForm, {
       onCreate: async (name, query) => {
         if (name === "contactId") {
-          let contactName = query;
-          if (!contactName) contactName = (prompt("Имя нового контакта:") || "").trim();
-          if (!contactName) return null;
-          const phone = (prompt("Телефон (необязательно):") || "").trim();
-          const created = Store.create(CONTACTS, {
-            name: contactName,
-            phone,
-            email: "",
-            company: "",
-            position: "",
-            source: "site",
-            tags: [],
-            notes: "",
-          });
-          // обновим items
-          window.__taItems.contactId = Store.list(CONTACTS).map(c => ({ id: c.id, name: c.name || "(без имени)", sub: c.company || c.email || c.phone || "" }));
-          return { id: created.id, name: contactName, sub: phone || "" };
+          state.contactMode = "create";
+          state.contactCreateDraft = defaultContactCreateDraft(query || "");
+          renderDeals(container);
+          return null;
         }
         return null;
       },
@@ -993,16 +1267,46 @@ function wireEvents(container) {
       const data = collectDealFormData();
       if (!data.title) return;
       const created = Store.create(COLLECTION, { ...data, stage: getStages()[0]?.id || "new" });
+      addActivity(created.id, "deal_created", { text: "Сделка создана" });
       state.modalDealId = created.id;
+      state.activityFilter = "all";
       renderDeals(container);
     });
 
-    function prependTimelineActivity(act) {
+    function renderTimelineListFromStore() {
+      if (!state.modalDealId) return;
       const list = container.querySelector(".timeline-list");
-      if (!list || !act) return;
-      list.querySelector(".tl-empty")?.remove();
-      list.insertAdjacentHTML("afterbegin", renderActivity(act));
+      if (!list) return;
+      const allActs = activitiesFor(state.modalDealId);
+      const shown = filterActivities(allActs, state.activityFilter);
+      list.innerHTML = shown.length === 0
+        ? `<div class="tl-empty">Активности по сделке появятся здесь. Добавь первую — заметку, письмо, дело или звонок.</div>`
+        : shown.map((a) => renderActivity(a)).join("");
     }
+
+    function bindTimelineFilters() {
+      container.querySelectorAll(".timeline-filter-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.activityFilter = btn.dataset.filter || "all";
+          const allActs = activitiesFor(state.modalDealId);
+          const host = container.querySelector("#timelineFilterTabs");
+          if (host) host.outerHTML = renderActivityFilterTabs(allActs);
+          bindTimelineFilters();
+          renderTimelineListFromStore();
+        });
+      });
+    }
+
+    function refreshTimeline() {
+      if (!state.modalDealId) return;
+      const allActs = activitiesFor(state.modalDealId);
+      const host = container.querySelector("#timelineFilterTabs");
+      if (host) host.outerHTML = renderActivityFilterTabs(allActs);
+      bindTimelineFilters();
+      renderTimelineListFromStore();
+    }
+
+    bindTimelineFilters();
 
     // ----- Stage bar (быстрое переключение) -----
     container.querySelectorAll(".deal-stage-bar-btn").forEach(btn => {
@@ -1012,8 +1316,8 @@ function wireEvents(container) {
         const deal = Store.get(COLLECTION, state.modalDealId);
         if (deal && deal.stage !== newStage) {
           Store.update(COLLECTION, state.modalDealId, { stage: newStage });
-          const act = addActivity(state.modalDealId, "stage", { fromStage: deal.stage, toStage: newStage });
-          prependTimelineActivity(act);
+          addActivity(state.modalDealId, "stage", { fromStage: deal.stage, toStage: newStage });
+          refreshTimeline();
           container.querySelectorAll(".deal-stage-bar-btn").forEach(b => b.classList.toggle("active", b.dataset.stage === newStage));
         }
       });
@@ -1065,7 +1369,7 @@ function wireEvents(container) {
           if (textEl) textEl.value = "";
         }
 
-        prependTimelineActivity(act);
+        if (act) refreshTimeline();
       });
     }
     bindTimelineSubmit();
@@ -1084,7 +1388,7 @@ function wireEvents(container) {
       const c = contacts.find(x => x.id === deal?.contactId);
       if (!c?.phone) return;
       // Открываем плавающее окно поверх карточки сделки.
-      state.waFloat = { open: true, contactId: c.id, dealId: state.modalDealId };
+      state.waFloat = { open: true, contactId: c.id, dealId: state.modalDealId, mediaOpen: false, searchOpen: false, searchQuery: "", draftText: "" };
       renderDeals(container);
     });
     container.querySelector("#actionBarNote")?.addEventListener("click", () => {
@@ -1103,6 +1407,12 @@ function wireEvents(container) {
     });
     container.querySelector("#changeContact")?.addEventListener("click", () => {
       state.contactMode = "change";
+      state.contactCreateDraft = null;
+      renderDeals(container);
+    });
+    container.querySelector("#createContactInline")?.addEventListener("click", () => {
+      state.contactMode = "create";
+      state.contactCreateDraft = defaultContactCreateDraft("");
       renderDeals(container);
     });
     container.querySelector("#cancelContactEdit")?.addEventListener("click", () => {
@@ -1113,6 +1423,73 @@ function wireEvents(container) {
       state.contactMode = "view";
       renderDeals(container);
     });
+    container.querySelector("#cancelContactCreate")?.addEventListener("click", () => {
+      state.contactMode = "change";
+      renderDeals(container);
+    });
+    container.querySelectorAll("[data-contact-type]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const current = { ...defaultContactCreateDraft(), ...(state.contactCreateDraft || {}) };
+        state.contactCreateDraft = { ...current, type: btn.dataset.contactType === "company" ? "company" : "individual" };
+        renderDeals(container);
+      });
+    });
+
+    function syncContactCreateDraftFromInputs() {
+      if (state.contactMode !== "create") return;
+      const current = { ...defaultContactCreateDraft(), ...(state.contactCreateDraft || {}) };
+      state.contactCreateDraft = {
+        ...current,
+        name: String(container.querySelector("#dccCreateName")?.value || "").trim(),
+        company: String(container.querySelector("#dccCreateCompany")?.value || "").trim(),
+        phone: String(container.querySelector("#dccCreatePhone")?.value || "").trim(),
+        email: String(container.querySelector("#dccCreateEmail")?.value || "").trim(),
+        source: String(container.querySelector("#dccCreateSource")?.value || "").trim(),
+        note: String(container.querySelector("#dccCreateNote")?.value || "").trim(),
+      };
+    }
+
+    ["#dccCreateName", "#dccCreateCompany", "#dccCreatePhone", "#dccCreateEmail", "#dccCreateSource", "#dccCreateNote"].forEach((sel) => {
+      container.querySelector(sel)?.addEventListener("input", syncContactCreateDraftFromInputs);
+      container.querySelector(sel)?.addEventListener("change", syncContactCreateDraftFromInputs);
+    });
+
+    container.querySelector("#createContactAndBind")?.addEventListener("click", () => {
+      syncContactCreateDraftFromInputs();
+      const draft = { ...defaultContactCreateDraft(), ...(state.contactCreateDraft || {}) };
+      const baseName = String(draft.name || "").trim();
+      if (!baseName) {
+        container.querySelector("#dccCreateName")?.focus();
+        return;
+      }
+
+      const isCompany = draft.type === "company";
+      const company = isCompany ? baseName : String(draft.company || "").trim();
+      const created = Store.create(CONTACTS, {
+        type: isCompany ? "company" : "individual",
+        name: baseName,
+        company,
+        phone: String(draft.phone || "").trim(),
+        email: String(draft.email || "").trim(),
+        source: String(draft.source || "").trim(),
+        notes: String(draft.note || "").trim(),
+        position: "",
+        tags: [],
+      });
+
+      if (state.modalDealId) {
+        Store.update(COLLECTION, state.modalDealId, { contactId: created.id });
+      }
+      window.__taItems.contactId = Store.list(CONTACTS).map((c) => ({
+        id: c.id,
+        name: c.name || "(без имени)",
+        sub: c.company || c.email || c.phone || "",
+      }));
+      state.contactMode = "view";
+      state.contactCreateDraft = null;
+      renderDeals(container);
+    });
+
     container.querySelector("#saveContactEdit")?.addEventListener("click", () => {
       const deal = Store.get(COLLECTION, state.modalDealId);
       if (!deal?.contactId) return;
@@ -1127,8 +1504,44 @@ function wireEvents(container) {
 
     // ===== Плавающее WhatsApp-окно =====
     container.querySelector("#closeWaFloat")?.addEventListener("click", () => {
-      state.waFloat = { open: false, contactId: null, dealId: null };
+      state.waFloat = { open: false, contactId: null, dealId: null, mediaOpen: false, searchOpen: false, searchQuery: "", draftText: "" };
       renderDeals(container);
+    });
+
+    container.querySelector("#waToggleMedia")?.addEventListener("click", () => {
+      state.waFloat = { ...state.waFloat, mediaOpen: !state.waFloat.mediaOpen };
+      renderDeals(container);
+    });
+
+    container.querySelector("#waFloatSearchToggle")?.addEventListener("click", () => {
+      state.waFloat = {
+        ...state.waFloat,
+        searchOpen: !state.waFloat.searchOpen,
+        searchQuery: !state.waFloat.searchOpen ? state.waFloat.searchQuery : "",
+      };
+      renderDeals(container);
+    });
+
+    container.querySelector("#waFloatSearchInput")?.addEventListener("input", (e) => {
+      state.waFloat = { ...state.waFloat, searchQuery: e.target.value || "", searchOpen: true };
+      const float = container.querySelector("#waFloat");
+      const chatId = float?.dataset.chatId || "";
+      const messages = chatId ? messagesForChat(chatId) : [];
+      const wrap = container.querySelector("#waFloatMessages");
+      if (wrap) wrap.innerHTML = renderWaMessages(messages, state.waFloat.searchQuery);
+    });
+
+    container.querySelector("#waFloatCall")?.addEventListener("click", () => {
+      const deal = Store.get(COLLECTION, state.modalDealId);
+      const c = contacts.find(x => x.id === deal?.contactId);
+      if (!c?.phone) return;
+      openCommunicate({
+        type: "call",
+        to: c.phone,
+        contactName: c.name,
+        context: { collection: ACTIVITIES, fk: { dealId: state.modalDealId } },
+        onDone: () => renderDeals(container),
+      });
     });
 
     const waFloatForm = container.querySelector("#waFloatForm");
@@ -1145,11 +1558,17 @@ function wireEvents(container) {
         return;
       }
 
-      const text = String(waFloatForm.querySelector("input[name='text']")?.value || "").trim();
+      const textInput = waFloatForm.querySelector("input[name='text']");
+      const text = String(textInput?.value || "").trim();
       const mediaForm = container.querySelector("#waFloatMedia");
       const fileUrl = String(mediaForm?.querySelector("input[name='fileUrl']")?.value || "").trim();
       const fileName = String(mediaForm?.querySelector("input[name='fileName']")?.value || "").trim();
-      const asVoice = !!mediaForm?.querySelector("input[name='asVoice']")?.checked;
+      let asVoice = !!mediaForm?.querySelector("input[name='asVoice']")?.checked;
+      if (!text && !fileUrl) {
+        const voiceToggle = mediaForm?.querySelector("input[name='asVoice']");
+        if (voiceToggle) voiceToggle.checked = true;
+        return;
+      }
 
       const btn = waFloatForm.querySelector("button[type='submit']");
       btn?.setAttribute("disabled", "disabled");
@@ -1171,8 +1590,19 @@ function wireEvents(container) {
 
       waFloatForm.reset();
       mediaForm?.reset();
+      state.waFloat = { ...state.waFloat, draftText: "" };
       renderDeals(container);
       setTimeout(() => { syncDealChatCloud(container); }, 700);
+    });
+
+    const waTextInput = container.querySelector("#waFloatText");
+    const waSendBtn = container.querySelector("#waFloatSendBtn");
+    waTextInput?.addEventListener("input", () => {
+      const value = String(waTextInput.value || "");
+      state.waFloat = { ...state.waFloat, draftText: value };
+      if (waSendBtn) {
+        waSendBtn.innerHTML = value.trim() ? ICONS.send : ICONS.mic;
+      }
     });
   }
 
