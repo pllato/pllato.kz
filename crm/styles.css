@@ -1401,19 +1401,32 @@ body {
 }
 .modal-xl { max-width: 1100px; }
 .modal-actions { display: flex; gap: 4px; align-items: center; }
+.deal-head-main { min-width: 0; }
+.deal-meta-line {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
 
 /* ----- Шкала стадий в карточке сделки ----- */
 .deal-stage-bar {
   display: flex;
-  gap: 2px;
+  gap: 0;
   padding: 12px 22px;
   background: var(--surface-2);
   border-bottom: 1px solid var(--border-soft);
   overflow-x: auto;
 }
+.deal-stage-step {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 120px;
+  min-width: 120px;
+}
 .deal-stage-bar-btn {
-  flex: 1 1 80px;
-  min-width: 80px;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 8px 6px;
   border: 1px solid var(--border-soft);
   background: var(--surface);
@@ -1435,6 +1448,26 @@ body {
   background: var(--stage-color);
   color: white;
   border-color: var(--stage-color);
+}
+.deal-stage-step.is-win .deal-stage-bar-btn.active {
+  background: #14804a;
+  border-color: #14804a;
+}
+.deal-stage-step.is-loss .deal-stage-bar-btn.active {
+  background: #7f8898;
+  border-color: #7f8898;
+}
+.deal-stage-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.deal-stage-arrow svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.8;
 }
 
 /* ----- Split-view карточки сделки ----- */
@@ -1537,6 +1570,37 @@ body {
   border-color: var(--accent);
 }
 .timeline-input .btn-primary { align-self: flex-end; padding: 7px 14px; }
+.timeline-filters {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface);
+}
+.timeline-filter-btn {
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 9px 10px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.timeline-filter-btn:hover { color: var(--text); }
+.timeline-filter-btn.active {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+.timeline-filter-count {
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+}
 .timeline-list {
   flex: 1;
   overflow-y: auto;
@@ -1592,6 +1656,19 @@ body {
 .act-task { display: flex; gap: 10px; align-items: center; }
 .act-task-title { font-weight: 600; }
 .act-task-due { color: var(--accent); font-size: 12px; }
+.tl-stage-event {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+.tl-stage-mark {
+  width: 14px;
+  color: var(--text-muted);
+  text-align: center;
+}
 
 .deal-chat-pane {
   border-top: 1px solid var(--border-soft);
@@ -3880,6 +3957,69 @@ body {
 
 /* Picker-режим (typeahead inline) */
 .deal-contact-pick .dcc-cancel { margin-top: 6px; font-size: 12px; }
+.dcc-pick-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.deal-contact-creating {
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+.dcc-type-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.dcc-type-btn {
+  border: none;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.dcc-type-btn.active {
+  background: var(--accent-tint);
+  color: var(--accent-hover);
+}
+.dcc-create-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.dcc-create-grid .field { margin-bottom: 0; }
+.dcc-create-grid input,
+.dcc-create-grid select,
+.dcc-create-grid textarea {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.dcc-create-grid input:focus,
+.dcc-create-grid select:focus,
+.dcc-create-grid textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.dcc-create-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
 
 /* Edit-режим — inline-форма правки полей контакта */
 .deal-contact-editing {
@@ -3993,6 +4133,7 @@ body {
   min-width: 0;
 }
 .wa-float-meta { flex: 1; min-width: 0; }
+.wa-float-head-actions { display: inline-flex; gap: 2px; align-items: center; }
 .wa-float-title {
   font-size: 13.5px;
   font-weight: 700;
@@ -4005,6 +4146,21 @@ body {
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 1px;
+}
+.wa-float-search {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface);
+}
+.wa-float-search input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 7px 9px;
 }
 .wa-float-empty {
   padding: 28px 16px;
@@ -4028,6 +4184,89 @@ body {
   padding: 0 12px 10px;
   border-top: 0;
 }
+.wa-day-divider {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0 2px;
+}
+.wa-day-divider span {
+  background: var(--surface-2);
+  color: var(--text-dim);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  font-size: 10.5px;
+  padding: 2px 8px;
+  text-transform: lowercase;
+}
+.msg-status {
+  color: var(--wa-muted);
+  font-size: 10px;
+  margin-left: 2px;
+}
+.msg-status.delivered { color: #22c55e; }
+
+.wa-float-compose {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--surface);
+}
+.wa-compose-icon-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-soft);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.wa-compose-icon-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.wa-compose-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.wa-float-compose input[name="text"] {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 13px;
+}
+.wa-float-compose input[name="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.wa-compose-send-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: #25d366;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.wa-compose-send-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.wa-float .chat-compose-media.is-hidden {
+  display: none;
+}
 
 /* Мобильная адаптация — окно во всю ширину */
 @media (max-width: 640px) {
@@ -4036,5 +4275,8 @@ body {
     bottom: 8px;
     left: 8px;
     width: auto;
+  }
+  .dcc-create-grid {
+    grid-template-columns: 1fr;
   }
 }
