@@ -189,7 +189,7 @@ const ROUTES = [
   { id: "dashboard", title: "Дашборд",   icon: "dashboard", group: "workspace" },
   { id: "contacts",  title: "Контакты",  icon: "users",     group: "workspace" },
   { id: "crm",       title: "CRM",       icon: "deals",     group: "workspace" },
-  { id: "calls",     title: "Звонки",    icon: "phone",     group: "workspace" },
+  { id: "calls",     title: "Звонки",    icon: "phone",     group: "workspace", hiddenInNav: true },
   { id: "tasks",     title: "Задачи",    icon: "tasks",     group: "workspace" },
   { id: "feed",      title: "Лента",     icon: "feed",      group: "team" },
   { id: "chat",      title: "Чаты",      icon: "chat",      group: "team" },
@@ -197,7 +197,7 @@ const ROUTES = [
 ];
 
 // Алиасы старых маршрутов на новые
-const ROUTE_ALIASES = { deals: "crm" };
+const ROUTE_ALIASES = { deals: "crm", calls: "crm" };
 
 function parseRoute() {
   const h = (location.hash || "#dashboard").replace(/^#/, "");
@@ -317,7 +317,7 @@ function renderShell() {
   ];
 
   const allowed = currentPermissions();
-  const visibleRoutes = ROUTES.filter(r => allowed.includes(r.id));
+  const visibleRoutes = ROUTES.filter(r => allowed.includes(r.id) && !r.hiddenInNav);
   const navHtml = groups.map(g => {
     const groupRoutes = visibleRoutes.filter(r => r.group === g.id);
     if (groupRoutes.length === 0) return "";

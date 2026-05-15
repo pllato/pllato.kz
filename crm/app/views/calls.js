@@ -58,6 +58,9 @@ const state = {
   historyError: "",
   historyRecordLoadingId: "",
   historyLoadedOnce: false,
+
+  renderOptions: {},
+  embeddedRoute: { page: "dial" },
 };
 
 function escape(s) {
@@ -80,8 +83,10 @@ function formatPct(v) {
   return `${Number(v || 0).toFixed(1)}%`;
 }
 
-function parseHashRoute() {
-  const parts = (location.hash || "#calls").replace(/^#/, "").split("/").filter(Boolean);
+function parseCallsRouteParts(parts) {
+  if (parts[0] === "crm" && parts[1] === "calls") {
+    parts = ["calls", ...parts.slice(2)];
+  }
   if (parts[0] !== "calls") return { page: "dial" };
   if (parts[1] === "queue") return { page: "queue", campaignId: parts[2] ? decodeURIComponent(parts[2]) : "" };
   if (parts[1] === "dial") return { page: "dial" };
@@ -90,8 +95,27 @@ function parseHashRoute() {
   return { page: "dial" };
 }
 
+function parseHashRoute(hash = location.hash || "#calls") {
+  const parts = String(hash || "#calls").replace(/^#/, "").split("/").filter(Boolean);
+  return parseCallsRouteParts(parts);
+}
+
+function normalizeRoute(route) {
+  const page = String(route?.page || "dial");
+  if (page === "queue") return { page: "queue", campaignId: String(route?.campaignId || "") };
+  if (page === "campaign") return { page: "campaign", campaignId: String(route?.campaignId || "") };
+  if (page === "history") return { page: "history" };
+  if (page === "dial") return { page: "dial" };
+  return { page: "dial" };
+}
+
 function rerender() {
-  if (state.container?.isConnected) renderCalls(state.container);
+  if (!state.container?.isConnected) return;
+  if (state.renderOptions?.embedded) {
+    renderCalls(state.container, { ...state.renderOptions, route: state.embeddedRoute });
+    return;
+  }
+  renderCalls(state.container, state.renderOptions || {});
 }
 
 function hasCloudApi() {
@@ -1089,7 +1113,19 @@ async function handleFinishSubmit(form) {
   }
 }
 
-function wireCallsEvents(route) {
+function wireCallsEvents(route, options = {}) {
+  if (options.embedded) {
+    state.container?.querySelectorAll('a[href^="#calls"], a[href^="#crm/calls"]').forEach((a) => {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        const nextRoute = parseHashRoute(a.getAttribute("href") || "#calls/dial");
+        state.embeddedRoute = normalizeRoute(nextRoute);
+        if (typeof options.onRouteChange === "function") options.onRouteChange(state.embeddedRoute);
+        rerender();
+      });
+    });
+  }
+
   document.getElementById("newCampaignBtn")?.addEventListener("click", async () => {
     state.newCampaignOpen = true;
     await ensureScripts();
@@ -1147,7 +1183,13 @@ function wireCallsEvents(route) {
         state.quickCallNumber = phone;
         state.quickCallError = "";
         state.quickCallResult = "";
-        location.hash = "#calls/dial";
+        if (options.embedded) {
+          state.embeddedRoute = { page: "dial" };
+          if (typeof options.onRouteChange === "function") options.onRouteChange(state.embeddedRoute);
+          rerender();
+        } else {
+          location.hash = "#calls/dial";
+        }
       });
     });
 
@@ -1291,9 +1333,19 @@ function wireCallsEvents(route) {
   }
 }
 
-export function renderCalls(container) {
+export function renderCalls(container, options = {}) {
   state.container = container;
-  const route = parseHashRoute();
+  state.renderOptions = options;
+
+  const embedded = Boolean(options.embedded);
+  const route = embedded
+    ? normalizeRoute(options.route || state.embeddedRoute)
+    : parseHashRoute();
+
+  if (embedded) {
+    state.embeddedRoute = route;
+    if (typeof options.onRouteChange === "function") options.onRouteChange(route);
+  }
 
   if (!hasCloudApi()) {
     container.innerHTML = routeTabs(route) + renderCloudMissing();
@@ -1337,5 +1389,5 @@ export function renderCalls(container) {
   else pageHtml = renderCampaignList();
 
   container.innerHTML = routeTabs(route) + pageHtml;
-  wireCallsEvents(route);
+  wireCallsEvents(route, options);
 }

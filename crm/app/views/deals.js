@@ -10,6 +10,7 @@ import { openCommunicate } from "../communicate.js";
 import { listEmployees, getEmployee, currentEmployee, avatar, initialsOf } from "../employees.js";
 import { renderTypeahead, attachTypeahead } from "../typeahead.js";
 import { listChannels } from "../channels.js";
+import { renderCalls } from "./calls.js";
 import {
   waCloudEnabled,
   syncWaCollections,
@@ -32,6 +33,9 @@ const state = {
   stagesModalOpen: false,
   dealChatSyncing: false,
   dealChatSyncTimer: null,
+  crmSearch: "",
+  crmTab: "deals",
+  callsRoute: { page: "dial" },
 };
 
 function escape(s) {
@@ -59,6 +63,84 @@ function fmtTime(ts) {
 function fmtChatTime(ts) {
   if (!ts) return "";
   return new Date(ts).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+}
+
+function textNorm(v) {
+  return String(v ?? "").toLowerCase();
+}
+
+function digitsOnly(v) {
+  return String(v || "").replace(/[^\d]/g, "");
+}
+
+function buildActivityTextByDeal() {
+  const out = new Map();
+  Store.list(ACTIVITIES).forEach((a) => {
+    const line = [
+      a.type,
+      a.text,
+      a.title,
+      a.subject,
+      a.to,
+      a.notes,
+      a.fromStage,
+      a.toStage,
+      a.outcome,
+    ].filter(Boolean).join(" ");
+    if (!line || !a.dealId) return;
+    out.set(a.dealId, (out.get(a.dealId) || "") + " " + line);
+  });
+  return out;
+}
+
+function buildChatTextByPhone() {
+  const textByChat = new Map();
+  Store.list("chat_messages").forEach((m) => {
+    const media = m.media || {};
+    const line = [m.text, media.caption, media.fileName].filter(Boolean).join(" ");
+    if (!line || !m.chatId) return;
+    textByChat.set(m.chatId, ((textByChat.get(m.chatId) || "") + " " + line).trim());
+  });
+
+  const textByPhone = new Map();
+  Store.list("chats").forEach((chat) => {
+    const phoneDigits = digitsOnly(chat?.phone || chat?.waChatId || "");
+    if (!phoneDigits) return;
+    const chatText = textByChat.get(chat.id);
+    if (!chatText) return;
+    textByPhone.set(phoneDigits, ((textByPhone.get(phoneDigits) || "") + " " + chatText).trim());
+  });
+  return textByPhone;
+}
+
+function buildDealSearchText(deal, contact, stageTitle, activityText, chatText) {
+  const custom = Object.values(deal.customFields || {}).join(" ");
+  const tags = Array.isArray(contact?.tags) ? contact.tags.join(" ") : "";
+  const dueText = deal.dueDate ? new Date(deal.dueDate).toLocaleDateString("ru-RU") : "";
+
+  return textNorm([
+    deal.title,
+    deal.notes,
+    deal.amount,
+    dueText,
+    stageTitle,
+    custom,
+    contact?.name,
+    contact?.phone,
+    contact?.email,
+    contact?.company,
+    contact?.position,
+    contact?.notes,
+    tags,
+    activityText,
+    chatText,
+  ].filter(Boolean).join(" "));
+}
+
+function resolveCallsTabFromHash() {
+  const parts = (location.hash || "#crm").replace(/^#/, "").split("/").filter(Boolean);
+  if (parts[0] === "calls") return true;
+  return parts[0] === "crm" && parts[1] === "calls";
 }
 
 // Привести сделки к актуальному списку стадий: если стадия удалена — переносим в первую
@@ -110,44 +192,98 @@ export function renderDeals(container) {
   reconcileDeals(stages);
   seedDemo();
 
+  if (resolveCallsTabFromHash()) {
+    state.crmTab = "calls";
+  }
+
   const deals = Store.list(COLLECTION);
   const contacts = Store.list(CONTACTS);
   const contactMap = Object.fromEntries(contacts.map(c => [c.id, c]));
 
+  const activityTextByDeal = buildActivityTextByDeal();
+  const chatTextByPhone = buildChatTextByPhone();
+  const query = String(state.crmSearch || "").trim();
+  const queryNorm = textNorm(query);
+
+  const filteredDeals = queryNorm
+    ? deals.filter((d) => {
+        const contact = contactMap[d.contactId] || null;
+        const phoneDigits = digitsOnly(contact?.phone || "");
+        const stageTitle = findStage(d.stage)?.title || "";
+        const searchBlob = buildDealSearchText(
+          d,
+          contact,
+          stageTitle,
+          activityTextByDeal.get(d.id) || "",
+          phoneDigits ? (chatTextByPhone.get(phoneDigits) || "") : "",
+        );
+        return searchBlob.includes(queryNorm);
+      })
+    : deals;
+
   const byStage = Object.fromEntries(stages.map(s => [s.id, []]));
-  deals.forEach(d => { if (byStage[d.stage]) byStage[d.stage].push(d); });
+  filteredDeals.forEach(d => { if (byStage[d.stage]) byStage[d.stage].push(d); });
 
   container.innerHTML = `
     <div class="deals-view">
       <div class="deals-toolbar">
-        <div class="deals-totals">
-          ${stages.map(s => {
-            const list = byStage[s.id];
-            const sum = list.reduce((a, d) => a + (Number(d.amount) || 0), 0);
-            return `<div class="stage-total" style="--stage-color: ${s.color}">
-              <span class="dot"></span>
-              <span class="stage-name">${escape(s.title)}</span>
-              <span class="stage-count">${list.length}</span>
-              <span class="stage-sum">${fmtAmount(sum)}</span>
-            </div>`;
-          }).join("")}
+        <div class="crm-top-controls">
+          <div class="crm-view-switch">
+            <button class="crm-view-btn ${state.crmTab === "deals" ? "active" : ""}" data-crm-tab="deals">${ICONS.deals}<span>CRM</span></button>
+            <button class="crm-view-btn ${state.crmTab === "calls" ? "active" : ""}" data-crm-tab="calls">${ICONS.phone}<span>Звонки</span></button>
+          </div>
+          <label class="crm-global-search">
+            <span class="crm-search-icon">${ICONS.search}</span>
+            <input id="crmGlobalSearch" type="search" value="${escapeAttr(state.crmSearch)}" placeholder="Поиск по CRM: карточки, заметки, активности, переписка...">
+            ${state.crmSearch ? `<button type="button" class="crm-search-clear" id="clearCrmSearch" aria-label="Очистить поиск">${ICONS.x}</button>` : ""}
+          </label>
         </div>
+
         <div class="deals-toolbar-right">
-          <button class="btn-ghost" id="manageStages" title="Настроить стадии">${ICONS.settings}<span>Стадии</span></button>
-          <button class="btn-primary" id="newDeal">${ICONS.plus}<span>Сделка</span></button>
+          ${state.crmTab === "deals" ? `<button class="btn-ghost" id="manageStages" title="Настроить стадии">${ICONS.settings}<span>Стадии</span></button>` : ""}
+          ${state.crmTab === "deals" ? `<button class="btn-primary" id="newDeal">${ICONS.plus}<span>Сделка</span></button>` : ""}
         </div>
       </div>
 
-      <div class="kanban" id="kanbanWrap">
-        ${stages.map(stage => renderColumn(stage, byStage[stage.id], contactMap)).join("")}
-      </div>
+      ${state.crmTab === "deals" ? `
+        <div class="crm-search-meta">
+          ${queryNorm
+            ? `Найдено: <strong>${filteredDeals.length}</strong> сделок`
+            : `Сделок: <strong>${deals.length}</strong>`}
+        </div>
 
-      ${state.modalOpen ? renderDealModal(Store.get(COLLECTION, state.modalDealId), contacts, stages) : ""}
-      ${state.stagesModalOpen ? renderStagesModal(stages) : ""}
+        ${queryNorm && filteredDeals.length === 0
+          ? `<div class="crm-search-empty">По запросу «${escape(query)}» ничего не найдено. Проверь формулировку или убери часть текста.</div>`
+          : ""}
+
+        <div class="kanban" id="kanbanWrap">
+          ${stages.map(stage => renderColumn(stage, byStage[stage.id], contactMap)).join("")}
+        </div>
+      ` : `
+        <div class="crm-calls-wrap">
+          <div id="crmCallsMount"></div>
+        </div>
+      `}
+
+      ${state.crmTab === "deals" && state.modalOpen ? renderDealModal(Store.get(COLLECTION, state.modalDealId), contacts, stages) : ""}
+      ${state.crmTab === "deals" && state.stagesModalOpen ? renderStagesModal(stages) : ""}
     </div>
   `;
 
   wireEvents(container);
+
+  if (state.crmTab === "calls") {
+    const callsMount = container.querySelector("#crmCallsMount");
+    if (callsMount) {
+      renderCalls(callsMount, {
+        embedded: true,
+        route: state.callsRoute,
+        onRouteChange: (route) => { state.callsRoute = route; },
+      });
+    }
+    return;
+  }
+
   ensureDealChatLoop(container);
 }
 
@@ -511,6 +647,7 @@ function renderStagesModal(stages) {
 // Open/close helpers (с URL-hash)
 // =========================================================================
 function openDealModal(container, dealId = null) {
+  state.crmTab = "deals";
   state.modalOpen = true;
   state.modalDealId = dealId;
   if (dealId) location.hash = `#crm/${dealId}`;
@@ -525,8 +662,18 @@ function closeDealModal(container) {
 
 // Открытие сделки из URL — вызывается извне (из app.js router)
 export function tryOpenDealFromHash() {
-  const m = (location.hash || "").match(/^#crm\/(.+)$/);
-  if (m) {
+  const hash = location.hash || "";
+
+  if (/^#calls(?:\/|$)/.test(hash) || /^#crm\/calls(?:\/|$)/.test(hash)) {
+    state.crmTab = "calls";
+    state.modalOpen = false;
+    state.modalDealId = null;
+    return;
+  }
+
+  const m = hash.match(/^#crm\/(.+)$/);
+  if (m && m[1] !== "calls") {
+    state.crmTab = "deals";
     state.modalOpen = true;
     state.modalDealId = m[1];
   }
@@ -537,6 +684,42 @@ export function tryOpenDealFromHash() {
 // =========================================================================
 function wireEvents(container) {
   const contacts = Store.list(CONTACTS);
+
+  container.querySelectorAll("[data-crm-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const nextTab = btn.dataset.crmTab === "calls" ? "calls" : "deals";
+      if (nextTab === state.crmTab) return;
+
+      state.crmTab = nextTab;
+      if (nextTab === "calls") {
+        state.modalOpen = false;
+        state.modalDealId = null;
+        state.stagesModalOpen = false;
+        if (!/^#crm\/calls(?:\/|$)/.test(location.hash || "")) {
+          location.hash = "#crm/calls/dial";
+          return;
+        }
+      } else if (/^#calls(?:\/|$)/.test(location.hash || "") || /^#crm\/calls(?:\/|$)/.test(location.hash || "")) {
+        location.hash = "#crm";
+        return;
+      }
+
+      renderDeals(container);
+    });
+  });
+
+  container.querySelector("#crmGlobalSearch")?.addEventListener("input", (e) => {
+    state.crmSearch = e.target.value || "";
+    renderDeals(container);
+  });
+
+  container.querySelector("#clearCrmSearch")?.addEventListener("click", () => {
+    state.crmSearch = "";
+    renderDeals(container);
+  });
+
+  if (state.crmTab !== "deals") return;
+
   container.querySelector("#newDeal")?.addEventListener("click", () => openDealModal(container, null));
   container.querySelector("#manageStages")?.addEventListener("click", () => {
     state.stagesModalOpen = true;

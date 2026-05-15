@@ -1060,10 +1060,141 @@ body {
 
 .deals-toolbar {
   display: flex;
-  align-items: center;
-  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
   flex-wrap: wrap;
 }
+
+.crm-top-controls {
+  flex: 1;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.crm-view-switch {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.crm-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.crm-view-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.crm-view-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.crm-global-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.crm-search-icon {
+  position: absolute;
+  left: 11px;
+  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+}
+
+.crm-search-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+#crmGlobalSearch {
+  width: 100%;
+  padding: 10px 40px 10px 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+#crmGlobalSearch:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
+.crm-search-clear {
+  position: absolute;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.crm-search-clear:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.crm-search-clear svg {
+  width: 14px;
+  height: 14px;
+}
+
+.crm-search-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: -2px;
+}
+
+.crm-search-empty {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  color: var(--text-dim);
+  background: var(--surface);
+}
+
+.crm-calls-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+#crmCallsMount {
+  min-height: 100%;
+}
+
+#crmCallsMount .calls-page {
+  padding: 16px;
+}
+
 .deals-toolbar-right {
   display: flex;
   gap: 8px;
@@ -2991,6 +3122,11 @@ body {
   .calls-funnel { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
   .calls-filters { grid-template-columns: 1fr 1fr; }
   .finish-grid { grid-template-columns: 1fr; }
+  .deals-toolbar { align-items: stretch; }
+  .crm-top-controls { min-width: 100%; }
+  .deals-toolbar-right { width: 100%; justify-content: flex-start; }
+  .crm-view-switch { width: 100%; }
+  .crm-view-btn { flex: 1; justify-content: center; }
 }
 
 /* ---------- Дашборд ---------- */
