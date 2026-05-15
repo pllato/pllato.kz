@@ -55,6 +55,15 @@ function escape(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+function closeAllTypeaheads(exceptTa = null) {
+  document.querySelectorAll('.typeahead.open').forEach((otherTa) => {
+    if (otherTa === exceptTa) return;
+    const otherDropdown = otherTa.querySelector('.typeahead-dropdown');
+    if (otherDropdown) otherDropdown.hidden = true;
+    otherTa.classList.remove('open');
+  });
+}
+
 export function attachTypeahead(rootEl, opts = {}) {
   const onCreate = opts.onCreate;
   rootEl.querySelectorAll(".typeahead").forEach(ta => {
@@ -66,6 +75,7 @@ export function attachTypeahead(rootEl, opts = {}) {
 
     function close() { dropdown.hidden = true; ta.classList.remove("open"); }
     function open() {
+      closeAllTypeaheads(ta);
       dropdown.hidden = false;
       ta.classList.add("open");
       setTimeout(() => search.focus(), 10);
