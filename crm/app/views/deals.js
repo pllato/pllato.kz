@@ -28,6 +28,7 @@ const ACTIVITIES = "deal_activities";
 const state = {
   modalOpen: false,
   modalDealId: null,
+  newDealContactId: null,
   dragId: null,
   scrollTimer: null,
   stagesModalOpen: false,
@@ -490,7 +491,14 @@ function renderCard(d, contact) {
 function renderDealModal(d, contacts, stages) {
   const isNew = !d;
   if (isNew) {
-    d = { title: "", amount: "", stage: stages[0]?.id || "new", contactId: contacts[0]?.id || "", dueDate: null, notes: "" };
+    d = {
+      title: "",
+      amount: "",
+      stage: stages[0]?.id || "new",
+      contactId: state.newDealContactId || contacts[0]?.id || "",
+      dueDate: null,
+      notes: "",
+    };
   }
   const employees = listEmployees();
   const contact = contacts.find(c => c.id === d.contactId);
@@ -1007,10 +1015,11 @@ function renderStagesModal(stages) {
 // =========================================================================
 // Open/close helpers (с URL-hash)
 // =========================================================================
-function openDealModal(container, dealId = null) {
+function openDealModal(container, dealId = null, prefillContactId = null) {
   state.crmTab = "deals";
   state.modalOpen = true;
   state.modalDealId = dealId;
+  state.newDealContactId = dealId ? null : prefillContactId;
   state.contactMode = "view";
   state.contactCreateDraft = null;
   state.activityFilter = "all";
@@ -1021,6 +1030,7 @@ function openDealModal(container, dealId = null) {
 function closeDealModal(container) {
   state.modalOpen = false;
   state.modalDealId = null;
+  state.newDealContactId = null;
   state.contactMode = "view";
   state.contactCreateDraft = null;
   state.activityFilter = "all";
@@ -1043,9 +1053,19 @@ export function tryOpenDealFromHash() {
 
   const m = hash.match(/^#crm\/(.+)$/);
   if (m && m[1] !== "calls") {
+    if (m[1].startsWith("new")) {
+      const [, query = ""] = m[1].split("?");
+      const params = new URLSearchParams(query || "");
+      state.crmTab = "deals";
+      state.modalOpen = true;
+      state.modalDealId = null;
+      state.newDealContactId = params.get("contactId") || null;
+      return;
+    }
     state.crmTab = "deals";
     state.modalOpen = true;
     state.modalDealId = m[1];
+    state.newDealContactId = null;
   }
 }
 
@@ -1091,7 +1111,7 @@ function wireEvents(container) {
 
   if (state.crmTab !== "deals") return;
 
-  container.querySelector("#newDeal")?.addEventListener("click", () => openDealModal(container, null));
+  container.querySelector("#newDeal")?.addEventListener("click", () => openDealModal(container, null, null));
   container.querySelector("#manageStages")?.addEventListener("click", () => {
     state.stagesModalOpen = true;
     renderDeals(container);
@@ -1269,6 +1289,7 @@ function wireEvents(container) {
       const created = Store.create(COLLECTION, { ...data, stage: getStages()[0]?.id || "new" });
       addActivity(created.id, "deal_created", { text: "Сделка создана" });
       state.modalDealId = created.id;
+      state.newDealContactId = null;
       state.activityFilter = "all";
       renderDeals(container);
     });
