@@ -150,7 +150,7 @@ a { color: inherit; text-decoration: none; }
 
 .office-shell {
   position: relative;
-  min-height: 690px;
+  min-height: 790px;
   overflow: hidden;
 }
 
@@ -173,66 +173,20 @@ a { color: inherit; text-decoration: none; }
   position: absolute;
   left: 7%;
   right: 7%;
-  top: 96px;
+  top: 178px;
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(212, 169, 120, 0.42), transparent);
-}
-
-.owner-deck {
-  position: absolute;
-  z-index: 5;
-  top: 18px;
-  left: 50%;
-  width: min(560px, 72%);
-  height: 98px;
-  transform: translateX(-50%);
-  border: 1px solid rgba(184, 137, 90, 0.2);
-  border-radius: 0 0 28px 28px;
-  background: linear-gradient(180deg, rgba(184, 137, 90, 0.2), rgba(10, 22, 40, 0.86));
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.34), inset 0 -9px 20px rgba(0, 0, 0, 0.32);
-}
-
-.owner {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: grid;
-  place-items: center;
-  gap: 6px;
-  color: var(--bronze-light);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.owner-avatar,
-.avatar,
-.cto-avatar {
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  font-weight: 900;
-}
-
-.owner-avatar {
-  width: 46px;
-  height: 46px;
-  background: linear-gradient(145deg, #d4a978, #8b6740);
-  color: #07111f;
-  box-shadow: 8px 8px 18px rgba(0, 0, 0, 0.42), -5px -5px 14px rgba(255, 255, 255, 0.08);
 }
 
 .owner-sight {
   position: absolute;
   z-index: 2;
-  top: 84px;
+  top: 132px;
   left: 50%;
   width: 52%;
   height: 470px;
   transform: translateX(-50%);
-  clip-path: polygon(48% 0, 52% 0, 100% 100%, 0 100%);
+  clip-path: polygon(47% 0, 53% 0, 100% 100%, 0 100%);
   background: linear-gradient(180deg, rgba(184, 137, 90, 0.11), transparent 82%);
   pointer-events: none;
 }
@@ -241,25 +195,28 @@ a { color: inherit; text-decoration: none; }
   position: absolute;
   z-index: 4;
   left: 50%;
-  top: 50%;
-  width: 235px;
-  height: 170px;
-  transform: translate(-50%, -44%);
+  top: 20px;
+  width: min(560px, 78%);
+  height: 172px;
+  transform: translateX(-50%);
 }
 
 .cto-table {
   position: absolute;
-  inset: 48px 0 0;
-  border-radius: 24px;
-  background: linear-gradient(145deg, #10233d, #07111f);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 16px 16px 36px rgba(0, 0, 0, 0.48), -9px -9px 22px rgba(255, 255, 255, 0.045);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 86px;
+  border-radius: 0 0 28px 28px;
+  background: linear-gradient(145deg, rgba(184, 137, 90, 0.3), rgba(9, 20, 36, 0.96));
+  border: 1px solid rgba(184, 137, 90, 0.22);
+  box-shadow: 16px 18px 38px rgba(0, 0, 0, 0.5), -9px -9px 24px rgba(255, 255, 255, 0.045), inset 0 -12px 22px rgba(0, 0, 0, 0.34);
 }
 
 .cto-table::before {
   content: "";
   position: absolute;
-  inset: 18px 28px;
+  inset: 17px 34px;
   border-radius: 16px;
   background: linear-gradient(135deg, rgba(184, 137, 90, 0.34), rgba(184, 137, 90, 0.08));
   box-shadow: inset 5px 5px 12px rgba(0, 0, 0, 0.22);
@@ -269,7 +226,7 @@ a { color: inherit; text-decoration: none; }
   position: absolute;
   z-index: 2;
   right: 42px;
-  top: 72px;
+  bottom: 30px;
   width: 42px;
   height: 32px;
 }
@@ -297,16 +254,21 @@ a { color: inherit; text-decoration: none; }
   transform: translateX(-50%);
   display: grid;
   place-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 
 .cto-avatar {
-  width: 70px;
-  height: 70px;
-  background: linear-gradient(145deg, #1c3b63, #091525);
-  border: 2px solid rgba(212, 169, 120, 0.42);
-  color: var(--bronze-light);
-  box-shadow: 9px 9px 22px rgba(0, 0, 0, 0.5), -6px -6px 16px rgba(255, 255, 255, 0.055);
+  display: grid;
+  place-items: center;
+  width: 98px;
+  height: 98px;
+  --person-accent: #f0a500;
+  --person-fill: #fff1bf;
+  --person-stroke: rgba(255, 244, 205, 0.96);
+  color: var(--person-accent);
+  filter:
+    drop-shadow(0 0 18px rgba(240, 165, 0, 0.32))
+    drop-shadow(10px 14px 18px rgba(0, 0, 0, 0.5));
 }
 
 .cto-label {
@@ -319,22 +281,41 @@ a { color: inherit; text-decoration: none; }
   font-weight: 900;
 }
 
-.worker-station {
+#workers {
   position: absolute;
   z-index: 6;
-  left: var(--x);
-  top: var(--y);
-  width: 190px;
-  min-height: 160px;
-  transform: translate(-50%, -50%);
+  left: 5%;
+  right: 5%;
+  top: 205px;
+  bottom: 26px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-content: start;
+}
+
+.worker-station {
+  position: relative;
+  min-height: 146px;
+  border-radius: 24px;
+  background: linear-gradient(145deg, rgba(17, 36, 61, 0.64), rgba(7, 17, 31, 0.72));
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  box-shadow: 13px 14px 28px rgba(0, 0, 0, 0.32), -7px -7px 18px rgba(255, 255, 255, 0.035), inset 5px 5px 14px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  transition: transform 0.35s ease, border-color 0.35s ease, opacity 0.35s ease;
+}
+
+.worker-station.is-working {
+  border-color: rgba(96, 165, 250, 0.42);
+  box-shadow: 13px 14px 28px rgba(0, 0, 0, 0.36), -7px -7px 18px rgba(255, 255, 255, 0.045), 0 0 28px rgba(96, 165, 250, 0.1);
 }
 
 .desk {
   position: absolute;
   left: 50%;
-  bottom: 2px;
-  width: 142px;
-  height: 62px;
+  bottom: 12px;
+  width: min(150px, 70%);
+  height: 52px;
   transform: translateX(-50%);
   border-radius: 18px;
   background: linear-gradient(145deg, #122843, #071322);
@@ -368,64 +349,145 @@ a { color: inherit; text-decoration: none; }
 .worker-person {
   position: absolute;
   z-index: 3;
-  left: 62px;
-  top: 46px;
-  width: 66px;
+  left: 50%;
+  top: 55px;
+  width: 76px;
   display: grid;
   place-items: center;
-  gap: 5px;
-  transform-origin: center;
+  transform: translateX(-50%);
+  transform-origin: 50% 100%;
 }
 
 .worker-station.is-working .worker-person,
 .worker-station.is-running .worker-person,
 .worker-station.is-active .worker-person {
-  animation: fetchTask 7.2s cubic-bezier(0.42, 0, 0.2, 1) infinite;
+  animation: personWork 1.7s ease-in-out infinite;
 }
 
-@keyframes fetchTask {
-  0%, 14% { transform: translate(0, 0) scale(1); }
-  34%, 48% { transform: translate(calc(var(--walk-x) * 0.62), calc(var(--walk-y) * 0.62)) scale(0.96); }
-  59% { transform: translate(calc(var(--walk-x) * 0.62), calc(var(--walk-y) * 0.62)) scale(0.96) rotate(-2deg); }
-  82%, 100% { transform: translate(0, 0) scale(1); }
+@keyframes personWork {
+  0%, 100% { transform: translateX(-50%) rotate(-2deg) translateY(0); filter: brightness(1); }
+  50% { transform: translateX(-50%) rotate(2deg) translateY(-4px); filter: brightness(1.22); }
 }
 
 .avatar {
-  width: 46px;
-  height: 46px;
-  background: linear-gradient(145deg, #173557, #081524);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #dbeafe;
-  font-size: 13px;
-  box-shadow: 8px 8px 17px rgba(0, 0, 0, 0.42), -5px -5px 12px rgba(255, 255, 255, 0.05);
+  display: grid;
+  place-items: center;
+  width: 70px;
+  height: 70px;
+  --person-accent: #4fc3f7;
+  --person-fill: #dff6ff;
+  --person-stroke: rgba(226, 250, 255, 0.96);
+  color: var(--person-accent);
+  filter:
+    drop-shadow(0 0 14px rgba(79, 195, 247, 0.34))
+    drop-shadow(8px 10px 12px rgba(0, 0, 0, 0.44));
+  transition: color 0.35s ease, opacity 0.35s ease, filter 0.35s ease;
+}
+
+.person-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.person-head,
+.person-body {
+  fill: var(--person-fill);
+  stroke: var(--person-stroke);
+  stroke-width: 3.5;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.2));
+}
+
+.person-body {
+  rx: 8;
+}
+
+.person-limb,
+.person-neck {
+  fill: none;
+  stroke: var(--person-accent);
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.24));
+}
+
+.person-face {
+  fill: none;
+  stroke: var(--person-accent);
+  stroke-width: 2.7;
+  stroke-linecap: round;
+}
+
+.person-detail {
+  fill: var(--person-accent);
+  opacity: 0.9;
+}
+
+.worker-station.is-waiting .avatar {
+  --person-accent: #6c757d;
+  --person-fill: #e2e6ea;
+  --person-stroke: rgba(248, 249, 250, 0.88);
+  color: var(--person-accent);
+  opacity: 0.94;
+  filter:
+    drop-shadow(0 0 10px rgba(226, 230, 234, 0.2))
+    drop-shadow(8px 10px 12px rgba(0, 0, 0, 0.34));
 }
 
 .worker-station.is-complete .avatar,
 .worker-station.is-done .avatar {
-  color: #082116;
-  background: linear-gradient(145deg, #6ee7b7, #36d399);
+  --person-accent: #4fc3f7;
+  --person-fill: #dff6ff;
+  --person-stroke: rgba(226, 250, 255, 0.96);
+  color: var(--person-accent);
 }
 
 .worker-station.is-error .avatar,
 .worker-station.is-failed .avatar {
-  color: #2a0910;
-  background: linear-gradient(145deg, #fda4af, #fb7185);
+  --person-accent: #4fc3f7;
+  --person-fill: #dff6ff;
+  --person-stroke: rgba(226, 250, 255, 0.96);
+  color: var(--person-accent);
 }
 
-.body {
-  width: 35px;
-  height: 28px;
-  border-radius: 14px 14px 9px 9px;
-  background: linear-gradient(145deg, var(--bronze-light), var(--bronze));
-  box-shadow: 5px 7px 13px rgba(0, 0, 0, 0.32);
+.task-icon {
+  position: absolute;
+  z-index: 6;
+  right: calc(50% - 78px);
+  top: 48px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(96, 165, 250, 0.36), rgba(54, 211, 153, 0.2));
+  border: 1px solid rgba(96, 165, 250, 0.36);
+  color: #dbeafe;
+  box-shadow: 7px 8px 16px rgba(0, 0, 0, 0.34), -4px -4px 10px rgba(255, 255, 255, 0.05), 0 0 18px rgba(96, 165, 250, 0.18);
+  opacity: 0;
+  transform: translateY(4px) scale(0.92);
+}
+
+.worker-station.is-working .task-icon {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  animation: taskBlink 1.7s ease-in-out infinite;
+}
+
+@keyframes taskBlink {
+  0%, 100% { filter: brightness(0.9); }
+  50% { filter: brightness(1.35); }
 }
 
 .task-card {
   position: absolute;
   z-index: 5;
   left: 50%;
-  top: -2px;
-  width: min(190px, 44vw);
+  right: auto;
+  bottom: 78px;
+  width: min(210px, calc(100% - 24px));
   transform: translateX(-50%);
   padding: 10px;
   border-radius: 14px;
@@ -483,7 +545,7 @@ a { color: inherit; text-decoration: none; }
 .flying-paper {
   z-index: 2;
   left: 50%;
-  top: 52%;
+  top: 58%;
   opacity: 0;
   transform: translate(-50%, -50%);
 }
@@ -495,10 +557,9 @@ a { color: inherit; text-decoration: none; }
 }
 
 @keyframes paperMove {
-  0%, 28% { opacity: 0; transform: translate(calc(var(--walk-x) * 0.62), calc(var(--walk-y) * 0.62)) rotate(-8deg); }
-  42%, 58% { opacity: 1; transform: translate(calc(var(--walk-x) * 0.34), calc(var(--walk-y) * 0.34)) rotate(7deg); }
-  80% { opacity: 1; transform: translate(-8px, 16px) rotate(-5deg); }
-  100% { opacity: 0; transform: translate(0, 0) rotate(0); }
+  0%, 18% { opacity: 0; transform: translate(-18px, 10px) rotate(-8deg); }
+  42%, 66% { opacity: 1; transform: translate(12px, -4px) rotate(7deg); }
+  100% { opacity: 0; transform: translate(34px, 20px) rotate(0); }
 }
 
 .side-panel {
@@ -518,6 +579,36 @@ a { color: inherit; text-decoration: none; }
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
+
+.legend {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(7, 17, 31, 0.55);
+  box-shadow: inset 5px 5px 14px rgba(0, 0, 0, 0.24), inset -5px -5px 12px rgba(255, 255, 255, 0.025);
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.legend-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  box-shadow: 0 0 14px currentColor;
+}
+
+.legend-dot.running { color: var(--blue); background: var(--blue); }
+.legend-dot.done { color: var(--green); background: var(--green); }
+.legend-dot.failed { color: var(--red); background: var(--red); }
 
 .stat {
   padding: 14px;
@@ -592,7 +683,7 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 1100px) {
   .dashboard { grid-template-columns: 1fr; }
-  .office-shell { min-height: 720px; }
+  .office-shell { min-height: 790px; }
   .side-panel { min-height: 0; }
 }
 
@@ -601,12 +692,18 @@ a { color: inherit; text-decoration: none; }
   .topbar { align-items: flex-start; }
   .brand h1 { font-size: 22px; }
   .actions { width: 100%; justify-content: flex-start; }
-  .office-shell { min-height: 840px; border-radius: 18px; }
+  .office-shell { min-height: 1040px; border-radius: 18px; }
   .office { inset: 10px; }
-  .owner-deck { width: 88%; }
-  .cto-zone { top: 45%; transform: translate(-50%, -50%) scale(0.9); }
-  .worker-station { width: 166px; }
-  .task-card { width: 160px; }
+  .cto-zone { width: 92%; transform: translateX(-50%) scale(0.92); transform-origin: top center; }
+  #workers { left: 4%; right: 4%; top: 190px; bottom: 20px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
+  .worker-station { min-height: 138px; border-radius: 18px; }
+  .desk { width: 76%; height: 46px; bottom: 10px; }
+  .desk::before { left: 14px; width: 36px; height: 24px; }
+  .desk::after { right: 14px; width: 25px; height: 18px; }
+  .worker-person { top: 54px; width: 64px; }
+  .avatar { width: 60px; height: 60px; }
+  .task-icon { right: calc(50% - 60px); top: 48px; width: 30px; height: 30px; }
+  .task-card { bottom: 74px; width: calc(100% - 16px); padding: 8px; }
   .stats { grid-template-columns: 1fr 1fr; }
 }
 
@@ -641,19 +738,23 @@ a { color: inherit; text-decoration: none; }
       <div class="office-shell" aria-label="Офис AI-воркеров">
         <div class="office" id="office">
           <div class="owner-sight"></div>
-          <div class="owner-deck">
-            <div class="owner">
-              <div class="owner-avatar">P</div>
-              <div>Владелец</div>
-            </div>
-          </div>
 
           <div class="cto-zone" id="ctoZone">
             <div class="cto-table"></div>
             <div class="paper-stack" aria-hidden="true"><span></span><span></span><span></span></div>
             <div class="cto-person">
-              <div class="cto-avatar">CTO</div>
-              <div class="cto-label">Центр выдачи</div>
+              <div class="cto-avatar" aria-hidden="true">
+                <svg class="person-svg" viewBox="0 0 96 96" role="img">
+                  <circle class="person-head" cx="48" cy="22" r="15"/>
+                  <path class="person-neck" d="M48 38v6"/>
+                  <rect class="person-body" x="29" y="43" width="38" height="28" rx="8"/>
+                  <path class="person-limb" d="M31 50 16 65M65 50l15 15M39 72l-8 15M57 72l8 15"/>
+                  <circle class="person-detail" cx="43" cy="21" r="2.1"/>
+                  <circle class="person-detail" cx="53" cy="21" r="2.1"/>
+                  <path class="person-face" d="M43 29c3.1 2 6.9 2 10 0"/>
+                </svg>
+              </div>
+              <div class="cto-label">CTO · главный стол</div>
             </div>
           </div>
 
@@ -669,6 +770,11 @@ a { color: inherit; text-decoration: none; }
           <div class="stat"><strong id="doneCount">0</strong><span>Готово</span></div>
           <div class="stat"><strong id="errorCount">0</strong><span>Ошибки</span></div>
         </div>
+        <div class="legend" aria-label="Легенда статусов">
+          <div class="legend-row"><span class="legend-dot running"></span><span>running — в работе</span></div>
+          <div class="legend-row"><span class="legend-dot done"></span><span>done — готово</span></div>
+          <div class="legend-row"><span class="legend-dot failed"></span><span>failed — ошибка</span></div>
+        </div>
         <div class="session-list" id="sessionList">
           <div class="empty">Загружаю данные из /api/codex/sessions</div>
         </div>
@@ -679,7 +785,7 @@ a { color: inherit; text-decoration: none; }
 <script>
 const API_URL = "/api/codex/sessions";
 const REFRESH_MS = 3000;
-const MAX_WORKERS = 10;
+const MAX_WORKERS = 9;
 
 const workersEl = document.getElementById("workers");
 const sessionListEl = document.getElementById("sessionList");
@@ -690,17 +796,6 @@ const counters = {
   done: document.getElementById("doneCount"),
   error: document.getElementById("errorCount")
 };
-
-const desktopSlots = [
-  { x: 18, y: 34 }, { x: 82, y: 34 }, { x: 17, y: 63 }, { x: 83, y: 63 },
-  { x: 31, y: 81 }, { x: 69, y: 81 }, { x: 32, y: 23 }, { x: 68, y: 23 },
-  { x: 50, y: 82 }, { x: 50, y: 21 }
-];
-
-const mobileSlots = [
-  { x: 24, y: 26 }, { x: 76, y: 26 }, { x: 22, y: 54 }, { x: 78, y: 54 },
-  { x: 26, y: 76 }, { x: 74, y: 76 }, { x: 50, y: 84 }, { x: 50, y: 18 }
-];
 
 function normalizeResponse(payload) {
   const raw = Array.isArray(payload)
@@ -777,32 +872,47 @@ function shortId(id) {
   return id.length > 22 ? `${id.slice(0, 10)}...${id.slice(-7)}` : id;
 }
 
-function getSlots() {
-  return window.matchMedia("(max-width: 760px)").matches ? mobileSlots : desktopSlots;
+function personSvg() {
+  return `
+    <svg class="person-svg" viewBox="0 0 72 72" aria-hidden="true">
+      <circle class="person-head" cx="36" cy="15" r="10.5"/>
+      <path class="person-neck" d="M36 26v5"/>
+      <rect class="person-body" x="22" y="31" width="28" height="22" rx="7"/>
+      <path class="person-limb" d="M23 36 11 49M49 36l12 13M29 54l-6 11M43 54l6 11"/>
+      <circle class="person-detail" cx="32.5" cy="14.5" r="1.55"/>
+      <circle class="person-detail" cx="39.5" cy="14.5" r="1.55"/>
+      <path class="person-face" d="M32.5 20c2.2 1.4 4.8 1.4 7 0"/>
+    </svg>
+  `;
+}
+
+function taskSvg() {
+  return `
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 6h10M9 12h10M9 18h7" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
+      <path d="m4.5 6 1.2 1.2L8 4.8M4.5 12l1.2 1.2L8 10.8M4.5 18l1.2 1.2L8 16.8" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `;
 }
 
 function renderOffice(sessions) {
-  const slots = getSlots();
-  const visible = sessions.slice(0, Math.min(MAX_WORKERS, slots.length));
-  const placeholders = Math.max(0, Math.min(4, slots.length - visible.length));
+  const visible = sessions.slice(0, MAX_WORKERS);
+  const placeholders = Math.max(0, MAX_WORKERS - visible.length);
   const display = [
     ...visible,
     ...Array.from({ length: placeholders }, (_, index) => ({
       id: `standby-${index + 1}`,
       status: "waiting",
-      stage: "свободное место",
+      stage: "idle",
       progress: 0,
       placeholder: true
     }))
   ];
 
   workersEl.innerHTML = display.map((session, index) => {
-    const slot = slots[index];
-    const walkX = 50 - slot.x;
-    const walkY = 49 - slot.y;
-    const muted = session.placeholder ? " opacity: .46;" : "";
+    const muted = session.placeholder ? " opacity: .9;" : "";
     return `
-      <article class="worker-station ${stationClass(session.status)}" style="--x:${slot.x}%; --y:${slot.y}%; --walk-x:${walkX * 5.2}px; --walk-y:${walkY * 5.2}px;${muted}">
+      <article class="worker-station ${stationClass(session.status)}" style="${muted}">
         <div class="task-card">
           <div class="session-id" title="${escapeHtml(session.id)}">${escapeHtml(shortId(session.id))}</div>
           <div class="meta">
@@ -812,9 +922,9 @@ function renderOffice(sessions) {
           <div class="bar"><span style="--progress:${session.progress}%"></span></div>
         </div>
         <div class="worker-person">
-          <div class="avatar">${escapeHtml(initials(session.id))}</div>
-          <div class="body"></div>
+          <div class="avatar" title="${escapeHtml(initials(session.id))}">${personSvg()}</div>
         </div>
+        <div class="task-icon">${taskSvg()}</div>
         <div class="desk"></div>
         <div class="flying-paper"></div>
       </article>
