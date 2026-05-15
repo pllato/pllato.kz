@@ -25,7 +25,7 @@ function saveTasksState() {
 }
 const _ts = loadTasksState();
 const state = {
-  filter: _ts.filter || "open",
+  filter: (_ts.filter === "open" ? "active" : _ts.filter) || "active",
   modalOpen: Boolean(_ts.modalTaskId),
   modalTaskId: _ts.modalTaskId || null,
   parentForCreate: null,
@@ -170,36 +170,46 @@ function groupTasks(tasks) {
 
 export function renderTasks(container) {
   seedDemo();
-  let tasks = rootTasks();
-  if (state.filter === "open") tasks = tasks.filter(t => t.status !== "done");
-  if (state.filter === "done") tasks = tasks.filter(t => t.status === "done");
+  const allRootTasks = rootTasks();
+  const activeCount = allRootTasks.filter((t) => t.status !== "done").length;
+  const doneCount = allRootTasks.filter((t) => t.status === "done").length;
+  const allCount = allRootTasks.length;
+
+  let tasks = allRootTasks;
+  if (state.filter === "active") tasks = tasks.filter((t) => t.status !== "done");
+  if (state.filter === "done") tasks = tasks.filter((t) => t.status === "done");
 
   const groups = groupTasks(tasks);
   const order = state.filter === "done" ? ["done"]
-    : state.filter === "open" ? ["overdue", "today", "tomorrow", "week", "later", "nodate"]
+    : state.filter === "active" ? ["overdue", "today", "tomorrow", "week", "later", "nodate"]
     : ["overdue", "today", "tomorrow", "week", "later", "nodate", "done"];
 
   container.innerHTML = `
     <div class="tasks-view">
       <div class="tasks-toolbar">
-        <div class="filter-tabs">
-          ${[{ id: "open", label: "Активные" }, { id: "all", label: "Все" }, { id: "done", label: "Завершённые" }].map(f =>
-            `<button class="filter-tab ${state.filter === f.id ? "active" : ""}" data-filter="${f.id}">${f.label}</button>`
+        <div class="tasks-filter">
+          ${[
+            { id: "active", label: "Активные", count: activeCount },
+            { id: "all", label: "Все", count: allCount },
+            { id: "done", label: "Завершённые", count: doneCount },
+          ].map(f =>
+            `<button class="tasks-filter-tab ${state.filter === f.id ? "on" : ""}" data-filter="${f.id}">${f.label} <span class="filter-count">${f.count}</span></button>`
           ).join("")}
         </div>
-        <button class="btn-primary" id="newTask">${ICONS.plus}<span>Задача</span></button>
+        <button class="btn-primary" id="newTask">${ICONS.plus}<span>+ Задача</span></button>
       </div>
 
-      <div class="tasks-groups">
+      <div class="tasks-card">
         ${order.map(g => {
           const grp = groups[g];
           if (grp.items.length === 0) return "";
+          const headClass = g === "overdue" ? "overdue" : g === "today" ? "today" : "";
           return `
             <section class="task-group">
-              <header class="task-group-head">
+              <header class="task-group-head ${headClass}">
                 <span class="dot" style="background:${grp.color}"></span>
-                <span class="task-group-title">${grp.title}</span>
-                <span class="task-group-count">${grp.items.length}</span>
+                <span class="group-title">${grp.title}</span>
+                <span class="group-count">${grp.items.length}</span>
               </header>
               <div class="task-list">
                 ${grp.items.map(t => renderTaskRow(t)).join("")}
@@ -217,31 +227,39 @@ export function renderTasks(container) {
 }
 
 function renderTaskRow(t) {
-  const prio = PRIORITIES.find(p => p.id === (t.priority || "med"));
+  const prio = t.priority || "low";
   const assignee = getEmployee(t.assigneeId);
   const subs = subtasksOf(t.id);
   const subsDone = subs.filter(s => s.status === "done").length;
   const comms = commentsOf(t.id);
+  const linkType = t.linkedTo?.type;
+  const linked = linkType === "deal"
+    ? Store.get(DEALS, t.linkedTo.id)?.title
+    : linkType === "contact"
+      ? Store.get(CONTACTS, t.linkedTo.id)?.name
+      : "";
+
+  const today = startOfDay(Date.now());
+  const isOverdue = t.dueDate && startOfDay(t.dueDate) < today && t.status !== "done";
 
   return `
     <article class="task-row ${t.status === "done" ? "done" : ""}" data-id="${t.id}">
       <button class="task-check" data-toggle="${t.id}" aria-label="Отметить">
         ${t.status === "done" ? ICONS.check : ""}
       </button>
+      <span class="prio-dot prio-${prio}"></span>
       <div class="task-body" data-open="${t.id}">
-        <div class="task-title">
-          <span class="prio-dot" style="background:${prio.color}" title="${prio.label}"></span>
-          <span>${escape(t.title || "(без названия)")}</span>
-        </div>
+        <div class="task-title">${escape(t.title || "(без названия)")}</div>
         ${t.description ? `<div class="task-desc">${escape(t.description)}</div>` : ""}
         <div class="task-meta">
-          ${t.dueDate ? `<span class="task-due">${ICONS.calendar} ${fmtDate(t.dueDate)}</span>` : ""}
-          ${assignee ? `<span class="task-link">${avatar(assignee, "xs")} ${escape(assignee.name)}</span>` : ""}
-          ${subs.length > 0 ? `<span class="task-link">📂 ${subsDone}/${subs.length}</span>` : ""}
-          ${comms.length > 0 ? `<span class="task-link">💬 ${comms.length}</span>` : ""}
-          ${t.files?.length > 0 ? `<span class="task-link">📎 ${t.files.length}</span>` : ""}
+          ${t.dueDate ? `<span class="meta-item ${isOverdue ? "overdue" : ""}">${ICONS.calendar} ${fmtDate(t.dueDate)}</span>` : ""}
+          ${linked ? `<span class="meta-item">${ICONS.link} ${escape(linked)}</span>` : ""}
+          ${subs.length > 0 ? `<span class="meta-item">${ICONS.tasks} ${subsDone}/${subs.length}</span>` : ""}
+          ${comms.length > 0 ? `<span class="meta-item">${ICONS.chat} ${comms.length}</span>` : ""}
+          ${t.files?.length > 0 ? `<span class="meta-item">${ICONS.paperclip} ${t.files.length}</span>` : ""}
         </div>
       </div>
+      ${assignee ? `<div class="task-assignee" title="${escape(assignee.name)}">${avatar(assignee, "xs")}</div>` : ""}
     </article>
   `;
 }
@@ -478,7 +496,7 @@ let pendingCommentFiles = [];
 
 function wireEvents(container) {
   // фильтры
-  container.querySelectorAll(".filter-tab").forEach(btn => {
+  container.querySelectorAll(".tasks-filter-tab").forEach(btn => {
     btn.addEventListener("click", () => {
       state.filter = btn.dataset.filter;
       saveTasksState();
