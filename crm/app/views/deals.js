@@ -36,6 +36,10 @@ const state = {
   crmSearch: "",
   crmTab: "deals",
   callsRoute: { page: "dial" },
+  // Плавающее WhatsApp-окно (открывается из карточки сделки).
+  waFloat: { open: false, contactId: null, dealId: null },
+  // Режим блока контакта в карточке сделки: view (просмотр) / edit (правка полей) / change (выбор другого).
+  contactMode: "view",
 };
 
 function escape(s) {
@@ -267,6 +271,10 @@ export function renderDeals(container) {
 
       ${state.crmTab === "deals" && state.modalOpen ? renderDealModal(Store.get(COLLECTION, state.modalDealId), contacts, stages) : ""}
       ${state.crmTab === "deals" && state.stagesModalOpen ? renderStagesModal(stages) : ""}
+      ${state.crmTab === "deals" && state.waFloat.open ? renderWaFloat(
+        Store.get(COLLECTION, state.waFloat.dealId),
+        contactMap[state.waFloat.contactId] || null
+      ) : ""}
     </div>
   `;
 
@@ -341,9 +349,6 @@ function renderDealModal(d, contacts, stages) {
         <header class="modal-header">
           <h2>${isNew ? "Новая сделка" : escape(d.title || "Без названия")}</h2>
           <div class="modal-actions">
-            ${!isNew && contact?.phone ? `<button type="button" class="btn-ghost icon-only" id="dealCall" title="Позвонить ${escape(contact.name || "")}">📞</button>` : ""}
-            ${!isNew && contact?.phone ? `<button type="button" class="btn-ghost icon-only" id="dealWA" title="WhatsApp">💬</button>` : ""}
-            ${!isNew && contact?.email ? `<button type="button" class="btn-ghost icon-only" id="dealEmail" title="Письмо">✉</button>` : ""}
             ${!isNew ? `<button type="button" class="btn-ghost icon-only" id="copyLink" title="Скопировать ссылку">${ICONS.link}</button>` : ""}
             <button type="button" class="btn-ghost icon-only" id="closeModal" aria-label="Закрыть">${ICONS.x}</button>
           </div>
@@ -362,19 +367,7 @@ function renderDealModal(d, contacts, stages) {
                 <label>Сумма, ₸</label>
                 <input name="amount" type="number" min="0" step="1000" value="${d.amount || ""}" placeholder="0">
               </div>
-              <div class="field">
-                <label>Дедлайн</label>
-                <input name="dueDate" type="date" value="${fmtDateInput(d.dueDate)}">
-              </div>
-              ${renderTypeahead({
-                name: "contactId",
-                value: d.contactId,
-                items: contacts.map(c => ({ id: c.id, name: c.name || "(без имени)", sub: c.company || c.email || c.phone || "" })),
-                label: "Контакт",
-                placeholder: "Поиск по имени, компании, email…",
-                createLabel: "Создать контакт",
-                emptyText: "— не выбран —",
-              })}
+              ${renderDealContactBlock(contact, d)}
               ${renderTypeahead({
                 name: "assigneeId",
                 value: d.assigneeId,
@@ -384,10 +377,6 @@ function renderDealModal(d, contacts, stages) {
                 emptyText: "— не назначен —",
               })}
               ${renderCustomFields(d)}
-              <div class="field field-wide">
-                <label>Заметки</label>
-                <textarea name="notes" rows="4" placeholder="Контекст сделки, договорённости…">${escape(d.notes)}</textarea>
-              </div>
               <div class="field field-wide form-buttons">
                 ${!isNew ? `<button type="button" class="btn-ghost danger" id="deleteDeal">${ICONS.trash}<span>Удалить</span></button>` : "<span></span>"}
                 <button type="submit" class="btn">${isNew ? "Создать" : "Сохранить"}</button>
@@ -412,11 +401,10 @@ function renderDealModal(d, contacts, stages) {
                   ? `<div class="tl-empty">Активности по сделке появятся здесь. Добавь первую — заметку, письмо, дело или звонок.</div>`
                   : acts.map(a => renderActivity(a)).join("")}
               </div>
-
-              ${renderDealChatPane(contact)}
             </div>
           ` : ""}
         </div>
+        ${!isNew ? renderDealActionBar(d, contact) : ""}
       </div>
     </div>
   `;
@@ -518,12 +506,102 @@ function renderActivity(a) {
   `;
 }
 
-function renderDealChatPane(contact) {
+// Блок контакта в карточке сделки.
+// 3 режима через state.contactMode: view (карточка), edit (правка полей), change (выбор другого).
+// Внутри всегда есть hidden input name="contactId" — поэтому FormData сабмита формы продолжает работать.
+function renderDealContactBlock(contact, d) {
+  const contacts = Store.list(CONTACTS);
+  const mode = state.contactMode || "view";
+
+  // Режим выбора другого контакта (или первичный выбор для новой сделки).
+  if (mode === "change" || (!contact && mode !== "edit")) {
+    return `
+      <div class="deal-contact-block deal-contact-pick">
+        ${renderTypeahead({
+          name: "contactId",
+          value: d.contactId,
+          items: contacts.map(c => ({ id: c.id, name: c.name || "(без имени)", sub: c.company || c.email || c.phone || "" })),
+          label: "Контакт",
+          placeholder: "Поиск по имени, компании, email…",
+          createLabel: "Создать контакт",
+          emptyText: "— не выбран —",
+        })}
+        ${contact ? `<button type="button" class="btn-ghost btn-sm dcc-cancel" id="cancelContactChange">Отмена</button>` : ""}
+      </div>
+    `;
+  }
+
+  // Режим inline-редактирования полей контакта.
+  if (mode === "edit" && contact) {
+    return `
+      <div class="deal-contact-block deal-contact-editing">
+        <div class="dcc-label">Редактирование контакта</div>
+        <input type="hidden" name="contactId" value="${escapeAttr(contact.id)}">
+        <div class="dce-grid">
+          <input type="text" id="dceName" placeholder="Имя" value="${escapeAttr(contact.name || "")}">
+          <input type="text" id="dcePhone" placeholder="Телефон" value="${escapeAttr(contact.phone || "")}">
+          <input type="email" id="dceEmail" placeholder="Email" value="${escapeAttr(contact.email || "")}">
+          <input type="text" id="dceCompany" placeholder="Компания" value="${escapeAttr(contact.company || "")}">
+        </div>
+        <div class="dce-actions">
+          <button type="button" class="btn-ghost btn-sm" id="cancelContactEdit">Отмена</button>
+          <button type="button" class="btn-primary btn-sm" id="saveContactEdit">Сохранить контакт</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // Режим карточки (по умолчанию).
+  return `
+    <div class="deal-contact-block">
+      <div class="dcc-label">Контакт</div>
+      <input type="hidden" name="contactId" value="${escapeAttr(contact.id)}">
+      <div class="deal-contact-card">
+        <div class="avatar avatar-md">${escape(initialsOf(contact.name || contact.phone || "?"))}</div>
+        <div class="dcc-info">
+          <div class="dcc-name">${escape(contact.name || "(без имени)")}</div>
+          ${contact.phone ? `<div class="dcc-line">${ICONS.phone}<span>${escape(contact.phone)}</span></div>` : ""}
+          ${contact.email ? `<div class="dcc-line">${ICONS.mail}<span>${escape(contact.email)}</span></div>` : ""}
+          ${contact.company ? `<div class="dcc-line dcc-meta">${ICONS.building}<span>${escape(contact.company)}</span></div>` : ""}
+        </div>
+        <div class="dcc-actions">
+          <button type="button" class="btn-ghost icon-only" id="editContact" title="Изменить данные контакта">${ICONS.edit}</button>
+          <button type="button" class="btn-ghost icon-only" id="changeContact" title="Сменить контакт">${ICONS.users}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Нижняя панель действий: Позвонить · WhatsApp · Заметка.
+// Показывается только для существующих сделок (для новой ещё нечем позвонить — нет данных).
+function renderDealActionBar(d, contact) {
+  const hasPhone = Boolean(contact?.phone);
+  return `
+    <footer class="deal-action-bar">
+      <button type="button" class="deal-action-btn" id="actionBarCall" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Позвонить" : "У контакта нет телефона"}">
+        ${ICONS.phone}<span>Позвонить</span>
+      </button>
+      <button type="button" class="deal-action-btn deal-action-btn-primary" id="actionBarWA" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Открыть WhatsApp" : "У контакта нет телефона"}">
+        <span class="dab-emoji">💬</span><span>WhatsApp</span>
+      </button>
+      <button type="button" class="deal-action-btn" id="actionBarNote" title="Добавить заметку в ленту">
+        <span class="dab-emoji">📝</span><span>Заметка</span>
+      </button>
+    </footer>
+  `;
+}
+
+// Плавающее WhatsApp-окно (фиксировано снизу справа). Использует те же утилиты wa_dialog.js.
+function renderWaFloat(deal, contact) {
   if (!contact?.phone) {
     return `
-      <div class="deal-chat-pane">
-        <div class="deal-chat-head">Диалог</div>
-        <div class="tl-empty">У контакта нет телефона для WhatsApp.</div>
+      <div class="wa-float" id="waFloat">
+        <div class="wa-float-head">
+          <div class="wa-float-title">WhatsApp</div>
+          <button type="button" class="btn-ghost icon-only" id="closeWaFloat" aria-label="Закрыть">${ICONS.x}</button>
+        </div>
+        <div class="wa-float-empty">У контакта нет телефона.</div>
       </div>
     `;
   }
@@ -531,40 +609,37 @@ function renderDealChatPane(contact) {
   const { chat, channel } = resolveOrCreateDirectWaChat({ name: contact.name, phone: contact.phone });
   if (!chat) {
     return `
-      <div class="deal-chat-pane">
-        <div class="deal-chat-head">Диалог</div>
-        <div class="tl-empty">Не удалось открыть чат.</div>
+      <div class="wa-float" id="waFloat">
+        <div class="wa-float-head">
+          <div class="wa-float-title">${escape(contact.name || contact.phone)}</div>
+          <button type="button" class="btn-ghost icon-only" id="closeWaFloat" aria-label="Закрыть">${ICONS.x}</button>
+        </div>
+        <div class="wa-float-empty">Не удалось открыть чат.</div>
       </div>
     `;
   }
 
   const messages = messagesForChat(chat.id);
-  const phoneDigits = String(contact.phone || "").replace(/[^\d]/g, "");
-  const waHref = phoneDigits ? `https://wa.me/${phoneDigits}` : "";
-  const telHref = phoneDigits ? `tel:+${phoneDigits}` : "";
   return `
-    <div class="deal-chat-pane" data-chat-id="${escape(chat.id)}" data-channel-id="${escape(channel?.id || "")}">
-      <div class="deal-chat-head">
-        <div class="wa-dialog-user">
-          <div class="avatar avatar-md">${escape(initialsOf(contact.name || contact.phone || "?"))}</div>
-          <div>
-            <div class="deal-chat-title">${escape(contact.name || contact.phone)}</div>
-            <div class="deal-chat-sub">${escape(channel?.name ? `Канал: ${channel.name}` : "WhatsApp канал не настроен")}</div>
+    <div class="wa-float" id="waFloat" data-chat-id="${escapeAttr(chat.id)}" data-channel-id="${escapeAttr(channel?.id || "")}">
+      <div class="wa-float-head">
+        <div class="wa-float-user">
+          <div class="avatar avatar-sm">${escape(initialsOf(contact.name || contact.phone || "?"))}</div>
+          <div class="wa-float-meta">
+            <div class="wa-float-title">${escape(contact.name || contact.phone)}</div>
+            <div class="wa-float-sub">${escape(channel?.name ? `Канал: ${channel.name}` : "WhatsApp канал не настроен")}</div>
           </div>
         </div>
-        <div class="wa-dialog-actions">
-          ${telHref ? `<a class="wa-action-link" href="${escapeAttr(telHref)}">Позвонить</a>` : ""}
-          ${waHref ? `<a class="wa-action-link" href="${escapeAttr(waHref)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ""}
-        </div>
+        <button type="button" class="btn-ghost icon-only" id="closeWaFloat" aria-label="Закрыть">${ICONS.x}</button>
       </div>
-      <div class="chat-messages deal-chat-messages" id="dealChatMessages">
+      <div class="chat-messages wa-float-messages" id="waFloatMessages">
         ${renderDialogMessages(messages, { timeFormatter: fmtChatTime })}
       </div>
-      <form class="chat-compose" id="dealChatForm">
+      <form class="chat-compose" id="waFloatForm">
         <input name="text" type="text" placeholder="Сообщение клиенту...">
         <button type="submit" class="btn-primary" title="Отправить">${ICONS.send}</button>
       </form>
-      <form class="chat-compose chat-compose-media" id="dealChatMedia">
+      <form class="chat-compose chat-compose-media" id="waFloatMedia">
         <input name="fileUrl" type="url" placeholder="Ссылка на файл (опц.)">
         <input name="fileName" type="text" placeholder="Имя файла (опц.)">
         <label class="chat-voice-opt"><input name="asVoice" type="checkbox"> voice</label>
@@ -580,7 +655,9 @@ async function syncDealChatCloud(container) {
   try {
     await syncWaCollections();
     // Не перерисовываем открытую модалку сделки: это ломает UX (мигание и сброс фокуса/дропдаунов).
-    if (container?.isConnected && !(state.modalOpen && state.modalDealId)) renderDeals(container);
+    // Также не перерисовываем при открытом плавающем WA-окне.
+    const shouldSkip = (state.modalOpen && state.modalDealId) || state.waFloat.open;
+    if (container?.isConnected && !shouldSkip) renderDeals(container);
   } catch (e) {
     console.warn("deals chat sync failed:", e);
   } finally {
@@ -596,7 +673,8 @@ function ensureDealChatLoop(container) {
       state.dealChatSyncTimer = null;
       return;
     }
-    if (state.modalOpen && state.modalDealId) syncDealChatCloud(container);
+    // Тянем апдейты пока открыта карточка сделки ИЛИ плавающее окно.
+    if ((state.modalOpen && state.modalDealId) || state.waFloat.open) syncDealChatCloud(container);
   }, 12000);
 }
 
@@ -650,12 +728,16 @@ function openDealModal(container, dealId = null) {
   state.crmTab = "deals";
   state.modalOpen = true;
   state.modalDealId = dealId;
+  state.contactMode = "view";
+  state.waFloat = { open: false, contactId: null, dealId: null };
   if (dealId) location.hash = `#crm/${dealId}`;
   renderDeals(container);
 }
 function closeDealModal(container) {
   state.modalOpen = false;
   state.modalDealId = null;
+  state.contactMode = "view";
+  state.waFloat = { open: false, contactId: null, dealId: null };
   if (location.hash.startsWith("#crm/")) location.hash = "#crm";
   renderDeals(container);
 }
@@ -830,31 +912,7 @@ function wireEvents(container) {
         closeDealModal(container);
       }
     });
-    // Кнопки коммуникации в шапке карточки сделки
-    container.querySelector("#dealCall")?.addEventListener("click", () => {
-      const deal = Store.get(COLLECTION, state.modalDealId);
-      const c = contacts.find(x => x.id === deal?.contactId);
-      if (!c?.phone) return;
-      openCommunicate({ type: "call", to: c.phone, contactName: c.name,
-        context: { collection: ACTIVITIES, fk: { dealId: state.modalDealId } },
-        onDone: () => renderDeals(container) });
-    });
-    container.querySelector("#dealWA")?.addEventListener("click", () => {
-      const deal = Store.get(COLLECTION, state.modalDealId);
-      const c = contacts.find(x => x.id === deal?.contactId);
-      if (!c?.phone) return;
-      openCommunicate({ type: "whatsapp", to: c.phone, contactName: c.name,
-        context: { collection: ACTIVITIES, fk: { dealId: state.modalDealId } },
-        onDone: () => renderDeals(container) });
-    });
-    container.querySelector("#dealEmail")?.addEventListener("click", () => {
-      const deal = Store.get(COLLECTION, state.modalDealId);
-      const c = contacts.find(x => x.id === deal?.contactId);
-      if (!c?.email) return;
-      openCommunicate({ type: "email", to: c.email, contactName: c.name,
-        context: { collection: ACTIVITIES, fk: { dealId: state.modalDealId } },
-        onDone: () => renderDeals(container) });
-    });
+    // Кнопки коммуникации перенесены в нижнюю панель действий — см. #actionBar* ниже.
 
     container.querySelector("#copyLink")?.addEventListener("click", () => {
       const url = `${location.origin}${location.pathname}#crm/${state.modalDealId}`;
@@ -867,20 +925,19 @@ function wireEvents(container) {
     dealForm.addEventListener("submit", e => {
       e.preventDefault();
       const fd = new FormData(dealForm);
-      const dueRaw = fd.get("dueDate");
       // Собираем кастомные поля
       const customFields = {};
       getDealFields().forEach(f => {
         const v = fd.get("cf_" + f.id);
         if (v !== null) customFields[f.id] = String(v).trim();
       });
+      // dueDate и notes больше не редактируются через форму (заметки → лента активности).
+      // Legacy-значения существующих сделок остаются нетронутыми — не передаём их в update.
       const data = {
         title: (fd.get("title") || "").trim(),
         amount: Number(fd.get("amount")) || 0,
         contactId: fd.get("contactId") || null,
         assigneeId: fd.get("assigneeId") || null,
-        dueDate: dueRaw ? new Date(dueRaw).getTime() : null,
-        notes: (fd.get("notes") || "").trim(),
         customFields,
       };
       if (!data.title) return;
@@ -890,6 +947,8 @@ function wireEvents(container) {
         const created = Store.create(COLLECTION, { ...data, stage: getStages()[0]?.id || "new" });
         state.modalDealId = created.id;
       }
+      // Любые временные режимы блока контакта сбрасываем после сохранения.
+      state.contactMode = "view";
       renderDeals(container);
     });
 
@@ -943,18 +1002,73 @@ function wireEvents(container) {
     }
     bindTimelineSubmit();
 
-    const dealChatForm = container.querySelector("#dealChatForm");
-    dealChatForm?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      if (!state.modalDealId) return;
-
+    // ===== Экшн-бар внизу карточки =====
+    container.querySelector("#actionBarCall")?.addEventListener("click", () => {
       const deal = Store.get(COLLECTION, state.modalDealId);
       const c = contacts.find(x => x.id === deal?.contactId);
-      if (!c) return;
+      if (!c?.phone) return;
+      openCommunicate({ type: "call", to: c.phone, contactName: c.name,
+        context: { collection: ACTIVITIES, fk: { dealId: state.modalDealId } },
+        onDone: () => renderDeals(container) });
+    });
+    container.querySelector("#actionBarWA")?.addEventListener("click", () => {
+      const deal = Store.get(COLLECTION, state.modalDealId);
+      const c = contacts.find(x => x.id === deal?.contactId);
+      if (!c?.phone) return;
+      // Открываем плавающее окно поверх карточки сделки.
+      state.waFloat = { open: true, contactId: c.id, dealId: state.modalDealId };
+      renderDeals(container);
+    });
+    container.querySelector("#actionBarNote")?.addEventListener("click", () => {
+      // Активируем таб «Заметка» в таймлайне и фокусируем поле ввода.
+      const noteTab = container.querySelector('.tlb-btn[data-act="note"]');
+      noteTab?.click();
+      const ta = container.querySelector("#tlText");
+      ta?.focus();
+      ta?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
 
-      const pane = container.querySelector(".deal-chat-pane");
-      const chatId = pane?.dataset.chatId || "";
-      const channelId = pane?.dataset.channelId || "";
+    // ===== Карточка контакта: edit / change / cancel / save =====
+    container.querySelector("#editContact")?.addEventListener("click", () => {
+      state.contactMode = "edit";
+      renderDeals(container);
+    });
+    container.querySelector("#changeContact")?.addEventListener("click", () => {
+      state.contactMode = "change";
+      renderDeals(container);
+    });
+    container.querySelector("#cancelContactEdit")?.addEventListener("click", () => {
+      state.contactMode = "view";
+      renderDeals(container);
+    });
+    container.querySelector("#cancelContactChange")?.addEventListener("click", () => {
+      state.contactMode = "view";
+      renderDeals(container);
+    });
+    container.querySelector("#saveContactEdit")?.addEventListener("click", () => {
+      const deal = Store.get(COLLECTION, state.modalDealId);
+      if (!deal?.contactId) return;
+      const name = container.querySelector("#dceName")?.value.trim() || "";
+      const phone = container.querySelector("#dcePhone")?.value.trim() || "";
+      const email = container.querySelector("#dceEmail")?.value.trim() || "";
+      const company = container.querySelector("#dceCompany")?.value.trim() || "";
+      Store.update(CONTACTS, deal.contactId, { name, phone, email, company });
+      state.contactMode = "view";
+      renderDeals(container);
+    });
+
+    // ===== Плавающее WhatsApp-окно =====
+    container.querySelector("#closeWaFloat")?.addEventListener("click", () => {
+      state.waFloat = { open: false, contactId: null, dealId: null };
+      renderDeals(container);
+    });
+
+    const waFloatForm = container.querySelector("#waFloatForm");
+    waFloatForm?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const float = container.querySelector("#waFloat");
+      const chatId = float?.dataset.chatId || "";
+      const channelId = float?.dataset.channelId || "";
       const chat = chatId ? Store.get("chats", chatId) : null;
       const channel = listChannels({ type: "greenapi_wa" }).find(x => x.id === channelId) || null;
 
@@ -963,23 +1077,16 @@ function wireEvents(container) {
         return;
       }
 
-      const text = String(dealChatForm.querySelector("input[name='text']")?.value || "").trim();
-      const mediaForm = container.querySelector("#dealChatMedia");
+      const text = String(waFloatForm.querySelector("input[name='text']")?.value || "").trim();
+      const mediaForm = container.querySelector("#waFloatMedia");
       const fileUrl = String(mediaForm?.querySelector("input[name='fileUrl']")?.value || "").trim();
       const fileName = String(mediaForm?.querySelector("input[name='fileName']")?.value || "").trim();
       const asVoice = !!mediaForm?.querySelector("input[name='asVoice']")?.checked;
 
-      const btn = dealChatForm.querySelector("button[type='submit']");
+      const btn = waFloatForm.querySelector("button[type='submit']");
       btn?.setAttribute("disabled", "disabled");
       try {
-        await sendWaFromDialog({
-          chat,
-          channel,
-          text,
-          urlFile: fileUrl,
-          fileName,
-          asVoice,
-        });
+        await sendWaFromDialog({ chat, channel, text, urlFile: fileUrl, fileName, asVoice });
       } catch (err) {
         alert(err?.message || String(err));
         return;
@@ -987,11 +1094,14 @@ function wireEvents(container) {
         btn?.removeAttribute("disabled");
       }
 
-      addActivity(state.modalDealId, "whatsapp", {
-        text: text || (fileUrl ? `[Файл] ${fileName || fileUrl}` : ""),
-      });
+      // Зеркалим сообщение в ленту активности сделки.
+      if (state.waFloat.dealId) {
+        addActivity(state.waFloat.dealId, "whatsapp", {
+          text: text || (fileUrl ? `[Файл] ${fileName || fileUrl}` : ""),
+        });
+      }
 
-      dealChatForm.reset();
+      waFloatForm.reset();
       mediaForm?.reset();
       renderDeals(container);
       setTimeout(() => { syncDealChatCloud(container); }, 700);
