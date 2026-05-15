@@ -149,9 +149,6 @@ export function renderDeals(container) {
 
   wireEvents(container);
   ensureDealChatLoop(container);
-  if (state.modalOpen && state.modalDealId) {
-    setTimeout(() => { syncDealChatCloud(container); }, 0);
-  }
 }
 
 function renderColumn(stage, deals, contactMap) {
@@ -446,7 +443,8 @@ async function syncDealChatCloud(container) {
   state.dealChatSyncing = true;
   try {
     await syncWaCollections();
-    if (container?.isConnected) renderDeals(container);
+    // Не перерисовываем открытую модалку сделки: это ломает UX (мигание и сброс фокуса/дропдаунов).
+    if (container?.isConnected && !(state.modalOpen && state.modalDealId)) renderDeals(container);
   } catch (e) {
     console.warn("deals chat sync failed:", e);
   } finally {

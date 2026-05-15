@@ -56,10 +56,12 @@ function escape(s) {
 }
 
 function closeAllTypeaheads(exceptTa = null) {
-  document.querySelectorAll('.typeahead.open').forEach((otherTa) => {
+  document.querySelectorAll('.typeahead').forEach((otherTa) => {
     if (otherTa === exceptTa) return;
     const otherDropdown = otherTa.querySelector('.typeahead-dropdown');
-    if (otherDropdown) otherDropdown.hidden = true;
+    if (otherDropdown) {
+      otherDropdown.hidden = true;
+    }
     otherTa.classList.remove('open');
   });
 }
