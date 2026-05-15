@@ -1384,16 +1384,17 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
 
 /* ============== FOOTER ============== */
 footer {
-  padding: 64px 0 32px; background: var(--surface-2);
-  border-top: 1px solid var(--line-2);
+  padding: 64px 0 32px; background: #0a1628;
+  border-top: 1px solid rgba(255,255,255,0.08);
   font-size: 14px;
+  color: rgba(255,255,255,0.82);
 }
 .footer-cols {
   display: grid;
   grid-template-columns: 1.5fr 1fr 1fr 1fr;
   gap: 40px;
   padding-bottom: 40px;
-  border-bottom: 1px solid var(--line-2);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 @media (max-width: 900px) {
   .footer-cols { grid-template-columns: 1fr 1fr; gap: 32px 24px; }
@@ -1403,21 +1404,119 @@ footer {
 }
 
 .footer-brand img { height: 28px; opacity: 0.9; margin-bottom: 14px; display: block; }
-.footer-brand p { color: var(--text-2); font-size: 13.5px; line-height: 1.55; margin-bottom: 14px; max-width: 320px; }
-.footer-contact a { color: var(--text); text-decoration: none; font-weight: 500; }
-.footer-contact a:hover { color: var(--bronze); }
+.footer-brand p { color: rgba(255,255,255,0.64); font-size: 13.5px; line-height: 1.55; margin-bottom: 14px; max-width: 320px; }
+.footer-contact a { color: rgba(255,255,255,0.9); text-decoration: none; font-weight: 500; }
+.footer-contact a:hover { color: var(--bronze-light); }
 
 .footer-col h4 {
   font-size: 11px; text-transform: uppercase;
-  letter-spacing: 0.1em; color: var(--text-3);
+  letter-spacing: 0.1em; color: rgba(255,255,255,0.42);
   font-weight: 700; margin-bottom: 14px;
 }
 .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 9px; }
 .footer-col a {
-  color: var(--text); text-decoration: none; font-size: 14px;
+  color: rgba(255,255,255,0.82); text-decoration: none; font-size: 14px;
   transition: color 0.2s;
 }
-.footer-col a:hover { color: var(--bronze); }
+.footer-col a:hover { color: var(--bronze-light); }
+
+.footer-feedback {
+  margin: 0 0 40px;
+  padding: 28px;
+  border-radius: 18px;
+  background: #0d1b31;
+  box-shadow:
+    18px 18px 36px rgba(0,0,0,0.34),
+    -14px -14px 32px rgba(255,255,255,0.035),
+    inset 1px 1px 0 rgba(255,255,255,0.05);
+}
+.footer-feedback-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 28px;
+  align-items: start;
+}
+.footer-feedback h3 {
+  color: #fff;
+  font-size: clamp(22px, 3vw, 32px);
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  margin-bottom: 10px;
+}
+.footer-feedback p {
+  color: rgba(255,255,255,0.62);
+  font-size: 14.5px;
+  line-height: 1.6;
+  max-width: 390px;
+}
+.footer-feedback-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.footer-feedback-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.footer-feedback-field.is-wide { grid-column: 1 / -1; }
+.footer-feedback-field label {
+  color: rgba(255,255,255,0.68);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.footer-feedback-field input,
+.footer-feedback-field textarea {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  background: #0a1628;
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 15px;
+  outline: none;
+  box-shadow:
+    inset 8px 8px 18px rgba(0,0,0,0.3),
+    inset -8px -8px 18px rgba(255,255,255,0.035);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.footer-feedback-field input {
+  height: 48px;
+  padding: 0 16px;
+}
+.footer-feedback-field textarea {
+  min-height: 118px;
+  resize: vertical;
+  padding: 14px 16px;
+}
+.footer-feedback-field input::placeholder,
+.footer-feedback-field textarea::placeholder { color: rgba(255,255,255,0.34); }
+.footer-feedback-field input:focus,
+.footer-feedback-field textarea:focus {
+  border-color: rgba(184, 137, 90, 0.8);
+  box-shadow:
+    inset 8px 8px 18px rgba(0,0,0,0.26),
+    inset -8px -8px 18px rgba(255,255,255,0.04),
+    0 0 0 3px rgba(184, 137, 90, 0.16);
+}
+.footer-feedback-form .btn {
+  grid-column: 1 / -1;
+  width: fit-content;
+  min-width: 160px;
+  box-shadow:
+    10px 10px 22px rgba(0,0,0,0.28),
+    -8px -8px 18px rgba(255,255,255,0.04);
+}
+@media (max-width: 820px) {
+  .footer-feedback-grid { grid-template-columns: 1fr; gap: 22px; }
+}
+@media (max-width: 560px) {
+  .footer-feedback { padding: 22px; margin-bottom: 32px; }
+  .footer-feedback-form { grid-template-columns: 1fr; }
+  .footer-feedback-form .btn { width: 100%; }
+}
 
 .footer-legal {
   padding-top: 28px;
@@ -1425,7 +1524,7 @@ footer {
   gap: 20px; flex-wrap: wrap;
 }
 .footer-legal p {
-  font-size: 12px; color: var(--text-3); line-height: 1.5;
+  font-size: 12px; color: rgba(255,255,255,0.42); line-height: 1.5;
 }
 .footer-legal-disclaimer { max-width: 420px; text-align: right; }
 @media (max-width: 720px) {
@@ -2942,9 +3041,37 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- ============== FOOTER ============== -->
 <footer>
   <div class="wrap">
+    <div class="footer-feedback">
+      <div class="footer-feedback-grid">
+        <div>
+          <h3>Напишите, что хотите улучшить в CRM</h3>
+          <p>Коротко опишите задачу, нишу или текущую боль. Мы посмотрим и вернёмся с понятным следующим шагом.</p>
+        </div>
+
+        <form class="footer-feedback-form js-footer-feedback-form">
+          <div class="footer-feedback-field">
+            <label for="footer-name">Имя</label>
+            <input id="footer-name" name="name" type="text" placeholder="Ваше имя" autocomplete="name" required>
+          </div>
+
+          <div class="footer-feedback-field">
+            <label for="footer-email">Email</label>
+            <input id="footer-email" name="email" type="email" placeholder="name@company.kz" autocomplete="email" required>
+          </div>
+
+          <div class="footer-feedback-field is-wide">
+            <label for="footer-message">Сообщение</label>
+            <textarea id="footer-message" name="message" placeholder="Расскажите, какая CRM нужна вашей команде" required></textarea>
+          </div>
+
+          <button class="btn btn-bronze" type="submit">Отправить</button>
+        </form>
+      </div>
+    </div>
+
     <div class="footer-cols">
       <div class="footer-col footer-brand">
-        <img src="pllato_logo_transparent_navy.svg" alt="Pllato">
+        <img src="pllato_logo_transparent_white.svg" alt="Pllato">
         <p>Партнёр по операционной отцифровке. Знания о нишах + готовые системы управления.</p>
         <p class="footer-contact">
           <a href="tel:+77011239999">+7 701 123 99 99</a><br>
@@ -3415,6 +3542,14 @@ document.querySelectorAll('.js-lead-form-extended').forEach(form => {
   form.querySelectorAll('input, select').forEach(el => {
     el.addEventListener('input', () => form.classList.remove('error'));
     el.addEventListener('change', () => form.classList.remove('error'));
+  });
+});
+
+document.querySelectorAll('.js-footer-feedback-form').forEach(form => {
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    alert('Спасибо!');
+    form.reset();
   });
 });
 
