@@ -53,6 +53,22 @@ function tasksForContact(cid) {
   return Store.list("tasks").filter(t => t.linkedTo?.type === "contact" && t.linkedTo?.id === cid);
 }
 
+function createLeadDealForContact(contact, { source = "contact" } = {}) {
+  if (!contact?.id) return null;
+  const stages = getStages();
+  const firstStage = stages[0]?.id || "new";
+  return Store.create("deals", {
+    title: contact.name || "Новая сделка",
+    amount: 0,
+    stage: firstStage,
+    contactId: contact.id,
+    dueDate: null,
+    notes: source === "import"
+      ? "Сделка создана автоматически из импорта контактов."
+      : "Сделка создана автоматически из карточки контакта.",
+  });
+}
+
 function normEmail(s) { return (s || "").toLowerCase().trim(); }
 function normPhone(s) { return (s || "").replace(/\D+/g, ""); }
 
@@ -411,8 +427,6 @@ function runImportParse(container, text) {
 function confirmImport(container) {
   const data = state.importData;
   if (!data) return;
-  const stages = getStages();
-  const firstStage = stages[0]?.id || "new";
   let createdContacts = 0, createdDeals = 0;
   data.contacts.forEach(c => {
     if (c._dupe && data.skipDupes !== false) return;
@@ -429,15 +443,8 @@ function confirmImport(container) {
     });
     createdContacts++;
     if (data.createDeals) {
-      Store.create("deals", {
-        title: created.name,
-        amount: 0,
-        stage: firstStage,
-        contactId: created.id,
-        dueDate: null,
-        notes: "",
-      });
-      createdDeals++;
+      const deal = createLeadDealForContact(created, { source: "import" });
+      if (deal) createdDeals++;
     }
   });
   alert(`Импортировано: ${createdContacts} контактов${data.createDeals ? `, ${createdDeals} сделок` : ""}.`);
@@ -808,6 +815,7 @@ function wireEvents(container) {
         Store.update(COLLECTION, state.selectedId, data);
       } else {
         const created = Store.create(COLLECTION, data);
+        createLeadDealForContact(created, { source: "contact" });
         state.selectedId = created.id;
       }
       state.mode = "view";

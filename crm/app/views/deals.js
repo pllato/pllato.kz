@@ -379,7 +379,9 @@ function renderDealModal(d, contacts, stages) {
               ${renderCustomFields(d)}
               <div class="field field-wide form-buttons">
                 ${!isNew ? `<button type="button" class="btn-ghost danger" id="deleteDeal">${ICONS.trash}<span>Удалить</span></button>` : "<span></span>"}
-                <button type="submit" class="btn">${isNew ? "Создать" : "Сохранить"}</button>
+                ${isNew
+                  ? `<button type="submit" class="btn">Создать</button>`
+                  : `<span class="deal-autosave-hint" id="dealAutosaveHint" data-state="idle">Автосохранение включено</span>`}
               </div>
             </form>
           </div>
@@ -922,8 +924,17 @@ function wireEvents(container) {
       );
     });
 
-    dealForm.addEventListener("submit", e => {
-      e.preventDefault();
+    const autosaveHint = container.querySelector("#dealAutosaveHint");
+    let autosaveTimer = null;
+    let autosaveSnapshot = "";
+
+    function setAutosaveState(text, mode = "idle") {
+      if (!autosaveHint) return;
+      autosaveHint.textContent = text;
+      autosaveHint.dataset.state = mode;
+    }
+
+    function collectDealFormData() {
       const fd = new FormData(dealForm);
       // Собираем кастомные поля
       const customFields = {};
@@ -933,24 +944,65 @@ function wireEvents(container) {
       });
       // dueDate и notes больше не редактируются через форму (заметки → лента активности).
       // Legacy-значения существующих сделок остаются нетронутыми — не передаём их в update.
-      const data = {
+      return {
         title: (fd.get("title") || "").trim(),
         amount: Number(fd.get("amount")) || 0,
         contactId: fd.get("contactId") || null,
         assigneeId: fd.get("assigneeId") || null,
         customFields,
       };
-      if (!data.title) return;
-      if (state.modalDealId) {
-        Store.update(COLLECTION, state.modalDealId, data);
-      } else {
-        const created = Store.create(COLLECTION, { ...data, stage: getStages()[0]?.id || "new" });
-        state.modalDealId = created.id;
+    }
+
+    function saveExistingDeal(force = false) {
+      if (!state.modalDealId) return;
+      const data = collectDealFormData();
+      if (!data.title) {
+        setAutosaveState("Укажи название сделки", "error");
+        return;
       }
       // Любые временные режимы блока контакта сбрасываем после сохранения.
       state.contactMode = "view";
+      const nextSnapshot = JSON.stringify(data);
+      if (!force && nextSnapshot === autosaveSnapshot) return;
+      Store.update(COLLECTION, state.modalDealId, data);
+      autosaveSnapshot = nextSnapshot;
+      setAutosaveState(`Сохранено ${new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`, "saved");
+    }
+
+    function scheduleAutosave() {
+      if (!state.modalDealId) return;
+      clearTimeout(autosaveTimer);
+      setAutosaveState("Сохраняем...", "saving");
+      autosaveTimer = setTimeout(() => saveExistingDeal(false), 350);
+    }
+
+    if (state.modalDealId) {
+      autosaveSnapshot = JSON.stringify(collectDealFormData());
+      setAutosaveState("Автосохранение включено", "idle");
+      dealForm.addEventListener("input", scheduleAutosave);
+      dealForm.addEventListener("change", scheduleAutosave);
+    }
+
+    dealForm.addEventListener("submit", e => {
+      e.preventDefault();
+      if (state.modalDealId) {
+        saveExistingDeal(true);
+        return;
+      }
+
+      const data = collectDealFormData();
+      if (!data.title) return;
+      const created = Store.create(COLLECTION, { ...data, stage: getStages()[0]?.id || "new" });
+      state.modalDealId = created.id;
       renderDeals(container);
     });
+
+    function prependTimelineActivity(act) {
+      const list = container.querySelector(".timeline-list");
+      if (!list || !act) return;
+      list.querySelector(".tl-empty")?.remove();
+      list.insertAdjacentHTML("afterbegin", renderActivity(act));
+    }
 
     // ----- Stage bar (быстрое переключение) -----
     container.querySelectorAll(".deal-stage-bar-btn").forEach(btn => {
@@ -960,8 +1012,9 @@ function wireEvents(container) {
         const deal = Store.get(COLLECTION, state.modalDealId);
         if (deal && deal.stage !== newStage) {
           Store.update(COLLECTION, state.modalDealId, { stage: newStage });
-          addActivity(state.modalDealId, "stage", { fromStage: deal.stage, toStage: newStage });
-          renderDeals(container);
+          const act = addActivity(state.modalDealId, "stage", { fromStage: deal.stage, toStage: newStage });
+          prependTimelineActivity(act);
+          container.querySelectorAll(".deal-stage-bar-btn").forEach(b => b.classList.toggle("active", b.dataset.stage === newStage));
         }
       });
     });
@@ -982,22 +1035,37 @@ function wireEvents(container) {
       const submit = container.querySelector("#tlSubmit");
       submit?.addEventListener("click", () => {
         if (!state.modalDealId) return;
+
+        let act = null;
         const text = container.querySelector("#tlText")?.value.trim();
         if (currentTl === "task") {
           const title = container.querySelector("#tlTitle")?.value.trim();
           const dueAtRaw = container.querySelector("#tlDueAt")?.value;
           if (!title) return;
-          addActivity(state.modalDealId, "task", { title, dueAt: dueAtRaw ? new Date(dueAtRaw).getTime() : null });
+          act = addActivity(state.modalDealId, "task", { title, dueAt: dueAtRaw ? new Date(dueAtRaw).getTime() : null });
+          const titleEl = container.querySelector("#tlTitle");
+          const dueEl = container.querySelector("#tlDueAt");
+          if (titleEl) titleEl.value = "";
+          if (dueEl) dueEl.value = "";
         } else if (currentTl === "email") {
           const to = container.querySelector("#tlEmail")?.value.trim();
           const subject = container.querySelector("#tlSubject")?.value.trim();
           if (!text && !to) return;
-          addActivity(state.modalDealId, "email", { to, subject, text });
+          act = addActivity(state.modalDealId, "email", { to, subject, text });
+          const toEl = container.querySelector("#tlEmail");
+          const subjEl = container.querySelector("#tlSubject");
+          const textEl = container.querySelector("#tlText");
+          if (toEl) toEl.value = "";
+          if (subjEl) subjEl.value = "";
+          if (textEl) textEl.value = "";
         } else {
           if (!text) return;
-          addActivity(state.modalDealId, currentTl, { text });
+          act = addActivity(state.modalDealId, currentTl, { text });
+          const textEl = container.querySelector("#tlText");
+          if (textEl) textEl.value = "";
         }
-        renderDeals(container);
+
+        prependTimelineActivity(act);
       });
     }
     bindTimelineSubmit();
