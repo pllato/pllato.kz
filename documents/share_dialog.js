@@ -120,10 +120,15 @@ export function openDocumentEditorDialog({
   });
 
   const builtin = initial?.builtin === true;
+  const initialKind = builtin
+    ? 'builtin'
+    : (['markdown', 'file', 'embed'].includes(String(initial?.kind || '').toLowerCase()) ? String(initial.kind).toLowerCase() : 'markdown');
   const type = String(initial?.type || 'other');
   const scope = isAdmin ? String(initial?.scope || 'personal') : 'personal';
   const people = normalizeUsers(users).filter((u) => asId(u.id) && asId(u.id) !== asId(currentUser?.id));
   const selected = new Set((initial?.sharedWith || []).map((id) => asId(id)).filter(Boolean));
+  let selectedKind = initialKind;
+  let pickedFile = null;
 
   shell.body.innerHTML = `
     <div class="doc-modal-field">
@@ -143,6 +148,16 @@ export function openDocumentEditorDialog({
         <option value="other" ${type === 'other' ? 'selected' : ''}>other</option>
       </select>
     </div>
+    ${builtin ? '' : `
+      <div class="doc-modal-field">
+        <label>Формат</label>
+        <select data-field="kind">
+          <option value="markdown" ${selectedKind === 'markdown' ? 'selected' : ''}>текст (markdown)</option>
+          <option value="file" ${selectedKind === 'file' ? 'selected' : ''}>файл</option>
+          <option value="embed" ${selectedKind === 'embed' ? 'selected' : ''}>внешняя ссылка</option>
+        </select>
+      </div>
+    `}
     ${isAdmin ? `
       <div class="doc-modal-field">
         <label>Доступ</label>
@@ -164,9 +179,20 @@ export function openDocumentEditorDialog({
       <div class="doc-muted-note" data-team-hint style="display:none">При доступе «всей команде» список сотрудников не используется.</div>
     </div>
     ${builtin ? '' : `
-      <div class="doc-modal-field">
+      <div class="doc-modal-field" data-kind-block="markdown">
         <label>Содержимое (markdown)</label>
         <textarea data-field="body" style="min-height:180px" placeholder="# Заголовок\nТекст документа...">${escapeHtml(initial?.body || '')}</textarea>
+      </div>
+      <div class="doc-modal-field" data-kind-block="file">
+        <label>Файл</label>
+        <input data-field="file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.svg,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.csv,.txt,.json,.zip,.rar,.7z,.mp4,.webm,.mov,.mp3,.wav,.ogg,.m4a">
+        <div class="doc-muted-note">До 50 МБ. Поддерживаются PDF, Office, картинки, видео, аудио, архивы и текст.</div>
+        <div class="doc-muted-note" data-file-info>${initial?.file?.fileName ? `Текущий файл: ${escapeHtml(initial.file.fileName)}` : 'Файл не выбран.'}</div>
+      </div>
+      <div class="doc-modal-field" data-kind-block="embed">
+        <label>Ссылка</label>
+        <input data-field="embed-url" type="url" maxlength="2000" value="${escapeHtml(initial?.embed?.url || '')}" placeholder="https://docs.google.com/...">
+        <div class="doc-muted-note">Поддерживаются Google Docs/Sheets/Slides, Notion, Figma, YouTube, Vimeo и другие ссылки.</div>
       </div>
     `}
     ${builtin ? '<div class="doc-muted-note">Это встроенный документ. Тексты и калькулятор редактируются в коде модуля.</div>' : ''}
@@ -188,11 +214,39 @@ export function openDocumentEditorDialog({
   const empCountEl = shell.body.querySelector('[data-emp-count]');
   const teamHintEl = shell.body.querySelector('[data-team-hint]');
   const accessWrapEl = shell.body.querySelector('[data-access-wrap]');
+  const kindEl = shell.body.querySelector('[data-field="kind"]');
+  const fileInputEl = shell.body.querySelector('[data-field="file"]');
+  const fileInfoEl = shell.body.querySelector('[data-file-info]');
 
   function currentScope() {
     if (!isAdmin) return 'personal';
     const raw = String(scopeEl?.value || scope || 'personal');
     return raw === 'team' ? 'team' : 'personal';
+  }
+
+  function renderKindBlocks() {
+    selectedKind = builtin ? 'builtin' : String(kindEl?.value || selectedKind || 'markdown');
+    shell.body.querySelectorAll('[data-kind-block]').forEach((node) => {
+      const key = String(node.getAttribute('data-kind-block') || '');
+      node.style.display = key === selectedKind ? '' : 'none';
+    });
+  }
+
+  function renderFileInfo() {
+    if (!fileInfoEl) return;
+    if (pickedFile) {
+      const sizeMb = Math.round((pickedFile.size / (1024 * 1024)) * 10) / 10;
+      fileInfoEl.textContent = `Выбран: ${pickedFile.name} · ${sizeMb} МБ`;
+      fileInfoEl.style.color = '#0f6e56';
+      return;
+    }
+    if (initial?.file?.fileName) {
+      fileInfoEl.textContent = `Текущий файл: ${initial.file.fileName}`;
+      fileInfoEl.style.color = '';
+      return;
+    }
+    fileInfoEl.textContent = 'Файл не выбран.';
+    fileInfoEl.style.color = '';
   }
 
   function renderEmployees() {
@@ -257,20 +311,40 @@ export function openDocumentEditorDialog({
       description,
       body,
       type: selectedType,
+      kind: builtin ? 'builtin' : selectedKind,
       scope: selectedScope === 'team' ? 'team' : 'personal',
       sharedWith: selectedScope === 'team' ? [] : [...selected].sort(),
+      embed: {
+        url: String(shell.body.querySelector('[data-field="embed-url"]')?.value || '').trim(),
+      },
+      fileBlob: pickedFile,
     };
   }
 
   empQueryEl?.addEventListener('input', () => renderEmployees());
   scopeEl?.addEventListener('change', () => renderEmployees());
+  kindEl?.addEventListener('change', () => renderKindBlocks());
+  fileInputEl?.addEventListener('change', () => {
+    pickedFile = fileInputEl.files?.[0] || null;
+    renderFileInfo();
+  });
   renderEmployees();
+  renderKindBlocks();
+  renderFileInfo();
 
   shell.foot.querySelector('[data-cancel]')?.addEventListener('click', () => shell.close());
   saveBtn?.addEventListener('click', async () => {
     const payload = readPayload();
     if (!payload.title) {
       titleEl?.focus();
+      return;
+    }
+    if (!builtin && payload.kind === 'file' && !payload.fileBlob && !initial?.file?.fileName) {
+      fileInputEl?.focus();
+      return;
+    }
+    if (!builtin && payload.kind === 'embed' && !payload.embed?.url) {
+      shell.body.querySelector('[data-field="embed-url"]')?.focus();
       return;
     }
     saveBtn.disabled = true;

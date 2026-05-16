@@ -1,12 +1,17 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut as fbSignOut } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import { getDatabase, ref, get, set, push, remove } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js';
 
 import {
   isAdminUser,
   normalizeDocument,
   normalizeScope,
   normalizeShared,
+  normalizeKind,
+  normalizeMime,
+  sanitizeFileName,
+  detectEmbedProvider,
   isVisibleInPersonal,
   isVisibleInShared,
 } from './registry.js';
@@ -21,8 +26,9 @@ const ROOT_SUPER_ADMIN = 'uurraa@gmail.com';
 const DOCS_APP_ID = 'docs_portal';
 const FETCH_TIMEOUT_MS = 12000;
 const AUTH_TIMEOUT_MS = 12000;
-const USERS_FETCH_TIMEOUT_MS = 4500;
+const USERS_FETCH_TIMEOUT_MS = 12000;
 const HARD_FALLBACK_MS = 6500;
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
 const firebaseConfig = {
   apiKey: 'AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc',
@@ -37,6 +43,7 @@ const firebaseConfig = {
 const fb = initializeApp(firebaseConfig);
 const auth = getAuth(fb);
 const db = getDatabase(fb);
+const storage = getStorage(fb);
 
 const root = document.getElementById('docs-root');
 
@@ -162,6 +169,56 @@ function escapeHtml(value) {
   })[ch]);
 }
 
+function normalizeDocKind(value, raw = {}) {
+  const kind = normalizeKind(value, raw);
+  if (['builtin', 'markdown', 'file', 'embed'].includes(kind)) return kind;
+  return 'markdown';
+}
+
+function normalizeEmbedUrl(url) {
+  const raw = String(url || '').trim();
+  if (!raw) return '';
+  if (!raw.startsWith('https://')) return '';
+  return raw.slice(0, 2000);
+}
+
+async function uploadFileForDocument(docId, fileBlob, previousPath = '') {
+  if (!(fileBlob instanceof File)) return null;
+  if (fileBlob.size > MAX_FILE_BYTES) {
+    throw new Error('Файл больше 50 МБ. Загрузка отклонена.');
+  }
+
+  const fileName = sanitizeFileName(fileBlob.name || 'untitled');
+  const mimeType = normalizeMime(fileBlob.type || 'application/octet-stream');
+  const storagePath = `documents/${docId}/original/${Date.now()}_${fileName}`;
+  const fileRef = storageRef(storage, storagePath);
+  const uploadTask = uploadBytesResumable(fileRef, fileBlob, { contentType: mimeType });
+
+  await new Promise((resolve, reject) => {
+    uploadTask.on('state_changed', null, reject, resolve);
+  });
+
+  const downloadURL = await getDownloadURL(fileRef);
+
+  if (previousPath && previousPath !== storagePath) {
+    try {
+      await deleteObject(storageRef(storage, previousPath));
+    } catch (_) {
+      // silent best-effort cleanup
+    }
+  }
+
+  return {
+    storagePath,
+    fileName,
+    mimeType,
+    sizeBytes: Number(fileBlob.size) || 0,
+    uploadedAt: now(),
+    uploadedBy: state.me?.id || '',
+    downloadURL,
+  };
+}
+
 function setRoute(id, replace = false) {
   const url = new URL(window.location.href);
   if (id) url.searchParams.set('id', id);
@@ -230,6 +287,7 @@ function buildOfflineSeedDoc() {
   const id = 'builtin_partner_motivation';
   return normalizeDocument({
     id,
+    kind: 'builtin',
     type: 'motivation',
     slug: 'partner-motivation',
     title: 'Система мотивации партнёра',
@@ -390,14 +448,31 @@ async function createDoc(payload) {
   const timestamp = now();
   const isAdmin = isAdminUser(state.me);
   const scope = isAdmin ? normalizeScope(payload.scope) : 'personal';
+  const kind = normalizeDocKind(payload.kind, payload);
+  const embedUrl = normalizeEmbedUrl(payload.embed?.url);
+  if (kind === 'embed' && !embedUrl) {
+    throw new Error('Для ссылки укажи корректный URL, начиная с https://');
+  }
+  const embed = kind === 'embed' && embedUrl
+    ? { url: embedUrl, provider: detectEmbedProvider(embedUrl) }
+    : null;
+
+  let file = null;
+  if (kind === 'file') {
+    file = await uploadFileForDocument(id, payload.fileBlob);
+    if (!file) throw new Error('Выбери файл для загрузки.');
+  }
 
   const doc = normalizeDocument({
     id,
+    kind,
     type: payload.type || 'other',
     title: payload.title,
     description: payload.description || '',
-    builtin: false,
-    body: payload.body || '',
+    builtin: kind === 'builtin',
+    body: kind === 'markdown' ? (payload.body || '') : '',
+    file,
+    embed,
     authorId: state.me.id,
     scope,
     sharedWith: scope === 'team' ? [] : normalizeShared(payload.sharedWith || []),
@@ -415,13 +490,44 @@ async function editDoc(doc, payload) {
   const isAdmin = isAdminUser(state.me);
 
   const nextScope = isAdmin ? normalizeScope(payload.scope || doc.scope) : normalizeScope(doc.scope);
+  const nextKind = doc.builtin === true
+    ? 'builtin'
+    : normalizeDocKind(payload.kind || doc.kind, { ...doc, ...payload });
+  const embedUrl = normalizeEmbedUrl(payload.embed?.url || doc.embed?.url || '');
+  if (nextKind === 'embed' && !embedUrl) {
+    throw new Error('Для ссылки укажи корректный URL, начиная с https://');
+  }
+  const nextEmbed = nextKind === 'embed' && embedUrl
+    ? { url: embedUrl, provider: detectEmbedProvider(embedUrl) }
+    : null;
+
+  let nextFile = doc.file || null;
+  if (nextKind === 'file') {
+    if (payload.fileBlob instanceof File) {
+      nextFile = await uploadFileForDocument(doc.id, payload.fileBlob, doc.file?.storagePath || '');
+    } else if (!nextFile) {
+      throw new Error('Для формата «файл» нужно выбрать файл.');
+    }
+  }
+
+  if (nextKind !== 'file' && doc.file?.storagePath) {
+    try {
+      await deleteObject(storageRef(storage, doc.file.storagePath));
+    } catch (_) {
+      // keep going: document edit should not fail because cleanup failed
+    }
+    nextFile = null;
+  }
 
   const next = normalizeDocument({
     ...doc,
+    kind: nextKind,
     title: payload.title,
     description: payload.description || '',
     type: payload.type || doc.type,
-    body: doc.builtin ? doc.body || '' : payload.body || '',
+    body: nextKind === 'markdown' ? (payload.body || '') : '',
+    file: nextKind === 'file' ? nextFile : null,
+    embed: nextKind === 'embed' ? nextEmbed : null,
     scope: nextScope,
     sharedWith: nextScope === 'team' ? [] : normalizeShared(payload.sharedWith ?? doc.sharedWith ?? []),
     updatedAt: timestamp,
@@ -433,6 +539,8 @@ async function editDoc(doc, payload) {
 }
 
 async function openEditor(id) {
+  await ensureUsersRegistryLoaded();
+
   if (id) {
     const doc = getDocById(id);
     if (!doc) return;
@@ -444,8 +552,13 @@ async function openEditor(id) {
       users: state.usersById,
       currentUser: state.me,
       onSave: async (payload) => {
-        await editDoc(doc, payload);
-        refresh();
+        try {
+          await editDoc(doc, payload);
+          refresh();
+        } catch (error) {
+          toast(error?.message || 'Не удалось обновить документ.', 'err');
+          throw error;
+        }
       },
     });
     return;
@@ -453,14 +566,19 @@ async function openEditor(id) {
 
   openDocumentEditorDialog({
     mode: 'create',
-    initial: { type: 'other', scope: 'personal' },
+    initial: { type: 'other', scope: 'personal', kind: 'markdown' },
     isAdmin: isAdminUser(state.me),
     users: state.usersById,
     currentUser: state.me,
     onSave: async (payload) => {
-      const created = await createDoc(payload);
-      setRoute(created.id);
-      refresh();
+      try {
+        const created = await createDoc(payload);
+        setRoute(created.id);
+        refresh();
+      } catch (error) {
+        toast(error?.message || 'Не удалось создать документ.', 'err');
+        throw error;
+      }
     },
   });
 }
@@ -468,6 +586,7 @@ async function openEditor(id) {
 async function openShare(id) {
   const doc = getDocById(id);
   if (!doc) return;
+  await ensureUsersRegistryLoaded();
 
   openDocumentShareDialog({
     doc,
@@ -501,6 +620,14 @@ async function deleteDoc(id) {
   const ok = window.confirm(`Удалить документ «${doc.title || 'Без названия'}»?`);
   if (!ok) return;
 
+  if (doc.file?.storagePath) {
+    try {
+      await deleteObject(storageRef(storage, doc.file.storagePath));
+    } catch (_) {
+      // delete from RTDB anyway
+    }
+  }
+
   await remove(ref(db, `documents/${doc.id}`));
   state.docs = state.docs.filter((item) => item.id !== doc.id);
   delete state.moduleStateByDoc[doc.id];
@@ -522,6 +649,7 @@ async function migrateAndLoadDocuments(authorFallbackId) {
     const needsMigration = !value?.scope
       || !Array.isArray(value?.sharedWith)
       || !value?.authorId
+      || !value?.kind
       || !!value?.visibility
       || String(value?.id || '') !== normalized.id;
 
@@ -535,6 +663,7 @@ async function migrateAndLoadDocuments(authorFallbackId) {
     if (!id) throw new Error('Не удалось создать seed-документ');
     const seed = normalizeDocument({
       id,
+      kind: 'builtin',
       type: 'motivation',
       slug: 'partner-motivation',
       title: 'Система мотивации партнёра',
@@ -561,9 +690,24 @@ async function tryLoadUsersRegistry() {
     const usersSnap = await withTimeout(get(ref(db, 'users')), 'users read', USERS_FETCH_TIMEOUT_MS);
     return toUsersById(usersSnap.exists() ? usersSnap.val() : {});
   } catch (error) {
-    console.warn('documents: users registry unavailable, continue without it', error);
-    return {};
+    console.warn('documents: users read timeout, retry without timeout', error);
+    try {
+      const retrySnap = await get(ref(db, 'users'));
+      return toUsersById(retrySnap.exists() ? retrySnap.val() : {});
+    } catch (retryError) {
+      console.warn('documents: users registry unavailable, continue without it', retryError);
+      return {};
+    }
   }
+}
+
+async function ensureUsersRegistryLoaded() {
+  if (Object.keys(state.usersById || {}).length) return;
+  const loaded = await tryLoadUsersRegistry();
+  if (!Object.keys(loaded).length) return;
+  state.usersById = loaded;
+  const refreshed = findUserByEmail(loaded, state.me?.email || '');
+  if (refreshed) state.me = { ...state.me, ...refreshed };
 }
 
 async function bootstrapSession(user) {

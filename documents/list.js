@@ -1,9 +1,10 @@
 import {
-  typeMeta,
+  documentVisual,
   canEdit,
   isVisibleInPersonal,
   isVisibleInShared,
   isAdminUser,
+  normalizeKind,
 } from './registry.js';
 
 function text(value) {
@@ -32,6 +33,24 @@ function accessLabel(doc) {
   const count = Array.isArray(doc.sharedWith) ? doc.sharedWith.length : 0;
   if (count <= 0) return 'только выбранные';
   return `${count} ${count === 1 ? 'человек' : 'человек'}`;
+}
+
+function shortLink(url) {
+  try {
+    const u = new URL(String(url || ''));
+    return `${u.host}${u.pathname}`.replace(/\/+$/, '');
+  } catch (_) {
+    return String(url || '');
+  }
+}
+
+function cardDescription(doc) {
+  if (doc.description) return doc.description;
+  const kind = normalizeKind(doc.kind, doc);
+  if (kind === 'file') return doc.file?.fileName || 'Файл документа';
+  if (kind === 'embed') return shortLink(doc.embed?.url || '');
+  if (kind === 'builtin') return 'Интерактивный документ';
+  return 'Без описания';
 }
 
 function filterDocs(docs, me, activeTab, showAllForAdmin, query) {
@@ -94,7 +113,7 @@ export function renderDocumentsList(container, model) {
     ${filtered.length ? `
       <section class="doc-grid">
         ${filtered.map((doc) => {
-          const meta = typeMeta(doc.type);
+          const meta = documentVisual(doc);
           const author = usersById[doc.authorId] || null;
           const authorName = fullName(author || { name: doc.authorId || 'Сотрудник' });
           const editable = canEdit(doc, me);
@@ -102,11 +121,11 @@ export function renderDocumentsList(container, model) {
             <article class="doc-card" data-open="${text(doc.id)}">
               <div class="doc-card-head">
                 <div class="doc-type-icon" style="background:${meta.bg};color:${meta.fg}"><i class="ti ti-${meta.icon}"></i></div>
-                <div class="doc-type-pill">${text(meta.label)}</div>
+                <div class="doc-type-pill" style="background:${meta.bg};color:${meta.fg};border-color:transparent">${text(meta.label)}</div>
               </div>
 
               <h3 class="doc-card-title">${text(doc.title || 'Без названия')}</h3>
-              <p class="doc-card-desc">${text(doc.description || 'Без описания')}</p>
+              <p class="doc-card-desc">${text(cardDescription(doc))}</p>
 
               ${editable ? `
                 <div class="doc-card-actions">

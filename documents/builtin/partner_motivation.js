@@ -14,7 +14,7 @@ const TABS = [
 ];
 
 const DEFAULT_STATE = {
-  tab: 'structure',
+  tab: 'calculator',
   calc: {
     planZ: 10,
     planD: 2,
@@ -74,7 +74,7 @@ function ensureState(moduleState) {
     moduleState.partnerMotivation = JSON.parse(JSON.stringify(DEFAULT_STATE));
   }
   const state = moduleState.partnerMotivation;
-  state.tab = TABS.some((tab) => tab.id === state.tab) ? state.tab : 'structure';
+  state.tab = TABS.some((tab) => tab.id === state.tab) ? state.tab : 'calculator';
   state.calc = { ...JSON.parse(JSON.stringify(DEFAULT_STATE.calc)), ...(state.calc || {}) };
   return state;
 }
