@@ -1729,6 +1729,22 @@ window.dbOrderByChild = orderByChild;
 window.dbStartAt = startAt;
 window.dbLimitToLast = limitToLast;
 
+// ── Traffic safety toggles ───────────────────────────────
+const TRAFFIC_GUARD = {
+  // Не грузим тяжёлые узлы (deals/tasks/contacts) в фоне сразу после логина.
+  ENABLE_HEAVY_PRELOAD: false,
+  // Обновление из сети сразу после кеша (full-node fetch) отключено по умолчанию.
+  ENABLE_CACHE_BACKGROUND_REFRESH: false,
+  // Live-слушатели для deals/tasks выключены (защита от initial flush на крупных узлах).
+  ENABLE_PAGE_SCOPED_LIVE_LISTENERS: false,
+  // Сотрудники: по умолчанию без постоянной realtime-подписки.
+  ENABLE_USERS_REALTIME: false,
+};
+
+function isPageActive(page) {
+  return !!document.querySelector(`[data-page="${page}"].active`);
+}
+
 // ── Auth: Google sign-in ─────────────────────────────────
 window.loginGoogle = async function() {
   showError('');
@@ -1795,6 +1811,7 @@ onAuthStateChanged(auth, async user => {
     document.getElementById('app').classList.add('active');
     initApp(user);
   } else {
+    detachAllLiveListeners();
     document.getElementById('login').style.display = '';
     document.getElementById('app').classList.remove('active');
   }
@@ -1849,13 +1866,15 @@ async function preloadInBackground() {
   await ensureUsersLoaded();
   // 2. Reference lists — копейки
   ensureRefListsLoaded();
+  if (!TRAFFIC_GUARD.ENABLE_HEAVY_PRELOAD) return;
   // 3. Сделки (22k, ~3-5 МБ) — параллельно
   if (!dealsState.loaded) {
     loadDealsData().then(() => {
-      // После загрузки — подключаем live-listener
-      attachDealsLiveListener();
+      if (TRAFFIC_GUARD.ENABLE_PAGE_SCOPED_LIVE_LISTENERS && isPageActive('deals')) {
+        attachDealsLiveListener();
+      }
     });
-  } else {
+  } else if (TRAFFIC_GUARD.ENABLE_PAGE_SCOPED_LIVE_LISTENERS && isPageActive('deals')) {
     attachDealsLiveListener();
   }
   // 4. Задачи (38k, ~30 МБ) — самые тяжёлые, через 2 секунды после сделок
@@ -1863,9 +1882,11 @@ async function preloadInBackground() {
     if (!tasksState.loaded) {
       loadTasks().then(() => {
         populateTaskAssigneeFilter();
-        attachTasksLiveListener();
+        if (TRAFFIC_GUARD.ENABLE_PAGE_SCOPED_LIVE_LISTENERS && isPageActive('tasks')) {
+          attachTasksLiveListener();
+        }
       });
-    } else {
+    } else if (TRAFFIC_GUARD.ENABLE_PAGE_SCOPED_LIVE_LISTENERS && isPageActive('tasks')) {
       attachTasksLiveListener();
     }
   }, 2000);
@@ -1905,6 +1926,7 @@ function navigate(page) {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.page === page);
   });
+  syncLiveListenersForPage(page);
   const main = document.getElementById('main');
   if (page === 'dashboard') renderDashboard(main);
   else if (page === 'contacts') renderContacts(main);
@@ -1913,6 +1935,18 @@ function navigate(page) {
   else if (page === 'users') renderUsers(main);
   else if (page === 'chats') renderChats(main);
   else if (page === 'migration') renderMigration(main);
+}
+
+function syncLiveListenersForPage(page) {
+  if (page !== 'deals') detachDealsLiveListener();
+  if (page !== 'tasks') detachTasksLiveListener();
+  if (page !== 'users') detachUsersLiveListener();
+}
+
+function detachAllLiveListeners() {
+  detachDealsLiveListener();
+  detachTasksLiveListener();
+  detachUsersLiveListener();
 }
 
 function renderDashboard(el) {
@@ -2074,6 +2108,9 @@ async function renderDeals(el) {
   }
 
   renderDealsLayout(el);
+  if (TRAFFIC_GUARD.ENABLE_PAGE_SCOPED_LIVE_LISTENERS) {
+    attachDealsLiveListener();
+  }
 }
 
 async function loadDealsData() {
@@ -2087,7 +2124,9 @@ async function loadDealsData() {
     dealsState.customSchema = cached.customSchema || {};
     dealsState.users = cached.users || {};
     dealsState.loaded = true;
-    setTimeout(() => refreshDealsBackground(), 100);
+    if (TRAFFIC_GUARD.ENABLE_CACHE_BACKGROUND_REFRESH && isPageActive('deals')) {
+      setTimeout(() => refreshDealsBackground(), 100);
+    }
     return;
   }
 
@@ -2126,6 +2165,7 @@ async function loadDealsData() {
 }
 
 async function refreshDealsBackground() {
+  if (!isPageActive('deals')) return;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
     const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
@@ -2159,8 +2199,13 @@ async function refreshDealsBackground() {
 // ─── Realtime listener для сделок ────────────────────────────────
 let _dealsListenerAttached = false;
 let _dealsListenerLastSync = null;
+let _dealsListenerAddedCb = null;
+let _dealsListenerChangedCb = null;
+let _dealsListenerRemovedCb = null;
 function attachDealsLiveListener() {
+  if (!TRAFFIC_GUARD.ENABLE_PAGE_SCOPED_LIVE_LISTENERS) return;
   if (_dealsListenerAttached) return;
+  if (!isPageActive('deals')) return;
   if (!dealsState.loaded) return;
   _dealsListenerAttached = true;
 
@@ -2179,7 +2224,7 @@ function attachDealsLiveListener() {
 
   // child_added — для новых сделок (которые появились после нашего sync)
   // Listener срабатывает СРАЗУ для всех существующих детей; мы фильтруем по дате
-  window.dbOnChildAdded(dealsRef, (snap) => {
+  _dealsListenerAddedCb = (snap) => {
     const deal = snap.val();
     if (!deal) return;
     const ts = deal.bitrixDateModify || deal.bitrixDateCreate || '';
@@ -2196,9 +2241,10 @@ function attachDealsLiveListener() {
       }
       saveCacheDealsThrottled();
     }
-  });
+  };
+  window.dbOnChildAdded(dealsRef, _dealsListenerAddedCb);
 
-  window.dbOnChildChanged(dealsRef, (snap) => {
+  _dealsListenerChangedCb = (snap) => {
     const deal = snap.val();
     if (!deal) return;
     const idx = dealsState.deals.findIndex(d => d.bitrixId === deal.bitrixId);
@@ -2211,9 +2257,10 @@ function attachDealsLiveListener() {
       }
       saveCacheDealsThrottled();
     }
-  });
+  };
+  window.dbOnChildChanged(dealsRef, _dealsListenerChangedCb);
 
-  window.dbOnChildRemoved(dealsRef, (snap) => {
+  _dealsListenerRemovedCb = (snap) => {
     const deal = snap.val();
     if (!deal) return;
     const idx = dealsState.deals.findIndex(d => d.bitrixId === deal.bitrixId);
@@ -2225,7 +2272,20 @@ function attachDealsLiveListener() {
       }
       saveCacheDealsThrottled();
     }
-  });
+  };
+  window.dbOnChildRemoved(dealsRef, _dealsListenerRemovedCb);
+}
+
+function detachDealsLiveListener() {
+  if (!_dealsListenerAttached) return;
+  const dealsRef = window.dbRef(window.fbDb, 'deals');
+  if (_dealsListenerAddedCb) window.dbOff(dealsRef, 'child_added', _dealsListenerAddedCb);
+  if (_dealsListenerChangedCb) window.dbOff(dealsRef, 'child_changed', _dealsListenerChangedCb);
+  if (_dealsListenerRemovedCb) window.dbOff(dealsRef, 'child_removed', _dealsListenerRemovedCb);
+  _dealsListenerAddedCb = null;
+  _dealsListenerChangedCb = null;
+  _dealsListenerRemovedCb = null;
+  _dealsListenerAttached = false;
 }
 
 let _saveCacheDealsTimer = null;
@@ -3509,7 +3569,9 @@ async function ensureUsersLoaded() {
         dealsState.users = cached;
       }
       // Фоновое обновление
-      setTimeout(() => refreshUsersBackground(), 200);
+      if (TRAFFIC_GUARD.ENABLE_CACHE_BACKGROUND_REFRESH && isPageActive('users')) {
+        setTimeout(() => refreshUsersBackground(), 200);
+      }
       return;
     }
     const idToken = await fbAuth.currentUser.getIdToken();
@@ -3531,6 +3593,7 @@ async function ensureUsersLoaded() {
 }
 
 async function refreshUsersBackground() {
+  if (!isPageActive('users')) return;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
     const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
@@ -3690,7 +3753,9 @@ async function loadContacts() {
     contactsState.loaded = true;
     contactsState.loading = false;
     // Запускаем фоновое обновление через 100мс — не блокируя UI
-    setTimeout(() => refreshContactsBackground(), 100);
+    if (TRAFFIC_GUARD.ENABLE_CACHE_BACKGROUND_REFRESH && isPageActive('contacts')) {
+      setTimeout(() => refreshContactsBackground(), 100);
+    }
     return;
   }
 
@@ -3754,6 +3819,7 @@ function updateContactsLoadingMsg(msg) {
 }
 
 async function refreshContactsBackground() {
+  if (!isPageActive('contacts')) return;
   // Тихо обновляем в фоне — без блокировки UI
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
@@ -4181,6 +4247,9 @@ async function renderTasks(el) {
   }
   populateTaskAssigneeFilter();
   filterAndRenderTasks();
+  if (TRAFFIC_GUARD.ENABLE_PAGE_SCOPED_LIVE_LISTENERS) {
+    attachTasksLiveListener();
+  }
 }
 
 async function loadTasks() {
@@ -4194,7 +4263,9 @@ async function loadTasks() {
     tasksState.list = cached;
     tasksState.loaded = true;
     tasksState.loading = false;
-    setTimeout(() => refreshTasksBackground(), 100);
+    if (TRAFFIC_GUARD.ENABLE_CACHE_BACKGROUND_REFRESH && isPageActive('tasks')) {
+      setTimeout(() => refreshTasksBackground(), 100);
+    }
     return;
   }
 
@@ -4342,6 +4413,7 @@ function parseTasksToList(data) {
 }
 
 async function refreshTasksBackground() {
+  if (!isPageActive('tasks')) return;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
     const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
@@ -4363,8 +4435,13 @@ async function refreshTasksBackground() {
 
 // ─── Realtime listener для задач ────────────────────────────────
 let _tasksListenerAttached = false;
+let _tasksListenerAddedCb = null;
+let _tasksListenerChangedCb = null;
+let _tasksListenerRemovedCb = null;
 function attachTasksLiveListener() {
+  if (!TRAFFIC_GUARD.ENABLE_PAGE_SCOPED_LIVE_LISTENERS) return;
   if (_tasksListenerAttached) return;
+  if (!isPageActive('tasks')) return;
   if (!tasksState.loaded) return;
   _tasksListenerAttached = true;
 
@@ -4376,7 +4453,7 @@ function attachTasksLiveListener() {
   }, '');
 
   // child_added — initial flush + новые задачи. Фильтруем по дате
-  window.dbOnChildAdded(tasksRef, (snap) => {
+  _tasksListenerAddedCb = (snap) => {
     const key = snap.key;
     const t = snap.val();
     if (!t) return;
@@ -4415,9 +4492,10 @@ function attachTasksLiveListener() {
       filterAndRenderTasks();
     }
     saveCacheTasksThrottled();
-  });
+  };
+  window.dbOnChildAdded(tasksRef, _tasksListenerAddedCb);
 
-  window.dbOnChildChanged(tasksRef, (snap) => {
+  _tasksListenerChangedCb = (snap) => {
     const key = snap.key;
     const t = snap.val();
     if (!t) return;
@@ -4440,9 +4518,10 @@ function attachTasksLiveListener() {
       filterAndRenderTasks();
     }
     saveCacheTasksThrottled();
-  });
+  };
+  window.dbOnChildChanged(tasksRef, _tasksListenerChangedCb);
 
-  window.dbOnChildRemoved(tasksRef, (snap) => {
+  _tasksListenerRemovedCb = (snap) => {
     const key = snap.key;
     const idx = tasksState.list.findIndex(x => x.key === key);
     if (idx < 0) return;
@@ -4458,7 +4537,20 @@ function attachTasksLiveListener() {
       filterAndRenderTasks();
     }
     saveCacheTasksThrottled();
-  });
+  };
+  window.dbOnChildRemoved(tasksRef, _tasksListenerRemovedCb);
+}
+
+function detachTasksLiveListener() {
+  if (!_tasksListenerAttached) return;
+  const tasksRef = window.dbRef(window.fbDb, 'tasks');
+  if (_tasksListenerAddedCb) window.dbOff(tasksRef, 'child_added', _tasksListenerAddedCb);
+  if (_tasksListenerChangedCb) window.dbOff(tasksRef, 'child_changed', _tasksListenerChangedCb);
+  if (_tasksListenerRemovedCb) window.dbOff(tasksRef, 'child_removed', _tasksListenerRemovedCb);
+  _tasksListenerAddedCb = null;
+  _tasksListenerChangedCb = null;
+  _tasksListenerRemovedCb = null;
+  _tasksListenerAttached = false;
 }
 
 let _saveCacheTasksTimer = null;
@@ -6056,7 +6148,59 @@ async function openOpenlinesSession(sessionId) {
   }
 }
 
-function renderUsers(el) {
+let _usersListenerAttached = false;
+let _usersListenerRef = null;
+let _usersListenerCb = null;
+
+function renderUsersTable(usersMap) {
+  const listHost = document.getElementById('users-list');
+  if (!listHost) return;
+  const users = usersMap || {};
+  const arr = Object.entries(users).map(([uid, u]) => ({ uid, ...u }));
+  if (!arr.length) {
+    listHost.innerHTML = '<div class="empty">Пусто. Запустите миграцию пользователей из Битрикса.</div>';
+    return;
+  }
+  let html = '<table><thead><tr><th>Имя</th><th>Email</th><th>Bitrix ID</th><th>Должность</th><th>Активен</th></tr></thead><tbody>';
+  for (const u of arr) {
+    html += `<tr>
+      <td>${escapeHtml(u.name || '—')} ${escapeHtml(u.lastName || '')}</td>
+      <td>${escapeHtml(u.email || '—')}</td>
+      <td>${escapeHtml(u.bitrixId || '—')}</td>
+      <td>${escapeHtml(u.position || '—')}</td>
+      <td>${u.active === false ? '✗' : '✓'}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  listHost.innerHTML = html;
+}
+
+async function attachUsersLiveListener() {
+  if (!TRAFFIC_GUARD.ENABLE_USERS_REALTIME) return;
+  if (_usersListenerAttached) return;
+  if (!isPageActive('users')) return;
+  const usersRef = ref(db, 'users');
+  _usersListenerRef = usersRef;
+  _usersListenerCb = (snap) => {
+    usersState.users = snap.val() || {};
+    usersState.loaded = true;
+    renderUsersTable(usersState.users);
+  };
+  onValue(usersRef, _usersListenerCb);
+  _usersListenerAttached = true;
+}
+
+function detachUsersLiveListener() {
+  if (!_usersListenerAttached) return;
+  if (_usersListenerRef && _usersListenerCb) {
+    off(_usersListenerRef, 'value', _usersListenerCb);
+  }
+  _usersListenerRef = null;
+  _usersListenerCb = null;
+  _usersListenerAttached = false;
+}
+
+async function renderUsers(el) {
   el.innerHTML = `
     <div class="page-title">🧑‍💼 Сотрудники</div>
     <div class="page-sub">Пользователи портала. После миграции здесь будут все 88 сотрудников.</div>
@@ -6065,28 +6209,9 @@ function renderUsers(el) {
       <div id="users-list"><div class="empty">Загрузка...</div></div>
     </div>
   `;
-
-  const usersRef = ref(db, 'users');
-  onValue(usersRef, snap => {
-    const users = snap.val() || {};
-    const arr = Object.entries(users).map(([uid, u]) => ({ uid, ...u }));
-    if (!arr.length) {
-      document.getElementById('users-list').innerHTML = '<div class="empty">Пусто. Запустите миграцию пользователей из Битрикса.</div>';
-      return;
-    }
-    let html = '<table><thead><tr><th>Имя</th><th>Email</th><th>Bitrix ID</th><th>Должность</th><th>Активен</th></tr></thead><tbody>';
-    for (const u of arr) {
-      html += `<tr>
-        <td>${escapeHtml(u.name || '—')} ${escapeHtml(u.lastName || '')}</td>
-        <td>${escapeHtml(u.email || '—')}</td>
-        <td>${escapeHtml(u.bitrixId || '—')}</td>
-        <td>${escapeHtml(u.position || '—')}</td>
-        <td>${u.active === false ? '✗' : '✓'}</td>
-      </tr>`;
-    }
-    html += '</tbody></table>';
-    document.getElementById('users-list').innerHTML = html;
-  });
+  await ensureUsersLoaded();
+  renderUsersTable(usersState.users);
+  attachUsersLiveListener();
 }
 
 function renderMigration(el) {
