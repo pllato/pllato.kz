@@ -5,12 +5,19 @@
 import { Store } from "../store.js";
 import { ICONS } from "../icons.js";
 import { getStages, saveStages, newStageId, STAGE_COLORS, findStage } from "../stages.js";
-import { getDealFields } from "../custom_fields.js";
+import { FIELD_TYPES, getDealFields, saveDealFields, newFieldId, newOptionId, getDealFieldType } from "../custom_fields.js";
 import { openCommunicate } from "../communicate.js";
 import { listEmployees, getEmployee, currentEmployee, avatar, initialsOf } from "../employees.js";
 import { renderTypeahead, attachTypeahead } from "../typeahead.js";
 import { listChannels } from "../channels.js";
 import { renderCalls } from "./calls.js";
+import {
+  openCommDialog,
+  closeCommDialog,
+  minimizeCommDialog,
+  updateCommDialog,
+  getCommDialogs,
+} from "../comm_dialogs.js";
 import {
   waCloudEnabled,
   syncWaCollections,
@@ -43,6 +50,10 @@ const state = {
   contactMode: "view",
   contactCreateDraft: null,
   activityFilter: "all",
+  activeFieldPopover: null, // field id
+  addFieldPopoverOpen: false,
+  addFieldDraft: null,
+  editingFieldId: null,
 };
 
 function escape(s) {
@@ -99,6 +110,19 @@ function textNorm(v) {
 
 function digitsOnly(v) {
   return String(v || "").replace(/[^\d]/g, "");
+}
+
+function rgbaFromHex(hex, alpha = 1) {
+  const src = String(hex || "").trim();
+  if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(src)) return "";
+  let h = src.slice(1);
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  const n = Number.parseInt(h, 16);
+  if (!Number.isFinite(n)) return "";
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function buildActivityTextByDeal() {
@@ -198,6 +222,101 @@ function isWinStage(stage) {
 function isLossStage(stage) {
   const key = `${stage?.id || ""} ${stage?.title || ""}`.toLowerCase();
   return key.includes("lost") || key.includes("loss") || key.includes("проиг");
+}
+
+const FIELD_COLOR_PALETTE = [
+  "#185FA5",
+  "#3C3489",
+  "#B8895A",
+  "#25D366",
+  "#0EA5E9",
+  "#F59E0B",
+  "#EF4444",
+  "#64748B",
+];
+
+function defaultAddFieldDraft() {
+  return {
+    type: "text",
+    label: "",
+    required: false,
+    showInKanban: true,
+    options: [
+      { id: newOptionId(), label: "Вариант 1", color: FIELD_COLOR_PALETTE[0] },
+      { id: newOptionId(), label: "Вариант 2", color: FIELD_COLOR_PALETTE[1] },
+    ],
+  };
+}
+
+function fieldSupportsOptions(type) {
+  return type === "select" || type === "multi";
+}
+
+function normalizeFieldOption(option, index = 0) {
+  if (typeof option === "string") {
+    return { id: `opt_${index + 1}`, label: option, color: "" };
+  }
+  return {
+    id: String(option?.id || `opt_${index + 1}`),
+    label: String(option?.label || option?.name || option?.value || "").trim(),
+    color: String(option?.color || ""),
+  };
+}
+
+function fieldOptions(field) {
+  if (!fieldSupportsOptions(field?.type)) return [];
+  return (Array.isArray(field?.options) ? field.options : [])
+    .map((opt, i) => normalizeFieldOption(opt, i))
+    .filter((opt) => opt.label);
+}
+
+function fieldValueRaw(deal, field) {
+  if (!deal || !field) return null;
+  if (field.systemField) {
+    if (field.id === "title") return deal.title || "";
+    if (field.id === "amount") return deal.amount ?? "";
+    if (field.id === "contactId") return deal.contactId || "";
+    if (field.id === "assigneeId") return deal.assigneeId || "";
+    if (field.id === "stage") return deal.stage || "";
+    return "";
+  }
+  return (deal.customFields || {})[field.id];
+}
+
+function parseFieldValue(field, raw) {
+  const type = field?.type || "text";
+  if (type === "number" || type === "money") {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : "";
+  }
+  if (type === "boolean") return Boolean(raw === true || raw === "true" || raw === "1" || raw === 1 || raw === "yes");
+  if (type === "multi") {
+    if (Array.isArray(raw)) return raw.map((x) => String(x));
+    if (typeof raw === "string") {
+      return raw
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }
+  return raw == null ? "" : String(raw);
+}
+
+function formatFieldDate(raw, withTime = false) {
+  if (!raw) return "—";
+  const d = typeof raw === "number" ? new Date(raw) : new Date(String(raw));
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    ...(withTime ? { hour: "2-digit", minute: "2-digit" } : {}),
+  });
+}
+
+function fieldOptionByValue(field, value) {
+  const asText = String(value || "");
+  return fieldOptions(field).find((opt) => opt.id === asText || opt.label === asText) || null;
 }
 
 function activityMatchesFilter(a, filter) {
@@ -346,6 +465,32 @@ function addActivity(dealId, type, data = {}) {
   });
 }
 
+function cleanFieldOptionsDraft(options = []) {
+  return (Array.isArray(options) ? options : [])
+    .map((opt, i) => normalizeFieldOption(opt, i))
+    .filter((opt) => opt.label);
+}
+
+function buildFieldPayloadFromDraft(draft, base = {}) {
+  const type = getDealFieldType(draft?.type).id;
+  return {
+    id: String(base.id || draft?.id || newFieldId()),
+    type,
+    label: String(draft?.label || "").trim() || "Новое поле",
+    required: Boolean(draft?.required),
+    showInKanban: Boolean(draft?.showInKanban),
+    systemField: Boolean(base.systemField),
+    hidden: Boolean(base.hidden),
+    order: Number.isFinite(Number(base.order)) ? Number(base.order) : Number(draft?.order || 0),
+    options: fieldSupportsOptions(type) ? cleanFieldOptionsDraft(draft?.options) : [],
+  };
+}
+
+function isEmptyFieldValue(v) {
+  if (Array.isArray(v)) return v.length === 0;
+  return v == null || v === "";
+}
+
 export function renderDeals(container) {
   const stages = getStages();
   reconcileDeals(stages);
@@ -430,6 +575,7 @@ export function renderDeals(container) {
         Store.get(COLLECTION, state.waFloat.dealId),
         contactMap[state.waFloat.contactId] || null
       ) : ""}
+      ${state.crmTab === "deals" ? renderCommDialogs(contactMap) : ""}
     </div>
   `;
 
@@ -470,6 +616,10 @@ function renderColumn(stage, deals, contactMap) {
 function renderCard(d, contact) {
   const stage = findStage(d.stage);
   const assignee = getEmployee(d.assigneeId);
+  const kanbanFields = getDealFields()
+    .filter((f) => f.showInKanban)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .slice(0, 3);
   return `
     <article class="deal-card" data-id="${d.id}" draggable="true" style="border-left-color:${stage?.color || "var(--accent)"}">
       <div class="deal-card-title">${escape(d.title || "(без названия)")}</div>
@@ -477,12 +627,34 @@ function renderCard(d, contact) {
         <span class="deal-amount">${fmtAmount(d.amount)}</span>
         ${d.dueDate ? `<span class="deal-due">${ICONS.calendar} ${fmtDate(d.dueDate)}</span>` : ""}
       </div>
+      ${kanbanFields.length ? `<div class="deal-card-fields">${kanbanFields.map((f) => renderFieldMicroValue(f, d)).join("")}</div>` : ""}
       <div class="deal-card-foot">
         ${contact ? `<span class="deal-contact"><span class="avatar avatar-xs">${initialsOf(contact.name)}</span>${escape(contact.name)}</span>` : "<span></span>"}
         ${assignee ? avatar(assignee, "xs") : ""}
       </div>
     </article>
   `;
+}
+
+function renderFieldMicroValue(field, deal) {
+  const value = parseFieldValue(field, fieldValueRaw(deal, field));
+  if (value == null || value === "" || (Array.isArray(value) && value.length === 0)) return "";
+  if (field.type === "select") {
+    const option = fieldOptionByValue(field, value);
+    return `<span class="deal-micro-pill">${renderFieldOptionPill(option, String(value))}</span>`;
+  }
+  if (field.type === "multi") {
+    const first = Array.isArray(value) ? value[0] : "";
+    if (!first) return "";
+    const option = fieldOptionByValue(field, first);
+    return `<span class="deal-micro-pill">${renderFieldOptionPill(option, String(first))}</span>`;
+  }
+  if (field.type === "boolean") return `<span class="deal-micro-text">${value ? "✓ Да" : "— Нет"}</span>`;
+  if (field.type === "money") return `<span class="deal-micro-text">${fmtAmount(Number(value) || 0)}</span>`;
+  if (field.type === "number") return `<span class="deal-micro-text">${new Intl.NumberFormat("ru-RU").format(Number(value) || 0)}</span>`;
+  if (field.type === "date") return `<span class="deal-micro-text">${formatFieldDate(value, false)}</span>`;
+  if (field.type === "datetime") return `<span class="deal-micro-text">${formatFieldDate(value, true)}</span>`;
+  return `<span class="deal-micro-text">${escape(String(Array.isArray(value) ? value.join(", ") : value))}</span>`;
 }
 
 // =========================================================================
@@ -546,7 +718,7 @@ function renderDealModal(d, contacts, stages) {
                 placeholder: "Поиск сотрудника…",
                 emptyText: "— не назначен —",
               })}
-              ${renderCustomFields(d)}
+              ${renderCustomFields(d, contacts, employees, stages)}
               <div class="field field-wide form-buttons">
                 ${!isNew ? `<button type="button" class="btn-ghost danger" id="deleteDeal">${ICONS.trash}<span>Удалить</span></button>` : "<span></span>"}
                 ${isNew
@@ -583,24 +755,242 @@ function renderDealModal(d, contacts, stages) {
   `;
 }
 
-function renderCustomFields(d) {
-  const fields = getDealFields();
-  if (fields.length === 0) return "";
-  const values = d.customFields || {};
-  return fields.map(f => {
-    const v = values[f.id] ?? "";
-    if (f.type === "select") {
-      const opts = (f.options || []).map(o => `<option value="${escape(o)}" ${v === o ? "selected" : ""}>${escape(o)}</option>`).join("");
-      return `<div class="field"><label>${escape(f.label)}</label><select name="cf_${f.id}"><option value="">—</option>${opts}</select></div>`;
+function renderFieldTypeIcon(field) {
+  const type = field?.type || "text";
+  if (type === "number" || type === "money") return ICONS.money;
+  if (type === "date" || type === "datetime") return ICONS.calendar;
+  if (type === "phone") return ICONS.phone;
+  if (type === "email") return ICONS.mail;
+  if (type === "url") return ICONS.link;
+  if (type === "employee") return ICONS.users;
+  if (type === "boolean") return ICONS.check;
+  if (type === "multi" || type === "select") return ICONS.settings;
+  return ICONS.edit;
+}
+
+function renderFieldOptionPill(option, valueText = "") {
+  const label = option?.label || valueText || "";
+  const color = String(option?.color || "").trim();
+  const bg = rgbaFromHex(color, 0.17);
+  const border = rgbaFromHex(color, 0.42);
+  const style = color && bg && border
+    ? `style="background:${escapeAttr(bg)};border-color:${escapeAttr(border)};color:${escapeAttr(color)}"`
+    : "";
+  return `<span class="cf-pill" ${style}>${escape(label)}</span>`;
+}
+
+function renderFieldValue(field, deal, contacts, employees, stages) {
+  const parsed = parseFieldValue(field, fieldValueRaw(deal, field));
+  const type = field.type || "text";
+
+  if (field.systemField) {
+    if (field.id === "title") return escape(parsed || "—");
+    if (field.id === "amount") return parsed === "" ? "—" : fmtAmount(Number(parsed) || 0);
+    if (field.id === "stage") {
+      const st = stages.find((x) => x.id === parsed);
+      return st ? `<span class="cf-pill" style="--pill-color:${escapeAttr(st.color || "")}">${escape(st.title)}</span>` : "—";
     }
-    if (f.type === "number") {
-      return `<div class="field"><label>${escape(f.label)}</label><input name="cf_${f.id}" type="number" value="${escape(v)}"></div>`;
+    if (field.id === "contactId") {
+      const c = contacts.find((x) => x.id === parsed);
+      return c ? `${escape(c.name || "Контакт")} ${c.phone ? `<span class="cf-inline-sub">${escape(c.phone)}</span>` : ""}` : "—";
     }
-    if (f.type === "date") {
-      return `<div class="field"><label>${escape(f.label)}</label><input name="cf_${f.id}" type="date" value="${escape(v)}"></div>`;
+    if (field.id === "assigneeId") {
+      const e = employees.find((x) => x.id === parsed);
+      return e ? `<span class="cf-employee">${avatar(e, "xs")}<span>${escape(e.name)}</span></span>` : "—";
     }
-    return `<div class="field"><label>${escape(f.label)}</label><input name="cf_${f.id}" type="text" value="${escape(v)}"></div>`;
-  }).join("");
+  }
+
+  if (type === "select") {
+    if (!parsed) return "—";
+    const option = fieldOptionByValue(field, parsed);
+    return renderFieldOptionPill(option, String(parsed));
+  }
+  if (type === "multi") {
+    if (!Array.isArray(parsed) || parsed.length === 0) return "—";
+    return `<span class="cf-pill-wrap">${parsed
+      .map((value) => renderFieldOptionPill(fieldOptionByValue(field, value), String(value)))
+      .join("")}</span>`;
+  }
+  if (type === "boolean") {
+    return parsed ? `<span class="cf-boolean yes">✓ Да</span>` : `<span class="cf-boolean no">— Нет</span>`;
+  }
+  if (type === "date") return formatFieldDate(parsed, false);
+  if (type === "datetime") return formatFieldDate(parsed, true);
+  if (type === "number") return parsed === "" ? "—" : new Intl.NumberFormat("ru-RU").format(Number(parsed) || 0);
+  if (type === "money") return parsed === "" ? "—" : fmtAmount(Number(parsed) || 0);
+  if (type === "url") {
+    if (!parsed) return "—";
+    return `<a href="${escapeAttr(parsed)}" target="_blank" rel="noopener noreferrer">${escape(parsed)}</a>`;
+  }
+  if (type === "employee") {
+    if (!parsed) return "—";
+    const e = employees.find((x) => x.id === parsed);
+    return e ? `<span class="cf-employee">${avatar(e, "xs")}<span>${escape(e.name)}</span></span>` : "—";
+  }
+  if (type === "phone") {
+    if (!parsed) return "—";
+    return `
+      <div class="field-value-comm">
+        <a href="tel:${escapeAttr(parsed)}" class="field-value-text">${escape(parsed)}</a>
+        <button type="button" class="comm-ico" data-comm="call" data-target="${escapeAttr(parsed)}">${ICONS.phone}</button>
+        <button type="button" class="comm-ico" data-comm="whatsapp" data-target="${escapeAttr(parsed)}">${ICONS.chat}</button>
+      </div>
+    `;
+  }
+  if (type === "email") {
+    if (!parsed) return "—";
+    return `
+      <div class="field-value-comm">
+        <a href="mailto:${escapeAttr(parsed)}" class="field-value-text">${escape(parsed)}</a>
+        <button type="button" class="comm-ico" data-comm="email" data-target="${escapeAttr(parsed)}">${ICONS.mail}</button>
+      </div>
+    `;
+  }
+  if (type === "textarea") return parsed ? `<span class="cf-textarea">${escape(parsed)}</span>` : "—";
+  return parsed ? escape(parsed) : "—";
+}
+
+function renderFieldPopover(field, deal, contacts, employees, stages) {
+  if (state.activeFieldPopover !== field.id) return "";
+  const type = field.type || "text";
+  const parsed = parseFieldValue(field, fieldValueRaw(deal, field));
+  const options = fieldOptions(field);
+  const isOptionsType = fieldSupportsOptions(type);
+
+  return `
+    <div class="field-popover" data-popover-for="${escapeAttr(field.id)}">
+      <div class="field-popover-head">
+        <span class="field-popover-ico">${renderFieldTypeIcon(field)}</span>
+        <span>${escape(field.label)}</span>
+      </div>
+      ${type === "textarea" ? `
+        <textarea class="field-popover-input" data-field-input="${escapeAttr(field.id)}" rows="4" autofocus>${escape(parsed)}</textarea>
+      ` : ""}
+      ${["text", "phone", "email", "url"].includes(type) ? `
+        <input class="field-popover-input" data-field-input="${escapeAttr(field.id)}" type="text" value="${escapeAttr(parsed)}" autofocus>
+      ` : ""}
+      ${["number", "money"].includes(type) ? `
+        <input class="field-popover-input" data-field-input="${escapeAttr(field.id)}" type="number" value="${escapeAttr(parsed)}" autofocus>
+      ` : ""}
+      ${type === "date" ? `
+        <input class="field-popover-input" data-field-input="${escapeAttr(field.id)}" type="date" value="${escapeAttr(parsed)}" autofocus>
+      ` : ""}
+      ${type === "datetime" ? `
+        <input class="field-popover-input" data-field-input="${escapeAttr(field.id)}" type="datetime-local" value="${escapeAttr(parsed)}" autofocus>
+      ` : ""}
+      ${type === "boolean" ? `
+        <label class="field-bool"><input type="checkbox" data-field-input="${escapeAttr(field.id)}" ${parsed ? "checked" : ""} autofocus> <span>${parsed ? "Да" : "Нет"}</span></label>
+      ` : ""}
+      ${type === "employee" ? `
+        <select class="field-popover-input" data-field-input="${escapeAttr(field.id)}" autofocus>
+          <option value="">— не назначен —</option>
+          ${employees.map((e) => `<option value="${escapeAttr(e.id)}" ${String(parsed) === e.id ? "selected" : ""}>${escape(e.name)}</option>`).join("")}
+        </select>
+      ` : ""}
+      ${type === "select" ? `
+        <select class="field-popover-input" data-field-input="${escapeAttr(field.id)}" autofocus>
+          <option value="">—</option>
+          ${options.map((o) => `<option value="${escapeAttr(o.id)}" ${String(parsed) === o.id || String(parsed) === o.label ? "selected" : ""}>${escape(o.label)}</option>`).join("")}
+        </select>
+      ` : ""}
+      ${type === "stage" ? `
+        <select class="field-popover-input" data-field-input="${escapeAttr(field.id)}">
+          ${stages.map((s) => `<option value="${escapeAttr(s.id)}" ${String(parsed) === s.id ? "selected" : ""}>${escape(s.title)}</option>`).join("")}
+        </select>
+      ` : ""}
+      ${type === "contactId" ? `
+        <select class="field-popover-input" data-field-input="${escapeAttr(field.id)}">
+          <option value="">—</option>
+          ${contacts.map((c) => `<option value="${escapeAttr(c.id)}" ${String(parsed) === c.id ? "selected" : ""}>${escape(c.name || "(без имени)")}</option>`).join("")}
+        </select>
+      ` : ""}
+      ${isOptionsType && type === "multi" ? `
+        <div class="field-popover-multi">
+          ${options.map((o) => `
+            <label class="field-popover-multi-opt">
+              <input type="checkbox" data-field-input="${escapeAttr(field.id)}" value="${escapeAttr(o.id)}" ${(parsed || []).includes(o.id) || (parsed || []).includes(o.label) ? "checked" : ""}>
+              ${renderFieldOptionPill(o)}
+            </label>
+          `).join("")}
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+function renderCustomFields(deal, contacts, employees, stages) {
+  const fields = getDealFields().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  return `
+    <section class="deal-fields-editor">
+      <div class="deal-fields-editor-head">Поля сделки</div>
+      ${fields.map((field) => `
+        <div class="field-row" data-field-id="${escapeAttr(field.id)}">
+          <div class="field-label">
+            <span class="field-label-ico">${renderFieldTypeIcon(field)}</span>
+            <span>${escape(field.label)}</span>
+            <button type="button" class="field-action" data-action="edit-config" data-field-id="${escapeAttr(field.id)}" title="Настроить">${ICONS.settings}</button>
+            <button type="button" class="field-action" data-action="remove-field" data-field-id="${escapeAttr(field.id)}" title="Удалить">${ICONS.x}</button>
+          </div>
+          <div class="field-value" data-action="edit-value" data-field-id="${escapeAttr(field.id)}">
+            ${renderFieldValue(field, deal, contacts, employees, stages)}
+          </div>
+          ${renderFieldPopover(field, deal, contacts, employees, stages)}
+        </div>
+      `).join("")}
+
+      <div class="field-row field-row-add">
+        <button type="button" class="add-field-btn" id="addDealFieldBtn">+ Добавить поле</button>
+        ${state.addFieldPopoverOpen ? renderAddFieldPopover() : ""}
+      </div>
+    </section>
+  `;
+}
+
+function renderAddFieldPopover() {
+  const draft = { ...defaultAddFieldDraft(), ...(state.addFieldDraft || {}) };
+  const type = getDealFieldType(draft.type);
+  const needOptions = fieldSupportsOptions(type.id);
+  const isEdit = Boolean(state.editingFieldId);
+  return `
+    <div class="field-popover add-field-popover" id="addFieldPopover">
+      <div class="field-popover-head"><span>${isEdit ? ICONS.settings : ICONS.plus}</span><span>${isEdit ? "Настройка поля" : "Новое поле"}</span></div>
+      <div class="field-type-grid">
+        ${FIELD_TYPES.map((t) => `
+          <button type="button" class="field-type-opt ${draft.type === t.id ? "active" : ""}" data-new-field-type="${t.id}">
+            <span class="field-type-opt-ico">${ICONS.settings}</span>
+            <span>${escape(t.label)}</span>
+          </button>
+        `).join("")}
+      </div>
+      <div class="field">
+        <label>Название</label>
+        <input id="newFieldLabel" type="text" value="${escapeAttr(draft.label || "")}" placeholder="Например: Модуль">
+      </div>
+      ${needOptions ? `
+        <div class="field">
+          <label>Варианты</label>
+          <div class="new-field-options" id="newFieldOptions">
+            ${(draft.options || []).map((opt, idx) => `
+              <div class="new-field-option-row" data-opt-i="${idx}">
+                <input type="text" data-opt-label="${idx}" value="${escapeAttr(opt.label || "")}" placeholder="Вариант">
+                <select data-opt-color="${idx}">
+                  ${FIELD_COLOR_PALETTE.map((color) => `<option value="${color}" ${opt.color === color ? "selected" : ""}>${color}</option>`).join("")}
+                </select>
+                <button type="button" class="btn-ghost icon-only danger" data-rm-opt="${idx}">${ICONS.x}</button>
+              </div>
+            `).join("")}
+          </div>
+          <button type="button" class="btn-ghost btn-sm" id="addNewFieldOption">+ Ещё вариант</button>
+        </div>
+      ` : ""}
+      <label class="checkbox-label"><input type="checkbox" id="newFieldRequired" ${draft.required ? "checked" : ""}><span>Обязательное</span></label>
+      <label class="checkbox-label"><input type="checkbox" id="newFieldKanban" ${draft.showInKanban ? "checked" : ""}><span>Показывать в канбане</span></label>
+      <div class="field-popover-actions">
+        <button type="button" class="btn-ghost btn-sm" id="cancelAddField">Отмена</button>
+        <button type="button" class="btn-primary btn-sm" id="confirmAddField">${isEdit ? "Сохранить поле" : "Добавить поле"}</button>
+      </div>
+    </div>
+  `;
 }
 
 function renderStageBar(activeId, stages) {
@@ -845,20 +1235,14 @@ function renderDealContactBlock(contact, d) {
   `;
 }
 
-// Нижняя панель действий: Позвонить · WhatsApp · Заметка.
-// Показывается только для существующих сделок (для новой ещё нечем позвонить — нет данных).
+// Нижняя панель действий: одно главное действие WhatsApp.
 function renderDealActionBar(d, contact) {
   const hasPhone = Boolean(contact?.phone);
   return `
     <footer class="deal-action-bar">
-      <button type="button" class="deal-action-btn" id="actionBarCall" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Позвонить" : "У контакта нет телефона"}">
-        ${ICONS.phone}<span>Позвонить</span>
-      </button>
-      <button type="button" class="deal-action-btn deal-action-btn-primary" id="actionBarWA" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Открыть WhatsApp" : "У контакта нет телефона"}">
-        <span class="dab-emoji">💬</span><span>WhatsApp</span>
-      </button>
-      <button type="button" class="deal-action-btn" id="actionBarNote" title="Добавить заметку в ленту">
-        <span class="dab-emoji">📝</span><span>Заметка</span>
+      <button type="button" class="deal-action-btn deal-action-btn-primary deal-action-btn-single" id="actionBarWA" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Открыть WhatsApp" : "У контакта нет телефона"}">
+        <span class="dab-emoji">💬</span>
+        <span>${hasPhone ? "Открыть WhatsApp с клиентом" : "У контакта нет телефона"}</span>
       </button>
     </footer>
   `;
@@ -935,6 +1319,146 @@ function renderWaFloat(deal, contact) {
         <input name="fileName" type="text" placeholder="Имя файла (опц.)">
         <label class="chat-voice-opt"><input name="asVoice" id="waAsVoice" type="checkbox"> voice</label>
       </form>
+    </div>
+  `;
+}
+
+function renderCommDialogHeader(dialog, title, subtitle, icon) {
+  return `
+    <header class="comm-dialog-head">
+      <div class="comm-dialog-title-wrap">
+        <span class="comm-dialog-ico">${icon}</span>
+        <div class="comm-dialog-title">
+          <div class="comm-dialog-title-main">${escape(title)}</div>
+          ${subtitle ? `<div class="comm-dialog-title-sub">${escape(subtitle)}</div>` : ""}
+        </div>
+      </div>
+      <div class="comm-dialog-actions">
+        <button type="button" class="btn-ghost icon-only" data-comm-min="${escapeAttr(dialog.id)}">${ICONS.chevronsDown}</button>
+        <button type="button" class="btn-ghost icon-only" data-comm-close="${escapeAttr(dialog.id)}">${ICONS.x}</button>
+      </div>
+    </header>
+  `;
+}
+
+function renderCommDialogBody(dialog, contact) {
+  const payload = dialog.payload || {};
+  if (dialog.type === "email") {
+    const mailChannels = listChannels({ onlyActive: true }).filter((c) => /smtp|gmail|email/i.test(String(c.type || "")));
+    return `
+      <div class="comm-dialog-body">
+        ${mailChannels.length
+          ? `<select data-comm-input="${escapeAttr(dialog.id)}" data-key="channelId">${mailChannels.map((c) => `<option value="${escapeAttr(c.id)}" ${payload.channelId === c.id ? "selected" : ""}>${escape(c.name)}</option>`).join("")}</select>`
+          : `<div class="tl-empty">Подключи канал отправки писем в Настройках → Интеграции.</div>`}
+        <input type="text" data-comm-input="${escapeAttr(dialog.id)}" data-key="subject" value="${escapeAttr(payload.subject || "")}" placeholder="Тема письма">
+        <textarea rows="6" data-comm-input="${escapeAttr(dialog.id)}" data-key="body" placeholder="Здравствуйте...">${escape(payload.body || "")}</textarea>
+        <div class="comm-dialog-footer">
+          <button type="button" class="btn-ghost btn-sm" data-comm-close="${escapeAttr(dialog.id)}">Отмена</button>
+          <button type="button" class="btn-primary btn-sm" data-comm-send="${escapeAttr(dialog.id)}">Отправить</button>
+        </div>
+      </div>
+    `;
+  }
+
+  if (dialog.type === "task") {
+    const employees = listEmployees();
+    return `
+      <div class="comm-dialog-body">
+        <input type="text" data-comm-input="${escapeAttr(dialog.id)}" data-key="title" value="${escapeAttr(payload.title || "")}" placeholder="Что нужно сделать">
+        <textarea rows="3" data-comm-input="${escapeAttr(dialog.id)}" data-key="description" placeholder="Описание (опционально)">${escape(payload.description || "")}</textarea>
+        <input type="datetime-local" data-comm-input="${escapeAttr(dialog.id)}" data-key="dueAt" value="${escapeAttr(payload.dueAt || "")}">
+        <select data-comm-input="${escapeAttr(dialog.id)}" data-key="priority">
+          <option value="low" ${payload.priority === "low" ? "selected" : ""}>Обычный</option>
+          <option value="med" ${payload.priority === "med" ? "selected" : ""}>Высокий</option>
+          <option value="high" ${payload.priority === "high" ? "selected" : ""}>Срочно</option>
+        </select>
+        <select data-comm-input="${escapeAttr(dialog.id)}" data-key="assigneeId">
+          <option value="">— не назначен —</option>
+          ${employees.map((e) => `<option value="${escapeAttr(e.id)}" ${payload.assigneeId === e.id ? "selected" : ""}>${escape(e.name)}</option>`).join("")}
+        </select>
+        <div class="comm-dialog-footer">
+          <button type="button" class="btn-ghost btn-sm" data-comm-close="${escapeAttr(dialog.id)}">Отмена</button>
+          <button type="button" class="btn-primary btn-sm" data-comm-save="${escapeAttr(dialog.id)}">Создать</button>
+        </div>
+      </div>
+    `;
+  }
+
+  if (dialog.type === "note") {
+    return `
+      <div class="comm-dialog-body">
+        <textarea rows="4" data-comm-input="${escapeAttr(dialog.id)}" data-key="text" placeholder="Заметка...">${escape(payload.text || "")}</textarea>
+        <div class="comm-dialog-footer">
+          <button type="button" class="btn-ghost btn-sm" data-comm-close="${escapeAttr(dialog.id)}">Отмена</button>
+          <button type="button" class="btn-primary btn-sm" data-comm-save="${escapeAttr(dialog.id)}">Сохранить</button>
+        </div>
+      </div>
+    `;
+  }
+
+  const startedAt = Number(payload.startedAt || dialog.openedAt || Date.now());
+  const diffSec = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+  const timer = `${String(Math.floor(diffSec / 60)).padStart(2, "0")}:${String(diffSec % 60).padStart(2, "0")}`;
+  return `
+    <div class="comm-dialog-body">
+      <div class="comm-call-status">${contact?.phone ? `Позвони по ${escape(contact.phone)}` : "Звонок"}</div>
+      <div class="comm-call-timer">${timer}</div>
+      <textarea rows="4" data-comm-input="${escapeAttr(dialog.id)}" data-key="note" placeholder="Заметка по звонку...">${escape(payload.note || "")}</textarea>
+      <div class="comm-dialog-footer">
+        <button type="button" class="btn-ghost btn-sm" data-comm-close="${escapeAttr(dialog.id)}">Отмена</button>
+        <button type="button" class="btn-primary btn-sm" data-comm-save="${escapeAttr(dialog.id)}">Завершить и сохранить</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderCommDialog(dialog, index, contactMap) {
+  const contact = contactMap[dialog.contactId] || null;
+  const right = 16 + index * 396;
+
+  if (dialog.minimized) {
+    return "";
+  }
+
+  const titleByType = {
+    call: "Звонок",
+    email: "Письмо клиенту",
+    task: "Новое дело",
+    note: "Заметка",
+  };
+  const subtitle = contact?.name || contact?.email || contact?.phone || "";
+  const icon = dialog.type === "call"
+    ? ICONS.phone
+    : dialog.type === "email"
+      ? ICONS.mail
+      : dialog.type === "task"
+        ? ICONS.tasks
+        : ICONS.edit;
+
+  return `
+    <div class="comm-dialog" data-comm-id="${escapeAttr(dialog.id)}" style="right:${right}px">
+      ${renderCommDialogHeader(dialog, titleByType[dialog.type] || "Окно", subtitle, icon)}
+      ${renderCommDialogBody(dialog, contact)}
+    </div>
+  `;
+}
+
+function renderCommDialogs(contactMap) {
+  const dialogs = getCommDialogs();
+  const expanded = dialogs.filter((d) => !d.minimized);
+  const minimized = dialogs.filter((d) => d.minimized);
+  return `
+    <div class="comm-dialogs-layer">
+      ${expanded.map((dialog, idx) => renderCommDialog(dialog, idx, contactMap)).join("")}
+      ${minimized.length ? `
+        <div class="comm-tray">
+          ${minimized.map((dialog) => `
+            <button type="button" class="comm-tray-item" data-comm-restore="${escapeAttr(dialog.id)}" title="${escape(dialog.type)}">
+              ${dialog.type === "call" ? ICONS.phone : dialog.type === "email" ? ICONS.mail : dialog.type === "task" ? ICONS.tasks : ICONS.edit}
+            </button>
+          `).join("")}
+        </div>
+      ` : ""}
     </div>
   `;
 }
@@ -1023,6 +1547,10 @@ function openDealModal(container, dealId = null, prefillContactId = null) {
   state.contactMode = "view";
   state.contactCreateDraft = null;
   state.activityFilter = "all";
+  state.activeFieldPopover = null;
+  state.addFieldPopoverOpen = false;
+  state.addFieldDraft = null;
+  state.editingFieldId = null;
   state.waFloat = { open: false, contactId: null, dealId: null, mediaOpen: false, searchOpen: false, searchQuery: "", draftText: "" };
   if (dealId) location.hash = `#crm/${dealId}`;
   renderDeals(container);
@@ -1034,6 +1562,10 @@ function closeDealModal(container) {
   state.contactMode = "view";
   state.contactCreateDraft = null;
   state.activityFilter = "all";
+  state.activeFieldPopover = null;
+  state.addFieldPopoverOpen = false;
+  state.addFieldDraft = null;
+  state.editingFieldId = null;
   state.waFloat = { open: false, contactId: null, dealId: null, mediaOpen: false, searchOpen: false, searchQuery: "", draftText: "" };
   if (location.hash.startsWith("#crm/")) location.hash = "#crm";
   renderDeals(container);
@@ -1218,6 +1750,122 @@ function wireEvents(container) {
       );
     });
 
+    function dealByModal() {
+      if (!state.modalDealId) return null;
+      return Store.get(COLLECTION, state.modalDealId);
+    }
+
+    function dealContactByModal() {
+      const deal = dealByModal();
+      if (!deal?.contactId) return null;
+      return Store.get(CONTACTS, deal.contactId) || null;
+    }
+
+    function parseValueFromFieldControl(fieldId) {
+      const field = getDealFields().find((f) => f.id === fieldId);
+      if (!field) return null;
+      const controls = Array.from(container.querySelectorAll(`[data-field-input="${fieldId}"]`));
+      if (!controls.length) return null;
+      const type = field.type || "text";
+      if (type === "multi") {
+        return controls
+          .filter((el) => el.checked)
+          .map((el) => String(el.value || "").trim())
+          .filter(Boolean);
+      }
+      const control = controls[0];
+      if (type === "boolean") return !!control.checked;
+      if (type === "number" || type === "money") {
+        const raw = String(control.value || "").trim();
+        if (!raw) return "";
+        const num = Number(raw);
+        return Number.isFinite(num) ? num : "";
+      }
+      return String(control.value ?? "").trim();
+    }
+
+    function persistFieldValue(fieldId, nextValue) {
+      if (!state.modalDealId) return;
+      const field = getDealFields().find((f) => f.id === fieldId);
+      const deal = dealByModal();
+      if (!field || !deal) return;
+
+      if (field.systemField) {
+        if (field.id === "title") Store.update(COLLECTION, deal.id, { title: String(nextValue || "").trim() });
+        if (field.id === "amount") Store.update(COLLECTION, deal.id, { amount: Number(nextValue) || 0 });
+        if (field.id === "contactId") Store.update(COLLECTION, deal.id, { contactId: nextValue || null });
+        if (field.id === "assigneeId") Store.update(COLLECTION, deal.id, { assigneeId: nextValue || null });
+        if (field.id === "stage") {
+          if (deal.stage !== nextValue && nextValue) {
+            Store.update(COLLECTION, deal.id, { stage: nextValue });
+            addActivity(deal.id, "stage", { fromStage: deal.stage, toStage: nextValue });
+          }
+        }
+        return;
+      }
+
+      const customFields = { ...(deal.customFields || {}) };
+      if (isEmptyFieldValue(nextValue)) {
+        delete customFields[field.id];
+      } else {
+        customFields[field.id] = nextValue;
+      }
+      Store.update(COLLECTION, deal.id, { customFields });
+    }
+
+    function upsertFieldFromDraft() {
+      const draft = { ...defaultAddFieldDraft(), ...(state.addFieldDraft || {}) };
+      const label = String(draft.label || "").trim();
+      if (!label) {
+        container.querySelector("#newFieldLabel")?.focus();
+        return false;
+      }
+
+      const fields = getDealFields().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      const target = state.editingFieldId ? fields.find((f) => f.id === state.editingFieldId) : null;
+      if (state.editingFieldId && !target) {
+        state.editingFieldId = null;
+      }
+
+      if (target) {
+        const updated = fields.map((f, idx) => {
+          if (f.id !== target.id) return { ...f, order: Number.isFinite(Number(f.order)) ? Number(f.order) : idx };
+          return buildFieldPayloadFromDraft(draft, {
+            ...f,
+            order: Number.isFinite(Number(f.order)) ? Number(f.order) : idx,
+          });
+        });
+        saveDealFields(updated);
+      } else {
+        const maxOrder = fields.reduce((max, f) => Math.max(max, Number.isFinite(Number(f.order)) ? Number(f.order) : 0), 0);
+        const created = buildFieldPayloadFromDraft(
+          { ...draft, id: newFieldId(), order: maxOrder + 1 },
+          { order: maxOrder + 1 },
+        );
+        saveDealFields([...fields, created]);
+        state.activeFieldPopover = created.id;
+      }
+
+      state.addFieldPopoverOpen = false;
+      state.addFieldDraft = null;
+      state.editingFieldId = null;
+      return true;
+    }
+
+    function patchAddFieldDraft(patch = {}) {
+      const current = { ...defaultAddFieldDraft(), ...(state.addFieldDraft || {}) };
+      const next = { ...current, ...patch };
+      if (!fieldSupportsOptions(next.type)) {
+        next.options = [];
+      } else if (!Array.isArray(next.options) || next.options.length === 0) {
+        next.options = [
+          { id: newOptionId(), label: "Вариант 1", color: FIELD_COLOR_PALETTE[0] },
+          { id: newOptionId(), label: "Вариант 2", color: FIELD_COLOR_PALETTE[1] },
+        ];
+      }
+      state.addFieldDraft = next;
+    }
+
     const autosaveHint = container.querySelector("#dealAutosaveHint");
     let autosaveTimer = null;
     let autosaveSnapshot = "";
@@ -1231,10 +1879,23 @@ function wireEvents(container) {
     function collectDealFormData() {
       const fd = new FormData(dealForm);
       // Собираем кастомные поля
-      const customFields = {};
-      getDealFields().forEach(f => {
-        const v = fd.get("cf_" + f.id);
-        if (v !== null) customFields[f.id] = String(v).trim();
+      const sourceDeal = state.modalDealId ? Store.get(COLLECTION, state.modalDealId) : null;
+      const customFields = { ...(sourceDeal?.customFields || {}) };
+      getDealFields().forEach((f) => {
+        const key = "cf_" + f.id;
+        if (fd.has(key)) {
+          const v = fd.get(key);
+          if (f.type === "multi") {
+            customFields[f.id] = fd.getAll(key).map((x) => String(x).trim()).filter(Boolean);
+          } else if (f.type === "boolean") {
+            customFields[f.id] = String(v || "") === "true" || String(v || "") === "1" || String(v || "") === "on";
+          } else if (f.type === "number" || f.type === "money") {
+            const num = Number(v);
+            customFields[f.id] = Number.isFinite(num) ? num : "";
+          } else {
+            customFields[f.id] = String(v ?? "").trim();
+          }
+        }
       });
       // dueDate и notes больше не редактируются через форму (заметки → лента активности).
       // Legacy-значения существующих сделок остаются нетронутыми — не передаём их в update.
@@ -1342,6 +2003,335 @@ function wireEvents(container) {
           container.querySelectorAll(".deal-stage-bar-btn").forEach(b => b.classList.toggle("active", b.dataset.stage === newStage));
         }
       });
+    });
+
+    // ----- Inline поля сделки -----
+    container.querySelectorAll('[data-action="edit-value"]').forEach((node) => {
+      node.addEventListener("click", (e) => {
+        const target = e.target;
+        if (target?.closest("a,button,input,select,textarea,label")) return;
+        const fieldId = node.dataset.fieldId || node.closest("[data-field-id]")?.dataset.fieldId;
+        if (!fieldId) return;
+        state.activeFieldPopover = state.activeFieldPopover === fieldId ? null : fieldId;
+        state.addFieldPopoverOpen = false;
+        state.editingFieldId = null;
+        renderDeals(container);
+      });
+    });
+
+    container.querySelectorAll('[data-field-input]').forEach((input) => {
+      const fieldId = input.dataset.fieldInput;
+      if (!fieldId) return;
+      const field = getDealFields().find((f) => f.id === fieldId);
+      if (!field) return;
+      const type = field.type || "text";
+      const saveNow = () => {
+        const value = parseValueFromFieldControl(fieldId);
+        persistFieldValue(fieldId, value);
+      };
+      input.addEventListener("change", () => {
+        saveNow();
+        if (["select", "date", "datetime", "boolean", "employee"].includes(type)) {
+          state.activeFieldPopover = null;
+          renderDeals(container);
+        }
+      });
+      input.addEventListener("blur", () => {
+        saveNow();
+      });
+      if (type === "textarea" || type === "text" || type === "phone" || type === "email" || type === "url" || type === "number" || type === "money") {
+        input.addEventListener("keydown", (ev) => {
+          if (ev.key === "Escape") {
+            state.activeFieldPopover = null;
+            renderDeals(container);
+          }
+          if (ev.key === "Enter" && type !== "textarea") {
+            ev.preventDefault();
+            saveNow();
+            state.activeFieldPopover = null;
+            renderDeals(container);
+          }
+        });
+      }
+    });
+
+    container.querySelectorAll('[data-action="remove-field"]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const fieldId = btn.dataset.fieldId;
+        if (!fieldId) return;
+        const fields = getDealFields();
+        const field = fields.find((f) => f.id === fieldId);
+        if (!field || field.systemField) return;
+        if (!confirm(`Удалить поле «${field.label}»?`)) return;
+        const nextFields = fields.filter((f) => f.id !== fieldId).map((f, i) => ({ ...f, order: i }));
+        saveDealFields(nextFields);
+        Store.list(COLLECTION).forEach((deal) => {
+          if (!deal?.customFields || !Object.prototype.hasOwnProperty.call(deal.customFields, fieldId)) return;
+          const customFields = { ...(deal.customFields || {}) };
+          delete customFields[fieldId];
+          Store.update(COLLECTION, deal.id, { customFields });
+        });
+        if (state.activeFieldPopover === fieldId) state.activeFieldPopover = null;
+        renderDeals(container);
+      });
+    });
+
+    container.querySelectorAll('[data-action="edit-config"]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const fieldId = btn.dataset.fieldId;
+        const field = getDealFields().find((f) => f.id === fieldId);
+        if (!field) return;
+        state.editingFieldId = field.id;
+        state.addFieldPopoverOpen = true;
+        state.activeFieldPopover = null;
+        state.addFieldDraft = {
+          ...field,
+          options: cleanFieldOptionsDraft(field.options),
+        };
+        renderDeals(container);
+      });
+    });
+
+    container.querySelector("#addDealFieldBtn")?.addEventListener("click", () => {
+      state.addFieldPopoverOpen = !state.addFieldPopoverOpen;
+      state.editingFieldId = null;
+      state.addFieldDraft = defaultAddFieldDraft();
+      state.activeFieldPopover = null;
+      renderDeals(container);
+    });
+
+    container.querySelector("#cancelAddField")?.addEventListener("click", () => {
+      state.addFieldPopoverOpen = false;
+      state.addFieldDraft = null;
+      state.editingFieldId = null;
+      renderDeals(container);
+    });
+
+    container.querySelector("#confirmAddField")?.addEventListener("click", () => {
+      const label = String(container.querySelector("#newFieldLabel")?.value || "").trim();
+      patchAddFieldDraft({
+        label,
+        required: !!container.querySelector("#newFieldRequired")?.checked,
+        showInKanban: !!container.querySelector("#newFieldKanban")?.checked,
+      });
+      if (!upsertFieldFromDraft()) return;
+      renderDeals(container);
+    });
+
+    container.querySelectorAll("[data-new-field-type]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        patchAddFieldDraft({ type: btn.dataset.newFieldType });
+        renderDeals(container);
+      });
+    });
+
+    container.querySelector("#newFieldLabel")?.addEventListener("input", (e) => {
+      patchAddFieldDraft({ label: e.target.value || "" });
+    });
+    container.querySelector("#newFieldRequired")?.addEventListener("change", (e) => {
+      patchAddFieldDraft({ required: !!e.target.checked });
+    });
+    container.querySelector("#newFieldKanban")?.addEventListener("change", (e) => {
+      patchAddFieldDraft({ showInKanban: !!e.target.checked });
+    });
+
+    container.querySelector("#addNewFieldOption")?.addEventListener("click", () => {
+      const draft = { ...defaultAddFieldDraft(), ...(state.addFieldDraft || {}) };
+      const opts = cleanFieldOptionsDraft(draft.options);
+      const color = FIELD_COLOR_PALETTE[opts.length % FIELD_COLOR_PALETTE.length];
+      opts.push({ id: newOptionId(), label: `Вариант ${opts.length + 1}`, color });
+      patchAddFieldDraft({ options: opts });
+      renderDeals(container);
+    });
+
+    container.querySelectorAll("[data-rm-opt]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.dataset.rmOpt);
+        const draft = { ...defaultAddFieldDraft(), ...(state.addFieldDraft || {}) };
+        const opts = cleanFieldOptionsDraft(draft.options);
+        opts.splice(idx, 1);
+        patchAddFieldDraft({ options: opts });
+        renderDeals(container);
+      });
+    });
+
+    container.querySelectorAll("[data-opt-label]").forEach((input) => {
+      input.addEventListener("input", (e) => {
+        const idx = Number(input.dataset.optLabel);
+        const draft = { ...defaultAddFieldDraft(), ...(state.addFieldDraft || {}) };
+        const opts = cleanFieldOptionsDraft(draft.options);
+        if (!opts[idx]) return;
+        opts[idx] = { ...opts[idx], label: String(e.target.value || "") };
+        patchAddFieldDraft({ options: opts });
+      });
+    });
+
+    container.querySelectorAll("[data-opt-color]").forEach((select) => {
+      select.addEventListener("change", (e) => {
+        const idx = Number(select.dataset.optColor);
+        const draft = { ...defaultAddFieldDraft(), ...(state.addFieldDraft || {}) };
+        const opts = cleanFieldOptionsDraft(draft.options);
+        if (!opts[idx]) return;
+        opts[idx] = { ...opts[idx], color: String(e.target.value || "") };
+        patchAddFieldDraft({ options: opts });
+      });
+    });
+
+    // Быстрые коммуникации с полей типа phone/email.
+    container.querySelectorAll(".comm-ico[data-comm]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const kind = btn.dataset.comm;
+        const targetValue = String(btn.dataset.target || "").trim();
+        const deal = dealByModal();
+        const contact = dealContactByModal();
+        if (!deal) return;
+
+        if (kind === "whatsapp") {
+          const phone = targetValue || contact?.phone || "";
+          if (!phone || !contact?.id) return;
+          state.waFloat = {
+            open: true,
+            contactId: contact.id,
+            dealId: deal.id,
+            mediaOpen: false,
+            searchOpen: false,
+            searchQuery: "",
+            draftText: "",
+          };
+          renderDeals(container);
+          return;
+        }
+
+        if (kind === "call") {
+          openCommDialog({
+            type: "call",
+            contactId: contact?.id || null,
+            dealId: deal.id,
+            payload: {
+              target: targetValue || contact?.phone || "",
+              note: "",
+              startedAt: Date.now(),
+            },
+          });
+          renderDeals(container);
+          return;
+        }
+
+        if (kind === "email") {
+          openCommDialog({
+            type: "email",
+            contactId: contact?.id || null,
+            dealId: deal.id,
+            payload: {
+              to: targetValue || contact?.email || "",
+              subject: "",
+              body: "",
+            },
+          });
+          renderDeals(container);
+        }
+      });
+    });
+
+    // Плавающие окна коммуникаций.
+    container.querySelectorAll("[data-comm-min]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        minimizeCommDialog(btn.dataset.commMin, true);
+        renderDeals(container);
+      });
+    });
+
+    container.querySelectorAll("[data-comm-close]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        closeCommDialog(btn.dataset.commClose);
+        renderDeals(container);
+      });
+    });
+
+    container.querySelectorAll("[data-comm-restore]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        minimizeCommDialog(btn.dataset.commRestore, false);
+        renderDeals(container);
+      });
+    });
+
+    container.querySelectorAll("[data-comm-input]").forEach((input) => {
+      const dialogId = input.dataset.commInput;
+      const key = input.dataset.key;
+      if (!dialogId || !key) return;
+      const sync = () => {
+        const value = input.type === "checkbox" ? !!input.checked : input.value;
+        updateCommDialog(dialogId, { payload: { [key]: value } });
+      };
+      input.addEventListener("input", sync);
+      input.addEventListener("change", sync);
+    });
+
+    container.querySelectorAll("[data-comm-save]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const dialog = getCommDialogs().find((d) => d.id === btn.dataset.commSave);
+        if (!dialog || !dialog.dealId) return;
+        const payload = dialog.payload || {};
+
+        if (dialog.type === "note") {
+          const text = String(payload.text || "").trim();
+          if (!text) return;
+          addActivity(dialog.dealId, "note", { text });
+        } else if (dialog.type === "task") {
+          const title = String(payload.title || "").trim();
+          if (!title) return;
+          const dueAtTs = payload.dueAt ? new Date(payload.dueAt).getTime() : null;
+          Store.create("tasks", {
+            title,
+            description: String(payload.description || "").trim(),
+            priority: payload.priority || "med",
+            dueDate: Number.isFinite(dueAtTs) ? dueAtTs : null,
+            status: "open",
+            assigneeId: payload.assigneeId || null,
+            participantIds: [],
+            linkedTo: { type: "deal", id: dialog.dealId },
+            files: [],
+            parentId: null,
+          });
+          addActivity(dialog.dealId, "task", { title, dueAt: Number.isFinite(dueAtTs) ? dueAtTs : null });
+        } else if (dialog.type === "call") {
+          const text = String(payload.note || "").trim();
+          addActivity(dialog.dealId, "call", { text: text || "Звонок завершён" });
+        }
+
+        closeCommDialog(dialog.id);
+        refreshTimeline();
+        renderDeals(container);
+      });
+    });
+
+    container.querySelectorAll("[data-comm-send]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const dialog = getCommDialogs().find((d) => d.id === btn.dataset.commSend);
+        if (!dialog || !dialog.dealId) return;
+        const payload = dialog.payload || {};
+        const to = String(payload.to || "").trim();
+        const subject = String(payload.subject || "").trim();
+        const body = String(payload.body || "").trim();
+        if (!to && !body) return;
+        addActivity(dialog.dealId, "email", { to, subject, text: body });
+        closeCommDialog(dialog.id);
+        refreshTimeline();
+        renderDeals(container);
+      });
+    });
+
+    container.querySelector("#modalBackdrop")?.addEventListener("click", (ev) => {
+      const target = ev.target;
+      if (!target) return;
+      if (target.closest(".field-popover") || target.closest('[data-action="edit-value"]') || target.closest("#addDealFieldBtn")) return;
+      if (!state.activeFieldPopover && !state.addFieldPopoverOpen) return;
+      state.activeFieldPopover = null;
+      state.addFieldPopoverOpen = false;
+      state.editingFieldId = null;
+      renderDeals(container);
     });
 
     // ----- Timeline (заметки/письма/дела/wa/звонки) -----
