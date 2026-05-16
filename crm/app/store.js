@@ -20,6 +20,11 @@ const AUTO_COLLECTIONS = [
   "deal_activities",
   "task_comments",
   "contact_activities",
+  "products",
+  "product_categories",
+  "batches",
+  "stock_movements",
+  "deal_items",
 ];
 
 const syncState = {

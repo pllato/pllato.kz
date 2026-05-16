@@ -145,7 +145,7 @@ export function ROLES() {
 }
 
 // Все возможные права (по разделам CRM)
-export const ALL_PERMISSIONS = ["dashboard", "contacts", "crm", "calls", "tasks", "feed", "chat", "docs", "settings"];
+export const ALL_PERMISSIONS = ["dashboard", "contacts", "crm", "warehouse", "calls", "tasks", "feed", "chat", "docs", "settings"];
 
 // Возвращает permissions для текущего пользователя.
 // Если у текущего сотрудника НЕТ roleId — даём полный доступ (исторический pllato = admin).
@@ -157,7 +157,7 @@ export function currentPermissions() {
     if (!me.roleId) {
       if (me.role === "admin")   return ALL_PERMISSIONS.slice();
     if (me.role === "manager") return ALL_PERMISSIONS.filter(p => p !== "settings");
-    if (me.role === "viewer")  return ["dashboard", "feed"];
+    if (me.role === "viewer")  return ["dashboard", "feed", "warehouse"];
     return ALL_PERMISSIONS.slice();
   }
   // Ищем роль через Store напрямую (без циклического импорта)
@@ -170,6 +170,8 @@ export function currentPermissions() {
   const perms = Array.isArray(role.permissions) ? role.permissions.slice() : [];
   // Backward compatibility: old role snapshots had "crm" but not "calls".
   if (perms.includes("crm") && !perms.includes("calls")) perms.push("calls");
+  // По умолчанию "Склад" доступен всем ролям; отключается только явным флагом в роли.
+  if (!perms.includes("warehouse") && role.warehouseDisabled !== true) perms.push("warehouse");
   return perms;
 }
 

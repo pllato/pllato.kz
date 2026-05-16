@@ -11,6 +11,7 @@ import { renderCalls } from "./app/views/calls.js";
 import { renderDashboard } from "./app/views/dashboard.js";
 import { renderSettings } from "./app/views/settings.js";
 import { renderDocs } from "./app/views/docs.js";
+import { renderWarehouse } from "./app/views/warehouse.js";
 import { listNotifications, unreadCount, markRead, markAllRead, typeMeta, seedDemoNotifications } from "./app/notifications.js";
 import { hasPermission, currentPermissions, replaceEmployeesFromFirebase } from "./app/employees.js";
 import { syncChannelsFromFirebase } from "./app/channels.js";
@@ -245,6 +246,7 @@ const ROUTES = [
   { id: "dashboard", title: "Дашборд",   icon: "dashboard", group: "workspace" },
   { id: "contacts",  title: "Контакты",  icon: "users",     group: "workspace" },
   { id: "crm",       title: "CRM",       icon: "deals",     group: "workspace" },
+  { id: "warehouse", title: "Склад",     icon: "warehouse", group: "workspace" },
   { id: "calls",     title: "Звонки",    icon: "phone",     group: "workspace", hiddenInNav: true },
   { id: "tasks",     title: "Задачи",    icon: "tasks",     group: "workspace" },
   { id: "docs",      title: "Документы", icon: "book",      group: "workspace" },
@@ -454,6 +456,10 @@ function renderMain(route, container) {
   if (route === "crm") {
     tryOpenDealFromHash();
     renderDeals(container);
+    return;
+  }
+  if (route === "warehouse") {
+    renderWarehouse(container);
     return;
   }
   if (route === "tasks") {

@@ -10,10 +10,12 @@ import { ensureBuiltinDocumentsSeed, listDocuments, normalizeVisibility, saveDoc
 import { VERSION, REVISION, BUILD_DATE, COMMIT_SHORT, HISTORY } from "../version.js";
 
 const ROLES_COLLECTION = "roles";
+const ROLES_WAREHOUSE_DEFAULT_MIGRATION = "pllato_roles_warehouse_default_v1";
 const PERMISSIONS = [
   { id: "dashboard", label: "Дашборд" },
   { id: "contacts",  label: "Контакты" },
   { id: "crm",       label: "CRM" },
+  { id: "warehouse", label: "Склад" },
   { id: "calls",     label: "Звонки" },
   { id: "tasks",     label: "Задачи" },
   { id: "feed",      label: "Лента" },
@@ -38,16 +40,30 @@ function seedRoles() {
   const existing = Store.list(ROLES_COLLECTION);
   if (existing.length === 0) {
     Store.create(ROLES_COLLECTION, { name: "Администратор", system: true, permissions: PERMISSIONS.map(p => p.id) });
-    Store.create(ROLES_COLLECTION, { name: "Менеджер",      system: true, permissions: ["dashboard", "contacts", "crm", "calls", "tasks", "feed", "chat", "docs"] });
-    Store.create(ROLES_COLLECTION, { name: "Наблюдатель",   system: true, permissions: ["dashboard", "feed"] });
+    Store.create(ROLES_COLLECTION, { name: "Менеджер",      system: true, permissions: ["dashboard", "contacts", "crm", "warehouse", "calls", "tasks", "feed", "chat", "docs"] });
+    Store.create(ROLES_COLLECTION, { name: "Наблюдатель",   system: true, permissions: ["dashboard", "feed", "warehouse"] });
     return;
   }
   existing.forEach((r) => {
     const perms = Array.isArray(r.permissions) ? r.permissions.slice() : [];
+    const patch = {};
+    let changed = false;
     if (perms.includes("crm") && !perms.includes("calls")) {
-      Store.update(ROLES_COLLECTION, r.id, { permissions: [...perms, "calls"] });
+      perms.push("calls");
+      changed = true;
+    }
+    if (!localStorage.getItem(ROLES_WAREHOUSE_DEFAULT_MIGRATION) && !perms.includes("warehouse")) {
+      perms.push("warehouse");
+      changed = true;
+    }
+    if (changed) {
+      patch.permissions = Array.from(new Set(perms));
+      Store.update(ROLES_COLLECTION, r.id, patch);
     }
   });
+  if (!localStorage.getItem(ROLES_WAREHOUSE_DEFAULT_MIGRATION)) {
+    localStorage.setItem(ROLES_WAREHOUSE_DEFAULT_MIGRATION, "1");
+  }
 }
 
 const INTEGRATIONS = [
@@ -657,10 +673,12 @@ function wireEvents(container) {
   container.querySelector("#roleForm")?.addEventListener("submit", e => {
     e.preventDefault();
     const fd = new FormData(e.target);
+    const permissions = fd.getAll("permissions");
     const id = e.target.dataset.id;
     const data = {
       name: (fd.get("name") || "").trim(),
-      permissions: fd.getAll("permissions"),
+      permissions,
+      warehouseDisabled: !permissions.includes("warehouse"),
     };
     if (!data.name) return;
     if (id) Store.update(ROLES_COLLECTION, id, data);
@@ -759,7 +777,7 @@ function wireEvents(container) {
   // Опасная зона
   container.querySelector("#clearData")?.addEventListener("click", () => {
     if (!confirm("Удалить все локальные данные? Это нельзя отменить.")) return;
-    ["contacts", "deals", "tasks", "feed", "chats", "chat_messages", "task_comments", "deal_activities", "notifications"].forEach(k => {
+    ["contacts", "deals", "tasks", "feed", "chats", "chat_messages", "task_comments", "deal_activities", "notifications", "products", "product_categories", "batches", "stock_movements", "deal_items"].forEach(k => {
       localStorage.removeItem("pllato_core_" + k);
     });
     alert("Данные очищены. Демо-сидинг вернётся при заходе в разделы.");
