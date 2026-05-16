@@ -70,7 +70,9 @@ export function renderDocumentsList(container, model) {
         <h1>Документы</h1>
         <div class="doc-subtitle">Внутренние регламенты, инструкции и мотивационные материалы.</div>
       </div>
-      <button class="doc-btn doc-btn-primary" data-action="create">+ Новый документ</button>
+      ${model.canCreate === false
+        ? '<button class="doc-btn doc-btn-primary" disabled title="Недоступно в автономном режиме">+ Новый документ</button>'
+        : '<button class="doc-btn doc-btn-primary" data-action="create">+ Новый документ</button>'}
     </section>
 
     <section class="doc-filters-row">
