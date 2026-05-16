@@ -400,7 +400,7 @@ async function createDoc(payload) {
     body: payload.body || '',
     authorId: state.me.id,
     scope,
-    sharedWith: scope === 'team' ? [] : [],
+    sharedWith: scope === 'team' ? [] : normalizeShared(payload.sharedWith || []),
     createdAt: timestamp,
     updatedAt: timestamp,
   }, id);
@@ -423,7 +423,7 @@ async function editDoc(doc, payload) {
     type: payload.type || doc.type,
     body: doc.builtin ? doc.body || '' : payload.body || '',
     scope: nextScope,
-    sharedWith: nextScope === 'team' ? [] : normalizeShared(doc.sharedWith),
+    sharedWith: nextScope === 'team' ? [] : normalizeShared(payload.sharedWith ?? doc.sharedWith ?? []),
     updatedAt: timestamp,
   }, doc.id);
 
@@ -441,6 +441,8 @@ async function openEditor(id) {
       mode: 'edit',
       initial: doc,
       isAdmin: isAdminUser(state.me),
+      users: state.usersById,
+      currentUser: state.me,
       onSave: async (payload) => {
         await editDoc(doc, payload);
         refresh();
@@ -453,6 +455,8 @@ async function openEditor(id) {
     mode: 'create',
     initial: { type: 'other', scope: 'personal' },
     isAdmin: isAdminUser(state.me),
+    users: state.usersById,
+    currentUser: state.me,
     onSave: async (payload) => {
       const created = await createDoc(payload);
       setRoute(created.id);
