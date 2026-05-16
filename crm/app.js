@@ -10,6 +10,7 @@ import { renderChat } from "./app/views/chat.js";
 import { renderCalls } from "./app/views/calls.js";
 import { renderDashboard } from "./app/views/dashboard.js";
 import { renderSettings } from "./app/views/settings.js";
+import { renderDocs } from "./app/views/docs.js";
 import { listNotifications, unreadCount, markRead, markAllRead, typeMeta, seedDemoNotifications } from "./app/notifications.js";
 import { hasPermission, currentPermissions, replaceEmployeesFromFirebase } from "./app/employees.js";
 import { syncChannelsFromFirebase } from "./app/channels.js";
@@ -246,6 +247,7 @@ const ROUTES = [
   { id: "crm",       title: "CRM",       icon: "deals",     group: "workspace" },
   { id: "calls",     title: "Звонки",    icon: "phone",     group: "workspace", hiddenInNav: true },
   { id: "tasks",     title: "Задачи",    icon: "tasks",     group: "workspace" },
+  { id: "docs",      title: "Документы", icon: "book",      group: "workspace" },
   { id: "feed",      title: "Лента",     icon: "feed",      group: "team" },
   { id: "chat",      title: "Чаты",      icon: "chat",      group: "team" },
   { id: "settings",  title: "Настройки", icon: "settings",  group: "system" },
@@ -456,6 +458,10 @@ function renderMain(route, container) {
   }
   if (route === "tasks") {
     renderTasks(container);
+    return;
+  }
+  if (route === "docs") {
+    renderDocs(container);
     return;
   }
   if (route === "calls") {

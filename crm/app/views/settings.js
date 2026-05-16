@@ -6,6 +6,7 @@ import { ICONS } from "../icons.js";
 import { listEmployees, getEmployee, currentEmployee, createEmployee, updateEmployee, removeEmployee, avatar, ROLES, isFirebaseSynced } from "../employees.js";
 import { getDealFields, saveDealFields, newFieldId, FIELD_TYPES } from "../custom_fields.js";
 import { listChannels, typeMeta, isChannelsSynced } from "../channels.js";
+import { ensureBuiltinDocumentsSeed, listDocuments, normalizeVisibility, saveDocumentVisibility, isEmployeeAdmin } from "../docs/registry.js";
 import { VERSION, REVISION, BUILD_DATE, COMMIT_SHORT, HISTORY } from "../version.js";
 
 const ROLES_COLLECTION = "roles";
@@ -17,6 +18,7 @@ const PERMISSIONS = [
   { id: "tasks",     label: "Задачи" },
   { id: "feed",      label: "Лента" },
   { id: "chat",      label: "Чаты" },
+  { id: "docs",      label: "Документы" },
   { id: "settings",  label: "Настройки" },
 ];
 
@@ -36,7 +38,7 @@ function seedRoles() {
   const existing = Store.list(ROLES_COLLECTION);
   if (existing.length === 0) {
     Store.create(ROLES_COLLECTION, { name: "Администратор", system: true, permissions: PERMISSIONS.map(p => p.id) });
-    Store.create(ROLES_COLLECTION, { name: "Менеджер",      system: true, permissions: ["dashboard", "contacts", "crm", "calls", "tasks", "feed", "chat"] });
+    Store.create(ROLES_COLLECTION, { name: "Менеджер",      system: true, permissions: ["dashboard", "contacts", "crm", "calls", "tasks", "feed", "chat", "docs"] });
     Store.create(ROLES_COLLECTION, { name: "Наблюдатель",   system: true, permissions: ["dashboard", "feed"] });
     return;
   }
@@ -87,15 +89,20 @@ const state = {
   openIntegration: null,
   editingEmployee: null,    // id или "new"
   editingRole: null,        // id или "new"
+  employeeDocsFor: null,    // employee id
 };
 
 export function renderSettings(container) {
   seedRoles();
+  ensureBuiltinDocumentsSeed();
   const user = currentUser();
   const ws = getWorkspace();
   const theme = document.documentElement.getAttribute("data-theme") || "dark";
   const employees = listEmployees();
   const roles = Store.list(ROLES_COLLECTION);
+  const me = currentEmployee();
+  const canManageDocs = isEmployeeAdmin(me);
+  const documents = listDocuments();
 
   container.innerHTML = `
     <div class="settings-view">
@@ -168,7 +175,7 @@ export function renderSettings(container) {
             </div>
           ` : ""}
           <div class="employees-list">
-            ${employees.map(e => renderEmployeeRow(e, roles)).join("")}
+            ${employees.map(e => renderEmployeeRow(e, roles, canManageDocs)).join("")}
           </div>
           ${!isFirebaseSynced() && state.editingEmployee === "new" ? renderEmployeeForm(null, roles) : ""}
           ${!isFirebaseSynced() ? `<div>
@@ -314,6 +321,8 @@ export function renderSettings(container) {
           </div>
         </div>
       </section>
+
+      ${canManageDocs && state.employeeDocsFor ? renderEmployeeDocsModal(state.employeeDocsFor, employees, documents) : ""}
     </div>
   `;
 
@@ -365,10 +374,16 @@ function renderCustomFieldsList() {
   `).join("");
 }
 
-function renderEmployeeRow(e, roles) {
+function renderEmployeeRow(e, roles, canManageDocs) {
   if (state.editingEmployee === e.id && !isFirebaseSynced()) return renderEmployeeForm(e, roles);
   const fbManaged = isFirebaseSynced();
   const roleLabel = e.isSuperAdmin ? "Супер-админ" : e.isAdmin ? "Админ" : (roles.find(r => r.id === e.roleId)?.name || e.role || "Сотрудник");
+  const actions = [];
+  if (canManageDocs) actions.push(`<button class="btn-ghost icon-only" data-emp-docs="${e.id}" title="Документы">${ICONS.book}</button>`);
+  if (!fbManaged) {
+    actions.push(`<button class="btn-ghost icon-only" data-edit-emp="${e.id}">${ICONS.edit}</button>`);
+    if (!e.isCurrent) actions.push(`<button class="btn-ghost icon-only danger" data-remove-emp="${e.id}">${ICONS.trash}</button>`);
+  }
   return `
     <div class="employee-row" data-id="${e.id}">
       ${avatar(e, "md")}
@@ -376,10 +391,7 @@ function renderEmployeeRow(e, roles) {
         <div class="employee-name">${escape(e.name)}${e.isCurrent ? ' <span class="badge">это вы</span>' : ""}</div>
         <div class="employee-meta">${escape(e.email)} · ${escape(roleLabel)}${e.position ? ` · ${escape(e.position)}` : ""}</div>
       </div>
-      ${fbManaged ? "" : `<div class="employee-actions">
-        <button class="btn-ghost icon-only" data-edit-emp="${e.id}">${ICONS.edit}</button>
-        ${!e.isCurrent ? `<button class="btn-ghost icon-only danger" data-remove-emp="${e.id}">${ICONS.trash}</button>` : ""}
-      </div>`}
+      ${actions.length ? `<div class="employee-actions">${actions.join("")}</div>` : ""}
     </div>
   `;
 }
@@ -452,7 +464,60 @@ function renderRoleForm(r) {
   `;
 }
 
+function renderEmployeeDocsModal(employeeId, employees, documents) {
+  const employee = employees.find((e) => e.id === employeeId);
+  if (!employee) return "";
+  const docs = documents || [];
+
+  return `
+    <div class="modal-backdrop" data-emp-docs-modal>
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Документы для ${escape(employee.name || employee.email || "сотрудника")}</h2>
+          <button type="button" class="btn-ghost icon-only" data-close-emp-docs>${ICONS.x}</button>
+        </div>
+        <div class="doc-emp-modal-body">
+          ${docs.length === 0 ? `
+            <div class="tl-empty">Документы пока не созданы.</div>
+          ` : `
+            <div class="doc-emp-list">
+              ${docs.map((doc) => {
+                const visibility = normalizeVisibility(doc);
+                const opened = visibility.employeeIds.includes(employee.id);
+                return `
+                  <label class="doc-emp-item" data-doc-id="${doc.id}" data-mode="${visibility.mode}">
+                    <div class="doc-emp-item-main">
+                      <div class="doc-emp-title">${escape(doc.title || "Без названия")}</div>
+                      <div class="doc-emp-meta">
+                        ${escape(doc.description || "")}
+                        ${visibility.mode === "all" ? `<span class="chip-mini chip-mini-accent">Открыт всем</span>` : ""}
+                      </div>
+                    </div>
+                    <span class="doc-emp-toggle">
+                      <input type="checkbox" data-doc-checkbox="${doc.id}" ${opened ? "checked" : ""}>
+                      <span>Открыт доступ</span>
+                    </span>
+                  </label>
+                `;
+              }).join("")}
+            </div>
+          `}
+        </div>
+        <div class="modal-footer">
+          <div></div>
+          <div class="modal-footer-right">
+            <button type="button" class="btn-ghost" data-close-emp-docs>Отмена</button>
+            <button type="button" class="btn" data-save-emp-docs>Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function wireEvents(container) {
+  const canManageDocs = isEmployeeAdmin(currentEmployee());
+
   // Workspace
   container.querySelector("#workspaceForm")?.addEventListener("submit", e => {
     e.preventDefault();
@@ -495,6 +560,65 @@ function wireEvents(container) {
         renderSettings(container);
       }
     });
+  });
+  container.querySelectorAll("[data-emp-docs]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (!canManageDocs) return;
+      state.employeeDocsFor = btn.dataset.empDocs;
+      renderSettings(container);
+    });
+  });
+  container.querySelectorAll("[data-close-emp-docs]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.employeeDocsFor = null;
+      renderSettings(container);
+    });
+  });
+  container.querySelector("[data-emp-docs-modal]")?.addEventListener("click", (e) => {
+    if (e.target.matches("[data-emp-docs-modal]")) {
+      state.employeeDocsFor = null;
+      renderSettings(container);
+    }
+  });
+  container.querySelector("[data-save-emp-docs]")?.addEventListener("click", () => {
+    if (!canManageDocs || !state.employeeDocsFor) return;
+    const empId = state.employeeDocsFor;
+    const docs = listDocuments();
+    let changed = 0;
+    let allModeIgnored = false;
+
+    docs.forEach((doc) => {
+      const cb = container.querySelector(`[data-doc-checkbox="${doc.id}"]`);
+      if (!cb) return;
+      const wantOpen = !!cb.checked;
+      const visibility = normalizeVisibility(doc);
+
+      if (visibility.mode === "all") {
+        const initial = visibility.employeeIds.includes(empId);
+        if (wantOpen !== initial) allModeIgnored = true;
+        return;
+      }
+
+      const ids = new Set(visibility.employeeIds);
+      const has = ids.has(empId);
+      if (wantOpen && !has) {
+        ids.add(empId);
+        saveDocumentVisibility(doc.id, { mode: "selected", employeeIds: [...ids] });
+        changed += 1;
+      } else if (!wantOpen && has) {
+        ids.delete(empId);
+        saveDocumentVisibility(doc.id, { mode: "selected", employeeIds: [...ids] });
+        changed += 1;
+      }
+    });
+
+    state.employeeDocsFor = null;
+    renderSettings(container);
+    if (allModeIgnored) {
+      alert("Этот документ открыт всем, индивидуальная настройка не требуется.");
+    } else if (changed > 0) {
+      alert("Доступы к документам сохранены.");
+    }
   });
   container.querySelectorAll("[data-cancel-emp]").forEach(btn => {
     btn.addEventListener("click", () => { state.editingEmployee = null; renderSettings(container); });

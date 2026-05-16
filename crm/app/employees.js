@@ -145,7 +145,7 @@ export function ROLES() {
 }
 
 // Все возможные права (по разделам CRM)
-export const ALL_PERMISSIONS = ["dashboard", "contacts", "crm", "calls", "tasks", "feed", "chat", "settings"];
+export const ALL_PERMISSIONS = ["dashboard", "contacts", "crm", "calls", "tasks", "feed", "chat", "docs", "settings"];
 
 // Возвращает permissions для текущего пользователя.
 // Если у текущего сотрудника НЕТ roleId — даём полный доступ (исторический pllato = admin).
