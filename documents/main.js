@@ -19,6 +19,8 @@ import {
 
 const ROOT_SUPER_ADMIN = 'uurraa@gmail.com';
 const DOCS_APP_ID = 'docs_portal';
+const FETCH_TIMEOUT_MS = 12000;
+const AUTH_TIMEOUT_MS = 12000;
 
 const firebaseConfig = {
   apiKey: 'AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc',
@@ -47,10 +49,21 @@ const state = {
   showAllForAdmin: false,
   moduleStateByDoc: {},
   toastQueue: [],
+  errorMessage: '',
 };
 
 function now() {
   return Date.now();
+}
+
+function withTimeout(promise, label, timeoutMs = FETCH_TIMEOUT_MS) {
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label}: timeout`)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
 }
 
 function asId(value) {
@@ -213,6 +226,21 @@ function refresh() {
 
   if (state.mode === 'forbidden') {
     renderForbidden();
+    return;
+  }
+
+  if (state.mode === 'error') {
+    renderFrame(`
+      <section class="doc-forbidden">
+        <h2>Не удалось загрузить документы</h2>
+        <p>${escapeHtml(state.errorMessage || 'Проверь Firebase-сессию и доступ к базе.')}</p>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="doc-btn" data-action="reload">Обновить страницу</button>
+          <a class="doc-btn" href="login.html">Войти заново</a>
+        </div>
+      </section>
+    `);
+    root.querySelector('[data-action="reload"]')?.addEventListener('click', () => window.location.reload());
     return;
   }
 
@@ -410,7 +438,7 @@ async function deleteDoc(id) {
 }
 
 async function migrateAndLoadDocuments(authorFallbackId) {
-  const snap = await get(ref(db, 'documents'));
+  const snap = await withTimeout(get(ref(db, 'documents')), 'documents read');
   const raw = snap.exists() ? snap.val() : {};
   const docs = [];
   const writes = [];
@@ -451,7 +479,7 @@ async function migrateAndLoadDocuments(authorFallbackId) {
     writes.push(set(ref(db, `documents/${id}`), seed));
   }
 
-  if (writes.length) await Promise.all(writes);
+  if (writes.length) await withTimeout(Promise.all(writes), 'documents write');
   docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   return docs;
 }
@@ -464,7 +492,7 @@ async function bootstrapSession(user) {
     return;
   }
 
-  const usersSnap = await get(ref(db, 'users'));
+  const usersSnap = await withTimeout(get(ref(db, 'users')), 'users read');
   const usersById = toUsersById(usersSnap.exists() ? usersSnap.val() : {});
 
   const matched = findUserByEmail(usersById, email);
@@ -506,7 +534,15 @@ window.addEventListener('popstate', () => {
 
 renderLoading();
 
+const authWatchdog = setTimeout(() => {
+  if (state.mode !== 'loading') return;
+  state.mode = 'error';
+  state.errorMessage = 'Firebase Auth долго не отвечает. Перезайди через login.html.';
+  refresh();
+}, AUTH_TIMEOUT_MS);
+
 onAuthStateChanged(auth, async (user) => {
+  clearTimeout(authWatchdog);
   if (!user) {
     window.location.href = 'login.html';
     return;
@@ -515,13 +551,11 @@ onAuthStateChanged(auth, async (user) => {
   refresh();
 
   try {
-    await bootstrapSession(user);
+    await withTimeout(bootstrapSession(user), 'bootstrap session');
   } catch (error) {
     console.error(error);
-    state.mode = 'ready';
-    state.me = state.me || { id: user.uid, email: user.email || '' };
-    state.docs = [];
+    state.mode = 'error';
+    state.errorMessage = error?.message || String(error);
     refresh();
-    toast(`Ошибка загрузки: ${error?.message || error}`, 'err');
   }
 });
