@@ -26,8 +26,8 @@ const ROOT_SUPER_ADMIN = 'uurraa@gmail.com';
 const DOCS_APP_ID = 'docs_portal';
 const FETCH_TIMEOUT_MS = 12000;
 const AUTH_TIMEOUT_MS = 12000;
-const USERS_FETCH_TIMEOUT_MS = 12000;
-const HARD_FALLBACK_MS = 6500;
+const USERS_FETCH_TIMEOUT_MS = 4500;
+const HARD_FALLBACK_MS = 14000;
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
 const firebaseConfig = {
@@ -401,7 +401,7 @@ function refresh() {
     activeTab: state.activeTab,
     query: state.query,
     showAllForAdmin: state.showAllForAdmin,
-    canCreate: !state.offlineMode,
+    canCreate: true,
     formatDate,
     onTabChange: (tab) => {
       state.activeTab = tab === 'personal' ? 'personal' : 'shared';
@@ -415,13 +415,7 @@ function refresh() {
       state.showAllForAdmin = !!next;
       refresh();
     },
-    onCreate: () => {
-      if (state.offlineMode) {
-        toast('Создание документов недоступно в автономном режиме.', 'err');
-        return;
-      }
-      openEditor(null);
-    },
+    onCreate: () => openEditor(null),
     onOpen: (id) => {
       setRoute(id);
       refresh();
@@ -539,7 +533,7 @@ async function editDoc(doc, payload) {
 }
 
 async function openEditor(id) {
-  await ensureUsersRegistryLoaded();
+  await warmUsersForDialog();
 
   if (id) {
     const doc = getDocById(id);
@@ -586,7 +580,7 @@ async function openEditor(id) {
 async function openShare(id) {
   const doc = getDocById(id);
   if (!doc) return;
-  await ensureUsersRegistryLoaded();
+  await warmUsersForDialog();
 
   openDocumentShareDialog({
     doc,
@@ -690,9 +684,9 @@ async function tryLoadUsersRegistry() {
     const usersSnap = await withTimeout(get(ref(db, 'users')), 'users read', USERS_FETCH_TIMEOUT_MS);
     return toUsersById(usersSnap.exists() ? usersSnap.val() : {});
   } catch (error) {
-    console.warn('documents: users read timeout, retry without timeout', error);
+    console.warn('documents: users read timeout, retry with short timeout', error);
     try {
-      const retrySnap = await get(ref(db, 'users'));
+      const retrySnap = await withTimeout(get(ref(db, 'users')), 'users read retry', 3200);
       return toUsersById(retrySnap.exists() ? retrySnap.val() : {});
     } catch (retryError) {
       console.warn('documents: users registry unavailable, continue without it', retryError);
@@ -708,6 +702,13 @@ async function ensureUsersRegistryLoaded() {
   state.usersById = loaded;
   const refreshed = findUserByEmail(loaded, state.me?.email || '');
   if (refreshed) state.me = { ...state.me, ...refreshed };
+}
+
+async function warmUsersForDialog(timeoutMs = 1800) {
+  await Promise.race([
+    ensureUsersRegistryLoaded(),
+    new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
 }
 
 async function bootstrapSession(user) {
