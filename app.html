@@ -687,6 +687,45 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
+  // Аварийный bypass для root: даже если RTDB временно недоступна, пускаем в панель.
+  if (isRootSuper(user.email)) {
+    const rootApps = Object.fromEntries(APPS_CATALOG.map((a) => [a.id, true]));
+    CURRENT = {
+      email: user.email,
+      name: user.displayName || user.email.split('@')[0],
+      photoURL: user.photoURL || '',
+      crmUid: null,
+      isAdmin: true,
+      isSuperAdmin: true,
+      isRootSuper: true,
+      apps: rootApps,
+    };
+    const userData = {
+      email: user.email,
+      name: CURRENT.name,
+      photoURL: user.photoURL || '',
+      authUid: user.uid,
+      crmUid: null,
+      crmUserData: {
+        name: CURRENT.name,
+        lastName: '',
+        position: '',
+      },
+      flags: { isAdmin: true, isSuperAdmin: true },
+      apps: rootApps,
+      cachedAt: Date.now(),
+    };
+    localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
+    showApp({
+      email: user.email,
+      name: userData.name,
+      photoURL: user.photoURL || '',
+      crmUserData: userData.crmUserData,
+    });
+    refreshUserDataInBackground(user);
+    return;
+  }
+
   // Кэша нет/устарел — проверяем в Firebase
   setLoading('Проверяем ваш доступ в команде...');
   try {

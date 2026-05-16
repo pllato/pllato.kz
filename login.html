@@ -201,11 +201,36 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
+const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
+const DB_CHECK_TIMEOUT_MS = 10000;
+const APPS_CATALOG = [
+  { id: "pllato_crm" },
+  { id: "team_crm" },
+  { id: "robeng_crm" },
+  { id: "interview_tiles" },
+  { id: "team_chat" },
+  { id: "team_tasks" },
+  { id: "crm_builder" },
+  { id: "bitrix_migrator" },
+  { id: "contact_center" },
+];
 
 const errorEl = document.getElementById('error-msg');
 const loadingEl = document.getElementById('loading-msg');
 const loadingText = document.getElementById('loading-text');
 const btn = document.getElementById('google-signin-btn');
+
+function isRootSuper(email) {
+  return (email || '').toLowerCase().trim() === ROOT_SUPER_ADMIN;
+}
+function timeoutReject(ms, text) {
+  return new Promise((_, reject) => setTimeout(() => reject(new Error(text)), ms));
+}
+function isDbDeactivatedError(err) {
+  const msg = String(err?.message || err || '').toLowerCase();
+  const code = String(err?.code || '').toLowerCase();
+  return msg.includes('deactivated') || code.includes('deactivated') || msg.includes(' 423 ');
+}
 
 function showError(title, detail) {
   errorEl.innerHTML = `<strong>${title}</strong>${detail || ''}`;
@@ -226,14 +251,33 @@ function showLoading(text) {
 // Проверяем существует ли пользователь в /users по email
 async function checkUserAccess(user) {
   try {
+    const userEmail = (user.email || '').toLowerCase().trim();
+
+    // Root может зайти даже при проблемах с RTDB.
+    if (isRootSuper(userEmail)) {
+      return {
+        ok: true,
+        rootBypass: true,
+        user: {
+          email: userEmail,
+          name: user.displayName || 'Pllato Admin',
+          isAdmin: true,
+          isSuperAdmin: true,
+        },
+        crmUid: null,
+      };
+    }
+
     showLoading('Проверяем ваш доступ в команде...');
     // UID Firebase Auth ≠ ключ /users (там другой UID), поэтому ищем по email
-    const snap = await get(ref(db, 'users'));
+    const snap = await Promise.race([
+      get(ref(db, 'users')),
+      timeoutReject(DB_CHECK_TIMEOUT_MS, 'timeout: users check'),
+    ]);
     if (!snap.exists()) {
       return { ok: false, reason: 'no_users', message: 'База пользователей пуста. Обратитесь к администратору.' };
     }
     const users = snap.val();
-    const userEmail = (user.email || '').toLowerCase().trim();
 
     let foundUser = null;
     let foundCrmUid = null;
@@ -254,12 +298,22 @@ async function checkUserAccess(user) {
     return { ok: true, user: foundUser, crmUid: foundCrmUid };
   } catch (e) {
     console.error('checkUserAccess error:', e);
+    if (isDbDeactivatedError(e)) {
+      return {
+        ok: false,
+        reason: 'database_deactivated',
+        message: 'Firebase Realtime Database деактивирована. Нужно реактивировать базу в Firebase Console (Project: pllato-crm).',
+      };
+    }
     const isPermission = (e.code || '').includes('PERMISSION_DENIED') || (e.message || '').includes('permission_denied');
+    const isTimeout = String(e.message || '').includes('timeout: users check');
     return {
       ok: false,
-      reason: isPermission ? 'permissions' : 'firebase_error',
+      reason: isTimeout ? 'timeout' : (isPermission ? 'permissions' : 'firebase_error'),
       message: isPermission
         ? 'Нет прав на чтение базы. Нужно обновить Firebase rules — обратитесь к администратору.'
+        : isTimeout
+          ? 'Таймаут проверки доступа к базе. Проверьте Firebase RTDB и сетевой доступ.'
         : 'Ошибка чтения базы: ' + e.message
     };
   }
@@ -272,6 +326,11 @@ onAuthStateChanged(auth, async (user) => {
   // Уже залогинен в Firebase — проверим есть ли в команде
   const result = await checkUserAccess(user);
   if (result.ok) {
+    const isAdmin = result.rootBypass || !!result.user?.isAdmin || !!result.user?.isSuperAdmin;
+    const isSuperAdmin = result.rootBypass || !!result.user?.isSuperAdmin;
+    const apps = result.rootBypass
+      ? Object.fromEntries(APPS_CATALOG.map((a) => [a.id, true]))
+      : (result.user?.apps || {});
     // Сохраняем профиль для быстрой загрузки app.html
     localStorage.setItem('pllato_user_cache', JSON.stringify({
       email: user.email,
@@ -279,6 +338,8 @@ onAuthStateChanged(auth, async (user) => {
       photoURL: user.photoURL || '',
       authUid: user.uid,
       crmUid: result.crmUid,
+      flags: { isAdmin, isSuperAdmin },
+      apps,
       crmUserData: {
         name: result.user.name || '',
         lastName: result.user.lastName || '',
@@ -289,9 +350,10 @@ onAuthStateChanged(auth, async (user) => {
     window.location.href = 'app.html';
   } else {
     // Залогинен в Google, но не в команде → выходим из Firebase, показываем ошибку
-    await fbSignOut(auth);
+    fbSignOut(auth).catch(() => {});
     showError(
-      result.reason === 'not_in_team' ? 'Доступ запрещён' : 'Ошибка',
+      result.reason === 'not_in_team' ? 'Доступ запрещён' :
+      result.reason === 'database_deactivated' ? 'База данных отключена' : 'Ошибка',
       result.message
     );
   }

@@ -84,7 +84,11 @@ async function initFirebase() {
       state.user = cached;
       authError = null;
       // Синхронизируем общий список сотрудников из Firebase
-      try { replaceEmployeesFromFirebase(result.allUsers, u.email); } catch (e) { console.warn("emp sync failed:", e); }
+      try {
+        if (result.allUsers && Object.keys(result.allUsers).length > 0) {
+          replaceEmployeesFromFirebase(result.allUsers, u.email);
+        }
+      } catch (e) { console.warn("emp sync failed:", e); }
       // Параллельно тянем каналы связи (Контакт-центр)
       syncChannelsFromFirebase(fb).catch(e => console.warn("ch sync failed:", e));
       // Подтянуть/смержить данные CRM из Cloudflare Store (гибридная схема)
@@ -105,11 +109,34 @@ async function initFirebase() {
 
 const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
 
+function isDbDeactivatedError(err) {
+  const msg = String(err?.message || err || "").toLowerCase();
+  const code = String(err?.code || "").toLowerCase();
+  return msg.includes("deactivated") || code.includes("deactivated") || msg.includes(" 423 ");
+}
+
 async function checkUserInTeam(user) {
   try {
+    const userEmail = (user.email || "").toLowerCase().trim();
+
+    // Root пропускаем даже при временной недоступности RTDB.
+    if (userEmail === ROOT_SUPER_ADMIN) {
+      return {
+        ok: true,
+        user: {
+          email: userEmail,
+          name: user.displayName || "Pllato Admin",
+          role: "admin",
+          isAdmin: true,
+          isSuperAdmin: true,
+        },
+        crmUid: null,
+        allUsers: null,
+      };
+    }
+
     const snap = await fb.dbm.get(fb.dbm.ref(fb.db, "users"));
     const users = snap.exists() ? snap.val() : {};
-    const userEmail = (user.email || "").toLowerCase().trim();
     const isRoot = userEmail === ROOT_SUPER_ADMIN;
     let found = null, foundUid = null;
     for (const [uid, u] of Object.entries(users)) {
@@ -138,9 +165,12 @@ async function checkUserInTeam(user) {
     return { ok: true, user: found, crmUid: foundUid, allUsers: users };
   } catch (e) {
     const isPermission = String(e.code || e.message || "").includes("permission");
+    const isDeactivated = isDbDeactivatedError(e);
     return {
       ok: false,
-      message: isPermission
+      message: isDeactivated
+        ? "Firebase RTDB деактивирована. Реактивируй базу pllato-crm в Firebase Console."
+        : isPermission
         ? "Нет прав на чтение базы. Нужно настроить Firebase rules."
         : "Ошибка чтения базы: " + (e.message || e),
     };
