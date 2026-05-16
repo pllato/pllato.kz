@@ -374,7 +374,7 @@ function renderEmployeeRow(e, roles) {
       ${avatar(e, "md")}
       <div class="employee-body">
         <div class="employee-name">${escape(e.name)}${e.isCurrent ? ' <span class="badge">это вы</span>' : ""}</div>
-        <div class="employee-meta">${escape(e.email)} · ${escape(roleLabel)}${e.position ? ` · ${escape(e.position)}` : ""}${e.binotelLine ? ` · Binotel: ${escape(e.binotelLine)}` : ""}</div>
+        <div class="employee-meta">${escape(e.email)} · ${escape(roleLabel)}${e.position ? ` · ${escape(e.position)}` : ""}</div>
       </div>
       ${fbManaged ? "" : `<div class="employee-actions">
         <button class="btn-ghost icon-only" data-edit-emp="${e.id}">${ICONS.edit}</button>

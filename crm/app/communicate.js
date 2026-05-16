@@ -20,10 +20,6 @@ function workerBase() {
   return String(window.PLLATO_API_BASE || "").trim().replace(/\/+$/, "");
 }
 
-function normalizeInternalLine(value) {
-  return String(value || "").replace(/[^\d]/g, "");
-}
-
 async function firebaseIdToken() {
   const cfg = window.PLLATO_FIREBASE_CONFIG || {};
   if (!cfg.apiKey || !cfg.authDomain) return null;
@@ -59,21 +55,7 @@ async function workerFetch(path, payload) {
 
   if (!res.ok || !data?.ok) {
     const msg = data?.error || `Ошибка API (${res.status})`;
-    const detailsObj = data?.details || null;
-    const detailsText = typeof detailsObj === "string" ? detailsObj : (detailsObj ? JSON.stringify(detailsObj) : "");
-
-    // Binotel code 121 = неверные ключи (человеко-понятное сообщение вместо длинного JSON)
-    const binotelCode = Number(
-      detailsObj?.body?.code ??
-      detailsObj?.code ??
-      detailsObj?.body?.errorCode ??
-      0,
-    );
-    if (msg.toLowerCase().includes("binotel") && binotelCode === 121) {
-      throw new Error("Binotel: неверный API Key или API Secret. Проверь в Контакт-центре и сохрани заново.");
-    }
-
-    const details = detailsText ? ` ${detailsText}` : "";
+    const details = data?.details ? ` ${typeof data.details === "string" ? data.details : JSON.stringify(data.details)}` : "";
     throw new Error(msg + details);
   }
   return data;
@@ -87,13 +69,10 @@ function setFormMsg(host, text, kind = "err") {
 
 function buildPayload(cfg, channel, opts, { text, subject, waFileUrl, waFileName, waAsVoice }) {
   if (cfg.activityType === "call") {
-    const me = currentEmployee();
-    const personalLine = normalizeInternalLine(me?.binotelLine || me?.binotel_line || "");
-    const channelDefaultLine = normalizeInternalLine(channel.public?.default_inner || "");
     return {
       channelId: channel.id,
       externalNumber: opts.to,
-      internalNumber: personalLine || channelDefaultLine || "",
+      internalNumber: channel.public?.default_inner || "",
     };
   }
   if (cfg.activityType === "whatsapp") {

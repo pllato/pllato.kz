@@ -128,16 +128,4 @@ export const CallsApi = {
   renderWhatsapp(id, payload = {}) {
     return request(`/api/crm/calls/logs/${encodeURIComponent(id)}/whatsapp`, { method: "POST", body: payload });
   },
-
-  binotelCall(payload) {
-    return request("/binotel/call", { method: "POST", body: payload || {} });
-  },
-
-  binotelHistory(params = null) {
-    return request("/binotel/history", { method: "GET", query: params || undefined });
-  },
-
-  binotelRecording(payload) {
-    return request("/binotel/recording", { method: "POST", body: payload || {} });
-  },
 };

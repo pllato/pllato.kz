@@ -1,0 +1,18 @@
+name = "pllato-comm"
+main = "worker.js"
+compatibility_date = "2025-05-01"
+account_id = "d0655e161d8fca8487f88d55c0eeb215"
+
+# Публичные переменные (не секреты)
+[vars]
+FIREBASE_PROJECT_ID = "pllato-crm"
+FIREBASE_RTDB_URL   = "https://pllato-crm-default-rtdb.firebaseio.com"
+
+# Секреты выставляются через wrangler:
+#   wrangler secret put FIREBASE_DATABASE_SECRET   — legacy secret для записи в RTDB как admin
+#   wrangler secret put FIREBASE_SERVICE_ACCOUNT   — альтернатива: JSON сервисного аккаунта (одной строкой)
+
+[[d1_databases]]
+binding = "pllato_crm_store"
+database_name = "pllato-crm-store"
+database_id = "64f9a82b-2857-4c39-a038-9874c62b8a6f"

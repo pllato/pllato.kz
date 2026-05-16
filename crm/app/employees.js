@@ -16,10 +16,6 @@ function colorFor(seed) {
   return COLORS[h % COLORS.length];
 }
 
-function normalizeTelephonyLine(value) {
-  return String(value || "").replace(/[^\d]/g, "");
-}
-
 export function isFirebaseSynced() {
   return localStorage.getItem(FB_SYNC_FLAG) === "1";
 }
@@ -67,19 +63,11 @@ export function replaceEmployeesFromFirebase(usersMap, currentEmail) {
     const fbId = "fb_" + uid;
     const now = Date.now();
     const items = JSON.parse(localStorage.getItem("pllato_core_" + COLLECTION) || "[]");
-    const binotelLine = normalizeTelephonyLine(
-      u.binotelLine ||
-      u.binotel_line ||
-      u.internalNumber ||
-      u.internal_number ||
-      "",
-    );
     items.unshift({
       id: fbId,
       name,
       email: u.email,
       position: u.position || "",
-      binotelLine,
       role,
       isAdmin: !!u.isAdmin,
       isSuperAdmin: !!u.isSuperAdmin,
