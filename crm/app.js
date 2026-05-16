@@ -108,11 +108,27 @@ async function initFirebase() {
 }
 
 const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
+// Временный аварийный режим: если RTDB отключена (423), пускаем Google-пользователей,
+// чтобы команда не была полностью заблокирована. После реактивации RTDB отключить.
+const EMERGENCY_ALLOW_ANY_GOOGLE_LOGIN_IF_DB_DOWN = true;
 
 function isDbDeactivatedError(err) {
   const msg = String(err?.message || err || "").toLowerCase();
   const code = String(err?.code || "").toLowerCase();
   return msg.includes("deactivated") || code.includes("deactivated") || msg.includes(" 423 ");
+}
+
+function buildEmergencyUser(user) {
+  const email = (user?.email || "").toLowerCase().trim();
+  return {
+    email,
+    name: user?.displayName || email.split("@")[0] || "Сотрудник",
+    role: "manager",
+    isAdmin: false,
+    isSuperAdmin: false,
+    apps: { pllato_crm: true },
+    emergencyBypass: true,
+  };
 }
 
 async function checkUserInTeam(user) {
@@ -166,6 +182,15 @@ async function checkUserInTeam(user) {
   } catch (e) {
     const isPermission = String(e.code || e.message || "").includes("permission");
     const isDeactivated = isDbDeactivatedError(e);
+    if (isDeactivated && EMERGENCY_ALLOW_ANY_GOOGLE_LOGIN_IF_DB_DOWN && user?.email) {
+      return {
+        ok: true,
+        emergencyBypass: true,
+        user: buildEmergencyUser(user),
+        crmUid: null,
+        allUsers: null,
+      };
+    }
     return {
       ok: false,
       message: isDeactivated

@@ -203,6 +203,9 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
 const DB_CHECK_TIMEOUT_MS = 10000;
+// Временный аварийный режим: если RTDB отключена/недоступна, пускаем Google-пользователей,
+// чтобы команда не простаивала. После восстановления RTDB отключить.
+const EMERGENCY_ALLOW_ANY_GOOGLE_LOGIN_IF_DB_DOWN = true;
 const APPS_CATALOG = [
   { id: "pllato_crm" },
   { id: "team_crm" },
@@ -230,6 +233,20 @@ function isDbDeactivatedError(err) {
   const msg = String(err?.message || err || '').toLowerCase();
   const code = String(err?.code || '').toLowerCase();
   return msg.includes('deactivated') || code.includes('deactivated') || msg.includes(' 423 ');
+}
+function allAppsEnabled() {
+  return Object.fromEntries(APPS_CATALOG.map((a) => [a.id, true]));
+}
+function buildEmergencyUser(user) {
+  const email = (user?.email || '').toLowerCase().trim();
+  return {
+    email,
+    name: user?.displayName || email.split('@')[0] || 'Сотрудник',
+    isAdmin: false,
+    isSuperAdmin: false,
+    apps: allAppsEnabled(),
+    emergencyBypass: true,
+  };
 }
 
 function showError(title, detail) {
@@ -298,6 +315,15 @@ async function checkUserAccess(user) {
     return { ok: true, user: foundUser, crmUid: foundCrmUid };
   } catch (e) {
     console.error('checkUserAccess error:', e);
+    const isTimeout = String(e.message || '').includes('timeout: users check');
+    if ((isDbDeactivatedError(e) || isTimeout) && EMERGENCY_ALLOW_ANY_GOOGLE_LOGIN_IF_DB_DOWN && user?.email) {
+      return {
+        ok: true,
+        emergencyBypass: true,
+        user: buildEmergencyUser(user),
+        crmUid: null,
+      };
+    }
     if (isDbDeactivatedError(e)) {
       return {
         ok: false,
@@ -306,7 +332,6 @@ async function checkUserAccess(user) {
       };
     }
     const isPermission = (e.code || '').includes('PERMISSION_DENIED') || (e.message || '').includes('permission_denied');
-    const isTimeout = String(e.message || '').includes('timeout: users check');
     return {
       ok: false,
       reason: isTimeout ? 'timeout' : (isPermission ? 'permissions' : 'firebase_error'),
@@ -326,11 +351,12 @@ onAuthStateChanged(auth, async (user) => {
   // Уже залогинен в Firebase — проверим есть ли в команде
   const result = await checkUserAccess(user);
   if (result.ok) {
+    const fullApps = allAppsEnabled();
     const isAdmin = result.rootBypass || !!result.user?.isAdmin || !!result.user?.isSuperAdmin;
     const isSuperAdmin = result.rootBypass || !!result.user?.isSuperAdmin;
     const apps = result.rootBypass
-      ? Object.fromEntries(APPS_CATALOG.map((a) => [a.id, true]))
-      : (result.user?.apps || {});
+      ? fullApps
+      : (result.user?.apps || (result.emergencyBypass ? fullApps : {}));
     // Сохраняем профиль для быстрой загрузки app.html
     localStorage.setItem('pllato_user_cache', JSON.stringify({
       email: user.email,

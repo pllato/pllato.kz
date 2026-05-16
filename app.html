@@ -585,6 +585,9 @@ const APPS_CATALOG = [
 
 // Главный супер-админ (системный) — всегда имеет полный доступ независимо от записей в /users
 const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
+// Временный аварийный режим: если RTDB отключена (423), пускаем Google-пользователей,
+// чтобы команда не простаивала. После восстановления RTDB отключить.
+const EMERGENCY_ALLOW_ANY_GOOGLE_LOGIN_IF_DB_DOWN = true;
 
 // /admin_emails — реестр email-ов админов для Firebase rules.
 // Ключ — email с заменой "." на "," (т.к. в Firebase keys нельзя точки).
@@ -616,6 +619,27 @@ let CURRENT = null;  // { email, name, photoURL, crmUid, isAdmin, isSuperAdmin, 
 
 function isRootSuper(email) {
   return (email || "").toLowerCase().trim() === ROOT_SUPER_ADMIN;
+}
+function isDbDeactivatedError(err) {
+  const msg = String(err?.message || err || "").toLowerCase();
+  const code = String(err?.code || "").toLowerCase();
+  return msg.includes("deactivated") || code.includes("deactivated") || msg.includes(" 423 ");
+}
+function allAppsEnabled() {
+  return Object.fromEntries(APPS_CATALOG.map((a) => [a.id, true]));
+}
+function buildEmergencyCurrent(userAuth) {
+  return {
+    email: userAuth.email,
+    name: userAuth.displayName || (userAuth.email || "").split("@")[0],
+    photoURL: userAuth.photoURL || "",
+    crmUid: null,
+    isAdmin: false,
+    isSuperAdmin: false,
+    isRootSuper: isRootSuper(userAuth.email),
+    apps: allAppsEnabled(),
+    emergencyBypass: true,
+  };
 }
 
 // Сборка прав пользователя для текущей сессии
@@ -802,6 +826,33 @@ onAuthStateChanged(auth, async (user) => {
     });
   } catch (e) {
     console.error('check error:', e);
+    const isDbDown = isDbDeactivatedError(e);
+    if (isDbDown && EMERGENCY_ALLOW_ANY_GOOGLE_LOGIN_IF_DB_DOWN && user?.email) {
+      CURRENT = buildEmergencyCurrent(user);
+      const userData = {
+        email: user.email,
+        name: CURRENT.name,
+        photoURL: user.photoURL || '',
+        authUid: user.uid,
+        crmUid: null,
+        crmUserData: {
+          name: CURRENT.name,
+          lastName: '',
+          position: '',
+        },
+        flags: { isAdmin: false, isSuperAdmin: false },
+        apps: CURRENT.apps,
+        cachedAt: Date.now(),
+      };
+      localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
+      showApp({
+        email: user.email,
+        name: userData.name,
+        photoURL: user.photoURL || '',
+        crmUserData: userData.crmUserData,
+      });
+      return;
+    }
     const isPermission = (e.code || '').includes('PERMISSION_DENIED') || (e.message || '').includes('permission_denied');
     if (isPermission) {
       // Нет прав на чтение users — но если есть свежий кэш, пользуемся им
