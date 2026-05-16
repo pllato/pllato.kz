@@ -638,17 +638,26 @@ const hardFallbackWatchdog = setTimeout(() => {
 
 onAuthStateChanged(auth, async (user) => {
   clearTimeout(authWatchdog);
-  clearTimeout(hardFallbackWatchdog);
   if (!user) {
+    clearTimeout(hardFallbackWatchdog);
     window.location.href = 'login.html';
     return;
   }
   state.mode = 'loading';
   refresh();
 
+  const eventFallbackWatchdog = setTimeout(() => {
+    if (state.mode !== 'loading') return;
+    enterOfflineMode(user, 'Сеть отвечает медленно. Открыт автономный режим документов.');
+  }, HARD_FALLBACK_MS);
+
   try {
     await withTimeout(bootstrapSession(user), 'bootstrap session');
+    clearTimeout(eventFallbackWatchdog);
+    clearTimeout(hardFallbackWatchdog);
   } catch (error) {
+    clearTimeout(eventFallbackWatchdog);
+    clearTimeout(hardFallbackWatchdog);
     console.error(error);
     enterOfflineMode(user, `Ошибка Firebase: ${error?.message || error}. Открыт автономный режим.`);
   }
