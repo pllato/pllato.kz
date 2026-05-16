@@ -22,6 +22,7 @@ const DOCS_APP_ID = 'docs_portal';
 const FETCH_TIMEOUT_MS = 12000;
 const AUTH_TIMEOUT_MS = 12000;
 const USERS_FETCH_TIMEOUT_MS = 4500;
+const HARD_FALLBACK_MS = 6500;
 
 const firebaseConfig = {
   apiKey: 'AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc',
@@ -51,6 +52,7 @@ const state = {
   moduleStateByDoc: {},
   toastQueue: [],
   errorMessage: '',
+  offlineMode: false,
 };
 
 function now() {
@@ -224,6 +226,45 @@ function renderLoading() {
   `;
 }
 
+function buildOfflineSeedDoc() {
+  const id = 'builtin_partner_motivation';
+  return normalizeDocument({
+    id,
+    type: 'motivation',
+    slug: 'partner-motivation',
+    title: 'Система мотивации партнёра',
+    description: 'Формула, KPI, правила выплат и калькулятор для партнёров.',
+    builtin: true,
+    contentModuleId: 'partner_motivation',
+    authorId: 'system',
+    scope: 'team',
+    sharedWith: [],
+    createdAt: now(),
+    updatedAt: now(),
+  }, id);
+}
+
+function enterOfflineMode(user, reasonText = '') {
+  if (state.mode !== 'loading' && state.mode !== 'error') return;
+  const email = lower(user?.email || '');
+  const cached = readCachedUserAccess(email);
+  state.me = cached || {
+    id: asId(user?.uid || 'offline'),
+    email: email || 'offline@pllato.kz',
+    name: String(user?.displayName || 'Сотрудник').trim(),
+    isAdmin: false,
+    isSuperAdmin: false,
+    apps: { [DOCS_APP_ID]: true },
+  };
+  state.usersById = state.usersById || {};
+  state.docs = state.docs?.length ? state.docs : [buildOfflineSeedDoc()];
+  state.offlineMode = true;
+  state.mode = 'ready';
+  state.selectedId = routeIdFromUrl();
+  refresh();
+  toast(reasonText || 'Firebase временно недоступна. Открыт автономный режим документа.', 'err');
+}
+
 function renderForbidden() {
   renderFrame(`
     <section class="doc-forbidden">
@@ -302,6 +343,7 @@ function refresh() {
     activeTab: state.activeTab,
     query: state.query,
     showAllForAdmin: state.showAllForAdmin,
+    canCreate: !state.offlineMode,
     formatDate,
     onTabChange: (tab) => {
       state.activeTab = tab === 'personal' ? 'personal' : 'shared';
@@ -315,7 +357,13 @@ function refresh() {
       state.showAllForAdmin = !!next;
       refresh();
     },
-    onCreate: () => openEditor(null),
+    onCreate: () => {
+      if (state.offlineMode) {
+        toast('Создание документов недоступно в автономном режиме.', 'err');
+        return;
+      }
+      openEditor(null);
+    },
     onOpen: (id) => {
       setRoute(id);
       refresh();
@@ -548,6 +596,7 @@ async function bootstrapSession(user) {
 
   state.me = me;
   state.usersById = usersById;
+  state.offlineMode = false;
 
   const superAdmin = Object.values(usersById).find((item) => isRootEmail(item?.email) || item?.isSuperAdmin);
   const authorFallbackId = asId(superAdmin?.id || matched?.id || me.id || user.uid || 'system');
@@ -579,13 +628,17 @@ renderLoading();
 
 const authWatchdog = setTimeout(() => {
   if (state.mode !== 'loading') return;
-  state.mode = 'error';
-  state.errorMessage = 'Firebase Auth долго не отвечает. Перезайди через login.html.';
-  refresh();
+  enterOfflineMode(auth.currentUser, 'Firebase Auth долго не отвечает. Открыт автономный режим.');
 }, AUTH_TIMEOUT_MS);
+
+const hardFallbackWatchdog = setTimeout(() => {
+  if (state.mode !== 'loading') return;
+  enterOfflineMode(auth.currentUser, 'Сеть отвечает медленно. Открыт автономный режим документов.');
+}, HARD_FALLBACK_MS);
 
 onAuthStateChanged(auth, async (user) => {
   clearTimeout(authWatchdog);
+  clearTimeout(hardFallbackWatchdog);
   if (!user) {
     window.location.href = 'login.html';
     return;
@@ -597,8 +650,6 @@ onAuthStateChanged(auth, async (user) => {
     await withTimeout(bootstrapSession(user), 'bootstrap session');
   } catch (error) {
     console.error(error);
-    state.mode = 'error';
-    state.errorMessage = error?.message || String(error);
-    refresh();
+    enterOfflineMode(user, `Ошибка Firebase: ${error?.message || error}. Открыт автономный режим.`);
   }
 });
