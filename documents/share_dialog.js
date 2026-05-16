@@ -108,6 +108,8 @@ export function openDocumentEditorDialog({
   mode = 'create',
   initial = {},
   isAdmin = false,
+  users = {},
+  currentUser = null,
   onSave,
 }) {
   const shell = createModalShell({
@@ -120,6 +122,8 @@ export function openDocumentEditorDialog({
   const builtin = initial?.builtin === true;
   const type = String(initial?.type || 'other');
   const scope = isAdmin ? String(initial?.scope || 'personal') : 'personal';
+  const people = normalizeUsers(users).filter((u) => asId(u.id) && asId(u.id) !== asId(currentUser?.id));
+  const selected = new Set((initial?.sharedWith || []).map((id) => asId(id)).filter(Boolean));
 
   shell.body.innerHTML = `
     <div class="doc-modal-field">
@@ -148,6 +152,17 @@ export function openDocumentEditorDialog({
         </select>
       </div>
     ` : ''}
+    <div class="doc-modal-field" data-access-wrap>
+      <label>Сотрудники с доступом</label>
+      ${people.length ? `
+        <div class="doc-search"><input data-emp-query type="search" placeholder="Поиск сотрудника"></div>
+        <div class="doc-people-list" data-emp-list></div>
+        <div class="doc-muted-note" data-emp-count></div>
+      ` : `
+        <div class="doc-muted-note">Список сотрудников временно недоступен. После загрузки users можно назначить доступ через «Поделиться».</div>
+      `}
+      <div class="doc-muted-note" data-team-hint style="display:none">При доступе «всей команде» список сотрудников не используется.</div>
+    </div>
     ${builtin ? '' : `
       <div class="doc-modal-field">
         <label>Содержимое (markdown)</label>
@@ -167,15 +182,75 @@ export function openDocumentEditorDialog({
 
   const titleEl = shell.body.querySelector('[data-field="title"]');
   const saveBtn = shell.foot.querySelector('[data-save]');
+  const scopeEl = shell.body.querySelector('[data-field="scope"]');
+  const empQueryEl = shell.body.querySelector('[data-emp-query]');
+  const empListEl = shell.body.querySelector('[data-emp-list]');
+  const empCountEl = shell.body.querySelector('[data-emp-count]');
+  const teamHintEl = shell.body.querySelector('[data-team-hint]');
+  const accessWrapEl = shell.body.querySelector('[data-access-wrap]');
+
+  function currentScope() {
+    if (!isAdmin) return 'personal';
+    const raw = String(scopeEl?.value || scope || 'personal');
+    return raw === 'team' ? 'team' : 'personal';
+  }
+
+  function renderEmployees() {
+    if (!empListEl) return;
+    const activeScope = currentScope();
+    const q = String(empQueryEl?.value || '').trim().toLowerCase();
+    const filtered = people.filter((p) => {
+      if (!q) return true;
+      const hay = `${asName(p)} ${p.email || ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+
+    const disabled = activeScope === 'team';
+    if (teamHintEl) teamHintEl.style.display = disabled ? '' : 'none';
+    if (empQueryEl) empQueryEl.disabled = disabled;
+    if (accessWrapEl) accessWrapEl.style.opacity = disabled ? '0.74' : '1';
+
+    if (!filtered.length) {
+      empListEl.innerHTML = `<div class="doc-muted-note">Сотрудники не найдены.</div>`;
+      if (empCountEl) empCountEl.textContent = `Выбрано: ${selected.size} из ${people.length}`;
+      return;
+    }
+
+    empListEl.innerHTML = filtered.map((p) => {
+      const pid = asId(p.id);
+      const checked = selected.has(pid);
+      const sub = `${p.role || 'сотрудник'} · ${p.email || ''}`;
+      return `
+        <label class="doc-person-row ${checked ? 'is-selected' : ''} ${disabled ? 'is-disabled' : ''}">
+          <div class="doc-avatar">${escapeHtml(initials(asName(p)))}</div>
+          <div class="doc-person-meta">
+            <div class="doc-person-name">${escapeHtml(asName(p))}</div>
+            <div class="doc-person-sub">${escapeHtml(sub)}</div>
+          </div>
+          <input type="checkbox" data-emp-id="${escapeHtml(pid)}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
+        </label>
+      `;
+    }).join('');
+
+    empListEl.querySelectorAll('input[data-emp-id]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const id = asId(input.dataset.empId);
+        if (!id) return;
+        if (input.checked) selected.add(id);
+        else selected.delete(id);
+        renderEmployees();
+      });
+    });
+
+    if (empCountEl) empCountEl.textContent = `Выбрано: ${selected.size} из ${people.length}`;
+  }
 
   function readPayload() {
     const title = String(shell.body.querySelector('[data-field="title"]')?.value || '').trim();
     const description = String(shell.body.querySelector('[data-field="description"]')?.value || '').trim();
     const body = String(shell.body.querySelector('[data-field="body"]')?.value || '');
     const selectedType = String(shell.body.querySelector('[data-field="type"]')?.value || type || 'other');
-    const selectedScope = isAdmin
-      ? String(shell.body.querySelector('[data-field="scope"]')?.value || scope || 'personal')
-      : 'personal';
+    const selectedScope = currentScope();
 
     return {
       title,
@@ -183,8 +258,13 @@ export function openDocumentEditorDialog({
       body,
       type: selectedType,
       scope: selectedScope === 'team' ? 'team' : 'personal',
+      sharedWith: selectedScope === 'team' ? [] : [...selected].sort(),
     };
   }
+
+  empQueryEl?.addEventListener('input', () => renderEmployees());
+  scopeEl?.addEventListener('change', () => renderEmployees());
+  renderEmployees();
 
   shell.foot.querySelector('[data-cancel]')?.addEventListener('click', () => shell.close());
   saveBtn?.addEventListener('click', async () => {
