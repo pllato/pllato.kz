@@ -27,6 +27,13 @@
 
     "calls":     { ".read": "auth != null", ".write": "auth != null" },
     "messages":  { ".read": "auth != null", ".write": "auth != null" },
+    "documents": {
+      ".indexOn": ["authorId", "visibility", "category", "createdAt"],
+      "$docId": {
+        ".read": "auth != null && (data.child('visibility').val() === 'all' || data.child('authorId').val() === auth.uid || data.child('viewerIds').hasChild(auth.uid) || auth.token.email.toLowerCase().replace('.', ',') === 'uurraa@gmail,com' || root.child('admin_emails').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)",
+        ".write": "auth != null && (!data.exists() || data.child('authorId').val() === auth.uid || auth.token.email.toLowerCase().replace('.', ',') === 'uurraa@gmail,com' || root.child('admin_emails').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)"
+      }
+    },
     "tasks":     { ".read": "auth != null", ".write": "auth != null" },
     "deals":     { ".read": "auth != null", ".write": "auth != null" },
     "contacts":  { ".read": "auth != null", ".write": "auth != null" },
