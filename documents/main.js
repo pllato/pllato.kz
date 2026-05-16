@@ -504,6 +504,16 @@ async function migrateAndLoadDocuments(authorFallbackId) {
   return docs;
 }
 
+async function tryLoadUsersRegistry() {
+  try {
+    const usersSnap = await withTimeout(get(ref(db, 'users')), 'users read', USERS_FETCH_TIMEOUT_MS);
+    return toUsersById(usersSnap.exists() ? usersSnap.val() : {});
+  } catch (error) {
+    console.warn('documents: users registry unavailable, continue without it', error);
+    return {};
+  }
+}
+
 async function bootstrapSession(user) {
   const email = lower(user?.email || '');
   if (!email) {
@@ -512,16 +522,8 @@ async function bootstrapSession(user) {
     return;
   }
 
-  let usersById = {};
-  let usersReadError = null;
-  try {
-    const usersSnap = await withTimeout(get(ref(db, 'users')), 'users read', USERS_FETCH_TIMEOUT_MS);
-    usersById = toUsersById(usersSnap.exists() ? usersSnap.val() : {});
-  } catch (error) {
-    usersReadError = error;
-    console.warn('documents: users registry unavailable, switching to fallback access', error);
-  }
-
+  // docs не должен блокироваться из-за /users; читаем users отдельно и неблокирующе.
+  const usersById = await tryLoadUsersRegistry();
   const matched = findUserByEmail(usersById, email);
   const cached = readCachedUserAccess(email);
   const rootAccess = isRootEmail(email);
@@ -535,9 +537,8 @@ async function bootstrapSession(user) {
     apps: { [DOCS_APP_ID]: rootAccess },
   };
 
-  const allowedByPolicy = rootAccess || isAdminUser(me) || !!me.apps?.[DOCS_APP_ID];
-  const allowedByEmergency = !!usersReadError;
-  const allowed = allowedByPolicy || allowedByEmergency;
+  // v2: доступ к разделу документов у любого авторизованного сотрудника.
+  const allowed = true;
   if (!allowed) {
     state.me = me;
     state.mode = 'forbidden';
@@ -556,8 +557,16 @@ async function bootstrapSession(user) {
   state.mode = 'ready';
   refresh();
 
-  if (usersReadError) {
-    toast('Реестр сотрудников временно недоступен. Документы открыты в аварийном режиме.', 'err');
+  // Фоновая гидрация users (если в первый проход был пустой/таймаут).
+  if (!Object.keys(state.usersById || {}).length) {
+    void (async () => {
+      const hydrated = await tryLoadUsersRegistry();
+      if (!Object.keys(hydrated).length) return;
+      state.usersById = hydrated;
+      const refreshed = findUserByEmail(hydrated, email);
+      if (refreshed) state.me = { ...state.me, ...refreshed };
+      refresh();
+    })();
   }
 }
 
