@@ -1705,6 +1705,9 @@ const firebaseConfig = {
   appId: "1:690738857241:web:2356e97c435656890ab188"
 };
 const WORKER_URL = 'https://pllato-crm-worker.uurraa.workers.dev';
+// Rollback-флаг: true = старое поведение (listeners поднимаются на логине).
+// false = listeners /deals и /tasks поднимаются только при входе в раздел.
+const TEAM_LISTENERS_AT_LOGIN = false;
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -1849,24 +1852,32 @@ async function preloadInBackground() {
   await ensureUsersLoaded();
   // 2. Reference lists — копейки
   ensureRefListsLoaded();
-  // 3. Сделки (22k, ~3-5 МБ) — параллельно
-  if (!dealsState.loaded) {
-    loadDealsData().then(() => {
-      // После загрузки — подключаем live-listener
+  if (TEAM_LISTENERS_AT_LOGIN) {
+    // Rollback-режим: полностью старое поведение с listeners на логине.
+    if (!dealsState.loaded) {
+      loadDealsData().then(() => attachDealsLiveListener());
+    } else {
       attachDealsLiveListener();
-    });
-  } else {
-    attachDealsLiveListener();
+    }
+    setTimeout(() => {
+      if (!tasksState.loaded) {
+        loadTasks().then(() => attachTasksLiveListener());
+      } else {
+        attachTasksLiveListener();
+      }
+    }, 2000);
+    return;
   }
+
+  // Новое поведение: только preload данных, без live-listeners на логине.
+  // 3. Сделки (22k, ~3-5 МБ) — параллельно
+  if (!dealsState.loaded) loadDealsData();
   // 4. Задачи (38k, ~30 МБ) — самые тяжёлые, через 2 секунды после сделок
   setTimeout(() => {
     if (!tasksState.loaded) {
       loadTasks().then(() => {
         populateTaskAssigneeFilter();
-        attachTasksLiveListener();
       });
-    } else {
-      attachTasksLiveListener();
     }
   }, 2000);
   // 5. Контакты (143k, самые тяжёлые) — через 5 секунд
@@ -1901,7 +1912,20 @@ function toggleTheme() {
   updateThemeButton();
 }
 
+let _activePage = null;
+
 function navigate(page) {
+  // Lifecycle listeners: снимаем подписки при уходе со страницы.
+  if (!TEAM_LISTENERS_AT_LOGIN) {
+    if (_activePage === 'deals' && page !== 'deals') {
+      detachDealsLiveListener();
+    }
+    if (_activePage === 'tasks' && page !== 'tasks') {
+      detachTasksLiveListener();
+    }
+  }
+  _activePage = page;
+
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.page === page);
   });
@@ -2064,6 +2088,9 @@ async function renderDeals(el) {
   }
   // Параллельно (не блокируя) — справочники для resolve sourceId → "Instagram"
   ensureRefListsLoaded();
+  if (_activePage === 'deals') {
+    attachDealsLiveListener();
+  }
 
   if (!dealsState.deals.length) {
     document.getElementById('deals-loader').innerHTML = `
@@ -2158,6 +2185,10 @@ async function refreshDealsBackground() {
 
 // ─── Realtime listener для сделок ────────────────────────────────
 let _dealsListenerAttached = false;
+let _dealsRef = null;
+let _dealsOnAdded = null;
+let _dealsOnChanged = null;
+let _dealsOnRemoved = null;
 let _dealsListenerLastSync = null;
 function attachDealsLiveListener() {
   if (_dealsListenerAttached) return;
@@ -2176,10 +2207,11 @@ function attachDealsLiveListener() {
     return t > max ? t : max;
   }, '');
   _dealsListenerLastSync = lastTs;
+  _dealsRef = dealsRef;
 
   // child_added — для новых сделок (которые появились после нашего sync)
   // Listener срабатывает СРАЗУ для всех существующих детей; мы фильтруем по дате
-  window.dbOnChildAdded(dealsRef, (snap) => {
+  _dealsOnAdded = (snap) => {
     const deal = snap.val();
     if (!deal) return;
     const ts = deal.bitrixDateModify || deal.bitrixDateCreate || '';
@@ -2196,9 +2228,10 @@ function attachDealsLiveListener() {
       }
       saveCacheDealsThrottled();
     }
-  });
+  };
+  window.dbOnChildAdded(dealsRef, _dealsOnAdded);
 
-  window.dbOnChildChanged(dealsRef, (snap) => {
+  _dealsOnChanged = (snap) => {
     const deal = snap.val();
     if (!deal) return;
     const idx = dealsState.deals.findIndex(d => d.bitrixId === deal.bitrixId);
@@ -2211,9 +2244,10 @@ function attachDealsLiveListener() {
       }
       saveCacheDealsThrottled();
     }
-  });
+  };
+  window.dbOnChildChanged(dealsRef, _dealsOnChanged);
 
-  window.dbOnChildRemoved(dealsRef, (snap) => {
+  _dealsOnRemoved = (snap) => {
     const deal = snap.val();
     if (!deal) return;
     const idx = dealsState.deals.findIndex(d => d.bitrixId === deal.bitrixId);
@@ -2225,7 +2259,20 @@ function attachDealsLiveListener() {
       }
       saveCacheDealsThrottled();
     }
-  });
+  };
+  window.dbOnChildRemoved(dealsRef, _dealsOnRemoved);
+}
+
+function detachDealsLiveListener() {
+  if (!_dealsListenerAttached || !_dealsRef) return;
+  if (_dealsOnAdded) window.dbOff(_dealsRef, 'child_added', _dealsOnAdded);
+  if (_dealsOnChanged) window.dbOff(_dealsRef, 'child_changed', _dealsOnChanged);
+  if (_dealsOnRemoved) window.dbOff(_dealsRef, 'child_removed', _dealsOnRemoved);
+  _dealsOnAdded = null;
+  _dealsOnChanged = null;
+  _dealsOnRemoved = null;
+  _dealsRef = null;
+  _dealsListenerAttached = false;
 }
 
 let _saveCacheDealsTimer = null;
@@ -4179,6 +4226,9 @@ async function renderTasks(el) {
     ensureUsersLoaded();
     ensureTaskReadState();
   }
+  if (_activePage === 'tasks') {
+    attachTasksLiveListener();
+  }
   populateTaskAssigneeFilter();
   filterAndRenderTasks();
 }
@@ -4363,12 +4413,17 @@ async function refreshTasksBackground() {
 
 // ─── Realtime listener для задач ────────────────────────────────
 let _tasksListenerAttached = false;
+let _tasksRef = null;
+let _tasksOnAdded = null;
+let _tasksOnChanged = null;
+let _tasksOnRemoved = null;
 function attachTasksLiveListener() {
   if (_tasksListenerAttached) return;
   if (!tasksState.loaded) return;
   _tasksListenerAttached = true;
 
   const tasksRef = window.dbRef(window.fbDb, 'tasks');
+  _tasksRef = tasksRef;
   // Последний modify-момент среди наших задач (chenge tasks have bitrixModified, lite-list has bitrixCreated)
   const lastTs = tasksState.list.reduce((max, t) => {
     const ts = t.bitrixCreated || '';
@@ -4376,7 +4431,7 @@ function attachTasksLiveListener() {
   }, '');
 
   // child_added — initial flush + новые задачи. Фильтруем по дате
-  window.dbOnChildAdded(tasksRef, (snap) => {
+  _tasksOnAdded = (snap) => {
     const key = snap.key;
     const t = snap.val();
     if (!t) return;
@@ -4415,9 +4470,10 @@ function attachTasksLiveListener() {
       filterAndRenderTasks();
     }
     saveCacheTasksThrottled();
-  });
+  };
+  window.dbOnChildAdded(tasksRef, _tasksOnAdded);
 
-  window.dbOnChildChanged(tasksRef, (snap) => {
+  _tasksOnChanged = (snap) => {
     const key = snap.key;
     const t = snap.val();
     if (!t) return;
@@ -4440,9 +4496,10 @@ function attachTasksLiveListener() {
       filterAndRenderTasks();
     }
     saveCacheTasksThrottled();
-  });
+  };
+  window.dbOnChildChanged(tasksRef, _tasksOnChanged);
 
-  window.dbOnChildRemoved(tasksRef, (snap) => {
+  _tasksOnRemoved = (snap) => {
     const key = snap.key;
     const idx = tasksState.list.findIndex(x => x.key === key);
     if (idx < 0) return;
@@ -4458,7 +4515,20 @@ function attachTasksLiveListener() {
       filterAndRenderTasks();
     }
     saveCacheTasksThrottled();
-  });
+  };
+  window.dbOnChildRemoved(tasksRef, _tasksOnRemoved);
+}
+
+function detachTasksLiveListener() {
+  if (!_tasksListenerAttached || !_tasksRef) return;
+  if (_tasksOnAdded) window.dbOff(_tasksRef, 'child_added', _tasksOnAdded);
+  if (_tasksOnChanged) window.dbOff(_tasksRef, 'child_changed', _tasksOnChanged);
+  if (_tasksOnRemoved) window.dbOff(_tasksRef, 'child_removed', _tasksOnRemoved);
+  _tasksOnAdded = null;
+  _tasksOnChanged = null;
+  _tasksOnRemoved = null;
+  _tasksRef = null;
+  _tasksListenerAttached = false;
 }
 
 let _saveCacheTasksTimer = null;
@@ -6061,32 +6131,53 @@ function renderUsers(el) {
     <div class="page-title">🧑‍💼 Сотрудники</div>
     <div class="page-sub">Пользователи портала. После миграции здесь будут все 88 сотрудников.</div>
     <div class="card">
-      <h3>Список</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <h3 style="margin:0">Список</h3>
+        <button class="btn btn-sm" id="users-refresh">↻ Обновить</button>
+      </div>
       <div id="users-list"><div class="empty">Загрузка...</div></div>
     </div>
   `;
 
   const usersRef = ref(db, 'users');
-  onValue(usersRef, snap => {
-    const users = snap.val() || {};
-    const arr = Object.entries(users).map(([uid, u]) => ({ uid, ...u }));
-    if (!arr.length) {
-      document.getElementById('users-list').innerHTML = '<div class="empty">Пусто. Запустите миграцию пользователей из Битрикса.</div>';
-      return;
+  const usersListEl = document.getElementById('users-list');
+  const refreshBtn = document.getElementById('users-refresh');
+
+  async function loadUsersOnce() {
+    if (!usersListEl) return;
+    usersListEl.innerHTML = '<div class="empty">Загрузка...</div>';
+    if (refreshBtn) refreshBtn.disabled = true;
+    try {
+      const snap = await get(usersRef);
+      const users = snap.val() || {};
+      const arr = Object.entries(users).map(([uid, u]) => ({ uid, ...u }));
+      if (!arr.length) {
+        usersListEl.innerHTML = '<div class="empty">Пусто. Запустите миграцию пользователей из Битрикса.</div>';
+        return;
+      }
+      let html = '<table><thead><tr><th>Имя</th><th>Email</th><th>Bitrix ID</th><th>Должность</th><th>Активен</th></tr></thead><tbody>';
+      for (const u of arr) {
+        html += `<tr>
+          <td>${escapeHtml(u.name || '—')} ${escapeHtml(u.lastName || '')}</td>
+          <td>${escapeHtml(u.email || '—')}</td>
+          <td>${escapeHtml(u.bitrixId || '—')}</td>
+          <td>${escapeHtml(u.position || '—')}</td>
+          <td>${u.active === false ? '✗' : '✓'}</td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      usersListEl.innerHTML = html;
+    } catch (e) {
+      usersListEl.innerHTML = `<div class="empty" style="color:var(--rd)">Ошибка загрузки: ${escapeHtml(e.message || String(e))}</div>`;
+    } finally {
+      if (refreshBtn) refreshBtn.disabled = false;
     }
-    let html = '<table><thead><tr><th>Имя</th><th>Email</th><th>Bitrix ID</th><th>Должность</th><th>Активен</th></tr></thead><tbody>';
-    for (const u of arr) {
-      html += `<tr>
-        <td>${escapeHtml(u.name || '—')} ${escapeHtml(u.lastName || '')}</td>
-        <td>${escapeHtml(u.email || '—')}</td>
-        <td>${escapeHtml(u.bitrixId || '—')}</td>
-        <td>${escapeHtml(u.position || '—')}</td>
-        <td>${u.active === false ? '✗' : '✓'}</td>
-      </tr>`;
-    }
-    html += '</tbody></table>';
-    document.getElementById('users-list').innerHTML = html;
-  });
+  }
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', loadUsersOnce);
+  }
+  loadUsersOnce();
 }
 
 function renderMigration(el) {
