@@ -267,6 +267,21 @@ body {
   border-radius: 6px;
 }
 .btn-remove-user:hover { background: #fee; color: #c00; }
+.btn-docs-user {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--text-2);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-docs-user:hover {
+  border-color: var(--bronze);
+  color: var(--bronze-deep);
+}
 
 .app-perms {
   display: flex; flex-wrap: wrap; gap: 6px;
@@ -588,6 +603,8 @@ import {
 import {
   getDatabase, ref, get, set, push, update, remove
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+import { openEmployeeDocumentsDialog } from './documents/share_dialog.js';
+import { normalizeDocument } from './documents/registry.js';
 
 // ===== Каталог приложений (синхронизируй с data-app-id у карточек) =====
 const APPS_CATALOG = [
@@ -1074,6 +1091,48 @@ function normalizeInternalLine(value) {
   return String(value || '').replace(/[^\d]/g, '');
 }
 
+async function loadDocumentsNormalized() {
+  const snap = await get(ref(db, 'documents'));
+  const raw = snap.exists() ? snap.val() : {};
+  const docs = [];
+  for (const [id, item] of Object.entries(raw || {})) {
+    docs.push(normalizeDocument(item, id));
+  }
+  docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  return docs;
+}
+
+async function openEmployeeDocsAccess(uid) {
+  if (!CURRENT?.isAdmin) return;
+  const employee = adminUsersCache[uid];
+  if (!employee) return;
+  showAdminMsg('Загрузка документов...', '');
+  try {
+    const docs = await loadDocumentsNormalized();
+    showAdminMsg('');
+    openEmployeeDocumentsDialog({
+      employee: { ...employee, id: uid },
+      documents: docs,
+      currentUser: CURRENT,
+      onSave: async (updates) => {
+        if (!updates.length) {
+          showAdminMsg('Изменений нет', '');
+          return;
+        }
+        for (const patch of updates) {
+          await update(ref(db, 'documents/' + patch.id), {
+            sharedWith: patch.sharedWith,
+            updatedAt: Date.now(),
+          });
+        }
+        showAdminMsg('Доступ к документам сохранён', 'ok');
+      }
+    });
+  } catch (e) {
+    showAdminMsg('Ошибка документов: ' + (e.message || e), 'err');
+  }
+}
+
 function renderAdminUsers() {
   const entries = Object.entries(adminUsersCache);
   // Главный супер всегда сверху
@@ -1119,6 +1178,7 @@ function renderAdminUsers() {
                 Супер
               </label>
             ` : ''}
+            <button class="btn-docs-user" data-docs="${uid}" title="Документы сотрудника">Документы</button>
             ${!isRoot && !isSelf ? `<button class="btn-remove-user" data-remove="${uid}" title="Удалить">×</button>` : ''}
           </div>
         </div>
@@ -1206,6 +1266,12 @@ function renderAdminUsers() {
       } catch (e) {
         showAdminMsg('Ошибка: ' + (e.message || e), 'err');
       }
+    });
+  });
+  adminUsersList.querySelectorAll('[data-docs]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const uid = btn.dataset.docs;
+      await openEmployeeDocsAccess(uid);
     });
   });
 }
