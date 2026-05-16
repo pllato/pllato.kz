@@ -21,6 +21,7 @@ const ROOT_SUPER_ADMIN = 'uurraa@gmail.com';
 const DOCS_APP_ID = 'docs_portal';
 const FETCH_TIMEOUT_MS = 12000;
 const AUTH_TIMEOUT_MS = 12000;
+const USERS_FETCH_TIMEOUT_MS = 4500;
 
 const firebaseConfig = {
   apiKey: 'AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc',
@@ -76,6 +77,25 @@ function lower(value) {
 
 function isRootEmail(email) {
   return lower(email) === ROOT_SUPER_ADMIN;
+}
+
+function readCachedUserAccess(email) {
+  try {
+    const raw = localStorage.getItem('pllato_user_cache');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || lower(parsed.email) !== lower(email)) return null;
+    return {
+      id: asId(parsed.crmUid || parsed.authUid || ''),
+      email: lower(parsed.email || email),
+      name: String(parsed.name || email).trim(),
+      isAdmin: !!parsed.flags?.isAdmin,
+      isSuperAdmin: !!parsed.flags?.isSuperAdmin,
+      apps: parsed.apps || {},
+    };
+  } catch (error) {
+    return null;
+  }
 }
 
 function findUserByEmail(usersById, email) {
@@ -492,13 +512,21 @@ async function bootstrapSession(user) {
     return;
   }
 
-  const usersSnap = await withTimeout(get(ref(db, 'users')), 'users read');
-  const usersById = toUsersById(usersSnap.exists() ? usersSnap.val() : {});
+  let usersById = {};
+  let usersReadError = null;
+  try {
+    const usersSnap = await withTimeout(get(ref(db, 'users')), 'users read', USERS_FETCH_TIMEOUT_MS);
+    usersById = toUsersById(usersSnap.exists() ? usersSnap.val() : {});
+  } catch (error) {
+    usersReadError = error;
+    console.warn('documents: users registry unavailable, switching to fallback access', error);
+  }
 
   const matched = findUserByEmail(usersById, email);
+  const cached = readCachedUserAccess(email);
   const rootAccess = isRootEmail(email);
 
-  const me = matched || {
+  const me = matched || cached || {
     id: rootAccess ? `root:${email}` : user.uid,
     email,
     name: user.displayName || email,
@@ -507,7 +535,9 @@ async function bootstrapSession(user) {
     apps: { [DOCS_APP_ID]: rootAccess },
   };
 
-  const allowed = rootAccess || isAdminUser(me) || !!me.apps?.[DOCS_APP_ID];
+  const allowedByPolicy = rootAccess || isAdminUser(me) || !!me.apps?.[DOCS_APP_ID];
+  const allowedByEmergency = !!usersReadError;
+  const allowed = allowedByPolicy || allowedByEmergency;
   if (!allowed) {
     state.me = me;
     state.mode = 'forbidden';
@@ -525,6 +555,10 @@ async function bootstrapSession(user) {
   state.selectedId = routeIdFromUrl();
   state.mode = 'ready';
   refresh();
+
+  if (usersReadError) {
+    toast('Реестр сотрудников временно недоступен. Документы открыты в аварийном режиме.', 'err');
+  }
 }
 
 window.addEventListener('popstate', () => {
