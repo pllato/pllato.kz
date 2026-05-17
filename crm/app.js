@@ -54,20 +54,19 @@ let fb = null;
 let authError = null;
 async function initFirebase() {
   if (!USE_FIREBASE || fb) return;
-  const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
+  const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
   const auth = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js");
   const dbm = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js");
-  const app = initializeApp(fbConfig);
+  const app = getApps().length ? getApp() : initializeApp(fbConfig);
   fb = { app, auth, dbm, authInstance: auth.getAuth(app), db: dbm.getDatabase(app) };
 
   auth.onAuthStateChanged(fb.authInstance, async (u) => {
     if (!u) {
-      // Не залогинен — но кэш мог остаться от прежней сессии. Кэш чистим только при явном logout.
-      // Если кэша нет, просто покажем login screen.
-      if (!localStorage.getItem(USER_CACHE_KEY)) {
-        state.user = null;
-        render();
-      }
+      // Firebase-сессии нет: очищаем кэш, чтобы не показывать "ложный" вход в CRM.
+      localStorage.removeItem(USER_CACHE_KEY);
+      state.user = null;
+      authError = null;
+      render();
       return;
     }
     // Залогинен в Google — проверяем что в команде /users

@@ -376,14 +376,19 @@ function renderCustomFieldsList() {
   if (fields.length === 0) {
     return `<div class="tl-empty">Кастомных полей пока нет. Нажми «Добавить поле».</div>`;
   }
+  const optionLabels = (opts = []) =>
+    (Array.isArray(opts) ? opts : [])
+      .map((o) => (typeof o === "string" ? o : o?.label || o?.name || o?.value || ""))
+      .filter(Boolean)
+      .join(", ");
   return fields.map((f, i) => `
     <div class="custom-field-row" data-i="${i}">
       <input type="text" class="cf-label" data-i="${i}" value="${escape(f.label)}" placeholder="Название поля">
       <select class="cf-type" data-i="${i}">
         ${FIELD_TYPES.map(t => `<option value="${t.id}" ${f.type === t.id ? "selected" : ""}>${t.label}</option>`).join("")}
       </select>
-      ${f.type === "select" ? `
-        <input type="text" class="cf-options" data-i="${i}" value="${escape((f.options || []).join(", "))}" placeholder="Варианты через запятую">
+      ${["select", "multi"].includes(f.type) ? `
+        <input type="text" class="cf-options" data-i="${i}" value="${escape(optionLabels(f.options))}" placeholder="Варианты через запятую">
       ` : `<span></span>`}
       <button class="btn-ghost icon-only danger" data-cf-remove="${i}" title="Удалить">${ICONS.trash}</button>
     </div>
@@ -728,7 +733,7 @@ function wireEvents(container) {
       const label = container.querySelector(`.cf-label[data-i="${i}"]`)?.value || "";
       const type = container.querySelector(`.cf-type[data-i="${i}"]`)?.value || "text";
       const optionsRaw = container.querySelector(`.cf-options[data-i="${i}"]`)?.value || "";
-      const options = type === "select"
+      const options = ["select", "multi"].includes(type)
         ? optionsRaw.split(",").map(s => s.trim()).filter(Boolean)
         : [];
       const existing = getDealFields()[Number(i)];
@@ -737,6 +742,9 @@ function wireEvents(container) {
         label,
         type,
         options,
+        order: Number.isFinite(Number(existing?.order)) ? Number(existing.order) : Number(i),
+        showInKanban: Boolean(existing?.showInKanban),
+        required: Boolean(existing?.required),
       };
     });
   }

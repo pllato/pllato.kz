@@ -5,6 +5,7 @@
 import { Store } from "./store.js";
 import { listChannels, typeMeta } from "./channels.js";
 import { currentEmployee } from "./employees.js";
+import { requireFirebaseIdToken } from "./firebase_session.js";
 
 const TYPES = {
   call:     { channelType: "binotel",     title: "Позвонить",        activityType: "call",     icon: "📞", verb: "позвонить",       endpoint: "/binotel/call" },
@@ -20,26 +21,11 @@ function workerBase() {
   return String(window.PLLATO_API_BASE || "").trim().replace(/\/+$/, "");
 }
 
-async function firebaseIdToken() {
-  const cfg = window.PLLATO_FIREBASE_CONFIG || {};
-  if (!cfg.apiKey || !cfg.authDomain) return null;
-
-  const appMod = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
-  const authMod = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js");
-
-  const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(cfg);
-  const auth = authMod.getAuth(app);
-  const user = auth.currentUser;
-  if (!user) return null;
-  return user.getIdToken();
-}
-
 async function workerFetch(path, payload) {
   const base = workerBase();
   if (!base) throw new Error("Не задан URL Worker (`window.PLLATO_API_BASE` в firebase.config.js).");
 
-  const token = await firebaseIdToken();
-  if (!token) throw new Error("Нет активной Firebase-сессии. Перелогинься в CRM и повтори.");
+  const token = await requireFirebaseIdToken({ interactive: true });
 
   const res = await fetch(base + path, {
     method: "POST",

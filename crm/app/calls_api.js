@@ -1,4 +1,5 @@
 // Pllato CRM — API helper for cold-call module.
+import { requireFirebaseIdToken } from "./firebase_session.js";
 
 function cloudBase() {
   return String(window.PLLATO_API_BASE || "").trim().replace(/\/+$/, "");
@@ -10,23 +11,9 @@ function assertCloudBase() {
   return base;
 }
 
-async function firebaseIdToken() {
-  const cfg = window.PLLATO_FIREBASE_CONFIG || {};
-  if (!cfg.apiKey || !cfg.authDomain) return null;
-
-  const appMod = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
-  const authMod = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js");
-  const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(cfg);
-  const auth = authMod.getAuth(app);
-  const user = auth.currentUser;
-  if (!user) return null;
-  return user.getIdToken();
-}
-
 async function request(path, { method = "GET", query = null, body = null, formData = null } = {}) {
   const base = assertCloudBase();
-  const token = await firebaseIdToken();
-  if (!token) throw new Error("Нет активной Firebase-сессии");
+  const token = await requireFirebaseIdToken({ interactive: true });
 
   let url = base + path;
   if (query && typeof query === "object") {

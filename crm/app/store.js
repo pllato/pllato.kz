@@ -1,6 +1,7 @@
 // Pllato CRM — Store API.
 // Local-first хранилище с cloud-sync в Cloudflare Worker (/store/*).
 // Интерфейс Store сохранен синхронным для совместимости со всеми view.
+import { requireFirebaseIdToken } from "./firebase_session.js";
 
 const NS = "pllato_core_";
 const QUEUE_KEY = "pllato_store_sync_queue_v1";
@@ -33,8 +34,6 @@ const syncState = {
   flushTimer: null,
   flushing: false,
 };
-
-let firebaseTokenPromise = null;
 
 function cloudBase() {
   return String(window.PLLATO_API_BASE || "").trim().replace(/\/+$/, "");
@@ -106,34 +105,10 @@ function normalizeItem(item) {
   };
 }
 
-async function firebaseIdToken() {
-  const cfg = window.PLLATO_FIREBASE_CONFIG || {};
-  if (!cfg.apiKey || !cfg.authDomain) return null;
-
-  if (!firebaseTokenPromise) {
-    firebaseTokenPromise = (async () => {
-      const appMod = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
-      const authMod = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js");
-      const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(cfg);
-      const auth = authMod.getAuth(app);
-      const user = auth.currentUser;
-      if (!user) return null;
-      return user.getIdToken();
-    })();
-  }
-
-  try {
-    return await firebaseTokenPromise;
-  } finally {
-    firebaseTokenPromise = null;
-  }
-}
-
 async function workerCall(path, payload) {
   const base = cloudBase();
   if (!base) throw new Error("Cloud store is disabled");
-  const token = await firebaseIdToken();
-  if (!token) throw new Error("Нет Firebase-сессии для cloud-sync");
+  const token = await requireFirebaseIdToken();
 
   const res = await fetch(base + path, {
     method: "POST",
