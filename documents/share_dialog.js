@@ -199,7 +199,7 @@ export function openDocumentEditorDialog({
   `;
 
   shell.foot.innerHTML = `
-    <div></div>
+    <div class="doc-muted-note" data-save-error style="color:#b2462d"></div>
     <div style="display:flex;gap:8px">
       <button class="doc-btn" data-cancel>Отмена</button>
       <button class="doc-btn doc-btn-primary" data-save>Сохранить</button>
@@ -217,6 +217,7 @@ export function openDocumentEditorDialog({
   const kindEl = shell.body.querySelector('[data-field="kind"]');
   const fileInputEl = shell.body.querySelector('[data-field="file"]');
   const fileInfoEl = shell.body.querySelector('[data-file-info]');
+  const saveErrorEl = shell.foot.querySelector('[data-save-error]');
 
   function currentScope() {
     if (!isAdmin) return 'personal';
@@ -334,6 +335,7 @@ export function openDocumentEditorDialog({
 
   shell.foot.querySelector('[data-cancel]')?.addEventListener('click', () => shell.close());
   saveBtn?.addEventListener('click', async () => {
+    if (saveErrorEl) saveErrorEl.textContent = '';
     const payload = readPayload();
     if (!payload.title) {
       titleEl?.focus();
@@ -351,6 +353,10 @@ export function openDocumentEditorDialog({
     try {
       await onSave?.(payload);
       shell.close();
+    } catch (error) {
+      const msg = String(error?.message || 'Не удалось сохранить документ.');
+      if (saveErrorEl) saveErrorEl.textContent = msg;
+      console.error('documents: save failed', error);
     } finally {
       saveBtn.disabled = false;
     }

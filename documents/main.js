@@ -29,6 +29,7 @@ const AUTH_TIMEOUT_MS = 12000;
 const USERS_FETCH_TIMEOUT_MS = 4500;
 const HARD_FALLBACK_MS = 14000;
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
+const UPLOAD_TIMEOUT_MS = 30000;
 
 const firebaseConfig = {
   apiKey: 'AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc',
@@ -195,7 +196,36 @@ async function uploadFileForDocument(docId, fileBlob, previousPath = '') {
   const uploadTask = uploadBytesResumable(fileRef, fileBlob, { contentType: mimeType });
 
   await new Promise((resolve, reject) => {
-    uploadTask.on('state_changed', null, reject, resolve);
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      try { uploadTask.cancel(); } catch (_) {}
+      reject(new Error('Таймаут загрузки файла. Проверь интернет и повтори.'));
+    }, UPLOAD_TIMEOUT_MS);
+    uploadTask.on('state_changed', null, (err) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      const code = String(err?.code || '');
+      if (code.includes('unauthorized')) {
+        reject(new Error('Нет прав на загрузку в хранилище. Проверь Firebase Storage rules.'));
+        return;
+      }
+      if (code.includes('bucket-not-found')) {
+        reject(new Error('Firebase Storage bucket не найден для этого проекта.'));
+        return;
+      }
+      if (code.includes('canceled')) {
+        reject(new Error('Загрузка отменена.'));
+        return;
+      }
+      reject(new Error(err?.message || 'Ошибка загрузки файла.'));
+    }, () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve();
+    });
   });
 
   const downloadURL = await getDownloadURL(fileRef);
