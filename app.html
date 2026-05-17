@@ -647,6 +647,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
+const USERS_CACHE_KEY = 'pllato_users_registry_cache';
 
 const loadingEl = document.getElementById('loading');
 const loadingTextEl = document.getElementById('loading-text');
@@ -699,6 +700,22 @@ function buildCurrent(userAuth, foundUser, foundUid) {
     isAdmin, isSuperAdmin: isSuper, isRootSuper: isRoot,
     apps,
   };
+}
+
+function writeUsersRegistryCache(users) {
+  try {
+    const map = {};
+    Object.entries(users || {}).forEach(([uid, user]) => {
+      if (!uid) return;
+      map[String(uid)] = { ...(user || {}), id: String(uid) };
+    });
+    localStorage.setItem(USERS_CACHE_KEY, JSON.stringify({
+      cachedAt: Date.now(),
+      usersById: map,
+    }));
+  } catch (_) {
+    // ignore cache errors
+  }
 }
 
 function redirectToLogin() {
@@ -793,6 +810,7 @@ onAuthStateChanged(auth, async (user) => {
   try {
     const snap = await get(ref(db, 'users'));
     const users = snap.exists() ? snap.val() : {};
+    writeUsersRegistryCache(users);
     const userEmail = (user.email || '').toLowerCase().trim();
 
     let foundUser = null;
@@ -929,6 +947,7 @@ async function refreshUserDataInBackground(user) {
     const snap = await get(ref(db, 'users'));
     if (!snap.exists()) return;
     const users = snap.val();
+    writeUsersRegistryCache(users);
     const userEmail = (user.email || '').toLowerCase().trim();
     let foundUser = null;
     let foundCrmUid = null;
@@ -1073,6 +1092,7 @@ async function loadAdminUsers() {
   try {
     const snap = await get(ref(db, 'users'));
     adminUsersCache = snap.exists() ? snap.val() : {};
+    writeUsersRegistryCache(adminUsersCache);
     renderAdminUsers();
     showAdminMsg('');
   } catch (e) {

@@ -214,7 +214,7 @@ export function renderDocumentPage(container, model) {
   const me = model.me;
   const meta = documentVisual(doc);
   const kind = normalizeKind(doc.kind, doc);
-  const editable = canEdit(doc, me);
+  const editable = canEdit(doc, me) && model.readOnly !== true;
   const author = model.usersById?.[doc.authorId];
   const authorName = author?.name || author?.fullName || author?.email || doc.authorId || 'Сотрудник';
   const fileUrl = String(doc.file?.downloadURL || '').trim();
@@ -259,6 +259,9 @@ export function renderDocumentPage(container, model) {
   const target = container.querySelector('[data-doc-content]');
 
   if (kind === 'builtin' || doc.builtin) {
+    if (doc.contentModuleId === 'partner_motivation' && model.moduleState?.partnerMotivation) {
+      model.moduleState.partnerMotivation.tab = 'calculator';
+    }
     const renderBuiltin = BUILTIN_REGISTRY[doc.contentModuleId || ''];
     if (typeof renderBuiltin === 'function') {
       renderBuiltin(target, { doc, moduleState: model.moduleState || {} });

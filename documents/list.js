@@ -116,7 +116,7 @@ export function renderDocumentsList(container, model) {
           const meta = documentVisual(doc);
           const author = usersById[doc.authorId] || null;
           const authorName = fullName(author || { name: doc.authorId || 'Сотрудник' });
-          const editable = canEdit(doc, me);
+          const editable = canEdit(doc, me) && model.readOnly !== true;
           return `
             <article class="doc-card" data-open="${text(doc.id)}">
               <div class="doc-card-head">

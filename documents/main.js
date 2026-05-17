@@ -30,6 +30,9 @@ const USERS_FETCH_TIMEOUT_MS = 4500;
 const HARD_FALLBACK_MS = 14000;
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const UPLOAD_TIMEOUT_MS = 30000;
+const USERS_CACHE_KEY = 'pllato_users_registry_cache';
+const DOCS_CACHE_KEY = 'pllato_docs_cache_v1';
+const DB_PROBE_TIMEOUT_MS = 3500;
 
 const firebaseConfig = {
   apiKey: 'AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc',
@@ -61,6 +64,9 @@ const state = {
   toastQueue: [],
   errorMessage: '',
   offlineMode: false,
+  writesBlocked: false,
+  backendNotice: '',
+  backendDeactivated: false,
 };
 
 function now() {
@@ -89,6 +95,19 @@ function isRootEmail(email) {
   return lower(email) === ROOT_SUPER_ADMIN;
 }
 
+function isDbDeactivatedText(raw) {
+  const msg = lower(raw);
+  return msg.includes('deactivated')
+    || msg.includes('423')
+    || msg.includes('locked')
+    || msg.includes('database has been deactivated');
+}
+
+function isDbDeactivatedError(error) {
+  return isDbDeactivatedText(error?.message || error || '')
+    || isDbDeactivatedText(error?.code || '');
+}
+
 function readCachedUserAccess(email) {
   try {
     const raw = localStorage.getItem('pllato_user_cache');
@@ -105,6 +124,87 @@ function readCachedUserAccess(email) {
     };
   } catch (error) {
     return null;
+  }
+}
+
+function readCachedUsersRegistry() {
+  try {
+    const raw = localStorage.getItem(USERS_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    const map = parsed?.usersById;
+    if (!map || typeof map !== 'object') return {};
+    return toUsersById(map);
+  } catch (_) {
+    return {};
+  }
+}
+
+function writeCachedUsersRegistry(usersById) {
+  try {
+    if (!usersById || typeof usersById !== 'object') return;
+    localStorage.setItem(USERS_CACHE_KEY, JSON.stringify({
+      cachedAt: now(),
+      usersById,
+    }));
+  } catch (_) {
+    // ignore quota/cache errors
+  }
+}
+
+function readCachedDocuments() {
+  try {
+    const raw = localStorage.getItem(DOCS_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    const list = Array.isArray(parsed?.docs) ? parsed.docs : [];
+    return list
+      .map((item) => normalizeDocument(item, item?.id))
+      .filter((item) => !!item?.id)
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  } catch (_) {
+    return [];
+  }
+}
+
+function writeCachedDocuments(docs) {
+  try {
+    if (!Array.isArray(docs)) return;
+    localStorage.setItem(DOCS_CACHE_KEY, JSON.stringify({
+      cachedAt: now(),
+      docs,
+    }));
+  } catch (_) {
+    // ignore quota/cache errors
+  }
+}
+
+async function probeDatabaseHealth() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DB_PROBE_TIMEOUT_MS);
+  try {
+    const url = `${firebaseConfig.databaseURL}/.json?shallow=true`;
+    const res = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    if (res.status === 423) {
+      return { ok: false, deactivated: true, message: 'RTDB отключена (423 Locked).' };
+    }
+    if (!res.ok) {
+      return { ok: false, deactivated: false, message: `RTDB недоступна (HTTP ${res.status}).` };
+    }
+    return { ok: true, deactivated: false, message: '' };
+  } catch (error) {
+    const aborted = String(error?.name || '') === 'AbortError';
+    return {
+      ok: false,
+      deactivated: false,
+      message: aborted ? 'RTDB отвечает слишком долго (timeout).' : `RTDB недоступна: ${error?.message || error}`,
+    };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -184,6 +284,9 @@ function normalizeEmbedUrl(url) {
 }
 
 async function uploadFileForDocument(docId, fileBlob, previousPath = '') {
+  if (state.writesBlocked) {
+    throw new Error('Сейчас режим только чтения: Firebase база недоступна, загрузка файлов временно отключена.');
+  }
   if (!(fileBlob instanceof File)) return null;
   if (fileBlob.size > MAX_FILE_BYTES) {
     throw new Error('Файл больше 50 МБ. Загрузка отклонена.');
@@ -214,6 +317,17 @@ async function uploadFileForDocument(docId, fileBlob, previousPath = '') {
       if (code.includes('bucket-not-found')) {
         reject(new Error('Firebase Storage bucket не найден для этого проекта.'));
         return;
+      }
+      if (code.includes('unknown')) {
+        const msg = String(err?.message || '').toLowerCase();
+        if (msg.includes('cors') || msg.includes('preflight') || msg.includes('xmlhttprequest')) {
+          reject(new Error('Storage отклонил CORS/preflight. Файл не загружен. Проверь bucket/CORS в Firebase Storage.'));
+          return;
+        }
+        if (msg.includes('not found') || msg.includes('404')) {
+          reject(new Error('Storage bucket/объект недоступен (404). Проверь имя bucket и состояние Firebase Storage.'));
+          return;
+        }
       }
       if (code.includes('canceled')) {
         reject(new Error('Загрузка отменена.'));
@@ -275,6 +389,9 @@ function currentUserLabel(me) {
 }
 
 function renderFrame(innerHtml) {
+  const backendBanner = state.backendNotice
+    ? `<div class="doc-system-note ${state.writesBlocked ? 'is-warn' : ''}">${escapeHtml(state.backendNotice)}</div>`
+    : '';
   root.innerHTML = `
     <div class="doc-shell">
       <div class="doc-wrap">
@@ -285,6 +402,7 @@ function renderFrame(innerHtml) {
           </div>
           <button class="doc-btn" data-action="logout">Выйти</button>
         </header>
+        ${backendBanner}
         ${innerHtml}
         <div class="doc-toast-wrap" id="doc-toast-wrap"></div>
       </div>
@@ -336,6 +454,8 @@ function enterOfflineMode(user, reasonText = '') {
   if (state.mode !== 'loading' && state.mode !== 'error') return;
   const email = lower(user?.email || '');
   const cached = readCachedUserAccess(email);
+  const cachedUsers = readCachedUsersRegistry();
+  const cachedDocs = readCachedDocuments();
   state.me = cached || {
     id: asId(user?.uid || 'offline'),
     email: email || 'offline@pllato.kz',
@@ -344,9 +464,11 @@ function enterOfflineMode(user, reasonText = '') {
     isSuperAdmin: false,
     apps: { [DOCS_APP_ID]: true },
   };
-  state.usersById = state.usersById || {};
-  state.docs = state.docs?.length ? state.docs : [buildOfflineSeedDoc()];
+  state.usersById = Object.keys(cachedUsers).length ? cachedUsers : (state.usersById || {});
+  state.docs = state.docs?.length ? state.docs : (cachedDocs.length ? cachedDocs : [buildOfflineSeedDoc()]);
   state.offlineMode = true;
+  state.writesBlocked = true;
+  state.backendNotice = reasonText || 'Firebase временно недоступна. Открыт режим только чтения.';
   state.mode = 'ready';
   state.selectedId = routeIdFromUrl();
   refresh();
@@ -365,6 +487,11 @@ function renderForbidden() {
 
 function getDocById(id) {
   return state.docs.find((doc) => doc.id === id) || null;
+}
+
+function assertWriteAvailable() {
+  if (!state.writesBlocked) return;
+  throw new Error('Сейчас режим только чтения: Firebase временно недоступна для изменений.');
 }
 
 function refresh() {
@@ -413,6 +540,7 @@ function refresh() {
       usersById: state.usersById,
       formatDateTime,
       moduleState,
+      readOnly: state.writesBlocked,
       onBack: () => {
         setRoute(null);
         refresh();
@@ -431,7 +559,8 @@ function refresh() {
     activeTab: state.activeTab,
     query: state.query,
     showAllForAdmin: state.showAllForAdmin,
-    canCreate: true,
+    canCreate: !state.writesBlocked,
+    readOnly: state.writesBlocked,
     formatDate,
     onTabChange: (tab) => {
       state.activeTab = tab === 'personal' ? 'personal' : 'shared';
@@ -457,12 +586,14 @@ function refresh() {
 }
 
 async function saveDoc(doc) {
+  assertWriteAvailable();
   const clean = normalizeDocument(doc, doc.id);
   await set(ref(db, `documents/${clean.id}`), clean);
   const idx = state.docs.findIndex((item) => item.id === clean.id);
   if (idx >= 0) state.docs[idx] = clean;
   else state.docs.unshift(clean);
   state.docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  writeCachedDocuments(state.docs);
 }
 
 async function createDoc(payload) {
@@ -563,6 +694,10 @@ async function editDoc(doc, payload) {
 }
 
 async function openEditor(id) {
+  if (state.writesBlocked) {
+    toast('Изменения временно отключены: Firebase база недоступна.', 'err');
+    return;
+  }
   await warmUsersForDialog();
 
   if (id) {
@@ -608,6 +743,10 @@ async function openEditor(id) {
 }
 
 async function openShare(id) {
+  if (state.writesBlocked) {
+    toast('Изменения временно отключены: Firebase база недоступна.', 'err');
+    return;
+  }
   const doc = getDocById(id);
   if (!doc) return;
   await warmUsersForDialog();
@@ -638,6 +777,10 @@ async function openShare(id) {
 }
 
 async function deleteDoc(id) {
+  if (state.writesBlocked) {
+    toast('Удаление временно отключено: Firebase база недоступна.', 'err');
+    return;
+  }
   const doc = getDocById(id);
   if (!doc) return;
 
@@ -656,6 +799,7 @@ async function deleteDoc(id) {
   state.docs = state.docs.filter((item) => item.id !== doc.id);
   delete state.moduleStateByDoc[doc.id];
   if (state.selectedId === doc.id) setRoute(null, true);
+  writeCachedDocuments(state.docs);
   toast('Документ удалён', 'ok');
   refresh();
 }
@@ -710,17 +854,30 @@ async function migrateAndLoadDocuments(authorFallbackId) {
 }
 
 async function tryLoadUsersRegistry() {
+  const cached = readCachedUsersRegistry();
+  if (state.backendDeactivated) return cached;
   try {
     const usersSnap = await withTimeout(get(ref(db, 'users')), 'users read', USERS_FETCH_TIMEOUT_MS);
-    return toUsersById(usersSnap.exists() ? usersSnap.val() : {});
+    const users = toUsersById(usersSnap.exists() ? usersSnap.val() : {});
+    if (Object.keys(users).length) writeCachedUsersRegistry(users);
+    return users;
   } catch (error) {
+    if (isDbDeactivatedError(error)) {
+      state.backendDeactivated = true;
+      return cached;
+    }
     console.warn('documents: users read timeout, retry with short timeout', error);
     try {
       const retrySnap = await withTimeout(get(ref(db, 'users')), 'users read retry', 3200);
-      return toUsersById(retrySnap.exists() ? retrySnap.val() : {});
+      const users = toUsersById(retrySnap.exists() ? retrySnap.val() : {});
+      if (Object.keys(users).length) writeCachedUsersRegistry(users);
+      return users;
     } catch (retryError) {
+      if (isDbDeactivatedError(retryError)) {
+        state.backendDeactivated = true;
+      }
       console.warn('documents: users registry unavailable, continue without it', retryError);
-      return {};
+      return Object.keys(cached).length ? cached : {};
     }
   }
 }
@@ -749,8 +906,15 @@ async function bootstrapSession(user) {
     return;
   }
 
-  // docs не должен блокироваться из-за /users; читаем users отдельно и неблокирующе.
-  const usersById = await tryLoadUsersRegistry();
+  const dbHealth = await probeDatabaseHealth();
+  state.backendDeactivated = !!dbHealth.deactivated;
+
+  // docs не должен блокироваться из-за /users; используем кэш мгновенно и догружаем в фоне.
+  const cachedUsers = readCachedUsersRegistry();
+  const usersById = state.backendDeactivated
+    ? cachedUsers
+    : (Object.keys(cachedUsers).length ? cachedUsers : await tryLoadUsersRegistry());
+  if (Object.keys(usersById).length) writeCachedUsersRegistry(usersById);
   const matched = findUserByEmail(usersById, email);
   const cached = readCachedUserAccess(email);
   const rootAccess = isRootEmail(email);
@@ -775,22 +939,44 @@ async function bootstrapSession(user) {
 
   state.me = me;
   state.usersById = usersById;
-  state.offlineMode = false;
-
   const superAdmin = Object.values(usersById).find((item) => isRootEmail(item?.email) || item?.isSuperAdmin);
   const authorFallbackId = asId(superAdmin?.id || matched?.id || me.id || user.uid || 'system');
+  let docs = [];
+  let readOnlyReason = '';
+  if (state.backendDeactivated) {
+    docs = readCachedDocuments();
+    readOnlyReason = 'Firebase RTDB проекта отключена (423). Раздел открыт в режиме только чтения.';
+  } else {
+    try {
+      docs = await migrateAndLoadDocuments(authorFallbackId);
+      writeCachedDocuments(docs);
+    } catch (error) {
+      const isTimeout = String(error?.message || '').toLowerCase().includes('timeout');
+      if (!isDbDeactivatedError(error) && !isTimeout) throw error;
+      state.backendDeactivated = state.backendDeactivated || isDbDeactivatedError(error);
+      docs = readCachedDocuments();
+      readOnlyReason = state.backendDeactivated
+        ? 'Firebase RTDB проекта отключена (423). Раздел открыт в режиме только чтения.'
+        : 'Firebase отвечает слишком долго. Открыта кэш-версия документов в режиме только чтения.';
+    }
+  }
 
-  state.docs = await migrateAndLoadDocuments(authorFallbackId);
+  if (!docs.length) docs = [buildOfflineSeedDoc()];
+  state.docs = docs;
+  state.offlineMode = !!readOnlyReason;
+  state.writesBlocked = !!readOnlyReason;
+  state.backendNotice = readOnlyReason;
   state.selectedId = routeIdFromUrl();
   state.mode = 'ready';
   refresh();
 
   // Фоновая гидрация users (если в первый проход был пустой/таймаут).
-  if (!Object.keys(state.usersById || {}).length) {
+  if (!state.backendDeactivated) {
     void (async () => {
       const hydrated = await tryLoadUsersRegistry();
       if (!Object.keys(hydrated).length) return;
       state.usersById = hydrated;
+      writeCachedUsersRegistry(hydrated);
       const refreshed = findUserByEmail(hydrated, email);
       if (refreshed) state.me = { ...state.me, ...refreshed };
       refresh();
@@ -823,6 +1009,9 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   state.mode = 'loading';
+  state.writesBlocked = false;
+  state.backendNotice = '';
+  state.backendDeactivated = false;
   refresh();
 
   const eventFallbackWatchdog = setTimeout(() => {

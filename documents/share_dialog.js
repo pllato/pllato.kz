@@ -398,6 +398,7 @@ export function openDocumentShareDialog({
 
   shell.foot.innerHTML = `
     <div class="doc-muted-note" data-count></div>
+    <div class="doc-muted-note" data-share-error style="color:#b2462d"></div>
     <div style="display:flex;gap:8px">
       <button class="doc-btn" data-cancel>Отмена</button>
       <button class="doc-btn doc-btn-primary" data-save>Сохранить</button>
@@ -407,6 +408,7 @@ export function openDocumentShareDialog({
   const listEl = shell.body.querySelector('[data-list]');
   const countEl = shell.foot.querySelector('[data-count]');
   const teamNoteEl = shell.body.querySelector('[data-team-note]');
+  const shareErrorEl = shell.foot.querySelector('[data-share-error]');
 
   function renderSegments() {
     shell.body.querySelectorAll('[data-mode]').forEach((btn) => {
@@ -485,10 +487,15 @@ export function openDocumentShareDialog({
       scope,
       sharedWith: scope === 'team' ? [] : [...selected].sort(),
     };
+    if (shareErrorEl) shareErrorEl.textContent = '';
     saveBtn.disabled = true;
     try {
       await onSave?.(payload);
       shell.close();
+    } catch (error) {
+      const msg = String(error?.message || 'Не удалось сохранить доступ.');
+      if (shareErrorEl) shareErrorEl.textContent = msg;
+      console.error('documents: share save failed', error);
     } finally {
       saveBtn.disabled = false;
     }
