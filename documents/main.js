@@ -26,10 +26,10 @@ import {
 
 const ROOT_SUPER_ADMIN = 'uurraa@gmail.com';
 const DOCS_APP_ID = 'docs_portal';
-const FETCH_TIMEOUT_MS = 12000;
-const AUTH_TIMEOUT_MS = 12000;
-const USERS_FETCH_TIMEOUT_MS = 4500;
-const HARD_FALLBACK_MS = 14000;
+const FETCH_TIMEOUT_MS = 22000;
+const AUTH_TIMEOUT_MS = 30000;
+const USERS_FETCH_TIMEOUT_MS = 12000;
+const HARD_FALLBACK_MS = 35000;
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const UPLOAD_TIMEOUT_MS = 30000;
 const USERS_CACHE_KEY = 'pllato_users_registry_cache';
@@ -495,11 +495,11 @@ function enterOfflineMode(user, reasonText = '') {
   state.docs = state.docs?.length ? state.docs : (cachedDocs.length ? cachedDocs : [buildOfflineSeedDoc()]);
   state.offlineMode = true;
   state.writesBlocked = true;
-  state.backendNotice = reasonText || 'Firebase временно недоступна. Открыт режим только чтения.';
+  state.backendNotice = reasonText || 'Бэкенд временно недоступен. Открыт режим только чтения.';
   state.mode = 'ready';
   state.selectedId = routeIdFromUrl();
   refresh();
-  toast(reasonText || 'Firebase временно недоступна. Открыт автономный режим документа.', 'err');
+  toast(reasonText || 'Бэкенд временно недоступен. Открыт автономный режим документа.', 'err');
 }
 
 function renderForbidden() {
@@ -518,7 +518,7 @@ function getDocById(id) {
 
 function assertWriteAvailable() {
   if (!state.writesBlocked) return;
-  throw new Error('Сейчас режим только чтения: Firebase временно недоступна для изменений.');
+  throw new Error('Сейчас режим только чтения: бэкенд временно недоступен для изменений.');
 }
 
 function refresh() {
@@ -536,7 +536,7 @@ function refresh() {
     renderFrame(`
       <section class="doc-forbidden">
         <h2>Не удалось загрузить документы</h2>
-        <p>${escapeHtml(state.errorMessage || 'Проверь Firebase-сессию и доступ к базе.')}</p>
+        <p>${escapeHtml(state.errorMessage || 'Проверь сессию и доступ к API.')}</p>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
           <button class="doc-btn" data-action="reload">Обновить страницу</button>
           <a class="doc-btn" href="login.html">Войти заново</a>
@@ -717,7 +717,7 @@ async function editDoc(doc, payload) {
 
 async function openEditor(id) {
   if (state.writesBlocked) {
-    toast('Изменения временно отключены: Firebase база недоступна.', 'err');
+    toast('Изменения временно отключены: бэкенд недоступен.', 'err');
     return;
   }
   await warmUsersForDialog();
@@ -766,7 +766,7 @@ async function openEditor(id) {
 
 async function openShare(id) {
   if (state.writesBlocked) {
-    toast('Изменения временно отключены: Firebase база недоступна.', 'err');
+    toast('Изменения временно отключены: бэкенд недоступен.', 'err');
     return;
   }
   const doc = getDocById(id);
@@ -800,7 +800,7 @@ async function openShare(id) {
 
 async function deleteDoc(id) {
   if (state.writesBlocked) {
-    toast('Удаление временно отключено: Firebase база недоступна.', 'err');
+    toast('Удаление временно отключено: бэкенд недоступен.', 'err');
     return;
   }
   const doc = getDocById(id);
@@ -959,7 +959,7 @@ async function bootstrapSession(user) {
   let readOnlyReason = '';
   if (state.backendDeactivated) {
     docs = readCachedDocuments();
-    readOnlyReason = 'Firebase RTDB проекта отключена (423). Раздел открыт в режиме только чтения.';
+    readOnlyReason = 'Бэкенд данных отключён (423). Раздел открыт в режиме только чтения.';
   } else {
     try {
       docs = await migrateAndLoadDocuments(authorFallbackId);
@@ -970,8 +970,8 @@ async function bootstrapSession(user) {
       state.backendDeactivated = state.backendDeactivated || isDbDeactivatedError(error);
       docs = readCachedDocuments();
       readOnlyReason = state.backendDeactivated
-        ? 'Firebase RTDB проекта отключена (423). Раздел открыт в режиме только чтения.'
-        : 'Firebase отвечает слишком долго. Открыта кэш-версия документов в режиме только чтения.';
+        ? 'Бэкенд данных отключён (423). Раздел открыт в режиме только чтения.'
+        : 'API отвечает слишком долго. Открыта кэш-версия документов в режиме только чтения.';
     }
   }
 
@@ -1007,7 +1007,7 @@ renderLoading();
 
 const authWatchdog = setTimeout(() => {
   if (state.mode !== 'loading') return;
-  enterOfflineMode(auth.currentUser, 'Firebase Auth долго не отвечает. Открыт автономный режим.');
+  enterOfflineMode(auth.currentUser, 'Авторизация отвечает слишком долго. Открыт автономный режим.');
 }, AUTH_TIMEOUT_MS);
 
 const hardFallbackWatchdog = setTimeout(() => {
@@ -1034,13 +1034,13 @@ onAuthStateChanged(auth, async (user) => {
   }, HARD_FALLBACK_MS);
 
   try {
-    await withTimeout(bootstrapSession(user), 'bootstrap session');
+    await withTimeout(bootstrapSession(user), 'bootstrap session', AUTH_TIMEOUT_MS);
     clearTimeout(eventFallbackWatchdog);
     clearTimeout(hardFallbackWatchdog);
   } catch (error) {
     clearTimeout(eventFallbackWatchdog);
     clearTimeout(hardFallbackWatchdog);
     console.error(error);
-    enterOfflineMode(user, `Ошибка Firebase: ${error?.message || error}. Открыт автономный режим.`);
+    enterOfflineMode(user, `Ошибка API: ${error?.message || error}. Открыт автономный режим.`);
   }
 });

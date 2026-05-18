@@ -623,12 +623,12 @@ const APPS_CATALOG = [
 
 // Главный супер-админ (системный) — всегда имеет полный доступ независимо от записей в /users
 const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
-// Временный аварийный режим: если RTDB отключена (423), пускаем Google-пользователей,
-// чтобы команда не простаивала. После восстановления RTDB отключить.
+// Временный аварийный режим: если бэкенд недоступен (423), пускаем Google-пользователей,
+// чтобы команда не простаивала. После стабилизации бэкенда отключить.
 const EMERGENCY_ALLOW_ANY_GOOGLE_LOGIN_IF_DB_DOWN = true;
 
-// /admin_emails — реестр email-ов админов для Firebase rules.
-// Ключ — email с заменой "." на "," (т.к. в Firebase keys нельзя точки).
+// Legacy helper (совместимость старых ключей).
+// Ключ — email с заменой "." на ",".
 function emailKey(email) {
   return (email || "").toLowerCase().trim().replace(/\./g, ',');
 }
@@ -877,14 +877,14 @@ function setLoading(text) {
   loadingTextEl.textContent = text;
 }
 
-// Слушаем состояние авторизации Firebase
+// Слушаем состояние авторизации текущей сессии
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     redirectToLogin();
     return;
   }
 
-  // Сначала пробуем показать UI из кэша (быстро), потом проверим в Firebase
+  // Сначала пробуем показать UI из кэша (быстро), потом проверим доступ в бэкенде
   let cachedUser = null;
   try {
     const cached = localStorage.getItem('pllato_user_cache');
@@ -956,7 +956,7 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  // Кэша нет/устарел — проверяем в Firebase
+  // Кэша нет/устарел — проверяем бэкенд
   setLoading('Проверяем ваш доступ в команде...');
   try {
     const snap = await get(ref(db, 'users'));
@@ -993,8 +993,7 @@ onAuthStateChanged(auth, async (user) => {
         // тихо — даже если запись не создалась, доступ пускаем (root всегда пускаем)
       }
     }
-    // Обновим /admin_emails — на основе текущих isAdmin/isSuperAdmin в /users.
-    // Это нужно для Firebase rules: они проверяют /admin_emails при write-операциях.
+    // Обновим legacy-реестр админов (обратная совместимость).
     syncAdminEmailsRegistry(users).catch(() => {});
 
     if (!foundUser) {
@@ -1073,7 +1072,7 @@ onAuthStateChanged(auth, async (user) => {
         return;
       }
       await fbSignOut(auth);
-      alert('Нет прав на чтение базы. Нужно обновить Firebase rules — обратитесь к администратору.');
+      alert('Нет прав на чтение базы. Проверьте роли и доступ к API у администратора.');
       redirectToLogin();
       return;
     }
@@ -1137,7 +1136,7 @@ async function refreshUserDataInBackground(user) {
   }
 }
 
-// Поддерживает /admin_emails в актуальном состоянии (для rules)
+// Поддерживает legacy-реестр admin_emails (обратная совместимость)
 async function syncAdminEmailsRegistry(users) {
   try {
     const desired = {};
@@ -1375,7 +1374,7 @@ function renderAdminUsers() {
       try {
         await update(ref(db, 'users/' + uid), { [flag]: val });
         adminUsersCache[uid][flag] = val;
-        // Синхронизируем /admin_emails (для Firebase rules)
+        // Синхронизируем legacy-реестр admin_emails
         await syncAdminEmailsRegistry(adminUsersCache);
         renderAdminUsers();
         showAdminMsg('Сохранено', 'ok');
