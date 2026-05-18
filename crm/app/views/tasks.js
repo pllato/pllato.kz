@@ -31,6 +31,22 @@ const state = {
   parentForCreate: null,
 };
 
+function isContactAlive(contact) {
+  return !contact?.deletedAt;
+}
+
+function isDealAlive(deal) {
+  return !deal?.deletedAt;
+}
+
+function listAliveContacts() {
+  return Store.list(CONTACTS).filter(isContactAlive);
+}
+
+function listAliveDeals() {
+  return Store.list(DEALS).filter(isDealAlive);
+}
+
 function escape(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -57,8 +73,8 @@ function fmtSize(bytes) {
 function seedDemo() {
   if (Store.list(COLLECTION).length > 0) return;
   const employees = listEmployees();
-  const contacts = Store.list(CONTACTS);
-  const deals = Store.list(DEALS);
+  const contacts = listAliveContacts();
+  const deals = listAliveDeals();
   const me = currentEmployee();
   const now = Date.now();
 
@@ -275,8 +291,8 @@ function renderTaskModal() {
   if (!t) return "";
 
   const employees = listEmployees();
-  const contacts = Store.list(CONTACTS);
-  const deals = Store.list(DEALS);
+  const contacts = listAliveContacts();
+  const deals = listAliveDeals();
   const parentTask = t.parentId ? Store.get(COLLECTION, t.parentId) : null;
   const subs = isNew ? [] : subtasksOf(t.id);
   const comms = isNew ? [] : commentsOf(t.id);
@@ -558,7 +574,7 @@ function wireEvents(container) {
     const type = linkTypeSelect.value;
     if (!type) { wrap.style.display = "none"; sel.innerHTML = '<option value="">—</option>'; return; }
     wrap.style.display = "";
-    const items = type === "contact" ? Store.list(CONTACTS) : Store.list(DEALS);
+    const items = type === "contact" ? listAliveContacts() : listAliveDeals();
     sel.innerHTML = `<option value="">—</option>` + items.map(x => `<option value="${x.id}">${escape(x.name || x.title)}</option>`).join("");
   });
 

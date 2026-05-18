@@ -1,29 +1,31 @@
 // Pllato CRM — умный импорт контактов из CSV / TSV / TXT.
 //
-// Поддерживает:
-//   - CSV/TSV с заголовками (распознаёт ru/en имена колонок)
-//   - Плоский текст: ищет телефоны regex'ом и имена эвристикой
-//   - Дедуп по email и телефону против существующей базы
+// parseImport всегда возвращает структуру для мастера:
+// { headers: string[], rows: string[][], autoMap: Record<index, fieldId> }
+// где fieldId — базовые поля контакта/сделки для автосопоставления.
 
 const PHONE_RE = /\+?\d[\d\s\-\(\)]{6,}\d/g;
 const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 
 // Известные алиасы заголовков (для CSV)
 const HEADER_ALIASES = {
-  name:     ["name", "имя", "фио", "контакт", "клиент", "full name", "fullname", "client"],
-  email:    ["email", "e-mail", "почта", "mail"],
-  phone:    ["phone", "телефон", "номер", "tel", "mobile", "моб", "сотовый", "phone number"],
-  company:  ["company", "компания", "организация", "фирма", "org"],
+  name: ["name", "имя", "фио", "контакт", "клиент", "full name", "fullname", "client"],
+  email: ["email", "e-mail", "почта", "mail"],
+  phone: ["phone", "телефон", "номер", "tel", "mobile", "моб", "сотовый", "phone number"],
+  company: ["company", "компания", "организация", "фирма", "org"],
   position: ["position", "должность", "title", "job", "роль"],
-  notes:    ["notes", "заметки", "комментарий", "комент", "комментарии", "note"],
-  tags:     ["tags", "теги", "tag", "метки"],
+  source: ["source", "источник", "канал", "lead source"],
+  note: ["notes", "note", "заметки", "комментарий", "комент", "комментарии"],
+  tags: ["tags", "теги", "tag", "метки"],
+  deal_title: ["deal", "deal name", "deal title", "название сделки", "сделка"],
+  deal_amount: ["amount", "sum", "сумма", "бюджет", "budget"],
 };
 
 function normHeader(h) {
   return String(h || "").toLowerCase().trim().replace(/^[\s"]+|[\s"]+$/g, "");
 }
 
-function detectField(header) {
+export function detectField(header) {
   const h = normHeader(header);
   for (const [field, aliases] of Object.entries(HEADER_ALIASES)) {
     if (aliases.includes(h)) return field;
@@ -32,75 +34,60 @@ function detectField(header) {
 }
 
 function detectDelimiter(text) {
-  const firstLine = text.split(/\r?\n/)[0] || "";
-  const counts = { ",": (firstLine.match(/,/g) || []).length, ";": (firstLine.match(/;/g) || []).length, "\t": (firstLine.match(/\t/g) || []).length };
-  let best = ","; let max = counts[","];
-  for (const [d, c] of Object.entries(counts)) if (c > max) { best = d; max = c; }
+  const firstLine = String(text || "").split(/\r?\n/)[0] || "";
+  const counts = {
+    ",": (firstLine.match(/,/g) || []).length,
+    ";": (firstLine.match(/;/g) || []).length,
+    "\t": (firstLine.match(/\t/g) || []).length,
+  };
+  let best = ",";
+  let max = counts[","];
+  for (const [d, c] of Object.entries(counts)) {
+    if (c > max) {
+      best = d;
+      max = c;
+    }
+  }
   return best;
 }
 
 function parseCSVLine(line, delim) {
   // Простой парсер с поддержкой кавычек
   const out = [];
-  let cur = ""; let inQ = false;
-  for (let i = 0; i < line.length; i++) {
+  let cur = "";
+  let inQ = false;
+  for (let i = 0; i < line.length; i += 1) {
     const ch = line[i];
     if (ch === '"') {
-      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
-      else inQ = !inQ;
+      if (inQ && line[i + 1] === '"') {
+        cur += '"';
+        i += 1;
+      } else {
+        inQ = !inQ;
+      }
     } else if (ch === delim && !inQ) {
-      out.push(cur); cur = "";
+      out.push(cur);
+      cur = "";
     } else {
       cur += ch;
     }
   }
   out.push(cur);
-  return out.map(s => s.trim());
+  return out.map((s) => String(s || "").trim());
 }
 
-export function parseImport(text) {
-  if (!text || typeof text !== "string") return [];
-  text = text.replace(/﻿/g, "");  // BOM
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
-  if (lines.length === 0) return [];
-
-  // Попытка 1: CSV/TSV с заголовками
-  const delim = detectDelimiter(lines[0]);
-  const headerCells = parseCSVLine(lines[0], delim);
-  const fieldMap = headerCells.map(detectField);
-  const hasHeader = fieldMap.some(f => f);
-
-  if (hasHeader && lines.length > 1) {
-    const contacts = [];
-    for (let i = 1; i < lines.length; i++) {
-      const cells = parseCSVLine(lines[i], delim);
-      const c = { name: "", email: "", phone: "", company: "", position: "", notes: "", tags: [] };
-      cells.forEach((val, idx) => {
-        const f = fieldMap[idx];
-        if (!f) return;
-        val = (val || "").trim();
-        if (f === "tags") c.tags = val.split(/[,;]/).map(t => t.trim()).filter(Boolean);
-        else c[f] = val;
-      });
-      // Дополнительно: если name пустой — попробуем найти любую непустую non-field колонку
-      if (!c.name) {
-        const firstNonField = cells.find((_, idx) => !fieldMap[idx] && cells[idx].trim());
-        if (firstNonField) c.name = firstNonField.trim();
-      }
-      if (c.name || c.email || c.phone) contacts.push(c);
-    }
-    if (contacts.length > 0) return contacts;
-  }
-
-  // Попытка 2: плоский текст — извлекаем телефоны+email+имена эвристически
+function parseFreeText(lines) {
   const contacts = [];
   for (const line of lines) {
     const phones = line.match(PHONE_RE) || [];
     const emails = line.match(EMAIL_RE) || [];
-    // Имя = то что осталось после удаления телефонов, email и спецсимволов
     let nameRaw = line;
-    phones.forEach(p => nameRaw = nameRaw.replace(p, ""));
-    emails.forEach(e => nameRaw = nameRaw.replace(e, ""));
+    phones.forEach((p) => {
+      nameRaw = nameRaw.replace(p, "");
+    });
+    emails.forEach((e) => {
+      nameRaw = nameRaw.replace(e, "");
+    });
     nameRaw = nameRaw.replace(/[,;:|\t]+/g, " ").replace(/\s+/g, " ").trim();
 
     if (phones.length === 0 && emails.length === 0 && !nameRaw) continue;
@@ -110,18 +97,76 @@ export function parseImport(text) {
       email: emails[0] || "",
       company: "",
       position: "",
-      notes: "",
-      tags: [],
+      note: "",
     });
   }
   return contacts;
+}
+
+function normalizeRows(rows, width) {
+  return rows.map((row) => {
+    const cells = Array.isArray(row) ? row.slice(0, width) : [];
+    while (cells.length < width) cells.push("");
+    return cells.map((v) => String(v || "").trim());
+  });
+}
+
+export function parseImport(text) {
+  const empty = { headers: [], rows: [], autoMap: {} };
+  if (!text || typeof text !== "string") return empty;
+
+  const src = text.replace(/﻿/g, ""); // BOM
+  const lines = src.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return empty;
+
+  const delim = detectDelimiter(src);
+  const parsedLines = lines.map((line) => parseCSVLine(line, delim));
+  const hasMultiColumn = parsedLines.some((row) => row.length > 1);
+
+  if (!hasMultiColumn) {
+    // Плоский текст: превращаем в синтетическую таблицу, чтобы wizard оставался единым.
+    const contacts = parseFreeText(lines);
+    const headers = ["Имя", "Телефон", "Email", "Компания", "Должность", "Заметка"];
+    const rows = contacts.map((c) => [c.name, c.phone, c.email, c.company, c.position, c.note]);
+    return {
+      headers,
+      rows,
+      autoMap: { 0: "name", 1: "phone", 2: "email", 3: "company", 4: "position", 5: "note" },
+    };
+  }
+
+  const firstRow = parsedLines[0] || [];
+  const detected = firstRow.map(detectField);
+  const hasHeader = detected.some(Boolean);
+
+  let headers = [];
+  let rows = [];
+
+  if (hasHeader) {
+    headers = firstRow.map((h, i) => String(h || "").trim() || `Колонка ${i + 1}`);
+    rows = parsedLines.slice(1);
+  } else {
+    const width = Math.max(...parsedLines.map((r) => r.length), 1);
+    headers = Array.from({ length: width }, (_, i) => `Колонка ${i + 1}`);
+    rows = parsedLines;
+  }
+
+  rows = normalizeRows(rows, headers.length).filter((row) => row.some((cell) => String(cell || "").trim()));
+
+  const autoMap = {};
+  headers.forEach((h, i) => {
+    const f = detectField(h);
+    if (f) autoMap[i] = f;
+  });
+
+  return { headers, rows, autoMap };
 }
 
 // Поиск дубликатов в существующей базе
 export function findDuplicate(contact, existing) {
   const email = (contact.email || "").toLowerCase().trim();
   const phone = (contact.phone || "").replace(/\D+/g, "");
-  return existing.find(c => {
+  return existing.find((c) => {
     if (email && (c.email || "").toLowerCase().trim() === email) return true;
     if (phone && (c.phone || "").replace(/\D+/g, "") === phone) return true;
     return false;

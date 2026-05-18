@@ -210,6 +210,14 @@ function contactSourceOptions() {
   return ["WhatsApp", "Звонок", "Рекомендация", "Сайт", "Дилеры"];
 }
 
+function isContactAlive(contact) {
+  return !contact?.deletedAt;
+}
+
+function listAliveContacts() {
+  return Store.list(CONTACTS).filter(isContactAlive);
+}
+
 function stageTitleById(stageId) {
   if (!stageId) return "";
   return findStage(stageId)?.title || String(stageId);
@@ -426,7 +434,7 @@ function renderWaMessages(messages, searchQuery = "") {
 function reconcileDeals(stages) {
   const ids = new Set(stages.map(s => s.id));
   const fallback = stages[0]?.id || "new";
-  const deals = Store.list(COLLECTION);
+  const deals = Store.list(COLLECTION).filter((d) => !d?.deletedAt);
   deals.forEach(d => {
     if (!ids.has(d.stage)) Store.update(COLLECTION, d.id, { stage: fallback });
   });
@@ -435,7 +443,7 @@ function reconcileDeals(stages) {
 // Демо-сидинг
 function seedDemo() {
   if (Store.list(COLLECTION).length > 0) return;
-  const contacts = Store.list(CONTACTS);
+  const contacts = listAliveContacts();
   if (contacts.length === 0) return;
   const me = currentEmployee();
   const now = Date.now();
@@ -502,7 +510,7 @@ export function renderDeals(container) {
   }
 
   const deals = Store.list(COLLECTION);
-  const contacts = Store.list(CONTACTS);
+  const contacts = listAliveContacts();
   const contactMap = Object.fromEntries(contacts.map(c => [c.id, c]));
 
   const activityTextByDeal = buildActivityTextByDeal();
@@ -675,6 +683,7 @@ function renderDealModal(d, contacts, stages) {
   }
   const employees = listEmployees();
   const contact = contacts.find(c => c.id === d.contactId);
+  const trashedContact = !contact && d.contactId ? Store.get(CONTACTS, d.contactId) : null;
   const assignee = getEmployee(d.assigneeId);
   const acts = isNew ? [] : activitiesFor(d.id);
   const shownActs = filterActivities(acts, state.activityFilter);
@@ -710,7 +719,7 @@ function renderDealModal(d, contacts, stages) {
                 <label>Сумма, ₸</label>
                 <input name="amount" type="number" min="0" step="1000" value="${d.amount || ""}" placeholder="0">
               </div>
-              ${renderDealContactBlock(contact, d)}
+              ${renderDealContactBlock(contact, d, trashedContact)}
               ${renderTypeahead({
                 name: "assigneeId",
                 value: d.assigneeId,
@@ -1116,15 +1125,16 @@ function renderActivity(a) {
 // Блок контакта в карточке сделки.
 // 3 режима через state.contactMode: view (карточка), edit (правка полей), change (выбор другого).
 // Внутри всегда есть hidden input name="contactId" — поэтому FormData сабмита формы продолжает работать.
-function renderDealContactBlock(contact, d) {
-  const contacts = Store.list(CONTACTS);
+function renderDealContactBlock(contact, d, trashedContact = null) {
+  const contacts = listAliveContacts();
   const mode = state.contactMode || "view";
   const draft = { ...defaultContactCreateDraft(), ...(state.contactCreateDraft || {}) };
   const sourceOptions = contactSourceOptions();
   const sourceValue = sourceOptions.includes(draft.source) ? draft.source : (sourceOptions[0] || "");
+  const hasTrashedContact = Boolean(trashedContact?.deletedAt);
 
   // Режим выбора другого контакта (или первичный выбор для новой сделки).
-  if (mode === "change" || (!contact && mode !== "edit" && mode !== "create")) {
+  if (mode === "change" || (!contact && !hasTrashedContact && mode !== "edit" && mode !== "create")) {
     return `
       <div class="deal-contact-block deal-contact-pick">
         ${renderTypeahead({
@@ -1214,6 +1224,22 @@ function renderDealContactBlock(contact, d) {
   }
 
   // Режим карточки (по умолчанию).
+  if (hasTrashedContact) {
+    return `
+      <div class="deal-contact-block deal-contact-trashed">
+        <div class="dcc-label">Контакт</div>
+        <input type="hidden" name="contactId" value="${escapeAttr(trashedContact.id)}">
+        <div class="deal-contact-trash-note">
+          Контакт в корзине · восстановить
+        </div>
+        <div class="dcc-pick-actions">
+          <button type="button" class="btn-ghost btn-sm" id="restoreTrashedContact">↶ Восстановить контакт</button>
+          <button type="button" class="btn-ghost btn-sm" id="changeContact">Выбрать другой</button>
+        </div>
+      </div>
+    `;
+  }
+
   if (!contact) {
     return `
       <div class="deal-contact-block deal-contact-pick">
@@ -1658,7 +1684,7 @@ export function tryOpenDealFromHash() {
 // Events
 // =========================================================================
 function wireEvents(container) {
-  const contacts = Store.list(CONTACTS);
+  const contacts = listAliveContacts();
 
   container.querySelectorAll("[data-crm-tab]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -1766,7 +1792,7 @@ function wireEvents(container) {
   if (dealForm) {
     // Подгружаем items для typeahead в window.__taItems
     window.__taItems = window.__taItems || {};
-    window.__taItems.contactId = Store.list(CONTACTS).map(c => ({ id: c.id, name: c.name || "(без имени)", sub: c.company || c.email || c.phone || "" }));
+    window.__taItems.contactId = listAliveContacts().map(c => ({ id: c.id, name: c.name || "(без имени)", sub: c.company || c.email || c.phone || "" }));
     window.__taItems.assigneeId = listEmployees().map(e => ({ id: e.id, name: e.name, sub: e.email || "" }));
     attachTypeahead(dealForm, {
       onCreate: async (name, query) => {
@@ -2517,6 +2543,15 @@ function wireEvents(container) {
       state.contactCreateDraft = null;
       renderDeals(container);
     });
+    container.querySelector("#restoreTrashedContact")?.addEventListener("click", () => {
+      const deal = Store.get(COLLECTION, state.modalDealId);
+      if (!deal?.contactId) return;
+      const trashed = Store.get(CONTACTS, deal.contactId);
+      if (!trashed?.deletedAt) return;
+      Store.update(CONTACTS, trashed.id, { deletedAt: null, deletedBy: null });
+      state.contactMode = "view";
+      renderDeals(container);
+    });
     container.querySelector("#createContactInline")?.addEventListener("click", () => {
       state.contactMode = "create";
       state.contactCreateDraft = defaultContactCreateDraft("");
@@ -2587,7 +2622,7 @@ function wireEvents(container) {
       if (state.modalDealId) {
         Store.update(COLLECTION, state.modalDealId, { contactId: created.id });
       }
-      window.__taItems.contactId = Store.list(CONTACTS).map((c) => ({
+      window.__taItems.contactId = listAliveContacts().map((c) => ({
         id: c.id,
         name: c.name || "(без имени)",
         sub: c.company || c.email || c.phone || "",

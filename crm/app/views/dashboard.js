@@ -358,7 +358,7 @@ function renderActivityWidget() {
 }
 
 export function renderDashboard(container) {
-  const deals = Store.list("deals");
+  const deals = Store.list("deals").filter((d) => !d?.deletedAt);
   const tasks = Store.list("tasks");
   const stages = getStages();
   const period = state.period;
