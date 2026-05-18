@@ -595,14 +595,14 @@ body {
 
 </div>
 
+<script src="app.config.js"></script>
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {
-  getAuth, onAuthStateChanged, signOut as fbSignOut
-} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
-import {
-  getDatabase, ref, get, set, push, update, remove
-} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+  getSession,
+  signOut as localSignOut,
+  apiFetch,
+  requireSession,
+} from './pllato-kz-shared/pllato-api.js';
 import { openEmployeeDocumentsDialog } from './documents/share_dialog.js';
 import { normalizeDocument } from './documents/registry.js';
 
@@ -633,21 +633,172 @@ function emailKey(email) {
   return (email || "").toLowerCase().trim().replace(/\./g, ',');
 }
 
-// Тот же Firebase project что и team.html
-const firebaseConfig = {
-  apiKey: "AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",
-  authDomain: "pllato-crm.firebaseapp.com",
-  databaseURL: "https://pllato-crm-default-rtdb.firebaseio.com",
-  projectId: "pllato-crm",
-  storageBucket: "pllato-crm.firebasestorage.app",
-  messagingSenderId: "690738857241",
-  appId: "1:690738857241:web:2356e97c435656890ab188"
+const session = requireSession({ redirectTo: 'login.html' });
+const auth = {
+  currentUser: session?.user ? {
+    uid: String(session.user.id || session.user.email || 'u_session'),
+    email: String(session.user.email || ''),
+    displayName: String(session.user.name || session.user.email || 'Сотрудник'),
+    photoURL: '',
+  } : null,
 };
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getDatabase(app);
+const db = {};
 const USERS_CACHE_KEY = 'pllato_users_registry_cache';
+
+function makeSnapshot(value) {
+  return {
+    exists: () => {
+      if (value === null || value === undefined) return false;
+      if (typeof value === 'object') return Object.keys(value).length > 0;
+      return true;
+    },
+    val: () => value,
+  };
+}
+
+function splitPath(rawPath) {
+  return String(rawPath || '').replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
+}
+
+function ref(_db, rawPath = '') {
+  return String(rawPath || '').replace(/^\/+|\/+$/g, '');
+}
+
+function push(pathRef) {
+  const rootPath = splitPath(pathRef)[0] || '';
+  if (rootPath !== 'users' && rootPath !== 'documents') {
+    return { key: crypto.randomUUID() };
+  }
+  return { key: crypto.randomUUID() };
+}
+
+async function loadUsersMap() {
+  const data = await apiFetch('/users/list');
+  const map = {};
+  for (const user of (data?.users || [])) {
+    if (!user?.id) continue;
+    map[String(user.id)] = { ...user };
+  }
+  return map;
+}
+
+async function loadDocumentsMap() {
+  const data = await apiFetch('/store/pull', {
+    method: 'POST',
+    body: { collections: ['documents'], limitPerCollection: 5000 },
+  });
+  const docs = Array.isArray(data?.collections?.documents) ? data.collections.documents : [];
+  const map = {};
+  for (const doc of docs) {
+    if (!doc?.id) continue;
+    map[String(doc.id)] = doc;
+  }
+  return map;
+}
+
+async function set(pathRef, value) {
+  const parts = splitPath(pathRef);
+  if (!parts.length) return;
+  if (parts[0] === 'users' && parts[1]) {
+    const payload = { ...(value || {}), id: String(parts[1]) };
+    await apiFetch('/users/save', { method: 'POST', body: payload });
+    return;
+  }
+  if (parts[0] === 'documents' && parts[1]) {
+    const item = normalizeDocument({ ...(value || {}), id: String(parts[1]) }, String(parts[1]));
+    await apiFetch('/store/push', {
+      method: 'POST',
+      body: { ops: [{ type: 'upsert', collection: 'documents', item }] },
+    });
+    return;
+  }
+}
+
+async function update(pathRef, patch) {
+  const parts = splitPath(pathRef);
+  if (!parts.length) return;
+  if (parts[0] === 'admin_emails') {
+    return;
+  }
+  if (parts[0] === 'users' && parts[1]) {
+    const users = await loadUsersMap();
+    const current = users[String(parts[1])] || { id: String(parts[1]) };
+    if (parts[2] === 'apps') {
+      const mergedApps = { ...(current.apps || {}), ...(patch || {}) };
+      await apiFetch('/users/save', {
+        method: 'POST',
+        body: { ...current, apps: mergedApps, id: String(parts[1]) },
+      });
+      return;
+    }
+    await apiFetch('/users/save', {
+      method: 'POST',
+      body: { ...current, ...(patch || {}), id: String(parts[1]) },
+    });
+    return;
+  }
+  if (parts[0] === 'documents' && parts[1]) {
+    const docsMap = await loadDocumentsMap();
+    const current = docsMap[String(parts[1])] || { id: String(parts[1]) };
+    const next = normalizeDocument({ ...current, ...(patch || {}), id: String(parts[1]) }, String(parts[1]));
+    await apiFetch('/store/push', {
+      method: 'POST',
+      body: { ops: [{ type: 'upsert', collection: 'documents', item: next }] },
+    });
+  }
+}
+
+async function get(pathRef) {
+  const parts = splitPath(pathRef);
+  if (!parts.length) return makeSnapshot(null);
+  if (parts[0] === 'users') {
+    const users = await loadUsersMap();
+    if (parts.length === 1) return makeSnapshot(users);
+    return makeSnapshot(users[String(parts[1])] || null);
+  }
+  if (parts[0] === 'documents') {
+    const docs = await loadDocumentsMap();
+    if (parts.length === 1) return makeSnapshot(docs);
+    return makeSnapshot(docs[String(parts[1])] || null);
+  }
+  if (parts[0] === 'admin_emails') {
+    const users = await loadUsersMap();
+    const out = {};
+    out[emailKey(ROOT_SUPER_ADMIN)] = true;
+    Object.values(users).forEach((u) => {
+      if (u?.email && (u?.isAdmin || u?.isSuperAdmin)) {
+        out[emailKey(u.email)] = true;
+      }
+    });
+    return makeSnapshot(out);
+  }
+  return makeSnapshot(null);
+}
+
+async function remove(pathRef) {
+  const parts = splitPath(pathRef);
+  if (!parts.length) return;
+  if (parts[0] === 'users' && parts[1]) {
+    await apiFetch('/users/delete', { method: 'POST', body: { id: String(parts[1]) } });
+    return;
+  }
+  if (parts[0] === 'documents' && parts[1]) {
+    await apiFetch('/store/push', {
+      method: 'POST',
+      body: { ops: [{ type: 'delete', collection: 'documents', id: String(parts[1]) }] },
+    });
+  }
+}
+
+function onAuthStateChanged(_auth, callback) {
+  Promise.resolve().then(() => callback(auth.currentUser));
+  return () => {};
+}
+
+async function fbSignOut() {
+  localSignOut();
+  auth.currentUser = null;
+}
 
 const loadingEl = document.getElementById('loading');
 const loadingTextEl = document.getElementById('loading-text');

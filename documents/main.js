@@ -1,7 +1,9 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getAuth, onAuthStateChanged, signOut as fbSignOut } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
-import { getDatabase, ref, get, set, push, remove } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
-import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js';
+import {
+  getSession,
+  requireSession,
+  signOut as localSignOut,
+  apiFetch,
+} from '../pllato-kz-shared/pllato-api.js';
 
 import {
   isAdminUser,
@@ -33,21 +35,116 @@ const UPLOAD_TIMEOUT_MS = 30000;
 const USERS_CACHE_KEY = 'pllato_users_registry_cache';
 const DOCS_CACHE_KEY = 'pllato_docs_cache_v1';
 const DB_PROBE_TIMEOUT_MS = 3500;
-
-const firebaseConfig = {
-  apiKey: 'AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc',
-  authDomain: 'pllato-crm.firebaseapp.com',
-  databaseURL: 'https://pllato-crm-default-rtdb.firebaseio.com',
-  projectId: 'pllato-crm',
-  storageBucket: 'pllato-crm.firebasestorage.app',
-  messagingSenderId: '690738857241',
-  appId: '1:690738857241:web:2356e97c435656890ab188',
+const session = requireSession({ redirectTo: 'login.html' });
+const auth = {
+  currentUser: session?.user ? {
+    uid: String(session.user.id || session.user.email || 'u_session'),
+    email: String(session.user.email || ''),
+    displayName: String(session.user.name || session.user.email || 'Сотрудник'),
+    photoURL: '',
+  } : null,
 };
+const db = {};
 
-const fb = initializeApp(firebaseConfig);
-const auth = getAuth(fb);
-const db = getDatabase(fb);
-const storage = getStorage(fb);
+function splitPath(rawPath) {
+  return String(rawPath || '').replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
+}
+
+function ref(_db, rawPath = '') {
+  return String(rawPath || '').replace(/^\/+|\/+$/g, '');
+}
+
+function push(_pathRef) {
+  return { key: crypto.randomUUID() };
+}
+
+function makeSnapshot(value) {
+  return {
+    exists: () => {
+      if (value === null || value === undefined) return false;
+      if (typeof value === 'object') return Object.keys(value).length > 0;
+      return true;
+    },
+    val: () => value,
+  };
+}
+
+async function loadUsersMap() {
+  const data = await apiFetch('/users/list');
+  const out = {};
+  for (const user of (data?.users || [])) {
+    if (!user?.id) continue;
+    out[String(user.id)] = { ...user };
+  }
+  return out;
+}
+
+async function loadDocumentsMap() {
+  const data = await apiFetch('/store/pull', {
+    method: 'POST',
+    body: { collections: ['documents'], limitPerCollection: 5000 },
+  });
+  const out = {};
+  for (const item of (data?.collections?.documents || [])) {
+    if (!item?.id) continue;
+    out[String(item.id)] = item;
+  }
+  return out;
+}
+
+async function get(pathRef) {
+  const parts = splitPath(pathRef);
+  if (!parts.length) return makeSnapshot(null);
+  if (parts[0] === 'users') {
+    const users = await loadUsersMap();
+    if (parts.length === 1) return makeSnapshot(users);
+    return makeSnapshot(users[String(parts[1])] || null);
+  }
+  if (parts[0] === 'documents') {
+    const docs = await loadDocumentsMap();
+    if (parts.length === 1) return makeSnapshot(docs);
+    return makeSnapshot(docs[String(parts[1])] || null);
+  }
+  return makeSnapshot(null);
+}
+
+async function set(pathRef, value) {
+  const parts = splitPath(pathRef);
+  if (!parts.length) return;
+  if (parts[0] === 'documents' && parts[1]) {
+    const item = normalizeDocument({ ...(value || {}), id: String(parts[1]) }, String(parts[1]));
+    await apiFetch('/store/push', {
+      method: 'POST',
+      body: { ops: [{ type: 'upsert', collection: 'documents', item }] },
+    });
+    return;
+  }
+  if (parts[0] === 'users' && parts[1]) {
+    await apiFetch('/users/save', { method: 'POST', body: { ...(value || {}), id: String(parts[1]) } });
+  }
+}
+
+async function remove(pathRef) {
+  const parts = splitPath(pathRef);
+  if (!parts.length) return;
+  if (parts[0] === 'documents' && parts[1]) {
+    await apiFetch('/store/push', {
+      method: 'POST',
+      body: { ops: [{ type: 'delete', collection: 'documents', id: String(parts[1]) }] },
+    });
+    return;
+  }
+}
+
+function onAuthStateChanged(_auth, callback) {
+  Promise.resolve().then(() => callback(auth.currentUser));
+  return () => {};
+}
+
+async function fbSignOut() {
+  localSignOut();
+  auth.currentUser = null;
+}
 
 const root = document.getElementById('docs-root');
 
@@ -183,25 +280,27 @@ async function probeDatabaseHealth() {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DB_PROBE_TIMEOUT_MS);
   try {
-    const url = `${firebaseConfig.databaseURL}/.json?shallow=true`;
+    const base = String(window.PLLATO_API_BASE || '').replace(/\/+$/, '');
+    const url = `${base}/health`;
     const res = await fetch(url, {
       method: 'GET',
       cache: 'no-store',
       signal: controller.signal,
     });
-    if (res.status === 423) {
-      return { ok: false, deactivated: true, message: 'RTDB отключена (423 Locked).' };
-    }
     if (!res.ok) {
-      return { ok: false, deactivated: false, message: `RTDB недоступна (HTTP ${res.status}).` };
+      return { ok: false, deactivated: false, message: `Worker недоступен (HTTP ${res.status}).` };
     }
-    return { ok: true, deactivated: false, message: '' };
+    const json = await res.json().catch(() => ({}));
+    if (json?.ok === true && json?.env?.hasD1 && json?.schema?.ok !== false) {
+      return { ok: true, deactivated: false, message: '' };
+    }
+    return { ok: false, deactivated: false, message: 'Worker вернул неполный health-ответ.' };
   } catch (error) {
     const aborted = String(error?.name || '') === 'AbortError';
     return {
       ok: false,
       deactivated: false,
-      message: aborted ? 'RTDB отвечает слишком долго (timeout).' : `RTDB недоступна: ${error?.message || error}`,
+      message: aborted ? 'Worker отвечает слишком долго (timeout).' : `Worker недоступен: ${error?.message || error}`,
     };
   } finally {
     clearTimeout(timer);
@@ -284,83 +383,11 @@ function normalizeEmbedUrl(url) {
 }
 
 async function uploadFileForDocument(docId, fileBlob, previousPath = '') {
-  if (state.writesBlocked) {
-    throw new Error('Сейчас режим только чтения: Firebase база недоступна, загрузка файлов временно отключена.');
-  }
   if (!(fileBlob instanceof File)) return null;
   if (fileBlob.size > MAX_FILE_BYTES) {
     throw new Error('Файл больше 50 МБ. Загрузка отклонена.');
   }
-
-  const fileName = sanitizeFileName(fileBlob.name || 'untitled');
-  const mimeType = normalizeMime(fileBlob.type || 'application/octet-stream');
-  const storagePath = `documents/${docId}/original/${Date.now()}_${fileName}`;
-  const fileRef = storageRef(storage, storagePath);
-  const uploadTask = uploadBytesResumable(fileRef, fileBlob, { contentType: mimeType });
-
-  await new Promise((resolve, reject) => {
-    let done = false;
-    const timer = setTimeout(() => {
-      if (done) return;
-      try { uploadTask.cancel(); } catch (_) {}
-      reject(new Error('Таймаут загрузки файла. Проверь интернет и повтори.'));
-    }, UPLOAD_TIMEOUT_MS);
-    uploadTask.on('state_changed', null, (err) => {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      const code = String(err?.code || '');
-      if (code.includes('unauthorized')) {
-        reject(new Error('Нет прав на загрузку в хранилище. Проверь Firebase Storage rules.'));
-        return;
-      }
-      if (code.includes('bucket-not-found')) {
-        reject(new Error('Firebase Storage bucket не найден для этого проекта.'));
-        return;
-      }
-      if (code.includes('unknown')) {
-        const msg = String(err?.message || '').toLowerCase();
-        if (msg.includes('cors') || msg.includes('preflight') || msg.includes('xmlhttprequest')) {
-          reject(new Error('Storage отклонил CORS/preflight. Файл не загружен. Проверь bucket/CORS в Firebase Storage.'));
-          return;
-        }
-        if (msg.includes('not found') || msg.includes('404')) {
-          reject(new Error('Storage bucket/объект недоступен (404). Проверь имя bucket и состояние Firebase Storage.'));
-          return;
-        }
-      }
-      if (code.includes('canceled')) {
-        reject(new Error('Загрузка отменена.'));
-        return;
-      }
-      reject(new Error(err?.message || 'Ошибка загрузки файла.'));
-    }, () => {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      resolve();
-    });
-  });
-
-  const downloadURL = await getDownloadURL(fileRef);
-
-  if (previousPath && previousPath !== storagePath) {
-    try {
-      await deleteObject(storageRef(storage, previousPath));
-    } catch (_) {
-      // silent best-effort cleanup
-    }
-  }
-
-  return {
-    storagePath,
-    fileName,
-    mimeType,
-    sizeBytes: Number(fileBlob.size) || 0,
-    uploadedAt: now(),
-    uploadedBy: state.me?.id || '',
-    downloadURL,
-  };
+  throw new Error('Загрузка файлов включится после MIGRATION-03 (R2 + signed URLs). Сейчас доступны интерактивные, текстовые и embed-документы.');
 }
 
 function setRoute(id, replace = false) {
@@ -665,12 +692,7 @@ async function editDoc(doc, payload) {
     }
   }
 
-  if (nextKind !== 'file' && doc.file?.storagePath) {
-    try {
-      await deleteObject(storageRef(storage, doc.file.storagePath));
-    } catch (_) {
-      // keep going: document edit should not fail because cleanup failed
-    }
+  if (nextKind !== 'file') {
     nextFile = null;
   }
 
@@ -786,14 +808,6 @@ async function deleteDoc(id) {
 
   const ok = window.confirm(`Удалить документ «${doc.title || 'Без названия'}»?`);
   if (!ok) return;
-
-  if (doc.file?.storagePath) {
-    try {
-      await deleteObject(storageRef(storage, doc.file.storagePath));
-    } catch (_) {
-      // delete from RTDB anyway
-    }
-  }
 
   await remove(ref(db, `documents/${doc.id}`));
   state.docs = state.docs.filter((item) => item.id !== doc.id);
