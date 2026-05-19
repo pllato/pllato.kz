@@ -6,6 +6,18 @@
 
 ---
 
+## v0.11 · rev-10 (2026-05-18)
+- `login.html` переведён на Google Identity Services + собственный JWT (`/auth/google` в Worker), Firebase Auth удалён.
+- `app.html` переведён с Firebase RTDB на Worker API:
+  - пользователи: `/users/list`, `/users/save`, `/users/delete`
+  - документы для ACL в админке: `/store/pull` + `/store/push` (`collection=documents`)
+- `contact-center.html` переведён на JWT-сессию и Worker API без Firebase токенов.
+- `team.html` переведён в безопасный redirect на новую CRM (`/crm/`) вместо аварийного режима Firebase.
+- `documents/main.js` переведён на Worker API для users/documents (без RTDB/Firebase Auth).
+- `firebase-rules.json` переименован в `firebase-rules.deprecated.json` (историческая справка, больше не используется).
+
+---
+
 ## v0.10 · rev-9 (2026-05-17)
 - Документы: вкладка `Калькулятор` теперь открывается первой в builtin-документе «Система мотивации партнёра».
 - Документы: добавлено поле `kind` (`builtin | markdown | file | embed`) с авто-миграцией существующих записей.

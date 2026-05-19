@@ -4,6 +4,23 @@
 
 ---
 
+> ⚠️ **Обновление от 2026-05-18 (MIGRATION-02):**
+> - Firebase runtime удалён из рабочих страниц (`login.html`, `app.html`, `contact-center.html`, `team.html`, `documents.html`).
+> - Источник auth/session: Google Identity Services + JWT Worker (`/auth/google`).
+> - Источник данных: Cloudflare Worker + D1 (`/users/*`, `/channels/*`, `/store/*`).
+> - Ниже остаются исторические блоки до полной переписи этого документа в следующем PR.
+
+## Текущая схема (актуальная)
+
+1. Страницы `login.html`, `app.html`, `contact-center.html`, `documents.html` используют общий клиент `pllato-kz-shared/pllato-api.js`.
+2. `login.html` получает Google credential и обменивает его на JWT через `POST /auth/google`.
+3. JWT хранится в `localStorage.pllato_session` и подставляется в `Authorization: Bearer ...`.
+4. Пользователи и права идут через `/users/list|save|delete`.
+5. Каналы идут через `/channels/list|secret/:id|save|delete`.
+6. Документы (metadata) читаются/пишутся через `/store/pull` и `/store/push` (`collection=documents`).
+
+---
+
 ## Boot flow (что происходит при загрузке `/crm/`)
 
 ```

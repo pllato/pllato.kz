@@ -156,15 +156,7 @@ body {
     <div class="error" id="error-msg"></div>
     <div class="loading" id="loading-msg"><span class="spinner"></span><span id="loading-text">Проверяем доступ...</span></div>
 
-    <button id="google-signin-btn">
-      <svg class="google-icon" viewBox="0 0 48 48">
-        <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34.4 5.8 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.2-2.6-.4-3.9z"/>
-        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34.4 5.8 29.4 4 24 4c-7.7 0-14.4 4.4-17.7 10.7z"/>
-        <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3c-2.1 1.4-4.6 2.5-7.3 2.5-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
-        <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.6l6.3 5.3C41.4 35.5 44 30.2 44 24c0-1.3-.2-2.6-.4-3.9z"/>
-      </svg>
-      <span>Войти через Google</span>
-    </button>
+    <div id="google-signin-mount" style="display:flex;justify-content:center"></div>
 
     <div class="note">
       Доступ только для сотрудников команды.<br>
@@ -176,235 +168,87 @@ body {
 
 </div>
 
-<!-- Firebase SDK — тот же что в team.html -->
+<script src="app.config.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import {
-  getAuth, GoogleAuthProvider, signInWithPopup,
-  onAuthStateChanged, signOut as fbSignOut
-} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
-import {
-  getDatabase, ref, get
-} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
-
-// Тот же Firebase project что и team.html — единая система пользователей
-const firebaseConfig = {
-  apiKey: "AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",
-  authDomain: "pllato-crm.firebaseapp.com",
-  databaseURL: "https://pllato-crm-default-rtdb.firebaseio.com",
-  projectId: "pllato-crm",
-  storageBucket: "pllato-crm.firebasestorage.app",
-  messagingSenderId: "690738857241",
-  appId: "1:690738857241:web:2356e97c435656890ab188"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getDatabase(app);
-const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
-const DB_CHECK_TIMEOUT_MS = 10000;
-// Временный аварийный режим: если RTDB отключена/недоступна, пускаем Google-пользователей,
-// чтобы команда не простаивала. После восстановления RTDB отключить.
-const EMERGENCY_ALLOW_ANY_GOOGLE_LOGIN_IF_DB_DOWN = true;
-const APPS_CATALOG = [
-  { id: "pllato_crm" },
-  { id: "team_crm" },
-  { id: "robeng_crm" },
-  { id: "interview_tiles" },
-  { id: "team_chat" },
-  { id: "team_tasks" },
-  { id: "crm_builder" },
-  { id: "bitrix_migrator" },
-  { id: "contact_center" },
-];
+import { getSession, mountGoogleButton } from './pllato-kz-shared/pllato-api.js';
 
 const errorEl = document.getElementById('error-msg');
 const loadingEl = document.getElementById('loading-msg');
 const loadingText = document.getElementById('loading-text');
-const btn = document.getElementById('google-signin-btn');
+const mountEl = document.getElementById('google-signin-mount');
 
-function isRootSuper(email) {
-  return (email || '').toLowerCase().trim() === ROOT_SUPER_ADMIN;
-}
-function timeoutReject(ms, text) {
-  return new Promise((_, reject) => setTimeout(() => reject(new Error(text)), ms));
-}
-function isDbDeactivatedError(err) {
-  const msg = String(err?.message || err || '').toLowerCase();
-  const code = String(err?.code || '').toLowerCase();
-  return msg.includes('deactivated') || code.includes('deactivated') || msg.includes(' 423 ');
-}
-function allAppsEnabled() {
-  return Object.fromEntries(APPS_CATALOG.map((a) => [a.id, true]));
-}
-function buildEmergencyUser(user) {
-  const email = (user?.email || '').toLowerCase().trim();
-  return {
-    email,
-    name: user?.displayName || email.split('@')[0] || 'Сотрудник',
-    isAdmin: false,
-    isSuperAdmin: false,
-    apps: allAppsEnabled(),
-    emergencyBypass: true,
-  };
-}
-
-function showError(title, detail) {
+function showError(title, detail = '') {
   errorEl.innerHTML = `<strong>${title}</strong>${detail || ''}`;
   errorEl.classList.add('show');
   loadingEl.classList.remove('show');
-  btn.disabled = false;
 }
+
 function hideError() {
   errorEl.classList.remove('show');
 }
+
 function showLoading(text) {
   hideError();
   loadingText.textContent = text || 'Проверяем доступ...';
   loadingEl.classList.add('show');
-  btn.disabled = true;
 }
 
-// Проверяем существует ли пользователь в /users по email
-async function checkUserAccess(user) {
-  try {
-    const userEmail = (user.email || '').toLowerCase().trim();
-
-    // Root может зайти даже при проблемах с RTDB.
-    if (isRootSuper(userEmail)) {
-      return {
-        ok: true,
-        rootBypass: true,
-        user: {
-          email: userEmail,
-          name: user.displayName || 'Pllato Admin',
-          isAdmin: true,
-          isSuperAdmin: true,
-        },
-        crmUid: null,
-      };
-    }
-
-    showLoading('Проверяем ваш доступ в команде...');
-    // UID Firebase Auth ≠ ключ /users (там другой UID), поэтому ищем по email
-    const snap = await Promise.race([
-      get(ref(db, 'users')),
-      timeoutReject(DB_CHECK_TIMEOUT_MS, 'timeout: users check'),
-    ]);
-    if (!snap.exists()) {
-      return { ok: false, reason: 'no_users', message: 'База пользователей пуста. Обратитесь к администратору.' };
-    }
-    const users = snap.val();
-
-    let foundUser = null;
-    let foundCrmUid = null;
-    for (const [uid, u] of Object.entries(users)) {
-      if (u && u.email && u.email.toLowerCase().trim() === userEmail) {
-        foundUser = u;
-        foundCrmUid = uid;
-        break;
-      }
-    }
-
-    if (!foundUser) {
-      return {
-        ok: false, reason: 'not_in_team',
-        message: `Email <code>${userEmail}</code> не найден в базе сотрудников. Обратитесь к администратору, чтобы вас добавили.`
-      };
-    }
-    return { ok: true, user: foundUser, crmUid: foundCrmUid };
-  } catch (e) {
-    console.error('checkUserAccess error:', e);
-    const isTimeout = String(e.message || '').includes('timeout: users check');
-    if ((isDbDeactivatedError(e) || isTimeout) && EMERGENCY_ALLOW_ANY_GOOGLE_LOGIN_IF_DB_DOWN && user?.email) {
-      return {
-        ok: true,
-        emergencyBypass: true,
-        user: buildEmergencyUser(user),
-        crmUid: null,
-      };
-    }
-    if (isDbDeactivatedError(e)) {
-      return {
-        ok: false,
-        reason: 'database_deactivated',
-        message: 'Firebase Realtime Database деактивирована. Нужно реактивировать базу в Firebase Console (Project: pllato-crm).',
-      };
-    }
-    const isPermission = (e.code || '').includes('PERMISSION_DENIED') || (e.message || '').includes('permission_denied');
-    return {
-      ok: false,
-      reason: isTimeout ? 'timeout' : (isPermission ? 'permissions' : 'firebase_error'),
-      message: isPermission
-        ? 'Нет прав на чтение базы. Нужно обновить Firebase rules — обратитесь к администратору.'
-        : isTimeout
-          ? 'Таймаут проверки доступа к базе. Проверьте Firebase RTDB и сетевой доступ.'
-        : 'Ошибка чтения базы: ' + e.message
-    };
-  }
+function hideLoading() {
+  loadingEl.classList.remove('show');
 }
 
-// Слушаем состояние авторизации Firebase
-onAuthStateChanged(auth, async (user) => {
-  if (!user) return; // не авторизован — ждём клика на кнопку
+function cacheUserForApp(session) {
+  const user = session?.user || {};
+  localStorage.setItem('pllato_user_cache', JSON.stringify({
+    email: user.email || '',
+    name: user.name || (user.email || '').split('@')[0] || 'Сотрудник',
+    photoURL: '',
+    authUid: user.id || '',
+    crmUid: user.id || '',
+    flags: { isAdmin: !!user.isAdmin, isSuperAdmin: !!user.isSuperAdmin },
+    apps: user.apps || {},
+    crmUserData: {
+      name: user.name || '',
+      lastName: user.lastName || '',
+      position: user.position || '',
+    },
+    cachedAt: Date.now(),
+  }));
+}
 
-  // Уже залогинен в Firebase — проверим есть ли в команде
-  const result = await checkUserAccess(user);
-  if (result.ok) {
-    const fullApps = allAppsEnabled();
-    const isAdmin = result.rootBypass || !!result.user?.isAdmin || !!result.user?.isSuperAdmin;
-    const isSuperAdmin = result.rootBypass || !!result.user?.isSuperAdmin;
-    const apps = result.rootBypass
-      ? fullApps
-      : (result.user?.apps || (result.emergencyBypass ? fullApps : {}));
-    // Сохраняем профиль для быстрой загрузки app.html
-    localStorage.setItem('pllato_user_cache', JSON.stringify({
-      email: user.email,
-      name: user.displayName || result.user.name || user.email.split('@')[0],
-      photoURL: user.photoURL || '',
-      authUid: user.uid,
-      crmUid: result.crmUid,
-      flags: { isAdmin, isSuperAdmin },
-      apps,
-      crmUserData: {
-        name: result.user.name || '',
-        lastName: result.user.lastName || '',
-        position: result.user.position || '',
-      },
-      cachedAt: Date.now(),
-    }));
+const existing = getSession();
+if (existing?.token) {
+  cacheUserForApp(existing);
+  window.location.href = 'app.html';
+}
+
+showLoading('Подготавливаем вход Google...');
+mountGoogleButton(mountEl, {
+  onStatus: (text) => {
+    if (text) showLoading(text);
+    else hideLoading();
+  },
+  onDone: (session) => {
+    cacheUserForApp(session);
     window.location.href = 'app.html';
-  } else {
-    // Залогинен в Google, но не в команде → выходим из Firebase, показываем ошибку
-    fbSignOut(auth).catch(() => {});
-    showError(
-      result.reason === 'not_in_team' ? 'Доступ запрещён' :
-      result.reason === 'database_deactivated' ? 'База данных отключена' : 'Ошибка',
-      result.message
-    );
-  }
-});
-
-// Кнопка входа
-btn.addEventListener('click', async () => {
-  hideError();
-  showLoading('Открываем окно Google...');
-  try {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
-    // onAuthStateChanged выше обработает результат
-  } catch (e) {
-    const code = e.code || '';
-    if (code.includes('popup-closed-by-user')) {
-      showError('Вход отменён', 'Окно Google было закрыто.');
-    } else if (code.includes('popup-blocked')) {
-      showError('Окно заблокировано', 'Браузер заблокировал всплывающее окно. Разрешите popups для pllato.kz.');
-    } else if (code.includes('network-request-failed')) {
-      showError('Нет интернета', 'Проверьте подключение и попробуйте ещё раз.');
-    } else {
-      showError('Ошибка входа', e.message || 'Попробуйте ещё раз');
+  },
+  onError: (error) => {
+    const msg = String(error?.message || error || 'Не удалось войти');
+    hideLoading();
+    if (msg.includes('не в команде') || msg.includes('Пользователь не в команде')) {
+      showError('Доступ запрещён', 'Этот Google-аккаунт не добавлен в команду.');
+      return;
     }
-  }
+    if (msg.includes('Нет доступа к Pllato CRM')) {
+      showError('Нет доступа', 'Для этого аккаунта выключено приложение Pllato CRM.');
+      return;
+    }
+    showError('Ошибка входа', msg);
+  },
+}).catch((error) => {
+  hideLoading();
+  showError('Не удалось запустить Google вход', String(error?.message || error || ''));
 });
 </script>
 

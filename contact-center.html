@@ -429,21 +429,12 @@ body {
 
 </div>
 
+<script src="app.config.js"></script>
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {
-  getAuth, onAuthStateChanged
-} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
-
-const firebaseConfig = {
-  apiKey: "AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",
-  authDomain: "pllato-crm.firebaseapp.com",
-  databaseURL: "https://pllato-crm-default-rtdb.firebaseio.com",
-  projectId: "pllato-crm",
-  storageBucket: "pllato-crm.firebasestorage.app",
-  messagingSenderId: "690738857241",
-  appId: "1:690738857241:web:2356e97c435656890ab188"
-};
+  requireAdmin,
+  apiFetch,
+} from './pllato-kz-shared/pllato-api.js';
 
 const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
 
@@ -497,15 +488,25 @@ const CONFIG_FIELDS = {
   ],
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const WORKER_BASE = "https://pllato-comm.uurraa.workers.dev";
+const session = requireAdmin({ redirectTo: 'login.html' });
+const auth = {
+  currentUser: session?.user ? {
+    uid: String(session.user.id || session.user.email || 'u_session'),
+    email: String(session.user.email || ''),
+  } : null,
+};
+const WORKER_BASE = String(window.PLLATO_API_BASE || 'https://pllato-comm.uurraa.workers.dev').replace(/\/+$/, '');
 
 const loadingEl = document.getElementById('loading');
 const mainEl = document.getElementById('main-content');
 const accessDeniedEl = document.getElementById('access-denied-screen');
 
 function isRootSuper(email) { return (email || "").toLowerCase().trim() === ROOT_SUPER_ADMIN; }
+
+function onAuthStateChanged(_auth, callback) {
+  Promise.resolve().then(() => callback(auth.currentUser));
+  return () => {};
+}
 
 let CURRENT = null;
 let CHANNELS = {};
@@ -554,18 +555,7 @@ async function loadChannels() {
       CHANNELS_WITH_SECRETS = false;
       data = await workerApi("/channels/list", { onlyActive: false, includeSecrets: false });
     }
-    if ((!data.channels || data.channels.length === 0) && !CHANNELS_MIGRATE_ATTEMPTED) {
-      CHANNELS_MIGRATE_ATTEMPTED = true;
-      try {
-        await workerApi("/channels/migrate-from-firebase", {});
-        data = await workerApi("/channels/list", {
-          onlyActive: false,
-          includeSecrets: CHANNELS_WITH_SECRETS,
-        });
-      } catch (e) {
-        console.warn("channels migrate skipped:", e);
-      }
-    }
+    CHANNELS_MIGRATE_ATTEMPTED = true;
     CHANNELS = {};
     CHANNEL_SECRETS = {};
     (data.channels || []).forEach(ch => {
@@ -586,26 +576,10 @@ async function loadChannels() {
 }
 
 async function workerApi(path, payload = {}) {
-  const user = auth.currentUser;
-  if (!user) throw new Error("Нет активной сессии");
-  const token = await user.getIdToken();
-
-  const res = await fetch(WORKER_BASE + path, {
+  return apiFetch(path, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
+    body: payload,
   });
-  const json = await res.json().catch(() => null);
-  if (!res.ok || !json?.ok) {
-    const err = new Error(json?.error || `HTTP ${res.status}`);
-    err.status = res.status;
-    err.details = json?.details || null;
-    throw err;
-  }
-  return json;
 }
 
 // Разделить config на public-поля и секреты

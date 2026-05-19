@@ -17,34 +17,14 @@
 
 ---
 
-## 2. Firebase
+## 2. Firebase (deprecated)
 
-- **Project:** `pllato-crm`
-- **Console:** https://console.firebase.google.com/project/pllato-crm/overview
-- **Public config** (apiKey, authDomain, и т.д.) лежит **в коде**:
-  - `pllato-core-crm/firebase.config.js`
-  - `pllato.kz/crm/firebase.config.js`
-  - `pllato.kz/app.html` (inline)
-  - `pllato.kz/contact-center.html` (inline)
-  - `pllato.kz/team.html` (inline)
-  
-  Это публичные ключи Firebase Web SDK — безопасны. Защита идёт через Auth + Security Rules.
+- C 2026-05-18 production-контур CRM/админок переведён на Cloudflare Worker + D1 + свой JWT.
+- Firebase runtime больше не используется в `app.html`, `contact-center.html`, `team.html`, `documents.html`, `/crm/`.
+- Исторический файл правил сохранён как `firebase-rules.deprecated.json` только для справки/rollback-памяти.
+- Проект `pllato-crm` не удаляем сразу: держим 30 дней как резерв, затем решение об архиве.
 
-- **Authorized domains** (Firebase Console → Authentication → Settings → Authorized domains):
-  - `localhost`
-  - `pllato.kz`
-  - + Firebase defaults
-  
-  Если нужно добавить новый домен (например, новый поддомен или preview-URL) — pllato делает это в Console.
-
-- **Security Rules:** `pllato.kz/firebase-rules.json` — готовый JSON. Вставляется в Firebase Console → Realtime Database → Rules → Publish.
-
-- **Service account JSON** (для Cloudflare Worker, чтобы писать в RTDB от имени сервиса):
-  - **НЕ создан пока.**
-  - Когда понадобится: Firebase Console → Project Settings → Service Accounts → Generate new private key.
-  - Скачать JSON.
-  - Положить **локально** где-то вне репо (например, `~/firebase-service-account.json`).
-  - В Worker задать через `wrangler secret put FIREBASE_SERVICE_ACCOUNT` (значение — содержимое JSON одной строкой).
+Для текущих релизов новые ключи и секреты берём из раздела Cloudflare ниже.
 
 ---
 
@@ -54,6 +34,13 @@
 - **Account ID:** `d0655e161d8fca8487f88d55c0eeb215`
 - **API token** — у pllato локально: `~/.cloudflare-api-token` (53 байта).
 - **Scopes у токена:** не задокументировано — нужно проверить через `wrangler whoami`. Для Worker деплоя должны быть как минимум `Workers Scripts:Edit` и `Account Settings:Read`.
+- **Worker API base:** `https://pllato-comm.uurraa.workers.dev`
+- **Frontend config (`app.config.js`):**
+  - `window.PLLATO_API_BASE`
+  - `window.PLLATO_GOOGLE_CLIENT_ID`
+- **Wrangler secrets (обязательно):**
+  - `JWT_SECRET`
+  - `GOOGLE_CLIENT_ID`
 
 Использование в командной строке:
 ```bash
