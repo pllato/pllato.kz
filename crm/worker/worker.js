@@ -2,11 +2,14 @@ import { connect } from "cloudflare:sockets";
 
 const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
 const APP_ID = "pllato_crm";
-const GOOGLE_JWKS_URL = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
+const GOOGLE_JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
+const JWT_ISSUER = "pllato-crm";
+const JWT_TTL_SECONDS = 7 * 24 * 60 * 60;
+const TEAM_ID = "pllato";
 const STORE_COLLECTION_RE = /^[a-z0-9_]{1,64}$/;
 const DEFAULT_STORE_PULL_LIMIT = 5000;
 const MAX_STORE_OPS = 500;
-const BUILD_ID = "2026-05-15-binotel-diagnostics-1";
+const BUILD_ID = "2026-05-18-migration-01";
 
 let googleKeysCache = {
   keys: null,
@@ -112,21 +115,26 @@ function decodeBase64UrlBytes(b64url) {
 
 function parseJwt(token) {
   const parts = String(token || "").split(".");
-  if (parts.length !== 3) throw new HttpError(401, "Некорректный Firebase token");
+  if (parts.length !== 3) throw new HttpError(401, "Некорректный JWT");
   let header;
   let payload;
   try {
     header = JSON.parse(decodeBase64UrlText(parts[0]));
     payload = JSON.parse(decodeBase64UrlText(parts[1]));
   } catch (e) {
-    throw new HttpError(401, "Не удалось прочитать Firebase token");
+    throw new HttpError(401, "Не удалось прочитать JWT");
   }
   return {
+    parts,
     header,
     payload,
     signedPart: `${parts[0]}.${parts[1]}`,
     signature: decodeBase64UrlBytes(parts[2]),
   };
+}
+
+function toBase64Url(input) {
+  return toBase64(input).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 async function getGooglePublicKeys() {
@@ -151,19 +159,19 @@ async function getGooglePublicKeys() {
   return keys;
 }
 
-async function verifyFirebaseIdToken(idToken, env) {
-  const projectId = String(env.FIREBASE_PROJECT_ID || "").trim();
-  if (!projectId) throw new HttpError(500, "Не задан FIREBASE_PROJECT_ID");
+async function verifyGoogleIdToken(idToken, env) {
+  const clientId = String(env.GOOGLE_CLIENT_ID || "").trim();
+  if (!clientId) throw new HttpError(500, "Не задан GOOGLE_CLIENT_ID");
 
   const parsed = parseJwt(idToken);
   const { header, payload, signedPart, signature } = parsed;
 
-  if (header.alg !== "RS256") throw new HttpError(401, "Неверный алгоритм Firebase token");
-  if (!header.kid) throw new HttpError(401, "Firebase token без kid");
+  if (header.alg !== "RS256") throw new HttpError(401, "Неверный алгоритм Google token");
+  if (!header.kid) throw new HttpError(401, "Google token без kid");
 
   const googleKeys = await getGooglePublicKeys();
   const jwk = googleKeys[header.kid];
-  if (!jwk) throw new HttpError(401, "Неизвестный kid в Firebase token");
+  if (!jwk) throw new HttpError(401, "Неизвестный kid в Google token");
 
   const key = await crypto.subtle.importKey(
     "jwk",
@@ -179,162 +187,123 @@ async function verifyFirebaseIdToken(idToken, env) {
     signature,
     new TextEncoder().encode(signedPart),
   );
-  if (!ok) throw new HttpError(401, "Подпись Firebase token не прошла проверку");
+  if (!ok) throw new HttpError(401, "Подпись Google token не прошла проверку");
 
   const now = Math.floor(Date.now() / 1000);
-  if (typeof payload.exp !== "number" || payload.exp < now) {
-    throw new HttpError(401, "Firebase token истек");
+  const iss = String(payload.iss || "");
+  if (typeof payload.exp !== "number" || payload.exp <= now) {
+    throw new HttpError(401, "Google token истек");
   }
   if (typeof payload.iat !== "number" || payload.iat > now + 60) {
-    throw new HttpError(401, "Некорректный iat в Firebase token");
+    throw new HttpError(401, "Некорректный iat в Google token");
   }
-  if (payload.aud !== projectId) {
-    throw new HttpError(401, "Firebase token не для этого проекта");
+  if (payload.aud !== clientId) {
+    throw new HttpError(401, "Google token не для этого client_id");
   }
-  if (payload.iss !== `https://securetoken.google.com/${projectId}`) {
-    throw new HttpError(401, "Некорректный issuer Firebase token");
+  if (iss !== "accounts.google.com" && iss !== "https://accounts.google.com") {
+    throw new HttpError(401, "Некорректный issuer Google token");
   }
   if (typeof payload.sub !== "string" || payload.sub.length === 0) {
-    throw new HttpError(401, "Некорректный uid в Firebase token");
+    throw new HttpError(401, "Некорректный sub в Google token");
   }
-  if (payload.auth_time && Number(payload.auth_time) > now + 60) {
-    throw new HttpError(401, "Некорректный auth_time в Firebase token");
+
+  const email = String(payload.email || "").toLowerCase().trim();
+  if (!email) throw new HttpError(401, "Google token без email");
+  if (payload.email_verified !== true) {
+    throw new HttpError(401, "Google token: email не подтвержден");
   }
 
   return {
-    uid: payload.sub,
-    email: (
-      String(payload.email || "").toLowerCase().trim() ||
-      String(payload?.firebase?.identities?.email?.[0] || "").toLowerCase().trim() ||
-      null
-    ),
+    sub: payload.sub,
+    email,
+    name: String(payload.name || payload.given_name || email.split("@")[0] || "Сотрудник"),
     claims: payload,
   };
 }
 
-function requireDbSecret(env) {
-  const secret = String(env.FIREBASE_DATABASE_SECRET || "").trim();
-  if (!secret) throw new HttpError(500, "Не задан FIREBASE_DATABASE_SECRET");
-  return secret;
+async function importJwtSecret(secret) {
+  return crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(String(secret || "")),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
 }
 
-function rtdbBaseUrl(env) {
-  const direct = trimSlash(env.FIREBASE_RTDB_URL);
-  if (direct) return direct;
-  const projectId = String(env.FIREBASE_PROJECT_ID || "").trim();
-  if (!projectId) throw new HttpError(500, "Не задан FIREBASE_RTDB_URL/FIREBASE_PROJECT_ID");
-  return `https://${projectId}-default-rtdb.firebaseio.com`;
+async function signPllatoJwt(claims, secret) {
+  const key = await importJwtSecret(secret);
+  const headerPart = toBase64Url(new TextEncoder().encode(JSON.stringify({ alg: "HS256", typ: "JWT" })));
+  const payloadPart = toBase64Url(new TextEncoder().encode(JSON.stringify(claims)));
+  const input = `${headerPart}.${payloadPart}`;
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(input));
+  return `${input}.${toBase64Url(new Uint8Array(signature))}`;
 }
 
-function cleanDbPath(path) {
-  return String(path || "").replace(/^\/+/, "").replace(/\/+$/, "");
-}
+async function verifyPllatoJwt(token, secret) {
+  const parsed = parseJwt(token);
+  const { header, payload, signedPart, signature } = parsed;
+  if (header.alg !== "HS256") throw new HttpError(401, "Неверный алгоритм сессии");
 
-async function rtdbRequest(env, path, { method = "GET", data = undefined, authToken = null } = {}) {
-  const base = rtdbBaseUrl(env);
-  const cleanPathValue = cleanDbPath(path);
-  const url = new URL(`${base}/${cleanPathValue}.json`);
-  url.searchParams.set("auth", authToken || requireDbSecret(env));
+  const key = await importJwtSecret(secret);
+  const ok = await crypto.subtle.verify("HMAC", key, signature, new TextEncoder().encode(signedPart));
+  if (!ok) throw new HttpError(401, "Подпись сессии не прошла проверку");
 
-  const init = { method, headers: {} };
-  if (data !== undefined) {
-    init.headers["Content-Type"] = "application/json";
-    init.body = JSON.stringify(data);
+  const now = Math.floor(Date.now() / 1000);
+  if (typeof payload.exp !== "number" || payload.exp <= now) {
+    throw new HttpError(401, "Сессия истекла");
   }
-
-  const res = await fetch(url.toString(), init);
-  const text = await res.text();
-  let parsed = null;
-  if (text) {
-    try { parsed = JSON.parse(text); }
-    catch { parsed = text; }
+  if (typeof payload.iat !== "number" || payload.iat > now + 60) {
+    throw new HttpError(401, "Некорректный iat в сессии");
   }
-
-  if (!res.ok) {
-    throw new HttpError(
-      res.status >= 500 ? 502 : 400,
-      `Firebase RTDB error (${res.status})`,
-      typeof parsed === "string" ? parsed.slice(0, 300) : parsed,
-    );
+  if (payload.iss !== JWT_ISSUER) {
+    throw new HttpError(401, "Некорректный issuer сессии");
   }
-  return parsed;
-}
-
-async function rtdbGet(env, path) {
-  return rtdbRequest(env, path, { method: "GET" });
-}
-
-async function rtdbSet(env, path, value) {
-  return rtdbRequest(env, path, { method: "PUT", data: value });
-}
-
-async function rtdbPost(env, path, value) {
-  return rtdbRequest(env, path, { method: "POST", data: value });
-}
-
-function hasDbSecret(env) {
-  return Boolean(String(env.FIREBASE_DATABASE_SECRET || "").trim());
+  if (typeof payload.sub !== "string" || !payload.sub) {
+    throw new HttpError(401, "Некорректный sub в сессии");
+  }
+  return payload;
 }
 
 async function loadActorContext(request, env, { strictTeamCheck = false } = {}) {
   const authHeader = request.headers.get("Authorization") || "";
   const m = authHeader.match(/^Bearer\s+(.+)$/i);
-  if (!m) throw new HttpError(401, "Требуется Authorization: Bearer <Firebase ID token>");
+  if (!m) throw new HttpError(401, "Требуется Authorization: Bearer <JWT>");
+
+  const secret = String(env.JWT_SECRET || "").trim();
+  if (!secret) throw new HttpError(500, "Не задан JWT_SECRET");
 
   const token = m[1].trim();
-  const verified = await verifyFirebaseIdToken(token, env);
-  const baseActor = {
-    token,
-    uid: verified.uid,
-    email: verified.email,
-    claims: verified.claims,
-    user: null,
-    isAdmin: false,
-    isRoot: verified.email === ROOT_SUPER_ADMIN,
-  };
-
-  // На гибридной схеме (Firebase Auth + Cloudflare Store) разрешаем работать
-  // даже если RTDB недоступен/переполнен, чтобы не блокировать CRM.
-  if (!hasDbSecret(env)) {
-    if (strictTeamCheck) throw new HttpError(500, "Строгая проверка команды требует FIREBASE_DATABASE_SECRET");
-    return baseActor;
+  const claims = await verifyPllatoJwt(token, secret);
+  const email = String(claims.email || "").toLowerCase().trim();
+  const user = email ? await d1GetUserByEmail(env, email) : null;
+  if (!user) {
+    if (strictTeamCheck) throw new HttpError(403, "Пользователь не найден в users");
+    return {
+      token,
+      uid: String(claims.sub || ""),
+      email,
+      claims,
+      user: null,
+      isAdmin: Boolean(claims.isAdmin || claims.isSuperAdmin),
+      isRoot: email === ROOT_SUPER_ADMIN,
+    };
   }
 
-  let users;
-  try {
-    users = await rtdbGet(env, "users");
-  } catch (e) {
-    if (strictTeamCheck) throw e;
-    return baseActor;
-  }
-  const allUsers = isObject(users) ? users : {};
-
-  let record = null;
-  if (allUsers[verified.uid]) record = { uid: verified.uid, ...allUsers[verified.uid] };
-  if (!record && verified.email) {
-    for (const [uid, u] of Object.entries(allUsers)) {
-      if (String(u?.email || "").toLowerCase().trim() === verified.email) {
-        record = { uid, ...u };
-        break;
-      }
-    }
-  }
-
-  const isRoot = baseActor.isRoot;
-  const isAdmin = Boolean(isRoot || record?.isAdmin || record?.isSuperAdmin);
-  const deniedByApp = Boolean(record?.apps && record.apps[APP_ID] === false);
-
-  if (!isRoot) {
-    if (!record) throw new HttpError(403, "Пользователь не найден в /users");
-    if (record.active === false) throw new HttpError(403, "Пользователь деактивирован");
-    if (!isAdmin && deniedByApp) throw new HttpError(403, "Нет доступа к Pllato CRM");
+  const isAdmin = Boolean(user.isAdmin || user.isSuperAdmin);
+  const deniedByApp = Boolean(user.apps && user.apps[APP_ID] === false);
+  if (!isAdmin && deniedByApp) {
+    throw new HttpError(403, "Нет доступа к Pllato CRM");
   }
 
   return {
-    ...baseActor,
-    user: record,
+    token,
+    uid: user.id,
+    email: user.email,
+    claims,
+    user,
     isAdmin,
-    isRoot,
+    isRoot: Boolean(user.isSuperAdmin || user.email === ROOT_SUPER_ADMIN),
   };
 }
 
@@ -344,22 +313,6 @@ async function loadChannel(env, channelId) {
 
   const d1Channel = await d1LoadChannel(env, id);
   if (d1Channel) return d1Channel;
-
-  // fallback для периода миграции: читаем старый Firebase, если секрет доступен
-  if (hasDbSecret(env)) {
-    const [channel, secret] = await Promise.all([
-      rtdbGet(env, `channels/${id}`),
-      rtdbGet(env, `channel_secrets/${id}`),
-    ]);
-    if (channel) {
-      return {
-        id,
-        data: channel,
-        secret: isObject(secret) ? secret : {},
-      };
-    }
-  }
-
   throw new HttpError(404, `Канал ${id} не найден`);
 }
 
@@ -430,10 +383,9 @@ async function readRequestBodyAuto(request) {
 }
 
 function requireStoreDb(env) {
-  if (!env.pllato_crm_store) {
-    throw new HttpError(500, "Не настроен D1 binding `pllato_crm_store`");
-  }
-  return env.pllato_crm_store;
+  const db = env.DB || env.pllato_crm_store;
+  if (!db) throw new HttpError(500, "Не настроен D1 binding `DB`");
+  return db;
 }
 
 async function ensureD1Schema(env) {
@@ -443,19 +395,19 @@ async function ensureD1Schema(env) {
   // Выполняем схему по одному statement для стабильности.
   const schemaStatements = [
     `
-      CREATE TABLE IF NOT EXISTS crm_docs (
+      CREATE TABLE IF NOT EXISTS store (
+        team_id     TEXT NOT NULL DEFAULT 'pllato',
         collection  TEXT NOT NULL,
         id          TEXT NOT NULL,
-        doc_json    TEXT NOT NULL,
+        data        TEXT NOT NULL,
         created_at  INTEGER NOT NULL,
         updated_at  INTEGER NOT NULL,
-        updated_by  TEXT,
-        PRIMARY KEY (collection, id)
+        PRIMARY KEY (team_id, collection, id)
       )
     `,
     `
-      CREATE INDEX IF NOT EXISTS idx_crm_docs_collection_updated
-        ON crm_docs (collection, updated_at DESC)
+      CREATE INDEX IF NOT EXISTS idx_store_lookup
+        ON store (team_id, collection, updated_at DESC)
     `,
     `
       CREATE TABLE IF NOT EXISTS integration_channels (
@@ -499,12 +451,46 @@ async function ensureD1Schema(env) {
     `,
     `
       CREATE TABLE IF NOT EXISTS users (
+        id              TEXT PRIMARY KEY,
+        email           TEXT UNIQUE NOT NULL,
+        name            TEXT,
+        last_name       TEXT,
+        position        TEXT,
+        role            TEXT,
+        is_admin        INTEGER NOT NULL DEFAULT 0,
+        is_super_admin  INTEGER NOT NULL DEFAULT 0,
+        apps            TEXT NOT NULL DEFAULT '{}',
+        created_at      INTEGER NOT NULL,
+        updated_at      INTEGER NOT NULL,
+        created_by      TEXT
+      )
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
+    `,
+    `
+      CREATE TABLE IF NOT EXISTS channels (
         id          TEXT PRIMARY KEY,
-        email       TEXT,
-        name        TEXT,
-        role        TEXT,
-        created_at  INTEGER,
-        updated_at  INTEGER
+        type        TEXT NOT NULL,
+        name        TEXT NOT NULL,
+        config      TEXT NOT NULL DEFAULT '{}',
+        apps        TEXT NOT NULL DEFAULT '{}',
+        active      INTEGER NOT NULL DEFAULT 1,
+        created_at  INTEGER NOT NULL,
+        updated_at  INTEGER NOT NULL,
+        created_by  TEXT,
+        updated_by  TEXT
+      )
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_channels_type ON channels(type)
+    `,
+    `
+      CREATE TABLE IF NOT EXISTS channel_secrets (
+        channel_id  TEXT PRIMARY KEY,
+        secrets     TEXT NOT NULL DEFAULT '{}',
+        updated_at  INTEGER NOT NULL,
+        FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE
       )
     `,
     `
@@ -643,6 +629,18 @@ async function ensureD1Schema(env) {
   for (const statement of schemaStatements) {
     await db.prepare(statement).run();
   }
+
+  const safeAlter = async (sql) => {
+    try { await db.prepare(sql).run(); } catch {}
+  };
+  await safeAlter("ALTER TABLE users ADD COLUMN last_name TEXT");
+  await safeAlter("ALTER TABLE users ADD COLUMN position TEXT");
+  await safeAlter("ALTER TABLE users ADD COLUMN role TEXT");
+  await safeAlter("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0");
+  await safeAlter("ALTER TABLE users ADD COLUMN is_super_admin INTEGER NOT NULL DEFAULT 0");
+  await safeAlter("ALTER TABLE users ADD COLUMN apps TEXT NOT NULL DEFAULT '{}'");
+  await safeAlter("ALTER TABLE users ADD COLUMN created_by TEXT");
+
   d1SchemaReady = true;
 }
 
@@ -689,16 +687,16 @@ async function d1ListCollection(env, collection, limit = DEFAULT_STORE_PULL_LIMI
   const cappedLimit = Math.max(1, Math.min(Number(limit) || DEFAULT_STORE_PULL_LIMIT, 10000));
   const res = await db
     .prepare(`
-      SELECT doc_json
-      FROM crm_docs
-      WHERE collection = ?
+      SELECT data
+      FROM store
+      WHERE team_id = ? AND collection = ?
       ORDER BY updated_at DESC
       LIMIT ?
     `)
-    .bind(collection, cappedLimit)
+    .bind(TEAM_ID, collection, cappedLimit)
     .run();
   return (res.results || [])
-    .map((row) => safeParseJson(row.doc_json, null))
+    .map((row) => safeParseJson(row.data, null))
     .filter(Boolean);
 }
 
@@ -708,21 +706,21 @@ async function d1UpsertDoc(env, collection, item, actorEmail = null) {
   const normalized = normalizeStoreItem(collection, item);
   await db
     .prepare(`
-      INSERT INTO crm_docs (collection, id, doc_json, created_at, updated_at, updated_by)
+      INSERT INTO store (team_id, collection, id, data, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(collection, id) DO UPDATE SET
-        doc_json = excluded.doc_json,
+      ON CONFLICT(team_id, collection, id) DO UPDATE SET
+        data = excluded.data,
         updated_at = excluded.updated_at,
-        updated_by = excluded.updated_by
-      WHERE excluded.updated_at >= crm_docs.updated_at
+        created_at = MIN(store.created_at, excluded.created_at)
+      WHERE excluded.updated_at >= store.updated_at
     `)
     .bind(
+      TEAM_ID,
       collection,
       normalized.id,
       JSON.stringify(normalized),
       normalized.createdAt,
       normalized.updatedAt,
-      actorEmail,
     )
     .run();
 }
@@ -731,8 +729,8 @@ async function d1DeleteDoc(env, collection, id) {
   await ensureD1Schema(env);
   const db = requireStoreDb(env);
   await db
-    .prepare("DELETE FROM crm_docs WHERE collection = ? AND id = ?")
-    .bind(collection, String(id))
+    .prepare("DELETE FROM store WHERE team_id = ? AND collection = ? AND id = ?")
+    .bind(TEAM_ID, collection, String(id))
     .run();
 }
 
@@ -741,15 +739,15 @@ async function d1GetDoc(env, collection, id) {
   const db = requireStoreDb(env);
   const row = await db
     .prepare(`
-      SELECT doc_json
-      FROM crm_docs
-      WHERE collection = ? AND id = ?
+      SELECT data
+      FROM store
+      WHERE team_id = ? AND collection = ? AND id = ?
       LIMIT 1
     `)
-    .bind(collection, String(id))
+    .bind(TEAM_ID, collection, String(id))
     .first();
-  if (!row?.doc_json) return null;
-  return safeParseJson(row.doc_json, null);
+  if (!row?.data) return null;
+  return safeParseJson(row.data, null);
 }
 
 async function handleStorePull(request, env, actor) {
@@ -818,6 +816,138 @@ function parseJsonObject(raw, fallback = {}) {
   }
 }
 
+function d1RowToUser(row) {
+  if (!row) return null;
+  return {
+    id: String(row.id || ""),
+    email: String(row.email || "").toLowerCase().trim(),
+    name: String(row.name || "").trim(),
+    lastName: String(row.last_name || "").trim(),
+    position: String(row.position || "").trim(),
+    role: String(row.role || "").trim(),
+    isAdmin: Number(row.is_admin) === 1,
+    isSuperAdmin: Number(row.is_super_admin) === 1,
+    apps: parseJsonObject(row.apps, {}),
+    createdAt: Number(row.created_at) || 0,
+    updatedAt: Number(row.updated_at) || 0,
+    createdBy: row.created_by || null,
+  };
+}
+
+async function d1GetUserByEmail(env, email) {
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  const normalizedEmail = String(email || "").toLowerCase().trim();
+  if (!normalizedEmail) return null;
+  const row = await db
+    .prepare(`
+      SELECT id, email, name, last_name, position, role, is_admin, is_super_admin, apps, created_at, updated_at, created_by
+      FROM users
+      WHERE email = ?
+      LIMIT 1
+    `)
+    .bind(normalizedEmail)
+    .first();
+  return d1RowToUser(row);
+}
+
+async function d1GetUserById(env, id) {
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  const row = await db
+    .prepare(`
+      SELECT id, email, name, last_name, position, role, is_admin, is_super_admin, apps, created_at, updated_at, created_by
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+    `)
+    .bind(String(id || ""))
+    .first();
+  return d1RowToUser(row);
+}
+
+async function d1ListUsers(env) {
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  const res = await db
+    .prepare(`
+      SELECT id, email, name, last_name, position, role, is_admin, is_super_admin, apps, created_at, updated_at, created_by
+      FROM users
+      ORDER BY updated_at DESC
+    `)
+    .run();
+  return (res.results || []).map(d1RowToUser).filter(Boolean);
+}
+
+async function d1UpsertUser(env, payload, actor) {
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  const email = String(payload.email || "").toLowerCase().trim();
+  if (!email) throw new HttpError(400, "Укажи email пользователя");
+
+  const now = Date.now();
+  const existingByEmail = await d1GetUserByEmail(env, email);
+  const fallbackName = email.split("@")[0] || "Сотрудник";
+  const id = String(payload.id || existingByEmail?.id || crypto.randomUUID()).trim();
+  const isAdmin = payload.isAdmin === true || Number(payload.is_admin) === 1;
+  const isSuperAdmin = payload.isSuperAdmin === true || Number(payload.is_super_admin) === 1;
+  const apps = isObject(payload.apps)
+    ? payload.apps
+    : (existingByEmail?.apps || {});
+
+  await db
+    .prepare(`
+      INSERT INTO users (
+        id, email, name, last_name, position, role, is_admin, is_super_admin, apps, created_at, updated_at, created_by
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(email) DO UPDATE SET
+        id = COALESCE(excluded.id, users.id),
+        name = excluded.name,
+        last_name = excluded.last_name,
+        position = excluded.position,
+        role = excluded.role,
+        is_admin = excluded.is_admin,
+        is_super_admin = excluded.is_super_admin,
+        apps = excluded.apps,
+        updated_at = excluded.updated_at
+    `)
+    .bind(
+      id,
+      email,
+      String(payload.name || existingByEmail?.name || fallbackName),
+      String(payload.lastName || payload.last_name || existingByEmail?.lastName || ""),
+      String(payload.position || existingByEmail?.position || ""),
+      String(payload.role || existingByEmail?.role || ""),
+      isAdmin ? 1 : 0,
+      isSuperAdmin ? 1 : 0,
+      JSON.stringify(apps || {}),
+      Number(existingByEmail?.createdAt || now),
+      now,
+      actor?.email || actor?.uid || null,
+    )
+    .run();
+
+  return d1GetUserByEmail(env, email);
+}
+
+async function d1DeleteUser(env, id) {
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  await db
+    .prepare("DELETE FROM users WHERE id = ?")
+    .bind(String(id || ""))
+    .run();
+}
+
+function canManageUsers(actor) {
+  return Boolean(actor?.isAdmin || actor?.isRoot);
+}
+
+function canDeleteUsers(actor) {
+  return Boolean(actor?.isRoot || actor?.user?.isSuperAdmin);
+}
+
 async function d1InsertIntegrationLog(env, bucket, payload) {
   await ensureD1Schema(env);
   const db = requireStoreDb(env);
@@ -860,9 +990,9 @@ async function d1ListIntegrationLogs(env, buckets, limit = 100) {
 }
 
 function d1RowToChannelPayload(row, { includeSecrets = false } = {}) {
-  const apps = parseJsonObject(row.apps_json, {});
-  const configPublic = parseJsonObject(row.config_public_json, {});
-  const configSecret = parseJsonObject(row.config_secret_json, {});
+  const apps = parseJsonObject(row.apps, {});
+  const config = parseJsonObject(row.config, {});
+  const configSecret = parseJsonObject(row.secrets, {});
 
   const out = {
     id: row.id,
@@ -870,8 +1000,8 @@ function d1RowToChannelPayload(row, { includeSecrets = false } = {}) {
     name: row.name,
     active: Number(row.active) !== 0,
     apps,
-    config: configPublic,
-    public: configPublic,
+    config,
+    public: config,
     createdAt: Number(row.created_at) || 0,
     updatedAt: Number(row.updated_at) || 0,
   };
@@ -884,9 +1014,11 @@ async function d1LoadChannel(env, channelId) {
   const db = requireStoreDb(env);
   const row = await db
     .prepare(`
-      SELECT id, type, name, active, apps_json, config_public_json, config_secret_json, created_at, updated_at
-      FROM integration_channels
-      WHERE id = ?
+      SELECT c.id, c.type, c.name, c.active, c.apps, c.config, c.created_at, c.updated_at,
+             cs.secrets
+      FROM channels c
+      LEFT JOIN channel_secrets cs ON cs.channel_id = c.id
+      WHERE c.id = ?
       LIMIT 1
     `)
     .bind(String(channelId))
@@ -912,9 +1044,11 @@ async function d1ListChannels(env) {
   const db = requireStoreDb(env);
   const res = await db
     .prepare(`
-      SELECT id, type, name, active, apps_json, config_public_json, config_secret_json, created_at, updated_at
-      FROM integration_channels
-      ORDER BY updated_at DESC
+      SELECT c.id, c.type, c.name, c.active, c.apps, c.config, c.created_at, c.updated_at,
+             cs.secrets
+      FROM channels c
+      LEFT JOIN channel_secrets cs ON cs.channel_id = c.id
+      ORDER BY c.updated_at DESC
     `)
     .run();
   return res.results || [];
@@ -1024,7 +1158,7 @@ async function findGreenApiChannelByInstance(env, instanceId) {
   const idInst = normalizeWaInstanceId(instanceId);
   for (const row of rows) {
     if (row.type !== "greenapi_wa" || Number(row.active) === 0) continue;
-    const configPublic = parseJsonObject(row.config_public_json, {});
+    const configPublic = parseJsonObject(row.config, {});
     const cid = normalizeWaInstanceId(configPublic.id_instance);
     if (cid && cid === idInst) {
       return {
@@ -1033,10 +1167,10 @@ async function findGreenApiChannelByInstance(env, instanceId) {
           type: row.type,
           name: row.name,
           active: Number(row.active) !== 0,
-          apps: parseJsonObject(row.apps_json, {}),
+          apps: parseJsonObject(row.apps, {}),
           config: configPublic,
         },
-        secret: parseJsonObject(row.config_secret_json, {}),
+        secret: parseJsonObject(row.secrets, {}),
       };
     }
   }
@@ -1090,6 +1224,106 @@ async function upsertWaConversationEvent(env, actorLabel, event) {
   await d1UpsertDoc(env, "chat_messages", msgDoc, actorLabel);
 }
 
+function canUseCrmApp(user) {
+  if (!user) return false;
+  if (user.isAdmin || user.isSuperAdmin) return true;
+  return !(user.apps && user.apps[APP_ID] === false);
+}
+
+function publicUserPayload(user) {
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name || "",
+    lastName: user.lastName || "",
+    position: user.position || "",
+    role: user.role || "",
+    isAdmin: Boolean(user.isAdmin),
+    isSuperAdmin: Boolean(user.isSuperAdmin),
+    apps: user.apps || {},
+    createdAt: user.createdAt || 0,
+    updatedAt: user.updatedAt || 0,
+  };
+}
+
+async function issueSessionTokenForUser(env, user) {
+  const secret = String(env.JWT_SECRET || "").trim();
+  if (!secret) throw new HttpError(500, "Не задан JWT_SECRET");
+
+  const now = Math.floor(Date.now() / 1000);
+  const claims = {
+    iss: JWT_ISSUER,
+    sub: user.id,
+    email: user.email,
+    name: user.name || user.email.split("@")[0] || "Сотрудник",
+    isAdmin: Boolean(user.isAdmin),
+    isSuperAdmin: Boolean(user.isSuperAdmin),
+    apps: user.apps || {},
+    iat: now,
+    exp: now + JWT_TTL_SECONDS,
+  };
+  const token = await signPllatoJwt(claims, secret);
+  return { token, exp: claims.exp, claims };
+}
+
+async function handleAuthGoogle(request, env) {
+  const body = await readRequestBodyAsJson(request);
+  const credential = String(body.credential || "").trim();
+  if (!credential) throw new HttpError(400, "Передай credential (Google ID token)");
+
+  const verified = await verifyGoogleIdToken(credential, env);
+  const user = await d1GetUserByEmail(env, verified.email);
+  if (!user) throw new HttpError(403, "Пользователь не в команде");
+  if (!canUseCrmApp(user)) throw new HttpError(403, "Нет доступа к Pllato CRM");
+
+  const session = await issueSessionTokenForUser(env, user);
+  return {
+    ok: true,
+    token: session.token,
+    exp: session.exp,
+    user: publicUserPayload(user),
+  };
+}
+
+async function handleUsersList(request, env, actor) {
+  if (!actor?.user) throw new HttpError(401, "Сессия не найдена");
+  const users = await d1ListUsers(env);
+  return { ok: true, users: users.map(publicUserPayload) };
+}
+
+async function handleUsersSave(request, env, actor) {
+  if (!canManageUsers(actor)) throw new HttpError(403, "Нет прав на редактирование пользователей");
+  const body = await readRequestBodyAsJson(request);
+  const user = await d1UpsertUser(env, body, actor);
+  return { ok: true, user: publicUserPayload(user) };
+}
+
+async function handleUsersDelete(request, env, actor) {
+  if (!canDeleteUsers(actor)) throw new HttpError(403, "Только super-admin может удалить пользователя");
+  const body = await readRequestBodyAsJson(request);
+  const id = String(body.id || "").trim();
+  if (!id) throw new HttpError(400, "Передай id пользователя");
+
+  const target = await d1GetUserById(env, id);
+  if (!target) return { ok: true, deleted: id };
+  if (String(target.email || "").toLowerCase() === ROOT_SUPER_ADMIN) {
+    throw new HttpError(400, "Нельзя удалить root super-admin");
+  }
+  await d1DeleteUser(env, id);
+  return { ok: true, deleted: id };
+}
+
+async function handleChannelsSecret(env, actor, channelId) {
+  if (!canManageChannels(actor)) throw new HttpError(403, "Нет прав на просмотр секрета канала");
+  const channel = await d1LoadChannel(env, channelId);
+  return {
+    ok: true,
+    id: channel.id,
+    secrets: isObject(channel.secret) ? channel.secret : {},
+  };
+}
+
 function canManageChannels(actor) {
   if (actor?.isRoot || actor?.isAdmin) return true;
   const claims = actor?.claims || {};
@@ -1129,18 +1363,17 @@ async function d1UpsertChannel(env, payload, actor) {
   const now = Date.now();
   await db
     .prepare(`
-      INSERT INTO integration_channels (
-        id, type, name, active, apps_json, config_public_json, config_secret_json,
+      INSERT INTO channels (
+        id, type, name, active, apps, config,
         created_at, updated_at, created_by, updated_by
       )
-      VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, '{}'), ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         type = excluded.type,
         name = excluded.name,
         active = excluded.active,
-        apps_json = excluded.apps_json,
-        config_public_json = excluded.config_public_json,
-        config_secret_json = COALESCE(excluded.config_secret_json, integration_channels.config_secret_json),
+        apps = excluded.apps,
+        config = excluded.config,
         updated_at = excluded.updated_at,
         updated_by = excluded.updated_by
     `)
@@ -1151,7 +1384,6 @@ async function d1UpsertChannel(env, payload, actor) {
       active,
       JSON.stringify(apps),
       JSON.stringify(configPublic),
-      configSecret === null ? null : JSON.stringify(configSecret),
       now,
       now,
       actor?.email || actor?.uid || null,
@@ -1159,11 +1391,26 @@ async function d1UpsertChannel(env, payload, actor) {
     )
     .run();
 
+  if (configSecret !== null) {
+    await db
+      .prepare(`
+        INSERT INTO channel_secrets (channel_id, secrets, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(channel_id) DO UPDATE SET
+          secrets = excluded.secrets,
+          updated_at = excluded.updated_at
+      `)
+      .bind(id, JSON.stringify(configSecret), now)
+      .run();
+  }
+
   const row = await db
     .prepare(`
-      SELECT id, type, name, active, apps_json, config_public_json, config_secret_json, created_at, updated_at
-      FROM integration_channels
-      WHERE id = ?
+      SELECT c.id, c.type, c.name, c.active, c.apps, c.config, c.created_at, c.updated_at,
+             cs.secrets
+      FROM channels c
+      LEFT JOIN channel_secrets cs ON cs.channel_id = c.id
+      WHERE c.id = ?
       LIMIT 1
     `)
     .bind(id)
@@ -1176,16 +1423,27 @@ async function d1DeleteChannel(env, channelId) {
   await ensureD1Schema(env);
   const db = requireStoreDb(env);
   await db
-    .prepare("DELETE FROM integration_channels WHERE id = ?")
+    .prepare("DELETE FROM channels WHERE id = ?")
     .bind(String(channelId || ""))
     .run();
 }
 
-async function handleChannelsList(request, env, actor) {
-  const body = await readRequestBodyAsJson(request);
-  const type = body.type ? String(body.type).trim() : null;
-  const onlyActive = body.onlyActive !== false;
-  const includeSecrets = body.includeSecrets === true;
+async function handleChannelsList(request, env, actor, url = null) {
+  let type = null;
+  let onlyActive = true;
+  let includeSecrets = false;
+
+  if (request.method === "GET") {
+    const ref = url || new URL(request.url);
+    type = ref.searchParams.get("type") || null;
+    onlyActive = ref.searchParams.get("onlyActive") !== "false";
+    includeSecrets = ref.searchParams.get("includeSecrets") === "true";
+  } else {
+    const body = await readRequestBodyAsJson(request);
+    type = body.type ? String(body.type).trim() : null;
+    onlyActive = body.onlyActive !== false;
+    includeSecrets = body.includeSecrets === true;
+  }
 
   if (includeSecrets && !canManageChannels(actor)) {
     throw new HttpError(403, "Нет прав на просмотр секретов каналов");
@@ -1232,51 +1490,6 @@ async function handleChannelsDelete(request, env, actor) {
     channelId,
   });
   return { ok: true, deleted: channelId };
-}
-
-async function handleChannelsMigrateFromFirebase(request, env, actor) {
-  if (!canManageChannels(actor)) throw new HttpError(403, "Нет прав на миграцию каналов");
-  const useAdminSecret = hasDbSecret(env);
-
-  const [channelsRaw, secretsRaw] = await Promise.all([
-    useAdminSecret
-      ? rtdbGet(env, "channels")
-      : rtdbRequest(env, "channels", { method: "GET", authToken: actor.token }),
-    useAdminSecret
-      ? rtdbGet(env, "channel_secrets")
-      : rtdbRequest(env, "channel_secrets", { method: "GET", authToken: actor.token }),
-  ]);
-  const channels = isObject(channelsRaw) ? channelsRaw : {};
-  const secrets = isObject(secretsRaw) ? secretsRaw : {};
-
-  let migrated = 0;
-  for (const [id, ch] of Object.entries(channels)) {
-    if (!isObject(ch)) continue;
-    await d1UpsertChannel(env, {
-      id,
-      type: ch.type,
-      name: ch.name || id,
-      active: ch.active !== false,
-      apps: isObject(ch.apps) ? ch.apps : {},
-      config: isObject(ch.config) ? ch.config : {},
-      secrets: isObject(secrets[id]) ? secrets[id] : {},
-    }, actor);
-    migrated += 1;
-  }
-
-  await logEvent(env, "channels", {
-    at: nowIso(),
-    action: "migrate_from_firebase",
-    actorUid: actor.uid,
-    actorEmail: actor.email,
-    migrated,
-    authMode: useAdminSecret ? "db_secret" : "id_token",
-  });
-
-  return {
-    ok: true,
-    migrated,
-  };
 }
 
 function normalizePhone(value) {
@@ -1828,18 +2041,6 @@ async function handleBinotelWebhook(request, env) {
     normalized,
     payload: payload || parsedBody.raw,
   });
-
-  if (normalized?.callId && hasDbSecret(env)) {
-    try {
-      await rtdbSet(env, `calls/${normalized.callId}`, {
-        ...(normalized || {}),
-        updatedAt: Date.now(),
-        source: "binotel_webhook",
-      });
-    } catch (e) {
-      console.warn("binotel webhook RTDB write skipped:", e?.message || e);
-    }
-  }
 
   return { status: "success", ok: true, received: true, callId: normalized?.callId || null };
 }
@@ -3576,30 +3777,26 @@ async function routeCallsApi(request, env, actor, path, url) {
   return null;
 }
 
-async function handleMe(request, env) {
-  const authHeader = request.headers.get("Authorization") || "";
-  const m = authHeader.match(/^Bearer\s+(.+)$/i);
-  if (!m) return { ok: true, authPresent: false };
-  const verified = await verifyFirebaseIdToken(m[1].trim(), env);
+async function handleMe(request, env, actor) {
+  if (!actor?.email) return { ok: true, authPresent: false };
+  const fresh = await d1GetUserByEmail(env, actor.email);
+  const user = fresh || actor.user || null;
   return {
     ok: true,
     authPresent: true,
-    uid: verified.uid,
-    email: verified.email,
+    user: user ? publicUserPayload(user) : null,
+    claims: actor?.claims || null,
   };
 }
 
 async function health(env) {
   const out = {
     ok: true,
-    service: "pllato-core-crm",
-    time: nowIso(),
-    build: BUILD_ID,
+    ts: Date.now(),
     env: {
-      firebaseProject: env.FIREBASE_PROJECT_ID || null,
-      firebaseRtdb: env.FIREBASE_RTDB_URL || null,
-      hasDbSecret: Boolean(env.FIREBASE_DATABASE_SECRET),
-      hasStoreD1: Boolean(env.pllato_crm_store),
+      hasD1: Boolean(env.DB || env.pllato_crm_store),
+      hasJwtSecret: Boolean(env.JWT_SECRET),
+      hasGoogleClientId: Boolean(env.GOOGLE_CLIENT_ID),
     },
   };
   try {
@@ -3623,17 +3820,37 @@ export default {
 
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
+    const channelSecretMatch = path.match(/^\/channels\/secret\/([^/]+)$/);
 
     try {
-      if (request.method === "GET" && path === "/api/health") {
+      if (request.method === "GET" && (path === "/health" || path === "/api/health")) {
         return json(request, env, await health(env));
       }
-      if (request.method === "GET" && path === "/api/me") {
-        return json(request, env, await handleMe(request, env));
+      if (request.method === "POST" && path === "/auth/google") {
+        return json(request, env, await handleAuthGoogle(request, env));
+      }
+      if (request.method === "GET" && (path === "/me" || path === "/api/me")) {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleMe(request, env, actor));
+      }
+
+      if (request.method === "GET" && path === "/users/list") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleUsersList(request, env, actor));
+      }
+
+      if (request.method === "POST" && path === "/users/save") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleUsersSave(request, env, actor));
+      }
+
+      if (request.method === "POST" && path === "/users/delete") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleUsersDelete(request, env, actor));
       }
 
       if (path.startsWith("/api/crm/calls")) {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: false });
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         const routed = await routeCallsApi(request, env, actor, path, url);
         if (routed) return json(request, env, routed);
       }
@@ -3646,58 +3863,58 @@ export default {
         return json(request, env, await handleWaWebhook(request, env));
       }
 
-      if (request.method === "POST" && path === "/channels/list") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: false });
-        return json(request, env, await handleChannelsList(request, env, actor));
+      if ((request.method === "GET" || request.method === "POST") && path === "/channels/list") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleChannelsList(request, env, actor, url));
       }
 
-      if (request.method === "POST" && path === "/channels/upsert") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: false });
+      if (request.method === "GET" && channelSecretMatch) {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleChannelsSecret(env, actor, decodeURIComponent(channelSecretMatch[1])));
+      }
+
+      if (request.method === "POST" && (path === "/channels/save" || path === "/channels/upsert")) {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleChannelsUpsert(request, env, actor));
       }
 
       if (request.method === "POST" && path === "/channels/delete") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: false });
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleChannelsDelete(request, env, actor));
       }
 
-      if (request.method === "POST" && path === "/channels/migrate-from-firebase") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: false });
-        return json(request, env, await handleChannelsMigrateFromFirebase(request, env, actor));
-      }
-
       if (request.method === "POST" && path === "/store/pull") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: false });
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleStorePull(request, env, actor));
       }
 
       if (request.method === "POST" && path === "/store/push") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: false });
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleStorePush(request, env, actor));
       }
 
       if (request.method === "POST" && path === "/binotel/call") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: false });
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleBinotelCall(request, env, actor));
       }
 
       if (request.method === "GET" && path === "/binotel/history") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: false });
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleBinotelHistory(request, env, actor, url));
       }
 
       if (request.method === "POST" && path === "/binotel/recording") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: false });
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleBinotelRecording(request, env, actor));
       }
 
       if (request.method === "POST" && path === "/wa/send") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: false });
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleWaSend(request, env, actor));
       }
 
       if (request.method === "POST" && path === "/email/send") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: false });
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleEmailSend(request, env, actor));
       }
 

@@ -11,7 +11,7 @@ import { listEmployees, getEmployee, currentEmployee, avatar, initialsOf } from 
 import { renderTypeahead, attachTypeahead } from "../typeahead.js";
 import { listChannels } from "../channels.js";
 import { renderCalls } from "./calls.js";
-import { requireFirebaseIdToken } from "../firebase_session.js";
+import { apiFetch } from "../auth.js";
 import {
   openCommDialog,
   closeCommDialog,
@@ -1511,35 +1511,12 @@ function renderCommDialogs(contactMap) {
 async function sendEmailViaWorker({ channelId, to, subject, text }) {
   const base = String(window.PLLATO_API_BASE || "").trim().replace(/\/+$/, "");
   if (!base) {
-    throw new Error("Не задан URL Worker (`window.PLLATO_API_BASE` в firebase.config.js).");
+    throw new Error("Не задан URL Worker (`window.PLLATO_API_BASE` в app.config.js).");
   }
-
-  const token = await requireFirebaseIdToken({ interactive: true });
-  const response = await fetch(`${base}/email/send`, {
+  await apiFetch("/email/send", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      channelId,
-      to,
-      subject,
-      text,
-    }),
+    body: { channelId, to, subject, text },
   });
-
-  let payload = null;
-  try {
-    payload = await response.json();
-  } catch {}
-
-  if (!response.ok || !payload?.ok) {
-    const details = payload?.details
-      ? ` ${typeof payload.details === "string" ? payload.details : JSON.stringify(payload.details)}`
-      : "";
-    throw new Error((payload?.error || `Ошибка API (${response.status})`) + details);
-  }
 }
 
 async function syncDealChatCloud(container) {

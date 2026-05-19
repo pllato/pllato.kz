@@ -5,7 +5,7 @@
 import { Store } from "./store.js";
 import { listChannels, typeMeta } from "./channels.js";
 import { currentEmployee } from "./employees.js";
-import { requireFirebaseIdToken } from "./firebase_session.js";
+import { apiFetch } from "./auth.js";
 
 const TYPES = {
   call:     { channelType: "binotel",     title: "Позвонить",        activityType: "call",     icon: "📞", verb: "позвонить",       endpoint: "/binotel/call" },
@@ -22,29 +22,8 @@ function workerBase() {
 }
 
 async function workerFetch(path, payload) {
-  const base = workerBase();
-  if (!base) throw new Error("Не задан URL Worker (`window.PLLATO_API_BASE` в firebase.config.js).");
-
-  const token = await requireFirebaseIdToken({ interactive: true });
-
-  const res = await fetch(base + path, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  let data = null;
-  try { data = await res.json(); } catch {}
-
-  if (!res.ok || !data?.ok) {
-    const msg = data?.error || `Ошибка API (${res.status})`;
-    const details = data?.details ? ` ${typeof data.details === "string" ? data.details : JSON.stringify(data.details)}` : "";
-    throw new Error(msg + details);
-  }
-  return data;
+  if (!workerBase()) throw new Error("Не задан URL Worker (`window.PLLATO_API_BASE` в app.config.js).");
+  return apiFetch(path, { method: "POST", body: payload });
 }
 
 function setFormMsg(host, text, kind = "err") {

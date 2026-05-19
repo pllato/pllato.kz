@@ -4,7 +4,7 @@
 import { Store } from "../store.js";
 import { ICONS } from "../icons.js";
 import { listChannels } from "../channels.js";
-import { requireFirebaseIdToken } from "../firebase_session.js";
+import { apiFetch } from "../auth.js";
 
 const CHATS = "chats";
 const MESSAGES = "chat_messages";
@@ -124,24 +124,7 @@ function renderMediaBlock(m) {
 async function workerFetch(path, payload) {
   const base = String(window.PLLATO_API_BASE || "").trim().replace(/\/+$/, "");
   if (!base) throw new Error("Не задан URL Worker");
-  const token = await requireFirebaseIdToken({ interactive: true });
-
-  const res = await fetch(base + path, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload || {}),
-  });
-
-  let json = null;
-  try { json = await res.json(); } catch {}
-  if (!res.ok || !json?.ok) {
-    const details = json?.details ? ` ${typeof json.details === "string" ? json.details : JSON.stringify(json.details)}` : "";
-    throw new Error((json?.error || `HTTP ${res.status}`) + details);
-  }
-  return json;
+  return apiFetch(path, { method: "POST", body: payload || {} });
 }
 
 async function syncCloudChats(container) {

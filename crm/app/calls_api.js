@@ -1,5 +1,5 @@
 // Pllato CRM — API helper for cold-call module.
-import { requireFirebaseIdToken } from "./firebase_session.js";
+import { apiFetch } from "./auth.js";
 
 function cloudBase() {
   return String(window.PLLATO_API_BASE || "").trim().replace(/\/+$/, "");
@@ -13,7 +13,6 @@ function assertCloudBase() {
 
 async function request(path, { method = "GET", query = null, body = null, formData = null } = {}) {
   const base = assertCloudBase();
-  const token = await requireFirebaseIdToken({ interactive: true });
 
   let url = base + path;
   if (query && typeof query === "object") {
@@ -26,7 +25,7 @@ async function request(path, { method = "GET", query = null, body = null, formDa
     if (qs) url += `?${qs}`;
   }
 
-  const headers = { Authorization: `Bearer ${token}` };
+  const headers = {};
   const init = { method, headers };
 
   if (formData) {
@@ -36,17 +35,8 @@ async function request(path, { method = "GET", query = null, body = null, formDa
     init.body = JSON.stringify(body);
   }
 
-  const res = await fetch(url, init);
-  let data = null;
-  try { data = await res.json(); } catch {}
-
-  if (!res.ok || !data?.ok) {
-    const details = data?.details
-      ? (typeof data.details === "string" ? data.details : JSON.stringify(data.details))
-      : "";
-    throw new Error((data?.error || `HTTP ${res.status}`) + (details ? `: ${details}` : ""));
-  }
-  return data;
+  const pathOnly = url.replace(base, "");
+  return apiFetch(pathOnly, init);
 }
 
 export const CallsApi = {

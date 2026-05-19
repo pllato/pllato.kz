@@ -956,7 +956,7 @@ function renderQueuePage(route) {
 function renderCloudMissing() {
   return `
     <div class="calls-page">
-      <div class="calls-error">Для раздела «Звонки» нужен API Worker. Укажи <code>window.PLLATO_API_BASE</code> в <code>firebase.config.js</code>.</div>
+      <div class="calls-error">Для раздела «Звонки» нужен API Worker. Укажи <code>window.PLLATO_API_BASE</code> в <code>app.config.js</code>.</div>
     </div>
   `;
 }

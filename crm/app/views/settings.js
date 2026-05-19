@@ -3,7 +3,8 @@
 
 import { Store } from "../store.js";
 import { ICONS } from "../icons.js";
-import { listEmployees, getEmployee, currentEmployee, createEmployee, updateEmployee, removeEmployee, avatar, ROLES, isFirebaseSynced } from "../employees.js";
+import { getSession } from "../auth.js";
+import { listEmployees, getEmployee, currentEmployee, createEmployee, updateEmployee, removeEmployee, avatar, ROLES, isEmployeesSynced } from "../employees.js";
 import { getDealFields, saveDealFields, newFieldId, FIELD_TYPES } from "../custom_fields.js";
 import { listChannels, typeMeta, isChannelsSynced } from "../channels.js";
 import { ensureBuiltinDocumentsSeed, listDocuments, normalizeVisibility, saveDocumentVisibility, isEmployeeAdmin } from "../docs/registry.js";
@@ -28,7 +29,7 @@ function escape(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 function currentUser() {
-  try { return JSON.parse(localStorage.getItem("pllato_demo_user") || "null"); } catch { return null; }
+  return getSession()?.user || null;
 }
 function getWorkspace() {
   try { return JSON.parse(localStorage.getItem("pllato_workspace") || "null") || { name: "Pllato", slug: "pllato" }; }
@@ -178,12 +179,12 @@ export function renderSettings(container) {
       <section class="settings-block">
         <header class="settings-head">
           <h3>Сотрудники <span style="font-weight:500;color:var(--text-muted)">(${employees.length})</span></h3>
-          <p>${isFirebaseSynced()
+          <p>${isEmployeesSynced()
             ? "Единая база сотрудников всех приложений Pllato. Управление — в админке на pllato.kz/app.html."
-            : "Локальный список (DEMO). После входа через Google синхронизируется с pllato.kz/app.html."}</p>
+            : "Локальный fallback-список. После входа синхронизируется из общего Worker API."}</p>
         </header>
         <div class="settings-body">
-          ${isFirebaseSynced() ? `
+          ${isEmployeesSynced() ? `
             <div class="settings-hint" style="margin-bottom:14px">
               Список сотрудников приходит из общей базы Pllato. Чтобы добавить, удалить или поменять права —
               открой <a href="https://pllato.kz/app.html" target="_blank" style="color:var(--accent)">pllato.kz/app.html</a>
@@ -193,8 +194,8 @@ export function renderSettings(container) {
           <div class="employees-list">
             ${employees.map(e => renderEmployeeRow(e, roles, canManageDocs)).join("")}
           </div>
-          ${!isFirebaseSynced() && state.editingEmployee === "new" ? renderEmployeeForm(null, roles) : ""}
-          ${!isFirebaseSynced() ? `<div>
+          ${!isEmployeesSynced() && state.editingEmployee === "new" ? renderEmployeeForm(null, roles) : ""}
+          ${!isEmployeesSynced() ? `<div>
             <button class="btn-ghost" id="addEmployee">${ICONS.plus}<span>Добавить сотрудника</span></button>
           </div>` : ""}
         </div>
@@ -349,7 +350,7 @@ function renderChannelsList() {
   const list = listChannels({ onlyActive: false });
   if (list.length === 0) {
     if (!isChannelsSynced()) {
-      return `<div class="tl-empty">Каналы не загружены. Войди через Google, чтобы подтянуть их из Firebase.</div>`;
+      return `<div class="tl-empty">Каналы не загружены. Перелогинься, чтобы подтянуть их из Worker API.</div>`;
     }
     return `<div class="tl-empty">Pllato CRM ещё не привязана ни к одному каналу. Открой <a href="https://pllato.kz/contact-center.html" target="_blank" style="color:var(--accent)">Контакт-центр</a> и в карточке нужного канала отметь «Pllato CRM».</div>`;
   }
@@ -396,12 +397,12 @@ function renderCustomFieldsList() {
 }
 
 function renderEmployeeRow(e, roles, canManageDocs) {
-  if (state.editingEmployee === e.id && !isFirebaseSynced()) return renderEmployeeForm(e, roles);
-  const fbManaged = isFirebaseSynced();
+  if (state.editingEmployee === e.id && !isEmployeesSynced()) return renderEmployeeForm(e, roles);
+  const managedByDirectory = isEmployeesSynced();
   const roleLabel = e.isSuperAdmin ? "Супер-админ" : e.isAdmin ? "Админ" : (roles.find(r => r.id === e.roleId)?.name || e.role || "Сотрудник");
   const actions = [];
   if (canManageDocs) actions.push(`<button class="btn-ghost icon-only" data-emp-docs="${e.id}" title="Документы">${ICONS.book}</button>`);
-  if (!fbManaged) {
+  if (!managedByDirectory) {
     actions.push(`<button class="btn-ghost icon-only" data-edit-emp="${e.id}">${ICONS.edit}</button>`);
     if (!e.isCurrent) actions.push(`<button class="btn-ghost icon-only danger" data-remove-emp="${e.id}">${ICONS.trash}</button>`);
   }

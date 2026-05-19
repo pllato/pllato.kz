@@ -1,6 +1,7 @@
 // Pllato CRM — каналы связи.
-// Источник правды: Cloudflare Worker (/channels/*), fallback: Firebase.
+// Источник правды: Cloudflare Worker (/channels/*).
 // Здесь — кэш + синхронный API для view.
+import { apiFetch } from "./auth.js";
 
 const COLLECTION = "pllato_channels_cache";
 const SYNC_FLAG = "pllato_channels_sync";
@@ -32,62 +33,16 @@ export function isChannelsSynced() {
   return localStorage.getItem(SYNC_FLAG) === "1";
 }
 
-/**
- * Полная синхронизация каналов.
- * Сначала пытаемся читать из Cloudflare Worker, fallback — Firebase.
- * @param {object} fb — { db, dbm } из app.js (инициализированный Firebase)
- */
-export async function syncChannelsFromFirebase(fb) {
-  const fromWorker = await syncChannelsFromWorker(fb);
-  if (fromWorker) return;
-
-  if (!fb?.db || !fb?.dbm) return;
-  try {
-    const snap = await fb.dbm.get(fb.dbm.ref(fb.db, "channels"));
-    const data = snap.exists() ? snap.val() : {};
-    // Фильтруем то, что доступно нашему приложению (pllato_crm)
-    const arr = Object.entries(data)
-      .filter(([id, ch]) => ch && ch.apps && ch.apps[APP_ID])
-      .map(([id, ch]) => ({
-        id,
-        type: ch.type,
-        name: ch.name || "",
-        active: ch.active !== false,
-        // ВАЖНО: config.api_secret/pass/tokens НЕ кэшируем во frontend.
-        // Здесь оставляем только публичные/безопасные поля.
-        public: pickPublic(ch.type, ch.config || {}),
-        apps: ch.apps,
-      }));
-    localStorage.setItem(COLLECTION, JSON.stringify(arr));
-    localStorage.setItem(SYNC_FLAG, "1");
-  } catch (e) {
-    // тихо — пользоваться кэшем если есть
-    console.warn("channels sync failed:", e);
-  }
-}
-
-async function syncChannelsFromWorker(fb) {
+export async function syncChannelsFromWorker() {
   const base = String(window.PLLATO_API_BASE || "").trim().replace(/\/+$/, "");
   if (!base) return false;
 
   try {
-    const user = fb?.authInstance?.currentUser;
-    if (!user) return false;
-    const token = await user.getIdToken();
-
-    const res = await fetch(base + "/channels/list", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify({ onlyActive: false }),
-    });
-    const json = await res.json();
-    if (!res.ok || !json?.ok || !Array.isArray(json.channels)) return false;
+    const json = await apiFetch("/channels/list?onlyActive=false", { method: "GET" });
+    if (!json?.ok || !Array.isArray(json.channels)) return false;
 
     const arr = json.channels
-      .filter((ch) => ch && ch.apps && ch.apps[APP_ID])
+      .filter((ch) => ch && !(ch.apps && ch.apps[APP_ID] === false))
       .map((ch) => ({
         id: ch.id,
         type: ch.type,

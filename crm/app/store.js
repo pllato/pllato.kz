@@ -1,7 +1,7 @@
 // Pllato CRM — Store API.
 // Local-first хранилище с cloud-sync в Cloudflare Worker (/store/*).
 // Интерфейс Store сохранен синхронным для совместимости со всеми view.
-import { requireFirebaseIdToken } from "./firebase_session.js";
+import { apiFetch } from "./auth.js";
 
 const NS = "pllato_core_";
 const QUEUE_KEY = "pllato_store_sync_queue_v1";
@@ -106,26 +106,8 @@ function normalizeItem(item) {
 }
 
 async function workerCall(path, payload) {
-  const base = cloudBase();
-  if (!base) throw new Error("Cloud store is disabled");
-  const token = await requireFirebaseIdToken();
-
-  const res = await fetch(base + path, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload || {}),
-  });
-
-  let data = null;
-  try { data = await res.json(); } catch {}
-  if (!res.ok || !data?.ok) {
-    const reason = data?.error || `Cloud sync error (${res.status})`;
-    throw new Error(reason);
-  }
-  return data;
+  if (!cloudBase()) throw new Error("Cloud store is disabled");
+  return apiFetch(path, { method: "POST", body: payload || {} });
 }
 
 function scheduleFlush(delayMs = 800) {
