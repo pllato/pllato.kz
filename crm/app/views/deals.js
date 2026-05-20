@@ -5,6 +5,21 @@
 import { Store } from "../store.js";
 import { ICONS } from "../icons.js";
 import { getStages, saveStages, newStageId, STAGE_COLORS, findStage } from "../stages.js";
+import {
+  getPipelines,
+  getActivePipelineId,
+  setActivePipelineId,
+  createPipeline,
+  updatePipeline,
+  deletePipeline,
+  restorePipeline,
+  getDeletedPipelines,
+  countActiveDealsInPipeline,
+  canDeletePipeline,
+  ensurePipelinesInitialized,
+  DEFAULT_NEW_CLIENT_STAGES,
+  newStageIdForPipeline,
+} from "../pipelines.js";
 import { FIELD_TYPES, getDealFields, saveDealFields, newFieldId, newOptionId, getDealFieldType } from "../custom_fields.js";
 import { openCommunicate } from "../communicate.js";
 import { listEmployees, getEmployee, currentEmployee, avatar, initialsOf } from "../employees.js";
@@ -40,6 +55,7 @@ const state = {
   dragId: null,
   scrollTimer: null,
   stagesModalOpen: false,
+  pipelinesManagerOpen: false,
   dealChatSyncing: false,
   dealChatSyncTimer: null,
   crmSearch: "",
@@ -431,12 +447,16 @@ function renderWaMessages(messages, searchQuery = "") {
 }
 
 // Привести сделки к актуальному списку стадий: если стадия удалена — переносим в первую
-function reconcileDeals(stages) {
+function reconcileDeals(stages, activePipelineId) {
   const ids = new Set(stages.map(s => s.id));
   const fallback = stages[0]?.id || "new";
   const deals = Store.list(COLLECTION).filter((d) => !d?.deletedAt);
   deals.forEach(d => {
-    if (!ids.has(d.stage)) Store.update(COLLECTION, d.id, { stage: fallback });
+    const patch = {};
+    if (!d.pipelineId && activePipelineId) patch.pipelineId = activePipelineId;
+    const dealPipeline = d.pipelineId || activePipelineId;
+    if (dealPipeline === activePipelineId && !ids.has(d.stage)) patch.stage = fallback;
+    if (Object.keys(patch).length) Store.update(COLLECTION, d.id, patch);
   });
 }
 
@@ -501,15 +521,21 @@ function isEmptyFieldValue(v) {
 }
 
 export function renderDeals(container) {
+  ensurePipelinesInitialized();
+  const activePipelineId = getActivePipelineId();
+  const pipelines = getPipelines();
   const stages = getStages();
-  reconcileDeals(stages);
+  reconcileDeals(stages, activePipelineId);
   seedDemo();
 
   if (resolveCallsTabFromHash()) {
     state.crmTab = "calls";
   }
 
-  const deals = Store.list(COLLECTION);
+  const allDeals = Store.list(COLLECTION);
+  const deals = activePipelineId
+    ? allDeals.filter((d) => (d.pipelineId || activePipelineId) === activePipelineId)
+    : allDeals;
   const contacts = listAliveContacts();
   const contactMap = Object.fromEntries(contacts.map(c => [c.id, c]));
 
@@ -539,6 +565,7 @@ export function renderDeals(container) {
 
   container.innerHTML = `
     <div class="deals-view">
+      ${state.crmTab === "deals" ? renderPipelinesBar(pipelines, activePipelineId) : ""}
       <div class="deals-toolbar">
         <div class="crm-top-controls">
           <div class="crm-view-switch">
@@ -580,6 +607,7 @@ export function renderDeals(container) {
 
       ${state.crmTab === "deals" && state.modalOpen ? renderDealModal(Store.get(COLLECTION, state.modalDealId), contacts, stages) : ""}
       ${state.crmTab === "deals" && state.stagesModalOpen ? renderStagesModal(stages) : ""}
+      ${state.crmTab === "deals" && state.pipelinesManagerOpen ? renderPipelinesManagerModal() : ""}
       ${state.crmTab === "deals" && state.waFloat.open ? renderWaFloat(
         Store.get(COLLECTION, state.waFloat.dealId),
         contactMap[state.waFloat.contactId] || null
@@ -706,6 +734,7 @@ function renderDealModal(d, contacts, stages) {
           </div>
         </header>
 
+        ${!isNew ? renderDealPipelineRow(d, getPipelines()) : ""}
         ${!isNew ? renderStageBar(d.stage, stages) : ""}
 
         <div class="deal-modal-body">
@@ -1550,6 +1579,120 @@ function ensureDealChatLoop(container) {
 }
 
 // =========================================================================
+// Перенос сделки в другую воронку (внутри модалки сделки)
+// =========================================================================
+function renderDealPipelineRow(deal, pipelines) {
+  const currentId = deal.pipelineId || pipelines[0]?.id || "";
+  const current = pipelines.find((p) => p.id === currentId);
+  return `
+    <div class="deal-pipeline-row">
+      <label class="dpr-label">Воронка</label>
+      <select id="dealPipelineSelect" class="dpr-select">
+        ${pipelines.map((p) => `
+          <option value="${escape(p.id)}" ${p.id === currentId ? "selected" : ""}>${escape(p.title)}</option>
+        `).join("")}
+      </select>
+      ${current ? `<span class="dpr-hint">${current.stages?.length || 0} стадий</span>` : ""}
+    </div>
+  `;
+}
+
+// =========================================================================
+// Воронки — табы переключения + создание
+// =========================================================================
+function renderPipelinesBar(pipelines, activeId) {
+  return `
+    <div class="pipelines-bar">
+      <div class="pipelines-tabs">
+        ${pipelines.map((p) => `
+          <button class="pipeline-tab ${p.id === activeId ? "active" : ""}" data-pipeline-id="${escape(p.id)}">
+            ${escape(p.title)}
+          </button>
+        `).join("")}
+        <button class="pipeline-tab pipeline-tab-new" data-pipeline-new title="Создать воронку">
+          ${ICONS.plus || "+"}<span>Воронка</span>
+        </button>
+        <button class="pipeline-tab pipeline-tab-manage" data-pipeline-manage title="Управление воронками">
+          ${ICONS.settings || "⚙"}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// Manager modal: list + rename + delete + trash + restore
+function renderPipelinesManagerModal() {
+  const active = getPipelines();
+  const deleted = getDeletedPipelines();
+  const activeId = getActivePipelineId();
+  const fmtAgo = (ts) => {
+    if (!ts) return "—";
+    const mins = Math.floor((Date.now() - ts) / 60000);
+    if (mins < 1) return "только что";
+    if (mins < 60) return `${mins} мин назад`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs} ч назад`;
+    const days = Math.floor(hrs / 24);
+    return `${days} дн назад`;
+  };
+  return `
+    <div class="modal-backdrop" id="pipelinesManagerBackdrop">
+      <div class="modal" role="dialog" aria-modal="true" style="max-width: 560px;">
+        <header class="modal-header">
+          <h2>Управление воронками</h2>
+          <button type="button" class="btn-ghost icon-only" data-pm-close>${ICONS.x}</button>
+        </header>
+        <div class="pm-body">
+          <div class="pm-section-title">Активные воронки</div>
+          <div class="pm-list">
+            ${active.map((p) => {
+              const dealsCount = countActiveDealsInPipeline(p.id);
+              const check = canDeletePipeline(p.id);
+              const isActive = p.id === activeId;
+              return `
+                <div class="pm-row ${isActive ? "is-active" : ""}">
+                  <div class="pm-row-main">
+                    <div class="pm-title">${escape(p.title)}${isActive ? ` <span class="pm-badge">активна</span>` : ""}</div>
+                    <div class="pm-sub">${dealsCount} ${dealsCount === 1 ? "сделка" : (dealsCount >= 2 && dealsCount <= 4 ? "сделки" : "сделок")} · ${p.stages?.length || 0} стадий</div>
+                  </div>
+                  <div class="pm-row-actions">
+                    <button class="btn-ghost btn-sm" data-pm-rename="${escape(p.id)}" title="Переименовать">${ICONS.edit || "✏"}</button>
+                    <button class="btn-ghost btn-sm danger" data-pm-delete="${escape(p.id)}" ${check.ok ? "" : `disabled title="${escape(check.reason)}"`}>${ICONS.trash || "🗑"}</button>
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+
+          ${deleted.length ? `
+            <div class="pm-section-title">Корзина (${deleted.length})</div>
+            <div class="pm-list pm-trash">
+              ${deleted.map((p) => `
+                <div class="pm-row">
+                  <div class="pm-row-main">
+                    <div class="pm-title pm-title-deleted">${escape(p.title)}</div>
+                    <div class="pm-sub">Удалена ${fmtAgo(p.deletedAt)} · ${p.stages?.length || 0} стадий</div>
+                  </div>
+                  <div class="pm-row-actions">
+                    <button class="btn-ghost btn-sm" data-pm-restore="${escape(p.id)}" title="Восстановить">${ICONS.refresh || "↻"}<span>Восстановить</span></button>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          ` : ""}
+        </div>
+        <footer class="modal-footer">
+          <button class="btn-ghost" data-pm-create>${ICONS.plus || "+"}<span>Новая воронка</span></button>
+          <div class="modal-footer-right">
+            <button class="btn" data-pm-close>Закрыть</button>
+          </div>
+        </footer>
+      </div>
+    </div>
+  `;
+}
+
+// =========================================================================
 // Модалка УПРАВЛЕНИЯ СТАДИЯМИ
 // =========================================================================
 function renderStagesModal(stages) {
@@ -1557,7 +1700,7 @@ function renderStagesModal(stages) {
     <div class="modal-backdrop" id="stagesBackdrop">
       <div class="modal" role="dialog" aria-modal="true" style="max-width: 520px;">
         <header class="modal-header">
-          <h2>Стадии воронки</h2>
+          <h2>Стадии воронки: ${escape((getPipelines().find((p) => p.id === getActivePipelineId())?.title) || "—")}</h2>
           <button type="button" class="btn-ghost icon-only" id="closeStagesModal">${ICONS.x}</button>
         </header>
         <div class="stages-edit">
@@ -1710,6 +1853,90 @@ function wireEvents(container) {
   });
 
   if (state.crmTab !== "deals") return;
+
+  // Pipeline tabs: switch active pipeline
+  container.querySelectorAll("[data-pipeline-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-pipeline-id");
+      if (!id) return;
+      setActivePipelineId(id);
+      renderDeals(container);
+    });
+  });
+  // Create new pipeline (quick prompt; or via manager modal)
+  container.querySelector("[data-pipeline-new]")?.addEventListener("click", () => {
+    const title = (window.prompt("Название новой воронки:", "Новая воронка") || "").trim();
+    if (!title) return;
+    const seedStages = DEFAULT_NEW_CLIENT_STAGES.map((s) => ({ ...s, id: newStageIdForPipeline() }));
+    const pipeline = createPipeline(title, seedStages);
+    setActivePipelineId(pipeline.id);
+    renderDeals(container);
+  });
+
+  // Open manager modal
+  container.querySelector("[data-pipeline-manage]")?.addEventListener("click", () => {
+    state.pipelinesManagerOpen = true;
+    renderDeals(container);
+  });
+
+  // Manager modal handlers
+  if (state.pipelinesManagerOpen) {
+    const closeManager = () => {
+      state.pipelinesManagerOpen = false;
+      renderDeals(container);
+    };
+    container.querySelectorAll("[data-pm-close]").forEach((b) => b.addEventListener("click", closeManager));
+    container.querySelector("#pipelinesManagerBackdrop")?.addEventListener("click", (e) => {
+      if (e.target.id === "pipelinesManagerBackdrop") closeManager();
+    });
+
+    container.querySelectorAll("[data-pm-rename]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-pm-rename");
+        const current = getPipelines().find((p) => p.id === id);
+        if (!current) return;
+        const next = (window.prompt("Новое название воронки:", current.title) || "").trim();
+        if (!next || next === current.title) return;
+        updatePipeline(id, { title: next });
+        renderDeals(container);
+      });
+    });
+
+    container.querySelectorAll("[data-pm-delete]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (btn.disabled) return;
+        const id = btn.getAttribute("data-pm-delete");
+        const pipeline = getPipelines().find((p) => p.id === id);
+        if (!pipeline) return;
+        if (!window.confirm(`Переместить воронку «${pipeline.title}» в корзину?`)) return;
+        const res = deletePipeline(id);
+        if (res && res.ok === false) {
+          alert(res.reason || "Невозможно удалить воронку.");
+          return;
+        }
+        renderDeals(container);
+      });
+    });
+
+    container.querySelectorAll("[data-pm-restore]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-pm-restore");
+        if (!id) return;
+        restorePipeline(id);
+        renderDeals(container);
+      });
+    });
+
+    container.querySelector("[data-pm-create]")?.addEventListener("click", () => {
+      const title = (window.prompt("Название новой воронки:", "Новая воронка") || "").trim();
+      if (!title) return;
+      const seedStages = DEFAULT_NEW_CLIENT_STAGES.map((s) => ({ ...s, id: newStageIdForPipeline() }));
+      const pipeline = createPipeline(title, seedStages);
+      setActivePipelineId(pipeline.id);
+      state.pipelinesManagerOpen = false;
+      renderDeals(container);
+    });
+  }
 
   container.querySelector("#newDeal")?.addEventListener("click", () => openDealModal(container, null, null));
   container.querySelector("#manageStages")?.addEventListener("click", () => {
@@ -2002,6 +2229,34 @@ function wireEvents(container) {
     if (state.modalDealId) {
       autosaveSnapshot = JSON.stringify(collectDealFormData());
       setAutosaveState("Автосохранение включено", "idle");
+      // Pipeline transfer: move deal to another pipeline
+      const pipelineSelect = container.querySelector("#dealPipelineSelect");
+      if (pipelineSelect) {
+        const originalPipelineId = pipelineSelect.value;
+        pipelineSelect.addEventListener("change", (e) => {
+          const newPipelineId = e.target.value;
+          if (!state.modalDealId || newPipelineId === originalPipelineId) return;
+          const deal = Store.get(COLLECTION, state.modalDealId);
+          if (!deal) return;
+          const newPipeline = getPipelines().find((p) => p.id === newPipelineId);
+          if (!newPipeline || !newPipeline.stages?.length) {
+            e.target.value = originalPipelineId;
+            return;
+          }
+          const firstStage = newPipeline.stages[0];
+          const ok = window.confirm(
+            `Перенести сделку «${deal.title || "Без названия"}» в воронку «${newPipeline.title}»?\n\n` +
+            `Стадия будет сброшена на «${firstStage.title}».`
+          );
+          if (!ok) {
+            e.target.value = originalPipelineId;
+            return;
+          }
+          Store.update(COLLECTION, deal.id, { pipelineId: newPipelineId, stage: firstStage.id });
+          closeDealModal(container);
+        });
+      }
+
       dealForm.addEventListener("input", scheduleAutosave);
       dealForm.addEventListener("change", scheduleAutosave);
     }

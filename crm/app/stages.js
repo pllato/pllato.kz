@@ -1,7 +1,12 @@
-// Pllato CRM — стадии воронки.
-// Хранятся в localStorage, редактируются пользователем (порядок + название + цвет).
+// Pllato CRM — стадии активной воронки (proxy через pipelines.js).
 
-const KEY = "pllato_core_stages";
+import {
+  ensurePipelinesInitialized,
+  getActivePipelineId,
+  getStagesForPipeline,
+  saveStagesForPipeline,
+  newStageIdForPipeline,
+} from "./pipelines.js";
 
 const DEFAULT_STAGES = [
   { id: "new",       title: "Новые",           color: "#8896b3" },
@@ -11,32 +16,26 @@ const DEFAULT_STAGES = [
   { id: "lost",      title: "Проигрыш",        color: "#5d6b85" },
 ];
 
-function read() {
-  try {
-    const v = JSON.parse(localStorage.getItem(KEY) || "null");
-    if (Array.isArray(v) && v.length) return v;
-  } catch {}
-  return DEFAULT_STAGES.slice();
-}
-function write(stages) {
-  localStorage.setItem(KEY, JSON.stringify(stages));
+export function getStages(pipelineId) {
+  ensurePipelinesInitialized();
+  const pid = pipelineId || getActivePipelineId();
+  if (!pid) return DEFAULT_STAGES.slice();
+  const stages = getStagesForPipeline(pid);
+  return stages.length ? stages : DEFAULT_STAGES.slice();
 }
 
-export function getStages() {
-  return read();
-}
-export function saveStages(stages) {
-  write(stages);
+export function saveStages(stages, pipelineId) {
+  ensurePipelinesInitialized();
+  const pid = pipelineId || getActivePipelineId();
+  if (pid) saveStagesForPipeline(pid, stages);
 }
 
-let _idSeq = 0;
 export function newStageId() {
-  _idSeq++;
-  return "s_" + Date.now().toString(36) + "_" + _idSeq;
+  return newStageIdForPipeline();
 }
 
-export function findStage(id) {
-  return getStages().find(s => s.id === id) || null;
+export function findStage(id, pipelineId) {
+  return getStages(pipelineId).find((s) => s.id === id) || null;
 }
 
 export const STAGE_COLORS = [

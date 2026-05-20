@@ -7735,3 +7735,202 @@ body {
   color: var(--text-dim);
   background: transparent;
 }
+
+
+/* ===== CRM pipelines bar ===== */
+.pipelines-bar {
+  margin: 0 0 12px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.pipelines-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 0 0 0 0;
+}
+.pipeline-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color .12s, background .12s, border-color .12s;
+}
+.pipeline-tab:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.pipeline-tab.active {
+  color: var(--accent);
+  background: var(--surface-2);
+  border-color: var(--border-soft);
+  border-bottom-color: var(--surface-2);
+  margin-bottom: -1px;
+  font-weight: 600;
+}
+.pipeline-tab-new {
+  color: var(--text-dim);
+  border-style: dashed;
+  border-color: var(--border-soft);
+  margin-left: auto;
+}
+.pipeline-tab-new:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.pipeline-tab-new svg {
+  width: 14px;
+  height: 14px;
+}
+
+
+/* ===== Pipelines manager modal ===== */
+.pipeline-tab-manage {
+  padding: 8px 10px;
+  color: var(--text-dim);
+  border: 1px solid transparent;
+}
+.pipeline-tab-manage:hover {
+  color: var(--accent);
+  background: var(--surface-2);
+}
+.pipeline-tab-manage svg {
+  width: 16px;
+  height: 16px;
+}
+.pm-body {
+  padding: 16px 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.pm-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin: 0 0 8px 0;
+}
+.pm-section-title + .pm-section-title,
+.pm-list + .pm-section-title {
+  margin-top: 18px;
+}
+.pm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pm-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  transition: border-color .12s, background .12s;
+}
+.pm-row:hover {
+  border-color: var(--border, var(--border-soft));
+}
+.pm-row.is-active {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+.pm-row-main {
+  flex: 1;
+  min-width: 0;
+}
+.pm-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pm-title-deleted {
+  color: var(--text-dim);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-dim);
+}
+.pm-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pm-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+.pm-row-actions {
+  display: flex;
+  gap: 4px;
+}
+.pm-row-actions .btn-ghost.danger:not(:disabled):hover {
+  color: var(--danger, #ef4444);
+  background: rgba(239, 68, 68, .1);
+}
+.pm-row-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.pm-trash .pm-row {
+  background: transparent;
+  border-style: dashed;
+}
+
+
+/* ===== Deal modal: pipeline transfer row ===== */
+.deal-pipeline-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px 6px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-2);
+}
+.dpr-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+.dpr-select {
+  padding: 6px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 180px;
+  cursor: pointer;
+}
+.dpr-select:hover {
+  border-color: var(--accent);
+}
+.dpr-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-tint);
+}
+.dpr-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
