@@ -5,6 +5,7 @@ import { parseImport, findDuplicate } from "../import_contacts.js";
 import { getStages, findStage } from "../stages.js";
 import { currentEmployee, getEmployee, avatar } from "../employees.js";
 import { listChannels } from "../channels.js";
+import { listWarehouseDocumentsByContact } from "../warehouse.js";
 import { FIELD_TYPES, getDealFields, saveDealFields, newFieldId } from "../custom_fields.js";
 import {
   waCloudEnabled,
@@ -1397,6 +1398,7 @@ function renderDetail(contact) {
   const tags = (contact.tags || []).map((tag) => `<span class="chip">${escape(tag)}</span>`).join("");
 
   const deals = dealsForContact(contact.id);
+  const purchases = listWarehouseDocumentsByContact(contact.id, 5);
   const allActs = activitiesForContact(contact);
   const shownActs = allActs.filter((a) => activityMatchesFilter(a, state.activityFilter));
 
@@ -1438,6 +1440,20 @@ function renderDetail(contact) {
                 })
                 .join("")}</div>`
             : `<div class="contact-deals-empty">Связанных сделок пока нет.</div>`
+        }
+      </section>
+
+      <section class="contact-related-deals">
+        <div class="contact-related-head">
+          <span>Покупки</span>
+          <a class="btn-ghost btn-sm" href="#warehouse/documents">Склад</a>
+        </div>
+        ${
+          purchases.length
+            ? `<div class="contact-deals-list">${purchases
+                .map((d) => `<a href="#warehouse/documents" class="contact-deal-pill"><span class="dot" style="background:var(--accent)"></span><span class="title">${escape(d.number || "Документ")}</span><span class="sum">${escape(d.date || "")}</span></a>`)
+                .join("")}</div>`
+            : `<div class="contact-deals-empty">Покупок по складу пока нет.</div>`
         }
       </section>
 

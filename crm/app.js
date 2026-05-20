@@ -11,7 +11,7 @@ import { renderCalls } from "./app/views/calls.js";
 import { renderDashboard } from "./app/views/dashboard.js";
 import { renderSettings } from "./app/views/settings.js";
 import { renderDocs } from "./app/views/docs.js";
-import { renderWarehouse } from "./app/views/warehouse.js";
+import { renderWarehouse } from "./app/views/warehouse/index.js";
 import { listNotifications, unreadCount, markRead, markAllRead, typeMeta, seedDemoNotifications } from "./app/notifications.js";
 import { getSession, mountGoogleButton, signOut as authSignOut } from "./app/auth.js";
 import { hasPermission, currentPermissions, replaceEmployeesFromWorker } from "./app/employees.js";

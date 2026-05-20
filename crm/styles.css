@@ -7005,3 +7005,250 @@ body {
     flex-wrap: wrap;
   }
 }
+
+/* Warehouse */
+.whm-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.whm-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.whm-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.whm-toolbar select,
+.whm-toolbar .search-input,
+.whm-toolbar .search-input input {
+  min-height: 38px;
+}
+
+.whm-search {
+  min-width: 260px;
+  max-width: 420px;
+  flex: 1;
+}
+
+.whm-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.whm-pad {
+  padding: 14px 16px;
+}
+
+.whm-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.whm-table th,
+.whm-table td {
+  border-bottom: 1px solid var(--border-soft);
+  padding: 10px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.whm-table th {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.whm-table tbody tr:hover td {
+  background: var(--surface-hover);
+}
+
+.whm-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.whm-empty {
+  padding: 18px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.whm-product-name {
+  font-weight: 600;
+}
+
+.whm-product-sub {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.whm-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--border-soft);
+  color: var(--text-muted);
+}
+
+.whm-badge.is-danger {
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.whm-badge.is-warning {
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.whm-badge.is-ok {
+  color: var(--success);
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.whm-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.whm-kpi-grid {
+  margin-bottom: 0;
+}
+
+.whm-quick-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.whm-mini-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.whm-mini-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.whm-mini-list a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.whm-mini-list a:hover {
+  color: var(--accent);
+}
+
+.whm-placeholder {
+  min-height: 280px;
+}
+
+.whm-modal {
+  width: min(96vw, 1180px);
+}
+
+.whm-form-grid {
+  padding: 14px 16px;
+}
+
+.whm-form-grid .field-wide {
+  grid-column: span 2;
+}
+
+.whm-lot-head {
+  background: var(--surface-2);
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  padding: 9px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+}
+
+.whm-lot-head strong {
+  color: var(--text);
+}
+
+.whm-lot-inline {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.whm-lot-inline input {
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  color: var(--text);
+}
+
+.whm-product-head {
+  margin-bottom: 0;
+}
+
+@media (max-width: 1200px) {
+  .whm-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .whm-search {
+    min-width: 220px;
+  }
+  .whm-form-grid .field-wide {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .whm-table th,
+  .whm-table td {
+    padding: 9px 8px;
+    font-size: 12px;
+  }
+
+  .product-head {
+    grid-template-columns: 1fr;
+  }
+
+  .product-kpis {
+    justify-content: flex-start;
+    text-align: left;
+    flex-wrap: wrap;
+  }
+
+  .modal-body {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-left {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+}

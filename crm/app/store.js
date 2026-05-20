@@ -26,6 +26,10 @@ const AUTO_COLLECTIONS = [
   "batches",
   "stock_movements",
   "deal_items",
+  "warehouse_products",
+  "warehouse_lots",
+  "warehouse_movements",
+  "warehouse_documents",
 ];
 
 const syncState = {
