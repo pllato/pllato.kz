@@ -7659,3 +7659,79 @@ body {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 12px;
 }
+
+
+/* ===== Catalog drag & drop reordering ===== */
+.whm-table th.drag-handle-col,
+.whm-table td.drag-handle-col {
+  width: 32px;
+  padding: 6px 4px;
+  text-align: center;
+  vertical-align: middle;
+}
+.whm-table .drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--text-dim);
+  cursor: grab;
+  user-select: none;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color .12s, background .12s;
+}
+.whm-table .drag-handle svg {
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+.whm-table tbody tr:hover .drag-handle {
+  color: var(--text);
+}
+.whm-table .drag-handle:hover {
+  color: var(--accent);
+  background: var(--accent-tint);
+}
+.whm-table .drag-handle:active {
+  cursor: grabbing;
+}
+.whm-table tbody tr[draggable="true"] {
+  transition: opacity .12s, background .12s;
+}
+.whm-table tbody tr.dragging {
+  opacity: 0.35;
+}
+.whm-table tbody tr.drag-over-above > td {
+  box-shadow: inset 0 2px 0 0 var(--accent);
+}
+.whm-table tbody tr.drag-over-below > td {
+  box-shadow: inset 0 -2px 0 0 var(--accent);
+}
+
+
+/* ===== Catalog column sorting ===== */
+.whm-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color .12s, background .12s;
+}
+.whm-table th.sortable:hover {
+  color: var(--accent);
+  background: var(--surface-hover, var(--surface-2));
+}
+.whm-table th .sort-arrow {
+  display: inline-block;
+  margin-left: 4px;
+  color: var(--accent);
+  font-weight: 700;
+}
+.whm-table .drag-handle.is-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.whm-table .drag-handle.is-disabled:hover {
+  color: var(--text-dim);
+  background: transparent;
+}

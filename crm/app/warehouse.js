@@ -212,11 +212,109 @@ export function migrateWarehouseLegacyCollections() {
   localStorage.setItem(flagKey, "1");
 }
 
+// === Пользовательский порядок товаров каталога (drag&drop) ===
+const PRODUCT_ORDER_KEY = "pllato_wh_product_order";
+
+export function getWarehouseProductOrder() {
+  try {
+    const raw = localStorage.getItem(PRODUCT_ORDER_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+export function setWarehouseProductOrder(ids) {
+  try {
+    const safe = Array.isArray(ids) ? ids.filter((x) => typeof x === "string") : [];
+    localStorage.setItem(PRODUCT_ORDER_KEY, JSON.stringify(safe));
+  } catch (_) {}
+}
+
+export function reorderWarehouseProduct(sourceId, targetId, insertBefore) {
+  if (!sourceId || !targetId || sourceId === targetId) return;
+  const allIds = safeList(WH.products).map((p) => p.id);
+  const allIdSet = new Set(allIds);
+  let order = getWarehouseProductOrder().filter((id) => allIdSet.has(id));
+  for (const id of allIds) {
+    if (!order.includes(id)) order.push(id);
+  }
+  const sourceIdx = order.indexOf(sourceId);
+  if (sourceIdx === -1) return;
+  order.splice(sourceIdx, 1);
+  const targetIdx = order.indexOf(targetId);
+  if (targetIdx === -1) return;
+  order.splice(insertBefore ? targetIdx : targetIdx + 1, 0, sourceId);
+  setWarehouseProductOrder(order);
+}
+
+// === Сортировка каталога по столбцу (опциональная) ===
+const PRODUCT_SORT_KEY = "pllato_wh_product_sort";
+const SORT_FIELDS = new Set(["manual", "sku", "name", "category", "entity", "stock", "lots", "expiry"]);
+
+export function getWarehouseProductSort() {
+  try {
+    const raw = localStorage.getItem(PRODUCT_SORT_KEY);
+    const obj = raw ? JSON.parse(raw) : null;
+    const field = obj && SORT_FIELDS.has(obj.field) ? obj.field : "manual";
+    const dir = obj && obj.dir === "desc" ? "desc" : "asc";
+    return { field, dir };
+  } catch (_) {
+    return { field: "manual", dir: "asc" };
+  }
+}
+
+export function setWarehouseProductSort(field, dir) {
+  try {
+    const safeField = SORT_FIELDS.has(field) ? field : "manual";
+    const safeDir = dir === "desc" ? "desc" : "asc";
+    localStorage.setItem(PRODUCT_SORT_KEY, JSON.stringify({ field: safeField, dir: safeDir }));
+  } catch (_) {}
+}
+
+function statusSortKey(p) {
+  // Lower tier = more urgent. asc → urgent first (просрочка сверху); desc → "в норме" сверху.
+  const s = p.summary;
+  if (!s) return { tier: 99, sub: 0 };
+  if ((s.expiredCount || 0) > 0) return { tier: 0, sub: 0 };
+  if ((s.total || 0) <= 0) return { tier: 1, sub: 0 };
+  if ((s.total || 0) < (Number(p.minStock) || 0)) return { tier: 2, sub: 0 };
+  if (s.nearestExpiry) {
+    const t = new Date(`${s.nearestExpiry}T00:00:00`).getTime();
+    return { tier: 3, sub: Number.isFinite(t) ? t : 0 };
+  }
+  return { tier: 4, sub: 0 };
+}
+
+function compareProductsByField(a, b, field) {
+  const str = (x) => String(x || "");
+  switch (field) {
+    case "sku":      return str(a.sku).localeCompare(str(b.sku), "ru");
+    case "name":     return str(a.name).localeCompare(str(b.name), "ru");
+    case "category": return str(a.category).localeCompare(str(b.category), "ru");
+    case "entity":   return str(a.entity).localeCompare(str(b.entity), "ru");
+    case "stock":    return (a.summary?.total || 0) - (b.summary?.total || 0);
+    case "lots":     return (a.summary?.activeLots || 0) - (b.summary?.activeLots || 0);
+    case "expiry": {
+      const ka = statusSortKey(a);
+      const kb = statusSortKey(b);
+      if (ka.tier !== kb.tier) return ka.tier - kb.tier;
+      return ka.sub - kb.sub;
+    }
+    default:         return 0;
+  }
+}
+
 export function listWarehouseProducts(filters = {}) {
   const query = asText(filters.query).toLowerCase();
   const entity = asText(filters.entity);
   const category = asText(filters.category);
   const includeArchived = Boolean(filters.includeArchived);
+  const sort = getWarehouseProductSort();
+  const isManual = sort.field === "manual";
+  const order = isManual ? getWarehouseProductOrder() : [];
+  const orderIndex = new Map(order.map((id, i) => [id, i]));
 
   return safeList(WH.products)
     .filter((p) => includeArchived || !p.isArchived)
@@ -224,7 +322,18 @@ export function listWarehouseProducts(filters = {}) {
     .filter((p) => !entity || p.entity === entity)
     .filter((p) => !category || p.category === category)
     .map((p) => ({ ...p, summary: productSummary(p.id) }))
-    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "ru"));
+    .sort((a, b) => {
+      if (isManual) {
+        const ai = orderIndex.has(a.id) ? orderIndex.get(a.id) : Infinity;
+        const bi = orderIndex.has(b.id) ? orderIndex.get(b.id) : Infinity;
+        if (ai !== bi) return ai - bi;
+        return String(a.name || "").localeCompare(String(b.name || ""), "ru");
+      }
+      const cmp = compareProductsByField(a, b, sort.field);
+      if (cmp !== 0) return sort.dir === "desc" ? -cmp : cmp;
+      // Tiebreaker by name
+      return String(a.name || "").localeCompare(String(b.name || ""), "ru");
+    });
 }
 
 export function listWarehouseCategories() {

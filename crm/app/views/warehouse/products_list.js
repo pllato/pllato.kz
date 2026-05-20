@@ -1,5 +1,5 @@
 import { ICONS } from "../../icons.js";
-import { listWarehouseProducts, listWarehouseCategories } from "../../warehouse.js";
+import { listWarehouseProducts, listWarehouseCategories, getWarehouseProductSort } from "../../warehouse.js";
 
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -69,7 +69,14 @@ function renderProductModal(state) {
   `;
 }
 
+function sortArrow(field, sort) {
+  if (sort.field !== field) return "";
+  return sort.dir === "desc" ? ` <span class="sort-arrow">↓</span>` : ` <span class="sort-arrow">↑</span>`;
+}
+
 export function renderProductsListView(state, canEdit) {
+  const sort = getWarehouseProductSort();
+  const isManual = sort.field === "manual";
   const items = listWarehouseProducts({
     query: state.productQuery || "",
     entity: state.productEntity || "",
@@ -94,6 +101,11 @@ export function renderProductsListView(state, canEdit) {
           <option value="">Все категории</option>
           ${categories.map((c) => `<option value="${escapeAttr(c)}" ${state.productCategory === c ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}
         </select>
+        ${sort.field !== "manual" ? `
+          <button type="button" class="btn-ghost btn-sm" data-wh-reset-sort title="Вернуться к своему порядку (drag&drop)">
+            <span>↻ Свой порядок</span>
+          </button>
+        ` : ""}
         <div class="spacer"></div>
         <button type="button" class="btn-ghost" data-wh-open-import ${canEdit ? "" : "disabled"}>${ICONS.calendarClock}<span>Импорт</span></button>
         <button type="button" class="btn-primary" data-wh-open-product-form ${canEdit ? "" : "disabled"}>${ICONS.plus}<span>Новый товар</span></button>
@@ -103,13 +115,14 @@ export function renderProductsListView(state, canEdit) {
         <table class="whm-table">
           <thead>
             <tr>
-              <th>SKU</th>
-              <th>Товар</th>
-              <th>Категория</th>
-              <th>Юр.лицо</th>
-              <th class="num">Остаток</th>
-              <th class="num">Партии</th>
-              <th>Срок/статус</th>
+              <th class="drag-handle-col" aria-label="Порядок"></th>
+              <th class="sortable" data-wh-sort="sku">SKU${sortArrow("sku", sort)}</th>
+              <th class="sortable" data-wh-sort="name">Товар${sortArrow("name", sort)}</th>
+              <th class="sortable" data-wh-sort="category">Категория${sortArrow("category", sort)}</th>
+              <th class="sortable" data-wh-sort="entity">Юр.лицо${sortArrow("entity", sort)}</th>
+              <th class="num sortable" data-wh-sort="stock">Остаток${sortArrow("stock", sort)}</th>
+              <th class="num sortable" data-wh-sort="lots">Партии${sortArrow("lots", sort)}</th>
+              <th class="sortable" data-wh-sort="expiry">Срок/статус${sortArrow("expiry", sort)}</th>
               <th></th>
             </tr>
           </thead>
@@ -117,7 +130,10 @@ export function renderProductsListView(state, canEdit) {
             ${items.length ? items.map((p) => {
               const st = productStatus(p.summary, p.minStock);
               return `
-                <tr>
+                <tr ${isManual ? `draggable="true"` : ``} data-wh-row-id="${escapeAttr(p.id)}">
+                  <td class="drag-handle-col">
+                    <span class="drag-handle ${isManual ? "" : "is-disabled"}" title="${isManual ? "Перетащите, чтобы изменить порядок" : "Сначала вернитесь к своему порядку"}">${ICONS.grip}</span>
+                  </td>
                   <td class="mono dim">${escapeHtml(p.sku || "—")}</td>
                   <td>
                     <div class="whm-product-name">${escapeHtml(p.name || "—")}</div>
@@ -131,7 +147,7 @@ export function renderProductsListView(state, canEdit) {
                   <td class="num"><button type="button" class="btn-ghost btn-sm" data-wh-open-product="${escapeAttr(p.id)}">Открыть</button></td>
                 </tr>
               `;
-            }).join("") : `<tr><td colspan="8"><div class="whm-empty">Товары не найдены</div></td></tr>`}
+            }).join("") : `<tr><td colspan="9"><div class="whm-empty">Товары не найдены</div></td></tr>`}
           </tbody>
         </table>
       </div>

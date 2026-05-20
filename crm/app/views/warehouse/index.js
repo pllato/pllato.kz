@@ -8,6 +8,9 @@ import {
   listWarehouseProducts,
   listWarehouseMovements,
   saveWarehouseProduct,
+  reorderWarehouseProduct,
+  getWarehouseProductSort,
+  setWarehouseProductSort,
   createWarehouseDocument,
   updateWarehouseDocument,
   getWarehouseDocument,
@@ -299,6 +302,72 @@ function wireWarehouseEvents(container, route, canEdit) {
       location.hash = `#warehouse/products/${encodeURIComponent(id)}`;
     });
   });
+
+  // Sort column headers (asc/desc) + reset to manual
+  container.querySelectorAll("[data-wh-sort]").forEach((th) => {
+    th.addEventListener("click", () => {
+      const field = th.dataset.whSort;
+      if (!field) return;
+      const cur = getWarehouseProductSort();
+      const nextDir = cur.field === field && cur.dir === "asc" ? "desc" : "asc";
+      setWarehouseProductSort(field, nextDir);
+      rerender(container);
+    });
+  });
+  container.querySelector("[data-wh-reset-sort]")?.addEventListener("click", () => {
+    setWarehouseProductSort("manual", "asc");
+    rerender(container);
+  });
+
+  // Drag & drop reordering of catalog rows (only when sort is manual)
+  (() => {
+    if (getWarehouseProductSort().field !== "manual") return;
+    let dragSourceId = null;
+    const rows = container.querySelectorAll("[data-wh-row-id][draggable=\"true\"]");
+    if (!rows.length) return;
+    const clearMarkers = () => {
+      rows.forEach((r) => r.classList.remove("dragging", "drag-over-above", "drag-over-below"));
+    };
+    rows.forEach((row) => {
+      row.addEventListener("dragstart", (e) => {
+        dragSourceId = row.dataset.whRowId;
+        row.classList.add("dragging");
+        try {
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", dragSourceId);
+        } catch (_) {}
+      });
+      row.addEventListener("dragend", () => {
+        dragSourceId = null;
+        clearMarkers();
+      });
+      row.addEventListener("dragover", (e) => {
+        if (!dragSourceId || row.dataset.whRowId === dragSourceId) return;
+        e.preventDefault();
+        try { e.dataTransfer.dropEffect = "move"; } catch (_) {}
+        const rect = row.getBoundingClientRect();
+        const insertBefore = e.clientY < rect.top + rect.height / 2;
+        row.classList.remove(insertBefore ? "drag-over-below" : "drag-over-above");
+        row.classList.add(insertBefore ? "drag-over-above" : "drag-over-below");
+      });
+      row.addEventListener("dragleave", (e) => {
+        if (!row.contains(e.relatedTarget)) {
+          row.classList.remove("drag-over-above", "drag-over-below");
+        }
+      });
+      row.addEventListener("drop", (e) => {
+        e.preventDefault();
+        const sourceId = dragSourceId;
+        const targetId = row.dataset.whRowId;
+        clearMarkers();
+        if (!sourceId || !targetId || sourceId === targetId) return;
+        const rect = row.getBoundingClientRect();
+        const insertBefore = e.clientY < rect.top + rect.height / 2;
+        reorderWarehouseProduct(sourceId, targetId, insertBefore);
+        rerender(container);
+      });
+    });
+  })();
 
   container.querySelectorAll("[data-wh-new-doc]").forEach((btn) => {
     btn.addEventListener("click", () => {
