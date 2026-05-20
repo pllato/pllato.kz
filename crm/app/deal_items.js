@@ -226,7 +226,7 @@ export function renderDealItemsSection(dealId) {
     <div class="field field-wide deal-items-panel" data-deal-items data-deal-id="${escapeAttr(dealId)}">
       <div class="dip-header">
         <div class="dip-title">
-          ${ICONS.package || "📦"} <strong>Состав заказа</strong>
+          <strong>Состав заказа</strong>
           ${statusBadge}
         </div>
         <div class="dip-summary">

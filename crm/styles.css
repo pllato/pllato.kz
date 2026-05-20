@@ -8845,3 +8845,133 @@ body {
 .po-detail-empty {
   padding: 12px; text-align: center; color: var(--muted, #8896b3); font-size: 13px;
 }
+
+
+/* === Deal Items Panel — UI POLISH (override) === */
+/* Перебиваем правила выше — без переделки логики, только размеры и пропорции. */
+
+.deal-items-panel {
+  /* было padding: 16px — на узкой колонке съедает место */
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.deal-items-panel .dip-header {
+  /* Заголовок + бейдж + summary в одну строку с переносом на маленьких ширинах */
+  align-items: baseline;
+  gap: 8px;
+}
+.deal-items-panel .dip-title {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  min-width: 0;
+}
+.deal-items-panel .dip-title strong {
+  font-size: 14px;
+  white-space: nowrap;
+}
+.deal-items-panel .dip-summary {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* На случай если ICONS.package где-то остался — ограничим размер SVG */
+.deal-items-panel .dip-title svg {
+  width: 16px; height: 16px; flex-shrink: 0;
+}
+
+/* Бейдж компактнее */
+.dis-status-badge {
+  padding: 1px 6px; font-size: 10px;
+  white-space: nowrap;
+}
+
+/* Баннер компактнее */
+.dis-banner {
+  padding: 8px 10px; font-size: 12px;
+  gap: 8px;
+}
+.dis-banner-icon { font-size: 16px; }
+.dis-banner-text strong { font-size: 12px; }
+.dis-banner-meta { font-size: 10px; }
+
+/* Таблица — гибкие ширины, помещается в узкий контейнер */
+.dis-table-wrap {
+  /* На крайний случай — горизонтальный скролл, чтобы ничего не обрезалось */
+  overflow-x: auto;
+  margin: 0 -4px;  /* небольшое расширение в стороны для voздуха */
+}
+.dis-table {
+  /* было table-fixed → теперь auto, чтобы товар сжимался */
+  table-layout: auto;
+  font-size: 12px;
+  min-width: 100%;
+}
+.dis-table th, .dis-table td {
+  padding: 5px 6px;
+  font-size: 12px;
+}
+.dis-table th { font-size: 10px; }
+
+/* Колонки: убираем фиксы, даём гибкость */
+.dis-table .th-product {
+  min-width: auto !important;
+  width: auto;
+}
+.dis-table .th-stock {
+  width: 70px;
+  white-space: nowrap;
+}
+.dis-table .th-qty,
+.dis-table .th-price {
+  width: 70px;
+}
+.dis-table .th-amount {
+  width: 90px;
+  white-space: nowrap;
+}
+.dis-table .th-actions {
+  width: 28px;
+}
+
+.dis-table input[type="number"] {
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+.dis-stock {
+  font-size: 11px;
+}
+
+.dis-amount {
+  font-size: 12px;
+}
+
+/* Typeahead в строке: компактнее */
+.dis-ta-input {
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+/* Список не должен быть шире контейнера сделки */
+.dis-ta-list {
+  max-height: 280px;
+  font-size: 12px;
+}
+.dis-ta-item {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+/* Action bar — кнопки в одну строку */
+.dis-actions-bar {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Кнопка удаления строки — компактнее */
+.deal-items-panel .btn-icon.btn-sm {
+  padding: 2px;
+}
+.deal-items-panel .btn-icon.btn-sm svg {
+  width: 14px; height: 14px;
+}
