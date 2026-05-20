@@ -14,7 +14,7 @@ import {
   postWarehouseDocument,
   cancelWarehouseDocument,
   autoSplitDocumentItems,
-} from "../../warehouse.js";
+} from "../../warehouse.js?v=20260520-warehouse-hotfix";
 import { renderProductsListView } from "./products_list.js";
 import { renderProductCardView } from "./product_card.js";
 import { renderDocumentsListView } from "./documents_list.js";
