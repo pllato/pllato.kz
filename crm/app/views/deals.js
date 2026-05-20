@@ -782,6 +782,7 @@ function renderDealModal(d, contacts, stages) {
                 emptyText: "— не назначен —",
               })}
               ${renderCustomFields(d, contacts, employees, stages)}
+              ${!isNew ? renderDealItemsSection(d.id, d.amount) : ""}
               <div class="field field-wide form-buttons">
                 ${!isNew ? `<button type="button" class="btn-ghost danger" id="deleteDeal">${ICONS.trash}<span>Удалить</span></button>` : "<span></span>"}
                 ${isNew
@@ -2035,6 +2036,10 @@ function wireEvents(container) {
     window.__taItems = window.__taItems || {};
     window.__taItems.contactId = listAliveContacts().map(c => ({ id: c.id, name: c.name || "(без имени)", sub: c.company || c.email || c.phone || "" }));
     window.__taItems.assigneeId = listEmployees().map(e => ({ id: e.id, name: e.name, sub: e.email || "" }));
+    if (state.modalDealId) {
+      const dealForItems = Store.get(COLLECTION, state.modalDealId);
+      if (dealForItems) attachDealItemsHandlers(container, state.modalDealId, dealForItems.amount || 0);
+    }
     attachTypeahead(dealForm, {
       onCreate: async (name, query) => {
         if (name === "contactId") {
@@ -2054,6 +2059,7 @@ function wireEvents(container) {
       if (!state.modalDealId) return;
       const d = Store.get(COLLECTION, state.modalDealId);
       if (confirm(`Удалить сделку «${d.title}»?`)) {
+        removeAllDealItemsForDeal(state.modalDealId);
         Store.remove(COLLECTION, state.modalDealId);
         // удалить активности
         Store.list(ACTIVITIES).filter(a => a.dealId === state.modalDealId).forEach(a => Store.remove(ACTIVITIES, a.id));
