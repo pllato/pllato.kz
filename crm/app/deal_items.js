@@ -1,17 +1,22 @@
-// Pllato CRM — Состав заказа в сделке + предварительный заказ для склада.
-// Этап 1.5: статус заказа (draft → preliminary), submit/recall, поиск товара.
-// Следующий этап: согласование на складе → автосписание через warehouse_document.
+// Pllato CRM — Состав заказа в сделке (модалка) + предварительный заказ для склада.
+// UI: компактный summary в карточке сделки → клик «Открыть» → отдельная модалка с таблицей.
+// Статусы: draft (черновик) → preliminary (отправлен на склад).
 
 import { Store } from "./store.js";
 import { listWarehouseProducts, getWarehouseProduct, productSummary } from "./warehouse.js";
 import { currentEmployee } from "./employees.js";
-import { ICONS } from "./icons.js";
 
 const ITEMS = "deal_items";
 const DEALS = "deals";
 
 export const ORDER_STATUS_DRAFT = "draft";
 export const ORDER_STATUS_PRELIMINARY = "preliminary";
+
+// State модалки (один заказ в один момент времени)
+const modalState = {
+  dealId: null,
+  mountEl: null, // элемент модалки в DOM, либо null
+};
 
 // === API: Позиции ===
 
@@ -104,7 +109,7 @@ export function listPreliminaryDealOrders() {
     .sort((a, b) => (b.orderSubmittedAt || 0) - (a.orderSubmittedAt || 0));
 }
 
-// === Render ===
+// === Утилиты ===
 
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -127,6 +132,52 @@ function productLabel(product) {
   return `${product.sku || "—"} · ${product.name || ""}`;
 }
 
+function statusBadgeHtml(status) {
+  if (status === ORDER_STATUS_PRELIMINARY) {
+    return `<span class="dis-status-badge preliminary">Предварительный заказ</span>`;
+  }
+  return `<span class="dis-status-badge draft">Черновик</span>`;
+}
+
+// === RENDER: Компактный summary в карточке сделки ===
+
+export function renderDealItemsSection(dealId) {
+  const deal = Store.get(DEALS, dealId);
+  if (!deal) return "";
+  const items = listDealItems(dealId);
+  const total = dealItemsTotal(dealId);
+  const status = getDealOrderStatus(deal);
+  const itemsWord = items.length === 1 ? "позиция" : (items.length >= 2 && items.length <= 4 ? "позиции" : "позиций");
+  const amountDiff = Math.abs((Number(deal.amount) || 0) - total);
+  const hasMismatch = items.length > 0 && amountDiff > 0.5 && status === ORDER_STATUS_DRAFT;
+
+  return `
+    <div class="field field-wide deal-items-summary" data-deal-items-summary data-deal-id="${escapeAttr(dealId)}">
+      <div class="dis-sum-row">
+        <div class="dis-sum-left">
+          <strong class="dis-sum-title">📦 Состав заказа</strong>
+          ${statusBadgeHtml(status)}
+        </div>
+        <div class="dis-sum-stats">
+          ${items.length > 0
+            ? `${items.length} ${itemsWord} · <strong>${fmtNum(total)} ₸</strong>`
+            : `<span class="muted">пусто</span>`}
+        </div>
+      </div>
+      ${hasMismatch ? `
+        <div class="dis-sum-warning">⚠ Не совпадает с суммой сделки (${fmtNum(deal.amount)} ₸)</div>
+      ` : ""}
+      <div class="dis-sum-actions">
+        <button type="button" class="btn-primary btn-sm" data-deal-items-open>
+          ${items.length > 0 ? "Открыть заказ" : "+ Сформировать заказ"}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// === RENDER: Модалка с полным составом заказа ===
+
 function renderItemRow(item, products, editable) {
   const product = item.productId ? products.find((p) => p.id === item.productId) : null;
   const summary = item.productId ? productSummary(item.productId) : null;
@@ -135,23 +186,21 @@ function renderItemRow(item, products, editable) {
   const stockClass = !item.productId ? "" : (shortage ? "stock-low" : "stock-ok");
   const stockLabel = !item.productId ? "—" : `${fmtNum(stock)} ${escapeHtml(item.unit || "шт")}`;
   const inputDisabled = editable ? "" : "disabled";
-
-  // Typeahead на товар: input + dropdown с фильтрацией
   const initialLabel = product ? productLabel(product) : "";
 
   return `
     <tr data-deal-item-id="${escapeAttr(item.id)}">
-      <td class="dis-product">
-        <div class="dis-typeahead" data-item-id="${escapeAttr(item.id)}">
-          <input type="text" class="dis-ta-input" placeholder="Поиск товара…"
+      <td class="dim-product">
+        <div class="dim-typeahead" data-item-id="${escapeAttr(item.id)}">
+          <input type="text" class="dim-ta-input" placeholder="Поиск товара по SKU или названию…"
                  value="${escapeAttr(initialLabel)}"
                  data-deal-item-typeahead="${escapeAttr(item.id)}"
                  ${inputDisabled}
                  autocomplete="off">
-          <div class="dis-ta-list" data-deal-item-list="${escapeAttr(item.id)}" hidden></div>
+          <div class="dim-ta-list" data-deal-item-list="${escapeAttr(item.id)}" hidden></div>
         </div>
       </td>
-      <td class="dis-stock ${stockClass}" title="${shortage ? "Недостаточно на складе" : "Остаток на складе"}">
+      <td class="dim-stock ${stockClass}" title="${shortage ? "Недостаточно на складе" : "Остаток на складе"}">
         ${stockLabel}
       </td>
       <td class="num">
@@ -162,52 +211,15 @@ function renderItemRow(item, products, editable) {
         <input type="number" min="0" step="100" value="${escapeAttr(item.unitPrice)}"
                data-deal-item-field="unitPrice" data-id="${escapeAttr(item.id)}" ${inputDisabled}>
       </td>
-      <td class="num dis-amount">${fmtNum(item.lineAmount)} ₸</td>
-      <td class="dis-actions">
-        ${editable ? `<button type="button" class="btn-ghost btn-icon btn-sm" data-deal-item-remove data-id="${escapeAttr(item.id)}" title="Удалить позицию">${ICONS.x}</button>` : ""}
+      <td class="num dim-amount">${fmtNum(item.lineAmount)} ₸</td>
+      <td class="dim-row-actions">
+        ${editable ? `<button type="button" class="btn-ghost btn-icon btn-sm" data-deal-item-remove data-id="${escapeAttr(item.id)}" title="Удалить позицию">✕</button>` : ""}
       </td>
     </tr>
   `;
 }
 
-function renderStatusBanner(deal) {
-  const status = getDealOrderStatus(deal);
-  if (status === ORDER_STATUS_PRELIMINARY) {
-    const ts = deal.orderSubmittedAt ? fmtDateTime(deal.orderSubmittedAt) : "";
-    const by = deal.orderSubmittedByName ? ` · ${escapeHtml(deal.orderSubmittedByName)}` : "";
-    return `
-      <div class="dis-banner dis-banner-preliminary">
-        <div class="dis-banner-icon">📦</div>
-        <div class="dis-banner-text">
-          <strong>Предварительный заказ отправлен на склад</strong>
-          <div class="dis-banner-meta">${ts}${by}</div>
-        </div>
-        <button type="button" class="btn-ghost btn-sm" data-deal-order-recall>↩ Вернуть в черновик</button>
-      </div>
-    `;
-  }
-  return "";
-}
-
-function renderActionButtons(deal, items, editable) {
-  const status = getDealOrderStatus(deal);
-  if (status === ORDER_STATUS_DRAFT) {
-    const canSubmit = items.length > 0;
-    return `
-      <div class="dis-actions-bar">
-        <button type="button" class="btn-ghost btn-sm" data-deal-items-add>${ICONS.plus}<span>Позиция</span></button>
-        <div class="dis-spacer"></div>
-        <button type="button" class="btn-primary btn-sm" data-deal-order-submit ${canSubmit ? "" : "disabled"}>
-          📤 Сформировать заказ
-        </button>
-      </div>
-    `;
-  }
-  // Для preliminary действия скрыты — только в баннере recall
-  return "";
-}
-
-export function renderDealItemsSection(dealId) {
+function renderModalHTML(dealId) {
   const deal = Store.get(DEALS, dealId);
   if (!deal) return "";
   const items = listDealItems(dealId);
@@ -216,68 +228,102 @@ export function renderDealItemsSection(dealId) {
   const status = getDealOrderStatus(deal);
   const editable = isOrderEditable(deal);
   const amountDiff = Math.abs((Number(deal.amount) || 0) - total);
-  const showAmountMismatch = items.length > 0 && amountDiff > 0.5 && status === ORDER_STATUS_DRAFT;
+  const showAmountMismatch = items.length > 0 && amountDiff > 0.5;
 
-  const statusBadge = status === ORDER_STATUS_PRELIMINARY
-    ? `<span class="dis-status-badge preliminary">Предварительный заказ</span>`
-    : `<span class="dis-status-badge draft">Черновик</span>`;
+  const itemsWord = items.length === 1 ? "позиция" : (items.length >= 2 && items.length <= 4 ? "позиции" : "позиций");
 
-  return `
-    <div class="field field-wide deal-items-panel" data-deal-items data-deal-id="${escapeAttr(dealId)}">
-      <div class="dip-header">
-        <div class="dip-title">
-          <strong>Состав заказа</strong>
-          ${statusBadge}
-        </div>
-        <div class="dip-summary">
-          ${items.length} ${items.length === 1 ? "позиция" : (items.length >= 2 && items.length <= 4 ? "позиции" : "позиций")} ·
-          <strong class="dip-total">${fmtNum(total)} ₸</strong>
+  const banner = status === ORDER_STATUS_PRELIMINARY ? `
+    <div class="dim-banner">
+      <div class="dim-banner-icon">📦</div>
+      <div class="dim-banner-text">
+        <strong>Предварительный заказ отправлен на склад</strong>
+        <div class="dim-banner-meta">
+          ${fmtDateTime(deal.orderSubmittedAt) || ""}
+          ${deal.orderSubmittedByName ? ` · ${escapeHtml(deal.orderSubmittedByName)}` : ""}
         </div>
       </div>
+      <button type="button" class="btn-ghost btn-sm" data-deal-order-recall>↩ Вернуть в черновик</button>
+    </div>
+  ` : "";
 
-      ${renderStatusBanner(deal)}
-
-      ${items.length === 0 ? `
-        <div class="dis-empty">
-          ${editable
-            ? `Заказ пуст. Нажми «+ Позиция» чтобы добавить товар со склада (поиск по SKU или названию).`
-            : `Заказ пуст.`}
-        </div>
-      ` : `
-        <div class="dis-table-wrap">
-          <table class="dis-table">
-            <thead>
-              <tr>
-                <th class="th-product">Товар</th>
-                <th class="th-stock">Остаток</th>
-                <th class="num th-qty">Кол-во</th>
-                <th class="num th-price">Цена, ₸</th>
-                <th class="num th-amount">Сумма</th>
-                <th class="th-actions"></th>
-              </tr>
-            </thead>
-            <tbody data-deal-items-body>
-              ${items.map((item) => renderItemRow(item, products, editable)).join("")}
-            </tbody>
-          </table>
-        </div>
-        ${showAmountMismatch ? `
-          <div class="dis-warning">
-            ⚠ Итог заказа (${fmtNum(total)} ₸) отличается от суммы сделки (${fmtNum(deal.amount)} ₸) на ${fmtNum(amountDiff)} ₸.
+  return `
+    <div class="dim-backdrop" data-dim-backdrop>
+      <div class="dim-modal" role="dialog" aria-modal="true" aria-labelledby="dimTitle">
+        <header class="dim-header">
+          <div class="dim-header-left">
+            <h2 id="dimTitle">Состав заказа</h2>
+            ${statusBadgeHtml(status)}
           </div>
-        ` : ""}
-      `}
+          <div class="dim-header-right">
+            <span class="dim-stats">
+              ${items.length > 0
+                ? `${items.length} ${itemsWord} · <strong>${fmtNum(total)} ₸</strong>`
+                : `<span class="muted">Заказ пуст</span>`}
+            </span>
+            <button type="button" class="btn-ghost icon-only" data-dim-close aria-label="Закрыть">✕</button>
+          </div>
+        </header>
 
-      ${renderActionButtons(deal, items, editable)}
+        <div class="dim-body">
+          ${banner}
+
+          ${items.length === 0 ? `
+            <div class="dim-empty">
+              <div class="dim-empty-icon">📦</div>
+              <div class="dim-empty-title">Заказ пуст</div>
+              <div class="dim-empty-text">Нажми «+ Позиция» чтобы добавить товар со склада. Поиск работает по SKU и названию.</div>
+            </div>
+          ` : `
+            <table class="dim-table">
+              <thead>
+                <tr>
+                  <th class="dim-th-product">Товар</th>
+                  <th class="dim-th-stock">Остаток</th>
+                  <th class="num dim-th-qty">Кол-во</th>
+                  <th class="num dim-th-price">Цена, ₸</th>
+                  <th class="num dim-th-amount">Сумма</th>
+                  <th class="dim-th-actions"></th>
+                </tr>
+              </thead>
+              <tbody data-dim-body>
+                ${items.map((item) => renderItemRow(item, products, editable)).join("")}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="4" class="num"><strong>Итого:</strong></td>
+                  <td class="num dim-total"><strong>${fmtNum(total)} ₸</strong></td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+
+            ${showAmountMismatch ? `
+              <div class="dim-warning">
+                ⚠ Итог заказа (${fmtNum(total)} ₸) отличается от суммы сделки (${fmtNum(deal.amount)} ₸) на ${fmtNum(amountDiff)} ₸.
+              </div>
+            ` : ""}
+          `}
+        </div>
+
+        <footer class="dim-footer">
+          <div class="dim-footer-left">
+            ${editable ? `
+              <button type="button" class="btn-ghost btn-sm" data-deal-items-add>+ Позиция</button>
+            ` : ""}
+          </div>
+          <div class="dim-footer-right">
+            ${editable && items.length > 0 ? `
+              <button type="button" class="btn-primary" data-deal-order-submit>📤 Сформировать заказ</button>
+            ` : ""}
+            <button type="button" class="btn-ghost" data-dim-close>Закрыть</button>
+          </div>
+        </footer>
+      </div>
     </div>
   `;
 }
 
-// === Typeahead ===
-
-function escapeRegex(str) {
-  return String(str || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+// === Typeahead для строк ===
 
 function filterProductsByQuery(products, query) {
   const q = String(query || "").trim().toLowerCase();
@@ -294,42 +340,34 @@ function filterProductsByQuery(products, query) {
 function renderProductOptions(products, query) {
   const filtered = filterProductsByQuery(products, query);
   if (filtered.length === 0) {
-    return `<div class="dis-ta-empty">Ничего не найдено</div>`;
+    return `<div class="dim-ta-empty">Ничего не найдено по запросу «${escapeHtml(query)}»</div>`;
   }
   return filtered.map((p) => {
     const summary = productSummary(p.id);
     const stock = summary?.total || 0;
     return `
-      <div class="dis-ta-item" data-product-id="${escapeAttr(p.id)}" role="option">
-        <div class="dis-ta-item-main">
-          <span class="dis-ta-sku">${escapeHtml(p.sku || "—")}</span>
-          <span class="dis-ta-name">${escapeHtml(p.name)}</span>
+      <div class="dim-ta-item" data-product-id="${escapeAttr(p.id)}" role="option">
+        <div class="dim-ta-item-main">
+          <span class="dim-ta-sku">${escapeHtml(p.sku || "—")}</span>
+          <span class="dim-ta-name">${escapeHtml(p.name)}</span>
         </div>
-        <div class="dis-ta-item-stock">${fmtNum(stock)} ${escapeHtml(p.unit || "шт")}</div>
+        <div class="dim-ta-item-stock">${fmtNum(stock)} ${escapeHtml(p.unit || "шт")}</div>
       </div>
     `;
   }).join("");
 }
 
 function setupTypeahead(input, list, products, onSelect) {
-  let openList = null;
-
   const open = () => {
     list.hidden = false;
     list.innerHTML = renderProductOptions(products, input.value);
     bindItems();
-    openList = list;
   };
-
-  const close = () => {
-    list.hidden = true;
-    openList = null;
-  };
+  const close = () => { list.hidden = true; };
 
   const bindItems = () => {
-    list.querySelectorAll(".dis-ta-item").forEach((el) => {
+    list.querySelectorAll(".dim-ta-item").forEach((el) => {
       el.addEventListener("mousedown", (e) => {
-        // mousedown а не click чтобы сработать ДО blur
         e.preventDefault();
         const productId = el.dataset.productId;
         const product = products.find((p) => p.id === productId);
@@ -348,30 +386,36 @@ function setupTypeahead(input, list, products, onSelect) {
     bindItems();
     list.hidden = false;
   });
-  input.addEventListener("blur", () => {
-    // Небольшая задержка чтобы click по элементу успел сработать
-    setTimeout(close, 150);
-  });
-  // Escape — закрыть
+  input.addEventListener("blur", () => setTimeout(close, 150));
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      close();
-      input.blur();
-    }
+    if (e.key === "Escape") { close(); input.blur(); }
   });
 }
 
-// === Handlers ===
+// === Управление модалкой ===
 
-function refreshSection(container, dealId) {
-  const section = container.querySelector("[data-deal-items]");
-  if (!section) return;
+function refreshModal() {
+  if (!modalState.dealId || !modalState.mountEl) return;
+  const fresh = document.createElement("div");
+  fresh.innerHTML = renderModalHTML(modalState.dealId);
+  const newRoot = fresh.firstElementChild;
+  if (newRoot) {
+    modalState.mountEl.replaceWith(newRoot);
+    modalState.mountEl = newRoot;
+    wireModalHandlers();
+  }
+}
+
+function refreshSummary() {
+  if (!modalState.dealId) return;
+  const summary = document.querySelector(`[data-deal-items-summary][data-deal-id="${modalState.dealId}"]`);
+  if (!summary) return;
   const wrapper = document.createElement("div");
-  wrapper.innerHTML = renderDealItemsSection(dealId);
+  wrapper.innerHTML = renderDealItemsSection(modalState.dealId);
   const fresh = wrapper.firstElementChild;
   if (fresh) {
-    section.replaceWith(fresh);
-    attachDealItemsHandlers(container, dealId);
+    summary.replaceWith(fresh);
+    attachSummaryHandlers(fresh.parentElement || document.body, modalState.dealId);
   }
 }
 
@@ -383,53 +427,61 @@ function debounce(fn, ms) {
   };
 }
 
-export function attachDealItemsHandlers(container, dealId) {
-  const section = container.querySelector("[data-deal-items]");
-  if (!section) return;
+function wireModalHandlers() {
+  const root = modalState.mountEl;
+  if (!root) return;
+  const dealId = modalState.dealId;
   const products = listWarehouseProducts({ includeArchived: false });
 
-  // Кнопка "+ Позиция"
-  section.querySelector("[data-deal-items-add]")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    createDealItem(dealId, {});
-    refreshSection(container, dealId);
+  // Закрытие
+  const closeModal = () => closeDealItemsModal();
+  root.querySelectorAll("[data-dim-close]").forEach((btn) => btn.addEventListener("click", closeModal));
+  root.querySelector("[data-dim-backdrop]")?.addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeModal();
   });
 
-  // Удаление позиции
-  section.querySelectorAll("[data-deal-item-remove]").forEach((btn) => {
+  // Добавить позицию
+  root.querySelector("[data-deal-items-add]")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    createDealItem(dealId, {});
+    refreshModal();
+  });
+
+  // Удалить позицию
+  root.querySelectorAll("[data-deal-item-remove]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       const id = btn.dataset.id;
       if (!id) return;
       removeDealItem(id);
-      refreshSection(container, dealId);
+      refreshModal();
     });
   });
 
-  // Typeahead на каждой строке
-  section.querySelectorAll(".dis-typeahead").forEach((wrap) => {
+  // Typeahead в строках
+  root.querySelectorAll(".dim-typeahead").forEach((wrap) => {
     const itemId = wrap.dataset.itemId;
-    const input = wrap.querySelector(".dis-ta-input");
-    const list = wrap.querySelector(".dis-ta-list");
+    const input = wrap.querySelector(".dim-ta-input");
+    const list = wrap.querySelector(".dim-ta-list");
     if (!input || !list || !itemId) return;
     setupTypeahead(input, list, products, (productId) => {
       updateDealItem(itemId, { productId });
-      refreshSection(container, dealId);
+      refreshModal();
     });
   });
 
-  // Изменение qty/unitPrice — debounced
+  // Qty / unitPrice — debounced
   const updateAmounts = (input) => {
     const id = input.dataset.id;
     const item = Store.get(ITEMS, id);
     if (!item) return;
     const row = input.closest("tr");
     if (row) {
-      const amountCell = row.querySelector(".dis-amount");
+      const amountCell = row.querySelector(".dim-amount");
       if (amountCell) amountCell.textContent = `${fmtNum(item.lineAmount)} ₸`;
     }
-    const totalEl = section.querySelector(".dip-total");
-    if (totalEl) totalEl.textContent = `${fmtNum(dealItemsTotal(dealId))} ₸`;
+    const totalCell = root.querySelector(".dim-total");
+    if (totalCell) totalCell.innerHTML = `<strong>${fmtNum(dealItemsTotal(dealId))} ₸</strong>`;
   };
 
   const onNum = debounce((input) => {
@@ -441,25 +493,92 @@ export function attachDealItemsHandlers(container, dealId) {
     updateAmounts(input);
   }, 250);
 
-  section.querySelectorAll('input[data-deal-item-field="qty"], input[data-deal-item-field="unitPrice"]')
+  root.querySelectorAll('input[data-deal-item-field="qty"], input[data-deal-item-field="unitPrice"]')
     .forEach((input) => input.addEventListener("input", () => onNum(input)));
 
-  // Submit order
-  section.querySelector("[data-deal-order-submit]")?.addEventListener("click", (e) => {
+  // Submit / recall
+  root.querySelector("[data-deal-order-submit]")?.addEventListener("click", (e) => {
     e.preventDefault();
     try {
       submitDealOrder(dealId);
-      refreshSection(container, dealId);
+      refreshModal();
     } catch (err) {
       alert(err?.message || "Не удалось сформировать заказ");
     }
   });
-
-  // Recall order
-  section.querySelector("[data-deal-order-recall]")?.addEventListener("click", (e) => {
+  root.querySelector("[data-deal-order-recall]")?.addEventListener("click", (e) => {
     e.preventDefault();
     if (!confirm("Вернуть заказ в черновик? Со склада он исчезнет из предварительных заказов.")) return;
     recallDealOrder(dealId);
-    refreshSection(container, dealId);
+    refreshModal();
   });
+
+  // Escape для закрытия модалки
+  if (!modalState._escHandler) {
+    modalState._escHandler = (e) => {
+      if (e.key === "Escape") closeModal();
+    };
+    document.addEventListener("keydown", modalState._escHandler);
+  }
+}
+
+export function openDealItemsModal(dealId) {
+  if (modalState.mountEl) closeDealItemsModal();
+  modalState.dealId = dealId;
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = renderModalHTML(dealId);
+  const root = wrapper.firstElementChild;
+  if (!root) return;
+  document.body.appendChild(root);
+  modalState.mountEl = root;
+  wireModalHandlers();
+  // Фокус на input если есть пустая позиция
+  setTimeout(() => {
+    const firstInput = root.querySelector(".dim-ta-input:not([disabled])");
+    if (firstInput && !firstInput.value) firstInput.focus();
+  }, 50);
+}
+
+export function closeDealItemsModal() {
+  if (modalState.mountEl) {
+    modalState.mountEl.remove();
+    modalState.mountEl = null;
+  }
+  if (modalState._escHandler) {
+    document.removeEventListener("keydown", modalState._escHandler);
+    modalState._escHandler = null;
+  }
+  const dealId = modalState.dealId;
+  modalState.dealId = null;
+  // Обновим summary в карточке сделки
+  if (dealId) {
+    const summary = document.querySelector(`[data-deal-items-summary][data-deal-id="${dealId}"]`);
+    if (summary) {
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = renderDealItemsSection(dealId);
+      const fresh = wrapper.firstElementChild;
+      if (fresh) {
+        const parent = summary.parentElement;
+        summary.replaceWith(fresh);
+        if (parent) attachSummaryHandlers(parent, dealId);
+      }
+    }
+  }
+}
+
+// === Handlers для summary в карточке сделки ===
+
+function attachSummaryHandlers(container, dealId) {
+  const summary = container.querySelector(`[data-deal-items-summary][data-deal-id="${dealId}"]`)
+                  || container.querySelector("[data-deal-items-summary]");
+  if (!summary) return;
+  summary.querySelector("[data-deal-items-open]")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openDealItemsModal(dealId);
+  });
+}
+
+// Главный экспорт для интеграции в renderDealModal (deals.js)
+export function attachDealItemsHandlers(container, dealId) {
+  attachSummaryHandlers(container, dealId);
 }
