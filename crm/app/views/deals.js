@@ -24,6 +24,7 @@ import { FIELD_TYPES, getDealFields, saveDealFields, newFieldId, newOptionId, ge
 import { openCommunicate } from "../communicate.js";
 import { listEmployees, getEmployee, currentEmployee, avatar, initialsOf } from "../employees.js";
 import { renderTypeahead, attachTypeahead } from "../typeahead.js";
+import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal } from "../deal_items.js";
 import { listChannels } from "../channels.js";
 import { renderCalls } from "./calls.js";
 import { apiFetch } from "../auth.js";
