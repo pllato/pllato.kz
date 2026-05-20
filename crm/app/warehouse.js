@@ -208,8 +208,7 @@ export function ensureWarehouseSeed() {
 export function migrateWarehouseLegacyCollections() {
   const flagKey = "pllato_warehouse_rename_v1";
   if (localStorage.getItem(flagKey) === "1") return;
-  // В этой ветке legacy-коллекции уже не используются.
-  // Оставляем idempotent-хук, чтобы не падал импорт в renderWarehouse.
+  // Legacy-коллекции уже переведены; оставляем идемпотентный хук для совместимости.
   localStorage.setItem(flagKey, "1");
 }
 
