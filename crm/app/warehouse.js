@@ -934,3 +934,306 @@ export function importSummaryConflict(expectedBalance, actualBalance) {
   const conflict = byPercent > 0.01 || diff > 5;
   return { conflict, diff, byPercent };
 }
+
+// === Безопасный bulk-импорт складских данных ===
+//
+// Большие объёмы (~6000–50000 записей) НЕЛЬЗЯ грузить через Store.create —
+// он на каждом вызове перечитывает и переписывает growing-массивы в localStorage
+// (квадратичная сложность) и наполняет push-очередь синка с Worker (ещё O(N²)).
+// На 30k движений это ~ГБ работы CPU и убивает вкладку (и в худшем случае весь Mac).
+//
+// Эта функция работает иначе:
+//   1. Один раз читает каждую целевую коллекцию из localStorage.
+//   2. Накапливает новые объекты в JS-массивах в памяти.
+//   3. ОДНИМ setItem пишет всю коллекцию обратно (4 setItem на весь импорт).
+//   4. Не трогает push-очередь синхронизации. Импортированные данные живут
+//      ТОЛЬКО локально; если потребуется залить их в Cloudflare Worker —
+//      это делается отдельным управляемым действием, не автоматически.
+//
+// API:
+//   importWarehouseBatch(payload, onProgress?) — async, возвращает Promise<result>
+//   payload = { products, lots, documents, movements }
+//   onProgress({ stage, percent, message }) — необязательный колбэк
+//
+// Гарантии:
+//   - Между этапами вызывается await yieldToBrowser() (микропауза),
+//     чтобы прогресс-бар успевал перерисоваться и браузер не «замораживался».
+//   - На больших массивах движений микропауза каждые 1500 объектов.
+//   - Дубликаты товаров (по SKU без учёта регистра) пропускаются,
+//     уже существующие id переиспользуются для последующих привязок lots/movements.
+//   - Если не нашлось productId/lotId для движения — пишем в conflicts и пропускаем.
+
+const STORE_NS = "pllato_core_";
+
+function importReadCollection(name) {
+  try {
+    const raw = localStorage.getItem(STORE_NS + name);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function importWriteCollection(name, items) {
+  localStorage.setItem(STORE_NS + name, JSON.stringify(items));
+}
+
+function importYield() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function makeImportIdGenerator() {
+  const base = Date.now().toString(36);
+  let counter = 0;
+  return () => `imp_${base}_${(counter++).toString(36)}`;
+}
+
+export async function importWarehouseBatch(payload = {}, onProgress) {
+  const progress = typeof onProgress === "function" ? onProgress : () => {};
+  const result = {
+    productsCreated: 0,
+    productsReused: 0,
+    productsSkipped: 0,
+    lotsCreated: 0,
+    documentsCreated: 0,
+    movementsCreated: 0,
+    conflicts: [],
+  };
+
+  const products = Array.isArray(payload.products) ? payload.products : [];
+  const lots = Array.isArray(payload.lots) ? payload.lots : [];
+  const documents = Array.isArray(payload.documents) ? payload.documents : [];
+  const movements = Array.isArray(payload.movements) ? payload.movements : [];
+
+  const nextId = makeImportIdGenerator();
+  const now = Date.now();
+
+  progress({ stage: "read", percent: 2, message: "Чтение текущих данных склада…" });
+  await importYield();
+
+  const productsArr = importReadCollection(WH.products);
+  const lotsArr = importReadCollection(WH.lots);
+  const documentsArr = importReadCollection(WH.documents);
+  const movementsArr = importReadCollection(WH.movements);
+
+  // Индекс по SKU (без регистра) для дедупликации товаров
+  const skuToId = new Map();
+  productsArr.forEach((p) => {
+    if (p && p.sku) skuToId.set(String(p.sku).toLowerCase(), p.id);
+  });
+
+  // === Товары ===
+  progress({ stage: "products", percent: 8, message: `Товары (${products.length})…` });
+  await importYield();
+
+  const productImportedIdToRealId = new Map();
+  for (let i = 0; i < products.length; i++) {
+    const p = products[i];
+    const skuKey = String(p.sku || "").toLowerCase();
+    if (!skuKey) {
+      result.productsSkipped += 1;
+      result.conflicts.push({ kind: "product", reason: "no_sku", item: p });
+      continue;
+    }
+    if (skuToId.has(skuKey)) {
+      productImportedIdToRealId.set(p.importedId, skuToId.get(skuKey));
+      result.productsReused += 1;
+      continue;
+    }
+    const id = nextId();
+    productImportedIdToRealId.set(p.importedId, id);
+    skuToId.set(skuKey, id);
+    productsArr.push({
+      ...p,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    });
+    result.productsCreated += 1;
+  }
+
+  // === Партии (LOT) ===
+  progress({ stage: "lots", percent: 22, message: `Партии (${lots.length})…` });
+  await importYield();
+
+  const lotImportedIdToRealId = new Map();
+  for (let i = 0; i < lots.length; i++) {
+    const lot = lots[i];
+    const productId = productImportedIdToRealId.get(lot.productImportedId) || lot.productId || null;
+    if (!productId) {
+      result.conflicts.push({ kind: "lot", reason: "no_product", item: lot });
+      continue;
+    }
+    const id = nextId();
+    lotImportedIdToRealId.set(lot.importedId, id);
+    lotsArr.push({
+      ...lot,
+      id,
+      productId,
+      productImportedId: undefined,
+      createdAt: now,
+      updatedAt: now,
+    });
+    result.lotsCreated += 1;
+  }
+
+  // === Документы ===
+  progress({ stage: "documents", percent: 38, message: `Документы (${documents.length})…` });
+  await importYield();
+
+  const docImportedIdToRealId = new Map();
+  for (let i = 0; i < documents.length; i++) {
+    const doc = documents[i];
+    const id = nextId();
+    docImportedIdToRealId.set(doc.importedId, id);
+
+    const items = (Array.isArray(doc.items) ? doc.items : []).map((it) => ({
+      ...it,
+      productId: productImportedIdToRealId.get(it.productImportedId) || it.productId || null,
+      lotId: lotImportedIdToRealId.get(it.lotImportedId) || it.lotId || null,
+      productImportedId: undefined,
+      lotImportedId: undefined,
+    }));
+
+    documentsArr.push({
+      ...doc,
+      id,
+      items,
+      createdAt: now,
+      updatedAt: now,
+    });
+    result.documentsCreated += 1;
+
+    if (i > 0 && i % 2000 === 0) {
+      progress({
+        stage: "documents",
+        percent: 38 + Math.floor((i / Math.max(documents.length, 1)) * 12),
+        message: `Документы ${i} из ${documents.length}…`,
+      });
+      await importYield();
+    }
+  }
+
+  // === Движения (самое большое — спим почаще) ===
+  progress({ stage: "movements", percent: 52, message: `Движения (${movements.length})…` });
+  await importYield();
+
+  const movementsTotal = movements.length;
+  for (let i = 0; i < movementsTotal; i++) {
+    const m = movements[i];
+    const productId = productImportedIdToRealId.get(m.productImportedId) || m.productId || null;
+    const lotId = lotImportedIdToRealId.get(m.lotImportedId) || m.lotId || null;
+
+    if (!productId || !lotId) {
+      result.conflicts.push({ kind: "movement", reason: "missing_refs", item: m });
+      continue;
+    }
+
+    const docId = docImportedIdToRealId.get(m.docImportedId) || m.docId || null;
+    movementsArr.push({
+      ...m,
+      id: nextId(),
+      productId,
+      lotId,
+      docId,
+      productImportedId: undefined,
+      lotImportedId: undefined,
+      docImportedId: undefined,
+      createdAt: now + i,
+      updatedAt: now + i,
+    });
+    result.movementsCreated += 1;
+
+    if (i > 0 && i % 1500 === 0) {
+      const pct = 52 + Math.floor((i / Math.max(movementsTotal, 1)) * 35);
+      progress({
+        stage: "movements",
+        percent: pct,
+        message: `Движения ${i.toLocaleString("ru-RU")} из ${movementsTotal.toLocaleString("ru-RU")}…`,
+      });
+      await importYield();
+    }
+  }
+
+  // === Запись в localStorage — по одному setItem на коллекцию ===
+  // Сначала делаем СНЭПШОТ существующих коллекций, чтобы откатиться при ошибке.
+  // Запись происходит в порядке зависимостей; при сбое восстанавливаем всё.
+  progress({ stage: "save", percent: 88, message: "Подготовка к сохранению…" });
+  await importYield();
+
+  const snapshot = {
+    [WH.products]: localStorage.getItem(STORE_NS + WH.products),
+    [WH.lots]: localStorage.getItem(STORE_NS + WH.lots),
+    [WH.documents]: localStorage.getItem(STORE_NS + WH.documents),
+    [WH.movements]: localStorage.getItem(STORE_NS + WH.movements),
+  };
+
+  const restoreSnapshot = () => {
+    for (const [key, value] of Object.entries(snapshot)) {
+      try {
+        if (value === null) localStorage.removeItem(STORE_NS + key);
+        else localStorage.setItem(STORE_NS + key, value);
+      } catch (e) {
+        console.error("[warehouse-import] не удалось откатить", key, e);
+      }
+    }
+  };
+
+  // Оценка размера перед записью — сериализуем заранее.
+  // Если QuotaExceededError при setItem — все данные предыдущих коллекций уже записаны,
+  // нужен откат через snapshot.
+  let productsJson, lotsJson, documentsJson, movementsJson;
+  try {
+    progress({ stage: "save", percent: 89, message: "Сериализация товаров…" });
+    await importYield();
+    productsJson = JSON.stringify(productsArr);
+
+    progress({ stage: "save", percent: 91, message: "Сериализация партий…" });
+    await importYield();
+    lotsJson = JSON.stringify(lotsArr);
+
+    progress({ stage: "save", percent: 93, message: "Сериализация документов…" });
+    await importYield();
+    documentsJson = JSON.stringify(documentsArr);
+
+    progress({ stage: "save", percent: 95, message: "Сериализация движений…" });
+    await importYield();
+    movementsJson = JSON.stringify(movementsArr);
+  } catch (err) {
+    throw new Error("Ошибка сериализации данных: " + (err?.message || err));
+  }
+
+  const totalSize = productsJson.length + lotsJson.length + documentsJson.length + movementsJson.length;
+  result.bytesWritten = totalSize;
+
+  // Запись с откатом при ошибке
+  try {
+    progress({ stage: "save", percent: 96, message: "Сохранение товаров…" });
+    await importYield();
+    localStorage.setItem(STORE_NS + WH.products, productsJson);
+
+    progress({ stage: "save", percent: 97, message: "Сохранение партий…" });
+    await importYield();
+    localStorage.setItem(STORE_NS + WH.lots, lotsJson);
+
+    progress({ stage: "save", percent: 98, message: "Сохранение документов…" });
+    await importYield();
+    localStorage.setItem(STORE_NS + WH.documents, documentsJson);
+
+    progress({ stage: "save", percent: 99, message: "Сохранение движений…" });
+    await importYield();
+    localStorage.setItem(STORE_NS + WH.movements, movementsJson);
+  } catch (err) {
+    restoreSnapshot();
+    const mb = (totalSize / 1024 / 1024).toFixed(2);
+    if (err && err.name === "QuotaExceededError") {
+      throw new Error(`Браузер отказал в записи: попытка сохранить ${mb} МБ превысила лимит localStorage (~10 МБ в Chrome). Импорт откатан. Попробуйте загрузить меньший файл (например, только ИП) или вначале очистить старые данные склада.`);
+    }
+    throw new Error(`Ошибка сохранения (${mb} МБ): ${err?.message || err}. Состояние отката восстановлено.`);
+  }
+
+  progress({ stage: "done", percent: 100, message: "Импорт завершён" });
+  return result;
+}

@@ -88,29 +88,40 @@ export function renderProductCardView(productId, canEdit) {
 
   return `
     <section class="whm-section">
-      <div class="product-head whm-product-head">
-        <div>
-          <div class="product-title-row">
-            <span class="product-name">${escapeHtml(product.name)}</span>
-            <span class="chip mono">${escapeHtml(product.sku)}</span>
-            <span class="chip chip-accent">${escapeHtml(product.entity || "—")}</span>
+      <div class="whm-card" style="padding:16px 18px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap">
+          <div style="flex:1;min-width:280px">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+              <span style="font-size:18px;font-weight:600;color:var(--text)">${escapeHtml(product.name)}</span>
+              <span class="chip mono">${escapeHtml(product.sku)}</span>
+              <span class="chip chip-accent">${escapeHtml(product.entity || "—")}</span>
+            </div>
+            <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--text-muted);margin-bottom:14px">
+              <span>Категория: <strong style="color:var(--text)">${escapeHtml(product.category || "—")}</strong></span>
+              <span>Фасовка: <strong style="color:var(--text)">${escapeHtml(product.pack || "—")}</strong></span>
+              <span>Ед.: <strong style="color:var(--text)">${escapeHtml(product.unit || "шт")}</strong></span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button type="button" class="btn btn-sm" data-wh-new-doc="receipt" ${canEdit ? "" : "disabled"}>Приход</button>
+              <button type="button" class="btn-ghost btn-sm" data-wh-new-doc="sale_invoice" ${canEdit ? "" : "disabled"}>Расход</button>
+              <button type="button" class="btn-ghost btn-sm" data-wh-new-doc="writeoff_act" ${canEdit ? "" : "disabled"}>Списать</button>
+              <a class="btn-ghost btn-sm" href="#warehouse/products">Назад</a>
+            </div>
           </div>
-          <div class="product-meta">
-            <span>Категория: <strong>${escapeHtml(product.category || "—")}</strong></span>
-            <span>Фасовка: <strong>${escapeHtml(product.pack || "—")}</strong></span>
-            <span>Ед.: <strong>${escapeHtml(product.unit || "шт")}</strong></span>
+          <div style="display:flex;gap:14px;flex-wrap:wrap">
+            <div style="min-width:120px;padding:10px 14px;background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim)">Общий остаток</div>
+              <div style="font-size:22px;font-weight:700;color:var(--text);margin-top:2px">${num(summary.total)}</div>
+            </div>
+            <div style="min-width:120px;padding:10px 14px;background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim)">Партий с остатком</div>
+              <div style="font-size:22px;font-weight:700;color:var(--text);margin-top:2px">${num(summary.activeLots)}</div>
+            </div>
+            <div style="min-width:120px;padding:10px 14px;background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim)">Всего LOT</div>
+              <div style="font-size:22px;font-weight:700;color:var(--text);margin-top:2px">${num(lots.length)}</div>
+            </div>
           </div>
-          <div class="product-actions">
-            <button type="button" class="btn" data-wh-new-doc="receipt" ${canEdit ? "" : "disabled"}>${ICONS.truckIn}<span>Приход</span></button>
-            <button type="button" class="btn-ghost" data-wh-new-doc="sale_invoice" ${canEdit ? "" : "disabled"}>${ICONS.truckOut}<span>Расход</span></button>
-            <button type="button" class="btn-ghost" data-wh-new-doc="writeoff_act" ${canEdit ? "" : "disabled"}>${ICONS.alertTriangle}<span>Списать</span></button>
-            <a class="btn-ghost" href="#warehouse/products">Назад</a>
-          </div>
-        </div>
-        <div class="product-kpis">
-          <div class="product-kpi"><div class="product-kpi-label">Общий остаток</div><div class="product-kpi-value">${num(summary.total)}</div></div>
-          <div class="product-kpi"><div class="product-kpi-label">Партий с остатком</div><div class="product-kpi-value">${num(summary.activeLots)}</div></div>
-          <div class="product-kpi"><div class="product-kpi-label">Всего LOT</div><div class="product-kpi-value">${num(lots.length)}</div></div>
         </div>
       </div>
 

@@ -14,7 +14,7 @@ import {
   postWarehouseDocument,
   cancelWarehouseDocument,
   autoSplitDocumentItems,
-} from "../../warehouse.js?v=20260520-warehouse-hotfix";
+} from "../../warehouse.js";
 import { renderProductsListView } from "./products_list.js";
 import { renderProductCardView } from "./product_card.js";
 import { renderDocumentsListView } from "./documents_list.js";
@@ -26,7 +26,7 @@ import {
   isOutType,
 } from "./document_form.js";
 import { renderWarehouseReportsView } from "./reports.js";
-import { renderWarehouseImportView } from "./import_xlsx.js";
+import { renderWarehouseImportView, initWarehouseImportView } from "./import_xlsx.js";
 
 const ui = {
   productQuery: "",
@@ -442,4 +442,10 @@ export function renderWarehouse(container) {
   `;
 
   wireWarehouseEvents(container, route, editable);
+
+  // Подключаем события импортного экрана, если мы на /import.
+  // Idempotent: повторный вызов на одной DOM-ноде не дублирует слушателей.
+  if (route.page === "import") {
+    initWarehouseImportView(container);
+  }
 }
