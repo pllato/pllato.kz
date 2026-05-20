@@ -1687,10 +1687,22 @@ function wireEvents(container) {
     });
   });
 
-  container.querySelector("#crmGlobalSearch")?.addEventListener("input", (e) => {
-    state.crmSearch = e.target.value || "";
-    renderDeals(container);
-  });
+  (() => {
+    const searchEl = container.querySelector("#crmGlobalSearch");
+    if (!searchEl) return;
+    let debounce = null;
+    searchEl.addEventListener("input", () => {
+      const v = searchEl.value || "";
+      const caretPos = typeof searchEl.selectionStart === "number" ? searchEl.selectionStart : v.length;
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        state.crmSearch = v;
+        renderDeals(container);
+        const newEl = container.querySelector("#crmGlobalSearch");
+        if (newEl) { newEl.focus(); try { newEl.setSelectionRange(caretPos, caretPos); } catch (_) {} }
+      }, 220);
+    });
+  })();
 
   container.querySelector("#clearCrmSearch")?.addEventListener("click", () => {
     state.crmSearch = "";

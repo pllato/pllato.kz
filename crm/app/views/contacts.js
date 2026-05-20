@@ -2141,13 +2141,22 @@ function closeContactForm() {
 }
 
 function wireEvents(container) {
-  container.querySelector("#contactSearch")?.addEventListener("input", (e) => {
-    state.search = e.target.value || "";
-    renderContacts(container);
-    const el = container.querySelector("#contactSearch");
-    el?.focus();
-    el?.setSelectionRange(state.search.length, state.search.length);
-  });
+  (() => {
+    const searchEl = container.querySelector("#contactSearch");
+    if (!searchEl) return;
+    let debounce = null;
+    searchEl.addEventListener("input", () => {
+      const v = searchEl.value || "";
+      const caretPos = typeof searchEl.selectionStart === "number" ? searchEl.selectionStart : v.length;
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        state.search = v;
+        renderContacts(container);
+        const newEl = container.querySelector("#contactSearch");
+        if (newEl) { newEl.focus(); try { newEl.setSelectionRange(caretPos, caretPos); } catch (_) {} }
+      }, 220);
+    });
+  })();
 
   container.querySelectorAll("[data-contacts-view]").forEach((btn) => {
     btn.addEventListener("click", () => {
