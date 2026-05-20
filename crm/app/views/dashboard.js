@@ -1,388 +1,578 @@
-import { Store } from "../store.js";
-import { ICONS } from "../icons.js";
-import { getStages, findStage } from "../stages.js";
-import { getEmployee, avatar } from "../employees.js";
+// Pllato CRM — Дашборд v3: отчёты на основе истории переходов между стадиями.
+// Источник данных: коллекция deal_activities, события type="stage" с fromStage/toStage/ts.
+// Chart.js через CDN (см. index.html).
 
-const PERIOD_KEY = "pllato_dashboard_period";
+import { Store } from "../store.js";
+import { listEmployees } from "../employees.js";
+import { getPipelines } from "../pipelines.js";
+
+const PERIOD_KEY     = "pllato_dashboard_period";
+const REPORT_KEY     = "pllato_dashboard_report";
+const RANGE_KEY      = "pllato_dashboard_range";
+const MANAGER_KEY    = "pllato_dashboard_manager";
+const DEMO_MODE_KEY  = "pllato_dashboard_demo_modes";
+const BACKFILL_FLAG  = "pllato_stage_events_backfill_v1";
 
 function escape(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-function fmtAmount(n) {
-  if (!n && n !== 0) return "—";
-  return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n)} ₸`;
-}
+// ─── Catalog ────────────────────────────────────────────────────────
 
-function fmtAmountShort(n) {
-  if (!n) return "0";
-  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (Math.abs(n) >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return String(Math.round(n));
-}
+const REPORTS = [
+  { id: "calls",            title: "Кол-во звонков",           unit: "шт",  color: "#3b82f6" },
+  { id: "talk_traffic",     title: "Длительность разговоров",  unit: "мин", color: "#06b6d4" },
+  { id: "kp_sent",          title: "КП отправлено",            unit: "шт",  color: "#a855f7" },
+  { id: "quotes",           title: "Запросы на просчёт",       unit: "шт",  color: "#ec4899" },
+  { id: "contracts",        title: "Договоры",                 unit: "шт",  color: "#b8895a" },
+  { id: "payments",         title: "Оплаты",                   unit: "шт",  color: "#22c55e" },
+  { id: "revenue",          title: "Выручка",                  unit: "₸",   color: "#15803d" },
+  { id: "plan_fact",        title: "План / факт",              unit: "%",   color: "#f59e0b" },
+  { id: "new_clients",      title: "Новые клиенты",            unit: "шт",  color: "#06b6d4" },
+  { id: "avg_check",        title: "Средний чек",              unit: "₸",   color: "#a855f7" },
+  { id: "items_per_check",  title: "Позиций в чеке",           unit: "шт",  color: "#3b82f6" },
+  { id: "churn",            title: "Отток клиентов",           unit: "%",   color: "#ef4444" },
+  { id: "abc_xyz",          title: "ABC-XYZ анализ",           unit: "—",   color: "#5d6b85" },
+];
 
-function fmtRel(ts) {
-  if (!ts) return "";
-  const diff = Date.now() - ts;
-  const m = Math.floor(diff / 60000);
-  const h = Math.floor(diff / 3600000);
-  const d = Math.floor(diff / 86400000);
-  if (m < 1) return "только что";
-  if (m < 60) return `${m} мин назад`;
-  if (h < 24) return `${h} ч назад`;
-  if (d < 7) return `${d} дн назад`;
-  return new Date(ts).toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
-}
+const NOT_IMPLEMENTED_REAL = new Set(["talk_traffic", "plan_fact", "items_per_check", "churn", "abc_xyz"]);
 
-function startOfDay(ts) {
-  const d = new Date(ts);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
-function addDays(ts, days) {
-  return ts + days * 86400000;
-}
-
-function pluralRu(n, one, few, many) {
-  const v = Math.abs(n) % 100;
-  const d = v % 10;
-  if (v > 10 && v < 20) return many;
-  if (d > 1 && d < 5) return few;
-  if (d === 1) return one;
-  return many;
-}
-
-function isWinStage(stage) {
-  const key = `${stage?.id || ""} ${stage?.title || ""}`.toLowerCase();
-  return key.includes("won") || key.includes("win") || key.includes("выиг");
-}
-
-function isLossStage(stage) {
-  const key = `${stage?.id || ""} ${stage?.title || ""}`.toLowerCase();
-  return key.includes("lost") || key.includes("loss") || key.includes("проиг");
-}
-
-function readPeriod() {
-  const value = Number(localStorage.getItem(PERIOD_KEY) || 14);
-  return [7, 14, 30].includes(value) ? value : 14;
-}
-
-function savePeriod(period) {
-  localStorage.setItem(PERIOD_KEY, String(period));
-}
+// ─── State ──────────────────────────────────────────────────────────
 
 const state = {
-  period: readPeriod(),
+  activeReportId: null,
+  period: null,
+  rangeFrom: null,
+  rangeTo: null,
+  managerFilter: "all",
+  demoModes: {},
 };
 
-function daysRange(period) {
-  const today = startOfDay(Date.now());
-  const start = addDays(today, -(period - 1));
-  return Array.from({ length: period }, (_, i) => addDays(start, i));
+function loadState() {
+  state.activeReportId = localStorage.getItem(REPORT_KEY) || "revenue";
+  if (!REPORTS.find((r) => r.id === state.activeReportId)) state.activeReportId = "revenue";
+  state.period = localStorage.getItem(PERIOD_KEY) || "day";
+  if (!["day", "week", "month"].includes(state.period)) state.period = "day";
+  state.managerFilter = localStorage.getItem(MANAGER_KEY) || "all";
+  try {
+    const raw = localStorage.getItem(RANGE_KEY);
+    const obj = raw ? JSON.parse(raw) : null;
+    if (obj && obj.from && obj.to) { state.rangeFrom = obj.from; state.rangeTo = obj.to; }
+  } catch (_) {}
+  if (!state.rangeFrom || !state.rangeTo) {
+    [state.rangeFrom, state.rangeTo] = defaultRange(state.period);
+  }
+  try {
+    const raw = localStorage.getItem(DEMO_MODE_KEY);
+    state.demoModes = raw ? JSON.parse(raw) : {};
+    if (typeof state.demoModes !== "object" || !state.demoModes) state.demoModes = {};
+  } catch (_) { state.demoModes = {}; }
+  for (const id of NOT_IMPLEMENTED_REAL) {
+    if (typeof state.demoModes[id] === "undefined") state.demoModes[id] = true;
+  }
 }
 
-function stageEventHistory() {
-  const map = new Map();
-  Store.list("deal_activities")
-    .filter((a) => a.type === "stage" && a.dealId)
-    .sort((a, b) => (a.ts || a.createdAt || 0) - (b.ts || b.createdAt || 0))
-    .forEach((a) => {
-      if (!map.has(a.dealId)) map.set(a.dealId, []);
-      map.get(a.dealId).push(a);
-    });
-  return map;
+function persistState() {
+  try {
+    localStorage.setItem(REPORT_KEY, state.activeReportId);
+    localStorage.setItem(PERIOD_KEY, state.period);
+    localStorage.setItem(RANGE_KEY, JSON.stringify({ from: state.rangeFrom, to: state.rangeTo }));
+    localStorage.setItem(MANAGER_KEY, state.managerFilter);
+    localStorage.setItem(DEMO_MODE_KEY, JSON.stringify(state.demoModes));
+  } catch (_) {}
 }
 
-function stageAtTime(deal, history, dayEndTs) {
-  if ((deal.createdAt || 0) > dayEndTs) return null;
-  if (!history || history.length === 0) return deal.stage;
+function isDemoMode(reportId) { return Boolean(state.demoModes[reportId]); }
 
-  let stage = history[0].fromStage || deal.stage;
-  for (const event of history) {
-    const ts = event.ts || event.createdAt || 0;
-    if (ts <= dayEndTs) {
-      stage = event.toStage || stage;
-    } else {
-      break;
+// ─── Time bucketing ─────────────────────────────────────────────────
+
+function startOfDay(ts)   { const d = new Date(ts); d.setHours(0,0,0,0); return d.getTime(); }
+function startOfWeek(ts)  { const d = new Date(ts); d.setHours(0,0,0,0); const dy = d.getDay() || 7; d.setDate(d.getDate() - dy + 1); return d.getTime(); }
+function startOfMonth(ts) { const d = new Date(ts); d.setHours(0,0,0,0); d.setDate(1); return d.getTime(); }
+function bucketStart(ts, p) { return p === "month" ? startOfMonth(ts) : (p === "week" ? startOfWeek(ts) : startOfDay(ts)); }
+function bucketNext(ts, p) {
+  if (p === "month") { const d = new Date(ts); d.setMonth(d.getMonth() + 1); return d.getTime(); }
+  if (p === "week") return ts + 7 * 86400000;
+  return ts + 86400000;
+}
+function formatBucket(ts, p) {
+  const d = new Date(ts);
+  if (p === "month") return d.toLocaleDateString("ru-RU", { month: "short", year: "2-digit" });
+  return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function generateBuckets(fromTs, toTs, period) {
+  const buckets = [];
+  let cur = bucketStart(fromTs, period);
+  while (cur <= toTs && buckets.length < 366) { buckets.push(cur); cur = bucketNext(cur, period); }
+  return buckets;
+}
+function defaultRange(period) {
+  const to = Date.now();
+  if (period === "month") return [to - 365 * 86400000, to];
+  if (period === "week")  return [to - 90 * 86400000, to];
+  return [to - 30 * 86400000, to];
+}
+
+// ─── Stage lookup across all pipelines ──────────────────────────────
+
+let _stagesIndex = null;
+function buildStagesIndex() {
+  const m = new Map();
+  const pipelines = getPipelines() || [];
+  for (const p of pipelines) {
+    for (const s of (p.stages || [])) m.set(s.id, String(s.title || "").toLowerCase());
+  }
+  _stagesIndex = m;
+}
+function stageTitleOf(stageId) {
+  if (!_stagesIndex) buildStagesIndex();
+  return _stagesIndex.get(stageId) || "";
+}
+
+// ─── ONE-TIME BACKFILL: create synthetic stage event for deals without history ──
+
+function backfillStageEventsOnce() {
+  try {
+    if (localStorage.getItem(BACKFILL_FLAG)) return;
+    const deals = Store.list("deals") || [];
+    const events = Store.list("deal_activities") || [];
+    const dealsWithStageEvents = new Set(
+      events.filter((a) => a.type === "stage" && a.dealId).map((a) => a.dealId)
+    );
+    let created = 0;
+    for (const d of deals) {
+      if (!d.stage) continue;
+      if (dealsWithStageEvents.has(d.id)) continue;
+      Store.create("deal_activities", {
+        dealId: d.id,
+        type: "stage",
+        ts: d.updatedAt || d.createdAt || Date.now(),
+        fromStage: null,
+        toStage: d.stage,
+        _synthetic: true,
+      });
+      created++;
+    }
+    localStorage.setItem(BACKFILL_FLAG, "1");
+    if (created > 0) console.log(`[dashboard] backfilled ${created} synthetic stage events for legacy deals`);
+  } catch (e) {
+    console.warn("[dashboard] backfill failed", e);
+  }
+}
+
+// ─── Stage event queries ────────────────────────────────────────────
+
+function listStageEvents() {
+  return (Store.list("deal_activities") || [])
+    .filter((a) => a.type === "stage" && a.dealId && a.toStage);
+}
+
+function stageEventsInPeriod(fromTs, toTs, toStageMatcher) {
+  return listStageEvents().filter((a) => {
+    const ts = a.ts || a.createdAt || 0;
+    if (ts < fromTs || ts > toTs) return false;
+    return toStageMatcher(stageTitleOf(a.toStage));
+  });
+}
+
+function filterEventsByAssignee(events, assigneeId) {
+  if (!assigneeId) return events;
+  const dealMap = new Map((Store.list("deals") || []).map((d) => [d.id, d]));
+  return events.filter((e) => {
+    const d = dealMap.get(e.dealId);
+    return d && (d.assigneeId === assigneeId || d.ownerId === assigneeId);
+  });
+}
+
+// Dedup: keep only the FIRST event per dealId (for once-only metrics like revenue / contract)
+function dedupFirstPerDeal(events) {
+  const firstByDeal = new Map();
+  for (const e of events) {
+    const ts = e.ts || e.createdAt || 0;
+    const prev = firstByDeal.get(e.dealId);
+    if (!prev || ts < (prev.ts || prev.createdAt || 0)) firstByDeal.set(e.dealId, e);
+  }
+  return [...firstByDeal.values()];
+}
+
+// ─── Stage matchers ─────────────────────────────────────────────────
+
+const isPaidStage     = (t) => t.includes("оконча") || t.includes("выигр") || t === "won" || t.includes("расчёт") || t.includes("расчет");
+const isKpStage       = (t) => t.includes("кп") || t.includes("предложен") || t.includes("proposal");
+const isQuoteStage    = (t) => t.includes("просчёт") || t.includes("просчет") || t.includes("квалификац") || t === "qualified";
+const isContractStage = (t) => t.includes("договор") || t.includes("contract");
+const isAdvanceStage  = (t) => t.includes("аванс");
+
+// ─── Bucketing helper ───────────────────────────────────────────────
+
+function bucketize(items, getTs, fromTs, toTs, period, accum) {
+  const buckets = generateBuckets(fromTs, toTs, period);
+  const map = new Map(buckets.map((b) => [b, 0]));
+  for (const item of items) {
+    const ts = getTs(item);
+    if (!ts || ts < fromTs || ts > toTs) continue;
+    const b = bucketStart(ts, period);
+    if (map.has(b)) map.set(b, map.get(b) + accum(item));
+  }
+  return {
+    labels: buckets.map((b) => formatBucket(b, period)),
+    values: buckets.map((b) => map.get(b) || 0),
+  };
+}
+
+// ─── Real-data computations (HISTORY-BASED) ─────────────────────────
+
+function computeFromStageEvents(matcher, period, fromTs, toTs, assigneeId, dedup) {
+  let events = filterEventsByAssignee(stageEventsInPeriod(fromTs, toTs, matcher), assigneeId);
+  if (dedup) events = dedupFirstPerDeal(events);
+  return bucketize(events, (e) => e.ts || e.createdAt || 0, fromTs, toTs, period, () => 1);
+}
+
+// KP / Quotes / Payments — every transition counts (sent КП multiple times = multiple)
+function computeKpSent(period, fromTs, toTs, assigneeId) {
+  return computeFromStageEvents(isKpStage, period, fromTs, toTs, assigneeId, false);
+}
+function computeQuotes(period, fromTs, toTs, assigneeId) {
+  return computeFromStageEvents(isQuoteStage, period, fromTs, toTs, assigneeId, false);
+}
+function computePayments(period, fromTs, toTs, assigneeId) {
+  return computeFromStageEvents((t) => isAdvanceStage(t) || isPaidStage(t), period, fromTs, toTs, assigneeId, false);
+}
+
+// Contracts — typically one per deal (dedup)
+function computeContracts(period, fromTs, toTs, assigneeId) {
+  return computeFromStageEvents(isContractStage, period, fromTs, toTs, assigneeId, true);
+}
+
+// Revenue — once per deal (first time it became paid), sum current amount
+function computeRevenue(period, fromTs, toTs, assigneeId) {
+  let events = filterEventsByAssignee(stageEventsInPeriod(fromTs, toTs, isPaidStage), assigneeId);
+  events = dedupFirstPerDeal(events);
+  const dealMap = new Map((Store.list("deals") || []).map((d) => [d.id, d]));
+  return bucketize(events, (e) => e.ts || e.createdAt || 0, fromTs, toTs, period, (e) => {
+    const d = dealMap.get(e.dealId);
+    return Number(d?.amount) || 0;
+  });
+}
+
+function computeAvgCheck(period, fromTs, toTs, assigneeId) {
+  let events = filterEventsByAssignee(stageEventsInPeriod(fromTs, toTs, isPaidStage), assigneeId);
+  events = dedupFirstPerDeal(events);
+  const dealMap = new Map((Store.list("deals") || []).map((d) => [d.id, d]));
+  const buckets = generateBuckets(fromTs, toTs, period);
+  const sums = new Map(buckets.map((b) => [b, 0]));
+  const cnts = new Map(buckets.map((b) => [b, 0]));
+  for (const e of events) {
+    const ts = e.ts || e.createdAt || 0;
+    if (ts < fromTs || ts > toTs) continue;
+    const b = bucketStart(ts, period);
+    if (sums.has(b)) {
+      sums.set(b, sums.get(b) + (Number(dealMap.get(e.dealId)?.amount) || 0));
+      cnts.set(b, cnts.get(b) + 1);
     }
   }
-
-  if (dayEndTs >= Date.now() - 60000) return deal.stage || stage;
-  return stage;
+  return {
+    labels: buckets.map((b) => formatBucket(b, period)),
+    values: buckets.map((b) => {
+      const c = cnts.get(b) || 0;
+      return c ? Math.round((sums.get(b) || 0) / c) : 0;
+    }),
+  };
 }
 
-function stageCardsData(stages, deals, period) {
-  const days = daysRange(period);
-  const historyMap = stageEventHistory();
-  const buckets = Object.fromEntries(stages.map((s) => [s.id, Array.from({ length: days.length }, () => 0)]));
-
-  deals.forEach((deal) => {
-    const history = historyMap.get(deal.id) || [];
-    days.forEach((dayStart, idx) => {
-      const dayEnd = dayStart + 86399999;
-      const stageId = stageAtTime(deal, history, dayEnd);
-      if (stageId && buckets[stageId]) buckets[stageId][idx] += 1;
-    });
-  });
-
-  return stages.map((stage) => {
-    const stageDeals = deals.filter((d) => d.stage === stage.id);
-    const count = stageDeals.length;
-    const sum = stageDeals.reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
-    let spark = buckets[stage.id] || [];
-
-    if (spark.length && spark.every((v) => v === 0) && count > 0) {
-      spark = spark.map((_, i) => (i === spark.length - 1 ? count : 0));
-    }
-
-    const delta = spark.length > 1 ? spark[spark.length - 1] - spark[0] : 0;
-    return { stage, count, sum, spark, delta };
-  });
+// Independent of stage history
+function computeNewClients(period, fromTs, toTs, assigneeId) {
+  let contacts = Store.list("contacts") || [];
+  if (assigneeId) {
+    contacts = contacts.filter((c) =>
+      c.ownerId === assigneeId || c.assigneeId === assigneeId || c.responsibleId === assigneeId
+    );
+  }
+  return bucketize(contacts, (c) => c.createdAt || c.ts || 0, fromTs, toTs, period, () => 1);
 }
 
-function average(values) {
-  if (!values.length) return 0;
-  return values.reduce((a, b) => a + b, 0) / values.length;
+function computeCalls(period, fromTs, toTs, assigneeId) {
+  let calls = Store.list("calls") || [];
+  if (!calls.length) {
+    const acts = Store.list("deal_activities") || [];
+    calls = acts.filter((a) => (a.type || "").toLowerCase() === "call");
+  }
+  if (assigneeId) {
+    calls = calls.filter((c) =>
+      c.userId === assigneeId || c.assigneeId === assigneeId ||
+      c.employeeId === assigneeId || c.operatorId === assigneeId ||
+      c.authorId === assigneeId
+    );
+  }
+  return bucketize(calls, (c) => c.ts || c.createdAt || c.startedAt || 0, fromTs, toTs, period, () => 1);
 }
 
-function renderKpiCards(deals, stages, period) {
-  const stageById = new Map(stages.map((s) => [s.id, s]));
-  const activeDeals = deals.filter((d) => {
-    const stage = stageById.get(d.stage);
-    return !isWinStage(stage) && !isLossStage(stage);
-  });
-  const wonDeals = deals.filter((d) => isWinStage(stageById.get(d.stage)));
+// ─── Synthetic data ─────────────────────────────────────────────────
 
-  const forecast = activeDeals.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
-  const wonSum = wonDeals.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
-  const avgCheck = wonDeals.length ? wonSum / wonDeals.length : 0;
-
-  const from = Date.now() - period * 86400000;
-  const wonPeriod = deals.filter((d) => isWinStage(stageById.get(d.stage)) && (d.updatedAt || d.createdAt || 0) >= from);
-  const lostPeriod = deals.filter((d) => isLossStage(stageById.get(d.stage)) && (d.updatedAt || d.createdAt || 0) >= from);
-  const activePeriod = deals.filter((d) => {
-    const stage = stageById.get(d.stage);
-    const ts = d.updatedAt || d.createdAt || 0;
-    return ts >= from && !isWinStage(stage) && !isLossStage(stage);
-  });
-
-  const conversionBase = wonPeriod.length + lostPeriod.length + activePeriod.length;
-  const conversion = conversionBase ? (wonPeriod.length / conversionBase) * 100 : 0;
-
-  const cycles = wonPeriod
-    .map((d) => {
-      const created = d.createdAt || 0;
-      const closed = d.updatedAt || created;
-      if (!created || closed <= created) return 0;
-      return (closed - created) / 86400000;
-    })
-    .filter((v) => v > 0);
-  const avgCycle = average(cycles);
-
-  const cards = [
-    {
-      label: "Forecast",
-      value: fmtAmount(forecast),
-      hint: `${activeDeals.length} ${pluralRu(activeDeals.length, "активная", "активные", "активных")} сделка`,
-      cls: "",
-    },
-    {
-      label: "Выиграно",
-      value: fmtAmount(wonSum),
-      hint: `${wonDeals.length} ${pluralRu(wonDeals.length, "сделка", "сделки", "сделок")}`,
-      cls: "is-success",
-    },
-    {
-      label: "Средний чек",
-      value: fmtAmount(avgCheck),
-      hint: "по выигранным",
-      cls: "",
-    },
-    {
-      label: "Конверсия",
-      value: `${conversion.toFixed(1).replace(/\.0$/, "")}%`,
-      hint: `за ${period} дн`,
-      cls: "",
-    },
-    {
-      label: "Средний цикл",
-      value: avgCycle ? `${avgCycle.toFixed(1).replace(/\.0$/, "")} дн` : "—",
-      hint: "по закрытым",
-      cls: "",
-    },
-  ];
-
-  return `
-    <section class="dash-kpis">
-      ${cards
-        .map(
-          (c) => `
-            <article class="kpi-card ${c.cls}">
-              <div class="label">${c.label}</div>
-              <div class="value">${c.value}</div>
-              <div class="hint">${c.hint}</div>
-            </article>
-          `,
-        )
-        .join("")}
-    </section>
-  `;
+function mockReport(reportId, period, fromTs, toTs, assigneeId) {
+  const seedStr = `${reportId}|${assigneeId || "all"}`;
+  const buckets = generateBuckets(fromTs, toTs, period);
+  let seed = 0;
+  for (let i = 0; i < seedStr.length; i++) seed = (seed * 31 + seedStr.charCodeAt(i)) | 0;
+  const rand = (max) => { seed = ((seed * 9301 + 49297) | 0) >>> 0; return seed % max; };
+  const base = 25 + rand(75);
+  return {
+    labels: buckets.map((b) => formatBucket(b, period)),
+    values: buckets.map(() => Math.max(0, base + rand(40) - 20)),
+  };
 }
 
-function renderStagesSection(stageCards) {
-  const periodButtons = [7, 14, 30]
-    .map(
-      (d) => `<button type="button" class="dash-period-btn ${state.period === d ? "active" : ""}" data-period="${d}">${d} дней</button>`,
-    )
-    .join("");
-
-  return `
-    <section class="dash-stage-block">
-      <header class="dash-stage-head">
-        <h3>По стадиям воронки</h3>
-        <div class="dash-period-switch">${periodButtons}</div>
-      </header>
-      <div class="dash-stage-grid">
-        ${stageCards
-          .map(({ stage, count, sum, spark, delta }) => {
-            const max = Math.max(1, ...spark);
-            const muted = count === 0 && spark.every((v) => v === 0);
-            const deltaText = delta > 0 ? `+${delta}` : String(delta);
-            const deltaClass = delta > 0 ? "up" : delta < 0 ? "dn" : "flat";
-            return `
-              <article class="stage-card ${muted ? "is-muted" : ""}" style="--stage-color:${stage.color}">
-                <div class="stage-card-head">
-                  <span class="dot"></span>
-                  <span class="stage-card-title">${escape(stage.title)}</span>
-                  <span class="stage-card-delta ${deltaClass}">${deltaText}</span>
-                </div>
-                <div class="stage-card-numbers">
-                  <span class="count">${count}</span>
-                  <span class="count-label">${pluralRu(count, "сделка", "сделки", "сделок")}</span>
-                  <span class="sum">${fmtAmountShort(sum)}</span>
-                </div>
-                <div class="stage-card-spark">
-                  ${spark
-                    .map((v) => `<span style="height:${Math.max(2, (v / max) * 32).toFixed(1)}px"></span>`)
-                    .join("")}
-                </div>
-              </article>
-            `;
-          })
-          .join("")}
-      </div>
-    </section>
-  `;
+function emptyReport(period, fromTs, toTs) {
+  const buckets = generateBuckets(fromTs, toTs, period);
+  return { labels: buckets.map((b) => formatBucket(b, period)), values: buckets.map(() => 0), notImplemented: true };
 }
 
-function renderTaskWidget(tasks) {
-  const today = startOfDay(Date.now());
-  const open = tasks.filter((t) => t.status !== "done");
-  const overdue = open.filter((t) => t.dueDate && startOfDay(t.dueDate) < today);
-  const dueToday = open.filter((t) => t.dueDate && startOfDay(t.dueDate) === today);
-  const dueWeek = open.filter((t) => t.dueDate && startOfDay(t.dueDate) > today && startOfDay(t.dueDate) <= addDays(today, 7));
-
-  const top = [...open]
-    .sort((a, b) => (a.dueDate || Number.MAX_SAFE_INTEGER) - (b.dueDate || Number.MAX_SAFE_INTEGER))
-    .slice(0, 3);
-
-  return `
-    <section class="dash-bottom-card">
-      <header class="dash-bottom-head">
-        <h4>Задачи на сегодня</h4>
-        <a href="#tasks">Все →</a>
-      </header>
-      <div class="dash-task-kpis">
-        <div class="tkpi danger"><span>${overdue.length}</span><small>Просрочено</small></div>
-        <div class="tkpi warn"><span>${dueToday.length}</span><small>Сегодня</small></div>
-        <div class="tkpi"><span>${dueWeek.length}</span><small>Неделя</small></div>
-      </div>
-      <div class="dash-mini-list">
-        ${top.length
-          ? top.map((t) => `<a class="dash-mini-item" href="#tasks/${t.id}">${ICONS.tasks}<span>${escape(t.title || "(без названия)")}</span></a>`).join("")
-          : `<div class="dash-empty">Активных задач нет</div>`}
-      </div>
-    </section>
-  `;
+function computeReport(reportId, period, fromTs, toTs, opts) {
+  const { useMock, assigneeId } = opts || {};
+  if (useMock) return mockReport(reportId, period, fromTs, toTs, assigneeId);
+  if (NOT_IMPLEMENTED_REAL.has(reportId)) return emptyReport(period, fromTs, toTs);
+  switch (reportId) {
+    case "revenue":     return computeRevenue(period, fromTs, toTs, assigneeId);
+    case "kp_sent":     return computeKpSent(period, fromTs, toTs, assigneeId);
+    case "quotes":      return computeQuotes(period, fromTs, toTs, assigneeId);
+    case "contracts":   return computeContracts(period, fromTs, toTs, assigneeId);
+    case "payments":    return computePayments(period, fromTs, toTs, assigneeId);
+    case "new_clients": return computeNewClients(period, fromTs, toTs, assigneeId);
+    case "avg_check":   return computeAvgCheck(period, fromTs, toTs, assigneeId);
+    case "calls":       return computeCalls(period, fromTs, toTs, assigneeId);
+    default:            return emptyReport(period, fromTs, toTs);
+  }
 }
 
-function renderActivityWidget() {
-  const feed = Store.list("feed").map((p) => ({
-    id: p.id,
-    ts: p.createdAt || p.ts || 0,
-    text: p.text || "",
-    authorId: p.authorId,
-    type: "feed",
-  }));
-  const acts = Store.list("deal_activities").map((a) => ({
-    id: a.id,
-    ts: a.ts || a.createdAt || 0,
-    text: a.text || a.title || (a.type === "stage" ? `Стадия: ${findStage(a.fromStage)?.title || a.fromStage || ""} → ${findStage(a.toStage)?.title || a.toStage || ""}` : ""),
-    authorId: a.authorId,
-    type: a.type || "note",
-  }));
+// ─── Goals & Formatting ─────────────────────────────────────────────
 
-  const recent = [...feed, ...acts]
-    .sort((a, b) => b.ts - a.ts)
-    .slice(0, 3);
-
-  return `
-    <section class="dash-bottom-card">
-      <header class="dash-bottom-head">
-        <h4>Активность команды</h4>
-        <a href="#feed">Лента →</a>
-      </header>
-      <div class="dash-mini-list">
-        ${recent.length
-          ? recent
-              .map((item) => {
-                const author = getEmployee(item.authorId);
-                const name = author?.name || "Команда";
-                const text = item.text || "Активность";
-                return `
-                  <a class="dash-activity-item" href="${item.type === "feed" ? "#feed" : "#crm"}">
-                    ${avatar(author, "xs")}
-                    <div class="dash-activity-body">
-                      <div class="dash-activity-head"><strong>${escape(name)}</strong><span>${fmtRel(item.ts)}</span></div>
-                      <div class="dash-activity-text">${escape(text).slice(0, 110)}${text.length > 110 ? "…" : ""}</div>
-                    </div>
-                  </a>
-                `;
-              })
-              .join("")
-          : `<div class="dash-empty">Пока событий нет</div>`}
-      </div>
-    </section>
-  `;
+function goalKey(reportId, period) { return `pllato_dashboard_goal_${reportId}_${period}`; }
+function getGoal(reportId, period) {
+  try { const v = parseFloat(localStorage.getItem(goalKey(reportId, period))); return isFinite(v) && v > 0 ? v : null; }
+  catch (_) { return null; }
 }
+function setGoal(reportId, period, value) {
+  try { if (value > 0) localStorage.setItem(goalKey(reportId, period), String(value));
+        else localStorage.removeItem(goalKey(reportId, period)); }
+  catch (_) {}
+}
+function formatValue(n, unit) {
+  if (unit === "₸") {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M ₸`;
+    if (n >= 1_000) return `${Math.round(n / 1_000)}K ₸`;
+    return `${n.toLocaleString("ru-RU")} ₸`;
+  }
+  if (unit === "—") return String(n);
+  return `${n.toLocaleString("ru-RU")} ${unit}`;
+}
+function formatStat(n, unit) { return formatValue(Math.round(n), unit); }
+
+// ─── Render ─────────────────────────────────────────────────────────
+
+let _chartInstance = null;
 
 export function renderDashboard(container) {
-  const deals = Store.list("deals").filter((d) => !d?.deletedAt);
-  const tasks = Store.list("tasks");
-  const stages = getStages();
-  const period = state.period;
+  loadState();
+  backfillStageEventsOnce();
+  buildStagesIndex();
 
-  const stageCards = stageCardsData(stages, deals, period);
+  const activeReport = REPORTS.find((r) => r.id === state.activeReportId) || REPORTS[0];
+  const period = state.period;
+  const useMock = isDemoMode(activeReport.id);
+  const assigneeId = state.managerFilter === "all" ? null : state.managerFilter;
+  const employees = listEmployees() || [];
+
+  const data = computeReport(activeReport.id, period, state.rangeFrom, state.rangeTo, { useMock, assigneeId });
+  const goal = getGoal(activeReport.id, period);
+
+  const sum = data.values.reduce((a, b) => a + b, 0);
+  const max = data.values.length ? Math.max(...data.values) : 0;
+  const avg = data.values.length ? sum / data.values.length : 0;
+
+  const fromDateStr = new Date(state.rangeFrom).toISOString().slice(0, 10);
+  const toDateStr   = new Date(state.rangeTo).toISOString().slice(0, 10);
+
+  const helpText = useMock
+    ? "Демо-данные · отображаются синтетические значения для предпросмотра графика"
+    : (data.notImplemented
+        ? "⚠ Источник этих данных пока не реализован — переключите на «Демо» или дождитесь следующего PR"
+        : "Боевые данные · считаются по событиям перехода сделок через стадии в выбранном периоде");
 
   container.innerHTML = `
-    <div class="dash-view">
-      ${renderKpiCards(deals, stages, period)}
-      ${renderStagesSection(stageCards)}
-      <section class="dash-bottom-grid">
-        ${renderTaskWidget(tasks)}
-        ${renderActivityWidget()}
-      </section>
+    <div class="dashboard-reports">
+      <aside class="dr-sidebar">
+        <div class="dr-sidebar-title">Отчёты</div>
+        <ul class="dr-list">
+          ${REPORTS.map((r) => `
+            <li>
+              <button class="dr-item ${r.id === activeReport.id ? "active" : ""}" data-report-id="${escape(r.id)}">
+                <span class="dr-item-dot" style="background:${r.color}"></span>
+                <span class="dr-item-title">${escape(r.title)}</span>
+                ${isDemoMode(r.id) ? `<span class="dr-item-badge">демо</span>` : ""}
+              </button>
+            </li>
+          `).join("")}
+        </ul>
+      </aside>
+      <main class="dr-main">
+        <div class="dr-head">
+          <div class="dr-head-title">
+            <h2>${escape(activeReport.title)}</h2>
+            <div class="dr-mode-toggle">
+              <button class="dr-mode ${!useMock ? "active" : ""}" data-mode="real">Боевые</button>
+              <button class="dr-mode ${useMock ? "active" : ""}" data-mode="demo">Демо</button>
+            </div>
+            <span class="dr-note ${data.notImplemented ? "dr-warn" : ""}">${escape(helpText)}</span>
+          </div>
+          <div class="dr-head-controls">
+            <select id="managerFilter" class="dr-manager-select" title="Фильтр по менеджеру">
+              <option value="all" ${state.managerFilter === "all" ? "selected" : ""}>Вся компания</option>
+              ${employees.map((e) => `<option value="${escape(e.id)}" ${state.managerFilter === e.id ? "selected" : ""}>${escape(e.name || e.email || e.id)}</option>`).join("")}
+            </select>
+            <div class="dr-period-switch">
+              <button class="dr-period ${period === "day" ? "active" : ""}" data-period="day">День</button>
+              <button class="dr-period ${period === "week" ? "active" : ""}" data-period="week">Неделя</button>
+              <button class="dr-period ${period === "month" ? "active" : ""}" data-period="month">Месяц</button>
+            </div>
+            <div class="dr-range">
+              <input type="date" id="rangeFrom" value="${fromDateStr}">
+              <span>—</span>
+              <input type="date" id="rangeTo" value="${toDateStr}">
+            </div>
+          </div>
+        </div>
+
+        <div class="dr-stats">
+          <div class="dr-stat">
+            <div class="dr-stat-label">Сумма за период</div>
+            <div class="dr-stat-value">${formatStat(sum, activeReport.unit)}</div>
+          </div>
+          <div class="dr-stat">
+            <div class="dr-stat-label">Среднее</div>
+            <div class="dr-stat-value">${formatStat(avg, activeReport.unit)}</div>
+          </div>
+          <div class="dr-stat">
+            <div class="dr-stat-label">Пиковое значение</div>
+            <div class="dr-stat-value">${formatStat(max, activeReport.unit)}</div>
+          </div>
+          <div class="dr-stat dr-stat-goal">
+            <div class="dr-stat-label">План (макс)</div>
+            <div class="dr-stat-goal-input">
+              <input type="number" min="0" step="1" id="goalInput" value="${goal ?? ""}" placeholder="нет">
+              <span class="dr-stat-unit">${escape(activeReport.unit === "—" ? "" : activeReport.unit)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dr-chart-wrap">
+          <canvas id="reportChart"></canvas>
+        </div>
+      </main>
     </div>
   `;
 
+  renderChart(activeReport, data, goal, period);
+  wireDashboardEvents(container);
+}
+
+function renderChart(report, data, goal, period) {
+  if (typeof window.Chart === "undefined") {
+    setTimeout(() => renderChart(report, data, goal, period), 200);
+    return;
+  }
+  const canvas = document.getElementById("reportChart");
+  if (!canvas) return;
+  if (_chartInstance) { try { _chartInstance.destroy(); } catch (_) {} _chartInstance = null; }
+
+  const datasets = [{
+    label: report.title,
+    data: data.values,
+    borderColor: report.color,
+    backgroundColor: hexToRgba(report.color, 0.12),
+    borderWidth: 2,
+    pointBackgroundColor: report.color,
+    pointBorderColor: "#fff",
+    pointBorderWidth: 1.5,
+    pointRadius: data.values.length > 60 ? 0 : 3,
+    pointHoverRadius: 6,
+    tension: 0,
+    fill: true,
+  }];
+
+  if (goal && goal > 0) {
+    datasets.push({
+      label: "План (макс)",
+      data: data.values.map(() => goal),
+      borderColor: "#ef4444",
+      borderWidth: 1.5,
+      borderDash: [6, 6],
+      pointRadius: 0,
+      tension: 0,
+      fill: false,
+    });
+  }
+
+  const maxValue = Math.max(...data.values, goal || 0, 1);
+
+  _chartInstance = new window.Chart(canvas, {
+    type: "line",
+    data: { labels: data.labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: true, position: "top", labels: { boxWidth: 12, padding: 12, font: { size: 12 } } },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatValue(Math.round(ctx.parsed.y), report.unit)}` } },
+      },
+      scales: {
+        y: { beginAtZero: true, suggestedMax: maxValue * 1.1, grid: { color: "rgba(128,128,128,0.08)" }, ticks: { color: "#94a3b8", font: { size: 11 } } },
+        x: { grid: { display: false }, ticks: { color: "#94a3b8", maxRotation: 0, autoSkipPadding: 20, font: { size: 11 } } },
+      },
+    },
+  });
+}
+
+function hexToRgba(hex, alpha) {
+  const m = hex.replace("#", "");
+  const r = parseInt(m.slice(0, 2), 16);
+  const g = parseInt(m.slice(2, 4), 16);
+  const b = parseInt(m.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function wireDashboardEvents(container) {
+  container.querySelectorAll("[data-report-id]").forEach((btn) => {
+    btn.addEventListener("click", () => { state.activeReportId = btn.dataset.reportId; persistState(); renderDashboard(container); });
+  });
+  container.querySelectorAll("[data-mode]").forEach((btn) => {
+    btn.addEventListener("click", () => { state.demoModes[state.activeReportId] = (btn.dataset.mode === "demo"); persistState(); renderDashboard(container); });
+  });
+  container.querySelector("#managerFilter")?.addEventListener("change", (e) => {
+    state.managerFilter = e.target.value || "all"; persistState(); renderDashboard(container);
+  });
   container.querySelectorAll("[data-period]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const next = Number(btn.dataset.period);
-      if (![7, 14, 30].includes(next) || next === state.period) return;
-      state.period = next;
-      savePeriod(next);
-      renderDashboard(container);
+      state.period = btn.dataset.period;
+      [state.rangeFrom, state.rangeTo] = defaultRange(state.period);
+      persistState(); renderDashboard(container);
     });
+  });
+  container.querySelector("#rangeFrom")?.addEventListener("change", (e) => {
+    const v = e.target.value; if (!v) return;
+    const ts = new Date(v + "T00:00:00").getTime();
+    if (ts > state.rangeTo) return;
+    state.rangeFrom = ts; persistState(); renderDashboard(container);
+  });
+  container.querySelector("#rangeTo")?.addEventListener("change", (e) => {
+    const v = e.target.value; if (!v) return;
+    const ts = new Date(v + "T23:59:59").getTime();
+    if (ts < state.rangeFrom) return;
+    state.rangeTo = ts; persistState(); renderDashboard(container);
+  });
+  container.querySelector("#goalInput")?.addEventListener("change", (e) => {
+    const v = parseFloat(e.target.value);
+    setGoal(state.activeReportId, state.period, isFinite(v) ? v : 0);
+    renderDashboard(container);
   });
 }

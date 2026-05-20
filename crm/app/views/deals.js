@@ -60,6 +60,8 @@ const state = {
   dealChatSyncTimer: null,
   crmSearch: "",
   crmTab: "deals",
+  // Сохранение горизонтальной прокрутки kanban между ре-рендерами
+  __kanbanScrollLeft: 0,
   callsRoute: { page: "dial" },
   // Плавающее WhatsApp-окно (открывается из карточки сделки).
   waFloat: { open: false, contactId: null, dealId: null, mediaOpen: false, searchOpen: false, searchQuery: "", draftText: "" },
@@ -456,7 +458,12 @@ function reconcileDeals(stages, activePipelineId) {
     if (!d.pipelineId && activePipelineId) patch.pipelineId = activePipelineId;
     const dealPipeline = d.pipelineId || activePipelineId;
     if (dealPipeline === activePipelineId && !ids.has(d.stage)) patch.stage = fallback;
-    if (Object.keys(patch).length) Store.update(COLLECTION, d.id, patch);
+    if (Object.keys(patch).length) {
+      if (patch.stage && patch.stage !== d.stage) {
+        addActivity(d.id, "stage", { fromStage: d.stage, toStage: patch.stage });
+      }
+      Store.update(COLLECTION, d.id, patch);
+    }
   });
 }
 
@@ -518,6 +525,22 @@ function buildFieldPayloadFromDraft(draft, base = {}) {
 function isEmptyFieldValue(v) {
   if (Array.isArray(v)) return v.length === 0;
   return v == null || v === "";
+}
+
+// Сохраняет и восстанавливает горизонтальную прокрутку kanban-доски.
+// Любой ре-рендер пересоздаёт #kanbanWrap, теряя scrollLeft → восстанавливаем из state.
+function attachKanbanScrollMemory(container) {
+  const wrap = container.querySelector("#kanbanWrap");
+  if (!wrap) return;
+  // Восстановить прокрутку из последней сохранённой позиции
+  if (state.__kanbanScrollLeft > 0) {
+    // requestAnimationFrame гарантирует что layout уже посчитан
+    requestAnimationFrame(() => { wrap.scrollLeft = state.__kanbanScrollLeft; });
+  }
+  // Запоминать позицию при каждой прокрутке (passive — не блокирует прокрутку)
+  wrap.addEventListener("scroll", () => {
+    state.__kanbanScrollLeft = wrap.scrollLeft;
+  }, { passive: true });
 }
 
 export function renderDeals(container) {
@@ -1965,6 +1988,7 @@ function wireEvents(container) {
     });
   });
 
+  attachKanbanScrollMemory(container);
   const wrap = container.querySelector("#kanbanWrap");
   container.querySelectorAll(".kanban-col").forEach(col => {
     col.addEventListener("dragover", e => {
@@ -2251,6 +2275,9 @@ function wireEvents(container) {
           if (!ok) {
             e.target.value = originalPipelineId;
             return;
+          }
+          if (deal.stage !== firstStage.id) {
+            addActivity(deal.id, "stage", { fromStage: deal.stage, toStage: firstStage.id });
           }
           Store.update(COLLECTION, deal.id, { pipelineId: newPipelineId, stage: firstStage.id });
           closeDealModal(container);
