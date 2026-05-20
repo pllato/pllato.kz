@@ -48,8 +48,10 @@ function cloudEnabled() {
 }
 
 function read(collection) {
-  try { return JSON.parse(localStorage.getItem(NS + collection) || "[]"); }
-  catch { return []; }
+  try {
+    const parsed = JSON.parse(localStorage.getItem(NS + collection) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
 }
 
 function write(collection, items) {
@@ -146,8 +148,10 @@ async function flushQueue() {
 
 function mergeRemoteIntoLocal(collection, remoteItems) {
   const localItems = read(collection);
-  const localMap = new Map(localItems.map((x) => [x.id, normalizeItem(x)]).filter((x) => x[1]));
-  const remoteMap = new Map((remoteItems || []).map((x) => [x.id, normalizeItem(x)]).filter((x) => x[1]));
+  const safeLocal = Array.isArray(localItems) ? localItems : [];
+  const safeRemote = Array.isArray(remoteItems) ? remoteItems : [];
+  const localMap = new Map(safeLocal.map((x) => [x.id, normalizeItem(x)]).filter((x) => x[1]));
+  const remoteMap = new Map(safeRemote.map((x) => [x.id, normalizeItem(x)]).filter((x) => x[1]));
 
   const merged = new Map();
   const toPush = [];
