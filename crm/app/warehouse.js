@@ -205,6 +205,14 @@ export function ensureWarehouseSeed() {
   });
 }
 
+export function migrateWarehouseLegacyCollections() {
+  const flagKey = "pllato_warehouse_rename_v1";
+  if (localStorage.getItem(flagKey) === "1") return;
+  // В этой ветке legacy-коллекции уже не используются.
+  // Оставляем idempotent-хук, чтобы не падал импорт в renderWarehouse.
+  localStorage.setItem(flagKey, "1");
+}
+
 export function listWarehouseProducts(filters = {}) {
   const query = asText(filters.query).toLowerCase();
   const entity = asText(filters.entity);
