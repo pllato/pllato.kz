@@ -247,17 +247,34 @@ function rerender(container) {
 }
 
 function wireWarehouseEvents(container, route, canEdit) {
+  let filterDebounce = null;
   container.querySelectorAll("[data-wh-filter]").forEach((el) => {
-    el.addEventListener("input", () => {
+    const apply = () => {
       const key = el.dataset.whFilter;
+      const wasFocused = document.activeElement === el;
+      const caretPos = wasFocused && typeof el.selectionStart === "number" ? el.selectionStart : null;
       ui[`product${key[0].toUpperCase()}${key.slice(1)}`] = el.value;
       rerender(container);
-    });
-    el.addEventListener("change", () => {
-      const key = el.dataset.whFilter;
-      ui[`product${key[0].toUpperCase()}${key.slice(1)}`] = el.value;
-      rerender(container);
-    });
+      // Restore focus + caret position in the freshly rendered input
+      if (wasFocused) {
+        const newEl = container.querySelector(`[data-wh-filter="${key}"]`);
+        if (newEl) {
+          newEl.focus();
+          if (caretPos !== null && typeof newEl.setSelectionRange === "function") {
+            try { newEl.setSelectionRange(caretPos, caretPos); } catch (_) {}
+          }
+        }
+      }
+    };
+    // Text inputs: debounce so we don't re-render mid-typing (which drops characters)
+    if (el.tagName === "INPUT") {
+      el.addEventListener("input", () => {
+        clearTimeout(filterDebounce);
+        filterDebounce = setTimeout(apply, 220);
+      });
+    }
+    // Selects (and Enter/blur on inputs): apply immediately
+    el.addEventListener("change", apply);
   });
 
   container.querySelectorAll("[data-wh-doc-filter]").forEach((el) => {
