@@ -90,7 +90,7 @@ function renderHomeView(canEdit) {
     <section class="whm-section">
       ${alerts.length ? `
         <div class="alert-bar ${alerts.some((a) => a.level === "danger") ? "danger" : ""}">
-          <span class="ico">${ICONS.alertTriangle}</span>
+          <span class="whm-alert-ico">${ICONS.alertTriangle}</span>
           <span>${escapeHtml(alerts.slice(0, 3).map((a) => a.message).join(" · "))}</span>
           <div class="spacer"></div>
           <a class="btn-sm btn-ghost" href="#warehouse/products">Открыть товары</a>
