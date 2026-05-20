@@ -124,8 +124,8 @@ function renderLogin() {
   $app.innerHTML = `
     <div class="login-wrap">
       <div class="login-brand">
-        <img src="./assets/pllato_icon.svg" alt="Pllato">
-        <h1>Pllato CRM</h1>
+        <img src="./assets/pllato_icon.svg" alt="Aminamed">
+        <h1>Aminamed CRM</h1>
       </div>
       <div class="login-card">
         <p class="sub">Войди через Google — тот же аккаунт, что и для других приложений Pllato.</p>
@@ -192,9 +192,9 @@ function renderShell() {
     <div class="shell">
       <aside class="sidebar">
         <div class="brand" id="brandTag" title="Открыть «О приложении»">
-          <img src="./assets/pllato_icon.svg" alt="Pllato">
+          <img src="./assets/pllato_icon.svg" alt="Aminamed">
           <div class="brand-title">
-            <span class="name">Pllato CRM</span>
+            <span class="name">Aminamed CRM</span>
             <span class="sub">v${VERSION} · ${REVISION}</span>
           </div>
         </div>
