@@ -7516,3 +7516,146 @@ body {
 .wh-modal button[disabled] { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 .wh-modal .btn-primary:disabled,
 .wh-modal .btn-primary[disabled] { background: var(--surface-2); color: var(--text-muted); }
+
+/* ===== Warehouse screens polish (home / catalog / product card) ===== */
+
+/* --- Chip status colors (LOT badges: Просрочена / Истекает / Закрыта) --- */
+.chip-danger {
+  background: rgba(239, 68, 68, .15);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, .25);
+}
+.chip-warning {
+  background: rgba(245, 158, 11, .15);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, .25);
+}
+.chip-accent {
+  background: var(--accent-tint);
+  color: var(--accent);
+  border: 1px solid rgba(31, 156, 77, .25);
+}
+
+/* --- KPI: colored side stripes for visual identity --- */
+.whm-kpi-grid .kpi {
+  position: relative;
+  padding-left: 18px;
+  overflow: hidden;
+}
+.whm-kpi-grid .kpi::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent);
+}
+.whm-kpi-grid .kpi:nth-child(2)::before { background: #95C944; }    /* lime */
+.whm-kpi-grid .kpi:nth-child(3)::before { background: #f59e0b; }    /* warning orange */
+.whm-kpi-grid .kpi:nth-child(4)::before { background: #6366f1; }    /* indigo for docs */
+
+.kpi .kpi-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.kpi .kpi-sub.warning {
+  color: #d97706;
+  font-weight: 500;
+}
+
+/* --- Quick actions: tile buttons instead of inline links --- */
+.whm-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  padding: 0;
+}
+.whm-quick-actions a,
+.whm-quick-actions button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: border-color .15s, background .15s, transform .05s;
+  cursor: pointer;
+  text-align: left;
+}
+.whm-quick-actions a:hover,
+.whm-quick-actions button:hover {
+  border-color: var(--accent);
+  background: var(--surface);
+  transform: translateY(-1px);
+}
+.whm-quick-actions svg {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+  stroke-width: 1.75;
+}
+.whm-quick-actions a[disabled],
+.whm-quick-actions button[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* --- Catalog row hover + danger row highlight --- */
+.whm-table tbody tr {
+  transition: background .12s;
+}
+.whm-table tbody tr:hover td {
+  background: var(--surface-hover);
+}
+
+/* --- LOT head — clearer card-like separation --- */
+.whm-lot-head {
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 14px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.whm-lot-head strong {
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+.whm-lot-head .chip {
+  font-size: 11px;
+  padding: 3px 10px;
+}
+
+/* --- Alert bar danger emphasis --- */
+.alert-bar.danger {
+  background: rgba(239, 68, 68, .08);
+  border: 1px solid rgba(239, 68, 68, .25);
+  color: #b91c1c;
+}
+.alert-bar.danger .whm-alert-ico,
+.alert-bar.danger .whm-alert-ico svg {
+  color: #dc2626;
+}
+
+/* --- Movement directional cells (приход зелёный, расход красноватый) --- */
+.col-in { color: var(--success, #16a34a); font-weight: 600; }
+.col-out { color: #dc2626; font-weight: 600; }
+.col-bal { color: var(--text); font-weight: 600; }
+
+/* --- Product card: chip-accent (юр.лицо badge) --- */
+.chip.mono {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+}
