@@ -29,6 +29,7 @@ import {
   isOutType,
 } from "./document_form.js";
 import { renderWarehouseReportsView } from "./reports.js";
+import { renderPreliminaryOrdersView, wirePreliminaryOrdersEvents } from "./preliminary_orders.js";
 import { renderWarehouseImportView, initWarehouseImportView } from "./import_xlsx.js";
 
 const ui = {
@@ -78,6 +79,7 @@ function parseWarehouseRoute() {
   if (second === "products" && parts[2]) return { page: "product", productId: decodeURIComponent(parts[2]) };
   if (second === "products") return { page: "products", productId: null };
   if (second === "documents") return { page: "documents", productId: null };
+  if (second === "orders") return { page: "orders", productId: null };
   if (second === "reports") return { page: "reports", productId: null };
   if (second === "import") return { page: "import", productId: null };
   if (second === "stocktakes") return { page: "stocktakes", productId: null };
@@ -158,6 +160,7 @@ function shellTabs(route) {
       <a class="wh-tab ${tab === "home" ? "active" : ""}" href="#warehouse">Главная</a>
       <a class="wh-tab ${tab === "products" || tab === "product" ? "active" : ""}" href="#warehouse/products">Каталог</a>
       <a class="wh-tab ${tab === "documents" ? "active" : ""}" href="#warehouse/documents">Документы</a>
+      <a class="wh-tab ${tab === "orders" ? "active" : ""}" href="#warehouse/orders">Заказы</a>
       <a class="wh-tab ${tab === "reports" ? "active" : ""}" href="#warehouse/reports">Отчёты</a>
       <a class="wh-tab ${tab === "stocktakes" ? "active" : ""}" href="#warehouse/stocktakes">Инвентаризация</a>
     </div>
@@ -241,6 +244,7 @@ function pageContent(route, canEdit) {
   if (route.page === "documents") return renderDocumentsListView(ui, canEdit);
   if (route.page === "reports") return renderWarehouseReportsView(ui);
   if (route.page === "import") return renderWarehouseImportView();
+  if (route.page === "orders") return renderPreliminaryOrdersView();
   if (route.page === "stocktakes") return renderStocktakesSoon();
   return renderHomeView(canEdit);
 }
