@@ -1,6 +1,7 @@
 import { ICONS } from "../../icons.js";
 import {
   ensureWarehouseSeed,
+  migrateWarehouseLegacyCollections,
   canEditWarehouse,
   listWarehouseKpis,
   listWarehouseAlerts,
@@ -426,7 +427,9 @@ function wireWarehouseEvents(container, route, canEdit) {
 }
 
 export function renderWarehouse(container) {
-  ensureWarehouseSeed();
+  migrateWarehouseLegacyCollections();
+  const qs = new URLSearchParams(location.search);
+  if (qs.get("demo") === "warehouse") ensureWarehouseSeed();
   const route = parseWarehouseRoute();
   const editable = canEditWarehouse();
 
