@@ -102,7 +102,7 @@ export function renderProductCardView(productId, canEdit) {
               <span>Ед.: <strong style="color:var(--text)">${escapeHtml(product.unit || "шт")}</strong></span>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button type="button" class="btn btn-sm" data-wh-new-doc="receipt" ${canEdit ? "" : "disabled"}>Приход</button>
+              <button type="button" class="btn-primary btn-sm" data-wh-new-doc="receipt" ${canEdit ? "" : "disabled"}>Приход</button>
               <button type="button" class="btn-ghost btn-sm" data-wh-new-doc="sale_invoice" ${canEdit ? "" : "disabled"}>Расход</button>
               <button type="button" class="btn-ghost btn-sm" data-wh-new-doc="writeoff_act" ${canEdit ? "" : "disabled"}>Списать</button>
               <a class="btn-ghost btn-sm" href="#warehouse/products">Назад</a>
