@@ -2230,9 +2230,11 @@ function wireEvents(container) {
     });
   });
 
-  // UTM Report button
+  // UTM Report button → переход в Дашборд (где встроена аналитика)
   const utmReportBtn = container.querySelector("#utmReportBtn");
-  if (utmReportBtn) utmReportBtn.addEventListener("click", openUtmReport);
+  if (utmReportBtn) utmReportBtn.addEventListener("click", () => {
+    location.hash = "#dashboard";
+  });
 
   // === CRM List View handlers ===
   // Toggle Канбан / Список

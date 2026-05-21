@@ -502,11 +502,22 @@ export function renderDashboard(container) {
           ${cards.map((c) => renderOverviewCard(c, c.id === activeReport.id)).join("")}
         </div>
       </section>
+
+      <!-- UTM Analytics & Builder block -->
+      <div id="utmDashboardBlock"></div>
     </div>
   `;
 
   renderChart(activeReport, activeData, activeGoal, period, useMockActive);
   wireEvents(container);
+
+  // Mount UTM analytics + builder block
+  const utmMount = container.querySelector("#utmDashboardBlock");
+  if (utmMount) {
+    import("../utm_analytics_block.js").then(({ renderUtmAnalyticsBlock }) => {
+      renderUtmAnalyticsBlock(utmMount);
+    }).catch((e) => console.warn("[UTM block] load failed:", e));
+  }
 }
 
 function renderOverviewCard(c, isActive) {
