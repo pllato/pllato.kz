@@ -23,7 +23,7 @@ const PERMISSIONS = [
   { id: "tasks",     label: "Задачи" },
   { id: "feed",      label: "Лента" },
   { id: "chat",      label: "Чаты" },
-  { id: "docs",      label: "Документы" },
+  
   { id: "settings",  label: "Настройки" },
 ];
 
@@ -43,7 +43,7 @@ function seedRoles() {
   const existing = Store.list(ROLES_COLLECTION);
   if (existing.length === 0) {
     Store.create(ROLES_COLLECTION, { name: "Администратор", system: true, permissions: PERMISSIONS.map(p => p.id) });
-    Store.create(ROLES_COLLECTION, { name: "Менеджер",      system: true, permissions: ["dashboard", "contacts", "crm", "warehouse", "calls", "tasks", "feed", "chat", "docs"] });
+    Store.create(ROLES_COLLECTION, { name: "Менеджер",      system: true, permissions: ["dashboard", "contacts", "crm", "warehouse", "calls", "tasks", "feed", "chat"] });
     Store.create(ROLES_COLLECTION, { name: "Наблюдатель",   system: true, permissions: ["dashboard", "feed", "warehouse"] });
     return;
   }
