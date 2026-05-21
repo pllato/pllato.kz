@@ -1,48 +1,32 @@
 // Pllato CRM — Auth gate.
-// Проверяет наличие любой из сессий: Google (из auth.js) или Email (из auth_local.js).
-// Если ни одной — показывает login overlay.
+// Если нет валидной session (Google или email) — показывает login overlay.
 
-import { isEmailAuthenticated } from "./auth_local.js";
-import { listEmployees } from "./employees.js";
 import { showLoginOverlay } from "./views/login.js";
-import { restoreLocalEmployees } from "./local_employees.js";
 
-async function waitForEmployees(maxWaitMs = 3000) {
-  const start = Date.now();
-  while (Date.now() - start < maxWaitMs) {
-    if (listEmployees().length > 0) return true;
-    await new Promise(r => setTimeout(r, 100));
-  }
-  return false;
-}
-
-async function getGoogleSessionSafe() {
+function getSession() {
   try {
-    const mod = await import("./auth.js");
-    if (typeof mod.getSession === "function") return mod.getSession();
-  } catch {}
-  return null;
+    const raw = localStorage.getItem("pllato_session");
+    if (!raw) return null;
+    const session = JSON.parse(raw);
+    if (session.exp && session.exp * 1000 < Date.now()) {
+      localStorage.removeItem("pllato_session");
+      return null;
+    }
+    return session;
+  } catch {
+    return null;
+  }
 }
 
 async function checkAuth() {
-  await waitForEmployees();
-  restoreLocalEmployees();
-
-  // 1. Email session валиден?
-  if (isEmailAuthenticated()) return;
-
-  // 2. Google session валиден?
-  const googleSession = await getGoogleSessionSafe();
-  if (googleSession) return;
-
-  // 3. Ни одной — показать login
+  if (getSession()) return;
   showLoginOverlay((employee) => {
-    console.log("[auth] Logged in as:", employee.name || employee.email);
+    console.log("[auth] Logged in as:", employee?.name || employee?.email);
   });
 }
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => setTimeout(checkAuth, 1200));
+  document.addEventListener("DOMContentLoaded", () => setTimeout(checkAuth, 600));
 } else {
-  setTimeout(checkAuth, 1200);
+  setTimeout(checkAuth, 600);
 }

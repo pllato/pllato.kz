@@ -44,3 +44,13 @@ CREATE TABLE IF NOT EXISTS store (
   PRIMARY KEY (team_id, collection, id)
 );
 CREATE INDEX IF NOT EXISTS idx_store_lookup ON store(team_id, collection, updated_at);
+
+CREATE TABLE IF NOT EXISTS crm_passwords (
+  email           TEXT PRIMARY KEY,
+  password_hash   TEXT NOT NULL,
+  password_salt   TEXT NOT NULL,
+  iterations      INTEGER NOT NULL DEFAULT 100000,
+  force_change    INTEGER NOT NULL DEFAULT 1,
+  updated_at      INTEGER NOT NULL,
+  updated_by      TEXT
+);

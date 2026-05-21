@@ -9,7 +9,7 @@ const TEAM_ID = "pllato";
 const STORE_COLLECTION_RE = /^[a-z0-9_]{1,64}$/;
 const DEFAULT_STORE_PULL_LIMIT = 5000;
 const MAX_STORE_OPS = 500;
-const BUILD_ID = "2026-05-18-migration-01";
+const BUILD_ID = "2026-05-21-auth-server-side";
 
 let googleKeysCache = {
   keys: null,
@@ -466,7 +466,16 @@ async function ensureD1Schema(env) {
       )
     `,
     `
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`,
+    `CREATE TABLE IF NOT EXISTS crm_passwords (
+      email           TEXT PRIMARY KEY,
+      password_hash   TEXT NOT NULL,
+      password_salt   TEXT NOT NULL,
+      iterations      INTEGER NOT NULL DEFAULT 100000,
+      force_change    INTEGER NOT NULL DEFAULT 1,
+      updated_at      INTEGER NOT NULL,
+      updated_by      TEXT
+    )
     `,
     `
       CREATE TABLE IF NOT EXISTS channels (
@@ -1265,6 +1274,163 @@ async function issueSessionTokenForUser(env, user) {
   };
   const token = await signPllatoJwt(claims, secret);
   return { token, exp: claims.exp, claims };
+}
+
+// ============== CRM passwords (email/password auth) ==============
+
+const CRM_PBKDF2_ITER = 100000;
+
+function bytesToB64(bytes) {
+  let bin = ""; for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+function b64ToBytes(s) {
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function pbkdf2Hash(password, saltBytes, iterations = CRM_PBKDF2_ITER) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: saltBytes, iterations, hash: "SHA-256" },
+    keyMaterial, 256
+  );
+  return bytesToB64(new Uint8Array(bits));
+}
+
+async function d1GetCrmPassword(env, email) {
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  const normalizedEmail = String(email || "").toLowerCase().trim();
+  if (!normalizedEmail) return null;
+  const row = await db
+    .prepare(`SELECT email, password_hash, password_salt, iterations, force_change, updated_at FROM crm_passwords WHERE email = ? LIMIT 1`)
+    .bind(normalizedEmail)
+    .first();
+  if (!row) return null;
+  return {
+    email: row.email,
+    passwordHash: row.password_hash,
+    passwordSalt: row.password_salt,
+    iterations: Number(row.iterations) || CRM_PBKDF2_ITER,
+    forceChange: Number(row.force_change) === 1,
+    updatedAt: Number(row.updated_at) || 0,
+  };
+}
+
+async function d1UpsertCrmPassword(env, email, passwordHash, passwordSalt, forceChange, actor) {
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  const normalizedEmail = String(email || "").toLowerCase().trim();
+  if (!normalizedEmail) throw new HttpError(400, "Email обязателен");
+  const now = Date.now();
+  await db
+    .prepare(`
+      INSERT INTO crm_passwords (email, password_hash, password_salt, iterations, force_change, updated_at, updated_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(email) DO UPDATE SET
+        password_hash = excluded.password_hash,
+        password_salt = excluded.password_salt,
+        iterations = excluded.iterations,
+        force_change = excluded.force_change,
+        updated_at = excluded.updated_at,
+        updated_by = excluded.updated_by
+    `)
+    .bind(
+      normalizedEmail,
+      passwordHash,
+      passwordSalt,
+      CRM_PBKDF2_ITER,
+      forceChange ? 1 : 0,
+      now,
+      actor?.email || actor?.uid || null,
+    )
+    .run();
+}
+
+async function d1HasAnyCrmPasswords(env) {
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  const row = await db.prepare(`SELECT 1 FROM crm_passwords LIMIT 1`).first();
+  return !!row;
+}
+
+// === Handler: email login (публичный) ===
+async function handleAuthEmailLogin(request, env) {
+  const body = await readRequestBodyAsJson(request);
+  const email = String(body.email || "").toLowerCase().trim();
+  const password = String(body.password || "");
+  if (!email || !password) throw new HttpError(400, "Email и пароль обязательны");
+
+  const user = await d1GetUserByEmail(env, email);
+  if (!user) throw new HttpError(403, "Пользователь не найден");
+  if (!canUseCrmApp(user)) throw new HttpError(403, "Нет доступа к Pllato CRM");
+
+  const pwRecord = await d1GetCrmPassword(env, email);
+  if (!pwRecord) throw new HttpError(403, "Пароль не задан. Войди через Google или попроси администратора установить пароль.");
+
+  const saltBytes = b64ToBytes(pwRecord.passwordSalt);
+  const computed = await pbkdf2Hash(password, saltBytes, pwRecord.iterations);
+  if (computed !== pwRecord.passwordHash) throw new HttpError(401, "Неверный пароль");
+
+  const session = await issueSessionTokenForUser(env, user);
+  return {
+    ok: true,
+    token: session.token,
+    exp: session.exp,
+    user: publicUserPayload(user),
+    forcePasswordChange: pwRecord.forceChange,
+  };
+}
+
+// === Handler: установка пароля (требует admin) ===
+async function handleAuthSetPassword(request, env, actor) {
+  if (!canManageUsers(actor)) throw new HttpError(403, "Только администратор может устанавливать пароли");
+
+  const body = await readRequestBodyAsJson(request);
+  const email = String(body.email || "").toLowerCase().trim();
+  const password = String(body.password || "");
+  if (!email || !password) throw new HttpError(400, "Email и пароль обязательны");
+  if (password.length < 6) throw new HttpError(400, "Минимум 6 символов");
+
+  const user = await d1GetUserByEmail(env, email);
+  if (!user) throw new HttpError(404, "Пользователь не найден");
+
+  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+  const hash = await pbkdf2Hash(password, saltBytes);
+  const salt = bytesToB64(saltBytes);
+  await d1UpsertCrmPassword(env, email, hash, salt, /* forceChange */ true, actor);
+
+  return { ok: true, email };
+}
+
+// === Handler: смена пароля (свой) ===
+async function handleAuthChangePassword(request, env, actor) {
+  const body = await readRequestBodyAsJson(request);
+  const password = String(body.password || "");
+  if (!password) throw new HttpError(400, "Пароль обязателен");
+  if (password.length < 6) throw new HttpError(400, "Минимум 6 символов");
+
+  const email = String(actor?.email || "").toLowerCase().trim();
+  if (!email) throw new HttpError(401, "Email из токена не определён");
+
+  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+  const hash = await pbkdf2Hash(password, saltBytes);
+  const salt = bytesToB64(saltBytes);
+  await d1UpsertCrmPassword(env, email, hash, salt, /* forceChange */ false, actor);
+
+  return { ok: true, email };
+}
+
+// === Handler: проверка есть ли вообще пароли (публичный) ===
+async function handleAuthHasAnyPasswords(request, env) {
+  const hasAny = await d1HasAnyCrmPasswords(env);
+  return { ok: true, hasAny };
 }
 
 async function handleAuthGoogle(request, env) {
@@ -3828,6 +3994,20 @@ export default {
       }
       if (request.method === "POST" && path === "/auth/google") {
         return json(request, env, await handleAuthGoogle(request, env));
+      }
+      if (request.method === "POST" && path === "/api/auth/email-login") {
+        return json(request, env, await handleAuthEmailLogin(request, env));
+      }
+      if (request.method === "GET" && path === "/api/auth/has-any-passwords") {
+        return json(request, env, await handleAuthHasAnyPasswords(request, env));
+      }
+      if (request.method === "POST" && path === "/api/auth/set-password") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleAuthSetPassword(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/auth/change-password") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleAuthChangePassword(request, env, actor));
       }
       if (request.method === "GET" && (path === "/me" || path === "/api/me")) {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
