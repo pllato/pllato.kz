@@ -601,7 +601,7 @@ export function renderDeals(container) {
     : deals;
 
   const byStage = Object.fromEntries(stages.map(s => [s.id, []]));
-  filteredDeals.forEach(d => { if (byStage[d.stage]) byStage[d.stage].push(d); });
+  filteredDeals.filter(isDealVisibleByUtmFilter).forEach(d => { if (byStage[d.stage]) byStage[d.stage].push(d); });
 
   container.innerHTML = `
     <div class="deals-view">
@@ -613,7 +613,7 @@ export function renderDeals(container) {
             <button class="crm-view-btn ${state.crmTab === "calls" ? "active" : ""}" data-crm-tab="calls">${ICONS.phone}<span>Звонки</span></button>
             <button type="button" class="crm-view-btn ${state.crmTab === "contacts" ? "active" : ""}" data-crm-tab="contacts" title="Контакты"><span>👥</span><span>Контакты</span></button>
           </div>
-          ${state.crmTab === "deals" ? `<div class="crm-view-tools pllato-tools">${renderViewToggle()}${renderStagesFilter(stages)}</div>` : ""}
+          ${state.crmTab === "deals" ? `<div class="crm-view-tools pllato-tools">${renderViewToggle()}${renderStagesFilter(stages)}${renderUtmFilter(Store.list(COLLECTION))}</div>` : ""}
           <label class="crm-global-search pllato-search">
             <span class="crm-search-icon">${ICONS.search}</span>
             <input id="crmGlobalSearch" type="search" value="${escapeAttr(state.crmSearch)}" placeholder="Поиск по CRM: карточки, заметки, активности, переписка...">
@@ -622,6 +622,7 @@ export function renderDeals(container) {
         </div>
 
         <div class="deals-toolbar-right">
+          ${state.crmTab === "deals" ? `<button class="btn-ghost" id="utmReportBtn" title="UTM-аналитика">📊<span>Отчёт</span></button>` : ""}
           ${state.crmTab === "deals" ? `<button class="btn-ghost" id="manageStages" title="Настроить стадии">${ICONS.settings}<span>Стадии</span></button>` : ""}
           ${state.crmTab === "deals" ? `<button class="btn-primary" id="newDeal">${ICONS.plus}<span>Сделка</span></button>` : ""}
         </div>
@@ -821,7 +822,7 @@ function paginate(items, page, pageSize) {
 }
 
 function renderDealsList(deals, stages, contactMap) {
-  const filtered = deals.filter(isDealVisibleByStageFilter);
+  const filtered = deals.filter(isDealVisibleByStageFilter).filter(isDealVisibleByUtmFilter);
   const sorted = [...filtered].sort((a, b) => (b.createdAt || b.ts || 0) - (a.createdAt || a.ts || 0));
   const pageInfo = paginate(sorted, state.crmListPage, state.crmListPageSize);
   const selectedOnPage = pageInfo.items.filter((d) => state.crmSelectedDealIds.has(d.id)).length;
@@ -2181,6 +2182,57 @@ export function tryOpenDealFromHash() {
 // =========================================================================
 function wireEvents(container) {
   const contacts = listAliveContacts();
+
+  // === UTM Filter handlers ===
+  container.querySelectorAll("[data-utm-filter-toggle]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      state.crmUtmFilterOpen = !state.crmUtmFilterOpen;
+      renderDeals(container);
+    });
+  });
+  container.querySelectorAll("[data-utm-filter-close]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.crmUtmFilterOpen = false;
+      renderDeals(container);
+    });
+  });
+  if (state.crmUtmFilterOpen) {
+    const closeOnOutside = (e) => {
+      if (!e.target.closest(".crm-utm-filter")) {
+        state.crmUtmFilterOpen = false;
+        document.removeEventListener("click", closeOnOutside);
+        renderDeals(container);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", closeOnOutside), 50);
+  }
+  container.querySelectorAll("[data-utm-filter-all]").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      state.crmVisibleUtmSources = cb.checked ? null : new Set();
+      state.crmListPage = 1;
+      renderDeals(container);
+    });
+  });
+  container.querySelectorAll("[data-utm-filter-id]").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const id = cb.dataset.utmFilterId;
+      if (!state.crmVisibleUtmSources) {
+        const allDeals = Store.list(COLLECTION);
+        const sources = new Set();
+        allDeals.forEach((d) => sources.add(String(d.utmSource || "").toLowerCase() || "_none"));
+        state.crmVisibleUtmSources = sources;
+      }
+      if (cb.checked) state.crmVisibleUtmSources.add(id);
+      else state.crmVisibleUtmSources.delete(id);
+      state.crmListPage = 1;
+      renderDeals(container);
+    });
+  });
+
+  // UTM Report button
+  const utmReportBtn = container.querySelector("#utmReportBtn");
+  if (utmReportBtn) utmReportBtn.addEventListener("click", openUtmReport);
 
   // === CRM List View handlers ===
   // Toggle Канбан / Список
