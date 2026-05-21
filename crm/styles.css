@@ -9484,3 +9484,112 @@ body {
   padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;
 }
 .btn-danger:hover { background: #dc2626; }
+
+
+/* === CRM List View — Light Theme Fixes === */
+/* Дочерние элементы — явные цвета чтобы наследование не ломалось */
+
+.crm-vt-btn,
+.crm-sf-toggle,
+.crm-sf-row,
+.crm-sf-toggle strong,
+.crm-sf-toggle .crm-sf-label,
+.crm-sf-row span {
+  color: var(--text);
+}
+.crm-vt-btn.active,
+.crm-vt-btn.active span {
+  color: #fff;
+}
+.crm-vt-btn:not(.active) {
+  color: var(--muted);
+}
+.crm-vt-btn:not(.active):hover {
+  color: var(--text);
+}
+
+/* В светлой теме --bg-elevated может быть белым и сливаться — добавим явный hover */
+.crm-sf-toggle:hover,
+.crm-stages-filter.open .crm-sf-toggle {
+  background: var(--bg);
+}
+.crm-sf-dropdown {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+.crm-sf-row {
+  color: var(--text);
+}
+.crm-sf-row strong { color: var(--text); }
+.crm-sf-row span { color: inherit; }
+
+/* List table в светлой теме */
+.crm-list-table-wrap {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+.crm-list-table thead th {
+  background: var(--bg);
+  color: var(--muted);
+}
+.crm-list-table tbody td {
+  color: var(--text);
+}
+.cl-deal-link {
+  color: var(--text);
+}
+.cl-deal-link:hover { color: var(--accent); }
+.cl-contact-name { color: var(--text); }
+.cl-assignee-name { color: var(--text); }
+
+/* Pagination в светлой теме */
+.cp-page {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+.cp-page:hover { background: var(--bg); }
+.cp-page.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Mass action bar — лучшие контрасты */
+.crm-mass-action-bar {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+.cma-info { color: var(--text); }
+.cma-info strong { color: var(--accent); }
+
+/* Mass action modal в светлой теме */
+.cma-modal {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+.cma-modal-header h2 { color: var(--text); }
+.cma-modal-body p { color: var(--text); }
+.cma-modal-field label { color: var(--muted); }
+.cma-modal-field select {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Toolbar divider — видимый и в свете, и в темноте */
+.crm-toolbar-divider {
+  background: var(--border);
+}
+
+/* Selected counter */
+.cl-selected-info {
+  color: var(--accent);
+}
+
+/* Disabled apply button во время операции */
+[data-mass-action-apply][disabled] {
+  opacity: 0.7;
+  cursor: wait;
+}
+[data-mass-progress] {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}

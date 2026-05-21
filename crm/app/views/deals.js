@@ -69,6 +69,8 @@ const state = {
   crmStagesFilterOpen: false,
   crmMassAction: null, // null | "assign" | "move" | "delete"
   crmMassActionDraft: { assigneeId: "", pipelineId: "", stage: "" },
+  crmMassActionRunning: false,
+  crmMassActionProgress: { current: 0, total: 0 },
   // Сохранение горизонтальной прокрутки kanban между ре-рендерами
   __kanbanScrollLeft: 0,
   callsRoute: { page: "dial" },
@@ -761,18 +763,28 @@ function renderDealsList(deals, stages, contactMap) {
   const selectedOnPage = pageInfo.items.filter((d) => state.crmSelectedDealIds.has(d.id)).length;
   const allOnPageSelected = pageInfo.items.length > 0 && selectedOnPage === pageInfo.items.length;
 
+  // Подсчёт выделенных в текущем отфильтрованном списке
+  const filteredIds = new Set(sorted.map((d) => d.id));
+  const selectedInFiltered = Array.from(state.crmSelectedDealIds).filter((id) => filteredIds.has(id)).length;
+  const allFilteredSelected = sorted.length > 0 && selectedInFiltered === sorted.length;
+  const someFilteredSelected = selectedInFiltered > 0 && !allFilteredSelected;
+
   return `
     <div class="crm-list-view">
       <div class="crm-list-meta">
         Показано: <strong>${pageInfo.items.length}</strong> из <strong>${pageInfo.total}</strong>
         ${pageInfo.total !== deals.length ? `<span class="muted">· (всего: ${deals.length})</span>` : ""}
+        ${selectedInFiltered > 0 ? `<span class="cl-selected-info"> · Выделено: <strong>${selectedInFiltered}</strong></span>` : ""}
       </div>
       <div class="crm-list-table-wrap">
         <table class="crm-list-table">
           <thead>
             <tr>
               <th class="cl-th-select">
-                <input type="checkbox" data-deals-select-all ${allOnPageSelected ? "checked" : ""} title="Выделить все на странице">
+                <input type="checkbox" data-deals-select-all 
+                  ${allFilteredSelected ? "checked" : ""} 
+                  ${someFilteredSelected ? "data-indeterminate=true" : ""}
+                  title="Выделить ВСЕ ${sorted.length} ${sorted.length === 1 ? "сделку" : "сделок"} в текущем фильтре">
               </th>
               <th class="cl-th-title">Сделка</th>
               <th class="cl-th-contact">Контакт</th>
@@ -863,6 +875,8 @@ function renderMassActionModal(pipelines, stages) {
   const action = state.crmMassAction;
   const count = state.crmSelectedDealIds.size;
   const employees = (Store.list("employees") || []).filter((e) => !e.isDeleted);
+  const running = state.crmMassActionRunning;
+  const progress = state.crmMassActionProgress;
 
   let body = "", title = "";
   if (action === "assign") {
@@ -915,8 +929,10 @@ function renderMassActionModal(pipelines, stages) {
         <div class="cma-modal-body">${body}</div>
         <footer class="cma-modal-footer">
           <button type="button" class="btn-ghost" data-mass-action-close>Отмена</button>
-          <button type="button" class="${action === "delete" ? "btn-danger" : "btn-primary"}" data-mass-action-apply>
-            ${action === "delete" ? "Удалить" : "Применить"}
+          <button type="button" class="${action === "delete" ? "btn-danger" : "btn-primary"}" data-mass-action-apply ${running ? "disabled" : ""}>
+            ${running 
+              ? `Обработка... <span data-mass-progress>${progress.current} / ${progress.total}</span>` 
+              : (action === "delete" ? `Удалить (${count})` : `Применить (${count})`)}
           </button>
         </footer>
       </div>
@@ -2168,16 +2184,19 @@ function wireEvents(container) {
 
   // Выделение сделок (только в режиме List)
   container.querySelectorAll("[data-deals-select-all]").forEach((cb) => {
+    // Indeterminate state (часть выделена)
+    if (cb.dataset.indeterminate === "true") cb.indeterminate = true;
     cb.addEventListener("change", () => {
-      // Получим текущую страницу с применением фильтра + сортировки
+      // Выделяем ВСЕ отфильтрованные сделки (не только страницу)
       const allDeals = Store.list(COLLECTION);
       const activeP = getActivePipelineId();
       const dealsFor = activeP ? allDeals.filter((d) => (d.pipelineId || activeP) === activeP) : allDeals;
       const visible = dealsFor.filter(isDealVisibleByStageFilter);
-      const sorted = [...visible].sort((a, b) => (b.createdAt || b.ts || 0) - (a.createdAt || a.ts || 0));
-      const pageInfo = paginate(sorted, state.crmListPage, state.crmListPageSize);
-      if (cb.checked) pageInfo.items.forEach((d) => state.crmSelectedDealIds.add(d.id));
-      else pageInfo.items.forEach((d) => state.crmSelectedDealIds.delete(d.id));
+      if (cb.checked) {
+        visible.forEach((d) => state.crmSelectedDealIds.add(d.id));
+      } else {
+        visible.forEach((d) => state.crmSelectedDealIds.delete(d.id));
+      }
       renderDeals(container);
     });
   });
@@ -2292,32 +2311,80 @@ function wireEvents(container) {
 
   // Mass action: apply
   container.querySelectorAll("[data-mass-action-apply]").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
+      if (state.crmMassActionRunning) return;
       const action = state.crmMassAction;
       const ids = Array.from(state.crmSelectedDealIds);
       if (ids.length === 0) { state.crmMassAction = null; renderDeals(container); return; }
 
+      // Параметры
+      let assigneeId = null, pipelineId = null, stage = null;
       if (action === "assign") {
-        const assigneeId = state.crmMassActionDraft.assigneeId || null;
-        ids.forEach((id) => Store.update(COLLECTION, id, { assigneeId }));
+        assigneeId = state.crmMassActionDraft.assigneeId || null;
       } else if (action === "move") {
-        const pipelineId = state.crmMassActionDraft.pipelineId;
-        const stage = state.crmMassActionDraft.stage;
+        pipelineId = state.crmMassActionDraft.pipelineId;
+        stage = state.crmMassActionDraft.stage;
         if (!pipelineId || !stage) { alert("Выбери воронку и стадию"); return; }
-        ids.forEach((id) => Store.update(COLLECTION, id, { pipelineId, stage }));
       } else if (action === "delete") {
-        ids.forEach((id) => {
-          // Активности
-          Store.list(ACTIVITIES).filter((a) => a.dealId === id).forEach((a) => Store.remove(ACTIVITIES, a.id));
-          // Позиции заказа (если функция доступна — она в deal_items.js но не импортирована тут)
-          Store.list("deal_items").filter((x) => x.dealId === id).forEach((x) => Store.remove("deal_items", x.id));
-          // Сама сделка
-          Store.remove(COLLECTION, id);
-        });
-        state.crmSelectedDealIds.clear();
+        if (!confirm(`Удалить ${ids.length} ${ids.length === 1 ? "сделку" : "сделок"}? Действие необратимо.`)) return;
       }
 
+      // Запуск с прогрессом
+      state.crmMassActionRunning = true;
+      state.crmMassActionProgress = { current: 0, total: ids.length };
+      renderDeals(container);
+
+      // Pre-build индексы для delete (один проход вместо N×Store.list)
+      let actsByDeal = null, itemsByDeal = null;
+      if (action === "delete") {
+        actsByDeal = new Map();
+        Store.list(ACTIVITIES).forEach((a) => {
+          if (!a.dealId) return;
+          if (!actsByDeal.has(a.dealId)) actsByDeal.set(a.dealId, []);
+          actsByDeal.get(a.dealId).push(a.id);
+        });
+        itemsByDeal = new Map();
+        Store.list("deal_items").forEach((x) => {
+          if (!x.dealId) return;
+          if (!itemsByDeal.has(x.dealId)) itemsByDeal.set(x.dealId, []);
+          itemsByDeal.get(x.dealId).push(x.id);
+        });
+      }
+
+      const CHUNK = 50;
+      const updateProgress = (current) => {
+        state.crmMassActionProgress.current = current;
+        const progEl = document.querySelector("[data-mass-progress]");
+        if (progEl) progEl.textContent = `${current} / ${ids.length}`;
+      };
+
+      try {
+        for (let i = 0; i < ids.length; i += CHUNK) {
+          const chunk = ids.slice(i, i + CHUNK);
+          chunk.forEach((id) => {
+            if (action === "assign") {
+              Store.update(COLLECTION, id, { assigneeId });
+            } else if (action === "move") {
+              Store.update(COLLECTION, id, { pipelineId, stage });
+            } else if (action === "delete") {
+              (actsByDeal.get(id) || []).forEach((aid) => Store.remove(ACTIVITIES, aid));
+              (itemsByDeal.get(id) || []).forEach((iid) => Store.remove("deal_items", iid));
+              Store.remove(COLLECTION, id);
+            }
+          });
+          updateProgress(i + chunk.length);
+          // Дать браузеру вдохнуть — не блокируем UI
+          await new Promise((r) => setTimeout(r, 0));
+        }
+      } catch (err) {
+        console.error("Mass action failed:", err);
+        alert(`Ошибка при массовой операции: ${err?.message || err}`);
+      }
+
+      if (action === "delete") state.crmSelectedDealIds.clear();
+      state.crmMassActionRunning = false;
       state.crmMassAction = null;
+      state.crmMassActionProgress = { current: 0, total: 0 };
       renderDeals(container);
     });
   });
