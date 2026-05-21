@@ -9650,3 +9650,85 @@ body {
 
 /* Гарантировать что .crm-view-btn виден в светлой теме как в Канбан/Звонки */
 /* Полагаемся на существующие классы — никаких override background */
+
+
+/* === CRM Toolbar Polish (final) === */
+/* Перебиваем ВСЕ старые .crm-sf-toggle стили — кнопка прозрачная как CRM/Звонки */
+.crm-sf-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.crm-sf-toggle:hover {
+  background: rgba(128, 128, 128, .08);
+  border-color: var(--accent);
+}
+.crm-stages-filter.open .crm-sf-toggle {
+  background: rgba(34, 197, 94, .1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.crm-sf-toggle .crm-sf-label {
+  color: var(--muted);
+  font-weight: 400;
+}
+.crm-sf-toggle strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* === Группировка в тулбаре — flex с разделителями === */
+.deals-toolbar {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+/* Левая часть — переключатель режимов CRM/Звонки/Контакты как сегмент-группа */
+.deals-toolbar > div:first-child {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  background: rgba(128, 128, 128, .06);
+  border-radius: 10px;
+}
+/* Внутри сегмента кнопки чуть компактнее */
+.deals-toolbar > div:first-child .crm-view-btn {
+  padding: 5px 12px;
+  border: none;
+}
+.deals-toolbar > div:first-child .crm-view-btn:not(.active):hover {
+  background: rgba(128, 128, 128, .08);
+}
+
+/* Канбан / Список — отдельный сегмент с разделителем перед */
+.deals-toolbar [data-crm-view] {
+  margin-left: 0;
+}
+.deals-toolbar [data-crm-view]:first-of-type {
+  margin-left: 8px;
+  position: relative;
+}
+.deals-toolbar [data-crm-view]:first-of-type::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 4px; bottom: 4px;
+  width: 1px;
+  background: var(--border);
+}
+
+/* Кнопка "+ Сделка" не убегает за край viewport */
+.deals-toolbar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
