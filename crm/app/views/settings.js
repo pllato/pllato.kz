@@ -179,7 +179,7 @@ export function renderSettings(container) {
       <!-- Сотрудники -->
       <section class="settings-block">
         <header class="settings-head">
-          <h3>Сотрудники <span style="font-weight:500;color:var(--text-muted)">(${employees.length})</span></h3>
+          <h3 style="display:flex;align-items:center;gap:12px;">Сотрудники <span style="font-weight:500;color:var(--text-muted)">(${employees.length})</span><button class="btn-ghost" id="logoutBtn" style="margin-left:auto;font-size:13px;font-weight:500" title="Выйти из аккаунта">${ICONS.logout}<span>Выйти</span></button></h3>
           <p>${isEmployeesSynced()
             ? "Единая база сотрудников всех приложений Pllato. Управление — в админке на pllato.kz/app.html."
             : "Локальный fallback-список. После входа синхронизируется из общего Worker API."}</p>
@@ -198,7 +198,6 @@ export function renderSettings(container) {
           ${!isEmployeesSynced() && state.editingEmployee === "new" ? renderEmployeeForm(null, roles) : ""}
           ${!isEmployeesSynced() ? `<div>
             <button class="btn-ghost" id="addEmployee">${ICONS.plus}<span>Добавить сотрудника</span></button>
-            <button class="btn-ghost" id="logoutBtn" title="Выйти из аккаунта">${ICONS.logout}<span>Выйти из аккаунта</span></button>
           </div>` : ""}
         </div>
       </section>
@@ -403,6 +402,7 @@ function renderEmployeeRow(e, roles, canManageDocs) {
   const managedByDirectory = isEmployeesSynced();
   const roleLabel = e.isSuperAdmin ? "Супер-админ" : e.isAdmin ? "Админ" : (roles.find(r => r.id === e.roleId)?.name || e.role || "Сотрудник");
   const actions = [];
+  actions.push(`<button class="btn-ghost icon-only" data-set-pw="${e.id}" title="Установить пароль для входа по email">🔑</button>`);
   if (canManageDocs) actions.push(`<button class="btn-ghost icon-only" data-emp-docs="${e.id}" title="Документы">${ICONS.book}</button>`);
   if (!managedByDirectory) {
     actions.push(`<button class="btn-ghost icon-only" data-edit-emp="${e.id}">${ICONS.edit}</button>`);
@@ -693,6 +693,32 @@ function wireEvents(container) {
       alert("Ошибка сохранения: " + (err.message || err));
       if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = id ? "Сохранить" : "Добавить"; }
     }
+  });
+
+  // Кнопка "🔑 Установить пароль" в строке сотрудника
+  container.querySelectorAll("[data-set-pw]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const empId = btn.dataset.setPw;
+      const emp = listEmployees().find((x) => x.id === empId);
+      if (!emp) return;
+      const useManual = confirm(`Установить пароль для ${emp.name || emp.email}?\n\nOK — ввести вручную\nОтмена — сгенерировать автоматически`);
+      let password;
+      if (useManual) {
+        const input = prompt("Введи пароль (минимум 6 символов):");
+        if (input === null) return;
+        password = input.trim();
+        if (password.length < 6) { alert("Минимум 6 символов"); return; }
+      } else {
+        password = generateTempPassword(10);
+      }
+      try {
+        await setEmployeePassword(empId, password);
+        prompt(`Пароль установлен для ${emp.name || emp.email}.\n\nСкопируй пароль и передай сотруднику.\nПри первом входе он сможет сменить пароль:`, password);
+        renderSettings(container);
+      } catch (err) {
+        alert("Ошибка: " + (err.message || err));
+      }
+    });
   });
 
   // Кнопка "🎲 Сгенерировать пароль"
