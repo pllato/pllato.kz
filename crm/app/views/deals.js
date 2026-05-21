@@ -24,6 +24,7 @@ import { FIELD_TYPES, getDealFields, saveDealFields, newFieldId, newOptionId, ge
 import { openCommunicate } from "../communicate.js";
 import { listEmployees, getEmployee, currentEmployee, avatar, initialsOf } from "../employees.js";
 import { renderTypeahead, attachTypeahead } from "../typeahead.js";
+import { captureUtmFromUrl, enrichWithStoredUtm, renderUtmFormSection, renderUtmBadge, readUtmFromFormData, listKnownSources, getSourcePreset } from "../utm.js";
 import { renderContacts } from "./contacts.js";
 import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal } from "../deal_items.js";
 import { listChannels } from "../channels.js";
@@ -556,6 +557,7 @@ function attachKanbanScrollMemory(container) {
 }
 
 export function renderDeals(container) {
+  captureUtmFromUrl();
   ensurePipelinesInitialized();
   const activePipelineId = getActivePipelineId();
   const pipelines = getPipelines();
@@ -794,6 +796,7 @@ function renderDealsList(deals, stages, contactMap) {
               <th class="cl-th-contact">Контакт</th>
               <th class="cl-th-stage">Стадия</th>
               <th class="cl-th-amount num">Сумма</th>
+              <th class="cl-th-source">Источник</th>
               <th class="cl-th-assignee">Ответственный</th>
               <th class="cl-th-date">Создана</th>
             </tr>
@@ -829,6 +832,7 @@ function renderDealListRow(d, stages, contactMap) {
         ${stage ? `<span class="cl-stage-pill" style="background:${stage.color}22;color:${stage.color};border:1px solid ${stage.color}40">${escape(stage.title)}</span>` : `<span class="muted">—</span>`}
       </td>
       <td class="cl-td-amount num">${fmtAmount(d.amount)}</td>
+      <td class="cl-td-source">${renderUtmBadge(d) || `<span class="muted">—</span>`}</td>
       <td class="cl-td-assignee">
         ${assignee ? `<span class="cl-assignee">${avatar(assignee, "xs")}<span class="cl-assignee-name">${escape(assignee.name || "")}</span></span>` : `<span class="muted">—</span>`}
       </td>
@@ -973,6 +977,7 @@ function renderCard(d, contact) {
       <div class="deal-card-title">${escape(d.title || "(без названия)")}</div>
       <div class="deal-card-meta">
         <span class="deal-amount">${fmtAmount(d.amount)}</span>
+        ${renderUtmBadge(d)}
         ${d.dueDate ? `<span class="deal-due">${ICONS.calendar} ${fmtDate(d.dueDate)}</span>` : ""}
       </div>
       ${kanbanFields.length ? `<div class="deal-card-fields">${kanbanFields.map((f) => renderFieldMicroValue(f, d)).join("")}</div>` : ""}
@@ -1070,6 +1075,7 @@ function renderDealModal(d, contacts, stages) {
               })}
               ${renderCustomFields(d, contacts, employees, stages)}
               ${!isNew ? renderDealItemsSection(d.id, d.amount) : ""}
+              ${renderUtmFormSection(d)}
               <div class="field field-wide form-buttons">
                 ${!isNew ? `<button type="button" class="btn-ghost danger" id="deleteDeal">${ICONS.trash}<span>Удалить</span></button>` : "<span></span>"}
                 ${isNew
