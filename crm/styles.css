@@ -9768,3 +9768,65 @@ body {
 .crm-stages-filter {
   margin-left: 4px;
 }
+
+
+/* === FINAL TOOLBAR CLEANUP — nuke все мои предыдущие сломанные override === */
+.deals-toolbar > div:first-child {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+.crm-toolbar-divider,
+.deals-toolbar > div:first-child::before,
+.deals-toolbar [data-crm-view]:first-of-type::before {
+  display: none !important;
+  content: none !important;
+}
+.deals-toolbar [data-crm-view]:first-of-type {
+  margin-left: 0 !important;
+}
+
+/* === Новый контейнер для Канбан/Список/Стадии — рядом с .crm-view-switch === */
+.crm-view-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 12px;
+  flex-wrap: wrap;
+}
+.crm-view-tools .crm-view-btn {
+  padding: 6px 12px;
+}
+
+/* === Стадии: прозрачная кнопка, единый стиль === */
+.crm-sf-toggle {
+  background: transparent !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  padding: 6px 12px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  white-space: nowrap !important;
+  font-weight: 500 !important;
+}
+.crm-sf-toggle:hover {
+  background: rgba(128, 128, 128, .08) !important;
+  border-color: var(--accent) !important;
+}
+.crm-stages-filter.open .crm-sf-toggle {
+  background: rgba(34, 197, 94, .1) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+.crm-sf-toggle .crm-sf-label {
+  color: var(--muted) !important;
+  font-weight: 400 !important;
+}
+.crm-sf-toggle strong {
+  color: var(--text) !important;
+  font-weight: 600 !important;
+}

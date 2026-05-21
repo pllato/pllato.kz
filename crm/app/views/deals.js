@@ -606,12 +606,8 @@ export function renderDeals(container) {
             <button class="crm-view-btn ${state.crmTab === "deals" ? "active" : ""}" data-crm-tab="deals">${ICONS.deals}<span>CRM</span></button>
             <button class="crm-view-btn ${state.crmTab === "calls" ? "active" : ""}" data-crm-tab="calls">${ICONS.phone}<span>Звонки</span></button>
             <a class="crm-view-btn" href="#contacts" title="Контакты"><span>👥</span><span>Контакты</span></a>
-            ${state.crmTab === "deals" ? `
-              <div class="crm-toolbar-divider"></div>
-              ${renderViewToggle()}
-              ${renderStagesFilter(stages)}
-            ` : ""}
           </div>
+          ${state.crmTab === "deals" ? `<div class="crm-view-tools">${renderViewToggle()}${renderStagesFilter(stages)}</div>` : ""}
           <label class="crm-global-search">
             <span class="crm-search-icon">${ICONS.search}</span>
             <input id="crmGlobalSearch" type="search" value="${escapeAttr(state.crmSearch)}" placeholder="Поиск по CRM: карточки, заметки, активности, переписка...">
