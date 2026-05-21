@@ -600,15 +600,15 @@ export function renderDeals(container) {
   container.innerHTML = `
     <div class="deals-view">
       ${state.crmTab === "deals" ? renderPipelinesBar(pipelines, activePipelineId) : ""}
-      <div class="deals-toolbar">
+      <div class="deals-toolbar pllato-toolbar">
         <div class="crm-top-controls">
-          <div class="crm-view-switch">
+          <div class="crm-view-switch pllato-tabs">
             <button class="crm-view-btn ${state.crmTab === "deals" ? "active" : ""}" data-crm-tab="deals">${ICONS.deals}<span>CRM</span></button>
             <button class="crm-view-btn ${state.crmTab === "calls" ? "active" : ""}" data-crm-tab="calls">${ICONS.phone}<span>Звонки</span></button>
             <a class="crm-view-btn" href="#contacts" title="Контакты"><span>👥</span><span>Контакты</span></a>
           </div>
-          ${state.crmTab === "deals" ? `<div class="crm-view-tools">${renderViewToggle()}${renderStagesFilter(stages)}</div>` : ""}
-          <label class="crm-global-search">
+          ${state.crmTab === "deals" ? `<div class="crm-view-tools pllato-tools">${renderViewToggle()}${renderStagesFilter(stages)}</div>` : ""}
+          <label class="crm-global-search pllato-search">
             <span class="crm-search-icon">${ICONS.search}</span>
             <input id="crmGlobalSearch" type="search" value="${escapeAttr(state.crmSearch)}" placeholder="Поиск по CRM: карточки, заметки, активности, переписка...">
             ${state.crmSearch ? `<button type="button" class="crm-search-clear" id="clearCrmSearch" aria-label="Очистить поиск">${ICONS.x}</button>` : ""}

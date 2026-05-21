@@ -10079,3 +10079,174 @@ body {
   flex-shrink: 0 !important;
   margin-left: auto !important;
 }
+
+
+/* =================================================================
+   PLLATO TOOLBAR — финальный чистый дизайн
+   Все стили скоупнуты под .pllato-toolbar чтобы не пересекаться
+   со старыми CSS правилами накопленными в файле.
+   ================================================================= */
+
+.pllato-toolbar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 24px;
+}
+
+.pllato-toolbar .crm-top-controls {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pllato-toolbar .deals-toolbar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* === Сегменты (плашка с фоном для группы связанных кнопок) === */
+.pllato-toolbar .pllato-tabs,
+.pllato-toolbar .pllato-tools {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(128, 128, 128, .07);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* Кнопки внутри любого сегмента: единый базовый стиль */
+.pllato-toolbar .pllato-tabs .crm-view-btn,
+.pllato-toolbar .pllato-tools [data-crm-view] {
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  padding: 6px 14px;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 13px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, color .12s;
+}
+.pllato-toolbar .pllato-tabs .crm-view-btn:hover,
+.pllato-toolbar .pllato-tools [data-crm-view]:hover {
+  color: var(--text);
+  background: rgba(128, 128, 128, .08);
+}
+
+/* Активная кнопка в сегменте — "вынутая" наверх */
+.pllato-toolbar .pllato-tabs .crm-view-btn.active,
+.pllato-toolbar .pllato-tools [data-crm-view].active {
+  background: var(--bg-elevated);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08), 0 1px 1px rgba(0, 0, 0, .04);
+}
+
+/* Размеры — переключатель раздела чуть крупнее чем переключатель вида */
+.pllato-toolbar .pllato-tools [data-crm-view] {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* === Стадии: фильтр-кнопка вне сегмента, отдельная === */
+.pllato-toolbar .crm-stages-filter { position: relative; }
+.pllato-toolbar .crm-sf-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-weight: 500;
+  transition: border-color .12s, background .12s;
+}
+.pllato-toolbar .crm-sf-toggle:hover {
+  border-color: var(--accent);
+  background: rgba(128, 128, 128, .06);
+}
+.pllato-toolbar .crm-stages-filter.open .crm-sf-toggle {
+  background: rgba(34, 197, 94, .08);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.pllato-toolbar .crm-sf-toggle .crm-sf-label {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.pllato-toolbar .crm-sf-toggle strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Стадии — поскольку Стадии внутри pllato-tools (мы оба отрендерили туда),
+   нужно вернуть ей нормальный стиль без сегмент-фона */
+.pllato-toolbar .pllato-tools .crm-stages-filter {
+  margin-left: 8px;
+  background: transparent;
+  padding: 0;
+}
+
+/* === Поиск === */
+.pllato-toolbar .pllato-search {
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 240px;
+  min-width: 200px;
+  max-width: 480px;
+  background: rgba(128, 128, 128, .06);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 12px;
+  gap: 8px;
+  height: 36px;
+  transition: border-color .12s, background .12s;
+}
+.pllato-toolbar .pllato-search:focus-within {
+  border-color: var(--accent);
+  background: var(--bg-elevated);
+}
+.pllato-toolbar .pllato-search input {
+  background: transparent;
+  border: none;
+  outline: none;
+  flex: 1;
+  color: var(--text);
+  font-size: 13px;
+  height: 100%;
+  padding: 0;
+}
+.pllato-toolbar .pllato-search input::placeholder {
+  color: var(--muted);
+}
+.pllato-toolbar .pllato-search .crm-search-icon {
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
