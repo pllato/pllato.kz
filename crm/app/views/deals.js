@@ -61,6 +61,14 @@ const state = {
   dealChatSyncTimer: null,
   crmSearch: "",
   crmTab: "deals",
+  crmView: (typeof localStorage !== "undefined" && localStorage.getItem("pllato_crm_view")) === "list" ? "list" : "kanban",
+  crmListPage: 1,
+  crmListPageSize: 20,
+  crmSelectedDealIds: new Set(),
+  crmVisibleStageIds: null, // null = все, иначе Set<string>
+  crmStagesFilterOpen: false,
+  crmMassAction: null, // null | "assign" | "move" | "delete"
+  crmMassActionDraft: { assigneeId: "", pipelineId: "", stage: "" },
   // Сохранение горизонтальной прокрутки kanban между ре-рендерами
   __kanbanScrollLeft: 0,
   callsRoute: { page: "dial" },
@@ -595,6 +603,11 @@ export function renderDeals(container) {
           <div class="crm-view-switch">
             <button class="crm-view-btn ${state.crmTab === "deals" ? "active" : ""}" data-crm-tab="deals">${ICONS.deals}<span>CRM</span></button>
             <button class="crm-view-btn ${state.crmTab === "calls" ? "active" : ""}" data-crm-tab="calls">${ICONS.phone}<span>Звонки</span></button>
+            ${state.crmTab === "deals" ? `
+              <div class="crm-toolbar-divider"></div>
+              ${renderViewToggle()}
+              ${renderStagesFilter(stages)}
+            ` : ""}
           </div>
           <label class="crm-global-search">
             <span class="crm-search-icon">${ICONS.search}</span>
@@ -620,15 +633,19 @@ export function renderDeals(container) {
           ? `<div class="crm-search-empty">По запросу «${escape(query)}» ничего не найдено. Проверь формулировку или убери часть текста.</div>`
           : ""}
 
-        <div class="kanban" id="kanbanWrap">
-          ${stages.map(stage => renderColumn(stage, byStage[stage.id], contactMap)).join("")}
-        </div>
+        ${state.crmView === "list" 
+          ? renderDealsList(filteredDeals, stages, contactMap) 
+          : `<div class="kanban" id="kanbanWrap">
+              ${getVisibleStages(stages).map(stage => renderColumn(stage, byStage[stage.id] || [], contactMap)).join("")}
+            </div>`}
+        ${renderMassActionBar()}
       ` : `
         <div class="crm-calls-wrap">
           <div id="crmCallsMount"></div>
         </div>
       `}
 
+      ${state.crmTab === "deals" ? renderMassActionModal(pipelines, stages) : ""}
       ${state.crmTab === "deals" && state.modalOpen ? renderDealModal(Store.get(COLLECTION, state.modalDealId), contacts, stages) : ""}
       ${state.crmTab === "deals" && state.stagesModalOpen ? renderStagesModal(stages) : ""}
       ${state.crmTab === "deals" && state.pipelinesManagerOpen ? renderPipelinesManagerModal() : ""}
@@ -655,6 +672,256 @@ export function renderDeals(container) {
   }
 
   ensureDealChatLoop(container);
+}
+
+// =========================================================================
+// CRM List View: переключатель Канбан/Список, фильтр стадий, табличный вид,
+// пагинация по 20, выделение, массовые действия (assign / move / delete)
+// =========================================================================
+
+function fmtDayMonthSafe(ts) {
+  if (!ts) return "";
+  try {
+    const d = new Date(ts);
+    return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  } catch (e) { return ""; }
+}
+
+function getVisibleStages(allStages) {
+  if (!state.crmVisibleStageIds) return allStages;
+  return allStages.filter((s) => state.crmVisibleStageIds.has(s.id));
+}
+
+function isDealVisibleByStageFilter(deal) {
+  if (!state.crmVisibleStageIds) return true;
+  return state.crmVisibleStageIds.has(deal.stage);
+}
+
+function renderViewToggle() {
+  return `
+    <div class="crm-view-toggle" role="group" aria-label="Вид">
+      <button type="button" class="crm-vt-btn ${state.crmView === "kanban" ? "active" : ""}" data-crm-view="kanban" title="Канбан">
+        <span>⊞</span><span class="crm-vt-label">Канбан</span>
+      </button>
+      <button type="button" class="crm-vt-btn ${state.crmView === "list" ? "active" : ""}" data-crm-view="list" title="Список">
+        <span>☰</span><span class="crm-vt-label">Список</span>
+      </button>
+    </div>
+  `;
+}
+
+function renderStagesFilter(stages) {
+  const allVisible = !state.crmVisibleStageIds;
+  const visibleCount = allVisible ? stages.length : state.crmVisibleStageIds.size;
+  const label = allVisible ? `Все стадии (${stages.length})` : `${visibleCount} из ${stages.length}`;
+
+  return `
+    <div class="crm-stages-filter ${state.crmStagesFilterOpen ? "open" : ""}">
+      <button type="button" class="crm-sf-toggle" data-stages-filter-toggle>
+        <span>⏷</span><span class="crm-sf-label">Стадии:</span> <strong>${label}</strong>
+      </button>
+      ${state.crmStagesFilterOpen ? `
+        <div class="crm-sf-dropdown">
+          <label class="crm-sf-row crm-sf-all">
+            <input type="checkbox" data-stages-filter-all ${allVisible ? "checked" : ""}>
+            <span><strong>Все стадии</strong></span>
+          </label>
+          <div class="crm-sf-divider"></div>
+          ${stages.map((s) => {
+            const checked = allVisible || state.crmVisibleStageIds.has(s.id);
+            return `
+              <label class="crm-sf-row">
+                <input type="checkbox" data-stages-filter-id="${s.id}" ${checked ? "checked" : ""}>
+                <span class="crm-sf-dot" style="background:${s.color || "#8896b3"}"></span>
+                <span>${escape(s.title)}</span>
+              </label>
+            `;
+          }).join("")}
+          <div class="crm-sf-actions">
+            <button type="button" class="btn-ghost btn-sm" data-stages-filter-close>Готово</button>
+          </div>
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+function paginate(items, page, pageSize) {
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const p = Math.min(Math.max(1, page), totalPages);
+  const start = (p - 1) * pageSize;
+  return { page: p, totalPages, total, items: items.slice(start, start + pageSize) };
+}
+
+function renderDealsList(deals, stages, contactMap) {
+  const filtered = deals.filter(isDealVisibleByStageFilter);
+  const sorted = [...filtered].sort((a, b) => (b.createdAt || b.ts || 0) - (a.createdAt || a.ts || 0));
+  const pageInfo = paginate(sorted, state.crmListPage, state.crmListPageSize);
+  const selectedOnPage = pageInfo.items.filter((d) => state.crmSelectedDealIds.has(d.id)).length;
+  const allOnPageSelected = pageInfo.items.length > 0 && selectedOnPage === pageInfo.items.length;
+
+  return `
+    <div class="crm-list-view">
+      <div class="crm-list-meta">
+        Показано: <strong>${pageInfo.items.length}</strong> из <strong>${pageInfo.total}</strong>
+        ${pageInfo.total !== deals.length ? `<span class="muted">· (всего: ${deals.length})</span>` : ""}
+      </div>
+      <div class="crm-list-table-wrap">
+        <table class="crm-list-table">
+          <thead>
+            <tr>
+              <th class="cl-th-select">
+                <input type="checkbox" data-deals-select-all ${allOnPageSelected ? "checked" : ""} title="Выделить все на странице">
+              </th>
+              <th class="cl-th-title">Сделка</th>
+              <th class="cl-th-contact">Контакт</th>
+              <th class="cl-th-stage">Стадия</th>
+              <th class="cl-th-amount num">Сумма</th>
+              <th class="cl-th-assignee">Ответственный</th>
+              <th class="cl-th-date">Создана</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${pageInfo.items.length === 0 ? `
+              <tr><td colspan="7" class="cl-empty">Нет сделок по выбранным фильтрам</td></tr>
+            ` : pageInfo.items.map((d) => renderDealListRow(d, stages, contactMap)).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${pageInfo.totalPages > 1 ? renderPagination(pageInfo) : ""}
+    </div>
+  `;
+}
+
+function renderDealListRow(d, stages, contactMap) {
+  const stage = stages.find((s) => s.id === d.stage);
+  const contact = d.contactId ? contactMap[d.contactId] : null;
+  const assignee = getEmployee(d.assigneeId);
+  const isSelected = state.crmSelectedDealIds.has(d.id);
+
+  return `
+    <tr class="cl-row ${isSelected ? "selected" : ""}" data-deal-id="${d.id}">
+      <td class="cl-td-select"><input type="checkbox" data-deal-select="${d.id}" ${isSelected ? "checked" : ""}></td>
+      <td class="cl-td-title">
+        <a href="#" class="cl-deal-link" data-open-deal="${d.id}">${escape(d.title || "(без названия)")}</a>
+      </td>
+      <td class="cl-td-contact">
+        ${contact ? `<span class="cl-contact-name">${escape(contact.name || "—")}</span>` : `<span class="muted">—</span>`}
+      </td>
+      <td class="cl-td-stage">
+        ${stage ? `<span class="cl-stage-pill" style="background:${stage.color}22;color:${stage.color};border:1px solid ${stage.color}40">${escape(stage.title)}</span>` : `<span class="muted">—</span>`}
+      </td>
+      <td class="cl-td-amount num">${fmtAmount(d.amount)}</td>
+      <td class="cl-td-assignee">
+        ${assignee ? `<span class="cl-assignee">${avatar(assignee, "xs")}<span class="cl-assignee-name">${escape(assignee.name || "")}</span></span>` : `<span class="muted">—</span>`}
+      </td>
+      <td class="cl-td-date">${fmtDayMonthSafe(d.createdAt || d.ts) || "—"}</td>
+    </tr>
+  `;
+}
+
+function renderPagination(pageInfo) {
+  const { page, totalPages } = pageInfo;
+  const pages = [];
+  const add = (n) => { if (n >= 1 && n <= totalPages && !pages.includes(n)) pages.push(n); };
+  add(1); add(page - 1); add(page); add(page + 1); add(totalPages);
+  pages.sort((a, b) => a - b);
+  return `
+    <div class="crm-pagination">
+      <button type="button" class="btn-ghost btn-sm" data-page-prev ${page <= 1 ? "disabled" : ""}>← Назад</button>
+      <div class="crm-pages">
+        ${pages.map((n, idx) => {
+          const prev = pages[idx - 1];
+          const gap = prev && n - prev > 1 ? `<span class="cp-gap">…</span>` : "";
+          return `${gap}<button type="button" class="cp-page ${n === page ? "active" : ""}" data-page-go="${n}">${n}</button>`;
+        }).join("")}
+      </div>
+      <button type="button" class="btn-ghost btn-sm" data-page-next ${page >= totalPages ? "disabled" : ""}>Вперёд →</button>
+    </div>
+  `;
+}
+
+function renderMassActionBar() {
+  const count = state.crmSelectedDealIds.size;
+  if (count === 0) return "";
+  return `
+    <div class="crm-mass-action-bar">
+      <div class="cma-info">Выделено: <strong>${count}</strong></div>
+      <div class="cma-actions">
+        <button type="button" class="btn-ghost btn-sm" data-mass-action="assign">👤 Назначить</button>
+        <button type="button" class="btn-ghost btn-sm" data-mass-action="move">↔ Переместить</button>
+        <button type="button" class="btn-ghost btn-sm cma-danger" data-mass-action="delete">🗑 Удалить</button>
+        <button type="button" class="btn-ghost btn-sm" data-mass-action="clear">Снять выделение</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderMassActionModal(pipelines, stages) {
+  if (!state.crmMassAction) return "";
+  const action = state.crmMassAction;
+  const count = state.crmSelectedDealIds.size;
+  const employees = (Store.list("employees") || []).filter((e) => !e.isDeleted);
+
+  let body = "", title = "";
+  if (action === "assign") {
+    title = `Назначить ответственного (${count})`;
+    body = `
+      <div class="cma-modal-field">
+        <label>Сотрудник</label>
+        <select data-mass-assignee>
+          <option value="">— снять назначение —</option>
+          ${employees.map((e) => `<option value="${e.id}" ${state.crmMassActionDraft.assigneeId === e.id ? "selected" : ""}>${escape(e.name || e.email || "")}</option>`).join("")}
+        </select>
+      </div>
+    `;
+  } else if (action === "move") {
+    title = `Переместить (${count})`;
+    const draftPL = state.crmMassActionDraft.pipelineId || pipelines[0]?.id || "";
+    const targetPipeline = pipelines.find((p) => p.id === draftPL) || pipelines[0];
+    const targetStages = targetPipeline?.stages || [];
+    const draftStage = state.crmMassActionDraft.stage || targetStages[0]?.id || "";
+    body = `
+      <div class="cma-modal-field">
+        <label>Воронка</label>
+        <select data-mass-pipeline>
+          ${pipelines.map((p) => `<option value="${p.id}" ${draftPL === p.id ? "selected" : ""}>${escape(p.title || "Без названия")}</option>`).join("")}
+        </select>
+      </div>
+      <div class="cma-modal-field">
+        <label>Стадия</label>
+        <select data-mass-stage>
+          ${targetStages.map((s) => `<option value="${s.id}" ${draftStage === s.id ? "selected" : ""}>${escape(s.title)}</option>`).join("")}
+        </select>
+      </div>
+    `;
+  } else if (action === "delete") {
+    title = `Удалить сделки (${count})`;
+    const word = count === 1 ? "сделку" : (count >= 2 && count <= 4 ? "сделки" : "сделок");
+    body = `
+      <p>Удалить <strong>${count}</strong> ${word}? Действие нельзя отменить.</p>
+      <p class="muted" style="font-size:12px">Также будут удалены связанные активности и позиции заказов.</p>
+    `;
+  }
+
+  return `
+    <div class="cma-modal-backdrop" data-mass-action-backdrop>
+      <div class="cma-modal" role="dialog" aria-modal="true">
+        <header class="cma-modal-header">
+          <h2>${escape(title)}</h2>
+          <button type="button" class="btn-ghost icon-only" data-mass-action-close>${ICONS.x}</button>
+        </header>
+        <div class="cma-modal-body">${body}</div>
+        <footer class="cma-modal-footer">
+          <button type="button" class="btn-ghost" data-mass-action-close>Отмена</button>
+          <button type="button" class="${action === "delete" ? "btn-danger" : "btn-primary"}" data-mass-action-apply>
+            ${action === "delete" ? "Удалить" : "Применить"}
+          </button>
+        </footer>
+      </div>
+    </div>
+  `;
 }
 
 function renderColumn(stage, deals, contactMap) {
@@ -1830,6 +2097,230 @@ export function tryOpenDealFromHash() {
 // =========================================================================
 function wireEvents(container) {
   const contacts = listAliveContacts();
+
+  // === CRM List View handlers ===
+  // Toggle Канбан / Список
+  container.querySelectorAll("[data-crm-view]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const next = btn.dataset.crmView === "list" ? "list" : "kanban";
+      if (next === state.crmView) return;
+      state.crmView = next;
+      try { localStorage.setItem("pllato_crm_view", next); } catch (e) {}
+      state.crmListPage = 1;
+      state.crmSelectedDealIds.clear();
+      renderDeals(container);
+    });
+  });
+
+  // Фильтр стадий — открыть/закрыть
+  container.querySelectorAll("[data-stages-filter-toggle]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      state.crmStagesFilterOpen = !state.crmStagesFilterOpen;
+      renderDeals(container);
+    });
+  });
+  container.querySelectorAll("[data-stages-filter-close]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.crmStagesFilterOpen = false;
+      renderDeals(container);
+    });
+  });
+  // Клик вне фильтра — закрыть
+  if (state.crmStagesFilterOpen) {
+    const closeOnOutside = (e) => {
+      if (!e.target.closest(".crm-stages-filter")) {
+        state.crmStagesFilterOpen = false;
+        document.removeEventListener("click", closeOnOutside);
+        renderDeals(container);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", closeOnOutside), 50);
+  }
+  // Чекбокс "Все стадии"
+  container.querySelectorAll("[data-stages-filter-all]").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      if (cb.checked) {
+        state.crmVisibleStageIds = null;
+      } else {
+        state.crmVisibleStageIds = new Set();
+      }
+      state.crmListPage = 1;
+      renderDeals(container);
+    });
+  });
+  // Чекбоксы конкретных стадий
+  container.querySelectorAll("[data-stages-filter-id]").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const id = cb.dataset.stagesFilterId;
+      if (!state.crmVisibleStageIds) {
+        // Сейчас "все" — переводим в Set всех текущих минус снимаемая
+        const allStages = getStages();
+        state.crmVisibleStageIds = new Set(allStages.map((s) => s.id));
+      }
+      if (cb.checked) state.crmVisibleStageIds.add(id);
+      else state.crmVisibleStageIds.delete(id);
+      // Если все галки сняты — оставим пустой Set (ничего не покажет, но это валидное состояние)
+      state.crmListPage = 1;
+      renderDeals(container);
+    });
+  });
+
+  // Выделение сделок (только в режиме List)
+  container.querySelectorAll("[data-deals-select-all]").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      // Получим текущую страницу с применением фильтра + сортировки
+      const allDeals = Store.list(COLLECTION);
+      const activeP = getActivePipelineId();
+      const dealsFor = activeP ? allDeals.filter((d) => (d.pipelineId || activeP) === activeP) : allDeals;
+      const visible = dealsFor.filter(isDealVisibleByStageFilter);
+      const sorted = [...visible].sort((a, b) => (b.createdAt || b.ts || 0) - (a.createdAt || a.ts || 0));
+      const pageInfo = paginate(sorted, state.crmListPage, state.crmListPageSize);
+      if (cb.checked) pageInfo.items.forEach((d) => state.crmSelectedDealIds.add(d.id));
+      else pageInfo.items.forEach((d) => state.crmSelectedDealIds.delete(d.id));
+      renderDeals(container);
+    });
+  });
+  container.querySelectorAll("[data-deal-select]").forEach((cb) => {
+    cb.addEventListener("change", (e) => {
+      e.stopPropagation();
+      const id = cb.dataset.dealSelect;
+      if (cb.checked) state.crmSelectedDealIds.add(id);
+      else state.crmSelectedDealIds.delete(id);
+      renderDeals(container);
+    });
+  });
+
+  // Открытие сделки из списка
+  container.querySelectorAll("[data-open-deal]").forEach((link) => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      const id = link.dataset.openDeal;
+      if (!id) return;
+      state.modalDealId = id;
+      state.modalOpen = true;
+      renderDeals(container);
+    });
+  });
+
+  // Пагинация
+  container.querySelectorAll("[data-page-prev]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (state.crmListPage > 1) {
+        state.crmListPage -= 1;
+        renderDeals(container);
+      }
+    });
+  });
+  container.querySelectorAll("[data-page-next]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.crmListPage += 1;
+      renderDeals(container);
+    });
+  });
+  container.querySelectorAll("[data-page-go]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const n = parseInt(btn.dataset.pageGo, 10) || 1;
+      state.crmListPage = n;
+      renderDeals(container);
+    });
+  });
+
+  // Mass actions
+  container.querySelectorAll("[data-mass-action]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const action = btn.dataset.massAction;
+      if (action === "clear") {
+        state.crmSelectedDealIds.clear();
+        renderDeals(container);
+        return;
+      }
+      if (!["assign", "move", "delete"].includes(action)) return;
+      state.crmMassAction = action;
+      state.crmMassActionDraft = { assigneeId: "", pipelineId: "", stage: "" };
+      // Для move инициализируем первой воронкой и её первой стадией
+      if (action === "move") {
+        const pls = getPipelines();
+        if (pls.length > 0) {
+          state.crmMassActionDraft.pipelineId = pls[0].id;
+          state.crmMassActionDraft.stage = pls[0].stages?.[0]?.id || "";
+        }
+      }
+      renderDeals(container);
+    });
+  });
+
+  // Mass action modal: close
+  container.querySelectorAll("[data-mass-action-close]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.crmMassAction = null;
+      renderDeals(container);
+    });
+  });
+  container.querySelectorAll("[data-mass-action-backdrop]").forEach((bg) => {
+    bg.addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) {
+        state.crmMassAction = null;
+        renderDeals(container);
+      }
+    });
+  });
+
+  // Mass action: change pipeline → reload stages
+  const massPipelineSel = container.querySelector("[data-mass-pipeline]");
+  if (massPipelineSel) {
+    massPipelineSel.addEventListener("change", () => {
+      const pls = getPipelines();
+      const pl = pls.find((p) => p.id === massPipelineSel.value);
+      state.crmMassActionDraft.pipelineId = massPipelineSel.value;
+      state.crmMassActionDraft.stage = pl?.stages?.[0]?.id || "";
+      renderDeals(container);
+    });
+  }
+  const massStageSel = container.querySelector("[data-mass-stage]");
+  if (massStageSel) {
+    massStageSel.addEventListener("change", () => {
+      state.crmMassActionDraft.stage = massStageSel.value;
+    });
+  }
+  const massAssigneeSel = container.querySelector("[data-mass-assignee]");
+  if (massAssigneeSel) {
+    massAssigneeSel.addEventListener("change", () => {
+      state.crmMassActionDraft.assigneeId = massAssigneeSel.value;
+    });
+  }
+
+  // Mass action: apply
+  container.querySelectorAll("[data-mass-action-apply]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const action = state.crmMassAction;
+      const ids = Array.from(state.crmSelectedDealIds);
+      if (ids.length === 0) { state.crmMassAction = null; renderDeals(container); return; }
+
+      if (action === "assign") {
+        const assigneeId = state.crmMassActionDraft.assigneeId || null;
+        ids.forEach((id) => Store.update(COLLECTION, id, { assigneeId }));
+      } else if (action === "move") {
+        const pipelineId = state.crmMassActionDraft.pipelineId;
+        const stage = state.crmMassActionDraft.stage;
+        if (!pipelineId || !stage) { alert("Выбери воронку и стадию"); return; }
+        ids.forEach((id) => Store.update(COLLECTION, id, { pipelineId, stage }));
+      } else if (action === "delete") {
+        ids.forEach((id) => {
+          // Активности
+          Store.list(ACTIVITIES).filter((a) => a.dealId === id).forEach((a) => Store.remove(ACTIVITIES, a.id));
+          // Позиции заказа (если функция доступна — она в deal_items.js но не импортирована тут)
+          Store.list("deal_items").filter((x) => x.dealId === id).forEach((x) => Store.remove("deal_items", x.id));
+          // Сама сделка
+          Store.remove(COLLECTION, id);
+        });
+        state.crmSelectedDealIds.clear();
+      }
+
+      state.crmMassAction = null;
+      renderDeals(container);
+    });
+  });
 
   container.querySelectorAll("[data-crm-tab]").forEach((btn) => {
     btn.addEventListener("click", () => {
