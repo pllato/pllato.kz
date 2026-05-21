@@ -9732,3 +9732,39 @@ body {
   gap: 8px;
   flex-shrink: 0;
 }
+
+
+/* === REVERT агрессивных toolbar стилей из CRM_UI_POLISH === */
+/* Отменяем сегмент-обёртку которая ломала layout и сжимала поиск */
+.deals-toolbar > div:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+.deals-toolbar > div:first-child::before { display: none; }
+.deals-toolbar > div:first-child .crm-view-btn {
+  /* возврат к дефолту .crm-view-btn — никаких override */
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+}
+.deals-toolbar [data-crm-view]:first-of-type {
+  margin-left: 0;
+}
+.deals-toolbar [data-crm-view]:first-of-type::before {
+  display: none;
+}
+
+/* Toolbar остаётся как flex с обычным gap */
+.deals-toolbar {
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Лёгкий разделитель между группами через margin */
+.crm-stages-filter {
+  margin-left: 4px;
+}
