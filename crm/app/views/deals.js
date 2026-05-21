@@ -605,6 +605,7 @@ export function renderDeals(container) {
           <div class="crm-view-switch">
             <button class="crm-view-btn ${state.crmTab === "deals" ? "active" : ""}" data-crm-tab="deals">${ICONS.deals}<span>CRM</span></button>
             <button class="crm-view-btn ${state.crmTab === "calls" ? "active" : ""}" data-crm-tab="calls">${ICONS.phone}<span>Звонки</span></button>
+            <a class="crm-view-btn" href="#contacts" title="Контакты"><span>👥</span><span>Контакты</span></a>
             ${state.crmTab === "deals" ? `
               <div class="crm-toolbar-divider"></div>
               ${renderViewToggle()}
@@ -701,14 +702,12 @@ function isDealVisibleByStageFilter(deal) {
 
 function renderViewToggle() {
   return `
-    <div class="crm-view-toggle" role="group" aria-label="Вид">
-      <button type="button" class="crm-vt-btn ${state.crmView === "kanban" ? "active" : ""}" data-crm-view="kanban" title="Канбан">
-        <span>⊞</span><span class="crm-vt-label">Канбан</span>
-      </button>
-      <button type="button" class="crm-vt-btn ${state.crmView === "list" ? "active" : ""}" data-crm-view="list" title="Список">
-        <span>☰</span><span class="crm-vt-label">Список</span>
-      </button>
-    </div>
+    <button type="button" class="crm-view-btn ${state.crmView === "kanban" ? "active" : ""}" data-crm-view="kanban" title="Канбан">
+      <span>⊞</span><span>Канбан</span>
+    </button>
+    <button type="button" class="crm-view-btn ${state.crmView === "list" ? "active" : ""}" data-crm-view="list" title="Список">
+      <span>☰</span><span>Список</span>
+    </button>
   `;
 }
 
@@ -719,8 +718,8 @@ function renderStagesFilter(stages) {
 
   return `
     <div class="crm-stages-filter ${state.crmStagesFilterOpen ? "open" : ""}">
-      <button type="button" class="crm-sf-toggle" data-stages-filter-toggle>
-        <span>⏷</span><span class="crm-sf-label">Стадии:</span> <strong>${label}</strong>
+      <button type="button" class="crm-view-btn crm-sf-toggle" data-stages-filter-toggle>
+        <span>⏷</span><span class="crm-sf-label">Стадии:</span>&nbsp;<strong>${label}</strong>
       </button>
       ${state.crmStagesFilterOpen ? `
         <div class="crm-sf-dropdown">
