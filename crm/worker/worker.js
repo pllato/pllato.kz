@@ -9,7 +9,7 @@ const TEAM_ID = "pllato";
 const STORE_COLLECTION_RE = /^[a-z0-9_]{1,64}$/;
 const DEFAULT_STORE_PULL_LIMIT = 5000;
 const MAX_STORE_OPS = 500;
-const BUILD_ID = "2026-05-21-auth-server-side";
+const BUILD_ID = "2026-05-21-auth-server-side-v2";
 
 let googleKeysCache = {
   keys: null,
@@ -1398,15 +1398,25 @@ async function handleAuthSetPassword(request, env, actor) {
   if (!email || !password) throw new HttpError(400, "Email и пароль обязательны");
   if (password.length < 6) throw new HttpError(400, "Минимум 6 символов");
 
-  const user = await d1GetUserByEmail(env, email);
-  if (!user) throw new HttpError(404, "Пользователь не найден");
+  // Автосоздание user в D1 если его ещё нет — на случай если сотрудник был создан только локально
+  let user = await d1GetUserByEmail(env, email);
+  if (!user) {
+    user = await d1UpsertUser(env, {
+      email,
+      name: String(body.name || "").trim() || email.split("@")[0],
+      lastName: String(body.lastName || "").trim(),
+      position: String(body.position || "").trim(),
+      role: String(body.role || "").trim(),
+      apps: { [APP_ID]: true },
+    }, actor);
+  }
 
   const saltBytes = crypto.getRandomValues(new Uint8Array(16));
   const hash = await pbkdf2Hash(password, saltBytes);
   const salt = bytesToB64(saltBytes);
   await d1UpsertCrmPassword(env, email, hash, salt, /* forceChange */ true, actor);
 
-  return { ok: true, email };
+  return { ok: true, email, userCreated: !!body.name };
 }
 
 // === Handler: смена пароля (свой) ===

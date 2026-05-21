@@ -63,19 +63,29 @@ export async function loginByEmail(email, password) {
 export async function setEmployeePassword(emailOrId, password) {
   if (!password || password.length < 6) throw new Error("Минимум 6 символов");
 
-  // Если передали id — нужен email; если email — используем как есть
-  let email = String(emailOrId || "").trim().toLowerCase();
-  if (!email.includes("@")) {
-    // Это id, найдём email из listEmployees
+  // Если передали id — найдём employee object из listEmployees
+  let email, employee = null;
+  if (typeof emailOrId === "string" && emailOrId.includes("@")) {
+    email = String(emailOrId).trim().toLowerCase();
+  } else {
     const { listEmployees } = await import("./employees.js");
-    const emp = listEmployees().find(e => e.id === emailOrId);
-    email = String(emp?.email || "").trim().toLowerCase();
+    employee = listEmployees().find(e => e.id === emailOrId);
+    email = String(employee?.email || "").trim().toLowerCase();
   }
   if (!email) throw new Error("У сотрудника не задан email");
 
+  // Передаём доп данные чтобы Worker мог создать user в D1 если ещё нет
+  const body = { email, password };
+  if (employee) {
+    body.name = employee.name || "";
+    body.lastName = employee.lastName || "";
+    body.position = employee.position || "";
+    body.role = employee.role || "";
+  }
+
   const data = await apiFetch("/api/auth/set-password", {
     method: "POST",
-    body: { email, password },
+    body,
   });
   if (!data?.ok) throw new Error(data?.error || "Не удалось установить пароль");
   return true;
@@ -123,6 +133,17 @@ export async function logoutAll() {
 }
 
 // Совместимость со старым кодом
+
+export function getEmailSession() {
+  try {
+    const raw = localStorage.getItem("pllato_session");
+    if (!raw) return null;
+    const session = JSON.parse(raw);
+    if (session.via === "email") return session;
+    return null;
+  } catch { return null; }
+}
+
 export function generateTempPassword(len = 10) {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
   const chars = new Uint8Array(len);
