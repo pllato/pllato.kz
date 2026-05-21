@@ -5,6 +5,7 @@ import { Store } from "../store.js";
 import { ICONS } from "../icons.js";
 import { getSession } from "../auth.js";
 import { listEmployees, getEmployee, currentEmployee, createEmployee, updateEmployee, removeEmployee, avatar, ROLES, isEmployeesSynced } from "../employees.js";
+import { setEmployeePassword, generateTempPassword, logoutAll, getEmailSession } from "../auth_local.js";
 import { getDealFields, saveDealFields, newFieldId, FIELD_TYPES } from "../custom_fields.js";
 import { listChannels, typeMeta, isChannelsSynced } from "../channels.js";
 import { ensureBuiltinDocumentsSeed, listDocuments, normalizeVisibility, saveDocumentVisibility, isEmployeeAdmin } from "../docs/registry.js";
@@ -197,6 +198,7 @@ export function renderSettings(container) {
           ${!isEmployeesSynced() && state.editingEmployee === "new" ? renderEmployeeForm(null, roles) : ""}
           ${!isEmployeesSynced() ? `<div>
             <button class="btn-ghost" id="addEmployee">${ICONS.plus}<span>Добавить сотрудника</span></button>
+            <button class="btn-ghost" id="logoutBtn" title="Выйти из аккаунта">${ICONS.logout}<span>Выйти из аккаунта</span></button>
           </div>` : ""}
         </div>
       </section>
@@ -421,6 +423,7 @@ function renderEmployeeRow(e, roles, canManageDocs) {
 function renderEmployeeForm(e, roles) {
   const isNew = !e;
   e = e || { name: "", email: "", roleId: roles[0]?.id, role: "manager" };
+  const hasPassword = !isNew && !!e.passwordHash;
   return `
     <form class="employee-form" id="employeeForm" data-id="${e.id || ""}">
       <div class="form-grid">
@@ -430,6 +433,14 @@ function renderEmployeeForm(e, roles) {
           <select name="roleId">
             ${roles.map(r => `<option value="${r.id}" ${e.roleId === r.id ? "selected" : ""}>${escape(r.name)}</option>`).join("")}
           </select>
+        </div>
+        <div class="field field-wide">
+          <label>Пароль ${isNew ? "*" : (hasPassword ? "(оставь пустым чтобы не менять)" : "(не задан)")}</label>
+          <div class="employee-pw-row">
+            <input name="password" type="text" autocomplete="new-password" ${isNew ? 'required minlength="6"' : ""} placeholder="${hasPassword ? "•••••••• уже задан" : "минимум 6 символов"}">
+            <button type="button" class="btn-ghost" data-gen-pw>🎲 Сгенерировать</button>
+          </div>
+          <small class="employee-pw-hint">Пароль хешируется (PBKDF2). Сохрани и передай сотруднику — он сменит при первом входе.</small>
         </div>
         <div class="field field-wide form-buttons">
           <button type="button" class="btn-ghost" data-cancel-emp>Отмена</button>
@@ -645,7 +656,7 @@ function wireEvents(container) {
   container.querySelectorAll("[data-cancel-emp]").forEach(btn => {
     btn.addEventListener("click", () => { state.editingEmployee = null; renderSettings(container); });
   });
-  container.querySelector("#employeeForm")?.addEventListener("submit", e => {
+  container.querySelector("#employeeForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const id = e.target.dataset.id;
@@ -654,11 +665,55 @@ function wireEvents(container) {
       email: (fd.get("email") || "").trim(),
       roleId: fd.get("roleId") || null,
     };
+    const password = (fd.get("password") || "").trim();
     if (!data.name || !data.email) return;
-    if (id) updateEmployee(id, data);
-    else createEmployee(data);
-    state.editingEmployee = null;
-    renderSettings(container);
+    if (!id && (!password || password.length < 6)) {
+      alert("При создании нового сотрудника укажи пароль минимум 6 символов");
+      return;
+    }
+    if (password && password.length > 0 && password.length < 6) {
+      alert("Пароль должен быть минимум 6 символов");
+      return;
+    }
+    const submitBtn = e.target.querySelector("button[type=submit]");
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Сохранение…"; }
+    try {
+      let empId;
+      if (id) { updateEmployee(id, data); empId = id; }
+      else {
+        const created = createEmployee(data);
+        empId = created?.id || listEmployees().find((x) => x.email === data.email)?.id;
+      }
+      if (password && empId) {
+        await setEmployeePassword(empId, password);
+      }
+      state.editingEmployee = null;
+      renderSettings(container);
+    } catch (err) {
+      alert("Ошибка сохранения: " + (err.message || err));
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = id ? "Сохранить" : "Добавить"; }
+    }
+  });
+
+  // Кнопка "🎲 Сгенерировать пароль"
+  container.querySelectorAll("[data-gen-pw]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const input = btn.closest(".employee-pw-row")?.querySelector('input[name="password"]');
+      if (input) {
+        const pw = generateTempPassword(10);
+        input.value = pw;
+        input.type = "text";
+        input.focus();
+        input.select();
+      }
+    });
+  });
+
+  // Кнопка "Выйти из аккаунта"
+  container.querySelector("#logoutBtn")?.addEventListener("click", async () => {
+    if (confirm("Выйти из системы?\n\nДля повторного входа понадобится логин и пароль или Google аккаунт.")) {
+      await logoutAll();
+    }
   });
 
   // ----- Роли -----
