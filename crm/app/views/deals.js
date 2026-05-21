@@ -24,6 +24,7 @@ import { FIELD_TYPES, getDealFields, saveDealFields, newFieldId, newOptionId, ge
 import { openCommunicate } from "../communicate.js";
 import { listEmployees, getEmployee, currentEmployee, avatar, initialsOf } from "../employees.js";
 import { renderTypeahead, attachTypeahead } from "../typeahead.js";
+import { renderContacts } from "./contacts.js";
 import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal } from "../deal_items.js";
 import { listChannels } from "../channels.js";
 import { renderCalls } from "./calls.js";
@@ -605,7 +606,7 @@ export function renderDeals(container) {
           <div class="crm-view-switch pllato-tabs">
             <button class="crm-view-btn ${state.crmTab === "deals" ? "active" : ""}" data-crm-tab="deals">${ICONS.deals}<span>CRM</span></button>
             <button class="crm-view-btn ${state.crmTab === "calls" ? "active" : ""}" data-crm-tab="calls">${ICONS.phone}<span>Звонки</span></button>
-            <a class="crm-view-btn" href="#contacts" title="Контакты"><span>👥</span><span>Контакты</span></a>
+            <button type="button" class="crm-view-btn ${state.crmTab === "contacts" ? "active" : ""}" data-crm-tab="contacts" title="Контакты"><span>👥</span><span>Контакты</span></button>
           </div>
           ${state.crmTab === "deals" ? `<div class="crm-view-tools pllato-tools">${renderViewToggle()}${renderStagesFilter(stages)}</div>` : ""}
           <label class="crm-global-search pllato-search">
@@ -640,7 +641,7 @@ export function renderDeals(container) {
         ${renderMassActionBar()}
       ` : `
         <div class="crm-calls-wrap">
-          <div id="crmCallsMount"></div>
+          ${state.crmTab === "contacts" ? `<div id="crmContactsMount"></div>` : `<div id="crmCallsMount"></div>`}
         </div>
       `}
 
@@ -666,6 +667,14 @@ export function renderDeals(container) {
         route: state.callsRoute,
         onRouteChange: (route) => { state.callsRoute = route; },
       });
+    }
+    return;
+  }
+
+  if (state.crmTab === "contacts") {
+    const contactsMount = container.querySelector("#crmContactsMount");
+    if (contactsMount) {
+      renderContacts(contactsMount, { embedded: true });
     }
     return;
   }
@@ -2386,7 +2395,7 @@ function wireEvents(container) {
 
   container.querySelectorAll("[data-crm-tab]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const nextTab = btn.dataset.crmTab === "calls" ? "calls" : "deals";
+      const nextTab = ["calls", "contacts"].includes(btn.dataset.crmTab) ? btn.dataset.crmTab : "deals";
       if (nextTab === state.crmTab) return;
 
       state.crmTab = nextTab;
