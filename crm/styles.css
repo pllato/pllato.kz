@@ -9900,3 +9900,182 @@ body {
 .pipelines-bar {
   justify-content: flex-start !important;
 }
+
+
+/* === TOOLBAR CLARITY — визуальное разделение по назначению === */
+
+/* === ГРУППА 1: РАЗДЕЛ — Сегмент-плашка с серым фоном === */
+/* CRM / Звонки / Контакты — переключение основных разделов */
+.crm-view-switch {
+  display: inline-flex !important;
+  align-items: center !important;
+  background: rgba(128, 128, 128, .08) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  padding: 3px !important;
+  gap: 2px !important;
+  flex-shrink: 0 !important;
+}
+.crm-view-switch .crm-view-btn {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 7px !important;
+  padding: 6px 14px !important;
+  color: var(--muted) !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  text-decoration: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+.crm-view-switch .crm-view-btn:hover {
+  color: var(--text) !important;
+  background: rgba(128, 128, 128, .06) !important;
+}
+.crm-view-switch .crm-view-btn.active {
+  background: var(--bg-elevated) !important;
+  color: var(--accent) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08), 0 1px 1px rgba(0, 0, 0, .04) !important;
+}
+
+/* === ГРУППА 2: ВИД — Меньшая сегмент-плашка === */
+/* Канбан / Список — переключение отображения данных */
+.crm-view-tools {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  flex-shrink: 0 !important;
+  flex-wrap: nowrap !important;
+  margin-left: 8px !important;
+}
+.crm-view-tools [data-crm-view] {
+  background: transparent !important;
+  border: 1px solid var(--border) !important;
+  color: var(--muted) !important;
+  padding: 5px 10px !important;
+  border-radius: 7px !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+.crm-view-tools [data-crm-view]:first-of-type {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-right-width: 0 !important;
+}
+.crm-view-tools [data-crm-view]:nth-of-type(2) {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+.crm-view-tools [data-crm-view]:hover {
+  color: var(--text) !important;
+  background: rgba(128, 128, 128, .06) !important;
+}
+.crm-view-tools [data-crm-view].active {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-color: var(--accent) !important;
+}
+.crm-view-tools [data-crm-view].active + [data-crm-view] {
+  border-left-color: var(--accent) !important;
+}
+
+/* === ГРУППА 3: ФИЛЬТР — Dashed-кнопка с явным значком ▾ === */
+/* Стадии — фильтр по стадиям */
+.crm-sf-toggle {
+  background: transparent !important;
+  border: 1px dashed var(--border) !important;
+  color: var(--text) !important;
+  padding: 5px 10px !important;
+  border-radius: 7px !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  white-space: nowrap !important;
+}
+.crm-sf-toggle:hover {
+  background: rgba(128, 128, 128, .06) !important;
+  border-style: solid !important;
+  border-color: var(--accent) !important;
+}
+.crm-stages-filter.open .crm-sf-toggle {
+  background: rgba(34, 197, 94, .1) !important;
+  border-style: solid !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+.crm-sf-toggle .crm-sf-label {
+  color: var(--muted) !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: .04em !important;
+  font-weight: 500 !important;
+}
+.crm-sf-toggle strong {
+  color: var(--text) !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+}
+
+/* === ГРУППА 4: ПОИСК — серый input field === */
+.crm-global-search {
+  display: inline-flex !important;
+  align-items: center !important;
+  flex: 1 1 240px !important;
+  min-width: 200px !important;
+  max-width: 480px !important;
+  background: rgba(128, 128, 128, .06) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  padding: 0 12px !important;
+  gap: 6px !important;
+  margin: 0 8px 0 0 !important;
+  height: 36px !important;
+}
+.crm-global-search input {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  flex: 1 !important;
+  color: var(--text) !important;
+  font-size: 13px !important;
+  height: 100% !important;
+  padding: 0 !important;
+}
+.crm-search-icon {
+  color: var(--muted) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+/* === ОБЩИЙ КОНТЕЙНЕР === */
+.deals-toolbar {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex-wrap: wrap !important;
+  padding: 16px 24px !important;
+}
+.crm-top-controls {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+.deals-toolbar-right {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+}
