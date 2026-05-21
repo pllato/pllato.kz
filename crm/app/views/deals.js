@@ -24,7 +24,8 @@ import { FIELD_TYPES, getDealFields, saveDealFields, newFieldId, newOptionId, ge
 import { openCommunicate } from "../communicate.js";
 import { listEmployees, getEmployee, currentEmployee, avatar, initialsOf } from "../employees.js";
 import { renderTypeahead, attachTypeahead } from "../typeahead.js";
-import { captureUtmFromUrl, enrichWithStoredUtm, renderUtmFormSection, renderUtmBadge, readUtmFromFormData, listKnownSources, getSourcePreset } from "../utm.js";
+import { captureUtmFromUrl, enrichWithStoredUtm, renderUtmFormSection, renderUtmBadge, readUtmFromFormData, listKnownSources, getSourcePreset, UTM_SOURCE_PRESETS } from "../utm.js";
+import { openUtmReport } from "../utm_report.js";
 import { renderContacts } from "./contacts.js";
 import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal } from "../deal_items.js";
 import { listChannels } from "../channels.js";
@@ -69,6 +70,8 @@ const state = {
   crmSelectedDealIds: new Set(),
   crmVisibleStageIds: null, // null = все, иначе Set<string>
   crmStagesFilterOpen: false,
+  crmVisibleUtmSources: null, // null = все, иначе Set<string>
+  crmUtmFilterOpen: false,
   crmMassAction: null, // null | "assign" | "move" | "delete"
   crmMassActionDraft: { assigneeId: "", pipelineId: "", stage: "" },
   crmMassActionRunning: false,
@@ -705,6 +708,61 @@ function getVisibleStages(allStages) {
 function isDealVisibleByStageFilter(deal) {
   if (!state.crmVisibleStageIds) return true;
   return state.crmVisibleStageIds.has(deal.stage);
+}
+
+function isDealVisibleByUtmFilter(deal) {
+  if (!state.crmVisibleUtmSources) return true;
+  const src = String(deal.utmSource || "").toLowerCase();
+  return state.crmVisibleUtmSources.has(src || "_none");
+}
+
+function renderUtmFilter(deals) {
+  // Собираем уникальные источники из существующих сделок + presets
+  const fromDeals = new Set();
+  deals.forEach((d) => {
+    if (d.utmSource) fromDeals.add(String(d.utmSource).toLowerCase());
+  });
+  const all = Array.from(fromDeals).sort();
+  const allVisible = !state.crmVisibleUtmSources;
+  const visibleCount = allVisible ? all.length + 1 : state.crmVisibleUtmSources.size;
+  const totalCount = all.length + 1; // +1 для "без метки"
+  const label = allVisible ? `Все (${totalCount})` : `${visibleCount} из ${totalCount}`;
+
+  return `
+    <div class="crm-stages-filter crm-utm-filter ${state.crmUtmFilterOpen ? "open" : ""}">
+      <button type="button" class="crm-view-btn crm-sf-toggle" data-utm-filter-toggle>
+        <span>⏷</span><span class="crm-sf-label">Источник:</span>&nbsp;<strong>${label}</strong>
+      </button>
+      ${state.crmUtmFilterOpen ? `
+        <div class="crm-sf-dropdown">
+          <label class="crm-sf-row crm-sf-all">
+            <input type="checkbox" data-utm-filter-all ${allVisible ? "checked" : ""}>
+            <span><strong>Все источники</strong></span>
+          </label>
+          <div class="crm-sf-divider"></div>
+          <label class="crm-sf-row">
+            <input type="checkbox" data-utm-filter-id="_none" ${(allVisible || state.crmVisibleUtmSources.has("_none")) ? "checked" : ""}>
+            <span class="crm-sf-dot" style="background:#9ca3af"></span>
+            <span><em>Без метки</em></span>
+          </label>
+          ${all.map((src) => {
+            const preset = getSourcePreset(src);
+            const checked = allVisible || state.crmVisibleUtmSources.has(src);
+            return `
+              <label class="crm-sf-row">
+                <input type="checkbox" data-utm-filter-id="${src}" ${checked ? "checked" : ""}>
+                <span class="crm-sf-dot" style="background:${preset.color}"></span>
+                <span>${escape(preset.label || src)}</span>
+              </label>
+            `;
+          }).join("")}
+          <div class="crm-sf-actions">
+            <button type="button" class="btn-ghost btn-sm" data-utm-filter-close>Готово</button>
+          </div>
+        </div>
+      ` : ""}
+    </div>
+  `;
 }
 
 function renderViewToggle() {
