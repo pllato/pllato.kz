@@ -162,4 +162,14 @@ function wireChangePasswordForm(overlay, employee) {
 // Синхронно при загрузке модуля — без задержек, без waitForEmployees, без зависимостей
 if (!getSession()) {
   mountOverlay();
+} else {
+  // Есть session — почистим дубликаты в фоне (race condition между устройствами)
+  setTimeout(async () => {
+    try {
+      const { dedupeAll } = await import("./dedupe.js");
+      dedupeAll();
+    } catch (e) {
+      console.warn("[dedupe] failed:", e);
+    }
+  }, 3000); // через 3 сек после загрузки, чтобы Store успел синкнуться с D1
 }
