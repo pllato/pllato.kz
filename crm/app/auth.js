@@ -1,166 +1,209 @@
-// Pllato CRM — Email/password authentication.
-// PBKDF2-SHA256 хеширование через Web Crypto API, session в localStorage,
-// интеграция с существующими employees.
-
-import { Store } from "./store.js";
-import { listEmployees } from "./employees.js";
-
 const SESSION_KEY = "pllato_session";
-const PBKDF2_ITERATIONS = 100000;
-const SESSION_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 дней
+const SESSION_SKEW_SEC = 15;
+const GIS_WAIT_MS = 10000;
 
-// === Hashing ===
-
-function bytesToBase64(bytes) {
-  let bin = "";
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin);
-}
-function base64ToBytes(b64) {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
+function nowSec() {
+  return Math.floor(Date.now() / 1000);
 }
 
-export async function hashPassword(password, saltBase64 = null) {
-  if (!password || password.length < 4) throw new Error("Пароль слишком короткий");
-  const enc = new TextEncoder();
-  const salt = saltBase64 ? base64ToBytes(saltBase64) : crypto.getRandomValues(new Uint8Array(16));
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveBits"]
-  );
-  const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
-    keyMaterial, 256
-  );
-  return {
-    hash: bytesToBase64(new Uint8Array(bits)),
-    salt: bytesToBase64(salt),
-  };
+function apiBase() {
+  return String(window.PLLATO_API_BASE || "").trim().replace(/\/+$/, "");
 }
 
-export async function verifyPassword(password, hashBase64, saltBase64) {
-  if (!hashBase64 || !saltBase64) return false;
+function ensureApiBase() {
+  const base = apiBase();
+  if (!base) throw new Error("Не задан window.PLLATO_API_BASE в app.config.js");
+  return base;
+}
+
+function decodeBase64UrlJson(raw) {
+  const base64 = String(raw || "").replace(/-/g, "+").replace(/_/g, "/");
+  const pad = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+  const txt = atob(pad);
+  return JSON.parse(txt);
+}
+
+function decodeJwtPayload(token) {
+  const parts = String(token || "").split(".");
+  if (parts.length !== 3) return null;
+  try { return decodeBase64UrlJson(parts[1]); }
+  catch { return null; }
+}
+
+function readJsonSafe(raw) {
+  try { return JSON.parse(raw); }
+  catch { return null; }
+}
+
+function buildApiError(status, payload, fallback) {
+  const message = payload?.error || fallback || `HTTP ${status}`;
+  const err = new Error(message);
+  err.status = status;
+  err.details = payload?.details || null;
+  return err;
+}
+
+function dispatchAuthExpired() {
   try {
-    const result = await hashPassword(password, saltBase64);
-    return result.hash === hashBase64;
-  } catch (e) {
-    return false;
-  }
+    window.dispatchEvent(new CustomEvent("pllato:auth-expired"));
+  } catch {}
 }
 
-// === Generate temporary password ===
-
-export function generateTempPassword(len = 10) {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  const chars = new Uint8Array(len);
-  crypto.getRandomValues(chars);
-  return Array.from(chars).map(c => alphabet[c % alphabet.length]).join("");
-}
-
-// === Session ===
-
-export function getSession() {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const session = JSON.parse(raw);
-    if (Date.now() - session.createdAt > SESSION_TTL_MS) {
-      clearSession();
-      return null;
-    }
-    return session;
-  } catch {
-    return null;
-  }
-}
-
-export function setSession(employee) {
+function saveSessionFromAuthResponse(data) {
+  const payload = decodeJwtPayload(data?.token);
+  const exp = Number(data?.exp || payload?.exp || 0);
+  const user = data?.user && typeof data.user === "object"
+    ? data.user
+    : {
+      id: payload?.sub || null,
+      email: payload?.email || "",
+      name: payload?.name || "",
+      isAdmin: Boolean(payload?.isAdmin),
+      isSuperAdmin: Boolean(payload?.isSuperAdmin),
+      apps: payload?.apps || {},
+    };
   const session = {
-    employeeId: employee.id,
-    email: employee.email,
-    name: employee.name,
-    createdAt: Date.now(),
+    token: String(data?.token || ""),
+    exp,
+    user,
   };
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  return session;
 }
 
-export function clearSession() {
+function validateSession(candidate) {
+  if (!candidate || typeof candidate !== "object") return null;
+  const token = String(candidate.token || "").trim();
+  const exp = Number(candidate.exp || 0);
+  const user = candidate.user && typeof candidate.user === "object" ? candidate.user : null;
+  if (!token || !exp || !user) return null;
+  if (exp <= nowSec() + SESSION_SKEW_SEC) return null;
+  return { token, exp, user };
+}
+
+export function getSession() {
+  const raw = localStorage.getItem(SESSION_KEY);
+  const parsed = readJsonSafe(raw);
+  const session = validateSession(parsed);
+  if (!session) {
+    localStorage.removeItem(SESSION_KEY);
+    return null;
+  }
+  return session;
+}
+
+export function signOut() {
   localStorage.removeItem(SESSION_KEY);
+  try { window.google?.accounts?.id?.disableAutoSelect(); } catch {}
 }
 
-export function isAuthenticated() {
-  const session = getSession();
-  if (!session) return false;
-  // Проверяем что сотрудник всё ещё существует в Store
-  const employees = listEmployees();
-  return employees.some(e => e.id === session.employeeId);
-}
-
-// === Login by email ===
-
-export async function loginByEmail(email, password) {
-  if (!email || !password) return { ok: false, error: "Заполни email и пароль" };
-
-  const employees = listEmployees();
-  const employee = employees.find(e =>
-    String(e.email || "").toLowerCase().trim() === String(email).toLowerCase().trim()
-  );
-  if (!employee) return { ok: false, error: "Пользователь не найден" };
-  if (!employee.passwordHash || !employee.passwordSalt) {
-    return { ok: false, error: "У этого пользователя не задан пароль" };
+export async function apiFetch(path, {
+  method = "GET",
+  body = undefined,
+  headers = {},
+  auth = true,
+} = {}) {
+  const base = ensureApiBase();
+  const finalHeaders = { ...headers };
+  if (auth) {
+    const session = getSession();
+    if (!session?.token) throw new Error("Сессия не найдена. Выполни вход снова.");
+    finalHeaders.Authorization = `Bearer ${session.token}`;
   }
 
-  const valid = await verifyPassword(password, employee.passwordHash, employee.passwordSalt);
-  if (!valid) return { ok: false, error: "Неверный пароль" };
-
-  // Обновляем lastLoginAt и помечаем isCurrent
-  Store.update("employees", employee.id, {
-    lastLoginAt: Date.now(),
-  });
-
-  setSession(employee);
-  return { ok: true, employee, forcePasswordChange: !!employee.forcePasswordChange };
-}
-
-// === Change password ===
-
-export async function changePassword(employeeId, oldPassword, newPassword) {
-  const employee = Store.get("employees", employeeId);
-  if (!employee) return { ok: false, error: "Сотрудник не найден" };
-
-  if (employee.passwordHash) {
-    const valid = await verifyPassword(oldPassword, employee.passwordHash, employee.passwordSalt);
-    if (!valid) return { ok: false, error: "Старый пароль неверен" };
+  let payloadBody = body;
+  if (body !== undefined && body !== null && !(body instanceof FormData)) {
+    finalHeaders["Content-Type"] = finalHeaders["Content-Type"] || "application/json";
+    payloadBody = finalHeaders["Content-Type"].includes("application/json")
+      ? JSON.stringify(body)
+      : body;
   }
 
-  if (newPassword.length < 6) return { ok: false, error: "Минимум 6 символов" };
-
-  const { hash, salt } = await hashPassword(newPassword);
-  Store.update("employees", employeeId, {
-    passwordHash: hash,
-    passwordSalt: salt,
-    forcePasswordChange: false,
-    passwordChangedAt: Date.now(),
+  const res = await fetch(base + path, {
+    method,
+    headers: finalHeaders,
+    body: payloadBody,
   });
 
-  return { ok: true };
+  const text = await res.text();
+  const data = text ? readJsonSafe(text) : null;
+
+  if (!res.ok) {
+    if (auth && res.status === 401) {
+      signOut();
+      dispatchAuthExpired();
+    }
+    throw buildApiError(res.status, data, `HTTP ${res.status}`);
+  }
+  if (data && data.ok === false) {
+    if (auth && res.status === 401) {
+      signOut();
+      dispatchAuthExpired();
+    }
+    throw buildApiError(res.status || 400, data, "Ошибка API");
+  }
+  return data || { ok: true };
 }
 
-// === Helper для создания сотрудника с паролем ===
+async function waitForGoogleIdentity(timeoutMs = GIS_WAIT_MS) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    if (window.google?.accounts?.id) return window.google.accounts.id;
+    await new Promise((resolve) => setTimeout(resolve, 60));
+  }
+  throw new Error("Google Identity Services не загрузился. Обнови страницу и попробуй снова.");
+}
 
-export async function setEmployeePassword(employeeId, password) {
-  const { hash, salt } = await hashPassword(password);
-  Store.update("employees", employeeId, {
-    passwordHash: hash,
-    passwordSalt: salt,
-    forcePasswordChange: true,
-    passwordChangedAt: Date.now(),
+async function exchangeGoogleCredential(credential) {
+  const data = await apiFetch("/auth/google", {
+    method: "POST",
+    body: { credential },
+    auth: false,
   });
+  if (!data?.token) throw new Error(data?.error || "Worker не вернул токен");
+  return saveSessionFromAuthResponse(data);
 }
 
-export function logout() {
-  clearSession();
-  location.reload();
+export async function mountGoogleButton(target, {
+  onStatus = null,
+  onDone = null,
+  onError = null,
+} = {}) {
+  if (!target) throw new Error("Не передан контейнер для кнопки Google");
+  const clientId = String(window.PLLATO_GOOGLE_CLIENT_ID || "").trim();
+  if (!clientId) throw new Error("Не задан window.PLLATO_GOOGLE_CLIENT_ID в app.config.js");
+
+  onStatus?.("Подготавливаем вход Google...");
+  const accountsId = await waitForGoogleIdentity();
+
+  let consumed = false;
+  const finish = async (response) => {
+    if (consumed) return;
+    consumed = true;
+    try {
+      onStatus?.("Проверяем доступ...");
+      const session = await exchangeGoogleCredential(response.credential);
+      onDone?.(session);
+    } catch (e) {
+      consumed = false;
+      onError?.(e);
+    }
+  };
+
+  accountsId.initialize({
+    client_id: clientId,
+    callback: finish,
+    auto_select: false,
+    cancel_on_tap_outside: true,
+  });
+  target.innerHTML = "";
+  accountsId.renderButton(target, {
+    theme: "outline",
+    size: "large",
+    text: "signin_with",
+    shape: "pill",
+    width: 320,
+    locale: "ru",
+  });
+  onStatus?.("");
 }
