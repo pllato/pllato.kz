@@ -6,6 +6,7 @@ import { ICONS } from "../icons.js";
 import { getSession } from "../auth.js";
 import { listEmployees, getEmployee, currentEmployee, createEmployee, updateEmployee, removeEmployee, avatar, ROLES, isEmployeesSynced } from "../employees.js";
 import { setEmployeePassword, generateTempPassword, logoutAll, getEmailSession } from "../auth_local.js";
+import { saveLocalEmployee, removeFromBackup, isLocalEmployee } from "../local_employees.js";
 import { getDealFields, saveDealFields, newFieldId, FIELD_TYPES } from "../custom_fields.js";
 import { listChannels, typeMeta, isChannelsSynced } from "../channels.js";
 import { ensureBuiltinDocumentsSeed, listDocuments, normalizeVisibility, saveDocumentVisibility, isEmployeeAdmin } from "../docs/registry.js";
@@ -195,10 +196,10 @@ export function renderSettings(container) {
           <div class="employees-list">
             ${employees.map(e => renderEmployeeRow(e, roles, canManageDocs)).join("")}
           </div>
-          ${!isEmployeesSynced() && state.editingEmployee === "new" ? renderEmployeeForm(null, roles) : ""}
-          ${!isEmployeesSynced() ? `<div>
+          ${state.editingEmployee === "new" ? renderEmployeeForm(null, roles) : ""}
+          <div>
             <button class="btn-ghost" id="addEmployee">${ICONS.plus}<span>Добавить сотрудника</span></button>
-          </div>` : ""}
+          </div>
         </div>
       </section>
 
@@ -398,13 +399,15 @@ function renderCustomFieldsList() {
 }
 
 function renderEmployeeRow(e, roles, canManageDocs) {
-  if (state.editingEmployee === e.id && !isEmployeesSynced()) return renderEmployeeForm(e, roles);
+  if (state.editingEmployee === e.id) return renderEmployeeForm(e, roles);
   const managedByDirectory = isEmployeesSynced();
   const roleLabel = e.isSuperAdmin ? "Супер-админ" : e.isAdmin ? "Админ" : (roles.find(r => r.id === e.roleId)?.name || e.role || "Сотрудник");
   const actions = [];
   actions.push(`<button class="btn-ghost icon-only" data-set-pw="${e.id}" title="Установить пароль для входа по email">🔑</button>`);
   if (canManageDocs) actions.push(`<button class="btn-ghost icon-only" data-emp-docs="${e.id}" title="Документы">${ICONS.book}</button>`);
-  if (!managedByDirectory) {
+  // Edit/Remove — всегда доступны для локальных сотрудников, для синхронизованных — read-only
+  const isLocal = e._localCreated || isLocalEmployee(e.id);
+  if (isLocal || !managedByDirectory) {
     actions.push(`<button class="btn-ghost icon-only" data-edit-emp="${e.id}">${ICONS.edit}</button>`);
     if (!e.isCurrent) actions.push(`<button class="btn-ghost icon-only danger" data-remove-emp="${e.id}">${ICONS.trash}</button>`);
   }
@@ -679,10 +682,20 @@ function wireEvents(container) {
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Сохранение…"; }
     try {
       let empId;
-      if (id) { updateEmployee(id, data); empId = id; }
-      else {
+      if (id) {
+        updateEmployee(id, data);
+        empId = id;
+        // Если редактируем локально созданного — обновить backup
+        if (isLocalEmployee(id)) {
+          const updated = listEmployees().find((x) => x.id === id);
+          if (updated) saveLocalEmployee(updated);
+        }
+      } else {
         const created = createEmployee(data);
         empId = created?.id || listEmployees().find((x) => x.email === data.email)?.id;
+        // НОВЫЙ сотрудник — сохраняем в backup, чтобы не пропал при sync
+        const newEmp = listEmployees().find((x) => x.id === empId);
+        if (newEmp) saveLocalEmployee(newEmp);
       }
       if (password && empId) {
         await setEmployeePassword(empId, password);

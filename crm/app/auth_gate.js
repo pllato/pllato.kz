@@ -5,6 +5,7 @@
 import { isEmailAuthenticated } from "./auth_local.js";
 import { listEmployees } from "./employees.js";
 import { showLoginOverlay } from "./views/login.js";
+import { restoreLocalEmployees } from "./local_employees.js";
 
 async function waitForEmployees(maxWaitMs = 3000) {
   const start = Date.now();
@@ -25,6 +26,7 @@ async function getGoogleSessionSafe() {
 
 async function checkAuth() {
   await waitForEmployees();
+  restoreLocalEmployees();
 
   // 1. Email session валиден?
   if (isEmailAuthenticated()) return;
