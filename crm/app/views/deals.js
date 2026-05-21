@@ -1075,7 +1075,7 @@ function renderDealModal(d, contacts, stages) {
               })}
               ${renderCustomFields(d, contacts, employees, stages)}
               ${!isNew ? renderDealItemsSection(d.id, d.amount) : ""}
-              ${renderUtmFormSection(d)}
+              ${renderUtmFormSection(d, { autofill: isNew })}
               <div class="field field-wide form-buttons">
                 ${!isNew ? `<button type="button" class="btn-ghost danger" id="deleteDeal">${ICONS.trash}<span>Удалить</span></button>` : "<span></span>"}
                 ${isNew
@@ -2799,6 +2799,7 @@ function wireEvents(container) {
         contactId: fd.get("contactId") || null,
         assigneeId: fd.get("assigneeId") || null,
         customFields,
+        ...readUtmFromFormData(fd),
       };
     }
 

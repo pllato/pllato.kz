@@ -198,7 +198,11 @@ export function renderUtmBadge(obj) {
 /**
  * Полная секция «Источник» для формы сделки/контакта.
  */
-export function renderUtmFormSection(obj = {}) {
+export function renderUtmFormSection(obj = {}, opts = {}) {
+  // Если autofill включён (для новых сделок) И в объекте нет UTM — подставляем из storage
+  if (opts.autofill && !hasAnyUtm(obj)) {
+    obj = enrichWithStoredUtm(obj);
+  }
   const utm = getUtmFromObject(obj);
   const sourceOptions = Object.entries(UTM_SOURCE_PRESETS)
     .filter(([k]) => k !== "")
