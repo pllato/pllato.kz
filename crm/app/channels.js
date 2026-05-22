@@ -127,7 +127,7 @@ export async function saveChannel(payload) {
 
   const json = await apiFetch("/channels/save", {
     method: "POST",
-    body: JSON.stringify(body),
+    body,
   });
   if (!json?.ok) {
     const err = json?.error || json?.message || "Не удалось сохранить канал";
@@ -146,7 +146,7 @@ export async function deleteChannel(id) {
   if (!id) throw new Error("deleteChannel: id обязателен");
   const json = await apiFetch("/channels/delete", {
     method: "POST",
-    body: JSON.stringify({ id: String(id) }),
+    body: { id: String(id) },
   });
   if (!json?.ok) {
     const err = json?.error || json?.message || "Не удалось удалить канал";
