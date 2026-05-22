@@ -105,4 +105,20 @@ export const CallsApi = {
   renderWhatsapp(id, payload = {}) {
     return request(`/api/crm/calls/logs/${encodeURIComponent(id)}/whatsapp`, { method: "POST", body: payload });
   },
+
+  // --- Binotel: звонок, история, запись ---
+  binotelCall(payload) {
+    // payload: { channelId, externalNumber, internalNumber }
+    return request("/binotel/call", { method: "POST", body: payload || {} });
+  },
+
+  binotelHistory(params = {}) {
+    // params: { limit, internal_numbers, ... } — уходят как query string
+    return request("/binotel/history", { method: "GET", query: params });
+  },
+
+  binotelRecording(payload) {
+    // payload: { channelId, callId }
+    return request("/binotel/recording", { method: "POST", body: payload || {} });
+  },
 };
