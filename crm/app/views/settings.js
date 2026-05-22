@@ -126,6 +126,47 @@ export function renderSettings(container) {
   container.innerHTML = `
     <div class="settings-view">
 
+      <style>
+        .settings-tabs {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px;
+          margin: 0 0 16px;
+          padding: 4px;
+          background: var(--surface-2, rgba(127, 127, 127, 0.08));
+          border-radius: 10px;
+          position: sticky;
+          top: 0;
+          z-index: 10;
+          backdrop-filter: blur(8px);
+        }
+        .settings-tab {
+          flex: 1 1 auto;
+          min-width: 110px;
+          padding: 10px 16px;
+          border: 0;
+          background: transparent;
+          color: var(--text-muted, rgba(127, 127, 127, 0.8));
+          font: inherit;
+          font-size: 13.5px;
+          font-weight: 500;
+          border-radius: 7px;
+          cursor: pointer;
+          transition: background 0.15s, color 0.15s;
+          white-space: nowrap;
+        }
+        .settings-tab:hover {
+          color: var(--text, currentColor);
+          background: var(--surface, rgba(127, 127, 127, 0.06));
+        }
+        .settings-tab.active {
+          background: var(--surface, rgba(127, 127, 127, 0.14));
+          color: var(--text, currentColor);
+          font-weight: 600;
+        }
+      </style>
+      <nav class="settings-tabs" id="settingsTabs" role="tablist" aria-label="Разделы настроек"></nav>
+
       <!-- Профиль -->
       <section class="settings-block">
         <header class="settings-head">
@@ -345,7 +386,50 @@ export function renderSettings(container) {
     </div>
   `;
 
+  initSettingsTabs(container);
   wireEvents(container);
+}
+
+const SETTINGS_TABS = [
+  { id: 'profile', label: 'Профиль',      sections: [0, 1] },
+  { id: 'theme',   label: 'Внешний вид',  sections: [2] },
+  { id: 'team',    label: 'Команда',      sections: [3, 4] },
+  { id: 'fields',  label: 'Поля сделок',  sections: [5] },
+  { id: 'integ',   label: 'Интеграции',   sections: [6, 7] },
+  { id: 'about',   label: 'О приложении', sections: [8, 9] },
+];
+const TABS_STORAGE_KEY = 'pllato_settings_active_tab';
+
+function initSettingsTabs(container) {
+  const tabsEl = container.querySelector('#settingsTabs');
+  if (!tabsEl) return;
+  const sections = Array.from(container.querySelectorAll('.settings-view > .settings-block'));
+  if (!sections.length) return;
+
+  tabsEl.innerHTML = SETTINGS_TABS.map(t => `
+    <button type="button" class="settings-tab" data-tab="${t.id}" role="tab">${t.label}</button>
+  `).join('');
+
+  function activate(tabId) {
+    const tab = SETTINGS_TABS.find(t => t.id === tabId) || SETTINGS_TABS[0];
+    tabsEl.querySelectorAll('.settings-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tab.id);
+    });
+    sections.forEach((sec, i) => {
+      sec.style.display = tab.sections.includes(i) ? '' : 'none';
+    });
+    try { localStorage.setItem(TABS_STORAGE_KEY, tab.id); } catch {}
+    // Скролл к началу при переключении
+    try { tabsEl.scrollIntoView({ block: 'start', behavior: 'instant' }); } catch {}
+  }
+
+  tabsEl.querySelectorAll('.settings-tab').forEach(btn => {
+    btn.addEventListener('click', () => activate(btn.dataset.tab));
+  });
+
+  let saved = null;
+  try { saved = localStorage.getItem(TABS_STORAGE_KEY); } catch {}
+  activate(saved && SETTINGS_TABS.some(t => t.id === saved) ? saved : SETTINGS_TABS[0].id);
 }
 
 function renderChannelsList() {
