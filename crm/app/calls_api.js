@@ -31,8 +31,9 @@ async function request(path, { method = "GET", query = null, body = null, formDa
   if (formData) {
     init.body = formData;
   } else if (body !== null) {
-    headers["Content-Type"] = "application/json";
-    init.body = JSON.stringify(body);
+    // apiFetch сам сделает JSON.stringify (он же выставит Content-Type).
+    // НЕ дублируем stringify здесь — иначе worker получит строку вместо объекта.
+    init.body = body;
   }
 
   const pathOnly = url.replace(base, "");
