@@ -40,6 +40,8 @@ function isAllowedOrigin(origin, env) {
   if (o === "https://pllato.kz") return true;
   if (o === "https://www.pllato.kz") return true;
   if (o === "http://localhost:8080") return true;
+  if (o === "https://aminamed-crm.pages.dev") return true;
+  if (o === "https://crm.aminamed.kz") return true;
   if (o === "http://127.0.0.1:8080") return true;
   if (o === "http://localhost:8787") return true;
   if (o === "http://127.0.0.1:8787") return true;
