@@ -3,7 +3,7 @@
 import { ICONS } from "../icons.js";
 import { CallsApi } from "../calls_api.js";
 import { listChannels } from "../channels.js";
-import { currentEmployee, listEmployees } from "../employees.js";
+import { currentEmployee, listEmployees, getEmployeeBinotelLine } from "../employees.js";
 
 const QUEUE_CAMPAIGN_KEY = "pllato_calls_queue_campaign";
 
@@ -144,7 +144,7 @@ function callerName(uid) {
 function employeeBinotelLines() {
   const uniq = new Set();
   listEmployees().forEach((e) => {
-    const line = normalizeInternalLine(e?.binotelLine || e?.binotel_line || "");
+    const line = normalizeInternalLine(e?.binotelLine || e?.binotel_line || getEmployeeBinotelLine(e?.id) || "");
     if (line) uniq.add(line);
   });
   return [...uniq];
@@ -165,7 +165,7 @@ function ensureQuickCallDefaults() {
 
   if (!state.quickCallInternalNumber) {
     const me = currentEmployee();
-    const personalLine = normalizeInternalLine(me?.binotelLine || me?.binotel_line || "");
+    const personalLine = normalizeInternalLine(me?.binotelLine || me?.binotel_line || getEmployeeBinotelLine(me?.id) || "");
     if (personalLine) {
       state.quickCallInternalNumber = personalLine;
     } else {
@@ -575,7 +575,7 @@ async function startBinotelCallFromQueue() {
 
   const channel = channels[0];
   const me = currentEmployee();
-  const personalLine = normalizeInternalLine(me?.binotelLine || me?.binotel_line || "");
+  const personalLine = normalizeInternalLine(me?.binotelLine || me?.binotel_line || getEmployeeBinotelLine(me?.id) || "");
   const fallbackLine = normalizeInternalLine(channel.public?.default_inner || "");
   return CallsApi.binotelCall({
     channelId: channel.id,

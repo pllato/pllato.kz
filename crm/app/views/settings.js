@@ -4,7 +4,7 @@
 import { Store } from "../store.js";
 import { ICONS } from "../icons.js";
 import { getSession } from "../auth.js";
-import { listEmployees, getEmployee, currentEmployee, createEmployee, updateEmployee, removeEmployee, avatar, ROLES, isEmployeesSynced } from "../employees.js";
+import { listEmployees, getEmployee, currentEmployee, createEmployee, updateEmployee, removeEmployee, avatar, ROLES, isEmployeesSynced, getEmployeeBinotelLine, setEmployeeBinotelLine } from "../employees.js";
 import { setEmployeePassword, generateTempPassword, logoutAll, getEmailSession } from "../auth_local.js";
 import { saveLocalEmployee, removeFromBackup, isLocalEmployee } from "../local_employees.js";
 import { getDealFields, saveDealFields, newFieldId, FIELD_TYPES } from "../custom_fields.js";
@@ -790,6 +790,7 @@ function renderEmployeeForm(e, roles) {
       <div class="form-grid">
         <div class="field"><label>Имя *</label><input name="name" required value="${escape(e.name)}" placeholder="Имя Фамилия"></div>
         <div class="field"><label>Email *</label><input name="email" type="email" required value="${escape(e.email)}" placeholder="user@company.com"></div>
+        <div class="field"><label>Линия Binotel (внутренний номер)</label><input name="binotelLine" inputmode="numeric" value="${escape(e.id ? getEmployeeBinotelLine(e.id) : "")}" placeholder="например, 1914"></div>
         <div class="field"><label>Роль</label>
           <select name="roleId">
             ${roles.map(r => `<option value="${r.id}" ${e.roleId === r.id ? "selected" : ""}>${escape(r.name)}</option>`).join("")}
@@ -1054,6 +1055,10 @@ function wireEvents(container) {
         // НОВЫЙ сотрудник — сохраняем в backup, чтобы не пропал при sync
         const newEmp = listEmployees().find((x) => x.id === empId);
         if (newEmp) saveLocalEmployee(newEmp);
+      }
+      // Сохраняем личную линию Binotel в локальном map (не идёт в worker D1)
+      if (empId) {
+        setEmployeeBinotelLine(empId, fd.get("binotelLine") || "");
       }
       if (password && empId) {
         await setEmployeePassword(empId, password);

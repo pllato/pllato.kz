@@ -204,3 +204,36 @@ export function removeEmployee(id) {
   if (employee?.isCurrent) return false;
   return Store.remove(COLLECTION, id);
 }
+
+// =============================================================================
+// Binotel internal line per employee (локальное хранение, не идёт в worker D1).
+// Используется как fallback в calls.js когда employee объект не содержит поля.
+// =============================================================================
+const BINOTEL_LINES_KEY = "pllato_emp_binotel_lines";
+
+function readBinotelLinesMap() {
+  try {
+    const raw = localStorage.getItem(BINOTEL_LINES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return (parsed && typeof parsed === "object") ? parsed : {};
+  } catch { return {}; }
+}
+
+function writeBinotelLinesMap(map) {
+  try { localStorage.setItem(BINOTEL_LINES_KEY, JSON.stringify(map || {})); } catch {}
+}
+
+export function getEmployeeBinotelLine(employeeId) {
+  if (!employeeId) return "";
+  const map = readBinotelLinesMap();
+  return String(map[employeeId] || "").replace(/[^\d]/g, "");
+}
+
+export function setEmployeeBinotelLine(employeeId, line) {
+  if (!employeeId) return;
+  const map = readBinotelLinesMap();
+  const normalized = String(line || "").replace(/[^\d]/g, "");
+  if (normalized) map[employeeId] = normalized;
+  else delete map[employeeId];
+  writeBinotelLinesMap(map);
+}
