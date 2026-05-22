@@ -8,7 +8,7 @@ import { listEmployees, getEmployee, currentEmployee, createEmployee, updateEmpl
 import { setEmployeePassword, generateTempPassword, logoutAll, getEmailSession } from "../auth_local.js";
 import { saveLocalEmployee, removeFromBackup, isLocalEmployee } from "../local_employees.js";
 import { getDealFields, saveDealFields, newFieldId, FIELD_TYPES } from "../custom_fields.js";
-import { listChannels, typeMeta, isChannelsSynced } from "../channels.js";
+import { listChannels, typeMeta, isChannelsSynced, saveChannel, deleteChannel, getChannelFull } from "../channels.js";
 import { ensureBuiltinDocumentsSeed, listDocuments, normalizeVisibility, saveDocumentVisibility, isEmployeeAdmin } from "../docs/registry.js";
 import { VERSION, REVISION, BUILD_DATE, COMMIT_SHORT, HISTORY } from "../version.js";
 
@@ -277,18 +277,26 @@ export function renderSettings(container) {
         </div>
       </section>
 
-      <!-- Каналы связи (из Контакт-центра) -->
+      <!-- Каналы связи (управление прямо в CRM) -->
       <section class="settings-block">
         <header class="settings-head">
           <h3>Каналы связи ${(() => { const all = listChannels({ onlyActive: false }); return all.length ? `<span style="font-weight:500;color:var(--text-muted)">(${all.length})</span>` : ''; })()}</h3>
-          <p>Линии телефонии, WhatsApp, почты — подключаются в Контакт-центре, доступны во всех приложениях Pllato.</p>
+          <p>Binotel (телефония) и WhatsApp Green-API. Используются для звонков и сообщений из CRM.</p>
         </header>
         <div class="settings-body">
-          <div class="settings-hint" style="margin-bottom:14px">
-            Управление линиями — в общей админке <a href="https://pllato.kz/contact-center.html" target="_blank" style="color:var(--accent)">pllato.kz/contact-center.html</a>.
-            Здесь — только просмотр доступных в Pllato CRM. Создание сделок, звонки и сообщения будут идти через эти каналы (когда подключим Worker).
+          ${channelsEditState.editing === 'new' ? renderChannelForm(null, channelsEditState.editType || 'binotel') : ''}
+          <div class="channels-toolbar" style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
+            <select id="newChannelType" style="padding:8px 12px;background:var(--surface);border:1px solid var(--line);color:var(--text);border-radius:7px;font:inherit;">
+              <option value="binotel">📞 Binotel (телефония)</option>
+              <option value="greenapi_wa">💬 WhatsApp (Green-API)</option>
+            </select>
+            <button class="btn-ghost" id="addChannelBtn">${ICONS.plus}<span>Добавить канал</span></button>
           </div>
           ${renderChannelsList()}
+          <details style="margin-top:14px;font-size:13px;color:var(--text-muted);">
+            <summary style="cursor:pointer;">Альтернативный способ — Контакт-центр</summary>
+            <div style="padding:8px 0;">Каналами также можно управлять в общей админке <a href="https://pllato.kz/contact-center.html" target="_blank" style="color:var(--accent)">pllato.kz/contact-center.html</a>.</div>
+          </details>
         </div>
       </section>
 
@@ -388,6 +396,7 @@ export function renderSettings(container) {
 
   initSettingsTabs(container);
   wireEvents(container);
+  wireChannelsEvents(container);
 }
 
 const SETTINGS_TABS = [
@@ -432,30 +441,295 @@ function initSettingsTabs(container) {
   activate(saved && SETTINGS_TABS.some(t => t.id === saved) ? saved : SETTINGS_TABS[0].id);
 }
 
+// =============================================================================
+// Каналы связи: state + UI для управления (CRUD).
+// =============================================================================
+const channelsEditState = { editing: null, editType: null, editData: null };
+const CH_INPUT_STYLE = "width:100%;padding:8px 12px;background:var(--surface);border:1px solid var(--line);color:var(--text);border-radius:7px;box-sizing:border-box;font:inherit;";
+
 function renderChannelsList() {
   const list = listChannels({ onlyActive: false });
   if (list.length === 0) {
     if (!isChannelsSynced()) {
-      return `<div class="tl-empty">Каналы не загружены. Перелогинься, чтобы подтянуть их из Worker API.</div>`;
+      return `<div class="tl-empty">Каналы загружаются... Если долго — перелогинься.</div>`;
     }
-    return `<div class="tl-empty">Pllato CRM ещё не привязана ни к одному каналу. Открой <a href="https://pllato.kz/contact-center.html" target="_blank" style="color:var(--accent)">Контакт-центр</a> и в карточке нужного канала отметь «Pllato CRM».</div>`;
+    return `<div class="tl-empty">Каналов пока нет. Выбери тип выше и нажми «Добавить канал».</div>`;
   }
   return `
     <div class="employees-list">
       ${list.map(c => {
-        const meta = typeMeta(c.type);
-        return `
-          <div class="employee-row">
-            <div class="avatar avatar-md" style="background:var(--accent-tint);color:var(--accent-hover);font-size:18px">${meta.icon}</div>
-            <div class="employee-body">
-              <div class="employee-name">${escape(c.name)} ${c.active === false ? '<span class="badge warn">выкл</span>' : ''}</div>
-              <div class="employee-meta">${meta.label}${c.public?.phone_number ? ' · ' + escape(c.public.phone_number) : ''}${c.public?.host ? ' · ' + escape(c.public.host) : ''}${c.public?.account ? ' · ' + escape(c.public.account) : ''}</div>
-            </div>
-          </div>
-        `;
+        if (channelsEditState.editing === c.id) {
+          return renderChannelForm(c.id, c.type);
+        }
+        return renderChannelRow(c);
       }).join("")}
     </div>
   `;
+}
+
+function renderChannelRow(c) {
+  const meta = typeMeta(c.type);
+  const subtitleParts = [
+    meta.label,
+    c.public?.phone_number,
+    c.public?.host,
+    c.public?.account,
+    c.public?.id_instance,
+    c.public?.default_inner ? `вн. ${c.public.default_inner}` : null,
+  ].filter(Boolean).map(v => escape(String(v)));
+  return `
+    <div class="employee-row" data-channel-id="${escape(c.id)}">
+      <div class="avatar avatar-md" style="background:var(--accent-tint);color:var(--accent-hover);font-size:18px">${meta.icon}</div>
+      <div class="employee-body">
+        <div class="employee-name">${escape(c.name)} ${c.active === false ? '<span class="badge warn">выкл</span>' : ''}</div>
+        <div class="employee-meta">${subtitleParts.join(' · ')}</div>
+      </div>
+      <div style="display:flex;gap:4px;margin-left:auto;align-items:center;">
+        <button class="btn-ghost icon-only" data-toggle-channel="${escape(c.id)}" title="${c.active === false ? 'Включить' : 'Выключить'}">${c.active === false ? '▶' : '⏸'}</button>
+        <button class="btn-ghost icon-only" data-edit-channel="${escape(c.id)}" title="Редактировать">${ICONS.edit}</button>
+        <button class="btn-ghost icon-only danger" data-delete-channel="${escape(c.id)}" title="Удалить">${ICONS.trash}</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderChannelForm(id, type) {
+  if (type === 'binotel') return renderBinotelForm(id);
+  if (type === 'greenapi_wa') return renderGreenApiForm(id);
+  return `<div class="tl-empty">Тип канала «${escape(type)}» пока не поддерживается. Используй Контакт-центр.</div>`;
+}
+
+function renderBinotelForm(id) {
+  const isNew = !id;
+  const data = (isNew ? {} : channelsEditState.editData) || {};
+  const config = data.config || {};
+  const secrets = data.secrets || {};
+  return `
+    <form data-channel-form data-channel-type="binotel" ${!isNew ? `data-channel-id="${escape(id)}"` : ''} style="background:var(--surface-2,rgba(127,127,127,0.06));padding:18px;border-radius:10px;margin-bottom:14px;border:1px solid var(--line);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:4px;">${isNew ? 'Новый канал' : 'Редактировать'}: 📞 Binotel (телефония)</div>
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">API key и API secret берутся в личном кабинете Binotel → Настройки → API.</p>
+
+      <label style="display:block;margin-top:12px;">
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">Название канала</div>
+        <input type="text" name="name" required value="${escape(data.name || '')}" placeholder="Например: Главная линия Aminamed" style="${CH_INPUT_STYLE}">
+      </label>
+
+      <label style="display:block;margin-top:12px;">
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">API key <span style="color:#f33">*</span></div>
+        <input type="text" name="api_key" value="${escape(secrets.api_key || '')}" placeholder="из дашборда Binotel" autocomplete="off" spellcheck="false" style="${CH_INPUT_STYLE}font-family:ui-monospace,Menlo,monospace;">
+      </label>
+
+      <label style="display:block;margin-top:12px;">
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">API secret <span style="color:#f33">*</span></div>
+        <input type="text" name="api_secret" value="${escape(secrets.api_secret || '')}" placeholder="из дашборда Binotel" autocomplete="off" spellcheck="false" style="${CH_INPUT_STYLE}font-family:ui-monospace,Menlo,monospace;">
+      </label>
+
+      <label style="display:block;margin-top:12px;">
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">Внутренний номер по умолчанию (опционально)</div>
+        <input type="text" name="default_inner" value="${escape(config.default_inner || '')}" placeholder="например, 101" style="${CH_INPUT_STYLE}">
+      </label>
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;cursor:pointer;">
+        <input type="checkbox" name="active" ${data.active !== false ? 'checked' : ''}>
+        <span>Активен</span>
+      </label>
+
+      <div style="display:flex;gap:8px;margin-top:18px;">
+        <button type="submit" style="background:var(--accent);color:white;border:0;padding:9px 18px;border-radius:7px;cursor:pointer;font-weight:500;font:inherit;">Сохранить</button>
+        <button type="button" class="btn-ghost" data-cancel-channel-form>Отмена</button>
+      </div>
+      ${!isNew ? `<div style="font-size:12px;color:var(--text-muted);margin-top:10px;">💡 Если оставить API key/secret пустыми — текущие сохранятся.</div>` : ''}
+    </form>
+  `;
+}
+
+function renderGreenApiForm(id) {
+  const isNew = !id;
+  const data = (isNew ? {} : channelsEditState.editData) || {};
+  const config = data.config || {};
+  const secrets = data.secrets || {};
+  return `
+    <form data-channel-form data-channel-type="greenapi_wa" ${!isNew ? `data-channel-id="${escape(id)}"` : ''} style="background:var(--surface-2,rgba(127,127,127,0.06));padding:18px;border-radius:10px;margin-bottom:14px;border:1px solid var(--line);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:4px;">${isNew ? 'Новый канал' : 'Редактировать'}: 💬 WhatsApp (Green-API)</div>
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">ID Instance и API token берутся в личном кабинете Green-API → твой инстанс.</p>
+
+      <label style="display:block;margin-top:12px;">
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">Название канала</div>
+        <input type="text" name="name" required value="${escape(data.name || '')}" placeholder="Например: Основной WhatsApp Aminamed" style="${CH_INPUT_STYLE}">
+      </label>
+
+      <label style="display:block;margin-top:12px;">
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">ID Instance <span style="color:#f33">*</span></div>
+        <input type="text" name="id_instance" required value="${escape(config.id_instance || '')}" placeholder="например, 1101234567" style="${CH_INPUT_STYLE}font-family:ui-monospace,Menlo,monospace;">
+      </label>
+
+      <label style="display:block;margin-top:12px;">
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">API Token Instance <span style="color:#f33">*</span></div>
+        <input type="text" name="api_token_instance" value="${escape(secrets.api_token_instance || '')}" placeholder="токен из Green-API кабинета" autocomplete="off" spellcheck="false" style="${CH_INPUT_STYLE}font-family:ui-monospace,Menlo,monospace;">
+      </label>
+
+      <label style="display:block;margin-top:12px;">
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">Номер телефона (для отображения, опционально)</div>
+        <input type="text" name="phone_number" value="${escape(config.phone_number || '')}" placeholder="+7 700 123 45 67" style="${CH_INPUT_STYLE}">
+      </label>
+
+      <label style="display:block;margin-top:12px;">
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">API URL (опционально, по умолчанию https://api.green-api.com)</div>
+        <input type="text" name="api_url" value="${escape(config.api_url || '')}" placeholder="https://api.green-api.com" style="${CH_INPUT_STYLE}">
+      </label>
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;cursor:pointer;">
+        <input type="checkbox" name="active" ${data.active !== false ? 'checked' : ''}>
+        <span>Активен</span>
+      </label>
+
+      <div style="display:flex;gap:8px;margin-top:18px;">
+        <button type="submit" style="background:var(--accent);color:white;border:0;padding:9px 18px;border-radius:7px;cursor:pointer;font-weight:500;font:inherit;">Сохранить</button>
+        <button type="button" class="btn-ghost" data-cancel-channel-form>Отмена</button>
+      </div>
+      ${!isNew ? `<div style="font-size:12px;color:var(--text-muted);margin-top:10px;">💡 Если оставить API token пустым — текущий сохранится.</div>` : ''}
+    </form>
+  `;
+}
+
+function wireChannelsEvents(container) {
+  // Marker: предотвращает двойную подписку при re-render
+  if (container.dataset.channelsWired === '1') return;
+  container.dataset.channelsWired = '1';
+
+  container.addEventListener('click', async (e) => {
+    // "+ Добавить канал"
+    const addBtn = e.target.closest('#addChannelBtn');
+    if (addBtn) {
+      const sel = container.querySelector('#newChannelType');
+      const type = (sel && sel.value) || 'binotel';
+      channelsEditState.editing = 'new';
+      channelsEditState.editType = type;
+      channelsEditState.editData = null;
+      renderSettings(container);
+      return;
+    }
+
+    const editBtn = e.target.closest('[data-edit-channel]');
+    if (editBtn) {
+      const id = editBtn.dataset.editChannel;
+      try {
+        const ch = await getChannelFull(id);
+        if (!ch) { alert('Канал не найден на сервере'); return; }
+        channelsEditState.editing = id;
+        channelsEditState.editType = ch.type;
+        channelsEditState.editData = ch;
+        renderSettings(container);
+      } catch (err) {
+        alert('Не удалось загрузить канал: ' + (err?.message || err));
+      }
+      return;
+    }
+
+    const deleteBtn = e.target.closest('[data-delete-channel]');
+    if (deleteBtn) {
+      const id = deleteBtn.dataset.deleteChannel;
+      const ch = listChannels({ onlyActive: false }).find(c => c.id === id);
+      if (!ch) return;
+      if (!confirm(`Удалить канал «${ch.name}»?\nЭто действие нельзя отменить.`)) return;
+      try {
+        await deleteChannel(id);
+        renderSettings(container);
+      } catch (err) {
+        alert('Не удалось удалить: ' + (err?.message || err));
+      }
+      return;
+    }
+
+    const toggleBtn = e.target.closest('[data-toggle-channel]');
+    if (toggleBtn) {
+      const id = toggleBtn.dataset.toggleChannel;
+      try {
+        const ch = await getChannelFull(id);
+        if (!ch) { alert('Канал не найден'); return; }
+        await saveChannel({
+          id: ch.id,
+          type: ch.type,
+          name: ch.name,
+          active: !(ch.active !== false),
+          configPublic: ch.config || {},
+          apps: ch.apps || {},
+          // секреты не передаём — worker оставит старые
+        });
+        renderSettings(container);
+      } catch (err) {
+        alert('Не удалось переключить: ' + (err?.message || err));
+      }
+      return;
+    }
+
+    const cancelBtn = e.target.closest('[data-cancel-channel-form]');
+    if (cancelBtn) {
+      channelsEditState.editing = null;
+      channelsEditState.editType = null;
+      channelsEditState.editData = null;
+      renderSettings(container);
+      return;
+    }
+  });
+
+  // Form submit
+  container.addEventListener('submit', async (e) => {
+    const form = e.target.closest('[data-channel-form]');
+    if (!form) return;
+    e.preventDefault();
+
+    const id = form.dataset.channelId || undefined;
+    const type = form.dataset.channelType;
+    const fd = new FormData(form);
+
+    const payload = {
+      type,
+      name: String(fd.get('name') || '').trim(),
+      active: fd.get('active') === 'on',
+      configPublic: {},
+    };
+    if (id) payload.id = id;
+
+    if (type === 'binotel') {
+      const apiKey = String(fd.get('api_key') || '').trim();
+      const apiSecret = String(fd.get('api_secret') || '').trim();
+      const defaultInner = String(fd.get('default_inner') || '').trim();
+      payload.configPublic = { default_inner: defaultInner || null };
+      if (apiKey || apiSecret) {
+        payload.secrets = {};
+        if (apiKey) payload.secrets.api_key = apiKey;
+        if (apiSecret) payload.secrets.api_secret = apiSecret;
+      }
+    } else if (type === 'greenapi_wa') {
+      const idInstance = String(fd.get('id_instance') || '').trim();
+      const apiToken = String(fd.get('api_token_instance') || '').trim();
+      const phone = String(fd.get('phone_number') || '').trim();
+      const apiUrl = String(fd.get('api_url') || '').trim();
+      payload.configPublic = {
+        id_instance: idInstance || null,
+        phone_number: phone || null,
+        api_url: apiUrl || null,
+      };
+      if (apiToken) {
+        payload.secrets = { api_token_instance: apiToken };
+      }
+    }
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const origLabel = submitBtn ? submitBtn.textContent : '';
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Сохраняем...'; }
+    try {
+      await saveChannel(payload);
+      channelsEditState.editing = null;
+      channelsEditState.editType = null;
+      channelsEditState.editData = null;
+      renderSettings(container);
+    } catch (err) {
+      alert('Не удалось сохранить: ' + (err?.message || err));
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = origLabel || 'Сохранить'; }
+    }
+  });
 }
 
 function renderCustomFieldsList() {
