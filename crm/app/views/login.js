@@ -1,5 +1,8 @@
 import { loginByEmail, changePasswordToNew, hasAnyPasswordsAsync } from "../auth_local.js";
 
+const HOSTS_WITH_GOOGLE = ["pllato.kz", "www.pllato.kz", "localhost", "127.0.0.1"];
+const SHOW_GOOGLE_LOGIN = HOSTS_WITH_GOOGLE.includes(location.hostname);
+
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -22,7 +25,9 @@ export async function showLoginOverlay(onSuccess) {
       if (form) {
         const w = document.createElement("div");
         w.className = "login-warn";
-        w.innerHTML = "⚠ В системе пока нет ни одного сотрудника с email-паролем.<br>Войди через Google и добавь сотрудников в <strong>Настройки → Сотрудники</strong>.";
+        w.innerHTML = SHOW_GOOGLE_LOGIN
+          ? "⚠ В системе пока нет ни одного сотрудника с email-паролем.<br>Войди через Google и добавь сотрудников в <strong>Настройки → Сотрудники</strong>."
+          : "⚠ В системе пока нет ни одного сотрудника. Обратитесь к администратору для получения доступа.";
         form.parentNode.insertBefore(w, form);
       }
     }
@@ -49,6 +54,7 @@ function renderLoginHTML() {
         <div class="login-error" id="loginError" hidden></div>
         <button type="submit" class="login-submit">Войти</button>
       </form>
+      ${SHOW_GOOGLE_LOGIN ? `
       <div class="login-divider"><span>или</span></div>
       <div class="login-google">
         <button type="button" class="login-google-btn" id="loginGoogleBtn">
@@ -56,6 +62,7 @@ function renderLoginHTML() {
           <span>Войти через Google</span>
         </button>
       </div>
+      ` : ``}
       <div class="login-footer">
         <small>Пароль установлен администратором при добавлении сотрудника</small>
       </div>
