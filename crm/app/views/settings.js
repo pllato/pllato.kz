@@ -762,6 +762,7 @@ function renderEmployeeRow(e, roles, canManageDocs) {
   const roleLabel = e.isSuperAdmin ? "Супер-админ" : e.isAdmin ? "Админ" : (roles.find(r => r.id === e.roleId)?.name || e.role || "Сотрудник");
   const actions = [];
   actions.push(`<button class="btn-ghost icon-only" data-set-pw="${e.id}" title="Установить пароль для входа по email">🔑</button>`);
+  actions.push(`<button class="btn-ghost icon-only" data-set-binotel-line="${e.id}" title="Внутренняя линия Binotel${getEmployeeBinotelLine(e.id) ? ` (сейчас: ${getEmployeeBinotelLine(e.id)})` : ''}">📞</button>`);
   if (canManageDocs) actions.push(`<button class="btn-ghost icon-only" data-emp-docs="${e.id}" title="Документы">${ICONS.book}</button>`);
   // Edit/Remove — всегда доступны для локальных сотрудников, для синхронизованных — read-only
   const isLocal = e._localCreated || isLocalEmployee(e.id);
@@ -911,6 +912,22 @@ function renderEmployeeDocsModal(employeeId, employees, documents) {
 }
 
 function wireEvents(container) {
+  // Кнопка 📞 — установить внутреннюю линию Binotel для сотрудника (любого)
+  container.querySelectorAll("[data-set-binotel-line]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.setBinotelLine;
+      const emp = listEmployees().find((x) => x.id === id);
+      if (!emp) return;
+      const current = getEmployeeBinotelLine(id);
+      const value = prompt(
+        `Внутренняя линия Binotel для ${emp.name || emp.email}\n(только цифры, например 1914. Пусто = удалить)`,
+        current
+      );
+      if (value === null) return; // отмена
+      setEmployeeBinotelLine(id, value);
+      renderSettings(container);
+    });
+  });
   const canManageDocs = isEmployeeAdmin(currentEmployee());
 
   // Workspace
