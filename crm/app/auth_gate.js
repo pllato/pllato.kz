@@ -4,6 +4,9 @@
 
 const SESSION_KEY = "pllato_session";
 
+const HOSTS_WITH_GOOGLE = ["pllato.kz", "www.pllato.kz", "localhost", "127.0.0.1"];
+const SHOW_GOOGLE_LOGIN = HOSTS_WITH_GOOGLE.includes(location.hostname);
+
 function getSession() {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
@@ -40,6 +43,7 @@ const LOGIN_HTML = `
       <div class="login-error" id="loginError" hidden></div>
       <button type="submit" class="login-submit">Войти</button>
     </form>
+    ${SHOW_GOOGLE_LOGIN ? `
     <div class="login-divider"><span>или</span></div>
     <div class="login-google">
       <button type="button" class="login-google-btn" id="loginGoogleBtn">
@@ -47,6 +51,7 @@ const LOGIN_HTML = `
         <span>Войти через Google</span>
       </button>
     </div>
+    ` : ``}
     <div class="login-footer">
       <small>Пароль установлен администратором при добавлении сотрудника</small>
     </div>
