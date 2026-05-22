@@ -1,0 +1,20 @@
+name = "pllato-elc-worker"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+account_id = "d0655e161d8fca8487f88d55c0eeb215"
+
+[vars]
+FIREBASE_PROJECT_ID = "pllato-crm"
+# JWT_SECRET для будущих собственных токенов (Phase 3+) — пока не используется
+# Установить через: wrangler secret put JWT_SECRET
+
+# ── D1 binding ──
+# Заполни после создания базы:  wrangler d1 create pllato-elc-d1
+[[d1_databases]]
+binding = "DB"
+database_name = "pllato-elc-d1"
+database_id = "3e6c3138-5c6d-4239-ae09-2d60ca2ed0ab"
+
+# ── Observability ──
+[observability]
+enabled = true
