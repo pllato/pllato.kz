@@ -1802,6 +1802,7 @@ onAuthStateChanged(auth, async user => {
 
 // ── App init ─────────────────────────────────────────────
 async function initApp(user) {
+  console.log('[initApp] start, uid=', user.uid, 'email=', user.email);
   // Сохраняем профиль текущего пользователя
   const profile = {
     email: user.email,
@@ -1810,15 +1811,28 @@ async function initApp(user) {
     lastLogin: new Date().toISOString(),
     provider: user.providerData[0]?.providerId || 'unknown',
   };
-  await update(ref(db, `users/${user.uid}`), profile);
+  try {
+    await update(ref(db, `users/${user.uid}`), profile);
+    console.log('[initApp] profile saved');
+  } catch (e) {
+    console.warn('[initApp] profile update failed (non-fatal, continuing):', e);
+  }
 
   // UI
-  const initials = (profile.name || 'U').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
-  document.getElementById('ux-avatar').textContent = initials;
-  document.getElementById('ux-name').textContent = profile.name;
-  document.getElementById('ux-email').textContent = user.email;
+  try {
+    const initials = (profile.name || 'U').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+    const av = document.getElementById('ux-avatar');
+    const nm = document.getElementById('ux-name');
+    const em = document.getElementById('ux-email');
+    if (av) av.textContent = initials;
+    if (nm) nm.textContent = profile.name;
+    if (em) em.textContent = user.email;
+  } catch (e) {
+    console.warn('[initApp] sidebar UI fill failed (non-fatal):', e);
+  }
 
   // Default page
+  console.log('[initApp] navigating to dashboard');
   navigate('dashboard');
 
   // Если есть deep link — открываем после загрузки
