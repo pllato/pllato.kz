@@ -260,6 +260,33 @@ body {
 .tbtn-sm { padding: 5px 11px; font-size: 12px; }
 .tbtn-xs { padding: 3px 8px; font-size: 11px; }
 
+/* ── Pager (серверная пагинация) ─────────────────── */
+.pager {
+  margin: 14px 0 6px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.pager-btn {
+  min-width: 32px;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--b1);
+  background: var(--bg3);
+  color: var(--t1);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.pager-btn:hover:not(:disabled):not(.active) { background: var(--bg4); border-color: var(--ac2); }
+.pager-btn.active { background: var(--ac2); color: #fff; border-color: var(--ac2); cursor: default; }
+.pager-btn:disabled { opacity: .35; cursor: default; }
+.pager-gap { color: var(--t3); padding: 0 4px; user-select: none; }
+.pager-info { margin-left: 10px; color: var(--t3); font-size: 12px; }
+
 /* ── Stat cards ──────────────────────────────────── */
 .stats-row {
   display: grid;
@@ -2076,12 +2103,8 @@ async function preloadInBackground() {
       attachTasksLiveListener();
     }
   }, 2000);
-  // 5. Контакты (143k, самые тяжёлые) — через 5 секунд
-  setTimeout(() => {
-    if (!contactsState.loaded) {
-      loadContacts();
-    }
-  }, 5000);
+  // Контакты больше не префетчим — серверная пагинация подгружает первую
+  // страницу (50 записей) мгновенно при открытии раздела.
 }
 
 function applyTheme(theme) {
@@ -3825,12 +3848,16 @@ function getUserDisplayName(uid) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════
-//   КОНТАКТЫ (143k+ записей с виртуальным скроллом)
+//   КОНТАКТЫ (143k+ записей — серверная пагинация + поиск)
 // ═════════════════════════════════════════════════════════════════════════
+const WORKER_LIST_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/list';
+const CONTACTS_PAGE_SIZE = 50;
 const contactsState = {
-  loaded: false,
-  list: [],          // массив всех контактов (lite-объекты для скролла)
-  filtered: [],      // отфильтрованные
+  page: 1,
+  pageSize: CONTACTS_PAGE_SIZE,
+  total: 0,
+  totalPages: 0,
+  items: [],
   searchTerm: '',
   loading: false,
 };
@@ -3838,15 +3865,16 @@ const contactsState = {
 async function renderContacts(el) {
   el.innerHTML = `
     <div class="page-head">
-      <h1>Контакты <span class="count" id="contacts-count">загрузка…</span></h1>
+      <h1>Контакты <span class="count" id="contacts-count">…</span></h1>
     </div>
     <div class="tb">
-      <input class="tb-search" id="contacts-search" placeholder="🔍 Поиск по имени или телефону (Enter)" autocomplete="off">
-      <button class="tbtn tbtn-sm" id="contacts-clear" style="display:none">Сброс</button>
+      <input class="tb-search" id="contacts-search" placeholder="🔍 Поиск по имени, телефону или email (Enter)" autocomplete="off" value="${escapeHtml(contactsState.searchTerm)}">
+      <button class="tbtn tbtn-sm" id="contacts-clear" style="display:${contactsState.searchTerm ? '' : 'none'}">Сброс</button>
     </div>
     <div id="contacts-content">
-      <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Загружаем контакты...</div></div>
+      <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Загружаем...</div></div>
     </div>
+    <div id="contacts-pager" class="pager"></div>
   `;
 
   const searchInp = document.getElementById('contacts-search');
@@ -3854,181 +3882,104 @@ async function renderContacts(el) {
 
   searchInp.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
-      contactsState.searchTerm = searchInp.value.trim().toLowerCase();
+      contactsState.searchTerm = searchInp.value.trim();
       clearBtn.style.display = contactsState.searchTerm ? '' : 'none';
-      filterAndRenderContacts();
+      loadContactsPage(1);
     } else if (e.key === 'Escape') {
       searchInp.value = '';
       contactsState.searchTerm = '';
       clearBtn.style.display = 'none';
-      filterAndRenderContacts();
+      loadContactsPage(1);
     }
   });
   clearBtn.addEventListener('click', () => {
     searchInp.value = '';
     contactsState.searchTerm = '';
     clearBtn.style.display = 'none';
-    filterAndRenderContacts();
+    loadContactsPage(1);
     searchInp.focus();
   });
 
-  if (!contactsState.loaded) {
-    // Параллельно: грузим контакты И пользователей
-    await Promise.all([
-      loadContacts(),
-      ensureUsersLoaded(),
-    ]);
-  } else {
-    // Контакты уже из кеша — но юзеры могут быть не загружены
-    ensureUsersLoaded();
-  }
-  filterAndRenderContacts();
+  // Юзеры (для имени ответственного) — грузятся параллельно из RTDB-proxy.
+  ensureUsersLoaded();
+  await loadContactsPage(contactsState.page || 1);
 }
 
-async function loadContacts() {
+async function loadContactsPage(page) {
   if (contactsState.loading) return;
   contactsState.loading = true;
-  const t0 = Date.now();
+  contactsState.page = page;
 
-  // 1. Сначала пробуем из кэша — он уже отсортирован и lite-версия
-  const cached = await cacheGet('contacts:list:v2');
-  if (cached && Array.isArray(cached) && cached.length > 0) {
-    contactsState.list = cached;
-    contactsState.loaded = true;
-    contactsState.loading = false;
-    // Запускаем фоновое обновление через 100мс — не блокируя UI
-    setTimeout(() => refreshContactsBackground(), 100);
-    return;
-  }
+  const content = document.getElementById('contacts-content');
+  if (content) content.style.opacity = '0.5';
 
-  // 2. Кэша нет — грузим с Firebase
   try {
-    updateContactsLoadingMsg('⏳ Загружаем 143к контактов из базы (это займёт 10-20 секунд при первом открытии — потом будет мгновенно)...');
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = WORKER_RTDB_URL;
-    const r = await fetch(`${dbUrl}/contacts.json?auth=${idToken}`);
-    if (!r.ok) {
-      contactsState.loading = false;
-      throw new Error(`HTTP ${r.status}`);
-    }
-    updateContactsLoadingMsg('⏳ Парсим JSON...');
-    const data = await r.json();
-    if (!data) {
-      contactsState.list = [];
-      contactsState.loaded = true;
-      contactsState.loading = false;
-      return;
-    }
-    updateContactsLoadingMsg('⏳ Обрабатываем записи...');
-    const list = [];
-    for (const [key, c] of Object.entries(data)) {
-      if (!c) continue;
-      const phones = Array.isArray(c.phones) ? c.phones : [];
-      const emails = Array.isArray(c.emails) ? c.emails : [];
-      const fullName = [c.lastName, c.name, c.secondName].filter(Boolean).join(' ').trim();
-      list.push({
-        key,
-        bitrixId: c.bitrixId || key.replace('contact_', ''),
-        fullName: fullName || '(без имени)',
-        searchable: (fullName + ' ' + phones.map(p => p.value || '').join(' ') + ' ' + emails.map(e => e.value || '').join(' ')).toLowerCase(),
-        phone: phones[0]?.value || '',
-        email: emails[0]?.value || '',
-        responsibleUid: c.responsibleUid || null,
-        bitrixCreated: c.bitrixCreated || null,
-      });
-    }
-    list.sort((a, b) => (b.bitrixCreated || '').localeCompare(a.bitrixCreated || ''));
-    contactsState.list = list;
-    contactsState.loaded = true;
-    console.log(`Loaded ${list.length} contacts in ${Date.now() - t0}ms`);
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: String(contactsState.pageSize),
+      auth: idToken,
+    });
+    if (contactsState.searchTerm) params.set('q', contactsState.searchTerm);
 
-    // Сохраняем в кэш
-    cacheSet('contacts:list:v2', list);
+    const r = await fetch(`${WORKER_LIST_URL}/contacts?${params}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+
+    contactsState.items = data.items || [];
+    contactsState.total = data.total || 0;
+    contactsState.totalPages = data.totalPages || 1;
+
+    renderContactsPagedTable();
+    renderContactsPager();
   } catch (e) {
-    console.error('loadContacts error:', e);
-    document.getElementById('contacts-content').innerHTML =
-      `<div class="empty-state"><div class="empty-icon">✗</div><div class="empty-text">Ошибка загрузки: ${escapeHtml(e.message)}</div></div>`;
+    console.error('loadContactsPage:', e);
+    if (content) {
+      content.innerHTML = `<div class="empty-state"><div class="empty-icon">✗</div><div class="empty-text">Ошибка загрузки: ${escapeHtml(e.message)}</div></div>`;
+    }
   } finally {
     contactsState.loading = false;
+    if (content) content.style.opacity = '';
   }
 }
 
-function updateContactsLoadingMsg(msg) {
-  const c = document.getElementById('contacts-content');
-  if (!c) return;
-  const text = c.querySelector('.empty-text');
-  if (text) text.textContent = msg;
-}
-
-async function refreshContactsBackground() {
-  // Тихо обновляем в фоне — без блокировки UI
-  try {
-    const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = WORKER_RTDB_URL;
-    const r = await fetch(`${dbUrl}/contacts.json?auth=${idToken}`);
-    if (!r.ok) return;
-    const data = await r.json();
-    if (!data) return;
-    const list = [];
-    for (const [key, c] of Object.entries(data)) {
-      if (!c) continue;
-      const phones = Array.isArray(c.phones) ? c.phones : [];
-      const emails = Array.isArray(c.emails) ? c.emails : [];
-      const fullName = [c.lastName, c.name, c.secondName].filter(Boolean).join(' ').trim();
-      list.push({
-        key,
-        bitrixId: c.bitrixId || key.replace('contact_', ''),
-        fullName: fullName || '(без имени)',
-        searchable: (fullName + ' ' + phones.map(p => p.value || '').join(' ') + ' ' + emails.map(e => e.value || '').join(' ')).toLowerCase(),
-        phone: phones[0]?.value || '',
-        email: emails[0]?.value || '',
-        responsibleUid: c.responsibleUid || null,
-        bitrixCreated: c.bitrixCreated || null,
-      });
-    }
-    list.sort((a, b) => (b.bitrixCreated || '').localeCompare(a.bitrixCreated || ''));
-    // Обновляем только если данных стало больше или появились новые
-    if (list.length !== contactsState.list.length) {
-      contactsState.list = list;
-      cacheSet('contacts:list:v2', list);
-      // Перерисовываем если страница ещё открыта
-      if (document.getElementById('contacts-content')) {
-        filterAndRenderContacts();
-      }
-    }
-  } catch (e) {}
-}
-
-function filterAndRenderContacts() {
-  if (!contactsState.loaded) return;
-  const term = contactsState.searchTerm;
-  contactsState.filtered = term
-    ? contactsState.list.filter(c => c.searchable.includes(term))
-    : contactsState.list;
-
+function updateContactsCount() {
   const countEl = document.getElementById('contacts-count');
-  if (countEl) {
-    countEl.textContent = term
-      ? `${contactsState.filtered.length.toLocaleString('ru')} из ${contactsState.list.length.toLocaleString('ru')}`
-      : contactsState.list.length.toLocaleString('ru');
-  }
-
-  renderContactsTable();
+  if (!countEl) return;
+  const t = contactsState.total.toLocaleString('ru');
+  countEl.textContent = contactsState.searchTerm
+    ? `${t} найдено по «${contactsState.searchTerm}»`
+    : t;
 }
 
-function renderContactsTable() {
+function renderContactsPagedTable() {
   const c = document.getElementById('contacts-content');
   if (!c) return;
+  updateContactsCount();
 
-  if (contactsState.filtered.length === 0) {
+  if (!contactsState.items || contactsState.items.length === 0) {
     c.innerHTML = `<div class="empty-state"><div class="empty-icon">${contactsState.searchTerm ? '🔍' : '👥'}</div><div class="empty-text">${contactsState.searchTerm ? 'По запросу ничего не найдено' : 'Нет контактов'}</div></div>`;
     return;
   }
 
-  // Виртуальный скролл: рендерим только видимые ~80 строк
-  const ROW_HEIGHT = 44;
-  // Используем calc — растягиваем по высоте окна минус ~280px на header+toolbar
-  const totalHeight = contactsState.filtered.length * ROW_HEIGHT;
+  let rows = '';
+  for (const ct of contactsState.items) {
+    const phones = Array.isArray(ct.phones) ? ct.phones : [];
+    const emails = Array.isArray(ct.emails) ? ct.emails : [];
+    const fullName = [ct.lastName, ct.name, ct.secondName].filter(Boolean).join(' ').trim() || '(без имени)';
+    const phone = phones[0]?.value || '';
+    const email = emails[0]?.value || '';
+    const respUser = getUserById(ct.responsibleUid);
+    const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
+    const created = ct.bitrixDateCreate ? new Date(ct.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+    rows += `<tr class="row" data-key="${escapeHtml(ct.id)}">
+      <td class="name-cell" style="width:30%">${escapeHtml(fullName)}</td>
+      <td style="width:22%">${phone ? `<a href="tel:${escapeHtml(phone)}" style="color:var(--ac2)" onclick="event.stopPropagation()">${escapeHtml(phone)}</a>` : '<span style="color:var(--t3)">—</span>'}</td>
+      <td style="width:22%">${email ? `<a href="mailto:${escapeHtml(email)}" style="color:var(--ac2)" onclick="event.stopPropagation()">${escapeHtml(email)}</a>` : '<span style="color:var(--t3)">—</span>'}</td>
+      <td style="width:18%;color:var(--ac2)">${escapeHtml(respName)}</td>
+      <td style="width:8%;color:var(--t3);font-size:11px">${created}</td>
+    </tr>`;
+  }
 
   c.innerHTML = `
     <div class="dtable-wrap">
@@ -4042,51 +3993,51 @@ function renderContactsTable() {
             <th style="width:8%">Создан</th>
           </tr>
         </thead>
+        <tbody id="contacts-tbody">${rows}</tbody>
       </table>
-      <div class="vscroll-wrap" id="contacts-vscroll" style="height:calc(100vh - 240px);min-height:400px;overflow-y:auto;background:var(--bg2)">
-        <div class="vscroll-spacer" style="height:${totalHeight}px;position:relative">
-          <table class="dtable" style="table-layout:fixed;position:absolute;top:0;left:0;width:100%" id="contacts-vtable">
-            <tbody id="contacts-vbody"></tbody>
-          </table>
-        </div>
-      </div>
     </div>
   `;
+  document.querySelectorAll('#contacts-tbody tr.row').forEach(tr => {
+    tr.addEventListener('click', () => openContactCard(tr.dataset.key));
+  });
+}
 
-  const wrap = document.getElementById('contacts-vscroll');
-  const vbody = document.getElementById('contacts-vbody');
-  const vtable = document.getElementById('contacts-vtable');
-
-  function renderVisible() {
-    const VH = wrap.clientHeight;
-    const visibleRows = Math.ceil(VH / ROW_HEIGHT) + 8;
-    const scrollTop = wrap.scrollTop;
-    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 4);
-    const end = Math.min(contactsState.filtered.length, start + visibleRows);
-    vtable.style.transform = `translateY(${start * ROW_HEIGHT}px)`;
-    let html = '';
-    for (let i = start; i < end; i++) {
-      const c = contactsState.filtered[i];
-      const respUser = getUserById(c.responsibleUid);
-      const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
-      const created = c.bitrixCreated ? new Date(c.bitrixCreated).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
-      html += `<tr class="row" data-key="${escapeHtml(c.key)}" style="height:${ROW_HEIGHT}px">
-        <td class="name-cell" style="width:30%">${escapeHtml(c.fullName)}</td>
-        <td style="width:22%">${c.phone ? `<a href="tel:${escapeHtml(c.phone)}" style="color:var(--ac2)" onclick="event.stopPropagation()">${escapeHtml(c.phone)}</a>` : '<span style="color:var(--t3)">—</span>'}</td>
-        <td style="width:22%">${c.email ? `<a href="mailto:${escapeHtml(c.email)}" style="color:var(--ac2)" onclick="event.stopPropagation()">${escapeHtml(c.email)}</a>` : '<span style="color:var(--t3)">—</span>'}</td>
-        <td style="width:18%;color:var(--ac2)">${escapeHtml(respName)}</td>
-        <td style="width:8%;color:var(--t3);font-size:11px">${created}</td>
-      </tr>`;
-    }
-    vbody.innerHTML = html;
-    // Click handlers
-    vbody.querySelectorAll('tr.row').forEach(tr => {
-      tr.addEventListener('click', () => openContactCard(tr.dataset.key));
+function renderContactsPager() {
+  const el = document.getElementById('contacts-pager');
+  if (!el) return;
+  el.innerHTML = buildPagerHtml(contactsState.page, contactsState.totalPages, contactsState.total);
+  el.querySelectorAll('button[data-page]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = parseInt(btn.dataset.page, 10);
+      if (p && p !== contactsState.page) loadContactsPage(p);
     });
-  }
+  });
+}
 
-  wrap.addEventListener('scroll', renderVisible, { passive: true });
-  renderVisible();
+// Универсальный пагинатор: «← N M ... →» + счётчик «стр X из Y (всего N)».
+// Показываем: первая, последняя, ±2 от текущей, плюс edges.
+function buildPagerHtml(page, totalPages, total) {
+  if (!totalPages || totalPages <= 1) {
+    return total ? `<div class="pager-info">Всего ${total.toLocaleString('ru')}</div>` : '';
+  }
+  const pages = [];
+  const add = (p) => { if (!pages.includes(p) && p >= 1 && p <= totalPages) pages.push(p); };
+  add(1);
+  for (let d = -2; d <= 2; d++) add(page + d);
+  add(totalPages);
+  pages.sort((a, b) => a - b);
+
+  let html = '';
+  html += `<button class="pager-btn" data-page="${Math.max(1, page - 1)}" ${page <= 1 ? 'disabled' : ''}>←</button>`;
+  let prev = 0;
+  for (const p of pages) {
+    if (prev && p - prev > 1) html += `<span class="pager-gap">…</span>`;
+    html += `<button class="pager-btn ${p === page ? 'active' : ''}" data-page="${p}">${p}</button>`;
+    prev = p;
+  }
+  html += `<button class="pager-btn" data-page="${Math.min(totalPages, page + 1)}" ${page >= totalPages ? 'disabled' : ''}>→</button>`;
+  html += `<div class="pager-info">стр ${page} из ${totalPages} · всего ${total.toLocaleString('ru')}</div>`;
+  return html;
 }
 
 window.openContactCard = async function(key) {

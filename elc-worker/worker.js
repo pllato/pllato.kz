@@ -609,6 +609,127 @@ async function handleRtdbWrite(env, request, parts) {
   );
 }
 
+// ── /api/list/{entity} — пагинированный список с поиском и сортировкой ──
+// GET ?page=1&pageSize=50&q=text&sort=key&status=val&assignee=uid
+// Возвращает { items: [...], total, page, pageSize, totalPages, hasMore }.
+//
+// SQL-injection защита: entity и sort-ключи берутся из whitelist'а в LIST_CONFIG.
+// Только числовые/идентификаторные значения подставляются через bind() параметры.
+
+const LIST_CONFIG = {
+  contacts: {
+    keyCol: "id",
+    // Поля для LIKE-поиска. phones/emails — JSON-колонки, но LIKE по substring
+    // подмножества JSON-текста работает (например `%+7700%` найдёт телефон).
+    searchFields: ["name", "last_name", "second_name", "phones", "emails"],
+    sorts: {
+      created: "bitrix_date_create DESC",
+      name: "last_name ASC, name ASC",
+    },
+    defaultSort: "bitrix_date_create DESC",
+  },
+  tasks: {
+    keyCol: "id",
+    searchFields: ["title"],
+    statusField: "status",
+    assigneeField: "responsible_uid",
+    sorts: {
+      // "новые с активностью вверх": сначала по changed_date, fallback на
+      // status_changed, далее created.
+      activity: "COALESCE(bitrix_changed_date, bitrix_status_changed_date, bitrix_created_date) DESC",
+      deadline: "deadline IS NULL, deadline ASC",
+      created: "bitrix_created_date DESC",
+    },
+    defaultSort: "COALESCE(bitrix_changed_date, bitrix_status_changed_date, bitrix_created_date) DESC",
+  },
+  deals: {
+    keyCol: "id",
+    searchFields: ["title"],
+    sorts: {
+      modified: "bitrix_date_modify DESC",
+      created: "bitrix_date_create DESC",
+    },
+    defaultSort: "bitrix_date_modify DESC",
+  },
+};
+
+async function handleList(request, env, entity) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+
+  const cfg = LIST_CONFIG[entity];
+  if (!cfg) return json({ error: "unknown entity", entity }, 404, request);
+
+  const url = new URL(request.url);
+  const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10) || 1);
+  const pageSize = Math.min(200, Math.max(10, parseInt(url.searchParams.get("pageSize") || "50", 10) || 50));
+  const q = (url.searchParams.get("q") || "").trim();
+  const sortKey = url.searchParams.get("sort") || "";
+  const status = (url.searchParams.get("status") || "").trim();
+  const assignee = (url.searchParams.get("assignee") || "").trim();
+
+  const whereParts = [];
+  const whereParams = [];
+
+  if (q) {
+    const like = "%" + q.toLowerCase() + "%";
+    const clauses = cfg.searchFields.map(f => `LOWER(${f}) LIKE ?`);
+    whereParts.push("(" + clauses.join(" OR ") + ")");
+    for (let i = 0; i < cfg.searchFields.length; i++) whereParams.push(like);
+  }
+
+  if (status && status !== "all" && cfg.statusField) {
+    if (status === "active") {
+      whereParts.push(`${cfg.statusField} IN (1,2,3)`);
+    } else {
+      const n = parseInt(status, 10);
+      if (!Number.isNaN(n)) {
+        whereParts.push(`${cfg.statusField} = ?`);
+        whereParams.push(n);
+      }
+    }
+  }
+
+  if (assignee && assignee !== "all" && cfg.assigneeField) {
+    whereParts.push(`${cfg.assigneeField} = ?`);
+    whereParams.push(assignee);
+  }
+
+  const whereSQL = whereParts.length ? " WHERE " + whereParts.join(" AND ") : "";
+  const orderSQL = " ORDER BY " + (cfg.sorts[sortKey] || cfg.defaultSort);
+  const offset = (page - 1) * pageSize;
+
+  // COUNT отдельным запросом — нужен для пагинатора. Под LIKE на 143k contacts ~50ms.
+  const totalRow = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM ${entity}${whereSQL}`
+  ).bind(...whereParams).first();
+  const total = totalRow?.n ?? 0;
+
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM ${entity}${whereSQL}${orderSQL} LIMIT ? OFFSET ?`
+  ).bind(...whereParams, pageSize, offset).all();
+
+  const items = results.map(row => rowToCamel(row, entity));
+
+  return new Response(JSON.stringify({
+    items,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    hasMore: offset + items.length < total,
+  }), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      // /api/list — пагинированный, не имеет смысла кешировать в браузере
+      // (страницы и фильтры меняются). IDB-кеш фронта тоже не трогает их.
+      "Cache-Control": "no-store",
+      ...corsHeaders(request),
+    },
+  });
+}
+
 // ── Phase 0 routes ──────────────────────────────────────
 async function handleHealth(request, env) {
   try {
@@ -660,6 +781,12 @@ export default {
 
     if (path.startsWith("/api/rtdb/") || path === "/api/rtdb") {
       return handleRtdb(request, env);
+    }
+
+    // /api/list/contacts, /api/list/tasks, /api/list/deals
+    const listMatch = path.match(/^\/api\/list\/([a-z_]+)\/?$/);
+    if (listMatch && request.method === "GET") {
+      return handleList(request, env, listMatch[1]);
     }
 
     return json({ ok: false, error: "not found", path }, 404, request);
