@@ -115,8 +115,8 @@ function renderHomeView(canEdit) {
           <div class="card-head"><h3>Последние движения</h3><a class="btn-sm btn-ghost" href="#warehouse/documents">Документы →</a></div>
           <table class="table">
             <thead><tr><th>Дата</th><th>Тип</th><th>Куда</th><th class="num">Кол-во</th></tr></thead>
-            <tbody>
-              ${topMoves.length ? topMoves.map((m) => `<tr><td>${escapeHtml(fmtDate(m.date))}</td><td>${escapeHtml(m.type)}</td><td>${escapeHtml(m.counterpartyText || "—")}</td><td class="num">${m.direction === "out" ? "−" : "+"}${num(m.qty)}</td></tr>`).join("") : `<tr><td colspan="4" class="dim">Пока нет движений</td></tr>`}
+            <tbody data-wh-recent-moves>
+              ${topMoves.length ? topMoves.map((m) => `<tr><td>${escapeHtml(fmtDate(m.date))}</td><td>${escapeHtml(m.type)}</td><td>${escapeHtml(m.counterpartyText || "—")}</td><td class="num">${m.direction === "out" ? "−" : "+"}${num(m.qty)}</td></tr>`).join("") : `<tr><td colspan="4" class="dim">Загружаем из IndexedDB…</td></tr>`}
             </tbody>
           </table>
         </div>
@@ -537,5 +537,33 @@ export function renderWarehouse(container) {
   // Idempotent: повторный вызов на одной DOM-ноде не дублирует слушателей.
   if (route.page === "import") {
     initWarehouseImportView(container);
+  }
+
+  // На главной — async подгрузка движений из IndexedDB (в дополнение к
+  // localStorage-движениям, отрендеренным синхронно выше).
+  if (route.page === "home") {
+    const host = container.querySelector("[data-wh-recent-moves]");
+    if (host) {
+      import("../../wh_movements_db.js").then(async ({ getRecentMovements }) => {
+        try {
+          const recent = await getRecentMovements(8);
+          if (recent.length === 0) {
+            // Нет движений в IDB — оставляем то что было.
+            return;
+          }
+          // Заменяем содержимое tbody свежими движениями.
+          host.innerHTML = recent.map((m) => `
+            <tr>
+              <td>${escapeHtml(fmtDate(m.date))}</td>
+              <td>${escapeHtml(m.type || "")}</td>
+              <td>${escapeHtml(m.counterpartyText || "—")}</td>
+              <td class="num">${m.direction === "out" ? "−" : "+"}${num(m.qty)}</td>
+            </tr>
+          `).join("");
+        } catch (err) {
+          console.warn("[warehouse-home] не удалось подгрузить движения из IDB:", err);
+        }
+      }).catch(() => {});
+    }
   }
 }

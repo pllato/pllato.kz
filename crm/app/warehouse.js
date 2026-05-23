@@ -1121,15 +1121,23 @@ export async function importWarehouseBatch(payload = {}, onProgress) {
   const products = Array.isArray(payload.products) ? payload.products : [];
   const lots = Array.isArray(payload.lots) ? payload.lots : [];
   const documents = Array.isArray(payload.documents) ? payload.documents : [];
-  let movements = Array.isArray(payload.movements) ? payload.movements : [];
+  const movementsInput = Array.isArray(payload.movements) ? payload.movements : [];
 
-  // Опция: пропустить детальную историю движений (нужно для больших файлов,
-  // чтобы не упереться в лимит localStorage ~10 МБ). Остатки всё равно сохраняются
-  // в lots.currentQty — для FIFO и операций это критичнее.
-  const skipMovements = Boolean(payload.skipMovements);
-  if (skipMovements && movements.length > 0) {
-    result.movementsSkipped = movements.length;
-    movements = [];
+  // Куда писать движения:
+  // - 'indexeddb' (по умолчанию) — в IndexedDB (лимит 50+ МБ, помещаются десятки
+  //   тысяч строк, не съедают localStorage).
+  // - 'localStorage' — старое поведение (для маленьких файлов / совместимости).
+  // - 'skip' — не сохранять вообще (только остатки в lots.currentQty).
+  let movementsTarget = String(payload.movementsTarget || "indexeddb").toLowerCase();
+  // Бэквард-совместимость: payload.skipMovements: true == movementsTarget: "skip".
+  if (payload.skipMovements === true) movementsTarget = "skip";
+  if (!["indexeddb", "localstorage", "skip"].includes(movementsTarget)) movementsTarget = "indexeddb";
+
+  // Для движений в localStorage держим массив; для IndexedDB/skip — пустой
+  // (записываем отдельно после ID-mapping ниже).
+  let movements = (movementsTarget === "localstorage") ? movementsInput : [];
+  if (movementsTarget === "skip") {
+    result.movementsSkipped = movementsInput.length;
   }
 
   const nextId = makeImportIdGenerator();
@@ -1246,44 +1254,78 @@ export async function importWarehouseBatch(payload = {}, onProgress) {
     }
   }
 
-  // === Движения (самое большое — спим почаще) ===
-  progress({ stage: "movements", percent: 52, message: `Движения (${movements.length})…` });
+  // === Движения ===
+  // Для target='indexeddb' собираем в отдельный массив (потом async putManyMovements).
+  // Для target='localstorage' — старое поведение, push в movementsArr.
+  // Для target='skip' — пропускаем целиком.
+  const movementsSource = (movementsTarget === "localstorage") ? movements : movementsInput;
+  const movementsForIDB = (movementsTarget === "indexeddb") ? [] : null;
+  const targetLabel = movementsTarget === "indexeddb" ? "IndexedDB" :
+                      movementsTarget === "skip" ? "пропуск" : "localStorage";
+  progress({ stage: "movements", percent: 52, message: `Движения (${movementsSource.length}) → ${targetLabel}…` });
   await importYield();
 
-  const movementsTotal = movements.length;
-  for (let i = 0; i < movementsTotal; i++) {
-    const m = movements[i];
-    const productId = productImportedIdToRealId.get(m.productImportedId) || m.productId || null;
-    const lotId = lotImportedIdToRealId.get(m.lotImportedId) || m.lotId || null;
+  if (movementsTarget !== "skip") {
+    const movementsTotal = movementsSource.length;
+    for (let i = 0; i < movementsTotal; i++) {
+      const m = movementsSource[i];
+      const productId = productImportedIdToRealId.get(m.productImportedId) || m.productId || null;
+      const lotId = lotImportedIdToRealId.get(m.lotImportedId) || m.lotId || null;
 
-    if (!productId || !lotId) {
-      result.conflicts.push({ kind: "movement", reason: "missing_refs", item: m });
-      continue;
+      if (!productId || !lotId) {
+        result.conflicts.push({ kind: "movement", reason: "missing_refs", item: m });
+        continue;
+      }
+
+      const docId = docImportedIdToRealId.get(m.docImportedId) || m.docId || null;
+      const record = {
+        ...m,
+        id: nextId(),
+        productId,
+        lotId,
+        docId,
+        productImportedId: undefined,
+        lotImportedId: undefined,
+        docImportedId: undefined,
+        createdAt: now + i,
+        updatedAt: now + i,
+      };
+      if (movementsTarget === "indexeddb") {
+        movementsForIDB.push(record);
+      } else {
+        movementsArr.push(record);
+      }
+      result.movementsCreated += 1;
+
+      if (i > 0 && i % 1500 === 0) {
+        const pct = 52 + Math.floor((i / Math.max(movementsTotal, 1)) * 30);
+        progress({
+          stage: "movements",
+          percent: pct,
+          message: `Движения ${i.toLocaleString("ru-RU")} из ${movementsTotal.toLocaleString("ru-RU")}…`,
+        });
+        await importYield();
+      }
     }
+  }
 
-    const docId = docImportedIdToRealId.get(m.docImportedId) || m.docId || null;
-    movementsArr.push({
-      ...m,
-      id: nextId(),
-      productId,
-      lotId,
-      docId,
-      productImportedId: undefined,
-      lotImportedId: undefined,
-      docImportedId: undefined,
-      createdAt: now + i,
-      updatedAt: now + i,
-    });
-    result.movementsCreated += 1;
-
-    if (i > 0 && i % 1500 === 0) {
-      const pct = 52 + Math.floor((i / Math.max(movementsTotal, 1)) * 35);
-      progress({
-        stage: "movements",
-        percent: pct,
-        message: `Движения ${i.toLocaleString("ru-RU")} из ${movementsTotal.toLocaleString("ru-RU")}…`,
+  // Запись движений в IndexedDB (если выбран этот target). Делаем ДО записи
+  // в localStorage остального — чтобы при ошибке IDB откатить ничего не пришлось.
+  if (movementsTarget === "indexeddb" && movementsForIDB && movementsForIDB.length > 0) {
+    try {
+      const { putManyMovements } = await import("./wh_movements_db.js");
+      const totalIDB = movementsForIDB.length;
+      await putManyMovements(movementsForIDB, (done) => {
+        const pct = 84 + Math.floor((done / Math.max(totalIDB, 1)) * 4);
+        progress({
+          stage: "movements-idb",
+          percent: pct,
+          message: `IndexedDB: ${done.toLocaleString("ru-RU")} из ${totalIDB.toLocaleString("ru-RU")}…`,
+        });
       });
-      await importYield();
+    } catch (err) {
+      console.warn("[warehouse-import] не удалось сохранить движения в IndexedDB:", err);
+      result.conflicts.push({ kind: "movements_idb", reason: "indexeddb_failed", message: err?.message || String(err) });
     }
   }
 
@@ -1330,7 +1372,11 @@ export async function importWarehouseBatch(payload = {}, onProgress) {
 
     progress({ stage: "save", percent: 95, message: "Сериализация движений…" });
     await importYield();
-    movementsJson = JSON.stringify(movementsArr);
+    // Для localStorage-target — сериализуем как раньше. Для indexeddb/skip —
+    // движения уже сохранены отдельно, в localStorage держим что было до импорта.
+    movementsJson = (movementsTarget === "localstorage")
+      ? JSON.stringify(movementsArr)
+      : (snapshot[WH.movements] || "[]");
   } catch (err) {
     throw new Error("Ошибка сериализации данных: " + (err?.message || err));
   }
@@ -1352,9 +1398,13 @@ export async function importWarehouseBatch(payload = {}, onProgress) {
     await importYield();
     localStorage.setItem(STORE_NS + WH.documents, documentsJson);
 
-    progress({ stage: "save", percent: 99, message: "Сохранение движений…" });
-    await importYield();
-    localStorage.setItem(STORE_NS + WH.movements, movementsJson);
+    // Движения в localStorage пишем только при target='localstorage'.
+    // Для IndexedDB/skip пропускаем (там либо уже сохранено отдельно, либо игнор).
+    if (movementsTarget === "localstorage") {
+      progress({ stage: "save", percent: 99, message: "Сохранение движений…" });
+      await importYield();
+      localStorage.setItem(STORE_NS + WH.movements, movementsJson);
+    }
   } catch (err) {
     restoreSnapshot();
     const mb = (totalSize / 1024 / 1024).toFixed(2);

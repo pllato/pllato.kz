@@ -54,10 +54,11 @@ const importState = {
   progress: null,           // { stage, percent, message } во время импорта
   lastResult: null,         // результат последнего импорта
   error: "",
-  // По умолчанию ВКЛ — большинство пользователей запускают импорт книги
-  // целиком (5000+ движений), что не помещается в localStorage Chrome ~10 МБ.
-  // Остатки сохраняются в lots.currentQty независимо от этой опции.
-  skipMovements: true,
+  // Куда писать историю движений:
+  //   'indexeddb'    — IndexedDB (~50+ МБ лимит, рекомендуется по умолчанию).
+  //   'localStorage' — старое поведение (упирается в ~10 МБ для всего сайта).
+  //   'skip'         — не сохранять историю, только остатки/партии.
+  movementsTarget: "indexeddb",
 };
 
 // ---------- HTML ----------
@@ -144,11 +145,14 @@ function renderPreview(parsed) {
             ${WAREHOUSE_ENTITIES.map(e => `<option value="${e}" ${e === importState.entity ? "selected" : ""}>${e}</option>`).join("")}
           </select>
         </div>
-        <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-          <input type="checkbox" data-wh-skip-movements ${importState.skipMovements ? "checked" : ""}>
-          <span>Без истории движений</span>
-          <span class="muted" style="font-size:11.5px">(экономит память браузера)</span>
-        </label>
+        <div>
+          <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase">История движений</label>
+          <select data-wh-movements-target class="select" style="margin-left:6px">
+            <option value="indexeddb" ${importState.movementsTarget === "indexeddb" ? "selected" : ""}>IndexedDB (рекомендуется)</option>
+            <option value="localStorage" ${importState.movementsTarget === "localStorage" ? "selected" : ""}>localStorage (для маленьких файлов)</option>
+            <option value="skip" ${importState.movementsTarget === "skip" ? "selected" : ""}>Не сохранять</option>
+          </select>
+        </div>
         <div class="spacer"></div>
         <button type="button" class="btn-ghost btn-sm" data-wh-reset ${importState.busy ? "disabled" : ""}>Сбросить файл</button>
         <button type="button" class="btn-primary" data-wh-import ${importState.busy ? "disabled" : ""}>
@@ -267,8 +271,8 @@ export function initWarehouseImportView(root) {
       await handleFile(host, file);
     } else if (e.target.matches("[data-wh-entity]")) {
       importState.entity = e.target.value;
-    } else if (e.target.matches("[data-wh-skip-movements]")) {
-      importState.skipMovements = e.target.checked;
+    } else if (e.target.matches("[data-wh-movements-target]")) {
+      importState.movementsTarget = e.target.value;
     } else if (e.target.matches("[data-wh-sheet]")) {
       const idx = Number(e.target.dataset.whSheet);
       const sheetName = importState.parsed?.sheetSummaries[idx]?.sheetName;
@@ -743,7 +747,7 @@ async function runImport(host) {
     }
     const movements = importState.parsed.movements.filter(m => allowedProductIds.has(m.productImportedId));
 
-    const payload = { products, lots, documents, movements, skipMovements: importState.skipMovements };
+    const payload = { products, lots, documents, movements, movementsTarget: importState.movementsTarget };
 
     // onProgress всегда ищет актуальный узел в DOM — не использует устаревший host
     const onProgress = (p) => {
