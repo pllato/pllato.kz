@@ -448,6 +448,56 @@ export function listGroupedMovementsByLot(productId) {
   return out;
 }
 
+/**
+ * Async-вариант: мерджит движения из localStorage Store И IndexedDB
+ * (импортированные книгой учёта). Для отображения в карточке товара.
+ * @param {string} productId
+ */
+export async function listGroupedMovementsByLotAsync(productId) {
+  const lots = listLotsForProduct(productId, { activeOnly: false });
+  const lotMap = new Map(lots.map((l) => [l.id, l]));
+  const grouped = new Map();
+
+  // 1) Движения из localStorage (обычные операции UI).
+  const localMoves = listWarehouseMovements({ productId });
+  // 2) Движения из IndexedDB (импорт книги учёта).
+  let idbMoves = [];
+  try {
+    const { getMovementsByProduct } = await import("./wh_movements_db.js");
+    idbMoves = await getMovementsByProduct(productId);
+  } catch (err) {
+    console.warn("[warehouse] IndexedDB недоступен:", err);
+  }
+
+  // Дедуп по id (если по какой-то причине запись в обоих местах).
+  const seenIds = new Set();
+  const allMoves = [];
+  for (const m of [...localMoves, ...idbMoves]) {
+    if (!m) continue;
+    const id = m.id || "";
+    if (id && seenIds.has(id)) continue;
+    if (id) seenIds.add(id);
+    allMoves.push(m);
+  }
+
+  for (const m of allMoves) {
+    const key = m.lotId || "_unknown";
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(m);
+  }
+
+  const out = [];
+  grouped.forEach((rows, lotId) => {
+    out.push({
+      lotId,
+      lot: lotMap.get(lotId) || null,
+      rows: rows.sort((a, b) => movementDateTs(a) - movementDateTs(b)),
+    });
+  });
+  out.sort((a, b) => sortLotsFifo(a.lot || {}, b.lot || {}));
+  return out;
+}
+
 export function productSummary(productId) {
   const lots = listLotsForProduct(productId, { activeOnly: false });
   const total = lots.reduce((sum, l) => sum + Math.max(0, toNum(l.currentQty, 0)), 0);

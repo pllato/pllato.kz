@@ -35,6 +35,27 @@ function daysLeft(iso) {
   return Math.floor((d - now.getTime()) / 86400000);
 }
 
+/**
+ * Рендер блока сгруппированных движений (используется и в синхронном
+ * первоначальном render, и в async-перерендере после подгрузки IDB).
+ */
+export function renderMovementsBlock(grouped) {
+  if (!grouped || grouped.length === 0) {
+    return `<div class="whm-empty">По товару пока нет движений.</div>`;
+  }
+  return grouped.map((group) => `
+    ${renderLotHead(group)}
+    <table class="mov-table">
+      <thead>
+        <tr><th>Дата</th><th>№ документа</th><th class="num">Приход</th><th class="num">Расход</th><th class="num">Остаток</th><th>Куда</th></tr>
+      </thead>
+      <tbody>
+        ${group.rows.map((row) => renderMovementRow(row)).join("")}
+      </tbody>
+    </table>
+  `).join("");
+}
+
 function renderLotHead(group) {
   const lot = group.lot || {};
   const left = daysLeft(lot.expiryDate);
@@ -125,18 +146,8 @@ export function renderProductCardView(productId, canEdit) {
         </div>
       </div>
 
-      <div class="whm-card movements-card">
-        ${grouped.length ? grouped.map((group) => `
-          ${renderLotHead(group)}
-          <table class="mov-table">
-            <thead>
-              <tr><th>Дата</th><th>№ документа</th><th class="num">Приход</th><th class="num">Расход</th><th class="num">Остаток</th><th>Куда</th></tr>
-            </thead>
-            <tbody>
-              ${group.rows.map((row) => renderMovementRow(row)).join("")}
-            </tbody>
-          </table>
-        `).join("") : `<div class="whm-empty">По товару пока нет движений.</div>`}
+      <div class="whm-card movements-card" data-wh-movements-host data-product-id="${escapeAttr(productId)}">
+        ${renderMovementsBlock(grouped)}
       </div>
     </section>
   `;

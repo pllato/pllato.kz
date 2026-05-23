@@ -566,4 +566,24 @@ export function renderWarehouse(container) {
       }).catch(() => {});
     }
   }
+
+  // В карточке товара — async подгрузка движений из IndexedDB и пере-рендер
+  // блока [data-wh-movements-host] полным содержимым (с учётом и localStorage,
+  // и IDB).
+  if (route.page === "product" && route.productId) {
+    const host = container.querySelector('[data-wh-movements-host]');
+    if (host) {
+      Promise.all([
+        import("../../warehouse.js"),
+        import("./product_card.js"),
+      ]).then(async ([whMod, cardMod]) => {
+        try {
+          const grouped = await whMod.listGroupedMovementsByLotAsync(route.productId);
+          host.innerHTML = cardMod.renderMovementsBlock(grouped);
+        } catch (err) {
+          console.warn("[warehouse-product] не удалось подгрузить движения из IDB:", err);
+        }
+      }).catch(() => {});
+    }
+  }
 }

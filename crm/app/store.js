@@ -28,7 +28,9 @@ const AUTO_COLLECTIONS = [
   "deal_items",
   "warehouse_products",
   "warehouse_lots",
-  "warehouse_movements",
+  // 'warehouse_movements' исключён из cloud-sync: после импорта книги учёта
+  // там десятки тысяч записей → pull через /store/pull сломает localStorage.
+  // Движения хранятся в IndexedDB (см. app/wh_movements_db.js).
   "warehouse_documents",
 ];
 
