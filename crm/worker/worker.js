@@ -1701,7 +1701,10 @@ function normalizeWaChatId(to) {
   const src = String(to || "").trim();
   if (!src) return "";
   if (src.includes("@c.us") || src.includes("@g.us") || src.includes("@lid")) return src;
-  const clean = normalizePhone(src).replace(/^\+/, "");
+  let clean = normalizePhone(src).replace(/^\+/, "");
+  // KZ/RU: номера часто вводятся с ведущей 8 (87011239999), Green-API ждёт международный
+  // формат с кодом страны 7 (77011239999). Конвертим: 11 цифр, начинается на 8 → 7....
+  if (/^8\d{10}$/.test(clean)) clean = "7" + clean.slice(1);
   return clean ? `${clean}@c.us` : "";
 }
 
