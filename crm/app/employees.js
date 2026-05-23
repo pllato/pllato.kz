@@ -170,7 +170,9 @@ export const ALL_PERMISSIONS = ["dashboard", "contacts", "crm", "warehouse", "ca
 export function currentPermissions() {
   const me = currentEmployee();
   if (!me) return ALL_PERMISSIONS.slice();
-  if (!me.roleId) {
+  // Worker не хранит roleId — fallback на локальный map.
+  const effectiveRoleId = me.roleId || getEmployeeRoleId(me.id);
+  if (!effectiveRoleId) {
     if (me.role === "admin") return ALL_PERMISSIONS.slice();
     if (me.role === "manager") return ALL_PERMISSIONS.filter((p) => p !== "settings");
     if (me.role === "field") return ["field"];
@@ -181,7 +183,7 @@ export function currentPermissions() {
   let role = null;
   try {
     const arr = JSON.parse(localStorage.getItem("pllato_core_roles") || "[]");
-    role = arr.find((r) => r.id === me.roleId);
+    role = arr.find((r) => r.id === effectiveRoleId);
   } catch {}
   if (!role) return ALL_PERMISSIONS.slice();
   const perms = Array.isArray(role.permissions) ? role.permissions.slice() : [];
@@ -242,4 +244,38 @@ export function setEmployeeBinotelLine(employeeId, line) {
   if (normalized) map[employeeId] = normalized;
   else delete map[employeeId];
   writeBinotelLinesMap(map);
+}
+
+// =============================================================================
+// roleId per employee (локальное хранение, не идёт в worker D1).
+// Worker не знает про кастомные роли — поле roleId на сотруднике переживает
+// replaceEmployeesFromWorker через этот отдельный map.
+// =============================================================================
+const ROLE_IDS_KEY = "pllato_emp_role_ids";
+
+function readRoleIdsMap() {
+  try {
+    const raw = localStorage.getItem(ROLE_IDS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return (parsed && typeof parsed === "object") ? parsed : {};
+  } catch { return {}; }
+}
+
+function writeRoleIdsMap(map) {
+  try { localStorage.setItem(ROLE_IDS_KEY, JSON.stringify(map || {})); } catch {}
+}
+
+export function getEmployeeRoleId(employeeId) {
+  if (!employeeId) return "";
+  const map = readRoleIdsMap();
+  return String(map[employeeId] || "");
+}
+
+export function setEmployeeRoleId(employeeId, roleId) {
+  if (!employeeId) return;
+  const map = readRoleIdsMap();
+  const normalized = String(roleId || "").trim();
+  if (normalized) map[employeeId] = normalized;
+  else delete map[employeeId];
+  writeRoleIdsMap(map);
 }

@@ -4,7 +4,7 @@
 import { Store } from "../store.js";
 import { ICONS } from "../icons.js";
 import { getSession } from "../auth.js";
-import { listEmployees, getEmployee, currentEmployee, createEmployee, updateEmployee, removeEmployee, avatar, ROLES, isEmployeesSynced, getEmployeeBinotelLine, setEmployeeBinotelLine } from "../employees.js";
+import { listEmployees, getEmployee, currentEmployee, createEmployee, updateEmployee, removeEmployee, avatar, ROLES, isEmployeesSynced, getEmployeeBinotelLine, setEmployeeBinotelLine, setEmployeeRoleId, getEmployeeRoleId } from "../employees.js";
 import { setEmployeePassword, generateTempPassword, logoutAll, getEmailSession } from "../auth_local.js";
 import { saveLocalEmployee, removeFromBackup, isLocalEmployee } from "../local_employees.js";
 import { getDealFields, saveDealFields, newFieldId, FIELD_TYPES } from "../custom_fields.js";
@@ -814,6 +814,11 @@ function renderEmployeeRow(e, roles, canManageDocs) {
 function renderEmployeeForm(e, roles) {
   const isNew = !e;
   e = e || { name: "", email: "", roleId: roles[0]?.id, role: "manager" };
+  // roleId на worker D1 не хранится — fallback на локальный map.
+  if (!isNew && !e.roleId) {
+    const localRoleId = getEmployeeRoleId(e.id);
+    if (localRoleId) e.roleId = localRoleId;
+  }
   const hasPassword = !isNew && !!e.passwordHash;
   return `
     <form class="employee-form" id="employeeForm" data-id="${e.id || ""}">
@@ -1105,6 +1110,9 @@ function wireEvents(container) {
       // Сохраняем личную линию Binotel в локальном map (не идёт в worker D1)
       if (empId) {
         setEmployeeBinotelLine(empId, fd.get("binotelLine") || "");
+        // Сохраняем roleId в локальном map тоже — worker D1 его не хранит,
+        // и после replaceEmployeesFromWorker поле затёрлось бы.
+        setEmployeeRoleId(empId, data.roleId || "");
       }
       if (password && empId) {
         await setEmployeePassword(empId, password);
