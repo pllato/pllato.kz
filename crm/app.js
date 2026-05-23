@@ -86,7 +86,7 @@ const ROUTES = [
   { id: "feed",      title: "Лента",     icon: "feed",      group: "team" },
   { id: "chat",      title: "Чаты",      icon: "chat",      group: "team" },
   { id: "settings",  title: "Настройки", icon: "settings",  group: "system" },
-  { id: "field",     title: "Заказ",     icon: "deals",     group: "workspace", hiddenInNav: true },
+  { id: "field",     title: "Полевой заказ", icon: "warehouse", group: "workspace" },
 ];
 
 // Алиасы старых маршрутов на новые

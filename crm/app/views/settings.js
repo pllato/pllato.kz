@@ -44,7 +44,7 @@ function seedRoles() {
   const existing = Store.list(ROLES_COLLECTION);
   if (existing.length === 0) {
     Store.create(ROLES_COLLECTION, { name: "Администратор", system: true, permissions: PERMISSIONS.map(p => p.id) });
-    Store.create(ROLES_COLLECTION, { name: "Менеджер",      system: true, permissions: ["dashboard", "contacts", "crm", "warehouse", "calls", "tasks", "feed", "chat"] });
+    Store.create(ROLES_COLLECTION, { name: "Менеджер",      system: true, permissions: ["dashboard", "contacts", "crm", "warehouse", "calls", "tasks", "feed", "chat", "field"] });
     Store.create(ROLES_COLLECTION, { name: "Менеджер по продажам в поле", system: true, permissions: ["field"] });
     Store.create(ROLES_COLLECTION, { name: "Наблюдатель",   system: true, permissions: ["dashboard", "feed", "warehouse"] });
     return;
@@ -63,6 +63,13 @@ function seedRoles() {
     }
     if (!localStorage.getItem(ROLES_WAREHOUSE_DEFAULT_MIGRATION) && !perms.includes("warehouse")) {
       perms.push("warehouse");
+      changed = true;
+    }
+    // Все роли с доступом к складу/CRM должны иметь и 'field' (быстрый заказ).
+    // Кроме чисто-field роли (она и так уже только с этим правом).
+    const isFieldOnly = perms.length === 1 && perms[0] === "field";
+    if (!isFieldOnly && (perms.includes("crm") || perms.includes("warehouse")) && !perms.includes("field")) {
+      perms.push("field");
       changed = true;
     }
     if (changed) {

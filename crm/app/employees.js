@@ -172,7 +172,7 @@ export function currentPermissions() {
   if (!me) return ALL_PERMISSIONS.slice();
   if (!me.roleId) {
     if (me.role === "admin") return ALL_PERMISSIONS.slice();
-    if (me.role === "manager") return ALL_PERMISSIONS.filter((p) => p !== "settings" && p !== "field");
+    if (me.role === "manager") return ALL_PERMISSIONS.filter((p) => p !== "settings");
     if (me.role === "field") return ["field"];
     if (me.role === "viewer") return ["dashboard", "feed", "warehouse"];
     return ALL_PERMISSIONS.slice();
