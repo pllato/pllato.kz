@@ -57,7 +57,9 @@ function defaultContactsFilters() {
 const state = {
   selectedId: _saved.selectedId || null,
   search: _saved.search || "",
-  view: localStorage.getItem("pllato_contacts_view") === "list" ? "list" : "split",
+  // Контакты теперь всегда «list»; split-режим скрыт из UI (карточка контакта открывается модалкой).
+  view: "list",
+  modalContactId: null,
   filters: { ...defaultContactsFilters(), ...(_saved.filters || {}) },
   sort: _saved.sort || { col: "createdAt", dir: "desc" },
   selectedIds: new Set(Array.isArray(_saved.selectedIds) ? _saved.selectedIds : []),
@@ -1077,10 +1079,6 @@ function renderContactListTable(filteredContacts, sortedContacts) {
             <span class="search-ico">${ICONS.search}</span>
             <input type="search" id="contactSearch" placeholder="Поиск по имени, email, телефону..." value="${escapeAttr(state.search)}">
           </label>
-          <div class="contacts-view-switch">
-            <button type="button" class="btn-ghost ${state.view === "split" ? "active" : ""}" data-contacts-view="split">Split</button>
-            <button type="button" class="btn-ghost ${state.view === "list" ? "active" : ""}" data-contacts-view="list">Списком</button>
-          </div>
           <button type="button" class="btn-ghost" id="openImportsHistory">Импорты <span class="contacts-badge">${activeImportBatches().length}</span></button>
           <button type="button" class="btn-ghost ${state.trashOpen ? "active" : ""}" id="openContactTrash">Корзина <span class="contacts-badge">${listTrashedContacts().length}</span></button>
           <button type="button" class="btn-primary" id="newContact">${ICONS.plus}<span>Контакт</span></button>
@@ -1387,6 +1385,18 @@ function renderInfoCell(icon, label, value) {
     <div class="contact-info-cell">
       <div class="contact-info-label">${icon}<span>${label}</span></div>
       <div class="contact-info-value">${value || "—"}</div>
+    </div>
+  `;
+}
+
+function renderContactModal(contact) {
+  if (!contact || !isContactAlive(contact)) return "";
+  return `
+    <div class="contact-modal-overlay">
+      <div class="contact-modal">
+        <button type="button" class="contact-modal-close" data-close-contact-modal aria-label="Закрыть">×</button>
+        ${renderDetail(contact)}
+      </div>
     </div>
   `;
 }
@@ -1757,6 +1767,8 @@ export function renderContacts(container, opts = {}) {
     ${state.trashOpen ? renderContactsTrashModal() : ""}
     ${state.importsHistoryOpen ? renderImportsHistoryModal() : ""}
     ${renderFormModal()}
+    ${state.modalContactId ? renderContactModal(Store.get(COLLECTION, state.modalContactId)) : ""}
+    ${state.view === "list" && state.waFloat.open ? renderWaFloat(Store.get(COLLECTION, state.waFloat.contactId) || selectedAlive) : ""}
   `;
 
   wireEvents(container);
@@ -2467,18 +2479,46 @@ function wireEvents(container) {
   });
 
   container.querySelectorAll("[data-contact-row]").forEach((row) => {
-    row.addEventListener("click", () => {
+    row.addEventListener("click", (e) => {
+      // Игнорируем клики по чекбоксам и кнопкам внутри строки (массовое выделение).
+      if (e.target.closest("input,button,a,label")) return;
       const id = row.dataset.contactRow;
       if (!id) return;
+      state.modalContactId = id;
       state.selectedId = id;
-      state.view = "split";
-      localStorage.setItem("pllato_contacts_view", state.view);
       state.activityFilter = "all";
       state.noteOpen = false;
       state.noteText = "";
       renderContacts(container);
     });
   });
+
+  // Закрытие модалки контакта
+  container.querySelector("[data-close-contact-modal]")?.addEventListener("click", () => {
+    state.modalContactId = null;
+    renderContacts(container);
+  });
+  container.querySelector(".contact-modal-overlay")?.addEventListener("click", (e) => {
+    if (e.target.classList?.contains("contact-modal-overlay")) {
+      state.modalContactId = null;
+      renderContacts(container);
+    }
+  });
+  // Если внутри модалки кликают по ссылке на сделку — закрываем модалку перед навигацией.
+  container.querySelectorAll(".contact-modal a[href^='#crm/']").forEach((a) => {
+    a.addEventListener("click", () => { state.modalContactId = null; });
+  });
+  // ESC закрывает модалку
+  if (state.modalContactId && !container.dataset.contactEscWired) {
+    container.dataset.contactEscWired = "1";
+    const onEsc = (e) => {
+      if (e.key === "Escape" && state.modalContactId) {
+        state.modalContactId = null;
+        renderContacts(container);
+      }
+    };
+    document.addEventListener("keydown", onEsc);
+  }
 
   container.querySelectorAll(".contact-row").forEach((el) => {
     el.addEventListener("click", () => {
