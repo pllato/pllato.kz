@@ -369,6 +369,12 @@ async function handleRtdbGet(env, request, parts, opts) {
       return json({}, 200, request);
 
     case "filesQueue":
+      // Возвращаем metadata о файле из files_queue таблицы (после миграции в R2).
+      // Frontend (loadFilesIntoContainer) ждёт fileName / fileSize / contentType /
+      // migrated / permanentlyFailed.
+      if (rest.length === 0) return json({}, 200, request);
+      return respondFilesQueueMeta(env, request, rest[0]);
+
     case "migrationState":
     case "migrationCache":
       return json(null, 200, request);
@@ -530,6 +536,22 @@ async function respondTimeline(env, request, ownerId) {
     out[row.id] = tryParseJson(row.payload);
   }
   return json(out, 200, request);
+}
+
+async function respondFilesQueueMeta(env, request, fileId) {
+  const { results } = await env.DB.prepare(
+    "SELECT id, file_name, file_size, content_type, migrated, permanently_failed, error_message FROM files_queue WHERE id = ?"
+  ).bind(fileId).all();
+  if (!results || results.length === 0) return json(null, 200, request);
+  const row = results[0];
+  return json({
+    fileName: row.file_name,
+    fileSize: row.file_size,
+    contentType: row.content_type,
+    migrated: !!row.migrated,
+    permanentlyFailed: !!row.permanently_failed,
+    errorMessage: row.error_message || null,
+  }, 200, request);
 }
 
 async function respondTaskReadState(env, request, rest) {
@@ -761,6 +783,43 @@ async function handleList(request, env, entity) {
   });
 }
 
+// ── /api/files/{id} — streaming-отдача мигрированного файла из R2 ──
+// auth: Authorization Bearer ИЛИ ?auth=token (для прямого <a href download>)
+async function handleFileDownload(request, env, fileId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+
+  const meta = await env.DB.prepare(
+    "SELECT id, file_name, file_size, content_type, r2_key, migrated FROM files_queue WHERE id = ?"
+  ).bind(fileId).first();
+  if (!meta) return json({ error: "file not found in queue", id: fileId }, 404, request);
+  if (!meta.migrated || !meta.r2_key) {
+    return json({ error: "file not migrated yet", id: fileId }, 409, request);
+  }
+
+  if (!env.FILES) {
+    return json({ error: "R2 binding FILES not configured" }, 500, request);
+  }
+
+  const obj = await env.FILES.get(meta.r2_key);
+  if (!obj) {
+    return json({ error: "file missing in R2", id: fileId, r2_key: meta.r2_key }, 410, request);
+  }
+
+  const headers = new Headers();
+  headers.set("Content-Type", meta.content_type || "application/octet-stream");
+  if (meta.file_size) headers.set("Content-Length", String(meta.file_size));
+  // attachment с filename* в UTF-8 — корректно для кириллицы
+  const safeName = encodeURIComponent(meta.file_name || `file-${fileId}`);
+  headers.set("Content-Disposition", `attachment; filename*=UTF-8''${safeName}`);
+  // Файлы — immutable, можно кешировать долго
+  headers.set("Cache-Control", "private, max-age=86400");
+  const cors = corsHeaders(request);
+  for (const [k, v] of Object.entries(cors)) headers.set(k, v);
+
+  return new Response(obj.body, { status: 200, headers });
+}
+
 // ── Phase 0 routes ──────────────────────────────────────
 async function handleHealth(request, env) {
   try {
@@ -818,6 +877,12 @@ export default {
     const listMatch = path.match(/^\/api\/list\/([a-z_]+)\/?$/);
     if (listMatch && request.method === "GET") {
       return handleList(request, env, listMatch[1]);
+    }
+
+    // /api/files/{id} — отдача мигрированного файла из R2
+    const fileMatch = path.match(/^\/api\/files\/([^/]+)$/);
+    if (fileMatch && request.method === "GET") {
+      return handleFileDownload(request, env, fileMatch[1]);
     }
 
     return json({ ok: false, error: "not found", path }, 404, request);
