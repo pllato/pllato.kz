@@ -964,6 +964,154 @@ tr:hover td { background: var(--bg3); }
   border-radius: 999px;
   letter-spacing: .03em;
 }
+.kanban-add-deal {
+  margin: 6px 8px 0;
+  padding: 6px 8px;
+  background: transparent;
+  border: 1px dashed var(--b1);
+  border-radius: 6px;
+  color: var(--t3);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+  flex-shrink: 0;
+}
+.kanban-add-deal:hover {
+  border-color: var(--stage-color, var(--ac2));
+  color: var(--stage-color, var(--ac2));
+  background: var(--bg3);
+}
+
+/* Quick-add deal modal */
+.qad-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.qad-modal {
+  background: var(--bg);
+  border: 1px solid var(--b1);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 88vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,.4);
+}
+.qad-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--b1);
+  display: flex; align-items: center; gap: 10px;
+}
+.qad-head h2 { font-size: 15px; margin: 0; flex: 1; color: var(--t1); }
+.qad-head .qad-stage-badge {
+  font-size: 11px; padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--stage-color, var(--ac2));
+  color: var(--stage-color, var(--ac2));
+  background: rgba(124,92,252,.08);
+  font-weight: 600;
+}
+.qad-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.qad-label {
+  font-size: 11px; color: var(--t3); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px;
+}
+.qad-input {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 6px;
+  color: var(--t1);
+  font-size: 13px;
+  box-sizing: border-box;
+}
+.qad-input:focus { outline: none; border-color: var(--ac2); }
+.qad-contact-wrap { position: relative; }
+.qad-dropdown {
+  position: absolute;
+  top: 100%; left: 0; right: 0;
+  margin-top: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  z-index: 10;
+}
+.qad-dd-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--b1);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.qad-dd-item:last-child { border-bottom: none; }
+.qad-dd-item:hover, .qad-dd-item.qad-dd-active { background: var(--bg3); }
+.qad-dd-name { font-size: 13px; color: var(--t1); font-weight: 600; }
+.qad-dd-meta { font-size: 11px; color: var(--t3); }
+.qad-dd-create {
+  padding: 10px 12px;
+  background: var(--bg3);
+  color: var(--ac2);
+  font-size: 12px;
+  font-weight: 600;
+  border-top: 1px solid var(--b1);
+  cursor: pointer;
+}
+.qad-dd-create:hover { background: var(--ac2); color: #fff; }
+.qad-dd-empty {
+  padding: 10px 12px;
+  color: var(--t3);
+  font-size: 12px;
+  text-align: center;
+}
+.qad-selected-contact {
+  padding: 8px 10px;
+  background: var(--bg2);
+  border: 1px solid var(--ac2);
+  border-radius: 6px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px;
+}
+.qad-selected-contact .qad-sc-clear {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--t3);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.qad-selected-contact .qad-sc-clear:hover { color: var(--rd); }
+.qad-new-contact {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px;
+  background: var(--bg2);
+  border: 1px solid var(--ac2);
+  border-radius: 6px;
+}
+.qad-new-contact-title {
+  font-size: 11px; color: var(--ac2); font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.qad-foot {
+  padding: 12px 18px;
+  border-top: 1px solid var(--b1);
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+.qad-btn { padding: 9px 18px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; font-weight: 600; }
+.qad-btn-primary { background: var(--ac2); color: #fff; }
+.qad-btn-primary:hover { background: #6b4ce8; }
+.qad-btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+.qad-btn-ghost { background: transparent; border-color: var(--b1); color: var(--t2); }
+.qad-btn-ghost:hover { background: var(--bg2); }
+
 .kanban-col-sum {
   font-family: var(--fd);
   font-size: 11px;
@@ -3461,6 +3609,7 @@ function renderDealsKanban(c, arr) {
         <span class="stage-title" style="color:${stageColor}">${escapeHtml(s.name)}</span>
         <span class="col-count" style="color:${stageColor};background:${stageColor}22;border:1px solid ${stageColor}55">${cards.length.toLocaleString('ru')}</span>
       </div>
+      <button class="kanban-add-deal" data-stage="${escapeHtml(s.statusId)}" title="Создать сделку в этой стадии">+ Сделка</button>
       ${totalSum > 0 ? `<div class="kanban-col-sum">${totalSum.toLocaleString('ru')} ₸</div>` : ''}
       <div class="kanban-col-cards" data-stage="${escapeHtml(s.statusId)}">`;
 
@@ -3483,6 +3632,334 @@ function renderDealsKanban(c, arr) {
 
   // Кнопки действий внутри карточек — нужны event delegation
   c.addEventListener('click', handleKanbanCardAction);
+
+  // Quick-add deal: + Сделка под header колонки
+  c.querySelectorAll('.kanban-add-deal').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openQuickAddDealModal(btn.dataset.stage);
+    });
+  });
+}
+
+// ── Quick-Add Deal modal ─────────────────────────────────────────────────
+// + Сделка под заголовком колонки канбана. Создаёт сделку с минимумом полей:
+// title, выбранный stage и pipeline, контакт (поиск existing или создание).
+function openQuickAddDealModal(stageId) {
+  document.getElementById('_qad-modal')?.remove();
+  const stages = getStagesSorted();
+  const stage = stages.find(s => s.statusId === stageId);
+  const stageColor = stage?.semantics === 'S' ? '#3fd88e' : stage?.semantics === 'F' ? '#f05975' : '#a87fff';
+  const pipelineId = dealsState.activePipelineId;
+  if (!pipelineId) {
+    alert('Сначала выберите воронку');
+    return;
+  }
+
+  // Состояние модалки
+  const draft = {
+    title: '',
+    selectedContact: null,     // { id, fullName, phone, isNew }
+    newContact: null,          // { name, phone } — если юзер кликнул «Создать»
+    contactQuery: '',
+    searchResults: [],
+    searching: false,
+  };
+
+  function modalHtml() {
+    return `
+      <div class="qad-overlay" id="_qad-modal" onclick="if(event.target===this)document.getElementById('_qad-modal').remove()">
+        <div class="qad-modal" onclick="event.stopPropagation()" style="--stage-color:${stageColor}">
+          <div class="qad-head">
+            <h2>Новая сделка</h2>
+            <span class="qad-stage-badge">${escapeHtml(stage?.name || stageId)}</span>
+            <button class="qad-btn qad-btn-ghost" id="qad-close" style="padding:4px 10px">×</button>
+          </div>
+          <div class="qad-body">
+            <div>
+              <div class="qad-label">Название сделки</div>
+              <input id="qad-title" class="qad-input" placeholder="Например: Курс A1 Иванов" autocomplete="off">
+            </div>
+            <div>
+              <div class="qad-label">Контакт</div>
+              <div id="qad-contact-area"></div>
+            </div>
+          </div>
+          <div class="qad-foot">
+            <button class="qad-btn qad-btn-ghost" id="qad-cancel">Отмена</button>
+            <button class="qad-btn qad-btn-primary" id="qad-save" disabled>Создать сделку</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderContactArea() {
+    const area = document.getElementById('qad-contact-area');
+    if (!area) return;
+
+    if (draft.selectedContact) {
+      // Выбран существующий контакт
+      area.innerHTML = `
+        <div class="qad-selected-contact">
+          <div>
+            <div style="font-weight:600">${escapeHtml(draft.selectedContact.fullName)}</div>
+            ${draft.selectedContact.phone ? `<div style="font-size:11px;color:var(--t3)">${escapeHtml(draft.selectedContact.phone)}</div>` : ''}
+          </div>
+          <button class="qad-sc-clear" id="qad-sc-clear" title="Выбрать другой">×</button>
+        </div>
+      `;
+      document.getElementById('qad-sc-clear').onclick = () => {
+        draft.selectedContact = null;
+        draft.contactQuery = '';
+        renderContactArea();
+        updateSaveBtn();
+        setTimeout(() => document.getElementById('qad-contact-search')?.focus(), 50);
+      };
+      return;
+    }
+
+    if (draft.newContact) {
+      // Inline-форма нового контакта
+      area.innerHTML = `
+        <div class="qad-new-contact">
+          <div class="qad-new-contact-title">Создание контакта</div>
+          <input id="qad-nc-name" class="qad-input" placeholder="Имя контакта" value="${escapeHtml(draft.newContact.name || '')}" autocomplete="off">
+          <input id="qad-nc-phone" class="qad-input" placeholder="Телефон (например +77001234567)" value="${escapeHtml(draft.newContact.phone || '')}" autocomplete="off">
+          <button class="qad-btn qad-btn-ghost" id="qad-nc-cancel" style="align-self:flex-start;padding:5px 10px;font-size:11px">← Найти существующий</button>
+        </div>
+      `;
+      document.getElementById('qad-nc-name').oninput = e => { draft.newContact.name = e.target.value; updateSaveBtn(); };
+      document.getElementById('qad-nc-phone').oninput = e => { draft.newContact.phone = e.target.value; updateSaveBtn(); };
+      document.getElementById('qad-nc-cancel').onclick = () => {
+        draft.newContact = null;
+        renderContactArea();
+        updateSaveBtn();
+        setTimeout(() => document.getElementById('qad-contact-search')?.focus(), 50);
+      };
+      setTimeout(() => document.getElementById('qad-nc-name')?.focus(), 50);
+      return;
+    }
+
+    // Default — search input + dropdown
+    area.innerHTML = `
+      <div class="qad-contact-wrap">
+        <input id="qad-contact-search" class="qad-input" placeholder="Найти по имени или телефону…" autocomplete="off" value="${escapeHtml(draft.contactQuery)}">
+        <div class="qad-dropdown" id="qad-dropdown" style="display:none"></div>
+      </div>
+    `;
+    const inp = document.getElementById('qad-contact-search');
+    inp.addEventListener('input', e => {
+      draft.contactQuery = e.target.value;
+      scheduleSearch();
+    });
+    inp.addEventListener('focus', () => { if (draft.searchResults.length || draft.contactQuery.length >= 2) showDropdown(); });
+    if (draft.contactQuery.length >= 2) showDropdown();
+  }
+
+  // Debounce typeahead — 250мс
+  let searchTimer = null;
+  function scheduleSearch() {
+    if (searchTimer) clearTimeout(searchTimer);
+    const q = draft.contactQuery.trim();
+    if (q.length < 2) {
+      draft.searchResults = [];
+      showDropdown();
+      return;
+    }
+    searchTimer = setTimeout(() => runSearch(q), 250);
+  }
+
+  async function runSearch(q) {
+    draft.searching = true;
+    showDropdown();
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const params = new URLSearchParams({ q, pageSize: '8', page: '1', auth: idToken });
+      const r = await fetch(`${WORKER_LIST_URL}/contacts?${params}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      draft.searchResults = (data.items || []).map(c => {
+        const fullName = [c.lastName, c.name, c.secondName].filter(Boolean).join(' ').trim() || '(без имени)';
+        const phones = asArray(c.phones);
+        return { id: c.id, fullName, phone: phones[0]?.value || '', email: (asArray(c.emails)[0] || {}).value || '' };
+      });
+    } catch (e) {
+      console.warn('quickAdd search:', e);
+      draft.searchResults = [];
+    } finally {
+      draft.searching = false;
+      showDropdown();
+    }
+  }
+
+  function showDropdown() {
+    const dd = document.getElementById('qad-dropdown');
+    if (!dd) return;
+    const q = draft.contactQuery.trim();
+    if (q.length < 2) {
+      dd.style.display = 'none';
+      return;
+    }
+    let html = '';
+    if (draft.searching) {
+      html = `<div class="qad-dd-empty">⏳ Ищем…</div>`;
+    } else if (draft.searchResults.length) {
+      for (const c of draft.searchResults) {
+        html += `<div class="qad-dd-item" data-id="${escapeHtml(c.id)}">
+          <span class="qad-dd-name">${escapeHtml(c.fullName)}</span>
+          <span class="qad-dd-meta">${escapeHtml(c.phone || c.email || '—')}</span>
+        </div>`;
+      }
+    } else {
+      html = `<div class="qad-dd-empty">Не нашли «${escapeHtml(q)}»</div>`;
+    }
+    html += `<div class="qad-dd-create" data-action="new-contact">+ Создать новый контакт${q ? ` «${escapeHtml(q)}»` : ''}</div>`;
+    dd.innerHTML = html;
+    dd.style.display = '';
+
+    dd.querySelectorAll('.qad-dd-item').forEach(item => {
+      item.onclick = () => {
+        const c = draft.searchResults.find(x => x.id === item.dataset.id);
+        if (c) {
+          draft.selectedContact = c;
+          renderContactArea();
+          updateSaveBtn();
+        }
+      };
+    });
+    dd.querySelector('[data-action="new-contact"]').onclick = () => {
+      // Префиллим имя из query если оно — буквы; телефон если цифры
+      const isPhoneLike = /^[\d+\-\s()]+$/.test(q);
+      draft.newContact = isPhoneLike ? { name: '', phone: q } : { name: q, phone: '' };
+      renderContactArea();
+      updateSaveBtn();
+    };
+  }
+
+  function updateSaveBtn() {
+    const btn = document.getElementById('qad-save');
+    if (!btn) return;
+    const hasTitle = draft.title.trim().length > 0;
+    const hasContact = draft.selectedContact || (draft.newContact && (draft.newContact.name.trim() || draft.newContact.phone.trim()));
+    btn.disabled = !(hasTitle && hasContact);
+  }
+
+  async function save() {
+    const btn = document.getElementById('qad-save');
+    btn.disabled = true;
+    btn.textContent = '⏳ Сохраняем…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const currentUid = fbAuth.currentUser?.uid;
+      const nowIso = new Date().toISOString();
+
+      // 1. Если новый контакт — сначала создаём его
+      let contactId = draft.selectedContact?.id;
+      let contactBitrixId = null;
+      if (!contactId && draft.newContact) {
+        const newId = 'contact_local_' + Math.random().toString(36).slice(2, 10);
+        contactBitrixId = newId.replace('contact_', '');
+        const contactBody = {
+          id: newId,
+          name: draft.newContact.name.trim() || '(без имени)',
+          lastName: '',
+          type: 'CLIENT',
+          opened: 1,
+          export: 0,
+          bitrixId: contactBitrixId,
+          bitrixDateCreate: nowIso,
+          bitrixDateModify: nowIso,
+          createdByUid: currentUid,
+          modifyByUid: currentUid,
+          responsibleUid: currentUid,
+          phones: draft.newContact.phone.trim() ? [{ type: 'WORK', value: draft.newContact.phone.trim() }] : null,
+          emails: null,
+          migratedAt: null,
+        };
+        const cr = await fetch(`${WORKER_RTDB_URL}/contacts/${encodeURIComponent(newId)}.json?auth=${idToken}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(contactBody),
+        });
+        if (!cr.ok) {
+          const t = await cr.text();
+          throw new Error(`Контакт: HTTP ${cr.status}: ${t.slice(0, 200)}`);
+        }
+        contactId = newId;
+      } else if (contactId) {
+        // Использован existing — берём bitrixId из результата поиска (через '.' или 'contact_X')
+        contactBitrixId = String(contactId).replace('contact_', '');
+      }
+
+      // 2. Создаём сделку
+      const dealId = 'deal_local_' + Math.random().toString(36).slice(2, 10);
+      const dealBitrixId = dealId.replace('deal_', '');
+      const dealBody = {
+        id: dealId,
+        title: draft.title.trim(),
+        opportunity: 0,
+        currency: 'KZT',
+        pipelineId: pipelineId,
+        stageId: stageId,
+        closed: 0,
+        beginDate: null,
+        closeDate: null,
+        contactId: contactId,
+        companyId: null,
+        responsibleUid: currentUid,
+        createdByUid: currentUid,
+        modifyByUid: currentUid,
+        bitrixId: dealBitrixId,
+        bitrixContactId: contactBitrixId,
+        bitrixDateCreate: nowIso,
+        bitrixDateModify: nowIso,
+        customFields: null,
+        migratedAt: null,
+      };
+      const dr = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent(dealId)}.json?auth=${idToken}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dealBody),
+      });
+      if (!dr.ok) {
+        const t = await dr.text();
+        throw new Error(`Сделка: HTTP ${dr.status}: ${t.slice(0, 200)}`);
+      }
+
+      // 3. Локально добавляем в state — если канбан загружен
+      if (Array.isArray(dealsState.deals)) {
+        dealsState.deals.unshift(dealBody);
+      }
+      document.getElementById('_qad-modal').remove();
+      showToast?.('Сделка создана');
+      // Перерисовка канбана
+      const main = document.getElementById('main');
+      if (main && document.querySelector('[data-page="deals"].active')) {
+        if (dealsState.view === 'kanban') {
+          renderDealsContent();
+        } else {
+          await loadDealsPage(dealsPagedState.page || 1);
+          renderDealsPagedTable();
+          renderDealsPagedPager();
+        }
+      }
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = 'Создать сделку';
+    }
+  }
+
+  // Render
+  const wrap = document.createElement('div');
+  wrap.innerHTML = modalHtml();
+  document.body.appendChild(wrap.firstElementChild);
+  renderContactArea();
+  document.getElementById('qad-close').onclick = () => document.getElementById('_qad-modal').remove();
+  document.getElementById('qad-cancel').onclick = () => document.getElementById('_qad-modal').remove();
+  document.getElementById('qad-save').onclick = save;
+  document.getElementById('qad-title').oninput = e => { draft.title = e.target.value; updateSaveBtn(); };
+  setTimeout(() => document.getElementById('qad-title')?.focus(), 50);
 }
 
 function buildDealCard(d, stageColor) {
