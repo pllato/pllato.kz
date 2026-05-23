@@ -146,13 +146,13 @@ function pluralRu(n, one, few, many) {
 }
 
 function wireEvents(container) {
-  container.querySelector("#fieldSearch")?.addEventListener("input", (e) => {
-    state.search = e.target.value || "";
-    const results = container.querySelector("#fieldSearchResults");
-    if (results) results.innerHTML = renderSearchResults();
-  });
+  // ВАЖНО: подписываемся ОДИН раз. renderFieldOrder() переписывает innerHTML,
+  // но listeners на самом container не теряются. Без этого защиты при каждом
+  // ре-рендере накапливались дубликаты → qty шёл не на 1, всё лагало.
+  if (container.dataset.fieldWired === "1") return;
+  container.dataset.fieldWired = "1";
 
-  container.addEventListener("click", (e) => {
+  container.addEventListener("click", async (e) => {
     const addBtn = e.target.closest("[data-add-product]");
     if (addBtn) {
       const pid = addBtn.dataset.addProduct;
@@ -183,46 +183,55 @@ function wireEvents(container) {
       return;
     }
     if (e.target.id === "fieldSignOut") {
-      // Делегируем app.js (он подписан на pllato:auth-expired-like событие через signOut).
       window.dispatchEvent(new CustomEvent("pllato:field-signout"));
       return;
+    }
+    if (e.target.id === "fieldSubmit" || e.target.closest("#fieldSubmit")) {
+      if (state.submitting) return;
+      if (state.items.length === 0) return;
+      state.submitting = true;
+      renderFieldOrder(container);
+      try {
+        const dealId = await submitFieldOrder();
+        state.lastSubmittedId = dealId;
+        resetForm({ keepLast: true });
+      } catch (err) {
+        alert("Не удалось отправить заказ: " + (err?.message || String(err)));
+      } finally {
+        state.submitting = false;
+        renderFieldOrder(container);
+      }
     }
   });
 
   container.addEventListener("input", (e) => {
-    if (e.target.matches("[data-item-idx].field-qty-input")) {
+    if (e.target.id === "fieldSearch") {
+      state.search = e.target.value || "";
+      const results = container.querySelector("#fieldSearchResults");
+      if (results) results.innerHTML = renderSearchResults();
+      return;
+    }
+    if (e.target.id === "fieldComment") {
+      state.comment = e.target.value || "";
+      return;
+    }
+    if (e.target.matches(".field-qty-input")) {
       const idx = Number(e.target.dataset.itemIdx);
       const it = state.items[idx];
       if (it) {
         it.qty = Math.max(0, Number(e.target.value) || 0);
-        // Обновляем только сумму строки/итого без полного re-render (чтобы не сбить фокус).
         updateRowAndTotal(container, idx);
       }
-    } else if (e.target.matches("[data-price-idx].field-price-input")) {
+      return;
+    }
+    if (e.target.matches(".field-price-input")) {
       const idx = Number(e.target.dataset.priceIdx);
       const it = state.items[idx];
       if (it) {
         it.unitPrice = Math.max(0, Number(e.target.value) || 0);
         updateRowAndTotal(container, idx);
       }
-    } else if (e.target.id === "fieldComment") {
-      state.comment = e.target.value || "";
-    }
-  });
-
-  container.querySelector("#fieldSubmit")?.addEventListener("click", async () => {
-    if (state.submitting) return;
-    if (state.items.length === 0) return;
-    state.submitting = true;
-    try {
-      const dealId = await submitFieldOrder();
-      state.lastSubmittedId = dealId;
-      resetForm({ keepLast: true });
-    } catch (err) {
-      alert("Не удалось отправить заказ: " + (err?.message || String(err)));
-    } finally {
-      state.submitting = false;
-      renderFieldOrder(container);
+      return;
     }
   });
 }
