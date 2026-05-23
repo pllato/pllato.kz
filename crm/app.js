@@ -10,6 +10,7 @@ import { renderChat } from "./app/views/chat.js";
 import { renderCalls } from "./app/views/calls.js";
 import { renderDashboard } from "./app/views/dashboard.js";
 import { renderSettings } from "./app/views/settings.js";
+import { renderFieldOrder } from "./app/views/field_order.js";
 import { renderDocs } from "./app/views/docs.js";
 import { renderWarehouse } from "./app/views/warehouse/index.js";
 import { listNotifications, unreadCount, markRead, markAllRead, typeMeta, seedDemoNotifications } from "./app/notifications.js";
@@ -85,6 +86,7 @@ const ROUTES = [
   { id: "feed",      title: "Лента",     icon: "feed",      group: "team" },
   { id: "chat",      title: "Чаты",      icon: "chat",      group: "team" },
   { id: "settings",  title: "Настройки", icon: "settings",  group: "system" },
+  { id: "field",     title: "Заказ",     icon: "deals",     group: "workspace", hiddenInNav: true },
 ];
 
 // Алиасы старых маршрутов на новые
@@ -167,13 +169,27 @@ function renderShell() {
   const u = state.user;
   const initials = (u.name || u.email || "?").slice(0, 1).toUpperCase();
 
+  const allowed = currentPermissions();
+
+  // Если у юзера доступен только field-экран — рендерим минимальный мобильный shell
+  // (без sidebar, без topbar).
+  const isFieldOnly = allowed.length === 1 && allowed[0] === "field";
+  if (isFieldOnly) {
+    if (route !== "field") {
+      location.hash = "#field";
+      state.route = "field";
+    }
+    $app.innerHTML = `<div class="shell shell-field"><main class="main main-field" id="mainView"></main></div>`;
+    renderMain("field", document.getElementById("mainView"));
+    return;
+  }
+
   const groups = [
     { id: "workspace", title: "Рабочее пространство" },
     { id: "team",      title: "Команда" },
     { id: "system",    title: "Система" },
   ];
 
-  const allowed = currentPermissions();
   const visibleRoutes = ROUTES.filter(r => allowed.includes(r.id) && !r.hiddenInNav);
   const navHtml = groups.map(g => {
     const groupRoutes = visibleRoutes.filter(r => r.group === g.id);
@@ -284,6 +300,10 @@ function renderMain(route, container) {
     renderSettings(container);
     return;
   }
+  if (route === "field") {
+    renderFieldOrder(container);
+    return;
+  }
 
   // fallback (не должно происходить — все маршруты обработаны выше)
   container.innerHTML = `
@@ -390,6 +410,12 @@ function wireNotifications() {
   window.addEventListener("pllato:auth-expired", () => {
     authError = "Сессия истекла. Войди снова.";
     state.user = null;
+    render();
+  });
+  // Logout из field-экрана (там нет sidebar с #logoutBtn).
+  window.addEventListener("pllato:field-signout", async () => {
+    await Auth.signOut();
+    location.hash = "";
     render();
   });
 

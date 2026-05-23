@@ -37,6 +37,7 @@ function normalizeUserRole(user) {
   if (isSuperAdmin || isAdmin) return "admin";
   const role = String(user?.role || user?.position || "").toLowerCase().trim();
   if (role === "viewer") return "viewer";
+  if (role === "field" || role === "field_sales" || role.includes("поле")) return "field";
   return "manager";
 }
 
@@ -159,18 +160,20 @@ export function ROLES() {
   return [
     { id: "admin", label: "Администратор" },
     { id: "manager", label: "Менеджер" },
+    { id: "field", label: "Менеджер по продажам в поле" },
     { id: "viewer", label: "Наблюдатель" },
   ];
 }
 
-export const ALL_PERMISSIONS = ["dashboard", "contacts", "crm", "warehouse", "calls", "tasks", "feed", "chat", "settings"];
+export const ALL_PERMISSIONS = ["dashboard", "contacts", "crm", "warehouse", "calls", "tasks", "feed", "chat", "settings", "field"];
 
 export function currentPermissions() {
   const me = currentEmployee();
   if (!me) return ALL_PERMISSIONS.slice();
   if (!me.roleId) {
     if (me.role === "admin") return ALL_PERMISSIONS.slice();
-    if (me.role === "manager") return ALL_PERMISSIONS.filter((p) => p !== "settings");
+    if (me.role === "manager") return ALL_PERMISSIONS.filter((p) => p !== "settings" && p !== "field");
+    if (me.role === "field") return ["field"];
     if (me.role === "viewer") return ["dashboard", "feed", "warehouse"];
     return ALL_PERMISSIONS.slice();
   }

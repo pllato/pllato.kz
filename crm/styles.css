@@ -11376,3 +11376,281 @@ html body .pllato-toolbar .pllato-search:focus-within {
 }
 .contact-modal-close:hover { background: var(--surface-hover); }
 .contact-modal .contact-detail-card { border: 0; box-shadow: none; }
+
+/* ===========================================================================
+   Field-экран (мобильный): для роли «Менеджер по продажам в поле».
+   Без sidebar, без topbar — full-width, оптимизировано под touch.
+   =========================================================================== */
+.shell-field {
+  display: block;
+  background: var(--bg);
+  min-height: 100vh;
+}
+.main-field {
+  padding: 0;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--bg);
+}
+.field-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-bottom: 120px;
+}
+.field-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-soft);
+}
+.field-header-main { flex: 1; min-width: 0; }
+.field-header-title { font-size: 17px; font-weight: 700; color: var(--text); }
+.field-header-sub { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+.field-header-btn {
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.field-header-btn:hover { background: var(--surface-hover); }
+
+.field-success {
+  margin: 14px 16px;
+  padding: 12px 14px;
+  background: var(--accent-tint, rgba(34,197,94,.12));
+  border: 1px solid var(--accent);
+  color: var(--accent-hover, #16a34a);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.field-link {
+  background: transparent;
+  border: 0;
+  color: var(--accent-hover, #16a34a);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+}
+
+.field-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.field-section-title { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; }
+.field-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.field-input,
+.field-textarea {
+  width: 100%;
+  padding: 14px 14px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 16px;          /* 16px — чтобы iOS не зумил при focus */
+  box-sizing: border-box;
+}
+.field-textarea { resize: vertical; min-height: 90px; }
+.field-input:focus, .field-textarea:focus { outline: none; border-color: var(--accent); }
+
+.field-hint {
+  margin-top: 10px;
+  padding: 14px;
+  background: var(--surface-2);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.field-empty {
+  padding: 18px;
+  background: var(--surface-2);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.field-search-results {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.field-product {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+}
+.field-product:hover, .field-product:active { background: var(--surface-hover); border-color: var(--accent); }
+.field-product.in-order { background: var(--accent-tint, rgba(34,197,94,.08)); border-color: var(--accent); }
+.field-product-main { flex: 1; min-width: 0; }
+.field-product-sku { font-size: 11px; color: var(--text-muted); font-family: ui-monospace, Menlo, monospace; }
+.field-product-name { font-size: 14.5px; font-weight: 600; color: var(--text); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.field-product-meta { text-align: right; flex-shrink: 0; }
+.field-product-stock { font-size: 13px; font-weight: 700; }
+.field-product-stock.stock-ok { color: #16a34a; }
+.field-product-stock.stock-low { color: #ef4444; }
+.field-product-price { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+.field-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.field-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.field-item-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.field-item-name { flex: 1; font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.field-item-sku { display: inline-block; margin-left: 6px; font-size: 11px; color: var(--text-muted); font-family: ui-monospace, Menlo, monospace; font-weight: 400; }
+.field-item-remove {
+  width: 32px; height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 22px;
+  line-height: 1;
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.field-item-remove:hover { background: rgba(239,68,68,.12); color: #ef4444; }
+.field-item-stock { font-size: 12.5px; color: var(--text-muted); margin-bottom: 10px; }
+.field-item-stock strong { color: var(--text); }
+.field-item-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.field-qty {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.field-qty-btn {
+  width: 44px; height: 44px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 700;
+  border-radius: 10px;
+  cursor: pointer;
+  line-height: 1;
+}
+.field-qty-btn:active { background: var(--surface-hover); }
+.field-qty-input {
+  width: 70px;
+  height: 44px;
+  text-align: center;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.field-qty-unit { font-size: 13px; color: var(--text-muted); margin-left: 4px; }
+.field-price-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 130px;
+}
+.field-price-input {
+  flex: 1;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 10px;
+  font-size: 16px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.field-price-unit { font-size: 14px; color: var(--text-muted); }
+.field-item-sum {
+  margin-top: 10px;
+  text-align: right;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+.field-item-sum strong { color: var(--text); font-size: 16px; font-variant-numeric: tabular-nums; }
+
+.field-footer {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -8px 20px -10px rgba(0,0,0,.25);
+}
+.field-total { flex: 1; font-size: 14px; color: var(--text-muted); }
+.field-total strong { color: var(--text); font-size: 18px; font-variant-numeric: tabular-nums; margin-left: 4px; }
+.field-submit {
+  padding: 14px 22px;
+  background: var(--accent);
+  color: white;
+  border: 0;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 50px;
+}
+.field-submit:hover:not(:disabled) { background: var(--accent-hover, #16a34a); }
+.field-submit:disabled { background: var(--surface-2); color: var(--text-muted); cursor: not-allowed; }
+
+@media (min-width: 720px) {
+  .main-field { box-shadow: 0 0 30px rgba(0,0,0,.05); min-height: 100vh; }
+}

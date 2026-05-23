@@ -24,7 +24,7 @@ const PERMISSIONS = [
   { id: "tasks",     label: "Задачи" },
   { id: "feed",      label: "Лента" },
   { id: "chat",      label: "Чаты" },
-  
+  { id: "field",     label: "Заказ (поле)" },
   { id: "settings",  label: "Настройки" },
 ];
 
@@ -45,8 +45,13 @@ function seedRoles() {
   if (existing.length === 0) {
     Store.create(ROLES_COLLECTION, { name: "Администратор", system: true, permissions: PERMISSIONS.map(p => p.id) });
     Store.create(ROLES_COLLECTION, { name: "Менеджер",      system: true, permissions: ["dashboard", "contacts", "crm", "warehouse", "calls", "tasks", "feed", "chat"] });
+    Store.create(ROLES_COLLECTION, { name: "Менеджер по продажам в поле", system: true, permissions: ["field"] });
     Store.create(ROLES_COLLECTION, { name: "Наблюдатель",   system: true, permissions: ["dashboard", "feed", "warehouse"] });
     return;
+  }
+  // Подсеять field-роль, если уже инициализированный список её не имеет.
+  if (!existing.some((r) => Array.isArray(r.permissions) && r.permissions.length === 1 && r.permissions[0] === "field")) {
+    Store.create(ROLES_COLLECTION, { name: "Менеджер по продажам в поле", system: true, permissions: ["field"] });
   }
   existing.forEach((r) => {
     const perms = Array.isArray(r.permissions) ? r.permissions.slice() : [];
