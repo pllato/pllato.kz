@@ -793,11 +793,15 @@ function renderEmployeeRow(e, roles, canManageDocs) {
   actions.push(`<button class="btn-ghost icon-only" data-set-pw="${e.id}" title="Установить пароль для входа по email">🔑</button>`);
   actions.push(`<button class="btn-ghost icon-only" data-set-binotel-line="${e.id}" title="Внутренняя линия Binotel${getEmployeeBinotelLine(e.id) ? ` (сейчас: ${getEmployeeBinotelLine(e.id)})` : ''}">📞</button>`);
   if (canManageDocs) actions.push(`<button class="btn-ghost icon-only" data-emp-docs="${e.id}" title="Документы">${ICONS.book}</button>`);
-  // Edit/Remove — всегда доступны для локальных сотрудников, для синхронизованных — read-only
+  // Edit/Remove — для локальных сотрудников и для админов (чтобы можно было
+  // менять роль, в т.ч. кастомную 'Менеджер в поле'). Удаление синхронизированных
+  // оставляем только админам — pllato.kz/app.html по-прежнему остаётся source of truth.
   const isLocal = e._localCreated || isLocalEmployee(e.id);
-  if (isLocal || !managedByDirectory) {
-    actions.push(`<button class="btn-ghost icon-only" data-edit-emp="${e.id}">${ICONS.edit}</button>`);
-    if (!e.isCurrent) actions.push(`<button class="btn-ghost icon-only danger" data-remove-emp="${e.id}">${ICONS.trash}</button>`);
+  const meEmp = currentEmployee();
+  const meIsAdmin = Boolean(meEmp?.isAdmin || meEmp?.isSuperAdmin || meEmp?.role === "admin");
+  if (isLocal || !managedByDirectory || meIsAdmin) {
+    actions.push(`<button class="btn-ghost icon-only" data-edit-emp="${e.id}" title="Редактировать сотрудника">${ICONS.edit}</button>`);
+    if (!e.isCurrent) actions.push(`<button class="btn-ghost icon-only danger" data-remove-emp="${e.id}" title="Удалить сотрудника">${ICONS.trash}</button>`);
   }
   return `
     <div class="employee-row" data-id="${e.id}">
