@@ -768,6 +768,133 @@ tr:hover td { background: var(--bg3); }
 .pagination .pg-btn:disabled { opacity: .3; cursor: not-allowed; }
 .pagination .pg-info { color: var(--t3); font-size: 12px; padding: 0 8px; }
 
+/* Pipeline tabs (переключатель воронок) */
+.pipeline-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 12px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--b1);
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+.pipe-tab {
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  color: var(--t2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.pipe-tab:hover { background: var(--bg2); color: var(--t1); }
+.pipe-tab.active {
+  background: var(--bg2);
+  border-color: var(--b1);
+  color: var(--ac2);
+  border-bottom-color: var(--bg2);
+  margin-bottom: -1px;
+}
+.pipe-tab-new, .pipe-tab-manage {
+  color: var(--t3);
+  font-weight: 700;
+  padding: 7px 10px;
+  margin-left: auto;
+}
+.pipe-tab-manage { margin-left: 0; }
+
+/* Pipeline edit modal */
+.pip-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.pip-modal {
+  background: var(--bg);
+  border: 1px solid var(--b1);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 88vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,.4);
+}
+.pip-modal-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--b1);
+  display: flex; align-items: center; gap: 12px;
+}
+.pip-modal-head h2 { font-size: 16px; margin: 0; flex: 1; color: var(--t1); }
+.pip-modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+.pip-modal-foot {
+  padding: 12px 20px;
+  border-top: 1px solid var(--b1);
+  display: flex; gap: 8px; justify-content: space-between;
+}
+.pip-modal-foot .pip-foot-left,
+.pip-modal-foot .pip-foot-right { display: flex; gap: 8px; }
+.pip-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 6px;
+  color: var(--t1);
+  font-size: 13px;
+}
+.pip-input:focus { outline: none; border-color: var(--ac2); }
+.pip-label { font-size: 11px; color: var(--t3); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.pip-section { margin-bottom: 14px; }
+.pip-stages-list { display: flex; flex-direction: column; gap: 6px; }
+.pip-stage-row {
+  display: grid;
+  grid-template-columns: 30px 1fr 100px 90px 30px;
+  gap: 8px;
+  align-items: center;
+  padding: 6px;
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 6px;
+}
+.pip-stage-grip { color: var(--t3); cursor: grab; text-align: center; user-select: none; font-size: 14px; }
+.pip-stage-row.dragging { opacity: .4; }
+.pip-stage-row.drop-above { border-top: 2px solid var(--ac2); }
+.pip-stage-row.drop-below { border-bottom: 2px solid var(--ac2); }
+.pip-stage-name { padding: 6px 8px; background: var(--bg); border: 1px solid var(--b1); border-radius: 4px; color: var(--t1); font-size: 13px; }
+.pip-stage-color { padding: 4px; background: var(--bg); border: 1px solid var(--b1); border-radius: 4px; color: var(--t2); font-size: 12px; cursor: pointer; height: 28px; box-sizing: border-box; }
+.pip-stage-semantics { padding: 4px 6px; background: var(--bg); border: 1px solid var(--b1); border-radius: 4px; color: var(--t1); font-size: 11px; }
+.pip-stage-del { background: transparent; border: none; color: var(--rd); cursor: pointer; font-size: 16px; padding: 0; }
+.pip-stage-del:hover { color: #ff5577; }
+.pip-add-stage {
+  margin-top: 8px;
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: 1px dashed var(--b2);
+  border-radius: 6px;
+  color: var(--t3);
+  font-size: 12px;
+  cursor: pointer;
+}
+.pip-add-stage:hover { border-color: var(--ac2); color: var(--ac2); }
+.pip-btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; font-weight: 600; }
+.pip-btn-primary { background: var(--ac2); color: #fff; }
+.pip-btn-primary:hover { background: #6b4ce8; }
+.pip-btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+.pip-btn-ghost { background: transparent; border-color: var(--b1); color: var(--t2); }
+.pip-btn-ghost:hover { background: var(--bg2); }
+.pip-btn-danger { background: transparent; border-color: var(--rd); color: var(--rd); }
+.pip-btn-danger:hover { background: var(--rd); color: #fff; }
+
 /* Kanban (Aminamed-style refresh) */
 .kanban-wrap {
   display: flex;
@@ -2354,18 +2481,30 @@ async function testConnection() {
 // ── Deals state (in-memory cache) ────────────────────────
 const dealsState = {
   loaded: false,        // флаг загрузки full deals[] (только для kanban)
-  metaLoaded: false,    // флаг загрузки pipeline/schema/users (нужны для обоих view)
+  metaLoaded: false,    // флаг загрузки pipelines/schema/users
   deals: [],            // массив всех сделок (заполняется только в kanban mode)
-  pipeline: null,
+  pipelines: {},        // map: { pipeline_id: { id, name, stages: {...}, ... } } — ВСЕ воронки
+  activePipelineId: null, // выбранный пользователем pipeline (persist в localStorage)
   customSchema: null,
   users: {},
   view: 'list',         // default 'list' (быстрый paginated); 'kanban' — opt-in, лениво грузит full
   search: '',
   stageFilter: '',
   responsibleFilter: '',
-  page: 0,              // используется только для kanban client-side пагинации
+  page: 0,
   pageSize: 50,
 };
+
+// Геттер для активной воронки — backward-compat с местами где было dealsState.pipeline
+Object.defineProperty(dealsState, 'pipeline', {
+  get() {
+    return dealsState.activePipelineId
+      ? dealsState.pipelines[dealsState.activePipelineId] || null
+      : null;
+  },
+});
+
+const ACTIVE_PIPELINE_LS_KEY = 'elc:activePipelineId';
 
 // Серверная пагинация — для list view. Каждый клик/фильтр дёргает свежий fetch.
 const dealsPagedState = {
@@ -2408,23 +2547,272 @@ async function renderDeals(el) {
 }
 
 // Лёгкие справочники — отдельно от тяжёлой full-deals выгрузки.
+// Грузим ВСЕ pipelines (а не один pipeline_3) — нужно для переключателя воронок.
 async function loadDealsMeta() {
   if (dealsState.metaLoaded) return;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
     const dbUrl = WORKER_RTDB_URL;
-    const [pipeline, schema, users] = await Promise.all([
-      fetch(`${dbUrl}/pipelines/pipeline_3.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
+    const [pipelinesObj, schema, users] = await Promise.all([
+      fetch(`${dbUrl}/pipelines.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
       fetch(`${dbUrl}/customFieldsSchema/deal.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
       fetch(`${dbUrl}/users.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
     ]);
-    dealsState.pipeline = pipeline || null;
+    dealsState.pipelines = pipelinesObj || {};
     dealsState.customSchema = schema || {};
     dealsState.users = users || {};
+
+    // Восстанавливаем активный pipeline: localStorage → fallback на первый active → fallback на любой
+    const saved = localStorage.getItem(ACTIVE_PIPELINE_LS_KEY);
+    const all = Object.values(dealsState.pipelines);
+    if (saved && dealsState.pipelines[saved]) {
+      dealsState.activePipelineId = saved;
+    } else {
+      const firstActive = all.find(p => p.isActive) || all[0];
+      dealsState.activePipelineId = firstActive ? firstActive.id : null;
+      if (dealsState.activePipelineId) {
+        localStorage.setItem(ACTIVE_PIPELINE_LS_KEY, dealsState.activePipelineId);
+      }
+    }
+
     dealsState.metaLoaded = true;
   } catch (e) {
     console.error('loadDealsMeta:', e);
   }
+}
+
+function setActivePipeline(pipelineId) {
+  if (!dealsState.pipelines[pipelineId]) return;
+  dealsState.activePipelineId = pipelineId;
+  localStorage.setItem(ACTIVE_PIPELINE_LS_KEY, pipelineId);
+  // Также сбрасываем stage-фильтр (стадии другие)
+  dealsState.stageFilter = '';
+  // Перерисовываем
+  const main = document.getElementById('main');
+  if (main && document.querySelector('[data-page="deals"].active')) {
+    renderDeals(main);
+  }
+}
+
+// ── Pipeline edit modal: создать / переименовать / удалить + stages ──────
+// pipelineId=null → создание новой воронки. Иначе — редактирование существующей.
+function openPipelineEditModal(pipelineId) {
+  document.getElementById('_pip-modal')?.remove();
+  const isNew = !pipelineId;
+  const existing = pipelineId ? dealsState.pipelines[pipelineId] : null;
+
+  // Работаем с локальной копией — применим только после "Сохранить"
+  let draft = existing
+    ? JSON.parse(JSON.stringify({
+        id: existing.id,
+        name: existing.name || '',
+        isActive: existing.isActive !== 0,
+        stages: existing.stages || {},
+      }))
+    : {
+        id: 'pipeline_' + Math.random().toString(36).slice(2, 8),
+        name: 'Новая воронка',
+        isActive: true,
+        stages: {
+          'NEW': { name: 'Новая', sort: 10, statusId: 'NEW', semantics: null },
+          'IN_PROGRESS': { name: 'В работе', sort: 20, statusId: 'IN_PROGRESS', semantics: null },
+          'WON': { name: 'Успешно', sort: 30, statusId: 'WON', semantics: 'S' },
+          'LOST': { name: 'Проиграно', sort: 40, statusId: 'LOST', semantics: 'F' },
+        },
+      };
+
+  function renderModal() {
+    const stagesSorted = Object.values(draft.stages).sort((a, b) => (a.sort || 0) - (b.sort || 0));
+    const html = `
+      <div class="pip-modal-overlay" id="_pip-modal" onclick="if(event.target===this)document.getElementById('_pip-modal').remove()">
+        <div class="pip-modal" onclick="event.stopPropagation()">
+          <div class="pip-modal-head">
+            <h2>${isNew ? 'Создание воронки' : 'Редактирование воронки'}</h2>
+            <button class="pip-btn pip-btn-ghost" id="pip-close">×</button>
+          </div>
+          <div class="pip-modal-body">
+            <div class="pip-section">
+              <div class="pip-label">Название воронки</div>
+              <input id="pip-name" class="pip-input" value="${escapeHtml(draft.name)}" placeholder="Например: Продажи онлайн-школы">
+            </div>
+            <div class="pip-section">
+              <div class="pip-label">Стадии (drag за ⋮⋮ чтобы изменить порядок)</div>
+              <div class="pip-stages-list" id="pip-stages">
+                ${stagesSorted.map((s, i) => `
+                  <div class="pip-stage-row" draggable="true" data-stage-id="${escapeHtml(s.statusId)}">
+                    <span class="pip-stage-grip">⋮⋮</span>
+                    <input class="pip-stage-name" data-field="name" value="${escapeHtml(s.name || '')}" placeholder="Название стадии">
+                    <input class="pip-stage-color" data-field="color" type="color" value="${escapeHtml(stageHexColor(s))}" title="Цвет стадии">
+                    <select class="pip-stage-semantics" data-field="semantics">
+                      <option value="" ${!s.semantics ? 'selected' : ''}>Обычная</option>
+                      <option value="S" ${s.semantics === 'S' ? 'selected' : ''}>Успех</option>
+                      <option value="F" ${s.semantics === 'F' ? 'selected' : ''}>Провал</option>
+                    </select>
+                    <button class="pip-stage-del" title="Удалить стадию">×</button>
+                  </div>
+                `).join('')}
+              </div>
+              <button class="pip-add-stage" id="pip-add-stage">+ Добавить стадию</button>
+            </div>
+          </div>
+          <div class="pip-modal-foot">
+            <div class="pip-foot-left">
+              ${!isNew ? `<button class="pip-btn pip-btn-danger" id="pip-delete">Удалить воронку</button>` : ''}
+            </div>
+            <div class="pip-foot-right">
+              <button class="pip-btn pip-btn-ghost" id="pip-cancel">Отмена</button>
+              <button class="pip-btn pip-btn-primary" id="pip-save">Сохранить</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap.firstElementChild);
+    attachHandlers();
+  }
+
+  function stageHexColor(s) {
+    if (s.color && /^#[0-9a-f]{6}$/i.test(s.color)) return s.color;
+    if (s.semantics === 'S') return '#3fd88e';
+    if (s.semantics === 'F') return '#f05975';
+    return '#a87fff';
+  }
+
+  function attachHandlers() {
+    document.getElementById('pip-close').onclick = () => document.getElementById('_pip-modal').remove();
+    document.getElementById('pip-cancel').onclick = () => document.getElementById('_pip-modal').remove();
+    document.getElementById('pip-save').onclick = save;
+    document.getElementById('pip-add-stage').onclick = addStage;
+    document.getElementById('pip-name').oninput = e => { draft.name = e.target.value; };
+    if (!isNew) document.getElementById('pip-delete').onclick = remove;
+
+    // Inputs внутри stage-row
+    document.querySelectorAll('#pip-stages .pip-stage-row').forEach(row => {
+      const sid = row.dataset.stageId;
+      row.querySelector('[data-field="name"]').oninput = e => {
+        if (draft.stages[sid]) draft.stages[sid].name = e.target.value;
+      };
+      row.querySelector('[data-field="color"]').oninput = e => {
+        if (draft.stages[sid]) draft.stages[sid].color = e.target.value;
+      };
+      row.querySelector('[data-field="semantics"]').onchange = e => {
+        if (draft.stages[sid]) draft.stages[sid].semantics = e.target.value || null;
+      };
+      row.querySelector('.pip-stage-del').onclick = () => {
+        if (Object.keys(draft.stages).length <= 1) {
+          alert('Нельзя удалить последнюю стадию');
+          return;
+        }
+        delete draft.stages[sid];
+        renderModal();
+      };
+    });
+
+    // Drag-and-drop reorder
+    let dragSid = null;
+    document.querySelectorAll('#pip-stages .pip-stage-row').forEach(row => {
+      row.ondragstart = (e) => { dragSid = row.dataset.stageId; row.classList.add('dragging'); };
+      row.ondragend = () => { row.classList.remove('dragging'); dragSid = null; document.querySelectorAll('.pip-stage-row').forEach(r => r.classList.remove('drop-above', 'drop-below')); };
+      row.ondragover = (e) => { e.preventDefault(); const rect = row.getBoundingClientRect(); const above = (e.clientY - rect.top) < rect.height / 2; row.classList.toggle('drop-above', above); row.classList.toggle('drop-below', !above); };
+      row.ondragleave = () => row.classList.remove('drop-above', 'drop-below');
+      row.ondrop = (e) => {
+        e.preventDefault();
+        const targetSid = row.dataset.stageId;
+        if (!dragSid || dragSid === targetSid) return;
+        const sorted = Object.values(draft.stages).sort((a, b) => (a.sort || 0) - (b.sort || 0));
+        const dragIdx = sorted.findIndex(s => s.statusId === dragSid);
+        const targetIdx = sorted.findIndex(s => s.statusId === targetSid);
+        if (dragIdx < 0 || targetIdx < 0) return;
+        const [moved] = sorted.splice(dragIdx, 1);
+        const insertAt = row.classList.contains('drop-above') ? targetIdx : targetIdx + 1;
+        sorted.splice(insertAt > dragIdx ? insertAt - 1 : insertAt, 0, moved);
+        sorted.forEach((s, i) => { draft.stages[s.statusId].sort = (i + 1) * 10; });
+        renderModal();
+      };
+    });
+  }
+
+  function addStage() {
+    const id = 'STAGE_' + Math.random().toString(36).slice(2, 7).toUpperCase();
+    const maxSort = Math.max(0, ...Object.values(draft.stages).map(s => s.sort || 0));
+    draft.stages[id] = { name: 'Новая стадия', sort: maxSort + 10, statusId: id, semantics: null };
+    renderModal();
+  }
+
+  async function save() {
+    const btn = document.getElementById('pip-save');
+    btn.disabled = true;
+    btn.textContent = '⏳ Сохраняем…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      // PUT — upsert (создание или замена). Body: name, stages, is_active.
+      // Worker конвертирует camelCase → snake_case.
+      const body = {
+        name: draft.name.trim() || 'Без названия',
+        isActive: draft.isActive ? 1 : 0,
+        stages: draft.stages,
+        stagesCount: Object.keys(draft.stages).length,
+      };
+      const r = await fetch(`${WORKER_RTDB_URL}/pipelines/${encodeURIComponent(draft.id)}.json?auth=${idToken}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(`HTTP ${r.status}: ${t}`);
+      }
+      // Обновляем локально
+      dealsState.pipelines[draft.id] = { ...body, id: draft.id };
+      if (isNew) {
+        dealsState.activePipelineId = draft.id;
+        localStorage.setItem(ACTIVE_PIPELINE_LS_KEY, draft.id);
+      }
+      document.getElementById('_pip-modal').remove();
+      const main = document.getElementById('main');
+      if (main && document.querySelector('[data-page="deals"].active')) renderDeals(main);
+    } catch (e) {
+      alert('Ошибка сохранения: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = 'Сохранить';
+    }
+  }
+
+  async function remove() {
+    if (!confirm(`Удалить воронку «${draft.name}»? Это необратимо.\nВнимание: удаление невозможно если в воронке есть сделки.`)) return;
+    const btn = document.getElementById('pip-delete');
+    btn.disabled = true;
+    btn.textContent = '⏳ Удаляем…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_RTDB_URL}/pipelines/${encodeURIComponent(draft.id)}.json?auth=${idToken}`, { method: 'DELETE' });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      delete dealsState.pipelines[draft.id];
+      // Переключиться на любую другую воронку
+      const next = Object.values(dealsState.pipelines)[0];
+      if (next) {
+        dealsState.activePipelineId = next.id;
+        localStorage.setItem(ACTIVE_PIPELINE_LS_KEY, next.id);
+      } else {
+        dealsState.activePipelineId = null;
+        localStorage.removeItem(ACTIVE_PIPELINE_LS_KEY);
+      }
+      document.getElementById('_pip-modal').remove();
+      const main = document.getElementById('main');
+      if (main && document.querySelector('[data-page="deals"].active')) renderDeals(main);
+    } catch (e) {
+      alert('Ошибка удаления: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = 'Удалить воронку';
+    }
+  }
+
+  renderModal();
 }
 
 async function loadDealsPage(page) {
@@ -2442,6 +2830,7 @@ async function loadDealsPage(page) {
     if (dealsState.search) params.set('q', dealsState.search);
     if (dealsState.stageFilter) params.set('stage', dealsState.stageFilter);
     if (dealsState.responsibleFilter) params.set('assignee', dealsState.responsibleFilter);
+    if (dealsState.activePipelineId) params.set('pipeline', dealsState.activePipelineId);
 
     const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -2462,11 +2851,12 @@ async function loadDealsPage(page) {
 async function loadDealsData() {
   const t0 = Date.now();
 
-  // Кэш
-  const cached = await cacheGet('deals:full:v1');
+  // Кэш v2 — содержит pipelines (map) вместо pipeline (single).
+  // Старый формат v1 игнорируем (кеш-ключ bumped).
+  const cached = await cacheGet('deals:full:v2');
   if (cached && cached.deals && cached.deals.length > 0) {
     dealsState.deals = cached.deals;
-    dealsState.pipeline = cached.pipeline;
+    dealsState.pipelines = cached.pipelines || {};
     dealsState.customSchema = cached.customSchema || {};
     dealsState.users = cached.users || {};
     dealsState.loaded = true;
@@ -2477,16 +2867,16 @@ async function loadDealsData() {
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
     const dbUrl = WORKER_RTDB_URL;
-    const [dealsRes, pipelineRes, schemaRes, usersRes] = await Promise.all([
+    const [dealsRes, pipelinesRes, schemaRes, usersRes] = await Promise.all([
       fetch(`${dbUrl}/deals.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/pipelines/pipeline_3.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
+      fetch(`${dbUrl}/pipelines.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
       fetch(`${dbUrl}/customFieldsSchema/deal.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
       fetch(`${dbUrl}/users.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
     ]);
 
     const dealsObj = dealsRes || {};
     dealsState.deals = Object.values(dealsObj);
-    dealsState.pipeline = pipelineRes || null;
+    dealsState.pipelines = pipelinesRes || {};
     dealsState.customSchema = schemaRes || {};
     dealsState.users = usersRes || {};
     dealsState.loaded = true;
@@ -2497,9 +2887,9 @@ async function loadDealsData() {
 
     console.log(`Loaded ${dealsState.deals.length} deals in ${Date.now() - t0}ms`);
 
-    cacheSet('deals:full:v1', {
+    cacheSet('deals:full:v2', {
       deals: dealsState.deals,
-      pipeline: dealsState.pipeline,
+      pipelines: dealsState.pipelines,
       customSchema: dealsState.customSchema,
       users: dealsState.users,
     });
@@ -2512,9 +2902,9 @@ async function refreshDealsBackground() {
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
     const dbUrl = WORKER_RTDB_URL;
-    const [dealsRes, pipelineRes, schemaRes, usersRes] = await Promise.all([
+    const [dealsRes, pipelinesRes, schemaRes, usersRes] = await Promise.all([
       fetch(`${dbUrl}/deals.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/pipelines/pipeline_3.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
+      fetch(`${dbUrl}/pipelines.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
       fetch(`${dbUrl}/customFieldsSchema/deal.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
       fetch(`${dbUrl}/users.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
     ]);
@@ -2522,12 +2912,12 @@ async function refreshDealsBackground() {
     if (newDeals.length !== dealsState.deals.length) {
       newDeals.sort((a, b) => (b.bitrixDateCreate || '').localeCompare(a.bitrixDateCreate || ''));
       dealsState.deals = newDeals;
-      dealsState.pipeline = pipelineRes || null;
+      dealsState.pipelines = pipelinesRes || {};
       dealsState.customSchema = schemaRes || {};
       dealsState.users = usersRes || {};
-      cacheSet('deals:full:v1', {
+      cacheSet('deals:full:v2', {
         deals: dealsState.deals,
-        pipeline: dealsState.pipeline,
+        pipelines: dealsState.pipelines,
         customSchema: dealsState.customSchema,
         users: dealsState.users,
       });
@@ -2615,9 +3005,9 @@ let _saveCacheDealsTimer = null;
 function saveCacheDealsThrottled() {
   if (_saveCacheDealsTimer) clearTimeout(_saveCacheDealsTimer);
   _saveCacheDealsTimer = setTimeout(() => {
-    cacheSet('deals:full:v1', {
+    cacheSet('deals:full:v2', {
       deals: dealsState.deals,
-      pipeline: dealsState.pipeline,
+      pipelines: dealsState.pipelines,
       customSchema: dealsState.customSchema,
       users: dealsState.users,
     });
@@ -2627,6 +3017,36 @@ function saveCacheDealsThrottled() {
 // ── Paginated list view (для view='list') ──────────────────────────────
 // Серверная пагинация через /api/list/deals. По умолчанию — этот путь.
 // Фильтры (q/stage/responsible) dispatchaются на сервер, страница ≈ 50 сделок.
+function renderPipelineTabs() {
+  const pipelines = Object.values(dealsState.pipelines || {});
+  if (!pipelines.length) {
+    return `<div class="pipeline-tabs">
+      <button class="pipe-tab pipe-tab-new" data-action="new-pipeline" title="Создать первую воронку">+ Создать воронку</button>
+    </div>`;
+  }
+  let html = `<div class="pipeline-tabs">`;
+  for (const p of pipelines) {
+    const isActive = p.id === dealsState.activePipelineId;
+    html += `<button class="pipe-tab ${isActive ? 'active' : ''}" data-pipeline-id="${escapeHtml(p.id)}" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</button>`;
+  }
+  html += `<button class="pipe-tab pipe-tab-new" data-action="new-pipeline" title="Создать новую воронку">+</button>`;
+  html += `<button class="pipe-tab pipe-tab-manage" data-action="manage-pipelines" title="Управление воронками и стадиями">⚙</button>`;
+  html += `</div>`;
+  return html;
+}
+
+function attachPipelineTabHandlers(el) {
+  el.querySelectorAll('.pipe-tab[data-pipeline-id]').forEach(b => {
+    b.addEventListener('click', () => setActivePipeline(b.dataset.pipelineId));
+  });
+  el.querySelectorAll('.pipe-tab[data-action="new-pipeline"]').forEach(b => {
+    b.addEventListener('click', () => openPipelineEditModal(null));
+  });
+  el.querySelectorAll('.pipe-tab[data-action="manage-pipelines"]').forEach(b => {
+    b.addEventListener('click', () => openPipelineEditModal(dealsState.activePipelineId));
+  });
+}
+
 function renderDealsLayoutPaged(el) {
   el.innerHTML = `
     <div class="page-head">
@@ -2636,6 +3056,8 @@ function renderDealsLayoutPaged(el) {
         <button class="vt-btn active" data-view="list">📋 Список</button>
       </div>
     </div>
+
+    ${renderPipelineTabs()}
 
     <div class="tb">
       <input class="tb-search" id="deal-search" placeholder="🔍 Поиск по названию (Enter)" value="${escapeHtml(dealsState.search)}">
@@ -2652,6 +3074,7 @@ function renderDealsLayoutPaged(el) {
     <div id="deals-content"></div>
     <div id="deals-pager" class="pager"></div>
   `;
+  attachPipelineTabHandlers(el);
 
   // Поиск: Enter → reset page 1 + fetch
   document.getElementById('deal-search').addEventListener('keydown', async e => {
@@ -2769,6 +3192,8 @@ function renderDealsLayout(el) {
       </div>
     </div>
 
+    ${renderPipelineTabs()}
+
     <div class="tb">
       <input class="tb-search" id="deal-search" placeholder="🔍 Поиск по названию..." value="${escapeHtml(dealsState.search)}">
       <select class="tb-select" id="stage-filter">
@@ -2783,6 +3208,7 @@ function renderDealsLayout(el) {
 
     <div id="deals-content"></div>
   `;
+  attachPipelineTabHandlers(el);
 
   document.getElementById('deal-search').addEventListener('input', e => {
     dealsState.search = e.target.value;
@@ -2825,6 +3251,10 @@ function updateDealsCount() {
 
 function getFilteredDeals() {
   let arr = dealsState.deals;
+  // Сначала отсекаем сделки только активного pipeline (kanban-вид показывает по одной воронке)
+  if (dealsState.activePipelineId) {
+    arr = arr.filter(d => d.pipelineId === dealsState.activePipelineId);
+  }
   if (dealsState.search) {
     const q = dealsState.search.toLowerCase();
     arr = arr.filter(d => (d.title || '').toLowerCase().includes(q));
@@ -3144,9 +3574,9 @@ async function moveDealToStage(bitrixId, newStageId) {
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     // Обновим кеш сделок
-    cacheSet('deals:full:v1', {
+    cacheSet('deals:full:v2', {
       deals: dealsState.deals,
-      pipeline: dealsState.pipeline,
+      pipelines: dealsState.pipelines,
       customSchema: dealsState.customSchema,
       users: dealsState.users,
     });
