@@ -172,8 +172,11 @@ function renderShell() {
   const allowed = currentPermissions();
 
   // Если у юзера доступен только field-экран — рендерим минимальный мобильный shell
-  // (без sidebar, без topbar).
-  const isFieldOnly = allowed.length === 1 && allowed[0] === "field";
+  // (без sidebar, без topbar). Проверяем строже: должно быть 'field' и НЕ должно
+  // быть ни одного «полноценного» CRM-права (даже если warehouse случайно
+  // auto-добавился старой миграцией).
+  const FULL_PERMS = ["crm", "contacts", "dashboard", "tasks", "feed", "chat", "settings", "calls"];
+  const isFieldOnly = allowed.includes("field") && !allowed.some((p) => FULL_PERMS.includes(p));
   if (isFieldOnly) {
     if (route !== "field") {
       location.hash = "#field";

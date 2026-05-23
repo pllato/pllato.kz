@@ -283,7 +283,7 @@ async function submitFieldOrder() {
   const stages = getStages();
   const firstStageId = stages[0]?.id;
   if (!pipelineId || !firstStageId) {
-    throw new Error("Не настроена воронка для приёма заказов.");
+    throw new Error("Не настроена воронка для приёма заказов. Попроси админа создать воронку.");
   }
 
   const me = currentEmployee();
@@ -302,7 +302,7 @@ async function submitFieldOrder() {
     ts: now,
     assigneeId: me?.id || null,
   });
-  if (!deal?.id) throw new Error("Не удалось создать сделку.");
+  if (!deal?.id) throw new Error("Не удалось создать сделку локально.");
 
   // Позиции
   for (const it of state.items) {
@@ -322,6 +322,22 @@ async function submitFieldOrder() {
     authorId: me?.id || null,
     ts: now,
   });
+
+  // КРИТИЧНО: дожимаем cloud-sync СРАЗУ, не ждём 1.5 сек scheduleFlush.
+  // Иначе если юзер закроет вкладку быстро — заказ останется только локально
+  // и в админский CRM на другом устройстве не попадёт.
+  if (typeof Store.cloudFlushNow === "function") {
+    try {
+      const result = await Store.cloudFlushNow();
+      if (result && result.ok === false) {
+        throw new Error("Сервер не принял заказ: " + (result.error || result.reason || "неизвестная ошибка"));
+      }
+    } catch (err) {
+      // Не блокируем — данные в локальной очереди, дойдут позже.
+      console.warn("[field-order] cloudFlushNow failed:", err);
+      throw new Error("Заказ сохранён локально, но не дошёл до сервера. Проверь интернет и попробуй заново.");
+    }
+  }
 
   return deal.id;
 }
