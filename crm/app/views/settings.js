@@ -287,7 +287,7 @@ export function renderSettings(container) {
         <div class="settings-body">
           ${channelsEditState.editing === 'new' ? renderChannelForm(null, channelsEditState.editType || 'binotel') : ''}
           <div class="channels-toolbar" style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
-            <select id="newChannelType" style="padding:8px 12px;background:var(--surface);border:1px solid var(--line);color:var(--text);border-radius:7px;font:inherit;">
+            <select id="newChannelType" style="padding:8px 12px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:7px;font:inherit;">
               <option value="binotel">📞 Binotel (телефония)</option>
               <option value="greenapi_wa">💬 WhatsApp (Green-API)</option>
             </select>
@@ -446,7 +446,7 @@ function initSettingsTabs(container) {
 // Каналы связи: state + UI для управления (CRUD).
 // =============================================================================
 const channelsEditState = { editing: null, editType: null, editData: null };
-const CH_INPUT_STYLE = "width:100%;padding:8px 12px;background:var(--surface);border:1px solid var(--line);color:var(--text);border-radius:7px;box-sizing:border-box;font:inherit;";
+const CH_INPUT_STYLE = "width:100%;padding:8px 12px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:7px;box-sizing:border-box;font:inherit;";
 
 function renderChannelsList() {
   const list = listChannels({ onlyActive: false });
@@ -506,7 +506,7 @@ function renderBinotelForm(id) {
   const config = data.config || {};
   const secrets = data.secrets || {};
   return `
-    <form data-channel-form data-channel-type="binotel" ${!isNew ? `data-channel-id="${escape(id)}"` : ''} style="background:var(--surface-2,rgba(127,127,127,0.06));padding:18px;border-radius:10px;margin-bottom:14px;border:1px solid var(--line);">
+    <form data-channel-form data-channel-type="binotel" ${!isNew ? `data-channel-id="${escape(id)}"` : ''} style="background:var(--surface-2,rgba(127,127,127,0.06));padding:18px;border-radius:10px;margin-bottom:14px;border:1px solid var(--border);">
       <div style="font-size:15px;font-weight:600;margin-bottom:4px;">${isNew ? 'Новый канал' : 'Редактировать'}: 📞 Binotel (телефония)</div>
       <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">API key и API secret берутся в личном кабинете Binotel → Настройки → API.</p>
 
@@ -550,7 +550,7 @@ function renderGreenApiForm(id) {
   const config = data.config || {};
   const secrets = data.secrets || {};
   return `
-    <form data-channel-form data-channel-type="greenapi_wa" ${!isNew ? `data-channel-id="${escape(id)}"` : ''} style="background:var(--surface-2,rgba(127,127,127,0.06));padding:18px;border-radius:10px;margin-bottom:14px;border:1px solid var(--line);">
+    <form data-channel-form data-channel-type="greenapi_wa" ${!isNew ? `data-channel-id="${escape(id)}"` : ''} style="background:var(--surface-2,rgba(127,127,127,0.06));padding:18px;border-radius:10px;margin-bottom:14px;border:1px solid var(--border);">
       <div style="font-size:15px;font-weight:600;margin-bottom:4px;">${isNew ? 'Новый канал' : 'Редактировать'}: 💬 WhatsApp (Green-API)</div>
       <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">ID Instance и API token берутся в личном кабинете Green-API → твой инстанс.</p>
 
