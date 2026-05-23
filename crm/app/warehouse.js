@@ -1114,13 +1114,23 @@ export async function importWarehouseBatch(payload = {}, onProgress) {
     lotsCreated: 0,
     documentsCreated: 0,
     movementsCreated: 0,
+    movementsSkipped: 0,
     conflicts: [],
   };
 
   const products = Array.isArray(payload.products) ? payload.products : [];
   const lots = Array.isArray(payload.lots) ? payload.lots : [];
   const documents = Array.isArray(payload.documents) ? payload.documents : [];
-  const movements = Array.isArray(payload.movements) ? payload.movements : [];
+  let movements = Array.isArray(payload.movements) ? payload.movements : [];
+
+  // Опция: пропустить детальную историю движений (нужно для больших файлов,
+  // чтобы не упереться в лимит localStorage ~10 МБ). Остатки всё равно сохраняются
+  // в lots.currentQty — для FIFO и операций это критичнее.
+  const skipMovements = Boolean(payload.skipMovements);
+  if (skipMovements && movements.length > 0) {
+    result.movementsSkipped = movements.length;
+    movements = [];
+  }
 
   const nextId = makeImportIdGenerator();
   const now = Date.now();
