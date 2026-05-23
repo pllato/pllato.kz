@@ -288,19 +288,22 @@ function resetForm({ keepLast = false } = {}) {
 
 async function submitFieldOrder() {
   ensurePipelinesInitialized();
-  // Ищем воронку для полевых заказов по названию (заявки/менеджер/полев/field),
-  // иначе берём активную воронку (CRM-канбан).
+  // Field-заказы идут в воронку «Текущие клиенты» → стадия «Получение запроса».
+  // Если воронка/стадия не найдены — fallback: активная воронка, первая стадия.
   const pipelines = getPipelines();
-  const fieldKeywords = ["заявк", "менедж", "полев", "field"];
-  const fieldPipeline = pipelines.find((p) => {
+  const targetPipeline = pipelines.find((p) => {
     const t = String(p.title || "").toLowerCase();
-    return fieldKeywords.some((k) => t.includes(k));
+    return t.includes("текущ"); // «Текущие клиенты»
+  }) || null;
+  const pipelineId = targetPipeline?.id || getActivePipelineId();
+  const stagesArr = targetPipeline ? getStagesForPipeline(targetPipeline.id) : getStages();
+  const targetStage = stagesArr.find((s) => {
+    const t = String(s.title || "").toLowerCase();
+    return t.includes("получ"); // «Получение запроса»
   });
-  const pipelineId = fieldPipeline?.id || getActivePipelineId();
-  const stagesArr = fieldPipeline ? getStagesForPipeline(fieldPipeline.id) : getStages();
-  const firstStageId = stagesArr[0]?.id;
-  if (!pipelineId || !firstStageId) {
-    throw new Error("Не настроена воронка для приёма заказов. Попроси админа создать воронку.");
+  const stageId = targetStage?.id || stagesArr[0]?.id;
+  if (!pipelineId || !stageId) {
+    throw new Error("Не настроена воронка для приёма заказов. Попроси админа создать воронку «Текущие клиенты» со стадией «Получение запроса».");
   }
 
   const me = currentEmployee();
@@ -311,7 +314,7 @@ async function submitFieldOrder() {
   const deal = Store.create(COLLECTION_DEALS, {
     title,
     pipelineId,
-    stage: firstStageId,
+    stage: stageId,
     amount: totalSum(),
     source: "Field",
     notes: state.comment || "",
