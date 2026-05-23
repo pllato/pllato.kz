@@ -27,7 +27,7 @@ import { renderTypeahead, attachTypeahead } from "../typeahead.js";
 import { captureUtmFromUrl, enrichWithStoredUtm, renderUtmFormSection, renderUtmBadge, readUtmFromFormData, listKnownSources, getSourcePreset, UTM_SOURCE_PRESETS } from "../utm.js";
 import { openUtmReport } from "../utm_report.js";
 import { renderContacts } from "./contacts.js";
-import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal } from "../deal_items.js";
+import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal, listDealItems } from "../deal_items.js";
 import { listChannels } from "../channels.js";
 import { renderCalls } from "./calls.js";
 import { apiFetch, formatApiError } from "../auth.js";
@@ -1689,10 +1689,12 @@ function renderDealContactBlock(contact, d, trashedContact = null) {
   `;
 }
 
-// Нижняя панель действий: «Позвонить» (Binotel) + «WhatsApp» (главное действие).
+// Нижняя панель действий карточки сделки: «Позвонить» + «WhatsApp» + «Заказ» (всё видно постоянно — sticky-footer).
 function renderDealActionBar(d, contact) {
   const hasPhone = Boolean(contact?.phone);
   const noPhoneTitle = "У контакта нет телефона";
+  const itemsCount = d?.id ? listDealItems(d.id).length : 0;
+  const orderLabel = itemsCount > 0 ? `Заказ (${itemsCount})` : "Создать заказ";
   return `
     <footer class="deal-action-bar">
       <button type="button" class="deal-action-btn" id="actionBarCall" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Позвонить" : noPhoneTitle}">
@@ -1702,6 +1704,10 @@ function renderDealActionBar(d, contact) {
       <button type="button" class="deal-action-btn deal-action-btn-primary" id="actionBarWA" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Открыть WhatsApp" : noPhoneTitle}">
         <span class="dab-emoji">💬</span>
         <span>${hasPhone ? "Открыть WhatsApp с клиентом" : noPhoneTitle}</span>
+      </button>
+      <button type="button" class="deal-action-btn deal-action-btn-order" data-deal-items-open title="${escapeAttr(orderLabel)}">
+        <span class="dab-emoji">📦</span>
+        <span>${escape(orderLabel)}</span>
       </button>
     </footer>
   `;

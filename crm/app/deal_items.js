@@ -569,12 +569,12 @@ export function closeDealItemsModal() {
 // === Handlers для summary в карточке сделки ===
 
 function attachSummaryHandlers(container, dealId) {
-  const summary = container.querySelector(`[data-deal-items-summary][data-deal-id="${dealId}"]`)
-                  || container.querySelector("[data-deal-items-summary]");
-  if (!summary) return;
-  summary.querySelector("[data-deal-items-open]")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    openDealItemsModal(dealId);
+  // Навешиваем на ВСЕ кнопки [data-deal-items-open] в карточке сделки (саммари + action-bar).
+  container.querySelectorAll("[data-deal-items-open]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      openDealItemsModal(dealId);
+    });
   });
 }
 

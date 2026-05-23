@@ -807,16 +807,12 @@ async function loadHistory() {
   state.historyError = "";
   rerender();
   try {
-    const lines = employeeBinotelLines();
-    const res = await CallsApi.binotelHistory({
-      limit: 100,
-      internal_numbers: lines.join(","),
-    });
-    const all = Array.isArray(res.calls) ? res.calls : [];
-    // Показываем все звонки, без фильтрации по линиям сотрудников. Раньше тут была
-    // жёсткая фильтрация, из-за которой история выглядела пустой, если Binotel-линия
-    // сотрудника не совпадала с internalNumber в webhook'ах (например, для исходящих).
-    state.historyList = all;
+    const res = await CallsApi.binotelHistory({ limit: 100 });
+    // Показываем ВСЁ что вернул worker — без фильтрации по Binotel-линиям сотрудников.
+    // У webhook'ов internalNumber часто не совпадает с настроенной линией сотрудника
+    // (например, исходящие звонки идут через trunkNumber/SIP другой линии),
+    // поэтому фильтр в большинстве случаев отсекал все звонки.
+    state.historyList = Array.isArray(res.calls) ? res.calls : [];
   } catch (e) {
     state.historyError = e?.message || String(e);
   } finally {
