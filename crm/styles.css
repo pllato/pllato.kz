@@ -7782,6 +7782,9 @@ body {
   margin-bottom: -1px;
   font-weight: 600;
 }
+.pipeline-tab[draggable="true"] { cursor: grab; }
+.pipeline-tab.is-dragging { opacity: 0.4; cursor: grabbing; }
+.pipeline-tab.drag-over { box-shadow: inset 3px 0 0 var(--accent); }
 .pipeline-tab-new {
   color: var(--text-dim);
   border-style: dashed;
@@ -9041,8 +9044,7 @@ body {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 14px;
-  width: 100%;
-  max-width: 980px;
+  width: min(94vw, 1400px);
   max-height: 90vh;
   display: flex; flex-direction: column;
   box-shadow: 0 24px 60px rgba(0, 0, 0, .35);

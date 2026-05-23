@@ -1455,7 +1455,7 @@ function renderDetail(contact) {
 
       <section class="contact-related-deals">
         <div class="contact-related-head">
-          <span>Покупки</span>
+          <span>Документы по заказам</span>
           <a class="btn-ghost btn-sm" href="#warehouse/documents">Склад</a>
         </div>
         ${
@@ -1463,7 +1463,7 @@ function renderDetail(contact) {
             ? `<div class="contact-deals-list">${purchases
                 .map((d) => `<a href="#warehouse/documents" class="contact-deal-pill"><span class="dot" style="background:var(--accent)"></span><span class="title">${escape(d.number || "Документ")}</span><span class="sum">${escape(d.date || "")}</span></a>`)
                 .join("")}</div>`
-            : `<div class="contact-deals-empty">Покупок по складу пока нет.</div>`
+            : `<div class="contact-deals-empty">Документов по заказам пока нет.</div>`
         }
       </section>
 

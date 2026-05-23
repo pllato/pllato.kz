@@ -165,6 +165,34 @@ export function hardDeletePipeline(id) {
   return true;
 }
 
+/**
+ * Переставить активные воронки в новый порядок.
+ * @param {string[]} orderedIds — id активных воронок в новом порядке
+ * @returns {boolean}
+ */
+export function reorderPipelines(orderedIds) {
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) return false;
+  const pipelines = read();
+  const byId = new Map(pipelines.map((p) => [p.id, p]));
+  const reordered = [];
+  // Сначала те, что указаны в новом порядке
+  orderedIds.forEach((id) => {
+    const p = byId.get(id);
+    if (p && !p.isDeleted) {
+      reordered.push(p);
+      byId.delete(id);
+    }
+  });
+  // Затем остальные активные (на случай если переставили часть)
+  pipelines.forEach((p) => {
+    if (!p.isDeleted && byId.has(p.id)) reordered.push(p);
+  });
+  // И удалённые в конец (порядок сохраняем)
+  pipelines.forEach((p) => { if (p.isDeleted) reordered.push(p); });
+  write(reordered);
+  return true;
+}
+
 export function getStagesForPipeline(pipelineId) {
   const pipeline = getPipelineById(pipelineId);
   return pipeline ? pipeline.stages : [];

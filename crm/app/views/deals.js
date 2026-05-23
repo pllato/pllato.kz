@@ -17,6 +17,7 @@ import {
   countActiveDealsInPipeline,
   canDeletePipeline,
   ensurePipelinesInitialized,
+  reorderPipelines,
   DEFAULT_NEW_CLIENT_STAGES,
   newStageIdForPipeline,
 } from "../pipelines.js";
@@ -1994,9 +1995,9 @@ function renderDealPipelineRow(deal, pipelines) {
 function renderPipelinesBar(pipelines, activeId) {
   return `
     <div class="pipelines-bar">
-      <div class="pipelines-tabs">
+      <div class="pipelines-tabs" data-pipelines-tabs>
         ${pipelines.map((p) => `
-          <button class="pipeline-tab ${p.id === activeId ? "active" : ""}" data-pipeline-id="${escape(p.id)}">
+          <button class="pipeline-tab ${p.id === activeId ? "active" : ""}" data-pipeline-id="${escape(p.id)}" draggable="true" title="Перетащи, чтобы поменять порядок">
             ${escape(p.title)}
           </button>
         `).join("")}
@@ -2573,12 +2574,42 @@ function wireEvents(container) {
 
   if (state.crmTab !== "deals") return;
 
-  // Pipeline tabs: switch active pipeline
+  // Pipeline tabs: switch active pipeline + drag-and-drop переупорядочивание
   container.querySelectorAll("[data-pipeline-id]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-pipeline-id");
       if (!id) return;
       setActivePipelineId(id);
+      renderDeals(container);
+    });
+    btn.addEventListener("dragstart", (e) => {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", btn.dataset.pipelineId || "");
+      btn.classList.add("is-dragging");
+    });
+    btn.addEventListener("dragend", () => btn.classList.remove("is-dragging"));
+    btn.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      btn.classList.add("drag-over");
+    });
+    btn.addEventListener("dragleave", () => btn.classList.remove("drag-over"));
+    btn.addEventListener("drop", (e) => {
+      e.preventDefault();
+      btn.classList.remove("drag-over");
+      const fromId = e.dataTransfer.getData("text/plain");
+      const toId = btn.dataset.pipelineId;
+      if (!fromId || !toId || fromId === toId) return;
+      const tabs = container.querySelector("[data-pipelines-tabs]");
+      if (!tabs) return;
+      // Текущий порядок вкладок (без служебных)
+      const ids = [...tabs.querySelectorAll("[data-pipeline-id]")].map((b) => b.dataset.pipelineId);
+      const fromIdx = ids.indexOf(fromId);
+      const toIdx = ids.indexOf(toId);
+      if (fromIdx < 0 || toIdx < 0) return;
+      ids.splice(fromIdx, 1);
+      ids.splice(toIdx, 0, fromId);
+      reorderPipelines(ids);
       renderDeals(container);
     });
   });
