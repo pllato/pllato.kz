@@ -305,6 +305,9 @@ async function handleRtdb(request, env) {
     if (method === "PATCH" || method === "PUT") {
       return await handleRtdbWrite(env, request, parts);
     }
+    if (method === "DELETE") {
+      return await handleRtdbDelete(env, request, parts);
+    }
     return json({ error: `method ${method} not supported` }, 405, request);
   } catch (e) {
     return json({ error: e.message, stack: e.stack }, 500, request);
@@ -578,6 +581,33 @@ async function respondTaskReadState(env, request, rest) {
 }
 
 // ── PATCH/PUT ──
+async function handleRtdbDelete(env, request, parts) {
+  const [head, ...rest] = parts;
+  const deletableTables = { pipelines: "id", deals: "id", tasks: "id", contacts: "id", companies: "id" };
+  if (!deletableTables[head] || rest.length !== 1) {
+    return json({ error: "delete not supported for this path", path: parts.join("/") }, 405, request);
+  }
+  const tableName = head;
+  const keyCol = deletableTables[head];
+  const id = rest[0];
+
+  // Safety для pipelines — нельзя удалять если есть сделки в этой воронке
+  if (tableName === "pipelines") {
+    const linked = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM deals WHERE pipeline_id = ?"
+    ).bind(id).first();
+    if (linked && linked.n > 0) {
+      return json({
+        error: `cannot delete pipeline ${id}: ${linked.n} deals still reference it`,
+        dealsCount: linked.n,
+      }, 409, request);
+    }
+  }
+
+  await env.DB.prepare(`DELETE FROM ${tableName} WHERE ${keyCol} = ?`).bind(id).run();
+  return json({ ok: true, deleted: true }, 200, request);
+}
+
 async function handleRtdbWrite(env, request, parts) {
   const [head, ...rest] = parts;
   let body;
@@ -587,28 +617,57 @@ async function handleRtdbWrite(env, request, parts) {
     return json({ error: "invalid json body" }, 400, request);
   }
 
-  // Точечные UPDATE'ы по ключу
-  const updatableTables = { deals: "id", tasks: "id", contacts: "id", companies: "id", users: "uid" };
+  // Точечные UPDATE'ы по ключу. PUT работает как upsert (Firebase RTDB-style):
+  // если записи нет — INSERT, иначе UPDATE по перечисленным полям.
+  const updatableTables = {
+    deals: "id", tasks: "id", contacts: "id", companies: "id",
+    users: "uid", pipelines: "id",
+  };
   if (updatableTables[head] && rest.length === 1) {
     const tableName = head;
     const keyCol = updatableTables[head];
     const id = rest[0];
     const jsonCols = JSON_COLS[tableName] || new Set();
-    const updates = [];
-    const values = [];
+
+    // Подготовим columns/values из body (с snake_case + JSON-stringify)
+    const cols = [];
+    const vals = [];
     for (const [k, v] of Object.entries(body)) {
       const snake = toSnake(k);
       let value = v;
       if (jsonCols.has(snake) && value !== null && typeof value !== "string") {
         value = JSON.stringify(value);
       }
-      updates.push(`${snake} = ?`);
-      values.push(value);
+      cols.push(snake);
+      vals.push(value);
     }
-    if (updates.length === 0) return json({ ok: true }, 200, request);
-    values.push(id);
-    const sql = `UPDATE ${tableName} SET ${updates.join(", ")} WHERE ${keyCol} = ?`;
-    await env.DB.prepare(sql).bind(...values).run();
+
+    // PUT — upsert. PATCH — только UPDATE существующих полей.
+    const isPut = request.method === "PUT";
+    if (isPut) {
+      // Проверяем существование
+      const existing = await env.DB.prepare(
+        `SELECT ${keyCol} FROM ${tableName} WHERE ${keyCol} = ?`
+      ).bind(id).first();
+      if (!existing) {
+        // INSERT — добавляем keyCol если его нет в body
+        const allCols = [...cols];
+        const allVals = [...vals];
+        if (!cols.includes(keyCol)) {
+          allCols.unshift(keyCol);
+          allVals.unshift(id);
+        }
+        const placeholders = allCols.map(() => "?").join(", ");
+        const sql = `INSERT INTO ${tableName} (${allCols.join(", ")}) VALUES (${placeholders})`;
+        await env.DB.prepare(sql).bind(...allVals).run();
+        return json({ ok: true, created: true }, 200, request);
+      }
+    }
+
+    if (cols.length === 0) return json({ ok: true }, 200, request);
+    const setSQL = cols.map(c => `${c} = ?`).join(", ");
+    const sql = `UPDATE ${tableName} SET ${setSQL} WHERE ${keyCol} = ?`;
+    await env.DB.prepare(sql).bind(...vals, id).run();
     return json({ ok: true }, 200, request);
   }
 
@@ -682,6 +741,7 @@ const LIST_CONFIG = {
     assigneeField: "responsible_uid",
     stageField: "stage_id",
     closedField: "closed",
+    pipelineField: "pipeline_id",
     sorts: {
       modified: "bitrix_date_modify DESC",
       created: "bitrix_date_create DESC",
@@ -707,6 +767,7 @@ async function handleList(request, env, entity) {
   const assignee = (url.searchParams.get("assignee") || "").trim();
   const stage = (url.searchParams.get("stage") || "").trim();
   const closed = (url.searchParams.get("closed") || "").trim();
+  const pipeline = (url.searchParams.get("pipeline") || "").trim();
 
   const whereParts = [];
   const whereParams = [];
@@ -752,6 +813,11 @@ async function handleList(request, env, entity) {
   if (stage && stage !== "all" && cfg.stageField) {
     whereParts.push(`${cfg.stageField} = ?`);
     whereParams.push(stage);
+  }
+
+  if (pipeline && pipeline !== "all" && cfg.pipelineField) {
+    whereParts.push(`${cfg.pipelineField} = ?`);
+    whereParams.push(pipeline);
   }
 
   if (closed !== "" && closed !== "all" && cfg.closedField) {
