@@ -779,41 +779,36 @@ export function renderDeals(container) {
   container.innerHTML = `
     <div class="deals-view">
       ${state.crmTab === "deals" ? renderPipelinesBar(pipelines, activePipelineId) : ""}
-      <div class="deals-toolbar pllato-toolbar">
-        <div class="crm-top-controls">
-          <div class="crm-view-switch pllato-tabs">
-            <button class="crm-view-btn ${state.crmTab === "deals" ? "active" : ""}" data-crm-tab="deals">${ICONS.deals}<span>CRM</span></button>
-            <button class="crm-view-btn ${state.crmTab === "calls" ? "active" : ""}" data-crm-tab="calls">${ICONS.phone}<span>Звонки</span></button>
-            <button type="button" class="crm-view-btn ${state.crmTab === "contacts" ? "active" : ""}" data-crm-tab="contacts" title="Контакты"><span>👥</span><span>Контакты</span></button>
-          </div>
-          ${state.crmTab === "deals" ? `<div class="crm-view-tools pllato-tools">${renderViewToggle()}${renderStagesFilter(stages)}${renderUtmFilter(Store.list(COLLECTION))}</div>` : ""}
-          <label class="crm-global-search pllato-search">
-            <span class="crm-search-icon">${ICONS.search}</span>
-            <input id="crmGlobalSearch" type="search" value="${escapeAttr(state.crmSearch)}" placeholder="Поиск по CRM: карточки, заметки, активности, переписка...">
-            ${state.crmSearch ? `<button type="button" class="crm-search-clear" id="clearCrmSearch" aria-label="Очистить поиск">${ICONS.x}</button>` : ""}
-          </label>
+      <div class="deals-toolbar pllato-toolbar deals-toolbar-compact">
+        <div class="crm-view-switch pllato-tabs">
+          <button class="crm-view-btn ${state.crmTab === "deals" ? "active" : ""}" data-crm-tab="deals" title="CRM ${state.crmTab === "deals" ? `· сделок: ${deals.length}` : ""}">${ICONS.deals}<span>CRM</span>${state.crmTab === "deals" ? `<span class="crm-view-badge">${deals.length}</span>` : ""}</button>
+          <button class="crm-view-btn ${state.crmTab === "calls" ? "active" : ""}" data-crm-tab="calls" title="Звонки">${ICONS.phone}<span>Звонки</span></button>
+          <button type="button" class="crm-view-btn ${state.crmTab === "contacts" ? "active" : ""}" data-crm-tab="contacts" title="Контакты"><span>👥</span><span>Контакты</span></button>
         </div>
-
+        ${state.crmTab === "deals" ? `<div class="crm-view-tools pllato-tools">${renderViewToggle()}${renderStagesFilter(stages)}${renderUtmFilter(Store.list(COLLECTION))}</div>` : ""}
+        <label class="crm-global-search pllato-search">
+          <span class="crm-search-icon">${ICONS.search}</span>
+          <input id="crmGlobalSearch" type="search" value="${escapeAttr(state.crmSearch)}" placeholder="Поиск по карточкам, заметкам, переписке…">
+          ${state.crmSearch ? `<button type="button" class="crm-search-clear" id="clearCrmSearch" aria-label="Очистить поиск">${ICONS.x}</button>` : ""}
+        </label>
         <div class="deals-toolbar-right">
-          ${state.crmTab === "deals" ? `<button class="btn-ghost" id="utmReportBtn" title="UTM-аналитика">📊<span>Отчёт</span></button>` : ""}
-          ${state.crmTab === "deals" ? `<button class="btn-ghost" id="manageStages" title="Настроить стадии">${ICONS.settings}<span>Стадии</span></button>` : ""}
+          ${state.crmTab === "deals" ? `<button class="btn-ghost icon-only" id="utmReportBtn" title="UTM-аналитика">📊</button>` : ""}
+          ${state.crmTab === "deals" ? `<button class="btn-ghost icon-only" id="manageStages" title="Настроить стадии">${ICONS.settings}</button>` : ""}
           ${state.crmTab === "deals" ? `<button class="btn-primary" id="newDeal">${ICONS.plus}<span>Сделка</span></button>` : ""}
         </div>
       </div>
 
       ${state.crmTab === "deals" ? `
-        <div class="crm-search-meta">
-          ${queryNorm
-            ? `Найдено: <strong>${filteredDeals.length}</strong> сделок`
-            : `Сделок: <strong>${deals.length}</strong>`}
-        </div>
+        ${queryNorm
+          ? `<div class="crm-search-meta">Найдено: <strong>${filteredDeals.length}</strong> из ${deals.length}</div>`
+          : ""}
 
         ${queryNorm && filteredDeals.length === 0
           ? `<div class="crm-search-empty">По запросу «${escape(query)}» ничего не найдено. Проверь формулировку или убери часть текста.</div>`
           : ""}
 
-        ${state.crmView === "list" 
-          ? renderDealsList(filteredDeals, stages, contactMap) 
+        ${state.crmView === "list"
+          ? renderDealsList(filteredDeals, stages, contactMap)
           : `<div class="kanban" id="kanbanWrap">
               ${getVisibleStages(stages).map(stage => renderColumn(stage, byStage[stage.id] || [], contactMap)).join("")}
             </div>`}

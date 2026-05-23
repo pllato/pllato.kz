@@ -1142,11 +1142,11 @@ body {
 /* ---------- Сделки (Kanban) ---------- */
 .deals-view {
   margin: -24px;
-  padding: 24px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   height: calc(100vh - 56px);
-  gap: 16px;
+  gap: 10px;
 }
 
 .deals-toolbar {
@@ -1156,6 +1156,35 @@ body {
   gap: 14px;
   flex-wrap: wrap;
 }
+
+/* Компактный одно-строчный toolbar для канбана: все элементы в один ряд */
+.deals-toolbar-compact {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.deals-toolbar-compact .crm-view-switch { flex-shrink: 0; }
+.deals-toolbar-compact .crm-view-tools { display: inline-flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.deals-toolbar-compact .crm-global-search { flex: 1; min-width: 240px; }
+.deals-toolbar-compact .deals-toolbar-right { display: inline-flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.deals-toolbar-compact #crmGlobalSearch { padding-top: 8px; padding-bottom: 8px; }
+.crm-view-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 6px;
+  margin-left: 6px;
+  background: var(--accent-tint);
+  color: var(--accent);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+.crm-view-btn.active .crm-view-badge { background: var(--accent); color: white; }
 
 .crm-top-controls {
   flex: 1;
@@ -1338,9 +1367,9 @@ body {
   padding-bottom: 8px;
 }
 .kanban-col {
-  flex: 1 0 240px;
-  min-width: 240px;
-  max-width: 320px;
+  flex: 1 0 300px;
+  min-width: 300px;
+  max-width: 380px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
