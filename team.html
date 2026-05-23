@@ -1880,12 +1880,26 @@ const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
     try {
       const cached = await idbGet(cacheKey);
       if (cached && (Date.now() - cached.fetchedAt) < CACHE_TTL_MS) {
-        const ageSec = Math.round((Date.now() - cached.fetchedAt) / 1000);
-        console.log('[idb-cache] hit', parsed.path, ageSec + 's', cached.body.length + 'B');
-        return new Response(cached.body, {
-          status: 200,
-          headers: { 'Content-Type': 'application/json; charset=utf-8', 'X-Elc-Cache': 'hit' },
-        });
+        // Cheap validity check: JSON-объект/массив должен начинаться и
+        // заканчиваться парными скобками. Truncated body завершается случайным
+        // байтом (буква/цифра) — отлавливаем за O(1).
+        const body = cached.body;
+        const isValid = body && body.length >= 2 && (
+          (body[0] === '{' && body[body.length - 1] === '}') ||
+          (body[0] === '[' && body[body.length - 1] === ']')
+        );
+        if (!isValid) {
+          console.warn('[idb-cache] corrupt entry purged', parsed.path, body ? body.length + 'B' : 'empty');
+          idbDelByPrefix(cacheKey).catch(() => {});
+          // fall through to network
+        } else {
+          const ageSec = Math.round((Date.now() - cached.fetchedAt) / 1000);
+          console.log('[idb-cache] hit', parsed.path, ageSec + 's', body.length + 'B');
+          return new Response(body, {
+            status: 200,
+            headers: { 'Content-Type': 'application/json; charset=utf-8', 'X-Elc-Cache': 'hit' },
+          });
+        }
       }
     } catch (e) {
       console.warn('[idb-cache] read fail (network fallback)', e);
