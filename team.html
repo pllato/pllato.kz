@@ -1842,9 +1842,13 @@ const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
     return head + '.json';
   }
 
+  // Бампать при изменении формата ответа или после исправления corruption-багов.
+  // Старые записи с другим префиксом останутся в IDB неиспользуемыми и истекут по TTL.
+  // v2: после фикса resp.clone() race в Phase 2.2 (corrupted bodies of contacts/tasks)
+  const CACHE_VERSION = 'v2';
+
   function buildCacheKey(path) {
-    // Без query (auth/_v) — стабильный ключ для одной коллекции
-    return '/api/rtdb/' + path;
+    return `/${CACHE_VERSION}/api/rtdb/` + path;
   }
 
   const _origFetch = window.fetch.bind(window);
@@ -2232,10 +2236,11 @@ async function loadDashboardStats() {
 }
 
 async function fetchShallowKeys(path) {
-  // Firebase REST API с shallow=true — возвращает только верхний уровень ключей
+  // Worker /api/rtdb/{path}.json?shallow=true — возвращает {key: true} для всех
+  // верхних ключей коллекции. Используем для дашборд-счётчиков.
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const url = `https://pllato-crm-default-rtdb.firebaseio.com/${path}.json?shallow=true&auth=${idToken}`;
+    const url = `${WORKER_RTDB_URL}/${path}.json?shallow=true&auth=${idToken}`;
     const r = await fetch(url);
     if (!r.ok) return 0;
     const data = await r.json();

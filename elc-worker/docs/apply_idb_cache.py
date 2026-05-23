@@ -141,9 +141,13 @@ IDB_MODULE = """
     return head + '.json';
   }
 
+  // Бампать при изменении формата ответа или после исправления corruption-багов.
+  // Старые записи с другим префиксом останутся в IDB неиспользуемыми и истекут по TTL.
+  // v2: после фикса resp.clone() race в Phase 2.2 (corrupted bodies of contacts/tasks)
+  const CACHE_VERSION = 'v2';
+
   function buildCacheKey(path) {
-    // Без query (auth/_v) — стабильный ключ для одной коллекции
-    return '/api/rtdb/' + path;
+    return `/${CACHE_VERSION}/api/rtdb/` + path;
   }
 
   const _origFetch = window.fetch.bind(window);
