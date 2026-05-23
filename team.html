@@ -1845,7 +1845,10 @@ const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
   // Бампать при изменении формата ответа или после исправления corruption-багов.
   // Старые записи с другим префиксом останутся в IDB неиспользуемыми и истекут по TTL.
   // v2: после фикса resp.clone() race в Phase 2.2 (corrupted bodies of contacts/tasks)
-  const CACHE_VERSION = 'v2';
+  // v3: после sparse-fix для users/companies/pipelines (PR #42) — старые v2 записи
+  //     users.json (~3KB) содержали выкинутые null поля → renderDeals падал на
+  //     `localeCompare(undefined)`. Bump форсирует fresh fetch.
+  const CACHE_VERSION = 'v3';
 
   function buildCacheKey(path) {
     return `/${CACHE_VERSION}/api/rtdb/` + path;
