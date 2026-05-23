@@ -171,6 +171,10 @@ function streamingJsonResponse(request, generator) {
     status: 200,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
+      // Браузер кеширует коллекции на 60s (per-user) — спасает от дублирующих
+      // fetch'ей при быстром переключении вкладок/разделов CRM. IndexedDB-кеш
+      // на стороне фронта живёт дольше (24h); это второй слой защиты.
+      "Cache-Control": "private, max-age=60",
       ...corsHeaders(request),
     },
   });
