@@ -1686,14 +1686,19 @@ function renderDealContactBlock(contact, d, trashedContact = null) {
   `;
 }
 
-// Нижняя панель действий: одно главное действие WhatsApp.
+// Нижняя панель действий: «Позвонить» (Binotel) + «WhatsApp» (главное действие).
 function renderDealActionBar(d, contact) {
   const hasPhone = Boolean(contact?.phone);
+  const noPhoneTitle = "У контакта нет телефона";
   return `
     <footer class="deal-action-bar">
-      <button type="button" class="deal-action-btn deal-action-btn-primary deal-action-btn-single" id="actionBarWA" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Открыть WhatsApp" : "У контакта нет телефона"}">
+      <button type="button" class="deal-action-btn" id="actionBarCall" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Позвонить" : noPhoneTitle}">
+        <span class="dab-emoji">📞</span>
+        <span>${hasPhone ? "Позвонить" : "Нет телефона"}</span>
+      </button>
+      <button type="button" class="deal-action-btn deal-action-btn-primary" id="actionBarWA" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Открыть WhatsApp" : noPhoneTitle}">
         <span class="dab-emoji">💬</span>
-        <span>${hasPhone ? "Открыть WhatsApp с клиентом" : "У контакта нет телефона"}</span>
+        <span>${hasPhone ? "Открыть WhatsApp с клиентом" : noPhoneTitle}</span>
       </button>
     </footer>
   `;
