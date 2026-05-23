@@ -1772,6 +1772,13 @@ export function renderContacts(container, opts = {}) {
   `;
 
   wireEvents(container);
+  // После рендера WA-окна — прокрутить чат к последнему сообщению.
+  if (state.waFloat.open) {
+    const waMsgs = container.querySelector("#waFloatMessages");
+    if (waMsgs) {
+      requestAnimationFrame(() => { waMsgs.scrollTop = waMsgs.scrollHeight; });
+    }
+  }
   saveState();
   ensureContactChatLoop(container);
   if (!opts.skipChatSyncKick && state.waFloat.open) {

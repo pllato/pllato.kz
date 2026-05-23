@@ -516,9 +516,12 @@ const MISSED_CALL_THRESHOLD_MS = 24 * 60 * 60 * 1000;  // 24 часа
 /**
  * Сводка активности по сделке для канбан-карточки и сортировки.
  * @param {string} dealId
+ * @param {{ lastIncomingWaTs?: number, lastOutgoingWaTs?: number }} [extra]
+ *   Дополнительные источники активности (WA-сообщения через webhook не пишутся
+ *   в deal_activities — пробрасываем их сюда из индекса в renderDeals).
  * @returns {{ lastTs: number, hasNewActivity: boolean, hasMissedCall: boolean }}
  */
-function dealActivitySnapshot(dealId) {
+function dealActivitySnapshot(dealId, extra = {}) {
   let lastTs = 0;
   let lastCommTs = 0;
   let lastMissedTs = 0;
@@ -534,12 +537,75 @@ function dealActivitySnapshot(dealId) {
       }
     }
   }
+  // WA-сообщения (приходят через webhook, не пишутся в deal_activities)
+  const incomingTs = Number(extra.lastIncomingWaTs) || 0;
+  const outgoingTs = Number(extra.lastOutgoingWaTs) || 0;
+  if (incomingTs > lastTs) lastTs = incomingTs;
+  if (outgoingTs > lastTs) lastTs = outgoingTs;
+  if (incomingTs > lastCommTs) lastCommTs = incomingTs;
+  if (outgoingTs > lastCommTs) lastCommTs = outgoingTs;
+
   const now = Date.now();
   return {
     lastTs,
     hasNewActivity: lastCommTs > 0 && (now - lastCommTs) < NEW_ACTIVITY_THRESHOLD_MS,
     hasMissedCall: lastMissedTs > 0 && (now - lastMissedTs) < MISSED_CALL_THRESHOLD_MS,
   };
+}
+
+/**
+ * Индекс: dealId → последние ts входящих/исходящих WA-сообщений (через chats/chat_messages).
+ * Строится один раз в renderDeals и передаётся в dealActivitySnapshot, чтобы не
+ * сканировать сообщения для каждой карточки.
+ */
+function buildDealWaMessageIndex() {
+  // 1) Соберём ts последних сообщений по chatId (входящих и исходящих).
+  const incomingByChat = new Map();
+  const outgoingByChat = new Map();
+  for (const m of Store.list("chat_messages")) {
+    if (!m.chatId) continue;
+    const ts = Number(m.ts) || Number(m.createdAt) || 0;
+    if (ts <= 0) continue;
+    if (m.from === "them") {
+      if (ts > (incomingByChat.get(m.chatId) || 0)) incomingByChat.set(m.chatId, ts);
+    } else if (m.from === "me") {
+      if (ts > (outgoingByChat.get(m.chatId) || 0)) outgoingByChat.set(m.chatId, ts);
+    }
+  }
+  // 2) chatId → phone (через chats коллекцию).
+  const phoneByChat = new Map();
+  for (const c of Store.list("chats")) {
+    if (!c?.wa || c.isGroup) continue;
+    const phone = String(c.phone || "").replace(/[^\d]/g, "");
+    const norm = /^8\d{10}$/.test(phone) ? "7" + phone.slice(1) : phone;
+    if (norm) phoneByChat.set(c.id, norm);
+  }
+  // 3) phone → max ts (из всех chats с этим номером)
+  const incomingByPhone = new Map();
+  const outgoingByPhone = new Map();
+  for (const [chatId, phone] of phoneByChat.entries()) {
+    const inTs = incomingByChat.get(chatId) || 0;
+    const outTs = outgoingByChat.get(chatId) || 0;
+    if (inTs > (incomingByPhone.get(phone) || 0)) incomingByPhone.set(phone, inTs);
+    if (outTs > (outgoingByPhone.get(phone) || 0)) outgoingByPhone.set(phone, outTs);
+  }
+  // 4) dealId → { lastIncomingWaTs, lastOutgoingWaTs } (через contactId → phone)
+  const result = new Map();
+  const contactsById = new Map(Store.list(CONTACTS).map((c) => [c.id, c]));
+  for (const d of Store.list(COLLECTION)) {
+    if (!d.contactId) continue;
+    const contact = contactsById.get(d.contactId);
+    if (!contact?.phone) continue;
+    const rawPhone = String(contact.phone).replace(/[^\d]/g, "");
+    const phone = /^8\d{10}$/.test(rawPhone) ? "7" + rawPhone.slice(1) : rawPhone;
+    if (!phone) continue;
+    const lastIncomingWaTs = incomingByPhone.get(phone) || 0;
+    const lastOutgoingWaTs = outgoingByPhone.get(phone) || 0;
+    if (lastIncomingWaTs || lastOutgoingWaTs) {
+      result.set(d.id, { lastIncomingWaTs, lastOutgoingWaTs });
+    }
+  }
+  return result;
 }
 function addActivity(dealId, type, data = {}) {
   const me = currentEmployee();
@@ -636,10 +702,13 @@ export function renderDeals(container) {
     : deals;
 
   const byStage = Object.fromEntries(stages.map(s => [s.id, []]));
+  // Индекс WA-сообщений по сделке: входящие через webhook не пишутся
+  // в deal_activities, нужно учитывать их отдельно для маркеров и сортировки.
+  const waMsgIndex = buildDealWaMessageIndex();
   // Считаем snapshot активности один раз и кладём в .__snap, чтобы renderCard переиспользовал.
   filteredDeals.filter(isDealVisibleByUtmFilter).forEach((d) => {
     if (!byStage[d.stage]) return;
-    d.__snap = dealActivitySnapshot(d.id);
+    d.__snap = dealActivitySnapshot(d.id, waMsgIndex.get(d.id) || {});
     byStage[d.stage].push(d);
   });
   // Сортируем сделки в каждой колонке: свежая активность сверху.
@@ -713,6 +782,16 @@ export function renderDeals(container) {
   `;
 
   wireEvents(container);
+
+  // После любого рендера WA-окна — прокрутить ленту сообщений к самому низу
+  // (последние сообщения), чтобы не приходилось скроллить вручную.
+  if (state.waFloat.open) {
+    const waMsgs = container.querySelector("#waFloatMessages");
+    if (waMsgs) {
+      // requestAnimationFrame — чтобы scrollHeight уже посчитался после рендера
+      requestAnimationFrame(() => { waMsgs.scrollTop = waMsgs.scrollHeight; });
+    }
+  }
 
   if (state.crmTab === "calls") {
     const callsMount = container.querySelector("#crmCallsMount");
