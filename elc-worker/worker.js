@@ -712,10 +712,24 @@ async function handleList(request, env, entity) {
   const whereParams = [];
 
   if (q) {
-    const like = "%" + q.toLowerCase() + "%";
-    const clauses = cfg.searchFields.map(f => `LOWER(${f}) LIKE ?`);
+    // SQLite LOWER() работает только с ASCII — для кириллицы возвращает
+    // строку без изменений. Поэтому делаем case-insensitive вручную:
+    // три варианта LIKE — как ввёл + всё малыми + Capitalize первой буквы.
+    // Покрывает 95% случаев ("Кодекс", "кодекс", "КОДЕКС" → найдут "Кодекс").
+    // Для tasks (1 search field) → 3 LIKE; для contacts (5 fields) → 15.
+    const variants = new Set();
+    variants.add("%" + q + "%");
+    variants.add("%" + q.toLowerCase() + "%");
+    if (q.length > 0) {
+      const capitalized = q[0].toUpperCase() + q.slice(1).toLowerCase();
+      variants.add("%" + capitalized + "%");
+    }
+    const variantList = [...variants];
+    const clauses = cfg.searchFields.flatMap(f => variantList.map(_ => `${f} LIKE ?`));
     whereParts.push("(" + clauses.join(" OR ") + ")");
-    for (let i = 0; i < cfg.searchFields.length; i++) whereParams.push(like);
+    for (let i = 0; i < cfg.searchFields.length; i++) {
+      for (const v of variantList) whereParams.push(v);
+    }
   }
 
   if (status && status !== "all" && cfg.statusField) {
