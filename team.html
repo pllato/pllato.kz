@@ -1845,13 +1845,22 @@ const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
   // Бампать при изменении формата ответа или после исправления corruption-багов.
   // Старые записи с другим префиксом останутся в IDB неиспользуемыми и истекут по TTL.
   // v2: после фикса resp.clone() race в Phase 2.2 (corrupted bodies of contacts/tasks)
-  // v3: после sparse-fix для users/companies/pipelines (PR #42) — старые v2 записи
-  //     users.json (~3KB) содержали выкинутые null поля → renderDeals падал на
-  //     `localeCompare(undefined)`. Bump форсирует fresh fetch.
-  const CACHE_VERSION = 'v3';
+  // v3: после sparse-fix для users/companies/pipelines (PR #42)
+  // v4: после фикса cache-key — buildCacheKey не учитывал ?shallow=true и
+  //     `fetchShallowKeys('users')` затирал нормальный users.json shallow-форматом
+  //     {uid: true}. renderDeals → localeCompare(undefined) → TypeError.
+  const CACHE_VERSION = 'v4';
 
-  function buildCacheKey(path) {
-    return `/${CACHE_VERSION}/api/rtdb/` + path;
+  // ВАЖНО: query-параметры (shallow/orderBy/limitToLast) дают разные ответы
+  // и должны храниться в кеше под разными ключами. auth/_v выкидываем —
+  // они только меняют токен или cache-bust, не содержание.
+  function buildCacheKey(path, search) {
+    if (!search || search === '?') return `/${CACHE_VERSION}/api/rtdb/` + path;
+    const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+    params.delete('auth');
+    params.delete('_v');
+    const q = params.toString();
+    return `/${CACHE_VERSION}/api/rtdb/` + path + (q ? '?' + q : '');
   }
 
   const _origFetch = window.fetch.bind(window);
@@ -1877,7 +1886,7 @@ const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
       return _origFetch(input, init);
     }
 
-    const cacheKey = buildCacheKey(parsed.path);
+    const cacheKey = buildCacheKey(parsed.path, parsed.search);
 
     // Попытка отдать из кеша
     try {
