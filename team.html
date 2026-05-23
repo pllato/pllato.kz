@@ -1705,6 +1705,7 @@ const firebaseConfig = {
   appId: "1:690738857241:web:2356e97c435656890ab188"
 };
 const WORKER_URL = 'https://pllato-crm-worker.uurraa.workers.dev';
+const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -1811,12 +1812,14 @@ async function initApp(user) {
     lastLogin: new Date().toISOString(),
     provider: user.providerData[0]?.providerId || 'unknown',
   };
-  try {
-    await update(ref(db, `users/${user.uid}`), profile);
-    console.log('[initApp] profile saved');
-  } catch (e) {
-    console.warn('[initApp] profile update failed (non-fatal, continuing):', e);
-  }
+  // Phase 2.1: SDK update отключён — пишем профиль в Phase 3 (worker write API).
+  // try {
+  //   await update(ref(db, `users/${user.uid}`), profile);
+  //   console.log('[initApp] profile saved');
+  // } catch (e) {
+  //   console.warn('[initApp] profile update failed (non-fatal, continuing):', e);
+  // }
+  console.log('[initApp] profile save skipped (Phase 2.1 read-only)');
 
   // UI
   try {
@@ -1975,7 +1978,7 @@ async function loadDashboardDataStatus() {
   if (!el) return;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const [openlines, groupChats, files] = await Promise.all([
       fetch(`${dbUrl}/migrationState/openlines.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(`${dbUrl}/migrationState/groupChats.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null),
@@ -2107,7 +2110,7 @@ async function loadDealsData() {
 
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const [dealsRes, pipelineRes, schemaRes, usersRes] = await Promise.all([
       fetch(`${dbUrl}/deals.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
       fetch(`${dbUrl}/pipelines/pipeline_3.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
@@ -2142,7 +2145,7 @@ async function loadDealsData() {
 async function refreshDealsBackground() {
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const [dealsRes, pipelineRes, schemaRes, usersRes] = await Promise.all([
       fetch(`${dbUrl}/deals.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
       fetch(`${dbUrl}/pipelines/pipeline_3.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
@@ -2611,7 +2614,7 @@ async function moveDealToStage(bitrixId, newStageId) {
 
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const dealKey = `deal_${bitrixId}`;
     const r = await fetch(`${dbUrl}/deals/${dealKey}.json?auth=${idToken}`, {
       method: 'PATCH',
@@ -2751,7 +2754,7 @@ async function openDealCard(bitrixId) {
   const bitrixUrl = `https://elcalmaty.bitrix24.kz/crm/deal/details/${deal.bitrixId}/`;
 
   const idToken = await fbAuth.currentUser.getIdToken();
-  const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+  const dbUrl = WORKER_RTDB_URL;
   const fetches = [];
   if (deal.contactId) {
     fetches.push(fetch(`${dbUrl}/contacts/${deal.contactId}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null));
@@ -3209,7 +3212,7 @@ async function loadAndRenderChatThread(sessionId, threadEl) {
   threadEl.innerHTML = '<div style="padding:12px;color:var(--t3);font-size:11px">⏳ Загружаем переписку...</div>';
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const r = await fetch(`${dbUrl}/openlinesSessions/${encodeURIComponent(sessionId)}.json?auth=${idToken}`);
     if (!r.ok) {
       threadEl.innerHTML = `<div style="padding:12px;color:var(--rd);font-size:11px">✗ Не удалось загрузить переписку</div>`;
@@ -3527,7 +3530,7 @@ async function ensureUsersLoaded() {
       return;
     }
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const r = await fetch(`${dbUrl}/users.json?auth=${idToken}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
@@ -3547,7 +3550,7 @@ async function ensureUsersLoaded() {
 async function refreshUsersBackground() {
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const r = await fetch(`${dbUrl}/users.json?auth=${idToken}`);
     if (!r.ok) return;
     const data = await r.json();
@@ -3583,7 +3586,7 @@ async function ensureRefListsLoaded() {
       return;
     }
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const r = await fetch(`${dbUrl}/referenceLists.json?auth=${idToken}`);
     if (!r.ok) return;
     const data = await r.json() || {};
@@ -3712,7 +3715,7 @@ async function loadContacts() {
   try {
     updateContactsLoadingMsg('⏳ Загружаем 143к контактов из базы (это займёт 10-20 секунд при первом открытии — потом будет мгновенно)...');
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const r = await fetch(`${dbUrl}/contacts.json?auth=${idToken}`);
     if (!r.ok) {
       contactsState.loading = false;
@@ -3771,7 +3774,7 @@ async function refreshContactsBackground() {
   // Тихо обновляем в фоне — без блокировки UI
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const r = await fetch(`${dbUrl}/contacts.json?auth=${idToken}`);
     if (!r.ok) return;
     const data = await r.json();
@@ -3900,7 +3903,7 @@ window.openContactCard = async function(key) {
   // Загружаем полную карточку контакта + связанные сделки
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const contact = await fetch(`${dbUrl}/contacts/${encodeURIComponent(key)}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null);
     if (!contact) {
       alert('Контакт не найден');
@@ -4017,7 +4020,7 @@ async function ensureTaskReadState() {
     const uid = fbAuth.currentUser?.uid;
     if (!uid) return;
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const r = await fetch(`${dbUrl}/taskReadState/${uid}.json?auth=${idToken}`);
     if (r.ok) {
       taskReadState.data = await r.json() || {};
@@ -4039,7 +4042,7 @@ async function markTaskRead(taskKey) {
   // Запись в Firebase асинхронно — не блокируем UI
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     await fetch(`${dbUrl}/taskReadState/${uid}/${encodeURIComponent(taskKey)}.json?auth=${idToken}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -4063,7 +4066,7 @@ async function markAllTasksRead() {
   }
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     await fetch(`${dbUrl}/taskReadState/${uid}.json?auth=${idToken}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -4214,7 +4217,7 @@ async function loadTasks() {
 
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const r = await fetch(`${dbUrl}/tasks.json?auth=${idToken}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
@@ -4358,7 +4361,7 @@ function parseTasksToList(data) {
 async function refreshTasksBackground() {
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const r = await fetch(`${dbUrl}/tasks.json?auth=${idToken}`);
     if (!r.ok) return;
     const data = await r.json();
@@ -5237,7 +5240,7 @@ async function moveTaskToStatus(taskKey, newStatus) {
 
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const r = await fetch(`${dbUrl}/tasks/${encodeURIComponent(taskKey)}.json?auth=${idToken}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -5259,7 +5262,7 @@ async function moveTaskToStatus(taskKey, newStatus) {
 async function openTaskCard(key) {
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const t = await fetch(`${dbUrl}/tasks/${encodeURIComponent(key)}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null);
     if (!t) {
       alert('Задача не найдена');
@@ -5481,7 +5484,7 @@ async function resolveDiskFileRefs(rootEl) {
   if (!refs.length) return;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const idsSet = new Set();
     refs.forEach(el => { if (el.dataset.fid) idsSet.add(el.dataset.fid); });
     const ids = Array.from(idsSet);
@@ -5580,7 +5583,7 @@ async function loadFilesIntoContainer(containerId, fileIds, taskKey) {
   if (!container) return;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const metas = await Promise.all(fileIds.map(id =>
       fetch(`${dbUrl}/filesQueue/${encodeURIComponent(id)}.json?auth=${idToken}`)
         .then(r => r.ok ? r.json() : null)
@@ -5881,7 +5884,7 @@ async function loadAndRenderGroupChats() {
   if (!listEl) return;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const r = await fetch(`${dbUrl}/groupChats.json?auth=${idToken}`);
     const data = await r.json();
     chatsState.groupChats = data || {};
@@ -5930,7 +5933,7 @@ async function openGroupChat(chatId) {
   threadEl.innerHTML = '<div style="padding:30px;color:var(--t3);font-size:12px;text-align:center;margin:auto">⏳ Загружаем сообщения...</div>';
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const r = await fetch(`${dbUrl}/groupChats/${encodeURIComponent(chatId)}.json?auth=${idToken}`);
     const chat = await r.json();
     if (!chat) {
@@ -5981,7 +5984,7 @@ async function loadAndRenderOpenlinesList() {
   if (!listEl) return;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     // 780 сессий — берём только мета (shallow + потом limited fetch)
     // Чтобы не качать всё, грузим только ключи + последнее сообщение через orderBy
     const r = await fetch(`${dbUrl}/openlinesSessions.json?orderBy=%22lastMessageAt%22&limitToLast=200&auth=${idToken}`);
@@ -6029,7 +6032,7 @@ async function openOpenlinesSession(sessionId) {
   threadEl.innerHTML = '<div style="padding:30px;color:var(--t3);font-size:12px;text-align:center;margin:auto">⏳ Загружаем переписку...</div>';
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = firebaseConfig.databaseURL.replace(/\/$/, '');
+    const dbUrl = WORKER_RTDB_URL;
     const r = await fetch(`${dbUrl}/openlinesSessions/${encodeURIComponent(sessionId)}.json?auth=${idToken}`);
     const session = await r.json();
     if (!session) {
@@ -6070,7 +6073,7 @@ async function openOpenlinesSession(sessionId) {
   }
 }
 
-function renderUsers(el) {
+async function renderUsers(el) {
   el.innerHTML = `
     <div class="page-title">🧑‍💼 Сотрудники</div>
     <div class="page-sub">Пользователи портала. После миграции здесь будут все 88 сотрудников.</div>
@@ -6080,9 +6083,12 @@ function renderUsers(el) {
     </div>
   `;
 
-  const usersRef = ref(db, 'users');
-  onValue(usersRef, snap => {
-    const users = snap.val() || {};
+  // Phase 2.1: SDK onValue → fetch через Worker (read-only архивный CRM).
+  const idToken = await fbAuth.currentUser.getIdToken();
+  const users = await fetch(`${WORKER_RTDB_URL}/users.json?auth=${idToken}`)
+    .then(r => r.ok ? r.json() : {})
+    .catch(() => ({}));
+  {
     const arr = Object.entries(users).map(([uid, u]) => ({ uid, ...u }));
     if (!arr.length) {
       document.getElementById('users-list').innerHTML = '<div class="empty">Пусто. Запустите миграцию пользователей из Битрикса.</div>';
@@ -6100,7 +6106,7 @@ function renderUsers(el) {
     }
     html += '</tbody></table>';
     document.getElementById('users-list').innerHTML = html;
-  });
+  }
 }
 
 function renderMigration(el) {
@@ -6465,7 +6471,7 @@ window.migrateContacts = async function() {
   let resumeOffset = 0; // сколько уже было обработано до этой сессии
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const stateR = await fetch(`${firebaseConfig.databaseURL.replace(/\/$/,'')}/migrationState/contacts.json?auth=${idToken}`);
+    const stateR = await fetch(`${WORKER_RTDB_URL}/migrationState/contacts.json?auth=${idToken}`);
     if (stateR.ok) {
       const st = await stateR.json();
       if (st && st.processed && !st.isLast) {
@@ -6772,7 +6778,7 @@ async function runBatchMigration(opts) {
   let resumeOffset = 0;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const stateUrl = firebaseConfig.databaseURL.replace(/\/$/,'') + '/migrationState/' + opts.stateKey + '.json?auth=' + idToken;
+    const stateUrl = WORKER_RTDB_URL + '/migrationState/' + opts.stateKey + '.json?auth=' + idToken;
     const stateR = await fetch(stateUrl);
     if (stateR.ok) {
       const st = await stateR.json();
@@ -7056,7 +7062,7 @@ async function runFileQueueBuild(source, label) {
   let resumeOffset = 0;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const stateUrl = firebaseConfig.databaseURL.replace(/\/$/,'') + '/migrationState/' + stateKey + '.json?auth=' + idToken;
+    const stateUrl = WORKER_RTDB_URL + '/migrationState/' + stateKey + '.json?auth=' + idToken;
     const stateR = await fetch(stateUrl);
     if (stateR.ok) {
       const st = await stateR.json();
