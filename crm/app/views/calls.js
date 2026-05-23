@@ -813,9 +813,12 @@ async function loadHistory() {
       internal_numbers: lines.join(","),
     });
     const all = Array.isArray(res.calls) ? res.calls : [];
+    // Если у сотрудников не задана ни одна Binotel-линия — показываем всю историю
+    // (фильтр пуст = нет ограничения). Раньше тут принудительно был [], из-за чего
+    // история выглядела «пропавшей» при пустой настройке линий.
     state.historyList = lines.length > 0
       ? all.filter((row) => lines.includes(normalizeInternalLine(row.internalNumber || "")))
-      : [];
+      : all;
   } catch (e) {
     state.historyError = e?.message || String(e);
   } finally {
