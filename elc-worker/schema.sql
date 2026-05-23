@@ -313,6 +313,32 @@ CREATE TABLE files_queue (
 );
 CREATE INDEX idx_files_queue_migrated ON files_queue(migrated);
 
+-- ── Call log (исходящие/входящие звонки) ────────────────
+-- Заполняется фронтом через POST /api/call/event при начале/окончании звонка.
+-- Provider пока 'tel-link' (заглушка через OS dialer), будет SIP-провайдер
+-- когда выберем Binotel/Voximplant/etc.
+CREATE TABLE call_log (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  caller_uid       TEXT NOT NULL,             -- Firebase uid пользователя
+  direction        TEXT NOT NULL,             -- 'out' | 'in'
+  phone            TEXT NOT NULL,             -- номер другой стороны
+  contact_id       TEXT,                      -- contact_X если опознан
+  deal_id          TEXT,                      -- deal_X если из карточки сделки
+  started_at       TEXT NOT NULL,
+  ended_at         TEXT,
+  duration_sec     INTEGER,
+  status           TEXT,                      -- connected | no_answer | busy | failed | cancelled | attempted
+  recording_url    TEXT,
+  recording_r2_key TEXT,
+  provider         TEXT,                      -- binotel | voximplant | tel-link | etc
+  note             TEXT,
+  created_at       TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_call_log_contact ON call_log(contact_id, started_at);
+CREATE INDEX idx_call_log_deal    ON call_log(deal_id, started_at);
+CREATE INDEX idx_call_log_caller  ON call_log(caller_uid, started_at);
+CREATE INDEX idx_call_log_phone   ON call_log(phone, started_at);
+
 -- ── Migration state (опционально, для аудита) ───────────
 CREATE TABLE migration_log (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
