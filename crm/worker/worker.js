@@ -651,6 +651,7 @@ async function ensureD1Schema(env) {
   await safeAlter("ALTER TABLE users ADD COLUMN is_super_admin INTEGER NOT NULL DEFAULT 0");
   await safeAlter("ALTER TABLE users ADD COLUMN apps TEXT NOT NULL DEFAULT '{}'");
   await safeAlter("ALTER TABLE users ADD COLUMN created_by TEXT");
+  await safeAlter("ALTER TABLE users ADD COLUMN role_id TEXT");
 
   d1SchemaReady = true;
 }
@@ -836,6 +837,7 @@ function d1RowToUser(row) {
     lastName: String(row.last_name || "").trim(),
     position: String(row.position || "").trim(),
     role: String(row.role || "").trim(),
+    roleId: String(row.role_id || "").trim(),
     isAdmin: Number(row.is_admin) === 1,
     isSuperAdmin: Number(row.is_super_admin) === 1,
     apps: parseJsonObject(row.apps, {}),
@@ -852,7 +854,7 @@ async function d1GetUserByEmail(env, email) {
   if (!normalizedEmail) return null;
   const row = await db
     .prepare(`
-      SELECT id, email, name, last_name, position, role, is_admin, is_super_admin, apps, created_at, updated_at, created_by
+      SELECT id, email, name, last_name, position, role, role_id, is_admin, is_super_admin, apps, created_at, updated_at, created_by
       FROM users
       WHERE email = ?
       LIMIT 1
@@ -867,7 +869,7 @@ async function d1GetUserById(env, id) {
   const db = requireStoreDb(env);
   const row = await db
     .prepare(`
-      SELECT id, email, name, last_name, position, role, is_admin, is_super_admin, apps, created_at, updated_at, created_by
+      SELECT id, email, name, last_name, position, role, role_id, is_admin, is_super_admin, apps, created_at, updated_at, created_by
       FROM users
       WHERE id = ?
       LIMIT 1
@@ -882,7 +884,7 @@ async function d1ListUsers(env) {
   const db = requireStoreDb(env);
   const res = await db
     .prepare(`
-      SELECT id, email, name, last_name, position, role, is_admin, is_super_admin, apps, created_at, updated_at, created_by
+      SELECT id, email, name, last_name, position, role, role_id, is_admin, is_super_admin, apps, created_at, updated_at, created_by
       FROM users
       ORDER BY updated_at DESC
     `)
@@ -906,18 +908,26 @@ async function d1UpsertUser(env, payload, actor) {
     ? payload.apps
     : (existingByEmail?.apps || {});
 
+  // roleId — id кастомной роли из pllato_core_roles (Settings → Роли).
+  // Если payload.roleId передан (даже пустая строка для сброса) — используем,
+  // иначе сохраняем существующее значение из БД.
+  const roleId = (payload.roleId !== undefined)
+    ? String(payload.roleId || "").trim()
+    : String(existingByEmail?.roleId || "");
+
   await db
     .prepare(`
       INSERT INTO users (
-        id, email, name, last_name, position, role, is_admin, is_super_admin, apps, created_at, updated_at, created_by
+        id, email, name, last_name, position, role, role_id, is_admin, is_super_admin, apps, created_at, updated_at, created_by
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(email) DO UPDATE SET
         id = COALESCE(excluded.id, users.id),
         name = excluded.name,
         last_name = excluded.last_name,
         position = excluded.position,
         role = excluded.role,
+        role_id = excluded.role_id,
         is_admin = excluded.is_admin,
         is_super_admin = excluded.is_super_admin,
         apps = excluded.apps,
@@ -930,6 +940,7 @@ async function d1UpsertUser(env, payload, actor) {
       String(payload.lastName || payload.last_name || existingByEmail?.lastName || ""),
       String(payload.position || existingByEmail?.position || ""),
       String(payload.role || existingByEmail?.role || ""),
+      roleId,
       isAdmin ? 1 : 0,
       isSuperAdmin ? 1 : 0,
       JSON.stringify(apps || {}),
@@ -1250,6 +1261,7 @@ function publicUserPayload(user) {
     lastName: user.lastName || "",
     position: user.position || "",
     role: user.role || "",
+    roleId: user.roleId || "",
     isAdmin: Boolean(user.isAdmin),
     isSuperAdmin: Boolean(user.isSuperAdmin),
     apps: user.apps || {},
@@ -1400,8 +1412,12 @@ async function handleAuthSetPassword(request, env, actor) {
   if (!email || !password) throw new HttpError(400, "Email и пароль обязательны");
   if (password.length < 6) throw new HttpError(400, "Минимум 6 символов");
 
-  // Автосоздание user в D1 если его ещё нет — на случай если сотрудник был создан только локально
+  // Автосоздание/обновление user в D1: при создании — заводим, при существующем —
+  // обновляем roleId если он передан (admin может менять роль сотрудника прямо
+  // через форму set-password, которая вызывается при создании/редактировании
+  // сотрудника в Настройки → Команда).
   let user = await d1GetUserByEmail(env, email);
+  const hasRoleId = Object.prototype.hasOwnProperty.call(body || {}, "roleId");
   if (!user) {
     user = await d1UpsertUser(env, {
       email,
@@ -1409,7 +1425,19 @@ async function handleAuthSetPassword(request, env, actor) {
       lastName: String(body.lastName || "").trim(),
       position: String(body.position || "").trim(),
       role: String(body.role || "").trim(),
+      roleId: hasRoleId ? String(body.roleId || "").trim() : "",
       apps: { [APP_ID]: true },
+    }, actor);
+  } else if (hasRoleId) {
+    user = await d1UpsertUser(env, {
+      id: user.id,
+      email,
+      name: user.name,
+      lastName: user.lastName,
+      position: user.position,
+      role: user.role,
+      roleId: String(body.roleId || "").trim(),
+      apps: user.apps,
     }, actor);
   }
 

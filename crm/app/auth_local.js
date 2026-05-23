@@ -81,6 +81,7 @@ export async function setEmployeePassword(emailOrId, password) {
     body.lastName = employee.lastName || "";
     body.position = employee.position || "";
     body.role = employee.role || "";
+    if (employee.roleId !== undefined) body.roleId = employee.roleId || "";
   }
 
   const data = await apiFetch("/api/auth/set-password", {

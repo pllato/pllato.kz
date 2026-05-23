@@ -1110,9 +1110,29 @@ function wireEvents(container) {
       // Сохраняем личную линию Binotel в локальном map (не идёт в worker D1)
       if (empId) {
         setEmployeeBinotelLine(empId, fd.get("binotelLine") || "");
-        // Сохраняем roleId в локальном map тоже — worker D1 его не хранит,
-        // и после replaceEmployeesFromWorker поле затёрлось бы.
+        // Сохраняем roleId и в локальном map (быстрый доступ), и в worker D1
+        // через /users/save — чтобы роль работала на любом устройстве.
         setEmployeeRoleId(empId, data.roleId || "");
+        try {
+          const emp = listEmployees().find((x) => x.id === empId);
+          if (emp?.email) {
+            const { apiFetch } = await import("../auth.js");
+            await apiFetch("/users/save", {
+              method: "POST",
+              body: {
+                id: empId,
+                email: emp.email,
+                name: emp.name || "",
+                lastName: emp.lastName || "",
+                position: emp.position || "",
+                role: emp.role || "",
+                roleId: data.roleId || "",
+              },
+            });
+          }
+        } catch (e) {
+          console.warn("[settings] не удалось сохранить roleId на worker:", e);
+        }
       }
       if (password && empId) {
         await setEmployeePassword(empId, password);

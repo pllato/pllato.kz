@@ -77,6 +77,9 @@ function replaceEmployeesFromRows(rows, currentEmail) {
       email: String(user.email || "").trim(),
       position: String(user.position || "").trim(),
       role: normalizeUserRole(user),
+      // worker возвращает roleId (после миграции БД); если ещё нет —
+      // подберём из локального map в render-точках, см. settings.js
+      roleId: String(user.roleId || user.role_id || "").trim(),
       isAdmin: Boolean(user.isAdmin || Number(user.is_admin) === 1),
       isSuperAdmin: Boolean(user.isSuperAdmin || Number(user.is_super_admin) === 1),
       apps: user.apps && typeof user.apps === "object" ? user.apps : {},
