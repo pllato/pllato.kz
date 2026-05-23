@@ -42,7 +42,18 @@ export function findActiveWaChannel() {
 export async function syncWaCollections() {
   if (!waCloudEnabled()) return { ok: false, reason: "cloud-disabled" };
   if (typeof Store.cloudSyncCollections !== "function") return { ok: false, reason: "store-sync-missing" };
-  return Store.cloudSyncCollections([CHATS, MESSAGES], { pushLocalDivergence: false });
+  const result = await Store.cloudSyncCollections([CHATS, MESSAGES], { pushLocalDivergence: false });
+  // После прихода новых чатов/сообщений — автосоздаём контакты+сделки для входящих WA.
+  try {
+    const { autoCreateDealsFromIncomingWa } = await import("./wa_autodeals.js");
+    const stats = autoCreateDealsFromIncomingWa();
+    if (stats.dealsCreated > 0 || stats.contactsCreated > 0) {
+      console.log("[pllato:wa-autodeals]", stats);
+    }
+  } catch (e) {
+    console.warn("[pllato:wa-autodeals] не удалось запустить:", e);
+  }
+  return result;
 }
 
 export function resolveOrCreateDirectWaChat({ name, phone }) {
