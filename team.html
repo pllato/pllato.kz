@@ -6120,13 +6120,19 @@ async function loadFilesIntoContainer(containerId, fileIds, taskKey) {
     fileIds.forEach((id, i) => {
       const m = metas[i];
       if (!m) {
-        // Файла нет в очереди вообще — попробовать вытащить из Битрикса напрямую (worker создаст запись)
+        // ELC: filesQueue не заполнена (бинарники не мигрировали из RTDB-бэкапа).
+        // Файлы остались в Bitrix24 — показываем прямую ссылку на task page,
+        // оттуда юзер скачает файл вручную.
+        const bitrixTaskId = (taskKey || '').replace(/^task_/, '');
+        const bitrixTaskUrl = bitrixTaskId
+          ? `https://elcalmaty.bitrix24.kz/company/personal/user/1/tasks/task/view/${bitrixTaskId}/`
+          : '';
         html += `<div class="task-file-item" data-fid="${escapeHtml(String(id))}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border:1px solid var(--b1);border-radius:8px;font-size:13px">
           <span style="font-size:16px;flex-shrink:0">📎</span>
           <span class="tf-name" style="flex:1;min-width:0;color:var(--t2)">файл #${escapeHtml(String(id))}</span>
           <span class="tf-size" style="color:var(--t3);font-size:11px"></span>
-          <span class="tf-status"><span style="color:var(--ac2);font-size:10px;font-weight:600">не в очереди</span></span>
-          <button class="tf-retry" data-fid="${escapeHtml(String(id))}" data-name="" data-task="${escapeHtml(taskKey)}" title="Попробовать вытащить файл из Битрикса напрямую" style="padding:4px 10px;background:var(--bg3);color:var(--ac2);border:1px solid var(--ac2);border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">🔄 Попробовать</button>
+          <span class="tf-status"><span style="color:var(--t3);font-size:10px;font-weight:600">в Bitrix24</span></span>
+          ${bitrixTaskUrl ? `<a href="${bitrixTaskUrl}" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--ac2);color:#fff;border-radius:6px;text-decoration:none;font-size:11px;font-weight:600">↗ Открыть в Bitrix24</a>` : ''}
         </div>`;
         return;
       }
