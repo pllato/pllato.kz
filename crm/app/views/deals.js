@@ -570,8 +570,11 @@ function markWaChatRead(phone) {
   const now = Date.now();
   for (const c of Store.list("chats")) {
     if (!c?.wa || c.isGroup) continue;
-    const cphone = String(c.phone || "").replace(/[^\d]/g, "");
-    const cnorm = /^8\d{10}$/.test(cphone) ? "7" + cphone.slice(1) : cphone;
+    // Worker не пишет 'phone' в chat — fallback на waChatId.
+    const cphoneRaw = String(c.phone || "").replace(/[^\d]/g, "");
+    const waChatRaw = String(c.waChatId || "").replace(/[^\d]/g, "");
+    const cdigits = cphoneRaw || waChatRaw;
+    const cnorm = /^8\d{10}$/.test(cdigits) ? "7" + cdigits.slice(1) : cdigits;
     if (cnorm === norm) {
       Store.update("chats", c.id, { lastReadAt: now });
     }
@@ -596,12 +599,17 @@ function buildDealWaMessageIndex() {
     }
   }
   // 2) chatId → phone, и chatId → lastReadAt.
+  // Worker через handleWaWebhook сохраняет chat без поля 'phone' — только waChatId
+  // (формат '77011239999@c.us'). Fallback на waChatId, иначе индекс пуст для
+  // всех чатов, пришедших с webhook'ов.
   const phoneByChat = new Map();
   const lastReadByChat = new Map();
   for (const c of Store.list("chats")) {
     if (!c?.wa || c.isGroup) continue;
-    const phone = String(c.phone || "").replace(/[^\d]/g, "");
-    const norm = /^8\d{10}$/.test(phone) ? "7" + phone.slice(1) : phone;
+    const phoneRaw = String(c.phone || "").replace(/[^\d]/g, "");
+    const waChatRaw = String(c.waChatId || "").replace(/[^\d]/g, "");
+    const digits = phoneRaw || waChatRaw;
+    const norm = /^8\d{10}$/.test(digits) ? "7" + digits.slice(1) : digits;
     if (norm) phoneByChat.set(c.id, norm);
     lastReadByChat.set(c.id, Number(c.lastReadAt) || 0);
   }
