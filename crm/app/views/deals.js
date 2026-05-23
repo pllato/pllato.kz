@@ -30,7 +30,7 @@ import { renderContacts } from "./contacts.js";
 import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal } from "../deal_items.js";
 import { listChannels } from "../channels.js";
 import { renderCalls } from "./calls.js";
-import { apiFetch } from "../auth.js";
+import { apiFetch, formatApiError } from "../auth.js";
 import {
   openCommDialog,
   closeCommDialog,
@@ -3681,7 +3681,7 @@ function wireEvents(container) {
       try {
         await sendWaFromDialog({ chat, channel, text, urlFile: fileUrl, fileName, asVoice });
       } catch (err) {
-        alert(err?.message || String(err));
+        alert(formatApiError(err));
         return;
       } finally {
         btn?.removeAttribute("disabled");

@@ -43,6 +43,25 @@ function buildApiError(status, payload, fallback) {
   return err;
 }
 
+// Форматирует ошибку API для показа пользователю: message + краткие детали (если есть).
+export function formatApiError(err) {
+  const msg = err?.message || String(err);
+  const d = err?.details;
+  if (!d) return msg;
+  let detailStr = "";
+  if (typeof d === "string") detailStr = d;
+  else if (d && typeof d === "object") {
+    // Достаём наиболее информативные поля Green-API/Binotel:
+    // { invokeStatus, ... } | { error, ... } | { message, ... }
+    detailStr = d.invokeStatus
+      || d.statusReason
+      || d.message
+      || d.error
+      || (() => { try { return JSON.stringify(d).slice(0, 500); } catch { return String(d); } })();
+  }
+  return detailStr ? `${msg}\n\nДетали: ${detailStr}` : msg;
+}
+
 function dispatchAuthExpired() {
   try {
     window.dispatchEvent(new CustomEvent("pllato:auth-expired"));
