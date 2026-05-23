@@ -1429,6 +1429,42 @@ body {
   opacity: 0.4;
   transform: rotate(-1deg);
 }
+
+/* Подсветка карточек: новая активность / пропущенный звонок */
+.deal-card { position: relative; }
+.deal-card-new {
+  box-shadow: 0 0 0 1px var(--accent), 0 2px 12px -4px rgba(34, 197, 94, 0.4);
+}
+.deal-card-missed {
+  box-shadow: 0 0 0 1px #ef4444, 0 2px 12px -4px rgba(239, 68, 68, 0.4);
+}
+.deal-card-new.deal-card-missed {
+  /* Если оба маркера — приоритет за пропущенным */
+  box-shadow: 0 0 0 1px #ef4444, 0 2px 12px -4px rgba(239, 68, 68, 0.4);
+}
+.deal-card-markers {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  pointer-events: none;
+}
+.deal-card-marker {
+  font-size: 13px;
+  line-height: 1;
+}
+.deal-card-marker.marker-new {
+  color: var(--accent);
+  font-size: 16px;
+  animation: dealCardPulse 1.6s ease-in-out infinite;
+}
+.deal-card-marker.marker-missed { color: #ef4444; }
+@keyframes dealCardPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
 .deal-card-title {
   font-weight: 600;
   font-size: 13.5px;

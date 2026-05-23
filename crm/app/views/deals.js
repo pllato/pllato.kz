@@ -507,6 +507,40 @@ function seedDemo() {
 function activitiesFor(dealId) {
   return Store.list(ACTIVITIES).filter(a => a.dealId === dealId).reverse();
 }
+
+// Какие типы активностей считаем «коммуникацией» (для маркера «новое»).
+const COMM_ACTIVITY_TYPES = new Set(["whatsapp", "call", "email"]);
+const NEW_ACTIVITY_THRESHOLD_MS = 60 * 60 * 1000;      // 1 час
+const MISSED_CALL_THRESHOLD_MS = 24 * 60 * 60 * 1000;  // 24 часа
+
+/**
+ * Сводка активности по сделке для канбан-карточки и сортировки.
+ * @param {string} dealId
+ * @returns {{ lastTs: number, hasNewActivity: boolean, hasMissedCall: boolean }}
+ */
+function dealActivitySnapshot(dealId) {
+  let lastTs = 0;
+  let lastCommTs = 0;
+  let lastMissedTs = 0;
+  for (const a of Store.list(ACTIVITIES)) {
+    if (a.dealId !== dealId) continue;
+    const ts = Number(a.ts) || 0;
+    if (ts > lastTs) lastTs = ts;
+    if (COMM_ACTIVITY_TYPES.has(a.type) && ts > lastCommTs) lastCommTs = ts;
+    if (a.type === "call") {
+      const dispo = String(a.disposition || "").toUpperCase();
+      if (a.missed === true || dispo === "CANCEL" || dispo === "NOANSWER" || dispo === "MISSED") {
+        if (ts > lastMissedTs) lastMissedTs = ts;
+      }
+    }
+  }
+  const now = Date.now();
+  return {
+    lastTs,
+    hasNewActivity: lastCommTs > 0 && (now - lastCommTs) < NEW_ACTIVITY_THRESHOLD_MS,
+    hasMissedCall: lastMissedTs > 0 && (now - lastMissedTs) < MISSED_CALL_THRESHOLD_MS,
+  };
+}
 function addActivity(dealId, type, data = {}) {
   const me = currentEmployee();
   return Store.create(ACTIVITIES, {
@@ -602,7 +636,21 @@ export function renderDeals(container) {
     : deals;
 
   const byStage = Object.fromEntries(stages.map(s => [s.id, []]));
-  filteredDeals.filter(isDealVisibleByUtmFilter).forEach(d => { if (byStage[d.stage]) byStage[d.stage].push(d); });
+  // Считаем snapshot активности один раз и кладём в .__snap, чтобы renderCard переиспользовал.
+  filteredDeals.filter(isDealVisibleByUtmFilter).forEach((d) => {
+    if (!byStage[d.stage]) return;
+    d.__snap = dealActivitySnapshot(d.id);
+    byStage[d.stage].push(d);
+  });
+  // Сортируем сделки в каждой колонке: свежая активность сверху.
+  // Fallback на createdAt / ts, если активностей нет.
+  Object.keys(byStage).forEach((sid) => {
+    byStage[sid].sort((a, b) => {
+      const aTs = (a.__snap?.lastTs) || Number(a.createdAt) || Number(a.ts) || 0;
+      const bTs = (b.__snap?.lastTs) || Number(b.createdAt) || Number(b.ts) || 0;
+      return bTs - aTs;
+    });
+  });
 
   container.innerHTML = `
     <div class="deals-view">
@@ -1032,8 +1080,19 @@ function renderCard(d, contact) {
     .filter((f) => f.showInKanban)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     .slice(0, 3);
+  const snap = d.__snap || dealActivitySnapshot(d.id);
+  const cardClasses = [
+    "deal-card",
+    snap.hasNewActivity ? "deal-card-new" : "",
+    snap.hasMissedCall ? "deal-card-missed" : "",
+  ].filter(Boolean).join(" ");
+  const markers = [
+    snap.hasMissedCall ? `<span class="deal-card-marker marker-missed" title="Пропущенный звонок">📵</span>` : "",
+    snap.hasNewActivity ? `<span class="deal-card-marker marker-new" title="Новая активность за последний час">●</span>` : "",
+  ].filter(Boolean).join("");
   return `
-    <article class="deal-card" data-id="${d.id}" draggable="true" style="border-left-color:${stage?.color || "var(--accent)"}">
+    <article class="${cardClasses}" data-id="${d.id}" draggable="true" style="border-left-color:${stage?.color || "var(--accent)"}">
+      ${markers ? `<div class="deal-card-markers">${markers}</div>` : ""}
       <div class="deal-card-title">${escape(d.title || "(без названия)")}</div>
       <div class="deal-card-meta">
         <span class="deal-amount">${fmtAmount(d.amount)}</span>
