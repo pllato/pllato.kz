@@ -996,9 +996,8 @@ tr:hover td { background: var(--bg3); }
   border: 1px solid var(--b1);
   border-radius: 12px;
   width: 100%;
-  max-width: 480px;
-  max-height: 88vh;
-  overflow: hidden;
+  max-width: 520px;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0,0,0,.4);
@@ -1032,45 +1031,48 @@ tr:hover td { background: var(--bg3); }
   box-sizing: border-box;
 }
 .qad-input:focus { outline: none; border-color: var(--ac2); }
-.qad-contact-wrap { position: relative; }
-.qad-dropdown {
-  position: absolute;
-  top: 100%; left: 0; right: 0;
-  margin-top: 4px;
-  max-height: 280px;
+.qad-contact-wrap { display: flex; flex-direction: column; gap: 8px; }
+.qad-results {
+  display: flex;
+  flex-direction: column;
+  max-height: 240px;
   overflow-y: auto;
   background: var(--bg2);
   border: 1px solid var(--b1);
   border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.25);
-  z-index: 10;
 }
+.qad-results:empty { display: none; }
 .qad-dd-item {
-  padding: 8px 12px;
+  padding: 10px 12px;
   cursor: pointer;
   border-bottom: 1px solid var(--b1);
   display: flex; flex-direction: column; gap: 2px;
+  transition: background .1s;
 }
 .qad-dd-item:last-child { border-bottom: none; }
 .qad-dd-item:hover, .qad-dd-item.qad-dd-active { background: var(--bg3); }
 .qad-dd-name { font-size: 13px; color: var(--t1); font-weight: 600; }
 .qad-dd-meta { font-size: 11px; color: var(--t3); }
-.qad-dd-create {
-  padding: 10px 12px;
-  background: var(--bg3);
-  color: var(--ac2);
-  font-size: 12px;
-  font-weight: 600;
-  border-top: 1px solid var(--b1);
-  cursor: pointer;
-}
-.qad-dd-create:hover { background: var(--ac2); color: #fff; }
 .qad-dd-empty {
-  padding: 10px 12px;
+  padding: 12px;
   color: var(--t3);
   font-size: 12px;
   text-align: center;
 }
+.qad-create-new-btn {
+  padding: 10px 14px;
+  background: transparent;
+  color: var(--ac2);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px dashed var(--ac2);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s;
+}
+.qad-create-new-btn:hover { background: rgba(124,92,252,.1); }
+.qad-create-new-btn .qad-cnb-hint { color: var(--t3); font-weight: 500; font-size: 11px; margin-left: 4px; }
 .qad-selected-contact {
   padding: 8px 10px;
   background: var(--bg2);
@@ -3740,20 +3742,38 @@ function openQuickAddDealModal(stageId) {
       return;
     }
 
-    // Default — search input + dropdown
+    // Default — search input + inline-результаты + кнопка «Создать новый»
     area.innerHTML = `
       <div class="qad-contact-wrap">
-        <input id="qad-contact-search" class="qad-input" placeholder="Найти по имени или телефону…" autocomplete="off" value="${escapeHtml(draft.contactQuery)}">
-        <div class="qad-dropdown" id="qad-dropdown" style="display:none"></div>
+        <input id="qad-contact-search" class="qad-input" placeholder="Найти по имени или телефону (от 2 символов)…" autocomplete="off" value="${escapeHtml(draft.contactQuery)}">
+        <div class="qad-results" id="qad-results"></div>
+        <button type="button" class="qad-create-new-btn" id="qad-create-new">
+          + Создать новый контакт<span class="qad-cnb-hint" id="qad-cnb-hint"></span>
+        </button>
       </div>
     `;
     const inp = document.getElementById('qad-contact-search');
     inp.addEventListener('input', e => {
       draft.contactQuery = e.target.value;
       scheduleSearch();
+      updateCreateNewHint();
     });
-    inp.addEventListener('focus', () => { if (draft.searchResults.length || draft.contactQuery.length >= 2) showDropdown(); });
-    if (draft.contactQuery.length >= 2) showDropdown();
+    document.getElementById('qad-create-new').onclick = () => {
+      const q = draft.contactQuery.trim();
+      const isPhoneLike = q && /^[\d+\-\s()]+$/.test(q);
+      draft.newContact = isPhoneLike ? { name: '', phone: q } : { name: q, phone: '' };
+      renderContactArea();
+      updateSaveBtn();
+    };
+    if (draft.contactQuery.length >= 2) renderResults();
+    updateCreateNewHint();
+  }
+
+  function updateCreateNewHint() {
+    const hint = document.getElementById('qad-cnb-hint');
+    if (!hint) return;
+    const q = draft.contactQuery.trim();
+    hint.textContent = q ? `«${q}»` : '';
   }
 
   // Debounce typeahead — 250мс
@@ -3763,7 +3783,7 @@ function openQuickAddDealModal(stageId) {
     const q = draft.contactQuery.trim();
     if (q.length < 2) {
       draft.searchResults = [];
-      showDropdown();
+      renderResults();
       return;
     }
     searchTimer = setTimeout(() => runSearch(q), 250);
@@ -3771,7 +3791,7 @@ function openQuickAddDealModal(stageId) {
 
   async function runSearch(q) {
     draft.searching = true;
-    showDropdown();
+    renderResults();
     try {
       const idToken = await fbAuth.currentUser.getIdToken();
       const params = new URLSearchParams({ q, pageSize: '8', page: '1', auth: idToken });
@@ -3788,16 +3808,18 @@ function openQuickAddDealModal(stageId) {
       draft.searchResults = [];
     } finally {
       draft.searching = false;
-      showDropdown();
+      renderResults();
     }
   }
 
-  function showDropdown() {
-    const dd = document.getElementById('qad-dropdown');
-    if (!dd) return;
+  // Inline-блок с результатами поиска. Без position:absolute — не обрезается
+  // overflow:hidden модалки, всегда виден сразу под полем поиска.
+  function renderResults() {
+    const box = document.getElementById('qad-results');
+    if (!box) return;
     const q = draft.contactQuery.trim();
     if (q.length < 2) {
-      dd.style.display = 'none';
+      box.innerHTML = '';
       return;
     }
     let html = '';
@@ -3811,13 +3833,10 @@ function openQuickAddDealModal(stageId) {
         </div>`;
       }
     } else {
-      html = `<div class="qad-dd-empty">Не нашли «${escapeHtml(q)}»</div>`;
+      html = `<div class="qad-dd-empty">Не нашли «${escapeHtml(q)}». Можно создать новый контакт ↓</div>`;
     }
-    html += `<div class="qad-dd-create" data-action="new-contact">+ Создать новый контакт${q ? ` «${escapeHtml(q)}»` : ''}</div>`;
-    dd.innerHTML = html;
-    dd.style.display = '';
-
-    dd.querySelectorAll('.qad-dd-item').forEach(item => {
+    box.innerHTML = html;
+    box.querySelectorAll('.qad-dd-item').forEach(item => {
       item.onclick = () => {
         const c = draft.searchResults.find(x => x.id === item.dataset.id);
         if (c) {
@@ -3827,13 +3846,6 @@ function openQuickAddDealModal(stageId) {
         }
       };
     });
-    dd.querySelector('[data-action="new-contact"]').onclick = () => {
-      // Префиллим имя из query если оно — буквы; телефон если цифры
-      const isPhoneLike = /^[\d+\-\s()]+$/.test(q);
-      draft.newContact = isPhoneLike ? { name: '', phone: q } : { name: q, phone: '' };
-      renderContactArea();
-      updateSaveBtn();
-    };
   }
 
   function updateSaveBtn() {
