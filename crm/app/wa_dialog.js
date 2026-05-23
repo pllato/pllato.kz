@@ -19,7 +19,11 @@ export function waCloudEnabled() {
 }
 
 export function normalizePhoneDigits(phone) {
-  return String(phone || "").replace(/[^\d]/g, "");
+  let digits = String(phone || "").replace(/[^\d]/g, "");
+  // KZ/RU: 11 цифр, начинается с 8 → код страны 7 (87011239999 → 77011239999).
+  // Это нужно для chatId Green-API, который требует международный формат.
+  if (/^8\d{10}$/.test(digits)) digits = "7" + digits.slice(1);
+  return digits;
 }
 
 export function waChatIdFromPhone(phone) {

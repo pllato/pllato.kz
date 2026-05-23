@@ -170,7 +170,8 @@ function normalizeWaRecipient(to) {
   const src = String(to || "").trim();
   if (!src) return "";
   if (src.includes("@c.us") || src.includes("@g.us") || src.includes("@lid")) return src;
-  const digits = src.replace(/[^\d]/g, "");
+  let digits = src.replace(/[^\d]/g, "");
+  if (/^8\d{10}$/.test(digits)) digits = "7" + digits.slice(1);
   return digits ? `${digits}@c.us` : "";
 }
 

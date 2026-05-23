@@ -1700,10 +1700,17 @@ function pickSecretString(...values) {
 function normalizeWaChatId(to) {
   const src = String(to || "").trim();
   if (!src) return "";
-  if (src.includes("@c.us") || src.includes("@g.us") || src.includes("@lid")) return src;
-  let clean = normalizePhone(src).replace(/^\+/, "");
-  // KZ/RU: номера часто вводятся с ведущей 8 (87011239999), Green-API ждёт международный
-  // формат с кодом страны 7 (77011239999). Конвертим: 11 цифр, начинается на 8 → 7....
+  // Группы и lid оставляем как есть.
+  if (src.includes("@g.us") || src.includes("@lid")) return src;
+  // Для @c.us извлекаем цифры, нормализуем (8→7 для KZ/RU), собираем заново.
+  // Это нужно, потому что фронт может прислать уже сформированный chatId с ведущей 8.
+  const m = src.match(/^(\d+)@c\.us$/i);
+  let clean;
+  if (m) {
+    clean = m[1];
+  } else {
+    clean = normalizePhone(src).replace(/^\+/, "");
+  }
   if (/^8\d{10}$/.test(clean)) clean = "7" + clean.slice(1);
   return clean ? `${clean}@c.us` : "";
 }
