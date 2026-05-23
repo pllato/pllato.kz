@@ -768,44 +768,62 @@ tr:hover td { background: var(--bg3); }
 .pagination .pg-btn:disabled { opacity: .3; cursor: not-allowed; }
 .pagination .pg-info { color: var(--t3); font-size: 12px; padding: 0 8px; }
 
-/* Kanban */
+/* Kanban (Aminamed-style refresh) */
 .kanban-wrap {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   overflow-x: auto;
   padding-bottom: 16px;
   margin: 0 -8px;
   padding-left: 8px;
 }
 .kanban-col {
-  flex-shrink: 0;
-  width: 240px;
+  flex: 1 0 260px;
+  min-width: 240px;
+  max-width: 320px;
   background: var(--bg2);
   border: 1px solid var(--b1);
   border-radius: var(--rl);
+  border-top: 3px solid var(--stage-color, var(--ac2));
   padding: 0;
   max-height: calc(100vh - 240px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: border-color .15s, background .15s;
+}
+.kanban-col.drop-target {
+  border-color: var(--stage-color, var(--ac2));
+  background: var(--bg3);
 }
 .kanban-col-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 11px 14px 10px;
   border-bottom: 1px solid var(--b1);
-  font-size: 12px;
-  color: var(--t2);
-  font-weight: 600;
+  font-size: 11px;
+  color: var(--t1);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   flex-shrink: 0;
   background: var(--bg2);
+  user-select: none;
 }
 .kanban-col-header .stage-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+  background: var(--stage-color, var(--ac2));
+}
+.kanban-col-header .stage-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .kanban-col-header .col-count {
   font-size: 10px;
@@ -936,6 +954,59 @@ tr:hover td { background: var(--bg3); }
   font-size: 11px;
   color: var(--t3);
   margin-top: -2px;
+}
+/* Маркер «новая активность» (был изменён за последние 24ч) — стиль Aminamed */
+.kanban-card.deal-card-new {
+  box-shadow: 0 0 0 1px var(--ac2), 0 2px 12px -4px rgba(124, 92, 252, 0.45);
+}
+.kanban-card.deal-card-stale {
+  opacity: 0.78;
+}
+.kanban-card-markers {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  pointer-events: none;
+  z-index: 2;
+}
+.kanban-card { position: relative; }
+.kanban-card-marker {
+  font-size: 12px;
+  line-height: 1;
+  background: var(--ac2);
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  animation: kanbanCardPulse 1.8s ease-in-out infinite;
+}
+@keyframes kanbanCardPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+/* Custom-field micro-pill в карточке */
+.kanban-card-cf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.kanban-cf-pill {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  color: var(--t2);
+  font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .kanban-stale {
   font-size: 10px;
@@ -2880,12 +2951,10 @@ function renderDealsKanban(c, arr) {
     const totalSum = cards.reduce((acc, d) => acc + (d.opportunity || 0), 0);
     const stageColor = s.semantics === 'S' ? '#3fd88e' : s.semantics === 'F' ? '#f05975' : '#a87fff';
 
-    html += `<div class="kanban-col" data-stage="${escapeHtml(s.statusId)}">
-      <div class="kanban-col-header" style="border-top:3px solid ${stageColor}">
-        <div style="display:flex;align-items:center;gap:7px;min-width:0">
-          <span class="stage-dot" style="background:${stageColor}"></span>
-          <span style="color:${stageColor};font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(s.name)}</span>
-        </div>
+    html += `<div class="kanban-col" data-stage="${escapeHtml(s.statusId)}" style="--stage-color: ${stageColor}">
+      <div class="kanban-col-header">
+        <span class="stage-dot"></span>
+        <span class="stage-title" style="color:${stageColor}">${escapeHtml(s.name)}</span>
         <span class="col-count" style="color:${stageColor};background:${stageColor}22;border:1px solid ${stageColor}55">${cards.length.toLocaleString('ru')}</span>
       </div>
       ${totalSum > 0 ? `<div class="kanban-col-sum">${totalSum.toLocaleString('ru')} ₸</div>` : ''}
@@ -2928,20 +2997,42 @@ function buildDealCard(d, stageColor) {
     phone = dealsState.contactPhones?.[d.contactId] || '';
   }
 
-  // Дата последнего изменения (если давно — пометить stale)
+  // Дата последнего изменения — для маркера "новая активность" и метки stale
   const lastDate = d.bitrixDateModify || d.bitrixDateCreate;
-  const daysSince = lastDate ? Math.floor((Date.now() - new Date(lastDate).getTime()) / 86400000) : null;
-  const staleWarn = daysSince !== null && daysSince > 7;
+  const hoursSince = lastDate ? Math.floor((Date.now() - new Date(lastDate).getTime()) / 3600000) : null;
+  const isNew = hoursSince !== null && hoursSince < 24;
+  const daysSince = hoursSince !== null ? Math.floor(hoursSince / 24) : null;
+  const staleWarn = daysSince !== null && daysSince > 30;
   const created = d.bitrixDateCreate ? new Date(d.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit' }) : '';
 
-  // Граница карточки по приоритету
-  const borderColor = staleWarn ? 'rgba(240,89,117,.35)' : 'var(--b1)';
-  const stageBorderLeft = `3px solid ${stageColor}`;
+  const cardClasses = ['kanban-card'];
+  if (isNew) cardClasses.push('deal-card-new');
+  if (staleWarn) cardClasses.push('deal-card-stale');
 
-  return `<div class="kanban-card" draggable="true" data-deal-id="${escapeHtml(d.bitrixId)}" data-stage="${escapeHtml(d.stageId)}" style="border-left:${stageBorderLeft};border-color:${borderColor}">
+  // Custom-fields micro-pills (первые 2 непустых) — стиль Aminamed kanbanFields
+  const cfs = d.customFields || {};
+  const cfSchema = dealsState.customSchema || {};
+  const cfPills = [];
+  for (const [k, v] of Object.entries(cfs)) {
+    if (cfPills.length >= 2) break;
+    if (v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) continue;
+    const meta = cfSchema[k];
+    let label = '';
+    if (meta && meta.type === 'enumeration' && asArray(meta.list).length > 0) {
+      const opt = asArray(meta.list).find(o => String(o.ID) === String(v) || String(o.VALUE) === String(v));
+      label = opt ? opt.VALUE : String(v);
+    } else {
+      label = Array.isArray(v) ? v.join(', ') : String(v);
+    }
+    if (label) cfPills.push(`<span class="kanban-cf-pill" title="${escapeHtml(meta?.label || k)}">${escapeHtml(label.slice(0, 30))}</span>`);
+  }
+
+  return `<div class="${cardClasses.join(' ')}" draggable="true" data-deal-id="${escapeHtml(d.bitrixId)}" data-stage="${escapeHtml(d.stageId)}" style="border-left: 3px solid ${stageColor}">
+    ${isNew ? `<div class="kanban-card-markers"><span class="kanban-card-marker" title="Изменена за последние 24 часа">NEW</span></div>` : ''}
     <div class="kanban-card-title">${escapeHtml(d.title || '(без названия)')}</div>
     ${opp > 0 ? `<div class="kanban-card-money">${opp.toLocaleString('ru')} ₸</div>` : ''}
     ${phone ? `<div class="kanban-card-phone">📱 ${escapeHtml(phone)}</div>` : ''}
+    ${cfPills.length ? `<div class="kanban-card-cf">${cfPills.join('')}</div>` : ''}
     <div class="kanban-card-foot">
       <div class="kanban-card-resp" title="${escapeHtml(respName || 'Без ответственного')}">
         <span class="kanban-av">${escapeHtml(respShort)}</span>
