@@ -293,6 +293,26 @@ CREATE TABLE kv (
   v   TEXT                                  -- JSON value
 );
 
+-- ── Files queue (мигрированные файлы из Bitrix24 disk в R2) ──
+-- Заполняется migration-скриптом (см. elc-worker/scripts/migrate_files.mjs).
+-- Worker /api/files/{id} читает по id, отдаёт object из R2 bucket FILES.
+-- frontend (loadFilesIntoContainer) видит { fileName, fileSize, contentType,
+-- migrated, permanentlyFailed } и рендерит кнопку «Скачать» или сообщение об ошибке.
+CREATE TABLE files_queue (
+  id                   TEXT PRIMARY KEY,    -- Bitrix file ID
+  file_name            TEXT,
+  file_size            INTEGER,
+  content_type         TEXT,
+  r2_key               TEXT,                -- ключ объекта в R2 bucket
+  migrated             INTEGER DEFAULT 0,   -- 1 если успешно залит в R2
+  permanently_failed   INTEGER DEFAULT 0,   -- 1 если не удалось скачать
+  error_message        TEXT,
+  bitrix_download_url  TEXT,                -- оригинальная ссылка для retry
+  created_at           TEXT DEFAULT CURRENT_TIMESTAMP,
+  migrated_at          TEXT
+);
+CREATE INDEX idx_files_queue_migrated ON files_queue(migrated);
+
 -- ── Migration state (опционально, для аудита) ───────────
 CREATE TABLE migration_log (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
