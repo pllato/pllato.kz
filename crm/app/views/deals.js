@@ -1011,7 +1011,7 @@ function renderMassActionModal(pipelines, stages) {
 function renderColumn(stage, deals, contactMap) {
   return `
     <div class="kanban-col" data-stage="${stage.id}" style="--stage-color: ${stage.color}">
-      <div class="kanban-col-head">
+      <div class="kanban-col-head" draggable="true" data-stage-reorder="${stage.id}" title="Перетащи, чтобы поменять порядок колонок">
         <span class="dot"></span>
         <span class="kanban-col-title">${escape(stage.title)}</span>
         <span class="kanban-col-count">${deals.length}</span>
@@ -2742,6 +2742,22 @@ function wireEvents(container) {
       e.preventDefault();
       col.classList.remove("drop-target");
       clearInterval(state.scrollTimer); state.scrollTimer = null;
+      // Если drag — это переупорядочивание колонок стадий, обрабатываем отдельно.
+      const reorderId = e.dataTransfer.getData("application/x-stage-reorder");
+      if (reorderId) {
+        const targetStage = col.dataset.stage;
+        if (!targetStage || reorderId === targetStage) return;
+        const stagesNow = getStages();
+        const fromIdx = stagesNow.findIndex((s) => s.id === reorderId);
+        const toIdx = stagesNow.findIndex((s) => s.id === targetStage);
+        if (fromIdx < 0 || toIdx < 0) return;
+        const reordered = stagesNow.slice();
+        const [moved] = reordered.splice(fromIdx, 1);
+        reordered.splice(toIdx, 0, moved);
+        saveStages(reordered);
+        renderDeals(container);
+        return;
+      }
       const id = e.dataTransfer.getData("text/plain") || state.dragId;
       if (!id) return;
       const stage = col.dataset.stage;
@@ -2751,6 +2767,19 @@ function wireEvents(container) {
         addActivity(id, "stage", { fromStage: deal.stage, toStage: stage });
         renderDeals(container);
       }
+    });
+  });
+
+  // Drag-and-drop для заголовков колонок — переупорядочивание стадий канбана.
+  container.querySelectorAll("[data-stage-reorder]").forEach((head) => {
+    head.addEventListener("dragstart", (e) => {
+      e.stopPropagation();
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("application/x-stage-reorder", head.dataset.stageReorder || "");
+      head.closest(".kanban-col")?.classList.add("col-dragging");
+    });
+    head.addEventListener("dragend", () => {
+      head.closest(".kanban-col")?.classList.remove("col-dragging");
     });
   });
 

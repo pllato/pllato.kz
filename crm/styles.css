@@ -1360,7 +1360,11 @@ body {
   padding: 12px 14px;
   border-bottom: 1px solid var(--border-soft);
   border-top: 3px solid var(--stage-color);
+  cursor: grab;
+  user-select: none;
 }
+.kanban-col-head:active { cursor: grabbing; }
+.kanban-col.col-dragging { opacity: 0.5; }
 .kanban-col-head .dot {
   width: 8px; height: 8px;
   border-radius: 50%;
@@ -9044,8 +9048,8 @@ body {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 14px;
-  width: min(94vw, 1400px);
-  max-height: 90vh;
+  width: min(92vw, 1100px);
+  height: min(92vh, 900px);
   display: flex; flex-direction: column;
   box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
   overflow: hidden;
