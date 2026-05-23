@@ -554,42 +554,73 @@ function dealActivitySnapshot(dealId, extra = {}) {
 }
 
 /**
- * Индекс: dealId → последние ts входящих/исходящих WA-сообщений (через chats/chat_messages).
- * Строится один раз в renderDeals и передаётся в dealActivitySnapshot, чтобы не
- * сканировать сообщения для каждой карточки.
+ * Индекс: dealId → { lastIncomingWaTs, lastOutgoingWaTs, unreadCount } по chats/chat_messages.
+ * Строится один раз в renderDeals и переиспользуется в snapshot/renderCard.
  */
+/**
+ * Помечает WA-чат(ы) для данного номера телефона как прочитанные на текущий момент.
+ * Используется при открытии WA-окна, чтобы сбросить счётчик непрочитанных.
+ * @param {string} phone — номер контакта (любой формат)
+ */
+function markWaChatRead(phone) {
+  if (!phone) return;
+  const raw = String(phone).replace(/[^\d]/g, "");
+  const norm = /^8\d{10}$/.test(raw) ? "7" + raw.slice(1) : raw;
+  if (!norm) return;
+  const now = Date.now();
+  for (const c of Store.list("chats")) {
+    if (!c?.wa || c.isGroup) continue;
+    const cphone = String(c.phone || "").replace(/[^\d]/g, "");
+    const cnorm = /^8\d{10}$/.test(cphone) ? "7" + cphone.slice(1) : cphone;
+    if (cnorm === norm) {
+      Store.update("chats", c.id, { lastReadAt: now });
+    }
+  }
+}
+
 function buildDealWaMessageIndex() {
-  // 1) Соберём ts последних сообщений по chatId (входящих и исходящих).
-  const incomingByChat = new Map();
+  // 1) Соберём ts последних сообщений + список входящих по chatId.
+  const incomingByChat = new Map();        // chatId → max incoming ts
   const outgoingByChat = new Map();
+  const incomingMsgsByChat = new Map();    // chatId → [ {ts} ] (для подсчёта непрочитанных)
   for (const m of Store.list("chat_messages")) {
     if (!m.chatId) continue;
     const ts = Number(m.ts) || Number(m.createdAt) || 0;
     if (ts <= 0) continue;
     if (m.from === "them") {
       if (ts > (incomingByChat.get(m.chatId) || 0)) incomingByChat.set(m.chatId, ts);
+      if (!incomingMsgsByChat.has(m.chatId)) incomingMsgsByChat.set(m.chatId, []);
+      incomingMsgsByChat.get(m.chatId).push(ts);
     } else if (m.from === "me") {
       if (ts > (outgoingByChat.get(m.chatId) || 0)) outgoingByChat.set(m.chatId, ts);
     }
   }
-  // 2) chatId → phone (через chats коллекцию).
+  // 2) chatId → phone, и chatId → lastReadAt.
   const phoneByChat = new Map();
+  const lastReadByChat = new Map();
   for (const c of Store.list("chats")) {
     if (!c?.wa || c.isGroup) continue;
     const phone = String(c.phone || "").replace(/[^\d]/g, "");
     const norm = /^8\d{10}$/.test(phone) ? "7" + phone.slice(1) : phone;
     if (norm) phoneByChat.set(c.id, norm);
+    lastReadByChat.set(c.id, Number(c.lastReadAt) || 0);
   }
-  // 3) phone → max ts (из всех chats с этим номером)
+  // 3) Аггрегация по phone (несколько каналов с одним номером тоже могут быть).
   const incomingByPhone = new Map();
   const outgoingByPhone = new Map();
+  const unreadByPhone = new Map();
   for (const [chatId, phone] of phoneByChat.entries()) {
     const inTs = incomingByChat.get(chatId) || 0;
     const outTs = outgoingByChat.get(chatId) || 0;
     if (inTs > (incomingByPhone.get(phone) || 0)) incomingByPhone.set(phone, inTs);
     if (outTs > (outgoingByPhone.get(phone) || 0)) outgoingByPhone.set(phone, outTs);
+    // Непрочитанные: входящие с ts > lastReadAt
+    const lastReadAt = lastReadByChat.get(chatId) || 0;
+    const msgs = incomingMsgsByChat.get(chatId) || [];
+    const unread = msgs.reduce((acc, ts) => (ts > lastReadAt ? acc + 1 : acc), 0);
+    unreadByPhone.set(phone, (unreadByPhone.get(phone) || 0) + unread);
   }
-  // 4) dealId → { lastIncomingWaTs, lastOutgoingWaTs } (через contactId → phone)
+  // 4) dealId → snapshot (через contactId → phone).
   const result = new Map();
   const contactsById = new Map(Store.list(CONTACTS).map((c) => [c.id, c]));
   for (const d of Store.list(COLLECTION)) {
@@ -601,8 +632,9 @@ function buildDealWaMessageIndex() {
     if (!phone) continue;
     const lastIncomingWaTs = incomingByPhone.get(phone) || 0;
     const lastOutgoingWaTs = outgoingByPhone.get(phone) || 0;
-    if (lastIncomingWaTs || lastOutgoingWaTs) {
-      result.set(d.id, { lastIncomingWaTs, lastOutgoingWaTs });
+    const unreadCount = unreadByPhone.get(phone) || 0;
+    if (lastIncomingWaTs || lastOutgoingWaTs || unreadCount > 0) {
+      result.set(d.id, { lastIncomingWaTs, lastOutgoingWaTs, unreadCount });
     }
   }
   return result;
@@ -669,6 +701,19 @@ export function renderDeals(container) {
   reconcileDeals(stages, activePipelineId);
   seedDemo();
 
+  // Пока идёт первая загрузка из облака и сделок локально нет — показываем loader
+  // вместо «пустого» канбана. Иначе пользователь видит пустые колонки и думает,
+  // что у него ничего нет. После завершения bootstrap app.js делает re-render.
+  if (typeof Store.isBootstrapped === "function" && !Store.isBootstrapped() && Store.list(COLLECTION).length === 0) {
+    container.innerHTML = `
+      <div class="crm-bootstrap-loader">
+        <div class="crm-bootstrap-spinner"></div>
+        <div class="crm-bootstrap-text">Загружаем сделки и контакты…</div>
+      </div>
+    `;
+    return;
+  }
+
   if (resolveCallsTabFromHash()) {
     state.crmTab = "calls";
   }
@@ -708,7 +753,9 @@ export function renderDeals(container) {
   // Считаем snapshot активности один раз и кладём в .__snap, чтобы renderCard переиспользовал.
   filteredDeals.filter(isDealVisibleByUtmFilter).forEach((d) => {
     if (!byStage[d.stage]) return;
-    d.__snap = dealActivitySnapshot(d.id, waMsgIndex.get(d.id) || {});
+    const waInfo = waMsgIndex.get(d.id) || {};
+    d.__snap = dealActivitySnapshot(d.id, waInfo);
+    d.__unreadWa = Number(waInfo.unreadCount) || 0;
     byStage[d.stage].push(d);
   });
   // Сортируем сделки в каждой колонке: свежая активность сверху.
@@ -1160,14 +1207,17 @@ function renderCard(d, contact) {
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     .slice(0, 3);
   const snap = d.__snap || dealActivitySnapshot(d.id);
+  const unread = Number(d.__unreadWa) || 0;
   const cardClasses = [
     "deal-card",
     snap.hasNewActivity ? "deal-card-new" : "",
     snap.hasMissedCall ? "deal-card-missed" : "",
+    unread > 0 ? "deal-card-unread" : "",
   ].filter(Boolean).join(" ");
   const markers = [
+    unread > 0 ? `<span class="deal-card-marker marker-unread" title="Непрочитанных WhatsApp: ${unread}">💬 ${unread > 99 ? "99+" : unread}</span>` : "",
     snap.hasMissedCall ? `<span class="deal-card-marker marker-missed" title="Пропущенный звонок">📵</span>` : "",
-    snap.hasNewActivity ? `<span class="deal-card-marker marker-new" title="Новая активность за последний час">●</span>` : "",
+    snap.hasNewActivity && unread === 0 ? `<span class="deal-card-marker marker-new" title="Новая активность за последний час">●</span>` : "",
   ].filter(Boolean).join("");
   return `
     <article class="${cardClasses}" data-id="${d.id}" draggable="true" style="border-left-color:${stage?.color || "var(--accent)"}">
@@ -1834,6 +1884,9 @@ function renderDealActionBar(d, contact) {
   const noPhoneTitle = "У контакта нет телефона";
   const itemsCount = d?.id ? listDealItems(d.id).length : 0;
   const orderLabel = itemsCount > 0 ? `Заказ (${itemsCount})` : "Создать заказ";
+  // Счётчик непрочитанных WhatsApp для контакта сделки.
+  const unread = d?.id ? (buildDealWaMessageIndex().get(d.id)?.unreadCount || 0) : 0;
+  const unreadBadge = unread > 0 ? `<span class="action-bar-badge">${unread > 99 ? "99+" : unread}</span>` : "";
   return `
     <footer class="deal-action-bar">
       <button type="button" class="deal-action-btn" id="actionBarCall" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Позвонить" : noPhoneTitle}">
@@ -1843,6 +1896,7 @@ function renderDealActionBar(d, contact) {
       <button type="button" class="deal-action-btn deal-action-btn-primary" id="actionBarWA" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Открыть WhatsApp" : noPhoneTitle}">
         <span class="dab-emoji">💬</span>
         <span>${hasPhone ? "Открыть WhatsApp с клиентом" : noPhoneTitle}</span>
+        ${unreadBadge}
       </button>
       <button type="button" class="deal-action-btn deal-action-btn-order" data-deal-items-open title="${escapeAttr(orderLabel)}">
         <span class="dab-emoji">📦</span>
@@ -3693,6 +3747,8 @@ function wireEvents(container) {
       if (!c?.phone) return;
       // Открываем плавающее окно поверх карточки сделки.
       state.waFloat = { open: true, contactId: c.id, dealId: state.modalDealId, mediaOpen: false, searchOpen: false, searchQuery: "", draftText: "" };
+      // Помечаем чат как прочитанный — сбрасываем счётчик непрочитанных.
+      markWaChatRead(c.phone);
       renderDeals(container);
     });
     container.querySelector("#actionBarNote")?.addEventListener("click", () => {

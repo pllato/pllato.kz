@@ -293,6 +293,8 @@ export const Store = {
     scheduleFlush(1200);
   },
 
+  isBootstrapped() { return syncState.bootstrapped === true; },
+
   async cloudBootstrap(opts = {}) {
     if (syncState.bootstrapped) return { ok: true, cached: true };
     if (syncState.bootstrapping) return syncState.bootstrapping;
