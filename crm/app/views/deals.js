@@ -1119,11 +1119,15 @@ function renderDealModal(d, contacts, stages) {
                 <label>Название *</label>
                 <input name="title" required value="${escape(d.title)}" placeholder="Например: внедрение CRM">
               </div>
-              <div class="field">
-                <label>Сумма, ₸</label>
-                <input name="amount" type="number" min="0" step="1000" value="${d.amount || ""}" placeholder="0">
-              </div>
+              ${isNew
+                ? `<input type="hidden" name="amount" value="0">`
+                : `<div class="field">
+                    <label>Сумма, ₸ <span style="color:var(--text-muted);font-weight:400;font-size:11px;">(считается из заказа, если есть)</span></label>
+                    <input name="amount" type="number" min="0" step="1000" value="${d.amount || ""}" placeholder="0">
+                  </div>`
+              }
               ${renderDealContactBlock(contact, d, trashedContact)}
+              ${!isNew ? renderDealItemsSection(d.id, d.amount) : ""}
               ${renderTypeahead({
                 name: "assigneeId",
                 value: d.assigneeId,
@@ -1133,7 +1137,6 @@ function renderDealModal(d, contacts, stages) {
                 emptyText: "— не назначен —",
               })}
               ${renderCustomFields(d, contacts, employees, stages)}
-              ${!isNew ? renderDealItemsSection(d.id, d.amount) : ""}
               ${renderUtmFormSection(d, { autofill: isNew })}
               <div class="field field-wide form-buttons">
                 ${!isNew ? `<button type="button" class="btn-ghost danger" id="deleteDeal">${ICONS.trash}<span>Удалить</span></button>` : "<span></span>"}

@@ -813,12 +813,10 @@ async function loadHistory() {
       internal_numbers: lines.join(","),
     });
     const all = Array.isArray(res.calls) ? res.calls : [];
-    // Если у сотрудников не задана ни одна Binotel-линия — показываем всю историю
-    // (фильтр пуст = нет ограничения). Раньше тут принудительно был [], из-за чего
-    // история выглядела «пропавшей» при пустой настройке линий.
-    state.historyList = lines.length > 0
-      ? all.filter((row) => lines.includes(normalizeInternalLine(row.internalNumber || "")))
-      : all;
+    // Показываем все звонки, без фильтрации по линиям сотрудников. Раньше тут была
+    // жёсткая фильтрация, из-за которой история выглядела пустой, если Binotel-линия
+    // сотрудника не совпадала с internalNumber в webhook'ах (например, для исходящих).
+    state.historyList = all;
   } catch (e) {
     state.historyError = e?.message || String(e);
   } finally {
@@ -860,13 +858,13 @@ async function openHistoryRecording(callId) {
 
 function renderHistoryPage() {
   const lines = employeeBinotelLines();
-  const linesHint = lines.length > 0 ? lines.join(", ") : "не заданы";
+  const linesHint = lines.length > 0 ? `Линии сотрудников: ${escape(lines.join(", "))}.` : "";
   return `
     <div class="calls-page">
       <div class="calls-head">
         <div>
           <h3>История звонков</h3>
-          <p>Показываются только линии сотрудников из системы: ${escape(linesHint)}.</p>
+          ${linesHint ? `<p>${linesHint}</p>` : ""}
         </div>
         <div class="calls-head-actions">
           <button class="btn-ghost" id="refreshHistoryBtn">Обновить</button>

@@ -2779,14 +2779,17 @@ body {
   margin-bottom: 12px;
 }
 .calls-tab {
-  padding: 7px 12px;
+  padding: 8px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  color: var(--text-muted);
+  background: var(--surface-2);
+  color: var(--text);
   text-decoration: none;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
+  transition: background .12s, border-color .12s, color .12s;
 }
+.calls-tab:hover { background: var(--surface-hover); border-color: var(--accent); }
 .calls-tab.active {
   color: var(--accent-hover);
   border-color: var(--accent);
@@ -4620,6 +4623,10 @@ body {
   border-top: 1px solid var(--border-soft);
   background: var(--surface-2);
   flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  box-shadow: 0 -6px 14px -8px rgba(0,0,0,.35);
 }
 .deal-action-btn {
   flex: 1;
@@ -8979,29 +8986,30 @@ body {
 
 /* === Deal Items Summary (компактный блок в карточке сделки) === */
 .deal-items-summary {
-  margin-top: 12px;
-  padding: 14px;
-  background: rgba(15, 20, 25, .4);
-  border: 1px solid var(--border, #2a3550);
-  border-radius: 10px;
-  display: flex; flex-direction: column; gap: 8px;
+  margin-top: 14px;
+  padding: 18px 18px 16px;
+  background: var(--accent-tint, rgba(34,197,94,.08));
+  border: 1.5px solid var(--accent, #25d366);
+  border-radius: 12px;
+  display: flex; flex-direction: column; gap: 10px;
 }
 .deal-items-summary .dis-sum-row {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; flex-wrap: wrap;
 }
 .deal-items-summary .dis-sum-left {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
 .deal-items-summary .dis-sum-title {
-  font-size: 14px;
+  font-size: 16px; font-weight: 700;
 }
 .deal-items-summary .dis-sum-stats {
-  font-size: 13px; color: var(--muted, #8896b3);
+  font-size: 14px; color: var(--text, inherit);
 }
 .deal-items-summary .dis-sum-stats strong {
-  color: var(--text, #d4dce8);
+  color: var(--accent-hover, var(--text));
   font-variant-numeric: tabular-nums;
+  font-size: 16px;
 }
 .deal-items-summary .dis-sum-warning {
   font-size: 12px; color: #f59e0b;
@@ -9012,6 +9020,11 @@ body {
 }
 .deal-items-summary .dis-sum-actions {
   display: flex; justify-content: flex-end;
+}
+.deal-items-summary .dis-sum-actions .btn-primary {
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 /* === Deal Items Modal (полноразмерная модалка) === */

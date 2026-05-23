@@ -168,8 +168,8 @@ export function renderDealItemsSection(dealId) {
         <div class="dis-sum-warning">⚠ Не совпадает с суммой сделки (${fmtNum(deal.amount)} ₸)</div>
       ` : ""}
       <div class="dis-sum-actions">
-        <button type="button" class="btn-primary btn-sm" data-deal-items-open>
-          ${items.length > 0 ? "Открыть заказ" : "+ Сформировать заказ"}
+        <button type="button" class="btn-primary" data-deal-items-open>
+          ${items.length > 0 ? "📋 Открыть заказ" : "+ Сформировать заказ"}
         </button>
       </div>
     </div>
