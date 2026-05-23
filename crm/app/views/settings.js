@@ -9,6 +9,7 @@ import { setEmployeePassword, generateTempPassword, logoutAll, getEmailSession }
 import { saveLocalEmployee, removeFromBackup, isLocalEmployee } from "../local_employees.js";
 import { getDealFields, saveDealFields, newFieldId, FIELD_TYPES } from "../custom_fields.js";
 import { listChannels, typeMeta, isChannelsSynced, saveChannel, deleteChannel, getChannelFull } from "../channels.js";
+import { openWaQrModal } from "../wa_qr.js";
 import { ensureBuiltinDocumentsSeed, listDocuments, normalizeVisibility, saveDocumentVisibility, isEmployeeAdmin } from "../docs/registry.js";
 import { VERSION, REVISION, BUILD_DATE, COMMIT_SHORT, HISTORY } from "../version.js";
 
@@ -583,11 +584,12 @@ function renderGreenApiForm(id) {
         <span>Активен</span>
       </label>
 
-      <div style="display:flex;gap:8px;margin-top:18px;">
+      <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;">
         <button type="submit" style="background:var(--accent);color:white;border:0;padding:9px 18px;border-radius:7px;cursor:pointer;font-weight:500;font:inherit;">Сохранить</button>
         <button type="button" class="btn-ghost" data-cancel-channel-form>Отмена</button>
+        ${!isNew ? `<button type="button" data-wa-link-qr data-channel-id="${escape(id)}" style="background:#25d366;color:white;border:0;padding:9px 18px;border-radius:7px;cursor:pointer;font-weight:500;font:inherit;margin-left:auto;">📱 Привязать WhatsApp</button>` : ''}
       </div>
-      ${!isNew ? `<div style="font-size:12px;color:var(--text-muted);margin-top:10px;">💡 Если оставить API token пустым — текущий сохранится.</div>` : ''}
+      ${!isNew ? `<div style="font-size:12px;color:var(--text-muted);margin-top:10px;">💡 Если оставить API token пустым — текущий сохранится. Кнопка «Привязать WhatsApp» покажет QR-код для сканирования с телефона.</div>` : '<div style="font-size:12px;color:var(--text-muted);margin-top:10px;">💡 Сохрани канал — после этого появится кнопка «Привязать WhatsApp».</div>'}
     </form>
   `;
 }
@@ -669,6 +671,21 @@ function wireChannelsEvents(container) {
       channelsEditState.editType = null;
       channelsEditState.editData = null;
       renderSettings(container);
+      return;
+    }
+
+    const waQrBtn = e.target.closest('[data-wa-link-qr]');
+    if (waQrBtn) {
+      const cid = waQrBtn.dataset.channelId;
+      if (!cid) return;
+      const ch = listChannels({ onlyActive: false }).find(c => c.id === cid);
+      openWaQrModal({
+        channelId: cid,
+        channelName: ch?.name || "",
+        onAuthorized: () => { /* статус обновится при следующем sync; перерисуем форму */
+          renderSettings(container);
+        },
+      });
       return;
     }
   });

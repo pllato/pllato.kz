@@ -2326,6 +2326,76 @@ async function handleWaSend(request, env, actor) {
   };
 }
 
+async function handleWaQr(request, env, actor, url) {
+  void actor;
+  const channelId = String(url.searchParams.get("channelId") || "").trim();
+  if (!channelId) throw new HttpError(400, "Не передан channelId");
+
+  const channel = await loadChannel(env, channelId);
+  assertChannelType(channel, "greenapi_wa");
+
+  const idInstance = normalizeWaInstanceId(channel.data.config?.id_instance);
+  const token = sanitizeGreenApiToken(channel.secret?.api_token_instance || "");
+  if (!idInstance || !token) {
+    throw new HttpError(400, "У канала WhatsApp не заполнены id_instance/api_token_instance");
+  }
+
+  const apiUrl = normalizeGreenApiBaseUrl(
+    channel.data.config?.api_url || env.GREEN_API_URL || "https://api.green-api.com",
+    "https://api.green-api.com",
+  );
+  const endpoint = `${apiUrl}/waInstance${idInstance}/qr/${token}`;
+  const res = await fetch(endpoint, { method: "GET" });
+  const responseText = await res.text();
+  let providerBody = responseText;
+  try { providerBody = JSON.parse(responseText); } catch {}
+
+  if (!res.ok) throw new HttpError(502, "Green-API вернул ошибку при запросе QR", providerBody);
+
+  // Green-API возвращает { type: "qrCode" | "alreadyLogged" | "error", message: string }
+  // Для type="qrCode" message — base64 PNG (без data:image префикса).
+  return {
+    ok: true,
+    type: providerBody?.type || null,
+    qrBase64: providerBody?.type === "qrCode" ? String(providerBody.message || "") : null,
+    message: providerBody?.message || null,
+  };
+}
+
+async function handleWaState(request, env, actor, url) {
+  void actor;
+  const channelId = String(url.searchParams.get("channelId") || "").trim();
+  if (!channelId) throw new HttpError(400, "Не передан channelId");
+
+  const channel = await loadChannel(env, channelId);
+  assertChannelType(channel, "greenapi_wa");
+
+  const idInstance = normalizeWaInstanceId(channel.data.config?.id_instance);
+  const token = sanitizeGreenApiToken(channel.secret?.api_token_instance || "");
+  if (!idInstance || !token) {
+    throw new HttpError(400, "У канала WhatsApp не заполнены id_instance/api_token_instance");
+  }
+
+  const apiUrl = normalizeGreenApiBaseUrl(
+    channel.data.config?.api_url || env.GREEN_API_URL || "https://api.green-api.com",
+    "https://api.green-api.com",
+  );
+  const endpoint = `${apiUrl}/waInstance${idInstance}/getStateInstance/${token}`;
+  const res = await fetch(endpoint, { method: "GET" });
+  const responseText = await res.text();
+  let providerBody = responseText;
+  try { providerBody = JSON.parse(responseText); } catch {}
+
+  if (!res.ok) throw new HttpError(502, "Green-API вернул ошибку при запросе статуса", providerBody);
+
+  // stateInstance: "authorized" | "notAuthorized" | "starting" | "blocked" | "sleepMode" | "yellowCard"
+  return {
+    ok: true,
+    stateInstance: providerBody?.stateInstance || null,
+    raw: providerBody,
+  };
+}
+
 function isAllowedGreenWebhookType(typeWebhook) {
   return typeWebhook === "incomingMessageReceived" ||
     typeWebhook === "outgoingMessageReceived" ||
@@ -4103,6 +4173,16 @@ export default {
       if (request.method === "POST" && path === "/wa/send") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleWaSend(request, env, actor));
+      }
+
+      if (request.method === "GET" && path === "/wa/qr") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleWaQr(request, env, actor, url));
+      }
+
+      if (request.method === "GET" && path === "/wa/state") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleWaState(request, env, actor, url));
       }
 
       if (request.method === "POST" && path === "/email/send") {

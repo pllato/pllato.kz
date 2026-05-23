@@ -167,3 +167,24 @@ export async function getChannelFull(id) {
   if (!json?.ok || !Array.isArray(json.channels)) return null;
   return json.channels.find((c) => c && c.id === id) || null;
 }
+
+/**
+ * Запросить QR-код для привязки WhatsApp у Green-API инстанса.
+ * Worker проксирует запрос (креды берёт из БД, на фронт не отдаёт).
+ * @param {string} channelId
+ * @returns {Promise<{ ok: boolean, type: "qrCode"|"alreadyLogged"|"error"|null, qrBase64: string|null, message: string|null }>}
+ */
+export async function getWaQr(channelId) {
+  if (!channelId) throw new Error("getWaQr: channelId обязателен");
+  return apiFetch(`/wa/qr?channelId=${encodeURIComponent(channelId)}`, { method: "GET" });
+}
+
+/**
+ * Получить статус Green-API инстанса.
+ * @param {string} channelId
+ * @returns {Promise<{ ok: boolean, stateInstance: "authorized"|"notAuthorized"|"starting"|"blocked"|"sleepMode"|"yellowCard"|null }>}
+ */
+export async function getWaState(channelId) {
+  if (!channelId) throw new Error("getWaState: channelId обязателен");
+  return apiFetch(`/wa/state?channelId=${encodeURIComponent(channelId)}`, { method: "GET" });
+}
