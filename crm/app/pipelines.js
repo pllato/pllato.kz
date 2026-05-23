@@ -106,9 +106,16 @@ export function getPipelineById(id) {
 export function getActivePipelineId() {
   ensurePipelinesInitialized();
   const id = localStorage.getItem(ACTIVE_KEY);
-  const pipelines = read();
-  if (id && pipelines.some((p) => p.id === id)) return id;
-  return pipelines[0]?.id || null;
+  // Игнорируем удалённые воронки: вкладки сверху рендерим только активные,
+  // если сохранённая активная id оказалась isDeleted=true — берём первую живую.
+  const livePipelines = read().filter((p) => !p.isDeleted);
+  if (id && livePipelines.some((p) => p.id === id)) return id;
+  const first = livePipelines[0]?.id || null;
+  if (first && id !== first) {
+    // Сохраняем нормализованный id, чтобы при следующем рендере точно подсветилась вкладка.
+    try { localStorage.setItem(ACTIVE_KEY, first); } catch (_) {}
+  }
+  return first;
 }
 
 export function setActivePipelineId(id) {
