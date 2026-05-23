@@ -216,20 +216,32 @@ function safeJsonVerbatim(v) {
   return v;
 }
 
-// Sparse: пропускаем null-поля. Frontend трактует undefined и null одинаково
-// в шаблонах вида `contact.lastName || ''`, поэтому контракт не ломается.
-// Экономит ~30-50% CPU и трафика для разреженных записей (contacts с bitrix_* NULL).
+// Sparse-режим только для очень крупных таблиц где экономия CPU реально важна.
+// Для маленьких reference-таблиц (users 86, companies 20, pipelines, openlines)
+// выгоднее отдать полную schema — фронт где-то сортирует по `lastName.localeCompare`
+// без null-guard'а и падает на undefined.
+const SPARSE_TABLES = new Set([
+  "contacts",            // 143k
+  "tasks",               // 38k
+  "deals",               // 22k
+  "timeline_activities", // 146k
+  "chat_messages",       // 82k
+]);
+
 function serializeRowFast(row, tableName) {
   const schema = getSerializeSchema(row, tableName);
+  const sparse = SPARSE_TABLES.has(tableName);
   let out = "{";
   let first = true;
   for (let i = 0; i < schema.length; i++) {
     const fld = schema[i];
     const v = row[fld.snake];
-    if (v === null || v === undefined) continue;
+    if (sparse && (v === null || v === undefined)) continue;
     out += first ? fld.keyHead : fld.keyHeadComma;
     first = false;
-    if (fld.isJson) {
+    if (v === null || v === undefined) {
+      out += "null";
+    } else if (fld.isJson) {
       out += safeJsonVerbatim(v);
     } else if (typeof v === "number") {
       out += v;
