@@ -366,8 +366,14 @@ export function saveWarehouseProduct(payload = {}) {
   if (!data.name) throw new Error("Укажи название");
   if (!data.entity) throw new Error("Укажи юр.лицо");
 
-  const duplicate = safeList(WH.products).find((p) => p.sku?.toLowerCase() === data.sku.toLowerCase() && p.id !== payload.id);
-  if (duplicate) throw new Error("SKU уже используется");
+  // Дубликат проверяем по паре (SKU, entity): один и тот же товар может
+  // существовать у разных юр.лиц (ИП и ТОО) с разными остатками.
+  const duplicate = safeList(WH.products).find((p) =>
+    p.sku?.toLowerCase() === data.sku.toLowerCase() &&
+    String(p.entity || "").trim() === data.entity &&
+    p.id !== payload.id
+  );
+  if (duplicate) throw new Error(`SKU «${data.sku}» уже используется в ${data.entity}`);
 
   if (payload.id) {
     return Store.update(WH.products, payload.id, data);
@@ -1127,10 +1133,14 @@ export async function importWarehouseBatch(payload = {}, onProgress) {
   const documentsArr = importReadCollection(WH.documents);
   const movementsArr = importReadCollection(WH.movements);
 
-  // Индекс по SKU (без регистра) для дедупликации товаров
-  const skuToId = new Map();
+  // Индекс по паре (SKU, entity) для дедупликации товаров.
+  // Раньше ключом был только SKU — из-за этого второй импорт (например ТОО после
+  // ИП) переиспользовал товары первой компании, и лоты ТОО прилипали к товару ИП.
+  // Теперь ИП и ТОО — отдельные товары, остатки разделены.
+  const productKey = (sku, entity) => `${String(sku || "").toLowerCase()}::${String(entity || "").trim().toLowerCase()}`;
+  const skuEntityToId = new Map();
   productsArr.forEach((p) => {
-    if (p && p.sku) skuToId.set(String(p.sku).toLowerCase(), p.id);
+    if (p && p.sku) skuEntityToId.set(productKey(p.sku, p.entity), p.id);
   });
 
   // === Товары ===
@@ -1140,20 +1150,21 @@ export async function importWarehouseBatch(payload = {}, onProgress) {
   const productImportedIdToRealId = new Map();
   for (let i = 0; i < products.length; i++) {
     const p = products[i];
-    const skuKey = String(p.sku || "").toLowerCase();
-    if (!skuKey) {
+    const skuLower = String(p.sku || "").toLowerCase();
+    if (!skuLower) {
       result.productsSkipped += 1;
       result.conflicts.push({ kind: "product", reason: "no_sku", item: p });
       continue;
     }
-    if (skuToId.has(skuKey)) {
-      productImportedIdToRealId.set(p.importedId, skuToId.get(skuKey));
+    const key = productKey(p.sku, p.entity);
+    if (skuEntityToId.has(key)) {
+      productImportedIdToRealId.set(p.importedId, skuEntityToId.get(key));
       result.productsReused += 1;
       continue;
     }
     const id = nextId();
     productImportedIdToRealId.set(p.importedId, id);
-    skuToId.set(skuKey, id);
+    skuEntityToId.set(key, id);
     productsArr.push({
       ...p,
       id,
