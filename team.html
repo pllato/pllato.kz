@@ -2109,32 +2109,15 @@ async function initApp(user) {
 }
 
 async function preloadInBackground() {
-  // 1. Users — самые маленькие (88), нужны всем разделам
+  // 1. Users — самые маленькие (~50KB), нужны всем разделам
   await ensureUsersLoaded();
   // 2. Reference lists — копейки
   ensureRefListsLoaded();
-  // 3. Сделки (22k, ~3-5 МБ) — параллельно
-  if (!dealsState.loaded) {
-    loadDealsData().then(() => {
-      // После загрузки — подключаем live-listener
-      attachDealsLiveListener();
-    });
-  } else {
-    attachDealsLiveListener();
-  }
-  // 4. Задачи (38k, ~30 МБ) — самые тяжёлые, через 2 секунды после сделок
-  setTimeout(() => {
-    if (!tasksState.loaded) {
-      loadTasks().then(() => {
-        populateTaskAssigneeFilter();
-        attachTasksLiveListener();
-      });
-    } else {
-      attachTasksLiveListener();
-    }
-  }, 2000);
-  // Контакты больше не префетчим — серверная пагинация подгружает первую
-  // страницу (50 записей) мгновенно при открытии раздела.
+  // Сделки, Задачи, Контакты больше не префетчим — list-views грузят
+  // первую страницу (~50 записей) мгновенно при клике на раздел.
+  // Канбан (deals + tasks) лениво подгружает full только при явном клике.
+  // attachDealsLiveListener / attachTasksLiveListener убраны — Firebase RTDB
+  // деактивирована, SDK-listener'ы возвращают 423 Locked и засоряют Console.
 }
 
 function applyTheme(theme) {
@@ -4376,17 +4359,28 @@ window.openContactCard = async function(key) {
 //   ЗАДАЧИ (38k+ записей с фильтрами)
 // ═════════════════════════════════════════════════════════════════════════
 const tasksState = {
-  loaded: false,
-  list: [],
-  filtered: [],
-  filterStatus: 'all',
-  filterAssignee: 'all',
-  searchTerm: '',
-  hierarchyMode: 'smart',  // единственный режим — переключатель убран (см. tasks-hierarchy hidden)
-  view: 'list',            // list | kanban
+  loaded: false,           // флаг загрузки FULL tasksState.list (только для kanban)
+  list: [],                // ВСЕ задачи (только в kanban mode)
+  filtered: [],            // отфильтрованные client-side (kanban)
+  filterStatus: 'all',     // shared между list/kanban
+  filterAssignee: 'all',   // shared
+  searchTerm: '',          // shared
+  hierarchyMode: 'smart',
+  view: 'list',            // 'list' (paginated) | 'kanban' (full)
   loading: false,
-  expandedRows: new Set(), // ключи задач у которых раскрыты подзадачи в smart-режиме
-  selected: new Set(),     // ключи задач выбранных чекбоксами для bulk-операций
+  expandedRows: new Set(),
+  selected: new Set(),
+};
+
+// Серверная пагинация для list-view. Грузит страницу 50 задач + total.
+// Default sort='activity' — задачи с последней активностью наверху.
+const tasksPagedState = {
+  page: 1,
+  pageSize: 50,
+  total: 0,
+  totalPages: 0,
+  items: [],
+  loading: false,
 };
 
 // Состояние "прочитанности" задач — lastReadAt timestamps по ключу задачи
@@ -4436,14 +4430,24 @@ async function markTaskRead(taskKey) {
   }
 }
 
-// Помечаем все задачи прочитанными (за один батч)
+// Помечаем задачи прочитанными.
+// В kanban: все 38k загруженных задач (как раньше).
+// В list (paginated): только видимую страницу — иначе пришлось бы грузить все.
 async function markAllTasksRead() {
-  if (!confirm('Отметить все задачи прочитанными?')) return;
   const uid = fbAuth.currentUser?.uid;
   if (!uid) return;
+  const isList = tasksState.view === 'list';
+  const items = isList
+    ? tasksPagedState.items.map(t => ({ key: t.id }))
+    : tasksState.list;
+  if (!items.length) return;
+  const confirmMsg = isList
+    ? `Отметить ${items.length} задач на текущей странице прочитанными?`
+    : 'Отметить все задачи прочитанными?';
+  if (!confirm(confirmMsg)) return;
   const now = new Date().toISOString();
   const updates = {};
-  for (const t of tasksState.list) {
+  for (const t of items) {
     taskReadState.data[t.key] = now;
     updates[t.key] = now;
   }
@@ -4455,8 +4459,9 @@ async function markAllTasksRead() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
     });
-    showToast('Все задачи отмечены прочитанными');
-    filterAndRenderTasks();
+    showToast(isList ? `Отмечено ${items.length} задач` : 'Все задачи отмечены прочитанными');
+    if (isList) renderTasksLayoutPaged();
+    else filterAndRenderTasks();
   } catch (e) {
     showToast('Ошибка: ' + e.message, true);
   }
@@ -4535,27 +4540,38 @@ async function renderTasks(el) {
   const hierEl = document.getElementById('tasks-hierarchy');
   if (hierEl) hierEl.value = tasksState.hierarchyMode;
 
-  document.getElementById('tasks-search').addEventListener('keydown', e => {
+  // Хэндлер фильтра: в list mode — server-side (loadTasksPage), в kanban — client-side.
+  const applyFilter = async () => {
+    if (tasksState.view === 'list') {
+      await loadTasksPage(1);
+      renderTasksLayoutPaged();
+    } else {
+      filterAndRenderTasks();
+    }
+  };
+
+  document.getElementById('tasks-search').addEventListener('keydown', async e => {
     if (e.key === 'Enter') {
       tasksState.searchTerm = e.target.value.trim().toLowerCase();
-      filterAndRenderTasks();
+      await applyFilter();
     } else if (e.key === 'Escape') {
       e.target.value = '';
       tasksState.searchTerm = '';
-      filterAndRenderTasks();
+      await applyFilter();
     }
   });
-  document.getElementById('tasks-status').addEventListener('change', e => {
+  document.getElementById('tasks-status').addEventListener('change', async e => {
     tasksState.filterStatus = e.target.value;
-    filterAndRenderTasks();
+    await applyFilter();
   });
-  document.getElementById('tasks-assignee').addEventListener('change', e => {
+  document.getElementById('tasks-assignee').addEventListener('change', async e => {
     tasksState.filterAssignee = e.target.value;
-    filterAndRenderTasks();
+    await applyFilter();
   });
   document.getElementById('tasks-hierarchy').addEventListener('change', e => {
     tasksState.hierarchyMode = e.target.value;
-    filterAndRenderTasks();
+    // hierarchy mode имеет смысл только в kanban; в list — flat
+    if (tasksState.view === 'kanban') filterAndRenderTasks();
   });
 
   // View toggle
@@ -4569,18 +4585,135 @@ async function renderTasks(el) {
   // Mark all read
   document.getElementById('tasks-mark-all-read').addEventListener('click', markAllTasksRead);
 
-  if (!tasksState.loaded) {
-    await Promise.all([
-      loadTasks(),
-      ensureUsersLoaded(),
-      ensureTaskReadState(),
-    ]);
+  // ── Раздельный flow: list = paginated, kanban = full ────────────────────
+  // В list mode достаточно лёгкого ensureUsersLoaded + readState + первой страницы.
+  // В kanban требуются ВСЕ задачи (для группировки по статусам и smart hierarchy).
+  if (tasksState.view === 'list') {
+    await Promise.all([ensureUsersLoaded(), ensureTaskReadState()]);
+    populateTaskAssigneeFilter();          // юзеры из usersState (полная база)
+    await loadTasksPage(1);                // server-side первая страница
+    renderTasksLayoutPaged();
   } else {
-    ensureUsersLoaded();
-    ensureTaskReadState();
+    // Kanban: лениво грузим full 38k tasks
+    if (!tasksState.loaded) {
+      await Promise.all([loadTasks(), ensureUsersLoaded(), ensureTaskReadState()]);
+    } else {
+      ensureUsersLoaded();
+      ensureTaskReadState();
+    }
+    populateTaskAssigneeFilter();
+    filterAndRenderTasks();
   }
-  populateTaskAssigneeFilter();
-  filterAndRenderTasks();
+}
+
+// ── Paginated list view (server-side) ────────────────────────────────────
+// Дёргает /api/list/tasks с фильтрами. Sort='activity' (по changed/status_changed
+// _date DESC) — "новые с активностью сверху", как просил Платон.
+async function loadTasksPage(page) {
+  if (tasksPagedState.loading) return;
+  tasksPagedState.loading = true;
+  tasksPagedState.page = page;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: String(tasksPagedState.pageSize),
+      sort: 'activity',
+      auth: idToken,
+    });
+    if (tasksState.searchTerm) params.set('q', tasksState.searchTerm);
+    if (tasksState.filterStatus && tasksState.filterStatus !== 'all') params.set('status', tasksState.filterStatus);
+    if (tasksState.filterAssignee && tasksState.filterAssignee !== 'all') params.set('assignee', tasksState.filterAssignee);
+
+    const r = await fetch(`${WORKER_LIST_URL}/tasks?${params}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    tasksPagedState.items = data.items || [];
+    tasksPagedState.total = data.total || 0;
+    tasksPagedState.totalPages = data.totalPages || 1;
+  } catch (e) {
+    console.error('loadTasksPage:', e);
+    tasksPagedState.items = [];
+    tasksPagedState.total = 0;
+    tasksPagedState.totalPages = 1;
+  } finally {
+    tasksPagedState.loading = false;
+  }
+}
+
+function renderTasksLayoutPaged() {
+  const c = document.getElementById('tasks-content');
+  const countEl = document.getElementById('tasks-count');
+  if (countEl) countEl.textContent = tasksPagedState.total.toLocaleString('ru');
+
+  if (!c) return;
+  if (!tasksPagedState.items.length) {
+    c.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">${(tasksState.searchTerm || tasksState.filterStatus !== 'all' || tasksState.filterAssignee !== 'all') ? 'По фильтрам ничего не найдено' : 'Нет задач'}</div></div>`;
+    return;
+  }
+
+  const STATUS_LABELS = { 1: 'Новая', 2: 'Ждёт', 3: 'Выполн.', 4: 'Заверш.', 5: 'Отлож.', 6: 'Отклон.' };
+  const STATUS_COLOR = { 1: 'var(--ac2)', 2: 'var(--yl)', 3: 'var(--ac2)', 4: 'var(--gn)', 5: 'var(--t3)', 6: 'var(--rd)' };
+
+  let html = `<div class="dtable-wrap" style="overflow-x:auto">
+    <table class="dtable">
+      <thead><tr>
+        <th style="width:40%">Название</th>
+        <th style="width:12%">Статус</th>
+        <th style="width:12%">Приоритет</th>
+        <th style="width:18%">Исполнитель</th>
+        <th style="width:10%">Изменена</th>
+        <th style="width:8%">Дедлайн</th>
+      </tr></thead>
+      <tbody>`;
+
+  for (const t of tasksPagedState.items) {
+    const statusLabel = STATUS_LABELS[t.status] || `?${t.status}`;
+    const statusColor = STATUS_COLOR[t.status] || 'var(--t3)';
+    const respUser = (usersState?.users?.[t.responsibleUid]) || dealsState?.users?.[t.responsibleUid];
+    const respName = respUser ? (`${respUser.lastName || ''} ${respUser.name || ''}`.trim() || respUser.email || '—') : '—';
+    const changed = t.bitrixChangedDate || t.bitrixStatusChangedDate || t.bitrixCreatedDate;
+    const changedStr = changed ? new Date(changed).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+    const deadlineStr = t.deadline ? new Date(t.deadline).toLocaleDateString('ru', { day: '2-digit', month: '2-digit' }) : '—';
+    const isOverdue = t.deadline && new Date(t.deadline) < new Date() && t.status !== 4 && t.status !== 6;
+    const priorityIcon = t.priority === 2 ? '🔴' : (t.priority === 1 ? '🟡' : '⚪');
+
+    html += `<tr class="row" data-task-key="${escapeHtml(t.id)}">
+      <td class="name-cell" style="width:40%">${escapeHtml(t.title || '(без названия)')}</td>
+      <td style="width:12%"><span class="badge" style="color:${statusColor};border-color:${statusColor}55;background:${statusColor}22">${escapeHtml(statusLabel)}</span></td>
+      <td style="width:12%;font-size:12px">${priorityIcon}</td>
+      <td style="width:18%;color:var(--ac2)">${escapeHtml(respName)}</td>
+      <td style="width:10%;color:var(--t3);font-size:11px">${changedStr}</td>
+      <td style="width:8%;color:${isOverdue ? 'var(--rd)' : 'var(--t3)'};font-size:11px">${deadlineStr}</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div>
+    <div id="tasks-pager" class="pager"></div>`;
+  c.innerHTML = html;
+
+  c.querySelectorAll('tr.row').forEach(r => {
+    r.addEventListener('click', () => {
+      if (typeof openTaskCard === 'function') openTaskCard(r.dataset.taskKey);
+    });
+  });
+
+  renderTasksPagedPager();
+}
+
+function renderTasksPagedPager() {
+  const el = document.getElementById('tasks-pager');
+  if (!el) return;
+  el.innerHTML = buildPagerHtml(tasksPagedState.page, tasksPagedState.totalPages, tasksPagedState.total);
+  el.querySelectorAll('button[data-page]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const p = parseInt(btn.dataset.page, 10);
+      if (p && p !== tasksPagedState.page) {
+        await loadTasksPage(p);
+        renderTasksLayoutPaged();
+        document.getElementById('tasks-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
 }
 
 async function loadTasks() {
@@ -4872,17 +5005,28 @@ function saveCacheTasksThrottled() {
 function populateTaskAssigneeFilter() {
   const sel = document.getElementById('tasks-assignee');
   if (!sel) return;
-  // Уникальные responsibleUid из задач
-  const usedUids = new Set();
-  for (const t of tasksState.list) if (t.responsibleUid) usedUids.add(t.responsibleUid);
-  const opts = [];
-  for (const uid of usedUids) {
-    const u = getUserById(uid);
-    if (u) opts.push({ uid, name: `${u.lastName || ''} ${u.name || ''}`.trim() });
+  // В kanban mode — уникальные responsibleUid из загруженных задач.
+  // В list mode (paginated) — все юзеры с bitrixId (миграционные пользователи).
+  let opts = [];
+  if (tasksState.view === 'kanban' && tasksState.list.length) {
+    const usedUids = new Set();
+    for (const t of tasksState.list) if (t.responsibleUid) usedUids.add(t.responsibleUid);
+    for (const uid of usedUids) {
+      const u = getUserById(uid);
+      if (u) opts.push({ uid, name: `${u.lastName || ''} ${u.name || ''}`.trim() || u.email || uid });
+    }
+  } else {
+    const all = usersState.users || {};
+    for (const [uid, u] of Object.entries(all)) {
+      if (!u || !u.bitrixId) continue;
+      opts.push({ uid, name: `${u.lastName || ''} ${u.name || ''}`.trim() || u.email || uid });
+    }
   }
-  opts.sort((a, b) => a.name.localeCompare(b.name));
+  opts.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'));
   sel.innerHTML = '<option value="all">Все исполнители</option>' +
     opts.map(o => `<option value="${escapeHtml(o.uid)}">${escapeHtml(o.name)}</option>`).join('');
+  // Восстановить выбранный фильтр
+  sel.value = tasksState.filterAssignee || 'all';
 }
 
 function filterAndRenderTasks() {
