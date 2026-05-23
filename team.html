@@ -2920,7 +2920,7 @@ function buildDealCard(d, stageColor) {
 
   // Контактный телефон — приоритет d.phones потом ищем у контакта
   let phone = '';
-  if (Array.isArray(d.phones) && d.phones.length > 0) phone = d.phones[0]?.value || '';
+  if (asArray(d.phones).length > 0) phone = d.phones[0]?.value || '';
   else if (d._contactPhone) phone = d._contactPhone;
   // Поиск телефона у привязанного контакта
   if (!phone && d.contactId) {
@@ -3225,7 +3225,7 @@ async function openDealCard(bitrixId) {
   let contactName = '';
   if (contact) {
     contactName = [contact.lastName, contact.name, contact.secondName].filter(Boolean).join(' ').trim();
-    if (Array.isArray(contact.phones) && contact.phones.length > 0) {
+    if (asArray(contact.phones).length > 0) {
       contactPhone = contact.phones[0]?.value || '';
     }
     // Кешируем для канбана
@@ -3293,7 +3293,7 @@ async function openDealCard(bitrixId) {
                   <button class="tbtn tbtn-xs" onclick="window.location.href='tel:${escapeHtml(contactPhone)}'">📞 Позвонить</button>
                   <button class="tbtn tbtn-xs" onclick="navigator.clipboard.writeText('${escapeHtml(contactPhone)}');showToast('Телефон скопирован')">📋 Копировать</button>
                 </div>` : ''}
-              ${Array.isArray(contact.emails) && contact.emails[0]?.value ? `<div class="dc-contact-email">📧 <a href="mailto:${escapeHtml(contact.emails[0].value)}">${escapeHtml(contact.emails[0].value)}</a></div>` : ''}
+              ${asArray(contact.emails)[0]?.value ? `<div class="dc-contact-email">📧 <a href="mailto:${escapeHtml(contact.emails[0].value)}">${escapeHtml(contact.emails[0].value)}</a></div>` : ''}
               <button class="tbtn tbtn-xs" style="margin-top:8px" onclick="closeDealCard();setTimeout(()=>openContactCard('${escapeHtml(deal.contactId)}'),100)">Открыть карточку контакта →</button>
             </div>` : ''}
 
@@ -3324,7 +3324,7 @@ async function openDealCard(bitrixId) {
         // Сводный блок Файлы по сделке: все file ids из всех активностей
         const allFids = new Set();
         for (const a of timeline) {
-          if (Array.isArray(a.bitrixFileIds)) for (const f of a.bitrixFileIds) allFids.add(String(f));
+          for (const f of asArray(a.bitrixFileIds)) allFids.add(String(f));
           if (a.recordFileId) allFids.add(String(a.recordFileId));
         }
         if (allFids.size === 0) return '';
@@ -3582,7 +3582,7 @@ function renderTimelineItem(a) {
 
   // Файлы — собираем все ID активности (вложения + запись звонка)
   const tlFileIds = [];
-  if (Array.isArray(a.bitrixFileIds)) for (const fid of a.bitrixFileIds) tlFileIds.push(String(fid));
+  for (const fid of asArray(a.bitrixFileIds)) tlFileIds.push(String(fid));
   if (a.recordFileId && !tlFileIds.includes(String(a.recordFileId))) tlFileIds.push(String(a.recordFileId));
   let filesInfo = '';
   if (tlFileIds.length > 0) {
@@ -3831,17 +3831,18 @@ function formatFieldLabel(label, fallback) {
 
 function formatCfValue(value, meta) {
   if (value === null || value === undefined || value === '') return '<span class="empty-cell">—</span>';
-  if (Array.isArray(value)) {
-    if (!value.length) return '<span class="empty-cell">—</span>';
+  // value может быть pseudo-array {0:val,1:val} из Firebase RTDB — нормализуем
+  const asArr = asArray(value);
+  if (asArr.length > 0 && (Array.isArray(value) || (typeof value === 'object' && Object.keys(value).every(k => /^\d+$/.test(k))))) {
     // Для enum нужно резолвить через meta.list
     if (meta.type === 'enumeration' && meta.list) {
-      const labels = value.map(v => {
+      const labels = asArr.map(v => {
         const item = meta.list.find(l => String(l.ID) === String(v) || String(l.VALUE) === String(v));
         return item ? escapeHtml(item.VALUE) : escapeHtml(String(v));
       });
       return labels.join(', ');
     }
-    return value.map(v => escapeHtml(String(v))).join(', ');
+    return asArr.map(v => escapeHtml(String(v))).join(', ');
   }
   if (meta.type === 'enumeration' && meta.list) {
     const item = meta.list.find(l => String(l.ID) === String(value));
@@ -4189,8 +4190,8 @@ function renderContactsPagedTable() {
 
   let rows = '';
   for (const ct of contactsState.items) {
-    const phones = Array.isArray(ct.phones) ? ct.phones : [];
-    const emails = Array.isArray(ct.emails) ? ct.emails : [];
+    const phones = asArray(ct.phones);
+    const emails = asArray(ct.emails);
     const fullName = [ct.lastName, ct.name, ct.secondName].filter(Boolean).join(' ').trim() || '(без имени)';
     const phone = phones[0]?.value || '';
     const email = emails[0]?.value || '';
@@ -4276,8 +4277,8 @@ window.openContactCard = async function(key) {
       return;
     }
     const fullName = [contact.lastName, contact.name, contact.secondName].filter(Boolean).join(' ').trim() || '(без имени)';
-    const phones = Array.isArray(contact.phones) ? contact.phones : [];
-    const emails = Array.isArray(contact.emails) ? contact.emails : [];
+    const phones = asArray(contact.phones);
+    const emails = asArray(contact.emails);
     const respUser = getUserById(contact.responsibleUid);
     const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
     const bitrixUrl = `https://elcalmaty.bitrix24.kz/crm/contact/details/${contact.bitrixId}/`;
@@ -4723,7 +4724,7 @@ async function loadTasks() {
 
   // Кеш
   const cached = await cacheGet('tasks:list:v1');
-  if (cached && Array.isArray(cached) && cached.length > 0) {
+  if (cached && asArray(cached).length > 0) {
     tasksState.list = cached;
     tasksState.loaded = true;
     tasksState.loading = false;
@@ -5874,7 +5875,7 @@ async function openTaskCard(key) {
         ${t.description ? `<div class="section-h">Описание</div>
           <div class="task-bbcode" style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.6">${renderBitrixBBCode(t.description)}</div>` : ''}
 
-        ${t.hasFiles && Array.isArray(t.bitrixFileIds) && t.bitrixFileIds.length > 0 ? `<div class="section-h">📎 Файлы (${t.bitrixFileIds.length})</div>
+        ${t.hasFiles && asArray(t.bitrixFileIds).length > 0 ? `<div class="section-h">📎 Файлы (${asArray(t.bitrixFileIds).length})</div>
           <div class="task-files-list" id="task-files-${escapeHtml(key)}" style="display:flex;flex-direction:column;gap:6px">
             <div style="font-size:12px;color:var(--t3)">⏳ Загрузка...</div>
           </div>` : ''}
@@ -5908,7 +5909,7 @@ async function openTaskCard(key) {
               const author = getUserById(c.authorUid);
               const authorName = author ? `${author.lastName || ''} ${author.name || ''}`.trim() : (c.authorName || '—');
               const time = c.bitrixPostDate ? new Date(c.bitrixPostDate).toLocaleString('ru') : '';
-              const cFiles = Array.isArray(c.attachedFileIds) ? c.attachedFileIds : [];
+              const cFiles = asArray(c.attachedFileIds);
               const filesBlock = cFiles.length > 0
                 ? `<div class="comment-files-list" id="comment-files-${escapeHtml(c.bitrixId || '')}" style="display:flex;flex-direction:column;gap:4px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--b1)">
                     <div style="font-size:11px;color:var(--t3)">⏳ Загрузка ${cFiles.length} ${cFiles.length === 1 ? 'файла' : 'файлов'}...</div>
@@ -5945,14 +5946,14 @@ async function openTaskCard(key) {
     });
 
     // Подгружаем метаданные файлов задачи (если есть)
-    if (t.hasFiles && Array.isArray(t.bitrixFileIds) && t.bitrixFileIds.length > 0) {
-      loadFilesIntoContainer('task-files-' + key, t.bitrixFileIds, key);
+    if (t.hasFiles && asArray(t.bitrixFileIds).length > 0) {
+      loadFilesIntoContainer('task-files-' + key, asArray(t.bitrixFileIds), key);
     }
 
     // Подгружаем файлы каждого комментария (как в Битриксе)
     for (const c of comments) {
-      if (Array.isArray(c.attachedFileIds) && c.attachedFileIds.length > 0 && c.bitrixId) {
-        loadFilesIntoContainer('comment-files-' + c.bitrixId, c.attachedFileIds, key);
+      if (asArray(c.attachedFileIds).length > 0 && c.bitrixId) {
+        loadFilesIntoContainer('comment-files-' + c.bitrixId, asArray(c.attachedFileIds), key);
       }
     }
 
@@ -6486,7 +6487,7 @@ async function openGroupChat(chatId) {
       const time = m.date ? new Date(m.date).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }) : '';
       const author = m.senderFirebaseUid ? getUserById(m.senderFirebaseUid) : null;
       const authorName = author ? `${author.lastName || ''} ${author.name || ''}`.trim() : (m.senderName || 'Неизвестный');
-      const fileBlock = Array.isArray(m.attachedFileIds) && m.attachedFileIds.length > 0
+      const fileBlock = asArray(m.attachedFileIds).length > 0
         ? `<div style="margin-top:6px;font-size:11px;color:var(--ac2)">📎 ${m.attachedFileIds.length} файл(ов)</div>` : '';
       msgsHtml += `<div style="display:flex;flex-direction:column;gap:2px;padding:6px 14px;font-size:13px">
         <div style="display:flex;gap:8px;align-items:baseline">
@@ -8644,6 +8645,16 @@ window.syncDelta = async function() {
     el.innerHTML = `<div style="color:var(--rd)">✗ ${escapeHtml(e.message)}</div>`;
   }
 };
+
+// Firebase RTDB сохранял массивы как pseudo-arrays {0:val,1:val}, в нашей миграции
+// они оставлены как объекты. На фронте `Array.isArray()` для них false → данные
+// "теряются". Этот helper достаёт значения независимо от формы (массив или
+// объект-с-числовыми-ключами).
+function asArray(v) {
+  if (Array.isArray(v)) return v;
+  if (v && typeof v === 'object') return Object.values(v);
+  return [];
+}
 
 function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
