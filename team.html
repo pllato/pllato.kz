@@ -2299,42 +2299,110 @@ async function testConnection() {
 
 // ── Deals state (in-memory cache) ────────────────────────
 const dealsState = {
-  loaded: false,
-  deals: [],          // массив всех сделок
-  pipeline: null,     // структура воронки
-  customSchema: null, // схема кастомных полей
-  users: {},          // map: uid -> {name, lastName, email}
-  view: 'kanban',       // 'list' | 'kanban'
+  loaded: false,        // флаг загрузки full deals[] (только для kanban)
+  metaLoaded: false,    // флаг загрузки pipeline/schema/users (нужны для обоих view)
+  deals: [],            // массив всех сделок (заполняется только в kanban mode)
+  pipeline: null,
+  customSchema: null,
+  users: {},
+  view: 'list',         // default 'list' (быстрый paginated); 'kanban' — opt-in, лениво грузит full
   search: '',
   stageFilter: '',
   responsibleFilter: '',
-  page: 0,
+  page: 0,              // используется только для kanban client-side пагинации
   pageSize: 50,
+};
+
+// Серверная пагинация — для list view. Каждый клик/фильтр дёргает свежий fetch.
+const dealsPagedState = {
+  page: 1,
+  pageSize: 50,
+  total: 0,
+  totalPages: 0,
+  items: [],
+  loading: false,
 };
 
 async function renderDeals(el) {
   el.innerHTML = `
     <div class="page-head">
-      <h1>Сделки <span class="count" id="deals-count">загрузка…</span></h1>
+      <h1>Сделки <span class="count" id="deals-count">…</span></h1>
     </div>
-    <div class="empty-state" id="deals-loader"><div class="empty-icon">⏳</div><div class="empty-text">Загружаем данные из Firebase...</div></div>
+    <div class="empty-state" id="deals-loader"><div class="empty-icon">⏳</div><div class="empty-text">Загружаем…</div></div>
   `;
 
-  if (!dealsState.loaded) {
-    await loadDealsData();
-  }
-  // Параллельно (не блокируя) — справочники для resolve sourceId → "Instagram"
+  // Meta (pipeline/customSchema/users) — лёгкие, нужны и для list и для kanban.
+  await loadDealsMeta();
   ensureRefListsLoaded();
 
-  if (!dealsState.deals.length) {
-    document.getElementById('deals-loader').innerHTML = `
-      <div class="empty-icon">💼</div>
-      <div class="empty-text">Сделки не найдены в базе. Запустите миграцию из раздела «Миграция Bitrix».</div>
-    `;
-    return;
+  if (dealsState.view === 'kanban') {
+    // Kanban требует ВСЕ сделки. Лениво грузим (~19MB, ~3-8s).
+    if (!dealsState.loaded) await loadDealsData();
+    if (!dealsState.deals.length) {
+      document.getElementById('deals-loader').innerHTML = `
+        <div class="empty-icon">💼</div>
+        <div class="empty-text">Сделки не найдены в базе.</div>
+      `;
+      return;
+    }
+    renderDealsLayout(el);
+  } else {
+    // List view — серверная пагинация. Первая страница за ~100мс.
+    await loadDealsPage(1);
+    renderDealsLayoutPaged(el);
   }
+}
 
-  renderDealsLayout(el);
+// Лёгкие справочники — отдельно от тяжёлой full-deals выгрузки.
+async function loadDealsMeta() {
+  if (dealsState.metaLoaded) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const dbUrl = WORKER_RTDB_URL;
+    const [pipeline, schema, users] = await Promise.all([
+      fetch(`${dbUrl}/pipelines/pipeline_3.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
+      fetch(`${dbUrl}/customFieldsSchema/deal.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
+      fetch(`${dbUrl}/users.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
+    ]);
+    dealsState.pipeline = pipeline || null;
+    dealsState.customSchema = schema || {};
+    dealsState.users = users || {};
+    dealsState.metaLoaded = true;
+  } catch (e) {
+    console.error('loadDealsMeta:', e);
+  }
+}
+
+async function loadDealsPage(page) {
+  if (dealsPagedState.loading) return;
+  dealsPagedState.loading = true;
+  dealsPagedState.page = page;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: String(dealsPagedState.pageSize),
+      sort: 'modified',
+      auth: idToken,
+    });
+    if (dealsState.search) params.set('q', dealsState.search);
+    if (dealsState.stageFilter) params.set('stage', dealsState.stageFilter);
+    if (dealsState.responsibleFilter) params.set('assignee', dealsState.responsibleFilter);
+
+    const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    dealsPagedState.items = data.items || [];
+    dealsPagedState.total = data.total || 0;
+    dealsPagedState.totalPages = data.totalPages || 1;
+  } catch (e) {
+    console.error('loadDealsPage:', e);
+    dealsPagedState.items = [];
+    dealsPagedState.total = 0;
+    dealsPagedState.totalPages = 1;
+  } finally {
+    dealsPagedState.loading = false;
+  }
 }
 
 async function loadDealsData() {
@@ -2500,6 +2568,138 @@ function saveCacheDealsThrottled() {
       users: dealsState.users,
     });
   }, 5000);
+}
+
+// ── Paginated list view (для view='list') ──────────────────────────────
+// Серверная пагинация через /api/list/deals. По умолчанию — этот путь.
+// Фильтры (q/stage/responsible) dispatchaются на сервер, страница ≈ 50 сделок.
+function renderDealsLayoutPaged(el) {
+  el.innerHTML = `
+    <div class="page-head">
+      <h1>Сделки <span class="count" id="deals-count">${dealsPagedState.total.toLocaleString('ru')}</span></h1>
+      <div class="view-toggle">
+        <button class="vt-btn" data-view="kanban">📊 Канбан</button>
+        <button class="vt-btn active" data-view="list">📋 Список</button>
+      </div>
+    </div>
+
+    <div class="tb">
+      <input class="tb-search" id="deal-search" placeholder="🔍 Поиск по названию (Enter)" value="${escapeHtml(dealsState.search)}">
+      <select class="tb-select" id="stage-filter">
+        <option value="">Все стадии</option>
+        ${getStagesSorted().map(s => `<option value="${escapeHtml(s.statusId)}" ${s.statusId === dealsState.stageFilter ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}
+      </select>
+      <select class="tb-select" id="resp-filter">
+        <option value="">Все ответственные</option>
+        ${getUsersForFilter().map(u => `<option value="${escapeHtml(u.uid)}" ${u.uid === dealsState.responsibleFilter ? 'selected' : ''}>${escapeHtml(u.fullName)}</option>`).join('')}
+      </select>
+    </div>
+
+    <div id="deals-content"></div>
+    <div id="deals-pager" class="pager"></div>
+  `;
+
+  // Поиск: Enter → reset page 1 + fetch
+  document.getElementById('deal-search').addEventListener('keydown', async e => {
+    if (e.key === 'Enter') {
+      dealsState.search = e.target.value.trim();
+      await loadDealsPage(1);
+      renderDealsPagedTable();
+      renderDealsPagedPager();
+    } else if (e.key === 'Escape') {
+      e.target.value = '';
+      dealsState.search = '';
+      await loadDealsPage(1);
+      renderDealsPagedTable();
+      renderDealsPagedPager();
+    }
+  });
+  document.getElementById('stage-filter').addEventListener('change', async e => {
+    dealsState.stageFilter = e.target.value;
+    await loadDealsPage(1);
+    renderDealsPagedTable();
+    renderDealsPagedPager();
+  });
+  document.getElementById('resp-filter').addEventListener('change', async e => {
+    dealsState.responsibleFilter = e.target.value;
+    await loadDealsPage(1);
+    renderDealsPagedTable();
+    renderDealsPagedPager();
+  });
+
+  // Переключение режима — kanban лениво грузит full deals[]
+  el.querySelectorAll('[data-view]').forEach(t => {
+    t.addEventListener('click', async () => {
+      dealsState.view = t.dataset.view;
+      await renderDeals(el);
+    });
+  });
+
+  renderDealsPagedTable();
+  renderDealsPagedPager();
+}
+
+function renderDealsPagedTable() {
+  const c = document.getElementById('deals-content');
+  if (!c) return;
+  const countEl = document.getElementById('deals-count');
+  if (countEl) countEl.textContent = dealsPagedState.total.toLocaleString('ru');
+
+  if (!dealsPagedState.items.length) {
+    c.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">${(dealsState.search || dealsState.stageFilter || dealsState.responsibleFilter) ? 'По фильтрам ничего не найдено' : 'Нет сделок'}</div></div>`;
+    return;
+  }
+
+  let html = `<div class="dtable-wrap" style="overflow-x:auto">
+    <table class="dtable">
+      <thead><tr>
+        <th style="width:42%">Название</th>
+        <th style="width:18%">Стадия</th>
+        <th style="width:14%">Сумма</th>
+        <th style="width:18%">Ответственный</th>
+        <th style="width:8%">Создано</th>
+      </tr></thead>
+      <tbody>`;
+  for (const d of dealsPagedState.items) {
+    const stage = dealsState.pipeline?.stages?.[d.stageId];
+    const stageName = stage?.name || d.stageId || '—';
+    const stageColor = stage?.semantics === 'S' ? 'var(--gn)' : (stage?.semantics === 'F' ? 'var(--rd)' : 'var(--ac2)');
+    const respUser = dealsState.users[d.responsibleUid];
+    const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() || respUser.email || '—' : '—';
+    const opp = d.opportunity || 0;
+    const date = d.bitrixDateCreate ? new Date(d.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+    html += `<tr class="row" data-deal-id="${escapeHtml(d.bitrixId)}">
+      <td class="name-cell" style="width:42%">${escapeHtml(d.title || '(без названия)')}</td>
+      <td style="width:18%"><span class="badge" style="color:${stageColor};border-color:${stageColor}55;background:${stageColor}22">${escapeHtml(stageName)}</span></td>
+      <td style="width:14%;color:${opp ? 'var(--gn)' : 'var(--t3)'};font-variant-numeric:tabular-nums;font-weight:600">${opp ? opp.toLocaleString('ru') + ' ' + (d.currency || '') : '—'}</td>
+      <td style="width:18%;color:var(--ac2)">${escapeHtml(respName)}</td>
+      <td style="width:8%;color:var(--t3);font-size:11px">${date}</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div>`;
+  c.innerHTML = html;
+  c.querySelectorAll('tr.row').forEach(r => {
+    r.addEventListener('click', () => openDealCard(r.dataset.dealId));
+  });
+}
+
+function renderDealsPagedPager() {
+  const el = document.getElementById('deals-pager');
+  if (!el) return;
+  el.innerHTML = buildPagerHtml(dealsPagedState.page, dealsPagedState.totalPages, dealsPagedState.total);
+  el.querySelectorAll('button[data-page]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const p = parseInt(btn.dataset.page, 10);
+      if (p && p !== dealsPagedState.page) {
+        await loadDealsPage(p);
+        renderDealsPagedTable();
+        renderDealsPagedPager();
+        // scroll to top of list for predictable UX
+        const c = document.getElementById('deals-content');
+        if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
 }
 
 function renderDealsLayout(el) {
@@ -2978,7 +3178,18 @@ function getUsersForFilter() {
 }
 
 async function openDealCard(bitrixId) {
-  const deal = dealsState.deals.find(d => d.bitrixId === bitrixId);
+  // 1) ищем в full kanban state — если был загружен
+  let deal = dealsState.deals.find(d => d.bitrixId === bitrixId);
+  // 2) ищем в текущей странице list-view
+  if (!deal) deal = (dealsPagedState.items || []).find(d => d.bitrixId === bitrixId);
+  // 3) fallback — точечный fetch /api/rtdb/deals/deal_{bitrixId}.json
+  if (!deal) {
+    try {
+      const idToken0 = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_RTDB_URL}/deals/deal_${encodeURIComponent(bitrixId)}.json?auth=${idToken0}`);
+      if (r.ok) deal = await r.json();
+    } catch (e) {}
+  }
   if (!deal) return;
 
   // Обновляем URL для глубокой ссылки
