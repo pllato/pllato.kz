@@ -657,9 +657,13 @@ const LIST_CONFIG = {
   deals: {
     keyCol: "id",
     searchFields: ["title"],
+    assigneeField: "responsible_uid",
+    stageField: "stage_id",
+    closedField: "closed",
     sorts: {
       modified: "bitrix_date_modify DESC",
       created: "bitrix_date_create DESC",
+      opportunity: "opportunity DESC",
     },
     defaultSort: "bitrix_date_modify DESC",
   },
@@ -679,6 +683,8 @@ async function handleList(request, env, entity) {
   const sortKey = url.searchParams.get("sort") || "";
   const status = (url.searchParams.get("status") || "").trim();
   const assignee = (url.searchParams.get("assignee") || "").trim();
+  const stage = (url.searchParams.get("stage") || "").trim();
+  const closed = (url.searchParams.get("closed") || "").trim();
 
   const whereParts = [];
   const whereParams = [];
@@ -705,6 +711,19 @@ async function handleList(request, env, entity) {
   if (assignee && assignee !== "all" && cfg.assigneeField) {
     whereParts.push(`${cfg.assigneeField} = ?`);
     whereParams.push(assignee);
+  }
+
+  if (stage && stage !== "all" && cfg.stageField) {
+    whereParts.push(`${cfg.stageField} = ?`);
+    whereParams.push(stage);
+  }
+
+  if (closed !== "" && closed !== "all" && cfg.closedField) {
+    const n = parseInt(closed, 10);
+    if (!Number.isNaN(n)) {
+      whereParts.push(`${cfg.closedField} = ?`);
+      whereParams.push(n);
+    }
   }
 
   const whereSQL = whereParts.length ? " WHERE " + whereParts.join(" AND ") : "";
