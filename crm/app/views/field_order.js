@@ -6,7 +6,7 @@
 import { Store } from "../store.js";
 import { listWarehouseProducts, getWarehouseProduct, productSummary } from "../warehouse.js";
 import { getStages } from "../stages.js";
-import { getActivePipelineId, ensurePipelinesInitialized } from "../pipelines.js";
+import { getActivePipelineId, ensurePipelinesInitialized, getPipelines, getStagesForPipeline } from "../pipelines.js";
 import { currentEmployee } from "../employees.js";
 import { createDealItem } from "../deal_items.js";
 
@@ -110,6 +110,8 @@ function renderSearchResults() {
 }
 
 function renderItemRow(it, idx) {
+  const price = Number(it.unitPrice) || 0;
+  const noPrice = price === 0;
   return `
     <div class="field-item" data-item-idx="${idx}">
       <div class="field-item-head">
@@ -120,19 +122,26 @@ function renderItemRow(it, idx) {
         <button type="button" class="field-item-remove" data-remove-item="${idx}" aria-label="Убрать">×</button>
       </div>
       <div class="field-item-stock">На складе: <strong>${Number(it.stock) || 0}</strong> ${escape(it.unit || "шт")}</div>
-      <div class="field-item-controls">
+
+      <div class="field-item-field">
+        <label class="field-item-field-label">Количество</label>
         <div class="field-qty">
           <button type="button" class="field-qty-btn" data-qty-step="-1" data-item-idx="${idx}">−</button>
           <input type="number" class="field-qty-input" data-item-idx="${idx}" min="0" step="1" value="${Number(it.qty) || 0}" inputmode="numeric">
           <button type="button" class="field-qty-btn" data-qty-step="1" data-item-idx="${idx}">+</button>
           <span class="field-qty-unit">${escape(it.unit || "шт")}</span>
         </div>
+      </div>
+
+      <div class="field-item-field">
+        <label class="field-item-field-label ${noPrice ? "is-warn" : ""}">Цена за ${escape(it.unit || "шт")}${noPrice ? " · укажи цену" : ""}</label>
         <div class="field-price-wrap">
-          <input type="number" class="field-price-input" data-price-idx="${idx}" min="0" step="100" value="${Number(it.unitPrice) || 0}" inputmode="decimal">
+          <input type="number" class="field-price-input ${noPrice ? "is-warn" : ""}" data-price-idx="${idx}" min="0" step="100" value="${price}" inputmode="decimal" placeholder="0">
           <span class="field-price-unit">₸</span>
         </div>
       </div>
-      <div class="field-item-sum">= <strong>${fmtAmount((Number(it.qty) || 0) * (Number(it.unitPrice) || 0))}</strong></div>
+
+      <div class="field-item-sum">Сумма: <strong>${fmtAmount((Number(it.qty) || 0) * price)}</strong></div>
     </div>
   `;
 }
@@ -279,9 +288,17 @@ function resetForm({ keepLast = false } = {}) {
 
 async function submitFieldOrder() {
   ensurePipelinesInitialized();
-  const pipelineId = getActivePipelineId();
-  const stages = getStages();
-  const firstStageId = stages[0]?.id;
+  // Ищем воронку для полевых заказов по названию (заявки/менеджер/полев/field),
+  // иначе берём активную воронку (CRM-канбан).
+  const pipelines = getPipelines();
+  const fieldKeywords = ["заявк", "менедж", "полев", "field"];
+  const fieldPipeline = pipelines.find((p) => {
+    const t = String(p.title || "").toLowerCase();
+    return fieldKeywords.some((k) => t.includes(k));
+  });
+  const pipelineId = fieldPipeline?.id || getActivePipelineId();
+  const stagesArr = fieldPipeline ? getStagesForPipeline(fieldPipeline.id) : getStages();
+  const firstStageId = stagesArr[0]?.id;
   if (!pipelineId || !firstStageId) {
     throw new Error("Не настроена воронка для приёма заказов. Попроси админа создать воронку.");
   }
