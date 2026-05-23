@@ -185,6 +185,9 @@ export function currentPermissions() {
   } catch {}
   if (!role) return ALL_PERMISSIONS.slice();
   const perms = Array.isArray(role.permissions) ? role.permissions.slice() : [];
+  // Field-only роль: никаких автодобавок (склад/звонки), чтобы рендерился
+  // мобильный shell без sidebar.
+  if (perms.length === 1 && perms[0] === "field") return perms;
   if (perms.includes("crm") && !perms.includes("calls")) perms.push("calls");
   if (!perms.includes("warehouse") && role.warehouseDisabled !== true) perms.push("warehouse");
   return perms;
