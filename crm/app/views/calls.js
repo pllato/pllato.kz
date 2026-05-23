@@ -54,6 +54,7 @@ const state = {
   quickCallResult: "",
 
   historyList: [],
+  historyRecordUrls: {},
   historyLoading: false,
   historyError: "",
   historyRecordLoadingId: "",
@@ -827,6 +828,11 @@ async function loadHistory() {
 async function openHistoryRecording(callId) {
   const id = String(callId || "").trim();
   if (!id) return;
+  // Если URL уже загружен — не делаем повторный запрос.
+  // (Audio уже отрендерен в строке через row template.)
+  state.historyRecordUrls = state.historyRecordUrls || {};
+  if (state.historyRecordUrls[id]) return;
+
   const channelId = String(state.quickCallChannelId || activeBinotelChannels()[0]?.id || "").trim();
   if (!channelId) {
     alert("Сначала подключи и выбери Binotel-канал.");
@@ -839,7 +845,8 @@ async function openHistoryRecording(callId) {
     const rec = await CallsApi.binotelRecording({ channelId, callId: id });
     const url = String(rec.recordUrl || "").trim();
     if (!url) throw new Error("Запись не найдена");
-    window.open(url, "_blank", "noopener,noreferrer");
+    // Кешируем URL — row template отрисует <audio> при rerender'е
+    state.historyRecordUrls[id] = url;
   } catch (e) {
     state.historyError = friendlyBinotelError(e);
   } finally {
@@ -894,9 +901,17 @@ function renderHistoryPage() {
                     <td>
                       <div class="history-actions">
                         <button class="btn-ghost" data-history-redial="${escape(row.externalNumber || "")}" ${row.externalNumber ? "" : "disabled"}>Перезвонить</button>
-                        <button class="btn-ghost" data-history-record="${escape(row.callId || "")}" ${row.callId ? "" : "disabled"}>
-                          ${state.historyRecordLoadingId === row.callId ? "Открываю..." : "Запись"}
-                        </button>
+                        ${(() => {
+                          if (!row.callId) return `<button class="btn-ghost" disabled>Запись</button>`;
+                          const recUrl = state.historyRecordUrls?.[row.callId];
+                          if (recUrl) {
+                            return `<audio controls autoplay src="${escape(recUrl)}" preload="auto" style="max-width:260px;height:32px;vertical-align:middle;"></audio>`;
+                          }
+                          if (state.historyRecordLoadingId === row.callId) {
+                            return `<button class="btn-ghost" disabled>Загрузка...</button>`;
+                          }
+                          return `<button class="btn-ghost" data-history-record="${escape(row.callId)}">▶ Запись</button>`;
+                        })()}
                       </div>
                     </td>
                   </tr>
