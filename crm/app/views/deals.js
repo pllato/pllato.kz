@@ -778,8 +778,14 @@ export function renderDeals(container) {
 
   container.innerHTML = `
     <div class="deals-view">
-      ${state.crmTab === "deals" ? renderPipelinesBar(pipelines, activePipelineId) : ""}
       <div class="deals-toolbar pllato-toolbar deals-toolbar-compact">
+        ${state.crmTab === "deals" ? `
+          <select class="pipeline-select" data-pipeline-select title="Воронка">
+            ${pipelines.map((p) => `<option value="${escapeAttr(p.id)}" ${p.id === activePipelineId ? "selected" : ""}>${escape(p.title)}</option>`).join("")}
+            <option value="__manage__">⚙ Управление воронками…</option>
+            <option value="__new__">+ Новая воронка…</option>
+          </select>
+        ` : ""}
         <div class="crm-view-switch pllato-tabs">
           <button class="crm-view-btn ${state.crmTab === "deals" ? "active" : ""}" data-crm-tab="deals" title="CRM ${state.crmTab === "deals" ? `· сделок: ${deals.length}` : ""}">${ICONS.deals}<span>CRM</span>${state.crmTab === "deals" ? `<span class="crm-view-badge">${deals.length}</span>` : ""}</button>
           <button class="crm-view-btn ${state.crmTab === "calls" ? "active" : ""}" data-crm-tab="calls" title="Звонки">${ICONS.phone}<span>Звонки</span></button>
@@ -2769,7 +2775,31 @@ function wireEvents(container) {
 
   if (state.crmTab !== "deals") return;
 
+  // Pipeline select: смена активной воронки + спец-пункты управления/создания.
+  container.querySelector("[data-pipeline-select]")?.addEventListener("change", (e) => {
+    const value = String(e.target.value || "");
+    if (value === "__manage__") {
+      state.pipelinesManagerOpen = true;
+      renderDeals(container);
+      return;
+    }
+    if (value === "__new__") {
+      const title = (window.prompt("Название новой воронки:", "Новая воронка") || "").trim();
+      if (!title) { renderDeals(container); return; }
+      const seedStages = DEFAULT_NEW_CLIENT_STAGES.map((s) => ({ ...s, id: newStageIdForPipeline() }));
+      const pipeline = createPipeline(title, seedStages);
+      setActivePipelineId(pipeline.id);
+      renderDeals(container);
+      return;
+    }
+    if (value) {
+      setActivePipelineId(value);
+      renderDeals(container);
+    }
+  });
+
   // Pipeline tabs: switch active pipeline + drag-and-drop переупорядочивание
+  // (использовалось в старом верхнем pipelines-bar; теперь — только если он рендерится).
   container.querySelectorAll("[data-pipeline-id]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-pipeline-id");
