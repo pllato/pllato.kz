@@ -768,6 +768,97 @@ tr:hover td { background: var(--bg3); }
 .pagination .pg-btn:disabled { opacity: .3; cursor: not-allowed; }
 .pagination .pg-info { color: var(--t3); font-size: 12px; padding: 0 8px; }
 
+/* ── Dialer overlay (звонки) ──────────────────────────────── */
+.dialer-overlay {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 320px;
+  background: var(--bg);
+  border: 1px solid var(--b1);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  z-index: 1100;
+  overflow: hidden;
+  animation: dialerSlideIn .2s ease-out;
+}
+@keyframes dialerSlideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.dialer-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--b1);
+  display: flex; align-items: center; gap: 10px;
+  background: var(--ac2);
+  color: #fff;
+}
+.dialer-head .dialer-title { font-size: 13px; font-weight: 700; flex: 1; }
+.dialer-head .dialer-close {
+  background: transparent; border: none; color: #fff;
+  font-size: 18px; cursor: pointer; padding: 0 6px;
+  opacity: .85;
+}
+.dialer-head .dialer-close:hover { opacity: 1; }
+.dialer-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.dialer-phone {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--t1);
+  text-align: center;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  padding: 8px 0;
+}
+.dialer-meta { font-size: 12px; color: var(--t3); text-align: center; }
+.dialer-status {
+  font-size: 12px;
+  color: var(--ac2);
+  text-align: center;
+  font-weight: 600;
+  min-height: 16px;
+}
+.dialer-actions { display: flex; gap: 8px; }
+.dialer-btn {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.dialer-btn-primary { background: var(--gn); color: #0e0e12; }
+.dialer-btn-primary:hover { background: #4adb99; }
+.dialer-btn-danger { background: var(--rd); color: #fff; }
+.dialer-btn-danger:hover { background: #ff5577; }
+.dialer-btn-ghost { background: var(--bg2); color: var(--t1); border-color: var(--b1); }
+.dialer-btn-ghost:hover { background: var(--bg3); }
+.dialer-hint {
+  font-size: 11px;
+  color: var(--t3);
+  background: var(--bg2);
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-align: center;
+  line-height: 1.45;
+}
+
+/* Кнопка 📞 inline в карточках */
+.call-btn-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: var(--bg3);
+  border: 1px solid var(--b1);
+  border-radius: 4px;
+  color: var(--gn);
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 600;
+  transition: background .12s, border-color .12s;
+}
+.call-btn-inline:hover { background: var(--gn); color: #0e0e12; border-color: var(--gn); }
+
 /* Pipeline tabs (переключатель воронок) */
 .pipeline-tabs {
   display: flex;
@@ -3643,6 +3734,133 @@ function renderDealsKanban(c, arr) {
   });
 }
 
+// ── Звонки (caркас) ──────────────────────────────────────────────────────
+// placeCall(opts) — главная точка входа для click-to-call.
+// Сейчас провайдер 'tel-link' (открывает OS dialer + лог в D1).
+// Когда подключим SIP/WebRTC — внутри будем дёргать SIP.js .invite()
+// или Binotel/Voximplant SDK. Внешний интерфейс не изменится.
+async function placeCall(opts) {
+  const { phone, contactId, dealId, contactName } = opts;
+  if (!phone) { alert('Нет номера телефона'); return; }
+  const normalizedPhone = String(phone).trim();
+
+  // 1. Логируем попытку — INSERT row в call_log
+  let callId = null;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_CALL_URL}/event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({
+        direction: 'out',
+        phone: normalizedPhone,
+        contactId: contactId || null,
+        dealId: dealId || null,
+        status: 'attempted',
+        provider: 'tel-link',
+        startedAt: new Date().toISOString(),
+      }),
+    });
+    if (r.ok) {
+      const j = await r.json();
+      callId = j.id;
+    }
+  } catch (e) {
+    console.warn('call log fail:', e);
+  }
+
+  // 2. Показываем диалер (UI overlay) — пока без активного звонка
+  openDialerOverlay({ phone: normalizedPhone, contactName, contactId, dealId, callId });
+}
+
+function openDialerOverlay(opts) {
+  document.getElementById('_dialer-overlay')?.remove();
+  const { phone, contactName, contactId, dealId, callId } = opts;
+  const startedAt = Date.now();
+
+  const ov = document.createElement('div');
+  ov.id = '_dialer-overlay';
+  ov.className = 'dialer-overlay';
+  ov.innerHTML = `
+    <div class="dialer-head">
+      <span class="dialer-title">${contactName ? escapeHtml(contactName) : 'Исходящий звонок'}</span>
+      <button class="dialer-close" id="dialer-close" title="Закрыть">×</button>
+    </div>
+    <div class="dialer-body">
+      <div class="dialer-phone">${escapeHtml(phone)}</div>
+      <div class="dialer-meta">${callId ? 'ID звонка: ' + callId : ''}</div>
+      <div class="dialer-status" id="dialer-status">Готов к набору</div>
+      <div class="dialer-actions">
+        <a class="dialer-btn dialer-btn-primary" id="dialer-tel" href="tel:${encodeURIComponent(phone)}">📞 Набрать в ОС</a>
+        <button class="dialer-btn dialer-btn-ghost" id="dialer-skip">Отмена</button>
+      </div>
+      <div class="dialer-hint">
+        SIP-провайдер не подключён. Звонок идёт через системный dialer (мобильный/SIP-телефон).<br>
+        После окончания нажмите статус ниже.
+      </div>
+      <div class="dialer-actions">
+        <button class="dialer-btn dialer-btn-primary" data-status="connected">✓ Разговор был</button>
+        <button class="dialer-btn dialer-btn-ghost" data-status="no_answer">— Не ответил</button>
+        <button class="dialer-btn dialer-btn-danger" data-status="failed">✗ Ошибка</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+
+  document.getElementById('dialer-close').onclick = () => ov.remove();
+  document.getElementById('dialer-skip').onclick = () => ov.remove();
+  document.getElementById('dialer-tel').onclick = () => {
+    document.getElementById('dialer-status').textContent = 'Звоним через ОС...';
+  };
+  ov.querySelectorAll('[data-status]').forEach(btn => {
+    btn.onclick = async () => {
+      const finalStatus = btn.dataset.status;
+      const duration = Math.round((Date.now() - startedAt) / 1000);
+      if (callId) {
+        try {
+          const idToken = await fbAuth.currentUser.getIdToken();
+          await fetch(`${WORKER_CALL_URL}/event`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+            body: JSON.stringify({
+              callId,
+              status: finalStatus,
+              endedAt: new Date().toISOString(),
+              durationSec: finalStatus === 'connected' ? duration : 0,
+            }),
+          });
+        } catch (e) { console.warn('call update:', e); }
+      }
+      ov.remove();
+      showToast?.(finalStatus === 'connected' ? 'Записано: разговор состоялся' : 'Записано');
+    };
+  });
+}
+
+// Универсальный helper для inline-кнопки 📞 рядом с phone
+function callButtonHtml(phone, opts = {}) {
+  if (!phone) return '';
+  const dataset = Object.entries(opts)
+    .filter(([_, v]) => v != null && v !== '')
+    .map(([k, v]) => `data-call-${k}="${escapeHtml(String(v))}"`)
+    .join(' ');
+  return `<button class="call-btn-inline" data-call-phone="${escapeHtml(phone)}" ${dataset} onclick="event.stopPropagation()">📞</button>`;
+}
+
+// Делегированный listener — клик на любую .call-btn-inline на странице вызывает placeCall
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.call-btn-inline');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  placeCall({
+    phone: btn.dataset.callPhone,
+    contactId: btn.dataset.callContactid || null,
+    dealId: btn.dataset.callDealid || null,
+    contactName: btn.dataset.callContactname || null,
+  });
+});
+
 // ── Quick-Add Deal modal ─────────────────────────────────────────────────
 // + Сделка под заголовком колонки канбана. Создаёт сделку с минимумом полей:
 // title, выбранный stage и pipeline, контакт (поиск existing или создание).
@@ -4052,7 +4270,9 @@ function handleKanbanCardAction(e) {
       if (phone) window.open(`https://wa.me/${phone}`, '_blank');
     } else if (action === 'call') {
       const phone = btn.dataset.phone || '';
-      if (phone) window.location.href = `tel:${phone}`;
+      const card = btn.closest('.kanban-card');
+      const dealId = card?.dataset.dealId || null;
+      if (phone) placeCall({ phone, dealId, contactName: '' });
     } else if (action === 'stage') {
       showStageQuickPick(btn.dataset.dealId, btn);
     }
@@ -5157,6 +5377,7 @@ function getUserDisplayName(uid) {
 // ═════════════════════════════════════════════════════════════════════════
 const WORKER_LIST_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/list';
 const WORKER_FILES_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/files';
+const WORKER_CALL_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/call';
 const CONTACTS_PAGE_SIZE = 50;
 const contactsState = {
   page: 1,
@@ -5379,7 +5600,11 @@ window.openContactCard = async function(key) {
 
     if (phones.length > 0) {
       html += `<div class="fl">Телефон${phones.length > 1 ? 'ы' : ''}</div><div class="fv">`;
-      html += phones.map(p => `<div><a href="tel:${escapeHtml(p.value)}" style="color:var(--ac2)">${escapeHtml(p.value)}</a> ${p.type ? `<span class="muted" style="font-size:11px">· ${escapeHtml(p.type)}</span>` : ''}</div>`).join('');
+      html += phones.map(p => `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <a href="tel:${escapeHtml(p.value)}" style="color:var(--ac2)">${escapeHtml(p.value)}</a>
+        ${callButtonHtml(p.value, { contactid: key, contactname: fullName })}
+        ${p.type ? `<span class="muted" style="font-size:11px">· ${escapeHtml(p.type)}</span>` : ''}
+      </div>`).join('');
       html += `</div>`;
     }
 
@@ -5423,6 +5648,10 @@ window.openContactCard = async function(key) {
       html += `<div class="section-h">Связанные сделки</div><div style="font-size:13px;color:var(--t3)">Нет привязанных сделок</div>`;
     }
 
+    // Секция «История звонков» — заглушка, наполнится async после открытия
+    html += `<div class="section-h">📞 История звонков</div>
+      <div id="contact-call-history-${escapeHtml(key)}" style="font-size:12px;color:var(--t3);padding:8px 0">Загружаем…</div>`;
+
     html += `${renderCustomFieldsBlock(contact.customFields)}
       </div>
     </div>`;
@@ -5431,10 +5660,66 @@ window.openContactCard = async function(key) {
     div.innerHTML = html;
     document.body.appendChild(div.firstElementChild);
     document.body.style.overflow = 'hidden';
+
+    // Подтягиваем историю звонков async
+    loadContactCallHistory(key);
   } catch (e) {
     alert('Ошибка загрузки контакта: ' + e.message);
   }
 };
+
+async function loadContactCallHistory(contactKey) {
+  const target = document.getElementById('contact-call-history-' + contactKey);
+  if (!target) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_CALL_URL}/log?contactId=${encodeURIComponent(contactKey)}&limit=50`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    const items = data.items || [];
+    if (!items.length) {
+      target.innerHTML = '<span style="color:var(--t3)">Звонков пока нет</span>';
+      return;
+    }
+    const STATUS_LABEL = {
+      connected: '✓ Состоялся',
+      no_answer: '— Не ответил',
+      busy: '— Занято',
+      failed: '✗ Ошибка',
+      cancelled: '— Отменён',
+      attempted: '○ Попытка',
+    };
+    const STATUS_COLOR = {
+      connected: 'var(--gn)',
+      no_answer: 'var(--t3)',
+      busy: 'var(--yl)',
+      failed: 'var(--rd)',
+      cancelled: 'var(--t3)',
+      attempted: 'var(--ac2)',
+    };
+    let html = '<div style="display:flex;flex-direction:column;gap:6px">';
+    for (const c of items) {
+      const date = c.startedAt ? new Date(c.startedAt).toLocaleString('ru', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+      const dir = c.direction === 'in' ? '↓ Входящий' : '↑ Исходящий';
+      const dur = c.durationSec > 0 ? Math.floor(c.durationSec / 60) + ':' + String(c.durationSec % 60).padStart(2, '0') : '';
+      const callerUser = getUserById(c.callerUid);
+      const callerName = callerUser ? `${callerUser.lastName || ''} ${callerUser.name || ''}`.trim() || callerUser.email : (c.callerUid || '—');
+      html += `<div style="display:grid;grid-template-columns:90px 100px 1fr auto auto;gap:8px;padding:6px 10px;background:var(--bg3);border:1px solid var(--b1);border-radius:6px;font-size:11px;align-items:center">
+        <span style="color:${STATUS_COLOR[c.status] || 'var(--t3)'};font-weight:600">${escapeHtml(STATUS_LABEL[c.status] || c.status || '—')}</span>
+        <span style="color:var(--t3)">${dir}</span>
+        <span style="color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(callerName)}">${escapeHtml(callerName)}</span>
+        <span style="color:var(--t3);font-variant-numeric:tabular-nums">${escapeHtml(dur)}</span>
+        <span style="color:var(--t3);font-variant-numeric:tabular-nums">${escapeHtml(date)}</span>
+      </div>`;
+    }
+    html += '</div>';
+    target.innerHTML = html;
+  } catch (e) {
+    target.innerHTML = `<span style="color:var(--rd)">Ошибка: ${escapeHtml(e.message)}</span>`;
+  }
+}
 
 // ═════════════════════════════════════════════════════════════════════════
 //   ЗАДАЧИ (38k+ записей с фильтрами)

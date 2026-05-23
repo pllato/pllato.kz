@@ -900,6 +900,109 @@ async function handleFileDownload(request, env, fileId) {
   return new Response(obj.body, { status: 200, headers });
 }
 
+// ── /api/call/* — лог звонков ────────────────────────────────────────────
+// Заполняется фронтом при инициировании/завершении звонка. Пока provider
+// = 'tel-link' (заглушка). Когда подключим SIP — провайдер запишет
+// recording_url + status автоматом.
+
+async function handleCallEvent(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+
+  let body;
+  try { body = await request.json(); } catch {
+    return json({ error: "invalid json body" }, 400, request);
+  }
+
+  // Если передан callId — апдейтим существующий (например, завершение звонка)
+  if (body.callId) {
+    const updates = [];
+    const vals = [];
+    for (const [k, v] of Object.entries(body)) {
+      if (k === "callId") continue;
+      const col = ({
+        endedAt: "ended_at",
+        durationSec: "duration_sec",
+        status: "status",
+        recordingUrl: "recording_url",
+        recordingR2Key: "recording_r2_key",
+        note: "note",
+      })[k];
+      if (!col) continue;
+      updates.push(`${col} = ?`);
+      vals.push(v);
+    }
+    if (!updates.length) return json({ ok: true, noop: true }, 200, request);
+    vals.push(body.callId);
+    await env.DB.prepare(
+      `UPDATE call_log SET ${updates.join(", ")} WHERE id = ?`
+    ).bind(...vals).run();
+    return json({ ok: true, id: body.callId }, 200, request);
+  }
+
+  // Иначе — INSERT нового события
+  const direction = body.direction === "in" ? "in" : "out";
+  const phone = String(body.phone || "").trim();
+  if (!phone) return json({ error: "phone required" }, 400, request);
+
+  const result = await env.DB.prepare(
+    `INSERT INTO call_log (caller_uid, direction, phone, contact_id, deal_id,
+      started_at, status, provider, note)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    auth.uid,
+    direction,
+    phone,
+    body.contactId || null,
+    body.dealId || null,
+    body.startedAt || new Date().toISOString(),
+    body.status || "attempted",
+    body.provider || "tel-link",
+    body.note || null,
+  ).run();
+  return json({ ok: true, id: result.meta?.last_row_id }, 200, request);
+}
+
+async function handleCallLog(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+
+  const url = new URL(request.url);
+  const contactId = (url.searchParams.get("contactId") || "").trim();
+  const dealId = (url.searchParams.get("dealId") || "").trim();
+  const phone = (url.searchParams.get("phone") || "").trim();
+  const limit = Math.min(200, parseInt(url.searchParams.get("limit") || "50", 10) || 50);
+
+  const where = [];
+  const params = [];
+  if (contactId) { where.push("contact_id = ?"); params.push(contactId); }
+  if (dealId)    { where.push("deal_id = ?");    params.push(dealId); }
+  if (phone)     { where.push("phone LIKE ?");   params.push("%" + phone + "%"); }
+  const whereSQL = where.length ? " WHERE " + where.join(" AND ") : "";
+
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM call_log${whereSQL} ORDER BY started_at DESC LIMIT ?`
+  ).bind(...params, limit).all();
+
+  return json({
+    items: results.map(r => ({
+      id: r.id,
+      callerUid: r.caller_uid,
+      direction: r.direction,
+      phone: r.phone,
+      contactId: r.contact_id,
+      dealId: r.deal_id,
+      startedAt: r.started_at,
+      endedAt: r.ended_at,
+      durationSec: r.duration_sec,
+      status: r.status,
+      recordingUrl: r.recording_url,
+      provider: r.provider,
+      note: r.note,
+    })),
+  }, 200, request);
+}
+
 // ── Phase 0 routes ──────────────────────────────────────
 async function handleHealth(request, env) {
   try {
@@ -963,6 +1066,15 @@ export default {
     const fileMatch = path.match(/^\/api\/files\/([^/]+)$/);
     if (fileMatch && request.method === "GET") {
       return handleFileDownload(request, env, fileMatch[1]);
+    }
+
+    // /api/call/event — POST: write call_log row или update существующего
+    if (path === "/api/call/event" && request.method === "POST") {
+      return handleCallEvent(request, env);
+    }
+    // /api/call/log — GET: список последних звонков (?contactId, ?dealId, ?limit)
+    if (path === "/api/call/log" && request.method === "GET") {
+      return handleCallLog(request, env);
     }
 
     return json({ ok: false, error: "not found", path }, 404, request);
