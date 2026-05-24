@@ -9041,15 +9041,6 @@ body {
   color: #16a34a;
 }
 [data-theme="dark"] .po-shipped-label { color: #4ade80; }
-.deal-action-status-shipped {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 0 16px; height: 40px;
-  background: rgba(22,163,74,.12);
-  border: 1px solid rgba(22,163,74,.4);
-  border-radius: 10px;
-  color: #15803d; font-weight: 600;
-}
-[data-theme="dark"] .deal-action-status-shipped { color: #4ade80; }
 .po-card-head {
   display: flex; justify-content: space-between; gap: 16px;
   flex-wrap: wrap;
@@ -9459,6 +9450,16 @@ body {
 .dim-banner-text { flex: 1; }
 .dim-banner-text strong { color: var(--accent-hover, #22c55e); font-size: 14px; }
 .dim-banner-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+/* Варианты баннера по статусу заказа */
+.dim-banner-pending { background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.35); }
+.dim-banner-pending .dim-banner-text strong { color: #b45309; }
+[data-theme="dark"] .dim-banner-pending .dim-banner-text strong { color: #fbbf24; }
+.dim-banner-approved { background: rgba(34,197,94,.08); border-color: rgba(34,197,94,.35); }
+.dim-banner-approved .dim-banner-text strong { color: #15803d; }
+[data-theme="dark"] .dim-banner-approved .dim-banner-text strong { color: #4ade80; }
+.dim-banner-shipped { background: rgba(99,102,241,.08); border-color: rgba(99,102,241,.35); }
+.dim-banner-shipped .dim-banner-text strong { color: #4338ca; }
+[data-theme="dark"] .dim-banner-shipped .dim-banner-text strong { color: #a5b4fc; }
 
 .dim-empty {
   padding: 48px 24px;
@@ -9594,53 +9595,47 @@ body {
   flex-wrap: wrap;
 }
 
-/* Кнопка «Заказ» в action-bar сделки — синий акцент (отдельно от Позвонить/WhatsApp) */
+/* Кнопка «📦 Заказ» в action-bar сделки — главная CTA с статусом */
 .deal-action-btn-order {
   background: #6366f1;
   border-color: #4f46e5;
   color: white;
+  display: inline-flex; align-items: center; gap: 8px;
 }
 .deal-action-btn-order:hover:not(:disabled) {
   background: #4f46e5;
   border-color: #4338ca;
   color: white;
 }
-/* Кнопка «Сформировать накладную» в action-bar — оранжевый акцент */
-.deal-action-btn-invoice {
-  background: #f59e0b;
-  border-color: #d97706;
+.deal-action-btn-order.pending  { background: #f59e0b; border-color: #d97706; }
+.deal-action-btn-order.pending:hover  { background: #d97706; border-color: #b45309; }
+.deal-action-btn-order.approved { background: #16a34a; border-color: #15803d; }
+.deal-action-btn-order.approved:hover { background: #15803d; border-color: #14532d; }
+.deal-action-btn-order.shipped  { background: #4338ca; border-color: #3730a3; }
+.deal-action-btn-order.shipped:hover  { background: #3730a3; border-color: #312e81; }
+.dab-order-text { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dab-chip {
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 999px;
+  background: rgba(255,255,255,.22);
   color: white;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
 }
-.deal-action-btn-invoice:hover:not(:disabled) {
-  background: #d97706;
-  border-color: #b45309;
-  color: white;
-}
-.deal-action-btn-invoice:disabled {
-  background: var(--surface-2);
-  color: var(--text-muted);
-  border-color: var(--border);
-}
-/* Кнопка «Согласовать на отгрузку» — зелёная (директорское действие) */
-.deal-action-btn-approve {
+.dab-chip-draft     { background: rgba(255,255,255,.18); }
+.dab-chip-pending   { background: rgba(255,255,255,.25); }
+.dab-chip-approved  { background: rgba(255,255,255,.28); }
+.dab-chip-shipped   { background: rgba(255,255,255,.30); }
+/* Кнопка «✓ Согласовать» внутри footer'а модалки заказа */
+.dim-footer .deal-action-btn-approve {
   background: #16a34a;
   border-color: #15803d;
   color: white;
 }
-.deal-action-btn-approve:hover:not(:disabled) {
+.dim-footer .deal-action-btn-approve:hover:not(:disabled) {
   background: #15803d;
   border-color: #14532d;
   color: white;
-}
-/* Кнопка «Отозвать согласование» — нейтральная серая */
-.deal-action-btn-revoke {
-  background: var(--surface-2);
-  border-color: var(--border);
-  color: var(--text);
-}
-.deal-action-btn-revoke:hover:not(:disabled) {
-  background: var(--surface);
-  border-color: var(--text-muted);
 }
 .dim-footer-right {
   display: flex; gap: 8px;

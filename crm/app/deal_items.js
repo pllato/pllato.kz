@@ -355,19 +355,45 @@ function renderModalHTML(dealId) {
 
   const itemsWord = items.length === 1 ? "позиция" : (items.length >= 2 && items.length <= 4 ? "позиции" : "позиций");
 
-  const banner = status === ORDER_STATUS_PRELIMINARY ? `
-    <div class="dim-banner">
-      <div class="dim-banner-icon">📦</div>
-      <div class="dim-banner-text">
-        <strong>Предварительный заказ отправлен на склад</strong>
-        <div class="dim-banner-meta">
-          ${fmtDateTime(deal.orderSubmittedAt) || ""}
-          ${deal.orderSubmittedByName ? ` · ${escapeHtml(deal.orderSubmittedByName)}` : ""}
+  // Шапка-баннер по статусу: показывает где находится заказ и кто что делал.
+  let banner = "";
+  if (status === ORDER_STATUS_PRELIMINARY) {
+    banner = `
+      <div class="dim-banner dim-banner-pending">
+        <div class="dim-banner-icon">⏳</div>
+        <div class="dim-banner-text">
+          <strong>Предварительный заказ — ждёт согласования</strong>
+          <div class="dim-banner-meta">
+            Отправлен: ${fmtDateTime(deal.orderSubmittedAt) || "—"}${deal.orderSubmittedByName ? ` · ${escapeHtml(deal.orderSubmittedByName)}` : ""}
+          </div>
         </div>
       </div>
-      <button type="button" class="btn-ghost btn-sm" data-deal-order-recall>↩ Вернуть в черновик</button>
-    </div>
-  ` : "";
+    `;
+  } else if (status === ORDER_STATUS_APPROVED) {
+    banner = `
+      <div class="dim-banner dim-banner-approved">
+        <div class="dim-banner-icon">✓</div>
+        <div class="dim-banner-text">
+          <strong>Согласован на отгрузку</strong>
+          <div class="dim-banner-meta">
+            Согласовал: ${escapeHtml(deal.orderApprovedByName || "—")}${deal.orderApprovedAt ? ` · ${fmtDateTime(deal.orderApprovedAt)}` : ""}
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (status === ORDER_STATUS_SHIPPED) {
+    banner = `
+      <div class="dim-banner dim-banner-shipped">
+        <div class="dim-banner-icon">✅</div>
+        <div class="dim-banner-text">
+          <strong>Заказ отгружен</strong>
+          <div class="dim-banner-meta">
+            ${deal.orderInvoiceNumber ? `Накладная № ${escapeHtml(deal.orderInvoiceNumber)} · ` : ""}${fmtDateTime(deal.orderShippedAt) || ""}${deal.orderShippedByName ? ` · ${escapeHtml(deal.orderShippedByName)}` : ""}
+          </div>
+        </div>
+      </div>
+    `;
+  }
 
   return `
     <div class="dim-backdrop" data-dim-backdrop>
@@ -435,15 +461,43 @@ function renderModalHTML(dealId) {
             ` : ""}
           </div>
           <div class="dim-footer-right">
-            ${editable && items.length > 0 ? `
-              <button type="button" class="btn-primary" data-deal-order-submit>📤 Сформировать заказ</button>
-            ` : ""}
+            ${renderFooterActions(deal, items)}
             <button type="button" class="btn-ghost" data-dim-close>Закрыть</button>
           </div>
         </footer>
       </div>
     </div>
   `;
+}
+
+// Действия в модалке по статусу заказа: на каждой стадии — только релевантные кнопки.
+function renderFooterActions(deal, items) {
+  const status = getDealOrderStatus(deal);
+  const hasItems = items.length > 0;
+  // Черновик: единственное действие — отправить на склад.
+  if (status === ORDER_STATUS_DRAFT) {
+    if (!hasItems) return "";
+    return `<button type="button" class="btn-primary" data-deal-order-submit title="Заказ уйдёт на склад со статусом «Предварительный»">📨 Отправить на склад</button>`;
+  }
+  // Предварительный: можно отозвать (менеджер) или согласовать (директор).
+  if (status === ORDER_STATUS_PRELIMINARY) {
+    return `
+      <button type="button" class="btn-ghost" data-deal-order-recall title="Вернуть в черновик">↩ Вернуть в черновик</button>
+      <button type="button" class="btn-primary deal-action-btn-approve" data-deal-order-approve title="Согласовать заказ на отгрузку">✓ Согласовать на отгрузку</button>
+    `;
+  }
+  // Согласован: можно отозвать ИЛИ отгрузить (создать накладную).
+  if (status === ORDER_STATUS_APPROVED) {
+    return `
+      <button type="button" class="btn-ghost" data-deal-order-revoke title="Отозвать согласование">↶ Отозвать</button>
+      <button type="button" class="btn-primary" data-deal-order-ship title="Заказ перейдёт в «Отгружены», создастся расходная накладная З-2">📦 Отгрузить и сформировать накладную</button>
+    `;
+  }
+  // Отгружен: только просмотр и печать.
+  if (status === ORDER_STATUS_SHIPPED) {
+    return `<button type="button" class="btn-primary" data-deal-order-print title="Открыть печатную форму З-2">📄 Открыть накладную${deal.orderInvoiceNumber ? ` № ${escapeHtml(deal.orderInvoiceNumber)}` : ""}</button>`;
+  }
+  return "";
 }
 
 // === Typeahead для строк ===
@@ -634,6 +688,80 @@ function wireModalHandlers() {
     if (!confirm("Вернуть заказ в черновик? Со склада он исчезнет из предварительных заказов.")) return;
     recallDealOrder(dealId);
     refreshModal();
+  });
+  // Согласовать на отгрузку (директорское действие).
+  root.querySelector("[data-deal-order-approve]")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!confirm("Согласовать заказ на отгрузку?")) return;
+    try {
+      approveDealOrder(dealId);
+      refreshModal();
+    } catch (err) {
+      alert(err?.message || "Не удалось согласовать заказ");
+    }
+  });
+  // Отозвать согласование.
+  root.querySelector("[data-deal-order-revoke]")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!confirm("Отозвать согласование? Заказ вернётся в «Предварительные».")) return;
+    try {
+      revokeDealOrderApproval(dealId);
+      refreshModal();
+    } catch (err) {
+      alert(err?.message || "Не удалось отозвать");
+    }
+  });
+  // Отгрузить и сформировать накладную (создаёт З-2, переводит заказ в shipped).
+  root.querySelector("[data-deal-order-ship]")?.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!confirm("Сформировать расходную накладную и закрыть заказ? Заказ перейдёт в «Отгружены».")) return;
+    try {
+      const deal = Store.get(DEALS, dealId);
+      if (!deal) return;
+      const itemsNow = listDealItems(dealId);
+      if (itemsNow.length === 0) { alert("В заказе нет позиций."); return; }
+      const contact = deal.contactId ? Store.get("contacts", deal.contactId) : null;
+      // Динамический импорт — избегаем циклической зависимости warehouse.js ↔ deal_items.js.
+      const wh = await import("./warehouse.js");
+      const { doc } = wh.createInvoiceFromDeal(dealId, {
+        counterpartyContactId: deal.contactId || null,
+        counterpartyText: contact?.name || deal.title || "",
+        items: itemsNow.map((i) => ({
+          productId: i.productId,
+          qty: Number(i.qty) || 0,
+          unitPrice: Number(i.unitPrice) || 0,
+        })),
+        totalAmount: dealItemsTotal(dealId),
+        note: `Накладная по сделке «${deal.title || ""}»`,
+      });
+      refreshModal();
+      // Сразу открыть печать З-2.
+      const print = await import("./views/warehouse/invoice_print.js");
+      print.printInvoiceZ2(doc.id);
+    } catch (err) {
+      alert("Не удалось сформировать накладную: " + (err?.message || String(err)));
+    }
+  });
+  // Открыть/распечатать накладную (когда уже отгружен).
+  root.querySelector("[data-deal-order-print]")?.addEventListener("click", async (e) => {
+    e.preventDefault();
+    try {
+      const deal = Store.get(DEALS, dealId);
+      const invoiceId = deal?.orderInvoiceId;
+      if (!invoiceId) {
+        // Fallback: ищем накладную по dealId через warehouse.js.
+        const wh = await import("./warehouse.js");
+        const inv = wh.findInvoiceByDeal(dealId);
+        if (!inv) { alert("Накладная не найдена."); return; }
+        const print = await import("./views/warehouse/invoice_print.js");
+        print.printInvoiceZ2(inv.id);
+        return;
+      }
+      const print = await import("./views/warehouse/invoice_print.js");
+      print.printInvoiceZ2(invoiceId);
+    } catch (err) {
+      alert("Не удалось открыть накладную: " + (err?.message || String(err)));
+    }
   });
 
   // Escape для закрытия модалки

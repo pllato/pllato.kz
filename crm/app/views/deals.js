@@ -28,8 +28,7 @@ import { renderTypeahead, attachTypeahead } from "../typeahead.js";
 import { captureUtmFromUrl, enrichWithStoredUtm, renderUtmFormSection, renderUtmBadge, readUtmFromFormData, listKnownSources, getSourcePreset, UTM_SOURCE_PRESETS } from "../utm.js";
 import { openUtmReport } from "../utm_report.js";
 import { renderContacts } from "./contacts.js";
-import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal, listDealItems, dealItemsTotal, approveDealOrder, revokeDealOrderApproval, ORDER_STATUS_PRELIMINARY, ORDER_STATUS_APPROVED, ORDER_STATUS_SHIPPED } from "../deal_items.js";
-import { findInvoiceByDeal, createInvoiceFromDeal } from "../warehouse.js";
+import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal, listDealItems, dealItemsTotal, ORDER_STATUS_PRELIMINARY, ORDER_STATUS_APPROVED, ORDER_STATUS_SHIPPED } from "../deal_items.js";
 import { listChannels } from "../channels.js";
 import { renderCalls } from "./calls.js";
 import { apiFetch, formatApiError } from "../auth.js";
@@ -1888,28 +1887,45 @@ function renderDealContactBlock(contact, d, trashedContact = null) {
   `;
 }
 
-// Нижняя панель действий карточки сделки: «Позвонить» + «WhatsApp» + «Заказ» (всё видно постоянно — sticky-footer).
+// Нижняя панель действий карточки сделки — 3 кнопки.
+// Главная — «📦 Заказ» со статус-надписью (на её клик открывается модалка
+// заказа, где живут все действия по согласованию / отгрузке / накладной).
 function renderDealActionBar(d, contact) {
   const hasPhone = Boolean(contact?.phone);
   const noPhoneTitle = "У контакта нет телефона";
   const itemsCount = d?.id ? listDealItems(d.id).length : 0;
-  const orderLabel = itemsCount > 0 ? `Заказ (${itemsCount})` : "Создать заказ";
+  const total = d?.id ? dealItemsTotal(d.id) : 0;
+  const orderStatus = d?.orderStatus || null;
   // Счётчик непрочитанных WhatsApp для контакта сделки.
   const unread = d?.id ? (buildDealWaMessageIndex().get(d.id)?.unreadCount || 0) : 0;
   const unreadBadge = unread > 0 ? `<span class="action-bar-badge">${unread > 99 ? "99+" : unread}</span>` : "";
-  // Накладная: ищем уже сформированную (через dealId связь).
-  const invoice = d?.id ? findInvoiceByDeal(d.id) : null;
-  const canMakeInvoice = itemsCount > 0;
-  const invoiceLabel = invoice ? `Накладная №${invoice.number}` : "Отгрузить и сформировать накладную";
-  const invoiceTitle = invoice
-    ? `Расходная накладная № ${invoice.number} (открыть)`
-    : (canMakeInvoice ? "Заказ перейдёт в «Отгружены», сформируется расходная накладная З-2" : "Сначала добавь позиции в заказ");
-  // Согласование заказа на отгрузку (для статуса 'preliminary' — показываем кнопку «✓ Согласовать»,
-  // для 'approved' — «↶ Отозвать согласование», для 'shipped' — статичный бейдж).
-  const orderStatus = d?.orderStatus || null;
-  const isPreliminary = orderStatus === ORDER_STATUS_PRELIMINARY;
-  const isApproved = orderStatus === ORDER_STATUS_APPROVED;
-  const isShipped = orderStatus === ORDER_STATUS_SHIPPED;
+
+  const fmtSum = (n) => new Intl.NumberFormat("ru-RU").format(Math.round(Number(n) || 0));
+  // Лейбл и статус-чип кнопки заказа меняются по статусу.
+  let orderEmoji = "📦";
+  let orderText;
+  let orderChip = "";
+  let orderClass = "deal-action-btn-order";
+  if (itemsCount === 0) {
+    orderText = "Создать заказ";
+  } else if (orderStatus === ORDER_STATUS_SHIPPED) {
+    orderEmoji = "✅";
+    orderText = `Заказ · ${fmtSum(total)} ₸`;
+    orderChip = `<span class="dab-chip dab-chip-shipped">Отгружен${d.orderInvoiceNumber ? ` · № ${escape(d.orderInvoiceNumber)}` : ""}</span>`;
+    orderClass = "deal-action-btn-order shipped";
+  } else if (orderStatus === ORDER_STATUS_APPROVED) {
+    orderText = `Заказ · ${fmtSum(total)} ₸`;
+    orderChip = `<span class="dab-chip dab-chip-approved">✓ Согласован</span>`;
+    orderClass = "deal-action-btn-order approved";
+  } else if (orderStatus === ORDER_STATUS_PRELIMINARY) {
+    orderText = `Заказ · ${fmtSum(total)} ₸`;
+    orderChip = `<span class="dab-chip dab-chip-pending">⏳ На складе</span>`;
+    orderClass = "deal-action-btn-order pending";
+  } else {
+    orderText = `Заказ · ${fmtSum(total)} ₸`;
+    orderChip = `<span class="dab-chip dab-chip-draft">Черновик</span>`;
+  }
+
   return `
     <footer class="deal-action-bar">
       <button type="button" class="deal-action-btn" id="actionBarCall" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Позвонить" : noPhoneTitle}">
@@ -1918,34 +1934,13 @@ function renderDealActionBar(d, contact) {
       </button>
       <button type="button" class="deal-action-btn deal-action-btn-primary" id="actionBarWA" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Открыть WhatsApp" : noPhoneTitle}">
         <span class="dab-emoji">💬</span>
-        <span>${hasPhone ? "Открыть WhatsApp с клиентом" : noPhoneTitle}</span>
+        <span>${hasPhone ? "Открыть WhatsApp" : noPhoneTitle}</span>
         ${unreadBadge}
       </button>
-      <button type="button" class="deal-action-btn deal-action-btn-order" data-deal-items-open title="${escapeAttr(orderLabel)}">
-        <span class="dab-emoji">📦</span>
-        <span>${escape(orderLabel)}</span>
-      </button>
-      ${isPreliminary ? `
-        <button type="button" class="deal-action-btn deal-action-btn-approve" id="actionBarApprove" title="Согласовать заказ на отгрузку">
-          <span class="dab-emoji">✓</span>
-          <span>Согласовать на отгрузку</span>
-        </button>
-      ` : ""}
-      ${isApproved ? `
-        <button type="button" class="deal-action-btn deal-action-btn-revoke" id="actionBarRevoke" title="Отозвать согласование — заказ вернётся в Предварительные">
-          <span class="dab-emoji">↶</span>
-          <span>Отозвать согласование</span>
-        </button>
-      ` : ""}
-      ${isShipped ? `
-        <div class="deal-action-status-shipped" title="Заказ уже отгружен — накладная сформирована">
-          <span class="dab-emoji">✅</span>
-          <span>Отгружено${d.orderInvoiceNumber ? ` · № ${escape(d.orderInvoiceNumber)}` : ""}</span>
-        </div>
-      ` : ""}
-      <button type="button" class="deal-action-btn deal-action-btn-invoice" id="actionBarInvoice" ${canMakeInvoice ? "" : "disabled"} title="${escapeAttr(invoiceTitle)}" data-invoice-id="${escapeAttr(invoice?.id || "")}">
-        <span class="dab-emoji">📄</span>
-        <span>${escape(invoiceLabel)}</span>
+      <button type="button" class="deal-action-btn ${orderClass}" data-deal-items-open title="Открыть заказ — позиции, согласование, отгрузка, накладная">
+        <span class="dab-emoji">${orderEmoji}</span>
+        <span class="dab-order-text">${escape(orderText)}</span>
+        ${orderChip}
       </button>
     </footer>
   `;
@@ -3828,77 +3823,8 @@ function wireEvents(container) {
       ta?.focus();
       ta?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
-    container.querySelector("#actionBarApprove")?.addEventListener("click", () => {
-      const deal = Store.get(COLLECTION, state.modalDealId);
-      if (!deal) return;
-      if (!confirm("Согласовать заказ на отгрузку? Заказ перейдёт в столбец «Согласованы на отгрузку» в Складе → Заказы.")) return;
-      try {
-        approveDealOrder(deal.id);
-        renderDeals(container);
-      } catch (err) {
-        alert("Не удалось согласовать: " + (err?.message || String(err)));
-      }
-    });
-    container.querySelector("#actionBarRevoke")?.addEventListener("click", () => {
-      const deal = Store.get(COLLECTION, state.modalDealId);
-      if (!deal) return;
-      if (!confirm("Отозвать согласование? Заказ вернётся в столбец «Предварительные».")) return;
-      try {
-        revokeDealOrderApproval(deal.id);
-        renderDeals(container);
-      } catch (err) {
-        alert("Не удалось отозвать: " + (err?.message || String(err)));
-      }
-    });
-    container.querySelector("#actionBarInvoice")?.addEventListener("click", async (e) => {
-      const btn = e.currentTarget;
-      const existingId = btn.dataset.invoiceId;
-      // Если накладная уже есть — открываем печатную форму З-2.
-      if (existingId) {
-        try {
-          const mod = await import("./warehouse/invoice_print.js");
-          mod.printInvoiceZ2(existingId);
-        } catch (err) {
-          console.warn("[deal] invoice print failed:", err);
-          alert("Не удалось открыть печатную форму: " + (err?.message || err));
-        }
-        return;
-      }
-      // Иначе — создаём накладную и сразу печатаем.
-      const deal = Store.get(COLLECTION, state.modalDealId);
-      if (!deal) return;
-      const items = listDealItems(deal.id);
-      if (items.length === 0) {
-        alert("В заказе нет позиций. Сначала добавь товары.");
-        return;
-      }
-      const contact = contacts.find((x) => x.id === deal.contactId);
-      try {
-        const { doc, created } = createInvoiceFromDeal(deal.id, {
-          counterpartyContactId: deal.contactId || null,
-          counterpartyText: contact?.name || deal.title || "",
-          items: items.map((i) => ({
-            productId: i.productId,
-            qty: Number(i.qty) || 0,
-            unitPrice: Number(i.unitPrice) || 0,
-          })),
-          totalAmount: dealItemsTotal(deal.id),
-          note: `Накладная по сделке «${deal.title || ""}»`,
-        });
-        if (created) {
-          addActivity(deal.id, "invoice_created", {
-            text: `Сформирована расходная накладная № ${doc.number}`,
-            docId: doc.id,
-          });
-        }
-        renderDeals(container);
-        // Сразу открываем печатную форму.
-        const mod = await import("./warehouse/invoice_print.js");
-        mod.printInvoiceZ2(doc.id);
-      } catch (err) {
-        alert("Не удалось сформировать накладную: " + (err?.message || String(err)));
-      }
-    });
+    // Кнопки согласования / отгрузки / накладной живут теперь внутри модалки заказа
+    // (см. deal_items.js → wireModalHandlers), action-bar свёрнут до 3 кнопок.
 
     // ===== Карточка контакта: edit / change / cancel / save =====
     container.querySelector("#editContact")?.addEventListener("click", () => {
