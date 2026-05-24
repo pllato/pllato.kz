@@ -5,7 +5,7 @@
 import { ICONS } from "../../icons.js";
 import { Store } from "../../store.js";
 import { listPreliminaryDealOrders, listApprovedDealOrders, listShippedDealOrders, listDealItems, dealItemsTotal, recallDealOrder, approveDealOrder, revokeDealOrderApproval } from "../../deal_items.js";
-import { productSummary, getWarehouseProduct } from "../../warehouse.js";
+import { productSummary, getWarehouseProduct, createInvoiceFromDeal } from "../../warehouse.js";
 
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -120,7 +120,8 @@ function renderOrderCard(deal, kind) {
             ${kind === "preliminary"
               ? `<button type="button" class="btn-primary" data-po-approve="${escapeAttr(deal.id)}">✓ Согласовать на отгрузку</button>`
               : kind === "approved"
-              ? `<button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}">↶ Отозвать согласование</button>`
+              ? `<button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}">↶ Отозвать</button>
+                 <button type="button" class="btn-primary" data-po-ship="${escapeAttr(deal.id)}" title="Сформировать расходную накладную и закрыть заказ">📦 Отгрузить (накладная)</button>`
               : `<span class="po-shipped-label">✅ Отгружено${deal.orderInvoiceNumber ? ` · накладная № ${escapeHtml(deal.orderInvoiceNumber)}` : ""}</span>`
             }
           </div>
@@ -221,6 +222,43 @@ export function wirePreliminaryOrdersEvents(container) {
         window.dispatchEvent(new CustomEvent("pllato:warehouse-refresh"));
       } catch (err) {
         alert(err?.message || String(err));
+      }
+      return;
+    }
+    const shipBtn = e.target.closest("[data-po-ship]");
+    if (shipBtn) {
+      e.preventDefault();
+      const dealId = shipBtn.dataset.poShip;
+      const deal = Store.get("deals", dealId);
+      if (!deal) return;
+      const items = listDealItems(dealId);
+      if (items.length === 0) { alert("В заказе нет позиций."); return; }
+      if (!confirm("Сформировать расходную накладную и закрыть заказ? Заказ перейдёт в «Отгружены».")) return;
+      try {
+        const contact = deal.contactId ? Store.get("contacts", deal.contactId) : null;
+        const { doc, created } = createInvoiceFromDeal(dealId, {
+          counterpartyContactId: deal.contactId || null,
+          counterpartyText: contact?.name || deal.title || "",
+          items: items.map((i) => ({
+            productId: i.productId,
+            qty: Number(i.qty) || 0,
+            unitPrice: Number(i.unitPrice) || 0,
+          })),
+          totalAmount: dealItemsTotal(dealId),
+          note: `Накладная по сделке «${deal.title || ""}»`,
+        });
+        window.dispatchEvent(new CustomEvent("pllato:warehouse-refresh"));
+        // Сразу открываем печатную форму З-2.
+        import("./invoice_print.js").then((mod) => {
+          mod.printInvoiceZ2(doc.id);
+        }).catch((err) => {
+          console.warn("[orders] invoice print failed:", err);
+        });
+        if (!created) {
+          alert(`Накладная № ${doc.number} уже была создана ранее. Открываю существующую.`);
+        }
+      } catch (err) {
+        alert("Не удалось сформировать накладную: " + (err?.message || String(err)));
       }
     }
   });
