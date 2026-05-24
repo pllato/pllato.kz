@@ -8952,32 +8952,41 @@ body {
 }
 
 /* === Preliminary Orders View (склад) === */
-.po-view { padding: 24px; max-width: 1280px; margin: 0 auto; }
+.po-view { padding: 18px 16px; max-width: 1280px; margin: 0 auto; }
 .po-header {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 }
-.po-header h2 { margin: 0; font-size: 22px; }
-.po-meta { color: var(--muted, #8896b3); font-size: 14px; }
+.po-header h2 { margin: 0; font-size: 22px; color: var(--text); }
+.po-meta { color: var(--text-muted); font-size: 14px; }
+.po-meta strong { color: var(--text); }
 
 .po-empty {
-  padding: 64px 32px; text-align: center; color: var(--muted, #8896b3);
-  border: 1px dashed var(--border, #2a3550); border-radius: 12px;
+  padding: 64px 32px; text-align: center; color: var(--text-muted);
+  border: 1px dashed var(--border); border-radius: 12px;
+  background: var(--surface);
 }
 .po-empty-icon { font-size: 48px; margin-bottom: 12px; }
-.po-empty-title { font-size: 16px; color: var(--text, #d4dce8); margin-bottom: 6px; }
+.po-empty-title { font-size: 16px; color: var(--text); margin-bottom: 6px; font-weight: 600; }
 .po-empty-text { font-size: 13px; max-width: 480px; margin: 0 auto; }
 
 .po-list { display: flex; flex-direction: column; gap: 12px; }
 .po-card {
-  background: rgba(15, 20, 25, .4);
-  border: 1px solid var(--border, #2a3550);
-  border-radius: 10px;
-  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 12px;
+  padding: 16px 18px;
+  transition: box-shadow .12s, border-color .12s;
+}
+.po-card:hover {
+  box-shadow: 0 4px 12px -4px rgba(0,0,0,.12);
+  border-color: var(--accent);
 }
 .po-card.has-shortage {
-  border-color: rgba(239, 68, 68, .35);
-  background: rgba(239, 68, 68, .05);
+  border-color: #ef4444;
+  border-left-color: #ef4444;
+  background: rgba(239, 68, 68, .04);
 }
 .po-card-head {
   display: flex; justify-content: space-between; gap: 16px;
@@ -8985,36 +8994,42 @@ body {
 }
 .po-card-title { flex: 1; min-width: 280px; }
 .po-deal-link {
-  font-size: 16px; font-weight: 500; color: var(--text, #d4dce8);
+  font-size: 16px; font-weight: 700; color: var(--text);
   text-decoration: none;
 }
-.po-deal-link:hover { color: #22c55e; }
-.po-card-sub { font-size: 12px; color: var(--muted, #8896b3); margin-top: 4px; }
+.po-deal-link:hover { color: var(--accent-hover, #16a34a); text-decoration: underline; }
+.po-card-sub {
+  font-size: 13px; color: var(--text-muted); margin-top: 6px;
+  line-height: 1.4;
+}
 .po-card-meta { text-align: right; }
 .po-card-total {
-  font-size: 18px; font-weight: 500; color: #22c55e;
+  font-size: 20px; font-weight: 700; color: var(--accent-hover, #16a34a);
   font-variant-numeric: tabular-nums;
 }
-.po-card-date { font-size: 11px; color: var(--muted, #8896b3); margin-top: 2px; }
-.po-card-by { font-size: 11px; color: var(--muted, #8896b3); }
+.po-card.has-shortage .po-card-total { color: #ef4444; }
+.po-card-date { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.po-card-by { font-size: 12px; color: var(--text-muted); font-weight: 600; }
 
-.po-card-details { margin-top: 12px; }
+.po-card-details { margin-top: 12px; border-top: 1px solid var(--border-soft); padding-top: 8px; }
 .po-card-details summary {
   cursor: pointer; padding: 6px 0;
-  font-size: 13px; color: var(--text, #d4dce8);
+  font-size: 13px; color: var(--text);
   list-style: none;
   display: flex; align-items: center; gap: 10px;
+  font-weight: 600;
 }
 .po-card-details summary::-webkit-details-marker { display: none; }
 .po-card-details summary::before {
   content: "▸"; transition: transform .15s ease;
-  display: inline-block; color: var(--muted, #8896b3);
+  display: inline-block; color: var(--text-muted);
 }
 .po-card-details[open] summary::before { transform: rotate(90deg); }
 .po-warning-tag {
-  font-size: 11px; padding: 1px 6px; border-radius: 3px;
-  background: rgba(239, 68, 68, .15); color: #ef4444;
+  font-size: 12px; padding: 3px 10px; border-radius: 999px;
+  background: rgba(239, 68, 68, .15); color: #b91c1c; font-weight: 700;
 }
+[data-theme="dark"] .po-warning-tag { color: #f87171; }
 
 .po-card-body { padding-top: 8px; }
 .po-items-table {
