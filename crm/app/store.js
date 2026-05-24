@@ -17,6 +17,7 @@ const AUTO_COLLECTIONS = [
   "notifications",
   "employees",
   "roles",
+  "organizations",
   "documents",
   "deal_activities",
   "task_comments",

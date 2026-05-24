@@ -9,6 +9,7 @@ import { setEmployeePassword, generateTempPassword, logoutAll, getEmailSession }
 import { saveLocalEmployee, removeFromBackup, isLocalEmployee } from "../local_employees.js";
 import { getDealFields, saveDealFields, newFieldId, FIELD_TYPES } from "../custom_fields.js";
 import { listChannels, typeMeta, isChannelsSynced, saveChannel, deleteChannel, getChannelFull } from "../channels.js";
+import { listOrganizations, getOrganization, saveOrganization, deleteOrganization, ORG_TYPES } from "../organizations.js";
 import { openWaQrModal } from "../wa_qr.js";
 import { ensureBuiltinDocumentsSeed, listDocuments, normalizeVisibility, saveDocumentVisibility, isEmployeeAdmin } from "../docs/registry.js";
 import { VERSION, REVISION, BUILD_DATE, COMMIT_SHORT, HISTORY } from "../version.js";
@@ -122,6 +123,7 @@ const state = {
   editingEmployee: null,    // id или "new"
   editingRole: null,        // id или "new"
   employeeDocsFor: null,    // employee id
+  editingOrg: null,         // id или "new" — редактирование организации
 };
 
 export function renderSettings(container) {
@@ -270,6 +272,21 @@ export function renderSettings(container) {
           ${state.editingRole === "new" ? renderRoleForm(null) : ""}
           <div>
             <button class="btn-ghost" id="addRole">${ICONS.plus}<span>Добавить роль</span></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Организации (юр.лица для накладных/СФ) -->
+      <section class="settings-block">
+        <header class="settings-head">
+          <h3>Организации <span style="font-weight:500;color:var(--text-muted)">(${listOrganizations().length})</span></h3>
+          <p>Юр.лица твоей компании — реквизиты для печатных форм З-2, счёт-фактур, актов.</p>
+        </header>
+        <div class="settings-body">
+          ${renderOrganizationsList()}
+          ${state.editingOrg ? renderOrganizationForm(state.editingOrg === 'new' ? null : getOrganization(state.editingOrg)) : ''}
+          <div style="margin-top:10px">
+            <button type="button" class="btn-ghost" id="addOrganization">${ICONS.plus}<span>Добавить организацию</span></button>
           </div>
         </div>
       </section>
@@ -1328,4 +1345,171 @@ function wireEvents(container) {
     location.hash = "#dashboard";
     location.reload();
   });
+
+  // ===== Организации (юр.лица) =====
+  container.querySelector("#addOrganization")?.addEventListener("click", () => {
+    state.editingOrg = "new";
+    renderSettings(container);
+  });
+  container.querySelectorAll("[data-edit-org]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.editingOrg = btn.dataset.editOrg;
+      renderSettings(container);
+    });
+  });
+  container.querySelectorAll("[data-delete-org]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.deleteOrg;
+      const org = getOrganization(id);
+      if (!org) return;
+      if (!confirm(`Удалить организацию «${org.shortName}»?\nЭто скроет её из списка, старые накладные останутся целыми.`)) return;
+      deleteOrganization(id);
+      state.editingOrg = null;
+      renderSettings(container);
+    });
+  });
+  container.querySelector("[data-org-form]")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const fd = new FormData(form);
+    const id = form.dataset.orgId || undefined;
+    try {
+      saveOrganization({
+        id,
+        type: fd.get("type"),
+        shortName: fd.get("shortName"),
+        fullName: fd.get("fullName"),
+        bin: fd.get("bin"),
+        address: fd.get("address"),
+        phone: fd.get("phone"),
+        iik: fd.get("iik"),
+        bik: fd.get("bik"),
+        bank: fd.get("bank"),
+        directorPosition: fd.get("directorPosition"),
+        directorName: fd.get("directorName"),
+        accountantName: fd.get("accountantName"),
+        molName: fd.get("molName"),
+        isDefault: fd.get("isDefault") === "on",
+      });
+      state.editingOrg = null;
+      renderSettings(container);
+    } catch (err) {
+      alert("Не удалось сохранить: " + (err?.message || err));
+    }
+  });
+  container.querySelector("[data-org-cancel]")?.addEventListener("click", () => {
+    state.editingOrg = null;
+    renderSettings(container);
+  });
+}
+
+// ============================================================================
+// Организации (юр.лица) — render
+// ============================================================================
+function renderOrganizationsList() {
+  const orgs = listOrganizations();
+  if (orgs.length === 0) {
+    return `<div class="settings-hint" style="padding:14px;text-align:center;color:var(--text-muted)">Пока нет организаций. Добавь первую — она будет использоваться в печатных формах накладных.</div>`;
+  }
+  return `
+    <div class="orgs-list" style="display:flex;flex-direction:column;gap:10px">
+      ${orgs.map((o) => `
+        <div class="org-row" style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;display:flex;align-items:flex-start;gap:12px">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+              <strong style="font-size:14px;color:var(--text)">${escape(o.shortName || "")}</strong>
+              ${o.isDefault ? '<span class="chip chip-accent" style="font-size:11px">по умолчанию</span>' : ''}
+              <span class="chip" style="font-size:11px;background:var(--surface);color:var(--text-muted);padding:2px 8px;border-radius:999px">${escape(o.type || "")}</span>
+            </div>
+            <div style="font-size:12.5px;color:var(--text-muted);line-height:1.4">
+              ${escape(o.fullName || "")}<br>
+              БИН/ИИН: <strong style="color:var(--text)">${escape(o.bin || "—")}</strong>
+              ${o.directorName ? ` · Директор: <strong style="color:var(--text)">${escape(o.directorName)}</strong>` : ""}
+              ${o.molName ? ` · МОЛ: <strong style="color:var(--text)">${escape(o.molName)}</strong>` : ""}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button type="button" class="btn-ghost icon-only" data-edit-org="${escape(o.id)}" title="Редактировать">${ICONS.edit}</button>
+            <button type="button" class="btn-ghost icon-only danger" data-delete-org="${escape(o.id)}" title="Удалить">${ICONS.trash}</button>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderOrganizationForm(o) {
+  const isNew = !o;
+  o = o || { type: "TOO", shortName: "", fullName: "", bin: "", address: "", phone: "", iik: "", bik: "", bank: "", directorPosition: "Финансовый директор", directorName: "", accountantName: "", molName: "", molPosition: "Отпустил", isDefault: false };
+  const inp = "width:100%;padding:8px 12px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:7px;box-sizing:border-box;font:inherit;";
+  return `
+    <form data-org-form ${o.id ? `data-org-id="${escape(o.id)}"` : ""} style="margin-top:14px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px">
+      <div style="font-size:15px;font-weight:600;margin-bottom:12px">${isNew ? "Новая организация" : "Редактировать организацию"}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+        <label>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Тип</div>
+          <select name="type" style="${inp}">
+            ${ORG_TYPES.map((t) => `<option value="${escape(t.id)}" ${o.type === t.id ? "selected" : ""}>${escape(t.label)}</option>`).join("")}
+          </select>
+        </label>
+        <label>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Короткое название *</div>
+          <input type="text" name="shortName" required value="${escape(o.shortName || "")}" placeholder='ТОО "Аминамед"' style="${inp}">
+        </label>
+        <label style="grid-column:1/-1">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Полное наименование</div>
+          <input type="text" name="fullName" value="${escape(o.fullName || "")}" placeholder='Товарищество с ограниченной ответственностью "Аминамед"' style="${inp}">
+        </label>
+        <label>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">БИН/ИИН *</div>
+          <input type="text" name="bin" required value="${escape(o.bin || "")}" placeholder="060540006532" maxlength="12" style="${inp}font-family:ui-monospace,Menlo,monospace;">
+        </label>
+        <label>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Телефон</div>
+          <input type="text" name="phone" value="${escape(o.phone || "")}" placeholder="+7 (777) 123-45-67" style="${inp}">
+        </label>
+        <label style="grid-column:1/-1">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Юридический адрес</div>
+          <input type="text" name="address" value="${escape(o.address || "")}" placeholder="г. Алматы, ул. Абая 12" style="${inp}">
+        </label>
+        <label>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">ИИК (расчётный счёт)</div>
+          <input type="text" name="iik" value="${escape(o.iik || "")}" placeholder="KZ12345678901234567890" style="${inp}font-family:ui-monospace,Menlo,monospace;">
+        </label>
+        <label>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Банк</div>
+          <input type="text" name="bank" value="${escape(o.bank || "")}" placeholder="АО Kaspi Bank" style="${inp}">
+        </label>
+        <label>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">БИК</div>
+          <input type="text" name="bik" value="${escape(o.bik || "")}" placeholder="CASPKZKA" style="${inp}font-family:ui-monospace,Menlo,monospace;">
+        </label>
+        <div style="grid-column:1/-1;border-top:1px solid var(--border-soft);margin-top:6px;padding-top:10px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Подписанты для накладных</div>
+        <label>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Должность директора</div>
+          <input type="text" name="directorPosition" value="${escape(o.directorPosition || "")}" placeholder="Финансовый директор" style="${inp}">
+        </label>
+        <label>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Директор (отпуск разрешил)</div>
+          <input type="text" name="directorName" value="${escape(o.directorName || "")}" placeholder="Баймуханова К.А." style="${inp}">
+        </label>
+        <label>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Главный бухгалтер</div>
+          <input type="text" name="accountantName" value="${escape(o.accountantName || "")}" placeholder="Иванова И.И." style="${inp}">
+        </label>
+        <label>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">МОЛ (отпустил)</div>
+          <input type="text" name="molName" value="${escape(o.molName || "")}" placeholder="Селенков И.В." style="${inp}">
+        </label>
+        <label style="grid-column:1/-1;display:flex;align-items:center;gap:8px;margin-top:6px">
+          <input type="checkbox" name="isDefault" ${o.isDefault ? "checked" : ""}>
+          <span>Использовать по умолчанию в новых накладных</span>
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button type="submit" class="btn-primary">Сохранить</button>
+        <button type="button" class="btn-ghost" data-org-cancel>Отмена</button>
+      </div>
+    </form>
+  `;
 }
