@@ -8989,18 +8989,41 @@ body {
   background: rgba(239, 68, 68, .04);
 }
 /* Канбан «Заказы со склада» — 3 колонки */
+.po-view { max-width: none !important; }
 .po-view .po-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 14px; margin-bottom: 14px; }
 .po-view .po-meta { color: var(--text-muted); font-size: 13px; }
-.po-kanban { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; align-items: start; }
-.po-col { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.po-kanban {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+  width: 100%;
+}
+@media (max-width: 1100px) { .po-kanban { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 720px)  { .po-kanban { grid-template-columns: 1fr; } }
+.po-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* критично: иначе содержимое раздувает колонку и ломает grid */
+}
 .po-col-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--border-soft); background: var(--surface-2); }
 .po-col-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--col, var(--accent)); flex-shrink: 0; }
-.po-col-title { flex: 1; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text); }
+.po-col-title { flex: 1; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .po-col-count { padding: 2px 8px; background: var(--surface); border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
 .po-col-body { padding: 10px; display: flex; flex-direction: column; gap: 10px; min-height: 100px; }
 .po-empty { padding: 30px 14px; text-align: center; color: var(--text-muted); font-size: 13px; border: 1px dashed var(--border); border-radius: 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .po-empty-icon { font-size: 28px; opacity: .6; }
 .po-empty-text { font-size: 12.5px; line-height: 1.4; }
+/* Карточки внутри колонок — обнуляем большие отступы базовой .po-card, чтобы они компактнее были */
+.po-col-body .po-card { padding: 12px 14px; }
+.po-col-body .po-card-head { gap: 10px; }
+.po-col-body .po-card-title { min-width: 0; flex: 1 1 auto; }
+.po-col-body .po-card-total { font-size: 18px; white-space: nowrap; }
+.po-col-body .po-card-sub { word-break: break-word; }
 .po-card.is-approved { border-left-color: #f59e0b; }
 .po-card.is-shipped {
   border-left-color: #16a34a;
