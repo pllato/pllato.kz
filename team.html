@@ -8096,7 +8096,10 @@ async function renderUsers(el) {
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <h3 style="margin:0;flex:1">Список</h3>
-        ${isAdmin ? `<button class="btn btn-sm" id="add-user-btn">+ Добавить сотрудника</button>` : ''}
+        ${isAdmin ? `
+          <button class="btn btn-sm" id="audit-log-btn" title="История изменений">📋 Журнал</button>
+          <button class="btn btn-sm" id="add-user-btn">+ Добавить сотрудника</button>
+        ` : ''}
       </div>
       <div id="users-list"><div class="empty">Загрузка...</div></div>
     </div>
@@ -8122,6 +8125,7 @@ async function renderUsers(el) {
     window.__elcDepartments = (depts && depts.items) || [];
     renderUsersAdminTable(data.items);
     document.getElementById('add-user-btn').onclick = openAddUserModal;
+    document.getElementById('audit-log-btn').onclick = openAuditLogModal;
   } else {
     // Не-admin: простой read-only список через RTDB-proxy
     const idToken = await fbAuth.currentUser.getIdToken();
@@ -8163,6 +8167,7 @@ function renderUsersAdminTable(items) {
       <th>Отдел</th>
       <th style="text-align:right" title="Задач · Сделок · Контактов на котором ответственный">Назначено</th>
       <th>Последний вход</th>
+      <th></th>
     </tr></thead>
     <tbody>`;
   for (const u of items) {
@@ -8173,8 +8178,12 @@ function renderUsersAdminTable(items) {
       u.dealsCount ? `${u.dealsCount} сделок` : '',
       u.contactsCount ? `${u.contactsCount} контактов` : '',
     ].filter(Boolean).join(' · ') || '—';
-    html += `<tr data-uid="${escapeHtml(u.uid)}">
-      <td>${escapeHtml(fullName)}</td>
+    const isActive = u.active !== 0;
+    const rowStyle = isActive ? '' : 'opacity:.45';
+    const toggleTitle = isActive ? 'Деактивировать (soft delete)' : 'Восстановить';
+    const toggleIcon = isActive ? '🚫' : '↩';
+    html += `<tr data-uid="${escapeHtml(u.uid)}" data-active="${isActive ? 1 : 0}" style="${rowStyle}">
+      <td>${escapeHtml(fullName)}${isActive ? '' : ' <span style="font-size:10px;color:var(--rd)">(деактивирован)</span>'}</td>
       <td style="color:var(--t3);font-size:11px">${escapeHtml(u.email || '—')}</td>
       <td>
         <select class="usr-role-select" data-uid="${escapeHtml(u.uid)}" style="background:var(--bg2);border:1px solid var(--b1);border-radius:4px;padding:3px 6px;color:${ROLE_COLORS[u.role] || 'var(--t1)'};font-weight:600;font-size:12px">
@@ -8188,6 +8197,9 @@ function renderUsersAdminTable(items) {
       </td>
       <td style="text-align:right;color:var(--t3);font-size:11px">${escapeHtml(counts)}</td>
       <td style="color:var(--t3);font-size:11px">${lastLogin}</td>
+      <td style="text-align:right">
+        <button class="usr-toggle-active" data-uid="${escapeHtml(u.uid)}" data-active="${isActive ? 1 : 0}" title="${toggleTitle}" style="background:none;border:1px solid var(--b1);border-radius:4px;padding:3px 7px;cursor:pointer;font-size:14px">${toggleIcon}</button>
+      </td>
     </tr>`;
   }
   html += '</tbody></table>';
@@ -8206,6 +8218,36 @@ function renderUsersAdminTable(items) {
       }
     });
   });
+  document.querySelectorAll('.usr-toggle-active').forEach(btn => {
+    btn.addEventListener('click', () => toggleUserActive(btn.dataset.uid, btn.dataset.active === '1', btn));
+  });
+}
+
+async function toggleUserActive(uid, currentlyActive, btn) {
+  const verb = currentlyActive ? 'деактивировать' : 'восстановить';
+  if (!confirm(`Точно ${verb} сотрудника?`)) return;
+  btn.disabled = true;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/admin/users/${encodeURIComponent(uid)}/active`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ active: !currentlyActive }),
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error(j.error || `HTTP ${r.status}`);
+    }
+    showToast?.(currentlyActive ? 'Сотрудник деактивирован' : 'Сотрудник восстановлен');
+    // Перерисуем только таблицу (без перерендера всей страницы)
+    const fresh = await fetch(`${WORKER_BASE_URL}/api/admin/users`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    }).then(r => r.ok ? r.json() : null).catch(() => null);
+    if (fresh && fresh.items) renderUsersAdminTable(fresh.items);
+  } catch (e) {
+    alert('Ошибка: ' + e.message);
+    btn.disabled = false;
+  }
 }
 
 async function saveUserRole(uid, sourceEl) {
@@ -8234,6 +8276,89 @@ async function saveUserRole(uid, sourceEl) {
     alert('Ошибка сохранения роли: ' + e.message);
   } finally {
     sourceEl.disabled = false;
+  }
+}
+
+async function openAuditLogModal() {
+  document.getElementById('_audit-log-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_audit-log-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:900px;width:95vw">
+      <div class="qad-head">
+        <h2>📋 Журнал изменений</h2>
+        <button class="qad-btn qad-btn-ghost" id="al-close" style="padding:4px 10px">×</button>
+      </div>
+      <div class="qad-body" style="max-height:70vh;overflow:auto">
+        <div id="al-content"><div class="empty">Загрузка…</div></div>
+      </div>
+      <div class="qad-foot">
+        <span style="color:var(--t3);font-size:11px;flex:1">Последние 200 событий. role_grant/user_create/user_deactivate/record_patch/record_delete.</span>
+        <button class="qad-btn qad-btn-ghost" id="al-cancel">Закрыть</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('al-close').onclick = () => ov.remove();
+  document.getElementById('al-cancel').onclick = () => ov.remove();
+
+  // Загружаем события
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const data = await fetch(`${WORKER_BASE_URL}/api/admin/audit?limit=200`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    }).then(r => r.ok ? r.json() : null);
+    if (!data || !data.items || !data.items.length) {
+      document.getElementById('al-content').innerHTML = '<div class="empty">Событий пока нет.</div>';
+      return;
+    }
+    const ACTION_LABELS = {
+      role_grant: '🎖 Изменение роли',
+      user_create: '➕ Создан сотрудник',
+      user_deactivate: '🚫 Деактивирован',
+      user_activate: '↩ Восстановлен',
+      record_patch: '✏️ Изменение',
+      record_create: '➕ Создание',
+      record_delete: '🗑 Удаление',
+    };
+    let html = '<table class="dtable" style="font-size:12px"><thead><tr><th>Когда</th><th>Кто</th><th>Действие</th><th>Объект</th><th>Детали</th></tr></thead><tbody>';
+    for (const e of data.items) {
+      const dt = new Date((e.createdAt || '').replace(' ', 'T') + 'Z');
+      const when = isNaN(dt) ? (e.createdAt || '—') : dt.toLocaleString('ru', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const actor = e.actorEmail || e.actorUid || '—';
+      const action = ACTION_LABELS[e.action] || e.action;
+      const target = e.targetType ? `${escapeHtml(e.targetType)}:${escapeHtml(String(e.targetId || '—').slice(0, 14))}` : '—';
+      let details = '';
+      if (e.meta) {
+        if (e.meta.old && e.meta.new) {
+          // Diff old → new
+          const keys = new Set([...Object.keys(e.meta.old || {}), ...Object.keys(e.meta.new || {})]);
+          const parts = [];
+          for (const k of keys) {
+            const o = e.meta.old?.[k]; const n = e.meta.new?.[k];
+            if (o !== n) parts.push(`${escapeHtml(k)}: ${escapeHtml(String(o ?? '∅'))} → ${escapeHtml(String(n ?? '∅'))}`);
+          }
+          details = parts.join('; ');
+        } else if (e.meta.fields) {
+          details = 'поля: ' + e.meta.fields.join(', ');
+        } else {
+          details = escapeHtml(JSON.stringify(e.meta).slice(0, 80));
+        }
+      }
+      html += `<tr>
+        <td style="color:var(--t3);white-space:nowrap">${escapeHtml(when)}</td>
+        <td>${escapeHtml(actor)}</td>
+        <td>${escapeHtml(action)}</td>
+        <td style="color:var(--t3);font-size:11px;font-family:monospace">${target}</td>
+        <td style="color:var(--t2);font-size:11px">${details}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    document.getElementById('al-content').innerHTML = html;
+  } catch (e) {
+    document.getElementById('al-content').innerHTML = '<div class="empty">Ошибка: ' + escapeHtml(e.message) + '</div>';
   }
 }
 

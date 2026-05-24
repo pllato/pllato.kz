@@ -94,6 +94,85 @@ async function resolveCanonicalUser(env, claims) {
   };
 }
 
+// ── Audit log helper ──────────────────────────────────────
+// Best-effort запись события (если падает — не блокируем основной запрос).
+async function auditLog(env, me, action, targetType, targetId, meta) {
+  try {
+    await env.DB.prepare(`
+      INSERT INTO audit_log (actor_uid, actor_email, action, target_type, target_id, meta, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    `).bind(
+      me.canonicalUid || me.firebaseUid || 'unknown',
+      me.email || null,
+      action,
+      targetType || null,
+      targetId || null,
+      meta ? JSON.stringify(meta) : null,
+    ).run();
+  } catch (e) {
+    console.error('[audit_log] write failed:', e.message);
+  }
+}
+
+// Может ли юзер me редактировать конкретную запись?
+// admin   → всегда true
+// manager → если запись принадлежит кому-то из его отдела (включая его самого)
+// agent   → только если запись принадлежит ему (responsible/created_by/changed_by/accomplices/auditors)
+async function canEditRecord(env, me, tableName, recordId) {
+  if (me.role === 'admin') return true;
+  if (!me.canonicalUid) return false;
+
+  // Какие поля считаем "принадлежностью" в каждой таблице
+  const ownerFields = {
+    deals:    ['responsible_uid', 'created_by_uid', 'modify_by_uid'],
+    tasks:    ['responsible_uid', 'created_by_uid', 'changed_by_uid'],
+    contacts: ['responsible_uid', 'created_by_uid', 'modify_by_uid'],
+    companies:['responsible_uid', 'created_by_uid', 'modify_by_uid'],
+  };
+  const jsonOwnerFields = {
+    tasks: ['accomplices', 'auditors'],
+  };
+  // Pipelines / users редактирует только admin (для users есть отдельный admin endpoint)
+  const lookup = ownerFields[tableName];
+  if (!lookup) return me.role === 'admin';
+
+  const keyCol = 'id'; // все эти таблицы используют id (users — uid, но он не сюда)
+  const cols = [...lookup, ...(jsonOwnerFields[tableName] || [])].join(', ');
+  const row = await env.DB.prepare(
+    `SELECT ${cols} FROM ${tableName} WHERE ${keyCol} = ? LIMIT 1`
+  ).bind(recordId).first();
+  if (!row) return false; // не существует — пусть write пройдёт как INSERT? Нет, INSERT через PUT — отдельный кейс.
+
+  // Собираем uid'ы которые "владеют" этой записью
+  const ownerUids = new Set();
+  for (const f of lookup) if (row[f]) ownerUids.add(row[f]);
+  for (const f of (jsonOwnerFields[tableName] || [])) {
+    if (typeof row[f] === 'string' && row[f].startsWith('[')) {
+      try {
+        const arr = JSON.parse(row[f]);
+        if (Array.isArray(arr)) for (const u of arr) if (u) ownerUids.add(String(u));
+      } catch {}
+    }
+  }
+
+  // agent — только если он сам в списке
+  if (me.role === 'agent') return ownerUids.has(me.canonicalUid);
+
+  // manager — если кто-то из его отдела (включая его) в списке
+  if (me.role === 'manager') {
+    if (!me.department) return ownerUids.has(me.canonicalUid);
+    const { results: deptRows } = await env.DB.prepare(
+      "SELECT uid FROM user_roles WHERE department = ?"
+    ).bind(me.department).all();
+    const deptUids = new Set(deptRows.map(r => r.uid));
+    deptUids.add(me.canonicalUid);
+    for (const u of ownerUids) if (deptUids.has(u)) return true;
+    return false;
+  }
+
+  return false;
+}
+
 // Auth flexible: принимает Authorization Bearer ИЛИ ?auth=token (Firebase RTDB совместимость)
 async function requireAuthFlexible(request, env) {
   const hdr = request.headers.get("Authorization") || "";
@@ -337,10 +416,12 @@ async function handleRtdb(request, env) {
       return await handleRtdbGet(env, request, parts, opts);
     }
     if (method === "PATCH" || method === "PUT") {
-      return await handleRtdbWrite(env, request, parts);
+      const me = await resolveCanonicalUser(env, auth.claims);
+      return await handleRtdbWrite(env, request, parts, me);
     }
     if (method === "DELETE") {
-      return await handleRtdbDelete(env, request, parts);
+      const me = await resolveCanonicalUser(env, auth.claims);
+      return await handleRtdbDelete(env, request, parts, me);
     }
     return json({ error: `method ${method} not supported` }, 405, request);
   } catch (e) {
@@ -615,7 +696,7 @@ async function respondTaskReadState(env, request, rest) {
 }
 
 // ── PATCH/PUT ──
-async function handleRtdbDelete(env, request, parts) {
+async function handleRtdbDelete(env, request, parts, me) {
   const [head, ...rest] = parts;
   const deletableTables = { pipelines: "id", deals: "id", tasks: "id", contacts: "id", companies: "id" };
   if (!deletableTables[head] || rest.length !== 1) {
@@ -624,6 +705,21 @@ async function handleRtdbDelete(env, request, parts) {
   const tableName = head;
   const keyCol = deletableTables[head];
   const id = rest[0];
+
+  // Permissions: pipelines удаляет только admin; остальные — по canEditRecord
+  if (tableName === "pipelines") {
+    if (me?.role !== "admin") {
+      return json({ error: "only admin can delete pipelines" }, 403, request);
+    }
+  } else {
+    const allowed = await canEditRecord(env, me, tableName, id);
+    if (!allowed) {
+      return json({
+        error: `you don't have permission to delete this ${tableName.slice(0, -1)}`,
+        role: me?.role,
+      }, 403, request);
+    }
+  }
 
   // Safety для pipelines — нельзя удалять если есть сделки в этой воронке
   if (tableName === "pipelines") {
@@ -639,10 +735,11 @@ async function handleRtdbDelete(env, request, parts) {
   }
 
   await env.DB.prepare(`DELETE FROM ${tableName} WHERE ${keyCol} = ?`).bind(id).run();
+  await auditLog(env, me, "record_delete", tableName, id, null);
   return json({ ok: true, deleted: true }, 200, request);
 }
 
-async function handleRtdbWrite(env, request, parts) {
+async function handleRtdbWrite(env, request, parts, me) {
   const [head, ...rest] = parts;
   let body;
   try {
@@ -662,6 +759,51 @@ async function handleRtdbWrite(env, request, parts) {
     const keyCol = updatableTables[head];
     const id = rest[0];
     const jsonCols = JSON_COLS[tableName] || new Set();
+
+    // Permissions:
+    //   pipelines / users — только admin
+    //   deals / tasks / contacts / companies — canEditRecord (admin/manager/agent
+    //   по принадлежности). При INSERT через PUT не блокируем (agent может
+    //   создать сделку — он становится owner'ом сам по responsible).
+    if (tableName === "pipelines" || tableName === "users") {
+      if (me?.role !== "admin") {
+        return json({ error: `only admin can modify ${tableName}` }, 403, request);
+      }
+    } else {
+      // Если запись существует — проверяем canEditRecord. Если нет (PUT-INSERT) — пропускаем.
+      const existsRow = await env.DB.prepare(
+        `SELECT ${keyCol} FROM ${tableName} WHERE ${keyCol} = ? LIMIT 1`
+      ).bind(id).first();
+      if (existsRow) {
+        const allowed = await canEditRecord(env, me, tableName, id);
+        if (!allowed) {
+          return json({
+            error: `you don't have permission to edit this ${tableName.slice(0, -1)}`,
+            role: me?.role,
+          }, 403, request);
+        }
+      }
+      // PATCH несуществующей записи — раньше молча no-op; оставим так чтобы
+      // не сломать legacy фронт. PUT-INSERT обработается ниже отдельной веткой.
+      // PUT-INSERT — agent может создать; не-admin'у форсим owner-поля чтобы не подсовывал чужой uid
+      if (!existsRow && request.method === "PUT" && me?.role !== "admin" && me?.canonicalUid) {
+        const ownerForce = {
+          deals:    ['responsible_uid', 'created_by_uid'],
+          tasks:    ['responsible_uid', 'created_by_uid'],
+          contacts: ['responsible_uid', 'created_by_uid'],
+          companies:['responsible_uid', 'created_by_uid'],
+        }[tableName] || [];
+        for (const f of ownerForce) {
+          const camel = toCamel(f);
+          if (body[camel] && body[camel] !== me.canonicalUid) {
+            // Не даём не-admin'у поставить чужой uid в owner. Молча подменяем.
+            body[camel] = me.canonicalUid;
+          } else if (!body[camel]) {
+            body[camel] = me.canonicalUid;
+          }
+        }
+      }
+    }
 
     // Подготовим columns/values из body (с snake_case + JSON-stringify)
     const cols = [];
@@ -694,6 +836,7 @@ async function handleRtdbWrite(env, request, parts) {
         const placeholders = allCols.map(() => "?").join(", ");
         const sql = `INSERT INTO ${tableName} (${allCols.join(", ")}) VALUES (${placeholders})`;
         await env.DB.prepare(sql).bind(...allVals).run();
+        await auditLog(env, me, "record_create", tableName, id, { fields: cols });
         return json({ ok: true, created: true }, 200, request);
       }
     }
@@ -702,6 +845,8 @@ async function handleRtdbWrite(env, request, parts) {
     const setSQL = cols.map(c => `${c} = ?`).join(", ");
     const sql = `UPDATE ${tableName} SET ${setSQL} WHERE ${keyCol} = ?`;
     await env.DB.prepare(sql).bind(...vals, id).run();
+    // В meta лишь имена полей — без значений (PII safety + размер audit_log)
+    await auditLog(env, me, "record_patch", tableName, id, { fields: cols });
     return json({ ok: true }, 200, request);
   }
 
@@ -1211,6 +1356,11 @@ async function handleAdminUpdateRole(request, env, targetUid) {
     }
   }
 
+  // Старая запись для audit (old vs new)
+  const before = await env.DB.prepare(
+    "SELECT role, department FROM user_roles WHERE uid = ?"
+  ).bind(targetUid).first();
+
   await env.DB.prepare(`
     INSERT INTO user_roles (uid, role, department, granted_by, granted_at)
     VALUES (?, ?, ?, ?, datetime('now'))
@@ -1221,7 +1371,99 @@ async function handleAdminUpdateRole(request, env, targetUid) {
       granted_at = excluded.granted_at
   `).bind(targetUid, role, department, guard.me.canonicalUid).run();
 
+  await auditLog(env, guard.me, "role_grant", "user", targetUid, {
+    old: before ? { role: before.role, department: before.department } : null,
+    new: { role, department },
+  });
+
   return json({ ok: true, uid: targetUid, role, department }, 200, request);
+}
+
+// PATCH /api/admin/users/{uid}/active — soft delete (active=0) или восстановление.
+// Не позволяет деактивировать последнего admin'а.
+async function handleAdminSetUserActive(request, env, targetUid) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+
+  let body;
+  try { body = await request.json(); } catch {
+    return json({ error: "invalid json body" }, 400, request);
+  }
+  const active = body.active === true || body.active === 1 ? 1 : 0;
+
+  // Защита: нельзя деактивировать последнего admin'а
+  if (active === 0) {
+    const targetRole = await env.DB.prepare(
+      "SELECT role FROM user_roles WHERE uid = ?"
+    ).bind(targetUid).first();
+    if (targetRole?.role === 'admin') {
+      const { results } = await env.DB.prepare(
+        `SELECT COUNT(*) AS n FROM user_roles r
+         JOIN users u ON u.uid = r.uid
+         WHERE r.role = 'admin' AND u.active = 1`
+      ).all();
+      if ((results[0]?.n || 0) <= 1) {
+        return json({ error: "cannot deactivate last active admin" }, 409, request);
+      }
+    }
+  }
+
+  const before = await env.DB.prepare(
+    "SELECT active FROM users WHERE uid = ?"
+  ).bind(targetUid).first();
+  if (!before) return json({ error: "user not found", uid: targetUid }, 404, request);
+
+  await env.DB.prepare(
+    "UPDATE users SET active = ? WHERE uid = ?"
+  ).bind(active, targetUid).run();
+
+  await auditLog(env, guard.me, active === 1 ? "user_activate" : "user_deactivate", "user", targetUid, {
+    old: { active: before.active },
+    new: { active },
+  });
+
+  return json({ ok: true, uid: targetUid, active }, 200, request);
+}
+
+// GET /api/admin/audit?limit=100&action=role_grant&targetType=user&targetId=X
+async function handleAdminAuditLog(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+
+  const url = new URL(request.url);
+  const limit = Math.min(500, Math.max(10, parseInt(url.searchParams.get("limit") || "100", 10) || 100));
+  const action = (url.searchParams.get("action") || "").trim();
+  const targetType = (url.searchParams.get("targetType") || "").trim();
+  const targetId = (url.searchParams.get("targetId") || "").trim();
+  const actorUid = (url.searchParams.get("actorUid") || "").trim();
+
+  const where = [];
+  const params = [];
+  if (action) { where.push("action = ?"); params.push(action); }
+  if (targetType) { where.push("target_type = ?"); params.push(targetType); }
+  if (targetId) { where.push("target_id = ?"); params.push(targetId); }
+  if (actorUid) { where.push("actor_uid = ?"); params.push(actorUid); }
+  const whereSQL = where.length ? "WHERE " + where.join(" AND ") : "";
+
+  const { results } = await env.DB.prepare(`
+    SELECT id, actor_uid, actor_email, action, target_type, target_id, meta, created_at
+    FROM audit_log
+    ${whereSQL}
+    ORDER BY id DESC
+    LIMIT ?
+  `).bind(...params, limit).all();
+
+  const items = results.map(r => ({
+    id: r.id,
+    actorUid: r.actor_uid,
+    actorEmail: r.actor_email,
+    action: r.action,
+    targetType: r.target_type,
+    targetId: r.target_id,
+    meta: r.meta ? tryParseJson(r.meta) : null,
+    createdAt: r.created_at,
+  }));
+  return json({ items, total: items.length }, 200, request);
 }
 
 // GET /api/admin/departments — список отделов с числом участников.
@@ -1289,6 +1531,10 @@ async function handleAdminCreateUser(request, env) {
     INSERT INTO user_roles (uid, role, department, granted_by)
     VALUES (?, ?, ?, ?)
   `).bind(uid, role, body.department || null, guard.me.canonicalUid).run();
+
+  await auditLog(env, guard.me, "user_create", "user", uid, {
+    email, name, role, department: body.department || null,
+  });
 
   return json({ ok: true, uid, email, name, role }, 200, request);
 }
@@ -1388,9 +1634,16 @@ export default {
     if (path === "/api/admin/departments" && request.method === "GET") {
       return handleAdminListDepartments(request, env);
     }
+    if (path === "/api/admin/audit" && request.method === "GET") {
+      return handleAdminAuditLog(request, env);
+    }
     const userRoleMatch = path.match(/^\/api\/admin\/user-roles\/([^/]+)$/);
     if (userRoleMatch && request.method === "PATCH") {
       return handleAdminUpdateRole(request, env, userRoleMatch[1]);
+    }
+    const userActiveMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/active$/);
+    if (userActiveMatch && request.method === "PATCH") {
+      return handleAdminSetUserActive(request, env, userActiveMatch[1]);
     }
 
     return json({ ok: false, error: "not found", path }, 404, request);
