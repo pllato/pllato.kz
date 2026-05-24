@@ -5455,6 +5455,7 @@ function getUserDisplayName(uid) {
 const WORKER_LIST_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/list';
 const WORKER_FILES_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/files';
 const WORKER_CALL_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/call';
+const WORKER_BASE_URL = 'https://pllato-elc-worker.uurraa.workers.dev';
 const CONTACTS_PAGE_SIZE = 50;
 const contactsState = {
   page: 1,
@@ -8052,39 +8053,210 @@ async function openOpenlinesSession(sessionId) {
 }
 
 async function renderUsers(el) {
+  const isAdmin = window.currentUser?.role === 'admin';
   el.innerHTML = `
     <div class="page-title">🧑‍💼 Сотрудники</div>
-    <div class="page-sub">Пользователи портала. После миграции здесь будут все 88 сотрудников.</div>
+    <div class="page-sub">${isAdmin ? 'Управление ролями и доступом. Изменения в роли применяются мгновенно.' : 'Пользователи портала.'}</div>
     <div class="card">
-      <h3>Список</h3>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <h3 style="margin:0;flex:1">Список</h3>
+        ${isAdmin ? `<button class="btn btn-sm" id="add-user-btn">+ Добавить сотрудника</button>` : ''}
+      </div>
       <div id="users-list"><div class="empty">Загрузка...</div></div>
     </div>
   `;
 
-  // Phase 2.1: SDK onValue → fetch через Worker (read-only архивный CRM).
-  const idToken = await fbAuth.currentUser.getIdToken();
-  const users = await fetch(`${WORKER_RTDB_URL}/users.json?auth=${idToken}`)
-    .then(r => r.ok ? r.json() : {})
-    .catch(() => ({}));
-  {
-    const arr = Object.entries(users).map(([uid, u]) => ({ uid, ...u }));
-    if (!arr.length) {
-      document.getElementById('users-list').innerHTML = '<div class="empty">Пусто. Запустите миграцию пользователей из Битрикса.</div>';
+  if (isAdmin) {
+    // Admin endpoint — расширенный список (с ролями, counts задач/сделок/контактов)
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const data = await fetch(`${WORKER_BASE_URL}/api/admin/users`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    }).then(r => r.ok ? r.json() : null).catch(() => null);
+
+    if (!data || !data.items) {
+      document.getElementById('users-list').innerHTML = '<div class="empty">Ошибка загрузки списка</div>';
       return;
     }
-    let html = '<table><thead><tr><th>Имя</th><th>Email</th><th>Bitrix ID</th><th>Должность</th><th>Активен</th></tr></thead><tbody>';
+    renderUsersAdminTable(data.items);
+    document.getElementById('add-user-btn').onclick = openAddUserModal;
+  } else {
+    // Не-admin: простой read-only список через RTDB-proxy
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const users = await fetch(`${WORKER_RTDB_URL}/users.json?auth=${idToken}`)
+      .then(r => r.ok ? r.json() : {})
+      .catch(() => ({}));
+    const arr = Object.entries(users).map(([uid, u]) => ({ uid, ...u }));
+    if (!arr.length) {
+      document.getElementById('users-list').innerHTML = '<div class="empty">Пусто.</div>';
+      return;
+    }
+    let html = '<table class="dtable"><thead><tr><th>Имя</th><th>Email</th><th>Должность</th></tr></thead><tbody>';
     for (const u of arr) {
       html += `<tr>
         <td>${escapeHtml(u.name || '—')} ${escapeHtml(u.lastName || '')}</td>
         <td>${escapeHtml(u.email || '—')}</td>
-        <td>${escapeHtml(u.bitrixId || '—')}</td>
         <td>${escapeHtml(u.position || '—')}</td>
-        <td>${u.active === false ? '✗' : '✓'}</td>
       </tr>`;
     }
     html += '</tbody></table>';
     document.getElementById('users-list').innerHTML = html;
   }
+}
+
+function renderUsersAdminTable(items) {
+  const ROLE_LABELS = { admin: 'Админ', manager: 'Менеджер', agent: 'Сотрудник' };
+  const ROLE_COLORS = { admin: 'var(--ac2)', manager: 'var(--gn)', agent: 'var(--t3)' };
+  let html = `<table class="dtable">
+    <thead><tr>
+      <th>Имя</th>
+      <th>Email</th>
+      <th>Роль</th>
+      <th>Отдел</th>
+      <th style="text-align:right" title="Задач · Сделок · Контактов на котором ответственный">Назначено</th>
+      <th>Последний вход</th>
+    </tr></thead>
+    <tbody>`;
+  for (const u of items) {
+    const fullName = [u.lastName, u.name].filter(Boolean).join(' ').trim() || '(без имени)';
+    const lastLogin = u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+    const counts = [
+      u.tasksCount ? `${u.tasksCount} задач` : '',
+      u.dealsCount ? `${u.dealsCount} сделок` : '',
+      u.contactsCount ? `${u.contactsCount} контактов` : '',
+    ].filter(Boolean).join(' · ') || '—';
+    html += `<tr data-uid="${escapeHtml(u.uid)}">
+      <td>${escapeHtml(fullName)}</td>
+      <td style="color:var(--t3);font-size:11px">${escapeHtml(u.email || '—')}</td>
+      <td>
+        <select class="usr-role-select" data-uid="${escapeHtml(u.uid)}" style="background:var(--bg2);border:1px solid var(--b1);border-radius:4px;padding:3px 6px;color:${ROLE_COLORS[u.role] || 'var(--t1)'};font-weight:600;font-size:12px">
+          <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>${ROLE_LABELS.admin}</option>
+          <option value="manager" ${u.role === 'manager' ? 'selected' : ''}>${ROLE_LABELS.manager}</option>
+          <option value="agent" ${u.role === 'agent' ? 'selected' : ''}>${ROLE_LABELS.agent}</option>
+        </select>
+      </td>
+      <td>
+        <input class="usr-dept-input" data-uid="${escapeHtml(u.uid)}" value="${escapeHtml(u.department || '')}" placeholder="—" style="background:var(--bg2);border:1px solid var(--b1);border-radius:4px;padding:3px 6px;color:var(--t1);font-size:12px;width:120px">
+      </td>
+      <td style="text-align:right;color:var(--t3);font-size:11px">${escapeHtml(counts)}</td>
+      <td style="color:var(--t3);font-size:11px">${lastLogin}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('users-list').innerHTML = html;
+
+  // Inline-сохранение при изменении select/input
+  document.querySelectorAll('.usr-role-select').forEach(sel => {
+    sel.addEventListener('change', () => saveUserRole(sel.dataset.uid, sel));
+  });
+  document.querySelectorAll('.usr-dept-input').forEach(inp => {
+    let prev = inp.value;
+    inp.addEventListener('blur', () => {
+      if (inp.value !== prev) {
+        saveUserRole(inp.dataset.uid, inp);
+        prev = inp.value;
+      }
+    });
+  });
+}
+
+async function saveUserRole(uid, sourceEl) {
+  const row = sourceEl.closest('tr');
+  const role = row.querySelector('.usr-role-select').value;
+  const department = row.querySelector('.usr-dept-input').value.trim() || null;
+  sourceEl.disabled = true;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/admin/user-roles/${encodeURIComponent(uid)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ role, department }),
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error(j.error || `HTTP ${r.status}`);
+    }
+    // Подсветить успех на 1.5 сек
+    const cell = sourceEl.closest('td');
+    cell.style.transition = 'background .5s';
+    cell.style.background = 'rgba(63, 216, 142, 0.2)';
+    setTimeout(() => { cell.style.background = ''; }, 1500);
+    showToast?.(`Роль ${role} сохранена`);
+  } catch (e) {
+    alert('Ошибка сохранения роли: ' + e.message);
+  } finally {
+    sourceEl.disabled = false;
+  }
+}
+
+function openAddUserModal() {
+  document.getElementById('_add-user-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_add-user-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()">
+      <div class="qad-head"><h2>Добавить сотрудника</h2><button class="qad-btn qad-btn-ghost" id="au-close" style="padding:4px 10px">×</button></div>
+      <div class="qad-body">
+        <div><div class="qad-label">Имя *</div><input id="au-name" class="qad-input" placeholder="Например: Ирина"></div>
+        <div><div class="qad-label">Фамилия</div><input id="au-lastName" class="qad-input" placeholder="(необязательно)"></div>
+        <div><div class="qad-label">Email *</div><input id="au-email" class="qad-input" placeholder="ivanova@myelc.net" type="email"></div>
+        <div><div class="qad-label">Должность</div><input id="au-position" class="qad-input" placeholder="(необязательно)"></div>
+        <div>
+          <div class="qad-label">Роль</div>
+          <select id="au-role" class="qad-input">
+            <option value="agent" selected>Сотрудник (видит только свои)</option>
+            <option value="manager">Менеджер (свой отдел)</option>
+            <option value="admin">Админ (видит всё)</option>
+          </select>
+        </div>
+        <div><div class="qad-label">Отдел</div><input id="au-department" class="qad-input" placeholder="(необязательно)"></div>
+        <div class="dialer-hint">
+          После создания сотрудник может зайти через Google под этим email
+          — система автоматически свяжет его с записью.
+        </div>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="au-cancel">Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="au-save">Создать</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('au-close').onclick = () => ov.remove();
+  document.getElementById('au-cancel').onclick = () => ov.remove();
+  document.getElementById('au-save').onclick = async () => {
+    const name = document.getElementById('au-name').value.trim();
+    const email = document.getElementById('au-email').value.trim().toLowerCase();
+    const lastName = document.getElementById('au-lastName').value.trim();
+    const position = document.getElementById('au-position').value.trim();
+    const role = document.getElementById('au-role').value;
+    const department = document.getElementById('au-department').value.trim() || null;
+    if (!name || !email) { alert('Имя и email обязательны'); return; }
+    const btn = document.getElementById('au-save');
+    btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/admin/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ name, lastName, email, position, role, department }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      ov.remove();
+      // Перерисуем страницу — новый юзер появится
+      const main = document.getElementById('main');
+      if (main) renderUsers(main);
+      showToast?.(`Сотрудник ${name} создан`);
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = 'Создать';
+    }
+  };
 }
 
 function renderMigration(el) {

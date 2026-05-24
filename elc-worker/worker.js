@@ -1071,6 +1071,142 @@ async function handleCallLog(request, env) {
   }, 200, request);
 }
 
+// ── /api/admin/* — управление командой ───────────────────────────────────
+// Все endpoint'ы требуют role=admin. Проверка через resolveCanonicalUser.
+
+async function requireAdmin(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return { error: auth.error, status: auth.status };
+  const me = await resolveCanonicalUser(env, auth.claims);
+  if (me.role !== "admin") {
+    return { error: "admin role required", status: 403 };
+  }
+  return { me };
+}
+
+async function handleAdminListUsers(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+
+  // LEFT JOIN users + user_roles + COUNT задач (для удобства видеть нагрузку)
+  const { results } = await env.DB.prepare(`
+    SELECT
+      u.uid, u.email, u.name, u.last_name, u.position, u.photo, u.active,
+      u.bitrix_id, u.last_login, u.migrated_at,
+      r.role, r.department,
+      (SELECT COUNT(*) FROM tasks WHERE responsible_uid = u.uid) AS tasks_count,
+      (SELECT COUNT(*) FROM deals WHERE responsible_uid = u.uid) AS deals_count,
+      (SELECT COUNT(*) FROM contacts WHERE responsible_uid = u.uid) AS contacts_count
+    FROM users u
+    LEFT JOIN user_roles r ON r.uid = u.uid
+    ORDER BY r.role, u.last_name, u.name
+  `).all();
+
+  const items = results.map(r => ({
+    uid: r.uid,
+    email: r.email,
+    name: r.name,
+    lastName: r.last_name,
+    position: r.position,
+    photo: r.photo,
+    active: r.active,
+    bitrixId: r.bitrix_id,
+    lastLogin: r.last_login,
+    migratedAt: r.migrated_at,
+    role: r.role || 'agent',           // default agent если нет в user_roles
+    department: r.department || null,
+    tasksCount: r.tasks_count || 0,
+    dealsCount: r.deals_count || 0,
+    contactsCount: r.contacts_count || 0,
+  }));
+
+  return json({ items, total: items.length }, 200, request);
+}
+
+async function handleAdminUpdateRole(request, env, targetUid) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+
+  let body;
+  try { body = await request.json(); } catch {
+    return json({ error: "invalid json body" }, 400, request);
+  }
+
+  const role = (body.role || '').trim();
+  if (!['admin', 'manager', 'agent'].includes(role)) {
+    return json({ error: "role must be admin|manager|agent" }, 400, request);
+  }
+  const department = body.department ? String(body.department).trim() : null;
+
+  // Защита: не даём admin'у downgrade'нуть самого себя (последний admin)
+  if (guard.me.canonicalUid === targetUid && role !== 'admin') {
+    const { results } = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM user_roles WHERE role = 'admin'"
+    ).all();
+    if ((results[0]?.n || 0) <= 1) {
+      return json({ error: "cannot remove last admin role from yourself" }, 409, request);
+    }
+  }
+
+  await env.DB.prepare(`
+    INSERT INTO user_roles (uid, role, department, granted_by, granted_at)
+    VALUES (?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(uid) DO UPDATE SET
+      role = excluded.role,
+      department = excluded.department,
+      granted_by = excluded.granted_by,
+      granted_at = excluded.granted_at
+  `).bind(targetUid, role, department, guard.me.canonicalUid).run();
+
+  return json({ ok: true, uid: targetUid, role, department }, 200, request);
+}
+
+async function handleAdminCreateUser(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+
+  let body;
+  try { body = await request.json(); } catch {
+    return json({ error: "invalid json body" }, 400, request);
+  }
+
+  const email = (body.email || '').toLowerCase().trim();
+  const name = (body.name || '').trim();
+  const lastName = (body.lastName || '').trim();
+  const role = (body.role || 'agent').trim();
+  if (!email) return json({ error: "email required" }, 400, request);
+  if (!name) return json({ error: "name required" }, 400, request);
+  if (!['admin', 'manager', 'agent'].includes(role)) {
+    return json({ error: "role must be admin|manager|agent" }, 400, request);
+  }
+
+  // Проверяем дубликат email
+  const existing = await env.DB.prepare(
+    "SELECT uid FROM users WHERE LOWER(email) = ? LIMIT 1"
+  ).bind(email).first();
+  if (existing) {
+    return json({ error: "user with this email already exists", uid: existing.uid }, 409, request);
+  }
+
+  // Генерируем uid типа local_xxxxx — отличается от Firebase Auth uid'ов.
+  // Когда сотрудник залогинится через Google, его Firebase uid не совпадёт,
+  // но email-matching в /api/me найдёт эту запись по email.
+  const uid = 'local_' + Math.random().toString(36).slice(2, 12);
+  const nowIso = new Date().toISOString();
+
+  await env.DB.prepare(`
+    INSERT INTO users (uid, email, name, last_name, position, active, created_from_bitrix, last_login, migrated_at)
+    VALUES (?, ?, ?, ?, ?, 1, 0, NULL, ?)
+  `).bind(uid, email, name, lastName, body.position || null, nowIso).run();
+
+  await env.DB.prepare(`
+    INSERT INTO user_roles (uid, role, department, granted_by)
+    VALUES (?, ?, ?, ?)
+  `).bind(uid, role, body.department || null, guard.me.canonicalUid).run();
+
+  return json({ ok: true, uid, email, name, role }, 200, request);
+}
+
 // ── Phase 0 routes ──────────────────────────────────────
 async function handleHealth(request, env) {
   try {
@@ -1154,6 +1290,18 @@ export default {
     // /api/call/log — GET: список последних звонков (?contactId, ?dealId, ?limit)
     if (path === "/api/call/log" && request.method === "GET") {
       return handleCallLog(request, env);
+    }
+
+    // /api/admin/* — управление ролями (только для admin'а)
+    if (path === "/api/admin/users" && request.method === "GET") {
+      return handleAdminListUsers(request, env);
+    }
+    if (path === "/api/admin/users" && request.method === "POST") {
+      return handleAdminCreateUser(request, env);
+    }
+    const userRoleMatch = path.match(/^\/api\/admin\/user-roles\/([^/]+)$/);
+    if (userRoleMatch && request.method === "PATCH") {
+      return handleAdminUpdateRole(request, env, userRoleMatch[1]);
     }
 
     return json({ ok: false, error: "not found", path }, 404, request);
