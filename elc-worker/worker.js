@@ -1279,6 +1279,32 @@ async function handleCallLog(request, env) {
   }, 200, request);
 }
 
+// ── /api/sip/token — SIP-креды для browser WebRTC клиента ────────────────
+// Секреты живут в Worker env (wrangler secret put SIP_PASSWORD ...).
+// Frontend (team.html) fetch'ит этот endpoint вместо хардкода в HTML.
+// Сейчас все авторизованные юзеры используют shared endpoint `100` —
+// в будущем можно расширить до per-user PJSIP endpoints с разными creds.
+async function handleSipToken(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+
+  const domain = env.SIP_DOMAIN || "130-61-243-44.nip.io";
+  const user = env.SIP_USER || "100";
+  const password = env.SIP_PASSWORD;
+  if (!password) {
+    return json({
+      error: "SIP_PASSWORD secret not set on worker. Run: wrangler secret put SIP_PASSWORD",
+    }, 500, request);
+  }
+  return json({
+    user,
+    password,
+    domain,
+    wss: `wss://${domain}:8089/ws`,
+    stun: `stun:${domain}:3478`,
+  }, 200, request);
+}
+
 // ── /api/admin/* — управление командой ───────────────────────────────────
 // Все endpoint'ы требуют role=admin. Проверка через resolveCanonicalUser.
 
@@ -1622,6 +1648,12 @@ export default {
     // /api/call/log — GET: список последних звонков (?contactId, ?dealId, ?limit)
     if (path === "/api/call/log" && request.method === "GET") {
       return handleCallLog(request, env);
+    }
+
+    // /api/sip/token — auth-gated выдача SIP-кредов для браузерного SIP.js клиента.
+    // Креды живут в Cloudflare Worker secrets (SIP_PASSWORD, etc.), а не в HTML.
+    if (path === "/api/sip/token" && request.method === "GET") {
+      return handleSipToken(request, env);
     }
 
     // /api/admin/* — управление ролями (только для admin'а)
