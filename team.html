@@ -1001,9 +1001,8 @@ tr:hover td { background: var(--bg3); }
   padding-left: 8px;
 }
 .kanban-col {
-  flex: 1 0 260px;
-  min-width: 240px;
-  max-width: 320px;
+  flex: 1 1 0;          /* растягивается равномерно по ширине экрана */
+  min-width: 240px;     /* но не уже 240 — иначе карточки уродуются */
   background: var(--bg2);
   border: 1px solid var(--b1);
   border-radius: var(--rl);
@@ -3029,34 +3028,65 @@ function openPipelineEditModal(pipelineId) {
     btn.textContent = '⏳ Сохраняем…';
     try {
       const idToken = await fbAuth.currentUser.getIdToken();
-      // PUT — upsert (создание или замена). Body: name, stages, is_active.
-      // Worker конвертирует camelCase → snake_case.
+      // PUT — upsert. Body: name, isActive, stages (object), stagesCount.
+      // Worker конвертирует camelCase → snake_case + JSON.stringify для stages.
       const body = {
-        name: draft.name.trim() || 'Без названия',
+        name: (draft.name || '').trim() || 'Без названия',
         isActive: draft.isActive ? 1 : 0,
         stages: draft.stages,
         stagesCount: Object.keys(draft.stages).length,
       };
+      console.log('[pipeline save] PUT', draft.id, 'stages count:', body.stagesCount, 'body:', body);
       const r = await fetch(`${WORKER_RTDB_URL}/pipelines/${encodeURIComponent(draft.id)}.json?auth=${idToken}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      const respText = await r.text();
+      console.log('[pipeline save] response', r.status, respText.slice(0, 300));
       if (!r.ok) {
-        const t = await r.text();
-        throw new Error(`HTTP ${r.status}: ${t}`);
+        throw new Error(`HTTP ${r.status}: ${respText.slice(0, 200)}`);
       }
-      // Обновляем локально
-      dealsState.pipelines[draft.id] = { ...body, id: draft.id };
+
+      // КРИТИЧНО: не доверяем локальному обновлению — IDB-кеш мог не
+      // инвалидироваться. Сначала ЯВНО чистим кеш, потом force fetch.
+      try {
+        await window.elcRtdbCache?.purge('/v4/api/rtdb/pipelines');
+        console.log('[pipeline save] IDB cache purged for pipelines');
+      } catch (purgeErr) {
+        console.warn('[pipeline save] cache purge fail:', purgeErr);
+      }
+      try {
+        const fresh = await fetch(`${WORKER_RTDB_URL}/pipelines.json?auth=${idToken}&_v=${Date.now()}`, {
+          cache: 'no-store',
+        });
+        if (fresh.ok) {
+          const all = await fresh.json();
+          dealsState.pipelines = all || {};
+          dealsState.metaLoaded = true; // оставляем true (не сбрасываем — все meta уже свежие)
+          console.log('[pipeline save] reloaded pipelines:', Object.keys(dealsState.pipelines).length, 'ids:', Object.keys(dealsState.pipelines));
+          const reloaded = dealsState.pipelines[draft.id];
+          console.log('[pipeline save] reloaded target pipeline:', reloaded);
+        } else {
+          console.warn('[pipeline save] refresh non-OK', fresh.status);
+          dealsState.pipelines[draft.id] = { ...body, id: draft.id };
+        }
+      } catch (refreshErr) {
+        console.warn('[pipeline save] refresh failed, using local:', refreshErr);
+        dealsState.pipelines[draft.id] = { ...body, id: draft.id };
+      }
+
       if (isNew) {
         dealsState.activePipelineId = draft.id;
         localStorage.setItem(ACTIVE_PIPELINE_LS_KEY, draft.id);
       }
+
       document.getElementById('_pip-modal').remove();
       const main = document.getElementById('main');
       if (main && document.querySelector('[data-page="deals"].active')) renderDeals(main);
     } catch (e) {
-      alert('Ошибка сохранения: ' + e.message);
+      console.error('[pipeline save] FAIL:', e);
+      alert('Ошибка сохранения воронки:\n\n' + e.message + '\n\nСмотри Console (F12) для деталей.');
       btn.disabled = false;
       btn.textContent = 'Сохранить';
     }
