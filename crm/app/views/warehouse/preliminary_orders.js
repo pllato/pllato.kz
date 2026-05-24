@@ -237,9 +237,12 @@ export function wirePreliminaryOrdersEvents(container) {
       if (!confirm("Сформировать расходную накладную и закрыть заказ? Заказ перейдёт в «Отгружены».")) return;
       try {
         const contact = deal.contactId ? Store.get("contacts", deal.contactId) : null;
-        const { doc } = createInvoiceFromDeal(dealId, {
+        const counterpartyText = contact?.name
+          ? `${contact.name} · ${deal.title || ""}`
+          : (deal.title || "");
+        const result = createInvoiceFromDeal(dealId, {
           counterpartyContactId: deal.contactId || null,
-          counterpartyText: contact?.name || deal.title || "",
+          counterpartyText,
           items: items.map((i) => ({
             productId: i.productId,
             qty: Number(i.qty) || 0,
@@ -248,10 +251,13 @@ export function wirePreliminaryOrdersEvents(container) {
           totalAmount: dealItemsTotal(dealId),
           note: `Накладная по сделке «${deal.title || ""}»`,
         });
-        // Синхронно переводим заказ в «отгружен» — иначе UI рефрешится раньше
-        // и карточка остаётся в «согласованы».
+        const { doc, posted, postError } = result;
+        // Синхронно переводим заказ в «отгружен».
         markDealOrderShipped(dealId, { invoiceId: doc.id, invoiceNumber: doc.number });
         window.dispatchEvent(new CustomEvent("pllato:warehouse-refresh"));
+        if (!posted) {
+          alert(`⚠ Накладная № ${doc.number} создана как ЧЕРНОВИК — не удалось провести (FIFO-списание):\n\n${postError}\n\nОткрой документ и проведи вручную после докомплекта остатка.`);
+        }
       } catch (err) {
         alert("Не удалось сформировать накладную: " + (err?.message || String(err)));
       }

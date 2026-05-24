@@ -39,8 +39,25 @@ function typeLabel(type) {
   }[type] || type;
 }
 
+const DOCS_PAGE_SIZE = 50;
+
 export function renderDocumentsListView(state, canEdit) {
-  const items = listWarehouseDocuments({ type: state.docsType || "", status: state.docsStatus || "" });
+  const search = String(state.docsSearch || "").trim().toLowerCase();
+  const allItems = listWarehouseDocuments({ type: state.docsType || "", status: state.docsStatus || "" });
+  const filtered = search
+    ? allItems.filter((d) => {
+        const hay = `${d.number || ""} ${d.counterpartyText || ""} ${d.note || ""}`.toLowerCase();
+        return hay.includes(search);
+      })
+    : allItems;
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / DOCS_PAGE_SIZE));
+  const page = Math.min(Math.max(1, Number(state.docsPage) || 1), totalPages);
+  const startIdx = (page - 1) * DOCS_PAGE_SIZE;
+  const items = filtered.slice(startIdx, startIdx + DOCS_PAGE_SIZE);
+  const rangeFrom = total === 0 ? 0 : startIdx + 1;
+  const rangeTo = Math.min(startIdx + DOCS_PAGE_SIZE, total);
+
   return `
     <section class="whm-section">
       <div class="toolbar whm-toolbar">
@@ -59,6 +76,7 @@ export function renderDocumentsListView(state, canEdit) {
           <option value="posted" ${state.docsStatus === "posted" ? "selected" : ""}>Проведённые</option>
           <option value="cancelled" ${state.docsStatus === "cancelled" ? "selected" : ""}>Отменённые</option>
         </select>
+        <input type="search" class="whm-search" placeholder="Поиск по № / контрагенту / комментарию…" value="${escapeAttr(state.docsSearch || "")}" data-wh-doc-filter="search">
         <div class="spacer"></div>
         <button type="button" class="btn-primary" data-wh-new-doc="receipt" ${canEdit ? "" : "disabled"}>${ICONS.clipboardList}<span>Новый документ</span></button>
       </div>
@@ -87,9 +105,23 @@ export function renderDocumentsListView(state, canEdit) {
                 <td>${statusLabel(doc.status)}</td>
                 <td class="num"><button type="button" class="btn-ghost btn-sm" data-wh-open-doc="${escapeAttr(doc.id)}">Открыть</button></td>
               </tr>
-            `).join("") : `<tr><td colspan="7"><div class="whm-empty">Документы пока не созданы</div></td></tr>`}
+            `).join("") : `<tr><td colspan="7"><div class="whm-empty">${total === 0 ? "Документы не найдены" : "На этой странице пусто"}</div></td></tr>`}
           </tbody>
         </table>
+        ${total > 0 ? `
+          <div class="whm-pagination">
+            <div class="whm-pagination-info">
+              Показано <strong>${rangeFrom}–${rangeTo}</strong> из <strong>${total}</strong>
+            </div>
+            <div class="whm-pagination-controls">
+              <button type="button" class="btn-ghost btn-sm" data-wh-docs-page="1" ${page === 1 ? "disabled" : ""} title="К началу">«</button>
+              <button type="button" class="btn-ghost btn-sm" data-wh-docs-page="${page - 1}" ${page === 1 ? "disabled" : ""} title="Предыдущая">‹</button>
+              <span class="whm-pagination-page">Страница <strong>${page}</strong> из <strong>${totalPages}</strong></span>
+              <button type="button" class="btn-ghost btn-sm" data-wh-docs-page="${page + 1}" ${page === totalPages ? "disabled" : ""} title="Следующая">›</button>
+              <button type="button" class="btn-ghost btn-sm" data-wh-docs-page="${totalPages}" ${page === totalPages ? "disabled" : ""} title="В конец">»</button>
+            </div>
+          </div>
+        ` : ""}
       </div>
     </section>
   `;

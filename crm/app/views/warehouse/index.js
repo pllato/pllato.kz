@@ -41,6 +41,8 @@ const ui = {
   productPageSize: 50,
   docsType: "",
   docsStatus: "",
+  docsSearch: "",
+  docsPage: 1,
   reportDate: new Date().toISOString().slice(0, 10),
   productFormOpen: false,
   productFormError: "",
@@ -307,10 +309,30 @@ function wireWarehouseEvents(container, route, canEdit) {
   });
 
   container.querySelectorAll("[data-wh-doc-filter]").forEach((el) => {
-    el.addEventListener("change", () => {
+    const apply = () => {
       const k = el.dataset.whDocFilter;
       if (k === "type") ui.docsType = el.value;
       if (k === "status") ui.docsStatus = el.value;
+      if (k === "search") ui.docsSearch = el.value;
+      ui.docsPage = 1; // сбрасываем пагинацию при изменении фильтра/поиска
+      rerender(container);
+    };
+    el.addEventListener("change", apply);
+    // Для search-инпута — debounced input.
+    if (el.tagName === "INPUT") {
+      let t = null;
+      el.addEventListener("input", () => {
+        clearTimeout(t);
+        t = setTimeout(apply, 220);
+      });
+    }
+  });
+
+  container.querySelectorAll("[data-wh-docs-page]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const page = Number(btn.dataset.whDocsPage) || 1;
+      if (page === ui.docsPage) return;
+      ui.docsPage = page;
       rerender(container);
     });
   });

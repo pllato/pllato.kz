@@ -763,11 +763,14 @@ function wireModalHandlers() {
       const itemsNow = listDealItems(dealId);
       if (itemsNow.length === 0) { alert("В заказе нет позиций."); return; }
       const contact = deal.contactId ? Store.get("contacts", deal.contactId) : null;
+      const counterpartyText = contact?.name
+        ? `${contact.name} · ${deal.title || ""}`
+        : (deal.title || "");
       // Динамический импорт — избегаем циклической зависимости warehouse.js ↔ deal_items.js.
       const wh = await import("./warehouse.js");
-      const { doc } = wh.createInvoiceFromDeal(dealId, {
+      const result = wh.createInvoiceFromDeal(dealId, {
         counterpartyContactId: deal.contactId || null,
-        counterpartyText: contact?.name || deal.title || "",
+        counterpartyText,
         items: itemsNow.map((i) => ({
           productId: i.productId,
           qty: Number(i.qty) || 0,
@@ -776,9 +779,13 @@ function wireModalHandlers() {
         totalAmount: dealItemsTotal(dealId),
         note: `Накладная по сделке «${deal.title || ""}»`,
       });
-      // Синхронно переводим заказ в shipped (markDealOrderShipped из этого же модуля).
+      const { doc, posted, postError } = result;
+      // Синхронно переводим заказ в shipped.
       markDealOrderShipped(dealId, { invoiceId: doc.id, invoiceNumber: doc.number });
       refreshModal();
+      if (!posted) {
+        alert(`⚠ Накладная № ${doc.number} создана как ЧЕРНОВИК — не удалось провести (FIFO-списание):\n\n${postError}\n\nОткрой документ в Склад → Документы и проведи вручную после докомплекта остатка.`);
+      }
     } catch (err) {
       alert("Не удалось сформировать накладную: " + (err?.message || String(err)));
     }

@@ -631,25 +631,44 @@ export function createInvoiceFromDeal(dealId, extra = {}) {
     d.type === "sale_invoice" &&
     d.status !== "cancelled"
   );
-  if (existing) return { doc: existing, created: false };
+  if (existing) {
+    // Если накладная зачем-то осталась в черновике — проведём сейчас.
+    if (existing.status === "draft") {
+      try {
+        const posted = postWarehouseDocument(existing.id);
+        return { doc: posted, created: false, posted: true };
+      } catch (err) {
+        return { doc: existing, created: false, posted: false, postError: err?.message || String(err) };
+      }
+    }
+    return { doc: existing, created: false };
+  }
 
   const items = Array.isArray(extra.items) ? extra.items : [];
   const totalAmount = Number(extra.totalAmount) || items.reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.unitPrice) || 0), 0);
+  // Контрагент: имя контакта + название заказа в скобках, чтобы в списке документов
+  // накладную можно было найти как по клиенту, так и по сделке.
+  const counterpartyText = extra.counterpartyText || "";
   const doc = createWarehouseDocument({
     type: "sale_invoice",
     dealId,
     counterpartyContactId: extra.counterpartyContactId || null,
-    counterpartyText: extra.counterpartyText || "",
+    counterpartyText,
     items,
     totalAmount,
     currency: extra.currency || "KZT",
     note: extra.note || "",
     status: "draft",
   });
-  // Перевод заказа в «отгружен» делает caller (preliminary_orders.js / модалка),
-  // синхронно, сразу после получения doc. Динамический import().then() из этого
-  // места — гонка с UI-рефрешем, заказ оставался в «согласованы».
-  return { doc, created: true };
+  // Сразу проводим накладную (FIFO-списание со склада). Если не хватает партий —
+  // оставляем как черновик и возвращаем postError, caller покажет alert.
+  // Без этого товар физически НЕ списывался со склада, заказ был «отгружен» только формально.
+  try {
+    const posted = postWarehouseDocument(doc.id);
+    return { doc: posted, created: true, posted: true };
+  } catch (err) {
+    return { doc, created: true, posted: false, postError: err?.message || String(err) };
+  }
 }
 
 /**
