@@ -32,7 +32,7 @@ export function createDealItem(dealId, payload = {}) {
   const product = payload.productId ? getWarehouseProduct(payload.productId) : null;
   const qty = Number(payload.qty) || 0;
   const unitPrice = Number(payload.unitPrice) || 0;
-  return Store.create(ITEMS, {
+  const item = Store.create(ITEMS, {
     dealId,
     productId: payload.productId || null,
     productSku: product?.sku || "",
@@ -42,6 +42,9 @@ export function createDealItem(dealId, payload = {}) {
     unitPrice,
     lineAmount: qty * unitPrice,
   });
+  // Если позиция уже валидная (товар + кол-во) — сразу промоутим заказ в «Предварительный».
+  autoPromoteToPreliminary(dealId);
+  return item;
 }
 
 export function updateDealItem(id, patch = {}) {
@@ -61,7 +64,45 @@ export function updateDealItem(id, patch = {}) {
     next.unitPrice = unitPrice;
     next.lineAmount = qty * unitPrice;
   }
-  return Store.update(ITEMS, id, next);
+  const updated = Store.update(ITEMS, id, next);
+  // После изменения проверяем: если в заказе появилась первая валидная позиция —
+  // автоматически отправляем на склад в «Предварительные».
+  if (updated?.dealId) autoPromoteToPreliminary(updated.dealId);
+  return updated;
+}
+
+// Авто-промоция: как только в сделке-черновике появилась хотя бы одна валидная
+// позиция (есть товар + кол-во > 0) — статус заказа переходит в «Предварительный».
+// Это означает, что склад сразу видит заказ в колонке «Предварительные».
+// Уже отправленные/согласованные/отгруженные заказы не трогаем.
+function autoPromoteToPreliminary(dealId) {
+  const deal = Store.get(DEALS, dealId);
+  if (!deal) return;
+  const status = deal.orderStatus || ORDER_STATUS_DRAFT;
+  if (status !== ORDER_STATUS_DRAFT) return;
+  const hasValid = listDealItems(dealId).some(
+    (i) => i.productId && (Number(i.qty) || 0) > 0
+  );
+  if (!hasValid) return;
+  const me = currentEmployee();
+  const now = Date.now();
+  Store.update(DEALS, dealId, {
+    orderStatus: ORDER_STATUS_PRELIMINARY,
+    orderSubmittedAt: now,
+    orderSubmittedBy: me?.id || null,
+    orderSubmittedByName: me?.name || me?.email || "",
+  });
+  try {
+    Store.create("deal_activities", {
+      dealId,
+      type: "order_auto_submitted",
+      text: "Заказ автоматически отправлен на склад (появилась валидная позиция)",
+      authorId: me?.id || null,
+      ts: now,
+    });
+  } catch (e) {
+    console.warn("[deal_items] не удалось записать activity order_auto_submitted:", e);
+  }
 }
 
 export function removeDealItem(id) {
