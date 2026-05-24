@@ -1244,7 +1244,13 @@ function renderContactsTrashModal() {
       <div class="modal modal-xl" role="dialog" aria-modal="true">
         <header class="modal-header">
           <h2>Корзина контактов · ${rows.length}</h2>
-          <button type="button" class="btn-ghost icon-only" id="closeContactsTrash">${ICONS.x}</button>
+          <div class="contacts-trash-bulk">
+            ${rows.length > 0 ? `
+              <button type="button" class="btn-ghost" id="trashRestoreAll" title="Восстановить все контакты из корзины">↶ Восстановить все</button>
+              <button type="button" class="btn-ghost danger" id="trashEmptyAll" title="Удалить все контакты из корзины навсегда">🗑 Очистить корзину</button>
+            ` : ""}
+            <button type="button" class="btn-ghost icon-only" id="closeContactsTrash">${ICONS.x}</button>
+          </div>
         </header>
         <div class="contacts-trash-note">Контакты в корзине хранятся 30 дней, затем удаляются автоматически.</div>
         <div class="contacts-trash-wrap">
@@ -2222,6 +2228,23 @@ function wireEvents(container) {
       hardDeleteContact(id);
       renderContacts(container);
     });
+  });
+
+  // Bulk-кнопки в шапке корзины.
+  container.querySelector("#trashEmptyAll")?.addEventListener("click", () => {
+    const trashed = listTrashedContacts();
+    if (trashed.length === 0) return;
+    if (!confirm(`Удалить ВСЕ ${trashed.length} контактов из корзины навсегда?\n\nДействие необратимо. История активности (звонки, заметки, сообщения) для этих контактов также удалится.`)) return;
+    trashed.forEach((c) => hardDeleteContact(c.id));
+    renderContacts(container);
+  });
+
+  container.querySelector("#trashRestoreAll")?.addEventListener("click", () => {
+    const trashed = listTrashedContacts();
+    if (trashed.length === 0) return;
+    if (!confirm(`Восстановить все ${trashed.length} контактов из корзины?`)) return;
+    trashed.forEach((c) => restoreContact(c.id));
+    renderContacts(container);
   });
 
   container.querySelector("#openImportsHistory")?.addEventListener("click", () => {
