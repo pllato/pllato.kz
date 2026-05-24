@@ -3804,15 +3804,21 @@ function wireEvents(container) {
       ta?.focus();
       ta?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
-    container.querySelector("#actionBarInvoice")?.addEventListener("click", (e) => {
+    container.querySelector("#actionBarInvoice")?.addEventListener("click", async (e) => {
       const btn = e.currentTarget;
       const existingId = btn.dataset.invoiceId;
-      // Если накладная уже есть — открыть её на странице склада.
+      // Если накладная уже есть — открываем печатную форму З-2.
       if (existingId) {
-        location.hash = `#warehouse/documents`;
+        try {
+          const mod = await import("./warehouse/invoice_print.js");
+          mod.printInvoiceZ2(existingId);
+        } catch (err) {
+          console.warn("[deal] invoice print failed:", err);
+          alert("Не удалось открыть печатную форму: " + (err?.message || err));
+        }
         return;
       }
-      // Иначе — создать.
+      // Иначе — создаём накладную и сразу печатаем.
       const deal = Store.get(COLLECTION, state.modalDealId);
       if (!deal) return;
       const items = listDealItems(deal.id);
@@ -3840,15 +3846,9 @@ function wireEvents(container) {
           });
         }
         renderDeals(container);
-        // После re-render — короткая подсказка.
-        const msg = created
-          ? `Накладная № ${doc.number} сформирована. Откроется страница склада…`
-          : `Накладная по этой сделке уже была: № ${doc.number}. Открываю.`;
-        setTimeout(() => {
-          if (confirm(`${msg}\n\nПерейти на страницу склада «Документы»?`)) {
-            location.hash = "#warehouse/documents";
-          }
-        }, 0);
+        // Сразу открываем печатную форму.
+        const mod = await import("./warehouse/invoice_print.js");
+        mod.printInvoiceZ2(doc.id);
       } catch (err) {
         alert("Не удалось сформировать накладную: " + (err?.message || String(err)));
       }
