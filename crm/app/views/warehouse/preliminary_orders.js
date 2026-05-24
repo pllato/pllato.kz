@@ -4,7 +4,7 @@
 
 import { ICONS } from "../../icons.js";
 import { Store } from "../../store.js";
-import { listPreliminaryDealOrders, listDealItems, dealItemsTotal, recallDealOrder } from "../../deal_items.js";
+import { listPreliminaryDealOrders, listApprovedDealOrders, listDealItems, dealItemsTotal, recallDealOrder, approveDealOrder, revokeDealOrderApproval } from "../../deal_items.js";
 import { productSummary, getWarehouseProduct } from "../../warehouse.js";
 
 function escapeHtml(s) {
@@ -72,69 +72,132 @@ function renderOrderDetailItems(dealId) {
   `;
 }
 
+function hasShortage(items) {
+  return items.some((it) => {
+    if (!it.productId) return false;
+    const stock = productSummary(it.productId)?.total || 0;
+    return it.qty > stock;
+  });
+}
+
+function renderOrderCard(deal, kind) {
+  const items = listDealItems(deal.id);
+  const total = dealItemsTotal(deal.id);
+  const shortage = hasShortage(items);
+  const positionsLabel = `${items.length} ${items.length === 1 ? "позиция" : (items.length >= 2 && items.length <= 4 ? "позиции" : "позиций")}`;
+  return `
+    <div class="po-card ${shortage ? "has-shortage" : ""} ${kind === "approved" ? "is-approved" : ""}" data-deal-id="${escapeAttr(deal.id)}">
+      <div class="po-card-head">
+        <div class="po-card-title">
+          <a href="#crm/${escapeAttr(deal.id)}" class="po-deal-link">
+            ${escapeHtml(deal.title || "Без названия")}
+          </a>
+          <div class="po-card-sub">
+            Контакт: ${escapeHtml(getContactName(deal.contactId))} · Менеджер: ${escapeHtml(getManagerName(deal.assigneeId))}
+          </div>
+        </div>
+        <div class="po-card-meta">
+          <div class="po-card-total">${fmtNum(total)} ₸</div>
+          ${kind === "preliminary"
+            ? `<div class="po-card-date">Отправлен: ${fmtDateTime(deal.orderSubmittedAt)}</div>
+               ${deal.orderSubmittedByName ? `<div class="po-card-by">от ${escapeHtml(deal.orderSubmittedByName)}</div>` : ""}`
+            : `<div class="po-card-date">Согласовано: ${fmtDateTime(deal.orderApprovedAt)}</div>
+               ${deal.orderApprovedByName ? `<div class="po-card-by">${escapeHtml(deal.orderApprovedByName)}</div>` : ""}`
+          }
+        </div>
+      </div>
+      <details class="po-card-details">
+        <summary>
+          ${positionsLabel}
+          ${shortage ? `<span class="po-warning-tag">⚠ Не хватает на складе</span>` : ""}
+        </summary>
+        <div class="po-card-body">
+          ${renderOrderDetailItems(deal.id)}
+          <div class="po-card-actions" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+            ${kind === "preliminary"
+              ? `<button type="button" class="btn-primary" data-po-approve="${escapeAttr(deal.id)}">✓ Согласовать на отгрузку</button>`
+              : `<button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}">↶ Отозвать согласование</button>`
+            }
+          </div>
+        </div>
+      </details>
+    </div>
+  `;
+}
+
 export function renderPreliminaryOrdersView() {
-  const orders = listPreliminaryDealOrders();
+  const preliminary = listPreliminaryDealOrders();
+  const approved = listApprovedDealOrders();
 
   return `
     <section class="whm-section po-view">
       <div class="po-header">
-        <h2>Предварительные заказы</h2>
-        <div class="po-meta">Всего: <strong>${orders.length}</strong></div>
+        <h2>Заказы со склада</h2>
+        <div class="po-meta">Предварительные: <strong>${preliminary.length}</strong> · Согласованы: <strong>${approved.length}</strong></div>
       </div>
 
-      ${orders.length === 0 ? `
-        <div class="po-empty">
-          <div class="po-empty-icon">📦</div>
-          <div class="po-empty-title">Нет предварительных заказов</div>
-          <div class="po-empty-text">Заказы появляются здесь когда менеджер нажимает «Сформировать заказ» в карточке сделки.</div>
+      <div class="po-kanban">
+        <div class="po-col">
+          <div class="po-col-head">
+            <span class="po-col-dot" style="--col:#6366f1"></span>
+            <span class="po-col-title">Предварительные заказы</span>
+            <span class="po-col-count">${preliminary.length}</span>
+          </div>
+          <div class="po-col-body">
+            ${preliminary.length === 0
+              ? `<div class="po-empty"><div class="po-empty-icon">📦</div><div class="po-empty-text">Пусто. Заказы появятся когда менеджер нажмёт «Сформировать заказ» в сделке.</div></div>`
+              : preliminary.map((d) => renderOrderCard(d, "preliminary")).join("")
+            }
+          </div>
         </div>
-      ` : `
-        <div class="po-list">
-          ${orders.map((deal) => {
-            const items = listDealItems(deal.id);
-            const total = dealItemsTotal(deal.id);
-            const hasShortage = items.some((it) => {
-              if (!it.productId) return false;
-              const stock = productSummary(it.productId)?.total || 0;
-              return it.qty > stock;
-            });
-            return `
-              <div class="po-card ${hasShortage ? "has-shortage" : ""}" data-deal-id="${escapeAttr(deal.id)}">
-                <div class="po-card-head">
-                  <div class="po-card-title">
-                    <a href="#crm/${escapeAttr(deal.id)}" class="po-deal-link">
-                      ${escapeHtml(deal.title || "Без названия")}
-                    </a>
-                    <div class="po-card-sub">
-                      Контакт: ${escapeHtml(getContactName(deal.contactId))} ·
-                      Менеджер: ${escapeHtml(getManagerName(deal.assigneeId))}
-                    </div>
-                  </div>
-                  <div class="po-card-meta">
-                    <div class="po-card-total">${fmtNum(total)} ₸</div>
-                    <div class="po-card-date">Отправлен: ${fmtDateTime(deal.orderSubmittedAt)}</div>
-                    ${deal.orderSubmittedByName ? `<div class="po-card-by">от ${escapeHtml(deal.orderSubmittedByName)}</div>` : ""}
-                  </div>
-                </div>
-                <details class="po-card-details">
-                  <summary>
-                    ${items.length} ${items.length === 1 ? "позиция" : (items.length >= 2 && items.length <= 4 ? "позиции" : "позиций")}
-                    ${hasShortage ? `<span class="po-warning-tag">⚠ Не хватает на складе</span>` : ""}
-                  </summary>
-                  <div class="po-card-body">
-                    ${renderOrderDetailItems(deal.id)}
-                  </div>
-                </details>
-              </div>
-            `;
-          }).join("")}
+
+        <div class="po-col">
+          <div class="po-col-head">
+            <span class="po-col-dot" style="--col:#16a34a"></span>
+            <span class="po-col-title">Согласованы на отгрузку</span>
+            <span class="po-col-count">${approved.length}</span>
+          </div>
+          <div class="po-col-body">
+            ${approved.length === 0
+              ? `<div class="po-empty"><div class="po-empty-icon">✅</div><div class="po-empty-text">Пусто. Нажми «✓ Согласовать на отгрузку» в карточке предзаказа, чтобы перевести сюда.</div></div>`
+              : approved.map((d) => renderOrderCard(d, "approved")).join("")
+            }
+          </div>
         </div>
-      `}
+      </div>
     </section>
   `;
 }
 
 export function wirePreliminaryOrdersEvents(container) {
-  // Здесь пока нет действий — drill-down работает через нативный <details>.
-  // На следующем этапе добавим кнопки "Согласовать" → создание warehouse_document.
+  if (!container || container.dataset.poWired === "1") return;
+  container.dataset.poWired = "1";
+  container.addEventListener("click", (e) => {
+    const approveBtn = e.target.closest("[data-po-approve]");
+    if (approveBtn) {
+      e.preventDefault();
+      const dealId = approveBtn.dataset.poApprove;
+      try {
+        approveDealOrder(dealId);
+        // Триггерим re-render через смену hash (warehouse re-renders on hashchange).
+        // Простой способ: вызвать window event, которое перерисует warehouse view.
+        window.dispatchEvent(new CustomEvent("pllato:warehouse-refresh"));
+      } catch (err) {
+        alert(err?.message || String(err));
+      }
+      return;
+    }
+    const revokeBtn = e.target.closest("[data-po-revoke]");
+    if (revokeBtn) {
+      e.preventDefault();
+      const dealId = revokeBtn.dataset.poRevoke;
+      if (!confirm("Отозвать согласование? Заказ вернётся в «Предварительные».")) return;
+      try {
+        revokeDealOrderApproval(dealId);
+        window.dispatchEvent(new CustomEvent("pllato:warehouse-refresh"));
+      } catch (err) {
+        alert(err?.message || String(err));
+      }
+    }
+  });
 }

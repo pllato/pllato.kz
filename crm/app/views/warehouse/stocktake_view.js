@@ -26,6 +26,7 @@ import {
   SHORTAGE_REASONS,
 } from "../../stocktake.js";
 import { WAREHOUSE_ENTITIES, listWarehouseCategories } from "../../warehouse.js";
+import { printStocktakeReport } from "./stocktake_print.js";
 
 const state = {
   // Для экрана списка позиций — фильтр по статусу подсчёта.
@@ -71,6 +72,124 @@ export function wireStocktakeEvents(container, subroute) {
 }
 
 // ============================================================================
+// График инвентаризации — обязательно 5-го числа каждого месяца.
+// Расчёт: «прошлый дедлайн» = 5-е текущего месяца (если сегодня >=5) или
+// 5-е прошлого месяца. «Следующий» = +1 месяц.
+// ============================================================================
+const STOCKTAKE_DUE_DAY = 5;
+
+function computeStocktakeReminder() {
+  const approved = listStocktakes({ status: STOCKTAKE_STATUS.APPROVED });
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const day = today.getDate();
+
+  const lastTarget = day >= STOCKTAKE_DUE_DAY
+    ? new Date(today.getFullYear(), today.getMonth(), STOCKTAKE_DUE_DAY)
+    : new Date(today.getFullYear(), today.getMonth() - 1, STOCKTAKE_DUE_DAY);
+  const nextTarget = day >= STOCKTAKE_DUE_DAY
+    ? new Date(today.getFullYear(), today.getMonth() + 1, STOCKTAKE_DUE_DAY)
+    : new Date(today.getFullYear(), today.getMonth(), STOCKTAKE_DUE_DAY);
+
+  // Проведена ли инвентаризация в этом периоде (от прошлого дедлайна и далее).
+  const lastApproved = approved
+    .map((s) => ({
+      ...s,
+      dateMs: s.approvedAt || new Date(`${s.date}T00:00:00`).getTime(),
+    }))
+    .filter((s) => Number.isFinite(s.dateMs) && s.dateMs >= lastTarget.getTime())
+    .sort((a, b) => b.dateMs - a.dateMs)[0];
+
+  const MS_DAY = 24 * 60 * 60 * 1000;
+  const daysToNext = Math.max(0, Math.round((nextTarget.getTime() - today.getTime()) / MS_DAY));
+  const daysOverdue = Math.floor((today.getTime() - lastTarget.getTime()) / MS_DAY);
+
+  if (lastApproved) {
+    return {
+      kind: "done",
+      doneAt: lastApproved.dateMs,
+      doneNumber: lastApproved.number,
+      nextTargetMs: nextTarget.getTime(),
+      daysToNext,
+    };
+  }
+  if (daysOverdue > 0) {
+    return {
+      kind: "overdue",
+      lastTargetMs: lastTarget.getTime(),
+      daysOverdue,
+      nextTargetMs: nextTarget.getTime(),
+    };
+  }
+  return {
+    kind: "upcoming",
+    nextTargetMs: nextTarget.getTime(),
+    daysToNext,
+  };
+}
+
+function plural(n, one, few, many) {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+}
+function daysWord(n) { return plural(n, "день", "дня", "дней"); }
+function dayMonthRu(ms) {
+  const d = new Date(ms);
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
+
+function renderStocktakeReminder() {
+  const r = computeStocktakeReminder();
+  if (r.kind === "overdue") {
+    return `
+      <div class="st-reminder st-reminder-overdue">
+        <div class="st-reminder-icon">🔴</div>
+        <div class="st-reminder-body">
+          <strong>Инвентаризация просрочена</strong>
+          <div class="st-reminder-sub">
+            По графику — ${escape(dayMonthRu(r.lastTargetMs))}.
+            Прошло уже <strong>${r.daysOverdue} ${daysWord(r.daysOverdue)}</strong>.
+            Создайте новую инвентаризацию и проведите её сегодня.
+          </div>
+        </div>
+        <a class="btn-primary" href="#warehouse/stocktakes/new">+ Провести сейчас</a>
+      </div>
+    `;
+  }
+  if (r.kind === "done") {
+    return `
+      <div class="st-reminder st-reminder-ok">
+        <div class="st-reminder-icon">🟢</div>
+        <div class="st-reminder-body">
+          <strong>Инвентаризация ${escape(r.doneNumber)} проведена</strong>
+          <div class="st-reminder-sub">
+            ${escape(fmtDT(r.doneAt))}. Следующая по графику —
+            <strong>${escape(dayMonthRu(r.nextTargetMs))}</strong>
+            (через ${r.daysToNext} ${daysWord(r.daysToNext)}).
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  return `
+    <div class="st-reminder st-reminder-upcoming">
+      <div class="st-reminder-icon">📅</div>
+      <div class="st-reminder-body">
+        <strong>До следующей инвентаризации: ${r.daysToNext} ${daysWord(r.daysToNext)}</strong>
+        <div class="st-reminder-sub">
+          По графику — <strong>${escape(dayMonthRu(r.nextTargetMs))}</strong>.
+          Инвентаризация проводится 5-го числа каждого месяца.
+        </div>
+      </div>
+      <a class="btn-ghost" href="#warehouse/stocktakes/new">+ Создать заранее</a>
+    </div>
+  `;
+}
+
+// ============================================================================
 // 1. СПИСОК — канбан из 3 колонок
 // ============================================================================
 function renderList() {
@@ -88,6 +207,8 @@ function renderList() {
         </div>
         <a class="btn-primary" href="#warehouse/stocktakes/new">+ Новая инвентаризация</a>
       </div>
+
+      ${renderStocktakeReminder()}
 
       <div class="st-kanban">
         ${renderColumn("Черновики", drafts, "#6366f1", "draft")}
@@ -225,6 +346,8 @@ function renderCard(stocktakeId) {
           <a class="btn-ghost" href="#warehouse/stocktakes">← Назад</a>
           ${isDraft ? `<button type="button" class="btn-ghost danger" data-st-delete="${escapeAttr(st.id)}">Удалить</button>` : ""}
           ${isDraft ? `<button type="button" class="btn-primary" data-st-submit="${escapeAttr(st.id)}">📨 На согласование</button>` : ""}
+          ${(isPending || isApproved) ? `<button type="button" class="btn-ghost" data-st-print="${escapeAttr(st.id)}" data-st-print-mode="differences" title="Сличительная ведомость по расхождениям">🖨 Печать (расхождения)</button>` : ""}
+          ${(isPending || isApproved) ? `<button type="button" class="btn-ghost" data-st-print="${escapeAttr(st.id)}" data-st-print-mode="full" title="Полная опись инвентаризации">🖨 Полная опись</button>` : ""}
           ${isPending ? `<button type="button" class="btn-ghost" data-st-recall="${escapeAttr(st.id)}">↶ Отозвать</button>` : ""}
           ${isPending ? `<button type="button" class="btn-ghost danger" data-st-reject="${escapeAttr(st.id)}">✗ Отклонить</button>` : ""}
           ${isPending ? `<button type="button" class="btn-primary" data-st-approve="${escapeAttr(st.id)}">✓ Согласовать</button>` : ""}
@@ -423,6 +546,14 @@ function handleClick(e, container) {
   const submitBtn = action("[data-st-submit]");
   if (submitBtn) {
     try { submitStocktake(submitBtn.dataset.stSubmit); refresh(container); }
+    catch (err) { alert(err?.message || err); }
+    return;
+  }
+
+  const printBtn = action("[data-st-print]");
+  if (printBtn) {
+    const mode = printBtn.dataset.stPrintMode === "full" ? "full" : "differences";
+    try { printStocktakeReport(printBtn.dataset.stPrint, { mode }); }
     catch (err) { alert(err?.message || err); }
     return;
   }

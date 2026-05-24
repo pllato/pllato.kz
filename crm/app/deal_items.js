@@ -11,6 +11,7 @@ const DEALS = "deals";
 
 export const ORDER_STATUS_DRAFT = "draft";
 export const ORDER_STATUS_PRELIMINARY = "preliminary";
+export const ORDER_STATUS_APPROVED = "approved";
 
 // State модалки (один заказ в один момент времени)
 const modalState = {
@@ -107,6 +108,79 @@ export function listPreliminaryDealOrders() {
   return Store.list(DEALS)
     .filter((d) => d.orderStatus === ORDER_STATUS_PRELIMINARY && !d.isDeleted)
     .sort((a, b) => (b.orderSubmittedAt || 0) - (a.orderSubmittedAt || 0));
+}
+
+/**
+ * Заказы, согласованные на отгрузку (после клика «Согласовать» в карточке).
+ * Сортировка — свежие сверху по orderApprovedAt.
+ */
+export function listApprovedDealOrders() {
+  return Store.list(DEALS)
+    .filter((d) => d.orderStatus === ORDER_STATUS_APPROVED && !d.isDeleted)
+    .sort((a, b) => (b.orderApprovedAt || 0) - (a.orderApprovedAt || 0));
+}
+
+/**
+ * Согласовать заказ на отгрузку. Фиксируем кто и когда — пишем в сделку
+ * и в timeline (deal_activities). Возвращаем обновлённую сделку.
+ */
+export function approveDealOrder(dealId) {
+  const deal = Store.get(DEALS, dealId);
+  if (!deal) throw new Error("Сделка не найдена");
+  if (deal.orderStatus !== ORDER_STATUS_PRELIMINARY) {
+    throw new Error("Согласовать можно только предварительный заказ");
+  }
+  const me = currentEmployee();
+  const now = Date.now();
+  const updated = Store.update(DEALS, dealId, {
+    orderStatus: ORDER_STATUS_APPROVED,
+    orderApprovedAt: now,
+    orderApprovedBy: me?.id || null,
+    orderApprovedByName: me?.name || me?.email || "Сотрудник",
+  });
+  // Активность в timeline сделки.
+  try {
+    Store.create("deal_activities", {
+      dealId,
+      type: "order_approved",
+      text: `Согласовано на отгрузку: ${me?.name || me?.email || "сотрудник"}`,
+      authorId: me?.id || null,
+      ts: now,
+    });
+  } catch (e) {
+    console.warn("[deal_items] не удалось добавить activity order_approved:", e);
+  }
+  return updated;
+}
+
+/**
+ * Отозвать согласование — возврат в статус 'preliminary'.
+ */
+export function revokeDealOrderApproval(dealId) {
+  const deal = Store.get(DEALS, dealId);
+  if (!deal) throw new Error("Сделка не найдена");
+  if (deal.orderStatus !== ORDER_STATUS_APPROVED) {
+    throw new Error("Отозвать согласование можно только у согласованного заказа");
+  }
+  const me = currentEmployee();
+  const now = Date.now();
+  const updated = Store.update(DEALS, dealId, {
+    orderStatus: ORDER_STATUS_PRELIMINARY,
+    orderApprovalRevokedAt: now,
+    orderApprovalRevokedBy: me?.id || null,
+  });
+  try {
+    Store.create("deal_activities", {
+      dealId,
+      type: "order_approval_revoked",
+      text: `Согласование отозвано: ${me?.name || me?.email || "сотрудник"}`,
+      authorId: me?.id || null,
+      ts: now,
+    });
+  } catch (e) {
+    console.warn("[deal_items] не удалось добавить activity order_approval_revoked:", e);
+  }
+  return updated;
 }
 
 // === Утилиты ===
