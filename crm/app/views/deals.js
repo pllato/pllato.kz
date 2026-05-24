@@ -28,7 +28,8 @@ import { renderTypeahead, attachTypeahead } from "../typeahead.js";
 import { captureUtmFromUrl, enrichWithStoredUtm, renderUtmFormSection, renderUtmBadge, readUtmFromFormData, listKnownSources, getSourcePreset, UTM_SOURCE_PRESETS } from "../utm.js";
 import { openUtmReport } from "../utm_report.js";
 import { renderContacts } from "./contacts.js";
-import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal, listDealItems } from "../deal_items.js";
+import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal, listDealItems, dealItemsTotal } from "../deal_items.js";
+import { findInvoiceByDeal, createInvoiceFromDeal } from "../warehouse.js";
 import { listChannels } from "../channels.js";
 import { renderCalls } from "./calls.js";
 import { apiFetch, formatApiError } from "../auth.js";
@@ -1896,6 +1897,13 @@ function renderDealActionBar(d, contact) {
   // Счётчик непрочитанных WhatsApp для контакта сделки.
   const unread = d?.id ? (buildDealWaMessageIndex().get(d.id)?.unreadCount || 0) : 0;
   const unreadBadge = unread > 0 ? `<span class="action-bar-badge">${unread > 99 ? "99+" : unread}</span>` : "";
+  // Накладная: ищем уже сформированную (через dealId связь).
+  const invoice = d?.id ? findInvoiceByDeal(d.id) : null;
+  const canMakeInvoice = itemsCount > 0;
+  const invoiceLabel = invoice ? `Накладная №${invoice.number}` : "Сформировать накладную";
+  const invoiceTitle = invoice
+    ? `Расходная накладная № ${invoice.number} (открыть)`
+    : (canMakeInvoice ? "Создать расходную накладную из позиций заказа" : "Сначала добавь позиции в заказ");
   return `
     <footer class="deal-action-bar">
       <button type="button" class="deal-action-btn" id="actionBarCall" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Позвонить" : noPhoneTitle}">
@@ -1910,6 +1918,10 @@ function renderDealActionBar(d, contact) {
       <button type="button" class="deal-action-btn deal-action-btn-order" data-deal-items-open title="${escapeAttr(orderLabel)}">
         <span class="dab-emoji">📦</span>
         <span>${escape(orderLabel)}</span>
+      </button>
+      <button type="button" class="deal-action-btn deal-action-btn-invoice" id="actionBarInvoice" ${canMakeInvoice ? "" : "disabled"} title="${escapeAttr(invoiceTitle)}" data-invoice-id="${escapeAttr(invoice?.id || "")}">
+        <span class="dab-emoji">📄</span>
+        <span>${escape(invoiceLabel)}</span>
       </button>
     </footer>
   `;
@@ -3791,6 +3803,55 @@ function wireEvents(container) {
       const ta = container.querySelector("#tlText");
       ta?.focus();
       ta?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    container.querySelector("#actionBarInvoice")?.addEventListener("click", (e) => {
+      const btn = e.currentTarget;
+      const existingId = btn.dataset.invoiceId;
+      // Если накладная уже есть — открыть её на странице склада.
+      if (existingId) {
+        location.hash = `#warehouse/documents`;
+        return;
+      }
+      // Иначе — создать.
+      const deal = Store.get(COLLECTION, state.modalDealId);
+      if (!deal) return;
+      const items = listDealItems(deal.id);
+      if (items.length === 0) {
+        alert("В заказе нет позиций. Сначала добавь товары.");
+        return;
+      }
+      const contact = contacts.find((x) => x.id === deal.contactId);
+      try {
+        const { doc, created } = createInvoiceFromDeal(deal.id, {
+          counterpartyContactId: deal.contactId || null,
+          counterpartyText: contact?.name || deal.title || "",
+          items: items.map((i) => ({
+            productId: i.productId,
+            qty: Number(i.qty) || 0,
+            unitPrice: Number(i.unitPrice) || 0,
+          })),
+          totalAmount: dealItemsTotal(deal.id),
+          note: `Накладная по сделке «${deal.title || ""}»`,
+        });
+        if (created) {
+          addActivity(deal.id, "invoice_created", {
+            text: `Сформирована расходная накладная № ${doc.number}`,
+            docId: doc.id,
+          });
+        }
+        renderDeals(container);
+        // После re-render — короткая подсказка.
+        const msg = created
+          ? `Накладная № ${doc.number} сформирована. Откроется страница склада…`
+          : `Накладная по этой сделке уже была: № ${doc.number}. Открываю.`;
+        setTimeout(() => {
+          if (confirm(`${msg}\n\nПерейти на страницу склада «Документы»?`)) {
+            location.hash = "#warehouse/documents";
+          }
+        }, 0);
+      } catch (err) {
+        alert("Не удалось сформировать накладную: " + (err?.message || String(err)));
+      }
     });
 
     // ===== Карточка контакта: edit / change / cancel / save =====

@@ -614,6 +614,53 @@ export async function getWarehouseDocumentAsync(docId) {
   }
 }
 
+/**
+ * Создать расходную накладную (sale_invoice) из позиций сделки.
+ * Связь сохраняется через doc.dealId. Если накладная для этой сделки уже
+ * существует и не отменена — возвращается она же (не создаём дубликат).
+ *
+ * @param {string} dealId
+ * @param {{ counterpartyContactId?: string, counterpartyText?: string, items?: Array, totalAmount?: number, currency?: string, note?: string }} extra
+ * @returns {{ doc, created: boolean }}
+ */
+export function createInvoiceFromDeal(dealId, extra = {}) {
+  if (!dealId) throw new Error("dealId обязателен");
+  // Идемпотентность: ищем существующую накладную для этой сделки.
+  const existing = safeList(WH.documents).find((d) =>
+    d.dealId === dealId &&
+    d.type === "sale_invoice" &&
+    d.status !== "cancelled"
+  );
+  if (existing) return { doc: existing, created: false };
+
+  const items = Array.isArray(extra.items) ? extra.items : [];
+  const totalAmount = Number(extra.totalAmount) || items.reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.unitPrice) || 0), 0);
+  const doc = createWarehouseDocument({
+    type: "sale_invoice",
+    dealId,
+    counterpartyContactId: extra.counterpartyContactId || null,
+    counterpartyText: extra.counterpartyText || "",
+    items,
+    totalAmount,
+    currency: extra.currency || "KZT",
+    note: extra.note || "",
+    status: "draft",
+  });
+  return { doc, created: true };
+}
+
+/**
+ * Найти расходную накладную по dealId (если есть и не отменена).
+ */
+export function findInvoiceByDeal(dealId) {
+  if (!dealId) return null;
+  return safeList(WH.documents).find((d) =>
+    d.dealId === dealId &&
+    d.type === "sale_invoice" &&
+    d.status !== "cancelled"
+  ) || null;
+}
+
 export function createWarehouseDocument(payload = {}) {
   const actor = meActor();
   const type = payload.type || "receipt";
