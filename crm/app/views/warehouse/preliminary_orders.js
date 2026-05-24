@@ -121,7 +121,7 @@ function renderOrderCard(deal, kind) {
               ? `<button type="button" class="btn-primary" data-po-approve="${escapeAttr(deal.id)}">✓ Согласовать на отгрузку</button>`
               : kind === "approved"
               ? `<button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}">↶ Отозвать</button>
-                 <button type="button" class="btn-primary" data-po-ship="${escapeAttr(deal.id)}" title="Сформировать расходную накладную и закрыть заказ">📦 Отгрузить (накладная)</button>`
+                 <button type="button" class="btn-primary" data-po-ship="${escapeAttr(deal.id)}" title="Заказ перейдёт в «Отгружены», сформируется расходная накладная З-2">📦 Отгрузить и сформировать накладную</button>`
               : `<span class="po-shipped-label">✅ Отгружено${deal.orderInvoiceNumber ? ` · накладная № ${escapeHtml(deal.orderInvoiceNumber)}` : ""}</span>`
             }
           </div>

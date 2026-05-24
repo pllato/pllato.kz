@@ -1900,10 +1900,10 @@ function renderDealActionBar(d, contact) {
   // Накладная: ищем уже сформированную (через dealId связь).
   const invoice = d?.id ? findInvoiceByDeal(d.id) : null;
   const canMakeInvoice = itemsCount > 0;
-  const invoiceLabel = invoice ? `Накладная №${invoice.number}` : "Сформировать накладную";
+  const invoiceLabel = invoice ? `Накладная №${invoice.number}` : "Отгрузить и сформировать накладную";
   const invoiceTitle = invoice
     ? `Расходная накладная № ${invoice.number} (открыть)`
-    : (canMakeInvoice ? "Создать расходную накладную из позиций заказа" : "Сначала добавь позиции в заказ");
+    : (canMakeInvoice ? "Заказ перейдёт в «Отгружены», сформируется расходная накладная З-2" : "Сначала добавь позиции в заказ");
   // Согласование заказа на отгрузку (для статуса 'preliminary' — показываем кнопку «✓ Согласовать»,
   // для 'approved' — «↶ Отозвать согласование», для 'shipped' — статичный бейдж).
   const orderStatus = d?.orderStatus || null;
