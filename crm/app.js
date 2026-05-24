@@ -72,6 +72,15 @@ async function hydrateAfterSignIn({ syncStore = true } = {}) {
       console.warn(`${target} bootstrap failed:`, r.reason);
     }
   });
+  // После того как данные подтянулись из облака — синхронизируем статусы заказов
+  // с фактическим состоянием склада (накладные ↔ orderStatus). Это разовый
+  // проход, идемпотентный — чинит данные, созданные до внедрения авто-проводки.
+  try {
+    const { reconcileOrderStatuses } = await import("./app/deal_items.js");
+    reconcileOrderStatuses();
+  } catch (e) {
+    console.warn("[boot] reconcileOrderStatuses failed:", e);
+  }
 }
 
 // ---------- Router ----------

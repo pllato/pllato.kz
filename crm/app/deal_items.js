@@ -273,6 +273,66 @@ export function revokeDealOrderApproval(dealId) {
   return updated;
 }
 
+/**
+ * Reconciler: разовый проход на boot, синхронизирует статусы заказов с
+ * фактическим состоянием склада. Идемпотентен — можно звать сколько угодно раз.
+ *
+ * 1) Любая sale_invoice (не cancelled) → её сделка должна быть в shipped
+ *    (с заполненным orderInvoiceId/Number). Без этого после старого пути
+ *    «Сформировать накладную» заказ оставался в approved хотя накладная уже была.
+ * 2) Любой draft-заказ с валидной позицией → авто-промоция в preliminary
+ *    (на случай если данные были созданы до того, как мы внедрили автоматику
+ *    в createDealItem/updateDealItem).
+ *
+ * @returns {{ shipped: number, promoted: number }}
+ */
+export function reconcileOrderStatuses() {
+  let shipped = 0;
+  let promoted = 0;
+
+  // (1) Накладные → заказы в shipped.
+  const docs = Store.list("warehouse_documents").filter(
+    (d) => d.type === "sale_invoice" && d.status !== "cancelled" && d.dealId
+  );
+  for (const doc of docs) {
+    const deal = Store.get(DEALS, doc.dealId);
+    if (!deal) continue;
+    if (deal.orderStatus === ORDER_STATUS_SHIPPED) continue;
+    try {
+      markDealOrderShipped(doc.dealId, { invoiceId: doc.id, invoiceNumber: doc.number });
+      shipped += 1;
+    } catch (e) {
+      console.warn("[reconciler] markDealOrderShipped failed for deal", doc.dealId, e);
+    }
+  }
+
+  // (2) Draft с валидными позициями → preliminary.
+  // Группируем deal_items по dealId один раз — без перебора в цикле.
+  const validByDeal = new Map();
+  for (const it of Store.list(ITEMS)) {
+    if (it.productId && (Number(it.qty) || 0) > 0) {
+      validByDeal.set(it.dealId, true);
+    }
+  }
+  for (const [dealId] of validByDeal) {
+    const deal = Store.get(DEALS, dealId);
+    if (!deal || deal.isDeleted) continue;
+    const status = deal.orderStatus || ORDER_STATUS_DRAFT;
+    if (status !== ORDER_STATUS_DRAFT) continue;
+    try {
+      autoPromoteToPreliminary(dealId);
+      promoted += 1;
+    } catch (e) {
+      console.warn("[reconciler] autoPromote failed for deal", dealId, e);
+    }
+  }
+
+  if (shipped > 0 || promoted > 0) {
+    console.log(`[reconciler] order statuses synced: shipped=${shipped}, promoted=${promoted}`);
+  }
+  return { shipped, promoted };
+}
+
 // === Утилиты ===
 
 function escapeHtml(s) {
@@ -515,10 +575,10 @@ function renderModalHTML(dealId) {
 function renderFooterActions(deal, items) {
   const status = getDealOrderStatus(deal);
   const hasItems = items.length > 0;
-  // Черновик: единственное действие — отправить на склад.
+  // Черновик: ничего не показываем — авто-промоция переведёт в preliminary
+  // как только появится первая валидная позиция (товар + кол-во > 0).
   if (status === ORDER_STATUS_DRAFT) {
-    if (!hasItems) return "";
-    return `<button type="button" class="btn-primary" data-deal-order-submit title="Заказ уйдёт на склад со статусом «Предварительный»">📨 Отправить на склад</button>`;
+    return "";
   }
   // Предварительный: можно отозвать (менеджер) или согласовать (директор).
   if (status === ORDER_STATUS_PRELIMINARY) {
@@ -714,16 +774,7 @@ function wireModalHandlers() {
   root.querySelectorAll('input[data-deal-item-field="qty"], input[data-deal-item-field="unitPrice"]')
     .forEach((input) => input.addEventListener("input", () => onNum(input)));
 
-  // Submit / recall
-  root.querySelector("[data-deal-order-submit]")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    try {
-      submitDealOrder(dealId);
-      refreshModal();
-    } catch (err) {
-      alert(err?.message || "Не удалось сформировать заказ");
-    }
-  });
+  // Recall (вернуть из preliminary в draft).
   root.querySelector("[data-deal-order-recall]")?.addEventListener("click", (e) => {
     e.preventDefault();
     if (!confirm("Вернуть заказ в черновик? Со склада он исчезнет из предварительных заказов.")) return;
