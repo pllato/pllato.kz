@@ -28,7 +28,7 @@ import { renderTypeahead, attachTypeahead } from "../typeahead.js";
 import { captureUtmFromUrl, enrichWithStoredUtm, renderUtmFormSection, renderUtmBadge, readUtmFromFormData, listKnownSources, getSourcePreset, UTM_SOURCE_PRESETS } from "../utm.js";
 import { openUtmReport } from "../utm_report.js";
 import { renderContacts } from "./contacts.js";
-import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal, listDealItems, dealItemsTotal } from "../deal_items.js";
+import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal, listDealItems, dealItemsTotal, approveDealOrder, revokeDealOrderApproval, ORDER_STATUS_PRELIMINARY, ORDER_STATUS_APPROVED } from "../deal_items.js";
 import { findInvoiceByDeal, createInvoiceFromDeal } from "../warehouse.js";
 import { listChannels } from "../channels.js";
 import { renderCalls } from "./calls.js";
@@ -1904,6 +1904,11 @@ function renderDealActionBar(d, contact) {
   const invoiceTitle = invoice
     ? `Расходная накладная № ${invoice.number} (открыть)`
     : (canMakeInvoice ? "Создать расходную накладную из позиций заказа" : "Сначала добавь позиции в заказ");
+  // Согласование заказа на отгрузку (для статуса 'preliminary' — показываем кнопку «✓ Согласовать»,
+  // для 'approved' — «↶ Отозвать согласование»).
+  const orderStatus = d?.orderStatus || null;
+  const isPreliminary = orderStatus === ORDER_STATUS_PRELIMINARY;
+  const isApproved = orderStatus === ORDER_STATUS_APPROVED;
   return `
     <footer class="deal-action-bar">
       <button type="button" class="deal-action-btn" id="actionBarCall" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Позвонить" : noPhoneTitle}">
@@ -1919,6 +1924,18 @@ function renderDealActionBar(d, contact) {
         <span class="dab-emoji">📦</span>
         <span>${escape(orderLabel)}</span>
       </button>
+      ${isPreliminary ? `
+        <button type="button" class="deal-action-btn deal-action-btn-approve" id="actionBarApprove" title="Согласовать заказ на отгрузку">
+          <span class="dab-emoji">✓</span>
+          <span>Согласовать на отгрузку</span>
+        </button>
+      ` : ""}
+      ${isApproved ? `
+        <button type="button" class="deal-action-btn deal-action-btn-revoke" id="actionBarRevoke" title="Отозвать согласование — заказ вернётся в Предварительные">
+          <span class="dab-emoji">↶</span>
+          <span>Отозвать согласование</span>
+        </button>
+      ` : ""}
       <button type="button" class="deal-action-btn deal-action-btn-invoice" id="actionBarInvoice" ${canMakeInvoice ? "" : "disabled"} title="${escapeAttr(invoiceTitle)}" data-invoice-id="${escapeAttr(invoice?.id || "")}">
         <span class="dab-emoji">📄</span>
         <span>${escape(invoiceLabel)}</span>
@@ -3803,6 +3820,28 @@ function wireEvents(container) {
       const ta = container.querySelector("#tlText");
       ta?.focus();
       ta?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    container.querySelector("#actionBarApprove")?.addEventListener("click", () => {
+      const deal = Store.get(COLLECTION, state.modalDealId);
+      if (!deal) return;
+      if (!confirm("Согласовать заказ на отгрузку? Заказ перейдёт в столбец «Согласованы на отгрузку» в Складе → Заказы.")) return;
+      try {
+        approveDealOrder(deal.id);
+        renderDeals(container);
+      } catch (err) {
+        alert("Не удалось согласовать: " + (err?.message || String(err)));
+      }
+    });
+    container.querySelector("#actionBarRevoke")?.addEventListener("click", () => {
+      const deal = Store.get(COLLECTION, state.modalDealId);
+      if (!deal) return;
+      if (!confirm("Отозвать согласование? Заказ вернётся в столбец «Предварительные».")) return;
+      try {
+        revokeDealOrderApproval(deal.id);
+        renderDeals(container);
+      } catch (err) {
+        alert("Не удалось отозвать: " + (err?.message || String(err)));
+      }
     });
     container.querySelector("#actionBarInvoice")?.addEventListener("click", async (e) => {
       const btn = e.currentTarget;
