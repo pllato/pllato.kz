@@ -2492,9 +2492,34 @@ onAuthStateChanged(auth, async user => {
 });
 
 // ── App init ─────────────────────────────────────────────
+// ── Scope toggle (Мои / Все) — для admin'ов ──────────────────────────────
+function scopeToggleHtml() {
+  // Только admin'у показываем переключатель. Не-admin всегда видит только свои.
+  if (window.currentUser?.role !== 'admin') return '';
+  const cur = localStorage.getItem(SCOPE_LS_KEY) || 'all';
+  return `<div class="scope-toggle" style="display:inline-flex;gap:4px;margin-left:10px">
+    <button class="vt-btn ${cur === 'mine' ? 'active' : ''}" data-scope="mine" title="Только мои записи">👤 Мои</button>
+    <button class="vt-btn ${cur === 'all' ? 'active' : ''}" data-scope="all" title="Все записи (admin)">🌐 Все</button>
+  </div>`;
+}
+
+function attachScopeToggle(rootEl, onChange) {
+  rootEl.querySelectorAll('[data-scope]').forEach(b => {
+    b.addEventListener('click', () => {
+      localStorage.setItem(SCOPE_LS_KEY, b.dataset.scope);
+      onChange();
+    });
+  });
+}
+
+// ── Глобальная сессия (после login) ───────────────────────────────────────
+// currentUser — то что вернул worker /api/me. Включает canonicalUid (uid из
+// D1, к которому привязаны задачи/сделки/контакты по email) и role.
+window.currentUser = null;
+const SCOPE_LS_KEY = 'elc:listScope';   // mine | all per-user (persist выбора)
+
 async function initApp(user) {
   console.log('[initApp] start, uid=', user.uid, 'email=', user.email);
-  // Сохраняем профиль текущего пользователя
   const profile = {
     email: user.email,
     name: user.displayName || user.email.split('@')[0],
@@ -2502,23 +2527,40 @@ async function initApp(user) {
     lastLogin: new Date().toISOString(),
     provider: user.providerData[0]?.providerId || 'unknown',
   };
-  // Phase 2.1: SDK update отключён — пишем профиль в Phase 3 (worker write API).
-  // try {
-  //   await update(ref(db, `users/${user.uid}`), profile);
-  //   console.log('[initApp] profile saved');
-  // } catch (e) {
-  //   console.warn('[initApp] profile update failed (non-fatal, continuing):', e);
-  // }
   console.log('[initApp] profile save skipped (Phase 2.1 read-only)');
 
-  // UI
+  // Загружаем роль/canonical uid через worker /api/me
+  try {
+    const idToken = await user.getIdToken();
+    const me = await fetch('https://pllato-elc-worker.uurraa.workers.dev/api/me', {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    }).then(r => r.ok ? r.json() : null);
+    if (me && me.ok) {
+      window.currentUser = me;
+      console.log('[initApp] role:', me.role, 'canonicalUid:', me.canonicalUid, 'linked:', me.isLinked);
+      if (!me.isLinked) {
+        console.warn('[initApp] юзер НЕ связан с записью в D1 (email не найден). Будет видеть пусто. Платон должен либо добавить юзера в users-таблицу либо явно admin-ом сделать.');
+      }
+    } else {
+      console.error('[initApp] /api/me не отдал — без роли');
+    }
+  } catch (e) {
+    console.error('[initApp] /api/me fetch failed:', e);
+  }
+
+  // UI sidebar
   try {
     const initials = (profile.name || 'U').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
     const av = document.getElementById('ux-avatar');
     const nm = document.getElementById('ux-name');
     const em = document.getElementById('ux-email');
     if (av) av.textContent = initials;
-    if (nm) nm.textContent = profile.name;
+    if (nm) {
+      const roleBadge = window.currentUser?.role && window.currentUser.role !== 'agent'
+        ? ` <span style="font-size:9px;padding:1px 5px;border-radius:8px;background:var(--ac2);color:#fff;font-weight:700;vertical-align:middle;text-transform:uppercase">${window.currentUser.role}</span>`
+        : '';
+      nm.innerHTML = escapeHtml(profile.name) + roleBadge;
+    }
     if (em) em.textContent = user.email;
   } catch (e) {
     console.warn('[initApp] sidebar UI fill failed (non-fatal):', e);
@@ -3143,6 +3185,8 @@ async function loadDealsPage(page) {
     if (dealsState.stageFilter) params.set('stage', dealsState.stageFilter);
     if (dealsState.responsibleFilter) params.set('assignee', dealsState.responsibleFilter);
     if (dealsState.activePipelineId) params.set('pipeline', dealsState.activePipelineId);
+    const scope = localStorage.getItem(SCOPE_LS_KEY) || (window.currentUser?.role === 'admin' ? 'all' : 'mine');
+    params.set('scope', scope);
 
     const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -3395,7 +3439,7 @@ function attachPipelineTabHandlers(el) {
 function renderDealsLayoutPaged(el) {
   el.innerHTML = `
     <div class="page-head">
-      <h1>Сделки <span class="count" id="deals-count">${dealsPagedState.total.toLocaleString('ru')}</span></h1>
+      <h1>Сделки <span class="count" id="deals-count">${dealsPagedState.total.toLocaleString('ru')}</span></h1>${scopeToggleHtml()}
       <div class="view-toggle">
         <button class="vt-btn" data-view="kanban">📊 Канбан</button>
         <button class="vt-btn active" data-view="list">📋 Список</button>
@@ -3420,6 +3464,7 @@ function renderDealsLayoutPaged(el) {
     <div id="deals-pager" class="pager"></div>
   `;
   attachPipelineTabHandlers(el);
+  attachScopeToggle(el, () => renderDeals(el));
 
   // Поиск: Enter → reset page 1 + fetch
   document.getElementById('deal-search').addEventListener('keydown', async e => {
@@ -3554,6 +3599,7 @@ function renderDealsLayout(el) {
     <div id="deals-content"></div>
   `;
   attachPipelineTabHandlers(el);
+  attachScopeToggle(el, () => renderDeals(el));
 
   document.getElementById('deal-search').addEventListener('input', e => {
     dealsState.search = e.target.value;
@@ -5423,7 +5469,7 @@ const contactsState = {
 async function renderContacts(el) {
   el.innerHTML = `
     <div class="page-head">
-      <h1>Контакты <span class="count" id="contacts-count">…</span></h1>
+      <h1>Контакты <span class="count" id="contacts-count">…</span></h1>${scopeToggleHtml()}
     </div>
     <div class="tb">
       <input class="tb-search" id="contacts-search" placeholder="🔍 Поиск по имени, телефону или email (Enter)" autocomplete="off" value="${escapeHtml(contactsState.searchTerm)}">
@@ -5460,6 +5506,7 @@ async function renderContacts(el) {
 
   // Юзеры (для имени ответственного) — грузятся параллельно из RTDB-proxy.
   ensureUsersLoaded();
+  attachScopeToggle(el, () => renderContacts(el));
   await loadContactsPage(contactsState.page || 1);
 }
 
@@ -5479,6 +5526,7 @@ async function loadContactsPage(page) {
       auth: idToken,
     });
     if (contactsState.searchTerm) params.set('q', contactsState.searchTerm);
+    params.set('scope', localStorage.getItem(SCOPE_LS_KEY) || (window.currentUser?.role === 'admin' ? 'all' : 'mine'));
 
     const r = await fetch(`${WORKER_LIST_URL}/contacts?${params}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -5898,7 +5946,7 @@ const TASK_PRIORITY_META = {
 async function renderTasks(el) {
   el.innerHTML = `
     <div class="page-head">
-      <h1>Задачи <span class="count" id="tasks-count">загрузка…</span></h1>
+      <h1>Задачи <span class="count" id="tasks-count">загрузка…</span></h1>${scopeToggleHtml()}
       <div class="view-toggle">
         <button class="vt-btn ${tasksState.view === 'kanban' ? 'active' : ''}" data-view="kanban">📊 Канбан</button>
         <button class="vt-btn ${tasksState.view === 'list' ? 'active' : ''}" data-view="list">📋 Список</button>
@@ -5987,8 +6035,9 @@ async function renderTasks(el) {
   // В kanban требуются ВСЕ задачи (для группировки по статусам и smart hierarchy).
   if (tasksState.view === 'list') {
     await Promise.all([ensureUsersLoaded(), ensureTaskReadState()]);
-    populateTaskAssigneeFilter();          // юзеры из usersState (полная база)
-    await loadTasksPage(1);                // server-side первая страница
+    populateTaskAssigneeFilter();
+    attachScopeToggle(el, () => renderTasks(el));
+    await loadTasksPage(1);
     renderTasksLayoutPaged();
   } else {
     // Kanban: лениво грузим full 38k tasks
@@ -6021,6 +6070,7 @@ async function loadTasksPage(page) {
     if (tasksState.searchTerm) params.set('q', tasksState.searchTerm);
     if (tasksState.filterStatus && tasksState.filterStatus !== 'all') params.set('status', tasksState.filterStatus);
     if (tasksState.filterAssignee && tasksState.filterAssignee !== 'all') params.set('assignee', tasksState.filterAssignee);
+    params.set('scope', localStorage.getItem(SCOPE_LS_KEY) || (window.currentUser?.role === 'admin' ? 'all' : 'mine'));
 
     const r = await fetch(`${WORKER_LIST_URL}/tasks?${params}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);

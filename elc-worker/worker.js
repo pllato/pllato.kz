@@ -60,6 +60,40 @@ async function requireAuth(request, env) {
   }
 }
 
+// Email-based identity: Firebase Auth uid у новых юзеров не совпадает с uid'ами
+// которые лежат в D1 (мигрированы из Bitrix). Email — единственный надёжный
+// ключ. Эта функция по auth-токену достаёт email → ищет user в D1 → возвращает
+// canonical (D1) uid + роль. Кешируется на уровне запроса.
+async function resolveCanonicalUser(env, claims) {
+  const email = (claims.email || '').toLowerCase().trim();
+  if (!email) return { firebaseUid: claims.user_id || claims.sub, email: '', canonicalUid: null, role: 'agent', userRecord: null };
+
+  // Найти запись в users по email (case-insensitive)
+  const userRow = await env.DB.prepare(
+    "SELECT uid, email, name, last_name, position, photo, active FROM users WHERE LOWER(email) = ? LIMIT 1"
+  ).bind(email).first();
+
+  const canonicalUid = userRow?.uid || (claims.user_id || claims.sub);
+
+  // Найти роль (default agent если нет записи)
+  const roleRow = await env.DB.prepare(
+    "SELECT role, department FROM user_roles WHERE uid = ?"
+  ).bind(canonicalUid).first();
+
+  // Hardcoded admin для Платона (защита если запись в user_roles потеряется)
+  const isPlatonByEmail = email === "uurraa@gmail.com";
+  const role = roleRow?.role || (isPlatonByEmail ? "admin" : "agent");
+
+  return {
+    firebaseUid: claims.user_id || claims.sub,
+    email,
+    canonicalUid,
+    role,
+    department: roleRow?.department || null,
+    userRecord: userRow || null,
+  };
+}
+
 // Auth flexible: принимает Authorization Bearer ИЛИ ?auth=token (Firebase RTDB совместимость)
 async function requireAuthFlexible(request, env) {
   const hdr = request.headers.get("Authorization") || "";
@@ -712,9 +746,9 @@ async function handleRtdbWrite(env, request, parts) {
 const LIST_CONFIG = {
   contacts: {
     keyCol: "id",
-    // Поля для LIKE-поиска. phones/emails — JSON-колонки, но LIKE по substring
-    // подмножества JSON-текста работает (например `%+7700%` найдёт телефон).
     searchFields: ["name", "last_name", "second_name", "phones", "emails"],
+    // Для scope=mine — где я хоть как-то связан с контактом
+    mineFields: ["responsible_uid", "created_by_uid", "modify_by_uid"],
     sorts: {
       created: "bitrix_date_create DESC",
       name: "last_name ASC, name ASC",
@@ -726,9 +760,10 @@ const LIST_CONFIG = {
     searchFields: ["title"],
     statusField: "status",
     assigneeField: "responsible_uid",
+    // scope=mine: responsible OR created_by OR changed_by OR accomplices(JSON LIKE) OR auditors(JSON LIKE)
+    mineFields: ["responsible_uid", "created_by_uid", "changed_by_uid"],
+    mineJsonFields: ["accomplices", "auditors"],
     sorts: {
-      // "новые с активностью вверх": сначала по changed_date, fallback на
-      // status_changed, далее created.
       activity: "COALESCE(bitrix_changed_date, bitrix_status_changed_date, bitrix_created_date) DESC",
       deadline: "deadline IS NULL, deadline ASC",
       created: "bitrix_created_date DESC",
@@ -742,6 +777,7 @@ const LIST_CONFIG = {
     stageField: "stage_id",
     closedField: "closed",
     pipelineField: "pipeline_id",
+    mineFields: ["responsible_uid", "created_by_uid", "modify_by_uid"],
     sorts: {
       modified: "bitrix_date_modify DESC",
       created: "bitrix_date_create DESC",
@@ -758,6 +794,9 @@ async function handleList(request, env, entity) {
   const cfg = LIST_CONFIG[entity];
   if (!cfg) return json({ error: "unknown entity", entity }, 404, request);
 
+  // Resolve canonical uid + role для scope-фильтрации
+  const me = await resolveCanonicalUser(env, auth.claims);
+
   const url = new URL(request.url);
   const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10) || 1);
   const pageSize = Math.min(200, Math.max(10, parseInt(url.searchParams.get("pageSize") || "50", 10) || 50));
@@ -768,6 +807,10 @@ async function handleList(request, env, entity) {
   const stage = (url.searchParams.get("stage") || "").trim();
   const closed = (url.searchParams.get("closed") || "").trim();
   const pipeline = (url.searchParams.get("pipeline") || "").trim();
+  // scope: mine (default для agent) | all (только admin); team — заглушка для будущего
+  let scope = (url.searchParams.get("scope") || "").trim();
+  if (!scope) scope = me.role === "admin" ? "all" : "mine";
+  if (scope === "all" && me.role !== "admin") scope = "mine"; // не-админам "all" запрещён
 
   const whereParts = [];
   const whereParams = [];
@@ -820,6 +863,26 @@ async function handleList(request, env, entity) {
     whereParams.push(pipeline);
   }
 
+  // scope=mine — фильтр на принадлежность записи юзеру
+  // (responsible/created/changed/modify по any field в mineFields + LIKE
+  // в JSON-полях accomplices/auditors)
+  if (scope === "mine" && me.canonicalUid) {
+    const orClauses = [];
+    for (const f of (cfg.mineFields || [])) {
+      orClauses.push(`${f} = ?`);
+      whereParams.push(me.canonicalUid);
+    }
+    for (const f of (cfg.mineJsonFields || [])) {
+      // accomplices: '["uid1","uid2",...]' → ищем '"uid"' substring (с кавычками
+      // чтобы не матчилось частично)
+      orClauses.push(`${f} LIKE ?`);
+      whereParams.push(`%"${me.canonicalUid}"%`);
+    }
+    if (orClauses.length) {
+      whereParts.push("(" + orClauses.join(" OR ") + ")");
+    }
+  }
+
   if (closed !== "" && closed !== "all" && cfg.closedField) {
     const n = parseInt(closed, 10);
     if (!Number.isNaN(n)) {
@@ -851,6 +914,11 @@ async function handleList(request, env, entity) {
     pageSize,
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
     hasMore: offset + items.length < total,
+    meta: {
+      scope,                     // mine|all (применённый)
+      role: me.role,             // текущая роль юзера
+      canonicalUid: me.canonicalUid,
+    },
   }), {
     status: 200,
     headers: {
@@ -1023,14 +1091,25 @@ async function handleHealth(request, env) {
 async function handleMe(request, env) {
   const auth = await requireAuth(request, env);
   if (auth.error) return json({ ok: false, error: auth.error }, auth.status, request);
-  const { results } = await env.DB.prepare(
-    "SELECT uid, email, name, last_name, position, active, photo FROM users WHERE uid = ?"
-  ).bind(auth.uid).all();
+
+  const me = await resolveCanonicalUser(env, auth.claims);
   return json({
     ok: true,
-    uid: auth.uid,
-    email: auth.email,
-    profile: results[0] ?? null,
+    firebaseUid: me.firebaseUid,
+    canonicalUid: me.canonicalUid,   // используется как responsible_uid в filters
+    email: me.email,
+    role: me.role,                   // admin | manager | agent
+    department: me.department,
+    profile: me.userRecord ? {
+      uid: me.userRecord.uid,
+      email: me.userRecord.email,
+      name: me.userRecord.name,
+      lastName: me.userRecord.last_name,
+      position: me.userRecord.position,
+      active: me.userRecord.active,
+      photo: me.userRecord.photo,
+    } : null,
+    isLinked: !!me.userRecord,        // false если email не нашёлся в users
   }, 200, request);
 }
 
