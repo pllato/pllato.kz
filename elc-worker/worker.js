@@ -807,10 +807,32 @@ async function handleList(request, env, entity) {
   const stage = (url.searchParams.get("stage") || "").trim();
   const closed = (url.searchParams.get("closed") || "").trim();
   const pipeline = (url.searchParams.get("pipeline") || "").trim();
-  // scope: mine (default для agent) | all (только admin); team — заглушка для будущего
+  // scope: mine | team | all
+  //   agent   — только mine (всё остальное downgrade'ится)
+  //   manager — mine | team (свой отдел); default team если есть department, иначе mine
+  //   admin   — mine | team | all; default all; может смотреть произвольный отдел через ?department=X
   let scope = (url.searchParams.get("scope") || "").trim();
-  if (!scope) scope = me.role === "admin" ? "all" : "mine";
-  if (scope === "all" && me.role !== "admin") scope = "mine"; // не-админам "all" запрещён
+  if (!scope) {
+    if (me.role === "admin") scope = "all";
+    else if (me.role === "manager") scope = me.department ? "team" : "mine";
+    else scope = "mine";
+  }
+  // Downgrade недозволенных scope'ов:
+  if (scope === "all" && me.role !== "admin") scope = "mine";
+  if (scope === "team" && me.role === "agent") scope = "mine";
+
+  // Какой department целевой для scope=team?
+  // - manager: всегда свой
+  // - admin: может явно передать ?department=X (peek в чужой отдел); если не передал — свой
+  let targetDepartment = me.department || null;
+  if (scope === "team" && me.role === "admin") {
+    const requested = (url.searchParams.get("department") || "").trim();
+    if (requested) targetDepartment = requested;
+  }
+  // Если manager без department попросил team — downgrade в mine
+  if (scope === "team" && me.role === "manager" && !targetDepartment) {
+    scope = "mine";
+  }
 
   const whereParts = [];
   const whereParams = [];
@@ -883,6 +905,44 @@ async function handleList(request, env, entity) {
     }
   }
 
+  // scope=team — все записи, в которых задействован любой участник отдела
+  // targetDepartment. Список uid'ов отдела достаём из user_roles одним запросом.
+  // Если в отделе никого нет (или отдел не задан) — пустой результат
+  // (вместо downgrade в "all", чтобы случайно не открыть admin'у чужие данные).
+  let teamMembers = null;
+  if (scope === "team") {
+    if (!targetDepartment) {
+      // Не должно случиться (manager без dept → mine уже выше), но на всякий
+      whereParts.push("1 = 0");
+    } else {
+      const { results: deptRows } = await env.DB.prepare(
+        "SELECT uid FROM user_roles WHERE department = ?"
+      ).bind(targetDepartment).all();
+      teamMembers = deptRows.map(r => r.uid);
+      if (teamMembers.length === 0) {
+        whereParts.push("1 = 0");
+      } else {
+        const placeholders = teamMembers.map(() => "?").join(",");
+        const orClauses = [];
+        for (const f of (cfg.mineFields || [])) {
+          orClauses.push(`${f} IN (${placeholders})`);
+          for (const uid of teamMembers) whereParams.push(uid);
+        }
+        // JSON-поля: для каждого uid отдельный LIKE — иначе IN не работает на JSON-substring.
+        // На отделе из ~10 человек × 2 JSON-поля = 20 LIKE-веток. Приемлемо.
+        for (const f of (cfg.mineJsonFields || [])) {
+          for (const uid of teamMembers) {
+            orClauses.push(`${f} LIKE ?`);
+            whereParams.push(`%"${uid}"%`);
+          }
+        }
+        if (orClauses.length) {
+          whereParts.push("(" + orClauses.join(" OR ") + ")");
+        }
+      }
+    }
+  }
+
   if (closed !== "" && closed !== "all" && cfg.closedField) {
     const n = parseInt(closed, 10);
     if (!Number.isNaN(n)) {
@@ -915,9 +975,12 @@ async function handleList(request, env, entity) {
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
     hasMore: offset + items.length < total,
     meta: {
-      scope,                     // mine|all (применённый)
+      scope,                     // mine|team|all (применённый)
       role: me.role,             // текущая роль юзера
       canonicalUid: me.canonicalUid,
+      department: me.department, // отдел текущего юзера
+      targetDepartment: scope === "team" ? targetDepartment : null,
+      teamSize: teamMembers ? teamMembers.length : null,
     },
   }), {
     status: 200,
@@ -1161,6 +1224,29 @@ async function handleAdminUpdateRole(request, env, targetUid) {
   return json({ ok: true, uid: targetUid, role, department }, 200, request);
 }
 
+// GET /api/admin/departments — список отделов с числом участников.
+// Используется фронтом как datalist подсказок (manager dept editing) +
+// в admin UI как фильтр "посмотреть отдел X".
+async function handleAdminListDepartments(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+
+  const { results } = await env.DB.prepare(`
+    SELECT department, COUNT(*) AS member_count
+    FROM user_roles
+    WHERE department IS NOT NULL AND department != ''
+    GROUP BY department
+    ORDER BY department
+  `).all();
+
+  const items = results.map(r => ({
+    department: r.department,
+    memberCount: r.member_count || 0,
+  }));
+
+  return json({ items, total: items.length }, 200, request);
+}
+
 async function handleAdminCreateUser(request, env) {
   const guard = await requireAdmin(request, env);
   if (guard.error) return json({ error: guard.error }, guard.status, request);
@@ -1298,6 +1384,9 @@ export default {
     }
     if (path === "/api/admin/users" && request.method === "POST") {
       return handleAdminCreateUser(request, env);
+    }
+    if (path === "/api/admin/departments" && request.method === "GET") {
+      return handleAdminListDepartments(request, env);
     }
     const userRoleMatch = path.match(/^\/api\/admin\/user-roles\/([^/]+)$/);
     if (userRoleMatch && request.method === "PATCH") {

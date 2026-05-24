@@ -2492,15 +2492,52 @@ onAuthStateChanged(auth, async user => {
 });
 
 // ── App init ─────────────────────────────────────────────
-// ── Scope toggle (Мои / Все) — для admin'ов ──────────────────────────────
+// ── Scope toggle (Мои / Команда / Все) — role-aware ──────────────────────
+// agent   → переключатель не показывается (всегда видит свои)
+// manager → Мои / Команда (если есть department)
+// admin   → Мои / Команда / Все
+function currentScopeDefault() {
+  const role = window.currentUser?.role;
+  const dept = window.currentUser?.department;
+  if (role === 'admin') return 'all';
+  if (role === 'manager') return dept ? 'team' : 'mine';
+  return 'mine';
+}
+
+function effectiveScope() {
+  // Учитываем сохранённый выбор, но фильтруем по правам:
+  //   manager не может выбрать 'all', agent — ни 'all' ни 'team'.
+  const role = window.currentUser?.role;
+  const dept = window.currentUser?.department;
+  const raw = localStorage.getItem(SCOPE_LS_KEY);
+  if (!raw) return currentScopeDefault();
+  if (raw === 'all' && role !== 'admin') return currentScopeDefault();
+  if (raw === 'team' && role === 'agent') return 'mine';
+  if (raw === 'team' && role === 'manager' && !dept) return 'mine';
+  return raw;
+}
+
 function scopeToggleHtml() {
-  // Только admin'у показываем переключатель. Не-admin всегда видит только свои.
-  if (window.currentUser?.role !== 'admin') return '';
-  const cur = localStorage.getItem(SCOPE_LS_KEY) || 'all';
-  return `<div class="scope-toggle" style="display:inline-flex;gap:4px;margin-left:10px">
-    <button class="vt-btn ${cur === 'mine' ? 'active' : ''}" data-scope="mine" title="Только мои записи">👤 Мои</button>
-    <button class="vt-btn ${cur === 'all' ? 'active' : ''}" data-scope="all" title="Все записи (admin)">🌐 Все</button>
-  </div>`;
+  const role = window.currentUser?.role;
+  const dept = window.currentUser?.department;
+  // agent — без переключателя
+  if (role !== 'admin' && role !== 'manager') return '';
+  // manager без отдела — переключать нечего (только 'mine')
+  if (role === 'manager' && !dept) return '';
+
+  const cur = effectiveScope();
+  const btns = [];
+  btns.push(`<button class="vt-btn ${cur === 'mine' ? 'active' : ''}" data-scope="mine" title="Только мои записи">👤 Мои</button>`);
+  if (role === 'admin' || (role === 'manager' && dept)) {
+    const label = role === 'manager'
+      ? `Мой отдел${dept ? ' · ' + escapeHtml(dept) : ''}`
+      : 'Отдел';
+    btns.push(`<button class="vt-btn ${cur === 'team' ? 'active' : ''}" data-scope="team" title="${label}">👥 Команда</button>`);
+  }
+  if (role === 'admin') {
+    btns.push(`<button class="vt-btn ${cur === 'all' ? 'active' : ''}" data-scope="all" title="Все записи (admin)">🌐 Все</button>`);
+  }
+  return `<div class="scope-toggle" style="display:inline-flex;gap:4px;margin-left:10px">${btns.join('')}</div>`;
 }
 
 function attachScopeToggle(rootEl, onChange) {
@@ -2516,7 +2553,7 @@ function attachScopeToggle(rootEl, onChange) {
 // currentUser — то что вернул worker /api/me. Включает canonicalUid (uid из
 // D1, к которому привязаны задачи/сделки/контакты по email) и role.
 window.currentUser = null;
-const SCOPE_LS_KEY = 'elc:listScope';   // mine | all per-user (persist выбора)
+const SCOPE_LS_KEY = 'elc:listScope';   // mine | team | all per-user (persist выбора)
 
 async function initApp(user) {
   console.log('[initApp] start, uid=', user.uid, 'email=', user.email);
@@ -3185,8 +3222,7 @@ async function loadDealsPage(page) {
     if (dealsState.stageFilter) params.set('stage', dealsState.stageFilter);
     if (dealsState.responsibleFilter) params.set('assignee', dealsState.responsibleFilter);
     if (dealsState.activePipelineId) params.set('pipeline', dealsState.activePipelineId);
-    const scope = localStorage.getItem(SCOPE_LS_KEY) || (window.currentUser?.role === 'admin' ? 'all' : 'mine');
-    params.set('scope', scope);
+    params.set('scope', effectiveScope());
 
     const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -5527,7 +5563,7 @@ async function loadContactsPage(page) {
       auth: idToken,
     });
     if (contactsState.searchTerm) params.set('q', contactsState.searchTerm);
-    params.set('scope', localStorage.getItem(SCOPE_LS_KEY) || (window.currentUser?.role === 'admin' ? 'all' : 'mine'));
+    params.set('scope', effectiveScope());
 
     const r = await fetch(`${WORKER_LIST_URL}/contacts?${params}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -6071,7 +6107,7 @@ async function loadTasksPage(page) {
     if (tasksState.searchTerm) params.set('q', tasksState.searchTerm);
     if (tasksState.filterStatus && tasksState.filterStatus !== 'all') params.set('status', tasksState.filterStatus);
     if (tasksState.filterAssignee && tasksState.filterAssignee !== 'all') params.set('assignee', tasksState.filterAssignee);
-    params.set('scope', localStorage.getItem(SCOPE_LS_KEY) || (window.currentUser?.role === 'admin' ? 'all' : 'mine'));
+    params.set('scope', effectiveScope());
 
     const r = await fetch(`${WORKER_LIST_URL}/tasks?${params}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -8069,14 +8105,21 @@ async function renderUsers(el) {
   if (isAdmin) {
     // Admin endpoint — расширенный список (с ролями, counts задач/сделок/контактов)
     const idToken = await fbAuth.currentUser.getIdToken();
-    const data = await fetch(`${WORKER_BASE_URL}/api/admin/users`, {
-      headers: { 'Authorization': `Bearer ${idToken}` },
-    }).then(r => r.ok ? r.json() : null).catch(() => null);
+    const [data, depts] = await Promise.all([
+      fetch(`${WORKER_BASE_URL}/api/admin/users`, {
+        headers: { 'Authorization': `Bearer ${idToken}` },
+      }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`${WORKER_BASE_URL}/api/admin/departments`, {
+        headers: { 'Authorization': `Bearer ${idToken}` },
+      }).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
 
     if (!data || !data.items) {
       document.getElementById('users-list').innerHTML = '<div class="empty">Ошибка загрузки списка</div>';
       return;
     }
+    // Сохраняем для использования в admin-функциях (datalist подсказки и пр.)
+    window.__elcDepartments = (depts && depts.items) || [];
     renderUsersAdminTable(data.items);
     document.getElementById('add-user-btn').onclick = openAddUserModal;
   } else {
@@ -8106,7 +8149,13 @@ async function renderUsers(el) {
 function renderUsersAdminTable(items) {
   const ROLE_LABELS = { admin: 'Админ', manager: 'Менеджер', agent: 'Сотрудник' };
   const ROLE_COLORS = { admin: 'var(--ac2)', manager: 'var(--gn)', agent: 'var(--t3)' };
-  let html = `<table class="dtable">
+  // datalist для отделов — собираем из admin/departments + ad-hoc из items на случай если эндпоинт упал
+  const deptSet = new Set();
+  for (const d of (window.__elcDepartments || [])) if (d.department) deptSet.add(d.department);
+  for (const u of items) if (u.department) deptSet.add(u.department);
+  const deptOpts = [...deptSet].sort().map(d => `<option value="${escapeHtml(d)}">`).join('');
+  let html = `<datalist id="elc-dept-list">${deptOpts}</datalist>
+    <table class="dtable">
     <thead><tr>
       <th>Имя</th>
       <th>Email</th>
@@ -8135,7 +8184,7 @@ function renderUsersAdminTable(items) {
         </select>
       </td>
       <td>
-        <input class="usr-dept-input" data-uid="${escapeHtml(u.uid)}" value="${escapeHtml(u.department || '')}" placeholder="—" style="background:var(--bg2);border:1px solid var(--b1);border-radius:4px;padding:3px 6px;color:var(--t1);font-size:12px;width:120px">
+        <input class="usr-dept-input" data-uid="${escapeHtml(u.uid)}" value="${escapeHtml(u.department || '')}" list="elc-dept-list" placeholder="—" style="background:var(--bg2);border:1px solid var(--b1);border-radius:4px;padding:3px 6px;color:var(--t1);font-size:12px;width:140px">
       </td>
       <td style="text-align:right;color:var(--t3);font-size:11px">${escapeHtml(counts)}</td>
       <td style="color:var(--t3);font-size:11px">${lastLogin}</td>
@@ -8210,7 +8259,7 @@ function openAddUserModal() {
             <option value="admin">Админ (видит всё)</option>
           </select>
         </div>
-        <div><div class="qad-label">Отдел</div><input id="au-department" class="qad-input" placeholder="(необязательно)"></div>
+        <div><div class="qad-label">Отдел</div><input id="au-department" class="qad-input" list="elc-dept-list" placeholder="(необязательно)"></div>
         <div class="dialer-hint">
           После создания сотрудник может зайти через Google под этим email
           — система автоматически свяжет его с записью.
