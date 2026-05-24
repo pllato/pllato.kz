@@ -3848,9 +3848,9 @@ function renderDealsKanban(c, arr) {
 
 // ── Звонки (caркас) ──────────────────────────────────────────────────────
 // placeCall(opts) — главная точка входа для click-to-call.
-// Сейчас провайдер 'tel-link' (открывает OS dialer + лог в D1).
-// Когда подключим SIP/WebRTC — внутри будем дёргать SIP.js .invite()
-// или Binotel/Voximplant SDK. Внешний интерфейс не изменится.
+// Использует SIP.js (WebRTC через Asterisk на Oracle VM) — браузерный звонок.
+// Outbound: invite sip:NUMBER@SIP_CONFIG.domain → Asterisk Dial PJSIP/NUMBER@binotel → PSTN.
+// Test extensions без Binotel: 9000 (echo) / 9001 (monkeys).
 async function placeCall(opts) {
   const { phone, contactId, dealId, contactName } = opts;
   if (!phone) { alert('Нет номера телефона'); return; }
@@ -3869,7 +3869,7 @@ async function placeCall(opts) {
         contactId: contactId || null,
         dealId: dealId || null,
         status: 'attempted',
-        provider: 'tel-link',
+        provider: 'sip-webrtc',
         startedAt: new Date().toISOString(),
       }),
     });
@@ -3881,7 +3881,7 @@ async function placeCall(opts) {
     console.warn('call log fail:', e);
   }
 
-  // 2. Показываем диалер (UI overlay) — пока без активного звонка
+  // 2. Показываем диалер (UI overlay) + запускаем SIP-звонок
   openDialerOverlay({ phone: normalizedPhone, contactName, contactId, dealId, callId });
 }
 
@@ -3889,6 +3889,7 @@ function openDialerOverlay(opts) {
   document.getElementById('_dialer-overlay')?.remove();
   const { phone, contactName, contactId, dealId, callId } = opts;
   const startedAt = Date.now();
+  let establishedAt = null;
 
   const ov = document.createElement('div');
   ov.id = '_dialer-overlay';
@@ -3901,16 +3902,15 @@ function openDialerOverlay(opts) {
     <div class="dialer-body">
       <div class="dialer-phone">${escapeHtml(phone)}</div>
       <div class="dialer-meta">${callId ? 'ID звонка: ' + callId : ''}</div>
-      <div class="dialer-status" id="dialer-status">Готов к набору</div>
+      <div class="dialer-status" id="dialer-status">Соединяемся…</div>
       <div class="dialer-actions">
-        <a class="dialer-btn dialer-btn-primary" id="dialer-tel" href="tel:${encodeURIComponent(phone)}">📞 Набрать в ОС</a>
-        <button class="dialer-btn dialer-btn-ghost" id="dialer-skip">Отмена</button>
+        <button class="dialer-btn dialer-btn-danger" id="dialer-hangup">📵 Завершить</button>
       </div>
-      <div class="dialer-hint">
-        SIP-провайдер не подключён. Звонок идёт через системный dialer (мобильный/SIP-телефон).<br>
-        После окончания нажмите статус ниже.
+      <div class="dialer-hint" id="dialer-hint">
+        Браузер запросит доступ к микрофону при первом звонке.<br>
+        Test: набрать <code>9000</code> — echo (свой голос).
       </div>
-      <div class="dialer-actions">
+      <div class="dialer-actions" id="dialer-log-actions" style="display:none">
         <button class="dialer-btn dialer-btn-primary" data-status="connected">✓ Разговор был</button>
         <button class="dialer-btn dialer-btn-ghost" data-status="no_answer">— Не ответил</button>
         <button class="dialer-btn dialer-btn-danger" data-status="failed">✗ Ошибка</button>
@@ -3919,15 +3919,52 @@ function openDialerOverlay(opts) {
   `;
   document.body.appendChild(ov);
 
-  document.getElementById('dialer-close').onclick = () => ov.remove();
-  document.getElementById('dialer-skip').onclick = () => ov.remove();
-  document.getElementById('dialer-tel').onclick = () => {
-    document.getElementById('dialer-status').textContent = 'Звоним через ОС...';
+  const $status = ov.querySelector('#dialer-status');
+  const $hangup = ov.querySelector('#dialer-hangup');
+  const $logActions = ov.querySelector('#dialer-log-actions');
+
+  const closeOverlay = () => { sipHangup().catch(()=>{}); ov.remove(); };
+  ov.querySelector('#dialer-close').onclick = closeOverlay;
+
+  $hangup.onclick = async () => {
+    $hangup.disabled = true;
+    await sipHangup();
+    $status.textContent = 'Завершён';
+    $hangup.style.display = 'none';
+    $logActions.style.display = '';
   };
+
+  // Стартуем SIP-звонок и обновляем статус по state-машине SIP.js
+  sipCall(phone, (state) => {
+    const map = {
+      'Initial':      'Соединяемся…',
+      'Establishing': 'Идёт вызов…',
+      'Established':  'Разговор',
+      'Terminating':  'Завершаем…',
+      'Terminated':   'Завершён',
+    };
+    $status.textContent = map[state] || state;
+    if (state === 'Established') {
+      establishedAt = Date.now();
+      $status.classList.add('dialer-status-active');
+    }
+    if (state === 'Terminated') {
+      $hangup.style.display = 'none';
+      $logActions.style.display = '';
+      ov.querySelector('#dialer-hint')?.remove();
+    }
+  }).catch(err => {
+    console.error('[SIP] call failed:', err);
+    $status.textContent = 'Ошибка: ' + (err?.message || err);
+    $hangup.style.display = 'none';
+    $logActions.style.display = '';
+  });
+
+  // Кнопки финального статуса в D1
   ov.querySelectorAll('[data-status]').forEach(btn => {
     btn.onclick = async () => {
       const finalStatus = btn.dataset.status;
-      const duration = Math.round((Date.now() - startedAt) / 1000);
+      const duration = establishedAt ? Math.round((Date.now() - establishedAt) / 1000) : 0;
       if (callId) {
         try {
           const idToken = await fbAuth.currentUser.getIdToken();
@@ -5492,6 +5529,113 @@ const WORKER_LIST_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/list';
 const WORKER_FILES_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/files';
 const WORKER_CALL_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/call';
 const WORKER_BASE_URL = 'https://pllato-elc-worker.uurraa.workers.dev';
+
+// ── SIP / WebRTC config ──────────────────────────────────────────────────
+// Браузерный SIP-клиент (SIP.js) подключается через WSS к Asterisk на Oracle VM.
+// Outbound calls идут через extension dial → Asterisk → Binotel trunk → PSTN.
+// Test extensions: 9000 = echo loopback (свой голос), 9001 = monkeys.ulaw.
+// При смене сервера/пароля Asterisk — поменять SIP_CONFIG в одном месте.
+const SIP_CONFIG = {
+  domain:   '130-61-243-44.nip.io',
+  wss:      'wss://130-61-243-44.nip.io:8089/ws',
+  user:     '100',
+  password: 'bd4d73e9a080f3386bc2a60b231715d8', // TODO: вытащить через /api/sip-token (auth-gated short-lived)
+  stun:     'stun:130-61-243-44.nip.io:3478',
+  esmUrl:   'https://cdn.jsdelivr.net/npm/sip.js@0.21.2/+esm',
+};
+let _sipModule = null;
+let _sipUA = null;
+let _sipRegisterer = null;
+let _sipSession = null;
+let _sipAudio = null;
+
+async function sipModule() {
+  if (_sipModule) return _sipModule;
+  _sipModule = await import(SIP_CONFIG.esmUrl);
+  return _sipModule;
+}
+function sipAudioEl() {
+  if (_sipAudio) return _sipAudio;
+  _sipAudio = document.createElement('audio');
+  _sipAudio.id = '_sip-audio';
+  _sipAudio.autoplay = true;
+  document.body.appendChild(_sipAudio);
+  return _sipAudio;
+}
+async function sipInit() {
+  if (_sipUA && _sipUA.state === 'Started') return _sipUA;
+  const SIP = await sipModule();
+  const ua = new SIP.UserAgent({
+    uri: SIP.UserAgent.makeURI(`sip:${SIP_CONFIG.user}@${SIP_CONFIG.domain}`),
+    authorizationUsername: SIP_CONFIG.user,
+    authorizationPassword: SIP_CONFIG.password,
+    transportOptions: { server: SIP_CONFIG.wss },
+    sessionDescriptionHandlerFactoryOptions: {
+      iceGatheringTimeout: 1000,
+      peerConnectionConfiguration: {
+        iceServers: [{ urls: SIP_CONFIG.stun }],
+      },
+    },
+    delegate: {
+      // Incoming звонок (Binotel → browser). Сейчас auto-reject — UI потом.
+      onInvite: (inv) => { try { inv.reject(); } catch(_){} },
+    },
+  });
+  await ua.start();
+  _sipUA = ua;
+  _sipRegisterer = new SIP.Registerer(ua);
+  await _sipRegisterer.register();
+  console.log('[SIP] registered as', SIP_CONFIG.user, '@', SIP_CONFIG.domain);
+  return ua;
+}
+async function sipCall(phone, onState) {
+  const SIP = await sipModule();
+  await sipInit();
+  await sipHangup(); // close previous if any
+  const target = SIP.UserAgent.makeURI(`sip:${phone}@${SIP_CONFIG.domain}`);
+  if (!target) throw new Error('Invalid SIP URI: ' + phone);
+  const inviter = new SIP.Inviter(_sipUA, target, {
+    sessionDescriptionHandlerOptions: { constraints: { audio: true, video: false } },
+  });
+  _sipSession = inviter;
+  inviter.stateChange.addListener((state) => {
+    onState?.(state);
+    if (state === SIP.SessionState.Established) {
+      const pc = inviter.sessionDescriptionHandler?.peerConnection;
+      if (pc) {
+        const stream = new MediaStream();
+        pc.getReceivers().forEach(r => r.track && stream.addTrack(r.track));
+        sipAudioEl().srcObject = stream;
+      }
+    }
+    if (state === SIP.SessionState.Terminated) {
+      sipAudioEl().srcObject = null;
+      if (_sipSession === inviter) _sipSession = null;
+    }
+  });
+  await inviter.invite();
+  return inviter;
+}
+async function sipHangup() {
+  if (!_sipSession) return;
+  try {
+    const SIP = await sipModule();
+    const s = _sipSession;
+    if (s.state === SIP.SessionState.Established) await s.bye();
+    else if (s.state === SIP.SessionState.Establishing) await s.cancel();
+    else if (s.state === SIP.SessionState.Initial) await s.cancel();
+  } catch (e) { console.warn('[SIP] hangup err:', e); }
+  _sipSession = null;
+  if (_sipAudio) _sipAudio.srcObject = null;
+}
+// Debug в Console: window.elcSip.{init,call,hangup,state}
+window.elcSip = {
+  init: sipInit,
+  call: sipCall,
+  hangup: sipHangup,
+  get state() { return _sipSession?.state || 'idle'; },
+  get ua() { return _sipUA; },
+};
 const CONTACTS_PAGE_SIZE = 50;
 const contactsState = {
   page: 1,
