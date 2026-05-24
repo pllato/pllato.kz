@@ -646,6 +646,16 @@ export function createInvoiceFromDeal(dealId, extra = {}) {
     note: extra.note || "",
     status: "draft",
   });
+  // Закрываем workflow-петлю: после создания накладной заказ автоматически
+  // переходит в статус «отгружен». Импорт через require, чтобы не создавать
+  // циклической зависимости (deal_items.js импортирует warehouse.js).
+  try {
+    import("./deal_items.js").then((mod) => {
+      mod.markDealOrderShipped(dealId, { invoiceId: doc.id, invoiceNumber: doc.number });
+    });
+  } catch (e) {
+    console.warn("[warehouse] не удалось пометить заказ отгруженным:", e);
+  }
   return { doc, created: true };
 }
 

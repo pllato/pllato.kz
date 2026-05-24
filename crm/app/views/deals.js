@@ -28,7 +28,7 @@ import { renderTypeahead, attachTypeahead } from "../typeahead.js";
 import { captureUtmFromUrl, enrichWithStoredUtm, renderUtmFormSection, renderUtmBadge, readUtmFromFormData, listKnownSources, getSourcePreset, UTM_SOURCE_PRESETS } from "../utm.js";
 import { openUtmReport } from "../utm_report.js";
 import { renderContacts } from "./contacts.js";
-import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal, listDealItems, dealItemsTotal, approveDealOrder, revokeDealOrderApproval, ORDER_STATUS_PRELIMINARY, ORDER_STATUS_APPROVED } from "../deal_items.js";
+import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal, listDealItems, dealItemsTotal, approveDealOrder, revokeDealOrderApproval, ORDER_STATUS_PRELIMINARY, ORDER_STATUS_APPROVED, ORDER_STATUS_SHIPPED } from "../deal_items.js";
 import { findInvoiceByDeal, createInvoiceFromDeal } from "../warehouse.js";
 import { listChannels } from "../channels.js";
 import { renderCalls } from "./calls.js";
@@ -1905,10 +1905,11 @@ function renderDealActionBar(d, contact) {
     ? `Расходная накладная № ${invoice.number} (открыть)`
     : (canMakeInvoice ? "Создать расходную накладную из позиций заказа" : "Сначала добавь позиции в заказ");
   // Согласование заказа на отгрузку (для статуса 'preliminary' — показываем кнопку «✓ Согласовать»,
-  // для 'approved' — «↶ Отозвать согласование»).
+  // для 'approved' — «↶ Отозвать согласование», для 'shipped' — статичный бейдж).
   const orderStatus = d?.orderStatus || null;
   const isPreliminary = orderStatus === ORDER_STATUS_PRELIMINARY;
   const isApproved = orderStatus === ORDER_STATUS_APPROVED;
+  const isShipped = orderStatus === ORDER_STATUS_SHIPPED;
   return `
     <footer class="deal-action-bar">
       <button type="button" class="deal-action-btn" id="actionBarCall" ${!hasPhone ? "disabled" : ""} title="${hasPhone ? "Позвонить" : noPhoneTitle}">
@@ -1935,6 +1936,12 @@ function renderDealActionBar(d, contact) {
           <span class="dab-emoji">↶</span>
           <span>Отозвать согласование</span>
         </button>
+      ` : ""}
+      ${isShipped ? `
+        <div class="deal-action-status-shipped" title="Заказ уже отгружен — накладная сформирована">
+          <span class="dab-emoji">✅</span>
+          <span>Отгружено${d.orderInvoiceNumber ? ` · № ${escape(d.orderInvoiceNumber)}` : ""}</span>
+        </div>
       ` : ""}
       <button type="button" class="deal-action-btn deal-action-btn-invoice" id="actionBarInvoice" ${canMakeInvoice ? "" : "disabled"} title="${escapeAttr(invoiceTitle)}" data-invoice-id="${escapeAttr(invoice?.id || "")}">
         <span class="dab-emoji">📄</span>

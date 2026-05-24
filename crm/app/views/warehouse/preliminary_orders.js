@@ -4,7 +4,7 @@
 
 import { ICONS } from "../../icons.js";
 import { Store } from "../../store.js";
-import { listPreliminaryDealOrders, listApprovedDealOrders, listDealItems, dealItemsTotal, recallDealOrder, approveDealOrder, revokeDealOrderApproval } from "../../deal_items.js";
+import { listPreliminaryDealOrders, listApprovedDealOrders, listShippedDealOrders, listDealItems, dealItemsTotal, recallDealOrder, approveDealOrder, revokeDealOrderApproval } from "../../deal_items.js";
 import { productSummary, getWarehouseProduct } from "../../warehouse.js";
 
 function escapeHtml(s) {
@@ -86,7 +86,7 @@ function renderOrderCard(deal, kind) {
   const shortage = hasShortage(items);
   const positionsLabel = `${items.length} ${items.length === 1 ? "позиция" : (items.length >= 2 && items.length <= 4 ? "позиции" : "позиций")}`;
   return `
-    <div class="po-card ${shortage ? "has-shortage" : ""} ${kind === "approved" ? "is-approved" : ""}" data-deal-id="${escapeAttr(deal.id)}">
+    <div class="po-card ${shortage ? "has-shortage" : ""} ${kind === "approved" ? "is-approved" : ""} ${kind === "shipped" ? "is-shipped" : ""}" data-deal-id="${escapeAttr(deal.id)}">
       <div class="po-card-head">
         <div class="po-card-title">
           <a href="#crm/${escapeAttr(deal.id)}" class="po-deal-link">
@@ -101,22 +101,27 @@ function renderOrderCard(deal, kind) {
           ${kind === "preliminary"
             ? `<div class="po-card-date">Отправлен: ${fmtDateTime(deal.orderSubmittedAt)}</div>
                ${deal.orderSubmittedByName ? `<div class="po-card-by">от ${escapeHtml(deal.orderSubmittedByName)}</div>` : ""}`
-            : `<div class="po-card-date">Согласовано: ${fmtDateTime(deal.orderApprovedAt)}</div>
+            : kind === "approved"
+            ? `<div class="po-card-date">Согласовано: ${fmtDateTime(deal.orderApprovedAt)}</div>
                ${deal.orderApprovedByName ? `<div class="po-card-by">${escapeHtml(deal.orderApprovedByName)}</div>` : ""}`
+            : `<div class="po-card-date">Отгружено: ${fmtDateTime(deal.orderShippedAt)}</div>
+               ${deal.orderInvoiceNumber ? `<div class="po-card-by">накладная № ${escapeHtml(deal.orderInvoiceNumber)}</div>` : ""}`
           }
         </div>
       </div>
       <details class="po-card-details">
         <summary>
           ${positionsLabel}
-          ${shortage ? `<span class="po-warning-tag">⚠ Не хватает на складе</span>` : ""}
+          ${shortage && kind !== "shipped" ? `<span class="po-warning-tag">⚠ Не хватает на складе</span>` : ""}
         </summary>
         <div class="po-card-body">
           ${renderOrderDetailItems(deal.id)}
           <div class="po-card-actions" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
             ${kind === "preliminary"
               ? `<button type="button" class="btn-primary" data-po-approve="${escapeAttr(deal.id)}">✓ Согласовать на отгрузку</button>`
-              : `<button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}">↶ Отозвать согласование</button>`
+              : kind === "approved"
+              ? `<button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}">↶ Отозвать согласование</button>`
+              : `<span class="po-shipped-label">✅ Отгружено${deal.orderInvoiceNumber ? ` · накладная № ${escapeHtml(deal.orderInvoiceNumber)}` : ""}</span>`
             }
           </div>
         </div>
@@ -128,12 +133,17 @@ function renderOrderCard(deal, kind) {
 export function renderPreliminaryOrdersView() {
   const preliminary = listPreliminaryDealOrders();
   const approved = listApprovedDealOrders();
+  const shipped = listShippedDealOrders().slice(0, 20); // последние 20 отгрузок
 
   return `
     <section class="whm-section po-view">
       <div class="po-header">
         <h2>Заказы со склада</h2>
-        <div class="po-meta">Предварительные: <strong>${preliminary.length}</strong> · Согласованы: <strong>${approved.length}</strong></div>
+        <div class="po-meta">
+          Предварительные: <strong>${preliminary.length}</strong> ·
+          Согласованы: <strong>${approved.length}</strong> ·
+          Отгружены: <strong>${shipped.length}${listShippedDealOrders().length > 20 ? "+" : ""}</strong>
+        </div>
       </div>
 
       <div class="po-kanban">
@@ -153,7 +163,7 @@ export function renderPreliminaryOrdersView() {
 
         <div class="po-col">
           <div class="po-col-head">
-            <span class="po-col-dot" style="--col:#16a34a"></span>
+            <span class="po-col-dot" style="--col:#f59e0b"></span>
             <span class="po-col-title">Согласованы на отгрузку</span>
             <span class="po-col-count">${approved.length}</span>
           </div>
@@ -161,6 +171,20 @@ export function renderPreliminaryOrdersView() {
             ${approved.length === 0
               ? `<div class="po-empty"><div class="po-empty-icon">✅</div><div class="po-empty-text">Пусто. Нажми «✓ Согласовать на отгрузку» в карточке предзаказа, чтобы перевести сюда.</div></div>`
               : approved.map((d) => renderOrderCard(d, "approved")).join("")
+            }
+          </div>
+        </div>
+
+        <div class="po-col">
+          <div class="po-col-head">
+            <span class="po-col-dot" style="--col:#16a34a"></span>
+            <span class="po-col-title">Отгружены</span>
+            <span class="po-col-count">${shipped.length}</span>
+          </div>
+          <div class="po-col-body">
+            ${shipped.length === 0
+              ? `<div class="po-empty"><div class="po-empty-icon">📤</div><div class="po-empty-text">Пусто. Сюда заказы попадают автоматически после формирования накладной из карточки сделки.</div></div>`
+              : shipped.map((d) => renderOrderCard(d, "shipped")).join("")
             }
           </div>
         </div>

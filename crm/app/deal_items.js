@@ -12,6 +12,7 @@ const DEALS = "deals";
 export const ORDER_STATUS_DRAFT = "draft";
 export const ORDER_STATUS_PRELIMINARY = "preliminary";
 export const ORDER_STATUS_APPROVED = "approved";
+export const ORDER_STATUS_SHIPPED = "shipped";
 
 // State модалки (один заказ в один момент времени)
 const modalState = {
@@ -149,6 +150,54 @@ export function approveDealOrder(dealId) {
     });
   } catch (e) {
     console.warn("[deal_items] не удалось добавить activity order_approved:", e);
+  }
+  return updated;
+}
+
+/**
+ * Заказы, по которым уже сформирована накладная — отгружены.
+ * Сортировка по времени отгрузки (последние сверху).
+ */
+export function listShippedDealOrders() {
+  return Store.list(DEALS)
+    .filter((d) => d.orderStatus === ORDER_STATUS_SHIPPED && !d.isDeleted)
+    .sort((a, b) => (b.orderShippedAt || 0) - (a.orderShippedAt || 0));
+}
+
+/**
+ * Перевести заказ в статус «отгружен». Вызывается из createInvoiceFromDeal()
+ * сразу после успешного создания расходной накладной.
+ * Идемпотентность: если уже shipped — ничего не делаем.
+ *
+ * @param {string} dealId
+ * @param {{ invoiceId?: string, invoiceNumber?: string }} extra
+ */
+export function markDealOrderShipped(dealId, extra = {}) {
+  const deal = Store.get(DEALS, dealId);
+  if (!deal) return null;
+  if (deal.orderStatus === ORDER_STATUS_SHIPPED) return deal;
+  const me = currentEmployee();
+  const now = Date.now();
+  const updated = Store.update(DEALS, dealId, {
+    orderStatus: ORDER_STATUS_SHIPPED,
+    orderShippedAt: now,
+    orderShippedBy: me?.id || null,
+    orderShippedByName: me?.name || me?.email || "",
+    orderInvoiceId: extra.invoiceId || null,
+    orderInvoiceNumber: extra.invoiceNumber || null,
+  });
+  try {
+    Store.create("deal_activities", {
+      dealId,
+      type: "order_shipped",
+      text: extra.invoiceNumber
+        ? `Заказ отгружен — накладная № ${extra.invoiceNumber}`
+        : "Заказ отгружен",
+      authorId: me?.id || null,
+      ts: now,
+    });
+  } catch (e) {
+    console.warn("[deal_items] не удалось добавить activity order_shipped:", e);
   }
   return updated;
 }
