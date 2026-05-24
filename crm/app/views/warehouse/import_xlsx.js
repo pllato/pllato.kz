@@ -59,6 +59,9 @@ const importState = {
   //   'localStorage' — старое поведение (упирается в ~10 МБ для всего сайта).
   //   'skip'         — не сохранять историю, только остатки/партии.
   movementsTarget: "indexeddb",
+  // То же для документов: книги учёта дают 10k+ накладных, в localStorage
+  // (~6 МБ) не помещаются.
+  documentsTarget: "indexeddb",
 };
 
 // ---------- HTML ----------
@@ -146,10 +149,18 @@ function renderPreview(parsed) {
           </select>
         </div>
         <div>
-          <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase">История движений</label>
+          <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase">Документы</label>
+          <select data-wh-documents-target class="select" style="margin-left:6px">
+            <option value="indexeddb" ${importState.documentsTarget === "indexeddb" ? "selected" : ""}>IndexedDB (рекомендуется)</option>
+            <option value="localStorage" ${importState.documentsTarget === "localStorage" ? "selected" : ""}>localStorage</option>
+            <option value="skip" ${importState.documentsTarget === "skip" ? "selected" : ""}>Не сохранять</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase">Движения</label>
           <select data-wh-movements-target class="select" style="margin-left:6px">
             <option value="indexeddb" ${importState.movementsTarget === "indexeddb" ? "selected" : ""}>IndexedDB (рекомендуется)</option>
-            <option value="localStorage" ${importState.movementsTarget === "localStorage" ? "selected" : ""}>localStorage (для маленьких файлов)</option>
+            <option value="localStorage" ${importState.movementsTarget === "localStorage" ? "selected" : ""}>localStorage</option>
             <option value="skip" ${importState.movementsTarget === "skip" ? "selected" : ""}>Не сохранять</option>
           </select>
         </div>
@@ -273,6 +284,8 @@ export function initWarehouseImportView(root) {
       importState.entity = e.target.value;
     } else if (e.target.matches("[data-wh-movements-target]")) {
       importState.movementsTarget = e.target.value;
+    } else if (e.target.matches("[data-wh-documents-target]")) {
+      importState.documentsTarget = e.target.value;
     } else if (e.target.matches("[data-wh-sheet]")) {
       const idx = Number(e.target.dataset.whSheet);
       const sheetName = importState.parsed?.sheetSummaries[idx]?.sheetName;
@@ -747,7 +760,11 @@ async function runImport(host) {
     }
     const movements = importState.parsed.movements.filter(m => allowedProductIds.has(m.productImportedId));
 
-    const payload = { products, lots, documents, movements, movementsTarget: importState.movementsTarget };
+    const payload = {
+      products, lots, documents, movements,
+      movementsTarget: importState.movementsTarget,
+      documentsTarget: importState.documentsTarget,
+    };
 
     // onProgress всегда ищет актуальный узел в DOM — не использует устаревший host
     const onProgress = (p) => {

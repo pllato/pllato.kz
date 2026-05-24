@@ -566,6 +566,23 @@ export function getWarehouseDocument(docId) {
   return docId ? Store.get(WH.documents, docId) : null;
 }
 
+/**
+ * Async-вариант: сначала смотрит в localStorage Store, затем (если нет)
+ * в IndexedDB (импортированные книгой учёта документы).
+ */
+export async function getWarehouseDocumentAsync(docId) {
+  if (!docId) return null;
+  const local = Store.get(WH.documents, docId);
+  if (local) return local;
+  try {
+    const { getDocumentById } = await import("./wh_documents_db.js");
+    return await getDocumentById(docId);
+  } catch (err) {
+    console.warn("[warehouse] IndexedDB документов недоступен:", err);
+    return null;
+  }
+}
+
 export function createWarehouseDocument(payload = {}) {
   const actor = meActor();
   const type = payload.type || "receipt";
@@ -1170,8 +1187,15 @@ export async function importWarehouseBatch(payload = {}, onProgress) {
 
   const products = Array.isArray(payload.products) ? payload.products : [];
   const lots = Array.isArray(payload.lots) ? payload.lots : [];
-  const documents = Array.isArray(payload.documents) ? payload.documents : [];
+  const documentsInput = Array.isArray(payload.documents) ? payload.documents : [];
   const movementsInput = Array.isArray(payload.movements) ? payload.movements : [];
+
+  // Куда писать документы: 'indexeddb' (по умолчанию) | 'localstorage' | 'skip'.
+  // 10000+ документов из книги учёта тоже не помещаются в localStorage (~6 МБ
+  // на 10k строк), поэтому по умолчанию IDB.
+  let documentsTarget = String(payload.documentsTarget || "indexeddb").toLowerCase();
+  if (!["indexeddb", "localstorage", "skip"].includes(documentsTarget)) documentsTarget = "indexeddb";
+  const documents = (documentsTarget === "localstorage") ? documentsInput : [];
 
   // Куда писать движения:
   // - 'indexeddb' (по умолчанию) — в IndexedDB (лимит 50+ МБ, помещаются десятки
@@ -1268,12 +1292,20 @@ export async function importWarehouseBatch(payload = {}, onProgress) {
   }
 
   // === Документы ===
-  progress({ stage: "documents", percent: 38, message: `Документы (${documents.length})…` });
+  // Для documentsTarget='indexeddb' собираем в отдельный массив (потом async),
+  // для 'localstorage' — push в documentsArr (старое поведение),
+  // для 'skip' — пропускаем (но id-маппинг всё равно строим, чтобы движения
+  // имели валидный docId).
+  const documentsSource = (documentsTarget === "localstorage") ? documents : documentsInput;
+  const documentsForIDB = (documentsTarget === "indexeddb") ? [] : null;
+  const docTargetLabel = documentsTarget === "indexeddb" ? "IndexedDB" :
+                          documentsTarget === "skip" ? "пропуск" : "localStorage";
+  progress({ stage: "documents", percent: 38, message: `Документы (${documentsSource.length}) → ${docTargetLabel}…` });
   await importYield();
 
   const docImportedIdToRealId = new Map();
-  for (let i = 0; i < documents.length; i++) {
-    const doc = documents[i];
+  for (let i = 0; i < documentsSource.length; i++) {
+    const doc = documentsSource[i];
     const id = nextId();
     docImportedIdToRealId.set(doc.importedId, id);
 
@@ -1285,22 +1317,47 @@ export async function importWarehouseBatch(payload = {}, onProgress) {
       lotImportedId: undefined,
     }));
 
-    documentsArr.push({
+    const record = {
       ...doc,
       id,
       items,
       createdAt: now,
       updatedAt: now,
-    });
+    };
+    if (documentsTarget === "indexeddb") {
+      documentsForIDB.push(record);
+    } else if (documentsTarget === "localstorage") {
+      documentsArr.push(record);
+    }
+    // skip — никуда не пишем, но id-маппинг построен (выше)
     result.documentsCreated += 1;
 
     if (i > 0 && i % 2000 === 0) {
       progress({
         stage: "documents",
-        percent: 38 + Math.floor((i / Math.max(documents.length, 1)) * 12),
-        message: `Документы ${i} из ${documents.length}…`,
+        percent: 38 + Math.floor((i / Math.max(documentsSource.length, 1)) * 8),
+        message: `Документы ${i} из ${documentsSource.length}…`,
       });
       await importYield();
+    }
+  }
+
+  // Запись документов в IndexedDB.
+  if (documentsTarget === "indexeddb" && documentsForIDB && documentsForIDB.length > 0) {
+    try {
+      const { putManyDocuments } = await import("./wh_documents_db.js");
+      const totalIDB = documentsForIDB.length;
+      await putManyDocuments(documentsForIDB, (done) => {
+        const pct = 47 + Math.floor((done / Math.max(totalIDB, 1)) * 3);
+        progress({
+          stage: "documents-idb",
+          percent: pct,
+          message: `IndexedDB документы: ${done.toLocaleString("ru-RU")} из ${totalIDB.toLocaleString("ru-RU")}…`,
+        });
+      });
+    } catch (err) {
+      console.warn("[warehouse-import] не удалось сохранить документы в IndexedDB:", err);
+      result.conflicts.push({ kind: "documents_idb", reason: "indexeddb_failed", message: err?.message || String(err) });
     }
   }
 
@@ -1418,7 +1475,11 @@ export async function importWarehouseBatch(payload = {}, onProgress) {
 
     progress({ stage: "save", percent: 93, message: "Сериализация документов…" });
     await importYield();
-    documentsJson = JSON.stringify(documentsArr);
+    // Для localStorage-target — сериализуем обычно. Для indexeddb/skip —
+    // документы уже сохранены отдельно, в localStorage оставляем snapshot.
+    documentsJson = (documentsTarget === "localstorage")
+      ? JSON.stringify(documentsArr)
+      : (snapshot[WH.documents] || "[]");
 
     progress({ stage: "save", percent: 95, message: "Сериализация движений…" });
     await importYield();
@@ -1445,11 +1506,14 @@ export async function importWarehouseBatch(payload = {}, onProgress) {
     localStorage.setItem(STORE_NS + WH.lots, lotsJson);
 
     progress({ stage: "save", percent: 98, message: "Сохранение документов…" });
-    await importYield();
-    localStorage.setItem(STORE_NS + WH.documents, documentsJson);
+    // Документы в localStorage пишем только при documentsTarget='localstorage'.
+    // Для IndexedDB/skip — пропускаем (уже в IDB или игнор).
+    if (documentsTarget === "localstorage") {
+      await importYield();
+      localStorage.setItem(STORE_NS + WH.documents, documentsJson);
+    }
 
-    // Движения в localStorage пишем только при target='localstorage'.
-    // Для IndexedDB/skip пропускаем (там либо уже сохранено отдельно, либо игнор).
+    // Движения в localStorage пишем только при movementsTarget='localstorage'.
     if (movementsTarget === "localstorage") {
       progress({ stage: "save", percent: 99, message: "Сохранение движений…" });
       await importYield();
