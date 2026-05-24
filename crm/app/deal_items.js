@@ -712,6 +712,7 @@ function wireModalHandlers() {
     }
   });
   // Отгрузить и сформировать накладную (создаёт З-2, переводит заказ в shipped).
+  // Авто-печать НЕ запускаем — пользователь сам нажмёт «📄 Открыть накладную» когда нужно.
   root.querySelector("[data-deal-order-ship]")?.addEventListener("click", async (e) => {
     e.preventDefault();
     if (!confirm("Сформировать расходную накладную и закрыть заказ? Заказ перейдёт в «Отгружены».")) return;
@@ -734,10 +735,9 @@ function wireModalHandlers() {
         totalAmount: dealItemsTotal(dealId),
         note: `Накладная по сделке «${deal.title || ""}»`,
       });
+      // Синхронно переводим заказ в shipped (markDealOrderShipped из этого же модуля).
+      markDealOrderShipped(dealId, { invoiceId: doc.id, invoiceNumber: doc.number });
       refreshModal();
-      // Сразу открыть печать З-2.
-      const print = await import("./views/warehouse/invoice_print.js");
-      print.printInvoiceZ2(doc.id);
     } catch (err) {
       alert("Не удалось сформировать накладную: " + (err?.message || String(err)));
     }

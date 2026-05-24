@@ -4,7 +4,7 @@
 
 import { ICONS } from "../../icons.js";
 import { Store } from "../../store.js";
-import { listPreliminaryDealOrders, listApprovedDealOrders, listShippedDealOrders, listDealItems, dealItemsTotal, recallDealOrder, approveDealOrder, revokeDealOrderApproval } from "../../deal_items.js";
+import { listPreliminaryDealOrders, listApprovedDealOrders, listShippedDealOrders, listDealItems, dealItemsTotal, recallDealOrder, approveDealOrder, revokeDealOrderApproval, markDealOrderShipped } from "../../deal_items.js";
 import { productSummary, getWarehouseProduct, createInvoiceFromDeal } from "../../warehouse.js";
 
 function escapeHtml(s) {
@@ -122,7 +122,8 @@ function renderOrderCard(deal, kind) {
               : kind === "approved"
               ? `<button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}">↶ Отозвать</button>
                  <button type="button" class="btn-primary" data-po-ship="${escapeAttr(deal.id)}" title="Заказ перейдёт в «Отгружены», сформируется расходная накладная З-2">📦 Отгрузить и сформировать накладную</button>`
-              : `<span class="po-shipped-label">✅ Отгружено${deal.orderInvoiceNumber ? ` · накладная № ${escapeHtml(deal.orderInvoiceNumber)}` : ""}</span>`
+              : `<span class="po-shipped-label">✅ Отгружено${deal.orderInvoiceNumber ? ` · № ${escapeHtml(deal.orderInvoiceNumber)}` : ""}</span>
+                 ${deal.orderInvoiceId ? `<button type="button" class="btn-ghost" data-po-print="${escapeAttr(deal.orderInvoiceId)}" title="Открыть для печати/сохранения в PDF">📄 Открыть накладную</button>` : ""}`
             }
           </div>
         </div>
@@ -236,7 +237,7 @@ export function wirePreliminaryOrdersEvents(container) {
       if (!confirm("Сформировать расходную накладную и закрыть заказ? Заказ перейдёт в «Отгружены».")) return;
       try {
         const contact = deal.contactId ? Store.get("contacts", deal.contactId) : null;
-        const { doc, created } = createInvoiceFromDeal(dealId, {
+        const { doc } = createInvoiceFromDeal(dealId, {
           counterpartyContactId: deal.contactId || null,
           counterpartyText: contact?.name || deal.title || "",
           items: items.map((i) => ({
@@ -247,19 +248,26 @@ export function wirePreliminaryOrdersEvents(container) {
           totalAmount: dealItemsTotal(dealId),
           note: `Накладная по сделке «${deal.title || ""}»`,
         });
+        // Синхронно переводим заказ в «отгружен» — иначе UI рефрешится раньше
+        // и карточка остаётся в «согласованы».
+        markDealOrderShipped(dealId, { invoiceId: doc.id, invoiceNumber: doc.number });
         window.dispatchEvent(new CustomEvent("pllato:warehouse-refresh"));
-        // Сразу открываем печатную форму З-2.
-        import("./invoice_print.js").then((mod) => {
-          mod.printInvoiceZ2(doc.id);
-        }).catch((err) => {
-          console.warn("[orders] invoice print failed:", err);
-        });
-        if (!created) {
-          alert(`Накладная № ${doc.number} уже была создана ранее. Открываю существующую.`);
-        }
       } catch (err) {
         alert("Не удалось сформировать накладную: " + (err?.message || String(err)));
       }
+      return;
+    }
+    // Открыть/распечатать накладную для уже отгруженного заказа.
+    const printBtn = e.target.closest("[data-po-print]");
+    if (printBtn) {
+      e.preventDefault();
+      const docId = printBtn.dataset.poPrint;
+      if (!docId) return;
+      import("./invoice_print.js").then((mod) => {
+        mod.printInvoiceZ2(docId);
+      }).catch((err) => {
+        alert("Не удалось открыть накладную: " + (err?.message || String(err)));
+      });
     }
   });
 }
