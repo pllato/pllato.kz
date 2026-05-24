@@ -361,3 +361,25 @@ CREATE TABLE migration_log (
   duration_ms     INTEGER,
   started_at      TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ── Audit log (Phase Roles 5) ───────────────────────────
+-- Кто что менял. Worker пишет туда при:
+--   role_grant — изменение роли через /api/admin/user-roles/{uid}
+--   user_create — admin создал нового сотрудника
+--   user_deactivate / user_activate — soft delete / restore
+--   record_patch — изменение deal/task/contact через handleRtdbWrite
+--   record_delete — удаление через handleRtdbDelete
+-- Не пишем при чтениях и при системных sync'ах.
+CREATE TABLE audit_log (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  actor_uid     TEXT NOT NULL,        -- кто сделал (canonical uid)
+  actor_email   TEXT,                 -- денормализовано для удобства показа
+  action        TEXT NOT NULL,        -- role_grant | user_create | user_deactivate | record_patch | record_delete
+  target_type   TEXT,                 -- 'user' | 'deal' | 'task' | 'contact' | 'pipeline' | etc
+  target_id     TEXT,                 -- uid юзера или id записи
+  meta          TEXT,                 -- JSON: { old: {...}, new: {...} } или произвольное
+  created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_audit_actor    ON audit_log(actor_uid, created_at);
+CREATE INDEX idx_audit_target   ON audit_log(target_type, target_id, created_at);
+CREATE INDEX idx_audit_action   ON audit_log(action, created_at);
