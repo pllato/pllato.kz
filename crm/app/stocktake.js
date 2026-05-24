@@ -16,7 +16,10 @@
 //   }
 
 import { Store } from "./store.js";
-import { listWarehouseProducts, productSummary, getWarehouseProduct } from "./warehouse.js";
+import {
+  listWarehouseProducts, productSummary, getWarehouseProduct,
+  listLotsForProduct, createWarehouseDocument, postWarehouseDocument,
+} from "./warehouse.js";
 import { currentEmployee } from "./employees.js";
 
 const COLLECTION = "stocktakes";
@@ -211,7 +214,13 @@ export function recallStocktake(stocktakeId) {
   });
 }
 
-// ---------- согласование (Этап 2 — пока без автопроводки документов) ----------
+// ---------- согласование с автопроводкой ----------
+/**
+ * Согласовать инвентаризацию: создать корректирующие документы (writeoff_act
+ * для недостач, receipt для излишков), провести их (списание/начисление
+ * партий), записать movements типа 'stocktake'. Возвращает обновлённый
+ * stocktake с заполненным appliedDocumentIds и stats.
+ */
 export function approveStocktake(stocktakeId, comment = "") {
   const st = getStocktake(stocktakeId);
   if (!st) throw new Error("Инвентаризация не найдена");
@@ -219,12 +228,126 @@ export function approveStocktake(stocktakeId, comment = "") {
     throw new Error("Согласовать можно только инвентаризацию 'на согласовании'");
   }
   const me = currentEmployee();
+  const now = Date.now();
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  const shortages = listShortages(st);
+  const surpluses = listSurpluses(st);
+  const appliedDocumentIds = [];
+  const applyErrors = [];
+
+  // 1) Недостачи — writeoff_act с FIFO-привязкой к партиям.
+  //    Для каждого товара берём активные lots (с currentQty>0), отгружаем
+  //    qty по FIFO. Если факт меньше системного и партий не хватает —
+  //    предупреждение, но продолжаем (system bug или гонка).
+  if (shortages.length > 0) {
+    try {
+      const items = [];
+      for (const it of shortages) {
+        const need = Math.abs(Number(it.diff) || 0);
+        if (need <= 0) continue;
+        const lots = listLotsForProduct(it.productId, { activeOnly: true });
+        let remaining = need;
+        for (const lot of lots) {
+          if (remaining <= 0) break;
+          const take = Math.min(remaining, Number(lot.currentQty) || 0);
+          if (take <= 0) continue;
+          items.push({
+            productId: it.productId,
+            lotId: lot.id,
+            qty: take,
+            unitPrice: Number(getWarehouseProduct(it.productId)?.price) || 0,
+          });
+          remaining -= take;
+        }
+      }
+      if (items.length > 0) {
+        const doc = createWarehouseDocument({
+          type: "writeoff_act",
+          date: todayIso,
+          counterpartyText: `Инвентаризация ${st.number}`,
+          note: `Списание недостачи по инвентаризации ${st.number}${comment ? ` · ${comment}` : ""}`,
+          items,
+        });
+        postWarehouseDocument(doc.id);
+        appliedDocumentIds.push(doc.id);
+      }
+    } catch (e) {
+      applyErrors.push(`Недостача: ${e?.message || e}`);
+    }
+  }
+
+  // 2) Излишки — receipt: создаём новые партии stocktake-N для оприходования.
+  if (surpluses.length > 0) {
+    try {
+      const items = [];
+      for (const it of surpluses) {
+        const add = Number(it.diff) || 0;
+        if (add <= 0) continue;
+        items.push({
+          productId: it.productId,
+          // lotId не указываем → postWarehouseDocument создаст новый лот с
+          // lotCode = doc.number-N (см. warehouse.js buildPostingPlan).
+          qty: add,
+          unitPrice: Number(getWarehouseProduct(it.productId)?.price) || 0,
+        });
+      }
+      if (items.length > 0) {
+        const doc = createWarehouseDocument({
+          type: "receipt",
+          date: todayIso,
+          counterpartyText: `Инвентаризация ${st.number}`,
+          note: `Оприходование излишков по инвентаризации ${st.number}${comment ? ` · ${comment}` : ""}`,
+          items,
+        });
+        postWarehouseDocument(doc.id);
+        appliedDocumentIds.push(doc.id);
+      }
+    } catch (e) {
+      applyErrors.push(`Излишки: ${e?.message || e}`);
+    }
+  }
+
+  // 3) Дополнительно — записи в IDB-движения с типом 'stocktake' (для
+  //    отображения в таймлайне товара). Делаем async best-effort.
+  (async () => {
+    try {
+      const { putManyMovements } = await import("./wh_movements_db.js");
+      const records = [];
+      [...shortages, ...surpluses].forEach((it, idx) => {
+        const diff = Number(it.diff) || 0;
+        if (diff === 0) return;
+        records.push({
+          id: `stk_${stocktakeId}_${it.productId}_${idx}`,
+          productId: it.productId,
+          lotId: null,
+          date: todayIso,
+          qty: Math.abs(diff),
+          direction: diff < 0 ? "out" : "in",
+          type: "stocktake",
+          docId: stocktakeId,
+          counterpartyText: `Инвентаризация ${st.number}`,
+          note: it.reason ? `Причина: ${it.reason}` : "Корректировка по инвентаризации",
+          balanceAfter: null,
+          createdAt: now + idx,
+          createdBy: me?.id || null,
+        });
+      });
+      if (records.length > 0) await putManyMovements(records);
+    } catch (e) {
+      console.warn("[stocktake] IDB movements failed:", e);
+    }
+  })();
+
+  // 4) Обновляем сам stocktake — статус, applied docs, errors.
   return Store.update(COLLECTION, stocktakeId, {
     status: STOCKTAKE_STATUS.APPROVED,
-    approvedAt: Date.now(),
+    approvedAt: now,
     approvedBy: me?.id || null,
     approvedByName: me?.name || me?.email || "",
     approvalComment: asText(comment),
+    appliedDocumentIds,
+    applyErrors: applyErrors.length > 0 ? applyErrors : null,
   });
 }
 

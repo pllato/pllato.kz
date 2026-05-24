@@ -231,7 +231,14 @@ function renderCard(stocktakeId) {
         </div>
       </div>
 
-      ${isApproved ? `<div class="st-banner ok">✅ Инвентаризация проведена ${escape(fmtDT(st.approvedAt))} (${escape(st.approvedByName || "—")}). ${st.approvalComment ? `Комментарий: «${escape(st.approvalComment)}»` : ""}</div>` : ""}
+      ${isApproved ? `
+        <div class="st-banner ok">
+          ✅ Инвентаризация проведена ${escape(fmtDT(st.approvedAt))} (${escape(st.approvedByName || "—")}).
+          ${st.approvalComment ? ` Комментарий: «${escape(st.approvalComment)}»` : ""}
+          ${(st.appliedDocumentIds || []).length > 0 ? `<br>Корректирующих документов создано: <strong>${(st.appliedDocumentIds || []).length}</strong>` : ""}
+          ${st.applyErrors && st.applyErrors.length ? `<br>⚠ Ошибки: ${escape(st.applyErrors.join("; "))}` : ""}
+        </div>
+      ` : ""}
       ${isRejected ? `<div class="st-banner err">✗ Отклонено: ${escape(st.rejectionReason || "—")}</div>` : ""}
       ${isPending ? `<div class="st-banner pending">⏳ Ждёт согласования директора. Менеджер уже не может редактировать. Если нужно поправить — отзови в черновик.</div>` : ""}
 
@@ -505,9 +512,19 @@ function handleSubmit(e, container) {
     const fd = new FormData(e.target);
     const id = e.target.dataset.stId;
     try {
-      approveStocktake(id, fd.get("comment") || "");
+      const updated = approveStocktake(id, fd.get("comment") || "");
       state.confirmDialog = null;
-      alert("✅ Инвентаризация согласована. Этап 2 (автокорректировка остатков) — следующим коммитом.");
+      // Сводка для менеджера: что произошло.
+      const docs = (updated.appliedDocumentIds || []).length;
+      const errs = updated.applyErrors;
+      const t = updated.totals || {};
+      const lines = [];
+      lines.push(`✅ Инвентаризация ${updated.number} согласована.`);
+      if (t.shortageQty > 0) lines.push(`• Списано (недостача): ${t.shortageQty} шт на ${t.shortageAmount.toLocaleString("ru-RU")} ₸`);
+      if (t.surplusQty > 0) lines.push(`• Оприходовано (излишки): ${t.surplusQty} шт на ${t.surplusAmount.toLocaleString("ru-RU")} ₸`);
+      if (docs > 0) lines.push(`Создано документов корректировки: ${docs}.`);
+      if (errs && errs.length > 0) lines.push(`⚠ Ошибки: ${errs.join("; ")}`);
+      alert(lines.join("\n"));
       refresh(container);
     } catch (err) { alert(err?.message || err); }
     return;
