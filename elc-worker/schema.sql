@@ -313,6 +313,19 @@ CREATE TABLE files_queue (
 );
 CREATE INDEX idx_files_queue_migrated ON files_queue(migrated);
 
+-- ── User roles (admin/manager/agent) ────────────────────
+-- Заполняется при назначении ролей админом. Платон (uurraa@gmail.com) —
+-- admin hardcoded в worker fallback'е, на случай если запись потеряется.
+-- При отсутствии записи юзер считается 'agent' (видит только свои).
+CREATE TABLE user_roles (
+  uid          TEXT PRIMARY KEY,   -- canonical uid (из users.uid, найден по email)
+  role         TEXT NOT NULL DEFAULT 'agent',  -- admin | manager | agent
+  department   TEXT,               -- для будущего manager-уровня (видит свой отдел)
+  granted_by   TEXT,
+  granted_at   TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_user_roles_role ON user_roles(role);
+
 -- ── Call log (исходящие/входящие звонки) ────────────────
 -- Заполняется фронтом через POST /api/call/event при начале/окончании звонка.
 -- Provider пока 'tel-link' (заглушка через OS dialer), будет SIP-провайдер
