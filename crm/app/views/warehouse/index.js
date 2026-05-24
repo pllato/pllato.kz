@@ -36,6 +36,8 @@ const ui = {
   productQuery: "",
   productEntity: "",
   productCategory: "",
+  productPage: 0,           // пагинация каталога
+  productPageSize: 50,
   docsType: "",
   docsStatus: "",
   reportDate: new Date().toISOString().slice(0, 10),
@@ -254,6 +256,20 @@ function rerender(container) {
 }
 
 function wireWarehouseEvents(container, route, canEdit) {
+  // Pagination: переключение страниц каталога товаров.
+  container.querySelectorAll("[data-wh-page]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const page = Number(btn.dataset.whPage);
+      if (Number.isFinite(page) && page >= 0) {
+        ui.productPage = page;
+        rerender(container);
+        // Прокрутка к верху таблицы, чтобы видеть новые строки.
+        const table = container.querySelector(".whm-table");
+        if (table) table.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  });
+
   let filterDebounce = null;
   container.querySelectorAll("[data-wh-filter]").forEach((el) => {
     const apply = () => {
@@ -261,6 +277,7 @@ function wireWarehouseEvents(container, route, canEdit) {
       const wasFocused = document.activeElement === el;
       const caretPos = wasFocused && typeof el.selectionStart === "number" ? el.selectionStart : null;
       ui[`product${key[0].toUpperCase()}${key.slice(1)}`] = el.value;
+      ui.productPage = 0;   // при смене фильтра возвращаемся к первой странице
       rerender(container);
       // Restore focus + caret position in the freshly rendered input
       if (wasFocused) {

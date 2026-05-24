@@ -316,12 +316,43 @@ export function listWarehouseProducts(filters = {}) {
   const order = isManual ? getWarehouseProductOrder() : [];
   const orderIndex = new Map(order.map((id, i) => [id, i]));
 
+  // Индекс лотов по productId — строим ОДИН раз, чтобы не звать
+  // listLotsForProduct → safeList(WH.lots).filter(...) для каждого товара
+  // (это давало O(N×L) ≈ 2 млн операций при 700 товаров × 3000 лотов).
+  const lotsByProduct = new Map();
+  for (const lot of safeList(WH.lots)) {
+    const pid = lot.productId;
+    if (!pid) continue;
+    if (!lotsByProduct.has(pid)) lotsByProduct.set(pid, []);
+    lotsByProduct.get(pid).push(lot);
+  }
+  const fastSummary = (productId) => {
+    const lots = lotsByProduct.get(productId) || [];
+    let total = 0, activeLotsCnt = 0, nearestExpiry = "", expiredCount = 0;
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    for (const l of lots) {
+      const q = Math.max(0, toNum(l.currentQty, 0));
+      total += q;
+      if (q > 0) {
+        activeLotsCnt += 1;
+        if (l.expiryDate) {
+          if (!nearestExpiry || compareDateAsc(l.expiryDate, nearestExpiry) < 0) {
+            nearestExpiry = l.expiryDate;
+          }
+          const t = new Date(`${l.expiryDate}T00:00:00`).getTime();
+          if (Number.isFinite(t) && t < now.getTime()) expiredCount += 1;
+        }
+      }
+    }
+    return { total, activeLots: activeLotsCnt, nearestExpiry, expiredCount };
+  };
+
   return safeList(WH.products)
     .filter((p) => includeArchived || !p.isArchived)
     .filter((p) => !query || `${p.sku || ""} ${p.name || ""}`.toLowerCase().includes(query))
     .filter((p) => !entity || p.entity === entity)
     .filter((p) => !category || p.category === category)
-    .map((p) => ({ ...p, summary: productSummary(p.id) }))
+    .map((p) => ({ ...p, summary: fastSummary(p.id) }))
     .sort((a, b) => {
       if (isManual) {
         const ai = orderIndex.has(a.id) ? orderIndex.get(a.id) : Infinity;

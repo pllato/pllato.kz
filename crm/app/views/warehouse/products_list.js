@@ -77,12 +77,22 @@ function sortArrow(field, sort) {
 export function renderProductsListView(state, canEdit) {
   const sort = getWarehouseProductSort();
   const isManual = sort.field === "manual";
-  const items = listWarehouseProducts({
+  const allItems = listWarehouseProducts({
     query: state.productQuery || "",
     entity: state.productEntity || "",
     category: state.productCategory || "",
     includeArchived: false,
   });
+
+  // Пагинация: рендерим только текущую страницу, чтобы не плодить тысячи
+  // DOM-узлов и не тормозить браузер на крупных каталогах (ИП+ТОО = 700+).
+  const pageSize = Number(state.productPageSize) || 50;
+  const totalCount = allItems.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const currentPage = Math.min(Math.max(0, Number(state.productPage) || 0), totalPages - 1);
+  const pageStart = currentPage * pageSize;
+  const items = allItems.slice(pageStart, pageStart + pageSize);
+
   const categories = listWarehouseCategories();
 
   return `
@@ -150,8 +160,49 @@ export function renderProductsListView(state, canEdit) {
             }).join("") : `<tr><td colspan="9"><div class="whm-empty">Товары не найдены</div></td></tr>`}
           </tbody>
         </table>
+        ${totalPages > 1 ? renderPagination(currentPage, totalPages, totalCount, pageSize) : `
+          <div class="whm-pagination-info">Всего: <strong>${num(totalCount)}</strong> ${pluralRu(totalCount, "товар", "товара", "товаров")}</div>
+        `}
       </div>
     </section>
     ${renderProductModal(state)}
   `;
+}
+
+function renderPagination(currentPage, totalPages, totalCount, pageSize) {
+  const from = currentPage * pageSize + 1;
+  const to = Math.min((currentPage + 1) * pageSize, totalCount);
+  // Скользящее окно из 5 страниц вокруг текущей.
+  const windowSize = 5;
+  const start = Math.max(0, Math.min(currentPage - 2, totalPages - windowSize));
+  const end = Math.min(totalPages, start + windowSize);
+  const pages = [];
+  for (let i = start; i < end; i++) pages.push(i);
+
+  return `
+    <div class="whm-pagination">
+      <div class="whm-pagination-info">
+        Показано <strong>${num(from)}–${num(to)}</strong> из <strong>${num(totalCount)}</strong>
+      </div>
+      <div class="whm-pagination-controls">
+        <button type="button" class="btn-ghost btn-sm" data-wh-page="0" ${currentPage === 0 ? "disabled" : ""}>«</button>
+        <button type="button" class="btn-ghost btn-sm" data-wh-page="${currentPage - 1}" ${currentPage === 0 ? "disabled" : ""}>‹</button>
+        ${start > 0 ? `<span class="whm-pagination-ellipsis">…</span>` : ""}
+        ${pages.map((p) => `
+          <button type="button" class="btn-ghost btn-sm ${p === currentPage ? "is-active" : ""}" data-wh-page="${p}">${p + 1}</button>
+        `).join("")}
+        ${end < totalPages ? `<span class="whm-pagination-ellipsis">…</span>` : ""}
+        <button type="button" class="btn-ghost btn-sm" data-wh-page="${currentPage + 1}" ${currentPage >= totalPages - 1 ? "disabled" : ""}>›</button>
+        <button type="button" class="btn-ghost btn-sm" data-wh-page="${totalPages - 1}" ${currentPage >= totalPages - 1 ? "disabled" : ""}>»</button>
+      </div>
+    </div>
+  `;
+}
+
+function pluralRu(n, one, few, many) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
 }
