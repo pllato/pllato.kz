@@ -1001,8 +1001,8 @@ tr:hover td { background: var(--bg3); }
   padding-left: 8px;
 }
 .kanban-col {
-  flex: 1 1 0;          /* растягивается равномерно по ширине экрана */
-  min-width: 240px;     /* но не уже 240 — иначе карточки уродуются */
+  flex: 1 1 200px;      /* старт 200px, растягивается равномерно по ширине */
+  min-width: 0;         /* без min-width — flex решает */
   background: var(--bg2);
   border: 1px solid var(--b1);
   border-radius: var(--rl);
@@ -5160,21 +5160,22 @@ function formatFieldLabel(label, fallback) {
 
 function formatCfValue(value, meta) {
   if (value === null || value === undefined || value === '') return '<span class="empty-cell">—</span>';
-  // value может быть pseudo-array {0:val,1:val} из Firebase RTDB — нормализуем
+  // И value, и meta.list могут быть pseudo-arrays {0:val,1:val} из Firebase RTDB
+  // — нормализуем оба через asArray.
+  const list = asArray(meta?.list);
   const asArr = asArray(value);
   if (asArr.length > 0 && (Array.isArray(value) || (typeof value === 'object' && Object.keys(value).every(k => /^\d+$/.test(k))))) {
-    // Для enum нужно резолвить через meta.list
-    if (meta.type === 'enumeration' && meta.list) {
+    if (meta.type === 'enumeration' && list.length) {
       const labels = asArr.map(v => {
-        const item = meta.list.find(l => String(l.ID) === String(v) || String(l.VALUE) === String(v));
+        const item = list.find(l => String(l.ID) === String(v) || String(l.VALUE) === String(v));
         return item ? escapeHtml(item.VALUE) : escapeHtml(String(v));
       });
       return labels.join(', ');
     }
     return asArr.map(v => escapeHtml(String(v))).join(', ');
   }
-  if (meta.type === 'enumeration' && meta.list) {
-    const item = meta.list.find(l => String(l.ID) === String(value));
+  if (meta.type === 'enumeration' && list.length) {
+    const item = list.find(l => String(l.ID) === String(value));
     return item ? escapeHtml(item.VALUE) : escapeHtml(String(value));
   }
   if (meta.type === 'boolean') return value === '1' || value === true ? '✓ Да' : '✗ Нет';
