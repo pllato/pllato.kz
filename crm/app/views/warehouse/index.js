@@ -31,6 +31,7 @@ import {
 import { renderWarehouseReportsView } from "./reports.js";
 import { renderPreliminaryOrdersView, wirePreliminaryOrdersEvents } from "./preliminary_orders.js";
 import { renderWarehouseImportView, initWarehouseImportView } from "./import_xlsx.js";
+import { renderStocktakeView, wireStocktakeEvents } from "./stocktake_view.js";
 
 const ui = {
   productQuery: "",
@@ -84,7 +85,11 @@ function parseWarehouseRoute() {
   if (second === "orders") return { page: "orders", productId: null };
   if (second === "reports") return { page: "reports", productId: null };
   if (second === "import") return { page: "import", productId: null };
-  if (second === "stocktakes") return { page: "stocktakes", productId: null };
+  if (second === "stocktakes") {
+    if (parts[2] === "new") return { page: "stocktakes", subroute: { page: "new" } };
+    if (parts[2]) return { page: "stocktakes", subroute: { page: "card", stocktakeId: decodeURIComponent(parts[2]) } };
+    return { page: "stocktakes", subroute: { page: "list" } };
+  }
   return { page: "home", productId: null };
 }
 
@@ -129,7 +134,7 @@ function renderHomeView(canEdit) {
             <button type="button" class="btn-ghost" data-wh-new-doc="receipt" ${canEdit ? "" : "disabled"}>${ICONS.truckIn}<span>Приход</span></button>
             <button type="button" class="btn-ghost" data-wh-new-doc="sale_invoice" ${canEdit ? "" : "disabled"}>${ICONS.truckOut}<span>Расход</span></button>
             <a class="btn-ghost" href="#warehouse/reports">${ICONS.clipboardList}<span>Отчёт остатки</span></a>
-            <a class="btn-ghost" href="#warehouse/stocktakes">${ICONS.calendarClock}<span>Инвентаризация (скоро)</span></a>
+            <a class="btn-ghost" href="#warehouse/stocktakes">${ICONS.calendarClock}<span>Инвентаризация</span></a>
           </div>
           <div class="card-head" style="border-top:1px solid var(--border-soft)"><h3>Товары (топ-5)</h3></div>
           <div class="card-pad">
@@ -247,7 +252,7 @@ function pageContent(route, canEdit) {
   if (route.page === "reports") return renderWarehouseReportsView(ui);
   if (route.page === "import") return renderWarehouseImportView();
   if (route.page === "orders") return renderPreliminaryOrdersView();
-  if (route.page === "stocktakes") return renderStocktakesSoon();
+  if (route.page === "stocktakes") return renderStocktakeView(route.subroute || { page: "list" });
   return renderHomeView(canEdit);
 }
 
@@ -554,6 +559,23 @@ export function renderWarehouse(container) {
   // Idempotent: повторный вызов на одной DOM-ноде не дублирует слушателей.
   if (route.page === "import") {
     initWarehouseImportView(container);
+  }
+
+  // Канбан Заказов: подвешиваем обработчики кнопок «Согласовать / Отозвать».
+  if (route.page === "orders") {
+    wirePreliminaryOrdersEvents(container);
+  }
+  // Инвентаризация: события списка/карточки/диалогов.
+  if (route.page === "stocktakes") {
+    wireStocktakeEvents(container, route.subroute || { page: "list" });
+  }
+  // При approval/refresh из дочернего модуля — перерендериваем view.
+  if (!window.__pllato_wh_refresh_wired) {
+    window.__pllato_wh_refresh_wired = true;
+    window.addEventListener("pllato:warehouse-refresh", () => {
+      const mount = document.getElementById("mainView");
+      if (mount) renderWarehouse(mount);
+    });
   }
 
   // На главной — async подгрузка движений из IndexedDB (в дополнение к
