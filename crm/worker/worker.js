@@ -804,6 +804,25 @@ async function handleStorePush(request, env, actor) {
     const collection = normalizeCollectionName(op.collection);
     const type = String(op.type || "").toLowerCase();
     if (type === "upsert") {
+      // FIX: pipelines не синхронизируются между клиентами — у каждого
+      // ensurePipelinesInitialized() свой seed с уникальными id. Field-юзер
+      // отправляет deal с локальным pipelineId, который у админа отсутствует
+      // → сделка невидима в его воронке. Подменяем pipelineId/stage на canonical
+      // значения из env-переменных FIELD_PIPELINE_ID / FIELD_STAGE_ID.
+      if (
+        collection === "deals" &&
+        isObject(op.item) &&
+        String(op.item.source || "").toLowerCase() === "field" &&
+        env.FIELD_PIPELINE_ID
+      ) {
+        const origPid = op.item.pipelineId;
+        const origStage = op.item.stage;
+        op.item.pipelineId = env.FIELD_PIPELINE_ID;
+        if (env.FIELD_STAGE_ID) op.item.stage = env.FIELD_STAGE_ID;
+        if (origPid !== op.item.pipelineId || origStage !== op.item.stage) {
+          console.log(`[field-pipeline] override deal=${op.item.id} pipeline ${origPid}→${op.item.pipelineId} stage ${origStage}→${op.item.stage}`);
+        }
+      }
       await d1UpsertDoc(env, collection, op.item, actor.email);
       applied += 1;
       // Хук: новая полевая сделка — собираем для Telegram-уведомления.
