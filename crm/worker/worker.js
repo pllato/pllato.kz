@@ -635,6 +635,12 @@ async function ensureD1Schema(env) {
       CREATE INDEX IF NOT EXISTS idx_call_assignments_campaign_caller_status
         ON call_assignments(campaign_id, caller_id, status)
     `,
+    `
+      CREATE TABLE IF NOT EXISTS field_tg_notifications (
+        deal_id     TEXT PRIMARY KEY,
+        notified_at INTEGER NOT NULL
+      )
+    `,
   ];
 
   for (const statement of schemaStatements) {
@@ -792,6 +798,7 @@ async function handleStorePush(request, env, actor) {
   }
 
   let applied = 0;
+  const fieldDealsToNotify = []; // собираем — пошлём после всех upsert'ов
   for (const op of ops) {
     if (!isObject(op)) continue;
     const collection = normalizeCollectionName(op.collection);
@@ -799,6 +806,16 @@ async function handleStorePush(request, env, actor) {
     if (type === "upsert") {
       await d1UpsertDoc(env, collection, op.item, actor.email);
       applied += 1;
+      // Хук: новая полевая сделка переходит в preliminary — собираем для Telegram-уведомления.
+      if (
+        collection === "deals" &&
+        isObject(op.item) &&
+        String(op.item.source || "").toLowerCase() === "field" &&
+        String(op.item.orderStatus || "") === "preliminary" &&
+        op.item.id
+      ) {
+        fieldDealsToNotify.push(op.item);
+      }
       continue;
     }
     if (type === "delete") {
@@ -810,12 +827,100 @@ async function handleStorePush(request, env, actor) {
     throw new HttpError(400, `Неизвестный тип операции: ${op.type}`);
   }
 
+  // Telegram-нотификации шлём БЕЗ await — чтобы не задерживать ответ клиенту.
+  // Идемпотентность гарантирует таблица field_tg_notifications.
+  if (fieldDealsToNotify.length > 0) {
+    notifyFieldDealsToTelegram(env, fieldDealsToNotify).catch((e) => {
+      console.warn("[tg-notify] failed:", e?.message || e);
+    });
+  }
+
   return {
     ok: true,
     applied,
     pushedAt: Date.now(),
     actor: actor.email || actor.uid,
   };
+}
+
+/**
+ * Отправить уведомление в Telegram-группу о новой полевой сделке.
+ * Идемпотентно: для каждого deal_id вставка в field_tg_notifications с
+ * INSERT OR IGNORE — если запись уже есть, пропускаем.
+ *
+ * Требуемые secrets/vars в worker (через wrangler secret put):
+ *   TELEGRAM_BOT_TOKEN          — токен бота от @BotFather
+ *   TELEGRAM_FIELD_CHAT_ID      — id группы (отрицательное число для group/supergroup)
+ *
+ * Если хотя бы одна из переменных не задана — функция тихо выходит,
+ * чтобы worker не падал на проде без секретов.
+ */
+async function notifyFieldDealsToTelegram(env, deals) {
+  const token = env.TELEGRAM_BOT_TOKEN;
+  const chatId = env.TELEGRAM_FIELD_CHAT_ID;
+  if (!token || !chatId) return;
+  const db = requireStoreDb(env);
+
+  for (const deal of deals) {
+    // Проверяем + резервируем место (insert idempotent).
+    let inserted = false;
+    try {
+      const result = await db
+        .prepare(`INSERT OR IGNORE INTO field_tg_notifications (deal_id, notified_at) VALUES (?, ?)`)
+        .bind(String(deal.id), Date.now())
+        .run();
+      // d1 .run() возвращает meta.changes — 1 если вставили, 0 если уже было.
+      inserted = (result?.meta?.changes ?? 0) > 0;
+    } catch (e) {
+      console.warn("[tg-notify] insert failed:", e?.message || e);
+      continue;
+    }
+    if (!inserted) continue;
+
+    // Формируем сообщение.
+    const title = String(deal.title || "Заказ").slice(0, 200);
+    const manager = String(deal.orderSubmittedByName || deal.assigneeName || "—").slice(0, 80);
+    const amount = Number(deal.amount) || 0;
+    const amountStr = new Intl.NumberFormat("ru-RU").format(Math.round(amount));
+    const dealUrl = `https://crm.aminamed.kz/#crm/${encodeURIComponent(deal.id)}`;
+    const lines = [
+      "🆕 *Новый заказ от поля*",
+      "",
+      `📦 ${title.replace(/[*_`]/g, " ")}`,
+      `👤 Менеджер: ${manager.replace(/[*_`]/g, " ")}`,
+      `💰 Сумма: ${amountStr} ₸`,
+      "",
+      `🔗 Открыть в CRM: ${dealUrl}`,
+    ];
+
+    // Telegram Bot API sendMessage. parse_mode Markdown для жирного шрифта.
+    try {
+      const tgUrl = `https://api.telegram.org/bot${encodeURIComponent(token)}/sendMessage`;
+      const resp = await fetch(tgUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: lines.join("\n"),
+          parse_mode: "Markdown",
+          disable_web_page_preview: true,
+        }),
+      });
+      if (!resp.ok) {
+        const text = await resp.text();
+        console.warn(`[tg-notify] sendMessage failed ${resp.status}:`, text.slice(0, 200));
+        // Откатим запись чтобы дать шанс на retry при следующем push.
+        try {
+          await db.prepare(`DELETE FROM field_tg_notifications WHERE deal_id = ?`).bind(String(deal.id)).run();
+        } catch {}
+      }
+    } catch (e) {
+      console.warn("[tg-notify] fetch error:", e?.message || e);
+      try {
+        await db.prepare(`DELETE FROM field_tg_notifications WHERE deal_id = ?`).bind(String(deal.id)).run();
+      } catch {}
+    }
+  }
 }
 
 function parseJsonObject(raw, fallback = {}) {
