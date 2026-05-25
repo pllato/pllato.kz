@@ -806,15 +806,25 @@ async function handleStorePush(request, env, actor) {
     if (type === "upsert") {
       await d1UpsertDoc(env, collection, op.item, actor.email);
       applied += 1;
-      // Хук: новая полевая сделка переходит в preliminary — собираем для Telegram-уведомления.
+      // Хук: новая полевая сделка — собираем для Telegram-уведомления.
+      // Принимаем источники Field / field (case-insensitive). Раньше требовали
+      // orderStatus=preliminary, но при первом push'е статус ещё может быть draft
+      // (autoPromote в frontend срабатывает в порядке Store.update'ов). Достаточно
+      // что сделка от поля и не завершена.
       if (
         collection === "deals" &&
         isObject(op.item) &&
         String(op.item.source || "").toLowerCase() === "field" &&
-        String(op.item.orderStatus || "") === "preliminary" &&
-        op.item.id
+        op.item.id &&
+        op.item.orderStatus !== "shipped" &&
+        op.item.orderStatus !== "approved" &&
+        !op.item.isDeleted
       ) {
+        console.log(`[tg-notify] queue deal id=${op.item.id} status=${op.item.orderStatus || "(draft)"} title=${JSON.stringify(op.item.title || "")}`);
         fieldDealsToNotify.push(op.item);
+      } else if (collection === "deals" && isObject(op.item) && String(op.item.source || "").toLowerCase() === "field") {
+        // Сделка от поля но условие отсева сработало — лог для диагностики.
+        console.log(`[tg-notify] SKIP deal id=${op.item.id} reason: status=${op.item.orderStatus} isDeleted=${op.item.isDeleted}`);
       }
       continue;
     }
@@ -858,7 +868,11 @@ async function handleStorePush(request, env, actor) {
 async function notifyFieldDealsToTelegram(env, deals) {
   const token = env.TELEGRAM_BOT_TOKEN;
   const chatId = env.TELEGRAM_FIELD_CHAT_ID;
-  if (!token || !chatId) return;
+  console.log(`[tg-notify] entry deals=${deals.length} hasToken=${Boolean(token)} hasChatId=${Boolean(chatId)} chatIdLen=${chatId ? String(chatId).length : 0}`);
+  if (!token || !chatId) {
+    console.warn(`[tg-notify] missing secrets — token=${Boolean(token)} chatId=${Boolean(chatId)}`);
+    return;
+  }
   const db = requireStoreDb(env);
 
   for (const deal of deals) {
@@ -871,11 +885,15 @@ async function notifyFieldDealsToTelegram(env, deals) {
         .run();
       // d1 .run() возвращает meta.changes — 1 если вставили, 0 если уже было.
       inserted = (result?.meta?.changes ?? 0) > 0;
+      console.log(`[tg-notify] insert deal=${deal.id} inserted=${inserted}`);
     } catch (e) {
       console.warn("[tg-notify] insert failed:", e?.message || e);
       continue;
     }
-    if (!inserted) continue;
+    if (!inserted) {
+      console.log(`[tg-notify] skip deal=${deal.id} — already notified earlier`);
+      continue;
+    }
 
     // Формируем сообщение.
     const title = String(deal.title || "Заказ").slice(0, 200);
@@ -894,25 +912,31 @@ async function notifyFieldDealsToTelegram(env, deals) {
     ];
 
     // Telegram Bot API sendMessage. parse_mode Markdown для жирного шрифта.
+    // Токен НЕ кодируем encodeURIComponent — ":" в нём валидный.
     try {
-      const tgUrl = `https://api.telegram.org/bot${encodeURIComponent(token)}/sendMessage`;
+      const tgUrl = `https://api.telegram.org/bot${token}/sendMessage`;
+      // chatId может прийти строкой с пробелами/переводами строк — чистим.
+      const cleanChatId = String(chatId).trim();
+      console.log(`[tg-notify] sending deal=${deal.id} chatId=${cleanChatId}`);
       const resp = await fetch(tgUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          chat_id: chatId,
+          chat_id: cleanChatId,
           text: lines.join("\n"),
           parse_mode: "Markdown",
           disable_web_page_preview: true,
         }),
       });
+      const respText = await resp.text();
       if (!resp.ok) {
-        const text = await resp.text();
-        console.warn(`[tg-notify] sendMessage failed ${resp.status}:`, text.slice(0, 200));
+        console.warn(`[tg-notify] sendMessage failed ${resp.status}:`, respText.slice(0, 500));
         // Откатим запись чтобы дать шанс на retry при следующем push.
         try {
           await db.prepare(`DELETE FROM field_tg_notifications WHERE deal_id = ?`).bind(String(deal.id)).run();
         } catch {}
+      } else {
+        console.log(`[tg-notify] sent deal=${deal.id} response=${respText.slice(0, 120)}`);
       }
     } catch (e) {
       console.warn("[tg-notify] fetch error:", e?.message || e);
