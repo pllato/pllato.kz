@@ -856,12 +856,17 @@ async function handleStorePush(request, env, actor) {
     throw new HttpError(400, `Неизвестный тип операции: ${op.type}`);
   }
 
-  // Telegram-нотификации шлём БЕЗ await — чтобы не задерживать ответ клиенту.
-  // Идемпотентность гарантирует таблица field_tg_notifications.
+  // Telegram-нотификации — AWAIT обязательно. Cloudflare Workers терминируют
+  // isolate как только Response уходит клиенту; без await фоновая async-задача
+  // обрывается (виделось по логам: после "[tg-notify] entry" выполнение
+  // прекращалось, fetch к Telegram даже не начинался). Альтернатива — ctx.waitUntil,
+  // но ctx не прокинут в handleStorePush. Задержка ~1-2 сек на /store/push приемлема.
   if (fieldDealsToNotify.length > 0) {
-    notifyFieldDealsToTelegram(env, fieldDealsToNotify).catch((e) => {
+    try {
+      await notifyFieldDealsToTelegram(env, fieldDealsToNotify);
+    } catch (e) {
       console.warn("[tg-notify] failed:", e?.message || e);
-    });
+    }
   }
 
   return {
