@@ -1,0 +1,2244 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Dentaly — CRM для стоматологии</title>
+<style>
+:root{
+  --bg:#F5F7F8;--surface:#FFFFFF;--surface-2:#FAFBFB;
+  --border:#E5E9EB;--border-2:#EEF1F2;
+  --text:#0F1F1E;--text-2:#5B6B6A;--text-3:#8B9695;
+  --primary:#0F766E;--primary-2:#115E59;--primary-soft:#CCFBF1;--primary-tint:#F0FDFA;
+  --amber:#D97706;--amber-soft:#FEF3C7;
+  --red:#DC2626;--red-soft:#FEE2E2;
+  --green:#059669;--green-soft:#D1FAE5;
+  --blue:#2563EB;--blue-soft:#DBEAFE;
+  --purple:#7C3AED;--purple-soft:#EDE9FE;
+  --gold:#CA8A04;--gold-soft:#FEF3C7;
+  --sidebar:#0E1F1E;--sidebar-2:#152C2A;--sidebar-text:#A8B8B6;--sidebar-text-2:#7A8C8A;
+  --shadow-sm:0 1px 2px rgba(15,31,30,.04);
+  --shadow-lg:0 4px 12px rgba(15,31,30,.08),0 24px 48px rgba(15,31,30,.08);
+  --r:10px;--r-lg:14px;--r-xl:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:14px;line-height:1.5;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea{font-family:inherit;font-size:inherit;color:inherit}
+
+#app{display:grid;grid-template-columns:236px 1fr;height:100vh}
+#sidebar{background:var(--sidebar);color:var(--sidebar-text);display:flex;flex-direction:column;overflow:hidden}
+#main-wrap{display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0}
+#content{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 28px 60px}
+
+.brand{padding:20px 18px 16px;display:flex;align-items:center;gap:10px}
+.brand-logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#0F766E,#2DD4BF);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px}
+.brand-name{color:#fff;font-weight:600;font-size:15px}
+.brand-sub{color:var(--sidebar-text-2);font-size:11px;margin-top:1px}
+.clinic-switch{margin:0 12px 14px;padding:10px 12px;background:var(--sidebar-2);border-radius:var(--r);display:flex;align-items:center;gap:9px;cursor:pointer}
+.clinic-switch:hover{background:#1A3735}
+.clinic-dot{width:8px;height:8px;border-radius:50%;background:#2DD4BF;box-shadow:0 0 0 3px rgba(45,212,191,.18)}
+.clinic-name{color:#E5EEED;font-weight:500;font-size:13px;flex:1}
+.clinic-name .chev{color:var(--sidebar-text-2);float:right}
+.nav-section{padding:8px 12px}
+.nav-label{font-size:11px;color:var(--sidebar-text-2);text-transform:uppercase;letter-spacing:.6px;padding:8px 10px 6px;font-weight:600}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:8px;color:var(--sidebar-text);font-size:13.5px;cursor:pointer;margin-bottom:1px;font-weight:500;transition:all .12s}
+.nav-item:hover{background:var(--sidebar-2);color:#E5EEED}
+.nav-item.active{background:linear-gradient(90deg,rgba(15,118,110,.25),rgba(15,118,110,.1));color:#fff}
+.nav-item.active .nav-icon{color:#2DD4BF}
+.nav-icon{width:18px;height:18px;flex-shrink:0;color:var(--sidebar-text-2)}
+.dot-sep{color:var(--text-3);margin:0 6px}
+.teeth-half.right{flex-direction:row-reverse}
+.tp-h-text{flex:1}
+.inv-low{position:relative}
+.inv-low::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--red)}
+
+/* Treatment plan v2 */
+.plan-hero{padding:18px 20px;background:linear-gradient(135deg,var(--primary-tint),#fff);border:1px solid var(--primary-soft);border-radius:var(--r-lg);display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+.plan-hero-stat{flex:1;min-width:120px}
+.plan-hero-label{font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.plan-hero-value{font-size:20px;font-weight:700;letter-spacing:-.3px;margin-top:3px}
+.variant-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.variant-card{padding:14px;border:1.5px solid var(--border);border-radius:var(--r-lg);background:var(--surface);cursor:pointer;transition:all .15s;position:relative}
+.variant-card:hover{border-color:var(--text-3)}
+.variant-card.active{border-color:var(--primary);background:var(--primary-tint);box-shadow:0 0 0 3px rgba(15,118,110,.08)}
+.variant-card.active::before{content:'✓';position:absolute;top:10px;right:12px;color:var(--primary);font-weight:700}
+.variant-name{font-weight:700;font-size:14px}
+.variant-sub{font-size:11.5px;color:var(--text-2);margin-top:3px;line-height:1.4;min-height:32px}
+.variant-price{font-size:18px;font-weight:700;color:var(--primary-2);margin-top:10px;letter-spacing:-.3px}
+.variant-meta{font-size:11px;color:var(--text-3);margin-top:3px}
+
+.visit-card{border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);overflow:hidden;transition:border-color .15s}
+.visit-card:hover{border-color:#CBD5E1}
+.visit-card.done{background:linear-gradient(180deg,#FAFCFC,#fff)}
+.visit-card.planned{border-style:dashed}
+.visit-head{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--border-2)}
+.visit-date{background:var(--primary-tint);color:var(--primary-2);border-radius:8px;padding:6px 10px;text-align:center;min-width:54px;flex-shrink:0}
+.visit-date.done{background:#F1F3F4;color:var(--text-2)}
+.visit-date-d{font-size:18px;font-weight:700;line-height:1}
+.visit-date-m{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-top:1px}
+.visit-stage{display:grid;grid-template-columns:46px 1fr 100px 120px 36px;gap:12px;padding:10px 16px;align-items:center;border-bottom:1px solid var(--border-2);font-size:13px}
+.visit-stage:last-child{border-bottom:none}
+.visit-stage:hover{background:var(--surface-2)}
+.stage-tooth{width:36px;height:36px;border-radius:8px;background:var(--primary-tint);color:var(--primary-2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.stage-tooth.done{background:#F1F3F4;color:var(--text-2)}
+.add-visit-btn{padding:14px 18px;background:transparent;border:1.5px dashed var(--border);border-radius:var(--r-lg);color:var(--text-2);cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:500;transition:all .15s}
+.add-visit-btn:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-tint)}
+
+/* Telegram brand color */
+.b-tg{background:#E7F3FB;color:#0088CC}
+.ch-badge{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:5px;font-size:11px;font-weight:600}
+.scroll-hide::-webkit-scrollbar{width:6px;height:6px}
+.scroll-hide::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#D5DCDD;border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb:hover{background:#B8C2C3}
+.nav-item:hover .nav-icon{color:var(--sidebar-text)}
+.nav-badge{margin-left:auto;background:var(--primary);color:#fff;font-size:11px;font-weight:600;padding:1px 7px;border-radius:10px}
+.nav-badge.amber{background:var(--amber)}
+.sidebar-bottom{margin-top:auto;padding:12px 14px;border-top:1px solid var(--sidebar-2)}
+.user-pill{display:flex;align-items:center;gap:10px;padding:8px;border-radius:9px;cursor:pointer}
+.user-pill:hover{background:var(--sidebar-2)}
+.avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:12px;flex-shrink:0}
+.avatar.lg{width:56px;height:56px;font-size:18px}
+.avatar.sm{width:24px;height:24px;font-size:10px}
+.user-name{color:#E5EEED;font-size:13px;font-weight:500}
+.user-role{color:var(--sidebar-text-2);font-size:11px}
+
+.crumbs{display:flex;align-items:center;gap:6px;color:var(--text-2);font-size:13px;font-weight:500}
+.crumbs .sep{color:var(--text-3)}
+.crumbs .cur{color:var(--text);font-weight:600}
+.search-box{flex:1;max-width:520px;margin:0 auto;position:relative}
+.search-input{width:100%;height:36px;padding:0 12px 0 38px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;font-size:13px;outline:none;transition:all .15s}
+.search-input:focus{background:#fff;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-3);pointer-events:none}
+.search-kbd{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--surface);border:1px solid var(--border);padding:2px 6px;border-radius:5px;font-size:11px;color:var(--text-2);pointer-events:none}
+.top-actions{display:flex;align-items:center;gap:6px;margin-left:auto}
+.icon-btn{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--text-2);transition:all .15s;position:relative}
+.icon-btn:hover{background:var(--surface-2);color:var(--text)}
+.icon-btn .dot{position:absolute;top:7px;right:7px;width:8px;height:8px;background:var(--red);border-radius:50%;border:2px solid var(--surface)}
+
+.page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;gap:14px;flex-wrap:wrap}
+.page-title{font-size:22px;font-weight:700;letter-spacing:-.4px}
+.page-sub{color:var(--text-2);font-size:13.5px;margin-top:3px}
+.btn{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:9px;font-size:13px;font-weight:600;border:1px solid transparent;white-space:nowrap;transition:all .15s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-2)}
+.btn-ghost{background:var(--surface);color:var(--text);border-color:var(--border)}
+.btn-ghost:hover{background:var(--surface-2)}
+.btn-amber{background:var(--amber);color:#fff}
+.btn-sm{height:30px;padding:0 11px;font-size:12.5px;border-radius:7px}
+.btn-xs{height:24px;padding:0 8px;font-size:11.5px;border-radius:6px;font-weight:600}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm)}
+.card-pad{padding:18px}
+.card-head{padding:16px 18px;border-bottom:1px solid var(--border-2);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.card-title{font-weight:600;font-size:14.5px}
+.card-sub{font-size:12px;color:var(--text-2);margin-top:2px}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:6px;font-size:11.5px;font-weight:600;line-height:1.5}
+.b-green{background:var(--green-soft);color:#065F46}
+.b-red{background:var(--red-soft);color:#991B1B}
+.b-amber{background:var(--amber-soft);color:#92400E}
+.b-blue{background:var(--blue-soft);color:#1E40AF}
+.b-purple{background:var(--purple-soft);color:#5B21B6}
+.b-gray{background:#F1F3F4;color:#475569}
+.b-teal{background:var(--primary-soft);color:var(--primary-2)}
+.b-gold{background:var(--gold-soft);color:#854D0E}
+
+.kpi{padding:18px}
+.kpi-label{font-size:12px;color:var(--text-2);font-weight:500;display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.kpi-value{font-size:26px;font-weight:700;letter-spacing:-.8px;line-height:1.1}
+.kpi-delta{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;margin-top:6px}
+.kpi-delta.up{color:var(--green)}
+.kpi-delta.down{color:var(--red)}
+
+table.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);font-weight:600;text-align:left;padding:11px 14px;border-bottom:1px solid var(--border-2);background:var(--surface-2)}
+.tbl td{padding:13px 14px;border-bottom:1px solid var(--border-2);font-size:13px;vertical-align:middle}
+.tbl tr:hover td{background:var(--surface-2)}
+.tbl tr.clickable{cursor:pointer}
+
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-dash{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-top:14px}
+
+.heatmap{display:grid;grid-template-columns:140px repeat(7,1fr);gap:3px;font-size:11px}
+.hm-h{padding:4px 6px;color:var(--text-3);text-align:center;font-weight:600;text-transform:uppercase}
+.hm-l{padding:4px 6px;color:var(--text-3);font-weight:500;display:flex;align-items:center;font-size:11px}
+.hm-c{aspect-ratio:1.2/1;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:600;color:#fff}
+
+.funnel{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.funnel-step{display:flex;align-items:center;gap:14px;padding:6px 0}
+.funnel-bar{flex:1;background:var(--surface-2);border-radius:8px;height:36px;overflow:hidden}
+.funnel-fill{height:100%;background:linear-gradient(90deg,var(--primary),#14B8A6);border-radius:8px;display:flex;align-items:center;padding:0 12px;color:#fff;font-weight:600;font-size:12.5px}
+.funnel-label{min-width:170px;font-size:13px;font-weight:500}
+.funnel-conv{min-width:50px;font-size:12px;color:var(--text-2);text-align:right}
+
+.sched-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.day-tabs{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:3px}
+.day-tab{padding:6px 14px;border-radius:6px;font-size:12.5px;font-weight:500;color:var(--text-2);cursor:pointer}
+.day-tab.active{background:var(--primary);color:#fff}
+.day-tab:not(.active):hover{background:var(--surface-2);color:var(--text)}
+.sched-grid{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+.sched-head{display:grid;border-bottom:1px solid var(--border-2);background:var(--surface-2)}
+.sched-head-cell{padding:11px 8px;text-align:center;border-right:1px solid var(--border-2);font-size:12px}
+.sched-head-cell:last-child{border-right:none}
+.doc-mini{display:flex;align-items:center;justify-content:center;gap:7px}
+.doc-mini-name{font-weight:600;font-size:12.5px;color:var(--text);white-space:nowrap}
+.doc-mini-spec{font-size:11px;color:var(--text-3);margin-top:1px}
+.sched-body{position:relative;overflow:auto;max-height:calc(100vh - 280px)}
+.sched-row{display:grid;border-bottom:1px solid var(--border-2);min-height:40px}
+.sched-row:nth-child(odd){background:var(--surface-2)}
+.sched-time{padding:8px;font-size:11.5px;color:var(--text-3);font-weight:500;border-right:1px solid var(--border-2);text-align:center}
+.sched-cell{border-right:1px solid var(--border-2);position:relative;padding:2px;min-height:40px}
+.sched-cell:last-child{border-right:none}
+.sched-cell:hover{background:rgba(15,118,110,.04)}
+.appt{position:absolute;left:3px;right:3px;border-radius:6px;padding:5px 7px;font-size:11.5px;color:#fff;cursor:pointer;overflow:hidden;border-left:3px solid rgba(0,0,0,.18);z-index:2;transition:all .12s}
+.appt:hover{box-shadow:0 4px 12px rgba(0,0,0,.18);z-index:3}
+.appt-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11.5px}
+.appt-proc{font-size:10.5px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.appt-status{position:absolute;top:4px;right:5px;width:6px;height:6px;border-radius:50%;background:#fff;opacity:.85}
+.risk-dot{position:absolute;bottom:3px;right:5px;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.95);display:flex;align-items:center;justify-content:center;font-size:10px;color:#DC2626;font-weight:700}
+
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.chip{padding:6px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip:hover{border-color:var(--text-3)}
+.chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.chip-count{background:rgba(0,0,0,.08);padding:1px 6px;border-radius:5px;font-size:11px;font-weight:600}
+.chip.active .chip-count{background:rgba(255,255,255,.2)}
+.patient-name{display:flex;align-items:center;gap:10px}
+.patient-actions{display:flex;gap:4px;opacity:0;transition:opacity .15s}
+.tbl tr:hover .patient-actions{opacity:1}
+
+.pc-header{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;display:flex;align-items:center;gap:18px;margin-bottom:16px;flex-wrap:wrap}
+.pc-main{flex:1;min-width:260px}
+.pc-name{font-size:21px;font-weight:700;letter-spacing:-.3px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pc-meta{color:var(--text-2);font-size:13px;margin-top:5px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pc-meta-item{display:flex;align-items:center;gap:5px}
+.pc-stats{display:flex;gap:10px}
+.pc-stat{padding:10px 14px;background:var(--surface-2);border-radius:9px;text-align:center;min-width:90px}
+.pc-stat-label{font-size:11px;color:var(--text-3);font-weight:500;text-transform:uppercase;letter-spacing:.3px}
+.pc-stat-value{font-size:17px;font-weight:700;margin-top:3px;letter-spacing:-.3px}
+
+.tabs{display:flex;gap:1px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto}
+.tab{padding:11px 16px;font-size:13px;font-weight:500;color:var(--text-2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+.tab-badge{margin-left:6px;background:var(--surface-2);color:var(--text-2);padding:1px 6px;border-radius:5px;font-size:11px;font-weight:600}
+.tab.active .tab-badge{background:var(--primary-soft);color:var(--primary-2)}
+
+.teeth-wrap{background:linear-gradient(180deg,#FAFCFC,#FFFFFF);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px 20px}
+.teeth-legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px;padding:10px 14px;background:var(--surface-2);border-radius:9px}
+.tl-item{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-2);font-weight:500}
+.tl-swatch{width:11px;height:11px;border-radius:3px;border:1px solid rgba(0,0,0,.08)}
+.teeth-row{display:flex;justify-content:center;gap:3px;margin-bottom:8px}
+.teeth-half{display:flex;gap:3px}
+.midline{width:2px;background:linear-gradient(180deg,transparent,var(--border) 20%,var(--border) 80%,transparent);margin:0 6px}
+.tooth{cursor:pointer;transition:transform .15s,filter .15s}
+.tooth:hover{transform:translateY(-2px);filter:drop-shadow(0 4px 6px rgba(15,118,110,.25))}
+.tooth.selected{filter:drop-shadow(0 0 4px rgba(15,118,110,.6)) drop-shadow(0 4px 8px rgba(15,118,110,.3))}
+.tooth-num{font-size:9px;text-anchor:middle;fill:var(--text-3);font-weight:600;pointer-events:none}
+.tooth-seg{stroke:#94A3B8;stroke-width:.6}
+.tooth-seg.healthy{fill:#FFFFFF}
+.tooth-seg.caries{fill:#DC2626}
+.tooth-seg.filling{fill:#94A3B8}
+.tooth-seg.crown{fill:#CA8A04}
+.tooth-seg.implant{fill:#2563EB}
+.tooth-seg.endo{fill:#7C3AED}
+.tooth-extracted{fill:none;stroke:#CBD5E1;stroke-width:1.5;stroke-dasharray:2 2}
+.jaw-label{text-align:center;color:var(--text-3);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin:14px 0 4px}
+
+.tp-head{padding:14px 16px;border-bottom:1px solid var(--border-2);display:flex;justify-content:space-between;align-items:center}
+.tp-tooth{font-size:22px;font-weight:700;letter-spacing:-.5px}
+.tp-tooth-name{font-size:11.5px;color:var(--text-2);margin-top:2px}
+.tp-body{padding:12px 16px}
+.tp-section{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);font-weight:600;margin-bottom:8px}
+.tp-history-item{display:flex;gap:9px;padding:7px 0;font-size:12.5px;border-bottom:1px solid var(--border-2)}
+.tp-history-item:last-child{border-bottom:none}
+.tp-h-date{color:var(--text-3);font-size:11.5px;min-width:60px}
+
+.timeline{position:relative;padding-left:30px}
+.timeline::before{content:'';position:absolute;left:11px;top:8px;bottom:8px;width:2px;background:var(--border)}
+.tl-event{position:relative;padding:8px 0 16px}
+.tl-dot{position:absolute;left:-30px;top:10px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--surface);border:2px solid var(--primary);color:var(--primary);box-shadow:0 0 0 4px var(--surface)}
+.tl-event-card{background:var(--surface);border:1px solid var(--border-2);border-radius:9px;padding:11px 13px}
+.tl-title{font-weight:600;font-size:13px}
+.tl-meta{font-size:11.5px;color:var(--text-3);margin-top:3px}
+.tl-desc{font-size:12.5px;color:var(--text-2);margin-top:5px}
+
+.ai-fab{position:fixed;bottom:24px;right:24px;height:48px;padding:0 18px;background:linear-gradient(135deg,#0F766E,#7C3AED);color:#fff;border-radius:24px;display:flex;align-items:center;gap:9px;font-weight:600;font-size:13.5px;cursor:pointer;box-shadow:0 8px 24px rgba(124,58,237,.32),0 2px 6px rgba(15,118,110,.2);z-index:50;transition:all .2s}
+.ai-fab:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(124,58,237,.4)}
+.ai-fab .pulse{width:8px;height:8px;background:#fff;border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}70%{box-shadow:0 0 0 10px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
+.ai-panel{position:fixed;bottom:24px;right:24px;width:420px;height:560px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:0 24px 60px rgba(15,31,30,.18);display:flex;flex-direction:column;opacity:0;transform:translateY(20px) scale(.96);pointer-events:none;z-index:51;transition:all .25s}
+.ai-panel.show{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+.ai-head{padding:14px 16px;border-bottom:1px solid var(--border-2);display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,#0F766E,#7C3AED);color:#fff;border-radius:var(--r-xl) var(--r-xl) 0 0}
+.ai-ava{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center}
+.ai-title{font-weight:600;font-size:14px}
+.ai-sub{font-size:11.5px;opacity:.85;margin-top:1px}
+.ai-close{margin-left:auto;width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;background:rgba(255,255,255,.15);cursor:pointer}
+.ai-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.ai-msg{max-width:85%;padding:10px 13px;border-radius:13px;font-size:13px;line-height:1.5}
+.ai-msg.bot{background:var(--surface-2);border:1px solid var(--border-2);align-self:flex-start;border-bottom-left-radius:4px}
+.ai-msg.user{background:var(--primary);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.ai-msg b{font-weight:600}
+.ai-suggest{display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px;border-top:1px solid var(--border-2)}
+.ai-sg{padding:6px 10px;background:var(--primary-tint);color:var(--primary-2);border:1px solid var(--primary-soft);border-radius:14px;font-size:11.5px;font-weight:500;cursor:pointer}
+.ai-sg:hover{background:var(--primary-soft)}
+.ai-input-wrap{padding:10px 14px 14px;border-top:1px solid var(--border-2);display:flex;gap:8px}
+.ai-input{flex:1;height:38px;padding:0 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);outline:none;font-size:13px}
+.ai-input:focus{background:#fff;border-color:var(--primary)}
+.ai-send{width:38px;height:38px;border-radius:10px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.typing{display:inline-flex;gap:3px;align-items:center;height:18px}
+.typing span{width:6px;height:6px;background:var(--text-3);border-radius:50%;animation:bounce 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.15s}
+.typing span:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
+
+.modal-bg{position:fixed;inset:0;background:rgba(15,31,30,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal-bg.show{display:flex}
+.modal{background:var(--surface);border-radius:var(--r-xl);box-shadow:0 24px 60px rgba(15,31,30,.25);max-width:540px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-head{padding:18px 20px;border-bottom:1px solid var(--border-2);display:flex;justify-content:space-between;align-items:center}
+.modal-title{font-weight:600;font-size:16px}
+.modal-body{padding:18px 20px;overflow-y:auto}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--border-2);display:flex;justify-content:flex-end;gap:8px;background:var(--surface-2)}
+.mb-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-2);font-size:13px}
+.mb-row:last-child{border:none}
+.mb-row .lbl{color:var(--text-2)}
+.mb-row .val{font-weight:600}
+
+.cmdk-bg{position:fixed;inset:0;background:rgba(15,31,30,.55);backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;z-index:200;padding-top:12vh}
+.cmdk-bg.show{display:flex}
+.cmdk{width:580px;max-width:90vw;background:var(--surface);border-radius:var(--r-xl);box-shadow:0 32px 80px rgba(15,31,30,.3);overflow:hidden}
+.cmdk-search{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border-2);gap:10px}
+.cmdk-search input{flex:1;border:none;outline:none;font-size:16px;background:none}
+.cmdk-results{max-height:420px;overflow-y:auto;padding:6px}
+.cmdk-section{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.6px;font-weight:600;padding:10px 12px 6px}
+.cmdk-item{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13.5px}
+.cmdk-item:hover,.cmdk-item.sel{background:var(--primary-tint)}
+.ci-ico{width:30px;height:30px;border-radius:7px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;color:var(--text-2);flex-shrink:0}
+.ci-text{flex:1;min-width:0}
+.ci-title{font-weight:500}
+.ci-sub{font-size:11.5px;color:var(--text-3);margin-top:1px}
+.cmdk-foot{padding:9px 14px;border-top:1px solid var(--border-2);background:var(--surface-2);display:flex;gap:14px;font-size:11px;color:var(--text-3);align-items:center}
+.cmdk-foot kbd{background:var(--surface);border:1px solid var(--border);padding:1px 5px;border-radius:4px;font-size:10.5px}
+
+.notif-pop{position:absolute;top:46px;right:0;width:380px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);z-index:60;display:none;overflow:hidden}
+.notif-pop.show{display:block}
+.notif-head{padding:14px 16px;border-bottom:1px solid var(--border-2);display:flex;justify-content:space-between;align-items:center}
+.notif-item{padding:11px 16px;border-bottom:1px solid var(--border-2);display:flex;gap:11px;cursor:pointer}
+.notif-item:hover{background:var(--surface-2)}
+.notif-item:last-child{border-bottom:none}
+.ni-ic{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ni-text{flex:1;font-size:13px}
+.ni-meta{font-size:11.5px;color:var(--text-3);margin-top:3px}
+
+.plan-row{display:grid;grid-template-columns:60px 1fr 110px 110px 110px 36px;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border-2);align-items:center;font-size:13px}
+.plan-tooth{width:40px;height:40px;border-radius:8px;background:var(--primary-tint);color:var(--primary-2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.plan-total{padding:14px 16px;background:var(--surface-2);display:flex;justify-content:space-between;font-weight:600;font-size:14px}
+
+.bar{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden;width:100%;max-width:120px}
+.bar-fill{height:100%;background:var(--primary);border-radius:3px}
+.bar-fill.low{background:var(--red)}
+.bar-fill.warn{background:var(--amber)}
+
+.widget-preview{background:linear-gradient(180deg,#F0FDFA,#FAFCFC);border:1px solid var(--primary-soft);border-radius:var(--r-lg);padding:18px}
+.widget-frame{background:#fff;border-radius:11px;box-shadow:0 8px 24px rgba(15,31,30,.08);padding:16px;max-width:300px;margin:0 auto;border:1px solid var(--border-2)}
+.wp-step{font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.wp-title{font-size:14px;font-weight:600;margin:6px 0 10px}
+.wp-slots{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.wp-slot{padding:8px;text-align:center;border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:500;cursor:pointer}
+.wp-slot:hover{border-color:var(--primary);color:var(--primary)}
+.wp-slot.picked{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+.loyalty-box{padding:14px;background:linear-gradient(135deg,#FEF3C7,#FDE68A);border-radius:var(--r-lg);border:1px solid #FCD34D}
+.loyalty-tier{font-size:11px;color:#92400E;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:5px}
+.loyalty-pts{font-size:24px;font-weight:700;color:#78350F;margin-top:3px}
+.loyalty-prog{margin-top:10px;height:5px;background:rgba(146,64,14,.15);border-radius:3px;overflow:hidden}
+.loyalty-prog-fill{height:100%;background:#D97706}
+.loyalty-next{font-size:11.5px;color:#92400E;margin-top:6px}
+
+.mic-btn{display:flex;align-items:center;gap:12px;padding:14px 18px;width:100%;background:linear-gradient(135deg,var(--primary-tint),#fff);border:1px dashed var(--primary);border-radius:var(--r-lg);cursor:pointer}
+.mic-btn:hover{background:var(--primary-soft)}
+.mic-circle{width:42px;height:42px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mic-btn.recording .mic-circle{background:var(--red);animation:pulseRed 1.4s infinite}
+@keyframes pulseRed{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.5)}50%{box-shadow:0 0 0 12px rgba(220,38,38,0)}}
+.mic-wave{flex:1;display:flex;align-items:center;gap:3px;height:30px}
+.mic-wave span{width:3px;background:var(--primary);border-radius:2px;opacity:.3;height:6px}
+.mic-btn.recording .mic-wave span{opacity:1;animation:wave 1s infinite}
+.mic-btn.recording .mic-wave span:nth-child(odd){animation-delay:.15s}
+@keyframes wave{0%,100%{height:6px}50%{height:24px}}
+
+.fin-tile{padding:16px 18px;border-radius:var(--r-lg);color:#fff}
+.fin-t-1{background:linear-gradient(135deg,#0F766E,#14B8A6)}
+.fin-t-2{background:linear-gradient(135deg,#D97706,#F59E0B)}
+.fin-t-3{background:linear-gradient(135deg,#7C3AED,#A78BFA)}
+.fin-t-label{font-size:12px;opacity:.85;font-weight:500}
+.fin-t-value{font-size:24px;font-weight:700;margin-top:6px;letter-spacing:-.5px}
+
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#D5DCDD;border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb:hover{background:#B8C2C3}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="brand-logo">D</div>
+      <div><div class="brand-name">Dentaly</div><div class="brand-sub">CRM v4.2 · Pllato</div></div>
+    </div>
+    <div class="clinic-switch"><div class="clinic-dot"></div><div class="clinic-name">Smile Studio<span class="chev">›</span></div></div>
+    <div class="nav-section">
+      <div class="nav-label">Работа</div>
+      <div class="nav-item active" data-view="dashboard"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Дашборд</div>
+      <div class="nav-item" data-view="schedule"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Расписание<span class="nav-badge">14</span></div>
+      <div class="nav-item" data-view="patients"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2 21c0-3.866 3.134-7 7-7s7 3.134 7 7"/></svg>Пациенты</div>
+      <div class="nav-item" data-view="treatment"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3c-3 0-5 2-5 6 0 2 1 3 1 6 0 4 1 6 3 6 1 0 1.5-1 2-3s.5-3 2-3 1.5 1 2 3 1 3 2 3c2 0 3-2 3-6 0-3 1-4 1-6 0-4-2-6-5-6-1.5 0-2 .5-3 .5S10.5 3 9 3z"/></svg>Лечение</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Бизнес</div>
+      <div class="nav-item" data-view="finance"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9M9 14h6"/></svg>Финансы</div>
+      <div class="nav-item" data-view="inventory"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7"/></svg>Склад<span class="nav-badge amber">3</span></div>
+      <div class="nav-item" data-view="comms"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5a2 2 0 012-2h14a2 2 0 012 2v9a2 2 0 01-2 2H8l-5 5V5z"/></svg>Коммуникации</div>
+      <div class="nav-item" data-view="analytics"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M6 17V9M11 17V5M16 17v-7M21 17v-4"/></svg>Аналитика</div>
+    </div>
+    <div class="sidebar-bottom">
+      <div class="user-pill"><div class="avatar" style="background:#7C3AED">ПА</div><div><div class="user-name">Платон Антонов</div><div class="user-role">Управляющий</div></div></div>
+    </div>
+  </aside>
+  <div id="main-wrap">
+    <header id="topbar">
+      <div id="crumbs" class="crumbs"></div>
+      <div class="search-box">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input class="search-input" placeholder="Поиск пациентов, процедур, документов…" readonly onclick="openCmdK()">
+        <span class="search-kbd">⌘K</span>
+      </div>
+      <div class="top-actions" style="position:relative">
+        <button class="icon-btn" onclick="openModal('newAppt')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="icon-btn" onclick="toggleNotif(event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0"/></svg><span class="dot"></span></button>
+        <div class="notif-pop" id="notifPop"></div>
+      </div>
+    </header>
+    <div id="content"></div>
+  </div>
+</div>
+<button class="ai-fab" onclick="toggleAI()"><span class="pulse"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>AI-ассистент</button>
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-head">
+    <div class="ai-ava"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L8 6h8L12 2zM4 10l8 12 8-12M9 10l3 4 3-4"/></svg></div>
+    <div><div class="ai-title">Dentaly AI</div><div class="ai-sub">Помощник врача · GPT-4 + DentNet</div></div>
+    <div class="ai-close" onclick="toggleAI()">✕</div>
+  </div>
+  <div class="ai-msgs" id="aiMsgs"></div>
+  <div class="ai-suggest" id="aiSuggest"></div>
+  <div class="ai-input-wrap">
+    <input class="ai-input" id="aiInput" placeholder="Спросите что-нибудь…" onkeydown="if(event.key==='Enter')aiSend()">
+    <div class="ai-send" onclick="aiSend()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></div>
+  </div>
+</div>
+<div class="cmdk-bg" id="cmdkBg" onclick="if(event.target===this)closeCmdK()">
+  <div class="cmdk">
+    <div class="cmdk-search">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#8B9695"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="cmdkInput" placeholder="Поиск или команда…" oninput="renderCmdK()">
+      <kbd style="background:#FAFBFB;border:1px solid #E5E9EB;padding:2px 6px;border-radius:5px;font-size:11px">esc</kbd>
+    </div>
+    <div class="cmdk-results" id="cmdkResults"></div>
+    <div class="cmdk-foot"><span><kbd>↑↓</kbd> навигация</span><span><kbd>↵</kbd> открыть</span><span style="margin-left:auto">Dentaly Search · Beta</span></div>
+  </div>
+</div>
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()"><div class="modal" id="modalEl"></div></div>
+<script>
+/* ===== DATA ===== */
+const DOCTORS=[
+{id:'d1',name:'Айгерим Сатпаева',spec:'Терапевт',ini:'АС',c:'#0F766E',load:87},
+{id:'d2',name:'Тимур Жумабеков',spec:'Хирург-имплантолог',ini:'ТЖ',c:'#7C3AED',load:92},
+{id:'d3',name:'Анастасия Иванова',spec:'Ортодонт',ini:'АИ',c:'#DC2626',load:73},
+{id:'d4',name:'Даурен Алимов',spec:'Терапевт',ini:'ДА',c:'#0891B2',load:81},
+{id:'d5',name:'Светлана Ким',spec:'Гигиенист',ini:'СК',c:'#059669',load:64},
+{id:'d6',name:'Бауржан Нурланов',spec:'Ортопед',ini:'БН',c:'#D97706',load:78},
+{id:'d7',name:'Елена Петренко',spec:'Детский врач',ini:'ЕП',c:'#DB2777',load:69},
+{id:'d8',name:'Рустам Карим',spec:'Эндодонт',ini:'РК',c:'#4338CA',load:84}];
+const PROC_TYPES={ther:{name:'Терапия',c:'#0F766E'},surg:{name:'Хирургия',c:'#7C3AED'},orto:{name:'Ортодонтия',c:'#DC2626'},hyg:{name:'Гигиена',c:'#059669'},cons:{name:'Консультация',c:'#0891B2'},prost:{name:'Ортопедия',c:'#D97706'},endo:{name:'Эндодонтия',c:'#4338CA'},ped:{name:'Детская',c:'#DB2777'}};
+const PROCEDURES=[
+{n:'Первичная консультация',p:5000,t:'cons'},
+{n:'Профгигиена Air Flow',p:18000,t:'hyg'},
+{n:'Лечение кариеса (1 поверхность)',p:25000,t:'ther'},
+{n:'Лечение кариеса (2 поверхности)',p:38000,t:'ther'},
+{n:'Лечение пульпита (1 канал)',p:42000,t:'endo'},
+{n:'Лечение пульпита (3 канала)',p:78000,t:'endo'},
+{n:'Удаление зуба простое',p:15000,t:'surg'},
+{n:'Удаление зуба сложное',p:35000,t:'surg'},
+{n:'Имплантация Straumann SLActive',p:350000,t:'surg'},
+{n:'Коронка металлокерамика',p:95000,t:'prost'},
+{n:'Коронка цирконий E-max',p:180000,t:'prost'},
+{n:'Винир керамический',p:180000,t:'prost'},
+{n:'Брекеты Damon Q (1 челюсть)',p:380000,t:'orto'},
+{n:'Элайнеры Invisalign',p:1450000,t:'orto'},
+{n:'Отбеливание Zoom 4',p:85000,t:'hyg'},
+{n:'Лечение зуба у ребёнка',p:18000,t:'ped'}];
+const PATIENTS=[
+{id:'p1',name:'Айгерим Касенова',age:34,phone:'+7 701 234 56 78',email:'aigerim.k@gmail.com',balance:-15000,lastVisit:'2026-05-12',doc:'d1',tag:'vip',source:'Instagram',since:'2022-03-14',visits:18,loyalty:{pts:2840,tier:'Gold',next:160},risk:0.18,family:['p2'],note:'Аллергия на лидокаин. Только артикаин.'},
+{id:'p2',name:'Данияр Касенов',age:38,phone:'+7 701 234 56 79',balance:0,lastVisit:'2026-04-28',doc:'d2',tag:'active',source:'Рекомендация',since:'2023-01-20',visits:7,loyalty:{pts:780,tier:'Silver',next:220},risk:0.32,family:['p1']},
+{id:'p3',name:'Тимур Жумабеков',age:27,phone:'+7 707 555 11 22',balance:0,lastVisit:'2025-11-03',doc:'d1',tag:'sleeping',source:'2GIS',since:'2024-02-08',visits:3,risk:0.78},
+{id:'p4',name:'Анастасия Иванова',age:42,phone:'+7 705 432 19 87',balance:-148000,lastVisit:'2026-05-18',doc:'d2',tag:'debtor',source:'Сайт',since:'2021-09-12',visits:24,loyalty:{pts:4120,tier:'Platinum',next:0},risk:0.22,note:'План лечения 8 этапов. Имплантация в работе.'},
+{id:'p5',name:'Бауржан Нурланов',age:51,phone:'+7 702 887 65 43',balance:0,lastVisit:'2026-05-20',doc:'d6',tag:'vip',source:'Рекомендация',since:'2020-06-01',visits:31,loyalty:{pts:6840,tier:'Platinum',next:0},risk:0.08},
+{id:'p6',name:'Светлана Орлова',age:29,phone:'+7 708 111 23 45',balance:0,lastVisit:'2026-05-19',doc:'d3',tag:'active',source:'Instagram',since:'2024-11-04',visits:9,risk:0.15},
+{id:'p7',name:'Рустам Карим',age:36,phone:'+7 700 333 22 11',balance:-32000,lastVisit:'2026-05-15',doc:'d4',tag:'active',source:'Google',since:'2023-07-19',visits:11,risk:0.28},
+{id:'p8',name:'Елена Петренко',age:45,phone:'+7 701 999 88 77',balance:0,lastVisit:'2025-12-22',doc:'d1',tag:'sleeping',source:'Сайт',since:'2022-08-30',visits:6,risk:0.65},
+{id:'p9',name:'Алия Турсынова',age:31,phone:'+7 707 444 55 66',balance:0,lastVisit:'2026-05-21',doc:'d5',tag:'new',source:'Instagram',since:'2026-05-21',visits:1,risk:0.42},
+{id:'p10',name:'Максим Соколов',age:39,phone:'+7 702 678 90 12',balance:-87000,lastVisit:'2026-05-10',doc:'d2',tag:'debtor',source:'Реклама',since:'2025-01-15',visits:8,risk:0.35},
+{id:'p11',name:'Жанар Абдрахманова',age:48,phone:'+7 705 234 11 88',balance:0,lastVisit:'2026-05-17',doc:'d6',tag:'active',source:'Рекомендация',since:'2021-04-22',visits:22,loyalty:{pts:3450,tier:'Gold',next:550}},
+{id:'p12',name:'Никита Воронов',age:25,phone:'+7 708 765 43 21',balance:0,lastVisit:'2026-05-21',doc:'d3',tag:'new',source:'TikTok',since:'2026-05-21',visits:1,risk:0.55},
+{id:'p13',name:'Карина Бекова',age:33,phone:'+7 700 555 66 77',balance:0,lastVisit:'2026-04-15',doc:'d1',tag:'active',source:'Сайт',since:'2024-08-11',visits:5},
+{id:'p14',name:'Артём Мельник',age:41,phone:'+7 707 888 99 00',balance:-22000,lastVisit:'2026-05-13',doc:'d4',tag:'active',source:'Google',since:'2023-11-30',visits:9},
+{id:'p15',name:'Дина Каримова',age:28,phone:'+7 701 222 33 44',balance:0,lastVisit:'2026-05-18',doc:'d3',tag:'active',source:'Instagram',since:'2025-02-14',visits:6},
+{id:'p16',name:'Олег Дмитриев',age:55,phone:'+7 702 111 99 88',balance:0,lastVisit:'2025-10-08',doc:'d6',tag:'sleeping',source:'Рекомендация',since:'2020-03-17',visits:14},
+{id:'p17',name:'Алина Корчагина',age:22,phone:'+7 708 333 44 55',balance:0,lastVisit:'2026-05-19',doc:'d3',tag:'active',source:'Instagram',since:'2025-09-12',visits:3},
+{id:'p18',name:'Самат Ермеков',age:37,phone:'+7 700 999 11 22',balance:-65000,lastVisit:'2026-05-14',doc:'d2',tag:'debtor',source:'Сайт',since:'2024-06-08',visits:7},
+{id:'p19',name:'Виктория Лебедева',age:30,phone:'+7 701 567 89 01',balance:0,lastVisit:'2026-05-20',doc:'d5',tag:'active',source:'Instagram',since:'2024-04-19',visits:8,loyalty:{pts:1240,tier:'Silver',next:760}},
+{id:'p20',name:'Мадина Жаксыбекова',age:44,phone:'+7 707 234 55 88',balance:0,lastVisit:'2026-03-12',doc:'d1',tag:'active',source:'Рекомендация',since:'2022-11-05',visits:13},
+{id:'p21',name:'Кирилл Зайцев',age:8,phone:'+7 701 444 77 99',balance:0,lastVisit:'2026-05-16',doc:'d7',tag:'active',source:'Семья',since:'2024-02-11',visits:4,note:'Ребёнок Зайцевых. Боится бормашины, седация.'},
+{id:'p22',name:'Ольга Зайцева',age:35,phone:'+7 701 444 77 98',balance:0,lastVisit:'2026-04-22',doc:'d1',tag:'active',source:'2GIS',since:'2023-05-30',visits:9,family:['p21']},
+{id:'p23',name:'Ержан Сериков',age:62,phone:'+7 702 678 12 34',balance:-12000,lastVisit:'2026-05-09',doc:'d6',tag:'active',source:'Рекомендация',since:'2019-12-04',visits:28,loyalty:{pts:5240,tier:'Platinum',next:0}},
+{id:'p24',name:'Софья Романова',age:26,phone:'+7 708 901 23 45',balance:0,lastVisit:'2026-05-20',doc:'d3',tag:'new',source:'Instagram',since:'2026-04-15',visits:2},
+{id:'p25',name:'Андрей Громов',age:43,phone:'+7 700 234 67 89',balance:0,lastVisit:'2026-02-28',doc:'d4',tag:'active',source:'Сайт',since:'2023-08-17',visits:11},
+{id:'p26',name:'Гульнара Ахметова',age:50,phone:'+7 701 678 91 23',balance:0,lastVisit:'2025-09-15',doc:'d1',tag:'sleeping',source:'Реклама',since:'2021-07-22',visits:8},
+{id:'p27',name:'Иван Кулагин',age:29,phone:'+7 707 345 67 89',balance:0,lastVisit:'2026-05-21',doc:'d2',tag:'new',source:'Google',since:'2026-05-10',visits:2},
+{id:'p28',name:'Лейла Сулейманова',age:38,phone:'+7 702 456 78 90',balance:-45000,lastVisit:'2026-05-16',doc:'d2',tag:'debtor',source:'Instagram',since:'2024-12-03',visits:6},
+{id:'p29',name:'Денис Прохоров',age:32,phone:'+7 708 567 89 01',balance:0,lastVisit:'2026-05-19',doc:'d4',tag:'active',source:'2GIS',since:'2024-10-14',visits:5},
+{id:'p30',name:'Камилла Жунусова',age:24,phone:'+7 700 678 90 12',balance:0,lastVisit:'2026-05-20',doc:'d3',tag:'active',source:'Instagram',since:'2025-06-22',visits:4},
+{id:'p31',name:'Михаил Степанов',age:46,phone:'+7 701 789 01 23',balance:0,lastVisit:'2026-05-17',doc:'d6',tag:'vip',source:'Рекомендация',since:'2020-11-08',visits:19,loyalty:{pts:3920,tier:'Gold',next:80}},
+{id:'p32',name:'Назым Куанышева',age:36,phone:'+7 707 890 12 34',balance:0,lastVisit:'2026-04-30',doc:'d1',tag:'active',source:'Сайт',since:'2022-06-15',visits:14}];
+const TEETH_DATA={
+'p4':{11:{state:'crown'},12:{seg:{m:'caries'}},16:{state:'implant'},17:{state:'extracted'},21:{seg:{o:'filling',m:'filling'}},25:{seg:{o:'caries'}},26:{state:'crown'},36:{state:'extracted'},37:{seg:{o:'filling'},state:'endo'},46:{state:'implant'},47:{seg:{d:'caries',o:'caries'}},14:{seg:{o:'filling'}},24:{seg:{o:'filling',d:'filling'}}},
+'p1':{16:{seg:{o:'filling'}},26:{seg:{o:'filling'}},36:{seg:{o:'filling',d:'caries'}},46:{state:'crown'},12:{seg:{v:'filling'}},22:{seg:{v:'filling'}}},
+'p5':{11:{state:'crown'},12:{state:'crown'},13:{state:'crown'},14:{state:'crown'},21:{state:'crown'},22:{state:'crown'},23:{state:'crown'},24:{state:'crown'},16:{state:'implant'},26:{state:'implant'},36:{state:'implant'},46:{state:'implant'},37:{seg:{o:'filling'}},47:{seg:{o:'filling'}},17:{state:'extracted'},27:{state:'extracted'}}};
+const TOOTH_HISTORY={
+'p4-16':[{d:'2024-03-12',t:'Удаление зуба 16 (Жумабеков Т.)'},{d:'2024-09-04',t:'Установка импланта Straumann SLActive 4.1×10'},{d:'2025-02-18',t:'Установка формирователя десны'},{d:'2025-04-22',t:'Коронка циркониевая на абатмент'}],
+'p4-26':[{d:'2023-06-15',t:'Лечение кариеса (О+Д), композит'},{d:'2025-11-03',t:'Депульпирование, 3 канала'},{d:'2026-02-20',t:'Коронка металлокерамика'}],
+'p4-12':[{d:'2026-05-12',t:'Жалоба: чувствительность. Кариес мезиальной поверхности — план: лечение'}],
+'p4-46':[{d:'2026-05-18',t:'Установка импланта 46 (Жумабеков Т.)'},{d:'2026-05-22',t:'Контрольный осмотр через 5 дней — план'}],
+'p1-46':[{d:'2024-10-08',t:'Лечение пульпита, 2 канала'},{d:'2025-01-15',t:'Коронка металлокерамика'}]};
+const TODAY=new Date(2026,4,22);
+const WEEK_DAYS=['Пн 18.05','Вт 19.05','Ср 20.05','Чт 21.05','Пт 22.05','Сб 23.05'];
+const APPOINTMENTS=(function(){
+  const list=[];let id=1;
+  const slots=['09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00'];
+  DOCTORS.forEach((doc,di)=>{
+    for(let day=0;day<WEEK_DAYS.length;day++){
+      const count=7+((di*3+day*5)%5);
+      let cursor=0;
+      for(let i=0;i<count && cursor<slots.length-2;i++){
+        const start=slots[cursor];
+        const dur=[30,30,45,60,60,90][i%6];
+        const patient=PATIENTS[(di*5+day*3+i*7)%PATIENTS.length];
+        let proc=PROCEDURES[(di+day+i)%PROCEDURES.length];
+        if(doc.spec.includes('Хирург'))proc=PROCEDURES[6+(i%3)];
+        else if(doc.spec.includes('Ортодонт'))proc=PROCEDURES[12+(i%2)];
+        else if(doc.spec.includes('Гигиенист'))proc=PROCEDURES[1];
+        else if(doc.spec.includes('Детский'))proc=PROCEDURES[15];
+        else if(doc.spec.includes('Ортопед'))proc=PROCEDURES[9+(i%3)];
+        else if(doc.spec.includes('Эндодонт'))proc=PROCEDURES[4+(i%2)];
+        else proc=PROCEDURES[2+(i%2)];
+        const statuses=['confirmed','pending','confirmed','done','confirmed','noshow','confirmed'];
+        const status=day<4?'done':(day===4&&parseInt(start)<11?'done':(day===4?(i%5===0?'pending':'confirmed'):statuses[i%6]));
+        list.push({id:'a'+id++,day,start,dur,docId:doc.id,patientId:patient.id,procName:proc.n,procPrice:proc.p,procType:proc.t,status,risk:patient.risk||0.2});
+        cursor+=Math.ceil(dur/30)+(i%4===0?1:0);
+      }
+    }
+  });
+  return list;
+})();
+const NOTIFICATIONS=[
+{ico:'bell',c:'#D97706',bg:'#FEF3C7',title:'Касенова Айгерим не подтвердила запись',meta:'Завтра 10:30 · Сатпаева А.',time:'15 мин назад'},
+{ico:'box',c:'#DC2626',bg:'#FEE2E2',title:'Заканчивается артикаин Septanest',meta:'Остаток: 8 карпул при минимуме 30',time:'1 час назад'},
+{ico:'alert',c:'#DC2626',bg:'#FEE2E2',title:'Жумабеков Т. — 3 переноса подряд у Соколова',meta:'Высокий риск ухода клиента',time:'3 часа назад'},
+{ico:'star',c:'#059669',bg:'#D1FAE5',title:'NPS от Нурланова: 10/10',meta:'«Лучшая клиника в Алматы. Спасибо!»',time:'5 часов назад'},
+{ico:'cash',c:'#D97706',bg:'#FEF3C7',title:'Иванова А. — план лечения 1 250 000 ₸',meta:'Ожидает согласования',time:'вчера'},
+{ico:'cal',c:'#0F766E',bg:'#CCFBF1',title:'Завтра: 38 записей, 6 на имплантацию',meta:'Загрузка 91%',time:'вчера'}];
+const INVENTORY=[
+{n:'Артикаин Septanest 4% 1:200000',cat:'Анестезия',stock:8,min:30,unit:'карпул',exp:'2027-04',cost:680},
+{n:'Перчатки нитриловые M (Mercator)',cat:'Расходники',stock:240,min:200,unit:'шт',exp:'2028-06',cost:65},
+{n:'Композит Filtek Ultimate A3',cat:'Пломбировочные',stock:4,min:8,unit:'шприц',exp:'2027-09',cost:18500},
+{n:'Имплантат Straumann SLActive 4.1×10',cat:'Имплантация',stock:6,min:4,unit:'шт',exp:'-',cost:185000},
+{n:'Боры алмазные FG (комплект)',cat:'Инструменты',stock:18,min:10,unit:'компл',exp:'-',cost:4200},
+{n:'Слюноотсосы одноразовые',cat:'Расходники',stock:1200,min:500,unit:'шт',exp:'-',cost:12},
+{n:'Маски трёхслойные',cat:'СИЗ',stock:80,min:200,unit:'шт',exp:'2027-02',cost:25},
+{n:'Цемент GC Fuji Plus',cat:'Цементы',stock:5,min:3,unit:'упак',exp:'2026-12',cost:24500},
+{n:'Никель-титан Reciproc Blue R25',cat:'Эндодонтия',stock:12,min:6,unit:'шт',exp:'-',cost:8900},
+{n:'Гипохлорит натрия 3%',cat:'Дезинфекция',stock:14,min:8,unit:'л',exp:'2027-01',cost:1800},
+{n:'Брекет Damon Q (паз 0.022)',cat:'Ортодонтия',stock:120,min:80,unit:'шт',exp:'-',cost:8500},
+{n:'Винт абатмента Straumann',cat:'Имплантация',stock:14,min:10,unit:'шт',exp:'-',cost:6800}];
+// Богатая модель: план = череда визитов, визит = набор процедур.
+// 3 варианта: economy / standard / premium. Активный — standard.
+let TREATMENT_PLANS = {
+  'p4': {
+    id:'plan-p4-2026',
+    title:'Комплексное лечение и протезирование',
+    status:'in_progress', // draft / agreed / in_progress / completed / cancelled
+    agreedAt:'2026-05-15',
+    docId:'d2',
+    discount:5,
+    discountReason:'Постоянный клиент',
+    activeVariant:'standard',
+    variants:{
+      economy:{name:'Эконом',sub:'Базовое восстановление функции',total:780000,duration:'4–5 мес'},
+      standard:{name:'Стандарт',sub:'Оптимальное соотношение цена/качество',total:1314000,duration:'5–6 мес'},
+      premium:{name:'Премиум',sub:'Лучшие материалы и эстетика',total:1820000,duration:'6–7 мес'}
+    },
+    visits:[
+      {id:'v1',date:'2024-03-12',title:'Удаление 16 и подготовка к имплантации',docId:'d2',duration:60,status:'done',
+        stages:[{id:'s1',tooth:16,proc:'Удаление зуба сложное',price:35000,status:'done'}]},
+      {id:'v2',date:'2024-09-04',title:'Установка импланта 16',docId:'d2',duration:90,status:'done',
+        stages:[{id:'s2',tooth:16,proc:'Имплантация Straumann SLActive',price:350000,status:'done'}]},
+      {id:'v3',date:'2025-02-18',title:'Формирователь десны 16',docId:'d2',duration:30,status:'done',
+        stages:[{id:'s3',tooth:16,proc:'Установка формирователя десны',price:18000,status:'done'}]},
+      {id:'v4',date:'2025-04-22',title:'Установка коронки 16',docId:'d6',duration:60,status:'done',
+        stages:[{id:'s4',tooth:16,proc:'Коронка цирконий E-max',price:180000,status:'done'}]},
+      {id:'v5',date:'2025-11-03',title:'Лечение пульпита 26',docId:'d8',duration:90,status:'done',
+        stages:[{id:'s5',tooth:26,proc:'Лечение пульпита (3 канала)',price:78000,status:'done'}]},
+      {id:'v6',date:'2026-02-20',title:'Коронка 26',docId:'d6',duration:60,status:'done',
+        stages:[{id:'s6',tooth:26,proc:'Коронка металлокерамика',price:95000,status:'done'}]},
+      {id:'v7',date:'2026-05-18',title:'Имплантация 46',docId:'d2',duration:90,status:'done',
+        stages:[{id:'s7',tooth:46,proc:'Имплантация Straumann SLActive',price:350000,status:'done'}]},
+      {id:'v8',date:'2026-05-23',title:'Лечение кариеса 12 и 47',docId:'d1',duration:75,status:'planned',
+        stages:[
+          {id:'s8',tooth:12,proc:'Лечение кариеса (1 поверхность)',price:25000,status:'planned'},
+          {id:'s9',tooth:47,proc:'Лечение кариеса (2 поверхности)',price:38000,status:'planned'}
+        ]},
+      {id:'v9',date:'2026-08-15',title:'Установка коронки 46',docId:'d6',duration:60,status:'planned',
+        stages:[{id:'s10',tooth:46,proc:'Коронка цирконий E-max',price:180000,status:'planned'}]}
+    ],
+    payments:[
+      {d:'2024-03-12',amt:35000,m:'Kaspi QR'},
+      {d:'2024-09-04',amt:350000,m:'Kaspi Red (рассрочка 0/0/6)'},
+      {d:'2025-02-18',amt:18000,m:'Карта VISA'},
+      {d:'2025-04-22',amt:180000,m:'Kaspi QR'},
+      {d:'2025-11-03',amt:78000,m:'Наличные'},
+      {d:'2026-02-20',amt:95000,m:'Kaspi Red (рассрочка 0/0/12)'},
+      {d:'2026-05-18',amt:350000,m:'Kaspi QR'}
+    ]
+  }
+};
+const TIMELINE_P4=[
+{d:'2026-05-22',ico:'phone',c:'#0891B2',title:'Входящий звонок · Анастасия Иванова',meta:'4:12 · Принял: ресепшн',desc:'Уточнила сроки финального этапа имплантации. Передано Жумабекову Т.'},
+{d:'2026-05-18',ico:'cal',c:'#7C3AED',title:'Визит · Хирургия',meta:'Жумабеков Т. · 90 мин · Кресло 3',desc:'Установка импланта Straumann в 46 позицию. Без осложнений.'},
+{d:'2026-05-18',ico:'cash',c:'#059669',title:'Оплата 350 000 ₸',meta:'Kaspi QR · Этап имплантации',desc:'Чек отправлен в WhatsApp'},
+{d:'2026-05-15',ico:'doc',c:'#D97706',title:'Согласован план лечения',meta:'Сумма: 1 314 000 ₸ · Этапов: 9',desc:'ИДС подписан электронно через личный кабинет'},
+{d:'2026-05-12',ico:'cal',c:'#0F766E',title:'Визит · Первичный осмотр',meta:'Сатпаева А. · 45 мин · Кресло 1',desc:'КТ + осмотр. Обнаружен кариес 12, 47.'},
+{d:'2026-05-10',ico:'msg',c:'#0891B2',title:'WhatsApp от пациента',meta:'«Хочу продолжить лечение»',desc:''},
+{d:'2026-04-28',ico:'star',c:'#CA8A04',title:'NPS-опрос: 9/10',meta:'«Очень довольна сервисом и качеством»',desc:''}];
+
+const STATE={view:'dashboard',patientTab:'overview',patientId:null,scheduleDay:4,patientFilter:'all',selectedTooth:null,cmdkSel:0,recording:false};
+
+const I={
+cal:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+phone:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.94.36 1.86.7 2.74a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.34-1.27a2 2 0 012.11-.45c.88.34 1.8.57 2.74.7A2 2 0 0122 16.92z"/></svg>',
+msg:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5a2 2 0 012-2h14a2 2 0 012 2v9a2 2 0 01-2 2H8l-5 5V5z"/></svg>',
+wa:'<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-1-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-1.8-.9-3-1.6-4.1-3.5-.3-.5.3-.5.8-1.5.1-.2 0-.4 0-.5l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.7s1.2 3.1 1.3 3.3c.2.2 2.3 3.6 5.7 5 2.1.9 3 1 4 .9.6-.1 1.7-.7 2-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.4zM12 2C6.5 2 2 6.5 2 12c0 1.8.5 3.5 1.3 5L2 22l5.2-1.4c1.4.8 3.1 1.2 4.8 1.2 5.5 0 10-4.5 10-10S17.5 2 12 2z"/></svg>',
+tg:'<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.5 8.2-1.8 8.6c-.1.6-.5.7-1 .5l-2.8-2.1-1.4 1.3c-.2.2-.3.3-.6.3l.2-2.9 5.2-4.7c.2-.2 0-.3-.3-.1L8.6 12.5l-2.8-.9c-.6-.2-.6-.6.1-.9l11-4.2c.5-.2 1 .1.8.7z"/></svg>',
+doc:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>',
+cash:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/></svg>',
+star:'<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.9L12 17.8l-6.2 3.3 1.2-6.9-5-4.9 6.9-1z"/></svg>',
+bell:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0"/></svg>',
+box:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7"/></svg>',
+alert:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg>',
+edit:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.4 2.6a2 2 0 113 3L12 15l-4 1 1-4 9.4-9.4z"/></svg>',
+trend:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 17l6-6 4 4 8-8M14 7h7v7"/></svg>',
+trendDn:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 7l6 6 4-4 8 8M14 17h7v-7"/></svg>',
+user:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M3 21c0-4 4-7 9-7s9 3 9 7"/></svg>',
+chev:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
+pin:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-7.58 8-13a8 8 0 10-16 0c0 5.42 8 13 8 13z"/><circle cx="12" cy="9" r="3"/></svg>',
+mic:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4M8 22h8"/></svg>',
+more:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>',
+plus:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>',
+download:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
+filter:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5z"/></svg>',
+zap:'<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg>',
+tooth:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 3c-3 0-5 2-5 6 0 2 1 3 1 6 0 4 1 6 3 6 1 0 1.5-1 2-3s.5-3 2-3 1.5 1 2 3 1 3 2 3c2 0 3-2 3-6 0-3 1-4 1-6 0-4-2-6-5-6-1.5 0-2 .5-3 .5S10.5 3 9 3z"/></svg>',
+brand:'<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L8 6h8L12 2zM4 10l8 12 8-12"/></svg>'};
+
+const fmt={
+money:v=>{const a=Math.abs(v);return (v<0?'-':'')+a.toLocaleString('ru-RU').replace(/,/g,' ')+' ₸'},
+date:s=>{if(!s)return'—';return new Date(s).toLocaleDateString('ru-RU',{day:'2-digit',month:'short'})},
+dateFull:s=>new Date(s).toLocaleDateString('ru-RU',{day:'2-digit',month:'long',year:'numeric'}),
+age:a=>{const l=a%10,lt=a%100;if(lt>=11&&lt<=14)return a+' лет';if(l===1)return a+' год';if(l>=2&&l<=4)return a+' года';return a+' лет'}};
+function $(id){return document.getElementById(id)}
+function patient(id){return PATIENTS.find(p=>p.id===id)}
+function doctor(id){return DOCTORS.find(d=>d.id===id)}
+function escapeHTML(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function ini(name){return name.split(' ').map(s=>s[0]).slice(0,2).join('')}
+const TAG_LABEL={all:'Все',active:'Активные',sleeping:'Спящие 6+ мес',debtor:'Должники',vip:'VIP',new:'Новые'};
+function tagBadge(t){const map={vip:'b-gold',active:'b-green',sleeping:'b-gray',debtor:'b-red',new:'b-blue'};const lbl={vip:'VIP',active:'Активный',sleeping:'Спящий',debtor:'Должник',new:'Новый'};return `<span class="badge ${map[t]||'b-gray'}">${lbl[t]||t}</span>`}
+function statusBadge(s){const m={confirmed:['b-green','Подтверждена'],pending:['b-amber','Ждём'],inchair:['b-blue','В кресле'],done:['b-gray','Завершён'],noshow:['b-red','Не пришёл']};const[c,l]=m[s]||['b-gray',s];return `<span class="badge ${c}">${l}</span>`}
+
+/* ===== NAVIGATION ===== */
+function setView(v,extra){
+  STATE.view=v;
+  if(extra)Object.assign(STATE,extra);
+  if(v==='patients'||v==='dashboard'||v==='schedule'||v==='treatment'||v==='finance'||v==='inventory'||v==='comms'||v==='analytics'){
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===v));
+  }
+  render();
+}
+const CRUMBS={dashboard:'Дашборд',schedule:'Расписание',patients:'Пациенты',treatment:'Лечение',finance:'Финансы',inventory:'Склад',comms:'Коммуникации',analytics:'Аналитика',settings:'Настройки'};
+function renderCrumbs(){
+  let html='<span>Главная</span><span class="sep">/</span>';
+  if(STATE.view==='patient'){
+    html+=`<span style="cursor:pointer" onclick="setView('patients')">Пациенты</span><span class="sep">/</span><span class="cur">${patient(STATE.patientId).name}</span>`;
+  } else {
+    html+=`<span class="cur">${CRUMBS[STATE.view]||''}</span>`;
+  }
+  $('crumbs').innerHTML=html;
+}
+function render(){
+  renderCrumbs();
+  const v=STATE.view;
+  let html='';
+  if(v==='dashboard')html=renderDashboard();
+  else if(v==='schedule')html=renderSchedule();
+  else if(v==='patients')html=renderPatients();
+  else if(v==='patient')html=renderPatient();
+  else if(v==='treatment')html=renderTreatment();
+  else if(v==='finance')html=renderFinance();
+  else if(v==='inventory')html=renderInventory();
+  else if(v==='comms')html=renderComms();
+  else if(v==='analytics')html=renderAnalytics();
+  else if(v==='settings')html=renderSettings();
+  $('content').innerHTML=html;
+  if(v==='patient')bindPatientTabs();
+}
+
+/* ===== DASHBOARD ===== */
+function renderDashboard(){
+  const todayAppts=APPOINTMENTS.filter(a=>a.day===STATE.scheduleDay);
+  const spark=[12,18,15,22,28,19,24,32,29,35,31,38,42,46];
+  const funnel=[
+    {l:'Лиды (звонки/заявки)',v:482,bar:100},
+    {l:'Запись на приём',v:341,bar:71},
+    {l:'Состоявшийся визит',v:298,bar:62},
+    {l:'Согласован план',v:187,bar:39},
+    {l:'Оплата 1-го этапа',v:156,bar:32},
+    {l:'Повторный визит',v:134,bar:28}];
+  const days=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  let heat='<div class="heatmap"><div></div>';
+  days.forEach(d=>heat+=`<div class="hm-h">${d}</div>`);
+  DOCTORS.forEach(doc=>{
+    heat+=`<div class="hm-l">${doc.ini} · ${doc.spec.slice(0,14)}</div>`;
+    for(let d=0;d<7;d++){
+      const v=d===6?20+((doc.load+d*7)%30):40+((doc.load+d*11)%55);
+      const op=Math.max(.15,Math.min(1,v/100));
+      heat+=`<div class="hm-c" style="background:rgba(15,118,110,${op})" title="${doc.name} · ${days[d]}: ${v}%">${v}</div>`;
+    }
+  });
+  heat+='</div>';
+
+  const areaPath=(()=>{
+    const w=600,h=160,pad=20,mx=Math.max(...spark),mn=Math.min(...spark)-2;
+    const pts=spark.map((v,i)=>[(i/(spark.length-1))*(w-pad*2)+pad,h-((v-mn)/(mx-mn))*(h-30)+10]);
+    const line=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+    const area=line+` L${pts[pts.length-1][0].toFixed(1)} ${h+10} L${pts[0][0].toFixed(1)} ${h+10} Z`;
+    let circles=pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="#0F766E"/>`).join('');
+    return `<path d="${area}" fill="url(#g1)"/><path d="${line}" stroke="#0F766E" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>${circles}`;
+  })();
+
+  return `
+  <div class="page-head">
+    <div>
+      <div class="page-title">Доброе утро, Платон 👋</div>
+      <div class="page-sub">Пятница, 22 мая · в клинике сегодня ${todayAppts.length} записей · загрузка кресел 84%</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost">${I.download}Экспорт отчёта</button>
+      <button class="btn btn-primary" onclick="openModal('newAppt')">${I.plus}Новая запись</button>
+    </div>
+  </div>
+  <div class="grid-4">
+    <div class="card kpi"><div class="kpi-label">Выручка за май</div><div class="kpi-value">${fmt.money(24840000)}</div><div class="kpi-delta up">${I.trend} +18.4% к апрелю</div></div>
+    <div class="card kpi"><div class="kpi-label">Средний чек визита</div><div class="kpi-value">${fmt.money(68200)}</div><div class="kpi-delta up">${I.trend} +4.1% за квартал</div></div>
+    <div class="card kpi"><div class="kpi-label">Загрузка кресел</div><div class="kpi-value">84%</div><div class="kpi-delta up">${I.trend} +6 п.п.</div></div>
+    <div class="card kpi"><div class="kpi-label">Новых пациентов</div><div class="kpi-value">47</div><div class="kpi-delta down">${I.trendDn} −3 за неделю</div></div>
+  </div>
+  <div class="grid-dash">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="card-head">
+          <div><div class="card-title">Выручка по дням</div><div class="card-sub">Последние 14 дней</div></div>
+          <div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm">14Д</button><button class="btn btn-ghost btn-sm" style="opacity:.5">30Д</button><button class="btn btn-ghost btn-sm" style="opacity:.5">90Д</button></div>
+        </div>
+        <div style="padding:18px">
+          <svg viewBox="0 0 600 180" style="width:100%;height:180px">
+            <defs><linearGradient id="g1" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#0F766E" stop-opacity=".25"/><stop offset="100%" stop-color="#0F766E" stop-opacity="0"/></linearGradient></defs>
+            <line x1="0" x2="600" y1="30" y2="30" stroke="#EEF1F2"/><line x1="0" x2="600" y1="70" y2="70" stroke="#EEF1F2"/><line x1="0" x2="600" y1="110" y2="110" stroke="#EEF1F2"/><line x1="0" x2="600" y1="150" y2="150" stroke="#EEF1F2"/>
+            ${areaPath}
+          </svg>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div><div class="card-title">Воронка пациентов · май</div><div class="card-sub">От лида до повторного визита</div></div>
+          <span class="badge b-teal">Конверсия 27.8%</span>
+        </div>
+        <div class="card-pad">
+          <div class="funnel">
+            ${funnel.map((f,i)=>`<div class="funnel-step"><div class="funnel-label">${f.l}</div><div class="funnel-bar"><div class="funnel-fill" style="width:${f.bar}%">${f.v}</div></div><div class="funnel-conv">${i===0?'':((funnel[i].v/funnel[i-1].v)*100).toFixed(0)+'%'}</div></div>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">Загрузка врачей × дни недели</div><div class="card-sub">Тепловая карта по записям</div></div></div>
+        <div class="card-pad">${heat}</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="card-head"><div class="card-title">Сейчас в клинике</div><span class="badge b-teal">⦿ Live</span></div>
+        <div>
+          ${[{ava:'АИ',c:'#DC2626',name:'Иванова Анастасия',proc:'Снятие слепков',doc:'Нурланов Б.',room:'Кресло 3',time:'42 мин'},{ava:'БН',c:'#D97706',name:'Нурланов Бауржан',proc:'Лечение пульпита',doc:'Карим Р.',room:'Кресло 2',time:'18 мин'},{ava:'НВ',c:'#0891B2',name:'Воронов Никита',proc:'Первичный осмотр',doc:'Иванова А.',room:'Кресло 5',time:'5 мин'}].map(r=>`<div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border-2)"><div class="avatar sm" style="background:${r.c}">${r.ava}</div><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px">${r.name}</div><div style="font-size:11.5px;color:var(--text-2);margin-top:1px">${r.proc} · ${r.doc}</div></div><div style="text-align:right"><div style="font-size:11px;color:var(--text-3);font-weight:500">${r.room}</div><div style="font-size:11px;color:var(--green);font-weight:600;margin-top:1px">⦿ ${r.time}</div></div></div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Топ врачей · май</div></div>
+        <div style="padding:6px 0 10px">
+          ${DOCTORS.slice(0,5).map((d,i)=>{const rev=(8-i)*340000+i*120000;const pct=85-i*8;return `<div style="display:flex;align-items:center;gap:10px;padding:9px 18px"><div style="color:var(--text-3);font-weight:700;width:18px;font-size:13px">${i+1}</div><div class="avatar sm" style="background:${d.c}">${d.ini}</div><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:12.5px">${d.name}</div><div style="font-size:11px;color:var(--text-3)">${d.spec}</div></div><div style="text-align:right"><div style="font-weight:700;font-size:13px">${fmt.money(rev)}</div><div style="font-size:11px;color:var(--text-3)">${pct}% загрузка</div></div></div>`}).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Виджет онлайн-записи</div><span class="badge b-blue">smile-studio.kz</span></div>
+        <div class="card-pad">
+          <div class="widget-preview">
+            <div class="widget-frame">
+              <div class="wp-step">Шаг 3 из 4 · Выберите время</div>
+              <div class="wp-title">Сатпаева А. · Терапевт</div>
+              <div class="wp-slots">
+                <div class="wp-slot">09:00</div><div class="wp-slot">10:30</div><div class="wp-slot picked">11:30</div><div class="wp-slot">14:00</div><div class="wp-slot">15:30</div><div class="wp-slot">17:00</div>
+              </div>
+              <button class="btn btn-primary btn-sm" style="width:100%;margin-top:12px;justify-content:center">Подтвердить запись</button>
+            </div>
+          </div>
+          <div style="font-size:11.5px;color:var(--text-3);margin-top:10px;text-align:center">За май через виджет — <b style="color:var(--text)">86 записей</b></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ===== SCHEDULE ===== */
+function renderSchedule(){
+  const slots=[];
+  for(let h=9;h<20;h++){slots.push(h+':00');slots.push(h+':30')}
+  slots.forEach((s,i)=>slots[i]=s.padStart(5,'0'));
+  const dayAppts=APPOINTMENTS.filter(a=>a.day===STATE.scheduleDay);
+  const cols=`60px repeat(${DOCTORS.length},minmax(120px,1fr))`;
+  let head=`<div class="sched-head" style="grid-template-columns:${cols}"><div class="sched-head-cell" style="background:var(--surface-2)"></div>`;
+  DOCTORS.forEach(d=>{
+    head+=`<div class="sched-head-cell"><div class="doc-mini"><div class="avatar sm" style="background:${d.c}">${d.ini}</div><div style="text-align:left;min-width:0"><div class="doc-mini-name">${d.name.split(' ')[0]} ${d.name.split(' ')[1][0]}.</div><div class="doc-mini-spec">${d.spec}</div></div></div></div>`;
+  });
+  head+='</div>';
+  let body='';
+  slots.forEach(slot=>{
+    body+=`<div class="sched-row" style="grid-template-columns:${cols}"><div class="sched-time">${slot}</div>`;
+    DOCTORS.forEach(doc=>{
+      const cellAppts=dayAppts.filter(a=>a.docId===doc.id && a.start===slot);
+      let inner='';
+      cellAppts.forEach(a=>{
+        const p=patient(a.patientId);
+        const c=PROC_TYPES[a.procType].c;
+        const h=(a.dur/30)*40-6;
+        const highRisk=a.risk>0.6;
+        inner+=`<div class="appt" style="background:${c};top:2px;height:${h}px" onclick="event.stopPropagation();openApptModal('${a.id}')"><div class="appt-status" style="background:${a.status==='done'?'#fff':a.status==='pending'?'#FCD34D':a.status==='noshow'?'#FCA5A5':'#fff'}"></div><div class="appt-name">${p.name}</div><div class="appt-proc">${a.procName}</div>${highRisk?`<div class="risk-dot" title="Высокий риск ${Math.round(a.risk*100)}%">⚠</div>`:''}</div>`;
+      });
+      body+=`<div class="sched-cell">${inner}</div>`;
+    });
+    body+='</div>';
+  });
+  return `
+  <div class="page-head">
+    <div><div class="page-title">Расписание</div><div class="page-sub">${dayAppts.length} записей · ${WEEK_DAYS[STATE.scheduleDay]} 2026 · загрузка 87%</div></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-ghost">${I.filter}Фильтры</button><button class="btn btn-primary" onclick="openModal('newAppt')">${I.plus}Записать</button></div>
+  </div>
+  <div class="sched-toolbar">
+    <div class="day-tabs">${WEEK_DAYS.map((d,i)=>`<div class="day-tab ${i===STATE.scheduleDay?'active':''}" onclick="setView('schedule',{scheduleDay:${i}})">${d}</div>`).join('')}</div>
+    <div style="margin-left:auto;display:flex;gap:14px;align-items:center;font-size:12px;color:var(--text-2);flex-wrap:wrap">
+      ${Object.entries(PROC_TYPES).slice(0,6).map(([k,v])=>`<div style="display:flex;align-items:center;gap:5px"><div style="width:9px;height:9px;border-radius:3px;background:${v.c}"></div>${v.name}</div>`).join('')}
+    </div>
+  </div>
+  <div class="sched-grid">${head}<div class="sched-body">${body}</div></div>`;
+}
+
+function openApptModal(id){
+  const a=APPOINTMENTS.find(x=>x.id===id);if(!a)return;
+  const p=patient(a.patientId),d=doctor(a.docId);
+  const html=`
+    <div class="modal-head">
+      <div><div class="modal-title">Запись · ${WEEK_DAYS[a.day]} ${a.start}</div><div style="color:var(--text-2);font-size:12px;margin-top:3px">${a.dur} мин · ${statusBadge(a.status)}</div></div>
+      <button class="icon-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--border-2);margin-bottom:14px;cursor:pointer" onclick="closeModal();setView('patient',{patientId:'${p.id}',patientTab:'overview'})">
+        <div class="avatar lg" style="background:${d.c}">${ini(p.name)}</div>
+        <div style="flex:1"><div style="font-weight:700;font-size:16px">${p.name}</div><div style="color:var(--text-2);font-size:12.5px;margin-top:2px">${fmt.age(p.age)} · ${p.phone} · ${tagBadge(p.tag)}</div></div>
+        ${I.chev}
+      </div>
+      <div class="mb-row"><span class="lbl">Процедура</span><span class="val">${a.procName}</span></div>
+      <div class="mb-row"><span class="lbl">Стоимость</span><span class="val">${fmt.money(a.procPrice)}</span></div>
+      <div class="mb-row"><span class="lbl">Врач</span><span class="val">${d.name} · ${d.spec}</span></div>
+      <div class="mb-row"><span class="lbl">Кабинет</span><span class="val">№ ${(a.docId.charCodeAt(1)%6)+1}</span></div>
+      <div class="mb-row"><span class="lbl">Риск отмены</span><span class="val" style="color:${a.risk>0.5?'var(--red)':a.risk>0.3?'var(--amber)':'var(--green)'}">${Math.round(a.risk*100)}%${a.risk>0.5?' ⚠':''}</span></div>
+      ${a.risk>0.5?`<div style="margin-top:12px;padding:11px 13px;background:#FEF3C7;border-radius:9px;font-size:12.5px;color:#92400E"><b>AI рекомендует:</b> прозвонить пациента за день. Причины: 2 переноса подряд + запись > 14 дней назад.</div>`:''}
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" style="background:#25D36615;color:#25D366;border-color:#25D36633">${I.wa}WhatsApp</button>
+      <button class="btn btn-ghost">${I.phone}Позвонить</button>
+      <button class="btn btn-primary" onclick="closeModal();setView('patient',{patientId:'${p.id}',patientTab:'overview'})">Открыть карточку</button>
+    </div>`;
+  $('modalEl').innerHTML=html;
+  $('modalBg').classList.add('show');
+}
+
+/* ===== PATIENTS ===== */
+function renderPatients(){
+  const counts={all:PATIENTS.length,active:PATIENTS.filter(p=>p.tag==='active').length,sleeping:PATIENTS.filter(p=>p.tag==='sleeping').length,debtor:PATIENTS.filter(p=>p.tag==='debtor').length,vip:PATIENTS.filter(p=>p.tag==='vip').length,new:PATIENTS.filter(p=>p.tag==='new').length};
+  const list=STATE.patientFilter==='all'?PATIENTS:PATIENTS.filter(p=>p.tag===STATE.patientFilter);
+  return `
+  <div class="page-head">
+    <div><div class="page-title">Пациенты</div><div class="page-sub">Всего ${PATIENTS.length} в базе · +14% за квартал</div></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-ghost">${I.download}Экспорт</button><button class="btn btn-primary" onclick="openModal('newPatient')">${I.plus}Новый пациент</button></div>
+  </div>
+  <div class="filters">
+    ${Object.entries(counts).map(([k,v])=>`<div class="chip ${STATE.patientFilter===k?'active':''}" onclick="setView('patients',{patientFilter:'${k}'})">${TAG_LABEL[k]}<span class="chip-count">${v}</span></div>`).join('')}
+  </div>
+  <div class="card" style="overflow:hidden">
+    <table class="tbl">
+      <thead><tr><th>Пациент</th><th>Телефон</th><th>Врач</th><th>Последний визит</th><th>Визитов</th><th>Баланс</th><th>Источник</th><th></th></tr></thead>
+      <tbody>
+      ${list.map(p=>{const d=doctor(p.doc);return `<tr class="clickable" onclick="setView('patient',{patientId:'${p.id}',patientTab:'overview',selectedTooth:null})">
+        <td><div class="patient-name"><div class="avatar sm" style="background:${d.c}">${ini(p.name)}</div><div><div style="font-weight:600">${p.name} ${tagBadge(p.tag)}</div><div style="font-size:11.5px;color:var(--text-3)">${fmt.age(p.age)}</div></div></div></td>
+        <td><span style="color:var(--text-2)">${p.phone}</span></td>
+        <td>${d.name.split(' ')[1]} ${d.name.split(' ')[0][0]}.</td>
+        <td>${fmt.date(p.lastVisit)}</td>
+        <td><b>${p.visits}</b></td>
+        <td style="color:${p.balance<0?'var(--red)':'var(--text)'};font-weight:${p.balance<0?'600':'400'}">${p.balance?fmt.money(p.balance):'—'}</td>
+        <td><span style="color:var(--text-3);font-size:12px">${p.source}</span></td>
+        <td><div class="patient-actions">
+          <button class="icon-btn" style="width:28px;height:28px" onclick="event.stopPropagation()" title="Позвонить">${I.phone}</button>
+          <button class="icon-btn" style="width:28px;height:28px;color:#25D366" onclick="event.stopPropagation()" title="WhatsApp">${I.wa}</button>
+        </div></td>
+      </tr>`}).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+/* ===== PATIENT CARD ===== */
+function renderPatient(){
+  const p=patient(STATE.patientId);
+  if(!p)return '<div>Не найдено</div>';
+  const d=doctor(p.doc);
+  const tab=STATE.patientTab||'overview';
+  return `
+  <div class="pc-header">
+    <div class="avatar lg" style="background:${d.c}">${ini(p.name)}</div>
+    <div class="pc-main">
+      <div class="pc-name">${p.name} ${tagBadge(p.tag)}${p.note?`<span class="badge b-amber" title="${escapeHTML(p.note)}">⚠ ${p.note.split('.')[0]}</span>`:''}</div>
+      <div class="pc-meta">
+        <div class="pc-meta-item">${I.user}${fmt.age(p.age)}</div>
+        <div class="pc-meta-item">${I.phone}${p.phone}</div>
+        ${p.email?`<div class="pc-meta-item">${I.msg}${p.email}</div>`:''}
+        <div class="pc-meta-item">${I.pin}${p.source}</div>
+        <div class="pc-meta-item">${I.cal}Клиент с ${fmt.dateFull(p.since)}</div>
+      </div>
+    </div>
+    <div class="pc-stats">
+      <div class="pc-stat"><div class="pc-stat-label">Визитов</div><div class="pc-stat-value">${p.visits}</div></div>
+      <div class="pc-stat"><div class="pc-stat-label">Сумма</div><div class="pc-stat-value">${(p.visits*68).toLocaleString('ru-RU')}К ₸</div></div>
+      <div class="pc-stat" style="${p.balance<0?'background:#FEE2E2':''}"><div class="pc-stat-label">Баланс</div><div class="pc-stat-value" style="color:${p.balance<0?'var(--red)':'var(--green)'}">${p.balance?fmt.money(p.balance):'0 ₸'}</div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button class="btn btn-primary" onclick="openModal(&apos;newAppt&apos;,{patientId:STATE.patientId})">${I.plus}Записать</button>
+      <button class="btn btn-ghost" style="background:#25D36615;color:#25D366;border-color:#25D36633">${I.wa}WhatsApp</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab ${tab==='overview'?'active':''}" data-tab="overview">Обзор</div>
+    <div class="tab ${tab==='teeth'?'active':''}" data-tab="teeth">Зубная формула <span class="tab-badge">${Object.keys(TEETH_DATA[p.id]||{}).length}</span></div>
+    <div class="tab ${tab==='plan'?'active':''}" data-tab="plan">План лечения${p.id==='p4'?' <span class="tab-badge">9</span>':''}</div>
+    <div class="tab ${tab==='visits'?'active':''}" data-tab="visits">Визиты <span class="tab-badge">${p.visits}</span></div>
+    <div class="tab ${tab==='finance'?'active':''}" data-tab="finance">Финансы</div>
+    <div class="tab ${tab==='files'?'active':''}" data-tab="files">Файлы и снимки</div>
+    <div class="tab ${tab==='comms'?'active':''}" data-tab="comms">Коммуникации</div>
+  </div>
+  <div id="pcTabContent">${renderPatientTab(p,tab)}</div>`;
+}
+
+function bindPatientTabs(){
+  document.querySelectorAll('.tab[data-tab]').forEach(t=>{
+    t.onclick=()=>{
+      document.querySelectorAll('.tab[data-tab]').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      STATE.patientTab=t.dataset.tab;
+      $('pcTabContent').innerHTML=renderPatientTab(patient(STATE.patientId),STATE.patientTab);
+    };
+  });
+}
+
+function renderPatientTab(p,tab){
+  if(tab==='overview')return renderTabOverview(p);
+  if(tab==='teeth')return renderTabTeeth(p);
+  if(tab==='plan')return renderTabPlan(p);
+  if(tab==='visits')return renderTabVisits(p);
+  if(tab==='finance')return renderTabFinance(p);
+  if(tab==='files')return renderTabFiles(p);
+  if(tab==='comms')return renderTabComms(p);
+  return '';
+}
+
+function renderTabOverview(p){
+  const timeline=p.id==='p4'?TIMELINE_P4:TIMELINE_P4.slice(0,4);
+  return `
+  <div class="grid-dash">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">Хронология взаимодействий</div><div class="card-sub">Все события в одной ленте</div></div><button class="btn btn-ghost btn-sm">${I.filter}Тип</button></div>
+        <div class="card-pad">
+          <div class="timeline">
+          ${timeline.map(e=>`<div class="tl-event">
+            <div class="tl-dot" style="border-color:${e.c};color:${e.c}">${I[e.ico]||I.cal}</div>
+            <div class="tl-event-card">
+              <div class="tl-title">${e.title}</div>
+              <div class="tl-meta">${fmt.dateFull(e.d)} <span class="dot-sep">·</span> ${e.meta}</div>
+              ${e.desc?`<div class="tl-desc">${e.desc}</div>`:''}
+            </div></div>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Надиктовать протокол визита</div><span class="badge b-purple">AI · Whisper</span></div>
+        <div class="card-pad">
+          <div class="mic-btn" id="micBtn" onclick="toggleMic()">
+            <div class="mic-circle">${I.mic}</div>
+            <div style="flex:1"><div style="font-weight:600;font-size:13.5px" id="micLabel">Нажмите, чтобы надиктовать</div><div style="font-size:11.5px;color:var(--text-3);margin-top:2px" id="micSub">AI расшифрует и структурирует протокол</div></div>
+            <div class="mic-wave">${'<span></span>'.repeat(16)}</div>
+          </div>
+          <div id="micResult" style="display:none;margin-top:14px;padding:14px;background:var(--surface-2);border-radius:10px;font-size:13px;line-height:1.6"></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      ${p.loyalty?`<div class="loyalty-box">
+        <div class="loyalty-tier">${I.star} ${p.loyalty.tier} · Программа лояльности</div>
+        <div class="loyalty-pts">${p.loyalty.pts.toLocaleString('ru-RU')} баллов</div>
+        <div class="loyalty-prog"><div class="loyalty-prog-fill" style="width:${100-(p.loyalty.next/1000)*100}%"></div></div>
+        <div class="loyalty-next">${p.loyalty.next?`До следующего уровня: ${p.loyalty.next} баллов`:'Максимальный уровень'} · 1 балл = 10 ₸</div>
+      </div>`:''}
+      <div class="card">
+        <div class="card-head"><div class="card-title">Быстрые факты</div></div>
+        <div style="padding:6px 0">
+        ${[['Лечащий врач',d=>doctor(p.doc).name],['Аллергии',()=>p.note?p.note.split('.')[0]:'Не указаны'],['Способ оплаты',()=>'Kaspi · Карта VISA'],['Согласие на маркетинг',()=>'Да'],['Язык общения',()=>'Русский'],p.family?['Семейные связи',()=>`<span style="color:var(--primary);cursor:pointer">${p.family.length} член${p.family.length>1?'а':''} семьи</span>`]:null].filter(Boolean).map(r=>`<div style="display:flex;justify-content:space-between;padding:9px 18px;font-size:12.5px;border-bottom:1px solid var(--border-2)"><span style="color:var(--text-3)">${r[0]}</span><span style="font-weight:500;text-align:right">${r[1]()}</span></div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Скоринг и риски</div></div>
+        <div class="card-pad">
+          <div style="display:flex;align-items:center;gap:14px">
+            <svg width="80" height="80" viewBox="0 0 80 80">
+              <circle cx="40" cy="40" r="34" stroke="#EEF1F2" stroke-width="8" fill="none"/>
+              <circle cx="40" cy="40" r="34" stroke="${p.risk>0.5?'var(--red)':p.risk>0.3?'var(--amber)':'var(--green)'}" stroke-width="8" fill="none" stroke-dasharray="${p.risk*214} 214" stroke-linecap="round" transform="rotate(-90 40 40)"/>
+              <text x="40" y="46" text-anchor="middle" font-size="18" font-weight="700" fill="#0F1F1E">${Math.round(p.risk*100)}%</text>
+            </svg>
+            <div>
+              <div style="font-weight:600;font-size:14px">Риск отмены/ухода</div>
+              <div style="color:var(--text-2);font-size:12.5px;margin-top:4px">${p.risk>0.5?'Высокий — рекомендуется прозвон':p.risk>0.3?'Средний — стандартный контроль':'Низкий — лояльный клиент'}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Следующая запись</div></div>
+        <div class="card-pad">
+          <div style="display:flex;gap:11px;align-items:center">
+            <div style="background:var(--primary-tint);color:var(--primary-2);border-radius:10px;padding:8px 12px;text-align:center;min-width:54px">
+              <div style="font-size:11px;font-weight:600;text-transform:uppercase">Сб</div>
+              <div style="font-size:20px;font-weight:700;line-height:1">23</div>
+            </div>
+            <div>
+              <div style="font-weight:600;font-size:13.5px">11:00 — 12:30</div>
+              <div style="font-size:12px;color:var(--text-2);margin-top:2px">Установка коронки · ${doctor(p.doc).name}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ===== TEETH CHART (WOW FEATURE) ===== */
+function renderTabTeeth(p){
+  const data=TEETH_DATA[p.id]||{};
+  function renderTooth(num){
+    const cond=data[num]||{};
+    const isFront=(num%10>=1 && num%10<=3);
+    const isUpper=num<30;
+    const w=28,h=isFront?44:38;
+    let segments='';
+    if(cond.state==='extracted'){
+      segments=`<rect class="tooth-extracted" x="3" y="3" width="${w-6}" height="${h-6}" rx="6"/>`;
+    } else if(cond.state==='implant'){
+      const bc='#2563EB';
+      segments=`<rect x="4" y="${isUpper?h-14:4}" width="${w-8}" height="10" rx="3" fill="${bc}"/><path d="M${w/2-3} ${isUpper?h-14:14} L${w/2} ${isUpper?h-22:6} L${w/2+3} ${isUpper?h-14:14}" stroke="${bc}" stroke-width="2.5" fill="none"/><line x1="${w/2}" y1="${isUpper?h-12:6}" x2="${w/2}" y2="${isUpper?h-4:14}" stroke="${bc}" stroke-width="1.5" stroke-dasharray="2 2"/>`;
+    } else if(cond.state==='crown'){
+      segments=`<rect class="tooth-seg crown" x="3" y="3" width="${w-6}" height="${h-6}" rx="5"/><path d="M6 ${h/2} L${w/2-3} ${h/2-3} L${w/2} ${h/2+3} L${w/2+3} ${h/2-3} L${w-6} ${h/2}" stroke="#854D0E" stroke-width=".8" fill="none" opacity=".5"/>`;
+    } else {
+      const seg=cond.seg||{};
+      const s=(k)=>seg[k]||'healthy';
+      const fdiOnRight=(num>=11&&num<=18)||(num>=41&&num<=48);
+      const M_side=fdiOnRight?'left':'right';
+      const D_side=fdiOnRight?'right':'left';
+      const V_side=isUpper?'top':'bottom';
+      const L_side=isUpper?'bottom':'top';
+      const segOf=(side)=>{if(side===M_side)return s('m');if(side===D_side)return s('d');if(side===V_side)return s('v');if(side===L_side)return s('l');};
+      segments=`<path class="tooth-seg ${segOf('top')}" d="M3 ${h*.32} Q3 3 ${w/2} 3 Q${w-3} 3 ${w-3} ${h*.32} L${w*.7} ${h*.45} L${w*.3} ${h*.45} Z"/><path class="tooth-seg ${segOf('bottom')}" d="M3 ${h*.68} Q3 ${h-3} ${w/2} ${h-3} Q${w-3} ${h-3} ${w-3} ${h*.68} L${w*.7} ${h*.55} L${w*.3} ${h*.55} Z"/><path class="tooth-seg ${segOf('left')}" d="M3 ${h*.32} L${w*.3} ${h*.45} L${w*.3} ${h*.55} L3 ${h*.68} Z"/><path class="tooth-seg ${segOf('right')}" d="M${w-3} ${h*.32} L${w*.7} ${h*.45} L${w*.7} ${h*.55} L${w-3} ${h*.68} Z"/>${isFront?'':`<rect class="tooth-seg ${s('o')}" x="${w*.3}" y="${h*.45}" width="${w*.4}" height="${h*.1}"/>`}`;
+    }
+    return `<svg class="tooth ${STATE.selectedTooth===num?'selected':''}" width="${w}" height="${h+12}" overflow="visible" data-tooth="${num}" onclick="selectTooth(${num})" style="display:inline-block"><text class="tooth-num" x="${w/2}" y="${isUpper?h+10:10}">${num}</text><g transform="translate(0,${isUpper?0:12})">${segments}</g></svg>`;
+  }
+  function renderRow(left,right){
+    return `<div class="teeth-row"><div class="teeth-half right">${left.map(renderTooth).join('')}</div><div class="midline"></div><div class="teeth-half">${right.map(renderTooth).join('')}</div></div>`;
+  }
+  const conditions=Object.values(data);
+  const stats={
+    caries:conditions.filter(c=>c.seg&&Object.values(c.seg).includes('caries')).length,
+    filling:conditions.filter(c=>c.seg&&Object.values(c.seg).includes('filling')).length,
+    crown:conditions.filter(c=>c.state==='crown').length,
+    implant:conditions.filter(c=>c.state==='implant').length,
+    extracted:conditions.filter(c=>c.state==='extracted').length
+  };
+  const selectedHistory=STATE.selectedTooth?(TOOTH_HISTORY[`${p.id}-${STATE.selectedTooth}`]||[]):[];
+  return `
+  <div class="grid-2" style="grid-template-columns:1fr 320px">
+    <div class="teeth-wrap">
+      <div class="teeth-legend">
+        <div class="tl-item"><div class="tl-swatch" style="background:#fff"></div>Здоровый</div>
+        <div class="tl-item"><div class="tl-swatch" style="background:#DC2626"></div>Кариес</div>
+        <div class="tl-item"><div class="tl-swatch" style="background:#94A3B8"></div>Пломба</div>
+        <div class="tl-item"><div class="tl-swatch" style="background:#CA8A04"></div>Коронка</div>
+        <div class="tl-item"><div class="tl-swatch" style="background:#2563EB"></div>Имплант</div>
+        <div class="tl-item"><div class="tl-swatch" style="background:#7C3AED"></div>Эндо</div>
+        <div class="tl-item"><div class="tl-swatch" style="background:transparent;border-style:dashed"></div>Удалён</div>
+      </div>
+      <div class="jaw-label">Верхняя челюсть</div>
+      ${renderRow([18,17,16,15,14,13,12,11],[21,22,23,24,25,26,27,28])}
+      <div class="jaw-label">Нижняя челюсть</div>
+      ${renderRow([48,47,46,45,44,43,42,41],[31,32,33,34,35,36,37,38])}
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:20px;padding-top:18px;border-top:1px solid var(--border-2)">
+      ${[{n:stats.caries,l:'Кариес',c:'#DC2626'},{n:stats.filling,l:'Пломбы',c:'#94A3B8'},{n:stats.crown,l:'Коронки',c:'#CA8A04'},{n:stats.implant,l:'Импланты',c:'#2563EB'},{n:stats.extracted,l:'Удалены',c:'#94A3B8'}].map(s=>`<div style="text-align:center"><div style="font-size:22px;font-weight:700;color:${s.c}">${s.n}</div><div style="font-size:11.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;font-weight:600;margin-top:2px">${s.l}</div></div>`).join('')}
+      </div>
+    </div>
+    <div class="card" style="align-self:start">
+    ${STATE.selectedTooth?`
+      <div class="tp-head">
+        <div><div class="tp-tooth">Зуб ${STATE.selectedTooth}</div><div class="tp-tooth-name">${toothName(STATE.selectedTooth)}</div></div>
+        <div class="badge ${condBadgeClass(data[STATE.selectedTooth])}">${conditionLabel(data[STATE.selectedTooth])}</div>
+      </div>
+      <div class="tp-body">
+        <div class="tp-section">История зуба</div>
+        ${selectedHistory.length?selectedHistory.map(h=>`<div class="tp-history-item"><div class="tp-h-date">${fmt.date(h.d)}</div><div class="tp-h-text">${h.t}</div></div>`).join(''):'<div style="font-size:12px;color:var(--text-3);padding:6px 0">Без записей. Зуб без замечаний.</div>'}
+        <div style="display:flex;gap:6px;margin-top:14px">
+          <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center">${I.plus}Процедура</button>
+          <button class="btn btn-ghost btn-sm">${I.doc}</button>
+        </div>
+      </div>`:`
+      <div class="card-head"><div class="card-title">Зуб не выбран</div></div>
+      <div class="card-pad" style="text-align:center;padding:36px 18px;color:var(--text-3);font-size:13px">${I.tooth}<div style="margin-top:10px">Кликните на зуб,<br>чтобы увидеть детали</div></div>`}
+    </div>
+  </div>`;
+}
+
+function toothName(num){
+  const pos=num%10;
+  const names=['','Центральный резец','Боковой резец','Клык','1-й премоляр','2-й премоляр','1-й моляр','2-й моляр','Зуб мудрости'];
+  const jaw=num<30?'верх':'низ';
+  const side=(num>=11&&num<=18)||(num>=41&&num<=48)?'право':'лево';
+  return `${names[pos]} · ${jaw} ${side}`;
+}
+function condBadgeClass(c){
+  if(!c)return 'b-green';
+  if(c.state==='extracted')return 'b-gray';
+  if(c.state==='implant')return 'b-blue';
+  if(c.state==='crown')return 'b-gold';
+  if(c.seg&&Object.values(c.seg).includes('caries'))return 'b-red';
+  return 'b-teal';
+}
+function conditionLabel(c){
+  if(!c)return 'Здоров';
+  if(c.state==='extracted')return 'Удалён';
+  if(c.state==='implant')return 'Имплант';
+  if(c.state==='crown')return 'Коронка';
+  if(c.state==='endo')return 'Эндо-лечение';
+  if(c.seg){const types=[...new Set(Object.values(c.seg))];return types.map(t=>({caries:'Кариес',filling:'Пломба'})[t]||t).join(', ')}
+  return 'Норма';
+}
+function selectTooth(num){
+  STATE.selectedTooth=num;
+  $('pcTabContent').innerHTML=renderPatientTab(patient(STATE.patientId),'teeth');
+}
+
+/* ===== PATIENT TABS: plan, visits, finance, files, comms ===== */
+function renderTabPlan(p){
+  const plan=TREATMENT_PLANS[p.id];
+  if(!plan){
+    return `<div class="card card-pad" style="text-align:center;padding:60px 20px">
+      <div style="width:56px;height:56px;border-radius:14px;background:var(--primary-tint);color:var(--primary);display:flex;align-items:center;justify-content:center;margin:0 auto 14px">${I.tooth}</div>
+      <div style="font-size:15px;font-weight:600">План лечения ещё не составлен</div>
+      <div style="font-size:13px;color:var(--text-2);margin-top:6px">Создайте комплексный план — пациент получит чёткое понимание стоимости и сроков</div>
+      <button class="btn btn-primary" style="margin-top:18px" onclick="openModal('createPlan')">${I.plus}Создать план лечения</button>
+    </div>`;
+  }
+  const allStages=plan.visits.flatMap(v=>v.stages);
+  const total=allStages.reduce((s,x)=>s+x.price,0);
+  const discounted=Math.round(total*(1-plan.discount/100));
+  const paid=plan.payments.reduce((s,x)=>s+x.amt,0);
+  const remain=discounted-paid;
+  const visitsDone=plan.visits.filter(v=>v.status==='done').length;
+  const visitsTotal=plan.visits.length;
+  const stagesDone=allStages.filter(s=>s.status==='done').length;
+  const variant=plan.variants[plan.activeVariant];
+
+  return `
+  <!-- HERO -->
+  <div class="plan-hero" style="margin-bottom:14px">
+    <div style="display:flex;gap:14px;align-items:center;flex:1;min-width:280px">
+      <svg width="68" height="68" viewBox="0 0 80 80">
+        <circle cx="40" cy="40" r="32" stroke="rgba(15,118,110,.12)" stroke-width="7" fill="none"/>
+        <circle cx="40" cy="40" r="32" stroke="var(--primary)" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="${(paid/discounted)*201} 201" transform="rotate(-90 40 40)"/>
+        <text x="40" y="46" text-anchor="middle" font-size="17" font-weight="700" fill="var(--text)">${Math.round(paid/discounted*100)}%</text>
+      </svg>
+      <div>
+        <div style="font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Прогресс плана</div>
+        <div style="font-size:18px;font-weight:700;letter-spacing:-.3px;margin-top:2px">${visitsDone} из ${visitsTotal} визитов</div>
+        <div style="font-size:12px;color:var(--text-2);margin-top:3px">${stagesDone} из ${allStages.length} процедур · согласован ${fmt.dateFull(plan.agreedAt)}</div>
+      </div>
+    </div>
+    <div class="plan-hero-stat"><div class="plan-hero-label">К оплате всего</div><div class="plan-hero-value">${fmt.money(discounted)}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">скидка ${plan.discount}% от ${fmt.money(total)}</div></div>
+    <div class="plan-hero-stat"><div class="plan-hero-label">Оплачено</div><div class="plan-hero-value" style="color:var(--green)">${fmt.money(paid)}</div></div>
+    <div class="plan-hero-stat"><div class="plan-hero-label">Остаток</div><div class="plan-hero-value" style="color:${remain>0?'var(--amber)':'var(--green)'}">${fmt.money(Math.max(0,remain))}</div></div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button class="btn btn-primary btn-sm" onclick="openModal('addVisit')">${I.plus}Добавить визит</button>
+      <button class="btn btn-ghost btn-sm">${I.download}PDF клиенту</button>
+    </div>
+  </div>
+
+  <!-- VARIANTS -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-head">
+      <div><div class="card-title">Варианты лечения</div><div class="card-sub">Активный вариант передан пациенту для согласования</div></div>
+    </div>
+    <div class="card-pad">
+      <div class="variant-grid">
+      ${Object.entries(plan.variants).map(([k,v])=>`
+        <div class="variant-card ${plan.activeVariant===k?'active':''}" onclick="switchVariant('${p.id}','${k}')">
+          <div class="variant-name">${v.name}</div>
+          <div class="variant-sub">${v.sub}</div>
+          <div class="variant-price">${fmt.money(v.total)}</div>
+          <div class="variant-meta">Срок: ${v.duration}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="grid-2" style="grid-template-columns:1fr 320px">
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:15px;font-weight:600">Этапы по визитам</div>
+        <div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm">${I.filter}Все</button><button class="btn btn-ghost btn-sm">${I.edit}Редактировать</button></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${plan.visits.map((v,i)=>{
+          const doc=doctor(v.docId);
+          const visitTotal=v.stages.reduce((s,x)=>s+x.price,0);
+          return `<div class="visit-card ${v.status}">
+            <div class="visit-head">
+              <div class="visit-date ${v.status==='done'?'done':''}">
+                <div class="visit-date-d">${new Date(v.date).getDate()}</div>
+                <div class="visit-date-m">${['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'][new Date(v.date).getMonth()]} ${String(new Date(v.date).getFullYear()).slice(2)}</div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <div style="font-weight:600;font-size:14px">Визит ${i+1} · ${v.title}</div>
+                  ${v.status==='done'?'<span class="badge b-green">Завершён</span>':v.status==='planned'?'<span class="badge b-gray">Запланирован</span>':'<span class="badge b-blue">В работе</span>'}
+                </div>
+                <div style="font-size:12px;color:var(--text-2);margin-top:3px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                  <span style="display:flex;align-items:center;gap:5px"><div class="avatar sm" style="background:${doc.c};width:18px;height:18px;font-size:8.5px">${doc.ini}</div>${doc.name}</span>
+                  <span class="dot-sep">·</span>
+                  <span>${v.duration} мин</span>
+                  <span class="dot-sep">·</span>
+                  <span>${v.stages.length} процедур${v.stages.length===1?'а':'ы'}</span>
+                </div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-weight:700;font-size:15px">${fmt.money(visitTotal)}</div>
+                ${v.status!=='done'?`<button class="btn btn-primary btn-xs" style="margin-top:6px" onclick="event.stopPropagation();bookVisit('${v.id}')">${I.cal}Записать</button>`:''}
+              </div>
+            </div>
+            ${v.stages.map(s=>`
+              <div class="visit-stage">
+                <div class="stage-tooth ${s.status==='done'?'done':''}">${s.tooth}</div>
+                <div style="font-weight:500">${s.proc}</div>
+                <div>${s.status==='done'?'<span class="badge b-green">Готово</span>':'<span class="badge b-gray">План</span>'}</div>
+                <div style="text-align:right;font-weight:600">${fmt.money(s.price)}</div>
+                <div style="text-align:right">${s.status!=='done'?`<button class="icon-btn" style="width:28px;height:28px" onclick="removeStage('${p.id}','${v.id}','${s.id}')" title="Удалить">${I.more}</button>`:''}</div>
+              </div>`).join('')}
+          </div>`;
+        }).join('')}
+      </div>
+      <button class="add-visit-btn" style="margin-top:10px" onclick="openModal('addVisit')">${I.plus}Добавить визит в план</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="card-head"><div class="card-title">График платежей</div></div>
+        <div style="padding:0">
+        ${plan.payments.slice(-4).reverse().map(pm=>`
+          <div style="display:flex;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border-2);font-size:12.5px">
+            <div><div style="font-weight:500">${fmt.money(pm.amt)}</div><div style="font-size:11px;color:var(--text-3);margin-top:1px">${pm.m}</div></div>
+            <div style="color:var(--text-3);font-size:11.5px">${fmt.date(pm.d)}</div>
+          </div>`).join('')}
+        ${remain>0?`<div style="padding:11px 16px;background:var(--amber-soft);font-size:12.5px"><div style="font-weight:600;color:#92400E">К доплате: ${fmt.money(remain)}</div><div style="font-size:11px;color:#92400E;opacity:.8;margin-top:2px">До следующего визита</div></div>`:''}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">Документы</div><button class="btn btn-ghost btn-xs">${I.plus}</button></div>
+        <div style="padding:6px 0">
+        ${[['ИДС-001 на КТ','Подписан 12.05.2024',I.doc,'#DC2626'],['ИДС-002 на имплантацию','Подписан 15.05.2026',I.doc,'#DC2626'],['Договор № К-2026-184','Подписан 15.05.2026',I.doc,'#0F766E'],['Гарантийный талон Straumann','Готов · 5 лет',I.star,'#CA8A04']].map(r=>`<div style="display:flex;align-items:center;gap:9px;padding:10px 16px;border-bottom:1px solid var(--border-2);cursor:pointer"><div style="width:30px;height:30px;border-radius:7px;background:${r[3]}15;color:${r[3]};display:flex;align-items:center;justify-content:center">${r[2]}</div><div style="flex:1;min-width:0"><div style="font-weight:500;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r[0]}</div><div style="font-size:11px;color:var(--text-3);margin-top:1px">${r[1]}</div></div>${I.chev}</div>`).join('')}
+        </div>
+      </div>
+
+      <div class="card" style="background:linear-gradient(135deg,#F0FDFA,#fff);border-color:var(--primary-soft)">
+        <div class="card-pad">
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <div style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#0F766E,#7C3AED);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${I.zap}</div>
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:13px">AI-рекомендация</div>
+              <div style="font-size:12px;color:var(--text-2);margin-top:4px;line-height:1.5">Предложите Kaspi-рассрочку 0/0/12 на остаток ${fmt.money(remain)}. По вашей выборке вероятность согласования <b>+43%</b>.</div>
+              <button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%;justify-content:center" onclick="sendTreatmentOffer('${p.id}')">Отправить пациенту</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function switchVariant(pid,key){
+  if(!TREATMENT_PLANS[pid])return;
+  TREATMENT_PLANS[pid].activeVariant=key;
+  $('pcTabContent').innerHTML=renderPatientTab(patient(pid),'plan');
+  toast(`Активный вариант: ${TREATMENT_PLANS[pid].variants[key].name}`);
+}
+
+function bookVisit(vid){
+  const plan=TREATMENT_PLANS[STATE.patientId];
+  const v=plan.visits.find(x=>x.id===vid);
+  if(!v)return;
+  toast(`Открыта запись пациента на «${v.title}» — ${fmt.dateFull(v.date)}`);
+  openModal('newAppt',{visitId:vid});
+}
+
+function removeStage(pid,vid,sid){
+  if(!confirm('Удалить процедуру из плана?'))return;
+  const v=TREATMENT_PLANS[pid].visits.find(x=>x.id===vid);
+  v.stages=v.stages.filter(s=>s.id!==sid);
+  if(v.stages.length===0){
+    TREATMENT_PLANS[pid].visits=TREATMENT_PLANS[pid].visits.filter(x=>x.id!==vid);
+  }
+  $('pcTabContent').innerHTML=renderPatientTab(patient(pid),'plan');
+  toast('Процедура удалена из плана');
+}
+
+function sendTreatmentOffer(pid){
+  toast('Предложение отправлено в WhatsApp и Telegram');
+}
+
+// Toast helper
+function toast(msg){
+  let t=document.getElementById('__toast');
+  if(!t){t=document.createElement('div');t.id='__toast';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0F1F1E;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:300;opacity:0;transition:opacity .2s,transform .2s';document.body.appendChild(t);}
+  t.textContent=msg;
+  t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';
+  clearTimeout(window.__toastT);
+  window.__toastT=setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(-50%) translateY(8px)'},2400);
+}
+
+
+function renderTabVisits(p){
+  return `<div class="card" style="overflow:hidden">
+  <table class="tbl">
+    <thead><tr><th>Дата</th><th>Врач</th><th>Процедура</th><th>Зубы</th><th>Длит-сть</th><th>Стоимость</th><th>Статус</th></tr></thead>
+    <tbody>
+    ${Array.from({length:Math.min(p.visits,12)}).map((_,i)=>{
+      const d=new Date(2026,4-Math.floor(i/2),22-(i*9)%28);
+      const doc=DOCTORS[(i*3+p.id.charCodeAt(1))%DOCTORS.length];
+      const proc=PROCEDURES[(i*5+3)%PROCEDURES.length];
+      return `<tr class="clickable"><td>${d.toLocaleDateString('ru-RU',{day:'2-digit',month:'short',year:'numeric'})}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar sm" style="background:${doc.c}">${doc.ini}</div>${doc.name.split(' ')[1]}</div></td><td>${proc.n}</td><td>${[16,26,36,46,11,21][i%6]}</td><td>${[45,60,30,90][i%4]} мин</td><td style="font-weight:600">${fmt.money(proc.p)}</td><td><span class="badge b-gray">Завершён</span></td></tr>`;
+    }).join('')}
+    </tbody>
+  </table>
+  </div>`;
+}
+
+function renderTabFinance(p){
+  const txs=[
+    {d:'2026-05-18',t:'Имплантация 46',amt:350000,m:'Kaspi QR',s:'paid'},
+    {d:'2026-05-15',t:'Согласование плана',amt:-1314000,m:'План',s:'plan'},
+    {d:'2026-05-12',t:'КТ + Первичный осмотр',amt:28000,m:'Наличные',s:'paid'},
+    {d:'2026-04-22',t:'Лечение кариеса 24',amt:38000,m:'Карта VISA',s:'paid'},
+    {d:'2026-02-20',t:'Коронка 26',amt:95000,m:'Kaspi Red',s:'paid'},
+    {d:'2025-11-03',t:'Лечение пульпита 26',amt:78000,m:'Карта VISA',s:'paid'}
+  ];
+  return `
+  <div class="grid-3" style="margin-bottom:14px">
+    <div class="fin-tile fin-t-1"><div class="fin-t-label">Оплачено за всё время</div><div class="fin-t-value">${fmt.money(p.visits*68000)}</div></div>
+    <div class="fin-tile fin-t-2"><div class="fin-t-label">Активный план</div><div class="fin-t-value">${fmt.money(p.balance<0?Math.abs(p.balance):0)}</div></div>
+    <div class="fin-tile fin-t-3"><div class="fin-t-label">Средний чек</div><div class="fin-t-value">${fmt.money(68000)}</div></div>
+  </div>
+  <div class="card" style="overflow:hidden">
+    <div class="card-head"><div class="card-title">История операций</div><button class="btn btn-ghost btn-sm">${I.download}Выписка</button></div>
+    <table class="tbl">
+      <thead><tr><th>Дата</th><th>Операция</th><th>Способ</th><th style="text-align:right">Сумма</th><th>Статус</th></tr></thead>
+      <tbody>
+      ${txs.map(t=>`<tr><td>${fmt.date(t.d)}</td><td style="font-weight:500">${t.t}</td><td style="color:var(--text-2)">${t.m}</td><td style="text-align:right;font-weight:600;color:${t.amt<0?'var(--red)':'var(--green)'}">${fmt.money(t.amt)}</td><td>${t.s==='paid'?'<span class="badge b-green">Оплачено</span>':'<span class="badge b-gray">В плане</span>'}</td></tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function renderTabFiles(p){
+  const files=[
+    {n:'КТ-снимок челюстей',d:'2026-05-12',ext:'dicom',size:'128 МБ',c:'#7C3AED'},
+    {n:'Прицельный снимок 46',d:'2026-05-18',ext:'jpg',size:'2.4 МБ',c:'#0891B2'},
+    {n:'Прицельный снимок 16',d:'2024-03-12',ext:'jpg',size:'2.1 МБ',c:'#0891B2'},
+    {n:'Слепки цифровые (3Shape)',d:'2026-05-20',ext:'stl',size:'14.8 МБ',c:'#059669'},
+    {n:'План лечения утверждённый',d:'2026-05-15',ext:'pdf',size:'1.2 МБ',c:'#DC2626'},
+    {n:'ИДС подписанное',d:'2026-05-15',ext:'pdf',size:'0.8 МБ',c:'#DC2626'},
+    {n:'Фото улыбки до/после',d:'2026-04-22',ext:'jpg',size:'5.6 МБ',c:'#D97706'},
+    {n:'Гарантийный сертификат Straumann',d:'2025-04-22',ext:'pdf',size:'0.4 МБ',c:'#DC2626'}
+  ];
+  return `<div class="grid-4">
+  ${files.map(f=>`<div class="card" style="padding:14px;cursor:pointer">
+    <div style="width:40px;height:40px;border-radius:9px;background:${f.c}15;color:${f.c};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px">.${f.ext.toUpperCase()}</div>
+    <div style="font-weight:600;font-size:13px;margin-top:10px;line-height:1.35">${f.n}</div>
+    <div style="font-size:11px;color:var(--text-3);margin-top:4px">${fmt.date(f.d)} · ${f.size}</div>
+  </div>`).join('')}
+  </div>`;
+}
+
+function renderTabComms(p){
+  // Multi-channel conversation: WhatsApp, Telegram, SMS
+  const conversations={
+    wa:[
+      {from:'Клиника',d:'21.05 14:22',t:'Напоминаем: завтра в 11:00 у Вас приём у Сатпаевой А. Подтвердите, пожалуйста.'},
+      {from:'Пациент',d:'21.05 14:25',t:'Подтверждаю!'},
+      {from:'Клиника',d:'18.05 18:14',t:'Чек об оплате 350 000 ₸ во вложении. Спасибо за визит!'},
+      {from:'Клиника',d:'12.05 09:30',t:'Здравствуйте! Подтверждаем запись на сегодня в 14:00.'}
+    ],
+    tg:[
+      {from:'Клиника',d:'20.05 10:15',t:'Анастасия, во вложении план лечения в PDF — посмотрите на досуге 👋'},
+      {from:'Пациент',d:'20.05 11:42',t:'Спасибо! Посмотрю вечером и напишу вопросы.'},
+      {from:'Клиника',d:'20.05 11:43',t:'Конечно, без спешки. Я здесь, если что 🙂'},
+      {from:'Пациент',d:'20.05 19:20',t:'Можно ли разбить оплату коронки на 2 части?'},
+      {from:'Клиника',d:'20.05 19:35',t:'Да, конечно. Предлагаем Kaspi Red 0/0/12 — без процентов, ежемесячный платёж получится около 15 000 ₸.'}
+    ],
+    sms:[
+      {from:'Клиника',d:'15.05 11:00',t:'Smile Studio: ваш план лечения готов. Подпишите в личном кабинете: smile.kz/pl/8K3'},
+      {from:'Клиника',d:'14.05 09:00',t:'Smile Studio: напоминаем о записи завтра в 15:00. Доктор: Жумабеков Т.'}
+    ]
+  };
+  const active=STATE.commChannel||'wa';
+  const msgs=conversations[active];
+  const channelMeta={
+    wa:{name:'WhatsApp',ico:I.wa,c:'#25D366',bubble:'#DCF8C6'},
+    tg:{name:'Telegram',ico:I.tg,c:'#0088CC',bubble:'#E3F2FD'},
+    sms:{name:'SMS',ico:I.msg,c:'#0891B2',bubble:'#E0F2FE'}
+  };
+  const ch=channelMeta[active];
+
+  return `<div class="grid-2" style="grid-template-columns:1fr 300px">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Переписка</div>
+        <div style="display:flex;gap:4px;background:var(--surface-2);padding:3px;border-radius:9px">
+        ${Object.entries(channelMeta).map(([k,m])=>`
+          <button onclick="STATE.commChannel='${k}';$('pcTabContent').innerHTML=renderPatientTab(patient(STATE.patientId),'comms')" style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;color:${active===k?'#fff':m.c};background:${active===k?m.c:'transparent'};transition:all .15s;cursor:pointer;border:none">
+            ${m.ico}${m.name}${conversations[k].filter(x=>x.from==='Пациент').length>0&&k!==active?'<span style="background:'+m.c+';color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:2px">'+conversations[k].filter(x=>x.from==='Пациент').length+'</span>':''}
+          </button>`).join('')}
+        </div>
+      </div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--surface-2);min-height:400px;max-height:520px;overflow-y:auto">
+      ${msgs.map(m=>{const isUs=m.from==='Клиника';return `<div style="display:flex;${isUs?'justify-content:flex-end':''}">
+        <div style="max-width:75%;padding:9px 12px;border-radius:13px;${isUs?'background:'+ch.bubble+';border-bottom-right-radius:4px':'background:#fff;border:1px solid var(--border-2);border-bottom-left-radius:4px'}">
+          <div style="font-size:13px;line-height:1.4">${m.t}</div>
+          <div style="font-size:10.5px;color:var(--text-3);margin-top:4px;text-align:right">${m.d}${isUs?' ✓✓':''}</div>
+        </div></div>`}).join('')}
+      </div>
+      <div style="padding:12px 16px;border-top:1px solid var(--border-2);display:flex;gap:8px;align-items:center">
+        <button class="icon-btn" title="Прикрепить файл">${I.doc}</button>
+        <input class="search-input" placeholder="Сообщение в ${ch.name}…" style="height:38px;flex:1">
+        <button class="btn btn-primary" onclick="toast('Сообщение отправлено в ${ch.name}')">${I.msg}Отправить</button>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="card-head"><div class="card-title">Каналы пациента</div></div>
+        <div style="padding:6px 0">
+        ${[['wa','WhatsApp','+7 705 432 19 87','primary'],['tg','Telegram','@anastasia_iv','primary'],['sms','SMS','+7 705 432 19 87','primary'],['email','Email','anastasia.iv@gmail.com','primary']].map(c=>`
+          <div style="display:flex;align-items:center;gap:9px;padding:10px 16px;border-bottom:1px solid var(--border-2);font-size:12.5px">
+            <div style="width:30px;height:30px;border-radius:7px;background:${c[0]==='wa'?'#25D36615':c[0]==='tg'?'#0088CC15':c[0]==='sms'?'#0891B215':'#7C3AED15'};color:${c[0]==='wa'?'#25D366':c[0]==='tg'?'#0088CC':c[0]==='sms'?'#0891B2':'#7C3AED'};display:flex;align-items:center;justify-content:center">${c[0]==='wa'?I.wa:c[0]==='tg'?I.tg:c[0]==='sms'?I.msg:I.msg}</div>
+            <div style="flex:1;min-width:0"><div style="font-weight:500">${c[1]}</div><div style="font-size:11px;color:var(--text-3);margin-top:1px">${c[2]}</div></div>
+            <span class="badge b-green" style="font-size:10px">основной</span>
+          </div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Шаблоны</div></div>
+        <div style="padding:6px 0">
+        ${['Подтверждение записи','Напоминание за 1 день','Напоминание за 2 часа','Запрос отзыва','Профосмотр через 6 мес','Поздравление с днём рождения'].map(t=>`<div style="padding:10px 16px;border-bottom:1px solid var(--border-2);cursor:pointer;font-size:12.5px" onclick="toast('Шаблон «${t}» вставлен в окно сообщения')">${t}</div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ===== TREATMENT (cross-clinic) ===== */
+function renderTreatment(){
+  const plans=PATIENTS.filter(p=>p.balance<0).slice(0,10).map((p,i)=>({
+    patient:p,stages:5+(i%6),done:1+(i%4),total:Math.abs(p.balance)+100000+i*30000,
+    next:['Имплантация','Коронка','Лечение пульпита','Снятие слепков','Установка брекетов'][i%5]
+  }));
+  return `
+  <div class="page-head">
+    <div><div class="page-title">Планы лечения</div><div class="page-sub">Активных планов: ${plans.length} · общая сумма ${fmt.money(plans.reduce((s,x)=>s+x.total,0))}</div></div>
+    <button class="btn btn-primary" onclick="toast(&apos;Выберите пациента в списке справа&apos;)">${I.plus}Новый план</button>
+  </div>
+  <div class="grid-3" style="margin-bottom:14px">
+    <div class="card kpi"><div class="kpi-label">Согласовано планов</div><div class="kpi-value">${plans.length}</div><div class="kpi-delta up">${I.trend} +3 за месяц</div></div>
+    <div class="card kpi"><div class="kpi-label">Средний чек плана</div><div class="kpi-value">${fmt.money(Math.round(plans.reduce((s,x)=>s+x.total,0)/plans.length))}</div><div class="kpi-delta up">${I.trend} +12%</div></div>
+    <div class="card kpi"><div class="kpi-label">Конверсия в план</div><div class="kpi-value">39%</div><div class="kpi-delta up">${I.trend} +4 п.п.</div></div>
+  </div>
+  <div class="card" style="overflow:hidden">
+    <table class="tbl">
+      <thead><tr><th>Пациент</th><th>Этапов</th><th>Прогресс</th><th>Следующий шаг</th><th>Врач</th><th style="text-align:right">Сумма плана</th></tr></thead>
+      <tbody>
+      ${plans.map(pl=>{const d=doctor(pl.patient.doc);const pct=Math.round((pl.done/pl.stages)*100);return `<tr class="clickable" onclick="setView('patient',{patientId:'${pl.patient.id}',patientTab:'plan',selectedTooth:null})">
+        <td><div style="display:flex;gap:9px;align-items:center"><div class="avatar sm" style="background:${d.c}">${ini(pl.patient.name)}</div><b>${pl.patient.name}</b></div></td>
+        <td>${pl.done}/${pl.stages}</td>
+        <td><div style="display:flex;align-items:center;gap:8px"><div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div><span style="font-size:11.5px;color:var(--text-3);min-width:30px">${pct}%</span></div></td>
+        <td>${pl.next}</td>
+        <td>${d.name.split(' ')[1]} ${d.name.split(' ')[0][0]}.</td>
+        <td style="text-align:right;font-weight:600">${fmt.money(pl.total)}</td>
+      </tr>`}).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+/* ===== FINANCE ===== */
+function renderFinance(){
+  const debtors=PATIENTS.filter(p=>p.balance<0);
+  const totalDebt=debtors.reduce((s,p)=>s+Math.abs(p.balance),0);
+  const segments=[['Имплантация',32,'#7C3AED'],['Ортопедия',24,'#D97706'],['Терапия',18,'#0F766E'],['Ортодонтия',14,'#DC2626'],['Эндодонтия',8,'#4338CA'],['Гигиена',4,'#059669']];
+  let pieStart=-Math.PI/2;
+  const pie=segments.map(it=>{const ang=it[1]/100*Math.PI*2;const x1=110+70*Math.cos(pieStart),y1=90+70*Math.sin(pieStart);pieStart+=ang;const x2=110+70*Math.cos(pieStart),y2=90+70*Math.sin(pieStart);const large=ang>Math.PI?1:0;return `<path d="M110 90 L${x1} ${y1} A70 70 0 ${large} 1 ${x2} ${y2} Z" fill="${it[2]}" stroke="#fff" stroke-width="2"/>`}).join('');
+  return `
+  <div class="page-head">
+    <div><div class="page-title">Финансы</div><div class="page-sub">Май 2026 · 21 рабочий день из 23</div></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-ghost">${I.download}Экспорт</button><button class="btn btn-primary">${I.plus}Принять оплату</button></div>
+  </div>
+  <div class="grid-3" style="margin-bottom:14px">
+    <div class="card kpi"><div class="kpi-label">Выручка / план</div><div class="kpi-value">${fmt.money(24840000)}</div><div class="kpi-delta up">${I.trend} 96% от плана 25.9М</div></div>
+    <div class="card kpi"><div class="kpi-label">Дебиторская задолженность</div><div class="kpi-value" style="color:var(--red)">${fmt.money(totalDebt)}</div><div class="kpi-delta down">${I.trendDn} ${debtors.length} должников</div></div>
+    <div class="card kpi"><div class="kpi-label">Маржинальность</div><div class="kpi-value">42%</div><div class="kpi-delta up">${I.trend} +2 п.п.</div></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><div class="card-title">Структура выручки по направлениям</div></div>
+      <div class="card-pad">
+        <svg viewBox="0 0 320 180" style="width:100%;height:180px">
+          ${pie}
+          ${segments.map((it,i)=>`<rect x="200" y="${20+i*22}" width="11" height="11" rx="3" fill="${it[2]}"/><text x="218" y="${29.5+i*22}" font-size="11" fill="#0F1F1E">${it[0]}</text><text x="312" y="${29.5+i*22}" font-size="11" text-anchor="end" font-weight="600" fill="#0F1F1E">${it[1]}%</text>`).join('')}
+        </svg>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Должники</div><span class="badge b-red">${debtors.length} пациентов</span></div>
+      <div style="padding:0;max-height:300px;overflow-y:auto">
+      ${debtors.map(p=>{const d=doctor(p.doc);const ageDays=Math.floor((TODAY-new Date(p.lastVisit))/86400000);return `<div style="display:flex;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid var(--border-2);cursor:pointer" onclick="setView('patient',{patientId:'${p.id}',patientTab:'finance',selectedTooth:null})">
+        <div class="avatar sm" style="background:${d.c}">${ini(p.name)}</div>
+        <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px">${p.name}</div><div style="font-size:11px;color:var(--text-3);margin-top:1px">Долг ${ageDays} дн · ${p.phone}</div></div>
+        <div style="font-weight:700;color:var(--red)">${fmt.money(p.balance)}</div>
+      </div>`}).join('')}
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px;overflow:hidden">
+    <div class="card-head"><div class="card-title">Прайс-лист</div><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm">${I.filter}Категория</button><button class="btn btn-ghost btn-sm">${I.edit}Редактировать</button></div></div>
+    <table class="tbl">
+      <thead><tr><th>Процедура</th><th>Категория</th><th style="text-align:right">Цена</th><th>Длит-сть</th><th>Маржа</th><th></th></tr></thead>
+      <tbody>
+      ${PROCEDURES.map(pr=>`<tr><td style="font-weight:500">${pr.n}</td><td><span class="badge b-gray">${PROC_TYPES[pr.t].name}</span></td><td style="text-align:right;font-weight:600">${fmt.money(pr.p)}</td><td>${[30,45,60,90][Math.abs(pr.n.length)%4]} мин</td><td><div style="display:flex;align-items:center;gap:8px"><div class="bar"><div class="bar-fill" style="width:${30+(pr.p%50)}%"></div></div><span style="font-size:11.5px;color:var(--text-3)">${35+(pr.p%30)}%</span></div></td><td>${I.more}</td></tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+/* ===== INVENTORY ===== */
+function renderInventory(){
+  const lows=INVENTORY.filter(i=>i.stock<i.min).length;
+  return `
+  <div class="page-head">
+    <div><div class="page-title">Склад</div><div class="page-sub">${INVENTORY.length} позиций · ${lows} ниже минимума</div></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-ghost">${I.download}Инвентаризация</button><button class="btn btn-primary">${I.plus}Поступление</button></div>
+  </div>
+  <div class="grid-4" style="margin-bottom:14px">
+    <div class="card kpi"><div class="kpi-label">Стоимость склада</div><div class="kpi-value">${fmt.money(INVENTORY.reduce((s,i)=>s+i.stock*i.cost,0))}</div></div>
+    <div class="card kpi"><div class="kpi-label">Ниже минимума</div><div class="kpi-value" style="color:var(--red)">${lows}</div><div class="kpi-delta" style="color:var(--red);font-weight:500">Требует заказа</div></div>
+    <div class="card kpi"><div class="kpi-label">Скоро истекут</div><div class="kpi-value">2</div><div class="kpi-delta" style="color:var(--amber);font-weight:500">До 60 дней</div></div>
+    <div class="card kpi"><div class="kpi-label">Списано за май</div><div class="kpi-value">${fmt.money(1840000)}</div></div>
+  </div>
+  <div class="card" style="overflow:hidden">
+    <div class="card-head"><div class="card-title">Все позиции</div><input class="search-input" placeholder="Поиск..." style="width:200px;height:32px"></div>
+    <table class="tbl">
+      <thead><tr><th>Позиция</th><th>Категория</th><th>Остаток</th><th>Минимум</th><th>Срок годности</th><th style="text-align:right">Стоимость</th><th></th></tr></thead>
+      <tbody>
+      ${INVENTORY.map(i=>{const low=i.stock<i.min;const pct=Math.min(100,(i.stock/(i.min*2))*100);const fillC=low?'low':(i.stock<i.min*1.5?'warn':'');return `<tr class="${low?'inv-low':''}">
+        <td style="font-weight:500;${low?'padding-left:18px':''}">${i.n}</td>
+        <td><span class="badge b-gray">${i.cat}</span></td>
+        <td><div style="display:flex;align-items:center;gap:8px"><div class="bar"><div class="bar-fill ${fillC}" style="width:${pct}%"></div></div><b style="color:${low?'var(--red)':'var(--text)'}">${i.stock} ${i.unit}</b></div></td>
+        <td style="color:var(--text-3)">${i.min} ${i.unit}</td>
+        <td>${i.exp}</td>
+        <td style="text-align:right;font-weight:600">${fmt.money(i.cost*i.stock)}</td>
+        <td>${low?'<button class="btn btn-amber btn-xs">Заказать</button>':'<button class="icon-btn" style="width:28px;height:28px">'+I.more+'</button>'}</td>
+      </tr>`}).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+/* ===== COMMUNICATIONS ===== */
+function renderComms(){
+  const conv=[
+    {p:'p1',last:'Спасибо, увидимся в пятницу!',time:'10 мин',unread:0,ch:'wa'},
+    {p:'p4',last:'Можно ли разбить оплату коронки на 2 части?',time:'1 час',unread:1,ch:'tg'},
+    {p:'p9',last:'Здравствуйте, можно записаться?',time:'2 часа',unread:2,ch:'wa'},
+    {p:'p7',last:'Получили план лечения, спасибо',time:'вчера',unread:0,ch:'sms'},
+    {p:'p15',last:'Передаю фото для консультации',time:'вчера',unread:0,ch:'wa'},
+    {p:'p27',last:'Бот: подтверждена запись на 09:00',time:'вчера',unread:0,ch:'tg'},
+    {p:'p23',last:'Подтверждаю запись на 11:00',time:'2 дня',unread:0,ch:'wa'},
+    {p:'p17',last:'А можно фото плана отправить сюда?',time:'2 дня',unread:1,ch:'tg'},
+    {p:'p11',last:'Можно ли перенести на следующую неделю?',time:'3 дня',unread:0,ch:'sms'}
+  ];
+  const chMeta={wa:{c:'#25D366',ico:'W'},tg:{c:'#0088CC',ico:'T'},sms:{c:'#0891B2',ico:'S'}};
+  const channelStats=[
+    {ch:'wa',name:'WhatsApp',sent:1284,delivered:98,c:'#25D366'},
+    {ch:'tg',name:'Telegram',sent:612,delivered:99,c:'#0088CC'},
+    {ch:'sms',name:'SMS',sent:288,delivered:94,c:'#0891B2'}
+  ];
+  return `
+  <div class="page-head">
+    <div><div class="page-title">Коммуникации</div><div class="page-sub">${conv.filter(c=>c.unread).length} непрочитанных · 24 шаблона · 3 канала активны</div></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-ghost">${I.filter}Каналы</button><button class="btn btn-primary">${I.plus}Новое сообщение</button></div>
+  </div>
+  <div class="grid-4" style="margin-bottom:14px">
+    <div class="card kpi"><div class="kpi-label">Отправлено за май</div><div class="kpi-value">2 184</div><div class="kpi-delta up">${I.trend} +18%</div></div>
+    <div class="card kpi"><div class="kpi-label">Доставлено</div><div class="kpi-value">97%</div></div>
+    <div class="card kpi"><div class="kpi-label">Подтверждений записей</div><div class="kpi-value">81%</div><div class="kpi-delta up">${I.trend} +6 п.п.</div></div>
+    <div class="card kpi"><div class="kpi-label">NPS-ответов</div><div class="kpi-value">142</div><div class="kpi-delta up">${I.trend} 9.1 ср.балл</div></div>
+  </div>
+
+  <!-- Channel breakdown -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-head"><div><div class="card-title">Каналы</div><div class="card-sub">Распределение сообщений и эффективность доставки</div></div></div>
+    <div class="card-pad">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+      ${channelStats.map(s=>`<div style="padding:14px;border:1px solid var(--border);border-radius:10px;background:${s.c}08">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="width:34px;height:34px;border-radius:9px;background:${s.c};color:#fff;display:flex;align-items:center;justify-content:center">${s.ch==='wa'?I.wa:s.ch==='tg'?I.tg:I.msg}</div>
+          <div><div style="font-weight:700;font-size:14px">${s.name}</div><div style="font-size:11px;color:var(--text-3)">${s.ch==='wa'?'WhatsApp Cloud API':s.ch==='tg'?'Telegram Bot · @smile_studio_bot':'Mobizon шлюз'}</div></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-top:6px"><span style="color:var(--text-3)">Отправлено</span><b>${s.sent.toLocaleString('ru-RU')}</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-top:4px"><span style="color:var(--text-3)">Доставлено</span><b style="color:var(--green)">${s.delivered}%</b></div>
+        <div class="bar" style="margin-top:8px;max-width:none;height:6px"><div class="bar-fill" style="width:${s.delivered}%;background:${s.c}"></div></div>
+      </div>`).join('')}
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="grid-template-columns:1fr 1fr">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Активные диалоги</div>
+        <div style="display:flex;gap:4px;font-size:11px">
+          <span class="badge b-gray">Все</span>
+          <span class="badge b-green">WhatsApp 6</span>
+          <span class="badge b-tg">Telegram 3</span>
+          <span class="badge b-blue">SMS 2</span>
+        </div>
+      </div>
+      <div style="padding:0;max-height:480px;overflow-y:auto">
+      ${conv.map(c=>{const p=patient(c.p);const d=doctor(p.doc);const cm=chMeta[c.ch];return `<div style="display:flex;align-items:center;gap:11px;padding:12px 16px;border-bottom:1px solid var(--border-2);cursor:pointer" onclick="STATE.commChannel='${c.ch}';setView('patient',{patientId:'${p.id}',patientTab:'comms',selectedTooth:null})">
+        <div class="avatar" style="background:${d.c};width:38px;height:38px;font-size:13px;position:relative">${ini(p.name)}
+          <div style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:${cm.c};display:flex;align-items:center;justify-content:center;border:2px solid #fff;color:#fff;font-size:9px;font-weight:700">${cm.ico}</div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-weight:600;font-size:13px">${p.name}</div><div style="font-size:11px;color:var(--text-3)">${c.time}</div></div>
+          <div style="font-size:12px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">${c.last}</div>
+        </div>
+        ${c.unread?`<div style="background:${cm.c};color:#fff;font-size:11px;font-weight:600;border-radius:10px;padding:2px 7px">${c.unread}</div>`:''}
+      </div>`}).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Автоматизации</div><span class="badge b-green">8 активно</span></div>
+      <div style="padding:0">
+      ${[
+        ['Подтверждение записи','WhatsApp + Telegram за 24 ч до визита',['wa','tg'],'active'],
+        ['Напоминание за 2 часа','WhatsApp с инструкцией как добраться',['wa'],'active'],
+        ['Запрос NPS','Telegram-опрос через 2 часа после визита',['tg'],'active'],
+        ['Реактивация спящих','Каждый понедельник пациентам без визита 6+ мес',['wa','sms'],'active'],
+        ['День рождения','Поздравление + бонус 1000 баллов',['wa','tg'],'active'],
+        ['Профосмотр через 6 мес','Напоминание о плановой гигиене',['wa','tg','sms'],'active'],
+        ['Должникам','Деликатное напоминание раз в 2 недели',['sms'],'paused'],
+        ['Реферальная программа','Запрос рекомендации после 3-го визита',['tg'],'active']
+      ].map(a=>`<div style="display:flex;align-items:center;gap:11px;padding:12px 16px;border-bottom:1px solid var(--border-2)">
+        <div style="width:8px;height:8px;border-radius:50%;background:${a[3]==='active'?'var(--green)':'var(--text-3)'};box-shadow:${a[3]==='active'?'0 0 0 4px rgba(5,150,105,.15)':'none'};flex-shrink:0"></div>
+        <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px">${a[0]}</div><div style="font-size:11.5px;color:var(--text-3);margin-top:2px">${a[1]}</div></div>
+        <div style="display:flex;gap:3px;margin-right:6px">${a[2].map(c=>`<div style="width:20px;height:20px;border-radius:5px;background:${chMeta[c].c}20;color:${chMeta[c].c};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700">${chMeta[c].ico}</div>`).join('')}</div>
+        <label style="position:relative;display:inline-block;width:34px;height:20px"><input type="checkbox" ${a[3]==='active'?'checked':''} style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:${a[3]==='active'?'var(--primary)':'#CBD5E1'};border-radius:20px;transition:.2s"><span style="position:absolute;height:14px;width:14px;left:${a[3]==='active'?'17px':'3px'};top:3px;background:#fff;border-radius:50%;transition:.2s"></span></span></label>
+      </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ===== ANALYTICS ===== */
+function renderAnalytics(){
+  return `
+  <div class="page-head">
+    <div><div class="page-title">Аналитика</div><div class="page-sub">Глубокая аналитика бизнеса · обновляется каждые 5 минут</div></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-ghost">${I.filter}Период</button><button class="btn btn-ghost">${I.download}Экспорт</button></div>
+  </div>
+  <div class="grid-4" style="margin-bottom:14px">
+    <div class="card kpi"><div class="kpi-label">LTV пациента</div><div class="kpi-value">${fmt.money(842000)}</div><div class="kpi-delta up">${I.trend} +14%</div></div>
+    <div class="card kpi"><div class="kpi-label">CAC (стоимость привлечения)</div><div class="kpi-value">${fmt.money(18400)}</div><div class="kpi-delta up">${I.trend} −8%</div></div>
+    <div class="card kpi"><div class="kpi-label">LTV / CAC</div><div class="kpi-value">45.8x</div><div class="kpi-delta up">${I.trend} отличный</div></div>
+    <div class="card kpi"><div class="kpi-label">Retention 12 мес</div><div class="kpi-value">73%</div><div class="kpi-delta up">${I.trend} +5 п.п.</div></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><div class="card-title">Источники привлечения</div><div class="card-sub">Куда уходит маркетинг и что окупается</div></div>
+      <div class="card-pad">
+      ${[['Instagram',38,'#E1306C',{c:124,p:18,r:892}],['Рекомендации',24,'#0F766E',{c:78,p:0,r:1240}],['2GIS',14,'#0084FF',{c:46,p:6,r:680}],['Google',12,'#4285F4',{c:38,p:8,r:540}],['Сайт',8,'#7C3AED',{c:26,p:4,r:710}],['TikTok',4,'#000000',{c:14,p:3,r:380}]].map(s=>`
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span style="font-weight:500">${s[0]}</span><span style="color:var(--text-3)">${s[3].c} пациентов · ROI ${s[3].r}%</span></div>
+          <div class="bar" style="max-width:none;height:8px"><div class="bar-fill" style="width:${s[1]*2.5}%;background:${s[2]}"></div></div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Когортный анализ удержания</div><div class="card-sub">% возврата по месяцам после первого визита</div></div>
+      <div class="card-pad">
+        <div style="display:grid;grid-template-columns:60px repeat(6,1fr);gap:3px;font-size:11px">
+          <div></div>
+          ${['1м','2м','3м','6м','9м','12м'].map(h=>`<div class="hm-h">${h}</div>`).join('')}
+          ${['Ноя 25','Дек 25','Янв 26','Фев 26','Мар 26','Апр 26','Май 26'].map((mo,r)=>{return `<div class="hm-l">${mo}</div>`+[92,84,72,64,58,52].slice(0,6).map((v,c)=>{const adj=Math.max(10,v-r*4+c*2);const op=adj/100;return `<div class="hm-c" style="background:rgba(15,118,110,${op})">${adj}</div>`}).join('')}).join('')}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="card-head"><div class="card-title">Производительность врачей</div></div>
+    <table class="tbl">
+      <thead><tr><th>Врач</th><th>Специальность</th><th>Загрузка</th><th>Пациентов</th><th>Конверсия в план</th><th>NPS</th><th style="text-align:right">Выработка</th></tr></thead>
+      <tbody>
+      ${DOCTORS.map((d,i)=>`<tr>
+        <td><div style="display:flex;align-items:center;gap:9px"><div class="avatar sm" style="background:${d.c}">${d.ini}</div><b>${d.name}</b></div></td>
+        <td><span style="color:var(--text-2)">${d.spec}</span></td>
+        <td><div style="display:flex;align-items:center;gap:8px"><div class="bar"><div class="bar-fill ${d.load<70?'warn':''}" style="width:${d.load}%"></div></div><b>${d.load}%</b></div></td>
+        <td>${42-i*3}</td>
+        <td>${42+i*4}%</td>
+        <td><span class="badge ${i%4===0?'b-amber':'b-green'}">${(9.2-i*0.15).toFixed(1)}</span></td>
+        <td style="text-align:right;font-weight:600">${fmt.money((8-i)*340000+i*120000)}</td>
+      </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+/* ===== SETTINGS ===== */
+function renderSettings(){
+  return `
+  <div class="page-head"><div><div class="page-title">Настройки</div><div class="page-sub">Smile Studio · Конфигурация клиники</div></div></div>
+  <div class="grid-3">
+  ${[
+    ['Клиника','Реквизиты, адрес, расписание работы',I.pin,'#0F766E'],
+    ['Сотрудники',`${DOCTORS.length} врачей, 4 администратора, 6 ассистентов`,I.user,'#7C3AED'],
+    ['Кресла и кабинеты','6 рабочих мест, 2 кабинета',I.tooth,'#0891B2'],
+    ['Прайс-лист',`${PROCEDURES.length} процедур · последнее обновление 12.05`,I.cash,'#059669'],
+    ['Шаблоны документов','ИДС · 8 шаблонов, Договоры · 4 шаблона',I.doc,'#DC2626'],
+    ['Интеграции','Kaspi, WhatsApp Business, 1С Бухгалтерия, Bitrix24',I.zap,'#D97706'],
+    ['Программа лояльности','3 уровня · 1 балл = 10 ₸',I.star,'#CA8A04'],
+    ['Уведомления','SMS-шлюз Mobizon · WhatsApp Cloud API',I.bell,'#4338CA'],
+    ['Безопасность','2FA, журнал действий, ролевая модель',I.alert,'#DB2777']
+  ].map(s=>`<div class="card" style="padding:18px;cursor:pointer">
+    <div style="display:flex;gap:12px;align-items:flex-start"><div style="width:38px;height:38px;border-radius:9px;background:${s[3]}15;color:${s[3]};display:flex;align-items:center;justify-content:center;flex-shrink:0">${s[2]}</div>
+    <div style="flex:1"><div style="font-weight:600;font-size:14px">${s[0]}</div><div style="font-size:12px;color:var(--text-2);margin-top:3px;line-height:1.4">${s[1]}</div></div>
+    ${I.chev}</div>
+  </div>`).join('')}
+  </div>`;
+}
+
+/* ===== AI ASSISTANT ===== */
+const AI_INIT=[
+  {role:'bot',html:'Здравствуйте, Платон! 👋<br>Я — Dentaly AI. Помогу с анализом, протоколами, поиском по базе. С чего начнём?'}
+];
+const AI_SUGGEST=['Кто из пациентов в группе риска?','Анализ снимка КТ','Составить протокол по жалобе','Кто давно не приходил?'];
+const AI_REPLIES={
+  'риск':'Сейчас в группе высокого риска отмены — <b>4 пациента</b> на эту неделю:<br>• Касенова А. (пт 10:30) — 78%<br>• Соколов М. (чт 14:00) — 65%<br>• Жумабеков Т. (сб 11:00) — 62%<br>• Воронов Н. (пн 09:00) — 58%<br><br>Рекомендую активировать прозвон за 24 ч. Подготовить шаблон?',
+  'кт':'Я могу проанализировать загруженный КТ-снимок. На последнем снимке пациентки Ивановой А. (12.05) обнаружено:<br>• Глубокий кариес 47 (мезиальная поверхность)<br>• Хроническая гранулёма у апекса 36<br>• Дефицит костной ткани в области 46 (3.2 мм)<br><br>Рекомендую обсудить план перед имплантацией.',
+  'протокол':'Жалобы на какой зуб? Опишите симптомы — я составлю структурированный протокол по форме клиники (жалобы → объективно → диагноз → план → назначения).',
+  'давно':'<b>87 пациентов</b> не были в клинике 6+ месяцев. Топ-кандидаты на реактивацию (по LTV):<br>• Бекова Карина — 1.4М ₸ LTV, 4 мес тишины<br>• Ермеков Самат — 980К ₸, 5 мес<br>• Ахметова Гульнара — 720К ₸, 8 мес<br><br>Запустить WhatsApp-кампанию с предложением профосмотра?',
+  'default':'Хороший вопрос! В демо-версии я подключён к ограниченному набору сценариев. В боевом продукте AI имеет доступ к полной базе пациентов, снимкам, протоколам и может предлагать диагнозы, планы лечения и автоматизации.'
+};
+
+function toggleAI(){
+  const p=$('aiPanel'),f=$('aiFab');
+  const isOpen=p.classList.toggle('show');
+  f.style.display=isOpen?'none':'flex';
+  if(isOpen && !$('aiMsgs').innerHTML.trim()){
+    renderAIMsgs(AI_INIT);
+    $('aiSuggest').innerHTML=AI_SUGGEST.map(s=>`<div class="ai-sg" onclick="aiPick('${s}')">${s}</div>`).join('');
+  }
+}
+function renderAIMsgs(msgs){
+  $('aiMsgs').innerHTML=msgs.map(m=>`<div class="ai-msg ${m.role}">${m.html}</div>`).join('');
+  $('aiMsgs').scrollTop=$('aiMsgs').scrollHeight;
+}
+let AI_STATE=AI_INIT.slice();
+function aiPick(q){$('aiInput').value=q;aiSend();}
+function aiSend(){
+  const v=$('aiInput').value.trim();if(!v)return;
+  AI_STATE.push({role:'user',html:escapeHTML(v)});
+  AI_STATE.push({role:'bot',html:'<span class="typing"><span></span><span></span><span></span></span>'});
+  renderAIMsgs(AI_STATE);
+  $('aiInput').value='';
+  setTimeout(()=>{
+    AI_STATE.pop();
+    const lower=v.toLowerCase();
+    let reply=AI_REPLIES.default;
+    for(const k of Object.keys(AI_REPLIES)){if(k!=='default' && lower.includes(k)){reply=AI_REPLIES[k];break}}
+    AI_STATE.push({role:'bot',html:reply});
+    renderAIMsgs(AI_STATE);
+  },800);
+}
+
+/* ===== CMD+K ===== */
+function openCmdK(){$('cmdkBg').classList.add('show');setTimeout(()=>{$('cmdkInput').focus();renderCmdK()},10);}
+function closeCmdK(){$('cmdkBg').classList.remove('show');$('cmdkInput').value='';}
+function renderCmdK(){
+  const q=($('cmdkInput').value||'').toLowerCase().trim();
+  const actions=[
+    {ico:I.plus,title:'Записать пациента',sub:'Создать новую запись',sec:'Действия',act:()=>{closeCmdK();openModal('newAppt')}},
+    {ico:I.user,title:'Добавить пациента',sub:'Новая карточка в базе',sec:'Действия',act:()=>{closeCmdK();openModal('newPatient')}},
+    {ico:I.cash,title:'Принять оплату',sub:'Зафиксировать платёж',sec:'Действия',act:closeCmdK},
+    {ico:I.doc,title:'Создать план лечения',sub:'Составить КП для пациента',sec:'Действия',act:closeCmdK},
+    {ico:I.cal,title:'Перейти к расписанию',sub:'Дашборд расписания на сегодня',sec:'Навигация',act:()=>{closeCmdK();setView('schedule')}},
+    {ico:I.cash,title:'Прайс-лист',sub:'Все процедуры и цены',sec:'Навигация',act:()=>{closeCmdK();setView('finance')}},
+    {ico:I.box,title:'Склад',sub:'Остатки и заказы',sec:'Навигация',act:()=>{closeCmdK();setView('inventory')}}
+  ];
+  const patientHits=PATIENTS.filter(p=>!q||p.name.toLowerCase().includes(q)||p.phone.includes(q)).slice(0,5).map(p=>({
+    ico:`<div class="avatar sm" style="background:${doctor(p.doc).c};width:30px;height:30px;font-size:11px">${ini(p.name)}</div>`,
+    title:p.name,sub:`${fmt.age(p.age)} · ${p.phone}`,sec:'Пациенты',
+    act:()=>{closeCmdK();setView('patient',{patientId:p.id,patientTab:'overview',selectedTooth:null})}
+  }));
+  const procHits=PROCEDURES.filter(pr=>!q||pr.n.toLowerCase().includes(q)).slice(0,4).map(pr=>({
+    ico:I.tooth,title:pr.n,sub:`${fmt.money(pr.p)} · ${PROC_TYPES[pr.t].name}`,sec:'Процедуры',act:closeCmdK
+  }));
+  const actHits=actions.filter(a=>!q||a.title.toLowerCase().includes(q)||a.sub.toLowerCase().includes(q));
+  const groups={};
+  [...actHits,...patientHits,...procHits].forEach(it=>{(groups[it.sec]=groups[it.sec]||[]).push(it)});
+  const all=[];
+  let html='';
+  Object.entries(groups).forEach(([sec,items])=>{
+    html+=`<div class="cmdk-section">${sec}</div>`;
+    items.forEach(it=>{
+      const idx=all.length;
+      html+=`<div class="cmdk-item ${idx===STATE.cmdkSel?'sel':''}" data-idx="${idx}"><div class="ci-ico">${it.ico}</div><div class="ci-text"><div class="ci-title">${it.title}</div><div class="ci-sub">${it.sub}</div></div></div>`;
+      all.push(it);
+    });
+  });
+  if(!all.length)html=`<div style="padding:30px;text-align:center;color:var(--text-3);font-size:13px">Ничего не найдено</div>`;
+  $('cmdkResults').innerHTML=html;
+  window._cmdkAll=all;
+  document.querySelectorAll('.cmdk-item').forEach(el=>el.onclick=()=>all[parseInt(el.dataset.idx)].act());
+}
+
+/* ===== MODALS ===== */
+/* ===== MODALS v2 ===== */
+let MODAL_STATE={};
+const MODAL_RENDERERS={
+  newAppt:modalNewAppt,
+  newPatient:modalNewPatient,
+  createPlan:modalCreatePlan,
+  addVisit:modalAddVisit
+};
+
+function openModal(type,ctx){
+  MODAL_STATE={type,ctx:ctx||{},data:{}};
+  // Reasonable defaults per modal
+  if(type==='newAppt'){
+    MODAL_STATE.data={docId:DOCTORS[0].id,procIdx:0,date:'22.05.2026',time:'14:30',patientId:STATE.patientId||null};
+  } else if(type==='createPlan'){
+    MODAL_STATE.data={title:'Комплексный план лечения',discount:0,variant:'standard',stages:[]};
+  } else if(type==='addVisit'){
+    MODAL_STATE.data={title:'',date:new Date().toISOString().slice(0,10),docId:DOCTORS[0].id,duration:60,stages:[]};
+  }
+  renderModal();
+  $('modalBg').classList.add('show');
+}
+function renderModal(){
+  const r=MODAL_RENDERERS[MODAL_STATE.type];
+  if(r)$('modalEl').innerHTML=r();
+}
+function closeModal(){$('modalBg').classList.remove('show');MODAL_STATE={};}
+
+// Field helper
+function field(label,inner){
+  return `<div><div style="font-size:11.5px;color:var(--text-3);font-weight:600;margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px">${label}</div>${inner}</div>`;
+}
+function modalInput(val,placeholder,attr){
+  return `<input class="search-input" value="${escapeHTML(val||'')}" placeholder="${placeholder||''}" style="height:38px;width:100%;padding-left:12px" ${attr||''}>`;
+}
+
+/* ----- NEW APPOINTMENT ----- */
+function modalNewAppt(){
+  const d=MODAL_STATE.data;
+  const p=d.patientId?patient(d.patientId):null;
+  return `<div class="modal-head"><div class="modal-title">Новая запись</div><button class="icon-btn" onclick="closeModal()">✕</button></div>
+  <div class="modal-body">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${field('Пациент',p?
+        `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface-2);border-radius:8px"><div class="avatar sm" style="background:${doctor(p.doc).c}">${ini(p.name)}</div><div style="flex:1"><div style="font-weight:600;font-size:13px">${p.name}</div><div style="font-size:11.5px;color:var(--text-3)">${p.phone}</div></div></div>`:
+        modalInput('','Начните вводить имя или телефон…'))}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${field('Дата',modalInput(d.date,''))}
+        ${field('Время',modalInput(d.time,''))}
+      </div>
+      ${field('Врач',`<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;max-height:160px;overflow-y:auto">
+        ${DOCTORS.map(doc=>`<div onclick="MODAL_STATE.data.docId='${doc.id}';renderModal()" style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid ${d.docId===doc.id?'var(--primary)':'var(--border)'};border-radius:8px;cursor:pointer;background:${d.docId===doc.id?'var(--primary-tint)':'#fff'}"><div class="avatar sm" style="background:${doc.c}">${doc.ini}</div><div style="min-width:0"><div style="font-weight:500;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${doc.name}</div><div style="font-size:10.5px;color:var(--text-3)">${doc.spec}</div></div></div>`).join('')}
+      </div>`)}
+      ${field('Процедура',`<select class="search-input" style="height:38px;width:100%;padding-left:12px" onchange="MODAL_STATE.data.procIdx=parseInt(this.value)">
+        ${PROCEDURES.map((pr,i)=>`<option value="${i}" ${d.procIdx===i?'selected':''}>${pr.n} — ${fmt.money(pr.p)}</option>`).join('')}
+      </select>`)}
+    </div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Отмена</button><button class="btn btn-primary" onclick="submitNewAppt()">Создать запись</button></div>`;
+}
+function submitNewAppt(){
+  const d=MODAL_STATE.data;
+  const proc=PROCEDURES[d.procIdx];
+  // Add to APPOINTMENTS for today
+  const slot=d.time;
+  APPOINTMENTS.push({
+    id:'a'+Date.now(),day:STATE.scheduleDay,start:slot,dur:60,docId:d.docId,
+    patientId:d.patientId||PATIENTS[0].id,
+    procName:proc.n,procPrice:proc.p,procType:proc.t,status:'confirmed',risk:0.2
+  });
+  closeModal();
+  toast('Запись создана и добавлена в расписание');
+  if(STATE.view==='schedule')render();
+}
+
+/* ----- NEW PATIENT ----- */
+function modalNewPatient(){
+  return `<div class="modal-head"><div class="modal-title">Новый пациент</div><button class="icon-btn" onclick="closeModal()">✕</button></div>
+  <div class="modal-body"><div style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      ${field('Фамилия',modalInput('','Иванов'))}
+      ${field('Имя',modalInput('','Иван'))}
+    </div>
+    ${field('Телефон',modalInput('','+7 ___ ___ __ __'))}
+    ${field('Дата рождения',modalInput('','дд.мм.гггг'))}
+    ${field('Источник',`<select class="search-input" style="height:38px;width:100%;padding-left:12px"><option>Instagram</option><option>Рекомендация</option><option>2GIS</option><option>Google</option><option>Сайт</option><option>TikTok</option></select>`)}
+  </div></div>
+  <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Отмена</button><button class="btn btn-primary" onclick="closeModal();toast('Пациент добавлен в базу')">Сохранить</button></div>`;
+}
+
+/* ----- CREATE TREATMENT PLAN ----- */
+function modalCreatePlan(){
+  const d=MODAL_STATE.data;
+  const p=patient(STATE.patientId);
+  const total=d.stages.reduce((s,x)=>s+x.price,0);
+  const discounted=Math.round(total*(1-(d.discount||0)/100));
+  return `<div class="modal-head">
+    <div><div class="modal-title">Создание плана лечения</div><div style="font-size:12px;color:var(--text-2);margin-top:2px">Пациент: <b>${p?p.name:'—'}</b></div></div>
+    <button class="icon-btn" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body" style="max-width:680px">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      ${field('Название плана',modalInput(d.title,'','oninput="MODAL_STATE.data.title=this.value"'))}
+
+      <div>
+        <div style="font-size:11.5px;color:var(--text-3);font-weight:600;margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px">Вариант лечения</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        ${[['economy','Эконом','Базовые материалы'],['standard','Стандарт','Оптимально'],['premium','Премиум','Топ материалы']].map(v=>`
+          <div onclick="MODAL_STATE.data.variant='${v[0]}';renderModal()" style="padding:11px;border:1.5px solid ${d.variant===v[0]?'var(--primary)':'var(--border)'};border-radius:9px;cursor:pointer;background:${d.variant===v[0]?'var(--primary-tint)':'#fff'};text-align:center">
+            <div style="font-weight:700;font-size:13px">${v[1]}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">${v[2]}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:11.5px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.3px">Этапы плана <span style="background:var(--primary-tint);color:var(--primary-2);padding:1px 7px;border-radius:5px;margin-left:4px">${d.stages.length}</span></div>
+          ${d.addingStage?'':`<button class="btn btn-primary btn-sm" onclick="addStageToPlan()">${I.plus}Добавить процедуру</button>`}
+        </div>
+        ${d.addingStage?renderAddStageForm():(d.stages.length===0?`<div style="padding:24px;text-align:center;border:1.5px dashed var(--border);border-radius:10px;color:var(--text-3);font-size:13px">Пока нет ни одной процедуры. Нажмите «Добавить процедуру», чтобы начать.</div>`:`
+        <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
+        ${d.stages.map((s,i)=>`<div style="display:grid;grid-template-columns:54px 1fr 110px 30px;gap:10px;padding:10px 12px;align-items:center;border-bottom:1px solid var(--border-2);${i===d.stages.length-1?'border:none':''}">
+          <div class="stage-tooth">${s.tooth}</div>
+          <div style="font-weight:500;font-size:13px">${s.proc}</div>
+          <div style="text-align:right;font-weight:600">${fmt.money(s.price)}</div>
+          <button class="icon-btn" style="width:26px;height:26px" onclick="MODAL_STATE.data.stages.splice(${i},1);renderModal()">✕</button>
+        </div>`).join('')}
+        </div>`)}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end">
+        ${field('Скидка, %',`<input type="number" class="search-input" value="${d.discount||0}" style="height:38px;width:100%;padding-left:12px" oninput="MODAL_STATE.data.discount=parseFloat(this.value)||0;renderModal()">`)}
+        <div style="background:var(--primary-tint);border-radius:9px;padding:10px 14px">
+          <div style="font-size:11.5px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.3px">Итого</div>
+          <div style="font-size:18px;font-weight:700;color:var(--primary-2);letter-spacing:-.3px">${fmt.money(discounted)}</div>
+          ${d.discount>0?`<div style="font-size:11px;color:var(--text-3);text-decoration:line-through">${fmt.money(total)}</div>`:''}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
+    <button class="btn btn-ghost" onclick="submitPlan('draft')">Сохранить черновик</button>
+    <button class="btn btn-primary" onclick="submitPlan('agreed')" ${d.stages.length===0?'style="opacity:.5;pointer-events:none"':''}>Согласовать с пациентом</button>
+  </div>`;
+}
+function addStageToPlan(){
+  MODAL_STATE.data.addingStage={tooth:11,procIdx:0};
+  renderModal();
+}
+function confirmAddStage(){
+  const a=MODAL_STATE.data.addingStage;
+  if(!a)return;
+  const proc=PROCEDURES[a.procIdx];
+  MODAL_STATE.data.stages.push({tooth:parseInt(a.tooth)||0,proc:proc.n,price:proc.p,type:proc.t});
+  delete MODAL_STATE.data.addingStage;
+  renderModal();
+}
+function cancelAddStage(){
+  delete MODAL_STATE.data.addingStage;
+  renderModal();
+}
+function renderAddStageForm(){
+  const a=MODAL_STATE.data.addingStage;
+  if(!a)return '';
+  // Quick tooth picker — common teeth + manual input
+  const commonTeeth=[11,12,13,14,15,16,17,21,22,23,24,25,26,27,31,32,33,34,35,36,37,41,42,43,44,45,46,47];
+  return `<div style="padding:14px;background:var(--primary-tint);border:1.5px solid var(--primary);border-radius:10px;display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:13px;font-weight:600;color:var(--primary-2)">Добавить процедуру</div>
+      <button class="icon-btn" style="width:24px;height:24px" onclick="cancelAddStage()">✕</button>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--text-3);font-weight:600;margin-bottom:5px;text-transform:uppercase">Зуб (FDI)</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="number" class="search-input" value="${a.tooth}" style="height:34px;width:80px;padding-left:10px;text-align:center;font-weight:600" oninput="MODAL_STATE.data.addingStage.tooth=this.value">
+        <div style="font-size:11px;color:var(--text-2);flex:1">или выберите быстро:</div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;max-height:60px;overflow-y:auto">
+      ${commonTeeth.map(t=>`<button onclick="MODAL_STATE.data.addingStage.tooth=${t};renderModal()" style="padding:3px 7px;background:${parseInt(a.tooth)===t?'var(--primary)':'#fff'};color:${parseInt(a.tooth)===t?'#fff':'var(--text)'};border:1px solid ${parseInt(a.tooth)===t?'var(--primary)':'var(--border)'};border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">${t}</button>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--text-3);font-weight:600;margin-bottom:5px;text-transform:uppercase">Процедура из прайса</div>
+      <select class="search-input" style="height:34px;width:100%;padding-left:10px" onchange="MODAL_STATE.data.addingStage.procIdx=parseInt(this.value);renderModal()">
+        ${PROCEDURES.map((pr,i)=>`<option value="${i}" ${a.procIdx===i?'selected':''}>${pr.n} — ${fmt.money(pr.p)}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;border-top:1px solid rgba(15,118,110,.2)">
+      <div style="font-size:11px;color:var(--text-3)">Будет добавлено в план</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="cancelAddStage()">Отмена</button>
+        <button class="btn btn-primary btn-sm" onclick="confirmAddStage()">${I.plus}Добавить</button>
+      </div>
+    </div>
+  </div>`;
+}
+function submitPlan(status){
+  const d=MODAL_STATE.data;
+  const pid=STATE.patientId;
+  const total=d.stages.reduce((s,x)=>s+x.price,0);
+  TREATMENT_PLANS[pid]={
+    id:'plan-'+pid+'-'+Date.now(),
+    title:d.title,
+    status:status==='agreed'?'in_progress':'draft',
+    agreedAt:status==='agreed'?new Date().toISOString().slice(0,10):null,
+    docId:DOCTORS[0].id,
+    discount:d.discount||0,
+    activeVariant:d.variant,
+    variants:{
+      economy:{name:'Эконом',sub:'Базовые материалы',total:Math.round(total*0.7),duration:'4–5 мес'},
+      standard:{name:'Стандарт',sub:'Оптимально',total:total,duration:'5–6 мес'},
+      premium:{name:'Премиум',sub:'Топ материалы',total:Math.round(total*1.4),duration:'6–7 мес'}
+    },
+    visits:[{
+      id:'v'+Date.now(),
+      date:new Date().toISOString().slice(0,10),
+      title:'Первый визит — '+(d.stages[0]?d.stages[0].proc:'осмотр'),
+      docId:DOCTORS[0].id,duration:60,status:'planned',
+      stages:d.stages.map((s,i)=>({id:'s'+Date.now()+'_'+i,tooth:s.tooth,proc:s.proc,price:s.price,status:'planned'}))
+    }],
+    payments:[]
+  };
+  closeModal();
+  toast(status==='agreed'?'План согласован и отправлен пациенту':'Черновик плана сохранён');
+  if(STATE.view==='patient')$('pcTabContent').innerHTML=renderPatientTab(patient(pid),'plan');
+}
+
+/* ----- ADD VISIT TO EXISTING PLAN ----- */
+function modalAddVisit(){
+  const d=MODAL_STATE.data;
+  const total=d.stages.reduce((s,x)=>s+x.price,0);
+  return `<div class="modal-head">
+    <div><div class="modal-title">Новый визит в план</div><div style="font-size:12px;color:var(--text-2);margin-top:2px">${patient(STATE.patientId)?patient(STATE.patientId).name:''}</div></div>
+    <button class="icon-btn" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body" style="max-width:620px">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${field('Название визита',modalInput(d.title,'Например: Лечение кариеса 12 и 47','oninput="MODAL_STATE.data.title=this.value"'))}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${field('Дата визита',`<input type="date" class="search-input" value="${d.date}" style="height:38px;width:100%;padding-left:12px" oninput="MODAL_STATE.data.date=this.value">`)}
+        ${field('Длительность, мин',`<input type="number" step="15" class="search-input" value="${d.duration}" style="height:38px;width:100%;padding-left:12px" oninput="MODAL_STATE.data.duration=parseInt(this.value)||60">`)}
+      </div>
+      ${field('Врач',`<select class="search-input" style="height:38px;width:100%;padding-left:12px" onchange="MODAL_STATE.data.docId=this.value">
+        ${DOCTORS.map(doc=>`<option value="${doc.id}" ${d.docId===doc.id?'selected':''}>${doc.name} — ${doc.spec}</option>`).join('')}
+      </select>`)}
+
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:11.5px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.3px">Процедуры в визите <span style="background:var(--primary-tint);color:var(--primary-2);padding:1px 7px;border-radius:5px;margin-left:4px">${d.stages.length}</span></div>
+          ${d.addingStage?'':`<button class="btn btn-primary btn-sm" onclick="addStageToPlan()">${I.plus}Добавить</button>`}
+        </div>
+        ${d.addingStage?renderAddStageForm():(d.stages.length===0?`<div style="padding:20px;text-align:center;border:1.5px dashed var(--border);border-radius:10px;color:var(--text-3);font-size:13px">Добавьте хотя бы одну процедуру</div>`:`
+        <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
+        ${d.stages.map((s,i)=>`<div style="display:grid;grid-template-columns:54px 1fr 110px 30px;gap:10px;padding:10px 12px;align-items:center;border-bottom:1px solid var(--border-2);${i===d.stages.length-1?'border:none':''}">
+          <div class="stage-tooth">${s.tooth}</div>
+          <div style="font-weight:500;font-size:13px">${s.proc}</div>
+          <div style="text-align:right;font-weight:600">${fmt.money(s.price)}</div>
+          <button class="icon-btn" style="width:26px;height:26px" onclick="MODAL_STATE.data.stages.splice(${i},1);renderModal()">✕</button>
+        </div>`).join('')}
+        </div>`)}
+      </div>
+
+      ${total>0?`<div style="display:flex;justify-content:space-between;padding:11px 14px;background:var(--primary-tint);border-radius:9px"><span style="font-weight:500">Стоимость визита</span><b style="color:var(--primary-2);font-size:15px">${fmt.money(total)}</b></div>`:''}
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
+    <button class="btn btn-primary" onclick="submitAddVisit()" ${d.stages.length===0||!d.title?'style="opacity:.5;pointer-events:none"':''}>Добавить в план</button>
+  </div>`;
+}
+function submitAddVisit(){
+  const d=MODAL_STATE.data;
+  const pid=STATE.patientId;
+  if(!TREATMENT_PLANS[pid])return;
+  TREATMENT_PLANS[pid].visits.push({
+    id:'v'+Date.now(),date:d.date,title:d.title,docId:d.docId,duration:d.duration,status:'planned',
+    stages:d.stages.map((s,i)=>({id:'s'+Date.now()+'_'+i,tooth:s.tooth,proc:s.proc,price:s.price,status:'planned'}))
+  });
+  // Sort visits by date
+  TREATMENT_PLANS[pid].visits.sort((a,b)=>a.date.localeCompare(b.date));
+  closeModal();
+  toast('Визит добавлен в план лечения');
+  $('pcTabContent').innerHTML=renderPatientTab(patient(pid),'plan');
+}
+
+
+/* ===== NOTIFICATIONS ===== */
+function toggleNotif(e){
+  e&&e.stopPropagation();
+  const p=$('notifPop');
+  const open=p.classList.toggle('show');
+  if(open && !p.innerHTML.trim()){
+    p.innerHTML=`<div class="notif-head"><div style="font-weight:600">Уведомления</div><div style="font-size:12px;color:var(--primary);cursor:pointer">Прочитать все</div></div>
+    ${NOTIFICATIONS.map(n=>{const colors={amber:'#FEF3C7',red:'#FEE2E2',green:'#D1FAE5',teal:'#CCFBF1'};const colorsT={amber:'#D97706',red:'#DC2626',green:'#059669',teal:'#0F766E'};return `<div class="notif-item">
+      <div style="width:32px;height:32px;border-radius:8px;background:${colors[n.c]||'#F1F3F4'};color:${colorsT[n.c]||'#475569'};display:flex;align-items:center;justify-content:center;flex-shrink:0">${I[n.ico]||I.bell}</div>
+      <div class="ni-text"><div style="font-weight:500">${n.title}</div><div class="ni-meta">${n.meta} <span class="dot-sep">·</span> ${n.time}</div></div>
+    </div>`}).join('')}
+    <div style="padding:11px 16px;text-align:center;background:var(--surface-2);font-size:12.5px;color:var(--primary);font-weight:500;cursor:pointer">Все уведомления →</div>`;
+  }
+}
+
+/* ===== MIC (speech-to-text mock) ===== */
+function toggleMic(){
+  const btn=$('micBtn'),lbl=$('micLabel'),sub=$('micSub'),res=$('micResult');
+  if(STATE.recording){
+    STATE.recording=false;
+    btn.classList.remove('recording');
+    lbl.textContent='Расшифровываю…';
+    sub.textContent='AI анализирует и структурирует речь';
+    setTimeout(()=>{
+      lbl.textContent='Готово! Протокол сформирован';
+      sub.textContent='Можно отредактировать и сохранить';
+      res.style.display='block';
+      res.innerHTML=`<div style="font-weight:600;margin-bottom:8px;color:var(--primary)">Протокол приёма · 22.05.2026 14:38</div>
+      <div style="margin-bottom:8px"><b>Жалобы:</b> Чувствительность зуба 12 при употреблении холодного и сладкого, эпизодическая ноющая боль.</div>
+      <div style="margin-bottom:8px"><b>Объективно:</b> 12 — кариозная полость по мезиальной поверхности, ЭОД 6-8 мкА, перкуссия безболезненна, слизистая в проекции верхушки без изменений.</div>
+      <div style="margin-bottom:8px"><b>Диагноз:</b> К02.1 Кариес дентина зуба 12 (мезиальная поверхность).</div>
+      <div style="margin-bottom:8px"><b>План:</b> Препарирование, изоляция коффердамом, реставрация композитом Filtek Ultimate A2, шлифовка, полировка.</div>
+      <div><b>Назначения:</b> Реминтерапия фторлаком через 2 недели, контроль через 6 месяцев.</div>`;
+    },1500);
+  } else {
+    STATE.recording=true;
+    btn.classList.add('recording');
+    lbl.textContent='Слушаю…';
+    sub.textContent='Говорите, я записываю. Нажмите снова, чтобы остановить.';
+    res.style.display='none';
+  }
+}
+
+/* ===== INIT ===== */
+document.querySelectorAll('.nav-item').forEach(n=>{
+  n.onclick=()=>setView(n.dataset.view);
+});
+document.addEventListener('keydown',(e)=>{
+  if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();openCmdK()}
+  if(e.key==='Escape'){closeCmdK();closeModal();$('notifPop').classList.remove('show')}
+  if($('cmdkBg').classList.contains('show')){
+    if(e.key==='ArrowDown'){e.preventDefault();STATE.cmdkSel=Math.min((window._cmdkAll||[]).length-1,STATE.cmdkSel+1);renderCmdK()}
+    if(e.key==='ArrowUp'){e.preventDefault();STATE.cmdkSel=Math.max(0,STATE.cmdkSel-1);renderCmdK()}
+    if(e.key==='Enter'){e.preventDefault();(window._cmdkAll||[])[STATE.cmdkSel]?.act()}
+  }
+});
+document.addEventListener('click',(e)=>{
+  if(!e.target.closest('#notifPop')&&!e.target.closest('[onclick*="toggleNotif"]'))$('notifPop').classList.remove('show');
+});
+
+render();
+</script>
+</body>
+</html>
