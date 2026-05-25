@@ -938,10 +938,18 @@ async function notifyFieldDealsToTelegram(env, deals) {
     // Telegram Bot API sendMessage. parse_mode Markdown для жирного шрифта.
     // Токен НЕ кодируем encodeURIComponent — ":" в нём валидный.
     try {
-      const tgUrl = `https://api.telegram.org/bot${token}/sendMessage`;
-      // chatId может прийти строкой с пробелами/переводами строк — чистим.
+      // Чистим токен от whitespace/CRLF — wrangler secret put мог сохранить
+      // лишние символы при копи-пасте из BotFather.
+      const cleanToken = String(token).trim();
+      const tgUrl = `https://api.telegram.org/bot${cleanToken}/sendMessage`;
+      // chatId — тоже trim.
       const cleanChatId = String(chatId).trim();
-      console.log(`[tg-notify] sending deal=${deal.id} chatId=${cleanChatId}`);
+      // Диагностика без раскрытия секрета — длина и крайние 4 символа.
+      const tokenPrefix = cleanToken.slice(0, 4);
+      const tokenSuffix = cleanToken.slice(-4);
+      const tokenHasColon = cleanToken.includes(":");
+      const tokenLen = cleanToken.length;
+      console.log(`[tg-notify] sending deal=${deal.id} chatId=${cleanChatId} tokenLen=${tokenLen} colon=${tokenHasColon} prefix=${tokenPrefix} suffix=${tokenSuffix}`);
       const resp = await fetch(tgUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
