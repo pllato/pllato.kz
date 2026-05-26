@@ -2803,11 +2803,17 @@ async function testConnection() {
 }
 
 // ── Deals state (in-memory cache) ────────────────────────
+// ВАЖНО: kanban-view грузит сделки ТОЛЬКО активной воронки (а не все 22к).
+// Раньше тянули полный /api/rtdb/deals.json (~19MB, 3-8s) — это бил по CPU
+// worker'а и юзер ждал. Теперь — paged /api/list/deals?pipeline=X (несколько
+// сот за <1s) и кешируем по воронке в dealsByPipeline.
 const dealsState = {
-  loaded: false,        // флаг загрузки full deals[] (только для kanban)
+  loaded: false,        // флаг что dealsState.deals соответствует activePipelineId
   metaLoaded: false,    // флаг загрузки pipelines/schema/users
-  deals: [],            // массив всех сделок (заполняется только в kanban mode)
-  pipelines: {},        // map: { pipeline_id: { id, name, stages: {...}, ... } } — ВСЕ воронки
+  deals: [],            // массив сделок ТЕКУЩЕЙ воронки (производное от dealsByPipeline)
+  dealsByPipeline: {},  // { pipelineId: deals[] } — кеш на сессию, не lvl IDB
+  pipelineLoading: {},  // { pipelineId: Promise } — anti-race
+  pipelines: {},        // map: { pipeline_id: { id, name, stages: {...}, ... } } — ВСЕ воронки (lightweight meta)
   activePipelineId: null, // выбранный пользователем pipeline (persist в localStorage)
   customSchema: null,
   users: {},
@@ -2947,6 +2953,11 @@ function setActivePipeline(pipelineId) {
   localStorage.setItem(ACTIVE_PIPELINE_LS_KEY, pipelineId);
   // Также сбрасываем stage-фильтр (стадии другие)
   dealsState.stageFilter = '';
+  // При смене воронки старый deals[] неактуален — сбрасываем флаг
+  // чтобы renderDeals дождался loadDealsData (instant если уже кешировали).
+  dealsState.loaded = false;
+  dealsState.deals = dealsState.dealsByPipeline[pipelineId] || [];
+  if (dealsState.deals.length) dealsState.loaded = true;
   // Перерисовываем
   const main = document.getElementById('main');
   if (main && document.querySelector('[data-page="deals"].active')) {
@@ -3240,75 +3251,114 @@ async function loadDealsPage(page) {
   }
 }
 
+// loadDealsData (legacy) — теперь враппер вокруг loadDealsForPipeline для
+// активной воронки. Раньше тянул ВСЕ 22к сделок (~19MB) — заменено
+// на загрузку только текущей воронки через paged /api/list/deals.
 async function loadDealsData() {
-  const t0 = Date.now();
-
-  // Кэш v3 — содержит ТОЛЬКО deals[]. Pipelines/schema/users больше
-  // не кешируем здесь — они должны идти строго из loadDealsMeta (свежий
-  // fetch с правильной invalidation после PUT/PATCH). Иначе после создания
-  // новой воронки и перезагрузки страницы — этот legacy-кеш перезаписывал
-  // pipelines старой версией и новая воронка "исчезала" из UI.
-  const cached = await cacheGet('deals:full:v3');
-  if (cached && cached.deals && cached.deals.length > 0) {
-    dealsState.deals = cached.deals;
+  const pipelineId = dealsState.activePipelineId;
+  if (!pipelineId) {
+    dealsState.deals = [];
     dealsState.loaded = true;
-    setTimeout(() => refreshDealsBackground(), 100);
+    return;
+  }
+  await loadDealsForPipeline(pipelineId, { force: false });
+}
+
+// Загружает сделки одной воронки через paged worker endpoint.
+// - Все сделки воронки (включая closed=0 и closed=1) — kanban должен показывать
+//   и активные стадии и финальные success/fail.
+// - Использует /api/list/deals?pipeline=X&pageSize=200 в цикле.
+// - Кеширует в dealsState.dealsByPipeline[pipelineId] на сессию;
+//   повторный заход на ту же воронку — instant из памяти.
+// - Anti-race: если уже идёт загрузка — возвращает существующий promise.
+async function loadDealsForPipeline(pipelineId, opts = {}) {
+  const force = opts.force === true;
+
+  // Кеш в памяти — мгновенно
+  if (!force && dealsState.dealsByPipeline[pipelineId]) {
+    dealsState.deals = dealsState.dealsByPipeline[pipelineId];
+    dealsState.loaded = true;
+    // Фоновое обновление если воронка показывается > 60s
+    const lastTs = dealsState.dealsByPipeline[pipelineId].__loadedAt || 0;
+    if (Date.now() - lastTs > 60_000) {
+      setTimeout(() => loadDealsForPipeline(pipelineId, { force: true }).catch(() => {}), 100);
+    }
     return;
   }
 
-  try {
-    const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = WORKER_RTDB_URL;
-    const [dealsRes, pipelinesRes, schemaRes, usersRes] = await Promise.all([
-      fetch(`${dbUrl}/deals.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/pipelines.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/customFieldsSchema/deal.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/users.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-    ]);
-
-    const dealsObj = dealsRes || {};
-    dealsState.deals = Object.values(dealsObj);
-    dealsState.pipelines = pipelinesRes || {};
-    dealsState.customSchema = schemaRes || {};
-    dealsState.users = usersRes || {};
-    dealsState.loaded = true;
-
-    dealsState.deals.sort((a, b) => {
-      return (b.bitrixDateCreate || '').localeCompare(a.bitrixDateCreate || '');
-    });
-
-    console.log(`Loaded ${dealsState.deals.length} deals in ${Date.now() - t0}ms`);
-
-    cacheSet('deals:full:v3', { deals: dealsState.deals });
-  } catch (e) {
-    console.error('loadDealsData error:', e);
+  // Anti-race
+  if (dealsState.pipelineLoading[pipelineId]) {
+    return dealsState.pipelineLoading[pipelineId];
   }
+
+  const promise = (async () => {
+    const t0 = Date.now();
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const all = [];
+      let page = 1;
+      const pageSize = 200;
+      // Жёсткий потолок защищает от уехавшей API — даже самые большие воронки
+      // обычно меньше 5000 сделок. 30 страниц = 6000 max.
+      const MAX_PAGES = 30;
+      while (page <= MAX_PAGES) {
+        const params = new URLSearchParams({
+          page: String(page),
+          pageSize: String(pageSize),
+          pipeline: pipelineId,
+          sort: 'modified',
+          auth: idToken,
+        });
+        // Scope (мои/команда/все) применяем как и в list-view
+        params.set('scope', effectiveScope());
+        const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        const items = data.items || [];
+        all.push(...items);
+        if (!data.hasMore || items.length < pageSize) break;
+        page++;
+      }
+      // Сортировка для kanban: по дате создания (desc) внутри стадии получается
+      // визуально упорядоченным — последние созданные сверху.
+      all.sort((a, b) => (b.bitrixDateCreate || '').localeCompare(a.bitrixDateCreate || ''));
+      all.__loadedAt = Date.now();
+      dealsState.dealsByPipeline[pipelineId] = all;
+
+      // Если воронка всё ещё активна — обновим текущий массив и перерендерим
+      if (dealsState.activePipelineId === pipelineId) {
+        dealsState.deals = all;
+        dealsState.loaded = true;
+        const main = document.getElementById('main');
+        if (main && document.querySelector('[data-page="deals"].active')) {
+          // Если первый раз — renderDeals'у уже не нужно дергаться (он сам ждёт
+          // этот await). Это для фоновых обновлений.
+          if (force) renderDealsLayout(main);
+        }
+      }
+      console.log(`Loaded ${all.length} deals (pipeline=${pipelineId}) in ${Date.now() - t0}ms`);
+    } catch (e) {
+      console.error('loadDealsForPipeline error:', e);
+      // На ошибку — оставляем dealsState.deals что было, не пустим
+      if (!dealsState.dealsByPipeline[pipelineId]) {
+        dealsState.dealsByPipeline[pipelineId] = [];
+      }
+      if (dealsState.activePipelineId === pipelineId) {
+        dealsState.deals = dealsState.dealsByPipeline[pipelineId];
+        dealsState.loaded = true;
+      }
+    } finally {
+      delete dealsState.pipelineLoading[pipelineId];
+    }
+  })();
+  dealsState.pipelineLoading[pipelineId] = promise;
+  return promise;
 }
 
-async function refreshDealsBackground() {
-  try {
-    const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = WORKER_RTDB_URL;
-    const [dealsRes, pipelinesRes, schemaRes, usersRes] = await Promise.all([
-      fetch(`${dbUrl}/deals.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/pipelines.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/customFieldsSchema/deal.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/users.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-    ]);
-    const newDeals = Object.values(dealsRes || {});
-    if (newDeals.length !== dealsState.deals.length) {
-      newDeals.sort((a, b) => (b.bitrixDateCreate || '').localeCompare(a.bitrixDateCreate || ''));
-      dealsState.deals = newDeals;
-      dealsState.pipelines = pipelinesRes || {};
-      dealsState.customSchema = schemaRes || {};
-      dealsState.users = usersRes || {};
-      cacheSet('deals:full:v3', { deals: dealsState.deals });
-      const main = document.getElementById('main');
-      if (main && document.querySelector('[data-page="deals"].active')) {
-        renderDealsLayout(main);
-      }
-    }
-  } catch (e) {}
+// Инвалидация кеша воронки — вызывать после успешного PATCH/PUT сделки
+// чтобы следующий заход показал свежие данные.
+function invalidateDealsCacheForPipeline(pipelineId) {
+  if (pipelineId) delete dealsState.dealsByPipeline[pipelineId];
 }
 
 // ─── Realtime listener для сделок ────────────────────────────────
@@ -3383,13 +3433,11 @@ function attachDealsLiveListener() {
   });
 }
 
+// Throttled save в IDB больше не используется — кеш сделок теперь
+// in-memory per-pipeline, на сессию. После рефакторинга на /api/list/deals
+// загрузка одной воронки быстрая (<1s) и legacy-кеш только мешал.
 let _saveCacheDealsTimer = null;
-function saveCacheDealsThrottled() {
-  if (_saveCacheDealsTimer) clearTimeout(_saveCacheDealsTimer);
-  _saveCacheDealsTimer = setTimeout(() => {
-    cacheSet('deals:full:v3', { deals: dealsState.deals });
-  }, 5000);
-}
+function saveCacheDealsThrottled() { /* no-op */ }
 
 // ── Paginated list view (для view='list') ──────────────────────────────
 // Серверная пагинация через /api/list/deals. По умолчанию — этот путь.
@@ -4505,8 +4553,9 @@ async function moveDealToStage(bitrixId, newStageId) {
       }),
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    // Обновим кеш сделок
-    cacheSet('deals:full:v3', { deals: dealsState.deals });
+    // Optimistic update уже отражён в dealsState.deals (мутировали deal).
+    // dealsByPipeline[activePipelineId] — тот же массив (ref), так что
+    // кеш в памяти тоже актуален. Дополнительно ничего не сохраняем.
     showToast('Стадия обновлена');
   } catch (e) {
     // Revert on failure
@@ -5577,9 +5626,11 @@ async function sipInit() {
     authorizationPassword: cfg.password,
     transportOptions: { server: cfg.wss },
     sessionDescriptionHandlerFactoryOptions: {
-      iceGatheringTimeout: 1000,
+      iceGatheringTimeout: 1500,
       peerConnectionConfiguration: {
-        iceServers: [{ urls: cfg.stun }],
+        // STUN + TURN relay (coturn на той же VM). TURN критичен для NAT-traversal:
+        // browser и Asterisk оба за NAT, без TURN-relay RTP не доходит — звонок 603.
+        iceServers: cfg.iceServers || [{ urls: cfg.stun }],
       },
     },
     delegate: {
