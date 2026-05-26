@@ -1001,8 +1001,11 @@ tr:hover td { background: var(--bg3); }
   padding-left: 8px;
 }
 .kanban-col {
-  flex: 1 1 200px;      /* старт 200px, растягивается равномерно по ширине */
-  min-width: 0;         /* без min-width — flex решает */
+  /* Фиксированная ширина — НЕ растягиваем и НЕ сжимаем колонки. При 10+
+     стадиях канбан скроллится горизонтально внутри .kanban-wrap (у него
+     overflow-x: auto). 280px — комфортно читается заголовок и сумма. */
+  flex: 0 0 280px;
+  width: 280px;
   background: var(--bg2);
   border: 1px solid var(--b1);
   border-radius: var(--rl);
@@ -1818,7 +1821,7 @@ tr:hover td { background: var(--bg3); }
   .field-grid .fl { color: var(--t3); padding-top: 8px; padding-bottom: 0; font-size: 11px; }
   .field-grid .fv { padding-top: 0; padding-bottom: 8px; }
   .cf-grid { grid-template-columns: 1fr; }
-  .kanban-col { width: 240px; }
+  .kanban-col { flex: 0 0 240px; width: 240px; }
 }
 
 /* ─── Таймлайн дел сделки/контакта ─── */
@@ -3754,10 +3757,26 @@ function renderDealsContent() {
   if (!c) return;
   const arr = getFilteredDeals();
 
+  // СОХРАНЯЕМ horizontal scroll позицию канбана перед re-render.
+  // renderDealsKanban пересоздаёт #kanban-wrap, иначе scrollLeft улетел бы в 0
+  // (юзер видит сброс к первой колонке после открытия/закрытия сделки или
+  // drag-drop'а между стадиями).
+  let savedScrollLeft = null;
+  if (dealsState.view === 'kanban') {
+    const wrap = document.getElementById('kanban-wrap');
+    if (wrap) savedScrollLeft = wrap.scrollLeft;
+  }
+
   if (dealsState.view === 'list') {
     renderDealsList(c, arr);
   } else {
     renderDealsKanban(c, arr);
+    // Восстановим scroll сразу после рендера (синхронно — DOM уже в нужном
+    // состоянии после innerHTML присвоения внутри renderDealsKanban).
+    if (savedScrollLeft != null) {
+      const fresh = document.getElementById('kanban-wrap');
+      if (fresh) fresh.scrollLeft = savedScrollLeft;
+    }
   }
 }
 
