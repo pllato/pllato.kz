@@ -76,7 +76,11 @@ type=endpoint
 transport=transport-udp
 context=from-binotel
 disallow=all
-allow=ulaw,alaw,opus
+; ВАЖНО: только alaw,ulaw (без opus) — у Asterisk нет codec_opus.so
+; (коммерческий модуль Digium), а Binotel отдаёт alaw. Если оставить
+; opus в одном из endpoints — Asterisk не сможет транслировать
+; opus↔alaw и дропнет вызов с 603 Decline сразу после answer.
+allow=alaw,ulaw
 outbound_auth=binotel-auth
 aors=binotel
 from_user=$SIP_USERNAME
@@ -111,7 +115,9 @@ type=endpoint
 transport=transport-wss
 context=from-internal
 disallow=all
-allow=opus,ulaw,alaw
+; См. комментарий выше про opus — оставляем только alaw,ulaw.
+; Браузер (Chrome/Safari) умеет alaw из коробки.
+allow=alaw,ulaw
 auth=100-auth
 aors=100
 webrtc=yes
