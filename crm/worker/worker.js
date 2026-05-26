@@ -2378,6 +2378,45 @@ async function handleBinotelRecording(request, env, actor) {
   };
 }
 
+// ── SIP / WebRTC token ───────────────────────────────────────────────────
+// Выдаёт креды для браузерного SIP-клиента (shared module sip-client.js).
+// Все авторизованные операторы шарят SIP-endpoint "100" на Asterisk
+// Hetzner. Pаспределение по операторам — отдельная задача (per-user
+// endpoints), пока MVP shared.
+async function handleSipToken(request, env) {
+  const domain = env.SIP_DOMAIN || "178-105-90-157.nip.io";
+  const user = env.SIP_USER || "100";
+  const password = env.SIP_PASSWORD;
+  if (!password) {
+    throw new HttpError(500, "SIP_PASSWORD secret не задан на pllato-comm worker");
+  }
+  const iceServers = [
+    { urls: env.METERED_TURN_URL ? "stun:stun.relay.metered.ca:80" : `stun:${domain}:3478` },
+  ];
+  if (env.METERED_TURN_URL && env.METERED_TURN_USERNAME && env.METERED_TURN_PASSWORD) {
+    const m = env.METERED_TURN_URL.match(/^turns?:([^:]+)(?::\d+)?/);
+    const meteredHost = m ? m[1] : "standard.relay.metered.ca";
+    iceServers.push({
+      urls: [
+        `turn:${meteredHost}:80`,
+        `turn:${meteredHost}:80?transport=tcp`,
+        `turn:${meteredHost}:443`,
+        `turns:${meteredHost}:443?transport=tcp`,
+      ],
+      username: env.METERED_TURN_USERNAME,
+      credential: env.METERED_TURN_PASSWORD,
+    });
+  }
+  return {
+    user,
+    password,
+    domain,
+    wss: `wss://${domain}:8089/ws`,
+    stun: `stun:${domain}:3478`,
+    iceServers,
+  };
+}
+
 function pickFirst(obj, keys) {
   for (const k of keys) {
     if (obj && obj[k] !== undefined && obj[k] !== null && obj[k] !== "") return obj[k];
@@ -4367,6 +4406,13 @@ export default {
       if (request.method === "POST" && path === "/binotel/recording") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleBinotelRecording(request, env, actor));
+      }
+
+      // SIP-креды для shared sip-client.js (browser WebRTC через Asterisk
+      // на Hetzner → Binotel trunk). Любой авторизованный оператор.
+      if (request.method === "GET" && (path === "/sip/token" || path === "/api/sip/token")) {
+        await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleSipToken(request, env));
       }
 
       if (request.method === "POST" && path === "/wa/send") {

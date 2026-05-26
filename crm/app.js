@@ -81,6 +81,16 @@ async function hydrateAfterSignIn({ syncStore = true } = {}) {
   } catch (e) {
     console.warn("[boot] reconcileOrderStatuses failed:", e);
   }
+  // Pre-warm SIP-клиента — UA регистрируется на Asterisk сразу после
+  // login, чтобы первый звонок открывался мгновенно. Также подключаем
+  // глобальный click-delegate для кнопок 📞 с классом .sipc-call-btn.
+  try {
+    const sip = await import("./app/sip_client.js");
+    sip.installCallDelegate();
+    sip.ensureSipReady();
+  } catch (e) {
+    console.warn("[boot] SIP pre-warm failed:", e);
+  }
 }
 
 // ---------- Router ----------

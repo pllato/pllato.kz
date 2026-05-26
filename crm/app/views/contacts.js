@@ -1434,7 +1434,9 @@ function renderDetail(contact) {
       </header>
 
       <section class="contact-info-grid">
-        ${renderInfoCell(ICONS.phone, "Телефон", contact.phone ? escape(contact.phone) : "—")}
+        ${renderInfoCell(ICONS.phone, "Телефон", contact.phone
+          ? `<a href="tel:${escapeAttr(contact.phone)}">${escape(contact.phone)}</a><button type="button" class="sipc-call-btn" data-call-phone="${escapeAttr(contact.phone)}" data-call-contactid="${escapeAttr(contact.id || "")}" data-call-contactname="${escapeAttr(contact.name || "")}" title="Позвонить через SIP">📞</button>`
+          : "—")}
         ${renderInfoCell(ICONS.mail, "Email", contact.email ? `<a href="mailto:${escapeAttr(contact.email)}">${escape(contact.email)}</a>` : "—")}
         ${renderInfoCell(ICONS.building, "Компания", escape(contact.company || "—"))}
         ${renderInfoCell(ICONS.dashboard, "Источник", escape(sourceLabel(contact.source)))}
