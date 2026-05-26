@@ -4041,15 +4041,22 @@ async function placeCall(opts) {
     alert('Не удалось начать звонок: ' + (e?.message || e));
   }
 }
+// Глобальный alias — нужен для inline onclick в .call-btn-inline
+window.placeCall = placeCall;
 
-// Универсальный helper для inline-кнопки 📞 рядом с phone
+// Универсальный helper для inline-кнопки 📞 рядом с phone.
+// onclick делает stopPropagation() + сразу placeCall — НЕ через
+// document-делегат: stopPropagation на кнопке убивает event до того
+// как делегат успевает его поймать (delegate привязан на bubble phase).
+// stopPropagation нужен чтобы при клике на 📞 в строке таблицы не
+// открывалась карточка контакта/сделки (tr.onclick — open-card).
 function callButtonHtml(phone, opts = {}) {
   if (!phone) return '';
   const dataset = Object.entries(opts)
     .filter(([_, v]) => v != null && v !== '')
     .map(([k, v]) => `data-call-${k}="${escapeHtml(String(v))}"`)
     .join(' ');
-  return `<button class="call-btn-inline" data-call-phone="${escapeHtml(phone)}" ${dataset} onclick="event.stopPropagation()">📞</button>`;
+  return `<button class="call-btn-inline" data-call-phone="${escapeHtml(phone)}" ${dataset} onclick="event.stopPropagation(); window.placeCall && window.placeCall({phone:this.dataset.callPhone, contactId:this.dataset.callContactid||null, dealId:this.dataset.callDealid||null, contactName:this.dataset.callContactname||null}); return false;">📞</button>`;
 }
 
 // Делегированный listener — клик на любую .call-btn-inline на странице вызывает placeCall
