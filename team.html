@@ -2803,15 +2803,21 @@ async function testConnection() {
 }
 
 // ── Deals state (in-memory cache) ────────────────────────
+// ВАЖНО: kanban-view грузит сделки ТОЛЬКО активной воронки.
+// Раньше тянули полный /api/rtdb/deals.json (~19MB, 3-8s) — это било по
+// CPU worker'а и юзер ждал. Теперь — paged /api/list/deals?pipeline=X
+// (несколько сот за <1s) с кешем по воронке в dealsByPipeline.
 const dealsState = {
-  loaded: false,        // флаг загрузки full deals[] (только для kanban)
+  loaded: false,        // флаг что dealsState.deals соответствует activePipelineId
   metaLoaded: false,    // флаг загрузки pipelines/schema/users
-  deals: [],            // массив всех сделок (заполняется только в kanban mode)
-  pipelines: {},        // map: { pipeline_id: { id, name, stages: {...}, ... } } — ВСЕ воронки
-  activePipelineId: null, // выбранный пользователем pipeline (persist в localStorage)
+  deals: [],            // массив сделок ТЕКУЩЕЙ воронки (= dealsByPipeline[active])
+  dealsByPipeline: {},  // { pipelineId: deals[] } — кеш на сессию
+  pipelineLoading: {},  // { pipelineId: Promise } — anti-race
+  pipelines: {},        // map: { pipeline_id: meta } — ВСЕ воронки (lightweight)
+  activePipelineId: null, // выбранный pipeline (persist в localStorage)
   customSchema: null,
   users: {},
-  view: 'kanban',       // default 'kanban'; восстанавливается из localStorage при reload
+  view: 'kanban',       // default 'kanban'; восстанавливается из localStorage
   search: '',
   stageFilter: '',
   responsibleFilter: '',
@@ -2947,7 +2953,17 @@ function setActivePipeline(pipelineId) {
   localStorage.setItem(ACTIVE_PIPELINE_LS_KEY, pipelineId);
   // Также сбрасываем stage-фильтр (стадии другие)
   dealsState.stageFilter = '';
-  // Перерисовываем
+  // При смене воронки старый deals[] неактуален. Если новая воронка уже
+  // в кеше — instant; иначе loadDealsData (вызывается из renderDeals)
+  // подгрузит её с сервера.
+  dealsState.loaded = false;
+  const cached = dealsState.dealsByPipeline[pipelineId];
+  if (cached) {
+    dealsState.deals = cached;
+    dealsState.loaded = true;
+  } else {
+    dealsState.deals = [];
+  }
   const main = document.getElementById('main');
   if (main && document.querySelector('[data-page="deals"].active')) {
     renderDeals(main);
@@ -3240,75 +3256,112 @@ async function loadDealsPage(page) {
   }
 }
 
+// loadDealsData — теперь обёртка вокруг загрузки активной воронки.
+// Раньше тянули ВСЕ 22к сделок (~19MB) — это било по worker CPU и юзер
+// ждал 3-8s. Теперь грузим только текущую воронку (несколько сот за <1s).
 async function loadDealsData() {
-  const t0 = Date.now();
-
-  // Кэш v3 — содержит ТОЛЬКО deals[]. Pipelines/schema/users больше
-  // не кешируем здесь — они должны идти строго из loadDealsMeta (свежий
-  // fetch с правильной invalidation после PUT/PATCH). Иначе после создания
-  // новой воронки и перезагрузки страницы — этот legacy-кеш перезаписывал
-  // pipelines старой версией и новая воронка "исчезала" из UI.
-  const cached = await cacheGet('deals:full:v3');
-  if (cached && cached.deals && cached.deals.length > 0) {
-    dealsState.deals = cached.deals;
+  const pipelineId = dealsState.activePipelineId;
+  if (!pipelineId) {
+    dealsState.deals = [];
     dealsState.loaded = true;
-    setTimeout(() => refreshDealsBackground(), 100);
+    return;
+  }
+  await loadDealsForPipeline(pipelineId, { force: false });
+}
+
+// Загрузка сделок одной воронки через paged /api/list/deals.
+// - Цикл по страницам с pageSize=200 пока есть hasMore (потолок 30 стр).
+// - Кеш в dealsState.dealsByPipeline[pipelineId] на сессию — повторный
+//   заход на ту же воронку instant из памяти.
+// - Anti-race: если уже идёт загрузка — возвращает существующий promise.
+// - Фоновое обновление через 60с после первого hit'а.
+async function loadDealsForPipeline(pipelineId, opts = {}) {
+  const force = opts.force === true;
+
+  // Кеш в памяти — мгновенно
+  if (!force && dealsState.dealsByPipeline[pipelineId]) {
+    dealsState.deals = dealsState.dealsByPipeline[pipelineId];
+    dealsState.loaded = true;
+    const lastTs = dealsState.dealsByPipeline[pipelineId].__loadedAt || 0;
+    if (Date.now() - lastTs > 60_000) {
+      setTimeout(() => loadDealsForPipeline(pipelineId, { force: true }).catch(() => {}), 100);
+    }
     return;
   }
 
-  try {
-    const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = WORKER_RTDB_URL;
-    const [dealsRes, pipelinesRes, schemaRes, usersRes] = await Promise.all([
-      fetch(`${dbUrl}/deals.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/pipelines.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/customFieldsSchema/deal.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/users.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-    ]);
-
-    const dealsObj = dealsRes || {};
-    dealsState.deals = Object.values(dealsObj);
-    dealsState.pipelines = pipelinesRes || {};
-    dealsState.customSchema = schemaRes || {};
-    dealsState.users = usersRes || {};
-    dealsState.loaded = true;
-
-    dealsState.deals.sort((a, b) => {
-      return (b.bitrixDateCreate || '').localeCompare(a.bitrixDateCreate || '');
-    });
-
-    console.log(`Loaded ${dealsState.deals.length} deals in ${Date.now() - t0}ms`);
-
-    cacheSet('deals:full:v3', { deals: dealsState.deals });
-  } catch (e) {
-    console.error('loadDealsData error:', e);
+  // Anti-race
+  if (dealsState.pipelineLoading[pipelineId]) {
+    return dealsState.pipelineLoading[pipelineId];
   }
+
+  const promise = (async () => {
+    const t0 = Date.now();
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const all = [];
+      let page = 1;
+      const pageSize = 200;
+      const MAX_PAGES = 30; // 6000 сделок max — больше воронок в природе нет
+      while (page <= MAX_PAGES) {
+        const params = new URLSearchParams({
+          page: String(page),
+          pageSize: String(pageSize),
+          pipeline: pipelineId,
+          sort: 'modified',
+          auth: idToken,
+        });
+        params.set('scope', effectiveScope());
+        const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        const items = data.items || [];
+        all.push(...items);
+        if (!data.hasMore || items.length < pageSize) break;
+        page++;
+      }
+      // Сортировка по дате создания (desc) — внутри стадии получается
+      // визуально упорядоченным "последние созданные сверху".
+      all.sort((a, b) => (b.bitrixDateCreate || '').localeCompare(a.bitrixDateCreate || ''));
+      all.__loadedAt = Date.now();
+      dealsState.dealsByPipeline[pipelineId] = all;
+
+      if (dealsState.activePipelineId === pipelineId) {
+        dealsState.deals = all;
+        dealsState.loaded = true;
+        const main = document.getElementById('main');
+        if (force && main && document.querySelector('[data-page="deals"].active')) {
+          renderDealsLayout(main);
+        }
+      }
+      console.log(`Loaded ${all.length} deals (pipeline=${pipelineId}) in ${Date.now() - t0}ms`);
+    } catch (e) {
+      console.error('loadDealsForPipeline error:', e);
+      if (!dealsState.dealsByPipeline[pipelineId]) {
+        dealsState.dealsByPipeline[pipelineId] = [];
+      }
+      if (dealsState.activePipelineId === pipelineId) {
+        dealsState.deals = dealsState.dealsByPipeline[pipelineId];
+        dealsState.loaded = true;
+      }
+    } finally {
+      delete dealsState.pipelineLoading[pipelineId];
+    }
+  })();
+  dealsState.pipelineLoading[pipelineId] = promise;
+  return promise;
 }
 
+// Инвалидация кеша после write — вызывается, например, при перетаскивании
+// сделки между стадиями (хотя там идёт optimistic-мутация массива).
+function invalidateDealsCacheForPipeline(pipelineId) {
+  if (pipelineId) delete dealsState.dealsByPipeline[pipelineId];
+}
+
+// Стало no-op после перехода на per-pipeline кеш в памяти.
 async function refreshDealsBackground() {
-  try {
-    const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = WORKER_RTDB_URL;
-    const [dealsRes, pipelinesRes, schemaRes, usersRes] = await Promise.all([
-      fetch(`${dbUrl}/deals.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/pipelines.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/customFieldsSchema/deal.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/users.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-    ]);
-    const newDeals = Object.values(dealsRes || {});
-    if (newDeals.length !== dealsState.deals.length) {
-      newDeals.sort((a, b) => (b.bitrixDateCreate || '').localeCompare(a.bitrixDateCreate || ''));
-      dealsState.deals = newDeals;
-      dealsState.pipelines = pipelinesRes || {};
-      dealsState.customSchema = schemaRes || {};
-      dealsState.users = usersRes || {};
-      cacheSet('deals:full:v3', { deals: dealsState.deals });
-      const main = document.getElementById('main');
-      if (main && document.querySelector('[data-page="deals"].active')) {
-        renderDealsLayout(main);
-      }
-    }
-  } catch (e) {}
+  if (dealsState.activePipelineId) {
+    return loadDealsForPipeline(dealsState.activePipelineId, { force: true });
+  }
 }
 
 // ─── Realtime listener для сделок ────────────────────────────────
@@ -3383,13 +3436,10 @@ function attachDealsLiveListener() {
   });
 }
 
+// Legacy throttled save — теперь no-op. Кеш сделок per-pipeline хранится
+// в памяти (dealsState.dealsByPipeline), IDB-кеш deals:full устарел.
 let _saveCacheDealsTimer = null;
-function saveCacheDealsThrottled() {
-  if (_saveCacheDealsTimer) clearTimeout(_saveCacheDealsTimer);
-  _saveCacheDealsTimer = setTimeout(() => {
-    cacheSet('deals:full:v3', { deals: dealsState.deals });
-  }, 5000);
-}
+function saveCacheDealsThrottled() { /* no-op после перехода на per-pipeline кеш */ }
 
 // ── Paginated list view (для view='list') ──────────────────────────────
 // Серверная пагинация через /api/list/deals. По умолчанию — этот путь.
@@ -4505,8 +4555,8 @@ async function moveDealToStage(bitrixId, newStageId) {
       }),
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    // Обновим кеш сделок
-    cacheSet('deals:full:v3', { deals: dealsState.deals });
+    // Optimistic update уже отражён в dealsState.deals (мутировали deal).
+    // dealsByPipeline[activePipelineId] — тот же массив (ref), кеш актуален.
     showToast('Стадия обновлена');
   } catch (e) {
     // Revert on failure
