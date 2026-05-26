@@ -2993,6 +2993,12 @@ function openPipelineEditModal(pipelineId) {
       };
 
   function renderModal() {
+    // КРИТИЧНО: удалить старую модалку перед созданием новой. Без этого
+    // после первого addStage / delete / drop в DOM остаётся ДВЕ модалки
+    // с одинаковым id `_pip-modal`. attachHandlers через getElementById
+    // навешивает события на ПЕРВУЮ (старую, невидимую) — а юзер видит
+    // вторую (без handlers) → кнопки и input'ы перестают реагировать.
+    document.getElementById('_pip-modal')?.remove();
     const stagesSorted = Object.values(draft.stages).sort((a, b) => (a.sort || 0) - (b.sort || 0));
     const html = `
       <div class="pip-modal-overlay" id="_pip-modal" onclick="if(event.target===this)document.getElementById('_pip-modal').remove()">
