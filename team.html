@@ -4850,7 +4850,7 @@ async function openDealCard(bitrixId) {
               ${contactPhone ? `<div class="dc-contact-phone">📱 ${escapeHtml(contactPhone)}</div>
                 <div class="dc-contact-actions">
                   <button class="tbtn tbtn-g tbtn-xs" onclick="window.open('https://wa.me/${contactPhone.replace(/\\D/g, '')}', '_blank')">💬 WhatsApp</button>
-                  <button class="tbtn tbtn-xs" onclick="window.location.href='tel:${escapeHtml(contactPhone)}'">📞 Позвонить</button>
+                  <button class="tbtn tbtn-xs call-btn-inline" data-call-phone="${escapeHtml(contactPhone)}" data-call-contactid="${escapeHtml(deal.contactId || '')}" data-call-dealid="${escapeHtml(deal.bitrixId || '')}" data-call-contactname="${escapeHtml(contactName || '')}">📞 Позвонить</button>
                   <button class="tbtn tbtn-xs" onclick="navigator.clipboard.writeText('${escapeHtml(contactPhone)}');showToast('Телефон скопирован')">📋 Копировать</button>
                 </div>` : ''}
               ${asArray(contact.emails)[0]?.value ? `<div class="dc-contact-email">📧 <a href="mailto:${escapeHtml(contact.emails[0].value)}">${escapeHtml(contact.emails[0].value)}</a></div>` : ''}
