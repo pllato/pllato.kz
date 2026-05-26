@@ -2557,6 +2557,7 @@ function attachScopeToggle(rootEl, onChange) {
 // D1, к которому привязаны задачи/сделки/контакты по email) и role.
 window.currentUser = null;
 const SCOPE_LS_KEY = 'elc:listScope';   // mine | team | all per-user (persist выбора)
+const LAST_PAGE_LS_KEY = 'elc:lastPage'; // dashboard|contacts|deals|tasks|users|chats|migration
 
 async function initApp(user) {
   console.log('[initApp] start, uid=', user.uid, 'email=', user.email);
@@ -2606,13 +2607,24 @@ async function initApp(user) {
     console.warn('[initApp] sidebar UI fill failed (non-fatal):', e);
   }
 
-  // Default page
-  console.log('[initApp] navigating to dashboard');
-  navigate('dashboard');
+  // Default page — восстанавливаем последнюю открытую (persist в localStorage
+  // через navigate). Deep-link в hash (#deal/, #contact/, #task/) приоритетнее.
+  const VALID_PAGES = ['dashboard', 'contacts', 'deals', 'tasks', 'users', 'chats', 'migration'];
+  let startPage = 'dashboard';
+  if (location.hash.startsWith('#deal/')) startPage = 'deals';
+  else if (location.hash.startsWith('#contact/')) startPage = 'contacts';
+  else if (location.hash.startsWith('#task/')) startPage = 'tasks';
+  else {
+    try {
+      const saved = localStorage.getItem(LAST_PAGE_LS_KEY);
+      if (saved && VALID_PAGES.includes(saved)) startPage = saved;
+    } catch {}
+  }
+  console.log('[initApp] navigating to', startPage);
+  navigate(startPage);
 
-  // Если есть deep link — открываем после загрузки
-  if (location.hash.startsWith('#deal/')) {
-    navigate('deals');
+  // Deep-link открываем после загрузки страницы
+  if (location.hash.startsWith('#deal/') || location.hash.startsWith('#contact/') || location.hash.startsWith('#task/')) {
     setTimeout(() => handleDeepLink(), 500);
   }
 
@@ -2673,6 +2685,9 @@ function navigate(page) {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.page === page);
   });
+  // Persist последнюю открытую страницу — при F5 / reload откроется она же
+  // (а не "Главная"). См. initApp.
+  try { localStorage.setItem(LAST_PAGE_LS_KEY, page); } catch {}
   const main = document.getElementById('main');
   if (page === 'dashboard') renderDashboard(main);
   else if (page === 'contacts') renderContacts(main);
