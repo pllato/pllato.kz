@@ -1296,18 +1296,39 @@ async function handleSipToken(request, env) {
       error: "SIP_PASSWORD secret not set on worker. Run: wrangler secret put SIP_PASSWORD",
     }, 500, request);
   }
-  // ICE-серверы для WebRTC: STUN + TURN (coturn на той же VM).
-  // TURN relay'ит RTP через себя — обходит двойной NAT (browser + Asterisk).
-  const turnUser = env.TURN_USER || "webrtc";
-  const turnPass = env.TURN_PASSWORD;
+  // ICE-серверы для WebRTC: STUN + TURN relay.
+  // Primary: external metered.ca TURN (бесплатные 50GB/мес) — обходит hairpin
+  // NAT loop (наш coturn на той же VM что Asterisk → Oracle Cloud не делает
+  // hairpin для пакетов на собственный public IP).
+  // Fallback: локальный coturn на VM (если metered не доступен).
   const iceServers = [
-    { urls: `stun:${domain}:3478` },
+    // STUN от metered (если есть TURN) или наш локальный
+    { urls: env.METERED_TURN_URL ? "stun:stun.relay.metered.ca:80" : `stun:${domain}:3478` },
   ];
-  if (turnPass) {
+  // metered TURN — primary (несколько портов/протоколов для max reliability)
+  if (env.METERED_TURN_URL && env.METERED_TURN_USERNAME && env.METERED_TURN_PASSWORD) {
+    // Извлекаем host из METERED_TURN_URL (формат "turn:host:port")
+    const m = env.METERED_TURN_URL.match(/^turns?:([^:]+)(?::\d+)?/);
+    const meteredHost = m ? m[1] : "standard.relay.metered.ca";
+    iceServers.push({
+      urls: [
+        `turn:${meteredHost}:80`,
+        `turn:${meteredHost}:80?transport=tcp`,
+        `turn:${meteredHost}:443`,
+        `turns:${meteredHost}:443?transport=tcp`,
+      ],
+      username: env.METERED_TURN_USERNAME,
+      credential: env.METERED_TURN_PASSWORD,
+    });
+  }
+  // local coturn — fallback (только если metered не настроен)
+  const localTurnUser = env.TURN_USER || "webrtc";
+  const localTurnPass = env.TURN_PASSWORD;
+  if (!env.METERED_TURN_URL && localTurnPass) {
     iceServers.push({
       urls: [`turn:${domain}:3478?transport=udp`, `turn:${domain}:3478?transport=tcp`],
-      username: turnUser,
-      credential: turnPass,
+      username: localTurnUser,
+      credential: localTurnPass,
     });
   }
   return json({
