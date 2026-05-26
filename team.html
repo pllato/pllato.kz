@@ -4058,6 +4058,224 @@ document.addEventListener('click', (e) => {
   });
 });
 
+// ── WhatsApp UI helpers ───────────────────────────────────────────────
+// Кнопка для inline-вставки в строки/карточки. Открывает чат-окно.
+function whatsappButtonHtml(phone, opts = {}) {
+  if (!phone) return '';
+  const dataset = Object.entries(opts)
+    .filter(([_, v]) => v != null && v !== '')
+    .map(([k, v]) => `data-wa-${k}="${escapeHtml(String(v))}"`)
+    .join(' ');
+  const unread = opts.unread ? `<span class="wa-unread-badge">${opts.unread}</span>` : '';
+  return `<button class="wa-btn-inline" data-wa-phone="${escapeHtml(phone)}" ${dataset} onclick="event.stopPropagation()" title="Открыть чат WhatsApp">💬${unread}</button>`;
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.wa-btn-inline');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  openWaChatModal({
+    phone: btn.dataset.waPhone,
+    contactId: btn.dataset.waContactid || null,
+    dealId: btn.dataset.waDealid || null,
+    contactName: btn.dataset.waContactname || null,
+    chatId: btn.dataset.waChatid || null,
+  });
+});
+
+// Стили модалки (inject один раз)
+(function injectWaStyles() {
+  if (document.getElementById('elc-wa-styles')) return;
+  const css = `
+    .wa-btn-inline { background:none; border:1px solid #25D366; color:#25D366;
+      border-radius:4px; padding:2px 8px; cursor:pointer; font-size:14px; position:relative; }
+    .wa-btn-inline:hover { background:rgba(37,211,102,0.1); }
+    .wa-unread-badge { position:absolute; top:-6px; right:-6px; background:#25D366;
+      color:#fff; font-size:9px; min-width:14px; height:14px; padding:0 3px;
+      border-radius:7px; display:inline-flex; align-items:center; justify-content:center; font-weight:700; }
+    .wa-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9998;
+      display:flex; align-items:center; justify-content:flex-end; }
+    .wa-modal { width:420px; max-width:95vw; height:100vh; background:var(--bg1,#fff);
+      display:flex; flex-direction:column; box-shadow:-10px 0 30px rgba(0,0,0,.3); }
+    .wa-head { padding:14px 16px; border-bottom:1px solid var(--b1,#eee);
+      display:flex; align-items:center; gap:10px; background:#075E54; color:#fff; }
+    .wa-head .wa-avatar { width:36px; height:36px; border-radius:50%;
+      background:#25D366; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
+    .wa-head .wa-title { flex:1; }
+    .wa-head .wa-name { font-weight:600; font-size:14px; }
+    .wa-head .wa-sub { font-size:11px; opacity:.8; }
+    .wa-head .wa-close { background:none; border:none; color:#fff; font-size:22px; cursor:pointer; padding:0 6px; }
+    .wa-body { flex:1; overflow:auto; padding:12px; background:#ECE5DD; display:flex; flex-direction:column; gap:6px; }
+    .wa-msg { max-width:78%; padding:6px 10px; border-radius:7px; font-size:13px;
+      line-height:1.35; word-wrap:break-word; position:relative; }
+    .wa-msg.in { align-self:flex-start; background:#fff; }
+    .wa-msg.out { align-self:flex-end; background:#DCF8C6; }
+    .wa-msg .wa-ts { font-size:10px; color:#777; margin-left:8px; }
+    .wa-msg .wa-media-img { max-width:100%; max-height:240px; border-radius:4px; display:block; margin-bottom:4px; }
+    .wa-msg .wa-media-file { display:inline-block; padding:6px 10px; background:rgba(0,0,0,.05);
+      border-radius:4px; text-decoration:none; color:var(--t1,#333); font-size:12px; }
+    .wa-empty { text-align:center; color:#888; padding:30px; font-size:13px; }
+    .wa-foot { border-top:1px solid var(--b1,#eee); padding:10px; background:var(--bg1,#fff);
+      display:flex; gap:8px; align-items:flex-end; }
+    .wa-textarea { flex:1; min-height:40px; max-height:120px; resize:none;
+      border:1px solid var(--b1,#ccc); border-radius:6px; padding:8px 10px; font-size:13px; font-family:inherit; }
+    .wa-attach { background:none; border:1px solid var(--b1,#ccc); border-radius:6px;
+      padding:8px 12px; cursor:pointer; font-size:16px; }
+    .wa-send { background:#25D366; border:0; color:#fff; border-radius:6px;
+      padding:10px 16px; cursor:pointer; font-weight:600; font-size:13px; }
+    .wa-send[disabled] { opacity:.5; cursor:not-allowed; }
+    .wa-error { color:#c00; padding:8px 16px; font-size:11px; background:#fee; }
+  `;
+  const s = document.createElement('style');
+  s.id = 'elc-wa-styles';
+  s.textContent = css;
+  document.head.appendChild(s);
+})();
+
+// Состояние открытой модалки (на случай повторного клика по той же кнопке)
+window.__waOpenState = null;
+
+async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }) {
+  // Нормализуем chatId (если передан только phone)
+  const digits = String(phone || '').replace(/\D/g, '').replace(/^8(\d{10})$/, '7$1');
+  if (!chatId && digits) chatId = `${digits}@c.us`;
+  if (!chatId) { alert('Не задан телефон или chatId'); return; }
+
+  // Удалим старую
+  document.getElementById('_wa-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_wa-modal';
+  ov.className = 'wa-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  const displayName = contactName || ('+' + (digits || ''));
+  ov.innerHTML = `
+    <div class="wa-modal" onclick="event.stopPropagation()">
+      <div class="wa-head">
+        <div class="wa-avatar">${escapeHtml((displayName.match(/[A-Za-zА-Яа-я]/)?.[0] || '?').toUpperCase())}</div>
+        <div class="wa-title">
+          <div class="wa-name">${escapeHtml(displayName)}</div>
+          <div class="wa-sub">+${escapeHtml(digits || '')}</div>
+        </div>
+        <button class="wa-close" id="wa-close" title="Закрыть">×</button>
+      </div>
+      <div class="wa-body" id="wa-body"><div class="wa-empty">Загрузка истории…</div></div>
+      <div class="wa-foot">
+        <button class="wa-attach" id="wa-attach" title="Прикрепить файл по URL">📎</button>
+        <textarea class="wa-textarea" id="wa-input" placeholder="Сообщение..." rows="1"></textarea>
+        <button class="wa-send" id="wa-send">Отправить</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('wa-close').onclick = () => ov.remove();
+
+  // Найдём instanceId через worker — берём первый активный канал
+  // (для UI достаточно — отправка пройдёт через канал-по-умолчанию)
+  // Здесь instanceId нужен только чтобы построить wa:{instance}:{chatId}.
+  // Если канал ещё не настроен — Send отдаст 503.
+  let canonicalChatId = chatId;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    // Сначала пытаемся резолвить wa_chats по uchatId — если есть, возьмём id.
+    const list = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    }).then(r => r.ok ? r.json() : null).catch(() => null);
+    const match = list?.items?.find(c => c.chatId === chatId);
+    if (match) canonicalChatId = match.id;
+  } catch {}
+
+  window.__waOpenState = { canonicalChatId, rawChatId: chatId, phone: digits, contactId, dealId, contactName };
+
+  await renderWaMessages(canonicalChatId);
+
+  // Отправка
+  const sendBtn = document.getElementById('wa-send');
+  const input = document.getElementById('wa-input');
+  const send = async (mediaUrl, fileName) => {
+    const text = input.value.trim();
+    if (!text && !mediaUrl) return;
+    sendBtn.disabled = true;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/wa/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ chatId: window.__waOpenState.rawChatId, phone: window.__waOpenState.phone, text, mediaUrl, fileName }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+      input.value = '';
+      window.__waOpenState.canonicalChatId = data.chatId || window.__waOpenState.canonicalChatId;
+      await renderWaMessages(window.__waOpenState.canonicalChatId);
+    } catch (e) {
+      alert('Ошибка отправки: ' + e.message);
+    } finally {
+      sendBtn.disabled = false;
+    }
+  };
+  sendBtn.onclick = () => send('', '');
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send('', ''); }
+  });
+  document.getElementById('wa-attach').onclick = async () => {
+    const url = prompt('URL файла (jpg/png/pdf/mp4 — будет отправлен в WhatsApp):');
+    if (!url) return;
+    const fileName = url.split('/').pop() || 'file';
+    await send(url, fileName);
+  };
+
+  // Отметить как прочитанные
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    fetch(`${WORKER_BASE_URL}/api/wa/mark-read`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ chatId: canonicalChatId }),
+    }).catch(() => {});
+  } catch {}
+}
+
+async function renderWaMessages(chatId) {
+  const body = document.getElementById('wa-body');
+  if (!body) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(chatId)}&limit=200`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const items = data.items || [];
+    if (!items.length) {
+      body.innerHTML = '<div class="wa-empty">Истории пока нет.<br>Напиши первое сообщение клиенту.</div>';
+      return;
+    }
+    body.innerHTML = items.map(m => renderWaMessageHtml(m)).join('');
+    body.scrollTop = body.scrollHeight;
+  } catch (e) {
+    body.innerHTML = `<div class="wa-empty" style="color:#c00">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderWaMessageHtml(m) {
+  const cls = m.direction === 'in' ? 'in' : 'out';
+  const ts = new Date(m.ts).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+  let mediaHtml = '';
+  if (m.mediaKind === 'image' && m.mediaUrl) {
+    mediaHtml = `<a href="${escapeHtml(m.mediaUrl)}" target="_blank"><img class="wa-media-img" src="${escapeHtml(m.mediaUrl)}" alt=""></a>`;
+  } else if (m.mediaUrl) {
+    const fname = m.mediaFileName || (m.mediaKind === 'video' ? '🎥 видео' : m.mediaKind === 'audio' ? '🎵 аудио' : '📎 файл');
+    mediaHtml = `<a class="wa-media-file" href="${escapeHtml(m.mediaUrl)}" target="_blank">${escapeHtml(fname)}</a>`;
+  }
+  const text = m.text || m.caption || '';
+  return `<div class="wa-msg ${cls}">
+    ${mediaHtml}
+    ${text ? escapeHtml(text) : ''}
+    <span class="wa-ts">${ts}</span>
+  </div>`;
+}
+
 // ── Quick-Add Deal modal ─────────────────────────────────────────────────
 // + Сделка под заголовком колонки канбана. Создаёт сделку с минимумом полей:
 // title, выбранный stage и pipeline, контакт (поиск existing или создание).
@@ -5927,6 +6145,7 @@ window.openContactCard = async function(key) {
       html += phones.map(p => `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <a href="tel:${escapeHtml(p.value)}" style="color:var(--ac2)">${escapeHtml(p.value)}</a>
         ${callButtonHtml(p.value, { contactid: key, contactname: fullName })}
+        ${whatsappButtonHtml(p.value, { contactid: key, contactname: fullName })}
         ${p.type ? `<span class="muted" style="font-size:11px">· ${escapeHtml(p.type)}</span>` : ''}
       </div>`).join('');
       html += `</div>`;
@@ -8305,6 +8524,7 @@ async function renderUsers(el) {
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <h3 style="margin:0;flex:1">Список</h3>
         ${isAdmin ? `
+          <button class="btn btn-sm" id="wa-channels-btn" title="WhatsApp каналы">💬 WhatsApp</button>
           <button class="btn btn-sm" id="audit-log-btn" title="История изменений">📋 Журнал</button>
           <button class="btn btn-sm" id="add-user-btn">+ Добавить сотрудника</button>
         ` : ''}
@@ -8334,6 +8554,7 @@ async function renderUsers(el) {
     renderUsersAdminTable(data.items);
     document.getElementById('add-user-btn').onclick = openAddUserModal;
     document.getElementById('audit-log-btn').onclick = openAuditLogModal;
+    document.getElementById('wa-channels-btn').onclick = openWaChannelsModal;
   } else {
     // Не-admin: простой read-only список через RTDB-proxy
     const idToken = await fbAuth.currentUser.getIdToken();
@@ -8567,6 +8788,157 @@ async function openAuditLogModal() {
     document.getElementById('al-content').innerHTML = html;
   } catch (e) {
     document.getElementById('al-content').innerHTML = '<div class="empty">Ошибка: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function openWaChannelsModal() {
+  document.getElementById('_wa-channels-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_wa-channels-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:720px;width:95vw">
+      <div class="qad-head">
+        <h2>💬 WhatsApp каналы (Green-API)</h2>
+        <button class="qad-btn qad-btn-ghost" id="wc-close" style="padding:4px 10px">×</button>
+      </div>
+      <div class="qad-body" style="max-height:70vh;overflow:auto">
+        <div id="wc-list"><div class="empty">Загрузка…</div></div>
+        <hr style="margin:20px 0;border:none;border-top:1px solid var(--b1)">
+        <h3 style="margin:0 0 8px 0;font-size:14px">Добавить / обновить канал</h3>
+        <div class="dialer-hint" style="margin-bottom:10px">
+          В Green-API создай инстанс на <a href="https://green-api.com" target="_blank" style="color:var(--ac2)">green-api.com</a>,
+          скопируй <code>idInstance</code> и <code>apiTokenInstance</code>.
+          После сохранения внизу появится <b>webhook URL</b> — вставь его в настройки Green-API инстанса в раздел
+          «Уведомления (HTTP API)» / «Notifications URL».
+        </div>
+        <div class="qad-body" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0">
+          <div><div class="qad-label">idInstance *</div><input id="wc-instance" class="qad-input" placeholder="1101..."></div>
+          <div><div class="qad-label">apiTokenInstance *</div><input id="wc-token" class="qad-input" type="password" placeholder="секретный токен"></div>
+          <div><div class="qad-label">Название</div><input id="wc-name" class="qad-input" placeholder="ELC основной"></div>
+          <div><div class="qad-label">Воронка для входящих</div><select id="wc-pipeline" class="qad-input"><option value="">— нет —</option></select></div>
+          <div><div class="qad-label">Стартовая стадия</div><select id="wc-stage" class="qad-input"><option value="">первая стадия</option></select></div>
+          <div><div class="qad-label">Ответственный</div><select id="wc-responsible" class="qad-input"><option value="">— нет —</option></select></div>
+        </div>
+        <div id="wc-result" style="margin-top:10px"></div>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="wc-cancel">Закрыть</button>
+        <button class="qad-btn qad-btn-primary" id="wc-save">Сохранить канал</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('wc-close').onclick = () => ov.remove();
+  document.getElementById('wc-cancel').onclick = () => ov.remove();
+
+  // Заполним селектор воронок (используем уже загруженные в dealsState.pipelines)
+  const pipelineSel = document.getElementById('wc-pipeline');
+  const stageSel = document.getElementById('wc-stage');
+  const responsibleSel = document.getElementById('wc-responsible');
+  try {
+    // Если ещё не загружали — подгрузим
+    if (!dealsState.metaLoaded) await loadDealsMeta();
+    const ps = Object.values(dealsState.pipelines || {});
+    for (const p of ps) {
+      const opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = p.name || p.id;
+      pipelineSel.appendChild(opt);
+    }
+    pipelineSel.onchange = () => {
+      const p = dealsState.pipelines[pipelineSel.value];
+      stageSel.innerHTML = '<option value="">первая стадия</option>';
+      if (p && p.stages) {
+        const stages = Array.isArray(p.stages) ? p.stages : Object.values(p.stages);
+        for (const s of stages) {
+          const opt = document.createElement('option');
+          opt.value = s.statusId || s.id;
+          opt.textContent = s.name || s.statusId;
+          stageSel.appendChild(opt);
+        }
+      }
+    };
+    // Сотрудники
+    const us = Object.values(dealsState.users || {});
+    us.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+    for (const u of us) {
+      const opt = document.createElement('option');
+      opt.value = u.uid;
+      opt.textContent = [u.lastName, u.name].filter(Boolean).join(' ').trim() || u.email || u.uid;
+      responsibleSel.appendChild(opt);
+    }
+  } catch (e) {
+    console.warn('openWaChannelsModal init err:', e);
+  }
+
+  await refreshWaChannelsList();
+  document.getElementById('wc-save').onclick = saveWaChannel;
+}
+
+async function refreshWaChannelsList() {
+  const wrap = document.getElementById('wc-list');
+  if (!wrap) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const data = await fetch(`${WORKER_BASE_URL}/api/wa/channels`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    }).then(r => r.ok ? r.json() : null);
+    const items = data?.items || [];
+    if (!items.length) {
+      wrap.innerHTML = '<div class="empty">Каналов пока нет — добавь первый ниже.</div>';
+      return;
+    }
+    let html = '<table class="dtable" style="font-size:12px"><thead><tr><th>idInstance</th><th>Название</th><th>Воронка</th><th>Активен</th><th>Webhook</th></tr></thead><tbody>';
+    for (const c of items) {
+      const pipeName = dealsState.pipelines?.[c.default_pipeline_id]?.name || c.default_pipeline_id || '—';
+      const webhookUrl = `${WORKER_BASE_URL}/api/wa/webhook?token=${encodeURIComponent(c.webhook_token || '')}`;
+      html += `<tr>
+        <td style="font-family:monospace">${escapeHtml(c.id_instance)}</td>
+        <td>${escapeHtml(c.display_name || '—')}</td>
+        <td>${escapeHtml(pipeName)}</td>
+        <td>${c.active ? '✅' : '⏸'}</td>
+        <td><input readonly value="${escapeHtml(webhookUrl)}" style="width:280px;font-size:10px;background:var(--bg2);border:1px solid var(--b1);padding:2px 4px;border-radius:3px" onclick="this.select()"></td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = '<div class="empty">Ошибка: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function saveWaChannel() {
+  const idInstance = document.getElementById('wc-instance').value.trim();
+  const apiTokenInstance = document.getElementById('wc-token').value.trim();
+  const displayName = document.getElementById('wc-name').value.trim();
+  const defaultPipelineId = document.getElementById('wc-pipeline').value;
+  const defaultStageId = document.getElementById('wc-stage').value;
+  const responsibleUid = document.getElementById('wc-responsible').value;
+  if (!idInstance || !apiTokenInstance) { alert('idInstance и apiTokenInstance обязательны'); return; }
+  const btn = document.getElementById('wc-save');
+  btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/channels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ idInstance, apiTokenInstance, displayName, defaultPipelineId, defaultStageId, responsibleUid }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    document.getElementById('wc-result').innerHTML = `
+      <div style="padding:10px;background:#dcf8c6;border-radius:6px;font-size:12px">
+        ✅ Канал сохранён.<br>
+        <b>Webhook URL</b> (вставь в Green-API → Notifications):<br>
+        <input readonly value="${escapeHtml(data.webhookUrl)}" style="width:100%;font-family:monospace;font-size:10px;margin-top:6px;padding:4px;border:1px solid #999;border-radius:3px" onclick="this.select()">
+      </div>
+    `;
+    await refreshWaChannelsList();
+  } catch (e) {
+    alert('Ошибка: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Сохранить канал';
   }
 }
 
