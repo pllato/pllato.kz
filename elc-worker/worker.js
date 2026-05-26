@@ -1985,6 +1985,96 @@ async function handleWaMarkRead(request, env) {
   return json({ ok: true }, 200, request);
 }
 
+// GET /api/wa/deals-activity?pipeline=X
+// Bulk indicator для канбана: возвращает по каждой сделке которая привязана
+// к WA-чату — { unreadCount, lastIncomingTs, lastReadAt }. Используется для
+// зелёных бейджей на канбан-карточках и сортировки сделок с непрочитанными
+// наверх в колонке. ОДИН запрос для всей воронки, экономит трафик.
+async function handleWaDealsActivity(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+
+  const url = new URL(request.url);
+  const pipeline = (url.searchParams.get("pipeline") || "").trim();
+  const where = ["deal_id IS NOT NULL", "deal_id != ''"];
+  const params = [];
+  if (pipeline) {
+    where.push("deal_id IN (SELECT id FROM deals WHERE pipeline_id = ?)");
+    params.push(pipeline);
+  }
+  const { results } = await env.DB.prepare(`
+    SELECT deal_id, MAX(last_message_at) AS last_message_at,
+           MAX(last_read_at) AS last_read_at,
+           SUM(unread_count) AS unread_count,
+           MAX(CASE WHEN last_message_from = 'them' THEN last_message_at ELSE 0 END) AS last_incoming_at
+    FROM wa_chats
+    WHERE ${where.join(" AND ")}
+    GROUP BY deal_id
+  `).bind(...params).all();
+
+  const items = results.map(r => ({
+    dealId: r.deal_id,
+    unreadCount: r.unread_count || 0,
+    lastMessageAt: r.last_message_at,
+    lastIncomingAt: r.last_incoming_at,
+    lastReadAt: r.last_read_at,
+  }));
+  return json({ items, total: items.length }, 200, request);
+}
+
+// GET /api/call/missed-by-deal?pipeline=X
+// Bulk: количество пропущенных входящих звонков по каждой сделке.
+// Считаем "пропущенными" — direction='in' AND status IN ('no_answer','missed','cancelled')
+// AND created_at > NOW() - 7 days (свежие, неделя). Старые игнорим, чтобы
+// бейдж не висел вечно.
+async function handleCallMissedByDeal(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+
+  const url = new URL(request.url);
+  const pipeline = (url.searchParams.get("pipeline") || "").trim();
+  const where = [
+    "deal_id IS NOT NULL", "deal_id != ''",
+    "direction = 'in'",
+    "status IN ('no_answer','missed','cancelled','busy')",
+    "datetime(started_at) > datetime('now', '-7 days')",
+  ];
+  const params = [];
+  if (pipeline) {
+    where.push("deal_id IN (SELECT id FROM deals WHERE pipeline_id = ?)");
+    params.push(pipeline);
+  }
+  const { results } = await env.DB.prepare(`
+    SELECT deal_id, COUNT(*) AS missed_count, MAX(started_at) AS last_missed_at
+    FROM call_log
+    WHERE ${where.join(" AND ")}
+    GROUP BY deal_id
+  `).bind(...params).all();
+
+  const items = results.map(r => ({
+    dealId: r.deal_id,
+    missedCount: r.missed_count || 0,
+    lastMissedAt: r.last_missed_at,
+  }));
+  return json({ items, total: items.length }, 200, request);
+}
+
+// POST /api/wa/mark-read-by-deal { dealId }
+// Помечает все WA-чаты сделки как прочитанные одним запросом.
+async function handleWaMarkReadByDeal(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  const dealId = body.dealId;
+  if (!dealId) return json({ error: "dealId required" }, 400, request);
+  await env.DB.prepare(`
+    UPDATE wa_chats SET unread_count = 0, last_read_at = ?, updated_at = datetime('now')
+    WHERE deal_id = ?
+  `).bind(Date.now(), dealId).run();
+  return json({ ok: true }, 200, request);
+}
+
 // ── WhatsApp admin: каналы ────────────────────────────────────────
 async function handleWaListChannels(request, env) {
   const guard = await requireAdmin(request, env);
@@ -2216,6 +2306,15 @@ export default {
     }
     if (path === "/api/wa/mark-read" && request.method === "POST") {
       return handleWaMarkRead(request, env);
+    }
+    if (path === "/api/wa/mark-read-by-deal" && request.method === "POST") {
+      return handleWaMarkReadByDeal(request, env);
+    }
+    if (path === "/api/wa/deals-activity" && request.method === "GET") {
+      return handleWaDealsActivity(request, env);
+    }
+    if (path === "/api/call/missed-by-deal" && request.method === "GET") {
+      return handleCallMissedByDeal(request, env);
     }
     if (path === "/api/wa/channels" && request.method === "GET") {
       return handleWaListChannels(request, env);
