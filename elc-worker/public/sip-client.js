@@ -36,18 +36,24 @@ async function loadSipJs() {
 // Styles (single inject)
 // ─────────────────────────────────────────────────────────────────────────────
 const STYLES = `
-.sipc-bottombar{position:fixed;right:16px;bottom:16px;z-index:99998;background:#1f2937;color:#fff;border-radius:999px;padding:8px 14px 8px 10px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,.25);font:13px/1.2 -apple-system,sans-serif;cursor:pointer;user-select:none;transition:background .2s}
+.sipc-bottombar{position:fixed;right:16px;bottom:16px;z-index:99998;background:#1f2937;color:#fff;border-radius:999px;padding:8px 6px 8px 10px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.25);font:13px/1.2 -apple-system,sans-serif;cursor:pointer;user-select:none;transition:background .2s,padding .2s}
 .sipc-bottombar:hover{background:#374151}
+.sipc-bottombar[data-state="established"]{background:#15803d;padding-right:4px}
+.sipc-bottombar[data-state="established"]:hover{background:#166534}
+.sipc-bottombar[data-state="ringing"]{background:#b91c1c}
+.sipc-bottombar[data-state="ringing"]:hover{background:#991b1b}
 .sipc-bottombar .sipc-dot{width:8px;height:8px;border-radius:50%;background:#9ca3af;flex:none;box-shadow:0 0 0 0 rgba(0,0,0,0)}
 .sipc-bottombar[data-state="connecting"] .sipc-dot{background:#fbbf24;animation:sipc-pulse 1.2s infinite}
 .sipc-bottombar[data-state="registered"] .sipc-dot{background:#10b981}
-.sipc-bottombar[data-state="ringing"] .sipc-dot,.sipc-bottombar[data-state="established"] .sipc-dot{background:#ef4444;animation:sipc-pulse 1s infinite}
+.sipc-bottombar[data-state="ringing"] .sipc-dot,.sipc-bottombar[data-state="established"] .sipc-dot{background:#fff;animation:sipc-pulse 1s infinite}
 .sipc-bottombar[data-state="error"] .sipc-dot{background:#ef4444}
-@keyframes sipc-pulse{0%{box-shadow:0 0 0 0 rgba(239,68,68,.6)}70%{box-shadow:0 0 0 10px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
+@keyframes sipc-pulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}70%{box-shadow:0 0 0 10px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
 .sipc-bottombar .sipc-status{font-weight:500;white-space:nowrap}
-.sipc-bottombar .sipc-callinfo{opacity:.85;font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sipc-bottombar .sipc-bb-act{background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;padding:2px 6px;border-radius:6px;line-height:1}
-.sipc-bottombar .sipc-bb-act:hover{background:rgba(255,255,255,.15)}
+.sipc-bottombar .sipc-callinfo{opacity:.95;font-size:12px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sipc-bottombar .sipc-bb-act{background:transparent;border:none;color:#fff;font-size:16px;cursor:pointer;padding:4px 8px;border-radius:999px;line-height:1;transition:background .12s;display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px}
+.sipc-bottombar .sipc-bb-act:hover{background:rgba(255,255,255,.2)}
+.sipc-bottombar .sipc-bb-act.sipc-bb-hangup{background:#dc2626}
+.sipc-bottombar .sipc-bb-act.sipc-bb-hangup:hover{background:#b91c1c}
 
 .sipc-modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:99999;display:flex;align-items:center;justify-content:center;animation:sipc-fade .15s ease-out}
 @keyframes sipc-fade{from{opacity:0}to{opacity:1}}
@@ -220,28 +226,63 @@ export async function createSipClient(config) {
     bottomBar = document.createElement('div');
     bottomBar.className = 'sipc-bottombar';
     bottomBar.setAttribute('data-state', 'connecting');
-    bottomBar.innerHTML = `
-      <span class="sipc-dot"></span>
-      <span class="sipc-status">Подключение…</span>
-      <span class="sipc-callinfo"></span>
-      <button class="sipc-bb-act" title="Набрать номер">⌨</button>
-    `;
-    bottomBar.onclick = (e) => {
-      if (e.target.closest('.sipc-bb-act')) {
-        openNumpad();
-      } else if (session) {
-        openCallOverlay();
-      } else {
-        openNumpad();
-      }
-    };
+    bottomBar.title = 'Клик — открыть диалер';
+    rebuildBottomBar();
     document.body.appendChild(bottomBar);
+  }
+  function rebuildBottomBar() {
+    if (!bottomBar) return;
+    const state = bottomBar.getAttribute('data-state');
+    const inCall = state === 'established' || state === 'ringing' || state === 'connecting' && !!session;
+    if (inCall) {
+      // Active call: имя+таймер + кнопка развернуть + кнопка hangup
+      bottomBar.innerHTML = `
+        <span class="sipc-dot"></span>
+        <span class="sipc-callinfo" data-callinfo></span>
+        <button class="sipc-bb-act" data-bb-expand title="Развернуть диалер">↗</button>
+        <button class="sipc-bb-act sipc-bb-hangup" data-bb-hangup title="Завершить">📵</button>
+      `;
+    } else {
+      // Idle: статус + кнопка набора номера
+      bottomBar.innerHTML = `
+        <span class="sipc-dot"></span>
+        <span class="sipc-status" data-status></span>
+        <span class="sipc-callinfo" data-callinfo></span>
+        <button class="sipc-bb-act" data-bb-numpad title="Набрать номер">⌨</button>
+      `;
+    }
+    bottomBar.onclick = (e) => {
+      if (e.target.closest('[data-bb-hangup]')) { e.stopPropagation(); hangup(); return; }
+      if (e.target.closest('[data-bb-expand]'))  { e.stopPropagation(); openCallOverlay(); return; }
+      if (e.target.closest('[data-bb-numpad]'))  { e.stopPropagation(); openNumpad(); return; }
+      // Клик по фону bar: если активный звонок — развернуть, иначе numpad
+      if (session) openCallOverlay(); else openNumpad();
+    };
   }
   function setBottomBarState(state, label, info='') {
     if (!bottomBar) return;
+    const prevState = bottomBar.getAttribute('data-state');
     bottomBar.setAttribute('data-state', state);
-    bottomBar.querySelector('.sipc-status').textContent = label;
-    bottomBar.querySelector('.sipc-callinfo').textContent = info;
+    // При переходе между inCall ↔ idle перерисовываем структуру
+    const wasInCall = prevState === 'established' || prevState === 'ringing';
+    const isInCall  = state === 'established' || state === 'ringing';
+    if (wasInCall !== isInCall) rebuildBottomBar();
+    const $s = bottomBar.querySelector('[data-status]');
+    const $i = bottomBar.querySelector('[data-callinfo]');
+    if ($s) $s.textContent = label;
+    if ($i) $i.textContent = info;
+  }
+  function updateBottomBarCallInfo() {
+    if (!bottomBar || !sessionMeta) return;
+    const $i = bottomBar.querySelector('[data-callinfo]');
+    if (!$i) return;
+    const name = sessionMeta.contactName || sessionMeta.phone;
+    if (sessionMeta.establishedAt) {
+      const sec = Math.round((Date.now() - sessionMeta.establishedAt) / 1000);
+      $i.textContent = `${name} · ${fmtDuration(sec)}`;
+    } else {
+      $i.textContent = name;
+    }
   }
 
   // ── SIP UA init + register ───
@@ -404,6 +445,14 @@ export async function createSipClient(config) {
         attachAudio(s);
         setBottomBarState('established', 'Разговор', sessionMeta.contactName || sessionMeta.phone);
         startTimer();
+        // Auto-minimize: через 700ms сворачиваем overlay в bottom-bar
+        // чтобы оператор мог работать с карточкой клиента. Bottom-bar
+        // остаётся видимым с таймером + кнопками «Развернуть» / «📵».
+        setTimeout(() => {
+          if (session === s && sessionMeta && currentOverlay && !currentOverlay.dataset.keepOpen) {
+            closeOverlays();
+          }
+        }, 700);
       }
       if (state === SIP.SessionState.Terminated) {
         finalizeCall(s);
@@ -499,9 +548,15 @@ export async function createSipClient(config) {
   }
 
   function openCallOverlay() {
+    // Если уже открыт active session overlay — не пересоздаём (auto-minimize
+    // мог закрыть, а пользователь вручную развернул через bottom-bar — в этом
+    // случае ставим флаг keepOpen чтобы не закрылось повторно).
     closeOverlays();
     const bg = document.createElement('div');
     bg.className = 'sipc-modal-bg';
+    // Если разговор уже идёт (Established) — пользователь явно развернул,
+    // больше не auto-минимизируем
+    if (session && sessionMeta?.establishedAt) bg.dataset.keepOpen = '1';
     const isIn = sessionMeta?.direction === 'in';
     bg.innerHTML = `
       <div class="sipc-modal" role="dialog" aria-label="${isIn ? 'Входящий' : 'Исходящий'} звонок">
@@ -655,10 +710,15 @@ export async function createSipClient(config) {
   function startTimer() {
     stopTimer();
     timerInterval = setInterval(() => {
-      if (!currentOverlay || !sessionMeta?.establishedAt) return;
+      if (!sessionMeta?.establishedAt) return;
       const sec = Math.round((Date.now() - sessionMeta.establishedAt) / 1000);
-      const $t = currentOverlay.querySelector('[data-timer]');
-      if ($t) $t.textContent = fmtDuration(sec);
+      // Overlay таймер (если открыт)
+      if (currentOverlay) {
+        const $t = currentOverlay.querySelector('[data-timer]');
+        if ($t) $t.textContent = fmtDuration(sec);
+      }
+      // Bottom-bar таймер (для свёрнутого режима)
+      updateBottomBarCallInfo();
     }, 500);
   }
   function stopTimer() {
