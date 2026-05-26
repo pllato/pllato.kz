@@ -8,8 +8,12 @@ import { jwtVerify, createRemoteJWKSet } from "jose";
 const ALLOWED_ORIGINS = new Set([
   "https://pllato.kz",
   "https://www.pllato.kz",
+  "https://crm.aminamed.kz",          // Aminamed CRM (та же кодовая база pllato-core-crm)
+  "https://aminamed-crm.pages.dev",   // CF Pages preview deploys
+  "https://pllato-core-crm.pages.dev",// CF Pages preview deploys (старое имя)
   "http://localhost:8080",
   "http://localhost:3000",
+  "http://localhost:5173",            // Vite dev
 ]);
 
 // Firebase public keys (JWKS), кэшируются автоматически

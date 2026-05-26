@@ -768,78 +768,7 @@ tr:hover td { background: var(--bg3); }
 .pagination .pg-btn:disabled { opacity: .3; cursor: not-allowed; }
 .pagination .pg-info { color: var(--t3); font-size: 12px; padding: 0 8px; }
 
-/* ── Dialer overlay (звонки) ──────────────────────────────── */
-.dialer-overlay {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  width: 320px;
-  background: var(--bg);
-  border: 1px solid var(--b1);
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.45);
-  z-index: 1100;
-  overflow: hidden;
-  animation: dialerSlideIn .2s ease-out;
-}
-@keyframes dialerSlideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-.dialer-head {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--b1);
-  display: flex; align-items: center; gap: 10px;
-  background: var(--ac2);
-  color: #fff;
-}
-.dialer-head .dialer-title { font-size: 13px; font-weight: 700; flex: 1; }
-.dialer-head .dialer-close {
-  background: transparent; border: none; color: #fff;
-  font-size: 18px; cursor: pointer; padding: 0 6px;
-  opacity: .85;
-}
-.dialer-head .dialer-close:hover { opacity: 1; }
-.dialer-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
-.dialer-phone {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--t1);
-  text-align: center;
-  letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-  padding: 8px 0;
-}
-.dialer-meta { font-size: 12px; color: var(--t3); text-align: center; }
-.dialer-status {
-  font-size: 12px;
-  color: var(--ac2);
-  text-align: center;
-  font-weight: 600;
-  min-height: 16px;
-}
-.dialer-actions { display: flex; gap: 8px; }
-.dialer-btn {
-  flex: 1;
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-.dialer-btn-primary { background: var(--gn); color: #0e0e12; }
-.dialer-btn-primary:hover { background: #4adb99; }
-.dialer-btn-danger { background: var(--rd); color: #fff; }
-.dialer-btn-danger:hover { background: #ff5577; }
-.dialer-btn-ghost { background: var(--bg2); color: var(--t1); border-color: var(--b1); }
-.dialer-btn-ghost:hover { background: var(--bg3); }
-.dialer-hint {
-  font-size: 11px;
-  color: var(--t3);
-  background: var(--bg2);
-  padding: 8px 10px;
-  border-radius: 6px;
-  text-align: center;
-  line-height: 1.45;
-}
+/* ── Dialer UI вынесен в shared sip-client.js (хостится через elc-worker) ─ */
 
 /* Кнопка 📞 inline в карточках */
 .call-btn-inline {
@@ -3936,142 +3865,18 @@ function renderDealsKanban(c, arr) {
 
 // ── Звонки (caркас) ──────────────────────────────────────────────────────
 // placeCall(opts) — главная точка входа для click-to-call.
-// Использует SIP.js (WebRTC через Asterisk на Oracle VM) — браузерный звонок.
-// Outbound: invite sip:NUMBER@SIP_CONFIG.domain → Asterisk Dial PJSIP/NUMBER@binotel → PSTN.
-// Test extensions без Binotel: 9000 (echo) / 9001 (monkeys).
+// Тонкая обёртка над shared SIP-клиентом (sip-client.js). Логирование
+// (call_log в D1), UI overlay, статус-машина — всё внутри клиента.
 async function placeCall(opts) {
-  const { phone, contactId, dealId, contactName } = opts;
+  const { phone, contactId, dealId, contactName } = opts || {};
   if (!phone) { alert('Нет номера телефона'); return; }
-  const normalizedPhone = String(phone).trim();
-
-  // 1. Логируем попытку — INSERT row в call_log
-  let callId = null;
   try {
-    const idToken = await fbAuth.currentUser.getIdToken();
-    const r = await fetch(`${WORKER_CALL_URL}/event`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-      body: JSON.stringify({
-        direction: 'out',
-        phone: normalizedPhone,
-        contactId: contactId || null,
-        dealId: dealId || null,
-        status: 'attempted',
-        provider: 'sip-webrtc',
-        startedAt: new Date().toISOString(),
-      }),
-    });
-    if (r.ok) {
-      const j = await r.json();
-      callId = j.id;
-    }
+    const sip = await getSipClient();
+    await sip.call(phone, { contactId, dealId, contactName });
   } catch (e) {
-    console.warn('call log fail:', e);
+    console.error('[SIP] placeCall failed:', e);
+    alert('Не удалось начать звонок: ' + (e?.message || e));
   }
-
-  // 2. Показываем диалер (UI overlay) + запускаем SIP-звонок
-  openDialerOverlay({ phone: normalizedPhone, contactName, contactId, dealId, callId });
-}
-
-function openDialerOverlay(opts) {
-  document.getElementById('_dialer-overlay')?.remove();
-  const { phone, contactName, contactId, dealId, callId } = opts;
-  const startedAt = Date.now();
-  let establishedAt = null;
-
-  const ov = document.createElement('div');
-  ov.id = '_dialer-overlay';
-  ov.className = 'dialer-overlay';
-  ov.innerHTML = `
-    <div class="dialer-head">
-      <span class="dialer-title">${contactName ? escapeHtml(contactName) : 'Исходящий звонок'}</span>
-      <button class="dialer-close" id="dialer-close" title="Закрыть">×</button>
-    </div>
-    <div class="dialer-body">
-      <div class="dialer-phone">${escapeHtml(phone)}</div>
-      <div class="dialer-meta">${callId ? 'ID звонка: ' + callId : ''}</div>
-      <div class="dialer-status" id="dialer-status">Соединяемся…</div>
-      <div class="dialer-actions">
-        <button class="dialer-btn dialer-btn-danger" id="dialer-hangup">📵 Завершить</button>
-      </div>
-      <div class="dialer-hint" id="dialer-hint">
-        Браузер запросит доступ к микрофону при первом звонке.<br>
-        Test: набрать <code>9000</code> — echo (свой голос).
-      </div>
-      <div class="dialer-actions" id="dialer-log-actions" style="display:none">
-        <button class="dialer-btn dialer-btn-primary" data-status="connected">✓ Разговор был</button>
-        <button class="dialer-btn dialer-btn-ghost" data-status="no_answer">— Не ответил</button>
-        <button class="dialer-btn dialer-btn-danger" data-status="failed">✗ Ошибка</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(ov);
-
-  const $status = ov.querySelector('#dialer-status');
-  const $hangup = ov.querySelector('#dialer-hangup');
-  const $logActions = ov.querySelector('#dialer-log-actions');
-
-  const closeOverlay = () => { sipHangup().catch(()=>{}); ov.remove(); };
-  ov.querySelector('#dialer-close').onclick = closeOverlay;
-
-  $hangup.onclick = async () => {
-    $hangup.disabled = true;
-    await sipHangup();
-    $status.textContent = 'Завершён';
-    $hangup.style.display = 'none';
-    $logActions.style.display = '';
-  };
-
-  // Стартуем SIP-звонок и обновляем статус по state-машине SIP.js
-  sipCall(phone, (state) => {
-    const map = {
-      'Initial':      'Соединяемся…',
-      'Establishing': 'Идёт вызов…',
-      'Established':  'Разговор',
-      'Terminating':  'Завершаем…',
-      'Terminated':   'Завершён',
-    };
-    $status.textContent = map[state] || state;
-    if (state === 'Established') {
-      establishedAt = Date.now();
-      $status.classList.add('dialer-status-active');
-    }
-    if (state === 'Terminated') {
-      $hangup.style.display = 'none';
-      $logActions.style.display = '';
-      ov.querySelector('#dialer-hint')?.remove();
-    }
-  }).catch(err => {
-    console.error('[SIP] call failed:', err);
-    $status.textContent = 'Ошибка: ' + (err?.message || err);
-    $hangup.style.display = 'none';
-    $logActions.style.display = '';
-  });
-
-  // Кнопки финального статуса в D1
-  ov.querySelectorAll('[data-status]').forEach(btn => {
-    btn.onclick = async () => {
-      const finalStatus = btn.dataset.status;
-      const duration = establishedAt ? Math.round((Date.now() - establishedAt) / 1000) : 0;
-      if (callId) {
-        try {
-          const idToken = await fbAuth.currentUser.getIdToken();
-          await fetch(`${WORKER_CALL_URL}/event`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-            body: JSON.stringify({
-              callId,
-              status: finalStatus,
-              endedAt: new Date().toISOString(),
-              durationSec: finalStatus === 'connected' ? duration : 0,
-            }),
-          });
-        } catch (e) { console.warn('call update:', e); }
-      }
-      ov.remove();
-      showToast?.(finalStatus === 'connected' ? 'Записано: разговор состоялся' : 'Записано');
-    };
-  });
 }
 
 // Универсальный helper для inline-кнопки 📞 рядом с phone
@@ -5844,119 +5649,61 @@ const WORKER_BASE_URL = 'https://pllato-elc-worker.uurraa.workers.dev';
 //
 // Креды НЕ хардкодим в HTML — fetch'им с /api/sip/token (auth-gated).
 // При смене сервера/пароля — wrangler secret put SIP_PASSWORD на worker.
-const SIP_ESM_URL = 'https://cdn.jsdelivr.net/npm/sip.js@0.21.2/+esm';
-let _sipModule = null;
-let _sipCreds = null;        // {user, password, domain, wss, stun}
-let _sipUA = null;
-let _sipRegisterer = null;
-let _sipSession = null;
-let _sipAudio = null;
-
-async function sipModule() {
-  if (_sipModule) return _sipModule;
-  _sipModule = await import(SIP_ESM_URL);
-  return _sipModule;
-}
-async function sipCreds() {
-  if (_sipCreds) return _sipCreds;
-  const idToken = await fbAuth.currentUser.getIdToken();
-  const r = await fetch(`${WORKER_BASE_URL}/api/sip/token`, {
-    headers: { Authorization: `Bearer ${idToken}` },
-  });
-  if (!r.ok) throw new Error(`SIP token fetch failed: ${r.status} ${await r.text()}`);
-  _sipCreds = await r.json();
-  return _sipCreds;
-}
-function sipAudioEl() {
-  if (_sipAudio) return _sipAudio;
-  _sipAudio = document.createElement('audio');
-  _sipAudio.id = '_sip-audio';
-  _sipAudio.autoplay = true;
-  document.body.appendChild(_sipAudio);
-  return _sipAudio;
-}
-async function sipInit() {
-  if (_sipUA && _sipUA.state === 'Started') return _sipUA;
-  const [SIP, cfg] = await Promise.all([sipModule(), sipCreds()]);
-  const ua = new SIP.UserAgent({
-    uri: SIP.UserAgent.makeURI(`sip:${cfg.user}@${cfg.domain}`),
-    authorizationUsername: cfg.user,
-    authorizationPassword: cfg.password,
-    transportOptions: { server: cfg.wss },
-    sessionDescriptionHandlerFactoryOptions: {
-      iceGatheringTimeout: 1500,
-      peerConnectionConfiguration: {
-        // На Hetzner Asterisk имеет прямой public IP без NAT, поэтому
-        // host/srflx candidates у браузера ходят к Asterisk напрямую.
-        // TURN остаётся в iceServers как fallback на случай если у
-        // оператора симметричный NAT — браузер сам выберет relay,
-        // когда host/srflx не сойдутся.
-        iceServers: cfg.iceServers || [{ urls: cfg.stun }],
-        bundlePolicy: 'max-bundle',
-        rtcpMuxPolicy: 'require',
+// Полный SIP-клиент (UI + логика) живёт в shared модуле, который
+// хостится через elc-worker как static asset и шарится между ELC
+// (этот файл) и Aminamed CRM (pllato-core-crm). Источник правды:
+//   pllato/pllato.kz/elc-worker/public/sip-client.js
+// При обновлении модуля → wrangler deploy на elc-worker, оба CRM
+// подхватывают изменения автоматически.
+const SIP_CLIENT_URL = `${WORKER_BASE_URL}/sip-client.js`;
+let _sipClientPromise = null;
+async function getSipClient() {
+  if (_sipClientPromise) return _sipClientPromise;
+  _sipClientPromise = (async () => {
+    const mod = await import(SIP_CLIENT_URL);
+    return await mod.createSipClient({
+      tokenEndpoint:     `${WORKER_BASE_URL}/api/sip/token`,
+      callEventEndpoint: `${WORKER_CALL_URL}/event`,
+      callLogEndpoint:   `${WORKER_CALL_URL}/log`,
+      getAuthToken: async () => {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        return `Bearer ${idToken}`;
       },
-    },
-    delegate: {
-      // Incoming звонок (Binotel → browser). Сейчас auto-reject — UI потом.
-      onInvite: (inv) => { try { inv.reject(); } catch(_){} },
-    },
-  });
-  await ua.start();
-  _sipUA = ua;
-  _sipRegisterer = new SIP.Registerer(ua);
-  await _sipRegisterer.register();
-  console.log('[SIP] registered as', cfg.user, '@', cfg.domain);
-  return ua;
+      // Для входящих — пытаемся резолвить контакт по номеру через worker
+      resolveContact: async (phone) => {
+        try {
+          const idToken = await fbAuth.currentUser.getIdToken();
+          const r = await fetch(`${WORKER_BASE_URL}/api/list/contacts?q=${encodeURIComponent(phone)}&pageSize=1`, {
+            headers: { Authorization: `Bearer ${idToken}` },
+          });
+          if (!r.ok) return null;
+          const data = await r.json();
+          const c = (data.items || data.contacts || [])[0];
+          if (!c) return null;
+          return {
+            id: c.id || c.key || null,
+            name: [c.lastName, c.name, c.secondName].filter(Boolean).join(' ').trim() || null,
+          };
+        } catch { return null; }
+      },
+      debug: false,
+    });
+  })();
+  return _sipClientPromise;
 }
-async function sipCall(phone, onState) {
-  const SIP = await sipModule();
-  await sipInit();
-  await sipHangup(); // close previous if any
-  const cfg = await sipCreds();
-  const target = SIP.UserAgent.makeURI(`sip:${phone}@${cfg.domain}`);
-  if (!target) throw new Error('Invalid SIP URI: ' + phone);
-  const inviter = new SIP.Inviter(_sipUA, target, {
-    sessionDescriptionHandlerOptions: { constraints: { audio: true, video: false } },
-  });
-  _sipSession = inviter;
-  inviter.stateChange.addListener((state) => {
-    onState?.(state);
-    if (state === SIP.SessionState.Established) {
-      const pc = inviter.sessionDescriptionHandler?.peerConnection;
-      if (pc) {
-        const stream = new MediaStream();
-        pc.getReceivers().forEach(r => r.track && stream.addTrack(r.track));
-        sipAudioEl().srcObject = stream;
-      }
-    }
-    if (state === SIP.SessionState.Terminated) {
-      sipAudioEl().srcObject = null;
-      if (_sipSession === inviter) _sipSession = null;
-    }
-  });
-  await inviter.invite();
-  return inviter;
-}
-async function sipHangup() {
-  if (!_sipSession) return;
-  try {
-    const SIP = await sipModule();
-    const s = _sipSession;
-    if (s.state === SIP.SessionState.Established) await s.bye();
-    else if (s.state === SIP.SessionState.Establishing) await s.cancel();
-    else if (s.state === SIP.SessionState.Initial) await s.cancel();
-  } catch (e) { console.warn('[SIP] hangup err:', e); }
-  _sipSession = null;
-  if (_sipAudio) _sipAudio.srcObject = null;
-}
-// Debug в Console: window.elcSip.{init,call,hangup,state}
-window.elcSip = {
-  init: sipInit,
-  call: sipCall,
-  hangup: sipHangup,
-  get state() { return _sipSession?.state || 'idle'; },
-  get ua() { return _sipUA; },
-};
+// Pre-warm: подключаем SIP сразу после login (не дожидаясь первого звонка).
+// Это даёт мгновенный outbound call и возможность принимать incoming.
+setTimeout(() => { getSipClient().catch(e => console.warn('[SIP] preload failed:', e?.message)); }, 1500);
+
+// Debug в Console: window.elcSip.{call,hangup,mute,hold,dtmf,openDialer,state}
+window.elcSip = new Proxy({}, {
+  get(_, prop) {
+    return (...args) => getSipClient().then(c => {
+      const v = c[prop];
+      return typeof v === 'function' ? v.apply(c, args) : v;
+    });
+  },
+});
 const CONTACTS_PAGE_SIZE = 50;
 const contactsState = {
   page: 1,
@@ -6254,50 +6001,8 @@ async function loadContactCallHistory(contactKey) {
   const target = document.getElementById('contact-call-history-' + contactKey);
   if (!target) return;
   try {
-    const idToken = await fbAuth.currentUser.getIdToken();
-    const r = await fetch(`${WORKER_CALL_URL}/log?contactId=${encodeURIComponent(contactKey)}&limit=50`, {
-      headers: { 'Authorization': `Bearer ${idToken}` },
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    const items = data.items || [];
-    if (!items.length) {
-      target.innerHTML = '<span style="color:var(--t3)">Звонков пока нет</span>';
-      return;
-    }
-    const STATUS_LABEL = {
-      connected: '✓ Состоялся',
-      no_answer: '— Не ответил',
-      busy: '— Занято',
-      failed: '✗ Ошибка',
-      cancelled: '— Отменён',
-      attempted: '○ Попытка',
-    };
-    const STATUS_COLOR = {
-      connected: 'var(--gn)',
-      no_answer: 'var(--t3)',
-      busy: 'var(--yl)',
-      failed: 'var(--rd)',
-      cancelled: 'var(--t3)',
-      attempted: 'var(--ac2)',
-    };
-    let html = '<div style="display:flex;flex-direction:column;gap:6px">';
-    for (const c of items) {
-      const date = c.startedAt ? new Date(c.startedAt).toLocaleString('ru', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
-      const dir = c.direction === 'in' ? '↓ Входящий' : '↑ Исходящий';
-      const dur = c.durationSec > 0 ? Math.floor(c.durationSec / 60) + ':' + String(c.durationSec % 60).padStart(2, '0') : '';
-      const callerUser = getUserById(c.callerUid);
-      const callerName = callerUser ? `${callerUser.lastName || ''} ${callerUser.name || ''}`.trim() || callerUser.email : (c.callerUid || '—');
-      html += `<div style="display:grid;grid-template-columns:90px 100px 1fr auto auto;gap:8px;padding:6px 10px;background:var(--bg3);border:1px solid var(--b1);border-radius:6px;font-size:11px;align-items:center">
-        <span style="color:${STATUS_COLOR[c.status] || 'var(--t3)'};font-weight:600">${escapeHtml(STATUS_LABEL[c.status] || c.status || '—')}</span>
-        <span style="color:var(--t3)">${dir}</span>
-        <span style="color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(callerName)}">${escapeHtml(callerName)}</span>
-        <span style="color:var(--t3);font-variant-numeric:tabular-nums">${escapeHtml(dur)}</span>
-        <span style="color:var(--t3);font-variant-numeric:tabular-nums">${escapeHtml(date)}</span>
-      </div>`;
-    }
-    html += '</div>';
-    target.innerHTML = html;
+    const sip = await getSipClient();
+    await sip.renderCallHistory(target, { contactId: contactKey, limit: 50 });
   } catch (e) {
     target.innerHTML = `<span style="color:var(--rd)">Ошибка: ${escapeHtml(e.message)}</span>`;
   }
