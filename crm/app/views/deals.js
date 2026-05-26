@@ -1874,7 +1874,7 @@ function renderDealContactBlock(contact, d, trashedContact = null) {
         <div class="avatar avatar-md">${escape(initialsOf(contact.name || contact.phone || "?"))}</div>
         <div class="dcc-info">
           <div class="dcc-name">${escape(contact.name || "(без имени)")}</div>
-          ${contact.phone ? `<div class="dcc-line">${ICONS.phone}<span>${escape(contact.phone)}</span></div>` : ""}
+          ${contact.phone ? `<div class="dcc-line">${ICONS.phone}<span>${escape(contact.phone)}</span><button type="button" class="sipc-call-btn" data-call-phone="${escapeAttr(contact.phone)}" data-call-contactid="${escapeAttr(contact.id || "")}" data-call-dealid="${escapeAttr(d?.id || "")}" data-call-contactname="${escapeAttr(contact.name || "")}" title="Позвонить через SIP">📞</button></div>` : ""}
           ${contact.email ? `<div class="dcc-line">${ICONS.mail}<span>${escape(contact.email)}</span></div>` : ""}
           ${contact.company ? `<div class="dcc-line dcc-meta">${ICONS.building}<span>${escape(contact.company)}</span></div>` : ""}
         </div>
