@@ -1565,6 +1565,489 @@ async function handleAdminCreateUser(request, env) {
   return json({ ok: true, uid, email, name, role }, 200, request);
 }
 
+// ── WhatsApp Green-API ─────────────────────────────────────────────────
+// Канал = один Green-API instance. Реквизиты в D1 (wa_channels), а не
+// в Worker Secrets — admin может пере-привязать инстанс без редеплоя.
+//
+// Поток входящего: Green-API → POST /api/wa/webhook?token=...
+//   (query-token т.к. Green-API не умеет Authorization Bearer)
+//   → апсёртим wa_chats + wa_messages, находим/создаём контакта по phone,
+//   автосоздаём сделку в default_pipeline (если нет открытой),
+//   bumpим last_message_at + bitrix_date_modify сделки.
+//
+// Поток исходящего: Frontend → POST /api/wa/send → Green-API sendMessage,
+// апсёртим wa_messages с direction='out'.
+
+function normalizeWaPhone(input) {
+  if (!input) return '';
+  let digits = String(input).replace(/\D/g, '');
+  // 8XXXXXXXXXX → 7XXXXXXXXXX (КЗ/РФ)
+  if (digits.startsWith('8') && digits.length === 11) digits = '7' + digits.slice(1);
+  return digits;
+}
+
+function waChatIdFromPhone(phone) {
+  const digits = normalizeWaPhone(phone);
+  return digits ? `${digits}@c.us` : null;
+}
+
+function waChatDocId(instanceId, chatId) { return `wa:${instanceId}:${chatId}`; }
+function waMessageDocId(instanceId, waMessageId) { return `wa:${instanceId}:${waMessageId}`; }
+
+async function getWaChannel(env, channelId) {
+  return await env.DB.prepare("SELECT * FROM wa_channels WHERE id = ? LIMIT 1").bind(channelId).first();
+}
+
+async function getWaChannelByInstance(env, instanceId) {
+  return await env.DB.prepare("SELECT * FROM wa_channels WHERE id_instance = ? LIMIT 1").bind(String(instanceId)).first();
+}
+
+// Найти / создать contact по phone (нормализованному).
+async function findOrCreateContactByPhone(env, phone, name) {
+  const digits = normalizeWaPhone(phone);
+  if (!digits) return null;
+  // SQLite LIKE по JSON-строке phones (контакты хранят JSON-массив)
+  const variants = [`%"${digits}"%`, `%${digits}%`, `%+${digits}%`];
+  for (const v of variants) {
+    const row = await env.DB.prepare("SELECT id FROM contacts WHERE phones LIKE ? LIMIT 1").bind(v).first();
+    if (row) return row.id;
+  }
+  const newId = 'contact_wa_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const nowIso = new Date().toISOString();
+  const phonesJson = JSON.stringify([{ value: '+' + digits, valueType: 'WORK' }]);
+  await env.DB.prepare(`
+    INSERT INTO contacts (id, name, phones, source_description, bitrix_date_create, bitrix_date_modify)
+    VALUES (?, ?, ?, 'WhatsApp', ?, ?)
+  `).bind(newId, name || '+' + digits, phonesJson, nowIso, nowIso).run();
+  return newId;
+}
+
+// Создать сделку в default_pipeline канала, если по этому контакту нет открытой.
+async function ensureDealForWaContact(env, channel, contactId, contactName) {
+  if (!channel.default_pipeline_id) return null;
+  const existing = await env.DB.prepare(`
+    SELECT id FROM deals
+    WHERE pipeline_id = ? AND closed = 0
+      AND (contact_id = ? OR contact_ids LIKE ?)
+    ORDER BY bitrix_date_modify DESC LIMIT 1
+  `).bind(channel.default_pipeline_id, contactId, `%"${contactId}"%`).first();
+  if (existing) return existing.id;
+  const newId = 'deal_wa_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const nowIso = new Date().toISOString();
+  const title = `WhatsApp: ${contactName || 'Новый клиент'}`;
+  await env.DB.prepare(`
+    INSERT INTO deals (
+      id, title, pipeline_id, stage_id, responsible_uid,
+      contact_id, source_description, closed,
+      bitrix_date_create, bitrix_date_modify
+    ) VALUES (?, ?, ?, ?, ?, ?, 'WhatsApp', 0, ?, ?)
+  `).bind(
+    newId, title,
+    channel.default_pipeline_id, channel.default_stage_id || null,
+    channel.responsible_uid || null,
+    contactId, nowIso, nowIso,
+  ).run();
+  return newId;
+}
+
+// Извлечь данные из Green-API webhook envelope (поддерживаем incoming +
+// echo исходящих, чтобы синхронизировать наши же отправки через приложение
+// Green-API на телефоне).
+function extractWaWebhookEnvelope(body) {
+  const type = body?.typeWebhook;
+  if (!type) return null;
+  const isIncoming = type === 'incomingMessageReceived';
+  const isOutgoing = type === 'outgoingMessageReceived' || type === 'outgoingAPIMessageReceived';
+  if (!isIncoming && !isOutgoing) return null;
+  const instance = String(body?.instanceData?.idInstance || body?.idInstance || '');
+  const chatId = body?.senderData?.chatId || body?.recipientData?.chatId;
+  const phone = chatId ? chatId.split('@')[0] : null;
+  const senderName = body?.senderData?.senderName || body?.senderData?.chatName || null;
+  const waMessageId = body?.idMessage;
+  const ts = (body?.timestamp || Math.floor(Date.now() / 1000)) * 1000;
+
+  const md = body?.messageData || {};
+  let text = '', mediaKind = null, mediaUrl = null, mediaFileName = null, mediaMimeType = null, caption = null;
+  if (md.typeMessage === 'textMessage' || md.typeMessage === 'extendedTextMessage') {
+    text = md.textMessageData?.textMessage || md.extendedTextMessageData?.text || '';
+  } else if (md.typeMessage === 'imageMessage' || md.fileMessageData?.mimeType?.startsWith?.('image/')) {
+    mediaKind = 'image';
+    mediaUrl = md.fileMessageData?.downloadUrl || null;
+    mediaFileName = md.fileMessageData?.fileName || null;
+    mediaMimeType = md.fileMessageData?.mimeType || null;
+    caption = md.fileMessageData?.caption || null;
+  } else if (md.typeMessage === 'videoMessage' || md.fileMessageData?.mimeType?.startsWith?.('video/')) {
+    mediaKind = 'video';
+    mediaUrl = md.fileMessageData?.downloadUrl || null;
+    mediaFileName = md.fileMessageData?.fileName || null;
+    mediaMimeType = md.fileMessageData?.mimeType || null;
+    caption = md.fileMessageData?.caption || null;
+  } else if (md.typeMessage === 'audioMessage' || md.fileMessageData?.mimeType?.startsWith?.('audio/')) {
+    mediaKind = 'audio';
+    mediaUrl = md.fileMessageData?.downloadUrl || null;
+    mediaMimeType = md.fileMessageData?.mimeType || null;
+  } else if (md.typeMessage === 'documentMessage' || md.fileMessageData) {
+    mediaKind = 'document';
+    mediaUrl = md.fileMessageData?.downloadUrl || null;
+    mediaFileName = md.fileMessageData?.fileName || null;
+    mediaMimeType = md.fileMessageData?.mimeType || null;
+    caption = md.fileMessageData?.caption || null;
+  }
+  return { direction: isIncoming ? 'in' : 'out', instanceId: instance, chatId, phone, senderName, waMessageId, ts, text, mediaKind, mediaUrl, mediaFileName, mediaMimeType, caption };
+}
+
+// POST /api/wa/webhook?token=XXX — приёмник от Green-API.
+// Без Firebase auth — Green-API не умеет Bearer.
+async function handleWaWebhook(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  const url = new URL(request.url);
+  const tokenFromQuery = url.searchParams.get("token") || '';
+
+  const evt = extractWaWebhookEnvelope(body);
+  if (!evt) return json({ ok: true, ignored: true, type: body?.typeWebhook }, 200, request);
+  const channel = await getWaChannelByInstance(env, evt.instanceId);
+  if (!channel) return json({ error: "unknown instance", instance: evt.instanceId }, 404, request);
+  if (channel.webhook_token && channel.webhook_token !== tokenFromQuery) {
+    return json({ error: "invalid webhook token" }, 401, request);
+  }
+  if (!channel.active) return json({ ok: true, ignored: true, reason: "channel inactive" }, 200, request);
+
+  const isGroup = evt.chatId?.endsWith('@g.us') || false;
+  let contactId = null;
+  if (!isGroup && evt.phone) contactId = await findOrCreateContactByPhone(env, evt.phone, evt.senderName);
+  let dealId = null;
+  if (evt.direction === 'in' && contactId && channel.default_pipeline_id) {
+    dealId = await ensureDealForWaContact(env, channel, contactId, evt.senderName);
+  }
+
+  const chatDocId = waChatDocId(evt.instanceId, evt.chatId);
+  const fromKind = evt.direction === 'in' ? 'them' : 'me';
+  const incrUnread = evt.direction === 'in' ? 1 : 0;
+  const preview = (evt.text || evt.caption || (evt.mediaKind ? `[${evt.mediaKind}]` : '')).slice(0, 200);
+
+  const existingChat = await env.DB.prepare("SELECT id FROM wa_chats WHERE id = ?").bind(chatDocId).first();
+  if (existingChat) {
+    await env.DB.prepare(`
+      UPDATE wa_chats SET
+        last_message_text = ?, last_message_at = ?, last_message_from = ?,
+        unread_count = COALESCE(unread_count, 0) + ?,
+        contact_id = COALESCE(?, contact_id),
+        deal_id = COALESCE(?, deal_id),
+        name = COALESCE(NULLIF(?, ''), name),
+        updated_at = datetime('now')
+      WHERE id = ?
+    `).bind(preview, evt.ts, fromKind, incrUnread, contactId, dealId, evt.senderName || '', chatDocId).run();
+  } else {
+    await env.DB.prepare(`
+      INSERT INTO wa_chats (
+        id, instance_id, chat_id, phone, is_group, name, contact_id, deal_id,
+        last_message_text, last_message_at, last_message_from, unread_count, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    `).bind(
+      chatDocId, evt.instanceId, evt.chatId, evt.phone, isGroup ? 1 : 0,
+      evt.senderName || ('+' + (evt.phone || '')),
+      contactId, dealId, preview, evt.ts, fromKind, incrUnread,
+    ).run();
+  }
+
+  if (evt.waMessageId) {
+    const msgDocId = waMessageDocId(evt.instanceId, evt.waMessageId);
+    await env.DB.prepare(`
+      INSERT OR IGNORE INTO wa_messages (
+        id, chat_id, wa_message_id, direction, text,
+        media_kind, media_url, media_file_name, media_mime_type, caption, ts
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      msgDocId, chatDocId, evt.waMessageId, evt.direction, evt.text || null,
+      evt.mediaKind, evt.mediaUrl, evt.mediaFileName, evt.mediaMimeType, evt.caption, evt.ts,
+    ).run();
+  }
+
+  // Поднять сделку в канбане — обновим bitrix_date_modify (renderDeals
+  // сортирует по нему, плюс это "свежая" сделка наверху списка).
+  if (dealId) {
+    const isoTs = new Date(evt.ts).toISOString();
+    await env.DB.prepare("UPDATE deals SET bitrix_date_modify = ? WHERE id = ?").bind(isoTs, dealId).run();
+  }
+
+  return json({ ok: true, dealId, contactId, chatId: chatDocId }, 200, request);
+}
+
+// POST /api/wa/send { channelId, chatId, phone, text, mediaUrl, fileName }
+async function handleWaSend(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  const channelId = body.channelId || '';
+  let chatId = body.chatId || '';
+  const phone = body.phone || '';
+  const text = (body.text || '').trim();
+  const mediaUrl = body.mediaUrl || '';
+  const fileName = body.fileName || 'file';
+
+  if (!chatId && phone) chatId = waChatIdFromPhone(phone);
+  if (!chatId) return json({ error: "chatId or phone required" }, 400, request);
+
+  let channel = channelId ? await getWaChannel(env, channelId) : null;
+  if (!channel) {
+    channel = await env.DB.prepare("SELECT * FROM wa_channels WHERE active = 1 ORDER BY created_at ASC LIMIT 1").first();
+  }
+  if (!channel) return json({ error: "no active WhatsApp channel configured" }, 503, request);
+
+  const baseUrl = `${channel.api_url}/waInstance${channel.id_instance}`;
+  const apiToken = channel.api_token_instance;
+  let apiResp;
+  try {
+    if (mediaUrl) {
+      const r = await fetch(`${baseUrl}/sendFileByUrl/${apiToken}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId, urlFile: mediaUrl, fileName, caption: text || undefined }),
+      });
+      apiResp = await r.json().catch(() => ({ error: 'parse failed', status: r.status }));
+    } else if (text) {
+      const r = await fetch(`${baseUrl}/sendMessage/${apiToken}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId, message: text }),
+      });
+      apiResp = await r.json().catch(() => ({ error: 'parse failed', status: r.status }));
+    } else {
+      return json({ error: "text or mediaUrl required" }, 400, request);
+    }
+  } catch (e) {
+    return json({ error: "green-api fetch failed: " + e.message }, 502, request);
+  }
+
+  const waMessageId = apiResp?.idMessage || null;
+  if (!waMessageId) return json({ error: "green-api did not return idMessage", apiResp }, 502, request);
+
+  const chatDocId = waChatDocId(channel.id_instance, chatId);
+  const nowMs = Date.now();
+  const preview = (text || (mediaUrl ? `[file] ${fileName}` : '')).slice(0, 200);
+
+  const existing = await env.DB.prepare("SELECT id FROM wa_chats WHERE id = ?").bind(chatDocId).first();
+  if (existing) {
+    await env.DB.prepare(`
+      UPDATE wa_chats SET last_message_text = ?, last_message_at = ?, last_message_from = 'me', updated_at = datetime('now')
+      WHERE id = ?
+    `).bind(preview, nowMs, chatDocId).run();
+  } else {
+    const phoneDigits = chatId.split('@')[0];
+    await env.DB.prepare(`
+      INSERT INTO wa_chats (id, instance_id, chat_id, phone, name, last_message_text, last_message_at, last_message_from, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'me', datetime('now'))
+    `).bind(chatDocId, channel.id_instance, chatId, phoneDigits, '+' + phoneDigits, preview, nowMs).run();
+  }
+
+  const msgDocId = waMessageDocId(channel.id_instance, waMessageId);
+  await env.DB.prepare(`
+    INSERT OR IGNORE INTO wa_messages (id, chat_id, wa_message_id, direction, text, media_kind, media_url, media_file_name, ts)
+    VALUES (?, ?, ?, 'out', ?, ?, ?, ?, ?)
+  `).bind(msgDocId, chatDocId, waMessageId, text || null, mediaUrl ? 'document' : null, mediaUrl || null, fileName, nowMs).run();
+
+  await auditLog(env, me, "wa_send", "wa_chat", chatDocId, { hasMedia: !!mediaUrl });
+  return json({ ok: true, idMessage: waMessageId, chatId: chatDocId }, 200, request);
+}
+
+// GET /api/wa/chats?scope=mine|team|all&limit=200
+async function handleWaListChats(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+
+  const url = new URL(request.url);
+  const limit = Math.min(500, Math.max(10, parseInt(url.searchParams.get("limit") || "200", 10) || 200));
+  let scope = (url.searchParams.get("scope") || "").trim();
+  if (!scope) scope = me.role === "admin" ? "all" : "mine";
+  if (scope === "all" && me.role !== "admin") scope = "mine";
+
+  let whereSQL = "";
+  const params = [];
+  if (scope === "mine" && me.canonicalUid) {
+    whereSQL = `WHERE (
+      c.contact_id IN (SELECT id FROM contacts WHERE responsible_uid = ?)
+      OR c.deal_id  IN (SELECT id FROM deals    WHERE responsible_uid = ?)
+    )`;
+    params.push(me.canonicalUid, me.canonicalUid);
+  } else if (scope === "team" && me.department) {
+    const { results: deptRows } = await env.DB.prepare(
+      "SELECT uid FROM user_roles WHERE department = ?"
+    ).bind(me.department).all();
+    const uids = deptRows.map(r => r.uid);
+    if (uids.length === 0) return json({ items: [], total: 0, scope, meta: { teamSize: 0 } }, 200, request);
+    const ph = uids.map(() => "?").join(",");
+    whereSQL = `WHERE (
+      c.contact_id IN (SELECT id FROM contacts WHERE responsible_uid IN (${ph}))
+      OR c.deal_id  IN (SELECT id FROM deals    WHERE responsible_uid IN (${ph}))
+    )`;
+    for (const u of uids) params.push(u);
+    for (const u of uids) params.push(u);
+  }
+
+  const { results } = await env.DB.prepare(`
+    SELECT c.* FROM wa_chats c ${whereSQL}
+    ORDER BY c.last_message_at DESC LIMIT ?
+  `).bind(...params, limit).all();
+
+  const items = results.map(r => ({
+    id: r.id, instanceId: r.instance_id, chatId: r.chat_id, phone: r.phone,
+    isGroup: !!r.is_group, name: r.name, contactId: r.contact_id, dealId: r.deal_id,
+    lastMessageText: r.last_message_text, lastMessageAt: r.last_message_at,
+    lastMessageFrom: r.last_message_from, lastReadAt: r.last_read_at,
+    unreadCount: r.unread_count || 0,
+  }));
+  return json({ items, total: items.length, scope }, 200, request);
+}
+
+// GET /api/wa/messages?chatId=X&limit=200&before=ts
+async function handleWaListMessages(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const url = new URL(request.url);
+  const chatId = (url.searchParams.get("chatId") || "").trim();
+  if (!chatId) return json({ error: "chatId required" }, 400, request);
+  const limit = Math.min(500, Math.max(10, parseInt(url.searchParams.get("limit") || "200", 10) || 200));
+  const before = parseInt(url.searchParams.get("before") || "0", 10) || 0;
+
+  const where = ["chat_id = ?"];
+  const params = [chatId];
+  if (before > 0) { where.push("ts < ?"); params.push(before); }
+  const { results } = await env.DB.prepare(`
+    SELECT * FROM wa_messages WHERE ${where.join(" AND ")}
+    ORDER BY ts DESC LIMIT ?
+  `).bind(...params, limit).all();
+  // Возвращаем в хронологическом порядке (старые → новые)
+  const items = results.reverse().map(r => ({
+    id: r.id, chatId: r.chat_id, waMessageId: r.wa_message_id,
+    direction: r.direction, text: r.text,
+    mediaKind: r.media_kind, mediaUrl: r.media_url,
+    mediaFileName: r.media_file_name, mediaMimeType: r.media_mime_type,
+    caption: r.caption, ts: r.ts,
+  }));
+  return json({ items, total: items.length, chatId }, 200, request);
+}
+
+// POST /api/wa/mark-read { chatId }
+async function handleWaMarkRead(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  const chatId = body.chatId;
+  if (!chatId) return json({ error: "chatId required" }, 400, request);
+  await env.DB.prepare(`
+    UPDATE wa_chats SET unread_count = 0, last_read_at = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).bind(Date.now(), chatId).run();
+  return json({ ok: true }, 200, request);
+}
+
+// ── WhatsApp admin: каналы ────────────────────────────────────────
+async function handleWaListChannels(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  const { results } = await env.DB.prepare(
+    "SELECT id, id_instance, api_url, display_name, active, default_pipeline_id, default_stage_id, responsible_uid, webhook_token, created_at FROM wa_channels ORDER BY created_at"
+  ).all();
+  return json({ items: results }, 200, request);
+}
+
+async function handleWaCreateChannel(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const idInstance = String(body.idInstance || '').trim();
+  const apiToken = String(body.apiTokenInstance || '').trim();
+  if (!idInstance || !apiToken) return json({ error: "idInstance and apiTokenInstance required" }, 400, request);
+  const id = 'wa_' + idInstance;
+  const webhookToken = body.webhookToken || ('whk_' + Math.random().toString(36).slice(2, 14));
+  await env.DB.prepare(`
+    INSERT INTO wa_channels (
+      id, id_instance, api_url, api_token_instance, webhook_token,
+      display_name, active, default_pipeline_id, default_stage_id, responsible_uid, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, datetime('now'))
+    ON CONFLICT(id) DO UPDATE SET
+      api_token_instance = excluded.api_token_instance,
+      webhook_token      = excluded.webhook_token,
+      display_name       = excluded.display_name,
+      default_pipeline_id= excluded.default_pipeline_id,
+      default_stage_id   = excluded.default_stage_id,
+      responsible_uid    = excluded.responsible_uid,
+      updated_at         = datetime('now')
+  `).bind(
+    id, idInstance, body.apiUrl || 'https://api.green-api.com', apiToken, webhookToken,
+    body.displayName || ('Green-API ' + idInstance),
+    body.defaultPipelineId || null, body.defaultStageId || null, body.responsibleUid || null,
+  ).run();
+  await auditLog(env, guard.me, "wa_channel_upsert", "wa_channel", id, { idInstance });
+  return json({
+    ok: true, id, webhookToken,
+    webhookUrl: `https://pllato-elc-worker.uurraa.workers.dev/api/wa/webhook?token=${webhookToken}`,
+  }, 200, request);
+}
+
+async function handleWaUpdateChannel(request, env, channelId) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const allowedFields = {
+    display_name: body.displayName,
+    api_url: body.apiUrl,
+    api_token_instance: body.apiTokenInstance,
+    webhook_token: body.webhookToken,
+    active: body.active === false ? 0 : (body.active === true ? 1 : undefined),
+    default_pipeline_id: body.defaultPipelineId,
+    default_stage_id: body.defaultStageId,
+    responsible_uid: body.responsibleUid,
+  };
+  const sets = [], params = [];
+  for (const [col, val] of Object.entries(allowedFields)) {
+    if (val === undefined) continue;
+    sets.push(`${col} = ?`); params.push(val);
+  }
+  if (!sets.length) return json({ error: "no fields to update" }, 400, request);
+  sets.push("updated_at = datetime('now')");
+  params.push(channelId);
+  await env.DB.prepare(`UPDATE wa_channels SET ${sets.join(", ")} WHERE id = ?`).bind(...params).run();
+  await auditLog(env, guard.me, "wa_channel_update", "wa_channel", channelId, {
+    fields: Object.keys(allowedFields).filter(k => allowedFields[k] !== undefined),
+  });
+  return json({ ok: true, id: channelId }, 200, request);
+}
+
+async function handleWaChannelState(request, env, channelId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const channel = await getWaChannel(env, channelId);
+  if (!channel) return json({ error: "channel not found" }, 404, request);
+  try {
+    const r = await fetch(`${channel.api_url}/waInstance${channel.id_instance}/getStateInstance/${channel.api_token_instance}`);
+    const data = await r.json().catch(() => ({}));
+    return json({ ok: true, ...data }, 200, request);
+  } catch (e) {
+    return json({ error: "green-api fetch failed: " + e.message }, 502, request);
+  }
+}
+
+async function handleWaChannelQr(request, env, channelId) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  const channel = await getWaChannel(env, channelId);
+  if (!channel) return json({ error: "channel not found" }, 404, request);
+  try {
+    const r = await fetch(`${channel.api_url}/waInstance${channel.id_instance}/qr/${channel.api_token_instance}`);
+    const data = await r.json().catch(() => ({}));
+    return json({ ok: true, ...data }, 200, request);
+  } catch (e) {
+    return json({ error: "green-api fetch failed: " + e.message }, 502, request);
+  }
+}
+
 // ── Phase 0 routes ──────────────────────────────────────
 async function handleHealth(request, env) {
   try {
@@ -1676,6 +2159,41 @@ export default {
     const userActiveMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/active$/);
     if (userActiveMatch && request.method === "PATCH") {
       return handleAdminSetUserActive(request, env, userActiveMatch[1]);
+    }
+
+    // /api/wa/* — WhatsApp Green-API
+    if (path === "/api/wa/webhook" && request.method === "POST") {
+      return handleWaWebhook(request, env);
+    }
+    if (path === "/api/wa/send" && request.method === "POST") {
+      return handleWaSend(request, env);
+    }
+    if (path === "/api/wa/chats" && request.method === "GET") {
+      return handleWaListChats(request, env);
+    }
+    if (path === "/api/wa/messages" && request.method === "GET") {
+      return handleWaListMessages(request, env);
+    }
+    if (path === "/api/wa/mark-read" && request.method === "POST") {
+      return handleWaMarkRead(request, env);
+    }
+    if (path === "/api/wa/channels" && request.method === "GET") {
+      return handleWaListChannels(request, env);
+    }
+    if (path === "/api/wa/channels" && request.method === "POST") {
+      return handleWaCreateChannel(request, env);
+    }
+    const waChannelMatch = path.match(/^\/api\/wa\/channels\/([^/]+)$/);
+    if (waChannelMatch && request.method === "PATCH") {
+      return handleWaUpdateChannel(request, env, waChannelMatch[1]);
+    }
+    const waChannelStateMatch = path.match(/^\/api\/wa\/channels\/([^/]+)\/state$/);
+    if (waChannelStateMatch && request.method === "GET") {
+      return handleWaChannelState(request, env, waChannelStateMatch[1]);
+    }
+    const waChannelQrMatch = path.match(/^\/api\/wa\/channels\/([^/]+)\/qr$/);
+    if (waChannelQrMatch && request.method === "GET") {
+      return handleWaChannelQr(request, env, waChannelQrMatch[1]);
     }
 
     return json({ ok: false, error: "not found", path }, 404, request);
