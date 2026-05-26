@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Управление офертами — Pllato App</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<style>
+:root {
+  --navy:#0a1628; --bronze:#b8895a; --bronze-deep:#8b6740; --bronze-tint:rgba(184,137,90,0.08);
+  --bg:#fafaf6; --surface:#ffffff; --surface-2:#f3f0e8;
+  --text:#0f1620; --text-2:#4a5163; --text-3:#8a8d96;
+  --line:#e8e2d4; --line-2:#ede9de;
+  --green:#16a34a; --green-tint:rgba(22,163,74,0.08);
+  --orange:#ea580c; --orange-tint:rgba(234,88,12,0.08);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:var(--sans); background:var(--bg); color:var(--text); line-height:1.55; -webkit-font-smoothing:antialiased; min-height:100vh; padding:16px 16px 60px; }
+a { color:var(--bronze-deep); }
+.wrap { max-width:1200px; margin:0 auto; }
+
+header.appbar { display:flex; justify-content:space-between; align-items:center; padding:8px 0 24px; margin-bottom:24px; border-bottom:1px solid var(--line); }
+.brand { display:flex; align-items:center; gap:10px; }
+.brand img { height:28px; }
+.brand .label { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.14em; color:var(--text-3); }
+.nav-links { display:flex; gap:18px; font-size:14px; }
+.nav-links a { color:var(--text-2); text-decoration:none; font-weight:500; }
+.nav-links a:hover { color:var(--bronze); }
+.nav-links a.active { color:var(--text); font-weight:700; }
+
+h1 { font-size:32px; font-weight:800; letter-spacing:-0.02em; margin-bottom:8px; }
+.subtitle { color:var(--text-2); font-size:15px; margin-bottom:32px; max-width:720px; }
+
+.toolbar { display:flex; gap:10px; align-items:center; margin-bottom:24px; flex-wrap:wrap; }
+.btn { display:inline-flex; align-items:center; gap:8px; padding:10px 16px; border-radius:9px; font-weight:600; font-size:13.5px; text-decoration:none; transition:all 0.15s; border:none; cursor:pointer; font-family:inherit; }
+.btn-primary { background:var(--navy); color:#fff; }
+.btn-primary:hover { background:#15243a; }
+.btn-bronze { background:var(--bronze); color:#fff; }
+.btn-bronze:hover { background:var(--bronze-deep); }
+.btn-secondary { background:var(--surface); color:var(--text); border:1px solid var(--line); }
+.btn-secondary:hover { background:var(--surface-2); }
+.btn-ghost { background:transparent; color:var(--text-2); border:1px solid transparent; }
+.btn-ghost:hover { background:var(--surface-2); color:var(--text); }
+.btn:disabled { opacity:0.5; cursor:not-allowed; }
+.btn-sm { padding:6px 11px; font-size:12.5px; border-radius:7px; }
+
+.offer-list { display:grid; gap:18px; grid-template-columns:1fr 1fr; }
+@media (max-width:860px) { .offer-list { grid-template-columns:1fr; } }
+.offer-card { background:var(--surface); border:1px solid var(--line-2); border-radius:14px; padding:22px; display:flex; flex-direction:column; gap:14px; }
+.offer-card .o-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.offer-card .o-title { font-size:17px; font-weight:700; line-height:1.3; }
+.offer-card .o-slug { font-family:var(--mono); font-size:12px; color:var(--text-3); background:var(--surface-2); padding:2px 7px; border-radius:5px; display:inline-block; margin-top:4px; }
+.offer-card .o-summary { font-size:13.5px; color:var(--text-2); line-height:1.55; }
+.offer-card .o-versions { font-size:12.5px; color:var(--text-3); display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+.offer-card .o-versions a { color:var(--bronze-deep); padding:3px 8px; background:var(--bronze-tint); border-radius:5px; font-weight:500; text-decoration:none; font-family:var(--mono); font-size:11.5px; }
+.offer-card .o-versions a.current { background:var(--green-tint); color:var(--green); }
+.offer-card .o-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; padding-top:14px; border-top:1px solid var(--line-2); }
+
+.add-card { background:var(--surface-2); border:2px dashed var(--line); border-radius:14px; padding:22px; display:flex; flex-direction:column; gap:10px; justify-content:center; align-items:center; text-align:center; min-height:200px; }
+.add-card h3 { font-size:15px; font-weight:700; color:var(--text-2); }
+.add-card p { font-size:13px; color:var(--text-3); max-width:280px; }
+
+/* Modal */
+.modal-bg { position:fixed; inset:0; background:rgba(15,22,32,0.55); backdrop-filter:blur(4px); z-index:999; display:none; align-items:center; justify-content:center; padding:20px; }
+.modal-bg.open { display:flex; }
+.modal { background:var(--surface); border-radius:16px; max-width:920px; width:100%; max-height:92vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 64px rgba(0,0,0,0.3); }
+.modal-head { padding:18px 24px; border-bottom:1px solid var(--line-2); display:flex; justify-content:space-between; align-items:center; }
+.modal-head h2 { font-size:18px; font-weight:700; }
+.modal-body { padding:24px; overflow-y:auto; flex:1; }
+.modal-foot { padding:14px 24px; border-top:1px solid var(--line-2); display:flex; justify-content:flex-end; gap:10px; background:var(--surface-2); }
+.modal-close { background:none; border:none; cursor:pointer; padding:8px; border-radius:6px; color:var(--text-3); font-size:18px; }
+.modal-close:hover { background:var(--surface-2); color:var(--text); }
+
+.form-row { margin-bottom:16px; }
+.form-row label { display:block; font-size:12.5px; font-weight:600; color:var(--text-2); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em; }
+.form-row input, .form-row select, .form-row textarea {
+  width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px;
+  font-family:inherit; font-size:14px; background:#fff; color:var(--text);
+}
+.form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline:none; border-color:var(--bronze); }
+.form-row textarea { resize:vertical; font-family:var(--mono); font-size:12.5px; line-height:1.5; min-height:300px; }
+.form-row .hint { font-size:12px; color:var(--text-3); margin-top:6px; }
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+.steps-box { background:var(--surface-2); border-left:3px solid var(--bronze); padding:14px 18px; border-radius:8px; margin-bottom:18px; }
+.steps-box h4 { font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--bronze-deep); font-weight:700; margin-bottom:8px; }
+.steps-box ol { padding-left:20px; font-size:13.5px; color:var(--text-2); line-height:1.6; }
+.steps-box ol li { margin-bottom:4px; }
+
+.cmd-block { background:#0f1620; color:#e8eaf0; padding:14px 16px; border-radius:8px; font-family:var(--mono); font-size:12.5px; line-height:1.65; overflow-x:auto; margin:10px 0; position:relative; }
+.cmd-block .copy-btn { position:absolute; top:8px; right:8px; background:rgba(255,255,255,0.1); color:#fff; border:none; padding:4px 9px; border-radius:5px; font-size:11px; cursor:pointer; font-family:inherit; }
+.cmd-block .copy-btn:hover { background:rgba(255,255,255,0.2); }
+
+.alert { padding:12px 16px; border-radius:8px; font-size:13.5px; margin-bottom:16px; }
+.alert-info { background:#e8f0fe; color:#1a4380; border-left:3px solid #2c6ed5; }
+.alert-success { background:var(--green-tint); color:#155f29; border-left:3px solid var(--green); }
+.alert-warn { background:var(--orange-tint); color:#7a3206; border-left:3px solid var(--orange); }
+
+.tab-row { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:18px; }
+.tab-row button { background:none; border:none; padding:10px 16px; cursor:pointer; font-size:13.5px; font-weight:600; color:var(--text-3); border-bottom:2px solid transparent; margin-bottom:-1px; font-family:inherit; }
+.tab-row button.active { color:var(--text); border-bottom-color:var(--bronze); }
+.tab-pane { display:none; }
+.tab-pane.active { display:block; }
+
+.preview-iframe { width:100%; height:60vh; border:1px solid var(--line); border-radius:8px; background:#fff; }
+
+.intro-card { background:var(--surface); border:1px solid var(--line-2); border-radius:14px; padding:20px 24px; margin-bottom:32px; }
+.intro-card h3 { font-size:15px; font-weight:700; margin-bottom:10px; color:var(--text); }
+.intro-card p { font-size:13.5px; color:var(--text-2); margin-bottom:8px; line-height:1.6; }
+.intro-card p:last-child { margin-bottom:0; }
+.intro-card code { font-family:var(--mono); font-size:12px; background:var(--surface-2); padding:1px 6px; border-radius:4px; }
+
+#status { position:fixed; bottom:16px; right:16px; background:var(--text); color:#fff; padding:10px 16px; border-radius:8px; font-size:13px; opacity:0; transition:opacity 0.2s; pointer-events:none; }
+#status.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="appbar">
+  <div class="brand">
+    <img src="/pllato_logo_transparent_navy.svg" alt="Pllato">
+    <span class="label">App · Управление офертами</span>
+  </div>
+  <nav class="nav-links">
+    <a href="/app.html">← Панель команды</a>
+    <a href="/app/offers.html" class="active">Оферты</a>
+    <a href="/offer/" target="_blank">Открыть pllato.kz/offer/ ↗</a>
+  </nav>
+</header>
+
+<h1>Управление договорами-офертами</h1>
+<p class="subtitle">Создавайте новые редакции, замораживайте старые, обновляйте архив. Все изменения генерируются как ZIP-пакет — коммитите в репозиторий <code style="font-family:var(--mono); font-size:12px; background:var(--surface-2); padding:1px 6px; border-radius:4px;">pllato/pllato.kz</code> и GitHub Pages развернёт автоматически за 30 секунд.</p>
+
+<div class="intro-card">
+  <h3>Как это работает</h3>
+  <p>Для каждого продукта Pllato — отдельная типовая оферта на своём URL. Сейчас опубликовано две: <a href="/offer/" target="_blank">аренда CRM</a> и <a href="/offer/custom-development/" target="_blank">кастомная разработка</a>. Если запустите новый продукт (например, готовые модули или маркетинговые услуги) — добавьте сюда третью.</p>
+  <p>Когда меняете условия — создаёте новую редакцию: текущая <code>/offer/{product}/index.html</code> замораживается копией в <code>/offer/{product}/v{дата}/</code>, главная заменяется новым содержанием, архив пересобирается. Старые клиенты остаются на своей редакции до следующего платежа.</p>
+</div>
+
+<div class="toolbar">
+  <button class="btn btn-primary" onclick="openAddProductModal()">+ Добавить новый продукт</button>
+  <button class="btn btn-secondary" onclick="reload()">↻ Перечитать с сайта</button>
+  <a href="/offer/archive/" target="_blank" class="btn btn-ghost">Архив на сайте ↗</a>
+</div>
+
+<div id="offerList" class="offer-list">
+  <!-- populated by JS -->
+</div>
+
+</div>
+
+<!-- ========== Modal: New revision ========== -->
+<div class="modal-bg" id="revModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="revTitle">Новая редакция</h2>
+      <button class="modal-close" onclick="closeModal('revModal')">×</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="alert alert-info">
+        <b>Что произойдёт:</b> текущая страница <span id="curUrl"></span> будет скопирована в архивную копию по дате. Главная страница продукта получит новое содержание. Архив <code>/offer/archive/</code> обновится с упоминанием новой редакции.
+      </div>
+
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Продукт</label>
+          <input type="text" id="rev_product" disabled>
+        </div>
+        <div class="form-row">
+          <label>Дата новой редакции</label>
+          <input type="date" id="rev_date">
+        </div>
+        <div class="form-row">
+          <label>Номер редакции</label>
+          <input type="text" id="rev_number" placeholder="например, 1.1 или 2.0">
+        </div>
+        <div class="form-row">
+          <label>Краткое описание изменений</label>
+          <input type="text" id="rev_summary" placeholder="что изменилось в этой редакции">
+        </div>
+      </div>
+
+      <div class="tab-row">
+        <button class="active" onclick="switchTab(event,'tab-html')">HTML-редактор</button>
+        <button onclick="switchTab(event,'tab-preview')">Превью</button>
+      </div>
+
+      <div class="tab-pane active" id="tab-html">
+        <div class="form-row">
+          <label>Содержимое /offer/{product}/index.html</label>
+          <textarea id="rev_content" rows="20" style="min-height:380px;"></textarea>
+          <div class="hint">Текущее содержание загружено с сайта. Отредактируйте — это будет новая редакция. Структура HTML сохранится, ссылка на «архивную копию» в шапке обновится автоматически.</div>
+        </div>
+      </div>
+      <div class="tab-pane" id="tab-preview">
+        <iframe id="rev_preview" class="preview-iframe" srcdoc=""></iframe>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('revModal')">Отмена</button>
+      <button class="btn btn-secondary" onclick="updatePreview()">Обновить превью</button>
+      <button class="btn btn-bronze" onclick="generateRevision()">Сгенерировать пакет (ZIP)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Modal: New product ========== -->
+<div class="modal-bg" id="addModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-head">
+      <h2>Новый продукт-оферта</h2>
+      <button class="modal-close" onclick="closeModal('addModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info">
+        Создаст новую папку <code>/offer/{slug}/</code> и стартовую редакцию 1.0. После публикации добавьте оферту в админку (она подтянется автоматически).
+      </div>
+      <div class="form-row">
+        <label>Название продукта</label>
+        <input type="text" id="new_title" placeholder="Например: Готовые маркетинговые модули">
+      </div>
+      <div class="form-row">
+        <label>Slug (URL-фрагмент)</label>
+        <input type="text" id="new_slug" placeholder="marketing-modules">
+        <div class="hint">URL будет: pllato.kz/offer/{slug}/</div>
+      </div>
+      <div class="form-row">
+        <label>Базовый шаблон</label>
+        <select id="new_template">
+          <option value="rental">Аренда с подпиской (как /offer/)</option>
+          <option value="custom">Кастомная разработка (как /offer/custom-development/)</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('addModal')">Отмена</button>
+      <button class="btn btn-bronze" onclick="generateNewProduct()">Сгенерировать пакет (ZIP)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Modal: Publish instructions ========== -->
+<div class="modal-bg" id="publishModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Пакет готов · опубликуйте на pllato.kz</h2>
+      <button class="modal-close" onclick="closeModal('publishModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-success">
+        ZIP-архив скачан. Внутри — все файлы в правильной структуре. Распакуйте поверх <code>~/Desktop/Cloude/pllato-kz-mockup/</code> (или другого клона), затем выполните команды ниже.
+      </div>
+
+      <div class="steps-box">
+        <h4>Команды для публикации</h4>
+        <ol>
+          <li>Скопировать содержимое распакованного ZIP в локальную копию репозитория</li>
+          <li>Выполнить git-команды ниже</li>
+          <li>GitHub Pages автоматически развернёт изменения за 30 секунд</li>
+        </ol>
+      </div>
+
+      <div class="cmd-block" id="cmdBlock">
+        <button class="copy-btn" onclick="copyCmd()">копировать</button>
+<pre id="cmdContent">cd ~/Desktop/Cloude/pllato-kz-mockup
+# Распакуйте ZIP сюда поверх существующих файлов
+unzip -o ~/Downloads/pllato-offer-{slug}-{date}.zip
+
+git add offer/
+git commit -m "Publish offer revision: {summary}"
+git push origin main</pre>
+      </div>
+
+      <p style="font-size:13px; color:var(--text-3); margin-top:10px;">Проверить через 1 мин: <a id="checkLink" target="_blank">pllato.kz/offer/{slug}/v{date}/</a></p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-bronze" onclick="closeModal('publishModal')">Понятно</button>
+    </div>
+  </div>
+</div>
+
+<div id="status"></div>
+
+<script>
+// =================================================================
+//  Pllato Offer Admin — MVP v1
+//  Static admin that generates ZIP packages for offer publication.
+//  Phase 2: connect to CF Worker + GitHub API for auto-publish.
+// =================================================================
+
+// Известные офёрты — расширяется автоматически через парсинг /offer/archive/
+const KNOWN_OFFERS = [
+  {
+    slug: '',
+    title: 'Аренда CRM с правом выкупа',
+    urlPath: '/offer/',
+    summary: 'SaaS-аренда CRM с тарифной сеткой Старт/Рост/Масштаб ($100/$150/$250) и опцией выкупа. Скидка 5% на разовые платежи.',
+    currentEdition: '1.0',
+    currentDate: '2026-05-26',
+    editions: [
+      { number: '1.0', date: '2026-05-26', url: '/offer/v2026-05-26/' },
+    ],
+  },
+  {
+    slug: 'custom-development',
+    title: 'Кастомная разработка с передачей в собственность',
+    urlPath: '/offer/custom-development/',
+    summary: 'Разработка ПО по индивидуальному ТЗ с поэтапной приёмкой и полной передачей IP-прав после оплаты.',
+    currentEdition: '1.0',
+    currentDate: '2026-05-26',
+    editions: [
+      { number: '1.0', date: '2026-05-26', url: '/offer/custom-development/v2026-05-26/' },
+    ],
+  },
+];
+
+let CURRENT_REV = null;
+
+function $(id) { return document.getElementById(id); }
+
+function showStatus(msg, ms = 2500) {
+  const el = $('status');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
+}
+
+function renderOffers() {
+  const list = $('offerList');
+  list.innerHTML = '';
+
+  KNOWN_OFFERS.forEach(o => {
+    const card = document.createElement('div');
+    card.className = 'offer-card';
+    const editionsHtml = o.editions.map((e, i) =>
+      `<a href="${e.url}" target="_blank" class="${i === 0 ? 'current' : ''}">v${e.number} · ${e.date}</a>`
+    ).join('');
+    card.innerHTML = `
+      <div class="o-head">
+        <div>
+          <div class="o-title">${o.title}</div>
+          <span class="o-slug">${o.urlPath}</span>
+        </div>
+      </div>
+      <div class="o-summary">${o.summary}</div>
+      <div>
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-3); margin-bottom:6px; font-weight:600;">Редакции (текущая выделена)</div>
+        <div class="o-versions">${editionsHtml}</div>
+      </div>
+      <div class="o-actions">
+        <a href="${o.urlPath}" target="_blank" class="btn btn-secondary btn-sm">Открыть текущую</a>
+        <button class="btn btn-bronze btn-sm" onclick="openRevModal(${JSON.stringify(o.slug)})">+ Новая редакция</button>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  // Add "Add product" card
+  const addCard = document.createElement('div');
+  addCard.className = 'add-card';
+  addCard.innerHTML = `
+    <div style="font-size:32px; color:var(--text-3);">+</div>
+    <h3>Добавить новый продукт</h3>
+    <p>Запускаете новый продукт? Создайте отдельную оферту на новом URL.</p>
+    <button class="btn btn-secondary btn-sm" onclick="openAddProductModal()">Создать</button>
+  `;
+  list.appendChild(addCard);
+}
+
+async function openRevModal(slug) {
+  const offer = KNOWN_OFFERS.find(o => o.slug === slug);
+  if (!offer) return;
+  CURRENT_REV = offer;
+
+  $('revTitle').textContent = `Новая редакция · ${offer.title}`;
+  $('curUrl').innerHTML = `<code>${offer.urlPath}</code>`;
+  $('rev_product').value = offer.title;
+  $('rev_number').value = bumpEdition(offer.currentEdition);
+  $('rev_date').value = new Date().toISOString().slice(0, 10);
+  $('rev_summary').value = '';
+  $('rev_content').value = 'Загружаю текущее содержание...';
+
+  $('revModal').classList.add('open');
+
+  try {
+    const res = await fetch(offer.urlPath);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const html = await res.text();
+    $('rev_content').value = html;
+    updatePreview();
+  } catch (e) {
+    $('rev_content').value = '<!-- Ошибка загрузки: ' + e.message + '\n     Откройте ' + offer.urlPath + ' напрямую и скопируйте HTML вручную -->';
+  }
+}
+
+function bumpEdition(current) {
+  const parts = current.split('.');
+  parts[parts.length - 1] = String(parseInt(parts[parts.length - 1], 10) + 1);
+  return parts.join('.');
+}
+
+function switchTab(ev, tabId) {
+  document.querySelectorAll('.tab-row button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  ev.target.classList.add('active');
+  $(tabId).classList.add('active');
+  if (tabId === 'tab-preview') updatePreview();
+}
+
+function updatePreview() {
+  $('rev_preview').srcdoc = $('rev_content').value;
+}
+
+function closeModal(id) { $(id).classList.remove('open'); }
+
+async function generateRevision() {
+  const offer = CURRENT_REV;
+  if (!offer) return;
+
+  const date = $('rev_date').value;
+  const number = $('rev_number').value.trim();
+  const summary = $('rev_summary').value.trim();
+  const newContent = $('rev_content').value;
+
+  if (!date || !number || !summary || !newContent) {
+    alert('Заполните все поля');
+    return;
+  }
+
+  const dateSlug = `v${date}`;
+  const productSlug = offer.slug || '';
+  const productBase = productSlug ? `offer/${productSlug}` : 'offer';
+
+  // Build frozen copy of CURRENT content (before replacement)
+  let currentHtml;
+  try {
+    const r = await fetch(offer.urlPath);
+    currentHtml = await r.text();
+  } catch (e) {
+    alert('Не удалось загрузить текущее содержание: ' + e.message);
+    return;
+  }
+
+  // Mark current as archived (re-label doc-meta + heading)
+  let frozenHtml = currentHtml
+    .replace(/<span class="doc-meta">[^<]*<\/span>/, `<span class="doc-meta" style="background:#fff5e6; color:#a86a2a;">Архивная редакция · ${offer.currentEdition} · ${offer.title}</span>`)
+    .replace(/<p class="updated">[^<]*<\/p>/, `<p class="updated">Действовала с <b>${offer.currentDate}</b>. Это <b>замороженная копия</b> Редакции ${offer.currentEdition}.</p>`)
+    .replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="https://pllato.kz/${productBase}/${dateSlug}/">`);
+
+  // Update new content to point to new version
+  const newCanonical = `https://pllato.kz/${productBase}/`;
+  let updatedNew = newContent
+    .replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${newCanonical}">`);
+
+  // Build archive entry update (just inform user to manually verify)
+
+  const zip = new JSZip();
+  const fldr = zip.folder(productBase);
+  fldr.file('index.html', updatedNew);
+  fldr.folder(dateSlug).file('index.html', frozenHtml);
+
+  // Generate the archive update note
+  const archiveNote = `<!--
+ВНИМАНИЕ: после распаковки добавьте новую запись в offer/archive/index.html:
+
+В раздел "${offer.title}" добавьте перед текущей карточкой:
+
+  <div class="version-card current" style="margin-top:8px;">
+    <div class="vc-left">
+      <span class="vc-badge">Действующая</span>
+      <h3>Редакция ${number}</h3>
+      <div class="vc-period">Действует с ${formatRu(date)}</div>
+      <div class="vc-summary">${summary}</div>
+    </div>
+    <div class="vc-right">
+      <a href="${offer.urlPath}" class="vc-link">Открыть актуальную →</a>
+      <a href="${offer.urlPath}${dateSlug}/" class="vc-link" style="font-size:12px;">Замороженная копия</a>
+    </div>
+  </div>
+
+И обновите текущую карточку (сейчас Редакция ${offer.currentEdition}) — поменяйте badge с "Действующая" на "Архивная" и поменяйте оформление.
+-->`;
+  zip.file('ARCHIVE_UPDATE_NOTE.txt', archiveNote);
+
+  // Generate README
+  const readmeContent = `# Pllato Offer Revision Package
+
+Продукт: ${offer.title}
+URL: pllato.kz${offer.urlPath}
+Новая редакция: ${number} от ${date}
+
+## Что внутри
+- offer/${productSlug}/index.html — новая актуальная редакция
+- offer/${productSlug}/v${date}/index.html — замороженная копия предыдущей редакции (${offer.currentEdition})
+- ARCHIVE_UPDATE_NOTE.txt — инструкции для обновления /offer/archive/
+
+## Как опубликовать
+1. Распакуйте ZIP поверх клона репозитория pllato/pllato.kz
+2. Откройте offer/archive/index.html и добавьте новую запись по инструкции в ARCHIVE_UPDATE_NOTE.txt
+3. Выполните: git add offer/ && git commit -m "Offer ${offer.slug || 'rental'} v${number}" && git push origin main
+4. GitHub Pages развернёт за 30 сек.
+`;
+  zip.file('README.md', readmeContent);
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const fname = `pllato-offer-${offer.slug || 'rental'}-${date}.zip`;
+  a.href = url; a.download = fname; a.click();
+  URL.revokeObjectURL(url);
+
+  // Show publish modal
+  const cmd = `cd ~/Desktop/Cloude/pllato-kz-mockup
+unzip -o ~/Downloads/${fname}
+
+# Откройте offer/archive/index.html и обновите вручную (см. ARCHIVE_UPDATE_NOTE.txt)
+
+git add offer/
+git commit -m "Offer ${offer.slug || 'rental'} v${number}: ${summary}"
+git push origin main`;
+  $('cmdContent').textContent = cmd;
+  $('checkLink').href = `https://pllato.kz${offer.urlPath}${dateSlug}/`;
+  $('checkLink').textContent = `pllato.kz${offer.urlPath}${dateSlug}/`;
+  closeModal('revModal');
+  $('publishModal').classList.add('open');
+}
+
+function formatRu(iso) {
+  const [y, m, d] = iso.split('-');
+  const months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  return `${parseInt(d, 10)} ${months[parseInt(m, 10) - 1]} ${y} года`;
+}
+
+function copyCmd() {
+  navigator.clipboard.writeText($('cmdContent').textContent);
+  showStatus('Команды скопированы');
+}
+
+function openAddProductModal() {
+  $('addModal').classList.add('open');
+}
+
+async function generateNewProduct() {
+  const title = $('new_title').value.trim();
+  const slug = $('new_slug').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  const template = $('new_template').value;
+
+  if (!title || !slug) {
+    alert('Заполните название и slug');
+    return;
+  }
+
+  // Fetch the template
+  const templateUrl = template === 'rental' ? '/offer/' : '/offer/custom-development/';
+  let templateHtml;
+  try {
+    const r = await fetch(templateUrl);
+    templateHtml = await r.text();
+  } catch (e) {
+    alert('Ошибка загрузки шаблона: ' + e.message);
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const newCanonical = `https://pllato.kz/offer/${slug}/`;
+  const frozenCanonical = `https://pllato.kz/offer/${slug}/v${today}/`;
+
+  // Adjust the template — change canonical, title hint
+  const newHtml = templateHtml
+    .replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${newCanonical}">`)
+    .replace(/<title>[^<]*<\/title>/, `<title>${title} — Pllato</title>`);
+
+  const frozenHtml = newHtml
+    .replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${frozenCanonical}">`);
+
+  const zip = new JSZip();
+  const fldr = zip.folder(`offer/${slug}`);
+  fldr.file('index.html', newHtml);
+  fldr.folder(`v${today}`).file('index.html', frozenHtml);
+
+  const readme = `# New product offer: ${title}
+
+URL: pllato.kz/offer/${slug}/
+
+## Что нужно сделать после распаковки
+
+1. Откройте offer/${slug}/index.html и адаптируйте текст под новый продукт
+2. Сделайте копию в offer/${slug}/v${today}/index.html и пометьте как Архивная редакция 1.0
+3. Добавьте новый раздел в offer/archive/index.html
+4. Добавьте ссылку в admin: app/offers.html → KNOWN_OFFERS массив
+5. git add offer/ && git commit -m "Add product offer: ${title}" && git push
+`;
+  zip.file('README.md', readme);
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const fname = `pllato-offer-new-${slug}.zip`;
+  a.href = url; a.download = fname; a.click();
+  URL.revokeObjectURL(url);
+
+  closeModal('addModal');
+  showStatus('ZIP скачан — распакуйте и доработайте текст');
+}
+
+function reload() {
+  // Could fetch /offer/archive/ and parse, but for MVP we just re-render the hardcoded list
+  renderOffers();
+  showStatus('Список обновлён');
+}
+
+// Close modals on backdrop click
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.addEventListener('click', e => { if (e.target === bg) bg.classList.remove('open'); });
+});
+
+// Init
+renderOffers();
+</script>
+
+</body>
+</html>
