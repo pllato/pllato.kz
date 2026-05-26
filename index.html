@@ -968,6 +968,86 @@ em.b { color: var(--bronze); font-style: italic; font-weight: 700; }
   max-width: 640px; margin-left: auto; margin-right: auto;
 }
 
+/* ============== CASE ============== */
+.case { padding: 96px 0; background: var(--bronze-tint); }
+.case-head { text-align: center; max-width: 760px; margin: 0 auto 48px; }
+.case-head h2 {
+  font-size: clamp(28px, 4vw, 44px); line-height: 1.1;
+  font-weight: 800; letter-spacing: -0.025em; margin: 14px 0 14px;
+}
+.case-head h2 em.b { color: var(--bronze); font-style: italic; font-weight: 800; }
+
+.case-grid {
+  display: grid; grid-template-columns: minmax(280px, 360px) 1fr;
+  gap: 48px; align-items: start;
+  max-width: 1040px; margin: 0 auto;
+}
+@media (max-width: 880px) {
+  .case-grid { grid-template-columns: 1fr; gap: 32px; max-width: 480px; }
+}
+
+.case-video-frame {
+  position: relative; aspect-ratio: 9 / 16;
+  border-radius: var(--r-lg); overflow: hidden;
+  background: var(--navy);
+  box-shadow: 0 20px 50px -20px rgba(10, 22, 40, 0.35);
+}
+.case-video-frame iframe {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; border: 0; display: block;
+}
+
+.case-meta { display: flex; flex-direction: column; gap: 24px; }
+.case-client { padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.case-client-name {
+  font-size: 20px; font-weight: 800; letter-spacing: -0.02em;
+  color: var(--text); margin-bottom: 4px;
+}
+.case-client-role {
+  font-size: 14px; color: var(--bronze-deep);
+  font-weight: 600; margin-bottom: 8px;
+}
+.case-client-bio { font-size: 14.5px; color: var(--text-2); line-height: 1.55; }
+
+.case-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.case-stat {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r-md); padding: 16px 18px;
+}
+.case-stat-value {
+  font-size: 22px; font-weight: 800; letter-spacing: -0.025em;
+  color: var(--bronze-deep); margin-bottom: 2px;
+}
+.case-stat-label {
+  font-size: 11px; color: var(--text-3);
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+}
+
+.case-quote {
+  margin: 0; padding: 20px 22px;
+  background: var(--surface); border-left: 3px solid var(--bronze);
+  border-radius: var(--r-md);
+  font-size: 15.5px; line-height: 1.6; color: var(--text);
+  font-style: italic;
+}
+
+.case-built-title {
+  font-size: 12px; font-weight: 700; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;
+}
+.case-built-list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.case-built-list li {
+  font-size: 14.5px; color: var(--text); line-height: 1.5;
+  padding-left: 22px; position: relative;
+}
+.case-built-list li::before {
+  content: ""; position: absolute; left: 0; top: 9px;
+  width: 12px; height: 2px; background: var(--bronze); border-radius: 2px;
+}
+
 /* ============== TIERS ============== */
 .tiers { padding: 96px 0; background: var(--bg); }
 .tiers-head { text-align: center; max-width: 760px; margin: 0 auto 48px; }
@@ -1663,6 +1743,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <nav class="header-nav">
       <a href="#top">Главная</a>
       <a href="automation.html">Готовые модули</a>
+      <a href="#case">Кейсы</a>
       <a href="research.html">Исследование</a>
       <a href="#faq">FAQ</a>
       <a href="#contact">Контакты</a>
@@ -2708,6 +2789,59 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </div>
 </section>
 
+<!-- ============== КЕЙС ============== -->
+<section class="case" id="case">
+  <div class="wrap">
+    <div class="case-head reveal">
+      <span class="eyebrow">Кейс клиента</span>
+      <h2>Aminamed.kz × Pllato — <em class="b">CRM за 4 недели.</em></h2>
+    </div>
+    <div class="case-grid">
+      <div class="case-video reveal">
+        <div class="case-video-frame">
+          <iframe
+            src="https://www.youtube.com/embed/LRvB2lu_3yw"
+            title="Кейс CRM для Aminamed.kz — отзыв директора Карлыгаш Баймухановой"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+            referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        </div>
+      </div>
+      <div class="case-meta reveal">
+        <div class="case-client">
+          <div class="case-client-name">Карлыгаш Баймуханова</div>
+          <div class="case-client-role">Директор Aminamed.kz</div>
+          <div class="case-client-bio">Продажа медицинских изделий и оборудования. Алматы.</div>
+        </div>
+        <div class="case-stats">
+          <div class="case-stat">
+            <div class="case-stat-value">4 недели</div>
+            <div class="case-stat-label">Срок разработки</div>
+          </div>
+          <div class="case-stat">
+            <div class="case-stat-value">Под ключ</div>
+            <div class="case-stat-label">Формат</div>
+          </div>
+        </div>
+        <blockquote class="case-quote">
+          «Очень благодарны компании Pllato за удивительную скорость — всё, что мы говорим, всё быстро реализуется. Желаем компании Pllato много благодарных клиентов, таких как мы.»
+        </blockquote>
+        <div>
+          <div class="case-built-title">Что вошло в систему</div>
+          <ul class="case-built-list">
+            <li>Дашборд с ключевыми метриками компании</li>
+            <li>Карточки контактов и сделок с историей коммуникаций</li>
+            <li>Интеграция с WhatsApp прямо из CRM</li>
+            <li>Складской учёт и полевые заказы</li>
+            <li>Задачи, лента активности и чаты команды</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ============== TIERS ============== -->
 <section class="tiers" id="tiers">
   <div class="wrap">
@@ -3049,6 +3183,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <h4>Документы</h4>
         <ul>
           <li><a href="media.html">Для медиа</a></li>
+          <li><a href="offer/">Договор-оферта</a></li>
           <li><a href="privacy.html">Политика конфиденциальности</a></li>
           <li><a href="terms.html">Пользовательское соглашение</a></li>
           <li><a href="media.html#legal">Реквизиты</a></li>
