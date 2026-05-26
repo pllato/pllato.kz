@@ -5886,13 +5886,12 @@ async function sipInit() {
     sessionDescriptionHandlerFactoryOptions: {
       iceGatheringTimeout: 1500,
       peerConnectionConfiguration: {
-        // STUN + TURN relay (coturn на той же VM). iceTransportPolicy='relay'
-        // заставит browser использовать только TURN-relay candidates, не
-        // пробуя host/srflx (которые фейлятся при двойном NAT — browser
-        // домашний NAT + Asterisk Oracle Cloud NAT). +30-50ms latency но
-        // стабильно проходит через любой NAT.
+        // На Hetzner Asterisk имеет прямой public IP без NAT, поэтому
+        // host/srflx candidates у браузера ходят к Asterisk напрямую.
+        // TURN остаётся в iceServers как fallback на случай если у
+        // оператора симметричный NAT — браузер сам выберет relay,
+        // когда host/srflx не сойдутся.
         iceServers: cfg.iceServers || [{ urls: cfg.stun }],
-        iceTransportPolicy: 'relay',
         bundlePolicy: 'max-bundle',
         rtcpMuxPolicy: 'require',
       },
