@@ -383,3 +383,64 @@ CREATE TABLE audit_log (
 CREATE INDEX idx_audit_actor    ON audit_log(actor_uid, created_at);
 CREATE INDEX idx_audit_target   ON audit_log(target_type, target_id, created_at);
 CREATE INDEX idx_audit_action   ON audit_log(action, created_at);
+
+-- ── WhatsApp Green-API (Phase WA 1) ──────────────────────
+-- Канал = один Green-API instance. Реквизиты в D1 (а не в Worker Secrets) —
+-- admin может пере-привязать инстанс без редеплоя.
+CREATE TABLE wa_channels (
+  id                    TEXT PRIMARY KEY,
+  id_instance           TEXT NOT NULL UNIQUE,
+  api_url               TEXT DEFAULT 'https://api.green-api.com',
+  api_token_instance    TEXT NOT NULL,
+  webhook_token         TEXT,                -- query-token для входящих
+  display_name          TEXT,
+  active                INTEGER DEFAULT 1,
+  default_pipeline_id   TEXT,                -- куда автосоздавать сделки из incoming
+  default_stage_id      TEXT,
+  responsible_uid       TEXT,                -- кому назначить новые сделки
+  created_at            TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at            TEXT
+);
+
+-- Чаты — header (один на номер/группу). last_message_at используется для
+-- сортировки в списке и подъёма сделки в канбане при incoming.
+CREATE TABLE wa_chats (
+  id                    TEXT PRIMARY KEY,    -- wa:{instance}:{chatId}
+  instance_id           TEXT NOT NULL,
+  chat_id               TEXT NOT NULL,        -- 77011239999@c.us
+  phone                 TEXT,
+  is_group              INTEGER DEFAULT 0,
+  name                  TEXT,
+  contact_id            TEXT,                 -- contact_X
+  deal_id               TEXT,                 -- последняя открытая сделка
+  last_message_text     TEXT,
+  last_message_at       INTEGER,              -- ms
+  last_message_from     TEXT,                 -- 'me'|'them'
+  last_read_at          INTEGER,
+  unread_count          INTEGER DEFAULT 0,
+  created_at            TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at            TEXT
+);
+CREATE INDEX idx_wa_chats_instance     ON wa_chats(instance_id);
+CREATE INDEX idx_wa_chats_phone        ON wa_chats(phone);
+CREATE INDEX idx_wa_chats_contact      ON wa_chats(contact_id);
+CREATE INDEX idx_wa_chats_deal         ON wa_chats(deal_id);
+CREATE INDEX idx_wa_chats_last_msg     ON wa_chats(last_message_at DESC);
+
+-- Сообщения — append-only, ts в ms.
+CREATE TABLE wa_messages (
+  id                    TEXT PRIMARY KEY,    -- wa:{instance}:{waMessageId}
+  chat_id               TEXT NOT NULL,        -- → wa_chats.id
+  wa_message_id         TEXT,
+  direction             TEXT NOT NULL,        -- 'in'|'out'
+  text                  TEXT,
+  media_kind            TEXT,                 -- image|video|audio|document
+  media_url             TEXT,
+  media_file_name       TEXT,
+  media_mime_type       TEXT,
+  caption               TEXT,
+  ts                    INTEGER NOT NULL,
+  created_at            TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_wa_messages_chat      ON wa_messages(chat_id, ts DESC);
+CREATE INDEX idx_wa_messages_ts        ON wa_messages(ts DESC);
