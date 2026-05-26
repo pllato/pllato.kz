@@ -1296,12 +1296,27 @@ async function handleSipToken(request, env) {
       error: "SIP_PASSWORD secret not set on worker. Run: wrangler secret put SIP_PASSWORD",
     }, 500, request);
   }
+  // ICE-серверы для WebRTC: STUN + TURN (coturn на той же VM).
+  // TURN relay'ит RTP через себя — обходит двойной NAT (browser + Asterisk).
+  const turnUser = env.TURN_USER || "webrtc";
+  const turnPass = env.TURN_PASSWORD;
+  const iceServers = [
+    { urls: `stun:${domain}:3478` },
+  ];
+  if (turnPass) {
+    iceServers.push({
+      urls: [`turn:${domain}:3478?transport=udp`, `turn:${domain}:3478?transport=tcp`],
+      username: turnUser,
+      credential: turnPass,
+    });
+  }
   return json({
     user,
     password,
     domain,
     wss: `wss://${domain}:8089/ws`,
     stun: `stun:${domain}:3478`,
+    iceServers,
   }, 200, request);
 }
 
