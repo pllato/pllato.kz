@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Шаблон счёта · Кастомная разработка · Pllato</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #d9d2bf; font-family: "Helvetica Neue", Arial, sans-serif; color: #1f1f1f; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { width: 210mm; min-height: 297mm; padding: 18mm 20mm 16mm; background: #ede4cf; position: relative; page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  .pageNum { position: absolute; left: 20mm; bottom: 8mm; font-size: 9pt; color: #6a6a6a; letter-spacing: 0.04em; }
+  .siteUrl { position: absolute; right: 20mm; bottom: 8mm; font-size: 9pt; color: #6a6a6a; }
+  h1, h2, h3 { font-family: "Times New Roman", Georgia, serif; font-weight: 700; color: #1a1a1a; }
+  h1 { font-size: 26pt; line-height: 1.15; margin: 0 0 3mm; }
+  h2 { font-size: 14pt; line-height: 1.2; margin: 5mm 0 2mm; }
+  h3 { font-size: 11pt; margin: 3mm 0 2mm; color: #2a4a3f; }
+  .label { font-size: 9pt; letter-spacing: 0.2em; color: #2a4a3f; text-transform: uppercase; font-weight: 700; margin-bottom: 3mm; }
+  p, td, th, li { font-size: 10pt; line-height: 1.5; }
+  .small { font-size: 9.5pt; line-height: 1.45; color: #3a3a3a; }
+  .muted { color: #6a6a6a; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5mm; padding-bottom: 4mm; border-bottom: 1px solid #c9bf9d; }
+  .brand { font-family: "Times New Roman", Georgia, serif; font-size: 24pt; font-weight: 700; color: #1a1a1a; }
+  .tag { font-size: 9pt; color: #6a6a6a; margin-top: 1mm; }
+  .meta { text-align: right; font-size: 9.5pt; line-height: 1.55; }
+  .meta .num { font-size: 16pt; font-weight: 700; color: #2a4a3f; font-family: "Times New Roman", Georgia, serif; margin: 1mm 0; }
+  .badge { display: inline-block; border: 1.5px solid #2a4a3f; padding: 2mm 4mm; font-size: 9pt; letter-spacing: 0.14em; color: #2a4a3f; text-transform: uppercase; font-weight: 700; }
+  .partyGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin: 4mm 0 4mm; }
+  .partyCard { background: #f4ecd4; border-left: 3px solid #2a4a3f; padding: 3mm 5mm; border-radius: 1mm; }
+  .partyCard h3 { margin: 0 0 2mm; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #2a4a3f; font-weight: 700; font-family: "Helvetica Neue", sans-serif; }
+  .partyCard p { margin: 0 0 0.8mm; font-size: 9.5pt; line-height: 1.4; }
+  .partyCard b { display: block; font-size: 10.5pt; margin-bottom: 1mm; color: #1a1a1a; }
+  table.services { width: 100%; border-collapse: collapse; margin: 2mm 0; }
+  table.services th { background: #2a4a3f; color: #ede4cf; padding: 2mm 3mm; text-align: left; font-size: 9.5pt; font-weight: 700; }
+  table.services th.num, table.services td.num { text-align: right; }
+  table.services td { padding: 2.5mm 3mm; border-bottom: 1px solid #d3c8a5; vertical-align: top; font-size: 10pt; }
+  table.services tr:last-child td { border-bottom: none; }
+  table.services tr.subtotal td { background: #f4ecd4; }
+  table.services tr.stage td { background: #fff8e6; font-style: italic; color: #555; font-size: 9.5pt; }
+  .totalBlock { background: #1a1a1a; color: #ede4cf; padding: 4mm 6mm; border-radius: 1mm; margin: 3mm 0; }
+  .totalBlock .totalRow { display: flex; justify-content: space-between; align-items: baseline; }
+  .totalBlock .priceFinal { font-family: "Times New Roman", Georgia, serif; font-size: 26pt; font-weight: 700; }
+  .totalBlock .smallLabel { font-size: 9pt; letter-spacing: 0.2em; color: #cfc6a8; text-transform: uppercase; font-weight: 700; }
+  .totalBlock .discountLine { font-size: 9.5pt; color: #cfc6a8; margin-top: 1mm; }
+  .totalBlock .strike { text-decoration: line-through; color: #888; }
+  .acceptBox { background: #2a4a3f; color: #ede4cf; padding: 4mm 6mm; border-radius: 1mm; margin: 3mm 0 4mm; }
+  .acceptBox .smallLabel { color: #c5d4cd; font-size: 8.5pt; letter-spacing: 0.2em; font-weight: 700; text-transform: uppercase; }
+  .acceptBox h3 { color: #ede4cf; font-size: 13pt; margin: 1mm 0 2mm; }
+  .acceptBox p { color: #d8e0db; font-size: 9.5pt; line-height: 1.5; margin: 0 0 1.5mm; }
+  .acceptBox p:last-child { margin-bottom: 0; }
+  .acceptBox a, .acceptBox b { color: #fff; }
+  .bankCard { background: #f4ecd4; padding: 2.5mm 5mm; border-left: 3px solid #2a4a3f; border-radius: 1mm; margin: 2mm 0; }
+  .bankCard table { width: 100%; margin: 0; }
+  .bankCard td { padding: 0.8mm 2mm; font-size: 9.5pt; vertical-align: top; border: none; }
+  .bankCard td:first-child { color: #6a6a6a; width: 42mm; }
+  .bankCard td:last-child { font-weight: 600; color: #1a1a1a; }
+  .placeholder { color: #b06b1c; background: #fff5e6; padding: 0 2mm; border-radius: 2px; font-style: italic; font-weight: 600; }
+  .signRow { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 3mm; padding-top: 3mm; border-top: 1px solid #c9bf9d; }
+  .signLine { display: block; border-bottom: 1px solid #1a1a1a; height: 8mm; margin: 2mm 0 2mm; }
+  @media screen {
+    body { background: #b3a98b; padding: 20px 0; }
+    .page { margin: 0 auto 20px; box-shadow: 0 4px 30px rgba(0,0,0,0.2); }
+  }
+</style>
+</head>
+<body>
+
+<section class="page">
+  <div class="header">
+    <div>
+      <div class="brand">Pllato.</div>
+      <div class="tag">Партнёр по операционной отцифровке · pllato.kz</div>
+    </div>
+    <div class="meta">
+      <div class="badge">Кастомная разработка</div>
+      <div style="margin-top:3mm;" class="muted">Счёт на оплату · этап 1 из <span class="placeholder">[N]</span></div>
+      <div class="num">№ <span class="placeholder">[INV-NUMBER]</span></div>
+      <div class="small">от <span class="placeholder">[DD.MM.YYYY]</span></div>
+      <div class="small muted">Действителен 7 банковских дней</div>
+    </div>
+  </div>
+
+  <div class="partyGrid">
+    <div class="partyCard">
+      <h3>Поставщик · Beneficiary</h3>
+      <b>ИП «STUDYSTORIES.APP»</b>
+      <p>БИН: 880607300110</p>
+      <p>Республика Казахстан, г. Алматы,</p>
+      <p>мкр. Орбита-4, д. 3, оф. 2</p>
+      <p>Email: uurraa@gmail.com</p>
+      <p>Тел.: +7 701 123 99 99</p>
+      <p>Директор: Цай Платон</p>
+    </div>
+    <div class="partyCard">
+      <h3>Плательщик · Payer</h3>
+      <b><span class="placeholder">[НАИМЕНОВАНИЕ ЗАКАЗЧИКА]</span></b>
+      <p>БИН/ИИН/VÖEN: <span class="placeholder">[ИДЕНТИФИКАТОР]</span></p>
+      <p><span class="placeholder">[Юридический адрес]</span></p>
+      <p>Email: <span class="placeholder">[email]</span></p>
+      <p>Тел.: <span class="placeholder">[телефон]</span></p>
+      <p>Директор/ФИО: <span class="placeholder">[ФИО]</span></p>
+    </div>
+  </div>
+
+  <div class="acceptBox">
+    <div class="smallLabel">Акцепт публичной оферты</div>
+    <h3>Оплата настоящего счёта = заключение договора</h3>
+    <p>Оплачивая настоящий счёт, Плательщик подтверждает, что ознакомился и полностью принимает условия Договора-оферты Pllato на кастомную разработку, опубликованного по адресу <b>pllato.kz/offer/custom-development/v2026-05-26/</b> (Редакция 1.0 от 26.05.2026), а также Технического задания (Приложение №1 к настоящему счёту).</p>
+    <p>С момента поступления оплаты Стороны считаются заключившими договор на условиях указанной редакции Оферты и согласованного ТЗ. Никаких дополнительных подписей не требуется.</p>
+  </div>
+
+  <div class="label">Назначение платежа · этап 1</div>
+  <table class="services">
+    <tr>
+      <th style="width:5%;">№</th>
+      <th>Наименование работ</th>
+      <th class="num" style="width:18%;">Сумма этапа, USD</th>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>
+        <b>Этап 1 — Старт работ.</b> <span class="placeholder">[Например: команда выходит на проект, фиксируем карту процессов, утверждаем дизайн]</span><br>
+        <span class="small">Часть общей стоимости проекта по разработке кастомной CRM-системы согласно ТЗ от <span class="placeholder">[ДАТА]</span> (Приложение №1 к настоящему счёту).</span>
+      </td>
+      <td class="num"><span class="placeholder">[XXX.00]</span></td>
+    </tr>
+    <tr class="stage">
+      <td colspan="3">
+        <b>Общая стоимость проекта:</b> <span class="placeholder">[X XXX]</span> USD. Платёж по этапам:
+        Этап 1 — <span class="placeholder">[XXX]</span> USD (текущий счёт) ·
+        Этап 2 — <span class="placeholder">[XXX]</span> USD (после демо и утверждения скелета) ·
+        Этап 3 — <span class="placeholder">[XXX]</span> USD (после финальной приёмки)
+      </td>
+    </tr>
+  </table>
+
+  <div class="totalBlock">
+    <div class="totalRow">
+      <div>
+        <div class="smallLabel">К оплате по этапу 1</div>
+        <div class="discountLine">Скидка 5% применена (при акцепте в 24 ч)</div>
+      </div>
+      <div class="priceFinal">$<span class="placeholder">[XXX].00</span></div>
+    </div>
+    <div class="discountLine" style="margin-top:1mm;">
+      <span class="placeholder">[Сумма прописью]</span> долларов США 00 центов. НДС не облагается (поставщик не является плательщиком НДС РК).
+    </div>
+  </div>
+
+  <h3 style="margin-top:3mm;">Реквизиты для оплаты · Wire instructions</h3>
+  <div class="bankCard">
+    <table>
+      <tr><td>Beneficiary name</td><td>IP «STUDYSTORIES.APP» (Tsay Platon)</td></tr>
+      <tr><td>BIN (Tax ID)</td><td>880607300110</td></tr>
+      <tr><td>Beneficiary address</td><td>Almaty, Orbita-4 micro district, 3, ap. 2, Kazakhstan</td></tr>
+      <tr><td>IBAN / Account №</td><td><b>KZ31722S000010366450</b></td></tr>
+      <tr><td>Beneficiary bank</td><td>JSC «Kaspi Bank»</td></tr>
+      <tr><td>SWIFT / BIC</td><td><b>CASPKZKA</b></td></tr>
+      <tr><td>КБе (Beneficiary code)</td><td>19</td></tr>
+      <tr><td>Correspondent bank</td><td><span class="small">по запросу для USD-переводов / on request for USD transfers</span></td></tr>
+      <tr><td><b>Назначение платежа</b></td><td><b>«Payment for invoice <span class="placeholder">[INV-NUMBER]</span> dd. <span class="placeholder">[DATE]</span>, custom CRM development stage 1, acceptance of public offer pllato.kz/offer/custom-development/v2026-05-26/. Tax free.»</b></td></tr>
+    </table>
+  </div>
+
+  <div class="signRow">
+    <div>
+      <div class="label">Поставщик / Supplier</div>
+      <span class="signLine"></span>
+      <p>ИП «STUDYSTORIES.APP»</p>
+      <p class="small">____________________ / Цай П. /</p>
+    </div>
+    <div>
+      <p class="small muted">Счёт сформирован автоматически.</p>
+      <p class="small muted" style="margin-top:3mm;">Дата выставления: <span class="placeholder">[DD.MM.YYYY]</span></p>
+      <p class="small muted">Срок оплаты: до <span class="placeholder">[DD.MM.YYYY]</span></p>
+      <p class="small" style="margin-top:2mm;"><b>К оплате: <span class="placeholder">[XXX]</span> USD</b></p>
+      <p class="small muted" style="margin-top:2mm;">Приложение №1 к счёту — ТЗ на разработку</p>
+    </div>
+  </div>
+
+  <div class="pageNum">Pllato · Шаблон счёта для кастомной разработки</div>
+  <div class="siteUrl">pllato.kz/offer/custom-development/v2026-05-26/</div>
+</section>
+
+</body>
+</html>
