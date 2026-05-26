@@ -2760,6 +2760,11 @@ const dealsState = {
   deals: [],            // массив сделок ТЕКУЩЕЙ воронки (производное от dealsByPipeline)
   dealsByPipeline: {},  // { pipelineId: deals[] } — кеш на сессию, не lvl IDB
   pipelineLoading: {},  // { pipelineId: Promise } — anti-race
+  // Активность по сделкам — для бейджей "непрочитанное WA" / "пропущенные звонки"
+  // и подъёма в канбане. Заполняется параллельно с loadDealsForPipeline через
+  // /api/wa/deals-activity и /api/call/missed-by-deal.
+  // Структура: { [pipelineId]: { wa: {dealId: {unreadCount, lastIncomingAt, ...}}, calls: {dealId: {missedCount, lastMissedAt}} } }
+  activityByPipeline: {},
   pipelines: {},        // map: { pipeline_id: { id, name, stages: {...}, ... } } — ВСЕ воронки (lightweight meta)
   activePipelineId: null, // выбранный пользователем pipeline (persist в localStorage)
   customSchema: null,
@@ -3278,6 +3283,11 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
       all.__loadedAt = Date.now();
       dealsState.dealsByPipeline[pipelineId] = all;
 
+      // Параллельно подгружаем активность (WA-непрочитанные + пропущенные звонки)
+      // для бейджей и сортировки канбана. Не блокирует основной рендер —
+      // как только данные приходят, делаем lightweight re-render.
+      loadDealsActivity(pipelineId, idToken).catch(e => console.warn('loadDealsActivity:', e));
+
       // Если воронка всё ещё активна — обновим текущий массив и перерендерим
       if (dealsState.activePipelineId === pipelineId) {
         dealsState.deals = all;
@@ -3312,6 +3322,47 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
 // чтобы следующий заход показал свежие данные.
 function invalidateDealsCacheForPipeline(pipelineId) {
   if (pipelineId) delete dealsState.dealsByPipeline[pipelineId];
+}
+
+// Загрузка активности по сделкам воронки: WA-непрочитанные + missed calls.
+// 2 параллельных запроса к bulk-endpoint'ам. Результат → dealsState.activityByPipeline.
+// После обновления — лёгкий re-render канбана (если он сейчас открыт).
+async function loadDealsActivity(pipelineId, idToken) {
+  try {
+    const headers = { 'Authorization': `Bearer ${idToken}` };
+    const [waRes, callsRes] = await Promise.all([
+      fetch(`${WORKER_BASE_URL}/api/wa/deals-activity?pipeline=${encodeURIComponent(pipelineId)}`, { headers })
+        .then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`${WORKER_BASE_URL}/api/call/missed-by-deal?pipeline=${encodeURIComponent(pipelineId)}`, { headers })
+        .then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
+    const wa = {};
+    for (const item of (waRes?.items || [])) wa[item.dealId] = item;
+    const calls = {};
+    for (const item of (callsRes?.items || [])) calls[item.dealId] = item;
+    dealsState.activityByPipeline[pipelineId] = { wa, calls, loadedAt: Date.now() };
+
+    // Re-render если активная воронка совпадает и канбан открыт
+    if (dealsState.activePipelineId === pipelineId) {
+      if (document.getElementById('kanban-wrap')) renderDealsContent();
+    }
+  } catch (e) {
+    console.warn('loadDealsActivity error:', e);
+  }
+}
+
+// Удобный геттер активности по dealId — для buildDealCard / сортировки.
+function getDealActivity(dealId) {
+  const act = dealsState.activityByPipeline[dealsState.activePipelineId];
+  if (!act) return { unread: 0, missed: 0, lastIncomingAt: 0, lastMissedAt: 0 };
+  const wa = act.wa?.[dealId];
+  const calls = act.calls?.[dealId];
+  return {
+    unread: wa?.unreadCount || 0,
+    missed: calls?.missedCount || 0,
+    lastIncomingAt: wa?.lastIncomingAt || 0,
+    lastMissedAt: calls?.lastMissedAt ? new Date(calls.lastMissedAt).getTime() : 0,
+  };
 }
 
 // ─── Realtime listener для сделок ────────────────────────────────
@@ -3878,15 +3929,21 @@ async function placeCall(opts) {
     alert('Не удалось начать звонок: ' + (e?.message || e));
   }
 }
+// Глобальный alias — нужен для inline onclick в .call-btn-inline
+window.placeCall = placeCall;
 
-// Универсальный helper для inline-кнопки 📞 рядом с phone
+// Универсальный helper для inline-кнопки 📞 рядом с phone.
+// onclick=stopPropagation() + сразу вызов placeCall (без делегата) —
+// иначе stopPropagation поглощает click event и делегат на document
+// никогда не срабатывает. Также stopPropagation нужен чтобы не
+// открывалась карточка контакта/сделки при клике на 📞 внутри строки.
 function callButtonHtml(phone, opts = {}) {
   if (!phone) return '';
   const dataset = Object.entries(opts)
     .filter(([_, v]) => v != null && v !== '')
     .map(([k, v]) => `data-call-${k}="${escapeHtml(String(v))}"`)
     .join(' ');
-  return `<button class="call-btn-inline" data-call-phone="${escapeHtml(phone)}" ${dataset} onclick="event.stopPropagation()">📞</button>`;
+  return `<button class="call-btn-inline" data-call-phone="${escapeHtml(phone)}" ${dataset} onclick="event.stopPropagation(); window.placeCall && window.placeCall({phone:this.dataset.callPhone, contactId:this.dataset.callContactid||null, dealId:this.dataset.callDealid||null, contactName:this.dataset.callContactname||null}); return false;">📞</button>`;
 }
 
 // Делегированный listener — клик на любую .call-btn-inline на странице вызывает placeCall
