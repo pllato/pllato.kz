@@ -3,6 +3,14 @@ main = "worker.js"
 compatibility_date = "2025-01-01"
 account_id = "d0655e161d8fca8487f88d55c0eeb215"
 
+# ── Static assets ──
+# Всё что в ./public/ Cloudflare отдаёт автоматически с правильными MIME.
+# Worker имеет приоритет — если path совпадает с роутом в worker.js,
+# обрабатывает worker, иначе assets. Используется для shared sip-client.js.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
 [vars]
 FIREBASE_PROJECT_ID = "pllato-crm"
 # JWT_SECRET для будущих собственных токенов (Phase 3+) — пока не используется
