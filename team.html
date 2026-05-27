@@ -2026,6 +2026,35 @@ html[data-theme="light"] .dc-wa-pane { background: #ECE5DD; }
   gap: 6px 14px;
   font-size: 12px;
 }
+/* Inline-editable custom field inputs */
+.cf-edit {
+  width: 100%;
+  border: 1px solid var(--b1);
+  background: var(--bg2);
+  color: var(--t1);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  transition: background .25s, border-color .12s;
+}
+.cf-edit:focus {
+  outline: none;
+  border-color: var(--ac2);
+  background: var(--bg1);
+}
+.cf-edit-num { max-width: 160px; }
+.cf-edit-select { padding-right: 24px; }
+.cf-edit-textarea { resize: vertical; min-height: 38px; max-height: 120px; }
+.cf-edit-bool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--t2);
+  cursor: pointer;
+}
+.cf-edit-bool input { margin: 0; }
 @media (max-width: 600px) {
   .field-grid { grid-template-columns: 1fr; gap: 2px 0; }
   .field-grid .fl { color: var(--t3); padding-top: 8px; padding-bottom: 0; font-size: 11px; }
@@ -5937,7 +5966,7 @@ async function openDealCard(bitrixId) {
           ${deal.comments ? `<div class="dc-section-h">Комментарии</div>
             <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.5">${escapeHtml(deal.comments)}</div>` : ''}
 
-          ${renderCustomFieldsBlock(deal.customFields)}
+          ${renderCustomFieldsBlock(deal.customFields, { dealId: 'deal_' + deal.bitrixId, editable: true })}
         </div>
 
         <div class="dc-right">
@@ -6130,6 +6159,13 @@ async function openDealCard(bitrixId) {
       await loadDealDeeds(modal, deal);
     }));
   }
+
+  // ── Кастомные поля inline-edit + добавление новых (admin) ─────────
+  wireUpCustomFieldsEditing(modal);
+  modal.addEventListener('elc:reload-deal-card', () => {
+    closeDealCard();
+    setTimeout(() => openDealCard(bitrixId), 50);
+  });
 
   // Подгружаем файлы во всех timeline-элементах (звонки, email, переписка)
   wireUpTimelineFiles(modal);
@@ -6538,42 +6574,249 @@ function handleDeepLink() {
   }
 }
 
-function renderCustomFieldsBlock(cfData) {
-  if (!cfData || Object.keys(cfData).length === 0) return '';
-  const schema = dealsState.customSchema || {};
+function renderCustomFieldsBlock(cfData, opts = {}) {
+  // opts.dealId — если передан, поля становятся editable inline
+  // opts.editable — admin может + добавлять новые поля
+  const dealId = opts.dealId || null;
+  const editable = opts.editable !== false; // по умолчанию редактируемые
+  const isAdmin = window.currentUser?.role === 'admin';
 
-  // Сортируем поля: сначала те у которых есть значение и схема (с лейблом), потом UF_CRM_*
-  const entries = Object.entries(cfData);
+  const schema = dealsState.customSchema || {};
+  cfData = cfData || {};
+
+  // Объединяем: все из schema + те что есть в cfData но не в schema
+  const allKeys = new Set([...Object.keys(schema), ...Object.keys(cfData)]);
+  const entries = [...allKeys].map(k => [k, cfData[k]]);
   entries.sort((a, b) => {
     const ma = schema[a[0]];
     const mb = schema[b[0]];
-    const sa = ma?.sort || 9999;
-    const sb = mb?.sort || 9999;
-    return sa - sb;
+    return (ma?.sort || 9999) - (mb?.sort || 9999);
   });
 
-  let html = `<div class="section-h">Дополнительные поля</div><div class="cf-grid">`;
-  let shownCount = 0;
-  let emptyCount = 0;
+  let html = `<div class="dc-section-h" style="display:flex;align-items:center;gap:8px;margin-top:18px">
+    <span>Дополнительные поля</span>
+    ${isAdmin ? `<button class="tbtn tbtn-xs" id="dc-add-cf-btn" style="margin-left:auto">+ Поле</button>` : ''}
+  </div><div class="cf-grid" id="dc-cf-grid" data-deal-id="${escapeHtml(dealId || '')}">`;
+  let shownCount = 0, hiddenEmpty = 0;
   for (const [field, value] of entries) {
     const meta = schema[field] || {};
     const label = formatFieldLabel(meta.label, field);
-    const display = formatCfValue(value, meta);
-    // Скрываем пустые поля по умолчанию, показываем только заполненные
-    const isEmpty = (display.includes('class="empty-cell"') || display === '<span class="empty-cell">—</span>' || display === '✗ Нет' || display === 'false');
-    if (isEmpty) {
-      emptyCount++;
-      continue;
-    }
-    html += `<div class="fl">${escapeHtml(label)}</div><div class="fv">${display}</div>`;
+    const isEmpty = value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
+    if (isEmpty && !editable) { hiddenEmpty++; continue; }
+
+    const cellHtml = editable && dealId
+      ? renderCfEditableCell(field, value, meta, dealId)
+      : formatCfValue(value, meta);
+    html += `<div class="fl">${escapeHtml(label)}</div><div class="fv">${cellHtml}</div>`;
     shownCount++;
   }
-  if (shownCount === 0) return ''; // Все пустые — не показываем блок вообще
+  if (shownCount === 0 && !isAdmin) return '';
   html += `</div>`;
-  if (emptyCount > 0) {
-    html += `<div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:center">Скрыто ${emptyCount} пустых полей</div>`;
+  if (hiddenEmpty > 0) {
+    html += `<div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:center">Скрыто ${hiddenEmpty} пустых полей</div>`;
   }
   return html;
+}
+
+// Inline-editable ячейка кастомного поля. По типу:
+// string/text → input/textarea, integer/double → number, date → date,
+// datetime → datetime-local, enumeration → select, boolean → checkbox
+function renderCfEditableCell(field, value, meta, dealId) {
+  const type = meta.type || meta.dataType || 'string';
+  const fid = `cf-${field}-${dealId}`.replace(/[^a-zA-Z0-9_\-]/g, '_');
+  const val = value === null || value === undefined ? '' : value;
+  const dataAttrs = `data-field="${escapeHtml(field)}" data-deal-id="${escapeHtml(dealId)}" data-type="${escapeHtml(type)}"`;
+
+  if (type === 'boolean') {
+    const checked = val === '1' || val === 1 || val === true || val === 'true';
+    return `<label class="cf-edit-bool"><input type="checkbox" class="cf-edit" id="${fid}" ${dataAttrs} ${checked ? 'checked' : ''}> <span>${checked ? 'Да' : 'Нет'}</span></label>`;
+  }
+  if (type === 'enumeration') {
+    const list = asArray(meta.list);
+    const optsHtml = ['<option value="">— не задано —</option>']
+      .concat(list.map(l => {
+        const id = l.ID != null ? l.ID : l.id;
+        const lbl = l.VALUE || l.value || l.label;
+        const sel = String(val) === String(id) ? 'selected' : '';
+        return `<option value="${escapeHtml(String(id))}" ${sel}>${escapeHtml(String(lbl))}</option>`;
+      })).join('');
+    return `<select class="cf-edit cf-edit-select" id="${fid}" ${dataAttrs}>${optsHtml}</select>`;
+  }
+  if (type === 'integer' || type === 'double' || type === 'money' || type === 'number') {
+    return `<input type="number" class="cf-edit cf-edit-num" id="${fid}" ${dataAttrs} value="${escapeHtml(String(val))}" step="${type === 'integer' ? '1' : 'any'}">`;
+  }
+  if (type === 'date') {
+    // YYYY-MM-DD из ISO
+    const dStr = val ? String(val).slice(0, 10) : '';
+    return `<input type="date" class="cf-edit" id="${fid}" ${dataAttrs} value="${escapeHtml(dStr)}">`;
+  }
+  if (type === 'datetime') {
+    const dStr = val ? String(val).slice(0, 16) : '';
+    return `<input type="datetime-local" class="cf-edit" id="${fid}" ${dataAttrs} value="${escapeHtml(dStr)}">`;
+  }
+  if (type === 'text') {
+    return `<textarea class="cf-edit cf-edit-textarea" id="${fid}" ${dataAttrs} rows="2">${escapeHtml(String(val))}</textarea>`;
+  }
+  // default — string
+  return `<input type="text" class="cf-edit" id="${fid}" ${dataAttrs} value="${escapeHtml(String(val))}">`;
+}
+
+// Привязать handlers к cf-edit inputs (вызывается после рендера карточки)
+function wireUpCustomFieldsEditing(modal) {
+  modal.querySelectorAll('.cf-edit').forEach(el => {
+    const save = async () => {
+      const field = el.dataset.field;
+      const dealId = el.dataset.dealId;
+      const type = el.dataset.type;
+      if (!field || !dealId) return;
+      let value;
+      if (type === 'boolean') value = el.checked ? '1' : '0';
+      else if (type === 'integer') value = el.value ? parseInt(el.value, 10) : null;
+      else if (type === 'double' || type === 'number' || type === 'money') value = el.value ? parseFloat(el.value) : null;
+      else value = el.value || null;
+
+      // Bitrix raw id для PUT — dealId уже в виде "deal_X"
+      const bitrixId = dealId.startsWith('deal_') ? dealId.slice(5) : dealId;
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        // PATCH /api/rtdb/deals/deal_X.json — обновляем customFields[field]
+        // Сначала возьмём текущие cf
+        const deal = dealsState.deals.find(d => d.bitrixId === bitrixId)
+          || (dealsPagedState.items || []).find(d => d.bitrixId === bitrixId);
+        const cf = { ...(deal?.customFields || {}) };
+        cf[field] = value;
+        const r = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent('deal_' + bitrixId)}.json?auth=${idToken}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customFields: cf, bitrixDateModify: new Date().toISOString() }),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          throw new Error(j.error || `HTTP ${r.status}`);
+        }
+        // Локально обновим deal в кеше
+        if (deal) {
+          deal.customFields = cf;
+          deal.bitrixDateModify = new Date().toISOString();
+        }
+        el.style.background = 'rgba(63, 216, 142, 0.18)';
+        setTimeout(() => { el.style.background = ''; }, 1200);
+      } catch (e) {
+        alert('Ошибка сохранения поля: ' + e.message);
+      }
+    };
+    if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'date' || el.type === 'datetime-local') {
+      el.addEventListener('change', save);
+    } else {
+      // text/textarea/number — сохраняем на blur (чтобы не сыпать на каждый ввод)
+      el.addEventListener('blur', save);
+    }
+  });
+
+  // Кнопка + Поле (admin only)
+  const addBtn = modal.querySelector('#dc-add-cf-btn');
+  if (addBtn) addBtn.addEventListener('click', () => openAddCfModal('deal', () => {
+    // После добавления — перезагрузим schema и перерисуем карточку
+    dealsState.metaLoaded = false;
+    loadDealsMeta().then(() => {
+      const ev = new CustomEvent('elc:reload-deal-card');
+      modal.dispatchEvent(ev);
+    });
+  }));
+}
+
+// Модалка добавления нового кастомного поля (admin)
+function openAddCfModal(entity, onDone) {
+  document.getElementById('_add-cf-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_add-cf-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:480px">
+      <div class="qad-head"><h2>+ Кастомное поле (${escapeHtml(entity)})</h2><button class="qad-btn qad-btn-ghost" id="cf-close" style="padding:4px 10px">×</button></div>
+      <div class="qad-body">
+        <div><div class="qad-label">Название (label) *</div><input id="cf-label" class="qad-input" placeholder="Например: Бюджет проекта"></div>
+        <div><div class="qad-label">Ключ (field name) *</div>
+          <input id="cf-key" class="qad-input" placeholder="budget" pattern="[a-zA-Z0-9_]+">
+          <div style="font-size:11px;color:var(--t3);margin-top:4px">Только латиница, цифры, _</div>
+        </div>
+        <div><div class="qad-label">Тип</div>
+          <select id="cf-type" class="qad-input">
+            <option value="string">Текст (короткий)</option>
+            <option value="text">Текст (многострочный)</option>
+            <option value="integer">Число (целое)</option>
+            <option value="double">Число (дробное)</option>
+            <option value="date">Дата</option>
+            <option value="datetime">Дата и время</option>
+            <option value="enumeration">Выбор из списка</option>
+            <option value="boolean">Да/Нет</option>
+          </select>
+        </div>
+        <div id="cf-list-wrap" style="display:none">
+          <div class="qad-label">Варианты списка (по одному на строку)</div>
+          <textarea id="cf-list" class="qad-input" rows="5" placeholder="Холодный\nТёплый\nГорячий"></textarea>
+        </div>
+        <div><div class="qad-label">Сортировка</div><input id="cf-sort" class="qad-input" type="number" value="100"></div>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="cf-cancel">Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="cf-save">Создать</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('cf-close').onclick = () => ov.remove();
+  document.getElementById('cf-cancel').onclick = () => ov.remove();
+  document.getElementById('cf-type').addEventListener('change', (e) => {
+    document.getElementById('cf-list-wrap').style.display = e.target.value === 'enumeration' ? '' : 'none';
+  });
+  document.getElementById('cf-label').addEventListener('input', (e) => {
+    const keyEl = document.getElementById('cf-key');
+    if (!keyEl.value || keyEl.dataset.auto === '1') {
+      // авто-генерация ключа из label (translit + lowercase)
+      const k = e.target.value.toLowerCase()
+        .replace(/[а-я]/g, c => ({а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'ts',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya'}[c] || ''))
+        .replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30) || 'field';
+      keyEl.value = k;
+      keyEl.dataset.auto = '1';
+    }
+  });
+  document.getElementById('cf-key').addEventListener('input', (e) => { e.target.dataset.auto = '0'; });
+
+  document.getElementById('cf-save').onclick = async () => {
+    const label = document.getElementById('cf-label').value.trim();
+    const fieldName = document.getElementById('cf-key').value.trim();
+    const dataType = document.getElementById('cf-type').value;
+    const sort = parseInt(document.getElementById('cf-sort').value, 10) || 100;
+    const listRaw = document.getElementById('cf-list').value.trim();
+    if (!label || !fieldName) { alert('Название и ключ обязательны'); return; }
+    if (!/^[a-zA-Z0-9_]+$/.test(fieldName)) { alert('Ключ только латиница/цифры/_'); return; }
+    let list = null;
+    if (dataType === 'enumeration' && listRaw) {
+      list = listRaw.split('\n').map(s => s.trim()).filter(Boolean).map((v, i) => ({ ID: String(i + 1), VALUE: v }));
+    }
+    const btn = document.getElementById('cf-save');
+    btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/cf-schema/${encodeURIComponent(entity)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ fieldName, label, dataType, sort, list }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      ov.remove();
+      showToast('Поле создано');
+      if (typeof onDone === 'function') onDone();
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+      btn.disabled = false; btn.textContent = 'Создать';
+    }
+  };
 }
 
 // Битрикс может возвращать label либо строкой, либо объектом {ru: '...', en: '...'}
