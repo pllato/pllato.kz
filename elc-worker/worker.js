@@ -217,7 +217,7 @@ const JSON_COLS = {
   users: new Set(["department", "apps"]),
   contacts: new Set(["emails", "phones", "messengers", "websites", "custom_fields"]),
   companies: new Set(["phones"]),
-  deals: new Set(["custom_fields"]),
+  deals: new Set(["custom_fields", "mirrored_in"]),
   tasks: new Set(["accomplices", "auditors", "comments_data", "crm_links", "bitrix_crm_links", "bitrix_file_ids"]),
   pipelines: new Set(["stages"]),
   timeline_activities: new Set(["payload"]),
@@ -1030,8 +1030,16 @@ async function handleList(request, env, entity) {
   }
 
   if (pipeline && pipeline !== "all" && cfg.pipelineField) {
-    whereParts.push(`${cfg.pipelineField} = ?`);
-    whereParams.push(pipeline);
+    // Для deals также включаем "зеркала": сделки чей основной pipeline_id не
+    // совпадает, но в mirrored_in JSON содержат этот pipelineId как ключ.
+    // mirrored_in хранится как {"pipeline_yrs00p":"STAGE_X", ...}.
+    if (entity === "deals") {
+      whereParts.push(`(${cfg.pipelineField} = ? OR mirrored_in LIKE ?)`);
+      whereParams.push(pipeline, `%"${pipeline}":%`);
+    } else {
+      whereParts.push(`${cfg.pipelineField} = ?`);
+      whereParams.push(pipeline);
+    }
   }
 
   // scope=mine — фильтр на принадлежность записи юзеру
@@ -1129,6 +1137,24 @@ async function handleList(request, env, entity) {
   ).bind(...whereParams, pageSize, offset).all();
 
   const items = results.map(row => rowToCamel(row, entity));
+
+  // Для зеркал в /api/list/deals — подменяем stageId на стадию из mirrored_in
+  // если основная воронка сделки не совпадает с запрошенной. Также проставляем
+  // флаг _mirror=true чтобы фронт знал что drag-drop здесь обновляет зеркало.
+  if (entity === "deals" && pipeline && pipeline !== "all") {
+    for (const it of items) {
+      if (it.pipelineId !== pipeline) {
+        const mir = it.mirroredIn || {};
+        if (mir[pipeline]) {
+          it._mirror = true;
+          it._primaryStageId = it.stageId;
+          it._primaryPipelineId = it.pipelineId;
+          it.stageId = mir[pipeline];
+          it._viewPipelineId = pipeline; // в какой воронке смотрим
+        }
+      }
+    }
+  }
 
   return new Response(JSON.stringify({
     items,
@@ -1446,6 +1472,122 @@ async function handleDealComment(request, env, dealId) {
   ).bind(nowIso, dealId).run();
 
   return json({ ok: true, id, dealId, ts: nowIso }, 200, request);
+}
+
+// PATCH /api/deals/{id}/stage { pipelineId, stageId }
+// Универсальный endpoint для перемещения сделки между стадиями. Если pipelineId
+// совпадает с deal.pipeline_id — обновляет основную stage_id. Иначе обновляет
+// "зеркало" в mirrored_in[pipelineId] (без затрагивания основной воронки).
+async function handleDealStageChange(request, env, dealId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const allowed = await canEditRecord(env, me, "deals", dealId);
+  if (!allowed) return json({ error: "no permission to edit this deal", role: me.role }, 403, request);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  const pipelineId = String(body.pipelineId || '').trim();
+  const stageId = String(body.stageId || '').trim();
+  if (!pipelineId || !stageId) return json({ error: "pipelineId and stageId required" }, 400, request);
+
+  const deal = await env.DB.prepare(
+    "SELECT id, pipeline_id, stage_id, mirrored_in FROM deals WHERE id = ? LIMIT 1"
+  ).bind(dealId).first();
+  if (!deal) return json({ error: "deal not found", id: dealId }, 404, request);
+
+  const nowIso = new Date().toISOString();
+  if (deal.pipeline_id === pipelineId) {
+    // Основная воронка — обычное обновление stage_id
+    await env.DB.prepare(
+      "UPDATE deals SET stage_id = ?, bitrix_date_modify = ? WHERE id = ?"
+    ).bind(stageId, nowIso, dealId).run();
+  } else {
+    // Зеркало — обновляем mirrored_in[pipelineId]
+    let mir = {};
+    try { mir = deal.mirrored_in ? JSON.parse(deal.mirrored_in) : {}; } catch {}
+    if (!mir || typeof mir !== 'object' || Array.isArray(mir)) mir = {};
+    mir[pipelineId] = stageId;
+    await env.DB.prepare(
+      "UPDATE deals SET mirrored_in = ?, bitrix_date_modify = ? WHERE id = ?"
+    ).bind(JSON.stringify(mir), nowIso, dealId).run();
+  }
+
+  await auditLog(env, me, "deal_stage_change", "deal", dealId, { pipelineId, stageId, isMirror: deal.pipeline_id !== pipelineId });
+  return json({ ok: true, dealId, pipelineId, stageId, isMirror: deal.pipeline_id !== pipelineId }, 200, request);
+}
+
+// POST /api/deals/{id}/mirror { pipelineId, stageId } — добавить зеркало
+// в другую воронку. Если stageId не указан — первая стадия воронки.
+async function handleDealAddMirror(request, env, dealId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const allowed = await canEditRecord(env, me, "deals", dealId);
+  if (!allowed) return json({ error: "no permission", role: me.role }, 403, request);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  const pipelineId = String(body.pipelineId || '').trim();
+  let stageId = String(body.stageId || '').trim();
+  if (!pipelineId) return json({ error: "pipelineId required" }, 400, request);
+
+  const deal = await env.DB.prepare(
+    "SELECT id, pipeline_id, mirrored_in FROM deals WHERE id = ? LIMIT 1"
+  ).bind(dealId).first();
+  if (!deal) return json({ error: "deal not found", id: dealId }, 404, request);
+  if (deal.pipeline_id === pipelineId) {
+    return json({ error: "сделка уже в этой воронке как основной" }, 409, request);
+  }
+
+  // Если stageId не задан — берём первую стадию по sort из pipelines.stages
+  if (!stageId) {
+    const pip = await env.DB.prepare(
+      "SELECT stages FROM pipelines WHERE id = ?"
+    ).bind(pipelineId).first();
+    if (!pip) return json({ error: "pipeline not found" }, 404, request);
+    try {
+      const stages = JSON.parse(pip.stages || '{}');
+      const arr = Object.values(stages).sort((a, b) => (a.sort || 0) - (b.sort || 0));
+      stageId = arr[0]?.statusId || arr[0]?.id || '';
+    } catch {}
+  }
+  if (!stageId) return json({ error: "stageId required (no stages in pipeline)" }, 400, request);
+
+  let mir = {};
+  try { mir = deal.mirrored_in ? JSON.parse(deal.mirrored_in) : {}; } catch {}
+  if (!mir || typeof mir !== 'object' || Array.isArray(mir)) mir = {};
+  mir[pipelineId] = stageId;
+
+  await env.DB.prepare(
+    "UPDATE deals SET mirrored_in = ?, bitrix_date_modify = ? WHERE id = ?"
+  ).bind(JSON.stringify(mir), new Date().toISOString(), dealId).run();
+
+  await auditLog(env, me, "deal_mirror_add", "deal", dealId, { pipelineId, stageId });
+  return json({ ok: true, dealId, pipelineId, stageId }, 200, request);
+}
+
+// DELETE /api/deals/{id}/mirror/{pipelineId} — убрать зеркало.
+async function handleDealRemoveMirror(request, env, dealId, pipelineId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const allowed = await canEditRecord(env, me, "deals", dealId);
+  if (!allowed) return json({ error: "no permission", role: me.role }, 403, request);
+
+  const deal = await env.DB.prepare(
+    "SELECT mirrored_in FROM deals WHERE id = ? LIMIT 1"
+  ).bind(dealId).first();
+  if (!deal) return json({ error: "deal not found" }, 404, request);
+  let mir = {};
+  try { mir = deal.mirrored_in ? JSON.parse(deal.mirrored_in) : {}; } catch {}
+  if (mir && typeof mir === 'object') delete mir[pipelineId];
+  await env.DB.prepare(
+    "UPDATE deals SET mirrored_in = ?, bitrix_date_modify = ? WHERE id = ?"
+  ).bind(Object.keys(mir).length ? JSON.stringify(mir) : null, new Date().toISOString(), dealId).run();
+
+  await auditLog(env, me, "deal_mirror_remove", "deal", dealId, { pipelineId });
+  return json({ ok: true, dealId, removedFrom: pipelineId }, 200, request);
 }
 
 // GET /api/deals/{id}/timeline — единая лента: timeline_activities + call_log + wa_messages
@@ -2650,6 +2792,21 @@ export default {
     const dealTimelineMatch = path.match(/^\/api\/deals\/([^/]+)\/timeline$/);
     if (dealTimelineMatch && request.method === "GET") {
       return handleDealTimeline(request, env, dealTimelineMatch[1]);
+    }
+    // /api/deals/{id}/stage — менять стадию (учитывает зеркала)
+    const dealStageMatch = path.match(/^\/api\/deals\/([^/]+)\/stage$/);
+    if (dealStageMatch && request.method === "PATCH") {
+      return handleDealStageChange(request, env, dealStageMatch[1]);
+    }
+    // /api/deals/{id}/mirror — добавить зеркало в другую воронку
+    const dealMirrorAddMatch = path.match(/^\/api\/deals\/([^/]+)\/mirror$/);
+    if (dealMirrorAddMatch && request.method === "POST") {
+      return handleDealAddMirror(request, env, dealMirrorAddMatch[1]);
+    }
+    // /api/deals/{id}/mirror/{pipelineId} — убрать зеркало
+    const dealMirrorRemoveMatch = path.match(/^\/api\/deals\/([^/]+)\/mirror\/([^/]+)$/);
+    if (dealMirrorRemoveMatch && request.method === "DELETE") {
+      return handleDealRemoveMirror(request, env, dealMirrorRemoveMatch[1], dealMirrorRemoveMatch[2]);
     }
     // /api/contacts/{id}/comments|timeline
     const contactCommentMatch = path.match(/^\/api\/contacts\/([^/]+)\/comments$/);
