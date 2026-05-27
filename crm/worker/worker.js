@@ -877,6 +877,99 @@ async function handleStorePush(request, env, actor) {
   };
 }
 
+// ============================================================================
+// Согласование документов (agreement) — публичный shared state без JWT.
+// Используется HTML-страницами на pllato.kz/agreements/*.html для интерактивного
+// согласования работ между Pllato и клиентом. Все участники видят голоса друг
+// друга и комментарии в реальном времени (через polling).
+// ============================================================================
+
+async function ensureAgreementsTable(env) {
+  const db = requireStoreDb(env);
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS agreements (
+      id          TEXT PRIMARY KEY,
+      data        TEXT NOT NULL,
+      updated_at  INTEGER NOT NULL
+    )
+  `).run();
+}
+
+async function handleAgreementGet(env, id) {
+  await ensureAgreementsTable(env);
+  const db = requireStoreDb(env);
+  const row = await db.prepare(`SELECT data, updated_at FROM agreements WHERE id = ?`).bind(id).first();
+  if (!row) {
+    return { ok: true, id, state: { votes: {}, comments: [] }, updatedAt: 0 };
+  }
+  let state;
+  try { state = JSON.parse(row.data); } catch { state = { votes: {}, comments: [] }; }
+  return { ok: true, id, state, updatedAt: Number(row.updated_at) || 0 };
+}
+
+async function handleAgreementPost(env, id, request) {
+  await ensureAgreementsTable(env);
+  const body = await readRequestBodyAsJson(request);
+  const event = body?.event;
+  if (!event || typeof event !== "object") {
+    throw new HttpError(400, "Поле 'event' обязательно");
+  }
+  const user = String(event.user || "").trim().toLowerCase();
+  if (!user || !["karlygash", "asem", "pllato"].includes(user)) {
+    throw new HttpError(400, "Неизвестный пользователь");
+  }
+
+  const db = requireStoreDb(env);
+  // Загружаем текущее состояние
+  const row = await db.prepare(`SELECT data FROM agreements WHERE id = ?`).bind(id).first();
+  let state;
+  try { state = row ? JSON.parse(row.data) : { votes: {}, comments: [] }; }
+  catch { state = { votes: {}, comments: [] }; }
+  if (!state.votes || typeof state.votes !== "object") state.votes = {};
+  if (!Array.isArray(state.comments)) state.comments = [];
+
+  // Обрабатываем событие
+  const now = Date.now();
+  if (event.type === "vote") {
+    const itemId = String(event.itemId || "").trim();
+    const vote = String(event.vote || "").toLowerCase(); // approved | clarify | rejected | null (сброс)
+    if (!itemId) throw new HttpError(400, "itemId обязателен");
+    if (vote && !["approved", "clarify", "rejected"].includes(vote)) {
+      throw new HttpError(400, "Неизвестный vote");
+    }
+    if (!state.votes[itemId]) state.votes[itemId] = {};
+    if (vote) {
+      state.votes[itemId][user] = { vote, at: now };
+    } else {
+      delete state.votes[itemId][user];
+    }
+  } else if (event.type === "comment") {
+    const text = String(event.text || "").trim();
+    const itemId = String(event.itemId || "").trim() || null;
+    if (!text) throw new HttpError(400, "Пустой комментарий");
+    if (text.length > 2000) throw new HttpError(400, "Комментарий слишком длинный");
+    state.comments.push({ id: `c${now}_${Math.random().toString(36).slice(2, 8)}`, user, text, itemId, at: now });
+    // Не храним больше 500 комментариев — отсекаем старые.
+    if (state.comments.length > 500) state.comments = state.comments.slice(-500);
+  } else if (event.type === "finalize") {
+    state.finalized = { by: user, at: now };
+  } else if (event.type === "unfinalize") {
+    state.finalized = null;
+  } else {
+    throw new HttpError(400, `Неизвестный тип события: ${event.type}`);
+  }
+
+  // Сохраняем
+  const dataStr = JSON.stringify(state);
+  await db.prepare(`
+    INSERT INTO agreements (id, data, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at
+  `).bind(id, dataStr, now).run();
+
+  return { ok: true, id, state, updatedAt: now };
+}
+
 /**
  * Отправить уведомление в Telegram-группу о новой полевой сделке.
  * Идемпотентно: для каждого deal_id вставка в field_tg_notifications с
@@ -4311,6 +4404,15 @@ export default {
     try {
       if (request.method === "GET" && (path === "/health" || path === "/api/health")) {
         return json(request, env, await health(env));
+      }
+      // Согласование документов (HTML на pllato.kz/agreements/*) — публичный доступ
+      // без JWT. Доступ к конкретному документу по ID. Используется для интерактивного
+      // согласования работ между Pllato и клиентом (например, аминамед-1c).
+      const agreementMatch = path.match(/^\/agreement\/([a-zA-Z0-9_-]+)$/);
+      if (agreementMatch) {
+        const agreementId = agreementMatch[1];
+        if (request.method === "GET") return json(request, env, await handleAgreementGet(env, agreementId));
+        if (request.method === "POST") return json(request, env, await handleAgreementPost(env, agreementId, request));
       }
       if (request.method === "POST" && path === "/auth/google") {
         return json(request, env, await handleAuthGoogle(request, env));
