@@ -927,10 +927,35 @@ async function handleAgreementPost(env, id, request) {
   catch { state = { votes: {}, comments: [] }; }
   if (!state.votes || typeof state.votes !== "object") state.votes = {};
   if (!Array.isArray(state.comments)) state.comments = [];
+  if (!Array.isArray(state.customItems)) state.customItems = [];
 
   // Обрабатываем событие
   const now = Date.now();
-  if (event.type === "vote") {
+  if (event.type === "addItem") {
+    const sectionNum = String(event.sectionNum || "").trim();
+    const name = String(event.name || "").trim();
+    const desc = String(event.desc || "").trim();
+    if (!sectionNum || !name) throw new HttpError(400, "sectionNum и name обязательны");
+    if (name.length > 200) throw new HttpError(400, "Название слишком длинное");
+    if (desc.length > 500) throw new HttpError(400, "Описание слишком длинное");
+    // Генерируем id вида "addedN.M" где N — раздел, M — порядковый
+    const sectionItems = state.customItems.filter((it) => it.sectionNum === sectionNum);
+    const itemId = `${sectionNum}.add${sectionItems.length + 1}_${now.toString(36).slice(-4)}`;
+    state.customItems.push({ id: itemId, sectionNum, name, desc, addedBy: user, at: now });
+  } else if (event.type === "removeItem") {
+    const itemId = String(event.itemId || "").trim();
+    const idx = state.customItems.findIndex((it) => it.id === itemId);
+    if (idx < 0) throw new HttpError(404, "Пункт не найден");
+    const item = state.customItems[idx];
+    // Удалить может только автор пункта или pllato
+    if (item.addedBy !== user && user !== "pllato") {
+      throw new HttpError(403, "Удалять может только автор пункта или Pllato");
+    }
+    state.customItems.splice(idx, 1);
+    // Заодно подчистим голоса по этому пункту
+    if (state.votes[itemId]) delete state.votes[itemId];
+    state.comments = state.comments.filter((c) => c.itemId !== itemId);
+  } else if (event.type === "vote") {
     const itemId = String(event.itemId || "").trim();
     const vote = String(event.vote || "").toLowerCase(); // approved | clarify | rejected | null (сброс)
     if (!itemId) throw new HttpError(400, "itemId обязателен");

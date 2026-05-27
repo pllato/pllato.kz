@@ -122,6 +122,28 @@ a:hover{text-decoration:underline}
 .item-comment-input button:hover{background:var(--bronze)}
 .item-comment-input button:disabled{opacity:.5;cursor:not-allowed}
 
+/* ===== Custom items ===== */
+.item.custom{border-left:4px solid var(--bronze);background:linear-gradient(180deg,#fff,#fffaf3)}
+.custom-badge{display:inline-block;padding:2px 8px;background:var(--bronze);color:#fff;font-size:10px;font-weight:700;border-radius:999px;letter-spacing:0.5px;text-transform:uppercase;margin-left:8px;vertical-align:middle}
+.custom-author{font-size:11px;color:var(--muted);margin-top:4px;font-style:italic}
+.custom-remove{background:none;border:none;color:var(--red);cursor:pointer;font-size:11px;padding:4px 8px;border-radius:6px}
+.custom-remove:hover{background:var(--red-bg)}
+
+/* ===== Кнопка «+ Добавить пункт» ===== */
+.add-item{margin-top:8px;margin-bottom:24px}
+.add-item-btn{width:100%;padding:12px;background:#fff;border:2px dashed var(--border);border-radius:10px;color:var(--muted);cursor:pointer;font-size:13px;font-weight:600;transition:.15s}
+.add-item-btn:hover:not(:disabled){border-color:var(--bronze);color:var(--bronze);background:var(--card-tint)}
+.add-item-btn:disabled{opacity:.5;cursor:not-allowed}
+.add-item-form{background:#fff;border:2px solid var(--bronze);border-radius:10px;padding:16px;display:none}
+.add-item-form.open{display:block}
+.add-item-form input,.add-item-form textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font:inherit;font-size:13px;color:var(--navy);background:#fff;outline:none;margin-bottom:8px}
+.add-item-form input:focus,.add-item-form textarea:focus{border-color:var(--bronze)}
+.add-item-form textarea{min-height:60px;resize:vertical;font-family:inherit}
+.add-item-form-actions{display:flex;gap:8px;justify-content:flex-end}
+.add-item-form-actions button{padding:8px 14px;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px}
+.add-item-form-actions .save{background:var(--green);color:#fff}
+.add-item-form-actions .cancel{background:#f3f4f6;color:var(--muted)}
+
 /* ===== Финальный статус ===== */
 .final{margin-top:40px;padding:20px 24px;border-radius:16px;border:2px solid var(--border);background:var(--card)}
 .final.full{border-color:var(--green);background:linear-gradient(180deg,#fff,var(--green-bg))}
@@ -170,41 +192,41 @@ a:hover{text-decoration:underline}
 </header>
 
 <!-- ЗАГОЛОВОК -->
-<h1 class="doc-title">Согласование работ по интеграции с 1С Бухгалтерия</h1>
-<div class="doc-subtitle">Проект: Aminamed CRM · по результатам встречи 25 мая 2026 г.</div>
+<h1 class="doc-title">Работы по 1С Бухгалтерии — давайте обсудим</h1>
+<div class="doc-subtitle">Рабочий документ · по итогам встречи 25 мая 2026 г.</div>
 
 <!-- ВВЕДЕНИЕ -->
 <div class="intro">
-  <p>Уважаемые <strong>Карлыгаш Газисовна</strong> и <strong>Асем</strong>!</p>
-  <p>Этот документ предназначен для согласования <strong>работ по интеграции CRM «Pllato» с 1С Бухгалтерия</strong> и сопутствующей бухгалтерской функциональности. По каждому пункту, пожалуйста, поставьте свой голос и при необходимости оставьте комментарий — все ваши ответы и переписка видны обеим сторонам.</p>
-  <p>Документ считается утверждённым, когда все три участника (директор, бухгалтер, исполнитель) проголосовали по всем пунктам и подтвердили финальное согласование.</p>
+  <p>Привет, <strong>Карлыгаш</strong> и <strong>Асем</strong>! 👋</p>
+  <p>Это рабочий список того, что мы хотим сделать по 1С и бухгалтерии. По каждому пункту нажмите кнопку — нужно сейчас, отложить или вообще не делать. Если что-то непонятно — пишите комментарии прямо тут, все увидят.</p>
+  <p>Если мы что-то забыли — внизу каждого раздела есть кнопка <strong>«+ Добавить пункт»</strong>. Когда все три участника пройдутся по всем пунктам, я поставлю общее «согласовано» и пойдём делать.</p>
 </div>
 
 <!-- УЧАСТНИКИ -->
 <div class="participants" id="participants">
   <div class="participant karlygash" data-user="karlygash">
     <div class="avatar">К</div>
-    <div class="name">Карлыгаш Б.</div>
-    <div class="role">Директор ТОО Аминамед</div>
+    <div class="name">Карлыгаш</div>
+    <div class="role">Аминамед · директор</div>
     <div class="stat" id="stat-karlygash">— ожидание —</div>
   </div>
   <div class="participant asem" data-user="asem">
     <div class="avatar">А</div>
     <div class="name">Асем</div>
-    <div class="role">Бухгалтер ТОО Аминамед</div>
+    <div class="role">Аминамед · бухгалтер</div>
     <div class="stat" id="stat-asem">— ожидание —</div>
   </div>
   <div class="participant pllato" data-user="pllato">
     <div class="avatar">P</div>
     <div class="name">Pllato</div>
-    <div class="role">Исполнитель</div>
+    <div class="role">Платон · разработка</div>
     <div class="stat" id="stat-pllato">— ожидание —</div>
   </div>
 </div>
 
 <!-- WHO AM I -->
 <div class="who-am-i" id="whoamiBar">
-  ⚠ <strong>Кликните по своей карточке выше</strong>, чтобы начать голосование от своего имени.
+  👇 <strong>Нажмите на свою карточку выше</strong> — и можно голосовать от своего имени.
 </div>
 
 <!-- ПУНКТЫ (заполняются JS) -->
@@ -298,7 +320,6 @@ const SECTIONS = [
     items: [
       { id: "5.1", name: "Первичная актуализация остатков", desc: "Разовая работа в день запуска: сведение CRM ↔ физический склад ↔ 1С в единое состояние с фиксацией расхождений." },
       { id: "5.2", name: "Миграция и сверка контактной базы 60–100 тыс.", desc: "Соотнесение контрагентов из 1С с контактами CRM по БИН/наименованию/телефону." },
-      { id: "5.3", name: "Обучение Асем и Карлыгаш", desc: "Демонстрация всех бухгалтерских функций, сопровождение в течение 2–3 недель после запуска." },
     ],
   },
   {
@@ -369,14 +390,19 @@ function renderWhoAmI() {
   });
 }
 
+function getAllItems() {
+  const items = [];
+  SECTIONS.forEach((s) => s.items.forEach((it) => items.push(it)));
+  (state.customItems || []).forEach((it) => items.push(it));
+  return items;
+}
+
 function renderParticipantStats() {
+  const all = getAllItems();
   ["karlygash", "asem", "pllato"].forEach((u) => {
     let voted = 0;
-    SECTIONS.forEach((s) => s.items.forEach((it) => {
-      if (state.votes[it.id]?.[u]) voted++;
-    }));
-    const total = SECTIONS.reduce((a, s) => a + s.items.length, 0);
-    document.getElementById(`stat-${u}`).innerHTML = `<strong>${voted}</strong> из ${total} ${voted === total ? "✓" : ""}`;
+    all.forEach((it) => { if (state.votes[it.id]?.[u]) voted++; });
+    document.getElementById(`stat-${u}`).innerHTML = `<strong>${voted}</strong> из ${all.length} ${voted === all.length && all.length > 0 ? "✓" : ""}`;
   });
 }
 
@@ -390,6 +416,9 @@ function renderItem(item) {
   const itemVotes = state.votes[item.id] || {};
   const myVote = me ? itemVotes[me]?.vote : null;
   const comments = state.comments.filter((c) => c.itemId === item.id);
+  const isCustom = !!item.custom;
+  const customAuthor = item.addedBy ? USER_META[item.addedBy] : null;
+  const canRemove = isCustom && me && (me === item.addedBy || me === "pllato");
 
   // Голоса всех (показываем тех кто проголосовал)
   let votesHtml = "";
@@ -438,14 +467,23 @@ function renderItem(item) {
   }
 
   const hasComments = comments.length > 0 || me;
+  const customAuthorHtml = customAuthor
+    ? `<div class="custom-author">+ добавил${customAuthor.name === "Асем" || customAuthor.name === "Карлыгаш" ? "а" : ""} <strong>${customAuthor.name}</strong> ${new Date(item.at).toLocaleString("ru-RU", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" })}</div>`
+    : "";
+  const removeBtnHtml = canRemove
+    ? `<button class="custom-remove" data-remove="${item.id}" title="Удалить этот пункт">✕ удалить</button>`
+    : "";
+
   return `
-    <div class="item" id="item-${item.id}">
+    <div class="item${isCustom ? " custom" : ""}" id="item-${item.id}">
       <div class="item-head">
         <div class="item-titletext">
-          <div class="item-num">пункт ${item.id}</div>
+          <div class="item-num">пункт ${item.id}${isCustom ? `<span class="custom-badge">добавлен</span>` : ""}</div>
           <div class="item-name">${escapeHtml(item.name)}</div>
-          <div class="item-desc">${escapeHtml(item.desc)}</div>
+          ${item.desc ? `<div class="item-desc">${escapeHtml(item.desc)}</div>` : ""}
+          ${customAuthorHtml}
         </div>
+        ${removeBtnHtml}
       </div>
       <div class="votes">${votesHtml}</div>
       ${voteActionsHtml}
@@ -456,24 +494,43 @@ function renderItem(item) {
 
 function renderSections() {
   const c = document.getElementById("sections");
-  c.innerHTML = SECTIONS.map((s) => `
-    <div class="section">
-      <span class="section-num">${s.num}.</span>
-      <span class="section-title">${escapeHtml(s.title)}</span>
-    </div>
-    ${s.items.map(renderItem).join("")}
-  `).join("");
+  c.innerHTML = SECTIONS.map((s) => {
+    const customForSection = (state.customItems || []).filter((it) => it.sectionNum === s.num).map((it) => ({ ...it, custom: true }));
+    const allItems = [...s.items, ...customForSection];
+    const canAdd = !!me; // только залогиненный пользователь
+    const addBlock = canAdd ? `
+      <div class="add-item">
+        <button class="add-item-btn" data-add-section="${s.num}">+ Добавить свой пункт в раздел ${s.num}</button>
+        <div class="add-item-form" id="add-form-${s.num}">
+          <input type="text" placeholder="Название пункта (например: «Печать товарных накладных по форме AVN-3»)" data-add-name="${s.num}" maxlength="200">
+          <textarea placeholder="Описание (необязательно)" data-add-desc="${s.num}" maxlength="500"></textarea>
+          <div class="add-item-form-actions">
+            <button class="cancel" data-add-cancel="${s.num}">Отмена</button>
+            <button class="save" data-add-save="${s.num}">Добавить</button>
+          </div>
+        </div>
+      </div>
+    ` : "";
+    return `
+      <div class="section">
+        <span class="section-num">${s.num}.</span>
+        <span class="section-title">${escapeHtml(s.title)}</span>
+      </div>
+      ${allItems.map(renderItem).join("")}
+      ${addBlock}
+    `;
+  }).join("");
 }
 
 function renderFinal() {
   let agreedItems = 0;
   let totalItems = 0;
-  SECTIONS.forEach((s) => s.items.forEach((it) => {
+  getAllItems().forEach((it) => {
     totalItems++;
     const v = state.votes[it.id] || {};
     const allApproved = ["karlygash", "asem", "pllato"].every((u) => v[u]?.vote === "approved");
     if (allApproved) agreedItems++;
-  }));
+  });
   const pct = totalItems > 0 ? Math.round((agreedItems / totalItems) * 100) : 0;
   document.getElementById("progressBar").style.width = pct + "%";
   document.getElementById("progressText").textContent = `${agreedItems} из ${totalItems} пунктов согласованы всеми участниками (${pct}%)`;
@@ -565,6 +622,66 @@ function wireItemEvents() {
   document.querySelectorAll(".item-comment-input input").forEach((inp) => {
     inp.addEventListener("keydown", (e) => {
       if (e.key === "Enter") sendComment(inp.dataset.item);
+    });
+  });
+
+  // Кнопка «Добавить пункт» — раскрытие формы
+  document.querySelectorAll("[data-add-section]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const num = btn.dataset.addSection;
+      const form = document.getElementById(`add-form-${num}`);
+      btn.style.display = "none";
+      form.classList.add("open");
+      form.querySelector(`[data-add-name="${num}"]`).focus();
+    });
+  });
+  // Отмена
+  document.querySelectorAll("[data-add-cancel]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const num = btn.dataset.addCancel;
+      const form = document.getElementById(`add-form-${num}`);
+      form.classList.remove("open");
+      document.querySelector(`[data-add-section="${num}"]`).style.display = "";
+      form.querySelector(`[data-add-name="${num}"]`).value = "";
+      form.querySelector(`[data-add-desc="${num}"]`).value = "";
+    });
+  });
+  // Сохранить
+  document.querySelectorAll("[data-add-save]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!me) return;
+      const num = btn.dataset.addSave;
+      const name = document.querySelector(`[data-add-name="${num}"]`).value.trim();
+      const desc = document.querySelector(`[data-add-desc="${num}"]`).value.trim();
+      if (!name) { alert("Введите название пункта"); return; }
+      setSyncStatus("добавление…", "pending");
+      try {
+        const res = await apiPost({ type: "addItem", user: me, sectionNum: num, name, desc });
+        state = res.state;
+        lastUpdate = res.updatedAt;
+        renderAll();
+        setSyncStatus("пункт добавлен");
+      } catch (e) {
+        setSyncStatus("ошибка: " + e.message, "err");
+      }
+    });
+  });
+  // Удалить custom пункт
+  document.querySelectorAll("[data-remove]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!me) return;
+      const itemId = btn.dataset.remove;
+      if (!confirm("Удалить этот пункт? Все голоса и комментарии по нему пропадут.")) return;
+      setSyncStatus("удаление…", "pending");
+      try {
+        const res = await apiPost({ type: "removeItem", user: me, itemId });
+        state = res.state;
+        lastUpdate = res.updatedAt;
+        renderAll();
+        setSyncStatus("удалено");
+      } catch (e) {
+        setSyncStatus("ошибка: " + e.message, "err");
+      }
     });
   });
 }
