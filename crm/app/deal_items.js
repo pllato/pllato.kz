@@ -12,6 +12,7 @@ const DEALS = "deals";
 export const ORDER_STATUS_DRAFT = "draft";
 export const ORDER_STATUS_PRELIMINARY = "preliminary";
 export const ORDER_STATUS_APPROVED = "approved";
+export const ORDER_STATUS_PAYMENT_PENDING = "payment_pending"; // C.5 — для 100% предоплаты
 export const ORDER_STATUS_SHIPPED = "shipped";
 
 // State модалки (один заказ в один момент времени)
@@ -192,6 +193,91 @@ export function approveDealOrder(dealId) {
   } catch (e) {
     console.warn("[deal_items] не удалось добавить activity order_approved:", e);
   }
+  return updated;
+}
+
+/**
+ * Заказы в стадии «Ожидание оплаты» — для 100% предоплаты.
+ * После согласования директором, перед фактической отгрузкой.
+ */
+export function listPaymentPendingDealOrders() {
+  return Store.list(DEALS)
+    .filter((d) => d.orderStatus === ORDER_STATUS_PAYMENT_PENDING && !d.isDeleted)
+    .sort((a, b) => (b.orderAwaitingPaymentAt || 0) - (a.orderAwaitingPaymentAt || 0));
+}
+
+/**
+ * Перевести заказ в «Ожидание оплаты» — это стадия между approved и shipped
+ * для договоров с 100% предоплатой. Менеджер ждёт пока клиент оплатит счёт.
+ */
+export function markDealOrderAwaitingPayment(dealId, extra = {}) {
+  const deal = Store.get(DEALS, dealId);
+  if (!deal) throw new Error("Сделка не найдена");
+  if (deal.orderStatus !== ORDER_STATUS_APPROVED) {
+    throw new Error("В ожидание оплаты можно перевести только согласованный заказ");
+  }
+  const me = currentEmployee();
+  const now = Date.now();
+  const updated = Store.update(DEALS, dealId, {
+    orderStatus: ORDER_STATUS_PAYMENT_PENDING,
+    orderAwaitingPaymentAt: now,
+    orderAwaitingPaymentBy: me?.id || null,
+    orderInvoiceForPaymentId: extra.invoiceId || null,
+    orderInvoiceForPaymentNumber: extra.invoiceNumber || null,
+    orderExpectedAmount: Number(extra.amount) || 0,
+  });
+  try {
+    Store.create("deal_activities", {
+      dealId,
+      type: "order_awaiting_payment",
+      text: extra.invoiceNumber
+        ? `Ожидаем оплату по счёту № ${extra.invoiceNumber}`
+        : "Ожидаем оплату клиента",
+      authorId: me?.id || null,
+      ts: now,
+    });
+  } catch (e) { /* noop */ }
+  return updated;
+}
+
+/**
+ * Подтвердить получение оплаты от клиента. Менеджер фиксирует факт оплаты
+ * (с прикреплением скана платёжки опционально) — заказ возвращается в approved
+ * и склад может его отгружать.
+ *
+ * @param {string} dealId
+ * @param {{ amount: number, paidAt?: string, note?: string, attachmentUrl?: string }} payload
+ */
+export function confirmDealOrderPayment(dealId, payload = {}) {
+  const deal = Store.get(DEALS, dealId);
+  if (!deal) throw new Error("Сделка не найдена");
+  if (deal.orderStatus !== ORDER_STATUS_PAYMENT_PENDING) {
+    throw new Error("Подтвердить оплату можно только для заказа в стадии «Ожидание оплаты»");
+  }
+  const me = currentEmployee();
+  const now = Date.now();
+  const amount = Number(payload.amount) || 0;
+  const updated = Store.update(DEALS, dealId, {
+    orderStatus: ORDER_STATUS_APPROVED, // возврат в approved для отгрузки
+    orderPaymentConfirmedAt: now,
+    orderPaymentConfirmedBy: me?.id || null,
+    orderPaymentConfirmedByName: me?.name || me?.email || "Сотрудник",
+    orderPaymentAmount: amount,
+    orderPaymentDate: payload.paidAt || new Date().toISOString().slice(0, 10),
+    orderPaymentNote: payload.note || "",
+    orderPaymentAttachmentUrl: payload.attachmentUrl || "",
+  });
+  try {
+    Store.create("deal_activities", {
+      dealId,
+      type: "order_payment_confirmed",
+      text: amount > 0
+        ? `Оплата подтверждена: ${amount.toLocaleString("ru-RU")} ₸ от ${payload.paidAt || "сегодня"}`
+        : "Оплата подтверждена",
+      authorId: me?.id || null,
+      ts: now,
+    });
+  } catch (e) { /* noop */ }
   return updated;
 }
 

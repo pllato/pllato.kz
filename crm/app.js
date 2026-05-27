@@ -13,6 +13,9 @@ import { renderSettings } from "./app/views/settings.js";
 import { renderFieldOrder } from "./app/views/field_order.js";
 import { renderDocs } from "./app/views/docs.js";
 import { renderWarehouse } from "./app/views/warehouse/index.js";
+import { renderContractsView, wireContractsEvents } from "./app/views/contracts.js";
+import { renderDeliveryPointsView, wireDeliveryPointsEvents } from "./app/views/delivery_points.js";
+import { renderOnboardingView, wireOnboardingEvents } from "./app/views/onboarding.js";
 import { listNotifications, unreadCount, markRead, markAllRead, typeMeta, seedDemoNotifications } from "./app/notifications.js";
 import { getSession, mountGoogleButton, signOut as authSignOut } from "./app/auth.js";
 import { hasPermission, currentPermissions, replaceEmployeesFromWorker } from "./app/employees.js";
@@ -106,6 +109,9 @@ const ROUTES = [
   { id: "chat",      title: "Чаты",      icon: "chat",      group: "team" },
   { id: "settings",  title: "Настройки", icon: "settings",  group: "system" },
   { id: "field",     title: "Полевой заказ", icon: "warehouse", group: "workspace" },
+  { id: "onboarding",    title: "Onboarding",    icon: "settings", group: "system" },
+  { id: "contracts",     title: "Договоры",       icon: "book",     group: "workspace" },
+  { id: "delivery-points", title: "Точки доставки", icon: "warehouse", group: "workspace", hiddenInNav: true },
 ];
 
 // Алиасы старых маршрутов на новые
@@ -296,6 +302,21 @@ function renderMain(route, container) {
   }
   if (route === "warehouse") {
     renderWarehouse(container);
+    return;
+  }
+  if (route === "onboarding") {
+    container.innerHTML = renderOnboardingView();
+    wireOnboardingEvents(container);
+    return;
+  }
+  if (route === "contracts") {
+    container.innerHTML = renderContractsView();
+    wireContractsEvents(container);
+    return;
+  }
+  if (route === "delivery-points") {
+    container.innerHTML = renderDeliveryPointsView();
+    wireDeliveryPointsEvents(container);
     return;
   }
   if (route === "tasks") {

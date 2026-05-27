@@ -104,7 +104,13 @@ export function qtyInWords(qty) {
 // Описание позиции (наименование + серия + срок годности)
 // =============================================================================
 function buildItemDescription(item) {
-  const productName = item.productName || (item.productId ? (getWarehouseProduct(item.productId)?.name || "") : "");
+  // B.8 — Двойное наименование (наше / клиента) для госпитальных договоров.
+  // Если в карточке товара заполнено поле customerName или customerProductName —
+  // выводим через слэш: «Наше наименование / Наименование клиента».
+  const product = item.productId ? getWarehouseProduct(item.productId) : null;
+  const ourName = item.productName || product?.name || "";
+  const customerName = product?.customerName || product?.customerProductName || "";
+  const productName = customerName ? `${ourName} / ${customerName}` : ourName;
   let suffix = "";
   if (item.lotId) {
     const lot = getLot(item.lotId);
