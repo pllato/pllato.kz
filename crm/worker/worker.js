@@ -980,6 +980,37 @@ async function handleAgreementPost(env, id, request) {
     state.finalized = { by: user, at: now };
   } else if (event.type === "unfinalize") {
     state.finalized = null;
+  } else if (event.type === "migrate") {
+    // Миграция: переименование itemId и удаление пунктов.
+    // Только pllato может вызвать.
+    if (user !== "pllato") throw new HttpError(403, "Только Pllato может мигрировать");
+    const renames = (event.renames && typeof event.renames === "object") ? event.renames : {};
+    const deletes = Array.isArray(event.deletes) ? event.deletes : [];
+    const sectionRenames = (event.sectionRenames && typeof event.sectionRenames === "object") ? event.sectionRenames : {};
+
+    // Удаляем
+    for (const id of deletes) {
+      delete state.votes[id];
+      state.comments = state.comments.filter((c) => c.itemId !== id);
+      state.customItems = state.customItems.filter((it) => it.id !== id);
+    }
+    // Переименовываем itemId в votes
+    const newVotes = {};
+    for (const [oldId, v] of Object.entries(state.votes)) {
+      newVotes[renames[oldId] || oldId] = v;
+    }
+    state.votes = newVotes;
+    // Переименовываем itemId в comments
+    state.comments = state.comments.map((c) => ({
+      ...c,
+      itemId: c.itemId ? (renames[c.itemId] || c.itemId) : c.itemId,
+    }));
+    // Переименовываем sectionNum в customItems + их id
+    state.customItems = state.customItems.map((it) => ({
+      ...it,
+      id: renames[it.id] || it.id,
+      sectionNum: sectionRenames[it.sectionNum] || it.sectionNum,
+    }));
   } else {
     throw new HttpError(400, `Неизвестный тип события: ${event.type}`);
   }
