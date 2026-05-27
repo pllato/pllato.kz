@@ -2220,6 +2220,93 @@ html[data-theme="light"] .dc-wa-pane { background: #ECE5DD; }
 }
 .cf-edit-bool input { margin: 0; }
 
+/* Inline-editable любого простого поля (название, сумма, имя контакта…) */
+.inline-edit {
+  cursor: pointer;
+  border-bottom: 1px dashed transparent;
+  transition: border-color .15s, background .25s;
+  padding: 1px 3px;
+  border-radius: 3px;
+  display: inline-block;
+  min-width: 30px;
+}
+.inline-edit:hover { border-bottom-color: var(--ac2); background: rgba(124, 92, 252, .06); }
+.inline-edit-empty .inline-edit-placeholder { color: var(--t3); font-style: italic; }
+.inline-edit-input {
+  border: 1px solid var(--ac2);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font: inherit;
+  background: var(--bg1);
+  color: var(--t1);
+  min-width: 200px;
+  font-size: inherit;
+  outline: none;
+}
+textarea.inline-edit-input { min-width: 280px; resize: vertical; }
+.inline-edit-h2 { font-size: inherit; font-weight: inherit; }
+.inline-edit-h2 + .inline-edit-h2 { margin-left: 4px; }
+.inline-edit-optional.inline-edit-empty {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--t3);
+  vertical-align: middle;
+}
+.inline-edit-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  vertical-align: middle;
+}
+
+/* Phones / Emails в карточке контакта — editable строки */
+.cc-array-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+.cc-array-input {
+  flex: 1;
+  min-width: 180px;
+  padding: 6px 10px;
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--t1);
+  font-family: inherit;
+}
+.cc-array-input:focus { outline: none; border-color: var(--ac2); background: var(--bg1); }
+.cc-array-type {
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--t2);
+}
+.cc-array-tel {
+  text-decoration: none;
+  font-size: 14px;
+  color: var(--ac2);
+  padding: 4px 6px;
+}
+.cc-array-del {
+  background: none;
+  border: 1px solid var(--b1);
+  color: var(--t3);
+  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+.cc-array-del:hover { color: var(--rd); border-color: var(--rd); }
+
 /* Inline-rename для label кастомного поля (admin) */
 .cf-label-edit {
   cursor: pointer;
@@ -6471,7 +6558,15 @@ async function openDealCard(bitrixId) {
     <div class="modal modal-xl">
       <div class="dc-head">
         <div style="flex:1;min-width:0">
-          <h2 style="margin:0">${escapeHtml(deal.title || '(без названия)')} ${deal.archived ? '<span class="dc-archived-badge">🗄 в архиве</span>' : ''}</h2>
+          <h2 style="margin:0">${makeInlineEditableHtml({
+            value: deal.title || '',
+            recordId: 'deal_' + deal.bitrixId,
+            recordCollection: 'deals',
+            field: 'title',
+            type: 'text',
+            placeholder: '(без названия)',
+            extraClass: 'inline-edit-h2',
+          })} ${deal.archived ? '<span class="dc-archived-badge">🗄 в архиве</span>' : ''}</h2>
           <div class="modal-sub" style="margin-top:4px">
             ID: <code>${escapeHtml(deal.bitrixId)}</code> ·
             <a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a> ·
@@ -6514,8 +6609,23 @@ async function openDealCard(bitrixId) {
           <div class="dc-section-h">Основное</div>
           <div class="field-grid">
             <div class="fl">Сумма</div>
-            <div class="fv">${deal.opportunity ? `<span class="money">${deal.opportunity.toLocaleString('ru')} ${escapeHtml(deal.currency || '')}</span>` : '<span class="empty-cell">не указана</span>'}</div>
-            ${deal.probability ? `<div class="fl">Вероятность</div><div class="fv">${deal.probability}%</div>` : ''}
+            <div class="fv">${makeInlineEditableHtml({
+              value: deal.opportunity || '',
+              recordId: 'deal_' + deal.bitrixId,
+              recordCollection: 'deals',
+              field: 'opportunity',
+              type: 'money',
+              placeholder: 'не указана',
+            })} ${escapeHtml(deal.currency || '₸')}</div>
+            <div class="fl">Вероятность</div>
+            <div class="fv">${makeInlineEditableHtml({
+              value: deal.probability != null ? deal.probability : '',
+              recordId: 'deal_' + deal.bitrixId,
+              recordCollection: 'deals',
+              field: 'probability',
+              type: 'number',
+              placeholder: '—',
+            })}%</div>
             <div class="fl">Ответственный</div>
             <div class="fv">${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}</div>
             <div class="fl">Создал</div>
@@ -7309,6 +7419,147 @@ function renderCfEditableCell(field, value, meta, dealId) {
 }
 
 // Привязать handlers к cf-edit inputs (вызывается после рендера карточки)
+// ── Универсальный inline-edit для любого поля сделки/контакта ──────────
+// Разметка: ставим span/div с атрибутами:
+//   class="inline-edit"
+//   data-record-collection="deals" | "contacts" | "companies"
+//   data-record-id="deal_123" | "contact_abc"
+//   data-field="title" | "opportunity" | "name" | "lastName" | ...
+//   data-type="text" | "number" | "textarea" | "money"
+//   (опционально) data-raw="123.45" — для number с форматом
+//
+// Двойной клик → display → input → blur/Enter save → PATCH /api/rtdb/{collection}/{id}.
+// Escape — отмена. Зелёная подсветка после успешного сохранения.
+function makeInlineEditableHtml({ value, recordId, recordCollection, field, type = 'text', placeholder = '', extraClass = '' }) {
+  const raw = value === null || value === undefined ? '' : String(value);
+  const display = type === 'money' && raw && !isNaN(parseFloat(raw))
+    ? parseFloat(raw).toLocaleString('ru')
+    : raw;
+  const empty = raw === '' ? 'inline-edit-empty' : '';
+  return `<span class="inline-edit ${empty} ${extraClass}"
+    data-record-collection="${escapeHtml(recordCollection)}"
+    data-record-id="${escapeHtml(recordId)}"
+    data-field="${escapeHtml(field)}"
+    data-type="${escapeHtml(type)}"
+    data-raw="${escapeHtml(raw)}"
+    data-placeholder="${escapeHtml(placeholder)}"
+    title="Двойной клик — редактировать">${escapeHtml(display) || '<i class="inline-edit-placeholder">' + escapeHtml(placeholder || '—') + '</i>'}</span>`;
+}
+
+// Делегированный listener для всех inline-edit полей. Один на document.
+document.addEventListener('dblclick', (e) => {
+  const el = e.target.closest('.inline-edit');
+  if (!el || el.dataset.editing === '1') return;
+  startInlineEdit(el);
+});
+
+function startInlineEdit(el) {
+  el.dataset.editing = '1';
+  const type = el.dataset.type || 'text';
+  const raw = el.dataset.raw || '';
+  const placeholder = el.dataset.placeholder || '';
+  const oldHtml = el.innerHTML;
+
+  const input = type === 'textarea'
+    ? document.createElement('textarea')
+    : document.createElement('input');
+  if (type === 'number' || type === 'money') input.type = 'number';
+  else if (type === 'date') input.type = 'date';
+  else if (type === 'datetime') input.type = 'datetime-local';
+  else if (type !== 'textarea') input.type = 'text';
+  input.value = raw;
+  input.placeholder = placeholder;
+  input.className = 'inline-edit-input';
+  if (type === 'textarea') input.rows = 3;
+
+  // Сохраним ссылку на оригинальный элемент и временно подменим
+  const wrap = document.createElement('span');
+  wrap.className = 'inline-edit-active';
+  wrap.appendChild(input);
+  el.style.display = 'none';
+  el.parentNode.insertBefore(wrap, el.nextSibling);
+  input.focus();
+  if (input.select) input.select();
+
+  let saving = false;
+  const finish = async (commit) => {
+    if (saving) return;
+    const newRaw = input.value;
+    const cleanup = () => {
+      saving = false;
+      wrap.remove();
+      el.style.display = '';
+      el.dataset.editing = '0';
+    };
+    if (!commit) { cleanup(); return; }
+    if (newRaw === raw) { cleanup(); return; }
+
+    saving = true;
+    input.disabled = true;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const collection = el.dataset.recordCollection;
+      const recordId = el.dataset.recordId;
+      const field = el.dataset.field;
+      // Значение в JSON: number/money — float или null; date — ISO; иначе строка.
+      let value;
+      if (newRaw === '') value = null;
+      else if (type === 'number' || type === 'money') value = parseFloat(newRaw);
+      else if (type === 'date') value = newRaw; // YYYY-MM-DD
+      else if (type === 'datetime') value = new Date(newRaw).toISOString();
+      else value = newRaw;
+
+      const payload = { [field]: value, bitrixDateModify: new Date().toISOString() };
+      const r = await fetch(`${WORKER_RTDB_URL}/${collection}/${encodeURIComponent(recordId)}.json?auth=${idToken}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      // Локальный кеш — обновим если есть
+      if (collection === 'deals') {
+        const bitrixId = recordId.startsWith('deal_') ? recordId.slice(5) : recordId;
+        const deal = dealsState.deals.find(d => d.bitrixId === bitrixId)
+          || (dealsPagedState.items || []).find(d => d.bitrixId === bitrixId);
+        if (deal) {
+          deal[field] = value;
+          deal.bitrixDateModify = new Date().toISOString();
+        }
+      }
+      // Обновим display
+      const display = (type === 'money' && value != null && !isNaN(value))
+        ? value.toLocaleString('ru')
+        : (value === null || value === '' ? '<i class="inline-edit-placeholder">' + escapeHtml(placeholder || '—') + '</i>' : escapeHtml(String(value)));
+      el.innerHTML = display;
+      el.dataset.raw = value === null ? '' : String(value);
+      el.classList.toggle('inline-edit-empty', value === null || value === '');
+      el.style.background = 'rgba(63, 216, 142, 0.25)';
+      setTimeout(() => { el.style.background = ''; }, 1200);
+      cleanup();
+      showToast?.('Сохранено');
+    } catch (e) {
+      input.disabled = false;
+      saving = false;
+      alert('Ошибка сохранения: ' + e.message);
+    }
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (type !== 'textarea' || e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      finish(true);
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      finish(false);
+    }
+  });
+  input.addEventListener('blur', () => finish(true));
+}
+
 function wireUpCustomFieldsEditing(modal, opts = {}) {
   // opts.entity — 'deal' | 'contact' | 'company' (default deal)
   // opts.recordId — id записи если она не deal (для контакта это contact-key)
@@ -8078,41 +8329,49 @@ window.openContactCard = async function(key) {
     let html = `<div class="modal-overlay" onclick="if(event.target===this)closeDealCard()">
       <div class="modal">
         <button class="close-x" onclick="closeDealCard()">×</button>
-        <h2>${escapeHtml(fullName)}</h2>
+        <h2>${makeInlineEditableHtml({ value: contact.lastName || '', recordId: key, recordCollection: 'contacts', field: 'lastName', placeholder: 'Фамилия', extraClass: 'inline-edit-h2' })}
+            ${makeInlineEditableHtml({ value: contact.name || '', recordId: key, recordCollection: 'contacts', field: 'name', placeholder: 'Имя', extraClass: 'inline-edit-h2' })}
+            ${makeInlineEditableHtml({ value: contact.secondName || '', recordId: key, recordCollection: 'contacts', field: 'secondName', placeholder: 'Отчество', extraClass: 'inline-edit-h2 inline-edit-optional' })}</h2>
         <div class="modal-sub">
-          ID: <code>${escapeHtml(contact.bitrixId || '?')}</code> ·
+          ID: <code>${escapeHtml(contact.bitrixId || key || '?')}</code> ·
           <a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a>
         </div>
         <div class="section-h">Контактная информация</div>
-        <div class="field-grid">`;
 
-    if (phones.length > 0) {
-      html += `<div class="fl">Телефон${phones.length > 1 ? 'ы' : ''}</div><div class="fv">`;
-      html += phones.map(p => `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <a href="tel:${escapeHtml(p.value)}" style="color:var(--ac2)">${escapeHtml(p.value)}</a>
-        ${callButtonHtml(p.value, { contactid: key, contactname: fullName })}
-        ${whatsappButtonHtml(p.value, { contactid: key, contactname: fullName })}
-        ${p.type ? `<span class="muted" style="font-size:11px">· ${escapeHtml(p.type)}</span>` : ''}
-      </div>`).join('');
-      html += `</div>`;
-    }
+        <!-- Телефоны: каждый отдельный editable input + кнопки действий, плюс + Добавить -->
+        <div class="fl">Телефоны</div>
+        <div class="fv">
+          <div class="cc-phones-list" id="cc-phones-${escapeHtml(key)}" data-contact-id="${escapeHtml(key)}">
+            ${phones.map((p, i) => renderEditablePhoneRow(p, i, key, fullName)).join('')}
+          </div>
+          <button class="tbtn tbtn-xs cc-add-phone-btn" data-contact-id="${escapeHtml(key)}" style="margin-top:6px">+ Телефон</button>
+        </div>
 
-    if (emails.length > 0) {
-      html += `<div class="fl">Email</div><div class="fv">`;
-      html += emails.map(em => `<div><a href="mailto:${escapeHtml(em.value)}" style="color:var(--ac2)">${escapeHtml(em.value)}</a></div>`).join('');
-      html += `</div>`;
-    }
+        <!-- Email -->
+        <div class="fl">Email</div>
+        <div class="fv">
+          <div class="cc-emails-list" id="cc-emails-${escapeHtml(key)}" data-contact-id="${escapeHtml(key)}">
+            ${emails.map((em, i) => renderEditableEmailRow(em, i, key)).join('')}
+          </div>
+          <button class="tbtn tbtn-xs cc-add-email-btn" data-contact-id="${escapeHtml(key)}" style="margin-top:6px">+ Email</button>
+        </div>
 
-    html += `<div class="fl">Ответственный</div><div class="fv">${escapeHtml(respName)}</div>`;
-    if (contact.bitrixCreated) html += `<div class="fl">Создан</div><div class="fv">${new Date(contact.bitrixCreated).toLocaleString('ru')}</div>`;
-    if (contact.bitrixDateModify) html += `<div class="fl">Изменён</div><div class="fv">${new Date(contact.bitrixDateModify).toLocaleString('ru')}</div>`;
-    if (contact.companyId) html += `<div class="fl">Компания</div><div class="fv"><span class="muted">${escapeHtml(contact.companyId)}</span></div>`;
-    html += `</div>`;
+        <div class="field-grid">
+          <div class="fl">Должность</div>
+          <div class="fv">${makeInlineEditableHtml({ value: contact.post || '', recordId: key, recordCollection: 'contacts', field: 'post', placeholder: 'не указана' })}</div>
 
-    if (contact.comments) {
-      html += `<div class="section-h">Комментарий</div>
-        <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px">${escapeHtml(contact.comments)}</div>`;
-    }
+          <div class="fl">Ответственный</div>
+          <div class="fv">${escapeHtml(respName)}</div>
+
+          ${contact.bitrixCreated ? `<div class="fl">Создан</div><div class="fv">${new Date(contact.bitrixCreated).toLocaleString('ru')}</div>` : ''}
+          ${contact.bitrixDateModify ? `<div class="fl">Изменён</div><div class="fv" id="cc-modified-${escapeHtml(key)}">${new Date(contact.bitrixDateModify).toLocaleString('ru')}</div>` : ''}
+          ${contact.companyId ? `<div class="fl">Компания</div><div class="fv"><span class="muted">${escapeHtml(contact.companyId)}</span></div>` : ''}
+
+          <div class="fl">Комментарий</div>
+          <div class="fv">${makeInlineEditableHtml({ value: contact.comments || '', recordId: key, recordCollection: 'contacts', field: 'comments', type: 'textarea', placeholder: 'нажми чтобы добавить' })}</div>
+        </div>`;
+
+    // (комментарий теперь editable inline в field-grid выше)
 
     if (relatedDeals.length > 0) {
       html += `<div class="section-h">Связанные сделки (${relatedDeals.length})</div>
@@ -8216,6 +8475,144 @@ async function loadContactCfSchema() {
     window.__cfSchemas = window.__cfSchemas || {};
     window.__cfSchemas.contact = data || {};
   } catch {}
+}
+
+// ── Phones / Emails: editable строки + добавление/удаление ───────────
+function renderEditablePhoneRow(p, idx, contactKey, fullName) {
+  const val = p?.value || '';
+  const typeLabel = p?.valueType || p?.type || '';
+  return `<div class="cc-array-row" data-index="${idx}">
+    <input class="cc-array-input cc-phone-input"
+      type="tel" value="${escapeHtml(val)}"
+      data-contact-id="${escapeHtml(contactKey)}"
+      data-index="${idx}"
+      placeholder="+77001234567">
+    <select class="cc-array-type" data-contact-id="${escapeHtml(contactKey)}" data-index="${idx}" data-field-key="phones">
+      <option value="WORK" ${typeLabel === 'WORK' ? 'selected' : ''}>Рабочий</option>
+      <option value="MOBILE" ${typeLabel === 'MOBILE' ? 'selected' : ''}>Мобильный</option>
+      <option value="HOME" ${typeLabel === 'HOME' ? 'selected' : ''}>Домашний</option>
+      <option value="OTHER" ${typeLabel === 'OTHER' || !typeLabel ? 'selected' : ''}>Другой</option>
+    </select>
+    ${val ? `<a href="tel:${escapeHtml(val)}" class="cc-array-tel" title="Позвонить ОС">📞</a>` : ''}
+    ${val ? callButtonHtml(val, { contactid: contactKey, contactname: fullName }) : ''}
+    ${val ? whatsappButtonHtml(val, { contactid: contactKey, contactname: fullName }) : ''}
+    <button class="cc-array-del" data-contact-id="${escapeHtml(contactKey)}" data-index="${idx}" data-field-key="phones" title="Удалить">×</button>
+  </div>`;
+}
+
+function renderEditableEmailRow(em, idx, contactKey) {
+  const val = em?.value || '';
+  const typeLabel = em?.valueType || em?.type || '';
+  return `<div class="cc-array-row" data-index="${idx}">
+    <input class="cc-array-input cc-email-input"
+      type="email" value="${escapeHtml(val)}"
+      data-contact-id="${escapeHtml(contactKey)}"
+      data-index="${idx}"
+      placeholder="name@example.com">
+    <select class="cc-array-type" data-contact-id="${escapeHtml(contactKey)}" data-index="${idx}" data-field-key="emails">
+      <option value="WORK" ${typeLabel === 'WORK' ? 'selected' : ''}>Рабочий</option>
+      <option value="HOME" ${typeLabel === 'HOME' ? 'selected' : ''}>Личный</option>
+      <option value="OTHER" ${typeLabel === 'OTHER' || !typeLabel ? 'selected' : ''}>Другой</option>
+    </select>
+    ${val ? `<a href="mailto:${escapeHtml(val)}" class="cc-array-tel">✉</a>` : ''}
+    <button class="cc-array-del" data-contact-id="${escapeHtml(contactKey)}" data-index="${idx}" data-field-key="emails" title="Удалить">×</button>
+  </div>`;
+}
+
+// Universal сохранение массива phones/emails в контакте
+async function saveContactArrayField(contactId, field, items) {
+  const idToken = await fbAuth.currentUser.getIdToken();
+  const r = await fetch(`${WORKER_RTDB_URL}/contacts/${encodeURIComponent(contactId)}.json?auth=${idToken}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ [field]: items, bitrixDateModify: new Date().toISOString() }),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j.error || `HTTP ${r.status}`);
+  }
+}
+
+// Делегированные handlers для phones/emails в карточке контакта
+document.addEventListener('input', async (e) => {
+  const input = e.target.closest('.cc-array-input');
+  if (!input) return;
+  // Debounced save через 800ms после остановки печати
+  clearTimeout(input._saveTimer);
+  input._saveTimer = setTimeout(() => syncContactArrayFromDom(input.dataset.contactId, input.closest('.fv').querySelector('.cc-array-input')?.classList.contains('cc-phone-input') ? 'phones' : 'emails'), 800);
+});
+
+document.addEventListener('change', async (e) => {
+  const sel = e.target.closest('.cc-array-type');
+  if (!sel) return;
+  await syncContactArrayFromDom(sel.dataset.contactId, sel.dataset.fieldKey);
+});
+
+document.addEventListener('click', async (e) => {
+  // Удалить значение из массива
+  const delBtn = e.target.closest('.cc-array-del');
+  if (delBtn) {
+    e.preventDefault();
+    const cid = delBtn.dataset.contactId;
+    const field = delBtn.dataset.fieldKey;
+    const row = delBtn.closest('.cc-array-row');
+    if (row) row.remove();
+    try { await syncContactArrayFromDom(cid, field); showToast?.('Удалено'); }
+    catch (err) { alert('Ошибка: ' + err.message); }
+    return;
+  }
+  // + Телефон / + Email
+  const addPhone = e.target.closest('.cc-add-phone-btn');
+  if (addPhone) {
+    const cid = addPhone.dataset.contactId;
+    const list = document.getElementById('cc-phones-' + cid);
+    if (list) {
+      const newIdx = list.querySelectorAll('.cc-array-row').length;
+      const tmp = document.createElement('div');
+      tmp.innerHTML = renderEditablePhoneRow({}, newIdx, cid, '');
+      list.appendChild(tmp.firstElementChild);
+      list.querySelectorAll('.cc-phone-input').forEach((inp, i) => {
+        inp.dataset.index = i;
+      });
+      list.querySelector('.cc-array-row:last-child .cc-array-input')?.focus();
+    }
+    return;
+  }
+  const addEmail = e.target.closest('.cc-add-email-btn');
+  if (addEmail) {
+    const cid = addEmail.dataset.contactId;
+    const list = document.getElementById('cc-emails-' + cid);
+    if (list) {
+      const newIdx = list.querySelectorAll('.cc-array-row').length;
+      const tmp = document.createElement('div');
+      tmp.innerHTML = renderEditableEmailRow({}, newIdx, cid);
+      list.appendChild(tmp.firstElementChild);
+      list.querySelector('.cc-array-row:last-child .cc-array-input')?.focus();
+    }
+    return;
+  }
+});
+
+// Считать текущее состояние списка из DOM и записать в БД
+async function syncContactArrayFromDom(contactId, field) {
+  const list = document.getElementById(`cc-${field}-${contactId}`);
+  if (!list) return;
+  const items = [];
+  list.querySelectorAll('.cc-array-row').forEach(row => {
+    const inputEl = row.querySelector('.cc-array-input');
+    const typeEl = row.querySelector('.cc-array-type');
+    const value = (inputEl?.value || '').trim();
+    if (!value) return; // пустые пропускаем
+    items.push({ value, valueType: typeEl?.value || 'OTHER' });
+  });
+  try {
+    await saveContactArrayField(contactId, field, items);
+    // Лёгкая подсветка
+    list.style.background = 'rgba(63, 216, 142, 0.12)';
+    setTimeout(() => { list.style.background = ''; }, 800);
+  } catch (e) {
+    alert('Ошибка сохранения: ' + e.message);
+  }
 }
 
 async function loadContactFeed(modal, contactId) {
