@@ -2142,6 +2142,17 @@ html[data-theme="light"] .dc-wa-pane { background: #ECE5DD; }
   cursor: pointer;
 }
 .cf-edit-bool input { margin: 0; }
+
+/* Inline-rename для label кастомного поля (admin) */
+.cf-label-edit {
+  cursor: pointer;
+  border-bottom: 1px dashed var(--ac2);
+  display: inline-block;
+  padding: 1px 0;
+  transition: color .12s;
+}
+.cf-label-edit:hover { color: var(--ac2); border-bottom-style: solid; }
+.cf-label-edit:focus { outline: 2px solid var(--ac2); outline-offset: 2px; }
 @media (max-width: 600px) {
   .field-grid { grid-template-columns: 1fr; gap: 2px 0; }
   .field-grid .fl { color: var(--t3); padding-top: 8px; padding-bottom: 0; font-size: 11px; }
@@ -6935,7 +6946,16 @@ function renderCustomFieldsBlock(cfData, opts = {}) {
     const cellHtml = editable && dealId
       ? renderCfEditableCell(field, value, meta, dealId)
       : formatCfValue(value, meta);
-    html += `<div class="fl">${escapeHtml(label)}</div><div class="fv">${cellHtml}</div>`;
+
+    // Если поле — мусорный UF_CRM_*, рендерим label как editable (для admin'а).
+    // Платон может переименовать UF_CRM_1704485459305 → "Бюджет" одним кликом.
+    // Не-admin видит просто текст (но всё равно UF_CRM_xxx — пока admin не починит).
+    const isTechName = /^UF_CRM_\d+$/.test(label);
+    const showAsEditable = isAdmin && editable && (label === field || isTechName);
+    const labelHtml = showAsEditable
+      ? `<span class="cf-label-edit" data-field="${escapeHtml(field)}" data-entity="${escapeHtml(entity)}" title="Кликни чтобы переименовать поле" tabindex="0">${escapeHtml(label)}${isTechName ? ' <span style="font-size:10px;color:var(--ac2);opacity:.7">✎</span>' : ''}</span>`
+      : escapeHtml(label);
+    html += `<div class="fl">${labelHtml}</div><div class="fv">${cellHtml}</div>`;
     shownCount++;
   }
   if (shownCount === 0 && !isAdmin) return '';
@@ -7060,6 +7080,68 @@ function wireUpCustomFieldsEditing(modal, opts = {}) {
       modal.dispatchEvent(ev);
     });
   }));
+
+  // Inline-rename для label кастомного поля (admin only) — клик
+  // на UF_CRM_xxx переключает в input, сохранение через PATCH
+  // /api/cf-schema/{entity}/{field} { label }.
+  modal.querySelectorAll('.cf-label-edit').forEach(el => {
+    el.addEventListener('click', async () => {
+      if (el.dataset.editing === '1') return;
+      el.dataset.editing = '1';
+      const field = el.dataset.field;
+      const ent = el.dataset.entity || 'deal';
+      const oldLabel = el.textContent.replace(/\s*✎\s*$/, '').trim();
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = oldLabel.startsWith('UF_CRM_') ? '' : oldLabel;
+      input.placeholder = 'Название поля (например: Бюджет)';
+      input.style.cssText = 'width:100%;padding:4px 6px;border:1px solid var(--ac2);border-radius:4px;font-size:12px;background:var(--bg1);color:var(--t1)';
+      el.replaceWith(input);
+      input.focus();
+      input.select();
+
+      const save = async (commit) => {
+        const newLabel = input.value.trim();
+        if (!commit || !newLabel || newLabel === oldLabel) {
+          // Rollback
+          el.dataset.editing = '0';
+          input.replaceWith(el);
+          return;
+        }
+        try {
+          const idToken = await fbAuth.currentUser.getIdToken();
+          const r = await fetch(`${WORKER_BASE_URL}/api/cf-schema/${encodeURIComponent(ent)}/${encodeURIComponent(field)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+            body: JSON.stringify({ label: newLabel }),
+          });
+          if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            throw new Error(j.error || `HTTP ${r.status}`);
+          }
+          // Обновим локальную схему чтобы при следующем рендере был новый label
+          if (ent === 'deal' && dealsState.customSchema?.[field]) {
+            dealsState.customSchema[field].label = newLabel;
+          } else if (ent === 'contact' && window.__cfSchemas?.contact?.[field]) {
+            window.__cfSchemas.contact[field].label = newLabel;
+          }
+          el.textContent = newLabel;
+          el.dataset.editing = '0';
+          input.replaceWith(el);
+          showToast?.('Название обновлено');
+        } catch (e) {
+          alert('Ошибка: ' + e.message);
+          el.dataset.editing = '0';
+          input.replaceWith(el);
+        }
+      };
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); save(true); }
+        if (e.key === 'Escape') { e.preventDefault(); save(false); }
+      });
+      input.addEventListener('blur', () => save(true));
+    });
+  });
 }
 
 // Модалка добавления нового кастомного поля (admin)
