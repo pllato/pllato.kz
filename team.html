@@ -4173,11 +4173,11 @@ function updateDealsCount() {
 }
 
 function getFilteredDeals() {
+  // dealsState.deals УЖЕ загружен через /api/list/deals?pipeline=X — там только
+  // сделки активной воронки. Повторный фильтр по pipelineId раньше отсекал
+  // всё если pipelineId приходил в snake_case/null/Object pseudo-array.
+  // Доверяем серверу, остаются только поиск/stage/responsible.
   let arr = dealsState.deals;
-  // Сначала отсекаем сделки только активного pipeline (kanban-вид показывает по одной воронке)
-  if (dealsState.activePipelineId) {
-    arr = arr.filter(d => d.pipelineId === dealsState.activePipelineId);
-  }
   if (dealsState.search) {
     const q = dealsState.search.toLowerCase();
     arr = arr.filter(d => (d.title || '').toLowerCase().includes(q));
@@ -4316,15 +4316,33 @@ let _kanbanScrollTimer = null;
 function renderDealsKanban(c, arr) {
   const stages = getStagesSorted();
   if (!stages.length) {
-    c.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Нет стадий воронки</div></div>`;
+    c.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Нет стадий воронки. Создай стадии через шестерёнку справа от вкладок.</div></div>`;
+    console.warn('[kanban] no stages for pipeline', dealsState.activePipelineId, dealsState.pipeline);
     return;
   }
 
   const byStage = {};
   for (const s of stages) byStage[s.statusId] = [];
+  let placedCount = 0;
+  const orphan = []; // сделки чей stage_id не в текущей воронке
   for (const d of arr) {
-    if (byStage[d.stageId]) byStage[d.stageId].push(d);
+    if (byStage[d.stageId]) {
+      byStage[d.stageId].push(d);
+      placedCount++;
+    } else {
+      orphan.push(d);
+    }
   }
+  if (orphan.length) {
+    console.warn(`[kanban] ${orphan.length} сделок без подходящей стадии в воронке`, dealsState.activePipelineId,
+      'stageIds в воронке:', stages.map(s => s.statusId),
+      'stageIds в сделках:', [...new Set(orphan.map(d => d.stageId))]);
+    // Доклеиваем "orphan"-сделки в первую стадию чтобы они хотя бы были видны
+    if (stages[0]) {
+      for (const d of orphan) byStage[stages[0].statusId].push(d);
+    }
+  }
+  console.log(`[kanban] ${arr.length} сделок, ${stages.length} стадий, размещено ${placedCount}, orphan ${orphan.length}`);
 
   let html = `<div class="kanban-wrap" id="kanban-wrap">`;
   const MAX_PER_COL = 100;
@@ -6823,13 +6841,25 @@ function handleDeepLink() {
 }
 
 function renderCustomFieldsBlock(cfData, opts = {}) {
-  // opts.dealId — если передан, поля становятся editable inline
+  // opts.dealId — если передан, поля становятся editable inline (для контакта
+  //                здесь это contact-key — переиспользуем те же атрибуты)
+  // opts.entity — 'deal' (default) | 'contact' | 'company' — какую схему брать
   // opts.editable — admin может + добавлять новые поля
   const dealId = opts.dealId || null;
-  const editable = opts.editable !== false; // по умолчанию редактируемые
+  const entity = opts.entity || 'deal';
+  const editable = opts.editable !== false;
   const isAdmin = window.currentUser?.role === 'admin';
 
-  const schema = dealsState.customSchema || {};
+  // Схема: для сделки используем уже загруженную dealsState.customSchema,
+  // для контакта — глобальный кеш window.__cfSchemas.contact
+  let schema = {};
+  if (entity === 'deal') {
+    schema = dealsState.customSchema || {};
+  } else if (entity === 'contact') {
+    schema = window.__cfSchemas?.contact || {};
+    // Лениво загружаем схему контактов в фоне если её ещё нет
+    if (!window.__cfSchemas?.contact) loadContactCfSchema();
+  }
   cfData = cfData || {};
 
   // Объединяем: все из schema + те что есть в cfData но не в schema
@@ -6910,30 +6940,41 @@ function renderCfEditableCell(field, value, meta, dealId) {
 }
 
 // Привязать handlers к cf-edit inputs (вызывается после рендера карточки)
-function wireUpCustomFieldsEditing(modal) {
+function wireUpCustomFieldsEditing(modal, opts = {}) {
+  // opts.entity — 'deal' | 'contact' | 'company' (default deal)
+  // opts.recordId — id записи если она не deal (для контакта это contact-key)
+  const entity = opts.entity || 'deal';
+  const collectionPath = entity === 'contact' ? 'contacts' : (entity === 'company' ? 'companies' : 'deals');
+  const stateRecordById = (id) => {
+    if (entity === 'deal') {
+      const bitrixId = id.startsWith('deal_') ? id.slice(5) : id;
+      return dealsState.deals.find(d => d.bitrixId === bitrixId)
+        || (dealsPagedState.items || []).find(d => d.bitrixId === bitrixId)
+        || null;
+    }
+    return null; // для contact — отдельный кеш не используем, перезагрузка по PATCH
+  };
+
   modal.querySelectorAll('.cf-edit').forEach(el => {
     const save = async () => {
       const field = el.dataset.field;
-      const dealId = el.dataset.dealId;
+      const recordId = el.dataset.dealId; // переиспользуем data-deal-id для всех типов
       const type = el.dataset.type;
-      if (!field || !dealId) return;
+      if (!field || !recordId) return;
       let value;
       if (type === 'boolean') value = el.checked ? '1' : '0';
       else if (type === 'integer') value = el.value ? parseInt(el.value, 10) : null;
       else if (type === 'double' || type === 'number' || type === 'money') value = el.value ? parseFloat(el.value) : null;
       else value = el.value || null;
 
-      // Bitrix raw id для PUT — dealId уже в виде "deal_X"
-      const bitrixId = dealId.startsWith('deal_') ? dealId.slice(5) : dealId;
       try {
         const idToken = await fbAuth.currentUser.getIdToken();
-        // PATCH /api/rtdb/deals/deal_X.json — обновляем customFields[field]
-        // Сначала возьмём текущие cf
-        const deal = dealsState.deals.find(d => d.bitrixId === bitrixId)
-          || (dealsPagedState.items || []).find(d => d.bitrixId === bitrixId);
-        const cf = { ...(deal?.customFields || {}) };
+        // Текущие cf из локального state (если есть) — иначе берём от сервера
+        let cf = {};
+        const rec = stateRecordById(recordId);
+        if (rec?.customFields) cf = { ...rec.customFields };
         cf[field] = value;
-        const r = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent('deal_' + bitrixId)}.json?auth=${idToken}`, {
+        const r = await fetch(`${WORKER_RTDB_URL}/${collectionPath}/${encodeURIComponent(recordId)}.json?auth=${idToken}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ customFields: cf, bitrixDateModify: new Date().toISOString() }),
@@ -6942,10 +6983,9 @@ function wireUpCustomFieldsEditing(modal) {
           const j = await r.json().catch(() => ({}));
           throw new Error(j.error || `HTTP ${r.status}`);
         }
-        // Локально обновим deal в кеше
-        if (deal) {
-          deal.customFields = cf;
-          deal.bitrixDateModify = new Date().toISOString();
+        if (rec) {
+          rec.customFields = cf;
+          rec.bitrixDateModify = new Date().toISOString();
         }
         el.style.background = 'rgba(63, 216, 142, 0.18)';
         setTimeout(() => { el.style.background = ''; }, 1200);
@@ -6956,7 +6996,6 @@ function wireUpCustomFieldsEditing(modal) {
     if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'date' || el.type === 'datetime-local') {
       el.addEventListener('change', save);
     } else {
-      // text/textarea/number — сохраняем на blur (чтобы не сыпать на каждый ввод)
       el.addEventListener('blur', save);
     }
   });
@@ -7667,25 +7706,109 @@ window.openContactCard = async function(key) {
       html += `<div class="section-h">Связанные сделки</div><div style="font-size:13px;color:var(--t3)">Нет привязанных сделок</div>`;
     }
 
-    // Секция «История звонков» — заглушка, наполнится async после открытия
-    html += `<div class="section-h">📞 История звонков</div>
-      <div id="contact-call-history-${escapeHtml(key)}" style="font-size:12px;color:var(--t3);padding:8px 0">Загружаем…</div>`;
+    // ── Кастомные поля контакта (editable, как у сделки) ────────────────
+    html += renderCustomFieldsBlock(contact.customFields || {}, { dealId: key, editable: true, entity: 'contact' });
 
-    html += `${renderCustomFieldsBlock(contact.customFields)}
+    // ── Лента событий: комменты + звонки + WA ──────────────────────────
+    html += `
+      <div class="dc-section-h" style="margin-top:24px;display:flex;align-items:center;gap:10px">
+        <span>📜 Лента событий</span>
+        <span id="cc-tl-count" style="font-size:11px;color:var(--t3);font-weight:400"></span>
       </div>
-    </div>`;
+      <div class="dc-comment-form">
+        <textarea class="dc-comment-input" id="cc-comment-input" placeholder="Добавить комментарий…" rows="2"></textarea>
+        <button class="tbtn tbtn-primary tbtn-sm" id="cc-comment-send">Отправить</button>
+      </div>
+      <div class="dc-feed" id="cc-feed" data-contact-id="${escapeHtml(key)}">
+        <div style="padding:12px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем ленту…</div>
+      </div>`;
+
+    html += `</div></div>`;
 
     const div = document.createElement('div');
     div.innerHTML = html;
-    document.body.appendChild(div.firstElementChild);
+    const modal = div.firstElementChild;
+    document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
 
-    // Подтягиваем историю звонков async
-    loadContactCallHistory(key);
+    // Editable custom fields — переиспользуем wireUp для контакта тоже
+    wireUpCustomFieldsEditing(modal, { entity: 'contact', recordId: key });
+
+    // Лента событий
+    loadContactFeed(modal, key);
+
+    // Inline-комментарий
+    const commentInput = modal.querySelector('#cc-comment-input');
+    const commentSend = modal.querySelector('#cc-comment-send');
+    if (commentSend && commentInput) {
+      const submit = async () => {
+        const text = commentInput.value.trim();
+        if (!text) return;
+        commentSend.disabled = true;
+        try {
+          const idToken = await fbAuth.currentUser.getIdToken();
+          const r = await fetch(`${WORKER_BASE_URL}/api/contacts/${encodeURIComponent(key)}/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+            body: JSON.stringify({ text }),
+          });
+          if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            throw new Error(j.error || `HTTP ${r.status}`);
+          }
+          commentInput.value = '';
+          await loadContactFeed(modal, key);
+        } catch (e) {
+          alert('Ошибка: ' + e.message);
+        } finally {
+          commentSend.disabled = false;
+        }
+      };
+      commentSend.addEventListener('click', submit);
+      commentInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); submit(); }
+      });
+    }
   } catch (e) {
     alert('Ошибка загрузки контакта: ' + e.message);
   }
 };
+
+// Лениво грузим схему customFieldsSchema/contact и кешируем в window.__cfSchemas.
+async function loadContactCfSchema() {
+  if (window.__cfSchemas?.contact) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_RTDB_URL}/customFieldsSchema/contact.json?auth=${idToken}`);
+    if (!r.ok) return;
+    const data = await r.json();
+    window.__cfSchemas = window.__cfSchemas || {};
+    window.__cfSchemas.contact = data || {};
+  } catch {}
+}
+
+async function loadContactFeed(modal, contactId) {
+  const wrap = modal.querySelector('#cc-feed');
+  const countEl = modal.querySelector('#cc-tl-count');
+  if (!wrap) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/contacts/${encodeURIComponent(contactId)}/timeline?limit=200`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const items = data.items || [];
+    if (countEl) countEl.textContent = items.length ? `(${items.length})` : '';
+    if (!items.length) {
+      wrap.innerHTML = '<div style="padding:18px;color:var(--t3);font-size:12px;text-align:center">Событий пока нет — напиши первый комментарий выше.</div>';
+      return;
+    }
+    wrap.innerHTML = items.map(renderFeedItemHtml).join('');
+  } catch (e) {
+    wrap.innerHTML = `<div style="padding:12px;color:#c00;font-size:12px">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
 
 async function loadContactCallHistory(contactKey) {
   const target = document.getElementById('contact-call-history-' + contactKey);
