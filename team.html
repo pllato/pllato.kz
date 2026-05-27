@@ -881,14 +881,39 @@ tr:hover td { background: var(--bg3); }
 .pip-section { margin-bottom: 14px; }
 .pip-stages-list { display: flex; flex-direction: column; gap: 6px; }
 .pip-stage-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 6px;
+}
+.pip-stage-main {
   display: grid;
   grid-template-columns: 30px 1fr 100px 90px 30px;
   gap: 8px;
   align-items: center;
-  padding: 6px;
-  background: var(--bg2);
+}
+.pip-stage-automirror {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--t3);
+  padding: 6px 4px 2px 4px;
+  border-top: 1px dashed var(--b1);
+}
+.pip-stage-am-label { font-size: 11px; color: var(--t3); white-space: nowrap; }
+.pip-stage-am-pipe, .pip-stage-am-stage {
+  font-size: 12px;
+  padding: 4px 6px;
+  background: var(--bg);
   border: 1px solid var(--b1);
-  border-radius: 6px;
+  border-radius: 4px;
+  color: var(--t1);
+  min-width: 130px;
 }
 .pip-stage-grip { color: var(--t3); cursor: grab; text-align: center; user-select: none; font-size: 14px; }
 .pip-stage-row.dragging { opacity: .4; }
@@ -3564,19 +3589,41 @@ function openPipelineEditModal(pipelineId) {
             <div class="pip-section">
               <div class="pip-label">Стадии (drag за ⋮⋮ чтобы изменить порядок)</div>
               <div class="pip-stages-list" id="pip-stages">
-                ${stagesSorted.map((s, i) => `
+                ${stagesSorted.map((s, i) => {
+                  // Опции для auto-mirror: все воронки кроме текущей
+                  const otherPipes = Object.values(dealsState.pipelines || {}).filter(p => p.id !== draft.id);
+                  const amTarget = s.autoMirrorTo || {};
+                  const pipeOpts = ['<option value="">— не зеркалить —</option>']
+                    .concat(otherPipes.map(p => `<option value="${escapeHtml(p.id)}" ${amTarget.pipelineId === p.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`))
+                    .join('');
+                  // Стадии целевой воронки (если выбрана)
+                  let stageOpts = '<option value="">— первая стадия —</option>';
+                  const tgtPipe = otherPipes.find(p => p.id === amTarget.pipelineId);
+                  if (tgtPipe?.stages) {
+                    const sArr = Object.values(tgtPipe.stages).sort((a, b) => (a.sort || 0) - (b.sort || 0));
+                    stageOpts += sArr.map(st => `<option value="${escapeHtml(st.statusId)}" ${amTarget.stageId === st.statusId ? 'selected' : ''}>${escapeHtml(st.name)}</option>`).join('');
+                  }
+                  return `
                   <div class="pip-stage-row" draggable="true" data-stage-id="${escapeHtml(s.statusId)}">
-                    <span class="pip-stage-grip">⋮⋮</span>
-                    <input class="pip-stage-name" data-field="name" value="${escapeHtml(s.name || '')}" placeholder="Название стадии">
-                    <input class="pip-stage-color" data-field="color" type="color" value="${escapeHtml(stageHexColor(s))}" title="Цвет стадии">
-                    <select class="pip-stage-semantics" data-field="semantics">
-                      <option value="" ${!s.semantics ? 'selected' : ''}>Обычная</option>
-                      <option value="S" ${s.semantics === 'S' ? 'selected' : ''}>Успех</option>
-                      <option value="F" ${s.semantics === 'F' ? 'selected' : ''}>Провал</option>
-                    </select>
-                    <button class="pip-stage-del" title="Удалить стадию">×</button>
-                  </div>
-                `).join('')}
+                    <div class="pip-stage-main">
+                      <span class="pip-stage-grip">⋮⋮</span>
+                      <input class="pip-stage-name" data-field="name" value="${escapeHtml(s.name || '')}" placeholder="Название стадии">
+                      <input class="pip-stage-color" data-field="color" type="color" value="${escapeHtml(stageHexColor(s))}" title="Цвет стадии">
+                      <select class="pip-stage-semantics" data-field="semantics">
+                        <option value="" ${!s.semantics ? 'selected' : ''}>Обычная</option>
+                        <option value="S" ${s.semantics === 'S' ? 'selected' : ''}>Успех</option>
+                        <option value="F" ${s.semantics === 'F' ? 'selected' : ''}>Провал</option>
+                      </select>
+                      <button class="pip-stage-del" title="Удалить стадию">×</button>
+                    </div>
+                    ${otherPipes.length ? `<div class="pip-stage-automirror">
+                      <span class="pip-stage-am-label">🔁 При попадании → ${otherPipes.length ? 'воронка' : ''}</span>
+                      <select class="pip-stage-am-pipe" data-field="autoMirrorPipe">${pipeOpts}</select>
+                      <span class="pip-stage-am-label">→ стадия</span>
+                      <select class="pip-stage-am-stage" data-field="autoMirrorStage">${stageOpts}</select>
+                    </div>` : ''}
+                  </div>`;
+                }).join('')}
               </div>
               <button class="pip-add-stage" id="pip-add-stage">+ Добавить стадию</button>
             </div>
@@ -3626,6 +3673,38 @@ function openPipelineEditModal(pipelineId) {
       row.querySelector('[data-field="semantics"]').onchange = e => {
         if (draft.stages[sid]) draft.stages[sid].semantics = e.target.value || null;
       };
+
+      // Auto-mirror настройки — два селекта (воронка + стадия)
+      const amPipeSel = row.querySelector('[data-field="autoMirrorPipe"]');
+      const amStageSel = row.querySelector('[data-field="autoMirrorStage"]');
+      if (amPipeSel && amStageSel) {
+        const reloadStages = () => {
+          const pid = amPipeSel.value;
+          amStageSel.innerHTML = '<option value="">— первая стадия —</option>';
+          const tgt = dealsState.pipelines?.[pid];
+          if (tgt?.stages) {
+            const arr = Object.values(tgt.stages).sort((a, b) => (a.sort || 0) - (b.sort || 0));
+            for (const st of arr) {
+              const opt = document.createElement('option');
+              opt.value = st.statusId;
+              opt.textContent = st.name;
+              amStageSel.appendChild(opt);
+            }
+          }
+        };
+        const persist = () => {
+          if (!draft.stages[sid]) return;
+          const pipeId = amPipeSel.value;
+          if (!pipeId) {
+            delete draft.stages[sid].autoMirrorTo;
+          } else {
+            draft.stages[sid].autoMirrorTo = { pipelineId: pipeId, stageId: amStageSel.value || '' };
+          }
+        };
+        amPipeSel.onchange = () => { reloadStages(); persist(); };
+        amStageSel.onchange = persist;
+      }
+
       row.querySelector('.pip-stage-del').onclick = () => {
         if (Object.keys(draft.stages).length <= 1) {
           alert('Нельзя удалить последнюю стадию');
