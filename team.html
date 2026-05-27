@@ -4099,7 +4099,8 @@ document.addEventListener('click', (e) => {
   });
 });
 
-// Стили модалки (inject один раз)
+// Стили floating popup'а (стиль Aminamed: compact окно справа снизу,
+// не overlay на всю высоту). Inject один раз.
 (function injectWaStyles() {
   if (document.getElementById('elc-wa-styles')) return;
   const css = `
@@ -4109,38 +4110,268 @@ document.addEventListener('click', (e) => {
     .wa-unread-badge { position:absolute; top:-6px; right:-6px; background:#25D366;
       color:#fff; font-size:9px; min-width:14px; height:14px; padding:0 3px;
       border-radius:7px; display:inline-flex; align-items:center; justify-content:center; font-weight:700; }
-    .wa-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9998;
-      display:flex; align-items:center; justify-content:flex-end; }
-    .wa-modal { width:420px; max-width:95vw; height:100vh; background:var(--bg1,#fff);
-      display:flex; flex-direction:column; box-shadow:-10px 0 30px rgba(0,0,0,.3); }
-    .wa-head { padding:14px 16px; border-bottom:1px solid var(--b1,#eee);
-      display:flex; align-items:center; gap:10px; background:#075E54; color:#fff; }
-    .wa-head .wa-avatar { width:36px; height:36px; border-radius:50%;
-      background:#25D366; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
-    .wa-head .wa-title { flex:1; }
-    .wa-head .wa-name { font-weight:600; font-size:14px; }
-    .wa-head .wa-sub { font-size:11px; opacity:.8; }
-    .wa-head .wa-close { background:none; border:none; color:#fff; font-size:22px; cursor:pointer; padding:0 6px; }
-    .wa-body { flex:1; overflow:auto; padding:12px; background:#ECE5DD; display:flex; flex-direction:column; gap:6px; }
-    .wa-msg { max-width:78%; padding:6px 10px; border-radius:7px; font-size:13px;
-      line-height:1.35; word-wrap:break-word; position:relative; }
-    .wa-msg.in { align-self:flex-start; background:#fff; }
-    .wa-msg.out { align-self:flex-end; background:#DCF8C6; }
-    .wa-msg .wa-ts { font-size:10px; color:#777; margin-left:8px; }
-    .wa-msg .wa-media-img { max-width:100%; max-height:240px; border-radius:4px; display:block; margin-bottom:4px; }
-    .wa-msg .wa-media-file { display:inline-block; padding:6px 10px; background:rgba(0,0,0,.05);
-      border-radius:4px; text-decoration:none; color:var(--t1,#333); font-size:12px; }
-    .wa-empty { text-align:center; color:#888; padding:30px; font-size:13px; }
-    .wa-foot { border-top:1px solid var(--b1,#eee); padding:10px; background:var(--bg1,#fff);
-      display:flex; gap:8px; align-items:flex-end; }
-    .wa-textarea { flex:1; min-height:40px; max-height:120px; resize:none;
-      border:1px solid var(--b1,#ccc); border-radius:6px; padding:8px 10px; font-size:13px; font-family:inherit; }
-    .wa-attach { background:none; border:1px solid var(--b1,#ccc); border-radius:6px;
-      padding:8px 12px; cursor:pointer; font-size:16px; }
-    .wa-send { background:#25D366; border:0; color:#fff; border-radius:6px;
-      padding:10px 16px; cursor:pointer; font-weight:600; font-size:13px; }
-    .wa-send[disabled] { opacity:.5; cursor:not-allowed; }
-    .wa-error { color:#c00; padding:8px 16px; font-size:11px; background:#fee; }
+
+    /* Floating popup — фиксированный справа снизу, поверх всего */
+    .wa-float {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      width: 400px;
+      max-width: calc(100vw - 32px);
+      height: 600px;
+      max-height: calc(100vh - 48px);
+      background: var(--bg1, #fff);
+      border: 1px solid var(--b1, #e5e7eb);
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35), 0 4px 12px rgba(0,0,0,.15);
+      display: flex;
+      flex-direction: column;
+      z-index: 9998;
+      overflow: hidden;
+      animation: waFloatSlideUp .22s ease-out;
+    }
+    @keyframes waFloatSlideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    .wa-float-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--b1, #e5e7eb);
+      background: var(--bg2, #f7f8fa);
+      flex-shrink: 0;
+    }
+    .wa-float-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #7c5cfc, #4f378b);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+    .wa-float-meta { flex: 1; min-width: 0; }
+    .wa-float-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--t1, #111);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .wa-float-sub {
+      font-size: 11px;
+      color: var(--t3, #6b7280);
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .wa-float-head-actions {
+      display: inline-flex;
+      gap: 2px;
+      align-items: center;
+    }
+    .wa-float-icon-btn {
+      width: 34px;
+      height: 34px;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--t2, #4b5563);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: background .12s;
+    }
+    .wa-float-icon-btn:hover { background: rgba(0,0,0,.06); }
+    .wa-float-search {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--b1, #e5e7eb);
+      background: var(--bg1, #fff);
+    }
+    .wa-float-search input {
+      width: 100%;
+      border: 1px solid var(--b1, #e5e7eb);
+      border-radius: 8px;
+      background: var(--bg2, #f7f8fa);
+      color: var(--t1);
+      font: inherit;
+      font-size: 13px;
+      padding: 7px 10px;
+    }
+    .wa-float-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 12px;
+      background: #ECE5DD;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    html[data-theme="dark"] .wa-float-body,
+    html:not([data-theme="light"]) .wa-float-body { background: #0b141a; }
+    .wa-float-empty {
+      text-align: center;
+      color: #888;
+      padding: 30px;
+      font-size: 13px;
+      margin: auto;
+    }
+    /* Дата-разделитель по центру (плашка "18 мая") */
+    .wa-day-divider {
+      display: flex;
+      justify-content: center;
+      margin: 12px 0 6px;
+    }
+    .wa-day-divider span {
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+      border-radius: 999px;
+      font-size: 11px;
+      color: #555;
+      padding: 3px 12px;
+      font-weight: 500;
+    }
+    html[data-theme="dark"] .wa-day-divider span,
+    html:not([data-theme="light"]) .wa-day-divider span {
+      background: rgba(32,44,51,.85);
+      color: #d1d5db;
+    }
+    /* Bubbles */
+    .wa-msg {
+      max-width: 78%;
+      padding: 6px 10px 4px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      line-height: 1.4;
+      word-wrap: break-word;
+      position: relative;
+      box-shadow: 0 1px 1px rgba(0,0,0,.08);
+    }
+    .wa-msg.in {
+      align-self: flex-start;
+      background: #fff;
+      color: #111;
+      border-top-left-radius: 3px;
+    }
+    .wa-msg.out {
+      align-self: flex-end;
+      background: #DCF8C6;
+      color: #111;
+      border-top-right-radius: 3px;
+    }
+    html[data-theme="dark"] .wa-msg.in,
+    html:not([data-theme="light"]) .wa-msg.in { background: #202c33; color: #e9edef; }
+    html[data-theme="dark"] .wa-msg.out,
+    html:not([data-theme="light"]) .wa-msg.out { background: #005c4b; color: #e9edef; }
+    .wa-msg .wa-ts {
+      font-size: 10px;
+      color: rgba(0,0,0,.45);
+      margin-left: 8px;
+      float: right;
+      margin-top: 2px;
+    }
+    html[data-theme="dark"] .wa-msg .wa-ts,
+    html:not([data-theme="light"]) .wa-msg .wa-ts { color: rgba(255,255,255,.55); }
+    .wa-msg .wa-tick { color: #4FC3F7; font-size: 11px; }
+    .wa-msg .wa-media-img {
+      max-width: 100%;
+      max-height: 240px;
+      border-radius: 6px;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .wa-msg .wa-media-file {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      background: rgba(0,0,0,.06);
+      border-radius: 6px;
+      text-decoration: none;
+      color: inherit;
+      font-size: 12px;
+      max-width: 100%;
+    }
+    .wa-msg .wa-media-audio {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 4px;
+      min-width: 200px;
+    }
+    .wa-msg .wa-media-audio audio { width: 100%; height: 36px; }
+    /* Compose bar */
+    .wa-float-compose {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-top: 1px solid var(--b1, #e5e7eb);
+      background: var(--bg1, #fff);
+      flex-shrink: 0;
+    }
+    .wa-compose-icon-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--t3, #6b7280);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      flex-shrink: 0;
+      transition: background .12s;
+    }
+    .wa-compose-icon-btn:hover { background: rgba(0,0,0,.06); }
+    .wa-compose-icon-btn[disabled] { opacity: .35; cursor: not-allowed; }
+    .wa-float-compose input.wa-compose-text {
+      flex: 1;
+      min-width: 0;
+      border: 1px solid var(--b1, #e5e7eb);
+      background: var(--bg2, #f7f8fa);
+      color: var(--t1, #111);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font: inherit;
+      font-size: 13.5px;
+      outline: none;
+    }
+    .wa-float-compose input.wa-compose-text:focus {
+      border-color: #25D366;
+      background: var(--bg1, #fff);
+    }
+    .wa-compose-send-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 50%;
+      background: #25D366;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      flex-shrink: 0;
+      transition: transform .12s, background .12s;
+    }
+    .wa-compose-send-btn:hover { background: #1ebe5a; transform: scale(1.05); }
+    .wa-compose-send-btn[disabled] { opacity: .55; cursor: not-allowed; }
+    /* hidden file inputs */
+    .wa-hidden-file { display: none; }
   `;
   const s = document.createElement('style');
   s.id = 'elc-wa-styles';
@@ -4157,56 +4388,95 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
   if (!chatId && digits) chatId = `${digits}@c.us`;
   if (!chatId) { alert('Не задан телефон или chatId'); return; }
 
-  // Удалим старую
-  document.getElementById('_wa-modal')?.remove();
-  const ov = document.createElement('div');
-  ov.id = '_wa-modal';
-  ov.className = 'wa-overlay';
-  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
-  const displayName = contactName || ('+' + (digits || ''));
-  ov.innerHTML = `
-    <div class="wa-modal" onclick="event.stopPropagation()">
-      <div class="wa-head">
-        <div class="wa-avatar">${escapeHtml((displayName.match(/[A-Za-zА-Яа-я]/)?.[0] || '?').toUpperCase())}</div>
-        <div class="wa-title">
-          <div class="wa-name">${escapeHtml(displayName)}</div>
-          <div class="wa-sub">+${escapeHtml(digits || '')}</div>
-        </div>
-        <button class="wa-close" id="wa-close" title="Закрыть">×</button>
-      </div>
-      <div class="wa-body" id="wa-body"><div class="wa-empty">Загрузка истории…</div></div>
-      <div class="wa-foot">
-        <button class="wa-attach" id="wa-attach" title="Прикрепить файл по URL">📎</button>
-        <textarea class="wa-textarea" id="wa-input" placeholder="Сообщение..." rows="1"></textarea>
-        <button class="wa-send" id="wa-send">Отправить</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(ov);
-  document.getElementById('wa-close').onclick = () => ov.remove();
+  // Удалим старый popup
+  document.getElementById('_wa-float')?.remove();
+  // Остановим polling если был
+  if (window.__waPollTimer) { clearInterval(window.__waPollTimer); window.__waPollTimer = null; }
 
-  // Найдём instanceId через worker — берём первый активный канал
-  // (для UI достаточно — отправка пройдёт через канал-по-умолчанию)
-  // Здесь instanceId нужен только чтобы построить wa:{instance}:{chatId}.
-  // Если канал ещё не настроен — Send отдаст 503.
+  const displayName = contactName || ('+' + (digits || ''));
+  const initials = (displayName.match(/[A-Za-zА-Яа-я]/g) || ['?']).slice(0, 2).join('').toUpperCase();
+
+  // Резолвим имя канала (для шапки "Канал: X")
+  let channelName = '';
   let canonicalChatId = chatId;
   try {
-    const idToken = await fbAuth.currentUser.getIdToken();
-    // Сначала пытаемся резолвить wa_chats по uchatId — если есть, возьмём id.
+    const idToken0 = await fbAuth.currentUser.getIdToken();
     const list = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500`, {
-      headers: { 'Authorization': `Bearer ${idToken}` },
+      headers: { 'Authorization': `Bearer ${idToken0}` },
     }).then(r => r.ok ? r.json() : null).catch(() => null);
-    const match = list?.items?.find(c => c.chatId === chatId);
+    const match = list?.items?.find(c => c.chatId === chatId
+      || (contactId && c.contactId === contactId)
+      || (dealId && c.dealId === dealId));
     if (match) canonicalChatId = match.id;
+    // Канал — берём первый активный (или по имени из match.instanceId)
+    const ch = await fetch(`${WORKER_BASE_URL}/api/wa/channels`, {
+      headers: { 'Authorization': `Bearer ${idToken0}` },
+    }).then(r => r.ok ? r.json() : null).catch(() => null);
+    if (ch?.items?.length) {
+      const active = ch.items.find(c => c.active) || ch.items[0];
+      channelName = active.display_name || ('Green-API ' + active.id_instance);
+    }
   } catch {}
+
+  const ov = document.createElement('div');
+  ov.id = '_wa-float';
+  ov.className = 'wa-float';
+  ov.innerHTML = `
+    <div class="wa-float-head">
+      <div class="wa-float-avatar">${escapeHtml(initials)}</div>
+      <div class="wa-float-meta">
+        <div class="wa-float-name">${escapeHtml(displayName)}</div>
+        <div class="wa-float-sub">${channelName ? 'Канал: ' + escapeHtml(channelName) : ('+' + escapeHtml(digits))}</div>
+      </div>
+      <div class="wa-float-head-actions">
+        <button class="wa-float-icon-btn" id="wa-float-search" title="Поиск в переписке">🔎</button>
+        <button class="wa-float-icon-btn" id="wa-float-call" title="Позвонить">📞</button>
+        <button class="wa-float-icon-btn" id="wa-float-close" title="Закрыть">✕</button>
+      </div>
+    </div>
+    <div class="wa-float-search" id="wa-float-search-bar" hidden>
+      <input type="search" id="wa-float-search-input" placeholder="Поиск в переписке…">
+    </div>
+    <div class="wa-float-body" id="wa-body">
+      <div class="wa-float-empty">⏳ Загрузка истории…</div>
+    </div>
+    <form class="wa-float-compose" id="wa-float-form">
+      <button type="button" class="wa-compose-icon-btn" id="wa-attach" title="Прикрепить файл">📎</button>
+      <button type="button" class="wa-compose-icon-btn" id="wa-camera" title="Фото с камеры">📷</button>
+      <input type="text" class="wa-compose-text" id="wa-input" placeholder="Сообщение клиенту…" autocomplete="off">
+      <button type="submit" class="wa-compose-send-btn" id="wa-send" title="Отправить">➤</button>
+      <input type="file" class="wa-hidden-file" id="wa-file-input" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx">
+      <input type="file" class="wa-hidden-file" id="wa-camera-input" accept="image/*" capture="environment">
+    </form>
+  `;
+  document.body.appendChild(ov);
+
+  document.getElementById('wa-float-close').onclick = () => {
+    if (window.__waPollTimer) { clearInterval(window.__waPollTimer); window.__waPollTimer = null; }
+    ov.remove();
+  };
+  document.getElementById('wa-float-call').onclick = () => {
+    if (typeof placeCall === 'function') placeCall({ phone: digits, contactId, dealId, contactName });
+    else window.open('tel:+' + digits, '_self');
+  };
+  document.getElementById('wa-float-search').onclick = () => {
+    const bar = document.getElementById('wa-float-search-bar');
+    const hidden = bar.hasAttribute('hidden');
+    if (hidden) { bar.removeAttribute('hidden'); document.getElementById('wa-float-search-input').focus(); }
+    else { bar.setAttribute('hidden', ''); document.getElementById('wa-float-search-input').value = ''; renderWaMessages(window.__waOpenState.canonicalChatId); }
+  };
+  document.getElementById('wa-float-search-input').addEventListener('input', (e) => {
+    renderWaMessages(window.__waOpenState.canonicalChatId, { searchQuery: e.target.value });
+  });
 
   window.__waOpenState = { canonicalChatId, rawChatId: chatId, phone: digits, contactId, dealId, contactName };
 
   await renderWaMessages(canonicalChatId);
 
-  // Отправка
+  // Отправка — общая функция (text или mediaUrl)
   const sendBtn = document.getElementById('wa-send');
   const input = document.getElementById('wa-input');
+  const form = document.getElementById('wa-float-form');
   const send = async (mediaUrl, fileName) => {
     const text = input.value.trim();
     if (!text && !mediaUrl) return;
@@ -4229,16 +4499,35 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
       sendBtn.disabled = false;
     }
   };
-  sendBtn.onclick = () => send('', '');
+  form.addEventListener('submit', (e) => { e.preventDefault(); send('', ''); });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send('', ''); }
   });
-  document.getElementById('wa-attach').onclick = async () => {
-    const url = prompt('URL файла (jpg/png/pdf/mp4 — будет отправлен в WhatsApp):');
-    if (!url) return;
-    const fileName = url.split('/').pop() || 'file';
-    await send(url, fileName);
+
+  // Прикрепить файл — открывает file picker. Загружает на временный хост
+  // или просим юзера дать URL. Простой путь: prompt URL (как раньше).
+  // TODO: загружать в R2 через worker.
+  document.getElementById('wa-attach').onclick = () => {
+    document.getElementById('wa-file-input').click();
   };
+  document.getElementById('wa-camera').onclick = () => {
+    document.getElementById('wa-camera-input').click();
+  };
+  const onFileSelected = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Файлы пока — через URL prompt (загрузка через worker — TODO).
+    // Если хочешь сразу отправить локальный файл, нужен R2-uploader на бэке.
+    const url = prompt(
+      `Выбран файл: ${file.name}\n\nВведи публичный URL файла (Green-API требует доступный URL).\nПозже добавим прямую загрузку.`,
+      ''
+    );
+    e.target.value = ''; // reset input
+    if (!url) return;
+    await send(url, file.name);
+  };
+  document.getElementById('wa-file-input').addEventListener('change', onFileSelected);
+  document.getElementById('wa-camera-input').addEventListener('change', onFileSelected);
 
   // Отметить как прочитанные
   try {
@@ -4249,11 +4538,23 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
       body: JSON.stringify({ chatId: canonicalChatId }),
     }).catch(() => {});
   } catch {}
+
+  // Polling новых сообщений каждые 10 секунд пока popup открыт
+  if (window.__waPollTimer) clearInterval(window.__waPollTimer);
+  window.__waPollTimer = setInterval(() => {
+    if (!document.body.contains(ov)) {
+      clearInterval(window.__waPollTimer);
+      window.__waPollTimer = null;
+      return;
+    }
+    renderWaMessages(window.__waOpenState.canonicalChatId, { silent: true });
+  }, 10000);
 }
 
-async function renderWaMessages(chatId) {
+async function renderWaMessages(chatId, opts = {}) {
   const body = document.getElementById('wa-body');
   if (!body) return;
+  const searchQuery = (opts.searchQuery || '').toLowerCase().trim();
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
     const r = await fetch(`${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(chatId)}&limit=200`, {
@@ -4261,16 +4562,56 @@ async function renderWaMessages(chatId) {
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
-    const items = data.items || [];
+    let items = data.items || [];
+
+    // Silent polling: если кол-во не изменилось — не перерисовываем (не ломаем scroll)
+    const prevCount = parseInt(body.dataset.msgCount || '0', 10);
+    if (opts.silent && items.length === prevCount) return;
+    body.dataset.msgCount = String(items.length);
+
+    if (searchQuery) {
+      items = items.filter(m =>
+        (m.text || '').toLowerCase().includes(searchQuery)
+        || (m.caption || '').toLowerCase().includes(searchQuery)
+      );
+    }
     if (!items.length) {
-      body.innerHTML = '<div class="wa-empty">Истории пока нет.<br>Напиши первое сообщение клиенту.</div>';
+      body.innerHTML = searchQuery
+        ? `<div class="wa-float-empty">Ничего не найдено по «${escapeHtml(searchQuery)}»</div>`
+        : '<div class="wa-float-empty">📭 Истории пока нет.<br>Напиши первое сообщение клиенту.</div>';
       return;
     }
-    body.innerHTML = items.map(m => renderWaMessageHtml(m)).join('');
+    // Группируем по дням → вставляем day-divider'ы
+    const html = [];
+    let lastDayKey = '';
+    for (const m of items) {
+      const dt = new Date(m.ts);
+      const dayKey = `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
+      if (dayKey !== lastDayKey) {
+        html.push(`<div class="wa-day-divider"><span>${formatWaDayLabel(dt)}</span></div>`);
+        lastDayKey = dayKey;
+      }
+      html.push(renderWaMessageHtml(m));
+    }
+    body.innerHTML = html.join('');
     body.scrollTop = body.scrollHeight;
   } catch (e) {
-    body.innerHTML = `<div class="wa-empty" style="color:#c00">Ошибка: ${escapeHtml(e.message)}</div>`;
+    if (!opts.silent) {
+      body.innerHTML = `<div class="wa-float-empty" style="color:#c00">Ошибка: ${escapeHtml(e.message)}</div>`;
+    }
   }
+}
+
+function formatWaDayLabel(dt) {
+  const today = new Date();
+  const yesterday = new Date(today.getTime() - 86400000);
+  const isSameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (isSameDay(dt, today)) return 'Сегодня';
+  if (isSameDay(dt, yesterday)) return 'Вчера';
+  // "18 мая" — для текущего года, "18 мая 2024" — если другой
+  const months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const dayName = `${dt.getDate()} ${months[dt.getMonth()]}`;
+  return dt.getFullYear() === today.getFullYear() ? dayName : `${dayName} ${dt.getFullYear()}`;
 }
 
 function renderWaMessageHtml(m) {
@@ -4279,15 +4620,20 @@ function renderWaMessageHtml(m) {
   let mediaHtml = '';
   if (m.mediaKind === 'image' && m.mediaUrl) {
     mediaHtml = `<a href="${escapeHtml(m.mediaUrl)}" target="_blank"><img class="wa-media-img" src="${escapeHtml(m.mediaUrl)}" alt=""></a>`;
+  } else if (m.mediaKind === 'audio' && m.mediaUrl) {
+    mediaHtml = `<div class="wa-media-audio"><audio controls preload="metadata" src="${escapeHtml(m.mediaUrl)}"></audio></div>`;
+  } else if (m.mediaKind === 'video' && m.mediaUrl) {
+    mediaHtml = `<a class="wa-media-file" href="${escapeHtml(m.mediaUrl)}" target="_blank">🎥 ${escapeHtml(m.mediaFileName || 'видео')}</a>`;
   } else if (m.mediaUrl) {
-    const fname = m.mediaFileName || (m.mediaKind === 'video' ? '🎥 видео' : m.mediaKind === 'audio' ? '🎵 аудио' : '📎 файл');
-    mediaHtml = `<a class="wa-media-file" href="${escapeHtml(m.mediaUrl)}" target="_blank">${escapeHtml(fname)}</a>`;
+    const fname = m.mediaFileName || '📎 файл';
+    mediaHtml = `<a class="wa-media-file" href="${escapeHtml(m.mediaUrl)}" target="_blank">📎 ${escapeHtml(fname)}</a>`;
   }
   const text = m.text || m.caption || '';
+  const tick = cls === 'out' ? '<span class="wa-tick">✓✓</span>' : '';
   return `<div class="wa-msg ${cls}">
     ${mediaHtml}
-    ${text ? escapeHtml(text) : ''}
-    <span class="wa-ts">${ts}</span>
+    ${text ? escapeHtml(text).replace(/\n/g, '<br>') : ''}
+    <span class="wa-ts">${ts} ${tick}</span>
   </div>`;
 }
 
