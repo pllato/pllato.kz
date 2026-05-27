@@ -1514,7 +1514,52 @@ async function handleDealStageChange(request, env, dealId) {
   }
 
   await auditLog(env, me, "deal_stage_change", "deal", dealId, { pipelineId, stageId, isMirror: deal.pipeline_id !== pipelineId });
-  return json({ ok: true, dealId, pipelineId, stageId, isMirror: deal.pipeline_id !== pipelineId }, 200, request);
+
+  // ── Auto-mirror triggers ───────────────────────────────────────────
+  // Если у стадии есть autoMirrorTo: {pipelineId, stageId} — автоматически
+  // создаём зеркало (если ещё нет). Срабатывает только когда сделка ВПЕРВЫЕ
+  // попадает в стадию-с-триггером (не на каждый PATCH в той же стадии).
+  const autoMirrored = [];
+  try {
+    const pip = await env.DB.prepare("SELECT stages FROM pipelines WHERE id = ?").bind(pipelineId).first();
+    if (pip?.stages) {
+      const stages = JSON.parse(pip.stages);
+      const targetStage = stages?.[stageId];
+      const trigger = targetStage?.autoMirrorTo;
+      if (trigger && trigger.pipelineId && trigger.stageId) {
+        // Не делаем зеркало в собственную воронку
+        if (trigger.pipelineId !== deal.pipeline_id && trigger.pipelineId !== pipelineId) {
+          // Перезагрузим mirrored_in (мог измениться выше)
+          const fresh = await env.DB.prepare("SELECT mirrored_in FROM deals WHERE id = ?").bind(dealId).first();
+          let mir = {};
+          try { mir = fresh?.mirrored_in ? JSON.parse(fresh.mirrored_in) : {}; } catch {}
+          if (!mir || typeof mir !== 'object' || Array.isArray(mir)) mir = {};
+          // Срабатывает только если зеркала в этой воронке ещё нет — не перезатираем
+          if (!mir[trigger.pipelineId]) {
+            mir[trigger.pipelineId] = trigger.stageId;
+            await env.DB.prepare(
+              "UPDATE deals SET mirrored_in = ?, bitrix_date_modify = ? WHERE id = ?"
+            ).bind(JSON.stringify(mir), nowIso, dealId).run();
+            await auditLog(env, me, "deal_auto_mirror", "deal", dealId, {
+              triggeredByStage: stageId,
+              triggeredByPipeline: pipelineId,
+              targetPipeline: trigger.pipelineId,
+              targetStage: trigger.stageId,
+            });
+            autoMirrored.push({ pipelineId: trigger.pipelineId, stageId: trigger.stageId });
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[auto-mirror] failed:', e.message);
+  }
+
+  return json({
+    ok: true, dealId, pipelineId, stageId,
+    isMirror: deal.pipeline_id !== pipelineId,
+    autoMirrored,
+  }, 200, request);
 }
 
 // POST /api/deals/{id}/mirror { pipelineId, stageId } — добавить зеркало
