@@ -1739,6 +1739,58 @@ tr:hover td { background: var(--bg3); }
   border-color: var(--gn) !important;
   color: var(--gn) !important;
 }
+.dc-mirror-btn {
+  background: transparent !important;
+  border: 1px solid var(--ac2) !important;
+  color: var(--ac2) !important;
+}
+.dc-mirror-btn:hover { background: var(--ac2) !important; color: #fff !important; }
+
+/* Список воронок в которых сделка присутствует (основная + зеркала) */
+.dc-pipes-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 10px 0;
+  font-size: 12px;
+  color: var(--t3);
+}
+.dc-pipe-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: var(--t2);
+}
+.dc-pipe-chip.is-main {
+  border-color: var(--ac2);
+  background: rgba(124, 92, 252, .1);
+  color: var(--ac2);
+  font-weight: 600;
+}
+.dc-pipe-chip-name { font-weight: 600; }
+.dc-pipe-chip-stage {
+  opacity: .7;
+  font-size: 10px;
+  border-left: 1px solid var(--b1);
+  padding-left: 5px;
+  margin-left: 2px;
+}
+.dc-pipe-chip-x {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--t3);
+  font-size: 14px;
+  padding: 0 0 0 4px;
+  line-height: 1;
+}
+.dc-pipe-chip-x:hover { color: var(--rd); }
 
 /* Форма комментария */
 .dc-comment-form {
@@ -5460,6 +5512,100 @@ document.addEventListener('click', (e) => {
 });
 
 // Модалка добавления дела (задачи) к сделке
+// Модалка "Добавить сделку в воронку (зеркало)"
+function openAddMirrorModal(deal, onDone) {
+  document.getElementById('_add-mirror-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_add-mirror-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+
+  // Все воронки кроме той в которой сделка уже есть (основная + существующие зеркала)
+  const existingPids = new Set([deal.pipelineId, ...Object.keys(deal.mirroredIn || {})]);
+  const availablePipes = Object.values(dealsState.pipelines || {})
+    .filter(p => !existingPids.has(p.id));
+
+  if (!availablePipes.length) {
+    alert('Сделка уже во всех существующих воронках.');
+    return;
+  }
+
+  // Опции воронок
+  const pipeOpts = availablePipes.map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join('');
+
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:480px">
+      <div class="qad-head"><h2>🔁 Добавить в воронку</h2><button class="qad-btn qad-btn-ghost" id="am-close" style="padding:4px 10px">×</button></div>
+      <div class="qad-body">
+        <div class="dialer-hint">
+          Сделка появится во второй воронке как «зеркало» — у неё будет
+          независимая стадия. Драг-н-дроп в обеих воронках работает
+          отдельно. Основная воронка <b>${escapeHtml(dealsState.pipelines?.[deal.pipelineId]?.name || deal.pipelineId)}</b> не пострадает.
+        </div>
+        <div><div class="qad-label">Воронка *</div>
+          <select id="am-pipe" class="qad-input">${pipeOpts}</select>
+        </div>
+        <div><div class="qad-label">Стартовая стадия</div>
+          <select id="am-stage" class="qad-input"></select>
+        </div>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="am-cancel">Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="am-save">Добавить</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('am-close').onclick = () => ov.remove();
+  document.getElementById('am-cancel').onclick = () => ov.remove();
+
+  const pipeSel = document.getElementById('am-pipe');
+  const stageSel = document.getElementById('am-stage');
+  const reloadStages = () => {
+    const p = dealsState.pipelines?.[pipeSel.value];
+    stageSel.innerHTML = '';
+    if (p?.stages) {
+      const arr = Array.isArray(p.stages) ? p.stages : Object.values(p.stages);
+      arr.sort((a, b) => (a.sort || 0) - (b.sort || 0));
+      for (const s of arr) {
+        const opt = document.createElement('option');
+        opt.value = s.statusId || s.id;
+        opt.textContent = s.name || s.statusId;
+        stageSel.appendChild(opt);
+      }
+    }
+  };
+  pipeSel.addEventListener('change', reloadStages);
+  reloadStages();
+
+  document.getElementById('am-save').onclick = async () => {
+    const pipelineId = pipeSel.value;
+    const stageId = stageSel.value;
+    if (!pipelineId) { alert('Выбери воронку'); return; }
+    const btn = document.getElementById('am-save');
+    btn.disabled = true; btn.textContent = '⏳ Добавляем…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const dealId = deal.id || ('deal_' + deal.bitrixId);
+      const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/mirror`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ pipelineId, stageId }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      ov.remove();
+      showToast('Сделка добавлена в воронку');
+      if (typeof onDone === 'function') onDone();
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+      btn.disabled = false; btn.textContent = 'Добавить';
+    }
+  };
+}
+
 function openAddDeedModal(deal, onDone) {
   document.getElementById('_add-deed-modal')?.remove();
   const ov = document.createElement('div');
@@ -6016,37 +6162,48 @@ function showStageQuickPick(dealId, anchorBtn) {
 
 // Перенести сделку в новую стадию
 async function moveDealToStage(bitrixId, newStageId) {
-  const deal = dealsState.deals.find(d => String(d.bitrixId) === String(bitrixId));
+  const deal = dealsState.deals.find(d => String(d.bitrixId) === String(bitrixId)
+    || String(d.id) === 'deal_' + String(bitrixId)
+    || String(d.id) === String(bitrixId));
   if (!deal) return;
-  if (deal.stageId === newStageId) return; // ничего не менять
+  if (deal.stageId === newStageId) return;
 
   const oldStageId = deal.stageId;
+  // Текущая воронка из канбана — может отличаться от основной воронки сделки
+  // (это зеркало). _viewPipelineId проставлен worker'ом для зеркал.
+  const currentPipelineId = deal._viewPipelineId || dealsState.activePipelineId || deal.pipelineId;
+  const isMirror = !!deal._mirror || (deal.pipelineId !== currentPipelineId);
+
   // Optimistic update
   deal.stageId = newStageId;
   deal.bitrixDateModify = new Date().toISOString();
-  // Перерисовываем
+  if (isMirror) {
+    // Также обновим mirroredIn локально чтобы re-render правильно показал
+    deal.mirroredIn = deal.mirroredIn || {};
+    deal.mirroredIn[currentPipelineId] = newStageId;
+  }
   renderDealsContent();
 
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const dbUrl = WORKER_RTDB_URL;
-    const dealKey = `deal_${bitrixId}`;
-    const r = await fetch(`${dbUrl}/deals/${dealKey}.json?auth=${idToken}`, {
+    // Используем новый универсальный endpoint /api/deals/{id}/stage —
+    // worker сам решит: основная воронка или зеркало.
+    const dealId = deal.id || ('deal_' + bitrixId);
+    const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/stage`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        stageId: newStageId,
-        bitrixDateModify: new Date().toISOString(),
-      }),
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ pipelineId: currentPipelineId, stageId: newStageId }),
     });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    // Optimistic update уже отражён в dealsState.deals (мутировали deal).
-    // dealsByPipeline[activePipelineId] — тот же массив (ref), так что
-    // кеш в памяти тоже актуален. Дополнительно ничего не сохраняем.
-    showToast('Стадия обновлена');
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error(j.error || `HTTP ${r.status}`);
+    }
+    showToast(isMirror ? 'Стадия зеркала обновлена' : 'Стадия обновлена');
   } catch (e) {
-    // Revert on failure
     deal.stageId = oldStageId;
+    if (isMirror && deal.mirroredIn) {
+      deal.mirroredIn[currentPipelineId] = oldStageId;
+    }
     renderDealsContent();
     showToast('Ошибка: ' + e.message, true);
   }
@@ -6243,12 +6400,33 @@ async function openDealCard(bitrixId) {
           </div>
         </div>
         <div class="dc-head-actions">
+          <button class="tbtn tbtn-xs dc-mirror-btn" id="dc-mirror-btn" title="Добавить эту сделку в ещё одну воронку (зеркало)">🔁 В воронку</button>
           <button class="tbtn tbtn-xs dc-archive-btn" id="dc-archive-btn" data-archived="${deal.archived ? 1 : 0}" title="${deal.archived ? 'Восстановить из архива' : 'В архив (soft-delete)'}">
             ${deal.archived ? '↩ Восстановить' : '🗄 В архив'}
           </button>
           <button class="close-x" onclick="closeDealCard()">×</button>
         </div>
       </div>
+
+      ${(() => {
+        // Список воронок где сделка присутствует — основная + зеркала
+        const mir = deal.mirroredIn || {};
+        const allPids = [deal.pipelineId, ...Object.keys(mir)].filter(Boolean);
+        if (allPids.length <= 1) return '';
+        const chips = allPids.map(pid => {
+          const p = dealsState.pipelines?.[pid];
+          const name = p?.name || pid;
+          const isMain = pid === deal.pipelineId;
+          const stageId = isMain ? deal.stageId : mir[pid];
+          const stageName = p?.stages?.[stageId]?.name || stageId || '—';
+          return `<span class="dc-pipe-chip ${isMain ? 'is-main' : ''}" title="${escapeHtml(isMain ? 'Основная воронка' : 'Зеркало')}">
+            <span class="dc-pipe-chip-name">${escapeHtml(name)}</span>
+            <span class="dc-pipe-chip-stage">${escapeHtml(stageName)}</span>
+            ${!isMain ? `<button class="dc-pipe-chip-x" data-remove-mirror="${escapeHtml(pid)}" title="Убрать из этой воронки">×</button>` : ''}
+          </span>`;
+        }).join('');
+        return `<div class="dc-pipes-row">📌 Воронки: ${chips}</div>`;
+      })()}
 
       <div class="dc-stagebar">${stageBarHtml}</div>
 
@@ -6405,6 +6583,48 @@ async function openDealCard(bitrixId) {
   if (contactPhone) {
     mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, contactName);
   }
+
+  // ── 🔁 Зеркало в другую воронку ─────────────────────────────────────
+  const mirrorBtn = modal.querySelector('#dc-mirror-btn');
+  if (mirrorBtn) {
+    mirrorBtn.addEventListener('click', () => openAddMirrorModal(deal, async () => {
+      invalidateDealsCacheForPipeline(deal.pipelineId);
+      // Также инвалидируем вторичные воронки (вдруг где-то их кеш есть)
+      for (const pid of Object.keys(deal.mirroredIn || {})) {
+        invalidateDealsCacheForPipeline(pid);
+      }
+      closeDealCard();
+      setTimeout(() => openDealCard(bitrixId), 50);
+    }));
+  }
+  // Кнопки × на чипах воронок — удалить зеркало
+  modal.querySelectorAll('[data-remove-mirror]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const pid = btn.dataset.removeMirror;
+      const pname = dealsState.pipelines?.[pid]?.name || pid;
+      if (!confirm(`Убрать сделку из воронки «${pname}»? Основная воронка не пострадает.`)) return;
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        const dealId = deal.id || ('deal_' + deal.bitrixId);
+        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/mirror/${encodeURIComponent(pid)}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${idToken}` },
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          throw new Error(j.error || `HTTP ${r.status}`);
+        }
+        showToast('Убрано из воронки');
+        invalidateDealsCacheForPipeline(pid);
+        invalidateDealsCacheForPipeline(deal.pipelineId);
+        closeDealCard();
+        setTimeout(() => openDealCard(bitrixId), 50);
+      } catch (e) {
+        alert('Ошибка: ' + e.message);
+      }
+    });
+  });
 
   // ── Архив сделки ────────────────────────────────────────────────────
   const archiveBtn = modal.querySelector('#dc-archive-btn');
