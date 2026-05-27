@@ -1100,6 +1100,20 @@ async function handleList(request, env, entity) {
     }
   }
 
+  // archived фильтр (только для deals — у contacts/tasks колонки нет).
+  // По умолчанию архив скрыт. ?archived=1 — только архив, ?archived=all — все.
+  if (entity === "deals") {
+    const arch = (url.searchParams.get("archived") || "").trim();
+    if (arch === "1" || arch === "true") {
+      whereParts.push("archived = 1");
+    } else if (arch === "all") {
+      // не добавляем фильтр — показываем все
+    } else {
+      // default — скрываем архив
+      whereParts.push("(archived IS NULL OR archived = 0)");
+    }
+  }
+
   const whereSQL = whereParts.length ? " WHERE " + whereParts.join(" AND ") : "";
   const orderSQL = " ORDER BY " + (cfg.sorts[sortKey] || cfg.defaultSort);
   const offset = (page - 1) * pageSize;
@@ -1356,6 +1370,253 @@ async function requireAdmin(request, env) {
     return { error: "admin role required", status: 403 };
   }
   return { me };
+}
+
+// ── Deal-card handlers: archive, comments, timeline ──────────────────
+// Архивация = soft-delete (deals.archived=1). Сделка остаётся в БД, но
+// не показывается в канбане/списках. Можно восстановить.
+
+async function handleDealArchive(request, env, dealId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+
+  // Permission — может ли юзер редактировать сделку
+  const allowed = await canEditRecord(env, me, "deals", dealId);
+  if (!allowed) return json({ error: "no permission to archive this deal", role: me.role }, 403, request);
+
+  let archived = 1;
+  try {
+    const body = await request.json();
+    if (body.archived === false || body.archived === 0) archived = 0;
+  } catch {}
+
+  const nowIso = new Date().toISOString();
+  await env.DB.prepare(`
+    UPDATE deals SET archived = ?, archived_at = ?, archived_by = ?, bitrix_date_modify = ?
+    WHERE id = ?
+  `).bind(archived, archived ? nowIso : null, archived ? (me.canonicalUid || me.firebaseUid) : null, nowIso, dealId).run();
+
+  // Audit log
+  await auditLog(env, me, archived ? "deal_archive" : "deal_restore", "deal", dealId, null);
+
+  // Авто-событие в timeline (чтобы видно было в ленте)
+  await env.DB.prepare(`
+    INSERT INTO timeline_activities (id, owner_type, owner_id, activity_type, author_uid, payload, created_at)
+    VALUES (?, 'deal', ?, ?, ?, ?, datetime('now'))
+  `).bind(
+    'tl_arch_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    dealId,
+    archived ? 'archived' : 'restored',
+    me.canonicalUid || me.firebaseUid,
+    JSON.stringify({ by: me.email || me.canonicalUid }),
+  ).run();
+
+  return json({ ok: true, dealId, archived }, 200, request);
+}
+
+// POST /api/deals/{id}/comments  { text }
+async function handleDealComment(request, env, dealId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+
+  // Чтение даём всем кто может видеть; запись — кто может редактировать.
+  const allowed = await canEditRecord(env, me, "deals", dealId);
+  if (!allowed) return json({ error: "no permission to comment on this deal", role: me.role }, 403, request);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  const text = (body.text || '').trim();
+  if (!text) return json({ error: "text required" }, 400, request);
+
+  const id = 'tl_cmt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const nowIso = new Date().toISOString();
+  await env.DB.prepare(`
+    INSERT INTO timeline_activities (id, owner_type, owner_id, activity_type, author_uid, bitrix_created, payload, created_at)
+    VALUES (?, 'deal', ?, 'comment', ?, ?, ?, datetime('now'))
+  `).bind(
+    id, dealId, me.canonicalUid || me.firebaseUid, nowIso,
+    JSON.stringify({ text, authorEmail: me.email, authorName: [me.userRecord?.last_name, me.userRecord?.name].filter(Boolean).join(' ').trim() || me.email }),
+  ).run();
+
+  // Bump deal modify time (чтобы поднялось в канбане)
+  await env.DB.prepare(
+    "UPDATE deals SET bitrix_date_modify = ? WHERE id = ?"
+  ).bind(nowIso, dealId).run();
+
+  return json({ ok: true, id, dealId, ts: nowIso }, 200, request);
+}
+
+// GET /api/deals/{id}/timeline — единая лента: timeline_activities + call_log + wa_messages
+// (для сводного отображения в карточке сделки: комменты, события, звонки, WA-сообщения).
+// Сортировка по времени desc.
+async function handleDealTimeline(request, env, dealId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+
+  const url = new URL(request.url);
+  const limit = Math.min(500, Math.max(20, parseInt(url.searchParams.get("limit") || "200", 10) || 200));
+
+  // 1. timeline_activities — comments, archived, и пр.
+  const tlRes = await env.DB.prepare(`
+    SELECT id, activity_type, author_uid, bitrix_created, payload, created_at
+    FROM timeline_activities
+    WHERE owner_type='deal' AND owner_id=?
+    ORDER BY COALESCE(bitrix_created, created_at) DESC
+    LIMIT ?
+  `).bind(dealId, limit).all();
+
+  // 2. call_log — звонки по сделке
+  const callRes = await env.DB.prepare(`
+    SELECT id, caller_uid, direction, phone, started_at, ended_at, duration_sec, status, recording_url, recording_r2_key, provider, note
+    FROM call_log
+    WHERE deal_id = ?
+    ORDER BY started_at DESC
+    LIMIT 50
+  `).bind(dealId).all();
+
+  // 3. WA сообщения по сделке (последние 50)
+  const waRes = await env.DB.prepare(`
+    SELECT m.id, m.chat_id, m.direction, m.text, m.media_kind, m.media_url, m.media_file_name, m.ts
+    FROM wa_messages m
+    JOIN wa_chats c ON c.id = m.chat_id
+    WHERE c.deal_id = ?
+    ORDER BY m.ts DESC
+    LIMIT 50
+  `).bind(dealId).all();
+
+  // Объединяем в общий список с типом
+  const events = [];
+  for (const r of (tlRes.results || [])) {
+    const payload = r.payload ? tryParseJson(r.payload) : null;
+    events.push({
+      kind: r.activity_type === 'comment' ? 'comment' : (r.activity_type || 'event'),
+      id: r.id,
+      ts: r.bitrix_created || r.created_at,
+      authorUid: r.author_uid,
+      payload,
+    });
+  }
+  for (const r of (callRes.results || [])) {
+    events.push({
+      kind: 'call',
+      id: 'call_' + r.id,
+      ts: r.started_at,
+      authorUid: r.caller_uid,
+      payload: {
+        direction: r.direction,
+        phone: r.phone,
+        durationSec: r.duration_sec,
+        status: r.status,
+        recordingUrl: r.recording_url,
+        provider: r.provider,
+        note: r.note,
+      },
+    });
+  }
+  for (const r of (waRes.results || [])) {
+    events.push({
+      kind: 'wa',
+      id: 'wa_' + r.id,
+      ts: new Date(r.ts).toISOString(),
+      authorUid: null,
+      payload: {
+        direction: r.direction,
+        text: r.text,
+        mediaKind: r.media_kind,
+        mediaUrl: r.media_url,
+        mediaFileName: r.media_file_name,
+      },
+    });
+  }
+  // Сортировка desc
+  events.sort((a, b) => String(b.ts || '').localeCompare(String(a.ts || '')));
+
+  return json({ items: events.slice(0, limit), total: events.length }, 200, request);
+}
+
+// ── Custom fields schema CRUD ────────────────────────────────────────
+// GET /api/cf-schema/{entity}  → список всех полей сущности
+// POST /api/cf-schema/{entity} { fieldName, label, dataType, multiple, sort, list }
+// PATCH /api/cf-schema/{entity}/{fieldName}
+// DELETE /api/cf-schema/{entity}/{fieldName}
+
+async function handleCfSchemaList(request, env, entity) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  if (!['deal', 'contact', 'company'].includes(entity)) {
+    return json({ error: "entity must be deal|contact|company" }, 400, request);
+  }
+  const { results } = await env.DB.prepare(`
+    SELECT id, entity_type, field_name, label, data_type, mandatory, multiple, sort, list
+    FROM custom_fields_schema
+    WHERE entity_type = ?
+    ORDER BY sort, id
+  `).bind(entity).all();
+  const items = (results || []).map(r => ({
+    id: r.id,
+    entityType: r.entity_type,
+    fieldName: r.field_name,
+    label: r.label,
+    dataType: r.data_type,
+    mandatory: !!r.mandatory,
+    multiple: !!r.multiple,
+    sort: r.sort,
+    list: r.list ? tryParseJson(r.list) : null,
+  }));
+  return json({ items }, 200, request);
+}
+
+async function handleCfSchemaUpsert(request, env, entity, fieldName) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  if (!['deal', 'contact', 'company'].includes(entity)) {
+    return json({ error: "entity must be deal|contact|company" }, 400, request);
+  }
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+
+  const fn = fieldName || (body.fieldName || '').trim();
+  if (!fn) return json({ error: "fieldName required" }, 400, request);
+  // sanitize fieldName: только латиница/цифры/_
+  if (!/^[a-zA-Z0-9_]+$/.test(fn)) return json({ error: "fieldName must be a-z 0-9 _ only" }, 400, request);
+
+  const label = (body.label || fn).trim();
+  const dataType = (body.dataType || 'string').toLowerCase();
+  const validTypes = ['string', 'text', 'integer', 'double', 'date', 'datetime', 'enumeration', 'boolean'];
+  if (!validTypes.includes(dataType)) return json({ error: `dataType must be one of: ${validTypes.join(',')}` }, 400, request);
+
+  const multiple = body.multiple ? 1 : 0;
+  const mandatory = body.mandatory ? 1 : 0;
+  const sort = body.sort != null ? parseInt(body.sort, 10) || 0 : 100;
+  const listJson = body.list ? JSON.stringify(body.list) : null;
+
+  // Идентификатор — entity:field
+  const id = `${entity}:${fn}`;
+  await env.DB.prepare(`
+    INSERT INTO custom_fields_schema (id, entity_type, field_name, label, data_type, mandatory, multiple, sort, list)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      label = excluded.label,
+      data_type = excluded.data_type,
+      mandatory = excluded.mandatory,
+      multiple = excluded.multiple,
+      sort = excluded.sort,
+      list = excluded.list
+  `).bind(id, entity, fn, label, dataType, mandatory, multiple, sort, listJson).run();
+
+  await auditLog(env, guard.me, "cf_schema_upsert", entity + "_cf", fn, { label, dataType, multiple });
+  return json({ ok: true, id, entity, fieldName: fn, label, dataType, multiple: !!multiple, mandatory: !!mandatory, sort, list: body.list || null }, 200, request);
+}
+
+async function handleCfSchemaDelete(request, env, entity, fieldName) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  const id = `${entity}:${fieldName}`;
+  await env.DB.prepare("DELETE FROM custom_fields_schema WHERE id = ?").bind(id).run();
+  await auditLog(env, guard.me, "cf_schema_delete", entity + "_cf", fieldName, null);
+  return json({ ok: true, id }, 200, request);
 }
 
 async function handleAdminListUsers(request, env) {
@@ -2289,6 +2550,36 @@ export default {
     const userActiveMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/active$/);
     if (userActiveMatch && request.method === "PATCH") {
       return handleAdminSetUserActive(request, env, userActiveMatch[1]);
+    }
+
+    // /api/deals/{id}/* — карточка сделки (архив, комментарии, лента)
+    const dealArchiveMatch = path.match(/^\/api\/deals\/([^/]+)\/archive$/);
+    if (dealArchiveMatch && request.method === "POST") {
+      return handleDealArchive(request, env, dealArchiveMatch[1]);
+    }
+    const dealCommentMatch = path.match(/^\/api\/deals\/([^/]+)\/comments$/);
+    if (dealCommentMatch && request.method === "POST") {
+      return handleDealComment(request, env, dealCommentMatch[1]);
+    }
+    const dealTimelineMatch = path.match(/^\/api\/deals\/([^/]+)\/timeline$/);
+    if (dealTimelineMatch && request.method === "GET") {
+      return handleDealTimeline(request, env, dealTimelineMatch[1]);
+    }
+
+    // /api/cf-schema/{entity}[/{fieldName}] — custom fields CRUD
+    const cfListMatch = path.match(/^\/api\/cf-schema\/([a-z]+)$/);
+    if (cfListMatch && request.method === "GET") {
+      return handleCfSchemaList(request, env, cfListMatch[1]);
+    }
+    if (cfListMatch && request.method === "POST") {
+      return handleCfSchemaUpsert(request, env, cfListMatch[1], null);
+    }
+    const cfItemMatch = path.match(/^\/api\/cf-schema\/([a-z]+)\/([a-zA-Z0-9_]+)$/);
+    if (cfItemMatch && request.method === "PATCH") {
+      return handleCfSchemaUpsert(request, env, cfItemMatch[1], cfItemMatch[2]);
+    }
+    if (cfItemMatch && request.method === "DELETE") {
+      return handleCfSchemaDelete(request, env, cfItemMatch[1], cfItemMatch[2]);
     }
 
     // /api/wa/* — WhatsApp Green-API
