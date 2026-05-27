@@ -2307,6 +2307,85 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
 }
 .cc-array-del:hover { color: var(--rd); border-color: var(--rd); }
 
+/* Green-API setup wizard */
+.wa-wizard {
+  background: linear-gradient(135deg, rgba(37,211,102,.04), rgba(124,92,252,.04));
+  border: 1px solid var(--b1);
+  border-radius: 10px;
+  padding: 14px 18px;
+}
+.wa-step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--b1);
+}
+.wa-step:last-child { border-bottom: none; }
+.wa-step-num {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #25D366;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wa-step-body { flex: 1; min-width: 0; }
+.wa-step-title { font-weight: 600; color: var(--t1); font-size: 13.5px; margin-bottom: 4px; }
+.wa-step-text { color: var(--t2); font-size: 12.5px; line-height: 1.55; }
+.wa-step-text code {
+  background: var(--bg);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--ac2);
+}
+
+/* Подключенные каналы — карточки */
+.wa-channel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.wa-channel-card {
+  background: var(--bg);
+  border: 1px solid var(--b1);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.wa-channel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.wa-channel-name { font-weight: 600; color: var(--t1); font-size: 14px; }
+.wa-channel-sub { font-size: 11px; color: var(--t3); margin-top: 2px; }
+.wa-channel-sub code { background: var(--bg2); padding: 1px 5px; border-radius: 3px; font-size: 10px; }
+.wa-channel-status {
+  font-size: 11px;
+  color: var(--t2);
+  white-space: nowrap;
+  background: var(--bg2);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--b1);
+}
+.wa-channel-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.wa-channel-webhook { margin-bottom: 6px; }
+.wa-channel-extra:empty { display: none; }
+
 /* Inline-rename для label кастомного поля (admin) */
 .cf-label-edit {
   cursor: pointer;
@@ -11352,34 +11431,91 @@ async function openWaChannelsModal() {
   ov.className = 'qad-overlay';
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   ov.innerHTML = `
-    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:720px;width:95vw">
-      <div class="qad-head">
-        <h2>💬 WhatsApp каналы (Green-API)</h2>
-        <button class="qad-btn qad-btn-ghost" id="wc-close" style="padding:4px 10px">×</button>
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:780px;width:96vw">
+      <div class="qad-head" style="background:linear-gradient(135deg,#25D366,#1ebe5a);color:#fff">
+        <h2 style="color:#fff;margin:0">💬 Настройка WhatsApp (Green-API)</h2>
+        <button class="qad-btn qad-btn-ghost" id="wc-close" style="padding:4px 10px;color:#fff">×</button>
       </div>
-      <div class="qad-body" style="max-height:70vh;overflow:auto">
+      <div class="qad-body" style="max-height:75vh;overflow:auto;padding:18px 24px">
+        <!-- Существующие каналы -->
         <div id="wc-list"><div class="empty">Загрузка…</div></div>
-        <hr style="margin:20px 0;border:none;border-top:1px solid var(--b1)">
-        <h3 style="margin:0 0 8px 0;font-size:14px">Добавить / обновить канал</h3>
-        <div class="dialer-hint" style="margin-bottom:10px">
-          В Green-API создай инстанс на <a href="https://green-api.com" target="_blank" style="color:var(--ac2)">green-api.com</a>,
-          скопируй <code>idInstance</code> и <code>apiTokenInstance</code>.
-          После сохранения внизу появится <b>webhook URL</b> — вставь его в настройки Green-API инстанса в раздел
-          «Уведомления (HTTP API)» / «Notifications URL».
+
+        <!-- Wizard инструкция -->
+        <div class="wa-wizard">
+          <h3 style="margin:24px 0 12px 0;font-size:15px;color:var(--t1);font-family:var(--fd)">📋 Как подключить WhatsApp за 5 минут</h3>
+
+          <div class="wa-step">
+            <div class="wa-step-num">1</div>
+            <div class="wa-step-body">
+              <div class="wa-step-title">Регистрация в Green-API</div>
+              <div class="wa-step-text">
+                Перейди на <a href="https://green-api.com" target="_blank" style="color:#25D366;font-weight:600">green-api.com</a> →
+                Зарегистрируйся → личный кабинет.
+                <br><span class="muted">Есть бесплатный тариф «Developer» — для тестов хватит.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="wa-step">
+            <div class="wa-step-num">2</div>
+            <div class="wa-step-body">
+              <div class="wa-step-title">Создай инстанс</div>
+              <div class="wa-step-text">
+                В кабинете Green-API → «Создать новый инстанс» → выбери тариф.
+                Получишь <code>idInstance</code> (вроде <code>1101000001</code>) и <code>apiTokenInstance</code> — длинная строка.
+              </div>
+            </div>
+          </div>
+
+          <div class="wa-step">
+            <div class="wa-step-num">3</div>
+            <div class="wa-step-body">
+              <div class="wa-step-title">Заполни форму ниже и нажми «Создать канал»</div>
+              <div class="wa-step-text">После сохранения тебе выдадут уникальный <b>Webhook URL</b>.</div>
+            </div>
+          </div>
+
+          <div class="wa-step">
+            <div class="wa-step-num">4</div>
+            <div class="wa-step-body">
+              <div class="wa-step-title">Вставь Webhook URL в Green-API</div>
+              <div class="wa-step-text">
+                В кабинете Green-API → твой инстанс → «Настройки» → «URL для уведомлений»<br>
+                Вставь <b>Webhook URL</b> (получишь его на шаге 3) → Сохранить.<br>
+                Также включи: <span class="muted">incomingMessageReceived, outgoingMessageReceived, outgoingAPIMessageReceived</span>.
+              </div>
+            </div>
+          </div>
+
+          <div class="wa-step">
+            <div class="wa-step-num">5</div>
+            <div class="wa-step-body">
+              <div class="wa-step-title">Авторизуй телефон через QR</div>
+              <div class="wa-step-text">
+                После создания канала — нажми <b>📷 QR-код</b> в таблице. Откроется картинка.
+                В WhatsApp на телефоне → ⋮ → «Связанные устройства» → «Привязать устройство» → сканируй QR.
+                <br><span class="muted">После авторизации статус канала → 🟢 Готов.</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="qad-body" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0">
-          <div><div class="qad-label">idInstance *</div><input id="wc-instance" class="qad-input" placeholder="1101..."></div>
-          <div><div class="qad-label">apiTokenInstance *</div><input id="wc-token" class="qad-input" type="password" placeholder="секретный токен"></div>
-          <div><div class="qad-label">Название</div><input id="wc-name" class="qad-input" placeholder="ELC основной"></div>
-          <div><div class="qad-label">Воронка для входящих</div><select id="wc-pipeline" class="qad-input"><option value="">— нет —</option></select></div>
-          <div><div class="qad-label">Стартовая стадия</div><select id="wc-stage" class="qad-input"><option value="">первая стадия</option></select></div>
-          <div><div class="qad-label">Ответственный</div><select id="wc-responsible" class="qad-input"><option value="">— нет —</option></select></div>
+
+        <hr style="margin:24px 0;border:none;border-top:1px solid var(--b1)">
+
+        <h3 style="margin:0 0 10px 0;font-size:14px;color:var(--t1)">➕ Добавить канал</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div><div class="qad-label">idInstance *</div><input id="wc-instance" class="qad-input" placeholder="1101000001" autocomplete="off"></div>
+          <div><div class="qad-label">apiTokenInstance *</div><input id="wc-token" class="qad-input" type="text" placeholder="секретный токен" autocomplete="off"></div>
+          <div><div class="qad-label">Название (для тебя)</div><input id="wc-name" class="qad-input" placeholder="ELC основной номер"></div>
+          <div><div class="qad-label">Воронка для входящих</div><select id="wc-pipeline" class="qad-input"><option value="">— не создавать сделки —</option></select></div>
+          <div><div class="qad-label">Стартовая стадия</div><select id="wc-stage" class="qad-input"><option value="">первая стадия воронки</option></select></div>
+          <div><div class="qad-label">Ответственный за новые</div><select id="wc-responsible" class="qad-input"><option value="">— не назначать —</option></select></div>
         </div>
-        <div id="wc-result" style="margin-top:10px"></div>
+        <div id="wc-result" style="margin-top:14px"></div>
       </div>
       <div class="qad-foot">
         <button class="qad-btn qad-btn-ghost" id="wc-cancel">Закрыть</button>
-        <button class="qad-btn qad-btn-primary" id="wc-save">Сохранить канал</button>
+        <button class="qad-btn qad-btn-primary" id="wc-save" style="background:#25D366;border-color:#25D366">💾 Создать канал</button>
       </div>
     </div>
   `;
@@ -11387,12 +11523,10 @@ async function openWaChannelsModal() {
   document.getElementById('wc-close').onclick = () => ov.remove();
   document.getElementById('wc-cancel').onclick = () => ov.remove();
 
-  // Заполним селектор воронок (используем уже загруженные в dealsState.pipelines)
   const pipelineSel = document.getElementById('wc-pipeline');
   const stageSel = document.getElementById('wc-stage');
   const responsibleSel = document.getElementById('wc-responsible');
   try {
-    // Если ещё не загружали — подгрузим
     if (!dealsState.metaLoaded) await loadDealsMeta();
     const ps = Object.values(dealsState.pipelines || {});
     for (const p of ps) {
@@ -11402,7 +11536,7 @@ async function openWaChannelsModal() {
     }
     pipelineSel.onchange = () => {
       const p = dealsState.pipelines[pipelineSel.value];
-      stageSel.innerHTML = '<option value="">первая стадия</option>';
+      stageSel.innerHTML = '<option value="">первая стадия воронки</option>';
       if (p && p.stages) {
         const stages = Array.isArray(p.stages) ? p.stages : Object.values(p.stages);
         for (const s of stages) {
@@ -11413,7 +11547,6 @@ async function openWaChannelsModal() {
         }
       }
     };
-    // Сотрудники
     const us = Object.values(dealsState.users || {});
     us.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
     for (const u of us) {
@@ -11440,25 +11573,134 @@ async function refreshWaChannelsList() {
     }).then(r => r.ok ? r.json() : null);
     const items = data?.items || [];
     if (!items.length) {
-      wrap.innerHTML = '<div class="empty">Каналов пока нет — добавь первый ниже.</div>';
+      wrap.innerHTML = `<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;border-radius:8px;padding:14px 18px;font-size:13px;color:#92400e">
+        ℹ️ Подключенных каналов WhatsApp пока нет. Следуй инструкции ниже чтобы подключить первый.
+      </div>`;
       return;
     }
-    let html = '<table class="dtable" style="font-size:12px"><thead><tr><th>idInstance</th><th>Название</th><th>Воронка</th><th>Активен</th><th>Webhook</th></tr></thead><tbody>';
+    let html = '<h3 style="margin:0 0 10px 0;font-size:14px;color:var(--t1)">📡 Подключенные каналы</h3>';
+    html += '<div class="wa-channel-list">';
     for (const c of items) {
-      const pipeName = dealsState.pipelines?.[c.default_pipeline_id]?.name || c.default_pipeline_id || '—';
+      const pipeName = dealsState.pipelines?.[c.default_pipeline_id]?.name || '—';
       const webhookUrl = `${WORKER_BASE_URL}/api/wa/webhook?token=${encodeURIComponent(c.webhook_token || '')}`;
-      html += `<tr>
-        <td style="font-family:monospace">${escapeHtml(c.id_instance)}</td>
-        <td>${escapeHtml(c.display_name || '—')}</td>
-        <td>${escapeHtml(pipeName)}</td>
-        <td>${c.active ? '✅' : '⏸'}</td>
-        <td><input readonly value="${escapeHtml(webhookUrl)}" style="width:280px;font-size:10px;background:var(--bg2);border:1px solid var(--b1);padding:2px 4px;border-radius:3px" onclick="this.select()"></td>
-      </tr>`;
+      html += `<div class="wa-channel-card" data-channel-id="${escapeHtml(c.id)}">
+        <div class="wa-channel-head">
+          <div>
+            <div class="wa-channel-name">${escapeHtml(c.display_name || 'Green-API ' + c.id_instance)}</div>
+            <div class="wa-channel-sub">id: <code>${escapeHtml(c.id_instance)}</code> · воронка: ${escapeHtml(pipeName)}</div>
+          </div>
+          <div class="wa-channel-status" data-status-for="${escapeHtml(c.id)}">${c.active ? '⏳ Проверяю…' : '⏸ Отключен'}</div>
+        </div>
+        <div class="wa-channel-actions">
+          <button class="tbtn tbtn-xs wa-check-status-btn" data-channel-id="${escapeHtml(c.id)}">🔄 Статус</button>
+          <button class="tbtn tbtn-xs wa-qr-btn" data-channel-id="${escapeHtml(c.id)}">📷 QR-код</button>
+          <button class="tbtn tbtn-xs wa-copy-webhook-btn" data-webhook="${escapeHtml(webhookUrl)}" title="Скопировать">📋 Webhook URL</button>
+        </div>
+        <div class="wa-channel-webhook">
+          <input readonly value="${escapeHtml(webhookUrl)}" onclick="this.select()"
+            style="width:100%;font-family:monospace;font-size:10px;background:var(--bg);border:1px solid var(--b1);padding:5px 8px;border-radius:4px;color:var(--t2)">
+        </div>
+        <div class="wa-channel-extra" data-extra-for="${escapeHtml(c.id)}"></div>
+      </div>`;
     }
-    html += '</tbody></table>';
+    html += '</div>';
     wrap.innerHTML = html;
+
+    // Запустим check-status для всех активных каналов
+    for (const c of items) {
+      if (c.active) checkWaChannelStatus(c.id);
+    }
   } catch (e) {
     wrap.innerHTML = '<div class="empty">Ошибка: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+// Делегированные handlers для кнопок в карточках каналов
+document.addEventListener('click', async (e) => {
+  const copyBtn = e.target.closest('.wa-copy-webhook-btn');
+  if (copyBtn) {
+    e.preventDefault();
+    try {
+      await navigator.clipboard.writeText(copyBtn.dataset.webhook);
+      const orig = copyBtn.textContent;
+      copyBtn.textContent = '✓ Скопировано';
+      setTimeout(() => { copyBtn.textContent = orig; }, 1500);
+    } catch { alert('Не удалось скопировать. Скопируй вручную из поля ниже.'); }
+    return;
+  }
+  const statusBtn = e.target.closest('.wa-check-status-btn');
+  if (statusBtn) {
+    e.preventDefault();
+    await checkWaChannelStatus(statusBtn.dataset.channelId);
+    return;
+  }
+  const qrBtn = e.target.closest('.wa-qr-btn');
+  if (qrBtn) {
+    e.preventDefault();
+    await showWaChannelQr(qrBtn.dataset.channelId);
+    return;
+  }
+});
+
+async function checkWaChannelStatus(channelId) {
+  const statusEl = document.querySelector(`[data-status-for="${channelId}"]`);
+  if (statusEl) statusEl.textContent = '⏳ Проверяю…';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/channels/${encodeURIComponent(channelId)}/state`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    const state = data.stateInstance || 'unknown';
+    const labels = {
+      authorized: '🟢 Готов (телефон привязан)',
+      notAuthorized: '🟡 Нужна авторизация (отсканируй QR)',
+      starting: '⏳ Запускается…',
+      blocked: '🚫 Заблокирован Green-API',
+      sleepMode: '💤 Sleep mode',
+      yellowCard: '⚠️ Yellow card (ограничения WhatsApp)',
+      unknown: '❓ Неизвестно',
+    };
+    if (statusEl) statusEl.textContent = labels[state] || `Статус: ${state}`;
+  } catch (e) {
+    if (statusEl) statusEl.textContent = '❌ ' + e.message;
+  }
+}
+
+async function showWaChannelQr(channelId) {
+  const extra = document.querySelector(`[data-extra-for="${channelId}"]`);
+  if (!extra) return;
+  extra.innerHTML = '<div style="padding:14px;color:var(--t3);font-size:12px;text-align:center">⏳ Запрашиваю QR-код…</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/channels/${encodeURIComponent(channelId)}/qr`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+
+    if (data.type === 'alreadyLogged') {
+      extra.innerHTML = '<div style="background:#dcf8c6;padding:10px;border-radius:6px;font-size:12px">✅ Телефон уже привязан, QR не нужен.</div>';
+      checkWaChannelStatus(channelId);
+      return;
+    }
+    if (data.type === 'qrCode' && data.message) {
+      extra.innerHTML = `
+        <div style="background:#fff;border:1px solid var(--b1);border-radius:8px;padding:14px;text-align:center">
+          <div style="font-size:12px;color:var(--t2);margin-bottom:10px">
+            Открой WhatsApp на телефоне → ⋮ → <b>«Связанные устройства»</b> → «Привязать устройство» → сканируй:
+          </div>
+          <img src="data:image/png;base64,${escapeHtml(data.message)}"
+            style="width:260px;height:260px;border:1px solid var(--b1);border-radius:8px">
+          <div style="font-size:11px;color:var(--t3);margin-top:8px">QR обновляется ~20 сек. Если не успел — нажми «📷 QR-код» снова.</div>
+          <button class="tbtn tbtn-xs" onclick="this.closest('.wa-channel-extra').innerHTML=''" style="margin-top:8px">Закрыть QR</button>
+        </div>`;
+    } else {
+      extra.innerHTML = `<div style="padding:10px;color:#c00;font-size:12px">Не удалось получить QR: ${escapeHtml(data.message || data.type || 'unknown')}</div>`;
+    }
+  } catch (e) {
+    extra.innerHTML = `<div style="padding:10px;color:#c00;font-size:12px">Ошибка: ${escapeHtml(e.message)}</div>`;
   }
 }
 
@@ -11482,17 +11724,30 @@ async function saveWaChannel() {
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
     document.getElementById('wc-result').innerHTML = `
-      <div style="padding:10px;background:#dcf8c6;border-radius:6px;font-size:12px">
-        ✅ Канал сохранён.<br>
-        <b>Webhook URL</b> (вставь в Green-API → Notifications):<br>
-        <input readonly value="${escapeHtml(data.webhookUrl)}" style="width:100%;font-family:monospace;font-size:10px;margin-top:6px;padding:4px;border:1px solid #999;border-radius:3px" onclick="this.select()">
+      <div style="padding:14px;background:linear-gradient(135deg,#dcf8c6,#b8e9a0);border-radius:8px;font-size:13px;border:1px solid #25D366">
+        <div style="font-weight:600;color:#1b5e20;margin-bottom:8px">✅ Канал создан! Следующие шаги:</div>
+        <ol style="margin:0 0 10px 18px;padding:0;color:#1b5e20;line-height:1.7">
+          <li>Скопируй <b>Webhook URL</b> ниже (кнопка 📋)</li>
+          <li>Открой Green-API кабинет → твой инстанс → Настройки → «URL для уведомлений» → вставь</li>
+          <li>Сохрани в Green-API</li>
+          <li>Вернись сюда → нажми <b>📷 QR-код</b> на карточке канала → сканируй с телефона</li>
+        </ol>
+        <div style="background:#fff;border:1px solid #25D366;border-radius:6px;padding:6px 8px;display:flex;gap:6px;align-items:center">
+          <input readonly value="${escapeHtml(data.webhookUrl)}" id="wc-webhook-input"
+            style="flex:1;font-family:monospace;font-size:11px;border:none;background:transparent;color:#1b5e20"
+            onclick="this.select()">
+          <button class="tbtn tbtn-xs" onclick="navigator.clipboard.writeText(document.getElementById('wc-webhook-input').value);this.textContent='✓';setTimeout(()=>this.textContent='📋',1500)" style="background:#25D366;color:#fff;border-color:#25D366">📋</button>
+        </div>
       </div>
     `;
+    document.getElementById('wc-instance').value = '';
+    document.getElementById('wc-token').value = '';
+    document.getElementById('wc-name').value = '';
     await refreshWaChannelsList();
   } catch (e) {
     alert('Ошибка: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = 'Сохранить канал';
+    btn.disabled = false; btn.textContent = '💾 Создать канал';
   }
 }
 
