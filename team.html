@@ -1840,8 +1840,95 @@ tr:hover td { background: var(--bg3); }
   color: var(--t3);
   margin-top: 3px;
 }
+.dc-deed-meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--t3);
+  flex-wrap: wrap;
+}
+.dc-deed-due { font-size: 11px; color: var(--t3); }
 .dc-deed-due.overdue { color: var(--rd); font-weight: 600; }
 .dc-deed-due.today { color: var(--ac2); font-weight: 600; }
+.dc-deed-dealref {
+  color: var(--ac2);
+  text-decoration: none;
+  font-size: 11px;
+}
+.dc-deed-dealref:hover { text-decoration: underline; }
+.dc-deed-toggle {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--gn);
+}
+
+/* Раздел «Дела» — фильтры и список */
+.deeds-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 14px;
+}
+.deeds-filter {
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  color: var(--t2);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .12s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.deeds-filter:hover { background: var(--bg3); color: var(--t1); }
+.deeds-filter.active {
+  background: var(--ac2);
+  color: #fff;
+  border-color: var(--ac2);
+}
+.deeds-pill {
+  display: inline-block;
+  background: rgba(255,255,255,.25);
+  color: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  min-width: 18px;
+  text-align: center;
+}
+.deeds-filter:not(.active) .deeds-pill {
+  background: var(--bg3);
+  color: var(--t1);
+}
+.deeds-filter[data-filter="overdue"] .deeds-pill {
+  background: var(--rd);
+  color: #fff;
+}
+.deeds-search-row {
+  margin-bottom: 14px;
+}
+.deeds-search {
+  width: 100%;
+  max-width: 500px;
+  border: 1px solid var(--b1);
+  background: var(--bg2);
+  color: var(--t1);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 13px;
+}
+.deeds-search:focus { outline: none; border-color: var(--ac2); }
+.deeds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
 .dc-contact-card {
   background: var(--bg3);
@@ -2364,6 +2451,9 @@ html[data-theme="light"] .dc-wa-pane { background: #ECE5DD; }
     <div class="nav-item" data-page="tasks">
       <span class="nav-icon">✅</span><span>Задачи</span>
     </div>
+    <div class="nav-item" data-page="deeds">
+      <span class="nav-icon">🗓</span><span>Дела</span>
+    </div>
 
     <div class="nav-section">Команда</div>
     <div class="nav-item" data-page="users">
@@ -2848,7 +2938,7 @@ async function initApp(user) {
 
   // Default page — восстанавливаем последнюю открытую (persist в localStorage
   // через navigate). Deep-link в hash (#deal/, #contact/, #task/) приоритетнее.
-  const VALID_PAGES = ['dashboard', 'contacts', 'deals', 'tasks', 'users', 'chats', 'migration'];
+  const VALID_PAGES = ['dashboard', 'contacts', 'deals', 'tasks', 'deeds', 'users', 'chats', 'migration'];
   let startPage = 'dashboard';
   if (location.hash.startsWith('#deal/')) startPage = 'deals';
   else if (location.hash.startsWith('#contact/')) startPage = 'contacts';
@@ -2932,6 +3022,7 @@ function navigate(page) {
   else if (page === 'contacts') renderContacts(main);
   else if (page === 'deals') renderDeals(main);
   else if (page === 'tasks') renderTasks(main);
+  else if (page === 'deeds') renderDeeds(main);
   else if (page === 'users') renderUsers(main);
   else if (page === 'chats') renderChats(main);
   else if (page === 'migration') renderMigration(main);
@@ -5113,7 +5204,7 @@ async function loadDealDeeds(modal, deal) {
   }
 }
 
-function renderDeedRowHtml(t) {
+function renderDeedRowHtml(t, opts = {}) {
   const dl = t.deadline;
   const dlDate = dl ? new Date(dl) : null;
   const now = Date.now();
@@ -5121,16 +5212,79 @@ function renderDeedRowHtml(t) {
   const dueToday = dlDate && (dlDate.getTime() - now) < 86400000 && (dlDate.getTime() - now) > -86400000;
   const dlLabel = dlDate ? dlDate.toLocaleString('ru', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
   const isDone = t.status >= 5;
-  return `<div class="dc-deed-row ${isDone ? 'is-done' : ''} ${overdue && !isDone ? 'is-overdue' : ''}" data-task-key="${escapeHtml(t.bitrixKey || t.id)}">
+  const taskId = t.id || t.bitrixKey;
+  // Привязки сделки для отображения "→ Сделка X" в общем разделе Дела
+  const link = opts.showDealLink && t._dealRef
+    ? `<a class="dc-deed-dealref" data-deal-bitrix="${escapeHtml(t._dealRef)}" href="#">→ Сделка #${escapeHtml(t._dealRef)}</a>`
+    : '';
+  return `<div class="dc-deed-row ${isDone ? 'is-done' : ''} ${overdue && !isDone ? 'is-overdue' : ''}" data-task-id="${escapeHtml(taskId)}">
     <label class="dc-deed-check">
-      <input type="checkbox" ${isDone ? 'checked' : ''} disabled>
+      <input type="checkbox" class="dc-deed-toggle" data-task-id="${escapeHtml(taskId)}" ${isDone ? 'checked' : ''}>
     </label>
     <div class="dc-deed-body">
       <div class="dc-deed-title">${escapeHtml(t.title || '(без названия)')}</div>
-      ${dlLabel ? `<div class="dc-deed-due ${overdue && !isDone ? 'overdue' : (dueToday ? 'today' : '')}">📅 ${escapeHtml(dlLabel)}</div>` : ''}
+      <div class="dc-deed-meta">
+        ${dlLabel ? `<span class="dc-deed-due ${overdue && !isDone ? 'overdue' : (dueToday ? 'today' : '')}">📅 ${escapeHtml(dlLabel)}</span>` : ''}
+        ${link}
+      </div>
     </div>
   </div>`;
 }
+
+// Toggle done state у задачи через PATCH /api/rtdb/tasks/{id}
+async function toggleDeedDone(taskId, done) {
+  const idToken = await fbAuth.currentUser.getIdToken();
+  // Status: 5 = выполнена, 2 = в работе. Битриксовский набор статусов.
+  const newStatus = done ? 5 : 2;
+  const r = await fetch(`${WORKER_RTDB_URL}/tasks/${encodeURIComponent(taskId)}.json?auth=${idToken}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      status: newStatus,
+      bitrixChangedDate: new Date().toISOString(),
+      ...(done ? { bitrixClosedDate: new Date().toISOString() } : {}),
+    }),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j.error || `HTTP ${r.status}`);
+  }
+  return newStatus;
+}
+
+// Делегированный listener для всех toggle-чекбоксов дел (карточка сделки + раздел Дела)
+document.addEventListener('change', async (e) => {
+  const cb = e.target.closest('.dc-deed-toggle');
+  if (!cb) return;
+  const taskId = cb.dataset.taskId;
+  if (!taskId) return;
+  cb.disabled = true;
+  try {
+    const newStatus = await toggleDeedDone(taskId, cb.checked);
+    const row = cb.closest('.dc-deed-row');
+    if (row) row.classList.toggle('is-done', cb.checked);
+    // Если открыт раздел Дела — обновим локальный state и перерисуем счётчики
+    if (deedsState && Array.isArray(deedsState.items)) {
+      const t = deedsState.items.find(x => x.id === taskId || x.bitrixKey === taskId);
+      if (t) t.status = newStatus;
+      if (document.getElementById('deeds-list')) renderDeedsList();
+    }
+  } catch (err) {
+    alert('Ошибка: ' + err.message);
+    cb.checked = !cb.checked;
+  } finally {
+    cb.disabled = false;
+  }
+});
+
+// Открыть карточку сделки по клику на ссылку "→ Сделка X" в разделе Дела
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('.dc-deed-dealref');
+  if (!a) return;
+  e.preventDefault();
+  const id = a.dataset.dealBitrix;
+  if (id && typeof openDealCard === 'function') openDealCard(id);
+});
 
 // Модалка добавления дела (задачи) к сделке
 function openAddDeedModal(deal, onDone) {
@@ -7590,6 +7744,172 @@ const TASK_PRIORITY_META = {
   '2': { label: 'Высокий', class: 'badge-r' },
   '3': { label: 'Срочный', class: 'badge-r' },
 };
+
+// ── Раздел «Дела» — единый to-do list со всех сделок и задач ────────────
+// Лёгкий фокусный вид: что нужно сделать сегодня / завтра / просрочено.
+// Использует те же tasks из /api/list/tasks но фильтрует по дедлайнам.
+const deedsState = {
+  filter: 'today', // overdue | today | tomorrow | week | all | done
+  search: '',
+  items: [],
+  loading: false,
+};
+const DEEDS_FILTER_LS_KEY = 'elc:deedsFilter';
+
+async function renderDeeds(el) {
+  // Восстановим выбранный фильтр
+  try {
+    const saved = localStorage.getItem(DEEDS_FILTER_LS_KEY);
+    if (saved && ['overdue','today','tomorrow','week','all','done'].includes(saved)) {
+      deedsState.filter = saved;
+    }
+  } catch {}
+
+  el.innerHTML = `
+    <div class="page-head">
+      <h1>🗓 Дела <span class="count" id="deeds-count">…</span></h1>${scopeToggleHtml()}
+    </div>
+    <div class="deeds-filters" id="deeds-filters">
+      <button class="deeds-filter" data-filter="overdue">⚠ Просрочены <span class="deeds-pill" id="deeds-pill-overdue"></span></button>
+      <button class="deeds-filter" data-filter="today">📅 Сегодня <span class="deeds-pill" id="deeds-pill-today"></span></button>
+      <button class="deeds-filter" data-filter="tomorrow">→ Завтра <span class="deeds-pill" id="deeds-pill-tomorrow"></span></button>
+      <button class="deeds-filter" data-filter="week">📆 Эта неделя <span class="deeds-pill" id="deeds-pill-week"></span></button>
+      <button class="deeds-filter" data-filter="all">📋 Все активные</button>
+      <button class="deeds-filter" data-filter="done">✓ Сделано</button>
+    </div>
+    <div class="deeds-search-row">
+      <input class="deeds-search" id="deeds-search" type="search" placeholder="🔎 Поиск по названию…" value="${escapeHtml(deedsState.search)}">
+    </div>
+    <div class="deeds-list" id="deeds-list"><div class="empty">⏳ Загружаем…</div></div>
+  `;
+  // Помечаем активный фильтр
+  el.querySelectorAll('.deeds-filter').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === deedsState.filter);
+    b.addEventListener('click', () => {
+      deedsState.filter = b.dataset.filter;
+      try { localStorage.setItem(DEEDS_FILTER_LS_KEY, b.dataset.filter); } catch {}
+      el.querySelectorAll('.deeds-filter').forEach(x => x.classList.toggle('active', x === b));
+      renderDeedsList();
+    });
+  });
+  attachScopeToggle(el, () => renderDeeds(el));
+
+  const searchEl = el.querySelector('#deeds-search');
+  let searchTimer = null;
+  searchEl.addEventListener('input', (e) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      deedsState.search = e.target.value.trim();
+      renderDeedsList();
+    }, 200);
+  });
+
+  await loadDeeds();
+  renderDeedsList();
+}
+
+async function loadDeeds() {
+  if (deedsState.loading) return;
+  deedsState.loading = true;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    // Грузим активные задачи (status<5) с дедлайном. Pages of 200 до 1000 max.
+    const all = [];
+    const isDone = deedsState.filter === 'done';
+    for (let page = 1; page <= 5; page++) {
+      const params = new URLSearchParams({
+        page: String(page), pageSize: '200',
+        status: isDone ? '5' : 'active',
+        sort: 'deadline', auth: idToken, scope: effectiveScope(),
+      });
+      const r = await fetch(`${WORKER_LIST_URL}/tasks?${params}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      all.push(...(data.items || []));
+      if (!data.hasMore) break;
+    }
+    // Привяжем dealRef из crm_links для отображения "→ Сделка X"
+    for (const t of all) {
+      const links = t.crmLinks || t.bitrixCrmLinks;
+      if (links) {
+        const arr = Array.isArray(links) ? links : asArray(links);
+        const dealLink = arr.find(l => String(l).startsWith('deal_'));
+        if (dealLink) t._dealRef = String(dealLink).replace(/^deal_/, '');
+      }
+    }
+    deedsState.items = all;
+  } catch (e) {
+    console.error('loadDeeds:', e);
+    deedsState.items = [];
+  } finally {
+    deedsState.loading = false;
+  }
+}
+
+function filterDeedsByDate(items, filter) {
+  const now = Date.now();
+  const today0 = new Date(); today0.setHours(0, 0, 0, 0); const today0ms = today0.getTime();
+  const tomorrow0 = today0ms + 86400000;
+  const dayAfter = today0ms + 86400000 * 2;
+  const weekEnd = today0ms + 86400000 * 7;
+  return items.filter(t => {
+    const dl = t.deadline ? new Date(t.deadline).getTime() : null;
+    if (filter === 'overdue') return dl && dl < now && t.status < 5;
+    if (filter === 'today') return dl && dl >= today0ms && dl < tomorrow0;
+    if (filter === 'tomorrow') return dl && dl >= tomorrow0 && dl < dayAfter;
+    if (filter === 'week') return dl && dl < weekEnd && t.status < 5;
+    if (filter === 'done') return t.status >= 5;
+    return true; // all
+  });
+}
+
+function renderDeedsList() {
+  const wrap = document.getElementById('deeds-list');
+  const countEl = document.getElementById('deeds-count');
+  if (!wrap) return;
+
+  // Обновим пиллы счётчиков
+  const counts = {
+    overdue: filterDeedsByDate(deedsState.items, 'overdue').length,
+    today: filterDeedsByDate(deedsState.items, 'today').length,
+    tomorrow: filterDeedsByDate(deedsState.items, 'tomorrow').length,
+    week: filterDeedsByDate(deedsState.items, 'week').length,
+  };
+  for (const k of Object.keys(counts)) {
+    const pill = document.getElementById('deeds-pill-' + k);
+    if (pill) {
+      pill.textContent = counts[k] || '';
+      pill.style.display = counts[k] > 0 ? '' : 'none';
+    }
+  }
+
+  let items = filterDeedsByDate(deedsState.items, deedsState.filter);
+  if (deedsState.search) {
+    const q = deedsState.search.toLowerCase();
+    items = items.filter(t => (t.title || '').toLowerCase().includes(q));
+  }
+  // Сортировка: просроченные первыми, потом по deadline asc, потом без deadline
+  items.sort((a, b) => {
+    const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+    const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+    return da - db;
+  });
+
+  if (countEl) countEl.textContent = items.length.toLocaleString('ru');
+  if (!items.length) {
+    const msg = {
+      overdue: '🎉 Нет просроченных дел!',
+      today: '📭 На сегодня дел нет.',
+      tomorrow: '📭 На завтра дел нет.',
+      week: '📭 На неделю дел нет.',
+      done: '📭 Завершённых дел нет.',
+      all: '📭 Активных дел нет. Создавай дела из карточек сделок.',
+    }[deedsState.filter] || 'Пусто';
+    wrap.innerHTML = `<div class="empty">${msg}</div>`;
+    return;
+  }
+  wrap.innerHTML = items.map(t => renderDeedRowHtml(t, { showDealLink: true })).join('');
+}
 
 async function renderTasks(el) {
   el.innerHTML = `
