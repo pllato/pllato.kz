@@ -3262,7 +3262,54 @@ const dealsState = {
   responsibleFilter: '',
   page: 0,
   pageSize: 50,
+  // Активность по сделкам — для бейджей "непрочитанный WA" / "пропущенные звонки"
+  // и подъёма в канбане. Заполняется через loadDealsActivity параллельно с
+  // загрузкой сделок воронки.
+  // Структура: { [pipelineId]: { wa: {dealId: {unreadCount,lastIncomingAt}}, calls: {dealId: {missedCount,lastMissedAt}} } }
+  activityByPipeline: {},
 };
+
+// Геттер активности по dealId — для buildDealCard / сортировки в канбане.
+// Если активность ещё не подгружена, возвращает дефолты — не ломает рендер.
+function getDealActivity(dealId) {
+  const act = dealsState.activityByPipeline[dealsState.activePipelineId];
+  if (!act || !dealId) return { unread: 0, missed: 0, lastIncomingAt: 0, lastMissedAt: 0 };
+  const wa = act.wa?.[dealId];
+  const calls = act.calls?.[dealId];
+  return {
+    unread: wa?.unreadCount || 0,
+    missed: calls?.missedCount || 0,
+    lastIncomingAt: wa?.lastIncomingAt || 0,
+    lastMissedAt: calls?.lastMissedAt ? new Date(calls.lastMissedAt).getTime() : 0,
+  };
+}
+
+// Bulk-подгрузка активности (WA unread + missed calls) для всех сделок воронки.
+// Не блокирует рендер — обновляет state и делает re-render когда придёт.
+async function loadDealsActivity(pipelineId, idToken) {
+  try {
+    if (!idToken) idToken = await fbAuth.currentUser.getIdToken();
+    const headers = { 'Authorization': `Bearer ${idToken}` };
+    const [waRes, callsRes] = await Promise.all([
+      fetch(`${WORKER_BASE_URL}/api/wa/deals-activity?pipeline=${encodeURIComponent(pipelineId)}`, { headers })
+        .then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`${WORKER_BASE_URL}/api/call/missed-by-deal?pipeline=${encodeURIComponent(pipelineId)}`, { headers })
+        .then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
+    const wa = {};
+    for (const item of (waRes?.items || [])) wa[item.dealId] = item;
+    const calls = {};
+    for (const item of (callsRes?.items || [])) calls[item.dealId] = item;
+    dealsState.activityByPipeline[pipelineId] = { wa, calls, loadedAt: Date.now() };
+
+    // Re-render если активная воронка совпадает и канбан открыт
+    if (dealsState.activePipelineId === pipelineId && document.getElementById('kanban-wrap')) {
+      renderDealsContent();
+    }
+  } catch (e) {
+    console.warn('loadDealsActivity error:', e);
+  }
+}
 
 // Геттер для активной воронки — backward-compat с местами где было dealsState.pipeline
 Object.defineProperty(dealsState, 'pipeline', {
@@ -3782,6 +3829,9 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
         }
       }
       console.log(`Loaded ${all.length} deals (pipeline=${pipelineId}) in ${Date.now() - t0}ms`);
+      // Bulk-подгрузка активности (WA/missed-calls) в фоне — для бейджей и
+      // сортировки канбана. Не блокирует первый рендер.
+      loadDealsActivity(pipelineId, idToken).catch(e => console.warn('loadDealsActivity:', e));
     } catch (e) {
       console.error('loadDealsForPipeline error:', e);
       // На ошибку — оставляем dealsState.deals что было, не пустим
