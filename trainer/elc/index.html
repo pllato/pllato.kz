@@ -1717,6 +1717,38 @@
   }
   .voice-btn.end { background: var(--warn); }
   .voice-btn.end:hover { background: #a23a2d; }
+  .mic-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: inherit;
+  }
+  .mic-btn:hover { background: var(--accent-light); }
+  .mic-btn.listening {
+    background: var(--warn);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  .voice-interim {
+    margin-top: 12px;
+    color: rgba(246,241,230,0.6);
+    font-style: italic;
+    min-height: 24px;
+    text-align: center;
+    font-size: 14px;
+  }
   .voice-help {
     background: var(--bg);
     border-radius: 8px;
@@ -2068,27 +2100,11 @@
   .voice-layout.exam .stage-sidebar { display: none; }
   .voice-layout.exam { grid-template-columns: 1fr; }
 
-  /* Realtime mic states */
-  .voice-btn.mic.connecting {
-    background: var(--muted);
-    animation: pulse-warn 1s infinite;
-  }
-  @keyframes pulse-warn {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
-  }
-  .voice-btn.mic.live {
-    background: var(--accent);
-    box-shadow: 0 0 0 4px rgba(47, 93, 80, 0.3);
-  }
-  .voice-btn.mic.client-speaking {
-    background: var(--accent-light);
-  }
   .voice-status.connecting {
     color: var(--highlight);
   }
 
-  /* Realtime indicator */
+  /* Live indicator */
   .live-indicator {
     display: inline-flex;
     align-items: center;
@@ -3234,48 +3250,25 @@
             <div class="voice-setup-label">Способ общения</div>
             <div class="mode-radio-grid">
               <label class="mode-radio">
-                <input type="radio" name="commMode" value="realtime" checked onchange="updateCommMode()">
+                <input type="radio" name="commMode" value="voice" checked onchange="updateCommMode()">
                 <div class="mode-radio-card">
-                  <div class="mr-title">🎤 Голос реалтайм</div>
-                  <div class="mr-desc">Один раз начал — разговариваешь до конца. Естественные паузы, прерывания. Модель <b>gpt-realtime</b>. Нужен только OpenAI ключ с доступом к Realtime API.</div>
-                </div>
-              </label>
-              <label class="mode-radio">
-                <input type="radio" name="commMode" value="ptt" onchange="updateCommMode()">
-                <div class="mode-radio-card">
-                  <div class="mr-title">📞 Push-to-talk</div>
-                  <div class="mr-desc">Удерживай кнопку, чтобы говорить. Дешевле, проще. Нужен Anthropic + OpenAI ключ (Whisper + TTS).</div>
+                  <div class="mr-title">🎤 Голосом</div>
+                  <div class="mr-desc">Нажми кнопку микрофона и говори. Браузер распознаёт речь, AI-студент отвечает голосом. Работает в Chrome и Edge.</div>
                 </div>
               </label>
               <label class="mode-radio">
                 <input type="radio" name="commMode" value="text" onchange="updateCommMode()">
                 <div class="mode-radio-card">
                   <div class="mr-title">💬 Текстом</div>
-                  <div class="mr-desc">Печатаешь — студент отвечает. Бесплатно если есть Anthropic ключ. Без голоса.</div>
+                  <div class="mr-desc">Печатаешь — студент отвечает текстом. Без голоса.</div>
                 </div>
               </label>
             </div>
           </div>
 
           <div class="voice-setup-section">
-            <div class="voice-setup-label">API ключи</div>
-            <div class="key-grid">
-              <div>
-                <label style="font-size:11px; color:var(--ink-soft); margin-bottom:4px; display:block;">Anthropic API (роль студента + анализ) — <a href="https://console.anthropic.com/" target="_blank" style="color:var(--accent);">получить</a></label>
-                <div class="voice-key-input">
-                  <input type="password" id="anthropicKey" placeholder="sk-ant-..." autocomplete="off">
-                  <button class="btn secondary" onclick="saveAnthropicKey()">Сохранить</button>
-                </div>
-                <div class="voice-key-status" id="anthropicKeyStatus">Хранится в браузере</div>
-              </div>
-              <div>
-                <label style="font-size:11px; color:var(--ink-soft); margin-bottom:4px; display:block;">OpenAI API (голос: STT/TTS/Realtime) — <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--accent);">получить</a></label>
-                <div class="voice-key-input">
-                  <input type="password" id="openaiKey" placeholder="sk-..." autocomplete="off">
-                  <button class="btn secondary" onclick="saveOpenAIKey()">Сохранить</button>
-                </div>
-                <div class="voice-key-status" id="openaiKeyStatus">Хранится в браузере</div>
-              </div>
+            <div style="background:var(--accent-bg); border-left:3px solid var(--accent); padding:12px 16px; border-radius:6px; font-size:13px; line-height:1.55; color:var(--ink-soft);">
+              🎤 Голосовой режим работает прямо в браузере — нажмите кнопку микрофона. Никаких ключей вводить не нужно.
             </div>
           </div>
 
@@ -3286,7 +3279,6 @@
 
           <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:18px;">
             <button class="btn dark" onclick="startTraining()" id="trainStartBtn" disabled>Начать встречу</button>
-            <button class="btn secondary" onclick="resetKeys()">Очистить ключи</button>
           </div>
         </div>
       </div>
@@ -3341,8 +3333,10 @@
 
               <div class="voice-transcript" id="voiceTranscript"></div>
 
+              <div id="voiceInterim" class="voice-interim"></div>
+
               <div class="voice-controls">
-                <button class="voice-btn mic" id="voiceMicBtn" style="display:none;">🎤</button>
+                <button class="mic-btn" id="btnMic" onclick="toggleListening()" style="display:none;">🎤 Говорить</button>
                 <button class="voice-btn end" onclick="endVoiceCall()" title="Завершить встречу">⏹</button>
               </div>
 
@@ -4738,11 +4732,14 @@
      opener: 'Алло, здравствуйте.'}
   ];
 
+  // Cloudflare proxy для Gemini (никаких ключей на клиенте не нужно)
+  const GEMINI_PROXY = 'https://elc-trainer-proxy.uurraa.workers.dev/gemini/chat';
+
   // Глобальное состояние тренировки
   let trainState = {
     mode: 'practice', // 'practice' или 'exam'
     userRole: 'manager', // 'manager' (AI=студент) или 'client' (AI=администратор ELC)
-    commMode: 'text', // 'realtime' | 'ptt' | 'text'
+    commMode: 'voice', // 'voice' | 'text'
     scenario: null,
     history: [], // [{role, content, stageId, timestamp}]
     currentStageIdx: 0,
@@ -4750,86 +4747,130 @@
     startedAt: null,
     finishedAt: null,
     callTimerInterval: null,
-    anthropicKey: null,
-    openaiKey: null,
-    // Voice state
-    mediaRecorder: null,
-    audioChunks: [],
-    isRecording: false,
-    isProcessing: false,
-    // Realtime state
-    realtimePc: null,
-    realtimeDc: null,
-    realtimeMicStream: null,
-    realtimeActive: false
+    isProcessing: false
   };
 
-  // Init keys from localStorage
-  function loadKeys() {
-    const ak = localStorage.getItem('elc_anthropic_key');
-    const ok = localStorage.getItem('elc_openai_key');
-    if (ak) {
-      trainState.anthropicKey = ak;
-      const inp = document.getElementById('anthropicKey');
-      if (inp) inp.value = ak;
-      const st = document.getElementById('anthropicKeyStatus');
-      if (st) { st.textContent = '✓ Ключ загружен'; st.className = 'voice-key-status ok'; }
-    }
-    if (ok) {
-      trainState.openaiKey = ok;
-      const inp = document.getElementById('openaiKey');
-      if (inp) inp.value = ok;
-      const st = document.getElementById('openaiKeyStatus');
-      if (st) { st.textContent = '✓ Ключ загружен'; st.className = 'voice-key-status ok'; }
-    }
-    updateStartButton();
+  // ===== WEB SPEECH API: распознавание речи =====
+  let recognition = null;
+  let isListening = false;
+
+  function initSpeechRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return null;
+    const r = new SpeechRecognition();
+    r.lang = 'ru-RU';
+    r.continuous = false;
+    r.interimResults = true;
+    r.maxAlternatives = 1;
+    return r;
   }
 
-  function saveAnthropicKey() {
-    const k = document.getElementById('anthropicKey').value.trim();
-    if (!k.startsWith('sk-ant-')) {
-      const st = document.getElementById('anthropicKeyStatus');
-      st.textContent = '✗ Anthropic ключ начинается с sk-ant-';
-      st.className = 'voice-key-status err';
+  function startListening() {
+    if (isListening) return;
+    // Прерываем озвучку, если ещё говорит
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (!recognition) recognition = initSpeechRecognition();
+    if (!recognition) {
+      alert('Распознавание речи не поддерживается этим браузером. Откройте тренажёр в Google Chrome или Microsoft Edge.');
       return;
     }
-    localStorage.setItem('elc_anthropic_key', k);
-    trainState.anthropicKey = k;
-    const st = document.getElementById('anthropicKeyStatus');
-    st.textContent = '✓ Сохранён';
-    st.className = 'voice-key-status ok';
-    updateStartButton();
-  }
 
-  function saveOpenAIKey() {
-    const k = document.getElementById('openaiKey').value.trim();
-    if (!k.startsWith('sk-')) {
-      const st = document.getElementById('openaiKeyStatus');
-      st.textContent = '✗ OpenAI ключ начинается с sk-';
-      st.className = 'voice-key-status err';
-      return;
+    let finalTranscript = '';
+    recognition.onresult = (event) => {
+      let interim = '';
+      finalTranscript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) finalTranscript += transcript;
+        else interim += transcript;
+      }
+      const preview = document.getElementById('voiceInterim');
+      if (preview) preview.textContent = interim || finalTranscript;
+    };
+    recognition.onerror = (event) => {
+      isListening = false;
+      updateVoiceButton();
+      console.warn('Speech recognition error:', event.error);
+      if (event.error === 'not-allowed') {
+        alert('Доступ к микрофону не разрешён. Разрешите в настройках браузера и попробуйте снова.');
+      }
+    };
+    recognition.onend = async () => {
+      isListening = false;
+      updateVoiceButton();
+      const preview = document.getElementById('voiceInterim');
+      if (preview) preview.textContent = '';
+      if (finalTranscript.trim()) {
+        await handleUserUtterance(finalTranscript.trim());
+      }
+    };
+
+    try {
+      recognition.start();
+      isListening = true;
+      updateVoiceButton();
+    } catch (e) {
+      console.warn('Recognition start failed:', e);
+      isListening = false;
+      updateVoiceButton();
     }
-    localStorage.setItem('elc_openai_key', k);
-    trainState.openaiKey = k;
-    const st = document.getElementById('openaiKeyStatus');
-    st.textContent = '✓ Сохранён';
-    st.className = 'voice-key-status ok';
-    updateStartButton();
   }
 
-  function resetKeys() {
-    if (!confirm('Удалить сохранённые ключи?')) return;
-    localStorage.removeItem('elc_anthropic_key');
-    localStorage.removeItem('elc_openai_key');
-    trainState.anthropicKey = null;
-    trainState.openaiKey = null;
-    document.getElementById('anthropicKey').value = '';
-    document.getElementById('openaiKey').value = '';
-    document.getElementById('anthropicKeyStatus').textContent = 'Хранится в браузере';
-    document.getElementById('anthropicKeyStatus').className = 'voice-key-status';
-    document.getElementById('openaiKeyStatus').textContent = 'Хранится в браузере';
-    document.getElementById('openaiKeyStatus').className = 'voice-key-status';
-    updateStartButton();
+  function stopListening() {
+    if (recognition && isListening) {
+      try { recognition.stop(); } catch (e) {}
+    }
+  }
+
+  function toggleListening() {
+    if (isListening) stopListening();
+    else startListening();
+  }
+
+  function updateVoiceButton() {
+    const btn = document.getElementById('btnMic');
+    if (!btn) return;
+    if (isListening) {
+      btn.textContent = '⏹ Стоп';
+      btn.classList.add('listening');
+    } else {
+      btn.textContent = '🎤 Говорить';
+      btn.classList.remove('listening');
+    }
+  }
+
+  // ===== TTS via SpeechSynthesis (бесплатно, встроено в браузер) =====
+  let ttsVoiceRu = null;
+  let ttsVoiceEn = null;
+  function pickVoices() {
+    if (!window.speechSynthesis) return;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return;
+    const ruCandidates = voices.filter(v => v.lang && v.lang.startsWith('ru'));
+    ttsVoiceRu = ruCandidates.find(v => /milena|tatyana|google/i.test(v.name)) || ruCandidates[0];
+    const enCandidates = voices.filter(v => v.lang && v.lang.startsWith('en'));
+    ttsVoiceEn = enCandidates.find(v => /samantha|aaron|google/i.test(v.name)) || enCandidates[0];
+  }
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    pickVoices();
+    window.speechSynthesis.addEventListener('voiceschanged', pickVoices);
+  }
+
+  function speakText(text, lang) {
+    if (!text || !window.speechSynthesis) return;
+    lang = lang || 'ru-RU';
+    window.speechSynthesis.cancel(); // прерываем предыдущее
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = lang;
+    utter.rate = 1.0;
+    utter.pitch = 1.0;
+    const voice = lang.startsWith('ru') ? ttsVoiceRu : ttsVoiceEn;
+    if (voice) utter.voice = voice;
+    const avatar = document.getElementById('voiceAvatar');
+    utter.onstart = () => { if (avatar) avatar.classList.add('speaking'); };
+    utter.onend = () => { if (avatar) avatar.classList.remove('speaking'); };
+    utter.onerror = () => { if (avatar) avatar.classList.remove('speaking'); };
+    window.speechSynthesis.speak(utter);
   }
 
   function updateModeUI() {
@@ -4878,7 +4919,7 @@ ${sc.desc}
 - Используешь имя студента
 - Короткие реплики 1-3 предложения, как в живом звонке
 
-КРИТИЧЕСКИ ВАЖНО ДЛЯ РЕАЛТАЙМ-РЕЖИМА:
+КРИТИЧЕСКИ ВАЖНО:
 - Начни разговор первым: поздоровайся, представься как администратор ELC, спроси удобно ли говорить.
 - Веди студента по этапам. Сначала опыт и цель, только потом цена.
 - НЕ называй цену до того, как разобрался с опытом, развилкой и истинной целью.
@@ -4888,8 +4929,9 @@ ${sc.desc}
   }
 
   function updateCommMode() {
-    const cm = document.querySelector('input[name="commMode"]:checked').value;
-    trainState.commMode = cm;
+    const el = document.querySelector('input[name="commMode"]:checked');
+    if (!el) return;
+    trainState.commMode = el.value; // 'voice' | 'text'
     updateStartButton();
   }
 
@@ -4917,18 +4959,8 @@ ${sc.desc}
     if (!btn) return;
     const hasScenario = !!trainState.scenario;
     const cm = trainState.commMode;
-    let ok = hasScenario;
-    if (cm === 'text') {
-      ok = ok && !!trainState.anthropicKey;
-      btn.textContent = 'Начать встречу (текстом)';
-    } else if (cm === 'ptt') {
-      ok = ok && !!trainState.anthropicKey && !!trainState.openaiKey;
-      btn.textContent = 'Начать встречу (push-to-talk)';
-    } else if (cm === 'realtime') {
-      ok = ok && !!trainState.openaiKey;
-      btn.textContent = 'Начать встречу (голос реалтайм)';
-    }
-    btn.disabled = !ok;
+    btn.textContent = cm === 'voice' ? 'Начать встречу (голосом)' : 'Начать встречу (текстом)';
+    btn.disabled = !hasScenario;
   }
 
   function startTraining() {
@@ -4970,11 +5002,11 @@ ${sc.desc}
 
     // Show appropriate input mode
     const textInput = document.getElementById('voiceTextInput');
-    const micBtn = document.getElementById('voiceMicBtn');
+    const micBtn = document.getElementById('btnMic');
 
     if (trainState.commMode === 'text') {
       textInput.style.display = 'block';
-      micBtn.style.display = 'none';
+      if (micBtn) micBtn.style.display = 'none';
       document.getElementById('voiceStatus').textContent = trainState.mode === 'exam' ? 'Экзамен начат.' : '💬 Текстовый режим';
       const field = document.getElementById('voiceTextField');
       field.value = '';
@@ -4985,39 +5017,35 @@ ${sc.desc}
       } else {
         document.getElementById('voiceHelp').innerHTML = '<strong>Вы — студент</strong>. AI-администратор откроет разговор. Отвечайте как реальный студент: задавайте вопросы, высказывайте сомнения, делитесь страхами. Enter — отправить.';
       }
-    } else if (trainState.commMode === 'ptt') {
+    } else {
+      // voice mode
       textInput.style.display = 'none';
-      micBtn.style.display = 'flex';
-      micBtn.classList.remove('connecting','live','client-speaking');
-      setupPTT();
-      document.getElementById('voiceStatus').textContent = '🎤 Удерживай микрофон чтобы говорить';
+      if (micBtn) micBtn.style.display = 'inline-flex';
+      updateVoiceButton();
+      document.getElementById('voiceStatus').textContent = '🎤 Нажми кнопку и говори';
       if (trainState.userRole === 'manager') {
-        document.getElementById('voiceHelp').innerHTML = '<strong>Удерживай микрофон</strong>, чтобы говорить (push-to-talk). Отпусти — студент ответит голосом.';
+        document.getElementById('voiceHelp').innerHTML = '<strong>Нажми «🎤 Говорить»</strong>, скажи фразу — браузер распознает речь, отправит студенту, и он ответит голосом. Откройте в Chrome или Edge.';
       } else {
-        document.getElementById('voiceHelp').innerHTML = '<strong>Вы — студент</strong>. AI-администратор откроет разговор через несколько секунд. Удерживайте микрофон чтобы отвечать ему.';
+        document.getElementById('voiceHelp').innerHTML = '<strong>Вы — студент</strong>. AI-администратор откроет разговор голосом через секунду. Нажми «🎤 Говорить» чтобы ответить ему. Откройте в Chrome или Edge.';
       }
-    } else if (trainState.commMode === 'realtime') {
-      textInput.style.display = 'none';
-      micBtn.style.display = 'flex';
-      document.getElementById('voiceHelp').innerHTML = '<strong>Realtime режим</strong>. Один раз начал — разговариваешь до конца. Прерывания работают как в живом звонке. Кнопка ⏹ — завершить.';
-      startRealtimeSession();
     }
 
     startCallTimerV2();
 
     // First message: depends on role
-    if (trainState.commMode !== 'realtime') {
-      if (trainState.userRole === 'manager') {
-        // User=manager, AI=client → AI client greets briefly (just opener)
-        if (s.opener) {
-          setTimeout(() => addMessageV2('assistant', s.opener), 500);
-        }
-      } else {
-        // User=client, AI=manager → AI manager starts the meeting
-        setTimeout(async () => {
-          await getClientResponseV2(); // Note: function name kept for compat, just gets AI response
+    if (trainState.userRole === 'manager') {
+      // User=manager, AI=client → AI client greets briefly (just opener)
+      if (s.opener) {
+        setTimeout(() => {
+          addMessageV2('assistant', s.opener);
+          if (trainState.commMode === 'voice') speakText(s.opener, 'ru-RU');
         }, 500);
       }
+    } else {
+      // User=client, AI=manager → AI manager starts the meeting
+      setTimeout(async () => {
+        await getClientResponseV2(); // Note: function name kept for compat, just gets AI response
+      }, 500);
     }
   }
 
@@ -5188,52 +5216,55 @@ ${sc.desc}
     }
   }
 
-  // ===== ANTHROPIC API for client roleplay =====
+  // ===== Gemini proxy: получить ответ AI на текущую историю =====
   async function getClientResponseV2() {
     if (trainState.isProcessing) return;
     trainState.isProcessing = true;
     document.getElementById('voiceStatus').textContent = trainState.scenario.name + ' печатает...';
 
     try {
-      if (trainState.anthropicKey) {
-        const msgs = trainState.history.map(m => ({role: m.role, content: m.content}));
-        const resp = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': trainState.anthropicKey,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true'
-          },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-5-20250929',
-            max_tokens: 80,
-            system: buildAISystemPrompt(),
-            messages: msgs.length ? msgs : [{role:'user', content:'(начало разговора — администратор ещё не заговорил, ты молчишь и ждёшь)'}],
-            temperature: 0.5
-          })
-        });
-        if (!resp.ok) {
-          const errTxt = await resp.text();
-          throw new Error('Anthropic ' + resp.status + ': ' + errTxt.slice(0, 200));
-        }
-        const data = await resp.json();
-        const reply = data.content[0].text;
-        addMessageV2('assistant', reply);
-
-        // TTS for voice mode (ptt)
-        if (trainState.commMode === 'ptt' && trainState.openaiKey) {
-          await speakReplyV2(reply);
-        }
+      const msgs = trainState.history.map(m => ({role: m.role, content: m.content}));
+      const resp = await fetch(GEMINI_PROXY, {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({
+          system: buildAISystemPrompt(),
+          messages: msgs.length ? msgs : [{role:'user', content:'(начало разговора — администратор ещё не заговорил, ты молчишь и ждёшь)'}],
+          max_tokens: 120,
+          temperature: 0.7
+        })
+      });
+      const data = await resp.json();
+      let reply = '';
+      if (data.error) {
+        console.warn('Proxy error:', data);
+        reply = '(Сервис временно недоступен. Попробуйте ещё раз через минуту.)';
       } else {
+        reply = data.text || '';
+      }
+      if (!reply.trim()) {
         const fb = ['Хм, интересно. Расскажите подробнее.', 'Не совсем понимаю, объясните?', 'Сколько это будет стоить?', 'А почему именно так?'];
-        addMessageV2('assistant', fb[Math.floor(Math.random() * fb.length)]);
+        reply = fb[Math.floor(Math.random() * fb.length)];
+      }
+      addMessageV2('assistant', reply);
+
+      // Озвучка через Web Speech API (бесплатно, встроено в браузер)
+      if (trainState.commMode === 'voice') {
+        speakText(reply, 'ru-RU');
       }
     } catch (e) {
-      addMessageV2('assistant', '⚠ Ошибка: ' + e.message);
+      console.warn('Network error:', e);
+      addMessageV2('assistant', '⚠ Сетевая ошибка: ' + e.message);
     }
     trainState.isProcessing = false;
     document.getElementById('voiceStatus').textContent = trainState.commMode === 'text' ? '💬 Ваш ход' : '🎤 Ваш ход';
+  }
+
+  // Обработка любой реплики пользователя (голос или текст) — общая точка входа
+  async function handleUserUtterance(text) {
+    if (!text || trainState.isProcessing) return;
+    addMessageV2('user', text);
+    await getClientResponseV2();
   }
 
   // ===== TEXT MODE =====
@@ -5242,269 +5273,19 @@ ${sc.desc}
     const text = field.value.trim();
     if (!text || trainState.isProcessing) return;
     field.value = '';
-    addMessageV2('user', text);
-    await getClientResponseV2();
-  }
-
-  // ===== PTT MODE (Whisper + TTS) =====
-  function setupPTT() {
-    const btn = document.getElementById('voiceMicBtn');
-    btn.onclick = null;
-    btn.onmousedown = startPTTRecord;
-    btn.onmouseup = stopPTTRecord;
-    btn.ontouchstart = (e) => { e.preventDefault(); startPTTRecord(); };
-    btn.ontouchend = (e) => { e.preventDefault(); stopPTTRecord(); };
-  }
-
-  async function startPTTRecord() {
-    if (trainState.isRecording || trainState.isProcessing) return;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({audio: true});
-      trainState.audioChunks = [];
-      trainState.mediaRecorder = new MediaRecorder(stream);
-      trainState.mediaRecorder.ondataavailable = (e) => trainState.audioChunks.push(e.data);
-      trainState.mediaRecorder.onstop = handlePTTEnd;
-      trainState.mediaRecorder.start();
-      trainState.isRecording = true;
-      document.getElementById('voiceMicBtn').classList.add('recording');
-      document.getElementById('voiceStatus').textContent = '🔴 Запись...';
-    } catch (e) {
-      alert('Не удалось получить доступ к микрофону.');
-    }
-  }
-
-  function stopPTTRecord() {
-    if (!trainState.isRecording) return;
-    trainState.mediaRecorder.stop();
-    trainState.isRecording = false;
-    document.getElementById('voiceMicBtn').classList.remove('recording');
-    document.getElementById('voiceStatus').textContent = 'Распознавание...';
-  }
-
-  async function handlePTTEnd() {
-    const blob = new Blob(trainState.audioChunks, {type: 'audio/webm'});
-    trainState.audioChunks = [];
-    if (!trainState.openaiKey) return;
-    const formData = new FormData();
-    formData.append('file', blob, 'audio.webm');
-    formData.append('model', 'whisper-1');
-    formData.append('language', 'ru');
-    try {
-      const resp = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {'Authorization': 'Bearer ' + trainState.openaiKey},
-        body: formData
-      });
-      if (!resp.ok) throw new Error('Whisper ' + resp.status);
-      const data = await resp.json();
-      const text = data.text.trim();
-      if (text) {
-        addMessageV2('user', text);
-        await getClientResponseV2();
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  async function speakReplyV2(text) {
-    if (!trainState.openaiKey) return;
-    try {
-      const resp = await fetch('https://api.openai.com/v1/audio/speech', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + trainState.openaiKey},
-        body: JSON.stringify({model: 'tts-1', voice: 'onyx', input: text})
-      });
-      if (!resp.ok) return;
-      const blob = await resp.blob();
-      const audio = new Audio(URL.createObjectURL(blob));
-      document.getElementById('voiceAvatar').classList.add('speaking');
-      audio.onended = () => document.getElementById('voiceAvatar').classList.remove('speaking');
-      audio.play();
-    } catch (e) { console.error(e); }
-  }
-
-  // ===== REALTIME MODE (OpenAI WebRTC) =====
-  async function startRealtimeSession() {
-    if (!trainState.openaiKey) {
-      alert('Для realtime нужен OpenAI ключ');
-      return;
-    }
-    const status = document.getElementById('voiceStatus');
-    const micBtn = document.getElementById('voiceMicBtn');
-    status.textContent = '⏳ Подключение к OpenAI Realtime...';
-    status.className = 'voice-status connecting';
-    micBtn.classList.add('connecting');
-
-    try {
-      // Get ephemeral token via GA endpoint
-      const sessionConfig = {
-        session: {
-          type: 'realtime',
-          model: 'gpt-realtime',
-          instructions: buildAISystemPrompt() + '\n\nГовори на русском языке.',
-          audio: {
-            output: { voice: 'marin' },
-            input: { transcription: { model: 'whisper-1' } }
-          }
-        }
-      };
-      const tokResp = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + trainState.openaiKey,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(sessionConfig)
-      });
-      if (!tokResp.ok) {
-        const t = await tokResp.text();
-        throw new Error('Realtime client_secrets failed: ' + t.slice(0, 300));
-      }
-      const session = await tokResp.json();
-      const ephemeralKey = session.value;
-      if (!ephemeralKey) {
-        throw new Error('No ephemeral key in response (expected data.value with ek_ prefix)');
-      }
-
-      // WebRTC
-      const pc = new RTCPeerConnection();
-      trainState.realtimePc = pc;
-
-      const audioEl = document.createElement('audio');
-      audioEl.autoplay = true;
-      pc.ontrack = (e) => {
-        audioEl.srcObject = e.streams[0];
-        document.getElementById('voiceAvatar').classList.add('speaking');
-      };
-
-      // Mic
-      const stream = await navigator.mediaDevices.getUserMedia({audio: true});
-      trainState.realtimeMicStream = stream;
-      pc.addTrack(stream.getAudioTracks()[0], stream);
-
-      // Data channel for events
-      const dc = pc.createDataChannel('oai-events');
-      trainState.realtimeDc = dc;
-      dc.onopen = () => {
-        const roleHint = trainState.userRole === 'client' ? '— AI говорит первым (администратор ELC)' : '— говори ты (администратор)';
-        status.textContent = '🟢 Идёт встреча ' + roleHint;
-        status.className = 'voice-status live';
-        micBtn.classList.remove('connecting');
-        micBtn.classList.add('live');
-        trainState.realtimeActive = true;
-
-        // If user is client, prompt AI manager to open the meeting
-        if (trainState.userRole === 'client') {
-          setTimeout(() => {
-            try {
-              dc.send(JSON.stringify({
-                type: 'response.create',
-                response: {
-                  instructions: 'Начни разговор: поздоровайся со студентом, представься как администратор ELC English, и спроси удобно ли говорить 15-20 минут.'
-                }
-              }));
-            } catch (err) { console.error('Could not trigger AI opener:', err); }
-          }, 500);
-        }
-      };
-      dc.onmessage = (e) => {
-        try {
-          const ev = JSON.parse(e.data);
-          handleRealtimeEvent(ev);
-        } catch (err) { console.error(err); }
-      };
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      // GA endpoint - no model param (encoded in ephemeral token), no Beta header
-      const sdpResp = await fetch('https://api.openai.com/v1/realtime/calls', {
-        method: 'POST',
-        body: offer.sdp,
-        headers: {
-          'Authorization': 'Bearer ' + ephemeralKey,
-          'Content-Type': 'application/sdp'
-        }
-      });
-      if (!sdpResp.ok) {
-        const t = await sdpResp.text();
-        throw new Error('SDP exchange failed: ' + t.slice(0, 200));
-      }
-      const answerSdp = await sdpResp.text();
-      await pc.setRemoteDescription({type: 'answer', sdp: answerSdp});
-
-      // End handler — mic toggle
-      micBtn.onclick = toggleRealtimeMic;
-    } catch (e) {
-      status.textContent = '⚠ Ошибка: ' + e.message;
-      status.className = 'voice-status';
-      micBtn.classList.remove('connecting');
-      addSystemNotice('Не удалось подключить realtime. Проверь ключ и доступ к Realtime API.');
-    }
-  }
-
-  function handleRealtimeEvent(ev) {
-    // Show transcripts as they come (GA event names)
-    if (ev.type === 'conversation.item.input_audio_transcription.completed') {
-      // User said something
-      if (ev.transcript) {
-        addMessageV2('user', ev.transcript);
-      }
-    } else if (ev.type === 'response.output_audio_transcript.done' || ev.type === 'response.audio_transcript.done') {
-      // Client (AI) said something (GA: output_audio_transcript, beta fallback)
-      if (ev.transcript) {
-        trainState.history.push({role: 'assistant', content: ev.transcript, stageId: meetingStages[trainState.currentStageIdx].id, timestamp: new Date()});
-        const tr = document.getElementById('voiceTranscript');
-        const aiName = trainState.userRole === 'manager' ? trainState.scenario.name + ' (студент)' : 'Администратор ELC (AI)';
-        tr.innerHTML += `<div class="voice-msg client"><div class="who">${aiName}</div>${ev.transcript}</div>`;
-        tr.scrollTop = tr.scrollHeight;
-      }
-    } else if (ev.type === 'output_audio_buffer.stopped' || ev.type === 'response.done') {
-      document.getElementById('voiceAvatar').classList.remove('speaking');
-    } else if (ev.type === 'input_audio_buffer.speech_started') {
-      document.getElementById('voiceStatus').textContent = '🎤 Слышу вас...';
-    } else if (ev.type === 'input_audio_buffer.speech_stopped') {
-      document.getElementById('voiceStatus').textContent = '⏳ Думаю...';
-    } else if (ev.type === 'error') {
-      console.error('Realtime error event:', ev);
-      addSystemNotice('Ошибка от сервера: ' + (ev.error && ev.error.message || JSON.stringify(ev)));
-    }
-  }
-
-  function toggleRealtimeMic() {
-    if (!trainState.realtimeMicStream) return;
-    const track = trainState.realtimeMicStream.getAudioTracks()[0];
-    track.enabled = !track.enabled;
-    const btn = document.getElementById('voiceMicBtn');
-    btn.classList.toggle('live', track.enabled);
-    if (!track.enabled) {
-      document.getElementById('voiceStatus').textContent = '🔇 Микрофон выключен';
-    } else {
-      document.getElementById('voiceStatus').textContent = '🟢 Идёт встреча — говори';
-    }
-  }
-
-  function stopRealtimeSession() {
-    trainState.realtimeActive = false;
-    if (trainState.realtimePc) {
-      trainState.realtimePc.close();
-      trainState.realtimePc = null;
-    }
-    if (trainState.realtimeMicStream) {
-      trainState.realtimeMicStream.getTracks().forEach(t => t.stop());
-      trainState.realtimeMicStream = null;
-    }
+    await handleUserUtterance(text);
   }
 
   // ===== END CALL & FINAL REPORT =====
   async function endVoiceCallV2() {
     if (!confirm(trainState.mode === 'exam' ? 'Завершить экзамен? Результат будет окончательным.' : 'Завершить встречу?')) return;
     if (trainState.callTimerInterval) clearInterval(trainState.callTimerInterval);
-    if (trainState.realtimeActive) stopRealtimeSession();
+    // Остановить распознавание и озвучку, если ещё активны
+    if (isListening) stopListening();
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
     trainState.finishedAt = new Date();
     document.getElementById('voiceActive').style.display = 'none';
-    document.getElementById('voiceAnalysis').innerHTML = '<div class="voice-analysis"><h3>Готовлю разбор встречи...</h3><p style="color:var(--muted); font-size:13px;">Анализ через Claude. Это займёт 5-15 секунд.</p></div>';
+    document.getElementById('voiceAnalysis').innerHTML = '<div class="voice-analysis"><h3>Готовлю разбор встречи...</h3><p style="color:var(--muted); font-size:13px;">Анализ через Gemini. Это займёт 5-15 секунд.</p></div>';
     document.getElementById('voiceAnalysis').style.display = 'block';
     await analyzeCallV2();
   }
@@ -5525,7 +5306,7 @@ ${sc.desc}
     ).join('\n');
 
     let aiAnalysis = null;
-    if (trainState.anthropicKey && trainState.history.length > 2) {
+    if (trainState.history.length > 2) {
       try {
         const evalPrompt = `Ты тренер по приёму студентов в школе английского ELC English. Проанализируй транскрипт разговора администратора со студентом после пробного занятия и оцени, насколько администратор достиг целей каждого этапа.
 
@@ -5553,26 +5334,28 @@ ${transcript}
 
 Будь строгим. Цель considered achieved только если в транскрипте есть прямое свидетельство. overallScore — процент выполненных обязательных целей.`;
 
-        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        const resp = await fetch(GEMINI_PROXY, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': trainState.anthropicKey,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true'
-          },
+          headers: {'content-type': 'application/json'},
           body: JSON.stringify({
-            model: 'claude-sonnet-4-5-20250929',
-            max_tokens: 3000,
-            messages: [{role: 'user', content: evalPrompt}]
+            model: 'gemini-2.5-flash', // более качественная для анализа
+            system: 'Ты тренер-методист ELC. Анализируй встречу администратора со студентом и возвращай СТРОГО JSON.',
+            messages: [{role: 'user', content: evalPrompt}],
+            max_tokens: 2000,
+            temperature: 0.3
           })
         });
-        if (resp.ok) {
-          const data = await resp.json();
-          let raw = data.content[0].text.trim();
+        const data = await resp.json();
+        if (!data.error) {
+          let raw = (data.text || '').trim();
           // Strip markdown if any
           raw = raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').replace(/^```\s*/i, '');
+          // Extract first JSON object if there's extra text
+          const m = raw.match(/\{[\s\S]*\}/);
+          if (m) raw = m[0];
           aiAnalysis = JSON.parse(raw);
+        } else {
+          console.warn('Analysis proxy error', data);
         }
       } catch (e) {
         console.error('Analysis error', e);
@@ -5658,7 +5441,7 @@ ${transcript}
         <div class="exam-cert-info">
           <div class="exam-cert-row"><span class="k">Сценарий</span><span class="v">${trainState.scenario.name} — ${trainState.scenario.desc}</span></div>
           <div class="exam-cert-row"><span class="k">Режим</span><span class="v">${trainState.mode === 'exam' ? 'Экзамен (без подсказок)' : 'Тренировка (с подсказками)'}</span></div>
-          <div class="exam-cert-row"><span class="k">Способ общения</span><span class="v">${trainState.commMode === 'realtime' ? 'Голос реалтайм' : trainState.commMode === 'ptt' ? 'Push-to-talk' : 'Текст'}</span></div>
+          <div class="exam-cert-row"><span class="k">Способ общения</span><span class="v">${trainState.commMode === 'voice' ? 'Голос (браузер)' : 'Текст'}</span></div>
           <div class="exam-cert-row"><span class="k">Длительность</span><span class="v">${durMin} мин ${durSec} сек</span></div>
           <div class="exam-cert-row"><span class="k">Реплик администратора</span><span class="v">${trainState.history.filter(m => m.role === 'user').length}</span></div>
           <div class="exam-cert-row"><span class="k">Дата</span><span class="v">${trainState.finishedAt.toLocaleString('ru-RU')}</span></div>
@@ -5729,9 +5512,9 @@ ${transcript}
   // ===== INIT (override v1) =====
   function initVoiceModuleV2() {
     renderScenariosV2();
-    loadKeys();
     updateModeUI();
     updateCommMode();
+    updateStartButton();
   }
 
   // Wait for DOM and call init
