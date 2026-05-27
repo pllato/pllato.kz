@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pllato · Согласование работ 1С Бухгалтерия · Aminamed</title>
+<style>
+:root{
+  --navy:#0a1628;
+  --bronze:#b8895a;
+  --bronze-dim:#d4b489;
+  --muted:#5d6b85;
+  --bg:#fbf9f5;
+  --card:#ffffff;
+  --card-tint:#f5f0ea;
+  --head:#f8f6f2;
+  --border:#e8e2d5;
+  --green:#16a34a;
+  --green-bg:#e8f5e9;
+  --orange:#f59e0b;
+  --orange-bg:#fff3e0;
+  --red:#dc2626;
+  --red-bg:#ffebee;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--navy);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--bronze);text-decoration:none}
+a:hover{text-decoration:underline}
+
+.wrap{max-width:980px;margin:0 auto;padding:24px}
+
+/* ===== Шапка PLLATO ===== */
+.brand-header{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:18px;border-bottom:2px solid var(--bronze);margin-bottom:32px}
+.brand-logo{font-size:28px;font-weight:800;letter-spacing:5px;color:var(--navy)}
+.brand-sub{font-size:11px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-top:2px}
+.brand-meta{text-align:right;font-size:12px;color:var(--muted)}
+.brand-meta strong{color:var(--navy);font-weight:700}
+
+/* ===== Заголовок документа ===== */
+.doc-title{text-align:center;margin:24px 0 8px;font-size:24px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+.doc-subtitle{text-align:center;color:var(--muted);font-size:14px;font-style:italic;margin-bottom:24px}
+
+/* ===== Описание ===== */
+.intro{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:24px}
+.intro p{margin:0 0 8px}
+.intro p:last-child{margin:0}
+
+/* ===== Карточки участников ===== */
+.participants{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+.participant{background:var(--card);border:2px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:.15s;text-align:center;position:relative}
+.participant:hover{border-color:var(--bronze-dim);transform:translateY(-1px)}
+.participant.active{border-color:var(--bronze);background:var(--card-tint);box-shadow:0 4px 12px -4px rgba(184,137,90,.3)}
+.participant .avatar{width:48px;height:48px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:#fff}
+.participant.karlygash .avatar{background:#d946ef}
+.participant.asem .avatar{background:#0ea5e9}
+.participant.pllato .avatar{background:var(--bronze)}
+.participant .name{font-weight:700;font-size:14px;margin-bottom:2px}
+.participant .role{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.participant .stat{margin-top:8px;font-size:11px;color:var(--muted)}
+.participant .stat strong{color:var(--navy)}
+
+/* ===== Status banner ===== */
+.who-am-i{background:#fff7ed;border:1px solid var(--orange);border-radius:12px;padding:14px 18px;margin-bottom:24px;font-size:13px;color:#b45309}
+.who-am-i strong{font-weight:700}
+.who-am-i.confirmed{background:var(--green-bg);border-color:var(--green);color:#15803d}
+
+/* ===== Section header ===== */
+.section{margin:40px 0 16px;border-bottom:1px solid var(--border);padding-bottom:6px;display:flex;align-items:baseline;gap:12px}
+.section-num{font-size:22px;font-weight:800;color:var(--bronze)}
+.section-title{font-size:16px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:1px}
+
+/* ===== Пункт ===== */
+.item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:12px}
+.item-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px}
+.item-titletext{flex:1}
+.item-num{color:var(--bronze);font-weight:700;font-size:12px;letter-spacing:1px;text-transform:uppercase}
+.item-name{font-weight:700;font-size:14px;color:var(--navy);margin-top:2px}
+.item-desc{color:var(--muted);font-size:12.5px;margin-top:4px;line-height:1.5}
+
+/* Голоса (что ответили) */
+.votes{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.vote-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;line-height:1}
+.vote-chip .av{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:700}
+.vote-chip.karlygash .av{background:#d946ef}
+.vote-chip.asem .av{background:#0ea5e9}
+.vote-chip.pllato .av{background:var(--bronze)}
+.vote-chip.approved{background:var(--green-bg);color:#15803d;border:1px solid #a7e8b8}
+.vote-chip.clarify{background:var(--orange-bg);color:#b45309;border:1px solid #fcd09c}
+.vote-chip.rejected{background:var(--red-bg);color:#991b1b;border:1px solid #fbb6b6}
+.vote-chip.pending{background:#f3f4f6;color:#6b7280;border:1px dashed #d1d5db}
+
+/* Кнопки голоса */
+.vote-actions{display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)}
+.vote-btn{flex:1;padding:8px 12px;border-radius:8px;border:1px solid;background:#fff;cursor:pointer;font-size:12px;font-weight:600;transition:.15s;display:flex;align-items:center;justify-content:center;gap:6px}
+.vote-btn:hover{transform:translateY(-1px)}
+.vote-btn.approved{border-color:var(--green);color:#15803d}
+.vote-btn.approved:hover,.vote-btn.approved.selected{background:var(--green-bg)}
+.vote-btn.approved.selected{background:var(--green);color:#fff}
+.vote-btn.clarify{border-color:var(--orange);color:#b45309}
+.vote-btn.clarify:hover,.vote-btn.clarify.selected{background:var(--orange-bg)}
+.vote-btn.clarify.selected{background:var(--orange);color:#fff}
+.vote-btn.rejected{border-color:var(--red);color:#991b1b}
+.vote-btn.rejected:hover,.vote-btn.rejected.selected{background:var(--red-bg)}
+.vote-btn.rejected.selected{background:var(--red);color:#fff}
+
+/* Комментарии к пункту */
+.item-comments{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)}
+.comment{display:flex;gap:8px;padding:8px 0;font-size:12.5px}
+.comment .av{width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:700}
+.comment.karlygash .av{background:#d946ef}
+.comment.asem .av{background:#0ea5e9}
+.comment.pllato .av{background:var(--bronze)}
+.comment-body{flex:1}
+.comment-meta{font-size:11px;color:var(--muted);margin-bottom:2px}
+.comment-meta strong{color:var(--navy);font-weight:700}
+.comment-text{color:var(--navy);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+
+.item-comment-input{display:flex;gap:6px;margin-top:8px}
+.item-comment-input input{flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font:inherit;font-size:12.5px;color:var(--navy);background:#fff;outline:none}
+.item-comment-input input:focus{border-color:var(--bronze)}
+.item-comment-input button{padding:8px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px}
+.item-comment-input button:hover{background:var(--bronze)}
+.item-comment-input button:disabled{opacity:.5;cursor:not-allowed}
+
+/* ===== Финальный статус ===== */
+.final{margin-top:40px;padding:20px 24px;border-radius:16px;border:2px solid var(--border);background:var(--card)}
+.final.full{border-color:var(--green);background:linear-gradient(180deg,#fff,var(--green-bg))}
+.final h3{margin:0 0 8px;font-size:18px;color:var(--navy);text-transform:uppercase;letter-spacing:1px}
+.final .progress{margin:12px 0;height:10px;background:#f3f4f6;border-radius:999px;overflow:hidden}
+.final .progress-bar{height:100%;background:var(--green);transition:width .3s}
+.final .progress-text{font-size:13px;color:var(--muted)}
+.final-action{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+.btn-finalize{padding:10px 18px;background:var(--green);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px}
+.btn-finalize:disabled{background:#d1d5db;color:#6b7280;cursor:not-allowed}
+.btn-finalize:hover:not(:disabled){background:#15803d}
+.btn-unfinalize{padding:10px 18px;background:#fff;color:var(--muted);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px}
+
+.final-stamp{display:none;padding:14px 18px;background:var(--green);color:#fff;border-radius:8px;text-align:center;font-weight:700;font-size:14px;letter-spacing:1px}
+.final.signed .final-stamp{display:block}
+.final.signed .progress,.final.signed .final-action button:not(.btn-unfinalize){display:none}
+
+/* ===== Footer ===== */
+.foot{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+
+/* ===== Spinner ===== */
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--bronze);animation:pulse 1.4s infinite}
+@keyframes pulse{0%,80%,100%{opacity:.3}40%{opacity:1}}
+
+/* mobile */
+@media (max-width:680px){
+  .participants{grid-template-columns:1fr}
+  .vote-actions{flex-direction:column}
+  .doc-title{font-size:18px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ШАПКА -->
+<header class="brand-header">
+  <div>
+    <div class="brand-logo">PLLATO</div>
+    <div class="brand-sub">Software Development Studio · Almaty</div>
+  </div>
+  <div class="brand-meta">
+    Дата: <strong>26.05.2026</strong><br>
+    Документ № <strong>AMN-1C-001</strong>
+  </div>
+</header>
+
+<!-- ЗАГОЛОВОК -->
+<h1 class="doc-title">Согласование работ по интеграции с 1С Бухгалтерия</h1>
+<div class="doc-subtitle">Проект: Aminamed CRM · по результатам встречи 25 мая 2026 г.</div>
+
+<!-- ВВЕДЕНИЕ -->
+<div class="intro">
+  <p>Уважаемые <strong>Карлыгаш Газисовна</strong> и <strong>Асем</strong>!</p>
+  <p>Этот документ предназначен для согласования <strong>работ по интеграции CRM «Pllato» с 1С Бухгалтерия</strong> и сопутствующей бухгалтерской функциональности. По каждому пункту, пожалуйста, поставьте свой голос и при необходимости оставьте комментарий — все ваши ответы и переписка видны обеим сторонам.</p>
+  <p>Документ считается утверждённым, когда все три участника (директор, бухгалтер, исполнитель) проголосовали по всем пунктам и подтвердили финальное согласование.</p>
+</div>
+
+<!-- УЧАСТНИКИ -->
+<div class="participants" id="participants">
+  <div class="participant karlygash" data-user="karlygash">
+    <div class="avatar">К</div>
+    <div class="name">Карлыгаш Б.</div>
+    <div class="role">Директор ТОО Аминамед</div>
+    <div class="stat" id="stat-karlygash">— ожидание —</div>
+  </div>
+  <div class="participant asem" data-user="asem">
+    <div class="avatar">А</div>
+    <div class="name">Асем</div>
+    <div class="role">Бухгалтер ТОО Аминамед</div>
+    <div class="stat" id="stat-asem">— ожидание —</div>
+  </div>
+  <div class="participant pllato" data-user="pllato">
+    <div class="avatar">P</div>
+    <div class="name">Pllato</div>
+    <div class="role">Исполнитель</div>
+    <div class="stat" id="stat-pllato">— ожидание —</div>
+  </div>
+</div>
+
+<!-- WHO AM I -->
+<div class="who-am-i" id="whoamiBar">
+  ⚠ <strong>Кликните по своей карточке выше</strong>, чтобы начать голосование от своего имени.
+</div>
+
+<!-- ПУНКТЫ (заполняются JS) -->
+<div id="sections"></div>
+
+<!-- ФИНАЛЬНЫЙ СТАТУС -->
+<div class="final" id="final">
+  <h3>Финальное согласование</h3>
+  <div class="progress"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+  <div class="progress-text" id="progressText">0 из 0 пунктов согласованы всеми участниками</div>
+  <div class="final-action">
+    <button class="btn-finalize" id="btnFinalize" disabled>✓ Утвердить документ</button>
+    <button class="btn-unfinalize" id="btnUnfinalize" style="display:none">Снять утверждение</button>
+  </div>
+  <div class="final-stamp" id="finalStamp"></div>
+</div>
+
+<!-- FOOTER -->
+<div class="foot">
+  <span>Pllato · Aminamed CRM</span>
+  <span id="syncStatus"><span class="dot"></span> синхронизация…</span>
+</div>
+
+</div>
+
+<script>
+// ============================================================================
+// КОНФИГУРАЦИЯ
+// ============================================================================
+const API_BASE = "https://pllato-comm.uurraa.workers.dev";
+const AGREEMENT_ID = "aminamed-1c";
+const POLL_INTERVAL = 5000; // ms
+
+const USER_META = {
+  karlygash: { name: "Карлыгаш Б.", short: "К", role: "Директор", color: "#d946ef" },
+  asem:      { name: "Асем",        short: "А", role: "Бухгалтер", color: "#0ea5e9" },
+  pllato:    { name: "Pllato",      short: "P", role: "Исполнитель", color: "#b8895a" },
+};
+
+// ============================================================================
+// СПИСОК ПУНКТОВ для согласования (только 1С/бухгалтерия)
+// ============================================================================
+const SECTIONS = [
+  {
+    num: "1",
+    title: "Технический аудит и архитектура",
+    items: [
+      { id: "1.1", name: "Технический аудит конфигурации 1С Бухгалтерия Заказчика", desc: "Анализ справочников, документов, регистров. Pllato выезжает к Заказчику или подключается удалённо для оценки." },
+      { id: "1.2", name: "Согласование протокола обмена", desc: "REST API через 1C Web-сервисы либо файловый обмен XML/JSON — выбираем после аудита." },
+      { id: "1.3", name: "Универсальный модуль «1С-коннектор»", desc: "Адаптер с конфигурируемым маппингом, переиспользуемый при будущей миграции 1С (Торговля/УТ/Fresh)." },
+    ],
+  },
+  {
+    num: "2",
+    title: "Справочники: выгрузка из 1С в CRM",
+    items: [
+      { id: "2.1", name: "Номенклатура", desc: "Наименование, артикул, ед. изм., цена, группа." },
+      { id: "2.2", name: "Остатки (по складам и партиям)", desc: "В режиме реального времени, обновление по расписанию." },
+      { id: "2.3", name: "Партии (LOT/серия, дата производства, срок годности)", desc: "Для FEFO-списания и контроля сроков." },
+      { id: "2.4", name: "Контрагенты с реквизитами и адресами доставки", desc: "БИН, наименование, телефоны, юр. и фактические адреса." },
+      { id: "2.5", name: "Сертификаты и регистрационные удостоверения", desc: "Файлы или ссылки на документы, привязанные к номенклатуре." },
+      { id: "2.6", name: "Коды НКТ / GTIN / КТ-ТНВЭД / КТТ", desc: "Обязательные с 01.01.2026 поля по законодательству РК." },
+    ],
+  },
+  {
+    num: "3",
+    title: "Документооборот: CRM ↔ 1С",
+    items: [
+      { id: "3.1", name: "Расходные накладные из CRM в 1С", desc: "Автоматическое формирование документа реализации в 1С при отгрузке в CRM." },
+      { id: "3.2", name: "Счета-фактуры (ЭСФ КЗ)", desc: "Печатная форма ЭСФ из CRM, выгрузка в 1С." },
+      { id: "3.3", name: "Цепочка ГТД → ЭДВС → источник на ЭСФ", desc: "Для импортных товаров: построчная привязка источника происхождения." },
+      { id: "3.4", name: "Акты списания из инвентаризации в 1С", desc: "При проведении инвентаризации с расхождениями." },
+      { id: "3.5", name: "Печатная форма «Акт приёма-передачи»", desc: "С полями НКТ, КТ-ТНВЭД, количеством." },
+      { id: "3.6", name: "Двойное наименование в накладной (наше / клиента)", desc: "Для госпитальных договоров — слэш с наименованием клиента." },
+    ],
+  },
+  {
+    num: "4",
+    title: "Бухгалтерская работа в CRM",
+    items: [
+      { id: "4.1", name: "Виды оплаты в договоре (5 типов)", desc: "Предоплата 100% / срок 1 месяц / консигнация / 4 дня / ручной ввод." },
+      { id: "4.2", name: "Модуль «Дебиторская задолженность»", desc: "Отдельный раздел для Асем и Карлыгаш: список дебиторов, фильтры, группировка по виду оплаты." },
+      { id: "4.3", name: "Печатная форма «Акт сверки» с клиентом", desc: "По форме РК, выгрузка из CRM." },
+      { id: "4.4", name: "Резерв товара под выставленный счёт (3 дня)", desc: "Автоматическое бронирование при формировании счёта, авто-снятие через 3 дня без оплаты." },
+      { id: "4.5", name: "Подтверждение оплаты менеджером", desc: "Действие с фиксацией (кто, когда, сумма, тип оплаты) до перевода заказа в отгрузку." },
+    ],
+  },
+  {
+    num: "5",
+    title: "Миграция и запуск",
+    items: [
+      { id: "5.1", name: "Первичная актуализация остатков", desc: "Разовая работа в день запуска: сведение CRM ↔ физический склад ↔ 1С в единое состояние с фиксацией расхождений." },
+      { id: "5.2", name: "Миграция и сверка контактной базы 60–100 тыс.", desc: "Соотнесение контрагентов из 1С с контактами CRM по БИН/наименованию/телефону." },
+      { id: "5.3", name: "Обучение Асем и Карлыгаш", desc: "Демонстрация всех бухгалтерских функций, сопровождение в течение 2–3 недель после запуска." },
+    ],
+  },
+  {
+    num: "6",
+    title: "Соответствие законодательству РК (с 01.01.2026)",
+    items: [
+      { id: "6.1", name: "Поле НКТ-кода в карточке номенклатуры", desc: "Национальный Каталог Товаров — обязательно для всей импортной номенклатуры." },
+      { id: "6.2", name: "Поддержка GTIN временного и Intin постоянного", desc: "Автоматическая подмена после регистрации товара в системе." },
+      { id: "6.3", name: "Источник происхождения построчно в ЭСФ", desc: "Цепочка из импортного документа в счёт-фактуру." },
+    ],
+  },
+];
+
+// ============================================================================
+// STATE
+// ============================================================================
+let state = { votes: {}, comments: [], finalized: null };
+let me = localStorage.getItem("pllato_agreement_user") || null;
+let lastUpdate = 0;
+let pollTimer = null;
+
+// ============================================================================
+// API
+// ============================================================================
+async function apiGet() {
+  const r = await fetch(`${API_BASE}/agreement/${AGREEMENT_ID}`);
+  if (!r.ok) throw new Error(`GET ${r.status}`);
+  const j = await r.json();
+  return j;
+}
+
+async function apiPost(event) {
+  const r = await fetch(`${API_BASE}/agreement/${AGREEMENT_ID}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event }),
+  });
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    throw new Error(`POST ${r.status}: ${t.slice(0, 200)}`);
+  }
+  const j = await r.json();
+  return j;
+}
+
+// ============================================================================
+// RENDER
+// ============================================================================
+function renderWhoAmI() {
+  const bar = document.getElementById("whoamiBar");
+  if (!me) {
+    bar.classList.remove("confirmed");
+    bar.innerHTML = `⚠ <strong>Кликните по своей карточке выше</strong>, чтобы начать голосование от своего имени.`;
+  } else {
+    bar.classList.add("confirmed");
+    const m = USER_META[me];
+    bar.innerHTML = `✓ Вы вошли как <strong>${m.name}</strong> · ${m.role}. <a href="#" id="logout">Сменить пользователя</a>`;
+    document.getElementById("logout").addEventListener("click", (e) => {
+      e.preventDefault();
+      me = null;
+      localStorage.removeItem("pllato_agreement_user");
+      document.querySelectorAll(".participant").forEach((p) => p.classList.remove("active"));
+      renderAll();
+    });
+  }
+  document.querySelectorAll(".participant").forEach((p) => {
+    p.classList.toggle("active", p.dataset.user === me);
+  });
+}
+
+function renderParticipantStats() {
+  ["karlygash", "asem", "pllato"].forEach((u) => {
+    let voted = 0;
+    SECTIONS.forEach((s) => s.items.forEach((it) => {
+      if (state.votes[it.id]?.[u]) voted++;
+    }));
+    const total = SECTIONS.reduce((a, s) => a + s.items.length, 0);
+    document.getElementById(`stat-${u}`).innerHTML = `<strong>${voted}</strong> из ${total} ${voted === total ? "✓" : ""}`;
+  });
+}
+
+function renderVoteChip(user, vote) {
+  const m = USER_META[user];
+  const labels = { approved: "Согласен", clarify: "Уточнить", rejected: "Не нужно" };
+  return `<span class="vote-chip ${user} ${vote}"><span class="av">${m.short}</span>${labels[vote]}</span>`;
+}
+
+function renderItem(item) {
+  const itemVotes = state.votes[item.id] || {};
+  const myVote = me ? itemVotes[me]?.vote : null;
+  const comments = state.comments.filter((c) => c.itemId === item.id);
+
+  // Голоса всех (показываем тех кто проголосовал)
+  let votesHtml = "";
+  ["karlygash", "asem", "pllato"].forEach((u) => {
+    if (itemVotes[u]) {
+      votesHtml += renderVoteChip(u, itemVotes[u].vote);
+    } else {
+      const m = USER_META[u];
+      votesHtml += `<span class="vote-chip pending"><span class="av" style="background:${m.color}">${m.short}</span>не отвечал</span>`;
+    }
+  });
+
+  let voteActionsHtml = "";
+  if (me) {
+    voteActionsHtml = `
+      <div class="vote-actions">
+        <button class="vote-btn approved${myVote === "approved" ? " selected" : ""}" data-vote="approved" data-item="${item.id}">✅ Согласен</button>
+        <button class="vote-btn clarify${myVote === "clarify" ? " selected" : ""}" data-vote="clarify" data-item="${item.id}">❓ Уточнить</button>
+        <button class="vote-btn rejected${myVote === "rejected" ? " selected" : ""}" data-vote="rejected" data-item="${item.id}">❌ Не нужно</button>
+      </div>
+    `;
+  }
+
+  let commentsHtml = "";
+  comments.forEach((c) => {
+    const m = USER_META[c.user];
+    const date = new Date(c.at).toLocaleString("ru-RU", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+    commentsHtml += `
+      <div class="comment ${c.user}">
+        <div class="av">${m.short}</div>
+        <div class="comment-body">
+          <div class="comment-meta"><strong>${m.name}</strong> · ${date}</div>
+          <div class="comment-text">${escapeHtml(c.text)}</div>
+        </div>
+      </div>`;
+  });
+
+  let commentInputHtml = "";
+  if (me) {
+    commentInputHtml = `
+      <div class="item-comment-input">
+        <input type="text" placeholder="Написать комментарий…" data-item="${item.id}">
+        <button data-item="${item.id}">Отправить</button>
+      </div>
+    `;
+  }
+
+  const hasComments = comments.length > 0 || me;
+  return `
+    <div class="item" id="item-${item.id}">
+      <div class="item-head">
+        <div class="item-titletext">
+          <div class="item-num">пункт ${item.id}</div>
+          <div class="item-name">${escapeHtml(item.name)}</div>
+          <div class="item-desc">${escapeHtml(item.desc)}</div>
+        </div>
+      </div>
+      <div class="votes">${votesHtml}</div>
+      ${voteActionsHtml}
+      ${hasComments ? `<div class="item-comments">${commentsHtml}${commentInputHtml}</div>` : ""}
+    </div>
+  `;
+}
+
+function renderSections() {
+  const c = document.getElementById("sections");
+  c.innerHTML = SECTIONS.map((s) => `
+    <div class="section">
+      <span class="section-num">${s.num}.</span>
+      <span class="section-title">${escapeHtml(s.title)}</span>
+    </div>
+    ${s.items.map(renderItem).join("")}
+  `).join("");
+}
+
+function renderFinal() {
+  let agreedItems = 0;
+  let totalItems = 0;
+  SECTIONS.forEach((s) => s.items.forEach((it) => {
+    totalItems++;
+    const v = state.votes[it.id] || {};
+    const allApproved = ["karlygash", "asem", "pllato"].every((u) => v[u]?.vote === "approved");
+    if (allApproved) agreedItems++;
+  }));
+  const pct = totalItems > 0 ? Math.round((agreedItems / totalItems) * 100) : 0;
+  document.getElementById("progressBar").style.width = pct + "%";
+  document.getElementById("progressText").textContent = `${agreedItems} из ${totalItems} пунктов согласованы всеми участниками (${pct}%)`;
+
+  const finalEl = document.getElementById("final");
+  const allAgreed = agreedItems === totalItems && totalItems > 0;
+  finalEl.classList.toggle("full", allAgreed);
+
+  const btn = document.getElementById("btnFinalize");
+  const btnUn = document.getElementById("btnUnfinalize");
+  const stamp = document.getElementById("finalStamp");
+
+  if (state.finalized) {
+    finalEl.classList.add("signed");
+    const m = USER_META[state.finalized.by] || { name: state.finalized.by };
+    const date = new Date(state.finalized.at).toLocaleString("ru-RU");
+    stamp.innerHTML = `✓ ДОКУМЕНТ УТВЕРЖДЁН · ${m.name} · ${date}`;
+    btn.style.display = "none";
+    btnUn.style.display = me === "pllato" ? "inline-block" : "none";
+  } else {
+    finalEl.classList.remove("signed");
+    btn.style.display = "inline-block";
+    btn.disabled = !(allAgreed && me === "pllato");
+    btn.title = !allAgreed ? "Все пункты должны быть согласованы всеми участниками" : !me ? "Выберите пользователя" : me !== "pllato" ? "Утвердить может только Pllato" : "";
+    btnUn.style.display = "none";
+  }
+}
+
+function renderAll() {
+  renderWhoAmI();
+  renderParticipantStats();
+  renderSections();
+  renderFinal();
+  wireItemEvents();
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+function setSyncStatus(msg, type = "ok") {
+  const el = document.getElementById("syncStatus");
+  if (type === "ok") el.innerHTML = `<span style="color:#15803d">●</span> ${msg}`;
+  else if (type === "err") el.innerHTML = `<span style="color:#dc2626">●</span> ${msg}`;
+  else el.innerHTML = `<span class="dot"></span> ${msg}`;
+}
+
+// ============================================================================
+// EVENT WIRING
+// ============================================================================
+function wireParticipants() {
+  document.querySelectorAll(".participant").forEach((p) => {
+    p.addEventListener("click", () => {
+      const u = p.dataset.user;
+      me = u;
+      localStorage.setItem("pllato_agreement_user", u);
+      renderAll();
+    });
+  });
+}
+
+function wireItemEvents() {
+  document.querySelectorAll(".vote-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!me) return;
+      const itemId = btn.dataset.item;
+      const vote = btn.dataset.vote;
+      const currentVote = state.votes[itemId]?.[me]?.vote;
+      const newVote = currentVote === vote ? null : vote; // toggle off
+      setSyncStatus("сохранение…", "pending");
+      try {
+        const res = await apiPost({ type: "vote", user: me, itemId, vote: newVote });
+        state = res.state;
+        lastUpdate = res.updatedAt;
+        renderAll();
+        setSyncStatus("сохранено");
+      } catch (e) {
+        setSyncStatus("ошибка: " + e.message, "err");
+      }
+    });
+  });
+
+  document.querySelectorAll(".item-comment-input button").forEach((btn) => {
+    btn.addEventListener("click", async () => sendComment(btn.dataset.item));
+  });
+  document.querySelectorAll(".item-comment-input input").forEach((inp) => {
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendComment(inp.dataset.item);
+    });
+  });
+}
+
+async function sendComment(itemId) {
+  if (!me) return;
+  const inp = document.querySelector(`.item-comment-input input[data-item="${itemId}"]`);
+  const text = inp.value.trim();
+  if (!text) return;
+  setSyncStatus("отправка…", "pending");
+  try {
+    const res = await apiPost({ type: "comment", user: me, itemId, text });
+    state = res.state;
+    lastUpdate = res.updatedAt;
+    inp.value = "";
+    renderAll();
+    setSyncStatus("отправлено");
+  } catch (e) {
+    setSyncStatus("ошибка: " + e.message, "err");
+  }
+}
+
+document.getElementById("btnFinalize").addEventListener("click", async () => {
+  if (me !== "pllato") return;
+  if (!confirm("Утвердить документ финально? После этого все смогут видеть статус «Утверждён».")) return;
+  setSyncStatus("утверждение…", "pending");
+  try {
+    const res = await apiPost({ type: "finalize", user: me });
+    state = res.state;
+    renderAll();
+    setSyncStatus("утверждено");
+  } catch (e) {
+    setSyncStatus("ошибка: " + e.message, "err");
+  }
+});
+
+document.getElementById("btnUnfinalize").addEventListener("click", async () => {
+  if (me !== "pllato") return;
+  if (!confirm("Снять утверждение документа?")) return;
+  setSyncStatus("отмена утверждения…", "pending");
+  try {
+    const res = await apiPost({ type: "unfinalize", user: me });
+    state = res.state;
+    renderAll();
+    setSyncStatus("отмена утверждения");
+  } catch (e) {
+    setSyncStatus("ошибка: " + e.message, "err");
+  }
+});
+
+// ============================================================================
+// POLLING
+// ============================================================================
+async function poll() {
+  try {
+    const r = await apiGet();
+    if (r.updatedAt !== lastUpdate) {
+      state = r.state;
+      lastUpdate = r.updatedAt;
+      renderAll();
+      setSyncStatus("обновлено");
+    } else {
+      setSyncStatus("синхронизировано");
+    }
+  } catch (e) {
+    setSyncStatus("offline: " + e.message, "err");
+  }
+}
+
+// ============================================================================
+// BOOT
+// ============================================================================
+async function boot() {
+  wireParticipants();
+  renderAll();
+  await poll();
+  pollTimer = setInterval(poll, POLL_INTERVAL);
+}
+
+boot();
+</script>
+</body>
+</html>
