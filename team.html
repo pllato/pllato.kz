@@ -1711,6 +1711,138 @@ tr:hover td { background: var(--bg3); }
 }
 .dc-section-h:first-child { margin-top: 0; }
 
+/* Шапка карточки: actions справа (Архив + закрыть) */
+.dc-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dc-archived-badge {
+  display: inline-block;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  vertical-align: middle;
+  margin-left: 8px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.dc-archive-btn {
+  background: transparent !important;
+  border: 1px solid var(--b1) !important;
+  color: var(--t2) !important;
+}
+.dc-archive-btn[data-archived="1"] {
+  border-color: var(--gn) !important;
+  color: var(--gn) !important;
+}
+
+/* Форма комментария */
+.dc-comment-form {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+.dc-comment-input {
+  flex: 1;
+  min-height: 44px;
+  max-height: 160px;
+  resize: vertical;
+  border: 1px solid var(--b1);
+  border-radius: 8px;
+  background: var(--bg2);
+  color: var(--t1);
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+}
+.dc-comment-input:focus { outline: none; border-color: var(--ac2); }
+
+/* Лента событий */
+.dc-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--b1);
+  border-radius: 10px;
+  background: var(--bg2);
+  overflow: hidden;
+}
+.dc-feed-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--b1);
+}
+.dc-feed-item:last-child { border-bottom: none; }
+.dc-feed-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.dc-feed-body { flex: 1; min-width: 0; }
+.dc-feed-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.dc-feed-author { font-size: 12.5px; font-weight: 600; color: var(--t1); }
+.dc-feed-time { font-size: 11px; color: var(--t3); }
+.dc-feed-meta { font-size: 11px; color: var(--t3); }
+.dc-feed-text {
+  font-size: 13px;
+  color: var(--t1);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+.dc-feed-comment { background: rgba(79, 70, 229, .04); }
+.dc-feed-wa { background: rgba(37, 211, 102, .04); }
+.dc-feed-call { background: rgba(245, 158, 11, .04); }
+
+/* Дела по сделке */
+.dc-deeds-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.dc-deed-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 8px;
+  transition: background .12s;
+}
+.dc-deed-row:hover { background: var(--bg3); }
+.dc-deed-row.is-done { opacity: 0.55; }
+.dc-deed-row.is-done .dc-deed-title { text-decoration: line-through; }
+.dc-deed-row.is-overdue { border-left: 3px solid var(--rd); }
+.dc-deed-check { display: flex; align-items: center; padding-top: 1px; }
+.dc-deed-body { flex: 1; min-width: 0; }
+.dc-deed-title { font-size: 13px; color: var(--t1); font-weight: 500; }
+.dc-deed-due {
+  font-size: 11px;
+  color: var(--t3);
+  margin-top: 3px;
+}
+.dc-deed-due.overdue { color: var(--rd); font-weight: 600; }
+.dc-deed-due.today { color: var(--ac2); font-weight: 600; }
+
 .dc-contact-card {
   background: var(--bg3);
   border: 1px solid var(--b1);
@@ -4821,6 +4953,229 @@ async function renderDealWaMessages(pane, opts = {}) {
   }
 }
 
+// ── Лента событий сделки (комменты + звонки + статусы + WA) ────────────
+async function loadDealFeed(modal, dealId) {
+  const wrap = modal.querySelector('#dc-feed');
+  const countEl = modal.querySelector('#dc-tl-count');
+  if (!wrap) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/timeline?limit=200`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const items = data.items || [];
+    if (countEl) countEl.textContent = items.length ? `(${items.length})` : '';
+    if (!items.length) {
+      wrap.innerHTML = '<div style="padding:18px;color:var(--t3);font-size:12px;text-align:center">Событий пока нет — напиши первый комментарий выше.</div>';
+      return;
+    }
+    wrap.innerHTML = items.map(renderFeedItemHtml).join('');
+  } catch (e) {
+    wrap.innerHTML = `<div style="padding:12px;color:#c00;font-size:12px">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderFeedItemHtml(ev) {
+  const ts = ev.ts ? new Date(ev.ts).toLocaleString('ru', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+  const authorUser = ev.authorUid ? getUserById(ev.authorUid) : null;
+  const authorName = authorUser
+    ? [authorUser.lastName, authorUser.name].filter(Boolean).join(' ').trim()
+    : (ev.payload?.authorName || ev.payload?.authorEmail || 'Система');
+
+  if (ev.kind === 'comment') {
+    return `<div class="dc-feed-item dc-feed-comment">
+      <div class="dc-feed-icon" style="background:#eef2ff;color:#4f46e5">💬</div>
+      <div class="dc-feed-body">
+        <div class="dc-feed-head">
+          <span class="dc-feed-author">${escapeHtml(authorName)}</span>
+          <span class="dc-feed-time">· ${ts}</span>
+        </div>
+        <div class="dc-feed-text">${escapeHtml(ev.payload?.text || '').replace(/\n/g, '<br>')}</div>
+      </div>
+    </div>`;
+  }
+  if (ev.kind === 'call') {
+    const p = ev.payload || {};
+    const dirIcon = p.direction === 'in' ? '📥' : '📤';
+    const dur = p.durationSec ? `${Math.floor(p.durationSec/60)}:${String(p.durationSec%60).padStart(2,'0')}` : '';
+    const stat = p.status === 'connected' ? '✓' : (p.status === 'no_answer' || p.status === 'missed' || p.status === 'cancelled') ? 'не отвечен' : (p.status || '');
+    const rec = p.recordingUrl
+      ? `<audio controls preload="metadata" src="${escapeHtml(p.recordingUrl)}" style="width:100%;max-width:340px;height:34px;margin-top:6px"></audio>`
+      : '';
+    return `<div class="dc-feed-item dc-feed-call">
+      <div class="dc-feed-icon" style="background:#fef3c7;color:#a16207">${dirIcon}</div>
+      <div class="dc-feed-body">
+        <div class="dc-feed-head">
+          <span class="dc-feed-author">Звонок ${p.direction === 'in' ? 'входящий' : 'исходящий'}</span>
+          <span class="dc-feed-time">· ${ts}</span>
+          ${dur ? `<span class="dc-feed-meta">· ${escapeHtml(dur)}</span>` : ''}
+          ${stat ? `<span class="dc-feed-meta">· ${escapeHtml(stat)}</span>` : ''}
+        </div>
+        <div class="dc-feed-text" style="color:var(--t3);font-size:12px">${escapeHtml(p.phone || '')}${p.note ? ' · ' + escapeHtml(p.note) : ''}</div>
+        ${rec}
+      </div>
+    </div>`;
+  }
+  if (ev.kind === 'wa') {
+    const p = ev.payload || {};
+    const dirIcon = p.direction === 'in' ? '←' : '→';
+    const preview = p.text || (p.mediaKind ? `[${p.mediaKind}] ${p.mediaFileName || ''}` : '');
+    return `<div class="dc-feed-item dc-feed-wa">
+      <div class="dc-feed-icon" style="background:#dcfce7;color:#15803d">💬</div>
+      <div class="dc-feed-body">
+        <div class="dc-feed-head">
+          <span class="dc-feed-author">WhatsApp ${dirIcon}</span>
+          <span class="dc-feed-time">· ${ts}</span>
+        </div>
+        <div class="dc-feed-text">${escapeHtml(preview)}</div>
+      </div>
+    </div>`;
+  }
+  // archived/restored и др. системные события
+  const sysLabels = { archived: '🗄 В архив', restored: '↩ Восстановлено', created: '⊕ Создано', stage_changed: '↪ Смена стадии' };
+  const label = sysLabels[ev.kind] || ev.kind;
+  return `<div class="dc-feed-item dc-feed-sys">
+    <div class="dc-feed-icon" style="background:#f3f4f6;color:#6b7280">·</div>
+    <div class="dc-feed-body">
+      <div class="dc-feed-head">
+        <span class="dc-feed-author">${escapeHtml(authorName)}</span>
+        <span class="dc-feed-time">· ${ts}</span>
+        <span class="dc-feed-meta">· ${escapeHtml(label)}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Дела по сделке ──────────────────────────────────────────────────────
+// Через /api/list/tasks ищем задачи где crm_links содержит "deal_X"
+async function loadDealDeeds(modal, deal) {
+  const wrap = modal.querySelector('#dc-deeds-wrap');
+  const countEl = modal.querySelector('#dc-deeds-count');
+  if (!wrap) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    // Фильтр через worker — `crmLink=deal_X` — но такого фильтра нет.
+    // Делаем простой client-side: грузим status=active + ищем dealId в crm_links.
+    // Альтернатива: добавить crmLink в LIST_CONFIG.tasks (потом).
+    const params = new URLSearchParams({
+      page: '1', pageSize: '50', status: 'active', sort: 'activity',
+      scope: 'all', auth: idToken,
+    });
+    const r = await fetch(`${WORKER_LIST_URL}/tasks?${params}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const dealKey = 'deal_' + deal.bitrixId;
+    const items = (data.items || []).filter(t => {
+      const links = t.crmLinks || t.bitrixCrmLinks;
+      if (!links) return false;
+      if (Array.isArray(links)) return links.some(l => String(l).includes(dealKey));
+      return String(JSON.stringify(links)).includes(dealKey);
+    });
+    if (countEl) countEl.textContent = items.length ? `(${items.length})` : '';
+    if (!items.length) {
+      wrap.innerHTML = '<div style="padding:14px;color:var(--t3);font-size:12px;text-align:center">Дел пока нет. Нажми <b>+ Дело</b> чтобы создать.</div>';
+      return;
+    }
+    wrap.innerHTML = items.map(renderDeedRowHtml).join('');
+  } catch (e) {
+    wrap.innerHTML = `<div style="padding:12px;color:#c00;font-size:12px">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderDeedRowHtml(t) {
+  const dl = t.deadline;
+  const dlDate = dl ? new Date(dl) : null;
+  const now = Date.now();
+  const overdue = dlDate && dlDate.getTime() < now;
+  const dueToday = dlDate && (dlDate.getTime() - now) < 86400000 && (dlDate.getTime() - now) > -86400000;
+  const dlLabel = dlDate ? dlDate.toLocaleString('ru', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+  const isDone = t.status >= 5;
+  return `<div class="dc-deed-row ${isDone ? 'is-done' : ''} ${overdue && !isDone ? 'is-overdue' : ''}" data-task-key="${escapeHtml(t.bitrixKey || t.id)}">
+    <label class="dc-deed-check">
+      <input type="checkbox" ${isDone ? 'checked' : ''} disabled>
+    </label>
+    <div class="dc-deed-body">
+      <div class="dc-deed-title">${escapeHtml(t.title || '(без названия)')}</div>
+      ${dlLabel ? `<div class="dc-deed-due ${overdue && !isDone ? 'overdue' : (dueToday ? 'today' : '')}">📅 ${escapeHtml(dlLabel)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+// Модалка добавления дела (задачи) к сделке
+function openAddDeedModal(deal, onDone) {
+  document.getElementById('_add-deed-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_add-deed-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  // Default deadline = today 18:00
+  const def = new Date();
+  def.setHours(18, 0, 0, 0);
+  const defStr = def.toISOString().slice(0, 16);
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:480px">
+      <div class="qad-head"><h2>+ Дело по сделке</h2><button class="qad-btn qad-btn-ghost" id="ad-close" style="padding:4px 10px">×</button></div>
+      <div class="qad-body">
+        <div><div class="qad-label">Название *</div><input id="ad-title" class="qad-input" placeholder="Например: Перезвонить клиенту"></div>
+        <div><div class="qad-label">Дедлайн</div><input id="ad-deadline" class="qad-input" type="datetime-local" value="${defStr}"></div>
+        <div><div class="qad-label">Описание</div><textarea id="ad-desc" class="qad-input" rows="3" placeholder="(необязательно)"></textarea></div>
+        <div class="dialer-hint">Дело привяжется к сделке #${escapeHtml(deal.bitrixId)} — будет видно во вкладке Задачи и в карточке сделки.</div>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="ad-cancel">Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="ad-save">Создать</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('ad-close').onclick = () => ov.remove();
+  document.getElementById('ad-cancel').onclick = () => ov.remove();
+  setTimeout(() => document.getElementById('ad-title').focus(), 30);
+  document.getElementById('ad-save').onclick = async () => {
+    const title = document.getElementById('ad-title').value.trim();
+    const deadline = document.getElementById('ad-deadline').value;
+    const desc = document.getElementById('ad-desc').value.trim();
+    if (!title) { alert('Название обязательно'); return; }
+    const btn = document.getElementById('ad-save');
+    btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const id = 'task_local_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const nowIso = new Date().toISOString();
+      const dlIso = deadline ? new Date(deadline).toISOString() : null;
+      const body = {
+        id,
+        title,
+        description: desc || null,
+        status: 2, // в работе
+        responsibleUid: window.currentUser?.canonicalUid || null,
+        createdByUid: window.currentUser?.canonicalUid || null,
+        deadline: dlIso,
+        crmLinks: ['deal_' + deal.bitrixId],
+        bitrixCreatedDate: nowIso,
+        bitrixChangedDate: nowIso,
+      };
+      const r = await fetch(`${WORKER_RTDB_URL}/tasks/${encodeURIComponent(id)}.json?auth=${idToken}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      ov.remove();
+      showToast('Дело создано');
+      if (typeof onDone === 'function') onDone();
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+      btn.disabled = false; btn.textContent = 'Создать';
+    }
+  };
+}
+
 // ── Quick-Add Deal modal ─────────────────────────────────────────────────
 // + Сделка под заголовком колонки канбана. Создаёт сделку с минимумом полей:
 // title, выбранный stage и pipeline, контакт (поиск existing или создание).
@@ -5524,14 +5879,19 @@ async function openDealCard(bitrixId) {
     <div class="modal modal-xl">
       <div class="dc-head">
         <div style="flex:1;min-width:0">
-          <h2 style="margin:0">${escapeHtml(deal.title || '(без названия)')}</h2>
+          <h2 style="margin:0">${escapeHtml(deal.title || '(без названия)')} ${deal.archived ? '<span class="dc-archived-badge">🗄 в архиве</span>' : ''}</h2>
           <div class="modal-sub" style="margin-top:4px">
             ID: <code>${escapeHtml(deal.bitrixId)}</code> ·
             <a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a> ·
             <button class="tbtn-xs dc-copy-link" data-deal-id="${escapeHtml(deal.bitrixId)}" style="background:none;border:none;color:var(--ac2);cursor:pointer;font-size:11px;padding:0">🔗 Копировать ссылку</button>
           </div>
         </div>
-        <button class="close-x" onclick="closeDealCard()">×</button>
+        <div class="dc-head-actions">
+          <button class="tbtn tbtn-xs dc-archive-btn" id="dc-archive-btn" data-archived="${deal.archived ? 1 : 0}" title="${deal.archived ? 'Восстановить из архива' : 'В архив (soft-delete)'}">
+            ${deal.archived ? '↩ Восстановить' : '🗄 В архив'}
+          </button>
+          <button class="close-x" onclick="closeDealCard()">×</button>
+        </div>
       </div>
 
       <div class="dc-stagebar">${stageBarHtml}</div>
@@ -5603,6 +5963,29 @@ async function openDealCard(bitrixId) {
         </div>
       </div>
 
+      <!-- Дела по сделке: задачи привязанные через crm_links deal_X -->
+      <div class="dc-section-h" style="margin-top:24px;display:flex;align-items:center;gap:10px">
+        <span>✅ Дела</span>
+        <span id="dc-deeds-count" style="font-size:11px;color:var(--t3);font-weight:400"></span>
+        <button class="tbtn tbtn-xs" id="dc-add-deed-btn" style="margin-left:auto">+ Дело</button>
+      </div>
+      <div class="dc-deeds-wrap" id="dc-deeds-wrap" data-deal-id="${escapeHtml(deal.bitrixId)}">
+        <div style="padding:12px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем дела…</div>
+      </div>
+
+      <!-- Лента событий — комменты, звонки, статусы, WA -->
+      <div class="dc-section-h" style="margin-top:24px;display:flex;align-items:center;gap:10px">
+        <span>📜 Лента событий</span>
+        <span id="dc-tl-count" style="font-size:11px;color:var(--t3);font-weight:400"></span>
+      </div>
+      <div class="dc-comment-form">
+        <textarea class="dc-comment-input" id="dc-comment-input" placeholder="Добавить комментарий…" rows="2"></textarea>
+        <button class="tbtn tbtn-primary tbtn-sm" id="dc-comment-send">Отправить</button>
+      </div>
+      <div class="dc-feed" id="dc-feed" data-deal-id="${escapeHtml(deal.bitrixId)}">
+        <div style="padding:12px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем ленту…</div>
+      </div>
+
       ${(() => {
         // Сводный блок Файлы по сделке: все file ids из всех активностей
         const allFids = new Set();
@@ -5665,6 +6048,87 @@ async function openDealCard(bitrixId) {
   // WhatsApp pane в правой колонке — embedded чат (история + отправка)
   if (contactPhone) {
     mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, contactName);
+  }
+
+  // ── Архив сделки ────────────────────────────────────────────────────
+  const archiveBtn = modal.querySelector('#dc-archive-btn');
+  if (archiveBtn) {
+    archiveBtn.addEventListener('click', async () => {
+      const isArchived = archiveBtn.dataset.archived === '1';
+      const action = isArchived ? 'восстановить из архива' : 'отправить в архив';
+      if (!confirm(`Точно ${action} сделку «${deal.title || deal.bitrixId}»?`)) return;
+      archiveBtn.disabled = true;
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent('deal_' + deal.bitrixId)}/archive`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+          body: JSON.stringify({ archived: !isArchived }),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          throw new Error(j.error || `HTTP ${r.status}`);
+        }
+        showToast(isArchived ? 'Сделка восстановлена' : 'Сделка в архиве');
+        // Локально пометим, инвалидируем кеш воронки и перерисуем
+        deal.archived = isArchived ? 0 : 1;
+        invalidateDealsCacheForPipeline(deal.pipelineId);
+        closeDealCard();
+        // Если был в канбане текущей воронки — перезагрузим
+        const main = document.getElementById('main');
+        if (main && document.querySelector('[data-page="deals"].active')) {
+          renderDeals(main);
+        }
+      } catch (e) {
+        alert('Ошибка: ' + e.message);
+        archiveBtn.disabled = false;
+      }
+    });
+  }
+
+  // ── Лента событий + комментарии ────────────────────────────────────
+  await loadDealFeed(modal, 'deal_' + deal.bitrixId);
+  const commentInput = modal.querySelector('#dc-comment-input');
+  const commentSend = modal.querySelector('#dc-comment-send');
+  if (commentSend && commentInput) {
+    const submit = async () => {
+      const text = commentInput.value.trim();
+      if (!text) return;
+      commentSend.disabled = true;
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent('deal_' + deal.bitrixId)}/comments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+          body: JSON.stringify({ text }),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          throw new Error(j.error || `HTTP ${r.status}`);
+        }
+        commentInput.value = '';
+        await loadDealFeed(modal, 'deal_' + deal.bitrixId);
+        // Bump в канбане
+        invalidateDealsCacheForPipeline(deal.pipelineId);
+      } catch (e) {
+        alert('Ошибка: ' + e.message);
+      } finally {
+        commentSend.disabled = false;
+      }
+    };
+    commentSend.addEventListener('click', submit);
+    commentInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); submit(); }
+    });
+  }
+
+  // ── Дела по сделке ─────────────────────────────────────────────────
+  await loadDealDeeds(modal, deal);
+  const addDeedBtn = modal.querySelector('#dc-add-deed-btn');
+  if (addDeedBtn) {
+    addDeedBtn.addEventListener('click', () => openAddDeedModal(deal, async () => {
+      await loadDealDeeds(modal, deal);
+    }));
   }
 
   // Подгружаем файлы во всех timeline-элементах (звонки, email, переписка)
