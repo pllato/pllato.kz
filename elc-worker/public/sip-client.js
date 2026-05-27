@@ -304,7 +304,15 @@ export async function createSipClient(config) {
         uri: SIP.UserAgent.makeURI(`sip:${cfg.user}@${cfg.domain}`),
         authorizationUsername: cfg.user,
         authorizationPassword: cfg.password,
-        transportOptions: { server: cfg.wss },
+        transportOptions: {
+          server: cfg.wss,
+          // Auto-reconnect: SIP.js по умолчанию НЕ переподключается после
+          // disconnect (reconnectionAttempts=0). Нам это надо — оператор
+          // переключает Wi-Fi/4G, ноут уходит в sleep, WebSocket рвётся
+          // с code=1006 и UA умирает навсегда до hard reload.
+          reconnectionAttempts: 100,
+          reconnectionDelay: 4,
+        },
         sessionDescriptionHandlerFactoryOptions: {
           iceGatheringTimeout: 1500,
           peerConnectionConfiguration: {
@@ -320,6 +328,27 @@ export async function createSipClient(config) {
       await ua.start();
       registerer = new SIP.Registerer(ua);
       await registerer.register();
+
+      // После reconnect Transport переходит обратно в Connected, но
+      // Registerer этого не знает — остаётся Unregistered. Подписываемся
+      // на transport state и ре-регистрируем UA при восстановлении WS.
+      ua.transport.stateChange.addListener((newState) => {
+        dbg('transport state →', newState);
+        if (newState === SIP.TransportState.Disconnected) {
+          if (!session) setBottomBarState('connecting', 'Переподключение…');
+        } else if (newState === SIP.TransportState.Connected) {
+          if (registerer && registerer.state !== SIP.RegistererState.Registered) {
+            registerer.register().then(() => {
+              if (!session) setBottomBarState('registered', 'Готов к звонкам');
+              dbg('re-registered after reconnect');
+            }).catch(err => {
+              console.warn('[sipc] re-register failed:', err);
+              setBottomBarState('error', 'Ошибка регистрации', err?.message || '');
+            });
+          }
+        }
+      });
+
       setBottomBarState('registered', 'Готов к звонкам');
       dbg('registered as', cfg.user, '@', cfg.domain);
       return ua;
@@ -327,6 +356,33 @@ export async function createSipClient(config) {
       setBottomBarState('error', 'Ошибка SIP', e?.message || '');
       console.error('[sipc] init failed:', e);
       throw e;
+    }
+  }
+
+  // Убеждаемся что transport жив перед звонком. Если WebSocket лежит —
+  // ждём до 5 сек пока auto-reconnect сработает. Если за 5 сек не
+  // поднялся — пробуем явно ua.transport.connect().
+  async function ensureTransport() {
+    if (!ua || !SIP) return;
+    if (ua.transport.state === SIP.TransportState.Connected) return;
+    dbg('transport not connected (state=' + ua.transport.state + '), waiting up to 5s...');
+    setBottomBarState('connecting', 'Восстанавливаем соединение…');
+    const start = Date.now();
+    while (Date.now() - start < 5000) {
+      if (ua.transport.state === SIP.TransportState.Connected) return;
+      await new Promise(r => setTimeout(r, 200));
+    }
+    if (ua.transport.state !== SIP.TransportState.Connected) {
+      dbg('forcing transport.connect()');
+      try { await ua.transport.connect(); } catch (e) { dbg('connect failed', e); }
+      const start2 = Date.now();
+      while (Date.now() - start2 < 3000) {
+        if (ua.transport.state === SIP.TransportState.Connected) return;
+        await new Promise(r => setTimeout(r, 200));
+      }
+    }
+    if (ua.transport.state !== SIP.TransportState.Connected) {
+      throw new Error('Нет связи с SIP-сервером. Проверьте интернет.');
     }
   }
 
@@ -424,6 +480,9 @@ export async function createSipClient(config) {
     openCallOverlay();
 
     await init();
+    // Если WebSocket лёг (sleep ноута, смена Wi-Fi/4G) — ждём reconnect
+    // или форсим его перед INVITE. Иначе SIP.js даст "Not connected" → 503.
+    await ensureTransport();
     const cfg = await fetchCreds();
     const target = SIP.UserAgent.makeURI(`sip:${phone}@${cfg.domain}`);
     if (!target) throw new Error('Invalid SIP URI: ' + phone);
