@@ -10916,22 +10916,29 @@ function taskFileIcon(contentType, name) {
 //   ЧАТЫ (внутренние групповые + внешние openlines)
 // ═════════════════════════════════════════════════════════════════════════
 const chatsState = {
-  tab: 'group',          // group | openlines
+  tab: 'whatsapp',          // whatsapp | group | openlines
   groupChats: null,
   openlinesSessions: null,
   selectedChatId: null,  // открытый чат (для центральной панели)
+  waChats: null,            // массив [{id, phone, name, lastMessageText, ...}]
+  waSelectedChatId: null,   // открытый WA-чат (canonical id с префиксом wa:)
+  waListPollTimer: null,    // таймер обновления списка слева
+  waMsgsPollTimer: null,    // таймер обновления сообщений справа
 };
 
 async function renderChats(el) {
+  // При смене таба или ухода со страницы — гасим WA-поллинги
+  stopWaChatsPolling();
   el.innerHTML = `
     <div class="page-title">💬 Чаты</div>
-    <div class="page-sub">Внутренние групповые чаты сотрудников и переписка с клиентами через мессенджеры.</div>
+    <div class="page-sub">Переписка с клиентами в WhatsApp + внутренние групповые чаты сотрудников + архив внешних мессенджеров.</div>
     <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="vt-btn ${chatsState.tab === 'whatsapp' ? 'active' : ''}" data-tab="whatsapp">💬 WhatsApp</button>
       <button class="vt-btn ${chatsState.tab === 'group' ? 'active' : ''}" data-tab="group">👥 Сотрудники</button>
-      <button class="vt-btn ${chatsState.tab === 'openlines' ? 'active' : ''}" data-tab="openlines">🌐 Внешние мессенджеры</button>
+      <button class="vt-btn ${chatsState.tab === 'openlines' ? 'active' : ''}" data-tab="openlines">🌐 Архив</button>
     </div>
     <div id="chats-content" style="display:flex;gap:14px;height:calc(100vh - 220px);min-height:500px">
-      <div id="chats-list" style="flex:0 0 360px;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;overflow-y:auto">
+      <div id="chats-list" style="flex:0 0 360px;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-height:0">
         <div style="padding:14px;color:var(--t3);font-size:12px">⏳ Загрузка...</div>
       </div>
       <div id="chat-thread" style="flex:1;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;padding:0;display:flex;flex-direction:column;min-height:0">
@@ -10943,15 +10950,23 @@ async function renderChats(el) {
     btn.addEventListener('click', () => {
       chatsState.tab = btn.dataset.tab;
       chatsState.selectedChatId = null;
+      chatsState.waSelectedChatId = null;
       renderChats(el);
     });
   });
   await ensureUsersLoaded();
-  if (chatsState.tab === 'group') {
+  if (chatsState.tab === 'whatsapp') {
+    await loadAndRenderWaChats();
+  } else if (chatsState.tab === 'group') {
     await loadAndRenderGroupChats();
   } else {
     await loadAndRenderOpenlinesList();
   }
+}
+
+function stopWaChatsPolling() {
+  if (chatsState.waListPollTimer) { clearInterval(chatsState.waListPollTimer); chatsState.waListPollTimer = null; }
+  if (chatsState.waMsgsPollTimer) { clearInterval(chatsState.waMsgsPollTimer); chatsState.waMsgsPollTimer = null; }
 }
 
 async function loadAndRenderGroupChats() {
@@ -11145,6 +11160,289 @@ async function openOpenlinesSession(sessionId) {
     resolveDiskFileRefs(threadEl);
   } catch (e) {
     threadEl.innerHTML = `<div style="padding:30px;color:var(--rd);font-size:12px;text-align:center;margin:auto">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+//   WhatsApp multi-chat (раздел Чаты → таб 💬 WhatsApp)
+// ═════════════════════════════════════════════════════════════════════════
+
+async function loadAndRenderWaChats({ silent = false } = {}) {
+  const listEl = document.getElementById('chats-list');
+  if (!listEl) return;
+  if (!silent) {
+    listEl.innerHTML = `
+      <div style="padding:10px 12px;border-bottom:1px solid var(--b1);background:var(--bg3);flex:0 0 auto">
+        <input id="wa-list-search" type="search" placeholder="Поиск по имени или номеру"
+          style="width:100%;padding:7px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
+      </div>
+      <div id="wa-list-scroll" style="flex:1;overflow-y:auto;min-height:0">
+        <div style="padding:14px;color:var(--t3);font-size:12px">⏳ Загрузка...</div>
+      </div>`;
+    const searchInput = listEl.querySelector('#wa-list-search');
+    if (searchInput) {
+      searchInput.value = chatsState._waSearchQuery || '';
+      searchInput.addEventListener('input', () => {
+        chatsState._waSearchQuery = searchInput.value;
+        renderWaChatsList();
+      });
+    }
+  }
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    chatsState.waChats = (data.items || []).slice()
+      .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+    renderWaChatsList();
+  } catch (e) {
+    const scroll = listEl.querySelector('#wa-list-scroll') || listEl;
+    scroll.innerHTML = `<div style="padding:14px;color:var(--rd);font-size:12px">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+  // Запускаем polling списка (если ещё не запущен)
+  if (!chatsState.waListPollTimer) {
+    chatsState.waListPollTimer = setInterval(() => {
+      if (chatsState.tab !== 'whatsapp' || !document.getElementById('chats-list')) {
+        stopWaChatsPolling();
+        return;
+      }
+      loadAndRenderWaChats({ silent: true });
+    }, 10000);
+  }
+}
+
+function renderWaChatsList() {
+  const scroll = document.getElementById('wa-list-scroll');
+  if (!scroll) return;
+  const chats = chatsState.waChats || [];
+  const q = (chatsState._waSearchQuery || '').trim().toLowerCase();
+  const filtered = q
+    ? chats.filter(c => {
+        const name = (c.name || '').toLowerCase();
+        const phone = (c.phone || '').toLowerCase();
+        return name.includes(q) || phone.includes(q);
+      })
+    : chats;
+  if (!filtered.length) {
+    scroll.innerHTML = q
+      ? `<div style="padding:14px;color:var(--t3);font-size:12px">Ничего не найдено по «${escapeHtml(q)}»</div>`
+      : '<div style="padding:14px;color:var(--t3);font-size:12px">📭 WhatsApp-чатов пока нет. Они появятся когда клиент напишет или вы отправите сообщение из карточки сделки/контакта.</div>';
+    return;
+  }
+  scroll.innerHTML = filtered.map(c => renderWaChatListItemHtml(c, c.id === chatsState.waSelectedChatId)).join('');
+  scroll.querySelectorAll('.wa-chat-item').forEach(it => {
+    it.addEventListener('click', () => openWaChat(it.dataset.chatId));
+  });
+}
+
+function renderWaChatListItemHtml(c, isActive) {
+  const displayName = c.name && c.name.trim() ? c.name : formatPhoneForDisplay(c.phone);
+  const lastTime = c.lastMessageAt ? formatWaListTime(c.lastMessageAt) : '';
+  const preview = c.lastMessageText
+    ? (c.lastMessageFrom === 'me' ? '✓ ' : '') + c.lastMessageText.slice(0, 60)
+    : '';
+  const unread = c.unreadCount > 0
+    ? `<span style="background:#25D366;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:600;min-width:18px;text-align:center">${c.unreadCount}</span>`
+    : '';
+  const activeBg = isActive ? 'background:var(--acbg)' : '';
+  return `<div class="wa-chat-item" data-chat-id="${escapeHtml(c.id)}"
+    style="padding:10px 14px;border-bottom:1px solid var(--b1);cursor:pointer;transition:background 0.1s;${activeBg}"
+    onmouseenter="this.style.background='var(--bg3)'"
+    onmouseleave="this.style.background='${isActive ? 'var(--acbg)' : ''}'">
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:3px">
+      <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;color:var(--t1)">${escapeHtml(displayName)}</div>
+      <span style="font-size:10px;color:var(--t3);flex:0 0 auto">${escapeHtml(lastTime)}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+      <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--t2)">${escapeHtml(preview)}</div>
+      ${unread}
+    </div>
+  </div>`;
+}
+
+function formatWaListTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const now = new Date();
+  const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  if (sameDay) return d.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+  const y = new Date(now.getTime() - 86400000);
+  if (d.getFullYear() === y.getFullYear() && d.getMonth() === y.getMonth() && d.getDate() === y.getDate()) return 'вчера';
+  return d.toLocaleDateString('ru', { day: '2-digit', month: '2-digit' });
+}
+
+function formatPhoneForDisplay(p) {
+  if (!p) return 'Без номера';
+  const digits = String(p).replace(/\D/g, '');
+  if (digits.length === 11 && (digits[0] === '7' || digits[0] === '8')) {
+    return `+7 ${digits.slice(1,4)} ${digits.slice(4,7)} ${digits.slice(7,9)} ${digits.slice(9,11)}`;
+  }
+  return '+' + digits;
+}
+
+async function openWaChat(chatId) {
+  const chat = (chatsState.waChats || []).find(c => c.id === chatId);
+  if (!chat) return;
+  chatsState.waSelectedChatId = chatId;
+  // Подсветить выбранный пункт списка
+  renderWaChatsList();
+
+  const threadEl = document.getElementById('chat-thread');
+  if (!threadEl) return;
+  const displayName = chat.name && chat.name.trim() ? chat.name : formatPhoneForDisplay(chat.phone);
+  const subline = [];
+  if (chat.phone) subline.push(formatPhoneForDisplay(chat.phone));
+  if (chat.contactId) subline.push(`<a href="#" class="wa-thread-contact-link" data-contact-id="${escapeHtml(chat.contactId)}" style="color:var(--ac)">→ контакт</a>`);
+  // Сделка: openDealCard принимает bitrixId — извлечь из internal id deal_XXX,
+  // wa-сделки (deal_wa_*) пропускаем, их можно открыть через контакт
+  let dealBitrixId = null;
+  if (chat.dealId && chat.dealId.startsWith('deal_') && !chat.dealId.startsWith('deal_wa_')) {
+    dealBitrixId = chat.dealId.slice(5);
+    subline.push(`<a href="#" class="wa-thread-deal-link" data-deal-bitrix-id="${escapeHtml(dealBitrixId)}" style="color:var(--ac)">→ сделка</a>`);
+  }
+
+  threadEl.innerHTML = `
+    <div style="padding:12px 16px;border-bottom:1px solid var(--b1);background:var(--bg3);flex:0 0 auto">
+      <div style="font-size:14px;font-weight:600;color:var(--t1)">${escapeHtml(displayName)}</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:2px;display:flex;gap:10px">${subline.join(' · ')}</div>
+    </div>
+    <div id="wa-thread-body" style="flex:1;overflow-y:auto;min-height:0;padding:12px 14px;background:var(--bg1)">
+      <div style="padding:30px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем сообщения...</div>
+    </div>
+    <div style="padding:10px 12px;border-top:1px solid var(--b1);background:var(--bg3);flex:0 0 auto;display:flex;gap:8px;align-items:flex-end">
+      <button id="wa-thread-attach" class="vt-btn" title="Прикрепить файл по URL" style="flex:0 0 auto;padding:7px 10px">📎</button>
+      <textarea id="wa-thread-input" placeholder="Написать в WhatsApp..." rows="1"
+        style="flex:1;resize:none;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none;max-height:120px;font-family:inherit"></textarea>
+      <button id="wa-thread-send" class="vt-btn active" style="flex:0 0 auto;padding:7px 14px">Отправить</button>
+    </div>
+  `;
+
+  // Mark-read
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    fetch(`${WORKER_BASE_URL}/api/wa/mark-read`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ chatId }),
+    }).catch(() => {});
+    chat.unreadCount = 0;
+    renderWaChatsList();
+  } catch {}
+
+  // Первая загрузка истории
+  await loadAndRenderWaThreadMessages();
+
+  // Polling сообщений каждые 5 секунд (открытый чат — чаще чем список)
+  if (chatsState.waMsgsPollTimer) clearInterval(chatsState.waMsgsPollTimer);
+  chatsState.waMsgsPollTimer = setInterval(() => {
+    if (chatsState.tab !== 'whatsapp' || !document.getElementById('wa-thread-body') || chatsState.waSelectedChatId !== chatId) {
+      clearInterval(chatsState.waMsgsPollTimer); chatsState.waMsgsPollTimer = null;
+      return;
+    }
+    loadAndRenderWaThreadMessages({ silent: true });
+  }, 5000);
+
+  // Composer handlers
+  const input = threadEl.querySelector('#wa-thread-input');
+  const sendBtn = threadEl.querySelector('#wa-thread-send');
+  const attachBtn = threadEl.querySelector('#wa-thread-attach');
+
+  const send = async (mediaUrl, fileName) => {
+    const text = input.value.trim();
+    if (!text && !mediaUrl) return;
+    sendBtn.disabled = true;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/wa/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({
+          chatId: chat.chatId,
+          phone: chat.phone,
+          text, mediaUrl, fileName,
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+      input.value = '';
+      input.style.height = 'auto';
+      await loadAndRenderWaThreadMessages();
+      // Обновить список — last_message подъедет вверх
+      loadAndRenderWaChats({ silent: true });
+    } catch (e) {
+      alert('Ошибка отправки WhatsApp: ' + e.message);
+    } finally {
+      sendBtn.disabled = false;
+    }
+  };
+  sendBtn.onclick = () => send('', '');
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send('', ''); }
+  });
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  });
+  attachBtn.onclick = async () => {
+    const url = prompt('URL файла (jpg/png/pdf/mp4 — будет отправлен в WhatsApp):');
+    if (!url) return;
+    const fileName = url.split('/').pop() || 'file';
+    await send(url, fileName);
+  };
+
+  // Ссылки на контакт/сделку
+  threadEl.querySelectorAll('.wa-thread-contact-link').forEach(a => {
+    a.addEventListener('click', (e) => { e.preventDefault(); openContactCard(a.dataset.contactId); });
+  });
+  threadEl.querySelectorAll('.wa-thread-deal-link').forEach(a => {
+    a.addEventListener('click', (e) => { e.preventDefault(); openDealCard(a.dataset.dealBitrixId); });
+  });
+
+  input.focus();
+}
+
+async function loadAndRenderWaThreadMessages({ silent = false } = {}) {
+  const body = document.getElementById('wa-thread-body');
+  if (!body) return;
+  const chatId = chatsState.waSelectedChatId;
+  if (!chatId) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(chatId)}&limit=200`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const items = data.items || [];
+    // silent: пропускаем если число сообщений не изменилось
+    const prevCount = parseInt(body.dataset.msgCount || '-1', 10);
+    if (silent && items.length === prevCount) return;
+    body.dataset.msgCount = String(items.length);
+    if (!items.length) {
+      body.innerHTML = '<div style="padding:30px;color:var(--t3);font-size:12px;text-align:center">📭 Истории пока нет. Напиши первое сообщение клиенту.</div>';
+      return;
+    }
+    // Группируем по дням
+    const html = [];
+    let lastDayKey = '';
+    for (const m of items) {
+      const dt = new Date(m.ts);
+      const dayKey = `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
+      if (dayKey !== lastDayKey) {
+        html.push(`<div class="wa-day-divider"><span>${formatWaDayLabel(dt)}</span></div>`);
+        lastDayKey = dayKey;
+      }
+      html.push(renderWaMessageHtml(m));
+    }
+    body.innerHTML = html.join('');
+    body.scrollTop = body.scrollHeight;
+  } catch (e) {
+    if (!silent) {
+      body.innerHTML = `<div style="padding:30px;color:#c00;font-size:12px;text-align:center">Ошибка: ${escapeHtml(e.message)}</div>`;
+    }
   }
 }
 
