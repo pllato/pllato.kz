@@ -1536,6 +1536,92 @@ async function handleDealTimeline(request, env, dealId) {
   return json({ items: events.slice(0, limit), total: events.length }, 200, request);
 }
 
+// ── Контакт: лента событий + комментарии (по образцу сделки) ─────────
+
+// POST /api/contacts/{id}/comments { text }
+async function handleContactComment(request, env, contactId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const allowed = await canEditRecord(env, me, "contacts", contactId);
+  if (!allowed) return json({ error: "no permission to comment on this contact", role: me.role }, 403, request);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  const text = (body.text || '').trim();
+  if (!text) return json({ error: "text required" }, 400, request);
+
+  const id = 'tl_cmt_c_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const nowIso = new Date().toISOString();
+  await env.DB.prepare(`
+    INSERT INTO timeline_activities (id, owner_type, owner_id, activity_type, author_uid, bitrix_created, payload, created_at)
+    VALUES (?, 'contact', ?, 'comment', ?, ?, ?, datetime('now'))
+  `).bind(
+    id, contactId, me.canonicalUid || me.firebaseUid, nowIso,
+    JSON.stringify({ text, authorEmail: me.email, authorName: [me.userRecord?.last_name, me.userRecord?.name].filter(Boolean).join(' ').trim() || me.email }),
+  ).run();
+  await env.DB.prepare("UPDATE contacts SET bitrix_date_modify = ? WHERE id = ?").bind(nowIso, contactId).run();
+  return json({ ok: true, id, contactId, ts: nowIso }, 200, request);
+}
+
+// GET /api/contacts/{id}/timeline — лента: timeline_activities + call_log + wa_messages
+async function handleContactTimeline(request, env, contactId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+
+  const url = new URL(request.url);
+  const limit = Math.min(500, Math.max(20, parseInt(url.searchParams.get("limit") || "200", 10) || 200));
+
+  const tlRes = await env.DB.prepare(`
+    SELECT id, activity_type, author_uid, bitrix_created, payload, created_at
+    FROM timeline_activities
+    WHERE owner_type='contact' AND owner_id=?
+    ORDER BY COALESCE(bitrix_created, created_at) DESC
+    LIMIT ?
+  `).bind(contactId, limit).all();
+
+  const callRes = await env.DB.prepare(`
+    SELECT id, caller_uid, direction, phone, started_at, ended_at, duration_sec, status, recording_url, provider, note
+    FROM call_log
+    WHERE contact_id = ?
+    ORDER BY started_at DESC
+    LIMIT 50
+  `).bind(contactId).all();
+
+  const waRes = await env.DB.prepare(`
+    SELECT m.id, m.chat_id, m.direction, m.text, m.media_kind, m.media_url, m.media_file_name, m.ts
+    FROM wa_messages m
+    JOIN wa_chats c ON c.id = m.chat_id
+    WHERE c.contact_id = ?
+    ORDER BY m.ts DESC
+    LIMIT 50
+  `).bind(contactId).all();
+
+  const events = [];
+  for (const r of (tlRes.results || [])) {
+    const payload = r.payload ? tryParseJson(r.payload) : null;
+    events.push({
+      kind: r.activity_type === 'comment' ? 'comment' : (r.activity_type || 'event'),
+      id: r.id, ts: r.bitrix_created || r.created_at,
+      authorUid: r.author_uid, payload,
+    });
+  }
+  for (const r of (callRes.results || [])) {
+    events.push({
+      kind: 'call', id: 'call_' + r.id, ts: r.started_at, authorUid: r.caller_uid,
+      payload: { direction: r.direction, phone: r.phone, durationSec: r.duration_sec, status: r.status, recordingUrl: r.recording_url, provider: r.provider, note: r.note },
+    });
+  }
+  for (const r of (waRes.results || [])) {
+    events.push({
+      kind: 'wa', id: 'wa_' + r.id, ts: new Date(r.ts).toISOString(), authorUid: null,
+      payload: { direction: r.direction, text: r.text, mediaKind: r.media_kind, mediaUrl: r.media_url, mediaFileName: r.media_file_name },
+    });
+  }
+  events.sort((a, b) => String(b.ts || '').localeCompare(String(a.ts || '')));
+  return json({ items: events.slice(0, limit), total: events.length }, 200, request);
+}
+
 // ── Custom fields schema CRUD ────────────────────────────────────────
 // GET /api/cf-schema/{entity}  → список всех полей сущности
 // POST /api/cf-schema/{entity} { fieldName, label, dataType, multiple, sort, list }
@@ -2564,6 +2650,15 @@ export default {
     const dealTimelineMatch = path.match(/^\/api\/deals\/([^/]+)\/timeline$/);
     if (dealTimelineMatch && request.method === "GET") {
       return handleDealTimeline(request, env, dealTimelineMatch[1]);
+    }
+    // /api/contacts/{id}/comments|timeline
+    const contactCommentMatch = path.match(/^\/api\/contacts\/([^/]+)\/comments$/);
+    if (contactCommentMatch && request.method === "POST") {
+      return handleContactComment(request, env, contactCommentMatch[1]);
+    }
+    const contactTimelineMatch = path.match(/^\/api\/contacts\/([^/]+)\/timeline$/);
+    if (contactTimelineMatch && request.method === "GET") {
+      return handleContactTimeline(request, env, contactTimelineMatch[1]);
     }
 
     // /api/cf-schema/{entity}[/{fieldName}] — custom fields CRUD
