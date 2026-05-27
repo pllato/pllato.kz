@@ -2828,6 +2828,33 @@ onAuthStateChanged(auth, async user => {
 // agent   → переключатель не показывается (всегда видит свои)
 // manager → Мои / Команда (если есть department)
 // admin   → Мои / Команда / Все
+// Заглушка для пустого списка с понятным текстом по scope
+function emptyByScopeHtml(label1, label2) {
+  // label1 — именительный ("сделки"), label2 — родительный ("сделок")
+  const scope = effectiveScope();
+  const role = window.currentUser?.role;
+  const isLinked = window.currentUser?.isLinked !== false;
+  if (scope === 'mine' && role !== 'admin') {
+    return `<div class="empty-state">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-text" style="font-size:14px;font-weight:600">Тебе пока не назначено ни одной ${label1.slice(0, -1).replace(/и$/, 'и')}</div>
+      <div style="font-size:12px;color:var(--t3);margin-top:8px;max-width:380px;line-height:1.5">
+        ${isLinked
+          ? `Видны только записи где ты ответственный, исполнитель, наблюдатель или создатель.<br>Попроси админа назначить тебя ответственным в нужных ${label2}.`
+          : `Твой email не привязан к существующему сотруднику.<br>Попроси админа добавить тебя через «Сотрудники → +Добавить сотрудника».`}
+      </div>
+    </div>`;
+  }
+  if (scope === 'team') {
+    return `<div class="empty-state">
+      <div class="empty-icon">👥</div>
+      <div class="empty-text">В отделе нет ${label2}</div>
+      <div style="font-size:12px;color:var(--t3);margin-top:6px">По текущим фильтрам ничего не нашлось.</div>
+    </div>`;
+  }
+  return `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Не найдено ${label2} по фильтрам</div></div>`;
+}
+
 function currentScopeDefault() {
   const role = window.currentUser?.role;
   const dept = window.currentUser?.department;
@@ -3029,25 +3056,56 @@ function navigate(page) {
 }
 
 function renderDashboard(el) {
+  const me = window.currentUser || {};
+  const role = me.role || 'agent';
+  const isLinked = me.isLinked !== false; // если false — email не нашёлся в users
+  const fullName = me.profile?.name || me.email?.split('@')[0] || 'Сотрудник';
+  const ROLE_LABEL = { admin: 'Админ', manager: 'Менеджер', agent: 'Сотрудник' };
+  const ROLE_DESC = {
+    admin: 'Вы видите все данные команды. Управляете ролями и каналами.',
+    manager: me.department
+      ? `Менеджер отдела «${escapeHtml(me.department)}». Видите данные своего отдела.`
+      : 'Менеджер без отдела — отдел админ ещё не назначил. Видите только свои записи.',
+    agent: 'Сотрудник. Видите только записи где вы ответственный, исполнитель, наблюдатель или создатель.',
+  };
+  const ROLE_COLOR = { admin: '#a855f7', manager: '#10b981', agent: '#6b7280' };
+  const showSubtitle = role === 'admin' ? '🌐 Все данные' : (role === 'manager' && me.department ? '👥 Отдел ' + me.department : '👤 Мои');
+
   el.innerHTML = `
     <div class="page-head">
       <h1>Главная</h1>
     </div>
 
+    <div class="card dash-role-card" style="margin-bottom:14px;border-left:4px solid ${ROLE_COLOR[role]}">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Здравствуйте</div>
+          <div style="font-size:18px;font-weight:700;color:var(--t1);font-family:var(--fd)">${escapeHtml(fullName)}</div>
+          <div style="font-size:12px;color:var(--t2);margin-top:6px">
+            <span style="display:inline-block;background:${ROLE_COLOR[role]}22;color:${ROLE_COLOR[role]};padding:2px 9px;border-radius:999px;font-weight:600;font-size:11px">${ROLE_LABEL[role]}</span>
+            <span style="margin-left:8px">${ROLE_DESC[role]}</span>
+          </div>
+        </div>
+        ${role !== 'admin' && !isLinked ? `<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:8px 12px;border-radius:6px;font-size:12px">
+          ⚠ Ваш email не привязан к существующему сотруднику.<br>Попроси админа добавить вас через «Сотрудники → +Добавить».
+        </div>` : ''}
+      </div>
+    </div>
+
     <div class="stats-row">
-      <div class="stat">
-        <div class="stat-lbl">Контакты</div>
+      <div class="stat" data-section="contacts" style="cursor:pointer">
+        <div class="stat-lbl">${showSubtitle} · Контакты</div>
         <div class="stat-val cv" id="s-contacts">—</div>
       </div>
-      <div class="stat">
-        <div class="stat-lbl">Сделки</div>
+      <div class="stat" data-section="deals" style="cursor:pointer">
+        <div class="stat-lbl">${showSubtitle} · Сделки</div>
         <div class="stat-val cg" id="s-deals">—</div>
       </div>
-      <div class="stat">
-        <div class="stat-lbl">Задачи</div>
+      <div class="stat" data-section="tasks" style="cursor:pointer">
+        <div class="stat-lbl">${showSubtitle} · Задачи</div>
         <div class="stat-val ca" id="s-tasks">—</div>
       </div>
-      <div class="stat">
+      <div class="stat" data-section="users" style="cursor:pointer">
         <div class="stat-lbl">Сотрудники</div>
         <div class="stat-val ct" id="s-users">—</div>
       </div>
@@ -3067,6 +3125,11 @@ function renderDashboard(el) {
   loadDashboardStats();
   loadDashboardDataStatus();
   testConnection();
+
+  // Клик по стату → переход в раздел
+  el.querySelectorAll('.stat[data-section]').forEach(s => {
+    s.addEventListener('click', () => navigate(s.dataset.section));
+  });
 }
 
 async function loadDashboardDataStatus() {
@@ -3094,21 +3157,49 @@ async function loadDashboardDataStatus() {
 }
 
 async function loadDashboardStats() {
+  // Если admin — показываем общий COUNT (shallow). Если manager/agent —
+  // через /api/list/*?scope=mine|team&pageSize=1 — берём total из meta.
+  const role = window.currentUser?.role || 'agent';
+  const setText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
   try {
-    const [contactsKeys, dealsKeys, tasksKeys, usersKeys] = await Promise.all([
-      fetchShallowKeys('contacts'),
-      fetchShallowKeys('deals'),
-      fetchShallowKeys('tasks'),
-      fetchShallowKeys('users'),
-    ]);
-    const setText = (id, val) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = val;
-    };
-    setText('s-contacts', contactsKeys.toLocaleString('ru'));
-    setText('s-deals', dealsKeys.toLocaleString('ru'));
-    setText('s-tasks', tasksKeys.toLocaleString('ru'));
-    setText('s-users', usersKeys.toLocaleString('ru'));
+    if (role === 'admin') {
+      // Admin — старая shallow-логика (общие цифры базы)
+      const [contactsKeys, dealsKeys, tasksKeys, usersKeys] = await Promise.all([
+        fetchShallowKeys('contacts'),
+        fetchShallowKeys('deals'),
+        fetchShallowKeys('tasks'),
+        fetchShallowKeys('users'),
+      ]);
+      setText('s-contacts', contactsKeys.toLocaleString('ru'));
+      setText('s-deals', dealsKeys.toLocaleString('ru'));
+      setText('s-tasks', tasksKeys.toLocaleString('ru'));
+      setText('s-users', usersKeys.toLocaleString('ru'));
+    } else {
+      // Manager/agent — counts из scope-aware /api/list/*
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const scope = effectiveScope();
+      const fetchTotal = async (entity) => {
+        try {
+          const r = await fetch(`${WORKER_LIST_URL}/${entity}?page=1&pageSize=1&scope=${scope}&auth=${idToken}`);
+          if (!r.ok) return 0;
+          const data = await r.json();
+          return data.total || 0;
+        } catch { return 0; }
+      };
+      const [contacts, deals, tasks, usersKeys] = await Promise.all([
+        fetchTotal('contacts'),
+        fetchTotal('deals'),
+        fetchTotal('tasks'),
+        fetchShallowKeys('users'),
+      ]);
+      setText('s-contacts', contacts.toLocaleString('ru'));
+      setText('s-deals', deals.toLocaleString('ru'));
+      setText('s-tasks', tasks.toLocaleString('ru'));
+      setText('s-users', usersKeys.toLocaleString('ru'));
+    }
   } catch (e) {
     console.warn('stats error:', e);
   }
@@ -3951,7 +4042,10 @@ function renderDealsPagedTable() {
   if (countEl) countEl.textContent = dealsPagedState.total.toLocaleString('ru');
 
   if (!dealsPagedState.items.length) {
-    c.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">${(dealsState.search || dealsState.stageFilter || dealsState.responsibleFilter) ? 'По фильтрам ничего не найдено' : 'Нет сделок'}</div></div>`;
+    const hasFilter = dealsState.search || dealsState.stageFilter || dealsState.responsibleFilter;
+    c.innerHTML = hasFilter
+      ? `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">По фильтрам ничего не найдено</div></div>`
+      : emptyByScopeHtml('сделки', 'сделок');
     return;
   }
 
@@ -4127,7 +4221,7 @@ function renderDealsContent() {
 
 function renderDealsList(c, arr) {
   if (!arr.length) {
-    c.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Не найдено сделок по фильтрам</div></div>`;
+    c.innerHTML = emptyByScopeHtml('сделки', 'сделок');
     return;
   }
   const totalPages = Math.ceil(arr.length / dealsState.pageSize);
@@ -7407,7 +7501,9 @@ function renderContactsPagedTable() {
   updateContactsCount();
 
   if (!contactsState.items || contactsState.items.length === 0) {
-    c.innerHTML = `<div class="empty-state"><div class="empty-icon">${contactsState.searchTerm ? '🔍' : '👥'}</div><div class="empty-text">${contactsState.searchTerm ? 'По запросу ничего не найдено' : 'Нет контактов'}</div></div>`;
+    c.innerHTML = contactsState.searchTerm
+      ? `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">По запросу ничего не найдено</div></div>`
+      : emptyByScopeHtml('контакты', 'контактов');
     return;
   }
 
@@ -8063,7 +8159,10 @@ function renderTasksLayoutPaged() {
 
   if (!c) return;
   if (!tasksPagedState.items.length) {
-    c.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">${(tasksState.searchTerm || tasksState.filterStatus !== 'all' || tasksState.filterAssignee !== 'all') ? 'По фильтрам ничего не найдено' : 'Нет задач'}</div></div>`;
+    const hasFilter = tasksState.searchTerm || tasksState.filterStatus !== 'all' || tasksState.filterAssignee !== 'all';
+    c.innerHTML = hasFilter
+      ? `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">По фильтрам ничего не найдено</div></div>`
+      : emptyByScopeHtml('задачи', 'задач');
     return;
   }
 
