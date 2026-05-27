@@ -1711,6 +1711,138 @@ tr:hover td { background: var(--bg3); }
 }
 .dc-section-h:first-child { margin-top: 0; }
 
+/* Шапка карточки: actions справа (Архив + закрыть) */
+.dc-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dc-archived-badge {
+  display: inline-block;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  vertical-align: middle;
+  margin-left: 8px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.dc-archive-btn {
+  background: transparent !important;
+  border: 1px solid var(--b1) !important;
+  color: var(--t2) !important;
+}
+.dc-archive-btn[data-archived="1"] {
+  border-color: var(--gn) !important;
+  color: var(--gn) !important;
+}
+
+/* Форма комментария */
+.dc-comment-form {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+.dc-comment-input {
+  flex: 1;
+  min-height: 44px;
+  max-height: 160px;
+  resize: vertical;
+  border: 1px solid var(--b1);
+  border-radius: 8px;
+  background: var(--bg2);
+  color: var(--t1);
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+}
+.dc-comment-input:focus { outline: none; border-color: var(--ac2); }
+
+/* Лента событий */
+.dc-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--b1);
+  border-radius: 10px;
+  background: var(--bg2);
+  overflow: hidden;
+}
+.dc-feed-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--b1);
+}
+.dc-feed-item:last-child { border-bottom: none; }
+.dc-feed-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.dc-feed-body { flex: 1; min-width: 0; }
+.dc-feed-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.dc-feed-author { font-size: 12.5px; font-weight: 600; color: var(--t1); }
+.dc-feed-time { font-size: 11px; color: var(--t3); }
+.dc-feed-meta { font-size: 11px; color: var(--t3); }
+.dc-feed-text {
+  font-size: 13px;
+  color: var(--t1);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+.dc-feed-comment { background: rgba(79, 70, 229, .04); }
+.dc-feed-wa { background: rgba(37, 211, 102, .04); }
+.dc-feed-call { background: rgba(245, 158, 11, .04); }
+
+/* Дела по сделке */
+.dc-deeds-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.dc-deed-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 8px;
+  transition: background .12s;
+}
+.dc-deed-row:hover { background: var(--bg3); }
+.dc-deed-row.is-done { opacity: 0.55; }
+.dc-deed-row.is-done .dc-deed-title { text-decoration: line-through; }
+.dc-deed-row.is-overdue { border-left: 3px solid var(--rd); }
+.dc-deed-check { display: flex; align-items: center; padding-top: 1px; }
+.dc-deed-body { flex: 1; min-width: 0; }
+.dc-deed-title { font-size: 13px; color: var(--t1); font-weight: 500; }
+.dc-deed-due {
+  font-size: 11px;
+  color: var(--t3);
+  margin-top: 3px;
+}
+.dc-deed-due.overdue { color: var(--rd); font-weight: 600; }
+.dc-deed-due.today { color: var(--ac2); font-weight: 600; }
+
 .dc-contact-card {
   background: var(--bg3);
   border: 1px solid var(--b1);
@@ -1894,6 +2026,35 @@ html[data-theme="light"] .dc-wa-pane { background: #ECE5DD; }
   gap: 6px 14px;
   font-size: 12px;
 }
+/* Inline-editable custom field inputs */
+.cf-edit {
+  width: 100%;
+  border: 1px solid var(--b1);
+  background: var(--bg2);
+  color: var(--t1);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  transition: background .25s, border-color .12s;
+}
+.cf-edit:focus {
+  outline: none;
+  border-color: var(--ac2);
+  background: var(--bg1);
+}
+.cf-edit-num { max-width: 160px; }
+.cf-edit-select { padding-right: 24px; }
+.cf-edit-textarea { resize: vertical; min-height: 38px; max-height: 120px; }
+.cf-edit-bool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--t2);
+  cursor: pointer;
+}
+.cf-edit-bool input { margin: 0; }
 @media (max-width: 600px) {
   .field-grid { grid-template-columns: 1fr; gap: 2px 0; }
   .field-grid .fl { color: var(--t3); padding-top: 8px; padding-bottom: 0; font-size: 11px; }
@@ -4821,6 +4982,229 @@ async function renderDealWaMessages(pane, opts = {}) {
   }
 }
 
+// ── Лента событий сделки (комменты + звонки + статусы + WA) ────────────
+async function loadDealFeed(modal, dealId) {
+  const wrap = modal.querySelector('#dc-feed');
+  const countEl = modal.querySelector('#dc-tl-count');
+  if (!wrap) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/timeline?limit=200`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const items = data.items || [];
+    if (countEl) countEl.textContent = items.length ? `(${items.length})` : '';
+    if (!items.length) {
+      wrap.innerHTML = '<div style="padding:18px;color:var(--t3);font-size:12px;text-align:center">Событий пока нет — напиши первый комментарий выше.</div>';
+      return;
+    }
+    wrap.innerHTML = items.map(renderFeedItemHtml).join('');
+  } catch (e) {
+    wrap.innerHTML = `<div style="padding:12px;color:#c00;font-size:12px">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderFeedItemHtml(ev) {
+  const ts = ev.ts ? new Date(ev.ts).toLocaleString('ru', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+  const authorUser = ev.authorUid ? getUserById(ev.authorUid) : null;
+  const authorName = authorUser
+    ? [authorUser.lastName, authorUser.name].filter(Boolean).join(' ').trim()
+    : (ev.payload?.authorName || ev.payload?.authorEmail || 'Система');
+
+  if (ev.kind === 'comment') {
+    return `<div class="dc-feed-item dc-feed-comment">
+      <div class="dc-feed-icon" style="background:#eef2ff;color:#4f46e5">💬</div>
+      <div class="dc-feed-body">
+        <div class="dc-feed-head">
+          <span class="dc-feed-author">${escapeHtml(authorName)}</span>
+          <span class="dc-feed-time">· ${ts}</span>
+        </div>
+        <div class="dc-feed-text">${escapeHtml(ev.payload?.text || '').replace(/\n/g, '<br>')}</div>
+      </div>
+    </div>`;
+  }
+  if (ev.kind === 'call') {
+    const p = ev.payload || {};
+    const dirIcon = p.direction === 'in' ? '📥' : '📤';
+    const dur = p.durationSec ? `${Math.floor(p.durationSec/60)}:${String(p.durationSec%60).padStart(2,'0')}` : '';
+    const stat = p.status === 'connected' ? '✓' : (p.status === 'no_answer' || p.status === 'missed' || p.status === 'cancelled') ? 'не отвечен' : (p.status || '');
+    const rec = p.recordingUrl
+      ? `<audio controls preload="metadata" src="${escapeHtml(p.recordingUrl)}" style="width:100%;max-width:340px;height:34px;margin-top:6px"></audio>`
+      : '';
+    return `<div class="dc-feed-item dc-feed-call">
+      <div class="dc-feed-icon" style="background:#fef3c7;color:#a16207">${dirIcon}</div>
+      <div class="dc-feed-body">
+        <div class="dc-feed-head">
+          <span class="dc-feed-author">Звонок ${p.direction === 'in' ? 'входящий' : 'исходящий'}</span>
+          <span class="dc-feed-time">· ${ts}</span>
+          ${dur ? `<span class="dc-feed-meta">· ${escapeHtml(dur)}</span>` : ''}
+          ${stat ? `<span class="dc-feed-meta">· ${escapeHtml(stat)}</span>` : ''}
+        </div>
+        <div class="dc-feed-text" style="color:var(--t3);font-size:12px">${escapeHtml(p.phone || '')}${p.note ? ' · ' + escapeHtml(p.note) : ''}</div>
+        ${rec}
+      </div>
+    </div>`;
+  }
+  if (ev.kind === 'wa') {
+    const p = ev.payload || {};
+    const dirIcon = p.direction === 'in' ? '←' : '→';
+    const preview = p.text || (p.mediaKind ? `[${p.mediaKind}] ${p.mediaFileName || ''}` : '');
+    return `<div class="dc-feed-item dc-feed-wa">
+      <div class="dc-feed-icon" style="background:#dcfce7;color:#15803d">💬</div>
+      <div class="dc-feed-body">
+        <div class="dc-feed-head">
+          <span class="dc-feed-author">WhatsApp ${dirIcon}</span>
+          <span class="dc-feed-time">· ${ts}</span>
+        </div>
+        <div class="dc-feed-text">${escapeHtml(preview)}</div>
+      </div>
+    </div>`;
+  }
+  // archived/restored и др. системные события
+  const sysLabels = { archived: '🗄 В архив', restored: '↩ Восстановлено', created: '⊕ Создано', stage_changed: '↪ Смена стадии' };
+  const label = sysLabels[ev.kind] || ev.kind;
+  return `<div class="dc-feed-item dc-feed-sys">
+    <div class="dc-feed-icon" style="background:#f3f4f6;color:#6b7280">·</div>
+    <div class="dc-feed-body">
+      <div class="dc-feed-head">
+        <span class="dc-feed-author">${escapeHtml(authorName)}</span>
+        <span class="dc-feed-time">· ${ts}</span>
+        <span class="dc-feed-meta">· ${escapeHtml(label)}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Дела по сделке ──────────────────────────────────────────────────────
+// Через /api/list/tasks ищем задачи где crm_links содержит "deal_X"
+async function loadDealDeeds(modal, deal) {
+  const wrap = modal.querySelector('#dc-deeds-wrap');
+  const countEl = modal.querySelector('#dc-deeds-count');
+  if (!wrap) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    // Фильтр через worker — `crmLink=deal_X` — но такого фильтра нет.
+    // Делаем простой client-side: грузим status=active + ищем dealId в crm_links.
+    // Альтернатива: добавить crmLink в LIST_CONFIG.tasks (потом).
+    const params = new URLSearchParams({
+      page: '1', pageSize: '50', status: 'active', sort: 'activity',
+      scope: 'all', auth: idToken,
+    });
+    const r = await fetch(`${WORKER_LIST_URL}/tasks?${params}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const dealKey = 'deal_' + deal.bitrixId;
+    const items = (data.items || []).filter(t => {
+      const links = t.crmLinks || t.bitrixCrmLinks;
+      if (!links) return false;
+      if (Array.isArray(links)) return links.some(l => String(l).includes(dealKey));
+      return String(JSON.stringify(links)).includes(dealKey);
+    });
+    if (countEl) countEl.textContent = items.length ? `(${items.length})` : '';
+    if (!items.length) {
+      wrap.innerHTML = '<div style="padding:14px;color:var(--t3);font-size:12px;text-align:center">Дел пока нет. Нажми <b>+ Дело</b> чтобы создать.</div>';
+      return;
+    }
+    wrap.innerHTML = items.map(renderDeedRowHtml).join('');
+  } catch (e) {
+    wrap.innerHTML = `<div style="padding:12px;color:#c00;font-size:12px">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderDeedRowHtml(t) {
+  const dl = t.deadline;
+  const dlDate = dl ? new Date(dl) : null;
+  const now = Date.now();
+  const overdue = dlDate && dlDate.getTime() < now;
+  const dueToday = dlDate && (dlDate.getTime() - now) < 86400000 && (dlDate.getTime() - now) > -86400000;
+  const dlLabel = dlDate ? dlDate.toLocaleString('ru', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+  const isDone = t.status >= 5;
+  return `<div class="dc-deed-row ${isDone ? 'is-done' : ''} ${overdue && !isDone ? 'is-overdue' : ''}" data-task-key="${escapeHtml(t.bitrixKey || t.id)}">
+    <label class="dc-deed-check">
+      <input type="checkbox" ${isDone ? 'checked' : ''} disabled>
+    </label>
+    <div class="dc-deed-body">
+      <div class="dc-deed-title">${escapeHtml(t.title || '(без названия)')}</div>
+      ${dlLabel ? `<div class="dc-deed-due ${overdue && !isDone ? 'overdue' : (dueToday ? 'today' : '')}">📅 ${escapeHtml(dlLabel)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+// Модалка добавления дела (задачи) к сделке
+function openAddDeedModal(deal, onDone) {
+  document.getElementById('_add-deed-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_add-deed-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  // Default deadline = today 18:00
+  const def = new Date();
+  def.setHours(18, 0, 0, 0);
+  const defStr = def.toISOString().slice(0, 16);
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:480px">
+      <div class="qad-head"><h2>+ Дело по сделке</h2><button class="qad-btn qad-btn-ghost" id="ad-close" style="padding:4px 10px">×</button></div>
+      <div class="qad-body">
+        <div><div class="qad-label">Название *</div><input id="ad-title" class="qad-input" placeholder="Например: Перезвонить клиенту"></div>
+        <div><div class="qad-label">Дедлайн</div><input id="ad-deadline" class="qad-input" type="datetime-local" value="${defStr}"></div>
+        <div><div class="qad-label">Описание</div><textarea id="ad-desc" class="qad-input" rows="3" placeholder="(необязательно)"></textarea></div>
+        <div class="dialer-hint">Дело привяжется к сделке #${escapeHtml(deal.bitrixId)} — будет видно во вкладке Задачи и в карточке сделки.</div>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="ad-cancel">Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="ad-save">Создать</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('ad-close').onclick = () => ov.remove();
+  document.getElementById('ad-cancel').onclick = () => ov.remove();
+  setTimeout(() => document.getElementById('ad-title').focus(), 30);
+  document.getElementById('ad-save').onclick = async () => {
+    const title = document.getElementById('ad-title').value.trim();
+    const deadline = document.getElementById('ad-deadline').value;
+    const desc = document.getElementById('ad-desc').value.trim();
+    if (!title) { alert('Название обязательно'); return; }
+    const btn = document.getElementById('ad-save');
+    btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const id = 'task_local_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const nowIso = new Date().toISOString();
+      const dlIso = deadline ? new Date(deadline).toISOString() : null;
+      const body = {
+        id,
+        title,
+        description: desc || null,
+        status: 2, // в работе
+        responsibleUid: window.currentUser?.canonicalUid || null,
+        createdByUid: window.currentUser?.canonicalUid || null,
+        deadline: dlIso,
+        crmLinks: ['deal_' + deal.bitrixId],
+        bitrixCreatedDate: nowIso,
+        bitrixChangedDate: nowIso,
+      };
+      const r = await fetch(`${WORKER_RTDB_URL}/tasks/${encodeURIComponent(id)}.json?auth=${idToken}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      ov.remove();
+      showToast('Дело создано');
+      if (typeof onDone === 'function') onDone();
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+      btn.disabled = false; btn.textContent = 'Создать';
+    }
+  };
+}
+
 // ── Quick-Add Deal modal ─────────────────────────────────────────────────
 // + Сделка под заголовком колонки канбана. Создаёт сделку с минимумом полей:
 // title, выбранный stage и pipeline, контакт (поиск existing или создание).
@@ -5524,14 +5908,19 @@ async function openDealCard(bitrixId) {
     <div class="modal modal-xl">
       <div class="dc-head">
         <div style="flex:1;min-width:0">
-          <h2 style="margin:0">${escapeHtml(deal.title || '(без названия)')}</h2>
+          <h2 style="margin:0">${escapeHtml(deal.title || '(без названия)')} ${deal.archived ? '<span class="dc-archived-badge">🗄 в архиве</span>' : ''}</h2>
           <div class="modal-sub" style="margin-top:4px">
             ID: <code>${escapeHtml(deal.bitrixId)}</code> ·
             <a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a> ·
             <button class="tbtn-xs dc-copy-link" data-deal-id="${escapeHtml(deal.bitrixId)}" style="background:none;border:none;color:var(--ac2);cursor:pointer;font-size:11px;padding:0">🔗 Копировать ссылку</button>
           </div>
         </div>
-        <button class="close-x" onclick="closeDealCard()">×</button>
+        <div class="dc-head-actions">
+          <button class="tbtn tbtn-xs dc-archive-btn" id="dc-archive-btn" data-archived="${deal.archived ? 1 : 0}" title="${deal.archived ? 'Восстановить из архива' : 'В архив (soft-delete)'}">
+            ${deal.archived ? '↩ Восстановить' : '🗄 В архив'}
+          </button>
+          <button class="close-x" onclick="closeDealCard()">×</button>
+        </div>
       </div>
 
       <div class="dc-stagebar">${stageBarHtml}</div>
@@ -5577,7 +5966,7 @@ async function openDealCard(bitrixId) {
           ${deal.comments ? `<div class="dc-section-h">Комментарии</div>
             <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.5">${escapeHtml(deal.comments)}</div>` : ''}
 
-          ${renderCustomFieldsBlock(deal.customFields)}
+          ${renderCustomFieldsBlock(deal.customFields, { dealId: 'deal_' + deal.bitrixId, editable: true })}
         </div>
 
         <div class="dc-right">
@@ -5601,6 +5990,29 @@ async function openDealCard(bitrixId) {
             : ''
           }
         </div>
+      </div>
+
+      <!-- Дела по сделке: задачи привязанные через crm_links deal_X -->
+      <div class="dc-section-h" style="margin-top:24px;display:flex;align-items:center;gap:10px">
+        <span>✅ Дела</span>
+        <span id="dc-deeds-count" style="font-size:11px;color:var(--t3);font-weight:400"></span>
+        <button class="tbtn tbtn-xs" id="dc-add-deed-btn" style="margin-left:auto">+ Дело</button>
+      </div>
+      <div class="dc-deeds-wrap" id="dc-deeds-wrap" data-deal-id="${escapeHtml(deal.bitrixId)}">
+        <div style="padding:12px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем дела…</div>
+      </div>
+
+      <!-- Лента событий — комменты, звонки, статусы, WA -->
+      <div class="dc-section-h" style="margin-top:24px;display:flex;align-items:center;gap:10px">
+        <span>📜 Лента событий</span>
+        <span id="dc-tl-count" style="font-size:11px;color:var(--t3);font-weight:400"></span>
+      </div>
+      <div class="dc-comment-form">
+        <textarea class="dc-comment-input" id="dc-comment-input" placeholder="Добавить комментарий…" rows="2"></textarea>
+        <button class="tbtn tbtn-primary tbtn-sm" id="dc-comment-send">Отправить</button>
+      </div>
+      <div class="dc-feed" id="dc-feed" data-deal-id="${escapeHtml(deal.bitrixId)}">
+        <div style="padding:12px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем ленту…</div>
       </div>
 
       ${(() => {
@@ -5666,6 +6078,94 @@ async function openDealCard(bitrixId) {
   if (contactPhone) {
     mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, contactName);
   }
+
+  // ── Архив сделки ────────────────────────────────────────────────────
+  const archiveBtn = modal.querySelector('#dc-archive-btn');
+  if (archiveBtn) {
+    archiveBtn.addEventListener('click', async () => {
+      const isArchived = archiveBtn.dataset.archived === '1';
+      const action = isArchived ? 'восстановить из архива' : 'отправить в архив';
+      if (!confirm(`Точно ${action} сделку «${deal.title || deal.bitrixId}»?`)) return;
+      archiveBtn.disabled = true;
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent('deal_' + deal.bitrixId)}/archive`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+          body: JSON.stringify({ archived: !isArchived }),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          throw new Error(j.error || `HTTP ${r.status}`);
+        }
+        showToast(isArchived ? 'Сделка восстановлена' : 'Сделка в архиве');
+        // Локально пометим, инвалидируем кеш воронки и перерисуем
+        deal.archived = isArchived ? 0 : 1;
+        invalidateDealsCacheForPipeline(deal.pipelineId);
+        closeDealCard();
+        // Если был в канбане текущей воронки — перезагрузим
+        const main = document.getElementById('main');
+        if (main && document.querySelector('[data-page="deals"].active')) {
+          renderDeals(main);
+        }
+      } catch (e) {
+        alert('Ошибка: ' + e.message);
+        archiveBtn.disabled = false;
+      }
+    });
+  }
+
+  // ── Лента событий + комментарии ────────────────────────────────────
+  await loadDealFeed(modal, 'deal_' + deal.bitrixId);
+  const commentInput = modal.querySelector('#dc-comment-input');
+  const commentSend = modal.querySelector('#dc-comment-send');
+  if (commentSend && commentInput) {
+    const submit = async () => {
+      const text = commentInput.value.trim();
+      if (!text) return;
+      commentSend.disabled = true;
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent('deal_' + deal.bitrixId)}/comments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+          body: JSON.stringify({ text }),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          throw new Error(j.error || `HTTP ${r.status}`);
+        }
+        commentInput.value = '';
+        await loadDealFeed(modal, 'deal_' + deal.bitrixId);
+        // Bump в канбане
+        invalidateDealsCacheForPipeline(deal.pipelineId);
+      } catch (e) {
+        alert('Ошибка: ' + e.message);
+      } finally {
+        commentSend.disabled = false;
+      }
+    };
+    commentSend.addEventListener('click', submit);
+    commentInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); submit(); }
+    });
+  }
+
+  // ── Дела по сделке ─────────────────────────────────────────────────
+  await loadDealDeeds(modal, deal);
+  const addDeedBtn = modal.querySelector('#dc-add-deed-btn');
+  if (addDeedBtn) {
+    addDeedBtn.addEventListener('click', () => openAddDeedModal(deal, async () => {
+      await loadDealDeeds(modal, deal);
+    }));
+  }
+
+  // ── Кастомные поля inline-edit + добавление новых (admin) ─────────
+  wireUpCustomFieldsEditing(modal);
+  modal.addEventListener('elc:reload-deal-card', () => {
+    closeDealCard();
+    setTimeout(() => openDealCard(bitrixId), 50);
+  });
 
   // Подгружаем файлы во всех timeline-элементах (звонки, email, переписка)
   wireUpTimelineFiles(modal);
@@ -6074,42 +6574,249 @@ function handleDeepLink() {
   }
 }
 
-function renderCustomFieldsBlock(cfData) {
-  if (!cfData || Object.keys(cfData).length === 0) return '';
-  const schema = dealsState.customSchema || {};
+function renderCustomFieldsBlock(cfData, opts = {}) {
+  // opts.dealId — если передан, поля становятся editable inline
+  // opts.editable — admin может + добавлять новые поля
+  const dealId = opts.dealId || null;
+  const editable = opts.editable !== false; // по умолчанию редактируемые
+  const isAdmin = window.currentUser?.role === 'admin';
 
-  // Сортируем поля: сначала те у которых есть значение и схема (с лейблом), потом UF_CRM_*
-  const entries = Object.entries(cfData);
+  const schema = dealsState.customSchema || {};
+  cfData = cfData || {};
+
+  // Объединяем: все из schema + те что есть в cfData но не в schema
+  const allKeys = new Set([...Object.keys(schema), ...Object.keys(cfData)]);
+  const entries = [...allKeys].map(k => [k, cfData[k]]);
   entries.sort((a, b) => {
     const ma = schema[a[0]];
     const mb = schema[b[0]];
-    const sa = ma?.sort || 9999;
-    const sb = mb?.sort || 9999;
-    return sa - sb;
+    return (ma?.sort || 9999) - (mb?.sort || 9999);
   });
 
-  let html = `<div class="section-h">Дополнительные поля</div><div class="cf-grid">`;
-  let shownCount = 0;
-  let emptyCount = 0;
+  let html = `<div class="dc-section-h" style="display:flex;align-items:center;gap:8px;margin-top:18px">
+    <span>Дополнительные поля</span>
+    ${isAdmin ? `<button class="tbtn tbtn-xs" id="dc-add-cf-btn" style="margin-left:auto">+ Поле</button>` : ''}
+  </div><div class="cf-grid" id="dc-cf-grid" data-deal-id="${escapeHtml(dealId || '')}">`;
+  let shownCount = 0, hiddenEmpty = 0;
   for (const [field, value] of entries) {
     const meta = schema[field] || {};
     const label = formatFieldLabel(meta.label, field);
-    const display = formatCfValue(value, meta);
-    // Скрываем пустые поля по умолчанию, показываем только заполненные
-    const isEmpty = (display.includes('class="empty-cell"') || display === '<span class="empty-cell">—</span>' || display === '✗ Нет' || display === 'false');
-    if (isEmpty) {
-      emptyCount++;
-      continue;
-    }
-    html += `<div class="fl">${escapeHtml(label)}</div><div class="fv">${display}</div>`;
+    const isEmpty = value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
+    if (isEmpty && !editable) { hiddenEmpty++; continue; }
+
+    const cellHtml = editable && dealId
+      ? renderCfEditableCell(field, value, meta, dealId)
+      : formatCfValue(value, meta);
+    html += `<div class="fl">${escapeHtml(label)}</div><div class="fv">${cellHtml}</div>`;
     shownCount++;
   }
-  if (shownCount === 0) return ''; // Все пустые — не показываем блок вообще
+  if (shownCount === 0 && !isAdmin) return '';
   html += `</div>`;
-  if (emptyCount > 0) {
-    html += `<div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:center">Скрыто ${emptyCount} пустых полей</div>`;
+  if (hiddenEmpty > 0) {
+    html += `<div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:center">Скрыто ${hiddenEmpty} пустых полей</div>`;
   }
   return html;
+}
+
+// Inline-editable ячейка кастомного поля. По типу:
+// string/text → input/textarea, integer/double → number, date → date,
+// datetime → datetime-local, enumeration → select, boolean → checkbox
+function renderCfEditableCell(field, value, meta, dealId) {
+  const type = meta.type || meta.dataType || 'string';
+  const fid = `cf-${field}-${dealId}`.replace(/[^a-zA-Z0-9_\-]/g, '_');
+  const val = value === null || value === undefined ? '' : value;
+  const dataAttrs = `data-field="${escapeHtml(field)}" data-deal-id="${escapeHtml(dealId)}" data-type="${escapeHtml(type)}"`;
+
+  if (type === 'boolean') {
+    const checked = val === '1' || val === 1 || val === true || val === 'true';
+    return `<label class="cf-edit-bool"><input type="checkbox" class="cf-edit" id="${fid}" ${dataAttrs} ${checked ? 'checked' : ''}> <span>${checked ? 'Да' : 'Нет'}</span></label>`;
+  }
+  if (type === 'enumeration') {
+    const list = asArray(meta.list);
+    const optsHtml = ['<option value="">— не задано —</option>']
+      .concat(list.map(l => {
+        const id = l.ID != null ? l.ID : l.id;
+        const lbl = l.VALUE || l.value || l.label;
+        const sel = String(val) === String(id) ? 'selected' : '';
+        return `<option value="${escapeHtml(String(id))}" ${sel}>${escapeHtml(String(lbl))}</option>`;
+      })).join('');
+    return `<select class="cf-edit cf-edit-select" id="${fid}" ${dataAttrs}>${optsHtml}</select>`;
+  }
+  if (type === 'integer' || type === 'double' || type === 'money' || type === 'number') {
+    return `<input type="number" class="cf-edit cf-edit-num" id="${fid}" ${dataAttrs} value="${escapeHtml(String(val))}" step="${type === 'integer' ? '1' : 'any'}">`;
+  }
+  if (type === 'date') {
+    // YYYY-MM-DD из ISO
+    const dStr = val ? String(val).slice(0, 10) : '';
+    return `<input type="date" class="cf-edit" id="${fid}" ${dataAttrs} value="${escapeHtml(dStr)}">`;
+  }
+  if (type === 'datetime') {
+    const dStr = val ? String(val).slice(0, 16) : '';
+    return `<input type="datetime-local" class="cf-edit" id="${fid}" ${dataAttrs} value="${escapeHtml(dStr)}">`;
+  }
+  if (type === 'text') {
+    return `<textarea class="cf-edit cf-edit-textarea" id="${fid}" ${dataAttrs} rows="2">${escapeHtml(String(val))}</textarea>`;
+  }
+  // default — string
+  return `<input type="text" class="cf-edit" id="${fid}" ${dataAttrs} value="${escapeHtml(String(val))}">`;
+}
+
+// Привязать handlers к cf-edit inputs (вызывается после рендера карточки)
+function wireUpCustomFieldsEditing(modal) {
+  modal.querySelectorAll('.cf-edit').forEach(el => {
+    const save = async () => {
+      const field = el.dataset.field;
+      const dealId = el.dataset.dealId;
+      const type = el.dataset.type;
+      if (!field || !dealId) return;
+      let value;
+      if (type === 'boolean') value = el.checked ? '1' : '0';
+      else if (type === 'integer') value = el.value ? parseInt(el.value, 10) : null;
+      else if (type === 'double' || type === 'number' || type === 'money') value = el.value ? parseFloat(el.value) : null;
+      else value = el.value || null;
+
+      // Bitrix raw id для PUT — dealId уже в виде "deal_X"
+      const bitrixId = dealId.startsWith('deal_') ? dealId.slice(5) : dealId;
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        // PATCH /api/rtdb/deals/deal_X.json — обновляем customFields[field]
+        // Сначала возьмём текущие cf
+        const deal = dealsState.deals.find(d => d.bitrixId === bitrixId)
+          || (dealsPagedState.items || []).find(d => d.bitrixId === bitrixId);
+        const cf = { ...(deal?.customFields || {}) };
+        cf[field] = value;
+        const r = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent('deal_' + bitrixId)}.json?auth=${idToken}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customFields: cf, bitrixDateModify: new Date().toISOString() }),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          throw new Error(j.error || `HTTP ${r.status}`);
+        }
+        // Локально обновим deal в кеше
+        if (deal) {
+          deal.customFields = cf;
+          deal.bitrixDateModify = new Date().toISOString();
+        }
+        el.style.background = 'rgba(63, 216, 142, 0.18)';
+        setTimeout(() => { el.style.background = ''; }, 1200);
+      } catch (e) {
+        alert('Ошибка сохранения поля: ' + e.message);
+      }
+    };
+    if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'date' || el.type === 'datetime-local') {
+      el.addEventListener('change', save);
+    } else {
+      // text/textarea/number — сохраняем на blur (чтобы не сыпать на каждый ввод)
+      el.addEventListener('blur', save);
+    }
+  });
+
+  // Кнопка + Поле (admin only)
+  const addBtn = modal.querySelector('#dc-add-cf-btn');
+  if (addBtn) addBtn.addEventListener('click', () => openAddCfModal('deal', () => {
+    // После добавления — перезагрузим schema и перерисуем карточку
+    dealsState.metaLoaded = false;
+    loadDealsMeta().then(() => {
+      const ev = new CustomEvent('elc:reload-deal-card');
+      modal.dispatchEvent(ev);
+    });
+  }));
+}
+
+// Модалка добавления нового кастомного поля (admin)
+function openAddCfModal(entity, onDone) {
+  document.getElementById('_add-cf-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_add-cf-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:480px">
+      <div class="qad-head"><h2>+ Кастомное поле (${escapeHtml(entity)})</h2><button class="qad-btn qad-btn-ghost" id="cf-close" style="padding:4px 10px">×</button></div>
+      <div class="qad-body">
+        <div><div class="qad-label">Название (label) *</div><input id="cf-label" class="qad-input" placeholder="Например: Бюджет проекта"></div>
+        <div><div class="qad-label">Ключ (field name) *</div>
+          <input id="cf-key" class="qad-input" placeholder="budget" pattern="[a-zA-Z0-9_]+">
+          <div style="font-size:11px;color:var(--t3);margin-top:4px">Только латиница, цифры, _</div>
+        </div>
+        <div><div class="qad-label">Тип</div>
+          <select id="cf-type" class="qad-input">
+            <option value="string">Текст (короткий)</option>
+            <option value="text">Текст (многострочный)</option>
+            <option value="integer">Число (целое)</option>
+            <option value="double">Число (дробное)</option>
+            <option value="date">Дата</option>
+            <option value="datetime">Дата и время</option>
+            <option value="enumeration">Выбор из списка</option>
+            <option value="boolean">Да/Нет</option>
+          </select>
+        </div>
+        <div id="cf-list-wrap" style="display:none">
+          <div class="qad-label">Варианты списка (по одному на строку)</div>
+          <textarea id="cf-list" class="qad-input" rows="5" placeholder="Холодный\nТёплый\nГорячий"></textarea>
+        </div>
+        <div><div class="qad-label">Сортировка</div><input id="cf-sort" class="qad-input" type="number" value="100"></div>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="cf-cancel">Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="cf-save">Создать</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('cf-close').onclick = () => ov.remove();
+  document.getElementById('cf-cancel').onclick = () => ov.remove();
+  document.getElementById('cf-type').addEventListener('change', (e) => {
+    document.getElementById('cf-list-wrap').style.display = e.target.value === 'enumeration' ? '' : 'none';
+  });
+  document.getElementById('cf-label').addEventListener('input', (e) => {
+    const keyEl = document.getElementById('cf-key');
+    if (!keyEl.value || keyEl.dataset.auto === '1') {
+      // авто-генерация ключа из label (translit + lowercase)
+      const k = e.target.value.toLowerCase()
+        .replace(/[а-я]/g, c => ({а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'ts',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya'}[c] || ''))
+        .replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30) || 'field';
+      keyEl.value = k;
+      keyEl.dataset.auto = '1';
+    }
+  });
+  document.getElementById('cf-key').addEventListener('input', (e) => { e.target.dataset.auto = '0'; });
+
+  document.getElementById('cf-save').onclick = async () => {
+    const label = document.getElementById('cf-label').value.trim();
+    const fieldName = document.getElementById('cf-key').value.trim();
+    const dataType = document.getElementById('cf-type').value;
+    const sort = parseInt(document.getElementById('cf-sort').value, 10) || 100;
+    const listRaw = document.getElementById('cf-list').value.trim();
+    if (!label || !fieldName) { alert('Название и ключ обязательны'); return; }
+    if (!/^[a-zA-Z0-9_]+$/.test(fieldName)) { alert('Ключ только латиница/цифры/_'); return; }
+    let list = null;
+    if (dataType === 'enumeration' && listRaw) {
+      list = listRaw.split('\n').map(s => s.trim()).filter(Boolean).map((v, i) => ({ ID: String(i + 1), VALUE: v }));
+    }
+    const btn = document.getElementById('cf-save');
+    btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/cf-schema/${encodeURIComponent(entity)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ fieldName, label, dataType, sort, list }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      ov.remove();
+      showToast('Поле создано');
+      if (typeof onDone === 'function') onDone();
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+      btn.disabled = false; btn.textContent = 'Создать';
+    }
+  };
 }
 
 // Битрикс может возвращать label либо строкой, либо объектом {ru: '...', en: '...'}
