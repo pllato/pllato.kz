@@ -4856,8 +4856,8 @@
     window.speechSynthesis.addEventListener('voiceschanged', pickVoices);
   }
 
-  function speakText(text, lang) {
-    if (!text || !window.speechSynthesis) return;
+  function speakText(text, lang, onDone) {
+    if (!text || !window.speechSynthesis) { if (onDone) onDone(); return; }
     lang = lang || 'ru-RU';
     window.speechSynthesis.cancel(); // прерываем предыдущее
     const utter = new SpeechSynthesisUtterance(text);
@@ -4868,9 +4868,23 @@
     if (voice) utter.voice = voice;
     const avatar = document.getElementById('voiceAvatar');
     utter.onstart = () => { if (avatar) avatar.classList.add('speaking'); };
-    utter.onend = () => { if (avatar) avatar.classList.remove('speaking'); };
-    utter.onerror = () => { if (avatar) avatar.classList.remove('speaking'); };
+    utter.onend = () => { if (avatar) avatar.classList.remove('speaking'); if (onDone) onDone(); };
+    utter.onerror = () => { if (avatar) avatar.classList.remove('speaking'); if (onDone) onDone(); };
     window.speechSynthesis.speak(utter);
+  }
+
+  // После того, как AI договорил — автоматически открыть микрофон.
+  // Запускается из opener'а и из getClientResponseV2, если режим voice и встреча не завершена.
+  function autoListenAfterAI() {
+    if (trainState.commMode !== 'voice') return;
+    if (trainState.finishedAt) return;
+    if (trainState.isProcessing) return;
+    if (isListening) return;
+    setTimeout(() => {
+      if (trainState.commMode === 'voice' && !trainState.finishedAt && !isListening) {
+        startListening();
+      }
+    }, 300);
   }
 
   function updateModeUI() {
@@ -4887,14 +4901,21 @@
   function buildAISystemPrompt() {
     const sc = trainState.scenario;
     if (trainState.userRole === 'manager') {
-      // User is manager, AI is client (default)
-      // Note: sc.systemPrompt already includes CLIENT_BEHAVIOR_RULES via the scenarios array
-      return sc.systemPrompt + `
+      // User is manager, AI is student-client
+      return `🚫 ЗАПРЕЩЁННЫЕ РОЛИ: ты НИКОГДА не играешь администратора, методиста или сотрудника школы ELC. Ты НЕ ведёшь встречу. Ты НЕ задаёшь повестку. Ты НЕ представляешься как «администратор ELC English» — это другая роль, не твоя.
+
+✅ ТВОЯ РОЛЬ: тебя зовут ${sc.name}. Ты — потенциальный СТУДЕНТ школы английского языка ELC English, которому только что позвонил администратор после твоего пробного занятия. Ты отвечаешь на вопросы администратора, рассказываешь о себе, высказываешь сомнения и возражения — как обычный человек, которому продают курс. Ничего больше.
+
+Если первая реплика администратора уже была «Здравствуйте, ${sc.name}!» — твой ответ короткий: «Здравствуйте» или «Да, здравствуйте». Без представления, без «меня зовут...», без вопросов.
+
+--- ПРОФИЛЬ ТВОЕЙ РОЛИ (${sc.name}): ---
+${sc.systemPrompt}
+--- КОНЕЦ ПРОФИЛЯ ---
 
 ДОПОЛНИТЕЛЬНО ДЛЯ ГОЛОСОВОГО РАЗГОВОРА:
-- НЕ начинай разговор первым. Жди пока администратор заговорит.
-- Если очень долго молчит — можно одно слово: «Алло?» или «Я слушаю.»
-- Реплики строго короткие (1-2 предложения, иногда одно слово).`;
+- Реплики строго короткие (1-2 предложения, иногда одно слово).
+- НЕ начинай разговор первым. Если администратор молчит — одно слово: «Алло?» или «Я слушаю.»
+- Никогда не выдавай «я администратор», «я методист», «я ваш помощник» — это запрещённые роли.`;
     } else {
       // User is student, AI is ideal ELC administrator
       return `Ты — администратор ELC English, школы английского языка в Алматы. Звонишь студенту после пробного занятия, чтобы оформить его на основную программу (5 месяцев, методика иммерсии с 2 преподавателями-носителями на каждом уроке).
@@ -5024,9 +5045,9 @@ ${sc.desc}
       updateVoiceButton();
       document.getElementById('voiceStatus').textContent = '🎤 Нажми кнопку и говори';
       if (trainState.userRole === 'manager') {
-        document.getElementById('voiceHelp').innerHTML = '<strong>Нажми «🎤 Говорить»</strong>, скажи фразу — браузер распознает речь, отправит студенту, и он ответит голосом. Откройте в Chrome или Edge.';
+        document.getElementById('voiceHelp').innerHTML = '<strong>Один раз нажми «🎤 Говорить»</strong> и веди разговор как обычный звонок — после реплики студента микрофон откроется сам. Нужна тишина? Жми «Стоп». Откройте в Chrome или Edge.';
       } else {
-        document.getElementById('voiceHelp').innerHTML = '<strong>Вы — студент</strong>. AI-администратор откроет разговор голосом через секунду. Нажми «🎤 Говорить» чтобы ответить ему. Откройте в Chrome или Edge.';
+        document.getElementById('voiceHelp').innerHTML = '<strong>Вы — студент</strong>. AI-администратор сейчас заговорит первым, потом микрофон откроется автоматически. Отвечайте как реальный студент. Откройте в Chrome или Edge.';
       }
     }
 
@@ -5038,7 +5059,9 @@ ${sc.desc}
       if (s.opener) {
         setTimeout(() => {
           addMessageV2('assistant', s.opener);
-          if (trainState.commMode === 'voice') speakText(s.opener, 'ru-RU');
+          if (trainState.commMode === 'voice') {
+            speakText(s.opener, 'ru-RU', autoListenAfterAI);
+          }
         }, 500);
       }
     } else {
@@ -5249,8 +5272,9 @@ ${sc.desc}
       addMessageV2('assistant', reply);
 
       // Озвучка через Web Speech API (бесплатно, встроено в браузер)
+      // После того как AI договорил — автоматически открыть микрофон (непрерывный диалог)
       if (trainState.commMode === 'voice') {
-        speakText(reply, 'ru-RU');
+        speakText(reply, 'ru-RU', autoListenAfterAI);
       }
     } catch (e) {
       console.warn('Network error:', e);
