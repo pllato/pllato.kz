@@ -3267,6 +3267,26 @@
           </div>
 
           <div class="voice-setup-section">
+            <div class="voice-setup-label">Формат встречи</div>
+            <div class="mode-radio-grid">
+              <label class="mode-radio">
+                <input type="radio" name="meetingFormat" value="inperson" checked onchange="updateMeetingFormat()">
+                <div class="mode-radio-card">
+                  <div class="mr-title">🏫 Лично в школе</div>
+                  <div class="mr-desc">Студент только что закончил пробное занятие и сидит напротив. Тёплый контакт, видишь эмоции — переходишь к разговору о программе сразу.</div>
+                </div>
+              </label>
+              <label class="mode-radio">
+                <input type="radio" name="meetingFormat" value="phone" onchange="updateMeetingFormat()">
+                <div class="mode-radio-card">
+                  <div class="mr-title">📞 Звонок по телефону</div>
+                  <div class="mr-desc">Звонишь студенту по телефону (после пробного, на следующий день или по заявке). Нужно представиться, проверить связь и удобство — потом по скрипту.</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="voice-setup-section">
             <div style="background:var(--accent-bg); border-left:3px solid var(--accent); padding:12px 16px; border-radius:6px; font-size:13px; line-height:1.55; color:var(--ink-soft);">
               🎤 Голосовой режим работает прямо в браузере — нажмите кнопку микрофона. Никаких ключей вводить не нужно.
             </div>
@@ -4739,6 +4759,7 @@
   let trainState = {
     mode: 'practice', // 'practice' или 'exam'
     userRole: 'manager', // 'manager' (AI=студент) или 'client' (AI=администратор ELC)
+    meetingFormat: 'inperson', // 'inperson' (лично в школе после пробного) или 'phone' (звонок по телефону)
     commMode: 'voice', // 'voice' | 'text'
     scenario: null,
     history: [], // [{role, content, stageId, timestamp}]
@@ -4897,6 +4918,19 @@
     trainState.userRole = role;
   }
 
+  function updateMeetingFormat() {
+    const el = document.querySelector('input[name="meetingFormat"]:checked');
+    if (!el) return;
+    trainState.meetingFormat = el.value; // 'inperson' | 'phone'
+  }
+
+  function meetingFormatContext() {
+    if (trainState.meetingFormat === 'phone') {
+      return `\n\n📞 ФОРМАТ ВСТРЕЧИ: телефонный звонок. Ты только что взял(а) трубку — администратор школы ELC звонит тебе. Первая реплика короткая: «Алло», «Алло, слушаю» или «Да, я слушаю». НЕ представляйся первым по имени — это телефонный звонок.`;
+    }
+    return `\n\n🏫 ФОРМАТ ВСТРЕЧИ: личная встреча в кабинете школы ELC. Ты только что закончил(а) пробное занятие и сидишь напротив администратора в кабинете. Первая реплика — короткое «Здравствуйте» (вы уже видите друг друга, не нужно представляться). Тон тёплый, расслабленный — пробное занятие только закончилось.`;
+  }
+
   // Build system prompt based on which role AI is playing
   function buildAISystemPrompt() {
     const sc = trainState.scenario;
@@ -4915,7 +4949,7 @@ ${sc.systemPrompt}
 ДОПОЛНИТЕЛЬНО ДЛЯ ГОЛОСОВОГО РАЗГОВОРА:
 - Реплики строго короткие (1-2 предложения, иногда одно слово).
 - НЕ начинай разговор первым. Если администратор молчит — одно слово: «Алло?» или «Я слушаю.»
-- Никогда не выдавай «я администратор», «я методист», «я ваш помощник» — это запрещённые роли.`;
+- Никогда не выдавай «я администратор», «я методист», «я ваш помощник» — это запрещённые роли.${meetingFormatContext()}`;
     } else {
       // User is student, AI is ideal ELC administrator
       return `Ты — администратор ELC English, школы английского языка в Алматы. Звонишь студенту после пробного занятия, чтобы оформить его на основную программу (5 месяцев, методика иммерсии с 2 преподавателями-носителями на каждом уроке).
@@ -4945,7 +4979,7 @@ ${sc.desc}
 - Веди студента по этапам. Сначала опыт и цель, только потом цена.
 - НЕ называй цену до того, как разобрался с опытом, развилкой и истинной целью.
 
-Реплики короткие (1-3 предложения максимум).`;
+Реплики короткие (1-3 предложения максимум).${meetingFormatContext()}`;
     }
   }
 
@@ -5058,9 +5092,11 @@ ${sc.desc}
       // User=manager, AI=client → AI client greets briefly (just opener)
       if (s.opener) {
         setTimeout(() => {
-          addMessageV2('assistant', s.opener);
+          const opener = trainState.meetingFormat === 'phone'
+            ? 'Алло.' : (s.opener || 'Здравствуйте.');
+          addMessageV2('assistant', opener);
           if (trainState.commMode === 'voice') {
-            speakText(s.opener, 'ru-RU', autoListenAfterAI);
+            speakText(opener, 'ru-RU', autoListenAfterAI);
           }
         }, 500);
       }
