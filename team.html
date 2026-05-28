@@ -11474,6 +11474,7 @@ const orgChartState = {
   loaded: false,
   structure: null,
   dirty: false,
+  view: 'cards',   // cards (редактирование) | tree (визуализация древа)
 };
 
 async function renderOrgChart(el) {
@@ -11486,11 +11487,16 @@ async function renderOrgChart(el) {
           ${isAdmin ? 'Древовидная иерархия с руководителями и сотрудниками. Изменения применяются после нажатия «Сохранить».' : 'Иерархия компании. Только администратор может редактировать.'}
         </div>
       </div>
-      ${isAdmin ? `
-      <div style="display:flex;gap:10px;align-items:center">
-        <span id="org-save-status" style="font-size:12px;color:var(--t3)"></span>
-        <button class="btn btn-sm" id="org-save-btn" disabled style="background:var(--ac);color:#fff;border:none;padding:8px 18px">💾 Сохранить</button>
-      </div>` : ''}
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:2px">
+          <button class="org-view-btn ${orgChartState.view === 'cards' ? 'active' : ''}" data-view="cards" style="border:none;background:${orgChartState.view === 'cards' ? 'var(--ac)' : 'transparent'};color:${orgChartState.view === 'cards' ? '#fff' : 'var(--t2)'};padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px">🃏 Карты</button>
+          <button class="org-view-btn ${orgChartState.view === 'tree' ? 'active' : ''}" data-view="tree" style="border:none;background:${orgChartState.view === 'tree' ? 'var(--ac)' : 'transparent'};color:${orgChartState.view === 'tree' ? '#fff' : 'var(--t2)'};padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px">🌳 Древо</button>
+        </div>
+        ${isAdmin ? `
+          <span id="org-save-status" style="font-size:12px;color:var(--t3)"></span>
+          <button class="btn btn-sm" id="org-save-btn" disabled style="background:var(--ac);color:#fff;border:none;padding:8px 18px">💾 Сохранить</button>
+        ` : ''}
+      </div>
     </div>
     <div id="org-tree" style="margin-top:14px">
       <div class="card" style="padding:30px;text-align:center;color:var(--t3)">⏳ Загружаем структуру...</div>
@@ -11516,6 +11522,14 @@ async function renderOrgChart(el) {
       document.getElementById('org-tree').addEventListener('click', handleOrgClick);
       document.getElementById('org-tree').addEventListener('keydown', handleOrgKeydown);
     }
+    // Тоггл «Карты / Древо» — доступен всем
+    el.querySelectorAll('.org-view-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        if (orgChartState.view === b.dataset.view) return;
+        orgChartState.view = b.dataset.view;
+        renderOrgChart(el);
+      });
+    });
   } catch (e) {
     document.getElementById('org-tree').innerHTML =
       `<div class="card" style="padding:20px;color:#c00">Ошибка загрузки: ${escapeHtml(e.message)}</div>`;
@@ -11568,7 +11582,16 @@ function orgMembersHtml(memberUids, dataPath, readOnly) {
   </div>`;
 }
 
+// Диспетчер: вызывается отовсюду (handlers, save), решает что рендерить
 function renderOrgChartTree(treeEl, isAdmin) {
+  if (orgChartState.view === 'tree') {
+    renderOrgChartTreeView(treeEl);
+  } else {
+    renderOrgChartCardsView(treeEl, isAdmin);
+  }
+}
+
+function renderOrgChartCardsView(treeEl, isAdmin) {
   const s = orgChartState.structure;
   if (!s) return;
   // datalist всех пользователей для autocomplete
@@ -11851,6 +11874,200 @@ function handleOrgClick(ev) {
     renderOrgChartTree(document.getElementById('org-tree'), true);
     return;
   }
+}
+
+// ── Tree view (визуализация древа, классический орг-чарт сверху вниз) ──
+
+function ensureOrgTreeStylesInjected() {
+  if (document.getElementById('otv-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'otv-styles';
+  style.textContent = `
+    .otv-page { padding: 8px 4px 24px; overflow-x: auto; }
+    .otv-tree, .otv-tree ul { padding: 0; margin: 0; list-style: none; }
+    .otv-tree { display: flex; justify-content: center; min-width: max-content; }
+    .otv-tree ul {
+      padding-top: 22px;
+      position: relative;
+      display: flex;
+      justify-content: center;
+    }
+    .otv-tree li {
+      text-align: center;
+      position: relative;
+      padding: 22px 8px 0;
+    }
+    /* Connectors */
+    .otv-tree li::before, .otv-tree li::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 50%;
+      border-top: 2px solid var(--b1, #c9ccd1);
+      width: 50%;
+      height: 22px;
+    }
+    .otv-tree li::after {
+      right: auto;
+      left: 50%;
+      border-left: 2px solid var(--b1, #c9ccd1);
+    }
+    .otv-tree li:only-child::before,
+    .otv-tree li:only-child::after { display: none; }
+    .otv-tree li:only-child { padding-top: 0; }
+    .otv-tree li:first-child::before,
+    .otv-tree li:last-child::after { border: 0 none; }
+    .otv-tree li:last-child::before {
+      border-right: 2px solid var(--b1, #c9ccd1);
+      border-radius: 0 6px 0 0;
+    }
+    .otv-tree li:first-child::after {
+      border-radius: 6px 0 0 0;
+    }
+    .otv-tree ul ul::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      border-left: 2px solid var(--b1, #c9ccd1);
+      width: 0;
+      height: 22px;
+    }
+    /* Боксы узлов */
+    .otv-node {
+      display: inline-block;
+      text-align: left;
+      border-radius: 10px;
+      padding: 10px 14px;
+      min-width: 170px;
+      max-width: 240px;
+      font-size: 13px;
+      line-height: 1.35;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .otv-node-director {
+      background: linear-gradient(135deg,#fef3c7,#fde68a);
+      border: 2px solid #f59e0b;
+    }
+    .otv-node-branch {
+      background: linear-gradient(135deg,#e0f2fe,#bae6fd);
+      border: 2px solid #0284c7;
+    }
+    .otv-node-dept {
+      background: var(--bg2, #fafbfc);
+      border: 1px solid var(--b1, #c9ccd1);
+      font-size: 12.5px;
+    }
+    .otv-node-sub {
+      background: var(--bg1, #ffffff);
+      border: 1px dashed var(--b1, #c9ccd1);
+      font-size: 12px;
+      min-width: 150px;
+    }
+    .otv-node-kind {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--t3, #6b7280);
+      margin-bottom: 3px;
+    }
+    .otv-node-title { font-weight: 700; color: var(--t1, #111); margin-bottom: 3px; }
+    .otv-node-head {
+      font-size: 11.5px;
+      color: var(--t2, #4b5563);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .otv-node-head .otv-head-icon { font-size: 11px; }
+    .otv-node-head-empty { color: var(--t3, #9ca3af); font-style: italic; font-size: 11px; }
+    .otv-node-members {
+      font-size: 11px;
+      color: var(--t3, #6b7280);
+      margin-top: 4px;
+      padding-top: 4px;
+      border-top: 1px dashed rgba(0,0,0,0.08);
+    }
+    /* Тёмная тема */
+    [data-theme="dark"] .otv-node-director {
+      background: linear-gradient(135deg, #78350f, #92400e);
+      color: #fef3c7;
+    }
+    [data-theme="dark"] .otv-node-director .otv-node-title { color: #fff7ed; }
+    [data-theme="dark"] .otv-node-branch {
+      background: linear-gradient(135deg,#075985,#0c4a6e);
+      color: #e0f2fe;
+    }
+    [data-theme="dark"] .otv-node-branch .otv-node-title { color: #f0f9ff; }
+  `;
+  document.head.appendChild(style);
+}
+
+function renderOrgChartTreeView(treeEl) {
+  ensureOrgTreeStylesInjected();
+  const s = orgChartState.structure;
+  if (!s) return;
+
+  function nodeHtml(kind, title, headUid, memberUids) {
+    const headLabel = headUid ? orgUserLabel(headUid) : '';
+    const headHtml = headLabel
+      ? `<div class="otv-node-head"><span class="otv-head-icon">👤</span>${escapeHtml(headLabel)}</div>`
+      : '<div class="otv-node-head otv-node-head-empty">руководитель не назначен</div>';
+    const memberCount = (memberUids || []).length;
+    const memberHtml = memberCount > 0
+      ? `<div class="otv-node-members">👥 ${memberCount} ${pluralize(memberCount, 'сотрудник', 'сотрудника', 'сотрудников')}</div>`
+      : '';
+    const kindLabels = { director: 'Директор', branch: 'Отделение', dept: 'Отдел', sub: 'Подотдел' };
+    return `<div class="otv-node otv-node-${kind}">
+      <div class="otv-node-kind">${kindLabels[kind] || ''}</div>
+      <div class="otv-node-title">${escapeHtml(title)}</div>
+      ${headHtml}
+      ${memberHtml}
+    </div>`;
+  }
+
+  function deptLi(dept) {
+    const subs = (dept.subDepartments || []).map(sub =>
+      `<li>${nodeHtml('sub', sub.name, sub.headUid, sub.memberUids)}</li>`
+    ).join('');
+    return `<li>
+      ${nodeHtml('dept', dept.name, dept.headUid, dept.memberUids)}
+      ${subs ? `<ul>${subs}</ul>` : ''}
+    </li>`;
+  }
+
+  function branchLi(branch) {
+    const depts = (branch.departments || []).map(deptLi).join('');
+    return `<li>
+      ${nodeHtml('branch', branch.name, branch.headUid, branch.memberUids)}
+      ${depts ? `<ul>${depts}</ul>` : ''}
+    </li>`;
+  }
+
+  const branches = (s.branches || []).map(branchLi).join('');
+  treeEl.innerHTML = `
+    <div class="otv-page">
+      <ul class="otv-tree">
+        <li>
+          ${nodeHtml('director', s.director?.title || 'Директор', s.director?.uid, [])}
+          ${branches ? `<ul>${branches}</ul>` : ''}
+        </li>
+      </ul>
+    </div>
+    <div style="margin-top:12px;text-align:center;color:var(--t3);font-size:12px">
+      🌳 Древо — визуализация. Для редактирования переключись в «🃏 Карты».
+    </div>
+  `;
+}
+
+// Утилита склонения (5 сотрудник → сотрудников, 2 → сотрудника, 1 → сотрудник)
+function pluralize(n, one, few, many) {
+  const a = Math.abs(n) % 100;
+  const b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
 }
 
 async function saveOrgStructure() {
