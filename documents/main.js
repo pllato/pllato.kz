@@ -862,6 +862,28 @@ async function migrateAndLoadDocuments(authorFallbackId) {
     writes.push(set(ref(db, `documents/${id}`), seed));
   }
 
+  if (!docs.some((doc) => doc.slug === 'elc-trainer')) {
+    const id = push(ref(db, 'documents')).key;
+    if (!id) throw new Error('Не удалось создать seed ELC Trainer');
+    const seed = normalizeDocument({
+      id,
+      kind: 'builtin',
+      type: 'instruction',
+      slug: 'elc-trainer',
+      title: 'Тренажёр ELC — приём студента после пробного',
+      description: 'Голосовой тренажёр для отработки скрипта встречи после пробного занятия: 7 этапов, 4 AI-сценария студентов.',
+      builtin: true,
+      contentModuleId: 'elc_trainer',
+      authorId: authorFallbackId,
+      scope: 'team',
+      sharedWith: [],
+      createdAt: now(),
+      updatedAt: now(),
+    }, id);
+    docs.unshift(seed);
+    writes.push(set(ref(db, `documents/${id}`), seed));
+  }
+
   if (writes.length) await withTimeout(Promise.all(writes), 'documents write');
   docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   return docs;

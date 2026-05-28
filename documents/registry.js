@@ -1,7 +1,9 @@
 import { renderPartnerMotivation } from "./builtin/partner_motivation.js";
+import { renderElcTrainer } from "./builtin/elc_trainer.js";
 
 export const BUILTIN_REGISTRY = {
   partner_motivation: renderPartnerMotivation,
+  elc_trainer: renderElcTrainer,
 };
 
 const VALID_KINDS = new Set(["builtin", "markdown", "file", "embed"]);
