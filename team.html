@@ -2700,7 +2700,7 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
       <span class="nav-icon">👥</span><span>Контакты</span>
     </div>
     <div class="nav-item" data-page="deals">
-      <span class="nav-icon">💼</span><span>Сделки</span>
+      <span class="nav-icon">💼</span><span>СРМ</span>
     </div>
     <div class="nav-item" data-page="tasks">
       <span class="nav-icon">✅</span><span>Задачи</span>
@@ -3363,7 +3363,7 @@ function renderDashboard(el) {
         <div class="stat-val cv" id="s-contacts">—</div>
       </div>
       <div class="stat" data-section="deals" style="cursor:pointer">
-        <div class="stat-lbl">${showSubtitle} · Сделки</div>
+        <div class="stat-lbl">${showSubtitle} · СРМ</div>
         <div class="stat-val cg" id="s-deals">—</div>
       </div>
       <div class="stat" data-section="tasks" style="cursor:pointer">
@@ -3646,7 +3646,7 @@ const dealsPagedState = {
 async function renderDeals(el) {
   el.innerHTML = `
     <div class="page-head">
-      <h1>Сделки <span class="count" id="deals-count">…</span></h1>
+      <h1>СРМ <span class="count" id="deals-count">…</span></h1>
     </div>
     <div class="empty-state" id="deals-loader"><div class="empty-icon">⏳</div><div class="empty-text">Загружаем…</div></div>
   `;
@@ -3659,9 +3659,15 @@ async function renderDeals(el) {
     // Kanban требует ВСЕ сделки. Лениво грузим (~19MB, ~3-8s).
     if (!dealsState.loaded) await loadDealsData();
     if (!dealsState.deals.length) {
+      const pipeCount = Object.keys(dealsState.pipelines || {}).length;
+      const activePipe = dealsState.activePipelineId;
       document.getElementById('deals-loader').innerHTML = `
         <div class="empty-icon">💼</div>
         <div class="empty-text">Сделки не найдены в базе.</div>
+        <div style="margin-top:10px;font-size:11px;color:var(--t3);font-family:monospace">
+          воронок загружено: ${pipeCount} · активная: ${activePipe || '—'} · scope: ${escapeHtml(dealsState.scope || 'all')}
+        </div>
+        <button class="btn btn-sm" style="margin-top:14px" onclick="resetDealsCacheAndReload()">🔄 Сбросить кеш и перезагрузить</button>
       `;
       return;
     }
@@ -3675,6 +3681,25 @@ async function renderDeals(el) {
 
 // Лёгкие справочники — отдельно от тяжёлой full-deals выгрузки.
 // Грузим ВСЕ pipelines (а не один pipeline_3) — нужно для переключателя воронок.
+// Полный сброс локального состояния сделок — для диагностики/восстановления
+// если pipelines / deals «застряли». Чистит IDB-кеш RTDB, localStorage ключи
+// и dealsState, потом редиректит на чистую загрузку.
+window.resetDealsCacheAndReload = async function() {
+  try {
+    if (window.elcRtdbCache?.clear) await window.elcRtdbCache.clear();
+    localStorage.removeItem('elc:activePipelineId');
+    localStorage.removeItem('elc:pipelineOrder');
+    localStorage.removeItem('elc:dealsView');
+  } catch (e) { console.warn('reset cache:', e); }
+  dealsState.metaLoaded = false;
+  dealsState.loaded = false;
+  dealsState.deals = [];
+  dealsState.pipelines = {};
+  dealsState.activePipelineId = null;
+  const main = document.getElementById('main');
+  if (main) renderDeals(main);
+};
+
 async function loadDealsMeta() {
   if (dealsState.metaLoaded) return;
   try {
@@ -4347,7 +4372,7 @@ function attachPipelineTabHandlers(el) {
 function renderDealsLayoutPaged(el) {
   el.innerHTML = `
     <div class="page-head">
-      <h1>Сделки <span class="count" id="deals-count">${dealsPagedState.total.toLocaleString('ru')}</span></h1>${scopeToggleHtml()}
+      <h1>СРМ <span class="count" id="deals-count">${dealsPagedState.total.toLocaleString('ru')}</span></h1>${scopeToggleHtml()}
       <div class="view-toggle">
         <button class="vt-btn" data-view="kanban">📊 Канбан</button>
         <button class="vt-btn active" data-view="list">📋 Список</button>
@@ -4484,7 +4509,7 @@ function renderDealsLayout(el) {
   const filtered = getFilteredDeals();
   el.innerHTML = `
     <div class="page-head">
-      <h1>Сделки
+      <h1>СРМ
         <span class="count" id="deals-count">${dealsState.deals.length.toLocaleString('ru')}${filtered.length !== dealsState.deals.length ? ` · отф. ${filtered.length.toLocaleString('ru')}` : ''}</span>
       </h1>
       <div class="view-toggle">
@@ -12116,8 +12141,10 @@ async function saveOrgStructure() {
 //   НАСТРОЙКИ (admin only) — Сотрудники / Каналы / Журнал
 // ═════════════════════════════════════════════════════════════════════════
 const settingsState = {
-  tab: 'users',   // users | channels | audit
+  tab: 'users',   // users | channels | audit | permissions
   channelsSubTab: 'whatsapp',  // whatsapp | binotel
+  permissions: null,           // загруженный объект {roles: [...], updatedAt, updatedBy}
+  permissionsDirty: false,
 };
 
 async function renderSettings(el) {
@@ -12135,6 +12162,7 @@ async function renderSettings(el) {
     <div class="page-sub">Управление сотрудниками, каналами коммуникаций и просмотр истории изменений.</div>
     <div style="display:flex;gap:8px;margin-bottom:14px">
       <button class="vt-btn ${settingsState.tab === 'users' ? 'active' : ''}" data-stab="users">🧑‍💼 Сотрудники</button>
+      <button class="vt-btn ${settingsState.tab === 'permissions' ? 'active' : ''}" data-stab="permissions">🔒 Права доступа</button>
       <button class="vt-btn ${settingsState.tab === 'channels' ? 'active' : ''}" data-stab="channels">🔌 Каналы подключения</button>
       <button class="vt-btn ${settingsState.tab === 'audit' ? 'active' : ''}" data-stab="audit">📋 Журнал</button>
     </div>
@@ -12149,10 +12177,214 @@ async function renderSettings(el) {
   const content = document.getElementById('settings-content');
   if (settingsState.tab === 'users') {
     await renderUsers(content, { embedded: true });
+  } else if (settingsState.tab === 'permissions') {
+    await renderSettingsPermissions(content);
   } else if (settingsState.tab === 'channels') {
     await renderSettingsChannels(content);
   } else if (settingsState.tab === 'audit') {
     await renderSettingsAudit(content);
+  }
+}
+
+// ── Права доступа (виды ролей: ИД, Рег 6, Рег 2, ...) ──
+async function renderSettingsPermissions(el) {
+  el.innerHTML = `
+    <div class="card" style="padding:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+        <div>
+          <h3 style="margin:0;font-size:16px">🔒 Виды прав</h3>
+          <div style="color:var(--t3);font-size:12px;margin-top:4px">Определи роли и их доступ к воронкам/стадиям. Применение фильтров к запросам — следующий этап.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="perm-status" style="font-size:12px;color:var(--t3)"></span>
+          <button class="btn btn-sm" id="perm-save-btn" disabled style="background:var(--ac);color:#fff;border:none;padding:7px 14px">💾 Сохранить</button>
+        </div>
+      </div>
+      <div id="perm-list"><div class="empty">⏳ Загружаем…</div></div>
+      <div style="margin-top:14px">
+        <button class="btn btn-sm" id="perm-add-btn" style="border:1px dashed var(--b1);background:transparent">➕ Добавить вид прав</button>
+      </div>
+      <div style="margin-top:18px;padding:12px 14px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--t2);line-height:1.6">
+        💡 <b>Что означают поля:</b><br>
+        · <b>Охват:</b> «свои» — видит только записи где он ответственный/исполнитель; «отдела» — видит свой отдел из «Структуры»; «все» — видит всё.<br>
+        · <b>Воронки:</b> «все» — все воронки СРМ; «выбранные» — только указанные.<br>
+        · <b>Стадии:</b> ограничение по стадиям внутри воронки (следующая фаза).
+      </div>
+    </div>
+  `;
+  document.getElementById('perm-save-btn').onclick = saveOrgPermissions;
+  document.getElementById('perm-add-btn').onclick = addPermissionRole;
+  // Делегированные хендлеры на список
+  document.getElementById('perm-list').addEventListener('input', handlePermInput);
+  document.getElementById('perm-list').addEventListener('change', handlePermInput);
+  document.getElementById('perm-list').addEventListener('click', handlePermClick);
+
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const [permsR, pipelinesR] = await Promise.all([
+      fetch(`${WORKER_BASE_URL}/api/admin/permissions`, {
+        headers: { 'Authorization': `Bearer ${idToken}` },
+      }).then(r => r.ok ? r.json() : null),
+      // Pipelines уже могут быть в dealsState (если открывал СРМ). Иначе грузим.
+      Object.keys(dealsState.pipelines || {}).length > 0
+        ? Promise.resolve({ items: Object.values(dealsState.pipelines) })
+        : fetch(`${WORKER_RTDB_URL}/pipelines.json?auth=${idToken}`).then(r => r.ok ? r.json() : {}).then(obj => ({ items: Object.values(obj || {}) })),
+    ]);
+    if (!permsR || !permsR.permissions) throw new Error('пустой ответ /api/admin/permissions');
+    settingsState.permissions = permsR.permissions;
+    settingsState.permissionsDirty = false;
+    settingsState._pipelinesForPerms = pipelinesR.items || [];
+    renderPermissionRolesList();
+  } catch (e) {
+    document.getElementById('perm-list').innerHTML =
+      `<div class="empty" style="color:#c00">Ошибка загрузки: ${escapeHtml(e.message)}<br><br>
+       Если ты только что добавил endpoint — нужно задеплоить worker (wrangler deploy).</div>`;
+  }
+}
+
+function renderPermissionRolesList() {
+  const wrap = document.getElementById('perm-list');
+  if (!wrap || !settingsState.permissions) return;
+  const roles = settingsState.permissions.roles || [];
+  const pipelines = settingsState._pipelinesForPerms || [];
+  if (!roles.length) {
+    wrap.innerHTML = '<div class="empty">Видов прав пока нет. Нажми «➕ Добавить вид прав».</div>';
+    return;
+  }
+  let html = '<div style="display:flex;flex-direction:column;gap:10px">';
+  for (let i = 0; i < roles.length; i++) {
+    const r = roles[i];
+    const pipeOpts = pipelines.map(p =>
+      `<label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 8px;background:var(--bg2);border:1px solid var(--b1);border-radius:14px;cursor:pointer">
+        <input type="checkbox" data-perm-action="toggle-pipeline" data-perm-idx="${i}" data-perm-pid="${escapeHtml(p.id)}" ${(r.pipelineIds || []).includes(p.id) ? 'checked' : ''} style="margin:0">
+        ${escapeHtml(p.name || p.id)}
+      </label>`
+    ).join(' ');
+    html += `<div style="border:1px solid var(--b1);border-radius:8px;padding:12px 14px;background:var(--bg2)">
+      <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Название</div>
+          <input class="qad-input" value="${escapeHtml(r.name || '')}" data-perm-action="name" data-perm-idx="${i}" style="font-weight:600;font-size:14px">
+        </div>
+        <div style="flex:2;min-width:280px">
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Описание</div>
+          <input class="qad-input" value="${escapeHtml(r.description || '')}" data-perm-action="desc" data-perm-idx="${i}" placeholder="Краткое пояснение">
+        </div>
+        <button class="btn btn-sm" data-perm-action="delete" data-perm-idx="${i}" title="Удалить" style="color:#c00;align-self:flex-start;margin-top:18px">🗑</button>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-top:12px">
+        <div style="min-width:160px">
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Охват</div>
+          <select class="qad-input" data-perm-action="scope" data-perm-idx="${i}">
+            <option value="own" ${r.scope === 'own' ? 'selected' : ''}>Свои записи</option>
+            <option value="team" ${r.scope === 'team' ? 'selected' : ''}>Свой отдел</option>
+            <option value="all" ${r.scope === 'all' ? 'selected' : ''}>Все</option>
+          </select>
+        </div>
+        <div style="min-width:200px">
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Доступ к воронкам</div>
+          <select class="qad-input" data-perm-action="pipe-access" data-perm-idx="${i}">
+            <option value="all" ${r.pipelineAccess === 'all' ? 'selected' : ''}>Все воронки</option>
+            <option value="specific" ${r.pipelineAccess === 'specific' ? 'selected' : ''}>Только выбранные</option>
+          </select>
+        </div>
+      </div>
+      ${r.pipelineAccess === 'specific' ? `
+      <div style="margin-top:10px">
+        <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Выбранные воронки</div>
+        ${pipelines.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${pipeOpts}</div>` : '<div style="color:var(--t3);font-size:12px">Воронок не найдено (открой раздел СРМ чтобы они загрузились).</div>'}
+      </div>` : ''}
+    </div>`;
+  }
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+function handlePermInput(ev) {
+  const t = ev.target;
+  const action = t.dataset.permAction;
+  if (!action) return;
+  const idx = parseInt(t.dataset.permIdx, 10);
+  const role = settingsState.permissions?.roles?.[idx];
+  if (!role) return;
+  if (action === 'name') { role.name = t.value; permMarkDirty(); return; }
+  if (action === 'desc') { role.description = t.value; permMarkDirty(); return; }
+  if (action === 'scope') { role.scope = t.value; permMarkDirty(); return; }
+  if (action === 'pipe-access') {
+    role.pipelineAccess = t.value;
+    permMarkDirty();
+    renderPermissionRolesList();   // показать/спрятать чекбоксы воронок
+    return;
+  }
+  if (action === 'toggle-pipeline') {
+    const pid = t.dataset.permPid;
+    if (!Array.isArray(role.pipelineIds)) role.pipelineIds = [];
+    const inIdx = role.pipelineIds.indexOf(pid);
+    if (t.checked && inIdx < 0) role.pipelineIds.push(pid);
+    if (!t.checked && inIdx >= 0) role.pipelineIds.splice(inIdx, 1);
+    permMarkDirty();
+    return;
+  }
+}
+
+function handlePermClick(ev) {
+  const btn = ev.target.closest('[data-perm-action="delete"]');
+  if (!btn) return;
+  const idx = parseInt(btn.dataset.permIdx, 10);
+  const role = settingsState.permissions?.roles?.[idx];
+  if (!role) return;
+  if (!confirm(`Удалить вид прав «${role.name}»?`)) return;
+  settingsState.permissions.roles.splice(idx, 1);
+  permMarkDirty();
+  renderPermissionRolesList();
+}
+
+function addPermissionRole() {
+  if (!settingsState.permissions) return;
+  const newId = 'role_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  settingsState.permissions.roles.push({
+    id: newId,
+    name: 'Новая роль',
+    description: '',
+    scope: 'all',
+    pipelineAccess: 'all',
+    pipelineIds: [],
+    stageRestrictions: {},
+  });
+  permMarkDirty();
+  renderPermissionRolesList();
+}
+
+function permMarkDirty() {
+  settingsState.permissionsDirty = true;
+  const btn = document.getElementById('perm-save-btn');
+  const status = document.getElementById('perm-status');
+  if (btn) btn.disabled = false;
+  if (status) status.textContent = '● есть несохранённые изменения';
+}
+
+async function saveOrgPermissions() {
+  const btn = document.getElementById('perm-save-btn');
+  const status = document.getElementById('perm-status');
+  if (btn) btn.disabled = true;
+  if (status) status.textContent = '⏳ сохраняем…';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/admin/permissions`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ permissions: settingsState.permissions }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    settingsState.permissions = data.permissions;
+    settingsState.permissionsDirty = false;
+    if (status) status.textContent = '✓ сохранено';
+    setTimeout(() => { if (status && !settingsState.permissionsDirty) status.textContent = ''; }, 3000);
+  } catch (e) {
+    if (status) status.textContent = '⚠ ошибка: ' + e.message;
+    if (btn) btn.disabled = false;
+    alert('Ошибка сохранения: ' + e.message);
   }
 }
 

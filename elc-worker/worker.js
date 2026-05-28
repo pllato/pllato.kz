@@ -2778,6 +2778,77 @@ async function handleOrgStructurePut(request, env) {
   return json({ ok: true, structure: incoming }, 200, request);
 }
 
+// ── Permissions (виды прав, хранятся как JSON в kv['org:permissions']) ──
+// Сейчас сохраняем только определения ролей; применение к запросам
+// (фильтр воронок/стадий) — следующая фаза. Структура совместима с будущим
+// расширением: stageRestrictions — карта {pipelineId: [stageId, ...]}.
+function defaultPermissions() {
+  const mk = (id, name, description) => ({
+    id, name, description,
+    scope: 'all',               // own | team | all
+    pipelineAccess: 'all',      // all | specific
+    pipelineIds: [],            // когда pipelineAccess === 'specific'
+    stageRestrictions: {},      // {pipelineId: [stageId, ...]} (пусто = все)
+  });
+  return {
+    roles: [
+      mk('id', 'ИД', 'Исполнительный директор'),
+      mk('reg_6', 'Рег 6', 'Регистратор 6'),
+      mk('reg_2', 'Рег 2', 'Регистратор 2'),
+      mk('head_teachers', 'Глава преподавателей', 'Руководитель отдела преподавания'),
+      mk('teacher', 'Преподаватель', 'Преподаватель'),
+      mk('reception', 'Ресепшн', 'Сотрудник ресепшна'),
+      mk('head_promo', 'Глава Продвижения', 'Руководитель отдела продвижения/маркетинга'),
+    ],
+    updatedAt: null,
+    updatedBy: null,
+  };
+}
+
+async function handlePermissionsGet(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const row = await env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind('org:permissions').first();
+  let perms = defaultPermissions();
+  if (row && row.v) {
+    try {
+      const parsed = JSON.parse(row.v);
+      if (Array.isArray(parsed.roles)) perms = parsed;
+    } catch (e) {
+      console.warn('[perms] failed to parse stored, using default:', e);
+    }
+  }
+  return json({ ok: true, permissions: perms }, 200, request);
+}
+
+async function handlePermissionsPut(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  const incoming = body.permissions;
+  if (!incoming || !Array.isArray(incoming.roles)) {
+    return json({ error: "permissions.roles[] required" }, 400, request);
+  }
+  // Базовая валидация ролей
+  for (const r of incoming.roles) {
+    if (!r.id || typeof r.id !== 'string') return json({ error: "role.id required" }, 400, request);
+    if (!r.name || typeof r.name !== 'string') return json({ error: "role.name required" }, 400, request);
+    if (!['own', 'team', 'all'].includes(r.scope)) r.scope = 'all';
+    if (!['all', 'specific'].includes(r.pipelineAccess)) r.pipelineAccess = 'all';
+    if (!Array.isArray(r.pipelineIds)) r.pipelineIds = [];
+    if (typeof r.stageRestrictions !== 'object' || !r.stageRestrictions) r.stageRestrictions = {};
+  }
+  incoming.updatedAt = new Date().toISOString();
+  incoming.updatedBy = guard.me?.canonicalUid || guard.me?.email || null;
+  const v = JSON.stringify(incoming);
+  await env.DB.prepare(`
+    INSERT INTO kv (k, v) VALUES (?, ?)
+    ON CONFLICT(k) DO UPDATE SET v = excluded.v
+  `).bind('org:permissions', v).run();
+  return json({ ok: true, permissions: incoming }, 200, request);
+}
+
 // ── Phase 0 routes ──────────────────────────────────────
 async function handleHealth(request, env) {
   try {
@@ -2995,6 +3066,13 @@ export default {
     }
     if (path === "/api/org/structure" && request.method === "PUT") {
       return handleOrgStructurePut(request, env);
+    }
+    // ── /api/admin/permissions — виды прав (роли) ─────────────────────
+    if (path === "/api/admin/permissions" && request.method === "GET") {
+      return handlePermissionsGet(request, env);
+    }
+    if (path === "/api/admin/permissions" && request.method === "PUT") {
+      return handlePermissionsPut(request, env);
     }
 
     return json({ ok: false, error: "not found", path }, 404, request);
