@@ -5302,7 +5302,7 @@ ${sc.desc}
         body: JSON.stringify({
           system: buildAISystemPrompt(),
           messages: msgs,
-          model: 'gemini-1.5-flash-8b',
+          model: 'gemini-1.5-flash',
           max_tokens: 250,
           temperature: 0.8
         })
@@ -5310,8 +5310,9 @@ ${sc.desc}
       const data = await resp.json();
       let reply = '';
       if (data.error) {
-        console.warn('Proxy error:', data);
-        reply = '(Сервис временно недоступен. Попробуйте ещё раз через минуту.)';
+        const detail = typeof data.detail === 'object' ? JSON.stringify(data.detail) : String(data.detail || '');
+        console.warn('Proxy error:', data.error, detail);
+        reply = `(Ошибка API [${data.error}]: ${detail.slice(0, 120)})`;
       } else {
         reply = data.text || '';
       }
