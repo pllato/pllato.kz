@@ -5300,24 +5300,17 @@ ${sc.desc}
       let msgs;
       if (trainState.userRole === 'manager') {
         const anchor = [
-          { role: 'user', content: `[СИСТЕМНАЯ ИНСТРУКЦИЯ — ПРОЧИТАЙ ПЕРЕД ВСЕМ ОСТАЛЬНЫМ:
-Ты играешь роль СТУДЕНТА по имени ${sc.name}. Тебе ПРОДАЮТ курс английского.
-ЗАПРЕЩЁННЫЕ фразы (ты их НИКОГДА не говоришь):
-× «Вы слышали про нашу методику?»
-× «Спасибо, что остались после пробного»
-× «Как вам занятие?» / «Расскажите о себе»
-× «Наша программа...» / «У нас в ELC...» / «Я рекомендую...»
-Всё это — фразы АДМИНИСТРАТОРА. Ты — СТУДЕНТ. Ты только отвечаешь на вопросы и иногда спрашиваешь о цене/условиях как покупатель.]` },
-          { role: 'assistant', content: `[Принято. Я — ${sc.name}, обычный человек. Жду вопросов администратора. Буду отвечать про свою жизнь и цели. Никаких фраз администратора не скажу.]` },
+          { role: 'user',      content: `Давай поиграем в сценку. Ты будешь играть ${sc.name} — человека, которому предлагают курс английского языка. Ты отвечаешь на вопросы, делишься своими мыслями и сомнениями. Ты не продавец и не администратор — ты обычный человек-покупатель.` },
+          { role: 'assistant', content: `Хорошо, я буду ${sc.name}. Я жду звонка, отвечу на вопросы как обычный человек, который думает о курсе английского.` },
         ];
 
-        // Every 4 assistant turns, inject a mid-conversation reminder to prevent role drift
-        let conversationMsgs = rawMsgs.length ? rawMsgs : [{role:'user', content:'(администратор ещё не заговорил, ты молчишь и ждёшь)'}];
+        // Every 4 assistant turns inject a soft reminder to prevent role drift
+        let conversationMsgs = rawMsgs.length ? rawMsgs : [{role:'user', content:'(пауза — администратор ещё не начал говорить)'}];
         const assistantTurns = rawMsgs.filter(m => m.role === 'assistant').length;
         if (assistantTurns > 0 && assistantTurns % 4 === 0) {
           conversationMsgs = [
             ...conversationMsgs,
-            { role: 'user', content: `[НАПОМИНАНИЕ: ты всё ещё ${sc.name} — СТУДЕНТ. Не говори как администратор. Отвечай на вопросы как покупатель.]` },
+            { role: 'user', content: `(напоминание: ты ${sc.name}, продолжай отвечать как студент-покупатель, не как администратор)` },
           ];
         }
 
@@ -5332,8 +5325,9 @@ ${sc.desc}
         body: JSON.stringify({
           system: buildAISystemPrompt(),
           messages: msgs,
-          max_tokens: 120,
-          temperature: 0.7
+          model: 'gemini-1.5-flash-8b',
+          max_tokens: 250,
+          temperature: 0.8
         })
       });
       const data = await resp.json();
