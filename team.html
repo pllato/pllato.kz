@@ -3661,13 +3661,22 @@ async function renderDeals(el) {
     if (!dealsState.deals.length) {
       const pipeCount = Object.keys(dealsState.pipelines || {}).length;
       const activePipe = dealsState.activePipelineId;
+      const scopeNow = effectiveScope();
+      const rawScope = localStorage.getItem(SCOPE_LS_KEY) || '(не задан)';
+      const role = window.currentUser?.role || '?';
+      const showResetScopeBtn = scopeNow !== 'all' && role === 'admin';
       document.getElementById('deals-loader').innerHTML = `
         <div class="empty-icon">💼</div>
         <div class="empty-text">Сделки не найдены в базе.</div>
-        <div style="margin-top:10px;font-size:11px;color:var(--t3);font-family:monospace">
-          воронок загружено: ${pipeCount} · активная: ${activePipe || '—'} · scope: ${escapeHtml(dealsState.scope || 'all')}
+        <div style="margin-top:10px;font-size:11px;color:var(--t3);font-family:monospace;line-height:1.7">
+          воронок: ${pipeCount} · активная: ${escapeHtml(activePipe || '—')}<br>
+          role: ${escapeHtml(role)} · effective scope: <b>${escapeHtml(scopeNow)}</b> · localStorage: ${escapeHtml(rawScope)}
         </div>
-        <button class="btn btn-sm" style="margin-top:14px" onclick="resetDealsCacheAndReload()">🔄 Сбросить кеш и перезагрузить</button>
+        <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          ${showResetScopeBtn ? `<button class="btn btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="resetDealsScopeToAll()">👁 Показать все записи</button>` : ''}
+          <button class="btn btn-sm" onclick="resetDealsCacheAndReload()">🔄 Сбросить кеш и перезагрузить</button>
+        </div>
+        ${showResetScopeBtn ? '<div style="margin-top:10px;font-size:11px;color:var(--t3);max-width:480px;margin-left:auto;margin-right:auto">⚠ scope=«' + escapeHtml(scopeNow) + '» — показываются только твои записи. Для админа имеет смысл переключиться на «все», особенно если ты не закреплён ответственным за сделки.</div>' : ''}
       `;
       return;
     }
@@ -3690,12 +3699,26 @@ window.resetDealsCacheAndReload = async function() {
     localStorage.removeItem('elc:activePipelineId');
     localStorage.removeItem('elc:pipelineOrder');
     localStorage.removeItem('elc:dealsView');
+    localStorage.removeItem('elc:listScope');   // частая причина пустого канбана для admin
   } catch (e) { console.warn('reset cache:', e); }
   dealsState.metaLoaded = false;
   dealsState.loaded = false;
   dealsState.deals = [];
   dealsState.pipelines = {};
   dealsState.activePipelineId = null;
+  dealsState.dealsByPipeline = {};
+  dealsState.pipelineLoading = {};
+  const main = document.getElementById('main');
+  if (main) renderDeals(main);
+};
+
+// Быстрая фиксация: переключить scope на 'all' и перерисовать.
+// Самая частая причина пустого канбана для admin — застрявший scope='mine'.
+window.resetDealsScopeToAll = function() {
+  localStorage.setItem('elc:listScope', 'all');
+  dealsState.loaded = false;
+  dealsState.deals = [];
+  dealsState.dealsByPipeline = {};
   const main = document.getElementById('main');
   if (main) renderDeals(main);
 };
