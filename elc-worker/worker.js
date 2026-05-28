@@ -2712,6 +2712,72 @@ async function handleWaChannelQr(request, env, channelId) {
   }
 }
 
+// ── Org structure (иерархия компании: Директор → Отделения → Отделы → Подотделы) ──
+// Хранится одним JSON-блобом в kv['org:structure']. Доступ — admin для PUT,
+// auth для GET (любой залогиненный смотрит read-only).
+function defaultOrgStructure() {
+  const branches = [];
+  for (let i = 1; i <= 7; i++) {
+    branches.push({
+      id: `br_${i}`,
+      name: `Отделение ${i}`,
+      headUid: null,
+      memberUids: [],
+      departments: [],
+    });
+  }
+  return {
+    director: { uid: null, title: 'Директор' },
+    branches,
+    updatedAt: null,
+    updatedBy: null,
+  };
+}
+
+async function handleOrgStructureGet(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const row = await env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind('org:structure').first();
+  let structure = defaultOrgStructure();
+  if (row && row.v) {
+    try {
+      const parsed = JSON.parse(row.v);
+      // На случай если в БД старая версия — дополняем недостающими полями
+      if (!parsed.director) parsed.director = { uid: null, title: 'Директор' };
+      if (!Array.isArray(parsed.branches) || parsed.branches.length === 0) {
+        parsed.branches = defaultOrgStructure().branches;
+      }
+      structure = parsed;
+    } catch (e) {
+      console.warn('[org] failed to parse stored structure, using default:', e);
+    }
+  }
+  return json({ ok: true, structure }, 200, request);
+}
+
+async function handleOrgStructurePut(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  const incoming = body.structure;
+  if (!incoming || typeof incoming !== 'object') {
+    return json({ error: "structure object required" }, 400, request);
+  }
+  // Простая валидация: должен быть director + branches[]
+  if (!incoming.director || !Array.isArray(incoming.branches)) {
+    return json({ error: "structure must have director + branches[]" }, 400, request);
+  }
+  incoming.updatedAt = new Date().toISOString();
+  incoming.updatedBy = guard.me?.canonicalUid || guard.me?.email || null;
+  const v = JSON.stringify(incoming);
+  await env.DB.prepare(`
+    INSERT INTO kv (k, v) VALUES (?, ?)
+    ON CONFLICT(k) DO UPDATE SET v = excluded.v
+  `).bind('org:structure', v).run();
+  return json({ ok: true, structure: incoming }, 200, request);
+}
+
 // ── Phase 0 routes ──────────────────────────────────────
 async function handleHealth(request, env) {
   try {
@@ -2921,6 +2987,14 @@ export default {
     const waChannelQrMatch = path.match(/^\/api\/wa\/channels\/([^/]+)\/qr$/);
     if (waChannelQrMatch && request.method === "GET") {
       return handleWaChannelQr(request, env, waChannelQrMatch[1]);
+    }
+
+    // ── /api/org/structure — иерархия компании ────────────────────────
+    if (path === "/api/org/structure" && request.method === "GET") {
+      return handleOrgStructureGet(request, env);
+    }
+    if (path === "/api/org/structure" && request.method === "PUT") {
+      return handleOrgStructurePut(request, env);
     }
 
     return json({ ok: false, error: "not found", path }, 404, request);
