@@ -11474,7 +11474,6 @@ const orgChartState = {
   loaded: false,
   structure: null,
   dirty: false,
-  view: 'cards',   // cards (редактирование) | tree (визуализация древа)
 };
 
 async function renderOrgChart(el) {
@@ -11487,16 +11486,11 @@ async function renderOrgChart(el) {
           ${isAdmin ? 'Древовидная иерархия с руководителями и сотрудниками. Изменения применяются после нажатия «Сохранить».' : 'Иерархия компании. Только администратор может редактировать.'}
         </div>
       </div>
+      ${isAdmin ? `
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <div style="display:flex;background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:2px">
-          <button class="org-view-btn ${orgChartState.view === 'cards' ? 'active' : ''}" data-view="cards" style="border:none;background:${orgChartState.view === 'cards' ? 'var(--ac)' : 'transparent'};color:${orgChartState.view === 'cards' ? '#fff' : 'var(--t2)'};padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px">🃏 Карты</button>
-          <button class="org-view-btn ${orgChartState.view === 'tree' ? 'active' : ''}" data-view="tree" style="border:none;background:${orgChartState.view === 'tree' ? 'var(--ac)' : 'transparent'};color:${orgChartState.view === 'tree' ? '#fff' : 'var(--t2)'};padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px">🌳 Древо</button>
-        </div>
-        ${isAdmin ? `
-          <span id="org-save-status" style="font-size:12px;color:var(--t3)"></span>
-          <button class="btn btn-sm" id="org-save-btn" disabled style="background:var(--ac);color:#fff;border:none;padding:8px 18px">💾 Сохранить</button>
-        ` : ''}
-      </div>
+        <span id="org-save-status" style="font-size:12px;color:var(--t3)"></span>
+        <button class="btn btn-sm" id="org-save-btn" disabled style="background:var(--ac);color:#fff;border:none;padding:8px 18px">💾 Сохранить</button>
+      </div>` : ''}
     </div>
     <div id="org-tree" style="margin-top:14px">
       <div class="card" style="padding:30px;text-align:center;color:var(--t3)">⏳ Загружаем структуру...</div>
@@ -11522,14 +11516,6 @@ async function renderOrgChart(el) {
       document.getElementById('org-tree').addEventListener('click', handleOrgClick);
       document.getElementById('org-tree').addEventListener('keydown', handleOrgKeydown);
     }
-    // Тоггл «Карты / Древо» — доступен всем
-    el.querySelectorAll('.org-view-btn').forEach(b => {
-      b.addEventListener('click', () => {
-        if (orgChartState.view === b.dataset.view) return;
-        orgChartState.view = b.dataset.view;
-        renderOrgChart(el);
-      });
-    });
   } catch (e) {
     document.getElementById('org-tree').innerHTML =
       `<div class="card" style="padding:20px;color:#c00">Ошибка загрузки: ${escapeHtml(e.message)}</div>`;
@@ -11582,136 +11568,11 @@ function orgMembersHtml(memberUids, dataPath, readOnly) {
   </div>`;
 }
 
-// Диспетчер: вызывается отовсюду (handlers, save), решает что рендерить
+// Главный рендер дерева — единственный режим. Вызывается из handlers + save.
 function renderOrgChartTree(treeEl, isAdmin) {
-  if (orgChartState.view === 'tree') {
-    renderOrgChartTreeView(treeEl);
-  } else {
-    renderOrgChartCardsView(treeEl, isAdmin);
-  }
+  renderOrgChartTreeView(treeEl, isAdmin);
 }
 
-function renderOrgChartCardsView(treeEl, isAdmin) {
-  const s = orgChartState.structure;
-  if (!s) return;
-  // datalist всех пользователей для autocomplete
-  const datalistOpts = orgSortedUsers().map(u =>
-    `<option value="${escapeHtml(u.label)}" data-uid="${escapeHtml(u.uid)}">`
-  ).join('');
-
-  // Директор
-  const directorTitle = s.director?.title || 'Директор';
-  const dirHeadInput = isAdmin
-    ? `<input class="qad-input" style="font-size:15px;padding:6px 10px;max-width:220px;font-weight:600" value="${escapeHtml(directorTitle)}" data-org-action="director-title" placeholder="Директор">`
-    : `<span style="font-size:15px;font-weight:600;color:var(--t1)">${escapeHtml(directorTitle)}</span>`;
-  const directorCard = `
-    <div class="card" style="background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;padding:14px 18px;margin-bottom:18px">
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <div style="font-size:26px">👔</div>
-        <div style="flex:1;min-width:200px">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#92400e;margin-bottom:4px">Верхний уровень</div>
-          ${dirHeadInput}
-          <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <span style="font-size:12px;color:#78350f">Кто:</span>
-            ${orgHeadSelectHtml(s.director?.uid, 'director', !isAdmin)}
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-
-  // 7 отделений
-  let branchesHtml = '';
-  for (let bi = 0; bi < s.branches.length; bi++) {
-    const branch = s.branches[bi];
-    const bPath = `branches.${bi}`;
-    const nameInput = isAdmin
-      ? `<input class="qad-input" style="font-size:15px;padding:6px 10px;font-weight:600;min-width:220px" value="${escapeHtml(branch.name)}" data-org-action="rename" data-org-path="${escapeHtml(bPath)}.name">`
-      : `<h3 style="margin:0;font-size:15px;color:var(--t1)">${escapeHtml(branch.name)}</h3>`;
-
-    // Отделы
-    let deptsHtml = '';
-    for (let di = 0; di < (branch.departments || []).length; di++) {
-      const dept = branch.departments[di];
-      const dPath = `${bPath}.departments.${di}`;
-      const dNameInput = isAdmin
-        ? `<input class="qad-input" style="font-size:14px;padding:5px 8px;font-weight:600;min-width:200px" value="${escapeHtml(dept.name)}" data-org-action="rename" data-org-path="${escapeHtml(dPath)}.name">`
-        : `<h4 style="margin:0;font-size:14px;color:var(--t1)">${escapeHtml(dept.name)}</h4>`;
-
-      // Подотделы
-      let subsHtml = '';
-      for (let si = 0; si < (dept.subDepartments || []).length; si++) {
-        const sub = dept.subDepartments[si];
-        const sPath = `${dPath}.subDepartments.${si}`;
-        const sNameInput = isAdmin
-          ? `<input class="qad-input" style="font-size:13px;padding:4px 8px;font-weight:500;min-width:180px" value="${escapeHtml(sub.name)}" data-org-action="rename" data-org-path="${escapeHtml(sPath)}.name">`
-          : `<span style="font-size:13px;font-weight:500;color:var(--t1)">${escapeHtml(sub.name)}</span>`;
-        subsHtml += `<div style="background:var(--bg1);border:1px solid var(--b1);border-radius:6px;padding:10px 12px;margin-top:8px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            ${sNameInput}
-            ${isAdmin ? `<button class="btn btn-sm" data-org-action="del-sub" data-org-path="${escapeHtml(sPath)}" title="Удалить подотдел" style="margin-left:auto;color:#c00">🗑</button>` : ''}
-          </div>
-          <div style="font-size:12px;color:var(--t3);margin-bottom:4px">Руководитель:</div>
-          ${orgHeadSelectHtml(sub.headUid, sPath + '.headUid', !isAdmin)}
-          <div style="font-size:12px;color:var(--t3);margin:8px 0 4px">Сотрудники:</div>
-          ${orgMembersHtml(sub.memberUids, sPath + '.memberUids', !isAdmin)}
-        </div>`;
-      }
-
-      const arrows = isAdmin
-        ? `<button class="btn btn-sm" data-org-action="move-dept" data-org-path="${escapeHtml(dPath)}" data-org-dir="left" title="Влево" ${di === 0 ? 'disabled' : ''} style="padding:4px 8px">←</button>
-           <button class="btn btn-sm" data-org-action="move-dept" data-org-path="${escapeHtml(dPath)}" data-org-dir="right" title="Вправо" ${di === branch.departments.length - 1 ? 'disabled' : ''} style="padding:4px 8px">→</button>`
-        : '';
-      deptsHtml += `<div style="background:var(--bg2);border:1px solid var(--b1);border-radius:8px;padding:12px 14px;flex:0 0 320px;min-width:300px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-          ${arrows}
-          ${dNameInput}
-          ${isAdmin ? `<button class="btn btn-sm" data-org-action="del-dept" data-org-path="${escapeHtml(dPath)}" title="Удалить отдел" style="margin-left:auto;color:#c00">🗑</button>` : ''}
-        </div>
-        <div style="font-size:12px;color:var(--t3);margin-bottom:4px">Руководитель:</div>
-        ${orgHeadSelectHtml(dept.headUid, dPath + '.headUid', !isAdmin)}
-        <div style="font-size:12px;color:var(--t3);margin:8px 0 4px">Сотрудники:</div>
-        ${orgMembersHtml(dept.memberUids, dPath + '.memberUids', !isAdmin)}
-        <div style="margin-top:12px;padding-top:8px;border-top:1px dashed var(--b1)">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);margin-bottom:4px">Подотделы</div>
-          ${subsHtml || `<div style="font-size:12px;color:var(--t3);padding:4px 0">${isAdmin ? 'Нет подотделов' : '—'}</div>`}
-          ${isAdmin ? `<button class="btn btn-sm" data-org-action="add-sub" data-org-path="${escapeHtml(dPath)}" style="margin-top:8px">+ Подотдел</button>` : ''}
-        </div>
-      </div>`;
-    }
-
-    branchesHtml += `<div class="card" style="padding:14px 18px;margin-bottom:14px;background:var(--bg2)">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-        <span style="font-size:18px">🏢</span>
-        ${nameInput}
-      </div>
-      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px">
-        <div style="flex:1;min-width:240px">
-          <div style="font-size:12px;color:var(--t3);margin-bottom:4px">Руководитель отделения:</div>
-          ${orgHeadSelectHtml(branch.headUid, bPath + '.headUid', !isAdmin)}
-        </div>
-        <div style="flex:2;min-width:300px">
-          <div style="font-size:12px;color:var(--t3);margin-bottom:4px">Сотрудники отделения (вне отделов):</div>
-          ${orgMembersHtml(branch.memberUids, bPath + '.memberUids', !isAdmin)}
-        </div>
-      </div>
-      <div style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);margin-bottom:8px">Отделы</div>
-      <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;align-items:flex-start">
-        ${deptsHtml || (isAdmin ? '' : '<div style="font-size:12px;color:var(--t3);padding:8px 0">Отделов нет</div>')}
-        ${isAdmin ? `<div style="flex:0 0 auto;align-self:stretch;min-width:140px;display:flex">
-          <button class="btn btn-sm" data-org-action="add-dept" data-org-path="${escapeHtml(bPath)}"
-            style="flex:1;border:2px dashed var(--b1);background:transparent;color:var(--t2);padding:14px">+ Отдел</button>
-        </div>` : ''}
-      </div>
-    </div>`;
-  }
-
-  treeEl.innerHTML = `
-    <datalist id="org-users-list">${datalistOpts}</datalist>
-    ${directorCard}
-    ${branchesHtml}
-  `;
-}
 
 // Утилиты для path вида "branches.0.departments.1.name"
 function orgGetByPath(path) {
@@ -11748,7 +11609,7 @@ function handleOrgInput(ev) {
     orgMarkDirty();
     return;
   }
-  if (action === 'rename') {
+  if (action === 'rename' || action === 'notes') {
     orgSetByPath(t.dataset.orgPath, t.value);
     orgMarkDirty();
     return;
@@ -11819,19 +11680,9 @@ function handleOrgClick(ev) {
       name: 'Новый отдел',
       headUid: null,
       memberUids: [],
+      notes: '',
       subDepartments: [],
     });
-    orgMarkDirty();
-    renderOrgChartTree(document.getElementById('org-tree'), true);
-    return;
-  }
-  if (action === 'del-dept') {
-    if (!confirm('Удалить отдел и все его подотделы?')) return;
-    const parts = path.split('.');
-    const idx = parseInt(parts.pop(), 10);
-    parts.pop(); // 'departments'
-    const branch = orgGetByPath(parts.join('.'));
-    branch.departments.splice(idx, 1);
     orgMarkDirty();
     renderOrgChartTree(document.getElementById('org-tree'), true);
     return;
@@ -11844,219 +11695,385 @@ function handleOrgClick(ev) {
       name: 'Новый подотдел',
       headUid: null,
       memberUids: [],
+      notes: '',
     });
     orgMarkDirty();
     renderOrgChartTree(document.getElementById('org-tree'), true);
     return;
   }
-  if (action === 'del-sub') {
-    if (!confirm('Удалить подотдел?')) return;
+  // Универсальное удаление узла по path (отдел, подотдел; отделения не удаляются)
+  if (action === 'del-node') {
     const parts = path.split('.');
     const idx = parseInt(parts.pop(), 10);
-    parts.pop(); // 'subDepartments'
-    const dept = orgGetByPath(parts.join('.'));
-    dept.subDepartments.splice(idx, 1);
+    const arrName = parts.pop();
+    const parentPath = parts.join('.');
+    const parent = parentPath ? orgGetByPath(parentPath) : orgChartState.structure;
+    const arr = parent[arrName];
+    if (!Array.isArray(arr)) return;
+    const node = arr[idx];
+    const label = node?.name || 'узел';
+    const hasChildren = (node?.subDepartments?.length > 0) || (node?.departments?.length > 0);
+    if (!confirm(`Удалить «${label}»${hasChildren ? ' и все вложенные элементы' : ''}?`)) return;
+    arr.splice(idx, 1);
     orgMarkDirty();
     renderOrgChartTree(document.getElementById('org-tree'), true);
     return;
   }
-  if (action === 'move-dept') {
+  // Универсальный реордер сиблингов (left/right). Path указывает на узел.
+  if (action === 'move') {
     const dir = btn.dataset.orgDir;
     const parts = path.split('.');
     const idx = parseInt(parts.pop(), 10);
-    parts.pop(); // 'departments'
-    const branch = orgGetByPath(parts.join('.'));
-    const newIdx = dir === 'left' ? idx - 1 : idx + 1;
-    if (newIdx < 0 || newIdx >= branch.departments.length) return;
-    const [moved] = branch.departments.splice(idx, 1);
-    branch.departments.splice(newIdx, 0, moved);
+    const arrName = parts.pop();
+    const parentPath = parts.join('.');
+    const parent = parentPath ? orgGetByPath(parentPath) : orgChartState.structure;
+    const arr = parent[arrName];
+    if (!Array.isArray(arr)) return;
+    const newIdx = (dir === 'left' || dir === 'up') ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= arr.length) return;
+    const [moved] = arr.splice(idx, 1);
+    arr.splice(newIdx, 0, moved);
     orgMarkDirty();
     renderOrgChartTree(document.getElementById('org-tree'), true);
     return;
   }
 }
 
-// ── Tree view (визуализация древа, классический орг-чарт сверху вниз) ──
+// ── Tree view (единственный режим — древовидный орг-чарт с редактированием) ──
 
 function ensureOrgTreeStylesInjected() {
   if (document.getElementById('otv-styles')) return;
   const style = document.createElement('style');
   style.id = 'otv-styles';
   style.textContent = `
-    .otv-page { padding: 8px 4px 24px; overflow-x: auto; }
+    .otv-page { padding: 8px 4px 40px; overflow-x: auto; }
     .otv-tree, .otv-tree ul { padding: 0; margin: 0; list-style: none; }
     .otv-tree { display: flex; justify-content: center; min-width: max-content; }
     .otv-tree ul {
-      padding-top: 22px;
+      padding-top: 24px;
       position: relative;
       display: flex;
       justify-content: center;
+      align-items: flex-start;
     }
     .otv-tree li {
-      text-align: center;
       position: relative;
-      padding: 22px 8px 0;
+      padding: 24px 10px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-    /* Connectors */
+    /* Коннекторы */
     .otv-tree li::before, .otv-tree li::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      right: 50%;
+      content: ''; position: absolute; top: 0; right: 50%;
       border-top: 2px solid var(--b1, #c9ccd1);
-      width: 50%;
-      height: 22px;
+      width: 50%; height: 24px;
     }
-    .otv-tree li::after {
-      right: auto;
-      left: 50%;
-      border-left: 2px solid var(--b1, #c9ccd1);
-    }
-    .otv-tree li:only-child::before,
-    .otv-tree li:only-child::after { display: none; }
+    .otv-tree li::after { right: auto; left: 50%; border-left: 2px solid var(--b1, #c9ccd1); }
+    .otv-tree li:only-child::before, .otv-tree li:only-child::after { display: none; }
     .otv-tree li:only-child { padding-top: 0; }
-    .otv-tree li:first-child::before,
-    .otv-tree li:last-child::after { border: 0 none; }
+    .otv-tree li:first-child::before, .otv-tree li:last-child::after { border: 0 none; }
     .otv-tree li:last-child::before {
       border-right: 2px solid var(--b1, #c9ccd1);
       border-radius: 0 6px 0 0;
     }
-    .otv-tree li:first-child::after {
-      border-radius: 6px 0 0 0;
-    }
+    .otv-tree li:first-child::after { border-radius: 6px 0 0 0; }
     .otv-tree ul ul::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 50%;
+      content: ''; position: absolute; top: 0; left: 50%;
       border-left: 2px solid var(--b1, #c9ccd1);
-      width: 0;
-      height: 22px;
+      width: 0; height: 24px;
     }
-    /* Боксы узлов */
+    /* Узлы */
     .otv-node {
-      display: inline-block;
-      text-align: left;
+      display: flex; flex-direction: column; gap: 6px;
       border-radius: 10px;
-      padding: 10px 14px;
-      min-width: 170px;
-      max-width: 240px;
-      font-size: 13px;
+      padding: 10px 12px;
+      width: 240px;
+      font-size: 12.5px;
       line-height: 1.35;
       box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      text-align: left;
     }
-    .otv-node-director {
-      background: linear-gradient(135deg,#fef3c7,#fde68a);
-      border: 2px solid #f59e0b;
+    .otv-node-director { background: linear-gradient(135deg,#fef3c7,#fde68a); border: 2px solid #f59e0b; }
+    .otv-node-branch { background: linear-gradient(135deg,#e0f2fe,#bae6fd); border: 2px solid #0284c7; }
+    .otv-node-dept { background: var(--bg2, #fafbfc); border: 1px solid var(--b1, #c9ccd1); }
+    .otv-node-sub { background: var(--bg1, #ffffff); border: 1px dashed var(--b1, #c9ccd1); width: 220px; }
+    .otv-kind {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--t3, #6b7280); font-weight: 600;
     }
-    .otv-node-branch {
-      background: linear-gradient(135deg,#e0f2fe,#bae6fd);
-      border: 2px solid #0284c7;
+    .otv-title {
+      width: 100%;
+      border: none; background: transparent;
+      font-weight: 700; font-size: 14px; color: var(--t1, #111);
+      padding: 2px 4px; border-radius: 4px;
+      outline: none;
     }
-    .otv-node-dept {
-      background: var(--bg2, #fafbfc);
-      border: 1px solid var(--b1, #c9ccd1);
-      font-size: 12.5px;
+    .otv-title:hover, .otv-title:focus { background: rgba(255,255,255,0.6); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08); }
+    .otv-title[readonly] { cursor: default; }
+    .otv-title[readonly]:hover { background: transparent; box-shadow: none; }
+    .otv-row { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--t2, #4b5563); }
+    .otv-row-label { color: var(--t3, #6b7280); flex: 0 0 auto; }
+    .otv-head-select {
+      flex: 1; min-width: 0;
+      font-size: 11.5px; padding: 3px 6px;
+      border: 1px solid rgba(0,0,0,0.1); border-radius: 4px;
+      background: rgba(255,255,255,0.6); color: var(--t1, #111);
+      outline: none;
     }
-    .otv-node-sub {
-      background: var(--bg1, #ffffff);
-      border: 1px dashed var(--b1, #c9ccd1);
-      font-size: 12px;
-      min-width: 150px;
-    }
-    .otv-node-kind {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--t3, #6b7280);
-      margin-bottom: 3px;
-    }
-    .otv-node-title { font-weight: 700; color: var(--t1, #111); margin-bottom: 3px; }
-    .otv-node-head {
-      font-size: 11.5px;
-      color: var(--t2, #4b5563);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .otv-node-head .otv-head-icon { font-size: 11px; }
-    .otv-node-head-empty { color: var(--t3, #9ca3af); font-style: italic; font-size: 11px; }
-    .otv-node-members {
-      font-size: 11px;
-      color: var(--t3, #6b7280);
-      margin-top: 4px;
+    .otv-head-select:disabled { background: transparent; border-color: transparent; -webkit-appearance: none; appearance: none; padding-right: 0; cursor: default; }
+    .otv-members {
+      display: flex; flex-wrap: wrap; gap: 4px;
       padding-top: 4px;
       border-top: 1px dashed rgba(0,0,0,0.08);
     }
+    .otv-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid rgba(0,0,0,0.08); border-radius: 10px;
+      padding: 1px 3px 1px 7px; font-size: 11px;
+      color: var(--t1, #111);
+    }
+    .otv-chip-x {
+      background: none; border: none; cursor: pointer;
+      color: var(--t3, #6b7280); font-size: 13px; line-height: 1;
+      padding: 0 3px;
+    }
+    .otv-chip-x:hover { color: #c00; }
+    .otv-add-member {
+      border: 1px dashed rgba(0,0,0,0.2);
+      background: transparent; color: var(--t2, #4b5563);
+      padding: 2px 8px; border-radius: 10px; font-size: 11px;
+      outline: none; min-width: 110px;
+    }
+    .otv-add-member:focus { border-style: solid; }
+    .otv-notes {
+      width: 100%;
+      border: 1px solid rgba(0,0,0,0.08); border-radius: 4px;
+      background: rgba(255,255,255,0.5);
+      padding: 4px 6px;
+      font-size: 11px; font-family: inherit;
+      color: var(--t2, #4b5563);
+      resize: vertical; min-height: 28px;
+      outline: none;
+    }
+    .otv-notes:focus { background: rgba(255,255,255,0.9); border-color: rgba(0,0,0,0.2); }
+    .otv-notes[readonly] {
+      background: rgba(0,0,0,0.03); border-color: transparent;
+      font-style: italic; cursor: default;
+    }
+    .otv-notes-readonly-display {
+      font-size: 11px; color: var(--t3, #6b7280); font-style: italic;
+      padding: 4px 6px;
+      background: rgba(0,0,0,0.03); border-radius: 4px;
+    }
+    .otv-actions {
+      display: flex; gap: 4px;
+      padding-top: 4px;
+      border-top: 1px dashed rgba(0,0,0,0.08);
+      flex-wrap: wrap;
+    }
+    .otv-action-btn {
+      background: rgba(255,255,255,0.5);
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 4px;
+      padding: 3px 8px; font-size: 11px;
+      cursor: pointer;
+      color: var(--t2, #4b5563);
+      line-height: 1;
+    }
+    .otv-action-btn:hover:not(:disabled) { background: rgba(255,255,255,0.9); color: var(--t1, #111); }
+    .otv-action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .otv-action-btn-danger:hover:not(:disabled) { color: #c00; border-color: #c00; }
+    .otv-action-btn-add { border-style: dashed; }
+    /* "+ Add" псевдоузел как последний sibling */
+    .otv-tree li.otv-add-li { padding-top: 24px; }
+    .otv-add-pseudo {
+      display: flex; align-items: center; justify-content: center;
+      width: 100px; min-height: 60px;
+      border: 2px dashed var(--b1, #c9ccd1);
+      border-radius: 10px;
+      background: transparent;
+      color: var(--t2, #4b5563);
+      font-size: 12px; cursor: pointer;
+      align-self: center;
+    }
+    .otv-add-pseudo:hover { border-color: var(--ac, #4f46e5); color: var(--ac, #4f46e5); background: rgba(79,70,229,0.05); }
     /* Тёмная тема */
     [data-theme="dark"] .otv-node-director {
-      background: linear-gradient(135deg, #78350f, #92400e);
-      color: #fef3c7;
+      background: linear-gradient(135deg, #78350f, #92400e); color: #fef3c7;
     }
-    [data-theme="dark"] .otv-node-director .otv-node-title { color: #fff7ed; }
+    [data-theme="dark"] .otv-node-director .otv-title { color: #fff7ed; }
     [data-theme="dark"] .otv-node-branch {
-      background: linear-gradient(135deg,#075985,#0c4a6e);
-      color: #e0f2fe;
+      background: linear-gradient(135deg,#075985,#0c4a6e); color: #e0f2fe;
     }
-    [data-theme="dark"] .otv-node-branch .otv-node-title { color: #f0f9ff; }
+    [data-theme="dark"] .otv-node-branch .otv-title { color: #f0f9ff; }
+    [data-theme="dark"] .otv-head-select,
+    [data-theme="dark"] .otv-chip,
+    [data-theme="dark"] .otv-notes,
+    [data-theme="dark"] .otv-title:hover,
+    [data-theme="dark"] .otv-action-btn { background: rgba(0,0,0,0.25); color: inherit; }
   `;
   document.head.appendChild(style);
 }
 
-function renderOrgChartTreeView(treeEl) {
+function renderOrgChartTreeView(treeEl, isAdmin) {
   ensureOrgTreeStylesInjected();
   const s = orgChartState.structure;
   if (!s) return;
 
-  function nodeHtml(kind, title, headUid, memberUids) {
-    const headLabel = headUid ? orgUserLabel(headUid) : '';
-    const headHtml = headLabel
-      ? `<div class="otv-node-head"><span class="otv-head-icon">👤</span>${escapeHtml(headLabel)}</div>`
-      : '<div class="otv-node-head otv-node-head-empty">руководитель не назначен</div>';
-    const memberCount = (memberUids || []).length;
-    const memberHtml = memberCount > 0
-      ? `<div class="otv-node-members">👥 ${memberCount} ${pluralize(memberCount, 'сотрудник', 'сотрудника', 'сотрудников')}</div>`
+  // datalist всех сотрудников для autocomplete-добавления
+  const datalistOpts = orgSortedUsers().map(u =>
+    `<option value="${escapeHtml(u.label)}" data-uid="${escapeHtml(u.uid)}">`
+  ).join('');
+
+  // Опции для <select> "Руководитель"
+  function headSelectHtml(selectedUid, path) {
+    const opts = orgSortedUsers().map(u =>
+      `<option value="${escapeHtml(u.uid)}" ${u.uid === selectedUid ? 'selected' : ''}>${escapeHtml(u.label)}</option>`
+    ).join('');
+    return `<select class="otv-head-select" data-org-action="head" data-org-path="${escapeHtml(path)}" ${isAdmin ? '' : 'disabled'}>
+      <option value="">— не назначен —</option>
+      ${opts}
+    </select>`;
+  }
+
+  function membersHtml(memberUids, path) {
+    const chips = (memberUids || []).map(uid =>
+      `<span class="otv-chip">${escapeHtml(orgUserLabel(uid))}${isAdmin ? `<button class="otv-chip-x" data-org-action="remove-member" data-org-path="${escapeHtml(path)}" data-org-uid="${escapeHtml(uid)}" title="Убрать">×</button>` : ''}</span>`
+    ).join('');
+    const adder = isAdmin
+      ? `<input type="text" list="org-users-list" class="otv-add-member" placeholder="+ сотрудник"
+          data-org-action="add-member" data-org-path="${escapeHtml(path)}">`
       : '';
-    const kindLabels = { director: 'Директор', branch: 'Отделение', dept: 'Отдел', sub: 'Подотдел' };
+    if (!chips && !adder) return '';
+    return `<div class="otv-members">${chips}${adder}</div>`;
+  }
+
+  function notesHtml(notes, path) {
+    if (isAdmin) {
+      return `<textarea class="otv-notes" rows="2" placeholder="Примечания…"
+        data-org-action="notes" data-org-path="${escapeHtml(path)}">${escapeHtml(notes || '')}</textarea>`;
+    }
+    if (!notes) return '';
+    return `<div class="otv-notes-readonly-display">📝 ${escapeHtml(notes)}</div>`;
+  }
+
+  // Действия для узла-сиблинга (только для admin)
+  function actionsHtml({ siblingPath, siblingIdx, siblingCount, addLabel, addAction, addPath, deletable }) {
+    if (!isAdmin) return '';
+    const parts = [];
+    if (siblingCount > 1) {
+      parts.push(`<button class="otv-action-btn" data-org-action="move" data-org-dir="left" data-org-path="${escapeHtml(siblingPath)}" ${siblingIdx === 0 ? 'disabled' : ''} title="Влево">←</button>`);
+      parts.push(`<button class="otv-action-btn" data-org-action="move" data-org-dir="right" data-org-path="${escapeHtml(siblingPath)}" ${siblingIdx === siblingCount - 1 ? 'disabled' : ''} title="Вправо">→</button>`);
+    }
+    if (addLabel) {
+      parts.push(`<button class="otv-action-btn otv-action-btn-add" data-org-action="${escapeHtml(addAction)}" data-org-path="${escapeHtml(addPath)}" title="${escapeHtml(addLabel)}">${escapeHtml(addLabel)}</button>`);
+    }
+    if (deletable) {
+      parts.push(`<button class="otv-action-btn otv-action-btn-danger" data-org-action="del-node" data-org-path="${escapeHtml(siblingPath)}" title="Удалить">🗑</button>`);
+    }
+    if (!parts.length) return '';
+    return `<div class="otv-actions">${parts.join('')}</div>`;
+  }
+
+  // Узел: универсальный builder
+  function nodeBoxHtml({ kind, title, titlePath, headPath, headUid, memberUids, memberPath, notes, notesPath, kindLabel }) {
+    const titleInput = isAdmin
+      ? `<input class="otv-title" value="${escapeHtml(title)}" data-org-action="${kind === 'director' ? 'director-title' : 'rename'}" ${titlePath ? `data-org-path="${escapeHtml(titlePath)}"` : ''}>`
+      : `<input class="otv-title" value="${escapeHtml(title)}" readonly>`;
+    const headBlock = headPath
+      ? `<div class="otv-row"><span class="otv-row-label">👤</span>${headSelectHtml(headUid, headPath)}</div>`
+      : '';
+    const membersBlock = memberPath ? membersHtml(memberUids, memberPath) : '';
+    const notesBlock = notesPath ? notesHtml(notes, notesPath) : '';
     return `<div class="otv-node otv-node-${kind}">
-      <div class="otv-node-kind">${kindLabels[kind] || ''}</div>
-      <div class="otv-node-title">${escapeHtml(title)}</div>
-      ${headHtml}
-      ${memberHtml}
+      <div class="otv-kind">${escapeHtml(kindLabel)}</div>
+      ${titleInput}
+      ${headBlock}
+      ${membersBlock}
+      ${notesBlock}
     </div>`;
   }
 
-  function deptLi(dept) {
-    const subs = (dept.subDepartments || []).map(sub =>
-      `<li>${nodeHtml('sub', sub.name, sub.headUid, sub.memberUids)}</li>`
+  function subLi(sub, path, idx, siblingCount) {
+    const box = nodeBoxHtml({
+      kind: 'sub', kindLabel: 'Подотдел',
+      title: sub.name, titlePath: `${path}.name`,
+      headPath: `${path}.headUid`, headUid: sub.headUid,
+      memberUids: sub.memberUids, memberPath: `${path}.memberUids`,
+      notes: sub.notes, notesPath: `${path}.notes`,
+    });
+    const actions = actionsHtml({
+      siblingPath: path, siblingIdx: idx, siblingCount,
+      deletable: true,
+    });
+    return `<li>${box}${actions ? `<div style="margin-top:4px">${actions.replace('class="otv-actions"','class="otv-actions" style="width:220px;background:rgba(0,0,0,0.02);border-radius:6px;padding:4px 6px;border:none"')}</div>` : ''}</li>`;
+  }
+
+  function deptLi(dept, path, idx, siblingCount) {
+    const box = nodeBoxHtml({
+      kind: 'dept', kindLabel: 'Отдел',
+      title: dept.name, titlePath: `${path}.name`,
+      headPath: `${path}.headUid`, headUid: dept.headUid,
+      memberUids: dept.memberUids, memberPath: `${path}.memberUids`,
+      notes: dept.notes, notesPath: `${path}.notes`,
+    });
+    const actions = actionsHtml({
+      siblingPath: path, siblingIdx: idx, siblingCount,
+      addLabel: '+ Подотдел', addAction: 'add-sub', addPath: path,
+      deletable: true,
+    });
+    const subs = (dept.subDepartments || []).map((sub, si) =>
+      subLi(sub, `${path}.subDepartments.${si}`, si, dept.subDepartments.length)
     ).join('');
-    return `<li>
-      ${nodeHtml('dept', dept.name, dept.headUid, dept.memberUids)}
-      ${subs ? `<ul>${subs}</ul>` : ''}
-    </li>`;
+    return `<li>${box}${actions ? `<div style="margin-top:4px">${actions.replace('class="otv-actions"','class="otv-actions" style="width:240px;background:rgba(0,0,0,0.02);border-radius:6px;padding:4px 6px;border:none"')}</div>` : ''}${subs ? `<ul>${subs}</ul>` : ''}</li>`;
   }
 
-  function branchLi(branch) {
-    const depts = (branch.departments || []).map(deptLi).join('');
-    return `<li>
-      ${nodeHtml('branch', branch.name, branch.headUid, branch.memberUids)}
-      ${depts ? `<ul>${depts}</ul>` : ''}
-    </li>`;
+  function branchLi(branch, idx, siblingCount) {
+    const path = `branches.${idx}`;
+    const box = nodeBoxHtml({
+      kind: 'branch', kindLabel: 'Отделение',
+      title: branch.name, titlePath: `${path}.name`,
+      headPath: `${path}.headUid`, headUid: branch.headUid,
+      memberUids: branch.memberUids, memberPath: `${path}.memberUids`,
+      notes: branch.notes, notesPath: `${path}.notes`,
+    });
+    const actions = actionsHtml({
+      siblingPath: path, siblingIdx: idx, siblingCount,
+      addLabel: '+ Отдел', addAction: 'add-dept', addPath: path,
+      // Отделения не удаляются — их фиксированно 7
+      deletable: false,
+    });
+    const depts = (branch.departments || []).map((dept, di) =>
+      deptLi(dept, `${path}.departments.${di}`, di, branch.departments.length)
+    ).join('');
+    return `<li>${box}${actions ? `<div style="margin-top:4px">${actions.replace('class="otv-actions"','class="otv-actions" style="width:240px;background:rgba(0,0,0,0.02);border-radius:6px;padding:4px 6px;border:none"')}</div>` : ''}${depts ? `<ul>${depts}</ul>` : ''}</li>`;
   }
 
-  const branches = (s.branches || []).map(branchLi).join('');
+  const directorBox = nodeBoxHtml({
+    kind: 'director', kindLabel: 'Директор',
+    title: s.director?.title || 'Директор',
+    titlePath: null,  // спец-обработка через action 'director-title' без path
+    headPath: 'director.uid', headUid: s.director?.uid,
+    memberUids: null, memberPath: null,
+    notes: s.director?.notes, notesPath: 'director.notes',
+  });
+  const branches = (s.branches || []).map((b, i) => branchLi(b, i, s.branches.length)).join('');
+
   treeEl.innerHTML = `
+    <datalist id="org-users-list">${datalistOpts}</datalist>
     <div class="otv-page">
       <ul class="otv-tree">
         <li>
-          ${nodeHtml('director', s.director?.title || 'Директор', s.director?.uid, [])}
+          ${directorBox}
           ${branches ? `<ul>${branches}</ul>` : ''}
         </li>
       </ul>
     </div>
-    <div style="margin-top:12px;text-align:center;color:var(--t3);font-size:12px">
-      🌳 Древо — визуализация. Для редактирования переключись в «🃏 Карты».
-    </div>
+    ${isAdmin ? `<div style="margin-top:12px;text-align:center;color:var(--t3);font-size:12px">
+      💡 Все правки в памяти. Нажми «💾 Сохранить» вверху чтобы применить.
+    </div>` : ''}
   `;
 }
 
