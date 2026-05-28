@@ -2710,9 +2710,6 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
     </div>
 
     <div class="nav-section">Команда</div>
-    <div class="nav-item" data-page="users">
-      <span class="nav-icon">🧑‍💼</span><span>Сотрудники</span>
-    </div>
     <div class="nav-item" data-page="chats">
       <span class="nav-icon">💬</span><span>Чаты</span>
     </div>
@@ -2720,6 +2717,9 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
     <div class="nav-section">Инструменты</div>
     <div class="nav-item" data-page="migration">
       <span class="nav-icon">🔄</span><span>Миграция Bitrix</span>
+    </div>
+    <div class="nav-item nav-item-admin" data-page="settings" style="display:none">
+      <span class="nav-icon">⚙️</span><span>Настройки</span>
     </div>
 
     <div class="nav-spacer"></div>
@@ -3213,13 +3213,19 @@ async function initApp(user) {
       nm.innerHTML = escapeHtml(profile.name) + roleBadge;
     }
     if (em) em.textContent = user.email;
+    // Admin-only пункты sidebar (⚙ Настройки)
+    const isAdmin = window.currentUser?.role === 'admin';
+    document.querySelectorAll('.nav-item-admin').forEach(el => {
+      el.style.display = isAdmin ? '' : 'none';
+    });
   } catch (e) {
     console.warn('[initApp] sidebar UI fill failed (non-fatal):', e);
   }
 
   // Default page — восстанавливаем последнюю открытую (persist в localStorage
   // через navigate). Deep-link в hash (#deal/, #contact/, #task/) приоритетнее.
-  const VALID_PAGES = ['dashboard', 'contacts', 'deals', 'tasks', 'deeds', 'users', 'chats', 'migration'];
+  const VALID_PAGES = ['dashboard', 'contacts', 'deals', 'tasks', 'deeds', 'chats', 'migration', 'settings'];
+  // Старая страница 'users' переехала в 'settings' → редирект сохранённого значения
   let startPage = 'dashboard';
   if (location.hash.startsWith('#deal/')) startPage = 'deals';
   else if (location.hash.startsWith('#contact/')) startPage = 'contacts';
@@ -3227,7 +3233,8 @@ async function initApp(user) {
   else {
     try {
       const saved = localStorage.getItem(LAST_PAGE_LS_KEY);
-      if (saved && VALID_PAGES.includes(saved)) startPage = saved;
+      if (saved === 'users') startPage = 'settings';
+      else if (saved && VALID_PAGES.includes(saved)) startPage = saved;
     } catch {}
   }
   console.log('[initApp] navigating to', startPage);
@@ -3304,9 +3311,9 @@ function navigate(page) {
   else if (page === 'deals') renderDeals(main);
   else if (page === 'tasks') renderTasks(main);
   else if (page === 'deeds') renderDeeds(main);
-  else if (page === 'users') renderUsers(main);
   else if (page === 'chats') renderChats(main);
   else if (page === 'migration') renderMigration(main);
+  else if (page === 'settings') renderSettings(main);
 }
 
 function renderDashboard(el) {
@@ -3341,7 +3348,7 @@ function renderDashboard(el) {
           </div>
         </div>
         ${role !== 'admin' && !isLinked ? `<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:8px 12px;border-radius:6px;font-size:12px">
-          ⚠ Ваш email не привязан к существующему сотруднику.<br>Попроси админа добавить вас через «Сотрудники → +Добавить».
+          ⚠ Ваш email не привязан к существующему сотруднику.<br>Попроси админа добавить вас через «Настройки → Сотрудники → + Добавить».
         </div>` : ''}
       </div>
     </div>
@@ -3359,9 +3366,11 @@ function renderDashboard(el) {
         <div class="stat-lbl">${showSubtitle} · Задачи</div>
         <div class="stat-val ca" id="s-tasks">—</div>
       </div>
-      <div class="stat" data-section="users" style="cursor:pointer">
+      <div class="stat" data-section="settings" style="cursor:pointer;position:relative">
         <div class="stat-lbl">Сотрудники</div>
         <div class="stat-val ct" id="s-users">—</div>
+        ${role === 'admin' ? `<button id="dash-add-user" title="Добавить сотрудника"
+          style="position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;border:none;background:var(--ac);color:#fff;font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">+</button>` : ''}
       </div>
     </div>
 
@@ -3384,6 +3393,14 @@ function renderDashboard(el) {
   el.querySelectorAll('.stat[data-section]').forEach(s => {
     s.addEventListener('click', () => navigate(s.dataset.section));
   });
+  // Quick-add «+ Сотрудник» на стат-карточке (только для admin)
+  const addUserBtn = el.querySelector('#dash-add-user');
+  if (addUserBtn) {
+    addUserBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openAddUserModal();
+    });
+  }
 }
 
 async function loadDashboardDataStatus() {
@@ -11446,19 +11463,248 @@ async function loadAndRenderWaThreadMessages({ silent = false } = {}) {
   }
 }
 
-async function renderUsers(el) {
+// ═════════════════════════════════════════════════════════════════════════
+//   НАСТРОЙКИ (admin only) — Сотрудники / Каналы / Журнал
+// ═════════════════════════════════════════════════════════════════════════
+const settingsState = {
+  tab: 'users',   // users | channels | audit
+  channelsSubTab: 'whatsapp',  // whatsapp | binotel
+};
+
+async function renderSettings(el) {
   const isAdmin = window.currentUser?.role === 'admin';
+  if (!isAdmin) {
+    el.innerHTML = `
+      <div class="page-title">⚙️ Настройки</div>
+      <div class="card" style="padding:30px;text-align:center;color:var(--t3);font-size:13px">
+        Раздел доступен только администраторам.
+      </div>`;
+    return;
+  }
   el.innerHTML = `
-    <div class="page-title">🧑‍💼 Сотрудники</div>
-    <div class="page-sub">${isAdmin ? 'Управление ролями и доступом. Изменения в роли применяются мгновенно.' : 'Пользователи портала.'}</div>
+    <div class="page-title">⚙️ Настройки</div>
+    <div class="page-sub">Управление сотрудниками, каналами коммуникаций и просмотр истории изменений.</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="vt-btn ${settingsState.tab === 'users' ? 'active' : ''}" data-stab="users">🧑‍💼 Сотрудники</button>
+      <button class="vt-btn ${settingsState.tab === 'channels' ? 'active' : ''}" data-stab="channels">🔌 Каналы подключения</button>
+      <button class="vt-btn ${settingsState.tab === 'audit' ? 'active' : ''}" data-stab="audit">📋 Журнал</button>
+    </div>
+    <div id="settings-content"></div>
+  `;
+  el.querySelectorAll('.vt-btn[data-stab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      settingsState.tab = btn.dataset.stab;
+      renderSettings(el);
+    });
+  });
+  const content = document.getElementById('settings-content');
+  if (settingsState.tab === 'users') {
+    await renderUsers(content, { embedded: true });
+  } else if (settingsState.tab === 'channels') {
+    await renderSettingsChannels(content);
+  } else if (settingsState.tab === 'audit') {
+    await renderSettingsAudit(content);
+  }
+}
+
+async function renderSettingsChannels(el) {
+  el.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="vt-btn ${settingsState.channelsSubTab === 'whatsapp' ? 'active' : ''}" data-csub="whatsapp">💬 WhatsApp</button>
+      <button class="vt-btn ${settingsState.channelsSubTab === 'binotel' ? 'active' : ''}" data-csub="binotel">📞 Бинотел (SIP)</button>
+    </div>
+    <div id="channels-subcontent"></div>
+  `;
+  el.querySelectorAll('.vt-btn[data-csub]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      settingsState.channelsSubTab = btn.dataset.csub;
+      renderSettingsChannels(el);
+    });
+  });
+  const sub = document.getElementById('channels-subcontent');
+  if (settingsState.channelsSubTab === 'whatsapp') {
+    await renderSettingsChannelsWa(sub);
+  } else {
+    renderSettingsChannelsBinotel(sub);
+  }
+}
+
+async function renderSettingsChannelsWa(el) {
+  el.innerHTML = `
+    <div class="card" style="padding:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div>
+          <h3 style="margin:0;font-size:16px">💬 WhatsApp (Green-API)</h3>
+          <div style="color:var(--t3);font-size:12px;margin-top:4px">Подключённые номера и настройка новых каналов</div>
+        </div>
+        <button class="btn btn-sm" id="wa-add-channel-btn" style="background:#25D366;color:#fff;border:none">➕ Подключить канал</button>
+      </div>
+      <div id="settings-wa-channels"><div class="empty">Загрузка…</div></div>
+      <div style="margin-top:14px;padding:12px 14px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--t2);line-height:1.6">
+        💡 <b>Как это работает:</b> один канал = один Green-API инстанс (номер). Создаёшь инстанс на <a href="https://green-api.com" target="_blank" style="color:var(--ac)">green-api.com</a>, привязываешь WhatsApp по QR, вставляешь idInstance + apiToken сюда. Входящие сообщения автоматически попадают в чаты и могут создавать сделки.
+      </div>
+    </div>
+  `;
+  document.getElementById('wa-add-channel-btn').onclick = openWaChannelsModal;
+  // Список существующих каналов
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const data = await fetch(`${WORKER_BASE_URL}/api/wa/channels`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    }).then(r => r.ok ? r.json() : null);
+    const items = data?.items || [];
+    const wrap = document.getElementById('settings-wa-channels');
+    if (!items.length) {
+      wrap.innerHTML = `<div style="padding:14px;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;font-size:13px;color:#92400e">
+        ℹ️ Каналов пока нет. Нажми «➕ Подключить канал» чтобы добавить первый.
+      </div>`;
+      return;
+    }
+    let html = '<div style="display:flex;flex-direction:column;gap:10px">';
+    for (const c of items) {
+      const pipeName = dealsState.pipelines?.[c.default_pipeline_id]?.name || '—';
+      html += `<div style="border:1px solid var(--b1);border-radius:8px;padding:12px 14px;background:var(--bg2);display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600;color:var(--t1)">${escapeHtml(c.display_name || 'Green-API ' + c.id_instance)}</div>
+          <div style="font-size:12px;color:var(--t3);margin-top:3px">id: <code>${escapeHtml(c.id_instance)}</code> · воронка: ${escapeHtml(pipeName)} · ${c.active ? '🟢 активен' : '⏸ отключен'}</div>
+        </div>
+        <button class="btn btn-sm" data-edit-channel="${escapeHtml(c.id)}">⚙ Настроить</button>
+      </div>`;
+    }
+    html += '</div>';
+    wrap.innerHTML = html;
+    wrap.querySelectorAll('[data-edit-channel]').forEach(b => {
+      b.addEventListener('click', openWaChannelsModal);
+    });
+  } catch (e) {
+    document.getElementById('settings-wa-channels').innerHTML =
+      `<div class="empty" style="color:#c00">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderSettingsChannelsBinotel(el) {
+  el.innerHTML = `
+    <div class="card" style="padding:18px">
+      <h3 style="margin:0 0 6px 0;font-size:16px">📞 Бинотел — SIP-телефония</h3>
+      <div style="color:var(--t3);font-size:12px;margin-bottom:14px">Браузерные звонки через Asterisk на Hetzner CPX42 + Binotel trunk</div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px">
+        <div style="border:1px solid var(--b1);border-radius:8px;padding:12px 14px;background:var(--bg2)">
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">SIP-сервер</div>
+          <div style="font-size:13px;color:var(--t1);font-family:monospace">178-105-90-157.nip.io</div>
+        </div>
+        <div style="border:1px solid var(--b1);border-radius:8px;padding:12px 14px;background:var(--bg2)">
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Asterisk endpoint</div>
+          <div style="font-size:13px;color:var(--t1);font-family:monospace">100 (WSS:8089)</div>
+        </div>
+        <div style="border:1px solid var(--b1);border-radius:8px;padding:12px 14px;background:var(--bg2)">
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Binotel trunk</div>
+          <div style="font-size:13px;color:var(--t1);font-family:monospace">sip52.binotel.com</div>
+        </div>
+        <div style="border:1px solid var(--b1);border-radius:8px;padding:12px 14px;background:var(--bg2)">
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Кодек</div>
+          <div style="font-size:13px;color:var(--t1);font-family:monospace">alaw (passthrough)</div>
+        </div>
+      </div>
+
+      <div style="padding:14px;background:#dcfce7;border:1px solid #16a34a;border-radius:8px;font-size:13px;color:#15803d;line-height:1.6;margin-bottom:14px">
+        ✅ <b>Двусторонний голос работает</b> (с 2026-05-26). Все операторы шарят endpoint <code>100</code>, входящий звонит всем сразу.
+      </div>
+
+      <div style="padding:12px 14px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--t2);line-height:1.7">
+        <b>Что доступно:</b><br>
+        · Кнопка 📞 в карточке контакта/сделки — исходящий звонок<br>
+        · История звонков в timeline сделки + контакта<br>
+        · Запись и длительность звонка (через <code>call_log</code>)<br><br>
+        <b>Что не настроено:</b><br>
+        · Per-user endpoints (свой SIP-номер для каждого оператора)<br>
+        · Incoming UI (автопринятие, всплывашка с номером + переход в контакт)
+      </div>
+    </div>
+  `;
+}
+
+async function renderSettingsAudit(el) {
+  el.innerHTML = `
+    <div class="card" style="padding:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div>
+          <h3 style="margin:0;font-size:16px">📋 Журнал изменений</h3>
+          <div style="color:var(--t3);font-size:12px;margin-top:4px">Последние 200 событий: смена ролей, создание/деактивация сотрудников, изменения сделок и задач</div>
+        </div>
+        <button class="btn btn-sm" id="audit-refresh-btn">🔄 Обновить</button>
+      </div>
+      <div id="settings-audit-content"><div class="empty">Загрузка…</div></div>
+    </div>
+  `;
+  document.getElementById('audit-refresh-btn').onclick = () => renderSettingsAudit(el);
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const data = await fetch(`${WORKER_BASE_URL}/api/admin/audit?limit=200`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    }).then(r => r.ok ? r.json() : null);
+    const wrap = document.getElementById('settings-audit-content');
+    if (!data || !data.items || !data.items.length) {
+      wrap.innerHTML = '<div class="empty">Событий пока нет.</div>';
+      return;
+    }
+    const ACTION_LABELS = {
+      role_grant: '🎖 Изменение роли',
+      user_create: '➕ Создан сотрудник',
+      user_deactivate: '🚫 Деактивирован',
+      user_activate: '↩ Восстановлен',
+      record_patch: '✏️ Изменение',
+      record_create: '➕ Создание',
+      record_delete: '🗑 Удаление',
+    };
+    let html = '<table class="dtable" style="font-size:12px;width:100%"><thead><tr><th>Когда</th><th>Кто</th><th>Действие</th><th>Объект</th><th>Детали</th></tr></thead><tbody>';
+    for (const e of data.items) {
+      const dt = new Date((e.createdAt || '').replace(' ', 'T') + 'Z');
+      const when = isNaN(dt) ? (e.createdAt || '—') : dt.toLocaleString('ru', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const actor = e.actorEmail || e.actorUid || '—';
+      const action = ACTION_LABELS[e.action] || e.action;
+      const target = e.targetType ? `${escapeHtml(e.targetType)}:${escapeHtml(String(e.targetId || '—').slice(0, 14))}` : '—';
+      let details = '';
+      if (e.meta) {
+        if (e.meta.old && e.meta.new) {
+          const keys = new Set([...Object.keys(e.meta.old || {}), ...Object.keys(e.meta.new || {})]);
+          const parts = [];
+          for (const k of keys) {
+            const o = e.meta.old?.[k]; const n = e.meta.new?.[k];
+            if (o !== n) parts.push(`${escapeHtml(k)}: ${escapeHtml(String(o ?? '∅'))} → ${escapeHtml(String(n ?? '∅'))}`);
+          }
+          details = parts.join('; ');
+        } else if (e.meta.fields) {
+          details = 'поля: ' + e.meta.fields.join(', ');
+        } else {
+          details = escapeHtml(JSON.stringify(e.meta).slice(0, 80));
+        }
+      }
+      html += `<tr>
+        <td style="color:var(--t3);white-space:nowrap">${escapeHtml(when)}</td>
+        <td>${escapeHtml(actor)}</td>
+        <td>${escapeHtml(action)}</td>
+        <td style="color:var(--t3);font-size:11px;font-family:monospace">${target}</td>
+        <td style="color:var(--t2);font-size:11px">${details}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  } catch (e) {
+    document.getElementById('settings-audit-content').innerHTML = '<div class="empty" style="color:#c00">Ошибка: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function renderUsers(el, opts = {}) {
+  const isAdmin = window.currentUser?.role === 'admin';
+  const embedded = opts.embedded === true; // вызвано из renderSettings — без page-title
+  el.innerHTML = `
+    ${embedded ? '' : `<div class="page-title">🧑‍💼 Сотрудники</div>
+    <div class="page-sub">${isAdmin ? 'Управление ролями и доступом. Изменения в роли применяются мгновенно.' : 'Пользователи портала.'}</div>`}
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <h3 style="margin:0;flex:1">Список</h3>
-        ${isAdmin ? `
-          <button class="btn btn-sm" id="wa-channels-btn" title="WhatsApp каналы">💬 WhatsApp</button>
-          <button class="btn btn-sm" id="audit-log-btn" title="История изменений">📋 Журнал</button>
-          <button class="btn btn-sm" id="add-user-btn">+ Добавить сотрудника</button>
-        ` : ''}
+        ${isAdmin ? `<button class="btn btn-sm" id="add-user-btn">+ Добавить сотрудника</button>` : ''}
       </div>
       <div id="users-list"><div class="empty">Загрузка...</div></div>
     </div>
@@ -11484,8 +11730,6 @@ async function renderUsers(el) {
     window.__elcDepartments = (depts && depts.items) || [];
     renderUsersAdminTable(data.items);
     document.getElementById('add-user-btn').onclick = openAddUserModal;
-    document.getElementById('audit-log-btn').onclick = openAuditLogModal;
-    document.getElementById('wa-channels-btn').onclick = openWaChannelsModal;
   } else {
     // Не-admin: простой read-only список через RTDB-proxy
     const idToken = await fbAuth.currentUser.getIdToken();
