@@ -168,7 +168,7 @@ export function ROLES() {
   ];
 }
 
-export const ALL_PERMISSIONS = ["dashboard", "contacts", "crm", "warehouse", "calls", "tasks", "feed", "chat", "settings", "field"];
+export const ALL_PERMISSIONS = ["dashboard", "contacts", "crm", "warehouse", "calls", "tasks", "feed", "chat", "settings", "field", "docs", "contracts", "delivery-points"];
 
 export function currentPermissions() {
   const me = currentEmployee();

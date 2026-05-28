@@ -915,7 +915,7 @@ async function handleAgreementPost(env, id, request) {
     throw new HttpError(400, "Поле 'event' обязательно");
   }
   const user = String(event.user || "").trim().toLowerCase();
-  if (!user || !["karlygash", "asem", "pllato"].includes(user)) {
+  if (!user || !["karlygash", "asem", "pllato", "alla", "aikyn", "manager", "warehouse", "guest"].includes(user)) {
     throw new HttpError(400, "Неизвестный пользователь");
   }
 
@@ -980,6 +980,51 @@ async function handleAgreementPost(env, id, request) {
     state.finalized = { by: user, at: now };
   } else if (event.type === "unfinalize") {
     state.finalized = null;
+  } else if (event.type === "setTaskStatus") {
+    // Изменение статуса задачи онбординга: new | in_progress | done | blocked
+    const itemId = String(event.itemId || "").trim();
+    const status = String(event.status || "").trim();
+    if (!itemId) throw new HttpError(400, "itemId обязателен");
+    if (!["new", "in_progress", "done", "blocked"].includes(status)) {
+      throw new HttpError(400, "Неизвестный статус");
+    }
+    if (!state.taskStatuses || typeof state.taskStatuses !== "object") state.taskStatuses = {};
+    state.taskStatuses[itemId] = { status, user, at: now };
+  } else if (event.type === "claimTask") {
+    // Назначить себя ответственным за задачу
+    const itemId = String(event.itemId || "").trim();
+    if (!itemId) throw new HttpError(400, "itemId обязателен");
+    if (!state.taskAssignees || typeof state.taskAssignees !== "object") state.taskAssignees = {};
+    state.taskAssignees[itemId] = { user, at: now };
+  } else if (event.type === "unclaimTask") {
+    const itemId = String(event.itemId || "").trim();
+    if (!itemId) throw new HttpError(400, "itemId обязателен");
+    if (state.taskAssignees && state.taskAssignees[itemId]) {
+      delete state.taskAssignees[itemId];
+    }
+  } else if (event.type === "attachLink") {
+    // Прикрепить URL-ссылку к задаче (Google Drive / WhatsApp файл / Dropbox …)
+    const itemId = String(event.itemId || "").trim();
+    const url = String(event.url || "").trim();
+    const label = String(event.label || "").trim();
+    if (!itemId) throw new HttpError(400, "itemId обязателен");
+    if (!url) throw new HttpError(400, "url обязателен");
+    if (!/^https?:\/\//.test(url)) throw new HttpError(400, "URL должен начинаться с http(s)://");
+    if (url.length > 2000) throw new HttpError(400, "URL слишком длинный");
+    if (!Array.isArray(state.attachments)) state.attachments = [];
+    state.attachments.push({
+      id: `att_${now}_${Math.random().toString(36).slice(2, 6)}`,
+      itemId, url, label: label || url, user, at: now,
+    });
+    if (state.attachments.length > 500) state.attachments = state.attachments.slice(-500);
+  } else if (event.type === "removeAttachment") {
+    const attId = String(event.attId || "").trim();
+    if (!Array.isArray(state.attachments)) state.attachments = [];
+    state.attachments = state.attachments.filter((a) => {
+      if (a.id !== attId) return true;
+      // Удалить может только автор или pllato
+      return a.user !== user && user !== "pllato";
+    });
   } else if (event.type === "migrate") {
     // Миграция: переименование itemId и удаление пунктов.
     // Только pllato может вызвать.

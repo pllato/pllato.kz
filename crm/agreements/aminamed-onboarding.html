@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pllato · Онбординг Aminamed CRM — сбор данных</title>
+<style>
+:root{--navy:#0a1628;--bronze:#b8895a;--bronze-dim:#d4b489;--muted:#5d6b85;--bg:#fbf9f5;--card:#fff;--card-tint:#f5f0ea;--border:#e8e2d5;--green:#16a34a;--green-bg:#e8f5e9;--orange:#f59e0b;--orange-bg:#fff3e0;--red:#dc2626;--red-bg:#ffebee;--blue:#3b82f6;--blue-bg:#dbeafe;--purple:#8b5cf6;--purple-bg:#f3e8ff}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--navy);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--bronze);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:1080px;margin:0 auto;padding:24px}
+.brand-header{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:18px;border-bottom:2px solid var(--bronze);margin-bottom:32px}
+.brand-logo{font-size:28px;font-weight:800;letter-spacing:5px;color:var(--navy)}
+.brand-sub{font-size:11px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-top:2px}
+.brand-meta{text-align:right;font-size:12px;color:var(--muted)}
+.brand-meta strong{color:var(--navy);font-weight:700}
+.doc-title{text-align:center;margin:24px 0 8px;font-size:24px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+.doc-subtitle{text-align:center;color:var(--muted);font-size:14px;font-style:italic;margin-bottom:24px}
+.intro{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:24px}
+.intro p{margin:0 0 8px}.intro p:last-child{margin:0}
+
+/* Участники */
+.participants{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.participant{background:var(--card);border:2px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;transition:.15s;text-align:center}
+.participant:hover{border-color:var(--bronze-dim);transform:translateY(-1px)}
+.participant.active{border-color:var(--bronze);background:var(--card-tint)}
+.participant .avatar{width:36px;height:36px;border-radius:50%;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff}
+.participant.karlygash .avatar{background:#d946ef}
+.participant.asem .avatar{background:#0ea5e9}
+.participant.alla .avatar{background:#10b981}
+.participant.aikyn .avatar{background:#f97316}
+.participant.manager .avatar{background:#6366f1}
+.participant.warehouse .avatar{background:#a16207}
+.participant.pllato .avatar{background:var(--bronze)}
+.participant.guest .avatar{background:#6b7280}
+.participant .name{font-weight:700;font-size:13px}
+.participant .role{font-size:10px;color:var(--muted);margin-top:1px}
+.who-am-i{background:#fff7ed;border:1px solid var(--orange);border-radius:10px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:#b45309}
+.who-am-i.confirmed{background:var(--green-bg);border-color:var(--green);color:#15803d}
+
+/* Общий прогресс */
+.global-progress{background:linear-gradient(180deg,var(--card),var(--card-tint));border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:24px}
+.global-progress .stats{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+.global-progress .stats strong{color:var(--navy);font-size:14px}
+.progress-bar{height:8px;background:#f3f4f6;border-radius:999px;overflow:hidden;margin-top:8px}
+.progress-bar > span{display:block;height:100%;background:linear-gradient(90deg,#16a34a,#22c55e);transition:width .3s}
+
+/* Группа */
+.group{margin:32px 0 12px;display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--border);padding-bottom:6px}
+.group-num{font-size:18px;font-weight:800;color:var(--bronze)}
+.group-title{font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:1px}
+
+/* Задача */
+.task{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--muted);border-radius:10px;padding:14px 16px;margin-bottom:10px;position:relative}
+.task.s-new{border-left-color:#9ca3af}
+.task.s-in_progress{border-left-color:var(--blue);background:linear-gradient(180deg,var(--card),#f0f7ff)}
+.task.s-done{border-left-color:var(--green);background:linear-gradient(180deg,var(--card),var(--green-bg))}
+.task.s-blocked{border-left-color:var(--red);background:linear-gradient(180deg,var(--card),var(--red-bg))}
+.task-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.task-titletext{flex:1;min-width:280px}
+.task-id{color:var(--bronze);font-weight:700;font-size:11px;letter-spacing:1px;text-transform:uppercase}
+.task-name{font-weight:700;font-size:14px;margin-top:2px}
+.task-desc{color:var(--muted);font-size:12.5px;margin-top:6px;line-height:1.55}
+.task-meta{font-size:11px;color:var(--muted);margin-top:6px;display:flex;flex-wrap:wrap;gap:10px}
+.task-meta strong{color:var(--navy)}
+.task-formats{font-size:11px;margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}
+.fmt-chip{background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:999px;font-weight:600}
+.fmt-chip.f-excel{background:#dcfce7;color:#15803d}
+.fmt-chip.f-file{background:#fef3c7;color:#92400e}
+.fmt-chip.f-text{background:#dbeafe;color:#1d4ed8}
+.fmt-chip.f-form{background:#f3e8ff;color:#6d28d9}
+
+/* Действия задачи */
+.task-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)}
+.task-actions button,.task-actions a{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:12px;font-weight:600;color:var(--navy);text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:.15s}
+.task-actions button:hover,.task-actions a:hover{border-color:var(--bronze);transform:translateY(-1px)}
+.task-actions .status-set{font-size:11px;padding:4px 10px}
+.task-actions .status-set.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.task-actions .status-set[data-status="done"].active{background:var(--green);border-color:var(--green)}
+.task-actions .status-set[data-status="in_progress"].active{background:var(--blue);border-color:var(--blue)}
+.task-actions .status-set[data-status="blocked"].active{background:var(--red);border-color:var(--red)}
+.assignee-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--card-tint);border-radius:999px;font-size:11px;font-weight:600;color:var(--navy)}
+.assignee-chip .av{width:16px;height:16px;border-radius:50%;font-size:9px;color:#fff;display:flex;align-items:center;justify-content:center}
+
+/* Прикреплённые ссылки */
+.attachments{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)}
+.attachment{display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--card-tint);border-radius:6px;margin-bottom:4px;font-size:12px}
+.attachment .att-link{flex:1;color:var(--navy);font-weight:600;word-break:break-all}
+.attachment .att-meta{font-size:10px;color:var(--muted)}
+.attachment .att-remove{background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:2px 6px}
+
+/* Формы инлайн */
+.inline-form{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.inline-form input,.inline-form textarea{flex:1;min-width:200px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font:inherit;font-size:12.5px;background:#fff;outline:none}
+.inline-form input:focus,.inline-form textarea:focus{border-color:var(--bronze)}
+.inline-form button{padding:6px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px}
+.inline-form button:hover{background:var(--bronze)}
+
+/* Комментарии */
+.task-comments{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)}
+.comment{display:flex;gap:8px;padding:6px 0;font-size:12px}
+.comment .av{width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:700}
+.comment.karlygash .av{background:#d946ef}.comment.asem .av{background:#0ea5e9}.comment.alla .av{background:#10b981}.comment.aikyn .av{background:#f97316}.comment.manager .av{background:#6366f1}.comment.warehouse .av{background:#a16207}.comment.pllato .av{background:var(--bronze)}.comment.guest .av{background:#6b7280}
+.comment-body{flex:1}
+.comment-meta{font-size:10px;color:var(--muted);margin-bottom:1px}
+.comment-meta strong{color:var(--navy)}
+.comment-text{color:var(--navy);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+
+/* Foot */
+.foot{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--bronze);animation:pulse 1.4s infinite}
+@keyframes pulse{0%,80%,100%{opacity:.3}40%{opacity:1}}
+
+/* Mobile */
+@media (max-width:760px){
+  .participants{grid-template-columns:repeat(2,1fr)}
+  .task-head{flex-direction:column}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="brand-header">
+  <div>
+    <div class="brand-logo">PLLATO</div>
+    <div class="brand-sub">Software Development Studio · Almaty</div>
+  </div>
+  <div class="brand-meta">
+    Дата: <strong>27.05.2026</strong><br>
+    Документ № <strong>AMN-ONB-001</strong>
+  </div>
+</header>
+
+<h1 class="doc-title">Онбординг Aminamed CRM — сбор данных</h1>
+<div class="doc-subtitle">Рабочий документ · собираем данные для запуска CRM в проде</div>
+
+<div class="intro">
+  <p>Привет, команда Aminamed! 👋 Это рабочий лист задач — здесь видно <strong>какие данные нужно собрать перед полным запуском CRM</strong>, в каком формате передать и кто за это отвечает.</p>
+  <p><strong>Как работать:</strong> выберите свою карточку → возьмите задачу («взять») → отметьте статус → прикрепите ссылку на файл (Google Drive / WhatsApp / Dropbox) или впишите данные комментарием. Все ответы видят все участники.</p>
+  <p>Если непонятно — напишите комментарий, обсудим. Если задача не нужна — пометьте «не нужно» (заблокировано).</p>
+</div>
+
+<div class="participants" id="participants">
+  <div class="participant karlygash" data-user="karlygash"><div class="avatar">К</div><div class="name">Карлыгаш</div><div class="role">Директор</div></div>
+  <div class="participant asem" data-user="asem"><div class="avatar">А</div><div class="name">Асем</div><div class="role">Бухгалтер</div></div>
+  <div class="participant alla" data-user="alla"><div class="avatar">А</div><div class="name">Алла</div><div class="role">Бухгалтерия / 1С</div></div>
+  <div class="participant aikyn" data-user="aikyn"><div class="avatar">А</div><div class="name">Айкын</div><div class="role">Менеджер / база</div></div>
+  <div class="participant manager" data-user="manager"><div class="avatar">М</div><div class="name">Менеджер</div><div class="role">любой</div></div>
+  <div class="participant warehouse" data-user="warehouse"><div class="avatar">С</div><div class="name">Склад</div><div class="role">кладовщик</div></div>
+  <div class="participant pllato" data-user="pllato"><div class="avatar">P</div><div class="name">Pllato</div><div class="role">разработка</div></div>
+  <div class="participant guest" data-user="guest"><div class="avatar">?</div><div class="name">Гость</div><div class="role">кто-то ещё</div></div>
+</div>
+
+<div class="who-am-i" id="whoamiBar">👇 <strong>Нажмите на свою карточку выше</strong>, чтобы можно было брать задачи и оставлять комментарии.</div>
+
+<div class="global-progress">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <strong>Общий прогресс</strong>
+    <span id="progressText" style="color:var(--muted);font-size:13px">— из — задач готово</span>
+  </div>
+  <div class="progress-bar"><span id="progressBar" style="width:0%"></span></div>
+  <div class="stats" id="statsBar"></div>
+</div>
+
+<div id="groups"></div>
+
+<div class="foot">
+  <span>Pllato · Aminamed CRM Onboarding</span>
+  <span id="syncStatus"><span class="dot"></span> синхронизация…</span>
+</div>
+
+</div>
+
+<script>
+// ============================================================================
+// КОНФИГ
+// ============================================================================
+const API_BASE = "https://pllato-comm.uurraa.workers.dev";
+const AGREEMENT_ID = "aminamed-onboarding";
+const POLL_INTERVAL = 6000;
+const USER_META = {
+  karlygash: { name: "Карлыгаш",  short: "К", color: "#d946ef" },
+  asem:      { name: "Асем",      short: "А", color: "#0ea5e9" },
+  alla:      { name: "Алла",      short: "А", color: "#10b981" },
+  aikyn:     { name: "Айкын",     short: "А", color: "#f97316" },
+  manager:   { name: "Менеджер",  short: "М", color: "#6366f1" },
+  warehouse: { name: "Склад",     short: "С", color: "#a16207" },
+  pllato:    { name: "Pllato",    short: "P", color: "#b8895a" },
+  guest:     { name: "Гость",     short: "?", color: "#6b7280" },
+};
+
+// ============================================================================
+// СПИСОК ЗАДАЧ — по транскрипции встречи 25.05.2026, сгруппирован по разделам
+// ============================================================================
+const GROUPS = [
+  {
+    num: "1",
+    title: "Юр.лица и реквизиты",
+    tasks: [
+      { id: "1.1", name: "Реквизиты 5 юр.лиц-отправителей (Инсарс, Жамиля, Амазон, Ровза, Вираж)", desc: "По каждому из 5 юр.лиц нужны: БИН, полное и короткое название, юр.адрес, ИИК, БИК, банк, директор (ФИО + должность для подписи), МОЛ (ФИО — для накладных), главный бухгалтер.", assignee: "Асем или Алла", formats: ["excel","form"], formUrl: "https://crm.aminamed.kz/#settings/organizations" },
+      { id: "1.2", name: "Скан/PDF свидетельств о регистрации и НДС-сертификаты", desc: "По каждому юр.лицу — сканы документов для печатных форм (если будем выводить QR-код или серию свидетельства).", assignee: "Асем", formats: ["file"] },
+    ],
+  },
+  {
+    num: "2",
+    title: "Договоры с клиентами",
+    tasks: [
+      { id: "2.1", name: "Excel-выгрузка всех действующих договоров", desc: "Из 1С — список договоров: номер, дата, контрагент (с БИН), наш юр.лицо-отправитель, тип оплаты (предоплата/срок 1 мес/консигнация/4 дня/ручной), срок действия, прайс (дистрибьюторский/больничный).", assignee: "Алла (1С)", formats: ["excel","file"] },
+      { id: "2.2", name: "Сканы договоров (PDF)", desc: "Сканы 10-20 самых крупных договоров — чтобы Карлыгаш могла открыть из карточки клиента в один клик. Остальные подгрузим по запросу.", assignee: "Асем", formats: ["file"] },
+      { id: "2.3", name: "Список клиентов с консигнацией", desc: "Кто из клиентов работает по консигнации (оплата по факту реализации). Это особый учёт — товар у клиента, но отгружен не \"продан\".", assignee: "Карлыгаш", formats: ["excel","text"] },
+      { id: "2.4", name: "Список клиентов с особыми условиями (отличные от 5 базовых типов оплаты)", desc: "Если у кого-то ручной срок (например, 14 дней или 21 день) — список с номерами договоров и сроком.", assignee: "Асем", formats: ["excel","text"] },
+    ],
+  },
+  {
+    num: "3",
+    title: "Точки доставки (адреса)",
+    tasks: [
+      { id: "3.1", name: "Excel-таблица всех точек доставки", desc: "По каждому клиенту с несколькими адресами: юр.лицо, название точки/ориентир (\"у Саши\", \"2-я точка\"), город, район, фактический адрес, контактное лицо, телефон точки, часы работы.", assignee: "Айкын или менеджеры", formats: ["excel","file"] },
+      { id: "3.2", name: "Адреса аптечных сетей (по сетям, не точкам)", desc: "Список сетей с количеством точек — чтобы мы понимали масштаб. Например: «Аптечная сеть Х — 153 точки в Алматы».", assignee: "Карлыгаш", formats: ["text","excel"] },
+      { id: "3.3", name: "Карта складов отправителей", desc: "Адреса физических складов где хранится товар каждого юр.лица + контакт кладовщика.", assignee: "Карлыгаш", formats: ["text","form"] },
+    ],
+  },
+  {
+    num: "4",
+    title: "Номенклатура и склад",
+    tasks: [
+      { id: "4.1", name: "Актуальный прайс-лист (дистрибьюторский)", desc: "Excel с номенклатурой и ценами для дистрибьюторов. На основе текущего прайса 2026.", assignee: "Карлыгаш или Алла", formats: ["excel","file"] },
+      { id: "4.2", name: "Больничный прайс-лист", desc: "Отдельный прайс для госпитальных клиентов — обычно цены ниже.", assignee: "Карлыгаш", formats: ["excel","file"] },
+      { id: "4.3", name: "НКТ-коды для всей импортной номенклатуры", desc: "Обязательно с 01.01.2026 по закону РК. По каждому импортному товару — НКТ-код из Национального Каталога Товаров. Если ещё не зарегистрировали — список товаров где нужна регистрация.", assignee: "Алла + Асем", formats: ["excel"] },
+      { id: "4.4", name: "GTIN и Intin коды", desc: "По товарам которые уже прошли регистрацию — постоянный Intin. Временные GTIN — для не зарегистрированных. Excel или скан страницы из системы.", assignee: "Алла", formats: ["excel","file"] },
+      { id: "4.5", name: "КТ-ТНВЭД (коды товарной номенклатуры ВЭД)", desc: "Для импортных товаров — 10-значные коды ТН ВЭД. Нужны в счёт-фактуре по закону РК.", assignee: "Алла", formats: ["excel"] },
+      { id: "4.6", name: "Сертификаты соответствия (PDF/JPG)", desc: "По каждой номенклатуре — файл сертификата. Можно общим архивом + Excel-табличка \"товар → файл\".", assignee: "Алла", formats: ["file"] },
+      { id: "4.7", name: "Регистрационные удостоверения медицинских изделий", desc: "Файлы РУ + Excel-табличка с номерами и сроками действия.", assignee: "Алла", formats: ["file","excel"] },
+      { id: "4.8", name: "Партии (LOT) с серийными номерами и сроками годности", desc: "Excel-выгрузка из 1С: по каждому SKU — список партий, дата производства, срок годности, остаток. Для FEFO-списания.", assignee: "Алла", formats: ["excel"] },
+      { id: "4.9", name: "Двойные наименования товаров для госпитальных", desc: "По каждому больничному договору — Excel где \"наше название\" и \"название клиента\" по позициям. Будет выводиться в накладной через слэш.", assignee: "Карлыгаш + Асем", formats: ["excel","text"] },
+    ],
+  },
+  {
+    num: "5",
+    title: "Импорт и таможня",
+    tasks: [
+      { id: "5.1", name: "Архив ГТД (грузовые таможенные декларации) за 2025-2026", desc: "PDF или Excel — номера ГТД, дата, поставщик, позиции. Для цепочки источника происхождения на ЭСФ.", assignee: "Алла", formats: ["file","excel"] },
+      { id: "5.2", name: "ЭДВС (электронные документы внутреннего склада)", desc: "По каждой импортной партии — номера ЭДВС. Связь с ГТД и позициями.", assignee: "Алла", formats: ["excel"] },
+      { id: "5.3", name: "Список поставщиков-импортёров", desc: "Юр.лица-поставщики с реквизитами и связкой \"какой ГТД от кого\".", assignee: "Алла", formats: ["excel","text"] },
+    ],
+  },
+  {
+    num: "6",
+    title: "Клиенты и контакты",
+    tasks: [
+      { id: "6.1", name: "Excel-выгрузка всех клиентов из 1С", desc: "Полный список контрагентов: БИН, наименование, тип (юр/физ), адрес, телефон. ~60-100 тыс. записей. Для миграции в CRM с сверкой.", assignee: "Алла", formats: ["excel"] },
+      { id: "6.2", name: "Контактные лица по точкам", desc: "По каждому юр.лицу — список контактных лиц: ФИО, должность, телефон, к какой точке относится. Часто меняются — нужны актуальные на момент запуска.", assignee: "Менеджеры", formats: ["excel"] },
+      { id: "6.3", name: "Закрепление клиентов за менеджерами", desc: "Кто из менеджеров с какими клиентами работает. Excel: ФИО менеджера → список БИН клиентов.", assignee: "Карлыгаш", formats: ["excel","text"] },
+      { id: "6.4", name: "Категории клиентов", desc: "Сетка категорий: \"аптечные сети\", \"единичные аптеки\", \"больницы\", \"физлица\", \"оптовики\". Чтобы по ним фильтровать в CRM.", assignee: "Карлыгаш", formats: ["text","form"] },
+    ],
+  },
+  {
+    num: "7",
+    title: "Команда и менеджеры",
+    tasks: [
+      { id: "7.1", name: "Список всех сотрудников с ролями", desc: "ФИО, должность, email, телефон, какие права в CRM (менеджер / директор / бухгалтер / склад / поле / наблюдатель).", assignee: "Карлыгаш + HR", formats: ["excel","text"] },
+      { id: "7.2", name: "Полевые менеджеры — кто, где работает", desc: "Список полевиков: ФИО, город/регион, какие сети закреплены, личная база клиентов (Excel).", assignee: "Каждый полевик отдельно", formats: ["excel"] },
+      { id: "7.3", name: "Кто согласует отгрузки в отсутствие Карлыгаш", desc: "Имена доверенных лиц на случай отсутствия директора (для делегирования прав).", assignee: "Карлыгаш", formats: ["text"] },
+    ],
+  },
+  {
+    num: "8",
+    title: "Каналы коммуникаций",
+    tasks: [
+      { id: "8.1", name: "Единый служебный WhatsApp-номер", desc: "Завести отдельный номер (SIM-карта или Green-API) специально для приёма клиентских заявок — не личный директора. Стоимость канала ~5к/мес.", assignee: "Карлыгаш + Pllato", formats: ["text"] },
+      { id: "8.2", name: "Доступы к Kaspi кабинету продавца", desc: "Логин/пароль или API-ключ Kaspi для приёма заявок оттуда (если есть кабинет продавца).", assignee: "Карлыгаш", formats: ["text","file"] },
+      { id: "8.3", name: "Текущие WhatsApp-чаты с клиентами (история)", desc: "Если есть переписки в личных WA — какие нужно мигрировать в служебный.", assignee: "Карлыгаш", formats: ["text"] },
+      { id: "8.4", name: "SIP-телефония — оператор и реквизиты", desc: "Текущий оператор АО Казахтелеком или другой. Логин SIP, пароль, адрес сервера, список номеров. Для SIP-коннектора (звонки из браузера).", assignee: "Карлыгаш + IT/тех.отдел", formats: ["text","file"] },
+      { id: "8.5", name: "Telegram-группа уведомлений (готово)", desc: "Карлыгаш уже добавила бота в группу. ✅", assignee: "Карлыгаш", formats: ["text"] },
+      { id: "8.6", name: "Telegram AI-ассистент — токен и доступы", desc: "Бот @aminamed_ai_bot токен от @BotFather + ANTHROPIC_API_KEY или согласие на ключ Pllato.", assignee: "Карлыгаш + Pllato", formats: ["text"] },
+    ],
+  },
+  {
+    num: "9",
+    title: "Бизнес-процессы и регламенты",
+    tasks: [
+      { id: "9.1", name: "Регламент обработки заявок (заявка → отгрузка)", desc: "Кто на каком этапе что делает. Менеджер принял заявку → ... → склад отгрузил. Желательно в виде схемы или текста.", assignee: "Карлыгаш", formats: ["text","file"] },
+      { id: "9.2", name: "Правила резерва товара (срок брони)", desc: "При выставлении счёта — на сколько дней резервируем товар (предложение: 3 дня). Подтверждение или другой срок.", assignee: "Карлыгаш", formats: ["text"] },
+      { id: "9.3", name: "Правила работы с просроченной дебиторкой", desc: "После скольки дней просрочки звоним клиенту, после скольки блокируем отгрузки и т.д.", assignee: "Карлыгаш", formats: ["text"] },
+      { id: "9.4", name: "Шаблоны печатных форм (текущие)", desc: "Накладные/счета-фактуры/акты которые сейчас формируются в 1С — образцы PDF чтобы сделать аналог в CRM.", assignee: "Алла", formats: ["file"] },
+      { id: "9.5", name: "График инвентаризаций", desc: "Подтверждение: инвентаризация 5-го числа каждого месяца. Если другая дата/частота — указать.", assignee: "Карлыгаш", formats: ["text"] },
+      { id: "9.6", name: "Список причин расхождений при инвентаризации", desc: "Базовые: порча, естественная убыль, истёк срок годности, ошибка учёта, отдан на образец, брак. Дополнения?", assignee: "Карлыгаш + склад", formats: ["text"] },
+    ],
+  },
+  {
+    num: "10",
+    title: "Доступы и интеграции",
+    tasks: [
+      { id: "10.1", name: "Доступ к 1С (учётная запись для коннектора)", desc: "Создать в 1С отдельную учётную запись с правами на чтение/запись по нужным справочникам и документам. Логин и пароль передать Pllato.", assignee: "Алла + Pllato", formats: ["text"] },
+      { id: "10.2", name: "Описание конфигурации 1С + пользовательских доработок", desc: "Какая 1С (Бухгалтерия 3.0, версия, релиз). Какие самописные обработки/реквизиты/регистры — чтобы коннектор знал о них.", assignee: "Алла или 1С-программист", formats: ["text","file"] },
+      { id: "10.3", name: "Доступ к Repsly (если есть)", desc: "API-ключ Repsly — для автоимпорта визитов торгпредов.", assignee: "Карлыгаш", formats: ["text"] },
+      { id: "10.4", name: "Сайт компании — техническая инфа", desc: "Где хостится, есть ли админка, контакт админа. Для интеграции форм приёма заявок с сайта.", assignee: "Карлыгаш", formats: ["text"] },
+    ],
+  },
+  {
+    num: "11",
+    title: "Запуск и обучение",
+    tasks: [
+      { id: "11.1", name: "Дата планируемого боевого запуска", desc: "Когда хотим перейти полностью с 1С на CRM (мы поддерживаем параллельно 1-2 недели). Желательно понимание чтобы спланировать миграцию.", assignee: "Карлыгаш", formats: ["text"] },
+      { id: "11.2", name: "Кто проводит обучение менеджеров", desc: "Pllato проводит онлайн (1-2 встречи), либо есть кто-то на стороне Aminamed кто потом ведёт остальных.", assignee: "Карлыгаш", formats: ["text"] },
+      { id: "11.3", name: "Список вопросов к Pllato от команды", desc: "Что непонятно по работе CRM, какие функции вызывают вопросы. Будем разбирать на демо-встрече.", assignee: "Все сотрудники", formats: ["text"] },
+    ],
+  },
+];
+
+// ============================================================================
+// STATE
+// ============================================================================
+let state = { votes: {}, comments: [], taskStatuses: {}, taskAssignees: {}, attachments: [], customItems: [] };
+let me = localStorage.getItem("pllato_onboarding_user") || null;
+let lastUpdate = 0;
+let pollTimer = null;
+
+// ============================================================================
+// API
+// ============================================================================
+async function apiGet(){const r=await fetch(`${API_BASE}/agreement/${AGREEMENT_ID}`);if(!r.ok)throw new Error(`GET ${r.status}`);return r.json();}
+async function apiPost(event){const r=await fetch(`${API_BASE}/agreement/${AGREEMENT_ID}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({event})});if(!r.ok){const t=await r.text().catch(()=>"");throw new Error(`POST ${r.status}: ${t.slice(0,200)}`);}return r.json();}
+
+// ============================================================================
+// UTIL
+// ============================================================================
+function esc(s){return String(s ?? "").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
+function fmtDate(ms){if(!ms)return"";return new Date(ms).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});}
+function getAllTasks(){const out=[];GROUPS.forEach(g=>g.tasks.forEach(t=>out.push(t)));return out;}
+function setSyncStatus(msg, type="ok") {
+  const el = document.getElementById("syncStatus");
+  if (type === "ok") el.innerHTML = `<span style="color:#15803d">●</span> ${esc(msg)}`;
+  else if (type === "err") el.innerHTML = `<span style="color:#dc2626">●</span> ${esc(msg)}`;
+  else el.innerHTML = `<span class="dot"></span> ${esc(msg)}`;
+}
+
+// ============================================================================
+// RENDER
+// ============================================================================
+function renderWhoAmI(){
+  const bar=document.getElementById("whoamiBar");
+  if(!me){bar.classList.remove("confirmed");bar.innerHTML=`👇 <strong>Нажмите на свою карточку выше</strong>, чтобы можно было брать задачи и оставлять комментарии.`;}
+  else{bar.classList.add("confirmed");const m=USER_META[me];bar.innerHTML=`✓ Вы вошли как <strong>${esc(m.name)}</strong>. <a href="#" id="logout">Сменить</a>`;document.getElementById("logout").addEventListener("click",(e)=>{e.preventDefault();me=null;localStorage.removeItem("pllato_onboarding_user");document.querySelectorAll(".participant").forEach(p=>p.classList.remove("active"));renderAll();});}
+  document.querySelectorAll(".participant").forEach(p=>p.classList.toggle("active",p.dataset.user===me));
+}
+
+function statusIcon(status){return {new:"📋",in_progress:"⏳",done:"✓",blocked:"🚫"}[status]||"📋";}
+function statusLabel(status){return {new:"Новая",in_progress:"В работе",done:"Готово",blocked:"Не нужно"}[status]||"Новая";}
+function fmtChipLabel(f){return {excel:"📊 Excel",file:"📎 Файл/PDF",text:"💬 Текстом",form:"🖥 Форма в CRM"}[f]||f;}
+
+function renderTask(t){
+  const status=state.taskStatuses[t.id]?.status||"new";
+  const assignee=state.taskAssignees[t.id]?.user;
+  const am=assignee?USER_META[assignee]:null;
+  const taskComments=state.comments.filter(c=>c.itemId===t.id);
+  const taskAttachments=(state.attachments||[]).filter(a=>a.itemId===t.id);
+  const isMine=me&&assignee===me;
+  const canAct=!!me;
+
+  let actionsHtml="";
+  if(canAct){
+    actionsHtml=`
+      <div class="task-actions">
+        <button type="button" class="status-set ${status==="new"?"active":""}" data-task-status="${esc(t.id)}" data-status="new">📋 Новая</button>
+        <button type="button" class="status-set ${status==="in_progress"?"active":""}" data-task-status="${esc(t.id)}" data-status="in_progress">⏳ В работе</button>
+        <button type="button" class="status-set ${status==="done"?"active":""}" data-task-status="${esc(t.id)}" data-status="done">✓ Готово</button>
+        <button type="button" class="status-set ${status==="blocked"?"active":""}" data-task-status="${esc(t.id)}" data-status="blocked">🚫 Не нужно</button>
+        ${assignee?
+          (isMine?`<button type="button" data-task-unclaim="${esc(t.id)}" title="Освободить задачу">↩ Снять с себя</button>`
+                  :`<span class="assignee-chip" title="Назначено"><span class="av" style="background:${am.color}">${esc(am.short)}</span>${esc(am.name)}</span>`)
+          :`<button type="button" data-task-claim="${esc(t.id)}">👤 Взять задачу</button>`}
+        ${t.formUrl?`<a href="${esc(t.formUrl)}" target="_blank" rel="noopener">🖥 Открыть форму в CRM</a>`:""}
+      </div>
+    `;
+  }
+
+  let attachHtml="";
+  if(taskAttachments.length>0||canAct){
+    attachHtml=`
+      <div class="attachments">
+        ${taskAttachments.map(a=>{
+          const author=USER_META[a.user]||USER_META.guest;
+          return `<div class="attachment">
+            📎 <a href="${esc(a.url)}" target="_blank" rel="noopener" class="att-link">${esc(a.label||a.url)}</a>
+            <span class="att-meta">${esc(author.name)} · ${esc(fmtDate(a.at))}</span>
+            ${(me===a.user||me==="pllato")?`<button type="button" class="att-remove" data-att-remove="${esc(a.id)}">✕</button>`:""}
+          </div>`;
+        }).join("")}
+        ${canAct?`<form class="inline-form" data-attach-form="${esc(t.id)}">
+          <input type="url" placeholder="Ссылка на файл (Google Drive / Dropbox / WhatsApp …)" data-attach-url="${esc(t.id)}" required>
+          <input type="text" placeholder="Подпись (например, «Прайс 27.05.xlsx»)" data-attach-label="${esc(t.id)}">
+          <button type="submit">📎 Прикрепить</button>
+        </form>`:""}
+      </div>
+    `;
+  }
+
+  let commentsHtml="";
+  if(taskComments.length>0||canAct){
+    commentsHtml=`
+      <div class="task-comments">
+        ${taskComments.map(c=>{
+          const m=USER_META[c.user]||USER_META.guest;
+          return `<div class="comment ${esc(c.user)}">
+            <div class="av">${esc(m.short)}</div>
+            <div class="comment-body">
+              <div class="comment-meta"><strong>${esc(m.name)}</strong> · ${esc(fmtDate(c.at))}</div>
+              <div class="comment-text">${esc(c.text)}</div>
+            </div>
+          </div>`;
+        }).join("")}
+        ${canAct?`<form class="inline-form" data-comment-form="${esc(t.id)}">
+          <input type="text" placeholder="Комментарий или уточнение…" data-comment-text="${esc(t.id)}">
+          <button type="submit">💬 Отправить</button>
+        </form>`:""}
+      </div>
+    `;
+  }
+
+  return `
+    <div class="task s-${status}" id="task-${esc(t.id)}">
+      <div class="task-head">
+        <div class="task-titletext">
+          <div><span class="task-id">${esc(t.id)}</span> <span style="font-size:11px;color:var(--muted)">${statusIcon(status)} ${esc(statusLabel(status))}</span></div>
+          <div class="task-name">${esc(t.name)}</div>
+          <div class="task-desc">${esc(t.desc)}</div>
+          <div class="task-meta">
+            <span>👤 Ответственный: <strong>${esc(t.assignee)}</strong></span>
+            ${assignee?`<span>· Взял: <strong>${esc(am.name)}</strong> ${esc(fmtDate(state.taskAssignees[t.id].at))}</span>`:""}
+          </div>
+          <div class="task-formats">
+            ${(t.formats||[]).map(f=>`<span class="fmt-chip f-${esc(f)}">${esc(fmtChipLabel(f))}</span>`).join("")}
+          </div>
+        </div>
+      </div>
+      ${actionsHtml}
+      ${attachHtml}
+      ${commentsHtml}
+    </div>
+  `;
+}
+
+function renderGroups(){
+  document.getElementById("groups").innerHTML=GROUPS.map(g=>`
+    <div class="group"><span class="group-num">${esc(g.num)}.</span><span class="group-title">${esc(g.title)}</span></div>
+    ${g.tasks.map(renderTask).join("")}
+  `).join("");
+}
+
+function renderProgress(){
+  const all=getAllTasks();
+  const done=all.filter(t=>(state.taskStatuses[t.id]?.status)==="done").length;
+  const inProgress=all.filter(t=>(state.taskStatuses[t.id]?.status)==="in_progress").length;
+  const blocked=all.filter(t=>(state.taskStatuses[t.id]?.status)==="blocked").length;
+  const newCount=all.length-done-inProgress-blocked;
+  const pct=all.length?Math.round((done/all.length)*100):0;
+  document.getElementById("progressBar").style.width=pct+"%";
+  document.getElementById("progressText").innerHTML=`<strong>${done}</strong> из <strong>${all.length}</strong> задач готово (${pct}%)`;
+  document.getElementById("statsBar").innerHTML=`
+    <span>📋 Новые: <strong>${newCount}</strong></span>
+    <span>⏳ В работе: <strong>${inProgress}</strong></span>
+    <span>✓ Готово: <strong>${done}</strong></span>
+    <span>🚫 Не нужно: <strong>${blocked}</strong></span>
+    <span>💬 Комментариев: <strong>${state.comments.length}</strong></span>
+    <span>📎 Файлов: <strong>${(state.attachments||[]).length}</strong></span>
+  `;
+}
+
+function renderAll(){
+  renderWhoAmI();
+  renderProgress();
+  renderGroups();
+  wireTaskEvents();
+}
+
+// ============================================================================
+// EVENTS
+// ============================================================================
+function wireParticipants(){
+  document.querySelectorAll(".participant").forEach(p=>p.addEventListener("click",()=>{
+    me=p.dataset.user;
+    localStorage.setItem("pllato_onboarding_user",me);
+    renderAll();
+  }));
+}
+
+function wireTaskEvents(){
+  // status buttons
+  document.querySelectorAll("[data-task-status]").forEach(btn=>btn.addEventListener("click",async()=>{
+    if(!me)return;
+    const itemId=btn.dataset.taskStatus;
+    const status=btn.dataset.status;
+    setSyncStatus("сохранение…","pending");
+    try{const r=await apiPost({type:"setTaskStatus",user:me,itemId,status});state=normalizeState(r.state);lastUpdate=r.updatedAt;renderAll();setSyncStatus("сохранено");}
+    catch(e){setSyncStatus("ошибка: "+e.message,"err");}
+  }));
+  // claim
+  document.querySelectorAll("[data-task-claim]").forEach(btn=>btn.addEventListener("click",async()=>{
+    if(!me)return;
+    const itemId=btn.dataset.taskClaim;
+    try{const r=await apiPost({type:"claimTask",user:me,itemId});state=normalizeState(r.state);lastUpdate=r.updatedAt;renderAll();}
+    catch(e){setSyncStatus("ошибка: "+e.message,"err");}
+  }));
+  // unclaim
+  document.querySelectorAll("[data-task-unclaim]").forEach(btn=>btn.addEventListener("click",async()=>{
+    if(!me)return;
+    const itemId=btn.dataset.taskUnclaim;
+    try{const r=await apiPost({type:"unclaimTask",user:me,itemId});state=normalizeState(r.state);lastUpdate=r.updatedAt;renderAll();}
+    catch(e){setSyncStatus("ошибка: "+e.message,"err");}
+  }));
+  // attach
+  document.querySelectorAll("[data-attach-form]").forEach(form=>form.addEventListener("submit",async(e)=>{
+    e.preventDefault();
+    if(!me)return;
+    const itemId=form.dataset.attachForm;
+    const url=form.querySelector(`[data-attach-url="${itemId}"]`).value.trim();
+    const label=form.querySelector(`[data-attach-label="${itemId}"]`).value.trim();
+    if(!url)return;
+    try{const r=await apiPost({type:"attachLink",user:me,itemId,url,label});state=normalizeState(r.state);lastUpdate=r.updatedAt;renderAll();}
+    catch(err){setSyncStatus("ошибка: "+err.message,"err");}
+  }));
+  // remove attachment
+  document.querySelectorAll("[data-att-remove]").forEach(btn=>btn.addEventListener("click",async()=>{
+    if(!me)return;
+    if(!confirm("Удалить эту ссылку?"))return;
+    try{const r=await apiPost({type:"removeAttachment",user:me,attId:btn.dataset.attRemove});state=normalizeState(r.state);lastUpdate=r.updatedAt;renderAll();}
+    catch(e){setSyncStatus("ошибка: "+e.message,"err");}
+  }));
+  // comment
+  document.querySelectorAll("[data-comment-form]").forEach(form=>form.addEventListener("submit",async(e)=>{
+    e.preventDefault();
+    if(!me)return;
+    const itemId=form.dataset.commentForm;
+    const inp=form.querySelector(`[data-comment-text="${itemId}"]`);
+    const text=inp.value.trim();
+    if(!text)return;
+    try{const r=await apiPost({type:"comment",user:me,itemId,text});state=normalizeState(r.state);lastUpdate=r.updatedAt;inp.value="";renderAll();}
+    catch(err){setSyncStatus("ошибка: "+err.message,"err");}
+  }));
+}
+
+function normalizeState(s){
+  return {
+    votes:s?.votes||{},
+    comments:Array.isArray(s?.comments)?s.comments:[],
+    taskStatuses:s?.taskStatuses||{},
+    taskAssignees:s?.taskAssignees||{},
+    attachments:Array.isArray(s?.attachments)?s.attachments:[],
+    customItems:Array.isArray(s?.customItems)?s.customItems:[],
+  };
+}
+
+async function poll(){
+  try{
+    const r=await apiGet();
+    if(r.updatedAt!==lastUpdate){
+      state=normalizeState(r.state);
+      lastUpdate=r.updatedAt;
+      renderAll();
+      setSyncStatus("обновлено");
+    }else{
+      setSyncStatus("синхронизировано");
+    }
+  }catch(e){setSyncStatus("offline: "+e.message,"err");}
+}
+
+async function boot(){
+  wireParticipants();
+  renderAll();
+  await poll();
+  pollTimer=setInterval(poll,POLL_INTERVAL);
+}
+
+boot();
+</script>
+</body>
+</html>
