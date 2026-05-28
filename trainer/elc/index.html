@@ -3266,25 +3266,6 @@
             </div>
           </div>
 
-          <div class="voice-setup-section">
-            <div class="voice-setup-label">Формат встречи</div>
-            <div class="mode-radio-grid">
-              <label class="mode-radio">
-                <input type="radio" name="meetingFormat" value="inperson" checked onchange="updateMeetingFormat()">
-                <div class="mode-radio-card">
-                  <div class="mr-title">🏫 Лично в школе</div>
-                  <div class="mr-desc">Студент только что закончил пробное занятие и сидит напротив. Тёплый контакт, видишь эмоции — переходишь к разговору о программе сразу.</div>
-                </div>
-              </label>
-              <label class="mode-radio">
-                <input type="radio" name="meetingFormat" value="phone" onchange="updateMeetingFormat()">
-                <div class="mode-radio-card">
-                  <div class="mr-title">📞 Звонок по телефону</div>
-                  <div class="mr-desc">Звонишь студенту по телефону (после пробного, на следующий день или по заявке). Нужно представиться, проверить связь и удобство — потом по скрипту.</div>
-                </div>
-              </label>
-            </div>
-          </div>
 
           <div class="voice-setup-section">
             <div style="background:var(--accent-bg); border-left:3px solid var(--accent); padding:12px 16px; border-radius:6px; font-size:13px; line-height:1.55; color:var(--ink-soft);">
@@ -4667,7 +4648,7 @@
 КОГДА СТАНОВИШЬСЯ ТЕПЛЕЕ: если администратор грамотно сравнивает классическую методику с коммуникативной и приводит конкретные цифры/примеры — слушаешь внимательно. Если общими словами «у нас круто» — отключаешься.
 
 Ты — Мадияр, не AI. Не объясняй что ты AI.` + CLIENT_BEHAVIOR_RULES,
-     opener: 'Алло, здравствуйте.'},
+     opener: 'Здравствуйте.'},
 
     {id:'sn3', tag:'С нуля', name:'Жасмина', avatar:'Ж',
      desc:'28 лет, мама в декрете (дочке 2 года), Алматы. Английский никогда не учила толком.',
@@ -4707,7 +4688,7 @@
 КОГДА СТАНОВИШЬСЯ ТЕПЛЕЕ: если администратор уделяет внимание твоему страху «с нуля поздно», даёт примеры таких же мам — расцветаешь. Если общается формально без эмпатии — закрываешься.
 
 Ты — Жасмина, не AI. Не объясняй что ты AI.` + CLIENT_BEHAVIOR_RULES,
-     opener: 'Алло, добрый день!'},
+     opener: 'Здравствуйте, добрый день!'},
 
     {id:'sn4', tag:'IELTS для переезда', name:'Айбек', avatar:'А',
      desc:'31 год, IT-специалист (Backend developer), Алматы. Цель — IELTS 7.0 для переезда в Канаду.',
@@ -4749,7 +4730,7 @@
 КОГДА СТАНОВИШЬСЯ ТЕПЛЕЕ: если администратор говорит конкретно про IELTS (4 части экзамена, баллы, mock-тесты, индивидуальные часы под speaking) — внимательно слушаешь. Если общими словами «у нас вы выучите английский» — отключаешься, говоришь «ладно, я подумаю».
 
 Ты — Айбек, не AI. Не объясняй что ты AI.` + CLIENT_BEHAVIOR_RULES,
-     opener: 'Алло, здравствуйте.'}
+     opener: 'Здравствуйте.'}
   ];
 
   // Cloudflare proxy для Gemini (никаких ключей на клиенте не нужно)
@@ -4925,10 +4906,7 @@
   }
 
   function meetingFormatContext() {
-    if (trainState.meetingFormat === 'phone') {
-      return `\n\n📞 ФОРМАТ ВСТРЕЧИ: телефонный звонок. Ты только что взял(а) трубку — администратор школы ELC звонит тебе. Первая реплика короткая: «Алло», «Алло, слушаю» или «Да, я слушаю». НЕ представляйся первым по имени — это телефонный звонок.`;
-    }
-    return `\n\n🏫 ФОРМАТ ВСТРЕЧИ: личная встреча в кабинете школы ELC. Ты только что закончил(а) пробное занятие и сидишь напротив администратора в кабинете. Первая реплика — короткое «Здравствуйте» (вы уже видите друг друга, не нужно представляться). Тон тёплый, расслабленный — пробное занятие только закончилось.`;
+    return `\n\n🏫 КОНТЕКСТ: личная встреча в кабинете школы ELC. Ты только что закончил(а) пробное занятие и сидишь напротив администратора. Первая реплика — короткое «Здравствуйте». Тон тёплый, расслабленный — занятие только закончилось. НЕТ «Алло» — это не телефон.`;
   }
 
   // Build system prompt based on which role AI is playing
@@ -5102,8 +5080,7 @@ ${sc.desc}
       // User=manager, AI=client → AI client greets briefly (just opener)
       if (s.opener) {
         setTimeout(() => {
-          const opener = trainState.meetingFormat === 'phone'
-            ? 'Алло.' : (s.opener || 'Здравствуйте.');
+          const opener = s.opener || 'Здравствуйте.';
           addMessageV2('assistant', opener);
           if (trainState.commMode === 'voice') {
             speakText(opener, 'ru-RU', autoListenAfterAI);
