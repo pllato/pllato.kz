@@ -5282,13 +5282,28 @@ ${sc.desc}
     document.getElementById('voiceStatus').textContent = trainState.scenario.name + ' печатает...';
 
     try {
-      const msgs = trainState.history.map(m => ({role: m.role, content: m.content}));
+      const sc = trainState.scenario;
+      const rawMsgs = trainState.history.map(m => ({role: m.role, content: m.content}));
+
+      // Role-anchor: inject fake first exchange so Gemini Flash Lite keeps the student role
+      // throughout the whole conversation (system-prompt alone is not enough for this model).
+      let msgs;
+      if (trainState.userRole === 'manager') {
+        const anchor = [
+          { role: 'user',      content: `[ИНСТРУКЦИЯ ДЛЯ МОДЕЛИ: В этом разговоре ты играешь роль студента по имени ${sc.name}. Ты — обычный человек, которому звонит администратор школы английского языка ELC. Ты НЕ являешься администратором, методистом или сотрудником ELC. Ты никогда не скажешь «спасибо, что остались после пробного», «расскажите о себе», «как вам занятие?» — это фразы администратора, не студента. Ты только отвечаешь на вопросы администратора коротко и естественно.]` },
+          { role: 'assistant', content: `[ПОНЯЛ: Я — ${sc.name}, жду звонка. Буду отвечать коротко, как обычный человек. Я студент, не администратор.]` },
+        ];
+        msgs = [...anchor, ...(rawMsgs.length ? rawMsgs : [{role:'user', content:'(администратор ещё не заговорил, ты молчишь и ждёшь)'}])];
+      } else {
+        msgs = rawMsgs.length ? rawMsgs : [{role:'user', content:'(начало разговора — студент ждёт вашего звонка)'}];
+      }
+
       const resp = await fetch(GEMINI_PROXY, {
         method: 'POST',
         headers: {'content-type': 'application/json'},
         body: JSON.stringify({
           system: buildAISystemPrompt(),
-          messages: msgs.length ? msgs : [{role:'user', content:'(начало разговора — администратор ещё не заговорил, ты молчишь и ждёшь)'}],
+          messages: msgs,
           max_tokens: 120,
           temperature: 0.7
         })
