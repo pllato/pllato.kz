@@ -238,8 +238,37 @@ const userById = id => DB.users.find(u=>u.id===id);
 const clientById = id => DB.clients.find(c=>c.id===id);
 const dealById = id => DB.deals.find(d=>d.id===id);
 const matById = id => DB.materials.find(m=>m.id===id);
+const compById = id => DB.components.find(c=>c.id===id);
 const glassById = id => GLASS.find(g=>g.id===id);
 const openById = id => OPENINGS.find(o=>o.id===id);
+
+/* профиль конструкции в пог.м (периметр × кол-во) */
+function constrPerimeter(c){ return 2*(c.w+c.h)/1000*(c.qty||1); }
+/* сколько и чего спишется на данном этапе производства; мутирует склад, флаги в d.consumed */
+const GLASS_COMP = {g1:'c1', g2:'c2', g3:'c3'};
+const FIT_COMP   = {turn:'c4', tilt:'c5'};
+function consumeForStage(d, stage){
+  d.consumed = d.consumed || {};
+  const used = []; const dec = (item, qty, unit) => { if(!item||qty<=0) return; item.stock=Math.max(0, Math.round((item.stock-qty)*10)/10); used.push(`${item.name} −${qty% 1?qty.toFixed(1):qty} ${unit||item.unit}`); };
+  if(stage==='cutting' && !d.consumed.profile){
+    (d.items||[]).forEach(c=>{ dec(matById(c.profileId), Math.round(constrPerimeter(c))); });
+    d.consumed.profile = true;
+  } else if(stage==='glass' && !d.consumed.glass){
+    (d.items||[]).forEach(c=>{ dec(compById(GLASS_COMP[c.glassId]), Math.round(constrArea(c)*(c.qty||1)*10)/10); });
+    d.consumed.glass = true;
+  } else if(stage==='assembly' && !d.consumed.fittings){
+    (d.items||[]).forEach(c=>{
+      dec(compById(FIT_COMP[c.openId]), (c.sashes||1)*(c.qty||1), 'компл');
+      (c.extras||[]).forEach(ex=>{
+        if(ex==='mosquito') dec(compById('c6'), (c.qty||1), 'шт');
+        if(ex==='sill')     dec(compById('c7'), Math.round(c.w/1000*(c.qty||1)*10)/10);
+        if(ex==='ebb')      dec(compById('c8'), Math.round(c.w/1000*(c.qty||1)*10)/10);
+      });
+    });
+    d.consumed.fittings = true;
+  }
+  return used;
+}
 
 /* ============ PRICING ============ */
 function constrArea(c){ return (c.w*c.h)/1e6; }

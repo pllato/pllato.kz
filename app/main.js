@@ -14,19 +14,25 @@ function moveStage(id, stage){
 }
 function moveProd(id, stage){ const d=dealById(id); if(!d) return; d.prodStage=stage;
   if(stage==='installing' && d.stage==='production') d.stage='install';
-  saveDB(); closeModal(); render(); toast(`Этап: ${PROD_STAGES.find(s=>s.id===stage).name}`); }
+  const used=consumeForStage(d, stage);
+  if(used.length){
+    DB.activity.unshift({who:state.user.id,text:`Списано со склада (${PROD_STAGES.find(s=>s.id===stage).name}) — ${clientById(d.clientId).name}`,at:SEED_NOW.toISOString(),kind:'wh'});
+  }
+  saveDB(); closeModal(); render();
+  if(used.length){ toast(`Этап «${PROD_STAGES.find(s=>s.id===stage).name}» · списано: ${used.join(', ')}`); }
+  else { toast(`Этап: ${PROD_STAGES.find(s=>s.id===stage).name}`); }
+  const low=[...DB.materials,...DB.components].filter(x=>x.stock<x.min).map(x=>x.name);
+  if(low.length) toast(`⚠ Ниже минимума: ${low.slice(0,3).join(', ')}${low.length>3?` и ещё ${low.length-3}`:''} — нужен дозаказ`); }
 
 function applyPrepay(id){
   const d=dealById(id); if(!d) return; const k=computeMeasure(d);
   d.sum=k.total;
   if(dealPaid(d)===0){ d.payments=d.payments||[]; d.payments.push({id:uid('p'),type:'Аванс',amount:k.prepay,date:SEED_NOW.toISOString()}); }
   d.stage='prepaid'; d.stageSince=SEED_NOW.toISOString(); d.prodStage='queue';
-  // резерв склада
-  (d.items||[]).forEach(c=>{ const m=matById(c.profileId); if(m){ const per=2*(c.w+c.h)/1000*(c.qty||1); m.stock=Math.max(0,Math.round(m.stock-per)); } });
   DB.activity.unshift({who:state.user.id,text:`Принял предоплату ${money(k.prepay)} — ${clientById(d.clientId).name}`,at:SEED_NOW.toISOString(),kind:'money'});
   state.measureDealId=null;
   saveDB(); closeModal(); render();
-  toast(`Аванс ${money(k.prepay)} принят · заказ ушёл в производство, профиль зарезервирован`);
+  toast(`Аванс ${money(k.prepay)} принят · заказ в очереди производства`);
 }
 function addPaymentModal(id){
   const d=dealById(id); const debt=dealDebt(d); const cl=clientById(d.clientId);
@@ -66,6 +72,32 @@ function createClient(){
   const name=document.getElementById('nc-name').value.trim(); if(!name){toast('Укажите имя','warn');return;}
   DB.clients.unshift({id:uid('cl'),name,phone:document.getElementById('nc-phone').value||'—',address:document.getElementById('nc-addr').value||DB.company.city,type:name.match(/ТОО|ИП|ОО/)?'Юр. лицо':'Физ. лицо'});
   saveDB(); closeModal(); renderModule(); toast('Клиент добавлен');
+}
+
+/* warehouse — приход (пополнение) */
+function whReceiveModal(id, kind){
+  const it = kind==='mat' ? matById(id) : compById(id);
+  if(!it) return;
+  const costRow = (kind==='mat' && seesMoney()) ? `<div class="fld"><label>Цена прихода, ₸/${it.unit}</label><input type="number" id="wr-rate" value="${it.rate||0}"></div>` : '';
+  const supRow = it.supplier ? `<div class="fld full"><label>Поставщик</label><input id="wr-sup" value="${it.supplier}"></div>` : '';
+  openModal(`<div class="modal-h">${icon('box')}<div><h3>Приход на склад</h3><div class="mh-sub">${it.name} · сейчас ${it.stock} ${it.unit}</div></div><button class="x" data-act="close-modal">${icon('x')}</button></div>
+    <div class="modal-b"><div class="constr-body" style="padding:0">
+      <div class="fld"><label>Количество, ${it.unit}</label><input type="number" min="1" id="wr-qty" value="${Math.max(it.min, Math.round((it.min*2-it.stock)>0?(it.min*2-it.stock):it.min))}" autofocus></div>
+      ${costRow}${supRow}
+    </div></div>
+    <div class="modal-f"><button class="btn" data-act="close-modal">Отмена</button><button class="btn green" data-act="wh-confirm-receive" data-id="${id}" data-kind="${kind}">${icon('check','sm')} Оприходовать</button></div>`);
+}
+function whConfirmReceive(id, kind){
+  const it = kind==='mat' ? matById(id) : compById(id);
+  if(!it) return;
+  const qty = Math.max(0, Math.round((parseFloat(document.getElementById('wr-qty').value)||0)*10)/10);
+  if(qty<=0){ toast('Укажите количество','warn'); return; }
+  const rateEl=document.getElementById('wr-rate'); if(rateEl){ const r=parseFloat(rateEl.value); if(r>0) it.rate=Math.round(r); }
+  const supEl=document.getElementById('wr-sup'); if(supEl && supEl.value.trim()) it.supplier=supEl.value.trim();
+  it.stock = Math.round((it.stock+qty)*10)/10;
+  DB.activity.unshift({who:state.user.id,text:`Приход на склад: ${it.name} +${qty} ${it.unit}`,at:SEED_NOW.toISOString(),kind:'wh'});
+  saveDB(); closeModal(); render();
+  toast(`Оприходовано: ${it.name} +${qty} ${it.unit} · остаток ${it.stock} ${it.unit}`);
 }
 
 /* measure mutations */
@@ -113,6 +145,8 @@ document.addEventListener('click', e=>{
     case 'quick-prepay': applyPrepay(id); break;
     case 'confirm-prepay': applyPrepay(id); break;
     case 'wh-tab': state.whTab=t.dataset.v; renderModule(); break;
+    case 'wh-receive': whReceiveModal(id, t.dataset.kind); break;
+    case 'wh-confirm-receive': whConfirmReceive(id, t.dataset.kind); break;
     case 'open-prod': openProd(id); break;
     case 'move-prod': moveProd(id, t.dataset.stage); break;
     case 'fin-tab': state.financeTab=t.dataset.v; renderModule(); break;

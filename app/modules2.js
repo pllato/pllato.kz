@@ -165,15 +165,17 @@ function renderWarehouse(){
         <td><span class="tag ${m.series==='Премиум'?'amber':m.series==='Средняя'?'blue':''}">${m.series}</span></td>
         ${showCost?`<td class="num">${money(m.rate)}/м²</td>`:''}
         <td style="min-width:160px"><div style="display:flex;align-items:center;gap:10px"><div class="mini-bar"><i style="width:${pct}%;background:${low?'var(--red)':'var(--green)'}"></i></div><span style="font-weight:700;white-space:nowrap">${m.stock} ${m.unit}</span></div></td>
-        <td>${low?`<span class="tag red">${icon('alert','sm')} мало</span>`:'<span class="tag green">в норме</span>'}</td></tr>`;}).join('');
-    body=`<table class="tbl"><thead><tr><th>Профиль</th><th>Тип</th><th>Серия</th>${showCost?'<th class="num">Цена</th>':''}<th>Остаток</th><th>Статус</th></tr></thead><tbody>${rows}</tbody></table>`;
+        <td>${low?`<span class="tag red">${icon('alert','sm')} мало</span>`:'<span class="tag green">в норме</span>'}</td>
+        <td style="text-align:right"><button class="btn sm" data-act="wh-receive" data-id="${m.id}" data-kind="mat">${icon('plus','sm')} Приход</button></td></tr>`;}).join('');
+    body=`<table class="tbl"><thead><tr><th>Профиль</th><th>Тип</th><th>Серия</th>${showCost?'<th class="num">Цена</th>':''}<th>Остаток</th><th>Статус</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
   } else {
     const rows=DB.components.map(c=>{const low=c.stock<c.min; const pct=Math.min(100,c.stock/(c.min*2)*100);
       return `<tr><td style="font-weight:600">${c.name}</td>
         <td style="min-width:200px"><div style="display:flex;align-items:center;gap:10px"><div class="mini-bar"><i style="width:${pct}%;background:${low?'var(--red)':'var(--green)'}"></i></div><span style="font-weight:700;white-space:nowrap">${c.stock} ${c.unit}</span></div></td>
         <td class="muted">мин. ${c.min}</td>
-        <td>${low?`<span class="tag red">${icon('alert','sm')} дозаказать</span>`:'<span class="tag green">в норме</span>'}</td></tr>`;}).join('');
-    body=`<table class="tbl"><thead><tr><th>Наименование</th><th>Остаток</th><th>Минимум</th><th>Статус</th></tr></thead><tbody>${rows}</tbody></table>`;
+        <td>${low?`<span class="tag red">${icon('alert','sm')} дозаказать</span>`:'<span class="tag green">в норме</span>'}</td>
+        <td style="text-align:right"><button class="btn sm" data-act="wh-receive" data-id="${c.id}" data-kind="comp">${icon('plus','sm')} Приход</button></td></tr>`;}).join('');
+    body=`<table class="tbl"><thead><tr><th>Наименование</th><th>Остаток</th><th>Минимум</th><th>Статус</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
   }
   const low=[...DB.materials,...DB.components].filter(x=>x.stock<x.min).length;
   return `
