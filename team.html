@@ -2708,6 +2708,9 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
     <div class="nav-item" data-page="deeds">
       <span class="nav-icon">🗓</span><span>Дела</span>
     </div>
+    <div class="nav-item" data-page="calendar">
+      <span class="nav-icon">📅</span><span>Календарь</span>
+    </div>
 
     <div class="nav-section">Команда</div>
     <div class="nav-item" data-page="orgchart">
@@ -3227,7 +3230,7 @@ async function initApp(user) {
 
   // Default page — восстанавливаем последнюю открытую (persist в localStorage
   // через navigate). Deep-link в hash (#deal/, #contact/, #task/) приоритетнее.
-  const VALID_PAGES = ['dashboard', 'contacts', 'deals', 'tasks', 'deeds', 'chats', 'orgchart', 'migration', 'settings'];
+  const VALID_PAGES = ['dashboard', 'contacts', 'deals', 'tasks', 'deeds', 'calendar', 'chats', 'orgchart', 'migration', 'settings'];
   // Старая страница 'users' переехала в 'settings' → редирект сохранённого значения
   let startPage = 'dashboard';
   if (location.hash.startsWith('#deal/')) startPage = 'deals';
@@ -3314,6 +3317,7 @@ function navigate(page) {
   else if (page === 'deals') renderDeals(main);
   else if (page === 'tasks') renderTasks(main);
   else if (page === 'deeds') renderDeeds(main);
+  else if (page === 'calendar') renderCalendar(main);
   else if (page === 'chats') renderChats(main);
   else if (page === 'orgchart') renderOrgChart(main);
   else if (page === 'migration') renderMigration(main);
@@ -6722,6 +6726,7 @@ async function openDealCard(bitrixId) {
           </div>
         </div>
         <div class="dc-head-actions">
+          <button class="tbtn tbtn-xs" onclick="closeDealCard();navigate('calendar')" title="Открыть календарь встреч">📅 Календарь</button>
           <button class="tbtn tbtn-xs dc-mirror-btn" id="dc-mirror-btn" title="Добавить эту сделку в ещё одну воронку (зеркало)">🔁 В воронку</button>
           <button class="tbtn tbtn-xs dc-archive-btn" id="dc-archive-btn" data-archived="${deal.archived ? 1 : 0}" title="${deal.archived ? 'Восстановить из архива' : 'В архив (soft-delete)'}">
             ${deal.archived ? '↩ Восстановить' : '🗄 В архив'}
@@ -6807,6 +6812,19 @@ async function openDealCard(bitrixId) {
 
           ${deal.comments ? `<div class="dc-section-h">Комментарии</div>
             <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.5">${escapeHtml(deal.comments)}</div>` : ''}
+
+          <div class="dc-section-h">📹 Первый Zoom</div>
+          <div style="background:var(--bg3);padding:12px 14px;border-radius:8px">
+            <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Дата и время первой Zoom-встречи (попадёт в Календарь)</div>
+            <input class="cf-edit"
+              type="datetime-local"
+              data-field="firstZoomAt"
+              data-deal-id="deal_${escapeHtml(deal.bitrixId)}"
+              data-type="datetime-local"
+              value="${escapeHtml(deal.customFields?.firstZoomAt || '')}"
+              style="padding:6px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
+            ${deal.customFields?.firstZoomAt ? `<button class="tbtn tbtn-xs" style="margin-left:8px" onclick="navigate('calendar')">📅 Открыть календарь</button>` : ''}
+          </div>
 
           ${renderCustomFieldsBlock(deal.customFields, { dealId: 'deal_' + deal.bitrixId, editable: true })}
         </div>
@@ -9104,6 +9122,241 @@ function renderDeedsList() {
     return;
   }
   wrap.innerHTML = items.map(t => renderDeedRowHtml(t, { showDealLink: true })).join('');
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+//   КАЛЕНДАРЬ — месячная сетка событий (задачи с дедлайном + Первый Zoom)
+// ═════════════════════════════════════════════════════════════════════════
+const calendarState = {
+  cursorYear: null,    // показанный месяц (null = текущий)
+  cursorMonth: null,   // 0-11
+  events: null,        // массив всех событий
+  loading: false,
+};
+
+function ensureCalendarStylesInjected() {
+  if (document.getElementById('cal-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'cal-styles';
+  style.textContent = `
+    .cal-page { max-width: 1100px; margin: 0 auto; }
+    .cal-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+    .cal-month-label { font-size: 18px; font-weight: 700; color: var(--t1); font-family: var(--fd); min-width: 200px; text-align: center; }
+    .cal-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 1px; background: var(--b1); border: 1px solid var(--b1);
+      border-radius: 8px; overflow: hidden;
+    }
+    .cal-weekday {
+      background: var(--bg3); padding: 8px; text-align: center;
+      font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+      color: var(--t3); font-weight: 600;
+    }
+    .cal-day {
+      background: var(--bg2); min-height: 100px; padding: 6px 8px;
+      display: flex; flex-direction: column; gap: 4px;
+      position: relative; cursor: default;
+    }
+    .cal-day.other-month { background: var(--bg1); opacity: 0.55; }
+    .cal-day.today { background: rgba(79, 70, 229, 0.08); }
+    .cal-day.today .cal-day-num { background: var(--ac); color: #fff; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+    .cal-day-num { font-size: 12px; color: var(--t2); font-weight: 600; }
+    .cal-event {
+      display: block;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+      line-height: 1.4;
+    }
+    .cal-event-zoom { background: rgba(37, 99, 235, 0.15); color: #1e40af; border-left: 3px solid #2563eb; }
+    .cal-event-task { background: rgba(168, 85, 247, 0.12); color: #6b21a8; border-left: 3px solid #a855f7; }
+    .cal-event:hover { filter: brightness(0.95); }
+    .cal-day-more { font-size: 10px; color: var(--t3); margin-top: 2px; }
+    [data-theme="dark"] .cal-event-zoom { color: #bfdbfe; }
+    [data-theme="dark"] .cal-event-task { color: #ddd6fe; }
+  `;
+  document.head.appendChild(style);
+}
+
+async function renderCalendar(el) {
+  ensureCalendarStylesInjected();
+  const now = new Date();
+  if (calendarState.cursorYear == null) {
+    calendarState.cursorYear = now.getFullYear();
+    calendarState.cursorMonth = now.getMonth();
+  }
+  el.innerHTML = `
+    <div class="cal-page">
+      <div class="page-head" style="margin-bottom:10px">
+        <h1 style="margin:0">📅 Календарь</h1>
+      </div>
+      <div class="page-sub">Встречи Zoom из сделок + задачи с дедлайном. Клик на событие открывает запись.</div>
+      <div class="cal-toolbar">
+        <button class="btn btn-sm" id="cal-prev">← Назад</button>
+        <button class="btn btn-sm" id="cal-today">Сегодня</button>
+        <button class="btn btn-sm" id="cal-next">Вперёд →</button>
+        <span class="cal-month-label" id="cal-label"></span>
+        <span style="margin-left:auto;font-size:11px;color:var(--t3);display:flex;gap:14px">
+          <span><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;vertical-align:middle"></span> Zoom</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:#a855f7;border-radius:2px;vertical-align:middle"></span> Задача</span>
+        </span>
+      </div>
+      <div id="cal-grid"><div class="empty" style="padding:30px;text-align:center;color:var(--t3)">⏳ Загружаем события…</div></div>
+    </div>
+  `;
+  document.getElementById('cal-prev').onclick = () => calendarShift(-1);
+  document.getElementById('cal-next').onclick = () => calendarShift(1);
+  document.getElementById('cal-today').onclick = () => {
+    calendarState.cursorYear = new Date().getFullYear();
+    calendarState.cursorMonth = new Date().getMonth();
+    renderCalendarGrid();
+  };
+  await loadCalendarEvents();
+  renderCalendarGrid();
+}
+
+function calendarShift(delta) {
+  let m = calendarState.cursorMonth + delta;
+  let y = calendarState.cursorYear;
+  if (m < 0) { m += 12; y -= 1; }
+  if (m > 11) { m -= 12; y += 1; }
+  calendarState.cursorYear = y;
+  calendarState.cursorMonth = m;
+  renderCalendarGrid();
+}
+
+async function loadCalendarEvents() {
+  if (calendarState.loading) return;
+  calendarState.loading = true;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    // Задачи: активные (status=active), берём первые 500 — должно хватить
+    // для большинства календарных дисплеев (~3-6 мес активной работы).
+    // Расширение: пагинация / range-фильтр — отдельная фаза.
+    const tasksP = fetch(`${WORKER_LIST_URL}/tasks?page=1&pageSize=500&status=active&sort=deadline&scope=${effectiveScope()}&auth=${idToken}`)
+      .then(r => r.ok ? r.json() : { items: [] })
+      .catch(() => ({ items: [] }));
+    // Сделки: уже загруженные в dealsState.deals — кладём как есть.
+    // Все сделки из всех воронок не дёргаем (тяжело — 22k). Активной воронки
+    // обычно достаточно. Расширение: запрос всех firstZoomAt — отдельный
+    // worker endpoint в следующей фазе.
+    const tasksR = await tasksP;
+    const events = [];
+    for (const t of (tasksR.items || [])) {
+      if (!t.deadline) continue;
+      const d = new Date(t.deadline);
+      if (isNaN(d)) continue;
+      events.push({
+        type: 'task',
+        date: d,
+        title: t.title || '(без названия)',
+        taskId: t.id || t.bitrixKey,
+        bitrixId: t.bitrixId,
+      });
+    }
+    for (const d of (dealsState.deals || [])) {
+      const zt = d.customFields?.firstZoomAt;
+      if (!zt) continue;
+      const dt = new Date(zt);
+      if (isNaN(dt)) continue;
+      events.push({
+        type: 'zoom',
+        date: dt,
+        title: 'Zoom: ' + (d.title || d.bitrixId),
+        dealBitrixId: d.bitrixId,
+      });
+    }
+    calendarState.events = events;
+  } catch (e) {
+    console.error('loadCalendarEvents:', e);
+    calendarState.events = [];
+  } finally {
+    calendarState.loading = false;
+  }
+}
+
+function renderCalendarGrid() {
+  const grid = document.getElementById('cal-grid');
+  const label = document.getElementById('cal-label');
+  if (!grid || !label) return;
+  const y = calendarState.cursorYear;
+  const m = calendarState.cursorMonth;
+  const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  label.textContent = `${months[m]} ${y}`;
+
+  const first = new Date(y, m, 1);
+  // День недели первого числа (0=ВС, 1=ПН, ...). Сдвигаем чтобы неделя начиналась с ПН.
+  const firstDow = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  // Дни предыдущего месяца для заполнения первой недели
+  const prevDays = firstDow;
+  const totalCells = Math.ceil((firstDow + daysInMonth) / 7) * 7;
+
+  const today = new Date();
+  const isSameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+  // Группируем события по datestamp YYYY-MM-DD
+  const eventsByDate = {};
+  for (const ev of (calendarState.events || [])) {
+    const k = `${ev.date.getFullYear()}-${ev.date.getMonth()}-${ev.date.getDate()}`;
+    if (!eventsByDate[k]) eventsByDate[k] = [];
+    eventsByDate[k].push(ev);
+  }
+
+  let html = '';
+  const weekdays = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  for (const w of weekdays) html += `<div class="cal-weekday">${w}</div>`;
+
+  for (let i = 0; i < totalCells; i++) {
+    const dayNum = i - prevDays + 1;
+    let cellDate, isOther;
+    if (dayNum < 1) {
+      cellDate = new Date(y, m, dayNum);
+      isOther = true;
+    } else if (dayNum > daysInMonth) {
+      cellDate = new Date(y, m, dayNum);
+      isOther = true;
+    } else {
+      cellDate = new Date(y, m, dayNum);
+      isOther = false;
+    }
+    const isToday = isSameDay(cellDate, today);
+    const k = `${cellDate.getFullYear()}-${cellDate.getMonth()}-${cellDate.getDate()}`;
+    const dayEvents = (eventsByDate[k] || []).slice().sort((a, b) => a.date - b.date);
+    const visible = dayEvents.slice(0, 4);
+    const overflow = dayEvents.length - visible.length;
+    const eventsHtml = visible.map(ev => {
+      const time = ev.date.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+      const cls = ev.type === 'zoom' ? 'cal-event-zoom' : 'cal-event-task';
+      const dataAttr = ev.type === 'zoom'
+        ? `data-cal-deal="${escapeHtml(ev.dealBitrixId || '')}"`
+        : `data-cal-task="${escapeHtml(ev.taskId || '')}"`;
+      return `<span class="cal-event ${cls}" ${dataAttr} title="${escapeHtml(time + ' · ' + ev.title)}">${escapeHtml(time)} ${escapeHtml(ev.title)}</span>`;
+    }).join('');
+    html += `<div class="cal-day ${isOther ? 'other-month' : ''} ${isToday ? 'today' : ''}">
+      <div class="cal-day-num">${cellDate.getDate()}</div>
+      ${eventsHtml}
+      ${overflow > 0 ? `<div class="cal-day-more">+${overflow} ещё</div>` : ''}
+    </div>`;
+  }
+  grid.innerHTML = `
+    <div class="cal-grid">${html}</div>
+    ${calendarState.events && calendarState.events.length === 0 ? '<div style="margin-top:14px;color:var(--t3);font-size:12px;text-align:center">Событий не найдено. Проставь дату Первого Zoom в сделке или дедлайн у задачи.</div>' : ''}
+  `;
+  // Клик на событие → открыть карточку
+  grid.querySelectorAll('.cal-event').forEach(e => {
+    e.addEventListener('click', () => {
+      if (e.dataset.calDeal) openDealCard(e.dataset.calDeal);
+      else if (e.dataset.calTask) {
+        // openTaskModal — если есть; иначе ничего
+        if (typeof openTaskModal === 'function') openTaskModal(e.dataset.calTask);
+      }
+    });
+  });
 }
 
 async function renderTasks(el) {
