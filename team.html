@@ -9219,9 +9219,18 @@ function renderDeedsList() {
 // ═════════════════════════════════════════════════════════════════════════
 //   КАЛЕНДАРЬ — месячная сетка событий (задачи с дедлайном + Первый Zoom)
 // ═════════════════════════════════════════════════════════════════════════
+const CAL_VIEW_LS_KEY = 'elc:calendarView';
 const calendarState = {
-  view: 'month',          // month | week | day
-  cursorDate: null,       // Date — для всех видов; для month-вида берётся год+месяц
+  // Дефолт — День. Восстанавливаем последний выбранный из localStorage,
+  // чтобы переключение View сохранялось между навигациями.
+  view: (() => {
+    try {
+      const saved = localStorage.getItem(CAL_VIEW_LS_KEY);
+      if (saved === 'day' || saved === 'week' || saved === 'month') return saved;
+    } catch {}
+    return 'day';
+  })(),
+  cursorDate: null,
   // backward-compat (используются renderCalendarGrid для месяца)
   cursorYear: null,
   cursorMonth: null,
@@ -9386,6 +9395,7 @@ async function renderCalendar(el) {
   el.querySelectorAll('.cal-view-btn').forEach(b => {
     b.addEventListener('click', () => {
       calendarState.view = b.dataset.calView;
+      try { localStorage.setItem(CAL_VIEW_LS_KEY, calendarState.view); } catch {}
       renderCalendar(el);  // полная пересборка тулбара для подсветки активной кнопки
     });
   });
