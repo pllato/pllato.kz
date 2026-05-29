@@ -9220,11 +9220,14 @@ function renderDeedsList() {
 //   КАЛЕНДАРЬ — месячная сетка событий (задачи с дедлайном + Первый Zoom)
 // ═════════════════════════════════════════════════════════════════════════
 const calendarState = {
-  cursorYear: null,    // показанный месяц (null = текущий)
-  cursorMonth: null,   // 0-11
-  events: null,        // массив всех событий
+  view: 'month',          // month | week | day
+  cursorDate: null,       // Date — для всех видов; для month-вида берётся год+месяц
+  // backward-compat (используются renderCalendarGrid для месяца)
+  cursorYear: null,
+  cursorMonth: null,
+  events: null,
   loading: false,
-  loadingPromise: null, // promise текущей загрузки — для предотвращения race
+  loadingPromise: null,
 };
 
 function ensureCalendarStylesInjected() {
@@ -9271,6 +9274,61 @@ function ensureCalendarStylesInjected() {
     .cal-day-more { font-size: 10px; color: var(--t3); margin-top: 2px; }
     [data-theme="dark"] .cal-event-zoom { color: #bfdbfe; }
     [data-theme="dark"] .cal-event-task { color: #ddd6fe; }
+
+    /* ──── Hourly views (day / week) ──── */
+    .cal-hourly-wrap { display: flex; border: 1px solid var(--b1); border-radius: 8px; overflow: hidden; background: var(--bg2); }
+    .cal-hourly-times { flex: 0 0 56px; background: var(--bg3); border-right: 1px solid var(--b1); }
+    .cal-hourly-time-slot { height: 44px; padding: 2px 8px 0; font-size: 11px; color: var(--t3); text-align: right; border-bottom: 1px solid var(--b1); }
+    .cal-hourly-days { display: flex; flex: 1; min-width: 0; }
+    .cal-hourly-day-col {
+      flex: 1; min-width: 0; position: relative;
+      border-right: 1px solid var(--b1); background: var(--bg2);
+    }
+    .cal-hourly-day-col:last-child { border-right: none; }
+    .cal-hourly-day-col.today-col { background: rgba(79,70,229,0.04); }
+    .cal-hourly-day-header {
+      padding: 8px; text-align: center; border-bottom: 1px solid var(--b1);
+      background: var(--bg3); font-size: 12px; color: var(--t2);
+      position: sticky; top: 0; z-index: 1;
+    }
+    .cal-hourly-day-header .dh-day { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--t3); }
+    .cal-hourly-day-header .dh-num { font-size: 16px; font-weight: 700; color: var(--t1); margin-top: 2px; }
+    .cal-hourly-day-header.today .dh-num { color: #fff; background: var(--ac); border-radius: 50%; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; margin: 2px auto 0; }
+    .cal-hourly-day-body { position: relative; height: 748px; /* 17 hours × 44px */ }
+    .cal-hourly-hour-line {
+      position: absolute; left: 0; right: 0; height: 44px;
+      border-bottom: 1px solid var(--b1);
+    }
+    .cal-hourly-event {
+      position: absolute; left: 4px; right: 4px;
+      border-radius: 5px; padding: 3px 6px;
+      font-size: 11px; line-height: 1.3; cursor: pointer;
+      overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+      border-left: 3px solid;
+    }
+    .cal-hourly-event.zoom { background: rgba(37,99,235,0.15); color: #1e40af; border-left-color: #2563eb; }
+    .cal-hourly-event.task { background: rgba(168,85,247,0.12); color: #6b21a8; border-left-color: #a855f7; }
+    .cal-hourly-event-time { font-weight: 600; font-size: 10px; }
+    .cal-hourly-event-title { font-size: 11px; }
+    [data-theme="dark"] .cal-hourly-event.zoom { color: #bfdbfe; }
+    [data-theme="dark"] .cal-hourly-event.task { color: #ddd6fe; }
+    /* Линия "текущее время" — только в day-view today / week-view today-col */
+    .cal-now-line {
+      position: absolute; left: 0; right: 0;
+      height: 2px; background: #ef4444; z-index: 2;
+      pointer-events: none;
+    }
+    .cal-now-line::before {
+      content: ''; position: absolute; left: -4px; top: -3px;
+      width: 8px; height: 8px; background: #ef4444; border-radius: 50%;
+    }
+
+    .cal-view-toggle { display: flex; background: var(--bg3); border: 1px solid var(--b1); border-radius: 6px; padding: 2px; }
+    .cal-view-btn {
+      border: none; background: transparent; color: var(--t2);
+      padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+    }
+    .cal-view-btn.active { background: var(--ac); color: #fff; }
   `;
   document.head.appendChild(style);
 }
@@ -9278,10 +9336,10 @@ function ensureCalendarStylesInjected() {
 async function renderCalendar(el) {
   ensureCalendarStylesInjected();
   const now = new Date();
-  if (calendarState.cursorYear == null) {
-    calendarState.cursorYear = now.getFullYear();
-    calendarState.cursorMonth = now.getMonth();
-  }
+  if (!calendarState.cursorDate) calendarState.cursorDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // Sync legacy month-grid поля из cursorDate (для совместимости)
+  calendarState.cursorYear = calendarState.cursorDate.getFullYear();
+  calendarState.cursorMonth = calendarState.cursorDate.getMonth();
   el.innerHTML = `
     <div class="cal-page">
       <div class="page-head" style="margin-bottom:10px">
@@ -9289,11 +9347,16 @@ async function renderCalendar(el) {
       </div>
       <div class="page-sub">Встречи Zoom из сделок + задачи с дедлайном. Клик на событие открывает запись.</div>
       <div class="cal-toolbar">
-        <button class="btn btn-sm" id="cal-prev">← Назад</button>
+        <button class="btn btn-sm" id="cal-prev">←</button>
         <button class="btn btn-sm" id="cal-today">Сегодня</button>
-        <button class="btn btn-sm" id="cal-next">Вперёд →</button>
+        <button class="btn btn-sm" id="cal-next">→</button>
         <button class="btn btn-sm" id="cal-reload" title="Перезагрузить события">🔄</button>
         <span class="cal-month-label" id="cal-label"></span>
+        <div class="cal-view-toggle">
+          <button class="cal-view-btn ${calendarState.view === 'day' ? 'active' : ''}" data-cal-view="day">День</button>
+          <button class="cal-view-btn ${calendarState.view === 'week' ? 'active' : ''}" data-cal-view="week">Неделя</button>
+          <button class="cal-view-btn ${calendarState.view === 'month' ? 'active' : ''}" data-cal-view="month">Месяц</button>
+        </div>
         <span id="cal-stats" style="margin-left:auto;font-size:11px;color:var(--t3);display:flex;gap:14px;align-items:center">
           <span><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;vertical-align:middle"></span> Zoom</span>
           <span><span style="display:inline-block;width:10px;height:10px;background:#a855f7;border-radius:2px;vertical-align:middle"></span> Задача</span>
@@ -9305,9 +9368,11 @@ async function renderCalendar(el) {
   document.getElementById('cal-prev').onclick = () => calendarShift(-1);
   document.getElementById('cal-next').onclick = () => calendarShift(1);
   document.getElementById('cal-today').onclick = () => {
-    calendarState.cursorYear = new Date().getFullYear();
-    calendarState.cursorMonth = new Date().getMonth();
-    renderCalendarGrid();
+    const t = new Date();
+    calendarState.cursorDate = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+    calendarState.cursorYear = t.getFullYear();
+    calendarState.cursorMonth = t.getMonth();
+    renderCalendarView();
   };
   document.getElementById('cal-reload').onclick = async () => {
     calendarState.events = null;
@@ -9315,20 +9380,40 @@ async function renderCalendar(el) {
     calendarState.loadingPromise = null;
     document.getElementById('cal-grid').innerHTML = '<div class="empty" style="padding:30px;text-align:center;color:var(--t3)">⏳ Перезагружаем…</div>';
     await loadCalendarEvents({ force: true });
-    renderCalendarGrid();
+    renderCalendarView();
   };
+  // Переключатель видов
+  el.querySelectorAll('.cal-view-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      calendarState.view = b.dataset.calView;
+      renderCalendar(el);  // полная пересборка тулбара для подсветки активной кнопки
+    });
+  });
   await loadCalendarEvents();
-  renderCalendarGrid();
+  renderCalendarView();
+}
+
+// Dispatcher: выбирает renderer по текущему view
+function renderCalendarView() {
+  if (calendarState.view === 'day') renderCalendarDayView();
+  else if (calendarState.view === 'week') renderCalendarWeekView();
+  else renderCalendarGrid();
 }
 
 function calendarShift(delta) {
-  let m = calendarState.cursorMonth + delta;
-  let y = calendarState.cursorYear;
-  if (m < 0) { m += 12; y -= 1; }
-  if (m > 11) { m -= 12; y += 1; }
-  calendarState.cursorYear = y;
-  calendarState.cursorMonth = m;
-  renderCalendarGrid();
+  const cur = calendarState.cursorDate || new Date();
+  let next;
+  if (calendarState.view === 'day') {
+    next = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + delta);
+  } else if (calendarState.view === 'week') {
+    next = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + delta * 7);
+  } else {
+    next = new Date(cur.getFullYear(), cur.getMonth() + delta, cur.getDate());
+  }
+  calendarState.cursorDate = next;
+  calendarState.cursorYear = next.getFullYear();
+  calendarState.cursorMonth = next.getMonth();
+  renderCalendarView();
 }
 
 async function loadCalendarEvents(opts = {}) {
@@ -9396,9 +9481,16 @@ async function loadCalendarEvents(opts = {}) {
           durLabel = ' · ' + (min >= 60 ? `${(min/60).toFixed(min%60?1:0)}ч` : `${min}м`);
         }
       }
+      // endDate для day/week-view (высота блока)
+      let endDate = null;
+      if (isZoom && t.endDatePlan) {
+        const ed = new Date(t.endDatePlan);
+        if (!isNaN(ed)) endDate = ed;
+      }
       events.push({
         type: isZoom ? 'zoom' : 'task',
         date: d,
+        endDate,
         title: (isZoom ? '📹 ' : '') + (t.title || '(без названия)') + durLabel,
         taskId: t.id || t.bitrixKey,
         bitrixId: t.bitrixId,
@@ -9410,9 +9502,12 @@ async function loadCalendarEvents(opts = {}) {
         if (!zt) continue;
         const dt = new Date(zt);
         if (isNaN(dt)) continue;
+        // Для firstZoomAt длительности нет — берём дефолт 60 минут
+        const endDt = new Date(dt.getTime() + 60 * 60000);
         events.push({
           type: 'zoom',
           date: dt,
+          endDate: endDt,
           title: 'Zoom: ' + (d.title || d.bitrixId),
           dealBitrixId: d.bitrixId,
         });
@@ -9531,6 +9626,208 @@ function renderCalendarGrid() {
       }
     });
   });
+}
+
+// ── Day view: одна колонка с почасовой сеткой 6:00-22:00 ────────────────
+function renderCalendarDayView() {
+  const grid = document.getElementById('cal-grid');
+  const label = document.getElementById('cal-label');
+  if (!grid || !label) return;
+  const date = calendarState.cursorDate || new Date();
+  const weekdays = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+  const months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const dayLabel = `${weekdays[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  label.textContent = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
+  const dayEvents = (calendarState.events || []).filter(ev =>
+    ev.date.getFullYear() === date.getFullYear() &&
+    ev.date.getMonth() === date.getMonth() &&
+    ev.date.getDate() === date.getDate()
+  ).sort((a,b) => a.date - b.date);
+  const today = new Date();
+  const isToday = today.getFullYear() === date.getFullYear() &&
+    today.getMonth() === date.getMonth() &&
+    today.getDate() === date.getDate();
+  const HOUR_H = 44, START_H = 6, END_H = 22;
+  // Timeline (часы 6-22)
+  let timesHtml = '';
+  for (let h = START_H; h <= END_H; h++) {
+    timesHtml += `<div class="cal-hourly-time-slot">${String(h).padStart(2,'0')}:00</div>`;
+  }
+  // Горизонтальные линии
+  let linesHtml = '';
+  for (let h = START_H; h <= END_H; h++) {
+    linesHtml += `<div class="cal-hourly-hour-line" style="top:${(h - START_H) * HOUR_H}px"></div>`;
+  }
+  // События с позиционированием
+  const eventsHtml = dayEvents.map(ev => calHourlyEventHtml(ev, START_H, HOUR_H, dayEvents.length === 1)).join('');
+  // Линия "сейчас" для today
+  let nowLineHtml = '';
+  if (isToday) {
+    const nowMin = today.getHours() * 60 + today.getMinutes();
+    const top = (nowMin - START_H * 60) / 60 * HOUR_H;
+    if (top >= 0 && top <= (END_H - START_H + 1) * HOUR_H) {
+      nowLineHtml = `<div class="cal-now-line" style="top:${top}px"></div>`;
+    }
+  }
+  grid.innerHTML = `
+    <div class="cal-hourly-wrap">
+      <div class="cal-hourly-times" style="padding-top:42px">${timesHtml}</div>
+      <div class="cal-hourly-days">
+        <div class="cal-hourly-day-col ${isToday ? 'today-col' : ''}">
+          <div class="cal-hourly-day-header ${isToday ? 'today' : ''}">
+            <div class="dh-day">${weekdays[date.getDay()].slice(0,2)}</div>
+            <div class="dh-num">${date.getDate()}</div>
+          </div>
+          <div class="cal-hourly-day-body" style="height:${(END_H - START_H + 1) * HOUR_H}px">
+            ${linesHtml}
+            ${eventsHtml}
+            ${nowLineHtml}
+          </div>
+        </div>
+      </div>
+    </div>
+    ${dayEvents.length === 0 ? '<div style="margin-top:14px;text-align:center;color:var(--t3);font-size:12px">На этот день событий нет.</div>' : ''}
+  `;
+  attachCalEventClickHandlers(grid);
+  updateCalStatsCounter(date, calendarState.view);
+}
+
+// ── Week view: 7 колонок с почасовой сеткой ────────────────────────────
+function renderCalendarWeekView() {
+  const grid = document.getElementById('cal-grid');
+  const label = document.getElementById('cal-label');
+  if (!grid || !label) return;
+  const cur = calendarState.cursorDate || new Date();
+  // Начало недели — понедельник
+  const dow = (cur.getDay() + 6) % 7;  // 0=пн ... 6=вс
+  const weekStart = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() - dow);
+  const months = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
+  if (weekStart.getMonth() === weekEnd.getMonth()) {
+    label.textContent = `${weekStart.getDate()}–${weekEnd.getDate()} ${months[weekStart.getMonth()]} ${weekEnd.getFullYear()}`;
+  } else {
+    label.textContent = `${weekStart.getDate()} ${months[weekStart.getMonth()]} – ${weekEnd.getDate()} ${months[weekEnd.getMonth()]} ${weekEnd.getFullYear()}`;
+  }
+  const today = new Date();
+  const isSameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const HOUR_H = 44, START_H = 6, END_H = 22;
+  const weekdayShort = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  // Times column
+  let timesHtml = '';
+  for (let h = START_H; h <= END_H; h++) {
+    timesHtml += `<div class="cal-hourly-time-slot">${String(h).padStart(2,'0')}:00</div>`;
+  }
+  // 7 day columns
+  let colsHtml = '';
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i);
+    const isToday = isSameDay(day, today);
+    const dayEvents = (calendarState.events || []).filter(ev =>
+      isSameDay(ev.date, day)
+    ).sort((a,b) => a.date - b.date);
+    let linesHtml = '';
+    for (let h = START_H; h <= END_H; h++) {
+      linesHtml += `<div class="cal-hourly-hour-line" style="top:${(h - START_H) * HOUR_H}px"></div>`;
+    }
+    const eventsHtml = dayEvents.map(ev => calHourlyEventHtml(ev, START_H, HOUR_H, false)).join('');
+    let nowLineHtml = '';
+    if (isToday) {
+      const nowMin = today.getHours() * 60 + today.getMinutes();
+      const top = (nowMin - START_H * 60) / 60 * HOUR_H;
+      if (top >= 0 && top <= (END_H - START_H + 1) * HOUR_H) {
+        nowLineHtml = `<div class="cal-now-line" style="top:${top}px"></div>`;
+      }
+    }
+    colsHtml += `<div class="cal-hourly-day-col ${isToday ? 'today-col' : ''}">
+      <div class="cal-hourly-day-header ${isToday ? 'today' : ''}">
+        <div class="dh-day">${weekdayShort[i]}</div>
+        <div class="dh-num">${day.getDate()}</div>
+      </div>
+      <div class="cal-hourly-day-body" style="height:${(END_H - START_H + 1) * HOUR_H}px">
+        ${linesHtml}
+        ${eventsHtml}
+        ${nowLineHtml}
+      </div>
+    </div>`;
+  }
+  grid.innerHTML = `
+    <div class="cal-hourly-wrap">
+      <div class="cal-hourly-times" style="padding-top:50px">${timesHtml}</div>
+      <div class="cal-hourly-days">${colsHtml}</div>
+    </div>
+  `;
+  attachCalEventClickHandlers(grid);
+  updateCalStatsCounterWeek(weekStart, weekEnd);
+}
+
+// Общий html-builder для события в почасовой сетке
+function calHourlyEventHtml(ev, START_H, HOUR_H, isAlone) {
+  const startMin = ev.date.getHours() * 60 + ev.date.getMinutes();
+  let top = (startMin - START_H * 60) / 60 * HOUR_H;
+  if (top < 0) top = 0;
+  // Длительность: если есть end в payload — используем; иначе дефолт 30 мин
+  let height = 30 / 60 * HOUR_H;
+  if (ev.endDate) {
+    const durMin = Math.max(15, (ev.endDate - ev.date) / 60000);
+    height = durMin / 60 * HOUR_H;
+  }
+  const cls = ev.type === 'zoom' ? 'zoom' : 'task';
+  const time = ev.date.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+  const parts = [];
+  if (ev.taskId) parts.push(`data-cal-task="${escapeHtml(ev.taskId)}"`);
+  if (ev.dealBitrixId) {
+    if (ev.taskId) parts.push(`data-cal-linked-deal="${escapeHtml(ev.dealBitrixId)}"`);
+    else parts.push(`data-cal-deal="${escapeHtml(ev.dealBitrixId)}"`);
+  }
+  return `<div class="cal-event cal-hourly-event ${cls}" style="top:${top}px;height:${height}px" ${parts.join(' ')} title="${escapeHtml(time + ' · ' + ev.title)}">
+    <div class="cal-hourly-event-time">${escapeHtml(time)}</div>
+    <div class="cal-hourly-event-title">${escapeHtml(ev.title)}</div>
+  </div>`;
+}
+
+// Общий хендлер кликов (используется во всех видах)
+function attachCalEventClickHandlers(grid) {
+  grid.querySelectorAll('.cal-event').forEach(e => {
+    e.addEventListener('click', () => {
+      if (e.dataset.calDeal) { openDealCard(e.dataset.calDeal); return; }
+      if (e.dataset.calLinkedDeal) { openDealCard(e.dataset.calLinkedDeal); return; }
+      if (e.dataset.calTask) {
+        if (typeof openTaskModal === 'function') openTaskModal(e.dataset.calTask);
+      }
+    });
+  });
+}
+
+function updateCalStatsCounter(date, view) {
+  const stats = document.getElementById('cal-stats');
+  if (!stats || !calendarState.events) return;
+  const isSameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const inView = calendarState.events.filter(ev => isSameDay(ev.date, date)).length;
+  const periodLabel = view === 'day' ? 'в дне' : 'в месяце';
+  const counterHtml = `<span style="color:var(--t2);font-weight:500">${inView} ${periodLabel}</span> <span style="color:var(--t3)">· ${calendarState.events.length} всего</span>`;
+  if (!stats.querySelector('.cal-counter')) {
+    const span = document.createElement('span');
+    span.className = 'cal-counter';
+    span.innerHTML = counterHtml;
+    stats.insertBefore(span, stats.firstChild);
+  } else {
+    stats.querySelector('.cal-counter').innerHTML = counterHtml;
+  }
+}
+
+function updateCalStatsCounterWeek(weekStart, weekEnd) {
+  const stats = document.getElementById('cal-stats');
+  if (!stats || !calendarState.events) return;
+  const inWeek = calendarState.events.filter(ev => ev.date >= weekStart && ev.date <= weekEnd).length;
+  const counterHtml = `<span style="color:var(--t2);font-weight:500">${inWeek} в неделе</span> <span style="color:var(--t3)">· ${calendarState.events.length} всего</span>`;
+  if (!stats.querySelector('.cal-counter')) {
+    const span = document.createElement('span');
+    span.className = 'cal-counter';
+    span.innerHTML = counterHtml;
+    stats.insertBefore(span, stats.firstChild);
+  } else {
+    stats.querySelector('.cal-counter').innerHTML = counterHtml;
+  }
 }
 
 async function renderTasks(el) {
