@@ -37,6 +37,9 @@ const ICON = {
   refresh:'<path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/>',
   menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',
   send:'<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>',
+  link:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
   grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
   flame:'<path d="M12 3s4 4 4 8a4 4 0 0 1-8 0c0-1 .5-2 1-2.5C9 11 12 9 12 3z"/>',
   sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
@@ -232,6 +235,38 @@ function loadTheme(){ try{ return localStorage.getItem(THEME_KEY) || 'light'; }c
 function applyTheme(t){ document.documentElement.setAttribute('data-theme', t); }
 const state = { user:null, module:null, measureDealId:null, financeTab:'recv', whTab:'profile', sideOpen:false, theme:loadTheme() };
 applyTheme(state.theme);
+
+/* ============ ДОСТУП ПО ССЫЛКЕ (демо-гейт) ============ */
+/* Демка с фейковыми данными: подпись не криптостойкая, задача — мягко ограничить
+   вход клиента по сроку, а не защищать секреты. */
+const GATE_SECRET   = 'okna-pllato-2026';
+const OWNER_UNLOCK  = 'pllato-owner-7c';      // ?owner=<этот ключ> разблокирует владельца навсегда
+const OWNER_KEY     = 'okna_crm_owner';
+const GRANT_KEY     = 'okna_crm_grant';
+function _b64e(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function _b64d(s){ s=s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4)s+='='; return decodeURIComponent(escape(atob(s))); }
+function _sig(p){ let h=2166136261>>>0; const str=GATE_SECRET+p+GATE_SECRET; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); } return (h>>>0).toString(36); }
+function makeDemoToken(hours, label){ const exp=Date.now()+Math.round(hours*3600*1000); const p=_b64e(JSON.stringify({exp, label:label||'', iat:Date.now()})); return p+'.'+_sig(p); }
+function parseDemoToken(tok){ if(!tok||tok.indexOf('.')<0) return null; const [p,s]=tok.split('.'); if(_sig(p)!==s) return null; try{ const o=JSON.parse(_b64d(p)); return o.exp ? o : null; }catch(e){ return null; } }
+function demoLink(hours, label){ const t=makeDemoToken(hours,label); return location.origin + location.pathname + '?demo=' + t; }
+function isOwner(){ try{ return localStorage.getItem(OWNER_KEY)==='1'; }catch(e){ return false; } }
+function currentGrant(){ try{ return JSON.parse(localStorage.getItem(GRANT_KEY)||'null'); }catch(e){ return null; } }
+function gateStatus(){
+  if(isOwner()) return {mode:'owner'};
+  const g=currentGrant();
+  if(g && g.exp){ return Date.now()<g.exp ? {mode:'valid', exp:g.exp, label:g.label} : {mode:'expired', exp:g.exp, label:g.label}; }
+  return {mode:'locked'};
+}
+function initGate(){
+  try{
+    const params=new URLSearchParams(location.search); let changed=false;
+    if(params.get('owner')===OWNER_UNLOCK){ localStorage.setItem(OWNER_KEY,'1'); params.delete('owner'); changed=true; }
+    const demo=params.get('demo');
+    if(demo){ const o=parseDemoToken(demo); if(o){ localStorage.setItem(GRANT_KEY, JSON.stringify(o)); } params.delete('demo'); changed=true; }
+    if(changed){ const q=params.toString(); history.replaceState(null,'', location.pathname+(q?'?'+q:'')+location.hash); }
+  }catch(e){}
+}
+initGate();
 
 /* lookups */
 const userById = id => DB.users.find(u=>u.id===id);
