@@ -9432,25 +9432,22 @@ async function loadCalendarEvents(opts = {}) {
       const tasksP = fetch(`${WORKER_LIST_URL}/tasks?page=1&pageSize=500&status=active&sort=deadline&scope=${effectiveScope()}&auth=${idToken}`)
         .then(r => r.ok ? r.json() : { items: [] })
         .catch(() => ({ items: [] }));
-      // Сделки: если dealsState.deals пуст (не открывал СРМ) — подгружаем
-      // первую страницу активной воронки явно, чтобы firstZoomAt был доступен.
-      let dealsForCalendar = dealsState.deals || [];
-      if (dealsForCalendar.length === 0 && dealsState.activePipelineId) {
-        const dealsP = fetch(`${WORKER_LIST_URL}/deals?page=1&pageSize=200&pipeline=${encodeURIComponent(dealsState.activePipelineId)}&scope=${effectiveScope()}&auth=${idToken}`)
+      // Сделки: ВСЕГДА тянем свежие данные из ВСЕХ воронок параллельно,
+      // чтобы Zoom-встреча показалась даже если активная воронка СРМ
+      // указывает на другую. Без этого календарь не видел firstZoomAt
+      // сделок из неактивных воронок и in-memory dealsState.deals мог
+      // быть устаревшим (если карточка обновлена в другой вкладке).
+      try { await loadDealsMeta(); } catch {}
+      const pipelineIds = Object.keys(dealsState.pipelines || {});
+      const dealFetches = pipelineIds.map(pid =>
+        fetch(`${WORKER_LIST_URL}/deals?page=1&pageSize=200&pipeline=${encodeURIComponent(pid)}&sort=modified&scope=${effectiveScope()}&auth=${idToken}`)
           .then(r => r.ok ? r.json() : { items: [] })
-          .catch(() => ({ items: [] }));
-        const dealsR = await dealsP;
-        dealsForCalendar = dealsR.items || [];
-      } else if (dealsForCalendar.length === 0 && !dealsState.activePipelineId) {
-        // Если активной воронки тоже нет — грузим мета чтобы её определить
-        try { await loadDealsMeta(); } catch {}
-        if (dealsState.activePipelineId) {
-          const dealsP = fetch(`${WORKER_LIST_URL}/deals?page=1&pageSize=200&pipeline=${encodeURIComponent(dealsState.activePipelineId)}&scope=${effectiveScope()}&auth=${idToken}`)
-            .then(r => r.ok ? r.json() : { items: [] })
-            .catch(() => ({ items: [] }));
-          const dealsR = await dealsP;
-          dealsForCalendar = dealsR.items || [];
-        }
+          .catch(() => ({ items: [] }))
+      );
+      const dealResults = await Promise.all(dealFetches);
+      const dealsForCalendar = [];
+      for (const r of dealResults) {
+        for (const d of (r.items || [])) dealsForCalendar.push(d);
       }
       const tasksR = await tasksP;
       const events = [];
