@@ -4534,16 +4534,24 @@ function renderDealsPagedPager() {
 
 function renderDealsLayout(el) {
   const filtered = getFilteredDeals();
+  const scopeNow = effectiveScope();
+  const role = window.currentUser?.role;
+  const scopeWarn = (role === 'admin' && scopeNow !== 'all') ? `
+    <div style="margin:6px 0 12px;padding:8px 12px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;font-size:12px;color:#92400e;display:flex;align-items:center;gap:10px">
+      ⚠ Сейчас показаны только записи с охватом «<b>${escapeHtml(scopeNow === 'mine' ? 'свои' : scopeNow)}</b>». Сделки других сотрудников скрыты.
+      <button class="btn btn-sm" style="background:var(--ac);color:#fff;border:none;padding:4px 10px;margin-left:auto" onclick="window.resetDealsScopeToAll && window.resetDealsScopeToAll()">👁 Показать все</button>
+    </div>` : '';
   el.innerHTML = `
     <div class="page-head">
       <h1>СРМ
         <span class="count" id="deals-count">${dealsState.deals.length.toLocaleString('ru')}${filtered.length !== dealsState.deals.length ? ` · отф. ${filtered.length.toLocaleString('ru')}` : ''}</span>
-      </h1>
+      </h1>${scopeToggleHtml()}
       <div class="view-toggle">
         <button class="vt-btn ${dealsState.view === 'kanban' ? 'active' : ''}" data-view="kanban">📊 Канбан</button>
         <button class="vt-btn ${dealsState.view === 'list' ? 'active' : ''}" data-view="list">📋 Список</button>
       </div>
     </div>
+    ${scopeWarn}
 
     ${renderPipelineTabs()}
 
@@ -9216,6 +9224,7 @@ const calendarState = {
   cursorMonth: null,   // 0-11
   events: null,        // массив всех событий
   loading: false,
+  loadingPromise: null, // promise текущей загрузки — для предотвращения race
 };
 
 function ensureCalendarStylesInjected() {
@@ -9283,8 +9292,9 @@ async function renderCalendar(el) {
         <button class="btn btn-sm" id="cal-prev">← Назад</button>
         <button class="btn btn-sm" id="cal-today">Сегодня</button>
         <button class="btn btn-sm" id="cal-next">Вперёд →</button>
+        <button class="btn btn-sm" id="cal-reload" title="Перезагрузить события">🔄</button>
         <span class="cal-month-label" id="cal-label"></span>
-        <span style="margin-left:auto;font-size:11px;color:var(--t3);display:flex;gap:14px">
+        <span id="cal-stats" style="margin-left:auto;font-size:11px;color:var(--t3);display:flex;gap:14px;align-items:center">
           <span><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;vertical-align:middle"></span> Zoom</span>
           <span><span style="display:inline-block;width:10px;height:10px;background:#a855f7;border-radius:2px;vertical-align:middle"></span> Задача</span>
         </span>
@@ -9297,6 +9307,14 @@ async function renderCalendar(el) {
   document.getElementById('cal-today').onclick = () => {
     calendarState.cursorYear = new Date().getFullYear();
     calendarState.cursorMonth = new Date().getMonth();
+    renderCalendarGrid();
+  };
+  document.getElementById('cal-reload').onclick = async () => {
+    calendarState.events = null;
+    calendarState.loading = false;
+    calendarState.loadingPromise = null;
+    document.getElementById('cal-grid').innerHTML = '<div class="empty" style="padding:30px;text-align:center;color:var(--t3)">⏳ Перезагружаем…</div>';
+    await loadCalendarEvents({ force: true });
     renderCalendarGrid();
   };
   await loadCalendarEvents();
@@ -9313,23 +9331,44 @@ function calendarShift(delta) {
   renderCalendarGrid();
 }
 
-async function loadCalendarEvents() {
+async function loadCalendarEvents(opts = {}) {
+  // Защита от race: если уже идёт загрузка — ждём её, не запускаем новую.
+  if (calendarState.loadingPromise) {
+    if (!opts.force) return calendarState.loadingPromise;
+    // force=true — ждём текущую, потом запустим новую
+    try { await calendarState.loadingPromise; } catch {}
+  }
   if (calendarState.loading) return;
   calendarState.loading = true;
-  try {
-    const idToken = await fbAuth.currentUser.getIdToken();
-    // Задачи: активные (status=active), берём первые 500 — должно хватить
-    // для большинства календарных дисплеев (~3-6 мес активной работы).
-    // Расширение: пагинация / range-фильтр — отдельная фаза.
-    const tasksP = fetch(`${WORKER_LIST_URL}/tasks?page=1&pageSize=500&status=active&sort=deadline&scope=${effectiveScope()}&auth=${idToken}`)
-      .then(r => r.ok ? r.json() : { items: [] })
-      .catch(() => ({ items: [] }));
-    // Сделки: уже загруженные в dealsState.deals — кладём как есть.
-    // Все сделки из всех воронок не дёргаем (тяжело — 22k). Активной воронки
-    // обычно достаточно. Расширение: запрос всех firstZoomAt — отдельный
-    // worker endpoint в следующей фазе.
-    const tasksR = await tasksP;
-    const events = [];
+  const promise = (async () => {
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      // Задачи: первые 500 активных
+      const tasksP = fetch(`${WORKER_LIST_URL}/tasks?page=1&pageSize=500&status=active&sort=deadline&scope=${effectiveScope()}&auth=${idToken}`)
+        .then(r => r.ok ? r.json() : { items: [] })
+        .catch(() => ({ items: [] }));
+      // Сделки: если dealsState.deals пуст (не открывал СРМ) — подгружаем
+      // первую страницу активной воронки явно, чтобы firstZoomAt был доступен.
+      let dealsForCalendar = dealsState.deals || [];
+      if (dealsForCalendar.length === 0 && dealsState.activePipelineId) {
+        const dealsP = fetch(`${WORKER_LIST_URL}/deals?page=1&pageSize=200&pipeline=${encodeURIComponent(dealsState.activePipelineId)}&scope=${effectiveScope()}&auth=${idToken}`)
+          .then(r => r.ok ? r.json() : { items: [] })
+          .catch(() => ({ items: [] }));
+        const dealsR = await dealsP;
+        dealsForCalendar = dealsR.items || [];
+      } else if (dealsForCalendar.length === 0 && !dealsState.activePipelineId) {
+        // Если активной воронки тоже нет — грузим мета чтобы её определить
+        try { await loadDealsMeta(); } catch {}
+        if (dealsState.activePipelineId) {
+          const dealsP = fetch(`${WORKER_LIST_URL}/deals?page=1&pageSize=200&pipeline=${encodeURIComponent(dealsState.activePipelineId)}&scope=${effectiveScope()}&auth=${idToken}`)
+            .then(r => r.ok ? r.json() : { items: [] })
+            .catch(() => ({ items: [] }));
+          const dealsR = await dealsP;
+          dealsForCalendar = dealsR.items || [];
+        }
+      }
+      const tasksR = await tasksP;
+      const events = [];
     for (const t of (tasksR.items || [])) {
       const isZoom = t.mark === 'zoom_meeting';
       // Для Zoom приоритет startDatePlan, для обычных — deadline.
@@ -9366,25 +9405,29 @@ async function loadCalendarEvents() {
         dealBitrixId: linkedDealBitrixId,
       });
     }
-    for (const d of (dealsState.deals || [])) {
-      const zt = d.customFields?.firstZoomAt;
-      if (!zt) continue;
-      const dt = new Date(zt);
-      if (isNaN(dt)) continue;
-      events.push({
-        type: 'zoom',
-        date: dt,
-        title: 'Zoom: ' + (d.title || d.bitrixId),
-        dealBitrixId: d.bitrixId,
-      });
+      for (const d of dealsForCalendar) {
+        const zt = d.customFields?.firstZoomAt;
+        if (!zt) continue;
+        const dt = new Date(zt);
+        if (isNaN(dt)) continue;
+        events.push({
+          type: 'zoom',
+          date: dt,
+          title: 'Zoom: ' + (d.title || d.bitrixId),
+          dealBitrixId: d.bitrixId,
+        });
+      }
+      calendarState.events = events;
+    } catch (e) {
+      console.error('loadCalendarEvents:', e);
+      calendarState.events = [];
+    } finally {
+      calendarState.loading = false;
+      calendarState.loadingPromise = null;
     }
-    calendarState.events = events;
-  } catch (e) {
-    console.error('loadCalendarEvents:', e);
-    calendarState.events = [];
-  } finally {
-    calendarState.loading = false;
-  }
+  })();
+  calendarState.loadingPromise = promise;
+  return promise;
 }
 
 function renderCalendarGrid() {
@@ -9460,8 +9503,24 @@ function renderCalendarGrid() {
   }
   grid.innerHTML = `
     <div class="cal-grid">${html}</div>
-    ${calendarState.events && calendarState.events.length === 0 ? '<div style="margin-top:14px;color:var(--t3);font-size:12px;text-align:center">Событий не найдено. Проставь дату Первого Zoom в сделке или дедлайн у задачи.</div>' : ''}
+    ${calendarState.events && calendarState.events.length === 0 ? '<div style="margin-top:14px;color:var(--t3);font-size:12px;text-align:center;line-height:1.6">Событий не найдено.<br>Проставь дату «Первого Zoom» в сделке или создай Zoom-встречу через «+ Дело» → 📹 Zoom-встреча.</div>' : ''}
   `;
+  // Счётчик в тулбаре: сколько событий всего загружено и сколько в этом месяце
+  const stats = document.getElementById('cal-stats');
+  if (stats && calendarState.events) {
+    const inMonth = calendarState.events.filter(ev => ev.date.getFullYear() === y && ev.date.getMonth() === m).length;
+    const totalLoaded = calendarState.events.length;
+    const counterHtml = `<span style="color:var(--t2);font-weight:500">${inMonth} в месяце</span> <span style="color:var(--t3)">· ${totalLoaded} всего</span>`;
+    // Вставляем счётчик перед легендой, не перетирая её
+    if (!stats.querySelector('.cal-counter')) {
+      const span = document.createElement('span');
+      span.className = 'cal-counter';
+      span.innerHTML = counterHtml;
+      stats.insertBefore(span, stats.firstChild);
+    } else {
+      stats.querySelector('.cal-counter').innerHTML = counterHtml;
+    }
+  }
   // Клик на событие → открыть карточку. Для Zoom-задачи открываем привязанную сделку.
   grid.querySelectorAll('.cal-event').forEach(e => {
     e.addEventListener('click', () => {
