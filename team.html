@@ -7549,20 +7549,14 @@ function handleDeepLink() {
   const h = location.hash;
   if (h.startsWith('#deal/')) {
     const id = h.slice('#deal/'.length);
-    if (id) {
-      // Дождёмся загрузки данных
-      const open = () => {
-        if (dealsState.loaded && dealsState.deals.find(d => d.bitrixId === id)) {
-          openDealCard(id);
-        } else if (dealsState.loaded) {
-          // Сделка не найдена — вычистим hash
-          history.pushState({}, '', location.pathname + location.search);
-        } else {
-          setTimeout(open, 200);
-        }
-      };
-      open();
-    }
+    if (!id) return;
+    // openDealCard сама ищет сделку в kanban-state, paged-state, потом
+    // делает точечный fetch /api/rtdb/deals/deal_X.json. Поэтому работает
+    // даже если сделка в ДРУГОЙ воронке (которая не загружена в memory).
+    // Раньше handleDeepLink делал собственную проверку через dealsState.deals
+    // — что ломало deep-link на cross-pipeline сделки и зависало в list-view
+    // (где dealsState.loaded никогда не становится true).
+    openDealCard(id).catch(e => console.warn('deep-link openDealCard:', e));
   }
 }
 
