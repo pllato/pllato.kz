@@ -5930,18 +5930,62 @@ function openAddDeedModal(deal, onDone) {
   ov.id = '_add-deed-modal';
   ov.className = 'qad-overlay';
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
-  // Default deadline = today 18:00
+  // Дефолт для дедлайна обычного дела — сегодня 18:00
   const def = new Date();
   def.setHours(18, 0, 0, 0);
   const defStr = def.toISOString().slice(0, 16);
+  // Дефолт для Zoom — завтра 12:00 (округлено локально)
+  const zoomDef = new Date();
+  zoomDef.setDate(zoomDef.getDate() + 1);
+  zoomDef.setHours(12, 0, 0, 0);
+  const pad2 = n => String(n).padStart(2, '0');
+  const zoomDefStr = `${zoomDef.getFullYear()}-${pad2(zoomDef.getMonth()+1)}-${pad2(zoomDef.getDate())}T${pad2(zoomDef.getHours())}:${pad2(zoomDef.getMinutes())}`;
   ov.innerHTML = `
     <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:480px">
       <div class="qad-head"><h2>+ Дело по сделке</h2><button class="qad-btn qad-btn-ghost" id="ad-close" style="padding:4px 10px">×</button></div>
       <div class="qad-body">
+        <div>
+          <div class="qad-label">Тип</div>
+          <div style="display:flex;gap:6px">
+            <label class="ad-kind-pill" data-kind="task" style="flex:1;cursor:pointer;border:2px solid var(--ac);background:var(--acbg);border-radius:8px;padding:8px 10px;text-align:center;font-size:13px">
+              <input type="radio" name="ad-kind" value="task" checked style="display:none">
+              ✅ Обычное дело
+            </label>
+            <label class="ad-kind-pill" data-kind="zoom" style="flex:1;cursor:pointer;border:2px solid var(--b1);background:var(--bg3);border-radius:8px;padding:8px 10px;text-align:center;font-size:13px">
+              <input type="radio" name="ad-kind" value="zoom" style="display:none">
+              📹 Zoom-встреча
+            </label>
+          </div>
+        </div>
         <div><div class="qad-label">Название *</div><input id="ad-title" class="qad-input" placeholder="Например: Перезвонить клиенту"></div>
-        <div><div class="qad-label">Дедлайн</div><input id="ad-deadline" class="qad-input" type="datetime-local" value="${defStr}"></div>
+        <!-- Поля для обычного дела -->
+        <div id="ad-task-fields">
+          <div class="qad-label">Дедлайн</div>
+          <input id="ad-deadline" class="qad-input" type="datetime-local" value="${defStr}">
+        </div>
+        <!-- Поля для Zoom-встречи -->
+        <div id="ad-zoom-fields" style="display:none">
+          <div style="display:flex;gap:10px">
+            <div style="flex:2">
+              <div class="qad-label">Начало встречи *</div>
+              <input id="ad-zoom-start" class="qad-input" type="datetime-local" value="${zoomDefStr}">
+            </div>
+            <div style="flex:1">
+              <div class="qad-label">Длительность</div>
+              <select id="ad-zoom-duration" class="qad-input">
+                <option value="15">15 мин</option>
+                <option value="30" selected>30 мин</option>
+                <option value="45">45 мин</option>
+                <option value="60">1 час</option>
+                <option value="90">1.5 часа</option>
+                <option value="120">2 часа</option>
+              </select>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--t3);margin-top:6px">📅 Встреча отобразится в Календаре синей плашкой и привяжется к сделке.</div>
+        </div>
         <div><div class="qad-label">Описание</div><textarea id="ad-desc" class="qad-input" rows="3" placeholder="(необязательно)"></textarea></div>
-        <div class="dialer-hint">Дело привяжется к сделке #${escapeHtml(deal.bitrixId)} — будет видно во вкладке Задачи и в карточке сделки.</div>
+        <div class="dialer-hint">Привяжется к сделке #${escapeHtml(deal.bitrixId)} — будет видно во вкладке Задачи и в карточке сделки.</div>
       </div>
       <div class="qad-foot">
         <button class="qad-btn qad-btn-ghost" id="ad-cancel">Отмена</button>
@@ -5953,18 +5997,59 @@ function openAddDeedModal(deal, onDone) {
   document.getElementById('ad-close').onclick = () => ov.remove();
   document.getElementById('ad-cancel').onclick = () => ov.remove();
   setTimeout(() => document.getElementById('ad-title').focus(), 30);
+
+  // Переключатель типа
+  const taskFields = document.getElementById('ad-task-fields');
+  const zoomFields = document.getElementById('ad-zoom-fields');
+  ov.querySelectorAll('.ad-kind-pill').forEach(pill => {
+    pill.addEventListener('click', (e) => {
+      const kind = pill.dataset.kind;
+      pill.querySelector('input').checked = true;
+      ov.querySelectorAll('.ad-kind-pill').forEach(p => {
+        const active = p.dataset.kind === kind;
+        p.style.borderColor = active ? 'var(--ac)' : 'var(--b1)';
+        p.style.background = active ? 'var(--acbg)' : 'var(--bg3)';
+      });
+      taskFields.style.display = kind === 'task' ? '' : 'none';
+      zoomFields.style.display = kind === 'zoom' ? '' : 'none';
+      // Меняем дефолтное название для Zoom если поле пустое
+      const titleInput = document.getElementById('ad-title');
+      if (kind === 'zoom' && !titleInput.value.trim()) {
+        titleInput.placeholder = 'Например: Zoom с клиентом по курсу A1';
+      }
+    });
+  });
+
   document.getElementById('ad-save').onclick = async () => {
+    const kind = ov.querySelector('input[name="ad-kind"]:checked')?.value || 'task';
     const title = document.getElementById('ad-title').value.trim();
-    const deadline = document.getElementById('ad-deadline').value;
     const desc = document.getElementById('ad-desc').value.trim();
     if (!title) { alert('Название обязательно'); return; }
+
+    let dlIso = null;
+    let startIso = null, endIso = null;
+    let mark = null;
+    if (kind === 'zoom') {
+      const start = document.getElementById('ad-zoom-start').value;
+      const durMin = parseInt(document.getElementById('ad-zoom-duration').value, 10) || 30;
+      if (!start) { alert('Укажи время начала встречи'); return; }
+      const startDt = new Date(start);
+      if (isNaN(startDt)) { alert('Неверная дата'); return; }
+      startIso = startDt.toISOString();
+      endIso = new Date(startDt.getTime() + durMin * 60000).toISOString();
+      dlIso = startIso;  // deadline = старт встречи (чтобы попадало в существующие фильтры дедлайнов)
+      mark = 'zoom_meeting';
+    } else {
+      const deadline = document.getElementById('ad-deadline').value;
+      dlIso = deadline ? new Date(deadline).toISOString() : null;
+    }
+
     const btn = document.getElementById('ad-save');
     btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
     try {
       const idToken = await fbAuth.currentUser.getIdToken();
       const id = 'task_local_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       const nowIso = new Date().toISOString();
-      const dlIso = deadline ? new Date(deadline).toISOString() : null;
       const body = {
         id,
         title,
@@ -5977,6 +6062,11 @@ function openAddDeedModal(deal, onDone) {
         bitrixCreatedDate: nowIso,
         bitrixChangedDate: nowIso,
       };
+      if (kind === 'zoom') {
+        body.startDatePlan = startIso;
+        body.endDatePlan = endIso;
+        body.mark = mark;
+      }
       const r = await fetch(`${WORKER_RTDB_URL}/tasks/${encodeURIComponent(id)}.json?auth=${idToken}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -5987,7 +6077,7 @@ function openAddDeedModal(deal, onDone) {
         throw new Error(j.error || `HTTP ${r.status}`);
       }
       ov.remove();
-      showToast('Дело создано');
+      showToast(kind === 'zoom' ? '📹 Zoom-встреча создана — смотри в Календаре' : 'Дело создано');
       if (typeof onDone === 'function') onDone();
     } catch (e) {
       alert('Ошибка: ' + e.message);
@@ -9247,15 +9337,39 @@ async function loadCalendarEvents() {
     const tasksR = await tasksP;
     const events = [];
     for (const t of (tasksR.items || [])) {
-      if (!t.deadline) continue;
-      const d = new Date(t.deadline);
+      const isZoom = t.mark === 'zoom_meeting';
+      // Для Zoom приоритет startDatePlan, для обычных — deadline.
+      const dateField = isZoom ? (t.startDatePlan || t.deadline) : t.deadline;
+      if (!dateField) continue;
+      const d = new Date(dateField);
       if (isNaN(d)) continue;
+      // Извлекаем bitrix deal id из crmLinks (например ['deal_12345'] → '12345')
+      let linkedDealBitrixId = null;
+      const links = t.crmLinks || t.bitrixCrmLinks;
+      if (links) {
+        const arr = Array.isArray(links) ? links : Object.values(links);
+        for (const l of arr) {
+          const s = String(l || '');
+          const m = s.match(/^deal_(\d+)$/) || s.match(/deal_(\d+)/);
+          if (m) { linkedDealBitrixId = m[1]; break; }
+        }
+      }
+      // Длительность для Zoom — для тултипа
+      let durLabel = '';
+      if (isZoom && t.endDatePlan) {
+        const end = new Date(t.endDatePlan);
+        if (!isNaN(end)) {
+          const min = Math.round((end - d) / 60000);
+          durLabel = ' · ' + (min >= 60 ? `${(min/60).toFixed(min%60?1:0)}ч` : `${min}м`);
+        }
+      }
       events.push({
-        type: 'task',
+        type: isZoom ? 'zoom' : 'task',
         date: d,
-        title: t.title || '(без названия)',
+        title: (isZoom ? '📹 ' : '') + (t.title || '(без названия)') + durLabel,
         taskId: t.id || t.bitrixKey,
         bitrixId: t.bitrixId,
+        dealBitrixId: linkedDealBitrixId,
       });
     }
     for (const d of (dealsState.deals || [])) {
@@ -9332,9 +9446,16 @@ function renderCalendarGrid() {
     const eventsHtml = visible.map(ev => {
       const time = ev.date.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
       const cls = ev.type === 'zoom' ? 'cal-event-zoom' : 'cal-event-task';
-      const dataAttr = ev.type === 'zoom'
-        ? `data-cal-deal="${escapeHtml(ev.dealBitrixId || '')}"`
-        : `data-cal-task="${escapeHtml(ev.taskId || '')}"`;
+      // Zoom-событие может быть из сделки (firstZoomAt → dealBitrixId)
+      // или из задачи (mark='zoom_meeting' → taskId + dealBitrixId через crmLinks).
+      const parts = [];
+      if (ev.taskId) parts.push(`data-cal-task="${escapeHtml(ev.taskId)}"`);
+      if (ev.dealBitrixId) {
+        // Если это была задача-Zoom — кладём в linked-deal (не перезаписывая task)
+        if (ev.taskId) parts.push(`data-cal-linked-deal="${escapeHtml(ev.dealBitrixId)}"`);
+        else parts.push(`data-cal-deal="${escapeHtml(ev.dealBitrixId)}"`);
+      }
+      const dataAttr = parts.join(' ');
       return `<span class="cal-event ${cls}" ${dataAttr} title="${escapeHtml(time + ' · ' + ev.title)}">${escapeHtml(time)} ${escapeHtml(ev.title)}</span>`;
     }).join('');
     html += `<div class="cal-day ${isOther ? 'other-month' : ''} ${isToday ? 'today' : ''}">
@@ -9347,12 +9468,12 @@ function renderCalendarGrid() {
     <div class="cal-grid">${html}</div>
     ${calendarState.events && calendarState.events.length === 0 ? '<div style="margin-top:14px;color:var(--t3);font-size:12px;text-align:center">Событий не найдено. Проставь дату Первого Zoom в сделке или дедлайн у задачи.</div>' : ''}
   `;
-  // Клик на событие → открыть карточку
+  // Клик на событие → открыть карточку. Для Zoom-задачи открываем привязанную сделку.
   grid.querySelectorAll('.cal-event').forEach(e => {
     e.addEventListener('click', () => {
-      if (e.dataset.calDeal) openDealCard(e.dataset.calDeal);
-      else if (e.dataset.calTask) {
-        // openTaskModal — если есть; иначе ничего
+      if (e.dataset.calDeal) { openDealCard(e.dataset.calDeal); return; }
+      if (e.dataset.calLinkedDeal) { openDealCard(e.dataset.calLinkedDeal); return; }
+      if (e.dataset.calTask) {
         if (typeof openTaskModal === 'function') openTaskModal(e.dataset.calTask);
       }
     });
