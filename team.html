@@ -3268,6 +3268,9 @@ async function initApp(user) {
   // Фоновая прелоадка — пока пользователь смотрит дашборд, грузим данные
   // Поэтапно (не разом) чтобы не нагружать сеть
   setTimeout(() => preloadInBackground(), 800);
+
+  // Floating WA chat widget — справа снизу персистентно
+  setTimeout(() => initWaFloatingWidget(), 1500);
 }
 
 async function preloadInBackground() {
@@ -3579,6 +3582,359 @@ function getDealActivity(dealId) {
 
 // Bulk-подгрузка активности (WA unread + missed calls) для всех сделок воронки.
 // Не блокирует рендер — обновляет state и делает re-render когда придёт.
+// ═════════════════════════════════════════════════════════════════════════
+//   Floating WhatsApp chat widget (правый нижний угол, persistent)
+// ═════════════════════════════════════════════════════════════════════════
+// Кнопка с бейджем непрочитанных. По клику — панель: список чатов с
+// непрочитанными вверху + поиск + клик открывает мини-чат с историей и
+// composer. Polling каждые 7 сек, синхронизирован с kanban.
+const waWidget = {
+  open: false,
+  view: 'list',      // list | chat
+  activeChatId: null,
+  activeChatMeta: null,
+  chats: [],
+  messages: [],
+  pollTimer: null,
+  msgPollTimer: null,
+  unreadTotal: 0,
+};
+
+function initWaFloatingWidget() {
+  if (document.getElementById('wa-widget-root')) return;
+  ensureWaWidgetStyles();
+  const root = document.createElement('div');
+  root.id = 'wa-widget-root';
+  document.body.appendChild(root);
+  renderWaWidget();
+  // Стартуем polling
+  refreshWaWidgetChats();
+  waWidget.pollTimer = setInterval(refreshWaWidgetChats, 7000);
+}
+
+function ensureWaWidgetStyles() {
+  if (document.getElementById('wa-widget-styles')) return;
+  const s = document.createElement('style');
+  s.id = 'wa-widget-styles';
+  s.textContent = `
+    #wa-widget-root { position: fixed; bottom: 80px; right: 24px; z-index: 99998; font-family: var(--ff); }
+    .wa-w-btn {
+      width: 56px; height: 56px; border-radius: 28px;
+      background: #25D366; color: #fff;
+      border: none; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      transition: transform 0.15s;
+      position: relative;
+    }
+    .wa-w-btn:hover { transform: scale(1.05); }
+    .wa-w-btn-badge {
+      position: absolute; top: -2px; right: -2px;
+      background: #ef4444; color: #fff;
+      border-radius: 12px; min-width: 22px; height: 22px;
+      padding: 0 6px;
+      font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      border: 2px solid #fff;
+    }
+    .wa-w-panel {
+      width: 380px; max-width: calc(100vw - 48px);
+      height: 540px; max-height: calc(100vh - 120px);
+      background: var(--bg2, #fff);
+      border: 1px solid var(--b1, #c9ccd1);
+      border-radius: 14px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.22);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .wa-w-header {
+      background: #25D366; color: #fff;
+      padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+      flex: 0 0 auto;
+    }
+    .wa-w-header .wa-w-title { flex: 1; font-weight: 600; font-size: 14px; }
+    .wa-w-header .wa-w-sub { font-size: 11px; opacity: 0.85; margin-top: 1px; }
+    .wa-w-icon-btn {
+      background: rgba(255,255,255,0.2); border: none; color: #fff;
+      width: 28px; height: 28px; border-radius: 50%;
+      cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .wa-w-icon-btn:hover { background: rgba(255,255,255,0.35); }
+    .wa-w-body {
+      flex: 1; overflow-y: auto; background: var(--bg1, #fafbfc);
+    }
+    .wa-w-chat-row {
+      display: flex; gap: 10px; padding: 10px 14px;
+      border-bottom: 1px solid var(--b1, #eee);
+      cursor: pointer;
+    }
+    .wa-w-chat-row:hover { background: var(--bg3, #f3f5f7); }
+    .wa-w-chat-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--ac, #4f46e5); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px; flex: 0 0 auto;
+    }
+    .wa-w-chat-body { flex: 1; min-width: 0; }
+    .wa-w-chat-name { font-weight: 600; font-size: 13px; color: var(--t1); display: flex; justify-content: space-between; gap: 8px; }
+    .wa-w-chat-preview { font-size: 12px; color: var(--t3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+    .wa-w-chat-time { font-size: 10px; color: var(--t3); flex: 0 0 auto; }
+    .wa-w-chat-unread {
+      background: #25D366; color: #fff; border-radius: 10px; padding: 0 6px;
+      font-size: 10px; font-weight: 700; min-width: 18px;
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-left: 6px;
+    }
+    .wa-w-msgs { padding: 10px 12px; }
+    .wa-w-composer {
+      flex: 0 0 auto; padding: 8px 10px; background: var(--bg3, #f3f5f7);
+      display: flex; gap: 6px; align-items: flex-end;
+      border-top: 1px solid var(--b1, #eee);
+    }
+    .wa-w-composer textarea {
+      flex: 1; border: 1px solid var(--b1, #c9ccd1); border-radius: 8px;
+      padding: 6px 10px; font-size: 13px; resize: none; max-height: 100px;
+      font-family: inherit; background: var(--bg2);
+      outline: none; color: var(--t1);
+    }
+    .wa-w-composer button {
+      background: #25D366; color: #fff; border: none; border-radius: 8px;
+      padding: 7px 12px; font-size: 13px; cursor: pointer; flex: 0 0 auto;
+    }
+    .wa-w-empty { padding: 30px 14px; text-align: center; color: var(--t3, #888); font-size: 12px; }
+    [data-theme="dark"] .wa-w-panel { background: var(--bg1, #1a1a1f); }
+  `;
+  document.head.appendChild(s);
+}
+
+function renderWaWidget() {
+  const root = document.getElementById('wa-widget-root');
+  if (!root) return;
+  if (!waWidget.open) {
+    const badge = waWidget.unreadTotal > 0
+      ? `<span class="wa-w-btn-badge">${waWidget.unreadTotal > 99 ? '99+' : waWidget.unreadTotal}</span>`
+      : '';
+    root.innerHTML = `<button class="wa-w-btn" id="wa-w-toggle" title="Чаты WhatsApp">💬${badge}</button>`;
+    document.getElementById('wa-w-toggle').onclick = () => { waWidget.open = true; waWidget.view = 'list'; renderWaWidget(); };
+    return;
+  }
+  // Open — выбираем view
+  if (waWidget.view === 'chat' && waWidget.activeChatId) {
+    renderWaWidgetChat(root);
+  } else {
+    renderWaWidgetList(root);
+  }
+}
+
+function renderWaWidgetList(root) {
+  const chats = (waWidget.chats || []).slice()
+    .sort((a, b) => (b.unreadCount || 0) - (a.unreadCount || 0) || (b.lastMessageAt || 0) - (a.lastMessageAt || 0))
+    .slice(0, 50);
+  const rowsHtml = chats.length
+    ? chats.map(c => {
+        const name = c.name && c.name.trim() ? c.name : (c.phone ? '+' + c.phone : '?');
+        const initials = (name.match(/[A-Za-zА-Яа-я0-9]/g) || []).slice(0, 2).join('').toUpperCase() || '?';
+        const preview = c.lastMessageText
+          ? (c.lastMessageFrom === 'me' ? '✓ ' : '') + (c.lastMessageText.length > 50 ? c.lastMessageText.slice(0, 50) + '…' : c.lastMessageText)
+          : '';
+        const time = c.lastMessageAt ? formatWaShortTime(c.lastMessageAt) : '';
+        const unread = c.unreadCount > 0 ? `<span class="wa-w-chat-unread">${c.unreadCount}</span>` : '';
+        return `<div class="wa-w-chat-row" data-chat-id="${escapeHtml(c.id)}">
+          <div class="wa-w-chat-avatar">${escapeHtml(initials)}</div>
+          <div class="wa-w-chat-body">
+            <div class="wa-w-chat-name">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}</span>
+              <span class="wa-w-chat-time">${escapeHtml(time)}</span>
+            </div>
+            <div class="wa-w-chat-preview">${escapeHtml(preview)}${unread}</div>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div class="wa-w-empty">📭 WhatsApp-чатов нет</div>';
+  root.innerHTML = `<div class="wa-w-panel">
+    <div class="wa-w-header">
+      <div style="flex:1">
+        <div class="wa-w-title">💬 WhatsApp</div>
+        <div class="wa-w-sub">${chats.length} ${pluralize(chats.length, 'чат', 'чата', 'чатов')}${waWidget.unreadTotal > 0 ? ' · ' + waWidget.unreadTotal + ' непрочитанных' : ''}</div>
+      </div>
+      <button class="wa-w-icon-btn" id="wa-w-close" title="Свернуть">×</button>
+    </div>
+    <div class="wa-w-body" id="wa-w-list">${rowsHtml}</div>
+  </div>`;
+  document.getElementById('wa-w-close').onclick = () => { waWidget.open = false; renderWaWidget(); };
+  root.querySelectorAll('.wa-w-chat-row').forEach(r => {
+    r.addEventListener('click', () => openWaWidgetChat(r.dataset.chatId));
+  });
+}
+
+async function openWaWidgetChat(chatId) {
+  const chat = waWidget.chats.find(c => c.id === chatId);
+  if (!chat) return;
+  waWidget.activeChatId = chatId;
+  waWidget.activeChatMeta = chat;
+  waWidget.view = 'chat';
+  waWidget.messages = [];
+  renderWaWidget();
+  await loadWaWidgetMessages();
+  // mark-read
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    fetch(`${WORKER_BASE_URL}/api/wa/mark-read`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ chatId }),
+    }).catch(() => {});
+    chat.unreadCount = 0;
+    recomputeWaWidgetUnread();
+  } catch {}
+  // Polling сообщений каждые 5 сек пока открыт этот чат
+  if (waWidget.msgPollTimer) clearInterval(waWidget.msgPollTimer);
+  waWidget.msgPollTimer = setInterval(() => {
+    if (waWidget.view !== 'chat' || waWidget.activeChatId !== chatId) {
+      clearInterval(waWidget.msgPollTimer); waWidget.msgPollTimer = null;
+      return;
+    }
+    loadWaWidgetMessages({ silent: true });
+  }, 5000);
+}
+
+function renderWaWidgetChat(root) {
+  const chat = waWidget.activeChatMeta;
+  if (!chat) { waWidget.view = 'list'; renderWaWidget(); return; }
+  const name = chat.name && chat.name.trim() ? chat.name : (chat.phone ? '+' + chat.phone : '?');
+  const msgsHtml = waWidget.messages.length
+    ? waWidget.messages.map(m => renderWaMessageHtml(m)).join('')
+    : '<div class="wa-w-empty">📭 История пуста</div>';
+  // Поиск deal для контакта (если есть)
+  const dealId = chat.dealId;
+  const dealOpenBtn = dealId
+    ? `<button class="wa-w-icon-btn" id="wa-w-open-deal" title="Открыть карточку сделки">📋</button>`
+    : '';
+  // Кнопка позвонить
+  const callBtn = chat.phone
+    ? `<button class="wa-w-icon-btn" id="wa-w-call" title="Позвонить">📞</button>`
+    : '';
+  root.innerHTML = `<div class="wa-w-panel">
+    <div class="wa-w-header">
+      <button class="wa-w-icon-btn" id="wa-w-back" title="К списку">←</button>
+      <div style="flex:1;min-width:0">
+        <div class="wa-w-title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}</div>
+        <div class="wa-w-sub">${chat.phone ? '+' + escapeHtml(chat.phone) : 'WhatsApp'}</div>
+      </div>
+      ${callBtn}
+      ${dealOpenBtn}
+      <button class="wa-w-icon-btn" id="wa-w-close-chat" title="Свернуть">×</button>
+    </div>
+    <div class="wa-w-body" id="wa-w-msgs">${msgsHtml}</div>
+    <div class="wa-w-composer">
+      <textarea id="wa-w-input" placeholder="Написать в WhatsApp..." rows="1"></textarea>
+      <button id="wa-w-send">→</button>
+    </div>
+  </div>`;
+  // Scroll to bottom
+  const body = document.getElementById('wa-w-msgs');
+  if (body) body.scrollTop = body.scrollHeight;
+
+  document.getElementById('wa-w-back').onclick = () => { waWidget.view = 'list'; renderWaWidget(); };
+  document.getElementById('wa-w-close-chat').onclick = () => { waWidget.open = false; renderWaWidget(); };
+  if (chat.phone) document.getElementById('wa-w-call').onclick = () => {
+    if (typeof placeCall === 'function') placeCall({ phone: '+' + chat.phone, dealId: chat.dealId || null, contactName: name });
+  };
+  if (dealId) document.getElementById('wa-w-open-deal').onclick = () => {
+    const bitrixId = String(dealId).replace(/^deal_/, '');
+    if (bitrixId && typeof openDealCard === 'function') openDealCard(bitrixId);
+  };
+  // Send
+  const input = document.getElementById('wa-w-input');
+  const sendBtn = document.getElementById('wa-w-send');
+  const send = async () => {
+    const text = input.value.trim();
+    if (!text) return;
+    sendBtn.disabled = true;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/wa/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ chatId: chat.chatId, phone: chat.phone, text }),
+      });
+      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `HTTP ${r.status}`); }
+      input.value = '';
+      input.style.height = 'auto';
+      await loadWaWidgetMessages();
+      refreshWaWidgetChats();
+    } catch (e) {
+      alert('Ошибка отправки: ' + e.message);
+    } finally {
+      sendBtn.disabled = false;
+    }
+  };
+  sendBtn.onclick = send;
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 100) + 'px';
+  });
+  input.focus();
+}
+
+async function loadWaWidgetMessages(opts = {}) {
+  if (!waWidget.activeChatId) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(waWidget.activeChatId)}&limit=100`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    const items = data.items || [];
+    if (opts.silent && items.length === waWidget.messages.length) return;
+    waWidget.messages = items;
+    if (waWidget.view === 'chat') {
+      const body = document.getElementById('wa-w-msgs');
+      if (body) {
+        body.innerHTML = items.length ? items.map(m => renderWaMessageHtml(m)).join('') : '<div class="wa-w-empty">📭 История пуста</div>';
+        body.scrollTop = body.scrollHeight;
+      }
+    }
+  } catch {}
+}
+
+async function refreshWaWidgetChats() {
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=200`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    waWidget.chats = data.items || [];
+    recomputeWaWidgetUnread();
+    // Если виджет открыт на list — перерендерим
+    if (waWidget.open && waWidget.view === 'list') renderWaWidget();
+    else renderWaWidget();  // кнопка-бейдж тоже обновится
+  } catch {}
+}
+
+function recomputeWaWidgetUnread() {
+  let total = 0;
+  for (const c of (waWidget.chats || [])) total += c.unreadCount || 0;
+  waWidget.unreadTotal = total;
+}
+
+function formatWaShortTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const now = new Date();
+  const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  if (sameDay) return d.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString('ru', { day: '2-digit', month: '2-digit' });
+}
+
 // ── Реактивный polling активности WA в канбане + звук + push ───────────
 // Каждые ~7 сек тянет /api/wa/deals-activity, сравнивает unread с
 // предыдущим snapshot'ом. Если выросло — пиликает + Browser Notification.
