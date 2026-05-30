@@ -9780,14 +9780,25 @@ function ensureCalendarStylesInjected() {
     }
     .cal-hourly-day-col:last-child { border-right: none; }
     .cal-hourly-day-col.today-col { background: rgba(79,70,229,0.04); }
+    /* FIX: header фиксированной высоты — иначе today (с круглой плашкой) выше
+       обычных, и hour-grid смещается на несколько пикселей в Сб-колонке */
     .cal-hourly-day-header {
-      padding: 8px; text-align: center; border-bottom: 1px solid var(--b1);
+      box-sizing: border-box;
+      height: 56px; min-height: 56px;
+      padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--b1);
       background: var(--bg3); font-size: 12px; color: var(--t2);
       position: sticky; top: 0; z-index: 1;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
     }
-    .cal-hourly-day-header .dh-day { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--t3); }
-    .cal-hourly-day-header .dh-num { font-size: 16px; font-weight: 700; color: var(--t1); margin-top: 2px; }
-    .cal-hourly-day-header.today .dh-num { color: #fff; background: var(--ac); border-radius: 50%; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; margin: 2px auto 0; }
+    .cal-hourly-day-header .dh-day { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--t3); line-height: 1.1; }
+    .cal-hourly-day-header .dh-num { font-size: 16px; font-weight: 700; color: var(--t1); margin-top: 2px; line-height: 1.1; }
+    /* today: круглая плашка теми же 28x28 px чтобы не увеличивала высоту */
+    .cal-hourly-day-header.today .dh-num {
+      color: #fff; background: var(--ac); border-radius: 50%;
+      width: 26px; height: 26px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
     .cal-hourly-day-body { position: relative; height: 748px; /* 17 hours × 44px */ }
     .cal-hourly-hour-line {
       position: absolute; left: 0; right: 0; height: 44px;
@@ -9799,6 +9810,7 @@ function ensureCalendarStylesInjected() {
       font-size: 11px; line-height: 1.3; cursor: pointer;
       overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.08);
       border-left: 3px solid;
+      min-height: 30px;  /* чтобы короткие 30-мин события не были обрезаны */
     }
     .cal-hourly-event.zoom { background: rgba(37,99,235,0.15); color: #1e40af; border-left-color: #2563eb; }
     .cal-hourly-event.task { background: rgba(168,85,247,0.12); color: #6b21a8; border-left-color: #a855f7; }
@@ -10171,7 +10183,7 @@ function renderCalendarDayView() {
   }
   grid.innerHTML = `
     <div class="cal-hourly-wrap">
-      <div class="cal-hourly-times" style="padding-top:42px">${timesHtml}</div>
+      <div class="cal-hourly-times" style="padding-top:56px">${timesHtml}</div>
       <div class="cal-hourly-days">
         <div class="cal-hourly-day-col ${isToday ? 'today-col' : ''}">
           <div class="cal-hourly-day-header ${isToday ? 'today' : ''}">
@@ -10253,7 +10265,7 @@ function renderCalendarWeekView() {
   }
   grid.innerHTML = `
     <div class="cal-hourly-wrap">
-      <div class="cal-hourly-times" style="padding-top:50px">${timesHtml}</div>
+      <div class="cal-hourly-times" style="padding-top:56px">${timesHtml}</div>
       <div class="cal-hourly-days">${colsHtml}</div>
     </div>
   `;
