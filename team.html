@@ -7576,8 +7576,8 @@ function buildDealCard(d, stageColor) {
       ${staleWarn ? `<span class="kanban-stale">${daysSince}д</span>` : (created ? `<span class="kanban-card-date">${created}</span>` : '')}
     </div>
     <div class="kanban-card-actions">
-      ${phone ? `<button class="kca-btn kca-wa" data-action="wa" data-phone="${escapeHtml(phone)}" title="Открыть WhatsApp">💬</button>` : ''}
-      ${phone ? `<button class="kca-btn kca-call" data-action="call" data-phone="${escapeHtml(phone)}" title="Позвонить">📞</button>` : ''}
+      <button class="kca-btn kca-wa" data-action="wa" data-phone="${escapeHtml(phone || '')}" data-deal-id="${escapeHtml(d.bitrixId || '')}" title="${phone ? 'Открыть WhatsApp' : 'У контакта нет телефона — добавь в карточке'}" ${!phone ? 'data-no-phone="1" style="opacity:0.45"' : ''}>💬</button>
+      <button class="kca-btn kca-call" data-action="call" data-phone="${escapeHtml(phone || '')}" data-deal-id="${escapeHtml(d.bitrixId || '')}" title="${phone ? 'Позвонить' : 'У контакта нет телефона — добавь в карточке'}" ${!phone ? 'data-no-phone="1" style="opacity:0.45"' : ''}>📞</button>
       <button class="kca-btn kca-stage" data-action="stage" data-deal-id="${escapeHtml(d.bitrixId)}" title="Сменить стадию" style="margin-left:auto">→</button>
     </div>
   </div>`;
@@ -7591,12 +7591,22 @@ function handleKanbanCardAction(e) {
     const action = btn.dataset.action;
     if (action === 'wa') {
       const phone = (btn.dataset.phone || '').replace(/\D/g, '');
-      if (phone) openWaWidgetChatByPhone(phone, btn.dataset.contactName || '');
+      if (phone) {
+        openWaWidgetChatByPhone(phone, btn.dataset.contactName || '');
+      } else if (btn.dataset.noPhone === '1') {
+        // Нет телефона — открываем карточку чтобы юзер добавил
+        const dealBitrixId = btn.dataset.dealId || btn.closest('.kanban-card')?.dataset.dealId;
+        if (dealBitrixId) openDealCard(dealBitrixId);
+      }
     } else if (action === 'call') {
       const phone = btn.dataset.phone || '';
       const card = btn.closest('.kanban-card');
       const dealId = card?.dataset.dealId || null;
-      if (phone) placeCall({ phone, dealId, contactName: '' });
+      if (phone) {
+        placeCall({ phone, dealId, contactName: '' });
+      } else if (btn.dataset.noPhone === '1') {
+        if (dealId) openDealCard(dealId);
+      }
     } else if (action === 'stage') {
       showStageQuickPick(btn.dataset.dealId, btn);
     }
