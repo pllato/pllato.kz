@@ -3777,6 +3777,135 @@ window.resetDealsScopeToAll = function() {
   if (main) renderDeals(main);
 };
 
+// ── Per-pipeline field config (hidden/pinned custom fields) ──
+// Загружается один раз и кешируется в window.__fieldConfig.
+// Используется renderCustomFieldsBlock для фильтрации полей в карточке.
+async function loadFieldConfig() {
+  if (window.__fieldConfig !== undefined && window.__fieldConfigLoadedAt
+      && (Date.now() - window.__fieldConfigLoadedAt < 5 * 60_000)) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/admin/field-config`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) { window.__fieldConfig = {}; return; }
+    const data = await r.json();
+    window.__fieldConfig = data.config || {};
+    window.__fieldConfigLoadedAt = Date.now();
+  } catch (e) {
+    window.__fieldConfig = window.__fieldConfig || {};
+    console.warn('loadFieldConfig:', e);
+  }
+}
+
+async function saveFieldConfig(config) {
+  const idToken = await fbAuth.currentUser.getIdToken();
+  const r = await fetch(`${WORKER_BASE_URL}/api/admin/field-config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+    body: JSON.stringify({ config }),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j.error || `HTTP ${r.status}`);
+  }
+  const data = await r.json();
+  window.__fieldConfig = data.config || {};
+  window.__fieldConfigLoadedAt = Date.now();
+}
+
+// Модал управления полями текущей воронки
+function openFieldConfigModal(pipelineId, onSaved) {
+  if (!pipelineId) { alert('Сначала открой воронку'); return; }
+  document.getElementById('_field-cfg-modal')?.remove();
+  const cfg = (window.__fieldConfig?.[pipelineId]) || { hidden: [], pinned: [] };
+  // Работаем с КОПИЕЙ — изменения применяются только на «Сохранить»
+  const draft = { hidden: [...cfg.hidden], pinned: [...cfg.pinned] };
+  const schema = dealsState.customSchema || {};
+  const allKeys = Object.keys(schema).sort((a, b) => (schema[a]?.sort || 9999) - (schema[b]?.sort || 9999));
+  const pipeName = dealsState.pipelines?.[pipelineId]?.name || pipelineId;
+
+  const rowsHtml = allKeys.map(k => {
+    const meta = schema[k] || {};
+    const label = meta.label || k;
+    const isHidden = draft.hidden.includes(k);
+    const isPinned = draft.pinned.includes(k);
+    return `<tr data-field-key="${escapeHtml(k)}" style="${isHidden ? 'opacity:0.5' : ''}">
+      <td style="padding:6px 8px;font-size:13px;color:var(--t1)">
+        <div style="font-weight:500">${escapeHtml(label)}</div>
+        <div style="font-size:10px;color:var(--t3);font-family:monospace">${escapeHtml(k)}</div>
+      </td>
+      <td style="padding:6px 8px;text-align:center"><input type="checkbox" data-cf-action="hide" ${isHidden ? 'checked' : ''}></td>
+      <td style="padding:6px 8px;text-align:center"><input type="checkbox" data-cf-action="pin" ${isPinned ? 'checked' : ''}></td>
+    </tr>`;
+  }).join('');
+
+  const ov = document.createElement('div');
+  ov.id = '_field-cfg-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:680px;width:96vw">
+      <div class="qad-head"><h2>⚙ Поля воронки «${escapeHtml(pipeName)}»</h2><button class="qad-btn qad-btn-ghost" id="fcm-close" style="padding:4px 10px">×</button></div>
+      <div class="qad-body" style="max-height:70vh;overflow:auto;padding:18px 24px">
+        <div style="font-size:12px;color:var(--t3);margin-bottom:12px">
+          <b>Скрыть</b> — поле не отображается в карточке сделки (можно вернуть кнопкой «Показать N скрытых»).<br>
+          <b>Закрепить</b> — поле всегда первым в списке.<br>
+          Настройка применяется только для этой воронки.
+        </div>
+        <table class="dtable" style="width:100%;font-size:13px">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:6px 8px">Поле</th>
+              <th style="padding:6px 8px;width:80px">Скрыть</th>
+              <th style="padding:6px 8px;width:90px">Закрепить</th>
+            </tr>
+          </thead>
+          <tbody id="fcm-rows">${rowsHtml || '<tr><td colspan="3" style="text-align:center;color:var(--t3);padding:20px">В этой воронке нет кастомных полей</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="fcm-cancel">Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="fcm-save">💾 Сохранить</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('fcm-close').onclick = () => ov.remove();
+  document.getElementById('fcm-cancel').onclick = () => ov.remove();
+
+  // Делегирование чекбоксов
+  ov.querySelector('#fcm-rows').addEventListener('change', (e) => {
+    const cb = e.target.closest('[data-cf-action]');
+    if (!cb) return;
+    const tr = cb.closest('tr');
+    const key = tr.dataset.fieldKey;
+    const action = cb.dataset.cfAction;
+    const arr = action === 'hide' ? draft.hidden : draft.pinned;
+    const idx = arr.indexOf(key);
+    if (cb.checked && idx < 0) arr.push(key);
+    if (!cb.checked && idx >= 0) arr.splice(idx, 1);
+    // Визуальный отклик: hidden = opacity dim
+    if (action === 'hide') tr.style.opacity = cb.checked ? '0.5' : '';
+  });
+
+  document.getElementById('fcm-save').onclick = async () => {
+    const btn = document.getElementById('fcm-save');
+    btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
+    try {
+      const config = { ...(window.__fieldConfig || {}) };
+      config[pipelineId] = { hidden: draft.hidden, pinned: draft.pinned };
+      await saveFieldConfig(config);
+      ov.remove();
+      showToast('Настройки полей сохранены');
+      if (typeof onSaved === 'function') onSaved();
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+      btn.disabled = false; btn.textContent = '💾 Сохранить';
+    }
+  };
+}
+
 async function loadDealsMeta() {
   if (dealsState.metaLoaded) return;
   try {
@@ -3805,6 +3934,9 @@ async function loadDealsMeta() {
     }
 
     dealsState.metaLoaded = true;
+    // Параллельно подгружаем per-pipeline field config (для скрытия старых
+    // UF_CRM полей). Не блокируем основной flow.
+    loadFieldConfig().catch(() => {});
   } catch (e) {
     console.error('loadDealsMeta:', e);
   }
@@ -7678,18 +7810,50 @@ function renderCustomFieldsBlock(cfData, opts = {}) {
   }
   cfData = cfData || {};
 
+  // Per-pipeline конфиг полей (hidden + pinned). Загружается лениво
+  // в loadFieldConfig() и хранится в window.__fieldConfig.
+  const pipelineId = entity === 'deal' ? dealsState.activePipelineId : null;
+  const cfg = (window.__fieldConfig && pipelineId)
+    ? (window.__fieldConfig[pipelineId] || { hidden: [], pinned: [] })
+    : { hidden: [], pinned: [] };
+  const hiddenSet = new Set(cfg.hidden || []);
+  const pinnedSet = new Set(cfg.pinned || []);
+  const showHidden = !!opts.showHidden;  // для «Показать все поля» кнопки
+
   // Объединяем: все из schema + те что есть в cfData но не в schema
   const allKeys = new Set([...Object.keys(schema), ...Object.keys(cfData)]);
-  const entries = [...allKeys].map(k => [k, cfData[k]]);
+  let entries = [...allKeys].map(k => [k, cfData[k]]);
+  // Фильтр hidden (если не showHidden)
+  let hiddenCount = 0;
+  if (!showHidden && hiddenSet.size > 0) {
+    entries = entries.filter(([k, v]) => {
+      if (hiddenSet.has(k)) { hiddenCount++; return false; }
+      return true;
+    });
+  }
+  // Сортировка: pinned вверх, потом по schema.sort, потом по имени
   entries.sort((a, b) => {
+    const pa = pinnedSet.has(a[0]) ? 0 : 1;
+    const pb = pinnedSet.has(b[0]) ? 0 : 1;
+    if (pa !== pb) return pa - pb;
     const ma = schema[a[0]];
     const mb = schema[b[0]];
     return (ma?.sort || 9999) - (mb?.sort || 9999);
   });
 
+  const showHiddenBtn = (hiddenCount > 0 && !showHidden)
+    ? `<button class="tbtn tbtn-xs" id="dc-show-hidden-cf-btn" style="background:none;color:var(--t3)">👁 Показать ${hiddenCount} скрытых</button>`
+    : '';
+  const manageBtn = (isAdmin && entity === 'deal' && pipelineId)
+    ? `<button class="tbtn tbtn-xs" id="dc-manage-cf-btn" title="Скрыть/закрепить поля для этой воронки">⚙ Поля</button>`
+    : '';
   let html = `<div class="dc-section-h" style="display:flex;align-items:center;gap:8px;margin-top:18px">
     <span>Дополнительные поля</span>
-    ${isAdmin ? `<button class="tbtn tbtn-xs" id="dc-add-cf-btn" style="margin-left:auto">+ Поле</button>` : ''}
+    <span style="margin-left:auto;display:flex;gap:6px">
+      ${showHiddenBtn}
+      ${manageBtn}
+      ${isAdmin ? `<button class="tbtn tbtn-xs" id="dc-add-cf-btn">+ Поле</button>` : ''}
+    </span>
   </div><div class="cf-grid" id="dc-cf-grid" data-deal-id="${escapeHtml(dealId || '')}">`;
   let shownCount = 0, hiddenEmpty = 0;
   for (const [field, value] of entries) {
@@ -7975,6 +8139,34 @@ function wireUpCustomFieldsEditing(modal, opts = {}) {
       const ev = new CustomEvent('elc:reload-deal-card');
       modal.dispatchEvent(ev);
     });
+  }));
+
+  // Кнопка «👁 Показать N скрытых» — переключает showHidden для этой сессии
+  const showHiddenBtnEl = modal.querySelector('#dc-show-hidden-cf-btn');
+  if (showHiddenBtnEl) showHiddenBtnEl.addEventListener('click', () => {
+    const grid = modal.querySelector('#dc-cf-grid');
+    if (!grid) return;
+    const dealId = grid.dataset.dealId;
+    // Достаём deal из state
+    const bitrixId = dealId?.replace(/^deal_/, '');
+    const deal = dealsState.deals.find(d => d.bitrixId === bitrixId)
+      || (dealsPagedState.items || []).find(d => d.bitrixId === bitrixId);
+    if (!deal) return;
+    // Re-render с showHidden=true только этого блока
+    const block = grid.closest('.dc-section-h')?.parentElement || grid.parentElement;
+    if (!block) return;
+    const div = document.createElement('div');
+    div.innerHTML = renderCustomFieldsBlock(deal.customFields, { dealId, editable: true, showHidden: true });
+    grid.previousElementSibling.replaceWith(...div.children);
+    bindCustomFieldsBlock(modal);
+  });
+
+  // Кнопка «⚙ Поля» — открывает модал управления (только для admin воронок)
+  const manageBtn = modal.querySelector('#dc-manage-cf-btn');
+  if (manageBtn) manageBtn.addEventListener('click', () => openFieldConfigModal(dealsState.activePipelineId, () => {
+    // После сохранения — перерисовать карточку
+    const ev = new CustomEvent('elc:reload-deal-card');
+    modal.dispatchEvent(ev);
   }));
 
   // Inline-rename для label кастомного поля (admin only) — клик
