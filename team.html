@@ -13895,7 +13895,13 @@ async function saveWaChannel() {
   const defaultPipelineId = document.getElementById('wc-pipeline').value;
   const defaultStageId = document.getElementById('wc-stage').value;
   const responsibleUid = document.getElementById('wc-responsible').value;
-  if (!idInstance || !apiTokenInstance) { alert('idInstance и apiTokenInstance обязательны'); return; }
+  // Inline-error для UX (вместо alert который часто пропускают)
+  const resultEl = document.getElementById('wc-result');
+  const showError = (msg) => {
+    resultEl.innerHTML = `<div style="padding:12px 14px;background:#fef2f2;border:1px solid #ef4444;border-radius:8px;color:#991b1b;font-size:13px"><b>⚠ Ошибка:</b> ${escapeHtml(msg)}</div>`;
+    resultEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  if (!idInstance || !apiTokenInstance) { showError('idInstance и apiTokenInstance обязательны — оба поля выше должны быть заполнены'); return; }
   const btn = document.getElementById('wc-save');
   btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
   try {
@@ -13907,31 +13913,50 @@ async function saveWaChannel() {
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
-    document.getElementById('wc-result').innerHTML = `
-      <div style="padding:14px;background:linear-gradient(135deg,#dcf8c6,#b8e9a0);border-radius:8px;font-size:13px;border:1px solid #25D366">
-        <div style="font-weight:600;color:#1b5e20;margin-bottom:8px">✅ Канал создан! Следующие шаги:</div>
-        <ol style="margin:0 0 10px 18px;padding:0;color:#1b5e20;line-height:1.7">
-          <li>Скопируй <b>Webhook URL</b> ниже (кнопка 📋)</li>
-          <li>Открой Green-API кабинет → твой инстанс → Настройки → «URL для уведомлений» → вставь</li>
-          <li>Сохрани в Green-API</li>
-          <li>Вернись сюда → нажми <b>📷 QR-код</b> на карточке канала → сканируй с телефона</li>
-        </ol>
-        <div style="background:#fff;border:1px solid #25D366;border-radius:6px;padding:6px 8px;display:flex;gap:6px;align-items:center">
+    // Поля НЕ чистим — пусть видит что отправил. Помечаем как saved через зелёную рамку.
+    ['wc-instance','wc-token','wc-name'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.disabled = true; el.style.background = 'rgba(37, 211, 102, 0.08)'; el.style.borderColor = '#25D366'; }
+    });
+    resultEl.innerHTML = `
+      <div style="padding:16px;background:linear-gradient(135deg,#dcf8c6,#b8e9a0);border-radius:10px;font-size:13px;border:2px solid #25D366">
+        <div style="font-weight:700;color:#1b5e20;margin-bottom:10px;font-size:15px">✅ Канал успешно создан!</div>
+        <div style="color:#1b5e20;margin-bottom:10px">Скопируй Webhook URL ниже и вставь в Green-API → твой инстанс → Настройки → «URL для уведомлений»:</div>
+        <div style="background:#fff;border:1px solid #25D366;border-radius:6px;padding:8px 10px;display:flex;gap:6px;align-items:center;margin-bottom:10px">
           <input readonly value="${escapeHtml(data.webhookUrl)}" id="wc-webhook-input"
             style="flex:1;font-family:monospace;font-size:11px;border:none;background:transparent;color:#1b5e20"
             onclick="this.select()">
           <button class="tbtn tbtn-xs" onclick="navigator.clipboard.writeText(document.getElementById('wc-webhook-input').value);this.textContent='✓';setTimeout(()=>this.textContent='📋',1500)" style="background:#25D366;color:#fff;border-color:#25D366">📋</button>
         </div>
+        <div style="color:#1b5e20;font-size:12px;line-height:1.6">
+          <b>Далее:</b> в Green-API включи события <code>incomingMessageReceived</code>, <code>outgoingMessageReceived</code>, <code>outgoingAPIMessageReceived</code> и сохрани.<br>
+          Потом нажми <b>«Готово»</b> ниже — вернёшься на список каналов и сможешь отсканировать QR.
+        </div>
       </div>
     `;
-    document.getElementById('wc-instance').value = '';
-    document.getElementById('wc-token').value = '';
-    document.getElementById('wc-name').value = '';
+    resultEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Меняем кнопку «Создать канал» → «Готово» которая закрывает модалку и рефрешит фон
+    btn.textContent = '✓ Готово — закрыть';
+    btn.style.background = '#16a34a';
+    btn.style.borderColor = '#16a34a';
+    btn.onclick = () => {
+      document.getElementById('_wa-channels-modal')?.remove();
+      // Перерисовываем Settings → Channels → WhatsApp если открыт
+      if (settingsState?.tab === 'channels' && settingsState?.channelsSubTab === 'whatsapp') {
+        const content = document.getElementById('channels-subcontent');
+        if (content) renderSettingsChannelsWa(content);
+      }
+    };
+    btn.disabled = false;
     await refreshWaChannelsList();
+    return;
   } catch (e) {
-    alert('Ошибка: ' + e.message);
+    showError(e.message);
   } finally {
-    btn.disabled = false; btn.textContent = '💾 Создать канал';
+    if (btn.textContent === '⏳ Сохраняем…') {
+      btn.disabled = false;
+      btn.textContent = '💾 Создать канал';
+    }
   }
 }
 
