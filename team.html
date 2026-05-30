@@ -3767,7 +3767,12 @@ function ensureWaWidgetStyles() {
       display: inline-flex; align-items: center; justify-content: center;
       margin-left: 6px;
     }
-    .wa-w-msgs { padding: 10px 12px; }
+    .wa-w-msgs {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
     .wa-w-composer {
       flex: 0 0 auto; padding: 8px 10px; background: var(--bg3, #f3f5f7);
       display: flex; gap: 6px; align-items: flex-end;
@@ -3851,6 +3856,72 @@ function renderWaWidgetList(root) {
   root.querySelectorAll('.wa-w-chat-row').forEach(r => {
     r.addEventListener('click', () => openWaWidgetChat(r.dataset.chatId));
   });
+}
+
+// Открыть чат в widget по номеру телефона (вызывается с карточки сделки/контакта).
+// Ищет существующий wa_chat по phone, если нет — создаёт виртуальный (для отправки
+// первого сообщения).
+async function openWaWidgetChatByPhone(phone, displayName) {
+  if (!phone) return;
+  const digits = String(phone).replace(/\D/g, '').replace(/^8(\d{10})$/, '7$1');
+  if (!digits) return;
+  // Открываем виджет если закрыт
+  waWidget.open = true;
+  waWidget.view = 'list';
+  renderWaWidget();
+  // Убедимся что чаты загружены
+  if (!waWidget.chats?.length) {
+    await refreshWaWidgetChats();
+  }
+  // Ищем по phone (или по chat_id который содержит phone)
+  let chat = (waWidget.chats || []).find(c =>
+    c.phone === digits
+    || (c.chatId && c.chatId.startsWith(digits + '@'))
+  );
+  if (!chat) {
+    // Виртуальный чат для первой отправки. Worker создаст реальную запись при send.
+    // ChatId формируется по convention 'wa:{instanceId}:{phone}@c.us'
+    chat = {
+      id: `wa:virtual:${digits}@c.us`,
+      chatId: `${digits}@c.us`,
+      phone: digits,
+      name: displayName || ('+' + digits),
+      isGroup: false,
+      lastMessageText: '',
+      unreadCount: 0,
+      dealId: null,
+    };
+    // Добавляем во временный список чтобы renderWaWidgetChat не упал
+    waWidget.chats = waWidget.chats || [];
+    waWidget.chats.unshift(chat);
+  }
+  waWidget.activeChatId = chat.id;
+  waWidget.activeChatMeta = chat;
+  waWidget.view = 'chat';
+  waWidget.messages = [];
+  renderWaWidget();
+  // Если чат реальный (не виртуальный) — грузим сообщения и mark-read
+  if (!chat.id.startsWith('wa:virtual:')) {
+    await loadWaWidgetMessages();
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      fetch(`${WORKER_BASE_URL}/api/wa/mark-read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ chatId: chat.id }),
+      }).catch(() => {});
+      chat.unreadCount = 0;
+      recomputeWaWidgetUnread();
+    } catch {}
+    if (waWidget.msgPollTimer) clearInterval(waWidget.msgPollTimer);
+    waWidget.msgPollTimer = setInterval(() => {
+      if (waWidget.view !== 'chat' || waWidget.activeChatId !== chat.id) {
+        clearInterval(waWidget.msgPollTimer); waWidget.msgPollTimer = null;
+        return;
+      }
+      loadWaWidgetMessages({ silent: true });
+    }, 5000);
+  }
 }
 
 async function openWaWidgetChat(chatId) {
@@ -5690,13 +5761,19 @@ document.addEventListener('click', (e) => {
   if (!btn) return;
   e.preventDefault();
   e.stopPropagation();
-  openWaChatModal({
-    phone: btn.dataset.waPhone,
-    contactId: btn.dataset.waContactid || null,
-    dealId: btn.dataset.waDealid || null,
-    contactName: btn.dataset.waContactname || null,
-    chatId: btn.dataset.waChatid || null,
-  });
+  // Открываем floating widget справа снизу с этим чатом
+  if (typeof openWaWidgetChatByPhone === 'function') {
+    openWaWidgetChatByPhone(btn.dataset.waPhone, btn.dataset.waContactname || '');
+  } else {
+    // Fallback на старую модалку
+    openWaChatModal({
+      phone: btn.dataset.waPhone,
+      contactId: btn.dataset.waContactid || null,
+      dealId: btn.dataset.waDealid || null,
+      contactName: btn.dataset.waContactname || null,
+      chatId: btn.dataset.waChatid || null,
+    });
+  }
 });
 
 // Стили floating popup'а (стиль Aminamed: compact окно справа снизу,
@@ -7514,7 +7591,7 @@ function handleKanbanCardAction(e) {
     const action = btn.dataset.action;
     if (action === 'wa') {
       const phone = (btn.dataset.phone || '').replace(/\D/g, '');
-      if (phone) window.open(`https://wa.me/${phone}`, '_blank');
+      if (phone) openWaWidgetChatByPhone(phone, btn.dataset.contactName || '');
     } else if (action === 'call') {
       const phone = btn.dataset.phone || '';
       const card = btn.closest('.kanban-card');
