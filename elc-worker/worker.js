@@ -1108,6 +1108,18 @@ async function handleList(request, env, entity) {
     }
   }
 
+  // Фильтр диапазона дедлайнов — нужен Календарю (tasks). Без него /api/list/tasks
+  // выдаёт первые 500 по deadline ASC, где новая task с future-deadline теряется
+  // среди тысяч старых тасков с просроченными дедлайнами.
+  // Поля принимают ISO-строки или 'YYYY-MM-DD'. Сравниваем как строки —
+  // ISO формат сортируется корректно лексикографически.
+  if (entity === "tasks") {
+    const dlFrom = (url.searchParams.get("deadlineFrom") || "").trim();
+    const dlTo = (url.searchParams.get("deadlineTo") || "").trim();
+    if (dlFrom) { whereParts.push("deadline >= ?"); whereParams.push(dlFrom); }
+    if (dlTo)   { whereParts.push("deadline <= ?"); whereParams.push(dlTo); }
+  }
+
   // archived фильтр (только для deals — у contacts/tasks колонки нет).
   // По умолчанию архив скрыт. ?archived=1 — только архив, ?archived=all — все.
   if (entity === "deals") {
