@@ -5637,19 +5637,221 @@ function formatWaDayLabel(dt) {
   return dt.getFullYear() === today.getFullYear() ? dayName : `${dayName} ${dt.getFullYear()}`;
 }
 
+// Загружает Blob/File в R2 через worker, возвращает {publicUrl, fileName, contentType}.
+// Используется для отправки media в WhatsApp — Green-API скачивает по publicUrl.
+async function uploadWaMediaFile(blob, fileName) {
+  const idToken = await fbAuth.currentUser.getIdToken();
+  const r = await fetch(`${WORKER_BASE_URL}/api/wa/upload`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${idToken}`,
+      'Content-Type': blob.type || 'application/octet-stream',
+      'X-File-Name': encodeURIComponent(fileName || 'file'),
+    },
+    body: blob,
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+  return data;
+}
+
+// Универсальная отправка media: загружает в R2, потом POST /api/wa/send с
+// mediaUrl + fileName. chatRef = {rawChatId, phone}. После — onSent колбэк
+// для перерисовки.
+async function sendWaMediaFile(chatRef, blob, fileName, caption, onSent) {
+  const upload = await uploadWaMediaFile(blob, fileName);
+  const idToken = await fbAuth.currentUser.getIdToken();
+  const body = {
+    chatId: chatRef.rawChatId,
+    phone: chatRef.phone,
+    mediaUrl: upload.publicUrl,
+    fileName: upload.fileName,
+  };
+  if (caption) body.text = caption;
+  const r = await fetch(`${WORKER_BASE_URL}/api/wa/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+    body: JSON.stringify(body),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+  if (typeof onSent === 'function') await onSent(data);
+  return data;
+}
+
+// Открывает скрытый file input нужного типа и возвращает выбранный File
+async function pickWaFile(accept = '*/*') {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.style.display = 'none';
+    input.onchange = () => {
+      resolve(input.files && input.files[0]);
+      input.remove();
+    };
+    document.body.appendChild(input);
+    input.click();
+  });
+}
+
+// Запись голосового сообщения через MediaRecorder.
+// Возвращает Blob аудио (audio/webm или audio/mp4 — браузер сам выберет).
+// hookButton — кнопка, которую нужно превратить в «🔴 STOP» во время записи.
+async function recordWaVoice(hookButton) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('Запись голоса не поддерживается этим браузером');
+    return null;
+  }
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    alert('Не удалось получить доступ к микрофону: ' + e.message);
+    return null;
+  }
+  // Выбираем mimeType: предпочитаем audio/ogg (Telegram-style), fallback audio/webm, потом mp4
+  const candidates = ['audio/ogg;codecs=opus', 'audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+  let mimeType = '';
+  for (const c of candidates) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(c)) { mimeType = c; break; }
+  }
+  const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+  const chunks = [];
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  return new Promise((resolve) => {
+    const origText = hookButton ? hookButton.innerHTML : '';
+    const origBg = hookButton ? hookButton.style.background : '';
+    let stopped = false;
+    const stop = () => {
+      if (stopped) return;
+      stopped = true;
+      try { rec.stop(); } catch {}
+      stream.getTracks().forEach(t => t.stop());
+    };
+    rec.onstop = () => {
+      const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+      if (hookButton) {
+        hookButton.innerHTML = origText;
+        hookButton.style.background = origBg;
+        hookButton.onclick = hookButton._origClick;
+      }
+      // Если запись слишком короткая (<300ms) — считаем отменой
+      if (blob.size < 1500) resolve(null);
+      else resolve(blob);
+    };
+    rec.start();
+    if (hookButton) {
+      hookButton._origClick = hookButton.onclick;
+      hookButton.innerHTML = '⏹ Стоп';
+      hookButton.style.background = '#ef4444';
+      hookButton.style.color = '#fff';
+      hookButton.onclick = stop;
+    }
+    // Авто-стоп через 5 минут
+    setTimeout(() => stop(), 5 * 60 * 1000);
+  });
+}
+
+// Builds attach-menu HTML — popup рядом с кнопкой 📎.
+function buildWaAttachMenuHtml() {
+  return `<div class="wa-attach-menu" style="position:absolute;background:var(--bg2);border:1px solid var(--b1);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:6px;display:flex;flex-direction:column;gap:2px;z-index:1000;min-width:180px">
+    <button class="wa-attach-opt" data-wa-attach="image" style="background:none;border:none;text-align:left;padding:8px 12px;cursor:pointer;font-size:13px;border-radius:4px;color:var(--t1)">🖼 Фото</button>
+    <button class="wa-attach-opt" data-wa-attach="video" style="background:none;border:none;text-align:left;padding:8px 12px;cursor:pointer;font-size:13px;border-radius:4px;color:var(--t1)">🎥 Видео</button>
+    <button class="wa-attach-opt" data-wa-attach="doc" style="background:none;border:none;text-align:left;padding:8px 12px;cursor:pointer;font-size:13px;border-radius:4px;color:var(--t1)">📎 Документ</button>
+  </div>`;
+}
+
+// Привязывает кнопке attachBtn open-меню (🖼/🎥/📎) с file picker'ом.
+// chatRefGetter — функция, возвращающая {rawChatId, phone} актуальные на момент клика.
+// onSent — колбэк после успешной отправки.
+function bindWaAttachButton(attachBtn, chatRefGetter, onSent) {
+  if (!attachBtn) return;
+  attachBtn.style.position = 'relative';
+  attachBtn.onclick = (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.wa-attach-menu').forEach(m => m.remove());
+    const menuWrap = document.createElement('div');
+    menuWrap.innerHTML = buildWaAttachMenuHtml();
+    const menu = menuWrap.firstElementChild;
+    const rect = attachBtn.getBoundingClientRect();
+    menu.style.left = rect.left + 'px';
+    menu.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+    document.body.appendChild(menu);
+    const close = () => menu.remove();
+    setTimeout(() => document.addEventListener('click', close, { once: true }), 0);
+    menu.querySelectorAll('.wa-attach-opt').forEach(opt => {
+      opt.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        close();
+        const kind = opt.dataset.waAttach;
+        const accept = kind === 'image' ? 'image/*' : kind === 'video' ? 'video/*' : '*/*';
+        const file = await pickWaFile(accept);
+        if (!file) return;
+        const orig = attachBtn.innerHTML;
+        attachBtn.disabled = true;
+        attachBtn.innerHTML = '⏳';
+        try {
+          const chatRef = chatRefGetter();
+          await sendWaMediaFile(chatRef, file, file.name, null, onSent);
+          if (typeof showToast === 'function') showToast('Отправлено');
+        } catch (e) {
+          alert('Ошибка отправки: ' + e.message);
+        } finally {
+          attachBtn.disabled = false;
+          attachBtn.innerHTML = orig;
+        }
+      });
+    });
+  };
+}
+
+// Привязывает кнопку микрофона — клик стартует запись, второй клик — стоп + отправка.
+function bindWaVoiceButton(voiceBtn, chatRefGetter, onSent) {
+  if (!voiceBtn) return;
+  voiceBtn.onclick = async () => {
+    const orig = voiceBtn.innerHTML;
+    const blob = await recordWaVoice(voiceBtn);
+    if (!blob) return;  // отмена или слишком короткая
+    voiceBtn.innerHTML = '⏳';
+    voiceBtn.disabled = true;
+    try {
+      const chatRef = chatRefGetter();
+      const ext = (blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm');
+      const fileName = `voice-${Date.now()}.${ext}`;
+      await sendWaMediaFile(chatRef, blob, fileName, null, onSent);
+      if (typeof showToast === 'function') showToast('🎙 Голосовое отправлено');
+    } catch (e) {
+      alert('Ошибка отправки голосового: ' + e.message);
+    } finally {
+      voiceBtn.disabled = false;
+      voiceBtn.innerHTML = orig;
+    }
+  };
+}
+
 function renderWaMessageHtml(m) {
   const cls = m.direction === 'in' ? 'in' : 'out';
   const ts = new Date(m.ts).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
   let mediaHtml = '';
   if (m.mediaKind === 'image' && m.mediaUrl) {
-    mediaHtml = `<a href="${escapeHtml(m.mediaUrl)}" target="_blank"><img class="wa-media-img" src="${escapeHtml(m.mediaUrl)}" alt=""></a>`;
+    mediaHtml = `<a href="${escapeHtml(m.mediaUrl)}" target="_blank"><img class="wa-media-img" src="${escapeHtml(m.mediaUrl)}" alt="" style="max-width:240px;max-height:240px;border-radius:6px;display:block"></a>`;
   } else if (m.mediaKind === 'audio' && m.mediaUrl) {
-    mediaHtml = `<div class="wa-media-audio"><audio controls preload="metadata" src="${escapeHtml(m.mediaUrl)}"></audio></div>`;
+    mediaHtml = `<div class="wa-media-audio" style="margin:2px 0"><audio controls preload="metadata" src="${escapeHtml(m.mediaUrl)}" style="max-width:260px;height:36px"></audio></div>`;
   } else if (m.mediaKind === 'video' && m.mediaUrl) {
-    mediaHtml = `<a class="wa-media-file" href="${escapeHtml(m.mediaUrl)}" target="_blank">🎥 ${escapeHtml(m.mediaFileName || 'видео')}</a>`;
+    mediaHtml = `<div style="margin:2px 0"><video controls preload="metadata" src="${escapeHtml(m.mediaUrl)}" style="max-width:240px;max-height:240px;border-radius:6px;display:block"></video></div>`;
   } else if (m.mediaUrl) {
-    const fname = m.mediaFileName || '📎 файл';
-    mediaHtml = `<a class="wa-media-file" href="${escapeHtml(m.mediaUrl)}" target="_blank">📎 ${escapeHtml(fname)}</a>`;
+    // Документы и прочее — компактная плашка с иконкой и именем
+    const fname = m.mediaFileName || 'файл';
+    const ext = fname.includes('.') ? fname.split('.').pop().toUpperCase() : '';
+    const ico = ext === 'PDF' ? '📕' : (ext === 'DOC' || ext === 'DOCX') ? '📘' : (ext === 'XLS' || ext === 'XLSX') ? '📗' : '📎';
+    mediaHtml = `<a class="wa-media-file" href="${escapeHtml(m.mediaUrl)}" target="_blank" download="${escapeHtml(fname)}" style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.04);padding:8px 10px;border-radius:6px;text-decoration:none;color:inherit;margin:2px 0;max-width:260px">
+      <span style="font-size:24px">${ico}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(fname)}</div>
+        ${ext ? `<div style="font-size:10px;color:var(--t3)">${escapeHtml(ext)}</div>` : ''}
+      </div>
+    </a>`;
   }
   const text = m.text || m.caption || '';
   const tick = cls === 'out' ? '<span class="wa-tick">✓✓</span>' : '';
@@ -5766,33 +5968,12 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send('', ''); }
     });
   }
+  const voiceBtn = modal.querySelector('#dc-wa-voice');
+  const chatRefGetter = () => ({ rawChatId: pane._waState.rawChatId, phone: pane._waState.phone });
+  const onSentRefresh = async () => { await renderDealWaMessages(pane); };
+  bindWaVoiceButton(voiceBtn, chatRefGetter, onSentRefresh);
   if (attachBtn) {
-    attachBtn.onclick = async () => {
-      const url = prompt('URL файла (jpg/png/pdf/mp4 — будет отправлен в WhatsApp):');
-      if (!url) return;
-      const fileName = url.split('/').pop() || 'file';
-      if (sendBtn) sendBtn.click(); // re-use send() через trigger; альтернативно встроим тут
-      // Простой путь — отправить напрямую:
-      try {
-        const idToken = await fbAuth.currentUser.getIdToken();
-        const r = await fetch(`${WORKER_BASE_URL}/api/wa/send`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-          body: JSON.stringify({
-            chatId: pane._waState.rawChatId,
-            phone: pane._waState.phone,
-            mediaUrl: url, fileName,
-          }),
-        });
-        if (!r.ok) {
-          const j = await r.json().catch(() => ({}));
-          throw new Error(j.error || `HTTP ${r.status}`);
-        }
-        await renderDealWaMessages(pane);
-      } catch (e) {
-        alert('Ошибка отправки файла: ' + e.message);
-      }
-    };
+    bindWaAttachButton(attachBtn, chatRefGetter, onSentRefresh);
   }
 }
 
@@ -7155,7 +7336,8 @@ async function openDealCard(bitrixId) {
           <div class="dc-wa-pane" id="dc-wa-pane" data-deal-id="${escapeHtml(deal.bitrixId)}" data-phone="${escapeHtml(contactPhone || '')}" data-contact-name="${escapeHtml(contactName || '')}">
             <div class="dc-wa-body" id="dc-wa-body"><div class="dc-wa-empty">${contactPhone ? '⏳ Загружаем историю…' : '📱 У контакта не указан телефон — WhatsApp недоступен.'}</div></div>
             ${contactPhone ? `<div class="dc-wa-input-wrap">
-              <button class="dc-wa-attach" id="dc-wa-attach" title="Прикрепить файл по URL">📎</button>
+              <button class="dc-wa-attach" id="dc-wa-attach" title="Прикрепить фото/видео/файл">📎</button>
+              <button class="dc-wa-attach" id="dc-wa-voice" title="Записать голосовое сообщение" style="margin-left:4px">🎙</button>
               <textarea class="dc-wa-input" id="dc-wa-input" placeholder="Написать в WhatsApp..." rows="1"></textarea>
               <button class="dc-wa-send" id="dc-wa-send">Отправить</button>
             </div>` : ''}
@@ -12464,7 +12646,8 @@ async function openWaChat(chatId) {
       <div style="padding:30px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем сообщения...</div>
     </div>
     <div style="padding:10px 12px;border-top:1px solid var(--b1);background:var(--bg3);flex:0 0 auto;display:flex;gap:8px;align-items:flex-end">
-      <button id="wa-thread-attach" class="vt-btn" title="Прикрепить файл по URL" style="flex:0 0 auto;padding:7px 10px">📎</button>
+      <button id="wa-thread-attach" class="vt-btn" title="Прикрепить фото/видео/файл" style="flex:0 0 auto;padding:7px 10px">📎</button>
+      <button id="wa-thread-voice" class="vt-btn" title="Записать голосовое" style="flex:0 0 auto;padding:7px 10px">🎙</button>
       <textarea id="wa-thread-input" placeholder="Написать в WhatsApp..." rows="1"
         style="flex:1;resize:none;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none;max-height:120px;font-family:inherit"></textarea>
       <button id="wa-thread-send" class="vt-btn active" style="flex:0 0 auto;padding:7px 14px">Отправить</button>
@@ -12537,12 +12720,11 @@ async function openWaChat(chatId) {
     input.style.height = 'auto';
     input.style.height = Math.min(input.scrollHeight, 120) + 'px';
   });
-  attachBtn.onclick = async () => {
-    const url = prompt('URL файла (jpg/png/pdf/mp4 — будет отправлен в WhatsApp):');
-    if (!url) return;
-    const fileName = url.split('/').pop() || 'file';
-    await send(url, fileName);
-  };
+  const voiceBtn = threadEl.querySelector('#wa-thread-voice');
+  const threadChatRefGetter = () => ({ rawChatId: chat.chatId, phone: chat.phone });
+  const threadOnSent = async () => { await loadAndRenderWaThreadMessages(); loadAndRenderWaChats({ silent: true }); };
+  bindWaAttachButton(attachBtn, threadChatRefGetter, threadOnSent);
+  bindWaVoiceButton(voiceBtn, threadChatRefGetter, threadOnSent);
 
   // Ссылки на контакт/сделку
   threadEl.querySelectorAll('.wa-thread-contact-link').forEach(a => {
