@@ -2941,6 +2941,55 @@ async function handlePermissionsPut(request, env) {
   return json({ ok: true, permissions: incoming }, 200, request);
 }
 
+// ── WhatsApp media upload + public serve ──
+// Upload через нашу CRM: POST /api/wa/upload (auth) сохраняет в R2,
+// возвращает publicUrl который сразу можно передать в Green-API sendFileByUrl.
+// Serve через /api/wa/file/{key} — БЕЗ auth, чтобы Green-API мог скачать
+// и переотправить в WhatsApp.
+async function handleWaUpload(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  if (!env.FILES) return json({ error: "R2 binding FILES not configured" }, 500, request);
+  const contentType = request.headers.get('Content-Type') || 'application/octet-stream';
+  // Имя файла берём из X-File-Name (URI-encoded), иначе генерим
+  let fileName = 'file';
+  const xfn = request.headers.get('X-File-Name');
+  if (xfn) { try { fileName = decodeURIComponent(xfn); } catch { fileName = xfn; } }
+  // Уникальный R2 key с префиксом wa-upload/<date>/<rand>-<name>
+  const rand = Math.random().toString(36).slice(2, 10);
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const safeName = fileName.replace(/[^\w.\-]/g, '_').slice(0, 80);
+  const r2Key = `wa-upload/${dateStr}/${rand}-${safeName}`;
+  // Размер из Content-Length для подсчёта (R2 сам возьмёт)
+  const body = await request.arrayBuffer();
+  await env.FILES.put(r2Key, body, {
+    httpMetadata: { contentType },
+    customMetadata: { uploadedBy: auth.claims?.email || auth.claims?.sub || 'unknown', originalName: fileName },
+  });
+  const url = new URL(request.url);
+  const publicUrl = `${url.origin}/api/wa/file/${encodeURIComponent(r2Key)}`;
+  return json({ ok: true, r2Key, publicUrl, fileName, size: body.byteLength, contentType }, 200, request);
+}
+
+async function handleWaFileServe(request, env, r2Key) {
+  if (!env.FILES) return new Response('R2 not configured', { status: 500 });
+  const obj = await env.FILES.get(r2Key);
+  if (!obj) return new Response('not found', { status: 404 });
+  const headers = new Headers();
+  const ct = obj.httpMetadata?.contentType || 'application/octet-stream';
+  headers.set('Content-Type', ct);
+  if (obj.size) headers.set('Content-Length', String(obj.size));
+  const orig = obj.customMetadata?.originalName || r2Key.split('/').pop();
+  const safeName = encodeURIComponent(orig);
+  // Inline для media (image/audio/video), attachment для остального — чтобы
+  // Green-API мог сам решить как класть в WhatsApp (а превью отображалось).
+  const disposition = /^(image|audio|video)\//.test(ct) ? 'inline' : 'attachment';
+  headers.set('Content-Disposition', `${disposition}; filename*=UTF-8''${safeName}`);
+  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  headers.set('Access-Control-Allow-Origin', '*');  // публично для Green-API
+  return new Response(obj.body, { headers });
+}
+
 // ── Per-pipeline custom fields config (hidden + pinned) ──
 // kv['org:fieldConfig'] = { [pipelineId]: { hidden: [...], pinned: [...] } }
 async function handleFieldConfigGet(request, env) {
@@ -3168,6 +3217,13 @@ export default {
     }
     if (path === "/api/call/missed-by-deal" && request.method === "GET") {
       return handleCallMissedByDeal(request, env);
+    }
+    if (path === "/api/wa/upload" && request.method === "POST") {
+      return handleWaUpload(request, env);
+    }
+    const waFileMatch = path.match(/^\/api\/wa\/file\/(.+)$/);
+    if (waFileMatch && request.method === "GET") {
+      return handleWaFileServe(request, env, decodeURIComponent(waFileMatch[1]));
     }
     if (path === "/api/wa/channels" && request.method === "GET") {
       return handleWaListChannels(request, env);
