@@ -3610,6 +3610,86 @@ function initWaFloatingWidget() {
   // Стартуем polling
   refreshWaWidgetChats();
   waWidget.pollTimer = setInterval(refreshWaWidgetChats, 7000);
+  // Показываем permission banner если уведомления не разрешены
+  maybeShowNotificationBanner();
+}
+
+// Большой яркий банер сверху с просьбой разрешить push-уведомления.
+// Показывается на каждом новом браузере/входе (если permission != granted).
+// Не показывается если юзер dismissed его в этой сессии (sessionStorage).
+function maybeShowNotificationBanner() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') return;
+  if (Notification.permission === 'denied') {
+    // denied — повторно браузер не покажет prompt. Показываем permanent помощь.
+    showNotificationDeniedHelp();
+    return;
+  }
+  // 'default' — можем попросить
+  try { if (sessionStorage.getItem('elc:notifBannerDismissed') === '1') return; } catch {}
+  showNotificationBanner();
+}
+
+function showNotificationBanner() {
+  document.getElementById('elc-notif-banner')?.remove();
+  const b = document.createElement('div');
+  b.id = 'elc-notif-banner';
+  b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#25D366,#1ebe5a);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:16px;box-shadow:0 4px 14px rgba(0,0,0,0.18);font-size:14px;animation:elcSlideDown 0.3s ease-out';
+  b.innerHTML = `
+    <div style="font-size:32px;flex:0 0 auto">🔔</div>
+    <div style="flex:1;line-height:1.4">
+      <div style="font-weight:700;font-size:15px;margin-bottom:2px">Разреши уведомления — иначе пропустишь сообщения клиентов</div>
+      <div style="opacity:0.92;font-size:13px">Звук + всплывающее окно при каждом новом WhatsApp-сообщении. Без этого новые входящие можно увидеть только если открыт раздел СРМ.</div>
+    </div>
+    <button id="elc-notif-banner-enable" style="background:#fff;color:#1b5e20;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;flex:0 0 auto;box-shadow:0 2px 6px rgba(0,0,0,0.15)">✅ Включить уведомления</button>
+    <button id="elc-notif-banner-dismiss" title="Скрыть на сессию (покажется снова после перезахода)" style="background:rgba(255,255,255,0.2);color:#fff;border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;flex:0 0 auto">×</button>
+  `;
+  document.body.appendChild(b);
+  // Анимация
+  if (!document.getElementById('elc-notif-banner-anim')) {
+    const s = document.createElement('style');
+    s.id = 'elc-notif-banner-anim';
+    s.textContent = `@keyframes elcSlideDown{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}`;
+    document.head.appendChild(s);
+  }
+  document.getElementById('elc-notif-banner-enable').onclick = async () => {
+    const ok = await requestNotificationPermission();
+    if (ok) {
+      playMessageBeep();
+      try { new Notification('✅ Уведомления включены', { body: 'Будешь получать пуш и звук при новых сообщениях WhatsApp' }); } catch {}
+      b.remove();
+    } else {
+      // denied → банер с инструкцией как починить
+      b.remove();
+      showNotificationDeniedHelp();
+    }
+  };
+  document.getElementById('elc-notif-banner-dismiss').onclick = () => {
+    try { sessionStorage.setItem('elc:notifBannerDismissed', '1'); } catch {}
+    b.remove();
+  };
+}
+
+function showNotificationDeniedHelp() {
+  // Помощь когда permission уже denied — браузер не даст запросить повторно
+  // нужно ручками в настройках сайта снять блок
+  try { if (sessionStorage.getItem('elc:notifBannerDismissed') === '1') return; } catch {}
+  const b = document.createElement('div');
+  b.id = 'elc-notif-banner';
+  b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#f59e0b,#d97706);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:14px;box-shadow:0 4px 14px rgba(0,0,0,0.18);font-size:13px';
+  b.innerHTML = `
+    <div style="font-size:24px">⚠</div>
+    <div style="flex:1;line-height:1.4">
+      <b>Уведомления заблокированы для этого сайта.</b> Чтобы получать звук + push при новых WhatsApp-сообщениях:
+      нажми на 🔒 (или ⓘ) в адресной строке слева от <code>pllato.kz</code> → разреши «Уведомления» → перезагрузи страницу.
+    </div>
+    <button id="elc-notif-banner-dismiss-2" style="background:rgba(255,255,255,0.2);color:#fff;border:none;width:28px;height:28px;border-radius:50%;font-size:16px;cursor:pointer">×</button>
+  `;
+  document.body.appendChild(b);
+  document.getElementById('elc-notif-banner-dismiss-2').onclick = () => {
+    try { sessionStorage.setItem('elc:notifBannerDismissed', '1'); } catch {}
+    b.remove();
+  };
 }
 
 function ensureWaWidgetStyles() {
@@ -3734,18 +3814,22 @@ function renderWaWidgetList(root) {
     .slice(0, 50);
   const rowsHtml = chats.length
     ? chats.map(c => {
-        const name = c.name && c.name.trim() ? c.name : (c.phone ? '+' + c.phone : '?');
-        const initials = (name.match(/[A-Za-zА-Яа-я0-9]/g) || []).slice(0, 2).join('').toUpperCase() || '?';
+        const isGroup = c.isGroup === true;
+        const name = c.name && c.name.trim() ? c.name : (c.phone ? '+' + c.phone : (isGroup ? 'Группа' : '?'));
+        // Для групп — иконка 👥, для контактов — инициалы
+        const avatarContent = isGroup ? '👥' : ((name.match(/[A-Za-zА-Яа-я0-9]/g) || []).slice(0, 2).join('').toUpperCase() || '?');
+        const avatarBg = isGroup ? '#25D366' : 'var(--ac, #4f46e5)';
         const preview = c.lastMessageText
           ? (c.lastMessageFrom === 'me' ? '✓ ' : '') + (c.lastMessageText.length > 50 ? c.lastMessageText.slice(0, 50) + '…' : c.lastMessageText)
           : '';
         const time = c.lastMessageAt ? formatWaShortTime(c.lastMessageAt) : '';
         const unread = c.unreadCount > 0 ? `<span class="wa-w-chat-unread">${c.unreadCount}</span>` : '';
+        const groupLabel = isGroup ? `<span style="background:rgba(37,211,102,0.18);color:#1b5e20;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:6px;text-transform:uppercase">Группа</span>` : '';
         return `<div class="wa-w-chat-row" data-chat-id="${escapeHtml(c.id)}">
-          <div class="wa-w-chat-avatar">${escapeHtml(initials)}</div>
+          <div class="wa-w-chat-avatar" style="background:${avatarBg};font-size:${isGroup ? '18px' : '14px'}">${escapeHtml(avatarContent)}</div>
           <div class="wa-w-chat-body">
             <div class="wa-w-chat-name">
-              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}</span>
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}${groupLabel}</span>
               <span class="wa-w-chat-time">${escapeHtml(time)}</span>
             </div>
             <div class="wa-w-chat-preview">${escapeHtml(preview)}${unread}</div>
@@ -3803,25 +3887,28 @@ async function openWaWidgetChat(chatId) {
 function renderWaWidgetChat(root) {
   const chat = waWidget.activeChatMeta;
   if (!chat) { waWidget.view = 'list'; renderWaWidget(); return; }
-  const name = chat.name && chat.name.trim() ? chat.name : (chat.phone ? '+' + chat.phone : '?');
+  const isGroup = chat.isGroup === true;
+  const name = chat.name && chat.name.trim() ? chat.name : (chat.phone ? '+' + chat.phone : (isGroup ? 'Группа' : '?'));
   const msgsHtml = waWidget.messages.length
     ? waWidget.messages.map(m => renderWaMessageHtml(m)).join('')
     : '<div class="wa-w-empty">📭 История пуста</div>';
-  // Поиск deal для контакта (если есть)
-  const dealId = chat.dealId;
+  // Поиск deal для контакта (если есть) — для групп не показываем (не привязаны)
+  const dealId = !isGroup && chat.dealId;
   const dealOpenBtn = dealId
     ? `<button class="wa-w-icon-btn" id="wa-w-open-deal" title="Открыть карточку сделки">📋</button>`
     : '';
-  // Кнопка позвонить
-  const callBtn = chat.phone
+  // Кнопка позвонить — только для индивидуальных чатов
+  const callBtn = (!isGroup && chat.phone)
     ? `<button class="wa-w-icon-btn" id="wa-w-call" title="Позвонить">📞</button>`
     : '';
+  const subline = isGroup ? '👥 Группа WhatsApp' : (chat.phone ? '+' + chat.phone : 'WhatsApp');
+  const composerPlaceholder = isGroup ? 'Написать в группу...' : 'Написать в WhatsApp...';
   root.innerHTML = `<div class="wa-w-panel">
     <div class="wa-w-header">
       <button class="wa-w-icon-btn" id="wa-w-back" title="К списку">←</button>
       <div style="flex:1;min-width:0">
         <div class="wa-w-title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}</div>
-        <div class="wa-w-sub">${chat.phone ? '+' + escapeHtml(chat.phone) : 'WhatsApp'}</div>
+        <div class="wa-w-sub">${escapeHtml(subline)}</div>
       </div>
       ${callBtn}
       ${dealOpenBtn}
@@ -3829,7 +3916,7 @@ function renderWaWidgetChat(root) {
     </div>
     <div class="wa-w-body" id="wa-w-msgs">${msgsHtml}</div>
     <div class="wa-w-composer">
-      <textarea id="wa-w-input" placeholder="Написать в WhatsApp..." rows="1"></textarea>
+      <textarea id="wa-w-input" placeholder="${escapeHtml(composerPlaceholder)}" rows="1"></textarea>
       <button id="wa-w-send">→</button>
     </div>
   </div>`;

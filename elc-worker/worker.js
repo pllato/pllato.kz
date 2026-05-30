@@ -2312,8 +2312,15 @@ function extractWaWebhookEnvelope(body) {
   if (!isIncoming && !isOutgoing) return null;
   const instance = String(body?.instanceData?.idInstance || body?.idInstance || '');
   const chatId = body?.senderData?.chatId || body?.recipientData?.chatId;
-  const phone = chatId ? chatId.split('@')[0] : null;
-  const senderName = body?.senderData?.senderName || body?.senderData?.chatName || null;
+  // Для индивидуальных чатов phone это номер; для групп — group-id, не показываем как телефон
+  const isGroup = chatId?.endsWith('@g.us') || false;
+  const phone = chatId && !isGroup ? chatId.split('@')[0] : null;
+  // Для групп: chatName = имя группы (важно!), senderName = имя автора сообщения
+  // Для индивидуальных: senderName = имя контакта
+  const senderName = body?.senderData?.senderName || null;
+  const chatName = body?.senderData?.chatName || null;  // имя группы для @g.us
+  // displayName используется для wa_chats.name: для группы — её имя, для контакта — имя автора
+  const displayName = isGroup ? (chatName || 'Группа') : (senderName || chatName || null);
   const waMessageId = body?.idMessage;
   const ts = (body?.timestamp || Math.floor(Date.now() / 1000)) * 1000;
 
@@ -2344,7 +2351,7 @@ function extractWaWebhookEnvelope(body) {
     mediaMimeType = md.fileMessageData?.mimeType || null;
     caption = md.fileMessageData?.caption || null;
   }
-  return { direction: isIncoming ? 'in' : 'out', instanceId: instance, chatId, phone, senderName, waMessageId, ts, text, mediaKind, mediaUrl, mediaFileName, mediaMimeType, caption };
+  return { direction: isIncoming ? 'in' : 'out', instanceId: instance, chatId, phone, senderName, chatName, displayName, isGroup, waMessageId, ts, text, mediaKind, mediaUrl, mediaFileName, mediaMimeType, caption };
 }
 
 // POST /api/wa/webhook?token=XXX — приёмник от Green-API.
@@ -2395,7 +2402,7 @@ async function handleWaWebhook(request, env) {
         name = COALESCE(NULLIF(?, ''), name),
         updated_at = datetime('now')
       WHERE id = ?
-    `).bind(preview, evt.ts, fromKind, incrUnread, contactId, dealId, evt.senderName || '', chatDocId).run();
+    `).bind(preview, evt.ts, fromKind, incrUnread, contactId, dealId, evt.displayName || evt.senderName || '', chatDocId).run();
   } else {
     await env.DB.prepare(`
       INSERT INTO wa_chats (
@@ -2404,7 +2411,8 @@ async function handleWaWebhook(request, env) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     `).bind(
       chatDocId, evt.instanceId, evt.chatId, evt.phone, isGroup ? 1 : 0,
-      evt.senderName || ('+' + (evt.phone || '')),
+      // Для группы — её имя из chatName, для контакта — senderName или +phone
+      evt.displayName || evt.senderName || (isGroup ? 'Группа' : ('+' + (evt.phone || ''))),
       contactId, dealId, preview, evt.ts, fromKind, incrUnread,
     ).run();
   }
