@@ -830,6 +830,8 @@ tr:hover td { background: var(--bg3); }
 .pipe-tab[draggable="true"] { cursor: grab; }
 .pipe-tab[draggable="true"]:active { cursor: grabbing; }
 .pipe-tab-dragging { opacity: 0.4; }
+.pipe-tab:hover .pipe-tab-archive { opacity: 1 !important; }
+.pipe-tab-archive:hover { color: #c00; transform: scale(1.2); transition: transform 0.1s; }
 .pipe-tab-drop-left { box-shadow: inset 3px 0 0 0 var(--ac2); }
 .pipe-tab-drop-right { box-shadow: inset -3px 0 0 0 var(--ac2); }
 
@@ -3637,16 +3639,52 @@ function getPipelineOrder() {
 function setPipelineOrder(ids) {
   try { localStorage.setItem(PIPELINE_ORDER_LS_KEY, JSON.stringify(ids)); } catch {}
 }
-function getSortedPipelines() {
+// Возвращает только активные воронки (для табов и канбана).
+// Архивированные (isActive===false) скрыты, но не удалены — управление
+// через Настройки → Воронки.
+// Исключение: если activePipelineId указывает на архивированную (например
+// юзер открыл «Просмотр архива» — устанавливается dealsState.viewArchivedId),
+// показываем её тоже.
+function getSortedPipelines(opts = {}) {
   const all = Object.values(dealsState.pipelines || {});
+  const includeArchived = opts.includeArchived === true;
+  const exception = dealsState.viewArchivedId;
+  const visible = includeArchived
+    ? all
+    : all.filter(p => p.isActive !== false && p.isActive !== 0 || p.id === exception);
   const order = getPipelineOrder();
-  if (!order.length) return all;
+  if (!order.length) return visible;
   const orderMap = new Map(order.map((id, i) => [id, i]));
-  return all.sort((a, b) => {
+  return visible.sort((a, b) => {
     const ai = orderMap.has(a.id) ? orderMap.get(a.id) : 999;
     const bi = orderMap.has(b.id) ? orderMap.get(b.id) : 999;
     return ai - bi;
   });
+}
+
+// Все архивированные воронки — для Настройки → Воронки.
+function getArchivedPipelines() {
+  return Object.values(dealsState.pipelines || {})
+    .filter(p => p.isActive === false || p.isActive === 0);
+}
+
+// PATCH воронки — для архивации/восстановления.
+async function patchPipelineActiveState(pipelineId, isActive) {
+  const idToken = await fbAuth.currentUser.getIdToken();
+  const r = await fetch(`${WORKER_RTDB_URL}/pipelines/${encodeURIComponent(pipelineId)}.json?auth=${idToken}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isActive: isActive ? 1 : 0 }),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j.error || `HTTP ${r.status}`);
+  }
+  // Обновляем in-memory state
+  if (dealsState.pipelines[pipelineId]) {
+    dealsState.pipelines[pipelineId].isActive = isActive ? 1 : 0;
+  }
+  return true;
 }
 
 // Серверная пагинация — для list view. Каждый клик/фильтр дёргает свежий fetch.
@@ -3776,6 +3814,11 @@ function setActivePipeline(pipelineId) {
   if (!dealsState.pipelines[pipelineId]) return;
   dealsState.activePipelineId = pipelineId;
   localStorage.setItem(ACTIVE_PIPELINE_LS_KEY, pipelineId);
+  // Сброс viewArchivedId если кликнули НЕ-архивную (выход из режима просмотра)
+  const p = dealsState.pipelines[pipelineId];
+  if (p && p.isActive !== false && p.isActive !== 0) {
+    dealsState.viewArchivedId = null;
+  }
   // Также сбрасываем stage-фильтр (стадии другие)
   dealsState.stageFilter = '';
   // При смене воронки старый deals[] неактуален — сбрасываем флаг
@@ -4337,10 +4380,14 @@ function renderPipelineTabs() {
       <button class="pipe-tab pipe-tab-new" data-action="new-pipeline" title="Создать первую воронку">+ Создать воронку</button>
     </div>`;
   }
+  const isAdmin = window.currentUser?.role === 'admin';
   let html = `<div class="pipeline-tabs" id="pipeline-tabs-wrap">`;
   for (const p of pipelines) {
     const isActive = p.id === dealsState.activePipelineId;
-    html += `<button class="pipe-tab ${isActive ? 'active' : ''}" data-pipeline-id="${escapeHtml(p.id)}" draggable="true" title="${escapeHtml(p.name)} · перетащи влево/вправо чтобы поменять порядок">${escapeHtml(p.name)}</button>`;
+    const isArchived = p.isActive === false || p.isActive === 0;
+    const archivedBadge = isArchived ? ' <span style="background:rgba(0,0,0,0.15);font-size:9px;padding:1px 5px;border-radius:3px;vertical-align:middle;text-transform:uppercase">архив</span>' : '';
+    const archiveBtn = isAdmin && !isArchived ? `<span class="pipe-tab-archive" data-archive-pipeline="${escapeHtml(p.id)}" data-archive-name="${escapeHtml(p.name)}" title="В архив" style="display:inline-block;margin-left:6px;opacity:0.4;cursor:pointer;font-size:11px">🗄</span>` : '';
+    html += `<button class="pipe-tab ${isActive ? 'active' : ''}" data-pipeline-id="${escapeHtml(p.id)}" draggable="true" title="${escapeHtml(p.name)} · перетащи влево/вправо чтобы поменять порядок">${escapeHtml(p.name)}${archivedBadge}${archiveBtn}</button>`;
   }
   html += `<button class="pipe-tab pipe-tab-new" data-action="new-pipeline" title="Создать новую воронку">+</button>`;
   html += `<button class="pipe-tab pipe-tab-manage" data-action="manage-pipelines" title="Управление воронками и стадиями">⚙</button>`;
@@ -4348,9 +4395,38 @@ function renderPipelineTabs() {
   return html;
 }
 
+async function archivePipelineFromTab(pipelineId, pipelineName) {
+  if (!confirm(`Архивировать воронку «${pipelineName}»?\n\nОна скроется из списка воронок, но сделки и стадии останутся в базе. Восстановить можно через Настройки → Воронки.`)) return;
+  try {
+    await patchPipelineActiveState(pipelineId, false);
+    // Если архивируем активную — переключаемся на следующую активную
+    if (dealsState.activePipelineId === pipelineId) {
+      const next = getSortedPipelines()[0];
+      if (next) {
+        dealsState.activePipelineId = next.id;
+        localStorage.setItem('elc:activePipelineId', next.id);
+      }
+    }
+    const main = document.getElementById('main');
+    if (main && document.querySelector('[data-page="deals"].active')) renderDeals(main);
+    showToast('Воронка отправлена в архив');
+  } catch (e) {
+    alert('Ошибка: ' + e.message);
+  }
+}
+
 function attachPipelineTabHandlers(el) {
   el.querySelectorAll('.pipe-tab[data-pipeline-id]').forEach(b => {
-    b.addEventListener('click', () => setActivePipeline(b.dataset.pipelineId));
+    b.addEventListener('click', (e) => {
+      // Если клик по архивной иконке — не переключаем, обрабатываем отдельно
+      const archive = e.target.closest('[data-archive-pipeline]');
+      if (archive) {
+        e.stopPropagation();
+        archivePipelineFromTab(archive.dataset.archivePipeline, archive.dataset.archiveName);
+        return;
+      }
+      setActivePipeline(b.dataset.pipelineId);
+    });
   });
   el.querySelectorAll('.pipe-tab[data-action="new-pipeline"]').forEach(b => {
     b.addEventListener('click', () => openPipelineEditModal(null));
@@ -9685,7 +9761,8 @@ function renderCalendarDayView() {
     linesHtml += `<div class="cal-hourly-hour-line" style="top:${(h - START_H) * HOUR_H}px"></div>`;
   }
   // События с позиционированием
-  const eventsHtml = dayEvents.map(ev => calHourlyEventHtml(ev, START_H, HOUR_H, dayEvents.length === 1)).join('');
+  const layoutMap = assignEventColumns(dayEvents);
+  const eventsHtml = dayEvents.map(ev => calHourlyEventHtml(ev, START_H, HOUR_H, dayEvents.length === 1, layoutMap.get(ev))).join('');
   // Линия "сейчас" для today
   let nowLineHtml = '';
   if (isToday) {
@@ -9755,7 +9832,8 @@ function renderCalendarWeekView() {
     for (let h = START_H; h <= END_H; h++) {
       linesHtml += `<div class="cal-hourly-hour-line" style="top:${(h - START_H) * HOUR_H}px"></div>`;
     }
-    const eventsHtml = dayEvents.map(ev => calHourlyEventHtml(ev, START_H, HOUR_H, false)).join('');
+    const layoutMap = assignEventColumns(dayEvents);
+    const eventsHtml = dayEvents.map(ev => calHourlyEventHtml(ev, START_H, HOUR_H, false, layoutMap.get(ev))).join('');
     let nowLineHtml = '';
     if (isToday) {
       const nowMin = today.getHours() * 60 + today.getMinutes();
@@ -9787,7 +9865,55 @@ function renderCalendarWeekView() {
 }
 
 // Общий html-builder для события в почасовой сетке
-function calHourlyEventHtml(ev, START_H, HOUR_H, isAlone) {
+// Раскладывает события по колонкам так чтобы пересекающиеся не накладывались.
+// Возвращает Map<event, {col, totalCols}> — для каждого события его колонка и
+// сколько всего колонок в его overlap-группе. Использует sweep-line алгоритм.
+function assignEventColumns(events) {
+  const positioned = new Map();
+  if (!events.length) return positioned;
+  // Сортируем по времени старта
+  const sorted = events.slice().sort((a, b) => a.date - b.date);
+  // Группируем события которые перекрываются по времени (transitive closure)
+  const eventEnd = (ev) => {
+    if (ev.endDate) return ev.endDate.getTime();
+    return ev.date.getTime() + 30 * 60000;  // дефолт 30 мин
+  };
+  let i = 0;
+  while (i < sorted.length) {
+    // Собираем группу: все события которые пересекаются с уже добавленными в группу
+    const group = [sorted[i]];
+    let groupEnd = eventEnd(sorted[i]);
+    let j = i + 1;
+    while (j < sorted.length && sorted[j].date.getTime() < groupEnd) {
+      group.push(sorted[j]);
+      groupEnd = Math.max(groupEnd, eventEnd(sorted[j]));
+      j++;
+    }
+    // Назначаем колонки внутри группы — каждое новое событие в свободную колонку
+    const cols = [];  // cols[i] = last endTime в этой колонке
+    for (const ev of group) {
+      let placed = false;
+      for (let c = 0; c < cols.length; c++) {
+        if (cols[c] <= ev.date.getTime()) {
+          cols[c] = eventEnd(ev);
+          positioned.set(ev, { col: c, totalCols: 0 /* fill later */ });
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        cols.push(eventEnd(ev));
+        positioned.set(ev, { col: cols.length - 1, totalCols: 0 });
+      }
+    }
+    // Записываем totalCols (= ширина группы) во все события группы
+    for (const ev of group) positioned.get(ev).totalCols = cols.length;
+    i = j;
+  }
+  return positioned;
+}
+
+function calHourlyEventHtml(ev, START_H, HOUR_H, isAlone, layout) {
   const startMin = ev.date.getHours() * 60 + ev.date.getMinutes();
   let top = (startMin - START_H * 60) / 60 * HOUR_H;
   if (top < 0) top = 0;
@@ -9797,6 +9923,20 @@ function calHourlyEventHtml(ev, START_H, HOUR_H, isAlone) {
     const durMin = Math.max(15, (ev.endDate - ev.date) / 60000);
     height = durMin / 60 * HOUR_H;
   }
+  // Горизонтальное позиционирование: разные колонки если события перекрываются
+  const col = layout?.col || 0;
+  const totalCols = layout?.totalCols || 1;
+  const widthPct = 100 / totalCols;
+  const leftPct = col * widthPct;
+  // 4px горизонтальные отступы, но для multi-col используем margin между ними
+  const gap = totalCols > 1 ? 2 : 4;
+  const styleParts = [
+    `top:${top}px`,
+    `height:${height}px`,
+    `left:calc(${leftPct}% + ${gap}px)`,
+    `width:calc(${widthPct}% - ${gap * 2}px)`,
+    'right:auto',  // override default right:4px
+  ];
   const cls = ev.type === 'zoom' ? 'zoom' : 'task';
   const time = ev.date.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
   const parts = [];
@@ -9805,7 +9945,7 @@ function calHourlyEventHtml(ev, START_H, HOUR_H, isAlone) {
     if (ev.taskId) parts.push(`data-cal-linked-deal="${escapeHtml(ev.dealBitrixId)}"`);
     else parts.push(`data-cal-deal="${escapeHtml(ev.dealBitrixId)}"`);
   }
-  return `<div class="cal-event cal-hourly-event ${cls}" style="top:${top}px;height:${height}px" ${parts.join(' ')} title="${escapeHtml(time + ' · ' + ev.title)}">
+  return `<div class="cal-event cal-hourly-event ${cls}" style="${styleParts.join(';')}" ${parts.join(' ')} title="${escapeHtml(time + ' · ' + ev.title)}">
     <div class="cal-hourly-event-time">${escapeHtml(time)}</div>
     <div class="cal-hourly-event-title">${escapeHtml(ev.title)}</div>
   </div>`;
@@ -12935,6 +13075,7 @@ async function renderSettings(el) {
     <div class="page-sub">Управление сотрудниками, каналами коммуникаций и просмотр истории изменений.</div>
     <div style="display:flex;gap:8px;margin-bottom:14px">
       <button class="vt-btn ${settingsState.tab === 'users' ? 'active' : ''}" data-stab="users">🧑‍💼 Сотрудники</button>
+      <button class="vt-btn ${settingsState.tab === 'pipelines' ? 'active' : ''}" data-stab="pipelines">🗄 Воронки</button>
       <button class="vt-btn ${settingsState.tab === 'permissions' ? 'active' : ''}" data-stab="permissions">🔒 Права доступа</button>
       <button class="vt-btn ${settingsState.tab === 'channels' ? 'active' : ''}" data-stab="channels">🔌 Каналы подключения</button>
       <button class="vt-btn ${settingsState.tab === 'audit' ? 'active' : ''}" data-stab="audit">📋 Журнал</button>
@@ -12950,6 +13091,8 @@ async function renderSettings(el) {
   const content = document.getElementById('settings-content');
   if (settingsState.tab === 'users') {
     await renderUsers(content, { embedded: true });
+  } else if (settingsState.tab === 'pipelines') {
+    await renderSettingsPipelines(content);
   } else if (settingsState.tab === 'permissions') {
     await renderSettingsPermissions(content);
   } else if (settingsState.tab === 'channels') {
@@ -12960,6 +13103,100 @@ async function renderSettings(el) {
 }
 
 // ── Права доступа (виды ролей: ИД, Рег 6, Рег 2, ...) ──
+// ── Настройки → Воронки: список активных + архив ──
+async function renderSettingsPipelines(el) {
+  el.innerHTML = `
+    <div class="card" style="padding:18px">
+      <h3 style="margin:0 0 4px 0;font-size:16px">🗄 Управление воронками</h3>
+      <div style="color:var(--t3);font-size:12px;margin-bottom:14px">Архивированные воронки скрыты из топ-табов СРМ, но данные сохраняются. Можно восстановить или просмотреть без восстановления.</div>
+      <div id="settings-pipelines-list"><div class="empty">⏳ Загружаем…</div></div>
+    </div>
+  `;
+  try {
+    if (!dealsState.metaLoaded) await loadDealsMeta();
+    renderSettingsPipelinesList();
+  } catch (e) {
+    document.getElementById('settings-pipelines-list').innerHTML =
+      `<div class="empty" style="color:#c00">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderSettingsPipelinesList() {
+  const wrap = document.getElementById('settings-pipelines-list');
+  if (!wrap) return;
+  const all = Object.values(dealsState.pipelines || {});
+  const active = all.filter(p => p.isActive !== false && p.isActive !== 0);
+  const archived = all.filter(p => p.isActive === false || p.isActive === 0);
+  const renderRow = (p, isArch) => {
+    const stages = p.stages ? (Array.isArray(p.stages) ? p.stages.length : Object.keys(p.stages).length) : 0;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:var(--bg2);border:1px solid var(--b1);border-radius:8px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;color:var(--t1)">${escapeHtml(p.name || p.id)}${isArch ? ' <span style="background:rgba(0,0,0,0.12);font-size:10px;padding:1px 6px;border-radius:3px;text-transform:uppercase;color:var(--t3);margin-left:6px">архив</span>' : ''}</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px">id: <code>${escapeHtml(p.id)}</code> · стадий: ${stages}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        ${isArch ? `
+          <button class="btn btn-sm" data-pipe-action="view" data-pipe-id="${escapeHtml(p.id)}" title="Просмотреть без восстановления">👁 Просмотр</button>
+          <button class="btn btn-sm" data-pipe-action="restore" data-pipe-id="${escapeHtml(p.id)}" data-pipe-name="${escapeHtml(p.name || p.id)}" style="background:var(--ac);color:#fff;border:none">↩ Восстановить</button>
+        ` : `
+          <button class="btn btn-sm" data-pipe-action="archive" data-pipe-id="${escapeHtml(p.id)}" data-pipe-name="${escapeHtml(p.name || p.id)}" style="color:#c00">🗄 В архив</button>
+        `}
+      </div>
+    </div>`;
+  };
+  let html = `<div style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);margin-bottom:8px">Активные воронки (${active.length})</div>`;
+  html += active.length
+    ? `<div style="display:flex;flex-direction:column;gap:8px">${active.map(p => renderRow(p, false)).join('')}</div>`
+    : '<div class="empty">Активных воронок нет.</div>';
+  html += `<div style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);margin:20px 0 8px">Архив (${archived.length})</div>`;
+  html += archived.length
+    ? `<div style="display:flex;flex-direction:column;gap:8px;opacity:.85">${archived.map(p => renderRow(p, true)).join('')}</div>`
+    : '<div class="empty" style="font-size:12px;color:var(--t3)">В архиве пусто.</div>';
+  wrap.innerHTML = html;
+
+  // Handlers
+  wrap.querySelectorAll('[data-pipe-action="archive"]').forEach(b => {
+    b.addEventListener('click', () => archivePipelineFromSettings(b.dataset.pipeId, b.dataset.pipeName));
+  });
+  wrap.querySelectorAll('[data-pipe-action="restore"]').forEach(b => {
+    b.addEventListener('click', () => restorePipeline(b.dataset.pipeId, b.dataset.pipeName));
+  });
+  wrap.querySelectorAll('[data-pipe-action="view"]').forEach(b => {
+    b.addEventListener('click', () => viewArchivedPipeline(b.dataset.pipeId));
+  });
+}
+
+async function archivePipelineFromSettings(pipelineId, pipelineName) {
+  if (!confirm(`Архивировать «${pipelineName}»?`)) return;
+  try {
+    await patchPipelineActiveState(pipelineId, false);
+    renderSettingsPipelinesList();
+    showToast('Воронка отправлена в архив');
+  } catch (e) { alert('Ошибка: ' + e.message); }
+}
+
+async function restorePipeline(pipelineId, pipelineName) {
+  try {
+    await patchPipelineActiveState(pipelineId, true);
+    renderSettingsPipelinesList();
+    showToast('Воронка восстановлена');
+  } catch (e) { alert('Ошибка: ' + e.message); }
+}
+
+// Просмотр архивной воронки без восстановления — устанавливаем временный
+// флаг viewArchivedId, переходим в СРМ. Воронка покажется в табах с
+// бейджем «архив». После переключения на другую — флаг сбросится.
+function viewArchivedPipeline(pipelineId) {
+  dealsState.viewArchivedId = pipelineId;
+  dealsState.activePipelineId = pipelineId;
+  localStorage.setItem('elc:activePipelineId', pipelineId);
+  // Сброс флага viewArchivedId при следующем setActivePipeline на не-архивную
+  const origSet = window.setActivePipeline;
+  // navigate в СРМ
+  navigate('deals');
+  showToast('Открыто из архива — режим просмотра');
+}
+
 async function renderSettingsPermissions(el) {
   el.innerHTML = `
     <div class="card" style="padding:18px">
