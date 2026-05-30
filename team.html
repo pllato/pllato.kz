@@ -3767,11 +3767,21 @@ function ensureWaWidgetStyles() {
       display: inline-flex; align-items: center; justify-content: center;
       margin-left: 6px;
     }
-    .wa-w-msgs {
-      padding: 10px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+    /* ID-селектор т.к. в DOM элемент имеет id="wa-w-msgs" + class="wa-w-body" */
+    #wa-w-msgs {
+      padding: 10px 12px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 4px !important;
+    }
+    /* Forced alignment — на случай если что-то перебивает align-self из общих .wa-msg стилей */
+    #wa-w-msgs .wa-msg.in {
+      align-self: flex-start !important;
+      margin-right: auto !important;
+    }
+    #wa-w-msgs .wa-msg.out {
+      align-self: flex-end !important;
+      margin-left: auto !important;
     }
     .wa-w-composer {
       flex: 0 0 auto; padding: 8px 10px; background: var(--bg3, #f3f5f7);
