@@ -2208,51 +2208,76 @@ async function findOrCreateContactByPhone(env, phone, name) {
   return newId;
 }
 
-// Если сделка стоит в Fail-стадии (semantics='F', например «Центральный файл»),
-// возвращаем её в первую стадию воронки (Новая) — на основании входящего
-// сообщения. Без этого «потерянные» сделки никогда не возвращаются к работе.
-async function maybeReviveDealFromFail(env, dealId, pipelineId) {
-  const deal = await env.DB.prepare(
-    "SELECT id, stage_id, pipeline_id, closed FROM deals WHERE id = ?"
-  ).bind(dealId).first();
-  if (!deal) return;
-  const pipeline = await env.DB.prepare(
-    "SELECT stages FROM pipelines WHERE id = ?"
-  ).bind(pipelineId).first();
-  if (!pipeline?.stages) return;
+// Возвращаем ВСЕ сделки в воронке с этим телефоном из Fail-стадии в Новую.
+// Юзер: «если в воронке к которой прикреплен Whatsapp есть несколько сделок
+// в которых один и тот же номер, то все сделки должны либо подниматься
+// вверх с бейджем непрочитанных и/или если в Центральном файле — уходить
+// в Новые».
+async function maybeReviveDealsFromFailByPhone(env, pipelineId, phone) {
+  if (!pipelineId || !phone) return 0;
+  const phoneDigits = String(phone).replace(/\D/g, '');
+  if (!phoneDigits) return 0;
+  // Все сделки в воронке у которых хоть один контакт с этим телефоном
+  const { results: deals } = await env.DB.prepare(`
+    SELECT d.id, d.stage_id, d.closed FROM deals d
+    JOIN contacts c ON c.id = d.contact_id
+    WHERE d.pipeline_id = ? AND c.phones LIKE ?
+  `).bind(pipelineId, `%${phoneDigits}%`).all();
+  if (!deals.length) return 0;
+  const pipeline = await env.DB.prepare("SELECT stages FROM pipelines WHERE id = ?").bind(pipelineId).first();
+  if (!pipeline?.stages) return 0;
   let stagesObj;
-  try { stagesObj = JSON.parse(pipeline.stages); } catch { return; }
-  const stages = Array.isArray(stagesObj)
-    ? stagesObj
-    : Object.values(stagesObj || {});
-  if (stages.length === 0) return;
-  // Сортируем стадии по sort. Стадия может быть {statusId, name, sort, semantics}
-  // или ключ-объект (формат Bitrix).
+  try { stagesObj = JSON.parse(pipeline.stages); } catch { return 0; }
+  const stages = Array.isArray(stagesObj) ? stagesObj : Object.values(stagesObj || {});
+  if (stages.length === 0) return 0;
   stages.sort((a, b) => (a.sort || 0) - (b.sort || 0));
-  const currentStage = stages.find(s => (s.statusId || s.id) === deal.stage_id);
-  // Восстанавливаем только из F-стадии (Fail/Provayl)
-  if (!currentStage || currentStage.semantics !== 'F') return;
   const firstStage = stages.find(s => s.semantics !== 'F' && s.semantics !== 'S') || stages[0];
-  if (!firstStage) return;
+  if (!firstStage) return 0;
   const newStageId = firstStage.statusId || firstStage.id;
-  if (!newStageId || newStageId === deal.stage_id) return;
-  await env.DB.prepare(`
-    UPDATE deals SET stage_id = ?, closed = 0, bitrix_date_modify = ? WHERE id = ?
-  `).bind(newStageId, new Date().toISOString(), dealId).run();
-  console.log('[wa-webhook] revived deal', dealId, 'from', deal.stage_id, '→', newStageId);
+  let revived = 0;
+  for (const deal of deals) {
+    const currentStage = stages.find(s => (s.statusId || s.id) === deal.stage_id);
+    if (currentStage && currentStage.semantics === 'F') {
+      await env.DB.prepare(`
+        UPDATE deals SET stage_id = ?, closed = 0, bitrix_date_modify = ? WHERE id = ?
+      `).bind(newStageId, new Date().toISOString(), deal.id).run();
+      console.log('[wa-webhook] revived deal', deal.id, 'from', deal.stage_id, '→', newStageId);
+      revived++;
+    }
+  }
+  return revived;
 }
 
 // Создать сделку в default_pipeline канала, если по этому контакту нет открытой.
 // FIX: убран `OR contact_ids LIKE ?` — в схеме deals нет колонки contact_ids
 // (только contact_id). Падал D1_ERROR на каждом входящем webhook → все
 // входящие сообщения терялись.
-async function ensureDealForWaContact(env, channel, contactId, contactName) {
+//
+// FIX2: ищем сделки не только по точному contact_id, но и по ЛЮБОМУ контакту
+// с тем же телефоном (когда есть дубли контактов — мигрированный из Bitrix +
+// вручную созданный — без этого worker создавал бы новую сделку игнорируя
+// существующую). Учитываем все стадии (включая closed=1) чтобы revive потом
+// мог их вернуть из «Провал» в «Новые».
+async function ensureDealForWaContact(env, channel, contactId, contactName, phone) {
   if (!channel.default_pipeline_id) return null;
-  const existing = await env.DB.prepare(`
+  // 1) Точный поиск по contactId (быстрый путь — если 1 контакт = 1 сделка)
+  let existing = await env.DB.prepare(`
     SELECT id FROM deals
-    WHERE pipeline_id = ? AND closed = 0 AND contact_id = ?
-    ORDER BY bitrix_date_modify DESC LIMIT 1
+    WHERE pipeline_id = ? AND contact_id = ?
+    ORDER BY (closed = 0) DESC, bitrix_date_modify DESC LIMIT 1
   `).bind(channel.default_pipeline_id, contactId).first();
+  // 2) Если не нашли — ищем по всем контактам с этим телефоном
+  //    (защита от дублей контактов с одним номером)
+  if (!existing && phone) {
+    const phoneDigits = String(phone).replace(/\D/g, '');
+    // contacts.phones — JSON массив [{type, value}], ищем substring
+    existing = await env.DB.prepare(`
+      SELECT id FROM deals
+      WHERE pipeline_id = ?
+        AND contact_id IN (SELECT id FROM contacts WHERE phones LIKE ?)
+      ORDER BY (closed = 0) DESC, bitrix_date_modify DESC LIMIT 1
+    `).bind(channel.default_pipeline_id, `%${phoneDigits}%`).first();
+  }
   if (existing) return existing.id;
   // FIX: устанавливаем bitrix_id равным "wa_<rand>" — без него карточка
   // не открывается из канбана (data-deal-id="" если bitrix_id NULL),
@@ -2344,13 +2369,12 @@ async function handleWaWebhook(request, env) {
   if (!isGroup && evt.phone) contactId = await findOrCreateContactByPhone(env, evt.phone, evt.senderName);
   let dealId = null;
   if (evt.direction === 'in' && contactId && channel.default_pipeline_id) {
-    dealId = await ensureDealForWaContact(env, channel, contactId, evt.senderName);
-    // Auto-routing: если сделка в стадии «Провал» (semantics='F') —
-    // вернуть в первую стадию воронки (Новая). Юзер: «если стоит в
-    // Центральный файл, сделка должна переходить в Новые снова —
-    // на основании входящего сообщения от клиента».
-    if (dealId) {
-      try { await maybeReviveDealFromFail(env, dealId, channel.default_pipeline_id); }
+    dealId = await ensureDealForWaContact(env, channel, contactId, evt.senderName, evt.phone);
+    // Auto-routing: ВСЕ сделки в воронке с этим телефоном (не только dealId)
+    // — если в Fail-стадии, переводим в первую активную. Несколько сделок
+    // на один номер допустимы: все они должны «оживать».
+    if (evt.phone) {
+      try { await maybeReviveDealsFromFailByPhone(env, channel.default_pipeline_id, evt.phone); }
       catch (e) { console.warn('[wa-webhook] revive failed:', e); }
     }
   }
@@ -2594,21 +2618,28 @@ async function handleWaDealsActivity(request, env) {
 
   const url = new URL(request.url);
   const pipeline = (url.searchParams.get("pipeline") || "").trim();
-  const where = ["deal_id IS NOT NULL", "deal_id != ''"];
-  const params = [];
-  if (pipeline) {
-    where.push("deal_id IN (SELECT id FROM deals WHERE pipeline_id = ?)");
-    params.push(pipeline);
-  }
-  const { results } = await env.DB.prepare(`
-    SELECT deal_id, MAX(last_message_at) AS last_message_at,
-           MAX(last_read_at) AS last_read_at,
-           SUM(unread_count) AS unread_count,
-           MAX(CASE WHEN last_message_from = 'them' THEN last_message_at ELSE 0 END) AS last_incoming_at
-    FROM wa_chats
-    WHERE ${where.join(" AND ")}
-    GROUP BY deal_id
-  `).bind(...params).all();
+
+  // Новая логика: JOIN через contacts.phones — активность применяется ко
+  // ВСЕМ сделкам в воронке у которых контакт с телефоном из wa_chats.
+  // Раньше группировали по wa_chats.deal_id (одной сделке) → если у клиента
+  // несколько сделок с одним номером, бейдж был только на одной.
+  // Юзер: «если в воронке есть несколько сделок с одним номером, ВСЕ они
+  // должны подсвечиваться непрочитанным».
+  const sql = `
+    SELECT d.id AS deal_id,
+           MAX(w.last_message_at) AS last_message_at,
+           MAX(w.last_read_at) AS last_read_at,
+           SUM(COALESCE(w.unread_count, 0)) AS unread_count,
+           MAX(CASE WHEN w.last_message_from = 'them' THEN w.last_message_at ELSE 0 END) AS last_incoming_at
+    FROM deals d
+    INNER JOIN contacts c ON c.id = d.contact_id
+    INNER JOIN wa_chats w ON w.phone IS NOT NULL AND w.phone != '' AND c.phones LIKE '%' || w.phone || '%'
+    ${pipeline ? 'WHERE d.pipeline_id = ?' : ''}
+    GROUP BY d.id
+    HAVING unread_count > 0 OR last_message_at IS NOT NULL
+  `;
+  const params = pipeline ? [pipeline] : [];
+  const { results } = await env.DB.prepare(sql).bind(...params).all();
 
   const items = results.map(r => ({
     dealId: r.deal_id,
