@@ -5924,6 +5924,8 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
 
   // Polling — обновление каждые 10 секунд пока модалка открыта
   if (window.__dcWaPollTimer) clearInterval(window.__dcWaPollTimer);
+  // 3 секунды — частый poll для ощущения реактивности. Delta-режим
+  // (since=lastTs) почти ничего не нагружает.
   window.__dcWaPollTimer = setInterval(() => {
     // Проверяем что модалка ещё открыта
     if (!document.body.contains(pane)) {
@@ -5932,7 +5934,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
       return;
     }
     renderDealWaMessages(pane, { silent: true });
-  }, 10000);
+  }, 3000);
 
   // Handlers
   if (sendBtn && input) {
@@ -5994,24 +5996,42 @@ async function renderDealWaMessages(pane, opts = {}) {
 
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const r = await fetch(`${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(state.canonicalChatId)}&limit=200`, {
-      headers: { 'Authorization': `Bearer ${idToken}` },
-    });
+    // Реактивность: на silent-polling — only delta (since=lastTs).
+    // На full render — все 200 last messages.
+    const lastTs = parseInt(body.dataset.lastTs || '0', 10);
+    let url = `${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(state.canonicalChatId)}&limit=200`;
+    if (opts.silent && lastTs > 0) url += `&since=${lastTs}`;
+    const r = await fetch(url, { headers: { 'Authorization': `Bearer ${idToken}` } });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     const items = data.items || [];
 
-    // Проверяем — изменилось ли количество сообщений (для silent polling)
-    const prevCount = parseInt(body.dataset.msgCount || '0', 10);
-    if (opts.silent && items.length === prevCount) return; // нет изменений
-    body.dataset.msgCount = String(items.length);
+    if (opts.silent && lastTs > 0) {
+      // Delta-режим — добавляем только новые в конец
+      if (!items.length) return;  // нет новых, тихо
+      const wasAtBottom = (body.scrollHeight - body.scrollTop - body.clientHeight) < 50;
+      body.insertAdjacentHTML('beforeend', items.map(m => renderWaMessageHtml(m)).join(''));
+      const newLastTs = items[items.length - 1].ts;
+      if (newLastTs > lastTs) body.dataset.lastTs = String(newLastTs);
+      if (wasAtBottom) body.scrollTop = body.scrollHeight;
+      // Звуковой/визуальный signal новых входящих
+      const hasIncoming = items.some(m => m.direction === 'in');
+      if (hasIncoming && statusEl) {
+        statusEl.textContent = '· новое сообщение';
+        setTimeout(() => { if (statusEl.textContent === '· новое сообщение') statusEl.textContent = ''; }, 3000);
+      }
+      return;
+    }
 
+    // Full render
     if (!items.length) {
       body.innerHTML = `<div class="dc-wa-empty">📭 Истории пока нет.<br>Напиши первое сообщение клиенту.</div>`;
+      body.dataset.lastTs = '0';
       if (statusEl) statusEl.textContent = '';
       return;
     }
     body.innerHTML = items.map(m => renderWaMessageHtml(m)).join('');
+    body.dataset.lastTs = String(items[items.length - 1].ts);
     body.scrollTop = body.scrollHeight;
     if (statusEl) {
       const lastMsg = items[items.length - 1];
@@ -6884,7 +6904,10 @@ function buildDealCard(d, stageColor) {
     if (label) cfPills.push(`<span class="kanban-cf-pill" title="${escapeHtml(meta?.label || k)}">${escapeHtml(label.slice(0, 30))}</span>`);
   }
 
-  return `<div class="${cardClasses.join(' ')}" draggable="true" data-deal-id="${escapeHtml(d.bitrixId)}" data-stage="${escapeHtml(d.stageId)}" style="border-left: 3px solid ${stageColor}">
+  // Fallback ключа: для старых WA-сделок bitrixId был NULL (фикс — см. ensureDealForWaContact).
+  // Используем id с убранным префиксом 'deal_' — это и есть bitrixId по convention.
+  const cardKey = d.bitrixId || (d.id ? String(d.id).replace(/^deal_/, '') : '');
+  return `<div class="${cardClasses.join(' ')}" draggable="true" data-deal-id="${escapeHtml(cardKey)}" data-stage="${escapeHtml(d.stageId)}" style="border-left: 3px solid ${stageColor}">
     ${activityBadges.length ? `<div class="kanban-card-activity">${activityBadges.join('')}</div>` : ''}
     ${isNew ? `<div class="kanban-card-markers"><span class="kanban-card-marker" title="Изменена за последние 24 часа">NEW</span></div>` : ''}
     <div class="kanban-card-title">${escapeHtml(d.title || '(без названия)')}</div>
@@ -12744,21 +12767,33 @@ async function loadAndRenderWaThreadMessages({ silent = false } = {}) {
   if (!chatId) return;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const r = await fetch(`${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(chatId)}&limit=200`, {
-      headers: { 'Authorization': `Bearer ${idToken}` },
-    });
+    // Delta-режим на silent: only since=lastTs
+    const lastTs = parseInt(body.dataset.lastTs || '0', 10);
+    let url = `${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(chatId)}&limit=200`;
+    if (silent && lastTs > 0) url += `&since=${lastTs}`;
+    const r = await fetch(url, { headers: { 'Authorization': `Bearer ${idToken}` } });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     const items = data.items || [];
-    // silent: пропускаем если число сообщений не изменилось
-    const prevCount = parseInt(body.dataset.msgCount || '-1', 10);
-    if (silent && items.length === prevCount) return;
-    body.dataset.msgCount = String(items.length);
-    if (!items.length) {
-      body.innerHTML = '<div style="padding:30px;color:var(--t3);font-size:12px;text-align:center">📭 Истории пока нет. Напиши первое сообщение клиенту.</div>';
+
+    if (silent && lastTs > 0) {
+      if (!items.length) return;
+      const wasAtBottom = (body.scrollHeight - body.scrollTop - body.clientHeight) < 50;
+      // Простой append (без day-divider для inкрементов — на следующем full render
+      // правильно перерасставится)
+      body.insertAdjacentHTML('beforeend', items.map(m => renderWaMessageHtml(m)).join(''));
+      const newLastTs = items[items.length - 1].ts;
+      if (newLastTs > lastTs) body.dataset.lastTs = String(newLastTs);
+      if (wasAtBottom) body.scrollTop = body.scrollHeight;
       return;
     }
-    // Группируем по дням
+
+    if (!items.length) {
+      body.innerHTML = '<div style="padding:30px;color:var(--t3);font-size:12px;text-align:center">📭 Истории пока нет. Напиши первое сообщение клиенту.</div>';
+      body.dataset.lastTs = '0';
+      return;
+    }
+    // Full render — группируем по дням
     const html = [];
     let lastDayKey = '';
     for (const m of items) {
@@ -12771,6 +12806,7 @@ async function loadAndRenderWaThreadMessages({ silent = false } = {}) {
       html.push(renderWaMessageHtml(m));
     }
     body.innerHTML = html.join('');
+    body.dataset.lastTs = String(items[items.length - 1].ts);
     body.scrollTop = body.scrollHeight;
   } catch (e) {
     if (!silent) {

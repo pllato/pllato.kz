@@ -2208,6 +2208,40 @@ async function findOrCreateContactByPhone(env, phone, name) {
   return newId;
 }
 
+// Если сделка стоит в Fail-стадии (semantics='F', например «Центральный файл»),
+// возвращаем её в первую стадию воронки (Новая) — на основании входящего
+// сообщения. Без этого «потерянные» сделки никогда не возвращаются к работе.
+async function maybeReviveDealFromFail(env, dealId, pipelineId) {
+  const deal = await env.DB.prepare(
+    "SELECT id, stage_id, pipeline_id, closed FROM deals WHERE id = ?"
+  ).bind(dealId).first();
+  if (!deal) return;
+  const pipeline = await env.DB.prepare(
+    "SELECT stages FROM pipelines WHERE id = ?"
+  ).bind(pipelineId).first();
+  if (!pipeline?.stages) return;
+  let stagesObj;
+  try { stagesObj = JSON.parse(pipeline.stages); } catch { return; }
+  const stages = Array.isArray(stagesObj)
+    ? stagesObj
+    : Object.values(stagesObj || {});
+  if (stages.length === 0) return;
+  // Сортируем стадии по sort. Стадия может быть {statusId, name, sort, semantics}
+  // или ключ-объект (формат Bitrix).
+  stages.sort((a, b) => (a.sort || 0) - (b.sort || 0));
+  const currentStage = stages.find(s => (s.statusId || s.id) === deal.stage_id);
+  // Восстанавливаем только из F-стадии (Fail/Provayl)
+  if (!currentStage || currentStage.semantics !== 'F') return;
+  const firstStage = stages.find(s => s.semantics !== 'F' && s.semantics !== 'S') || stages[0];
+  if (!firstStage) return;
+  const newStageId = firstStage.statusId || firstStage.id;
+  if (!newStageId || newStageId === deal.stage_id) return;
+  await env.DB.prepare(`
+    UPDATE deals SET stage_id = ?, closed = 0, bitrix_date_modify = ? WHERE id = ?
+  `).bind(newStageId, new Date().toISOString(), dealId).run();
+  console.log('[wa-webhook] revived deal', dealId, 'from', deal.stage_id, '→', newStageId);
+}
+
 // Создать сделку в default_pipeline канала, если по этому контакту нет открытой.
 // FIX: убран `OR contact_ids LIKE ?` — в схеме deals нет колонки contact_ids
 // (только contact_id). Падал D1_ERROR на каждом входящем webhook → все
@@ -2220,20 +2254,24 @@ async function ensureDealForWaContact(env, channel, contactId, contactName) {
     ORDER BY bitrix_date_modify DESC LIMIT 1
   `).bind(channel.default_pipeline_id, contactId).first();
   if (existing) return existing.id;
-  const newId = 'deal_wa_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  // FIX: устанавливаем bitrix_id равным "wa_<rand>" — без него карточка
+  // не открывается из канбана (data-deal-id="" если bitrix_id NULL),
+  // и deep-link `#deal/...` не работает. Convention: deals.id = 'deal_' + bitrix_id.
+  const bitrixKey = 'wa_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const newId = 'deal_' + bitrixKey;
   const nowIso = new Date().toISOString();
   const title = `WhatsApp: ${contactName || 'Новый клиент'}`;
   await env.DB.prepare(`
     INSERT INTO deals (
       id, title, pipeline_id, stage_id, responsible_uid,
-      contact_id, source_description, closed,
+      contact_id, source_description, closed, bitrix_id,
       bitrix_date_create, bitrix_date_modify
-    ) VALUES (?, ?, ?, ?, ?, ?, 'WhatsApp', 0, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, 'WhatsApp', 0, ?, ?, ?)
   `).bind(
     newId, title,
     channel.default_pipeline_id, channel.default_stage_id || null,
     channel.responsible_uid || null,
-    contactId, nowIso, nowIso,
+    contactId, bitrixKey, nowIso, nowIso,
   ).run();
   return newId;
 }
@@ -2307,6 +2345,14 @@ async function handleWaWebhook(request, env) {
   let dealId = null;
   if (evt.direction === 'in' && contactId && channel.default_pipeline_id) {
     dealId = await ensureDealForWaContact(env, channel, contactId, evt.senderName);
+    // Auto-routing: если сделка в стадии «Провал» (semantics='F') —
+    // вернуть в первую стадию воронки (Новая). Юзер: «если стоит в
+    // Центральный файл, сделка должна переходить в Новые снова —
+    // на основании входящего сообщения от клиента».
+    if (dealId) {
+      try { await maybeReviveDealFromFail(env, dealId, channel.default_pipeline_id); }
+      catch (e) { console.warn('[wa-webhook] revive failed:', e); }
+    }
   }
 
   const chatDocId = waChatDocId(evt.instanceId, evt.chatId);
@@ -2490,7 +2536,9 @@ async function handleWaListChats(request, env) {
   return json({ items, total: items.length, scope }, 200, request);
 }
 
-// GET /api/wa/messages?chatId=X&limit=200&before=ts
+// GET /api/wa/messages?chatId=X&limit=200&before=ts&since=ts
+// since=ts — реактивный polling: вернуть только сообщения СВЕЖЕЕ ts.
+// before=ts — пагинация вверх (история).
 async function handleWaListMessages(request, env) {
   const auth = await requireAuthFlexible(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
@@ -2499,10 +2547,12 @@ async function handleWaListMessages(request, env) {
   if (!chatId) return json({ error: "chatId required" }, 400, request);
   const limit = Math.min(500, Math.max(10, parseInt(url.searchParams.get("limit") || "200", 10) || 200));
   const before = parseInt(url.searchParams.get("before") || "0", 10) || 0;
+  const since = parseInt(url.searchParams.get("since") || "0", 10) || 0;
 
   const where = ["chat_id = ?"];
   const params = [chatId];
   if (before > 0) { where.push("ts < ?"); params.push(before); }
+  if (since > 0) { where.push("ts > ?"); params.push(since); }
   const { results } = await env.DB.prepare(`
     SELECT * FROM wa_messages WHERE ${where.join(" AND ")}
     ORDER BY ts DESC LIMIT ?
