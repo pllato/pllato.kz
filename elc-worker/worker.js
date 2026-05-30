@@ -2673,7 +2673,18 @@ async function handleWaCreateChannel(request, env) {
   const apiToken = String(body.apiTokenInstance || '').trim();
   if (!idInstance || !apiToken) return json({ error: "idInstance and apiTokenInstance required" }, 400, request);
   const id = 'wa_' + idInstance;
-  const webhookToken = body.webhookToken || ('whk_' + Math.random().toString(36).slice(2, 14));
+  // КРИТИЧНО: если канал уже существует — переиспользуем его webhook_token.
+  // Если генерить новый при каждом save, в Green-API остаётся прописан старый
+  // URL → webhook с новым токеном после auto-setup пройдёт, а до setup
+  // приходящие callback'и с СТАРЫМ токеном будут отбиваться нашим
+  // 401-валидатором. Старый баг: канал был создан с whk_9w1axp8i7bu в
+  // Green-API, потом пересоздан → в D1 стал whk_w10aqw8azrk → все входящие
+  // отбивались с 401 «invalid webhook token». Найдено и руками исправлено
+  // 2026-05-30.
+  const existing = await env.DB.prepare("SELECT webhook_token FROM wa_channels WHERE id = ?").bind(id).first();
+  const webhookToken = body.webhookToken
+    || existing?.webhook_token
+    || ('whk_' + Math.random().toString(36).slice(2, 14));
   const apiUrl = body.apiUrl || 'https://api.green-api.com';
   await env.DB.prepare(`
     INSERT INTO wa_channels (
@@ -2682,18 +2693,18 @@ async function handleWaCreateChannel(request, env) {
     ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, datetime('now'))
     ON CONFLICT(id) DO UPDATE SET
       api_token_instance = excluded.api_token_instance,
-      webhook_token      = excluded.webhook_token,
       display_name       = excluded.display_name,
       default_pipeline_id= excluded.default_pipeline_id,
       default_stage_id   = excluded.default_stage_id,
       responsible_uid    = excluded.responsible_uid,
       updated_at         = datetime('now')
+      -- webhook_token НЕ обновляем — сохраняем тот что прописан в Green-API
   `).bind(
     id, idInstance, apiUrl, apiToken, webhookToken,
     body.displayName || ('Green-API ' + idInstance),
     body.defaultPipelineId || null, body.defaultStageId || null, body.responsibleUid || null,
   ).run();
-  await auditLog(env, guard.me, "wa_channel_upsert", "wa_channel", id, { idInstance });
+  await auditLog(env, guard.me, "wa_channel_upsert", "wa_channel", id, { idInstance, reusedToken: !!existing });
 
   // Автонастройка webhook в Green-API кабинете — чтобы юзеру не пришлось
   // вручную вставлять URL и включать события. Если не получилось —
