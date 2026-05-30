@@ -2941,6 +2941,42 @@ async function handlePermissionsPut(request, env) {
   return json({ ok: true, permissions: incoming }, 200, request);
 }
 
+// ── Per-pipeline custom fields config (hidden + pinned) ──
+// kv['org:fieldConfig'] = { [pipelineId]: { hidden: [...], pinned: [...] } }
+async function handleFieldConfigGet(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const row = await env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind('org:fieldConfig').first();
+  let config = {};
+  if (row && row.v) {
+    try { config = JSON.parse(row.v) || {}; } catch {}
+  }
+  return json({ ok: true, config }, 200, request);
+}
+
+async function handleFieldConfigPut(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const incoming = body.config;
+  if (!incoming || typeof incoming !== 'object') {
+    return json({ error: "config object required" }, 400, request);
+  }
+  // Лёгкая нормализация: для каждой воронки гарантируем массивы hidden/pinned
+  for (const [pid, cfg] of Object.entries(incoming)) {
+    if (!cfg || typeof cfg !== 'object') { incoming[pid] = { hidden: [], pinned: [] }; continue; }
+    if (!Array.isArray(cfg.hidden)) cfg.hidden = [];
+    if (!Array.isArray(cfg.pinned)) cfg.pinned = [];
+  }
+  const v = JSON.stringify(incoming);
+  await env.DB.prepare(`
+    INSERT INTO kv (k, v) VALUES (?, ?)
+    ON CONFLICT(k) DO UPDATE SET v = excluded.v
+  `).bind('org:fieldConfig', v).run();
+  return json({ ok: true, config: incoming }, 200, request);
+}
+
 // ── Phase 0 routes ──────────────────────────────────────
 async function handleHealth(request, env) {
   try {
@@ -3169,6 +3205,12 @@ export default {
     }
     if (path === "/api/admin/permissions" && request.method === "PUT") {
       return handlePermissionsPut(request, env);
+    }
+    if (path === "/api/admin/field-config" && request.method === "GET") {
+      return handleFieldConfigGet(request, env);
+    }
+    if (path === "/api/admin/field-config" && request.method === "PUT") {
+      return handleFieldConfigPut(request, env);
     }
 
     return json({ ok: false, error: "not found", path }, 404, request);
