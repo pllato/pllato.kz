@@ -2209,14 +2209,16 @@ async function findOrCreateContactByPhone(env, phone, name) {
 }
 
 // Создать сделку в default_pipeline канала, если по этому контакту нет открытой.
+// FIX: убран `OR contact_ids LIKE ?` — в схеме deals нет колонки contact_ids
+// (только contact_id). Падал D1_ERROR на каждом входящем webhook → все
+// входящие сообщения терялись.
 async function ensureDealForWaContact(env, channel, contactId, contactName) {
   if (!channel.default_pipeline_id) return null;
   const existing = await env.DB.prepare(`
     SELECT id FROM deals
-    WHERE pipeline_id = ? AND closed = 0
-      AND (contact_id = ? OR contact_ids LIKE ?)
+    WHERE pipeline_id = ? AND closed = 0 AND contact_id = ?
     ORDER BY bitrix_date_modify DESC LIMIT 1
-  `).bind(channel.default_pipeline_id, contactId, `%"${contactId}"%`).first();
+  `).bind(channel.default_pipeline_id, contactId).first();
   if (existing) return existing.id;
   const newId = 'deal_wa_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const nowIso = new Date().toISOString();
