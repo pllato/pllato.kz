@@ -13778,6 +13778,7 @@ async function refreshWaChannelsList() {
         <div class="wa-channel-actions">
           <button class="tbtn tbtn-xs wa-check-status-btn" data-channel-id="${escapeHtml(c.id)}">🔄 Статус</button>
           <button class="tbtn tbtn-xs wa-qr-btn" data-channel-id="${escapeHtml(c.id)}">📷 QR-код</button>
+          <button class="tbtn tbtn-xs wa-setup-webhook-btn" data-channel-id="${escapeHtml(c.id)}" title="Прописать webhook URL и включить нужные события в Green-API кабинете автоматически">🔧 Настроить webhook</button>
           <button class="tbtn tbtn-xs wa-copy-webhook-btn" data-webhook="${escapeHtml(webhookUrl)}" title="Скопировать">📋 Webhook URL</button>
         </div>
         <div class="wa-channel-webhook">
@@ -13824,7 +13825,49 @@ document.addEventListener('click', async (e) => {
     await showWaChannelQr(qrBtn.dataset.channelId);
     return;
   }
+  const setupBtn = e.target.closest('.wa-setup-webhook-btn');
+  if (setupBtn) {
+    e.preventDefault();
+    await runWaWebhookAutoSetup(setupBtn.dataset.channelId, setupBtn);
+    return;
+  }
 });
+
+// Дёргает POST /api/wa/channels/{id}/setup-webhook — worker сам POST'ит в
+// Green-API метод setSettings с правильным URL и нужными webhook-событиями.
+// После этого входящие сообщения должны приходить автоматически.
+async function runWaWebhookAutoSetup(channelId, btn) {
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Настраиваем…';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/channels/${encodeURIComponent(channelId)}/setup-webhook`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.webhookConfigured) {
+      throw new Error(data.error || `Green-API ответил ${data.response ? JSON.stringify(data.response) : r.status}`);
+    }
+    btn.textContent = '✓ Готово';
+    btn.style.background = '#16a34a';
+    btn.style.color = '#fff';
+    btn.style.borderColor = '#16a34a';
+    alert('✅ Webhook настроен в Green-API кабинете автоматически!\n\nТеперь:\n· Входящие сообщения от клиентов будут попадать в CRM\n· Echo твоих отправок тоже\n\nПопробуй написать сам себе из WhatsApp на привязанный номер — должно появиться в карточке.');
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = orig;
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.borderColor = '';
+    }, 5000);
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = orig;
+    alert('Не получилось автоматически настроить webhook.\n\n' + e.message + '\n\nПроверь что:\n· idInstance и apiToken правильные\n· Инстанс не в sleep mode (нажми 🔄 Статус)\n· Зайди в Green-API кабинет вручную и настрой URL для уведомлений');
+  }
+}
 
 async function checkWaChannelStatus(channelId) {
   const statusEl = document.querySelector(`[data-status-for="${channelId}"]`);
@@ -13918,10 +13961,18 @@ async function saveWaChannel() {
       const el = document.getElementById(id);
       if (el) { el.disabled = true; el.style.background = 'rgba(37, 211, 102, 0.08)'; el.style.borderColor = '#25D366'; }
     });
+    const autoOk = data.webhookConfigured === true;
     resultEl.innerHTML = `
       <div style="padding:16px;background:linear-gradient(135deg,#dcf8c6,#b8e9a0);border-radius:10px;font-size:13px;border:2px solid #25D366">
         <div style="font-weight:700;color:#1b5e20;margin-bottom:10px;font-size:15px">✅ Канал успешно создан!</div>
-        <div style="color:#1b5e20;margin-bottom:10px">Скопируй Webhook URL ниже и вставь в Green-API → твой инстанс → Настройки → «URL для уведомлений»:</div>
+        ${autoOk ? `
+          <div style="background:#fff;border:1px solid #16a34a;border-radius:6px;padding:10px 12px;margin-bottom:10px;color:#15803d;font-size:13px">
+            <b>✓ Webhook автоматически настроен в Green-API кабинете.</b><br>
+            Входящие и echo-исходящие сообщения теперь будут приходить в CRM сразу.
+          </div>` : `
+          <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:10px 12px;margin-bottom:10px;color:#92400e;font-size:12px">
+            ⚠ Автонастройка webhook в Green-API не удалась${data.webhookSetupError ? ': ' + escapeHtml(data.webhookSetupError) : ''}. Скопируй Webhook URL ниже и вставь вручную в Green-API → Настройки → «URL для уведомлений», включи события <code>incomingMessageReceived</code>, <code>outgoingMessageReceived</code>, <code>outgoingAPIMessageReceived</code>.
+          </div>`}
         <div style="background:#fff;border:1px solid #25D366;border-radius:6px;padding:8px 10px;display:flex;gap:6px;align-items:center;margin-bottom:10px">
           <input readonly value="${escapeHtml(data.webhookUrl)}" id="wc-webhook-input"
             style="flex:1;font-family:monospace;font-size:11px;border:none;background:transparent;color:#1b5e20"
@@ -13929,8 +13980,7 @@ async function saveWaChannel() {
           <button class="tbtn tbtn-xs" onclick="navigator.clipboard.writeText(document.getElementById('wc-webhook-input').value);this.textContent='✓';setTimeout(()=>this.textContent='📋',1500)" style="background:#25D366;color:#fff;border-color:#25D366">📋</button>
         </div>
         <div style="color:#1b5e20;font-size:12px;line-height:1.6">
-          <b>Далее:</b> в Green-API включи события <code>incomingMessageReceived</code>, <code>outgoingMessageReceived</code>, <code>outgoingAPIMessageReceived</code> и сохрани.<br>
-          Потом нажми <b>«Готово»</b> ниже — вернёшься на список каналов и сможешь отсканировать QR.
+          Нажми <b>«Готово»</b> ниже — вернёшься на список каналов и сможешь отсканировать QR.
         </div>
       </div>
     `;

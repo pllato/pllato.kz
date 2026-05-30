@@ -2631,6 +2631,39 @@ async function handleWaListChannels(request, env) {
   return json({ items: results }, 200, request);
 }
 
+// Автонастройка webhook URL и нужных событий в Green-API через метод setSettings.
+// Возвращает {ok, configured, response, error}. Не бросает — caller разбирает.
+async function applyWaWebhookSetupToGreenApi({ apiUrl, idInstance, apiToken, webhookUrl }) {
+  try {
+    const url = `${apiUrl}/waInstance${idInstance}/setSettings/${apiToken}`;
+    const settingsBody = {
+      webhookUrl,
+      webhookUrlToken: '',  // мы используем query-token внутри webhookUrl
+      outgoingWebhook: 'yes',
+      outgoingMessageWebhook: 'yes',
+      outgoingAPIMessageWebhook: 'yes',
+      incomingWebhook: 'yes',
+      stateWebhook: 'yes',
+      deviceWebhook: 'yes',
+      markIncomingMessagesReaded: 'no',
+    };
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settingsBody),
+    });
+    const respData = await r.json().catch(() => ({}));
+    return {
+      ok: r.ok,
+      configured: r.ok && (respData.saveSettings === true || respData.saveSettings === 1),
+      response: respData,
+      status: r.status,
+    };
+  } catch (e) {
+    return { ok: false, configured: false, error: e.message };
+  }
+}
+
 async function handleWaCreateChannel(request, env) {
   const guard = await requireAdmin(request, env);
   if (guard.error) return json({ error: guard.error }, guard.status, request);
@@ -2641,6 +2674,7 @@ async function handleWaCreateChannel(request, env) {
   if (!idInstance || !apiToken) return json({ error: "idInstance and apiTokenInstance required" }, 400, request);
   const id = 'wa_' + idInstance;
   const webhookToken = body.webhookToken || ('whk_' + Math.random().toString(36).slice(2, 14));
+  const apiUrl = body.apiUrl || 'https://api.green-api.com';
   await env.DB.prepare(`
     INSERT INTO wa_channels (
       id, id_instance, api_url, api_token_instance, webhook_token,
@@ -2655,15 +2689,48 @@ async function handleWaCreateChannel(request, env) {
       responsible_uid    = excluded.responsible_uid,
       updated_at         = datetime('now')
   `).bind(
-    id, idInstance, body.apiUrl || 'https://api.green-api.com', apiToken, webhookToken,
+    id, idInstance, apiUrl, apiToken, webhookToken,
     body.displayName || ('Green-API ' + idInstance),
     body.defaultPipelineId || null, body.defaultStageId || null, body.responsibleUid || null,
   ).run();
   await auditLog(env, guard.me, "wa_channel_upsert", "wa_channel", id, { idInstance });
+
+  // Автонастройка webhook в Green-API кабинете — чтобы юзеру не пришлось
+  // вручную вставлять URL и включать события. Если не получилось —
+  // не падаем, просто возвращаем флаг + остаётся ручной режим как fallback.
+  const webhookUrl = `https://pllato-elc-worker.uurraa.workers.dev/api/wa/webhook?token=${webhookToken}`;
+  const setup = await applyWaWebhookSetupToGreenApi({ apiUrl, idInstance, apiToken, webhookUrl });
+
   return json({
-    ok: true, id, webhookToken,
-    webhookUrl: `https://pllato-elc-worker.uurraa.workers.dev/api/wa/webhook?token=${webhookToken}`,
+    ok: true, id, webhookToken, webhookUrl,
+    webhookConfigured: setup.configured,
+    webhookSetupResponse: setup.response,
+    webhookSetupError: setup.error || null,
   }, 200, request);
+}
+
+// POST /api/wa/channels/{id}/setup-webhook
+// Для уже существующих каналов — повторно применить настройки webhook в Green-API.
+async function handleWaChannelSetupWebhook(request, env, channelId) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  const channel = await getWaChannel(env, channelId);
+  if (!channel) return json({ error: "channel not found" }, 404, request);
+  const webhookUrl = `https://pllato-elc-worker.uurraa.workers.dev/api/wa/webhook?token=${channel.webhook_token || ''}`;
+  const setup = await applyWaWebhookSetupToGreenApi({
+    apiUrl: channel.api_url,
+    idInstance: channel.id_instance,
+    apiToken: channel.api_token_instance,
+    webhookUrl,
+  });
+  await auditLog(env, guard.me, "wa_webhook_setup", "wa_channel", channelId, { configured: setup.configured });
+  return json({
+    ok: setup.configured,
+    webhookConfigured: setup.configured,
+    webhookUrl,
+    response: setup.response,
+    error: setup.error || null,
+  }, setup.configured ? 200 : 502, request);
 }
 
 async function handleWaUpdateChannel(request, env, channelId) {
@@ -3070,6 +3137,10 @@ export default {
     const waChannelQrMatch = path.match(/^\/api\/wa\/channels\/([^/]+)\/qr$/);
     if (waChannelQrMatch && request.method === "GET") {
       return handleWaChannelQr(request, env, waChannelQrMatch[1]);
+    }
+    const waChannelSetupMatch = path.match(/^\/api\/wa\/channels\/([^/]+)\/setup-webhook$/);
+    if (waChannelSetupMatch && request.method === "POST") {
+      return handleWaChannelSetupWebhook(request, env, waChannelSetupMatch[1]);
     }
 
     // ── /api/org/structure — иерархия компании ────────────────────────
