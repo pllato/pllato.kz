@@ -3550,11 +3550,23 @@ const dealsState = {
 
 // Геттер активности по dealId — для buildDealCard / сортировки в канбане.
 // Если активность ещё не подгружена, возвращает дефолты — не ломает рендер.
+//
+// FIX: worker отдаёт активность по deals.id (внутренний формат с префиксом
+// "deal_", например "deal_local_24edea37" или "deal_123456"), а вызывающий код
+// passes d.bitrixId ("local_24edea37" или "123456"). Раньше ничего не
+// совпадало → бэйдж 💬 N не появлялся и сортировки по unread не было.
+// Теперь пробуем оба ключа: исходный и с префиксом "deal_".
 function getDealActivity(dealId) {
   const act = dealsState.activityByPipeline[dealsState.activePipelineId];
   if (!act || !dealId) return { unread: 0, missed: 0, lastIncomingAt: 0, lastMissedAt: 0 };
-  const wa = act.wa?.[dealId];
-  const calls = act.calls?.[dealId];
+  const keys = [dealId];
+  if (!String(dealId).startsWith('deal_')) keys.push('deal_' + dealId);
+  let wa = null, calls = null;
+  for (const k of keys) {
+    if (!wa) wa = act.wa?.[k];
+    if (!calls) calls = act.calls?.[k];
+    if (wa && calls) break;
+  }
   return {
     unread: wa?.unreadCount || 0,
     missed: calls?.missedCount || 0,
