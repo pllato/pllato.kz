@@ -9438,8 +9438,15 @@ async function loadCalendarEvents(opts = {}) {
   const promise = (async () => {
     try {
       const idToken = await fbAuth.currentUser.getIdToken();
-      // Задачи: первые 500 активных
-      const tasksP = fetch(`${WORKER_LIST_URL}/tasks?page=1&pageSize=500&status=active&sort=deadline&scope=${effectiveScope()}&auth=${idToken}`)
+      // Задачи в окне ±90 дней от курсора (для day/week/month-видов хватает).
+      // Без диапазона /api/list/tasks отдаёт первые 500 по deadline ASC — там
+      // тысячи старых тасков с просроченными дедлайнами, а новые с future-
+      // дедлайнами улетают за окно и в Календаре не появляются.
+      const baseDate = calendarState.cursorDate || new Date();
+      const dlFrom = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() - 90);
+      const dlTo = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + 90);
+      const fmtDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const tasksP = fetch(`${WORKER_LIST_URL}/tasks?page=1&pageSize=500&status=active&sort=deadline&deadlineFrom=${fmtDate(dlFrom)}&deadlineTo=${fmtDate(dlTo)}T23:59:59&scope=${effectiveScope()}&auth=${idToken}`)
         .then(r => r.ok ? r.json() : { items: [] })
         .catch(() => ({ items: [] }));
       // Сделки: ВСЕГДА тянем свежие данные из ВСЕХ воронок параллельно,
