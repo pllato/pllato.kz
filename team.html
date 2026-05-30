@@ -3579,6 +3579,117 @@ function getDealActivity(dealId) {
 
 // Bulk-подгрузка активности (WA unread + missed calls) для всех сделок воронки.
 // Не блокирует рендер — обновляет state и делает re-render когда придёт.
+// ── Реактивный polling активности WA в канбане + звук + push ───────────
+// Каждые ~7 сек тянет /api/wa/deals-activity, сравнивает unread с
+// предыдущим snapshot'ом. Если выросло — пиликает + Browser Notification.
+const kanbanActivityPoller = {
+  timer: null,
+  lastSnapshot: {},        // dealId → unreadCount
+  notifPermission: ('Notification' in window && Notification.permission === 'granted'),
+  pollMs: 7000,
+  primed: false,           // на первой загрузке не пиликаем — заполняем snapshot
+};
+
+let _waAudioCtx = null;
+function playMessageBeep() {
+  try {
+    _waAudioCtx = _waAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (_waAudioCtx.state === 'suspended') _waAudioCtx.resume();
+    const t0 = _waAudioCtx.currentTime;
+    // Двойной короткий писк (как WhatsApp)
+    [0, 0.18].forEach(offset => {
+      const osc = _waAudioCtx.createOscillator();
+      const gain = _waAudioCtx.createGain();
+      osc.frequency.setValueAtTime(900 + offset * 600, t0 + offset);
+      gain.gain.setValueAtTime(0, t0 + offset);
+      gain.gain.linearRampToValueAtTime(0.18, t0 + offset + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + offset + 0.14);
+      osc.connect(gain).connect(_waAudioCtx.destination);
+      osc.start(t0 + offset);
+      osc.stop(t0 + offset + 0.14);
+    });
+  } catch (e) { /* пользователь ещё не взаимодействовал — Chrome AudioContext suspended */ }
+}
+
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') { kanbanActivityPoller.notifPermission = true; return true; }
+  if (Notification.permission === 'denied') return false;
+  try {
+    const p = await Notification.requestPermission();
+    kanbanActivityPoller.notifPermission = (p === 'granted');
+    return kanbanActivityPoller.notifPermission;
+  } catch { return false; }
+}
+
+function showWaNotification(deal, unreadDelta) {
+  if (!kanbanActivityPoller.notifPermission) return;
+  try {
+    const title = unreadDelta > 1
+      ? `💬 ${unreadDelta} новых сообщений`
+      : '💬 Новое сообщение WhatsApp';
+    const body = deal.title || 'Сделка';
+    const n = new Notification(title, {
+      body,
+      icon: '/elc-favicon-source.png',
+      tag: `wa-${deal.bitrixId || deal.id}`,
+      requireInteraction: false,
+    });
+    n.onclick = () => {
+      window.focus();
+      const bitrixId = deal.bitrixId || (deal.id ? String(deal.id).replace(/^deal_/, '') : '');
+      if (bitrixId) openDealCard(bitrixId);
+      n.close();
+    };
+  } catch (e) { console.warn('notification:', e); }
+}
+
+function startKanbanActivityPolling(pipelineId) {
+  stopKanbanActivityPolling();
+  kanbanActivityPoller.primed = false;
+  kanbanActivityPoller.lastSnapshot = {};
+  kanbanActivityPoller.timer = setInterval(async () => {
+    // Останавливаемся если ушли из СРМ или сменили воронку
+    if (!document.querySelector('[data-page="deals"].active')) { stopKanbanActivityPolling(); return; }
+    const curPipeline = dealsState.activePipelineId;
+    if (curPipeline !== pipelineId) {
+      stopKanbanActivityPolling();
+      if (curPipeline) startKanbanActivityPolling(curPipeline);
+      return;
+    }
+    try {
+      await loadDealsActivity(curPipeline);
+      const wa = dealsState.activityByPipeline[curPipeline]?.wa || {};
+      // Сравниваем
+      if (kanbanActivityPoller.primed) {
+        for (const [dealId, info] of Object.entries(wa)) {
+          const newUnread = info.unreadCount || 0;
+          const oldUnread = kanbanActivityPoller.lastSnapshot[dealId] || 0;
+          if (newUnread > oldUnread) {
+            const deal = dealsState.deals.find(d => d.id === dealId)
+              || dealsState.deals.find(d => ('deal_' + d.bitrixId) === dealId)
+              || (dealsPagedState.items || []).find(d => d.id === dealId || ('deal_' + d.bitrixId) === dealId);
+            playMessageBeep();
+            if (deal) showWaNotification(deal, newUnread - oldUnread);
+          }
+        }
+      }
+      // Обновляем snapshot
+      const snap = {};
+      for (const [dealId, info] of Object.entries(wa)) snap[dealId] = info.unreadCount || 0;
+      kanbanActivityPoller.lastSnapshot = snap;
+      kanbanActivityPoller.primed = true;
+    } catch (e) { /* silent */ }
+  }, kanbanActivityPoller.pollMs);
+}
+
+function stopKanbanActivityPolling() {
+  if (kanbanActivityPoller.timer) {
+    clearInterval(kanbanActivityPoller.timer);
+    kanbanActivityPoller.timer = null;
+  }
+}
+
 async function loadDealsActivity(pipelineId, idToken) {
   try {
     if (!idToken) idToken = await fbAuth.currentUser.getIdToken();
@@ -4761,11 +4872,16 @@ function renderDealsLayout(el) {
       ⚠ Сейчас показаны только записи с охватом «<b>${escapeHtml(scopeNow === 'mine' ? 'свои' : scopeNow)}</b>». Сделки других сотрудников скрыты.
       <button class="btn btn-sm" style="background:var(--ac);color:#fff;border:none;padding:4px 10px;margin-left:auto" onclick="window.resetDealsScopeToAll && window.resetDealsScopeToAll()">👁 Показать все</button>
     </div>` : '';
+  // Кнопка включения push-уведомлений (если permission ещё не получен)
+  const notifBtn = ('Notification' in window && Notification.permission === 'default')
+    ? `<button class="btn btn-sm" id="kanban-enable-notif" title="Включить звук и push уведомления о новых сообщениях" style="background:var(--ac);color:#fff;border:none;padding:6px 12px;margin-left:8px">🔔 Включить уведомления</button>`
+    : '';
   el.innerHTML = `
     <div class="page-head">
       <h1>СРМ
         <span class="count" id="deals-count">${dealsState.deals.length.toLocaleString('ru')}${filtered.length !== dealsState.deals.length ? ` · отф. ${filtered.length.toLocaleString('ru')}` : ''}</span>
       </h1>${scopeToggleHtml()}
+      ${notifBtn}
       <div class="view-toggle">
         <button class="vt-btn ${dealsState.view === 'kanban' ? 'active' : ''}" data-view="kanban">📊 Канбан</button>
         <button class="vt-btn ${dealsState.view === 'list' ? 'active' : ''}" data-view="list">📋 Список</button>
@@ -4816,6 +4932,24 @@ function renderDealsLayout(el) {
       renderDealsLayout(el);
     });
   });
+
+  // Кнопка включения push-уведомлений
+  const notifBtnEl = document.getElementById('kanban-enable-notif');
+  if (notifBtnEl) {
+    notifBtnEl.addEventListener('click', async () => {
+      const ok = await requestNotificationPermission();
+      if (ok) {
+        notifBtnEl.style.display = 'none';
+        playMessageBeep();  // звуковой тест — браузер разрешает звук только после клика
+        try { new Notification('✅ Уведомления включены', { body: 'Будешь получать пуш и звук при новых сообщениях' }); } catch {}
+      } else {
+        alert('Разрешение не получено. Если случайно отказался — открой замочек в адресной строке и разреши уведомления вручную.');
+      }
+    });
+  }
+
+  // Реактивный polling активности — для бейджей + звука + push
+  if (dealsState.activePipelineId) startKanbanActivityPolling(dealsState.activePipelineId);
 
   renderDealsContent();
 }
