@@ -2752,10 +2752,8 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
     <div class="nav-item" data-page="orgchart">
       <span class="nav-icon">🏢</span><span>Структура</span>
     </div>
-    <div class="nav-item" data-page="chats">
-      <span class="nav-icon">💬</span><span>Чаты</span>
-      <span class="nav-badge" id="team-chat-nav-badge" style="display:none;background:#22c55e;color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:auto"></span>
-    </div>
+    <!-- «Чаты» убраны из sidebar — всё живёт в плавающем виджете справа снизу -->
+    <span style="display:none" id="team-chat-nav-badge"></span>
 
     <div class="nav-section">Инструменты</div>
     <div class="nav-item" data-page="migration">
@@ -3629,15 +3627,19 @@ const _waWidgetCollapsedLs = (() => {
 })();
 const waWidget = {
   open: false,
-  view: 'list',      // list | chat
+  view: 'list',      // list | chat | team-chat
   activeChatId: null,
   activeChatMeta: null,
+  activeTeamChannelId: null,   // если открыт командный канал
   chats: [],
-  channels: [],      // [{id, idInstance, displayName, pipelineId, pipelineName}]
+  channels: [],      // [{id, idInstance, displayName, pipelineId, pipelineName}] — WA каналы
   channelsLoaded: false,
+  teamChannels: [],  // [{id, type, name, unread_count, last_message_at, ...}] — командные
+  teamMessages: [],  // активного team-канала
   messages: [],
   pollTimer: null,
   msgPollTimer: null,
+  teamMsgPollTimer: null,
   unreadTotal: 0,
   collapsedInstances: new Set(_waWidgetCollapsedLs),
 };
@@ -3656,7 +3658,11 @@ function initWaFloatingWidget() {
   // Стартуем polling. Каналы — один раз (метаданные стабильные).
   loadWaWidgetChannels();
   refreshWaWidgetChats();
-  waWidget.pollTimer = setInterval(refreshWaWidgetChats, 7000);
+  refreshTeamChannels();
+  waWidget.pollTimer = setInterval(() => {
+    refreshWaWidgetChats();
+    refreshTeamChannels();
+  }, 7000);
   // Показываем permission banner если уведомления не разрешены
   maybeShowNotificationBanner();
 }
@@ -3905,6 +3911,8 @@ function renderWaWidget() {
   // Open — выбираем view
   if (waWidget.view === 'chat' && waWidget.activeChatId) {
     renderWaWidgetChat(root);
+  } else if (waWidget.view === 'team-chat' && waWidget.activeTeamChannelId) {
+    renderTeamChatInWidget();
   } else {
     renderWaWidgetList(root);
   }
@@ -4002,38 +4010,77 @@ function renderWaWidgetList(root) {
     }
   }
 
-  const totalChats = (waWidget.chats || []).length;
-  const channelsCount = waWidget.channels?.length || 0;
-  const subText = `${totalChats} ${pluralize(totalChats, 'чат', 'чата', 'чатов')}`
-    + (channelsCount > 0 ? ` · ${channelsCount} ${pluralize(channelsCount, 'канал', 'канала', 'каналов')}` : '')
-    + (waWidget.unreadTotal > 0 ? ' · ' + waWidget.unreadTotal + ' непрочит.' : '');
+  // ── Командные каналы — секция сверху ──
+  const teamChannels = (waWidget.teamChannels || []).slice().sort((a, b) =>
+    (b.unread_count || 0) - (a.unread_count || 0) || (b.last_message_at || 0) - (a.last_message_at || 0)
+  );
+  const isTeamCollapsed = waWidget.collapsedInstances.has('_team');
+  const teamUnread = teamChannels.reduce((s, c) => s + (c.unread_count || 0), 0);
+  let teamHtml = '';
+  if (teamChannels.length > 0 || true) {  // показываем всегда чтобы видна кнопка «➕ создать»
+    teamHtml += `<div class="wa-w-section-head" data-instance="_team" title="Свернуть/развернуть" style="cursor:pointer;user-select:none">
+      <span class="wa-w-section-caret" style="margin-right:6px;font-size:9px;opacity:0.55">${isTeamCollapsed ? '▶' : '▼'}</span>
+      <span>👥 Команда</span>
+      ${teamUnread > 0 ? `<span class="wa-w-section-unread">${teamUnread}</span>` : ''}
+      <span class="wa-w-section-count">${teamChannels.length}</span>
+    </div>`;
+    if (!isTeamCollapsed) {
+      if (teamChannels.length === 0) {
+        teamHtml += '<div style="padding:10px 14px;color:var(--t3);font-size:11px;font-style:italic">Каналов нет. Жми ➕ ниже</div>';
+      } else {
+        for (const c of teamChannels) {
+          const name = c.type === 'dm' ? (orgUserLabel(c.other_user_id) || 'Личка') : (c.name || 'без имени');
+          const initials = (name.match(/[A-Za-zА-Яа-я0-9]/g) || []).slice(0, 2).join('').toUpperCase() || '#';
+          const preview = c.last_message_text ? c.last_message_text.slice(0, 50) : '';
+          const time = c.last_message_at ? formatWaShortTime(c.last_message_at) : '';
+          const unread = c.unread_count > 0 ? `<span class="wa-w-chat-unread">${c.unread_count}</span>` : '';
+          teamHtml += `<div class="wa-w-chat-row team-chat-row" data-team-id="${escapeHtml(c.id)}">
+            <div class="wa-w-chat-avatar" style="background:#22c55e;font-size:13px">${escapeHtml(initials)}</div>
+            <div class="wa-w-chat-body">
+              <div class="wa-w-chat-name">
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}</span>
+                <span class="wa-w-chat-time">${escapeHtml(time)}</span>
+              </div>
+              <div class="wa-w-chat-preview">${escapeHtml(preview)}${unread}</div>
+            </div>
+          </div>`;
+        }
+      }
+    }
+  }
 
-  // FIX: при polling (refreshWaWidgetChats каждые 7сек) viewport списка
-  // перерисовывался полностью → юзер крутил вниз, через секунду ему кидало
-  // обратно наверх. Сохраняем scrollTop до replace и восстанавливаем.
+  const totalWa = (waWidget.chats || []).length;
+  const totalTeam = teamChannels.length;
+  const subText = `${totalTeam + totalWa} чат${(totalTeam + totalWa) === 1 ? '' : 'ов'} · ${totalTeam} команд · ${totalWa} WA`
+    + (waWidget.unreadTotal > 0 ? ` · ${waWidget.unreadTotal} непрочит.` : '');
+
+  // FIX: при polling viewport списка перерисовывался полностью → скролл прыгал
   const prevList = document.getElementById('wa-w-list');
   const savedScrollTop = prevList ? prevList.scrollTop : 0;
 
   root.innerHTML = `<div class="wa-w-panel">
     <div class="wa-w-header">
       <div style="flex:1">
-        <div class="wa-w-title">💬 WhatsApp</div>
+        <div class="wa-w-title">💬 Чаты</div>
         <div class="wa-w-sub">${subText}</div>
       </div>
+      <button class="wa-w-icon-btn" id="wa-w-new-team" title="Новый командный канал" style="margin-right:4px">➕</button>
       <button class="wa-w-icon-btn" id="wa-w-close" title="Свернуть">×</button>
     </div>
-    <div class="wa-w-body" id="wa-w-list">${bodyHtml}</div>
+    <div class="wa-w-body" id="wa-w-list">${teamHtml}${bodyHtml}</div>
   </div>`;
 
-  // Восстанавливаем scroll сразу после replace (синхронно — до paint)
   const newList = document.getElementById('wa-w-list');
   if (newList && savedScrollTop > 0) newList.scrollTop = savedScrollTop;
 
   document.getElementById('wa-w-close').onclick = () => { waWidget.open = false; renderWaWidget(); };
-  root.querySelectorAll('.wa-w-chat-row').forEach(r => {
+  document.getElementById('wa-w-new-team').onclick = openCreateTeamChannelWidgetModal;
+  root.querySelectorAll('.wa-w-chat-row:not(.team-chat-row)').forEach(r => {
     r.addEventListener('click', () => openWaWidgetChat(r.dataset.chatId));
   });
-  // Click по заголовку секции — collapse/expand с persist в localStorage
+  root.querySelectorAll('.team-chat-row').forEach(r => {
+    r.addEventListener('click', () => openTeamWidgetChat(r.dataset.teamId));
+  });
   root.querySelectorAll('.wa-w-section-head').forEach(h => {
     h.addEventListener('click', () => {
       const key = String(h.dataset.instance || '');
@@ -4269,7 +4316,351 @@ async function refreshWaWidgetChats() {
 function recomputeWaWidgetUnread() {
   let total = 0;
   for (const c of (waWidget.chats || [])) total += c.unreadCount || 0;
+  for (const c of (waWidget.teamChannels || [])) total += c.unread_count || 0;
   waWidget.unreadTotal = total;
+}
+
+// Загрузка командных каналов в виджет (rotates 7 сек вместе с WA)
+async function refreshTeamChannels() {
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/chat/channels`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    waWidget.teamChannels = data.items || [];
+    recomputeWaWidgetUnread();
+    if (waWidget.open && waWidget.view === 'list') renderWaWidget();
+    else renderWaWidget();
+  } catch {}
+}
+
+// Загрузка сообщений активного команд-канала
+async function refreshTeamMessages(channelId) {
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/chat/channels/${channelId}/messages?limit=80`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    waWidget.teamMessages = data.items || [];
+    if (waWidget.open && waWidget.view === 'team-chat' && waWidget.activeTeamChannelId === channelId) {
+      renderTeamChatInWidget();
+    }
+    // Mark-read
+    const last = waWidget.teamMessages[waWidget.teamMessages.length - 1];
+    if (last) {
+      fetch(`${WORKER_BASE_URL}/api/chat/channels/${channelId}/read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ last_read_message_id: last.id }),
+      }).catch(() => {});
+      const ch = waWidget.teamChannels.find(c => c.id === channelId);
+      if (ch) { ch.unread_count = 0; recomputeWaWidgetUnread(); }
+    }
+  } catch {}
+}
+
+// Открыть командный канал в виджете
+async function openTeamWidgetChat(channelId) {
+  const ch = waWidget.teamChannels.find(c => c.id === channelId);
+  if (!ch) return;
+  waWidget.view = 'team-chat';
+  waWidget.activeTeamChannelId = channelId;
+  waWidget.activeChatId = null;
+  waWidget.teamMessages = [];
+  renderWaWidget();
+  await refreshTeamMessages(channelId);
+  if (waWidget.teamMsgPollTimer) clearInterval(waWidget.teamMsgPollTimer);
+  waWidget.teamMsgPollTimer = setInterval(() => {
+    if (waWidget.view !== 'team-chat' || waWidget.activeTeamChannelId !== channelId) {
+      clearInterval(waWidget.teamMsgPollTimer); waWidget.teamMsgPollTimer = null; return;
+    }
+    refreshTeamMessages(channelId);
+  }, 5000);
+}
+
+function renderTeamChatInWidget() {
+  const root = document.getElementById('wa-widget-root');
+  if (!root) return;
+  const ch = waWidget.teamChannels.find(c => c.id === waWidget.activeTeamChannelId);
+  if (!ch) return;
+  const name = ch.type === 'dm' ? (orgUserLabel(ch.other_user_id) || 'Личка') : (ch.name || 'без имени');
+  const me = window.currentUser?.canonicalUid || window.currentUser?.firebaseUid;
+  const msgsHtml = waWidget.teamMessages.length === 0
+    ? '<div style="padding:30px;color:var(--t3);font-size:12px;text-align:center">Сообщений нет. Напиши первое ↓</div>'
+    : waWidget.teamMessages.map(m => {
+        if (m.deleted_at) return '<div style="text-align:center;font-size:11px;color:var(--t3);font-style:italic;padding:4px">сообщение удалено</div>';
+        const own = m.user_id === me;
+        const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }) : '';
+        const author = own ? '' : `<div style="font-size:10px;color:var(--ac);font-weight:700;margin-bottom:2px">${escapeHtml(orgUserLabel(m.user_id))}</div>`;
+        const text = m.text ? escapeHtml(m.text).replace(/(https?:\/\/[^\s<>"]+)/g, '<a href="$1" target="_blank" style="color:inherit;text-decoration:underline">$1</a>') : '';
+        let fileBlock = '';
+        if (m.file_key) {
+          const url = `${WORKER_BASE_URL}/api/chat/files/${encodeURIComponent(m.file_key)}`;
+          const meta = m.file_meta ? (typeof m.file_meta === 'string' ? (function(){try{return JSON.parse(m.file_meta);}catch{return{};}})() : m.file_meta) : {};
+          if ((meta.mime || '').startsWith('image/')) {
+            fileBlock = `<img src="${url}" style="max-width:200px;max-height:200px;border-radius:6px;display:block;margin-top:4px;cursor:pointer" onclick="window.open('${url}','_blank')">`;
+          } else {
+            fileBlock = `<a href="${url}" target="_blank" style="display:inline-block;margin-top:4px;padding:4px 8px;background:rgba(0,0,0,0.1);border-radius:4px;color:inherit;text-decoration:none;font-size:11px">📎 ${escapeHtml(meta.name || 'файл')}</a>`;
+          }
+        }
+        return `<div style="${own ? 'align-self:flex-end' : 'align-self:flex-start'};max-width:80%;background:${own ? '#22c55e' : 'var(--bg2)'};color:${own ? '#fff' : 'var(--t1)'};padding:6px 10px;border-radius:10px;font-size:12px;line-height:1.4;margin-bottom:4px">
+          ${author}${text}${fileBlock}
+          <div style="font-size:9px;opacity:0.6;margin-top:2px;text-align:right">${time}</div>
+        </div>`;
+      }).join('');
+  root.innerHTML = `<div class="wa-w-panel">
+    <div class="wa-w-header">
+      <button class="wa-w-icon-btn" id="wa-w-back" title="Назад" style="margin-right:6px">‹</button>
+      <div style="flex:1">
+        <div class="wa-w-title">👥 ${escapeHtml(name)}</div>
+        <div class="wa-w-sub">командный чат</div>
+      </div>
+      <button class="wa-w-icon-btn" id="wa-w-close" title="Закрыть">×</button>
+    </div>
+    <div id="team-w-msgs" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;padding:10px 12px;background:var(--bg1)">${msgsHtml}</div>
+    <div style="padding:8px 10px;border-top:1px solid var(--b1);background:var(--bg3);display:flex;gap:6px;align-items:flex-end">
+      <textarea id="team-w-input" placeholder="Сообщение..." rows="1"
+        style="flex:1;resize:none;padding:6px 8px;border:1px solid var(--b1);border-radius:5px;background:var(--bg2);color:var(--t1);font-size:12px;outline:none;max-height:80px;font-family:inherit"></textarea>
+      <button class="wa-w-icon-btn" id="team-w-send" title="Отправить" style="background:#22c55e;color:#fff">➤</button>
+    </div>
+  </div>`;
+  // Скролл к низу
+  const msgsEl = document.getElementById('team-w-msgs');
+  if (msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight;
+  document.getElementById('wa-w-back').onclick = () => {
+    if (waWidget.teamMsgPollTimer) { clearInterval(waWidget.teamMsgPollTimer); waWidget.teamMsgPollTimer = null; }
+    waWidget.view = 'list'; waWidget.activeTeamChannelId = null; renderWaWidget();
+  };
+  document.getElementById('wa-w-close').onclick = () => {
+    if (waWidget.teamMsgPollTimer) { clearInterval(waWidget.teamMsgPollTimer); waWidget.teamMsgPollTimer = null; }
+    waWidget.open = false; renderWaWidget();
+  };
+  const ta = document.getElementById('team-w-input');
+  ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(80, ta.scrollHeight) + 'px'; });
+  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTeamWidgetMessage(); } });
+  document.getElementById('team-w-send').onclick = sendTeamWidgetMessage;
+  ta.focus();
+}
+
+// Модал создания командного канала из виджета.
+// Поддерживает добавление сотрудников по имени и/или отделов структуры
+// (resolves в uids всех людей этого узла + descendants).
+function openCreateTeamChannelWidgetModal() {
+  ensureUsersLoaded().then(async () => {
+    // Подгрузим org-структуру если ещё не в state
+    let structure = null;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/org/structure`, { headers: { 'Authorization': 'Bearer ' + idToken } });
+      if (r.ok) { const d = await r.json(); structure = d.structure || null; }
+    } catch {}
+
+    const users = Object.values(window.usersState?.byUid || {})
+      .filter(u => u.uid && u.uid !== (window.currentUser?.canonicalUid || window.currentUser?.firebaseUid));
+
+    const orgNodes = [];  // {path, label, uids}
+    if (structure) {
+      function walk(node, path, depth) {
+        if (!node) return;
+        const uids = collectNodeUids(node);
+        const indent = '— '.repeat(depth);
+        orgNodes.push({ path, label: indent + (node.name || node.title || 'без имени'), uids });
+        const children = node.subDepartments || node.departments || [];
+        children.forEach((c, i) => {
+          const childPath = path + (node.subDepartments ? `.subDepartments.${i}` : `.departments.${i}`);
+          walk(c, childPath, depth + 1);
+        });
+      }
+      (structure.branches || []).forEach((b, i) => walk(b, `branches.${i}`, 0));
+    }
+
+    const selectedUids = new Set();
+
+    const ov = document.createElement('div');
+    ov.className = 'qad-overlay';
+    ov.style.zIndex = '10000';
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:520px;width:96vw">
+      <div class="qad-head">
+        <h2>➕ Новый канал</h2>
+        <button class="qad-btn qad-btn-ghost" id="ntc-close" style="padding:4px 10px">×</button>
+      </div>
+      <div class="qad-body" style="padding:18px 24px;max-height:75vh;overflow:auto">
+        <label style="display:block;margin-bottom:14px">
+          <div style="font-size:12px;color:var(--t2);margin-bottom:4px">Название канала</div>
+          <input id="ntc-name" class="qad-input" placeholder="Например: Разработка" maxlength="60" style="width:100%;padding:8px 12px;font-size:14px">
+        </label>
+
+        <div style="margin-bottom:14px">
+          <div style="font-size:12px;color:var(--t2);margin-bottom:6px">👥 Кто увидит канал</div>
+          <div style="display:flex;gap:8px;border-bottom:1px solid var(--b1)">
+            <button class="ntc-tab active" data-tab="users" style="padding:8px 14px;background:none;border:none;border-bottom:2px solid var(--ac);cursor:pointer;font-size:13px;color:var(--ac);font-weight:600">По сотрудникам</button>
+            <button class="ntc-tab" data-tab="depts" style="padding:8px 14px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:13px;color:var(--t3)">По отделам</button>
+          </div>
+
+          <div id="ntc-pane-users" style="margin-top:10px">
+            <input id="ntc-user-search" class="qad-input" placeholder="Поиск сотрудника..." style="width:100%;padding:6px 10px;font-size:13px;margin-bottom:8px">
+            <div id="ntc-user-list" style="max-height:200px;overflow:auto;border:1px solid var(--b1);border-radius:5px;padding:4px"></div>
+          </div>
+          <div id="ntc-pane-depts" style="margin-top:10px;display:none">
+            <div style="font-size:11px;color:var(--t3);margin-bottom:6px">Клик на отдел → добавятся все сотрудники этого узла и вложенных</div>
+            <div id="ntc-dept-list" style="max-height:240px;overflow:auto;border:1px solid var(--b1);border-radius:5px;padding:4px"></div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:6px;font-size:12px;color:var(--t2)">Добавлены (<span id="ntc-count">0</span>):</div>
+        <div id="ntc-selected" style="border:1px solid var(--b1);border-radius:5px;padding:6px;min-height:36px;display:flex;flex-wrap:wrap;gap:4px"></div>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="ntc-cancel">Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="ntc-create">Создать</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+
+    const close = () => ov.remove();
+    document.getElementById('ntc-close').onclick = close;
+    document.getElementById('ntc-cancel').onclick = close;
+
+    // Tabs
+    ov.querySelectorAll('.ntc-tab').forEach(t => {
+      t.onclick = () => {
+        ov.querySelectorAll('.ntc-tab').forEach(x => {
+          x.classList.remove('active');
+          x.style.borderBottomColor = 'transparent';
+          x.style.color = 'var(--t3)';
+          x.style.fontWeight = '400';
+        });
+        t.classList.add('active');
+        t.style.borderBottomColor = 'var(--ac)';
+        t.style.color = 'var(--ac)';
+        t.style.fontWeight = '600';
+        document.getElementById('ntc-pane-users').style.display = t.dataset.tab === 'users' ? '' : 'none';
+        document.getElementById('ntc-pane-depts').style.display = t.dataset.tab === 'depts' ? '' : 'none';
+      };
+    });
+
+    function renderSelected() {
+      const sel = document.getElementById('ntc-selected');
+      const count = document.getElementById('ntc-count');
+      count.textContent = selectedUids.size;
+      sel.innerHTML = [...selectedUids].slice(0, 50).map(uid => {
+        const label = orgUserLabel(uid);
+        return `<span style="background:rgba(34,197,94,0.15);border:1px solid #22c55e;color:#15803d;font-size:11px;padding:2px 8px;border-radius:10px;display:inline-flex;gap:5px;align-items:center">
+          ${escapeHtml(label)}
+          <button data-uid-remove="${escapeHtml(uid)}" style="background:none;border:none;color:#15803d;cursor:pointer;padding:0;font-size:13px;line-height:1">×</button>
+        </span>`;
+      }).join('') + (selectedUids.size > 50 ? `<span style="font-size:11px;color:var(--t3)">+ ${selectedUids.size - 50} ещё</span>` : '');
+      sel.querySelectorAll('[data-uid-remove]').forEach(b => b.onclick = () => { selectedUids.delete(b.dataset.uidRemove); renderSelected(); renderUsers(); renderDepts(); });
+    }
+
+    function renderUsers() {
+      const q = (document.getElementById('ntc-user-search').value || '').toLowerCase().trim();
+      const list = document.getElementById('ntc-user-list');
+      const filtered = users.filter(u => {
+        const n = [u.lastName, u.name].filter(Boolean).join(' ').toLowerCase();
+        return !q || n.includes(q) || (u.email || '').toLowerCase().includes(q);
+      }).slice(0, 100);
+      list.innerHTML = filtered.length === 0
+        ? '<div style="color:var(--t3);font-size:12px;padding:8px">Никого не найдено</div>'
+        : filtered.map(u => {
+            const n = [u.lastName, u.name].filter(Boolean).join(' ').trim() || u.email || u.uid;
+            const sel = selectedUids.has(u.uid);
+            return `<div data-uid="${escapeHtml(u.uid)}" style="padding:6px 8px;cursor:pointer;font-size:12px;border-radius:4px;display:flex;align-items:center;gap:6px;${sel ? 'background:rgba(34,197,94,0.1)' : ''}" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background='${sel ? 'rgba(34,197,94,0.1)' : ''}'">
+              <span>${sel ? '✓' : '○'}</span> ${escapeHtml(n)}
+            </div>`;
+          }).join('');
+      list.querySelectorAll('[data-uid]').forEach(el => el.onclick = () => {
+        const uid = el.dataset.uid;
+        if (selectedUids.has(uid)) selectedUids.delete(uid);
+        else selectedUids.add(uid);
+        renderSelected(); renderUsers();
+      });
+    }
+    document.getElementById('ntc-user-search').addEventListener('input', renderUsers);
+
+    function renderDepts() {
+      const list = document.getElementById('ntc-dept-list');
+      list.innerHTML = orgNodes.length === 0
+        ? '<div style="color:var(--t3);font-size:12px;padding:8px">Структура пуста</div>'
+        : orgNodes.map(n => {
+            const allSelected = n.uids.length > 0 && n.uids.every(u => selectedUids.has(u));
+            return `<div data-dept-path="${escapeHtml(n.path)}" style="padding:6px 8px;cursor:pointer;font-size:12px;border-radius:4px;display:flex;align-items:center;gap:6px;${allSelected ? 'background:rgba(34,197,94,0.1)' : ''}" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background='${allSelected ? 'rgba(34,197,94,0.1)' : ''}'">
+              <span>${allSelected ? '✓' : '➕'}</span>
+              <span style="flex:1">${escapeHtml(n.label)}</span>
+              <span style="font-size:10px;color:var(--t3)">${n.uids.length} чел</span>
+            </div>`;
+          }).join('');
+      list.querySelectorAll('[data-dept-path]').forEach(el => el.onclick = () => {
+        const node = orgNodes.find(x => x.path === el.dataset.deptPath);
+        if (!node) return;
+        const allSelected = node.uids.length > 0 && node.uids.every(u => selectedUids.has(u));
+        if (allSelected) node.uids.forEach(u => selectedUids.delete(u));
+        else node.uids.forEach(u => selectedUids.add(u));
+        renderSelected(); renderDepts(); renderUsers();
+      });
+    }
+
+    renderUsers();
+    renderDepts();
+    renderSelected();
+
+    document.getElementById('ntc-create').onclick = async () => {
+      const name = document.getElementById('ntc-name').value.trim();
+      if (!name) { alert('Введи название'); return; }
+      const btn = document.getElementById('ntc-create');
+      btn.disabled = true; btn.textContent = '⏳';
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_BASE_URL}/api/chat/channels`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+          body: JSON.stringify({ type: 'channel', name, members: [...selectedUids] }),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+        close();
+        await refreshTeamChannels();
+        openTeamWidgetChat(d.channel.id);
+      } catch (e) { alert('Ошибка: ' + e.message); btn.disabled = false; btn.textContent = 'Создать'; }
+    };
+  });
+}
+
+// Собирает uid'ы узла структуры (head + members + рекурсивно из дочерних)
+function collectNodeUids(node) {
+  const uids = new Set();
+  function walk(n) {
+    if (!n) return;
+    if (n.headUid) uids.add(n.headUid);
+    if (Array.isArray(n.memberUids)) n.memberUids.forEach(u => uids.add(u));
+    const children = n.subDepartments || n.departments || [];
+    for (const c of children) walk(c);
+  }
+  walk(node);
+  return [...uids];
+}
+
+async function sendTeamWidgetMessage() {
+  const ta = document.getElementById('team-w-input');
+  if (!ta) return;
+  const text = ta.value.trim();
+  if (!text || !waWidget.activeTeamChannelId) return;
+  ta.value = ''; ta.style.height = 'auto';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/chat/channels/${waWidget.activeTeamChannelId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ text }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await refreshTeamMessages(waWidget.activeTeamChannelId);
+  } catch (e) { alert('Ошибка: ' + e.message); ta.value = text; }
 }
 
 function formatWaShortTime(ts) {
