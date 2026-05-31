@@ -106,10 +106,19 @@
         </p>
         <div class="actions">
           <button type="button" id="btn-pull-contractors">Контрагенты → contacts</button>
-          <button type="button" id="btn-pull-products" class="secondary">Номенклатура → products_1c</button>
+          <button type="button" id="btn-pull-products" class="secondary">Номенклатура (вся) → products_1c</button>
           <button type="button" id="btn-pull-contracts" class="secondary">Договоры → contracts_1c</button>
           <button type="button" id="btn-pull-organizations" class="secondary">Организации → organizations_1c</button>
           <button type="button" id="btn-pull-contact-info" class="secondary">📞 Обогатить телефонами/email</button>
+        </div>
+        <div class="actions" style="margin-top:10px">
+          <button type="button" id="btn-match-products">🔗 Сопоставить товары склада с 1С (по коду)</button>
+        </div>
+        <div class="hint" style="margin-top:8px">
+          Сначала «Номенклатура (вся)» — тянет все ~7700 позиций 1С постранично. Затем
+          «Сопоставить» — проставит товарам склада ссылку на номенклатуру 1С по совпадению
+          <code>SKU ↔ Код 1С</code> (формат «Т0000…»). Идёт пачками, прогресс ниже. Нужно для
+          создания счёта в 1С из сделки.
         </div>
         <div class="hint" style="margin-top:8px">
           После основного импорта контрагентов жми «Обогатить телефонами/email» — подтянет регистр
@@ -324,6 +333,38 @@
 
       document.getElementById("btn-pull-organizations").addEventListener("click", () =>
         runPull("btn-pull-organizations", "/api/crm/1c/sync/organizations/pull", "Организации"));
+
+      // Матчинг товаров склада ↔ номенклатура 1С по коду. Идёт пачками (курсор по
+      // offset), чтобы не упереться в лимиты воркера на большом каталоге.
+      document.getElementById("btn-match-products").addEventListener("click", async () => {
+        const btn = document.getElementById("btn-match-products");
+        btn.disabled = true;
+        const LIMIT = 2000;
+        let offset = 0;
+        let totalProcessed = 0, totalMatched = 0, totalUnmatched = 0, nomenclature = 0;
+        try {
+          // защита от бесконечного цикла
+          for (let guard = 0; guard < 200; guard++) {
+            showStatus("pull-status", "info",
+              `Сопоставляем… обработано ${totalProcessed}, совпало ${totalMatched}…`);
+            const r = await apiCall("POST", `/api/crm/1c/sync/products/match?offset=${offset}&limit=${LIMIT}`);
+            nomenclature = r.nomenclature_total ?? nomenclature;
+            totalProcessed += r.processed ?? 0;
+            totalMatched += r.matched ?? 0;
+            totalUnmatched += r.unmatched ?? 0;
+            if (r.next_offset == null) break;
+            offset = r.next_offset;
+          }
+          const pct = totalProcessed ? Math.round((totalMatched / totalProcessed) * 100) : 0;
+          showStatus("pull-status", "ok",
+            `Готово. Номенклатура 1С: ${nomenclature}. Товаров склада обработано ${totalProcessed}, ` +
+            `сопоставлено ${totalMatched} (${pct}%), не найдено в 1С ${totalUnmatched}.`);
+        } catch (e) {
+          showStatus("pull-status", "err", `Ошибка сопоставления: ${e.message}`);
+        } finally {
+          btn.disabled = false;
+        }
+      });
 
       document.getElementById("btn-pull-contact-info").addEventListener("click", async () => {
         const btn = document.getElementById("btn-pull-contact-info");

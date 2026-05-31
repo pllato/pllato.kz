@@ -5094,24 +5094,37 @@ async function handle1cPullContractors(request, env, actor) {
 }
 
 // Универсальная фабрика "тянем из OData коллекцию + сохраняем как сырое в store".
-// Возвращает { ok, count, created, updated, skipped }.
-async function pull1cToStore({ env, tenantId, collection1c, entityType, storeCollection, mapper }) {
+// Поддерживает постраничный пул ($skip/$top) для больших справочников
+// (номенклатура ~7700 позиций). Upsert идемпотентен по Ref_Key — при таймауте
+// середине повторный запуск безопасно до-докачивает. Возвращает
+// { ok, count, created, updated, pages }.
+async function pull1cToStore({ env, tenantId, collection1c, entityType, storeCollection, mapper, pageSize = 500, maxPages = 1 }) {
   const started = Date.now();
   try {
     const { client } = await build1cClient(env, tenantId);
     // Не используем $select/$orderby — в нетиповых конфигурациях (1С-Рейтинг и т.п.)
     // имена полей могут отличаться от стандартных, что даёт 400. Берём все поля,
     // маппер выберет нужное и игнорирует лишнее.
-    const data = await client.get(collection1c, {
-      top: 500,
-    });
-    const raw = Array.isArray(data?.value) ? data.value : [];
-    const mapped = raw.map(mapper).filter((x) => x && !x.is_folder && !x.deletion_mark);
-
-    const stats = mapped.length > 0
-      ? await bulk1cUpsertStore(env, tenantId, entityType, storeCollection, mapped)
-      : { created: 0, updated: 0 };
-    const { created, updated } = stats;
+    let skip = 0;
+    let page = 0;
+    let totalMapped = 0;
+    let created = 0;
+    let updated = 0;
+    while (page < maxPages) {
+      const data = await client.get(collection1c, { top: pageSize, skip });
+      const raw = Array.isArray(data?.value) ? data.value : [];
+      if (raw.length === 0) break;
+      const mapped = raw.map(mapper).filter((x) => x && !x.is_folder && !x.deletion_mark);
+      if (mapped.length > 0) {
+        const stats = await bulk1cUpsertStore(env, tenantId, entityType, storeCollection, mapped);
+        created += stats.created;
+        updated += stats.updated;
+      }
+      totalMapped += mapped.length;
+      page += 1;
+      if (raw.length < pageSize) break; // последняя страница
+      skip += pageSize;
+    }
 
     await d1Save1cSyncMark(env, tenantId);
     await d1Insert1cSyncLog(env, {
@@ -5121,10 +5134,10 @@ async function pull1cToStore({ env, tenantId, collection1c, entityType, storeCol
       operation: "upsert",
       status: "ok",
       httpStatus: 200,
-      recordsProcessed: mapped.length,
+      recordsProcessed: totalMapped,
       durationMs: Date.now() - started,
     });
-    return { ok: true, count: mapped.length, created, updated };
+    return { ok: true, count: totalMapped, created, updated, pages: page };
   } catch (e) {
     const httpStatus = e instanceof ODataError ? e.httpStatus : null;
     const message = e?.message || String(e);
@@ -5145,6 +5158,7 @@ async function pull1cToStore({ env, tenantId, collection1c, entityType, storeCol
 
 async function handle1cPullProducts(_request, env, actor) {
   require1cAdmin(actor);
+  // Номенклатура крупная (~7700) — тянем постранично всю. Upsert идемпотентен.
   return pull1cToStore({
     env,
     tenantId: resolve1cTenantId(actor),
@@ -5152,6 +5166,8 @@ async function handle1cPullProducts(_request, env, actor) {
     entityType: "product",
     storeCollection: "products_1c",
     mapper: productFromOData,
+    pageSize: 1000,
+    maxPages: 30,
   });
 }
 
@@ -5537,6 +5553,129 @@ async function handle1cInspect(request, env, actor) {
   }
 }
 
+/**
+ * POST /api/crm/1c/sync/products/match?offset=&limit= — сопоставляет товары
+ * склада CRM с номенклатурой 1С по коду (sku ↔ Code, формат «Т0000002188»).
+ *
+ * Источник кодов 1С — коллекция products_1c (нужно сперва «Загрузить
+ * номенклатуру 1С»). Матчинг идёт СЕРВЕРНО по D1, курсором по warehouse_products
+ * (offset/limit) — чтобы не упереться в лимиты воркера на больших каталогах.
+ * На совпавший товар штампуется _1c_ref_key / _1c_unit_ref / _1c_vat_ref и
+ * пишется one_c_id_map(entity='product', pllato_id=warehouse_product.id).
+ *
+ * Артикул в этой базе пустой → матч только по коду. Доп. нормализация: если
+ * точного совпадения нет, сверяем по цифрам кода (на случай Кириллица/Латиница Т).
+ */
+async function handle1cMatchProducts(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const url = new URL(request.url);
+  const offset = Math.max(parseInt(url.searchParams.get("offset") || "0", 10), 0);
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "2000", 10), 1), 5000);
+  const started = Date.now();
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  try {
+    // 1) Карта Code → { ref, unit, vat } из products_1c (читается раз на запрос).
+    const prodRows = await db
+      .prepare(`SELECT data FROM store WHERE team_id = ? AND collection = ?`)
+      .bind(TEAM_ID, "products_1c")
+      .all();
+    const byCode = new Map();
+    const byDigits = new Map();
+    let nomenclatureCount = 0;
+    for (const row of prodRows?.results || []) {
+      let p;
+      try { p = JSON.parse(row.data); } catch { continue; }
+      const code = String(p.code || "").trim();
+      const ref = p._1c_ref_key || p.ref_key;
+      if (!code || !ref) continue;
+      nomenclatureCount += 1;
+      const entry = { ref, unit: p.unit_ref || null, vat: p.vat_rate_ref || null };
+      byCode.set(code, entry);
+      const digits = code.replace(/\D/g, "");
+      if (digits) byDigits.set(digits, entry);
+    }
+    if (nomenclatureCount === 0) {
+      throw new HttpError(400, "products_1c пуст — сначала «Загрузить номенклатуру 1С»");
+    }
+
+    // 2) Срез товаров склада.
+    const whRows = await db
+      .prepare(`SELECT id, data FROM store WHERE team_id = ? AND collection = ? ORDER BY id LIMIT ? OFFSET ?`)
+      .bind(TEAM_ID, "warehouse_products", limit, offset)
+      .all();
+    const rows = whRows?.results || [];
+
+    const now = Date.now();
+    const nowSec = Math.floor(now / 1000);
+    const updateStmts = [];
+    const mapStmts = [];
+    let matched = 0;
+    let unmatched = 0;
+    for (const row of rows) {
+      let prod;
+      try { prod = JSON.parse(row.data); } catch { continue; }
+      const sku = String(prod.sku || "").trim();
+      let hit = sku ? byCode.get(sku) : null;
+      if (!hit && sku) {
+        const d = sku.replace(/\D/g, "");
+        if (d) hit = byDigits.get(d);
+      }
+      if (!hit) { unmatched += 1; continue; }
+      const updated = {
+        ...prod,
+        _1c_ref_key: hit.ref,
+        _1c_unit_ref: hit.unit,
+        _1c_vat_ref: hit.vat,
+        _1c_matched_at: now,
+        updatedAt: now,
+      };
+      updateStmts.push(
+        db.prepare(`UPDATE store SET data = ?, updated_at = ? WHERE team_id = ? AND collection = ? AND id = ?`)
+          .bind(JSON.stringify(updated), now, TEAM_ID, "warehouse_products", row.id)
+      );
+      mapStmts.push(
+        db.prepare(`
+          INSERT INTO one_c_id_map (tenant_id, entity_type, pllato_id, one_c_ref_key, one_c_data_version, synced_at)
+          VALUES (?,?,?,?,?,?)
+          ON CONFLICT(tenant_id, entity_type, pllato_id) DO UPDATE SET
+            one_c_ref_key = excluded.one_c_ref_key,
+            synced_at     = excluded.synced_at
+        `).bind(tenantId, "product", row.id, hit.ref, null, nowSec)
+      );
+      matched += 1;
+    }
+
+    const CHUNK = 50;
+    for (let i = 0; i < updateStmts.length; i += CHUNK) await db.batch(updateStmts.slice(i, i + CHUNK));
+    for (let i = 0; i < mapStmts.length; i += CHUNK) await db.batch(mapStmts.slice(i, i + CHUNK));
+
+    const nextOffset = rows.length < limit ? null : offset + rows.length;
+    await d1Insert1cSyncLog(env, {
+      tenantId, direction: "pull", entityType: "product_match", operation: "match", status: "ok",
+      httpStatus: 200, recordsProcessed: rows.length, durationMs: Date.now() - started,
+    });
+    return {
+      ok: true,
+      nomenclature_total: nomenclatureCount,
+      processed: rows.length,
+      matched,
+      unmatched,
+      offset,
+      next_offset: nextOffset,
+    };
+  } catch (e) {
+    const message = e?.message || String(e);
+    await d1Insert1cSyncLog(env, {
+      tenantId, direction: "pull", entityType: "product_match", operation: "match", status: "error",
+      errorMessage: message, durationMs: Date.now() - started,
+    });
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(502, message);
+  }
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
@@ -5669,6 +5808,10 @@ export default {
       if (request.method === "POST" && path === "/api/crm/1c/sync/organizations/pull") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handle1cPullOrganizations(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/sync/products/match") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cMatchProducts(request, env, actor));
       }
       if (request.method === "POST" && path === "/api/crm/1c/sync/contact-info/pull") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
