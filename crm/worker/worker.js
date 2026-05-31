@@ -4687,6 +4687,138 @@ async function d1Get1cIdByRefKey(env, tenantId, entityType, refKey) {
   return row || null;
 }
 
+/**
+ * Bulk-upsert контрагентов из 1С в store(contacts) + one_c_id_map.
+ * Использует D1 batch API — все INSERT за 2 round trip к D1 вместо N*3.
+ * Returns { created, updated, skipped }.
+ */
+async function bulk1cUpsertContacts(env, tenantId, contractors) {
+  const db = requireStoreDb(env);
+  const refKeys = contractors.map((c) => c.ref_key).filter(Boolean);
+  if (refKeys.length === 0) return { created: 0, updated: 0, skipped: contractors.length };
+  const existingByRef = await fetchExistingIdMap(db, tenantId, "contractor", refKeys);
+
+  // 2) Готовим payload-ы.
+  const now = Date.now();
+  const nowSec = Math.floor(now / 1000);
+  const storeStmts = [];
+  const mapStmts = [];
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  for (const c of contractors) {
+    const existingId = existingByRef.get(c.ref_key);
+    const contact = contractorToCrmContact(c, existingId);
+    if (!contact) { skipped++; continue; }
+    const data = JSON.stringify({ ...contact, createdAt: now, updatedAt: now });
+    storeStmts.push(
+      db.prepare(`
+        INSERT INTO store (team_id, collection, id, data, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(team_id, collection, id) DO UPDATE SET
+          data = excluded.data,
+          updated_at = excluded.updated_at
+      `).bind(TEAM_ID, "contacts", contact.id, data, now, now)
+    );
+    mapStmts.push(
+      db.prepare(`
+        INSERT INTO one_c_id_map (tenant_id, entity_type, pllato_id, one_c_ref_key, one_c_data_version, synced_at)
+        VALUES (?,?,?,?,?,?)
+        ON CONFLICT(tenant_id, entity_type, pllato_id) DO UPDATE SET
+          one_c_ref_key      = excluded.one_c_ref_key,
+          one_c_data_version = excluded.one_c_data_version,
+          synced_at          = excluded.synced_at
+      `).bind(tenantId, "contractor", contact.id, c.ref_key, c.data_version || null, nowSec)
+    );
+    if (existingId) updated++; else created++;
+  }
+
+  // 3) Bulk batch с чанками по 50 — D1 имеет лимит на размер batch и индивидуального запроса.
+  const CHUNK = 50;
+  for (let i = 0; i < storeStmts.length; i += CHUNK) {
+    await db.batch(storeStmts.slice(i, i + CHUNK));
+  }
+  for (let i = 0; i < mapStmts.length; i += CHUNK) {
+    await db.batch(mapStmts.slice(i, i + CHUNK));
+  }
+  return { created, updated, skipped };
+}
+
+/**
+ * Bulk-upsert сырых сущностей (продуктов/договоров/организаций) в store + one_c_id_map.
+ * Returns { created, updated }.
+ */
+/**
+ * Получает существующие маппинги Ref_Key → pllato_id чанками,
+ * чтобы не упереться в лимит D1 на 100 параметров в одном запросе.
+ */
+async function fetchExistingIdMap(db, tenantId, entityType, refKeys) {
+  const out = new Map();
+  // tenant_id + entity_type занимают 2 параметра, оставляем по 90 для IN ().
+  const CHUNK = 90;
+  for (let i = 0; i < refKeys.length; i += CHUNK) {
+    const chunk = refKeys.slice(i, i + CHUNK);
+    const placeholders = chunk.map(() => "?").join(",");
+    const rows = await db
+      .prepare(`SELECT one_c_ref_key, pllato_id FROM one_c_id_map WHERE tenant_id = ? AND entity_type = ? AND one_c_ref_key IN (${placeholders})`)
+      .bind(tenantId, entityType, ...chunk)
+      .all();
+    for (const r of rows?.results || []) out.set(r.one_c_ref_key, r.pllato_id);
+  }
+  return out;
+}
+
+async function bulk1cUpsertStore(env, tenantId, entityType, storeCollection, items) {
+  const db = requireStoreDb(env);
+  const refKeys = items.map((x) => x.ref_key).filter(Boolean);
+  if (refKeys.length === 0) return { created: 0, updated: 0 };
+  const existingByRef = await fetchExistingIdMap(db, tenantId, entityType, refKeys);
+
+  const now = Date.now();
+  const nowSec = Math.floor(now / 1000);
+  const storeStmts = [];
+  const mapStmts = [];
+  let created = 0;
+  let updated = 0;
+
+  for (const item of items) {
+    const existingId = existingByRef.get(item.ref_key);
+    const id = existingId || crypto.randomUUID();
+    const doc = { id, ...item, _1c_ref_key: item.ref_key, _1c_data_version: item.data_version, createdAt: now, updatedAt: now };
+    const data = JSON.stringify(doc);
+    storeStmts.push(
+      db.prepare(`
+        INSERT INTO store (team_id, collection, id, data, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(team_id, collection, id) DO UPDATE SET
+          data = excluded.data,
+          updated_at = excluded.updated_at
+      `).bind(TEAM_ID, storeCollection, id, data, now, now)
+    );
+    mapStmts.push(
+      db.prepare(`
+        INSERT INTO one_c_id_map (tenant_id, entity_type, pllato_id, one_c_ref_key, one_c_data_version, synced_at)
+        VALUES (?,?,?,?,?,?)
+        ON CONFLICT(tenant_id, entity_type, pllato_id) DO UPDATE SET
+          one_c_ref_key      = excluded.one_c_ref_key,
+          one_c_data_version = excluded.one_c_data_version,
+          synced_at          = excluded.synced_at
+      `).bind(tenantId, entityType, id, item.ref_key, item.data_version || null, nowSec)
+    );
+    if (existingId) updated++; else created++;
+  }
+
+  const CHUNK = 50;
+  for (let i = 0; i < storeStmts.length; i += CHUNK) {
+    await db.batch(storeStmts.slice(i, i + CHUNK));
+  }
+  for (let i = 0; i < mapStmts.length; i += CHUNK) {
+    await db.batch(mapStmts.slice(i, i + CHUNK));
+  }
+  return { created, updated };
+}
+
 async function d1Upsert1cIdMap(env, tenantId, entityType, pllatoId, refKey, dataVersion) {
   const db = requireStoreDb(env);
   const now = Math.floor(Date.now() / 1000);
@@ -4914,15 +5046,11 @@ async function handle1cPullContractors(request, env, actor) {
     let created = 0;
     let updated = 0;
     let skipped = 0;
-    if (persist) {
-      for (const c of contractors) {
-        const existing = await d1Get1cIdByRefKey(env, tenantId, "contractor", c.ref_key);
-        const contact = contractorToCrmContact(c, existing?.pllato_id);
-        if (!contact) { skipped++; continue; }
-        await d1UpsertDoc(env, "contacts", contact);
-        await d1Upsert1cIdMap(env, tenantId, "contractor", contact.id, c.ref_key, c.data_version);
-        if (existing) updated++; else created++;
-      }
+    if (persist && contractors.length > 0) {
+      const stats = await bulk1cUpsertContacts(env, tenantId, contractors);
+      created = stats.created;
+      updated = stats.updated;
+      skipped = stats.skipped;
     }
 
     await d1Save1cSyncMark(env, tenantId);
@@ -4965,33 +5093,23 @@ async function handle1cPullContractors(request, env, actor) {
 
 // Универсальная фабрика "тянем из OData коллекцию + сохраняем как сырое в store".
 // Возвращает { ok, count, created, updated, skipped }.
-async function pull1cToStore({ env, tenantId, collection1c, entityType, storeCollection, mapper, selectFields, orderby = "Description" }) {
+async function pull1cToStore({ env, tenantId, collection1c, entityType, storeCollection, mapper }) {
   const started = Date.now();
   try {
     const { client } = await build1cClient(env, tenantId);
+    // Не используем $select/$orderby — в нетиповых конфигурациях (1С-Рейтинг и т.п.)
+    // имена полей могут отличаться от стандартных, что даёт 400. Берём все поля,
+    // маппер выберет нужное и игнорирует лишнее.
     const data = await client.get(collection1c, {
       top: 500,
-      select: selectFields,
-      orderby,
     });
     const raw = Array.isArray(data?.value) ? data.value : [];
     const mapped = raw.map(mapper).filter((x) => x && !x.is_folder && !x.deletion_mark);
 
-    let created = 0;
-    let updated = 0;
-    for (const item of mapped) {
-      const existing = await d1Get1cIdByRefKey(env, tenantId, entityType, item.ref_key);
-      const id = existing?.pllato_id || crypto.randomUUID();
-      const doc = {
-        id,
-        ...item,
-        _1c_ref_key: item.ref_key,
-        _1c_data_version: item.data_version,
-      };
-      await d1UpsertDoc(env, storeCollection, doc);
-      await d1Upsert1cIdMap(env, tenantId, entityType, id, item.ref_key, item.data_version);
-      if (existing) updated++; else created++;
-    }
+    const stats = mapped.length > 0
+      ? await bulk1cUpsertStore(env, tenantId, entityType, storeCollection, mapped)
+      : { created: 0, updated: 0 };
+    const { created, updated } = stats;
 
     await d1Save1cSyncMark(env, tenantId);
     await d1Insert1cSyncLog(env, {
@@ -5032,12 +5150,6 @@ async function handle1cPullProducts(_request, env, actor) {
     entityType: "product",
     storeCollection: "products_1c",
     mapper: productFromOData,
-    selectFields: [
-      "Ref_Key", "DataVersion", "Code", "Description", "НаименованиеПолное",
-      "DeletionMark", "IsFolder", "Parent_Key", "Артикул",
-      "БазоваяЕдиницаИзмерения_Key", "ЕдиницаИзмерения_Key", "СтавкаНДС_Key",
-      "ВидНоменклатуры_Key", "СтранаПроисхождения_Key", "Комментарий",
-    ],
   });
 }
 
@@ -5050,12 +5162,132 @@ async function handle1cPullContracts(_request, env, actor) {
     entityType: "contract",
     storeCollection: "contracts_1c",
     mapper: contractFromOData,
-    selectFields: [
-      "Ref_Key", "DataVersion", "Code", "Description", "DeletionMark",
-      "Владелец_Key", "Организация_Key", "ВидДоговора",
-      "ВалютаВзаиморасчетов_Key", "ДатаНачала", "ДатаОкончания", "Комментарий",
-    ],
   });
+}
+
+/**
+ * Тянет регистр сведений КонтактнаяИнформация — там лежат телефоны/email/адреса
+ * для контрагентов, контактных лиц, организаций. Обогащает уже импортированные
+ * контакты (контрагенты в коллекции `contacts`) полями phone и email.
+ *
+ * Структура записи в регистре (типовая БСП):
+ *   Объект_Key  — GUID владельца (контрагент / контактное лицо / организация)
+ *   Тип         — "Телефон" / "АдресЭлектроннойПочты" / "Адрес" / "ВебСтраница"
+ *   Вид_Key     — конкретный вид (рабочий, основной и т.д.)
+ *   Представление — текстовое значение (форматированное)
+ *   НомерТелефона — отдельное поле для типа Телефон
+ *   АдресЭП       — отдельное поле для типа Email
+ */
+async function handle1cPullContactInfo(_request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const started = Date.now();
+  try {
+    const { client } = await build1cClient(env, tenantId);
+    const data = await client.get("InformationRegister_КонтактнаяИнформация", { top: 2000 });
+    const raw = Array.isArray(data?.value) ? data.value : [];
+
+    // Группируем записи по Объект_Key (ref_key контрагента или контактного лица)
+    const byObject = new Map();
+    for (const r of raw) {
+      const key = r.Объект_Key || r.Object_Key;
+      if (!key) continue;
+      if (!byObject.has(key)) byObject.set(key, { phones: [], emails: [], addresses: [] });
+      const bucket = byObject.get(key);
+      const type = String(r.Тип || r.Type || "").toLowerCase();
+      const presentation = String(r.Представление || "").trim();
+      if (type.includes("телефон") || type.includes("phone")) {
+        const phone = String(r.НомерТелефона || presentation || "").trim();
+        if (phone) bucket.phones.push(phone);
+      } else if (type.includes("электрон") || type.includes("email") || type.includes("эп")) {
+        const email = String(r.АдресЭП || presentation || "").trim();
+        if (email && email.includes("@")) bucket.emails.push(email);
+      } else if (type.includes("адрес") || type.includes("address")) {
+        if (presentation) bucket.addresses.push(presentation);
+      }
+    }
+
+    // Берём все contacts из CRM, у которых _1c_ref_key выставлен, и обновляем phone/email.
+    const db = requireStoreDb(env);
+    const contactRows = await db
+      .prepare(`SELECT id, data FROM store WHERE team_id = ? AND collection = ?`)
+      .bind(TEAM_ID, "contacts")
+      .all();
+
+    let enriched = 0;
+    const updateStmts = [];
+    const now = Date.now();
+    for (const row of contactRows?.results || []) {
+      let contact;
+      try { contact = JSON.parse(row.data); } catch { continue; }
+      const refKey = contact?._1c_ref_key;
+      if (!refKey) continue;
+      const bucket = byObject.get(refKey);
+      if (!bucket) continue;
+      const phone = bucket.phones[0] || "";
+      const email = bucket.emails[0] || "";
+      const address = bucket.addresses[0] || "";
+      // Обновляем только если есть новые данные и они отличаются от текущих
+      const changed = (phone && contact.phone !== phone) ||
+                      (email && contact.email !== email) ||
+                      (address && contact._1c_address !== address);
+      if (!changed) continue;
+      const updated = {
+        ...contact,
+        phone: phone || contact.phone || "",
+        email: email || contact.email || "",
+        _1c_address: address || contact._1c_address || "",
+        _1c_phones_all: bucket.phones,
+        _1c_emails_all: bucket.emails,
+        updatedAt: now,
+      };
+      updateStmts.push(
+        db.prepare(`
+          UPDATE store SET data = ?, updated_at = ?
+           WHERE team_id = ? AND collection = ? AND id = ?
+        `).bind(JSON.stringify(updated), now, TEAM_ID, "contacts", row.id)
+      );
+      enriched++;
+    }
+
+    const CHUNK = 50;
+    for (let i = 0; i < updateStmts.length; i += CHUNK) {
+      await db.batch(updateStmts.slice(i, i + CHUNK));
+    }
+
+    await d1Save1cSyncMark(env, tenantId);
+    await d1Insert1cSyncLog(env, {
+      tenantId,
+      direction: "pull",
+      entityType: "contact_info",
+      operation: "enrich",
+      status: "ok",
+      httpStatus: 200,
+      recordsProcessed: raw.length,
+      durationMs: Date.now() - started,
+    });
+    return {
+      ok: true,
+      info_records: raw.length,
+      objects_with_info: byObject.size,
+      contacts_enriched: enriched,
+    };
+  } catch (e) {
+    const httpStatus = e instanceof ODataError ? e.httpStatus : null;
+    const message = e?.message || String(e);
+    await d1Insert1cSyncLog(env, {
+      tenantId,
+      direction: "pull",
+      entityType: "contact_info",
+      operation: "enrich",
+      status: "error",
+      httpStatus,
+      errorMessage: message,
+      durationMs: Date.now() - started,
+    });
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(httpStatus && httpStatus >= 400 && httpStatus < 600 ? httpStatus : 502, message);
+  }
 }
 
 async function handle1cPullOrganizations(_request, env, actor) {
@@ -5067,10 +5299,6 @@ async function handle1cPullOrganizations(_request, env, actor) {
     entityType: "organization",
     storeCollection: "organizations_1c",
     mapper: organizationFromOData,
-    selectFields: [
-      "Ref_Key", "DataVersion", "Code", "Description", "НаименованиеПолное",
-      "DeletionMark", "НомерНалоговойРегистрации", "БИН", "ЮрФизЛицо", "Комментарий",
-    ],
   });
 }
 
@@ -5227,6 +5455,10 @@ export default {
       if (request.method === "POST" && path === "/api/crm/1c/sync/organizations/pull") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handle1cPullOrganizations(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/sync/contact-info/pull") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cPullContactInfo(request, env, actor));
       }
       if (request.method === "GET" && path === "/api/crm/1c/sync-log") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });

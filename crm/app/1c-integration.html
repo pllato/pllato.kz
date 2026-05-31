@@ -109,6 +109,12 @@
           <button type="button" id="btn-pull-products" class="secondary">Номенклатура → products_1c</button>
           <button type="button" id="btn-pull-contracts" class="secondary">Договоры → contracts_1c</button>
           <button type="button" id="btn-pull-organizations" class="secondary">Организации → organizations_1c</button>
+          <button type="button" id="btn-pull-contact-info" class="secondary">📞 Обогатить телефонами/email</button>
+        </div>
+        <div class="hint" style="margin-top:8px">
+          После основного импорта контрагентов жми «Обогатить телефонами/email» — подтянет регистр
+          сведений «КонтактнаяИнформация» (должен быть включён в составе OData отдельно)
+          и проставит поля <code>phone</code> и <code>email</code> в уже импортированные контакты.
         </div>
         <div id="pull-status" class="status info" style="display:none; margin-top:14px;"></div>
         <div id="pull-result" style="margin-top:14px;"></div>
@@ -318,6 +324,21 @@
 
       document.getElementById("btn-pull-organizations").addEventListener("click", () =>
         runPull("btn-pull-organizations", "/api/crm/1c/sync/organizations/pull", "Организации"));
+
+      document.getElementById("btn-pull-contact-info").addEventListener("click", async () => {
+        const btn = document.getElementById("btn-pull-contact-info");
+        btn.disabled = true;
+        showStatus("pull-status", "info", "Тянем регистр КонтактнаяИнформация…");
+        try {
+          const r = await apiCall("POST", "/api/crm/1c/sync/contact-info/pull");
+          showStatus("pull-status", "ok",
+            `Контактная информация: записей ${r.info_records}, объектов с данными ${r.objects_with_info}, обновлено контактов ${r.contacts_enriched}.`);
+        } catch (e) {
+          showStatus("pull-status", "err", `Ошибка обогащения: ${e.message}`);
+        } finally {
+          btn.disabled = false;
+        }
+      });
 
       document.getElementById("btn-log").addEventListener("click", async () => {
         try {
