@@ -429,6 +429,37 @@ async function getMembers(env, me, channelId) {
   return jsonRes({ items: results });
 }
 
+// POST /api/chat/legacy-join-all { confirm: true }
+// Добавляет вызывающего юзера ко всем legacy_* каналам (где он был в Bitrix
+// но миграция не подцепила потому что он не писал в этом канале).
+// На каждый канал — INSERT OR IGNORE (никаких дублей).
+async function legacyJoinAll(env, me, body) {
+  if (!body?.confirm) return errRes('confirm:true required');
+  const ts = now();
+  const r = await env.DB.prepare(`
+    INSERT OR IGNORE INTO team_chat_members (channel_id, user_id, joined_at)
+    SELECT id, ?, ? FROM team_chat_channels WHERE id LIKE 'legacy_%'
+  `).bind(me.uid, ts).run();
+  return jsonRes({ ok: true, added: r.meta?.changes || 0 });
+}
+
+// DELETE /api/chat/channels/:id/members/:user_id — убрать члена (любой участник).
+// Хотим аккуратно: можно убирать кого угодно (демократично), но не создателя
+// канала (created_by). От себя — есть /leave.
+async function removeMember(env, me, channelId, targetUid) {
+  if (!(await isChannelMember(env, channelId, me.uid))) return errRes('forbidden', 403);
+  const ch = await env.DB.prepare("SELECT created_by FROM team_chat_channels WHERE id = ?").bind(channelId).first();
+  if (ch?.created_by === targetUid && targetUid !== me.uid) {
+    return errRes('нельзя убрать создателя канала', 403);
+  }
+  await env.DB.prepare(
+    "DELETE FROM team_chat_members WHERE channel_id = ? AND user_id = ?"
+  ).bind(channelId, targetUid).run();
+  broadcastToChannel(env, channelId, { kind: 'user_left', channel_id: channelId, user_id: targetUid });
+  broadcastToUser(env, targetUid, { kind: 'channel_removed', channel_id: channelId });
+  return jsonRes({ ok: true });
+}
+
 // POST /api/chat/channels/:id/members { user_ids: [...] }
 async function addMembers(env, me, channelId, body) {
   if (!(await isChannelMember(env, channelId, me.uid))) return errRes('forbidden', 403);
@@ -524,6 +555,16 @@ export async function handleChatRequest(request, env, url, me) {
     if (sub === '/read'     && m === 'POST') return markAsRead(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/mute'     && m === 'POST') return setMuted(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/leave'    && m === 'POST') return leaveChannel(env, me, channelId);
+    // /api/chat/channels/:id/members/:uid (DELETE)
+    const memMatch = sub.match(/^\/members\/(.+)$/);
+    if (memMatch && m === 'DELETE') return removeMember(env, me, channelId, decodeURIComponent(memMatch[1]));
+  }
+
+  // /api/chat/legacy-join-all — admin добавляет себя ко всем legacy-каналам,
+  // в которые он был добавлен в Bitrix, но не остался в migrated members
+  // (т.к. не писал). Полезно для директора/главы — увидеть все архивные группы.
+  if (p === '/api/chat/legacy-join-all' && m === 'POST') {
+    return legacyJoinAll(env, me, await request.json().catch(() => ({})));
   }
 
   // /api/chat/messages/:id/...

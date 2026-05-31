@@ -4064,6 +4064,7 @@ function renderWaWidgetList(root) {
         <div class="wa-w-title">💬 Чаты</div>
         <div class="wa-w-sub">${subText}</div>
       </div>
+      <button class="wa-w-icon-btn" id="wa-w-legacy-join" title="Добавить меня ко всем архивным каналам из Bitrix" style="margin-right:4px;font-size:11px">🗄</button>
       <button class="wa-w-icon-btn" id="wa-w-new-team" title="Новый командный канал" style="margin-right:4px">➕</button>
       <button class="wa-w-icon-btn" id="wa-w-close" title="Свернуть">×</button>
     </div>
@@ -4075,6 +4076,21 @@ function renderWaWidgetList(root) {
 
   document.getElementById('wa-w-close').onclick = () => { waWidget.open = false; renderWaWidget(); };
   document.getElementById('wa-w-new-team').onclick = openCreateTeamChannelWidgetModal;
+  document.getElementById('wa-w-legacy-join').onclick = async () => {
+    if (!confirm('Добавить тебя ко всем архивным каналам из Bitrix?\n(в которых ты был добавлен, но миграция не подцепила потому что не писал там)')) return;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/chat/legacy-join-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+        body: JSON.stringify({ confirm: true }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      alert(`✓ Добавлено: ${d.added} архивных каналов`);
+      await refreshTeamChannels();
+    } catch (e) { alert('Ошибка: ' + e.message); }
+  };
   root.querySelectorAll('.wa-w-chat-row:not(.team-chat-row)').forEach(r => {
     r.addEventListener('click', () => openWaWidgetChat(r.dataset.chatId));
   });
@@ -4419,6 +4435,7 @@ function renderTeamChatInWidget() {
         <div class="wa-w-title">👥 ${escapeHtml(name)}</div>
         <div class="wa-w-sub">командный чат</div>
       </div>
+      <button class="wa-w-icon-btn" id="wa-w-members" title="Управление участниками" style="margin-right:4px">👥</button>
       <button class="wa-w-icon-btn" id="wa-w-close" title="Закрыть">×</button>
     </div>
     <div id="team-w-msgs" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;padding:10px 12px;background:var(--bg1)">${msgsHtml}</div>
@@ -4443,6 +4460,7 @@ function renderTeamChatInWidget() {
   ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(80, ta.scrollHeight) + 'px'; });
   ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTeamWidgetMessage(); } });
   document.getElementById('team-w-send').onclick = sendTeamWidgetMessage;
+  document.getElementById('wa-w-members').onclick = () => openTeamMembersModal(waWidget.activeTeamChannelId);
   ta.focus();
 }
 
@@ -4629,6 +4647,197 @@ function openCreateTeamChannelWidgetModal() {
       } catch (e) { alert('Ошибка: ' + e.message); btn.disabled = false; btn.textContent = 'Создать'; }
     };
   });
+}
+
+// Модал управления членами канала: показывает текущих + add/remove
+async function openTeamMembersModal(channelId) {
+  if (!channelId) return;
+  const ch = waWidget.teamChannels.find(c => c.id === channelId);
+  const chName = ch ? (ch.type === 'dm' ? orgUserLabel(ch.other_user_id) : ch.name) : 'Канал';
+
+  await ensureUsersLoaded();
+  let members = [];
+  let structure = null;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const [mr, sr] = await Promise.all([
+      fetch(`${WORKER_BASE_URL}/api/chat/channels/${channelId}/members`, { headers: { 'Authorization': 'Bearer ' + idToken } }),
+      fetch(`${WORKER_BASE_URL}/api/org/structure`, { headers: { 'Authorization': 'Bearer ' + idToken } }),
+    ]);
+    if (mr.ok) members = (await mr.json()).items || [];
+    if (sr.ok) structure = (await sr.json()).structure || null;
+  } catch (e) { alert('Ошибка загрузки: ' + e.message); return; }
+
+  const memberUids = new Set(members.map(m => m.user_id));
+  const users = Object.values(window.usersState?.byUid || {}).filter(u => u.uid);
+
+  const orgNodes = [];
+  if (structure) {
+    function walk(node, path, depth) {
+      if (!node) return;
+      const uids = collectNodeUids(node);
+      orgNodes.push({ path, label: '— '.repeat(depth) + (node.name || node.title || '?'), uids });
+      const children = node.subDepartments || node.departments || [];
+      children.forEach((c, i) => walk(c, path + (node.subDepartments ? `.subDepartments.${i}` : `.departments.${i}`), depth + 1));
+    }
+    (structure.branches || []).forEach((b, i) => walk(b, `branches.${i}`, 0));
+  }
+
+  const ov = document.createElement('div');
+  ov.className = 'qad-overlay';
+  ov.style.zIndex = '10001';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:520px;width:96vw">
+    <div class="qad-head">
+      <h2>👥 Участники: ${escapeHtml(chName)}</h2>
+      <button class="qad-btn qad-btn-ghost" id="tm-close" style="padding:4px 10px">×</button>
+    </div>
+    <div class="qad-body" style="padding:18px 24px;max-height:75vh;overflow:auto">
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;color:var(--t2);margin-bottom:6px;font-weight:600">Сейчас в канале (<span id="tm-count">${memberUids.size}</span>)</div>
+        <div id="tm-current" style="display:flex;flex-wrap:wrap;gap:4px;border:1px solid var(--b1);border-radius:5px;padding:6px;min-height:36px"></div>
+      </div>
+
+      <div>
+        <div style="font-size:12px;color:var(--t2);margin-bottom:6px;font-weight:600">➕ Добавить</div>
+        <div style="display:flex;gap:8px;border-bottom:1px solid var(--b1);margin-bottom:10px">
+          <button class="tm-tab active" data-tab="users" style="padding:6px 12px;background:none;border:none;border-bottom:2px solid var(--ac);cursor:pointer;font-size:12px;color:var(--ac);font-weight:600">Сотрудника</button>
+          <button class="tm-tab" data-tab="depts" style="padding:6px 12px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:12px;color:var(--t3)">Отдел</button>
+        </div>
+        <div id="tm-pane-users">
+          <input id="tm-user-search" class="qad-input" placeholder="Поиск..." style="width:100%;padding:6px 10px;font-size:12px;margin-bottom:6px">
+          <div id="tm-user-list" style="max-height:200px;overflow:auto;border:1px solid var(--b1);border-radius:5px;padding:4px"></div>
+        </div>
+        <div id="tm-pane-depts" style="display:none">
+          <div style="font-size:11px;color:var(--t3);margin-bottom:6px">Клик → добавятся все этого узла и вложенных</div>
+          <div id="tm-dept-list" style="max-height:220px;overflow:auto;border:1px solid var(--b1);border-radius:5px;padding:4px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="qad-foot">
+      <button class="qad-btn qad-btn-ghost" id="tm-done">Готово</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  document.getElementById('tm-close').onclick = () => ov.remove();
+  document.getElementById('tm-done').onclick = () => { ov.remove(); refreshTeamChannels(); };
+
+  // Tabs
+  ov.querySelectorAll('.tm-tab').forEach(t => {
+    t.onclick = () => {
+      ov.querySelectorAll('.tm-tab').forEach(x => {
+        x.style.borderBottomColor = 'transparent';
+        x.style.color = 'var(--t3)';
+        x.style.fontWeight = '400';
+      });
+      t.style.borderBottomColor = 'var(--ac)';
+      t.style.color = 'var(--ac)';
+      t.style.fontWeight = '600';
+      document.getElementById('tm-pane-users').style.display = t.dataset.tab === 'users' ? '' : 'none';
+      document.getElementById('tm-pane-depts').style.display = t.dataset.tab === 'depts' ? '' : 'none';
+    };
+  });
+
+  function renderCurrent() {
+    const el = document.getElementById('tm-current');
+    document.getElementById('tm-count').textContent = memberUids.size;
+    if (memberUids.size === 0) {
+      el.innerHTML = '<div style="color:var(--t3);font-size:11px;font-style:italic">никого нет</div>';
+      return;
+    }
+    el.innerHTML = [...memberUids].slice(0, 100).map(uid => {
+      const label = orgUserLabel(uid);
+      return `<span style="background:rgba(34,197,94,0.15);border:1px solid #22c55e;color:#15803d;font-size:11px;padding:2px 8px;border-radius:10px;display:inline-flex;gap:5px;align-items:center">
+        ${escapeHtml(label)}
+        <button data-uid-kick="${escapeHtml(uid)}" title="Убрать" style="background:none;border:none;color:#15803d;cursor:pointer;padding:0;font-size:13px;line-height:1">×</button>
+      </span>`;
+    }).join('') + (memberUids.size > 100 ? `<span style="font-size:11px;color:var(--t3)">+ ${memberUids.size - 100} ещё</span>` : '');
+    el.querySelectorAll('[data-uid-kick]').forEach(b => b.onclick = async () => {
+      const uid = b.dataset.uidKick;
+      if (!confirm(`Убрать ${orgUserLabel(uid)} из канала?`)) return;
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_BASE_URL}/api/chat/channels/${channelId}/members/${encodeURIComponent(uid)}`, {
+          method: 'DELETE', headers: { 'Authorization': 'Bearer ' + idToken },
+        });
+        if (!r.ok) throw new Error((await r.json()).error || `HTTP ${r.status}`);
+        memberUids.delete(uid);
+        renderCurrent(); renderUsers(); renderDepts();
+      } catch (e) { alert(e.message); }
+    });
+  }
+
+  async function addOne(uid) {
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/chat/channels/${channelId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+        body: JSON.stringify({ user_ids: [uid] }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || `HTTP ${r.status}`);
+      memberUids.add(uid);
+      renderCurrent(); renderUsers(); renderDepts();
+    } catch (e) { alert(e.message); }
+  }
+  async function addMany(uids) {
+    const toAdd = uids.filter(u => !memberUids.has(u));
+    if (toAdd.length === 0) return;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/chat/channels/${channelId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+        body: JSON.stringify({ user_ids: toAdd }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || `HTTP ${r.status}`);
+      toAdd.forEach(u => memberUids.add(u));
+      renderCurrent(); renderUsers(); renderDepts();
+    } catch (e) { alert(e.message); }
+  }
+
+  function renderUsers() {
+    const q = (document.getElementById('tm-user-search').value || '').toLowerCase().trim();
+    const list = document.getElementById('tm-user-list');
+    const filtered = users.filter(u => {
+      if (memberUids.has(u.uid)) return false;
+      const n = [u.lastName, u.name].filter(Boolean).join(' ').toLowerCase();
+      return !q || n.includes(q) || (u.email || '').toLowerCase().includes(q);
+    }).slice(0, 100);
+    list.innerHTML = filtered.length === 0
+      ? '<div style="color:var(--t3);font-size:12px;padding:8px">Никого не найдено / все уже добавлены</div>'
+      : filtered.map(u => {
+          const n = [u.lastName, u.name].filter(Boolean).join(' ').trim() || u.email || u.uid;
+          return `<div data-add-uid="${escapeHtml(u.uid)}" style="padding:5px 8px;cursor:pointer;font-size:12px;border-radius:4px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
+            ➕ ${escapeHtml(n)}
+          </div>`;
+        }).join('');
+    list.querySelectorAll('[data-add-uid]').forEach(el => el.onclick = () => addOne(el.dataset.addUid));
+  }
+  document.getElementById('tm-user-search').addEventListener('input', renderUsers);
+
+  function renderDepts() {
+    const list = document.getElementById('tm-dept-list');
+    list.innerHTML = orgNodes.length === 0
+      ? '<div style="color:var(--t3);font-size:12px;padding:8px">Структура пуста</div>'
+      : orgNodes.map(n => {
+          const newCount = n.uids.filter(u => !memberUids.has(u)).length;
+          const allIn = n.uids.length > 0 && newCount === 0;
+          return `<div data-dept-add="${escapeHtml(n.path)}" style="padding:5px 8px;cursor:${allIn ? 'default' : 'pointer'};font-size:12px;border-radius:4px;display:flex;justify-content:space-between;${allIn ? 'opacity:0.5' : ''}" ${allIn ? '' : `onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"`}>
+            <span>${allIn ? '✓' : '➕'} ${escapeHtml(n.label)}</span>
+            <span style="font-size:10px;color:var(--t3)">${allIn ? 'все' : `+${newCount} из ${n.uids.length}`}</span>
+          </div>`;
+        }).join('');
+    list.querySelectorAll('[data-dept-add]').forEach(el => el.onclick = () => {
+      const node = orgNodes.find(x => x.path === el.dataset.deptAdd);
+      if (!node) return;
+      addMany(node.uids);
+    });
+  }
+
+  renderCurrent();
+  renderUsers();
+  renderDepts();
 }
 
 // Собирает uid'ы узла структуры (head + members + рекурсивно из дочерних)
