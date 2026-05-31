@@ -7741,7 +7741,21 @@ function buildDealCard(d, stageColor) {
   const isNew = hoursSince !== null && hoursSince < 24;
   const daysSince = hoursSince !== null ? Math.floor(hoursSince / 24) : null;
   const staleWarn = daysSince !== null && daysSince > 30;
-  const created = d.bitrixDateCreate ? new Date(d.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit' }) : '';
+  // «Последняя коммуникация» — дата+время bitrixDateModify (обновляется при
+  // новом WA / звонке / правке карточки). Для свежих (<24ч) показываем HH:MM;
+  // для более старых — DD.MM HH:MM чтобы было ясно когда именно.
+  let lastComm = '';
+  if (lastDate) {
+    const ld = new Date(lastDate);
+    if (!isNaN(ld.getTime())) {
+      const dd = String(ld.getDate()).padStart(2, '0');
+      const mm = String(ld.getMonth() + 1).padStart(2, '0');
+      const hh = String(ld.getHours()).padStart(2, '0');
+      const mi = String(ld.getMinutes()).padStart(2, '0');
+      const isSameDay = ld.toDateString() === new Date().toDateString();
+      lastComm = isSameDay ? `${hh}:${mi}` : `${dd}.${mm} ${hh}:${mi}`;
+    }
+  }
 
   // Подпись даты в footer: приоритет 🎥 Зум → 📋 Дело → 📅 создания.
   // Ключ для менеджера — понять "что у меня дальше" не открывая карточку.
@@ -7784,9 +7798,9 @@ function buildDealCard(d, stageColor) {
     }
   }
 
-  // 3) Fallback: дата создания
-  if (!dateLabel && created) {
-    dateLabel = `📅 ${created}`;
+  // 3) Fallback: дата+время последней коммуникации (WA / звонок / правка)
+  if (!dateLabel && lastComm) {
+    dateLabel = `🕐 ${lastComm}`;
   }
 
   const cardClasses = ['kanban-card'];
