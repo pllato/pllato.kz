@@ -5363,6 +5363,18 @@ function oneCBool(v) {
   return v === true || v === "true" || v === 1;
 }
 
+// Ведущий «артикул» в начале наименования товара: «1610 Тегадерм…» → «1610»,
+// «4-100 Стери-Газ» → «4-100», «R1540 стери-стрип» → «R1540». Берём первый токен
+// до пробела, в верхнем регистре, без хвостовой пунктуации. Используется как
+// второй ключ матчинга склад↔1С (sku у части товаров = AUTO_…, артикул в названии).
+function oneCLeadingToken(s) {
+  const t = String(s || "").trim();
+  if (!t) return "";
+  const m = t.match(/^[^\s]+/);
+  if (!m) return "";
+  return m[0].toUpperCase().replace(/[.,;:]+$/, "");
+}
+
 /**
  * POST /api/crm/1c/invoices/create — создаёт Document_СчетНаОплатуПокупателю в 1С.
  *
@@ -5585,6 +5597,8 @@ async function handle1cMatchProducts(request, env, actor) {
     const nomenRaw = Array.isArray(nomenData?.value) ? nomenData.value : [];
     const byCode = new Map();
     const byDigits = new Map();
+    const byNameToken = new Map();      // ведущий артикул названия 1С → entry (только уникальные)
+    const nameTokenSeen = new Map();    // токен → сколько раз встретился (для отсева неоднозначных)
     let nomenclatureCount = 0;
     for (const raw of nomenRaw) {
       const p = productFromOData(raw);
@@ -5597,6 +5611,14 @@ async function handle1cMatchProducts(request, env, actor) {
       byCode.set(code, entry);
       const digits = code.replace(/\D/g, "");
       if (digits) byDigits.set(digits, entry);
+      // Второй ключ: ведущий артикул в наименовании (только содержащий цифру).
+      const tok = oneCLeadingToken(p.name);
+      if (tok && /\d/.test(tok)) {
+        const seen = (nameTokenSeen.get(tok) || 0) + 1;
+        nameTokenSeen.set(tok, seen);
+        if (seen === 1) byNameToken.set(tok, entry);
+        else byNameToken.delete(tok); // неоднозначный артикул — не матчим
+      }
     }
     if (nomenclatureCount === 0) {
       throw new HttpError(502, "1С вернула пустую номенклатуру");
@@ -5615,26 +5637,41 @@ async function handle1cMatchProducts(request, env, actor) {
     const mapStmts = [];
     const sampleUnmatched = [];
     let matched = 0;
+    let matchedByCode = 0;
+    let matchedByName = 0;
     let unmatched = 0;
     for (const row of rows) {
       let prod;
       try { prod = JSON.parse(row.data); } catch { continue; }
       const sku = String(prod.sku || "").trim();
+      let method = null;
+      // 1) точный код 1С (sku = «Т0000…»)
       let hit = sku ? byCode.get(sku) : null;
       if (!hit && sku) {
         const d = sku.replace(/\D/g, "");
         if (d) hit = byDigits.get(d);
+      }
+      if (hit) method = "code";
+      // 2) fallback — ведущий артикул в названии (для товаров с sku=AUTO_…)
+      if (!hit) {
+        const tok = oneCLeadingToken(prod.name);
+        if (tok && /\d/.test(tok)) {
+          hit = byNameToken.get(tok);
+          if (hit) method = "name";
+        }
       }
       if (!hit) {
         unmatched += 1;
         if (sampleUnmatched.length < 15) sampleUnmatched.push({ sku: sku || "(пусто)", name: String(prod.name || "").slice(0, 50) });
         continue;
       }
+      if (method === "code") matchedByCode += 1; else matchedByName += 1;
       const updated = {
         ...prod,
         _1c_ref_key: hit.ref,
         _1c_unit_ref: hit.unit,
         _1c_vat_ref: hit.vat,
+        _1c_match_method: method,
         _1c_matched_at: now,
         updatedAt: now,
       };
@@ -5668,6 +5705,8 @@ async function handle1cMatchProducts(request, env, actor) {
       nomenclature_total: nomenclatureCount,
       processed: rows.length,
       matched,
+      matched_by_code: matchedByCode,
+      matched_by_name: matchedByName,
       unmatched,
       offset,
       next_offset: nextOffset,

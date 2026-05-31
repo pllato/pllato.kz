@@ -342,6 +342,7 @@
         const LIMIT = 2000;
         let offset = 0;
         let totalProcessed = 0, totalMatched = 0, totalUnmatched = 0, nomenclature = 0;
+        let totalByCode = 0, totalByName = 0;
         let lastResp = null;
         try {
           // защита от бесконечного цикла
@@ -353,14 +354,17 @@
             nomenclature = r.nomenclature_total ?? nomenclature;
             totalProcessed += r.processed ?? 0;
             totalMatched += r.matched ?? 0;
+            totalByCode += r.matched_by_code ?? 0;
+            totalByName += r.matched_by_name ?? 0;
             totalUnmatched += r.unmatched ?? 0;
             if (r.next_offset == null) break;
             offset = r.next_offset;
           }
           const pct = totalProcessed ? Math.round((totalMatched / totalProcessed) * 100) : 0;
           showStatus("pull-status", "ok",
-            `Готово. Номенклатура 1С: ${nomenclature}. Товаров склада обработано ${totalProcessed}, ` +
-            `сопоставлено ${totalMatched} (${pct}%), не найдено в 1С ${totalUnmatched}.`);
+            `Готово. Номенклатура 1С: ${nomenclature}. Обработано ${totalProcessed}, ` +
+            `сопоставлено ${totalMatched} (${pct}%): по коду ${totalByCode}, по артикулу ${totalByName}. ` +
+            `Не найдено ${totalUnmatched}.`);
           // Диагностика: образцы кодов 1С и несопоставленных SKU склада.
           if (lastResp) {
             const codes = (lastResp.sample_1c_codes || []).map(c => `<code>${c}</code>`).join(", ");
