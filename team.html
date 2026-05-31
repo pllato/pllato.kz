@@ -13646,6 +13646,53 @@ function handleOrgKeydown(ev) {
   }
 }
 
+// Auto-add при выборе из datalist (Chrome триггерит 'input' event с полным
+// текстом opt) И при blur с непустым полем — если оно матчится с user.
+// Раньше работал только Enter, юзер думал что добавилось, кликал «Сохранить»
+// сверху без явного Enter → ничего не уходило в state.
+document.addEventListener('input', (ev) => {
+  const t = ev.target;
+  if (t.dataset?.orgAction !== 'add-member') return;
+  const label = t.value.trim();
+  if (!label) return;
+  const list = document.getElementById('org-users-list');
+  if (!list) return;
+  // Если текущее значение точно совпадает с opt из datalist — auto-add
+  for (const opt of list.querySelectorAll('option')) {
+    if (opt.value === label) {
+      orgAddMemberFromInput(t);
+      return;
+    }
+  }
+});
+
+document.addEventListener('blur', (ev) => {
+  const t = ev.target;
+  if (t.dataset?.orgAction !== 'add-member') return;
+  const label = t.value.trim();
+  if (!label) return;
+  // Попытка добавить при blur (если матчится)
+  const list = document.getElementById('org-users-list');
+  if (!list) return;
+  for (const opt of list.querySelectorAll('option')) {
+    if (opt.value === label) {
+      orgAddMemberFromInput(t);
+      return;
+    }
+  }
+  // Если не точное совпадение — substring fuzzy match
+  const lower = label.toLowerCase();
+  const matches = [];
+  for (const opt of list.querySelectorAll('option')) {
+    if (opt.value.toLowerCase().includes(lower)) matches.push(opt);
+  }
+  if (matches.length === 1) {
+    // Однозначный fuzzy match → подставляем точное значение и добавляем
+    t.value = matches[0].value;
+    orgAddMemberFromInput(t);
+  }
+}, true);  // capture=true т.к. blur не bubbles
+
 function orgAddMemberFromInput(input) {
   const label = input.value.trim();
   if (!label) return;
