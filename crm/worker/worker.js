@@ -4671,6 +4671,38 @@ async function d1Insert1cSyncLog(env, entry) {
     .run();
 }
 
+// ─── 1С ID-map (Pllato.id ↔ 1С.Ref_Key) ─────────────────────────────────
+
+async function d1Get1cIdByRefKey(env, tenantId, entityType, refKey) {
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  const row = await db
+    .prepare(`
+      SELECT pllato_id, one_c_data_version
+        FROM one_c_id_map
+       WHERE tenant_id = ? AND entity_type = ? AND one_c_ref_key = ?
+    `)
+    .bind(tenantId, entityType, refKey)
+    .first();
+  return row || null;
+}
+
+async function d1Upsert1cIdMap(env, tenantId, entityType, pllatoId, refKey, dataVersion) {
+  const db = requireStoreDb(env);
+  const now = Math.floor(Date.now() / 1000);
+  await db
+    .prepare(`
+      INSERT INTO one_c_id_map (tenant_id, entity_type, pllato_id, one_c_ref_key, one_c_data_version, synced_at)
+      VALUES (?,?,?,?,?,?)
+      ON CONFLICT(tenant_id, entity_type, pllato_id) DO UPDATE SET
+        one_c_ref_key      = excluded.one_c_ref_key,
+        one_c_data_version = excluded.one_c_data_version,
+        synced_at          = excluded.synced_at
+    `)
+    .bind(tenantId, entityType, pllatoId, refKey, dataVersion || null, now)
+    .run();
+}
+
 async function build1cClient(env, tenantId) {
   const settings = await d1Get1cSettings(env, tenantId);
   if (!settings) {
@@ -4805,11 +4837,44 @@ async function handle1cTestConnection(_request, env, actor) {
   return result;
 }
 
+// Маппит нормализованного контрагента из 1С в CRM-контакт (коллекция `contacts`).
+// Пропускает группы (IsFolder) и помеченные на удаление.
+function contractorToCrmContact(c, existingId) {
+  if (!c || c.is_folder || c.deletion_mark) return null;
+  const name = c.name || c.full_name || "Без названия";
+  const company = c.full_name && c.full_name !== name ? c.full_name : (c.is_individual_entrepreneur ? "" : name);
+  const noteParts = [];
+  if (c.iin) noteParts.push(`ИИН: ${c.iin}`);
+  if (c.bin) noteParts.push(`БИН: ${c.bin}`);
+  if (c.kbe) noteParts.push(`КБЕ: ${c.kbe}`);
+  if (c.code) noteParts.push(`Код 1С: ${c.code}`);
+  if (c.comment) noteParts.push(c.comment);
+  return {
+    id: existingId || crypto.randomUUID(),
+    name,
+    company,
+    phone: "",
+    email: "",
+    position: c.is_individual_entrepreneur ? "ИП" : "",
+    source: "1c",
+    tags: ["1С", c.is_individual_entrepreneur ? "ИП" : "ЮЛ"],
+    note: noteParts.join(" | "),
+    // 1С-специфичные поля для traceability
+    _1c_ref_key: c.ref_key,
+    _1c_data_version: c.data_version,
+    _1c_iin: c.iin || null,
+    _1c_bin: c.bin || null,
+    _1c_kbe: c.kbe || null,
+    _1c_code: c.code || null,
+  };
+}
+
 async function handle1cPullContractors(request, env, actor) {
   require1cAdmin(actor);
   const tenantId = resolve1cTenantId(actor);
   const url = new URL(request.url);
-  const top = Math.min(Math.max(parseInt(url.searchParams.get("top") || "20", 10), 1), 200);
+  const top = Math.min(Math.max(parseInt(url.searchParams.get("top") || "20", 10), 1), 500);
+  const persist = url.searchParams.get("persist") !== "false"; // по умолчанию сохраняем
   const started = Date.now();
   try {
     const { client } = await build1cClient(env, tenantId);
@@ -4845,18 +4910,41 @@ async function handle1cPullContractors(request, env, actor) {
     });
     const raw = Array.isArray(data?.value) ? data.value : [];
     const contractors = raw.map(contractorFromOData).filter(Boolean);
+
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    if (persist) {
+      for (const c of contractors) {
+        const existing = await d1Get1cIdByRefKey(env, tenantId, "contractor", c.ref_key);
+        const contact = contractorToCrmContact(c, existing?.pllato_id);
+        if (!contact) { skipped++; continue; }
+        await d1UpsertDoc(env, "contacts", contact);
+        await d1Upsert1cIdMap(env, tenantId, "contractor", contact.id, c.ref_key, c.data_version);
+        if (existing) updated++; else created++;
+      }
+    }
+
     await d1Save1cSyncMark(env, tenantId);
     await d1Insert1cSyncLog(env, {
       tenantId,
       direction: "pull",
       entityType: "contractor",
-      operation: "read",
+      operation: persist ? "upsert" : "read",
       status: "ok",
       httpStatus: 200,
       recordsProcessed: contractors.length,
       durationMs: Date.now() - started,
     });
-    return { ok: true, count: contractors.length, contractors };
+    return {
+      ok: true,
+      count: contractors.length,
+      created,
+      updated,
+      skipped,
+      persisted: persist,
+      contractors,
+    };
   } catch (e) {
     const httpStatus = e instanceof ODataError ? e.httpStatus : null;
     const message = e?.message || String(e);
@@ -4873,6 +4961,117 @@ async function handle1cPullContractors(request, env, actor) {
     if (e instanceof HttpError) throw e;
     throw new HttpError(httpStatus && httpStatus >= 400 && httpStatus < 600 ? httpStatus : 502, message);
   }
+}
+
+// Универсальная фабрика "тянем из OData коллекцию + сохраняем как сырое в store".
+// Возвращает { ok, count, created, updated, skipped }.
+async function pull1cToStore({ env, tenantId, collection1c, entityType, storeCollection, mapper, selectFields, orderby = "Description" }) {
+  const started = Date.now();
+  try {
+    const { client } = await build1cClient(env, tenantId);
+    const data = await client.get(collection1c, {
+      top: 500,
+      select: selectFields,
+      orderby,
+    });
+    const raw = Array.isArray(data?.value) ? data.value : [];
+    const mapped = raw.map(mapper).filter((x) => x && !x.is_folder && !x.deletion_mark);
+
+    let created = 0;
+    let updated = 0;
+    for (const item of mapped) {
+      const existing = await d1Get1cIdByRefKey(env, tenantId, entityType, item.ref_key);
+      const id = existing?.pllato_id || crypto.randomUUID();
+      const doc = {
+        id,
+        ...item,
+        _1c_ref_key: item.ref_key,
+        _1c_data_version: item.data_version,
+      };
+      await d1UpsertDoc(env, storeCollection, doc);
+      await d1Upsert1cIdMap(env, tenantId, entityType, id, item.ref_key, item.data_version);
+      if (existing) updated++; else created++;
+    }
+
+    await d1Save1cSyncMark(env, tenantId);
+    await d1Insert1cSyncLog(env, {
+      tenantId,
+      direction: "pull",
+      entityType,
+      operation: "upsert",
+      status: "ok",
+      httpStatus: 200,
+      recordsProcessed: mapped.length,
+      durationMs: Date.now() - started,
+    });
+    return { ok: true, count: mapped.length, created, updated };
+  } catch (e) {
+    const httpStatus = e instanceof ODataError ? e.httpStatus : null;
+    const message = e?.message || String(e);
+    await d1Insert1cSyncLog(env, {
+      tenantId,
+      direction: "pull",
+      entityType,
+      operation: "upsert",
+      status: "error",
+      httpStatus,
+      errorMessage: message,
+      durationMs: Date.now() - started,
+    });
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(httpStatus && httpStatus >= 400 && httpStatus < 600 ? httpStatus : 502, message);
+  }
+}
+
+async function handle1cPullProducts(_request, env, actor) {
+  require1cAdmin(actor);
+  return pull1cToStore({
+    env,
+    tenantId: resolve1cTenantId(actor),
+    collection1c: "Catalog_Номенклатура",
+    entityType: "product",
+    storeCollection: "products_1c",
+    mapper: productFromOData,
+    selectFields: [
+      "Ref_Key", "DataVersion", "Code", "Description", "НаименованиеПолное",
+      "DeletionMark", "IsFolder", "Parent_Key", "Артикул",
+      "БазоваяЕдиницаИзмерения_Key", "ЕдиницаИзмерения_Key", "СтавкаНДС_Key",
+      "ВидНоменклатуры_Key", "СтранаПроисхождения_Key", "Комментарий",
+    ],
+  });
+}
+
+async function handle1cPullContracts(_request, env, actor) {
+  require1cAdmin(actor);
+  return pull1cToStore({
+    env,
+    tenantId: resolve1cTenantId(actor),
+    collection1c: "Catalog_ДоговорыКонтрагентов",
+    entityType: "contract",
+    storeCollection: "contracts_1c",
+    mapper: contractFromOData,
+    selectFields: [
+      "Ref_Key", "DataVersion", "Code", "Description", "DeletionMark",
+      "Владелец_Key", "Организация_Key", "ВидДоговора",
+      "ВалютаВзаиморасчетов_Key", "ДатаНачала", "ДатаОкончания", "Комментарий",
+    ],
+  });
+}
+
+async function handle1cPullOrganizations(_request, env, actor) {
+  require1cAdmin(actor);
+  return pull1cToStore({
+    env,
+    tenantId: resolve1cTenantId(actor),
+    collection1c: "Catalog_Организации",
+    entityType: "organization",
+    storeCollection: "organizations_1c",
+    mapper: organizationFromOData,
+    selectFields: [
+      "Ref_Key", "DataVersion", "Code", "Description", "НаименованиеПолное",
+      "DeletionMark", "НомерНалоговойРегистрации", "БИН", "ЮрФизЛицо", "Комментарий",
+    ],
+  });
 }
 
 async function handle1cSyncLog(request, env, actor) {
@@ -5016,6 +5215,18 @@ export default {
       if (request.method === "POST" && path === "/api/crm/1c/sync/contractors/pull") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handle1cPullContractors(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/sync/products/pull") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cPullProducts(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/sync/contracts/pull") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cPullContracts(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/sync/organizations/pull") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cPullOrganizations(request, env, actor));
       }
       if (request.method === "GET" && path === "/api/crm/1c/sync-log") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });

@@ -97,10 +97,18 @@
         <div class="hint">Загрузка…</div>
       </div>
 
-      <h2>3. Импорт данных (для теста)</h2>
+      <h2>3. Импорт справочников</h2>
       <div class="card">
+        <p class="hint" style="margin-top:0">
+          Каждая кнопка тянет до 500 записей, сохраняет в CRM
+          (контрагенты → коллекция <code>contacts</code>, остальные → <code>*_1c</code>),
+          обновляет существующие записи по соответствию через <code>one_c_id_map</code>.
+        </p>
         <div class="actions">
-          <button type="button" id="btn-pull-contractors">Импортировать первых 20 контрагентов</button>
+          <button type="button" id="btn-pull-contractors">Контрагенты → contacts</button>
+          <button type="button" id="btn-pull-products" class="secondary">Номенклатура → products_1c</button>
+          <button type="button" id="btn-pull-contracts" class="secondary">Договоры → contracts_1c</button>
+          <button type="button" id="btn-pull-organizations" class="secondary">Организации → organizations_1c</button>
         </div>
         <div id="pull-status" class="status info" style="display:none; margin-top:14px;"></div>
         <div id="pull-result" style="margin-top:14px;"></div>
@@ -271,14 +279,26 @@
         }
       });
 
-      document.getElementById("btn-pull-contractors").addEventListener("click", async () => {
-        const btn = document.getElementById("btn-pull-contractors");
+      async function runPull(buttonId, endpoint, label, renderTable) {
+        const btn = document.getElementById(buttonId);
         btn.disabled = true;
-        showStatus("pull-status", "info", "Тянем контрагентов из 1С…");
+        showStatus("pull-status", "info", `Тянем «${label}» из 1С (до 500 записей)…`);
         try {
-          const r = await apiCall("POST", "/api/crm/1c/sync/contractors/pull?top=20");
-          showStatus("pull-status", "ok", `Получено: ${r.count} контрагентов.`);
-          const rows = (r.contractors || []).slice(0, 50).map(c => `
+          const r = await apiCall("POST", endpoint);
+          const stats = `получено ${r.count} / создано ${r.created ?? 0} / обновлено ${r.updated ?? 0}` +
+            (r.skipped ? ` / пропущено ${r.skipped}` : "");
+          showStatus("pull-status", "ok", `«${label}»: ${stats}.`);
+          document.getElementById("pull-result").innerHTML = renderTable ? renderTable(r) : "";
+        } catch (e) {
+          showStatus("pull-status", "err", `Ошибка «${label}»: ${e.message}`);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      document.getElementById("btn-pull-contractors").addEventListener("click", () =>
+        runPull("btn-pull-contractors", "/api/crm/1c/sync/contractors/pull?top=500", "Контрагенты", (r) => {
+          const rows = (r.contractors || []).slice(0, 100).map(c => `
             <tr>
               <td>${c.name || "—"}</td>
               <td>${c.full_name || "—"}</td>
@@ -286,20 +306,18 @@
               <td>${c.bin || "—"}</td>
               <td>${c.kbe || "—"}</td>
               <td>${c.is_individual_entrepreneur ? "ИП" : "ЮЛ"}</td>
-            </tr>
-          `).join("");
-          document.getElementById("pull-result").innerHTML = `
-            <table>
-              <tr><th>Наименование</th><th>Полное имя</th><th>ИИН</th><th>БИН</th><th>КБЕ</th><th>Тип</th></tr>
-              ${rows}
-            </table>
-          `;
-        } catch (e) {
-          showStatus("pull-status", "err", `Ошибка: ${e.message}`);
-        } finally {
-          btn.disabled = false;
-        }
-      });
+            </tr>`).join("");
+          return `<table><tr><th>Наименование</th><th>Полное имя</th><th>ИИН</th><th>БИН</th><th>КБЕ</th><th>Тип</th></tr>${rows}</table>`;
+        }));
+
+      document.getElementById("btn-pull-products").addEventListener("click", () =>
+        runPull("btn-pull-products", "/api/crm/1c/sync/products/pull", "Номенклатура"));
+
+      document.getElementById("btn-pull-contracts").addEventListener("click", () =>
+        runPull("btn-pull-contracts", "/api/crm/1c/sync/contracts/pull", "Договоры"));
+
+      document.getElementById("btn-pull-organizations").addEventListener("click", () =>
+        runPull("btn-pull-organizations", "/api/crm/1c/sync/organizations/pull", "Организации"));
 
       document.getElementById("btn-log").addEventListener("click", async () => {
         try {

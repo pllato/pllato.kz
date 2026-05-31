@@ -54,7 +54,7 @@ export class ODataError extends Error {
 }
 
 export class ODataClient {
-  constructor({ host, basePath, username, password, fetchImpl = fetch, timeoutMs = 30000, maxRetries = 3 }) {
+  constructor({ host, basePath, username, password, fetchImpl, timeoutMs = 30000, maxRetries = 3 }) {
     if (!host) throw new Error("ODataClient: host is required");
     if (!basePath) throw new Error("ODataClient: basePath is required");
     if (!username) throw new Error("ODataClient: username is required");
@@ -64,7 +64,12 @@ export class ODataClient {
     if (!this.basePath.startsWith("/")) this.basePath = "/" + this.basePath;
     this.username = username;
     this.password = password;
-    this.fetchImpl = fetchImpl;
+    // ВАЖНО: оборачиваем глобальный fetch через closure, чтобы не терялся
+    // привязанный globalThis-контекст. Прямое присваивание `this.fetchImpl = fetch`
+    // в Cloudflare Workers вызывает "Illegal invocation".
+    this._fetch = fetchImpl
+      ? (url, opts) => fetchImpl(url, opts)
+      : (url, opts) => fetch(url, opts);
     this.timeoutMs = timeoutMs;
     this.maxRetries = maxRetries;
   }
@@ -90,7 +95,7 @@ export class ODataClient {
           Accept: "application/json",
         };
         if (body != null) headers["Content-Type"] = "application/json";
-        const resp = await this.fetchImpl(url, {
+        const resp = await this._fetch(url, {
           method,
           headers,
           body: body != null ? JSON.stringify(body) : undefined,
