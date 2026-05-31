@@ -3,6 +3,11 @@
 // Phase 2.1: RTDB-proxy endpoint /api/rtdb/{path}.json (read + PATCH)
 
 import { jwtVerify, createRemoteJWKSet } from "jose";
+import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket } from "./chat-module.js";
+
+// Ре-экспорт DO классов — wrangler.toml ссылается на них по имени класса.
+// Должны быть top-level export'ы скрипта main.
+export { ChannelRoom, UserNotifyRoom };
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = new Set([
@@ -3684,12 +3689,21 @@ async function handleMe(request, env) {
 // ── Main dispatcher ─────────────────────────────────────
 export default {
   async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+    // ── WS upgrade ДО CORS-обёртки ───────────────────────────────────────
+    // Стандартный new Response(body, {headers}) ломает webSocket: client
+    // свойство. /api/ws/user обязательно тут, не в общем потоке.
+    // Auth: Firebase ID token в query ?token=… (передаём verify через env-шим).
+    if (path === "/api/ws/user") {
+      env._verifyIdToken = (t) => verifyFirebaseIdToken(t, env.FIREBASE_PROJECT_ID);
+      return handleChatWebSocket(request, env, url);
+    }
+
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(request) });
     }
-
-    const url = new URL(request.url);
-    const path = url.pathname;
 
     if (path === "/health" && request.method === "GET") {
       return handleHealth(request, env);
@@ -3718,6 +3732,21 @@ export default {
     // /api/tasks/by-deals — батч ближайших активных дел для канбан-плашки «📋 Дело».
     if (path === "/api/tasks/by-deals" && request.method === "POST") {
       return handleTasksByDeals(request, env);
+    }
+
+    // ── /api/chat/* — внутренний чат сотрудников ─────────────────────────
+    if (path.startsWith("/api/chat/")) {
+      const auth = await requireAuth(request, env);
+      if (auth.error) return json({ error: auth.error }, auth.status, request);
+      const me = { uid: auth.uid, email: auth.email, claims: auth.claims };
+      const res = await handleChatRequest(request, env, url, me);
+      if (res) {
+        // Применить CORS к ответу чата
+        const h = new Headers(res.headers);
+        Object.entries(corsHeaders(request)).forEach(([k, v]) => h.set(k, v));
+        return new Response(res.body, { status: res.status, headers: h });
+      }
+      return json({ error: "chat route not found" }, 404, request);
     }
 
     // /api/files/{id} — отдача мигрированного файла из R2

@@ -28,6 +28,23 @@ database_id = "3e6c3138-5c6d-4239-ae09-2d60ca2ed0ab"
 binding = "FILES"
 bucket_name = "pllato-elc-files"
 
+# ── Durable Objects: внутренний чат сотрудников ──
+# ChannelRoom — комната-канал (broadcast typing/presence через WS Hibernation).
+# UserNotifyRoom — комната юзера (открытые вкладки получают push real-time).
+[[durable_objects.bindings]]
+name = "CHANNEL_ROOM"
+class_name = "ChannelRoom"
+
+[[durable_objects.bindings]]
+name = "USER_NOTIFY"
+class_name = "UserNotifyRoom"
+
+# SQLite-backed DOs (Workers Paid plan — у нас активен).
+# ВНИМАНИЕ: миграция необратима. Если потребуется убрать DO — deleted_classes.
+[[migrations]]
+tag = "v1-chat-dos"
+new_sqlite_classes = ["ChannelRoom", "UserNotifyRoom"]
+
 # ── Observability ──
 [observability]
 enabled = true
