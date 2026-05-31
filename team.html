@@ -11162,13 +11162,24 @@ async function loadDeeds() {
       all.push(...(data.items || []));
       if (!data.hasMore) break;
     }
-    // Привяжем dealRef из crm_links для отображения "→ Сделка X"
+    // Привяжем dealRef из crm_links для отображения "→ Сделка X".
+    // Поддерживаем все форматы линков (legacy цифры, local + буквы, D_ префикс).
     for (const t of all) {
-      const links = t.crmLinks || t.bitrixCrmLinks;
-      if (links) {
-        const arr = Array.isArray(links) ? links : asArray(links);
-        const dealLink = arr.find(l => String(l).startsWith('deal_'));
-        if (dealLink) t._dealRef = String(dealLink).replace(/^deal_/, '');
+      const sources = [t.crmLinks, t.bitrixCrmLinks, t.crm_links, t.bitrix_crm_links];
+      for (const links of sources) {
+        if (!links || t._dealRef) continue;
+        let arr = [];
+        if (Array.isArray(links)) arr = links;
+        else if (typeof links === 'object') {
+          for (const [k, v] of Object.entries(links)) {
+            if (k === 'D' || k === 'DEAL') arr.push(...(Array.isArray(v) ? v : [v]));
+            else arr.push(v);
+          }
+        } else arr = [links];
+        for (const l of arr) {
+          const m = String(l || '').match(/(?:deal_|D_)([a-zA-Z0-9_-]+)/i);
+          if (m) { t._dealRef = m[1]; break; }
+        }
       }
     }
     deedsState.items = all;
@@ -11534,7 +11545,12 @@ async function loadCalendarEvents(opts = {}) {
         } else values = [links];
         for (const l of values) {
           const s = String(l || '');
-          const m = s.match(/(?:deal_|D_)(\d+)/i) || s.match(/^(\d+)$/);
+          // Поддерживаем все форматы deal-id:
+          //   deal_353226        (legacy Bitrix миграция, цифры)
+          //   deal_local_abc123  (новые сделки с буквенно-цифровым id)
+          //   D_353226           (Bitrix legacy bitrix_crm_links)
+          //   353226             (чистый id без префикса)
+          const m = s.match(/(?:deal_|D_)([a-zA-Z0-9_-]+)/i) || s.match(/^([a-zA-Z0-9_-]+)$/);
           if (m) { linkedDealBitrixId = m[1]; break; }
         }
       }
