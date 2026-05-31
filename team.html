@@ -13718,6 +13718,10 @@ function handleOrgClick(ev) {
     renderOrgChartTree(document.getElementById('org-tree'), true);
     return;
   }
+  if (action === 'perms') {
+    openOrgNodePermissionsModal(path);
+    return;
+  }
   // Универсальное удаление узла по path (отдел, подотдел; отделения не удаляются)
   if (action === 'del-node') {
     const parts = path.split('.');
@@ -13977,12 +13981,15 @@ function renderOrgChartTreeView(treeEl, isAdmin) {
   }
 
   // Действия для узла-сиблинга (только для admin)
-  function actionsHtml({ siblingPath, siblingIdx, siblingCount, addLabel, addAction, addPath, deletable }) {
+  function actionsHtml({ siblingPath, siblingIdx, siblingCount, addLabel, addAction, addPath, deletable, permPath }) {
     if (!isAdmin) return '';
     const parts = [];
     if (siblingCount > 1) {
       parts.push(`<button class="otv-action-btn" data-org-action="move" data-org-dir="left" data-org-path="${escapeHtml(siblingPath)}" ${siblingIdx === 0 ? 'disabled' : ''} title="Влево">←</button>`);
       parts.push(`<button class="otv-action-btn" data-org-action="move" data-org-dir="right" data-org-path="${escapeHtml(siblingPath)}" ${siblingIdx === siblingCount - 1 ? 'disabled' : ''} title="Вправо">→</button>`);
+    }
+    if (permPath) {
+      parts.push(`<button class="otv-action-btn" data-org-action="perms" data-org-path="${escapeHtml(permPath)}" title="Настроить права доступа этого узла" style="background:rgba(99,102,241,0.12);border-color:rgba(99,102,241,0.4);color:#4f46e5">🔒 Права</button>`);
     }
     if (addLabel) {
       parts.push(`<button class="otv-action-btn otv-action-btn-add" data-org-action="${escapeHtml(addAction)}" data-org-path="${escapeHtml(addPath)}" title="${escapeHtml(addLabel)}">${escapeHtml(addLabel)}</button>`);
@@ -14029,6 +14036,7 @@ function renderOrgChartTreeView(treeEl, isAdmin) {
       // Кнопка добавления вложенного подотдела (так же как у dept)
       addLabel: '+ Подотдел', addAction: 'add-sub', addPath: path,
       deletable: true,
+      permPath: path,
     });
     // Рекурсивно рендерим вложенные subDepartments
     const childSubs = (sub.subDepartments || []).map((cs, ci) =>
@@ -14049,6 +14057,7 @@ function renderOrgChartTreeView(treeEl, isAdmin) {
       siblingPath: path, siblingIdx: idx, siblingCount,
       addLabel: '+ Подотдел', addAction: 'add-sub', addPath: path,
       deletable: true,
+      permPath: path,
     });
     const subs = (dept.subDepartments || []).map((sub, si) =>
       subLi(sub, `${path}.subDepartments.${si}`, si, dept.subDepartments.length)
@@ -14070,6 +14079,7 @@ function renderOrgChartTreeView(treeEl, isAdmin) {
       addLabel: '+ Отдел', addAction: 'add-dept', addPath: path,
       // Отделения не удаляются — их фиксированно 7
       deletable: false,
+      permPath: path,
     });
     const depts = (branch.departments || []).map((dept, di) =>
       deptLi(dept, `${path}.departments.${di}`, di, branch.departments.length)
@@ -14111,6 +14121,152 @@ function pluralize(n, one, few, many) {
   if (b > 1 && b < 5) return few;
   if (b === 1) return one;
   return many;
+}
+
+// ── Модал «🔒 Права доступа» для узла структуры ───────────────────────
+// Юзер: «в каждом Отделении, подотделении нужна возможность выбирать к
+// каким воронкам и стадиям имеют доступ и к каким сделкам - только свои,
+// своего отдела полностью». Сейчас Phase 1 — только UI настройки прав на
+// узле (хранится в node.permissions). Phase 2 — применение фильтров в
+// worker — отдельным PR.
+function openOrgNodePermissionsModal(path) {
+  const node = orgGetByPath(path);
+  if (!node) return;
+  // Дефолты для нового узла
+  const perms = node.permissions || {
+    pipelineAccess: 'all',      // all | specific
+    pipelineIds: [],            // когда specific
+    stageRestrictions: {},      // {pipelineId: [stageId, ...]}
+    dealScope: 'department',    // own | department | all
+  };
+  // Работаем с КОПИЕЙ
+  const draft = JSON.parse(JSON.stringify(perms));
+
+  const pipelines = Object.values(dealsState.pipelines || {})
+    .filter(p => p.isActive !== false && p.isActive !== 0);
+
+  document.getElementById('_org-perms-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_org-perms-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+
+  const renderPipelineRows = () => pipelines.map(p => {
+    const checked = draft.pipelineAccess === 'all' || (draft.pipelineIds || []).includes(p.id);
+    const disabled = draft.pipelineAccess === 'all';
+    return `<label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--b1);cursor:${disabled ? 'default' : 'pointer'};opacity:${disabled ? '0.6' : '1'}">
+      <input type="checkbox" data-perm-pipe-id="${escapeHtml(p.id)}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
+      <span style="flex:1;font-size:13px;color:var(--t1)">${escapeHtml(p.name || p.id)}</span>
+    </label>`;
+  }).join('');
+
+  const memberNames = (node.memberUids || []).map(uid => orgUserLabel(uid)).filter(Boolean);
+  const headName = node.headUid ? orgUserLabel(node.headUid) : null;
+  const allPeople = [headName, ...memberNames].filter(Boolean);
+
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:600px;width:96vw">
+      <div class="qad-head">
+        <h2>🔒 Права доступа — ${escapeHtml(node.name || 'узел')}</h2>
+        <button class="qad-btn qad-btn-ghost" id="np-close" style="padding:4px 10px">×</button>
+      </div>
+      <div class="qad-body" style="max-height:75vh;overflow:auto;padding:18px 24px">
+
+        <div style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:var(--t2);line-height:1.6">
+          <b>Кто получит эти права:</b> ${allPeople.length ? allPeople.map(n => `<span style="background:var(--bg2);padding:2px 8px;border-radius:10px;font-size:12px;color:var(--t1);margin:2px;display:inline-block">${escapeHtml(n)}</span>`).join('') : '<span style="color:var(--t3);font-style:italic">пока никто — добавь руководителя или сотрудников в этот узел</span>'}
+        </div>
+
+        <div style="margin-bottom:18px">
+          <div class="qad-label" style="margin-bottom:8px">📋 Охват сделок</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;cursor:pointer;background:${draft.dealScope === 'own' ? 'var(--acbg)' : 'transparent'}">
+              <input type="radio" name="np-scope" value="own" ${draft.dealScope === 'own' ? 'checked' : ''} style="margin-top:2px">
+              <div><b>Только свои сделки</b><br><span style="font-size:11px;color:var(--t3)">видит только записи где он ответственный/создатель</span></div>
+            </label>
+            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;cursor:pointer;background:${draft.dealScope === 'department' ? 'var(--acbg)' : 'transparent'}">
+              <input type="radio" name="np-scope" value="department" ${draft.dealScope === 'department' ? 'checked' : ''} style="margin-top:2px">
+              <div><b>Сделки всего узла</b><br><span style="font-size:11px;color:var(--t3)">видит сделки всех людей этого ${kindLabelByPath(path)} + вложенных подотделов</span></div>
+            </label>
+            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;cursor:pointer;background:${draft.dealScope === 'all' ? 'var(--acbg)' : 'transparent'}">
+              <input type="radio" name="np-scope" value="all" ${draft.dealScope === 'all' ? 'checked' : ''} style="margin-top:2px">
+              <div><b>Все сделки</b><br><span style="font-size:11px;color:var(--t3)">видит всё в воронках к которым есть доступ (как admin)</span></div>
+            </label>
+          </div>
+        </div>
+
+        <div style="margin-bottom:18px">
+          <div class="qad-label" style="margin-bottom:8px">🔄 Доступ к воронкам</div>
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--b1);border-radius:6px;cursor:pointer;background:${draft.pipelineAccess === 'all' ? 'var(--acbg)' : 'transparent'};font-size:13px">
+              <input type="radio" name="np-pipe-access" value="all" ${draft.pipelineAccess === 'all' ? 'checked' : ''}> Все воронки
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--b1);border-radius:6px;cursor:pointer;background:${draft.pipelineAccess === 'specific' ? 'var(--acbg)' : 'transparent'};font-size:13px">
+              <input type="radio" name="np-pipe-access" value="specific" ${draft.pipelineAccess === 'specific' ? 'checked' : ''}> Только выбранные
+            </label>
+          </div>
+          <div id="np-pipes-list" style="border:1px solid var(--b1);border-radius:6px;padding:6px 12px;background:var(--bg2)">${renderPipelineRows()}</div>
+        </div>
+
+        <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;font-size:11px;color:#92400e;line-height:1.5">
+          ⚠ <b>Phase 1:</b> сейчас работает только UI настройки прав. Применение фильтров (что юзер реально увидит) — следующий PR. Сейчас все продолжают видеть всё.
+        </div>
+
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="np-cancel">Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="np-save">💾 Сохранить</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('np-close').onclick = () => ov.remove();
+  document.getElementById('np-cancel').onclick = () => ov.remove();
+
+  // Handlers
+  ov.querySelectorAll('input[name="np-scope"]').forEach(r => {
+    r.addEventListener('change', () => { draft.dealScope = r.value; });
+  });
+  ov.querySelectorAll('input[name="np-pipe-access"]').forEach(r => {
+    r.addEventListener('change', () => {
+      draft.pipelineAccess = r.value;
+      // Перерендер списка воронок (для disabled state)
+      document.getElementById('np-pipes-list').innerHTML = renderPipelineRows();
+      attachPipeCheckboxHandlers();
+    });
+  });
+  const attachPipeCheckboxHandlers = () => {
+    ov.querySelectorAll('[data-perm-pipe-id]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const pid = cb.dataset.permPipeId;
+        if (!Array.isArray(draft.pipelineIds)) draft.pipelineIds = [];
+        const i = draft.pipelineIds.indexOf(pid);
+        if (cb.checked && i < 0) draft.pipelineIds.push(pid);
+        if (!cb.checked && i >= 0) draft.pipelineIds.splice(i, 1);
+      });
+    });
+  };
+  attachPipeCheckboxHandlers();
+
+  document.getElementById('np-save').onclick = () => {
+    // Записываем в структуру
+    const targetNode = orgGetByPath(path);
+    if (!targetNode) { ov.remove(); return; }
+    targetNode.permissions = draft;
+    orgMarkDirty();
+    ov.remove();
+    showToast('Права настроены — не забудь нажать «💾 Сохранить» вверху чтобы применить');
+  };
+}
+
+function kindLabelByPath(path) {
+  // По числу '.subDepartments.' определяем глубину
+  const parts = String(path).split('.');
+  if (parts.length === 2) return 'отделения'; // branches.X
+  if (parts[2] === 'departments') {
+    if (parts.length === 4) return 'отдела'; // branches.X.departments.Y
+    if (parts.length >= 6) return 'подотдела';
+  }
+  return 'узла';
 }
 
 async function saveOrgStructure() {
