@@ -681,7 +681,128 @@ PAGES.team=(c)=>{
 };
 
 // ---------- INTEGRATIONS ----------
+// ---------- GreenAPI: живая панель настроек (owner/superadmin) ----------
+function isAdminRole(){ return ['owner','superadmin'].includes((AUTH.user||{}).role); }
+
+function gaSetBadge(badge, text, color){
+  badge.textContent = text;
+  badge.style.background = color+'22'; badge.style.color = color; badge.style.borderColor = color+'55';
+}
+async function gaLoadStatus(refs){
+  const { badge, info, idInp, urlInp, tokInp } = refs;
+  gaSetBadge(badge, 'проверка…', '#64748b');
+  const r = await api('/api/admin/greenapi/status');
+  if(!r.ok){ gaSetBadge(badge, r.status===403?'нет прав':'ошибка связи', '#ef4444');
+    info.textContent = (r.data&&r.data.error)||''; return; }
+  const d = r.data;
+  // заполняем поля сохранённым (без перезаписи введённого токена)
+  if(d.id_instance && document.activeElement!==idInp) idInp.value = d.id_instance;
+  if(document.activeElement!==urlInp) urlInp.value = (d.api_url && d.api_url!=='https://api.green-api.com') ? d.api_url : '';
+  if(!d.configured){
+    gaSetBadge(badge, 'не настроено', '#64748b');
+    info.textContent = d.hint || 'Укажите idInstance и apiTokenInstance из консоли green-api.com.';
+    tokInp.placeholder = 'apiTokenInstance';
+  } else if(d.authorized){
+    gaSetBadge(badge, 'подключено'+(d.phone?(' · +'+d.phone.replace(/\D/g,'')):''), '#16a34a');
+    info.textContent = 'WhatsApp привязан. Источник конфига: '+(d.source==='crm'?'CRM':'секреты воркера')+'. Состояние: '+d.state+'.';
+    tokInp.placeholder = '••• токен сохранён (пусто = не менять)';
+  } else if(d.state){
+    gaSetBadge(badge, 'не авторизован', '#d97706');
+    info.textContent = d.hint || 'Инстанс есть, но WhatsApp не привязан — отсканируйте QR в консоли GreenAPI. Состояние: '+d.state+'.';
+    tokInp.placeholder = '••• токен сохранён (пусто = не менять)';
+  } else {
+    gaSetBadge(badge, 'ошибка инстанса', '#ef4444');
+    info.textContent = 'GreenAPI не отвечает ('+(d.error||'')+'). Проверьте idInstance / токен / API URL.';
+  }
+}
+function greenApiPanel(){
+  const panel = el(`<div class="panel section-gap" style="margin-top:0">
+    <div class="panel-h"><h3>WhatsApp · GreenAPI</h3>
+      <span class="tag" data-ga="badge" style="border:1px solid">…</span></div>
+    <div class="panel-b">
+      <div class="note">${ic('i-info','sm')} Подключение WhatsApp для авто-отправки приглашений сотрудникам (и далее — омни-чатов). <b>idInstance</b> и <b>apiTokenInstance</b> берутся в консоли green-api.com. Токен хранится на сервере и не показывается целиком.</div>
+      <div style="display:grid;gap:10px;margin-top:14px;max-width:540px">
+        <label style="display:grid;gap:5px;font-size:12px;color:var(--muted)">idInstance
+          <input data-ga="id" class="login-field" inputmode="numeric" placeholder="напр. 1101000001" style="margin:0"></label>
+        <label style="display:grid;gap:5px;font-size:12px;color:var(--muted)">apiTokenInstance
+          <input data-ga="token" class="login-field" type="password" autocomplete="off" placeholder="apiTokenInstance" style="margin:0"></label>
+        <label style="display:grid;gap:5px;font-size:12px;color:var(--muted)">API URL <span class="muted2">(опц., у новых инстансов вида https://1101.api.greenapi.com)</span>
+          <input data-ga="url" class="login-field" placeholder="https://api.green-api.com" style="margin:0"></label>
+      </div>
+      <div class="row" style="gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn" data-ga="save">${ic('i-check2','sm')} Сохранить и проверить</button>
+        <button class="btn ghost" data-ga="check">${ic('i-sync','sm')} Проверить статус</button>
+        <button class="btn ghost" data-ga="test">${ic('i-phone','sm')} Отправить тест</button>
+        <button class="btn ghost" data-ga="off" style="margin-left:auto">Отключить</button>
+      </div>
+      <div class="muted2" data-ga="info" style="margin-top:10px;font-size:12px;line-height:1.5"></div>
+    </div></div>`);
+
+  const refs = {
+    badge: panel.querySelector('[data-ga=badge]'),
+    info:  panel.querySelector('[data-ga=info]'),
+    idInp: panel.querySelector('[data-ga=id]'),
+    tokInp:panel.querySelector('[data-ga=token]'),
+    urlInp:panel.querySelector('[data-ga=url]'),
+  };
+  const btnSave = panel.querySelector('[data-ga=save]');
+  const btnCheck= panel.querySelector('[data-ga=check]');
+  const btnTest = panel.querySelector('[data-ga=test]');
+  const btnOff  = panel.querySelector('[data-ga=off]');
+
+  btnSave.onclick = async ()=>{
+    const body = { id_instance: refs.idInp.value.trim(), api_url: refs.urlInp.value.trim() };
+    const tok = refs.tokInp.value.trim(); if(tok) body.token = tok;
+    if(!body.id_instance){ toast('Укажите idInstance','i-info','#d97706'); return; }
+    btnSave.disabled=true; const old=btnSave.innerHTML; btnSave.textContent='Сохранение…';
+    const r = await api('/api/admin/greenapi/settings',{method:'PUT',body:JSON.stringify(body)});
+    btnSave.disabled=false; btnSave.innerHTML=old;
+    if(!r.ok){ toast((r.data&&r.data.error)||'Не удалось сохранить','i-info','#ef4444'); return; }
+    refs.tokInp.value=''; toast('Настройки сохранены','i-check2'); gaLoadStatus(refs);
+  };
+  btnCheck.onclick = ()=>gaLoadStatus(refs);
+  btnTest.onclick = ()=>{
+    const bg = openModal(`<h3 style="margin:0 0 4px">Тест WhatsApp</h3>
+      <div class="muted" style="font-size:13px;margin-bottom:14px">Отправим сообщение через GreenAPI. Номер в международном формате, только цифры.</div>
+      <input id="gaTestPhone" class="login-field" placeholder="996700123456" style="margin:0 0 14px">
+      <div class="row" style="gap:8px;justify-content:flex-end">
+        <button class="btn ghost" id="gaTestCancel">Отмена</button>
+        <button class="btn" id="gaTestSend">Отправить</button></div>`);
+    bg.querySelector('#gaTestCancel').onclick=()=>bg.remove();
+    bg.querySelector('#gaTestSend').onclick = async ()=>{
+      const phone = bg.querySelector('#gaTestPhone').value.trim();
+      if(!phone){ toast('Введите номер','i-info','#d97706'); return; }
+      const sBtn=bg.querySelector('#gaTestSend'); sBtn.disabled=true; sBtn.textContent='Отправка…';
+      const r = await api('/api/admin/greenapi/test',{method:'POST',body:JSON.stringify({phone})});
+      bg.remove();
+      const wa = r.data && r.data.whatsapp;
+      if(wa && wa.sent) toast('Тест отправлен ✓','i-check2');
+      else { const link=r.data&&r.data.wa_link;
+        toast('Не отправлено через API'+(link?' — открываю WhatsApp':''),'i-info','#d97706');
+        if(link) window.open(link,'_blank'); }
+    };
+  };
+  btnOff.onclick = ()=>{
+    const bg = openModal(`<h3 style="margin:0 0 4px">Отключить GreenAPI?</h3>
+      <div class="muted" style="font-size:13px;margin-bottom:16px">Сохранённые idInstance и токен будут удалены из CRM. Приглашения вернутся в ручной режим (ссылка wa.me).</div>
+      <div class="row" style="gap:8px;justify-content:flex-end">
+        <button class="btn ghost" id="gaOffCancel">Отмена</button>
+        <button class="btn" id="gaOffYes" style="background:#ef4444;border-color:#ef4444">Отключить</button></div>`);
+    bg.querySelector('#gaOffCancel').onclick=()=>bg.remove();
+    bg.querySelector('#gaOffYes').onclick=async ()=>{
+      bg.remove();
+      const r = await api('/api/admin/greenapi/settings',{method:'DELETE'});
+      if(r.ok){ refs.idInp.value=''; refs.urlInp.value=''; refs.tokInp.value=''; toast('GreenAPI отключён','i-logout','var(--muted)'); gaLoadStatus(refs); }
+      else toast('Не удалось отключить','i-info','#ef4444');
+    };
+  };
+
+  gaLoadStatus(refs);
+  return panel;
+}
+
 PAGES.integrations=(c)=>{
+  if(isAdminRole()) c.appendChild(greenApiPanel());
   const intgs=[
     ['1С','Listki EG (Кыргызстан)','#16a34a','1С','Остатки 4 000 SKU · заказы · накладные','Синхронизирован 1 мин назад','green'],
     ['WhatsApp','GreenAPI · 5 каналов','#25d366','W','$50/мес · безлимит сообщений','5 каналов активны','green'],

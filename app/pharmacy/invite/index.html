@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Приглашение · CRM «Гигиена+»</title>
+<style>
+  :root{ --bg:#0b1220; --card:#111a2e; --line:#22304d; --txt:#e6edf7; --muted:#8aa0c0;
+         --accent:#2563eb; --green:#16a34a; --red:#ef4444; --amber:#d97706; }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;
+       font:15px/1.5 -apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt)}
+  .card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);
+        border-radius:18px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#16a34a,#2563eb);
+        display:grid;place-items:center;font-weight:800;color:#fff}
+  h1{font-size:19px;margin:0}
+  .sub{color:var(--muted);font-size:13px;margin:2px 0 0}
+  .role{display:inline-block;margin-top:14px;padding:5px 12px;border-radius:999px;
+        background:#2563eb22;color:#8ab4ff;font-size:13px;font-weight:600}
+  label{display:block;font-size:12px;color:var(--muted);margin:16px 0 6px}
+  input{width:100%;padding:12px 14px;border-radius:11px;border:1px solid var(--line);
+        background:#0c1424;color:var(--txt);font-size:15px;outline:none}
+  input:focus{border-color:var(--accent)}
+  .btn{width:100%;margin-top:18px;padding:13px;border:0;border-radius:11px;background:var(--accent);
+       color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:default}
+  .msg{margin-top:14px;padding:11px 13px;border-radius:10px;font-size:13px;display:none}
+  .msg.err{display:block;background:#ef444418;color:#ff9a9a;border:1px solid #ef444433}
+  .msg.ok{display:block;background:#16a34a18;color:#86efac;border:1px solid #16a34a33}
+  .divider{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:18px 0 6px}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
+  #googleBtn{display:flex;justify-content:center;margin-top:12px;min-height:44px}
+  .foot{margin-top:18px;color:var(--muted);font-size:11px;text-align:center}
+  .center{text-align:center}
+  .spinner{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);
+           border-radius:50%;animation:spin .8s linear infinite;margin:30px auto}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand"><div class="logo">Г+</div>
+      <div><h1>Гигиена+ CRM</h1><div class="sub">Приглашение сотрудника</div></div></div>
+
+    <div id="loading"><div class="spinner"></div>
+      <div class="center sub">Проверяем приглашение…</div></div>
+
+    <div id="form" style="display:none">
+      <div id="greet"></div>
+      <label for="name">Ваше имя</label>
+      <input id="name" placeholder="Имя Фамилия" autocomplete="name">
+      <label for="pass">Пароль для входа</label>
+      <input id="pass" type="password" placeholder="минимум 6 символов" autocomplete="new-password">
+      <label for="pass2">Повторите пароль</label>
+      <input id="pass2" type="password" placeholder="ещё раз" autocomplete="new-password">
+      <button class="btn" id="submit">Создать аккаунт и войти</button>
+      <div id="googleWrap" style="display:none">
+        <div class="divider">или</div>
+        <div id="googleBtn"></div>
+      </div>
+      <div id="msg" class="msg"></div>
+    </div>
+
+    <div id="dead" style="display:none">
+      <div id="deadMsg" class="msg err" style="display:block"></div>
+      <div class="foot">Если ссылка устарела — попросите администратора прислать новое приглашение.</div>
+    </div>
+
+    <div class="foot">Ссылка персональная. Никому её не передавайте.</div>
+  </div>
+
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script>
+const API_BASE = 'https://pharmacy-crm-worker.uurraa.workers.dev';
+const GOOGLE_CLIENT_ID = '773798066647-jg137in0mum92famuml70kauonp7amgg.apps.googleusercontent.com';
+const APP_URL = '../'; // CRM: /app/pharmacy/
+const TOKEN = new URLSearchParams(location.search).get('token') || '';
+
+const $ = id => document.getElementById(id);
+function showMsg(text, ok){ const m=$('msg'); m.textContent=text; m.className='msg '+(ok?'ok':'err'); }
+
+async function call(path, opts){
+  let res, data=null;
+  try{ res = await fetch(API_BASE+path, opts); }catch(e){ return {ok:false, data:{error:'Нет связи с сервером'}}; }
+  try{ data = await res.json(); }catch(e){}
+  return { ok: res.ok && !(data&&data.ok===false), status:res.status, data };
+}
+function finish(token){
+  try{ localStorage.setItem('pharmaToken', token); }catch(e){}
+  showMsg('Готово! Перенаправляем в CRM…', true);
+  setTimeout(()=>location.href = APP_URL, 900);
+}
+
+async function boot(){
+  if(!TOKEN){ dead('В ссылке нет токена приглашения.'); return; }
+  const r = await call('/api/invites/'+encodeURIComponent(TOKEN));
+  if(!r.ok){ dead((r.data&&r.data.error)||'Приглашение недействительно.'); return; }
+  const inv = r.data.invite;
+  $('loading').style.display='none';
+  $('form').style.display='block';
+  $('greet').innerHTML = 'Вас приглашают в CRM на роль <span class="role">'+(inv.roleName||inv.role)+'</span>';
+  if(inv.name) $('name').value = inv.name;
+  if(inv.google_enabled){ $('googleWrap').style.display='block'; initGoogle(); }
+}
+function dead(text){ $('loading').style.display='none'; $('dead').style.display='block'; $('deadMsg').textContent=text; }
+
+$('submit').onclick = async ()=>{
+  const name=$('name').value.trim(), p1=$('pass').value, p2=$('pass2').value;
+  if(!name){ showMsg('Укажите имя'); return; }
+  if(p1.length<6){ showMsg('Пароль не короче 6 символов'); return; }
+  if(p1!==p2){ showMsg('Пароли не совпадают'); return; }
+  const b=$('submit'); b.disabled=true; const old=b.textContent; b.textContent='Создаём…';
+  const r = await call('/api/invites/'+encodeURIComponent(TOKEN)+'/accept', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ name, password:p1 }) });
+  b.disabled=false; b.textContent=old;
+  if(!r.ok){ showMsg((r.data&&r.data.error)||'Не удалось принять приглашение'); return; }
+  finish(r.data.token);
+};
+
+function initGoogle(tries=0){
+  if(!(window.google&&google.accounts&&google.accounts.id)){
+    if(tries<20) setTimeout(()=>initGoogle(tries+1),300); return; }
+  try{
+    google.accounts.id.initialize({ client_id:GOOGLE_CLIENT_ID, callback: async (resp)=>{
+      const name=$('name').value.trim();
+      const r = await call('/api/invites/'+encodeURIComponent(TOKEN)+'/accept', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name, google_id_token: resp.credential }) });
+      if(!r.ok){ showMsg((r.data&&r.data.error)||'Google-приём не удался'); return; }
+      finish(r.data.token);
+    }});
+    google.accounts.id.renderButton($('googleBtn'), { theme:'filled_black', size:'large', shape:'pill', text:'continue_with', width:330 });
+  }catch(e){}
+}
+
+boot();
+</script>
+</body>
+</html>
