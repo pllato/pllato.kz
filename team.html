@@ -1269,6 +1269,24 @@ tr:hover td { background: var(--bg3); }
   opacity: 0.7;
   font-size: 10px;
 }
+/* Дело с дедлайном в будущем — зелёным (как «в работе») */
+.kanban-card-date-task {
+  color: #15803d;
+  font-weight: 600;
+  background: rgba(34, 197, 94, 0.12);
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+/* Просроченное Дело — красным фон, чтоб менеджер увидел сразу */
+.kanban-card-date-task-overdue {
+  color: #fff;
+  background: #ef4444;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+}
 .kanban-more {
   text-align: center;
   padding: 8px;
@@ -4326,6 +4344,29 @@ async function loadDealsActivity(pipelineId, idToken) {
   }
 }
 
+// Bulk-подгрузка ближайших активных дел для канбан-плашки «📋 Дело: DD.MM HH:MM».
+// Заполняет dealsState.nextTaskByDeal[dealId] = {taskId, title, deadline}.
+async function preloadDealsNextTask(deals, idToken) {
+  if (!Array.isArray(deals) || deals.length === 0) return;
+  if (!idToken) idToken = await fbAuth.currentUser.getIdToken();
+  if (!dealsState.nextTaskByDeal) dealsState.nextTaskByDeal = {};
+  // Собираем id'шники в формате 'deal_<bitrixId>' — именно так worker ищет в crm_links.
+  const ids = deals.map(d => d.id).filter(Boolean);
+  if (ids.length === 0) return;
+  try {
+    const r = await fetch(`${WORKER_BASE_URL}/api/tasks/by-deals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ ids }),
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    Object.assign(dealsState.nextTaskByDeal, data.items || {});
+    // Перерендер канбана если активная воронка ещё открыта
+    if (document.getElementById('kanban-wrap')) renderDealsContent();
+  } catch (e) { console.warn('preloadDealsNextTask:', e); }
+}
+
 // Bulk-подгрузка телефонов всех контактов сделок воронки. Чтобы кнопки 💬/📞
 // в канбане были активны сразу. Раньше телефон попадал в dealsState.contactPhones
 // только когда юзер открывал карточку → buttons disabled пока не откроешь.
@@ -5133,6 +5174,8 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
       // Bulk-подгрузка телефонов чтобы кнопки 💬/📞 в канбане были активны
       // сразу при первом рендере (без открытия карточки).
       preloadDealPhones(all, idToken).catch(e => console.warn('preloadDealPhones:', e));
+      // Bulk-подгрузка ближайшего активного дела для плашки «📋 Дело» в карточке
+      preloadDealsNextTask(all, idToken).catch(e => console.warn('preloadDealsNextTask:', e));
     } catch (e) {
       console.error('loadDealsForPipeline error:', e);
       // На ошибку — оставляем dealsState.deals что было, не пустим
@@ -7627,24 +7670,48 @@ function buildDealCard(d, stageColor) {
   const staleWarn = daysSince !== null && daysSince > 30;
   const created = d.bitrixDateCreate ? new Date(d.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit' }) : '';
 
-  // Подпись даты в footer: «🎥 Зум: 02.06 14:00» если запланирован Zoom;
-  // иначе дефолтная дата создания (created). Это ключ для менеджера —
-  // понять "что у меня дальше" не открывая карточку.
+  // Подпись даты в footer: приоритет 🎥 Зум → 📋 Дело → 📅 создания.
+  // Ключ для менеджера — понять "что у меня дальше" не открывая карточку.
   let dateLabel = '';
   let dateLabelClass = 'kanban-card-date';
+  const fmtDateTime = (dt) => {
+    const dd = String(dt.getDate()).padStart(2, '0');
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const mi = String(dt.getMinutes()).padStart(2, '0');
+    return `${dd}.${mm} ${hh}:${mi}`;
+  };
+
+  // 1) Zoom-встреча
   const zoomAt = d.customFields?.firstZoomAt;
   if (zoomAt) {
     const zd = new Date(zoomAt);
     if (!isNaN(zd.getTime())) {
-      const isFuture = zd.getTime() >= Date.now() - 3600000;  // в пределах часа назад тоже считаем
-      const dd = String(zd.getDate()).padStart(2, '0');
-      const mm = String(zd.getMonth() + 1).padStart(2, '0');
-      const hh = String(zd.getHours()).padStart(2, '0');
-      const mi = String(zd.getMinutes()).padStart(2, '0');
-      dateLabel = `🎥 Зум: ${dd}.${mm} ${hh}:${mi}`;
+      const isFuture = zd.getTime() >= Date.now() - 3600000;
+      dateLabel = `🎥 Зум: ${fmtDateTime(zd)}`;
       dateLabelClass = isFuture ? 'kanban-card-date kanban-card-date-zoom' : 'kanban-card-date kanban-card-date-zoom-past';
     }
   }
+
+  // 2) Ближайшее активное Дело (если Zoom нет)
+  if (!dateLabel) {
+    const nextTask = dealsState.nextTaskByDeal?.[d.id];
+    if (nextTask?.deadline) {
+      const td = new Date(nextTask.deadline);
+      if (!isNaN(td.getTime())) {
+        const isFuture = td.getTime() >= Date.now() - 3600000;
+        const isOverdue = td.getTime() < Date.now() - 3600000;
+        dateLabel = `📋 Дело: ${fmtDateTime(td)}`;
+        if (isOverdue) {
+          dateLabelClass = 'kanban-card-date kanban-card-date-task-overdue';
+        } else if (isFuture) {
+          dateLabelClass = 'kanban-card-date kanban-card-date-task';
+        }
+      }
+    }
+  }
+
+  // 3) Fallback: дата создания
   if (!dateLabel && created) {
     dateLabel = `📅 ${created}`;
   }

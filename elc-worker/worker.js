@@ -3435,6 +3435,57 @@ async function handleContactsPhonesBulk(request, env) {
   return json({ items, total: Object.keys(items).length }, 200, request);
 }
 
+// Батч: для каждой сделки вернуть ближайшее активное дело с дедлайном.
+// Чтобы на канбане отображать «📋 Дело: DD.MM HH:MM».
+// POST /api/tasks/by-deals  { ids: ["deal_X", "deal_Y", ...] }
+// Response: { items: { "deal_X": { taskId, title, deadline }, ... } }
+//
+// Поиск: tasks.crm_links — JSON {"0":"deal_X"}, фильтруем LIKE '%deal_X%'.
+// «Активное» = status NOT IN (5=completed, 6=deferred, 7=declined).
+// Чанкуем dealIds по 50 в OR-цепочке, иначе SQL слишком длинный.
+async function handleTasksByDeals(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const ids = Array.isArray(body.ids) ? body.ids.filter(s => typeof s === 'string').slice(0, 500) : [];
+  if (ids.length === 0) return json({ items: {} }, 200, request);
+
+  // Канонизируем формат: ожидаем "deal_X"; если frontend прислал "X" — добавим префикс
+  const dealIds = ids.map(s => s.startsWith('deal_') ? s : 'deal_' + s);
+
+  const items = {};
+  const chunkSize = 50;
+  for (let i = 0; i < dealIds.length; i += chunkSize) {
+    const chunk = dealIds.slice(i, i + chunkSize);
+    const orClauses = chunk.map(() => "crm_links LIKE ?").join(" OR ");
+    const params = chunk.map(d => `%"${d}"%`);
+    // Тянем все потенциально-релевантные задачи. JS отфильтрует точно (LIKE даёт
+    // ложные срабатывания, например deal_1 матчит deal_10).
+    const { results } = await env.DB.prepare(
+      `SELECT id, title, deadline, crm_links FROM tasks
+       WHERE status NOT IN (5, 6, 7) AND deadline IS NOT NULL
+         AND (${orClauses})
+       ORDER BY deadline ASC`
+    ).bind(...params).all();
+    for (const t of results) {
+      let links;
+      try { links = JSON.parse(t.crm_links || '{}'); } catch { continue; }
+      const linkedDealIds = Object.values(links).filter(v => typeof v === 'string' && v.startsWith('deal_'));
+      for (const dealId of linkedDealIds) {
+        if (!chunk.includes(dealId)) continue;
+        // Для этой сделки запоминаем ПЕРВУЮ найденную задачу — она с минимальным
+        // deadline т.к. сортировка ORDER BY deadline ASC. Чтобы не перезаписать.
+        if (!items[dealId]) {
+          items[dealId] = { taskId: t.id, title: t.title, deadline: t.deadline };
+        }
+      }
+    }
+  }
+
+  return json({ items, total: Object.keys(items).length }, 200, request);
+}
+
 // ── Phase 0 routes ──────────────────────────────────────
 async function handleHealth(request, env) {
   try {
@@ -3517,6 +3568,11 @@ export default {
     // Чтобы кнопки 💬/📞 в карточках были активны сразу, без открытия деталки.
     if (path === "/api/contacts/phones" && request.method === "GET") {
       return handleContactsPhonesBulk(request, env);
+    }
+
+    // /api/tasks/by-deals — батч ближайших активных дел для канбан-плашки «📋 Дело».
+    if (path === "/api/tasks/by-deals" && request.method === "POST") {
+      return handleTasksByDeals(request, env);
     }
 
     // /api/files/{id} — отдача мигрированного файла из R2
