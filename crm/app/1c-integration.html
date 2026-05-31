@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pllato CRM — 1С:Фреш интеграция</title>
+  <link rel="stylesheet" href="../styles.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; background: #0F1419; color: #E0E5EA; }
+    .wrap { max-width: 880px; margin: 0 auto; }
+    h1 { margin-top: 0; font-size: 22px; }
+    h2 { font-size: 16px; margin-top: 28px; color: #8AABC1; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+    .card { background: #1A222B; border: 1px solid #2A3540; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+    .row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .row label { font-size: 12px; color: #8AABC1; }
+    .row input { background: #0F1419; border: 1px solid #2A3540; border-radius: 6px; padding: 8px 10px; color: #E0E5EA; font-size: 14px; }
+    .row input:focus { outline: none; border-color: #4A90E2; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    button { background: #4A90E2; color: white; border: 0; border-radius: 6px; padding: 9px 16px; font-size: 14px; cursor: pointer; }
+    button:hover { background: #5BA1F3; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary { background: #2A3540; }
+    button.danger { background: #C75554; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .status { padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.4; }
+    .status.ok { background: #1F3A2A; border: 1px solid #2D5A40; color: #8FD8A0; }
+    .status.err { background: #3A1F1F; border: 1px solid #5A2D2D; color: #FFA0A0; }
+    .status.info { background: #1F2F3A; border: 1px solid #2D4A5A; color: #A0C8FF; }
+    pre { background: #0F1419; padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #2A3540; }
+    th { color: #8AABC1; font-weight: 500; }
+    .hint { font-size: 12px; color: #7A8895; margin-top: 4px; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+    .pill.ok { background: #1F3A2A; color: #8FD8A0; }
+    .pill.err { background: #3A1F1F; color: #FFA0A0; }
+    .pill.warn { background: #3A3320; color: #E0C870; }
+    .nav-back { color: #8AABC1; text-decoration: none; font-size: 13px; }
+    .nav-back:hover { color: #E0E5EA; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p><a href="../index.html" class="nav-back">← В CRM</a></p>
+    <h1>Интеграция с 1С:Фреш (OData)</h1>
+
+    <div id="auth-warning" style="display:none;" class="card status err">
+      Требуется войти в CRM как администратор. Откройте <a href="../index.html" style="color:#8FD8A0">главную страницу</a> и залогиньтесь.
+    </div>
+
+    <div id="content" style="display:none;">
+
+      <h2>1. Подключение</h2>
+      <div class="card">
+        <form id="settings-form">
+          <div class="row">
+            <label>Host</label>
+            <input id="host" placeholder="https://1cfresh.kz" required>
+            <div class="hint">Базовый URL сервиса 1С:Фреш без слеша в конце.</div>
+          </div>
+          <div class="row">
+            <label>Base path (путь к информационной базе)</label>
+            <input id="base_path" placeholder="/a/ea186/263825" required>
+            <div class="hint">Путь к конкретной базе из URL Фреша, начинается с <code>/</code>.</div>
+          </div>
+          <div class="row-2">
+            <div class="row">
+              <label>OData username (технический пользователь)</label>
+              <input id="odata_username" placeholder="odata.user" required>
+            </div>
+            <div class="row">
+              <label>OData password</label>
+              <input id="odata_password" type="password" placeholder="(пусто = не менять)">
+              <div class="hint">Шифруется AES-GCM. При обновлении настроек можно оставить пустым.</div>
+            </div>
+          </div>
+          <div class="row-2">
+            <div class="row">
+              <label>Конфигурация</label>
+              <input id="config_type" placeholder="БП">
+            </div>
+            <div class="row">
+              <label>Версия конфигурации</label>
+              <input id="config_version" placeholder="3.0.71.1">
+            </div>
+          </div>
+          <div class="actions">
+            <button type="submit" id="btn-save">Сохранить</button>
+            <button type="button" id="btn-test" class="secondary">Проверить подключение</button>
+          </div>
+        </form>
+        <div id="settings-status" class="status info" style="display:none; margin-top:14px;"></div>
+      </div>
+
+      <h2>2. Текущее состояние</h2>
+      <div id="state-card" class="card">
+        <div class="hint">Загрузка…</div>
+      </div>
+
+      <h2>3. Импорт данных (для теста)</h2>
+      <div class="card">
+        <div class="actions">
+          <button type="button" id="btn-pull-contractors">Импортировать первых 20 контрагентов</button>
+        </div>
+        <div id="pull-status" class="status info" style="display:none; margin-top:14px;"></div>
+        <div id="pull-result" style="margin-top:14px;"></div>
+      </div>
+
+      <h2>4. Журнал операций</h2>
+      <div class="card">
+        <div class="actions">
+          <button type="button" id="btn-log" class="secondary">Обновить журнал</button>
+        </div>
+        <div id="log-result" style="margin-top:14px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Worker URL по аналогии с тем, как это делает app.config.js
+    const WORKER_URL = (window.__APP_CONFIG__ && window.__APP_CONFIG__.WORKER_URL) || "https://pllato-comm.uurraa.workers.dev";
+    const SESSION_KEY = "pllato_session";
+
+    function getJwt() {
+      try {
+        const raw = localStorage.getItem(SESSION_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed?.token || null;
+      } catch { return null; }
+    }
+
+    async function apiCall(method, path, body) {
+      const token = getJwt();
+      if (!token) throw new Error("No JWT in session");
+      const headers = {
+        "Authorization": `Bearer ${token}`,
+      };
+      const opts = { method, headers };
+      if (body != null) {
+        headers["Content-Type"] = "application/json";
+        opts.body = JSON.stringify(body);
+      }
+      const resp = await fetch(WORKER_URL + path, opts);
+      const text = await resp.text();
+      let data;
+      try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+      if (!resp.ok) {
+        const err = new Error(data?.error || `HTTP ${resp.status}`);
+        err.status = resp.status;
+        err.data = data;
+        throw err;
+      }
+      return data;
+    }
+
+    function fmtUnixTs(secs) {
+      if (!secs) return "—";
+      return new Date(secs * 1000).toLocaleString("ru-RU");
+    }
+
+    function showStatus(id, type, message) {
+      const el = document.getElementById(id);
+      el.className = `status ${type}`;
+      el.style.display = "block";
+      el.textContent = message;
+    }
+
+    async function loadSettings() {
+      try {
+        const data = await apiCall("GET", "/api/crm/1c/settings");
+        const s = data?.settings;
+        if (s) {
+          document.getElementById("host").value = s.host || "";
+          document.getElementById("base_path").value = s.base_path || "";
+          document.getElementById("odata_username").value = s.odata_username || "";
+          document.getElementById("config_type").value = s.config_type || "";
+          document.getElementById("config_version").value = s.config_version || "";
+        }
+        renderState(s);
+      } catch (e) {
+        if (e.status === 401 || e.status === 403) {
+          document.getElementById("auth-warning").style.display = "block";
+          document.getElementById("content").style.display = "none";
+        } else {
+          renderState(null, e.message);
+        }
+      }
+    }
+
+    function renderState(s, err) {
+      const el = document.getElementById("state-card");
+      if (err) {
+        el.innerHTML = `<div class="status err">Ошибка загрузки: ${err}</div>`;
+        return;
+      }
+      if (!s) {
+        el.innerHTML = `<div class="hint">Настройки ещё не сохранены. Заполните форму выше и нажмите «Сохранить».</div>`;
+        return;
+      }
+      const lastTest = s.last_test_ok === null
+        ? `<span class="pill warn">не проверялось</span>`
+        : (s.last_test_ok
+            ? `<span class="pill ok">OK</span> ${fmtUnixTs(s.last_test_at)}`
+            : `<span class="pill err">ошибка</span> ${fmtUnixTs(s.last_test_at)} — ${s.last_test_error || ""}`);
+      el.innerHTML = `
+        <table>
+          <tr><th>Тенант</th><td>${s.tenant_id}</td></tr>
+          <tr><th>URL базы</th><td>${s.host}${s.base_path}</td></tr>
+          <tr><th>OData user</th><td>${s.odata_username}</td></tr>
+          <tr><th>Пароль</th><td>${s.has_password ? "✅ задан" : "❌ не задан"}</td></tr>
+          <tr><th>Конфигурация</th><td>${s.config_type || "—"} ${s.config_version || ""}</td></tr>
+          <tr><th>Включена</th><td>${s.enabled ? "✅" : "❌"}</td></tr>
+          <tr><th>Последнее подключение</th><td>${lastTest}</td></tr>
+          <tr><th>Последний sync</th><td>${fmtUnixTs(s.last_sync_at)}</td></tr>
+        </table>
+      `;
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      if (!getJwt()) {
+        document.getElementById("auth-warning").style.display = "block";
+        return;
+      }
+      document.getElementById("content").style.display = "block";
+      loadSettings();
+
+      document.getElementById("settings-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const payload = {
+          host: document.getElementById("host").value.trim(),
+          base_path: document.getElementById("base_path").value.trim(),
+          odata_username: document.getElementById("odata_username").value.trim(),
+          config_type: document.getElementById("config_type").value.trim() || null,
+          config_version: document.getElementById("config_version").value.trim() || null,
+          enabled: true,
+        };
+        const pwd = document.getElementById("odata_password").value;
+        if (pwd) payload.odata_password = pwd;
+        const btn = document.getElementById("btn-save");
+        btn.disabled = true;
+        try {
+          showStatus("settings-status", "info", "Сохраняем…");
+          await apiCall("POST", "/api/crm/1c/settings", payload);
+          showStatus("settings-status", "ok", "Настройки сохранены.");
+          document.getElementById("odata_password").value = "";
+          await loadSettings();
+        } catch (e) {
+          showStatus("settings-status", "err", `Ошибка: ${e.message}`);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      document.getElementById("btn-test").addEventListener("click", async () => {
+        const btn = document.getElementById("btn-test");
+        btn.disabled = true;
+        showStatus("settings-status", "info", "Проверяем подключение…");
+        try {
+          const r = await apiCall("POST", "/api/crm/1c/test-connection");
+          if (r.ok) {
+            showStatus("settings-status", "ok", `Подключение OK. Доступно коллекций: ${r.collections_total}.`);
+          } else {
+            showStatus("settings-status", "err", `Подключение не удалось: ${r.error || "unknown"} (HTTP ${r.http_status || "?"})`);
+          }
+          await loadSettings();
+        } catch (e) {
+          showStatus("settings-status", "err", `Ошибка: ${e.message}`);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      document.getElementById("btn-pull-contractors").addEventListener("click", async () => {
+        const btn = document.getElementById("btn-pull-contractors");
+        btn.disabled = true;
+        showStatus("pull-status", "info", "Тянем контрагентов из 1С…");
+        try {
+          const r = await apiCall("POST", "/api/crm/1c/sync/contractors/pull?top=20");
+          showStatus("pull-status", "ok", `Получено: ${r.count} контрагентов.`);
+          const rows = (r.contractors || []).slice(0, 50).map(c => `
+            <tr>
+              <td>${c.name || "—"}</td>
+              <td>${c.full_name || "—"}</td>
+              <td>${c.iin || "—"}</td>
+              <td>${c.bin || "—"}</td>
+              <td>${c.kbe || "—"}</td>
+              <td>${c.is_individual_entrepreneur ? "ИП" : "ЮЛ"}</td>
+            </tr>
+          `).join("");
+          document.getElementById("pull-result").innerHTML = `
+            <table>
+              <tr><th>Наименование</th><th>Полное имя</th><th>ИИН</th><th>БИН</th><th>КБЕ</th><th>Тип</th></tr>
+              ${rows}
+            </table>
+          `;
+        } catch (e) {
+          showStatus("pull-status", "err", `Ошибка: ${e.message}`);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      document.getElementById("btn-log").addEventListener("click", async () => {
+        try {
+          const r = await apiCall("GET", "/api/crm/1c/sync-log?limit=20");
+          const rows = (r.entries || []).map(e => `
+            <tr>
+              <td>${fmtUnixTs(e.ts)}</td>
+              <td>${e.direction}</td>
+              <td>${e.entity_type}</td>
+              <td>${e.operation}</td>
+              <td><span class="pill ${e.status === "ok" ? "ok" : "err"}">${e.status}</span></td>
+              <td>${e.records_processed ?? ""}</td>
+              <td>${e.duration_ms ?? ""}ms</td>
+              <td style="color:#FFA0A0">${e.error_message || ""}</td>
+            </tr>
+          `).join("");
+          document.getElementById("log-result").innerHTML = `
+            <table>
+              <tr><th>Время</th><th>Dir</th><th>Entity</th><th>Op</th><th>Status</th><th>Records</th><th>Duration</th><th>Error</th></tr>
+              ${rows}
+            </table>
+          `;
+        } catch (e) {
+          document.getElementById("log-result").innerHTML = `<div class="status err">Ошибка: ${e.message}</div>`;
+        }
+      });
+    });
+  </script>
+</body>
+</html>

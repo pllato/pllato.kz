@@ -1,4 +1,12 @@
 import { connect } from "cloudflare:sockets";
+import { ODataClient, ODataError } from "./integrations/1c/odata-client.js";
+import { encryptPassword, decryptPassword } from "./integrations/1c/crypto.js";
+import {
+  contractorFromOData,
+  productFromOData,
+  contractFromOData,
+  organizationFromOData,
+} from "./integrations/1c/mapper.js";
 
 const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
 const APP_ID = "pllato_crm";
@@ -640,6 +648,60 @@ async function ensureD1Schema(env) {
         deal_id     TEXT PRIMARY KEY,
         notified_at INTEGER NOT NULL
       )
+    `,
+    // ─── 1С:Фреш OData integration (migration 005) ──────────────────────
+    `
+      CREATE TABLE IF NOT EXISTS one_c_settings (
+        tenant_id                 TEXT PRIMARY KEY,
+        host                      TEXT NOT NULL,
+        base_path                 TEXT NOT NULL,
+        odata_username            TEXT NOT NULL,
+        odata_password_encrypted  TEXT NOT NULL,
+        config_type               TEXT,
+        config_version            TEXT,
+        enabled                   INTEGER NOT NULL DEFAULT 1,
+        last_sync_at              INTEGER,
+        last_test_at              INTEGER,
+        last_test_ok              INTEGER,
+        last_test_error           TEXT,
+        created_at                INTEGER NOT NULL,
+        updated_at                INTEGER NOT NULL
+      )
+    `,
+    `
+      CREATE TABLE IF NOT EXISTS one_c_id_map (
+        tenant_id           TEXT NOT NULL,
+        entity_type         TEXT NOT NULL,
+        pllato_id           TEXT NOT NULL,
+        one_c_ref_key       TEXT NOT NULL,
+        one_c_data_version  TEXT,
+        synced_at           INTEGER NOT NULL,
+        PRIMARY KEY (tenant_id, entity_type, pllato_id)
+      )
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_one_c_id_map_ref
+        ON one_c_id_map(tenant_id, entity_type, one_c_ref_key)
+    `,
+    `
+      CREATE TABLE IF NOT EXISTS one_c_sync_log (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id         TEXT NOT NULL,
+        ts                INTEGER NOT NULL,
+        direction         TEXT NOT NULL,
+        entity_type       TEXT NOT NULL,
+        operation         TEXT NOT NULL,
+        status            TEXT NOT NULL,
+        http_status       INTEGER,
+        error_code        TEXT,
+        error_message     TEXT,
+        records_processed INTEGER,
+        duration_ms       INTEGER
+      )
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_one_c_sync_log_tenant_ts
+        ON one_c_sync_log(tenant_id, ts DESC)
     `,
   ];
 
@@ -4492,6 +4554,348 @@ async function health(env) {
   return out;
 }
 
+// ─── 1С:Фреш OData integration ─────────────────────────────────────────
+//
+// Один тенант на сейчас (пилот Аминамед). Расширим позже, когда CRM станет
+// мультитенантной. ID тенанта определяем из контекста актора или дефолтом.
+const ONE_C_DEFAULT_TENANT = "aminamed";
+
+function resolve1cTenantId(_actor) {
+  // TODO: когда появится несколько тенантов — определять по actor.tenantId.
+  return ONE_C_DEFAULT_TENANT;
+}
+
+function require1cAdmin(actor) {
+  if (!canManageUsers(actor)) {
+    throw new HttpError(403, "Только администратор может управлять интеграцией с 1С");
+  }
+}
+
+async function d1Get1cSettings(env, tenantId) {
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  const row = await db
+    .prepare(`
+      SELECT tenant_id, host, base_path, odata_username, odata_password_encrypted,
+             config_type, config_version, enabled,
+             last_sync_at, last_test_at, last_test_ok, last_test_error,
+             created_at, updated_at
+        FROM one_c_settings
+       WHERE tenant_id = ?
+    `)
+    .bind(tenantId)
+    .first();
+  return row || null;
+}
+
+async function d1Save1cSettings(env, tenantId, payload, encryptedPassword) {
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  const now = Math.floor(Date.now() / 1000);
+  await db
+    .prepare(`
+      INSERT INTO one_c_settings (
+        tenant_id, host, base_path, odata_username, odata_password_encrypted,
+        config_type, config_version, enabled, created_at, updated_at
+      ) VALUES (?,?,?,?,?,?,?,?,?,?)
+      ON CONFLICT(tenant_id) DO UPDATE SET
+        host                     = excluded.host,
+        base_path                = excluded.base_path,
+        odata_username           = excluded.odata_username,
+        odata_password_encrypted = excluded.odata_password_encrypted,
+        config_type              = excluded.config_type,
+        config_version           = excluded.config_version,
+        enabled                  = excluded.enabled,
+        updated_at               = excluded.updated_at
+    `)
+    .bind(
+      tenantId,
+      payload.host,
+      payload.base_path,
+      payload.odata_username,
+      encryptedPassword,
+      payload.config_type || null,
+      payload.config_version || null,
+      payload.enabled === false ? 0 : 1,
+      now,
+      now
+    )
+    .run();
+}
+
+async function d1Save1cTestResult(env, tenantId, ok, errorMessage) {
+  const db = requireStoreDb(env);
+  const now = Math.floor(Date.now() / 1000);
+  await db
+    .prepare(`
+      UPDATE one_c_settings
+         SET last_test_at = ?, last_test_ok = ?, last_test_error = ?
+       WHERE tenant_id = ?
+    `)
+    .bind(now, ok ? 1 : 0, errorMessage || null, tenantId)
+    .run();
+}
+
+async function d1Save1cSyncMark(env, tenantId) {
+  const db = requireStoreDb(env);
+  const now = Math.floor(Date.now() / 1000);
+  await db
+    .prepare(`UPDATE one_c_settings SET last_sync_at = ? WHERE tenant_id = ?`)
+    .bind(now, tenantId)
+    .run();
+}
+
+async function d1Insert1cSyncLog(env, entry) {
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  await db
+    .prepare(`
+      INSERT INTO one_c_sync_log (
+        tenant_id, ts, direction, entity_type, operation, status,
+        http_status, error_code, error_message, records_processed, duration_ms
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+    `)
+    .bind(
+      entry.tenantId,
+      Math.floor(Date.now() / 1000),
+      entry.direction,
+      entry.entityType,
+      entry.operation,
+      entry.status,
+      entry.httpStatus ?? null,
+      entry.errorCode ?? null,
+      entry.errorMessage ?? null,
+      entry.recordsProcessed ?? null,
+      entry.durationMs ?? null
+    )
+    .run();
+}
+
+async function build1cClient(env, tenantId) {
+  const settings = await d1Get1cSettings(env, tenantId);
+  if (!settings) {
+    throw new HttpError(404, "Настройки 1С для этого тенанта не заданы");
+  }
+  if (!settings.enabled) {
+    throw new HttpError(400, "Интеграция с 1С отключена для этого тенанта");
+  }
+  const password = await decryptPassword(env, settings.odata_password_encrypted);
+  const client = new ODataClient({
+    host: settings.host,
+    basePath: settings.base_path,
+    username: settings.odata_username,
+    password,
+  });
+  return { client, settings };
+}
+
+function settingsToPublicView(row) {
+  if (!row) return null;
+  return {
+    tenant_id: row.tenant_id,
+    host: row.host,
+    base_path: row.base_path,
+    odata_username: row.odata_username,
+    config_type: row.config_type,
+    config_version: row.config_version,
+    enabled: Number(row.enabled) === 1,
+    last_sync_at: row.last_sync_at,
+    last_test_at: row.last_test_at,
+    last_test_ok: row.last_test_ok == null ? null : Number(row.last_test_ok) === 1,
+    last_test_error: row.last_test_error,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    has_password: Boolean(row.odata_password_encrypted),
+  };
+}
+
+async function handle1cGetSettings(_request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const row = await d1Get1cSettings(env, tenantId);
+  return { settings: settingsToPublicView(row) };
+}
+
+async function handle1cSaveSettings(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const body = await readRequestBodyAsJson(request);
+
+  const host = String(body?.host || "").trim().replace(/\/+$/, "");
+  const basePath = String(body?.base_path || "").trim();
+  const username = String(body?.odata_username || "").trim();
+  const password = body?.odata_password;
+  const enabled = body?.enabled !== false;
+
+  if (!host || !/^https?:\/\//i.test(host)) {
+    throw new HttpError(400, "host должен начинаться с http(s)://");
+  }
+  if (!basePath || !basePath.startsWith("/")) {
+    throw new HttpError(400, "base_path должен начинаться с /");
+  }
+  if (!username) {
+    throw new HttpError(400, "odata_username не задан");
+  }
+
+  // Пароль необязателен при апдейте — если не прислали, оставляем существующий.
+  let encryptedPassword;
+  if (typeof password === "string" && password.length > 0) {
+    encryptedPassword = await encryptPassword(env, password);
+  } else {
+    const existing = await d1Get1cSettings(env, tenantId);
+    if (!existing) {
+      throw new HttpError(400, "Пароль OData-пользователя обязателен при первом сохранении");
+    }
+    encryptedPassword = existing.odata_password_encrypted;
+  }
+
+  await d1Save1cSettings(
+    env,
+    tenantId,
+    {
+      host,
+      base_path: basePath,
+      odata_username: username,
+      config_type: body?.config_type || null,
+      config_version: body?.config_version || null,
+      enabled,
+    },
+    encryptedPassword
+  );
+  const row = await d1Get1cSettings(env, tenantId);
+  return { settings: settingsToPublicView(row), ok: true };
+}
+
+async function handle1cTestConnection(_request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const started = Date.now();
+  let result;
+  try {
+    const { client } = await build1cClient(env, tenantId);
+    const ping = await client.ping();
+    result = { ok: true, collections_total: ping.collections_total };
+    await d1Save1cTestResult(env, tenantId, true, null);
+    await d1Insert1cSyncLog(env, {
+      tenantId,
+      direction: "test",
+      entityType: "_root",
+      operation: "test_connection",
+      status: "ok",
+      httpStatus: 200,
+      recordsProcessed: ping.collections_total,
+      durationMs: Date.now() - started,
+    });
+  } catch (e) {
+    const httpStatus = e instanceof ODataError ? e.httpStatus : null;
+    const message = e?.message || String(e);
+    result = { ok: false, error: message, http_status: httpStatus };
+    await d1Save1cTestResult(env, tenantId, false, message);
+    await d1Insert1cSyncLog(env, {
+      tenantId,
+      direction: "test",
+      entityType: "_root",
+      operation: "test_connection",
+      status: "error",
+      httpStatus,
+      errorMessage: message,
+      durationMs: Date.now() - started,
+    });
+  }
+  return result;
+}
+
+async function handle1cPullContractors(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const url = new URL(request.url);
+  const top = Math.min(Math.max(parseInt(url.searchParams.get("top") || "20", 10), 1), 200);
+  const started = Date.now();
+  try {
+    const { client } = await build1cClient(env, tenantId);
+    const data = await client.get("Catalog_Контрагенты", {
+      top,
+      select: [
+        "Ref_Key",
+        "DataVersion",
+        "Code",
+        "Description",
+        "НаименованиеПолное",
+        "DeletionMark",
+        "IsFolder",
+        "Parent_Key",
+        "ГоловнойКонтрагент_Key",
+        "ИдентификационныйКодЛичности",
+        "НомерНалоговойРегистрацииВСтранеРезидентства",
+        "РНН",
+        "КБЕ",
+        "ИндивидуальныйПредпринимательАдвокатЧастныйНотариус",
+        "ДатаСвидетельстваПоНДС",
+        "НомерСвидетельстваПоНДС",
+        "СерияСвидетельстваПоНДС",
+        "СИК",
+        "КодПоОКПО",
+        "Комментарий",
+        "ОсновноеКонтактноеЛицо_Key",
+        "ОсновнойБанковскийСчет_Key",
+        "ОсновнойДоговорКонтрагента_Key",
+        "СтранаРезидентства_Key",
+      ],
+      orderby: "Description",
+    });
+    const raw = Array.isArray(data?.value) ? data.value : [];
+    const contractors = raw.map(contractorFromOData).filter(Boolean);
+    await d1Save1cSyncMark(env, tenantId);
+    await d1Insert1cSyncLog(env, {
+      tenantId,
+      direction: "pull",
+      entityType: "contractor",
+      operation: "read",
+      status: "ok",
+      httpStatus: 200,
+      recordsProcessed: contractors.length,
+      durationMs: Date.now() - started,
+    });
+    return { ok: true, count: contractors.length, contractors };
+  } catch (e) {
+    const httpStatus = e instanceof ODataError ? e.httpStatus : null;
+    const message = e?.message || String(e);
+    await d1Insert1cSyncLog(env, {
+      tenantId,
+      direction: "pull",
+      entityType: "contractor",
+      operation: "read",
+      status: "error",
+      httpStatus,
+      errorMessage: message,
+      durationMs: Date.now() - started,
+    });
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(httpStatus && httpStatus >= 400 && httpStatus < 600 ? httpStatus : 502, message);
+  }
+}
+
+async function handle1cSyncLog(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const url = new URL(request.url);
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "50", 10), 1), 500);
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  const result = await db
+    .prepare(`
+      SELECT id, ts, direction, entity_type, operation, status,
+             http_status, error_code, error_message, records_processed, duration_ms
+        FROM one_c_sync_log
+       WHERE tenant_id = ?
+       ORDER BY ts DESC
+       LIMIT ?
+    `)
+    .bind(tenantId, limit)
+    .all();
+  return { ok: true, entries: result?.results || [] };
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
@@ -4594,6 +4998,28 @@ export default {
       if (request.method === "POST" && path === "/store/push") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleStorePush(request, env, actor));
+      }
+
+      // 1С:Фреш интеграция (OData) — только для админов тенанта
+      if (request.method === "GET" && path === "/api/crm/1c/settings") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cGetSettings(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/settings") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cSaveSettings(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/test-connection") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cTestConnection(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/sync/contractors/pull") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cPullContractors(request, env, actor));
+      }
+      if (request.method === "GET" && path === "/api/crm/1c/sync-log") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cSyncLog(request, env, actor));
       }
 
       if (request.method === "POST" && path === "/binotel/call") {
