@@ -754,6 +754,39 @@ function invitesPanel(){
   return panel;
 }
 
+// Живой список сотрудников: GET /api/admin/users (D1). Если нет прав/связи —
+// откатываемся на демо-состав из DB.roles, чтобы раздел не выглядел пустым.
+function teamMembersPanel(){
+  const panel=el(`<div class="panel"><div class="panel-h"><h3>Команда</h3>
+    <span class="ph-sub" data-tm="cnt"></span></div>
+    <table class="tbl"><tbody data-tm="body"><tr><td class="muted2" style="font-size:13px">Загрузка…</td></tr></tbody></table></div>`);
+  const body=panel.querySelector('[data-tm=body]');
+  const cnt=panel.querySelector('[data-tm=cnt]');
+  function renderDemo(note){
+    cnt.textContent = note||'демо-состав';
+    body.innerHTML=DB.roles.map(r=>`<tr><td><div class="cell-name"><span class="avatar-xs" style="background:${r.color}">${initials(r.who)}</span><div><div>${r.who}</div><div class="muted2" style="font-size:11px">${r.name}</div></div></div></td><td style="text-align:right"><span class="tag green">активен</span></td></tr>`).join('');
+  }
+  async function load(){
+    const r=await api('/api/admin/users');
+    if(!r.ok){ renderDemo(r.status===403?'демо · нужен доступ владельца':'демо · нет связи'); return; }
+    const items=r.data.items||[];
+    if(!items.length){ renderDemo('пока нет аккаунтов'); return; }
+    cnt.textContent = items.length+' '+plural(items.length,'сотрудник','сотрудника','сотрудников');
+    body.innerHTML=items.map(u=>{
+      const st = u.active ? '<span class="tag green">активен</span>' : '<span class="tag">отключён</span>';
+      const me = u.is_me ? '<span class="tag blue" style="margin-left:6px">вы</span>' : '';
+      const sub = (u.roleName||u.role)+(u.email?' · '+u.email:(u.login?' · '+u.login:''));
+      return `<tr><td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(u.name||u.login||'?')}">${initials(u.name||u.login||'?')}</span>
+        <div><div>${u.name||u.login||'—'}${me}</div><div class="muted2" style="font-size:11px">${sub}</div></div></div></td>
+        <td style="text-align:right">${st}</td></tr>`;
+    }).join('');
+  }
+  load();
+  return panel;
+}
+function plural(n,one,few,many){ const m=n%100, d=n%10;
+  if(m>=11&&m<=14) return many; if(d===1) return one; if(d>=2&&d<=4) return few; return many; }
+
 // ---------- TEAM ----------
 PAGES.team=(c)=>{
   if(isAdminRole()) c.appendChild(invitesPanel());
@@ -763,14 +796,12 @@ PAGES.team=(c)=>{
     ${sections.map(([lbl,id])=>`<tr><td>${lbl}</td>${DB.roles.map(r=>`<td style="text-align:center">${DB.access[r.id].includes(id)?'<span class="yes">'+ic('i-check2','sm')+'</span>':'<span class="no">—</span>'}</td>`).join('')}</tr>`).join('')}
   </tbody></table></div>`);
   c.appendChild(panel);
-  c.appendChild(el(`<div class="grid-2 section-gap">
-    <div class="panel"><div class="panel-h"><h3>Команда</h3></div><table class="tbl"><tbody>
-      ${DB.roles.map(r=>`<tr><td><div class="cell-name"><span class="avatar-xs" style="background:${r.color}">${initials(r.who)}</span><div><div>${r.who}</div><div class="muted2" style="font-size:11px">${r.name}</div></div></div></td><td style="text-align:right"><span class="tag green">активен</span></td></tr>`).join('')}
-    </tbody></table></div>
-    <div class="panel"><div class="panel-h"><h3>Привязка WhatsApp-каналов</h3></div><table class="tbl"><tbody>
+  const grid=el(`<div class="grid-2 section-gap"></div>`);
+  grid.appendChild(teamMembersPanel());
+  grid.appendChild(el(`<div class="panel"><div class="panel-h"><h3>Привязка WhatsApp-каналов</h3></div><table class="tbl"><tbody>
       ${DB.channels.filter(x=>x.type==='wa').map(ch=>`<tr><td><div class="cell-name"><span class="ci" style="width:26px;height:26px;border-radius:8px;background:var(--wa)22;color:var(--wa);display:grid;place-items:center">${ic('i-phone','sm')}</span>${ch.name}</div></td><td class="muted">${ch.phone}</td><td style="text-align:right"><b>${ch.owner}</b></td></tr>`).join('')}
-    </tbody></table></div>
-  </div>`));
+    </tbody></table></div>`));
+  c.appendChild(grid);
 };
 
 // ---------- INTEGRATIONS ----------
