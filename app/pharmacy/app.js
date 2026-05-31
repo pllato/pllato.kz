@@ -270,29 +270,96 @@ function newDeal(){openModal(`<div class="modal-h"><div><h3>Новая сдел�
 
 // ---------- CLIENTS ----------
 PAGES.clients=(c)=>{
-  c.appendChild(el(`<div class="toolbar">
-    <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по ФИО, телефону, карте…"></div>
+  const tbar=el(`<div class="toolbar">
+    <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по ФИО, телефону, карте…" data-cl="q"></div>
     <select class="sel"><option>Все типы</option><option>розница</option><option>опт</option><option>врач</option><option>дисконт</option><option>подписчик</option><option>партнёр</option></select>
     <select class="sel"><option>Все метки</option><option>постоянный</option><option>новый</option><option>не хочет рассылок</option></select>
     <div class="spacer"></div>
-    <button class="btn primary" onclick="toast('Карточка клиента создана','i-users')">${ic('i-plus','sm')} Клиент</button>
-  </div>`));
+    <span class="ph-sub" data-cl="cnt" style="margin-right:10px"></span>
+    <button class="btn primary" data-cl="new">${ic('i-plus','sm')} Клиент</button>
+  </div>`);
+  c.appendChild(tbar);
   const panel=el(`<div class="panel"><table class="tbl"><thead><tr>
-    <th>Клиент</th><th>Тип</th><th>Источник</th><th>Менеджер</th><th>Сделок</th><th class="num">LTV</th><th>Метки</th></tr></thead><tbody></tbody></table></div>`);
+    <th>Клиент</th><th>Тип</th><th>Источник</th><th>Менеджер</th><th>Сделок</th><th class="num">LTV</th><th>Метки</th></tr></thead><tbody><tr><td colspan="7" class="muted2" style="font-size:13px">Загрузка…</td></tr></tbody></table></div>`);
   const tb=panel.querySelector('tbody');
-  DB.clients.forEach(cl=>{
-    const tr=el(`<tr class="clickable">
-      <td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(cl.name)}">${initials(cl.name)}</span>
-        <div><div>${cl.name}</div><div class="muted2" style="font-size:11px">${cl.phone}</div></div></div></td>
-      <td>${cl.type.map(t=>`<span class="tag" style="margin:1px">${t}</span>`).join('')}</td>
-      <td class="muted">${cl.source}</td><td>${cl.mgr}</td><td>${cl.deals}</td>
-      <td class="num">${money(cl.ltv)}</td>
-      <td>${cl.sub?'<span class="tag violet">'+ic('i-repeat','sm')+' подписка</span>':''}${cl.loyalty.includes('не хочет рассылок')?'<span class="tag red">no-рассылки</span>':''}</td></tr>`);
-    tr.onclick=()=>clientModal(cl);tb.appendChild(tr);
-  });
+  const cnt=tbar.querySelector('[data-cl=cnt]');
+  const qInput=tbar.querySelector('[data-cl=q]');
+
+  function rowHtml(cl){
+    const type=Array.isArray(cl.type)?cl.type:[];
+    const loyalty=Array.isArray(cl.loyalty)?cl.loyalty:[];
+    const deals=(cl.deals!=null)?cl.deals:'—';
+    return `<td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(cl.name)}">${initials(cl.name)}</span>
+        <div><div>${cl.name}</div><div class="muted2" style="font-size:11px">${cl.phone||'—'}</div></div></div></td>
+      <td>${type.map(t=>`<span class="tag" style="margin:1px">${t}</span>`).join('')}</td>
+      <td class="muted">${cl.source||'—'}</td><td>${cl.mgr||'—'}</td><td>${deals}</td>
+      <td class="num">${money(cl.ltv||0)}</td>
+      <td>${cl.sub?'<span class="tag violet">'+ic('i-repeat','sm')+' подписка</span>':''}${loyalty.includes('не хочет рассылок')?'<span class="tag red">no-рассылки</span>':''}</td>`;
+  }
+  function render(list){
+    tb.innerHTML='';
+    if(!list.length){ tb.innerHTML='<tr><td colspan="7" class="muted2" style="font-size:13px;padding:18px">Клиентов пока нет — добавьте первого кнопкой «Клиент».</td></tr>'; return; }
+    list.forEach(cl=>{
+      const tr=el(`<tr class="clickable">${rowHtml(cl)}</tr>`);
+      tr.onclick=()=>clientModal(cl);
+      tb.appendChild(tr);
+    });
+  }
+  async function load(q){
+    const r=await api('/api/clients'+(q?('?q='+encodeURIComponent(q)):''));
+    if(!r.ok){
+      cnt.textContent=r.status===403?'демо · нужен доступ':'демо · нет связи';
+      render(DB.clients);
+      return;
+    }
+    const items=r.data.items||[];
+    state.clientsLive=items;
+    cnt.textContent=items.length+' '+plural(items.length,'клиент','клиента','клиентов');
+    render(items.length?items:[]);
+  }
+  let qTimer=null;
+  qInput.addEventListener('input',()=>{ clearTimeout(qTimer); qTimer=setTimeout(()=>load(qInput.value.trim()),300); });
+  tbar.querySelector('[data-cl=new]').onclick=()=>newClientModal(()=>load(qInput.value.trim()));
+  load('');
   c.appendChild(panel);
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Входящий поток из всех каналов попадает в CRM. В 1С передаются только реальные покупатели и опт-клиенты — чтобы база 1С не разрасталась.</div>`));
 };
+function newClientModal(onSaved){
+  const TYPES=['розница','опт','врач','дисконт','подписчик','партнёр'];
+  const bg=openModal(`<div class="modal-h"><div><h3>Новый клиент</h3><div class="mh-sub">Карточка сохранится в CRM (D1)</div></div>
+    <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="grid-2b">
+      <div><div class="fld"><label>ФИО *</label><input data-nc="name" placeholder="Иванова Анна"></div>
+        <div class="fld"><label>Телефон</label><input data-nc="phone" placeholder="+7 7XX XXX XX XX"></div>
+        <div class="fld-row"><div class="fld"><label>Дисконтная карта</label><input data-nc="card" placeholder="—"></div>
+          <div class="fld"><label>Источник лида</label><input data-nc="source" placeholder="WhatsApp / сайт / рекомендация"></div></div></div>
+      <div><div class="fld"><label>Тип клиента</label><div class="chips" data-nc="types">${TYPES.map(t=>`<span class="chip" data-t="${t}">${t}</span>`).join('')}</div></div>
+        <div class="fld"><label>Ответственный менеджер</label><input data-nc="mgr" placeholder="${(AUTH.user||{}).name||''}"></div></div>
+    </div>
+    <div class="modal-foot section-gap" style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal()">Отмена</button>
+      <button class="btn primary" data-nc="save">${ic('i-check2','sm')} Сохранить</button>
+    </div>
+  </div>`,'wide');
+  const sel=new Set();
+  bg.querySelectorAll('[data-nc=types] .chip').forEach(ch=>ch.addEventListener('click',()=>{
+    const t=ch.dataset.t; if(sel.has(t)){sel.delete(t);ch.classList.remove('on');}else{sel.add(t);ch.classList.add('on');}
+  }));
+  const gv=k=>(bg.querySelector(`[data-nc=${k}]`)?.value||'').trim();
+  bg.querySelector('[data-nc=save]').onclick=async()=>{
+    const name=gv('name');
+    if(!name){ toast('Укажите ФИО','i-info','#dc2626'); return; }
+    const btn=bg.querySelector('[data-nc=save]'); btn.disabled=true;
+    const body={ name, phone:gv('phone'), card:gv('card'), source:gv('source'), mgr:gv('mgr'), type:[...sel] };
+    const r=await api('/api/clients',{method:'POST',body:JSON.stringify(body)});
+    btn.disabled=false;
+    if(!r.ok){ toast(r.data?.error||'Не удалось сохранить','i-info','#dc2626'); return; }
+    closeModal();
+    toast('Клиент «'+name+'» создан','i-users');
+    if(onSaved)onSaved();
+  };
+}
 function clientModal(cl){
   state.clientTab=0;
   const bg=openModal(clientModalHTML(cl),'wide');
@@ -300,20 +367,23 @@ function clientModal(cl){
 }
 function clientModalHTML(cl){
   const tabs=['Профиль','История покупок · 1С','Переписка','Сделки','Подписка'];
+  const clType=Array.isArray(cl.type)?cl.type:[];
+  const clLoyalty=Array.isArray(cl.loyalty)?cl.loyalty:[];
+  const clHistory=Array.isArray(cl.history)?cl.history:[];
   let body='';
   if(state.clientTab===0){
     body=`<div class="grid-2b">
-      <div><div class="fld"><label>ФИО</label><input value="${cl.name}"></div>
-      <div class="fld"><label>Телефон</label><input value="${cl.phone}"></div>
-      <div class="fld-row"><div class="fld"><label>Дата рождения</label><input value="${cl.dob}"></div><div class="fld"><label>Дисконтная карта</label><input value="${cl.card}"></div></div>
-      <div class="fld"><label>Ответственный менеджер</label><input value="${cl.mgr}"></div></div>
-      <div><div class="fld"><label>Тип клиента</label><div class="chips">${['розница','опт','врач','дисконт','подписчик','партнёр'].map(t=>`<span class="chip ${cl.type.includes(t)?'on':''}">${t}</span>`).join('')}</div></div>
-      <div class="fld"><label>Метки лояльности</label><div class="chips">${['постоянный','новый','не хочет рассылок','заинтересован в подписке'].map(t=>`<span class="chip ${cl.loyalty.includes(t)?'on':''}">${t}</span>`).join('')}</div></div>
-      <div class="fld"><label>Источник лида</label><input value="${cl.source}"></div></div>
+      <div><div class="fld"><label>ФИО</label><input value="${cl.name||''}"></div>
+      <div class="fld"><label>Телефон</label><input value="${cl.phone||''}"></div>
+      <div class="fld-row"><div class="fld"><label>Дата рождения</label><input value="${cl.dob||''}"></div><div class="fld"><label>Дисконтная карта</label><input value="${cl.card||''}"></div></div>
+      <div class="fld"><label>Ответственный менеджер</label><input value="${cl.mgr||''}"></div></div>
+      <div><div class="fld"><label>Тип клиента</label><div class="chips">${['розница','опт','врач','дисконт','подписчик','партнёр'].map(t=>`<span class="chip ${clType.includes(t)?'on':''}">${t}</span>`).join('')}</div></div>
+      <div class="fld"><label>Метки лояльности</label><div class="chips">${['постоянный','новый','не хочет рассылок','заинтересован в подписке'].map(t=>`<span class="chip ${clLoyalty.includes(t)?'on':''}">${t}</span>`).join('')}</div></div>
+      <div class="fld"><label>Источник лида</label><input value="${cl.source||''}"></div></div>
     </div>`;
   } else if(state.clientTab===1){
-    body=`<div class="note blue">${ic('i-sync','sm')} История покупок подтягивается из 1С Listki EG автоматически. LTV: <b>${money(cl.ltv)}</b> · сделок: ${cl.deals}</div>
-    <div class="timeline section-gap">${cl.history.map(h=>tl('#16a34a','i-cart',h.t,h.d)).join('')}</div>`;
+    body=`<div class="note blue">${ic('i-sync','sm')} История покупок подтягивается из 1С Listki EG автоматически. LTV: <b>${money(cl.ltv||0)}</b> · сделок: ${cl.deals!=null?cl.deals:'—'}</div>
+    ${clHistory.length?`<div class="timeline section-gap">${clHistory.map(h=>tl('#16a34a','i-cart',h.t,h.d)).join('')}</div>`:`<div class="empty section-gap">${ic('i-cart')}<div>Истории покупок пока нет</div></div>`}`;
   } else if(state.clientTab===2){
     body=`<div class="note">${ic('i-chat','sm')} Единая лента: WhatsApp + Instagram Direct + комментарии менеджеров — в одной карточке.</div>
     <div class="timeline section-gap">
@@ -338,7 +408,7 @@ function clientModalHTML(cl){
       :`<div class="empty">${ic('i-repeat')}<div>Подписки нет</div><button class="btn primary" style="margin-top:14px" onclick="toast('Карточка подписки создана','i-repeat','#7c3aed')">${ic('i-plus','sm')} Оформить подписку</button></div>`;
   }
   return `<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(cl.name)}">${initials(cl.name)}</span>
-    <div><h3>${cl.name}</h3><div class="mh-sub">${cl.phone} · ${cl.card!=='—'?'карта '+cl.card:'без карты'}</div></div></div>
+    <div><h3>${cl.name}</h3><div class="mh-sub">${cl.phone||'—'} · ${(cl.card&&cl.card!=='—')?'карта '+cl.card:'без карты'}</div></div></div>
     <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b"><div class="tabs" style="margin-bottom:18px">${tabs.map((t,i)=>`<button class="tab ${state.clientTab===i?'on':''}" data-t="${i}">${t}</button>`).join('')}</div>${body}</div>`;
 }
@@ -995,9 +1065,47 @@ $('#themeBtn').onclick=()=>{const t=state.theme==='light'?'dark':'light';applyTh
 //  с композером. Данные демо-мокапа: DB.threads / DB.channels.
 // ============================================================
 const cwEsc = (s)=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const CW = { open:false, view:'list', thread:null };
+const CW = { open:false, view:'list', thread:null, threads:null, source:'demo' };
 
-function cwUnreadTotal(){ return DB.threads.reduce((s,t)=>s+(t.unread||0),0); }
+// Время для строк виджета: сегодня → ЧЧ:ММ, иначе ДД.ММ.
+function cwFmtTime(ts){
+  if(!ts) return '';
+  const d=new Date(ts), now=new Date();
+  return d.toDateString()===now.toDateString()
+    ? d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})
+    : d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'});
+}
+// Нормализованный диалог: {id,name,av,groupKey,groupName,chType,unread,time,last,online,phone,msgs,live,loaded}
+function cwNormFromDemo(){
+  return DB.threads.map(t=>{
+    const ch=DB.channels.find(c=>c.id===t.ch)||{id:t.ch,name:'Прочее',type:'wp'};
+    return { id:t.id, name:t.name, av:t.av||avBg(t.name), groupKey:ch.id, groupName:ch.name,
+      chType:ch.type, unread:t.unread||0, time:t.time||'', last:t.last||'', online:t.online,
+      msgs:(t.msgs||[]).map(m=>({dir:m.dir,t:m.t,tm:m.tm||''})), live:false, loaded:true };
+  });
+}
+function cwNormFromLive(items){
+  return (items||[]).map(it=>({
+    id:it.id, name:it.title||it.phone||'Диалог', av:avBg(it.title||it.phone||it.id),
+    groupKey:it.ch||'wa', groupName:it.chName||chLabel(it.ch||'wa'), chType:it.ch||'wa',
+    unread:it.unread||0, time:cwFmtTime(it.last_ts), last:it.preview||'', online:false,
+    phone:it.phone||'', msgs:[], live:true, loaded:false }));
+}
+// Все диалоги (ленивая инициализация демо-составом для бейджа до первой загрузки).
+function cwAll(){ if(!CW.threads) CW.threads=cwNormFromDemo(); return CW.threads; }
+function cwFindThread(tid){ return cwAll().find(t=>t.id===tid); }
+// Подтянуть диалоги из CRM (live); при недоступности — демо-фолбэк.
+async function cwLoadThreads(){
+  const r=await api('/api/inbox/threads');
+  // живые диалоги показываем, как только они появятся; пока их нет — оставляем демо-ленту (мокап «живой»)
+  if(r.ok && r.data && Array.isArray(r.data.items) && r.data.items.length){
+    CW.source='live'; CW.threads=cwNormFromLive(r.data.items);
+  } else {
+    CW.source='demo'; CW.threads=cwNormFromDemo();
+  }
+}
+
+function cwUnreadTotal(){ return cwAll().reduce((s,t)=>s+(t.unread||0),0); }
 
 function cwEnsureStyles(){
   if(document.getElementById('cw-styles')) return;
@@ -1067,6 +1175,7 @@ function initChatWidget(){
     const r=document.createElement('div'); r.id='cw-root'; document.body.appendChild(r);
   }
   cwRender();
+  cwLoadThreads().then(()=>cwRender()).catch(()=>{});
 }
 
 function cwRender(){
@@ -1074,7 +1183,8 @@ function cwRender(){
   if(!CW.open){
     const n=cwUnreadTotal();
     root.innerHTML=`<button class="cw-fab" id="cw-fab" title="Чаты WhatsApp / Instagram">${ic('i-chat')}${n>0?`<span class="cw-fab-badge">${n>99?'99+':n}</span>`:''}</button>`;
-    $('#cw-fab',root).onclick=()=>{ CW.open=true; CW.view='list'; cwRender(); };
+    $('#cw-fab',root).onclick=()=>{ CW.open=true; CW.view='list'; cwRender();
+      cwLoadThreads().then(()=>{ if(CW.open&&CW.view==='list') cwRender(); }); };
     return;
   }
   if(CW.view==='chat' && CW.thread){ cwRenderChat(root); }
@@ -1082,12 +1192,13 @@ function cwRender(){
 }
 
 function cwRenderList(root){
-  const total=DB.threads.length, unread=cwUnreadTotal();
+  const all=cwAll();
+  const total=all.length, unread=cwUnreadTotal();
   // группируем по каналу, как «📞 Канал» в ELC
   const byCh=new Map();
-  DB.threads.forEach(t=>{ if(!byCh.has(t.ch)) byCh.set(t.ch,[]); byCh.get(t.ch).push(t); });
-  const groups=[...byCh.entries()].map(([chId,list])=>{
-    const ch=DB.channels.find(c=>c.id===chId)||{name:'Прочее',type:'wp'};
+  all.forEach(t=>{ if(!byCh.has(t.groupKey)) byCh.set(t.groupKey,[]); byCh.get(t.groupKey).push(t); });
+  const groups=[...byCh.entries()].map(([key,list])=>{
+    const ch={name:list[0].groupName||'Прочее', type:list[0].chType||'wp'};
     const u=list.reduce((s,t)=>s+(t.unread||0),0);
     list.sort((a,b)=>(b.unread||0)-(a.unread||0));
     return {ch,list,unread:u};
@@ -1127,16 +1238,28 @@ function cwRowHtml(t){
     </div></div>`;
 }
 
-function cwOpenThread(tid){
-  const t=DB.threads.find(x=>x.id===tid); if(!t) return;
-  t.unread=0;                 // mark-read
-  CW.thread=tid; CW.view='chat'; cwRender();
+async function cwOpenThread(tid){
+  const t=cwFindThread(tid); if(!t) return;
+  CW.thread=tid; CW.view='chat'; cwRender();   // мгновенно открываем (может показать «Загрузка…»)
+  t.unread=0;                                   // снять счётчик локально
+  if(t.live){
+    if(t.id) api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/read',{method:'POST'}).catch(()=>{});
+    if(!t.loaded){
+      const r=await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/messages');
+      if(r.ok && r.data && Array.isArray(r.data.items)){
+        t.msgs=r.data.items.map(m=>({dir:m.dir,t:m.body,tm:cwFmtTime(m.ts)}));
+        t.loaded=true;
+      }
+      if(CW.open && CW.view==='chat' && CW.thread===tid) cwRender();
+    }
+  }
 }
 
 function cwRenderChat(root){
-  const t=DB.threads.find(x=>x.id===CW.thread); if(!t){ CW.view='list'; cwRender(); return; }
-  const ch=DB.channels.find(c=>c.id===t.ch)||{name:'',type:'wp'};
-  const msgs=(t.msgs||[]).map(m=>{
+  const t=cwFindThread(CW.thread); if(!t){ CW.view='list'; cwRender(); return; }
+  const ch={name:t.groupName||'', type:t.chType||'wp'};
+  const loading=t.live && !t.loaded;
+  const msgs=loading ? '<div class="cw-empty">Загрузка…</div>' : (t.msgs||[]).map(m=>{
     const cls=m.dir==='out'?'out':(m.dir==='ai'?'ai':'in');
     const tag=m.dir==='ai'?'<div class="cw-ai-tag">AI-агент</div>':'';
     return `<div class="cw-msg ${cls}">${tag}${cwEsc(m.t)}<div class="cw-mt">${cwEsc(m.tm||'')}</div></div>`;
@@ -1159,13 +1282,20 @@ function cwRenderChat(root){
   const back=$('#cw-back',root); if(back) back.onclick=()=>{ CW.view='list'; cwRender(); };
   const ta=$('#cw-input',root), msgsBox=$('#cw-msgs',root);
   if(msgsBox) msgsBox.scrollTop=msgsBox.scrollHeight;
-  const send=()=>{
+  const send=async ()=>{
     const v=ta.value.trim(); if(!v) return;
     const now=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
     t.msgs=t.msgs||[]; t.msgs.push({dir:'out',t:v,tm:now}); t.last=v; t.time=now;
     ta.value=''; ta.style.height='auto';
     cwRenderChat(root);
-    toast('Отправлено в '+chLabel(ch.type)+' (GreenAPI)','i-send','var(--wa)');
+    if(t.live){
+      const r=await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/send',{method:'POST',body:JSON.stringify({text:v})});
+      if(!r.ok){ toast(r.data&&r.data.error?r.data.error:'Не доставлено','i-info','#dc2626'); return; }
+      const w=r.data&&r.data.whatsapp;
+      toast(w&&w.sent?'Доставлено в WhatsApp':'Сохранено · WhatsApp не настроен','i-send','var(--wa)');
+    } else {
+      toast('Отправлено в '+chLabel(ch.type)+' (демо)','i-send','var(--wa)');
+    }
   };
   if(ta){
     ta.addEventListener('input',()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,100)+'px'; });
