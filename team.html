@@ -13533,10 +13533,62 @@ async function renderOrgChart(el) {
       document.getElementById('org-tree').addEventListener('click', handleOrgClick);
       document.getElementById('org-tree').addEventListener('keydown', handleOrgKeydown);
     }
+    // Restore scroll position (persistent across reloads/navigations)
+    setTimeout(() => restoreOrgScroll(), 50);
+    // Save scroll on user scroll (debounced)
+    attachOrgScrollPersist();
   } catch (e) {
     document.getElementById('org-tree').innerHTML =
       `<div class="card" style="padding:20px;color:#c00">Ошибка загрузки: ${escapeHtml(e.message)}</div>`;
   }
+}
+
+// Persist scroll position of Структура (горизонтальный + вертикальный)
+// между reloads/навигациями. Юзер: «при перезагрузке может открываться на
+// том же месте структуры, а не в начале, приходится крутиться туда сюда».
+const ORG_SCROLL_LS_KEY = 'elc:orgScroll';
+let _orgScrollHandlerAttached = false;
+let _orgScrollSaveTimer = null;
+
+function saveOrgScrollDebounced() {
+  if (_orgScrollSaveTimer) clearTimeout(_orgScrollSaveTimer);
+  _orgScrollSaveTimer = setTimeout(() => {
+    const page = document.querySelector('.otv-page');
+    if (!page) return;
+    const data = {
+      x: page.scrollLeft || 0,
+      y: window.scrollY || document.documentElement.scrollTop || 0,
+    };
+    try { localStorage.setItem(ORG_SCROLL_LS_KEY, JSON.stringify(data)); } catch {}
+  }, 200);
+}
+
+function restoreOrgScroll() {
+  let data = null;
+  try {
+    const raw = localStorage.getItem(ORG_SCROLL_LS_KEY);
+    if (raw) data = JSON.parse(raw);
+  } catch {}
+  if (!data) return;
+  const page = document.querySelector('.otv-page');
+  if (page && typeof data.x === 'number') page.scrollLeft = data.x;
+  if (typeof data.y === 'number') {
+    // requestAnimationFrame чтобы дать DOM устаканиться
+    requestAnimationFrame(() => window.scrollTo(0, data.y));
+  }
+}
+
+function attachOrgScrollPersist() {
+  if (_orgScrollHandlerAttached) return;
+  _orgScrollHandlerAttached = true;
+  // Делегированный listener на window — ловит и scroll окна, и scroll внутри
+  // .otv-page (через capture, т.к. scroll не bubbles)
+  window.addEventListener('scroll', () => {
+    if (document.querySelector('.otv-page')) saveOrgScrollDebounced();
+  }, { passive: true });
+  window.addEventListener('scroll', () => {
+    if (document.querySelector('.otv-page')) saveOrgScrollDebounced();
+  }, { capture: true, passive: true });
 }
 
 function orgSortedUsers() {
@@ -13587,7 +13639,17 @@ function orgMembersHtml(memberUids, dataPath, readOnly) {
 
 // Главный рендер дерева — единственный режим. Вызывается из handlers + save.
 function renderOrgChartTree(treeEl, isAdmin) {
+  // Сохраняем scroll до re-render (innerHTML пересоздаст .otv-page)
+  const oldPage = document.querySelector('.otv-page');
+  const savedX = oldPage ? oldPage.scrollLeft : null;
+  const savedY = window.scrollY || document.documentElement.scrollTop || 0;
   renderOrgChartTreeView(treeEl, isAdmin);
+  // Восстанавливаем сразу синхронно (DOM уже создан после innerHTML)
+  requestAnimationFrame(() => {
+    const newPage = document.querySelector('.otv-page');
+    if (newPage && savedX != null) newPage.scrollLeft = savedX;
+    if (savedY > 0) window.scrollTo(0, savedY);
+  });
 }
 
 
