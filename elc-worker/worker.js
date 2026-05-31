@@ -86,7 +86,13 @@ async function resolveCanonicalUser(env, claims) {
 
   // Hardcoded admin для Платона (защита если запись в user_roles потеряется)
   const isPlatonByEmail = email === "uurraa@gmail.com";
-  const role = roleRow?.role || (isPlatonByEmail ? "admin" : "agent");
+  let role = roleRow?.role || (isPlatonByEmail ? "admin" : "agent");
+
+  // Phase 2: ORG-структура определяет права. Director = super-admin.
+  // Computed permissions: {pipelineIds (null=all), dealScope (own|team|all), teamUids}
+  const orgPerms = await resolveOrgPermissions(env, canonicalUid);
+  // Если user является Директором (top of org), эскалируем до admin
+  if (orgPerms.isDirector) role = 'admin';
 
   return {
     firebaseUid: claims.user_id || claims.sub,
@@ -95,6 +101,80 @@ async function resolveCanonicalUser(env, claims) {
     role,
     department: roleRow?.department || null,
     userRecord: userRow || null,
+    orgPerms,
+  };
+}
+
+// Phase 2: вычисляет права юзера через дерево org:structure.
+// Юзер может быть в нескольких узлах (member/head). Эффективные права —
+// UNION прав всех узлов где он состоит + всех их потомков (inheritance).
+// Возвращает {isDirector, pipelineIds (null=все), dealScope, teamUids (Set)}.
+async function resolveOrgPermissions(env, uid) {
+  const defaults = { isDirector: false, pipelineIds: null, dealScope: 'own', teamUids: new Set(), hasAnyNode: false };
+  if (!uid) return defaults;
+  let structure = null;
+  try {
+    const row = await env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind('org:structure').first();
+    if (row?.v) structure = JSON.parse(row.v);
+  } catch (e) { console.warn('[orgPerms] parse failed:', e); return defaults; }
+  if (!structure) return defaults;
+
+  // Director?
+  if (structure.director?.uid === uid) {
+    return { isDirector: true, pipelineIds: null, dealScope: 'all', teamUids: new Set(), hasAnyNode: true };
+  }
+
+  // Обход дерева — собираем узлы где user в memberUids/headUid + их descendants
+  const userNodes = [];  // ноды куда явно входит юзер
+  const allNodes = [];   // плоский список всех узлов с reference на родителя для inheritance
+  function walk(node, parents) {
+    allNodes.push({ node, parents });
+    const isUserHere = node.headUid === uid || (node.memberUids || []).includes(uid);
+    if (isUserHere) userNodes.push({ node, parents });
+    const children = node.subDepartments || node.departments || [];
+    for (const child of children) walk(child, [...parents, node]);
+  }
+  for (const branch of (structure.branches || [])) walk(branch, []);
+  if (!userNodes.length) return defaults;
+
+  // Эффективные права = UNION node.permissions всех userNodes + всех их descendants
+  // (потому что user, состоящий в верхнем узле, должен видеть всё что нижние видят)
+  const relevantNodes = new Set();
+  function addWithDescendants(n) {
+    if (relevantNodes.has(n)) return;
+    relevantNodes.add(n);
+    const ch = n.subDepartments || n.departments || [];
+    for (const c of ch) addWithDescendants(c);
+  }
+  for (const { node } of userNodes) addWithDescendants(node);
+
+  // Агрегируем permissions
+  let pipelineAccess = 'specific';
+  const pipelineIdsSet = new Set();
+  let dealScope = 'own';
+  for (const node of relevantNodes) {
+    const perms = node.permissions;
+    if (!perms) continue;
+    if (perms.pipelineAccess === 'all') pipelineAccess = 'all';
+    else if (Array.isArray(perms.pipelineIds)) for (const pid of perms.pipelineIds) pipelineIdsSet.add(pid);
+    // dealScope precedence: all > team(department) > own
+    if (perms.dealScope === 'all') dealScope = 'all';
+    else if (perms.dealScope === 'department' && dealScope !== 'all') dealScope = 'team';
+  }
+
+  // teamUids = uids всех людей из релевантных узлов (для dealScope='team')
+  const teamUids = new Set();
+  for (const node of relevantNodes) {
+    if (node.headUid) teamUids.add(node.headUid);
+    for (const u of (node.memberUids || [])) if (u) teamUids.add(u);
+  }
+
+  return {
+    isDirector: false,
+    pipelineIds: pipelineAccess === 'all' ? null : Array.from(pipelineIdsSet),
+    dealScope,
+    teamUids,
+    hasAnyNode: true,
   };
 }
 
@@ -1131,6 +1211,54 @@ async function handleList(request, env, entity) {
     } else {
       // default — скрываем архив
       whereParts.push("(archived IS NULL OR archived = 0)");
+    }
+  }
+
+  // ──── Phase 2: применение прав из ORG STRUCTURE ────
+  // me.orgPerms = {isDirector, pipelineIds, dealScope, teamUids}
+  // Если юзер админ или Директор — никаких доп. ограничений (видит всё).
+  // Иначе применяем как HARD LIMIT поверх scope-фильтра фронта:
+  //   * pipelineIds — список разрешённых воронок (если null = все)
+  //   * dealScope:
+  //       own  → responsible/created = uid (если ещё не было scope=mine)
+  //       team → responsible/created IN teamUids
+  //       all  → без доп. фильтра
+  // Не применяется к: pipelines, users (мета). Применяется к: deals, tasks.
+  // Contacts — все юзеры видят (юзер: «к контактам у всех доступ»).
+  if (me.role !== 'admin' && me.orgPerms && (entity === 'deals' || entity === 'tasks')) {
+    const op = me.orgPerms;
+    // Pipeline whitelist (только для deals — у tasks нет pipeline_id)
+    if (entity === 'deals' && Array.isArray(op.pipelineIds)) {
+      if (op.pipelineIds.length === 0) {
+        whereParts.push("1 = 0");
+      } else {
+        const ph = op.pipelineIds.map(() => "?").join(",");
+        whereParts.push(`pipeline_id IN (${ph})`);
+        for (const pid of op.pipelineIds) whereParams.push(pid);
+      }
+    }
+    // Deal-scope из org perms
+    if (op.dealScope !== 'all') {
+      const fields = cfg.mineFields || [];
+      const jsonFields = cfg.mineJsonFields || [];
+      const uids = op.dealScope === 'team' ? Array.from(op.teamUids || []) : [me.canonicalUid].filter(Boolean);
+      if (uids.length === 0) {
+        whereParts.push("1 = 0");
+      } else if (fields.length || jsonFields.length) {
+        const ph = uids.map(() => "?").join(",");
+        const orC = [];
+        for (const f of fields) {
+          orC.push(`${f} IN (${ph})`);
+          for (const u of uids) whereParams.push(u);
+        }
+        for (const f of jsonFields) {
+          for (const u of uids) {
+            orC.push(`${f} LIKE ?`);
+            whereParams.push(`%"${u}"%`);
+          }
+        }
+        if (orC.length) whereParts.push("(" + orC.join(" OR ") + ")");
+      }
     }
   }
 
@@ -3154,6 +3282,14 @@ async function handleMe(request, env) {
       photo: me.userRecord.photo,
     } : null,
     isLinked: !!me.userRecord,        // false если email не нашёлся в users
+    // Phase 2: effective permissions из org structure для frontend
+    orgPerms: me.orgPerms ? {
+      isDirector: me.orgPerms.isDirector,
+      hasAnyNode: me.orgPerms.hasAnyNode,
+      pipelineIds: me.orgPerms.pipelineIds,  // null = все воронки
+      dealScope: me.orgPerms.dealScope,      // own | team | all
+      teamSize: me.orgPerms.teamUids ? me.orgPerms.teamUids.size : 0,
+    } : null,
   }, 200, request);
 }
 

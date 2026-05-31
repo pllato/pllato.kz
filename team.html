@@ -14129,9 +14129,13 @@ function pluralize(n, one, few, many) {
 // своего отдела полностью». Сейчас Phase 1 — только UI настройки прав на
 // узле (хранится в node.permissions). Phase 2 — применение фильтров в
 // worker — отдельным PR.
-function openOrgNodePermissionsModal(path) {
+async function openOrgNodePermissionsModal(path) {
   const node = orgGetByPath(path);
   if (!node) return;
+  // Подгружаем pipelines если ещё нет (структуру могли открыть до СРМ)
+  if (!dealsState.metaLoaded) {
+    try { await loadDealsMeta(); } catch {}
+  }
   // Дефолты для нового узла
   const perms = node.permissions || {
     pipelineAccess: 'all',      // all | specific
