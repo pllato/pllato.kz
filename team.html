@@ -1253,6 +1253,22 @@ tr:hover td { background: var(--bg3); }
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
+/* Запланированный Zoom в будущем — выделяем синим, чтоб глаз цеплял */
+.kanban-card-date-zoom {
+  color: #2563eb;
+  font-weight: 600;
+  background: rgba(37, 99, 235, 0.10);
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+/* Zoom в прошлом — серым (приглушённо) */
+.kanban-card-date-zoom-past {
+  color: var(--t3);
+  text-decoration: line-through;
+  opacity: 0.7;
+  font-size: 10px;
+}
 .kanban-more {
   text-align: center;
   padding: 8px;
@@ -4310,6 +4326,38 @@ async function loadDealsActivity(pipelineId, idToken) {
   }
 }
 
+// Bulk-подгрузка телефонов всех контактов сделок воронки. Чтобы кнопки 💬/📞
+// в канбане были активны сразу. Раньше телефон попадал в dealsState.contactPhones
+// только когда юзер открывал карточку → buttons disabled пока не откроешь.
+// Чанкует ids по 200 (лимит worker'а).
+async function preloadDealPhones(deals, idToken) {
+  if (!Array.isArray(deals) || deals.length === 0) return;
+  if (!idToken) idToken = await fbAuth.currentUser.getIdToken();
+  if (!dealsState.contactPhones) dealsState.contactPhones = {};
+  const need = new Set();
+  for (const d of deals) {
+    // Если уже есть телефон в самой сделке — кеш не нужен
+    if (asArray(d.phones).length > 0) continue;
+    if (d.contactId && !dealsState.contactPhones[d.contactId]) need.add(d.contactId);
+  }
+  if (need.size === 0) return;
+  const ids = [...need];
+  const chunkSize = 200;
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    try {
+      const r = await fetch(`${WORKER_BASE_URL}/api/contacts/phones?ids=${encodeURIComponent(chunk.join(','))}`, {
+        headers: { 'Authorization': `Bearer ${idToken}` },
+      });
+      if (!r.ok) continue;
+      const data = await r.json();
+      Object.assign(dealsState.contactPhones, data.items || {});
+    } catch (e) { /* ignore chunk errors */ }
+  }
+  // Перерендер канбана если активная воронка ещё открыта
+  if (document.getElementById('kanban-wrap')) renderDealsContent();
+}
+
 // Геттер для активной воронки — backward-compat с местами где было dealsState.pipeline
 Object.defineProperty(dealsState, 'pipeline', {
   get() {
@@ -5082,6 +5130,9 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
       // Bulk-подгрузка активности (WA/missed-calls) в фоне — для бейджей и
       // сортировки канбана. Не блокирует первый рендер.
       loadDealsActivity(pipelineId, idToken).catch(e => console.warn('loadDealsActivity:', e));
+      // Bulk-подгрузка телефонов чтобы кнопки 💬/📞 в канбане были активны
+      // сразу при первом рендере (без открытия карточки).
+      preloadDealPhones(all, idToken).catch(e => console.warn('preloadDealPhones:', e));
     } catch (e) {
       console.error('loadDealsForPipeline error:', e);
       // На ошибку — оставляем dealsState.deals что было, не пустим
@@ -7576,6 +7627,28 @@ function buildDealCard(d, stageColor) {
   const staleWarn = daysSince !== null && daysSince > 30;
   const created = d.bitrixDateCreate ? new Date(d.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit' }) : '';
 
+  // Подпись даты в footer: «🎥 Зум: 02.06 14:00» если запланирован Zoom;
+  // иначе дефолтная дата создания (created). Это ключ для менеджера —
+  // понять "что у меня дальше" не открывая карточку.
+  let dateLabel = '';
+  let dateLabelClass = 'kanban-card-date';
+  const zoomAt = d.customFields?.firstZoomAt;
+  if (zoomAt) {
+    const zd = new Date(zoomAt);
+    if (!isNaN(zd.getTime())) {
+      const isFuture = zd.getTime() >= Date.now() - 3600000;  // в пределах часа назад тоже считаем
+      const dd = String(zd.getDate()).padStart(2, '0');
+      const mm = String(zd.getMonth() + 1).padStart(2, '0');
+      const hh = String(zd.getHours()).padStart(2, '0');
+      const mi = String(zd.getMinutes()).padStart(2, '0');
+      dateLabel = `🎥 Зум: ${dd}.${mm} ${hh}:${mi}`;
+      dateLabelClass = isFuture ? 'kanban-card-date kanban-card-date-zoom' : 'kanban-card-date kanban-card-date-zoom-past';
+    }
+  }
+  if (!dateLabel && created) {
+    dateLabel = `📅 ${created}`;
+  }
+
   const cardClasses = ['kanban-card'];
   if (isNew) cardClasses.push('deal-card-new');
   if (staleWarn) cardClasses.push('deal-card-stale');
@@ -7625,7 +7698,7 @@ function buildDealCard(d, stageColor) {
         <span class="kanban-av">${escapeHtml(respShort)}</span>
         <span class="kanban-card-resp-name">${escapeHtml(respName.split(' ')[0] || '—')}</span>
       </div>
-      ${staleWarn ? `<span class="kanban-stale">${daysSince}д</span>` : (created ? `<span class="kanban-card-date">${created}</span>` : '')}
+      ${staleWarn ? `<span class="kanban-stale">${daysSince}д</span>` : (dateLabel ? `<span class="${dateLabelClass}">${dateLabel}</span>` : '')}
     </div>
     <div class="kanban-card-actions">
       <button class="kca-btn kca-wa" data-action="wa" data-phone="${escapeHtml(phone || '')}" data-deal-id="${escapeHtml(d.bitrixId || '')}" title="${phone ? 'Открыть WhatsApp' : 'У контакта нет телефона — добавь в карточке'}" ${!phone ? 'data-no-phone="1" style="opacity:0.45"' : ''}>💬</button>

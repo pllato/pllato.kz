@@ -3406,6 +3406,35 @@ async function pickNextRoundRobinUid(env, channelId) {
   return uid;
 }
 
+// Батч телефонов для канбана. До этого endpoint'а phones подгружались только
+// при открытии карточки → кнопки 💬/📞 в канбане были disabled до первого
+// захода в детали сделки. Теперь рендер деталки → POST 200 ids → готово.
+// Чтобы не валить SQL `IN (?,?,?,…)` тысячами параметров, режем на 200 за раз.
+async function handleContactsPhonesBulk(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const url = new URL(request.url);
+  const raw = (url.searchParams.get("ids") || "").trim();
+  if (!raw) return json({ items: {} }, 200, request);
+  const ids = raw.split(",").map(s => s.trim()).filter(Boolean).slice(0, 200);
+  if (ids.length === 0) return json({ items: {} }, 200, request);
+  const ph = ids.map(() => "?").join(",");
+  const { results } = await env.DB.prepare(
+    `SELECT id, phones FROM contacts WHERE id IN (${ph})`
+  ).bind(...ids).all();
+  const items = {};
+  for (const r of results) {
+    if (!r.phones) continue;
+    try {
+      const arr = JSON.parse(r.phones);
+      if (Array.isArray(arr) && arr.length > 0 && arr[0]?.value) {
+        items[r.id] = arr[0].value;
+      }
+    } catch {}
+  }
+  return json({ items, total: Object.keys(items).length }, 200, request);
+}
+
 // ── Phase 0 routes ──────────────────────────────────────
 async function handleHealth(request, env) {
   try {
@@ -3482,6 +3511,12 @@ export default {
     const listMatch = path.match(/^\/api\/list\/([a-z_]+)\/?$/);
     if (listMatch && request.method === "GET") {
       return handleList(request, env, listMatch[1]);
+    }
+
+    // /api/contacts/phones?ids=id1,id2,... — батч телефонов для канбана.
+    // Чтобы кнопки 💬/📞 в карточках были активны сразу, без открытия деталки.
+    if (path === "/api/contacts/phones" && request.method === "GET") {
+      return handleContactsPhonesBulk(request, env);
     }
 
     // /api/files/{id} — отдача мигрированного файла из R2
