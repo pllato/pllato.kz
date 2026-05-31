@@ -3358,6 +3358,151 @@ async function handleUserChannelsPut(request, env) {
   return json({ ok: true, channels }, 200, request);
 }
 
+// ── SIP-extensions: карта uid → внутренний номер для Asterisk ───────────
+// Хранение: kv['org:extensions'] = { [uid]: '101', [uid2]: '102', ... }
+// UI в Структуре (ресепшн филиала сам вписывает свой extension'ам).
+async function handleSipExtensionsGet(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const row = await env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind('org:extensions').first();
+  let map = {};
+  if (row?.v) { try { map = JSON.parse(row.v) || {}; } catch {} }
+  return json({ ok: true, extensions: map }, 200, request);
+}
+
+async function handleSipExtensionsPut(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  // TODO: per-node permission check (главе отдела можно править только своих).
+  // Пока — admin или любой с правом редактировать структуру.
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const ext = body.extensions;
+  if (!ext || typeof ext !== 'object') return json({ error: "extensions object required" }, 400, request);
+  // Sanitize: только uid (string) → extension (digit string)
+  const clean = {};
+  for (const [uid, val] of Object.entries(ext)) {
+    if (typeof uid !== 'string') continue;
+    const v = String(val || '').replace(/\D/g, '').slice(0, 6);
+    if (v) clean[uid] = v;
+  }
+  await env.DB.prepare(`
+    INSERT INTO kv (k, v) VALUES (?, ?)
+    ON CONFLICT(k) DO UPDATE SET v = excluded.v
+  `).bind('org:extensions', JSON.stringify(clean)).run();
+  return json({ ok: true, extensions: clean }, 200, request);
+}
+
+// GET /api/sip/route?phone=77073320409 — Asterisk дёргает при входящем.
+// Возвращает: { extensions: ["101","102"], mobile: "+7...", fallbackSeconds: 30 }
+// Логика: phone → contact → recent open deal → responsible_uid → org-tree node →
+// node.callDistribution rules.
+//
+// Без сделки — корневое правило (директора), либо ring-all всех зарегистрированных.
+async function handleSipRoute(request, env) {
+  // Asterisk не умеет Firebase Auth → shared secret в query или header
+  const url = new URL(request.url);
+  const secret = url.searchParams.get('secret') || request.headers.get('x-sip-route-secret') || '';
+  if (!env.SIP_ROUTE_SECRET || secret !== env.SIP_ROUTE_SECRET) {
+    return json({ error: "invalid secret" }, 401, request);
+  }
+  const phoneRaw = url.searchParams.get('phone') || '';
+  const phone = phoneRaw.replace(/\D/g, '');
+  if (!phone) return json({ error: "phone required" }, 400, request);
+
+  // 1) Найти контакт по phone (LIKE по JSON-полю phones)
+  const contact = await env.DB.prepare(
+    "SELECT id FROM contacts WHERE phones LIKE ? LIMIT 1"
+  ).bind(`%${phone}%`).first();
+  let responsibleUid = null;
+  let dealInfo = null;
+  if (contact) {
+    // 2) Самая свежая открытая сделка с этим контактом
+    const deal = await env.DB.prepare(
+      "SELECT id, responsible_uid, pipeline_id FROM deals WHERE contact_id = ? AND closed = 0 ORDER BY bitrix_date_modify DESC LIMIT 1"
+    ).bind(contact.id).first();
+    if (deal) {
+      responsibleUid = deal.responsible_uid || null;
+      dealInfo = { id: deal.id, pipelineId: deal.pipeline_id };
+    }
+  }
+
+  // 3) Загрузить org structure и extensions
+  const [structRow, extRow] = await Promise.all([
+    env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind('org:structure').first(),
+    env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind('org:extensions').first(),
+  ]);
+  let structure = null, extensions = {};
+  try { structure = structRow?.v ? JSON.parse(structRow.v) : null; } catch {}
+  try { extensions = extRow?.v ? JSON.parse(extRow.v) : {}; } catch {}
+
+  // 4) Найти узел где ответственный — головной или участник
+  let nodeRule = null;
+  if (responsibleUid && structure) {
+    nodeRule = findCallDistributionForUid(structure, responsibleUid);
+  }
+  // Fallback: корневое правило (на директоре)
+  if (!nodeRule && structure) {
+    nodeRule = structure.callDistribution || null;
+  }
+
+  // 5) Применить правило: mode = responsible | list | mobile | ring-all
+  const mode = nodeRule?.mode || (responsibleUid ? 'responsible' : 'ring-all');
+  let extsToRing = [];
+  let mobile = nodeRule?.mobile || null;
+  const fallbackSeconds = nodeRule?.fallbackSeconds || 30;
+
+  if (mode === 'responsible') {
+    if (responsibleUid && extensions[responsibleUid]) extsToRing.push(extensions[responsibleUid]);
+    if (extsToRing.length === 0) {
+      // Нет extension у ответственного → fallback на список или ring-all
+      if (Array.isArray(nodeRule?.listUids)) {
+        extsToRing = nodeRule.listUids.map(u => extensions[u]).filter(Boolean);
+      }
+      if (extsToRing.length === 0) extsToRing = Object.values(extensions);
+    }
+  } else if (mode === 'list') {
+    extsToRing = (nodeRule?.listUids || []).map(u => extensions[u]).filter(Boolean);
+  } else if (mode === 'mobile') {
+    // Не звоним внутри, только переадресация на мобильный
+    extsToRing = [];
+  } else {
+    // ring-all
+    extsToRing = Object.values(extensions);
+  }
+
+  return json({
+    ok: true,
+    phone,
+    responsibleUid,
+    dealId: dealInfo?.id || null,
+    mode,
+    extensions: [...new Set(extsToRing)],
+    mobile,
+    fallbackSeconds,
+  }, 200, request);
+}
+
+// Walk org tree до узла где uid = headUid или есть в memberUids.
+// Возвращает callDistribution этого узла или null (тогда применяется родительский /
+// корневой default).
+function findCallDistributionForUid(structure, uid) {
+  if (!structure || !uid) return null;
+  let found = null;
+  function walk(node) {
+    if (found) return;
+    const isHere = node.headUid === uid || (node.memberUids || []).includes(uid);
+    if (isHere && node.callDistribution) {
+      found = node.callDistribution;
+      return;
+    }
+    const children = node.subDepartments || node.departments || [];
+    for (const c of children) walk(c);
+  }
+  for (const branch of (structure.branches || [])) walk(branch);
+  return found;
+}
+
 // Phase C: распределение ответственных по каналу (round-robin).
 // Хранение: kv[`wa:distribution:${channelId}`] = { uids: [...], pointer: 0 }
 async function getWaDistribution(env, channelId) {
@@ -3755,6 +3900,19 @@ export default {
     }
     if (path === "/api/admin/user-channels" && request.method === "PUT") {
       return handleUserChannelsPut(request, env);
+    }
+
+    // ── /api/sip/extensions — карта uid → SIP extension (для Asterisk routing) ─
+    if (path === "/api/sip/extensions" && request.method === "GET") {
+      return handleSipExtensionsGet(request, env);
+    }
+    if (path === "/api/sip/extensions" && request.method === "PUT") {
+      return handleSipExtensionsPut(request, env);
+    }
+    // ── /api/sip/route?phone=X — Asterisk запрашивает кому звонить ─────
+    // Auth: shared secret env.SIP_ROUTE_SECRET (Asterisk не умеет Firebase Auth)
+    if (path === "/api/sip/route" && request.method === "GET") {
+      return handleSipRoute(request, env);
     }
     const waDistMatch = path.match(/^\/api\/wa\/channels\/([^/]+)\/distribution$/);
     if (waDistMatch && request.method === "GET") {
