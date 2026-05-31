@@ -1205,12 +1205,19 @@ async function handleList(request, env, entity) {
     if (dlTo)   { whereParts.push("deadline <= ?"); whereParams.push(dlTo); }
   }
 
-  // tasks: archived_at скрывает legacy Bitrix-задачи. По умолчанию IS NULL.
+  // tasks: archived_at — общая архивация. По умолчанию IS NULL.
   // ?archived=1 — только архив, ?archived=all — все.
+  // dealLinked — разделение Задачи vs Дела:
+  //   ?dealLinked=1 — только с привязкой к сделке (Дела вкладка)
+  //   ?dealLinked=0 — только без привязки (Задачи вкладка)
+  //   не указан — оба варианта (для backward-compat и универсальных endpoint'ов)
   if (entity === "tasks") {
     const arch = (url.searchParams.get("archived") || "").trim();
     if (arch === "1") whereParts.push("archived_at IS NOT NULL");
     else if (arch !== "all") whereParts.push("archived_at IS NULL");
+    const dealLinked = (url.searchParams.get("dealLinked") || "").trim();
+    if (dealLinked === "1") whereParts.push("(crm_links LIKE '%deal_%' OR bitrix_crm_links LIKE '%D_%')");
+    else if (dealLinked === "0") whereParts.push("(crm_links IS NULL OR crm_links NOT LIKE '%deal_%') AND (bitrix_crm_links IS NULL OR bitrix_crm_links NOT LIKE '%D_%')");
   }
 
   // archived фильтр (только для deals — у contacts/tasks колонки нет).
