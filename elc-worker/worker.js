@@ -2413,6 +2413,14 @@ async function ensureDealForWaContact(env, channel, contactId, contactName, phon
   const newId = 'deal_' + bitrixKey;
   const nowIso = new Date().toISOString();
   const title = `WhatsApp: ${contactName || 'Новый клиент'}`;
+  // Phase C: round-robin распределение по списку участников канала.
+  // Если пул настроен (kv['wa:distribution:{channelId}']) — берём следующего uid.
+  // Иначе fallback на channel.responsible_uid (как раньше).
+  let responsibleUid = channel.responsible_uid || null;
+  try {
+    const rrUid = await pickNextRoundRobinUid(env, channel.id);
+    if (rrUid) responsibleUid = rrUid;
+  } catch (e) { /* fallback ok */ }
   await env.DB.prepare(`
     INSERT INTO deals (
       id, title, pipeline_id, stage_id, responsible_uid,
@@ -2422,7 +2430,7 @@ async function ensureDealForWaContact(env, channel, contactId, contactName, phon
   `).bind(
     newId, title,
     channel.default_pipeline_id, channel.default_stage_id || null,
-    channel.responsible_uid || null,
+    responsibleUid,
     contactId, bitrixKey, nowIso, nowIso,
   ).run();
   return newId;
@@ -3242,6 +3250,83 @@ async function handleFieldConfigPut(request, env) {
   return json({ ok: true, config: incoming }, 200, request);
 }
 
+// ── User channels (SIP endpoint + WhatsApp channel per user) ──
+// Phase B: каждому сотруднику можно назначить свой SIP endpoint + WA канал.
+// Хранение: kv['user:channels'] = { [uid]: { sipEndpoint, waChannelId } }.
+// Глава отдела управляет сотрудниками своего узла и ниже (frontend сам
+// фильтрует — worker отдаёт всё; полная защита будет в Phase следующий).
+async function handleUserChannelsGet(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const row = await env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind('user:channels').first();
+  let map = {};
+  if (row?.v) { try { map = JSON.parse(row.v) || {}; } catch {} }
+  return json({ ok: true, channels: map }, 200, request);
+}
+
+async function handleUserChannelsPut(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const channels = body.channels;
+  if (!channels || typeof channels !== 'object') return json({ error: "channels object required" }, 400, request);
+  const v = JSON.stringify(channels);
+  await env.DB.prepare(`
+    INSERT INTO kv (k, v) VALUES (?, ?)
+    ON CONFLICT(k) DO UPDATE SET v = excluded.v
+  `).bind('user:channels', v).run();
+  return json({ ok: true, channels }, 200, request);
+}
+
+// Phase C: распределение ответственных по каналу (round-robin).
+// Хранение: kv[`wa:distribution:${channelId}`] = { uids: [...], pointer: 0 }
+async function getWaDistribution(env, channelId) {
+  const k = `wa:distribution:${channelId}`;
+  const row = await env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind(k).first();
+  if (row?.v) {
+    try { return JSON.parse(row.v); } catch {}
+  }
+  return { uids: [], pointer: 0 };
+}
+
+async function setWaDistribution(env, channelId, data) {
+  const k = `wa:distribution:${channelId}`;
+  await env.DB.prepare(`
+    INSERT INTO kv (k, v) VALUES (?, ?)
+    ON CONFLICT(k) DO UPDATE SET v = excluded.v
+  `).bind(k, JSON.stringify(data)).run();
+}
+
+async function handleWaDistributionGet(request, env, channelId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const data = await getWaDistribution(env, channelId);
+  return json({ ok: true, channelId, distribution: data }, 200, request);
+}
+
+async function handleWaDistributionPut(request, env, channelId) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const uids = Array.isArray(body.uids) ? body.uids.filter(u => typeof u === 'string') : [];
+  await setWaDistribution(env, channelId, { uids, pointer: 0 });
+  return json({ ok: true, channelId, distribution: { uids, pointer: 0 } }, 200, request);
+}
+
+// Round-robin: выбирает следующий uid из пула участников распределения
+// канала. Если пула нет — null (используется channel.responsible_uid дефолт).
+async function pickNextRoundRobinUid(env, channelId) {
+  const data = await getWaDistribution(env, channelId);
+  if (!data.uids || data.uids.length === 0) return null;
+  const idx = (data.pointer || 0) % data.uids.length;
+  const uid = data.uids[idx];
+  const newData = { uids: data.uids, pointer: (idx + 1) % data.uids.length };
+  await setWaDistribution(env, channelId, newData);
+  return uid;
+}
+
 // ── Phase 0 routes ──────────────────────────────────────
 async function handleHealth(request, env) {
   try {
@@ -3491,6 +3576,19 @@ export default {
     }
     if (path === "/api/admin/field-config" && request.method === "PUT") {
       return handleFieldConfigPut(request, env);
+    }
+    if (path === "/api/admin/user-channels" && request.method === "GET") {
+      return handleUserChannelsGet(request, env);
+    }
+    if (path === "/api/admin/user-channels" && request.method === "PUT") {
+      return handleUserChannelsPut(request, env);
+    }
+    const waDistMatch = path.match(/^\/api\/wa\/channels\/([^/]+)\/distribution$/);
+    if (waDistMatch && request.method === "GET") {
+      return handleWaDistributionGet(request, env, waDistMatch[1]);
+    }
+    if (waDistMatch && request.method === "PUT") {
+      return handleWaDistributionPut(request, env, waDistMatch[1]);
     }
 
     return json({ ok: false, error: "not found", path }, 404, request);
