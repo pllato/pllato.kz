@@ -662,8 +662,95 @@ PAGES.kpi=(c)=>{
   c.appendChild(grid);
 };
 
+// ---------- приглашения сотрудников (owner/superadmin) ----------
+function roleOptions(sel){
+  return DB.roles.map(r=>`<option value="${r.id}"${r.id===sel?' selected':''}>${r.name}</option>`).join('');
+}
+async function copyText(t){ try{ await navigator.clipboard.writeText(t); toast('Ссылка скопирована','i-check2'); }
+  catch(e){ toast('Скопируйте вручную: '+t,'i-info','#d97706'); } }
+
+// Показать ссылку-инвайт в модалке (ручной режим, если WhatsApp не отправился авто).
+function showInviteLinkBox(bg, inv, waLink){
+  bg.querySelector('.modal').innerHTML = `<h3 style="margin:0 0 4px">Приглашение создано</h3>
+    <div class="muted" style="font-size:13px;margin-bottom:14px">Авто-отправка в WhatsApp не настроена. Отправьте ссылку сотруднику вручную:</div>
+    <div style="background:var(--bg2,#0c1424);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;word-break:break-all;margin-bottom:14px">${inv.link}</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap">
+      <button class="btn" id="invOpenWa">${ic('i-phone','sm')} Открыть WhatsApp</button>
+      <button class="btn ghost" id="invCopy">Скопировать ссылку</button>
+      <button class="btn ghost" id="invClose" style="margin-left:auto">Готово</button></div>`;
+  bg.querySelector('#invOpenWa').onclick=()=>window.open(waLink,'_blank');
+  bg.querySelector('#invCopy').onclick=()=>copyText(inv.link);
+  bg.querySelector('#invClose').onclick=()=>bg.remove();
+}
+
+function openInviteModal(onDone){
+  const lab='display:grid;gap:5px;font-size:12px;color:var(--muted);margin-bottom:12px';
+  const bg = openModal(`<h3 style="margin:0 0 4px">Пригласить сотрудника</h3>
+    <div class="muted" style="font-size:13px;margin-bottom:16px">Сотрудник получит ссылку в WhatsApp и сам задаст пароль для входа.</div>
+    <label style="${lab}">Имя<input id="invName" class="login-field" placeholder="Имя Фамилия" style="margin:0"></label>
+    <label style="${lab}">Телефон · WhatsApp <span class="muted2">(в межд. формате, только цифры)</span>
+      <input id="invPhone" class="login-field" inputmode="numeric" placeholder="996700123456" style="margin:0"></label>
+    <label style="${lab}">Роль<select id="invRole" class="login-field" style="margin:0">${roleOptions('seller')}</select></label>
+    <label style="${lab}">Email <span class="muted2">(опц., для входа через Google)</span>
+      <input id="invEmail" class="login-field" type="email" placeholder="name@gmail.com" style="margin:0"></label>
+    <div class="row" style="gap:8px;justify-content:flex-end;margin-top:6px">
+      <button class="btn ghost" id="invCancel">Отмена</button>
+      <button class="btn" id="invSend">${ic('i-phone','sm')} Создать и отправить</button></div>`);
+  bg.querySelector('#invCancel').onclick=()=>bg.remove();
+  bg.querySelector('#invSend').onclick=async ()=>{
+    const name=bg.querySelector('#invName').value.trim();
+    const phone=bg.querySelector('#invPhone').value.trim();
+    const role=bg.querySelector('#invRole').value;
+    const email=bg.querySelector('#invEmail').value.trim();
+    if(!phone){ toast('Укажите телефон','i-info','#d97706'); return; }
+    const b=bg.querySelector('#invSend'); b.disabled=true; b.textContent='Отправка…';
+    const r=await api('/api/invites',{method:'POST',body:JSON.stringify({role,name,phone,email:email||undefined})});
+    b.disabled=false;
+    if(!r.ok){ toast((r.data&&r.data.error)||'Не удалось создать приглашение','i-info','#ef4444');
+      b.innerHTML=ic('i-phone','sm')+' Создать и отправить'; return; }
+    if(onDone) onDone();
+    const wa=r.data.whatsapp;
+    if(wa&&wa.sent){ toast('Приглашение отправлено в WhatsApp ✓','i-check2'); bg.remove(); }
+    else showInviteLinkBox(bg, r.data.invite, r.data.wa_link);
+  };
+}
+
+// Панель активных приглашений: грузит GET /api/invites, копирование ссылки, отзыв.
+function invitesPanel(){
+  const panel=el(`<div class="panel section-gap"><div class="panel-h"><h3>Приглашения</h3>
+    <button class="btn sm" data-inv="add">${ic('i-plus','sm')} Пригласить сотрудника</button></div>
+    <div data-inv="body" class="panel-b"><div class="muted2" style="font-size:13px">Загрузка…</div></div></div>`);
+  const body=panel.querySelector('[data-inv=body]');
+  panel.querySelector('[data-inv=add]').onclick=()=>openInviteModal(()=>load());
+  async function load(){
+    const r=await api('/api/invites');
+    if(!r.ok){ body.innerHTML=`<div class="muted2" style="font-size:13px">${r.status===403?'Недостаточно прав':'Не удалось загрузить'}</div>`; return; }
+    const items=r.data.items||[];
+    if(!items.length){ body.innerHTML='<div class="muted2" style="font-size:13px">Активных приглашений нет. Нажмите «Пригласить сотрудника».</div>'; return; }
+    const stMap={pending:['ожидает','amber'],used:['принято','green'],expired:['истекло','']};
+    body.innerHTML=`<table class="tbl"><tbody>${items.map((it,i)=>{
+      const st=stMap[it.status]||['—',''];
+      return `<tr data-i="${i}"><td><div class="cell-name"><div><div>${it.name||'—'}</div>
+        <div class="muted2" style="font-size:11px">${it.roleName||it.role} · ${it.phone||''}</div></div></div></td>
+        <td style="text-align:right;white-space:nowrap"><span class="tag ${st[1]}">${st[0]}</span>
+        ${it.status==='pending'?`<button class="btn sm ghost" data-act="copy" data-i="${i}" style="margin-left:8px">копи</button>
+          <button class="btn sm ghost" data-act="revoke" data-i="${i}">отозвать</button>`:''}</td></tr>`;
+    }).join('')}</tbody></table>`;
+    body.querySelectorAll('[data-act=copy]').forEach(b=>b.onclick=()=>copyText(items[+b.dataset.i].link));
+    body.querySelectorAll('[data-act=revoke]').forEach(b=>b.onclick=async ()=>{
+      const it=items[+b.dataset.i]; b.disabled=true;
+      const r=await api('/api/invites/'+it.token,{method:'DELETE'});
+      if(r.ok){ toast('Приглашение отозвано','i-logout','var(--muted)'); load(); }
+      else toast('Не удалось отозвать','i-info','#ef4444');
+    });
+  }
+  load();
+  return panel;
+}
+
 // ---------- TEAM ----------
 PAGES.team=(c)=>{
+  if(isAdminRole()) c.appendChild(invitesPanel());
   const sections=[['Дашборд','dash'],['Воронки','funnels'],['Клиенты','clients'],['Чаты','inbox'],['Заказы','orders'],['Каталог','catalog'],['Маркетинг','marketing'],['Триггеры','triggers'],['Аналитика','analytics'],['KPI','kpi'],['Команда','team'],['Интеграции','integrations']];
   c.appendChild(el(`<div class="page-sub" style="margin-bottom:14px">Каждая роль видит только свой раздел. WhatsApp-каналы привязаны к сотрудникам.</div>`));
   const panel=el(`<div class="panel" style="overflow-x:auto"><table class="tbl perm-tbl"><thead><tr><th>Раздел</th>${DB.roles.map(r=>`<th style="text-align:center">${r.name.split(' ')[0]}</th>`).join('')}</tr></thead><tbody>
