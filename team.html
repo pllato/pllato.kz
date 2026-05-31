@@ -11513,14 +11513,25 @@ async function loadCalendarEvents(opts = {}) {
       if (!dateField) continue;
       const d = new Date(dateField);
       if (isNaN(d)) continue;
-      // Извлекаем bitrix deal id из crmLinks (например ['deal_12345'] → '12345')
+      // Извлекаем bitrix deal id из всех возможных формы crm_links:
+      // - "deal_12345" (новый формат внутреннего id)
+      // - "D_12345"    (Bitrix legacy формат)
+      // - {"D": "12345"} или {"D": ["12345"]} (объект с типом)
       let linkedDealBitrixId = null;
-      const links = t.crmLinks || t.bitrixCrmLinks;
-      if (links) {
-        const arr = Array.isArray(links) ? links : Object.values(links);
-        for (const l of arr) {
+      const linkSources = [t.crmLinks, t.bitrixCrmLinks, t.crm_links, t.bitrix_crm_links];
+      for (const links of linkSources) {
+        if (!links || linkedDealBitrixId) continue;
+        let values = [];
+        if (Array.isArray(links)) values = links;
+        else if (typeof links === 'object') {
+          for (const [k, v] of Object.entries(links)) {
+            if (k === 'D' || k === 'DEAL') values.push(...(Array.isArray(v) ? v : [v]));
+            else values.push(v);
+          }
+        } else values = [links];
+        for (const l of values) {
           const s = String(l || '');
-          const m = s.match(/^deal_(\d+)$/) || s.match(/deal_(\d+)/);
+          const m = s.match(/(?:deal_|D_)(\d+)/i) || s.match(/^(\d+)$/);
           if (m) { linkedDealBitrixId = m[1]; break; }
         }
       }
@@ -11674,7 +11685,10 @@ function renderCalendarGrid() {
       if (e.dataset.calDeal) { openDealCard(e.dataset.calDeal); return; }
       if (e.dataset.calLinkedDeal) { openDealCard(e.dataset.calLinkedDeal); return; }
       if (e.dataset.calTask) {
-        if (typeof openTaskModal === 'function') openTaskModal(e.dataset.calTask);
+        // Нет привязанной сделки — открываем «Дела» и подсветим эту задачу.
+        // openTaskModal как такой нет → отправим в раздел Дела через hash.
+        location.hash = '#task/' + encodeURIComponent(e.dataset.calTask);
+        if (typeof navigate === 'function') navigate('deeds');
       }
     });
   });
@@ -11895,7 +11909,9 @@ function calHourlyEventHtml(ev, START_H, HOUR_H, isAlone, layout) {
     if (ev.taskId) parts.push(`data-cal-linked-deal="${escapeHtml(ev.dealBitrixId)}"`);
     else parts.push(`data-cal-deal="${escapeHtml(ev.dealBitrixId)}"`);
   }
-  return `<div class="cal-event cal-hourly-event ${cls}" style="${styleParts.join(';')}" ${parts.join(' ')} title="${escapeHtml(time + ' · ' + ev.title)}">
+  const hasDealLink = !!(ev.dealBitrixId);
+  const tooltip = time + ' · ' + ev.title + (hasDealLink ? ' · 🔗 кликни → сделка' : (ev.taskId ? ' · 🔗 кликни → дело' : ''));
+  return `<div class="cal-event cal-hourly-event ${cls}" style="${styleParts.join(';')};cursor:pointer" ${parts.join(' ')} title="${escapeHtml(tooltip)}">
     <div class="cal-hourly-event-time">${escapeHtml(time)}</div>
     <div class="cal-hourly-event-title">${escapeHtml(ev.title)}</div>
   </div>`;
@@ -11908,7 +11924,10 @@ function attachCalEventClickHandlers(grid) {
       if (e.dataset.calDeal) { openDealCard(e.dataset.calDeal); return; }
       if (e.dataset.calLinkedDeal) { openDealCard(e.dataset.calLinkedDeal); return; }
       if (e.dataset.calTask) {
-        if (typeof openTaskModal === 'function') openTaskModal(e.dataset.calTask);
+        // Нет привязанной сделки — открываем «Дела» и подсветим эту задачу.
+        // openTaskModal как такой нет → отправим в раздел Дела через hash.
+        location.hash = '#task/' + encodeURIComponent(e.dataset.calTask);
+        if (typeof navigate === 'function') navigate('deeds');
       }
     });
   });
