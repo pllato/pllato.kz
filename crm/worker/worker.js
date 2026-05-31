@@ -3,6 +3,7 @@ import { ODataClient, ODataError } from "./integrations/1c/odata-client.js";
 import { encryptPassword, decryptPassword } from "./integrations/1c/crypto.js";
 import {
   contractorFromOData,
+  contractorToOData,
   productFromOData,
   contractFromOData,
   organizationFromOData,
