@@ -2756,9 +2756,6 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
     <span style="display:none" id="team-chat-nav-badge"></span>
 
     <div class="nav-section">Инструменты</div>
-    <div class="nav-item" data-page="migration">
-      <span class="nav-icon">🔄</span><span>Миграция Bitrix</span>
-    </div>
     <div class="nav-item nav-item-admin" data-page="settings" style="display:none">
       <span class="nav-icon">⚙️</span><span>Настройки</span>
     </div>
@@ -3327,7 +3324,11 @@ function navigate(page) {
   else if (page === 'chats') renderChats(main);
   else if (page === 'team-chat') renderTeamChat(main);
   else if (page === 'orgchart') renderOrgChart(main);
-  else if (page === 'migration') renderMigration(main);
+  else if (page === 'migration') {
+    // Миграция Bitrix переехала в Настройки → таб. Открываем настройки и переключаем.
+    settingsState.tab = 'migration';
+    renderSettings(main);
+  }
   else if (page === 'settings') renderSettings(main);
 }
 
@@ -16211,6 +16212,7 @@ async function renderSettings(el) {
       <button class="vt-btn ${settingsState.tab === 'permissions' ? 'active' : ''}" data-stab="permissions">🔒 Права доступа</button>
       <button class="vt-btn ${settingsState.tab === 'channels' ? 'active' : ''}" data-stab="channels">🔌 Каналы подключения</button>
       <button class="vt-btn ${settingsState.tab === 'audit' ? 'active' : ''}" data-stab="audit">📋 Журнал</button>
+      <button class="vt-btn ${settingsState.tab === 'migration' ? 'active' : ''}" data-stab="migration">🔄 Миграция Bitrix</button>
     </div>
     <div id="settings-content"></div>
   `;
@@ -16231,6 +16233,9 @@ async function renderSettings(el) {
     await renderSettingsChannels(content);
   } else if (settingsState.tab === 'audit') {
     await renderSettingsAudit(content);
+  } else if (settingsState.tab === 'migration') {
+    // Переехало из отдельной страницы sidebar — renderMigration работает в любом контейнере
+    renderMigration(content);
   }
 }
 
