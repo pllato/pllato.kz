@@ -2461,8 +2461,21 @@ function extractWaWebhookEnvelope(body) {
   // Для индивидуальных: senderName = имя контакта
   const senderName = body?.senderData?.senderName || null;
   const chatName = body?.senderData?.chatName || null;  // имя группы для @g.us
-  // displayName используется для wa_chats.name: для группы — её имя, для контакта — имя автора
-  const displayName = isGroup ? (chatName || 'Группа') : (senderName || chatName || null);
+  // displayName используется для wa_chats.name.
+  // FIX: для ИСХОДЯЩИХ senderData.senderName = это МЫ САМИ (отправитель), не получатель.
+  // Если использовать его как имя чата — затирается реальное имя контакта нашим
+  // собственным номером (видно по 77011238888/9999, обоим записано "77066423098").
+  // Поэтому для outgoing берём только chatName (если есть), иначе null — обработчик
+  // выше использует contact.name или '+phone' как fallback и не перезатирает existing.
+  let displayName;
+  if (isGroup) {
+    displayName = chatName || 'Группа';
+  } else if (isIncoming) {
+    displayName = senderName || chatName || null;
+  } else {
+    // outgoing — chatName это иногда имя получателя у Green-API; senderName = мы сами.
+    displayName = chatName || null;
+  }
   const waMessageId = body?.idMessage;
   const ts = (body?.timestamp || Math.floor(Date.now() / 1000)) * 1000;
 
