@@ -3878,6 +3878,79 @@ async function handleTasksByDeals(request, env) {
   return json({ items, total: Object.keys(items).length }, 200, request);
 }
 
+// GET /api/tasks/:id/full — полная карточка задачи. Гарантированно парсит
+// все JSON-поля (comments_data, accomplices, crm_links, …) ✓ возвращает
+// subtasks (где parent_id = id или bitrix_parent_id = bitrix_id) и files.
+async function handleTaskFull(request, env, taskId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+
+  // 1) Сама задача
+  const row = await env.DB.prepare("SELECT * FROM tasks WHERE id = ?").bind(taskId).first();
+  if (!row) return json({ error: "task not found" }, 404, request);
+
+  // Парсим все JSON-поля явно
+  const safeParseObj = (s) => {
+    if (!s || typeof s !== 'string') return s || null;
+    try { return JSON.parse(s); } catch { return null; }
+  };
+  const task = {};
+  for (const [k, v] of Object.entries(row)) {
+    const camel = k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    if (['comments_data','accomplices','auditors','crm_links','bitrix_crm_links','bitrix_file_ids'].includes(k)) {
+      task[camel] = safeParseObj(v);
+    } else {
+      task[camel] = v;
+    }
+  }
+
+  // 2) Subtasks (по parent_id или bitrix_parent_id)
+  const { results: subRows } = await env.DB.prepare(`
+    SELECT id, title, status, priority, deadline, responsible_uid, comments_count
+    FROM tasks
+    WHERE (parent_id = ? OR (bitrix_parent_id IS NOT NULL AND bitrix_parent_id = ?))
+      AND id != ?
+    ORDER BY bitrix_created_date ASC LIMIT 200
+  `).bind(taskId, row.bitrix_id || '', taskId).all();
+  const subtasks = subRows.map(r => ({
+    id: r.id, title: r.title, status: String(r.status || '1'),
+    priority: String(r.priority || '1'), deadline: r.deadline,
+    responsibleUid: r.responsible_uid, commentsCount: r.comments_count || 0,
+  }));
+
+  // 3) Files metadata (если есть)
+  let files = [];
+  const fileIds = task.bitrixFileIds;
+  if (Array.isArray(fileIds) && fileIds.length > 0) {
+    const ph = fileIds.map(() => '?').join(',');
+    const { results: fRows } = await env.DB.prepare(
+      `SELECT file_id, file_name, file_size, content_type, migrated FROM files_queue WHERE file_id IN (${ph})`
+    ).bind(...fileIds.map(String)).all();
+    files = fRows.map(f => ({
+      fileId: f.file_id, fileName: f.file_name, fileSize: f.file_size,
+      contentType: f.content_type, migrated: !!f.migrated,
+    }));
+  }
+
+  // 4) Comments — преобразуем object → отсортированный массив + парсим files каждого
+  const commentsObj = task.commentsData || {};
+  const comments = Object.values(commentsObj)
+    .filter(c => c && typeof c === 'object')
+    .map(c => ({
+      bitrixId: c.bitrixId,
+      authorUid: c.authorUid,
+      authorName: c.authorName,
+      bitrixAuthorId: c.bitrixAuthorId,
+      bitrixPostDate: c.bitrixPostDate,
+      text: c.text || '',
+      attachedFileIds: c.attachedFileIds || [],
+      hasFiles: !!c.hasFiles,
+    }))
+    .sort((a, b) => (a.bitrixPostDate || '').localeCompare(b.bitrixPostDate || ''));
+
+  return json({ ok: true, task, subtasks, files, comments }, 200, request);
+}
+
 // ── Phase 0 routes ──────────────────────────────────────
 async function handleHealth(request, env) {
   try {
@@ -3974,6 +4047,13 @@ export default {
     // /api/tasks/by-deals — батч ближайших активных дел для канбан-плашки «📋 Дело».
     if (path === "/api/tasks/by-deals" && request.method === "POST") {
       return handleTasksByDeals(request, env);
+    }
+
+    // /api/tasks/:id/full — полная карточка задачи: все поля + parsed comments
+    // + subtasks + files. Гарантированный формат (rtdb-proxy иногда не парсит JSON).
+    const taskFullMatch = path.match(/^\/api\/tasks\/([^/]+)\/full$/);
+    if (taskFullMatch && request.method === "GET") {
+      return handleTaskFull(request, env, taskFullMatch[1]);
     }
 
     // ── /api/chat/* — внутренний чат сотрудников ─────────────────────────
