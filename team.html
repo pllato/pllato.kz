@@ -3255,7 +3255,7 @@ async function initApp(user) {
   navigate(startPage);
 
   // Deep-link открываем после загрузки страницы
-  if (location.hash.startsWith('#deal/') || location.hash.startsWith('#contact/') || location.hash.startsWith('#task/')) {
+  if (location.hash.startsWith('#deal/') || location.hash.startsWith('#contact/') || location.hash.startsWith('#task/') || location.hash.startsWith('#invite/')) {
     setTimeout(() => handleDeepLink(), 500);
   }
 
@@ -8915,13 +8915,11 @@ function handleDeepLink() {
   if (h.startsWith('#deal/')) {
     const id = h.slice('#deal/'.length);
     if (!id) return;
-    // openDealCard сама ищет сделку в kanban-state, paged-state, потом
-    // делает точечный fetch /api/rtdb/deals/deal_X.json. Поэтому работает
-    // даже если сделка в ДРУГОЙ воронке (которая не загружена в memory).
-    // Раньше handleDeepLink делал собственную проверку через dealsState.deals
-    // — что ломало deep-link на cross-pipeline сделки и зависало в list-view
-    // (где dealsState.loaded никогда не становится true).
     openDealCard(id).catch(e => console.warn('deep-link openDealCard:', e));
+  }
+  if (h.startsWith('#invite/')) {
+    const token = h.slice('#invite/'.length);
+    if (token) openInviteAcceptModal(token);
   }
 }
 
@@ -14110,6 +14108,10 @@ function handleOrgClick(ev) {
     openOrgNodeTelephonyModal(path);
     return;
   }
+  if (action === 'invite') {
+    openInviteCreateModal(path);
+    return;
+  }
   // Универсальное удаление узла по path (отдел, подотдел; отделения не удаляются)
   if (action === 'del-node') {
     const parts = path.split('.');
@@ -14379,6 +14381,7 @@ function renderOrgChartTreeView(treeEl, isAdmin) {
     if (permPath) {
       parts.push(`<button class="otv-action-btn" data-org-action="perms" data-org-path="${escapeHtml(permPath)}" title="Настроить права доступа этого узла" style="background:rgba(99,102,241,0.12);border-color:rgba(99,102,241,0.4);color:#4f46e5">🔒 Права</button>`);
       parts.push(`<button class="otv-action-btn" data-org-action="telephony" data-org-path="${escapeHtml(permPath)}" title="Телефония: SIP-номера сотрудников + правила входящих" style="background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.4);color:#15803d">☎ Телефония</button>`);
+      parts.push(`<button class="otv-action-btn" data-org-action="invite" data-org-path="${escapeHtml(permPath)}" title="Пригласить нового сотрудника в этот узел" style="background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.4);color:#92400e">➕ Пригласить</button>`);
     }
     if (addLabel) {
       parts.push(`<button class="otv-action-btn otv-action-btn-add" data-org-action="${escapeHtml(addAction)}" data-org-path="${escapeHtml(addPath)}" title="${escapeHtml(addLabel)}">${escapeHtml(addLabel)}</button>`);
@@ -14855,6 +14858,203 @@ async function openOrgNodeTelephonyModal(path) {
       alert('Ошибка сохранения: ' + (e?.message || e));
       btn.disabled = false;
       btn.textContent = '💾 Сохранить';
+    }
+  };
+}
+
+// ── Модал «➕ Пригласить» — создаёт invite + отправляет WA ─────────────
+async function openInviteCreateModal(path) {
+  const node = orgGetByPath(path);
+  if (!node) return;
+  const nodeLabel = node.name || node.title || 'отдел';
+  document.getElementById('_invite-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_invite-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:480px;width:96vw">
+      <div class="qad-head">
+        <h2>➕ Пригласить в «${escapeHtml(nodeLabel)}»</h2>
+        <button class="qad-btn qad-btn-ghost" id="inv-close" style="padding:4px 10px">×</button>
+      </div>
+      <div class="qad-body" style="padding:18px 24px">
+        <div style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:12px;color:var(--t2);line-height:1.5">
+          Сотрудник получит WhatsApp-сообщение со ссылкой. Перейдёт по ней →
+          войдёт в Google (по указанному email) → автоматически окажется в узле
+          <b>«${escapeHtml(nodeLabel)}»</b>${node.headUid ? ` под руководством <b>${escapeHtml(orgUserLabel(node.headUid))}</b>` : ''}.
+        </div>
+        <label style="display:block;margin-bottom:12px">
+          <div style="font-size:12px;color:var(--t2);margin-bottom:4px">📱 Телефон WhatsApp (+7…)</div>
+          <input type="tel" id="inv-phone" class="qad-input" placeholder="+7 707 123 45 67" style="font-size:14px;padding:8px 12px;width:100%" autofocus>
+        </label>
+        <label style="display:block;margin-bottom:12px">
+          <div style="font-size:12px;color:var(--t2);margin-bottom:4px">📧 Gmail сотрудника</div>
+          <input type="email" id="inv-email" class="qad-input" placeholder="ivan@gmail.com" style="font-size:14px;padding:8px 12px;width:100%">
+        </label>
+        <label style="display:block;margin-bottom:12px">
+          <div style="font-size:12px;color:var(--t2);margin-bottom:4px">🎭 Роль</div>
+          <select id="inv-role" class="qad-input" style="font-size:14px;padding:8px 12px;width:100%">
+            <option value="agent">Сотрудник</option>
+            <option value="manager">Менеджер</option>
+            <option value="admin">Админ</option>
+          </select>
+        </label>
+        <div id="inv-status" style="margin-top:12px;font-size:12px"></div>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="inv-cancel">Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="inv-send">📨 Отправить приглашение</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  document.getElementById('inv-close').onclick = close;
+  document.getElementById('inv-cancel').onclick = close;
+  document.getElementById('inv-send').onclick = async () => {
+    const phone = String(document.getElementById('inv-phone').value || '').replace(/\D/g, '');
+    const email = String(document.getElementById('inv-email').value || '').toLowerCase().trim();
+    const role = document.getElementById('inv-role').value;
+    const status = document.getElementById('inv-status');
+    if (!phone || phone.length < 10) { status.innerHTML = '<span style="color:#dc2626">⚠ Введи телефон полностью</span>'; return; }
+    if (!email.includes('@')) { status.innerHTML = '<span style="color:#dc2626">⚠ Введи email</span>'; return; }
+    const btn = document.getElementById('inv-send');
+    btn.disabled = true; btn.textContent = '⏳ Отправляю...';
+    status.innerHTML = '';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/invites`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ phone, email, dept_path: path, head_uid: node.headUid || null, role }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+      status.innerHTML = `<div style="background:#dcfce7;border:1px solid #16a34a;border-radius:6px;padding:10px 14px;color:#15803d">
+        ✅ Приглашение создано!<br>
+        <div style="font-size:11px;margin-top:6px">${data.waMessageId ? '📨 Отправлено по WhatsApp' : '⚠ ' + (data.waError || 'WA не сконфигурирован')}</div>
+        <div style="font-size:11px;margin-top:6px;word-break:break-all">🔗 ${escapeHtml(data.inviteUrl)}</div>
+        <button onclick="navigator.clipboard.writeText('${data.inviteUrl}');this.textContent='✓ Скопировано'" style="background:none;border:1px solid #16a34a;color:#15803d;padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;margin-top:6px">📋 Копировать ссылку</button>
+      </div>`;
+      btn.textContent = '✓ Готово';
+    } catch (e) {
+      status.innerHTML = `<span style="color:#dc2626">❌ ${escapeHtml(e.message)}</span>`;
+      btn.disabled = false; btn.textContent = '📨 Отправить приглашение';
+    }
+  };
+}
+
+// ── Accept-страница для приёмника: открывается по #invite/TOKEN ────────
+async function openInviteAcceptModal(token) {
+  document.getElementById('_invite-accept-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_invite-accept-modal';
+  ov.className = 'qad-overlay';
+  ov.style.zIndex = '2000';
+  ov.innerHTML = `<div class="qad-modal" style="max-width:460px;width:96vw">
+    <div class="qad-body" style="padding:30px 28px;text-align:center">⏳ Загружаю приглашение...</div>
+  </div>`;
+  document.body.appendChild(ov);
+
+  let info;
+  try {
+    const r = await fetch(`${WORKER_BASE_URL}/api/invites/${encodeURIComponent(token)}`);
+    info = await r.json();
+    if (!r.ok) throw new Error(info.error || `HTTP ${r.status}`);
+  } catch (e) {
+    ov.querySelector('.qad-modal').innerHTML = `<div class="qad-body" style="padding:30px 28px;text-align:center">
+      <h2 style="color:#dc2626">❌ Приглашение не действительно</h2>
+      <p style="color:var(--t2);font-size:13px">${escapeHtml(e.message)}</p>
+      <p style="font-size:12px;color:var(--t3)">Попроси отправителя создать новое приглашение.</p>
+    </div>`;
+    return;
+  }
+
+  // Если юзер уже залогинен — проверим email и сразу примем
+  const me = fbAuth.currentUser;
+  if (me && (me.email || '').toLowerCase() === info.email.toLowerCase()) {
+    renderAcceptForm(ov, token, info, me);
+  } else {
+    renderAcceptLanding(ov, token, info, me);
+  }
+}
+
+function renderAcceptLanding(ov, token, info, currentUser) {
+  ov.querySelector('.qad-modal').innerHTML = `
+    <div class="qad-body" style="padding:32px 28px;text-align:center">
+      <div style="font-size:48px;margin-bottom:12px">👋</div>
+      <h2 style="margin:0 0 8px">Добро пожаловать!</h2>
+      <p style="font-size:14px;color:var(--t2);line-height:1.5;margin:0 0 18px">
+        Тебя приглашают в команду как <b>${escapeHtml(info.role === 'admin' ? 'Админ' : info.role === 'manager' ? 'Менеджер' : 'Сотрудник')}</b><br>
+        в отдел <b>«${escapeHtml(info.deptLabel)}»</b>
+        ${info.headLabel ? `<br>под руководством <b>${escapeHtml(info.headLabel)}</b>` : ''}
+      </p>
+      <div style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:13px">
+        📧 Войди через Google с <b>${escapeHtml(info.email)}</b>
+      </div>
+      ${currentUser ? `
+        <p style="color:#dc2626;font-size:12px;margin-bottom:14px">
+          ⚠ Ты сейчас вошёл как <b>${escapeHtml(currentUser.email)}</b>. Нужно выйти и войти под <b>${escapeHtml(info.email)}</b>.
+        </p>
+        <button class="qad-btn" id="inv-acc-logout" style="background:var(--bg3);color:var(--t1);padding:10px 18px;border:1px solid var(--b1);border-radius:6px;cursor:pointer">🚪 Выйти и войти заново</button>
+      ` : `
+        <p style="font-size:11px;color:var(--t3);margin-bottom:14px">Если ты ещё не вошёл — обнови страницу, на главной появится кнопка Google.</p>
+        <button class="qad-btn qad-btn-primary" onclick="location.reload()" style="padding:10px 18px">🔄 Обновить</button>
+      `}
+      <button class="qad-btn qad-btn-ghost" onclick="document.getElementById('_invite-accept-modal').remove(); location.hash=''" style="margin-left:8px;padding:10px 18px">Позже</button>
+    </div>
+  `;
+  if (currentUser) {
+    document.getElementById('inv-acc-logout').onclick = async () => {
+      await fbAuth.signOut();
+      location.reload();
+    };
+  }
+}
+
+function renderAcceptForm(ov, token, info, me) {
+  ov.querySelector('.qad-modal').innerHTML = `
+    <div class="qad-body" style="padding:28px;text-align:center">
+      <div style="font-size:36px;margin-bottom:8px">🎉</div>
+      <h2 style="margin:0 0 6px">Принять приглашение</h2>
+      <p style="color:var(--t2);font-size:13px;margin:0 0 16px">
+        Отдел: <b>${escapeHtml(info.deptLabel)}</b>
+        ${info.headLabel ? `<br>Руководитель: <b>${escapeHtml(info.headLabel)}</b>` : ''}
+      </p>
+      <label style="display:block;text-align:left;margin-bottom:12px">
+        <div style="font-size:12px;color:var(--t2);margin-bottom:4px">Твоё имя</div>
+        <input type="text" id="inv-acc-name" class="qad-input" placeholder="Иван Иванов" value="${escapeHtml(me.displayName || '')}" style="font-size:14px;padding:8px 12px;width:100%">
+      </label>
+      <label style="display:block;text-align:left;margin-bottom:18px">
+        <div style="font-size:12px;color:var(--t2);margin-bottom:4px">Фото (URL, опционально)</div>
+        <input type="url" id="inv-acc-photo" class="qad-input" placeholder="https://..." value="${escapeHtml(me.photoURL || '')}" style="font-size:14px;padding:8px 12px;width:100%">
+      </label>
+      <div id="inv-acc-status" style="margin-bottom:12px;font-size:12px"></div>
+      <button class="qad-btn qad-btn-primary" id="inv-acc-confirm" style="padding:10px 24px;width:100%">✅ Войти в команду</button>
+    </div>
+  `;
+  document.getElementById('inv-acc-confirm').onclick = async () => {
+    const name = document.getElementById('inv-acc-name').value.trim();
+    const photo = document.getElementById('inv-acc-photo').value.trim();
+    const status = document.getElementById('inv-acc-status');
+    const btn = document.getElementById('inv-acc-confirm');
+    if (!name) { status.innerHTML = '<span style="color:#dc2626">⚠ Введи имя</span>'; return; }
+    btn.disabled = true; btn.textContent = '⏳ Принимаю...';
+    try {
+      const idToken = await me.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/invites/${encodeURIComponent(token)}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ name, photo }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+      status.innerHTML = '<span style="color:#16a34a">✓ Готово! Загружаем CRM...</span>';
+      setTimeout(() => { location.hash = ''; location.reload(); }, 1200);
+    } catch (e) {
+      status.innerHTML = `<span style="color:#dc2626">❌ ${escapeHtml(e.message)}</span>`;
+      btn.disabled = false; btn.textContent = '✅ Войти в команду';
     }
   };
 }
