@@ -14072,6 +14072,10 @@ function handleOrgClick(ev) {
     openOrgNodePermissionsModal(path);
     return;
   }
+  if (action === 'telephony') {
+    openOrgNodeTelephonyModal(path);
+    return;
+  }
   // Универсальное удаление узла по path (отдел, подотдел; отделения не удаляются)
   if (action === 'del-node') {
     const parts = path.split('.');
@@ -14340,6 +14344,7 @@ function renderOrgChartTreeView(treeEl, isAdmin) {
     }
     if (permPath) {
       parts.push(`<button class="otv-action-btn" data-org-action="perms" data-org-path="${escapeHtml(permPath)}" title="Настроить права доступа этого узла" style="background:rgba(99,102,241,0.12);border-color:rgba(99,102,241,0.4);color:#4f46e5">🔒 Права</button>`);
+      parts.push(`<button class="otv-action-btn" data-org-action="telephony" data-org-path="${escapeHtml(permPath)}" title="Телефония: SIP-номера сотрудников + правила входящих" style="background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.4);color:#15803d">☎ Телефония</button>`);
     }
     if (addLabel) {
       parts.push(`<button class="otv-action-btn otv-action-btn-add" data-org-action="${escapeHtml(addAction)}" data-org-path="${escapeHtml(addPath)}" title="${escapeHtml(addLabel)}">${escapeHtml(addLabel)}</button>`);
@@ -14609,6 +14614,214 @@ async function openOrgNodePermissionsModal(path) {
     orgMarkDirty();
     ov.remove();
     showToast('Права настроены — не забудь нажать «💾 Сохранить» вверху чтобы применить');
+  };
+}
+
+// ── Модал «☎ Телефония» для узла структуры ─────────────────────────────
+// Два блока:
+// 1. SIP-extensions у каждого члена узла (head + members) — глобальная карта uid→ext
+// 2. Правила распределения входящих звонков на этом узле
+async function openOrgNodeTelephonyModal(path) {
+  const node = orgGetByPath(path);
+  if (!node) return;
+
+  // Загружаем глобальную карту extension'ов
+  let allExtensions = {};
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/sip/extensions`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (r.ok) { const d = await r.json(); allExtensions = d.extensions || {}; }
+  } catch (e) { console.warn('load extensions:', e); }
+
+  // Дефолты для callDistribution
+  const dist = node.callDistribution || {
+    mode: 'responsible',  // responsible | list | mobile | ring-all
+    listUids: [],
+    mobile: '',
+    fallbackSeconds: 30,
+  };
+  const draft = JSON.parse(JSON.stringify(dist));
+
+  // Список людей в узле (head + members)
+  const nodePeople = [];
+  if (node.headUid) nodePeople.push({ uid: node.headUid, role: 'head' });
+  for (const uid of (node.memberUids || [])) {
+    if (uid !== node.headUid) nodePeople.push({ uid, role: 'member' });
+  }
+
+  // Локальный draft extensions для этого узла (мерджим в allExtensions при save)
+  const draftExt = {};
+  for (const p of nodePeople) {
+    draftExt[p.uid] = allExtensions[p.uid] || '';
+  }
+
+  document.getElementById('_org-tel-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_org-tel-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+
+  const peopleRowsHtml = nodePeople.length ? nodePeople.map(p => {
+    const label = orgUserLabel(p.uid);
+    const roleTag = p.role === 'head' ? `<span style="background:#fef3c7;color:#92400e;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:6px;text-transform:uppercase">Глава</span>` : '';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--b1)">
+      <div style="flex:1;font-size:13px;color:var(--t1)">${escapeHtml(label)}${roleTag}</div>
+      <input type="text" class="qad-input" data-tel-uid="${escapeHtml(p.uid)}"
+             value="${escapeHtml(draftExt[p.uid] || '')}"
+             placeholder="напр. 101"
+             style="width:90px;font-size:13px;padding:5px 8px;text-align:center;font-family:ui-monospace,monospace">
+    </div>`;
+  }).join('') : '<div style="color:var(--t3);font-style:italic;padding:12px 0">В этом узле пока нет сотрудников</div>';
+
+  // Список всех людей для режима «список» (берём только людей узла)
+  const listOptionsHtml = nodePeople.map(p => {
+    const label = orgUserLabel(p.uid);
+    const checked = (draft.listUids || []).includes(p.uid);
+    return `<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer">
+      <input type="checkbox" data-tel-list-uid="${escapeHtml(p.uid)}" ${checked ? 'checked' : ''}>
+      <span style="font-size:13px">${escapeHtml(label)}</span>
+    </label>`;
+  }).join('');
+
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:600px;width:96vw">
+      <div class="qad-head">
+        <h2>☎ Телефония — ${escapeHtml(node.name || 'узел')}</h2>
+        <button class="qad-btn qad-btn-ghost" id="nt-close" style="padding:4px 10px">×</button>
+      </div>
+      <div class="qad-body" style="max-height:75vh;overflow:auto;padding:18px 24px">
+
+        <div style="margin-bottom:24px">
+          <div class="qad-label" style="margin-bottom:8px">📞 Внутренние SIP-номера сотрудников</div>
+          <div style="font-size:11px;color:var(--t3);margin-bottom:10px;line-height:1.4">
+            У каждого сотрудника свой extension (например 101, 102, 103) для звонков из браузера.
+            Сами номера создаются на Asterisk отдельно — спроси админа какие выдать.
+          </div>
+          <div style="border:1px solid var(--b1);border-radius:6px;padding:6px 14px;background:var(--bg2)">
+            ${peopleRowsHtml}
+          </div>
+        </div>
+
+        <div style="margin-bottom:18px">
+          <div class="qad-label" style="margin-bottom:8px">📥 Правила входящих звонков</div>
+          <div style="font-size:11px;color:var(--t3);margin-bottom:10px;line-height:1.4">
+            Если клиент звонит на номер компании и его сделка относится к этому узлу — кому будет звонить?
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;cursor:pointer;background:${draft.mode === 'responsible' ? 'var(--acbg)' : 'transparent'}">
+              <input type="radio" name="nt-mode" value="responsible" ${draft.mode === 'responsible' ? 'checked' : ''} style="margin-top:2px">
+              <div><b>Ответственному сделки</b><br><span style="font-size:11px;color:var(--t3)">звонит только тому, на ком сделка с этого номера. Нет сделки → ring-all всех</span></div>
+            </label>
+            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;cursor:pointer;background:${draft.mode === 'list' ? 'var(--acbg)' : 'transparent'}">
+              <input type="radio" name="nt-mode" value="list" ${draft.mode === 'list' ? 'checked' : ''} style="margin-top:2px">
+              <div><b>Списку сотрудников</b><br><span style="font-size:11px;color:var(--t3)">звонит всем выбранным одновременно, кто первый взял — тот и говорит</span></div>
+            </label>
+            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;cursor:pointer;background:${draft.mode === 'ring-all' ? 'var(--acbg)' : 'transparent'}">
+              <input type="radio" name="nt-mode" value="ring-all" ${draft.mode === 'ring-all' ? 'checked' : ''} style="margin-top:2px">
+              <div><b>Всем сотрудникам компании</b><br><span style="font-size:11px;color:var(--t3)">звонят все у кого есть SIP-номер</span></div>
+            </label>
+            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;cursor:pointer;background:${draft.mode === 'mobile' ? 'var(--acbg)' : 'transparent'}">
+              <input type="radio" name="nt-mode" value="mobile" ${draft.mode === 'mobile' ? 'checked' : ''} style="margin-top:2px">
+              <div><b>Переадресация на мобильный</b><br><span style="font-size:11px;color:var(--t3)">Asterisk сразу звонит на указанный мобильный без браузера</span></div>
+            </label>
+          </div>
+        </div>
+
+        <div id="nt-list-block" style="margin-bottom:18px;${draft.mode === 'list' ? '' : 'display:none'}">
+          <div class="qad-label" style="margin-bottom:8px">👥 Кто в списке</div>
+          <div style="border:1px solid var(--b1);border-radius:6px;padding:8px 14px;background:var(--bg2)">
+            ${listOptionsHtml || '<div style="color:var(--t3);font-style:italic">Нет людей</div>'}
+          </div>
+        </div>
+
+        <div id="nt-mobile-block" style="margin-bottom:18px;${draft.mode === 'mobile' ? '' : 'display:none'}">
+          <div class="qad-label" style="margin-bottom:8px">📱 Мобильный для переадресации</div>
+          <input type="tel" id="nt-mobile" class="qad-input" placeholder="+7…" value="${escapeHtml(draft.mobile || '')}" style="font-size:14px;padding:8px 12px">
+        </div>
+
+        <div style="margin-bottom:18px">
+          <div class="qad-label" style="margin-bottom:8px">⏱ Сколько секунд ждать ответа</div>
+          <input type="number" id="nt-fallback" class="qad-input" min="5" max="120" value="${draft.fallbackSeconds || 30}" style="width:120px;font-size:14px;padding:8px 12px">
+          <div style="font-size:11px;color:var(--t3);margin-top:4px">Если никто не возьмёт за это время — звонок сбросится</div>
+        </div>
+
+        <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;font-size:11px;color:#92400e;line-height:1.5">
+          ⚠ <b>Внимание:</b> чтобы эти правила реально заработали, нужно настроить dialplan на Asterisk. Само хранение работает, но Asterisk пока всё ещё звонит на shared endpoint 100. Делается отдельным этапом.
+        </div>
+
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="nt-cancel">Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="nt-save">💾 Сохранить</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('nt-close').onclick = () => ov.remove();
+  document.getElementById('nt-cancel').onclick = () => ov.remove();
+
+  // Handlers
+  ov.querySelectorAll('[data-tel-uid]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      draftExt[inp.dataset.telUid] = inp.value.replace(/\D/g, '').slice(0, 6);
+      inp.value = draftExt[inp.dataset.telUid];
+    });
+  });
+  ov.querySelectorAll('input[name="nt-mode"]').forEach(r => {
+    r.addEventListener('change', () => {
+      draft.mode = r.value;
+      document.getElementById('nt-list-block').style.display = draft.mode === 'list' ? '' : 'none';
+      document.getElementById('nt-mobile-block').style.display = draft.mode === 'mobile' ? '' : 'none';
+    });
+  });
+  ov.querySelectorAll('[data-tel-list-uid]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const uid = cb.dataset.telListUid;
+      if (!Array.isArray(draft.listUids)) draft.listUids = [];
+      const i = draft.listUids.indexOf(uid);
+      if (cb.checked && i < 0) draft.listUids.push(uid);
+      if (!cb.checked && i >= 0) draft.listUids.splice(i, 1);
+    });
+  });
+
+  document.getElementById('nt-save').onclick = async () => {
+    const btn = document.getElementById('nt-save');
+    btn.disabled = true;
+    btn.textContent = '⏳ Сохраняю...';
+    try {
+      draft.mobile = String(document.getElementById('nt-mobile').value || '').trim();
+      draft.fallbackSeconds = Math.max(5, Math.min(120, Number(document.getElementById('nt-fallback').value) || 30));
+
+      // 1) Сохраняем callDistribution в узле структуры
+      const targetNode = orgGetByPath(path);
+      if (targetNode) {
+        targetNode.callDistribution = draft;
+        orgMarkDirty();
+      }
+
+      // 2) Сохраняем extensions: мерджим draftExt в глобальную карту и PUT
+      const merged = { ...allExtensions, ...draftExt };
+      // Удаляем пустые
+      for (const k of Object.keys(merged)) if (!merged[k]) delete merged[k];
+
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/sip/extensions`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ extensions: merged }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+      ov.remove();
+      showToast('☎ Сохранено. Правила распределения — не забудь нажать «💾 Сохранить» вверху структуры');
+    } catch (e) {
+      console.error('telephony save:', e);
+      alert('Ошибка сохранения: ' + (e?.message || e));
+      btn.disabled = false;
+      btn.textContent = '💾 Сохранить';
+    }
   };
 }
 
