@@ -5158,7 +5158,8 @@ async function pull1cToStore({ env, tenantId, collection1c, entityType, storeCol
 
 async function handle1cPullProducts(_request, env, actor) {
   require1cAdmin(actor);
-  // Номенклатура крупная (~7700) — тянем постранично всю. Upsert идемпотентен.
+  // Номенклатура ~7700. $skip в этой базе 1С ненадёжен (окна перекрываются),
+  // зато один большой $top отдаёт всё разом — тянем одним запросом.
   return pull1cToStore({
     env,
     tenantId: resolve1cTenantId(actor),
@@ -5166,8 +5167,8 @@ async function handle1cPullProducts(_request, env, actor) {
     entityType: "product",
     storeCollection: "products_1c",
     mapper: productFromOData,
-    pageSize: 1000,
-    maxPages: 30,
+    pageSize: 10000,
+    maxPages: 1,
   });
 }
 
@@ -5576,19 +5577,20 @@ async function handle1cMatchProducts(request, env, actor) {
   await ensureD1Schema(env);
   const db = requireStoreDb(env);
   try {
-    // 1) Карта Code → { ref, unit, vat } из products_1c (читается раз на запрос).
-    const prodRows = await db
-      .prepare(`SELECT data FROM store WHERE team_id = ? AND collection = ?`)
-      .bind(TEAM_ID, "products_1c")
-      .all();
+    // 1) Карта Code → { ref, unit, vat } напрямую из 1С. $skip в этой базе
+    // ненадёжен (окна перекрываются), но один большой $top отдаёт все ~7700
+    // разом — берём так. Матчинг самодостаточен, products_1c не нужен.
+    const { client } = await build1cClient(env, tenantId);
+    const nomenData = await client.get("Catalog_Номенклатура", { top: 10000 });
+    const nomenRaw = Array.isArray(nomenData?.value) ? nomenData.value : [];
     const byCode = new Map();
     const byDigits = new Map();
     let nomenclatureCount = 0;
-    for (const row of prodRows?.results || []) {
-      let p;
-      try { p = JSON.parse(row.data); } catch { continue; }
+    for (const raw of nomenRaw) {
+      const p = productFromOData(raw);
+      if (!p || p.is_folder || p.deletion_mark) continue;
       const code = String(p.code || "").trim();
-      const ref = p._1c_ref_key || p.ref_key;
+      const ref = p.ref_key;
       if (!code || !ref) continue;
       nomenclatureCount += 1;
       const entry = { ref, unit: p.unit_ref || null, vat: p.vat_rate_ref || null };
@@ -5597,7 +5599,7 @@ async function handle1cMatchProducts(request, env, actor) {
       if (digits) byDigits.set(digits, entry);
     }
     if (nomenclatureCount === 0) {
-      throw new HttpError(400, "products_1c пуст — сначала «Загрузить номенклатуру 1С»");
+      throw new HttpError(502, "1С вернула пустую номенклатуру");
     }
 
     // 2) Срез товаров склада.
@@ -5611,6 +5613,7 @@ async function handle1cMatchProducts(request, env, actor) {
     const nowSec = Math.floor(now / 1000);
     const updateStmts = [];
     const mapStmts = [];
+    const sampleUnmatched = [];
     let matched = 0;
     let unmatched = 0;
     for (const row of rows) {
@@ -5622,7 +5625,11 @@ async function handle1cMatchProducts(request, env, actor) {
         const d = sku.replace(/\D/g, "");
         if (d) hit = byDigits.get(d);
       }
-      if (!hit) { unmatched += 1; continue; }
+      if (!hit) {
+        unmatched += 1;
+        if (sampleUnmatched.length < 15) sampleUnmatched.push({ sku: sku || "(пусто)", name: String(prod.name || "").slice(0, 50) });
+        continue;
+      }
       const updated = {
         ...prod,
         _1c_ref_key: hit.ref,
@@ -5664,6 +5671,8 @@ async function handle1cMatchProducts(request, env, actor) {
       unmatched,
       offset,
       next_offset: nextOffset,
+      sample_unmatched: sampleUnmatched,
+      sample_1c_codes: [...byCode.keys()].slice(0, 5),
     };
   } catch (e) {
     const message = e?.message || String(e);

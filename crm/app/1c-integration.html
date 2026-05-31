@@ -342,12 +342,14 @@
         const LIMIT = 2000;
         let offset = 0;
         let totalProcessed = 0, totalMatched = 0, totalUnmatched = 0, nomenclature = 0;
+        let lastResp = null;
         try {
           // защита от бесконечного цикла
           for (let guard = 0; guard < 200; guard++) {
             showStatus("pull-status", "info",
               `Сопоставляем… обработано ${totalProcessed}, совпало ${totalMatched}…`);
             const r = await apiCall("POST", `/api/crm/1c/sync/products/match?offset=${offset}&limit=${LIMIT}`);
+            lastResp = r;
             nomenclature = r.nomenclature_total ?? nomenclature;
             totalProcessed += r.processed ?? 0;
             totalMatched += r.matched ?? 0;
@@ -359,6 +361,15 @@
           showStatus("pull-status", "ok",
             `Готово. Номенклатура 1С: ${nomenclature}. Товаров склада обработано ${totalProcessed}, ` +
             `сопоставлено ${totalMatched} (${pct}%), не найдено в 1С ${totalUnmatched}.`);
+          // Диагностика: образцы кодов 1С и несопоставленных SKU склада.
+          if (lastResp) {
+            const codes = (lastResp.sample_1c_codes || []).map(c => `<code>${c}</code>`).join(", ");
+            const un = (lastResp.sample_unmatched || []).map(u =>
+              `<tr><td><code>${(u.sku ?? "")}</code></td><td>${(u.name ?? "")}</td></tr>`).join("");
+            document.getElementById("pull-result").innerHTML =
+              `<div class="hint">Образцы кодов 1С: ${codes || "—"}</div>` +
+              (un ? `<table style="margin-top:8px"><tr><th>SKU склада (не найден)</th><th>Название</th></tr>${un}</table>` : "");
+          }
         } catch (e) {
           showStatus("pull-status", "err", `Ошибка сопоставления: ${e.message}`);
         } finally {
