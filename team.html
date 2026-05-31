@@ -13247,19 +13247,12 @@ async function renderChats(el) {
       <button class="vt-btn ${chatsState.tab === 'openlines' ? 'active' : ''}" data-tab="openlines">🗄 Архив (Bitrix)</button>
     </div>
     <div id="chats-content" style="display:flex;gap:14px;height:calc(100vh - 220px);min-height:500px">
-      ${chatsState.tab === 'group' ? `
-        <!-- Новый TeamChat — full-width, ему отдаём весь chats-content -->
-        <div id="team-chat-mount-inner" style="flex:1;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;overflow:hidden;display:flex">
-          <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:13px">⏳ Загружаем командный чат...</div>
-        </div>
-      ` : `
-        <div id="chats-list" style="flex:0 0 360px;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-height:0">
-          <div style="padding:14px;color:var(--t3);font-size:12px">⏳ Загрузка...</div>
-        </div>
-        <div id="chat-thread" style="flex:1;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;padding:0;display:flex;flex-direction:column;min-height:0">
-          <div style="padding:30px;color:var(--t3);font-size:13px;text-align:center;margin:auto">Выберите чат слева</div>
-        </div>
-      `}
+      <div id="chats-list" style="flex:0 0 360px;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-height:0">
+        <div style="padding:14px;color:var(--t3);font-size:12px">⏳ Загрузка...</div>
+      </div>
+      <div id="chat-thread" style="flex:1;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;padding:0;display:flex;flex-direction:column;min-height:0">
+        <div style="padding:30px;color:var(--t3);font-size:13px;text-align:center;margin:auto">Выберите чат слева</div>
+      </div>
     </div>
   `;
   el.querySelectorAll('.vt-btn[data-tab]').forEach(btn => {
@@ -13274,35 +13267,386 @@ async function renderChats(el) {
   if (chatsState.tab === 'whatsapp') {
     await loadAndRenderWaChats();
   } else if (chatsState.tab === 'group') {
-    // Новый функционал чата сотрудников — TeamChat виджет
-    await mountTeamChatInTab();
+    // Унифицированный «Сотрудники» — секции WhatsApp + Команда в одной левой
+    // панели, единый thread справа адаптируется под тип выбранного чата.
+    await loadAndRenderUnifiedChats();
   } else {
-    // В табе «Архив» теперь оба legacy: openlines + старые groupChats из Bitrix
     await loadAndRenderOpenlinesList();
   }
 }
 
-// Монтирует TeamChat в существующий контейнер таба «Сотрудники»
-async function mountTeamChatInTab() {
-  const mount = document.getElementById('team-chat-mount-inner');
-  if (!mount) return;
-  if (window.TeamChat?.mount) {
-    window.TeamChat.mount(mount);
-    return;
+// ── Унифицированный список «Сотрудники»: WA-чаты по каналам + Командные ─
+let _unifiedPollTimer = null;
+let _selectedTeamChannelId = null;
+const _teamChannelsCache = { items: [], at: 0 };
+const _teamMessagesPollTimer = { t: null };
+
+async function loadAndRenderUnifiedChats() {
+  const listEl = document.getElementById('chats-list');
+  if (!listEl) return;
+  listEl.innerHTML = `
+    <div style="padding:8px 12px;border-bottom:1px solid var(--b1);background:var(--bg3);display:flex;gap:6px;align-items:center">
+      <input id="unified-search" type="search" placeholder="Поиск чатов..."
+        style="flex:1;padding:6px 10px;border:1px solid var(--b1);border-radius:5px;background:var(--bg2);color:var(--t1);font-size:12px;outline:none">
+      <button class="vt-btn" id="unified-new-channel" title="Создать командный канал" style="padding:5px 10px;font-size:14px">➕</button>
+      <button class="vt-btn" id="unified-new-dm" title="Личка сотруднику" style="padding:5px 10px;font-size:14px">✉</button>
+    </div>
+    <div id="unified-list-scroll" style="flex:1;overflow-y:auto;min-height:0">
+      <div style="padding:14px;color:var(--t3);font-size:12px">⏳ Загрузка...</div>
+    </div>
+  `;
+  document.getElementById('unified-search').addEventListener('input', renderUnifiedList);
+  document.getElementById('unified-new-channel').onclick = () => openCreateTeamChannelModal();
+  document.getElementById('unified-new-dm').onclick = () => openCreateTeamDmModal();
+
+  // Параллельная загрузка обоих источников
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const [waR, teamR] = await Promise.all([
+      fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500`, { headers: { 'Authorization': 'Bearer ' + idToken } }),
+      fetch(`${WORKER_BASE_URL}/api/chat/channels`, { headers: { 'Authorization': 'Bearer ' + idToken } }),
+    ]);
+    chatsState.waChats = waR.ok ? (await waR.json()).items || [] : [];
+    chatsState.waChats.sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+    _teamChannelsCache.items = teamR.ok ? (await teamR.json()).items || [] : [];
+    _teamChannelsCache.at = Date.now();
+    renderUnifiedList();
+  } catch (e) {
+    const scroll = document.getElementById('unified-list-scroll');
+    if (scroll) scroll.innerHTML = `<div style="padding:14px;color:var(--rd);font-size:12px">Ошибка: ${escapeHtml(e.message)}</div>`;
   }
-  if (window._teamChatScriptLoading) return;
-  window._teamChatScriptLoading = true;
-  const s = document.createElement('script');
-  s.src = `${WORKER_BASE_URL}/chat.js?v=1`;
-  s.onload = () => {
-    window._teamChatScriptLoading = false;
-    if (window.TeamChat?.mount) window.TeamChat.mount(mount);
+  // Polling — обновляем список каждые 10 сек
+  if (_unifiedPollTimer) clearInterval(_unifiedPollTimer);
+  _unifiedPollTimer = setInterval(async () => {
+    if (chatsState.tab !== 'group' || !document.getElementById('chats-list')) {
+      clearInterval(_unifiedPollTimer); _unifiedPollTimer = null; return;
+    }
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const [waR, teamR] = await Promise.all([
+        fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500`, { headers: { 'Authorization': 'Bearer ' + idToken } }),
+        fetch(`${WORKER_BASE_URL}/api/chat/channels`, { headers: { 'Authorization': 'Bearer ' + idToken } }),
+      ]);
+      if (waR.ok) {
+        chatsState.waChats = (await waR.json()).items || [];
+        chatsState.waChats.sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+      }
+      if (teamR.ok) _teamChannelsCache.items = (await teamR.json()).items || [];
+      renderUnifiedList();
+    } catch {}
+  }, 10000);
+}
+
+function renderUnifiedList() {
+  const scroll = document.getElementById('unified-list-scroll');
+  if (!scroll) return;
+  const searchEl = document.getElementById('unified-search');
+  const q = (searchEl?.value || '').trim().toLowerCase();
+  const wa = (chatsState.waChats || []).filter(c => {
+    if (!q) return true;
+    return (c.name || '').toLowerCase().includes(q) || (c.phone || '').toLowerCase().includes(q);
+  });
+  const team = (_teamChannelsCache.items || []).filter(c => {
+    if (!q) return true;
+    return (c.name || '').toLowerCase().includes(q);
+  });
+
+  // WA — группировка по каналу (instance) с pipeline-меткой
+  const waByInstance = {};
+  for (const c of wa) {
+    const k = c.instanceId || '_other';
+    (waByInstance[k] ||= []).push(c);
+  }
+
+  let html = '';
+
+  // Section: Команда
+  html += `<div style="padding:8px 14px;background:var(--bg3);font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;border-bottom:1px solid var(--b1);display:flex;justify-content:space-between">
+    <span>👥 Команда</span><span>${team.length}</span>
+  </div>`;
+  if (team.length === 0) {
+    html += '<div style="padding:10px 14px;color:var(--t3);font-size:11px;font-style:italic">Каналов нет. Жми ➕ или ✉</div>';
+  } else {
+    for (const c of team) {
+      const isActive = c.id === _selectedTeamChannelId;
+      const name = c.type === 'dm' ? (orgUserLabel(c.other_user_id) || 'Личка') : (c.name || 'без имени');
+      const icon = c.type === 'dm' ? '✉' : (c.type === 'group' ? '🔒' : '#');
+      const last = c.last_message_text ? c.last_message_text.slice(0, 60) : '';
+      const time = c.last_message_at ? formatWaListTime(c.last_message_at) : '';
+      const unread = c.unread_count > 0 ? `<span style="background:#22c55e;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:600">${c.unread_count}</span>` : '';
+      html += `<div class="team-chat-item" data-team-id="${escapeHtml(c.id)}" style="padding:10px 14px;border-bottom:1px solid var(--b1);cursor:pointer;${isActive ? 'background:var(--acbg)' : ''}">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+          <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;color:var(--t1)">
+            <span style="font-size:10px;opacity:0.6">${icon}</span> ${escapeHtml(name)}
+          </div>
+          <span style="font-size:10px;color:var(--t3)">${escapeHtml(time)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:3px">
+          <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--t3)">${escapeHtml(last)}</div>
+          ${unread}
+        </div>
+      </div>`;
+    }
+  }
+
+  // Section: WhatsApp (по каналам)
+  html += `<div style="padding:8px 14px;background:var(--bg3);font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;border-bottom:1px solid var(--b1);border-top:1px solid var(--b1);display:flex;justify-content:space-between">
+    <span>📞 WhatsApp</span><span>${wa.length}</span>
+  </div>`;
+  if (wa.length === 0) {
+    html += '<div style="padding:10px 14px;color:var(--t3);font-size:11px;font-style:italic">Нет WA-чатов</div>';
+  } else {
+    // Группировка по instance
+    const channels = waWidget?.channels || [];
+    const chByInstance = {};
+    for (const ch of channels) chByInstance[ch.idInstance] = ch;
+    for (const [instId, chats] of Object.entries(waByInstance)) {
+      const ch = chByInstance[instId];
+      const label = ch ? `📞 ${ch.displayName}${ch.pipelineName ? ' · 🎯 ' + ch.pipelineName : ''}` : '📞 Прочие';
+      const totalUnread = chats.reduce((s, c) => s + (c.unreadCount || 0), 0);
+      html += `<div style="padding:6px 14px;font-size:11px;color:var(--ac2);background:var(--bg2);border-bottom:1px solid var(--b1);display:flex;justify-content:space-between">
+        <span>${escapeHtml(label)}</span>
+        ${totalUnread ? `<span style="background:#25D366;color:#fff;border-radius:8px;padding:0 6px;font-size:10px;font-weight:600">${totalUnread}</span>` : ''}
+      </div>`;
+      for (const c of chats) html += renderWaChatListItemHtml(c, c.id === chatsState.waSelectedChatId);
+    }
+  }
+
+  scroll.innerHTML = html;
+  scroll.querySelectorAll('.wa-chat-item').forEach(it => {
+    it.addEventListener('click', () => {
+      _selectedTeamChannelId = null;
+      openWaChat(it.dataset.chatId);
+    });
+  });
+  scroll.querySelectorAll('.team-chat-item').forEach(it => {
+    it.addEventListener('click', () => {
+      chatsState.waSelectedChatId = null;
+      openTeamChannelThread(it.dataset.teamId);
+    });
+  });
+}
+
+// ── Открыть командный канал в общем chat-thread (без TeamChat виджета) ──
+async function openTeamChannelThread(channelId) {
+  _selectedTeamChannelId = channelId;
+  renderUnifiedList();
+  const threadEl = document.getElementById('chat-thread');
+  if (!threadEl) return;
+  const ch = (_teamChannelsCache.items || []).find(c => c.id === channelId);
+  const name = ch ? (ch.type === 'dm' ? orgUserLabel(ch.other_user_id) : ch.name) : 'Канал';
+
+  threadEl.innerHTML = `
+    <div style="padding:12px 16px;border-bottom:1px solid var(--b1);background:var(--bg3);flex:0 0 auto">
+      <div style="font-size:14px;font-weight:600;color:var(--t1)">👥 ${escapeHtml(name || 'Канал')}</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:2px">Командный чат · ${ch?.type === 'dm' ? 'личное' : ch?.type === 'group' ? 'закрытая группа' : 'канал'}</div>
+    </div>
+    <div id="team-thread-body" style="flex:1;overflow-y:auto;min-height:0;padding:12px 14px;background:var(--bg1);display:flex;flex-direction:column;gap:6px">
+      <div style="padding:20px;text-align:center;color:var(--t3);font-size:12px">⏳ Загружаем сообщения...</div>
+    </div>
+    <div style="padding:10px 12px;border-top:1px solid var(--b1);background:var(--bg3);display:flex;gap:8px;align-items:flex-end">
+      <textarea id="team-thread-input" placeholder="Сообщение..." rows="1"
+        style="flex:1;resize:none;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none;max-height:120px;font-family:inherit"></textarea>
+      <button id="team-thread-send" class="vt-btn active" style="padding:7px 14px">Отправить</button>
+    </div>
+  `;
+  const ta = document.getElementById('team-thread-input');
+  ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; });
+  ta.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTeamMessage(channelId); }
+  });
+  document.getElementById('team-thread-send').onclick = () => sendTeamMessage(channelId);
+
+  await loadTeamMessages(channelId);
+  // Mark-read и polling
+  if (_teamMessagesPollTimer.t) clearInterval(_teamMessagesPollTimer.t);
+  _teamMessagesPollTimer.t = setInterval(() => {
+    if (_selectedTeamChannelId !== channelId || !document.getElementById('team-thread-body')) {
+      clearInterval(_teamMessagesPollTimer.t); _teamMessagesPollTimer.t = null; return;
+    }
+    loadTeamMessages(channelId, true);
+  }, 5000);
+}
+
+async function loadTeamMessages(channelId, silent = false) {
+  const body = document.getElementById('team-thread-body');
+  if (!body) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/chat/channels/${channelId}/messages?limit=80`, {
+      headers: { 'Authorization': 'Bearer ' + idToken },
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const msgs = data.items || [];
+    const me = window.currentUser?.canonicalUid || window.currentUser?.firebaseUid;
+    const wasAtBottom = body.scrollTop + body.clientHeight >= body.scrollHeight - 80;
+    body.innerHTML = msgs.length === 0
+      ? '<div style="padding:20px;text-align:center;color:var(--t3);font-size:12px">Сообщений нет. Напиши первое ↓</div>'
+      : msgs.map(m => renderTeamMessageHtml(m, me)).join('');
+    if (wasAtBottom) body.scrollTop = body.scrollHeight;
+    // Mark-read на последнее сообщение
+    const last = msgs[msgs.length - 1];
+    if (last && !silent) {
+      fetch(`${WORKER_BASE_URL}/api/chat/channels/${channelId}/read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+        body: JSON.stringify({ last_read_message_id: last.id }),
+      }).catch(() => {});
+      const cached = (_teamChannelsCache.items || []).find(c => c.id === channelId);
+      if (cached) { cached.unread_count = 0; renderUnifiedList(); }
+    }
+  } catch (e) {
+    if (!silent) body.innerHTML = `<div style="padding:14px;color:var(--rd);font-size:12px">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderTeamMessageHtml(m, meUid) {
+  if (m.deleted_at) {
+    return `<div style="font-size:11px;color:var(--t3);font-style:italic;text-align:center">сообщение удалено</div>`;
+  }
+  const own = m.user_id === meUid;
+  const author = own ? '' : `<div style="font-size:10px;color:var(--ac);font-weight:700;margin-bottom:2px">${escapeHtml(orgUserLabel(m.user_id))}</div>`;
+  const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }) : '';
+  const bg = own ? '#22c55e' : 'var(--bg2)';
+  const color = own ? '#fff' : 'var(--t1)';
+  const align = own ? 'align-self:flex-end' : 'align-self:flex-start';
+  const text = m.text ? escapeHtml(m.text).replace(/(https?:\/\/[^\s<>"]+)/g, '<a href="$1" target="_blank" style="color:inherit;text-decoration:underline">$1</a>') : '';
+  let fileBlock = '';
+  if (m.file_key) {
+    const url = `${WORKER_BASE_URL}/api/chat/files/${encodeURIComponent(m.file_key)}`;
+    const meta = m.file_meta ? (typeof m.file_meta === 'string' ? (function(){ try{return JSON.parse(m.file_meta);}catch{return{};} })() : m.file_meta) : {};
+    if ((meta.mime || '').startsWith('image/')) {
+      fileBlock = `<img src="${url}" style="max-width:240px;max-height:240px;border-radius:6px;display:block;margin-top:4px;cursor:pointer" onclick="window.open('${url}','_blank')">`;
+    } else {
+      fileBlock = `<a href="${url}" target="_blank" style="display:inline-block;margin-top:4px;padding:6px 10px;background:rgba(0,0,0,0.1);border-radius:5px;color:inherit;text-decoration:none;font-size:11px">📎 ${escapeHtml(meta.name || 'файл')}</a>`;
+    }
+  }
+  return `<div style="${align};max-width:75%;background:${bg};color:${color};padding:6px 10px;border-radius:10px;font-size:13px;line-height:1.4;word-wrap:break-word">
+    ${author}${text}${fileBlock}
+    <div style="font-size:9px;opacity:0.6;margin-top:3px;text-align:right">${time}${m.edited_at ? ' (изм.)' : ''}</div>
+  </div>`;
+}
+
+async function sendTeamMessage(channelId) {
+  const ta = document.getElementById('team-thread-input');
+  if (!ta) return;
+  const text = ta.value.trim();
+  if (!text) return;
+  ta.value = ''; ta.style.height = 'auto';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/chat/channels/${channelId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+      body: JSON.stringify({ text }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await loadTeamMessages(channelId);
+  } catch (e) {
+    alert('Ошибка отправки: ' + e.message);
+    ta.value = text;
+  }
+}
+
+// ── Modals: создать канал/DM ────────────────────────────────────────────
+function openCreateTeamChannelModal() {
+  const ov = document.createElement('div');
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:420px">
+    <div class="qad-head"><h2>➕ Новый командный канал</h2></div>
+    <div class="qad-body" style="padding:18px 24px">
+      <label style="display:block;margin-bottom:12px">
+        <div style="font-size:12px;color:var(--t2);margin-bottom:4px">Тип</div>
+        <select id="tch-type" class="qad-input" style="width:100%;padding:8px 10px">
+          <option value="channel">Канал (публичный)</option>
+          <option value="group">Группа (закрытая)</option>
+        </select>
+      </label>
+      <label style="display:block;margin-bottom:12px">
+        <div style="font-size:12px;color:var(--t2);margin-bottom:4px">Название</div>
+        <input id="tch-name" class="qad-input" placeholder="Разработка" style="width:100%;padding:8px 10px">
+      </label>
+    </div>
+    <div class="qad-foot">
+      <button class="qad-btn qad-btn-ghost" id="tch-cancel">Отмена</button>
+      <button class="qad-btn qad-btn-primary" id="tch-create">Создать</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  document.getElementById('tch-cancel').onclick = () => ov.remove();
+  document.getElementById('tch-create').onclick = async () => {
+    const type = document.getElementById('tch-type').value;
+    const name = document.getElementById('tch-name').value.trim();
+    if (!name) { alert('Введи название'); return; }
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/chat/channels`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+        body: JSON.stringify({ type, name }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'error');
+      ov.remove();
+      await loadAndRenderUnifiedChats();
+      openTeamChannelThread(d.channel.id);
+    } catch (e) { alert(e.message); }
   };
-  s.onerror = () => {
-    window._teamChatScriptLoading = false;
-    if (mount) mount.innerHTML = '<div style="padding:20px;color:#dc2626">❌ Не удалось загрузить chat.js</div>';
-  };
-  document.head.appendChild(s);
+}
+
+function openCreateTeamDmModal() {
+  // Простой picker: список юзеров из usersState (если есть) или prompt
+  ensureUsersLoaded().then(() => {
+    const users = Object.values(window.usersState?.byUid || {})
+      .filter(u => u.uid && u.uid !== (window.currentUser?.canonicalUid || window.currentUser?.firebaseUid))
+      .slice(0, 200);
+    const ov = document.createElement('div');
+    ov.className = 'qad-overlay';
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:420px">
+      <div class="qad-head"><h2>✉ Личка сотруднику</h2></div>
+      <div class="qad-body" style="padding:18px 24px;max-height:60vh;overflow:auto">
+        <input id="dm-search" class="qad-input" placeholder="Поиск по имени..." style="width:100%;padding:8px 10px;margin-bottom:10px">
+        <div id="dm-list"></div>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    const render = (q = '') => {
+      const ql = q.toLowerCase();
+      const list = document.getElementById('dm-list');
+      const filtered = users.filter(u => {
+        const n = [u.lastName, u.name].filter(Boolean).join(' ').toLowerCase();
+        return !ql || n.includes(ql) || (u.email || '').toLowerCase().includes(ql);
+      });
+      list.innerHTML = filtered.length === 0
+        ? '<div style="color:var(--t3);font-size:12px;padding:10px">Никого не найдено</div>'
+        : filtered.map(u => {
+            const n = [u.lastName, u.name].filter(Boolean).join(' ').trim() || u.email || u.uid;
+            return `<div data-dm-uid="${escapeHtml(u.uid)}" style="padding:8px 10px;border:1px solid var(--b1);border-radius:5px;margin-bottom:4px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">${escapeHtml(n)}</div>`;
+          }).join('');
+      list.querySelectorAll('[data-dm-uid]').forEach(el => {
+        el.onclick = async () => {
+          try {
+            const idToken = await fbAuth.currentUser.getIdToken();
+            const r = await fetch(`${WORKER_BASE_URL}/api/chat/dm`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+              body: JSON.stringify({ user_id: el.dataset.dmUid }),
+            });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.error || 'error');
+            ov.remove();
+            await loadAndRenderUnifiedChats();
+            openTeamChannelThread(d.channel_id);
+          } catch (e) { alert(e.message); }
+        };
+      });
+    };
+    render();
+    document.getElementById('dm-search').addEventListener('input', (e) => render(e.target.value));
+  });
 }
 
 function stopWaChatsPolling() {
