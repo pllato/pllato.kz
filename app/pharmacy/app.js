@@ -958,10 +958,197 @@ function applyTheme(t){
 $('#themeBtn').onclick=()=>{const t=state.theme==='light'?'dark':'light';applyTheme(t);
   toast('Тема: '+(t==='light'?'светлая':'тёмная'),t==='light'?'i-sun':'i-moon','var(--accent)');};
 
+// ============================================================
+//  Плавающий виджет чатов (нижний правый угол) — как в ELC CRM.
+//  Кружок 💬 → панель со списком диалогов по каналам → переписка
+//  с композером. Данные демо-мокапа: DB.threads / DB.channels.
+// ============================================================
+const cwEsc = (s)=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const CW = { open:false, view:'list', thread:null };
+
+function cwUnreadTotal(){ return DB.threads.reduce((s,t)=>s+(t.unread||0),0); }
+
+function cwEnsureStyles(){
+  if(document.getElementById('cw-styles')) return;
+  const s=document.createElement('style'); s.id='cw-styles';
+  s.textContent=`
+  #cw-root{position:fixed;bottom:74px;right:20px;z-index:90;font-family:inherit}
+  .cw-fab{width:56px;height:56px;border-radius:28px;background:var(--wa);color:#fff;border:none;cursor:pointer;
+    box-shadow:0 6px 20px rgba(0,0,0,.28);display:grid;place-items:center;position:relative;transition:transform .14s}
+  .cw-fab:hover{transform:scale(1.06)}
+  .cw-fab .svg-i{width:26px;height:26px}
+  .cw-fab-badge{position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;border-radius:12px;min-width:22px;height:22px;
+    padding:0 6px;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg)}
+  .cw-panel{width:380px;max-width:calc(100vw - 36px);height:540px;max-height:calc(100vh - 120px);
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.4);
+    display:flex;flex-direction:column;overflow:hidden}
+  .cw-head{background:var(--wa);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;flex:0 0 auto}
+  .cw-head .cw-title{flex:1;font-weight:700;font-size:14px}
+  .cw-head .cw-sub{font-size:11px;opacity:.9;margin-top:1px;font-weight:500}
+  .cw-iconbtn{background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;
+    cursor:pointer;display:grid;place-items:center}
+  .cw-iconbtn:hover{background:rgba(255,255,255,.35)}
+  .cw-iconbtn .svg-i{width:16px;height:16px}
+  .cw-body{flex:1;overflow-y:auto;background:var(--bg)}
+  .cw-sec{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;padding:7px 14px;
+    background:var(--panel2);border-bottom:1px solid var(--line);font-size:11px;font-weight:700;color:var(--muted)}
+  .cw-sec .cw-sec-ic{width:14px;height:14px}
+  .cw-sec-unread{background:var(--wa);color:#fff;min-width:18px;height:18px;padding:0 5px;border-radius:9px;
+    font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;margin-left:auto}
+  .cw-row{display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+  .cw-row:hover{background:var(--panel)}
+  .cw-av{width:40px;height:40px;border-radius:50%;color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px;flex:0 0 auto}
+  .cw-rbody{flex:1;min-width:0}
+  .cw-rname{font-weight:700;font-size:13px;color:var(--txt);display:flex;justify-content:space-between;gap:8px}
+  .cw-rtime{font-size:10px;color:var(--muted);flex:0 0 auto;font-weight:600}
+  .cw-rprev{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;
+    display:flex;align-items:center;gap:6px}
+  .cw-rprev span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cw-runread{background:var(--wa);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:800;
+    min-width:18px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;margin-left:auto}
+  .cw-empty{padding:34px 14px;text-align:center;color:var(--muted);font-size:12px}
+  .cw-chat-head{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--panel2);
+    border-bottom:1px solid var(--line);flex:0 0 auto}
+  .cw-chat-head .cw-back{background:none;border:none;color:var(--txt);cursor:pointer;width:30px;height:30px;
+    display:grid;place-items:center;border-radius:8px}
+  .cw-chat-head .cw-back:hover{background:var(--panel)}
+  .cw-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
+  .cw-msg{max-width:78%;padding:8px 11px;border-radius:13px;font-size:13px;line-height:1.4;word-wrap:break-word}
+  .cw-msg .cw-mt{font-size:9.5px;opacity:.65;margin-top:3px;text-align:right}
+  .cw-msg.in{align-self:flex-start;background:var(--panel2);color:var(--txt);border-bottom-left-radius:4px}
+  .cw-msg.out{align-self:flex-end;background:var(--wa);color:#fff;border-bottom-right-radius:4px}
+  .cw-msg.ai{align-self:flex-start;background:var(--accent-soft);color:var(--txt);border:1px solid var(--accent);border-bottom-left-radius:4px}
+  .cw-ai-tag{font-size:9px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+  .cw-comp{flex:0 0 auto;padding:9px 10px;background:var(--panel2);border-top:1px solid var(--line);display:flex;gap:7px;align-items:flex-end}
+  .cw-comp textarea{flex:1;border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:13px;resize:none;
+    max-height:100px;font-family:inherit;background:var(--bg);color:var(--txt);outline:none}
+  .cw-comp textarea:focus{border-color:var(--wa)}
+  .cw-comp .cw-send{background:var(--wa);color:#fff;border:none;border-radius:10px;width:38px;height:38px;
+    cursor:pointer;flex:0 0 auto;display:grid;place-items:center}
+  .cw-comp .cw-send .svg-i{width:17px;height:17px}
+  `;
+  document.head.appendChild(s);
+}
+
+function initChatWidget(){
+  cwEnsureStyles();
+  if(!document.getElementById('cw-root')){
+    const r=document.createElement('div'); r.id='cw-root'; document.body.appendChild(r);
+  }
+  cwRender();
+}
+
+function cwRender(){
+  const root=document.getElementById('cw-root'); if(!root) return;
+  if(!CW.open){
+    const n=cwUnreadTotal();
+    root.innerHTML=`<button class="cw-fab" id="cw-fab" title="Чаты WhatsApp / Instagram">${ic('i-chat')}${n>0?`<span class="cw-fab-badge">${n>99?'99+':n}</span>`:''}</button>`;
+    $('#cw-fab',root).onclick=()=>{ CW.open=true; CW.view='list'; cwRender(); };
+    return;
+  }
+  if(CW.view==='chat' && CW.thread){ cwRenderChat(root); }
+  else { cwRenderList(root); }
+}
+
+function cwRenderList(root){
+  const total=DB.threads.length, unread=cwUnreadTotal();
+  // группируем по каналу, как «📞 Канал» в ELC
+  const byCh=new Map();
+  DB.threads.forEach(t=>{ if(!byCh.has(t.ch)) byCh.set(t.ch,[]); byCh.get(t.ch).push(t); });
+  const groups=[...byCh.entries()].map(([chId,list])=>{
+    const ch=DB.channels.find(c=>c.id===chId)||{name:'Прочее',type:'wp'};
+    const u=list.reduce((s,t)=>s+(t.unread||0),0);
+    list.sort((a,b)=>(b.unread||0)-(a.unread||0));
+    return {ch,list,unread:u};
+  }).sort((a,b)=>(b.unread-a.unread)||a.ch.name.localeCompare(b.ch.name,'ru'));
+
+  let body='';
+  if(total===0){ body='<div class="cw-empty">📭 Диалогов нет</div>'; }
+  else groups.forEach(g=>{
+    body+=`<div class="cw-sec"><svg class="svg-i cw-sec-ic" style="color:${chColor(g.ch.type)}"><use href="#${chIcon(g.ch.type)}"/></svg>
+      <span>${cwEsc(g.ch.name)}</span>${g.unread>0?`<span class="cw-sec-unread">${g.unread}</span>`:''}</div>`;
+    body+=g.list.map(cwRowHtml).join('');
+  });
+
+  root.innerHTML=`<div class="cw-panel">
+    <div class="cw-head">
+      <div style="flex:1"><div class="cw-title">Чаты</div>
+        <div class="cw-sub">${total} диалог${total%10===1&&total%100!==11?'':'ов'} · ${unread} непрочит.</div></div>
+      <button class="cw-iconbtn" id="cw-close" title="Свернуть">${ic('i-x')}</button>
+    </div>
+    <div class="cw-body" id="cw-list">${body}</div>
+  </div>`;
+  $('#cw-close',root).onclick=()=>{ CW.open=false; cwRender(); };
+  root.querySelectorAll('.cw-row').forEach(r=>r.onclick=()=>cwOpenThread(r.dataset.tid));
+}
+
+function cwRowHtml(t){
+  const av=t.av||avBg(t.name);
+  const prev=(t.msgs&&t.msgs.length?t.msgs[t.msgs.length-1]:null);
+  const tick=(prev&&prev.dir==='out')?'✓ ':'';
+  const last=t.last||(prev?prev.t:'');
+  return `<div class="cw-row" data-tid="${cwEsc(t.id)}">
+    <div class="cw-av" style="background:${av}">${cwEsc(initials(t.name))}</div>
+    <div class="cw-rbody">
+      <div class="cw-rname"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cwEsc(t.name)}</span>
+        <span class="cw-rtime">${cwEsc(t.time||'')}</span></div>
+      <div class="cw-rprev"><span>${cwEsc(tick+last)}</span>${t.unread>0?`<span class="cw-runread">${t.unread}</span>`:''}</div>
+    </div></div>`;
+}
+
+function cwOpenThread(tid){
+  const t=DB.threads.find(x=>x.id===tid); if(!t) return;
+  t.unread=0;                 // mark-read
+  CW.thread=tid; CW.view='chat'; cwRender();
+}
+
+function cwRenderChat(root){
+  const t=DB.threads.find(x=>x.id===CW.thread); if(!t){ CW.view='list'; cwRender(); return; }
+  const ch=DB.channels.find(c=>c.id===t.ch)||{name:'',type:'wp'};
+  const msgs=(t.msgs||[]).map(m=>{
+    const cls=m.dir==='out'?'out':(m.dir==='ai'?'ai':'in');
+    const tag=m.dir==='ai'?'<div class="cw-ai-tag">AI-агент</div>':'';
+    return `<div class="cw-msg ${cls}">${tag}${cwEsc(m.t)}<div class="cw-mt">${cwEsc(m.tm||'')}</div></div>`;
+  }).join('');
+  root.innerHTML=`<div class="cw-panel">
+    <div class="cw-chat-head">
+      <button class="cw-back" id="cw-back" title="К списку" style="font-size:22px;line-height:1">‹</button>
+      <div class="cw-av" style="width:34px;height:34px;font-size:12px;background:${t.av||avBg(t.name)}">${cwEsc(initials(t.name))}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cwEsc(t.name)}</div>
+        <div style="font-size:11px;color:var(--muted)">${cwEsc(ch.name)} · ${chLabel(ch.type)}${t.online?' · <span style="color:var(--accent)">онлайн</span>':''}</div>
+      </div>
+    </div>
+    <div class="cw-msgs" id="cw-msgs">${msgs}</div>
+    <div class="cw-comp">
+      <textarea id="cw-input" rows="1" placeholder="Сообщение в ${cwEsc(chLabel(ch.type))}…"></textarea>
+      <button class="cw-send" id="cw-send" title="Отправить">${ic('i-send')}</button>
+    </div>
+  </div>`;
+  const back=$('#cw-back',root); if(back) back.onclick=()=>{ CW.view='list'; cwRender(); };
+  const ta=$('#cw-input',root), msgsBox=$('#cw-msgs',root);
+  if(msgsBox) msgsBox.scrollTop=msgsBox.scrollHeight;
+  const send=()=>{
+    const v=ta.value.trim(); if(!v) return;
+    const now=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+    t.msgs=t.msgs||[]; t.msgs.push({dir:'out',t:v,tm:now}); t.last=v; t.time=now;
+    ta.value=''; ta.style.height='auto';
+    cwRenderChat(root);
+    toast('Отправлено в '+chLabel(ch.type)+' (GreenAPI)','i-send','var(--wa)');
+  };
+  if(ta){
+    ta.addEventListener('input',()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,100)+'px'; });
+    ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(); } });
+    ta.focus();
+  }
+  const sb=$('#cw-send',root); if(sb) sb.onclick=send;
+}
+
 // ---------- init ----------
 let savedTheme='light';try{savedTheme=localStorage.getItem('pllatoTheme')||'light';}catch(e){}
 applyTheme(savedTheme);
 renderNav();renderRoleSel();renderPage();
+initChatWidget();
 
 // ---------- AUTH (вход / выход / Google) ----------
 function getToken(){ try{return localStorage.getItem('pharmaToken')||null;}catch(e){return null;} }
