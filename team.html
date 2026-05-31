@@ -2755,6 +2755,10 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
     <div class="nav-item" data-page="chats">
       <span class="nav-icon">💬</span><span>Чаты</span>
     </div>
+    <div class="nav-item" data-page="team-chat">
+      <span class="nav-icon">👥</span><span>Командный чат</span>
+      <span class="nav-badge" id="team-chat-nav-badge" style="display:none;background:#22c55e;color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:auto"></span>
+    </div>
 
     <div class="nav-section">Инструменты</div>
     <div class="nav-item" data-page="migration">
@@ -3326,9 +3330,39 @@ function navigate(page) {
   else if (page === 'deeds') renderDeeds(main);
   else if (page === 'calendar') renderCalendar(main);
   else if (page === 'chats') renderChats(main);
+  else if (page === 'team-chat') renderTeamChat(main);
   else if (page === 'orgchart') renderOrgChart(main);
   else if (page === 'migration') renderMigration(main);
   else if (page === 'settings') renderSettings(main);
+}
+
+// Командный чат — отдельный модуль chat.js (см. elc-worker/public/chat.js).
+// Грузится один раз через `<script src="WORKER/chat.js">` (как sip-client.js).
+let _teamChatScriptLoaded = false;
+function renderTeamChat(el) {
+  el.innerHTML = `
+    <div class="page-head"><h1>👥 Командный чат</h1></div>
+    <div id="team-chat-mount" style="height:calc(100vh - 140px);display:flex;border:1px solid var(--b1);border-radius:8px;overflow:hidden;background:var(--bg2)">
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--t3)">
+        ⏳ Загружаем чат…
+      </div>
+    </div>
+  `;
+  if (_teamChatScriptLoaded) {
+    if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
+    return;
+  }
+  const s = document.createElement('script');
+  s.src = `${WORKER_BASE_URL}/chat.js?v=1`;
+  s.onload = () => {
+    _teamChatScriptLoaded = true;
+    if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
+  };
+  s.onerror = () => {
+    const m = document.getElementById('team-chat-mount');
+    if (m) m.innerHTML = '<div style="padding:20px;color:#dc2626">❌ Не удалось загрузить chat.js</div>';
+  };
+  document.head.appendChild(s);
 }
 
 function renderDashboard(el) {
