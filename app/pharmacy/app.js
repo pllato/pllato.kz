@@ -117,6 +117,12 @@ const PAGES={};
 
 // ---------- DASHBOARD ----------
 PAGES.dash=(c)=>{
+  if(isAdminRole()){
+    const bar=el(`<div class="row" style="justify-content:flex-end;margin-bottom:14px">
+      <button class="btn" id="dashInvite">${ic('i-plus','sm')} Пригласить сотрудника</button></div>`);
+    bar.querySelector('#dashInvite').onclick=()=>openInviteModal();
+    c.appendChild(bar);
+  }
   const k=(ic_,col,lbl,val,sub,up)=>`<div class="kpi"><div class="k-ic" style="background:${col}22;color:${col}">${ic(ic_)}</div>
     <div class="k-lbl">${lbl}</div><div class="k-val">${val}</div><div class="k-sub ${up>0?'up':up<0?'down':''}">${sub}</div></div>`;
   c.appendChild(el(`<div class="cards-row">
@@ -953,7 +959,7 @@ $('#themeBtn').onclick=()=>{const t=state.theme==='light'?'dark':'light';applyTh
   toast('Тема: '+(t==='light'?'светлая':'тёмная'),t==='light'?'i-sun':'i-moon','var(--accent)');};
 
 // ---------- init ----------
-let savedTheme='dark';try{savedTheme=localStorage.getItem('pllatoTheme')||'dark';}catch(e){}
+let savedTheme='light';try{savedTheme=localStorage.getItem('pllatoTheme')||'light';}catch(e){}
 applyTheme(savedTheme);
 renderNav();renderRoleSel();renderPage();
 
