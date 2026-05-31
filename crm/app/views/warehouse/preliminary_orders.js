@@ -124,12 +124,15 @@ function renderOrderCard(deal, kind) {
               ? `<button type="button" class="btn-primary" data-po-approve="${escapeAttr(deal.id)}">✓ Согласовать на отгрузку</button>`
               : kind === "approved"
               ? `<button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}">↶ Отозвать</button>
+                 <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
                  <button type="button" class="btn-ghost" data-po-await-payment="${escapeAttr(deal.id)}" title="Перевести в «Ждут оплату» (для 100% предоплаты)">⏳ Ждать оплату</button>
                  <button type="button" class="btn-primary" data-po-ship="${escapeAttr(deal.id)}" title="Заказ перейдёт в «Отгружены», сформируется расходная накладная З-2">📦 Отгрузить и сформировать накладную</button>`
               : kind === "awaiting_payment"
               ? `<button type="button" class="btn-ghost" data-po-cancel-await="${escapeAttr(deal.id)}" title="Вернуть в «Согласованы»">↶ Вернуть в согласованы</button>
+                 <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
                  <button type="button" class="btn-primary" data-po-confirm-payment="${escapeAttr(deal.id)}" title="Подтвердить получение оплаты">💰 Оплата получена</button>`
               : `<span class="po-shipped-label">✅ Отгружено${deal.orderInvoiceNumber ? ` · № ${escapeHtml(deal.orderInvoiceNumber)}` : ""}</span>
+                 <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
                  ${deal.orderInvoiceId ? `<button type="button" class="btn-ghost" data-po-print="${escapeAttr(deal.orderInvoiceId)}" title="Открыть для печати/сохранения в PDF">📄 Открыть накладную</button>` : ""}`
             }
           </div>
@@ -250,6 +253,27 @@ export function wirePreliminaryOrdersEvents(container) {
       } catch (err) {
         alert(err?.message || String(err));
       }
+      return;
+    }
+    const invoice1cBtn = e.target.closest("[data-po-onec-invoice]");
+    if (invoice1cBtn) {
+      e.preventDefault();
+      const dealId = invoice1cBtn.dataset.poOnecInvoice;
+      (async () => {
+        try {
+          const deal = Store.get("deals", dealId);
+          if (!deal) return;
+          const items = listDealItems(dealId);
+          const contact = deal.contactId ? Store.get("contacts", deal.contactId) : null;
+          const mod = await import("../../one_c_invoice.js");
+          mod.openCreateInvoiceDialog({
+            deal, items, contact,
+            onDone: () => window.dispatchEvent(new CustomEvent("pllato:warehouse-refresh")),
+          });
+        } catch (err) {
+          alert("Не удалось открыть форму счёта 1С: " + (err?.message || String(err)));
+        }
+      })();
       return;
     }
     const shipBtn = e.target.closest("[data-po-ship]");
