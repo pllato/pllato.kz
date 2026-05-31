@@ -3508,6 +3508,233 @@ function findCallDistributionForUid(structure, uid) {
   return found;
 }
 
+// ── Приглашения новых сотрудников ──────────────────────────────────────
+// POST /api/invites { phone, email, dept_path, head_uid, role }
+// → создаёт row в team_invites + отправляет WA с invite-ссылкой.
+// Ссылка: https://pllato.kz/team.html#invite/<token>
+async function handleInviteCreate(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  if (me.role !== 'admin' && !me.orgPerms?.isDirector && !me.orgPerms?.hasAnyNode) {
+    return json({ error: "forbidden — только admin/глава отдела" }, 403, request);
+  }
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const phone = String(body.phone || '').replace(/\D/g, '');
+  const email = String(body.email || '').toLowerCase().trim();
+  const deptPath = String(body.dept_path || '').trim();
+  const headUid = body.head_uid || null;
+  const role = ['admin', 'manager', 'agent'].includes(body.role) ? body.role : 'agent';
+  if (!phone || phone.length < 10) return json({ error: "phone required (10+ digits)" }, 400, request);
+  if (!email || !email.includes('@')) return json({ error: "valid email required" }, 400, request);
+  if (!deptPath) return json({ error: "dept_path required" }, 400, request);
+
+  // Проверим что юзера с таким email ещё нет
+  const existing = await env.DB.prepare("SELECT uid FROM users WHERE LOWER(email) = ?").bind(email).first();
+  if (existing) return json({ error: `сотрудник с email ${email} уже есть` }, 409, request);
+
+  // Token: 22 base64url-like chars
+  const token = 'inv_' + Array.from(crypto.getRandomValues(new Uint8Array(16)))
+    .map(b => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[b % 62]).join('');
+  const ts = Date.now();
+  const expires = ts + 7 * 24 * 3600 * 1000;
+
+  await env.DB.prepare(`
+    INSERT INTO team_invites (token, phone, email, dept_path, head_uid, role, invited_by, status, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+  `).bind(token, phone, email, deptPath, headUid, role, me.canonicalUid || me.firebaseUid, ts, expires).run();
+
+  // Отправляем WA
+  const inviteUrl = `https://pllato.kz/team.html#invite/${token}`;
+  const inviterName = me.userRecord?.name ? `${me.userRecord.name} ${me.userRecord.last_name || ''}`.trim() : 'Pllato CRM';
+  const text = `👋 Привет!\n\n${inviterName} приглашает тебя в команду на платформу pllato.kz\n\nЧтобы принять — открой ссылку и войди через Google (${email}):\n\n${inviteUrl}\n\nСсылка действительна 7 дней.`;
+
+  let waMessageId = null;
+  let waError = null;
+  try {
+    const channel = await env.DB.prepare(
+      "SELECT * FROM wa_channels WHERE active = 1 ORDER BY created_at ASC LIMIT 1"
+    ).first();
+    if (channel) {
+      const chatId = waChatIdFromPhone(phone);
+      const r = await fetch(`${channel.api_url}/waInstance${channel.id_instance}/sendMessage/${channel.api_token_instance}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId, message: text }),
+      });
+      const apiResp = await r.json().catch(() => null);
+      waMessageId = apiResp?.idMessage || null;
+      if (!waMessageId) waError = "Green-API не вернул idMessage: " + JSON.stringify(apiResp).slice(0, 200);
+    } else {
+      waError = "Нет активного WhatsApp канала — ссылка создана, отправь вручную";
+    }
+  } catch (e) {
+    waError = "Ошибка отправки WA: " + e.message;
+  }
+
+  if (waMessageId) {
+    await env.DB.prepare("UPDATE team_invites SET wa_message_id = ? WHERE token = ?")
+      .bind(waMessageId, token).run();
+  }
+
+  return json({
+    ok: true, token, inviteUrl,
+    waMessageId,
+    waError,  // если есть — фронт покажет fallback
+  }, 200, request);
+}
+
+// GET /api/invites/:token — публично (без auth), возвращает мета приёмнику
+async function handleInviteGet(request, env, token) {
+  const row = await env.DB.prepare(`
+    SELECT token, phone, email, dept_path, head_uid, role, status, expires_at
+    FROM team_invites WHERE token = ?
+  `).bind(token).first();
+  if (!row) return json({ error: "invite not found" }, 404, request);
+  if (row.status !== 'pending') return json({ error: `invite ${row.status}`, status: row.status }, 410, request);
+  if (Date.now() > row.expires_at) {
+    await env.DB.prepare("UPDATE team_invites SET status = 'expired' WHERE token = ?").bind(token).run();
+    return json({ error: "invite expired" }, 410, request);
+  }
+  // Резолвим имена отдела + руководителя
+  let deptLabel = 'отдел';
+  let headLabel = null;
+  try {
+    const structRow = await env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind('org:structure').first();
+    if (structRow?.v) {
+      const structure = JSON.parse(structRow.v);
+      const node = getOrgNodeByPath(structure, row.dept_path);
+      if (node) deptLabel = node.name || node.title || 'отдел';
+    }
+    if (row.head_uid) {
+      const u = await env.DB.prepare("SELECT name, last_name FROM users WHERE uid = ?").bind(row.head_uid).first();
+      if (u) headLabel = [u.name, u.last_name].filter(Boolean).join(' ').trim() || null;
+    }
+  } catch (e) { /* ignore */ }
+  return json({
+    ok: true,
+    email: row.email,
+    role: row.role,
+    deptLabel,
+    headLabel,
+    expiresAt: row.expires_at,
+  }, 200, request);
+}
+
+// Walk org tree по path-strings типа "branches.0.departments.1"
+function getOrgNodeByPath(structure, path) {
+  if (!structure || !path) return null;
+  const parts = path.split('.');
+  let cur = structure;
+  for (const p of parts) {
+    if (cur == null) return null;
+    cur = cur[p];
+  }
+  return cur;
+}
+
+// POST /api/invites/:token/accept (auth required)
+// Юзер уже вошёл в Firebase, его email должен совпасть с invite.email
+async function handleInviteAccept(request, env, token) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const userEmail = (auth.email || '').toLowerCase().trim();
+  const firebaseUid = auth.uid;
+
+  const inv = await env.DB.prepare(`
+    SELECT * FROM team_invites WHERE token = ? AND status = 'pending'
+  `).bind(token).first();
+  if (!inv) return json({ error: "invite not found or already used" }, 404, request);
+  if (Date.now() > inv.expires_at) return json({ error: "invite expired" }, 410, request);
+  if (userEmail !== inv.email.toLowerCase()) {
+    return json({ error: `этот invite для ${inv.email}, ты вошёл как ${userEmail}` }, 403, request);
+  }
+
+  let body = {};
+  try { body = await request.json(); } catch {}
+  const name = String(body.name || '').trim().slice(0, 80);
+  const photo = String(body.photo || '').trim().slice(0, 500) || null;
+
+  // 1) Создаём / апдейтим users (canonical uid = firebase uid для новых)
+  // Если случайно есть запись с этим email — переиспользуем её uid
+  const existing = await env.DB.prepare("SELECT uid FROM users WHERE LOWER(email) = ?").bind(userEmail).first();
+  const canonicalUid = existing?.uid || firebaseUid;
+  if (!existing) {
+    const parts = name.split(/\s+/);
+    const firstName = parts[0] || name || userEmail.split('@')[0];
+    const lastName = parts.slice(1).join(' ') || '';
+    await env.DB.prepare(`
+      INSERT INTO users (uid, email, name, last_name, photo, active)
+      VALUES (?, ?, ?, ?, ?, 1)
+    `).bind(firebaseUid, userEmail, firstName, lastName, photo).run();
+  } else if (name || photo) {
+    const parts = name.split(/\s+/);
+    const firstName = parts[0] || '';
+    const lastName = parts.slice(1).join(' ');
+    await env.DB.prepare(`
+      UPDATE users SET name = COALESCE(NULLIF(?, ''), name),
+                       last_name = COALESCE(NULLIF(?, ''), last_name),
+                       photo = COALESCE(NULLIF(?, ''), photo)
+      WHERE uid = ?
+    `).bind(firstName, lastName, photo, canonicalUid).run();
+  }
+
+  // 2) user_roles
+  await env.DB.prepare(`
+    INSERT INTO user_roles (uid, role, granted_by, granted_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(uid) DO UPDATE SET role = excluded.role
+  `).bind(canonicalUid, inv.role, inv.invited_by, new Date().toISOString()).run();
+
+  // 3) Добавляем в org-structure node.memberUids[]
+  const structRow = await env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind('org:structure').first();
+  if (structRow?.v) {
+    try {
+      const structure = JSON.parse(structRow.v);
+      const node = getOrgNodeByPath(structure, inv.dept_path);
+      if (node) {
+        if (!Array.isArray(node.memberUids)) node.memberUids = [];
+        if (!node.memberUids.includes(canonicalUid)) node.memberUids.push(canonicalUid);
+        await env.DB.prepare(`
+          INSERT INTO kv (k, v) VALUES ('org:structure', ?)
+          ON CONFLICT(k) DO UPDATE SET v = excluded.v
+        `).bind(JSON.stringify(structure)).run();
+      }
+    } catch (e) { console.warn('[invite] org tree update failed:', e); }
+  }
+
+  // 4) Помечаем invite принятым
+  await env.DB.prepare(`
+    UPDATE team_invites SET status = 'accepted', accepted_uid = ?, accepted_at = ? WHERE token = ?
+  `).bind(canonicalUid, Date.now(), token).run();
+
+  return json({ ok: true, canonicalUid, email: userEmail, role: inv.role }, 200, request);
+}
+
+// GET /api/invites — список invites (admin/глава отдела)
+async function handleInvitesList(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  if (me.role !== 'admin' && !me.orgPerms?.hasAnyNode) {
+    return json({ error: "forbidden" }, 403, request);
+  }
+  const { results } = await env.DB.prepare(`
+    SELECT token, phone, email, dept_path, role, status, created_at, expires_at, accepted_at
+    FROM team_invites ORDER BY created_at DESC LIMIT 100
+  `).all();
+  return json({ items: results }, 200, request);
+}
+
+// POST /api/invites/:token/revoke
+async function handleInviteRevoke(request, env, token) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await env.DB.prepare("UPDATE team_invites SET status = 'revoked' WHERE token = ? AND status = 'pending'")
+    .bind(token).run();
+  return json({ ok: true }, 200, request);
+}
+
 // Phase C: распределение ответственных по каналу (round-robin).
 // Хранение: kv[`wa:distribution:${channelId}`] = { uids: [...], pointer: 0 }
 async function getWaDistribution(env, channelId) {
@@ -3929,6 +4156,22 @@ export default {
     }
     if (path === "/api/admin/user-channels" && request.method === "PUT") {
       return handleUserChannelsPut(request, env);
+    }
+
+    // ── /api/invites — приглашения новых сотрудников ────────────────────
+    if (path === "/api/invites" && request.method === "POST") {
+      return handleInviteCreate(request, env);
+    }
+    if (path === "/api/invites" && request.method === "GET") {
+      return handleInvitesList(request, env);
+    }
+    const inviteMatch = path.match(/^\/api\/invites\/([a-zA-Z0-9_]+)(\/(accept|revoke))?$/);
+    if (inviteMatch) {
+      const token = inviteMatch[1];
+      const action = inviteMatch[3];
+      if (!action && request.method === "GET") return handleInviteGet(request, env, token);
+      if (action === 'accept' && request.method === "POST") return handleInviteAccept(request, env, token);
+      if (action === 'revoke' && request.method === "POST") return handleInviteRevoke(request, env, token);
     }
 
     // ── /api/sip/extensions — карта uid → SIP extension (для Asterisk routing) ─
