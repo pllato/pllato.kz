@@ -3050,6 +3050,22 @@ function defaultOrgStructure() {
   };
 }
 
+// Normalize director: в старой БД мог сохраниться как строка (uid) вместо
+// объекта {uid, title}. Это ломало frontend: dropdown в карточке директора
+// показывал «не назначен» после reload. Нормализуем при чтении И записи.
+function normalizeOrgDirector(d) {
+  if (!d) return { uid: null, title: 'Директор' };
+  if (typeof d === 'string') return { uid: d, title: 'Директор' };
+  if (typeof d === 'object') {
+    return {
+      uid: d.uid != null ? d.uid : null,
+      title: d.title || 'Директор',
+      notes: d.notes || undefined,
+    };
+  }
+  return { uid: null, title: 'Директор' };
+}
+
 async function handleOrgStructureGet(request, env) {
   const auth = await requireAuthFlexible(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
@@ -3058,8 +3074,8 @@ async function handleOrgStructureGet(request, env) {
   if (row && row.v) {
     try {
       const parsed = JSON.parse(row.v);
-      // На случай если в БД старая версия — дополняем недостающими полями
-      if (!parsed.director) parsed.director = { uid: null, title: 'Директор' };
+      // Нормализация director — может быть строкой из-за старого бага
+      parsed.director = normalizeOrgDirector(parsed.director);
       if (!Array.isArray(parsed.branches) || parsed.branches.length === 0) {
         parsed.branches = defaultOrgStructure().branches;
       }
@@ -3080,9 +3096,10 @@ async function handleOrgStructurePut(request, env) {
   if (!incoming || typeof incoming !== 'object') {
     return json({ error: "structure object required" }, 400, request);
   }
-  // Простая валидация: должен быть director + branches[]
-  if (!incoming.director || !Array.isArray(incoming.branches)) {
-    return json({ error: "structure must have director + branches[]" }, 400, request);
+  // Простая валидация + нормализация: director может прилететь строкой
+  incoming.director = normalizeOrgDirector(incoming.director);
+  if (!Array.isArray(incoming.branches)) {
+    return json({ error: "structure.branches[] required" }, 400, request);
   }
   incoming.updatedAt = new Date().toISOString();
   incoming.updatedBy = guard.me?.canonicalUid || guard.me?.email || null;
