@@ -3562,6 +3562,8 @@ const waWidget = {
   activeChatId: null,
   activeChatMeta: null,
   chats: [],
+  channels: [],      // [{id, idInstance, displayName, pipelineId, pipelineName}]
+  channelsLoaded: false,
   messages: [],
   pollTimer: null,
   msgPollTimer: null,
@@ -3575,11 +3577,30 @@ function initWaFloatingWidget() {
   root.id = 'wa-widget-root';
   document.body.appendChild(root);
   renderWaWidget();
-  // Стартуем polling
+  // Стартуем polling. Каналы — один раз (метаданные стабильные).
+  loadWaWidgetChannels();
   refreshWaWidgetChats();
   waWidget.pollTimer = setInterval(refreshWaWidgetChats, 7000);
   // Показываем permission banner если уведомления не разрешены
   maybeShowNotificationBanner();
+}
+
+// Грузим метаданные каналов (display_name, pipeline) чтобы в списке чатов
+// показывать секции «📞 Канал · 🎯 Воронка». Без секретов, фильтрованный
+// под orgPerms юзера на бэке (см. handleWaListChannelsPublic в worker.js).
+async function loadWaWidgetChannels() {
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/channels/public`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    waWidget.channels = data.items || [];
+    waWidget.channelsLoaded = true;
+    // Перерисуем если открыт список
+    if (waWidget.open && waWidget.view === 'list') renderWaWidget();
+  } catch (e) { console.warn('[wa-widget] load channels:', e); }
 }
 
 // Большой яркий банер сверху с просьбой разрешить push-уведомления.
@@ -3767,7 +3788,29 @@ function ensureWaWidgetStyles() {
       padding: 7px 12px; font-size: 13px; cursor: pointer; flex: 0 0 auto;
     }
     .wa-w-empty { padding: 30px 14px; text-align: center; color: var(--t3, #888); font-size: 12px; }
+    /* Заголовок секции «📞 Канал · 🎯 Воронка». Sticky чтобы не уезжал при скролле. */
+    .wa-w-section-head {
+      position: sticky; top: 0; z-index: 2;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 14px; background: #f5f5f7;
+      border-top: 1px solid var(--bo, #e3e5ea); border-bottom: 1px solid var(--bo, #e3e5ea);
+      font-size: 11px; font-weight: 700; color: #1b5e20; text-transform: none;
+      letter-spacing: 0.2px;
+    }
+    .wa-w-section-head:first-child { border-top: none; }
+    .wa-w-section-head > span:first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wa-w-section-unread {
+      background: #25D366; color: #fff;
+      min-width: 18px; height: 18px; padding: 0 5px;
+      border-radius: 9px; font-size: 10px; font-weight: 700;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .wa-w-section-count {
+      color: var(--t3, #888); font-size: 10px; font-weight: 500;
+      min-width: 16px; text-align: right;
+    }
     [data-theme="dark"] .wa-w-panel { background: var(--bg1, #1a1a1f); }
+    [data-theme="dark"] .wa-w-section-head { background: #232328; color: #4ade80; border-color: #2d2d33; }
   `;
   document.head.appendChild(s);
 }
@@ -3791,44 +3834,104 @@ function renderWaWidget() {
   }
 }
 
+// Рендер одного чата (использует и группировка, и flat-режим).
+function _waWidgetChatRowHtml(c) {
+  const isGroup = c.isGroup === true;
+  const name = c.name && c.name.trim() ? c.name : (c.phone ? '+' + c.phone : (isGroup ? 'Группа' : '?'));
+  const avatarContent = isGroup ? '👥' : ((name.match(/[A-Za-zА-Яа-я0-9]/g) || []).slice(0, 2).join('').toUpperCase() || '?');
+  const avatarBg = isGroup ? '#25D366' : 'var(--ac, #4f46e5)';
+  const preview = c.lastMessageText
+    ? (c.lastMessageFrom === 'me' ? '✓ ' : '') + (c.lastMessageText.length > 50 ? c.lastMessageText.slice(0, 50) + '…' : c.lastMessageText)
+    : '';
+  const time = c.lastMessageAt ? formatWaShortTime(c.lastMessageAt) : '';
+  const unread = c.unreadCount > 0 ? `<span class="wa-w-chat-unread">${c.unreadCount}</span>` : '';
+  const groupLabel = isGroup ? `<span style="background:rgba(37,211,102,0.18);color:#1b5e20;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:6px;text-transform:uppercase">Группа</span>` : '';
+  return `<div class="wa-w-chat-row" data-chat-id="${escapeHtml(c.id)}">
+    <div class="wa-w-chat-avatar" style="background:${avatarBg};font-size:${isGroup ? '18px' : '14px'}">${escapeHtml(avatarContent)}</div>
+    <div class="wa-w-chat-body">
+      <div class="wa-w-chat-name">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}${groupLabel}</span>
+        <span class="wa-w-chat-time">${escapeHtml(time)}</span>
+      </div>
+      <div class="wa-w-chat-preview">${escapeHtml(preview)}${unread}</div>
+    </div>
+  </div>`;
+}
+
 function renderWaWidgetList(root) {
-  const chats = (waWidget.chats || []).slice()
-    .sort((a, b) => (b.unreadCount || 0) - (a.unreadCount || 0) || (b.lastMessageAt || 0) - (a.lastMessageAt || 0))
-    .slice(0, 50);
-  const rowsHtml = chats.length
-    ? chats.map(c => {
-        const isGroup = c.isGroup === true;
-        const name = c.name && c.name.trim() ? c.name : (c.phone ? '+' + c.phone : (isGroup ? 'Группа' : '?'));
-        // Для групп — иконка 👥, для контактов — инициалы
-        const avatarContent = isGroup ? '👥' : ((name.match(/[A-Za-zА-Яа-я0-9]/g) || []).slice(0, 2).join('').toUpperCase() || '?');
-        const avatarBg = isGroup ? '#25D366' : 'var(--ac, #4f46e5)';
-        const preview = c.lastMessageText
-          ? (c.lastMessageFrom === 'me' ? '✓ ' : '') + (c.lastMessageText.length > 50 ? c.lastMessageText.slice(0, 50) + '…' : c.lastMessageText)
-          : '';
-        const time = c.lastMessageAt ? formatWaShortTime(c.lastMessageAt) : '';
-        const unread = c.unreadCount > 0 ? `<span class="wa-w-chat-unread">${c.unreadCount}</span>` : '';
-        const groupLabel = isGroup ? `<span style="background:rgba(37,211,102,0.18);color:#1b5e20;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:6px;text-transform:uppercase">Группа</span>` : '';
-        return `<div class="wa-w-chat-row" data-chat-id="${escapeHtml(c.id)}">
-          <div class="wa-w-chat-avatar" style="background:${avatarBg};font-size:${isGroup ? '18px' : '14px'}">${escapeHtml(avatarContent)}</div>
-          <div class="wa-w-chat-body">
-            <div class="wa-w-chat-name">
-              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}${groupLabel}</span>
-              <span class="wa-w-chat-time">${escapeHtml(time)}</span>
-            </div>
-            <div class="wa-w-chat-preview">${escapeHtml(preview)}${unread}</div>
-          </div>
+  const allChats = (waWidget.chats || []).slice()
+    .sort((a, b) => (b.unreadCount || 0) - (a.unreadCount || 0) || (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+
+  // Группируем чаты по instanceId. Каналы достаём из waWidget.channels
+  // (там уже только те, к которым у юзера есть доступ — фильтр на бэке).
+  // Чаты с instanceId, которого нет в channels, попадут в группу «Прочие»
+  // (на случай если канал стал inactive но чаты остались).
+  const channelsById = {};
+  for (const ch of (waWidget.channels || [])) channelsById[ch.idInstance] = ch;
+  const groups = new Map();  // instanceId → { channel, chats[] }
+  for (const c of allChats) {
+    const key = c.instanceId || '_other';
+    if (!groups.has(key)) {
+      groups.set(key, { channel: channelsById[key] || null, chats: [] });
+    }
+    groups.get(key).chats.push(c);
+  }
+
+  // Сортируем группы: сначала с непрочитанными, потом по имени канала
+  const sortedGroups = [...groups.entries()].sort((a, b) => {
+    const ua = a[1].chats.reduce((s, c) => s + (c.unreadCount || 0), 0);
+    const ub = b[1].chats.reduce((s, c) => s + (c.unreadCount || 0), 0);
+    if (ub !== ua) return ub - ua;
+    const na = a[1].channel?.displayName || 'Прочее';
+    const nb = b[1].channel?.displayName || 'Прочее';
+    return na.localeCompare(nb, 'ru');
+  });
+
+  // Лимит общий — 50 чатов суммарно (по группам). Чтобы не рендерить 500 строк.
+  let limit = 50;
+  let bodyHtml = '';
+  const showSectionHeaders = sortedGroups.length > 1 || (sortedGroups.length === 1 && sortedGroups[0][1].channel);
+
+  if (sortedGroups.length === 0) {
+    bodyHtml = '<div class="wa-w-empty">📭 WhatsApp-чатов нет</div>';
+  } else {
+    for (const [key, group] of sortedGroups) {
+      if (limit <= 0) break;
+      const chatsInGroup = group.chats.slice(0, limit);
+      limit -= chatsInGroup.length;
+      const ch = group.channel;
+      const unreadGroup = group.chats.reduce((s, c) => s + (c.unreadCount || 0), 0);
+
+      if (showSectionHeaders) {
+        const channelLabel = ch
+          ? `📞 ${escapeHtml(ch.displayName)}${ch.pipelineName ? ' · 🎯 ' + escapeHtml(ch.pipelineName) : ''}`
+          : '📞 Прочие чаты';
+        const unreadBadge = unreadGroup > 0 ? `<span class="wa-w-section-unread">${unreadGroup}</span>` : '';
+        bodyHtml += `<div class="wa-w-section-head" data-instance="${escapeHtml(key)}">
+          <span>${channelLabel}</span>
+          ${unreadBadge}
+          <span class="wa-w-section-count">${group.chats.length}</span>
         </div>`;
-      }).join('')
-    : '<div class="wa-w-empty">📭 WhatsApp-чатов нет</div>';
+      }
+      bodyHtml += chatsInGroup.map(_waWidgetChatRowHtml).join('');
+    }
+  }
+
+  const totalChats = (waWidget.chats || []).length;
+  const channelsCount = waWidget.channels?.length || 0;
+  const subText = `${totalChats} ${pluralize(totalChats, 'чат', 'чата', 'чатов')}`
+    + (channelsCount > 0 ? ` · ${channelsCount} ${pluralize(channelsCount, 'канал', 'канала', 'каналов')}` : '')
+    + (waWidget.unreadTotal > 0 ? ' · ' + waWidget.unreadTotal + ' непрочит.' : '');
+
   root.innerHTML = `<div class="wa-w-panel">
     <div class="wa-w-header">
       <div style="flex:1">
         <div class="wa-w-title">💬 WhatsApp</div>
-        <div class="wa-w-sub">${chats.length} ${pluralize(chats.length, 'чат', 'чата', 'чатов')}${waWidget.unreadTotal > 0 ? ' · ' + waWidget.unreadTotal + ' непрочитанных' : ''}</div>
+        <div class="wa-w-sub">${subText}</div>
       </div>
       <button class="wa-w-icon-btn" id="wa-w-close" title="Свернуть">×</button>
     </div>
-    <div class="wa-w-body" id="wa-w-list">${rowsHtml}</div>
+    <div class="wa-w-body" id="wa-w-list">${bodyHtml}</div>
   </div>`;
   document.getElementById('wa-w-close').onclick = () => { waWidget.open = false; renderWaWidget(); };
   root.querySelectorAll('.wa-w-chat-row').forEach(r => {

@@ -2864,6 +2864,48 @@ async function handleWaListChannels(request, env) {
   return json({ items: results }, 200, request);
 }
 
+// GET /api/wa/channels/public — нужен фронт-виджету (любому юзеру) чтобы
+// группировать чаты по каналам с человечным названием канала + воронки.
+// Без api_token/webhook_token. Фильтр по orgPerms: если у юзера белый список
+// pipelineIds — показываем только каналы с default_pipeline_id из этого списка.
+async function handleWaListChannelsPublic(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+
+  const { results } = await env.DB.prepare(
+    "SELECT id, id_instance, display_name, active, default_pipeline_id FROM wa_channels WHERE active = 1 ORDER BY display_name, created_at"
+  ).all();
+
+  // Подтянем названия воронок одним запросом.
+  const pipelineIds = [...new Set(results.map(r => r.default_pipeline_id).filter(Boolean))];
+  let pipelineNames = {};
+  if (pipelineIds.length > 0) {
+    const ph = pipelineIds.map(() => "?").join(",");
+    const { results: pipes } = await env.DB.prepare(
+      `SELECT id, name FROM pipelines WHERE id IN (${ph})`
+    ).bind(...pipelineIds).all();
+    for (const p of pipes) pipelineNames[p.id] = p.name;
+  }
+
+  // Permission filter — если у юзера whitelist pipelineIds (orgPerms), скрываем
+  // каналы которые routing на чужие воронки. Admin/director — видит всё.
+  let allowed = results;
+  if (me.role !== 'admin' && me.orgPerms && Array.isArray(me.orgPerms.pipelineIds)) {
+    const whitelist = new Set(me.orgPerms.pipelineIds);
+    allowed = results.filter(r => !r.default_pipeline_id || whitelist.has(r.default_pipeline_id));
+  }
+
+  const items = allowed.map(r => ({
+    id: r.id,
+    idInstance: r.id_instance,
+    displayName: r.display_name || ('Канал ' + r.id_instance),
+    pipelineId: r.default_pipeline_id,
+    pipelineName: r.default_pipeline_id ? (pipelineNames[r.default_pipeline_id] || '—') : null,
+  }));
+  return json({ items, total: items.length }, 200, request);
+}
+
 // Автонастройка webhook URL и нужных событий в Green-API через метод setSettings.
 // Возвращает {ok, configured, response, error}. Не бросает — caller разбирает.
 async function applyWaWebhookSetupToGreenApi({ apiUrl, idInstance, apiToken, webhookUrl }) {
@@ -3557,6 +3599,9 @@ export default {
     const waFileMatch = path.match(/^\/api\/wa\/file\/(.+)$/);
     if (waFileMatch && request.method === "GET") {
       return handleWaFileServe(request, env, decodeURIComponent(waFileMatch[1]));
+    }
+    if (path === "/api/wa/channels/public" && request.method === "GET") {
+      return handleWaListChannelsPublic(request, env);
     }
     if (path === "/api/wa/channels" && request.method === "GET") {
       return handleWaListChannels(request, env);
