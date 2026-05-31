@@ -6,6 +6,8 @@ import {
   productFromOData,
   contractFromOData,
   organizationFromOData,
+  invoiceToOData,
+  invoiceFromOData,
 } from "./integrations/1c/mapper.js";
 
 const ROOT_SUPER_ADMIN = "uurraa@gmail.com";
@@ -5323,6 +5325,218 @@ async function handle1cSyncLog(request, env, actor) {
   return { ok: true, entries: result?.results || [] };
 }
 
+// ─── 1С push: создание счёта на оплату из сделки CRM ─────────────────────
+
+/** Обратный к d1Get1cIdByRefKey: pllato_id → Ref_Key (GUID 1С). */
+async function d1Get1cRefByPllatoId(env, tenantId, entityType, pllatoId) {
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  const row = await db
+    .prepare(`
+      SELECT one_c_ref_key, one_c_data_version
+        FROM one_c_id_map
+       WHERE tenant_id = ? AND entity_type = ? AND pllato_id = ?
+    `)
+    .bind(tenantId, entityType, String(pllatoId))
+    .first();
+  return row || null;
+}
+
+function oneCBool(v) {
+  return v === true || v === "true" || v === 1;
+}
+
+/**
+ * POST /api/crm/1c/invoices/create — создаёт Document_СчетНаОплатуПокупателю в 1С.
+ *
+ * Тело запроса:
+ *   externalId* | dealId*  — id сделки/заказа Pllato (идемпотентность)
+ *   organizationRef*       — Организация_Key (наше юр.лицо, GUID 1С)
+ *   currencyRef*           — ВалютаДокумента_Key (GUID 1С)
+ *   contractorRef | contactId* — клиент (GUID 1С или id контакта CRM → резолв)
+ *   contractRef, warehouseRef, priceTypeRef, responsibleRef — опц. GUID-ы
+ *   date, vatIncluded, accountForVat, comment, total — опц.
+ *   post: bool             — провести документ (PATCH Posted=true) после создания
+ *   lines*: [ { productRef | productId, unitRef, qty*, price*, sum, vatRateRef, vatSum, name } ]
+ *
+ * Идемпотентность: external_id вшивается в Комментарий + проверяется one_c_id_map
+ * (entity_type='invoice', pllato_id=externalId) до создания — повтор не дублирует.
+ */
+async function handle1cCreateInvoice(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const body = await readRequestBodyAsJson(request);
+  const externalId = String(body?.externalId || body?.dealId || "").trim();
+  if (!externalId) {
+    throw new HttpError(400, "externalId (id сделки/заказа Pllato) обязателен для идемпотентности");
+  }
+  const doPost = oneCBool(body?.post) || oneCBool(body?.posted);
+  const started = Date.now();
+
+  // 1) Идемпотентность — счёт для этого externalId уже создан?
+  const existing = await d1Get1cRefByPllatoId(env, tenantId, "invoice", externalId);
+  if (existing?.one_c_ref_key) {
+    try {
+      const { client } = await build1cClient(env, tenantId);
+      let posted = null;
+      if (doPost) {
+        await client.patch("Document_СчетНаОплатуПокупателю", existing.one_c_ref_key, { Posted: true });
+        posted = true;
+      }
+      const re = await client.getByKey("Document_СчетНаОплатуПокупателю", existing.one_c_ref_key, {
+        select: ["Ref_Key", "Number", "Date", "Posted", "СуммаДокумента"],
+      });
+      const norm = invoiceFromOData(re);
+      return {
+        ok: true,
+        already_exists: true,
+        ref_key: existing.one_c_ref_key,
+        number: norm?.number || null,
+        posted: posted ?? Boolean(norm?.posted),
+        total: norm?.total ?? null,
+      };
+    } catch (e) {
+      return { ok: true, already_exists: true, ref_key: existing.one_c_ref_key };
+    }
+  }
+
+  // 2) Контрагент: явный contractorRef либо contactId → one_c_id_map
+  let contractorRef = String(body?.contractorRef || "").trim() || null;
+  if (!contractorRef && body?.contactId) {
+    const m = await d1Get1cRefByPllatoId(env, tenantId, "contractor", String(body.contactId));
+    contractorRef = m?.one_c_ref_key || null;
+  }
+  if (!contractorRef) {
+    throw new HttpError(400, "Не удалось определить контрагента: нужен contractorRef (GUID 1С) или contactId с маппингом в 1С");
+  }
+
+  // 3) Строки: каждую — с productRef (GUID) или productId (CRM → резолв)
+  const rawLines = Array.isArray(body?.lines) ? body.lines : [];
+  if (rawLines.length === 0) {
+    throw new HttpError(400, "lines пуст — нужна хотя бы одна позиция");
+  }
+  const lines = [];
+  for (const ln of rawLines) {
+    let productRef = String(ln?.productRef || "").trim() || null;
+    if (!productRef && ln?.productId) {
+      const pm = await d1Get1cRefByPllatoId(env, tenantId, "product", String(ln.productId));
+      productRef = pm?.one_c_ref_key || null;
+    }
+    if (!productRef) {
+      throw new HttpError(400, `Позиция без productRef (нет маппинга номенклатуры в 1С): ${ln?.name || ln?.productId || "?"}`);
+    }
+    lines.push({
+      productRef,
+      unitRef: ln?.unitRef || null,
+      qty: Number(ln?.qty) || 0,
+      price: Number(ln?.price) || 0,
+      sum: ln?.sum != null ? Number(ln.sum) : undefined,
+      vatRateRef: ln?.vatRateRef || null,
+      vatSum: ln?.vatSum != null ? Number(ln.vatSum) : undefined,
+    });
+  }
+
+  // 4) Обязательные реквизиты шапки
+  const organizationRef = String(body?.organizationRef || "").trim();
+  const currencyRef = String(body?.currencyRef || "").trim();
+  if (!organizationRef) throw new HttpError(400, "organizationRef (наше юр.лицо в 1С, GUID) обязателен");
+  if (!currencyRef) throw new HttpError(400, "currencyRef (валюта документа, GUID 1С) обязателен");
+
+  try {
+    const payload = invoiceToOData({
+      date: body?.date,
+      organizationRef,
+      contractorRef,
+      currencyRef,
+      contractRef: body?.contractRef || null,
+      warehouseRef: body?.warehouseRef || null,
+      priceTypeRef: body?.priceTypeRef || null,
+      responsibleRef: body?.responsibleRef || null,
+      vatIncluded: body?.vatIncluded,
+      accountForVat: body?.accountForVat,
+      externalId,
+      comment: body?.comment || "",
+      total: body?.total,
+      lines,
+    });
+
+    const { client } = await build1cClient(env, tenantId);
+    const created = await client.post("Document_СчетНаОплатуПокупателю", payload);
+    const refKey = created?.Ref_Key;
+    if (!refKey) throw new HttpError(502, "1С не вернула Ref_Key созданного счёта");
+    await d1Upsert1cIdMap(env, tenantId, "invoice", externalId, refKey, created?.DataVersion || null);
+
+    let posted = oneCBool(created?.Posted);
+    if (doPost && !posted) {
+      try {
+        await client.patch("Document_СчетНаОплатуПокупателю", refKey, { Posted: true });
+        posted = true;
+      } catch (pe) {
+        // Проведение не удалось — счёт остаётся черновиком. Логируем отдельно, но
+        // не валим весь запрос: документ уже создан и привязан в one_c_id_map.
+        await d1Insert1cSyncLog(env, {
+          tenantId, direction: "push", entityType: "invoice", operation: "post", status: "error",
+          httpStatus: pe instanceof ODataError ? pe.httpStatus : null,
+          errorMessage: pe?.message || String(pe), durationMs: Date.now() - started,
+        });
+      }
+    }
+
+    await d1Insert1cSyncLog(env, {
+      tenantId, direction: "push", entityType: "invoice", operation: "create", status: "ok",
+      httpStatus: 200, recordsProcessed: lines.length, durationMs: Date.now() - started,
+    });
+    return {
+      ok: true,
+      ref_key: refKey,
+      number: (created?.Number || "").trim() || null,
+      posted,
+      lines: lines.length,
+      total: payload.СуммаДокумента,
+    };
+  } catch (e) {
+    const httpStatus = e instanceof ODataError ? e.httpStatus : null;
+    const message = e?.message || String(e);
+    await d1Insert1cSyncLog(env, {
+      tenantId, direction: "push", entityType: "invoice", operation: "create", status: "error",
+      httpStatus, errorMessage: message, durationMs: Date.now() - started,
+    });
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(httpStatus && httpStatus >= 400 && httpStatus < 600 ? httpStatus : 502, message);
+  }
+}
+
+/**
+ * GET /api/crm/1c/inspect?collection=&top=&filter=&select= — read-only диагностика.
+ * Нужна для подбора GUID-ов справочников (валюта KZT, ставки НДС, склад, единицы)
+ * без записи в базу. Только чтение, только админ.
+ */
+async function handle1cInspect(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const url = new URL(request.url);
+  const collection = (url.searchParams.get("collection") || "").trim();
+  if (!collection || !/^[A-Za-zА-Яа-яЁё0-9_]+$/.test(collection)) {
+    throw new HttpError(400, "collection обязателен (имя коллекции OData, напр. Catalog_Валюты)");
+  }
+  const top = Math.min(Math.max(parseInt(url.searchParams.get("top") || "5", 10), 1), 50);
+  const filter = url.searchParams.get("filter") || undefined;
+  const select = url.searchParams.get("select") || undefined;
+  try {
+    const { client } = await build1cClient(env, tenantId);
+    const params = { top };
+    if (filter) params.filter = filter;
+    if (select) params.select = select.split(",").map((s) => s.trim()).filter(Boolean);
+    const data = await client.get(collection, params);
+    const value = Array.isArray(data?.value) ? data.value : [];
+    return { ok: true, collection, count: value.length, value };
+  } catch (e) {
+    const httpStatus = e instanceof ODataError ? e.httpStatus : null;
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(httpStatus && httpStatus >= 400 && httpStatus < 600 ? httpStatus : 502, e?.message || String(e));
+  }
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
@@ -5463,6 +5677,14 @@ export default {
       if (request.method === "GET" && path === "/api/crm/1c/sync-log") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handle1cSyncLog(request, env, actor));
+      }
+      if (request.method === "GET" && path === "/api/crm/1c/inspect") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cInspect(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/invoices/create") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cCreateInvoice(request, env, actor));
       }
 
       if (request.method === "POST" && path === "/binotel/call") {

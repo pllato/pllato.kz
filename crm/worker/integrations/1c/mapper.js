@@ -152,3 +152,126 @@ export function organizationFromOData(raw) {
     comment: nullIfEmptyString(raw.Комментарий),
   };
 }
+
+// ─── Документы: push CRM → 1С ─────────────────────────────────────────────
+//
+// Document_СчетНаОплатуПокупателю (БП 3.0 для Казахстана, 1С-Рейтинг 3.0.71.1).
+// Структура подтверждена образцом реального документа из базы Аминамед (2026-05):
+//   Шапка: Date, Организация_Key, Контрагент_Key, ДоговорКонтрагента_Key,
+//          ВалютаДокумента_Key, Склад_Key, СуммаДокумента, СуммаВключаетНДС,
+//          УчитыватьНДС, КурсВзаиморасчетов, КратностьВзаиморасчетов, ТипЦен_Key,
+//          Комментарий, Ответственный_Key, Автор_Key
+//   Товары[]: LineNumber, Номенклатура_Key, ЕдиницаИзмерения_Key, Количество,
+//             Цена, Сумма, СтавкаНДС_Key, СуммаНДС, Коэффициент
+
+const ONE_C_DATE_PLACEHOLDER = "0001-01-01T00:00:00";
+
+/**
+ * Формат даты для OData 1С: 'YYYY-MM-DDTHH:mm:ss' (без таймзоны и миллисекунд).
+ * 1С интерпретирует это как локальное время сервера БД.
+ */
+export function toODataDate(value) {
+  let d = value ? new Date(value) : new Date();
+  if (Number.isNaN(d.getTime())) d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+function round2(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+/**
+ * CRM-счёт → тело OData POST для Document_СчетНаОплатуПокупателю.
+ * Чистая функция: на вход — уже разрезолвленные GUID-ы 1С, на выход — готовый payload.
+ *
+ * inv = {
+ *   organizationRef*  — Организация_Key (наше юр.лицо-отправитель)
+ *   contractorRef*    — Контрагент_Key (клиент)
+ *   currencyRef*      — ВалютаДокумента_Key
+ *   contractRef       — ДоговорКонтрагента_Key
+ *   warehouseRef      — Склад_Key
+ *   priceTypeRef      — ТипЦен_Key
+ *   responsibleRef    — Ответственный_Key / Автор_Key
+ *   date              — дата документа (ISO/Date), по умолчанию now
+ *   vatIncluded       — СуммаВключаетНДС (default true)
+ *   accountForVat     — УчитыватьНДС (default true)
+ *   externalId        — id сделки/заказа Pllato (вшивается в Комментарий — идемпотентность)
+ *   comment           — доп. комментарий
+ *   total             — СуммаДокумента (если не задан — сумма строк)
+ *   lines[]*          — { productRef*, unitRef, qty*, price*, sum, vatRateRef, vatSum }
+ * }
+ */
+export function invoiceToOData(inv) {
+  if (!inv || typeof inv !== "object") throw new Error("invoiceToOData: object required");
+  const lines = Array.isArray(inv.lines) ? inv.lines : [];
+  if (lines.length === 0) throw new Error("invoiceToOData: at least one line required");
+
+  const tovary = lines.map((ln, i) => {
+    const qty = Number(ln.qty) || 0;
+    const price = Number(ln.price) || 0;
+    const sum = ln.sum != null ? round2(ln.sum) : round2(qty * price);
+    const row = {
+      LineNumber: i + 1,
+      Номенклатура_Key: ln.productRef,
+      Количество: qty,
+      Цена: price,
+      Сумма: sum,
+      Коэффициент: 1,
+      СуммаНДС: ln.vatSum != null ? round2(ln.vatSum) : 0,
+    };
+    if (ln.unitRef) row.ЕдиницаИзмерения_Key = ln.unitRef;
+    if (ln.vatRateRef) row.СтавкаНДС_Key = ln.vatRateRef;
+    return row;
+  });
+
+  const total = inv.total != null
+    ? round2(inv.total)
+    : round2(tovary.reduce((s, r) => s + (Number(r.Сумма) || 0), 0));
+
+  const commentParts = [];
+  if (inv.externalId) commentParts.push(`PLLATO-INV:${inv.externalId}`);
+  if (inv.comment) commentParts.push(String(inv.comment));
+
+  const out = {
+    Date: toODataDate(inv.date),
+    Организация_Key: inv.organizationRef,
+    Контрагент_Key: inv.contractorRef,
+    ВалютаДокумента_Key: inv.currencyRef,
+    СуммаДокумента: total,
+    СуммаВключаетНДС: inv.vatIncluded !== false,
+    УчитыватьНДС: inv.accountForVat !== false,
+    КурсВзаиморасчетов: 1,
+    КратностьВзаиморасчетов: 1,
+    Комментарий: commentParts.join(" "),
+    Товары: tovary,
+  };
+  if (inv.contractRef) out.ДоговорКонтрагента_Key = inv.contractRef;
+  if (inv.warehouseRef) out.Склад_Key = inv.warehouseRef;
+  if (inv.priceTypeRef) out.ТипЦен_Key = inv.priceTypeRef;
+  if (inv.responsibleRef) {
+    out.Ответственный_Key = inv.responsibleRef;
+    out.Автор_Key = inv.responsibleRef;
+  }
+  return out;
+}
+
+/**
+ * Обратное направление: созданный/прочитанный счёт из 1С → краткая нормализация
+ * для ответа CRM и записи в карточку сделки.
+ */
+export function invoiceFromOData(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  return {
+    ref_key: raw.Ref_Key,
+    number: nullIfEmptyString(raw.Number),
+    date: isoOrNull(raw.Date),
+    posted: bool(raw.Posted),
+    deletion_mark: bool(raw.DeletionMark),
+    total: raw.СуммаДокумента != null ? Number(raw.СуммаДокумента) : null,
+    contractor_ref: nullIfEmptyGuid(raw.Контрагент_Key),
+    organization_ref: nullIfEmptyGuid(raw.Организация_Key),
+    contract_ref: nullIfEmptyGuid(raw.ДоговорКонтрагента_Key),
+    comment: nullIfEmptyString(raw.Комментарий),
+  };
+}
