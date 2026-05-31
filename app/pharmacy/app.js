@@ -1,6 +1,11 @@
 /* ===== Pllato CRM demo — app.js ===== */
 const state = { page:'dash', role:'owner', cur:'KGS', funnel:'b2c', thread:'t1', clientTab:0, theme:'dark' };
 
+// ---------- AUTH / API config ----------
+const API_BASE = 'https://pharmacy-crm-worker.uurraa.workers.dev';
+const GOOGLE_CLIENT_ID = '773798066647-jg137in0mum92famuml70kauonp7amgg.apps.googleusercontent.com';
+let AUTH = { token:null, user:null };
+
 // ---------- helpers ----------
 const $ = (s,r=document)=>r.querySelector(s);
 const el = (h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstElementChild;};
@@ -743,3 +748,88 @@ $('#themeBtn').onclick=()=>{const t=state.theme==='light'?'dark':'light';applyTh
 let savedTheme='dark';try{savedTheme=localStorage.getItem('pllatoTheme')||'dark';}catch(e){}
 applyTheme(savedTheme);
 renderNav();renderRoleSel();renderPage();
+
+// ---------- AUTH (вход / выход / Google) ----------
+function getToken(){ try{return localStorage.getItem('pharmaToken')||null;}catch(e){return null;} }
+function setToken(t){ try{ t?localStorage.setItem('pharmaToken',t):localStorage.removeItem('pharmaToken'); }catch(e){} }
+
+async function api(path, opts={}){
+  const headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
+  const t = AUTH.token || getToken();
+  if(t) headers['Authorization'] = 'Bearer '+t;
+  let res, data=null;
+  try{ res = await fetch(API_BASE+path, Object.assign({}, opts, {headers})); }
+  catch(e){ return {ok:false, status:0, data:{error:'Нет связи с сервером'}}; }
+  try{ data = await res.json(); }catch(e){}
+  return { ok: res.ok && !(data && data.ok===false), status:res.status, data };
+}
+
+function loginError(msg){ const e=$('#loginError'); if(!e) return;
+  if(!msg){ e.classList.add('hide'); return; } e.textContent=msg; e.classList.remove('hide'); }
+function showLogin(){ const s=$('#loginScreen'); if(s) s.style.display='grid'; }
+function hideLogin(){ const s=$('#loginScreen'); if(s) s.style.display='none'; }
+
+// Роли вне мокап-матрицы (например superadmin) для навигации показываем как владельца.
+function applyUser(user){
+  AUTH.user = user;
+  $('#userName').textContent = user.name || user.login || 'Пользователь';
+  $('#userRole').textContent = user.roleName || user.role || '';
+  $('#userAv').textContent = initials(user.name || user.login || '?');
+  const r = (DB.access && DB.access[user.role]) ? user.role : 'owner';
+  state.role = r;
+  const sel=$('#roleSel'); if(sel){ const o=[...sel.options].find(x=>x.value===r); if(o) sel.value=r; }
+  if(!DB.access[state.role].includes(state.page)) state.page = DB.access[state.role][0];
+  renderNav(); renderPage();
+}
+
+async function doLogin(ident, password){
+  loginError('');
+  const btn=$('#loginSubmit'); const old=btn.textContent; btn.disabled=true; btn.textContent='Вход…';
+  const r = await api('/api/auth/login',{method:'POST',body:JSON.stringify({login:ident,password})});
+  btn.disabled=false; btn.textContent=old;
+  if(!r.ok){ loginError((r.data&&r.data.error)||'Не удалось войти'); return; }
+  AUTH.token=r.data.token; setToken(r.data.token); applyUser(r.data.user); hideLogin();
+  toast('Вы вошли как '+(r.data.user.name||r.data.user.login),'i-check2');
+}
+async function doGoogle(credential){
+  loginError('');
+  const r = await api('/api/auth/google',{method:'POST',body:JSON.stringify({id_token:credential})});
+  if(!r.ok){ loginError((r.data&&r.data.error)||'Google-вход не удался'); return; }
+  AUTH.token=r.data.token; setToken(r.data.token); applyUser(r.data.user); hideLogin();
+  toast('Вход через Google','i-check2');
+}
+async function doLogout(){
+  try{ await api('/api/auth/logout',{method:'POST'}); }catch(e){}
+  AUTH={token:null,user:null}; setToken(null);
+  if(window.google&&google.accounts&&google.accounts.id) google.accounts.id.disableAutoSelect();
+  showLogin();
+  toast('Вы вышли','i-logout','var(--muted)');
+}
+
+function initGoogleBtn(tries=0){
+  if(!(window.google&&google.accounts&&google.accounts.id)){
+    if(tries<20) setTimeout(()=>initGoogleBtn(tries+1),300);
+    return;
+  }
+  try{
+    google.accounts.id.initialize({ client_id:GOOGLE_CLIENT_ID, callback:(resp)=>doGoogle(resp.credential) });
+    google.accounts.id.renderButton($('#googleBtn'), { theme:'filled_black', size:'large', shape:'pill', text:'signin_with', width:330 });
+  }catch(e){ /* GIS не загрузился (офлайн/блокировка) — остаётся вход по паролю */ }
+}
+
+async function bootAuth(){
+  const form=$('#loginForm');
+  if(form) form.addEventListener('submit', e=>{ e.preventDefault();
+    doLogin($('#loginIdent').value.trim(), $('#loginPass').value); });
+  const logoutBtn=document.querySelector('.user-chip .icon-btn');
+  if(logoutBtn) logoutBtn.onclick=doLogout;
+  initGoogleBtn();
+
+  const t=getToken();
+  if(t){ AUTH.token=t; const me=await api('/api/auth/me');
+    if(me.ok){ applyUser(me.data.user); hideLogin(); return; }
+    setToken(null); AUTH.token=null;
+  }
+  showLogin();
+}
+bootAuth();
