@@ -13325,25 +13325,29 @@ async function openTaskCard(key) {
     const createdByName = createdByUser ? `${createdByUser.lastName || ''} ${createdByUser.name || ''}`.trim() : '—';
     const bitrixUrl = `https://elcalmaty.bitrix24.kz/company/personal/user/1/tasks/task/view/${t.bitrixId}/`;
 
-    // Сортируем комментарии
-    const commentsObj = t.comments || {};
+    // Сортируем комментарии. Worker отдаёт snake_case→camelCase: comments_data → commentsData.
+    // Поле может быть и в старом имени (t.comments) для backward-compat с legacy кэшем.
+    const commentsObj = t.commentsData || t.comments || {};
     const comments = Object.values(commentsObj).sort((a, b) => (a.bitrixPostDate || '').localeCompare(b.bitrixPostDate || ''));
 
-    // Родитель и подзадачи
+    // Родитель и подзадачи. Worker возвращает parent_id → parentId
+    // и bitrix_parent_id → bitrixParentId. Берём первое доступное.
+    const parentRef = t.parentId || t.bitrixParentId || null;
     let parentTask = null;
-    if (t.parentId) {
-      // Сначала ищем в кэше (lite-list)
-      parentTask = tasksState.list.find(x => x.key === t.parentId);
+    if (parentRef) {
+      parentTask = tasksState.list.find(x => x.key === parentRef || x.id === parentRef || x.bitrixId === parentRef);
       if (!parentTask) {
-        // Подгружаем из Firebase
         try {
-          const pr = await fetch(`${dbUrl}/tasks/${encodeURIComponent(t.parentId)}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null);
-          if (pr) parentTask = { key: t.parentId, ...pr };
+          const pr = await fetch(`${dbUrl}/tasks/${encodeURIComponent(parentRef)}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null);
+          if (pr) parentTask = { key: parentRef, ...pr };
         } catch {}
       }
     }
-    // Дочерние задачи — только из tasksState.list (там у всех есть parentId)
-    const subtasks = tasksState.list.filter(x => x.parentId === key);
+    // Дочерние задачи — match по нескольким возможным форматам id
+    const subtasks = tasksState.list.filter(x =>
+      x.parentId === key || x.parentId === t.bitrixId ||
+      x.bitrixParentId === key || x.bitrixParentId === t.bitrixId
+    );
 
     let html = `<div class="modal-overlay" onclick="if(event.target===this)closeDealCard()">
       <div class="modal">
@@ -13382,8 +13386,8 @@ async function openTaskCard(key) {
           <div class="fl">Постановщик</div>
           <div class="fv">${escapeHtml(createdByName)}</div>
           ${t.deadline ? `<div class="fl">Дедлайн</div><div class="fv">${new Date(t.deadline).toLocaleString('ru')}</div>` : ''}
-          ${t.bitrixCreated ? `<div class="fl">Создана</div><div class="fv">${new Date(t.bitrixCreated).toLocaleString('ru')}</div>` : ''}
-          ${t.bitrixDateClosed ? `<div class="fl">Закрыта</div><div class="fv">${new Date(t.bitrixDateClosed).toLocaleString('ru')}</div>` : ''}
+          ${(t.bitrixCreated || t.bitrixCreatedDate) ? `<div class="fl">Создана</div><div class="fv">${new Date(t.bitrixCreated || t.bitrixCreatedDate).toLocaleString('ru')}</div>` : ''}
+          ${(t.bitrixDateClosed || t.bitrixClosedDate) ? `<div class="fl">Закрыта</div><div class="fv">${new Date(t.bitrixDateClosed || t.bitrixClosedDate).toLocaleString('ru')}</div>` : ''}
         </div>
 
         ${t.description ? `<div class="section-h">Описание</div>
