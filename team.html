@@ -14013,9 +14013,12 @@ function renderOrgChartTreeView(treeEl, isAdmin) {
     </div>`;
   }
 
-  function subLi(sub, path, idx, siblingCount) {
+  // Рекурсивный subLi — позволяет создавать под-подотделы (любой глубины).
+  // Путь дочернего узла строится через тот же subDepartments массив.
+  function subLi(sub, path, idx, siblingCount, depth = 1) {
+    const labelByDepth = depth <= 1 ? 'Подотдел' : (depth === 2 ? 'Под-подотдел' : `Уровень ${depth + 2}`);
     const box = nodeBoxHtml({
-      kind: 'sub', kindLabel: 'Подотдел',
+      kind: 'sub', kindLabel: labelByDepth,
       title: sub.name, titlePath: `${path}.name`,
       headPath: `${path}.headUid`, headUid: sub.headUid,
       memberUids: sub.memberUids, memberPath: `${path}.memberUids`,
@@ -14023,9 +14026,15 @@ function renderOrgChartTreeView(treeEl, isAdmin) {
     });
     const actions = actionsHtml({
       siblingPath: path, siblingIdx: idx, siblingCount,
+      // Кнопка добавления вложенного подотдела (так же как у dept)
+      addLabel: '+ Подотдел', addAction: 'add-sub', addPath: path,
       deletable: true,
     });
-    return `<li>${box}${actions ? `<div style="margin-top:4px">${actions.replace('class="otv-actions"','class="otv-actions" style="width:220px;background:rgba(0,0,0,0.02);border-radius:6px;padding:4px 6px;border:none"')}</div>` : ''}</li>`;
+    // Рекурсивно рендерим вложенные subDepartments
+    const childSubs = (sub.subDepartments || []).map((cs, ci) =>
+      subLi(cs, `${path}.subDepartments.${ci}`, ci, sub.subDepartments.length, depth + 1)
+    ).join('');
+    return `<li>${box}${actions ? `<div style="margin-top:4px">${actions.replace('class="otv-actions"','class="otv-actions" style="width:220px;background:rgba(0,0,0,0.02);border-radius:6px;padding:4px 6px;border:none"')}</div>` : ''}${childSubs ? `<ul>${childSubs}</ul>` : ''}</li>`;
   }
 
   function deptLi(dept, path, idx, siblingCount) {
