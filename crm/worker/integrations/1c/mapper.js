@@ -230,7 +230,8 @@ export function invoiceToOData(inv) {
     : round2(tovary.reduce((s, r) => s + (Number(r.Сумма) || 0), 0));
 
   const commentParts = [];
-  if (inv.externalId) commentParts.push(`PLLATO-INV:${inv.externalId}`);
+  const idPrefix = inv.externalIdPrefix || "PLLATO-INV";
+  if (inv.externalId) commentParts.push(`${idPrefix}:${inv.externalId}`);
   if (inv.comment) commentParts.push(String(inv.comment));
 
   const out = {

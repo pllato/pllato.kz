@@ -681,10 +681,11 @@ function renderFooterActions(deal, items) {
       <button type="button" class="btn-primary" data-deal-order-ship title="Заказ перейдёт в «Отгружены», создастся расходная накладная З-2">📦 Отгрузить и сформировать накладную</button>
     `;
   }
-  // Отгружен: просмотр/печать + возможность выставить счёт в 1С.
+  // Отгружен: просмотр/печать + счёт и реализация в 1С.
   if (status === ORDER_STATUS_SHIPPED) {
     return `
       <button type="button" class="btn-ghost" data-deal-order-1c-invoice title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
+      <button type="button" class="btn-ghost" data-deal-order-1c-realization title="Создать «Реализацию товаров и услуг» в 1С (черновик)">📦 Реализация в 1С${deal.oneCRealizationNumber ? " ✓" : ""}</button>
       <button type="button" class="btn-primary" data-deal-order-print title="Открыть печатную форму З-2">📄 Открыть накладную${deal.orderInvoiceNumber ? ` № ${escapeHtml(deal.orderInvoiceNumber)}` : ""}</button>
     `;
   }
@@ -931,20 +932,21 @@ function wireModalHandlers() {
       alert("Не удалось сформировать накладную: " + (err?.message || String(err)));
     }
   });
-  // Создать «Счёт на оплату покупателю» в 1С (черновик) из позиций заказа.
-  root.querySelector("[data-deal-order-1c-invoice]")?.addEventListener("click", async (e) => {
-    e.preventDefault();
+  // Создать документ 1С (счёт / реализацию) из позиций заказа.
+  async function openOneCDoc(docType) {
     try {
       const deal = Store.get(DEALS, dealId);
       if (!deal) return;
       const items = listDealItems(dealId);
       const contact = deal.contactId ? Store.get("contacts", deal.contactId) : null;
       const mod = await import("./one_c_invoice.js");
-      mod.openCreateInvoiceDialog({ deal, items, contact, onDone: () => refreshModal() });
+      mod.openCreateOneCDocDialog({ deal, items, contact, docType, onDone: () => refreshModal() });
     } catch (err) {
-      alert("Не удалось открыть форму счёта 1С: " + (err?.message || String(err)));
+      alert("Не удалось открыть форму документа 1С: " + (err?.message || String(err)));
     }
-  });
+  }
+  root.querySelector("[data-deal-order-1c-invoice]")?.addEventListener("click", (e) => { e.preventDefault(); openOneCDoc("invoice"); });
+  root.querySelector("[data-deal-order-1c-realization]")?.addEventListener("click", (e) => { e.preventDefault(); openOneCDoc("realization"); });
   // Открыть/распечатать накладную (когда уже отгружен).
   root.querySelector("[data-deal-order-print]")?.addEventListener("click", async (e) => {
     e.preventDefault();

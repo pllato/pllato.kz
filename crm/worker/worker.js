@@ -5391,7 +5391,13 @@ function oneCLeadingToken(s) {
  * Идемпотентность: external_id вшивается в Комментарий + проверяется one_c_id_map
  * (entity_type='invoice', pllato_id=externalId) до создания — повтор не дублирует.
  */
-async function handle1cCreateInvoice(request, env, actor) {
+// Общий механизм создания «торгового» документа в 1С (счёт / реализация).
+// Шапка и табличная часть «Товары» у СчетНаОплатуПокупателю и
+// РеализацииТоваровУслуг совпадают по именам реквизитов — переиспользуем
+// invoiceToOData. Документ создаётся ЧЕРНОВИКОМ (бухгалтер проводит и заполняет
+// бухсчета/субконто в 1С). opts = { collection, entityType, idPrefix }.
+async function create1cSalesDocument(request, env, actor, opts) {
+  const { collection, entityType, idPrefix } = opts;
   require1cAdmin(actor);
   const tenantId = resolve1cTenantId(actor);
   const body = await readRequestBodyAsJson(request);
@@ -5402,17 +5408,17 @@ async function handle1cCreateInvoice(request, env, actor) {
   const doPost = oneCBool(body?.post) || oneCBool(body?.posted);
   const started = Date.now();
 
-  // 1) Идемпотентность — счёт для этого externalId уже создан?
-  const existing = await d1Get1cRefByPllatoId(env, tenantId, "invoice", externalId);
+  // 1) Идемпотентность — документ для этого externalId уже создан?
+  const existing = await d1Get1cRefByPllatoId(env, tenantId, entityType, externalId);
   if (existing?.one_c_ref_key) {
     try {
       const { client } = await build1cClient(env, tenantId);
       let posted = null;
       if (doPost) {
-        await client.patch("Document_СчетНаОплатуПокупателю", existing.one_c_ref_key, { Posted: true });
+        await client.patch(collection, existing.one_c_ref_key, { Posted: true });
         posted = true;
       }
-      const re = await client.getByKey("Document_СчетНаОплатуПокупателю", existing.one_c_ref_key, {
+      const re = await client.getByKey(collection, existing.one_c_ref_key, {
         select: ["Ref_Key", "Number", "Date", "Posted", "СуммаДокумента"],
       });
       const norm = invoiceFromOData(re);
@@ -5484,27 +5490,28 @@ async function handle1cCreateInvoice(request, env, actor) {
       vatIncluded: body?.vatIncluded,
       accountForVat: body?.accountForVat,
       externalId,
+      externalIdPrefix: idPrefix,
       comment: body?.comment || "",
       total: body?.total,
       lines,
     });
 
     const { client } = await build1cClient(env, tenantId);
-    const created = await client.post("Document_СчетНаОплатуПокупателю", payload);
+    const created = await client.post(collection, payload);
     const refKey = created?.Ref_Key;
-    if (!refKey) throw new HttpError(502, "1С не вернула Ref_Key созданного счёта");
-    await d1Upsert1cIdMap(env, tenantId, "invoice", externalId, refKey, created?.DataVersion || null);
+    if (!refKey) throw new HttpError(502, "1С не вернула Ref_Key созданного документа");
+    await d1Upsert1cIdMap(env, tenantId, entityType, externalId, refKey, created?.DataVersion || null);
 
     let posted = oneCBool(created?.Posted);
     if (doPost && !posted) {
       try {
-        await client.patch("Document_СчетНаОплатуПокупателю", refKey, { Posted: true });
+        await client.patch(collection, refKey, { Posted: true });
         posted = true;
       } catch (pe) {
-        // Проведение не удалось — счёт остаётся черновиком. Логируем отдельно, но
-        // не валим весь запрос: документ уже создан и привязан в one_c_id_map.
+        // Проведение не удалось — документ остаётся черновиком. Логируем отдельно,
+        // но не валим запрос: документ создан и привязан в one_c_id_map.
         await d1Insert1cSyncLog(env, {
-          tenantId, direction: "push", entityType: "invoice", operation: "post", status: "error",
+          tenantId, direction: "push", entityType, operation: "post", status: "error",
           httpStatus: pe instanceof ODataError ? pe.httpStatus : null,
           errorMessage: pe?.message || String(pe), durationMs: Date.now() - started,
         });
@@ -5512,7 +5519,7 @@ async function handle1cCreateInvoice(request, env, actor) {
     }
 
     await d1Insert1cSyncLog(env, {
-      tenantId, direction: "push", entityType: "invoice", operation: "create", status: "ok",
+      tenantId, direction: "push", entityType, operation: "create", status: "ok",
       httpStatus: 200, recordsProcessed: lines.length, durationMs: Date.now() - started,
     });
     return {
@@ -5527,12 +5534,24 @@ async function handle1cCreateInvoice(request, env, actor) {
     const httpStatus = e instanceof ODataError ? e.httpStatus : null;
     const message = e?.message || String(e);
     await d1Insert1cSyncLog(env, {
-      tenantId, direction: "push", entityType: "invoice", operation: "create", status: "error",
+      tenantId, direction: "push", entityType, operation: "create", status: "error",
       httpStatus, errorMessage: message, durationMs: Date.now() - started,
     });
     if (e instanceof HttpError) throw e;
     throw new HttpError(httpStatus && httpStatus >= 400 && httpStatus < 600 ? httpStatus : 502, message);
   }
+}
+
+function handle1cCreateInvoice(request, env, actor) {
+  return create1cSalesDocument(request, env, actor, {
+    collection: "Document_СчетНаОплатуПокупателю", entityType: "invoice", idPrefix: "PLLATO-INV",
+  });
+}
+
+function handle1cCreateRealization(request, env, actor) {
+  return create1cSalesDocument(request, env, actor, {
+    collection: "Document_РеализацияТоваровУслуг", entityType: "realization", idPrefix: "PLLATO-REAL",
+  });
 }
 
 /**
@@ -5740,6 +5759,140 @@ async function handle1cMatchProducts(request, env, actor) {
   }
 }
 
+// Достаёт ИИН/БИН из текстового поля note контакта («ИИН: 123 | БИН: 456»).
+function extractIdFromNote(note, label) {
+  if (!note) return null;
+  const m = String(note).match(new RegExp(label + "\\s*[:：]\\s*([0-9A-Za-z]+)"));
+  return m ? m[1] : null;
+}
+
+// POST /api/crm/1c/contractors/create — создаёт контрагента в 1С из контакта CRM.
+async function handle1cCreateContractor(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const body = await readRequestBodyAsJson(request);
+  const contactId = String(body?.contactId || "").trim();
+  if (!contactId) throw new HttpError(400, "contactId обязателен");
+  const started = Date.now();
+
+  const existing = await d1Get1cRefByPllatoId(env, tenantId, "contractor", contactId);
+  if (existing?.one_c_ref_key) {
+    return { ok: true, already_exists: true, ref_key: existing.one_c_ref_key };
+  }
+
+  const db = requireStoreDb(env);
+  const row = await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? AND id=?`)
+    .bind(TEAM_ID, "contacts", contactId).first();
+  if (!row) throw new HttpError(404, "Контакт не найден в CRM");
+  let contact;
+  try { contact = JSON.parse(row.data); } catch { throw new HttpError(500, "Битые данные контакта"); }
+
+  const customer = {
+    name: contact.name || contact.company || "Клиент",
+    full_name: contact.company || contact.name || "",
+    iin: contact._1c_iin || extractIdFromNote(contact.note, "ИИН") || null,
+    bin: contact._1c_bin || extractIdFromNote(contact.note, "БИН") || null,
+    comment: "Создан из Pllato CRM",
+  };
+  try {
+    const { client } = await build1cClient(env, tenantId);
+    const created = await client.post("Catalog_Контрагенты", contractorToOData(customer));
+    const refKey = created?.Ref_Key;
+    if (!refKey) throw new HttpError(502, "1С не вернула Ref_Key контрагента");
+    await d1Upsert1cIdMap(env, tenantId, "contractor", contactId, refKey, created?.DataVersion || null);
+    const now = Date.now();
+    const updated = { ...contact, _1c_ref_key: refKey, updatedAt: now };
+    await db.prepare(`UPDATE store SET data=?, updated_at=? WHERE team_id=? AND collection=? AND id=?`)
+      .bind(JSON.stringify(updated), now, TEAM_ID, "contacts", contactId).run();
+    await d1Insert1cSyncLog(env, { tenantId, direction: "push", entityType: "contractor", operation: "create", status: "ok", httpStatus: 200, recordsProcessed: 1, durationMs: Date.now() - started });
+    return { ok: true, ref_key: refKey, name: created?.Description || customer.name, code: (created?.Code || "").trim() || null };
+  } catch (e) {
+    const httpStatus = e instanceof ODataError ? e.httpStatus : null;
+    const message = e?.message || String(e);
+    await d1Insert1cSyncLog(env, { tenantId, direction: "push", entityType: "contractor", operation: "create", status: "error", httpStatus, errorMessage: message, durationMs: Date.now() - started });
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(httpStatus && httpStatus >= 400 && httpStatus < 600 ? httpStatus : 502, message);
+  }
+}
+
+// GET /api/crm/1c/nomenclature/search?q= — поиск номенклатуры 1С по названию.
+async function handle1cNomenclatureSearch(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const url = new URL(request.url);
+  const q = (url.searchParams.get("q") || "").trim();
+  if (q.length < 2) return { ok: true, results: [] };
+  try {
+    const { client } = await build1cClient(env, tenantId);
+    const safe = q.replace(/'/g, "''");
+    const data = await client.get("Catalog_Номенклатура", {
+      top: 30,
+      filter: `substringof('${safe}', Description)`,
+    });
+    const raw = Array.isArray(data?.value) ? data.value : [];
+    const results = raw.map(productFromOData)
+      .filter((p) => p && !p.is_folder && !p.deletion_mark)
+      .map((p) => ({ ref: p.ref_key, code: p.code, name: p.name, unit: p.unit_ref, vat: p.vat_rate_ref }));
+    return { ok: true, results };
+  } catch (e) {
+    const httpStatus = e instanceof ODataError ? e.httpStatus : null;
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(httpStatus && httpStatus >= 400 && httpStatus < 600 ? httpStatus : 502, e?.message || String(e));
+  }
+}
+
+// POST /api/crm/1c/products/map — ручная привязка товара склада к номенклатуре 1С.
+async function handle1cMapProduct(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const body = await readRequestBodyAsJson(request);
+  const productId = String(body?.productId || "").trim();
+  const refKey = String(body?.refKey || "").trim();
+  if (!productId || !refKey) throw new HttpError(400, "productId и refKey обязательны");
+  const db = requireStoreDb(env);
+  const row = await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? AND id=?`)
+    .bind(TEAM_ID, "warehouse_products", productId).first();
+  if (!row) throw new HttpError(404, "Товар склада не найден");
+  let prod;
+  try { prod = JSON.parse(row.data); } catch { throw new HttpError(500, "Битые данные товара"); }
+  const now = Date.now();
+  const updated = {
+    ...prod,
+    _1c_ref_key: refKey,
+    _1c_unit_ref: body?.unitRef || prod._1c_unit_ref || null,
+    _1c_vat_ref: body?.vatRef || prod._1c_vat_ref || null,
+    _1c_match_method: "manual",
+    _1c_match_ambiguous: false,
+    _1c_matched_at: now,
+    updatedAt: now,
+  };
+  await db.prepare(`UPDATE store SET data=?, updated_at=? WHERE team_id=? AND collection=? AND id=?`)
+    .bind(JSON.stringify(updated), now, TEAM_ID, "warehouse_products", productId).run();
+  await d1Upsert1cIdMap(env, tenantId, "product", productId, refKey, null);
+  return { ok: true, productId, refKey };
+}
+
+// GET /api/crm/1c/products/unmatched — товары склада без ссылки на 1С.
+async function handle1cListUnmatchedProducts(request, env, actor) {
+  require1cAdmin(actor);
+  const url = new URL(request.url);
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "100", 10), 1), 500);
+  const db = requireStoreDb(env);
+  const rows = await db.prepare(`SELECT id, data FROM store WHERE team_id=? AND collection=? ORDER BY id`)
+    .bind(TEAM_ID, "warehouse_products").all();
+  const out = [];
+  let totalUnmatched = 0;
+  for (const r of rows?.results || []) {
+    let p;
+    try { p = JSON.parse(r.data); } catch { continue; }
+    if (p.archived) continue;
+    if (p._1c_ref_key) continue;
+    totalUnmatched += 1;
+    if (out.length < limit) out.push({ id: p.id || r.id, sku: p.sku || "", name: p.name || "" });
+  }
+  return { ok: true, count: out.length, total_unmatched: totalUnmatched, products: out };
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
@@ -5892,6 +6045,26 @@ export default {
       if (request.method === "POST" && path === "/api/crm/1c/invoices/create") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handle1cCreateInvoice(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/realizations/create") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cCreateRealization(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/contractors/create") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cCreateContractor(request, env, actor));
+      }
+      if (request.method === "GET" && path === "/api/crm/1c/nomenclature/search") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cNomenclatureSearch(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/products/map") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cMapProduct(request, env, actor));
+      }
+      if (request.method === "GET" && path === "/api/crm/1c/products/unmatched") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cListUnmatchedProducts(request, env, actor));
       }
 
       if (request.method === "POST" && path === "/binotel/call") {
