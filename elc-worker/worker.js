@@ -2328,10 +2328,17 @@ async function findOrCreateContactByPhone(env, phone, name) {
   const newId = 'contact_wa_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const nowIso = new Date().toISOString();
   const phonesJson = JSON.stringify([{ value: '+' + digits, valueType: 'WORK' }]);
+  // FIX: contacts.last_name — NOT NULL. WA-контакт обычно даёт одно поле
+  // senderName ("Гаухар🇰🇿…") без разделения. Кладём первое слово в name,
+  // остальное — в last_name. Если только одно слово — last_name = ''.
+  const display = (name || '+' + digits).trim();
+  const parts = display.split(/\s+/);
+  const firstName = parts[0] || display;
+  const lastName = parts.slice(1).join(' ') || '';
   await env.DB.prepare(`
-    INSERT INTO contacts (id, name, phones, source_description, bitrix_date_create, bitrix_date_modify)
-    VALUES (?, ?, ?, 'WhatsApp', ?, ?)
-  `).bind(newId, name || '+' + digits, phonesJson, nowIso, nowIso).run();
+    INSERT INTO contacts (id, name, last_name, phones, source_description, bitrix_date_create, bitrix_date_modify)
+    VALUES (?, ?, ?, ?, 'WhatsApp', ?, ?)
+  `).bind(newId, firstName, lastName, phonesJson, nowIso, nowIso).run();
   return newId;
 }
 
