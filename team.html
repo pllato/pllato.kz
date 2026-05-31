@@ -3126,49 +3126,17 @@ function currentScopeDefault() {
 }
 
 function effectiveScope() {
-  // Учитываем сохранённый выбор, но фильтруем по правам:
-  //   manager не может выбрать 'all', agent — ни 'all' ни 'team'.
-  const role = window.currentUser?.role;
-  const dept = window.currentUser?.department;
-  const raw = localStorage.getItem(SCOPE_LS_KEY);
-  if (!raw) return currentScopeDefault();
-  if (raw === 'all' && role !== 'admin') return currentScopeDefault();
-  if (raw === 'team' && role === 'agent') return 'mine';
-  if (raw === 'team' && role === 'manager' && !dept) return 'mine';
-  return raw;
+  // UI scope-toggle убран (дублировал фильтр «Ответственные»). Игнорируем
+  // localStorage и всегда возвращаем дефолт по роли: admin='all', manager='team'
+  // или 'mine', agent='mine'. Так backend всё ещё получает корректный scope,
+  // даже если у юзера в localStorage осталось старое значение 'mine'.
+  return currentScopeDefault();
 }
 
-function scopeToggleHtml() {
-  const role = window.currentUser?.role;
-  const dept = window.currentUser?.department;
-  // agent — без переключателя
-  if (role !== 'admin' && role !== 'manager') return '';
-  // manager без отдела — переключать нечего (только 'mine')
-  if (role === 'manager' && !dept) return '';
-
-  const cur = effectiveScope();
-  const btns = [];
-  btns.push(`<button class="vt-btn ${cur === 'mine' ? 'active' : ''}" data-scope="mine" title="Только мои записи">👤 Мои</button>`);
-  if (role === 'admin' || (role === 'manager' && dept)) {
-    const label = role === 'manager'
-      ? `Мой отдел${dept ? ' · ' + escapeHtml(dept) : ''}`
-      : 'Отдел';
-    btns.push(`<button class="vt-btn ${cur === 'team' ? 'active' : ''}" data-scope="team" title="${label}">👥 Команда</button>`);
-  }
-  if (role === 'admin') {
-    btns.push(`<button class="vt-btn ${cur === 'all' ? 'active' : ''}" data-scope="all" title="Все записи (admin)">🌐 Все</button>`);
-  }
-  return `<div class="scope-toggle" style="display:inline-flex;gap:4px;margin-left:10px">${btns.join('')}</div>`;
-}
-
-function attachScopeToggle(rootEl, onChange) {
-  rootEl.querySelectorAll('[data-scope]').forEach(b => {
-    b.addEventListener('click', () => {
-      localStorage.setItem(SCOPE_LS_KEY, b.dataset.scope);
-      onChange();
-    });
-  });
-}
+// no-op: переключатель Мои/Команда/Все убран. Функции оставлены чтобы 11
+// мест с `${scopeToggleHtml()}` и `attachScopeToggle(el, ...)` не падали.
+function scopeToggleHtml() { return ''; }
+function attachScopeToggle(_rootEl, _onChange) { /* noop */ }
 
 // ── Глобальная сессия (после login) ───────────────────────────────────────
 // currentUser — то что вернул worker /api/me. Включает canonicalUid (uid из
@@ -4384,16 +4352,9 @@ window.resetDealsCacheAndReload = async function() {
   if (main) renderDeals(main);
 };
 
-// Быстрая фиксация: переключить scope на 'all' и перерисовать.
-// Самая частая причина пустого канбана для admin — застрявший scope='mine'.
-window.resetDealsScopeToAll = function() {
-  localStorage.setItem('elc:listScope', 'all');
-  dealsState.loaded = false;
-  dealsState.deals = [];
-  dealsState.dealsByPipeline = {};
-  const main = document.getElementById('main');
-  if (main) renderDeals(main);
-};
+// scope-toggle (Мои/Команда/Все) убран — фильтр «Ответственные» делает то же самое.
+// На всякий случай чистим старое значение localStorage у юзеров со старых сессий.
+try { localStorage.removeItem('elc:listScope'); } catch (e) {}
 
 // ── Per-pipeline field config (hidden/pinned custom fields) ──
 // Загружается один раз и кешируется в window.__fieldConfig.
@@ -5372,13 +5333,8 @@ function renderDealsPagedPager() {
 
 function renderDealsLayout(el) {
   const filtered = getFilteredDeals();
-  const scopeNow = effectiveScope();
-  const role = window.currentUser?.role;
-  const scopeWarn = (role === 'admin' && scopeNow !== 'all') ? `
-    <div style="margin:6px 0 12px;padding:8px 12px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;font-size:12px;color:#92400e;display:flex;align-items:center;gap:10px">
-      ⚠ Сейчас показаны только записи с охватом «<b>${escapeHtml(scopeNow === 'mine' ? 'свои' : scopeNow)}</b>». Сделки других сотрудников скрыты.
-      <button class="btn btn-sm" style="background:var(--ac);color:#fff;border:none;padding:4px 10px;margin-left:auto" onclick="window.resetDealsScopeToAll && window.resetDealsScopeToAll()">👁 Показать все</button>
-    </div>` : '';
+  // scope-warning банер убран вместе с переключателем Мои/Команда/Все
+  const scopeWarn = '';
   // Кнопка включения push-уведомлений (если permission ещё не получен)
   const notifBtn = ('Notification' in window && Notification.permission === 'default')
     ? `<button class="btn btn-sm" id="kanban-enable-notif" title="Включить звук и push уведомления о новых сообщениях" style="background:var(--ac);color:#fff;border:none;padding:6px 12px;margin-left:8px">🔔 Включить уведомления</button>`
