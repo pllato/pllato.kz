@@ -2754,9 +2754,6 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
     </div>
     <div class="nav-item" data-page="chats">
       <span class="nav-icon">💬</span><span>Чаты</span>
-    </div>
-    <div class="nav-item" data-page="team-chat">
-      <span class="nav-icon">👥</span><span>Командный чат</span>
       <span class="nav-badge" id="team-chat-nav-badge" style="display:none;background:#22c55e;color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:auto"></span>
     </div>
 
@@ -13229,19 +13226,26 @@ async function renderChats(el) {
   stopWaChatsPolling();
   el.innerHTML = `
     <div class="page-title">💬 Чаты</div>
-    <div class="page-sub">Переписка с клиентами в WhatsApp + внутренние групповые чаты сотрудников + архив внешних мессенджеров.</div>
+    <div class="page-sub">Переписка с клиентами в WhatsApp + внутренний чат сотрудников + архив старых чатов.</div>
     <div style="display:flex;gap:8px;margin-bottom:14px">
       <button class="vt-btn ${chatsState.tab === 'whatsapp' ? 'active' : ''}" data-tab="whatsapp">💬 WhatsApp</button>
       <button class="vt-btn ${chatsState.tab === 'group' ? 'active' : ''}" data-tab="group">👥 Сотрудники</button>
-      <button class="vt-btn ${chatsState.tab === 'openlines' ? 'active' : ''}" data-tab="openlines">🌐 Архив</button>
+      <button class="vt-btn ${chatsState.tab === 'openlines' ? 'active' : ''}" data-tab="openlines">🗄 Архив (Bitrix)</button>
     </div>
     <div id="chats-content" style="display:flex;gap:14px;height:calc(100vh - 220px);min-height:500px">
-      <div id="chats-list" style="flex:0 0 360px;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-height:0">
-        <div style="padding:14px;color:var(--t3);font-size:12px">⏳ Загрузка...</div>
-      </div>
-      <div id="chat-thread" style="flex:1;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;padding:0;display:flex;flex-direction:column;min-height:0">
-        <div style="padding:30px;color:var(--t3);font-size:13px;text-align:center;margin:auto">Выберите чат слева</div>
-      </div>
+      ${chatsState.tab === 'group' ? `
+        <!-- Новый TeamChat — full-width, ему отдаём весь chats-content -->
+        <div id="team-chat-mount-inner" style="flex:1;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;overflow:hidden;display:flex">
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:13px">⏳ Загружаем командный чат...</div>
+        </div>
+      ` : `
+        <div id="chats-list" style="flex:0 0 360px;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-height:0">
+          <div style="padding:14px;color:var(--t3);font-size:12px">⏳ Загрузка...</div>
+        </div>
+        <div id="chat-thread" style="flex:1;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;padding:0;display:flex;flex-direction:column;min-height:0">
+          <div style="padding:30px;color:var(--t3);font-size:13px;text-align:center;margin:auto">Выберите чат слева</div>
+        </div>
+      `}
     </div>
   `;
   el.querySelectorAll('.vt-btn[data-tab]').forEach(btn => {
@@ -13256,10 +13260,35 @@ async function renderChats(el) {
   if (chatsState.tab === 'whatsapp') {
     await loadAndRenderWaChats();
   } else if (chatsState.tab === 'group') {
-    await loadAndRenderGroupChats();
+    // Новый функционал чата сотрудников — TeamChat виджет
+    await mountTeamChatInTab();
   } else {
+    // В табе «Архив» теперь оба legacy: openlines + старые groupChats из Bitrix
     await loadAndRenderOpenlinesList();
   }
+}
+
+// Монтирует TeamChat в существующий контейнер таба «Сотрудники»
+async function mountTeamChatInTab() {
+  const mount = document.getElementById('team-chat-mount-inner');
+  if (!mount) return;
+  if (window.TeamChat?.mount) {
+    window.TeamChat.mount(mount);
+    return;
+  }
+  if (window._teamChatScriptLoading) return;
+  window._teamChatScriptLoading = true;
+  const s = document.createElement('script');
+  s.src = `${WORKER_BASE_URL}/chat.js?v=1`;
+  s.onload = () => {
+    window._teamChatScriptLoading = false;
+    if (window.TeamChat?.mount) window.TeamChat.mount(mount);
+  };
+  s.onerror = () => {
+    window._teamChatScriptLoading = false;
+    if (mount) mount.innerHTML = '<div style="padding:20px;color:#dc2626">❌ Не удалось загрузить chat.js</div>';
+  };
+  document.head.appendChild(s);
 }
 
 function stopWaChatsPolling() {
