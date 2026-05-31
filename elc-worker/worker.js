@@ -2328,10 +2328,17 @@ async function findOrCreateContactByPhone(env, phone, name) {
   const newId = 'contact_wa_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const nowIso = new Date().toISOString();
   const phonesJson = JSON.stringify([{ value: '+' + digits, valueType: 'WORK' }]);
+  // FIX: contacts.last_name — NOT NULL. WA-контакт обычно даёт одно поле
+  // senderName ("Гаухар🇰🇿…") без разделения. Кладём первое слово в name,
+  // остальное — в last_name. Если только одно слово — last_name = ''.
+  const display = (name || '+' + digits).trim();
+  const parts = display.split(/\s+/);
+  const firstName = parts[0] || display;
+  const lastName = parts.slice(1).join(' ') || '';
   await env.DB.prepare(`
-    INSERT INTO contacts (id, name, phones, source_description, bitrix_date_create, bitrix_date_modify)
-    VALUES (?, ?, ?, 'WhatsApp', ?, ?)
-  `).bind(newId, name || '+' + digits, phonesJson, nowIso, nowIso).run();
+    INSERT INTO contacts (id, name, last_name, phones, source_description, bitrix_date_create, bitrix_date_modify)
+    VALUES (?, ?, ?, ?, 'WhatsApp', ?, ?)
+  `).bind(newId, firstName, lastName, phonesJson, nowIso, nowIso).run();
   return newId;
 }
 
@@ -2454,8 +2461,21 @@ function extractWaWebhookEnvelope(body) {
   // Для индивидуальных: senderName = имя контакта
   const senderName = body?.senderData?.senderName || null;
   const chatName = body?.senderData?.chatName || null;  // имя группы для @g.us
-  // displayName используется для wa_chats.name: для группы — её имя, для контакта — имя автора
-  const displayName = isGroup ? (chatName || 'Группа') : (senderName || chatName || null);
+  // displayName используется для wa_chats.name.
+  // FIX: для ИСХОДЯЩИХ senderData.senderName = это МЫ САМИ (отправитель), не получатель.
+  // Если использовать его как имя чата — затирается реальное имя контакта нашим
+  // собственным номером (видно по 77011238888/9999, обоим записано "77066423098").
+  // Поэтому для outgoing берём только chatName (если есть), иначе null — обработчик
+  // выше использует contact.name или '+phone' как fallback и не перезатирает existing.
+  let displayName;
+  if (isGroup) {
+    displayName = chatName || 'Группа';
+  } else if (isIncoming) {
+    displayName = senderName || chatName || null;
+  } else {
+    // outgoing — chatName это иногда имя получателя у Green-API; senderName = мы сами.
+    displayName = chatName || null;
+  }
   const waMessageId = body?.idMessage;
   const ts = (body?.timestamp || Math.floor(Date.now() / 1000)) * 1000;
 
@@ -2855,6 +2875,48 @@ async function handleWaListChannels(request, env) {
     "SELECT id, id_instance, api_url, display_name, active, default_pipeline_id, default_stage_id, responsible_uid, webhook_token, created_at FROM wa_channels ORDER BY created_at"
   ).all();
   return json({ items: results }, 200, request);
+}
+
+// GET /api/wa/channels/public — нужен фронт-виджету (любому юзеру) чтобы
+// группировать чаты по каналам с человечным названием канала + воронки.
+// Без api_token/webhook_token. Фильтр по orgPerms: если у юзера белый список
+// pipelineIds — показываем только каналы с default_pipeline_id из этого списка.
+async function handleWaListChannelsPublic(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+
+  const { results } = await env.DB.prepare(
+    "SELECT id, id_instance, display_name, active, default_pipeline_id FROM wa_channels WHERE active = 1 ORDER BY display_name, created_at"
+  ).all();
+
+  // Подтянем названия воронок одним запросом.
+  const pipelineIds = [...new Set(results.map(r => r.default_pipeline_id).filter(Boolean))];
+  let pipelineNames = {};
+  if (pipelineIds.length > 0) {
+    const ph = pipelineIds.map(() => "?").join(",");
+    const { results: pipes } = await env.DB.prepare(
+      `SELECT id, name FROM pipelines WHERE id IN (${ph})`
+    ).bind(...pipelineIds).all();
+    for (const p of pipes) pipelineNames[p.id] = p.name;
+  }
+
+  // Permission filter — если у юзера whitelist pipelineIds (orgPerms), скрываем
+  // каналы которые routing на чужие воронки. Admin/director — видит всё.
+  let allowed = results;
+  if (me.role !== 'admin' && me.orgPerms && Array.isArray(me.orgPerms.pipelineIds)) {
+    const whitelist = new Set(me.orgPerms.pipelineIds);
+    allowed = results.filter(r => !r.default_pipeline_id || whitelist.has(r.default_pipeline_id));
+  }
+
+  const items = allowed.map(r => ({
+    id: r.id,
+    idInstance: r.id_instance,
+    displayName: r.display_name || ('Канал ' + r.id_instance),
+    pipelineId: r.default_pipeline_id,
+    pipelineName: r.default_pipeline_id ? (pipelineNames[r.default_pipeline_id] || '—') : null,
+  }));
+  return json({ items, total: items.length }, 200, request);
 }
 
 // Автонастройка webhook URL и нужных событий в Green-API через метод setSettings.
@@ -3344,6 +3406,86 @@ async function pickNextRoundRobinUid(env, channelId) {
   return uid;
 }
 
+// Батч телефонов для канбана. До этого endpoint'а phones подгружались только
+// при открытии карточки → кнопки 💬/📞 в канбане были disabled до первого
+// захода в детали сделки. Теперь рендер деталки → POST 200 ids → готово.
+// Чтобы не валить SQL `IN (?,?,?,…)` тысячами параметров, режем на 200 за раз.
+async function handleContactsPhonesBulk(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const url = new URL(request.url);
+  const raw = (url.searchParams.get("ids") || "").trim();
+  if (!raw) return json({ items: {} }, 200, request);
+  const ids = raw.split(",").map(s => s.trim()).filter(Boolean).slice(0, 200);
+  if (ids.length === 0) return json({ items: {} }, 200, request);
+  const ph = ids.map(() => "?").join(",");
+  const { results } = await env.DB.prepare(
+    `SELECT id, phones FROM contacts WHERE id IN (${ph})`
+  ).bind(...ids).all();
+  const items = {};
+  for (const r of results) {
+    if (!r.phones) continue;
+    try {
+      const arr = JSON.parse(r.phones);
+      if (Array.isArray(arr) && arr.length > 0 && arr[0]?.value) {
+        items[r.id] = arr[0].value;
+      }
+    } catch {}
+  }
+  return json({ items, total: Object.keys(items).length }, 200, request);
+}
+
+// Батч: для каждой сделки вернуть ближайшее активное дело с дедлайном.
+// Чтобы на канбане отображать «📋 Дело: DD.MM HH:MM».
+// POST /api/tasks/by-deals  { ids: ["deal_X", "deal_Y", ...] }
+// Response: { items: { "deal_X": { taskId, title, deadline }, ... } }
+//
+// Поиск: tasks.crm_links — JSON {"0":"deal_X"}, фильтруем LIKE '%deal_X%'.
+// «Активное» = status NOT IN (5=completed, 6=deferred, 7=declined).
+// Чанкуем dealIds по 50 в OR-цепочке, иначе SQL слишком длинный.
+async function handleTasksByDeals(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const ids = Array.isArray(body.ids) ? body.ids.filter(s => typeof s === 'string').slice(0, 500) : [];
+  if (ids.length === 0) return json({ items: {} }, 200, request);
+
+  // Канонизируем формат: ожидаем "deal_X"; если frontend прислал "X" — добавим префикс
+  const dealIds = ids.map(s => s.startsWith('deal_') ? s : 'deal_' + s);
+
+  const items = {};
+  const chunkSize = 50;
+  for (let i = 0; i < dealIds.length; i += chunkSize) {
+    const chunk = dealIds.slice(i, i + chunkSize);
+    const orClauses = chunk.map(() => "crm_links LIKE ?").join(" OR ");
+    const params = chunk.map(d => `%"${d}"%`);
+    // Тянем все потенциально-релевантные задачи. JS отфильтрует точно (LIKE даёт
+    // ложные срабатывания, например deal_1 матчит deal_10).
+    const { results } = await env.DB.prepare(
+      `SELECT id, title, deadline, crm_links FROM tasks
+       WHERE status NOT IN (5, 6, 7) AND deadline IS NOT NULL
+         AND (${orClauses})
+       ORDER BY deadline ASC`
+    ).bind(...params).all();
+    for (const t of results) {
+      let links;
+      try { links = JSON.parse(t.crm_links || '{}'); } catch { continue; }
+      const linkedDealIds = Object.values(links).filter(v => typeof v === 'string' && v.startsWith('deal_'));
+      for (const dealId of linkedDealIds) {
+        if (!chunk.includes(dealId)) continue;
+        // Для этой сделки запоминаем ПЕРВУЮ найденную задачу — она с минимальным
+        // deadline т.к. сортировка ORDER BY deadline ASC. Чтобы не перезаписать.
+        if (!items[dealId]) {
+          items[dealId] = { taskId: t.id, title: t.title, deadline: t.deadline };
+        }
+      }
+    }
+  }
+
+  return json({ items, total: Object.keys(items).length }, 200, request);
+}
+
 // ── Phase 0 routes ──────────────────────────────────────
 async function handleHealth(request, env) {
   try {
@@ -3420,6 +3562,17 @@ export default {
     const listMatch = path.match(/^\/api\/list\/([a-z_]+)\/?$/);
     if (listMatch && request.method === "GET") {
       return handleList(request, env, listMatch[1]);
+    }
+
+    // /api/contacts/phones?ids=id1,id2,... — батч телефонов для канбана.
+    // Чтобы кнопки 💬/📞 в карточках были активны сразу, без открытия деталки.
+    if (path === "/api/contacts/phones" && request.method === "GET") {
+      return handleContactsPhonesBulk(request, env);
+    }
+
+    // /api/tasks/by-deals — батч ближайших активных дел для канбан-плашки «📋 Дело».
+    if (path === "/api/tasks/by-deals" && request.method === "POST") {
+      return handleTasksByDeals(request, env);
     }
 
     // /api/files/{id} — отдача мигрированного файла из R2
@@ -3550,6 +3703,9 @@ export default {
     const waFileMatch = path.match(/^\/api\/wa\/file\/(.+)$/);
     if (waFileMatch && request.method === "GET") {
       return handleWaFileServe(request, env, decodeURIComponent(waFileMatch[1]));
+    }
+    if (path === "/api/wa/channels/public" && request.method === "GET") {
+      return handleWaListChannelsPublic(request, env);
     }
     if (path === "/api/wa/channels" && request.method === "GET") {
       return handleWaListChannels(request, env);

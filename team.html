@@ -1253,6 +1253,40 @@ tr:hover td { background: var(--bg3); }
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
+/* Запланированный Zoom в будущем — выделяем синим, чтоб глаз цеплял */
+.kanban-card-date-zoom {
+  color: #2563eb;
+  font-weight: 600;
+  background: rgba(37, 99, 235, 0.10);
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+/* Zoom в прошлом — серым (приглушённо) */
+.kanban-card-date-zoom-past {
+  color: var(--t3);
+  text-decoration: line-through;
+  opacity: 0.7;
+  font-size: 10px;
+}
+/* Дело с дедлайном в будущем — зелёным (как «в работе») */
+.kanban-card-date-task {
+  color: #15803d;
+  font-weight: 600;
+  background: rgba(34, 197, 94, 0.12);
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+/* Просроченное Дело — красным фон, чтоб менеджер увидел сразу */
+.kanban-card-date-task-overdue {
+  color: #fff;
+  background: #ef4444;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+}
 .kanban-more {
   text-align: center;
   padding: 8px;
@@ -3126,49 +3160,17 @@ function currentScopeDefault() {
 }
 
 function effectiveScope() {
-  // Учитываем сохранённый выбор, но фильтруем по правам:
-  //   manager не может выбрать 'all', agent — ни 'all' ни 'team'.
-  const role = window.currentUser?.role;
-  const dept = window.currentUser?.department;
-  const raw = localStorage.getItem(SCOPE_LS_KEY);
-  if (!raw) return currentScopeDefault();
-  if (raw === 'all' && role !== 'admin') return currentScopeDefault();
-  if (raw === 'team' && role === 'agent') return 'mine';
-  if (raw === 'team' && role === 'manager' && !dept) return 'mine';
-  return raw;
+  // UI scope-toggle убран (дублировал фильтр «Ответственные»). Игнорируем
+  // localStorage и всегда возвращаем дефолт по роли: admin='all', manager='team'
+  // или 'mine', agent='mine'. Так backend всё ещё получает корректный scope,
+  // даже если у юзера в localStorage осталось старое значение 'mine'.
+  return currentScopeDefault();
 }
 
-function scopeToggleHtml() {
-  const role = window.currentUser?.role;
-  const dept = window.currentUser?.department;
-  // agent — без переключателя
-  if (role !== 'admin' && role !== 'manager') return '';
-  // manager без отдела — переключать нечего (только 'mine')
-  if (role === 'manager' && !dept) return '';
-
-  const cur = effectiveScope();
-  const btns = [];
-  btns.push(`<button class="vt-btn ${cur === 'mine' ? 'active' : ''}" data-scope="mine" title="Только мои записи">👤 Мои</button>`);
-  if (role === 'admin' || (role === 'manager' && dept)) {
-    const label = role === 'manager'
-      ? `Мой отдел${dept ? ' · ' + escapeHtml(dept) : ''}`
-      : 'Отдел';
-    btns.push(`<button class="vt-btn ${cur === 'team' ? 'active' : ''}" data-scope="team" title="${label}">👥 Команда</button>`);
-  }
-  if (role === 'admin') {
-    btns.push(`<button class="vt-btn ${cur === 'all' ? 'active' : ''}" data-scope="all" title="Все записи (admin)">🌐 Все</button>`);
-  }
-  return `<div class="scope-toggle" style="display:inline-flex;gap:4px;margin-left:10px">${btns.join('')}</div>`;
-}
-
-function attachScopeToggle(rootEl, onChange) {
-  rootEl.querySelectorAll('[data-scope]').forEach(b => {
-    b.addEventListener('click', () => {
-      localStorage.setItem(SCOPE_LS_KEY, b.dataset.scope);
-      onChange();
-    });
-  });
-}
+// no-op: переключатель Мои/Команда/Все убран. Функции оставлены чтобы 11
+// мест с `${scopeToggleHtml()}` и `attachScopeToggle(el, ...)` не падали.
+function scopeToggleHtml() { return ''; }
+function attachScopeToggle(_rootEl, _onChange) { /* noop */ }
 
 // ── Глобальная сессия (после login) ───────────────────────────────────────
 // currentUser — то что вернул worker /api/me. Включает canonicalUid (uid из
@@ -3594,6 +3596,8 @@ const waWidget = {
   activeChatId: null,
   activeChatMeta: null,
   chats: [],
+  channels: [],      // [{id, idInstance, displayName, pipelineId, pipelineName}]
+  channelsLoaded: false,
   messages: [],
   pollTimer: null,
   msgPollTimer: null,
@@ -3607,11 +3611,30 @@ function initWaFloatingWidget() {
   root.id = 'wa-widget-root';
   document.body.appendChild(root);
   renderWaWidget();
-  // Стартуем polling
+  // Стартуем polling. Каналы — один раз (метаданные стабильные).
+  loadWaWidgetChannels();
   refreshWaWidgetChats();
   waWidget.pollTimer = setInterval(refreshWaWidgetChats, 7000);
   // Показываем permission banner если уведомления не разрешены
   maybeShowNotificationBanner();
+}
+
+// Грузим метаданные каналов (display_name, pipeline) чтобы в списке чатов
+// показывать секции «📞 Канал · 🎯 Воронка». Без секретов, фильтрованный
+// под orgPerms юзера на бэке (см. handleWaListChannelsPublic в worker.js).
+async function loadWaWidgetChannels() {
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/channels/public`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    waWidget.channels = data.items || [];
+    waWidget.channelsLoaded = true;
+    // Перерисуем если открыт список
+    if (waWidget.open && waWidget.view === 'list') renderWaWidget();
+  } catch (e) { console.warn('[wa-widget] load channels:', e); }
 }
 
 // Большой яркий банер сверху с просьбой разрешить push-уведомления.
@@ -3799,7 +3822,29 @@ function ensureWaWidgetStyles() {
       padding: 7px 12px; font-size: 13px; cursor: pointer; flex: 0 0 auto;
     }
     .wa-w-empty { padding: 30px 14px; text-align: center; color: var(--t3, #888); font-size: 12px; }
+    /* Заголовок секции «📞 Канал · 🎯 Воронка». Sticky чтобы не уезжал при скролле. */
+    .wa-w-section-head {
+      position: sticky; top: 0; z-index: 2;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 14px; background: #f5f5f7;
+      border-top: 1px solid var(--bo, #e3e5ea); border-bottom: 1px solid var(--bo, #e3e5ea);
+      font-size: 11px; font-weight: 700; color: #1b5e20; text-transform: none;
+      letter-spacing: 0.2px;
+    }
+    .wa-w-section-head:first-child { border-top: none; }
+    .wa-w-section-head > span:first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wa-w-section-unread {
+      background: #25D366; color: #fff;
+      min-width: 18px; height: 18px; padding: 0 5px;
+      border-radius: 9px; font-size: 10px; font-weight: 700;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .wa-w-section-count {
+      color: var(--t3, #888); font-size: 10px; font-weight: 500;
+      min-width: 16px; text-align: right;
+    }
     [data-theme="dark"] .wa-w-panel { background: var(--bg1, #1a1a1f); }
+    [data-theme="dark"] .wa-w-section-head { background: #232328; color: #4ade80; border-color: #2d2d33; }
   `;
   document.head.appendChild(s);
 }
@@ -3823,44 +3868,104 @@ function renderWaWidget() {
   }
 }
 
+// Рендер одного чата (использует и группировка, и flat-режим).
+function _waWidgetChatRowHtml(c) {
+  const isGroup = c.isGroup === true;
+  const name = c.name && c.name.trim() ? c.name : (c.phone ? '+' + c.phone : (isGroup ? 'Группа' : '?'));
+  const avatarContent = isGroup ? '👥' : ((name.match(/[A-Za-zА-Яа-я0-9]/g) || []).slice(0, 2).join('').toUpperCase() || '?');
+  const avatarBg = isGroup ? '#25D366' : 'var(--ac, #4f46e5)';
+  const preview = c.lastMessageText
+    ? (c.lastMessageFrom === 'me' ? '✓ ' : '') + (c.lastMessageText.length > 50 ? c.lastMessageText.slice(0, 50) + '…' : c.lastMessageText)
+    : '';
+  const time = c.lastMessageAt ? formatWaShortTime(c.lastMessageAt) : '';
+  const unread = c.unreadCount > 0 ? `<span class="wa-w-chat-unread">${c.unreadCount}</span>` : '';
+  const groupLabel = isGroup ? `<span style="background:rgba(37,211,102,0.18);color:#1b5e20;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:6px;text-transform:uppercase">Группа</span>` : '';
+  return `<div class="wa-w-chat-row" data-chat-id="${escapeHtml(c.id)}">
+    <div class="wa-w-chat-avatar" style="background:${avatarBg};font-size:${isGroup ? '18px' : '14px'}">${escapeHtml(avatarContent)}</div>
+    <div class="wa-w-chat-body">
+      <div class="wa-w-chat-name">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}${groupLabel}</span>
+        <span class="wa-w-chat-time">${escapeHtml(time)}</span>
+      </div>
+      <div class="wa-w-chat-preview">${escapeHtml(preview)}${unread}</div>
+    </div>
+  </div>`;
+}
+
 function renderWaWidgetList(root) {
-  const chats = (waWidget.chats || []).slice()
-    .sort((a, b) => (b.unreadCount || 0) - (a.unreadCount || 0) || (b.lastMessageAt || 0) - (a.lastMessageAt || 0))
-    .slice(0, 50);
-  const rowsHtml = chats.length
-    ? chats.map(c => {
-        const isGroup = c.isGroup === true;
-        const name = c.name && c.name.trim() ? c.name : (c.phone ? '+' + c.phone : (isGroup ? 'Группа' : '?'));
-        // Для групп — иконка 👥, для контактов — инициалы
-        const avatarContent = isGroup ? '👥' : ((name.match(/[A-Za-zА-Яа-я0-9]/g) || []).slice(0, 2).join('').toUpperCase() || '?');
-        const avatarBg = isGroup ? '#25D366' : 'var(--ac, #4f46e5)';
-        const preview = c.lastMessageText
-          ? (c.lastMessageFrom === 'me' ? '✓ ' : '') + (c.lastMessageText.length > 50 ? c.lastMessageText.slice(0, 50) + '…' : c.lastMessageText)
-          : '';
-        const time = c.lastMessageAt ? formatWaShortTime(c.lastMessageAt) : '';
-        const unread = c.unreadCount > 0 ? `<span class="wa-w-chat-unread">${c.unreadCount}</span>` : '';
-        const groupLabel = isGroup ? `<span style="background:rgba(37,211,102,0.18);color:#1b5e20;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:6px;text-transform:uppercase">Группа</span>` : '';
-        return `<div class="wa-w-chat-row" data-chat-id="${escapeHtml(c.id)}">
-          <div class="wa-w-chat-avatar" style="background:${avatarBg};font-size:${isGroup ? '18px' : '14px'}">${escapeHtml(avatarContent)}</div>
-          <div class="wa-w-chat-body">
-            <div class="wa-w-chat-name">
-              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}${groupLabel}</span>
-              <span class="wa-w-chat-time">${escapeHtml(time)}</span>
-            </div>
-            <div class="wa-w-chat-preview">${escapeHtml(preview)}${unread}</div>
-          </div>
+  const allChats = (waWidget.chats || []).slice()
+    .sort((a, b) => (b.unreadCount || 0) - (a.unreadCount || 0) || (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+
+  // Группируем чаты по instanceId. Каналы достаём из waWidget.channels
+  // (там уже только те, к которым у юзера есть доступ — фильтр на бэке).
+  // Чаты с instanceId, которого нет в channels, попадут в группу «Прочие»
+  // (на случай если канал стал inactive но чаты остались).
+  const channelsById = {};
+  for (const ch of (waWidget.channels || [])) channelsById[ch.idInstance] = ch;
+  const groups = new Map();  // instanceId → { channel, chats[] }
+  for (const c of allChats) {
+    const key = c.instanceId || '_other';
+    if (!groups.has(key)) {
+      groups.set(key, { channel: channelsById[key] || null, chats: [] });
+    }
+    groups.get(key).chats.push(c);
+  }
+
+  // Сортируем группы: сначала с непрочитанными, потом по имени канала
+  const sortedGroups = [...groups.entries()].sort((a, b) => {
+    const ua = a[1].chats.reduce((s, c) => s + (c.unreadCount || 0), 0);
+    const ub = b[1].chats.reduce((s, c) => s + (c.unreadCount || 0), 0);
+    if (ub !== ua) return ub - ua;
+    const na = a[1].channel?.displayName || 'Прочее';
+    const nb = b[1].channel?.displayName || 'Прочее';
+    return na.localeCompare(nb, 'ru');
+  });
+
+  // Лимит общий — 50 чатов суммарно (по группам). Чтобы не рендерить 500 строк.
+  let limit = 50;
+  let bodyHtml = '';
+  const showSectionHeaders = sortedGroups.length > 1 || (sortedGroups.length === 1 && sortedGroups[0][1].channel);
+
+  if (sortedGroups.length === 0) {
+    bodyHtml = '<div class="wa-w-empty">📭 WhatsApp-чатов нет</div>';
+  } else {
+    for (const [key, group] of sortedGroups) {
+      if (limit <= 0) break;
+      const chatsInGroup = group.chats.slice(0, limit);
+      limit -= chatsInGroup.length;
+      const ch = group.channel;
+      const unreadGroup = group.chats.reduce((s, c) => s + (c.unreadCount || 0), 0);
+
+      if (showSectionHeaders) {
+        const channelLabel = ch
+          ? `📞 ${escapeHtml(ch.displayName)}${ch.pipelineName ? ' · 🎯 ' + escapeHtml(ch.pipelineName) : ''}`
+          : '📞 Прочие чаты';
+        const unreadBadge = unreadGroup > 0 ? `<span class="wa-w-section-unread">${unreadGroup}</span>` : '';
+        bodyHtml += `<div class="wa-w-section-head" data-instance="${escapeHtml(key)}">
+          <span>${channelLabel}</span>
+          ${unreadBadge}
+          <span class="wa-w-section-count">${group.chats.length}</span>
         </div>`;
-      }).join('')
-    : '<div class="wa-w-empty">📭 WhatsApp-чатов нет</div>';
+      }
+      bodyHtml += chatsInGroup.map(_waWidgetChatRowHtml).join('');
+    }
+  }
+
+  const totalChats = (waWidget.chats || []).length;
+  const channelsCount = waWidget.channels?.length || 0;
+  const subText = `${totalChats} ${pluralize(totalChats, 'чат', 'чата', 'чатов')}`
+    + (channelsCount > 0 ? ` · ${channelsCount} ${pluralize(channelsCount, 'канал', 'канала', 'каналов')}` : '')
+    + (waWidget.unreadTotal > 0 ? ' · ' + waWidget.unreadTotal + ' непрочит.' : '');
+
   root.innerHTML = `<div class="wa-w-panel">
     <div class="wa-w-header">
       <div style="flex:1">
         <div class="wa-w-title">💬 WhatsApp</div>
-        <div class="wa-w-sub">${chats.length} ${pluralize(chats.length, 'чат', 'чата', 'чатов')}${waWidget.unreadTotal > 0 ? ' · ' + waWidget.unreadTotal + ' непрочитанных' : ''}</div>
+        <div class="wa-w-sub">${subText}</div>
       </div>
       <button class="wa-w-icon-btn" id="wa-w-close" title="Свернуть">×</button>
     </div>
-    <div class="wa-w-body" id="wa-w-list">${rowsHtml}</div>
+    <div class="wa-w-body" id="wa-w-list">${bodyHtml}</div>
   </div>`;
   document.getElementById('wa-w-close').onclick = () => { waWidget.open = false; renderWaWidget(); };
   root.querySelectorAll('.wa-w-chat-row').forEach(r => {
@@ -4239,6 +4344,61 @@ async function loadDealsActivity(pipelineId, idToken) {
   }
 }
 
+// Bulk-подгрузка ближайших активных дел для канбан-плашки «📋 Дело: DD.MM HH:MM».
+// Заполняет dealsState.nextTaskByDeal[dealId] = {taskId, title, deadline}.
+async function preloadDealsNextTask(deals, idToken) {
+  if (!Array.isArray(deals) || deals.length === 0) return;
+  if (!idToken) idToken = await fbAuth.currentUser.getIdToken();
+  if (!dealsState.nextTaskByDeal) dealsState.nextTaskByDeal = {};
+  // Собираем id'шники в формате 'deal_<bitrixId>' — именно так worker ищет в crm_links.
+  const ids = deals.map(d => d.id).filter(Boolean);
+  if (ids.length === 0) return;
+  try {
+    const r = await fetch(`${WORKER_BASE_URL}/api/tasks/by-deals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ ids }),
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    Object.assign(dealsState.nextTaskByDeal, data.items || {});
+    // Перерендер канбана если активная воронка ещё открыта
+    if (document.getElementById('kanban-wrap')) renderDealsContent();
+  } catch (e) { console.warn('preloadDealsNextTask:', e); }
+}
+
+// Bulk-подгрузка телефонов всех контактов сделок воронки. Чтобы кнопки 💬/📞
+// в канбане были активны сразу. Раньше телефон попадал в dealsState.contactPhones
+// только когда юзер открывал карточку → buttons disabled пока не откроешь.
+// Чанкует ids по 200 (лимит worker'а).
+async function preloadDealPhones(deals, idToken) {
+  if (!Array.isArray(deals) || deals.length === 0) return;
+  if (!idToken) idToken = await fbAuth.currentUser.getIdToken();
+  if (!dealsState.contactPhones) dealsState.contactPhones = {};
+  const need = new Set();
+  for (const d of deals) {
+    // Если уже есть телефон в самой сделке — кеш не нужен
+    if (asArray(d.phones).length > 0) continue;
+    if (d.contactId && !dealsState.contactPhones[d.contactId]) need.add(d.contactId);
+  }
+  if (need.size === 0) return;
+  const ids = [...need];
+  const chunkSize = 200;
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    try {
+      const r = await fetch(`${WORKER_BASE_URL}/api/contacts/phones?ids=${encodeURIComponent(chunk.join(','))}`, {
+        headers: { 'Authorization': `Bearer ${idToken}` },
+      });
+      if (!r.ok) continue;
+      const data = await r.json();
+      Object.assign(dealsState.contactPhones, data.items || {});
+    } catch (e) { /* ignore chunk errors */ }
+  }
+  // Перерендер канбана если активная воронка ещё открыта
+  if (document.getElementById('kanban-wrap')) renderDealsContent();
+}
+
 // Геттер для активной воронки — backward-compat с местами где было dealsState.pipeline
 Object.defineProperty(dealsState, 'pipeline', {
   get() {
@@ -4384,16 +4544,9 @@ window.resetDealsCacheAndReload = async function() {
   if (main) renderDeals(main);
 };
 
-// Быстрая фиксация: переключить scope на 'all' и перерисовать.
-// Самая частая причина пустого канбана для admin — застрявший scope='mine'.
-window.resetDealsScopeToAll = function() {
-  localStorage.setItem('elc:listScope', 'all');
-  dealsState.loaded = false;
-  dealsState.deals = [];
-  dealsState.dealsByPipeline = {};
-  const main = document.getElementById('main');
-  if (main) renderDeals(main);
-};
+// scope-toggle (Мои/Команда/Все) убран — фильтр «Ответственные» делает то же самое.
+// На всякий случай чистим старое значение localStorage у юзеров со старых сессий.
+try { localStorage.removeItem('elc:listScope'); } catch (e) {}
 
 // ── Per-pipeline field config (hidden/pinned custom fields) ──
 // Загружается один раз и кешируется в window.__fieldConfig.
@@ -5018,6 +5171,11 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
       // Bulk-подгрузка активности (WA/missed-calls) в фоне — для бейджей и
       // сортировки канбана. Не блокирует первый рендер.
       loadDealsActivity(pipelineId, idToken).catch(e => console.warn('loadDealsActivity:', e));
+      // Bulk-подгрузка телефонов чтобы кнопки 💬/📞 в канбане были активны
+      // сразу при первом рендере (без открытия карточки).
+      preloadDealPhones(all, idToken).catch(e => console.warn('preloadDealPhones:', e));
+      // Bulk-подгрузка ближайшего активного дела для плашки «📋 Дело» в карточке
+      preloadDealsNextTask(all, idToken).catch(e => console.warn('preloadDealsNextTask:', e));
     } catch (e) {
       console.error('loadDealsForPipeline error:', e);
       // На ошибку — оставляем dealsState.deals что было, не пустим
@@ -5372,13 +5530,8 @@ function renderDealsPagedPager() {
 
 function renderDealsLayout(el) {
   const filtered = getFilteredDeals();
-  const scopeNow = effectiveScope();
-  const role = window.currentUser?.role;
-  const scopeWarn = (role === 'admin' && scopeNow !== 'all') ? `
-    <div style="margin:6px 0 12px;padding:8px 12px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;font-size:12px;color:#92400e;display:flex;align-items:center;gap:10px">
-      ⚠ Сейчас показаны только записи с охватом «<b>${escapeHtml(scopeNow === 'mine' ? 'свои' : scopeNow)}</b>». Сделки других сотрудников скрыты.
-      <button class="btn btn-sm" style="background:var(--ac);color:#fff;border:none;padding:4px 10px;margin-left:auto" onclick="window.resetDealsScopeToAll && window.resetDealsScopeToAll()">👁 Показать все</button>
-    </div>` : '';
+  // scope-warning банер убран вместе с переключателем Мои/Команда/Все
+  const scopeWarn = '';
   // Кнопка включения push-уведомлений (если permission ещё не получен)
   const notifBtn = ('Notification' in window && Notification.permission === 'default')
     ? `<button class="btn btn-sm" id="kanban-enable-notif" title="Включить звук и push уведомления о новых сообщениях" style="background:var(--ac);color:#fff;border:none;padding:6px 12px;margin-left:8px">🔔 Включить уведомления</button>`
@@ -7517,6 +7670,52 @@ function buildDealCard(d, stageColor) {
   const staleWarn = daysSince !== null && daysSince > 30;
   const created = d.bitrixDateCreate ? new Date(d.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit' }) : '';
 
+  // Подпись даты в footer: приоритет 🎥 Зум → 📋 Дело → 📅 создания.
+  // Ключ для менеджера — понять "что у меня дальше" не открывая карточку.
+  let dateLabel = '';
+  let dateLabelClass = 'kanban-card-date';
+  const fmtDateTime = (dt) => {
+    const dd = String(dt.getDate()).padStart(2, '0');
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const mi = String(dt.getMinutes()).padStart(2, '0');
+    return `${dd}.${mm} ${hh}:${mi}`;
+  };
+
+  // 1) Zoom-встреча
+  const zoomAt = d.customFields?.firstZoomAt;
+  if (zoomAt) {
+    const zd = new Date(zoomAt);
+    if (!isNaN(zd.getTime())) {
+      const isFuture = zd.getTime() >= Date.now() - 3600000;
+      dateLabel = `🎥 Зум: ${fmtDateTime(zd)}`;
+      dateLabelClass = isFuture ? 'kanban-card-date kanban-card-date-zoom' : 'kanban-card-date kanban-card-date-zoom-past';
+    }
+  }
+
+  // 2) Ближайшее активное Дело (если Zoom нет)
+  if (!dateLabel) {
+    const nextTask = dealsState.nextTaskByDeal?.[d.id];
+    if (nextTask?.deadline) {
+      const td = new Date(nextTask.deadline);
+      if (!isNaN(td.getTime())) {
+        const isFuture = td.getTime() >= Date.now() - 3600000;
+        const isOverdue = td.getTime() < Date.now() - 3600000;
+        dateLabel = `📋 Дело: ${fmtDateTime(td)}`;
+        if (isOverdue) {
+          dateLabelClass = 'kanban-card-date kanban-card-date-task-overdue';
+        } else if (isFuture) {
+          dateLabelClass = 'kanban-card-date kanban-card-date-task';
+        }
+      }
+    }
+  }
+
+  // 3) Fallback: дата создания
+  if (!dateLabel && created) {
+    dateLabel = `📅 ${created}`;
+  }
+
   const cardClasses = ['kanban-card'];
   if (isNew) cardClasses.push('deal-card-new');
   if (staleWarn) cardClasses.push('deal-card-stale');
@@ -7566,7 +7765,7 @@ function buildDealCard(d, stageColor) {
         <span class="kanban-av">${escapeHtml(respShort)}</span>
         <span class="kanban-card-resp-name">${escapeHtml(respName.split(' ')[0] || '—')}</span>
       </div>
-      ${staleWarn ? `<span class="kanban-stale">${daysSince}д</span>` : (created ? `<span class="kanban-card-date">${created}</span>` : '')}
+      ${staleWarn ? `<span class="kanban-stale">${daysSince}д</span>` : (dateLabel ? `<span class="${dateLabelClass}">${dateLabel}</span>` : '')}
     </div>
     <div class="kanban-card-actions">
       <button class="kca-btn kca-wa" data-action="wa" data-phone="${escapeHtml(phone || '')}" data-deal-id="${escapeHtml(d.bitrixId || '')}" title="${phone ? 'Открыть WhatsApp' : 'У контакта нет телефона — добавь в карточке'}" ${!phone ? 'data-no-phone="1" style="opacity:0.45"' : ''}>💬</button>
