@@ -1205,6 +1205,14 @@ async function handleList(request, env, entity) {
     if (dlTo)   { whereParts.push("deadline <= ?"); whereParams.push(dlTo); }
   }
 
+  // tasks: archived_at скрывает legacy Bitrix-задачи. По умолчанию IS NULL.
+  // ?archived=1 — только архив, ?archived=all — все.
+  if (entity === "tasks") {
+    const arch = (url.searchParams.get("archived") || "").trim();
+    if (arch === "1") whereParts.push("archived_at IS NOT NULL");
+    else if (arch !== "all") whereParts.push("archived_at IS NULL");
+  }
+
   // archived фильтр (только для deals — у contacts/tasks колонки нет).
   // По умолчанию архив скрыт. ?archived=1 — только архив, ?archived=all — все.
   if (entity === "deals") {

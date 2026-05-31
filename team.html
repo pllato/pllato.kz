@@ -11080,7 +11080,7 @@ const TASK_PRIORITY_META = {
 // Лёгкий фокусный вид: что нужно сделать сегодня / завтра / просрочено.
 // Использует те же tasks из /api/list/tasks но фильтрует по дедлайнам.
 const deedsState = {
-  filter: 'today', // overdue | today | tomorrow | week | all | done
+  filter: 'today', // overdue | today | tomorrow | week | all | done | archived
   search: '',
   items: [],
   loading: false,
@@ -11091,7 +11091,7 @@ async function renderDeeds(el) {
   // Восстановим выбранный фильтр
   try {
     const saved = localStorage.getItem(DEEDS_FILTER_LS_KEY);
-    if (saved && ['overdue','today','tomorrow','week','all','done'].includes(saved)) {
+    if (saved && ['overdue','today','tomorrow','week','all','done','archived'].includes(saved)) {
       deedsState.filter = saved;
     }
   } catch {}
@@ -11107,6 +11107,7 @@ async function renderDeeds(el) {
       <button class="deeds-filter" data-filter="week">📆 Эта неделя <span class="deeds-pill" id="deeds-pill-week"></span></button>
       <button class="deeds-filter" data-filter="all">📋 Все активные</button>
       <button class="deeds-filter" data-filter="done">✓ Сделано</button>
+      <button class="deeds-filter" data-filter="archived" title="Архив миграции из Bitrix">🗄 Архив Bitrix</button>
     </div>
     <div class="deeds-search-row">
       <input class="deeds-search" id="deeds-search" type="search" placeholder="🔎 Поиск по названию…" value="${escapeHtml(deedsState.search)}">
@@ -11147,12 +11148,14 @@ async function loadDeeds() {
     // Грузим активные задачи (status<5) с дедлайном. Pages of 200 до 1000 max.
     const all = [];
     const isDone = deedsState.filter === 'done';
+    const isArchived = deedsState.filter === 'archived';
     for (let page = 1; page <= 5; page++) {
       const params = new URLSearchParams({
         page: String(page), pageSize: '200',
-        status: isDone ? '5' : 'active',
+        status: isDone ? '5' : (isArchived ? 'all' : 'active'),
         sort: 'deadline', auth: idToken, scope: effectiveScope(),
       });
+      if (isArchived) params.set('archived', '1');
       const r = await fetch(`${WORKER_LIST_URL}/tasks?${params}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json();
@@ -11685,10 +11688,13 @@ function renderCalendarGrid() {
       if (e.dataset.calDeal) { openDealCard(e.dataset.calDeal); return; }
       if (e.dataset.calLinkedDeal) { openDealCard(e.dataset.calLinkedDeal); return; }
       if (e.dataset.calTask) {
-        // Нет привязанной сделки — открываем «Дела» и подсветим эту задачу.
-        // openTaskModal как такой нет → отправим в раздел Дела через hash.
-        location.hash = '#task/' + encodeURIComponent(e.dataset.calTask);
-        if (typeof navigate === 'function') navigate('deeds');
+        // Нет привязанной сделки — мягкий тост, остаёмся на календаре.
+        // Юзер просил карточки открывались ПОВЕРХ календаря, без перехода.
+        if (typeof showToast === 'function') {
+          showToast('Эта задача не привязана к сделке', { type: 'info' });
+        } else {
+          alert('Эта задача не привязана к сделке');
+        }
       }
     });
   });
@@ -11924,10 +11930,13 @@ function attachCalEventClickHandlers(grid) {
       if (e.dataset.calDeal) { openDealCard(e.dataset.calDeal); return; }
       if (e.dataset.calLinkedDeal) { openDealCard(e.dataset.calLinkedDeal); return; }
       if (e.dataset.calTask) {
-        // Нет привязанной сделки — открываем «Дела» и подсветим эту задачу.
-        // openTaskModal как такой нет → отправим в раздел Дела через hash.
-        location.hash = '#task/' + encodeURIComponent(e.dataset.calTask);
-        if (typeof navigate === 'function') navigate('deeds');
+        // Нет привязанной сделки — мягкий тост, остаёмся на календаре.
+        // Юзер просил карточки открывались ПОВЕРХ календаря, без перехода.
+        if (typeof showToast === 'function') {
+          showToast('Эта задача не привязана к сделке', { type: 'info' });
+        } else {
+          alert('Эта задача не привязана к сделке');
+        }
       }
     });
   });
