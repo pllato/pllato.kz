@@ -1214,18 +1214,17 @@ async function handleList(request, env, entity) {
     }
   }
 
-  // ──── Phase 2: применение прав из ORG STRUCTURE ────
+  // ──── Phase 2 + A: применение прав из ORG STRUCTURE ────
   // me.orgPerms = {isDirector, pipelineIds, dealScope, teamUids}
   // Если юзер админ или Директор — никаких доп. ограничений (видит всё).
   // Иначе применяем как HARD LIMIT поверх scope-фильтра фронта:
-  //   * pipelineIds — список разрешённых воронок (если null = все)
-  //   * dealScope:
-  //       own  → responsible/created = uid (если ещё не было scope=mine)
+  //   * pipelineIds — список разрешённых воронок (если null = все, только deals)
+  //   * dealScope (юзер изменил решение — теперь применяется И к контактам):
+  //       own  → responsible/created = uid
   //       team → responsible/created IN teamUids
   //       all  → без доп. фильтра
-  // Не применяется к: pipelines, users (мета). Применяется к: deals, tasks.
-  // Contacts — все юзеры видят (юзер: «к контактам у всех доступ»).
-  if (me.role !== 'admin' && me.orgPerms && (entity === 'deals' || entity === 'tasks')) {
+  // Применяется к: deals, tasks, contacts. Не применяется к: pipelines, users (мета).
+  if (me.role !== 'admin' && me.orgPerms && (entity === 'deals' || entity === 'tasks' || entity === 'contacts')) {
     const op = me.orgPerms;
     // Pipeline whitelist (только для deals — у tasks нет pipeline_id)
     if (entity === 'deals' && Array.isArray(op.pipelineIds)) {
