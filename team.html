@@ -3590,6 +3590,12 @@ function getDealActivity(dealId) {
 // Кнопка с бейджем непрочитанных. По клику — панель: список чатов с
 // непрочитанными вверху + поиск + клик открывает мини-чат с историей и
 // composer. Polling каждые 7 сек, синхронизирован с kanban.
+// collapsedInstances инициализируем из localStorage чтобы свёрнутые секции
+// пережили перезагрузку. Ключ — instanceId канала.
+const _waWidgetCollapsedLs = (() => {
+  try { return JSON.parse(localStorage.getItem('elc:waWidget:collapsed') || '[]'); }
+  catch { return []; }
+})();
 const waWidget = {
   open: false,
   view: 'list',      // list | chat
@@ -3602,7 +3608,12 @@ const waWidget = {
   pollTimer: null,
   msgPollTimer: null,
   unreadTotal: 0,
+  collapsedInstances: new Set(_waWidgetCollapsedLs),
 };
+function _saveWaWidgetCollapsed() {
+  try { localStorage.setItem('elc:waWidget:collapsed', JSON.stringify([...waWidget.collapsedInstances])); }
+  catch {}
+}
 
 function initWaFloatingWidget() {
   if (document.getElementById('wa-widget-root')) return;
@@ -3936,16 +3947,25 @@ function renderWaWidgetList(root) {
       const ch = group.channel;
       const unreadGroup = group.chats.reduce((s, c) => s + (c.unreadCount || 0), 0);
 
+      const isCollapsed = waWidget.collapsedInstances.has(String(key));
       if (showSectionHeaders) {
         const channelLabel = ch
           ? `📞 ${escapeHtml(ch.displayName)}${ch.pipelineName ? ' · 🎯 ' + escapeHtml(ch.pipelineName) : ''}`
           : '📞 Прочие чаты';
         const unreadBadge = unreadGroup > 0 ? `<span class="wa-w-section-unread">${unreadGroup}</span>` : '';
-        bodyHtml += `<div class="wa-w-section-head" data-instance="${escapeHtml(key)}">
+        const caret = isCollapsed ? '▶' : '▼';
+        bodyHtml += `<div class="wa-w-section-head" data-instance="${escapeHtml(key)}" title="Свернуть/развернуть" style="cursor:pointer;user-select:none">
+          <span class="wa-w-section-caret" style="margin-right:6px;font-size:9px;opacity:0.55">${caret}</span>
           <span>${channelLabel}</span>
           ${unreadBadge}
           <span class="wa-w-section-count">${group.chats.length}</span>
         </div>`;
+      }
+      // Если секция свёрнута — пропускаем чаты, но лимит не тратим (даём «полным»
+      // секциям использовать освободившиеся слоты).
+      if (isCollapsed) {
+        limit += chatsInGroup.length;  // вернуть бюджет
+        continue;
       }
       bodyHtml += chatsInGroup.map(_waWidgetChatRowHtml).join('');
     }
@@ -3957,6 +3977,12 @@ function renderWaWidgetList(root) {
     + (channelsCount > 0 ? ` · ${channelsCount} ${pluralize(channelsCount, 'канал', 'канала', 'каналов')}` : '')
     + (waWidget.unreadTotal > 0 ? ' · ' + waWidget.unreadTotal + ' непрочит.' : '');
 
+  // FIX: при polling (refreshWaWidgetChats каждые 7сек) viewport списка
+  // перерисовывался полностью → юзер крутил вниз, через секунду ему кидало
+  // обратно наверх. Сохраняем scrollTop до replace и восстанавливаем.
+  const prevList = document.getElementById('wa-w-list');
+  const savedScrollTop = prevList ? prevList.scrollTop : 0;
+
   root.innerHTML = `<div class="wa-w-panel">
     <div class="wa-w-header">
       <div style="flex:1">
@@ -3967,9 +3993,25 @@ function renderWaWidgetList(root) {
     </div>
     <div class="wa-w-body" id="wa-w-list">${bodyHtml}</div>
   </div>`;
+
+  // Восстанавливаем scroll сразу после replace (синхронно — до paint)
+  const newList = document.getElementById('wa-w-list');
+  if (newList && savedScrollTop > 0) newList.scrollTop = savedScrollTop;
+
   document.getElementById('wa-w-close').onclick = () => { waWidget.open = false; renderWaWidget(); };
   root.querySelectorAll('.wa-w-chat-row').forEach(r => {
     r.addEventListener('click', () => openWaWidgetChat(r.dataset.chatId));
+  });
+  // Click по заголовку секции — collapse/expand с persist в localStorage
+  root.querySelectorAll('.wa-w-section-head').forEach(h => {
+    h.addEventListener('click', () => {
+      const key = String(h.dataset.instance || '');
+      if (!key) return;
+      if (waWidget.collapsedInstances.has(key)) waWidget.collapsedInstances.delete(key);
+      else waWidget.collapsedInstances.add(key);
+      _saveWaWidgetCollapsed();
+      renderWaWidgetList(root);
+    });
   });
 }
 
