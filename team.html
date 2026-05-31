@@ -13325,10 +13325,18 @@ async function openTaskCard(key) {
     const createdByName = createdByUser ? `${createdByUser.lastName || ''} ${createdByUser.name || ''}`.trim() : '—';
     const bitrixUrl = `https://elcalmaty.bitrix24.kz/company/personal/user/1/tasks/task/view/${t.bitrixId}/`;
 
-    // Сортируем комментарии. Worker отдаёт snake_case→camelCase: comments_data → commentsData.
-    // Поле может быть и в старом имени (t.comments) для backward-compat с legacy кэшем.
-    const commentsObj = t.commentsData || t.comments || {};
-    const comments = Object.values(commentsObj).sort((a, b) => (a.bitrixPostDate || '').localeCompare(b.bitrixPostDate || ''));
+    // Комментарии: worker отдаёт snake_case→camelCase: comments_data → commentsData.
+    // FIX: если worker не распарсил JSON (приходит строкой) — парсим клиентом.
+    // Object.values(string) возвращает массив символов → счётчик показывает
+    // длину строки (50k+ вместо реальных ~440 комментариев).
+    let commentsObj = t.commentsData || t.comments || {};
+    if (typeof commentsObj === 'string') {
+      try { commentsObj = JSON.parse(commentsObj); } catch { commentsObj = {}; }
+    }
+    if (!commentsObj || typeof commentsObj !== 'object') commentsObj = {};
+    const comments = Object.values(commentsObj)
+      .filter(c => c && typeof c === 'object')  // отсечь случайные не-объекты
+      .sort((a, b) => (a.bitrixPostDate || '').localeCompare(b.bitrixPostDate || ''));
 
     // Родитель и подзадачи. Worker возвращает parent_id → parentId
     // и bitrix_parent_id → bitrixParentId. Берём первое доступное.
