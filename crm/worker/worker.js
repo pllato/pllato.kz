@@ -5597,8 +5597,9 @@ async function handle1cMatchProducts(request, env, actor) {
     const nomenRaw = Array.isArray(nomenData?.value) ? nomenData.value : [];
     const byCode = new Map();
     const byDigits = new Map();
-    const byNameToken = new Map();      // ведущий артикул названия 1С → entry (только уникальные)
-    const nameTokenSeen = new Map();    // токен → сколько раз встретился (для отсева неоднозначных)
+    const byNameToken = new Map();       // ведущий артикул → entry, ТОЛЬКО уникальные (уверенно)
+    const byNameTokenFirst = new Map();  // ведущий артикул → ПЕРВАЯ запись (представительная, на проверку)
+    const nameTokenSeen = new Map();     // токен → сколько раз встретился
     let nomenclatureCount = 0;
     for (const raw of nomenRaw) {
       const p = productFromOData(raw);
@@ -5611,13 +5612,18 @@ async function handle1cMatchProducts(request, env, actor) {
       byCode.set(code, entry);
       const digits = code.replace(/\D/g, "");
       if (digits) byDigits.set(digits, entry);
-      // Второй ключ: ведущий артикул в наименовании (только содержащий цифру).
+      // Ведущий артикул в наименовании (только содержащий цифру).
       const tok = oneCLeadingToken(p.name);
       if (tok && /\d/.test(tok)) {
         const seen = (nameTokenSeen.get(tok) || 0) + 1;
         nameTokenSeen.set(tok, seen);
-        if (seen === 1) byNameToken.set(tok, entry);
-        else byNameToken.delete(tok); // неоднозначный артикул — не матчим
+        if (seen === 1) {
+          byNameToken.set(tok, entry);       // пока уникальный — уверенный матч
+          byNameTokenFirst.set(tok, entry);  // первая запись — представительная
+        } else {
+          byNameToken.delete(tok);           // стал неоднозначным — из «уверенных» убираем
+          // byNameTokenFirst оставляем первую (для представительного матча с пометкой)
+        }
       }
     }
     if (nomenclatureCount === 0) {
@@ -5639,25 +5645,31 @@ async function handle1cMatchProducts(request, env, actor) {
     let matched = 0;
     let matchedByCode = 0;
     let matchedByName = 0;
+    let matchedByRepr = 0;
     let unmatched = 0;
     for (const row of rows) {
       let prod;
       try { prod = JSON.parse(row.data); } catch { continue; }
       const sku = String(prod.sku || "").trim();
       let method = null;
-      // 1) точный код 1С (sku = «Т0000…»)
+      // 1) точный код 1С (sku = «Т0000…») — самый надёжный
       let hit = sku ? byCode.get(sku) : null;
       if (!hit && sku) {
         const d = sku.replace(/\D/g, "");
         if (d) hit = byDigits.get(d);
       }
       if (hit) method = "code";
-      // 2) fallback — ведущий артикул в названии (для товаров с sku=AUTO_…)
+      // 2/3) ведущий артикул в названии (для товаров с sku=AUTO_…)
       if (!hit) {
         const tok = oneCLeadingToken(prod.name);
         if (tok && /\d/.test(tok)) {
           hit = byNameToken.get(tok);
-          if (hit) method = "name";
+          if (hit) {
+            method = "article";            // артикул уникален в 1С — уверенно
+          } else {
+            hit = byNameTokenFirst.get(tok);
+            if (hit) method = "article_repr"; // артикул неоднозначен (партии) — представительная запись, НА ПРОВЕРКУ
+          }
         }
       }
       if (!hit) {
@@ -5665,13 +5677,16 @@ async function handle1cMatchProducts(request, env, actor) {
         if (sampleUnmatched.length < 15) sampleUnmatched.push({ sku: sku || "(пусто)", name: String(prod.name || "").slice(0, 50) });
         continue;
       }
-      if (method === "code") matchedByCode += 1; else matchedByName += 1;
+      if (method === "code") matchedByCode += 1;
+      else if (method === "article") matchedByName += 1;
+      else matchedByRepr += 1;
       const updated = {
         ...prod,
         _1c_ref_key: hit.ref,
         _1c_unit_ref: hit.unit,
         _1c_vat_ref: hit.vat,
         _1c_match_method: method,
+        _1c_match_ambiguous: method === "article_repr",
         _1c_matched_at: now,
         updatedAt: now,
       };
@@ -5707,6 +5722,7 @@ async function handle1cMatchProducts(request, env, actor) {
       matched,
       matched_by_code: matchedByCode,
       matched_by_name: matchedByName,
+      matched_by_repr: matchedByRepr,
       unmatched,
       offset,
       next_offset: nextOffset,
