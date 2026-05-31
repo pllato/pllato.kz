@@ -2738,19 +2738,19 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
     <div class="nav-item" data-page="deals">
       <span class="nav-icon">💼</span><span>СРМ</span>
     </div>
-    <div class="nav-item" data-page="tasks">
-      <span class="nav-icon">✅</span><span>Задачи</span>
-    </div>
-    <div class="nav-item" data-page="deeds">
+    <div class="nav-item" data-page="deeds" style="padding-left:32px">
       <span class="nav-icon">🗓</span><span>Дела</span>
     </div>
-    <div class="nav-item" data-page="calendar">
+    <div class="nav-item" data-page="calendar" style="padding-left:32px">
       <span class="nav-icon">📅</span><span>Календарь</span>
     </div>
 
     <div class="nav-section">Команда</div>
     <div class="nav-item" data-page="orgchart">
       <span class="nav-icon">🏢</span><span>Структура</span>
+    </div>
+    <div class="nav-item" data-page="tasks">
+      <span class="nav-icon">✅</span><span>Задачи</span>
     </div>
     <!-- «Чаты» убраны из sidebar — всё живёт в плавающем виджете справа снизу -->
     <span style="display:none" id="team-chat-nav-badge"></span>
@@ -11107,7 +11107,6 @@ async function renderDeeds(el) {
       <button class="deeds-filter" data-filter="week">📆 Эта неделя <span class="deeds-pill" id="deeds-pill-week"></span></button>
       <button class="deeds-filter" data-filter="all">📋 Все активные</button>
       <button class="deeds-filter" data-filter="done">✓ Сделано</button>
-      <button class="deeds-filter" data-filter="archived" title="Архив миграции из Bitrix">🗄 Архив Bitrix</button>
     </div>
     <div class="deeds-search-row">
       <input class="deeds-search" id="deeds-search" type="search" placeholder="🔎 Поиск по названию…" value="${escapeHtml(deedsState.search)}">
@@ -11154,6 +11153,8 @@ async function loadDeeds() {
         page: String(page), pageSize: '200',
         status: isDone ? '5' : (isArchived ? 'all' : 'active'),
         sort: 'deadline', auth: idToken, scope: effectiveScope(),
+        // Дела = только task'и с привязкой к сделке (crm_links содержит deal_)
+        dealLinked: '1',
       });
       if (isArchived) params.set('archived', '1');
       const r = await fetch(`${WORKER_LIST_URL}/tasks?${params}`);
@@ -12118,6 +12119,9 @@ async function loadTasksPage(page) {
     if (tasksState.filterStatus && tasksState.filterStatus !== 'all') params.set('status', tasksState.filterStatus);
     if (tasksState.filterAssignee && tasksState.filterAssignee !== 'all') params.set('assignee', tasksState.filterAssignee);
     params.set('scope', effectiveScope());
+    // Задачи = только task'и БЕЗ привязки к сделке (внутренняя работа команды).
+    // Task'и с crm_links → deal_X относятся к Делам (см. renderDeeds).
+    params.set('dealLinked', '0');
 
     const r = await fetch(`${WORKER_LIST_URL}/tasks?${params}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -12528,7 +12532,21 @@ function populateTaskAssigneeFilter() {
 
 function filterAndRenderTasks() {
   const term = tasksState.searchTerm;
-  let arr = tasksState.list;
+  // ВАЖНО: «Задачи» — только task'и БЕЗ привязки к сделке (внутренняя работа
+  // команды). Task с crm_links содержащим 'deal_' или bitrix_crm_links 'D_'
+  // относится к «Делам» (см. renderDeeds).
+  let arr = (tasksState.list || []).filter(t => {
+    const linkSources = [t.crmLinks, t.bitrixCrmLinks, t.crm_links, t.bitrix_crm_links];
+    for (const ls of linkSources) {
+      if (!ls) continue;
+      const arrLinks = Array.isArray(ls) ? ls : (typeof ls === 'object' ? Object.values(ls).flat() : [ls]);
+      for (const l of arrLinks) {
+        const s = String(l || '');
+        if (/(?:deal_|D_)([a-zA-Z0-9_-]+)/i.test(s)) return false;  // имеет deal-линк → это Дело, не Задача
+      }
+    }
+    return true;
+  });
   if (tasksState.filterStatus === 'active') {
     arr = arr.filter(t => ['1', '2', '3'].includes(t.status));
   } else if (tasksState.filterStatus !== 'all') {
