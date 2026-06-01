@@ -3866,10 +3866,64 @@ function ensureWaWidgetStyles() {
       font-family: inherit; background: var(--bg2);
       outline: none; color: var(--t1);
     }
-    .wa-w-composer button {
+    .wa-w-composer button#wa-w-send {
       background: #25D366; color: #fff; border: none; border-radius: 8px;
       padding: 7px 12px; font-size: 13px; cursor: pointer; flex: 0 0 auto;
     }
+    .wa-w-composer button#wa-w-schedule {
+      background: transparent; color: var(--t2, #667); border: 1px solid var(--b1, #c9ccd1);
+      border-radius: 8px; padding: 7px 10px; font-size: 14px; cursor: pointer; flex: 0 0 auto;
+      line-height: 1;
+    }
+    .wa-w-composer button#wa-w-schedule:hover { background: var(--bg2, #fff); color: #25D366; border-color: #25D366; }
+    /* Список отложенных сообщений над composer */
+    .wa-w-sched {
+      flex: 0 0 auto; max-height: 130px; overflow-y: auto;
+      background: #fffbe9; border-top: 1px solid #f0e3a8;
+    }
+    [data-theme="dark"] .wa-w-sched { background: #2a2616; border-top-color: #4a4326; }
+    .wa-w-sched-item {
+      display: flex; align-items: flex-start; gap: 8px; padding: 7px 12px;
+      border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 12px;
+    }
+    .wa-w-sched-item .s-time { color: #b8860b; font-weight: 700; white-space: nowrap; font-size: 11px; }
+    [data-theme="dark"] .wa-w-sched-item .s-time { color: #d4a93a; }
+    .wa-w-sched-item .s-text { flex: 1; min-width: 0; color: var(--t1, #333); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wa-w-sched-item .s-cancel {
+      background: none; border: none; color: #d33; cursor: pointer; font-size: 14px;
+      padding: 0 2px; line-height: 1; flex: 0 0 auto;
+    }
+    .wa-w-sched-item .s-cancel:hover { color: #a00; }
+    .wa-w-sched-head {
+      padding: 5px 12px; font-size: 10px; font-weight: 700; color: #b8860b;
+      text-transform: uppercase; letter-spacing: 0.3px; position: sticky; top: 0; background: inherit;
+    }
+    /* Модалка выбора времени отложенной отправки */
+    .wa-sched-modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100000;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .wa-sched-modal {
+      background: var(--bg1, #fff); border-radius: 12px; padding: 20px; width: 320px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3); color: var(--t1, #222);
+    }
+    .wa-sched-modal h3 { margin: 0 0 14px; font-size: 15px; }
+    .wa-sched-modal .preset-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .wa-sched-modal .preset-row button {
+      background: var(--bg3, #f0f2f5); border: 1px solid var(--b1, #d8dbe0); border-radius: 7px;
+      padding: 6px 10px; font-size: 12px; cursor: pointer; color: var(--t1, #333);
+    }
+    .wa-sched-modal .preset-row button:hover { background: #25D366; color: #fff; border-color: #25D366; }
+    .wa-sched-modal label { display: block; font-size: 12px; color: var(--t2, #667); margin-bottom: 5px; }
+    .wa-sched-modal input[type="datetime-local"] {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--b1, #c9ccd1); border-radius: 8px;
+      font-size: 13px; box-sizing: border-box; background: var(--bg2, #fff); color: var(--t1, #222);
+    }
+    .wa-sched-modal .actions { display: flex; gap: 8px; margin-top: 16px; }
+    .wa-sched-modal .actions button { flex: 1; padding: 9px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; }
+    .wa-sched-modal .actions .btn-cancel { background: var(--bg3, #eee); color: var(--t1, #333); }
+    .wa-sched-modal .actions .btn-ok { background: #25D366; color: #fff; }
+    .wa-sched-modal .actions .btn-ok:disabled { opacity: 0.5; cursor: not-allowed; }
     .wa-w-empty { padding: 30px 14px; text-align: center; color: var(--t3, #888); font-size: 12px; }
     /* Заголовок секции «📞 Канал · 🎯 Воронка». Sticky чтобы не уезжал при скролле. */
     .wa-w-section-head {
@@ -4238,8 +4292,10 @@ function renderWaWidgetChat(root) {
       <button class="wa-w-icon-btn" id="wa-w-close-chat" title="Свернуть">×</button>
     </div>
     <div class="wa-w-body" id="wa-w-msgs">${msgsHtml}</div>
+    <div class="wa-w-sched" id="wa-w-sched" style="display:none"></div>
     <div class="wa-w-composer">
       <textarea id="wa-w-input" placeholder="${escapeHtml(composerPlaceholder)}" rows="1"></textarea>
+      ${isGroup ? '' : '<button id="wa-w-schedule" title="Отправить позже">⏰</button>'}
       <button id="wa-w-send">→</button>
     </div>
   </div>`;
@@ -4289,7 +4345,136 @@ function renderWaWidgetChat(root) {
     input.style.height = 'auto';
     input.style.height = Math.min(input.scrollHeight, 100) + 'px';
   });
+  // ⏰ Отложенная отправка — открыть модалку выбора времени
+  const schedBtn = document.getElementById('wa-w-schedule');
+  if (schedBtn) schedBtn.onclick = () => {
+    const text = input.value.trim();
+    if (!text) { input.focus(); return; }
+    openWaScheduleModal(chat, text, () => {
+      input.value = '';
+      input.style.height = 'auto';
+      loadWaScheduledMessages();
+    });
+  };
+  // Показать список уже отложенных для этого чата
+  loadWaScheduledMessages();
   input.focus();
+}
+
+// Загрузка и отрисовка отложенных (pending) сообщений над composer.
+async function loadWaScheduledMessages() {
+  const chat = waWidget.activeChatMeta;
+  const box = document.getElementById('wa-w-sched');
+  if (!chat || !box) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/schedule?chatId=${encodeURIComponent(chat.chatId)}&status=pending`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) { box.style.display = 'none'; return; }
+    const data = await r.json();
+    const items = (data.items || []).filter(i => i.status === 'pending');
+    if (!items.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = 'block';
+    box.innerHTML = `<div class="wa-w-sched-head">⏰ Запланировано (${items.length})</div>` +
+      items.map(i => {
+        const when = new Date(i.scheduledAt);
+        const timeStr = when.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        const preview = i.text || (i.fileName ? '📎 ' + i.fileName : '(медиа)');
+        return `<div class="wa-w-sched-item" data-id="${escapeHtml(i.id)}">
+          <span class="s-time">${escapeHtml(timeStr)}</span>
+          <span class="s-text" title="${escapeHtml(preview)}">${escapeHtml(preview)}</span>
+          <button class="s-cancel" title="Отменить">✕</button>
+        </div>`;
+      }).join('');
+    box.querySelectorAll('.wa-w-sched-item').forEach(el => {
+      el.querySelector('.s-cancel').onclick = async () => {
+        const id = el.dataset.id;
+        if (!confirm('Отменить отложенное сообщение?')) return;
+        try {
+          const idToken = await fbAuth.currentUser.getIdToken();
+          const rr = await fetch(`${WORKER_BASE_URL}/api/wa/schedule/${encodeURIComponent(id)}`, {
+            method: 'DELETE', headers: { 'Authorization': `Bearer ${idToken}` },
+          });
+          if (!rr.ok) { const j = await rr.json().catch(() => ({})); throw new Error(j.error || `HTTP ${rr.status}`); }
+          loadWaScheduledMessages();
+        } catch (e) { alert('Не удалось отменить: ' + e.message); }
+      };
+    });
+  } catch { box.style.display = 'none'; }
+}
+
+// Модалка выбора времени отложенной отправки.
+function openWaScheduleModal(chat, text, onDone) {
+  const existing = document.getElementById('wa-sched-modal-root');
+  if (existing) existing.remove();
+  const root = document.createElement('div');
+  root.id = 'wa-sched-modal-root';
+  root.className = 'wa-sched-modal-backdrop';
+  // дефолт: через 1 час, округлённо до минут, в локальном формате для input
+  const fmtLocal = (d) => {
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
+  const def = new Date(Date.now() + 60 * 60 * 1000);
+  def.setSeconds(0, 0);
+  const minVal = fmtLocal(new Date(Date.now() + 60 * 1000));
+  root.innerHTML = `<div class="wa-sched-modal">
+    <h3>⏰ Отправить позже</h3>
+    <div class="preset-row">
+      <button data-min="60">+1 час</button>
+      <button data-min="180">+3 часа</button>
+      <button data-tomorrow="9">Завтра 9:00</button>
+      <button data-tomorrow="10">Завтра 10:00</button>
+    </div>
+    <label>Дата и время отправки</label>
+    <input type="datetime-local" id="wa-sched-input" value="${fmtLocal(def)}" min="${minVal}">
+    <div class="actions">
+      <button class="btn-cancel" id="wa-sched-cancel">Отмена</button>
+      <button class="btn-ok" id="wa-sched-ok">Запланировать</button>
+    </div>
+  </div>`;
+  document.body.appendChild(root);
+  const inputEl = root.querySelector('#wa-sched-input');
+  root.querySelectorAll('.preset-row button').forEach(b => {
+    b.onclick = () => {
+      let d;
+      if (b.dataset.min) {
+        d = new Date(Date.now() + parseInt(b.dataset.min, 10) * 60 * 1000);
+      } else if (b.dataset.tomorrow) {
+        d = new Date(); d.setDate(d.getDate() + 1);
+        d.setHours(parseInt(b.dataset.tomorrow, 10), 0, 0, 0);
+      }
+      d.setSeconds(0, 0);
+      inputEl.value = fmtLocal(d);
+    };
+  });
+  const close = () => root.remove();
+  root.onclick = (e) => { if (e.target === root) close(); };
+  root.querySelector('#wa-sched-cancel').onclick = close;
+  const okBtn = root.querySelector('#wa-sched-ok');
+  okBtn.onclick = async () => {
+    const val = inputEl.value;
+    if (!val) { alert('Выберите дату и время'); return; }
+    const scheduledAt = new Date(val).getTime();
+    if (isNaN(scheduledAt)) { alert('Некорректное время'); return; }
+    if (scheduledAt < Date.now() - 30000) { alert('Время уже прошло'); return; }
+    okBtn.disabled = true;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/wa/schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ chatId: chat.chatId, phone: chat.phone, instanceId: chat.instanceId || undefined, text, scheduledAt }),
+      });
+      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `HTTP ${r.status}`); }
+      close();
+      if (typeof onDone === 'function') onDone();
+    } catch (e) {
+      alert('Ошибка планирования: ' + e.message);
+      okBtn.disabled = false;
+    }
+  };
 }
 
 async function loadWaWidgetMessages(opts = {}) {

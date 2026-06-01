@@ -2616,54 +2616,35 @@ async function handleWaWebhook(request, env) {
 }
 
 // POST /api/wa/send { channelId, chatId, phone, text, mediaUrl, fileName }
-async function handleWaSend(request, env) {
-  const auth = await requireAuthFlexible(request, env);
-  if (auth.error) return json({ error: auth.error }, auth.status, request);
-  const me = await resolveCanonicalUser(env, auth.claims);
-
-  let body;
-  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
-  const channelId = body.channelId || '';
-  let chatId = body.chatId || '';
-  const phone = body.phone || '';
-  const text = (body.text || '').trim();
-  const mediaUrl = body.mediaUrl || '';
-  const fileName = body.fileName || 'file';
-
-  if (!chatId && phone) chatId = waChatIdFromPhone(phone);
-  if (!chatId) return json({ error: "chatId or phone required" }, 400, request);
-
-  let channel = channelId ? await getWaChannel(env, channelId) : null;
-  if (!channel) {
-    channel = await env.DB.prepare("SELECT * FROM wa_channels WHERE active = 1 ORDER BY created_at ASC LIMIT 1").first();
-  }
-  if (!channel) return json({ error: "no active WhatsApp channel configured" }, 503, request);
-
+// Доставка одного WA-сообщения через Green-API + апсёрт wa_chats/wa_messages.
+// Общий код для живой отправки (handleWaSend) и отложенной (cron scheduled()).
+// Бросает Error при сбое Green-API, чтобы вызывающий мог пометить failed.
+// Возвращает { idMessage, chatDocId }.
+async function deliverWaMessage(env, { channel, chatId, text, mediaUrl, fileName }) {
   const baseUrl = `${channel.api_url}/waInstance${channel.id_instance}`;
   const apiToken = channel.api_token_instance;
+  text = (text || '').trim();
+  fileName = fileName || 'file';
+
   let apiResp;
-  try {
-    if (mediaUrl) {
-      const r = await fetch(`${baseUrl}/sendFileByUrl/${apiToken}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatId, urlFile: mediaUrl, fileName, caption: text || undefined }),
-      });
-      apiResp = await r.json().catch(() => ({ error: 'parse failed', status: r.status }));
-    } else if (text) {
-      const r = await fetch(`${baseUrl}/sendMessage/${apiToken}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatId, message: text }),
-      });
-      apiResp = await r.json().catch(() => ({ error: 'parse failed', status: r.status }));
-    } else {
-      return json({ error: "text or mediaUrl required" }, 400, request);
-    }
-  } catch (e) {
-    return json({ error: "green-api fetch failed: " + e.message }, 502, request);
+  if (mediaUrl) {
+    const r = await fetch(`${baseUrl}/sendFileByUrl/${apiToken}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId, urlFile: mediaUrl, fileName, caption: text || undefined }),
+    });
+    apiResp = await r.json().catch(() => ({ error: 'parse failed', status: r.status }));
+  } else if (text) {
+    const r = await fetch(`${baseUrl}/sendMessage/${apiToken}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId, message: text }),
+    });
+    apiResp = await r.json().catch(() => ({ error: 'parse failed', status: r.status }));
+  } else {
+    throw new Error('text or mediaUrl required');
   }
 
   const waMessageId = apiResp?.idMessage || null;
-  if (!waMessageId) return json({ error: "green-api did not return idMessage", apiResp }, 502, request);
+  if (!waMessageId) throw new Error('green-api did not return idMessage: ' + JSON.stringify(apiResp).slice(0, 300));
 
   const chatDocId = waChatDocId(channel.id_instance, chatId);
   const nowMs = Date.now();
@@ -2689,8 +2670,178 @@ async function handleWaSend(request, env) {
     VALUES (?, ?, ?, 'out', ?, ?, ?, ?, ?)
   `).bind(msgDocId, chatDocId, waMessageId, text || null, mediaUrl ? 'document' : null, mediaUrl || null, fileName, nowMs).run();
 
-  await auditLog(env, me, "wa_send", "wa_chat", chatDocId, { hasMedia: !!mediaUrl });
-  return json({ ok: true, idMessage: waMessageId, chatId: chatDocId }, 200, request);
+  return { idMessage: waMessageId, chatDocId };
+}
+
+async function handleWaSend(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  const channelId = body.channelId || '';
+  let chatId = body.chatId || '';
+  const phone = body.phone || '';
+  const text = (body.text || '').trim();
+  const mediaUrl = body.mediaUrl || '';
+  const fileName = body.fileName || 'file';
+
+  if (!chatId && phone) chatId = waChatIdFromPhone(phone);
+  if (!chatId) return json({ error: "chatId or phone required" }, 400, request);
+  if (!text && !mediaUrl) return json({ error: "text or mediaUrl required" }, 400, request);
+
+  let channel = channelId ? await getWaChannel(env, channelId) : null;
+  if (!channel) {
+    channel = await env.DB.prepare("SELECT * FROM wa_channels WHERE active = 1 ORDER BY created_at ASC LIMIT 1").first();
+  }
+  if (!channel) return json({ error: "no active WhatsApp channel configured" }, 503, request);
+
+  let result;
+  try {
+    result = await deliverWaMessage(env, { channel, chatId, text, mediaUrl, fileName });
+  } catch (e) {
+    return json({ error: "green-api send failed: " + e.message }, 502, request);
+  }
+
+  await auditLog(env, me, "wa_send", "wa_chat", result.chatDocId, { hasMedia: !!mediaUrl });
+  return json({ ok: true, idMessage: result.idMessage, chatId: result.chatDocId }, 200, request);
+}
+
+// ── Отложенные WhatsApp-сообщения ──────────────────────────────────────
+// Сотрудник пишет сообщение и ставит время → строка в wa_scheduled_messages
+// со status='pending'. Cron (каждую минуту) находит due и отправляет.
+function genScheduleId() {
+  return 'sch_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+// POST /api/wa/schedule { chatId|phone, text, scheduledAt (unix ms), channelId?, mediaUrl?, fileName? }
+async function handleWaScheduleCreate(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  let channelId = body.channelId || null;
+  const instanceId = body.instanceId || null;
+  let chatId = body.chatId || '';
+  const phone = body.phone || '';
+  const text = (body.text || '').trim();
+  const mediaUrl = body.mediaUrl || null;
+  const fileName = body.fileName || null;
+  const scheduledAt = parseInt(body.scheduledAt, 10);
+
+  if (!chatId && phone) chatId = waChatIdFromPhone(phone);
+  if (!chatId) return json({ error: "chatId or phone required" }, 400, request);
+  if (!text && !mediaUrl) return json({ error: "text or mediaUrl required" }, 400, request);
+  if (!scheduledAt || isNaN(scheduledAt)) return json({ error: "scheduledAt (unix ms) required" }, 400, request);
+  if (scheduledAt < Date.now() - 60000) return json({ error: "scheduledAt is in the past" }, 400, request);
+
+  // Если фронт прислал instanceId (Green-API instance чата) — резолвим в wa_channels.id,
+  // чтобы отложенное ушло с того же канала, что и сам чат. Иначе cron возьмёт active.
+  if (!channelId && instanceId) {
+    const ch = await getWaChannelByInstance(env, instanceId);
+    if (ch) channelId = ch.id;
+  }
+
+  const id = genScheduleId();
+  const now = Date.now();
+  const phoneDigits = chatId.split('@')[0];
+
+  await env.DB.prepare(`
+    INSERT INTO wa_scheduled_messages
+      (id, channel_id, chat_id, phone, text, media_url, file_name, scheduled_at, status, created_by, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+  `).bind(id, channelId, chatId, phone || phoneDigits, text || null, mediaUrl, fileName, scheduledAt, me.canonicalUid || me.uid || 'unknown', now).run();
+
+  await auditLog(env, me, "wa_schedule_create", "wa_scheduled", id, { scheduledAt, hasMedia: !!mediaUrl });
+  return json({ ok: true, id, scheduledAt, status: 'pending' }, 200, request);
+}
+
+// GET /api/wa/schedule?chatId=...&status=pending  — список отложенных по чату
+async function handleWaScheduleList(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+
+  const url = new URL(request.url);
+  const chatId = (url.searchParams.get("chatId") || "").trim();
+  const status = (url.searchParams.get("status") || "pending").trim();
+
+  const where = [];
+  const params = [];
+  if (chatId) { where.push("chat_id = ?"); params.push(chatId); }
+  if (status && status !== 'all') { where.push("status = ?"); params.push(status); }
+  const whereSQL = where.length ? "WHERE " + where.join(" AND ") : "";
+
+  const { results } = await env.DB.prepare(`
+    SELECT id, channel_id, chat_id, phone, text, media_url, file_name, scheduled_at, status, error, sent_message_id, created_by, created_at, sent_at
+    FROM wa_scheduled_messages ${whereSQL}
+    ORDER BY scheduled_at ASC LIMIT 200
+  `).bind(...params).all();
+
+  const items = (results || []).map(r => ({
+    id: r.id, channelId: r.channel_id, chatId: r.chat_id, phone: r.phone,
+    text: r.text, mediaUrl: r.media_url, fileName: r.file_name,
+    scheduledAt: r.scheduled_at, status: r.status, error: r.error,
+    sentMessageId: r.sent_message_id, createdBy: r.created_by,
+    createdAt: r.created_at, sentAt: r.sent_at,
+  }));
+  return json({ items, total: items.length }, 200, request);
+}
+
+// DELETE /api/wa/schedule/:id  — отмена отложенного (только pending)
+async function handleWaScheduleCancel(request, env, id) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+
+  const row = await env.DB.prepare("SELECT id, status FROM wa_scheduled_messages WHERE id = ?").bind(id).first();
+  if (!row) return json({ error: "not found" }, 404, request);
+  if (row.status !== 'pending') return json({ error: "already " + row.status }, 409, request);
+
+  await env.DB.prepare("UPDATE wa_scheduled_messages SET status = 'cancelled' WHERE id = ?").bind(id).run();
+  await auditLog(env, me, "wa_schedule_cancel", "wa_scheduled", id, {});
+  return json({ ok: true, id, status: 'cancelled' }, 200, request);
+}
+
+// Cron-обработчик: найти все due pending и отправить. Вызывается из scheduled().
+async function processScheduledWaMessages(env) {
+  const now = Date.now();
+  const { results } = await env.DB.prepare(`
+    SELECT * FROM wa_scheduled_messages
+    WHERE status = 'pending' AND scheduled_at <= ?
+    ORDER BY scheduled_at ASC LIMIT 50
+  `).bind(now).all();
+
+  if (!results || results.length === 0) return { processed: 0, sent: 0, failed: 0 };
+
+  let sent = 0, failed = 0;
+  for (const row of results) {
+    try {
+      let channel = row.channel_id ? await getWaChannel(env, row.channel_id) : null;
+      if (!channel) {
+        channel = await env.DB.prepare("SELECT * FROM wa_channels WHERE active = 1 ORDER BY created_at ASC LIMIT 1").first();
+      }
+      if (!channel) throw new Error("no active WhatsApp channel configured");
+
+      const result = await deliverWaMessage(env, {
+        channel, chatId: row.chat_id,
+        text: row.text, mediaUrl: row.media_url, fileName: row.file_name,
+      });
+
+      await env.DB.prepare(`
+        UPDATE wa_scheduled_messages SET status = 'sent', sent_message_id = ?, sent_at = ?, error = NULL WHERE id = ?
+      `).bind(result.idMessage, Date.now(), row.id).run();
+      sent++;
+    } catch (e) {
+      await env.DB.prepare(`
+        UPDATE wa_scheduled_messages SET status = 'failed', error = ?, sent_at = ? WHERE id = ?
+      `).bind(String(e.message || e).slice(0, 500), Date.now(), row.id).run();
+      failed++;
+    }
+  }
+  return { processed: results.length, sent, failed };
 }
 
 // GET /api/wa/chats?scope=mine|team|all&limit=200
@@ -4175,6 +4326,17 @@ export default {
     if (path === "/api/wa/send" && request.method === "POST") {
       return handleWaSend(request, env);
     }
+    // /api/wa/schedule — отложенные сообщения
+    if (path === "/api/wa/schedule" && request.method === "POST") {
+      return handleWaScheduleCreate(request, env);
+    }
+    if (path === "/api/wa/schedule" && request.method === "GET") {
+      return handleWaScheduleList(request, env);
+    }
+    const waSchedMatch = path.match(/^\/api\/wa\/schedule\/([^/]+)$/);
+    if (waSchedMatch && request.method === "DELETE") {
+      return handleWaScheduleCancel(request, env, waSchedMatch[1]);
+    }
     if (path === "/api/wa/chats" && request.method === "GET") {
       return handleWaListChats(request, env);
     }
@@ -4290,5 +4452,20 @@ export default {
     }
 
     return json({ ok: false, error: "not found", path }, 404, request);
+  },
+
+  // ── Cron (каждую минуту) ──────────────────────────────────────────────
+  // Обрабатываем отложенные WA-сообщения которые пора слать.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil((async () => {
+      try {
+        const res = await processScheduledWaMessages(env);
+        if (res.processed > 0) {
+          console.log(`[cron] wa_scheduled processed=${res.processed} sent=${res.sent} failed=${res.failed}`);
+        }
+      } catch (e) {
+        console.error("[cron] processScheduledWaMessages failed:", e.message);
+      }
+    })());
   },
 };
