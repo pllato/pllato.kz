@@ -3,7 +3,7 @@
 // Phase 2.1: RTDB-proxy endpoint /api/rtdb/{path}.json (read + PATCH)
 
 import { jwtVerify, createRemoteJWKSet } from "jose";
-import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket } from "./chat-module.js";
+import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser } from "./chat-module.js";
 
 // Ре-экспорт DO классов — wrangler.toml ссылается на них по имени класса.
 // Должны быть top-level export'ы скрипта main.
@@ -2612,6 +2612,23 @@ async function handleWaWebhook(request, env) {
     await env.DB.prepare("UPDATE deals SET bitrix_date_modify = ? WHERE id = ?").bind(isoTs, dealId).run();
   }
 
+  // Уведомление ответственному о входящем WhatsApp (для индивидуальных чатов).
+  if (evt.direction === 'in' && dealId && !isGroup) {
+    try {
+      const d = await env.DB.prepare("SELECT responsible_uid FROM deals WHERE id = ?").bind(dealId).first();
+      if (d?.responsible_uid) {
+        const who = evt.displayName || evt.senderName || ('+' + (evt.phone || ''));
+        await createNotification(env, {
+          uid: d.responsible_uid, type: 'wa_incoming',
+          title: '💬 WhatsApp: ' + who,
+          body: preview || '[сообщение]',
+          link: '/team.html?page=deals&deal=' + dealId,
+          icon: '💬', entityType: 'deal', entityId: dealId,
+        });
+      }
+    } catch (e) { console.warn('[notif] wa failed:', e && e.message); }
+  }
+
   return json({ ok: true, dealId, contactId, chatId: chatDocId }, 200, request);
 }
 
@@ -3628,6 +3645,27 @@ async function handleFeedCreate(request, env) {
   ).run();
 
   await auditLog(env, me, "feed_post_create", "feed_post", id, { hasMedia: attachments.length > 0, targeted: !!audienceUidsJson });
+
+  // Уведомить аудиторию о новом посте (адресно или всех активных, кроме автора).
+  try {
+    let recipients;
+    if (audienceUids.length) {
+      recipients = audienceUids;
+    } else {
+      const { results } = await env.DB.prepare(
+        "SELECT uid FROM users WHERE uid IS NOT NULL AND COALESCE(active,1) = 1"
+      ).all();
+      recipients = (results || []).map(u => u.uid);
+    }
+    await createNotificationFor(env, recipients, {
+      type: 'feed_post', actorUid: authorUid,
+      title: notifActorName(me) + ' опубликовал пост в Ленте',
+      body: (text || '[вложение]').slice(0, 160),
+      link: '/team.html?page=feed', icon: '📰',
+      entityType: 'feed_post', entityId: id,
+    });
+  } catch (e) { console.warn('[notif] feed post failed:', e && e.message); }
+
   const row = await env.DB.prepare("SELECT * FROM feed_posts WHERE id = ?").bind(id).first();
   return json({ ok: true, post: feedPostToCamel(row) }, 200, request);
 }
@@ -3749,6 +3787,19 @@ async function handleFeedCommentCreate(request, env, postId) {
   await env.DB.prepare("UPDATE feed_posts SET comment_count = comment_count + 1 WHERE id = ?").bind(postId).run();
   await auditLog(env, me, "feed_comment_create", "feed_post", postId, { commentId: id });
 
+  // Уведомить автора поста о комментарии.
+  try {
+    if (vis.row.author_uid && vis.row.author_uid !== vis.myUid) {
+      await createNotification(env, {
+        uid: vis.row.author_uid, type: 'feed_comment', actorUid: vis.myUid,
+        title: notifActorName(me) + ' прокомментировал ваш пост',
+        body: (text || '[вложение]').slice(0, 160),
+        link: '/team.html?page=feed', icon: '💬',
+        entityType: 'feed_post', entityId: postId,
+      });
+    }
+  } catch (e) { console.warn('[notif] feed comment failed:', e && e.message); }
+
   const row = await env.DB.prepare("SELECT * FROM feed_comments WHERE id = ?").bind(id).first();
   return json({ ok: true, comment: feedCommentToCamel(row) }, 200, request);
 }
@@ -3787,9 +3838,193 @@ async function handleFeedLikeToggle(request, env, postId) {
     await env.DB.prepare("INSERT INTO feed_reactions (post_id, uid, kind, created_at) VALUES (?, ?, 'like', ?)").bind(postId, vis.myUid, Date.now()).run();
     await env.DB.prepare("UPDATE feed_posts SET like_count = like_count + 1 WHERE id = ?").bind(postId).run();
     liked = true;
+    // Уведомить автора поста о лайке (только при постановке лайка).
+    try {
+      if (vis.row.author_uid && vis.row.author_uid !== vis.myUid) {
+        await createNotification(env, {
+          uid: vis.row.author_uid, type: 'feed_like', actorUid: vis.myUid,
+          title: notifActorName(me) + ' оценил ваш пост 👍',
+          link: '/team.html?page=feed', icon: '👍',
+          entityType: 'feed_post', entityId: postId,
+        });
+      }
+    } catch (e) { console.warn('[notif] feed like failed:', e && e.message); }
   }
   const row = await env.DB.prepare("SELECT like_count FROM feed_posts WHERE id = ?").bind(postId).first();
   return json({ ok: true, liked, likeCount: row?.like_count || 0 }, 200, request);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Центр уведомлений — единая лента событий портала для каждого сотрудника.
+// Продюсеры: лента (пост/коммент/лайк), WhatsApp (входящее), напоминания о делах.
+// ════════════════════════════════════════════════════════════════════════
+function genNotifId(prefix) {
+  return (prefix || 'nt_') + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+function notifActorName(me) {
+  const r = me && me.userRecord;
+  if (r) {
+    const n = [r.name, r.last_name].filter(Boolean).join(' ').trim();
+    if (n) return n;
+  }
+  return (me && me.email) || 'Коллега';
+}
+
+function notifRowToCamel(r) {
+  return {
+    id: r.id, type: r.type, title: r.title, body: r.body,
+    link: r.link, icon: r.icon, actorUid: r.actor_uid,
+    entityType: r.entity_type, entityId: r.entity_id,
+    createdAt: r.created_at, readAt: r.read_at, read: !!r.read_at,
+  };
+}
+
+// Создать уведомление + best-effort real-time push в открытые вкладки юзера.
+// Никогда не бросает — всё в try/catch, чтобы не ломать основной запрос.
+// opts: { uid, type, title, body, link, icon, actorUid, entityType, entityId, id? }
+// Если передан id — INSERT OR IGNORE (дедуп, напр. для напоминаний).
+async function createNotification(env, opts) {
+  try {
+    const uid = opts.uid;
+    if (!uid) return null;
+    if (opts.actorUid && opts.actorUid === uid) return null; // не уведомляем себя
+    const id = opts.id || genNotifId('nt_');
+    const now = Date.now();
+    await env.DB.prepare(`
+      INSERT OR IGNORE INTO notifications
+        (id, uid, type, title, body, link, icon, actor_uid, entity_type, entity_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      id, uid, opts.type || 'system', (opts.title || '').slice(0, 300),
+      (opts.body || '').slice(0, 500) || null, opts.link || null, opts.icon || null,
+      opts.actorUid || null, opts.entityType || null, opts.entityId || null, now
+    ).run();
+    // real-time: бамп колокольчика в открытых вкладках (chat.js слушает kind:'notification')
+    try {
+      await broadcastToUser(env, uid, {
+        kind: 'notification',
+        notification: { id, type: opts.type || 'system', title: opts.title || '', body: opts.body || '', link: opts.link || null, icon: opts.icon || null, createdAt: now },
+      });
+    } catch {}
+    return id;
+  } catch (e) {
+    console.warn('[notif] create failed:', e && e.message);
+    return null;
+  }
+}
+
+// Уведомить нескольких получателей (uids[]) — последовательно, best-effort.
+async function createNotificationFor(env, uids, baseOpts) {
+  const seen = new Set();
+  for (const uid of (uids || [])) {
+    if (!uid || seen.has(uid)) continue;
+    seen.add(uid);
+    await createNotification(env, { ...baseOpts, uid });
+  }
+}
+
+// GET /api/notifications?limit=&before=&unreadOnly=1
+async function handleNotificationsList(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const uid = me.canonicalUid || me.firebaseUid;
+  const url = new URL(request.url);
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '40', 10) || 40, 100);
+  const before = parseInt(url.searchParams.get('before') || '0', 10) || 0;
+  const unreadOnly = url.searchParams.get('unreadOnly') === '1';
+
+  const where = ['uid = ?']; const params = [uid];
+  if (before) { where.push('created_at < ?'); params.push(before); }
+  if (unreadOnly) where.push('read_at IS NULL');
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM notifications WHERE ${where.join(' AND ')} ORDER BY created_at DESC LIMIT ?`
+  ).bind(...params, limit).all();
+
+  const unreadRow = await env.DB.prepare(
+    'SELECT COUNT(*) AS c FROM notifications WHERE uid = ? AND read_at IS NULL'
+  ).bind(uid).first();
+
+  return json({ notifications: (results || []).map(notifRowToCamel), unread: unreadRow?.c || 0 }, 200, request);
+}
+
+// GET /api/notifications/count — лёгкий поллинг бэйджа
+async function handleNotificationsCount(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const uid = me.canonicalUid || me.firebaseUid;
+  const row = await env.DB.prepare(
+    'SELECT COUNT(*) AS c FROM notifications WHERE uid = ? AND read_at IS NULL'
+  ).bind(uid).first();
+  return json({ unread: row?.c || 0 }, 200, request);
+}
+
+// POST /api/notifications/read { ids:[...] }
+async function handleNotificationsRead(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const uid = me.canonicalUid || me.firebaseUid;
+  let body; try { body = await request.json(); } catch { body = {}; }
+  const ids = Array.isArray(body.ids) ? body.ids.filter(Boolean).map(String).slice(0, 200) : [];
+  if (!ids.length) return json({ ok: true, updated: 0 }, 200, request);
+  const ph = ids.map(() => '?').join(',');
+  await env.DB.prepare(
+    `UPDATE notifications SET read_at = ? WHERE uid = ? AND read_at IS NULL AND id IN (${ph})`
+  ).bind(Date.now(), uid, ...ids).run();
+  return json({ ok: true }, 200, request);
+}
+
+// POST /api/notifications/read-all
+async function handleNotificationsReadAll(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const uid = me.canonicalUid || me.firebaseUid;
+  await env.DB.prepare('UPDATE notifications SET read_at = ? WHERE uid = ? AND read_at IS NULL').bind(Date.now(), uid).run();
+  return json({ ok: true }, 200, request);
+}
+
+// Cron-продюсер: напоминания о делах/задачах с приближающимся дедлайном (≤30 мин).
+// Дедуп — детерминированный id с bucket'ом по часу дедлайна (перенос даёт новый id).
+// Формат deadline варьируется → широкое окно по TEXT + точный фильтр через Date.parse.
+async function produceDeedReminders(env) {
+  const now = Date.now();
+  const LEAD = 30 * 60 * 1000;
+  const wideLo = new Date(now - 6 * 3600e3).toISOString();
+  const wideHi = new Date(now + 6 * 3600e3).toISOString();
+  let rows;
+  try {
+    const r = await env.DB.prepare(`
+      SELECT id, title, deadline, responsible_uid, crm_links
+      FROM tasks
+      WHERE deadline IS NOT NULL AND status < 5 AND deadline >= ? AND deadline <= ?
+      LIMIT 300
+    `).bind(wideLo, wideHi).all();
+    rows = r.results || [];
+  } catch (e) { console.warn('[deedRemind] query failed:', e && e.message); return { reminded: 0 }; }
+
+  let reminded = 0;
+  for (const t of rows) {
+    if (!t.responsible_uid) continue;
+    const dl = Date.parse(t.deadline);
+    if (isNaN(dl)) continue;
+    const diff = dl - now;
+    if (diff > LEAD || diff < -60 * 1000) continue;      // окно [сейчас-1мин, +30мин]
+    const isDeed = typeof t.crm_links === 'string' && t.crm_links.includes('deal_');
+    const id = 'nt_deedremind_' + t.id + '_' + Math.floor(dl / 3600000);
+    await createNotification(env, {
+      id, uid: t.responsible_uid, type: 'deed_reminder',
+      title: isDeed ? '⏰ Скоро дедлайн дела' : '⏰ Скоро дедлайн задачи',
+      body: t.title || (isDeed ? 'Дело' : 'Задача'),
+      link: isDeed ? '/team.html?page=deeds' : '/team.html?page=tasks',
+      icon: '⏰', entityType: 'task', entityId: t.id,
+    });
+    reminded++;
+  }
+  return { reminded };
 }
 
 // ── Per-pipeline custom fields config (hidden + pinned) ──
@@ -4722,6 +4957,19 @@ export default {
     if (feedCommentDelMatch && request.method === "DELETE") {
       return handleFeedCommentDelete(request, env, feedCommentDelMatch[1]);
     }
+    // ── Центр уведомлений ──
+    if (path === "/api/notifications" && request.method === "GET") {
+      return handleNotificationsList(request, env);
+    }
+    if (path === "/api/notifications/count" && request.method === "GET") {
+      return handleNotificationsCount(request, env);
+    }
+    if (path === "/api/notifications/read" && request.method === "POST") {
+      return handleNotificationsRead(request, env);
+    }
+    if (path === "/api/notifications/read-all" && request.method === "POST") {
+      return handleNotificationsReadAll(request, env);
+    }
     if (path === "/api/wa/channels/public" && request.method === "GET") {
       return handleWaListChannelsPublic(request, env);
     }
@@ -4825,6 +5073,12 @@ export default {
         }
       } catch (e) {
         console.error("[cron] processScheduledWaMessages failed:", e.message);
+      }
+      try {
+        const rem = await produceDeedReminders(env);
+        if (rem.reminded > 0) console.log(`[cron] deed_reminders sent=${rem.reminded}`);
+      } catch (e) {
+        console.error("[cron] produceDeedReminders failed:", e.message);
       }
     })());
   },
