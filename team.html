@@ -24,12 +24,16 @@
     navigator.serviceWorker.addEventListener('message', (ev) => {
       const d = ev.data || {};
       if (d.type === 'notification-click' && d.url) {
-        try {
-          const u = new URL(d.url, location.origin);
-          if (u.searchParams.get('page') && typeof navigate === 'function') {
-            navigate(u.searchParams.get('page'));
-          }
-        } catch (_) {}
+        // Полный deep-link (раздел + карточка сделки/задачи) через модульный хелпер.
+        if (typeof window.notifOpenLink === 'function') {
+          window.notifOpenLink(d.url);
+        } else {
+          try {
+            const u = new URL(d.url, location.origin);
+            const page = u.searchParams.get('page');
+            if (page && typeof window.navigate === 'function') window.navigate(page);
+          } catch (_) {}
+        }
         window.focus();
       }
     });
@@ -539,6 +543,29 @@ body {
 .nav-item:hover { background: var(--bg3); color: var(--t1); }
 .nav-item.active { background: var(--acbg); color: var(--ac2); font-weight: 600; }
 .nav-icon { font-size: 16px; }
+.nav-badge {
+  margin-left: auto;
+  min-width: 18px; height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #e31e24;
+  color: #fff;
+  font-size: 11px; font-weight: 700;
+  display: none; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.mtb-badge {
+  position: absolute;
+  top: 1px; right: 1px;
+  min-width: 16px; height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #e31e24;
+  color: #fff;
+  font-size: 10px; font-weight: 700;
+  display: none; align-items: center; justify-content: center;
+  line-height: 1;
+}
 .nav-spacer { flex: 1; }
 .user-card {
   background: var(--bg3);
@@ -2818,6 +2845,7 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
     <button id="drawer-toggle" class="mtb-btn" aria-label="Открыть меню">☰</button>
     <img src="elc-logo.png" alt="ELC" class="mtb-logo">
     <div class="mtb-spacer"></div>
+    <button id="mtb-notif" class="mtb-btn" aria-label="Уведомления" title="Уведомления" style="position:relative">🔔<span class="mtb-badge" id="mtb-notif-badge"></span></button>
     <button id="mtb-theme" class="mtb-btn" aria-label="Сменить тему" title="Сменить тему">🌙</button>
   </div>
   <div id="drawer-backdrop"></div>
@@ -2830,6 +2858,10 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
     <div class="nav-section">Главное</div>
     <div class="nav-item" data-page="dashboard">
       <span class="nav-icon">📊</span><span>Главная</span>
+    </div>
+    <div class="nav-item" data-page="notifications">
+      <span class="nav-icon">🔔</span><span>Уведомления</span>
+      <span class="nav-badge" id="notif-badge"></span>
     </div>
 
     <div class="nav-section">CRM</div>
@@ -3334,7 +3366,7 @@ async function initApp(user) {
 
   // Default page — восстанавливаем последнюю открытую (persist в localStorage
   // через navigate). Deep-link в hash (#deal/, #contact/, #task/) приоритетнее.
-  const VALID_PAGES = ['dashboard', 'contacts', 'deals', 'tasks', 'deeds', 'calendar', 'chats', 'orgchart', 'migration', 'settings'];
+  const VALID_PAGES = ['dashboard', 'notifications', 'contacts', 'deals', 'tasks', 'deeds', 'calendar', 'chats', 'orgchart', 'migration', 'settings'];
   // Старая страница 'users' переехала в 'settings' → редирект сохранённого значения
   let startPage = 'dashboard';
   if (location.hash.startsWith('#deal/')) startPage = 'deals';
@@ -3370,6 +3402,10 @@ async function initApp(user) {
   // Mobile app-shell: drawer-меню, гамбургер, тема в шапке
   setupMobileShell();
 
+  // Центр уведомлений: realtime-listener (WS) + поллинг бэйджа непрочитанных
+  notifBindRealtime();
+  notifStartPolling();
+
   // Фоновая прелоадка — пока пользователь смотрит дашборд, грузим данные
   // Поэтапно (не разом) чтобы не нагружать сеть
   setTimeout(() => preloadInBackground(), 800);
@@ -3401,6 +3437,8 @@ function setupMobileShell() {
     updateThemeButton();
     mtbTheme.onclick = toggleTheme; // toggleTheme сам синхронит обе кнопки
   }
+  const mtbNotif = document.getElementById('mtb-notif');
+  if (mtbNotif) mtbNotif.onclick = () => navigate('notifications');
 }
 
 function applyTheme(theme) {
@@ -3441,6 +3479,7 @@ function navigate(page) {
   try { localStorage.setItem(LAST_PAGE_LS_KEY, page); } catch {}
   const main = document.getElementById('main');
   if (page === 'dashboard') renderDashboard(main);
+  else if (page === 'notifications') renderNotifications(main);
   else if (page === 'contacts') renderContacts(main);
   else if (page === 'deals') renderDeals(main);
   else if (page === 'tasks') renderTasks(main);
@@ -3456,6 +3495,267 @@ function navigate(page) {
     renderSettings(main);
   }
   else if (page === 'settings') renderSettings(main);
+}
+// Экспортируем в global — head-скрипт (service worker message handler) и push
+// открывают разделы через window.navigate (модульная функция извне не видна).
+window.navigate = navigate;
+
+// ══════════════════════════════════════════════════════════════
+// 🔔 Центр уведомлений — единая лента всех событий портала.
+// Источник: D1-таблица notifications, заполняется продюсерами в worker.js
+// (лента, WhatsApp, напоминания о делах/задачах). Realtime — через WS
+// событие 'elc:notification' (chat.js dispatch'ит CustomEvent при kind:notification).
+// Бэйдж непрочитанных — в sidebar и в мобильной шапке; поллинг каждые 25с.
+// ══════════════════════════════════════════════════════════════
+const notifState = {
+  items: [],
+  unread: 0,
+  loading: false,
+  pollTimer: null,
+  before: null,
+  hasMore: true,
+  listenerBound: false,
+};
+
+const NOTIF_TYPE_ICON = {
+  feed_post: '📰',
+  feed_comment: '💬',
+  feed_like: '👍',
+  wa_incoming: '💬',
+  deed_reminder: '⏰',
+  task_assigned: '✅',
+  system: '🔔',
+};
+
+// Обновить бэйджи непрочитанных (sidebar + мобильная шапка).
+function notifBadgeRender() {
+  const n = notifState.unread || 0;
+  const txt = n > 99 ? '99+' : String(n);
+  ['notif-badge', 'mtb-notif-badge'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (n > 0) { el.textContent = txt; el.style.display = 'inline-flex'; }
+    else { el.textContent = ''; el.style.display = 'none'; }
+  });
+}
+
+// Тихий запрос только счётчика непрочитанных (для поллинга).
+async function notifFetchCount() {
+  try {
+    if (!fbAuth.currentUser) return;
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/notifications/count`, {
+      headers: { 'Authorization': 'Bearer ' + idToken }
+    });
+    if (!r.ok) return;
+    const j = await r.json();
+    notifState.unread = j.unread || 0;
+    notifBadgeRender();
+  } catch (e) { /* офлайн / токен — не критично */ }
+}
+
+function notifStartPolling() {
+  if (notifState.pollTimer) return;
+  notifFetchCount();
+  notifState.pollTimer = setInterval(notifFetchCount, 25000);
+}
+
+// Realtime: WS-событие → бэйдж +1, звук, foreground-баннер, добавление в список.
+function notifBindRealtime() {
+  if (notifState.listenerBound) return;
+  notifState.listenerBound = true;
+  window.addEventListener('elc:notification', (ev) => {
+    const n = (ev && ev.detail) || {};
+    notifState.unread = (notifState.unread || 0) + 1;
+    notifBadgeRender();
+    try { playMessageBeep(); } catch {}
+    notifMaybeShowForeground(n);
+    // Если открыта страница уведомлений — вставляем в начало без перезагрузки.
+    if (document.getElementById('notif-list') && n && n.id) {
+      if (!notifState.items.some(x => x.id === n.id)) {
+        notifState.items.unshift(n);
+        notifRenderList();
+      }
+    }
+  });
+}
+
+// Системный баннер (когда вкладка не на странице уведомлений / в фоне).
+function notifMaybeShowForeground(n) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  // Не дублируем баннером, если человек прямо сейчас смотрит на список.
+  if (document.visibilityState === 'visible' && document.getElementById('notif-list')) return;
+  try {
+    const banner = new Notification(n.title || 'ELC CRM', {
+      body: n.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: n.id || ('nt_' + Date.now()),
+    });
+    banner.onclick = () => { window.focus(); notifOpenLink(n.link); banner.close(); };
+  } catch (e) { /* iOS Safari без установленной PWA — игнор */ }
+}
+
+// Навигация по ссылке уведомления (/team.html?page=...&deal=...&task=...).
+function notifOpenLink(link) {
+  if (!link) { navigate('notifications'); return; }
+  let page = null, deal = null, task = null;
+  try {
+    const u = new URL(link, location.origin);
+    page = u.searchParams.get('page');
+    deal = u.searchParams.get('deal');
+    task = u.searchParams.get('task');
+  } catch { /* relative / нестандартный link */ }
+  if (page) navigate(page);
+  if (deal) {
+    const id = String(deal).replace(/^deal_/, '');
+    setTimeout(() => { try { openDealCard(id); } catch {} }, 450);
+  } else if (task) {
+    setTimeout(() => { try { openTaskCard(task); } catch {} }, 450);
+  }
+}
+// Экспорт для head-скрипта (клик по push / SW-уведомлению ведёт в нужный раздел).
+window.notifOpenLink = notifOpenLink;
+
+async function renderNotifications(el) {
+  el.innerHTML = `
+    <div class="page-head" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <h1 style="margin:0">🔔 Уведомления</h1>
+      <div style="flex:1"></div>
+      <button id="notif-enable-push" class="qad-btn qad-btn-ghost" style="padding:6px 12px;font-size:13px" title="Включить пуш-уведомления на этом устройстве">🔔 Включить пуши</button>
+      <button id="notif-mark-all" class="qad-btn qad-btn-ghost" style="padding:6px 12px;font-size:13px">Прочитать все</button>
+    </div>
+    <div style="max-width:680px;margin:0 auto">
+      <div id="notif-list"><div style="text-align:center;color:var(--t3);padding:40px">⏳ Загружаем…</div></div>
+      <div id="notif-more" style="text-align:center;padding:8px 0 24px;display:none">
+        <button id="notif-load-more" class="qad-btn qad-btn-ghost" style="padding:8px 20px;font-size:13px">Показать ещё</button>
+      </div>
+    </div>
+  `;
+  const markAll = document.getElementById('notif-mark-all');
+  if (markAll) markAll.onclick = notifMarkAllRead;
+  const pushBtn = document.getElementById('notif-enable-push');
+  if (pushBtn) pushBtn.onclick = async () => {
+    const ok = await requestNotificationPermission();
+    if (ok) {
+      playMessageBeep();
+      try { new Notification('🔔 Уведомления включены', { body: 'Будешь получать пуши от портала на этом устройстве', icon: '/icon-192.png' }); } catch {}
+    } else {
+      alert('Уведомления заблокированы в настройках браузера. Разреши их для этого сайта вручную.');
+    }
+  };
+  const loadMore = document.getElementById('notif-load-more');
+  if (loadMore) loadMore.onclick = () => notifLoad({ append: true });
+  notifState.items = [];
+  notifState.before = null;
+  notifState.hasMore = true;
+  await notifLoad({});
+}
+
+async function notifLoad({ append = false } = {}) {
+  if (notifState.loading) return;
+  notifState.loading = true;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const params = new URLSearchParams({ limit: '30' });
+    if (append && notifState.before) params.set('before', String(notifState.before));
+    const r = await fetch(`${WORKER_BASE_URL}/api/notifications?${params}`, {
+      headers: { 'Authorization': 'Bearer ' + idToken }
+    });
+    if (!r.ok) throw new Error('http ' + r.status);
+    const j = await r.json();
+    const batch = j.notifications || [];
+    if (j.unread != null) notifState.unread = j.unread;
+    notifState.items = append ? notifState.items.concat(batch) : batch;
+    if (batch.length) notifState.before = batch[batch.length - 1].createdAt;
+    notifState.hasMore = batch.length >= 30;
+    notifBadgeRender();
+    notifRenderList();
+  } catch (e) {
+    const list = document.getElementById('notif-list');
+    if (list && !notifState.items.length) {
+      list.innerHTML = `<div style="text-align:center;color:var(--t3);padding:40px">Не удалось загрузить уведомления</div>`;
+    }
+  } finally {
+    notifState.loading = false;
+  }
+}
+
+function notifRowHtml(n) {
+  const icon = n.icon || NOTIF_TYPE_ICON[n.type] || '🔔';
+  const unread = !n.readAt;
+  const avatar = n.actorUid
+    ? feedAvatarHtml(n.actorUid, 40)
+    : `<div style="width:40px;height:40px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${icon}</div>`;
+  return `
+    <div data-notif-id="${escapeHtml(n.id)}" style="display:flex;gap:12px;padding:12px 14px;padding-left:18px;border:1px solid var(--b1);border-radius:10px;margin-bottom:8px;cursor:pointer;background:${unread ? 'var(--bg2)' : 'transparent'};position:relative">
+      ${unread ? '<div style="position:absolute;left:6px;top:50%;transform:translateY(-50%);width:7px;height:7px;border-radius:50%;background:#e31e24"></div>' : ''}
+      <div style="position:relative;flex-shrink:0">
+        ${avatar}
+        <div style="position:absolute;right:-3px;bottom:-3px;font-size:13px;background:var(--bg1);border:1px solid var(--b1);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center">${icon}</div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:var(--t1);${unread ? 'font-weight:600' : ''};line-height:1.35">${escapeHtml(n.title || '')}</div>
+        ${n.body ? `<div style="font-size:12px;color:var(--t3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(n.body)}</div>` : ''}
+        <div style="font-size:11px;color:var(--t3);margin-top:4px">${feedTimeAgo(n.createdAt)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function notifRenderList() {
+  const list = document.getElementById('notif-list');
+  if (!list) return;
+  if (!notifState.items.length) {
+    list.innerHTML = `<div style="text-align:center;color:var(--t3);padding:60px 20px">
+      <div style="font-size:42px;margin-bottom:10px">🔔</div>
+      <div>Пока нет уведомлений</div>
+    </div>`;
+    const more0 = document.getElementById('notif-more');
+    if (more0) more0.style.display = 'none';
+    return;
+  }
+  list.innerHTML = notifState.items.map(notifRowHtml).join('');
+  list.querySelectorAll('[data-notif-id]').forEach(row => {
+    row.onclick = () => {
+      const id = row.getAttribute('data-notif-id');
+      const item = notifState.items.find(x => x.id === id);
+      if (!item) return;
+      if (!item.readAt) { item.readAt = Date.now(); notifMarkRead([id]); }
+      notifOpenLink(item.link);
+    };
+  });
+  const more = document.getElementById('notif-more');
+  if (more) more.style.display = notifState.hasMore ? '' : 'none';
+}
+
+async function notifMarkRead(ids) {
+  if (!ids || !ids.length) return;
+  notifState.unread = Math.max(0, (notifState.unread || 0) - ids.length);
+  notifBadgeRender();
+  notifRenderList();
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    await fetch(`${WORKER_BASE_URL}/api/notifications/read`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+  } catch (e) { /* best-effort */ }
+}
+
+async function notifMarkAllRead() {
+  notifState.items.forEach(x => { if (!x.readAt) x.readAt = Date.now(); });
+  notifState.unread = 0;
+  notifBadgeRender();
+  notifRenderList();
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    await fetch(`${WORKER_BASE_URL}/api/notifications/read-all`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + idToken }
+    });
+  } catch (e) { /* best-effort */ }
 }
 
 // Командный чат — отдельный модуль chat.js (см. elc-worker/public/chat.js).

@@ -124,7 +124,7 @@ async function broadcastToChannel(env, channelId, payload) {
   }));
 }
 
-async function broadcastToUser(env, userId, payload) {
+export async function broadcastToUser(env, userId, payload) {
   try {
     const id = env.USER_NOTIFY.idFromName(userId);
     const stub = env.USER_NOTIFY.get(id);

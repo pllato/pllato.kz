@@ -164,6 +164,10 @@
       case 'read':
         // другой юзер прочитал — обновить indicators (минимум: noop пока)
         break;
+      case 'notification':
+        // глобальное уведомление портала — пробрасываем в team.html (колокольчик)
+        try { window.dispatchEvent(new CustomEvent('elc:notification', { detail: msg.notification || msg })); } catch (e) {}
+        break;
     }
   }
 
