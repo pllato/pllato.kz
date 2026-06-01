@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ELC — Тест на определение уровня (курс 201)</title>
+<style>
+  :root{
+    --bg:#0f1226; --card:#1a1f3d; --card2:#222a52; --line:#2e3870;
+    --txt:#eef1ff; --muted:#9aa3d4; --accent:#5b8cff; --accent2:#7c5cff;
+    --ok:#2ecc8f; --bad:#ff6b6b; --gold:#ffd166;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#20275a,#0f1226);color:var(--txt);min-height:100vh}
+  .wrap{max-width:720px;margin:0 auto;padding:24px 18px 60px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.5px;margin-bottom:18px;color:var(--muted)}
+  .brand b{color:var(--txt)}
+  .card{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);
+    border-radius:18px;padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  h1{font-size:26px;margin:0 0 8px}
+  h2{font-size:20px;margin:0 0 14px}
+  p.lead{color:var(--muted);line-height:1.6;margin:0 0 18px}
+  .btn{appearance:none;border:0;cursor:pointer;font-size:16px;font-weight:600;color:#fff;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));padding:14px 22px;border-radius:12px;
+    transition:transform .08s ease,filter .15s ease}
+  .btn:hover{filter:brightness(1.08)}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+  .progress{height:8px;background:#11163a;border-radius:99px;overflow:hidden;margin:0 0 20px;border:1px solid var(--line)}
+  .progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .3s ease}
+  .meta{display:flex;justify-content:space-between;color:var(--muted);font-size:13px;margin-bottom:10px}
+  .badge{display:inline-block;font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px;
+    background:#11163a;border:1px solid var(--line);color:var(--muted)}
+  .q{font-size:20px;line-height:1.5;margin:6px 0 6px}
+  .q .blank{color:var(--gold);font-weight:800;letter-spacing:2px}
+  .hint{color:var(--muted);font-size:15px;margin:0 0 20px}
+  .opts{display:grid;gap:12px}
+  .opt{display:flex;align-items:center;gap:12px;text-align:left;background:#11163a;border:1px solid var(--line);
+    color:var(--txt);padding:15px 16px;border-radius:12px;font-size:17px;cursor:pointer;transition:.12s}
+  .opt:hover{border-color:var(--accent);background:#161d47}
+  .opt .key{width:26px;height:26px;flex:0 0 26px;display:grid;place-items:center;border-radius:7px;
+    background:#0d1230;border:1px solid var(--line);font-size:13px;color:var(--muted)}
+  .result .big{font-size:15px;color:var(--muted);margin:0 0 4px}
+  .result .lesson{font-size:30px;font-weight:800;margin:0 0 4px;line-height:1.2}
+  .result .lvl{display:inline-block;margin:6px 0 16px}
+  .struct{background:#11163a;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0 0 18px}
+  .struct .s-name{font-size:17px;font-weight:700}
+  .struct .s-sub{color:var(--muted);font-size:13px;margin-top:3px}
+  table{width:100%;border-collapse:collapse;margin:8px 0 20px;font-size:14px}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600}
+  td.score{font-weight:700;text-align:right}
+  .nextlist{margin:0 0 20px;padding:0;list-style:none}
+  .nextlist li{padding:8px 0;border-bottom:1px dashed var(--line);color:var(--muted);font-size:14px}
+  .nextlist li b{color:var(--txt)}
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+  .center{text-align:center}
+  .small{font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">ELC · <b>Grammar Structures</b> · Тест уровня</div>
+  <div class="card" id="app"></div>
+  <p class="small center" style="margin-top:16px">Курс 201 · 92 грамматические структуры · адаптивное размещение</p>
+</div>
+
+<script>
+/* ===== Данные уроков (порядковый номер -> название структуры) ===== */
+const LESSONS = [{"n": 1, "t": "\"I am...\" Beginner (A1L1)"}, {"n": 2, "t": "\"I am a...\" Beginner (A1L3)"}, {"n": 3, "t": "\"Are you a...?\" Beginner (A1L5)"}, {"n": 4, "t": "\"Is he/she/it...?\" Beginner A1L7"}, {"n": 5, "t": "\"What is your...?\" Beginner A1L8"}, {"n": 6, "t": "\"How old is...?\" Beginner A1L9"}, {"n": 7, "t": "\"This is...\" Beginner A1L10"}, {"n": 8, "t": "\"I have a...\" Beginner A1L11"}, {"n": 9, "t": "\"Do you...?\" Beginner A1L13"}, {"n": 10, "t": "\"what/where do you...?\" beginner A1L13"}, {"n": 11, "t": "\"He likes...\" Beginner A1L14"}, {"n": 12, "t": "\"Does she....?\" Beginner A1L14"}, {"n": 13, "t": "\"Does she....?\" Beginner A1L14"}, {"n": 14, "t": "\"Can you...?\" Beginner A1L17"}, {"n": 15, "t": "\"I ME MY\" Beginner A1L18"}, {"n": 16, "t": "\"Is there a...\" beginner A1L19"}, {"n": 17, "t": "\"She was...\" Beginner A1L21"}, {"n": 18, "t": "\"When were you born...\" Beginner A1L23"}, {"n": 19, "t": "\"Did you...?\" Beginner A1L24"}, {"n": 20, "t": "\"When did you...?\" Beginner A1L26"}, {"n": 21, "t": "\"I would like...\" Beginner L27"}, {"n": 22, "t": "\"Would you like...? Beginner A1L28"}, {"n": 23, "t": "\"I would like... There is a...\" beginner A1L29"}, {"n": 24, "t": "\"Do you have any...? I have some...\" Beginner A1L31"}, {"n": 25, "t": "Would you like some.. Yes, I would like...\" Beginner A1L32"}, {"n": 26, "t": "\"I am ...ing\" beginner A1L33"}, {"n": 27, "t": "\"Are you ...ing?\" Beginner A1L35"}, {"n": 28, "t": "\"Is she ...ing?\" Beginner A1L36"}, {"n": 29, "t": "\"What am/is/are ...ing? beginner A1L37"}, {"n": 30, "t": "\"I am going to...\" Beginner A1L39"}, {"n": 31, "t": "What are you going to ...?\" Beginner A1L40"}, {"n": 32, "t": "\"Can't stop ...ing\" Elementary L1"}, {"n": 33, "t": "\"Keep ...ing\" Elementary L2"}, {"n": 34, "t": "\"What? Where? Who?\" Elementary L3"}, {"n": 35, "t": "How much is...?\" Elementary L4"}, {"n": 36, "t": "\"Do/Does I/She/They work?\" Elementary L5"}, {"n": 37, "t": "\"Does she...? Where does she...?\" Elementary L6"}, {"n": 38, "t": "\"What is the time?\" Elementary L7"}, {"n": 39, "t": "\"There is ...\" Elementary L9"}, {"n": 40, "t": "\"Are there...?\" Elementary L10"}, {"n": 41, "t": "\"Can/Could...?\" ELEMENTARY L11"}, {"n": 42, "t": "\"I were/She was/We were\"Elementary L12"}, {"n": 43, "t": "\"Did you...?\" Elementary L13"}, {"n": 44, "t": "When were you born? I was born...\" ELEMENTARY L14"}, {"n": 45, "t": "\"When/Where did you ...? Elementary L15"}, {"n": 46, "t": "\"What is the date today?\" Elementary L17"}, {"n": 47, "t": "\"From my point of view\" Elementary L18"}, {"n": 48, "t": "\"What’s your favourite?\" Elementary L19"}, {"n": 49, "t": "\"Can I have...?\" Elementary L20"}, {"n": 50, "t": "\"What is bigger than...?\" Elementary L21"}, {"n": 51, "t": "\"How do I get to...?\" Elementary L22"}, {"n": 52, "t": "\"Are you ...ing?\" Elementary L23"}, {"n": 53, "t": "\"I have done.\" Elementary L24"}, {"n": 54, "t": "\"Have you ever...ed?\" Elementary L25"}, {"n": 55, "t": "\"When/What/Where... do you...?\" Pre-Intermediate L1"}, {"n": 56, "t": "\"When/What/Where... did you...?\" Pre-Intermediate L2"}, {"n": 57, "t": "\"What is she ...ing?\" Pre-Intermediate L3"}, {"n": 58, "t": "\"I have got... She has got...\" Pre-Intermediate L4"}, {"n": 59, "t": "\"I like the way you...\" Pre-Intermediate L5"}, {"n": 60, "t": "\"I/She/We ...ed\" Pre-Intermediate L6"}, {"n": 61, "t": "\"How many do I...?\" Pre-Intermediate L8"}, {"n": 62, "t": "\"How much do I...?\" Pre-Intermediate L9"}, {"n": 63, "t": "\"I will/I am going to\" Pre-Intermediate L10"}, {"n": 64, "t": "\"Do you think that...?\" Pre-Intermediate L11"}, {"n": 65, "t": "\"Have you...?\" Pre-Intermediate L12"}, {"n": 66, "t": "\"I had befor...\" Pre-Intermediate L14"}, {"n": 67, "t": "\"I have been ...ing\" Pre-Intermediate L17"}, {"n": 68, "t": "\"If I went I would\" Pre-Intermediate L19"}, {"n": 69, "t": "\"If I... I will\" Intermediate L1"}, {"n": 70, "t": "\"If he had won the lottery, he would have bought a car.\" Intermediate L2"}, {"n": 71, "t": "\"What would you do if you won?\" Intermediate L3"}, {"n": 72, "t": "\"Would you mind if I opened?\" Intermediate L4"}, {"n": 73, "t": "\"They must have to...\" Intermediate L5"}, {"n": 74, "t": "\"He is too... to...\" Intermediate L9"}, {"n": 75, "t": "\"Will you be able to\" Intermediate L10"}, {"n": 76, "t": "\"I will have done\" Intermediate L12"}, {"n": 77, "t": "\"Do you like ...? or Are you fond of ...ing?\" Intermediate L15"}, {"n": 78, "t": "\"Why did you... I guess...\" Intermediate L16"}, {"n": 79, "t": "\"Would you like to\" Intermediate L17"}, {"n": 80, "t": "\"Do you think it is\" Intermediate L18"}, {"n": 81, "t": "\"What are your views on\" Intermediate L19"}, {"n": 82, "t": "\"I prefer watching\" to Upper-Intermediate L2"}, {"n": 83, "t": "\"Do you think that...?\" Upper-Intermediate L4"}, {"n": 84, "t": "\"Passive voice\" Upper-Intermediate L5"}, {"n": 85, "t": "\"Perfect Continuous\" Upper-Intermediate L6"}, {"n": 86, "t": "\"Used to\" Upper-Intermediate L8"}, {"n": 87, "t": "Get used to / Be used to Upper-Intermediate"}, {"n": 88, "t": "\"A person who …\" Upper-Intermediate L9"}, {"n": 89, "t": "\"Disagreeing\" Upper-Intermediate L11"}, {"n": 90, "t": "\"Mixed Conditionals\" Upper-Intermediate L13"}, {"n": 91, "t": "\"He said she watched\" Upper-Intermediate L15"}, {"n": 92, "t": "whoever, whatever, whenever, whichever, wherever и however Upper-Intermediate L19"}];
+
+/* ===== Уровни (CEFR-полосы по порядковому номеру урока) ===== */
+function bandOf(n){
+  if(n<=31) return {key:"A1", name:"Beginner (A1)"};
+  if(n<=54) return {key:"A2", name:"Elementary (A2)"};
+  if(n<=68) return {key:"B1", name:"Pre-Intermediate (B1)"};
+  if(n<=81 || n===92) return {key:"B1+", name:"Intermediate (B1+)"};
+  return {key:"B2", name:"Upper-Intermediate (B2)"};
+}
+
+/* ===== Вопросы: по нарастанию сложности, каждый привязан к структуре (lesson = № урока) =====
+   q: предложение с пропуском ▁ ; ru: подсказка-перевод ; o: варианты ; a: индекс верного */
+const QUESTIONS = [
+  {lesson:1,  q:'I ___ a teacher.',                         ru:'Я учитель.',                          o:['am','is','are','be'],                     a:0},
+  {lesson:5,  q:'___ your name?',                            ru:'Как тебя зовут?',                     o:['What is','How is','Who are','What are'],   a:0},
+  {lesson:8,  q:'I ___ a brother and a sister.',             ru:'У меня есть брат и сестра.',          o:['have','has','am','having'],               a:0},
+  {lesson:14, q:'___ you swim?',                             ru:'Ты умеешь плавать?',                  o:['Can','Do','Are','Is'],                    a:0},
+  {lesson:19, q:'___ you watch the film yesterday?',         ru:'Ты смотрел фильм вчера?',             o:['Did','Do','Was','Have'],                  a:0},
+  {lesson:27, q:'What ___ you doing right now?',             ru:'Что ты сейчас делаешь?',              o:['are','do','is','have'],                   a:0},
+  {lesson:30, q:'Tomorrow I ___ visit my grandmother.',      ru:'Завтра я навещу бабушку.',            o:['am going to','went','go','was going to'], a:0},
+  {lesson:36, q:'___ she like coffee?',                      ru:'Она любит кофе?',                     o:['Does','Do','Is','Are'],                   a:0},
+  {lesson:40, q:'___ there any chairs in the room?',         ru:'В комнате есть стулья?',              o:['Are','Is','Have','Do'],                   a:0},
+  {lesson:50, q:'An elephant is ___ than a cat.',            ru:'Слон больше кошки.',                  o:['bigger','more big','biggest','big'],      a:0},
+  {lesson:53, q:'I ___ already finished my homework.',       ru:'Я уже закончил домашнюю работу.',     o:['have','am','did','was'],                  a:0},
+  {lesson:58, q:'She ___ got two children.',                 ru:'У неё двое детей.',                   o:['has','have','is','does'],                 a:0},
+  {lesson:63, q:'Look at those clouds — it ___ rain.',       ru:'Посмотри на тучи — будет дождь.',     o:['is going to','will','would','goes to'],   a:0},
+  {lesson:66, q:'When I arrived, the train ___ already left.',ru:'Когда я приехал, поезд уже ушёл.',   o:['had','has','was','did'],                  a:0},
+  {lesson:69, q:'If it rains, we ___ at home.',              ru:'Если пойдёт дождь, мы останемся дома.',o:['will stay','stay','stayed','would stay'], a:0},
+  {lesson:70, q:'If he ___ harder, he would have passed.',   ru:'Если бы он учился усерднее, он бы сдал.',o:['had studied','studied','studies','would study'], a:0},
+  {lesson:76, q:'By next year I ___ this course.',           ru:'К следующему году я закончу этот курс.',o:['will have finished','will finish','finish','finished'], a:0},
+  {lesson:84, q:'This house ___ in 1990.',                   ru:'Этот дом был построен в 1990 году.',  o:['was built','built','has built','builds'], a:0},
+  {lesson:86, q:'I ___ play football when I was a child.',   ru:'Раньше я играл в футбол (в детстве).',o:['used to','use to','am used to','was used'], a:0},
+  {lesson:90, q:'If I ___ taller, I would have become a model.',ru:'Если бы я был выше, я бы стал моделью.',o:['were','am','was being','have been'],   a:0},
+];
+
+/* ===== Состояние ===== */
+const app = document.getElementById('app');
+let idx = 0;
+let answers = []; // {lesson, band, correct}
+const LETTERS = ['A','B','C','D'];
+
+function lessonTitle(n){ const l=LESSONS.find(x=>x.n===n); return l?l.t:''; }
+
+/* раннее завершение: когда упёрся в потолок (3 ошибки из последних 4) */
+function shouldStop(){
+  if(answers.length < 5) return false;
+  const last4 = answers.slice(-4);
+  const wrong = last4.filter(a=>!a.correct).length;
+  return wrong >= 3;
+}
+
+function start(){ idx=0; answers=[]; renderQuestion(); }
+
+function renderStart(){
+  app.innerHTML = `
+    <h1>Тест на определение уровня</h1>
+    <p class="lead">Короткий адаптивный тест (до 20 вопросов) по грамматическим структурам курса ELC.
+      Отвечай на вопросы — система определит твой уровень и подскажет, <b>с какого урока программы</b> начать.
+      Если вопрос слишком сложный — не угадывай, выбирай «Не знаю», это поможет поставить тебя точнее.</p>
+    <button class="btn" onclick="start()">Начать тест →</button>`;
+}
+
+function renderQuestion(){
+  if(idx >= QUESTIONS.length || shouldStop()){ return renderResult(); }
+  const Q = QUESTIONS[idx];
+  const band = bandOf(Q.lesson);
+  const pct = Math.round((answers.length / QUESTIONS.length) * 100);
+  const stem = Q.q.replace('___','<span class="blank">▁▁▁</span>');
+  const opts = Q.o.map((o,i)=>`
+    <button class="opt" onclick="answer(${i})">
+      <span class="key">${LETTERS[i]}</span><span>${o}</span>
+    </button>`).join('');
+  app.innerHTML = `
+    <div class="meta"><span>Вопрос ${answers.length+1}</span><span class="badge">${band.name}</span></div>
+    <div class="progress"><i style="width:${pct}%"></i></div>
+    <div class="q">${stem}</div>
+    <div class="hint">${Q.ru}</div>
+    <div class="opts">
+      ${opts}
+      <button class="opt" style="opacity:.8" onclick="answer(-1)">
+        <span class="key">?</span><span>Не знаю / затрудняюсь</span>
+      </button>
+    </div>`;
+}
+
+function answer(choice){
+  const Q = QUESTIONS[idx];
+  answers.push({ lesson:Q.lesson, band:bandOf(Q.lesson).name, correct: choice===Q.a });
+  idx++;
+  renderQuestion();
+}
+
+/* ===== Расчёт размещения ===== */
+function computeResult(){
+  // «потолок»: первая структура, после которой студент не отвечает верно ни на что
+  let ceiling = -1;
+  for(let i=0;i<answers.length;i++){
+    if(!answers[i].correct){
+      const laterCorrect = answers.slice(i+1).some(a=>a.correct);
+      if(!laterCorrect){ ceiling = i; break; }
+    }
+  }
+  let recommended;
+  if(ceiling === -1){
+    // ошибок-«потолков» нет
+    if(answers.every(a=>a.correct) && answers.length === QUESTIONS.length){
+      recommended = 93; // прошёл всё — выше программы
+    }else{
+      // подстраховка: после последнего верного
+      recommended = answers[answers.length-1].lesson + 1;
+    }
+  }else{
+    recommended = answers[ceiling].lesson; // первая неосвоенная структура
+  }
+  if(recommended < 1) recommended = 1;
+  if(recommended > 92) recommended = 93;
+  return recommended;
+}
+
+function levelStats(){
+  const order = ["Beginner (A1)","Elementary (A2)","Pre-Intermediate (B1)","Intermediate (B1+)","Upper-Intermediate (B2)"];
+  const m = {};
+  order.forEach(b=>m[b]={ok:0,total:0});
+  answers.forEach(a=>{ if(m[a.band]){ m[a.band].total++; if(a.correct)m[a.band].ok++; } });
+  return order.filter(b=>m[b].total>0).map(b=>({band:b, ok:m[b].ok, total:m[b].total}));
+}
+
+function renderResult(){
+  const rec = computeResult();
+  const completed = rec === 93;
+  const startN = completed ? 92 : rec;
+  const band = bandOf(startN);
+  const stats = levelStats();
+  const correctTotal = answers.filter(a=>a.correct).length;
+
+  // следующие 3 урока для контекста
+  let nextLis = '';
+  if(!completed){
+    for(let n=rec; n<=Math.min(rec+2,92); n++){
+      nextLis += `<li><b>Урок ${n}.</b> ${lessonTitle(n)}</li>`;
+    }
+  }
+
+  const statsRows = stats.map(s=>{
+    const pass = s.ok/s.total >= 0.75;
+    const col = pass ? 'var(--ok)' : (s.ok===0 ? 'var(--bad)' : 'var(--gold)');
+    return `<tr><td>${s.band}</td><td class="score" style="color:${col}">${s.ok}/${s.total}</td></tr>`;
+  }).join('');
+
+  const headline = completed
+    ? `Студент уверенно прошёл все структуры теста.`
+    : `Рекомендуемый старт по программе:`;
+
+  const lessonBlock = completed
+    ? `<div class="lesson" style="color:var(--gold)">Уровень выше программы 201</div>
+       <p class="lead">Можно ставить на повторение/экзамен по верхним урокам (81–92) или на следующий курс.</p>`
+    : `<div class="lesson">Урок ${startN} <span style="font-size:18px;color:var(--muted)">из 92</span></div>
+       <span class="badge lvl" style="color:var(--accent)">Уровень: ${band.name}</span>
+       <div class="struct">
+         <div class="s-name">${lessonTitle(startN)}</div>
+         <div class="s-sub">Это первая структура, которую студент ещё не освоил — с неё и начинаем.</div>
+       </div>
+       <ul class="nextlist">${nextLis}</ul>`;
+
+  app.innerHTML = `
+    <div class="result">
+      <p class="big">Результат · верных ответов: ${correctTotal} из ${answers.length}</p>
+      <h2 style="margin-bottom:6px">${headline}</h2>
+      ${lessonBlock}
+      <h2 style="font-size:16px;color:var(--muted);margin:10px 0 4px">Разбивка по уровням</h2>
+      <table><thead><tr><th>Уровень</th><th class="score">Верно</th></tr></thead><tbody>${statsRows}</tbody></table>
+      <div class="row">
+        <button class="btn" onclick="renderStart()">← На главную</button>
+        <button class="btn ghost" onclick="start()">Пройти заново</button>
+      </div>
+    </div>`;
+}
+
+renderStart();
+</script>
+</body>
+</html>
