@@ -3261,6 +3261,73 @@ async function handleWaChannelQr(request, env, channelId) {
   }
 }
 
+// POST /api/wa/sync-groups { channelId? }
+// Подтягиваем список WhatsApp-групп напрямую из Green-API (getContacts) и
+// заводим/обновляем их в wa_chats. Нужно чтобы группа появилась в портале
+// БЕЗ ожидания первого сообщения (вебхук приходит только при активности).
+async function handleWaSyncGroups(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+
+  let body = {};
+  try { body = await request.json(); } catch {}
+  const channelId = body.channelId || null;
+
+  let channels;
+  if (channelId) {
+    const ch = await getWaChannel(env, channelId);
+    if (!ch) return json({ error: "channel not found" }, 404, request);
+    channels = [ch];
+  } else {
+    const { results } = await env.DB.prepare(
+      "SELECT * FROM wa_channels WHERE active = 1 ORDER BY created_at ASC"
+    ).all();
+    channels = results || [];
+  }
+  if (!channels.length) return json({ error: "no active WhatsApp channel configured" }, 503, request);
+
+  let created = 0, updated = 0, totalGroups = 0;
+  const errors = [];
+  for (const channel of channels) {
+    try {
+      const r = await fetch(`${channel.api_url}/waInstance${channel.id_instance}/getContacts/${channel.api_token_instance}`);
+      if (!r.ok) { errors.push(`channel ${channel.id_instance}: HTTP ${r.status}`); continue; }
+      const contacts = await r.json().catch(() => []);
+      if (!Array.isArray(contacts)) { errors.push(`channel ${channel.id_instance}: bad response`); continue; }
+
+      const groups = contacts.filter(c => c && typeof c.id === 'string' && c.id.endsWith('@g.us'));
+      totalGroups += groups.length;
+
+      for (const g of groups) {
+        const chatId = g.id;
+        const groupName = (g.name || g.contactName || '').trim() || 'Группа';
+        const chatDocId = waChatDocId(channel.id_instance, chatId);
+        const existing = await env.DB.prepare("SELECT id, name FROM wa_chats WHERE id = ?").bind(chatDocId).first();
+        if (existing) {
+          // Обновляем только имя (last_message_at не трогаем — там реальная активность)
+          await env.DB.prepare(
+            "UPDATE wa_chats SET name = ?, is_group = 1, updated_at = datetime('now') WHERE id = ?"
+          ).bind(groupName, chatDocId).run();
+          updated++;
+        } else {
+          // Новая группа: ставим last_message_at = now, чтобы сразу была видна вверху списка
+          await env.DB.prepare(`
+            INSERT INTO wa_chats (id, instance_id, chat_id, phone, is_group, name, last_message_text, last_message_at, last_message_from, updated_at)
+            VALUES (?, ?, ?, NULL, 1, ?, '', ?, NULL, datetime('now'))
+          `).bind(chatDocId, channel.id_instance, chatId, groupName, Date.now()).run();
+          created++;
+        }
+      }
+    } catch (e) {
+      errors.push(`channel ${channel.id_instance}: ${e.message}`);
+    }
+  }
+
+  await auditLog(env, me, "wa_sync_groups", "wa_channel", channelId || 'all', { created, updated, totalGroups });
+  return json({ ok: true, created, updated, totalGroups, errors }, 200, request);
+}
+
 // ── Org structure (иерархия компании: Директор → Отделения → Отделы → Подотделы) ──
 // Хранится одним JSON-блобом в kv['org:structure']. Доступ — admin для PUT,
 // auth для GET (любой залогиненный смотрит read-only).
@@ -4361,6 +4428,9 @@ export default {
     const waFileMatch = path.match(/^\/api\/wa\/file\/(.+)$/);
     if (waFileMatch && request.method === "GET") {
       return handleWaFileServe(request, env, decodeURIComponent(waFileMatch[1]));
+    }
+    if (path === "/api/wa/sync-groups" && request.method === "POST") {
+      return handleWaSyncGroups(request, env);
     }
     if (path === "/api/wa/channels/public" && request.method === "GET") {
       return handleWaListChannelsPublic(request, env);

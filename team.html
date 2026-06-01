@@ -4119,6 +4119,7 @@ function renderWaWidgetList(root) {
         <div class="wa-w-title">💬 Чаты</div>
         <div class="wa-w-sub">${subText}</div>
       </div>
+      <button class="wa-w-icon-btn" id="wa-w-sync-groups" title="Подтянуть WhatsApp-группы из Green-API" style="margin-right:4px;font-size:13px">🔄</button>
       <button class="wa-w-icon-btn" id="wa-w-legacy-join" title="Добавить меня ко всем архивным каналам из Bitrix" style="margin-right:4px;font-size:11px">🗄</button>
       <button class="wa-w-icon-btn" id="wa-w-new-team" title="Новый командный канал" style="margin-right:4px">➕</button>
       <button class="wa-w-icon-btn" id="wa-w-close" title="Свернуть">×</button>
@@ -4131,6 +4132,30 @@ function renderWaWidgetList(root) {
 
   document.getElementById('wa-w-close').onclick = () => { waWidget.open = false; renderWaWidget(); };
   document.getElementById('wa-w-new-team').onclick = openCreateTeamChannelWidgetModal;
+  document.getElementById('wa-w-sync-groups').onclick = async (e) => {
+    const btn = e.currentTarget;
+    if (!confirm('Подтянуть список WhatsApp-групп из Green-API?\nГруппы появятся в списке чатов без ожидания первого сообщения.')) return;
+    const orig = btn.textContent;
+    btn.textContent = '⏳'; btn.disabled = true;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/wa/sync-groups`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+        body: JSON.stringify({}),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      const errNote = (d.errors && d.errors.length) ? `\n⚠️ ${d.errors.join('; ')}` : '';
+      alert(`✓ Группы синхронизированы\nНайдено: ${d.totalGroups} · новых: ${d.created} · обновлено: ${d.updated}${errNote}`);
+      await refreshWaWidgetChats();
+      renderWaWidget();
+    } catch (err) {
+      alert('Ошибка синхронизации групп: ' + err.message);
+    } finally {
+      btn.textContent = orig; btn.disabled = false;
+    }
+  };
   document.getElementById('wa-w-legacy-join').onclick = async () => {
     if (!confirm('Добавить тебя ко всем архивным каналам из Bitrix?\n(в которых ты был добавлен, но миграция не подцепила потому что не писал там)')) return;
     try {
@@ -4295,7 +4320,7 @@ function renderWaWidgetChat(root) {
     <div class="wa-w-sched" id="wa-w-sched" style="display:none"></div>
     <div class="wa-w-composer">
       <textarea id="wa-w-input" placeholder="${escapeHtml(composerPlaceholder)}" rows="1"></textarea>
-      ${isGroup ? '' : '<button id="wa-w-schedule" title="Отправить позже">⏰</button>'}
+      <button id="wa-w-schedule" title="Отправить позже">⏰</button>
       <button id="wa-w-send">→</button>
     </div>
   </div>`;
