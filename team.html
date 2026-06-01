@@ -4226,6 +4226,7 @@ async function openWaWidgetChatByPhone(phone, displayName) {
         return;
       }
       loadWaWidgetMessages({ silent: true });
+      loadWaScheduledMessages();
     }, 5000);
   }
 }
@@ -4258,6 +4259,7 @@ async function openWaWidgetChat(chatId) {
       return;
     }
     loadWaWidgetMessages({ silent: true });
+    loadWaScheduledMessages();
   }, 5000);
 }
 
@@ -4374,6 +4376,11 @@ async function loadWaScheduledMessages() {
     if (!r.ok) { box.style.display = 'none'; return; }
     const data = await r.json();
     const items = (data.items || []).filter(i => i.status === 'pending');
+    // Подпись состояния — чтобы фоновый опрос не дёргал DOM каждые 5с без
+    // изменений (иначе мигает и сбивается наведение на кнопку отмены).
+    const sig = items.map(i => i.id + ':' + i.scheduledAt).join('|');
+    if (box.dataset.sig === sig) return;
+    box.dataset.sig = sig;
     if (!items.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
     box.style.display = 'block';
     box.innerHTML = `<div class="wa-w-sched-head">⏰ Запланировано (${items.length})</div>` +
