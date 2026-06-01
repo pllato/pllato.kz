@@ -5398,7 +5398,7 @@ function oneCLeadingToken(s) {
 // invoiceToOData. Документ создаётся ЧЕРНОВИКОМ (бухгалтер проводит и заполняет
 // бухсчета/субконто в 1С). opts = { collection, entityType, idPrefix }.
 async function create1cSalesDocument(request, env, actor, opts) {
-  const { collection, entityType, idPrefix } = opts;
+  const { collection, entityType, idPrefix, paymentPurposeCode } = opts;
   require1cAdmin(actor);
   const tenantId = resolve1cTenantId(actor);
   const body = await readRequestBodyAsJson(request);
@@ -5492,6 +5492,7 @@ async function create1cSalesDocument(request, env, actor, opts) {
       accountForVat: body?.accountForVat,
       externalId,
       externalIdPrefix: idPrefix,
+      paymentPurposeCode: body?.paymentPurposeCode || paymentPurposeCode || null,
       comment: body?.comment || "",
       total: body?.total,
       lines,
@@ -5546,6 +5547,7 @@ async function create1cSalesDocument(request, env, actor, opts) {
 function handle1cCreateInvoice(request, env, actor) {
   return create1cSalesDocument(request, env, actor, {
     collection: "Document_СчетНаОплатуПокупателю", entityType: "invoice", idPrefix: "PLLATO-INV",
+    paymentPurposeCode: "710", // по указанию Асем
   });
 }
 

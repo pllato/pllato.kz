@@ -247,6 +247,9 @@ export function invoiceToOData(inv) {
     Комментарий: commentParts.join(" "),
     Товары: tovary,
   };
+  // Код назначения платежа — только для счёта (в реализации поля нет → 400).
+  // По указанию Асем: 710. Передаётся через inv.paymentPurposeCode.
+  if (inv.paymentPurposeCode) out.КодНазначенияПлатежа = String(inv.paymentPurposeCode);
   if (inv.contractRef) out.ДоговорКонтрагента_Key = inv.contractRef;
   if (inv.warehouseRef) out.Склад_Key = inv.warehouseRef;
   if (inv.priceTypeRef) out.ТипЦен_Key = inv.priceTypeRef;

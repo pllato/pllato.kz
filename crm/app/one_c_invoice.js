@@ -15,6 +15,9 @@ import { apiFetch } from "./auth.js";
 
 // Подтверждённые GUID базы Аминамед (ea186/263825). ⚠ На проверку Асем.
 const ONE_C_KZT_REF = "9e9a6ffb-aa56-11e1-b9c4-002215ba1bbe";
+// Ставка НДС по умолчанию 5% (Асем: 99% товаров — 5%). Если у товара есть своя
+// ставка из 1С (_1c_vat_ref) — берём её, иначе этот дефолт.
+const ONE_C_VAT_5 = "34dffed7-e9fb-11f0-b296-005056815627";
 const ONE_C_ORG_FALLBACK = [
   { ref: "8678efaa-9684-4325-a198-7f3c8a1bc2f3", name: "ТОО Аминамед (вариант 1)" },
   { ref: "67861586-eba3-11f0-b296-005056815627", name: "ТОО Аминамед (вариант 2)" },
@@ -75,7 +78,7 @@ function buildLines(items) {
     lines.push({
       productRef: ref,
       unitRef: product?._1c_unit_ref || null,
-      vatRateRef: product?._1c_vat_ref || null,
+      vatRateRef: product?._1c_vat_ref || ONE_C_VAT_5,
       qty, price,
       sum: Math.round(qty * price * 100) / 100,
       name,
