@@ -2,9 +2,39 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ELC — English Lifestyle Communication</title>
 <link rel="icon" type="image/png" href="elc-favicon-source.png">
+
+<!-- ── PWA: установка на домашний экран + push ── -->
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#373D8D">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ELC CRM">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script>
+  // Регистрируем service worker — нужен для установки PWA и push-уведомлений.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/team-sw.js').catch((e) => console.warn('SW register failed', e));
+    });
+    // Клик по push-уведомлению (SW → страница): открыть нужный раздел.
+    navigator.serviceWorker.addEventListener('message', (ev) => {
+      const d = ev.data || {};
+      if (d.type === 'notification-click' && d.url) {
+        try {
+          const u = new URL(d.url, location.origin);
+          if (u.searchParams.get('page') && typeof navigate === 'function') {
+            navigate(u.searchParams.get('page'));
+          }
+        } catch (_) {}
+        window.focus();
+      }
+    });
+  }
+</script>
 <script>
   // Применяем тему до загрузки CSS чтобы избежать вспышки тёмного при светлой
   (function() {
@@ -659,10 +689,72 @@ th { color: var(--t3); font-weight: 500; font-size: 11px; text-transform: upperc
 td { color: var(--t2); }
 tr:hover td { background: var(--bg3); }
 
-@media (max-width: 720px) {
-  .app { flex-direction: column; }
-  .sidebar { width: 100%; }
-  .main { padding: 16px; }
+/* ── Мобильный app-shell (PWA): drawer-меню + верхняя панель ── */
+#mobile-topbar { display: none; }
+#drawer-backdrop { display: none; }
+
+@media (max-width: 860px) {
+  /* верхняя фиксированная панель с гамбургером */
+  #mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: calc(52px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 10px 0;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--b1);
+    z-index: 1100;
+  }
+  .mtb-btn {
+    width: 40px; height: 40px;
+    border: none; background: transparent;
+    color: var(--t1); font-size: 20px;
+    border-radius: 10px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mtb-btn:active { background: var(--bg3); }
+  .mtb-logo { height: 22px; display: block; }
+  :root:not([data-theme="light"]) .mtb-logo { filter: brightness(0) invert(1) opacity(.92); }
+  .mtb-spacer { flex: 1; }
+
+  /* layout: sidebar превращается в выезжающее меню, main — на всю ширину */
+  .app.active { display: block; }
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 284px; max-width: 84vw;
+    padding: calc(16px + env(safe-area-inset-top)) 14px calc(16px + env(safe-area-inset-bottom));
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    z-index: 1200;
+    overflow-y: auto;
+    box-shadow: 6px 0 28px rgba(0,0,0,.45);
+  }
+  .app.drawer-open .sidebar { transform: translateX(0); }
+
+  #drawer-backdrop {
+    display: block;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0);
+    transition: background .25s ease;
+    pointer-events: none;
+    z-index: 1190;
+  }
+  .app.drawer-open #drawer-backdrop {
+    background: rgba(0,0,0,.5);
+    pointer-events: auto;
+  }
+
+  .main {
+    height: 100vh;
+    height: 100dvh;
+    box-sizing: border-box;
+    padding: calc(52px + env(safe-area-inset-top) + 12px) 14px calc(14px + env(safe-area-inset-bottom));
+  }
 }
 
 /* ── Deals page ───────────────────────────────────── */
@@ -2721,6 +2813,15 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
 
 <!-- ── Main App ───────────────────────────────────────────────── -->
 <div id="app" class="app">
+  <!-- Мобильная верхняя панель (видна только на узких экранах / в PWA) -->
+  <div id="mobile-topbar">
+    <button id="drawer-toggle" class="mtb-btn" aria-label="Открыть меню">☰</button>
+    <img src="elc-logo.png" alt="ELC" class="mtb-logo">
+    <div class="mtb-spacer"></div>
+    <button id="mtb-theme" class="mtb-btn" aria-label="Сменить тему" title="Сменить тему">🌙</button>
+  </div>
+  <div id="drawer-backdrop"></div>
+
   <div class="sidebar">
     <div class="elc-brand">
       <img src="elc-logo.png" alt="ELC — English Lifestyle Communication" class="elc-brand-img">
@@ -3266,6 +3367,9 @@ async function initApp(user) {
     themeBtn.onclick = toggleTheme;
   }
 
+  // Mobile app-shell: drawer-меню, гамбургер, тема в шапке
+  setupMobileShell();
+
   // Фоновая прелоадка — пока пользователь смотрит дашборд, грузим данные
   // Поэтапно (не разом) чтобы не нагружать сеть
   setTimeout(() => preloadInBackground(), 800);
@@ -3286,6 +3390,19 @@ async function preloadInBackground() {
   // деактивирована, SDK-listener'ы возвращают 423 Locked и засоряют Console.
 }
 
+function setupMobileShell() {
+  const app = document.getElementById('app');
+  const toggle = document.getElementById('drawer-toggle');
+  const backdrop = document.getElementById('drawer-backdrop');
+  const mtbTheme = document.getElementById('mtb-theme');
+  if (toggle && app) toggle.onclick = () => app.classList.toggle('drawer-open');
+  if (backdrop && app) backdrop.onclick = () => app.classList.remove('drawer-open');
+  if (mtbTheme) {
+    updateThemeButton();
+    mtbTheme.onclick = toggleTheme; // toggleTheme сам синхронит обе кнопки
+  }
+}
+
 function applyTheme(theme) {
   if (theme === 'light') {
     document.documentElement.setAttribute('data-theme', 'light');
@@ -3295,11 +3412,13 @@ function applyTheme(theme) {
 }
 
 function updateThemeButton() {
-  const btn = document.getElementById('theme-toggle');
-  if (!btn) return;
   const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
-  btn.textContent = current === 'light' ? '☀️' : '🌙';
-  btn.title = current === 'light' ? 'Переключить на тёмную тему' : 'Переключить на светлую тему';
+  const icon = current === 'light' ? '☀️' : '🌙';
+  const title = current === 'light' ? 'Переключить на тёмную тему' : 'Переключить на светлую тему';
+  const btn = document.getElementById('theme-toggle');
+  if (btn) { btn.textContent = icon; btn.title = title; }
+  const mtb = document.getElementById('mtb-theme');
+  if (mtb) { mtb.textContent = icon; mtb.title = title; }
 }
 
 function toggleTheme() {
@@ -3311,6 +3430,9 @@ function toggleTheme() {
 }
 
 function navigate(page) {
+  // на мобильном при переходе закрываем выезжающее меню
+  const appEl = document.getElementById('app');
+  if (appEl) appEl.classList.remove('drawer-open');
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.page === page);
   });
