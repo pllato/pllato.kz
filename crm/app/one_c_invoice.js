@@ -102,7 +102,7 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
   const total = lines.reduce((s, l) => s + (l.sum || 0), 0);
   const activeCount = (items || []).filter((i) => (Number(i.qty) || 0) > 0).length;
 
-  const state = { contractorRef: contact?._1c_ref_key || null, creatingContractor: false };
+  const state = { contractorRef: contact?._1c_ref_key || null, busyContractor: false, contractorMsg: "" };
 
   const overlay = document.createElement("div");
   overlay.id = "onec-doc-overlay";
@@ -127,9 +127,10 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
 
           <div style="font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Клиент (контрагент 1С)</div>
           <div style="font-weight:600;margin-bottom:6px">${esc(contact?.name || deal.title || "—")}${hasContractor ? ` <span style="color:#16a34a">✓ в 1С</span>` : ` <span style="color:#dc2626">— не найден в 1С</span>`}</div>
-          ${!hasContractor ? `<div style="margin-bottom:14px">
-            <button type="button" id="onec-create-contractor" class="btn-ghost" style="padding:6px 12px;font-size:13px" ${state.creatingContractor ? "disabled" : ""}>${state.creatingContractor ? "Создаём в 1С…" : "➕ Создать клиента в 1С"}</button>
-            <span style="font-size:11.5px;color:var(--text-muted,#888);margin-left:6px">заведёт контрагента в 1С по данным карточки</span>
+          ${!hasContractor ? `<div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button type="button" id="onec-find-contractor" class="btn-ghost" style="padding:6px 12px;font-size:13px" ${state.busyContractor ? "disabled" : ""}>🔍 Найти в 1С по БИН</button>
+            <button type="button" id="onec-create-contractor" class="btn-ghost" style="padding:6px 12px;font-size:13px" ${state.busyContractor ? "disabled" : ""}>➕ Создать в 1С</button>
+            <span style="font-size:11.5px;color:var(--text-muted,#888)">${esc(state.contractorMsg || "найдём по БИН или заведём нового")}</span>
           </div>` : `<div style="margin-bottom:14px"></div>`}
 
           <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Юр.лицо-отправитель (организация 1С) <span style="color:#f59e0b">⚠ проверьте</span></label>
@@ -174,19 +175,41 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
     overlay.querySelector("#onec-x").addEventListener("click", closeDialog);
     overlay.querySelector("#onec-cancel").addEventListener("click", closeDialog);
 
+    // Поиск контрагента в 1С по БИН (решение встречи 01.06).
+    overlay.querySelector("#onec-find-contractor")?.addEventListener("click", async () => {
+      if (!contact?.id) { alert("У клиента нет id в CRM."); return; }
+      state.busyContractor = true; state.contractorMsg = "Ищем в 1С по БИН…"; render();
+      try {
+        const res = await apiFetch("/api/crm/1c/contractors/find", { method: "POST", body: { contactId: contact.id } });
+        if (res?.found) {
+          state.contractorRef = res.ref_key;
+          try { Store.update("contacts", contact.id, { _1c_ref_key: res.ref_key }); } catch {}
+          state.busyContractor = false; state.contractorMsg = "";
+        } else {
+          state.busyContractor = false;
+          state.contractorMsg = res?.reason === "no_bin"
+            ? "У клиента нет БИН в карточке — заполните или создайте нового"
+            : "По БИН не найден — создайте нового";
+        }
+        render();
+      } catch (err) {
+        state.busyContractor = false; state.contractorMsg = "Ошибка поиска"; render();
+        alert("Ошибка поиска по БИН: " + (err?.message || String(err)));
+      }
+    });
+
     // Создание контрагента в 1С прямо отсюда
     overlay.querySelector("#onec-create-contractor")?.addEventListener("click", async () => {
       if (!contact?.id) { alert("У клиента нет id в CRM."); return; }
-      state.creatingContractor = true;
-      render();
+      state.busyContractor = true; state.contractorMsg = "Создаём в 1С…"; render();
       try {
         const res = await apiFetch("/api/crm/1c/contractors/create", { method: "POST", body: { contactId: contact.id } });
         state.contractorRef = res?.ref_key || null;
         try { Store.update("contacts", contact.id, { _1c_ref_key: res?.ref_key || null }); } catch {}
-        state.creatingContractor = false;
+        state.busyContractor = false; state.contractorMsg = "";
         render();
       } catch (err) {
-        state.creatingContractor = false;
+        state.busyContractor = false; state.contractorMsg = "";
         render();
         alert("Не удалось создать контрагента в 1С: " + (err?.message || String(err)));
       }

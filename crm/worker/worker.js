@@ -5617,9 +5617,8 @@ async function handle1cMatchProducts(request, env, actor) {
     const nomenRaw = Array.isArray(nomenData?.value) ? nomenData.value : [];
     const byCode = new Map();
     const byDigits = new Map();
-    const byNameToken = new Map();       // ведущий артикул → entry, ТОЛЬКО уникальные (уверенно)
-    const byNameTokenFirst = new Map();  // ведущий артикул → ПЕРВАЯ запись (представительная, на проверку)
-    const nameTokenSeen = new Map();     // токен → сколько раз встретился
+    const byNameToken = new Map();   // ведущий артикул → entry, ТОЛЬКО уникальные (надёжно)
+    const nameTokenSeen = new Map(); // токен → сколько раз встретился
     let nomenclatureCount = 0;
     for (const raw of nomenRaw) {
       const p = productFromOData(raw);
@@ -5632,18 +5631,15 @@ async function handle1cMatchProducts(request, env, actor) {
       byCode.set(code, entry);
       const digits = code.replace(/\D/g, "");
       if (digits) byDigits.set(digits, entry);
-      // Ведущий артикул в наименовании (только содержащий цифру).
+      // Ведущий артикул в наименовании — индексируем ТОЛЬКО уникальные. Решение
+      // встречи 01.06: номенклатура 1С задвоена по сериям/датам, надёжен только КОД;
+      // задвоенные артикулы автоматически НЕ матчим (их привязывает Асем вручную).
       const tok = oneCLeadingToken(p.name);
       if (tok && /\d/.test(tok)) {
         const seen = (nameTokenSeen.get(tok) || 0) + 1;
         nameTokenSeen.set(tok, seen);
-        if (seen === 1) {
-          byNameToken.set(tok, entry);       // пока уникальный — уверенный матч
-          byNameTokenFirst.set(tok, entry);  // первая запись — представительная
-        } else {
-          byNameToken.delete(tok);           // стал неоднозначным — из «уверенных» убираем
-          // byNameTokenFirst оставляем первую (для представительного матча с пометкой)
-        }
+        if (seen === 1) byNameToken.set(tok, entry);
+        else byNameToken.delete(tok); // стал неоднозначным — убираем
       }
     }
     if (nomenclatureCount === 0) {
@@ -5679,17 +5675,13 @@ async function handle1cMatchProducts(request, env, actor) {
         if (d) hit = byDigits.get(d);
       }
       if (hit) method = "code";
-      // 2/3) ведущий артикул в названии (для товаров с sku=AUTO_…)
+      // 2) ведущий артикул в названии — только если уникален в 1С (см. выше).
+      // Задвоенные сериями НЕ матчим автоматически → попадут в ручную привязку.
       if (!hit) {
         const tok = oneCLeadingToken(prod.name);
         if (tok && /\d/.test(tok)) {
           hit = byNameToken.get(tok);
-          if (hit) {
-            method = "article";            // артикул уникален в 1С — уверенно
-          } else {
-            hit = byNameTokenFirst.get(tok);
-            if (hit) method = "article_repr"; // артикул неоднозначен (партии) — представительная запись, НА ПРОВЕРКУ
-          }
+          if (hit) method = "article";
         }
       }
       if (!hit) {
@@ -5816,6 +5808,52 @@ async function handle1cCreateContractor(request, env, actor) {
   }
 }
 
+// POST /api/crm/1c/contractors/find — найти контрагента в 1С ПО БИН/ИИН и привязать.
+// Решение встречи 01.06: искать клиента в 1С по БИН (не по номеру/телефону).
+async function handle1cFindContractorByBin(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const body = await readRequestBodyAsJson(request);
+  const contactId = String(body?.contactId || "").trim();
+  let bin = String(body?.bin || "").trim();
+  const db = requireStoreDb(env);
+  let contact = null;
+  if (contactId) {
+    const row = await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? AND id=?`)
+      .bind(TEAM_ID, "contacts", contactId).first();
+    if (row) { try { contact = JSON.parse(row.data); } catch {} }
+  }
+  if (!bin && contact) {
+    bin = String(contact._1c_bin || contact.bin || extractIdFromNote(contact.note, "БИН") || extractIdFromNote(contact.note, "ИИН") || "").trim();
+  }
+  if (!bin) return { ok: true, found: false, reason: "no_bin" };
+  try {
+    const { client } = await build1cClient(env, tenantId);
+    const safe = bin.replace(/'/g, "''");
+    const data = await client.get("Catalog_Контрагенты", {
+      top: 5,
+      filter: `НомерНалоговойРегистрацииВСтранеРезидентства eq '${safe}' or ИдентификационныйКодЛичности eq '${safe}'`,
+    });
+    const rows = Array.isArray(data?.value) ? data.value : [];
+    const hit = rows.map(contractorFromOData).find((c) => c && !c.is_folder && !c.deletion_mark);
+    if (!hit) return { ok: true, found: false };
+    if (contactId) {
+      await d1Upsert1cIdMap(env, tenantId, "contractor", contactId, hit.ref_key, hit.data_version || null);
+      if (contact) {
+        const now = Date.now();
+        const updated = { ...contact, _1c_ref_key: hit.ref_key, _1c_bin: hit.bin || contact._1c_bin || null, updatedAt: now };
+        await db.prepare(`UPDATE store SET data=?, updated_at=? WHERE team_id=? AND collection=? AND id=?`)
+          .bind(JSON.stringify(updated), now, TEAM_ID, "contacts", contactId).run();
+      }
+    }
+    return { ok: true, found: true, ref_key: hit.ref_key, name: hit.name || hit.full_name, bin: hit.bin, code: hit.code };
+  } catch (e) {
+    const httpStatus = e instanceof ODataError ? e.httpStatus : null;
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(httpStatus && httpStatus >= 400 && httpStatus < 600 ? httpStatus : 502, e?.message || String(e));
+  }
+}
+
 // GET /api/crm/1c/nomenclature/search?q= — поиск номенклатуры 1С по названию.
 async function handle1cNomenclatureSearch(request, env, actor) {
   require1cAdmin(actor);
@@ -5887,9 +5925,12 @@ async function handle1cListUnmatchedProducts(request, env, actor) {
     let p;
     try { p = JSON.parse(r.data); } catch { continue; }
     if (p.archived) continue;
-    if (p._1c_ref_key) continue;
+    const ambiguous = p._1c_match_ambiguous === true;
+    // Показываем без ссылки на 1С ИЛИ с черновой (неоднозначной) привязкой — её
+    // тоже надо проверить вручную и привязать по коду.
+    if (p._1c_ref_key && !ambiguous) continue;
     totalUnmatched += 1;
-    if (out.length < limit) out.push({ id: p.id || r.id, sku: p.sku || "", name: p.name || "" });
+    if (out.length < limit) out.push({ id: p.id || r.id, sku: p.sku || "", name: p.name || "", status: ambiguous ? "ambiguous" : "none" });
   }
   return { ok: true, count: out.length, total_unmatched: totalUnmatched, products: out };
 }
@@ -6054,6 +6095,10 @@ export default {
       if (request.method === "POST" && path === "/api/crm/1c/contractors/create") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handle1cCreateContractor(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/contractors/find") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cFindContractorByBin(request, env, actor));
       }
       if (request.method === "GET" && path === "/api/crm/1c/nomenclature/search") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });

@@ -414,8 +414,11 @@
 
       function umRow(p) {
         const guess = (p.name || "").replace(/^\S+\s+/, "").slice(0, 40);
+        const badge = p.status === "ambiguous"
+          ? ' <span style="color:#f59e0b;font-size:11px;white-space:nowrap">⚠ черновая привязка — проверьте по коду</span>'
+          : '';
         return `<div class="um-row" data-pid="${umEsc(p.id)}" style="border:1px solid var(--border,#333);border-radius:8px;padding:10px;margin-bottom:8px">
-          <div style="font-weight:600">${umEsc(p.name || "—")} <span style="opacity:.55;font-size:12px">${umEsc(p.sku || "")}</span></div>
+          <div style="font-weight:600">${umEsc(p.name || "—")} <span style="opacity:.55;font-size:12px">${umEsc(p.sku || "")}</span>${badge}</div>
           <div style="display:flex;gap:6px;margin-top:6px">
             <input type="search" class="um-q" placeholder="Поиск в номенклатуре 1С…" value="${umEsc(guess)}" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid var(--border,#333);background:transparent;color:inherit;font:inherit">
             <button type="button" class="um-search secondary">Искать</button>
