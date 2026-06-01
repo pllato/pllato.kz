@@ -3531,6 +3531,267 @@ async function handleWaFileServe(request, env, r2Key) {
   return new Response(obj.body, { headers });
 }
 
+// ── Лента (корпоративный фид, как в Битрикс24) ───────────────
+// Посты + комментарии + лайки. Аудитория: audience_uids NULL = всем;
+// иначе JSON-массив uid (автор всегда включён). admin видит всё.
+function genFeedId(prefix) {
+  return (prefix || 'fp_') + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+function feedNormalizeAttachments(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, 20).map(a => ({
+    url: String(a.url || ''),
+    name: String(a.name || 'file'),
+    contentType: String(a.contentType || ''),
+    size: (typeof a.size === 'number') ? a.size : null,
+    kind: String(a.kind || ''),
+  })).filter(a => a.url);
+}
+
+function feedSafeJson(str, fallback) {
+  if (str == null) return fallback;
+  try { const v = JSON.parse(str); return v == null ? fallback : v; } catch { return fallback; }
+}
+
+function feedPostToCamel(r) {
+  return {
+    id: r.id,
+    authorUid: r.author_uid,
+    text: r.text,
+    attachments: feedSafeJson(r.attachments, []),
+    audience: feedSafeJson(r.audience, null),
+    audienceUids: r.audience_uids ? feedSafeJson(r.audience_uids, null) : null,
+    pinned: !!r.pinned,
+    commentCount: r.comment_count || 0,
+    likeCount: r.like_count || 0,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+function feedCommentToCamel(r) {
+  return {
+    id: r.id,
+    postId: r.post_id,
+    authorUid: r.author_uid,
+    text: r.text,
+    attachments: feedSafeJson(r.attachments, []),
+    createdAt: r.created_at,
+  };
+}
+
+// Загрузить пост и проверить видимость для текущего юзера.
+async function feedLoadVisiblePost(env, me, postId) {
+  const row = await env.DB.prepare("SELECT * FROM feed_posts WHERE id = ? AND deleted_at IS NULL").bind(postId).first();
+  if (!row) return { error: "not found", status: 404 };
+  const myUid = me.canonicalUid || me.firebaseUid;
+  if (me.role !== 'admin' && row.author_uid !== myUid && row.audience_uids) {
+    const uids = feedSafeJson(row.audience_uids, []);
+    if (!Array.isArray(uids) || !uids.includes(myUid)) return { error: "forbidden", status: 403 };
+  }
+  return { row, myUid };
+}
+
+// POST /api/feed/posts { text, attachments[], audience{users,nodes}, audienceUids[] }
+async function handleFeedCreate(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const text = (body.text || '').trim();
+  const attachments = feedNormalizeAttachments(body.attachments);
+  if (!text && attachments.length === 0) return json({ error: "text or attachments required" }, 400, request);
+
+  const authorUid = me.canonicalUid || me.firebaseUid;
+  const audienceRaw = (body.audience && typeof body.audience === 'object') ? body.audience : null;
+  let audienceUids = Array.isArray(body.audienceUids) ? body.audienceUids.filter(Boolean).map(String) : [];
+  audienceUids = Array.from(new Set(audienceUids));
+  let audienceUidsJson = null;
+  if (audienceUids.length) {
+    if (!audienceUids.includes(authorUid)) audienceUids.push(authorUid);
+    audienceUidsJson = JSON.stringify(audienceUids);
+  }
+
+  const id = genFeedId('fp_');
+  const now = Date.now();
+  await env.DB.prepare(`
+    INSERT INTO feed_posts (id, author_uid, text, attachments, audience, audience_uids, pinned, comment_count, like_count, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, ?)
+  `).bind(
+    id, authorUid, text || null,
+    attachments.length ? JSON.stringify(attachments) : null,
+    audienceRaw ? JSON.stringify(audienceRaw) : null,
+    audienceUidsJson, now
+  ).run();
+
+  await auditLog(env, me, "feed_post_create", "feed_post", id, { hasMedia: attachments.length > 0, targeted: !!audienceUidsJson });
+  const row = await env.DB.prepare("SELECT * FROM feed_posts WHERE id = ?").bind(id).first();
+  return json({ ok: true, post: feedPostToCamel(row) }, 200, request);
+}
+
+// GET /api/feed/posts?limit=&before=  — лента видимых постов
+async function handleFeedList(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const myUid = me.canonicalUid || me.firebaseUid;
+
+  const url = new URL(request.url);
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "30", 10) || 30, 100);
+  const before = parseInt(url.searchParams.get("before") || "0", 10) || 0;
+
+  const where = ["deleted_at IS NULL"];
+  const params = [];
+  if (before) { where.push("created_at < ?"); params.push(before); }
+  if (me.role !== 'admin') {
+    where.push("(audience_uids IS NULL OR author_uid = ? OR audience_uids LIKE ?)");
+    params.push(myUid, '%"' + myUid + '"%');
+  }
+  const whereSQL = "WHERE " + where.join(" AND ");
+
+  const { results } = await env.DB.prepare(`
+    SELECT * FROM feed_posts ${whereSQL}
+    ORDER BY pinned DESC, created_at DESC LIMIT ?
+  `).bind(...params, limit).all();
+
+  const posts = (results || []).map(feedPostToCamel);
+  if (posts.length) {
+    const ids = posts.map(p => p.id);
+    const ph = ids.map(() => '?').join(',');
+    const { results: likes } = await env.DB.prepare(
+      `SELECT post_id FROM feed_reactions WHERE uid = ? AND post_id IN (${ph})`
+    ).bind(myUid, ...ids).all();
+    const liked = new Set((likes || []).map(l => l.post_id));
+    for (const p of posts) p.likedByMe = liked.has(p.id);
+  }
+  return json({ posts, total: posts.length }, 200, request);
+}
+
+// PATCH /api/feed/posts/:id  { text?, pinned? }  — автор или admin
+async function handleFeedUpdate(request, env, postId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const myUid = me.canonicalUid || me.firebaseUid;
+
+  const row = await env.DB.prepare("SELECT * FROM feed_posts WHERE id = ? AND deleted_at IS NULL").bind(postId).first();
+  if (!row) return json({ error: "not found" }, 404, request);
+  if (row.author_uid !== myUid && me.role !== 'admin') return json({ error: "forbidden" }, 403, request);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const sets = [], params = [];
+  if (typeof body.text === 'string') { sets.push("text = ?"); params.push(body.text.trim() || null); }
+  if (typeof body.pinned === 'boolean') {
+    if (me.role !== 'admin') return json({ error: "only admin can pin" }, 403, request);
+    sets.push("pinned = ?"); params.push(body.pinned ? 1 : 0);
+  }
+  if (!sets.length) return json({ error: "nothing to update" }, 400, request);
+  sets.push("updated_at = ?"); params.push(Date.now());
+  await env.DB.prepare(`UPDATE feed_posts SET ${sets.join(", ")} WHERE id = ?`).bind(...params, postId).run();
+  await auditLog(env, me, "feed_post_update", "feed_post", postId, {});
+  const updated = await env.DB.prepare("SELECT * FROM feed_posts WHERE id = ?").bind(postId).first();
+  return json({ ok: true, post: feedPostToCamel(updated) }, 200, request);
+}
+
+// DELETE /api/feed/posts/:id  — автор или admin (soft delete)
+async function handleFeedDelete(request, env, postId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const myUid = me.canonicalUid || me.firebaseUid;
+
+  const row = await env.DB.prepare("SELECT author_uid FROM feed_posts WHERE id = ? AND deleted_at IS NULL").bind(postId).first();
+  if (!row) return json({ error: "not found" }, 404, request);
+  if (row.author_uid !== myUid && me.role !== 'admin') return json({ error: "forbidden" }, 403, request);
+  await env.DB.prepare("UPDATE feed_posts SET deleted_at = ? WHERE id = ?").bind(Date.now(), postId).run();
+  await auditLog(env, me, "feed_post_delete", "feed_post", postId, {});
+  return json({ ok: true, id: postId }, 200, request);
+}
+
+// GET /api/feed/posts/:id/comments
+async function handleFeedCommentList(request, env, postId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const vis = await feedLoadVisiblePost(env, me, postId);
+  if (vis.error) return json({ error: vis.error }, vis.status, request);
+
+  const { results } = await env.DB.prepare(`
+    SELECT * FROM feed_comments WHERE post_id = ? AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 500
+  `).bind(postId).all();
+  return json({ comments: (results || []).map(feedCommentToCamel) }, 200, request);
+}
+
+// POST /api/feed/posts/:id/comments  { text, attachments[] }
+async function handleFeedCommentCreate(request, env, postId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const vis = await feedLoadVisiblePost(env, me, postId);
+  if (vis.error) return json({ error: vis.error }, vis.status, request);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const text = (body.text || '').trim();
+  const attachments = feedNormalizeAttachments(body.attachments);
+  if (!text && attachments.length === 0) return json({ error: "text or attachments required" }, 400, request);
+
+  const id = genFeedId('fc_');
+  const now = Date.now();
+  await env.DB.prepare(`
+    INSERT INTO feed_comments (id, post_id, author_uid, text, attachments, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(id, postId, vis.myUid, text || null, attachments.length ? JSON.stringify(attachments) : null, now).run();
+  await env.DB.prepare("UPDATE feed_posts SET comment_count = comment_count + 1 WHERE id = ?").bind(postId).run();
+  await auditLog(env, me, "feed_comment_create", "feed_post", postId, { commentId: id });
+
+  const row = await env.DB.prepare("SELECT * FROM feed_comments WHERE id = ?").bind(id).first();
+  return json({ ok: true, comment: feedCommentToCamel(row) }, 200, request);
+}
+
+// DELETE /api/feed/comments/:id  — автор комментария или admin
+async function handleFeedCommentDelete(request, env, commentId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const myUid = me.canonicalUid || me.firebaseUid;
+
+  const row = await env.DB.prepare("SELECT post_id, author_uid FROM feed_comments WHERE id = ? AND deleted_at IS NULL").bind(commentId).first();
+  if (!row) return json({ error: "not found" }, 404, request);
+  if (row.author_uid !== myUid && me.role !== 'admin') return json({ error: "forbidden" }, 403, request);
+  await env.DB.prepare("UPDATE feed_comments SET deleted_at = ? WHERE id = ?").bind(Date.now(), commentId).run();
+  await env.DB.prepare("UPDATE feed_posts SET comment_count = MAX(0, comment_count - 1) WHERE id = ?").bind(row.post_id).run();
+  await auditLog(env, me, "feed_comment_delete", "feed_comment", commentId, {});
+  return json({ ok: true, id: commentId }, 200, request);
+}
+
+// POST /api/feed/posts/:id/like  — toggle лайк
+async function handleFeedLikeToggle(request, env, postId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const vis = await feedLoadVisiblePost(env, me, postId);
+  if (vis.error) return json({ error: vis.error }, vis.status, request);
+
+  const existing = await env.DB.prepare("SELECT post_id FROM feed_reactions WHERE post_id = ? AND uid = ?").bind(postId, vis.myUid).first();
+  let liked;
+  if (existing) {
+    await env.DB.prepare("DELETE FROM feed_reactions WHERE post_id = ? AND uid = ?").bind(postId, vis.myUid).run();
+    await env.DB.prepare("UPDATE feed_posts SET like_count = MAX(0, like_count - 1) WHERE id = ?").bind(postId).run();
+    liked = false;
+  } else {
+    await env.DB.prepare("INSERT INTO feed_reactions (post_id, uid, kind, created_at) VALUES (?, ?, 'like', ?)").bind(postId, vis.myUid, Date.now()).run();
+    await env.DB.prepare("UPDATE feed_posts SET like_count = like_count + 1 WHERE id = ?").bind(postId).run();
+    liked = true;
+  }
+  const row = await env.DB.prepare("SELECT like_count FROM feed_posts WHERE id = ?").bind(postId).first();
+  return json({ ok: true, liked, likeCount: row?.like_count || 0 }, 200, request);
+}
+
 // ── Per-pipeline custom fields config (hidden + pinned) ──
 // kv['org:fieldConfig'] = { [pipelineId]: { hidden: [...], pinned: [...] } }
 async function handleFieldConfigGet(request, env) {
@@ -4431,6 +4692,35 @@ export default {
     }
     if (path === "/api/wa/sync-groups" && request.method === "POST") {
       return handleWaSyncGroups(request, env);
+    }
+    // ── Лента (корпоративный фид) ──
+    if (path === "/api/feed/posts" && request.method === "POST") {
+      return handleFeedCreate(request, env);
+    }
+    if (path === "/api/feed/posts" && request.method === "GET") {
+      return handleFeedList(request, env);
+    }
+    const feedCommentsMatch = path.match(/^\/api\/feed\/posts\/([^/]+)\/comments$/);
+    if (feedCommentsMatch && request.method === "GET") {
+      return handleFeedCommentList(request, env, feedCommentsMatch[1]);
+    }
+    if (feedCommentsMatch && request.method === "POST") {
+      return handleFeedCommentCreate(request, env, feedCommentsMatch[1]);
+    }
+    const feedLikeMatch = path.match(/^\/api\/feed\/posts\/([^/]+)\/like$/);
+    if (feedLikeMatch && request.method === "POST") {
+      return handleFeedLikeToggle(request, env, feedLikeMatch[1]);
+    }
+    const feedPostMatch = path.match(/^\/api\/feed\/posts\/([^/]+)$/);
+    if (feedPostMatch && request.method === "PATCH") {
+      return handleFeedUpdate(request, env, feedPostMatch[1]);
+    }
+    if (feedPostMatch && request.method === "DELETE") {
+      return handleFeedDelete(request, env, feedPostMatch[1]);
+    }
+    const feedCommentDelMatch = path.match(/^\/api\/feed\/comments\/([^/]+)$/);
+    if (feedCommentDelMatch && request.method === "DELETE") {
+      return handleFeedCommentDelete(request, env, feedCommentDelMatch[1]);
     }
     if (path === "/api/wa/channels/public" && request.method === "GET") {
       return handleWaListChannelsPublic(request, env);

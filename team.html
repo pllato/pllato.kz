@@ -2746,6 +2746,9 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
     </div>
 
     <div class="nav-section">Команда</div>
+    <div class="nav-item" data-page="feed">
+      <span class="nav-icon">📰</span><span>Лента</span>
+    </div>
     <div class="nav-item" data-page="orgchart">
       <span class="nav-icon">🏢</span><span>Структура</span>
     </div>
@@ -3323,6 +3326,7 @@ function navigate(page) {
   else if (page === 'calendar') renderCalendar(main);
   else if (page === 'chats') renderChats(main);
   else if (page === 'team-chat') renderTeamChat(main);
+  else if (page === 'feed') renderFeed(main);
   else if (page === 'orgchart') renderOrgChart(main);
   else if (page === 'migration') {
     // Миграция Bitrix переехала в Настройки → таб. Открываем настройки и переключаем.
@@ -3359,6 +3363,615 @@ function renderTeamChat(el) {
     if (m) m.innerHTML = '<div style="padding:20px;color:#dc2626">❌ Не удалось загрузить chat.js</div>';
   };
   document.head.appendChild(s);
+}
+
+// ══════════════════════════════════════════════════════════════
+// Лента (корпоративный фид, как в Битрикс24)
+// Посты + комментарии + лайки + аудитория (кто видит) + вложения.
+// ══════════════════════════════════════════════════════════════
+const feedState = {
+  posts: [],
+  loading: false,
+  pollTimer: null,
+  sig: '',
+  composerAttachments: [],   // [{url,name,contentType,size,kind}]
+  audienceUids: [],          // [] = всем
+  audienceRaw: null,         // {users:[uid], nodes:[{path,label,count}]} для UI
+  openComments: new Set(),   // postId с раскрытыми комментариями
+  commentsByPost: {},        // postId -> [comments]
+};
+
+function feedMyUid() {
+  return window.currentUser?.canonicalUid || window.currentUser?.firebaseUid || '';
+}
+function feedIsAdmin() {
+  return (window.currentUser?.role || 'agent') === 'admin';
+}
+
+function feedFmtText(text) {
+  if (!text) return '';
+  return escapeHtml(text)
+    .replace(/\n/g, '<br>')
+    .replace(/(https?:\/\/[^\s<>"]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--ac);text-decoration:underline">$1</a>');
+}
+
+function feedTimeAgo(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'только что';
+  if (m < 60) return m + ' мин назад';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + ' ч назад';
+  const d = new Date(ts);
+  return d.toLocaleString('ru', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function feedAvatarHtml(uid, size) {
+  const sz = size || 38;
+  const u = usersState.users?.[uid];
+  const label = orgUserLabel(uid) || '?';
+  const initials = label.split(/\s+/).slice(0, 2).map(s => s[0] || '').join('').toUpperCase() || '?';
+  if (u && u.photo) {
+    return `<img src="${escapeHtml(u.photo)}" alt="" style="width:${sz}px;height:${sz}px;border-radius:50%;object-fit:cover;flex-shrink:0">`;
+  }
+  return `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-size:${Math.round(sz*0.38)}px;font-weight:700;flex-shrink:0">${escapeHtml(initials)}</div>`;
+}
+
+function feedAttachmentHtml(att) {
+  if (!att || !att.url) return '';
+  const url = escapeHtml(att.url);
+  const ct = att.contentType || '';
+  const name = escapeHtml(att.name || 'файл');
+  if (/^image\//.test(ct)) {
+    return `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${name}" style="max-width:260px;max-height:260px;border-radius:8px;display:block;border:1px solid var(--b1)"></a>`;
+  }
+  if (/^video\//.test(ct)) {
+    return `<video src="${url}" controls style="max-width:300px;max-height:300px;border-radius:8px;display:block"></video>`;
+  }
+  if (/^audio\//.test(ct)) {
+    return `<audio src="${url}" controls style="max-width:300px;display:block"></audio>`;
+  }
+  return `<a href="${url}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:var(--bg3);border:1px solid var(--b1);border-radius:6px;color:var(--t1);text-decoration:none;font-size:12px">📎 ${name}</a>`;
+}
+
+function feedAudienceLabel(post) {
+  if (!post.audienceUids) return '👁 Виден всем';
+  const n = Array.isArray(post.audienceUids) ? post.audienceUids.length : 0;
+  return `🔒 Только для ${n} чел.`;
+}
+
+function renderFeed(el) {
+  if (!feedIsAdmin()) {
+    // не-админ тоже видит, просто без pin-кнопок
+  }
+  el.innerHTML = `
+    <div class="page-head"><h1>📰 Лента</h1></div>
+    <div style="max-width:680px;margin:0 auto">
+      <!-- Композер -->
+      <div style="background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:14px 16px;margin-bottom:18px">
+        <div style="display:flex;gap:10px">
+          ${feedAvatarHtml(feedMyUid(), 38)}
+          <textarea id="feed-composer-text" placeholder="Поделитесь новостью с командой…" rows="2"
+            style="flex:1;resize:none;border:1px solid var(--b1);border-radius:8px;background:var(--bg1);color:var(--t1);font-size:14px;padding:9px 12px;outline:none;font-family:inherit;line-height:1.4"></textarea>
+        </div>
+        <div id="feed-composer-attachments" style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0 48px"></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding-left:48px;flex-wrap:wrap">
+          <input type="file" id="feed-file-input" multiple style="display:none">
+          <button id="feed-attach-btn" class="qad-btn qad-btn-ghost" style="padding:6px 12px;font-size:13px">📎 Файл / медиа</button>
+          <button id="feed-audience-btn" class="qad-btn qad-btn-ghost" style="padding:6px 12px;font-size:13px">👁 <span id="feed-audience-label">Виден всем</span></button>
+          <div style="flex:1"></div>
+          <button id="feed-submit-btn" class="qad-btn qad-btn-primary" style="padding:7px 20px;font-size:14px">Опубликовать</button>
+        </div>
+      </div>
+      <!-- Лента постов -->
+      <div id="feed-posts"><div style="text-align:center;color:var(--t3);padding:40px">⏳ Загружаем ленту…</div></div>
+    </div>
+  `;
+
+  // Привязка композера
+  const ta = document.getElementById('feed-composer-text');
+  ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(220, ta.scrollHeight) + 'px'; });
+  document.getElementById('feed-attach-btn').onclick = () => document.getElementById('feed-file-input').click();
+  document.getElementById('feed-file-input').onchange = (e) => feedHandleFiles(e.target.files);
+  document.getElementById('feed-audience-btn').onclick = openFeedAudiencePicker;
+  document.getElementById('feed-submit-btn').onclick = submitFeedPost;
+  feedRenderComposerAttachments();
+  feedRenderAudienceLabel();
+
+  loadFeedPosts();
+
+  // Polling каждые 15 сек
+  if (feedState.pollTimer) clearInterval(feedState.pollTimer);
+  feedState.pollTimer = setInterval(() => {
+    if (!document.getElementById('feed-posts')) { clearInterval(feedState.pollTimer); feedState.pollTimer = null; return; }
+    loadFeedPosts({ silent: true });
+  }, 15000);
+}
+
+function feedRenderAudienceLabel() {
+  const lbl = document.getElementById('feed-audience-label');
+  if (!lbl) return;
+  lbl.textContent = feedState.audienceUids.length ? `${feedState.audienceUids.length} чел.` : 'Виден всем';
+}
+
+function feedRenderComposerAttachments() {
+  const box = document.getElementById('feed-composer-attachments');
+  if (!box) return;
+  box.innerHTML = feedState.composerAttachments.map((a, i) => {
+    const isImg = /^image\//.test(a.contentType || '');
+    const thumb = isImg
+      ? `<img src="${escapeHtml(a.url)}" style="width:46px;height:46px;object-fit:cover;border-radius:6px">`
+      : `<div style="width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:var(--bg3);border-radius:6px;font-size:20px">📎</div>`;
+    return `<div style="position:relative;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--b1);border-radius:8px;padding:4px 8px 4px 4px;background:var(--bg1)">
+      ${thumb}
+      <span style="font-size:11px;color:var(--t2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.name)}</span>
+      <button data-att-remove="${i}" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:15px;line-height:1;padding:0 2px">×</button>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-att-remove]').forEach(b => b.onclick = () => {
+    feedState.composerAttachments.splice(parseInt(b.dataset.attRemove, 10), 1);
+    feedRenderComposerAttachments();
+  });
+}
+
+async function feedHandleFiles(fileList) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  const btn = document.getElementById('feed-attach-btn');
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Загрузка…'; }
+  try {
+    for (const f of files) {
+      if (f.size > 25 * 1024 * 1024) { alert(`Файл «${f.name}» больше 25 МБ — пропущен`); continue; }
+      const up = await uploadWaMediaFile(f, f.name);
+      feedState.composerAttachments.push({
+        url: up.publicUrl, name: up.fileName || f.name,
+        contentType: up.contentType || f.type || '', size: up.size || f.size || null,
+        kind: (f.type || '').split('/')[0] || 'file',
+      });
+      feedRenderComposerAttachments();
+    }
+  } catch (e) {
+    alert('Ошибка загрузки файла: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = orig; }
+    const inp = document.getElementById('feed-file-input');
+    if (inp) inp.value = '';
+  }
+}
+
+async function submitFeedPost() {
+  const ta = document.getElementById('feed-composer-text');
+  const text = (ta?.value || '').trim();
+  if (!text && feedState.composerAttachments.length === 0) { alert('Напишите текст или прикрепите файл'); return; }
+  const btn = document.getElementById('feed-submit-btn');
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/feed/posts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({
+        text,
+        attachments: feedState.composerAttachments,
+        audienceUids: feedState.audienceUids,
+        audience: feedState.audienceRaw,
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    // Сброс композера
+    ta.value = ''; ta.style.height = 'auto';
+    feedState.composerAttachments = [];
+    feedState.audienceUids = [];
+    feedState.audienceRaw = null;
+    feedRenderComposerAttachments();
+    feedRenderAudienceLabel();
+    await loadFeedPosts();
+  } catch (e) {
+    alert('Ошибка публикации: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Опубликовать';
+  }
+}
+
+async function loadFeedPosts(opts = {}) {
+  if (feedState.loading) return;
+  feedState.loading = true;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/feed/posts?limit=50`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) return;
+    const d = await r.json();
+    const posts = d.posts || [];
+    // Сигнатура для silent-режима: чтобы не перерисовывать когда нет изменений
+    const sig = posts.map(p => `${p.id}:${p.commentCount}:${p.likeCount}:${p.likedByMe ? 1 : 0}:${p.pinned ? 1 : 0}:${p.text || ''}`).join('|');
+    if (opts.silent && sig === feedState.sig) return;
+    feedState.sig = sig;
+    feedState.posts = posts;
+    renderFeedPostsList();
+  } catch {} finally {
+    feedState.loading = false;
+  }
+}
+
+function renderFeedPostsList() {
+  const box = document.getElementById('feed-posts');
+  if (!box) return;
+  if (!feedState.posts.length) {
+    box.innerHTML = '<div style="text-align:center;color:var(--t3);padding:40px">Пока нет постов. Будьте первым! ☝️</div>';
+    return;
+  }
+  box.innerHTML = feedState.posts.map(feedPostHtml).join('');
+  feedBindPostEvents();
+  // Восстановить раскрытые комментарии
+  for (const pid of feedState.openComments) {
+    const sec = document.getElementById(`feed-comments-${pid}`);
+    if (sec) { sec.style.display = ''; feedRenderComments(pid); }
+  }
+}
+
+function feedPostHtml(p) {
+  const myUid = feedMyUid();
+  const canEdit = p.authorUid === myUid || feedIsAdmin();
+  const attHtml = (p.attachments || []).map(feedAttachmentHtml).join('');
+  return `<div class="feed-post" data-post-id="${escapeHtml(p.id)}" style="background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+    <div style="display:flex;gap:10px;align-items:flex-start">
+      ${feedAvatarHtml(p.authorUid, 38)}
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-weight:700;font-size:14px;color:var(--t1)">${escapeHtml(orgUserLabel(p.authorUid))}</span>
+          ${p.pinned ? '<span title="Закреплён" style="font-size:12px">📌</span>' : ''}
+          <span style="font-size:11px;color:var(--t3)">${feedTimeAgo(p.createdAt)}${p.updatedAt ? ' · изм.' : ''}</span>
+        </div>
+        <div style="font-size:10px;color:var(--t3);margin-top:1px">${feedAudienceLabel(p)}</div>
+      </div>
+      ${canEdit ? `<div style="position:relative">
+        <button class="feed-menu-btn" data-menu="${escapeHtml(p.id)}" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px">⋯</button>
+        <div class="feed-menu" id="feed-menu-${escapeHtml(p.id)}" style="display:none;position:absolute;right:0;top:26px;background:var(--bg1);border:1px solid var(--b1);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.18);z-index:20;min-width:150px;overflow:hidden">
+          ${feedIsAdmin() ? `<div class="feed-menu-item" data-pin="${escapeHtml(p.id)}" style="padding:9px 14px;cursor:pointer;font-size:13px;color:var(--t1)">${p.pinned ? '📌 Открепить' : '📌 Закрепить'}</div>` : ''}
+          <div class="feed-menu-item" data-del="${escapeHtml(p.id)}" style="padding:9px 14px;cursor:pointer;font-size:13px;color:#dc2626">🗑 Удалить</div>
+        </div>
+      </div>` : ''}
+    </div>
+    ${p.text ? `<div style="font-size:14px;line-height:1.5;color:var(--t1);margin:10px 0 0 48px;word-wrap:break-word">${feedFmtText(p.text)}</div>` : ''}
+    ${attHtml ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0 48px">${attHtml}</div>` : ''}
+    <div style="display:flex;align-items:center;gap:16px;margin:12px 0 0 48px">
+      <button class="feed-like-btn" data-like="${escapeHtml(p.id)}" style="background:none;border:none;cursor:pointer;font-size:13px;color:${p.likedByMe ? '#dc2626' : 'var(--t2)'};display:flex;align-items:center;gap:5px;padding:0">
+        ${p.likedByMe ? '❤️' : '🤍'} <span>${p.likeCount || 0}</span>
+      </button>
+      <button class="feed-comment-toggle" data-comments="${escapeHtml(p.id)}" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--t2);display:flex;align-items:center;gap:5px;padding:0">
+        💬 <span>${p.commentCount || 0}</span>
+      </button>
+    </div>
+    <div class="feed-comments-section" id="feed-comments-${escapeHtml(p.id)}" style="display:none;margin:12px 0 0 48px;border-top:1px solid var(--b1);padding-top:12px">
+      <div class="feed-comments-list" id="feed-comments-list-${escapeHtml(p.id)}"></div>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-start">
+        ${feedAvatarHtml(myUid, 28)}
+        <textarea data-comment-input="${escapeHtml(p.id)}" placeholder="Написать комментарий…" rows="1"
+          style="flex:1;resize:none;border:1px solid var(--b1);border-radius:16px;background:var(--bg1);color:var(--t1);font-size:13px;padding:6px 12px;outline:none;font-family:inherit;max-height:100px"></textarea>
+        <button data-comment-send="${escapeHtml(p.id)}" class="qad-btn qad-btn-primary" style="padding:6px 14px;font-size:13px;border-radius:16px">➤</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function feedBindPostEvents() {
+  const box = document.getElementById('feed-posts');
+  if (!box) return;
+  box.querySelectorAll('[data-like]').forEach(b => b.onclick = () => toggleFeedLike(b.dataset.like));
+  box.querySelectorAll('[data-comments]').forEach(b => b.onclick = () => toggleFeedComments(b.dataset.comments));
+  box.querySelectorAll('[data-comment-send]').forEach(b => b.onclick = () => submitFeedComment(b.dataset.commentSend));
+  box.querySelectorAll('[data-comment-input]').forEach(ta => {
+    ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(100, ta.scrollHeight) + 'px'; });
+    ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitFeedComment(ta.dataset.commentInput); } });
+  });
+  box.querySelectorAll('[data-menu]').forEach(b => b.onclick = (e) => {
+    e.stopPropagation();
+    const menu = document.getElementById(`feed-menu-${b.dataset.menu}`);
+    const open = menu.style.display !== 'none';
+    document.querySelectorAll('.feed-menu').forEach(m => m.style.display = 'none');
+    menu.style.display = open ? 'none' : '';
+  });
+  box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => deleteFeedPost(b.dataset.del));
+  box.querySelectorAll('[data-pin]').forEach(b => b.onclick = () => toggleFeedPin(b.dataset.pin));
+}
+// Закрыть меню по клику вне
+document.addEventListener('click', () => document.querySelectorAll('.feed-menu').forEach(m => m.style.display = 'none'));
+
+async function toggleFeedLike(postId) {
+  const post = feedState.posts.find(p => p.id === postId);
+  // Оптимистично
+  if (post) {
+    post.likedByMe = !post.likedByMe;
+    post.likeCount = Math.max(0, (post.likeCount || 0) + (post.likedByMe ? 1 : -1));
+    renderFeedPostsList();
+  }
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/feed/posts/${encodeURIComponent(postId)}/like`, {
+      method: 'POST', headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    const d = await r.json();
+    if (r.ok && post) { post.likedByMe = d.liked; post.likeCount = d.likeCount; feedState.sig = ''; }
+  } catch {}
+}
+
+async function toggleFeedComments(postId) {
+  const sec = document.getElementById(`feed-comments-${postId}`);
+  if (!sec) return;
+  if (feedState.openComments.has(postId)) {
+    feedState.openComments.delete(postId);
+    sec.style.display = 'none';
+  } else {
+    feedState.openComments.add(postId);
+    sec.style.display = '';
+    await loadFeedComments(postId);
+    const inp = sec.querySelector('[data-comment-input]');
+    if (inp) inp.focus();
+  }
+}
+
+async function loadFeedComments(postId) {
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/feed/posts/${encodeURIComponent(postId)}/comments`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) return;
+    const d = await r.json();
+    feedState.commentsByPost[postId] = d.comments || [];
+    feedRenderComments(postId);
+  } catch {}
+}
+
+function feedRenderComments(postId) {
+  const list = document.getElementById(`feed-comments-list-${postId}`);
+  if (!list) return;
+  const comments = feedState.commentsByPost[postId] || [];
+  const myUid = feedMyUid();
+  list.innerHTML = comments.map(c => {
+    const canDel = c.authorUid === myUid || feedIsAdmin();
+    const attHtml = (c.attachments || []).map(feedAttachmentHtml).join('');
+    return `<div style="display:flex;gap:8px;margin-bottom:10px">
+      ${feedAvatarHtml(c.authorUid, 28)}
+      <div style="flex:1;min-width:0">
+        <div style="background:var(--bg1);border:1px solid var(--b1);border-radius:10px;padding:7px 11px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-weight:700;font-size:12px;color:var(--t1)">${escapeHtml(orgUserLabel(c.authorUid))}</span>
+            <span style="font-size:10px;color:var(--t3)">${feedTimeAgo(c.createdAt)}</span>
+            ${canDel ? `<button data-comment-del="${escapeHtml(c.id)}" data-comment-post="${escapeHtml(postId)}" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:11px;margin-left:auto;padding:0">🗑</button>` : ''}
+          </div>
+          ${c.text ? `<div style="font-size:13px;color:var(--t1);line-height:1.4;margin-top:2px;word-wrap:break-word">${feedFmtText(c.text)}</div>` : ''}
+          ${attHtml ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${attHtml}</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-comment-del]').forEach(b => b.onclick = () => deleteFeedComment(b.dataset.commentDel, b.dataset.commentPost));
+}
+
+async function submitFeedComment(postId) {
+  const ta = document.querySelector(`[data-comment-input="${CSS.escape(postId)}"]`);
+  if (!ta) return;
+  const text = ta.value.trim();
+  if (!text) return;
+  ta.value = ''; ta.style.height = 'auto';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/feed/posts/${encodeURIComponent(postId)}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ text }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    if (d.comment) {
+      (feedState.commentsByPost[postId] = feedState.commentsByPost[postId] || []).push(d.comment);
+      feedRenderComments(postId);
+    }
+    const post = feedState.posts.find(p => p.id === postId);
+    if (post) { post.commentCount = (post.commentCount || 0) + 1; }
+    feedState.sig = '';
+    // Обновить счётчик на кнопке
+    const cntBtn = document.querySelector(`[data-comments="${CSS.escape(postId)}"] span`);
+    if (cntBtn && post) cntBtn.textContent = post.commentCount;
+  } catch (e) {
+    alert('Ошибка: ' + e.message);
+  }
+}
+
+async function deleteFeedComment(commentId, postId) {
+  if (!confirm('Удалить комментарий?')) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/feed/comments/${encodeURIComponent(commentId)}`, {
+      method: 'DELETE', headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || `HTTP ${r.status}`); }
+    feedState.commentsByPost[postId] = (feedState.commentsByPost[postId] || []).filter(c => c.id !== commentId);
+    feedRenderComments(postId);
+    const post = feedState.posts.find(p => p.id === postId);
+    if (post) { post.commentCount = Math.max(0, (post.commentCount || 0) - 1); }
+    feedState.sig = '';
+    const cntBtn = document.querySelector(`[data-comments="${CSS.escape(postId)}"] span`);
+    if (cntBtn && post) cntBtn.textContent = post.commentCount;
+  } catch (e) { alert('Ошибка: ' + e.message); }
+}
+
+async function deleteFeedPost(postId) {
+  if (!confirm('Удалить пост?')) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/feed/posts/${encodeURIComponent(postId)}`, {
+      method: 'DELETE', headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || `HTTP ${r.status}`); }
+    feedState.posts = feedState.posts.filter(p => p.id !== postId);
+    feedState.openComments.delete(postId);
+    feedState.sig = '';
+    renderFeedPostsList();
+  } catch (e) { alert('Ошибка: ' + e.message); }
+}
+
+async function toggleFeedPin(postId) {
+  const post = feedState.posts.find(p => p.id === postId);
+  if (!post) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/feed/posts/${encodeURIComponent(postId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ pinned: !post.pinned }),
+    });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || `HTTP ${r.status}`); }
+    feedState.sig = '';
+    await loadFeedPosts();
+  } catch (e) { alert('Ошибка: ' + e.message); }
+}
+
+// Модал выбора аудитории поста (кто увидит). Reuse паттерн каналов:
+// По сотрудникам / По отделам. Пустой выбор = виден всем.
+function openFeedAudiencePicker() {
+  ensureUsersLoaded().then(async () => {
+    let structure = null;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/org/structure`, { headers: { 'Authorization': 'Bearer ' + idToken } });
+      if (r.ok) { const d = await r.json(); structure = d.structure || null; }
+    } catch {}
+
+    const users = orgSortedUsers().filter(u => u.uid !== feedMyUid());
+    const orgNodes = [];
+    if (structure) {
+      (function buildNodes() {
+        function walk(node, path, depth) {
+          if (!node) return;
+          const uids = collectNodeUids(node);
+          orgNodes.push({ path, label: '— '.repeat(depth) + (node.name || node.title || 'без имени'), uids });
+          const children = node.subDepartments || node.departments || [];
+          children.forEach((c, i) => {
+            const childPath = path + (node.subDepartments ? `.subDepartments.${i}` : `.departments.${i}`);
+            walk(c, childPath, depth + 1);
+          });
+        }
+        (structure.branches || []).forEach((b, i) => walk(b, `branches.${i}`, 0));
+      })();
+    }
+
+    const selectedUids = new Set(feedState.audienceUids);
+
+    const ov = document.createElement('div');
+    ov.className = 'qad-overlay';
+    ov.style.zIndex = '10000';
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:520px;width:96vw">
+      <div class="qad-head">
+        <h2>👁 Кто увидит пост</h2>
+        <button class="qad-btn qad-btn-ghost" id="fa-close" style="padding:4px 10px">×</button>
+      </div>
+      <div class="qad-body" style="padding:18px 24px;max-height:75vh;overflow:auto">
+        <div style="font-size:12px;color:var(--t3);margin-bottom:12px;padding:8px 10px;background:var(--bg3);border-radius:6px">
+          Если никого не выбрать — пост увидят <b>все сотрудники</b>. Выберите людей или отделы, чтобы ограничить видимость.
+        </div>
+        <div style="display:flex;gap:8px;border-bottom:1px solid var(--b1);margin-bottom:10px">
+          <button class="fa-tab active" data-tab="users" style="padding:8px 14px;background:none;border:none;border-bottom:2px solid var(--ac);cursor:pointer;font-size:13px;color:var(--ac);font-weight:600">По сотрудникам</button>
+          <button class="fa-tab" data-tab="depts" style="padding:8px 14px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:13px;color:var(--t3)">По отделам</button>
+        </div>
+        <div id="fa-pane-users">
+          <input id="fa-user-search" class="qad-input" placeholder="Поиск сотрудника..." style="width:100%;padding:6px 10px;font-size:13px;margin-bottom:8px">
+          <div id="fa-user-list" style="max-height:220px;overflow:auto;border:1px solid var(--b1);border-radius:5px;padding:4px"></div>
+        </div>
+        <div id="fa-pane-depts" style="display:none">
+          <div style="font-size:11px;color:var(--t3);margin-bottom:6px">Клик на отдел → добавятся все сотрудники этого узла и вложенных</div>
+          <div id="fa-dept-list" style="max-height:260px;overflow:auto;border:1px solid var(--b1);border-radius:5px;padding:4px"></div>
+        </div>
+        <div style="margin:12px 0 6px;font-size:12px;color:var(--t2)">Выбрано (<span id="fa-count">0</span>):</div>
+        <div id="fa-selected" style="border:1px solid var(--b1);border-radius:5px;padding:6px;min-height:36px;display:flex;flex-wrap:wrap;gap:4px"></div>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="fa-clear">Сбросить (всем)</button>
+        <button class="qad-btn qad-btn-primary" id="fa-apply">Применить</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    const close = () => ov.remove();
+    document.getElementById('fa-close').onclick = close;
+
+    ov.querySelectorAll('.fa-tab').forEach(t => {
+      t.onclick = () => {
+        ov.querySelectorAll('.fa-tab').forEach(x => { x.classList.remove('active'); x.style.borderBottomColor = 'transparent'; x.style.color = 'var(--t3)'; x.style.fontWeight = '400'; });
+        t.classList.add('active'); t.style.borderBottomColor = 'var(--ac)'; t.style.color = 'var(--ac)'; t.style.fontWeight = '600';
+        document.getElementById('fa-pane-users').style.display = t.dataset.tab === 'users' ? '' : 'none';
+        document.getElementById('fa-pane-depts').style.display = t.dataset.tab === 'depts' ? '' : 'none';
+      };
+    });
+
+    function renderSelected() {
+      document.getElementById('fa-count').textContent = selectedUids.size;
+      const sel = document.getElementById('fa-selected');
+      sel.innerHTML = [...selectedUids].slice(0, 60).map(uid =>
+        `<span style="background:rgba(34,197,94,0.15);border:1px solid #22c55e;color:#15803d;font-size:11px;padding:2px 8px;border-radius:10px;display:inline-flex;gap:5px;align-items:center">
+          ${escapeHtml(orgUserLabel(uid))}
+          <button data-rm="${escapeHtml(uid)}" style="background:none;border:none;color:#15803d;cursor:pointer;padding:0;font-size:13px;line-height:1">×</button>
+        </span>`).join('') + (selectedUids.size > 60 ? `<span style="font-size:11px;color:var(--t3)">+ ${selectedUids.size - 60} ещё</span>` : '');
+      sel.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { selectedUids.delete(b.dataset.rm); renderSelected(); renderUsers(); renderDepts(); });
+    }
+    function renderUsers() {
+      const q = (document.getElementById('fa-user-search').value || '').toLowerCase().trim();
+      const list = document.getElementById('fa-user-list');
+      const filtered = users.filter(u => !q || u.label.toLowerCase().includes(q)).slice(0, 200);
+      list.innerHTML = filtered.length === 0
+        ? '<div style="color:var(--t3);font-size:12px;padding:8px">Никого не найдено</div>'
+        : filtered.map(u => {
+            const sel = selectedUids.has(u.uid);
+            return `<div data-uid="${escapeHtml(u.uid)}" style="padding:6px 8px;cursor:pointer;font-size:12px;border-radius:4px;display:flex;align-items:center;gap:6px;${sel ? 'background:rgba(34,197,94,0.1)' : ''}">
+              <span>${sel ? '✓' : '○'}</span> ${escapeHtml(u.label)}
+            </div>`;
+          }).join('');
+      list.querySelectorAll('[data-uid]').forEach(el => el.onclick = () => {
+        const uid = el.dataset.uid;
+        if (selectedUids.has(uid)) selectedUids.delete(uid); else selectedUids.add(uid);
+        renderSelected(); renderUsers();
+      });
+    }
+    document.getElementById('fa-user-search').addEventListener('input', renderUsers);
+    function renderDepts() {
+      const list = document.getElementById('fa-dept-list');
+      list.innerHTML = orgNodes.length === 0
+        ? '<div style="color:var(--t3);font-size:12px;padding:8px">Структура пуста</div>'
+        : orgNodes.map(n => {
+            const allSel = n.uids.length > 0 && n.uids.every(u => selectedUids.has(u));
+            return `<div data-dept="${escapeHtml(n.path)}" style="padding:6px 8px;cursor:pointer;font-size:12px;border-radius:4px;display:flex;align-items:center;gap:6px;${allSel ? 'background:rgba(34,197,94,0.1)' : ''}">
+              <span>${allSel ? '✓' : '➕'}</span><span style="flex:1">${escapeHtml(n.label)}</span><span style="font-size:10px;color:var(--t3)">${n.uids.length} чел</span>
+            </div>`;
+          }).join('');
+      list.querySelectorAll('[data-dept]').forEach(el => el.onclick = () => {
+        const node = orgNodes.find(x => x.path === el.dataset.dept);
+        if (!node) return;
+        const allSel = node.uids.length > 0 && node.uids.every(u => selectedUids.has(u));
+        if (allSel) node.uids.forEach(u => selectedUids.delete(u)); else node.uids.forEach(u => selectedUids.add(u));
+        renderSelected(); renderDepts(); renderUsers();
+      });
+    }
+    renderUsers(); renderDepts(); renderSelected();
+
+    document.getElementById('fa-clear').onclick = () => {
+      feedState.audienceUids = [];
+      feedState.audienceRaw = null;
+      feedRenderAudienceLabel();
+      close();
+    };
+    document.getElementById('fa-apply').onclick = () => {
+      feedState.audienceUids = [...selectedUids];
+      feedState.audienceRaw = selectedUids.size ? { users: [...selectedUids] } : null;
+      feedRenderAudienceLabel();
+      close();
+    };
+  });
 }
 
 function renderDashboard(el) {
