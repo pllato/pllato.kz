@@ -6334,14 +6334,18 @@ function renderDealsContent() {
   if (!c) return;
   const arr = getFilteredDeals();
 
-  // СОХРАНЯЕМ horizontal scroll позицию канбана перед re-render.
-  // renderDealsKanban пересоздаёт #kanban-wrap, иначе scrollLeft улетел бы в 0
-  // (юзер видит сброс к первой колонке после открытия/закрытия сделки или
-  // drag-drop'а между стадиями).
+  // СОХРАНЯЕМ scroll позиции перед re-render. Раньше сохранялся только
+  // горизонтальный scroll #kanban-wrap (между стадиями). Теперь — ещё и
+  // вертикальный по каждой колонке (юзер крутил вниз в колонке, polling
+  // re-render сбрасывал его наверх).
   let savedScrollLeft = null;
+  const savedColScrolls = {};
   if (dealsState.view === 'kanban') {
     const wrap = document.getElementById('kanban-wrap');
     if (wrap) savedScrollLeft = wrap.scrollLeft;
+    document.querySelectorAll('#kanban-wrap .kanban-col-cards[data-stage]').forEach(col => {
+      if (col.scrollTop > 0) savedColScrolls[col.dataset.stage] = col.scrollTop;
+    });
   }
 
   if (dealsState.view === 'list') {
@@ -6353,6 +6357,11 @@ function renderDealsContent() {
     if (savedScrollLeft != null) {
       const fresh = document.getElementById('kanban-wrap');
       if (fresh) fresh.scrollLeft = savedScrollLeft;
+    }
+    // Восстановим vertical scroll каждой колонки по stage-id
+    for (const [stage, top] of Object.entries(savedColScrolls)) {
+      const col = document.querySelector(`#kanban-wrap .kanban-col-cards[data-stage="${CSS.escape(stage)}"]`);
+      if (col) col.scrollTop = top;
     }
   }
 }
