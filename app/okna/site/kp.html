@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0c2531">
+<title>КП — сайт для Ocean Glass · Pllato</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--brand:#1296c4;--brand-2:#36c5e8;--ink:#0c2531;--ink2:#3f5b68;--mut:#7c98a6;--bg:#eef6fa;--card:#fff;--line:#dbeaf1;--cta:#ff7a2f;--ok:#23a06b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Manrope,system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6}
+a{color:var(--brand)}
+.page{max-width:880px;margin:0 auto;padding:0 20px}
+.bar{position:sticky;top:0;z-index:10;background:rgba(238,246,250,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar .page{display:flex;align-items:center;gap:14px;height:60px}
+.bar a.back{font-weight:700;font-size:14px;color:var(--ink2)}
+.bar .pr{margin-left:auto;display:flex;gap:9px}
+.bar .pr a{font-size:13.5px;font-weight:700;padding:8px 14px;border-radius:9px;text-decoration:none}
+.bar .pr .g{background:#fff;border:1px solid var(--line);color:var(--ink)}
+.bar .pr .c{background:var(--cta);color:#fff}
+header{background:linear-gradient(135deg,var(--ink),#15425a);color:#fff;border-radius:0 0 22px 22px;padding:40px 0 44px}
+.htop{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.htop svg{height:36px}
+.htop .tag{margin-left:auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);padding:7px 14px;border-radius:999px;font-size:12.5px;font-weight:700}
+header h1{font-size:clamp(25px,4vw,38px);font-weight:800;letter-spacing:-.02em;margin-top:22px}
+header .who{color:#aecbd6;margin-top:12px;display:flex;gap:24px;flex-wrap:wrap;font-size:14.5px}
+header .who b{color:#fff}
+section{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px;margin-top:18px}
+.kic{color:var(--brand);font-weight:800;font-size:12px;letter-spacing:.13em;text-transform:uppercase}
+h2{font-size:23px;font-weight:800;margin:8px 0 14px;letter-spacing:-.01em}
+h3{font-size:17px;font-weight:700;margin:18px 0 8px}
+p{color:var(--ink2);font-size:15.5px}
+ul{margin:10px 0 0;padding-left:0;list-style:none;display:grid;gap:9px}
+li{display:flex;gap:10px;color:var(--ink2);font-size:15px}
+li::before{content:"✓";color:var(--ok);font-weight:800;flex:none}
+.scope{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
+.scard{border:1px solid var(--line);border-radius:13px;padding:18px;background:#fbfdfe}
+.scard h4{font-size:15.5px;margin-bottom:6px;display:flex;gap:8px;align-items:center}
+.scard .em{font-size:18px}
+.scard p{font-size:14px}
+/* steps */
+.steps{display:grid;gap:12px;margin-top:10px}
+.st{display:flex;gap:14px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#fbfdfe}
+.st .n{width:34px;height:34px;flex:none;border-radius:9px;background:var(--brand);color:#fff;font-weight:800;display:grid;place-items:center}
+.st b{font-size:15.5px}.st span{color:var(--mut);font-size:13.5px;font-weight:700}
+.st p{margin-top:3px;font-size:14px}
+/* price */
+.price-card{background:linear-gradient(135deg,var(--brand),#0c6f93);color:#fff;border-radius:18px;padding:30px;margin-top:18px}
+.price-card .kic{color:var(--brand-2)}
+.pbig{display:flex;align-items:baseline;gap:12px;margin:10px 0}
+.pbig .v{font-size:46px;font-weight:800;letter-spacing:-.02em}
+.pbig .o{color:#cfeaf5;font-size:15px}
+.price-card ul li{color:#eaf6fb}.price-card ul li::before{color:var(--brand-2)}
+.price-card .term{margin-top:14px;color:#cfeaf5;font-size:13.5px}
+.opt{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.opt .o{border:1px solid var(--line);border-radius:12px;padding:16px;background:#fbfdfe}
+.opt .o .t{font-weight:700;font-size:15px}
+.opt .o .pr{color:var(--brand);font-weight:800;margin-top:4px}
+.opt .o p{font-size:13.5px;margin-top:5px}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14.5px}
+td{padding:11px 8px;border-bottom:1px solid var(--line);color:var(--ink2)}
+td.r{text-align:right;font-weight:700;color:var(--ink);white-space:nowrap}
+tr:last-child td{border-bottom:0;font-weight:800;color:var(--ink)}
+.muted{color:var(--mut);font-size:13.5px}
+.cta-box{background:var(--ink);color:#fff;border-radius:18px;padding:30px;margin-top:18px;text-align:center}
+.cta-box h2{color:#fff}
+.cta-box p{color:#aecbd6;max-width:520px;margin:8px auto 18px}
+.cta-box a{display:inline-block;background:var(--cta);color:#fff;font-weight:800;padding:14px 32px;border-radius:11px;text-decoration:none}
+.cta-box .ph{margin-top:14px;color:#cfeaf5}
+.cta-box .ph a{color:#fff}
+footer{text-align:center;color:var(--mut);font-size:13px;padding:28px 0}
+@media(max-width:620px){.scope,.opt{grid-template-columns:1fr}.bar .pr .g{display:none}}
+@media print{.bar,.cta-box a{display:none}body{background:#fff}}
+</style>
+</head>
+<body>
+<div class="bar"><div class="page">
+  <a class="back" href="index.html">← Макеты</a>
+  <div class="pr"><a class="g" href="prompt.html">ТЗ / промт</a><a class="c" href="https://wa.me/996995031003" target="_blank">Согласовать</a></div>
+</div></div>
+
+<header><div class="page">
+  <div class="htop">
+    <svg viewBox="0 0 240 56"><g transform="skewX(-12)"><rect x="6" y="8" width="20" height="40" rx="3" fill="#36c5e8" opacity=".55"/><rect x="30" y="8" width="20" height="40" rx="3" fill="#36c5e8"/></g><text x="66" y="27" font-family="Manrope" font-weight="800" font-size="22" fill="#fff">OCEAN</text><text x="66" y="49" font-family="Manrope" font-weight="800" font-size="22" fill="#36c5e8">GLASS</text></svg>
+    <span class="tag">Коммерческое предложение · сайт</span>
+  </div>
+  <h1>Сайт-лендинг для Ocean Glass на 3 языках с формой заявок</h1>
+  <div class="who">
+    <span>Для: <b>ОсОО «Оушн Гласс»</b>, г. Ош</span>
+    <span>От: <b>Pllato</b> · pllato.kz</span>
+    <span>Дата: <b>01.06.2026</b></span>
+  </div>
+</div></header>
+
+<div class="page">
+
+  <section>
+    <span class="kic">Задача</span>
+    <h2>Сайт, который приводит заявки на окна, стекло и фасады</h2>
+    <p>У Ocean Glass сильное производство (свой завод закалки, алюминий, ПВХ, фасады, монтаж 15+ лет), но нет сайта, который превращает интерес в заявки. Цель — лендинг, заточенный под B2C-рекламу (Instagram) и B2B, на <b>кыргызском, русском и английском</b>, с рабочей формой заявок, которая сразу попадает в Окна CRM.</p>
+    <h3>Что получите</h3>
+    <ul>
+      <li>Современный адаптивный сайт (телефон, планшет, ПК) с фирменным стилем Ocean Glass</li>
+      <li>Три языка: KY / RU / EN с удобным переключателем</li>
+      <li>Форма заявок: мгновенно приходит в WhatsApp и в Окна CRM (модуль «Лиды и воронка»)</li>
+      <li>Витрина продукции: окна, стекло, перегородки, перила, фасады, резка, стеклопакеты, монтаж</li>
+      <li>Блоки доверия: преимущества, отзывы, FAQ, контакты, карта</li>
+      <li>Готовность к рекламе: быстрая загрузка, цели/пиксели для Instagram</li>
+    </ul>
+  </section>
+
+  <section>
+    <span class="kic">Состав работ</span>
+    <h2>Что входит в пакет</h2>
+    <div class="scope">
+      <div class="scard"><h4><span class="em">🎨</span>Дизайн</h4><p>Утверждаем один из трёх макетов («Глубина» / «Чистота» / «Заявка»), адаптируем под бренд и контент.</p></div>
+      <div class="scard"><h4><span class="em">🌐</span>3 языка</h4><p>Кыргызский, русский, английский. Тексты, кнопки и форма переведены полностью.</p></div>
+      <div class="scard"><h4><span class="em">📩</span>Форма заявок</h4><p>Заявка → WhatsApp +996 995 031 003 и → Окна CRM. Уведомление менеджеру, ведение по воронке.</p></div>
+      <div class="scard"><h4><span class="em">📱</span>Адаптив</h4><p>Корректно на любом устройстве, кнопка WhatsApp всегда под рукой.</p></div>
+      <div class="scard"><h4><span class="em">⚡</span>Скорость + SEO-база</h4><p>Быстрая загрузка, заголовки, метатеги, описание для поиска и соцсетей.</p></div>
+      <div class="scard"><h4><span class="em">📊</span>Аналитика</h4><p>Подключение цели «заявка» для Instagram/Google, чтобы видеть отдачу рекламы.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <span class="kic">Сроки</span>
+    <h2>Как идём к запуску</h2>
+    <div class="steps">
+      <div class="st"><div class="n">1</div><div><b>Согласование макета и контента</b> · <span>1–2 дня</span><p>Выбираете макет, присылаете фото объектов, тексты/правки, прайс-ориентиры.</p></div></div>
+      <div class="st"><div class="n">2</div><div><b>Вёрстка и наполнение</b> · <span>2–3 дня</span><p>Собираем сайт, заливаем контент на 3 языках, настраиваем форму и интеграцию с CRM.</p></div></div>
+      <div class="st"><div class="n">3</div><div><b>Тест и правки</b> · <span>1–2 дня</span><p>Проверяем заявки, адаптив, скорость. Вносим правки по вашим замечаниям.</p></div></div>
+      <div class="st"><div class="n">4</div><div><b>Публикация</b> · <span>1 день</span><p>Запуск на домене, подключение аналитики, передача доступов. Готово к рекламе.</p></div></div>
+    </div>
+    <p class="muted" style="margin-top:14px">Итого <b>5–7 рабочих дней</b> с момента получения контента. Можем вести параллельно с разработкой CRM.</p>
+  </section>
+
+  <div class="price-card">
+    <span class="kic">Стоимость</span>
+    <div class="pbig"><span class="v">$500</span><span class="o">единоразово · сайт в собственность</span></div>
+    <ul>
+      <li>Лендинг на 3 языках с формой заявок</li>
+      <li>Интеграция формы с Окна CRM и WhatsApp</li>
+      <li>Адаптив, SEO-база, аналитика, передача исходников</li>
+      <li>2 раунда правок после сдачи включены</li>
+    </ul>
+    <div class="term">Хостинг — бесплатно (Cloudflare / GitHub Pages, в связке с CRM). Домен <b>.kg</b> — ~$15/год оплачиваете напрямую. Доработки после запуска — $20/час.</div>
+  </div>
+
+  <section>
+    <span class="kic">Опции по желанию</span>
+    <h2>Можно добавить отдельно</h2>
+    <div class="opt">
+      <div class="o"><div class="t">Онлайн-калькулятор окна</div><div class="pr">+$150</div><p>Клиент сам прикидывает стоимость по размерам и профилю прямо на сайте.</p></div>
+      <div class="o"><div class="t">Галерея работ / портфолио</div><div class="pr">+$80</div><p>Раздел с фото реализованных объектов и фильтром по типу.</p></div>
+      <div class="o"><div class="t">Настройка Instagram-рекламы</div><div class="pr">от $100</div><p>Запуск и настройка кампаний на заявки (без рекламного бюджета).</p></div>
+      <div class="o"><div class="t">Блог / SEO-статьи</div><div class="pr">от $60</div><p>Статьи под поисковые запросы для бесплатного трафика.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <span class="kic">Итого</span>
+    <h2>Смета</h2>
+    <table>
+      <tr><td>Сайт-лендинг Ocean Glass (3 языка, форма → CRM/WhatsApp)</td><td class="r">$500</td></tr>
+      <tr><td>Хостинг (Cloudflare / GitHub Pages)</td><td class="r">$0</td></tr>
+      <tr><td>Домен .kg <span class="muted">(оплата напрямую, ~$15/год)</span></td><td class="r">отдельно</td></tr>
+      <tr><td>Опции (по желанию)</td><td class="r">по выбору</td></tr>
+      <tr><td>К оплате за сайт</td><td class="r">$500</td></tr>
+    </table>
+    <p class="muted" style="margin-top:12px">Оплата: 50% предоплата на старте, 50% после сдачи. Работаем по той же оферте, что и CRM — <a href="https://pllato.kz/offer/custom-development/v2026-05-26/" target="_blank">pllato.kz/offer</a>.</p>
+  </section>
+
+  <div class="cta-box">
+    <h2>Готовы запустить сайт?</h2>
+    <p>Выберите макет из трёх вариантов и напишите нам — стартуем сразу и ведём параллельно с разработкой CRM.</p>
+    <a href="https://wa.me/996995031003?text=Здравствуйте!%20По%20сайту%20Ocean%20Glass%20—%20выбрали%20макет,%20давайте%20согласуем" target="_blank">Согласовать в WhatsApp</a>
+    <div class="ph">или позвоните: <a href="tel:+996995031003"><b>+996 995 031 003</b></a></div>
+  </div>
+
+</div>
+
+<footer>© 2026 Pllato · pllato.kz · Коммерческое предложение для ОсОО «Оушн Гласс»</footer>
+</body>
+</html>
