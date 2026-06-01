@@ -62,6 +62,27 @@ function listOneCOrgs() {
   return orgs.length > 0 ? orgs : ONE_C_ORG_FALLBACK;
 }
 
+// Договоры 1С для выбранного контрагента (из импортированных contracts_1c).
+function listContractsFor(contractorRef) {
+  if (!contractorRef) return [];
+  try {
+    return (Store.list("contracts_1c") || [])
+      .filter((c) => !c.deletion_mark && c.contractor_ref === contractorRef)
+      .map((c) => ({ ref: c._1c_ref_key || c.ref_key, label: [c.name, c.code].filter(Boolean).join(" · ") || "Договор" }))
+      .filter((c) => c.ref);
+  } catch { return []; }
+}
+
+// Адрес доставки по умолчанию: первичная точка доставки контакта, иначе адрес из 1С.
+function defaultDeliveryAddress(contact) {
+  try {
+    const pts = (Store.list("delivery_points") || []).filter((p) => p.contactId === contact?.id && !p.deleted);
+    const primary = pts.find((p) => p.isPrimary) || pts[0];
+    if (primary) return [primary.city, primary.address].filter(Boolean).join(", ");
+  } catch {}
+  return contact?._1c_address || contact?.address || "";
+}
+
 function buildLines(items) {
   const lines = [];
   const unmatched = [];
@@ -115,6 +136,8 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
   function render() {
     const alreadyNum = deal[meta.numField] || null;
     const hasContractor = !!state.contractorRef;
+    const contracts = listContractsFor(state.contractorRef);
+    const defaultDelivery = defaultDeliveryAddress(contact);
     const blockers = [];
     if (lines.length === 0) blockers.push("Ни одна позиция заказа не сопоставлена с номенклатурой 1С.");
     if (!hasContractor) blockers.push("Клиент не сопоставлен с 1С.");
@@ -140,6 +163,16 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
           <select id="onec-org" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
             ${orgs.map((o) => `<option value="${esc(o.ref)}">${esc(o.name)}</option>`).join("")}
           </select>
+
+          <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Договор (1С)</label>
+          <select id="onec-contract" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
+            <option value="">— без договора —</option>
+            ${contracts.map((c) => `<option value="${esc(c.ref)}">${esc(c.label)}</option>`).join("")}
+          </select>
+          ${state.contractorRef && contracts.length === 0 ? `<div style="font-size:11.5px;color:var(--text-muted,#888);margin:-8px 0 12px">Договоров клиента не найдено в загруженных. Обновите «Договоры» в «1С интеграция».</div>` : ""}
+
+          <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Адрес доставки</label>
+          <input id="onec-delivery" type="text" value="${esc(defaultDelivery)}" placeholder="город, адрес" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
 
           <div style="font-size:13px;color:var(--text-muted,#666);margin-bottom:6px">Позиции (${lines.length} из ${activeCount})</div>
           <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:6px">
@@ -221,6 +254,8 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
     const createBtn = overlay.querySelector("#onec-create");
     createBtn?.addEventListener("click", async () => {
       const organizationRef = overlay.querySelector("#onec-org").value;
+      const contractRef = overlay.querySelector("#onec-contract")?.value || null;
+      const deliveryAddress = (overlay.querySelector("#onec-delivery")?.value || "").trim() || null;
       createBtn.disabled = true;
       createBtn.textContent = "Создаём в 1С…";
       try {
@@ -229,6 +264,8 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
           organizationRef,
           currencyRef: ONE_C_KZT_REF,
           contractorRef: state.contractorRef,
+          contractRef,
+          deliveryAddress,
           comment: "Создано из Pllato CRM (черновик). Проверить номенклатуру/серии — Асем.",
           post: false,
           lines: lines.map((l) => ({

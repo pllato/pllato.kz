@@ -5175,6 +5175,7 @@ async function handle1cPullProducts(_request, env, actor) {
 
 async function handle1cPullContracts(_request, env, actor) {
   require1cAdmin(actor);
+  // Договоров ~3700 — тянем все одним большим $top ($skip ненадёжен).
   return pull1cToStore({
     env,
     tenantId: resolve1cTenantId(actor),
@@ -5182,6 +5183,8 @@ async function handle1cPullContracts(_request, env, actor) {
     entityType: "contract",
     storeCollection: "contracts_1c",
     mapper: contractFromOData,
+    pageSize: 10000,
+    maxPages: 1,
   });
 }
 
@@ -5493,10 +5496,20 @@ async function create1cSalesDocument(request, env, actor, opts) {
       externalId,
       externalIdPrefix: idPrefix,
       paymentPurposeCode: body?.paymentPurposeCode || paymentPurposeCode || null,
+      deliveryAddress: body?.deliveryAddress || null,
       comment: body?.comment || "",
       total: body?.total,
       lines,
     });
+
+    // Реализация: притянуть ранее созданный счёт как основание (ДокументОснование).
+    if (entityType === "realization") {
+      const invMap = await d1Get1cRefByPllatoId(env, tenantId, "invoice", externalId);
+      if (invMap?.one_c_ref_key) {
+        payload.ДокументОснование = invMap.one_c_ref_key;
+        payload.ДокументОснование_Type = "StandardODATA.Document_СчетНаОплатуПокупателю";
+      }
+    }
 
     const { client } = await build1cClient(env, tenantId);
     const created = await client.post(collection, payload);

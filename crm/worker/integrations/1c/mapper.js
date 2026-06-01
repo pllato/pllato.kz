@@ -251,6 +251,7 @@ export function invoiceToOData(inv) {
   // По указанию Асем: 710. Передаётся через inv.paymentPurposeCode.
   if (inv.paymentPurposeCode) out.КодНазначенияПлатежа = String(inv.paymentPurposeCode);
   if (inv.contractRef) out.ДоговорКонтрагента_Key = inv.contractRef;
+  if (inv.deliveryAddress) out.АдресДоставки = String(inv.deliveryAddress);
   if (inv.warehouseRef) out.Склад_Key = inv.warehouseRef;
   if (inv.priceTypeRef) out.ТипЦен_Key = inv.priceTypeRef;
   if (inv.responsibleRef) {
