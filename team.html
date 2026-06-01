@@ -4324,9 +4324,15 @@ async function refreshWaWidgetChats() {
     const data = await r.json();
     waWidget.chats = data.items || [];
     recomputeWaWidgetUnread();
-    // Если виджет открыт на list — перерендерим
+    // FIX: не перерисовываем когда юзер в активном чате (view='chat' или
+    // 'team-chat') — это сбрасывает <textarea>, юзер теряет набранный текст.
+    if (waWidget.view === 'chat' || waWidget.view === 'team-chat') {
+      // Обновляем только badge на закрытой кнопке (если виджет не открыт)
+      if (!waWidget.open) renderWaWidget();
+      return;
+    }
     if (waWidget.open && waWidget.view === 'list') renderWaWidget();
-    else renderWaWidget();  // кнопка-бейдж тоже обновится
+    else renderWaWidget();
   } catch {}
 }
 
@@ -4348,6 +4354,11 @@ async function refreshTeamChannels() {
     const data = await r.json();
     waWidget.teamChannels = data.items || [];
     recomputeWaWidgetUnread();
+    // Не перерисовываем активный чат-view (textarea сбросится)
+    if (waWidget.view === 'chat' || waWidget.view === 'team-chat') {
+      if (!waWidget.open) renderWaWidget();
+      return;
+    }
     if (waWidget.open && waWidget.view === 'list') renderWaWidget();
     else renderWaWidget();
   } catch {}
