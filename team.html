@@ -4489,6 +4489,13 @@ function ensureWaWidgetStyles() {
       line-height: 1;
     }
     .wa-w-composer button#wa-w-schedule:hover { background: var(--bg2, #fff); color: #25D366; border-color: #25D366; }
+    .wa-w-composer button#wa-w-attach {
+      background: transparent; color: var(--t2, #667); border: 1px solid var(--b1, #c9ccd1);
+      border-radius: 8px; padding: 7px 10px; font-size: 14px; cursor: pointer; flex: 0 0 auto;
+      line-height: 1;
+    }
+    .wa-w-composer button#wa-w-attach:hover { background: var(--bg2, #fff); color: #25D366; border-color: #25D366; }
+    .wa-w-composer button#wa-w-attach:disabled { opacity: 0.5; cursor: default; }
     /* Список отложенных сообщений над composer */
     .wa-w-sched {
       flex: 0 0 auto; max-height: 130px; overflow-y: auto;
@@ -4935,6 +4942,7 @@ function renderWaWidgetChat(root) {
     <div class="wa-w-sched" id="wa-w-sched" style="display:none"></div>
     <div class="wa-w-composer">
       <textarea id="wa-w-input" placeholder="${escapeHtml(composerPlaceholder)}" rows="1"></textarea>
+      <button id="wa-w-attach" title="Прикрепить файл / фото">📎</button>
       <button id="wa-w-schedule" title="Отправить позже">⏰</button>
       <button id="wa-w-send">→</button>
     </div>
@@ -4995,6 +5003,35 @@ function renderWaWidgetChat(root) {
       input.style.height = 'auto';
       loadWaScheduledMessages();
     });
+  };
+  // 📎 Прикрепить файл/фото — загрузить в R2 и отправить (с текстом как подпись).
+  // Работает и для групп: sendWaMediaFile шлёт по chatId (group@g.us) или phone.
+  const attachBtn = document.getElementById('wa-w-attach');
+  if (attachBtn) attachBtn.onclick = async () => {
+    const file = await pickWaFile('*/*');
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) { alert('Файл больше 50 МБ — WhatsApp не примет'); return; }
+    const caption = input.value.trim();
+    attachBtn.disabled = true;
+    const origText = attachBtn.textContent;
+    attachBtn.textContent = '⏳';
+    try {
+      await sendWaMediaFile(
+        { rawChatId: chat.chatId, phone: chat.phone },
+        file, file.name, caption || null,
+        async () => {
+          input.value = '';
+          input.style.height = 'auto';
+          await loadWaWidgetMessages();
+          refreshWaWidgetChats();
+        }
+      );
+    } catch (e) {
+      alert('Ошибка отправки файла: ' + e.message);
+    } finally {
+      attachBtn.disabled = false;
+      attachBtn.textContent = origText;
+    }
   };
   // Показать список уже отложенных для этого чата
   loadWaScheduledMessages();
