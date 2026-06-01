@@ -402,6 +402,51 @@ body {
 .tool-badge.coming { background: var(--surface-2); color: var(--text-3); }
 .tool-badge.new { background: var(--green); color: #fff; }
 .tool-badge.external { background: var(--indigo); color: #fff; }
+
+/* ===== Карточка с действиями + выпадающий список (сайт-лендинг) ===== */
+.tool-card .tool-cta.as-link { text-decoration: none; }
+.tool-dd {
+  margin-top: 10px;
+  border-top: 1px solid var(--line-2);
+  padding-top: 10px;
+}
+.tool-dd > summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 12.5px; font-weight: 700;
+  color: var(--text-2);
+  display: flex; align-items: center; gap: 7px;
+  padding: 4px 0;
+  user-select: none;
+}
+.tool-dd > summary::-webkit-details-marker { display: none; }
+.tool-dd > summary .chev {
+  margin-left: auto;
+  transition: transform 0.18s;
+  color: var(--text-3);
+}
+.tool-dd[open] > summary .chev { transform: rotate(180deg); }
+.tool-dd > summary:hover { color: var(--bronze-deep); }
+.tool-dd-menu {
+  display: flex; flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+}
+.tool-dd-menu a {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 12.5px; font-weight: 600;
+  color: var(--text-2);
+  text-decoration: none;
+  transition: all 0.14s;
+}
+.tool-dd-menu a:hover { background: var(--surface-2); color: var(--text); }
+.tool-dd-menu a .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--bronze); flex-shrink: 0;
+}
+.tool-dd-menu a.is-pdf .dot { background: var(--orange); }
 </style>
 </head>
 <body>
@@ -479,15 +524,26 @@ body {
         <span class="tool-badge new">Новое</span>
       </a>
 
-      <a href="app/okna/?owner=pllato-owner-7c" class="tool-card" data-app-id="okna_crm">
+      <div class="tool-card" data-app-id="okna_crm">
         <div class="tool-icon color-indigo">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 12h18M12 3v18"/></svg>
         </div>
         <h3>ОКНА CRM</h3>
         <p>CRM для оконного производства: воронка, замер с расчётом и КП, склад с приходом и списанием по этапам, канбан производства, дебиторка.</p>
-        <span class="tool-cta">Открыть демо →</span>
+        <a class="tool-cta as-link" href="app/okna/?owner=pllato-owner-7c">Открыть демо →</a>
+        <details class="tool-dd">
+          <summary>🌐 Сайт Ocean Glass<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/okna/site/" target="_blank" rel="noopener"><span class="dot"></span>Галерея макетов</a>
+            <a href="app/okna/site/v1/" target="_blank" rel="noopener"><span class="dot"></span>Макет 1 «Глубина» — тёмный</a>
+            <a href="app/okna/site/v2/" target="_blank" rel="noopener"><span class="dot"></span>Макет 2 «Чистота» — светлый</a>
+            <a href="app/okna/site/v3/" target="_blank" rel="noopener"><span class="dot"></span>Макет 3 «Заявка» — конверсионный</a>
+            <a href="app/okna/site/kp.html" target="_blank" rel="noopener"><span class="dot"></span>КП — страница</a>
+            <a class="is-pdf" href="app/okna/site/Pllato_KP_Sayt_OceanGlass.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
+          </div>
+        </details>
         <span class="tool-badge new">Демо</span>
-      </a>
+      </div>
 
       <a href="app/pharmacy/" class="tool-card" data-app-id="pharmacy_crm">
         <div class="tool-icon color-green">
