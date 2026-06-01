@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0c2531">
+<title>Счёт на оплату — сайт Ocean Glass · Pllato</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--brand:#1296c4;--brand-2:#36c5e8;--ink:#0c2531;--ink2:#3f5b68;--mut:#7c98a6;--bg:#eef6fa;--card:#fff;--line:#dbeaf1;--cta:#ff7a2f;--ok:#23a06b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Manrope,system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6}
+a{color:var(--brand)}
+.page{max-width:820px;margin:0 auto;padding:0 20px}
+.bar{position:sticky;top:0;z-index:10;background:rgba(238,246,250,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar .page{display:flex;align-items:center;gap:14px;height:60px}
+.bar a.back{font-weight:700;font-size:14px;color:var(--ink2);text-decoration:none}
+.bar .pr{margin-left:auto;display:flex;gap:9px}
+.bar .pr a{font-size:13.5px;font-weight:700;padding:8px 14px;border-radius:9px;text-decoration:none}
+.bar .pr .g{background:#fff;border:1px solid var(--line);color:var(--ink)}
+.bar .pr .c{background:var(--cta);color:#fff}
+header{background:linear-gradient(135deg,var(--ink),#15425a);color:#fff;border-radius:0 0 22px 22px;padding:36px 0 40px}
+.htop{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.htop svg{height:34px}
+.htop .tag{margin-left:auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);padding:7px 14px;border-radius:999px;font-size:12.5px;font-weight:700}
+header h1{font-size:clamp(24px,4vw,34px);font-weight:800;letter-spacing:-.02em;margin-top:20px}
+header .num{color:#aecbd6;margin-top:10px;font-size:15px}
+header .num b{color:#fff}
+section{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px 28px;margin-top:18px}
+.parties{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.party .lb{color:var(--brand);font-weight:800;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase}
+.party .nm{font-size:16px;font-weight:800;margin-top:5px}
+.party p{color:var(--ink2);font-size:14px;margin-top:3px}
+table.items{width:100%;border-collapse:collapse;margin-top:6px;font-size:14.5px}
+table.items th{text-align:left;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);padding:0 8px 10px;border-bottom:2px solid var(--line)}
+table.items th.r,table.items td.r{text-align:right;white-space:nowrap}
+table.items td{padding:14px 8px;border-bottom:1px solid var(--line);color:var(--ink2);vertical-align:top}
+table.items td .nm{color:var(--ink);font-weight:700;font-size:15px}
+table.items td .ds{color:var(--mut);font-size:13px;margin-top:3px}
+.totals{margin-top:16px;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.totals .row{display:flex;gap:26px;font-size:15px;color:var(--ink2)}
+.totals .row .v{min-width:90px;text-align:right;font-weight:700;color:var(--ink)}
+.totals .grand{font-size:22px;font-weight:800;color:var(--ink)}
+.totals .grand .v{color:var(--brand)}
+.pay{margin-top:6px;border:1px solid var(--line);border-radius:14px;padding:20px;background:#fbfdfe}
+.pay-h{font-weight:800;font-size:16px;display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.pay-h .em{font-size:19px}
+.pay-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
+.pay-row .pl{color:var(--mut);font-size:13.5px;min-width:130px}
+.pay-row b{font-size:16px;color:var(--ink)}
+.pay-row b.card{font-variant-numeric:tabular-nums;letter-spacing:.06em}
+.kic{color:var(--brand);font-weight:800;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase}
+.terms{margin-top:10px;display:grid;gap:8px}
+.terms li{display:flex;gap:10px;color:var(--ink2);font-size:14px;list-style:none}
+.terms li::before{content:"•";color:var(--brand);font-weight:800;flex:none}
+.sign{display:flex;justify-content:space-between;align-items:flex-end;margin-top:26px;flex-wrap:wrap;gap:16px}
+.sign .col .lb{color:var(--mut);font-size:13px}
+.sign .col .ln{margin-top:26px;border-top:1px solid var(--ink2);width:200px;padding-top:5px;color:var(--ink2);font-size:13px}
+footer{text-align:center;color:var(--mut);font-size:13px;padding:26px 0}
+@media(max-width:620px){.parties{grid-template-columns:1fr}.bar .pr .g{display:none}}
+@media print{.bar{display:none}body{background:#fff}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<div class="bar"><div class="page">
+  <a class="back" href="kp.html">← Коммерческое предложение</a>
+  <div class="pr"><a class="g" href="index.html">Макеты</a><a class="c" href="https://wa.me/996995031003" target="_blank">Написать</a></div>
+</div></div>
+
+<header><div class="page">
+  <div class="htop">
+    <svg viewBox="0 0 240 56"><g transform="skewX(-12)"><rect x="6" y="8" width="20" height="40" rx="3" fill="#36c5e8" opacity=".55"/><rect x="30" y="8" width="20" height="40" rx="3" fill="#36c5e8"/></g><text x="66" y="27" font-family="Manrope" font-weight="800" font-size="22" fill="#fff">OCEAN</text><text x="66" y="49" font-family="Manrope" font-weight="800" font-size="22" fill="#36c5e8">GLASS</text></svg>
+    <span class="tag">Счёт на оплату</span>
+  </div>
+  <h1>Счёт на оплату № OG-2026-002</h1>
+  <div class="num">от <b>01.06.2026</b> · предмет: <b>разработка сайта-лендинга Ocean Glass</b></div>
+</div></header>
+
+<div class="page">
+
+  <section>
+    <div class="parties">
+      <div class="party">
+        <div class="lb">Исполнитель</div>
+        <div class="nm">Pllato</div>
+        <p>PLATON TSAY · pllato.kz</p>
+        <p>+996 995 031 003</p>
+        <p>Работаем по публичной оферте: <a href="https://pllato.kz/offer/custom-development/v2026-05-26/" target="_blank">pllato.kz/offer</a></p>
+      </div>
+      <div class="party">
+        <div class="lb">Плательщик</div>
+        <div class="nm">ОсОО «Оушн Гласс»</div>
+        <p>г. Ош, Кыргызская Республика</p>
+        <p>ул. Абдразакова, 25</p>
+        <p>+996 995 031 003</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <span class="kic">Предмет счёта</span>
+    <table class="items">
+      <thead><tr><th>Наименование работ / услуг</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>
+            <div class="nm">Сайт-лендинг Ocean Glass</div>
+            <div class="ds">Дизайн на базе утверждённого макета; 3 языка (кыргызский, русский, английский); форма заявок → WhatsApp + Окна CRM; адаптив под телефон/планшет/ПК; SEO-база и метатеги; подключение аналитики; передача исходников. Включено 2 раунда правок.</div>
+          </td>
+          <td class="r">1</td>
+          <td class="r">$500</td>
+          <td class="r">$500</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="totals">
+      <div class="row"><span>Сумма</span><span class="v">$500</span></div>
+      <div class="row"><span>НДС</span><span class="v">не облагается</span></div>
+      <div class="row grand"><span>Итого к оплате</span><span class="v">$500</span></div>
+    </div>
+    <p style="margin-top:10px;color:var(--mut);font-size:13.5px">Всего наименований 1, на сумму <b style="color:var(--ink)">пятьсот долларов США 00 центов</b>.</p>
+  </section>
+
+  <section>
+    <div class="pay">
+      <div class="pay-h"><span class="em">💳</span>Реквизиты для оплаты — перевод на карту</div>
+      <div class="pay-row"><span class="pl">Номер карты</span><b class="card">4400 4303 0208 4337</b></div>
+      <div class="pay-row"><span class="pl">Получатель</span><b>PLATON TSAY</b></div>
+      <div class="pay-row"><span class="pl">Назначение</span><b style="font-size:14.5px;font-weight:600;color:var(--ink2)">Оплата по счёту OG-2026-002 (сайт)</b></div>
+    </div>
+    <span class="kic" style="display:block;margin-top:18px">Условия</span>
+    <ul class="terms">
+      <li>Порядок оплаты: <b style="color:var(--ink)">50% предоплата</b> ($250) — к работе приступаем после неё; остальные 50% ($250) — после сдачи и приёмки сайта.</li>
+      <li>Допустима оплата в сомах (KGS) или тенге (KZT) по курсу на день платежа — по согласованию.</li>
+      <li>Срок: 5–7 рабочих дней с момента предоплаты и получения материалов от заказчика.</li>
+      <li>После оплаты пришлите чек/скрин в WhatsApp <a href="https://wa.me/996995031003" target="_blank">+996 995 031 003</a>.</li>
+      <li>Хостинг — бесплатно (Cloudflare / GitHub Pages). Домен .kg (~$15/год) оплачивается заказчиком напрямую.</li>
+    </ul>
+    <div class="sign">
+      <div class="col"><div class="lb">Исполнитель</div><div class="ln">Pllato · PLATON TSAY</div></div>
+      <div class="col"><div class="lb">Плательщик</div><div class="ln">ОсОО «Оушн Гласс»</div></div>
+    </div>
+  </section>
+
+</div>
+
+<footer>© 2026 Pllato · pllato.kz · Счёт № OG-2026-002 для ОсОО «Оушн Гласс»</footer>
+</body>
+</html>
