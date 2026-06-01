@@ -33,7 +33,7 @@ function corsHeaders(request) {
   return {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-File-Name",
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
   };
