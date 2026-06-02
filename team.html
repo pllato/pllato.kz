@@ -3405,6 +3405,9 @@ async function initApp(user) {
   // Центр уведомлений: realtime-listener (WS) + поллинг бэйджа непрочитанных
   notifBindRealtime();
   notifStartPolling();
+  // Если пуши уже разрешены — переподписать устройство (ключи/endpoint могли
+  // протухнуть, или подписки ещё нет на воркере). Фоном, без блокировки.
+  setTimeout(() => { try { ensurePushSubscription(); } catch {} }, 1500);
 
   // Фоновая прелоадка — пока пользователь смотрит дашборд, грузим данные
   // Поэтапно (не разом) чтобы не нагружать сеть
@@ -3617,6 +3620,59 @@ function notifOpenLink(link) {
 // Экспорт для head-скрипта (клик по push / SW-уведомлению ведёт в нужный раздел).
 window.notifOpenLink = notifOpenLink;
 
+// ── Web Push подписка (VAPID) ──────────────────────────────────────────────
+// applicationServerKey принимает Uint8Array — конвертируем base64url VAPID-ключ.
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+let _vapidPublicKey = null;
+async function getVapidPublicKey() {
+  if (_vapidPublicKey) return _vapidPublicKey;
+  const res = await fetch(`${WORKER_BASE_URL}/api/push/vapid-public`);
+  if (!res.ok) throw new Error('vapid-public fetch failed ' + res.status);
+  _vapidPublicKey = (await res.json()).key;
+  return _vapidPublicKey;
+}
+
+// Подписать это устройство на Web Push и отправить подписку воркеру.
+// Идемпотентно: уже есть подписка — переиспользуем (просто пере-POST'им воркеру).
+// iOS: пуши работают только в установленной PWA (iOS 16.4+); иначе тихо вернёт false.
+async function ensurePushSubscription() {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+    if (!fbAuth || !fbAuth.currentUser) return false;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      const key = await getVapidPublicKey();
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(key),
+      });
+    }
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const res = await fetch(`${WORKER_BASE_URL}/api/push/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify(sub.toJSON()),
+    });
+    if (!res.ok) { console.warn('[push] subscribe POST failed', res.status); return false; }
+    console.log('[push] subscribed OK');
+    return true;
+  } catch (e) {
+    console.warn('[push] ensureSubscription failed:', e && e.message);
+    return false;
+  }
+}
+window.ensurePushSubscription = ensurePushSubscription;
+
 async function renderNotifications(el) {
   el.innerHTML = `
     <div class="page-head" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -3638,8 +3694,16 @@ async function renderNotifications(el) {
   if (pushBtn) pushBtn.onclick = async () => {
     const ok = await requestNotificationPermission();
     if (ok) {
+      const subscribed = await ensurePushSubscription(); // Web Push на смартфон
       playMessageBeep();
-      try { new Notification('🔔 Уведомления включены', { body: 'Будешь получать пуши от портала на этом устройстве', icon: '/icon-192.png' }); } catch {}
+      try {
+        new Notification('🔔 Уведомления включены', {
+          body: subscribed
+            ? 'Пуши будут приходить на этот экран даже когда вкладка закрыта'
+            : 'Уведомления включены в этой вкладке',
+          icon: '/icon-192.png',
+        });
+      } catch {}
     } else {
       alert('Уведомления заблокированы в настройках браузера. Разреши их для этого сайта вручную.');
     }
@@ -4762,6 +4826,7 @@ function showNotificationBanner() {
   document.getElementById('elc-notif-banner-enable').onclick = async () => {
     const ok = await requestNotificationPermission();
     if (ok) {
+      ensurePushSubscription(); // фоном подписать устройство на Web Push
       playMessageBeep();
       try { new Notification('✅ Уведомления включены', { body: 'Будешь получать пуш и звук при новых сообщениях WhatsApp' }); } catch {}
       b.remove();
