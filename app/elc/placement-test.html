@@ -54,6 +54,18 @@
   .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
   .center{text-align:center}
   .small{font-size:13px;color:var(--muted)}
+  a.btn{display:inline-block;text-decoration:none;text-align:center}
+  ul.tips{margin:0 0 16px;padding-left:18px;color:var(--muted);line-height:1.7;font-size:14px}
+  ul.tips li{margin:2px 0}
+  audio{width:100%;margin-top:12px}
+  .rec-live{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--txt);margin:2px 0 16px}
+  .rec-dot{width:14px;height:14px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 0 rgba(255,107,107,.6);animation:pulse 1.1s infinite}
+  @keyframes pulse{0%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,107,107,.55)}70%{transform:scale(1.15);box-shadow:0 0 0 10px rgba(255,107,107,0)}100%{transform:scale(1)}}
+  .btn.rec{background:linear-gradient(135deg,#ff6b6b,#c0392b)}
+  .steps{display:flex;gap:8px;margin:0 0 18px}
+  .steps .step{flex:1;text-align:center;font-size:12px;font-weight:700;color:var(--muted);
+    background:#11163a;border:1px solid var(--line);border-radius:10px;padding:8px 6px}
+  .steps .step.on{color:#fff;border-color:var(--accent);background:#161d47}
 </style>
 </head>
 <body>
@@ -75,6 +87,39 @@ const LEVELS = [
   {n:7, name:'Upper-Intermediate 3.0', cefr:'B2+', lessons:'87–92', desc:'Смешанные кондишены, инверсия, продвинутый пассив и перфект, wish / regret.'},
 ];
 function levelByN(n){ return LEVELS.find(l=>l.n===n); }
+
+/* ===== Темы для разговорной части (часть 2), подобраны под уровень теории ===== */
+const SPEAK = {
+  1:{topic:'About me · О себе',
+     prompt:'Расскажи о себе: как тебя зовут, сколько тебе лет, откуда ты, твоя семья и что ты любишь.',
+     tips:['My name is… / I am … years old','I am from… / I live in…','I have got a… (family)','I like… / I don’t like…'],
+     minutes:'около 1 минуты'},
+  2:{topic:'My typical day · Мой обычный день',
+     prompt:'Опиши свой обычный день: что ты делаешь утром, днём и вечером. Что ты умеешь делать (can)?',
+     tips:['I get up at… / I go to…','Every day I…','I can… / I can’t…','In the evening I…'],
+     minutes:'1–1.5 минуты'},
+  3:{topic:'My last weekend · Мои прошлые выходные',
+     prompt:'Расскажи, как прошли твои последние выходные или поездка: куда ходил, что делал, что понравилось. Используй Past Simple.',
+     tips:['Last weekend I went…','I saw / ate / visited…','It was… (great / boring)','…was better than…'],
+     minutes:'около 1.5 минуты'},
+  4:{topic:'My plans and dreams · Мои планы и мечты',
+     prompt:'Расскажи о планах на будущее и о своей мечте. Что ты собираешься делать? Что сделаешь, если будет время?',
+     tips:['I’m going to… / I will…','I have already…','If I have time, I will…','I’d like to…'],
+     minutes:'около 2 минут'},
+  5:{topic:'If I had more free time · Если бы было больше времени',
+     prompt:'Опиши, что бы ты делал, если бы у тебя было больше свободного времени или денег. Расскажи о привычке из прошлого (used to).',
+     tips:['If I had…, I would…','I used to…','I’ve been …-ing for…','By the time I…'],
+     minutes:'около 2 минут'},
+  6:{topic:'Remote work: pros and cons · Удалёнка: за и против',
+     prompt:'Обсуди плюсы и минусы удалённой работы (или соцсетей). Приведи аргументы обеих сторон и сделай вывод.',
+     tips:['On the one hand… on the other hand…','It can be done… (passive)','People who work from home…','must / might / could (предположения)'],
+     minutes:'2–3 минуты'},
+  7:{topic:'Should technology replace teachers? · Заменят ли технологии учителей?',
+     prompt:'Выскажи аргументированное мнение по теме. Используй сложные конструкции: условные, инверсию, сожаления (wish).',
+     tips:['Not only… but also…','Had I…, I would have…','I wish schools…','It could be argued that…'],
+     minutes:'около 3 минут'},
+};
+function speakFor(n){ return SPEAK[n] || SPEAK[7]; }
 
 /* ===== Банк вопросов: по нарастанию сложности, ~4 на каждый уровень =====
    level: № уровня (1..7) ; q: предложение с пропуском ___ ; ru: подсказка-перевод ; o: варианты ; a: индекс верного (до перемешивания) */
@@ -122,6 +167,8 @@ let idx = 0;
 let answers = []; // {level, correct}
 let curCorrect = -1; // позиция верного варианта в текущем (перемешанном) показе
 const LETTERS = ['A','B','C','D'];
+let placedLevel = 1; // уровень по итогам теории — для подбора темы монолога
+let mr=null, recChunks=[], recStream=null, recBlobUrl=null, recSecs=0, recTimer=null; // запись голоса
 
 /* раннее завершение: студент упёрся в потолок (3 ошибки из последних 4, после минимум 6 ответов).
    Вопросы идут по нарастанию сложности, поэтому устойчивые ошибки = достигнут предел. */
@@ -136,9 +183,12 @@ function start(){ idx=0; answers=[]; renderQuestion(); }
 function renderStart(){
   app.innerHTML = `
     <h1>Тест на определение уровня</h1>
-    <p class="lead">Адаптивный тест по грамматике (до 28 вопросов) определит, в какой из <b>7 уровней</b> программы ELC
-      посадить студента: Beginner 1, Beginner 2, Elementary, Pre-Intermediate, Intermediate,
+    <p class="lead">Тест из двух частей:<br>
+      <b>1. Теория</b> — адаптивный тест по грамматике (до 28 вопросов) определит, в какой из <b>7 уровней</b>
+      программы ELC посадить студента: Beginner 1, Beginner 2, Elementary, Pre-Intermediate, Intermediate,
       Upper-Intermediate 2.0 и 3.0.<br>
+      <b>2. Разговор</b> — по итогам теории студент получит тему монолога под свой уровень и запишет голос,
+      чтобы преподаватель прослушал речь.<br><br>
       Вопросы идут от простого к сложному. Если вопрос слишком трудный — не угадывай, выбирай «Не знаю»:
       так система определит уровень точнее.</p>
     <button class="btn" onclick="start()">Начать тест →</button>`;
@@ -204,6 +254,7 @@ function renderResult(){
   const { rec, graduated } = computePlacement();
   const m = levelAgg();
   const correctTotal = answers.filter(a=>a.correct).length;
+  placedLevel = graduated ? 7 : rec; // тему монолога берём по уровню теории
 
   // разбивка по уровням (только те, что реально проверялись)
   const statsRows = LEVELS.filter(l=>m[l.n].total>0).map(l=>{
@@ -236,17 +287,104 @@ function renderResult(){
 
   app.innerHTML = `
     <div class="result">
-      <p class="big">Результат · верных ответов: ${correctTotal} из ${answers.length}</p>
+      <div class="steps"><span class="step">1 · Теория ✓</span><span class="step">2 · Разговор</span></div>
+      <p class="big">Часть 1 (теория) · верных ответов: ${correctTotal} из ${answers.length}</p>
       <h2 style="margin-bottom:6px">${headline}</h2>
       ${lessonBlock}
       <h2 style="font-size:16px;color:var(--muted);margin:10px 0 4px">Разбивка по уровням</h2>
       <table><thead><tr><th>Уровень</th><th class="score">Верно</th></tr></thead><tbody>${statsRows}</tbody></table>
       <p class="small">Уровень считается освоенным при ≥60% верных ответов (одиночная ошибка не понижает уровень).</p>
       <div class="row">
-        <button class="btn" onclick="renderStart()">← На главную</button>
+        <button class="btn" onclick="renderSpeaking()">Перейти к части 2 · Разговор →</button>
+        <button class="btn ghost" onclick="renderStart()">← На главную</button>
         <button class="btn ghost" onclick="start()">Пройти заново</button>
       </div>
     </div>`;
+}
+
+/* ===== Часть 2: разговорная (запись монолога) ===== */
+function fmt(s){ const m=Math.floor(s/60), x=s%60; return m+':'+(x<10?'0':'')+x; }
+
+function renderSpeaking(){
+  const L = levelByN(placedLevel);
+  const sp = speakFor(placedLevel);
+  const supported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+  const tips = sp.tips.map(t=>`<li>${t}</li>`).join('');
+  app.innerHTML = `
+    <div class="steps"><span class="step">1 · Теория ✓</span><span class="step on">2 · Разговор</span></div>
+    <div class="meta"><span>Часть 2 · Разговорная речь</span><span class="badge">${L.name} · ${L.cefr}</span></div>
+    <h1 style="font-size:22px;margin-bottom:6px">Запиши монолог</h1>
+    <p class="lead">По итогам теории твой уровень — <b>${L.name} (${L.cefr})</b>. Тема подобрана под него.
+       Говори ${sp.minutes}, не спеши. Запись можно прослушать и переписать.</p>
+    <div class="struct">
+      <div class="s-name">🎙 ${sp.topic}</div>
+      <div class="s-sub" style="margin-top:6px;line-height:1.6">${sp.prompt}</div>
+    </div>
+    <p class="hint" style="margin:0 0 6px">Полезные фразы:</p>
+    <ul class="tips">${tips}</ul>
+    <div id="rec"></div>
+    <div class="row" style="margin-top:18px">
+      <button class="btn ghost" onclick="renderResult()">← К результату теста</button>
+    </div>`;
+  const box = document.getElementById('rec');
+  if(!supported){
+    box.innerHTML = `<p class="hint" style="color:var(--gold)">Запись с микрофона не поддерживается в этом браузере.
+      Открой страницу в Chrome или Safari (или на телефоне) — и кнопка записи появится. Тему выше можно проговорить вживую с преподавателем.</p>`;
+  } else {
+    box.innerHTML = recBtnHtml();
+  }
+}
+
+function recBtnHtml(){ return `<button class="btn rec" onclick="startRec()">🎙 Записать монолог</button>`; }
+
+async function startRec(){
+  const box = document.getElementById('rec');
+  try{
+    recStream = await navigator.mediaDevices.getUserMedia({audio:true});
+  }catch(e){
+    box.innerHTML = `<p class="hint" style="color:var(--bad)">Не удалось получить доступ к микрофону.
+      Разреши доступ в браузере и попробуй снова.</p>` + recBtnHtml();
+    return;
+  }
+  recChunks = [];
+  try{ mr = new MediaRecorder(recStream); }
+  catch(e){ mr = new MediaRecorder(recStream, {}); }
+  mr.ondataavailable = e=>{ if(e.data && e.data.size) recChunks.push(e.data); };
+  mr.onstop = ()=>{
+    const blob = new Blob(recChunks, {type:(mr && mr.mimeType) || 'audio/webm'});
+    if(recBlobUrl) URL.revokeObjectURL(recBlobUrl);
+    recBlobUrl = URL.createObjectURL(blob);
+    if(recStream) recStream.getTracks().forEach(t=>t.stop());
+    showPlayback();
+  };
+  mr.start();
+  recSecs = 0;
+  box.innerHTML = `
+    <div class="rec-live"><span class="rec-dot"></span> Идёт запись… <b id="rtime">0:00</b></div>
+    <button class="btn rec" onclick="stopRec()">■ Остановить запись</button>`;
+  recTimer = setInterval(()=>{ recSecs++; const el=document.getElementById('rtime'); if(el) el.textContent=fmt(recSecs); }, 1000);
+}
+
+function stopRec(){
+  if(recTimer){ clearInterval(recTimer); recTimer=null; }
+  if(mr && mr.state !== 'inactive') mr.stop();
+}
+
+function showPlayback(){
+  const L = levelByN(placedLevel);
+  const date = new Date().toISOString().slice(0,10);
+  const safe = L.name.replace(/[^A-Za-z0-9]+/g,'_');
+  const fname = `ELC_speaking_${safe}_${date}.webm`;
+  document.getElementById('rec').innerHTML = `
+    <div class="struct" style="text-align:center">
+      <div class="s-name" style="color:var(--ok)">✓ Запись готова · ${fmt(recSecs)}</div>
+      <audio controls src="${recBlobUrl}"></audio>
+    </div>
+    <div class="row">
+      <a class="btn" href="${recBlobUrl}" download="${fname}">⬇ Скачать запись</a>
+      <button class="btn ghost" onclick="startRec()">↺ Переписать</button>
+    </div>
+    <p class="small">Скачай файл и отправь преподавателю ELC — он прослушает твой монолог и подтвердит уровень.</p>`;
 }
 
 renderStart();
