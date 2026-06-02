@@ -81,14 +81,26 @@ async function requireAuth(request, env) {
 // canonical (D1) uid + роль. Кешируется на уровне запроса.
 async function resolveCanonicalUser(env, claims) {
   const email = (claims.email || '').toLowerCase().trim();
-  if (!email) return { firebaseUid: claims.user_id || claims.sub, email: '', canonicalUid: null, role: 'agent', userRecord: null };
+  const fbUid = claims.user_id || claims.sub || null;
 
-  // Найти запись в users по email (case-insensitive)
-  const userRow = await env.DB.prepare(
-    "SELECT uid, email, name, last_name, position, photo, active FROM users WHERE LOWER(email) = ? LIMIT 1"
-  ).bind(email).first();
+  if (!email) {
+    // Нет email в токене — матчим в org-структуре по firebase uid.
+    const matchUids = new Set();
+    if (fbUid) matchUids.add(fbUid);
+    const orgPerms = await resolveOrgPermissions(env, fbUid, matchUids);
+    let role = orgPerms.isDirector ? 'admin' : 'agent';
+    return { firebaseUid: fbUid, email: '', canonicalUid: fbUid, role, department: null, userRecord: null, orgPerms, matchUids: [...matchUids] };
+  }
 
-  const canonicalUid = userRow?.uid || (claims.user_id || claims.sub);
+  // Все записи users с этим email (обычно одна; >1 = дубли после миграции
+  // Bitrix/Firebase→D1). Первую берём канонической, ОСТАЛЬНЫЕ uid'ы сохраняем
+  // как алиасы — под любым из них юзер мог попасть в org-структуру.
+  const { results: userRows } = await env.DB.prepare(
+    "SELECT uid, email, name, last_name, position, photo, active FROM users WHERE LOWER(email) = ?"
+  ).bind(email).all();
+  const userRow = (userRows && userRows[0]) ? userRows[0] : null;
+
+  const canonicalUid = userRow?.uid || fbUid;
 
   // Найти роль (default agent если нет записи)
   const roleRow = await env.DB.prepare(
@@ -99,20 +111,29 @@ async function resolveCanonicalUser(env, claims) {
   const isPlatonByEmail = email === "uurraa@gmail.com";
   let role = roleRow?.role || (isPlatonByEmail ? "admin" : "agent");
 
+  // matchUids — ВСЕ идентификаторы, под которыми юзер мог быть добавлен в
+  // org-структуру: канонический D1 uid + uid'ы всех дублей с тем же email +
+  // firebase uid из токена. Когда идентификатор один — поведение не меняется.
+  const matchUids = new Set();
+  if (canonicalUid) matchUids.add(canonicalUid);
+  for (const r of (userRows || [])) if (r.uid) matchUids.add(r.uid);
+  if (fbUid) matchUids.add(fbUid);
+
   // Phase 2: ORG-структура определяет права. Director = super-admin.
   // Computed permissions: {pipelineIds (null=all), dealScope (own|team|all), teamUids}
-  const orgPerms = await resolveOrgPermissions(env, canonicalUid);
+  const orgPerms = await resolveOrgPermissions(env, canonicalUid, matchUids);
   // Если user является Директором (top of org), эскалируем до admin
   if (orgPerms.isDirector) role = 'admin';
 
   return {
-    firebaseUid: claims.user_id || claims.sub,
+    firebaseUid: fbUid,
     email,
     canonicalUid,
     role,
     department: roleRow?.department || null,
     userRecord: userRow || null,
     orgPerms,
+    matchUids: [...matchUids],
   };
 }
 
@@ -120,9 +141,12 @@ async function resolveCanonicalUser(env, claims) {
 // Юзер может быть в нескольких узлах (member/head). Эффективные права —
 // UNION прав всех узлов где он состоит + всех их потомков (inheritance).
 // Возвращает {isDirector, pipelineIds (null=все), dealScope, teamUids (Set)}.
-async function resolveOrgPermissions(env, uid) {
+async function resolveOrgPermissions(env, uid, matchUids) {
   const defaults = { isDirector: false, pipelineIds: null, dealScope: 'own', teamUids: new Set(), hasAnyNode: false };
-  if (!uid) return defaults;
+  // ids — множество идентификаторов юзера (canonical + алиасы-дубли + firebase uid).
+  // Если не передали — матчим только по uid (старое поведение).
+  const ids = (matchUids && matchUids.size) ? matchUids : new Set([uid].filter(Boolean));
+  if (ids.size === 0) return defaults;
   let structure = null;
   try {
     const row = await env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind('org:structure').first();
@@ -131,7 +155,7 @@ async function resolveOrgPermissions(env, uid) {
   if (!structure) return defaults;
 
   // Director?
-  if (structure.director?.uid === uid) {
+  if (structure.director?.uid && ids.has(structure.director.uid)) {
     return { isDirector: true, pipelineIds: null, dealScope: 'all', teamUids: new Set(), hasAnyNode: true };
   }
 
@@ -140,7 +164,7 @@ async function resolveOrgPermissions(env, uid) {
   const allNodes = [];   // плоский список всех узлов с reference на родителя для inheritance
   function walk(node, parents) {
     allNodes.push({ node, parents });
-    const isUserHere = node.headUid === uid || (node.memberUids || []).includes(uid);
+    const isUserHere = (node.headUid && ids.has(node.headUid)) || (node.memberUids || []).some(u => ids.has(u));
     if (isUserHere) userNodes.push({ node, parents });
     const children = node.subDepartments || node.departments || [];
     for (const child of children) walk(child, [...parents, node]);
@@ -3732,6 +3756,121 @@ async function handleOrgStructurePut(request, env) {
   return json({ ok: true, structure: incoming }, 200, request);
 }
 
+// ── GET /api/admin/diag/orgperms?email=...|uid=... ──────────────────────
+// Диагностика «почему сотрудник видит не то, что ожидаешь».
+// Read-only, admin-only. Показывает ЭФФЕКТИВНЫЕ права, как их видит worker:
+//   • в каких узлах структуры найден юзер (по всем его uid-алиасам)
+//   • итоговый dealScope / доступ к воронкам
+//   • дубли учёток с тем же email (частая причина mismatch после миграции)
+async function handleAdminDiagOrgPerms(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+
+  const url = new URL(request.url);
+  const email = (url.searchParams.get('email') || '').toLowerCase().trim();
+  let uid = url.searchParams.get('uid') || null;
+
+  // Резолвим по email все учётки (могут быть дубли) → канон + алиасы
+  let userRows = [];
+  if (email) {
+    const r = await env.DB.prepare(
+      "SELECT uid, email, name, last_name FROM users WHERE LOWER(email) = ?"
+    ).bind(email).all();
+    userRows = r.results || [];
+    if (userRows[0]) uid = userRows[0].uid;
+  } else if (uid) {
+    const u = await env.DB.prepare(
+      "SELECT uid, email, name, last_name FROM users WHERE uid = ? LIMIT 1"
+    ).bind(uid).first();
+    if (u) userRows = [u];
+  }
+  if (!uid) return json({ error: "pass ?email= or ?uid=" }, 400, request);
+
+  const matchUids = new Set();
+  if (uid) matchUids.add(uid);
+  for (const r of userRows) if (r.uid) matchUids.add(r.uid);
+
+  const perms = await resolveOrgPermissions(env, uid, matchUids);
+
+  // Где в структуре встречается любой из uid юзера
+  let structure = null;
+  try {
+    const row = await env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind('org:structure').first();
+    if (row?.v) structure = JSON.parse(row.v);
+  } catch {}
+  const foundInStructure = [];
+  const allStructUids = new Set();
+  if (structure) {
+    if (structure.director?.uid) {
+      allStructUids.add(structure.director.uid);
+      if (matchUids.has(structure.director.uid)) foundInStructure.push({ path: 'director', name: 'Директор', as: 'director', perms: null });
+    }
+    const walk = (node, path) => {
+      const nm = node.name || node.title || '(без имени)';
+      if (node.headUid) {
+        allStructUids.add(node.headUid);
+        if (matchUids.has(node.headUid)) foundInStructure.push({ path, name: nm, as: 'head', perms: node.permissions || null });
+      }
+      for (const m of (node.memberUids || [])) {
+        if (m) allStructUids.add(m);
+        if (matchUids.has(m)) foundInStructure.push({ path, name: nm, as: 'member', perms: node.permissions || null });
+      }
+      const ch = node.subDepartments || node.departments || [];
+      ch.forEach((c, i) => walk(c, path + ' > ' + (c.name || c.title || ('#' + i))));
+    };
+    (structure.branches || []).forEach((b, i) => walk(b, b.name || ('branch#' + i)));
+  }
+
+  // Дубли учёток с тем же email, но другим uid (типичная причина mismatch)
+  let duplicateAccounts = [];
+  if (email && userRows.length > 1) {
+    duplicateAccounts = userRows.map(r => r.uid);
+  }
+
+  // Структурные uid'ы, которых нет в таблице users (осиротевшие / неверный формат)
+  let orphanUidsInStructure = [];
+  if (allStructUids.size) {
+    const list = [...allStructUids];
+    const ph = list.map(() => '?').join(',');
+    const known = await env.DB.prepare(`SELECT uid FROM users WHERE uid IN (${ph})`).bind(...list).all();
+    const knownSet = new Set((known.results || []).map(r => r.uid));
+    orphanUidsInStructure = list.filter(u => !knownSet.has(u));
+  }
+
+  // Человекочитаемый вывод
+  let diagnosis;
+  if (perms.isDirector) {
+    diagnosis = 'Юзер — Директор: видит всё.';
+  } else if (foundInStructure.length === 0) {
+    diagnosis = duplicateAccounts.length
+      ? `НЕ найден в структуре под каноническим uid. Есть дубли учёток с этим email (${duplicateAccounts.join(', ')}) — вероятно, в структуру добавлен под другим uid. Передеплоенный worker теперь матчит по всем uid — проверь, исчезла ли проблема. Если нет — пере-добавь сотрудника в узел заново.`
+      : 'НЕ найден ни в одном узле структуры под своими uid → права откатились на «только свои». Добавь его в нужный узел в Структуре.';
+  } else {
+    const scopeRu = { all: 'Все сделки', team: 'Свой отдел', own: 'Только свои' }[perms.dealScope] || perms.dealScope;
+    diagnosis = `Найден в ${foundInStructure.length} узл(е/ах). Итоговая видимость: «${scopeRu}», воронки: ${perms.pipelineIds === null ? 'все' : perms.pipelineIds.length + ' шт'}.` +
+      (perms.dealScope !== 'all' ? ' Если ожидаешь «Все сделки» — выставь dealScope=all именно на узле, где он состоит (права родителя вниз НЕ наследуются).' : '');
+  }
+
+  return json({
+    ok: true,
+    input: { email: email || null, uid },
+    user: userRows[0] ? { uid: userRows[0].uid, email: userRows[0].email, name: [userRows[0].last_name, userRows[0].name].filter(Boolean).join(' ') } : null,
+    matchUids: [...matchUids],
+    resolvedPerms: {
+      isDirector: perms.isDirector,
+      hasAnyNode: perms.hasAnyNode,
+      dealScope: perms.dealScope,
+      pipelineIds: perms.pipelineIds,
+      teamSize: perms.teamUids ? perms.teamUids.size : 0,
+    },
+    foundInStructure,
+    duplicateAccounts,
+    orphanUidsInStructure,
+    structureUidCount: allStructUids.size,
+    diagnosis,
+  }, 200, request);
+}
+
 // ── Permissions (виды прав, хранятся как JSON в kv['org:permissions']) ──
 // Сейчас сохраняем только определения ролей; применение к запросам
 // (фильтр воронок/стадий) — следующая фаза. Структура совместима с будущим
@@ -5643,6 +5782,10 @@ export default {
     }
     if (path === "/api/org/structure" && request.method === "PUT") {
       return handleOrgStructurePut(request, env);
+    }
+    // ── /api/admin/diag/orgperms — диагностика эффективных прав сотрудника ──
+    if (path === "/api/admin/diag/orgperms" && request.method === "GET") {
+      return handleAdminDiagOrgPerms(request, env);
     }
     // ── /api/admin/permissions — виды прав (роли) ─────────────────────
     if (path === "/api/admin/permissions" && request.method === "GET") {
