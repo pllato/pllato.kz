@@ -4,6 +4,12 @@
 
 import { jwtVerify, createRemoteJWKSet } from "jose";
 import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser } from "./chat-module.js";
+import { sendWebPush, VAPID_PUBLIC_KEY } from "./webpush.js";
+
+// ctx последнего fetch/scheduled — чтобы фоновую рассылку пушей (несколько
+// сетевых запросов к FCM/Mozilla/Apple) повесить на ctx.waitUntil и не держать
+// HTTP-ответ. Воркер живёт в одном изоляте, переустанавливается на каждый вход.
+let CURRENT_CTX = null;
 
 // Ре-экспорт DO классов — wrangler.toml ссылается на них по имени класса.
 // Должны быть top-level export'ы скрипта main.
@@ -826,6 +832,140 @@ async function handleRtdbDelete(env, request, parts, me) {
   await env.DB.prepare(`DELETE FROM ${tableName} WHERE ${keyCol} = ?`).bind(id).run();
   await auditLog(env, me, "record_delete", tableName, id, null);
   return json({ ok: true, deleted: true }, 200, request);
+}
+
+// ── /api/import/bulk — массовый upsert через D1 batch транзакцию ──
+// Body: { entity: "contacts"|"deals"|"users"|"pipelines", items: [{...}, ...] }
+// Возвращает: { ok, entity, inserted, errors? }
+//
+// Преимущества над PUT /api/rtdb/{...}.json по одной:
+//   • 1 worker-request вместо N (важно при ~100k записей за импорт)
+//   • 1 D1 транзакция вместо N (атомарность + скорость)
+//   • INSERT OR REPLACE — idempotent upsert по PK
+//
+// Limits: max 1000 items per batch (соответствует D1 batch limit).
+// Auth: только admin. Audit log — суммарный, не по каждой записи.
+async function handleBulkImport(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+
+  const canonical = await resolveCanonicalUser(env, auth.claims);
+  const me = {
+    uid: canonical.canonicalUid || auth.uid,
+    email: auth.email,
+    role: canonical.role,
+    canonicalUid: canonical.canonicalUid,
+  };
+  if (me.role !== "admin") {
+    return json({ error: "bulk import is admin-only" }, 403, request);
+  }
+
+  let body;
+  try { body = await request.json(); }
+  catch { return json({ error: "invalid json body" }, 400, request); }
+
+  const allowedEntities = { contacts: "id", deals: "id", users: "uid", pipelines: "id" };
+  const requiredFields = {
+    contacts: ["name", "last_name"],
+    deals: ["title", "pipeline_id", "stage_id"],
+    users: ["uid"],
+    pipelines: ["name"],
+  };
+  const { entity, items } = body || {};
+  if (!entity || !allowedEntities[entity]) {
+    return json({ error: "entity must be one of: " + Object.keys(allowedEntities).join(", ") }, 400, request);
+  }
+  if (!Array.isArray(items) || items.length === 0) {
+    return json({ error: "items must be a non-empty array" }, 400, request);
+  }
+  if (items.length > 1000) {
+    return json({ error: "max 1000 items per batch (got " + items.length + ")" }, 400, request);
+  }
+
+  const keyCol = allowedEntities[entity];
+  const jsonCols = JSON_COLS[entity] || new Set();
+  const required = requiredFields[entity] || [];
+
+  // 1. Соберём union всех колонок из всех items (camelCase → snake_case).
+  //    items могут быть sparse — у одних есть фразы emails, у других нет.
+  //    Для INSERT OR REPLACE все строки идут через одинаковый набор колонок;
+  //    отсутствующие в item значения подставим как NULL.
+  const allColsSet = new Set();
+  for (const it of items) {
+    if (!it || typeof it !== "object") {
+      return json({ error: "each item must be an object" }, 400, request);
+    }
+    for (const k of Object.keys(it)) allColsSet.add(toSnake(k));
+  }
+  if (!allColsSet.has(keyCol)) allColsSet.add(keyCol);
+  // Гарантируем что NOT NULL колонки в наборе, иначе ERROR раньше будет понятнее
+  for (const f of required) {
+    if (!allColsSet.has(f)) allColsSet.add(f);
+  }
+
+  const allCols = [...allColsSet];
+  const placeholders = allCols.map(() => "?").join(", ");
+  const sql = `INSERT OR REPLACE INTO ${entity} (${allCols.join(", ")}) VALUES (${placeholders})`;
+
+  // 2. Готовим bind values для каждого item.
+  //    Валидация: все required-поля должны быть заполнены непустыми значениями.
+  const stmt = env.DB.prepare(sql);
+  const batch = [];
+  const validationErrors = [];
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    // Required check (NOT NULL columns в D1 схеме упадут на batch иначе)
+    for (const f of required) {
+      const camel = toCamel(f);
+      const val = it[camel] !== undefined ? it[camel] : it[f];
+      if (val === undefined || val === null || val === "") {
+        validationErrors.push({ index: i, missing: f, id: it[keyCol] || it[toCamel(keyCol)] || null });
+        break;
+      }
+    }
+    if (validationErrors.length >= 10) break;  // не больше 10 ошибок в ответе
+
+    const vals = [];
+    for (const col of allCols) {
+      const camel = toCamel(col);
+      let v = it[camel] !== undefined ? it[camel] : it[col];
+      if (v === undefined) v = null;
+      if (jsonCols.has(col) && v !== null && typeof v !== "string") {
+        v = JSON.stringify(v);
+      }
+      vals.push(v);
+    }
+    batch.push(stmt.bind(...vals));
+  }
+
+  if (validationErrors.length) {
+    return json({
+      error: "validation failed for some items (NOT NULL required)",
+      first_errors: validationErrors,
+    }, 400, request);
+  }
+
+  // 3. Один D1 batch — атомарная транзакция. Если упадёт — откатывается всё.
+  try {
+    await env.DB.batch(batch);
+  } catch (e) {
+    return json({
+      error: "D1 batch failed",
+      message: String(e?.message || e).slice(0, 800),
+      entity,
+      items_count: items.length,
+    }, 500, request);
+  }
+
+  // 4. Один audit log на весь batch (вместо N записей).
+  try {
+    await auditLog(env, me, "bulk_import", entity, null, {
+      count: items.length,
+      cols_count: allCols.length,
+    });
+  } catch { /* audit не должен ломать импорт */ }
+
+  return json({ ok: true, entity, inserted: items.length }, 200, request);
 }
 
 async function handleRtdbWrite(env, request, parts, me) {
@@ -3907,11 +4047,92 @@ async function createNotification(env, opts) {
         notification: { id, type: opts.type || 'system', title: opts.title || '', body: opts.body || '', link: opts.link || null, icon: opts.icon || null, createdAt: now },
       });
     } catch {}
+    // Web Push на смартфон — фоном (waitUntil), чтобы не тормозить ответ.
+    try {
+      const job = pushToUserDevices(env, uid, {
+        title: opts.title || 'ELC CRM',
+        body: opts.body || '',
+        url: opts.link || '/team.html',
+        tag: opts.type || 'system',
+        icon: opts.icon || null,
+      });
+      if (CURRENT_CTX && typeof CURRENT_CTX.waitUntil === 'function') CURRENT_CTX.waitUntil(job);
+      else await job;
+    } catch (e) { console.warn('[push] schedule failed:', e && e.message); }
     return id;
   } catch (e) {
     console.warn('[notif] create failed:', e && e.message);
     return null;
   }
+}
+
+// SHA-256 → hex (для детерминированного id подписки из endpoint).
+async function sha256hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Разослать Web Push на все устройства пользователя. Протухшие (404/410) чистим.
+async function pushToUserDevices(env, uid, payload) {
+  try {
+    if (!env.VAPID_PRIVATE_JWK) return; // пуши не настроены — тихо выходим
+    const { results } = await env.DB.prepare(
+      'SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE uid = ?'
+    ).bind(uid).all();
+    for (const sub of (results || [])) {
+      try {
+        const r = await sendWebPush(env, sub, payload);
+        if (r.gone) {
+          await env.DB.prepare('DELETE FROM push_subscriptions WHERE id = ?').bind(sub.id).run();
+        } else if (r.ok) {
+          await env.DB.prepare('UPDATE push_subscriptions SET last_ok_at = ? WHERE id = ?').bind(Date.now(), sub.id).run();
+        }
+      } catch (e) { console.warn('[push] send failed:', e && e.message); }
+    }
+  } catch (e) { console.warn('[push] fanout failed:', e && e.message); }
+}
+
+// GET /api/push/vapid-public — публичный VAPID-ключ для applicationServerKey.
+function handlePushVapidPublic(request) {
+  return json({ key: VAPID_PUBLIC_KEY }, 200, request);
+}
+
+// POST /api/push/subscribe  { endpoint, keys:{p256dh, auth} }  (PushSubscription.toJSON())
+async function handlePushSubscribe(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const uid = me.canonicalUid || me.firebaseUid;
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid json' }, 400, request); }
+  const sub = body.subscription || body;
+  const endpoint = sub.endpoint;
+  const p256dh = (sub.keys && sub.keys.p256dh) || sub.p256dh;
+  const authKey = (sub.keys && sub.keys.auth) || sub.auth;
+  if (!endpoint || !p256dh || !authKey) return json({ error: 'endpoint, p256dh, auth required' }, 400, request);
+
+  const id = 'ps_' + (await sha256hex(endpoint)).slice(0, 32); // детерминированный — дедуп на устройство
+  const now = Date.now();
+  const ua = request.headers.get('User-Agent') || null;
+  // ON CONFLICT(id): то же устройство переподписалось (ротация ключей) — обновляем.
+  await env.DB.prepare(`
+    INSERT INTO push_subscriptions (id, uid, endpoint, p256dh, auth, ua, created_at, last_ok_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+    ON CONFLICT(id) DO UPDATE SET uid=excluded.uid, p256dh=excluded.p256dh, auth=excluded.auth, ua=excluded.ua
+  `).bind(id, uid, endpoint, p256dh, authKey, ua, now).run();
+  return json({ ok: true, id }, 200, request);
+}
+
+// POST /api/push/unsubscribe  { endpoint }
+async function handlePushUnsubscribe(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid json' }, 400, request); }
+  const endpoint = body.endpoint || (body.subscription && body.subscription.endpoint);
+  if (!endpoint) return json({ error: 'endpoint required' }, 400, request);
+  await env.DB.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(endpoint).run();
+  return json({ ok: true }, 200, request);
 }
 
 // Уведомить нескольких получателей (uids[]) — последовательно, best-effort.
@@ -4715,9 +4936,216 @@ async function handleMe(request, env) {
   }, 200, request);
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// ELC Placement Test → CRM
+// Публичные эндпоинты для теста на уровень (студент без логина в CRM).
+// Защита: работает только валидный код филиала; submit пишет только в контакт,
+// чей responsible_uid принадлежит менеджерам этого филиала.
+// ══════════════════════════════════════════════════════════════════════════
+
+// Маскировка телефона: видны первые 2 и последние 2 цифры, остальное «*».
+function maskPhone(p) {
+  if (!p) return "";
+  const s = String(p);
+  const n = s.replace(/\D/g, "").length;
+  let i = 0;
+  return s.replace(/\d/g, (d) => { const keep = i < 2 || i >= n - 2; i++; return keep ? d : "*"; });
+}
+
+function firstPhoneValue(phonesJson) {
+  try {
+    const arr = JSON.parse(phonesJson || "[]");
+    if (Array.isArray(arr) && arr.length) return arr[0].value || arr[0].VALUE || (typeof arr[0] === "string" ? arr[0] : "");
+  } catch {}
+  return "";
+}
+
+async function getBranch(env, code) {
+  if (!code) return null;
+  const row = await env.DB.prepare(
+    "SELECT code,label,manager_uids,active FROM placement_branches WHERE code=?"
+  ).bind(code).first();
+  if (!row || !row.active) return null;
+  let mgr = [];
+  try { mgr = JSON.parse(row.manager_uids); } catch {}
+  return { code: row.code, label: row.label, managers: Array.isArray(mgr) ? mgr : [] };
+}
+
+// GET /api/placement/branch/{code} — проверка филиала + название
+async function handlePlacementBranch(request, env, code) {
+  const b = await getBranch(env, code);
+  if (!b) return json({ ok: false, error: "branch not found" }, 404, request);
+  return json({ ok: true, code: b.code, label: b.label }, 200, request);
+}
+
+// GET /api/placement/roster?branch=CODE&q=... — поиск студента (телефоны замаскированы)
+async function handlePlacementRoster(request, env) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("branch") || "";
+  const q = (url.searchParams.get("q") || "").trim();
+  const b = await getBranch(env, code);
+  if (!b) return json({ ok: false, error: "branch not found" }, 404, request);
+  if (q.length < 2) return json({ ok: true, results: [], hint: "min 2 chars" }, 200, request);
+  if (!b.managers.length) return json({ ok: true, results: [] }, 200, request);
+
+  const inPh = b.managers.map(() => "?").join(",");
+  // SQLite LOWER() не понимает кириллицу → 3 варианта регистра (как в основном поиске)
+  const variants = [...new Set([q, q.toLowerCase(), q.charAt(0).toUpperCase() + q.slice(1)])];
+  const likeConds = [];
+  const binds = [...b.managers];
+  for (const v of variants) {
+    likeConds.push("(name LIKE ? OR last_name LIKE ? OR phones LIKE ?)");
+    binds.push("%" + v + "%", "%" + v + "%", "%" + v + "%");
+  }
+  const sql = `SELECT id,name,last_name,phones,emails,birthdate FROM contacts
+    WHERE responsible_uid IN (${inPh}) AND (${likeConds.join(" OR ")})
+    ORDER BY last_name, name LIMIT 20`;
+  const rs = await env.DB.prepare(sql).bind(...binds).all();
+  const results = (rs.results || []).map((r) => {
+    const ph = firstPhoneValue(r.phones);
+    let hasEmail = false;
+    try { const e = JSON.parse(r.emails || "[]"); hasEmail = Array.isArray(e) && e.length > 0; } catch {}
+    return {
+      id: r.id,
+      name: [r.last_name, r.name].filter(Boolean).join(" ").trim() || "(без имени)",
+      maskedPhone: maskPhone(ph),
+      hasPhone: !!ph,
+      hasEmail,
+      hasBirthdate: !!r.birthdate,
+    };
+  });
+  return json({ ok: true, results, capped: results.length >= 20 }, 200, request);
+}
+
+// POST /api/placement/submit — создать результат + подшить в карточку контакта
+async function handlePlacementSubmit(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const code = (body.branch || "").trim();
+  const contactId = (body.contactId || "").trim();
+  const b = await getBranch(env, code);
+  if (!b) return json({ ok: false, error: "branch not found" }, 404, request);
+  if (!contactId) return json({ ok: false, error: "contactId required" }, 400, request);
+
+  // Контакт обязан принадлежать менеджерам филиала (защита от записи в чужие карточки)
+  const contact = await env.DB.prepare(
+    "SELECT id,name,last_name,phones,emails,birthdate,responsible_uid FROM contacts WHERE id=?"
+  ).bind(contactId).first();
+  if (!contact) return json({ ok: false, error: "contact not found" }, 404, request);
+  if (!b.managers.includes(contact.responsible_uid)) {
+    return json({ ok: false, error: "contact not in this branch" }, 403, request);
+  }
+
+  const st = body.student || {};
+  const th = body.theory || {};
+  const resultId = "pr_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const nowIso = new Date().toISOString();
+
+  // — обновляем карточку контакта (имя/фамилия/ДР перезаписываем, телефон/email до-бавляем)
+  const newName = (st.name || "").trim() || contact.name;
+  const newLast = (st.lastName || "").trim() || contact.last_name;
+  const newBirth = (st.birthdate || "").trim() || contact.birthdate;
+  // phones merge
+  let phones = []; try { phones = JSON.parse(contact.phones || "[]"); if (!Array.isArray(phones)) phones = []; } catch { phones = []; }
+  const inPhone = (st.phone || "").trim();
+  if (inPhone) {
+    const norm = (s) => String(s).replace(/\D/g, "");
+    if (!phones.some((p) => norm(p.value || p.VALUE || p) === norm(inPhone))) {
+      phones.push({ type: "MOBILE", value: inPhone });
+    }
+  }
+  // emails merge
+  let emails = []; try { emails = JSON.parse(contact.emails || "[]"); if (!Array.isArray(emails)) emails = []; } catch { emails = []; }
+  const inEmail = (st.email || "").trim();
+  if (inEmail) {
+    const lc = (s) => String(s).toLowerCase();
+    if (!emails.some((e) => lc(e.value || e.VALUE || e) === lc(inEmail))) {
+      emails.push({ type: "WORK", value: inEmail });
+    }
+  }
+  await env.DB.prepare(
+    "UPDATE contacts SET name=?, last_name=?, birthdate=?, phones=?, emails=?, bitrix_date_modify=? WHERE id=?"
+  ).bind(newName, newLast, newBirth || null, JSON.stringify(phones), JSON.stringify(emails), nowIso, contactId).run();
+
+  // — пишем структурированный результат
+  const levelN = th.levelN != null ? th.levelN : null;
+  const graduated = th.graduated ? 1 : 0;
+  await env.DB.prepare(`
+    INSERT INTO placement_results (id, contact_id, branch_code, level_n, level_name, cefr, graduated,
+      theory_correct, theory_total, breakdown, speaking_topic,
+      student_name, student_last_name, student_phone, student_email, student_birthdate, created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  `).bind(
+    resultId, contactId, code, levelN, th.levelName || null, th.cefr || null, graduated,
+    th.correct != null ? th.correct : null, th.total != null ? th.total : null,
+    th.breakdown ? JSON.stringify(th.breakdown) : null, th.speakingTopic || null,
+    newName, newLast, inPhone || null, inEmail || null, newBirth || null, nowIso
+  ).run();
+
+  // — подшиваем событие в таймлайн карточки контакта (видно в team.html)
+  const authorUid = b.managers[0] || null;
+  const tlId = "tl_plc_" + resultId.slice(3);
+  await env.DB.prepare(`
+    INSERT INTO timeline_activities (id, owner_type, owner_id, activity_type, author_uid, bitrix_created, payload, created_at)
+    VALUES (?, 'contact', ?, 'placement_test', ?, ?, ?, datetime('now'))
+  `).bind(
+    tlId, contactId, authorUid, nowIso,
+    JSON.stringify({
+      kind: "placement_test", resultId, branch: code, branchLabel: b.label,
+      levelN, levelName: th.levelName || null, cefr: th.cefr || null, graduated: !!graduated,
+      theory: { correct: th.correct, total: th.total }, breakdown: th.breakdown || null,
+      speakingTopic: th.speakingTopic || null,
+      student: { name: newName, lastName: newLast, phone: inPhone, email: inEmail, birthdate: newBirth },
+      audioKey: null,
+    })
+  ).run();
+
+  return json({ ok: true, resultId, contactId, audioUpload: `/api/placement/audio/${resultId}` }, 200, request);
+}
+
+// POST /api/placement/audio/{resultId} — заливка записи монолога в R2 (публичная)
+async function handlePlacementAudioUpload(request, env, resultId) {
+  if (!env.FILES) return json({ error: "R2 not configured" }, 500, request);
+  const res = await env.DB.prepare("SELECT id, contact_id FROM placement_results WHERE id=?").bind(resultId).first();
+  if (!res) return json({ ok: false, error: "result not found" }, 404, request);
+  const ctype = request.headers.get("Content-Type") || "audio/webm";
+  const secs = parseInt(request.headers.get("X-Audio-Secs") || "0", 10) || null;
+  const key = "placement/" + resultId + ".webm";
+  await env.FILES.put(key, request.body, { httpMetadata: { contentType: ctype } });
+  await env.DB.prepare(
+    "UPDATE placement_results SET audio_key=?, audio_mime=?, audio_secs=? WHERE id=?"
+  ).bind(key, ctype, secs, resultId).run();
+  // дописываем audioKey в payload таймлайна
+  const tl = await env.DB.prepare(
+    "SELECT id,payload FROM timeline_activities WHERE owner_id=? AND activity_type='placement_test' AND payload LIKE ? LIMIT 1"
+  ).bind(res.contact_id, "%" + resultId + "%").first();
+  if (tl) {
+    let pl = {}; try { pl = JSON.parse(tl.payload || "{}"); } catch {}
+    pl.audioKey = key; pl.audioSecs = secs;
+    await env.DB.prepare("UPDATE timeline_activities SET payload=? WHERE id=?").bind(JSON.stringify(pl), tl.id).run();
+  }
+  return json({ ok: true, resultId, audioKey: key }, 200, request);
+}
+
+// GET /api/placement/audio/{resultId} — отдача записи (для CRM, с авторизацией)
+async function handlePlacementAudioDownload(request, env, resultId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  if (!env.FILES) return new Response("R2 not configured", { status: 500 });
+  const res = await env.DB.prepare("SELECT audio_key, audio_mime FROM placement_results WHERE id=?").bind(resultId).first();
+  if (!res || !res.audio_key) return new Response("not found", { status: 404 });
+  const obj = await env.FILES.get(res.audio_key);
+  if (!obj) return new Response("not found", { status: 404 });
+  const h = new Headers(corsHeaders(request));
+  h.set("Content-Type", res.audio_mime || "audio/webm");
+  h.set("Cache-Control", "private, max-age=3600");
+  return new Response(obj.body, { status: 200, headers: h });
+}
+
 // ── Main dispatcher ─────────────────────────────────────
 export default {
   async fetch(request, env, ctx) {
+    CURRENT_CTX = ctx; // для фоновой рассылки Web Push из createNotification
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -4742,8 +5170,34 @@ export default {
       return handleMe(request, env);
     }
 
+    // ── /api/placement/* — тест на уровень (студент без логина в CRM) ──────
+    const plBranchMatch = path.match(/^\/api\/placement\/branch\/([^/]+)$/);
+    if (plBranchMatch && request.method === "GET") {
+      return handlePlacementBranch(request, env, decodeURIComponent(plBranchMatch[1]));
+    }
+    if (path === "/api/placement/roster" && request.method === "GET") {
+      return handlePlacementRoster(request, env);
+    }
+    if (path === "/api/placement/submit" && request.method === "POST") {
+      return handlePlacementSubmit(request, env);
+    }
+    const plAudioMatch = path.match(/^\/api\/placement\/audio\/([^/]+)$/);
+    if (plAudioMatch && request.method === "POST") {
+      return handlePlacementAudioUpload(request, env, plAudioMatch[1]);
+    }
+    if (plAudioMatch && request.method === "GET") {
+      return handlePlacementAudioDownload(request, env, plAudioMatch[1]);
+    }
+
     if (path.startsWith("/api/rtdb/") || path === "/api/rtdb") {
       return handleRtdb(request, env);
+    }
+
+    // /api/import/bulk — массовый upsert (1 HTTP-запрос = 1 D1 batch транзакция,
+    // вместо тысяч PUT /api/rtdb/{collection}/{id}.json при миграциях).
+    // Снижает worker-requests в 100-1000 раз. Только admin.
+    if (path === "/api/import/bulk" && request.method === "POST") {
+      return handleBulkImport(request, env);
     }
 
     // /api/list/contacts, /api/list/tasks, /api/list/deals
@@ -4970,6 +5424,16 @@ export default {
     if (path === "/api/notifications/read-all" && request.method === "POST") {
       return handleNotificationsReadAll(request, env);
     }
+    // ── Web Push (VAPID) ──
+    if (path === "/api/push/vapid-public" && request.method === "GET") {
+      return handlePushVapidPublic(request);
+    }
+    if (path === "/api/push/subscribe" && request.method === "POST") {
+      return handlePushSubscribe(request, env);
+    }
+    if (path === "/api/push/unsubscribe" && request.method === "POST") {
+      return handlePushUnsubscribe(request, env);
+    }
     if (path === "/api/wa/channels/public" && request.method === "GET") {
       return handleWaListChannelsPublic(request, env);
     }
@@ -5065,6 +5529,7 @@ export default {
   // ── Cron (каждую минуту) ──────────────────────────────────────────────
   // Обрабатываем отложенные WA-сообщения которые пора слать.
   async scheduled(event, env, ctx) {
+    CURRENT_CTX = ctx; // для фоновой рассылки Web Push из produceDeedReminders
     ctx.waitUntil((async () => {
       try {
         const res = await processScheduledWaMessages(env);
