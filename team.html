@@ -7168,9 +7168,11 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
       const all = [];
       let page = 1;
       const pageSize = 200;
-      // Жёсткий потолок защищает от уехавшей API — даже самые большие воронки
-      // обычно меньше 5000 сделок. 30 страниц = 6000 max.
-      const MAX_PAGES = 30;
+      // Жёсткий потолок защищает от уехавшей API. После миграции crm.myelc.net
+      // в воронке ELC ~33k активных сделок (66k архивных). Подняли с 30 до 175
+      // страниц = 35,000 макс. Если воронка вырастет ещё — пересмотреть либо
+      // включить virtualization канбана, либо принудительный scope=mine/team.
+      const MAX_PAGES = 175;
       while (page <= MAX_PAGES) {
         const params = new URLSearchParams({
           page: String(page),
