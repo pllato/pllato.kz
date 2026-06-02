@@ -3306,6 +3306,32 @@ function effectiveScope() {
 function scopeToggleHtml() { return ''; }
 function attachScopeToggle(_rootEl, _onChange) { /* noop */ }
 
+// ── Канбан: переключатель «Мои / Все» для admin/директора ────────────────
+// Канбан грузит все сделки воронки в память. В ELC ~33k активных сделок,
+// поэтому по умолчанию admin видит только свои (быстро). Этот тумблер (только
+// для admin) даёт явно выбрать «🌐 Все» и увидеть сделки ВСЕХ сотрудников в
+// текущей воронке. Выбор персистится. Для менеджеров/агентов scope уже
+// корректный по их правам (effectiveScope), тумблер не нужен.
+const ADMIN_KANBAN_SCOPE_LS = 'elc:adminKanbanScope';
+function getAdminKanbanScope() {
+  try { return localStorage.getItem(ADMIN_KANBAN_SCOPE_LS) === 'all' ? 'all' : 'mine'; }
+  catch { return 'mine'; }
+}
+function setAdminKanbanScope(v) {
+  try { localStorage.setItem(ADMIN_KANBAN_SCOPE_LS, v === 'all' ? 'all' : 'mine'); } catch {}
+}
+function kanbanScopeToggleHtml() {
+  if (window.currentUser?.role !== 'admin') return '';
+  const sc = getAdminKanbanScope();
+  const btn = (val, label, title) => {
+    const active = sc === val;
+    return `<button type="button" data-kscope="${val}" title="${title}" style="border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;background:${active ? 'var(--ac)' : 'transparent'};color:${active ? '#fff' : 'var(--t2)'}">${label}</button>`;
+  };
+  return `<div class="kanban-scope-toggle" style="display:inline-flex;border:1px solid var(--b1);border-radius:8px;overflow:hidden;margin-left:10px;vertical-align:middle">
+    ${btn('mine', '👤 Мои', 'Показывать только мои сделки (быстро)')}${btn('all', '🌐 Все', 'Показывать сделки ВСЕХ сотрудников в этой воронке. На больших воронках (ELC ~33k) загрузка может занять время.')}
+  </div>`;
+}
+
 // ── Глобальная сессия (после login) ───────────────────────────────────────
 // currentUser — то что вернул worker /api/me. Включает canonicalUid (uid из
 // D1, к которому привязаны задачи/сделки/контакты по email) и role.
@@ -7202,17 +7228,18 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
       // страниц = 35,000 макс. Если воронка вырастет ещё — пересмотреть либо
       // включить virtualization канбана, либо принудительный scope=mine/team.
       const MAX_PAGES = 175;
-      // Для админа на Канбане: default scope=mine (производительность с большими
-      // воронками — 33k+ сделок). Чтобы посмотреть всех — выбрать конкретного
-      // ответственного в фильтре или открыть страницу с ?scope=all в URL.
-      // Менеджеры/агенты — как обычно (mine/team по effectiveScope()).
-      // Если выбран assignee в фильтре — принудительно scope=all (иначе worker
-      // downgrade'нет в mine и фильтр не сработает).
+      // Для админа на Канбане: scope управляется тумблером «👤 Мои / 🌐 Все»
+      // (getAdminKanbanScope, default mine ради производительности на 33k+
+      // воронках). ?scope=all в URL также форсит «все». Менеджеры/агенты —
+      // как обычно (mine/team по effectiveScope()). Если выбран assignee в
+      // фильтре — принудительно scope=all (иначе worker downgrade'нет в mine
+      // и фильтр по ответственному не сработает).
       const isAdmin = window.currentUser?.role === 'admin';
       const urlScope = new URLSearchParams(location.search).get('scope');
+      const adminDefaultScope = (urlScope === 'all' || getAdminKanbanScope() === 'all') ? 'all' : 'mine';
       const kanbanScope = dealsState.responsibleFilter
         ? (isAdmin ? 'all' : effectiveScope())
-        : (isAdmin ? (urlScope === 'all' ? 'all' : 'mine') : effectiveScope());
+        : (isAdmin ? adminDefaultScope : effectiveScope());
       while (page <= MAX_PAGES) {
         const params = new URLSearchParams({
           page: String(page),
@@ -7620,7 +7647,7 @@ function renderDealsLayout(el) {
     <div class="page-head">
       <h1>СРМ
         <span class="count" id="deals-count">${dealsState.deals.length.toLocaleString('ru')}${filtered.length !== dealsState.deals.length ? ` · отф. ${filtered.length.toLocaleString('ru')}` : ''}</span>
-      </h1>${scopeToggleHtml()}
+      </h1>${scopeToggleHtml()}${dealsState.view === 'kanban' ? kanbanScopeToggleHtml() : ''}
       ${notifBtn}
       <div class="view-toggle">
         <button class="vt-btn ${dealsState.view === 'kanban' ? 'active' : ''}" data-view="kanban">📊 Канбан</button>
@@ -7647,6 +7674,25 @@ function renderDealsLayout(el) {
   `;
   attachPipelineTabHandlers(el);
   attachScopeToggle(el, () => renderDeals(el));
+
+  // Тумблер «👤 Мои / 🌐 Все» для admin на канбане — перезагружает текущую
+  // воронку с выбранным scope (force, в обход кеша).
+  el.querySelectorAll('[data-kscope]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const v = b.dataset.kscope;
+      if (v === getAdminKanbanScope()) return;
+      setAdminKanbanScope(v);
+      const pid = dealsState.activePipelineId;
+      const content = document.getElementById('deals-content');
+      if (content) content.innerHTML = '<div style="padding:48px;text-align:center;color:var(--t3)">⏳ Загрузка сделок…</div>';
+      if (pid) {
+        invalidateDealsCacheForPipeline(pid);
+        // force=true → loadDealsForPipeline сам перерисует layout (тумблер+контент)
+        await loadDealsForPipeline(pid, { force: true });
+        renderDealsLayout(el);
+      }
+    });
+  });
 
   document.getElementById('deal-search').addEventListener('input', e => {
     dealsState.search = e.target.value;
