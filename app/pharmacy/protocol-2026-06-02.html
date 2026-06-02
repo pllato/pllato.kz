@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Протокол встречи · CRM «Гигиена+» / Revyline · 02.06.2026</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#eef2f0; --panel:#ffffff; --ink:#0e1f18; --muted:#5d7569; --line:#dde6e1;
+    --accent:#0d9c6e; --accent-soft:#10b98114; --green:#16a34a; --amber:#d97706;
+    --blue:#1AA7E8; --grass:#7DC832; --radius:16px; --radius-sm:11px;
+    --shadow:0 12px 34px -16px rgba(20,45,35,.22);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.55;
+    -webkit-font-smoothing:antialiased; font-size:15px;
+  }
+  .doc{max-width:880px; margin:32px auto; padding:0 20px 64px}
+
+  /* ── Шапка ── */
+  .head{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); overflow:hidden; margin-bottom:22px;
+  }
+  .head-bar{height:6px;background:linear-gradient(90deg,var(--blue),var(--accent) 55%,var(--grass))}
+  .head-in{display:flex; gap:18px; align-items:center; padding:24px 28px}
+  .logo{width:54px;height:54px;flex:0 0 auto;filter:drop-shadow(0 5px 12px rgba(26,167,232,.30))}
+  .logo svg{width:100%;height:100%;display:block}
+  .h-tt{font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 3px}
+  .h-h1{font-size:23px;font-weight:800;margin:0;letter-spacing:-.01em}
+  .h-sub{color:var(--muted);font-size:13.5px;margin-top:3px}
+
+  /* ── Мета ── */
+  .meta{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:24px;
+  }
+  .meta div{background:var(--panel);padding:13px 16px}
+  .meta .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .meta .v{font-size:14px;font-weight:600;margin-top:3px}
+
+  .who{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:26px}
+  .who .p{
+    display:inline-flex;align-items:center;gap:8px;background:var(--panel);
+    border:1px solid var(--line);border-radius:999px;padding:6px 13px 6px 6px;font-size:13.5px;font-weight:600;
+  }
+  .who .av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700}
+  .who .role{color:var(--muted);font-weight:500;font-size:12.5px}
+
+  h2.sec{
+    font-size:13px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);
+    margin:34px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--accent-soft);
+  }
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-sm);
+    padding:16px 18px;margin-bottom:12px;box-shadow:0 2px 8px -6px rgba(20,45,35,.15);
+  }
+  .card h3{margin:0 0 7px;font-size:15.5px;font-weight:700;display:flex;align-items:center;gap:9px}
+  .num{
+    flex:0 0 auto;width:24px;height:24px;border-radius:7px;background:var(--accent-soft);color:var(--accent);
+    font-size:13px;font-weight:800;display:grid;place-items:center;
+  }
+  .card ul{margin:6px 0 0;padding-left:20px}
+  .card li{margin:4px 0;color:#27392f}
+  .card li b{color:var(--ink)}
+  .tag{
+    display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;margin-left:6px;
+    vertical-align:middle;
+  }
+  .t-now{background:#16a34a18;color:#15803d}
+  .t-later{background:#d9770618;color:#b45309}
+  .t-1c{background:#1AA7E818;color:#0e7aa8}
+
+  .note{color:var(--muted);font-size:13px;font-style:italic;margin-top:6px}
+
+  /* ── Таблица обязательств ── */
+  table.commit{width:100%;border-collapse:separate;border-spacing:0;background:var(--panel);
+    border:1px solid var(--line);border-radius:var(--radius-sm);overflow:hidden;font-size:13.5px}
+  table.commit th{
+    text-align:left;background:#f3f7f5;color:var(--muted);font-size:11px;letter-spacing:.07em;
+    text-transform:uppercase;font-weight:700;padding:11px 14px;border-bottom:1px solid var(--line);
+  }
+  table.commit td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  table.commit tr:last-child td{border-bottom:none}
+  table.commit .owner{font-weight:700;white-space:nowrap}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px}
+  .due-soon{background:#16a34a18;color:#15803d}
+  .due-week{background:#1AA7E818;color:#0e7aa8}
+  .due-tbd{background:#64748b18;color:#475569}
+  .side-c{color:#0e7aa8}
+  .side-p{color:#15803d}
+
+  /* ── Сроки ── */
+  .timeline{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-sm);padding:6px 18px}
+  .timeline .row{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .timeline .row:last-child{border-bottom:none}
+  .timeline .when{flex:0 0 132px;font-weight:700;color:var(--accent)}
+  .timeline .what{color:#27392f}
+
+  .foot{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12.5px;flex-wrap:wrap;gap:10px}
+  .foot b{color:var(--ink)}
+  .wm{font-weight:800;letter-spacing:.02em}
+  .wm span{color:var(--accent)}
+
+  @media print{
+    *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+    body{background:#fff;font-size:12px}
+    .doc{margin:0;max-width:none;padding:0}
+    .head-bar{height:6px}
+    .card,.head,.timeline,table.commit{box-shadow:none}
+    h2.sec{break-after:avoid}
+    .card{break-inside:avoid}
+    table.commit tr{break-inside:avoid}
+  }
+  @media (max-width:680px){
+    .meta{grid-template-columns:repeat(2,1fr)}
+    .head-in{flex-direction:column;text-align:center}
+    .timeline .row{flex-direction:column;gap:2px}
+    .timeline .when{flex-basis:auto}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <!-- ШАПКА -->
+  <header class="head">
+    <div class="head-bar"></div>
+    <div class="head-in">
+      <div class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+          <path d="M50 9 C32 9 19 13 16.5 27.5 C14.5 38 16.5 50.5 20.5 64 C23 73 24.5 85 31 85 C37 85 37.5 71 41 63 C43 58.5 45.5 60 50 60 C54.5 60 57 58.5 59 63 C62.5 71 63 85 69 85 C75.5 85 77 73 79.5 64 C83.5 50.5 85.5 38 83.5 27.5 C81 13 68 9 50 9 Z" fill="#1AA7E8"/>
+          <path d="M44 20 C53 17 62 20 67 29 C60 23 52 22 46 24.5 C45 23 44.4 21.5 44 20 Z" fill="#fff" opacity="0.92"/>
+          <g fill="#7DC832"><rect x="1" y="26" width="30" height="13" rx="4"/><rect x="9.5" y="17.5" width="13" height="30" rx="4"/></g>
+        </svg>
+      </div>
+      <div>
+        <p class="h-tt">Протокол встречи</p>
+        <h1 class="h-h1">CRM «Гигиена+» · Зубная аптека Revyline</h1>
+        <div class="h-sub">Обзор и утверждение скелета системы (макет) · этап проектирования</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- МЕТА -->
+  <div class="meta">
+    <div><div class="k">Дата</div><div class="v">2 июня 2026</div></div>
+    <div><div class="k">Формат</div><div class="v">Zoom · видеозвонок</div></div>
+    <div><div class="k">Длительность</div><div class="v">~1 ч 15 мин</div></div>
+    <div><div class="k">Цель</div><div class="v">Утвердить скелет CRM</div></div>
+  </div>
+
+  <!-- УЧАСТНИКИ -->
+  <div class="who">
+    <span class="p"><span class="av" style="background:#0d9c6e">ПЦ</span> Платон Цай <span class="role">· pllato, разработка</span></span>
+    <span class="p"><span class="av" style="background:#1AA7E8">О</span> Оксана <span class="role">· владелец, заказчик</span></span>
+    <span class="p"><span class="av" style="background:#7c3aed">А</span> Анатолий <span class="role">· сторона заказчика</span></span>
+    <span class="p"><span class="av" style="background:#64748b">—</span> Лена <span class="role">· маркетинг (заочно)</span></span>
+  </div>
+
+  <!-- 1. ОСНОВНЫЕ ПУНКТЫ -->
+  <h2 class="sec">Основные пункты обсуждения</h2>
+
+  <div class="card">
+    <h3><span class="num">1</span> Статус макета</h3>
+    <ul>
+      <li>Текущий макет — это <b>демо/симуляция</b> (mockup), разделы ещё не связаны между собой и не интегрированы с 1С.</li>
+      <li>Цель встречи — пройтись по всем экранам, утвердить общий скелет и логику.</li>
+      <li>Дальше работаем по протоколу <b>по пунктам</b>: выкатываем → обсуждаем → утверждаем → в продакшен.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">2</span> Дашборд и воронка B2C</h3>
+    <ul>
+      <li>Лиды по каналам — на основании UTM (в т.ч. UTM из WhatsApp).</li>
+      <li>Выручка по магазинам — выводить по каждому отдельно; активность продавцов — % факта по продажам.</li>
+      <li>Всё формируется <b>из воронки</b>; ~90% пути клиента реализовано внутри неё.</li>
+      <li>Воронку можно будет <b>самим переименовывать и переставлять</b> этапы (кастомизация).</li>
+      <li>«Товар месяца» — под вопросом, решим позже.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">3</span> Активность продавцов <span class="tag t-1c">через 1С</span></h3>
+    <ul>
+      <li>Продажи проходят через <b>РМК (рабочее место кассира)</b> в 1С; нужно привязать продажу к продавцу-консультанту.</li>
+      <li>При расчёте активности учитывать, <b>сколько дней сотрудник отработал</b> в месяце.</li>
+      <li>Все расчёты — на стороне backend; данные тянем из 1С.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">4</span> Интеграция с 1С <span class="tag t-1c">ключевой блок</span></h3>
+    <ul>
+      <li>Базовый канал — протокол <b>OData</b>; обычно настроен во всех 1С.</li>
+      <li>Доступ предварительно выдан (админ-логин); нужно включить OData на стороне 1С.</li>
+      <li>Логика: что отдаётся по OData — то и забираем; если доступа не дают — рассматриваем другие решения.</li>
+      <li>1С остаётся <b>главной системой</b> (счета, накладные, себестоимость), CRM забирает данные и строит отчёты.</li>
+    </ul>
+    <div class="note">Главный риск по срокам — именно объём работ на стороне 1С.</div>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">5</span> Сайты и заявки</h3>
+    <ul>
+      <li>Два сайта: <b>Revyline KG</b> (управляется головным офисом РФ, доступ только через <b>REST API</b>) и <b>«Зубная аптека»</b> (старый, 2018–2019, морально устарел — планируется новый).</li>
+      <li>Сейчас задача — <b>забирать заявки с форм</b> в CRM (через REST API). Интеграцию остатков/каталога с сайтом откладываем до замены сайта.</li>
+      <li>Опционально позже — поддомен/DNS, чтобы вход в CRM был «под своим брендом».</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">6</span> Онлайн-чат на сайте <span class="tag t-later">позже, отдельный этап</span></h3>
+    <ul>
+      <li>Сообщение с сайта сразу падает в CRM; менеджер консультирует, не теряя ни минуты.</li>
+      <li>Нужен «блинкер»/мигалка для оперативной реакции выделенного сотрудника.</li>
+      <li>Возможен бот: бесплатные — проще, платные — человечнее. Решаем после запуска базового функционала.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">7</span> Промокоды, врачи-партнёры и блогеры <span class="tag t-1c">через 1С</span></h3>
+    <ul>
+      <li>Стоматологи и блогеры работают по <b>промокодам</b>, привязанным пофамильно к контрагенту в 1С (~650 в базе).</li>
+      <li>Схема: врач направляет пациента → промокод → ~10% скидка клиенту и ~10% кэшбек врачу.</li>
+      <li><b>Проблема:</b> в 1С учёт «криповатый» — тянет все продажи, а не только товар со скидкой; кэшбек/скидка различаются по брендам (Revyline 10%, прочее меньше).</li>
+      <li><b>Задача CRM:</b> брать <b>правильные</b> данные и строить отчёты — база врачей, сколько пациентов привёл, на какую сумму, динамика по месяцам (график роста).</li>
+      <li>Скидку желательно привязать к бренду (надо понять, считается по позиции или от суммы).</li>
+      <li>Блогеры (Вадим Спеховцев) — аналогичный механизм и отчёт.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">8</span> Команда, роли и права</h3>
+    <ul>
+      <li>Сеточка галочек «кому что доступно»; у разных ролей — <b>разные отчёты и экраны</b>.</li>
+      <li>Кастомизация полей в зависимости от роли; админы (Платон / Оксана / Вячеслав) смогут редактировать.</li>
+      <li>Над правами нужно отдельно поработать, чтобы не открывать лишнего.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">9</span> Заказы, склад и триггеры</h3>
+    <ul>
+      <li>Заказы — отдельным меню и внутри каждой сделки воронки (под разные роли).</li>
+      <li>Склад небольшой (1 человек): отдельная воронка — согласован → предварительный → согласование отгрузки → отгружен.</li>
+      <li>Статусы «собран/отправлен» — предварительно двигать по <b>выпуску документов 1С</b> (накладная как триггер); ручную отметку тоже предусмотреть.</li>
+      <li>Триггеры на сообщения WhatsApp по времени (поздравления с ДР, автозамены, статусы заказа).</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">10</span> Интеграции мессенджеров</h3>
+    <ul>
+      <li><b>WhatsApp (GreenAPI):</b> для теста берём 1 фактический номер — подключаем <b>Ларчу</b> (меньше всего заявок, работают 10:00–22:00). Входящие + исходящие.</li>
+      <li>Отдельный <b>админ-номер</b> — системные сообщения: приглашения по ссылке, напоминалки сотрудникам.</li>
+      <li><b>Instagram Direct:</b> поднимаем на днях (2–3 дня), затем верификация в Meta (от суток до недели). Входящее сообщение → новая сделка; источник = Instagram, аналитика по источнику.</li>
+      <li><b>IP-телефонию</b> сейчас не рассматриваем.</li>
+      <li>Оплата GreenAPI (~$10) — централизованно внутри CRM с напоминаниями (пока доступы заводит pllato).</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">11</span> Клиенты: разделение B2B / B2C / опт / розница</h3>
+    <ul>
+      <li>Нужно жёсткое разделение доступа: оптовый менеджер <b>не видит</b> B2C и наоборот (безопасность — сейчас база на Google Disk, увольняющийся может её скачать).</li>
+      <li>Данные из 1С: B2B-база действующая там есть полностью, B2C — частично (остальное на Google Disk).</li>
+      <li>Нужны <b>пометки</b> на каждом контрагенте (B2B / B2C / опт / розница).</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">12</span> Прочее: задачи, логи, валюты, KPI</h3>
+    <ul>
+      <li><b>Задачи</b> — туду-лист в стиле Trello: ответственный, дедлайн, комментарии, фильтр по сотруднику/дню, архив, файлы, переписка.</li>
+      <li><b>Журнал действий (логи)</b> — будет; подробные логи для расследований.</li>
+      <li><b>Валюты</b> — оставить сом (KGS) и рубль (себестоимость в 1С); KZT не нужен.</li>
+      <li><b>KPI продавцов</b> — визуально вывели; формулы согласуем отдельно позже.</li>
+    </ul>
+  </div>
+
+  <!-- 2. КТО ЧТО ПРЕДОСТАВЛЯЕТ -->
+  <h2 class="sec">Кто что обещал предоставить</h2>
+  <table class="commit">
+    <thead>
+      <tr><th>Ответственный</th><th>Что</th><th>Срок</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="owner side-c">Оксана / команда</td>
+        <td>Включить <b>OData</b> в 1С и подтвердить доступы; вести как «водитель» — подгонять 1С-ника, если выдача доступов тормозит</td>
+        <td><span class="pill due-soon">сегодня–завтра</span></td>
+      </tr>
+      <tr>
+        <td class="owner side-c">Оксана / команда</td>
+        <td>Записать <b>10–20 видео-роликов</b> с экрана телефона: как в 1С выставляют счёт, работают с контрагентами, присваивают промокод врачу через РМК, какие документы формируются (с кратким описанием)</td>
+        <td><span class="pill due-soon">сегодня–завтра</span></td>
+      </tr>
+      <tr>
+        <td class="owner side-c">Оксана</td>
+        <td>Тестовый <b>номер телефона</b> для GreenAPI (1 шт.) — уже скинула</td>
+        <td><span class="pill due-soon">сделано</span></td>
+      </tr>
+      <tr>
+        <td class="owner side-c">Оксана / Анатолий</td>
+        <td>Доступ к админкам сайтов: <b>Revyline KG</b> (REST API) и <b>«Зубная аптека»</b> — для забора заявок с форм (доступ по сайту уже скинут в задаче)</td>
+        <td><span class="pill due-soon">в процессе</span></td>
+      </tr>
+      <tr>
+        <td class="owner side-c">Оксана</td>
+        <td>Прислать <b>с пометками</b> разделение клиентов B2B / B2C / опт / розница; присылать правки и пометки по разделам</td>
+        <td><span class="pill due-tbd">по мере готовности</span></td>
+      </tr>
+      <tr>
+        <td class="owner side-c">Оксана</td>
+        <td>Решение по оплате GreenAPI (~$10) — при передаче проекта</td>
+        <td><span class="pill due-tbd">при передаче</span></td>
+      </tr>
+      <tr>
+        <td class="owner side-p">pllato (Платон)</td>
+        <td>Разобраться с <b>1С / OData</b>, начать тянуть данные; держать заказчика в курсе, что получается / тормозит</td>
+        <td><span class="pill due-week">~неделя (макс.)</span></td>
+      </tr>
+      <tr>
+        <td class="owner side-p">pllato (Платон)</td>
+        <td>Подключить <b>GreenAPI</b> на тестовый номер (Ларча), завести админ-номер для системных сообщений, начать прогоны</td>
+        <td><span class="pill due-week">ближайшие дни</span></td>
+      </tr>
+      <tr>
+        <td class="owner side-p">pllato (Платон)</td>
+        <td>Поднять <b>Instagram Direct</b> (2–3 дня) и отправить на верификацию в Meta</td>
+        <td><span class="pill due-week">2–3 дня + Meta</span></td>
+      </tr>
+      <tr>
+        <td class="owner side-p">pllato (Платон)</td>
+        <td>Прислать <b>протокол встречи</b> (этот документ); дальше вести работу по пунктам протокола</td>
+        <td><span class="pill due-soon">сделано</span></td>
+      </tr>
+      <tr>
+        <td class="owner side-p">pllato (Платон)</td>
+        <td>Реализовать в CRM: отчёты по врачам/промокодам, роли и права, логи, задачи, валюты, разделение клиентов, воронку склада, триггеры по документам 1С</td>
+        <td><span class="pill due-tbd">по этапам</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 3. СРОКИ -->
+  <h2 class="sec">Ориентиры по срокам</h2>
+  <div class="timeline">
+    <div class="row"><div class="when">Ближайшие дни</div><div class="what">Доступы к 1С (OData) и сайтам, видео-ролики от заказчика, подключение тестового номера WhatsApp, старт Instagram Direct.</div></div>
+    <div class="row"><div class="when">~1 неделя</div><div class="what">Рабочая версия (план-максимум): воронка, мессенджеры, первые прогоны. Реальный темп зависит от того, как быстро откроется 1С.</div></div>
+    <div class="row"><div class="when">Далее</div><div class="what">Идём по протоколу по пунктам: выкатываем → обсуждаем → утверждаем → продакшен. Онлайн-чат на сайте, KPI-формулы, тонкая настройка прав — отдельными этапами.</div></div>
+  </div>
+
+  <!-- ФУТЕР -->
+  <div class="foot">
+    <div>Протокол подготовлен по записи встречи · <b>02.06.2026</b></div>
+    <div class="wm">pllato<span>.</span></div>
+  </div>
+
+</div>
+</body>
+</html>

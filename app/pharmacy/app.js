@@ -1059,6 +1059,44 @@ function applyTheme(t){
 $('#themeBtn').onclick=()=>{const t=state.theme==='light'?'dark':'light';applyTheme(t);
   toast('Тема: '+(t==='light'?'светлая':'тёмная'),t==='light'?'i-sun':'i-moon','var(--accent)');};
 
+// ---------- Документы CRM (подшивка) ----------
+// Реестр документов проекта. Файлы лежат в app/pharmacy/docs/.
+// Сюда же подшиваем все будущие документы (протоколы, КП, ТЗ, инструкции).
+const DOCS = [
+  { id:'protocol-2026-06-02', title:'Протокол встречи', date:'02.06.2026',
+    desc:'Обзор и утверждение скелета CRM', file:'docs/protocol-2026-06-02.pdf',
+    type:'PDF', size:'0,5 МБ' },
+];
+function docEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function renderDocsPop(){
+  const pop=$('#docsPop'); if(!pop) return;
+  const rows = DOCS.length ? DOCS.map(d=>`
+    <a class="doc-row" href="${docEsc(d.file)}" target="_blank" rel="noopener" title="Открыть: ${docEsc(d.title)}">
+      <div class="di">${docEsc(d.type||'PDF')}</div>
+      <div style="min-width:0">
+        <div class="dt">${docEsc(d.title)}</div>
+        <div class="ds">${docEsc(d.date)} · ${docEsc(d.desc)} · ${docEsc(d.size||'')}</div>
+      </div>
+      <span class="dl">${ic('i-eye','sm')}</span>
+    </a>`).join('')
+    : `<div class="dp-empty">Документов пока нет</div>`;
+  pop.innerHTML =
+    `<div class="dp-h"><b>Документы</b><span class="dp-cnt">${DOCS.length} ${plural(DOCS.length,'файл','файла','файлов')}</span></div>`
+    + rows
+    + `<div class="dp-foot">Все документы проекта подшиваются здесь</div>`;
+}
+function toggleDocsPop(force){
+  const pop=$('#docsPop'); if(!pop) return;
+  const show = force!=null ? force : pop.hidden;
+  if(show) renderDocsPop();
+  pop.hidden = !show;
+}
+$('#docsBtn')?.addEventListener('click',e=>{e.stopPropagation();toggleDocsPop();});
+document.addEventListener('click',e=>{
+  const p=$('#docsPop');
+  if(p && !p.hidden && !e.target.closest('.docs-wrap')) p.hidden=true;
+});
+
 // ============================================================
 //  Плавающий виджет чатов (нижний правый угол) — как в ELC CRM.
 //  Кружок 💬 → панель со списком диалогов по каналам → переписка
