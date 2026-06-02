@@ -9831,6 +9831,9 @@ function buildDealCard(d, stageColor) {
     ${activityBadges.length ? `<div class="kanban-card-activity">${activityBadges.join('')}</div>` : ''}
     ${isNew ? `<div class="kanban-card-markers"><span class="kanban-card-marker" title="Изменена за последние 24 часа">NEW</span></div>` : ''}
     <div class="kanban-card-title">${escapeHtml(d.title || '(без названия)')}</div>
+    ${d.stageId === 'REJECT' && d.rejectReason && REJECT_REASON_LABELS[d.rejectReason]
+      ? `<div class="kanban-card-reject-reason" title="Причина отказа" style="font-size:11px;color:#dc2626;background:#fee2e2;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:2px;">⊘ ${escapeHtml(REJECT_REASON_LABELS[d.rejectReason])}</div>`
+      : ''}
     ${opp > 0 ? `<div class="kanban-card-money">${opp.toLocaleString('ru')} ₸</div>` : ''}
     ${phone ? `<div class="kanban-card-phone">📱 ${escapeHtml(phone)}</div>` : ''}
     ${cfPills.length ? `<div class="kanban-card-cf">${cfPills.join('')}</div>` : ''}
@@ -9931,6 +9934,65 @@ function showStageQuickPick(dealId, anchorBtn) {
 }
 
 // Перенести сделку в новую стадию
+// Модал выбора причины отказа. Возвращает Promise<reason> или reject если отмена.
+// Используется при drop в колонку REJECT — UX как в Pipedrive/Bitrix.
+function showRejectReasonModal() {
+  return new Promise((resolve, reject) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'reject-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;animation:fadeIn .15s;';
+    overlay.innerHTML = `
+      <div style="background:var(--bg,#fff);color:var(--t1,#0f172a);padding:24px;border-radius:12px;min-width:320px;max-width:420px;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+        <div style="font-size:18px;font-weight:600;margin-bottom:16px;">Причина отказа</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button data-reason="NOT_INTERESTED" class="rj-btn">Не заинтересован</button>
+          <button data-reason="WRONG_CITY"     class="rj-btn">Другой город</button>
+          <button data-reason="DISCONNECTED"   class="rj-btn">Отключён</button>
+          <button data-reason="WANTED_ONLINE"  class="rj-btn">Думал он-лайн</button>
+          <button data-reason="INVALID_NUMBER" class="rj-btn">Номер не существует</button>
+          <button data-cancel="1" class="rj-btn rj-cancel" style="margin-top:8px;background:transparent;color:var(--t3,#94a3b8);">Отмена</button>
+        </div>
+      </div>
+      <style>
+        .rj-btn { padding:10px 14px;border:1px solid var(--border,#e2e8f0);border-radius:8px;background:var(--bg,#fff);color:var(--t1,#0f172a);cursor:pointer;font-size:14px;text-align:left;transition:all .1s;}
+        .rj-btn:hover { background:var(--hover,#f1f5f9); transform:translateX(2px); }
+        .rj-cancel:hover { background:transparent !important;color:var(--t1,#0f172a) !important; }
+      </style>
+    `;
+    document.body.appendChild(overlay);
+    const onClick = (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      if (btn.dataset.cancel) { cleanup(); reject(new Error('cancelled')); return; }
+      const r = btn.dataset.reason;
+      if (r) { cleanup(); resolve(r); }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { cleanup(); reject(new Error('cancelled')); }
+    };
+    const onOverlayClick = (e) => {
+      if (e.target === overlay) { cleanup(); reject(new Error('cancelled')); }
+    };
+    const cleanup = () => {
+      overlay.removeEventListener('click', onClick);
+      document.removeEventListener('keydown', onKey);
+      overlay.remove();
+    };
+    overlay.addEventListener('click', onClick);
+    overlay.addEventListener('click', onOverlayClick);
+    document.addEventListener('keydown', onKey);
+  });
+}
+
+// Маппинг код-причины → читабельное название для UI (badge в карточке и т.д.)
+const REJECT_REASON_LABELS = {
+  NOT_INTERESTED: 'Не заинтересован',
+  WRONG_CITY: 'Другой город',
+  DISCONNECTED: 'Отключён',
+  WANTED_ONLINE: 'Думал он-лайн',
+  INVALID_NUMBER: 'Номер не существует',
+};
+
 async function moveDealToStage(bitrixId, newStageId) {
   const deal = dealsState.deals.find(d => String(d.bitrixId) === String(bitrixId)
     || String(d.id) === 'deal_' + String(bitrixId)
@@ -9939,14 +10001,32 @@ async function moveDealToStage(bitrixId, newStageId) {
   if (deal.stageId === newStageId) return;
 
   const oldStageId = deal.stageId;
+  const oldRejectReason = deal.rejectReason || null;
   // Текущая воронка из канбана — может отличаться от основной воронки сделки
   // (это зеркало). _viewPipelineId проставлен worker'ом для зеркал.
   const currentPipelineId = deal._viewPipelineId || dealsState.activePipelineId || deal.pipelineId;
   const isMirror = !!deal._mirror || (deal.pipelineId !== currentPipelineId);
 
+  // Если переход в стадию REJECT — спросить причину ДО optimistic update.
+  // Для зеркал не спрашиваем — причина живёт только в основной воронке.
+  let rejectReason = null;
+  if (newStageId === 'REJECT' && !isMirror) {
+    try {
+      rejectReason = await showRejectReasonModal();
+    } catch {
+      // Пользователь отменил — не двигаем сделку
+      renderDealsContent();
+      return;
+    }
+  }
+
   // Optimistic update
   deal.stageId = newStageId;
   deal.bitrixDateModify = new Date().toISOString();
+  if (!isMirror) {
+    // reject_reason живёт только в основной воронке
+    deal.rejectReason = (newStageId === 'REJECT') ? rejectReason : null;
+  }
   if (isMirror) {
     // Также обновим mirroredIn локально чтобы re-render правильно показал
     deal.mirroredIn = deal.mirroredIn || {};
@@ -9959,10 +10039,12 @@ async function moveDealToStage(bitrixId, newStageId) {
     // Используем новый универсальный endpoint /api/deals/{id}/stage —
     // worker сам решит: основная воронка или зеркало.
     const dealId = deal.id || ('deal_' + bitrixId);
+    const payload = { pipelineId: currentPipelineId, stageId: newStageId };
+    if (rejectReason) payload.rejectReason = rejectReason;
     const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/stage`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-      body: JSON.stringify({ pipelineId: currentPipelineId, stageId: newStageId }),
+      body: JSON.stringify(payload),
     });
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
@@ -9971,6 +10053,7 @@ async function moveDealToStage(bitrixId, newStageId) {
     showToast(isMirror ? 'Стадия зеркала обновлена' : 'Стадия обновлена');
   } catch (e) {
     deal.stageId = oldStageId;
+    if (!isMirror) deal.rejectReason = oldRejectReason;
     if (isMirror && deal.mirroredIn) {
       deal.mirroredIn[currentPipelineId] = oldStageId;
     }

@@ -1934,6 +1934,14 @@ async function handleDealStageChange(request, env, dealId) {
   try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
   const pipelineId = String(body.pipelineId || '').trim();
   const stageId = String(body.stageId || '').trim();
+  // Опциональная подпричина отказа. Передаётся UI'ем при drag-drop в REJECT
+  // или при выборе из селектора в карточке. Допустимые значения:
+  // NOT_INTERESTED|WRONG_CITY|DISCONNECTED|WANTED_ONLINE|INVALID_NUMBER
+  const REJECT_REASONS = new Set(["NOT_INTERESTED","WRONG_CITY","DISCONNECTED","WANTED_ONLINE","INVALID_NUMBER"]);
+  let rejectReason = body.rejectReason != null ? String(body.rejectReason).trim() : null;
+  if (rejectReason && !REJECT_REASONS.has(rejectReason)) {
+    return json({ error: "invalid rejectReason (allowed: " + [...REJECT_REASONS].join(", ") + ")" }, 400, request);
+  }
   if (!pipelineId || !stageId) return json({ error: "pipelineId and stageId required" }, 400, request);
 
   const deal = await env.DB.prepare(
@@ -1942,11 +1950,21 @@ async function handleDealStageChange(request, env, dealId) {
   if (!deal) return json({ error: "deal not found", id: dealId }, 404, request);
 
   const nowIso = new Date().toISOString();
+  // Логика reject_reason: при переходе в REJECT — записываем. При переходе
+  // из REJECT в любую другую стадию — обнуляем (причина больше не релевантна).
+  // Применяется ТОЛЬКО для основной воронки (deal.pipeline_id === pipelineId);
+  // для зеркал — игнорируется (зеркало — это другая воронка, своя стадия,
+  // причина отказа не имеет смысла кросс-pipeline'но).
   if (deal.pipeline_id === pipelineId) {
-    // Основная воронка — обычное обновление stage_id
-    await env.DB.prepare(
-      "UPDATE deals SET stage_id = ?, bitrix_date_modify = ? WHERE id = ?"
-    ).bind(stageId, nowIso, dealId).run();
+    if (stageId === "REJECT") {
+      await env.DB.prepare(
+        "UPDATE deals SET stage_id = ?, reject_reason = ?, bitrix_date_modify = ? WHERE id = ?"
+      ).bind(stageId, rejectReason || null, nowIso, dealId).run();
+    } else {
+      await env.DB.prepare(
+        "UPDATE deals SET stage_id = ?, reject_reason = NULL, bitrix_date_modify = ? WHERE id = ?"
+      ).bind(stageId, nowIso, dealId).run();
+    }
   } else {
     // Зеркало — обновляем mirrored_in[pipelineId]
     let mir = {};
