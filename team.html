@@ -10275,6 +10275,7 @@ async function openDealCard(bitrixId) {
   const respUser = getUserById(deal.responsibleUid);
   const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
   const respEmail = respUser?.email || '';
+  const canEditDeal = canEditDealFront(deal);
   const createdByUser = getUserById(deal.createdByUid);
   const createdByName = createdByUser ? `${createdByUser.lastName || ''} ${createdByUser.name || ''}`.trim() : '—';
 
@@ -10410,7 +10411,9 @@ async function openDealCard(bitrixId) {
               placeholder: '—',
             })}%</div>
             <div class="fl">Ответственный</div>
-            <div class="fv">${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}</div>
+            <div class="fv">${canEditDeal
+              ? `<span id="dc-resp-display" class="dc-resp-editable" title="Кликни — сменить ответственного" style="cursor:pointer;border-bottom:1px dashed var(--b2);padding-bottom:1px">${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}</span> <span class="dc-resp-pencil" style="cursor:pointer;opacity:.6;font-size:12px" title="Сменить ответственного">✏️</span>`
+              : `${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}`}</div>
             <div class="fl">Создал</div>
             <div class="fv">${escapeHtml(createdByName)}</div>
             <div class="fl">Создана</div>
@@ -10557,6 +10560,15 @@ async function openDealCard(bitrixId) {
       navigator.clipboard.writeText(url);
       showToast('Ссылка скопирована');
     });
+  }
+
+  // Смена ответственного — клик по имени или по карандашу открывает select
+  const respDisplay = modal.querySelector('#dc-resp-display');
+  if (respDisplay) {
+    const openEditor = () => openDealRespEditor(respDisplay, deal);
+    respDisplay.addEventListener('click', openEditor);
+    const pencil = modal.querySelector('.dc-resp-pencil');
+    if (pencil) pencil.addEventListener('click', openEditor);
   }
 
   // Лоадим переписку в правую колонку, если есть openlines-сессия
@@ -14907,6 +14919,86 @@ function canManageTaskFront(t) {
   const mine = _myTaskUids();
   return (t.responsibleUid && mine.has(String(t.responsibleUid))) ||
          (t.createdByUid && mine.has(String(t.createdByUid)));
+}
+// Можно ли сменить ответственного в сделке (показать affordance).
+// Сервер всё равно проверяет canEditRecord (admin / владелец / менеджер отдела).
+function canEditDealFront(deal) {
+  const cu = window.currentUser || {};
+  if (cu.role === 'admin' || cu.role === 'manager') return true;
+  const mine = _myTaskUids();
+  return (deal.responsibleUid && mine.has(String(deal.responsibleUid))) ||
+         (deal.createdByUid && mine.has(String(deal.createdByUid)));
+}
+// Инлайн-редактор ответственного в карточке сделки: подменяет имя на <select>
+// со всеми сотрудниками, на change → PATCH responsibleUid, обновляет локальный
+// кеш + дисплей. Escape/blur без изменений — откат.
+function openDealRespEditor(displayEl, deal) {
+  if (!displayEl || displayEl.dataset.editing === '1') return;
+  displayEl.dataset.editing = '1';
+  const cur = deal.responsibleUid ? String(deal.responsibleUid) : '';
+  const opts = orgSortedUsers().map(u =>
+    `<option value="${escapeHtml(u.uid)}" ${u.uid === cur ? 'selected' : ''}>${escapeHtml(u.label)}</option>`
+  ).join('');
+  const sel = document.createElement('select');
+  sel.className = 'qad-input';
+  sel.style.cssText = 'font-size:13px;padding:4px 8px;max-width:260px';
+  sel.innerHTML = `<option value="">— не назначен —</option>${opts}`;
+  displayEl.style.display = 'none';
+  const pencil = displayEl.parentNode.querySelector('.dc-resp-pencil');
+  if (pencil) pencil.style.display = 'none';
+  displayEl.parentNode.insertBefore(sel, displayEl.nextSibling);
+  sel.focus();
+
+  let done = false;
+  const cleanup = () => {
+    sel.remove();
+    displayEl.style.display = '';
+    if (pencil) pencil.style.display = '';
+    displayEl.dataset.editing = '0';
+  };
+  const save = async () => {
+    if (done) return;
+    const newUid = sel.value;
+    if (newUid === cur) { cleanup(); return; }
+    done = true;
+    sel.disabled = true;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const recordId = 'deal_' + deal.bitrixId;
+      const modifyIso = new Date().toISOString();
+      const r = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent(recordId)}.json?auth=${idToken}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ responsibleUid: newUid || null, bitrixDateModify: modifyIso }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      // Локальный кеш
+      deal.responsibleUid = newUid || null;
+      deal.bitrixDateModify = modifyIso;
+      const cached = dealsState.deals.find(d => d.bitrixId === deal.bitrixId)
+        || (dealsPagedState.items || []).find(d => d.bitrixId === deal.bitrixId);
+      if (cached) { cached.responsibleUid = newUid || null; cached.bitrixDateModify = modifyIso; }
+      // Дисплей
+      const u = newUid ? getUserById(newUid) : null;
+      const nm = u ? `${u.lastName || ''} ${u.name || ''}`.trim() : '—';
+      const em = u?.email || '';
+      displayEl.innerHTML = `${escapeHtml(nm)} ${em ? `<span class="muted">· ${escapeHtml(em)}</span>` : ''}`;
+      displayEl.style.background = 'rgba(63,216,142,.25)';
+      setTimeout(() => { displayEl.style.background = ''; }, 1200);
+      cleanup();
+      showToast?.('Ответственный изменён');
+    } catch (e) {
+      sel.disabled = false;
+      done = false;
+      alert('Ошибка: ' + e.message);
+    }
+  };
+  sel.addEventListener('change', save);
+  sel.addEventListener('blur', () => { if (!done) cleanup(); });
+  sel.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); cleanup(); } });
 }
 function _isoToLocalInput(iso) {
   if (!iso) return '';
