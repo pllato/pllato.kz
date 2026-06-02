@@ -14800,6 +14800,255 @@ async function moveTaskToStatus(taskKey, newStatus) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+//   РЕДАКТИРОВАНИЕ ЗАДАЧИ — права зеркалят backend (canEditRecord/canManageTask)
+//   • Описание + состав сотрудников (соисполнители) — любой участник задачи.
+//   • Сменить ответственного / удалить — только постановщик/ответственный/admin.
+// ═══════════════════════════════════════════════════════════════════════
+function _myTaskUids() {
+  const cu = window.currentUser || {};
+  const s = new Set();
+  if (cu.canonicalUid) s.add(String(cu.canonicalUid));
+  if (cu.firebaseUid) s.add(String(cu.firebaseUid));
+  if (Array.isArray(cu.matchUids)) cu.matchUids.forEach(u => u && s.add(String(u)));
+  return s;
+}
+// accomplices/auditors могут быть массивом uid-строк ИЛИ объектов {id|uid}
+function _uidsFromList(v) {
+  return asArray(v)
+    .map(x => (x && typeof x === 'object') ? (x.uid || x.id || x.ID || '') : x)
+    .filter(Boolean)
+    .map(String);
+}
+function taskParticipantUids(t) {
+  const s = new Set();
+  [t.responsibleUid, t.createdByUid, t.changedByUid].forEach(u => u && s.add(String(u)));
+  _uidsFromList(t.accomplices).forEach(u => s.add(u));
+  _uidsFromList(t.auditors).forEach(u => s.add(u));
+  return s;
+}
+function canEditTaskFront(t) {
+  const cu = window.currentUser || {};
+  if (cu.role === 'admin' || cu.role === 'manager') return true;
+  const mine = _myTaskUids();
+  const parts = taskParticipantUids(t);
+  for (const u of mine) if (parts.has(u)) return true;
+  return false;
+}
+function canManageTaskFront(t) {
+  const cu = window.currentUser || {};
+  if (cu.role === 'admin') return true;
+  const mine = _myTaskUids();
+  return (t.responsibleUid && mine.has(String(t.responsibleUid))) ||
+         (t.createdByUid && mine.has(String(t.createdByUid)));
+}
+function _isoToLocalInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Модалка правки задачи. t — полный объект задачи, key — её id.
+function openTaskEditModal(t, key) {
+  document.getElementById('_task-edit-modal')?.remove();
+  const canManage = canManageTaskFront(t);
+
+  // Состояние черновика
+  const draft = {
+    title: t.title || '',
+    description: t.description || '',
+    status: String(t.status || '1'),
+    priority: String(t.priority || '1'),
+    deadlineLocal: _isoToLocalInput(t.deadline),
+    responsibleUid: t.responsibleUid || '',
+    accomplices: new Set(_uidsFromList(t.accomplices)),
+    accQuery: '',
+  };
+  // Ответственного в состав не дублируем — он отдельно
+  draft.accomplices.delete(String(draft.responsibleUid));
+
+  const statusOpts = Object.entries(TASK_STATUS_META)
+    .map(([v, m]) => `<option value="${v}" ${v === draft.status ? 'selected' : ''}>${escapeHtml(m.label)}</option>`).join('');
+  const prioOpts = Object.entries(TASK_PRIORITY_META)
+    .map(([v, m]) => `<option value="${v}" ${v === draft.priority ? 'selected' : ''}>${escapeHtml(m.label)}</option>`).join('');
+  const respOpts = orgSortedUsers()
+    .map(u => `<option value="${escapeHtml(u.uid)}" ${u.uid === draft.responsibleUid ? 'selected' : ''}>${escapeHtml(u.label)}</option>`).join('');
+
+  const html = `
+    <div class="qad-overlay" id="_task-edit-modal" onclick="if(event.target===this)document.getElementById('_task-edit-modal').remove()">
+      <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:560px">
+        <div class="qad-head">
+          <h2>Редактирование задачи</h2>
+          <button class="qad-btn qad-btn-ghost" id="te-close" style="padding:4px 10px">×</button>
+        </div>
+        <div class="qad-body" style="max-height:70vh;overflow-y:auto">
+          <div>
+            <div class="qad-label">Название</div>
+            <input id="te-title" class="qad-input" value="${escapeHtml(draft.title)}" autocomplete="off">
+          </div>
+          <div>
+            <div class="qad-label">Описание</div>
+            <textarea id="te-desc" class="qad-input" rows="5" style="resize:vertical;min-height:90px;font-family:inherit">${escapeHtml(draft.description)}</textarea>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <div style="flex:1;min-width:140px">
+              <div class="qad-label">Статус</div>
+              <select id="te-status" class="qad-input">${statusOpts}</select>
+            </div>
+            <div style="flex:1;min-width:140px">
+              <div class="qad-label">Приоритет</div>
+              <select id="te-priority" class="qad-input">${prioOpts}</select>
+            </div>
+          </div>
+          <div>
+            <div class="qad-label">Дедлайн</div>
+            <input id="te-deadline" type="datetime-local" class="qad-input" value="${escapeHtml(draft.deadlineLocal)}">
+          </div>
+          <div>
+            <div class="qad-label">Ответственный${canManage ? '' : ' <span style="color:var(--t3);font-weight:400">(менять может только постановщик/ответственный/админ)</span>'}</div>
+            <select id="te-responsible" class="qad-input" ${canManage ? '' : 'disabled'}>
+              <option value="">— не назначен —</option>
+              ${respOpts}
+            </select>
+          </div>
+          <div>
+            <div class="qad-label">Состав сотрудников (соисполнители)</div>
+            <input id="te-acc-search" class="qad-input" placeholder="Поиск по имени…" autocomplete="off" style="margin-bottom:6px">
+            <div id="te-acc-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--b1);border-radius:8px;padding:4px"></div>
+            <div id="te-acc-count" style="font-size:11px;color:var(--t3);margin-top:4px"></div>
+          </div>
+        </div>
+        <div class="qad-foot">
+          <button class="qad-btn qad-btn-ghost" id="te-cancel">Отмена</button>
+          <button class="qad-btn qad-btn-primary" id="te-save">Сохранить</button>
+        </div>
+      </div>
+    </div>`;
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap.firstElementChild);
+
+  function renderAccList() {
+    const box = document.getElementById('te-acc-list');
+    if (!box) return;
+    const q = draft.accQuery.trim().toLowerCase();
+    const all = orgSortedUsers().filter(u => u.uid !== String(draft.responsibleUid));
+    const shown = q ? all.filter(u => u.label.toLowerCase().includes(q)) : all;
+    box.innerHTML = shown.map(u => {
+      const on = draft.accomplices.has(u.uid);
+      return `<label class="te-acc-row" style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer;font-size:13px">
+        <input type="checkbox" data-uid="${escapeHtml(u.uid)}" ${on ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer">
+        <span>${escapeHtml(u.label)}</span>
+      </label>`;
+    }).join('') || `<div style="font-size:12px;color:var(--t3);padding:8px">Никого не найдено</div>`;
+    box.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.onchange = () => {
+        const uid = cb.dataset.uid;
+        if (cb.checked) draft.accomplices.add(uid); else draft.accomplices.delete(uid);
+        updateAccCount();
+      };
+    });
+  }
+  function updateAccCount() {
+    const el = document.getElementById('te-acc-count');
+    if (el) el.textContent = draft.accomplices.size ? `Выбрано: ${draft.accomplices.size}` : 'Никто не выбран';
+  }
+
+  renderAccList();
+  updateAccCount();
+
+  document.getElementById('te-title').oninput = e => { draft.title = e.target.value; };
+  document.getElementById('te-desc').oninput = e => { draft.description = e.target.value; };
+  document.getElementById('te-status').onchange = e => { draft.status = e.target.value; };
+  document.getElementById('te-priority').onchange = e => { draft.priority = e.target.value; };
+  document.getElementById('te-deadline').oninput = e => { draft.deadlineLocal = e.target.value; };
+  const respSel = document.getElementById('te-responsible');
+  respSel.onchange = e => { draft.responsibleUid = e.target.value; renderAccList(); };
+  document.getElementById('te-acc-search').oninput = e => { draft.accQuery = e.target.value; renderAccList(); };
+  document.getElementById('te-close').onclick = () => document.getElementById('_task-edit-modal').remove();
+  document.getElementById('te-cancel').onclick = () => document.getElementById('_task-edit-modal').remove();
+
+  document.getElementById('te-save').onclick = async () => {
+    const btn = document.getElementById('te-save');
+    btn.disabled = true;
+    btn.textContent = '⏳ Сохраняем…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const currentUid = window.currentUser?.canonicalUid || fbAuth.currentUser?.uid;
+      const nowIso = new Date().toISOString();
+      const body = {
+        title: draft.title.trim() || '(без названия)',
+        description: draft.description,
+        status: draft.status,
+        priority: draft.priority,
+        deadline: draft.deadlineLocal ? new Date(draft.deadlineLocal).toISOString() : null,
+        accomplices: Array.from(draft.accomplices),
+        changedByUid: currentUid,
+        bitrixDateModify: nowIso,
+      };
+      // Ответственного шлём только если есть право его менять (backend всё равно
+      // отрежет поле если права нет — но не гоняем лишнее).
+      if (canManage) body.responsibleUid = draft.responsibleUid || null;
+
+      const r = await fetch(`${WORKER_RTDB_URL}/tasks/${encodeURIComponent(key)}.json?auth=${idToken}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const tx = await r.text();
+        throw new Error(`HTTP ${r.status}: ${tx.slice(0, 200)}`);
+      }
+      document.getElementById('_task-edit-modal')?.remove();
+      showToast?.('Задача обновлена');
+      // Локально патчим объект и перерисовываем карточку + список
+      Object.assign(t, body);
+      closeDealCard();
+      setTimeout(() => openTaskCard(key), 60);
+      if (document.querySelector('[data-page="tasks"].active')) {
+        const item = (tasksState?.list || []).find(x => x.key === key || x.id === key);
+        if (item) Object.assign(item, body);
+        try { filterAndRenderTasks(); } catch {}
+      }
+    } catch (e) {
+      alert('Ошибка сохранения: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = 'Сохранить';
+    }
+  };
+
+  setTimeout(() => document.getElementById('te-title')?.focus(), 50);
+}
+
+// Удаление задачи — только постановщик/ответственный/admin (проверяет и backend).
+async function deleteTaskConfirm(key, title) {
+  if (!confirm(`Удалить задачу «${title || key}»?\n\nЭто действие необратимо.`)) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_RTDB_URL}/tasks/${encodeURIComponent(key)}.json?auth=${idToken}`, {
+      method: 'DELETE',
+    });
+    if (!r.ok) {
+      let msg = `HTTP ${r.status}`;
+      try { const j = await r.json(); if (j && j.error) msg = j.error; } catch {}
+      throw new Error(msg);
+    }
+    showToast?.('Задача удалена');
+    closeDealCard();
+    if (Array.isArray(tasksState?.list)) {
+      tasksState.list = tasksState.list.filter(x => x.key !== key && x.id !== key);
+    }
+    if (document.querySelector('[data-page="tasks"].active')) {
+      try { filterAndRenderTasks(); } catch {}
+    }
+  } catch (e) {
+    alert('Не удалось удалить задачу: ' + e.message);
+  }
+}
+
 async function openTaskCard(key) {
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
@@ -14882,6 +15131,9 @@ async function openTaskCard(key) {
       );
     }
 
+    const canEdit = canEditTaskFront(t);
+    const canManage = canManageTaskFront(t);
+
     let html = `<div class="modal-overlay" onclick="if(event.target===this)closeDealCard()">
       <div class="modal">
         <button class="close-x" onclick="closeDealCard()">×</button>
@@ -14891,6 +15143,10 @@ async function openTaskCard(key) {
           <a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a>
           ${parentTask || subtasks.length > 0 ? ` · <span style="color:var(--t3)">${parentTask ? '↳ подзадача' : ''}${subtasks.length > 0 ? `📂 ${subtasks.length} подзадач(и)` : ''}</span>` : ''}
         </div>
+        ${canEdit ? `<div class="task-card-actions" style="display:flex;gap:8px;margin:10px 0 2px;flex-wrap:wrap">
+          <button class="tbtn tbtn-xs" id="task-edit-btn">✏️ Редактировать</button>
+          ${canManage ? `<button class="tbtn tbtn-xs" id="task-delete-btn" style="color:var(--rd);border-color:var(--rd)">🗑 Удалить</button>` : ''}
+        </div>` : ''}
 
         ${parentTask ? `<div class="section-h">Родительская задача</div>
           <div class="parent-task-card" data-task-key="${escapeHtml(parentTask.key)}">
@@ -14995,6 +15251,12 @@ async function openTaskCard(key) {
         setTimeout(() => openTaskCard(targetKey), 80);
       });
     });
+
+    // Редактировать / удалить задачу
+    const editBtn = modal.querySelector('#task-edit-btn');
+    if (editBtn) editBtn.onclick = () => openTaskEditModal(t, key);
+    const delBtn = modal.querySelector('#task-delete-btn');
+    if (delBtn) delBtn.onclick = () => deleteTaskConfirm(key, t.title);
 
     // Подгружаем метаданные файлов задачи (если есть)
     if (t.hasFiles && asArray(t.bitrixFileIds).length > 0) {

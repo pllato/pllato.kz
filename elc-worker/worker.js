@@ -292,6 +292,23 @@ async function canEditRecord(env, me, tableName, recordId) {
   return false;
 }
 
+// Может ли me УПРАВЛЯТЬ задачей (сменить ответственного / удалить)?
+// Строже чем canEditRecord: только admin, постановщик (created_by_uid) или
+// текущий ответственный (responsible_uid). Соисполнители/наблюдатели —
+// НЕ могут (они правят только описание/состав через canEditRecord).
+// Матчим по всем идентификаторам юзера (canonical + дубли по email + firebase uid).
+async function canManageTask(env, me, taskId) {
+  if (me?.role === 'admin') return true;
+  const ids = new Set([me?.canonicalUid, me?.firebaseUid, ...(me?.matchUids || [])].filter(Boolean));
+  if (ids.size === 0) return false;
+  const row = await env.DB.prepare(
+    "SELECT responsible_uid, created_by_uid FROM tasks WHERE id = ? LIMIT 1"
+  ).bind(taskId).first();
+  if (!row) return false;
+  return (row.responsible_uid && ids.has(row.responsible_uid)) ||
+         (row.created_by_uid && ids.has(row.created_by_uid));
+}
+
 // Auth flexible: принимает Authorization Bearer ИЛИ ?auth=token (Firebase RTDB совместимость)
 async function requireAuthFlexible(request, env) {
   const hdr = request.headers.get("Authorization") || "";
@@ -825,10 +842,20 @@ async function handleRtdbDelete(env, request, parts, me) {
   const keyCol = deletableTables[head];
   const id = rest[0];
 
-  // Permissions: pipelines удаляет только admin; остальные — по canEditRecord
+  // Permissions: pipelines удаляет только admin; задачи — только постановщик/
+  // ответственный/admin (строже canEditRecord, соисполнитель НЕ удаляет);
+  // остальные — по canEditRecord.
   if (tableName === "pipelines") {
     if (me?.role !== "admin") {
       return json({ error: "only admin can delete pipelines" }, 403, request);
+    }
+  } else if (tableName === "tasks") {
+    const allowed = await canManageTask(env, me, id);
+    if (!allowed) {
+      return json({
+        error: "only the task creator, assignee, or admin can delete this task",
+        role: me?.role,
+      }, 403, request);
     }
   } else {
     const allowed = await canEditRecord(env, me, tableName, id);
@@ -1180,6 +1207,17 @@ async function handleRtdbWrite(env, request, parts, me) {
             error: `you don't have permission to edit this ${tableName.slice(0, -1)}`,
             role: me?.role,
           }, 403, request);
+        }
+        // Смена ответственного по задаче — только постановщик/ответственный/admin.
+        // Соисполнитель может править описание/состав, но не «передать» задачу.
+        // Если поля нет права менять — молча убираем его из body (остальные
+        // правки применяются), чтобы не ломать совмещённый PATCH.
+        if (tableName === "tasks" && ("responsibleUid" in body || "responsible_uid" in body)) {
+          const canMng = await canManageTask(env, me, id);
+          if (!canMng) {
+            delete body.responsibleUid;
+            delete body.responsible_uid;
+          }
         }
       }
       // PATCH несуществующей записи — раньше молча no-op; оставим так чтобы
@@ -5218,6 +5256,7 @@ async function handleMe(request, env) {
     email: me.email,
     role: me.role,                   // admin | manager | agent
     department: me.department,
+    matchUids: me.matchUids || [],   // canonical + дубли по email + firebase uid (для gating правок)
     profile: me.userRecord ? {
       uid: me.userRecord.uid,
       email: me.userRecord.email,
