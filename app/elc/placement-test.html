@@ -66,6 +66,23 @@
   .steps .step{flex:1;text-align:center;font-size:12px;font-weight:700;color:var(--muted);
     background:#11163a;border:1px solid var(--line);border-radius:10px;padding:8px 6px}
   .steps .step.on{color:#fff;border-color:var(--accent);background:#161d47}
+  .brandline{font-size:13px;color:var(--muted);margin:0 0 14px}
+  .brandline b{color:var(--txt)}
+  .inp{width:100%;background:#0d1230;border:1px solid var(--line);color:var(--txt);
+    padding:13px 14px;border-radius:11px;font-size:16px;outline:none}
+  .inp:focus{border-color:var(--accent)}
+  .fld{display:block;margin:0 0 14px;font-size:13px;color:var(--muted)}
+  .fld .inp{margin-top:6px}
+  .roster{display:grid;gap:8px;margin:12px 0 6px;max-height:340px;overflow:auto}
+  .rost{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;
+    background:#11163a;border:1px solid var(--line);color:var(--txt);padding:13px 15px;
+    border-radius:11px;font-size:16px;cursor:pointer;transition:.12s}
+  .rost:hover{border-color:var(--accent);background:#161d47}
+  .rost-name{font-weight:600}
+  .rost-phone{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+  .chip{font-size:11px;color:var(--muted);background:#0d1230;border:1px solid var(--line);
+    border-radius:99px;padding:2px 8px}
 </style>
 </head>
 <body>
@@ -168,7 +185,19 @@ let answers = []; // {level, correct}
 let curCorrect = -1; // позиция верного варианта в текущем (перемешанном) показе
 const LETTERS = ['A','B','C','D'];
 let placedLevel = 1; // уровень по итогам теории — для подбора темы монолога
-let mr=null, recChunks=[], recStream=null, recBlobUrl=null, recSecs=0, recTimer=null; // запись голоса
+let mr=null, recChunks=[], recStream=null, recBlobUrl=null, recBlob=null, recSecs=0, recTimer=null; // запись голоса
+
+/* ===== Режим CRM (ссылка филиала) ===== */
+const API = 'https://pllato-elc-worker.uurraa.workers.dev';
+let BRANCH = null;                 // {code,label} — если открыто по ссылке филиала
+let student = { contactId:'', name:'', lastName:'', phone:'', email:'', birthdate:'', maskedPhone:'' };
+let rosterList = [];
+let rosterTimer = null;
+let resultId = null;
+let submitting = false;
+function CRM(){ return !!(BRANCH && student.contactId); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function goHome(){ if(BRANCH){ student={contactId:'',name:'',lastName:'',phone:'',email:'',birthdate:'',maskedPhone:''}; resultId=null; renderIdentify(); } else { renderStart(); } }
 
 /* раннее завершение: студент упёрся в потолок (3 ошибки из последних 4, после минимум 6 ответов).
    Вопросы идут по нарастанию сложности, поэтому устойчивые ошибки = достигнут предел. */
@@ -296,8 +325,8 @@ function renderResult(){
       <p class="small">Уровень считается освоенным при ≥60% верных ответов (одиночная ошибка не понижает уровень).</p>
       <div class="row">
         <button class="btn" onclick="renderSpeaking()">Перейти к части 2 · Разговор →</button>
-        <button class="btn ghost" onclick="renderStart()">← На главную</button>
-        <button class="btn ghost" onclick="start()">Пройти заново</button>
+        <button class="btn ghost" onclick="goHome()">${BRANCH ? '← К началу' : '← На главную'}</button>
+        ${BRANCH ? '' : '<button class="btn ghost" onclick="start()">Пройти заново</button>'}
       </div>
     </div>`;
 }
@@ -329,9 +358,11 @@ function renderSpeaking(){
   const box = document.getElementById('rec');
   if(!supported){
     box.innerHTML = `<p class="hint" style="color:var(--gold)">Запись с микрофона не поддерживается в этом браузере.
-      Открой страницу в Chrome или Safari (или на телефоне) — и кнопка записи появится. Тему выше можно проговорить вживую с преподавателем.</p>`;
+      Открой страницу в Chrome или Safari (или на телефоне) — и кнопка записи появится. Тему выше можно проговорить вживую с преподавателем.</p>`
+      + (CRM() ? `<button class="btn" onclick="sendResults(false)">Отправить результат преподавателю (без записи) →</button>` : '');
   } else {
-    box.innerHTML = recBtnHtml();
+    box.innerHTML = recBtnHtml()
+      + (CRM() ? `<p class="small" style="margin-top:10px"><a href="#" onclick="sendResults(false);return false" style="color:var(--muted)">Пропустить запись и отправить только результат теста</a></p>` : '');
   }
 }
 
@@ -352,6 +383,7 @@ async function startRec(){
   mr.ondataavailable = e=>{ if(e.data && e.data.size) recChunks.push(e.data); };
   mr.onstop = ()=>{
     const blob = new Blob(recChunks, {type:(mr && mr.mimeType) || 'audio/webm'});
+    recBlob = blob;
     if(recBlobUrl) URL.revokeObjectURL(recBlobUrl);
     recBlobUrl = URL.createObjectURL(blob);
     if(recStream) recStream.getTracks().forEach(t=>t.stop());
@@ -375,19 +407,213 @@ function showPlayback(){
   const date = new Date().toISOString().slice(0,10);
   const safe = L.name.replace(/[^A-Za-z0-9]+/g,'_');
   const fname = `ELC_speaking_${safe}_${date}.webm`;
+  const actions = CRM()
+    ? `<div class="row">
+         <button class="btn" onclick="sendResults(true)">✓ Отправить преподавателю</button>
+         <button class="btn ghost" onclick="startRec()">↺ Переписать</button>
+       </div>
+       <p class="small">Запись и результат теста уйдут в вашу карточку — преподаватель прослушает монолог и подтвердит уровень.</p>`
+    : `<div class="row">
+         <a class="btn" href="${recBlobUrl}" download="${fname}">⬇ Скачать запись</a>
+         <button class="btn ghost" onclick="startRec()">↺ Переписать</button>
+       </div>
+       <p class="small">Скачай файл и отправь преподавателю ELC — он прослушает твой монолог и подтвердит уровень.</p>`;
   document.getElementById('rec').innerHTML = `
     <div class="struct" style="text-align:center">
       <div class="s-name" style="color:var(--ok)">✓ Запись готова · ${fmt(recSecs)}</div>
       <audio controls src="${recBlobUrl}"></audio>
     </div>
-    <div class="row">
-      <a class="btn" href="${recBlobUrl}" download="${fname}">⬇ Скачать запись</a>
-      <button class="btn ghost" onclick="startRec()">↺ Переписать</button>
-    </div>
-    <p class="small">Скачай файл и отправь преподавателю ELC — он прослушает твой монолог и подтвердит уровень.</p>`;
+    ${actions}`;
 }
 
-renderStart();
+/* ═══════════════════════════════════════════════════════════════════════
+   Режим филиала: ?branch=CODE → найти студента → форма данных → тест → отправка
+   ═══════════════════════════════════════════════════════════════════════ */
+
+// Экран «найди себя»
+function renderIdentify(){
+  app.innerHTML = `
+    <div class="brandline">Филиал: <b>${esc(BRANCH.label)}</b></div>
+    <h1 style="font-size:22px;margin-bottom:6px">Найдите себя в списке</h1>
+    <p class="lead">Введите своё имя, фамилию или номер телефона и выберите свою карточку —
+       результат теста подошьётся именно к вам.</p>
+    <input id="q" class="inp" placeholder="Имя, фамилия или телефон…" autocomplete="off">
+    <div id="roster" class="roster"></div>
+    <p class="small">Не нашли себя? Обратитесь к администратору филиала — он добавит вас в систему.</p>`;
+  const q = document.getElementById('q');
+  q.addEventListener('input', onRosterInput);
+  q.focus();
+}
+
+function onRosterInput(e){
+  const v = e.target.value.trim();
+  clearTimeout(rosterTimer);
+  const box = document.getElementById('roster');
+  if(v.length < 2){ box.innerHTML = `<p class="small">Введите минимум 2 символа…</p>`; return; }
+  box.innerHTML = `<p class="small">Поиск…</p>`;
+  rosterTimer = setTimeout(async ()=>{
+    try{
+      const r = await fetch(`${API}/api/placement/roster?branch=${encodeURIComponent(BRANCH.code)}&q=${encodeURIComponent(v)}`);
+      const j = await r.json();
+      renderRoster(j.results || [], !!j.capped);
+    }catch(err){ box.innerHTML = `<p class="small" style="color:var(--bad)">Ошибка поиска. Попробуйте ещё раз.</p>`; }
+  }, 300);
+}
+
+function renderRoster(list, capped){
+  rosterList = list;
+  const box = document.getElementById('roster');
+  if(!list.length){ box.innerHTML = `<p class="small">Никого не нашли. Уточните запрос или обратитесь к администратору.</p>`; return; }
+  box.innerHTML = list.map((s,i)=>`
+    <button class="rost" onclick="selectStudent(${i})">
+      <span class="rost-name">${esc(s.name)}</span>
+      <span class="rost-phone">${esc(s.maskedPhone||'—')}</span>
+    </button>`).join('')
+    + (capped ? `<p class="small">Показаны первые 20. Уточните запрос, если себя не видите.</p>` : '');
+}
+
+function selectStudent(i){
+  const s = rosterList[i];
+  if(!s) return;
+  student.contactId = s.id;
+  student.maskedPhone = s.maskedPhone || '';
+  // имя в ростере = "Фамилия Имя" (если фамилия есть)
+  const parts = (s.name||'').trim().split(/\s+/);
+  if(parts.length > 1){ student.lastName = parts[0]; student.name = parts.slice(1).join(' '); }
+  else { student.lastName = ''; student.name = parts[0] || ''; }
+  student.phone = ''; student.email = ''; student.birthdate = '';
+  renderDataForm();
+}
+
+// Форма данных студента
+function renderDataForm(){
+  app.innerHTML = `
+    <div class="brandline">Филиал: <b>${esc(BRANCH.label)}</b></div>
+    <h1 style="font-size:22px;margin-bottom:6px">Проверьте свои данные</h1>
+    <p class="lead">Подтвердите или дополните — эти данные сохранятся в вашей карточке.</p>
+    <label class="fld">Имя
+      <input id="f_name" class="inp" value="${esc(student.name)}" autocomplete="given-name"></label>
+    <label class="fld">Фамилия
+      <input id="f_last" class="inp" value="${esc(student.lastName)}" autocomplete="family-name"></label>
+    <label class="fld">Телефон
+      <input id="f_phone" class="inp" type="tel" placeholder="+7 (___) ___-____" value="${esc(student.phone)}" autocomplete="tel">
+      ${student.maskedPhone ? `<span class="chips"><span class="chip">в карточке: ${esc(student.maskedPhone)}</span></span>` : ''}</label>
+    <label class="fld">Email
+      <input id="f_email" class="inp" type="email" placeholder="you@mail.com" value="${esc(student.email)}" autocomplete="email"></label>
+    <label class="fld">Дата рождения
+      <input id="f_birth" class="inp" type="date" value="${esc(student.birthdate)}"></label>
+    <div id="formErr" class="small" style="color:var(--bad);min-height:18px"></div>
+    <div class="row">
+      <button class="btn" onclick="submitDataForm()">Начать тест →</button>
+      <button class="btn ghost" onclick="renderIdentify()">← Назад к списку</button>
+    </div>`;
+}
+
+function submitDataForm(){
+  const v = id => (document.getElementById(id).value || '').trim();
+  const name = v('f_name');
+  if(!name){ document.getElementById('formErr').textContent = 'Пожалуйста, укажите имя.'; return; }
+  student.name = name;
+  student.lastName = v('f_last');
+  student.phone = v('f_phone');
+  student.email = v('f_email');
+  student.birthdate = v('f_birth');
+  start(); // → теория
+}
+
+// Сбор результата теории
+function buildTheoryPayload(){
+  const { graduated } = computePlacement();
+  const correctTotal = answers.filter(a=>a.correct).length;
+  const m = levelAgg();
+  const breakdown = {};
+  LEVELS.forEach(l=>{ if(m[l.n].total>0) breakdown[l.n] = { ok:m[l.n].ok, total:m[l.n].total }; });
+  const L = levelByN(placedLevel);
+  const sp = speakFor(placedLevel);
+  return {
+    levelN: graduated ? 8 : placedLevel,
+    levelName: graduated ? 'Выше Upper-Intermediate 3.0' : L.name,
+    cefr: graduated ? '>B2+' : L.cefr,
+    graduated,
+    correct: correctTotal,
+    total: answers.length,
+    breakdown,
+    speakingTopic: sp.topic,
+  };
+}
+
+async function submitToCRM(withAudio){
+  const payload = {
+    branch: BRANCH.code,
+    contactId: student.contactId,
+    student: { name:student.name, lastName:student.lastName, phone:student.phone, email:student.email, birthdate:student.birthdate },
+    theory: buildTheoryPayload(),
+  };
+  const r = await fetch(`${API}/api/placement/submit`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload),
+  });
+  const j = await r.json();
+  if(!j || !j.ok) throw new Error((j && j.error) || 'submit failed');
+  resultId = j.resultId;
+  if(withAudio && recBlob){
+    await fetch(`${API}/api/placement/audio/${resultId}`, {
+      method:'POST',
+      headers:{ 'Content-Type': recBlob.type || 'audio/webm', 'X-Audio-Secs': String(recSecs||0) },
+      body: recBlob,
+    });
+  }
+  return resultId;
+}
+
+async function sendResults(withAudio){
+  if(submitting) return;
+  submitting = true;
+  const box = document.getElementById('rec');
+  if(box) box.innerHTML = `<p class="hint">Отправляем результат…</p>`;
+  try{
+    await submitToCRM(withAudio);
+    renderSubmitted(withAudio && !!recBlob);
+  }catch(e){
+    submitting = false;
+    if(box) box.innerHTML = `<p class="hint" style="color:var(--bad)">Не удалось отправить: ${esc(e.message)}.</p>
+      <button class="btn" onclick="sendResults(${withAudio?'true':'false'})">Повторить отправку</button>`;
+    return;
+  }
+  submitting = false;
+}
+
+function renderSubmitted(withAudio){
+  const L = levelByN(placedLevel);
+  const { graduated } = computePlacement();
+  const lvlLine = graduated ? 'Выше Upper-Intermediate 3.0' : `${L.name} · ${L.cefr}`;
+  app.innerHTML = `
+    <div class="result center">
+      <div class="lesson" style="color:var(--ok);font-size:26px">✓ Результат отправлен</div>
+      <p class="lead" style="margin-top:10px">Спасибо, ${esc(student.name)}! Результат теста${withAudio ? ' и запись монолога' : ''}
+        подшиты в вашу карточку в CRM филиала «${esc(BRANCH.label)}».</p>
+      <div class="struct" style="text-align:left">
+        <div class="s-name">Рекомендуемый уровень: ${esc(lvlLine)}</div>
+        <div class="s-sub" style="margin-top:4px">Преподаватель свяжется с вами и подтвердит зачисление.</div>
+      </div>
+      <p class="small">Можно закрыть страницу.</p>
+    </div>`;
+}
+
+// Точка входа: режим филиала vs standalone
+function init(){
+  const code = new URLSearchParams(location.search).get('branch');
+  if(!code){ renderStart(); return; } // обычный тест без CRM
+  app.innerHTML = `<p class="lead">Загрузка…</p>`;
+  fetch(`${API}/api/placement/branch/${encodeURIComponent(code)}`)
+    .then(r=>r.json())
+    .then(j=>{
+      if(j && j.ok){ BRANCH = { code:j.code, label:j.label }; renderIdentify(); }
+      else { renderStart(); } // неизвестный филиал → обычный режим
+    })
+    .catch(()=>renderStart());
+}
+
+init();
 </script>
 </body>
 </html>
