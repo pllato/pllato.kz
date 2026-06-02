@@ -244,7 +244,7 @@
     const total = state.channels.reduce((s, c) => s + (c.unread_count || 0), 0);
     const b = document.getElementById('team-chat-nav-badge');
     if (b) {
-      if (total > 0) { b.style.display = ''; b.textContent = total; }
+      if (total > 0) { b.style.display = 'inline-flex'; b.textContent = total; }
       else b.style.display = 'none';
     }
   }
@@ -316,6 +316,19 @@
       .tc-file-att { display:inline-block; padding:6px 10px; background:rgba(0,0,0,0.05); border-radius:5px; margin-top:4px; font-size:11px; text-decoration:none; color:inherit }
       .tc-file-att:hover { background:rgba(0,0,0,0.1) }
       .tc-img-att { max-width:100%; max-height:300px; border-radius:6px; margin-top:4px; cursor:pointer; display:block }
+      .tc-picker-search { width:100%; padding:8px 10px; border:1px solid var(--b1); border-radius:5px; background:var(--bg2); color:var(--t1); font-size:13px; font-family:inherit; margin-top:4px; box-sizing:border-box }
+      .tc-picker-list { margin-top:8px; max-height:320px; overflow-y:auto; border:1px solid var(--b1); border-radius:6px; background:var(--bg2) }
+      .tc-picker-row { display:flex; gap:10px; align-items:center; padding:8px 10px; cursor:pointer; border-bottom:1px solid var(--b1) }
+      .tc-picker-row:last-child { border-bottom:none }
+      .tc-picker-row:hover { background:var(--bg3) }
+      .tc-picker-row.selected { background:rgba(34,197,94,0.12) }
+      .tc-picker-ava { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11px; font-weight:600; flex-shrink:0 }
+      .tc-picker-meta { flex:1; min-width:0 }
+      .tc-picker-name { font-size:13px; color:var(--t1); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+      .tc-picker-sub { font-size:11px; color:var(--t3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+      .tc-picker-check { width:18px; height:18px; flex-shrink:0; accent-color:#22c55e; cursor:pointer }
+      .tc-picker-empty { padding:20px; text-align:center; color:var(--t3); font-size:12px }
+      .tc-picker-count { font-size:11px; color:var(--t2); margin-top:6px }
     `;
     const st = document.createElement('style');
     st.id = 'team-chat-styles';
@@ -589,8 +602,40 @@
     await loadMessages(channelId);
   }
 
+  // ── Roster (справочник сотрудников из родителя team.html) ───────────────
+  // window.usersState.byUid: uid → { uid, name, lastName, email }.
+  function getRoster() {
+    const byUid = window.usersState?.byUid || {};
+    const meUid = state.me?.uid;
+    const arr = [];
+    for (const [uid, u] of Object.entries(byUid)) {
+      if (uid === meUid) continue;
+      const label = [u.lastName, u.name].filter(Boolean).join(' ').trim() || u.email || uid.slice(0, 8);
+      arr.push({ uid, label, sub: u.email || '' });
+    }
+    arr.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
+    return arr;
+  }
+
+  function pickerRowHtml(p, opts) {
+    const checkbox = opts && opts.multi
+      ? `<input type="checkbox" class="tc-picker-check" data-uid="${escapeHtml(p.uid)}">`
+      : '';
+    const sub = p.sub ? `<div class="tc-picker-sub">${escapeHtml(p.sub)}</div>` : '';
+    return `<div class="tc-picker-row" data-uid="${escapeHtml(p.uid)}">
+      <div class="tc-picker-ava" style="background:${userColor(p.uid)}">${escapeHtml(p.label.slice(0, 2).toUpperCase())}</div>
+      <div class="tc-picker-meta">
+        <div class="tc-picker-name">${escapeHtml(p.label)}</div>
+        ${sub}
+      </div>
+      ${checkbox}
+    </div>`;
+  }
+
   // ── Modals ─────────────────────────────────────────────────────────────
   function openNewChannelModal() {
+    const roster = getRoster();
+    const selected = new Set();
     const ov = document.createElement('div');
     ov.className = 'tc-modal-overlay';
     ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
@@ -605,21 +650,52 @@
       <label>Описание (опционально)
         <textarea id="tc-new-desc" rows="2"></textarea>
       </label>
-      <label>Кого добавить (uid через запятую, опционально)
-        <input id="tc-new-members" placeholder="uid1, uid2 …">
+      <label>Кого добавить
+        <input class="tc-picker-search" id="tc-new-search" placeholder="🔍 поиск по имени…">
       </label>
+      <div class="tc-picker-list" id="tc-new-members-list"></div>
+      <div class="tc-picker-count" id="tc-new-members-count">Выбрано: 0</div>
       <div class="tc-modal-foot">
         <button data-tc-cancel>Отмена</button>
         <button class="primary" data-tc-create>Создать</button>
       </div>
     </div>`;
     document.body.appendChild(ov);
+
+    const listEl = ov.querySelector('#tc-new-members-list');
+    const countEl = ov.querySelector('#tc-new-members-count');
+    const searchEl = ov.querySelector('#tc-new-search');
+
+    function renderList() {
+      const q = searchEl.value.trim().toLowerCase();
+      const filtered = q ? roster.filter(p => p.label.toLowerCase().includes(q) || p.sub.toLowerCase().includes(q)) : roster;
+      if (filtered.length === 0) {
+        listEl.innerHTML = `<div class="tc-picker-empty">${roster.length === 0 ? 'Справочник сотрудников пуст' : 'Никого не найдено'}</div>`;
+        return;
+      }
+      listEl.innerHTML = filtered.map(p => pickerRowHtml(p, { multi: true })).join('');
+      listEl.querySelectorAll('.tc-picker-row').forEach(row => {
+        const uid = row.getAttribute('data-uid');
+        const cb = row.querySelector('.tc-picker-check');
+        cb.checked = selected.has(uid);
+        if (selected.has(uid)) row.classList.add('selected');
+        row.onclick = (e) => {
+          if (e.target !== cb) cb.checked = !cb.checked;
+          if (cb.checked) { selected.add(uid); row.classList.add('selected'); }
+          else { selected.delete(uid); row.classList.remove('selected'); }
+          countEl.textContent = 'Выбрано: ' + selected.size;
+        };
+      });
+    }
+    searchEl.oninput = renderList;
+    renderList();
+
     ov.querySelector('[data-tc-cancel]').onclick = () => ov.remove();
     ov.querySelector('[data-tc-create]').onclick = async () => {
       const type = ov.querySelector('#tc-new-type').value;
       const name = ov.querySelector('#tc-new-name').value.trim();
       const description = ov.querySelector('#tc-new-desc').value.trim();
-      const members = ov.querySelector('#tc-new-members').value.split(',').map(s => s.trim()).filter(Boolean);
+      const members = Array.from(selected);
       if (!name) { alert('Введи название'); return; }
       try {
         const d = await api('/api/chat/channels', { method: 'POST', body: JSON.stringify({ type, name, description, members }) });
@@ -631,11 +707,51 @@
   }
 
   function openNewDmModal() {
-    const uid = prompt('UID собеседника (пока без поиска):');
-    if (!uid) return;
-    api('/api/chat/dm', { method: 'POST', body: JSON.stringify({ user_id: uid.trim() }) })
-      .then(d => { loadChannels(); openChannel(d.channel_id); })
-      .catch(e => alert(e.message));
+    const roster = getRoster();
+    const ov = document.createElement('div');
+    ov.className = 'tc-modal-overlay';
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = `<div class="tc-modal" onclick="event.stopPropagation()">
+      <h3>✉ Личная переписка</h3>
+      <label>Выбери сотрудника
+        <input class="tc-picker-search" id="tc-dm-search" placeholder="🔍 поиск по имени…" autofocus>
+      </label>
+      <div class="tc-picker-list" id="tc-dm-list"></div>
+      <div class="tc-modal-foot">
+        <button data-tc-cancel>Отмена</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+
+    const listEl = ov.querySelector('#tc-dm-list');
+    const searchEl = ov.querySelector('#tc-dm-search');
+
+    async function startDm(uid) {
+      try {
+        const d = await api('/api/chat/dm', { method: 'POST', body: JSON.stringify({ user_id: uid }) });
+        ov.remove();
+        await loadChannels();
+        openChannel(d.channel_id);
+      } catch (e) { alert(e.message); }
+    }
+
+    function renderList() {
+      const q = searchEl.value.trim().toLowerCase();
+      const filtered = q ? roster.filter(p => p.label.toLowerCase().includes(q) || p.sub.toLowerCase().includes(q)) : roster;
+      if (filtered.length === 0) {
+        listEl.innerHTML = `<div class="tc-picker-empty">${roster.length === 0 ? 'Справочник сотрудников пуст' : 'Никого не найдено'}</div>`;
+        return;
+      }
+      listEl.innerHTML = filtered.map(p => pickerRowHtml(p, { multi: false })).join('');
+      listEl.querySelectorAll('.tc-picker-row').forEach(row => {
+        row.onclick = () => startDm(row.getAttribute('data-uid'));
+      });
+    }
+    searchEl.oninput = renderList;
+    renderList();
+    setTimeout(() => searchEl.focus(), 50);
+
+    ov.querySelector('[data-tc-cancel]').onclick = () => ov.remove();
   }
 
   // ── Mount ──────────────────────────────────────────────────────────────

@@ -2888,8 +2888,10 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
     <div class="nav-item" data-page="tasks">
       <span class="nav-icon">✅</span><span>Задачи</span>
     </div>
-    <!-- «Чаты» убраны из sidebar — всё живёт в плавающем виджете справа снизу -->
-    <span style="display:none" id="team-chat-nav-badge"></span>
+    <div class="nav-item" data-page="team-chat">
+      <span class="nav-icon">💬</span><span>Чаты</span>
+      <span class="nav-badge" id="team-chat-nav-badge" style="display:none"></span>
+    </div>
 
     <div class="nav-section">Инструменты</div>
     <div class="nav-item nav-item-admin" data-page="settings" style="display:none">
@@ -3366,7 +3368,7 @@ async function initApp(user) {
 
   // Default page — восстанавливаем последнюю открытую (persist в localStorage
   // через navigate). Deep-link в hash (#deal/, #contact/, #task/) приоритетнее.
-  const VALID_PAGES = ['dashboard', 'notifications', 'contacts', 'deals', 'tasks', 'deeds', 'calendar', 'chats', 'orgchart', 'migration', 'settings'];
+  const VALID_PAGES = ['dashboard', 'notifications', 'contacts', 'deals', 'tasks', 'team-chat', 'deeds', 'calendar', 'chats', 'orgchart', 'migration', 'settings'];
   // Старая страница 'users' переехала в 'settings' → редирект сохранённого значения
   let startPage = 'dashboard';
   if (location.hash.startsWith('#deal/')) startPage = 'deals';
@@ -3825,21 +3827,48 @@ async function notifMarkAllRead() {
 // Командный чат — отдельный модуль chat.js (см. elc-worker/public/chat.js).
 // Грузится один раз через `<script src="WORKER/chat.js">` (как sip-client.js).
 let _teamChatScriptLoaded = false;
-function renderTeamChat(el) {
+
+// Прокидываем справочник сотрудников в chat.js, чтобы 1-на-1 переписки и
+// групповые чаты показывали имена (а не сырой uid). chat.js читает
+// window.usersState.byUid[uid] → { name, lastName, email }.
+function bridgeUsersForChat() {
+  try {
+    const byUid = {};
+    for (const [uid, u] of Object.entries(usersState.users || {})) {
+      if (!u || typeof u !== 'object') continue;
+      byUid[uid] = {
+        uid,
+        name: u.name || '',
+        lastName: u.lastName || '',
+        email: u.email || '',
+      };
+    }
+    usersState.byUid = byUid;
+    window.usersState = usersState;
+  } catch (e) {
+    console.warn('[team-chat] bridgeUsersForChat failed:', e);
+  }
+}
+
+async function renderTeamChat(el) {
   el.innerHTML = `
-    <div class="page-head"><h1>👥 Командный чат</h1></div>
+    <div class="page-head"><h1>💬 Чаты команды</h1></div>
     <div id="team-chat-mount" style="height:calc(100vh - 140px);display:flex;border:1px solid var(--b1);border-radius:8px;overflow:hidden;background:var(--bg2)">
       <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--t3)">
         ⏳ Загружаем чат…
       </div>
     </div>
   `;
+  // Подгружаем справочник сотрудников до монтирования — нужен для имён в DM/группах.
+  try { await ensureUsersLoaded(); } catch {}
+  bridgeUsersForChat();
+
   if (_teamChatScriptLoaded) {
     if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
     return;
   }
   const s = document.createElement('script');
-  s.src = `${WORKER_BASE_URL}/chat.js?v=1`;
+  s.src = `${WORKER_BASE_URL}/chat.js?v=2`;
   s.onload = () => {
     _teamChatScriptLoaded = true;
     if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
