@@ -7173,6 +7173,17 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
       // страниц = 35,000 макс. Если воронка вырастет ещё — пересмотреть либо
       // включить virtualization канбана, либо принудительный scope=mine/team.
       const MAX_PAGES = 175;
+      // Для админа на Канбане: default scope=mine (производительность с большими
+      // воронками — 33k+ сделок). Чтобы посмотреть всех — выбрать конкретного
+      // ответственного в фильтре или открыть страницу с ?scope=all в URL.
+      // Менеджеры/агенты — как обычно (mine/team по effectiveScope()).
+      // Если выбран assignee в фильтре — принудительно scope=all (иначе worker
+      // downgrade'нет в mine и фильтр не сработает).
+      const isAdmin = window.currentUser?.role === 'admin';
+      const urlScope = new URLSearchParams(location.search).get('scope');
+      const kanbanScope = dealsState.responsibleFilter
+        ? (isAdmin ? 'all' : effectiveScope())
+        : (isAdmin ? (urlScope === 'all' ? 'all' : 'mine') : effectiveScope());
       while (page <= MAX_PAGES) {
         const params = new URLSearchParams({
           page: String(page),
@@ -7181,8 +7192,7 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
           sort: 'modified',
           auth: idToken,
         });
-        // Scope (мои/команда/все) применяем как и в list-view
-        params.set('scope', effectiveScope());
+        params.set('scope', kanbanScope);
         const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const data = await r.json();
