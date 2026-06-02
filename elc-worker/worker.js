@@ -968,6 +968,152 @@ async function handleBulkImport(request, env) {
   return json({ ok: true, entity, inserted: items.length }, 200, request);
 }
 
+// ── /api/admin/deals/archive-bulk — массовая архивация сделок ──
+// Принимает фильтры (pipelineId, stages, olderThanDays) и:
+//   - dryRun=true → возвращает только COUNT того что попадёт под фильтр
+//   - dryRun=false → выполняет UPDATE archived=1 (или restore=true → archived=0)
+// Один UPDATE = одна D1 операция = один worker request. Admin-only.
+async function handleBulkArchiveDeals(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const canonical = await resolveCanonicalUser(env, auth.claims);
+  const me = {
+    uid: canonical.canonicalUid || auth.uid,
+    email: auth.email,
+    role: canonical.role,
+    canonicalUid: canonical.canonicalUid,
+  };
+  if (me.role !== "admin") {
+    return json({ error: "admin only" }, 403, request);
+  }
+
+  let body;
+  try { body = await request.json(); }
+  catch { return json({ error: "invalid json body" }, 400, request); }
+
+  const { pipelineId = null, stages = null, olderThanDays = null, dryRun = true, restore = false } = body || {};
+
+  const whereParts = [];
+  const binds = [];
+  if (pipelineId) { whereParts.push("pipeline_id = ?"); binds.push(pipelineId); }
+  if (Array.isArray(stages) && stages.length) {
+    whereParts.push(`stage_id IN (${stages.map(() => "?").join(", ")})`);
+    for (const s of stages) binds.push(s);
+  }
+  if (typeof olderThanDays === "number" && olderThanDays > 0) {
+    whereParts.push(`COALESCE(bitrix_date_create, begin_date) < datetime('now', '-${olderThanDays | 0} days')`);
+  }
+  if (restore) whereParts.push("archived = 1");
+  else whereParts.push("(archived IS NULL OR archived = 0)");
+  if (whereParts.length <= 1) return json({ error: "at least one filter required" }, 400, request);
+  const whereSQL = whereParts.join(" AND ");
+
+  const countRow = await env.DB.prepare(`SELECT COUNT(*) as n FROM deals WHERE ${whereSQL}`).bind(...binds).first();
+  const count = countRow?.n || 0;
+  if (dryRun) return json({ ok: true, dryRun: true, would_affect: count, restore }, 200, request);
+
+  const nowIso = new Date().toISOString();
+  let updateSQL, updateBinds;
+  if (restore) {
+    updateSQL = `UPDATE deals SET archived = 0, archived_at = NULL, archived_by = NULL, bitrix_date_modify = ? WHERE ${whereSQL}`;
+    updateBinds = [nowIso, ...binds];
+  } else {
+    updateSQL = `UPDATE deals SET archived = 1, archived_at = ?, archived_by = ?, bitrix_date_modify = ? WHERE ${whereSQL}`;
+    updateBinds = [nowIso, me.canonicalUid || me.uid, nowIso, ...binds];
+  }
+  await env.DB.prepare(updateSQL).bind(...updateBinds).run();
+  try { await auditLog(env, me, restore ? "bulk_unarchive" : "bulk_archive", "deals", null, { count, pipelineId, stages, olderThanDays }); }
+  catch { /* audit не блокирует */ }
+  return json({ ok: true, dryRun: false, affected: count, restore }, 200, request);
+}
+
+// ── /api/admin/deals/migrate-rejects ──
+// Один раз: добавляет колонку deals.reject_reason, объединяет 5 REJECT_* стадий
+// в одну REJECT (подпричина уходит в reject_reason), обновляет JSON воронки.
+// Идемпотентно: повторный вызов не сломает ничего (ALTER через try/catch,
+// UPDATE мимо уже мигрированных).
+//
+// Body: { pipelineId, dryRun? } — обязателен pipelineId чтобы не зацепить
+// чужие воронки (Pllato Старт и др.). Admin-only.
+//
+// После миграции worker возвращает поле reject_reason в обычной сериализации
+// (SELECT *), фронт может читать его как deal.rejectReason (через toCamel).
+async function handleMigrateRejectReasons(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const canonical = await resolveCanonicalUser(env, auth.claims);
+  const me = {
+    uid: canonical.canonicalUid || auth.uid, email: auth.email,
+    role: canonical.role, canonicalUid: canonical.canonicalUid,
+  };
+  if (me.role !== "admin") return json({ error: "admin only" }, 403, request);
+
+  let body;
+  try { body = await request.json(); }
+  catch { return json({ error: "invalid json body" }, 400, request); }
+  const { pipelineId, dryRun = true } = body || {};
+  if (!pipelineId) return json({ error: "pipelineId required" }, 400, request);
+
+  // 1. ALTER TABLE — добавить колонку (idempotent через try/catch)
+  let alterApplied = false;
+  if (!dryRun) {
+    try {
+      await env.DB.prepare("ALTER TABLE deals ADD COLUMN reject_reason TEXT").run();
+      alterApplied = true;
+    } catch (e) {
+      // SQLite кидает "duplicate column name" если колонка уже есть — это ок
+      if (!/duplicate column|already exists/i.test(String(e?.message || e))) {
+        return json({ error: "ALTER TABLE failed", message: String(e?.message || e) }, 500, request);
+      }
+    }
+  }
+
+  // 2. Подсчитать сколько deals под миграцию
+  const rejectStages = ["REJECT_NOT_INTERESTED", "REJECT_WRONG_CITY", "REJECT_DISCONNECTED", "REJECT_WANTED_ONLINE", "REJECT_INVALID_NUMBER"];
+  const placeholders = rejectStages.map(() => "?").join(", ");
+  const countRow = await env.DB.prepare(
+    `SELECT COUNT(*) as n FROM deals WHERE pipeline_id = ? AND stage_id IN (${placeholders})`
+  ).bind(pipelineId, ...rejectStages).first();
+  const wouldUpdate = countRow?.n || 0;
+
+  if (dryRun) {
+    // Также покажем preview pipeline stages — что станет
+    const pipeRow = await env.DB.prepare("SELECT stages FROM pipelines WHERE id = ?").bind(pipelineId).first();
+    let stages = null;
+    try { stages = pipeRow?.stages ? JSON.parse(pipeRow.stages) : null; } catch {}
+    return json({
+      ok: true, dryRun: true, would_update_deals: wouldUpdate,
+      pipelineId, current_reject_stages_in_pipeline: stages ? Object.keys(stages).filter(k => k.startsWith("REJECT_")) : [],
+    }, 200, request);
+  }
+
+  // 3. Миграция данных: stage_id → reject_reason (отрезаем префикс "REJECT_"),
+  //    после чего stage_id = 'REJECT'.
+  // Можно одним UPDATE через CASE, но проще двумя:
+  await env.DB.prepare(
+    `UPDATE deals SET reject_reason = SUBSTR(stage_id, 8) WHERE pipeline_id = ? AND stage_id IN (${placeholders})`
+  ).bind(pipelineId, ...rejectStages).run();
+  await env.DB.prepare(
+    `UPDATE deals SET stage_id = 'REJECT' WHERE pipeline_id = ? AND stage_id IN (${placeholders})`
+  ).bind(pipelineId, ...rejectStages).run();
+
+  // 4. Обновляем pipeline.stages: удаляем 5 REJECT_*, добавляем одну REJECT.
+  //    Сохраняем sort=40 (на месте бывшего REJECT_NOT_INTERESTED).
+  const pipeRow = await env.DB.prepare("SELECT stages FROM pipelines WHERE id = ?").bind(pipelineId).first();
+  if (pipeRow?.stages) {
+    let stages = {};
+    try { stages = JSON.parse(pipeRow.stages); } catch {}
+    for (const k of rejectStages) delete stages[k];
+    stages.REJECT = { name: "Отказ", sort: 40, statusId: "REJECT", semantics: "F", color: null };
+    await env.DB.prepare("UPDATE pipelines SET stages = ?, stages_count = ? WHERE id = ?")
+      .bind(JSON.stringify(stages), Object.keys(stages).length, pipelineId).run();
+  }
+
+  try { await auditLog(env, me, "migrate_reject_reasons", "deals", null, { pipelineId, updated: wouldUpdate, alterApplied }); }
+  catch { /* */ }
+  return json({ ok: true, dryRun: false, updated_deals: wouldUpdate, alter_applied: alterApplied, pipelineId }, 200, request);
+}
+
 async function handleRtdbWrite(env, request, parts, me) {
   const [head, ...rest] = parts;
   let body;
@@ -5198,6 +5344,19 @@ export default {
     // Снижает worker-requests в 100-1000 раз. Только admin.
     if (path === "/api/import/bulk" && request.method === "POST") {
       return handleBulkImport(request, env);
+    }
+
+    // /api/admin/deals/archive-bulk — массовая архивация сделок по фильтрам.
+    // Body: { pipelineId?, stages?, olderThanDays?, dryRun?, restore? }
+    if (path === "/api/admin/deals/archive-bulk" && request.method === "POST") {
+      return handleBulkArchiveDeals(request, env);
+    }
+
+    // /api/admin/deals/migrate-rejects — один раз: объединение 5 REJECT_*
+    // стадий в одну REJECT с подпричиной в новой колонке reject_reason.
+    // Body: { pipelineId, dryRun? }
+    if (path === "/api/admin/deals/migrate-rejects" && request.method === "POST") {
+      return handleMigrateRejectReasons(request, env);
     }
 
     // /api/list/contacts, /api/list/tasks, /api/list/deals
