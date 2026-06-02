@@ -26,6 +26,25 @@
 
 const SIP_ESM_URL = 'https://cdn.jsdelivr.net/npm/sip.js@0.21.2/+esm';
 
+// Audio constraints для getUserMedia — браузер применяет встроенные DSP
+// (Google WebRTC processing). Сильно улучшают чистоту голоса:
+//   - echoCancellation: убирает эхо собственного голоса (критично без headset)
+//   - noiseSuppression: подавляет фоновый шум (вентилятор, кондиционер, улица)
+//   - autoGainControl: выравнивает громкость даже если оператор отодвинулся
+// sampleRate 48000 запрашивает HD-захват; даже если SIP-trunk даёт alaw
+// 8kHz, локальные DSP работают на полной частоте → чище для собеседника.
+const AUDIO_CONSTRAINTS = {
+  audio: {
+    echoCancellation: { ideal: true },
+    noiseSuppression: { ideal: true },
+    autoGainControl: { ideal: true },
+    sampleRate: { ideal: 48000 },
+    sampleSize: { ideal: 16 },
+    channelCount: { ideal: 1 },
+  },
+  video: false,
+};
+
 let _sipModulePromise = null;
 async function loadSipJs() {
   if (!_sipModulePromise) _sipModulePromise = import(SIP_ESM_URL);
@@ -426,7 +445,7 @@ export async function createSipClient(config) {
   async function acceptIncoming(invitation) {
     try {
       await invitation.accept({
-        sessionDescriptionHandlerOptions: { constraints: { audio: true, video: false } },
+        sessionDescriptionHandlerOptions: { constraints: AUDIO_CONSTRAINTS },
       });
       attachAudio(invitation);
       sessionMeta.establishedAt = Date.now();
