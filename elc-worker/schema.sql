@@ -107,9 +107,16 @@ CREATE TABLE deals (
   bitrix_date_create     TEXT,
   bitrix_date_modify     TEXT,
   custom_fields          TEXT,         -- JSON
-  migrated_at            TEXT
+  migrated_at            TEXT,
+  archived               INTEGER NOT NULL DEFAULT 0,
+  archived_at            TEXT,
+  archived_by            TEXT,
+  reject_reason          TEXT          -- NULL для не-отказов; для stage_id='REJECT' одно из:
+                                       -- NOT_INTERESTED|WRONG_CITY|DISCONNECTED|WANTED_ONLINE|INVALID_NUMBER
 );
 CREATE INDEX idx_deals_pipeline_stage ON deals(pipeline_id, stage_id);
+CREATE INDEX idx_deals_archived       ON deals(archived);
+CREATE INDEX idx_deals_reject_reason  ON deals(reject_reason);
 CREATE INDEX idx_deals_contact        ON deals(contact_id);
 CREATE INDEX idx_deals_company        ON deals(company_id);
 CREATE INDEX idx_deals_responsible    ON deals(responsible_uid);
