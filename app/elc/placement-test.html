@@ -108,6 +108,7 @@ const QUESTIONS = [
 const app = document.getElementById('app');
 let idx = 0;
 let answers = []; // {lesson, band, correct}
+let curCorrect = -1; // позиция верного варианта в текущем (перемешанном) показе
 const LETTERS = ['A','B','C','D'];
 
 function lessonTitle(n){ const l=LESSONS.find(x=>x.n===n); return l?l.t:''; }
@@ -137,9 +138,13 @@ function renderQuestion(){
   const band = bandOf(Q.lesson);
   const pct = Math.round((answers.length / QUESTIONS.length) * 100);
   const stem = Q.q.replace('___','<span class="blank">▁▁▁</span>');
-  const opts = Q.o.map((o,i)=>`
+  // перемешиваем варианты (Fisher–Yates), чтобы верный ответ не был всегда на одном месте
+  const order = Q.o.map((text,i)=>({text, correct:i===Q.a}));
+  for(let i=order.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
+  curCorrect = order.findIndex(o=>o.correct);
+  const opts = order.map((o,i)=>`
     <button class="opt" onclick="answer(${i})">
-      <span class="key">${LETTERS[i]}</span><span>${o}</span>
+      <span class="key">${LETTERS[i]}</span><span>${o.text}</span>
     </button>`).join('');
   app.innerHTML = `
     <div class="meta"><span>Вопрос ${answers.length+1}</span><span class="badge">${band.name}</span></div>
@@ -156,7 +161,7 @@ function renderQuestion(){
 
 function answer(choice){
   const Q = QUESTIONS[idx];
-  answers.push({ lesson:Q.lesson, band:bandOf(Q.lesson).name, correct: choice===Q.a });
+  answers.push({ lesson:Q.lesson, band:bandOf(Q.lesson).name, correct: choice===curCorrect });
   idx++;
   renderQuestion();
 }
