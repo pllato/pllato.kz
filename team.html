@@ -7404,12 +7404,83 @@ function renderPipelineTabs() {
     const isArchived = p.isActive === false || p.isActive === 0;
     const archivedBadge = isArchived ? ' <span style="background:rgba(0,0,0,0.15);font-size:9px;padding:1px 5px;border-radius:3px;vertical-align:middle;text-transform:uppercase">архив</span>' : '';
     const archiveBtn = isAdmin && !isArchived ? `<span class="pipe-tab-archive" data-archive-pipeline="${escapeHtml(p.id)}" data-archive-name="${escapeHtml(p.name)}" title="В архив" style="display:inline-block;margin-left:6px;opacity:0.4;cursor:pointer;font-size:11px">🗄</span>` : '';
-    html += `<button class="pipe-tab ${isActive ? 'active' : ''}" data-pipeline-id="${escapeHtml(p.id)}" draggable="true" title="${escapeHtml(p.name)} · перетащи влево/вправо чтобы поменять порядок">${escapeHtml(p.name)}${archivedBadge}${archiveBtn}</button>`;
+    const cfgBtn = isAdmin && isActive ? `<span class="pipe-tab-cfg" data-cfg-pipeline="${escapeHtml(p.id)}" title="Настройка полей на карточках (Первый Zoom, Дата пробного урока)" style="display:inline-block;margin-left:6px;opacity:0.55;cursor:pointer;font-size:11px">⚙</span>` : '';
+    html += `<button class="pipe-tab ${isActive ? 'active' : ''}" data-pipeline-id="${escapeHtml(p.id)}" draggable="true" title="${escapeHtml(p.name)} · перетащи влево/вправо чтобы поменять порядок">${escapeHtml(p.name)}${archivedBadge}${cfgBtn}${archiveBtn}</button>`;
   }
   html += `<button class="pipe-tab pipe-tab-new" data-action="new-pipeline" title="Создать новую воронку">+</button>`;
   html += `<button class="pipe-tab pipe-tab-manage" data-action="manage-pipelines" title="Управление воронками и стадиями">⚙</button>`;
   html += `</div>`;
   return html;
+}
+
+// Флаги видимости спец-полей на карточке для воронки. Хранятся в общем
+// blob'е org:fieldConfig (window.__fieldConfig[pipelineId]), рядом с hidden/pinned.
+//   showFirstZoom   — по умолчанию ВКЛ (сохраняем текущее поведение)
+//   showTrialLesson — по умолчанию ВЫКЛ (новое поле, opt-in)
+function pipelineCardFieldFlags(pipelineId) {
+  const cfg = (window.__fieldConfig && pipelineId) ? (window.__fieldConfig[pipelineId] || {}) : {};
+  return {
+    showFirstZoom: cfg.showFirstZoom !== false,
+    showTrialLesson: cfg.showTrialLesson === true,
+  };
+}
+
+// Модал «⚙ Поля на карточках» для конкретной воронки (шестерёнка на активной
+// вкладке). Управляет видимостью «📹 Первый Zoom» и «📚 Дата пробного урока».
+function openPipelineCardFieldsModal(pipelineId) {
+  if (!pipelineId) { alert('Сначала открой воронку'); return; }
+  document.getElementById('_pcf-modal')?.remove();
+  const pipeName = dealsState.pipelines?.[pipelineId]?.name || pipelineId;
+  const flags = pipelineCardFieldFlags(pipelineId);
+  const ov = document.createElement('div');
+  ov.id = '_pcf-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:480px;width:94vw">
+      <div class="qad-head"><h2>⚙ Поля на карточках «${escapeHtml(pipeName)}»</h2><button class="qad-btn qad-btn-ghost" id="pcf-close" style="padding:4px 10px">×</button></div>
+      <div class="qad-body" style="padding:18px 24px">
+        <div style="font-size:12px;color:var(--t3);margin-bottom:14px">Выбери, какие поля показывать в карточке сделки этой воронки. Дата подхватится в Календарь.</div>
+        <label style="display:flex;align-items:center;gap:10px;padding:11px 0;cursor:pointer;font-size:14px;color:var(--t1);border-bottom:1px solid var(--b2)">
+          <input type="checkbox" id="pcf-zoom" ${flags.showFirstZoom ? 'checked' : ''} style="width:17px;height:17px">
+          <span>📹 Первый Zoom <span style="color:var(--t3);font-size:12px">— дата и время</span></span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:11px 0;cursor:pointer;font-size:14px;color:var(--t1)">
+          <input type="checkbox" id="pcf-trial" ${flags.showTrialLesson ? 'checked' : ''} style="width:17px;height:17px">
+          <span>📚 Дата пробного урока <span style="color:var(--t3);font-size:12px">— дата и время</span></span>
+        </label>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="pcf-cancel">Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="pcf-save">💾 Сохранить</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  document.getElementById('pcf-close').onclick = () => ov.remove();
+  document.getElementById('pcf-cancel').onclick = () => ov.remove();
+  document.getElementById('pcf-save').onclick = async () => {
+    const btn = document.getElementById('pcf-save');
+    btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
+    try {
+      const config = { ...(window.__fieldConfig || {}) };
+      const prev = config[pipelineId] || {};
+      config[pipelineId] = {
+        ...prev,
+        hidden: Array.isArray(prev.hidden) ? prev.hidden : [],
+        pinned: Array.isArray(prev.pinned) ? prev.pinned : [],
+        showFirstZoom: document.getElementById('pcf-zoom').checked,
+        showTrialLesson: document.getElementById('pcf-trial').checked,
+      };
+      await saveFieldConfig(config);
+      ov.remove();
+      showToast('Настройки полей сохранены');
+      const main = document.getElementById('main');
+      if (main && document.querySelector('[data-page="deals"].active')) renderDealsContent?.();
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+      btn.disabled = false; btn.textContent = '💾 Сохранить';
+    }
+  };
 }
 
 async function archivePipelineFromTab(pipelineId, pipelineName) {
@@ -7435,6 +7506,13 @@ async function archivePipelineFromTab(pipelineId, pipelineName) {
 function attachPipelineTabHandlers(el) {
   el.querySelectorAll('.pipe-tab[data-pipeline-id]').forEach(b => {
     b.addEventListener('click', (e) => {
+      // Если клик по шестерёнке настройки полей — открываем модал, не переключаем
+      const cfg = e.target.closest('[data-cfg-pipeline]');
+      if (cfg) {
+        e.stopPropagation();
+        openPipelineCardFieldsModal(cfg.dataset.cfgPipeline);
+        return;
+      }
       // Если клик по архивной иконке — не переключаем, обрабатываем отдельно
       const archive = e.target.closest('[data-archive-pipeline]');
       if (archive) {
@@ -9851,14 +9929,30 @@ function buildDealCard(d, stageColor) {
     return `${dd}.${mm} ${hh}:${mi}`;
   };
 
+  // Флаги видимости спец-полей для активной воронки (канбан — всегда активная).
+  const kanbanFlags = pipelineCardFieldFlags(dealsState.activePipelineId);
+
   // 1) Zoom-встреча
-  const zoomAt = d.customFields?.firstZoomAt;
+  const zoomAt = kanbanFlags.showFirstZoom ? d.customFields?.firstZoomAt : null;
   if (zoomAt) {
     const zd = new Date(zoomAt);
     if (!isNaN(zd.getTime())) {
       const isFuture = zd.getTime() >= Date.now() - 3600000;
       dateLabel = `🎥 Зум: ${fmtDateTime(zd)}`;
       dateLabelClass = isFuture ? 'kanban-card-date kanban-card-date-zoom' : 'kanban-card-date kanban-card-date-zoom-past';
+    }
+  }
+
+  // 1b) Дата пробного урока (если Zoom не показан/не задан)
+  if (!dateLabel && kanbanFlags.showTrialLesson) {
+    const trialAt = d.customFields?.trialLessonAt;
+    if (trialAt) {
+      const tld = new Date(trialAt);
+      if (!isNaN(tld.getTime())) {
+        const isFuture = tld.getTime() >= Date.now() - 3600000;
+        dateLabel = `📚 Пробный: ${fmtDateTime(tld)}`;
+        dateLabelClass = isFuture ? 'kanban-card-date kanban-card-date-zoom' : 'kanban-card-date kanban-card-date-zoom-past';
+      }
     }
   }
 
@@ -10276,6 +10370,9 @@ async function openDealCard(bitrixId) {
   const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
   const respEmail = respUser?.email || '';
   const canEditDeal = canEditDealFront(deal);
+  // Видимость спец-полей (Первый Zoom / Дата пробного урока) — по воронке, в
+  // которой просматривается сделка (учитываем зеркала через _viewPipelineId).
+  const cardFlags = pipelineCardFieldFlags(deal._viewPipelineId || deal.pipelineId || dealsState.activePipelineId);
   const createdByUser = getUserById(deal.createdByUid);
   const createdByName = createdByUser ? `${createdByUser.lastName || ''} ${createdByUser.name || ''}`.trim() : '—';
 
@@ -10446,7 +10543,7 @@ async function openDealCard(bitrixId) {
           ${deal.comments ? `<div class="dc-section-h">Комментарии</div>
             <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.5">${escapeHtml(deal.comments)}</div>` : ''}
 
-          <div class="dc-section-h">📹 Первый Zoom</div>
+          ${cardFlags.showFirstZoom ? `<div class="dc-section-h">📹 Первый Zoom</div>
           <div style="background:var(--bg3);padding:12px 14px;border-radius:8px">
             <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Дата и время первой Zoom-встречи (попадёт в Календарь)</div>
             <input class="cf-edit"
@@ -10457,7 +10554,20 @@ async function openDealCard(bitrixId) {
               value="${escapeHtml(deal.customFields?.firstZoomAt || '')}"
               style="padding:6px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
             ${deal.customFields?.firstZoomAt ? `<button class="tbtn tbtn-xs" style="margin-left:8px" onclick="navigate('calendar')">📅 Открыть календарь</button>` : ''}
-          </div>
+          </div>` : ''}
+
+          ${cardFlags.showTrialLesson ? `<div class="dc-section-h">📚 Дата пробного урока</div>
+          <div style="background:var(--bg3);padding:12px 14px;border-radius:8px">
+            <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Дата и время пробного урока (попадёт в Календарь)</div>
+            <input class="cf-edit"
+              type="datetime-local"
+              data-field="trialLessonAt"
+              data-deal-id="deal_${escapeHtml(deal.bitrixId)}"
+              data-type="datetime-local"
+              value="${escapeHtml(deal.customFields?.trialLessonAt || '')}"
+              style="padding:6px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
+            ${deal.customFields?.trialLessonAt ? `<button class="tbtn tbtn-xs" style="margin-left:8px" onclick="navigate('calendar')">📅 Открыть календарь</button>` : ''}
+          </div>` : ''}
 
           ${renderCustomFieldsBlock(deal.customFields, { dealId: 'deal_' + deal.bitrixId, editable: true })}
         </div>
@@ -13158,19 +13268,38 @@ async function loadCalendarEvents(opts = {}) {
       });
     }
       for (const d of dealsForCalendar) {
-        const zt = d.customFields?.firstZoomAt;
-        if (!zt) continue;
-        const dt = new Date(zt);
-        if (isNaN(dt)) continue;
-        // Для firstZoomAt длительности нет — берём дефолт 60 минут
-        const endDt = new Date(dt.getTime() + 60 * 60000);
-        events.push({
-          type: 'zoom',
-          date: dt,
-          endDate: endDt,
-          title: 'Zoom: ' + (d.title || d.bitrixId),
-          dealBitrixId: d.bitrixId,
-        });
+        const flags = pipelineCardFieldFlags(d.pipelineId);
+        // Первый Zoom
+        const zt = flags.showFirstZoom ? d.customFields?.firstZoomAt : null;
+        if (zt) {
+          const dt = new Date(zt);
+          if (!isNaN(dt)) {
+            // Для firstZoomAt длительности нет — берём дефолт 60 минут
+            const endDt = new Date(dt.getTime() + 60 * 60000);
+            events.push({
+              type: 'zoom',
+              date: dt,
+              endDate: endDt,
+              title: 'Zoom: ' + (d.title || d.bitrixId),
+              dealBitrixId: d.bitrixId,
+            });
+          }
+        }
+        // Дата пробного урока
+        const tl = flags.showTrialLesson ? d.customFields?.trialLessonAt : null;
+        if (tl) {
+          const dt = new Date(tl);
+          if (!isNaN(dt)) {
+            const endDt = new Date(dt.getTime() + 60 * 60000);
+            events.push({
+              type: 'zoom',
+              date: dt,
+              endDate: endDt,
+              title: '📚 Пробный: ' + (d.title || d.bitrixId),
+              dealBitrixId: d.bitrixId,
+            });
+          }
+        }
       }
       calendarState.events = events;
     } catch (e) {
@@ -14929,39 +15058,75 @@ function canEditDealFront(deal) {
   return (deal.responsibleUid && mine.has(String(deal.responsibleUid))) ||
          (deal.createdByUid && mine.has(String(deal.createdByUid)));
 }
-// Инлайн-редактор ответственного в карточке сделки: подменяет имя на <select>
-// со всеми сотрудниками, на change → PATCH responsibleUid, обновляет локальный
-// кеш + дисплей. Escape/blur без изменений — откат.
+// Инлайн-редактор ответственного в карточке сделки: подменяет имя на поле
+// поиска с подсказками (input + datalist) — можно набрать фамилию/имя.
+// На выбор → PATCH responsibleUid, обновляет локальный кеш + дисплей.
+// Escape/blur без изменений — откат.
 function openDealRespEditor(displayEl, deal) {
   if (!displayEl || displayEl.dataset.editing === '1') return;
   displayEl.dataset.editing = '1';
   const cur = deal.responsibleUid ? String(deal.responsibleUid) : '';
-  const opts = orgSortedUsers().map(u =>
-    `<option value="${escapeHtml(u.uid)}" ${u.uid === cur ? 'selected' : ''}>${escapeHtml(u.label)}</option>`
-  ).join('');
-  const sel = document.createElement('select');
-  sel.className = 'qad-input';
-  sel.style.cssText = 'font-size:13px;padding:4px 8px;max-width:260px';
-  sel.innerHTML = `<option value="">— не назначен —</option>${opts}`;
+  // Список сотрудников; при совпадении имён добавляем email в подпись, чтобы
+  // каждая опция была уникальной (для обратного маппинга label → uid).
+  const users = orgSortedUsers();
+  const labelSeen = {};
+  const items = users.map(u => {
+    const em = usersState.users?.[u.uid]?.email || '';
+    let optLabel = u.label;
+    if (labelSeen[u.label]) optLabel = em ? `${u.label} · ${em}` : `${u.label} (${u.uid})`;
+    labelSeen[u.label] = true;
+    return { uid: u.uid, optLabel };
+  });
+  const CLEAR_LABEL = '— не назначен —';
+  const labelToUid = new Map();
+  items.forEach(it => labelToUid.set(it.optLabel, it.uid));
+  labelToUid.set(CLEAR_LABEL, '');
+
+  const listId = 'dc-resp-ulist-' + (deal.bitrixId || Math.random().toString(36).slice(2));
+  const datalist = document.createElement('datalist');
+  datalist.id = listId;
+  datalist.innerHTML = `<option value="${escapeHtml(CLEAR_LABEL)}"></option>` +
+    items.map(it => `<option value="${escapeHtml(it.optLabel)}"></option>`).join('');
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'qad-input';
+  input.setAttribute('list', listId);
+  input.setAttribute('autocomplete', 'off');
+  input.placeholder = 'Поиск сотрудника…';
+  input.style.cssText = 'font-size:13px;padding:4px 8px;max-width:260px';
+  const curItem = items.find(it => it.uid === cur);
+  input.value = curItem ? curItem.optLabel : '';
+
   displayEl.style.display = 'none';
   const pencil = displayEl.parentNode.querySelector('.dc-resp-pencil');
   if (pencil) pencil.style.display = 'none';
-  displayEl.parentNode.insertBefore(sel, displayEl.nextSibling);
-  sel.focus();
+  displayEl.parentNode.insertBefore(datalist, displayEl.nextSibling);
+  displayEl.parentNode.insertBefore(input, datalist);
+  input.focus();
+  input.select();
 
   let done = false;
   const cleanup = () => {
-    sel.remove();
+    input.remove();
+    datalist.remove();
     displayEl.style.display = '';
     if (pencil) pencil.style.display = '';
     displayEl.dataset.editing = '0';
   };
   const save = async () => {
     if (done) return;
-    const newUid = sel.value;
+    const typed = input.value.trim();
+    if (typed === '') { cleanup(); return; }
+    if (!labelToUid.has(typed)) {
+      // Нет точного совпадения — подсветим, ждём корректного выбора
+      input.style.borderColor = '#e11';
+      return;
+    }
+    const newUid = labelToUid.get(typed);
     if (newUid === cur) { cleanup(); return; }
     done = true;
-    sel.disabled = true;
+    input.disabled = true;
     try {
       const idToken = await fbAuth.currentUser.getIdToken();
       const recordId = 'deal_' + deal.bitrixId;
@@ -14991,14 +15156,18 @@ function openDealRespEditor(displayEl, deal) {
       cleanup();
       showToast?.('Ответственный изменён');
     } catch (e) {
-      sel.disabled = false;
+      input.disabled = false;
       done = false;
       alert('Ошибка: ' + e.message);
     }
   };
-  sel.addEventListener('change', save);
-  sel.addEventListener('blur', () => { if (!done) cleanup(); });
-  sel.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); cleanup(); } });
+  input.addEventListener('input', () => { input.style.borderColor = ''; });
+  input.addEventListener('change', save);
+  input.addEventListener('blur', () => { setTimeout(() => { if (!done) cleanup(); }, 150); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); done = true; cleanup(); }
+    else if (e.key === 'Enter') { e.preventDefault(); save(); }
+  });
 }
 function _isoToLocalInput(iso) {
   if (!iso) return '';
