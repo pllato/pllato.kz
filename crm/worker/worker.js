@@ -4576,18 +4576,24 @@ const ONE_C_BASES = {
     label: "ТОО Аминамед",
     basePath: "/a/ea186/263825",
     orgRef: "8678efaa-9684-4325-a198-7f3c8a1bc2f3",
+    currencyRef: "9e9a6ffb-aa56-11e1-b9c4-002215ba1bbe", // KZT
+    warehouseRef: "c4d32421-aa56-11e1-b9c4-002215ba1bbe", // Основной склад
     bin: "060540006532",
   },
   alisherova: {
     label: "ИП Алишерова",
     basePath: "/a/ea189/264981",
     orgRef: "d0455782-d295-11e5-bf5f-001a4d5d6b30",
+    currencyRef: "d0455781-d295-11e5-bf5f-001a4d5d6b30", // KZT
+    warehouseRef: "d0455949-d295-11e5-bf5f-001a4d5d6b30", // Основной склад
     bin: "470927401685",
   },
   baymukhanova: {
     label: "ИП Баймуханова К.А.",
     basePath: "/a/ea68/264980",
     orgRef: "f9f0a501-a9ed-11ee-9866-f8b15698efb3",
+    currencyRef: "dda1de7d-a9ed-11ee-9866-f8b15698efb3", // KZT
+    warehouseRef: "f9f0a504-a9ed-11ee-9866-f8b15698efb3", // Основной склад
     bin: "730330400012",
   },
 };
@@ -5583,9 +5589,11 @@ async function create1cSalesDocument(request, env, actor, opts) {
     throw new HttpError(400, `Ни одна позиция не сопоставлена с номенклатурой базы «${baseLabel}». Не найдено: ${skipped.slice(0, 8).join("; ")}`);
   }
 
-  // 4) Шапка. Организация по умолчанию — из конфига выбранной базы.
+  // 4) Шапка. Организация/валюта/склад по умолчанию — из конфига выбранной базы.
+  // Валюту берём ИЗ КОНФИГА БАЗЫ (у каждой базы свой GUID KZT; фронт знает только
+  // Аминамедовский), фронтовый currencyRef — только запасной.
   const organizationRef = String(body?.organizationRef || "").trim() || ONE_C_BASES[baseKey].orgRef;
-  const currencyRef = String(body?.currencyRef || "").trim();
+  const currencyRef = ONE_C_BASES[baseKey].currencyRef || String(body?.currencyRef || "").trim();
   if (!currencyRef) throw new HttpError(400, "currencyRef (валюта документа, GUID 1С) обязателен");
 
   try {
@@ -5595,7 +5603,7 @@ async function create1cSalesDocument(request, env, actor, opts) {
       contractorRef,
       currencyRef,
       contractRef: body?.contractRef || null,
-      warehouseRef: body?.warehouseRef || null,
+      warehouseRef: body?.warehouseRef || ONE_C_BASES[baseKey].warehouseRef || null,
       priceTypeRef: body?.priceTypeRef || null,
       responsibleRef: body?.responsibleRef || null,
       vatIncluded: body?.vatIncluded,
