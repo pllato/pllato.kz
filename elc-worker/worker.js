@@ -5105,6 +5105,49 @@ async function handleContactsPhonesBulk(request, env) {
 
 // Батч: для каждой сделки вернуть ближайшее активное дело с дедлайном.
 // Чтобы на канбане отображать «📋 Дело: DD.MM HH:MM».
+// POST /api/deals/comments-preview  { ids: ["deal_X", "deal_Y", ...] }
+// Response: { items: { "deal_X": [{ text, authorName, authorUid, ts }, ...до 3 свежих], ... } }
+// Для канбан-карточки: показать последние 3 комментария не открывая сделку.
+// Источник — timeline_activities (activity_type='comment'). Окно ROW_NUMBER
+// берёт 3 новейших на сделку. authorName из payload (fallback на uid фронт сам
+// резолвит через getUserById).
+async function handleDealsCommentsPreview(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const ids = Array.isArray(body.ids) ? body.ids.filter(s => typeof s === 'string').slice(0, 500) : [];
+  if (ids.length === 0) return json({ items: {} }, 200, request);
+  const dealIds = ids.map(s => s.startsWith('deal_') ? s : 'deal_' + s);
+
+  const items = {};
+  const chunkSize = 50;
+  for (let i = 0; i < dealIds.length; i += chunkSize) {
+    const chunk = dealIds.slice(i, i + chunkSize);
+    const ph = chunk.map(() => "?").join(",");
+    const { results } = await env.DB.prepare(
+      `SELECT owner_id, author_uid AS authorUid, payload, ts FROM (
+         SELECT owner_id, author_uid, payload,
+           COALESCE(bitrix_created, created_at) AS ts,
+           ROW_NUMBER() OVER (PARTITION BY owner_id ORDER BY COALESCE(bitrix_created, created_at) DESC) AS rn
+         FROM timeline_activities
+         WHERE owner_type='deal' AND activity_type='comment' AND owner_id IN (${ph})
+       ) WHERE rn <= 3
+       ORDER BY owner_id, ts DESC`
+    ).bind(...chunk).all();
+    for (const r of (results || [])) {
+      const p = r.payload ? tryParseJson(r.payload) : null;
+      const text = (p && p.text != null) ? String(p.text) : "";
+      if (!text.trim()) continue;
+      const authorName = (p && (p.authorName || p.authorEmail)) ? String(p.authorName || p.authorEmail) : "";
+      (items[r.owner_id] || (items[r.owner_id] = [])).push({
+        text, authorName, authorUid: r.authorUid || null, ts: r.ts,
+      });
+    }
+  }
+  return json({ items, total: Object.keys(items).length }, 200, request);
+}
+
 // POST /api/tasks/by-deals  { ids: ["deal_X", "deal_Y", ...] }
 // Response: { items: { "deal_X": { taskId, title, deadline }, ... } }
 //
@@ -5637,6 +5680,10 @@ export default {
       return handleAdminSetUserActive(request, env, userActiveMatch[1]);
     }
 
+    // /api/deals/comments-preview — батч последних 3 комментариев на сделку (для канбана)
+    if (path === "/api/deals/comments-preview" && request.method === "POST") {
+      return handleDealsCommentsPreview(request, env);
+    }
     // /api/deals/{id}/* — карточка сделки (архив, комментарии, лента)
     const dealArchiveMatch = path.match(/^\/api\/deals\/([^/]+)\/archive$/);
     if (dealArchiveMatch && request.method === "POST") {

@@ -1564,6 +1564,59 @@ tr:hover td { background: var(--bg3); }
 .kca-call:hover { background: var(--ac); color: #fff; }
 .kca-stage { font-size: 10px; padding: 3px 9px; }
 
+/* Превью последних 3 комментариев на канбан-карточке */
+.kanban-card-comments {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--b2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kcc-item {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--t2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kcc-author { color: var(--ac2); font-weight: 600; }
+/* Быстрый ввод комментария */
+.kanban-card-cadd {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  align-items: center;
+}
+.kcc-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--b2);
+  background: var(--bg);
+  color: var(--t1);
+  border-radius: 5px;
+  padding: 4px 7px;
+  font-size: 11px;
+  font-family: var(--fb);
+  transition: border-color .12s;
+}
+.kcc-input:focus { outline: none; border-color: var(--ac2); }
+.kcc-input::placeholder { color: var(--t3); }
+.kcc-send {
+  border: 1px solid rgba(124,92,252,.3);
+  background: rgba(124,92,252,.1);
+  color: var(--ac2);
+  border-radius: 5px;
+  cursor: pointer;
+  padding: 4px 9px;
+  font-size: 12px;
+  line-height: 1;
+  transition: all .12s;
+}
+.kcc-send:hover { background: var(--ac); color: #fff; }
+.kcc-send:disabled { opacity: .45; cursor: default; }
+
 /* Stage quick pick popover */
 .stage-quick-pick {
   position: fixed;
@@ -6456,6 +6509,34 @@ async function preloadDealsNextTask(deals, idToken) {
   } catch (e) { console.warn('preloadDealsNextTask:', e); }
 }
 
+// Bulk-подгрузка последних 3 комментариев на каждую сделку — для превью на
+// канбан-карточке (чтобы ориентироваться не открывая сделку). Кладёт в
+// dealsState.commentsByDeal[dealId] = [{ text, authorName, authorUid, ts }, ...].
+async function preloadDealsComments(deals, idToken) {
+  if (!Array.isArray(deals) || deals.length === 0) return;
+  if (!idToken) idToken = await fbAuth.currentUser.getIdToken();
+  if (!dealsState.commentsByDeal) dealsState.commentsByDeal = {};
+  const ids = deals.map(d => d.id).filter(Boolean);
+  if (ids.length === 0) return;
+  const chunkSize = 200;
+  let touched = false;
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    try {
+      const r = await fetch(`${WORKER_BASE_URL}/api/deals/comments-preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ ids: chunk }),
+      });
+      if (!r.ok) continue;
+      const data = await r.json();
+      Object.assign(dealsState.commentsByDeal, data.items || {});
+      touched = true;
+    } catch (e) { /* ignore chunk errors */ }
+  }
+  if (touched && document.getElementById('kanban-wrap')) renderDealsContent();
+}
+
 // Bulk-подгрузка телефонов всех контактов сделок воронки. Чтобы кнопки 💬/📞
 // в канбане были активны сразу. Раньше телефон попадал в dealsState.contactPhones
 // только когда юзер открывал карточку → buttons disabled пока не откроешь.
@@ -7285,6 +7366,8 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
       preloadDealPhones(all, idToken).catch(e => console.warn('preloadDealPhones:', e));
       // Bulk-подгрузка ближайшего активного дела для плашки «📋 Дело» в карточке
       preloadDealsNextTask(all, idToken).catch(e => console.warn('preloadDealsNextTask:', e));
+      // Bulk-подгрузка последних 3 комментариев — для превью на канбан-карточке
+      preloadDealsComments(all, idToken).catch(e => console.warn('preloadDealsComments:', e));
     } catch (e) {
       console.error('loadDealsForPipeline error:', e);
       // На ошибку — оставляем dealsState.deals что было, не пустим
@@ -8067,6 +8150,25 @@ function renderDealsKanban(c, arr) {
 
   // Кнопки действий внутри карточек — нужны event delegation
   c.addEventListener('click', handleKanbanCardAction);
+
+  // Быстрый комментарий: Enter — отправить; фокус — отключить drag карточки
+  // (иначе перетаскивание перехватывает выделение/курсор в input).
+  c.addEventListener('keydown', (e) => {
+    const input = e.target.closest?.('.kcc-input');
+    if (!input) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendKanbanQuickComment(input.dataset.dealFull, input);
+    }
+  });
+  c.addEventListener('focusin', (e) => {
+    const input = e.target.closest?.('.kcc-input');
+    if (input) { const card = input.closest('.kanban-card'); if (card) card.draggable = false; }
+  });
+  c.addEventListener('focusout', (e) => {
+    const input = e.target.closest?.('.kcc-input');
+    if (input) { const card = input.closest('.kanban-card'); if (card) card.draggable = true; }
+  });
 
   // Quick-add deal: + Сделка под header колонки
   c.querySelectorAll('.kanban-add-deal').forEach(btn => {
@@ -10013,6 +10115,25 @@ function buildDealCard(d, stageColor) {
     if (label) cfPills.push(`<span class="kanban-cf-pill" title="${escapeHtml(meta?.label || k)}">${escapeHtml(label.slice(0, 30))}</span>`);
   }
 
+  // Превью последних 3 комментариев (bulk-загружено preloadDealsComments) —
+  // чтобы менеджер ориентировался не открывая карточку.
+  const cmts = (dealsState.commentsByDeal?.[d.id] || []).slice(0, 3);
+  const cmtsHtml = cmts.length ? `<div class="kanban-card-comments">${
+    cmts.map(c => {
+      let who = c.authorName;
+      if (!who && c.authorUid) { const u = getUserById(c.authorUid); who = u ? `${u.lastName || ''} ${u.name || ''}`.trim() : ''; }
+      who = (who || '').split(' ')[0] || '';
+      const txt = String(c.text || '');
+      return `<div class="kcc-item" title="${escapeHtml(txt)}">${who ? `<span class="kcc-author">${escapeHtml(who)}:</span> ` : ''}${escapeHtml(txt.length > 80 ? txt.slice(0, 80) + '…' : txt)}</div>`;
+    }).join('')
+  }</div>` : '';
+  // Поле быстрого комментария (только тем, кто может редактировать сделку).
+  const canCmt = canEditDealFront(d);
+  const cmtAddHtml = (canCmt && d.id) ? `<div class="kanban-card-cadd">
+      <input class="kcc-input" type="text" placeholder="💬 Написать комментарий…" data-deal-full="${escapeHtml(d.id)}" draggable="false" maxlength="2000">
+      <button class="kcc-send" data-action="comment-send" data-deal-full="${escapeHtml(d.id)}" title="Отправить комментарий">➤</button>
+    </div>` : '';
+
   // Fallback ключа: для старых WA-сделок bitrixId был NULL (фикс — см. ensureDealForWaContact).
   // Используем id с убранным префиксом 'deal_' — это и есть bitrixId по convention.
   const cardKey = d.bitrixId || (d.id ? String(d.id).replace(/^deal_/, '') : '');
@@ -10038,6 +10159,8 @@ function buildDealCard(d, stageColor) {
       <button class="kca-btn kca-call" data-action="call" data-phone="${escapeHtml(phone || '')}" data-deal-id="${escapeHtml(d.bitrixId || '')}" title="${phone ? 'Позвонить' : 'У контакта нет телефона — добавь в карточке'}" ${!phone ? 'data-no-phone="1" style="opacity:0.45"' : ''}>📞</button>
       <button class="kca-btn kca-stage" data-action="stage" data-deal-id="${escapeHtml(d.bitrixId)}" title="Сменить стадию" style="margin-left:auto">→</button>
     </div>
+    ${cmtsHtml}
+    ${cmtAddHtml}
   </div>`;
 }
 
@@ -10067,13 +10190,59 @@ function handleKanbanCardAction(e) {
       }
     } else if (action === 'stage') {
       showStageQuickPick(btn.dataset.dealId, btn);
+    } else if (action === 'comment-send') {
+      const input = btn.closest('.kanban-card-cadd')?.querySelector('.kcc-input');
+      sendKanbanQuickComment(btn.dataset.dealFull, input);
     }
+    return;
+  }
+  // Клик в зоне быстрого комментария — не открываем карточку
+  if (e.target.closest('.kanban-card-cadd')) {
+    e.stopPropagation();
     return;
   }
   // Иначе — обычный клик по карточке
   const card = e.target.closest('.kanban-card');
   if (card && !e.defaultPrevented) {
     openDealCard(card.dataset.dealId);
+  }
+}
+
+// Отправка быстрого комментария с канбан-карточки. dealFullId = 'deal_X'.
+async function sendKanbanQuickComment(dealFullId, inputEl) {
+  if (!dealFullId || !inputEl) return;
+  const text = (inputEl.value || '').trim();
+  if (!text) { inputEl.focus(); return; }
+  if (inputEl.dataset.sending === '1') return;
+  inputEl.dataset.sending = '1';
+  inputEl.disabled = true;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealFullId)}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ text }),
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error(j.error || `HTTP ${r.status}`);
+    }
+    // Локально добавляем в кеш превью (в начало — он самый свежий), режем до 3
+    if (!dealsState.commentsByDeal) dealsState.commentsByDeal = {};
+    const me = window.currentUser || {};
+    const myUser = getUserById(me.canonicalUid) || getUserById(me.firebaseUid);
+    const authorName = myUser ? `${myUser.lastName || ''} ${myUser.name || ''}`.trim() : '';
+    const arr = dealsState.commentsByDeal[dealFullId] || [];
+    arr.unshift({ text, authorName, authorUid: me.canonicalUid || me.firebaseUid || null, ts: new Date().toISOString() });
+    dealsState.commentsByDeal[dealFullId] = arr.slice(0, 3);
+    inputEl.value = '';
+    showToast?.('Комментарий добавлен');
+    if (document.getElementById('kanban-wrap')) renderDealsContent();
+  } catch (e) {
+    alert('Ошибка: ' + e.message);
+    inputEl.disabled = false;
+    inputEl.dataset.sending = '0';
+    inputEl.focus();
   }
 }
 
