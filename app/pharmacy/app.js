@@ -1063,6 +1063,9 @@ $('#themeBtn').onclick=()=>{const t=state.theme==='light'?'dark':'light';applyTh
 // Реестр документов проекта. Файлы лежат в app/pharmacy/docs/.
 // Сюда же подшиваем все будущие документы (протоколы, КП, ТЗ, инструкции).
 const DOCS = [
+  { id:'zadachi-2026-06-02', title:'Задачи проекта', date:'02.06.2026',
+    desc:'Список задач по итогам встречи (скелет + интеграции)', file:'docs/zadachi-2026-06-02.pdf',
+    type:'PDF', size:'0,3 МБ' },
   { id:'protocol-2026-06-02', title:'Протокол встречи', date:'02.06.2026',
     desc:'Обзор и утверждение скелета CRM', file:'docs/protocol-2026-06-02.pdf',
     type:'PDF', size:'0,5 МБ' },
