@@ -2382,7 +2382,9 @@ async function handleCfSchemaUpsert(request, env, entity, fieldName) {
 
   const label = (body.label || fn).trim();
   const dataType = (body.dataType || 'string').toLowerCase();
-  const validTypes = ['string', 'text', 'integer', 'double', 'date', 'datetime', 'enumeration', 'boolean'];
+  // 'user' — выбор сотрудника (значение = uid), 'checklist' — to-do список
+  // (значение = JSON {itemId:bool}, список пунктов хранится в колонке list).
+  const validTypes = ['string', 'text', 'integer', 'double', 'date', 'datetime', 'enumeration', 'boolean', 'user', 'checklist'];
   if (!validTypes.includes(dataType)) return json({ error: `dataType must be one of: ${validTypes.join(',')}` }, 400, request);
 
   const multiple = body.multiple ? 1 : 0;
@@ -4180,11 +4182,26 @@ async function handleFeedList(request, env) {
   if (posts.length) {
     const ids = posts.map(p => p.id);
     const ph = ids.map(() => '?').join(',');
-    const { results: likes } = await env.DB.prepare(
-      `SELECT post_id FROM feed_reactions WHERE uid = ? AND post_id IN (${ph})`
-    ).bind(myUid, ...ids).all();
-    const liked = new Set((likes || []).map(l => l.post_id));
-    for (const p of posts) p.likedByMe = liked.has(p.id);
+    const { results: rx } = await env.DB.prepare(
+      `SELECT post_id, uid, kind FROM feed_reactions WHERE post_id IN (${ph})`
+    ).bind(...ids).all();
+    // Агрегируем счётчики реакций и собственную реакцию по каждому посту.
+    const byPost = {};
+    for (const r of (rx || [])) {
+      const k = normReactionKind(r.kind) || '👍';
+      let agg = byPost[r.post_id];
+      if (!agg) agg = byPost[r.post_id] = { counts: {}, mine: null, total: 0 };
+      agg.counts[k] = (agg.counts[k] || 0) + 1;
+      agg.total += 1;
+      if (r.uid === myUid) agg.mine = k;
+    }
+    for (const p of posts) {
+      const agg = byPost[p.id];
+      p.reactions = agg ? agg.counts : {};
+      p.myReaction = agg ? agg.mine : null;
+      p.likedByMe = !!(agg && agg.mine);
+      p.likeCount = agg ? agg.total : 0;
+    }
   }
   return json({ posts, total: posts.length }, 200, request);
 }
@@ -4333,6 +4350,68 @@ async function handleFeedLikeToggle(request, env, postId) {
   }
   const row = await env.DB.prepare("SELECT like_count FROM feed_posts WHERE id = ?").bind(postId).first();
   return json({ ok: true, liked, likeCount: row?.like_count || 0 }, 200, request);
+}
+
+// Набор реакций (как в Facebook): одна на пользователя на пост.
+const FEED_REACTION_KINDS = ['👍', '❤️', '😂', '🎉', '😮', '😢'];
+// Привести значение kind к канону: legacy 'like'→👍, валидный эмодзи как есть, иначе null.
+function normReactionKind(k) {
+  if (k === 'like' || k == null || k === '') return '👍';
+  return FEED_REACTION_KINDS.includes(k) ? k : null;
+}
+
+// POST /api/feed/posts/:id/react { kind }  — поставить/сменить/снять реакцию (1 на юзера).
+async function handleFeedReact(request, env, postId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const vis = await feedLoadVisiblePost(env, me, postId);
+  if (vis.error) return json({ error: vis.error }, vis.status, request);
+
+  let body;
+  try { body = await request.json(); } catch { body = {}; }
+  const kind = normReactionKind(body.kind);
+  if (!kind) return json({ error: `kind must be one of: ${FEED_REACTION_KINDS.join(',')}` }, 400, request);
+
+  const existing = await env.DB.prepare("SELECT kind FROM feed_reactions WHERE post_id = ? AND uid = ?").bind(postId, vis.myUid).first();
+  const prevKind = existing ? normReactionKind(existing.kind) : null;
+  let myReaction;
+  if (existing && prevKind === kind) {
+    // тот же эмодзи — снимаем реакцию
+    await env.DB.prepare("DELETE FROM feed_reactions WHERE post_id = ? AND uid = ?").bind(postId, vis.myUid).run();
+    await env.DB.prepare("UPDATE feed_posts SET like_count = MAX(0, like_count - 1) WHERE id = ?").bind(postId).run();
+    myReaction = null;
+  } else if (existing) {
+    // другая реакция — меняем эмодзи (счётчик не трогаем)
+    await env.DB.prepare("UPDATE feed_reactions SET kind = ?, created_at = ? WHERE post_id = ? AND uid = ?").bind(kind, Date.now(), postId, vis.myUid).run();
+    myReaction = kind;
+  } else {
+    // новой реакции не было — добавляем
+    await env.DB.prepare("INSERT INTO feed_reactions (post_id, uid, kind, created_at) VALUES (?, ?, ?, ?)").bind(postId, vis.myUid, kind, Date.now()).run();
+    await env.DB.prepare("UPDATE feed_posts SET like_count = like_count + 1 WHERE id = ?").bind(postId).run();
+    myReaction = kind;
+    // Уведомить автора поста (только при первой постановке реакции).
+    try {
+      if (vis.row.author_uid && vis.row.author_uid !== vis.myUid) {
+        await createNotification(env, {
+          uid: vis.row.author_uid, type: 'feed_like', actorUid: vis.myUid,
+          title: notifActorName(me) + ' отреагировал на ваш пост ' + kind,
+          link: '/team.html?page=feed', icon: kind,
+          entityType: 'feed_post', entityId: postId,
+        });
+      }
+    } catch (e) { console.warn('[notif] feed react failed:', e && e.message); }
+  }
+
+  // Агрегируем реакции по посту для ответа.
+  const { results: rx } = await env.DB.prepare("SELECT kind FROM feed_reactions WHERE post_id = ?").bind(postId).all();
+  const reactions = {};
+  for (const r of (rx || [])) {
+    const k = normReactionKind(r.kind) || '👍';
+    reactions[k] = (reactions[k] || 0) + 1;
+  }
+  const total = (rx || []).length;
+  return json({ ok: true, myReaction, reactions, total, likeCount: total }, 200, request);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -5801,6 +5880,10 @@ export default {
     const feedLikeMatch = path.match(/^\/api\/feed\/posts\/([^/]+)\/like$/);
     if (feedLikeMatch && request.method === "POST") {
       return handleFeedLikeToggle(request, env, feedLikeMatch[1]);
+    }
+    const feedReactMatch = path.match(/^\/api\/feed\/posts\/([^/]+)\/react$/);
+    if (feedReactMatch && request.method === "POST") {
+      return handleFeedReact(request, env, feedReactMatch[1]);
     }
     const feedPostMatch = path.match(/^\/api\/feed\/posts\/([^/]+)$/);
     if (feedPostMatch && request.method === "PATCH") {
