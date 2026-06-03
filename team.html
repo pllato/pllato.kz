@@ -18399,14 +18399,29 @@ async function openOrgNodePermissionsModal(path) {
   };
   attachPipeCheckboxHandlers();
 
-  document.getElementById('np-save').onclick = () => {
+  document.getElementById('np-save').onclick = async () => {
     // Записываем в структуру
     const targetNode = orgGetByPath(path);
     if (!targetNode) { ov.remove(); return; }
     targetNode.permissions = draft;
     orgMarkDirty();
+    // Сразу применяем на сервере. Раньше тут был только orgMarkDirty(), и юзеру
+    // нужно было ещё нажать «💾 Сохранить» вверху страницы Структуры — это легко
+    // пропустить, и тогда права НЕ доезжали до сервера (диагностика показывала
+    // «Только свои / 0 воронок», хотя в окне всё выставлено верно). Теперь —
+    // один клик: пишем в структуру и сразу PUT'им на сервер.
+    const saveBtn = document.getElementById('np-save');
+    const origLabel = saveBtn ? saveBtn.textContent : '💾 Сохранить';
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Сохраняю...'; }
+    await saveOrgStructure(); // ловит свои ошибки сам (alert + dirty остаётся true)
+    if (orgChartState.dirty) {
+      // Не сохранилось — alert уже показан внутри saveOrgStructure. Окно не
+      // закрываем, чтобы юзер мог повторить попытку.
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = origLabel; }
+      return;
+    }
     ov.remove();
-    showToast('Права настроены — не забудь нажать «💾 Сохранить» вверху чтобы применить');
+    showToast('✓ Права сохранены и применены');
   };
 }
 
