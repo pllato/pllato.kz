@@ -1540,6 +1540,134 @@ tr:hover td { background: var(--bg3); }
   font-weight: 600;
   flex-shrink: 0;
 }
+/* Чек-листы (To-do) — прогресс-бары на канбан-карточке */
+.kanban-card-checklists {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.kcl-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--t2);
+}
+.kcl-label {
+  flex-shrink: 0;
+  max-width: 38%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.kcl-bar {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  border-radius: 4px;
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  overflow: hidden;
+}
+.kcl-fill {
+  height: 100%;
+  background: var(--ac2);
+  border-radius: 4px;
+  transition: width .25s;
+}
+.kcl-fill.kcl-full { background: var(--gn); }
+.kcl-num {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--t3);
+  font-weight: 600;
+}
+/* Чек-лист внутри карточки сделки (редактируемая ячейка) */
+.cf-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cf-chk-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--t1);
+  cursor: pointer;
+  line-height: 1.3;
+}
+.cf-chk-item input[type="checkbox"] { cursor: pointer; }
+.cf-chk-prog {
+  font-size: 11px;
+  color: var(--t3);
+  font-weight: 600;
+  margin-top: 2px;
+}
+.cf-chk-readonly { color: var(--t2); font-weight: 600; }
+
+/* Реакции в Ленте — триггер, палитра, чипы */
+.feed-rx-trigger {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 1px solid var(--b1);
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--t2);
+  padding: 4px 11px;
+  font-family: inherit;
+  transition: all .12s;
+}
+.feed-rx-trigger:hover { background: var(--bg1); }
+.feed-rx-trigger.mine { border-color: var(--ac2); color: var(--ac2); background: rgba(124,92,252,.08); }
+.feed-rx-trigger-emoji { font-size: 15px; line-height: 1; }
+.feed-rx-palette {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  display: flex;
+  gap: 2px;
+  background: var(--bg1);
+  border: 1px solid var(--b1);
+  border-radius: 22px;
+  padding: 5px 8px;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.22);
+  z-index: 30;
+}
+.feed-rx-opt {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 50%;
+  transition: transform .1s;
+}
+.feed-rx-opt:hover { transform: scale(1.35); }
+.feed-rx-opt.mine { background: rgba(124,92,252,.16); }
+.feed-rx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg1);
+  border: 1px solid var(--b1);
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--t2);
+  padding: 2px 9px;
+  font-family: inherit;
+  transition: all .12s;
+}
+.feed-rx-chip:hover { background: var(--bg2); }
+.feed-rx-chip.mine { border-color: var(--ac2); background: rgba(124,92,252,.12); color: var(--t1); }
+.feed-rx-chip span { font-variant-numeric: tabular-nums; font-weight: 600; }
 .kanban-card-actions {
   display: flex;
   gap: 4px;
@@ -3970,6 +4098,9 @@ const feedState = {
   commentsByPost: {},        // postId -> [comments]
 };
 
+// Набор реакций для постов Ленты (Facebook-style: одна на пользователя).
+const FEED_EMOJIS = ['👍', '❤️', '😂', '🎉', '😮', '😢'];
+
 function feedMyUid() {
   return window.currentUser?.canonicalUid || window.currentUser?.firebaseUid || '';
 }
@@ -4177,7 +4308,10 @@ async function loadFeedPosts(opts = {}) {
     const d = await r.json();
     const posts = d.posts || [];
     // Сигнатура для silent-режима: чтобы не перерисовывать когда нет изменений
-    const sig = posts.map(p => `${p.id}:${p.commentCount}:${p.likeCount}:${p.likedByMe ? 1 : 0}:${p.pinned ? 1 : 0}:${p.text || ''}`).join('|');
+    const sig = posts.map(p => {
+      const rx = FEED_EMOJIS.map(e => (p.reactions?.[e] || 0)).join(',');
+      return `${p.id}:${p.commentCount}:${p.likeCount}:${p.myReaction || ''}:${rx}:${p.pinned ? 1 : 0}:${p.text || ''}`;
+    }).join('|');
     if (opts.silent && sig === feedState.sig) return;
     feedState.sig = sig;
     feedState.posts = posts;
@@ -4201,6 +4335,15 @@ function renderFeedPostsList() {
     const sec = document.getElementById(`feed-comments-${pid}`);
     if (sec) { sec.style.display = ''; feedRenderComments(pid); }
   }
+}
+
+// Чипы со счётчиками реакций (только эмодзи с count>0). Клик по чипу = поставить/снять.
+function feedReactionChipsHtml(p) {
+  const rx = p.reactions || {};
+  const chips = FEED_EMOJIS.filter(e => (rx[e] || 0) > 0).map(e =>
+    `<button class="feed-rx-chip${p.myReaction === e ? ' mine' : ''}" data-react="${escapeHtml(p.id)}" data-kind="${e}" title="${rx[e]} ${e}">${e} <span>${rx[e]}</span></button>`
+  ).join('');
+  return chips;
 }
 
 function feedPostHtml(p) {
@@ -4228,11 +4371,18 @@ function feedPostHtml(p) {
     </div>
     ${p.text ? `<div style="font-size:14px;line-height:1.5;color:var(--t1);margin:10px 0 0 48px;word-wrap:break-word">${feedFmtText(p.text)}</div>` : ''}
     ${attHtml ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0 48px">${attHtml}</div>` : ''}
-    <div style="display:flex;align-items:center;gap:16px;margin:12px 0 0 48px">
-      <button class="feed-like-btn" data-like="${escapeHtml(p.id)}" style="background:none;border:none;cursor:pointer;font-size:13px;color:${p.likedByMe ? '#dc2626' : 'var(--t2)'};display:flex;align-items:center;gap:5px;padding:0">
-        ${p.likedByMe ? '❤️' : '🤍'} <span>${p.likeCount || 0}</span>
-      </button>
-      <button class="feed-comment-toggle" data-comments="${escapeHtml(p.id)}" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--t2);display:flex;align-items:center;gap:5px;padding:0">
+    <div style="display:flex;align-items:center;gap:10px;margin:12px 0 0 48px;flex-wrap:wrap">
+      <div class="feed-rx-wrap" style="position:relative">
+        <button class="feed-rx-trigger${p.myReaction ? ' mine' : ''}" data-rx-trigger="${escapeHtml(p.id)}" title="Поставить реакцию">
+          <span class="feed-rx-trigger-emoji">${p.myReaction ? p.myReaction : '🙂'}</span>
+          <span>${p.myReaction ? 'Вы' : 'Реакция'}</span>
+        </button>
+        <div class="feed-rx-palette" id="feed-rx-pal-${escapeHtml(p.id)}" style="display:none">
+          ${FEED_EMOJIS.map(e => `<button class="feed-rx-opt${p.myReaction === e ? ' mine' : ''}" data-react="${escapeHtml(p.id)}" data-kind="${e}" title="${e}">${e}</button>`).join('')}
+        </div>
+      </div>
+      ${feedReactionChipsHtml(p)}
+      <button class="feed-comment-toggle" data-comments="${escapeHtml(p.id)}" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--t2);display:flex;align-items:center;gap:5px;padding:0;margin-left:auto">
         💬 <span>${p.commentCount || 0}</span>
       </button>
     </div>
@@ -4251,7 +4401,20 @@ function feedPostHtml(p) {
 function feedBindPostEvents() {
   const box = document.getElementById('feed-posts');
   if (!box) return;
-  box.querySelectorAll('[data-like]').forEach(b => b.onclick = () => toggleFeedLike(b.dataset.like));
+  // Реакции: триггер открывает палитру, клик по эмодзи/чипу ставит/снимает реакцию.
+  box.querySelectorAll('[data-rx-trigger]').forEach(b => b.onclick = (e) => {
+    e.stopPropagation();
+    const pal = document.getElementById(`feed-rx-pal-${b.dataset.rxTrigger}`);
+    if (!pal) return;
+    const open = pal.style.display !== 'none';
+    document.querySelectorAll('.feed-rx-palette').forEach(p => p.style.display = 'none');
+    pal.style.display = open ? 'none' : 'flex';
+  });
+  box.querySelectorAll('[data-react]').forEach(b => b.onclick = (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.feed-rx-palette').forEach(p => p.style.display = 'none');
+    reactFeedPost(b.dataset.react, b.dataset.kind);
+  });
   box.querySelectorAll('[data-comments]').forEach(b => b.onclick = () => toggleFeedComments(b.dataset.comments));
   box.querySelectorAll('[data-comment-send]').forEach(b => b.onclick = () => submitFeedComment(b.dataset.commentSend));
   box.querySelectorAll('[data-comment-input]').forEach(ta => {
@@ -4268,24 +4431,51 @@ function feedBindPostEvents() {
   box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => deleteFeedPost(b.dataset.del));
   box.querySelectorAll('[data-pin]').forEach(b => b.onclick = () => toggleFeedPin(b.dataset.pin));
 }
-// Закрыть меню по клику вне
-document.addEventListener('click', () => document.querySelectorAll('.feed-menu').forEach(m => m.style.display = 'none'));
+// Закрыть меню и палитру реакций по клику вне
+document.addEventListener('click', () => {
+  document.querySelectorAll('.feed-menu').forEach(m => m.style.display = 'none');
+  document.querySelectorAll('.feed-rx-palette').forEach(p => p.style.display = 'none');
+});
 
-async function toggleFeedLike(postId) {
+// Поставить/сменить/снять реакцию (одна на пользователя, как в Facebook).
+async function reactFeedPost(postId, kind) {
   const post = feedState.posts.find(p => p.id === postId);
-  // Оптимистично
   if (post) {
-    post.likedByMe = !post.likedByMe;
-    post.likeCount = Math.max(0, (post.likeCount || 0) + (post.likedByMe ? 1 : -1));
+    // Оптимистичное обновление: пересчёт счётчиков для FB-модели одной реакции.
+    post.reactions = { ...(post.reactions || {}) };
+    const prev = post.myReaction || null;
+    if (prev === kind) {
+      // тот же эмодзи — снимаем
+      post.reactions[kind] = Math.max(0, (post.reactions[kind] || 1) - 1);
+      if (!post.reactions[kind]) delete post.reactions[kind];
+      post.myReaction = null;
+    } else {
+      if (prev) {
+        post.reactions[prev] = Math.max(0, (post.reactions[prev] || 1) - 1);
+        if (!post.reactions[prev]) delete post.reactions[prev];
+      }
+      post.reactions[kind] = (post.reactions[kind] || 0) + 1;
+      post.myReaction = kind;
+    }
+    post.likeCount = Object.values(post.reactions).reduce((s, n) => s + n, 0);
     renderFeedPostsList();
   }
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const r = await fetch(`${WORKER_BASE_URL}/api/feed/posts/${encodeURIComponent(postId)}/like`, {
-      method: 'POST', headers: { 'Authorization': `Bearer ${idToken}` },
+    const r = await fetch(`${WORKER_BASE_URL}/api/feed/posts/${encodeURIComponent(postId)}/react`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ kind }),
     });
     const d = await r.json();
-    if (r.ok && post) { post.likedByMe = d.liked; post.likeCount = d.likeCount; feedState.sig = ''; }
+    if (r.ok && post) {
+      post.reactions = d.reactions || {};
+      post.myReaction = d.myReaction || null;
+      post.likeCount = d.total || 0;
+      post.likedByMe = !!d.myReaction;
+      feedState.sig = '';
+      renderFeedPostsList();
+    }
   } catch {}
 }
 
@@ -7752,7 +7942,7 @@ function renderDealsPagedTable() {
         <th style="width:42%">Название</th>
         <th style="width:18%">Стадия</th>
         <th style="width:14%">Сумма</th>
-        <th style="width:18%">Ответственный</th>
+        <th style="width:18%">Ответственный менеджер</th>
         <th style="width:8%">Создано</th>
       </tr></thead>
       <tbody>`;
@@ -8006,7 +8196,7 @@ function renderDealsList(c, arr) {
           <th style="width:42%">Название</th>
           <th style="width:18%">Стадия</th>
           <th style="width:14%">Сумма</th>
-          <th style="width:18%">Ответственный</th>
+          <th style="width:18%">Ответственный менеджер</th>
           <th style="width:8%">Создано</th>
         </tr>
       </thead>
@@ -10100,20 +10290,42 @@ function buildDealCard(d, stageColor) {
   // Custom-fields micro-pills (первые 2 непустых) — стиль Aminamed kanbanFields
   const cfs = d.customFields || {};
   const cfSchema = dealsState.customSchema || {};
+  // Поля, скрытые для активной воронки (⚙ Поля) — не показываем их прогресс на карточке.
+  const kanbanHidden = new Set((window.__fieldConfig?.[dealsState.activePipelineId]?.hidden) || []);
   const cfPills = [];
   for (const [k, v] of Object.entries(cfs)) {
     if (cfPills.length >= 2) break;
-    if (v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) continue;
     const meta = cfSchema[k];
+    if (meta && meta.type === 'checklist') continue; // у чек-листа свой прогресс-блок ниже
+    if (v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) continue;
     let label = '';
     if (meta && meta.type === 'enumeration' && asArray(meta.list).length > 0) {
       const opt = asArray(meta.list).find(o => String(o.ID) === String(v) || String(o.VALUE) === String(v));
       label = opt ? opt.VALUE : String(v);
+    } else if (meta && meta.type === 'user') {
+      label = cfResolveUserLabel(String(v));
     } else {
       label = Array.isArray(v) ? v.join(', ') : String(v);
     }
     if (label) cfPills.push(`<span class="kanban-cf-pill" title="${escapeHtml(meta?.label || k)}">${escapeHtml(label.slice(0, 30))}</span>`);
   }
+
+  // Чек-листы (To-do) — прогресс-бар по каждому видимому checklist-полю воронки.
+  const clRows = [];
+  for (const [k, meta] of Object.entries(cfSchema)) {
+    if (!meta || meta.type !== 'checklist') continue;
+    if (kanbanHidden.has(k)) continue;
+    const { done, total } = checklistProgress(cfs[k], meta);
+    if (total === 0) continue;
+    const pct = Math.round((done / total) * 100);
+    const full = done === total;
+    clRows.push(`<div class="kcl-row" title="${escapeHtml(formatFieldLabel(meta.label, k))}: ${done}/${total}">
+      <span class="kcl-label">${escapeHtml(formatFieldLabel(meta.label, k))}</span>
+      <div class="kcl-bar"><div class="kcl-fill${full ? ' kcl-full' : ''}" style="width:${pct}%"></div></div>
+      <span class="kcl-num">${done}/${total}</span>
+    </div>`);
+  }
+  const clHtml = clRows.length ? `<div class="kanban-card-checklists">${clRows.join('')}</div>` : '';
 
   // Превью последних 3 комментариев (bulk-загружено preloadDealsComments) —
   // чтобы менеджер ориентировался не открывая карточку.
@@ -10147,6 +10359,7 @@ function buildDealCard(d, stageColor) {
     ${opp > 0 ? `<div class="kanban-card-money">${opp.toLocaleString('ru')} ₸</div>` : ''}
     ${phone ? `<div class="kanban-card-phone">📱 ${escapeHtml(phone)}</div>` : ''}
     ${cfPills.length ? `<div class="kanban-card-cf">${cfPills.join('')}</div>` : ''}
+    ${clHtml}
     <div class="kanban-card-foot">
       <div class="kanban-card-resp" title="${escapeHtml(respName || 'Без ответственного')}">
         <span class="kanban-av">${escapeHtml(respShort)}</span>
@@ -10676,7 +10889,7 @@ async function openDealCard(bitrixId) {
               type: 'number',
               placeholder: '—',
             })}%</div>
-            <div class="fl">Ответственный</div>
+            <div class="fl">Ответственный менеджер</div>
             <div class="fv">${canEditDeal
               ? `<span id="dc-resp-display" class="dc-resp-editable" title="Кликни — сменить ответственного" style="cursor:pointer;border-bottom:1px dashed var(--b2);padding-bottom:1px">${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}</span> <span class="dc-resp-pencil" style="cursor:pointer;opacity:.6;font-size:12px" title="Сменить ответственного">✏️</span>`
               : `${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}`}</div>
@@ -11487,9 +11700,55 @@ function renderCustomFieldsBlock(cfData, opts = {}) {
   return html;
 }
 
+// Метка «очистить» для datalist-пикера сотрудника.
+const CF_USER_CLEAR = '— не назначен —';
+// Имя сотрудника по uid с фолбэком по обоим стораджам (usersState + dealsState).
+function cfResolveUserLabel(uid) {
+  if (!uid) return '';
+  const u = getUserById(uid);
+  if (!u) return String(uid);
+  return [u.lastName, u.name].filter(Boolean).join(' ').trim() || u.email || String(uid);
+}
+// Построить items + Map'ы для datalist-пикера сотрудника (как в openDealRespEditor).
+// При совпадении имён добавляем email/(uid), чтобы каждая опция была уникальной.
+function buildUserPickerItems() {
+  const users = orgSortedUsers();
+  const labelSeen = {};
+  const items = users.map(u => {
+    const em = usersState.users?.[u.uid]?.email || '';
+    let optLabel = u.label;
+    if (labelSeen[u.label]) optLabel = em ? `${u.label} · ${em}` : `${u.label} (${u.uid})`;
+    labelSeen[u.label] = true;
+    return { uid: u.uid, optLabel };
+  });
+  const labelToUid = new Map();
+  const uidToLabel = new Map();
+  items.forEach(it => { labelToUid.set(it.optLabel, it.uid); uidToLabel.set(it.uid, it.optLabel); });
+  labelToUid.set(CF_USER_CLEAR, '');
+  return { items, labelToUid, uidToLabel };
+}
+
+// Распарсить значение checklist-поля → объект {itemId: bool}. Хранится как JSON-строка,
+// но может прийти и уже объектом (из локального state).
+function parseChecklistValue(value) {
+  if (!value) return {};
+  if (typeof value === 'object') return value;
+  try { const o = JSON.parse(value); return (o && typeof o === 'object') ? o : {}; } catch { return {}; }
+}
+// Прогресс по checklist: {done, total} с учётом списка пунктов из схемы.
+function checklistProgress(value, meta) {
+  const list = asArray(meta?.list);
+  const total = list.length;
+  const state = parseChecklistValue(value);
+  let done = 0;
+  for (const it of list) { const id = it.ID != null ? it.ID : it.id; if (state[String(id)]) done++; }
+  return { done, total };
+}
+
 // Inline-editable ячейка кастомного поля. По типу:
 // string/text → input/textarea, integer/double → number, date → date,
-// datetime → datetime-local, enumeration → select, boolean → checkbox
+// datetime → datetime-local, enumeration → select, boolean → checkbox,
+// user → datalist-пикер сотрудника, checklist → to-do список с прогрессом
 function renderCfEditableCell(field, value, meta, dealId) {
   const type = meta.type || meta.dataType || 'string';
   const fid = `cf-${field}-${dealId}`.replace(/[^a-zA-Z0-9_\-]/g, '_');
@@ -11525,6 +11784,34 @@ function renderCfEditableCell(field, value, meta, dealId) {
   }
   if (type === 'text') {
     return `<textarea class="cf-edit cf-edit-textarea" id="${fid}" ${dataAttrs} rows="2">${escapeHtml(String(val))}</textarea>`;
+  }
+  if (type === 'user') {
+    // datalist-пикер сотрудника: значение = uid, в инпуте показываем имя.
+    const { items, uidToLabel } = buildUserPickerItems();
+    const curUid = val ? String(val) : '';
+    const curLabel = curUid ? (uidToLabel.get(curUid) || cfResolveUserLabel(curUid)) : '';
+    const listId = `cfu-${fid}`;
+    const opts = `<option value="${escapeHtml(CF_USER_CLEAR)}"></option>` +
+      items.map(it => `<option value="${escapeHtml(it.optLabel)}"></option>`).join('');
+    return `<input type="text" class="cf-edit cf-edit-user" id="${fid}" ${dataAttrs} data-uid="${escapeHtml(curUid)}" list="${listId}" autocomplete="off" placeholder="Поиск сотрудника…" value="${escapeHtml(curLabel)}"><datalist id="${listId}">${opts}</datalist>`;
+  }
+  if (type === 'checklist') {
+    const list = asArray(meta.list);
+    const state = parseChecklistValue(val);
+    const { done, total } = checklistProgress(val, meta);
+    if (!list.length) {
+      return `<span class="empty-cell">Список пуст — задайте пункты в настройках поля</span>`;
+    }
+    const rows = list.map(it => {
+      const id = it.ID != null ? it.ID : it.id;
+      const lbl = it.VALUE || it.value || it.label || '';
+      const checked = state[String(id)] ? 'checked' : '';
+      return `<label class="cf-chk-item"><input type="checkbox" data-chk-id="${escapeHtml(String(id))}" ${checked}> <span>${escapeHtml(String(lbl))}</span></label>`;
+    }).join('');
+    return `<div class="cf-checklist cf-edit" id="${fid}" ${dataAttrs}>
+      ${rows}
+      <div class="cf-chk-prog">${done}/${total} выполнено</div>
+    </div>`;
   }
   // default — string
   return `<input type="text" class="cf-edit" id="${fid}" ${dataAttrs} value="${escapeHtml(String(val))}">`;
@@ -11697,6 +11984,30 @@ function wireUpCustomFieldsEditing(modal, opts = {}) {
       if (type === 'boolean') value = el.checked ? '1' : '0';
       else if (type === 'integer') value = el.value ? parseInt(el.value, 10) : null;
       else if (type === 'double' || type === 'number' || type === 'money') value = el.value ? parseFloat(el.value) : null;
+      else if (type === 'user') {
+        // datalist-пикер: маппим введённую метку → uid. Нет точного совпадения → подсветка и выход.
+        const typed = (el.value || '').trim();
+        if (typed === '' || typed === CF_USER_CLEAR) { value = null; }
+        else {
+          const { labelToUid } = buildUserPickerItems();
+          if (!labelToUid.has(typed)) { el.style.borderColor = '#e11'; return; }
+          value = labelToUid.get(typed) || null;
+        }
+        el.dataset.uid = value || '';
+      }
+      else if (type === 'checklist') {
+        // Собираем состояние всех чекбоксов → {itemId: bool}.
+        const obj = {};
+        el.querySelectorAll('input[type="checkbox"][data-chk-id]').forEach(chk => {
+          obj[chk.dataset.chkId] = !!chk.checked;
+        });
+        value = JSON.stringify(obj);
+        // Обновляем индикатор прогресса прямо в ячейке.
+        const total = el.querySelectorAll('input[type="checkbox"][data-chk-id]').length;
+        const done = el.querySelectorAll('input[type="checkbox"][data-chk-id]:checked').length;
+        const prog = el.querySelector('.cf-chk-prog');
+        if (prog) prog.textContent = `${done}/${total} выполнено`;
+      }
       else value = el.value || null;
 
       try {
@@ -11725,7 +12036,14 @@ function wireUpCustomFieldsEditing(modal, opts = {}) {
         alert('Ошибка сохранения поля: ' + e.message);
       }
     };
-    if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'date' || el.type === 'datetime-local') {
+    if (el.classList.contains('cf-checklist')) {
+      // div-контейнер: ловим всплывающий change от любого чекбокса внутри.
+      el.addEventListener('change', save);
+    } else if (el.classList.contains('cf-edit-user')) {
+      el.addEventListener('change', save);
+      el.addEventListener('blur', save);
+      el.addEventListener('input', () => { el.style.borderColor = ''; });
+    } else if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'date' || el.type === 'datetime-local') {
       el.addEventListener('change', save);
     } else {
       el.addEventListener('blur', save);
@@ -11860,10 +12178,12 @@ function openAddCfModal(entity, onDone) {
             <option value="datetime">Дата и время</option>
             <option value="enumeration">Выбор из списка</option>
             <option value="boolean">Да/Нет</option>
+            <option value="user">👤 Выбор сотрудника</option>
+            <option value="checklist">☑️ Чек-лист (To-do)</option>
           </select>
         </div>
         <div id="cf-list-wrap" style="display:none">
-          <div class="qad-label">Варианты списка (по одному на строку)</div>
+          <div class="qad-label" id="cf-list-label">Варианты списка (по одному на строку)</div>
           <textarea id="cf-list" class="qad-input" rows="5" placeholder="Холодный\nТёплый\nГорячий"></textarea>
         </div>
         <div><div class="qad-label">Сортировка</div><input id="cf-sort" class="qad-input" type="number" value="100"></div>
@@ -11878,7 +12198,13 @@ function openAddCfModal(entity, onDone) {
   document.getElementById('cf-close').onclick = () => ov.remove();
   document.getElementById('cf-cancel').onclick = () => ov.remove();
   document.getElementById('cf-type').addEventListener('change', (e) => {
-    document.getElementById('cf-list-wrap').style.display = e.target.value === 'enumeration' ? '' : 'none';
+    const t = e.target.value;
+    const needsList = t === 'enumeration' || t === 'checklist';
+    document.getElementById('cf-list-wrap').style.display = needsList ? '' : 'none';
+    const lbl = document.getElementById('cf-list-label');
+    if (lbl) lbl.textContent = t === 'checklist'
+      ? 'Пункты чек-листа (по одному на строку)'
+      : 'Варианты списка (по одному на строку)';
   });
   document.getElementById('cf-label').addEventListener('input', (e) => {
     const keyEl = document.getElementById('cf-key');
@@ -11902,7 +12228,7 @@ function openAddCfModal(entity, onDone) {
     if (!label || !fieldName) { alert('Название и ключ обязательны'); return; }
     if (!/^[a-zA-Z0-9_]+$/.test(fieldName)) { alert('Ключ только латиница/цифры/_'); return; }
     let list = null;
-    if (dataType === 'enumeration' && listRaw) {
+    if ((dataType === 'enumeration' || dataType === 'checklist') && listRaw) {
       list = listRaw.split('\n').map(s => s.trim()).filter(Boolean).map((v, i) => ({ ID: String(i + 1), VALUE: v }));
     }
     const btn = document.getElementById('cf-save');
@@ -11939,7 +12265,13 @@ function formatFieldLabel(label, fallback) {
 }
 
 function formatCfValue(value, meta) {
+  if (meta?.type === 'checklist') {
+    const { done, total } = checklistProgress(value, meta);
+    if (!total) return '<span class="empty-cell">—</span>';
+    return `<span class="cf-chk-readonly">${done}/${total} выполнено</span>`;
+  }
   if (value === null || value === undefined || value === '') return '<span class="empty-cell">—</span>';
+  if (meta?.type === 'user') return escapeHtml(cfResolveUserLabel(String(value)));
   // И value, и meta.list могут быть pseudo-arrays {0:val,1:val} из Firebase RTDB
   // — нормализуем оба через asArray.
   const list = asArray(meta?.list);
