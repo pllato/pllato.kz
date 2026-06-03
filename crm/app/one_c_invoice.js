@@ -18,9 +18,12 @@ const ONE_C_KZT_REF = "9e9a6ffb-aa56-11e1-b9c4-002215ba1bbe";
 // Ставка НДС по умолчанию 5% (Асем: 99% товаров — 5%). Если у товара есть своя
 // ставка из 1С (_1c_vat_ref) — берём её, иначе этот дефолт.
 const ONE_C_VAT_5 = "34dffed7-e9fb-11f0-b296-005056815627";
-const ONE_C_ORG_FALLBACK = [
-  { ref: "8678efaa-9684-4325-a198-7f3c8a1bc2f3", name: "ТОО Аминамед (вариант 1)" },
-  { ref: "67861586-eba3-11f0-b296-005056815627", name: "ТОО Аминамед (вариант 2)" },
+// Юр.лица = базы 1С. Выбор базы роутит документ/контрагента/номенклатуру в неё
+// (сервер сам подставит организацию-отправителя этой базы).
+const ONE_C_BASES_UI = [
+  { key: "aminamed", label: "ТОО Аминамед" },
+  { key: "alisherova", label: "ИП Алишерова" },
+  { key: "baymukhanova", label: "ИП Баймуханова К.А." },
 ];
 
 const DOC_META = {
@@ -122,11 +125,11 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
   closeDialog();
 
   const { lines, unmatched, ambiguous } = buildLines(items || []);
-  const orgs = listOneCOrgs();
   const total = lines.reduce((s, l) => s + (l.sum || 0), 0);
   const activeCount = (items || []).filter((i) => (Number(i.qty) || 0) > 0).length;
 
-  const state = { contractorRef: contact?._1c_ref_key || null, busyContractor: false, contractorMsg: "" };
+  const state = { contractorRef: contact?._1c_ref_key || null, busyContractor: false, contractorMsg: "", base: "aminamed" };
+  const currentBase = () => overlay.querySelector("#onec-base")?.value || state.base || "aminamed";
 
   const overlay = document.createElement("div");
   overlay.id = "onec-doc-overlay";
@@ -140,7 +143,6 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
     const defaultDelivery = defaultDeliveryAddress(contact);
     const blockers = [];
     if (lines.length === 0) blockers.push("Ни одна позиция заказа не сопоставлена с номенклатурой 1С.");
-    if (!hasContractor) blockers.push("Клиент не сопоставлен с 1С.");
 
     overlay.innerHTML = `
       <div style="background:var(--surface,#fff);color:var(--text,#111);border:1px solid var(--border,#ddd);border-radius:12px;max-width:680px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
@@ -151,18 +153,18 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
         <div style="padding:18px 20px">
           ${alreadyNum ? `<div style="background:#e8f5e9;border:1px solid #16a34a;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#15803d">✓ По этому заказу уже создан документ 1С № <strong>${esc(alreadyNum)}</strong>. Повторное создание вернёт его же (без дубля).</div>` : ""}
 
+          <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Юр.лицо-отправитель (база 1С)</label>
+          <select id="onec-base" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
+            ${ONE_C_BASES_UI.map((b) => `<option value="${esc(b.key)}"${state.base === b.key ? " selected" : ""}>${esc(b.label)}</option>`).join("")}
+          </select>
+
           <div style="font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Клиент (контрагент 1С)</div>
-          <div style="font-weight:600;margin-bottom:6px">${esc(contact?.name || deal.title || "—")}${hasContractor ? ` <span style="color:#16a34a">✓ в 1С</span>` : ` <span style="color:#dc2626">— не найден в 1С</span>`}</div>
-          ${!hasContractor ? `<div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div style="font-weight:600;margin-bottom:6px">${esc(contact?.name || deal.title || "—")}${hasContractor ? ` <span style="color:#16a34a">✓ есть в Аминамед</span>` : ""}</div>
+          <div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <button type="button" id="onec-find-contractor" class="btn-ghost" style="padding:6px 12px;font-size:13px" ${state.busyContractor ? "disabled" : ""}>🔍 Найти в 1С по БИН</button>
             <button type="button" id="onec-create-contractor" class="btn-ghost" style="padding:6px 12px;font-size:13px" ${state.busyContractor ? "disabled" : ""}>➕ Создать в 1С</button>
-            <span style="font-size:11.5px;color:var(--text-muted,#888)">${esc(state.contractorMsg || "найдём по БИН или заведём нового")}</span>
-          </div>` : `<div style="margin-bottom:14px"></div>`}
-
-          <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Юр.лицо-отправитель (организация 1С) <span style="color:#f59e0b">⚠ проверьте</span></label>
-          <select id="onec-org" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
-            ${orgs.map((o) => `<option value="${esc(o.ref)}">${esc(o.name)}</option>`).join("")}
-          </select>
+            <span style="font-size:11.5px;color:var(--text-muted,#888)">${esc(state.contractorMsg || "если клиента нет в выбранной базе — найдём по БИН или заведём; при создании счёта сервер тоже резолвит по БИН")}</span>
+          </div>
 
           <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Договор (1С)</label>
           <select id="onec-contract" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
@@ -214,18 +216,21 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
     // Поиск контрагента в 1С по БИН (решение встречи 01.06).
     overlay.querySelector("#onec-find-contractor")?.addEventListener("click", async () => {
       if (!contact?.id) { alert("У клиента нет id в CRM."); return; }
-      state.busyContractor = true; state.contractorMsg = "Ищем в 1С по БИН…"; render();
+      const base = currentBase();
+      state.base = base; state.busyContractor = true; state.contractorMsg = "Ищем в 1С по БИН…"; render();
       try {
-        const res = await apiFetch("/api/crm/1c/contractors/find", { method: "POST", body: { contactId: contact.id } });
+        const res = await apiFetch("/api/crm/1c/contractors/find", { method: "POST", body: { contactId: contact.id, base } });
         if (res?.found) {
-          state.contractorRef = res.ref_key;
-          try { Store.update("contacts", contact.id, { _1c_ref_key: res.ref_key }); } catch {}
-          state.busyContractor = false; state.contractorMsg = "";
+          if (base === "aminamed") {
+            state.contractorRef = res.ref_key;
+            try { Store.update("contacts", contact.id, { _1c_ref_key: res.ref_key }); } catch {}
+          }
+          state.busyContractor = false; state.contractorMsg = "✓ найден в выбранной базе";
         } else {
           state.busyContractor = false;
           state.contractorMsg = res?.reason === "no_bin"
             ? "У клиента нет БИН в карточке — заполните или создайте нового"
-            : "По БИН не найден — создайте нового";
+            : "По БИН не найден в этой базе — создайте нового";
         }
         render();
       } catch (err) {
@@ -237,12 +242,15 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
     // Создание контрагента в 1С прямо отсюда
     overlay.querySelector("#onec-create-contractor")?.addEventListener("click", async () => {
       if (!contact?.id) { alert("У клиента нет id в CRM."); return; }
-      state.busyContractor = true; state.contractorMsg = "Создаём в 1С…"; render();
+      const base = currentBase();
+      state.base = base; state.busyContractor = true; state.contractorMsg = "Создаём в 1С…"; render();
       try {
-        const res = await apiFetch("/api/crm/1c/contractors/create", { method: "POST", body: { contactId: contact.id } });
-        state.contractorRef = res?.ref_key || null;
-        try { Store.update("contacts", contact.id, { _1c_ref_key: res?.ref_key || null }); } catch {}
-        state.busyContractor = false; state.contractorMsg = "";
+        const res = await apiFetch("/api/crm/1c/contractors/create", { method: "POST", body: { contactId: contact.id, base } });
+        if (base === "aminamed") {
+          state.contractorRef = res?.ref_key || null;
+          try { Store.update("contacts", contact.id, { _1c_ref_key: res?.ref_key || null }); } catch {}
+        }
+        state.busyContractor = false; state.contractorMsg = res?.already_exists ? "✓ уже есть в базе (привязан)" : "✓ создан в выбранной базе";
         render();
       } catch (err) {
         state.busyContractor = false; state.contractorMsg = "";
@@ -253,7 +261,7 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
 
     const createBtn = overlay.querySelector("#onec-create");
     createBtn?.addEventListener("click", async () => {
-      const organizationRef = overlay.querySelector("#onec-org").value;
+      const base = currentBase();
       const contractRef = overlay.querySelector("#onec-contract")?.value || null;
       const deliveryAddress = (overlay.querySelector("#onec-delivery")?.value || "").trim() || null;
       createBtn.disabled = true;
@@ -261,9 +269,10 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
       try {
         const payload = {
           externalId: deal.id,
-          organizationRef,
+          base,
+          contactId: contact?.id || null,
           currencyRef: ONE_C_KZT_REF,
-          contractorRef: state.contractorRef,
+          contractorRef: base === "aminamed" ? state.contractorRef : null,
           contractRef,
           deliveryAddress,
           comment: "Создано из Pllato CRM (черновик). Проверить номенклатуру/серии — Асем.",

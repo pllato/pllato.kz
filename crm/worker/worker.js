@@ -4568,6 +4568,36 @@ function resolve1cTenantId(_actor) {
   return ONE_C_DEFAULT_TENANT;
 }
 
+// ─── Мультибаза: 3 юр.лица Аминамед = 3 отдельные базы 1С:Фреш ──────────
+// Креды общие (берутся из one_c_settings: host/username/password), варьируется
+// только base_path. Организация-отправитель (Организация_Key) у каждой своя.
+const ONE_C_BASES = {
+  aminamed: {
+    label: "ТОО Аминамед",
+    basePath: "/a/ea186/263825",
+    orgRef: "8678efaa-9684-4325-a198-7f3c8a1bc2f3",
+    bin: "060540006532",
+  },
+  alisherova: {
+    label: "ИП Алишерова",
+    basePath: "/a/ea189/264981",
+    orgRef: "d0455782-d295-11e5-bf5f-001a4d5d6b30",
+    bin: "470927401685",
+  },
+  baymukhanova: {
+    label: "ИП Баймуханова К.А.",
+    basePath: "/a/ea68/264980",
+    orgRef: "f9f0a501-a9ed-11ee-9866-f8b15698efb3",
+    bin: "730330400012",
+  },
+};
+const ONE_C_DEFAULT_BASE = "aminamed";
+
+function resolve1cBaseKey(value) {
+  const k = String(value || "").trim();
+  return ONE_C_BASES[k] ? k : ONE_C_DEFAULT_BASE;
+}
+
 function require1cAdmin(actor) {
   if (!canManageUsers(actor)) {
     throw new HttpError(403, "Только администратор может управлять интеграцией с 1С");
@@ -4838,7 +4868,7 @@ async function d1Upsert1cIdMap(env, tenantId, entityType, pllatoId, refKey, data
     .run();
 }
 
-async function build1cClient(env, tenantId) {
+async function build1cClient(env, tenantId, baseKey) {
   const settings = await d1Get1cSettings(env, tenantId);
   if (!settings) {
     throw new HttpError(404, "Настройки 1С для этого тенанта не заданы");
@@ -4847,13 +4877,20 @@ async function build1cClient(env, tenantId) {
     throw new HttpError(400, "Интеграция с 1С отключена для этого тенанта");
   }
   const password = await decryptPassword(env, settings.odata_password_encrypted);
+  // Мультибаза: при baseKey берём base_path выбранного юр.лица, креды общие.
+  let basePath = settings.base_path;
+  let resolvedBase = ONE_C_DEFAULT_BASE;
+  if (baseKey && ONE_C_BASES[baseKey]) {
+    basePath = ONE_C_BASES[baseKey].basePath;
+    resolvedBase = baseKey;
+  }
   const client = new ODataClient({
     host: settings.host,
-    basePath: settings.base_path,
+    basePath,
     username: settings.odata_username,
     password,
   });
-  return { client, settings };
+  return { client, settings, baseKey: resolvedBase };
 }
 
 function settingsToPublicView(row) {
@@ -5395,11 +5432,63 @@ function oneCLeadingToken(s) {
  * Идемпотентность: external_id вшивается в Комментарий + проверяется one_c_id_map
  * (entity_type='invoice', pllato_id=externalId) до создания — повтор не дублирует.
  */
+// ─── Хелперы живого резолва в выбранной базе (мультибаза) ────────────────
+
+// БИН/ИИН контакта CRM (из явного значения, поля или из note).
+async function getContactBin(env, contactId, binFromBody) {
+  const direct = String(binFromBody || "").trim();
+  if (direct) return direct;
+  if (!contactId) return "";
+  const db = requireStoreDb(env);
+  const row = await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? AND id=?`)
+    .bind(TEAM_ID, "contacts", String(contactId)).first();
+  if (!row) return "";
+  let c;
+  try { c = JSON.parse(row.data); } catch { return ""; }
+  return String(c._1c_bin || c.bin || extractIdFromNote(c.note, "БИН") || extractIdFromNote(c.note, "ИИН") || "").trim();
+}
+
+// ВАЖНО: стандартный OData-интерфейс 1С НЕ поддерживает $filter по строковым
+// функциям (substringof/startswith/like → 400) и нестабилен по eq. Поэтому любой
+// поиск делаем ВЫГРУЗКОЙ всей коллекции (top=10000, без $filter — это работает
+// надёжно, как в матчинге) и фильтрацией в памяти. Объёмы (сотни–тысячи) ОК.
+
+// Поиск контрагента в подключённой базе по БИН/ИИН (сверка по цифрам).
+async function oneCFindContractorByBin(client, bin) {
+  const target = String(bin).replace(/\D/g, "");
+  if (!target) return null;
+  const data = await client.get("Catalog_Контрагенты", { top: 10000 });
+  const rows = Array.isArray(data?.value) ? data.value : [];
+  for (const raw of rows) {
+    const c = contractorFromOData(raw);
+    if (!c || c.is_folder || c.deletion_mark) continue;
+    const digits = [c.bin, c.iin, c.rnn_legacy].map((x) => String(x || "").replace(/\D/g, ""));
+    if (digits.includes(target)) return c;
+  }
+  return null;
+}
+
+// Карта «ведущий артикул названия → {ref,unit,vat}» по всей номенклатуре базы
+// (первая запись на артикул — представительная). Общий ключ между базами — артикул.
+async function buildNomenTokenMap(client) {
+  const data = await client.get("Catalog_Номенклатура", { top: 10000 });
+  const rows = Array.isArray(data?.value) ? data.value : [];
+  const map = new Map();
+  for (const raw of rows) {
+    const p = productFromOData(raw);
+    if (!p || p.is_folder || p.deletion_mark) continue;
+    const tok = oneCLeadingToken(p.name);
+    if (tok && /\d/.test(tok) && !map.has(tok)) {
+      map.set(tok, { ref: p.ref_key, unit: p.unit_ref || null, vat: p.vat_rate_ref || null });
+    }
+  }
+  return map;
+}
+
 // Общий механизм создания «торгового» документа в 1С (счёт / реализация).
-// Шапка и табличная часть «Товары» у СчетНаОплатуПокупателю и
-// РеализацииТоваровУслуг совпадают по именам реквизитов — переиспользуем
-// invoiceToOData. Документ создаётся ЧЕРНОВИКОМ (бухгалтер проводит и заполняет
-// бухсчета/субконто в 1С). opts = { collection, entityType, idPrefix }.
+// МУЛЬТИБАЗА: body.base выбирает юр.лицо/базу. Контрагент резолвится по БИН, а
+// номенклатура — по артикулу ВЖИВУЮ в выбранной базе (внутр. коды у баз разные).
+// Документ создаётся ЧЕРНОВИКОМ. opts = { collection, entityType, idPrefix, paymentPurposeCode }.
 async function create1cSalesDocument(request, env, actor, opts) {
   const { collection, entityType, idPrefix, paymentPurposeCode } = opts;
   require1cAdmin(actor);
@@ -5409,14 +5498,19 @@ async function create1cSalesDocument(request, env, actor, opts) {
   if (!externalId) {
     throw new HttpError(400, "externalId (id сделки/заказа Pllato) обязателен для идемпотентности");
   }
+  const baseKey = resolve1cBaseKey(body?.base);
+  const baseLabel = ONE_C_BASES[baseKey].label;
+  // Ключ id_map с суффиксом базы (кроме aminamed — обратная совместимость).
+  const mapEntity = baseKey === ONE_C_DEFAULT_BASE ? entityType : `${entityType}@${baseKey}`;
   const doPost = oneCBool(body?.post) || oneCBool(body?.posted);
   const started = Date.now();
 
-  // 1) Идемпотентность — документ для этого externalId уже создан?
-  const existing = await d1Get1cRefByPllatoId(env, tenantId, entityType, externalId);
+  const { client } = await build1cClient(env, tenantId, baseKey);
+
+  // 1) Идемпотентность — документ для этого externalId в этой базе уже создан?
+  const existing = await d1Get1cRefByPllatoId(env, tenantId, mapEntity, externalId);
   if (existing?.one_c_ref_key) {
     try {
-      const { client } = await build1cClient(env, tenantId);
       let posted = null;
       if (doPost) {
         await client.patch(collection, existing.one_c_ref_key, { Posted: true });
@@ -5427,58 +5521,71 @@ async function create1cSalesDocument(request, env, actor, opts) {
       });
       const norm = invoiceFromOData(re);
       return {
-        ok: true,
-        already_exists: true,
-        ref_key: existing.one_c_ref_key,
-        number: norm?.number || null,
-        posted: posted ?? Boolean(norm?.posted),
-        total: norm?.total ?? null,
+        ok: true, already_exists: true, ref_key: existing.one_c_ref_key,
+        number: norm?.number || null, posted: posted ?? Boolean(norm?.posted),
+        total: norm?.total ?? null, base: baseKey,
       };
     } catch (e) {
-      return { ok: true, already_exists: true, ref_key: existing.one_c_ref_key };
+      return { ok: true, already_exists: true, ref_key: existing.one_c_ref_key, base: baseKey };
     }
   }
 
-  // 2) Контрагент: явный contractorRef либо contactId → one_c_id_map
-  let contractorRef = String(body?.contractorRef || "").trim() || null;
-  if (!contractorRef && body?.contactId) {
-    const m = await d1Get1cRefByPllatoId(env, tenantId, "contractor", String(body.contactId));
-    contractorRef = m?.one_c_ref_key || null;
+  // 2) Контрагент — в выбранной базе. Для aminamed сперва сохранённый маппинг,
+  // иначе/для остальных баз — живой поиск по БИН.
+  let contractorRef = null;
+  if (baseKey === ONE_C_DEFAULT_BASE) {
+    contractorRef = String(body?.contractorRef || "").trim() || null;
+    if (!contractorRef && body?.contactId) {
+      const m = await d1Get1cRefByPllatoId(env, tenantId, "contractor", String(body.contactId));
+      contractorRef = m?.one_c_ref_key || null;
+    }
   }
   if (!contractorRef) {
-    throw new HttpError(400, "Не удалось определить контрагента: нужен contractorRef (GUID 1С) или contactId с маппингом в 1С");
+    const bin = await getContactBin(env, body?.contactId, body?.bin);
+    if (bin) {
+      const hit = await oneCFindContractorByBin(client, bin);
+      contractorRef = hit?.ref_key || null;
+    }
+  }
+  if (!contractorRef) {
+    throw new HttpError(400, `Клиент не найден в базе «${baseLabel}» по БИН. Создайте контрагента в этой базе (кнопка в диалоге).`);
   }
 
-  // 3) Строки: каждую — с productRef (GUID) или productId (CRM → резолв)
+  // 3) Строки — номенклатура в выбранной базе.
   const rawLines = Array.isArray(body?.lines) ? body.lines : [];
-  if (rawLines.length === 0) {
-    throw new HttpError(400, "lines пуст — нужна хотя бы одна позиция");
-  }
+  if (rawLines.length === 0) throw new HttpError(400, "lines пуст — нужна хотя бы одна позиция");
   const lines = [];
+  const skipped = [];
+  let nomenMap = null; // строится один раз при первой необходимости (живой резолв)
   for (const ln of rawLines) {
-    let productRef = String(ln?.productRef || "").trim() || null;
-    if (!productRef && ln?.productId) {
-      const pm = await d1Get1cRefByPllatoId(env, tenantId, "product", String(ln.productId));
-      productRef = pm?.one_c_ref_key || null;
+    let productRef = null;
+    let unitRef = ln?.unitRef || null;
+    let vatRateRef = ln?.vatRateRef || null;
+    if (baseKey === ONE_C_DEFAULT_BASE && ln?.productRef) {
+      productRef = String(ln.productRef).trim();        // сохранённый матч (Аминамед)
+    } else {
+      if (!nomenMap) nomenMap = await buildNomenTokenMap(client); // живой резолв по артикулу
+      const tok = oneCLeadingToken(ln?.name);
+      const hit = tok ? nomenMap.get(tok) : null;
+      if (hit) { productRef = hit.ref; unitRef = unitRef || hit.unit; vatRateRef = vatRateRef || hit.vat; }
     }
-    if (!productRef) {
-      throw new HttpError(400, `Позиция без productRef (нет маппинга номенклатуры в 1С): ${ln?.name || ln?.productId || "?"}`);
-    }
+    if (!productRef) { skipped.push(ln?.name || ln?.productId || "?"); continue; }
     lines.push({
-      productRef,
-      unitRef: ln?.unitRef || null,
+      productRef, unitRef,
       qty: Number(ln?.qty) || 0,
       price: Number(ln?.price) || 0,
       sum: ln?.sum != null ? Number(ln.sum) : undefined,
-      vatRateRef: ln?.vatRateRef || null,
+      vatRateRef,
       vatSum: ln?.vatSum != null ? Number(ln.vatSum) : undefined,
     });
   }
+  if (lines.length === 0) {
+    throw new HttpError(400, `Ни одна позиция не сопоставлена с номенклатурой базы «${baseLabel}». Не найдено: ${skipped.slice(0, 8).join("; ")}`);
+  }
 
-  // 4) Обязательные реквизиты шапки
-  const organizationRef = String(body?.organizationRef || "").trim();
+  // 4) Шапка. Организация по умолчанию — из конфига выбранной базы.
+  const organizationRef = String(body?.organizationRef || "").trim() || ONE_C_BASES[baseKey].orgRef;
   const currencyRef = String(body?.currencyRef || "").trim();
-  if (!organizationRef) throw new HttpError(400, "organizationRef (наше юр.лицо в 1С, GUID) обязателен");
   if (!currencyRef) throw new HttpError(400, "currencyRef (валюта документа, GUID 1С) обязателен");
 
   try {
@@ -5502,20 +5609,20 @@ async function create1cSalesDocument(request, env, actor, opts) {
       lines,
     });
 
-    // Реализация: притянуть ранее созданный счёт как основание (ДокументОснование).
+    // Реализация: притянуть ранее созданный счёт (в той же базе) как основание.
     if (entityType === "realization") {
-      const invMap = await d1Get1cRefByPllatoId(env, tenantId, "invoice", externalId);
+      const invEntity = baseKey === ONE_C_DEFAULT_BASE ? "invoice" : `invoice@${baseKey}`;
+      const invMap = await d1Get1cRefByPllatoId(env, tenantId, invEntity, externalId);
       if (invMap?.one_c_ref_key) {
         payload.ДокументОснование = invMap.one_c_ref_key;
         payload.ДокументОснование_Type = "StandardODATA.Document_СчетНаОплатуПокупателю";
       }
     }
 
-    const { client } = await build1cClient(env, tenantId);
     const created = await client.post(collection, payload);
     const refKey = created?.Ref_Key;
     if (!refKey) throw new HttpError(502, "1С не вернула Ref_Key созданного документа");
-    await d1Upsert1cIdMap(env, tenantId, entityType, externalId, refKey, created?.DataVersion || null);
+    await d1Upsert1cIdMap(env, tenantId, mapEntity, externalId, refKey, created?.DataVersion || null);
 
     let posted = oneCBool(created?.Posted);
     if (doPost && !posted) {
@@ -5523,10 +5630,8 @@ async function create1cSalesDocument(request, env, actor, opts) {
         await client.patch(collection, refKey, { Posted: true });
         posted = true;
       } catch (pe) {
-        // Проведение не удалось — документ остаётся черновиком. Логируем отдельно,
-        // но не валим запрос: документ создан и привязан в one_c_id_map.
         await d1Insert1cSyncLog(env, {
-          tenantId, direction: "push", entityType, operation: "post", status: "error",
+          tenantId, direction: "push", entityType: mapEntity, operation: "post", status: "error",
           httpStatus: pe instanceof ODataError ? pe.httpStatus : null,
           errorMessage: pe?.message || String(pe), durationMs: Date.now() - started,
         });
@@ -5534,22 +5639,19 @@ async function create1cSalesDocument(request, env, actor, opts) {
     }
 
     await d1Insert1cSyncLog(env, {
-      tenantId, direction: "push", entityType, operation: "create", status: "ok",
+      tenantId, direction: "push", entityType: mapEntity, operation: "create", status: "ok",
       httpStatus: 200, recordsProcessed: lines.length, durationMs: Date.now() - started,
     });
     return {
-      ok: true,
-      ref_key: refKey,
-      number: (created?.Number || "").trim() || null,
-      posted,
-      lines: lines.length,
-      total: payload.СуммаДокумента,
+      ok: true, ref_key: refKey, number: (created?.Number || "").trim() || null,
+      posted, lines: lines.length, total: payload.СуммаДокумента, base: baseKey,
+      skipped: skipped.length,
     };
   } catch (e) {
     const httpStatus = e instanceof ODataError ? e.httpStatus : null;
     const message = e?.message || String(e);
     await d1Insert1cSyncLog(env, {
-      tenantId, direction: "push", entityType, operation: "create", status: "error",
+      tenantId, direction: "push", entityType: mapEntity, operation: "create", status: "error",
       httpStatus, errorMessage: message, durationMs: Date.now() - started,
     });
     if (e instanceof HttpError) throw e;
@@ -5781,11 +5883,13 @@ async function handle1cCreateContractor(request, env, actor) {
   const body = await readRequestBodyAsJson(request);
   const contactId = String(body?.contactId || "").trim();
   if (!contactId) throw new HttpError(400, "contactId обязателен");
+  const baseKey = resolve1cBaseKey(body?.base);
+  const mapEntity = baseKey === ONE_C_DEFAULT_BASE ? "contractor" : `contractor@${baseKey}`;
   const started = Date.now();
 
-  const existing = await d1Get1cRefByPllatoId(env, tenantId, "contractor", contactId);
+  const existing = await d1Get1cRefByPllatoId(env, tenantId, mapEntity, contactId);
   if (existing?.one_c_ref_key) {
-    return { ok: true, already_exists: true, ref_key: existing.one_c_ref_key };
+    return { ok: true, already_exists: true, ref_key: existing.one_c_ref_key, base: baseKey };
   }
 
   const db = requireStoreDb(env);
@@ -5803,21 +5907,34 @@ async function handle1cCreateContractor(request, env, actor) {
     comment: "Создан из Pllato CRM",
   };
   try {
-    const { client } = await build1cClient(env, tenantId);
-    const created = await client.post("Catalog_Контрагенты", contractorToOData(customer));
-    const refKey = created?.Ref_Key;
+    const { client } = await build1cClient(env, tenantId, baseKey);
+    // Если контрагент с таким БИН уже есть в этой базе — не плодим дубль, привязываем.
+    let refKey = null;
+    let foundExisting = false;
+    const binToFind = customer.bin || customer.iin;
+    if (binToFind) {
+      const found = await oneCFindContractorByBin(client, binToFind);
+      if (found?.ref_key) { refKey = found.ref_key; foundExisting = true; }
+    }
+    if (!refKey) {
+      const created = await client.post("Catalog_Контрагенты", contractorToOData(customer));
+      refKey = created?.Ref_Key;
+    }
     if (!refKey) throw new HttpError(502, "1С не вернула Ref_Key контрагента");
-    await d1Upsert1cIdMap(env, tenantId, "contractor", contactId, refKey, created?.DataVersion || null);
-    const now = Date.now();
-    const updated = { ...contact, _1c_ref_key: refKey, updatedAt: now };
-    await db.prepare(`UPDATE store SET data=?, updated_at=? WHERE team_id=? AND collection=? AND id=?`)
-      .bind(JSON.stringify(updated), now, TEAM_ID, "contacts", contactId).run();
-    await d1Insert1cSyncLog(env, { tenantId, direction: "push", entityType: "contractor", operation: "create", status: "ok", httpStatus: 200, recordsProcessed: 1, durationMs: Date.now() - started });
-    return { ok: true, ref_key: refKey, name: created?.Description || customer.name, code: (created?.Code || "").trim() || null };
+    await d1Upsert1cIdMap(env, tenantId, mapEntity, contactId, refKey, null);
+    // _1c_ref_key на контакте храним только для базы по умолчанию (Аминамед).
+    if (baseKey === ONE_C_DEFAULT_BASE) {
+      const now = Date.now();
+      const updated = { ...contact, _1c_ref_key: refKey, updatedAt: now };
+      await db.prepare(`UPDATE store SET data=?, updated_at=? WHERE team_id=? AND collection=? AND id=?`)
+        .bind(JSON.stringify(updated), now, TEAM_ID, "contacts", contactId).run();
+    }
+    await d1Insert1cSyncLog(env, { tenantId, direction: "push", entityType: mapEntity, operation: foundExisting ? "link" : "create", status: "ok", httpStatus: 200, recordsProcessed: 1, durationMs: Date.now() - started });
+    return { ok: true, ref_key: refKey, name: customer.name, base: baseKey, already_exists: foundExisting };
   } catch (e) {
     const httpStatus = e instanceof ODataError ? e.httpStatus : null;
     const message = e?.message || String(e);
-    await d1Insert1cSyncLog(env, { tenantId, direction: "push", entityType: "contractor", operation: "create", status: "error", httpStatus, errorMessage: message, durationMs: Date.now() - started });
+    await d1Insert1cSyncLog(env, { tenantId, direction: "push", entityType: mapEntity, operation: "create", status: "error", httpStatus, errorMessage: message, durationMs: Date.now() - started });
     if (e instanceof HttpError) throw e;
     throw new HttpError(httpStatus && httpStatus >= 400 && httpStatus < 600 ? httpStatus : 502, message);
   }
@@ -5830,6 +5947,8 @@ async function handle1cFindContractorByBin(request, env, actor) {
   const tenantId = resolve1cTenantId(actor);
   const body = await readRequestBodyAsJson(request);
   const contactId = String(body?.contactId || "").trim();
+  const baseKey = resolve1cBaseKey(body?.base);
+  const mapEntity = baseKey === ONE_C_DEFAULT_BASE ? "contractor" : `contractor@${baseKey}`;
   let bin = String(body?.bin || "").trim();
   const db = requireStoreDb(env);
   let contact = null;
@@ -5843,25 +5962,19 @@ async function handle1cFindContractorByBin(request, env, actor) {
   }
   if (!bin) return { ok: true, found: false, reason: "no_bin" };
   try {
-    const { client } = await build1cClient(env, tenantId);
-    const safe = bin.replace(/'/g, "''");
-    const data = await client.get("Catalog_Контрагенты", {
-      top: 5,
-      filter: `НомерНалоговойРегистрацииВСтранеРезидентства eq '${safe}' or ИдентификационныйКодЛичности eq '${safe}'`,
-    });
-    const rows = Array.isArray(data?.value) ? data.value : [];
-    const hit = rows.map(contractorFromOData).find((c) => c && !c.is_folder && !c.deletion_mark);
-    if (!hit) return { ok: true, found: false };
+    const { client } = await build1cClient(env, tenantId, baseKey);
+    const hit = await oneCFindContractorByBin(client, bin);
+    if (!hit) return { ok: true, found: false, base: baseKey };
     if (contactId) {
-      await d1Upsert1cIdMap(env, tenantId, "contractor", contactId, hit.ref_key, hit.data_version || null);
-      if (contact) {
+      await d1Upsert1cIdMap(env, tenantId, mapEntity, contactId, hit.ref_key, hit.data_version || null);
+      if (contact && baseKey === ONE_C_DEFAULT_BASE) {
         const now = Date.now();
         const updated = { ...contact, _1c_ref_key: hit.ref_key, _1c_bin: hit.bin || contact._1c_bin || null, updatedAt: now };
         await db.prepare(`UPDATE store SET data=?, updated_at=? WHERE team_id=? AND collection=? AND id=?`)
           .bind(JSON.stringify(updated), now, TEAM_ID, "contacts", contactId).run();
       }
     }
-    return { ok: true, found: true, ref_key: hit.ref_key, name: hit.name || hit.full_name, bin: hit.bin, code: hit.code };
+    return { ok: true, found: true, ref_key: hit.ref_key, name: hit.name || hit.full_name, bin: hit.bin, code: hit.code, base: baseKey };
   } catch (e) {
     const httpStatus = e instanceof ODataError ? e.httpStatus : null;
     if (e instanceof HttpError) throw e;
@@ -5877,15 +5990,15 @@ async function handle1cNomenclatureSearch(request, env, actor) {
   const q = (url.searchParams.get("q") || "").trim();
   if (q.length < 2) return { ok: true, results: [] };
   try {
-    const { client } = await build1cClient(env, tenantId);
-    const safe = q.replace(/'/g, "''");
-    const data = await client.get("Catalog_Номенклатура", {
-      top: 30,
-      filter: `substringof('${safe}', Description)`,
-    });
+    const { client } = await build1cClient(env, tenantId, resolve1cBaseKey(url.searchParams.get("base")));
+    // $filter по подстроке в 1С OData не работает → тянем всё и фильтруем в памяти.
+    const data = await client.get("Catalog_Номенклатура", { top: 10000 });
     const raw = Array.isArray(data?.value) ? data.value : [];
+    const ql = q.toLowerCase();
     const results = raw.map(productFromOData)
-      .filter((p) => p && !p.is_folder && !p.deletion_mark)
+      .filter((p) => p && !p.is_folder && !p.deletion_mark &&
+        (String(p.name || "").toLowerCase().includes(ql) || String(p.code || "").toLowerCase().includes(ql)))
+      .slice(0, 30)
       .map((p) => ({ ref: p.ref_key, code: p.code, name: p.name, unit: p.unit_ref, vat: p.vat_rate_ref }));
     return { ok: true, results };
   } catch (e) {
