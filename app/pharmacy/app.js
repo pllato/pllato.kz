@@ -747,7 +747,7 @@ PAGES.triggers=(c)=>{
     panel.appendChild(row);
   });
   c.appendChild(panel);
-  c.appendChild(el(`<div class="note amber section-gap">${ic('i-info','sm')} Массовые WhatsApp-рассылки через GreenAPI запрещены — риск бана номера. Для базы 10k+ рекомендуем bulk-провайдера (~15 ₸/сообщение) или ретаргет.</div>`));
+  c.appendChild(el(`<div class="note amber section-gap">${ic('i-info','sm')} Массовые WhatsApp-рассылки через GreenAPI запрещены — риск бана номера. Для базы 10k+ рекомендуем bulk-провайдера (~15 с/сообщение) или ретаргет.</div>`));
 };
 
 // ---------- AI ----------
@@ -1098,7 +1098,7 @@ PAGES.settings=(c)=>{
     </div></div>
     <div class="panel"><div class="panel-h"><h3>Локализация</h3></div><div class="panel-b">
       <div class="ctx-row"><span>Интерфейс</span><b>Русский</b></div>
-      <div class="ctx-row"><span>Валюты</span><b>KGS · KZT (переключение)</b></div>
+      <div class="ctx-row"><span>Валюты</span><b>Сом · рубль (переключение)</b></div>
       <div class="ctx-row"><span>Часовой пояс</span><b>UTC+5</b></div>
       <div class="ctx-row"><span>Курс для отчётов</span><b>НБ КР</b></div>
     </div></div>
@@ -1117,7 +1117,7 @@ PAGES.settings=(c)=>{
 // ---------- currency ----------
 $('#curSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
   $('#curSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
-  state.cur=b.dataset.cur;renderPage();toast('Валюта: '+(state.cur==='KGS'?'сом (Кыргызстан)':'тенге (Казахстан)'),'i-money');});
+  state.cur=b.dataset.cur;renderPage();toast('Валюта: '+(state.cur==='KGS'?'сом (Кыргызстан)':'рубль'),'i-money');});
 
 // ---------- theme ----------
 function applyTheme(t){
