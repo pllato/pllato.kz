@@ -196,6 +196,11 @@
       case 'reaction_changed': onReactionChanged(msg); break;
       case 'channel_added': loadChannels(); break;
       case 'channel_removed': loadChannels(); break;
+      case 'channel_renamed': onChannelRenamed(msg); break;
+      case 'members_changed': loadChannels(); break;
+      case 'role_changed': loadChannels(); break;
+      case 'user_joined': loadChannels(); break;
+      case 'user_left': loadChannels(); break;
       case 'read': break;
       case 'notification':
         try { window.dispatchEvent(new CustomEvent('elc:notification', { detail: msg.notification || msg })); } catch (e) {}
@@ -240,6 +245,11 @@
   function onReactionChanged(msg) {
     const m = state.messages.find(x => x.id === msg.message_id);
     if (m) { m.reactions = msg.reactions; renderMessages(); }
+  }
+
+  function onChannelRenamed(msg) {
+    const ch = state.channels.find(c => c.id === msg.channel_id);
+    if (ch) { ch.name = msg.name; renderChannelList(); if (msg.channel_id === state.activeChannelId) renderMainHead(); }
   }
 
   // ── Data ───────────────────────────────────────────────────────────────
@@ -366,9 +376,10 @@
       .tc-head-meta { min-width:0; flex:1; }
       .tc-head-name { font-size:15px; font-weight:700; color:var(--t1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .tc-head-sub { font-size:12px; color:var(--t3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:1px; }
-      .tc-head-members { width:36px; height:36px; border:none; background:transparent; color:var(--t2);
+      .tc-head-members, .tc-head-rename { width:36px; height:36px; border:none; background:transparent; color:var(--t2);
         font-size:18px; cursor:pointer; border-radius:9px; flex-shrink:0; }
-      .tc-head-members:hover { background:var(--bg3); }
+      .tc-head-members:hover, .tc-head-rename:hover { background:var(--bg3); }
+      .tc-head-rename { font-size:15px; }
       .tc-members-list { display:flex; flex-direction:column; max-height:220px; overflow-y:auto;
         border:1px solid var(--b1); border-radius:11px; }
       .tc-mem-row { display:flex; gap:11px; align-items:center; padding:8px 11px; border-bottom:1px solid var(--b1); }
@@ -379,6 +390,12 @@
         font-size:15px; cursor:pointer; border-radius:7px; flex-shrink:0; }
       .tc-mem-rm:hover { background:color-mix(in srgb, #e5484d 16%, transparent); color:#e5484d; }
       .tc-mem-rm:disabled { opacity:.4; cursor:default; }
+      .tc-mem-admin { border:1px solid var(--b1); background:transparent; color:var(--t2);
+        font-size:11px; font-weight:600; cursor:pointer; border-radius:7px; padding:4px 8px; flex-shrink:0; white-space:nowrap; }
+      .tc-mem-admin:hover { background:var(--bg3); border-color:var(--tc-ac); color:var(--tc-ac); }
+      .tc-mem-admin:disabled { opacity:.4; cursor:default; }
+      .tc-mem-badge.admin { color:#f59e0b; background:color-mix(in srgb, #f59e0b 15%, transparent); }
+      .tc-mem-actions { display:flex; gap:6px; align-items:center; margin-left:auto; flex-shrink:0; }
 
       .tc-msgs-wrap { flex:1; position:relative; min-height:0; display:flex; }
       .tc-msgs { flex:1; overflow-y:auto; padding:16px 18px 10px; display:flex; flex-direction:column; gap:2px; min-height:0; }
@@ -786,6 +803,9 @@
     if (ch.type === 'dm') sub = parentUser(ch.other_user_id)?.email || 'Личная переписка';
     else sub = ch.member_count ? `Группа · ${ch.member_count} ${pluralMembers(ch.member_count)}` : 'Группа';
 
+    const isAdmin = !!ch.is_admin;
+    const renameBtn = (ch.type !== 'dm' && isAdmin) ?
+      `<button class="tc-head-rename" title="Переименовать чат">✏️</button>` : '';
     const membersBtn = ch.type === 'dm' ? '' :
       `<button class="tc-head-members" title="Участники">👥</button>`;
     head.innerHTML = `
@@ -795,7 +815,10 @@
         <div class="tc-head-name">${escapeHtml(channelDisplayName(ch))}</div>
         <div class="tc-head-sub">${escapeHtml(sub)}</div>
       </div>
+      ${renameBtn}
       ${membersBtn}`;
+    const rb = head.querySelector('.tc-head-rename');
+    if (rb) rb.onclick = () => renameChannelPrompt(ch);
     const mb = head.querySelector('.tc-head-members');
     if (mb) mb.onclick = () => openMembersModal(ch.id);
     const back = head.querySelector('.tc-back');
@@ -1115,23 +1138,46 @@
     };
   }
 
-  // Управление участниками канала: список с кнопкой «убрать» + добавление.
+  // Переименование группы/канала (только админ — кнопка показывается им).
+  async function renameChannelPrompt(ch) {
+    if (!ch) return;
+    const cur = channelDisplayName(ch);
+    const name = prompt('Новое название чата:', cur);
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === cur) return;
+    try {
+      await api(`/api/chat/channels/${ch.id}/rename`, { method: 'POST', body: JSON.stringify({ name: trimmed }) });
+      ch.name = trimmed;
+      renderMainHead();
+      renderChannelList();
+    } catch (e) { alert(e.message); }
+  }
+
+  // Управление участниками канала: список ролей + добавление (для админов).
   async function openMembersModal(channelId) {
     const ch = state.channels.find(c => c.id === channelId);
+    const iAmAdmin = !!ch?.is_admin;
     const ov = document.createElement('div');
     ov.className = 'tc-modal-overlay';
     ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
-    ov.innerHTML = `<div class="tc-modal">
-      <h3>👥 Участники</h3>
-      <div class="tc-members-list" id="tc-mem-list"><div class="tc-picker-empty">Загрузка…</div></div>
+    const addSection = iAmAdmin ? `
       <label style="margin-top:10px">Добавить сотрудников
         <input class="tc-picker-search" id="tc-mem-search" placeholder="🔍 поиск по имени…">
       </label>
-      <div class="tc-picker-list" id="tc-mem-picker"></div>
+      <div class="tc-picker-list" id="tc-mem-picker"></div>` : '';
+    const footAdd = iAmAdmin ? `<button class="primary" data-tc-add disabled>Добавить</button>` : '';
+    const footCount = iAmAdmin
+      ? `<span class="tc-picker-count" id="tc-mem-count" style="margin-right:auto">Выбрано: 0</span>`
+      : `<span style="margin-right:auto"></span>`;
+    ov.innerHTML = `<div class="tc-modal">
+      <h3>👥 Участники</h3>
+      <div class="tc-members-list" id="tc-mem-list"><div class="tc-picker-empty">Загрузка…</div></div>
+      ${addSection}
       <div class="tc-modal-foot">
-        <span class="tc-picker-count" id="tc-mem-count" style="margin-right:auto">Выбрано: 0</span>
+        ${footCount}
         <button data-tc-close>Закрыть</button>
-        <button class="primary" data-tc-add disabled>Добавить</button>
+        ${footAdd}
       </div>
     </div>`;
     document.body.appendChild(ov);
@@ -1153,14 +1199,23 @@
         const uid = m.user_id;
         const isCreator = uid === createdBy;
         const isMe = uid === meUid;
+        const isAdminRole = m.role === 'admin' || isCreator;
         const label = userLabel(uid) + (isMe ? ' (вы)' : '');
-        const badge = isCreator ? `<span class="tc-mem-badge">создатель</span>` : '';
-        const canRemove = !(isCreator && !isMe);
-        const rmBtn = canRemove ? `<button class="tc-mem-rm" data-rm="${escapeHtml(uid)}" title="Убрать из чата">✕</button>` : '';
+        let badge = '';
+        if (isCreator) badge = `<span class="tc-mem-badge admin">создатель</span>`;
+        else if (isAdminRole) badge = `<span class="tc-mem-badge admin">админ</span>`;
+        let actions = '';
+        if (iAmAdmin && !isMe && !isCreator) {
+          const roleBtn = isAdminRole
+            ? `<button class="tc-mem-admin" data-role-set="member" data-uid="${escapeHtml(uid)}">Снять админа</button>`
+            : `<button class="tc-mem-admin" data-role-set="admin" data-uid="${escapeHtml(uid)}">Сделать админом</button>`;
+          const rmBtn = `<button class="tc-mem-rm" data-rm="${escapeHtml(uid)}" title="Убрать из чата">✕</button>`;
+          actions = `<div class="tc-mem-actions">${roleBtn}${rmBtn}</div>`;
+        }
         return `<div class="tc-mem-row">
           ${avatarHtml('tc-picker-ava', uid, userLabel(uid).slice(0, 2).toUpperCase(), userColor(uid))}
           <div class="tc-picker-meta"><div class="tc-picker-name">${escapeHtml(label)} ${badge}</div></div>
-          ${rmBtn}
+          ${actions}
         </div>`;
       }).join('');
       memListEl.querySelectorAll('[data-rm]').forEach(btn => {
@@ -1176,9 +1231,23 @@
           } catch (e) { btn.disabled = false; alert(e.message); }
         };
       });
+      memListEl.querySelectorAll('[data-role-set]').forEach(btn => {
+        btn.onclick = async () => {
+          const uid = btn.getAttribute('data-uid');
+          const role = btn.getAttribute('data-role-set');
+          btn.disabled = true;
+          try {
+            await api(`/api/chat/channels/${channelId}/members/${encodeURIComponent(uid)}/role`, {
+              method: 'POST', body: JSON.stringify({ role }),
+            });
+            await loadMembers();
+          } catch (e) { btn.disabled = false; alert(e.message); }
+        };
+      });
     }
 
     function renderPicker() {
+      if (!iAmAdmin || !pickerEl) return;
       const roster = getRoster().filter(p => !memberUids.has(p.uid));
       const q = searchEl.value.trim().toLowerCase();
       const filtered = q ? roster.filter(p => p.label.toLowerCase().includes(q) || p.sub.toLowerCase().includes(q)) : roster;
@@ -1213,8 +1282,8 @@
       }
     }
 
-    searchEl.oninput = renderPicker;
-    addBtn.onclick = async () => {
+    if (searchEl) searchEl.oninput = renderPicker;
+    if (addBtn) addBtn.onclick = async () => {
       const user_ids = Array.from(selected);
       if (!user_ids.length) return;
       addBtn.disabled = true;
@@ -1230,7 +1299,7 @@
     ov.querySelector('[data-tc-close]').onclick = () => ov.remove();
     loadMembers();
     // Обновить справочник из D1 и перерисовать пикер, когда подъедет.
-    loadRoster().then(() => renderPicker());
+    if (iAmAdmin) loadRoster().then(() => renderPicker());
   }
 
   // ── Responsive observer ────────────────────────────────────────────────

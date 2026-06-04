@@ -155,6 +155,42 @@ async function isChannelMember(env, channelId, me) {
   return !!row;
 }
 
+// Админ канала может добавлять/убирать участников, переименовывать чат и
+// назначать других админов. Матчим по ЛЮБОМУ из uid юзера (как членство).
+async function isChannelAdmin(env, channelId, me) {
+  // Портальный админ/директор — админ в любом чате (страховка от lockout на
+  // legacy-каналах, где created_by не совпал ни с одним текущим uid).
+  if (!Array.isArray(me) && (me?.role === 'admin' || me?.isDirector)) return true;
+  const ids = Array.isArray(me) ? me : meIds(me);
+  const row = await env.DB.prepare(
+    `SELECT 1 FROM team_chat_members WHERE channel_id = ? AND user_id IN (${phList(ids)}) AND role = 'admin'`
+  ).bind(channelId, ...ids).first();
+  return !!row;
+}
+
+// ── Ленивая идемпотентная миграция: колонка role в team_chat_members ──────
+// Воркер сам добавляет колонку через биндинг env.DB (тот же приём, что в
+// /api/admin/deals/migrate-rejects). Флаг модуля гасит повтор в пределах
+// изолята; сам ALTER идемпотентен (повторный падает «duplicate column» → ok).
+// Бэкфилл: создатель канала становится админом.
+let _rolesMigrated = false;
+async function ensureRolesColumn(env) {
+  if (_rolesMigrated) return;
+  try {
+    await env.DB.prepare("ALTER TABLE team_chat_members ADD COLUMN role TEXT").run();
+  } catch (e) { /* duplicate column — колонка уже есть, это норма */ }
+  try {
+    await env.DB.prepare(`
+      UPDATE team_chat_members SET role = 'admin'
+      WHERE (role IS NULL OR role = '')
+        AND channel_id IN (
+          SELECT id FROM team_chat_channels c WHERE c.created_by = team_chat_members.user_id
+        )
+    `).run();
+  } catch (e) { /* бэкфилл best-effort */ }
+  _rolesMigrated = true;
+}
+
 async function isMessageAccessible(env, messageId, me) {
   const ids = Array.isArray(me) ? me : meIds(me);
   const row = await env.DB.prepare(`
@@ -184,7 +220,7 @@ async function listChannels(env, me) {
   const { results } = await env.DB.prepare(`
     SELECT
       c.id, c.type, c.name, c.description, c.created_by, c.created_at, c.archived_at,
-      cm.last_read_message_id, cm.muted,
+      cm.last_read_message_id, cm.muted, cm.is_admin,
       (SELECT COUNT(*) FROM team_chat_msgs m
          WHERE m.channel_id = c.id
            AND m.deleted_at IS NULL
@@ -199,7 +235,8 @@ async function listChannels(env, me) {
       ) AS last_message_text
     FROM team_chat_channels c
     JOIN (
-      SELECT channel_id, MAX(last_read_message_id) AS last_read_message_id, MAX(muted) AS muted
+      SELECT channel_id, MAX(last_read_message_id) AS last_read_message_id, MAX(muted) AS muted,
+             MAX(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) AS is_admin
       FROM team_chat_members
       WHERE user_id IN (${phList(ids)})
       GROUP BY channel_id
@@ -208,13 +245,18 @@ async function listChannels(env, me) {
     ORDER BY last_message_at DESC NULLS LAST, c.created_at DESC
   `).bind(...ids).all();
 
-  // Для DM подтянем имя собеседника
+  // Для DM подтянем имя собеседника. Портальному админу/директору проставим
+  // is_admin=1 на всех группах — чтобы UI показывал управление даже там, где
+  // он не отмечен админом в team_chat_members (legacy без admin'а).
+  const portalAdmin = !!(me?.role === 'admin' || me?.isDirector);
   for (const ch of results) {
     if (ch.type === 'dm') {
       const other = await env.DB.prepare(
         `SELECT user_id FROM team_chat_members WHERE channel_id = ? AND user_id NOT IN (${phList(ids)}) LIMIT 1`
       ).bind(ch.id, ...ids).first();
       ch.other_user_id = other?.user_id || null;
+    } else if (portalAdmin) {
+      ch.is_admin = 1;
     }
   }
   return jsonRes({ items: results });
@@ -236,9 +278,10 @@ async function createChannel(env, me, body) {
     VALUES (?, ?, ?, ?, ?, ?)
   `).bind(id, type, name, desc, me.uid, ts).run();
   for (const uid of members) {
+    const role = (uid === me.uid) ? 'admin' : 'member';
     await env.DB.prepare(`
-      INSERT OR IGNORE INTO team_chat_members (channel_id, user_id, joined_at) VALUES (?, ?, ?)
-    `).bind(id, uid, ts).run();
+      INSERT OR IGNORE INTO team_chat_members (channel_id, user_id, joined_at, role) VALUES (?, ?, ?, ?)
+    `).bind(id, uid, ts, role).run();
   }
   const channel = { id, type, name, description: desc, created_by: me.uid, created_at: ts };
   // Notify всех добавленных
@@ -453,7 +496,7 @@ async function leaveChannel(env, me, channelId) {
 async function getMembers(env, me, channelId) {
   if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
   const { results } = await env.DB.prepare(
-    "SELECT user_id, joined_at, muted FROM team_chat_members WHERE channel_id = ?"
+    "SELECT user_id, joined_at, muted, role FROM team_chat_members WHERE channel_id = ?"
   ).bind(channelId).all();
   return jsonRes({ items: results });
 }
@@ -488,13 +531,14 @@ async function legacyJoinAll(env, me, body) {
   return jsonRes({ ok: true, added: r.meta?.changes || 0 });
 }
 
-// DELETE /api/chat/channels/:id/members/:user_id — убрать члена (любой участник).
-// Хотим аккуратно: можно убирать кого угодно (демократично), но не создателя
-// канала (created_by). От себя — есть /leave.
+// DELETE /api/chat/channels/:id/members/:user_id — убрать участника.
+// Только админ канала. Создателя (created_by) убрать нельзя. Себя — через /leave.
 async function removeMember(env, me, channelId, targetUid) {
   if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
-  const ch = await env.DB.prepare("SELECT created_by FROM team_chat_channels WHERE id = ?").bind(channelId).first();
-  if (ch?.created_by === targetUid && targetUid !== me.uid) {
+  const ch = await env.DB.prepare("SELECT created_by, type FROM team_chat_channels WHERE id = ?").bind(channelId).first();
+  if (ch?.type === 'dm') return errRes('в личной переписке нельзя менять участников', 400);
+  if (!(await isChannelAdmin(env, channelId, me))) return errRes('только администратор может убирать участников', 403);
+  if (ch?.created_by === targetUid) {
     return errRes('нельзя убрать создателя канала', 403);
   }
   await env.DB.prepare(
@@ -506,19 +550,61 @@ async function removeMember(env, me, channelId, targetUid) {
 }
 
 // POST /api/chat/channels/:id/members { user_ids: [...] }
+// Только админ канала может добавлять участников.
 async function addMembers(env, me, channelId, body) {
   if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
+  const ch = await env.DB.prepare("SELECT type FROM team_chat_channels WHERE id = ?").bind(channelId).first();
+  if (ch?.type === 'dm') return errRes('в личной переписке нельзя менять участников', 400);
+  if (!(await isChannelAdmin(env, channelId, me))) return errRes('только администратор может добавлять участников', 403);
   const userIds = Array.isArray(body.user_ids) ? body.user_ids.filter(u => typeof u === 'string') : [];
   if (userIds.length === 0) return errRes('user_ids required');
   const ts = now();
   for (const uid of userIds) {
     await env.DB.prepare(
-      "INSERT OR IGNORE INTO team_chat_members (channel_id, user_id, joined_at) VALUES (?, ?, ?)"
+      "INSERT OR IGNORE INTO team_chat_members (channel_id, user_id, joined_at, role) VALUES (?, ?, ?, 'member')"
     ).bind(channelId, uid, ts).run();
     broadcastToUser(env, uid, { kind: 'channel_added', channel_id: channelId });
     broadcastToChannel(env, channelId, { kind: 'user_joined', channel_id: channelId, user_id: uid });
   }
   return jsonRes({ ok: true });
+}
+
+// POST /api/chat/channels/:id/rename { name } — переименовать группу/канал.
+// Только админ. DM переименовать нельзя (имя берётся от собеседника).
+async function renameChannel(env, me, channelId, body) {
+  const ch = await env.DB.prepare("SELECT type FROM team_chat_channels WHERE id = ?").bind(channelId).first();
+  if (!ch) return errRes('not found', 404);
+  if (ch.type === 'dm') return errRes('личную переписку нельзя переименовать', 400);
+  if (!(await isChannelAdmin(env, channelId, me))) return errRes('только администратор может переименовать чат', 403);
+  const name = String(body.name || '').trim().slice(0, 120);
+  if (!name) return errRes('name required');
+  await env.DB.prepare("UPDATE team_chat_channels SET name = ? WHERE id = ?").bind(name, channelId).run();
+  broadcastToChannel(env, channelId, { kind: 'channel_renamed', channel_id: channelId, name });
+  return jsonRes({ ok: true, name });
+}
+
+// POST /api/chat/channels/:id/members/:uid/role { role: 'admin'|'member' }
+// Только админ может назначать/снимать админов (передавать права). Роль
+// создателя канала не трогаем — он всегда остаётся админом.
+async function setMemberRole(env, me, channelId, targetUid, body) {
+  const ch = await env.DB.prepare("SELECT type, created_by FROM team_chat_channels WHERE id = ?").bind(channelId).first();
+  if (!ch) return errRes('not found', 404);
+  if (ch.type === 'dm') return errRes('в личной переписке нет ролей', 400);
+  if (!(await isChannelAdmin(env, channelId, me))) return errRes('только администратор может назначать админов', 403);
+  const role = body.role === 'admin' ? 'admin' : 'member';
+  if (ch.created_by === targetUid && role !== 'admin') {
+    return errRes('создатель чата всегда остаётся админом', 400);
+  }
+  const exists = await env.DB.prepare(
+    "SELECT 1 FROM team_chat_members WHERE channel_id = ? AND user_id = ?"
+  ).bind(channelId, targetUid).first();
+  if (!exists) return errRes('пользователь не в чате', 404);
+  await env.DB.prepare(
+    "UPDATE team_chat_members SET role = ? WHERE channel_id = ? AND user_id = ?"
+  ).bind(role, channelId, targetUid).run();
+  broadcastToChannel(env, channelId, { kind: 'members_changed', channel_id: channelId });
+  broadcastToUser(env, targetUid, { kind: 'role_changed', channel_id: channelId, role });
+  return jsonRes({ ok: true, role });
 }
 
 // GET /api/chat/search?q=&channel_id=
@@ -589,6 +675,9 @@ export async function handleChatRequest(request, env, url, me) {
   const p = url.pathname;
   const m = request.method;
 
+  // Идемпотентно гарантируем колонку role (ленивая миграция, флаг на изолят).
+  await ensureRolesColumn(env);
+
   // Channels
   if (p === '/api/chat/channels' && m === 'GET')  return listChannels(env, me);
   if (p === '/api/chat/channels' && m === 'POST') return createChannel(env, me, await request.json().catch(() => ({})));
@@ -607,8 +696,12 @@ export async function handleChatRequest(request, env, url, me) {
     if (sub === '/read'     && m === 'POST') return markAsRead(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/mute'     && m === 'POST') return setMuted(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/leave'    && m === 'POST') return leaveChannel(env, me, channelId);
+    if (sub === '/rename'   && m === 'POST') return renameChannel(env, me, channelId, await request.json().catch(() => ({})));
+    // /api/chat/channels/:id/members/:uid/role (POST) — назначить/снять админа
+    const roleMatch = sub.match(/^\/members\/(.+)\/role$/);
+    if (roleMatch && m === 'POST') return setMemberRole(env, me, channelId, decodeURIComponent(roleMatch[1]), await request.json().catch(() => ({})));
     // /api/chat/channels/:id/members/:uid (DELETE)
-    const memMatch = sub.match(/^\/members\/(.+)$/);
+    const memMatch = sub.match(/^\/members\/([^/]+)$/);
     if (memMatch && m === 'DELETE') return removeMember(env, me, channelId, decodeURIComponent(memMatch[1]));
   }
 
