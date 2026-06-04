@@ -5600,48 +5600,11 @@ function renderWaWidgetList(root) {
     }
   }
 
-  // ── Командные каналы — секция сверху ──
-  const teamChannels = (waWidget.teamChannels || []).slice().sort((a, b) =>
-    (b.unread_count || 0) - (a.unread_count || 0) || (b.last_message_at || 0) - (a.last_message_at || 0)
-  );
-  const isTeamCollapsed = waWidget.collapsedInstances.has('_team');
-  const teamUnread = teamChannels.reduce((s, c) => s + (c.unread_count || 0), 0);
-  let teamHtml = '';
-  if (teamChannels.length > 0 || true) {  // показываем всегда чтобы видна кнопка «➕ создать»
-    teamHtml += `<div class="wa-w-section-head" data-instance="_team" title="Свернуть/развернуть" style="cursor:pointer;user-select:none">
-      <span class="wa-w-section-caret" style="margin-right:6px;font-size:9px;opacity:0.55">${isTeamCollapsed ? '▶' : '▼'}</span>
-      <span>👥 Команда</span>
-      ${teamUnread > 0 ? `<span class="wa-w-section-unread">${teamUnread}</span>` : ''}
-      <span class="wa-w-section-count">${teamChannels.length}</span>
-    </div>`;
-    if (!isTeamCollapsed) {
-      if (teamChannels.length === 0) {
-        teamHtml += '<div style="padding:10px 14px;color:var(--t3);font-size:11px;font-style:italic">Каналов нет. Жми ➕ ниже</div>';
-      } else {
-        for (const c of teamChannels) {
-          const name = c.type === 'dm' ? (orgUserLabel(c.other_user_id) || 'Личка') : (c.name || 'без имени');
-          const initials = (name.match(/[A-Za-zА-Яа-я0-9]/g) || []).slice(0, 2).join('').toUpperCase() || '#';
-          const preview = c.last_message_text ? c.last_message_text.slice(0, 50) : '';
-          const time = c.last_message_at ? formatWaShortTime(c.last_message_at) : '';
-          const unread = c.unread_count > 0 ? `<span class="wa-w-chat-unread">${c.unread_count}</span>` : '';
-          teamHtml += `<div class="wa-w-chat-row team-chat-row" data-team-id="${escapeHtml(c.id)}">
-            <div class="wa-w-chat-avatar" style="background:#22c55e;font-size:13px">${escapeHtml(initials)}</div>
-            <div class="wa-w-chat-body">
-              <div class="wa-w-chat-name">
-                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}</span>
-                <span class="wa-w-chat-time">${escapeHtml(time)}</span>
-              </div>
-              <div class="wa-w-chat-preview">${escapeHtml(preview)}${unread}</div>
-            </div>
-          </div>`;
-        }
-      }
-    }
-  }
+  // Командные чаты в этот виджет НЕ выводим — они живут в боковом разделе «Чаты»
+  // (полноэкранный TeamChat). Здесь только интеграции Green-API (WhatsApp).
 
   const totalWa = (waWidget.chats || []).length;
-  const totalTeam = teamChannels.length;
-  const subText = `${totalTeam + totalWa} чат${(totalTeam + totalWa) === 1 ? '' : 'ов'} · ${totalTeam} команд · ${totalWa} WA`
+  const subText = `${totalWa} чат${totalWa === 1 ? '' : 'ов'} WhatsApp`
     + (waWidget.unreadTotal > 0 ? ` · ${waWidget.unreadTotal} непрочит.` : '');
 
   // FIX: при polling viewport списка перерисовывался полностью → скролл прыгал
@@ -5651,22 +5614,19 @@ function renderWaWidgetList(root) {
   root.innerHTML = `<div class="wa-w-panel">
     <div class="wa-w-header">
       <div style="flex:1">
-        <div class="wa-w-title">💬 Чаты</div>
+        <div class="wa-w-title">💬 WhatsApp</div>
         <div class="wa-w-sub">${subText}</div>
       </div>
       <button class="wa-w-icon-btn" id="wa-w-sync-groups" title="Подтянуть WhatsApp-группы из Green-API" style="margin-right:4px;font-size:13px">🔄</button>
-      <button class="wa-w-icon-btn" id="wa-w-legacy-join" title="Добавить меня ко всем архивным каналам из Bitrix" style="margin-right:4px;font-size:11px">🗄</button>
-      <button class="wa-w-icon-btn" id="wa-w-new-team" title="Новый командный канал" style="margin-right:4px">➕</button>
       <button class="wa-w-icon-btn" id="wa-w-close" title="Свернуть">×</button>
     </div>
-    <div class="wa-w-body" id="wa-w-list">${teamHtml}${bodyHtml}</div>
+    <div class="wa-w-body" id="wa-w-list">${bodyHtml}</div>
   </div>`;
 
   const newList = document.getElementById('wa-w-list');
   if (newList && savedScrollTop > 0) newList.scrollTop = savedScrollTop;
 
   document.getElementById('wa-w-close').onclick = () => { waWidget.open = false; renderWaWidget(); };
-  document.getElementById('wa-w-new-team').onclick = openCreateTeamChannelWidgetModal;
   document.getElementById('wa-w-sync-groups').onclick = async (e) => {
     const btn = e.currentTarget;
     if (!confirm('Подтянуть список WhatsApp-групп из Green-API?\nГруппы появятся в списке чатов без ожидания первого сообщения.')) return;
@@ -5691,26 +5651,8 @@ function renderWaWidgetList(root) {
       btn.textContent = orig; btn.disabled = false;
     }
   };
-  document.getElementById('wa-w-legacy-join').onclick = async () => {
-    if (!confirm('Добавить тебя ко всем архивным каналам из Bitrix?\n(в которых ты был добавлен, но миграция не подцепила потому что не писал там)')) return;
-    try {
-      const idToken = await fbAuth.currentUser.getIdToken();
-      const r = await fetch(`${WORKER_BASE_URL}/api/chat/legacy-join-all`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-        body: JSON.stringify({ confirm: true }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-      alert(`✓ Добавлено: ${d.added} архивных каналов`);
-      await refreshTeamChannels();
-    } catch (e) { alert('Ошибка: ' + e.message); }
-  };
   root.querySelectorAll('.wa-w-chat-row:not(.team-chat-row)').forEach(r => {
     r.addEventListener('click', () => openWaWidgetChat(r.dataset.chatId));
-  });
-  root.querySelectorAll('.team-chat-row').forEach(r => {
-    r.addEventListener('click', () => openTeamWidgetChat(r.dataset.teamId));
   });
   root.querySelectorAll('.wa-w-section-head').forEach(h => {
     h.addEventListener('click', () => {
@@ -6119,9 +6061,10 @@ async function refreshWaWidgetChats() {
 }
 
 function recomputeWaWidgetUnread() {
+  // Виджет теперь только WhatsApp → его бэйдж считает только WA-непрочитанные.
+  // Командные непрочитанные уходят в сайдбар-бэйдж «Чаты» (ниже).
   let total = 0;
   for (const c of (waWidget.chats || [])) total += c.unreadCount || 0;
-  for (const c of (waWidget.teamChannels || [])) total += c.unread_count || 0;
   waWidget.unreadTotal = total;
 
   // Сайдбар-бэйдж «Чаты»: считаем только командные каналы, капаем на 99+.
