@@ -6274,6 +6274,11 @@ export default {
         email: auth.email,
         claims: auth.claims,
         ids,
+        // role — портальная роль (admin = директор/администратор). Чат-модуль
+        // даёт такому юзеру права админа в ЛЮБОМ чате (страховка от lockout на
+        // legacy-каналах, где created_by не совпал ни с одним текущим uid).
+        role: canonical.role,
+        isDirector: !!canonical.orgPerms?.isDirector,
       };
       const res = await handleChatRequest(request, env, url, me);
       if (res) {
