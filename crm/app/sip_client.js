@@ -41,20 +41,88 @@ async function getSipClient() {
         if (!token) throw new Error("Не авторизован — нет JWT");
         return `Bearer ${token}`;
       },
-      // Резолвим контакт по номеру через локальный Store (он уже
-      // загружен и хранит всех контактов tenant'а в памяти).
+      // Богатый резолвер контакта по номеру: имя+компания + до 3 сделок + до 3 активностей.
+      // Всё берём из локального Store (он уже загружен в памяти tenant'а) —
+      // быстрее чем worker-запрос, и работает offline.
       resolveContact: async (phone) => {
         try {
           const { Store } = await import("./store.js");
           const digits = String(phone).replace(/\D/g, "");
-          const contacts = Store?.state?.contacts || [];
+          const tail10 = digits.slice(-10);
+          const contacts = Store.list ? Store.list("contacts") : (Store?.state?.contacts || []);
           const found = contacts.find((c) => {
             const cd = String(c.phone || "").replace(/\D/g, "");
-            return cd && (cd === digits || cd.endsWith(digits.slice(-10)) || digits.endsWith(cd.slice(-10)));
+            return cd && (cd === digits
+              || (tail10 && cd.endsWith(tail10))
+              || (cd.length >= 10 && digits.endsWith(cd.slice(-10))));
           });
           if (!found) return null;
-          return { id: found.id, name: found.name || null };
-        } catch { return null; }
+
+          // Активные сделки контакта (не trashed/archived) — до 3
+          const deals = (Store.list ? Store.list("deals") : [])
+            .filter((d) => d.contactId === found.id
+              && d.deletedAt == null
+              && d.status !== "archived"
+              && d.status !== "trashed")
+            .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))
+            .slice(0, 3)
+            .map((d) => ({
+              id: d.id,
+              title: d.title || "(без названия)",
+              stage: d.stage || "",
+              amount: d.amount || null,
+              currency: d.currency || "KZT",
+              closed: d.status === "won" || d.status === "lost",
+            }));
+
+          // Активности: deal_activities (по dealId) + contact_activities (по contactId), до 3 последних
+          const dealIds = new Set(deals.map((d) => d.id));
+          const dealActs = (Store.list ? Store.list("deal_activities") : [])
+            .filter((a) => a.dealId && dealIds.has(a.dealId));
+          const directActs = (Store.list ? Store.list("contact_activities") : [])
+            .filter((a) => a.contactId === found.id);
+          const activities = [...dealActs, ...directActs]
+            .sort((a, b) => (b.ts || b.createdAt || 0) - (a.ts || a.createdAt || 0))
+            .slice(0, 3)
+            .map((a) => {
+              const icon = a.type === "whatsapp" ? "💬"
+                : a.type === "call" ? (a.direction === "in" ? "📥" : "📤")
+                : a.type === "note" ? "📝" : "•";
+              const dateRaw = a.ts || a.createdAt || null;
+              const date = dateRaw ? new Date(dateRaw).toISOString() : null;
+              let desc = "";
+              if (a.type === "whatsapp") desc = `WhatsApp: ${String(a.text || a.preview || "").slice(0, 60)}`;
+              else if (a.type === "call") {
+                const dur = a.durationSec > 0 ? ` ${Math.floor(a.durationSec/60)}:${String(a.durationSec%60).padStart(2,"0")}` : "";
+                desc = `${a.direction === "in" ? "Входящий" : "Исходящий"}${dur}`;
+              } else if (a.type === "note") desc = `Заметка: ${String(a.text || "").slice(0, 60)}`;
+              else desc = a.title || a.text || a.type || "";
+              return { type: a.type, icon, date, description: desc };
+            });
+
+          return {
+            id: found.id,
+            name: found.name || null,
+            company: found.company || "",
+            deals,
+            activities,
+          };
+        } catch (e) {
+          console.warn("[sip] resolveContact failed:", e);
+          return null;
+        }
+      },
+      // Открыть карточку контакта через hash-роутинг (popup звонка остаётся видимым)
+      onOpenContact: (contactId) => {
+        if (!contactId) return;
+        try { window.location.hash = `#contacts/${contactId}`; }
+        catch (e) { console.warn("[sip] open contact failed:", e); }
+      },
+      // Клик по сделке в popup — открыть карточку сделки
+      onOpenDeal: (dealId) => {
+        if (!dealId) return;
+        try { window.location.hash = `#crm/${dealId}`; }
+        catch (e) { console.warn("[sip] open deal failed:", e); }
       },
       debug: false,
     });
