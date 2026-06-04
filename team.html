@@ -793,6 +793,13 @@ tr:hover td { background: var(--bg3); }
   }
 }
 
+/* Полноэкранный мобильный оверлей открытой переписки прячет плавающие элементы
+   портала (зелёный WA-виджет и SIP-бар), чтобы они не перекрывали поле ввода и
+   кнопку отправки снизу. Класс body.tc-chat-overlay вешает chat.js только в этом
+   режиме. Активный/входящий звонок оставляем — нужна кнопка «завершить». */
+body.tc-chat-overlay #wa-widget-root { display: none !important; }
+body.tc-chat-overlay .sipc-bottombar:not([data-state="established"]):not([data-state="ringing"]) { display: none !important; }
+
 /* ── Deals page ───────────────────────────────────── */
 .toolbar {
   display: flex;
@@ -4083,7 +4090,7 @@ async function renderTeamChat(el) {
     return;
   }
   const s = document.createElement('script');
-  s.src = `${WORKER_BASE_URL}/chat.js?v=7`;
+  s.src = `${WORKER_BASE_URL}/chat.js?v=8`;
   s.onload = () => {
     _teamChatScriptLoaded = true;
     if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
@@ -12683,6 +12690,20 @@ const WORKER_BASE_URL = 'https://pllato-elc-worker.uurraa.workers.dev';
 // При обновлении модуля → wrangler deploy на elc-worker, оба CRM
 // подхватывают изменения автоматически.
 const SIP_CLIENT_URL = `${WORKER_BASE_URL}/sip-client.js`;
+// Ждём пока Firebase восстановит сессию (fbAuth.currentUser != null). На
+// телефоне/медленном интернете это занимает 1-3с после загрузки скрипта,
+// поэтому слепой setTimeout-pre-warm падал с «null is not an object
+// (evaluating 'fbAuth.currentUser...')» и показывал баннер «Ошибка SIP».
+function waitForFbUser(timeoutMs = 15000) {
+  if (fbAuth.currentUser) return Promise.resolve(fbAuth.currentUser);
+  return new Promise((resolve, reject) => {
+    const t0 = Date.now();
+    const iv = setInterval(() => {
+      if (fbAuth.currentUser) { clearInterval(iv); resolve(fbAuth.currentUser); }
+      else if (Date.now() - t0 > timeoutMs) { clearInterval(iv); reject(new Error('auth not ready')); }
+    }, 200);
+  });
+}
 let _sipClientPromise = null;
 async function getSipClient() {
   if (_sipClientPromise) return _sipClientPromise;
@@ -12693,6 +12714,7 @@ async function getSipClient() {
       callEventEndpoint: `${WORKER_CALL_URL}/event`,
       callLogEndpoint:   `${WORKER_CALL_URL}/log`,
       getAuthToken: async () => {
+        await waitForFbUser();
         const idToken = await fbAuth.currentUser.getIdToken();
         return `Bearer ${idToken}`;
       },
@@ -12700,6 +12722,7 @@ async function getSipClient() {
       // Используется в incoming popup и outgoing dialer для отображения справа от номера.
       resolveContact: async (phone) => {
         try {
+          await waitForFbUser();
           const idToken = await fbAuth.currentUser.getIdToken();
           const r = await fetch(`${WORKER_BASE_URL}/api/contact-card-by-phone?phone=${encodeURIComponent(phone)}`, {
             headers: { Authorization: `Bearer ${idToken}` },
@@ -12754,7 +12777,11 @@ async function getSipClient() {
 }
 // Pre-warm: подключаем SIP сразу после login (не дожидаясь первого звонка).
 // Это даёт мгновенный outbound call и возможность принимать incoming.
-setTimeout(() => { getSipClient().catch(e => console.warn('[SIP] preload failed:', e?.message)); }, 1500);
+// Ждём готовности Firebase-сессии — иначе на телефоне падало с «Ошибка SIP
+// null is not an object», т.к. fbAuth.currentUser ещё null.
+waitForFbUser()
+  .then(() => getSipClient())
+  .catch(e => console.warn('[SIP] preload skipped:', e?.message));
 
 // Debug в Console: window.elcSip.{call,hangup,mute,hold,dtmf,openDialer,state}
 window.elcSip = new Proxy({}, {
