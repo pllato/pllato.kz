@@ -15,11 +15,11 @@ const DB = {
 
   // какие разделы видит роль (разграничение доступа из ТЗ 3.5 / 9.3)
   access: {
-    owner:      ['dash','funnels','clients','inbox','orders','catalog','marketing','bloggers','tasks','subs','triggers','ai','analytics','kpi','team','integrations','settings'],
-    rop:        ['dash','funnels','clients','inbox','orders','catalog','tasks','triggers','analytics','kpi','team'],
+    owner:      ['dash','funnels','clients','inbox','orders','catalog','marketing','bloggers','doctors','tasks','subs','triggers','ai','analytics','kpi','team','integrations','settings'],
+    rop:        ['dash','funnels','clients','inbox','orders','catalog','tasks','triggers','analytics','kpi','team','doctors'],
     consultant: ['funnels','clients','inbox','orders','catalog','tasks','subs'],
     seller:     ['funnels','clients','orders','catalog','tasks','kpi'],
-    marketer:   ['dash','marketing','bloggers','triggers','analytics','clients'],
+    marketer:   ['dash','marketing','bloggers','doctors','triggers','analytics','clients'],
     buh:        ['orders','catalog','clients','integrations'],
   },
 
@@ -127,6 +127,26 @@ const DB = {
     { id:'b1', nick:'@nuriza.beauty', name:'Нуриза А.', topic:'Бьюти / уход', reach:'82k', code:'BLOG_NUR', clicks:1240, sales:88, avg:2250, roi:'340%', paid:18000 },
     { id:'b2', nick:'@dr.smile.kg', name:'Др. Эльмира', topic:'Стоматология', reach:'45k', code:'DENTAL5', clicks:520, sales:21, avg:1480, roi:'180%', paid:9000 },
     { id:'b3', nick:'@mama.bishkek', name:'Аида М.', topic:'Мамы / дети', reach:'120k', code:'MAMA15', clicks:2100, sales:140, avg:3100, roi:'410%', paid:25000 },
+  ],
+
+  // Врачи-партнёры: промокод привязан пофамильно к врачу. Скидка пациенту + кэшбек врачу
+  // зависят от бренда (Revyline 10%, прочее меньше). Данные о продажах — из 1С (когда подключим).
+  doctors: [
+    { id:'doc1', name:'Эльмира Касымова', clinic:'Стоматология «Дентал-Люкс»', spec:'Стоматолог-терапевт', phone:'+996 700 30-40-50', code:'DENT-ELMIRA', brand:'Revyline', disc:10, cashback:10, patients:42, revenue:186000, cashbackSum:18600, status:'активен',
+      months:[['Янв',8000],['Фев',14000],['Мар',22000],['Апр',31000],['Май',44000],['Июн',67000]],
+      last:[{d:'02.06.2026',t:'Ирригатор Revyline RL 100 · 14 900 с'},{d:'28.05.2026',t:'Щётки Revyline ×3 · 4 200 с'}] },
+    { id:'doc2', name:'Бакыт Орозалиев', clinic:'Клиника «Авиценна»', spec:'Стоматолог-ортопед', phone:'+996 555 60-70-80', code:'DENT-BAKYT', brand:'Revyline', disc:10, cashback:8, patients:28, revenue:124000, cashbackSum:9920, status:'активен',
+      months:[['Янв',6000],['Фев',9000],['Мар',12000],['Апр',18000],['Май',34000],['Июн',45000]],
+      last:[{d:'01.06.2026',t:'Ополаскиватель Revyline · 1 800 с'}] },
+    { id:'doc3', name:'Айгерим Сыдыкова', clinic:'Стоматология «Жемчужина»', spec:'Гигиенист', phone:'+996 770 12-34-56', code:'DENT-AIGERIM', brand:'Revyline', disc:10, cashback:10, patients:51, revenue:212000, cashbackSum:21200, status:'активен',
+      months:[['Янв',12000],['Фев',18000],['Мар',26000],['Апр',38000],['Май',52000],['Июн',66000]],
+      last:[{d:'03.06.2026',t:'Набор для брекетов Revyline · 3 600 с'}] },
+    { id:'doc4', name:'Нурлан Жээнбеков', clinic:'Частная практика', spec:'Стоматолог', phone:'+996 700 99-00-11', code:'DENT-NURLAN', brand:'прочее', disc:7, cashback:5, patients:14, revenue:38000, cashbackSum:1900, status:'на паузе',
+      months:[['Янв',4000],['Фев',6000],['Мар',5000],['Апр',8000],['Май',7000],['Июн',8000]],
+      last:[{d:'20.05.2026',t:'Зубная паста · 1 240 с'}] },
+    { id:'doc5', name:'Чолпон Маматова', clinic:'Детская стоматология «Улыбка»', spec:'Детский стоматолог', phone:'+996 555 22-33-44', code:'DENT-CHOLPON', brand:'Revyline', disc:10, cashback:10, patients:33, revenue:98000, cashbackSum:9800, status:'активен',
+      months:[['Янв',5000],['Фев',8000],['Мар',14000],['Апр',19000],['Май',24000],['Июн',28000]],
+      last:[{d:'31.05.2026',t:'Детские щётки Revyline Kids ×4 · 2 400 с'}] },
   ],
 
   sellers: [

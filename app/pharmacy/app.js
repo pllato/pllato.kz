@@ -41,6 +41,7 @@ const NAV = [
   {g:'Маркетинг', items:[
     {id:'marketing', t:'Промокоды и акции', i:'i-tag'},
     {id:'bloggers', t:'Блогеры', i:'i-star'},
+    {id:'doctors', t:'Врачи-партнёры', i:'i-tooth'},
     {id:'analytics', t:'Аналитика', i:'i-chart'},
   ]},
   {g:'Автоматизация', items:[
@@ -65,6 +66,7 @@ const PAGE_META = {
   catalog:['Каталог · остатки 1С','Зеркало 4 000 SKU в реальном времени'],
   marketing:['Промокоды и акции','Живут в CRM · в 1С уходит итоговая цена'],
   bloggers:['Блогеры и креаторы','Персональные коды · KPI · ROI'],
+  doctors:['Врачи-партнёры','Промокоды врачей · пациенты · кэшбек · сводная по врачу'],
   analytics:['Аналитика','Классическая вороночная аналитика'],
   tasks:['Задачи и дела','Привязанные к сделкам и функциональные'],
   subs:['Подписочная модель','Авто-заказ наборов каждые N месяцев'],
@@ -600,6 +602,74 @@ PAGES.bloggers=(c)=>{
   });
   c.appendChild(grid);
 };
+
+// ---------- DOCTORS (врачи-партнёры · промокоды · кэшбек) ----------
+PAGES.doctors=(c)=>{
+  const docs=DB.doctors||[];
+  const tPat=docs.reduce((a,d)=>a+d.patients,0);
+  const tRev=docs.reduce((a,d)=>a+d.revenue,0);
+  const tCb=docs.reduce((a,d)=>a+d.cashbackSum,0);
+  c.appendChild(el(`<div class="cards-row">
+    ${miniStat('i-users','#10b981','Врачей-партнёров',docs.length)}
+    ${miniStat('i-tooth','#2563eb','Пациентов приведено',tPat)}
+    ${miniStat('i-money','#7c3aed','Выручка по врачам',money(tRev))}
+    ${miniStat('i-gift','#db2777','Кэшбек к выплате',money(tCb))}
+  </div>`));
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Промокод привязан пофамильно к врачу. Скидка пациенту и кэшбек врачу зависят от бренда (Revyline 10%, прочее меньше). Продажи по промокодам тянутся из 1С — сейчас демо-данные.</div>`));
+  c.appendChild(el(`<div class="toolbar section-gap">
+    <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по ФИО, клинике, промокоду…"></div>
+    <select class="sel"><option>Все статусы</option><option>активен</option><option>на паузе</option></select>
+    <div class="spacer"></div>
+    <button class="btn primary" onclick="toast('Карточка врача создана','i-tooth')">${ic('i-plus','sm')} Врач-партнёр</button>
+  </div>`));
+  const panel=el(`<div class="panel"><table class="tbl"><thead><tr>
+    <th>Врач</th><th>Промокод</th><th>Бренд / скидка</th><th>Пациентов</th><th class="num">Выручка</th><th class="num">Кэшбек</th><th>Статус</th></tr></thead><tbody>
+    ${docs.map(d=>`<tr class="clickable" data-id="${d.id}">
+      <td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(d.name)}">${initials(d.name)}</span>
+        <div><div>${d.name}</div><div class="muted2" style="font-size:11px">${d.spec} · ${d.clinic}</div></div></div></td>
+      <td><span class="tag pink">${d.code}</span></td>
+      <td class="muted">${d.brand} · −${d.disc}% / +${d.cashback}%</td>
+      <td>${d.patients}</td>
+      <td class="num">${money(d.revenue)}</td>
+      <td class="num">${money(d.cashbackSum)}</td>
+      <td><span class="tag ${d.status==='активен'?'green':'amber'}">${d.status}</span></td></tr>`).join('')}
+  </tbody></table></div>`);
+  panel.querySelectorAll('tr.clickable').forEach(tr=>tr.onclick=()=>doctorModal(DB.doctors.find(x=>x.id===tr.dataset.id)));
+  c.appendChild(panel);
+};
+function doctorModal(d){
+  const maxM=Math.max(...d.months.map(m=>m[1]));
+  const avg=d.patients?Math.round(d.revenue/d.patients):0;
+  openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.name)}">${initials(d.name)}</span>
+    <div><h3>${d.name}</h3><div class="mh-sub">${d.spec} · ${d.clinic}</div></div></div>
+    <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="cards-row">
+      ${miniStat('i-users','#10b981','Пациентов',d.patients)}
+      ${miniStat('i-money','#2563eb','Выручка',money(d.revenue))}
+      ${miniStat('i-gift','#db2777','Кэшбек',money(d.cashbackSum))}
+      ${miniStat('i-cart','#7c3aed','Средний чек',money(avg))}
+    </div>
+    <div class="grid-2b section-gap">
+      <div class="fld"><label>Промокод</label><input value="${d.code}"></div>
+      <div class="fld"><label>Телефон</label><input value="${d.phone}"></div>
+    </div>
+    <div class="grid-3 section-gap">
+      <div class="fld"><label>Бренд</label><input value="${d.brand}"></div>
+      <div class="fld"><label>Скидка пациенту</label><input value="${d.disc}%"></div>
+      <div class="fld"><label>Кэшбек врачу</label><input value="${d.cashback}%"></div>
+    </div>
+    <h4 class="muted section-gap" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:11px">Динамика выручки по месяцам</h4>
+    ${barList(d.months.map(m=>[m[0],m[1],'#10b981']),maxM,true)}
+    <h4 class="muted section-gap" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:11px">Последние продажи по промокоду</h4>
+    <div class="timeline">${(d.last||[]).map(h=>tl('#16a34a','i-cart',h.t,h.d)).join('')||'<div class="muted2" style="font-size:13px">Нет данных</div>'}</div>
+    <div class="note blue section-gap">${ic('i-info','sm')} Когда подключим 1С — пациенты, суммы и динамика станут реальными: продажи по промокоду ${d.code} из 1С, с учётом бренда.</div>
+  </div>
+  <div class="modal-f">
+    <button class="btn" onclick="toast('Отчёт по врачу выгружен','i-doc')">${ic('i-doc','sm')} Выгрузить отчёт</button>
+    <button class="btn primary" onclick="closeModal();toast('Кэшбек ${money(d.cashbackSum)} начислен к выплате','i-gift','#db2777')">${ic('i-gift','sm')} Начислить кэшбек</button>
+  </div>`,'wide');
+}
 
 // ---------- ANALYTICS ----------
 PAGES.analytics=(c)=>{
