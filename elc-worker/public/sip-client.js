@@ -82,6 +82,11 @@ const STYLES = `
 
 .sipc-modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:99999;display:flex;align-items:center;justify-content:center;animation:sipc-fade .15s ease-out}
 @keyframes sipc-fade{from{opacity:0}to{opacity:1}}
+@keyframes sipc-slide-in{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+/* Side-panel: НЕ блокирует UI — карточка контакта/сделки остаётся кликабельной.
+   Используется для incoming (где менеджер хочет смотреть инфо в карточке параллельно). */
+.sipc-modal-bg.sipc-side{position:fixed;inset:auto;top:auto;right:16px;bottom:80px;left:auto;background:transparent;display:block;animation:sipc-slide-in .25s cubic-bezier(.3,.7,.4,1);pointer-events:none}
+.sipc-modal-bg.sipc-side .sipc-modal{pointer-events:auto;box-shadow:0 12px 40px rgba(15,23,42,.4),0 0 0 1px rgba(15,23,42,.08)}
 .sipc-modal{background:#fff;border-radius:14px;width:340px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden;font:14px/1.4 -apple-system,sans-serif;color:#0f172a}
 .sipc-modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #e5e7eb}
 .sipc-modal-title{font-weight:600;font-size:15px}
@@ -763,7 +768,9 @@ export async function createSipClient(config) {
     // случае ставим флаг keepOpen чтобы не закрылось повторно).
     closeOverlays();
     const bg = document.createElement('div');
-    bg.className = 'sipc-modal-bg';
+    // sipc-side: side-panel вместо blocking modal — карточка контакта/сделки
+    // остаётся видимой и кликабельной поверх popup'а звонка.
+    bg.className = 'sipc-modal-bg sipc-side';
     // Если разговор уже идёт (Established) — пользователь явно развернул,
     // больше не auto-минимизируем
     if (session && sessionMeta?.establishedAt) bg.dataset.keepOpen = '1';
@@ -824,11 +831,15 @@ export async function createSipClient(config) {
   function openIncomingOverlay(invitation, contactInfo) {
     closeOverlays();
     const bg = document.createElement('div');
-    bg.className = 'sipc-modal-bg';
+    // sipc-side — side-panel вместо blocking modal: карточка контакта/сделки
+    // под ним остаётся видимой и кликабельной. Менеджер может открыть
+    // карточку → читать инфо → потом ответить на звонок.
+    bg.className = 'sipc-modal-bg sipc-side';
     bg.innerHTML = `
       <div class="sipc-modal">
         <div class="sipc-modal-head">
           <div class="sipc-modal-title">⬅ Входящий звонок</div>
+          <button class="sipc-modal-close" title="Свернуть в bottom-bar (звонок продолжается)">−</button>
         </div>
         <div class="sipc-modal-body">
           ${renderRichContactBlock()}
@@ -845,6 +856,9 @@ export async function createSipClient(config) {
     wireRichBlockHandlers(bg);
     bg.querySelector('[data-act="accept"]').onclick = () => acceptIncoming(invitation);
     bg.querySelector('[data-act="reject"]').onclick = () => rejectIncoming(invitation);
+    // Кнопка «−» сворачивает popup в bottom-bar. Звонок продолжает звонить —
+    // если менеджер хочет ответить, кликает по bottom-bar и popup разворачивается.
+    bg.querySelector('.sipc-modal-close').onclick = () => closeOverlays();
   }
 
   function openNumpad() {
