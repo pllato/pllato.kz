@@ -447,6 +447,7 @@ CREATE TABLE wa_messages (
   media_file_name       TEXT,
   media_mime_type       TEXT,
   caption               TEXT,
+  sender_name           TEXT,                 -- имя автора (для групп: кто из участников написал)
   ts                    INTEGER NOT NULL,
   created_at            TEXT DEFAULT CURRENT_TIMESTAMP
 );

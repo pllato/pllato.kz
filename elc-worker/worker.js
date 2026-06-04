@@ -3086,6 +3086,16 @@ function extractWaWebhookEnvelope(body) {
   return { direction: isIncoming ? 'in' : 'out', instanceId: instance, chatId, phone, senderName, chatName, displayName, isGroup, waMessageId, ts, text, mediaKind, mediaUrl, mediaFileName, mediaMimeType, caption };
 }
 
+// Ленивая идемпотентная миграция: колонка sender_name в wa_messages (для показа
+// автора в групповых чатах). Флаг на изолят — ALTER выполняется один раз.
+let _waSenderColEnsured = false;
+async function ensureWaSenderColumn(env) {
+  if (_waSenderColEnsured) return;
+  try { await env.DB.prepare("ALTER TABLE wa_messages ADD COLUMN sender_name TEXT").run(); }
+  catch (e) { /* колонка уже есть — ок */ }
+  _waSenderColEnsured = true;
+}
+
 // POST /api/wa/webhook?token=XXX — приёмник от Green-API.
 // Без Firebase auth — Green-API не умеет Bearer.
 async function handleWaWebhook(request, env) {
@@ -3151,14 +3161,18 @@ async function handleWaWebhook(request, env) {
 
   if (evt.waMessageId) {
     const msgDocId = waMessageDocId(evt.instanceId, evt.waMessageId);
+    await ensureWaSenderColumn(env);
+    // Для групп сохраняем автора входящего сообщения, чтобы в истории было видно,
+    // кто из участников написал. Для 1:1 и исходящих — null (не нужно/это мы сами).
+    const senderForRow = (isGroup && evt.direction === 'in') ? (evt.senderName || null) : null;
     await env.DB.prepare(`
       INSERT OR IGNORE INTO wa_messages (
         id, chat_id, wa_message_id, direction, text,
-        media_kind, media_url, media_file_name, media_mime_type, caption, ts
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        media_kind, media_url, media_file_name, media_mime_type, caption, sender_name, ts
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       msgDocId, chatDocId, evt.waMessageId, evt.direction, evt.text || null,
-      evt.mediaKind, evt.mediaUrl, evt.mediaFileName, evt.mediaMimeType, evt.caption, evt.ts,
+      evt.mediaKind, evt.mediaUrl, evt.mediaFileName, evt.mediaMimeType, evt.caption, senderForRow, evt.ts,
     ).run();
   }
 
@@ -3495,7 +3509,7 @@ async function handleWaListMessages(request, env) {
     direction: r.direction, text: r.text,
     mediaKind: r.media_kind, mediaUrl: r.media_url,
     mediaFileName: r.media_file_name, mediaMimeType: r.media_mime_type,
-    caption: r.caption, ts: r.ts,
+    caption: r.caption, senderName: r.sender_name || null, ts: r.ts,
   }));
   return json({ items, total: items.length, chatId }, 200, request);
 }

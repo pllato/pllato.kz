@@ -5386,6 +5386,17 @@ function ensureWaWidgetStyles() {
       align-self: flex-end !important;
       margin-left: auto !important;
     }
+    /* Имя автора в группе — над текстом входящего сообщения (как в WhatsApp). */
+    .wa-msg .wa-msg-sender {
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 220px;
+    }
     .wa-w-composer {
       flex: 0 0 auto; padding: 8px 10px; background: var(--bg3, #f3f5f7);
       display: flex; gap: 6px; align-items: flex-end;
@@ -5774,7 +5785,7 @@ function renderWaWidgetChat(root) {
   const isGroup = chat.isGroup === true;
   const name = chat.name && chat.name.trim() ? chat.name : (chat.phone ? '+' + chat.phone : (isGroup ? 'Группа' : '?'));
   const msgsHtml = waWidget.messages.length
-    ? waWidget.messages.map(m => renderWaMessageHtml(m)).join('')
+    ? waWidget.messages.map(m => renderWaMessageHtml(m, isGroup)).join('')
     : '<div class="wa-w-empty">📭 История пуста</div>';
   // Поиск deal для контакта (если есть) — для групп не показываем (не привязаны)
   const dealId = !isGroup && chat.dealId;
@@ -6034,7 +6045,8 @@ async function loadWaWidgetMessages(opts = {}) {
     if (waWidget.view === 'chat') {
       const body = document.getElementById('wa-w-msgs');
       if (body) {
-        body.innerHTML = items.length ? items.map(m => renderWaMessageHtml(m)).join('') : '<div class="wa-w-empty">📭 История пуста</div>';
+        const isGroup = waWidget.activeChatMeta?.isGroup === true;
+        body.innerHTML = items.length ? items.map(m => renderWaMessageHtml(m, isGroup)).join('') : '<div class="wa-w-empty">📭 История пуста</div>';
         body.scrollTop = body.scrollHeight;
       }
     }
@@ -9030,6 +9042,8 @@ async function renderWaMessages(chatId, opts = {}) {
         : '<div class="wa-float-empty">📭 Истории пока нет.<br>Напиши первое сообщение клиенту.</div>';
       return;
     }
+    // Группа определяется по chatId (…@g.us) — тогда показываем автора сообщений.
+    const isGroup = String(chatId || '').includes('@g.us');
     // Группируем по дням → вставляем day-divider'ы
     const html = [];
     let lastDayKey = '';
@@ -9040,7 +9054,7 @@ async function renderWaMessages(chatId, opts = {}) {
         html.push(`<div class="wa-day-divider"><span>${formatWaDayLabel(dt)}</span></div>`);
         lastDayKey = dayKey;
       }
-      html.push(renderWaMessageHtml(m));
+      html.push(renderWaMessageHtml(m, isGroup));
     }
     body.innerHTML = html.join('');
     body.scrollTop = body.scrollHeight;
@@ -9256,9 +9270,22 @@ function bindWaVoiceButton(voiceBtn, chatRefGetter, onSent) {
   };
 }
 
-function renderWaMessageHtml(m) {
+// Стабильный цвет для имени автора в группе (как в WhatsApp — у каждого свой).
+function waSenderColor(name) {
+  const palette = ['#e542a3','#d32f2f','#7b1fa2','#3949ab','#1565c0','#00838f','#2e7d32','#ef6c00','#6d4c41','#c2185b','#5e35b1','#00796b'];
+  let h = 0;
+  const s = String(name || '');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return palette[Math.abs(h) % palette.length];
+}
+
+function renderWaMessageHtml(m, isGroup) {
   const cls = m.direction === 'in' ? 'in' : 'out';
   const ts = new Date(m.ts).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+  // В группе над входящим сообщением показываем, КТО написал (цвет на автора).
+  const senderHtml = (isGroup && m.direction === 'in' && m.senderName)
+    ? `<div class="wa-msg-sender" style="color:${waSenderColor(m.senderName)}">${escapeHtml(m.senderName)}</div>`
+    : '';
   let mediaHtml = '';
   if (m.mediaKind === 'image' && m.mediaUrl) {
     mediaHtml = `<a href="${escapeHtml(m.mediaUrl)}" target="_blank"><img class="wa-media-img" src="${escapeHtml(m.mediaUrl)}" alt="" style="max-width:240px;max-height:240px;border-radius:6px;display:block"></a>`;
@@ -9282,6 +9309,7 @@ function renderWaMessageHtml(m) {
   const text = m.text || m.caption || '';
   const tick = cls === 'out' ? '<span class="wa-tick">✓✓</span>' : '';
   return `<div class="wa-msg ${cls}">
+    ${senderHtml}
     ${mediaHtml}
     ${text ? escapeHtml(text).replace(/\n/g, '<br>') : ''}
     <span class="wa-ts">${ts} ${tick}</span>
