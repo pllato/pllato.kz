@@ -3,7 +3,7 @@
 // Phase 2.1: RTDB-proxy endpoint /api/rtdb/{path}.json (read + PATCH)
 
 import { jwtVerify, createRemoteJWKSet } from "jose";
-import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser, downloadFile as downloadChatFile } from "./chat-module.js";
+import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser, downloadFile as downloadChatFile, setWaNotifier } from "./chat-module.js";
 import { sendWebPush, VAPID_PUBLIC_KEY } from "./webpush.js";
 
 // ctx последнего fetch/scheduled — чтобы фоновую рассылку пушей (несколько
@@ -3879,6 +3879,21 @@ function notifierDefaultEvents() {
   for (const e of NOTIFIER_EVENTS) o[e.key] = e.def;
   return o;
 }
+
+// Карта тип-уведомления (createNotification opts.type) → ключ события оповещателя.
+// Любое уведомление, проходящее через createNotification, чей type есть в карте,
+// автоматически дублируется в личный WhatsApp (с проверкой тумблера в sendNotify).
+// Чат-сообщения (chat_dm/chat_message) идут отдельным путём через chat-module.
+const NOTIF_TYPE_TO_EVENT = {
+  wa_incoming:   'wa_incoming',
+  feed_post:     'feed_post',
+  call_missed:   'call_missed',
+  call_incoming: 'call_incoming',
+  task_assigned: 'task_assigned',
+  task_updated:  'task_updated',
+  task_comment:  'task_comment',
+  deal_assigned: 'deal_assigned',
+};
 function safeJsonParse(s, fallback) {
   if (s == null) return fallback;
   if (typeof s === 'object') return s;
@@ -3970,6 +3985,10 @@ async function sendNotify(env, { uid, phone, event, text, link }) {
     return logNotify(env, { uid: uid || null, phone: phone || null, event, text, link, status: 'failed', error: String(e && e.message || e) });
   }
 }
+
+// Внедряем sendNotify в chat-module (чат-сообщения дублируются в WhatsApp).
+// Делается через сеттер, чтобы не плодить циклический импорт между модулями.
+try { setWaNotifier(sendNotify); } catch {}
 
 // GET /api/notifier — конфиг (токен замаскирован).
 async function handleNotifierGet(request, env) {
@@ -5036,6 +5055,18 @@ async function createNotification(env, opts) {
       if (CURRENT_CTX && typeof CURRENT_CTX.waitUntil === 'function') CURRENT_CTX.waitUntil(job);
       else await job;
     } catch (e) { console.warn('[push] schedule failed:', e && e.message); }
+    // WA-оповещатель: дублируем уведомление в личный WhatsApp, если для этого
+    // типа есть событие в карте. sendNotify сам проверит тумблер и наличие телефона.
+    try {
+      const waEvent = NOTIF_TYPE_TO_EVENT[opts.type];
+      if (waEvent) {
+        const waText = (opts.title || '') + (opts.body ? `\n${opts.body}` : '');
+        const waLink = opts.link ? (opts.link.startsWith('http') ? opts.link : 'https://pllato.kz' + opts.link) : null;
+        const waJob = sendNotify(env, { uid, event: waEvent, text: waText, link: waLink }).catch(() => {});
+        if (CURRENT_CTX && typeof CURRENT_CTX.waitUntil === 'function') CURRENT_CTX.waitUntil(waJob);
+        else await waJob;
+      }
+    } catch (e) { console.warn('[notif] wa relay failed:', e && e.message); }
     return id;
   } catch (e) {
     console.warn('[notif] create failed:', e && e.message);
