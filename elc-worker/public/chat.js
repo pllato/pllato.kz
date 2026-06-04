@@ -468,7 +468,7 @@
       .tc-modal h3 { margin:0 0 16px; font-size:18px; }
       .tc-newchat-hint { margin:-6px 0 14px; font-size:12.5px; color:var(--t3); line-height:1.45; }
       .tc-modal label { display:block; margin-bottom:12px; font-size:12.5px; color:var(--t2); font-weight:600; }
-      .tc-modal input, .tc-modal textarea, .tc-modal select { width:100%; box-sizing:border-box; padding:9px 11px;
+      .tc-modal input:not([type=checkbox]), .tc-modal textarea, .tc-modal select { width:100%; box-sizing:border-box; padding:9px 11px;
         border:1px solid var(--b1); border-radius:9px; background:var(--bg3); color:var(--t1); font-size:13.5px;
         font-family:inherit; margin-top:5px; outline:none; }
       .tc-modal input:focus, .tc-modal textarea:focus, .tc-modal select:focus { border-color:var(--tc-ac); }
