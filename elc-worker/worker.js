@@ -6157,6 +6157,13 @@ export default {
     // Auth: Firebase ID token в query ?token=… (передаём verify через env-шим).
     if (path === "/api/ws/user") {
       env._verifyIdToken = (t) => verifyFirebaseIdToken(t, env.FIREBASE_PROJECT_ID);
+      // Канонический uid (D1, по email) — ТОТ ЖЕ, что пишется в team_chat_members
+      // и используется в broadcastToChannel. Без этого WS подключается под
+      // firebase-uid, а пуши шлются под canonical-uid → сообщения не доходят.
+      env._resolveCanonicalUid = async (claims) => {
+        try { return (await resolveCanonicalUser(env, claims)).canonicalUid; }
+        catch { return claims?.user_id || claims?.sub || claims?.uid || null; }
+      };
       return handleChatWebSocket(request, env, url);
     }
 
