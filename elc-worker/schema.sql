@@ -452,3 +452,40 @@ CREATE TABLE wa_messages (
 );
 CREATE INDEX idx_wa_messages_chat      ON wa_messages(chat_id, ts DESC);
 CREATE INDEX idx_wa_messages_ts        ON wa_messages(ts DESC);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- Системный WhatsApp-оповещатель (portal notifier).
+-- Отдельный Green-API инстанс (НЕ из wa_channels), который шлёт системные
+-- уведомления сотрудникам в личный WhatsApp (users.phone): новые сообщения в
+-- чатах, звонки, задачи, приглашения, доступ к порталу и т.д.
+-- Синглтон: всегда одна строка id = 1. Хранится отдельно от wa_channels,
+-- чтобы входящий webhook и «первый активный канал» (fallback исходящих) НИКОГДА
+-- не подхватили его как inbox-канал клиентов.
+CREATE TABLE wa_notifier (
+  id                    INTEGER PRIMARY KEY CHECK (id = 1),  -- синглтон
+  id_instance           TEXT,
+  api_url               TEXT DEFAULT 'https://api.green-api.com',
+  api_token_instance    TEXT,
+  display_name          TEXT DEFAULT 'Портал-оповещатель',
+  active                INTEGER DEFAULT 0,
+  events_json           TEXT,                 -- JSON map { eventKey: true|false }
+  portal_url            TEXT DEFAULT 'https://pllato.kz/team.html',
+  created_at            TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at            TEXT
+);
+
+-- Лог отправленных системных уведомлений (диагностика + защита от спама).
+CREATE TABLE notify_log (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  uid                   TEXT,                 -- получатель (сотрудник)
+  phone                 TEXT,
+  event                 TEXT,                 -- ключ события
+  text                  TEXT,
+  link                  TEXT,
+  status                TEXT,                 -- 'sent'|'failed'|'skipped'
+  error                 TEXT,
+  wa_message_id         TEXT,
+  created_at            TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_notify_log_created    ON notify_log(created_at DESC);
+CREATE INDEX idx_notify_log_uid        ON notify_log(uid, created_at DESC);

@@ -464,13 +464,52 @@
       .tc-picker-empty { padding:22px; text-align:center; color:var(--t3); font-size:12.5px; }
       .tc-picker-count { font-size:12px; color:var(--t2); margin-top:8px; font-weight:600; }
 
-      /* ── Responsive ── */
+      /* ── Responsive (tablet / narrow) ── */
       .tc-root.tc-narrow { grid-template-columns: 1fr; }
       .tc-root.tc-narrow .tc-main { display:none; }
       .tc-root.tc-narrow.tc-show-main .tc-sidebar { display:none; }
       .tc-root.tc-narrow.tc-show-main .tc-main { display:flex; }
       .tc-root.tc-narrow .tc-back { display:flex; }
       .tc-root.tc-narrow .tc-msg { max-width:86%; }
+
+      /* ── Mobile (phone): full-screen conversation that survives the on-screen keyboard ──
+         The open conversation is lifted into a position:fixed overlay whose height is driven
+         in JS by window.visualViewport, so the composer is always pinned just above the
+         keyboard and the message list stays scrollable/visible. */
+      @media (max-width: 860px) {
+        .tc-root.tc-narrow.tc-show-main .tc-main {
+          position: fixed; top: 0; left: 0; right: 0; bottom: auto;
+          height: 100vh; height: 100dvh; z-index: 1300;
+          background: var(--bg); will-change: height;
+        }
+        .tc-root.tc-narrow.tc-show-main .tc-main-head {
+          padding-top: calc(10px + env(safe-area-inset-top));
+        }
+        .tc-root.tc-narrow.tc-show-main .tc-composer {
+          padding-bottom: calc(12px + env(safe-area-inset-bottom));
+        }
+        .tc-back { width:40px; height:40px; font-size:28px; }
+        .tc-msg { max-width:90%; }
+        .tc-msg-text { font-size:15px; line-height:1.5; }
+        .tc-msg-bubble { padding:8px 12px 7px; }
+        .tc-ch-av { width:48px; height:48px; }
+        .tc-ch-name { font-size:15px; }
+        .tc-ch-last { font-size:13px; }
+        .tc-channel { padding:11px 10px; }
+        .tc-btn-icon { width:44px; height:44px; font-size:19px; }
+        .tc-composer textarea { min-height:44px; }
+        /* 16px inputs prevent iOS Safari from auto-zooming the page on focus */
+        .tc-composer textarea, .tc-search input { font-size:16px; }
+        /* touch: reveal per-message actions on tap (no real :hover on touch) */
+        .tc-msg.tc-show-actions .tc-msg-actions { display:flex; }
+      }
+      /* On pure-touch devices :hover sticks; rely on an explicit tap toggle instead. */
+      @media (hover: none) {
+        .tc-msg:hover .tc-msg-actions { display:none; }
+        .tc-msg.tc-show-actions .tc-msg-actions { display:flex; }
+        .tc-msg-actions { top:-15px; }
+        .tc-msg-btn { width:32px; height:32px; font-size:15px; }
+      }
     `;
     const st = document.createElement('style');
     st.id = 'team-chat-styles';
@@ -600,6 +639,21 @@
     msgsEl.querySelectorAll('[data-react-toggle]').forEach(b => {
       b.onclick = () => toggleReaction(b.dataset.reactToggle, b.dataset.emoji, b.dataset.own === '1');
     });
+
+    // Touch devices have no real hover, so the reply/edit/react toolbar must be
+    // summoned with a tap on the bubble (ignoring taps on links/images/reactions).
+    if (window.matchMedia('(hover: none)').matches) {
+      msgsEl.querySelectorAll('.tc-msg').forEach(msgEl => {
+        const bubble = msgEl.querySelector('.tc-msg-bubble');
+        if (!bubble) return;
+        bubble.addEventListener('click', (e) => {
+          if (e.target.closest('a, img, .tc-react, .tc-msg-btn')) return;
+          const wasOpen = msgEl.classList.contains('tc-show-actions');
+          msgsEl.querySelectorAll('.tc-msg.tc-show-actions').forEach(x => x.classList.remove('tc-show-actions'));
+          if (!wasOpen) msgEl.classList.add('tc-show-actions');
+        });
+      });
+    }
   }
 
   function renderMessage(m, opts) {
@@ -696,7 +750,9 @@
     const back = head.querySelector('.tc-back');
     if (back) back.onclick = () => {
       state.activeChannelId = null;
-      state.rootEl.classList.remove('tc-show-main');
+      const r = state.rootEl?.querySelector('.tc-root');
+      if (r) r.classList.remove('tc-show-main');
+      syncViewport();
       renderChannelList();
       renderMainHead();
       renderMessages();
@@ -713,7 +769,8 @@
   }
 
   // ── Render: composer ───────────────────────────────────────────────────
-  function renderComposer() {
+  function renderComposer(opts) {
+    const wantFocus = !!(opts && opts.focus);
     const root = state.rootEl;
     if (!root) return;
     const c = root.querySelector('.tc-composer');
@@ -737,12 +794,21 @@
       <input type="file" id="tc-file-input" style="display:none">`;
 
     const ta = c.querySelector('#tc-composer-input');
+    const isTouch = window.matchMedia('(pointer: coarse)').matches;
     ta.oninput = () => { state.composerDraft = ta.value; autoresizeTa(ta); };
     ta.onkeydown = (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCurrent(); }
+      // On touch keyboards Enter inserts a newline (send via the button); on
+      // desktop Enter sends, Shift+Enter is a newline — standard messenger UX.
+      if (e.key === 'Enter' && !e.shiftKey && !isTouch) { e.preventDefault(); sendCurrent(); }
     };
+    // When the field gains focus the keyboard slides up; keep the latest
+    // messages in view above it once the viewport settles.
+    ta.onfocus = () => { setTimeout(() => { syncViewport(); scrollMsgsToBottom(false); }, 300); };
     autoresizeTa(ta);
-    ta.focus();
+    // Auto-focusing on mobile would pop the keyboard the moment a chat opens
+    // (and shove the list aside); only steal focus when explicitly requested
+    // or on desktop where it's expected.
+    if (wantFocus || !isTouch) ta.focus();
     c.querySelector('#tc-send-btn').onclick = sendCurrent;
     c.querySelector('#tc-attach-btn').onclick = () => c.querySelector('#tc-file-input').click();
     c.querySelector('#tc-file-input').onchange = onFileSelected;
@@ -766,7 +832,7 @@
     if (state.editingMsg) {
       try {
         await api(`/api/chat/messages/${state.editingMsg.id}/edit`, { method: 'POST', body: JSON.stringify({ text }) });
-        state.editingMsg = null; state.composerDraft = ''; renderComposer();
+        state.editingMsg = null; state.composerDraft = ''; renderComposer({ focus: true });
       } catch (e) { alert('Ошибка: ' + e.message); }
       return;
     }
@@ -776,7 +842,7 @@
     try {
       await api(`/api/chat/channels/${state.activeChannelId}/messages`, { method: 'POST', body: JSON.stringify(body) });
       state.composerDraft = ''; state.replyToMsg = null;
-      renderComposer();
+      renderComposer({ focus: true });
     } catch (e) { alert('Ошибка отправки: ' + e.message); }
   }
 
@@ -798,8 +864,8 @@
   function onMsgAction(action, msgId) {
     const m = state.messages.find(x => x.id === msgId);
     if (!m) return;
-    if (action === 'reply') { state.replyToMsg = m; state.editingMsg = null; renderComposer(); }
-    if (action === 'edit') { state.editingMsg = m; state.replyToMsg = null; state.composerDraft = m.text || ''; renderComposer(); }
+    if (action === 'reply') { state.replyToMsg = m; state.editingMsg = null; renderComposer({ focus: true }); }
+    if (action === 'edit') { state.editingMsg = m; state.replyToMsg = null; state.composerDraft = m.text || ''; renderComposer({ focus: true }); }
     if (action === 'delete') {
       if (!confirm('Удалить сообщение?')) return;
       api(`/api/chat/messages/${msgId}`, { method: 'DELETE' }).catch(e => alert(e.message));
@@ -824,11 +890,15 @@
     state.editingMsg = null;
     state.composerDraft = '';
     state.loadingMsgs = true;
-    if (state.rootEl) state.rootEl.classList.add('tc-show-main');
+    if (state.rootEl) {
+      const r = state.rootEl.querySelector('.tc-root');
+      if (r) r.classList.add('tc-show-main');
+    }
     renderChannelList();
     renderMainHead();
     renderComposer();
     renderMessages();
+    syncViewport();
     await loadMessages(channelId);
   }
 
@@ -993,6 +1063,42 @@
     const root = el.querySelector('.tc-root');
     if (!root) return;
     root.classList.toggle('tc-narrow', el.clientWidth < 720);
+    syncViewport();
+  }
+
+  // ── Mobile keyboard handling ───────────────────────────────────────────
+  // On phones the open conversation (.tc-main) is a position:fixed overlay.
+  // We size it to window.visualViewport so the composer is pinned right above
+  // the keyboard and the message list stays visible — the core mobile UX ask.
+  function isOverlayMode() {
+    const root = state.rootEl?.querySelector('.tc-root');
+    return !!(root
+      && root.classList.contains('tc-narrow')
+      && root.classList.contains('tc-show-main')
+      && window.matchMedia('(max-width: 860px)').matches);
+  }
+  function syncViewport() {
+    const main = state.rootEl?.querySelector('.tc-main');
+    if (!main) return;
+    if (!isOverlayMode() || !window.visualViewport) {
+      main.style.height = '';
+      main.style.transform = '';
+      return;
+    }
+    const vv = window.visualViewport;
+    const msgs = state.rootEl?.querySelector('.tc-msgs');
+    const stick = msgs ? isNearBottom(msgs, 300) : true;
+    main.style.height = Math.round(vv.height) + 'px';
+    main.style.transform = `translateY(${Math.round(vv.offsetTop)}px)`;
+    if (stick && msgs) msgs.scrollTop = msgs.scrollHeight;
+  }
+  function bindViewport() {
+    if (state._vvBound || !window.visualViewport) return;
+    state._vvBound = true;
+    const h = () => syncViewport();
+    window.visualViewport.addEventListener('resize', h);
+    window.visualViewport.addEventListener('scroll', h);
+    window.addEventListener('orientationchange', () => setTimeout(syncViewport, 350));
   }
 
   // ── Mount ──────────────────────────────────────────────────────────────
@@ -1050,6 +1156,7 @@
     el.querySelector('.tc-scroll-btn').onclick = () => scrollMsgsToBottom(true);
 
     applyResponsive();
+    bindViewport();
     if (window.ResizeObserver) {
       try {
         if (state._ro) state._ro.disconnect();

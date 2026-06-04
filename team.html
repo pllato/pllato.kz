@@ -784,6 +784,13 @@ tr:hover td { background: var(--bg3); }
     box-sizing: border-box;
     padding: calc(52px + env(safe-area-inset-top) + 12px) 14px calc(14px + env(safe-area-inset-bottom));
   }
+
+  /* Чаты команды: список занимает почти всю высоту экрана; открытый диалог
+     сам разворачивается во весь экран через chat.js (position:fixed + visualViewport). */
+  #team-chat-mount {
+    height: calc(100dvh - 52px - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 96px) !important;
+    border-radius: 10px;
+  }
 }
 
 /* ── Deals page ───────────────────────────────────── */
@@ -4076,7 +4083,7 @@ async function renderTeamChat(el) {
     return;
   }
   const s = document.createElement('script');
-  s.src = `${WORKER_BASE_URL}/chat.js?v=6`;
+  s.src = `${WORKER_BASE_URL}/chat.js?v=7`;
   s.onload = () => {
     _teamChatScriptLoaded = true;
     if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
@@ -19393,9 +19400,10 @@ async function saveOrgPermissions() {
 
 async function renderSettingsChannels(el) {
   el.innerHTML = `
-    <div style="display:flex;gap:8px;margin-bottom:14px">
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       <button class="vt-btn ${settingsState.channelsSubTab === 'whatsapp' ? 'active' : ''}" data-csub="whatsapp">💬 WhatsApp</button>
       <button class="vt-btn ${settingsState.channelsSubTab === 'binotel' ? 'active' : ''}" data-csub="binotel">📞 Бинотел (SIP)</button>
+      <button class="vt-btn ${settingsState.channelsSubTab === 'notifier' ? 'active' : ''}" data-csub="notifier">📢 Оповещатель</button>
     </div>
     <div id="channels-subcontent"></div>
   `;
@@ -19408,8 +19416,219 @@ async function renderSettingsChannels(el) {
   const sub = document.getElementById('channels-subcontent');
   if (settingsState.channelsSubTab === 'whatsapp') {
     await renderSettingsChannelsWa(sub);
+  } else if (settingsState.channelsSubTab === 'notifier') {
+    await renderSettingsNotifier(sub);
   } else {
     renderSettingsChannelsBinotel(sub);
+  }
+}
+
+// ── Настройки → Каналы → 📢 Системный WhatsApp-оповещатель ──
+// Отдельный Green-API инстанс, который шлёт сотрудникам в личный WhatsApp
+// системные уведомления портала (приглашения, доступ, чаты, звонки, задачи).
+async function renderSettingsNotifier(el) {
+  el.innerHTML = `<div class="card" style="padding:18px"><div class="empty">⏳ Загружаем…</div></div>`;
+  let data;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/notifier`, { headers: { 'Authorization': `Bearer ${idToken}` } });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `HTTP ${r.status}`); }
+    data = await r.json();
+  } catch (e) {
+    el.innerHTML = `<div class="card" style="padding:18px"><div class="empty" style="color:#c00">Ошибка: ${escapeHtml(e.message)}</div>
+      <div style="margin-top:10px;font-size:12px;color:var(--t3)">Если таблицы оповещателя ещё нет — сначала примените миграцию D1 (wa_notifier + notify_log).</div></div>`;
+    return;
+  }
+  const n = data.notifier || {};
+  const events = data.events || [];
+  const cur = n.events || data.defaultEvents || {};
+  const eventRows = events.map(ev => `
+    <label style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--b1);cursor:pointer">
+      <input type="checkbox" data-nev="${escapeHtml(ev.key)}" ${cur[ev.key] !== false ? 'checked' : ''}>
+      <span style="font-size:13px;color:var(--t1)">${escapeHtml(ev.label)}</span>
+      <code style="margin-left:auto;font-size:10px;color:var(--t3)">${escapeHtml(ev.key)}</code>
+    </label>`).join('');
+
+  el.innerHTML = `
+    <div class="card" style="padding:18px;max-width:680px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">
+        <div>
+          <h3 style="margin:0;font-size:16px">📢 Системный оповещатель (WhatsApp)</h3>
+          <div style="color:var(--t3);font-size:12px;margin-top:4px">Отдельный номер-робот, который пишет сотрудникам в личный WhatsApp о событиях на портале</div>
+        </div>
+        <span id="nf-status-badge" style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;background:var(--bg3);color:var(--t3);white-space:nowrap">${n.active ? '🟢 включён' : '⏸ выключен'}</span>
+      </div>
+
+      <div style="padding:11px 13px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--t2);line-height:1.6;margin:12px 0 16px">
+        💡 Заведите <b>отдельный</b> Green-API инстанс на <a href="https://green-api.com" target="_blank" style="color:var(--ac)">green-api.com</a> (не тот, что для клиентских чатов), привяжите рабочий номер-робота по QR, вставьте <code>idInstance</code> + <code>apiToken</code> ниже и нажмите «Сохранить», затем «Подключить» и «Тест». Сотрудники получат оповещения на телефон, указанный в их профиле (Настройки → Сотрудники → ✏).
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <label style="font-size:12px;color:var(--t2);font-weight:600">idInstance
+          <input id="nf-id" value="${escapeHtml(n.idInstance || '')}" placeholder="1101xxxxxx" style="width:100%;box-sizing:border-box;margin-top:5px;padding:9px 11px;border:1px solid var(--b1);border-radius:8px;background:var(--bg3);color:var(--t1);font-size:13px">
+        </label>
+        <label style="font-size:12px;color:var(--t2);font-weight:600">apiTokenInstance
+          <input id="nf-token" type="password" value="" placeholder="${n.hasToken ? '•••••••• (сохранён, заполните чтобы заменить)' : 'вставьте токен'}" style="width:100%;box-sizing:border-box;margin-top:5px;padding:9px 11px;border:1px solid var(--b1);border-radius:8px;background:var(--bg3);color:var(--t1);font-size:13px">
+        </label>
+        <label style="font-size:12px;color:var(--t2);font-weight:600">Имя (для журнала)
+          <input id="nf-name" value="${escapeHtml(n.displayName || 'Портал-оповещатель')}" style="width:100%;box-sizing:border-box;margin-top:5px;padding:9px 11px;border:1px solid var(--b1);border-radius:8px;background:var(--bg3);color:var(--t1);font-size:13px">
+        </label>
+        <label style="font-size:12px;color:var(--t2);font-weight:600">Ссылка на портал (для писем)
+          <input id="nf-portal" value="${escapeHtml(n.portalUrl || 'https://pllato.kz/team.html')}" style="width:100%;box-sizing:border-box;margin-top:5px;padding:9px 11px;border:1px solid var(--b1);border-radius:8px;background:var(--bg3);color:var(--t1);font-size:13px">
+        </label>
+      </div>
+
+      <label style="display:flex;align-items:center;gap:9px;margin-top:14px;cursor:pointer">
+        <input type="checkbox" id="nf-active" ${n.active ? 'checked' : ''}>
+        <span style="font-size:13px;color:var(--t1);font-weight:600">Оповещатель включён</span>
+        <span style="font-size:11px;color:var(--t3)">— когда выключен, системные сообщения уходят через клиентский WhatsApp-канал (fallback)</span>
+      </label>
+
+      <div style="margin-top:18px">
+        <div style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);margin-bottom:6px">Какие события слать сотрудникам</div>
+        <div style="border:1px solid var(--b1);border-radius:8px;padding:4px 14px;background:var(--bg2)">${eventRows}</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:6px">Часть авто-событий (сообщения в чатах, звонки, задачи) подключается постепенно. Приглашения, доступ и тест работают сразу.</div>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px">
+        <button class="btn btn-sm" id="nf-save" style="background:var(--ac);color:#fff;border:none">💾 Сохранить</button>
+        <button class="btn btn-sm" id="nf-connect" style="background:#25D366;color:#fff;border:none">🔌 Подключить (QR)</button>
+        <button class="btn btn-sm" id="nf-test">✅ Тест себе</button>
+        <button class="btn btn-sm" id="nf-log">📋 Журнал отправок</button>
+      </div>
+      <div id="nf-msg" style="margin-top:12px;font-size:12px"></div>
+      <div id="nf-log-wrap" style="margin-top:12px"></div>
+    </div>
+  `;
+
+  const setMsg = (html, color) => { const m = document.getElementById('nf-msg'); if (m) { m.innerHTML = html; m.style.color = color || 'var(--t2)'; } };
+
+  document.getElementById('nf-save').onclick = async () => {
+    const btn = document.getElementById('nf-save');
+    btn.disabled = true; btn.textContent = '⏳…';
+    const ev = {};
+    el.querySelectorAll('[data-nev]').forEach(cb => { ev[cb.dataset.nev] = cb.checked; });
+    const payload = {
+      idInstance: document.getElementById('nf-id').value.trim(),
+      displayName: document.getElementById('nf-name').value.trim(),
+      portalUrl: document.getElementById('nf-portal').value.trim(),
+      active: document.getElementById('nf-active').checked,
+      events: ev,
+    };
+    const tok = document.getElementById('nf-token').value.trim();
+    if (tok) payload.apiTokenInstance = tok;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/notifier`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `HTTP ${r.status}`); }
+      setMsg('✅ Сохранено', 'var(--gn)');
+      const badge = document.getElementById('nf-status-badge');
+      if (badge) badge.textContent = payload.active ? '🟢 включён' : '⏸ выключен';
+    } catch (e) {
+      setMsg('❌ ' + escapeHtml(e.message), '#c00');
+    }
+    btn.disabled = false; btn.textContent = '💾 Сохранить';
+  };
+
+  document.getElementById('nf-connect').onclick = () => openNotifierConnectModal();
+  document.getElementById('nf-test').onclick = async () => {
+    const phone = prompt('Номер для теста (с кодом страны, можно пусто = ваш телефон из профиля):', '');
+    if (phone === null) return;
+    setMsg('⏳ Отправляем тест…');
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/notifier/test`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify(phone.trim() ? { phone: phone.trim() } : {}),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+      setMsg(`✅ Отправлено на +${escapeHtml(j.phone || '')} (через ${escapeHtml(j.via || '')})`, 'var(--gn)');
+    } catch (e) {
+      setMsg('❌ ' + escapeHtml(e.message), '#c00');
+    }
+  };
+  document.getElementById('nf-log').onclick = async () => {
+    const wrap = document.getElementById('nf-log-wrap');
+    wrap.innerHTML = '<div class="empty" style="font-size:12px">⏳ Загружаем журнал…</div>';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/notifier/log?limit=40`, { headers: { 'Authorization': `Bearer ${idToken}` } });
+      const j = await r.json().catch(() => ({}));
+      const items = j.items || [];
+      if (!items.length) { wrap.innerHTML = '<div class="empty" style="font-size:12px">Журнал пуст.</div>'; return; }
+      const icon = s => s === 'sent' ? '✅' : (s === 'failed' ? '❌' : '⏭');
+      wrap.innerHTML = `<div style="border:1px solid var(--b1);border-radius:8px;overflow:hidden">${items.map(it => `
+        <div style="display:flex;gap:10px;align-items:center;padding:7px 12px;border-bottom:1px solid var(--b1);font-size:12px">
+          <span>${icon(it.status)}</span>
+          <span style="color:var(--t2);min-width:96px">${escapeHtml(it.event || '—')}</span>
+          <span style="color:var(--t3)">${escapeHtml(it.phone || it.uid || '')}</span>
+          <span style="color:var(--t3);margin-left:auto;font-size:11px">${escapeHtml((it.created_at || '').replace('T', ' ').slice(0, 16))}</span>
+          ${it.error ? `<span style="color:#c00;font-size:11px">${escapeHtml(it.error)}</span>` : ''}
+        </div>`).join('')}</div>`;
+    } catch (e) {
+      wrap.innerHTML = `<div class="empty" style="color:#c00;font-size:12px">Ошибка: ${escapeHtml(e.message)}</div>`;
+    }
+  };
+}
+
+// Модалка подключения номера-оповещателя: показывает QR и опрашивает статус.
+async function openNotifierConnectModal() {
+  document.getElementById('_nf-connect-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_nf-connect-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) closeNotifierConnect(ov); };
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:420px;width:96vw">
+      <div class="qad-head"><h2>🔌 Подключение оповещателя</h2><button class="qad-btn qad-btn-ghost" id="nfc-close" style="padding:4px 10px">×</button></div>
+      <div class="qad-body" style="padding:20px 24px;text-align:center">
+        <div id="nfc-state" style="font-size:13px;color:var(--t2);margin-bottom:14px">⏳ Проверяем статус…</div>
+        <div id="nfc-qr" style="min-height:240px;display:flex;align-items:center;justify-content:center"></div>
+        <div style="font-size:12px;color:var(--t3);margin-top:12px;line-height:1.5">Откройте WhatsApp на телефоне-роботе → ⚙ Связанные устройства → Привязка устройства → отсканируйте QR.</div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('nfc-close').onclick = () => closeNotifierConnect(ov);
+  ov._poll = setInterval(() => pollNotifierConnect(ov), 4000);
+  pollNotifierConnect(ov);
+}
+function closeNotifierConnect(ov) { if (ov._poll) clearInterval(ov._poll); ov.remove(); }
+async function pollNotifierConnect(ov) {
+  if (!document.body.contains(ov)) { if (ov._poll) clearInterval(ov._poll); return; }
+  const stateEl = ov.querySelector('#nfc-state');
+  const qrEl = ov.querySelector('#nfc-qr');
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const sr = await fetch(`${WORKER_BASE_URL}/api/notifier/state`, { headers: { 'Authorization': `Bearer ${idToken}` } });
+    const sj = await sr.json().catch(() => ({}));
+    if (!sr.ok) throw new Error(sj.error || `HTTP ${sr.status}`);
+    const st = sj.stateInstance || 'unknown';
+    if (st === 'authorized') {
+      stateEl.innerHTML = '🟢 <b style="color:var(--gn)">Подключён и авторизован</b>';
+      qrEl.innerHTML = '<div style="font-size:46px">✅</div>';
+      if (ov._poll) clearInterval(ov._poll);
+      return;
+    }
+    stateEl.textContent = `Статус: ${st} — отсканируйте QR`;
+    const qr = await fetch(`${WORKER_BASE_URL}/api/notifier/qr`, { headers: { 'Authorization': `Bearer ${idToken}` } });
+    const qj = await qr.json().catch(() => ({}));
+    if (qj.type === 'qrCode' && qj.message) {
+      qrEl.innerHTML = `<img src="data:image/png;base64,${qj.message}" alt="QR" style="width:240px;height:240px;border-radius:8px;background:#fff;padding:6px">`;
+    } else if (qj.type === 'alreadyLogged') {
+      stateEl.innerHTML = '🟢 <b style="color:var(--gn)">Уже авторизован</b>';
+      qrEl.innerHTML = '<div style="font-size:46px">✅</div>';
+      if (ov._poll) clearInterval(ov._poll);
+    } else {
+      qrEl.innerHTML = `<div style="font-size:12px;color:var(--t3)">${escapeHtml(qj.message || 'QR недоступен — проверьте idInstance/токен')}</div>`;
+    }
+  } catch (e) {
+    stateEl.innerHTML = `<span style="color:#c00">❌ ${escapeHtml(e.message)}</span>`;
+    qrEl.innerHTML = '';
   }
 }
 
