@@ -1080,7 +1080,12 @@
   function syncViewport() {
     const main = state.rootEl?.querySelector('.tc-main');
     if (!main) return;
-    if (!isOverlayMode() || !window.visualViewport) {
+    const overlay = isOverlayMode();
+    // Полноэкранный оверлей переписки на телефоне — прячем плавающие
+    // элементы портала (зелёный WA-виджет, SIP-бар), чтобы они не
+    // перекрывали композер и кнопку отправки снизу. CSS-правило в team.html.
+    try { document.body.classList.toggle('tc-chat-overlay', overlay); } catch {}
+    if (!overlay || !window.visualViewport) {
       main.style.height = '';
       main.style.transform = '';
       return;
@@ -1176,6 +1181,8 @@
 
   function suspend() {
     state.suspended = true;
+    // Уходим с раздела чата — вернуть плавающие элементы портала.
+    try { document.body.classList.remove('tc-chat-overlay'); } catch {}
     disconnectWs();
   }
   function resume() {
