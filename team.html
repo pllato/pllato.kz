@@ -10725,6 +10725,7 @@ function getUsersForFilter() {
   return arr.sort((a, b) => a.fullName.localeCompare(b.fullName, 'ru'));
 }
 
+window.openDealCard = openDealCard;
 async function openDealCard(bitrixId) {
   // 1) ищем в full kanban state — если был загружен
   let deal = dealsState.deals.find(d => d.bitrixId === bitrixId);
@@ -12550,22 +12551,56 @@ async function getSipClient() {
         const idToken = await fbAuth.currentUser.getIdToken();
         return `Bearer ${idToken}`;
       },
-      // Для входящих — пытаемся резолвить контакт по номеру через worker
+      // Богатая контакт-карточка по номеру: имя + компания + 3 сделки + 3 активности.
+      // Используется в incoming popup и outgoing dialer для отображения справа от номера.
       resolveContact: async (phone) => {
         try {
           const idToken = await fbAuth.currentUser.getIdToken();
-          const r = await fetch(`${WORKER_BASE_URL}/api/list/contacts?q=${encodeURIComponent(phone)}&pageSize=1`, {
+          const r = await fetch(`${WORKER_BASE_URL}/api/contact-card-by-phone?phone=${encodeURIComponent(phone)}`, {
             headers: { Authorization: `Bearer ${idToken}` },
           });
           if (!r.ok) return null;
           const data = await r.json();
-          const c = (data.items || data.contacts || [])[0];
-          if (!c) return null;
+          if (!data.found || !data.contact) return null;
+          // Резолвим название стадии для каждой сделки через локальный dealsState
+          const deals = (data.deals || []).map(d => {
+            const pipeline = dealsState?.pipelines?.[d.pipelineId];
+            const stage = pipeline?.stages?.[d.stageId];
+            return {
+              id: d.id,
+              title: d.title,
+              stage: stage?.name || '',
+              amount: d.amount,
+              currency: d.currency,
+              closed: d.closed,
+            };
+          });
           return {
-            id: c.id || c.key || null,
-            name: [c.lastName, c.name, c.secondName].filter(Boolean).join(' ').trim() || null,
+            id: data.contact.id,
+            name: data.contact.fullName,
+            company: data.contact.company,
+            deals,
+            activities: data.activities || [],
           };
-        } catch { return null; }
+        } catch (e) { console.warn('[sip] resolveContact failed:', e); return null; }
+      },
+      // Открыть карточку контакта поверх CRM (звонок продолжает звонить — popup остаётся)
+      onOpenContact: (contactId) => {
+        if (!contactId) return;
+        if (typeof window.openContactCard === 'function') {
+          window.openContactCard(contactId);
+        } else {
+          console.warn('[sip] window.openContactCard not defined');
+        }
+      },
+      // Опционально: при клике на сделку — открыть карточку сделки
+      onOpenDeal: (dealId) => {
+        if (!dealId) return;
+        if (typeof window.openDealCard === 'function') {
+          window.openDealCard(dealId);
+        } else {
+          console.warn('[sip] window.openDealCard not defined');
+        }
       },
       debug: false,
     });
