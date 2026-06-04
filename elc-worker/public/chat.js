@@ -33,9 +33,18 @@
     editingMsg: null,         // {id, text} если редактируем
   };
 
+  // ── Auth token (родитель отдаёт модульный Firebase через window.fbAuth;
+  //    старый compat window.firebase оставлен как fallback) ───────────────
+  async function getAuthToken() {
+    const a = window.fbAuth
+      || (window.firebase && window.firebase.auth && window.firebase.auth());
+    if (!a || !a.currentUser) throw new Error('Firebase auth не готов');
+    return a.currentUser.getIdToken();
+  }
+
   // ── HTTP helpers ───────────────────────────────────────────────────────
   async function api(path, opts = {}) {
-    const token = await window.firebase.auth().currentUser.getIdToken();
+    const token = await getAuthToken();
     const r = await fetch(WORKER + path, {
       ...opts,
       headers: {
@@ -103,7 +112,7 @@
   // ── WebSocket ──────────────────────────────────────────────────────────
   async function connectWs() {
     try {
-      const token = await window.firebase.auth().currentUser.getIdToken();
+      const token = await getAuthToken();
       const ws = new WebSocket(WS_URL + '?token=' + encodeURIComponent(token));
       state.ws = ws;
       ws.onopen = () => {
