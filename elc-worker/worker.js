@@ -4154,6 +4154,56 @@ async function handleWaFileServe(request, env, r2Key) {
   return new Response(obj.body, { headers });
 }
 
+// ── Аватар сотрудника (self-service) ──────────────────────────
+// POST /api/me/avatar (auth, raw image body) — сохраняет фото в R2 и
+// проставляет users.photo / photo_url ВСЕМ строкам с email юзера (на случай
+// дублей после миграции). Возвращает публичный URL. Картинка уже ужата на
+// клиенте до ~256px, поэтому лимит небольшой.
+// Serve — через тот же /api/avatar/{key} (без auth, чтобы <img> грузился).
+async function handleMyAvatarUpload(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  if (!env.FILES) return json({ error: "R2 binding FILES not configured" }, 500, request);
+
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const email = (me.email || '').toLowerCase().trim();
+  if (!email || !me.userRecord) {
+    return json({ error: "Твой аккаунт не привязан к сотруднику" }, 403, request);
+  }
+
+  const contentType = request.headers.get('Content-Type') || 'application/octet-stream';
+  if (!/^image\//i.test(contentType)) {
+    return json({ error: "Нужен файл-изображение" }, 400, request);
+  }
+  const body = await request.arrayBuffer();
+  if (body.byteLength === 0) return json({ error: "Пустой файл" }, 400, request);
+  if (body.byteLength > 3 * 1024 * 1024) {
+    return json({ error: "Файл слишком большой (макс 3 МБ)" }, 413, request);
+  }
+
+  const ext = contentType.includes('png') ? 'png'
+    : contentType.includes('webp') ? 'webp'
+    : contentType.includes('gif') ? 'gif' : 'jpg';
+  const rand = Math.random().toString(36).slice(2, 8);
+  const safeUid = String(me.userRecord.uid).replace(/[^\w.\-]/g, '_').slice(0, 64);
+  const r2Key = `avatars/${safeUid}-${rand}.${ext}`;
+  await env.FILES.put(r2Key, body, {
+    httpMetadata: { contentType },
+    customMetadata: { uploadedBy: email, kind: 'avatar' },
+  });
+
+  const url = new URL(request.url);
+  const publicUrl = `${url.origin}/api/avatar/${encodeURIComponent(r2Key)}`;
+
+  // Проставляем фото ВСЕМ строкам с этим email (канон + дубли) — чтобы аватар
+  // показывался под любым uid, под которым юзер попал в данные/структуру.
+  await env.DB.prepare(
+    "UPDATE users SET photo = ?, photo_url = ? WHERE LOWER(email) = ?"
+  ).bind(publicUrl, publicUrl, email).run();
+
+  return json({ ok: true, url: publicUrl, uid: me.userRecord.uid }, 200, request);
+}
+
 // ── Лента (корпоративный фид, как в Битрикс24) ───────────────
 // Посты + комментарии + лайки. Аудитория: audience_uids NULL = всем;
 // иначе JSON-массив uid (автор всегда включён). admin видит всё.
@@ -5989,6 +6039,14 @@ export default {
     }
     if (path === "/api/wa/sync-groups" && request.method === "POST") {
       return handleWaSyncGroups(request, env);
+    }
+    // ── Аватар сотрудника (self-service) ──
+    if (path === "/api/me/avatar" && request.method === "POST") {
+      return handleMyAvatarUpload(request, env);
+    }
+    const avatarFileMatch = path.match(/^\/api\/avatar\/(.+)$/);
+    if (avatarFileMatch && request.method === "GET") {
+      return handleWaFileServe(request, env, decodeURIComponent(avatarFileMatch[1]));
     }
     // ── Лента (корпоративный фид) ──
     if (path === "/api/feed/posts" && request.method === "POST") {

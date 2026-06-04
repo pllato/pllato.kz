@@ -581,6 +581,8 @@ body {
   height: 32px;
   border-radius: 50%;
   background: var(--ac);
+  overflow: hidden;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3547,11 +3549,15 @@ async function initApp(user) {
 
   // UI sidebar
   try {
-    const initials = (profile.name || 'U').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
     const av = document.getElementById('ux-avatar');
     const nm = document.getElementById('ux-name');
     const em = document.getElementById('ux-email');
-    if (av) av.textContent = initials;
+    if (av) {
+      const photo = window.currentUser?.profile?.photo || profile.photoURL || '';
+      paintAvatarEl(av, photo, profile.name || 'U');
+      av.title = 'Мой профиль — нажми, чтобы сменить фото';
+      av.onclick = openMyProfileModal;
+    }
     if (nm) {
       const roleBadge = window.currentUser?.role && window.currentUser.role !== 'agent'
         ? ` <span style="font-size:9px;padding:1px 5px;border-radius:8px;background:var(--ac2);color:#fff;font-weight:700;vertical-align:middle;text-transform:uppercase">${window.currentUser.role}</span>`
@@ -4070,7 +4076,7 @@ async function renderTeamChat(el) {
     return;
   }
   const s = document.createElement('script');
-  s.src = `${WORKER_BASE_URL}/chat.js?v=3`;
+  s.src = `${WORKER_BASE_URL}/chat.js?v=4`;
   s.onload = () => {
     _teamChatScriptLoaded = true;
     if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
@@ -4132,10 +4138,125 @@ function feedAvatarHtml(uid, size) {
   const u = usersState.users?.[uid];
   const label = orgUserLabel(uid) || '?';
   const initials = label.split(/\s+/).slice(0, 2).map(s => s[0] || '').join('').toUpperCase() || '?';
-  if (u && u.photo) {
-    return `<img src="${escapeHtml(u.photo)}" alt="" style="width:${sz}px;height:${sz}px;border-radius:50%;object-fit:cover;flex-shrink:0">`;
+  const photo = u && (u.photo || u.photoURL);
+  if (photo) {
+    return `<img src="${escapeHtml(photo)}" alt="" style="width:${sz}px;height:${sz}px;border-radius:50%;object-fit:cover;flex-shrink:0">`;
   }
   return `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-size:${Math.round(sz*0.38)}px;font-weight:700;flex-shrink:0">${escapeHtml(initials)}</div>`;
+}
+
+// ── Аватар-кружок: фото или инициалы (для топбара, превью профиля) ──────────
+function avatarInitials(name) {
+  return (name || 'U').split(/\s+/).filter(Boolean).slice(0, 2)
+    .map(s => s[0] || '').join('').toUpperCase() || '?';
+}
+function paintAvatarEl(el, photo, name) {
+  if (!el) return;
+  if (photo) {
+    el.style.background = 'transparent';
+    el.innerHTML = `<img src="${escapeHtml(photo)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`;
+  } else {
+    el.style.background = 'var(--ac)';
+    el.textContent = avatarInitials(name);
+  }
+}
+
+// Ужимаем картинку на клиенте до квадрата maxSize (cover-кроп по центру) → JPEG.
+function downscaleImage(file, maxSize) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      try {
+        const side = Math.min(img.width, img.height);
+        const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+        const out = Math.min(maxSize, side) || maxSize;
+        const canvas = document.createElement('canvas');
+        canvas.width = out; canvas.height = out;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, sx, sy, side, side, 0, 0, out, out);
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error('не удалось сжать')), 'image/jpeg', 0.85);
+      } catch (e) { reject(e); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Не удалось прочитать изображение')); };
+    img.src = url;
+  });
+}
+
+async function uploadMyAvatarBlob(blob) {
+  const idToken = await fbAuth.currentUser.getIdToken();
+  const r = await fetch(`${WORKER_BASE_URL}/api/me/avatar`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${idToken}`, 'Content-Type': 'image/jpeg' },
+    body: blob,
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+  return data.url;
+}
+
+// Модалка «Мой профиль» — доступна каждому, кто кликнул свой аватар в сайдбаре.
+function openMyProfileModal() {
+  const me = window.currentUser;
+  const myName = me?.profile?.name || (me?.email || fbAuth.currentUser?.email || '').split('@')[0];
+  const curPhoto = me?.profile?.photo || fbAuth.currentUser?.photoURL || '';
+  const ov = document.createElement('div');
+  ov.className = 'qad-overlay';
+  ov.style.zIndex = '10001';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:380px;width:92vw">
+    <div class="qad-head">
+      <h2>👤 Мой профиль</h2>
+      <button class="qad-btn qad-btn-ghost" id="mp-close" style="padding:4px 10px">×</button>
+    </div>
+    <div class="qad-body" style="padding:24px;text-align:center">
+      <div id="mp-preview" style="width:120px;height:120px;border-radius:50%;margin:0 auto 14px;overflow:hidden;background:var(--ac);display:flex;align-items:center;justify-content:center;color:#fff;font-size:40px;font-weight:700"></div>
+      <div style="font-weight:700;font-size:16px;color:var(--t1)">${escapeHtml(myName)}</div>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:18px">${escapeHtml(me?.email || fbAuth.currentUser?.email || '')}</div>
+      <input type="file" id="mp-file" accept="image/*" style="display:none">
+      <button class="qad-btn qad-btn-primary" id="mp-pick" style="padding:10px 20px;width:100%">📷 Загрузить фото</button>
+      <div id="mp-status" style="margin-top:12px;font-size:12px;min-height:16px"></div>
+      <div style="font-size:11px;color:var(--t3);margin-top:6px">Фото появится в чатах, задачах и ленте.</div>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  const prev = ov.querySelector('#mp-preview');
+  paintAvatarEl(prev, curPhoto, myName);
+  ov.querySelector('#mp-close').onclick = () => ov.remove();
+  const fileInput = ov.querySelector('#mp-file');
+  const status = ov.querySelector('#mp-status');
+  ov.querySelector('#mp-pick').onclick = () => fileInput.click();
+  fileInput.onchange = async () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { status.innerHTML = '<span style="color:#dc2626">Выбери картинку</span>'; return; }
+    status.innerHTML = '⏳ Обрабатываю…';
+    try {
+      const blob = await downscaleImage(file, 256);
+      status.innerHTML = '⏳ Загружаю…';
+      const url = await uploadMyAvatarBlob(blob);
+      paintAvatarEl(prev, url, myName);
+      const topAv = document.getElementById('ux-avatar');
+      if (topAv) paintAvatarEl(topAv, url, myName);
+      // Локально проставляем фото во все кеши, чтобы лента/задачи/чаты подхватили без перезагрузки.
+      if (window.currentUser) {
+        window.currentUser.profile = window.currentUser.profile || {};
+        window.currentUser.profile.photo = url;
+      }
+      [me?.canonicalUid, me?.firebaseUid].forEach(id => {
+        if (!id) return;
+        if (usersState.users && usersState.users[id]) usersState.users[id].photo = url;
+        if (dealsState.users && dealsState.users[id]) dealsState.users[id].photo = url;
+      });
+      try { cacheSet('users:map:v1', usersState.users); } catch {}
+      status.innerHTML = '<span style="color:#16a34a">✓ Фото обновлено</span>';
+    } catch (e) {
+      status.innerHTML = `<span style="color:#dc2626">Ошибка: ${escapeHtml(e.message || 'не удалось')}</span>`;
+    } finally {
+      fileInput.value = '';
+    }
+  };
 }
 
 function feedAttachmentHtml(att) {
@@ -6070,7 +6191,7 @@ function renderTeamChatInWidget() {
         if (m.deleted_at) return '<div style="text-align:center;font-size:11px;color:var(--t3);font-style:italic;padding:4px">сообщение удалено</div>';
         const own = m.user_id === me;
         const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }) : '';
-        const author = own ? '' : `<div style="font-size:10px;color:var(--ac);font-weight:700;margin-bottom:2px">${escapeHtml(orgUserLabel(m.user_id))}</div>`;
+        const author = own ? '' : `<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">${feedAvatarHtml(m.user_id, 16)}<span style="font-size:10px;color:var(--ac);font-weight:700">${escapeHtml(orgUserLabel(m.user_id))}</span></div>`;
         const text = m.text ? escapeHtml(m.text).replace(/(https?:\/\/[^\s<>"]+)/g, '<a href="$1" target="_blank" style="color:inherit;text-decoration:underline">$1</a>') : '';
         let fileBlock = '';
         if (m.file_key) {
@@ -14425,7 +14546,7 @@ function renderTasksLayoutPaged() {
       <td class="name-cell" style="width:40%">${escapeHtml(t.title || '(без названия)')}</td>
       <td style="width:12%"><span class="badge" style="color:${statusColor};border-color:${statusColor}55;background:${statusColor}22">${escapeHtml(statusLabel)}</span></td>
       <td style="width:12%;font-size:12px">${priorityIcon}</td>
-      <td style="width:18%;color:var(--ac2)">${escapeHtml(respName)}</td>
+      <td style="width:18%;color:var(--ac2)"><span style="display:inline-flex;align-items:center;gap:6px">${t.responsibleUid ? feedAvatarHtml(t.responsibleUid, 22) : ''}<span>${escapeHtml(respName)}</span></span></td>
       <td style="width:10%;color:var(--t3);font-size:11px">${changedStr}</td>
       <td style="width:8%;color:${isOverdue ? 'var(--rd)' : 'var(--t3)'};font-size:11px">${deadlineStr}</td>
     </tr>`;
@@ -16830,7 +16951,7 @@ function renderTeamMessageHtml(m, meUid) {
     return `<div style="font-size:11px;color:var(--t3);font-style:italic;text-align:center">сообщение удалено</div>`;
   }
   const own = m.user_id === meUid;
-  const author = own ? '' : `<div style="font-size:10px;color:var(--ac);font-weight:700;margin-bottom:2px">${escapeHtml(orgUserLabel(m.user_id))}</div>`;
+  const author = own ? '' : `<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">${feedAvatarHtml(m.user_id, 16)}<span style="font-size:10px;color:var(--ac);font-weight:700">${escapeHtml(orgUserLabel(m.user_id))}</span></div>`;
   const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }) : '';
   const bg = own ? '#22c55e' : 'var(--bg2)';
   const color = own ? '#fff' : 'var(--t1)';
