@@ -195,6 +195,10 @@
   }
 
   function onMessageNew(m) {
+    if (!m || !m.id) return;
+    // Дедуп: сообщение уже в активном канале (оптимистичный append + WS-эхо,
+    // либо дубликат пуша). Без этого свои сообщения двоятся.
+    if (m.channel_id === state.activeChannelId && state.messages.some(x => x.id === m.id)) return;
     const ch = state.channels.find(c => c.id === m.channel_id);
     if (ch) {
       ch.last_message_text = m.text || (m.type !== 'text' ? `[${m.type}]` : '');
@@ -840,9 +844,11 @@
     const body = { text };
     if (state.replyToMsg) body.reply_to = state.replyToMsg.id;
     try {
-      await api(`/api/chat/channels/${state.activeChannelId}/messages`, { method: 'POST', body: JSON.stringify(body) });
+      const resp = await api(`/api/chat/channels/${state.activeChannelId}/messages`, { method: 'POST', body: JSON.stringify(body) });
       state.composerDraft = ''; state.replyToMsg = null;
       renderComposer({ focus: true });
+      // Оптимистично показываем сразу, не дожидаясь WS-эха (дедуп по id).
+      if (resp && resp.message) onMessageNew(resp.message);
     } catch (e) { alert('Ошибка отправки: ' + e.message); }
   }
 
@@ -853,11 +859,12 @@
       const fd = new FormData();
       fd.append('file', file);
       const up = await api('/api/chat/files/upload', { method: 'POST', body: fd });
-      await api(`/api/chat/channels/${state.activeChannelId}/messages`, {
+      const resp = await api(`/api/chat/channels/${state.activeChannelId}/messages`, {
         method: 'POST',
         body: JSON.stringify({ file_key: up.file_key, file_meta: up.file_meta }),
       });
       ev.target.value = '';
+      if (resp && resp.message) onMessageNew(resp.message);
     } catch (e) { alert('Ошибка загрузки: ' + e.message); }
   }
 

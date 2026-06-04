@@ -604,7 +604,15 @@ export async function handleChatWebSocket(request, env, url) {
   } catch (e) {
     return new Response('invalid token: ' + (e?.message || e), { status: 401 });
   }
-  const uid = claims?.user_id || claims?.sub || claims?.uid;
+  // ВАЖНО: подключаемся под КАНОНИЧЕСКИМ uid (D1, по email) — тем же, что
+  // используется в team_chat_members и broadcastToChannel. Иначе WS слушает
+  // комнату firebase-uid, а пуши уходят в комнату canonical-uid → реактивности
+  // нет (сообщения видны только после перезагрузки).
+  let uid = null;
+  if (typeof env._resolveCanonicalUid === 'function') {
+    try { uid = await env._resolveCanonicalUid(claims); } catch {}
+  }
+  if (!uid) uid = claims?.user_id || claims?.sub || claims?.uid;
   if (!uid) return new Response('uid not in token', { status: 401 });
 
   // Проксируем в UserNotifyRoom
