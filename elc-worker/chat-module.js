@@ -133,26 +133,43 @@ export async function broadcastToUser(env, userId, payload) {
 }
 
 // ── Auth helpers ─────────────────────────────────────────────────────────
-async function isChannelMember(env, channelId, userId) {
+// ВАЖНО: юзер может присутствовать в team_chat_* под несколькими uid:
+//  - canonical (D1, по email) — так пишет миграция Bitrix и пикер участников;
+//  - firebase uid — так писали нативные сообщения/добавления до унификации;
+//  - алиасы-дубли с тем же email.
+// me.ids — массив всех этих идентификаторов (см. worker.js handleChatRequest).
+// Членство/доступ матчим по ЛЮБОМУ из них (строго шире старого «= firebase uid»,
+// поэтому никто не теряет доступ, а «потерявшиеся» — находят свои чаты).
+function meIds(me) {
+  const arr = (me && Array.isArray(me.ids) && me.ids.length)
+    ? me.ids.filter(Boolean) : [me?.uid].filter(Boolean);
+  return arr.length ? [...new Set(arr)] : ['__none__'];
+}
+function phList(arr) { return arr.map(() => '?').join(','); }
+
+async function isChannelMember(env, channelId, me) {
+  const ids = Array.isArray(me) ? me : meIds(me);
   const row = await env.DB.prepare(
-    "SELECT 1 FROM team_chat_members WHERE channel_id = ? AND user_id = ?"
-  ).bind(channelId, userId).first();
+    `SELECT 1 FROM team_chat_members WHERE channel_id = ? AND user_id IN (${phList(ids)})`
+  ).bind(channelId, ...ids).first();
   return !!row;
 }
 
-async function isMessageAccessible(env, messageId, userId) {
+async function isMessageAccessible(env, messageId, me) {
+  const ids = Array.isArray(me) ? me : meIds(me);
   const row = await env.DB.prepare(`
     SELECT m.id FROM team_chat_msgs m
     JOIN team_chat_members cm ON cm.channel_id = m.channel_id
-    WHERE m.id = ? AND cm.user_id = ?
-  `).bind(messageId, userId).first();
+    WHERE m.id = ? AND cm.user_id IN (${phList(ids)})
+  `).bind(messageId, ...ids).first();
   return !!row;
 }
 
-async function isMessageAuthor(env, messageId, userId) {
+async function isMessageAuthor(env, messageId, me) {
+  const ids = Array.isArray(me) ? me : meIds(me);
   const row = await env.DB.prepare(
-    "SELECT 1 FROM team_chat_msgs WHERE id = ? AND user_id = ?"
-  ).bind(messageId, userId).first();
+    `SELECT 1 FROM team_chat_msgs WHERE id = ? AND user_id IN (${phList(ids)})`
+  ).bind(messageId, ...ids).first();
   return !!row;
 }
 
@@ -160,6 +177,10 @@ async function isMessageAuthor(env, messageId, userId) {
 
 // GET /api/chat/channels — список каналов юзера + unread counts
 async function listChannels(env, me) {
+  const ids = meIds(me);
+  // Derived-таблица cm схлопывает membership-строки юзера к ОДНОЙ на канал —
+  // если он числится под несколькими uid (canonical+firebase), канал не
+  // задвоится. Снаружи cm.* — обычные скалярные колонки (без агрегатов).
   const { results } = await env.DB.prepare(`
     SELECT
       c.id, c.type, c.name, c.description, c.created_by, c.created_at, c.archived_at,
@@ -177,17 +198,22 @@ async function listChannels(env, me) {
          WHERE channel_id = c.id ORDER BY created_at DESC LIMIT 1
       ) AS last_message_text
     FROM team_chat_channels c
-    JOIN team_chat_members cm ON cm.channel_id = c.id
-    WHERE cm.user_id = ? AND c.archived_at IS NULL
+    JOIN (
+      SELECT channel_id, MAX(last_read_message_id) AS last_read_message_id, MAX(muted) AS muted
+      FROM team_chat_members
+      WHERE user_id IN (${phList(ids)})
+      GROUP BY channel_id
+    ) cm ON cm.channel_id = c.id
+    WHERE c.archived_at IS NULL
     ORDER BY last_message_at DESC NULLS LAST, c.created_at DESC
-  `).bind(me.uid).all();
+  `).bind(...ids).all();
 
   // Для DM подтянем имя собеседника
   for (const ch of results) {
     if (ch.type === 'dm') {
       const other = await env.DB.prepare(
-        "SELECT user_id FROM team_chat_members WHERE channel_id = ? AND user_id != ? LIMIT 1"
-      ).bind(ch.id, me.uid).first();
+        `SELECT user_id FROM team_chat_members WHERE channel_id = ? AND user_id NOT IN (${phList(ids)}) LIMIT 1`
+      ).bind(ch.id, ...ids).first();
       ch.other_user_id = other?.user_id || null;
     }
   }
@@ -248,7 +274,7 @@ async function openDm(env, me, body) {
 
 // GET /api/chat/channels/:id/messages?before=&limit=
 async function getMessages(env, me, channelId, url) {
-  if (!(await isChannelMember(env, channelId, me.uid))) return errRes('forbidden', 403);
+  if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 50));
   const before = url.searchParams.get('before') || null;
   let q, params;
@@ -286,7 +312,7 @@ async function getMessages(env, me, channelId, url) {
 
 // POST /api/chat/channels/:id/messages
 async function sendMessage(env, me, channelId, body) {
-  if (!(await isChannelMember(env, channelId, me.uid))) return errRes('forbidden', 403);
+  if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
   const text = body.text ? String(body.text).slice(0, 4000) : null;
   const fileKey = body.file_key ? String(body.file_key) : null;
   const fileMeta = body.file_meta ? JSON.stringify(body.file_meta) : null;
@@ -312,7 +338,7 @@ async function sendMessage(env, me, channelId, body) {
 
 // POST /api/chat/messages/:id/edit
 async function editMessage(env, me, messageId, body) {
-  if (!(await isMessageAuthor(env, messageId, me.uid))) return errRes('forbidden', 403);
+  if (!(await isMessageAuthor(env, messageId, me))) return errRes('forbidden', 403);
   const text = String(body.text || '').trim();
   if (!text) return errRes('text required');
   const prev = await env.DB.prepare("SELECT text, channel_id FROM team_chat_msgs WHERE id = ?").bind(messageId).first();
@@ -333,7 +359,7 @@ async function deleteMessage(env, me, messageId) {
   const msg = await env.DB.prepare("SELECT user_id, channel_id, text FROM team_chat_msgs WHERE id = ?").bind(messageId).first();
   if (!msg) return errRes('not found', 404);
   // Автор сам может удалить; админ — TODO (нужна проверка role/permission в org-tree)
-  if (msg.user_id !== me.uid) return errRes('forbidden', 403);
+  if (!meIds(me).includes(msg.user_id)) return errRes('forbidden', 403);
   const ts = now();
   await env.DB.prepare("UPDATE team_chat_msgs SET deleted_at = ? WHERE id = ?").bind(ts, messageId).run();
   await env.DB.prepare(`
@@ -346,7 +372,7 @@ async function deleteMessage(env, me, messageId) {
 
 // POST /api/chat/messages/:id/reactions { emoji }
 async function addReaction(env, me, messageId, body) {
-  if (!(await isMessageAccessible(env, messageId, me.uid))) return errRes('forbidden', 403);
+  if (!(await isMessageAccessible(env, messageId, me))) return errRes('forbidden', 403);
   const emoji = String(body.emoji || '').slice(0, 16);
   if (!emoji) return errRes('emoji required');
   const msg = await env.DB.prepare("SELECT channel_id FROM team_chat_msgs WHERE id = ?").bind(messageId).first();
@@ -390,31 +416,34 @@ async function removeReaction(env, me, messageId, body) {
 
 // POST /api/chat/channels/:id/read { last_read_message_id }
 async function markAsRead(env, me, channelId, body) {
-  if (!(await isChannelMember(env, channelId, me.uid))) return errRes('forbidden', 403);
+  if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
   const lastReadId = String(body.last_read_message_id || '');
   if (!lastReadId) return errRes('last_read_message_id required');
+  const ids = meIds(me);
   await env.DB.prepare(
-    "UPDATE team_chat_members SET last_read_message_id = ? WHERE channel_id = ? AND user_id = ?"
-  ).bind(lastReadId, channelId, me.uid).run();
+    `UPDATE team_chat_members SET last_read_message_id = ? WHERE channel_id = ? AND user_id IN (${phList(ids)})`
+  ).bind(lastReadId, channelId, ...ids).run();
   broadcastToChannel(env, channelId, { kind: 'read', channel_id: channelId, user_id: me.uid, last_read_message_id: lastReadId });
   return jsonRes({ ok: true });
 }
 
 // POST /api/chat/channels/:id/mute { muted: bool }
 async function setMuted(env, me, channelId, body) {
-  if (!(await isChannelMember(env, channelId, me.uid))) return errRes('forbidden', 403);
+  if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
   const muted = body.muted ? 1 : 0;
+  const ids = meIds(me);
   await env.DB.prepare(
-    "UPDATE team_chat_members SET muted = ? WHERE channel_id = ? AND user_id = ?"
-  ).bind(muted, channelId, me.uid).run();
+    `UPDATE team_chat_members SET muted = ? WHERE channel_id = ? AND user_id IN (${phList(ids)})`
+  ).bind(muted, channelId, ...ids).run();
   return jsonRes({ ok: true, muted: !!muted });
 }
 
 // POST /api/chat/channels/:id/leave
 async function leaveChannel(env, me, channelId) {
+  const ids = meIds(me);
   await env.DB.prepare(
-    "DELETE FROM team_chat_members WHERE channel_id = ? AND user_id = ?"
-  ).bind(channelId, me.uid).run();
+    `DELETE FROM team_chat_members WHERE channel_id = ? AND user_id IN (${phList(ids)})`
+  ).bind(channelId, ...ids).run();
   broadcastToChannel(env, channelId, { kind: 'user_left', channel_id: channelId, user_id: me.uid });
   broadcastToUser(env, me.uid, { kind: 'channel_removed', channel_id: channelId });
   return jsonRes({ ok: true });
@@ -422,7 +451,7 @@ async function leaveChannel(env, me, channelId) {
 
 // GET /api/chat/channels/:id/members
 async function getMembers(env, me, channelId) {
-  if (!(await isChannelMember(env, channelId, me.uid))) return errRes('forbidden', 403);
+  if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
   const { results } = await env.DB.prepare(
     "SELECT user_id, joined_at, muted FROM team_chat_members WHERE channel_id = ?"
   ).bind(channelId).all();
@@ -447,7 +476,7 @@ async function legacyJoinAll(env, me, body) {
 // Хотим аккуратно: можно убирать кого угодно (демократично), но не создателя
 // канала (created_by). От себя — есть /leave.
 async function removeMember(env, me, channelId, targetUid) {
-  if (!(await isChannelMember(env, channelId, me.uid))) return errRes('forbidden', 403);
+  if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
   const ch = await env.DB.prepare("SELECT created_by FROM team_chat_channels WHERE id = ?").bind(channelId).first();
   if (ch?.created_by === targetUid && targetUid !== me.uid) {
     return errRes('нельзя убрать создателя канала', 403);
@@ -462,7 +491,7 @@ async function removeMember(env, me, channelId, targetUid) {
 
 // POST /api/chat/channels/:id/members { user_ids: [...] }
 async function addMembers(env, me, channelId, body) {
-  if (!(await isChannelMember(env, channelId, me.uid))) return errRes('forbidden', 403);
+  if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
   const userIds = Array.isArray(body.user_ids) ? body.user_ids.filter(u => typeof u === 'string') : [];
   if (userIds.length === 0) return errRes('user_ids required');
   const ts = now();
@@ -481,10 +510,11 @@ async function searchMessages(env, me, url) {
   const q = (url.searchParams.get('q') || '').trim();
   const channelId = url.searchParams.get('channel_id') || null;
   if (!q) return jsonRes({ items: [] });
-  // Только каналы где юзер участник
+  // Только каналы где юзер участник (под любым из своих uid)
+  const sIds = meIds(me);
   const { results: chs } = await env.DB.prepare(
-    "SELECT channel_id FROM team_chat_members WHERE user_id = ?"
-  ).bind(me.uid).all();
+    `SELECT DISTINCT channel_id FROM team_chat_members WHERE user_id IN (${phList(sIds)})`
+  ).bind(...sIds).all();
   const allowedChannels = chs.map(c => c.channel_id);
   if (allowedChannels.length === 0) return jsonRes({ items: [] });
   // FTS5 MATCH
@@ -519,12 +549,17 @@ async function uploadFile(request, env, me) {
   });
 }
 
-// GET /api/chat/files/:key — отдача файла
-async function downloadFile(request, env, fileKey) {
+// GET /api/chat/files/:key — отдача файла.
+// Экспортируется: worker.js перехватывает GET ДО auth-гейта /api/chat/* и
+// пускает через requireAuthFlexible (?auth=token), т.к. <img src>/<a href>
+// не умеют слать заголовок Authorization. 'inline' — чтобы картинки и pdf
+// открывались прямо во вкладке, а не скачивались.
+export async function downloadFile(request, env, fileKey) {
   const obj = await env.FILES.get(fileKey);
   if (!obj) return new Response('Not found', { status: 404 });
   return new Response(obj.body, {
     headers: {
+      'Content-Disposition': 'inline',
       'Content-Type': obj.httpMetadata?.contentType || 'application/octet-stream',
       'Cache-Control': 'private, max-age=86400',
     },

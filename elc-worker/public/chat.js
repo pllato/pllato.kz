@@ -38,11 +38,20 @@
   };
 
   // ── Auth token ─────────────────────────────────────────────────────────
+  // Кешируем последний токен, чтобы строить URL файлов синхронно при рендере
+  // (<img src>/<a href> не умеют слать заголовок Authorization → токен в ?auth=).
+  let _authToken = '';
   async function getAuthToken() {
     const a = window.fbAuth
       || (window.firebase && window.firebase.auth && window.firebase.auth());
     if (!a || !a.currentUser) throw new Error('Firebase auth не готов');
-    return a.currentUser.getIdToken();
+    const t = await a.currentUser.getIdToken();
+    _authToken = t;
+    return t;
+  }
+  function fileUrl(fileKey) {
+    const tk = _authToken ? `?auth=${encodeURIComponent(_authToken)}` : '';
+    return `${WORKER}/api/chat/files/${encodeURIComponent(fileKey)}${tk}`;
   }
 
   // ── HTTP helpers ───────────────────────────────────────────────────────
@@ -357,6 +366,19 @@
       .tc-head-meta { min-width:0; flex:1; }
       .tc-head-name { font-size:15px; font-weight:700; color:var(--t1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .tc-head-sub { font-size:12px; color:var(--t3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:1px; }
+      .tc-head-members { width:36px; height:36px; border:none; background:transparent; color:var(--t2);
+        font-size:18px; cursor:pointer; border-radius:9px; flex-shrink:0; }
+      .tc-head-members:hover { background:var(--bg3); }
+      .tc-members-list { display:flex; flex-direction:column; max-height:220px; overflow-y:auto;
+        border:1px solid var(--b1); border-radius:11px; }
+      .tc-mem-row { display:flex; gap:11px; align-items:center; padding:8px 11px; border-bottom:1px solid var(--b1); }
+      .tc-mem-row:last-child { border-bottom:none; }
+      .tc-mem-badge { font-size:10.5px; font-weight:600; color:var(--tc-ac);
+        background:color-mix(in srgb, var(--tc-ac) 14%, transparent); padding:1px 7px; border-radius:8px; margin-left:6px; }
+      .tc-mem-rm { width:28px; height:28px; border:none; background:transparent; color:var(--t3);
+        font-size:15px; cursor:pointer; border-radius:7px; flex-shrink:0; }
+      .tc-mem-rm:hover { background:color-mix(in srgb, #e5484d 16%, transparent); color:#e5484d; }
+      .tc-mem-rm:disabled { opacity:.4; cursor:default; }
 
       .tc-msgs-wrap { flex:1; position:relative; min-height:0; display:flex; }
       .tc-msgs { flex:1; overflow-y:auto; padding:16px 18px 10px; display:flex; flex-direction:column; gap:2px; min-height:0; }
@@ -694,11 +716,11 @@
     }
     if (m.file_key) {
       const meta = m.file_meta ? (typeof m.file_meta === 'string' ? JSON.parse(m.file_meta) : m.file_meta) : {};
-      const fileUrl = `${WORKER}/api/chat/files/${encodeURIComponent(m.file_key)}`;
+      const furl = fileUrl(m.file_key);
       if (m.type === 'image' || (meta.mime && meta.mime.startsWith('image/'))) {
-        body += `<img class="tc-img-att" src="${fileUrl}" alt="${escapeHtml(meta.name || '')}" onclick="window.open('${fileUrl}','_blank')">`;
+        body += `<img class="tc-img-att" src="${furl}" alt="${escapeHtml(meta.name || '')}" loading="lazy" onclick="window.open('${furl}','_blank')">`;
       } else {
-        body += `<a class="tc-file-att" href="${fileUrl}" download="${escapeHtml(meta.name || 'file')}" target="_blank">📎 ${escapeHtml(meta.name || 'файл')}${meta.size ? ` <span style="opacity:.6">(${Math.round(meta.size / 1024)} КБ)</span>` : ''}</a>`;
+        body += `<a class="tc-file-att" href="${furl}" target="_blank" rel="noopener">📎 ${escapeHtml(meta.name || 'файл')}${meta.size ? ` <span style="opacity:.6">(${Math.round(meta.size / 1024)} КБ)</span>` : ''}</a>`;
       }
     }
 
@@ -744,13 +766,18 @@
     else if (ch.type === 'group') sub = ch.member_count ? `Закрытая группа · ${ch.member_count} ${pluralMembers(ch.member_count)}` : 'Закрытая группа';
     else sub = ch.member_count ? `Канал · ${ch.member_count} ${pluralMembers(ch.member_count)}` : 'Открытый канал';
 
+    const membersBtn = ch.type === 'dm' ? '' :
+      `<button class="tc-head-members" title="Участники">👥</button>`;
     head.innerHTML = `
       <button class="tc-back" title="Назад">‹</button>
       ${avatarHtml('tc-head-av', ch.type === 'dm' ? ch.other_user_id : null, channelAvatarText(ch), channelAvatarBg(ch))}
       <div class="tc-head-meta">
         <div class="tc-head-name">${escapeHtml(channelDisplayName(ch))}</div>
         <div class="tc-head-sub">${escapeHtml(sub)}</div>
-      </div>`;
+      </div>
+      ${membersBtn}`;
+    const mb = head.querySelector('.tc-head-members');
+    if (mb) mb.onclick = () => openMembersModal(ch.id);
     const back = head.querySelector('.tc-back');
     if (back) back.onclick = () => {
       state.activeChannelId = null;
@@ -1063,6 +1090,122 @@
     ov.querySelector('[data-tc-cancel]').onclick = () => ov.remove();
   }
 
+  // Управление участниками канала: список с кнопкой «убрать» + добавление.
+  async function openMembersModal(channelId) {
+    const ch = state.channels.find(c => c.id === channelId);
+    const ov = document.createElement('div');
+    ov.className = 'tc-modal-overlay';
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = `<div class="tc-modal">
+      <h3>👥 Участники</h3>
+      <div class="tc-members-list" id="tc-mem-list"><div class="tc-picker-empty">Загрузка…</div></div>
+      <label style="margin-top:10px">Добавить сотрудников
+        <input class="tc-picker-search" id="tc-mem-search" placeholder="🔍 поиск по имени…">
+      </label>
+      <div class="tc-picker-list" id="tc-mem-picker"></div>
+      <div class="tc-modal-foot">
+        <span class="tc-picker-count" id="tc-mem-count" style="margin-right:auto">Выбрано: 0</span>
+        <button data-tc-close>Закрыть</button>
+        <button class="primary" data-tc-add disabled>Добавить</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.querySelector('.tc-modal').onclick = (e) => e.stopPropagation();
+
+    const memListEl = ov.querySelector('#tc-mem-list');
+    const pickerEl = ov.querySelector('#tc-mem-picker');
+    const searchEl = ov.querySelector('#tc-mem-search');
+    const countEl = ov.querySelector('#tc-mem-count');
+    const addBtn = ov.querySelector('[data-tc-add]');
+    const selected = new Set();
+    let memberUids = new Set();
+
+    function renderMembers(items) {
+      if (!items.length) { memListEl.innerHTML = `<div class="tc-picker-empty">Нет участников</div>`; return; }
+      const createdBy = ch?.created_by;
+      const meUid = state.me?.uid;
+      memListEl.innerHTML = items.map(m => {
+        const uid = m.user_id;
+        const isCreator = uid === createdBy;
+        const isMe = uid === meUid;
+        const label = userLabel(uid) + (isMe ? ' (вы)' : '');
+        const badge = isCreator ? `<span class="tc-mem-badge">создатель</span>` : '';
+        const canRemove = !(isCreator && !isMe);
+        const rmBtn = canRemove ? `<button class="tc-mem-rm" data-rm="${escapeHtml(uid)}" title="Убрать из чата">✕</button>` : '';
+        return `<div class="tc-mem-row">
+          ${avatarHtml('tc-picker-ava', uid, userLabel(uid).slice(0, 2).toUpperCase(), userColor(uid))}
+          <div class="tc-picker-meta"><div class="tc-picker-name">${escapeHtml(label)} ${badge}</div></div>
+          ${rmBtn}
+        </div>`;
+      }).join('');
+      memListEl.querySelectorAll('[data-rm]').forEach(btn => {
+        btn.onclick = async () => {
+          const uid = btn.getAttribute('data-rm');
+          if (!confirm('Убрать «' + userLabel(uid) + '» из чата?')) return;
+          btn.disabled = true;
+          try {
+            await api(`/api/chat/channels/${channelId}/members/${encodeURIComponent(uid)}`, { method: 'DELETE' });
+            await loadMembers();
+            await loadChannels();
+            renderMainHead();
+          } catch (e) { btn.disabled = false; alert(e.message); }
+        };
+      });
+    }
+
+    function renderPicker() {
+      const roster = getRoster().filter(p => !memberUids.has(p.uid));
+      const q = searchEl.value.trim().toLowerCase();
+      const filtered = q ? roster.filter(p => p.label.toLowerCase().includes(q) || p.sub.toLowerCase().includes(q)) : roster;
+      if (!filtered.length) {
+        pickerEl.innerHTML = `<div class="tc-picker-empty">${roster.length === 0 ? 'Все уже добавлены' : 'Никого не найдено'}</div>`;
+        return;
+      }
+      pickerEl.innerHTML = filtered.map(p => pickerRowHtml(p, { multi: true })).join('');
+      pickerEl.querySelectorAll('.tc-picker-row').forEach(row => {
+        const uid = row.getAttribute('data-uid');
+        const cb = row.querySelector('.tc-picker-check');
+        cb.checked = selected.has(uid);
+        if (selected.has(uid)) row.classList.add('selected');
+        row.onclick = (e) => {
+          if (e.target !== cb) cb.checked = !cb.checked;
+          if (cb.checked) { selected.add(uid); row.classList.add('selected'); }
+          else { selected.delete(uid); row.classList.remove('selected'); }
+          countEl.textContent = 'Выбрано: ' + selected.size;
+          addBtn.disabled = selected.size === 0;
+        };
+      });
+    }
+
+    async function loadMembers() {
+      try {
+        const d = await api(`/api/chat/channels/${channelId}/members`);
+        memberUids = new Set((d.items || []).map(m => m.user_id));
+        renderMembers(d.items || []);
+        renderPicker();
+      } catch (e) {
+        memListEl.innerHTML = `<div class="tc-picker-empty">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    searchEl.oninput = renderPicker;
+    addBtn.onclick = async () => {
+      const user_ids = Array.from(selected);
+      if (!user_ids.length) return;
+      addBtn.disabled = true;
+      try {
+        await api(`/api/chat/channels/${channelId}/members`, { method: 'POST', body: JSON.stringify({ user_ids }) });
+        selected.clear();
+        countEl.textContent = 'Выбрано: 0';
+        await loadMembers();
+        await loadChannels();
+        renderMainHead();
+      } catch (e) { addBtn.disabled = false; alert(e.message); }
+    };
+    ov.querySelector('[data-tc-close]').onclick = () => ov.remove();
+    loadMembers();
+  }
+
   // ── Responsive observer ────────────────────────────────────────────────
   function applyResponsive() {
     const el = state.rootEl;
@@ -1179,6 +1322,11 @@
 
     state.mounted = true;
     state.suspended = false;
+    // Прогреть токен (для URL файлов) + держать свежим (Firebase токен живёт ~1ч).
+    getAuthToken().catch(() => {});
+    if (!state._tokenTimer) {
+      state._tokenTimer = setInterval(() => getAuthToken().catch(() => {}), 25 * 60 * 1000);
+    }
     renderMainHead();
     renderMessages();
     renderComposer();
