@@ -1100,9 +1100,41 @@ PAGES.settings=(c)=>{
       <div class="ctx-row"><span>Интерфейс</span><b>Русский</b></div>
       <div class="ctx-row"><span>Валюты</span><b>Сом · рубль (переключение)</b></div>
       <div class="ctx-row"><span>Часовой пояс</span><b>UTC+5</b></div>
-      <div class="ctx-row"><span>Курс для отчётов</span><b>НБ КР</b></div>
+      <div class="ctx-row"><span>Курс для отчётов</span><b>НБ КР / вручную ↓</b></div>
     </div></div>
   </div>`));
+
+  // --- Курс валюты: ручной ввод + авто из НБ КР ---
+  const fxPanel=el(`<div class="panel section-gap" style="margin-top:0"><div class="panel-h"><h3>Курс валюты · сом ↔ рубль</h3><span class="ph-sub">ручной ввод или авто (НБ КР)</span></div><div class="panel-b">
+    <div class="note blue">${ic('i-info','sm')} В проде пересчёт валют выполняет 1С по курсу НБ КР. Здесь можно задать курс вручную (сохранится в браузере) или подтянуть из НБ КР.</div>
+    <div class="row wrap section-gap" style="gap:12px;align-items:flex-end">
+      <div class="fld" style="margin:0"><label>1 сом = ₽</label><input data-fx="rate" type="number" step="0.01" min="0" style="width:130px" value="${DB.fx.RUB}"></div>
+      <button class="btn primary" data-fx="save">${ic('i-check2','sm')} Сохранить</button>
+      <button class="btn" data-fx="nbkr">${ic('i-sync','sm')} Обновить из НБ КР</button>
+    </div>
+    <div class="muted2" data-fx="info" style="font-size:12px;margin-top:10px">Текущий курс: 1 сом = ${DB.fx.RUB} ₽</div>
+  </div></div>`);
+  const fxInput=fxPanel.querySelector('[data-fx=rate]');
+  const fxInfo=fxPanel.querySelector('[data-fx=info]');
+  fxPanel.querySelector('[data-fx=save]').onclick=()=>{
+    const v=parseFloat(fxInput.value);
+    if(!(v>0)){ toast('Введите корректный курс','i-info','#d97706'); return; }
+    setFxRub(v); fxInfo.textContent='Курс сохранён: 1 сом = '+v+' ₽ (вручную)'; toast('Курс сохранён','i-money');
+  };
+  fxPanel.querySelector('[data-fx=nbkr]').onclick=async()=>{
+    fxInfo.textContent='Запрос курса из НБ КР…';
+    const r=await api('/api/fx');
+    if(r.ok && r.data && r.data.rub>0){
+      setFxRub(r.data.rub); fxInput.value=r.data.rub;
+      fxInfo.textContent='Курс из НБ КР: 1 сом = '+r.data.rub+' ₽'+(r.data.date?(' · '+r.data.date):'');
+      toast('Курс обновлён из НБ КР','i-sync');
+    } else {
+      fxInfo.textContent='Авто-курс заработает после подключения backend/1С (эндпоинт /api/fx). Пока задайте вручную.';
+      toast('Авто-курс — нужен backend/1С','i-info','#d97706');
+    }
+  };
+  c.appendChild(fxPanel);
+
   c.appendChild(el(`<div class="grid-2 section-gap">
     <div class="panel"><div class="panel-h"><h3>Безопасность</h3></div><div class="panel-b">
       ${['HTTPS / TLS 1.3','Аутентификация по логину + 2FA','Разграничение доступа по ролям','Логирование действий','Шифрование чувствительных данных','Ежедневный бэкап · хранение 30 дней'].map(s=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><span class="yes" style="color:var(--accent2)">${ic('i-check2','sm')}</span><span style="font-size:13px">${s}</span></div>`).join('')}
@@ -1115,6 +1147,9 @@ PAGES.settings=(c)=>{
 };
 
 // ---------- currency ----------
+// Курс рубля: ручной override из localStorage имеет приоритет над демо-значением.
+function setFxRub(v){ DB.fx.RUB=v; try{ localStorage.setItem('pharmaFxRub', String(v)); }catch(e){} }
+try{ const _r=parseFloat(localStorage.getItem('pharmaFxRub')); if(_r>0) DB.fx.RUB=_r; }catch(e){}
 $('#curSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
   $('#curSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
   state.cur=b.dataset.cur;renderPage();toast('Валюта: '+(state.cur==='KGS'?'сом (Кыргызстан)':'рубль'),'i-money');});
