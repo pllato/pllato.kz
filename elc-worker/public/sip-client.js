@@ -14,7 +14,13 @@
 //     callEventEndpoint: 'https://pllato-elc-worker.uurraa.workers.dev/api/call/event',
 //     callLogEndpoint:   'https://pllato-elc-worker.uurraa.workers.dev/api/call/log',
 //     getAuthToken: async () => 'Bearer ' + await firebase.auth().currentUser.getIdToken(),
-//     resolveContact: async (phone) => ({ id, name, dealId }),
+//     resolveContact: async (phone) => ({
+//       id, name, company,
+//       deals: [{id, title, amount, currency, closed}],
+//       activities: [{type, icon, date, description}]
+//     }),
+//     onOpenContact: (contactId) => { /* открыть карточку контакта */ },
+//     onOpenDeal: (dealId) => { /* (опц) открыть карточку сделки */ },
 //     onCallEvent: (evt) => console.log('call', evt),
 //   });
 //
@@ -117,6 +123,22 @@ const STYLES = `
 .sipc-numpad-call{width:100%;background:#10b981;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px}
 .sipc-numpad-call:disabled{background:#94a3b8;cursor:not-allowed}
 
+.sipc-rich{margin:0 0 12px;padding:0;border-top:1px solid #e5e7eb;padding-top:10px}
+.sipc-rich-h{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-bottom:6px;font-weight:600}
+.sipc-deal-item{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:5px;cursor:pointer;transition:background .12s}
+.sipc-deal-item:hover{background:#eff6ff;border-color:#bfdbfe}
+.sipc-deal-item .sipc-deal-title{font-weight:500;font-size:13px;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.sipc-deal-item .sipc-deal-amount{font-size:12px;color:#475569;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sipc-deal-item.sipc-deal-closed{opacity:.6}
+.sipc-act-item{display:flex;gap:8px;align-items:flex-start;padding:5px 0;font-size:12px;color:#334155;line-height:1.3}
+.sipc-act-item .sipc-act-ico{flex:none;font-size:14px}
+.sipc-act-item .sipc-act-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sipc-act-item .sipc-act-date{color:#94a3b8;font-size:11px;white-space:nowrap}
+.sipc-open-card-btn{width:100%;background:#fff;color:#0f172a;border:1px solid #cbd5e1;border-radius:8px;padding:9px;font-size:13px;font-weight:500;cursor:pointer;margin-bottom:8px;transition:all .12s}
+.sipc-open-card-btn:hover{background:#f1f5f9;border-color:#94a3b8}
+.sipc-cname-big{text-align:center;font-size:16px;font-weight:600;color:#0f172a;margin-bottom:2px}
+.sipc-cmeta{text-align:center;color:#64748b;font-size:12px;margin-bottom:10px;min-height:14px}
+
 .sipc-history{font:13px/1.5 -apple-system,sans-serif}
 .sipc-history-empty{padding:14px;text-align:center;color:#64748b;font-size:13px;background:#f8fafc;border-radius:6px}
 .sipc-history-item{display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:8px 6px;border-bottom:1px solid #f1f5f9}
@@ -181,6 +203,8 @@ export async function createSipClient(config) {
     onIncoming:        config.onIncoming || null,
     onCallEvent:       config.onCallEvent || null,
     resolveContact:    config.resolveContact || null,
+    onOpenContact:     config.onOpenContact || null,   // (contactId) => void — для кнопки "Открыть карточку"
+    onOpenDeal:        config.onOpenDeal || null,      // (dealId) => void — клик по сделке в popup
     showBottomBar:     config.showBottomBar !== false,  // default true
     autoConnect:       config.autoConnect !== false,    // default true
     debug:             !!config.debug,
@@ -427,8 +451,11 @@ export async function createSipClient(config) {
     callId = ev?.id || null;
 
     sessionMeta = {
-      phone, contactName: contactInfo.name || '',
+      phone, contactName: contactInfo.name || contactInfo.fullName || '',
+      contactCompany: contactInfo.company || '',
       contactId: contactInfo.id || null, dealId: contactInfo.dealId || null,
+      contactDeals: contactInfo.deals || [],
+      contactActivities: contactInfo.activities || [],
       callId, direction: 'in', startedAt: Date.now(),
     };
     session = invitation;
@@ -489,8 +516,11 @@ export async function createSipClient(config) {
     const callId = ev?.id || null;
 
     sessionMeta = {
-      phone, contactName: contactInfo.name || '',
+      phone, contactName: contactInfo.name || contactInfo.fullName || '',
+      contactCompany: contactInfo.company || '',
       contactId: contactInfo.id || null, dealId: contactInfo.dealId || null,
+      contactDeals: contactInfo.deals || [],
+      contactActivities: contactInfo.activities || [],
       callId, direction: 'out', startedAt: Date.now(),
     };
     muted = false; onHold = false;
@@ -625,6 +655,108 @@ export async function createSipClient(config) {
     if (currentOverlay) { currentOverlay.remove(); currentOverlay = null; }
   }
 
+  // Compact формат суммы в KZT (1 200 000 → "1.2 млн")
+  function fmtMoney(n, currency) {
+    if (!n || isNaN(n)) return '';
+    const num = Number(n);
+    const cur = currency === 'KZT' ? '₸' : (currency || '');
+    if (num >= 1e6) return `${(num/1e6).toFixed(num >= 10e6 ? 0 : 1)} млн ${cur}`.trim();
+    if (num >= 1e3) return `${Math.round(num/1e3)} тыс ${cur}`.trim();
+    return `${num} ${cur}`.trim();
+  }
+  // Короткая дата для активности (27.05 / "вчера" / "сегодня")
+  function fmtDateShort(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    const today = new Date();
+    const isToday = d.toDateString() === today.toDateString();
+    const yest = new Date(); yest.setDate(yest.getDate() - 1);
+    const isYest = d.toDateString() === yest.toDateString();
+    if (isToday) return d.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
+    if (isYest)  return 'вчера';
+    return d.toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit' });
+  }
+
+  // Рендер блока с контактом (имя, компания, сделки, активности, "Открыть карточку")
+  // Возвращает HTML, который встраивается в body overlay'я
+  function renderRichContactBlock() {
+    const m = sessionMeta || {};
+    const name = m.contactName || '';
+    const company = m.contactCompany || '';
+    const phone = m.phone || '';
+    const deals = Array.isArray(m.contactDeals) ? m.contactDeals.slice(0, 2) : [];
+    const acts  = Array.isArray(m.contactActivities) ? m.contactActivities.slice(0, 2) : [];
+    const contactId = m.contactId || null;
+
+    let html = `<div class="sipc-phone">${escapeHtml(phone)}</div>`;
+    if (name) {
+      html += `<div class="sipc-cname-big">${escapeHtml(name)}</div>`;
+    } else {
+      html += `<div class="sipc-cname-big" style="color:#94a3b8">неизвестный номер</div>`;
+    }
+    if (company) html += `<div class="sipc-cmeta">${escapeHtml(company)}</div>`;
+    else html += `<div class="sipc-cmeta"></div>`;
+
+    // Кнопка "Открыть карточку" — только если есть contactId и обработчик
+    if (contactId && opts.onOpenContact) {
+      html += `<button class="sipc-open-card-btn" data-act="open-card">📂 Открыть карточку контакта</button>`;
+    }
+
+    if (deals.length) {
+      html += `<div class="sipc-rich"><div class="sipc-rich-h">Сделки (${deals.length})</div>`;
+      for (const d of deals) {
+        const amt = fmtMoney(d.amount, d.currency);
+        html += `<div class="sipc-deal-item ${d.closed ? 'sipc-deal-closed' : ''}" data-deal-id="${escapeHtml(String(d.id || ''))}">
+          <span class="sipc-deal-title" title="${escapeHtml(d.title || '')}">${escapeHtml(d.title || '(без названия)')}</span>
+          ${amt ? `<span class="sipc-deal-amount">${escapeHtml(amt)}</span>` : ''}
+        </div>`;
+      }
+      html += `</div>`;
+    }
+
+    if (acts.length) {
+      html += `<div class="sipc-rich"><div class="sipc-rich-h">Последняя активность</div>`;
+      for (const a of acts) {
+        html += `<div class="sipc-act-item">
+          <span class="sipc-act-ico">${escapeHtml(a.icon || '•')}</span>
+          <span class="sipc-act-text" title="${escapeHtml(a.description || '')}">${escapeHtml(a.description || '')}</span>
+          <span class="sipc-act-date">${escapeHtml(fmtDateShort(a.date))}</span>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+    return html;
+  }
+
+  // Подвязать обработчики кликов по сделкам и кнопке "Открыть карточку"
+  function wireRichBlockHandlers(rootEl) {
+    if (!rootEl) return;
+    const openBtn = rootEl.querySelector('[data-act="open-card"]');
+    if (openBtn && opts.onOpenContact) {
+      openBtn.onclick = (e) => {
+        e.stopPropagation();
+        try { opts.onOpenContact(sessionMeta?.contactId); } catch (err) { console.warn('[sipc] onOpenContact threw', err); }
+        // НЕ закрываем overlay — пользователь должен видеть звонок чтобы ответить
+      };
+    }
+    rootEl.querySelectorAll('.sipc-deal-item').forEach(el => {
+      const id = el.dataset.dealId;
+      if (id && opts.onOpenDeal) {
+        el.onclick = (e) => {
+          e.stopPropagation();
+          try { opts.onOpenDeal(id); } catch (err) { console.warn('[sipc] onOpenDeal threw', err); }
+        };
+      } else if (id && opts.onOpenContact) {
+        // Fallback: при клике на сделку откроем карточку контакта
+        el.onclick = (e) => {
+          e.stopPropagation();
+          try { opts.onOpenContact(sessionMeta?.contactId); } catch (err) { console.warn(err); }
+        };
+      }
+    });
+  }
+
   function openCallOverlay() {
     // Если уже открыт active session overlay — не пересоздаём (auto-minimize
     // мог закрыть, а пользователь вручную развернул через bottom-bar — в этом
@@ -643,8 +775,7 @@ export async function createSipClient(config) {
           <button class="sipc-modal-close" title="Свернуть">−</button>
         </div>
         <div class="sipc-modal-body">
-          <div class="sipc-phone">${escapeHtml(sessionMeta?.phone || '')}</div>
-          <div class="sipc-cname">${escapeHtml(sessionMeta?.contactName || '')}</div>
+          ${renderRichContactBlock()}
           <div class="sipc-state" data-state>Соединяемся…<span class="sipc-timer" data-timer></span></div>
           <div class="sipc-controls">
             <button class="sipc-ctrl" data-act="mute" disabled>
@@ -684,6 +815,7 @@ export async function createSipClient(config) {
     bg.querySelectorAll('.sipc-dtmf-key').forEach(b => {
       b.onclick = () => sendDtmf(b.dataset.d);
     });
+    wireRichBlockHandlers(bg);
 
     if (session) updateOverlayState(session.state);
     updateOverlayControls();
@@ -699,8 +831,7 @@ export async function createSipClient(config) {
           <div class="sipc-modal-title">⬅ Входящий звонок</div>
         </div>
         <div class="sipc-modal-body">
-          <div class="sipc-phone">${escapeHtml(contactInfo.phone || '')}</div>
-          <div class="sipc-cname">${escapeHtml(contactInfo.name || 'неизвестный номер')}</div>
+          ${renderRichContactBlock()}
           <div class="sipc-state">Звонит…</div>
           <div class="sipc-twobtn">
             <button class="sipc-hangup sipc-accept" data-act="accept">✓ Ответить</button>
@@ -711,6 +842,7 @@ export async function createSipClient(config) {
     `;
     document.body.appendChild(bg);
     currentOverlay = bg;
+    wireRichBlockHandlers(bg);
     bg.querySelector('[data-act="accept"]').onclick = () => acceptIncoming(invitation);
     bg.querySelector('[data-act="reject"]').onclick = () => rejectIncoming(invitation);
   }

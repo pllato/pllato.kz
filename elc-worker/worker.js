@@ -1830,6 +1830,129 @@ async function handleCallLog(request, env) {
   }, 200, request);
 }
 
+// ── /api/contact-card-by-phone — rich контакт-карточка для popup звонка ─
+// Возвращает: { contact: {id, fullName, company}, deals: [...], activities: [...] }
+// Если контакт не найден — { found:false }.
+async function handleContactCardByPhone(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+
+  const url = new URL(request.url);
+  const phoneRaw = (url.searchParams.get("phone") || "").trim();
+  const digits = String(phoneRaw).replace(/\D/g, "");
+  if (!digits) return json({ found: false, error: "phone required" }, 200, request);
+
+  // Поиск контакта по нескольким вариантам формата номера в JSON-массиве phones
+  const tail10 = digits.slice(-10); // последние 10 цифр без кода страны
+  const variants = [
+    `%"${digits}"%`,
+    `%"+${digits}"%`,
+    `%"${tail10}"%`,
+    `%${tail10}%`,
+  ];
+  let contact = null;
+  for (const v of variants) {
+    contact = await env.DB.prepare(
+      "SELECT id, name, last_name, second_name, phones, emails, company_id, position FROM contacts WHERE phones LIKE ? LIMIT 1"
+    ).bind(v).first();
+    if (contact) break;
+  }
+  if (!contact) return json({ found: false }, 200, request);
+
+  const fullName = [contact.last_name, contact.name, contact.second_name]
+    .filter(s => s && String(s).trim()).join(" ").trim() || "(без имени)";
+
+  // Компания (если есть)
+  let companyTitle = "";
+  if (contact.company_id) {
+    try {
+      const comp = await env.DB.prepare(
+        "SELECT title FROM companies WHERE id = ? LIMIT 1"
+      ).bind(contact.company_id).first();
+      if (comp?.title) companyTitle = String(comp.title);
+    } catch { /* companies table may not exist; ok */ }
+  }
+
+  // Последние 3 сделки контакта (открытые приоритетнее закрытых, потом по дате)
+  let deals = [];
+  try {
+    const dealsRes = await env.DB.prepare(`
+      SELECT id, bitrix_id, title, opportunity, currency, stage_id, pipeline_id, closed, bitrix_date_modify
+      FROM deals
+      WHERE contact_id = ?
+      ORDER BY closed ASC, COALESCE(bitrix_date_modify, '') DESC
+      LIMIT 3
+    `).bind(contact.id).all();
+    deals = (dealsRes.results || []).map(d => ({
+      id: d.bitrix_id || d.id,
+      title: d.title || "(без названия)",
+      stageId: d.stage_id,
+      pipelineId: d.pipeline_id,
+      amount: d.opportunity || null,
+      currency: d.currency || "KZT",
+      closed: !!d.closed,
+    }));
+  } catch { /* deals failure ok */ }
+
+  // Последние 3 активности контакта: звонки + WA-сообщения + комментарии в timeline
+  let activities = [];
+  try {
+    // Звонки по контакту
+    const callsRes = await env.DB.prepare(`
+      SELECT direction, phone, started_at, duration_sec, status
+      FROM call_log
+      WHERE contact_id = ?
+      ORDER BY started_at DESC
+      LIMIT 3
+    `).bind(contact.id).all();
+    for (const c of (callsRes.results || [])) {
+      const dur = c.duration_sec > 0 ? `${Math.floor(c.duration_sec/60)}:${String(c.duration_sec%60).padStart(2,'0')}` : "";
+      const statusLabel = ({ connected: "разговор", no_answer: "не ответил", missed: "пропущен", failed: "ошибка" })[c.status] || c.status || "";
+      activities.push({
+        type: "call",
+        icon: c.direction === "in" ? "📥" : "📤",
+        date: c.started_at,
+        description: `${c.direction === "in" ? "Входящий" : "Исходящий"}${dur ? " " + dur : ""}${statusLabel ? " · " + statusLabel : ""}`,
+      });
+    }
+    // WhatsApp — последние сообщения по телефону
+    try {
+      const waRes = await env.DB.prepare(`
+        SELECT m.direction, m.text, m.ts
+        FROM wa_messages m
+        JOIN wa_chats c ON c.id = m.chat_id
+        WHERE c.phone LIKE ?
+        ORDER BY m.ts DESC
+        LIMIT 3
+      `).bind(`%${tail10}%`).all();
+      for (const w of (waRes.results || [])) {
+        const preview = String(w.text || "").slice(0, 60);
+        activities.push({
+          type: "wa",
+          icon: "💬",
+          date: w.ts,
+          description: `WA${w.direction === "in" ? " ⬅" : " ➡"}: ${preview || "(без текста)"}`,
+        });
+      }
+    } catch { /* wa tables may not exist */ }
+    // Сортировка по дате убывающе, обрезаем до 3
+    activities.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+    activities = activities.slice(0, 3);
+  } catch { /* activities failure ok */ }
+
+  return json({
+    found: true,
+    contact: {
+      id: contact.id,
+      fullName,
+      company: companyTitle,
+      position: contact.position || "",
+    },
+    deals,
+    activities,
+  }, 200, request);
+}
+
 // ── /api/sip/token — SIP-креды для browser WebRTC клиента ────────────────
 // Секреты живут в Worker env (wrangler secret put SIP_PASSWORD ...).
 // Frontend (team.html) fetch'ит этот endpoint вместо хардкода в HTML.
@@ -5729,6 +5852,10 @@ export default {
     // /api/call/log — GET: список последних звонков (?contactId, ?dealId, ?limit)
     if (path === "/api/call/log" && request.method === "GET") {
       return handleCallLog(request, env);
+    }
+    // /api/contact-card-by-phone — GET: rich contact + deals + activities для popup звонка
+    if (path === "/api/contact-card-by-phone" && request.method === "GET") {
+      return handleContactCardByPhone(request, env);
     }
 
     // /api/sip/token — auth-gated выдача SIP-кредов для браузерного SIP.js клиента.
