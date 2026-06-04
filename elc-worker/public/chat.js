@@ -466,6 +466,7 @@
       .tc-modal { background:var(--bg2); border-radius:14px; padding:22px 24px; width:100%; max-width:440px;
         max-height:84vh; overflow:auto; box-shadow:0 18px 50px rgba(0,0,0,.35); }
       .tc-modal h3 { margin:0 0 16px; font-size:18px; }
+      .tc-newchat-hint { margin:-6px 0 14px; font-size:12.5px; color:var(--t3); line-height:1.45; }
       .tc-modal label { display:block; margin-bottom:12px; font-size:12.5px; color:var(--t2); font-weight:600; }
       .tc-modal input, .tc-modal textarea, .tc-modal select { width:100%; box-sizing:border-box; padding:9px 11px;
         border:1px solid var(--b1); border-radius:9px; background:var(--bg3); color:var(--t1); font-size:13.5px;
@@ -548,13 +549,35 @@
     if (ch.type === 'dm') return userLabel(ch.other_user_id);
     return ch.name || '(без имени)';
   }
-  function channelAvatarBg(ch) {
-    if (ch.type === 'dm') return userColor(ch.other_user_id || '');
-    return ch.type === 'group' ? '#8b5cf6' : 'var(--tc-ac, #2563eb)';
+
+  // Дефолтные «картинки» групп: эмодзи на красивом градиенте, детерминированно по id.
+  const GROUP_EMOJIS = ['👥', '💬', '🚀', '⭐', '🔥', '🎯', '💡', '📌', '🎨', '🛠️', '📊', '🌈', '⚡', '🍀', '🎉', '🌟'];
+  const GROUP_GRADIENTS = [
+    'linear-gradient(135deg,#667eea,#764ba2)',
+    'linear-gradient(135deg,#f093fb,#f5576c)',
+    'linear-gradient(135deg,#4facfe,#00f2fe)',
+    'linear-gradient(135deg,#43e97b,#38f9d7)',
+    'linear-gradient(135deg,#fa709a,#fb6a4f)',
+    'linear-gradient(135deg,#30cfd0,#5a4fcf)',
+    'linear-gradient(135deg,#ff9a9e,#d46fb0)',
+    'linear-gradient(135deg,#5ee7df,#b06ab3)',
+    'linear-gradient(135deg,#f6a04d,#ee5a6f)',
+    'linear-gradient(135deg,#3a8dde,#6f42c1)',
+  ];
+  function strHash(s) {
+    let h = 0;
+    for (let i = 0; i < (s || '').length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h;
   }
-  function channelAvatarText(ch) {
-    if (ch.type === 'dm') return userAvatar(ch.other_user_id || '');
-    return '#';
+  function groupEmoji(ch) { return GROUP_EMOJIS[strHash(ch.id || ch.name || '') % GROUP_EMOJIS.length]; }
+  function groupGradient(ch) { return GROUP_GRADIENTS[strHash((ch.id || '') + 'g') % GROUP_GRADIENTS.length]; }
+
+  // Аватар канала: для DM — фото/инициалы сотрудника, для группы — эмодзи на градиенте.
+  function channelAvatarHtml(cls, ch) {
+    if (ch.type === 'dm') {
+      return avatarHtml(cls, ch.other_user_id, userAvatar(ch.other_user_id || ''), userColor(ch.other_user_id || ''));
+    }
+    return `<div class="${cls}" style="background:${groupGradient(ch)};color:#fff"><span style="font-size:1.4em;line-height:1">${groupEmoji(ch)}</span></div>`;
   }
 
   function sortedChannels() {
@@ -581,7 +604,7 @@
     if (chs.length === 0) {
       let msg;
       if (q) msg = 'Ничего не найдено';
-      else if (state.channels.length === 0) msg = 'Пока нет чатов.<br>Создай канал <b>＋</b> или напиши коллеге <b>✉</b>';
+      else if (state.channels.length === 0) msg = 'Пока нет чатов.<br>Нажми <b>＋</b>, чтобы начать переписку.';
       else msg = 'Нет чатов в этой вкладке';
       listEl.innerHTML = `<div class="tc-list-empty">${msg}</div>`;
       return;
@@ -594,12 +617,10 @@
       const last = ch.last_message_text
         ? escapeHtml(ch.last_message_text)
         : '<span class="tc-ch-muted">нет сообщений</span>';
-      const prefix = ch.type === 'dm' ? ''
-        : (ch.type === 'group' ? '<span class="tc-ch-ic">🔒</span>' : '<span class="tc-ch-ic">#</span>');
       return `<div class="tc-channel${active}" data-ch-id="${escapeHtml(ch.id)}">
-        ${avatarHtml('tc-ch-av', ch.type === 'dm' ? ch.other_user_id : null, channelAvatarText(ch), channelAvatarBg(ch))}
+        ${channelAvatarHtml('tc-ch-av', ch)}
         <div class="tc-ch-body">
-          <div class="tc-ch-top"><span class="tc-ch-name">${prefix}${escapeHtml(channelDisplayName(ch))}</span><span class="tc-ch-time">${time}</span></div>
+          <div class="tc-ch-top"><span class="tc-ch-name">${escapeHtml(channelDisplayName(ch))}</span><span class="tc-ch-time">${time}</span></div>
           <div class="tc-ch-bottom"><span class="tc-ch-last">${last}</span>${unread}</div>
         </div>
       </div>`;
@@ -763,14 +784,13 @@
 
     let sub;
     if (ch.type === 'dm') sub = parentUser(ch.other_user_id)?.email || 'Личная переписка';
-    else if (ch.type === 'group') sub = ch.member_count ? `Закрытая группа · ${ch.member_count} ${pluralMembers(ch.member_count)}` : 'Закрытая группа';
-    else sub = ch.member_count ? `Канал · ${ch.member_count} ${pluralMembers(ch.member_count)}` : 'Открытый канал';
+    else sub = ch.member_count ? `Группа · ${ch.member_count} ${pluralMembers(ch.member_count)}` : 'Группа';
 
     const membersBtn = ch.type === 'dm' ? '' :
       `<button class="tc-head-members" title="Участники">👥</button>`;
     head.innerHTML = `
       <button class="tc-back" title="Назад">‹</button>
-      ${avatarHtml('tc-head-av', ch.type === 'dm' ? ch.other_user_id : null, channelAvatarText(ch), channelAvatarBg(ch))}
+      ${channelAvatarHtml('tc-head-av', ch)}
       <div class="tc-head-meta">
         <div class="tc-head-name">${escapeHtml(channelDisplayName(ch))}</div>
         <div class="tc-head-sub">${escapeHtml(sub)}</div>
@@ -1001,31 +1021,27 @@
   }
 
   // ── Modals ─────────────────────────────────────────────────────────────
-  function openNewChannelModal() {
+  // Единое окно создания: 1 сотрудник → личная переписка, 2+ → группа.
+  function openNewChatModal() {
     const roster = getRoster();
     const selected = new Set();
     const ov = document.createElement('div');
     ov.className = 'tc-modal-overlay';
     ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
     ov.innerHTML = `<div class="tc-modal">
-      <h3>➕ Новый канал</h3>
-      <label>Тип
-        <select id="tc-new-type"><option value="channel">Канал (публичный)</option><option value="group">Группа (закрытая)</option></select>
-      </label>
-      <label>Название
+      <h3>➕ Новый чат</h3>
+      <div class="tc-newchat-hint">Выбери одного — будет личная переписка, нескольких — группа.</div>
+      <label id="tc-new-name-wrap" style="display:none">Название группы
         <input id="tc-new-name" placeholder="например, Разработка" maxlength="60">
-      </label>
-      <label>Описание (опционально)
-        <textarea id="tc-new-desc" rows="2"></textarea>
       </label>
       <label>Кого добавить
         <input class="tc-picker-search" id="tc-new-search" placeholder="🔍 поиск по имени…">
       </label>
       <div class="tc-picker-list" id="tc-new-members-list"></div>
-      <div class="tc-picker-count" id="tc-new-members-count">Выбрано: 0</div>
       <div class="tc-modal-foot">
+        <span class="tc-picker-count" id="tc-new-members-count" style="margin-right:auto">Выбрано: 0</span>
         <button data-tc-cancel>Отмена</button>
-        <button class="primary" data-tc-create>Создать</button>
+        <button class="primary" data-tc-create disabled>Создать</button>
       </div>
     </div>`;
     document.body.appendChild(ov);
@@ -1034,6 +1050,16 @@
     const listEl = ov.querySelector('#tc-new-members-list');
     const countEl = ov.querySelector('#tc-new-members-count');
     const searchEl = ov.querySelector('#tc-new-search');
+    const nameWrap = ov.querySelector('#tc-new-name-wrap');
+    const createBtn = ov.querySelector('[data-tc-create]');
+
+    function refreshState() {
+      const n = selected.size;
+      countEl.textContent = 'Выбрано: ' + n;
+      nameWrap.style.display = n >= 2 ? '' : 'none';
+      createBtn.disabled = n === 0;
+      createBtn.textContent = n >= 2 ? 'Создать группу' : (n === 1 ? 'Написать' : 'Создать');
+    }
 
     function renderList() {
       const q = searchEl.value.trim().toLowerCase();
@@ -1052,78 +1078,41 @@
           if (e.target !== cb) cb.checked = !cb.checked;
           if (cb.checked) { selected.add(uid); row.classList.add('selected'); }
           else { selected.delete(uid); row.classList.remove('selected'); }
-          countEl.textContent = 'Выбрано: ' + selected.size;
+          refreshState();
         };
       });
     }
     searchEl.oninput = renderList;
     renderList();
+    refreshState();
     loadRoster().then(() => renderList());
 
     ov.querySelector('[data-tc-cancel]').onclick = () => ov.remove();
-    ov.querySelector('[data-tc-create]').onclick = async () => {
-      const type = ov.querySelector('#tc-new-type').value;
-      const name = ov.querySelector('#tc-new-name').value.trim();
-      const description = ov.querySelector('#tc-new-desc').value.trim();
+    createBtn.onclick = async () => {
       const members = Array.from(selected);
-      if (!name) { alert('Введи название'); return; }
+      if (members.length === 0) return;
+      createBtn.disabled = true;
       try {
-        const d = await api('/api/chat/channels', { method: 'POST', body: JSON.stringify({ type, name, description, members }) });
-        ov.remove();
-        await loadChannels();
-        openChannel(d.channel.id);
-      } catch (e) { alert(e.message); }
+        if (members.length === 1) {
+          // Один сотрудник → личная переписка
+          const d = await api('/api/chat/dm', { method: 'POST', body: JSON.stringify({ user_id: members[0] }) });
+          ov.remove();
+          await loadChannels();
+          openChannel(d.channel_id);
+        } else {
+          // Несколько → группа. Имя необязательно — соберём из участников.
+          let name = ov.querySelector('#tc-new-name').value.trim();
+          if (!name) {
+            const labels = members.map(uid => (roster.find(r => r.uid === uid) || {}).label).filter(Boolean);
+            name = labels.slice(0, 3).join(', ') + (labels.length > 3 ? ` +${labels.length - 3}` : '');
+          }
+          const d = await api('/api/chat/channels', { method: 'POST', body: JSON.stringify({ type: 'group', name, members }) });
+          ov.remove();
+          await loadChannels();
+          openChannel(d.channel.id);
+        }
+      } catch (e) { alert(e.message); createBtn.disabled = false; }
     };
-  }
-
-  function openNewDmModal() {
-    const roster = getRoster();
-    const ov = document.createElement('div');
-    ov.className = 'tc-modal-overlay';
-    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
-    ov.innerHTML = `<div class="tc-modal">
-      <h3>✉ Личная переписка</h3>
-      <label>Выбери сотрудника
-        <input class="tc-picker-search" id="tc-dm-search" placeholder="🔍 поиск по имени…">
-      </label>
-      <div class="tc-picker-list" id="tc-dm-list"></div>
-      <div class="tc-modal-foot">
-        <button data-tc-cancel>Отмена</button>
-      </div>
-    </div>`;
-    document.body.appendChild(ov);
-    ov.querySelector('.tc-modal').onclick = (e) => e.stopPropagation();
-
-    const listEl = ov.querySelector('#tc-dm-list');
-    const searchEl = ov.querySelector('#tc-dm-search');
-
-    async function startDm(uid) {
-      try {
-        const d = await api('/api/chat/dm', { method: 'POST', body: JSON.stringify({ user_id: uid }) });
-        ov.remove();
-        await loadChannels();
-        openChannel(d.channel_id);
-      } catch (e) { alert(e.message); }
-    }
-
-    function renderList() {
-      const q = searchEl.value.trim().toLowerCase();
-      const filtered = q ? roster.filter(p => p.label.toLowerCase().includes(q) || p.sub.toLowerCase().includes(q)) : roster;
-      if (filtered.length === 0) {
-        listEl.innerHTML = `<div class="tc-picker-empty">${roster.length === 0 ? 'Справочник сотрудников пуст' : 'Никого не найдено'}</div>`;
-        return;
-      }
-      listEl.innerHTML = filtered.map(p => pickerRowHtml(p, { multi: false })).join('');
-      listEl.querySelectorAll('.tc-picker-row').forEach(row => {
-        row.onclick = () => startDm(row.getAttribute('data-uid'));
-      });
-    }
-    searchEl.oninput = renderList;
-    renderList();
-    loadRoster().then(() => renderList());
-    setTimeout(() => searchEl.focus(), 50);
-
-    ov.querySelector('[data-tc-cancel]').onclick = () => ov.remove();
   }
 
   // Управление участниками канала: список с кнопкой «убрать» + добавление.
@@ -1309,13 +1298,12 @@
       <aside class="tc-sidebar">
         <div class="tc-sidebar-head">
           <h3>Чаты</h3>
-          <button class="tc-hbtn" id="tc-new-dm-btn" title="Личная переписка">✉</button>
-          <button class="tc-hbtn" id="tc-new-ch-btn" title="Новый канал">＋</button>
+          <button class="tc-hbtn" id="tc-new-ch-btn" title="Новый чат">＋</button>
         </div>
         <div class="tc-search"><span class="tc-search-ic">🔍</span><input id="tc-ch-search" placeholder="Поиск чата" autocomplete="off"></div>
         <div class="tc-tabs">
           <button class="tc-tab active" data-tab="all">Все</button>
-          <button class="tc-tab" data-tab="channel">Каналы</button>
+          <button class="tc-tab" data-tab="channel">Группы</button>
           <button class="tc-tab" data-tab="dm">Личные</button>
         </div>
         <div class="tc-channels"></div>
@@ -1330,8 +1318,7 @@
       </section>
     </div>`;
 
-    el.querySelector('#tc-new-ch-btn').onclick = openNewChannelModal;
-    el.querySelector('#tc-new-dm-btn').onclick = openNewDmModal;
+    el.querySelector('#tc-new-ch-btn').onclick = openNewChatModal;
 
     const search = el.querySelector('#tc-ch-search');
     search.oninput = () => { state.channelSearch = search.value; renderChannelList(); };
