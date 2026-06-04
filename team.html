@@ -6109,6 +6109,23 @@ function recomputeWaWidgetUnread() {
   for (const c of (waWidget.chats || [])) total += c.unreadCount || 0;
   for (const c of (waWidget.teamChannels || [])) total += c.unread_count || 0;
   waWidget.unreadTotal = total;
+
+  // Сайдбар-бэйдж «Чаты»: считаем только командные каналы, капаем на 99+.
+  // Глобальный поллинг (каждые 7с) держит бэйдж корректным, даже если chat.js не смонтирован.
+  try {
+    let teamUnread = 0;
+    for (const c of (waWidget.teamChannels || [])) teamUnread += c.unread_count || 0;
+    const badge = document.getElementById('team-chat-nav-badge');
+    if (badge) {
+      if (teamUnread > 0) {
+        badge.textContent = teamUnread > 99 ? '99+' : String(teamUnread);
+        badge.style.display = '';
+      } else {
+        badge.textContent = '';
+        badge.style.display = 'none';
+      }
+    }
+  } catch {}
 }
 
 // Загрузка командных каналов в виджет (rotates 7 сек вместе с WA)
@@ -19698,19 +19715,101 @@ async function renderUsers(el, opts = {}) {
   }
 }
 
+// Состояние таблицы сотрудников (поиск + фильтр статуса). Дефолт — только активные.
+let _usersAdminItems = [];
+let _usersStatusFilter = 'active'; // 'active' | 'inactive' | 'all'
+let _usersSearchQuery = '';
+
 function renderUsersAdminTable(items) {
-  const ROLE_LABELS = { admin: 'Админ', manager: 'Менеджер', agent: 'Сотрудник' };
-  const ROLE_COLORS = { admin: 'var(--ac2)', manager: 'var(--gn)', agent: 'var(--t3)' };
-  // datalist для отделов — собираем из admin/departments + ad-hoc из items на случай если эндпоинт упал
+  _usersAdminItems = Array.isArray(items) ? items : [];
+  const listEl = document.getElementById('users-list');
+  if (!listEl) return;
+
+  // Тулбар (поиск + сегмент статуса) рисуем один раз; таблица перерисовывается в #users-table-wrap
+  listEl.innerHTML = `
+    <div class="users-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <div style="position:relative;flex:1;min-width:220px">
+        <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:13px;pointer-events:none">🔍</span>
+        <input id="users-search" type="text" placeholder="Поиск: имя, email, телефон, должность…" value="${escapeHtml(_usersSearchQuery)}"
+          style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--b1);border-radius:8px;padding:8px 10px 8px 32px;color:var(--t1);font-size:13px">
+      </div>
+      <div class="users-seg" style="display:inline-flex;background:var(--bg2);border:1px solid var(--b1);border-radius:8px;overflow:hidden">
+        <button class="users-seg-btn" data-status="active" type="button">Активные <span class="users-seg-count" style="opacity:.7"></span></button>
+        <button class="users-seg-btn" data-status="inactive" type="button">Деактивир. <span class="users-seg-count" style="opacity:.7"></span></button>
+        <button class="users-seg-btn" data-status="all" type="button">Все <span class="users-seg-count" style="opacity:.7"></span></button>
+      </div>
+    </div>
+    <div id="users-table-wrap"></div>
+  `;
+
+  // datalist для отделов — собираем из admin/departments + ad-hoc из items; держим вне wrap, чтобы переживал перерисовку
   const deptSet = new Set();
   for (const d of (window.__elcDepartments || [])) if (d.department) deptSet.add(d.department);
-  for (const u of items) if (u.department) deptSet.add(u.department);
+  for (const u of _usersAdminItems) if (u.department) deptSet.add(u.department);
   const deptOpts = [...deptSet].sort().map(d => `<option value="${escapeHtml(d)}">`).join('');
-  let html = `<datalist id="elc-dept-list">${deptOpts}</datalist>
-    <table class="dtable">
+  let dl = document.getElementById('elc-dept-list');
+  if (!dl) { dl = document.createElement('datalist'); dl.id = 'elc-dept-list'; listEl.appendChild(dl); }
+  dl.innerHTML = deptOpts;
+
+  // Поиск
+  const searchEl = document.getElementById('users-search');
+  if (searchEl) {
+    searchEl.addEventListener('input', () => { _usersSearchQuery = searchEl.value; _renderUsersTable(); });
+  }
+  // Сегмент статуса
+  listEl.querySelectorAll('.users-seg-btn').forEach(btn => {
+    btn.addEventListener('click', () => { _usersStatusFilter = btn.dataset.status; _renderUsersTable(); });
+  });
+
+  _renderUsersTable();
+}
+
+function _renderUsersTable() {
+  const wrap = document.getElementById('users-table-wrap');
+  if (!wrap) return;
+  const ROLE_LABELS = { admin: 'Админ', manager: 'Менеджер', agent: 'Сотрудник' };
+  const ROLE_COLORS = { admin: 'var(--ac2)', manager: 'var(--gn)', agent: 'var(--t3)' };
+
+  const all = _usersAdminItems;
+  const activeCount = all.filter(u => u.active !== 0).length;
+  const inactiveCount = all.length - activeCount;
+
+  // Счётчики + подсветка активного сегмента
+  document.querySelectorAll('.users-seg-btn').forEach(btn => {
+    const st = btn.dataset.status;
+    const cnt = st === 'active' ? activeCount : st === 'inactive' ? inactiveCount : all.length;
+    const cntEl = btn.querySelector('.users-seg-count');
+    if (cntEl) cntEl.textContent = cnt;
+    const on = st === _usersStatusFilter;
+    btn.style.cssText = `border:none;cursor:pointer;padding:7px 13px;font-size:12px;font-weight:600;white-space:nowrap;background:${on ? 'var(--ac)' : 'transparent'};color:${on ? '#fff' : 'var(--t2)'}`;
+  });
+
+  // Фильтр по статусу
+  let rows = all.filter(u => {
+    const isActive = u.active !== 0;
+    if (_usersStatusFilter === 'active') return isActive;
+    if (_usersStatusFilter === 'inactive') return !isActive;
+    return true;
+  });
+  // Поиск (имя/фамилия/email/телефон/должность/отдел)
+  const q = _usersSearchQuery.trim().toLowerCase();
+  if (q) {
+    rows = rows.filter(u => {
+      const hay = [u.name, u.lastName, u.email, u.phone, u.position, u.department].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  }
+
+  if (!rows.length) {
+    wrap.innerHTML = `<div class="empty">${q ? 'Никого не найдено по запросу.' : 'Список пуст.'}</div>`;
+    return;
+  }
+
+  let html = `<table class="dtable">
     <thead><tr>
       <th>Имя</th>
       <th>Email</th>
+      <th>Телефон</th>
       <th>Роль</th>
       <th>Отдел</th>
       <th style="text-align:right" title="Задач · Сделок · Контактов на котором ответственный">Назначено</th>
@@ -19718,7 +19817,7 @@ function renderUsersAdminTable(items) {
       <th></th>
     </tr></thead>
     <tbody>`;
-  for (const u of items) {
+  for (const u of rows) {
     const fullName = [u.lastName, u.name].filter(Boolean).join(' ').trim() || '(без имени)';
     const lastLogin = u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
     const counts = [
@@ -19733,6 +19832,7 @@ function renderUsersAdminTable(items) {
     html += `<tr data-uid="${escapeHtml(u.uid)}" data-active="${isActive ? 1 : 0}" style="${rowStyle}">
       <td>${escapeHtml(fullName)}${isActive ? '' : ' <span style="font-size:10px;color:var(--rd)">(деактивирован)</span>'}</td>
       <td style="color:var(--t3);font-size:11px">${escapeHtml(u.email || '—')}</td>
+      <td style="color:var(--t3);font-size:11px">${escapeHtml(u.phone || '—')}</td>
       <td>
         <select class="usr-role-select" data-uid="${escapeHtml(u.uid)}" style="background:var(--bg2);border:1px solid var(--b1);border-radius:4px;padding:3px 6px;color:${ROLE_COLORS[u.role] || 'var(--t1)'};font-weight:600;font-size:12px">
           <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>${ROLE_LABELS.admin}</option>
@@ -19745,29 +19845,30 @@ function renderUsersAdminTable(items) {
       </td>
       <td style="text-align:right;color:var(--t3);font-size:11px">${escapeHtml(counts)}</td>
       <td style="color:var(--t3);font-size:11px">${lastLogin}</td>
-      <td style="text-align:right">
+      <td style="text-align:right;white-space:nowrap">
+        <button class="usr-edit-profile" data-uid="${escapeHtml(u.uid)}" title="Редактировать профиль" style="background:none;border:1px solid var(--b1);border-radius:4px;padding:3px 7px;cursor:pointer;font-size:14px;margin-right:4px">✏️</button>
         <button class="usr-toggle-active" data-uid="${escapeHtml(u.uid)}" data-active="${isActive ? 1 : 0}" title="${toggleTitle}" style="background:none;border:1px solid var(--b1);border-radius:4px;padding:3px 7px;cursor:pointer;font-size:14px">${toggleIcon}</button>
       </td>
     </tr>`;
   }
   html += '</tbody></table>';
-  document.getElementById('users-list').innerHTML = html;
+  wrap.innerHTML = html;
 
   // Inline-сохранение при изменении select/input
-  document.querySelectorAll('.usr-role-select').forEach(sel => {
+  wrap.querySelectorAll('.usr-role-select').forEach(sel => {
     sel.addEventListener('change', () => saveUserRole(sel.dataset.uid, sel));
   });
-  document.querySelectorAll('.usr-dept-input').forEach(inp => {
+  wrap.querySelectorAll('.usr-dept-input').forEach(inp => {
     let prev = inp.value;
     inp.addEventListener('blur', () => {
-      if (inp.value !== prev) {
-        saveUserRole(inp.dataset.uid, inp);
-        prev = inp.value;
-      }
+      if (inp.value !== prev) { saveUserRole(inp.dataset.uid, inp); prev = inp.value; }
     });
   });
-  document.querySelectorAll('.usr-toggle-active').forEach(btn => {
+  wrap.querySelectorAll('.usr-toggle-active').forEach(btn => {
     btn.addEventListener('click', () => toggleUserActive(btn.dataset.uid, btn.dataset.active === '1', btn));
+  });
+  wrap.querySelectorAll('.usr-edit-profile').forEach(btn => {
+    btn.addEventListener('click', () => openEditUserModal(btn.dataset.uid));
   });
 }
 
@@ -20379,6 +20480,88 @@ function openAddUserModal() {
       alert('Ошибка: ' + e.message);
       btn.disabled = false;
       btn.textContent = 'Создать';
+    }
+  };
+}
+
+function openEditUserModal(uid) {
+  const u = (_usersAdminItems || []).find(x => x.uid === uid);
+  if (!u) { alert('Сотрудник не найден'); return; }
+  document.getElementById('_edit-user-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_edit-user-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()">
+      <div class="qad-head"><h2>Профиль сотрудника</h2><button class="qad-btn qad-btn-ghost" id="eu-close" style="padding:4px 10px">×</button></div>
+      <div class="qad-body">
+        <div><div class="qad-label">Имя *</div><input id="eu-name" class="qad-input" value="${escapeHtml(u.name || '')}" placeholder="Например: Ирина"></div>
+        <div><div class="qad-label">Фамилия</div><input id="eu-lastName" class="qad-input" value="${escapeHtml(u.lastName || '')}" placeholder="(необязательно)"></div>
+        <div><div class="qad-label">Email *</div><input id="eu-email" class="qad-input" value="${escapeHtml(u.email || '')}" placeholder="ivanova@myelc.net" type="email"></div>
+        <div><div class="qad-label">Телефон</div><input id="eu-phone" class="qad-input" value="${escapeHtml(u.phone || '')}" placeholder="+7 7XX XXX XX XX" type="tel"></div>
+        <div><div class="qad-label">Должность</div><input id="eu-position" class="qad-input" value="${escapeHtml(u.position || '')}" placeholder="(необязательно)"></div>
+        <div class="dialer-hint">Email — это идентификатор входа через Google. Меняйте осторожно: после смены сотрудник заходит уже под новым адресом.</div>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="eu-cancel">Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="eu-save">Сохранить</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('eu-close').onclick = () => ov.remove();
+  document.getElementById('eu-cancel').onclick = () => ov.remove();
+  document.getElementById('eu-save').onclick = async () => {
+    const name = document.getElementById('eu-name').value.trim();
+    const lastName = document.getElementById('eu-lastName').value.trim();
+    const email = document.getElementById('eu-email').value.trim().toLowerCase();
+    const phone = document.getElementById('eu-phone').value.trim();
+    const position = document.getElementById('eu-position').value.trim();
+    if (!name) { alert('Имя обязательно'); return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Введите корректный email'); return; }
+    // Шлём только изменённые поля
+    const patch = {};
+    if (name !== (u.name || '')) patch.name = name;
+    if (lastName !== (u.lastName || '')) patch.lastName = lastName;
+    if (email !== (u.email || '').toLowerCase()) patch.email = email;
+    if (phone !== (u.phone || '')) patch.phone = phone;
+    if (position !== (u.position || '')) patch.position = position;
+    if (Object.keys(patch).length === 0) { ov.remove(); return; }
+    const btn = document.getElementById('eu-save');
+    btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/admin/users/${encodeURIComponent(uid)}/profile`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify(patch),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      // Обновляем локальные данные без полного перезапроса
+      Object.assign(u, {
+        name: patch.name ?? u.name,
+        lastName: patch.lastName ?? u.lastName,
+        email: patch.email ?? u.email,
+        phone: patch.phone ?? u.phone,
+        position: patch.position ?? u.position,
+      });
+      // Синхронизируем глобальный кеш сотрудников, если он есть
+      try {
+        const gs = window.usersState;
+        const cached = gs && (gs.byUid ? gs.byUid[uid] : (gs.users || []).find(x => x.uid === uid));
+        if (cached) Object.assign(cached, { name: u.name, lastName: u.lastName, email: u.email, phone: u.phone, position: u.position });
+      } catch {}
+      ov.remove();
+      _renderUsersTable();
+      showToast?.(`Профиль ${u.name} обновлён`);
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = 'Сохранить';
     }
   };
 }

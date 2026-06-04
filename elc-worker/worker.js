@@ -2549,7 +2549,7 @@ async function handleAdminListUsers(request, env) {
   // LEFT JOIN users + user_roles + COUNT задач (для удобства видеть нагрузку)
   const { results } = await env.DB.prepare(`
     SELECT
-      u.uid, u.email, u.name, u.last_name, u.position, u.photo, u.active,
+      u.uid, u.email, u.name, u.last_name, u.position, u.phone, u.photo, u.active,
       u.bitrix_id, u.last_login, u.migrated_at,
       r.role, r.department,
       (SELECT COUNT(*) FROM tasks WHERE responsible_uid = u.uid) AS tasks_count,
@@ -2566,6 +2566,7 @@ async function handleAdminListUsers(request, env) {
     name: r.name,
     lastName: r.last_name,
     position: r.position,
+    phone: r.phone,
     photo: r.photo,
     active: r.active,
     bitrixId: r.bitrix_id,
@@ -2673,6 +2674,71 @@ async function handleAdminSetUserActive(request, env, targetUid) {
   });
 
   return json({ ok: true, uid: targetUid, active }, 200, request);
+}
+
+// PATCH /api/admin/users/{uid}/profile — редактирование профиля сотрудника:
+// name, lastName, email, position, phone. Меняем только переданные поля.
+async function handleAdminUpdateProfile(request, env, targetUid) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+
+  let body;
+  try { body = await request.json(); } catch {
+    return json({ error: "invalid json body" }, 400, request);
+  }
+
+  const before = await env.DB.prepare(
+    "SELECT uid, email, name, last_name, position, phone FROM users WHERE uid = ?"
+  ).bind(targetUid).first();
+  if (!before) return json({ error: "user not found", uid: targetUid }, 404, request);
+
+  const sets = [];
+  const params = [];
+  const changed = {};
+
+  if (body.name !== undefined) {
+    const name = String(body.name || '').trim();
+    if (!name) return json({ error: "name cannot be empty" }, 400, request);
+    sets.push("name = ?"); params.push(name); changed.name = name;
+  }
+  if (body.lastName !== undefined) {
+    const lastName = String(body.lastName || '').trim() || null;
+    sets.push("last_name = ?"); params.push(lastName); changed.lastName = lastName;
+  }
+  if (body.position !== undefined) {
+    const position = String(body.position || '').trim() || null;
+    sets.push("position = ?"); params.push(position); changed.position = position;
+  }
+  if (body.phone !== undefined) {
+    const phone = String(body.phone || '').trim() || null;
+    sets.push("phone = ?"); params.push(phone); changed.phone = phone;
+  }
+  if (body.email !== undefined) {
+    const email = String(body.email || '').toLowerCase().trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return json({ error: "invalid email" }, 400, request);
+    }
+    // Дубликат email у другого сотрудника?
+    const dup = await env.DB.prepare(
+      "SELECT uid FROM users WHERE LOWER(email) = ? AND uid != ? LIMIT 1"
+    ).bind(email, targetUid).first();
+    if (dup) return json({ error: "email уже используется другим сотрудником", uid: dup.uid }, 409, request);
+    sets.push("email = ?"); params.push(email); changed.email = email;
+  }
+
+  if (sets.length === 0) return json({ error: "nothing to update" }, 400, request);
+
+  params.push(targetUid);
+  await env.DB.prepare(
+    `UPDATE users SET ${sets.join(", ")} WHERE uid = ?`
+  ).bind(...params).run();
+
+  await auditLog(env, guard.me, "user_update_profile", "user", targetUid, {
+    old: { email: before.email, name: before.name, lastName: before.last_name, position: before.position, phone: before.phone },
+    new: changed,
+  });
+
+  return json({ ok: true, uid: targetUid, ...changed }, 200, request);
 }
 
 // GET /api/admin/audit?limit=100&action=role_grant&targetType=user&targetId=X
@@ -5934,6 +6000,10 @@ export default {
     const userActiveMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/active$/);
     if (userActiveMatch && request.method === "PATCH") {
       return handleAdminSetUserActive(request, env, userActiveMatch[1]);
+    }
+    const userProfileMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/profile$/);
+    if (userProfileMatch && request.method === "PATCH") {
+      return handleAdminUpdateProfile(request, env, userProfileMatch[1]);
     }
 
     // /api/deals/comments-preview — батч последних 3 комментариев на сделку (для канбана)
