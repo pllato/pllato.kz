@@ -3835,6 +3835,310 @@ async function handleWaChannelQr(request, env, channelId) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// СИСТЕМНЫЙ WHATSAPP-ОПОВЕЩАТЕЛЬ (portal notifier)
+// Отдельный Green-API инстанс, который рассылает сотрудникам в ЛИЧНЫЙ WhatsApp
+// (users.phone) системные события портала: сообщения в чатах, звонки, задачи,
+// приглашения, доступ к порталу. Конфиг — синглтон в wa_notifier (id=1).
+// Отправка идёт мимо wa_chats/wa_messages, чтобы не засорять клиентский inbox.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Все типы событий + дефолтное состояние (вкл/выкл). UI рисует тумблеры по
+// этому списку; фактическую рассылку по каждому хуку включаем постепенно.
+const NOTIFIER_EVENTS = [
+  { key: 'invite',        label: 'Приглашение нового сотрудника',        def: true },
+  { key: 'access',        label: 'Повторная высылка доступа к порталу',  def: true },
+  { key: 'chat_dm',       label: 'Личное сообщение в командном чате',     def: true },
+  { key: 'chat_mention',  label: 'Упоминание (@) в чате',                 def: true },
+  { key: 'chat_message',  label: 'Новое сообщение в канале',             def: false },
+  { key: 'wa_incoming',   label: 'Новая переписка клиента (WhatsApp)',    def: true },
+  { key: 'call_missed',   label: 'Пропущенный звонок',                    def: true },
+  { key: 'call_incoming', label: 'Входящий звонок',                       def: false },
+  { key: 'task_assigned', label: 'Назначена задача',                      def: true },
+  { key: 'task_updated',  label: 'Изменения в задаче',                    def: false },
+  { key: 'task_comment',  label: 'Комментарий к задаче',                  def: true },
+  { key: 'deal_assigned', label: 'Назначена сделка',                      def: true },
+  { key: 'feed_post',     label: 'Новый пост в Ленте',                    def: false },
+];
+function notifierDefaultEvents() {
+  const o = {};
+  for (const e of NOTIFIER_EVENTS) o[e.key] = e.def;
+  return o;
+}
+function safeJsonParse(s, fallback) {
+  if (s == null) return fallback;
+  if (typeof s === 'object') return s;
+  try { return JSON.parse(s); } catch { return fallback; }
+}
+
+// Возвращает рабочий конфиг отправителя системных уведомлений. Предпочитает
+// активный wa_notifier; если он не настроен — откатывается на первый активный
+// wa_channel (чтобы приглашения/доступ уходили ещё до подключения оповещателя).
+async function getNotifierConfig(env) {
+  let n = null;
+  try { n = await env.DB.prepare("SELECT * FROM wa_notifier WHERE id = 1").first(); } catch {}
+  if (n && n.active && n.id_instance && n.api_token_instance) {
+    return {
+      source: 'notifier',
+      api_url: n.api_url || 'https://api.green-api.com',
+      id_instance: n.id_instance,
+      api_token_instance: n.api_token_instance,
+      events: safeJsonParse(n.events_json, null) || notifierDefaultEvents(),
+      portal_url: n.portal_url || 'https://pllato.kz/team.html',
+      display_name: n.display_name || 'Портал-оповещатель',
+    };
+  }
+  let ch = null;
+  try { ch = await env.DB.prepare("SELECT * FROM wa_channels WHERE active = 1 ORDER BY created_at ASC LIMIT 1").first(); } catch {}
+  if (ch) {
+    return {
+      source: 'channel',
+      api_url: ch.api_url || 'https://api.green-api.com',
+      id_instance: ch.id_instance,
+      api_token_instance: ch.api_token_instance,
+      events: notifierDefaultEvents(),
+      portal_url: 'https://pllato.kz/team.html',
+      display_name: ch.display_name || 'WhatsApp',
+    };
+  }
+  return null;
+}
+
+// Низкоуровневая отправка через Green-API. НЕ пишет в wa_chats/wa_messages.
+async function deliverNotifierRaw(cfg, phone, text) {
+  const chatId = waChatIdFromPhone(phone);
+  const url = `${cfg.api_url}/waInstance${cfg.id_instance}/sendMessage/${cfg.api_token_instance}`;
+  const r = await fetch(url, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chatId, message: text }),
+  });
+  const data = await r.json().catch(() => null);
+  if (!data || !data.idMessage) throw new Error('green-api: ' + JSON.stringify(data).slice(0, 200));
+  return data.idMessage;
+}
+
+async function logNotify(env, row) {
+  try {
+    await env.DB.prepare(
+      `INSERT INTO notify_log (uid, phone, event, text, link, status, error, wa_message_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      row.uid || null, row.phone || null, row.event || null,
+      (row.text || '').slice(0, 500), row.link || null,
+      row.status, row.error || null, row.wa_message_id || null,
+    ).run();
+  } catch {}
+  return { ok: row.status === 'sent', status: row.status, error: row.error || null, wa_message_id: row.wa_message_id || null };
+}
+
+// Высокоуровневый хелпер: уведомить сотрудника (по uid или phone) с учётом
+// тумблера события. Никогда не бросает — всё пишется в notify_log.
+async function sendNotify(env, { uid, phone, event, text, link }) {
+  try {
+    const cfg = await getNotifierConfig(env);
+    if (!cfg) return logNotify(env, { uid, phone, event, text, link, status: 'skipped', error: 'no_notifier' });
+    if (event && cfg.events && cfg.events[event] === false) {
+      return logNotify(env, { uid, phone, event, text, link, status: 'skipped', error: 'event_off' });
+    }
+    let targetPhone = phone || null;
+    let targetUid = uid || null;
+    if (!targetPhone && uid) {
+      const u = await env.DB.prepare("SELECT phone, active FROM users WHERE uid = ?").bind(uid).first();
+      if (!u) return logNotify(env, { uid, phone: null, event, text, link, status: 'skipped', error: 'no_user' });
+      if (u.active === 0) return logNotify(env, { uid, phone: u.phone, event, text, link, status: 'skipped', error: 'inactive' });
+      targetPhone = u.phone;
+    }
+    if (!targetPhone) return logNotify(env, { uid: targetUid, phone: null, event, text, link, status: 'skipped', error: 'no_phone' });
+    const full = link ? `${text}\n\n${link}` : text;
+    const idMessage = await deliverNotifierRaw(cfg, targetPhone, full);
+    return logNotify(env, { uid: targetUid, phone: targetPhone, event, text, link, status: 'sent', wa_message_id: idMessage });
+  } catch (e) {
+    return logNotify(env, { uid: uid || null, phone: phone || null, event, text, link, status: 'failed', error: String(e && e.message || e) });
+  }
+}
+
+// GET /api/notifier — конфиг (токен замаскирован).
+async function handleNotifierGet(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  let n = null;
+  try { n = await env.DB.prepare("SELECT * FROM wa_notifier WHERE id = 1").first(); } catch (e) {
+    return json({ error: "notifier table missing — примените миграцию", detail: e.message }, 500, request);
+  }
+  return json({
+    ok: true,
+    events: NOTIFIER_EVENTS,
+    defaultEvents: notifierDefaultEvents(),
+    notifier: n ? {
+      idInstance: n.id_instance || '',
+      apiUrl: n.api_url || 'https://api.green-api.com',
+      displayName: n.display_name || 'Портал-оповещатель',
+      active: !!n.active,
+      hasToken: !!n.api_token_instance,
+      events: safeJsonParse(n.events_json, null) || notifierDefaultEvents(),
+      portalUrl: n.portal_url || 'https://pllato.kz/team.html',
+      updatedAt: n.updated_at || null,
+    } : null,
+  }, 200, request);
+}
+
+// PUT /api/notifier — сохранить конфиг (upsert id=1). Токен перезаписываем
+// только если прислан непустой (чтобы не затереть существующий маской).
+async function handleNotifierSave(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+
+  const idInstance = body.idInstance != null ? String(body.idInstance).trim() : undefined;
+  const apiToken = body.apiTokenInstance != null ? String(body.apiTokenInstance).trim() : '';
+  const apiUrl = body.apiUrl != null ? String(body.apiUrl).trim() : undefined;
+  const displayName = body.displayName != null ? String(body.displayName).trim() : undefined;
+  const portalUrl = body.portalUrl != null ? String(body.portalUrl).trim() : undefined;
+  const active = body.active === true ? 1 : (body.active === false ? 0 : undefined);
+  let eventsJson;
+  if (body.events && typeof body.events === 'object') {
+    const merged = notifierDefaultEvents();
+    for (const e of NOTIFIER_EVENTS) if (e.key in body.events) merged[e.key] = !!body.events[e.key];
+    eventsJson = JSON.stringify(merged);
+  }
+
+  const existing = await env.DB.prepare("SELECT id FROM wa_notifier WHERE id = 1").first();
+  if (!existing) {
+    await env.DB.prepare(
+      `INSERT INTO wa_notifier (id, id_instance, api_url, api_token_instance, display_name, active, events_json, portal_url, updated_at)
+       VALUES (1, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+    ).bind(
+      idInstance || null,
+      apiUrl || 'https://api.green-api.com',
+      apiToken || null,
+      displayName || 'Портал-оповещатель',
+      active != null ? active : 0,
+      eventsJson || JSON.stringify(notifierDefaultEvents()),
+      portalUrl || 'https://pllato.kz/team.html',
+    ).run();
+  } else {
+    const sets = [], params = [];
+    if (idInstance !== undefined) { sets.push("id_instance = ?"); params.push(idInstance || null); }
+    if (apiUrl !== undefined) { sets.push("api_url = ?"); params.push(apiUrl || 'https://api.green-api.com'); }
+    if (apiToken) { sets.push("api_token_instance = ?"); params.push(apiToken); }  // только непустой
+    if (displayName !== undefined) { sets.push("display_name = ?"); params.push(displayName || 'Портал-оповещатель'); }
+    if (active !== undefined) { sets.push("active = ?"); params.push(active); }
+    if (eventsJson !== undefined) { sets.push("events_json = ?"); params.push(eventsJson); }
+    if (portalUrl !== undefined) { sets.push("portal_url = ?"); params.push(portalUrl || 'https://pllato.kz/team.html'); }
+    sets.push("updated_at = datetime('now')");
+    await env.DB.prepare(`UPDATE wa_notifier SET ${sets.join(", ")} WHERE id = 1`).bind(...params).run();
+  }
+  await auditLog(env, guard.me, "notifier_save", "wa_notifier", "1", {
+    idInstance, tokenChanged: !!apiToken, active, eventsChanged: eventsJson !== undefined,
+  });
+  return json({ ok: true }, 200, request);
+}
+
+// Резолвит конфиг ТОЛЬКО notifier-инстанса (без fallback на wa_channels) —
+// для state/qr/test, которые относятся именно к оповещателю.
+async function getNotifierRow(env) {
+  try { return await env.DB.prepare("SELECT * FROM wa_notifier WHERE id = 1").first(); } catch { return null; }
+}
+
+// GET /api/notifier/state — статус авторизации инстанса в Green-API.
+async function handleNotifierState(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  const n = await getNotifierRow(env);
+  if (!n || !n.id_instance || !n.api_token_instance) return json({ error: "notifier not configured" }, 400, request);
+  try {
+    const r = await fetch(`${n.api_url || 'https://api.green-api.com'}/waInstance${n.id_instance}/getStateInstance/${n.api_token_instance}`);
+    const data = await r.json().catch(() => ({}));
+    return json({ ok: true, ...data }, 200, request);
+  } catch (e) {
+    return json({ error: "green-api fetch failed: " + e.message }, 502, request);
+  }
+}
+
+// GET /api/notifier/qr — QR для привязки телефона-оповещателя.
+async function handleNotifierQr(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  const n = await getNotifierRow(env);
+  if (!n || !n.id_instance || !n.api_token_instance) return json({ error: "notifier not configured" }, 400, request);
+  try {
+    const r = await fetch(`${n.api_url || 'https://api.green-api.com'}/waInstance${n.id_instance}/qr/${n.api_token_instance}`);
+    const data = await r.json().catch(() => ({}));
+    return json({ ok: true, ...data }, 200, request);
+  } catch (e) {
+    return json({ error: "green-api fetch failed: " + e.message }, 502, request);
+  }
+}
+
+// POST /api/notifier/test { phone? } — тестовое сообщение (по умолчанию себе).
+async function handleNotifierTest(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  let body = {};
+  try { body = await request.json(); } catch {}
+  let phone = body.phone ? String(body.phone).replace(/\D/g, '') : '';
+  if (!phone) {
+    const me = await env.DB.prepare("SELECT phone FROM users WHERE uid = ?").bind(guard.me.uid).first();
+    phone = me && me.phone ? String(me.phone).replace(/\D/g, '') : '';
+  }
+  if (!phone) return json({ error: "укажите номер или заполните свой телефон в профиле" }, 400, request);
+  const cfg = await getNotifierConfig(env);
+  if (!cfg) return json({ error: "оповещатель не настроен" }, 400, request);
+  try {
+    const id = await deliverNotifierRaw(cfg, phone, '✅ Тест портального оповещателя pllato.kz\n\nЕсли вы видите это сообщение — системные уведомления настроены и работают.');
+    await logNotify(env, { uid: guard.me.uid, phone, event: 'test', text: 'test', status: 'sent', wa_message_id: id });
+    return json({ ok: true, idMessage: id, phone, via: cfg.source }, 200, request);
+  } catch (e) {
+    await logNotify(env, { uid: guard.me.uid, phone, event: 'test', text: 'test', status: 'failed', error: e.message });
+    return json({ error: "green-api send failed: " + e.message }, 502, request);
+  }
+}
+
+// POST /api/notifier/access { uid } — повторно выслать сотруднику доступ к
+// порталу (ссылка + email для входа через Google) в личный WhatsApp.
+async function handleNotifierAccess(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const uid = String(body.uid || '').trim();
+  if (!uid) return json({ error: "uid required" }, 400, request);
+  const u = await env.DB.prepare("SELECT uid, name, last_name, email, phone FROM users WHERE uid = ?").bind(uid).first();
+  if (!u) return json({ error: "user not found" }, 404, request);
+  if (!u.phone) return json({ error: "у сотрудника не указан личный телефон" }, 400, request);
+  const cfg = await getNotifierConfig(env);
+  if (!cfg) return json({ error: "оповещатель не настроен" }, 400, request);
+  const portal = cfg.portal_url || 'https://pllato.kz/team.html';
+  const fname = (u.name || '').trim() || 'коллега';
+  const text = `🔑 Доступ к порталу pllato.kz\n\nЗдравствуйте, ${fname}!\n\nВход в портал — по ссылке ниже. Авторизуйтесь через Google${u.email ? ` под почтой ${u.email}` : ''}.\n\n${portal}`;
+  try {
+    const id = await deliverNotifierRaw(cfg, String(u.phone).replace(/\D/g, ''), text);
+    await logNotify(env, { uid, phone: u.phone, event: 'access', text: 'portal access', link: portal, status: 'sent', wa_message_id: id });
+    await auditLog(env, guard.me, "notifier_access_sent", "user", uid, { phone: u.phone });
+    return json({ ok: true, idMessage: id }, 200, request);
+  } catch (e) {
+    await logNotify(env, { uid, phone: u.phone, event: 'access', text: 'portal access', status: 'failed', error: e.message });
+    return json({ error: "green-api send failed: " + e.message }, 502, request);
+  }
+}
+
+// GET /api/notifier/log?limit=50 — последние отправки (диагностика).
+async function handleNotifierLog(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  const url = new URL(request.url);
+  const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10) || 50));
+  let rows = [];
+  try {
+    const r = await env.DB.prepare(
+      "SELECT uid, phone, event, status, error, wa_message_id, created_at FROM notify_log ORDER BY id DESC LIMIT ?"
+    ).bind(limit).all();
+    rows = r.results || [];
+  } catch {}
+  return json({ ok: true, items: rows }, 200, request);
+}
+
 // POST /api/wa/sync-groups { channelId? }
 // Подтягиваем список WhatsApp-групп напрямую из Green-API (getContacts) и
 // заводим/обновляем их в wa_chats. Нужно чтобы группа появилась в портале
@@ -5161,24 +5465,19 @@ async function handleInviteCreate(request, env) {
 
   let waMessageId = null;
   let waError = null;
+  // Предпочитаем системный оповещатель (если подключён), иначе — первый активный
+  // inbox-канал. getNotifierConfig инкапсулирует оба варианта.
   try {
-    const channel = await env.DB.prepare(
-      "SELECT * FROM wa_channels WHERE active = 1 ORDER BY created_at ASC LIMIT 1"
-    ).first();
-    if (channel) {
-      const chatId = waChatIdFromPhone(phone);
-      const r = await fetch(`${channel.api_url}/waInstance${channel.id_instance}/sendMessage/${channel.api_token_instance}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatId, message: text }),
-      });
-      const apiResp = await r.json().catch(() => null);
-      waMessageId = apiResp?.idMessage || null;
-      if (!waMessageId) waError = "Green-API не вернул idMessage: " + JSON.stringify(apiResp).slice(0, 200);
+    const cfg = await getNotifierConfig(env);
+    if (cfg) {
+      waMessageId = await deliverNotifierRaw(cfg, phone, text);
+      await logNotify(env, { uid: null, phone, event: 'invite', text: 'invite', link: inviteUrl, status: 'sent', wa_message_id: waMessageId });
     } else {
       waError = "Нет активного WhatsApp канала — ссылка создана, отправь вручную";
     }
   } catch (e) {
     waError = "Ошибка отправки WA: " + e.message;
+    await logNotify(env, { uid: null, phone, event: 'invite', text: 'invite', link: inviteUrl, status: 'failed', error: e.message });
   }
 
   if (waMessageId) {
@@ -6198,6 +6497,29 @@ export default {
     const waChannelSetupMatch = path.match(/^\/api\/wa\/channels\/([^/]+)\/setup-webhook$/);
     if (waChannelSetupMatch && request.method === "POST") {
       return handleWaChannelSetupWebhook(request, env, waChannelSetupMatch[1]);
+    }
+
+    // ── /api/notifier — системный WhatsApp-оповещатель портала ──────────
+    if (path === "/api/notifier" && request.method === "GET") {
+      return handleNotifierGet(request, env);
+    }
+    if (path === "/api/notifier" && request.method === "PUT") {
+      return handleNotifierSave(request, env);
+    }
+    if (path === "/api/notifier/state" && request.method === "GET") {
+      return handleNotifierState(request, env);
+    }
+    if (path === "/api/notifier/qr" && request.method === "GET") {
+      return handleNotifierQr(request, env);
+    }
+    if (path === "/api/notifier/test" && request.method === "POST") {
+      return handleNotifierTest(request, env);
+    }
+    if (path === "/api/notifier/access" && request.method === "POST") {
+      return handleNotifierAccess(request, env);
+    }
+    if (path === "/api/notifier/log" && request.method === "GET") {
+      return handleNotifierLog(request, env);
     }
 
     // ── /api/org/structure — иерархия компании ────────────────────────
