@@ -936,16 +936,50 @@
     await loadMessages(channelId);
   }
 
-  // ── Roster (справочник сотрудников из родителя) ─────────────────────────
+  // ── Roster (справочник сотрудников) ─────────────────────────────────────
+  // Два источника: (1) D1 /api/chat/roster — та же каноническая личность, что
+  // матчит членство в чате; (2) window.usersState — зеркало Firebase /users.json.
+  // Сливаем оба по email, чтобы пикер видел ВСЕХ (новые/пересозданные есть в D1,
+  // но могут отсутствовать в зеркале — отсюда «не находит при добавлении»).
+  let _roster = null;     // [{uid, email, label, sub}] из D1, null = ещё не грузили
+  async function loadRoster() {
+    try {
+      const d = await api('/api/chat/roster');
+      _roster = (d.items || []).map(u => ({
+        uid: u.uid,
+        email: (u.email || '').toLowerCase(),
+        label: [u.last_name, u.name].filter(Boolean).join(' ').trim() || u.name || u.email || String(u.uid).slice(0, 8),
+        sub: u.email || u.position || '',
+      }));
+    } catch { /* остаёмся на usersState-зеркале */ }
+    return _roster;
+  }
+
   function getRoster() {
-    const map = window.usersState?.users || window.usersState?.byUid || {};
     const meUid = state.me?.uid;
+    const meEmail = (state.me?.email || '').toLowerCase();
+    const seenUid = new Set();
+    const seenEmail = new Set();
     const arr = [];
+    // 1) Канонический справочник из D1 (если загрузился)
+    for (const r of (_roster || [])) {
+      if (!r.uid || r.uid === meUid) continue;
+      if (r.email && r.email === meEmail) continue;
+      if (seenUid.has(r.uid) || (r.email && seenEmail.has(r.email))) continue;
+      arr.push({ uid: r.uid, label: r.label, sub: r.sub });
+      seenUid.add(r.uid); if (r.email) seenEmail.add(r.email);
+    }
+    // 2) Дополняем зеркалом — людьми, которых нет в D1-ростере (по email/uid)
+    const map = window.usersState?.users || window.usersState?.byUid || {};
     for (const [uid, u] of Object.entries(map)) {
       if (uid === meUid) continue;
       if (u && u.active === false) continue;
+      const email = (u.email || '').toLowerCase();
+      if (seenUid.has(uid) || (email && seenEmail.has(email))) continue;
+      if (email && email === meEmail) continue;
       const label = [u.lastName, u.name].filter(Boolean).join(' ').trim() || u.name || u.email || uid.slice(0, 8);
       arr.push({ uid, label, sub: u.email || u.position || '' });
+      seenUid.add(uid); if (email) seenEmail.add(email);
     }
     arr.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
     return arr;
@@ -1024,6 +1058,7 @@
     }
     searchEl.oninput = renderList;
     renderList();
+    loadRoster().then(() => renderList());
 
     ov.querySelector('[data-tc-cancel]').onclick = () => ov.remove();
     ov.querySelector('[data-tc-create]').onclick = async () => {
@@ -1085,6 +1120,7 @@
     }
     searchEl.oninput = renderList;
     renderList();
+    loadRoster().then(() => renderList());
     setTimeout(() => searchEl.focus(), 50);
 
     ov.querySelector('[data-tc-cancel]').onclick = () => ov.remove();
@@ -1204,6 +1240,8 @@
     };
     ov.querySelector('[data-tc-close]').onclick = () => ov.remove();
     loadMembers();
+    // Обновить справочник из D1 и перерисовать пикер, когда подъедет.
+    loadRoster().then(() => renderPicker());
   }
 
   // ── Responsive observer ────────────────────────────────────────────────
@@ -1331,6 +1369,7 @@
     renderMessages();
     renderComposer();
     loadChannels();
+    loadRoster();   // прогреть справочник сотрудников для пикеров
     if (!state.ws || state.ws.readyState >= 2) connectWs();
   }
 
