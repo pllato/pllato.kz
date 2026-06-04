@@ -458,6 +458,22 @@ async function getMembers(env, me, channelId) {
   return jsonRes({ items: results });
 }
 
+// GET /api/chat/roster — справочник сотрудников для пикеров (добавить участника /
+// создать канал / DM). Берём ИЗ D1 users — это та же каноническая личность, что
+// матчит членство в чате (в отличие от Firebase /users.json-зеркала, где новых/
+// пересозданных людей может не быть — отсюда «не находит» в пикере). Имена и
+// почты — не секрет, доступно любому авторизованному. Отдаём и uid, и email,
+// чтобы фронт мог слить с зеркалом без дублей.
+async function getRoster(env, me) {
+  const { results } = await env.DB.prepare(
+    `SELECT uid, email, name, last_name, position
+       FROM users
+      WHERE uid IS NOT NULL AND COALESCE(active, 1) = 1
+      ORDER BY last_name COLLATE NOCASE, name COLLATE NOCASE`
+  ).all();
+  return jsonRes({ items: results });
+}
+
 // POST /api/chat/legacy-join-all { confirm: true }
 // Добавляет вызывающего юзера ко всем legacy_* каналам (где он был в Bitrix
 // но миграция не подцепила потому что он не писал в этом канале).
@@ -577,6 +593,7 @@ export async function handleChatRequest(request, env, url, me) {
   if (p === '/api/chat/channels' && m === 'GET')  return listChannels(env, me);
   if (p === '/api/chat/channels' && m === 'POST') return createChannel(env, me, await request.json().catch(() => ({})));
   if (p === '/api/chat/dm'       && m === 'POST') return openDm(env, me, await request.json().catch(() => ({})));
+  if (p === '/api/chat/roster'   && m === 'GET')  return getRoster(env, me);
 
   // /api/chat/channels/:id/...
   const chMatch = p.match(/^\/api\/chat\/channels\/([^/]+)(\/[^?]*)?$/);
