@@ -3,7 +3,7 @@
 // Phase 2.1: RTDB-proxy endpoint /api/rtdb/{path}.json (read + PATCH)
 
 import { jwtVerify, createRemoteJWKSet } from "jose";
-import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser } from "./chat-module.js";
+import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser, downloadFile as downloadChatFile } from "./chat-module.js";
 import { sendWebPush, VAPID_PUBLIC_KEY } from "./webpush.js";
 
 // ctx последнего fetch/scheduled — чтобы фоновую рассылку пушей (несколько
@@ -6246,11 +6246,35 @@ export default {
       return handleTaskFull(request, env, taskFullMatch[1]);
     }
 
+    // ── Chat-файлы — отдача через <img src>/<a href> ─────────────────────
+    // Эти теги не умеют слать Authorization, поэтому токен принимаем в ?auth=
+    // (requireAuthFlexible). Перехватываем GET ДО общего auth-гейта /api/chat/*.
+    const chatFileGet = path.match(/^\/api\/chat\/files\/(.+)$/);
+    if (chatFileGet && request.method === "GET") {
+      const auth = await requireAuthFlexible(request, env);
+      if (auth.error) return json({ error: auth.error }, auth.status, request);
+      const res = await downloadChatFile(request, env, decodeURIComponent(chatFileGet[1]));
+      const h = new Headers(res.headers);
+      Object.entries(corsHeaders(request)).forEach(([k, v]) => h.set(k, v));
+      return new Response(res.body, { status: res.status, headers: h });
+    }
+
     // ── /api/chat/* — внутренний чат сотрудников ─────────────────────────
     if (path.startsWith("/api/chat/")) {
       const auth = await requireAuth(request, env);
       if (auth.error) return json({ error: auth.error }, auth.status, request);
-      const me = { uid: auth.uid, email: auth.email, claims: auth.claims };
+      // Канонический uid (D1, по email) + все алиасы (canonical + дубли + firebase).
+      // Чат-модуль матчит членство/доступ по ЛЮБОМУ из ids (см. meIds в chat-module),
+      // а пишет под каноническим me.uid — единая личность с остальной CRM.
+      const canonical = await resolveCanonicalUser(env, auth.claims);
+      const ids = (canonical.matchUids && canonical.matchUids.length)
+        ? canonical.matchUids : [canonical.canonicalUid || auth.uid];
+      const me = {
+        uid: canonical.canonicalUid || auth.uid,
+        email: auth.email,
+        claims: auth.claims,
+        ids,
+      };
       const res = await handleChatRequest(request, env, url, me);
       if (res) {
         // Применить CORS к ответу чата
