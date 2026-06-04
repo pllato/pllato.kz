@@ -490,6 +490,7 @@ export async function createSipClient(config) {
     }
   }
   async function rejectIncoming(invitation) {
+    if (sessionMeta) sessionMeta._localHangup = true;  // помечаем что мы сами отклонили (не клиент сбросил)
     try { await invitation.reject(); } catch{}
     if (sessionMeta?.callId) logCallEvent({ callId: sessionMeta.callId, status: 'rejected', endedAt: new Date().toISOString() });
     session = null; sessionMeta = null;
@@ -552,11 +553,10 @@ export async function createSipClient(config) {
   function bindSessionStateChange(s) {
     s.stateChange.addListener((state) => {
       dbg('state', state);
-      updateOverlayState(state);
       if (state === SIP.SessionState.Established) {
-        sessionMeta.establishedAt = Date.now();
+        if (sessionMeta) sessionMeta.establishedAt = Date.now();
         attachAudio(s);
-        setBottomBarState('established', 'Разговор', sessionMeta.contactName || sessionMeta.phone);
+        setBottomBarState('established', 'Разговор', sessionMeta?.contactName || sessionMeta?.phone || '');
         startTimer();
         // Auto-minimize: через 700ms сворачиваем overlay в bottom-bar
         // чтобы оператор мог работать с карточкой клиента. Bottom-bar
@@ -568,7 +568,19 @@ export async function createSipClient(config) {
         }, 700);
       }
       if (state === SIP.SessionState.Terminated) {
+        // Определяем кто инициатор завершения для UX-сообщения:
+        // - локально (мы нажали hangup/reject) → _localHangup === true
+        // - удалённо (клиент бросил трубку) → _localHangup === false
+        // - если до Terminated был Established → "Клиент завершил разговор"
+        // - если НЕ был Established → "Клиент сбросил трубку (пропущенный)"
+        if (sessionMeta) {
+          sessionMeta.terminatedBy = sessionMeta._localHangup ? 'local' : 'remote';
+          sessionMeta.terminatedWithEstablished = !!sessionMeta.establishedAt;
+        }
+        updateOverlayState(state); // обновим overlay ДО finalizeCall (он чистит sessionMeta)
         finalizeCall(s);
+      } else {
+        updateOverlayState(state);
       }
     });
   }
@@ -605,6 +617,7 @@ export async function createSipClient(config) {
 
   async function hangup() {
     if (!session) return;
+    if (sessionMeta) sessionMeta._localHangup = true;
     const s = session;
     try {
       if (s.state === SIP.SessionState.Established) await s.bye();
@@ -859,6 +872,15 @@ export async function createSipClient(config) {
     // Кнопка «−» сворачивает popup в bottom-bar. Звонок продолжает звонить —
     // если менеджер хочет ответить, кликает по bottom-bar и popup разворачивается.
     bg.querySelector('.sipc-modal-close').onclick = () => closeOverlays();
+    // Слушаем изменение состояния invitation чтобы показать "клиент сбросил"
+    // если он положил трубку до того как менеджер ответил.
+    invitation.stateChange.addListener((state) => {
+      if (state === SIP.SessionState.Terminated && sessionMeta && !sessionMeta._localHangup) {
+        sessionMeta.terminatedBy = 'remote';
+        sessionMeta.terminatedWithEstablished = false;
+        updateOverlayState(state); // покажет "Пропущенный звонок"
+      }
+    });
   }
 
   function openNumpad() {
@@ -911,12 +933,41 @@ export async function createSipClient(config) {
       Terminating:  'Завершаем…',
       Terminated:   'Завершён',
     };
-    const txt = map[state] || state;
+    let txt = map[state] || state;
+    // Детальный текст при Terminated: показываем кто положил трубку
+    if (state === 'Terminated' && sessionMeta) {
+      const isIn = sessionMeta.direction === 'in';
+      const wasTalking = sessionMeta.terminatedWithEstablished;
+      const byRemote = sessionMeta.terminatedBy === 'remote';
+      if (byRemote && wasTalking)        txt = isIn ? '📵 Клиент завершил разговор' : '📵 Абонент завершил разговор';
+      else if (byRemote && !wasTalking)  txt = isIn ? '📵 Клиент сбросил трубку (пропущенный)' : '📵 Абонент не ответил';
+      else if (!byRemote && wasTalking)  txt = '✕ Вы завершили разговор';
+      else                                txt = '✕ Звонок отменён';
+    }
     $st.firstChild && ($st.firstChild.nodeValue = txt + ' ');
     $st.classList.toggle('sipc-state-talking', state === 'Established');
     if (state === 'Terminated') {
+      const byRemote = sessionMeta?.terminatedBy === 'remote';
+      // Помечаем popup красной полоской чтобы было сразу видно что звонок завершён
+      $st.classList.add('sipc-state-error');
       const hb = currentOverlay.querySelector('[data-act="hangup"]');
       if (hb) { hb.textContent = '✕ Закрыть'; hb.disabled = false; hb.onclick = () => closeOverlays(); }
+      // Для входящего popup'а заменяем кнопки Ответить/Отклонить на "Закрыть"
+      const twoBtn = currentOverlay.querySelector('.sipc-twobtn');
+      if (twoBtn) {
+        twoBtn.innerHTML = `<button class="sipc-hangup" data-act="close" style="grid-column:1 / -1">✕ Закрыть</button>`;
+        twoBtn.querySelector('[data-act="close"]').onclick = () => closeOverlays();
+      }
+      // Меняем title если это пропущенный
+      const title = currentOverlay.querySelector('.sipc-modal-title');
+      if (title && byRemote && !sessionMeta?.terminatedWithEstablished && sessionMeta?.direction === 'in') {
+        title.textContent = '📵 Пропущенный звонок';
+      }
+      // Auto-close через 8 сек для пропущенных/быстро завершённых — оператор успел увидеть
+      const overlayRef = currentOverlay;
+      setTimeout(() => {
+        if (currentOverlay === overlayRef) closeOverlays();
+      }, 8000);
       currentOverlay.querySelectorAll('.sipc-ctrl').forEach(b => b.disabled = true);
     }
   }
