@@ -3805,6 +3805,9 @@ function notifBindRealtime() {
       }
     }
   });
+  // Прочитали канал в чате → схлопнутое уведомление погашено на сервере,
+  // реактивно пересчитываем счётчик колокольчика (не ждём 25-сек поллинг).
+  window.addEventListener('elc:notif-read', () => { try { notifFetchCount(); } catch {} });
 }
 
 // Системный баннер (когда вкладка не на странице уведомлений / в фоне).
@@ -4090,7 +4093,7 @@ async function renderTeamChat(el) {
     return;
   }
   const s = document.createElement('script');
-  s.src = `${WORKER_BASE_URL}/chat.js?v=15`;
+  s.src = `${WORKER_BASE_URL}/chat.js?v=16`;
   s.onload = () => {
     _teamChatScriptLoaded = true;
     if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
@@ -6666,6 +6669,9 @@ function playMessageBeep() {
     });
   } catch (e) { /* пользователь ещё не взаимодействовал — Chrome AudioContext suspended */ }
 }
+// Экспорт для chat.js (classic-скрипт, грузится отдельно) — тост+звук о новых
+// сообщениях. Главный скрипт — module, поэтому функции не глобальны без assign.
+window.playMessageBeep = playMessageBeep;
 
 async function requestNotificationPermission() {
   if (!('Notification' in window)) return false;
@@ -10739,6 +10745,7 @@ function showToast(msg, isError = false) {
     setTimeout(() => t.remove(), 250);
   }, 2200);
 }
+window.showToast = showToast;  // для chat.js (тост о новом сообщении)
 
 function initKanbanDragDrop() {
   const wrap = document.getElementById('kanban-wrap');
