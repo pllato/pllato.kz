@@ -202,6 +202,7 @@ CREATE TABLE users (
   name                 TEXT NOT NULL,
   last_name            TEXT,
   position             TEXT,
+  phone                TEXT,                -- личный телефон сотрудника (редактируется в Настройках)
   photo                TEXT,
   active               INTEGER NOT NULL DEFAULT 1,
   bitrix_id            TEXT,
