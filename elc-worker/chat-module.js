@@ -12,6 +12,8 @@
 // Auth: ожидается уже-валидированный объект `me` ({uid, name, email, role}).
 // ════════════════════════════════════════════════════════════════════════
 
+import { sendWebPush } from "./webpush.js";
+
 // ── Утилиты ──────────────────────────────────────────────────────────────
 function uuid() {
   // Лёгкий UUID v4 — sufficient для message_id / channel_id
@@ -129,6 +131,116 @@ export async function broadcastToUser(env, userId, payload) {
     const id = env.USER_NOTIFY.idFromName(userId);
     const stub = env.USER_NOTIFY.get(id);
     await stub.fetch('https://do/push', { method: 'POST', body: JSON.stringify(payload) });
+  } catch {}
+}
+
+// ── Уведомления о сообщениях / добавлении в чат ──────────────────────────
+// Колокольчик (D1 notifications) + WS kind:'notification' в открытые вкладки +
+// Web Push на устройства (телефон/десктоп даже когда чат закрыт). Инфраструктура
+// та же, что у worker.createNotification, но self-contained (без circular import).
+let _chatCtx = null;   // ctx текущего запроса — для фоновой рассылки Web Push
+function runBg(promise) {
+  const p = Promise.resolve(promise).catch(() => {});
+  if (_chatCtx && typeof _chatCtx.waitUntil === 'function') { try { _chatCtx.waitUntil(p); } catch {} return Promise.resolve(); }
+  return p;
+}
+
+async function pushChatToDevices(env, uid, payload) {
+  if (!env.VAPID_PRIVATE_JWK) return;        // пуши не настроены — тихо выходим
+  let subs = [];
+  try {
+    const r = await env.DB.prepare('SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE uid = ?').bind(uid).all();
+    subs = r.results || [];
+  } catch { return; }
+  for (const sub of subs) {
+    try {
+      const res = await sendWebPush(env, sub, payload);
+      if (res && res.gone) await env.DB.prepare('DELETE FROM push_subscriptions WHERE id = ?').bind(sub.id).run();
+    } catch {}
+  }
+}
+
+async function authorDisplayName(env, uid) {
+  try {
+    const u = await env.DB.prepare('SELECT name, last_name FROM users WHERE uid = ? LIMIT 1').bind(uid).first();
+    if (u) return [u.last_name, u.name].filter(Boolean).join(' ').trim() || u.name || '';
+  } catch {}
+  return '';
+}
+
+function msgPreview(message) {
+  let p = (message && message.text) ? String(message.text) : '';
+  if (!p) {
+    p = message?.type === 'image' ? '📷 Фото'
+      : message?.type === 'audio' ? '🎤 Голосовое'
+      : message?.type === 'file'  ? '📎 Файл' : 'Вложение';
+  }
+  return p.slice(0, 140);
+}
+
+// Новое сообщение → уведомить участников (кроме автора и заглушённых).
+// notifications-запись схлопнута: один непрочитанный «chatnt_<channel>_<uid>» на
+// канал на юзера — колокольчик не флудит, при новом сообщении строка всплывает.
+async function notifyChatMessage(env, channelId, authorMe, message) {
+  try {
+    const authorIds = new Set(meIds(authorMe));
+    const ch = await env.DB.prepare('SELECT id, type, name FROM team_chat_channels WHERE id = ?').bind(channelId).first();
+    if (!ch) return;
+    const { results: members } = await env.DB.prepare(
+      'SELECT user_id, muted FROM team_chat_members WHERE channel_id = ?'
+    ).bind(channelId).all();
+    let authorName = await authorDisplayName(env, authorMe.uid);
+    if (!authorName) authorName = 'Сотрудник';
+    const preview = msgPreview(message);
+    const chName = ch.name || '';
+    const title = (ch.type === 'dm' || !chName) ? authorName : `${authorName} · ${chName}`;
+    const link = '/team.html?page=team-chat&channel=' + encodeURIComponent(channelId);
+    const ts = message.created_at || now();
+    for (const m of (members || [])) {
+      const uid = m.user_id;
+      if (!uid || authorIds.has(uid) || m.muted) continue;
+      const notifId = 'chatnt_' + channelId + '_' + uid;
+      try {
+        await env.DB.prepare(`
+          INSERT INTO notifications (id, uid, type, title, body, link, icon, actor_uid, entity_type, entity_id, created_at, read_at)
+          VALUES (?, ?, 'chat_message', ?, ?, ?, '💬', ?, 'chat_channel', ?, ?, NULL)
+          ON CONFLICT(id) DO UPDATE SET title=excluded.title, body=excluded.body, link=excluded.link,
+            actor_uid=excluded.actor_uid, created_at=excluded.created_at, read_at=NULL
+        `).bind(notifId, uid, title, preview, link, authorMe.uid, channelId, ts).run();
+      } catch {}
+      broadcastToUser(env, uid, {
+        kind: 'notification',
+        notification: { id: notifId, type: 'chat_message', title, body: preview, link, icon: '💬', createdAt: ts, channel_id: channelId },
+      });
+      runBg(pushChatToDevices(env, uid, { title, body: preview, url: link, tag: 'chat_' + channelId, icon: null }));
+    }
+  } catch {}
+}
+
+// Добавили в групповой чат → уведомить добавленного (push + колокольчик).
+async function notifyAddedToChannel(env, channelId, actorMe, addedUid) {
+  try {
+    if (!addedUid || meIds(actorMe).includes(addedUid)) return;
+    const ch = await env.DB.prepare('SELECT type, name FROM team_chat_channels WHERE id = ?').bind(channelId).first();
+    if (!ch || ch.type === 'dm') return;
+    let actorName = await authorDisplayName(env, actorMe.uid);
+    if (!actorName) actorName = 'Сотрудник';
+    const chName = ch.name || 'групповой чат';
+    const title = 'Вас добавили в чат';
+    const body = `${actorName} → ${chName}`;
+    const link = '/team.html?page=team-chat&channel=' + encodeURIComponent(channelId);
+    const notifId = 'chatadd_' + channelId + '_' + addedUid + '_' + now();
+    try {
+      await env.DB.prepare(`
+        INSERT OR IGNORE INTO notifications (id, uid, type, title, body, link, icon, actor_uid, entity_type, entity_id, created_at, read_at)
+        VALUES (?, ?, 'chat_added', ?, ?, ?, '➕', ?, 'chat_channel', ?, ?, NULL)
+      `).bind(notifId, addedUid, title, body, link, actorMe.uid, channelId, now()).run();
+    } catch {}
+    broadcastToUser(env, addedUid, {
+      kind: 'notification',
+      notification: { id: notifId, type: 'chat_added', title, body, link, icon: '➕', createdAt: now(), channel_id: channelId },
+    });
+    runBg(pushChatToDevices(env, addedUid, { title, body, url: link, tag: 'chatadd_' + channelId, icon: null }));
   } catch {}
 }
 
@@ -376,6 +488,7 @@ async function sendMessage(env, me, channelId, body) {
   `).bind(id, channelId, me.uid, text, type, fileKey, fileMeta, replyTo, ts).run();
   const message = { id, channel_id: channelId, user_id: me.uid, text, type, file_key: fileKey, file_meta: fileMeta, reply_to: replyTo, created_at: ts };
   broadcastToChannel(env, channelId, { kind: 'message_new', message });
+  runBg(notifyChatMessage(env, channelId, me, message));
   return jsonRes({ message });
 }
 
@@ -467,6 +580,15 @@ async function markAsRead(env, me, channelId, body) {
     `UPDATE team_chat_members SET last_read_message_id = ? WHERE channel_id = ? AND user_id IN (${phList(ids)})`
   ).bind(lastReadId, channelId, ...ids).run();
   broadcastToChannel(env, channelId, { kind: 'read', channel_id: channelId, user_id: me.uid, last_read_message_id: lastReadId });
+  // Открыл канал → схлопнутое уведомление «chatnt_<channel>_<uid>» считаем прочитанным,
+  // колокольчик в team.html обновляем реактивно (kind:'notif_read'), без ожидания поллинга.
+  try {
+    const notifIds = ids.map(u => 'chatnt_' + channelId + '_' + u);
+    await env.DB.prepare(
+      `UPDATE notifications SET read_at = ? WHERE id IN (${phList(notifIds)}) AND read_at IS NULL`
+    ).bind(now(), ...notifIds).run();
+  } catch {}
+  for (const u of ids) broadcastToUser(env, u, { kind: 'notif_read', channel_id: channelId });
   return jsonRes({ ok: true });
 }
 
@@ -560,11 +682,13 @@ async function addMembers(env, me, channelId, body) {
   if (userIds.length === 0) return errRes('user_ids required');
   const ts = now();
   for (const uid of userIds) {
-    await env.DB.prepare(
+    const r = await env.DB.prepare(
       "INSERT OR IGNORE INTO team_chat_members (channel_id, user_id, joined_at, role) VALUES (?, ?, ?, 'member')"
     ).bind(channelId, uid, ts).run();
     broadcastToUser(env, uid, { kind: 'channel_added', channel_id: channelId });
     broadcastToChannel(env, channelId, { kind: 'user_joined', channel_id: channelId, user_id: uid });
+    // Только реально добавленным (а не уже состоявшим) — колокольчик + push.
+    if (r.meta?.changes) runBg(notifyAddedToChannel(env, channelId, me, uid));
   }
   return jsonRes({ ok: true });
 }
@@ -695,9 +819,11 @@ export async function downloadFile(request, env, fileKey) {
 }
 
 // ── Главный диспетчер чат-роутов ─────────────────────────────────────────
-// Вызывается из worker.js: handleChatRequest(request, env, url, me)
-// где me — уже-валидированный объект юзера ({uid, name, email, role}).
-export async function handleChatRequest(request, env, url, me) {
+// Вызывается из worker.js: handleChatRequest(request, env, url, me, ctx)
+// где me — уже-валидированный объект юзера ({uid, name, email, role}),
+// ctx — execution context запроса (для ctx.waitUntil фоновой рассылки push).
+export async function handleChatRequest(request, env, url, me, ctx) {
+  _chatCtx = ctx || null;
   const p = url.pathname;
   const m = request.method;
 

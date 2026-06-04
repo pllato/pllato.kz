@@ -194,7 +194,10 @@
       case 'message_edited': onMessageEdited(msg); break;
       case 'message_deleted': onMessageDeleted(msg); break;
       case 'reaction_changed': onReactionChanged(msg); break;
-      case 'channel_added': loadChannels(); break;
+      case 'channel_added':
+        chatNotify('Вас добавили в чат', true);
+        loadChannels();
+        break;
       case 'channel_removed': loadChannels(); break;
       case 'channel_renamed': onChannelRenamed(msg); break;
       case 'members_changed': loadChannels(); break;
@@ -202,10 +205,28 @@
       case 'user_joined': loadChannels(); break;
       case 'user_left': loadChannels(); break;
       case 'read': break;
-      case 'notification':
-        try { window.dispatchEvent(new CustomEvent('elc:notification', { detail: msg.notification || msg })); } catch (e) {}
+      case 'notif_read':
+        // Прочитали канал на другом устройстве/вкладке → реактивно обновить
+        // колокольчик в team.html (без ожидания 25-сек поллинга).
+        try { window.dispatchEvent(new CustomEvent('elc:notif-read', { detail: { channel_id: msg.channel_id } })); } catch (e) {}
         break;
+      case 'notification': {
+        const n = msg.notification || msg;
+        // Сообщение чата при открытом и видимом окне чата уже покрыто тостом +
+        // бэйджем канала — не дублируем в колокольчик. Остальное (добавили в чат,
+        // прочие типы) и случай фоновой вкладки — отдаём в центр уведомлений.
+        if (n && n.type === 'chat_message' && state.mounted && document.visibilityState === 'visible') break;
+        try { window.dispatchEvent(new CustomEvent('elc:notification', { detail: n })); } catch (e) {}
+        break;
+      }
     }
+  }
+
+  // Лёгкое всплывающее уведомление внутри портала (переиспользуем showToast из
+  // team.html, если доступен) + короткий звуковой сигнал. Тихо деградирует.
+  function chatNotify(text, withSound) {
+    try { if (typeof window.showToast === 'function') window.showToast(text); } catch (e) {}
+    if (withSound) { try { if (typeof window.playMessageBeep === 'function') window.playMessageBeep(); } catch (e) {} }
   }
 
   function onMessageNew(m) {
@@ -219,6 +240,14 @@
       ch.last_message_at = m.created_at;
       if (m.channel_id !== state.activeChannelId && m.user_id !== state.me.uid) {
         ch.unread_count = (ch.unread_count || 0) + 1;
+        // «Кто когда пишет»: тост + звук, если канал не заглушён и вкладка видима.
+        if (!ch.muted && document.visibilityState === 'visible') {
+          const who = userLabel(m.user_id);
+          const chName = (ch.type === 'dm') ? '' : (ch.name ? ` · ${ch.name}` : '');
+          const preview = m.text ? String(m.text).slice(0, 80)
+            : (m.type === 'image' ? '📷 Фото' : m.type === 'audio' ? '🎤 Голосовое' : m.type === 'file' ? '📎 Файл' : 'Вложение');
+          chatNotify(`💬 ${who}${chName}: ${preview}`, true);
+        }
       }
     }
     if (m.channel_id === state.activeChannelId) {

@@ -6280,7 +6280,7 @@ export default {
         role: canonical.role,
         isDirector: !!canonical.orgPerms?.isDirector,
       };
-      const res = await handleChatRequest(request, env, url, me);
+      const res = await handleChatRequest(request, env, url, me, ctx);
       if (res) {
         // Применить CORS к ответу чата
         const h = new Headers(res.headers);
