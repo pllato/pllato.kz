@@ -231,6 +231,65 @@ export async function createSipClient(config) {
   let onHold = false;
   let timerInterval = null;
 
+  // Ringback tone (синтезированные гудки для outgoing когда абонент ещё не ответил)
+  let _ringCtx = null;
+  let _ringOsc1 = null, _ringOsc2 = null, _ringGain = null;
+  let _ringTimer = null;
+  let _ringActive = false;
+
+  function _ringStartTone() {
+    if (!_ringCtx) return;
+    if (_ringOsc1) return; // уже играет
+    _ringGain = _ringCtx.createGain();
+    _ringGain.gain.value = 0.12;
+    _ringGain.connect(_ringCtx.destination);
+    _ringOsc1 = _ringCtx.createOscillator();
+    _ringOsc1.frequency.value = 440;
+    _ringOsc1.connect(_ringGain);
+    _ringOsc2 = _ringCtx.createOscillator();
+    _ringOsc2.frequency.value = 480;
+    _ringOsc2.connect(_ringGain);
+    _ringOsc1.start();
+    _ringOsc2.start();
+  }
+  function _ringStopTone() {
+    try { _ringOsc1?.stop(); } catch{}
+    try { _ringOsc2?.stop(); } catch{}
+    try { _ringGain?.disconnect(); } catch{}
+    _ringOsc1 = null; _ringOsc2 = null; _ringGain = null;
+  }
+  function playRingback() {
+    if (_ringActive) return;
+    _ringActive = true;
+    try {
+      if (!_ringCtx) _ringCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (_ringCtx.state === 'suspended') _ringCtx.resume();
+      // Российский/KZ паттерн: 1 сек гудок + 3 сек тишина (повтор)
+      let isOn = false;
+      const tick = () => {
+        if (!_ringActive) return;
+        if (isOn) {
+          _ringStopTone();
+          isOn = false;
+          _ringTimer = setTimeout(tick, 3000);
+        } else {
+          _ringStartTone();
+          isOn = true;
+          _ringTimer = setTimeout(tick, 1000);
+        }
+      };
+      tick();
+    } catch (e) {
+      dbg('ringback failed', e);
+      _ringActive = false;
+    }
+  }
+  function stopRingback() {
+    _ringActive = false;
+    if (_ringTimer) { clearTimeout(_ringTimer); _ringTimer = null; }
+    _ringStopTone();
+  }
+
   // ── Audio element ────────────
   function getAudioEl() {
     if (audioEl) return audioEl;
@@ -602,7 +661,13 @@ export async function createSipClient(config) {
   function bindSessionStateChange(s) {
     s.stateChange.addListener((state) => {
       dbg('state', state);
+      // Ringback: гудки для outgoing после INVITE отправлен (Establishing)
+      // и до того как абонент поднял трубку (Established).
+      if (state === SIP.SessionState.Establishing && sessionMeta?.direction === 'out') {
+        playRingback();
+      }
       if (state === SIP.SessionState.Established) {
+        stopRingback();
         if (sessionMeta) sessionMeta.establishedAt = Date.now();
         attachAudio(s);
         setBottomBarState('established', 'Разговор', sessionMeta?.contactName || sessionMeta?.phone || '');
@@ -644,6 +709,7 @@ export async function createSipClient(config) {
 
   function finalizeCall(s) {
     stopTimer();
+    stopRingback();
     if (session === s) {
       const duration = sessionMeta?.establishedAt
         ? Math.round((Date.now() - sessionMeta.establishedAt) / 1000) : 0;
