@@ -439,10 +439,59 @@ export async function createSipClient(config) {
     if (session) { try { invitation.reject(); } catch{} return; }
     const fromUri = invitation.remoteIdentity?.uri;
     const phone = fromUri?.user || 'неизвестно';
+
+    // КРИТИЧНО: подписываемся на stateChange СРАЗУ, до любых await —
+    // иначе клиент может бросить трубку (Asterisk CANCEL) пока мы
+    // резолвим контакт асинхронно, и invitation будет Terminated
+    // ДО того как мы добавим listener → race condition → popup стоит.
+    let _incomingTerminated = false;
+    invitation.stateChange.addListener((state) => {
+      dbg('invitation state', state);
+      if (state === 'Terminated' || state === SIP.SessionState.Terminated) {
+        _incomingTerminated = true;
+        if (sessionMeta && !sessionMeta._localHangup) {
+          sessionMeta.terminatedBy = 'remote';
+          sessionMeta.terminatedWithEstablished = !!sessionMeta.establishedAt;
+        }
+        // Если overlay уже открыт — обновляем UI
+        if (currentOverlay) updateOverlayState('Terminated');
+        // Если ещё нет sessionMeta (CANCEL пришёл во время резолва) —
+        // просто чистим bottombar; popup откроется уже Terminated.
+        if (!session || session === invitation) {
+          setBottomBarState('registered', 'Готов к звонкам');
+          // Если currentOverlay уже Terminated отрендерен — оставим на 8с
+          // (auto-close из updateOverlayState). Если ещё ничего нет — закроем явно.
+          if (!currentOverlay) {
+            session = null; sessionMeta = null;
+          }
+        }
+      }
+    });
+
     let contactInfo = { phone };
     if (opts.resolveContact) {
       try { Object.assign(contactInfo, (await opts.resolveContact(phone)) || {}); } catch{}
     }
+
+    // Если за время резолва клиент успел бросить trubку — не открываем popup
+    if (_incomingTerminated) {
+      dbg('client cancelled before overlay opened');
+      // Логируем как missed
+      if (opts.callEventEndpoint) {
+        logCallEvent({
+          direction: 'in', phone,
+          contactId: contactInfo.id || null,
+          dealId: contactInfo.dealId || null,
+          status: 'missed', provider: 'sip-webrtc',
+          startedAt: new Date().toISOString(),
+          endedAt: new Date().toISOString(),
+        });
+      }
+      session = null; sessionMeta = null;
+      setBottomBarState('registered', 'Готов к звонкам');
+      return;
+    }
+
     setBottomBarState('ringing', 'Входящий…', contactInfo.name || phone);
 
     let callId = null;
