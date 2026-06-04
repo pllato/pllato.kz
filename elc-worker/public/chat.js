@@ -62,20 +62,39 @@
   }
 
   // ── User name resolver (использует org structure + users из родителя) ──
+  // Родитель отдаёт карту window.usersState.users (uid → {name,lastName,email,photo}).
+  function parentUser(uid) {
+    return window.usersState?.users?.[uid] || window.usersState?.byUid?.[uid] || null;
+  }
+
   function userLabel(uid) {
     if (!uid) return '—';
     if (uid === state.me?.uid) return state.me?.name || 'Я';
-    // Пробуем взять из глобального usersState родителя
-    if (window.usersState?.byUid?.[uid]) {
-      const u = window.usersState.byUid[uid];
+    const u = parentUser(uid);
+    if (u) {
       return [u.lastName, u.name].filter(Boolean).join(' ').trim() || u.email || uid.slice(0, 8);
     }
     return state.usersIndex[uid]?.name || uid.slice(0, 8);
   }
 
+  function userPhoto(uid) {
+    if (!uid) return '';
+    const u = parentUser(uid);
+    return (u && (u.photo || u.photoURL)) || '';
+  }
+
   function userAvatar(uid) {
     const label = userLabel(uid);
     return label.slice(0, 2).toUpperCase();
+  }
+
+  // Возвращает <div class=cls> с фото (если есть) либо инициалы на цветном фоне.
+  function avatarHtml(cls, uid, fallbackText, bg) {
+    const photo = userPhoto(uid);
+    if (photo) {
+      return `<div class="${cls}" style="background:transparent;overflow:hidden"><img src="${escapeHtml(photo)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit"></div>`;
+    }
+    return `<div class="${cls}" style="background:${bg}">${escapeHtml(fallbackText)}</div>`;
   }
 
   function userColor(uid) {
@@ -376,7 +395,7 @@
       const last = ch.last_message_text || '<span style="color:var(--t3);font-style:italic">пусто</span>';
       const typeIcon = ch.type === 'dm' ? '' : (ch.type === 'group' ? '🔒' : '#');
       return `<div class="tc-channel${active}" data-ch-id="${ch.id}">
-        <div class="tc-channel-av" style="background:${channelAvatarBg(ch)}">${escapeHtml(channelAvatarText(ch))}</div>
+        ${avatarHtml('tc-channel-av', ch.type === 'dm' ? ch.other_user_id : null, channelAvatarText(ch), channelAvatarBg(ch))}
         <div class="tc-channel-body">
           <div class="tc-channel-name">
             ${ch.type !== 'dm' && typeIcon ? `<span style="font-size:10px;opacity:0.6">${typeIcon}</span>` : ''}
@@ -423,7 +442,7 @@
   function renderMessage(m) {
     if (m.deleted_at) {
       return `<div class="tc-msg ${m.user_id === state.me.uid ? 'own' : ''}">
-        <div class="tc-msg-av" style="background:${userColor(m.user_id)}">${escapeHtml(userAvatar(m.user_id))}</div>
+        ${avatarHtml('tc-msg-av', m.user_id, userAvatar(m.user_id), userColor(m.user_id))}
         <div class="tc-msg-bubble"><div class="tc-msg-text tc-msg-deleted">Сообщение удалено</div></div>
       </div>`;
     }
@@ -467,7 +486,7 @@
     const time = formatTime(m.created_at);
 
     return `<div class="tc-msg ${own ? 'own' : ''}">
-      <div class="tc-msg-av" style="background:${userColor(m.user_id)}">${escapeHtml(userAvatar(m.user_id))}</div>
+      ${avatarHtml('tc-msg-av', m.user_id, userAvatar(m.user_id), userColor(m.user_id))}
       <div class="tc-msg-bubble">
         ${author}
         ${body}
