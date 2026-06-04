@@ -569,6 +569,32 @@ async function addMembers(env, me, channelId, body) {
   return jsonRes({ ok: true });
 }
 
+// POST /api/chat/channels/:id/members/remove { user_ids: [...] } — пакетно убрать
+// участников (например, целый отдел/отделение). Только админ канала. Создателя
+// (created_by) убрать нельзя — молча пропускаем. Шлём по событию на каждого.
+async function removeMembers(env, me, channelId, body) {
+  if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
+  const ch = await env.DB.prepare("SELECT created_by, type FROM team_chat_channels WHERE id = ?").bind(channelId).first();
+  if (ch?.type === 'dm') return errRes('в личной переписке нельзя менять участников', 400);
+  if (!(await isChannelAdmin(env, channelId, me))) return errRes('только администратор может убирать участников', 403);
+  const userIds = Array.isArray(body.user_ids)
+    ? body.user_ids.filter(u => typeof u === 'string' && u && u !== ch.created_by)
+    : [];
+  if (userIds.length === 0) return errRes('user_ids required');
+  let removed = 0;
+  for (const uid of userIds) {
+    const r = await env.DB.prepare(
+      "DELETE FROM team_chat_members WHERE channel_id = ? AND user_id = ?"
+    ).bind(channelId, uid).run();
+    if (r.meta?.changes) {
+      removed += r.meta.changes;
+      broadcastToChannel(env, channelId, { kind: 'user_left', channel_id: channelId, user_id: uid });
+      broadcastToUser(env, uid, { kind: 'channel_removed', channel_id: channelId });
+    }
+  }
+  return jsonRes({ ok: true, removed });
+}
+
 // POST /api/chat/channels/:id/rename { name } — переименовать группу/канал.
 // Только админ. DM переименовать нельзя (имя берётся от собеседника).
 async function renameChannel(env, me, channelId, body) {
@@ -693,6 +719,7 @@ export async function handleChatRequest(request, env, url, me) {
     if (sub === '/messages' && m === 'POST') return sendMessage(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/members'  && m === 'GET')  return getMembers(env, me, channelId);
     if (sub === '/members'  && m === 'POST') return addMembers(env, me, channelId, await request.json().catch(() => ({})));
+    if (sub === '/members/remove' && m === 'POST') return removeMembers(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/read'     && m === 'POST') return markAsRead(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/mute'     && m === 'POST') return setMuted(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/leave'    && m === 'POST') return leaveChannel(env, me, channelId);

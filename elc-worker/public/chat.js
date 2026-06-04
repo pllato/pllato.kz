@@ -507,6 +507,21 @@
       .tc-picker-check { width:19px; height:19px; flex-shrink:0; accent-color:var(--tc-ac); cursor:pointer; }
       .tc-picker-empty { padding:22px; text-align:center; color:var(--t3); font-size:12.5px; }
       .tc-picker-count { font-size:12px; color:var(--t2); margin-top:8px; font-weight:600; }
+      /* ── Picker mode switch + org-structure tree ── */
+      .tc-pick-modes { display:flex; gap:6px; margin:6px 0; }
+      .tc-pick-mode { flex:1; padding:6px 8px; border:1px solid var(--b1); border-radius:8px; background:var(--bg3);
+        cursor:pointer; font-size:12.5px; color:var(--t2); text-align:center; user-select:none; }
+      .tc-pick-mode.active { background:color-mix(in srgb, var(--tc-ac) 15%, transparent); color:var(--t1);
+        border-color:var(--tc-ac); font-weight:600; }
+      .tc-org-row { display:flex; gap:9px; align-items:center; padding:8px 11px; border-bottom:1px solid var(--b1); }
+      .tc-org-row:last-child { border-bottom:none; }
+      .tc-org-name { flex:1; min-width:0; font-size:13px; color:var(--t1); font-weight:600;
+        overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .tc-org-cnt { font-size:11px; color:var(--t3); flex-shrink:0; }
+      .tc-org-rm { flex-shrink:0; border:none; background:transparent; color:#ef4444; cursor:pointer;
+        font-size:12px; font-weight:600; padding:3px 7px; border-radius:6px; }
+      .tc-org-rm:hover { background:color-mix(in srgb,#ef4444 14%,transparent); }
+      .tc-org-rm:disabled { opacity:.4; cursor:default; }
 
       /* ── Responsive (tablet / narrow) ── */
       .tc-root.tc-narrow { grid-template-columns: 1fr; }
@@ -1028,6 +1043,43 @@
     return arr;
   }
 
+  // ── Оргструктура (для пакетного добавления/удаления по отделам) ─────────
+  // kv['org:structure'] → плоский список узлов с рекурсивным набором uid'ов
+  // (head + members узла И всех его потомков), чтобы галка на отделении
+  // выбирала всех людей внутри, включая подотделы.
+  let _orgNodes = null;   // [{id, name, depth, uids:[...]}], null = ещё не грузили
+  async function loadOrgStructure() {
+    try {
+      const d = await api('/api/org/structure');
+      _orgNodes = buildOrgNodes(d.structure);
+    } catch { _orgNodes = []; }
+    return _orgNodes;
+  }
+  function buildOrgNodes(structure) {
+    const out = [];
+    if (!structure) return out;
+    function collectUids(node) {
+      const set = new Set();
+      if (node.headUid) set.add(node.headUid);
+      for (const u of (node.memberUids || [])) if (u) set.add(u);
+      const children = node.subDepartments || node.departments || [];
+      for (const c of children) for (const u of collectUids(c)) set.add(u);
+      return set;
+    }
+    function walk(node, depth) {
+      out.push({
+        id: node.id || node.name || ('n' + out.length),
+        name: node.name || 'Без названия',
+        depth,
+        uids: Array.from(collectUids(node)),
+      });
+      const children = node.subDepartments || node.departments || [];
+      for (const c of children) walk(c, depth + 1);
+    }
+    for (const branch of (structure.branches || [])) walk(branch, 0);
+    return out;
+  }
+
   function pickerRowHtml(p, opts) {
     const checkbox = opts && opts.multi
       ? `<input type="checkbox" class="tc-picker-check" data-uid="${escapeHtml(p.uid)}">`
@@ -1057,9 +1109,12 @@
       <label id="tc-new-name-wrap" style="display:none">Название группы
         <input id="tc-new-name" placeholder="например, Разработка" maxlength="60">
       </label>
-      <label>Кого добавить
-        <input class="tc-picker-search" id="tc-new-search" placeholder="🔍 поиск по имени…">
-      </label>
+      <div style="font-size:12px;color:var(--t2);font-weight:600">Кого добавить</div>
+      <div class="tc-pick-modes">
+        <div class="tc-pick-mode active" data-mode="name">🔍 По имени</div>
+        <div class="tc-pick-mode" data-mode="org">🏢 По структуре</div>
+      </div>
+      <input class="tc-picker-search" id="tc-new-search" placeholder="🔍 поиск по имени…">
       <div class="tc-picker-list" id="tc-new-members-list"></div>
       <div class="tc-modal-foot">
         <span class="tc-picker-count" id="tc-new-members-count" style="margin-right:auto">Выбрано: 0</span>
@@ -1075,6 +1130,8 @@
     const searchEl = ov.querySelector('#tc-new-search');
     const nameWrap = ov.querySelector('#tc-new-name-wrap');
     const createBtn = ov.querySelector('[data-tc-create]');
+    const modeBtns = ov.querySelectorAll('.tc-pick-mode');
+    let pickMode = 'name';   // 'name' | 'org'
 
     function refreshState() {
       const n = selected.size;
@@ -1105,10 +1162,58 @@
         };
       });
     }
+    // Дерево структуры: галка на отделе → выбрать всех его людей (рекурсивно),
+    // кроме себя (создатель добавляется автоматически).
+    function renderOrgList() {
+      const nodes = _orgNodes || [];
+      if (!nodes.length) {
+        listEl.innerHTML = `<div class="tc-picker-empty">${_orgNodes === null ? 'Загрузка структуры…' : 'Структура компании не заполнена'}</div>`;
+        return;
+      }
+      const meUid = state.me?.uid;
+      listEl.innerHTML = nodes.map(n => {
+        const uids = n.uids.filter(u => u !== meUid);
+        const allSel = uids.length > 0 && uids.every(u => selected.has(u));
+        const pad = 11 + n.depth * 16;
+        return `<div class="tc-org-row" style="padding-left:${pad}px">
+          <input type="checkbox" class="tc-picker-check" data-org-add="${escapeHtml(n.id)}" ${allSel ? 'checked' : ''} ${uids.length === 0 ? 'disabled' : ''}>
+          <div class="tc-org-name">${escapeHtml(n.name)}</div>
+          <span class="tc-org-cnt">${uids.length} чел.</span>
+        </div>`;
+      }).join('');
+      listEl.querySelectorAll('[data-org-add]').forEach(cb => {
+        cb.onclick = (e) => {
+          e.stopPropagation();
+          const node = (_orgNodes || []).find(n => n.id === cb.getAttribute('data-org-add'));
+          if (!node) return;
+          const uids = node.uids.filter(u => u !== meUid);
+          if (cb.checked) uids.forEach(u => selected.add(u));
+          else uids.forEach(u => selected.delete(u));
+          refreshState();
+        };
+      });
+    }
+    function renderActiveList() {
+      if (pickMode === 'org') renderOrgList();
+      else renderList();
+    }
+    modeBtns.forEach(b => {
+      b.onclick = () => {
+        const mode = b.getAttribute('data-mode');
+        if (mode === pickMode) return;
+        pickMode = mode;
+        modeBtns.forEach(x => x.classList.toggle('active', x === b));
+        searchEl.style.display = (mode === 'name') ? '' : 'none';
+        if (mode === 'org' && _orgNodes === null) loadOrgStructure().then(() => { if (pickMode === 'org') renderActiveList(); });
+        renderActiveList();
+      };
+    });
+
     searchEl.oninput = renderList;
     renderList();
     refreshState();
-    loadRoster().then(() => renderList());
+    loadRoster().then(() => renderActiveList());
+    loadOrgStructure().then(() => { if (pickMode === 'org') renderActiveList(); });
 
     ov.querySelector('[data-tc-cancel]').onclick = () => ov.remove();
     createBtn.onclick = async () => {
@@ -1162,9 +1267,12 @@
     ov.className = 'tc-modal-overlay';
     ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
     const addSection = iAmAdmin ? `
-      <label style="margin-top:10px">Добавить сотрудников
-        <input class="tc-picker-search" id="tc-mem-search" placeholder="🔍 поиск по имени…">
-      </label>
+      <div style="margin-top:10px;font-size:12px;color:var(--t2);font-weight:600">Добавить сотрудников</div>
+      <div class="tc-pick-modes">
+        <div class="tc-pick-mode active" data-mode="name">🔍 По имени</div>
+        <div class="tc-pick-mode" data-mode="org">🏢 По структуре</div>
+      </div>
+      <input class="tc-picker-search" id="tc-mem-search" placeholder="🔍 поиск по имени…">
       <div class="tc-picker-list" id="tc-mem-picker"></div>` : '';
     const footAdd = iAmAdmin ? `<button class="primary" data-tc-add disabled>Добавить</button>` : '';
     const footCount = iAmAdmin
@@ -1188,8 +1296,10 @@
     const searchEl = ov.querySelector('#tc-mem-search');
     const countEl = ov.querySelector('#tc-mem-count');
     const addBtn = ov.querySelector('[data-tc-add]');
+    const modeBtns = ov.querySelectorAll('.tc-pick-mode');
     const selected = new Set();
     let memberUids = new Set();
+    let pickMode = 'name';   // 'name' (поиск по ростеру) | 'org' (дерево структуры)
 
     function renderMembers(items) {
       if (!items.length) { memListEl.innerHTML = `<div class="tc-picker-empty">Нет участников</div>`; return; }
@@ -1271,16 +1381,90 @@
       });
     }
 
+    // Дерево структуры: галка на отделе → добавить всех его людей (рекурсивно);
+    // ✕ N → пакетно убрать тех из них, кто уже в чате (кроме создателя).
+    function renderOrgPicker() {
+      if (!iAmAdmin || !pickerEl) return;
+      const nodes = _orgNodes || [];
+      if (!nodes.length) {
+        pickerEl.innerHTML = `<div class="tc-picker-empty">${_orgNodes === null ? 'Загрузка структуры…' : 'Структура компании не заполнена'}</div>`;
+        return;
+      }
+      pickerEl.innerHTML = nodes.map(n => {
+        const total = n.uids.length;
+        const inChat = n.uids.filter(u => memberUids.has(u)).length;
+        const toAdd = n.uids.filter(u => !memberUids.has(u)).length;
+        const allSel = toAdd > 0 && n.uids.every(u => memberUids.has(u) || selected.has(u));
+        const pad = 11 + n.depth * 16;
+        const rmBtn = inChat > 0
+          ? `<button class="tc-org-rm" data-org-rm="${escapeHtml(n.id)}" title="Убрать всех из чата">✕ ${inChat}</button>`
+          : '';
+        return `<div class="tc-org-row" style="padding-left:${pad}px">
+          <input type="checkbox" class="tc-picker-check" data-org-add="${escapeHtml(n.id)}" ${allSel ? 'checked' : ''} ${toAdd === 0 ? 'disabled' : ''}>
+          <div class="tc-org-name">${escapeHtml(n.name)}</div>
+          <span class="tc-org-cnt">${inChat}/${total} в чате</span>
+          ${rmBtn}
+        </div>`;
+      }).join('');
+      pickerEl.querySelectorAll('[data-org-add]').forEach(cb => {
+        cb.onclick = (e) => {
+          e.stopPropagation();
+          const node = (_orgNodes || []).find(n => n.id === cb.getAttribute('data-org-add'));
+          if (!node) return;
+          const addable = node.uids.filter(u => !memberUids.has(u));
+          if (cb.checked) addable.forEach(u => selected.add(u));
+          else addable.forEach(u => selected.delete(u));
+          countEl.textContent = 'Выбрано: ' + selected.size;
+          addBtn.disabled = selected.size === 0;
+        };
+      });
+      pickerEl.querySelectorAll('[data-org-rm]').forEach(btn => {
+        btn.onclick = async (e) => {
+          e.stopPropagation();
+          const node = (_orgNodes || []).find(n => n.id === btn.getAttribute('data-org-rm'));
+          if (!node) return;
+          const rmUids = node.uids.filter(u => memberUids.has(u) && u !== ch?.created_by);
+          if (!rmUids.length) { alert('В этом отделе некого убирать (или остался только создатель).'); return; }
+          if (!confirm(`Убрать ${rmUids.length} чел. из «${node.name}» из этого чата?`)) return;
+          btn.disabled = true;
+          try {
+            await api(`/api/chat/channels/${channelId}/members/remove`, { method: 'POST', body: JSON.stringify({ user_ids: rmUids }) });
+            await loadMembers();
+            await loadChannels();
+            renderMainHead();
+          } catch (err) { btn.disabled = false; alert(err.message); }
+        };
+      });
+    }
+
+    function renderActivePicker() {
+      if (pickMode === 'org') renderOrgPicker();
+      else renderPicker();
+    }
+
     async function loadMembers() {
       try {
         const d = await api(`/api/chat/channels/${channelId}/members`);
         memberUids = new Set((d.items || []).map(m => m.user_id));
         renderMembers(d.items || []);
-        renderPicker();
+        renderActivePicker();
       } catch (e) {
         memListEl.innerHTML = `<div class="tc-picker-empty">${escapeHtml(e.message)}</div>`;
       }
     }
+
+    // Переключение режима пикера: По имени ↔ По структуре.
+    modeBtns.forEach(b => {
+      b.onclick = () => {
+        const mode = b.getAttribute('data-mode');
+        if (mode === pickMode) return;
+        pickMode = mode;
+        modeBtns.forEach(x => x.classList.toggle('active', x === b));
+        if (searchEl) searchEl.style.display = (mode === 'name') ? '' : 'none';
+        if (mode === 'org' && _orgNodes === null) loadOrgStructure().then(() => { if (pickMode === 'org') renderActivePicker(); });
+        renderActivePicker();
+      };
+    });
 
     if (searchEl) searchEl.oninput = renderPicker;
     if (addBtn) addBtn.onclick = async () => {
@@ -1299,7 +1483,10 @@
     ov.querySelector('[data-tc-close]').onclick = () => ov.remove();
     loadMembers();
     // Обновить справочник из D1 и перерисовать пикер, когда подъедет.
-    if (iAmAdmin) loadRoster().then(() => renderPicker());
+    if (iAmAdmin) {
+      loadRoster().then(() => renderActivePicker());
+      loadOrgStructure().then(() => { if (pickMode === 'org') renderActivePicker(); });
+    }
   }
 
   // ── Responsive observer ────────────────────────────────────────────────
