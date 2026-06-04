@@ -6071,6 +6071,78 @@ async function handle1cListUnmatchedProducts(request, env, actor) {
   return { ok: true, count: out.length, total_unmatched: totalUnmatched, products: out };
 }
 
+// Список маппингов id_map по типу сущности (наши созданные документы).
+async function d1List1cIdMap(env, tenantId, entityType) {
+  await ensureD1Schema(env);
+  const db = requireStoreDb(env);
+  const rows = await db
+    .prepare(`SELECT pllato_id, one_c_ref_key FROM one_c_id_map WHERE tenant_id=? AND entity_type=?`)
+    .bind(tenantId, entityType).all();
+  return rows?.results || [];
+}
+
+// POST /api/crm/1c/payments/pull — опрос регистра «ОплатаСчетов» по базам.
+// Read-only: сверяет оплаты с НАШИМИ созданными счетами (one_c_id_map invoice@base)
+// и проставляет на сделке oneCPaidAmount/oneCPaidAt. Закрытие петли (бронь/стадия)
+// — отдельно, после обкатки. Регистр небольшой (~1200), тянем целиком (фильтры 1С
+// по dimension не работают).
+async function handle1cPullPayments(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  let body = {};
+  try { body = await readRequestBodyAsJson(request); } catch {}
+  const bk = String(body?.base || "").trim();
+  const baseKeys = ONE_C_BASES[bk] ? [bk] : Object.keys(ONE_C_BASES);
+  const started = Date.now();
+  const db = requireStoreDb(env);
+  const result = { ok: true, bases: {}, updated: 0 };
+
+  for (const baseKey of baseKeys) {
+    const invEntity = baseKey === ONE_C_DEFAULT_BASE ? "invoice" : `invoice@${baseKey}`;
+    const ourInvoices = await d1List1cIdMap(env, tenantId, invEntity);
+    if (ourInvoices.length === 0) { result.bases[baseKey] = { our_invoices: 0, paid: 0 }; continue; }
+    const refToDeal = new Map(ourInvoices.map((r) => [r.one_c_ref_key, r.pllato_id]));
+    try {
+      const { client } = await build1cClient(env, tenantId, baseKey);
+      const data = await client.get("AccumulationRegister_ОплатаСчетов", { top: 10000 });
+      const rows = Array.isArray(data?.value) ? data.value : [];
+      const paidByRef = new Map(); // ref → { sum, last }
+      for (const row of rows) {
+        const set = Array.isArray(row?.RecordSet) ? row.RecordSet : [];
+        for (const rec of set) {
+          const ref = rec?.СчетНаОплату;
+          if (!ref || !refToDeal.has(ref)) continue;
+          const cur = paidByRef.get(ref) || { sum: 0, last: null };
+          cur.sum += Number(rec?.Сумма) || 0;
+          const p = rec?.Period;
+          if (p && (!cur.last || p > cur.last)) cur.last = p;
+          paidByRef.set(ref, cur);
+        }
+      }
+      let paidCount = 0;
+      for (const [ref, info] of paidByRef) {
+        const dealId = refToDeal.get(ref);
+        const drow = await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? AND id=?`)
+          .bind(TEAM_ID, "deals", dealId).first();
+        if (!drow) continue;
+        let deal;
+        try { deal = JSON.parse(drow.data); } catch { continue; }
+        const now = Date.now();
+        const updated = { ...deal, oneCPaidAmount: Math.round(info.sum * 100) / 100, oneCPaidAt: now, oneCPaidPeriod: info.last || null, updatedAt: now };
+        await db.prepare(`UPDATE store SET data=?, updated_at=? WHERE team_id=? AND collection=? AND id=?`)
+          .bind(JSON.stringify(updated), now, TEAM_ID, "deals", dealId).run();
+        paidCount += 1;
+      }
+      result.bases[baseKey] = { our_invoices: ourInvoices.length, paid: paidCount };
+      result.updated += paidCount;
+    } catch (e) {
+      result.bases[baseKey] = { error: e?.message || String(e) };
+    }
+  }
+  await d1Insert1cSyncLog(env, { tenantId, direction: "pull", entityType: "payments", operation: "match", status: "ok", recordsProcessed: result.updated, durationMs: Date.now() - started });
+  return result;
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
@@ -6247,6 +6319,10 @@ export default {
       if (request.method === "GET" && path === "/api/crm/1c/products/unmatched") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handle1cListUnmatchedProducts(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/payments/pull") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cPullPayments(request, env, actor));
       }
 
       if (request.method === "POST" && path === "/binotel/call") {
