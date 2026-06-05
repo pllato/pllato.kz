@@ -6003,6 +6003,64 @@ async function handle1cFindContractorByBin(request, env, actor) {
   }
 }
 
+// GET /api/crm/1c/contractors/search?q=&base= — поиск контрагентов 1С по названию/БИН
+// (для «выбрать из похожих», когда по БИН не нашёлся). Выгрузка-в-память + фильтр.
+async function handle1cContractorSearch(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const url = new URL(request.url);
+  const q = (url.searchParams.get("q") || "").trim();
+  if (q.length < 2) return { ok: true, results: [] };
+  try {
+    const { client } = await build1cClient(env, tenantId, resolve1cBaseKey(url.searchParams.get("base")));
+    const data = await client.get("Catalog_Контрагенты", { top: 10000 });
+    const raw = Array.isArray(data?.value) ? data.value : [];
+    const ql = q.toLowerCase();
+    const digits = ql.replace(/\D/g, "");
+    const results = raw.map(contractorFromOData)
+      .filter((c) => c && !c.is_folder && !c.deletion_mark && (
+        String(c.name || c.full_name || "").toLowerCase().includes(ql) ||
+        (digits.length >= 4 && [c.bin, c.iin, c.rnn_legacy].some((x) => String(x || "").replace(/\D/g, "").includes(digits)))
+      ))
+      .slice(0, 20)
+      .map((c) => ({ ref: c.ref_key, name: c.name || c.full_name, bin: c.bin || c.iin || null, code: c.code }));
+    return { ok: true, results };
+  } catch (e) {
+    const httpStatus = e instanceof ODataError ? e.httpStatus : null;
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(httpStatus && httpStatus >= 400 && httpStatus < 600 ? httpStatus : 502, e?.message || String(e));
+  }
+}
+
+// POST /api/crm/1c/contractors/map {contactId, refKey, base} — привязать контакт CRM
+// к выбранному контрагенту 1С (из «похожих»). Штампует id_map + (Аминамед) _1c_ref_key.
+async function handle1cMapContractor(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const body = await readRequestBodyAsJson(request);
+  const contactId = String(body?.contactId || "").trim();
+  const refKey = String(body?.refKey || "").trim();
+  const baseKey = resolve1cBaseKey(body?.base);
+  if (!contactId || !refKey) throw new HttpError(400, "contactId и refKey обязательны");
+  const mapEntity = baseKey === ONE_C_DEFAULT_BASE ? "contractor" : `contractor@${baseKey}`;
+  await d1Upsert1cIdMap(env, tenantId, mapEntity, contactId, refKey, null);
+  if (baseKey === ONE_C_DEFAULT_BASE) {
+    const db = requireStoreDb(env);
+    const row = await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? AND id=?`)
+      .bind(TEAM_ID, "contacts", contactId).first();
+    if (row) {
+      try {
+        const contact = JSON.parse(row.data);
+        const now = Date.now();
+        const updated = { ...contact, _1c_ref_key: refKey, updatedAt: now };
+        await db.prepare(`UPDATE store SET data=?, updated_at=? WHERE team_id=? AND collection=? AND id=?`)
+          .bind(JSON.stringify(updated), now, TEAM_ID, "contacts", contactId).run();
+      } catch {}
+    }
+  }
+  return { ok: true, ref_key: refKey, base: baseKey };
+}
+
 // GET /api/crm/1c/nomenclature/search?q= — поиск номенклатуры 1С по названию.
 async function handle1cNomenclatureSearch(request, env, actor) {
   require1cAdmin(actor);
@@ -6324,6 +6382,14 @@ export default {
       if (request.method === "POST" && path === "/api/crm/1c/contractors/find") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handle1cFindContractorByBin(request, env, actor));
+      }
+      if (request.method === "GET" && path === "/api/crm/1c/contractors/search") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cContractorSearch(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/contractors/map") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cMapContractor(request, env, actor));
       }
       if (request.method === "GET" && path === "/api/crm/1c/nomenclature/search") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });

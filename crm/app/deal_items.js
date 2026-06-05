@@ -22,6 +22,7 @@ import {
   getDeliveryPoint,
   saveDeliveryPoint,
 } from "./delivery_points.js";
+import { listContractsForContact, saveContract } from "./contracts.js";
 
 const ITEMS = "deal_items";
 const DEALS = "deals";
@@ -36,6 +37,8 @@ export const ORDER_STATUS_SHIPPED = "shipped";
 const modalState = {
   dealId: null,
   mountEl: null, // элемент модалки в DOM, либо null
+  focusItemId: null, // id позиции, на которую направить фокус после refreshModal
+  focusField: null, // "product" | "qty" — какое поле строки фокусировать
 };
 
 // === API: Позиции ===
@@ -584,7 +587,11 @@ function renderRequisitesCard(deal) {
   const contracts = listContractsFor(contractorRef);
   const deliveryPoints = hasClient ? listDeliveryPointsForContact(deal.contactId) : [];
   const selectedBase = deal.oneCBase || "aminamed";
-  const selectedContract = deal.oneCContractRef || "";
+  // Договор: значение select — 1С-guid (oneCContractRef), либо "crm:"+id (crmContractId), либо "".
+  const crmContracts = hasClient ? listContractsForContact(deal.contactId) : [];
+  const selectedContract = deal.oneCContractRef
+    ? deal.oneCContractRef
+    : (deal.crmContractId ? "crm:" + deal.crmContractId : "");
   const selectedPayPurpose = deal.oneCPaymentPurpose || "710";
   const selectedScheme = deal.paymentScheme || "";
   const selectedVat = deal.oneCVatRef || ONE_C_VAT_5;
@@ -599,23 +606,50 @@ function renderRequisitesCard(deal) {
   }
   const primaryPoint = deliveryPoints.find((p) => p.isPrimary) || deliveryPoints[0] || null;
 
-  const clientBlock = hasClient
-    ? `<div style="font-weight:600">${escapeHtml(contact?.name || deal.contactName || deal.title || "—")}${contractorRef ? ` <span style="color:#16a34a;font-weight:400;font-size:12px">✓ есть в 1С</span>` : ""} <button type="button" class="btn-ghost btn-sm" data-dim-client-change style="padding:2px 8px;font-size:12px">сменить</button></div>`
-    : `
+  const clientName = escapeHtml(contact?.name || deal.contactName || deal.title || "—");
+  let clientBlock;
+  if (hasClient && contractorRef) {
+    // Клиент сопоставлен с 1С — зелёный статус + кнопка «сменить».
+    clientBlock = `<div style="font-weight:600">${clientName} <span style="color:#16a34a;font-weight:400;font-size:12px">✓ сопоставлен с 1С</span> <button type="button" class="btn-ghost btn-sm" data-dim-client-change style="padding:2px 8px;font-size:12px">сменить</button></div>`;
+  } else if (hasClient) {
+    // Клиент есть, но НЕ сопоставлен с 1С — амбер-предупреждение + три действия.
+    clientBlock = `
+      <div style="font-weight:600;margin-bottom:6px">${clientName} <span style="color:#d97706;font-weight:400;font-size:12px">⚠ не сопоставлен с 1С</span> <button type="button" class="btn-ghost btn-sm" data-dim-client-change style="padding:2px 8px;font-size:12px">сменить</button></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+        <button type="button" class="btn-ghost btn-sm" data-dim-1c-find style="white-space:nowrap">🔍 Найти в 1С</button>
+        <button type="button" class="btn-ghost btn-sm" data-dim-1c-create style="white-space:nowrap">➕ Завести в 1С</button>
+        <button type="button" class="btn-ghost btn-sm" data-dim-1c-similar style="white-space:nowrap">🔎 Похожие в 1С</button>
+      </div>
+      <div id="dim-1c-find-msg" style="font-size:12px;color:#92400e;margin-bottom:6px;display:none"></div>
+      <div id="dim-contractor-box" style="display:none;margin-bottom:6px">
+        <input id="dim-contractor-search" type="text" value="${escapeAttr(contact?.name || "")}" placeholder="Поиск контрагента в 1С по названию…" autocomplete="off" style="${REQ_FIELD_STYLE};margin-bottom:6px">
+        <div id="dim-contractor-results" style="max-height:170px;overflow:auto;border:1px solid var(--border,#eee);border-radius:8px;display:none"></div>
+      </div>
+    `;
+  } else {
+    clientBlock = `
       <div style="background:#fff3e0;border:1px solid #f59e0b;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:12px;color:#92400e">⚠ Заказ не привязан к клиенту. Без клиента счёт в 1С не создать.</div>
       <input id="dim-client-search" type="text" value="" placeholder="Найти клиента по названию или БИН…" autocomplete="off" style="${REQ_FIELD_STYLE};margin-bottom:6px">
       <div id="dim-client-results" style="max-height:170px;overflow:auto;border:1px solid var(--border,#eee);border-radius:8px;display:none"></div>
     `;
+  }
 
+  const deliveryHint = `<div style="font-size:11px;color:var(--text-muted,#888);margin-bottom:6px">адрес сохранится у клиента в CRM (в 1С адресов нет)</div>`;
   const deliveryBlock = deliveryPoints.length
     ? `
+      ${deliveryHint}
       <select id="dim-onec-delivery-select" style="${REQ_FIELD_STYLE};margin-bottom:6px">
         ${deliveryPoints.map((p) => `<option value="${escapeAttr(p.id)}"${primaryPoint && p.id === primaryPoint.id ? " selected" : ""}>${escapeHtml(p.label || [p.city, p.address].filter(Boolean).join(", "))}</option>`).join("")}
         <option value="__manual__">➕ Другой адрес</option>
       </select>
-      <input id="dim-onec-delivery" type="text" value="" placeholder="город, адрес" style="${REQ_FIELD_STYLE};display:none">
+      <input id="dim-onec-delivery" type="text" value="" placeholder="город, адрес — сохранится в CRM" style="${REQ_FIELD_STYLE};display:none">
+      <button type="button" class="btn-ghost btn-sm" id="dim-delivery-add" style="margin-top:6px;padding:4px 10px;font-size:12px">➕ Добавить адрес</button>
     `
-    : `<input id="dim-onec-delivery" type="text" value="${escapeAttr(defaultDelivery)}" placeholder="город, адрес — запомнится для клиента" style="${REQ_FIELD_STYLE}">`;
+    : `
+      ${deliveryHint}
+      <input id="dim-onec-delivery" type="text" value="${escapeAttr(defaultDelivery)}" placeholder="город, адрес — сохранится в CRM" style="${REQ_FIELD_STYLE}">
+      <button type="button" class="btn-ghost btn-sm" id="dim-delivery-add" style="margin-top:6px;padding:4px 10px;font-size:12px">➕ Добавить адрес</button>
+    `;
 
   return `
     <div class="dim-req-card" style="background:var(--surface,#fff);border:1px solid var(--border,#ddd);border-radius:10px;padding:14px 16px;margin-bottom:14px">
@@ -632,12 +666,14 @@ function renderRequisitesCard(deal) {
           </select>
         </div>
         <div>
-          <label style="${REQ_LABEL_STYLE}">Договор (1С)</label>
+          <label style="${REQ_LABEL_STYLE}">Договор</label>
           <select id="dim-onec-contract" style="${REQ_FIELD_STYLE}">
             <option value="">— без договора —</option>
-            ${contracts.map((c) => `<option value="${escapeAttr(c.ref)}"${c.ref === selectedContract ? " selected" : ""}>${escapeHtml(c.label)}</option>`).join("")}
+            ${contracts.length ? `<optgroup label="Из 1С">${contracts.map((c) => `<option value="${escapeAttr(c.ref)}"${c.ref === selectedContract ? " selected" : ""}>${escapeHtml(c.label)}</option>`).join("")}</optgroup>` : ""}
+            ${crmContracts.length ? `<optgroup label="В CRM (заведёт Асем в 1С)">${crmContracts.map((c) => { const v = "crm:" + c.id; const lbl = (c.title || c.number || "договор") + " (CRM · заведёт Асем)"; return `<option value="${escapeAttr(v)}"${v === selectedContract ? " selected" : ""}>${escapeHtml(lbl)}</option>`; }).join("")}</optgroup>` : ""}
           </select>
-          ${contractorRef && contracts.length === 0 ? `<div style="font-size:11px;color:var(--text-muted,#888);margin-top:4px">Договоров клиента не найдено — обновите «Договоры» в «1С интеграция».</div>` : ""}
+          <button type="button" class="btn-ghost btn-sm" id="dim-contract-create" style="margin-top:6px;padding:4px 10px;font-size:12px">➕ Создать договор (CRM)</button>
+          ${contractorRef && contracts.length === 0 ? `<div style="font-size:11px;color:var(--text-muted,#888);margin-top:4px">Договоров клиента в 1С не найдено — обновите «Договоры» в «1С интеграция» или создайте договор в CRM.</div>` : ""}
         </div>
         <div style="grid-column:1 / -1">
           <label style="${REQ_LABEL_STYLE}">Адрес доставки</label>
@@ -752,7 +788,7 @@ function renderModalHTML(dealId) {
             <div class="dim-empty">
               <div class="dim-empty-icon">📦</div>
               <div class="dim-empty-title">Заказ пуст</div>
-              <div class="dim-empty-text">Нажми «+ Позиция» чтобы добавить товар со склада. Поиск работает по SKU и названию.</div>
+              <div class="dim-empty-text">Нажми «➕ Добавить позицию» чтобы добавить товар со склада. Поиск работает по SKU и названию.</div>
             </div>
           ` : `
             <table class="dim-table">
@@ -784,14 +820,13 @@ function renderModalHTML(dealId) {
               </div>
             ` : ""}
           `}
+          ${editable ? `
+            <button type="button" class="btn-ghost" data-deal-items-add style="width:100%;margin-top:10px;padding:10px;font-size:14px">➕ Добавить позицию</button>
+          ` : ""}
         </div>
 
         <footer class="dim-footer">
-          <div class="dim-footer-left">
-            ${editable ? `
-              <button type="button" class="btn-ghost btn-sm" data-deal-items-add>+ Позиция</button>
-            ` : ""}
-          </div>
+          <div class="dim-footer-left"></div>
           <div class="dim-footer-right">
             ${renderFooterActions(deal, items)}
             <button type="button" class="btn-ghost" data-dim-close>Закрыть</button>
@@ -978,10 +1013,13 @@ function wireModalHandlers() {
     if (e.target === e.currentTarget) closeModal();
   });
 
-  // Добавить позицию
+  // Добавить позицию: создаём пустую строку и после перерисовки фокусируем её
+  // typeahead товара (товар → кол-во → цена → сумма — направляем менеджера).
   root.querySelector("[data-deal-items-add]")?.addEventListener("click", (e) => {
     e.preventDefault();
-    createDealItem(dealId, {});
+    const newItem = createDealItem(dealId, {});
+    modalState.focusItemId = newItem?.id || null;
+    modalState.focusField = "product";
     refreshModal();
   });
 
@@ -1004,6 +1042,9 @@ function wireModalHandlers() {
     if (!input || !list || !itemId) return;
     setupTypeahead(input, list, products, (productId) => {
       updateDealItem(itemId, { productId });
+      // После выбора товара ведём фокус в поле «Кол-во» этой же строки.
+      modalState.focusItemId = itemId;
+      modalState.focusField = "qty";
       refreshModal();
     });
   });
@@ -1044,10 +1085,35 @@ function wireModalHandlers() {
     persistDeal({ oneCBase: e.target.value || "aminamed" });
     refreshModal();
   });
-  // Договор: смена влияет на отображение → перерисовываем.
+  // Договор: значение может быть 1С-guid, "crm:"+id или "" (без договора).
+  // В счёт уходит только oneCContractRef (1С); CRM-договор хранится отдельно
+  // и 1С НЕ отправляется (Асем заведёт вручную).
   root.querySelector("#dim-onec-contract")?.addEventListener("change", (e) => {
-    persistDeal({ oneCContractRef: e.target.value || null });
+    const v = e.target.value || "";
+    if (v.startsWith("crm:")) {
+      persistDeal({ oneCContractRef: null, crmContractId: v.slice(4) });
+    } else if (v) {
+      persistDeal({ oneCContractRef: v, crmContractId: null });
+    } else {
+      persistDeal({ oneCContractRef: null, crmContractId: null });
+    }
     refreshModal();
+  });
+  // Создать договор в CRM (Асем позже заведёт его в 1С).
+  root.querySelector("#dim-contract-create")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const deal = Store.get(DEALS, dealId);
+    if (!deal?.contactId) { alert("Сначала выберите клиента."); return; }
+    const name = (prompt("Название/номер договора:") || "").trim();
+    if (!name) return;
+    try {
+      // saveContract валидирует по number/title — кладём введённое и туда, и в name.
+      const created = saveContract({ contactId: deal.contactId, name, title: name });
+      if (created?.id) persistDeal({ oneCContractRef: null, crmContractId: created.id });
+      refreshModal();
+    } catch (err) {
+      alert(err?.message || "Не удалось создать договор");
+    }
   });
   // Код назначения / НДС / комментарий — тихо.
   root.querySelector("#dim-onec-paypurpose")?.addEventListener("change", (e) => persistDeal({ oneCPaymentPurpose: e.target.value || "710" }));
@@ -1066,6 +1132,18 @@ function wireModalHandlers() {
     if (inp) {
       inp.style.display = e.target.value === "__manual__" ? "block" : "none";
       if (e.target.value === "__manual__") inp.focus();
+    }
+  });
+  // «➕ Добавить адрес» — то же, что выбрать «Другой адрес»: показать ручной ввод
+  // (CRM-адрес, в 1С не уходит) и сфокусировать его.
+  root.querySelector("#dim-delivery-add")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const sel = root.querySelector("#dim-onec-delivery-select");
+    const inp = root.querySelector("#dim-onec-delivery");
+    if (sel) sel.value = "__manual__";
+    if (inp) {
+      inp.style.display = "block";
+      inp.focus();
     }
   });
 
@@ -1094,6 +1172,91 @@ function wireModalHandlers() {
     e.preventDefault();
     persistDeal({ contactId: null, contactName: null });
     refreshModal();
+  });
+
+  // === Сопоставление клиента с 1С (когда контакт есть, но _1c_ref_key нет) ===
+  // У контрагентов 1С нет телефона в OData → ищем по БИН/ИИН (find) или по названию.
+  const dealNow = Store.get(DEALS, dealId);
+  const contactNow = dealNow?.contactId ? Store.get("contacts", dealNow.contactId) : null;
+  const oneCBaseNow = () => Store.get(DEALS, dealId)?.oneCBase || "aminamed";
+  const findMsgEl = root.querySelector("#dim-1c-find-msg");
+  const contractorBox = root.querySelector("#dim-contractor-box");
+  const contractorSearch = root.querySelector("#dim-contractor-search");
+  const contractorResults = root.querySelector("#dim-contractor-results");
+
+  const withBusy = async (btn, fn) => {
+    const orig = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "…"; }
+    try { await fn(); }
+    catch (err) { alert(err?.message || String(err)); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = orig; } }
+  };
+
+  // 🔎 Похожие: поиск контрагента 1С по названию + привязка по выбору.
+  const runContractorSearch = async (text) => {
+    if (!contractorResults) return;
+    const q = String(text || "").trim();
+    if (q.length < 2) { contractorResults.style.display = "none"; contractorResults.innerHTML = ""; return; }
+    contractorResults.style.display = "";
+    contractorResults.innerHTML = '<div style="padding:8px 10px;font-size:11px;color:#888">Ищем в 1С…</div>';
+    try {
+      const r = await apiFetch("/api/crm/1c/contractors/search?q=" + encodeURIComponent(q) + "&base=" + encodeURIComponent(oneCBaseNow()));
+      const found = r?.results || [];
+      if (!found.length) { contractorResults.innerHTML = '<div style="padding:8px 10px;font-size:11px;color:#888">Ничего не найдено в 1С</div>'; return; }
+      contractorResults.innerHTML = found.map((x) => `<button type="button" class="dim-contractor-pick" data-ref="${escapeAttr(x.ref)}" style="display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;border:none;border-bottom:1px solid var(--border,#f0f0f0);background:none;padding:8px 10px;cursor:pointer;color:var(--text,#111);font:inherit"><span>${escapeHtml(x.name || "(без названия)")}</span><span style="color:var(--text-muted,#888);font-size:11.5px;white-space:nowrap">${escapeHtml(x.bin || "")}</span></button>`).join("");
+      contractorResults.querySelectorAll(".dim-contractor-pick").forEach((b) => b.addEventListener("click", () => withBusy(b, async () => {
+        await apiFetch("/api/crm/1c/contractors/map", { method: "POST", body: { contactId: Store.get(DEALS, dealId)?.contactId, refKey: b.dataset.ref, base: oneCBaseNow() } });
+        refreshModal();
+      })));
+    } catch (err) {
+      contractorResults.innerHTML = '<div style="padding:8px 10px;color:#dc2626;font-size:11px">Ошибка: ' + escapeHtml(err?.message || String(err)) + '</div>';
+    }
+  };
+
+  const debouncedContractorSearch = debounce((v) => runContractorSearch(v), 300);
+  contractorSearch?.addEventListener("input", (e) => debouncedContractorSearch(e.target.value));
+
+  // 🔍 Найти в 1С — по БИН/ИИН. Worker сам штампует _1c_ref_key (для aminamed).
+  root.querySelector("[data-dim-1c-find]")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    withBusy(e.currentTarget, async () => {
+      const cid = Store.get(DEALS, dealId)?.contactId;
+      const r = await apiFetch("/api/crm/1c/contractors/find", { method: "POST", body: { contactId: cid, base: oneCBaseNow() } });
+      if (r?.found) {
+        refreshModal();
+      } else if (findMsgEl) {
+        findMsgEl.style.display = "";
+        findMsgEl.textContent = "По БИН не найден — выберите из похожих или заведите.";
+        // Авто-открываем «похожие» и ищем по имени контакта.
+        if (contractorBox) contractorBox.style.display = "";
+        const name = contactNow?.name || "";
+        if (contractorSearch) contractorSearch.value = name;
+        runContractorSearch(name);
+      }
+    });
+  });
+
+  // ➕ Завести в 1С — создать контрагента в 1С.
+  root.querySelector("[data-dim-1c-create]")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    withBusy(e.currentTarget, async () => {
+      const cid = Store.get(DEALS, dealId)?.contactId;
+      await apiFetch("/api/crm/1c/contractors/create", { method: "POST", body: { contactId: cid, base: oneCBaseNow() } });
+      refreshModal();
+    });
+  });
+
+  // 🔎 Похожие в 1С — тоггл блока поиска (префилл — имя контакта).
+  root.querySelector("[data-dim-1c-similar]")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!contractorBox) return;
+    const show = contractorBox.style.display === "none" || !contractorBox.style.display;
+    contractorBox.style.display = show ? "" : "none";
+    if (show && contractorSearch) {
+      if (!contractorSearch.value) contractorSearch.value = contactNow?.name || "";
+      contractorSearch.focus();
+      if (contractorSearch.value.trim().length >= 2) runContractorSearch(contractorSearch.value);
+    }
   });
 
   // Inline-матчер несопоставленных позиций (поиск номенклатуры 1С + привязка).
@@ -1277,6 +1440,24 @@ function wireModalHandlers() {
       alert("Не удалось открыть накладную: " + (err?.message || String(err)));
     }
   });
+
+  // Направленный фокус после refreshModal (товар → кол-во).
+  if (modalState.focusItemId) {
+    const fid = modalState.focusItemId;
+    const field = modalState.focusField;
+    modalState.focusItemId = null;
+    modalState.focusField = null;
+    let target = null;
+    if (field === "qty") {
+      target = root.querySelector(`input[data-deal-item-field="qty"][data-id="${fid}"]`);
+    } else {
+      target = root.querySelector(`[data-deal-item-typeahead="${fid}"]`);
+    }
+    if (target) {
+      target.focus();
+      if (typeof target.select === "function") target.select();
+    }
+  }
 
   // Escape для закрытия модалки
   if (!modalState._escHandler) {
