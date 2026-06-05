@@ -41,34 +41,24 @@ function renderOrderDetailItems(dealId) {
   if (items.length === 0) return `<div class="po-detail-empty">Позиции отсутствуют</div>`;
 
   return `
-    <table class="po-items-table">
-      <thead>
-        <tr>
-          <th>SKU</th>
-          <th>Товар</th>
-          <th class="num">Кол-во</th>
-          <th class="num">Остаток</th>
-          <th class="num">Цена, ₸</th>
-          <th class="num">Сумма, ₸</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${items.map((item) => {
-          const stock = item.productId ? (productSummary(item.productId)?.total || 0) : 0;
-          const shortage = item.qty > stock && item.productId;
-          return `
-            <tr>
-              <td>${escapeHtml(item.productSku || "—")}</td>
-              <td>${escapeHtml(item.productName || "—")}</td>
-              <td class="num">${fmtNum(item.qty)} ${escapeHtml(item.unit || "шт")}</td>
-              <td class="num ${shortage ? "stock-low" : ""}">${fmtNum(stock)}</td>
-              <td class="num">${fmtNum(item.unitPrice)}</td>
-              <td class="num"><strong>${fmtNum(item.lineAmount)}</strong></td>
-            </tr>
-          `;
-        }).join("")}
-      </tbody>
-    </table>
+    <div class="po-items">
+      ${items.map((item) => {
+        const stock = item.productId ? (productSummary(item.productId)?.total || 0) : 0;
+        const shortage = item.qty > stock && item.productId;
+        return `
+          <div class="po-item">
+            <div class="po-item-info">
+              <div class="po-item-name">${escapeHtml(item.productName || "—")}</div>
+              <div class="po-item-meta">
+                <span class="po-item-sku">${escapeHtml(item.productSku || "—")}</span>
+                <span class="po-item-qty${shortage ? " is-short" : ""}">${fmtNum(item.qty)} ${escapeHtml(item.unit || "шт")}${shortage ? ` · на складе ${fmtNum(stock)}` : ""}</span>
+              </div>
+            </div>
+            <div class="po-item-sum">${fmtNum(item.lineAmount)} ₸</div>
+          </div>
+        `;
+      }).join("")}
+    </div>
   `;
 }
 
@@ -112,34 +102,34 @@ function renderOrderCard(deal, kind) {
           }
         </div>
       </div>
-      <details class="po-card-details">
+      <details class="po-card-details" open>
         <summary>
           ${positionsLabel}
           ${shortage && kind !== "shipped" ? `<span class="po-warning-tag">⚠ Не хватает на складе</span>` : ""}
         </summary>
         <div class="po-card-body">
           ${renderOrderDetailItems(deal.id)}
-          <div class="po-card-actions" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-            <button type="button" class="btn-ghost" data-po-open="${escapeAttr(deal.id)}" title="Открыть заказ: реквизиты 1С, договор, адрес, согласование, счёт, отгрузка — в одном окне" style="margin-right:auto">📋 Открыть заказ</button>
-            ${kind === "preliminary"
-              ? `<button type="button" class="btn-primary" data-po-approve="${escapeAttr(deal.id)}">✓ Согласовать на отгрузку</button>`
-              : kind === "approved"
-              ? `<button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}">↶ Отозвать</button>
-                 <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
-                 <button type="button" class="btn-ghost" data-po-await-payment="${escapeAttr(deal.id)}" title="Перевести в «Ждут оплату» (для 100% предоплаты)">⏳ Ждать оплату</button>
-                 <button type="button" class="btn-primary" data-po-ship="${escapeAttr(deal.id)}" title="Заказ перейдёт в «Отгружены», сформируется расходная накладная З-2">📦 Отгрузить и сформировать накладную</button>`
-              : kind === "awaiting_payment"
-              ? `<button type="button" class="btn-ghost" data-po-cancel-await="${escapeAttr(deal.id)}" title="Вернуть в «Согласованы»">↶ Вернуть в согласованы</button>
-                 <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
-                 <button type="button" class="btn-primary" data-po-confirm-payment="${escapeAttr(deal.id)}" title="Подтвердить получение оплаты">💰 Оплата получена</button>`
-              : `<span class="po-shipped-label">✅ Отгружено${deal.orderInvoiceNumber ? ` · № ${escapeHtml(deal.orderInvoiceNumber)}` : ""}</span>
-                 <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
-                 <button type="button" class="btn-ghost" data-po-onec-realization="${escapeAttr(deal.id)}" title="Создать «Реализацию товаров и услуг» в 1С (черновик)">📦 Реализация в 1С${deal.oneCRealizationNumber ? " ✓" : ""}</button>
-                 ${deal.orderInvoiceId ? `<button type="button" class="btn-ghost" data-po-print="${escapeAttr(deal.orderInvoiceId)}" title="Открыть для печати/сохранения в PDF">📄 Открыть накладную</button>` : ""}`
-            }
-          </div>
         </div>
       </details>
+      <div class="po-card-actions">
+        <button type="button" class="btn-ghost po-act-open" data-po-open="${escapeAttr(deal.id)}" title="Открыть заказ: реквизиты 1С, договор, адрес, согласование, счёт, отгрузка — в одном окне">📋 Открыть заказ</button>
+        ${kind === "preliminary"
+          ? `<button type="button" class="btn-primary" data-po-approve="${escapeAttr(deal.id)}">✓ Согласовать на отгрузку</button>`
+          : kind === "approved"
+          ? `<button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}">↶ Отозвать</button>
+             <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
+             <button type="button" class="btn-ghost" data-po-await-payment="${escapeAttr(deal.id)}" title="Перевести в «Ждут оплату» (для 100% предоплаты)">⏳ Ждать оплату</button>
+             <button type="button" class="btn-primary" data-po-ship="${escapeAttr(deal.id)}" title="Заказ перейдёт в «Отгружены», сформируется расходная накладная З-2">📦 Отгрузить и сформировать накладную</button>`
+          : kind === "awaiting_payment"
+          ? `<button type="button" class="btn-ghost" data-po-cancel-await="${escapeAttr(deal.id)}" title="Вернуть в «Согласованы»">↶ Вернуть в согласованы</button>
+             <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
+             <button type="button" class="btn-primary" data-po-confirm-payment="${escapeAttr(deal.id)}" title="Подтвердить получение оплаты">💰 Оплата получена</button>`
+          : `<span class="po-shipped-label">✅ Отгружено${deal.orderInvoiceNumber ? ` · № ${escapeHtml(deal.orderInvoiceNumber)}` : ""}</span>
+             <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
+             <button type="button" class="btn-ghost" data-po-onec-realization="${escapeAttr(deal.id)}" title="Создать «Реализацию товаров и услуг» в 1С (черновик)">📦 Реализация в 1С${deal.oneCRealizationNumber ? " ✓" : ""}</button>
+             ${deal.orderInvoiceId ? `<button type="button" class="btn-ghost" data-po-print="${escapeAttr(deal.orderInvoiceId)}" title="Открыть для печати/сохранения в PDF">📄 Открыть накладную</button>` : ""}`
+        }
+      </div>
     </div>
   `;
 }
@@ -150,18 +140,14 @@ export function renderPreliminaryOrdersView() {
   const awaitingPayment = listPaymentPendingDealOrders();
   const shipped = listShippedDealOrders().slice(0, 20);
 
-  // Колонку «Ожидание оплаты» показываем только если она реально используется
-  // (есть заказы в статусе) — иначе канбан не перегружаем.
-  const showPaymentCol = awaitingPayment.length > 0;
-
   return `
     <section class="whm-section po-view">
       <div class="po-header">
         <h2>Заказы со склада</h2>
         <div class="po-meta">
           Предварительные: <strong>${preliminary.length}</strong> ·
-          Согласованы: <strong>${approved.length}</strong>
-          ${showPaymentCol ? ` · Ждут оплату: <strong>${awaitingPayment.length}</strong>` : ""} ·
+          Согласованы: <strong>${approved.length}</strong> ·
+          Ждут оплату: <strong>${awaitingPayment.length}</strong> ·
           Отгружены: <strong>${shipped.length}${listShippedDealOrders().length > 20 ? "+" : ""}</strong>
         </div>
       </div>
@@ -195,7 +181,6 @@ export function renderPreliminaryOrdersView() {
           </div>
         </div>
 
-        ${showPaymentCol ? `
         <div class="po-col">
           <div class="po-col-head">
             <span class="po-col-dot" style="--col:#a855f7"></span>
@@ -203,10 +188,12 @@ export function renderPreliminaryOrdersView() {
             <span class="po-col-count">${awaitingPayment.length}</span>
           </div>
           <div class="po-col-body">
-            ${awaitingPayment.map((d) => renderOrderCard(d, "awaiting_payment")).join("")}
+            ${awaitingPayment.length === 0
+              ? `<div class="po-empty"><div class="po-empty-icon">⏳</div><div class="po-empty-text">Пусто. Сюда попадают заказы при 100% предоплате — кнопка «⏳ Ждать оплату» в согласованном заказе.</div></div>`
+              : awaitingPayment.map((d) => renderOrderCard(d, "awaiting_payment")).join("")
+            }
           </div>
         </div>
-        ` : ""}
 
         <div class="po-col">
           <div class="po-col-head">
