@@ -1325,7 +1325,6 @@ function renderDealModal(d, contacts, stages) {
                   </div>`
               }
               ${renderDealContactBlock(contact, d, trashedContact)}
-              ${!isNew ? renderDealItemsSection(d.id, d.amount) : ""}
               ${renderTypeahead({
                 name: "assigneeId",
                 value: d.assigneeId,
