@@ -3,7 +3,7 @@
 // Phase 2.1: RTDB-proxy endpoint /api/rtdb/{path}.json (read + PATCH)
 
 import { jwtVerify, createRemoteJWKSet } from "jose";
-import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser, downloadFile as downloadChatFile } from "./chat-module.js";
+import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser, downloadFile as downloadChatFile, setWaNotifier } from "./chat-module.js";
 import { sendWebPush, VAPID_PUBLIC_KEY } from "./webpush.js";
 
 // ctx последнего fetch/scheduled — чтобы фоновую рассылку пушей (несколько
@@ -96,7 +96,7 @@ async function resolveCanonicalUser(env, claims) {
   // Bitrix/Firebase→D1). Первую берём канонической, ОСТАЛЬНЫЕ uid'ы сохраняем
   // как алиасы — под любым из них юзер мог попасть в org-структуру.
   const { results: userRows } = await env.DB.prepare(
-    "SELECT uid, email, name, last_name, position, photo, active FROM users WHERE LOWER(email) = ?"
+    "SELECT uid, email, name, last_name, position, photo, active, phone FROM users WHERE LOWER(email) = ?"
   ).bind(email).all();
   const userRow = (userRows && userRows[0]) ? userRows[0] : null;
 
@@ -1402,6 +1402,19 @@ async function handleList(request, env, entity) {
   // Downgrade недозволенных scope'ов:
   if (scope === "all" && me.role !== "admin") scope = "mine";
   if (scope === "team" && me.role === "agent") scope = "mine";
+
+  // ──── ORG-структура — источник истины для видимости deals/tasks/contacts ────
+  // Если юзер состоит в оргструктуре (hasAnyNode), реальные границы видимости
+  // задаёт блок orgPerms ниже (dealScope own|team|all + whitelist pipelineIds).
+  // Legacy scope='mine'/'team' тогда НЕ применяем — иначе dealScope='all'/'team'
+  // из структуры перетирался бы жёстким responsible=me, и сотрудник с правом
+  // «Все сделки» видел бы только свои (а при отсутствии своих — пустую воронку).
+  // Касается только deals/tasks/contacts (их покрывает orgPerms-блок); для
+  // прочих сущностей legacy scope остаётся как есть.
+  if (me.role !== 'admin' && me.orgPerms && me.orgPerms.hasAnyNode &&
+      (entity === 'deals' || entity === 'tasks' || entity === 'contacts')) {
+    scope = 'all';
+  }
 
   // Какой department целевой для scope=team?
   // - manager: всегда свой
@@ -3872,13 +3885,30 @@ const NOTIFIER_EVENTS = [
   { key: 'task_updated',  label: 'Изменения в задаче',                    def: false },
   { key: 'task_comment',  label: 'Комментарий к задаче',                  def: true },
   { key: 'deal_assigned', label: 'Назначена сделка',                      def: true },
-  { key: 'feed_post',     label: 'Новый пост в Ленте',                    def: false },
+  // feed_post (Лента) намеренно НЕ дублируется в WhatsApp — только in-app + web push.
+  // Лента — это широковещалка, рассылка её в личный WhatsApp всем сотрудникам
+  // выглядит как спам и грозит баном Green-API. См. NOTIF_TYPE_TO_EVENT ниже.
 ];
 function notifierDefaultEvents() {
   const o = {};
   for (const e of NOTIFIER_EVENTS) o[e.key] = e.def;
   return o;
 }
+
+// Карта тип-уведомления (createNotification opts.type) → ключ события оповещателя.
+// Любое уведомление, проходящее через createNotification, чей type есть в карте,
+// автоматически дублируется в личный WhatsApp (с проверкой тумблера в sendNotify).
+// Чат-сообщения (chat_dm/chat_message) идут отдельным путём через chat-module.
+const NOTIF_TYPE_TO_EVENT = {
+  wa_incoming:   'wa_incoming',
+  // feed_post НЕ маппится → посты Ленты не уходят в WhatsApp (только in-app + push).
+  call_missed:   'call_missed',
+  call_incoming: 'call_incoming',
+  task_assigned: 'task_assigned',
+  task_updated:  'task_updated',
+  task_comment:  'task_comment',
+  deal_assigned: 'deal_assigned',
+};
 function safeJsonParse(s, fallback) {
   if (s == null) return fallback;
   if (typeof s === 'object') return s;
@@ -3956,20 +3986,31 @@ async function sendNotify(env, { uid, phone, event, text, link }) {
     }
     let targetPhone = phone || null;
     let targetUid = uid || null;
+    let firstName = null;
     if (!targetPhone && uid) {
-      const u = await env.DB.prepare("SELECT phone, active FROM users WHERE uid = ?").bind(uid).first();
+      const u = await env.DB.prepare("SELECT phone, active, name FROM users WHERE uid = ?").bind(uid).first();
       if (!u) return logNotify(env, { uid, phone: null, event, text, link, status: 'skipped', error: 'no_user' });
       if (u.active === 0) return logNotify(env, { uid, phone: u.phone, event, text, link, status: 'skipped', error: 'inactive' });
       targetPhone = u.phone;
+      firstName = (u.name || '').trim().split(/\s+/)[0] || null;
     }
     if (!targetPhone) return logNotify(env, { uid: targetUid, phone: null, event, text, link, status: 'skipped', error: 'no_phone' });
-    const full = link ? `${text}\n\n${link}` : text;
+    // Персонализация (анти-бан Green-API): обращение по имени делает каждое
+    // сообщение уникальным, даже если событие рассылается нескольким получателям
+    // с одинаковым текстом. Идентичные массовые сообщения = спам-паттерн → бан.
+    const greeting = firstName ? `${firstName},\n` : '';
+    const body = greeting + text;
+    const full = link ? `${body}\n\n${link}` : body;
     const idMessage = await deliverNotifierRaw(cfg, targetPhone, full);
     return logNotify(env, { uid: targetUid, phone: targetPhone, event, text, link, status: 'sent', wa_message_id: idMessage });
   } catch (e) {
     return logNotify(env, { uid: uid || null, phone: phone || null, event, text, link, status: 'failed', error: String(e && e.message || e) });
   }
 }
+
+// Внедряем sendNotify в chat-module (чат-сообщения дублируются в WhatsApp).
+// Делается через сеттер, чтобы не плодить циклический импорт между модулями.
+try { setWaNotifier(sendNotify); } catch {}
 
 // GET /api/notifier — конфиг (токен замаскирован).
 async function handleNotifierGet(request, env) {
@@ -5036,6 +5077,18 @@ async function createNotification(env, opts) {
       if (CURRENT_CTX && typeof CURRENT_CTX.waitUntil === 'function') CURRENT_CTX.waitUntil(job);
       else await job;
     } catch (e) { console.warn('[push] schedule failed:', e && e.message); }
+    // WA-оповещатель: дублируем уведомление в личный WhatsApp, если для этого
+    // типа есть событие в карте. sendNotify сам проверит тумблер и наличие телефона.
+    try {
+      const waEvent = NOTIF_TYPE_TO_EVENT[opts.type];
+      if (waEvent) {
+        const waText = (opts.title || '') + (opts.body ? `\n${opts.body}` : '');
+        const waLink = opts.link ? (opts.link.startsWith('http') ? opts.link : 'https://pllato.kz' + opts.link) : null;
+        const waJob = sendNotify(env, { uid, event: waEvent, text: waText, link: waLink }).catch(() => {});
+        if (CURRENT_CTX && typeof CURRENT_CTX.waitUntil === 'function') CURRENT_CTX.waitUntil(waJob);
+        else await waJob;
+      }
+    } catch (e) { console.warn('[notif] wa relay failed:', e && e.message); }
     return id;
   } catch (e) {
     console.warn('[notif] create failed:', e && e.message);
@@ -5939,7 +5992,10 @@ async function handleMe(request, env) {
       position: me.userRecord.position,
       active: me.userRecord.active,
       photo: me.userRecord.photo,
+      phone: me.userRecord.phone || null,
     } : null,
+    // Признак для фронта: нужно ли требовать заполнить телефон (для нотифаера).
+    needsPhone: !!me.userRecord && !(me.userRecord.phone && String(me.userRecord.phone).trim()),
     isLinked: !!me.userRecord,        // false если email не нашёлся в users
     // Phase 2: effective permissions из org structure для frontend
     orgPerms: me.orgPerms ? {
@@ -5950,6 +6006,46 @@ async function handleMe(request, env) {
       teamSize: me.orgPerms.teamUids ? me.orgPerms.teamUids.size : 0,
     } : null,
   }, 200, request);
+}
+
+// Строгая нормализация телефона КЗ/РФ → канонический "+7XXXXXXXXXX" или null.
+// Принимает любой ввод с пробелами/скобками/дефисами; 8XXXXXXXXXX и 10-значный
+// локальный приводит к +7. Возвращает null если номер невалиден.
+function normalizePhoneKZ(raw) {
+  let d = String(raw == null ? '' : raw).replace(/\D/g, '');
+  if (!d) return null;
+  if (d.length === 11 && d[0] === '8') d = '7' + d.slice(1);   // 8XXXXXXXXXX → 7XXXXXXXXXX
+  if (d.length === 10) d = '7' + d;                            // локальный без кода страны
+  if (d.length === 11 && d[0] === '7') return '+' + d;         // канон
+  return null;
+}
+
+// POST /api/me/phone — сотрудник сам сохраняет свой телефон (для нотифаера).
+// Body: { phone }. Валидирует +7 формат, пишет в users.phone своей строки.
+async function handleSetMyPhone(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  if (!me.canonicalUid) return json({ error: "no canonical user" }, 400, request);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+
+  const phone = normalizePhoneKZ(body && body.phone);
+  if (!phone) {
+    return json({ error: "invalid_phone", message: "Введите корректный номер в формате +7XXXXXXXXXX" }, 400, request);
+  }
+
+  const res = await env.DB.prepare(
+    "UPDATE users SET phone = ? WHERE uid = ?"
+  ).bind(phone, me.canonicalUid).run();
+
+  const changed = res && res.meta ? (res.meta.changes || 0) : 0;
+  try {
+    await auditLog(env, me, "user_set_own_phone", "user", me.canonicalUid, { phone });
+  } catch {}
+
+  return json({ ok: true, phone, linked: changed > 0 }, 200, request);
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -6191,6 +6287,9 @@ export default {
 
     if (path === "/api/me" && request.method === "GET") {
       return handleMe(request, env);
+    }
+    if (path === "/api/me/phone" && request.method === "POST") {
+      return handleSetMyPhone(request, env);
     }
 
     // ── /api/placement/* — тест на уровень (студент без логина в CRM) ──────
