@@ -4803,6 +4803,18 @@ body {
   color: white;
 }
 
+/* SIP-плашка «Готов к звонкам» (.sipc-bottombar из общего SIP-модуля —
+   position:fixed; right:16px; bottom:16px; z-index:99998) перекрывала правую
+   кнопку нижнего action-bar (сделка / заказ / контакт). Пока открыта модалка
+   с нижним подвалом — приподнимаем плашку над ним (как side-панель звонка,
+   которая сама стоит на bottom:80px). Специфичность body:has(...) .sipc-bottombar
+   выше, чем у базового .sipc-bottombar, поэтому !important не нужен. */
+body:has(.deal-action-bar) .sipc-bottombar,
+body:has(.dim-footer) .sipc-bottombar {
+  bottom: 84px;
+  transition: bottom .18s ease, background .2s, padding .2s;
+}
+
 /* --- Плавающее WhatsApp-окно (поверх карточки сделки) --- */
 .wa-float {
   position: fixed;
