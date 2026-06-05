@@ -12,6 +12,7 @@
 
 import { Store } from "./store.js";
 import { apiFetch } from "./auth.js";
+import { listDeliveryPointsForContact, saveDeliveryPoint, getDeliveryPoint } from "./delivery_points.js";
 
 // Подтверждённые GUID базы Аминамед (ea186/263825). ⚠ На проверку Асем.
 const ONE_C_KZT_REF = "9e9a6ffb-aa56-11e1-b9c4-002215ba1bbe";
@@ -203,6 +204,8 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
     const hasClient = !!state.contact?.id;
     const contracts = listContractsFor(state.contractorRef);
     const defaultDelivery = defaultDeliveryAddress(state.contact);
+    const deliveryPoints = state.contact?.id ? listDeliveryPointsForContact(state.contact.id) : [];
+    const primaryPoint = deliveryPoints.find((p) => p.isPrimary) || deliveryPoints[0] || null;
     const clientResults = hasClient ? [] : searchClientContacts(state.clientSearch);
     const blockers = [];
     if (!hasClient) blockers.push("Не выбран клиент — выберите его выше.");
@@ -246,7 +249,15 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
           ${state.contractorRef && contracts.length === 0 ? `<div style="font-size:11.5px;color:var(--text-muted,#888);margin:-8px 0 12px">Договоров клиента не найдено в загруженных. Обновите «Договоры» в «1С интеграция».</div>` : ""}
 
           <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Адрес доставки</label>
-          <input id="onec-delivery" type="text" value="${esc(defaultDelivery)}" placeholder="город, адрес" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
+          ${deliveryPoints.length ? `
+          <select id="onec-delivery-select" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:6px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
+            ${deliveryPoints.map((p) => `<option value="${esc(p.id)}"${primaryPoint && p.id === primaryPoint.id ? " selected" : ""}>${esc(p.label || [p.city, p.address].filter(Boolean).join(", "))}</option>`).join("")}
+            <option value="__manual__">➕ Другой адрес (ввести вручную)</option>
+          </select>
+          <input id="onec-delivery" type="text" value="" placeholder="город, адрес" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111);display:none">
+          ` : `
+          <input id="onec-delivery" type="text" value="${esc(defaultDelivery)}" placeholder="город, адрес — запомнится для клиента" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
+          `}
 
           ${docType === "invoice" ? `
           <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Код назначения платежа</label>
@@ -435,11 +446,28 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
       if (dateEl) dateEl.style.display = e.target.value === "postpay" ? "block" : "none";
     });
 
+    // Адрес доставки: «Другой адрес» → показать поле ручного ввода.
+    overlay.querySelector("#onec-delivery-select")?.addEventListener("change", (e) => {
+      const inp = overlay.querySelector("#onec-delivery");
+      if (inp) { inp.style.display = e.target.value === "__manual__" ? "block" : "none"; if (e.target.value === "__manual__") inp.focus(); }
+    });
+
     const createBtn = overlay.querySelector("#onec-create");
     createBtn?.addEventListener("click", async () => {
       const base = currentBase();
       const contractRef = overlay.querySelector("#onec-contract")?.value || null;
-      const deliveryAddress = (overlay.querySelector("#onec-delivery")?.value || "").trim() || null;
+      // Адрес доставки: из выбранной точки клиента или ручной ввод (новый — запомним).
+      let deliveryAddress = null;
+      const deliverySel = overlay.querySelector("#onec-delivery-select");
+      const deliveryManual = (overlay.querySelector("#onec-delivery")?.value || "").trim();
+      if (deliverySel && deliverySel.value && deliverySel.value !== "__manual__") {
+        const pt = getDeliveryPoint(deliverySel.value);
+        deliveryAddress = pt ? (pt.label || [pt.city, pt.address].filter(Boolean).join(", ")) : null;
+      } else if (deliveryManual) {
+        deliveryAddress = deliveryManual;
+        // Запоминаем новый адрес как точку доставки клиента (для будущих заказов).
+        if (state.contact?.id) { try { saveDeliveryPoint({ contactId: state.contact.id, address: deliveryManual }); } catch {} }
+      }
       const payPurpose = overlay.querySelector("#onec-paypurpose")?.value || "710";
       const payScheme = overlay.querySelector("#onec-payscheme")?.value || "";
       const postpayDue = overlay.querySelector("#onec-postpay-date")?.value || "";
