@@ -152,7 +152,7 @@ function buildLines(items) {
     const product = it.productId ? Store.get("warehouse_products", it.productId) : null;
     const name = product?.name || it.name || "Позиция";
     const ref = product?._1c_ref_key || null;
-    if (!ref) { unmatched.push({ name }); continue; }
+    if (!ref) { unmatched.push({ name, productId: it.productId || null, sku: product?.sku || "" }); continue; }
     if (product?._1c_match_ambiguous) ambiguous.push(name);
     lines.push({
       productRef: ref,
@@ -179,9 +179,15 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
   const meta = DOC_META[docType] || DOC_META.invoice;
   closeDialog();
 
-  const { lines, unmatched, ambiguous } = buildLines(items || []);
-  const total = lines.reduce((s, l) => s + (l.sum || 0), 0);
+  let { lines, unmatched, ambiguous } = buildLines(items || []);
+  let total = lines.reduce((s, l) => s + (l.sum || 0), 0);
   const activeCount = (items || []).filter((i) => (Number(i.qty) || 0) > 0).length;
+  // Пересчёт после привязки несопоставленной позиции «на месте».
+  function recomputeLines() {
+    const r = buildLines(items || []);
+    lines = r.lines; unmatched = r.unmatched; ambiguous = r.ambiguous;
+    total = lines.reduce((s, l) => s + (l.sum || 0), 0);
+  }
 
   const state = { contractorRef: contact?._1c_ref_key || null, busyContractor: false, contractorMsg: "", base: "aminamed", contact: contact || null, clientSearch: "" };
   const currentBase = () => overlay.querySelector("#onec-base")?.value || state.base || "aminamed";
@@ -283,8 +289,21 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
           </table>
 
           ${unmatched.length ? `<div style="background:#fff3e0;border:1px solid #f59e0b;border-radius:8px;padding:10px 12px;margin:10px 0;font-size:12.5px;color:#92400e">
-            ⚠ <strong>${unmatched.length}</strong> позиц. не сопоставлены с 1С и НЕ войдут в документ: ${unmatched.slice(0, 6).map((u) => esc(u.name)).join("; ")}${unmatched.length > 6 ? "…" : ""}.
-            Сопоставьте их в «1С интеграция → Сопоставить / Привязать вручную».
+            ⚠ <strong>${unmatched.length}</strong> позиц. не сопоставлены с 1С — без привязки они <strong>не войдут</strong> в документ. Найдите товар в 1С (по названию или коду) и нажмите «Привязать»:
+            <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+              ${unmatched.map((u) => `
+                <div class="onec-um-row" data-pid="${esc(u.productId || "")}" style="background:var(--surface,#fff);border:1px solid #fde68a;border-radius:8px;padding:8px 10px">
+                  <div style="font-weight:600;color:var(--text,#111);margin-bottom:5px">${esc(u.name)}${u.sku ? ` <span style="opacity:.5;font-weight:400">${esc(u.sku)}</span>` : ""}</div>
+                  ${u.productId ? `
+                    <div style="display:flex;gap:6px">
+                      <input type="search" class="onec-um-q" placeholder="Поиск в номенклатуре 1С…" value="${esc(u.name)}" style="flex:1;padding:6px 8px;border:1px solid var(--border,#ccc);border-radius:6px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
+                      <button type="button" class="onec-um-search btn-ghost" style="padding:6px 10px;font-size:13px;white-space:nowrap">Искать</button>
+                    </div>
+                    <div class="onec-um-results" style="margin-top:6px"></div>
+                  ` : `<div style="font-size:11.5px;color:#92400e">Нет товара на складе — привязать нельзя.</div>`}
+                </div>
+              `).join("")}
+            </div>
           </div>` : ""}
 
           <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:11px 13px;margin-top:8px;font-size:12.5px;color:#9a3412;line-height:1.5">
@@ -329,6 +348,39 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
     overlay.querySelector("#onec-client-change")?.addEventListener("click", () => {
       state.contact = null; state.contractorRef = null; state.clientSearch = "";
       render();
+    });
+
+    // Привязка несопоставленных позиций «на месте» (поиск номенклатуры 1С + Привязать).
+    overlay.querySelectorAll(".onec-um-row").forEach((row) => {
+      const pid = row.dataset.pid;
+      if (!pid) return;
+      const q = row.querySelector(".onec-um-q");
+      const btn = row.querySelector(".onec-um-search");
+      const res = row.querySelector(".onec-um-results");
+      const doSearch = async () => {
+        const text = (q.value || "").trim();
+        if (text.length < 2) { res.innerHTML = '<span style="font-size:11.5px;color:#888">Введите минимум 2 символа</span>'; return; }
+        res.innerHTML = '<span style="font-size:11.5px;color:#888">Ищем в 1С…</span>';
+        try {
+          // Поиск по базе Аминамед: _1c_ref_key — аминамедовский реф (для др. баз
+          // воркер резолвит номенклатуру вживую по артикулу из названия).
+          const r = await apiFetch("/api/crm/1c/nomenclature/search?q=" + encodeURIComponent(text));
+          const found = r?.results || [];
+          if (!found.length) { res.innerHTML = '<span style="font-size:11.5px;color:#888">Ничего не найдено в 1С</span>'; return; }
+          res.innerHTML = found.map((x) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-top:1px solid var(--border,#f0f0f0)"><span style="font-size:12.5px;color:var(--text,#111)">${esc(x.name)} <span style="opacity:.5">${esc(x.code || "")}</span></span><button type="button" class="onec-um-pick btn-ghost" data-ref="${esc(x.ref)}" data-unit="${esc(x.unit || "")}" data-vat="${esc(x.vat || "")}" style="padding:4px 10px;font-size:12px;white-space:nowrap">Привязать</button></div>`).join("");
+          res.querySelectorAll(".onec-um-pick").forEach((b) => b.addEventListener("click", async () => {
+            b.disabled = true; b.textContent = "…";
+            try {
+              await apiFetch("/api/crm/1c/products/map", { method: "POST", body: { productId: pid, refKey: b.dataset.ref, unitRef: b.dataset.unit || null, vatRef: b.dataset.vat || null } });
+              try { Store.update("warehouse_products", pid, { _1c_ref_key: b.dataset.ref, _1c_unit_ref: b.dataset.unit || null, _1c_vat_ref: b.dataset.vat || null, _1c_match_method: "manual", _1c_match_ambiguous: false }); } catch {}
+              recomputeLines();
+              render();
+            } catch (e) { b.disabled = false; b.textContent = "Привязать"; alert("Ошибка привязки: " + (e?.message || String(e))); }
+          }));
+        } catch (e) { res.innerHTML = '<span style="color:#dc2626;font-size:11.5px">Ошибка: ' + esc(e?.message || String(e)) + '</span>'; }
+      };
+      btn?.addEventListener("click", doSearch);
+      q?.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); doSearch(); } });
     });
 
     // Поиск контрагента в 1С по БИН (решение встречи 01.06).
