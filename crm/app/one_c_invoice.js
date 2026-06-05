@@ -18,6 +18,18 @@ const ONE_C_KZT_REF = "9e9a6ffb-aa56-11e1-b9c4-002215ba1bbe";
 // Ставка НДС по умолчанию 5% (Асем: 99% товаров — 5%). Если у товара есть своя
 // ставка из 1С (_1c_vat_ref) — берём её, иначе этот дефолт.
 const ONE_C_VAT_5 = "34dffed7-e9fb-11f0-b296-005056815627";
+// Справочник ставок НДС из 1С (разведано 04.06 inspect Catalog_СтавкиНДС).
+// GUID-ы ОДИНАКОВЫ во всех 3 базах (проверено Аминамед/Алишерова/Баймуханова).
+// Дефолт 5%; выбор document-level (применяется ко всем позициям).
+const ONE_C_VAT_RATES = [
+  { ref: "34dffed7-e9fb-11f0-b296-005056815627", label: "5%" },
+  { ref: "c4d32414-aa56-11e1-b9c4-002215ba1bbe", label: "0%" },
+  { ref: "fecafe35-ec4d-11f0-b2a3-005056818aec", label: "10%" },
+  { ref: "2aac9ae8-aa57-11e1-b9c4-002215ba1bbe", label: "12%" },
+  { ref: "c4d32415-aa56-11e1-b9c4-002215ba1bbe", label: "13%" },
+  { ref: "fecafe34-ec4d-11f0-b2a3-005056818aec", label: "16%" },
+  { ref: "2aac9ae9-aa57-11e1-b9c4-002215ba1bbe", label: "Без НДС" },
+];
 // Юр.лица = базы 1С. Выбор базы роутит документ/контрагента/номенклатуру в неё
 // (сервер сам подставит организацию-отправителя этой базы).
 const ONE_C_BASES_UI = [
@@ -205,6 +217,11 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
           <input id="onec-postpay-date" type="date" value="${esc(deal.postpayDueDate || "")}" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111);display:${(deal.paymentScheme || "") === "postpay" ? "block" : "none"}" title="Дата, до которой клиент должен оплатить (постоплата)">
           ` : ""}
 
+          <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Ставка НДС (на весь документ)</label>
+          <select id="onec-vat" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
+            ${ONE_C_VAT_RATES.map((v) => `<option value="${esc(v.ref)}"${v.ref === (deal.oneCVatRef || ONE_C_VAT_5) ? " selected" : ""}>${esc(v.label)}</option>`).join("")}
+          </select>
+
           <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Комментарий (попадёт в 1С)</label>
           <textarea id="onec-comment" rows="2" placeholder="необязательно — добавится к пометке Pllato CRM" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111);resize:vertical">${esc(deal.oneCComment || "")}</textarea>
 
@@ -305,6 +322,7 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
       const payPurpose = overlay.querySelector("#onec-paypurpose")?.value || "710";
       const payScheme = overlay.querySelector("#onec-payscheme")?.value || "";
       const postpayDue = overlay.querySelector("#onec-postpay-date")?.value || "";
+      const vatRef = overlay.querySelector("#onec-vat")?.value || ONE_C_VAT_5;
       const userComment = (overlay.querySelector("#onec-comment")?.value || "").trim();
       // Маркер Pllato + комментарий менеджера через запятую (Асем: «будем видеть, что это интеграция СРМ»).
       const comment = ["Создано из Pllato CRM (черновик)", userComment].filter(Boolean).join(", ");
@@ -323,14 +341,15 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
           comment,
           post: false,
           lines: lines.map((l) => ({
-            productRef: l.productRef, unitRef: l.unitRef, vatRateRef: l.vatRateRef,
+            productRef: l.productRef, unitRef: l.unitRef, vatRateRef: vatRef,
             qty: l.qty, price: l.price, sum: l.sum, name: l.name,
           })),
         };
-        // Схема оплаты — CRM-сторона (в 1С статус оплачено/отгружено ставится сам).
+        // Схема оплаты + ставка НДС — CRM-сторона (в 1С статус оплачено/отгружено ставится сам).
         try {
           Store.update("deals", deal.id, {
             oneCPaymentPurpose: payPurpose,
+            oneCVatRef: vatRef,
             oneCComment: userComment || null,
             ...(docType === "invoice" ? { paymentScheme: payScheme || null, postpayDueDate: payScheme === "postpay" ? (postpayDue || null) : null } : {}),
           });
