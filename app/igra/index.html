@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Игра — портал школы актёрского мастерства</title>
+<style>
+:root{
+  --bg:#f5f4fb; --panel:#ffffff; --panel-2:#f7f6fc; --line:#e9e6f4;
+  --text:#1c1730; --muted:#6f6890; --brand:#7c3aed; --brand-2:#6526c9;
+  --gold:#c79a2a; --gold-bg:#faf2dc;
+  --green:#1ea672; --green-bg:#e4f7ee; --red:#e04545; --red-bg:#fdecec;
+  --amber:#e0941a; --amber-bg:#fcf2dd; --violet:#9b5cf0; --violet-bg:#f0e9fe;
+  --pink:#d6427e; --pink-bg:#fbe7f0;
+  --radius:14px; --shadow:0 1px 3px rgba(40,20,80,.06),0 8px 24px rgba(40,20,80,.06);
+}
+[data-theme="dark"]{
+  --bg:#100c1d; --panel:#181228; --panel-2:#1f1733; --line:#2c2347;
+  --text:#ece8f7; --muted:#9a8fc0; --brand:#9d6bff; --brand-2:#7c45e0;
+  --gold:#e3b94b; --gold-bg:#2f2614;
+  --green:#2fc98e; --green-bg:#10342a; --red:#ff6b6b; --red-bg:#3a1f1f;
+  --amber:#f0b350; --amber-bg:#3a2e16; --violet:#b083ff; --violet-bg:#271b40;
+  --pink:#ef6aa0; --pink-bg:#39172a;
+  --shadow:0 1px 3px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif;
+  background:var(--bg);color:var(--text);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.app{display:grid;grid-template-columns:244px 1fr;min-height:100vh}
+
+/* Sidebar */
+.sidebar{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.logo{display:flex;align-items:center;gap:11px;padding:18px 18px 14px;border-bottom:1px solid var(--line)}
+.logo .mark{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--brand),var(--pink));
+  display:grid;place-items:center;color:#fff;font-weight:800;font-size:19px;box-shadow:0 4px 12px rgba(124,58,237,.35)}
+.logo b{font-size:16px;letter-spacing:.2px}
+.logo small{display:block;color:var(--muted);font-size:11px;font-weight:500}
+.nav{padding:8px 10px;overflow-y:auto;flex:1}
+.nav .grp{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);padding:14px 12px 6px;font-weight:700}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;color:var(--muted);font-weight:600;cursor:pointer;position:relative}
+.nav a:hover{background:var(--panel-2);color:var(--text)}
+.nav a.active{background:var(--brand);color:#fff;box-shadow:0 4px 12px rgba(124,58,237,.3)}
+.nav a .ic{width:18px;text-align:center;font-size:15px}
+.nav a .badge{margin-left:auto;font-size:10.5px;background:var(--red);color:#fff;padding:1px 7px;border-radius:20px;font-weight:700}
+.nav a.active .badge{background:rgba(255,255,255,.25)}
+.side-foot{padding:12px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--violet-bg);color:var(--violet);display:grid;place-items:center;font-weight:700;flex-shrink:0}
+.side-foot small{color:var(--muted);font-size:11px}
+
+/* Topbar */
+.main{display:flex;flex-direction:column;min-width:0}
+.topbar{display:flex;align-items:center;gap:14px;padding:14px 24px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.topbar h1{font-size:18px;font-weight:800}
+.topbar .sub{color:var(--muted);font-size:12px;margin-top:1px}
+.search{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:10px;padding:8px 12px;width:300px;color:var(--muted)}
+.search input{border:0;background:transparent;color:var(--text);outline:none;width:100%;font-size:13px}
+.icbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);cursor:pointer;
+  display:grid;place-items:center;font-size:16px;color:var(--text)}
+.icbtn:hover{border-color:var(--brand)}
+.content{padding:24px;max-width:1520px;width:100%}
+
+/* Generic */
+.row{display:flex;gap:16px;flex-wrap:wrap}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.card-h h3{font-size:14.5px;font-weight:700}
+.card-h .act{margin-left:auto;display:flex;gap:8px;align-items:center}
+.card-b{padding:18px}
+.btn{border:1px solid var(--line);background:var(--panel-2);color:var(--text);padding:8px 14px;border-radius:9px;
+  font-weight:600;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{border-color:var(--brand)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary:hover{background:var(--brand-2)}
+.btn.sm{padding:5px 10px;font-size:12px}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:#2a2008}
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(4,1fr)}
+.kpis6{grid-template-columns:repeat(6,1fr)}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.kpi .lbl{color:var(--muted);font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px}
+.kpi .val{font-size:25px;font-weight:800;margin-top:8px;letter-spacing:-.5px}
+.kpi .delta{font-size:11.5px;font-weight:700;margin-top:4px}
+.kpi .ic2{position:absolute;right:14px;top:14px;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:18px}
+.up{color:var(--green)} .down{color:var(--red)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.chip.green{background:var(--green-bg);color:var(--green)}
+.chip.red{background:var(--red-bg);color:var(--red)}
+.chip.amber{background:var(--amber-bg);color:var(--amber)}
+.chip.blue{background:#e7eefd;color:var(--brand)}
+.chip.violet{background:var(--violet-bg);color:var(--violet)}
+.chip.pink{background:var(--pink-bg);color:var(--pink)}
+.chip.gold{background:var(--gold-bg);color:var(--gold)}
+.chip.gray{background:var(--panel-2);color:var(--muted)}
+[data-theme="dark"] .chip.blue{background:#1c1740;color:var(--brand)}
+.dot{width:8px;height:8px;border-radius:50%}
+
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;padding:11px 14px;border-bottom:1px solid var(--line)}
+td{padding:12px 14px;border-bottom:1px solid var(--line);font-size:13px}
+tr:last-child td{border-bottom:0}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--panel-2)}
+.t-wrap{overflow-x:auto}
+.muted{color:var(--muted)}
+.b{font-weight:700}
+.who{display:flex;align-items:center;gap:10px}
+.who .ava{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:12px;flex-shrink:0}
+.who small{display:block;color:var(--muted);font-size:11.5px}
+.tabs{display:flex;gap:6px;background:var(--panel-2);padding:4px;border-radius:11px;border:1px solid var(--line)}
+.tab{padding:7px 14px;border-radius:8px;font-weight:600;font-size:13px;color:var(--muted);cursor:pointer}
+.tab.active{background:var(--panel);color:var(--text);box-shadow:var(--shadow)}
+
+.page{display:none}
+.page.active{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.bar{height:8px;background:var(--panel-2);border-radius:6px;overflow:hidden}
+.bar > i{display:block;height:100%;border-radius:6px;background:var(--brand)}
+.minibars{display:flex;align-items:flex-end;gap:10px;height:150px;padding-bottom:24px}
+.minibars .b2{flex:1;background:linear-gradient(180deg,var(--brand),var(--pink));border-radius:6px 6px 0 0;position:relative;min-height:6px;transition:.3s}
+.minibars .b2:hover{opacity:.85}
+.minibars .b2 span{position:absolute;bottom:-22px;left:0;right:0;text-align:center;font-size:10.5px;color:var(--muted)}
+.minibars .b2 em{position:absolute;top:-20px;left:0;right:0;text-align:center;font-size:10.5px;font-weight:700;color:var(--text);font-style:normal;opacity:0;transition:.2s}
+.minibars .b2:hover em{opacity:1}
+
+.signal{display:flex;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line);align-items:flex-start}
+.signal:last-child{border-bottom:0}
+.signal .si{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:16px;flex-shrink:0}
+.signal .tt{font-weight:700;font-size:13.5px}
+.signal .ds{color:var(--muted);font-size:12.5px;margin-top:2px}
+.signal time{margin-left:auto;color:var(--muted);font-size:11.5px;white-space:nowrap}
+
+/* kanban */
+.kanban{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.kcol{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:11px}
+.kcol h4{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:7px;margin-bottom:10px;padding:0 2px}
+.kcol h4 .cnt{margin-left:auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);font-size:11px;padding:1px 8px;border-radius:20px}
+.kcard{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:9px;cursor:pointer;box-shadow:var(--shadow)}
+.kcard:hover{border-color:var(--brand)}
+.kcard .kt{font-weight:700;font-size:13px}
+.kcard .km{color:var(--muted);font-size:12px;margin-top:3px}
+.kcard .kf{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:11.5px;flex-wrap:wrap}
+
+/* schedule grid */
+.sched{display:grid;grid-template-columns:64px repeat(6,1fr);gap:6px;min-width:920px}
+.sched .hd{font-size:11.5px;font-weight:700;color:var(--muted);text-align:center;padding:6px 0;text-transform:uppercase;letter-spacing:.4px}
+.sched .tm{font-size:11px;color:var(--muted);text-align:right;padding-right:8px;padding-top:4px}
+.sl{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;min-height:54px;position:relative}
+.les{border-radius:9px;padding:7px 9px;font-size:11.5px;cursor:pointer;height:100%;border:1px solid transparent;overflow:hidden}
+.les b{font-size:12px;display:block;font-weight:700}
+.les small{opacity:.85;font-size:10.5px}
+.les:hover{filter:brightness(1.03);transform:translateY(-1px)}
+.les.l-act{background:var(--violet-bg);color:var(--violet);border-color:color-mix(in srgb,var(--violet) 30%,transparent)}
+.les.l-rech{background:color-mix(in srgb,var(--brand) 14%,var(--panel));color:var(--brand);border-color:color-mix(in srgb,var(--brand) 30%,transparent)}
+.les.l-plast{background:var(--green-bg);color:var(--green);border-color:color-mix(in srgb,var(--green) 30%,transparent)}
+.les.l-vocal{background:var(--pink-bg);color:var(--pink);border-color:color-mix(in srgb,var(--pink) 30%,transparent)}
+.les.l-kino{background:var(--gold-bg);color:var(--gold);border-color:color-mix(in srgb,var(--gold) 30%,transparent)}
+
+/* attendance roster */
+.roster .rrow{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.roster .rrow:last-child{border-bottom:0}
+.att-tg{display:flex;gap:6px;margin-left:auto}
+.att-tg button{border:1px solid var(--line);background:var(--panel-2);color:var(--muted);width:38px;height:34px;border-radius:9px;cursor:pointer;font-size:15px;font-weight:700}
+.att-tg button.on.p{background:var(--green);border-color:var(--green);color:#fff}
+.att-tg button.on.a{background:var(--red);border-color:var(--red);color:#fff}
+.att-tg button.on.e{background:var(--amber);border-color:var(--amber);color:#fff}
+
+/* productions */
+.prods{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.prod{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);cursor:pointer}
+.prod:hover{border-color:var(--brand)}
+.prod .ph{height:96px;background:linear-gradient(135deg,var(--brand),var(--pink));display:flex;align-items:flex-end;padding:12px;color:#fff;position:relative}
+.prod .ph.g2{background:linear-gradient(135deg,#0ea5a8,#7c3aed)}
+.prod .ph.g3{background:linear-gradient(135deg,var(--gold),var(--pink))}
+.prod .ph .em{position:absolute;right:12px;top:10px;font-size:30px;opacity:.4}
+.prod .pb{padding:14px}
+.prod .meta{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.cast{display:flex;align-items:center;margin-top:6px}
+.cast .ava{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;margin-left:-7px;border:2px solid var(--panel)}
+.cast .more{width:28px;height:28px;border-radius:50%;background:var(--panel-2);color:var(--muted);display:grid;place-items:center;font-size:11px;font-weight:700;margin-left:-7px;border:2px solid var(--panel)}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(20,12,40,.55);backdrop-filter:blur(3px);display:none;z-index:100;padding:40px 20px;overflow-y:auto}
+.modal-bg.open{display:flex;align-items:flex-start;justify-content:center}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;width:100%;max-width:760px;box-shadow:0 20px 60px rgba(0,0,0,.35);animation:pop .2s ease}
+@keyframes pop{from{opacity:0;transform:scale(.97) translateY(10px)}to{opacity:1;transform:none}}
+.modal-h{display:flex;align-items:center;gap:12px;padding:20px 22px;border-bottom:1px solid var(--line)}
+.modal-h h3{font-size:17px;font-weight:800}
+.modal-h .x{margin-left:auto;cursor:pointer;font-size:22px;color:var(--muted);line-height:1}
+.modal-b{padding:22px;max-height:74vh;overflow-y:auto}
+.kv{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 26px}
+.kv .it .k{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.kv .it .v{font-weight:600;margin-top:3px;font-size:14px}
+.sec-title{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin:20px 0 10px}
+.syslist{display:flex;flex-wrap:wrap;gap:8px}
+.timeline .ev{display:flex;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line)}
+.timeline .ev:last-child{border-bottom:0}
+.timeline .ev .td{font-size:11.5px;color:var(--muted);width:90px;flex-shrink:0}
+
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+select,input.fld{border:1px solid var(--line);background:var(--panel-2);color:var(--text);border-radius:9px;padding:8px 11px;font-size:13px;outline:none}
+select:focus,input.fld:focus{border-color:var(--brand)}
+
+.form{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}
+.form .fg{display:flex;flex-direction:column;gap:6px}
+.form .fg.full{grid-column:1 / -1}
+.form label{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700}
+.form input,.form select,.form textarea{border:1px solid var(--line);background:var(--panel-2);color:var(--text);border-radius:9px;padding:9px 11px;font-size:13.5px;outline:none;font-family:inherit;width:100%}
+.form input:focus,.form select:focus,.form textarea:focus{border-color:var(--brand)}
+.form .hint{font-size:11.5px;color:var(--muted)}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+.create-menu{display:grid;gap:10px}
+.create-menu .cm{display:flex;align-items:center;gap:13px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:var(--panel-2)}
+.create-menu .cm:hover{border-color:var(--brand);background:var(--panel)}
+.create-menu .cm .ci{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:19px;flex-shrink:0}
+.create-menu .cm b{font-size:14px}
+.create-menu .cm small{display:block;color:var(--muted);font-size:12px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);
+  padding:12px 22px;border-radius:12px;font-weight:700;font-size:13.5px;box-shadow:0 12px 40px rgba(0,0,0,.3);z-index:200;
+  opacity:0;transition:.3s;display:flex;align-items:center;gap:9px}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.donut{width:160px;height:160px;border-radius:50%;display:grid;place-items:center;flex-shrink:0}
+.donut .hole{width:104px;height:104px;border-radius:50%;background:var(--panel);display:grid;place-items:center;text-align:center}
+.legend{display:flex;flex-direction:column;gap:11px}
+.legend .lg{display:flex;align-items:center;gap:9px;font-size:13px}
+.legend .lg b{margin-left:auto}
+
+.funnel{display:flex;flex-direction:column;gap:8px}
+.funnel .fr{display:flex;align-items:center;gap:12px}
+.funnel .fbar{height:38px;border-radius:9px;background:linear-gradient(90deg,var(--brand),var(--pink));display:flex;align-items:center;padding:0 14px;color:#fff;font-weight:700;font-size:13px;min-width:90px}
+.funnel .fl{width:170px;font-size:13px}
+.funnel .fp{color:var(--muted);font-size:12px;width:56px;text-align:right}
+
+.rule{display:flex;align-items:center;gap:13px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.rule:last-child{border-bottom:0}
+.rule .ri{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:18px;flex-shrink:0}
+.rule .rt{font-weight:700;font-size:13.5px}
+.rule .rd{color:var(--muted);font-size:12.5px;margin-top:2px}
+.switch{margin-left:auto;width:44px;height:25px;border-radius:20px;background:var(--green);position:relative;cursor:pointer;flex-shrink:0}
+.switch.off{background:var(--line)}
+.switch i{position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.switch.off i{left:22px;background:var(--muted)}
+
+.prog-ring{display:flex;align-items:center;gap:10px}
+.miniring{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;flex-shrink:0}
+
+@media(max-width:1200px){.kpis6{grid-template-columns:repeat(3,1fr)}.kanban{grid-template-columns:repeat(2,1fr)}.prods{grid-template-columns:1fr 1fr}}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:860px){.app{grid-template-columns:1fr}.sidebar{display:none}.kv{grid-template-columns:1fr}.prods{grid-template-columns:1fr}.kanban{grid-template-columns:1fr}.search{display:none}}
+</style>
+</head>
+<body data-theme="light">
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="mark">🎭</div>
+      <div><b>Игра</b><small>Школа актёрского мастерства</small></div>
+    </div>
+    <nav class="nav" id="nav">
+      <a data-page="dash" class="active"><span class="ic">📊</span>Дашборд</a>
+      <div class="grp">Привлечение</div>
+      <a data-page="leads"><span class="ic">🎯</span>Воронка лидов<span class="badge">9</span></a>
+      <div class="grp">Учебный процесс</div>
+      <a data-page="students"><span class="ic">🧑‍🎓</span>Ученики</a>
+      <a data-page="groups"><span class="ic">🎬</span>Группы и студии</a>
+      <a data-page="sched"><span class="ic">🗓</span>Расписание</a>
+      <a data-page="att"><span class="ic">✅</span>Посещения</a>
+      <a data-page="prods"><span class="ic">🎟</span>Постановки</a>
+      <div class="grp">Деньги</div>
+      <a data-page="finance"><span class="ic">💰</span>Абонементы и деньги</a>
+      <a data-page="debt"><span class="ic">⚠️</span>Дебиторка<span class="badge">11</span></a>
+      <div class="grp">Команда и контроль</div>
+      <a data-page="teachers"><span class="ic">🎓</span>Педагоги</a>
+      <a data-page="remind"><span class="ic">🔔</span>Напоминания</a>
+      <a data-page="analytics"><span class="ic">📈</span>Аналитика</a>
+    </nav>
+    <div class="side-foot">
+      <div class="avatar">АК</div>
+      <div><b style="font-size:13px">Алина К.</b><small>Администратор</small></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <h1 id="ptitle">Дашборд</h1>
+        <div class="sub" id="psub">Сводка по школе · обновлено сегодня в 09:40</div>
+      </div>
+      <label class="search">🔎<input placeholder="Поиск ученика, группы, лида…"></label>
+      <button class="icbtn" id="theme">🌙</button>
+      <button class="btn primary" id="btn-create">＋ Создать</button>
+    </header>
+
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <div class="modal-h"><h3 id="m-title">—</h3><div class="x" id="m-close">✕</div></div>
+    <div class="modal-b" id="m-body"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const money=n=>(n<0?'−':'')+Math.abs(n).toLocaleString('ru-RU')+' ₸';
+const pal=['#7c3aed','#d6427e','#0ea5a8','#c79a2a','#1ea672','#e0941a','#9b5cf0','#e04545'];
+const initials=n=>n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+function avaColor(n){let h=0;for(const c of n)h=(h*31+c.charCodeAt(0))%pal.length;return pal[h];}
+
+/* ============ DATA ============ */
+const teachers=[
+  {id:1,name:'Марат Орынбасаров',role:'Актёрское мастерство',groups:5,students:48,rating:4.9,load:86,exp:'12 лет'},
+  {id:2,name:'Дина Сапарова',role:'Сценическая речь',groups:4,students:39,rating:4.8,load:72,exp:'7 лет'},
+  {id:3,name:'Тимур Жаксыбеков',role:'Сценическое движение',groups:3,students:31,rating:4.7,load:64,exp:'9 лет'},
+  {id:4,name:'Аружан Бекова',role:'Вокал · импровизация',groups:3,students:27,rating:5.0,load:58,exp:'5 лет'},
+  {id:5,name:'Олег Резник',role:'Кино · работа в кадре',groups:2,students:22,rating:4.6,load:44,exp:'14 лет'},
+];
+const tName=id=>teachers.find(t=>t.id===id)?.name||'—';
+
+const groups=[
+  {id:1,name:'Светлячки',age:'5–7 лет',dir:'act',teacher:1,hall:'Зал А',cap:12,cnt:11,sch:'Пн, Ср 16:00'},
+  {id:2,name:'Искра',age:'8–10 лет',dir:'act',teacher:1,hall:'Зал А',cap:14,cnt:14,sch:'Вт, Чт 16:30'},
+  {id:3,name:'Дубль',age:'11–13 лет',dir:'kino',teacher:5,hall:'Студия',cap:10,cnt:8,sch:'Сб 11:00'},
+  {id:4,name:'Голос',age:'9–12 лет',dir:'vocal',teacher:4,hall:'Зал Б',cap:12,cnt:9,sch:'Пн, Пт 17:30'},
+  {id:5,name:'Импульс',age:'14–16 лет',dir:'plast',teacher:3,hall:'Зал Б',cap:12,cnt:12,sch:'Вт, Чт 18:00'},
+  {id:6,name:'Сцена',age:'Взрослые',dir:'act',teacher:1,hall:'Зал А',cap:16,cnt:13,sch:'Пн, Ср 19:30'},
+  {id:7,name:'Дикция',age:'Взрослые',dir:'rech',teacher:2,hall:'Зал Б',cap:14,cnt:10,sch:'Сб 13:00'},
+  {id:8,name:'Этюд',age:'13–15 лет',dir:'act',teacher:1,hall:'Зал А',cap:14,cnt:13,sch:'Ср, Пт 18:30'},
+];
+const dirName={act:'Актёрское мастерство',rech:'Сценическая речь',plast:'Сцен. движение',vocal:'Вокал',kino:'Кино в кадре',impr:'Импровизация'};
+const dirCls={act:'l-act',rech:'l-rech',plast:'l-plast',vocal:'l-vocal',kino:'l-kino'};
+const gName=id=>groups.find(g=>g.id===id)?.name||'—';
+
+// status: ok | freeze | ending | debt
+const students=[
+  {id:1,name:'Амина Серикова',age:6,group:1,parent:'Гульнара (мама)',phone:'+7 701 222-11-09',ab:'8 занятий',left:5,exp:'18 июн',att:96,bal:0,status:'ok',since:'сен 2024'},
+  {id:2,name:'Дамир Касымов',age:9,group:2,parent:'Ержан (папа)',phone:'+7 705 884-21-30',ab:'12 занятий',left:2,exp:'09 июн',att:88,bal:0,status:'ending',since:'янв 2024'},
+  {id:3,name:'Карина Ли',age:12,group:3,parent:'Сергей (папа)',phone:'+7 707 110-55-12',ab:'8 занятий',left:0,exp:'02 июн',att:74,bal:-32000,status:'debt',since:'мар 2024'},
+  {id:4,name:'Тамерлан Абдиев',age:10,group:4,parent:'Асель (мама)',phone:'+7 700 341-90-77',ab:'Безлимит',left:'∞',exp:'30 июн',att:91,bal:0,status:'ok',since:'окт 2023'},
+  {id:5,name:'София Жумабаева',age:15,group:5,parent:'—',phone:'+7 708 552-13-44',ab:'12 занятий',left:7,exp:'21 июн',att:83,bal:0,status:'ok',since:'фев 2025'},
+  {id:6,name:'Ислам Нурлан',age:14,group:8,parent:'Динара (мама)',phone:'+7 747 600-32-18',ab:'8 занятий',left:1,exp:'07 июн',att:79,bal:0,status:'ending',since:'ноя 2024'},
+  {id:7,name:'Алия Туреханова',age:34,group:6,parent:'—',phone:'+7 701 990-00-21',ab:'8 занятий',left:4,exp:'15 июн',att:69,bal:-16000,status:'debt',since:'апр 2025'},
+  {id:8,name:'Рустам Ким',age:28,group:7,parent:'—',phone:'+7 705 233-87-65',ab:'Заморозка',left:6,exp:'—',att:0,bal:0,status:'freeze',since:'дек 2024'},
+  {id:9,name:'Аделина Маратова',age:11,group:3,parent:'Жанна (мама)',phone:'+7 702 415-09-88',ab:'8 занятий',left:6,exp:'24 июн',att:94,bal:0,status:'ok',since:'сен 2024'},
+  {id:10,name:'Бекзат Сагынов',age:13,group:8,parent:'Марат (папа)',phone:'+7 707 818-44-02',ab:'12 занятий',left:0,exp:'29 май',att:62,bal:-48000,status:'debt',since:'июн 2024'},
+  {id:11,name:'Ева Поляк',age:7,group:1,parent:'Ольга (мама)',phone:'+7 700 122-66-31',ab:'8 занятий',left:3,exp:'20 июн',att:98,bal:0,status:'ok',since:'мар 2025'},
+  {id:12,name:'Даниял Ермеков',age:16,group:5,parent:'—',phone:'+7 708 707-19-50',ab:'12 занятий',left:8,exp:'26 июн',att:87,bal:0,status:'ok',since:'окт 2024'},
+];
+const stById=id=>students.find(s=>s.id===id);
+const statusChip={ok:['green','Активен'],freeze:['blue','Заморозка'],ending:['amber','Заканчивается'],debt:['red','Должник']};
+
+// leads funnel: new | trial_set | trial_done | bought | think
+const leads=[
+  {id:1,name:'Алмас (сын 8 лет)',src:'Instagram',stage:'new',phone:'+7 701 300-22-10',when:'сегодня 09:12',dir:'Дети, актёрское'},
+  {id:2,name:'Жанаргуль',src:'Сайт',stage:'new',phone:'+7 705 412-88-03',when:'сегодня 08:40',dir:'Взрослые, речь'},
+  {id:3,name:'Сабина (дочь 6)',src:'2GIS',stage:'trial_set',phone:'+7 707 901-44-71',when:'пробное: 6 июн 16:00',dir:'Дети, актёрское'},
+  {id:4,name:'Ерлан',src:'Рекомендация',stage:'trial_set',phone:'+7 700 233-19-04',when:'пробное: 7 июн 19:30',dir:'Взрослые, актёрское'},
+  {id:5,name:'Айгерим (сын 11)',src:'Instagram',stage:'trial_done',phone:'+7 708 660-12-99',when:'пробное проведено 4 июн',dir:'Кино'},
+  {id:6,name:'Дмитрий',src:'YouTube',stage:'trial_done',phone:'+7 747 100-55-23',when:'пробное проведено 3 июн',dir:'Импровизация'},
+  {id:7,name:'Камила (дочь 9)',src:'Сайт',stage:'bought',phone:'+7 701 818-22-44',when:'купила 8 занятий',dir:'Вокал'},
+  {id:8,name:'Нурлан (сын 13)',src:'Instagram',stage:'think',phone:'+7 705 333-71-08',when:'думает после пробного',dir:'Подростки'},
+  {id:9,name:'Виктория',src:'2GIS',stage:'think',phone:'+7 707 240-66-17',when:'дорого, перезвон 8 июн',dir:'Взрослые, речь'},
+];
+const stageMeta={new:['🆕','Новая заявка','pink'],trial_set:['📅','Пробное назначено','amber'],trial_done:['🎬','Пробное проведено','violet'],bought:['💜','Купил абонемент','green'],think:['🤔','Думает / возражение','gray']};
+
+const prods=[
+  {id:1,name:'«Маленький принц»',type:'Спектакль · дети 8–12',date:'14 июня',hall:'Большой зал',roles:9,cast:8,ready:82,g:'',em:'🌹',by:1},
+  {id:2,name:'Импров-баттл',type:'Шоу · подростки',date:'21 июня',hall:'Студия',roles:12,cast:12,ready:95,g:'g2',em:'🎤',by:4},
+  {id:3,name:'«Чайка» (отрывки)',type:'Дипломный · взрослые',date:'5 июля',hall:'Большой зал',roles:7,cast:5,ready:54,g:'g3',em:'🎭',by:1},
+];
+
+const payments=[
+  {st:1,name:'Амина Серикова',sum:48000,ab:'8 занятий',date:'02 июн',method:'Kaspi',by:'Алина К.'},
+  {st:4,name:'Тамерлан Абдиев',sum:75000,ab:'Безлимит',date:'01 июн',method:'Карта',by:'Алина К.'},
+  {st:11,name:'Ева Поляк',sum:48000,ab:'8 занятий',date:'31 май',method:'Kaspi',by:'Алина К.'},
+  {st:12,name:'Даниял Ермеков',sum:64000,ab:'12 занятий',date:'30 май',method:'Наличные',by:'Айдос М.'},
+  {st:5,name:'София Жумабаева',sum:64000,ab:'12 занятий',date:'29 май',method:'Kaspi',by:'Алина К.'},
+];
+
+const reminders=[
+  {ic:'📅',c:'violet',t:'Напоминание о занятии',d:'За 3 часа до урока — ученику и родителю в WhatsApp',on:true,sent:'34 за неделю'},
+  {ic:'⏳',c:'amber',t:'Абонемент заканчивается',d:'Когда осталось ≤ 2 занятий — предложить продлить',on:true,sent:'9 за неделю'},
+  {ic:'💸',c:'red',t:'Напоминание о долге',d:'Через 1 день после окончания абонемента при минусе',on:true,sent:'11 за неделю'},
+  {ic:'🎂',c:'pink',t:'День рождения ученика',d:'Поздравление и подарок-занятие в подарок',on:true,sent:'3 за неделю'},
+  {ic:'🎬',c:'gold',t:'Приглашение на пробное',d:'Лиду через 1 час после заявки + за день до пробного',on:true,sent:'18 за неделю'},
+  {ic:'🥶',c:'blue',t:'Возврат с заморозки',d:'За 2 дня до окончания заморозки абонемента',on:false,sent:'выкл'},
+  {ic:'❤️',c:'green',t:'Реактивация ушедших',d:'Через 21 день без посещений — спецпредложение',on:false,sent:'выкл'},
+];
+
+/* ============ HELPERS ============ */
+const titles={
+  dash:['Дашборд','Сводка по школе · обновлено сегодня в 09:40'],
+  leads:['Воронка лидов','9 активных заявок · конверсия пробного 64%'],
+  students:['Ученики','124 активных · 6 на заморозке'],
+  groups:['Группы и студии','8 групп · средняя заполняемость 84%'],
+  sched:['Расписание','Текущая неделя · 3 зала'],
+  att:['Посещения','Отметка присутствия по занятиям'],
+  prods:['Постановки','3 в работе · ближайшая премьера 14 июня'],
+  finance:['Абонементы и деньги','Выручка месяца и продажи'],
+  debt:['Дебиторка','11 должников · 312 000 ₸ к возврату'],
+  teachers:['Педагоги','5 педагогов · загрузка и рейтинг'],
+  remind:['Напоминания','Авто-рассылки WhatsApp · 5 правил активно'],
+  analytics:['Аналитика','Удержание, LTV, воронка, источники'],
+};
+function ava(name,size){const c=avaColor(name);const s=size||32;return `<div class="ava" style="width:${s}px;height:${s}px;background:${c}22;color:${c}">${initials(name)}</div>`;}
+function ring(p,color){const c=color||'var(--brand)';return `<div class="miniring" style="background:conic-gradient(${c} ${p*3.6}deg, var(--panel-2) 0)"><div style="width:30px;height:30px;border-radius:50%;background:var(--panel);display:grid;place-items:center">${p}</div></div>`;}
+
+/* ============ PAGES ============ */
+function pDash(){
+  const todayBars=[['Дек',2.9],['Янв',3.4],['Фев',3.6],['Мар',4.1],['Апр',4.0],['Май',4.6],['Июн',1.8]];
+  const mx=Math.max(...todayBars.map(b=>b[1]));
+  return `
+  <div class="grid kpis6" style="margin-bottom:16px">
+    <div class="kpi"><div class="ic2" style="background:var(--green-bg);color:var(--green)">💰</div>
+      <div class="lbl">Выручка за месяц</div><div class="val">4.6 млн</div><div class="delta up">▲ 12% к маю</div></div>
+    <div class="kpi"><div class="ic2" style="background:var(--violet-bg);color:var(--violet)">🧑‍🎓</div>
+      <div class="lbl">Активных учеников</div><div class="val">124</div><div class="delta up">▲ 8 за месяц</div></div>
+    <div class="kpi"><div class="ic2" style="background:#e7eefd;color:var(--brand)">✅</div>
+      <div class="lbl">Посещаемость</div><div class="val">86%</div><div class="delta up">▲ 3 п.п.</div></div>
+    <div class="kpi"><div class="ic2" style="background:var(--gold-bg);color:var(--gold)">🎬</div>
+      <div class="lbl">Конверсия пробных</div><div class="val">64%</div><div class="delta up">пробное → абонемент</div></div>
+    <div class="kpi"><div class="ic2" style="background:var(--pink-bg);color:var(--pink)">🎟</div>
+      <div class="lbl">Заполняемость групп</div><div class="val">84%</div><div class="delta">90 из 104 мест</div></div>
+    <div class="kpi"><div class="ic2" style="background:var(--red-bg);color:var(--red)">⚠️</div>
+      <div class="lbl">Дебиторка</div><div class="val">312 тыс</div><div class="delta down">11 должников</div></div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1.55fr 1fr;align-items:start">
+    <div class="card">
+      <div class="card-h"><h3>Выручка по месяцам</h3><div class="act"><span class="chip violet">млн ₸</span></div></div>
+      <div class="card-b"><div class="minibars">${todayBars.map(b=>`<div class="b2" style="height:${Math.round(b[1]/mx*100)}%"><em>${b[1]} млн</em><span>${b[0]}</span></div>`).join('')}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h3>🔔 Автосигналы</h3><div class="act"><span class="chip red">4</span></div></div>
+      <div>
+        <div class="signal"><div class="si" style="background:var(--red-bg);color:var(--red)">📉</div><div><div class="tt">Группа «Дубль» теряет учеников</div><div class="ds">3 пропуска подряд у 2 детей — риск оттока</div></div><time>2 ч</time></div>
+        <div class="signal"><div class="si" style="background:var(--amber-bg);color:var(--amber)">⏳</div><div><div class="tt">9 абонементов заканчиваются</div><div class="ds">≤ 2 занятий — отправить предложение продлить</div></div><time>сегодня</time></div>
+        <div class="signal"><div class="si" style="background:var(--gold-bg);color:var(--gold)">🎬</div><div><div class="tt">6 пробных без ответа</div><div class="ds">Провели, но не купили — нужен звонок</div></div><time>вчера</time></div>
+        <div class="signal"><div class="si" style="background:var(--violet-bg);color:var(--violet)">🎟</div><div><div class="tt">«Чайка»: каст готов на 54%</div><div class="ds">2 роли без актёра, премьера 5 июля</div></div><time>вчера</time></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1fr 1fr;align-items:start;margin-top:16px">
+    <div class="card">
+      <div class="card-h"><h3>🗓 Сегодня в школе</h3><div class="act"><span class="chip blue">7 занятий</span></div></div>
+      <div class="t-wrap"><table>
+        <thead><tr><th>Время</th><th>Группа</th><th>Педагог</th><th>Зал</th><th>Отметка</th></tr></thead>
+        <tbody>
+          <tr><td class="b">16:00</td><td>Светлячки <small class="muted">5–7</small></td><td>М. Орынбасаров</td><td>Зал А</td><td><span class="chip green">11/11 ✓</span></td></tr>
+          <tr><td class="b">16:30</td><td>Искра <small class="muted">8–10</small></td><td>М. Орынбасаров</td><td>Зал А</td><td><span class="chip amber">идёт</span></td></tr>
+          <tr><td class="b">17:30</td><td>Голос <small class="muted">9–12</small></td><td>А. Бекова</td><td>Зал Б</td><td><span class="chip gray">через 1 ч</span></td></tr>
+          <tr><td class="b">18:30</td><td>Этюд <small class="muted">13–15</small></td><td>М. Орынбасаров</td><td>Зал А</td><td><span class="chip gray">вечер</span></td></tr>
+          <tr><td class="b">19:30</td><td>Сцена <small class="muted">взрослые</small></td><td>М. Орынбасаров</td><td>Зал А</td><td><span class="chip gray">вечер</span></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h3>🎯 Воронка этого месяца</h3><div class="act"><button class="btn sm" data-go="leads">Открыть</button></div></div>
+      <div class="card-b"><div class="funnel">
+        ${[['Заявки',82,100],['Назначено пробное',61,74],['Пробное проведено',47,57],['Купили абонемент',30,37]].map((f,i)=>`
+          <div class="fr"><div class="fl">${f[0]}</div><div class="fbar" style="width:${f[2]}%">${f[1]}</div><div class="fp">${f[2]}%</div></div>`).join('')}
+      </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:flex;gap:18px">
+        <div><div class="muted" style="font-size:12px">Конверсия пробного</div><div class="b" style="font-size:20px;color:var(--green)">64%</div></div>
+        <div><div class="muted" style="font-size:12px">Ср. чек абонемента</div><div class="b" style="font-size:20px">56 000 ₸</div></div>
+        <div><div class="muted" style="font-size:12px">CAC (стоим. ученика)</div><div class="b" style="font-size:20px">9 400 ₸</div></div>
+      </div></div>
+    </div>
+  </div>`;
+}
+
+function pLeads(){
+  const cols=Object.keys(stageMeta);
+  return `
+  <div class="row" style="margin-bottom:16px">
+    <div class="kpi" style="flex:1"><div class="lbl">Новых заявок сегодня</div><div class="val">2</div><div class="delta">Instagram, Сайт</div></div>
+    <div class="kpi" style="flex:1"><div class="lbl">Пробных на неделе</div><div class="val">8</div><div class="delta up">▲ 2</div></div>
+    <div class="kpi" style="flex:1"><div class="lbl">Конверсия пробного</div><div class="val">64%</div><div class="delta up">цель 60%</div></div>
+    <div class="kpi" style="flex:1"><div class="lbl">Ждут решения</div><div class="val">2</div><div class="delta down">возражение «дорого»</div></div>
+  </div>
+  <div class="kanban" id="kanban">
+    ${cols.map(st=>{const m=stageMeta[st];const list=leads.filter(l=>l.stage===st);return `
+      <div class="kcol"><h4><span>${m[0]}</span>${m[1]}<span class="cnt">${list.length}</span></h4>
+        ${list.map(l=>`<div class="kcard" data-lead="${l.id}">
+          <div class="kt">${l.name}</div>
+          <div class="km">${l.dir}</div>
+          <div class="kf"><span class="chip ${m[2]}">${l.src}</span></div>
+          <div class="kf muted">${l.when}</div>
+        </div>`).join('')||'<div class="muted" style="font-size:12px;padding:6px 2px">Пусто</div>'}
+      </div>`;}).join('')}
+  </div>`;
+}
+
+function pStudents(){
+  return `
+  <div class="card">
+    <div class="card-h"><h3>Все ученики</h3>
+      <div class="act filters">
+        <select class="fld"><option>Все группы</option>${groups.map(g=>`<option>${g.name}</option>`).join('')}</select>
+        <select class="fld"><option>Все статусы</option><option>Активен</option><option>Заканчивается</option><option>Должник</option><option>Заморозка</option></select>
+        <button class="btn primary sm" id="btn-student">＋ Ученик</button>
+      </div>
+    </div>
+    <div class="t-wrap"><table id="st-tbl">
+      <thead><tr><th>Ученик</th><th>Возр.</th><th>Группа</th><th>Абонемент</th><th>Осталось</th><th>Посещ.</th><th>Баланс</th><th>Статус</th></tr></thead>
+      <tbody>${students.map(s=>{const sc=statusChip[s.status];const g=groups.find(g=>g.id===s.group);return `
+        <tr data-st="${s.id}">
+          <td><div class="who">${ava(s.name)}<div><div class="b">${s.name}</div><small>с ${s.since}</small></div></div></td>
+          <td>${s.age}</td>
+          <td>${g.name} <small class="muted">${dirName[g.dir]}</small></td>
+          <td>${s.ab}</td>
+          <td>${s.left==='∞'?'<span class="chip violet">∞</span>':(s.left<=2?`<span class="chip amber">${s.left}</span>`:`<span class="b">${s.left}</span>`)}</td>
+          <td>${s.att?`<span class="${s.att>=85?'up':(s.att>=70?'':'down')} b">${s.att}%</span>`:'<span class="muted">—</span>'}</td>
+          <td>${s.bal<0?`<span class="b down">${money(s.bal)}</span>`:'<span class="muted">0 ₸</span>'}</td>
+          <td><span class="chip ${sc[0]}">${sc[1]}</span></td>
+        </tr>`;}).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function pGroups(){
+  return `
+  <div class="grid" style="grid-template-columns:repeat(2,1fr)">
+    ${groups.map(g=>{const fill=Math.round(g.cnt/g.cap*100);const full=g.cnt>=g.cap;return `
+    <div class="card" data-grp="${g.id}" style="cursor:pointer">
+      <div class="card-b" style="display:flex;gap:14px;align-items:center">
+        <div class="les ${dirCls[g.dir]}" style="width:54px;height:54px;display:grid;place-items:center;font-size:22px;flex-shrink:0">🎬</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px"><b style="font-size:15px">${g.name}</b><span class="chip gray">${g.age}</span>${full?'<span class="chip red">Нет мест</span>':''}</div>
+          <div class="muted" style="font-size:12.5px;margin-top:3px">${dirName[g.dir]} · ${g.hall} · ${g.sch}</div>
+          <div class="muted" style="font-size:12.5px;margin-top:2px">Педагог: ${tName(g.teacher)}</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:9px">
+            <div class="bar" style="flex:1"><i style="width:${fill}%;background:${full?'var(--red)':'var(--brand)'}"></i></div>
+            <span class="b" style="font-size:12.5px">${g.cnt}/${g.cap}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;}).join('')}
+  </div>`;
+}
+
+function pSched(){
+  const days=['Пн','Вт','Ср','Чт','Пт','Сб'];
+  const times=['16:00','16:30','17:30','18:00','18:30','19:30'];
+  // [day(0-5), timeIndex, group dir, label, teacher]
+  const L=[
+    [0,0,'act','Светлячки','Орынбасаров'],[0,3,'vocal','Голос','Бекова'],[0,5,'act','Сцена','Орынбасаров'],
+    [1,1,'act','Искра','Орынбасаров'],[1,3,'plast','Импульс','Жаксыбеков'],
+    [2,0,'act','Светлячки','Орынбасаров'],[2,4,'act','Этюд','Орынбасаров'],[2,5,'act','Сцена','Орынбасаров'],
+    [3,1,'act','Искра','Орынбасаров'],[3,3,'plast','Импульс','Жаксыбеков'],
+    [4,2,'vocal','Голос','Бекова'],[4,4,'act','Этюд','Орынбасаров'],
+    [5,0,'kino','Дубль','Резник'],[5,2,'rech','Дикция','Сапарова'],
+  ];
+  function cell(d,t){const l=L.find(x=>x[0]===d&&x[1]===t);if(!l)return '<div class="sl"></div>';
+    return `<div class="sl"><div class="les ${dirCls[l[2]]}" data-les="${l[3]}"><b>${l[3]}</b><small>${l[4]}</small></div></div>`;}
+  return `
+  <div class="card-h" style="border:0;padding:0 0 14px">
+    <div class="filters"><span class="chip violet">Актёрское</span><span class="chip blue">Речь</span><span class="chip green">Движение</span><span class="chip pink">Вокал</span><span class="chip gold">Кино</span></div>
+    <div class="act"><button class="btn sm" id="btn-lesson">＋ Занятие</button></div>
+  </div>
+  <div class="card"><div class="card-b t-wrap">
+    <div class="sched">
+      <div class="hd"></div>${days.map(d=>`<div class="hd">${d}</div>`).join('')}
+      ${times.map((tm,ti)=>`<div class="tm">${tm}</div>${days.map((d,di)=>cell(di,ti)).join('')}`).join('')}
+    </div>
+  </div></div>`;
+}
+
+let attState={};
+function pAtt(){
+  const roster=students.filter(s=>[1,11].includes(s.group)||s.group===1).concat(students.filter(s=>s.group===2));
+  // use group "Искра" (id2) as today's class roster
+  const cls=students.filter(s=>s.group===2);
+  const extra=[{id:101,name:'Алишер Туякбай',age:9},{id:102,name:'Малика Ондасын',age:10},{id:103,name:'Артём Волков',age:9},{id:104,name:'Сабина Нурлы',age:8},{id:105,name:'Глеб Сидоров',age:10},{id:106,name:'Жания Кайрат',age:9},{id:107,name:'Тимур Аскар',age:10},{id:108,name:'Виолетта Грей',age:9},{id:109,name:'Нурдаулет С.',age:8},{id:110,name:'Камилла Ди',age:10},{id:111,name:'Олжас Б.',age:9},{id:112,name:'Зарина Е.',age:8},{id:113,name:'Дамир Касымов',age:9}];
+  const ros=extra;
+  ros.forEach(s=>{if(attState[s.id]===undefined)attState[s.id]='p';});
+  attState[113]='a'; attState[109]='e';
+  return `
+  <div class="card-h" style="border:0;padding:0 0 14px">
+    <div class="filters">
+      <select class="fld"><option>Группа: Искра (8–10)</option><option>Светлячки (5–7)</option><option>Импульс (14–16)</option></select>
+      <select class="fld"><option>Сегодня, 6 июня · 16:30</option></select>
+    </div>
+    <div class="act" id="att-stat"></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h3>🎬 Искра · 8–10 лет · Зал А</h3><div class="act muted">Тема: «Этюды на органику»</div></div>
+    <div class="roster" id="roster">
+      ${ros.map(s=>`
+        <div class="rrow" data-rid="${s.id}">
+          ${ava(s.name)}<div><div class="b">${s.name}</div><small class="muted">${s.age} лет</small></div>
+          <div class="att-tg">
+            <button class="att p" data-v="p" title="Присутствует">✓</button>
+            <button class="att a" data-v="a" title="Отсутствует">✕</button>
+            <button class="att e" data-v="e" title="Уважительная">≈</button>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="card-b" style="border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn">Списать как пробное</button>
+      <button class="btn primary" id="att-save">Сохранить и списать занятие</button>
+    </div>
+  </div>`;
+}
+
+function pProds(){
+  return `
+  <div class="card-h" style="border:0;padding:0 0 14px">
+    <div class="muted">Спектакли, показы и съёмки. Каст, репетиции и готовность к премьере.</div>
+    <div class="act"><button class="btn primary sm" id="btn-prod">＋ Постановка</button></div>
+  </div>
+  <div class="prods">
+    ${prods.map(p=>`
+      <div class="prod" data-prod="${p.id}">
+        <div class="ph ${p.g}"><span class="em">${p.em}</span><div><div class="b" style="font-size:16px">${p.name}</div><small style="opacity:.9">${p.type}</small></div></div>
+        <div class="pb">
+          <div class="meta"><span class="chip gold">🎬 ${p.date}</span><span class="chip gray">${p.hall}</span></div>
+          <div style="display:flex;align-items:center;gap:10px;margin:10px 0 6px">
+            <div class="bar" style="flex:1"><i style="width:${p.ready}%;background:${p.ready>=80?'var(--green)':p.ready>=60?'var(--amber)':'var(--red)'}"></i></div>
+            <span class="b" style="font-size:12.5px">${p.ready}%</span>
+          </div>
+          <div class="muted" style="font-size:12px">Каст: ${p.cast}/${p.roles} ролей · реж. ${tName(p.by)}</div>
+          <div class="cast">${Array.from({length:Math.min(p.cast,5)}).map((_,i)=>{const c=pal[i%pal.length];return `<div class="ava" style="background:${c}">${['АС','ДК','КЛ','СЖ','ИН'][i]}</div>`;}).join('')}${p.cast>5?`<div class="more">+${p.cast-5}</div>`:''}</div>
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
+
+function pFinance(){
+  return `
+  <div class="grid kpis" style="margin-bottom:16px">
+    <div class="kpi"><div class="ic2" style="background:var(--green-bg);color:var(--green)">💰</div><div class="lbl">Выручка месяца</div><div class="val">4.62 млн</div><div class="delta up">▲ 12%</div></div>
+    <div class="kpi"><div class="ic2" style="background:#e7eefd;color:var(--brand)">🧾</div><div class="lbl">Продано абонементов</div><div class="val">83</div><div class="delta">ср. чек 56 000 ₸</div></div>
+    <div class="kpi"><div class="ic2" style="background:var(--gold-bg);color:var(--gold)">🔁</div><div class="lbl">Продлений</div><div class="val">71%</div><div class="delta up">retention абонемента</div></div>
+    <div class="kpi"><div class="ic2" style="background:var(--red-bg);color:var(--red)">⚠️</div><div class="lbl">Не оплачено</div><div class="val">312 тыс</div><div class="delta down">11 учеников</div></div>
+  </div>
+  <div class="grid" style="grid-template-columns:1.5fr 1fr;align-items:start">
+    <div class="card">
+      <div class="card-h"><h3>Последние оплаты</h3><div class="act"><button class="btn sm" id="btn-pay">＋ Оплата</button></div></div>
+      <div class="t-wrap"><table>
+        <thead><tr><th>Ученик</th><th>Абонемент</th><th>Способ</th><th>Дата</th><th>Принял</th><th style="text-align:right">Сумма</th></tr></thead>
+        <tbody>${payments.map(p=>`<tr><td><div class="who">${ava(p.name)}<div class="b">${p.name}</div></div></td><td>${p.ab}</td><td><span class="chip gray">${p.method}</span></td><td>${p.date}</td><td class="muted">${p.by}</td><td style="text-align:right" class="b up">${money(p.sum)}</td></tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h3>Выручка по направлениям</h3></div>
+      <div class="card-b" style="display:flex;gap:18px;align-items:center">
+        <div class="donut" style="background:conic-gradient(#7c3aed 0 42%,#d6427e 42% 64%,#0ea5a8 64% 80%,#c79a2a 80% 92%,#1ea672 92% 100%)"><div class="hole"><div><div class="b" style="font-size:20px">4.6<small style="font-size:11px"> млн</small></div><small class="muted">всего</small></div></div></div>
+        <div class="legend">
+          <div class="lg"><span class="dot" style="background:#7c3aed"></span>Актёрское <b>42%</b></div>
+          <div class="lg"><span class="dot" style="background:#d6427e"></span>Вокал <b>22%</b></div>
+          <div class="lg"><span class="dot" style="background:#0ea5a8"></span>Движение <b>16%</b></div>
+          <div class="lg"><span class="dot" style="background:#c79a2a"></span>Кино <b>12%</b></div>
+          <div class="lg"><span class="dot" style="background:#1ea672"></span>Речь <b>8%</b></div>
+        </div>
+      </div>
+      <div class="card-b" style="border-top:1px solid var(--line)">
+        <div class="sec-title" style="margin:0 0 10px">Типы абонементов</div>
+        ${[['8 занятий / мес','48 000 ₸',38],['12 занятий / мес','64 000 ₸',31],['Безлимит','75 000 ₸',9],['Разовое','7 000 ₸',5]].map(a=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px"><div style="flex:1"><b style="font-size:13px">${a[0]}</b> <span class="muted" style="font-size:12px">· ${a[1]}</span></div><span class="chip violet">${a[2]} продано</span></div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function pDebt(){
+  const debtors=students.filter(s=>s.bal<0).concat([
+    {id:201,name:'Айдана Кубаева',age:11,group:4,ab:'8 занятий',bal:-24000,exp:'28 май',days:9,phone:'+7 701 555-12-00'},
+    {id:202,name:'Максим Орлов',age:30,group:6,ab:'12 занятий',bal:-32000,exp:'25 май',days:12,phone:'+7 705 800-44-21'},
+    {id:203,name:'Лейла Аман',age:13,group:8,ab:'8 занятий',bal:-16000,exp:'30 май',days:7,phone:'+7 707 611-90-03'},
+    {id:204,name:'Эмиль Закиров',age:8,group:1,ab:'8 занятий',bal:-48000,exp:'20 май',days:17,phone:'+7 700 233-71-65'},
+    {id:205,name:'Дария Сон',age:15,group:5,ab:'12 занятий',bal:-28000,exp:'27 май',days:10,phone:'+7 708 919-22-30'},
+    {id:206,name:'Артур Гали',age:12,group:3,ab:'8 занятий',bal:-20000,exp:'29 май',days:8,phone:'+7 747 404-55-71'},
+    {id:207,name:'Сафия Ким',age:9,group:2,ab:'8 занятий',bal:-20000,exp:'31 май',days:6,phone:'+7 701 717-08-12'},
+    {id:208,name:'Глеб Морозов',age:14,group:8,ab:'12 занятий',bal:-28000,exp:'26 май',days:11,phone:'+7 705 122-66-90'},
+  ]);
+  const total=debtors.reduce((a,b)=>a+b.bal,0);
+  return `
+  <div class="row" style="margin-bottom:16px">
+    <div class="kpi" style="flex:1"><div class="lbl">Всего к возврату</div><div class="val down">${money(-total)}</div><div class="delta down">${debtors.length} учеников</div></div>
+    <div class="kpi" style="flex:1"><div class="lbl">Просрочка > 10 дней</div><div class="val">4</div><div class="delta down">риск оттока</div></div>
+    <div class="kpi" style="flex:1"><div class="lbl">Напоминаний отправлено</div><div class="val">11</div><div class="delta">WhatsApp авто</div></div>
+    <div class="kpi" style="flex:1"><div class="lbl">Обещали оплатить</div><div class="val">3</div><div class="delta up">на этой неделе</div></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h3>Должники</h3><div class="act"><button class="btn gold sm" id="btn-blast">📤 Напомнить всем в WhatsApp</button></div></div>
+    <div class="t-wrap"><table id="debt-tbl">
+      <thead><tr><th>Ученик</th><th>Группа</th><th>Абонемент</th><th>Просрочка</th><th>Долг</th><th>Действие</th></tr></thead>
+      <tbody>${debtors.map(d=>{const g=groups.find(x=>x.id===d.group);return `
+        <tr data-debt="${d.name}">
+          <td><div class="who">${ava(d.name)}<div><div class="b">${d.name}</div><small>${d.phone}</small></div></div></td>
+          <td>${g?g.name:'—'}</td><td>${d.ab}</td>
+          <td><span class="chip ${d.days>10?'red':'amber'}">${d.days||'—'} дн.</span></td>
+          <td class="b down">${money(d.bal)}</td>
+          <td><button class="btn sm" onclick="event.stopPropagation();toast('Напоминание отправлено в WhatsApp')">📲 Напомнить</button></td>
+        </tr>`;}).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function pTeachers(){
+  return `
+  <div class="grid" style="grid-template-columns:repeat(2,1fr)">
+    ${teachers.map(t=>`
+    <div class="card" data-teacher="${t.id}" style="cursor:pointer">
+      <div class="card-b" style="display:flex;gap:14px;align-items:center">
+        ${ava(t.name,52)}
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px"><b style="font-size:15px">${t.name}</b><span class="chip gold">★ ${t.rating}</span></div>
+          <div class="muted" style="font-size:12.5px;margin-top:3px">${t.role} · стаж ${t.exp}</div>
+          <div style="display:flex;gap:16px;margin-top:8px;font-size:12.5px">
+            <span><b>${t.groups}</b> <span class="muted">групп</span></span>
+            <span><b>${t.students}</b> <span class="muted">учеников</span></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:9px">
+            <span class="muted" style="font-size:12px">Загрузка</span>
+            <div class="bar" style="flex:1"><i style="width:${t.load}%;background:${t.load>80?'var(--amber)':'var(--brand)'}"></i></div>
+            <span class="b" style="font-size:12.5px">${t.load}%</span>
+          </div>
+        </div>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+function pRemind(){
+  return `
+  <div class="row" style="margin-bottom:16px">
+    <div class="kpi" style="flex:1"><div class="lbl">Отправлено за неделю</div><div class="val">75</div><div class="delta up">▲ 14</div></div>
+    <div class="kpi" style="flex:1"><div class="lbl">Доставлено</div><div class="val">98%</div><div class="delta up">WhatsApp</div></div>
+    <div class="kpi" style="flex:1"><div class="lbl">Активных правил</div><div class="val">5</div><div class="delta">из 7</div></div>
+    <div class="kpi" style="flex:1"><div class="lbl">Сэкономлено времени</div><div class="val">~6 ч</div><div class="delta">админу в неделю</div></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h3>🔔 Правила авто-напоминаний</h3><div class="act"><button class="btn primary sm" onclick="toast('Конструктор правил — в продакшене')">＋ Правило</button></div></div>
+    <div id="rules">${reminders.map((r,i)=>`
+      <div class="rule">
+        <div class="ri" style="background:var(--${r.c}-bg);color:var(--${r.c})">${r.ic}</div>
+        <div><div class="rt">${r.t}</div><div class="rd">${r.d}</div></div>
+        <div style="margin:0 14px;text-align:right"><div class="b" style="font-size:12.5px">${r.sent}</div><small class="muted">отправлено</small></div>
+        <div class="switch ${r.on?'':'off'}" data-rule="${i}"><i></i></div>
+      </div>`).join('')}</div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-h"><h3>💬 Последние отправки</h3></div>
+    <div>
+      ${[['📅','Светлячки','Напоминание о занятии завтра в 16:00','12 мин назад','violet'],['⏳','Дамир Касымов','Осталось 2 занятия — продлите абонемент','1 ч назад','amber'],['💸','Карина Ли','Абонемент закончился, есть задолженность 32 000 ₸','3 ч назад','red'],['🎬','Айгерим','Спасибо за пробное! Готовы записать в группу?','вчера','gold']].map(m=>`
+        <div class="signal"><div class="si" style="background:var(--${m[4]}-bg);color:var(--${m[4]})">${m[0]}</div><div><div class="tt">${m[1]}</div><div class="ds">${m[2]}</div></div><time>${m[3]}</time></div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function pAnalytics(){
+  const ret=[['1 мес',100],['2 мес',88],['3 мес',79],['6 мес',64],['12 мес',47],['18 мес',38]];
+  const src=[['Instagram',38,'#7c3aed'],['Сайт',22,'#d6427e'],['2GIS',16,'#0ea5a8'],['Рекомендации',15,'#c79a2a'],['YouTube',9,'#1ea672']];
+  return `
+  <div class="grid kpis" style="margin-bottom:16px">
+    <div class="kpi"><div class="ic2" style="background:var(--green-bg);color:var(--green)">🔁</div><div class="lbl">Удержание 6 мес</div><div class="val">64%</div><div class="delta up">▲ 5 п.п.</div></div>
+    <div class="kpi"><div class="ic2" style="background:var(--violet-bg);color:var(--violet)">💎</div><div class="lbl">LTV ученика</div><div class="val">384 тыс</div><div class="delta">ср. 7.2 мес</div></div>
+    <div class="kpi"><div class="ic2" style="background:var(--red-bg);color:var(--red)">📉</div><div class="lbl">Отток в месяц</div><div class="val">4.1%</div><div class="delta up">▼ ниже нормы</div></div>
+    <div class="kpi"><div class="ic2" style="background:var(--gold-bg);color:var(--gold)">🎯</div><div class="lbl">ROI рекламы</div><div class="val">5.9x</div><div class="delta up">CAC 9 400 ₸</div></div>
+  </div>
+  <div class="grid" style="grid-template-columns:1fr 1fr;align-items:start">
+    <div class="card">
+      <div class="card-h"><h3>Кривая удержания</h3><div class="act muted">% оставшихся учеников</div></div>
+      <div class="card-b"><div class="minibars">${ret.map(r=>`<div class="b2" style="height:${r[1]}%;background:linear-gradient(180deg,var(--green),var(--brand))"><em>${r[1]}%</em><span>${r[0]}</span></div>`).join('')}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h3>Источники учеников</h3></div>
+      <div class="card-b">${src.map(s=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div class="fl" style="width:120px;font-size:13px">${s[0]}</div><div class="bar" style="flex:1"><i style="width:${s[1]*2.4}%;background:${s[2]}"></i></div><span class="b" style="width:42px;text-align:right">${s[1]}%</span></div>`).join('')}
+      <div style="margin-top:6px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px">💡 Лучшая конверсия пробного — у рекомендаций (81%). Instagram даёт объём, но дешевле работает ремаркетинг.</div></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-h"><h3>Воронка привлечения (за месяц)</h3></div>
+    <div class="card-b"><div class="funnel">
+      ${[['Заявки',82,100],['Дозвонились',74,90],['Назначено пробное',61,74],['Пришли на пробное',47,57],['Купили абонемент',30,37],['Продлили (2-й мес)',21,26]].map(f=>`
+        <div class="fr"><div class="fl">${f[0]}</div><div class="fbar" style="width:${f[2]}%">${f[1]}</div><div class="fp">${f[2]}%</div></div>`).join('')}
+    </div></div>
+  </div>`;
+}
+
+const renderers={dash:pDash,leads:pLeads,students:pStudents,groups:pGroups,sched:pSched,att:pAtt,prods:pProds,finance:pFinance,debt:pDebt,teachers:pTeachers,remind:pRemind,analytics:pAnalytics};
+
+/* ============ ROUTER ============ */
+function go(page){
+  $$('#nav a').forEach(a=>a.classList.toggle('active',a.dataset.page===page));
+  const t=titles[page]||['',''];$('#ptitle').textContent=t[0];$('#psub').textContent=t[1];
+  $('#content').innerHTML=(renderers[page]||pDash)();
+  wire(page);
+  document.querySelector('.content').scrollTo&&window.scrollTo(0,0);
+}
+$$('#nav a').forEach(a=>a.onclick=()=>go(a.dataset.page));
+
+/* ============ WIRE PAGE EVENTS ============ */
+function wire(page){
+  $$('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+  if(page==='students') $('#st-tbl tbody').onclick=e=>{const tr=e.target.closest('tr');if(tr)studentModal(+tr.dataset.st);};
+  if(page==='students') $('#btn-student').onclick=formStudent;
+  if(page==='leads') $('#kanban').onclick=e=>{const c=e.target.closest('.kcard');if(c)leadModal(+c.dataset.lead);};
+  if(page==='groups') $$('[data-grp]').forEach(c=>c.onclick=()=>groupModal(+c.dataset.grp));
+  if(page==='teachers') $$('[data-teacher]').forEach(c=>c.onclick=()=>teacherModal(+c.dataset.teacher));
+  if(page==='prods'){$$('[data-prod]').forEach(c=>c.onclick=()=>prodModal(+c.dataset.prod));$('#btn-prod').onclick=()=>toast('Новая постановка — в продакшене');}
+  if(page==='sched') $('#btn-lesson').onclick=()=>toast('Добавление занятия — в продакшене');
+  if(page==='finance') $('#btn-pay').onclick=formPay;
+  if(page==='debt') $('#btn-blast').onclick=()=>toast('Отправлено 11 напоминаний в WhatsApp');
+  if(page==='remind') $$('[data-rule]').forEach(s=>s.onclick=()=>{s.classList.toggle('off');toast(s.classList.contains('off')?'Правило выключено':'Правило включено');});
+  if(page==='att') wireAtt();
+}
+
+function wireAtt(){
+  const upd=()=>{const rows=$$('#roster .rrow');let p=0,a=0,e=0;rows.forEach(r=>{const v=attState[r.dataset.rid];if(v==='p')p++;else if(v==='a')a++;else if(v==='e')e++;});
+    $('#att-stat').innerHTML=`<span class="chip green">✓ ${p}</span><span class="chip red">✕ ${a}</span><span class="chip amber">≈ ${e}</span>`;};
+  $$('#roster .rrow').forEach(r=>{
+    const id=r.dataset.rid;
+    const set=()=>r.querySelectorAll('.att').forEach(b=>b.classList.toggle('on',b.dataset.v===attState[id]));
+    set();
+    r.querySelectorAll('.att').forEach(b=>b.onclick=()=>{attState[id]=b.dataset.v;set();upd();});
+  });
+  upd();
+  $('#att-save').onclick=()=>{const present=$$('#roster .rrow').filter(r=>attState[r.dataset.rid]==='p').length;toast(`Сохранено · занятие списано у ${present} учеников`);};
+}
+
+/* ============ MODALS ============ */
+function openModal(title,body){$('#m-title').innerHTML=title;$('#m-body').innerHTML=body;$('#modal-bg').classList.add('open');}
+function closeModal(){$('#modal-bg').classList.remove('open');}
+$('#m-close').onclick=closeModal;
+$('#modal-bg').onclick=e=>{if(e.target.id==='modal-bg')closeModal();};
+const foot=ok=>`<div class="modal-foot"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" onclick="closeModal();toast('Сохранено')">${ok}</button></div>`;
+
+function studentModal(id){const s=stById(id);const g=groups.find(g=>g.id===s.group);const sc=statusChip[s.status];
+  openModal(`<div class="who">${ava(s.name,40)}<div>${s.name}<div style="font-size:12px;font-weight:500;color:var(--muted)">${g.name} · ${dirName[g.dir]}</div></div></div>`,`
+    <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap"><span class="chip ${sc[0]}">${sc[1]}</span><span class="chip gray">${s.age} лет</span><span class="chip violet">учится с ${s.since}</span></div>
+    <div class="kv">
+      <div class="it"><div class="k">Абонемент</div><div class="v">${s.ab}</div></div>
+      <div class="it"><div class="k">Осталось занятий</div><div class="v">${s.left} ${typeof s.left==='number'?'· до '+s.exp:''}</div></div>
+      <div class="it"><div class="k">Посещаемость</div><div class="v ${s.att>=85?'up':'down'}">${s.att?s.att+'%':'—'}</div></div>
+      <div class="it"><div class="k">Баланс</div><div class="v ${s.bal<0?'down':''}">${money(s.bal)}</div></div>
+      <div class="it"><div class="k">Родитель</div><div class="v">${s.parent}</div></div>
+      <div class="it"><div class="k">Телефон</div><div class="v">${s.phone}</div></div>
+    </div>
+    <div class="sec-title">История посещений</div>
+    <div class="timeline">
+      <div class="ev"><div class="td">6 июн</div><div><b>Искра</b> · «Этюды на органику» — <span class="up b">был</span></div></div>
+      <div class="ev"><div class="td">4 июн</div><div><b>Искра</b> · «Сценическое внимание» — <span class="up b">был</span></div></div>
+      <div class="ev"><div class="td">2 июн</div><div><b>Искра</b> · «Импровизация» — <span class="down b">пропуск</span></div></div>
+      <div class="ev"><div class="td">30 май</div><div>Оплата абонемента «${s.ab}» — <span class="up b">${money(48000)}</span></div></div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal();toast('Абонемент заморожен')">🥶 Заморозить</button><button class="btn" onclick="closeModal();toast('Открыт WhatsApp с родителем')">💬 Написать</button><button class="btn primary" onclick="closeModal();toast('Абонемент продлён')">🔁 Продлить</button></div>`);
+}
+
+function leadModal(id){const l=leads.find(x=>x.id===id);const m=stageMeta[l.stage];
+  openModal(`${l.name}`,`
+    <div style="display:flex;gap:8px;margin-bottom:18px"><span class="chip ${m[2]}">${m[0]} ${m[1]}</span><span class="chip gray">${l.src}</span></div>
+    <div class="kv">
+      <div class="it"><div class="k">Направление</div><div class="v">${l.dir}</div></div>
+      <div class="it"><div class="k">Телефон</div><div class="v">${l.phone}</div></div>
+      <div class="it"><div class="k">Статус</div><div class="v">${l.when}</div></div>
+      <div class="it"><div class="k">Источник</div><div class="v">${l.src}</div></div>
+    </div>
+    <div class="sec-title">Двигать по воронке</div>
+    <div class="syslist">${Object.keys(stageMeta).map(k=>`<span class="chip ${stageMeta[k][2]}" style="cursor:pointer" onclick="closeModal();toast('Лид → ${stageMeta[k][1]}')">${stageMeta[k][0]} ${stageMeta[k][1]}</span>`).join('')}</div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal();toast('Звонок инициирован')">📞 Позвонить</button><button class="btn" onclick="closeModal();toast('Открыт WhatsApp')">💬 WhatsApp</button><button class="btn primary" onclick="closeModal();toast('Пробное занятие назначено')">📅 Назначить пробное</button></div>`);
+}
+
+function groupModal(id){const g=groups.find(x=>x.id===id);const list=students.filter(s=>s.group===id);
+  openModal(`Группа «${g.name}»`,`
+    <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap"><span class="chip violet">${dirName[g.dir]}</span><span class="chip gray">${g.age}</span><span class="chip gold">${g.cnt}/${g.cap} мест</span></div>
+    <div class="kv">
+      <div class="it"><div class="k">Педагог</div><div class="v">${tName(g.teacher)}</div></div>
+      <div class="it"><div class="k">Зал</div><div class="v">${g.hall}</div></div>
+      <div class="it"><div class="k">Расписание</div><div class="v">${g.sch}</div></div>
+      <div class="it"><div class="k">Заполняемость</div><div class="v">${Math.round(g.cnt/g.cap*100)}%</div></div>
+    </div>
+    <div class="sec-title">Ученики группы (${list.length})</div>
+    ${list.length?list.map(s=>`<div class="rrow" style="padding:9px 0">${ava(s.name)}<div><div class="b">${s.name}</div><small class="muted">${s.age} лет · ${s.ab}</small></div><span class="chip ${statusChip[s.status][0]}" style="margin-left:auto">${statusChip[s.status][1]}</span></div>`).join(''):'<div class="muted">В демо-данных показаны не все ученики группы</div>'}
+    <div class="modal-foot"><button class="btn" onclick="closeModal();toast('Открыт журнал группы')">📋 Журнал</button><button class="btn primary" onclick="closeModal();toast('Сообщение отправлено всей группе')">📢 Сообщить группе</button></div>`);
+}
+
+function teacherModal(id){const t=teachers.find(x=>x.id===id);const tg=groups.filter(g=>g.teacher===id);
+  openModal(`<div class="who">${ava(t.name,40)}<div>${t.name}<div style="font-size:12px;font-weight:500;color:var(--muted)">${t.role}</div></div></div>`,`
+    <div style="display:flex;gap:8px;margin-bottom:18px"><span class="chip gold">★ ${t.rating}</span><span class="chip gray">стаж ${t.exp}</span></div>
+    <div class="kv">
+      <div class="it"><div class="k">Групп</div><div class="v">${t.groups}</div></div>
+      <div class="it"><div class="k">Учеников</div><div class="v">${t.students}</div></div>
+      <div class="it"><div class="k">Загрузка</div><div class="v">${t.load}%</div></div>
+      <div class="it"><div class="k">Рейтинг от родителей</div><div class="v">★ ${t.rating} / 5.0</div></div>
+    </div>
+    <div class="sec-title">Группы педагога</div>
+    ${tg.map(g=>`<div class="rrow" style="padding:9px 0"><div class="les ${dirCls[g.dir]}" style="width:32px;height:32px;display:grid;place-items:center">🎬</div><div><div class="b">${g.name}</div><small class="muted">${g.age} · ${g.sch}</small></div><span class="chip gray" style="margin-left:auto">${g.cnt}/${g.cap}</span></div>`).join('')}
+    <div class="modal-foot"><button class="btn primary" onclick="closeModal()">Закрыть</button></div>`);
+}
+
+function prodModal(id){const p=prods.find(x=>x.id===id);
+  const roles=[['Принц','Амина Серикова','✓'],['Лис','Дамир Касымов','✓'],['Роза','Карина Ли','✓'],['Король','Бекзат Сагынов','✓'],['Фонарщик','—','✗'],['Змея','Ева Поляк','✓'],['Лётчик','Ислам Нурлан','✓'],['Деловой человек','—','✗'],['Пьяница','Аделина Маратова','✓']];
+  openModal(`${p.name}`,`
+    <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap"><span class="chip gold">🎬 Премьера ${p.date}</span><span class="chip gray">${p.hall}</span><span class="chip violet">реж. ${tName(p.by)}</span></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px"><div class="bar" style="flex:1"><i style="width:${p.ready}%;background:${p.ready>=80?'var(--green)':'var(--amber)'}"></i></div><span class="b">${p.ready}% готовности</span></div>
+    <div class="sec-title">Каст и роли (${p.cast}/${p.roles})</div>
+    ${roles.slice(0,p.roles).map(r=>`<div class="rrow" style="padding:9px 0">${r[1]!=='—'?ava(r[1]):'<div class="ava" style="background:var(--panel-2);color:var(--muted)">?</div>'}<div><div class="b">${r[0]}</div><small class="muted">${r[1]}</small></div><span class="chip ${r[2]==='✓'?'green':'red'}" style="margin-left:auto">${r[2]==='✓'?'назначен':'нужен актёр'}</span></div>`).join('')}
+    <div class="sec-title">Репетиции</div>
+    <div class="timeline">
+      <div class="ev"><div class="td">8 июн</div><div>Прогон 1-го акта · Большой зал</div></div>
+      <div class="ev"><div class="td">11 июн</div><div>Сводная репетиция с костюмами</div></div>
+      <div class="ev"><div class="td">13 июн</div><div>Генеральная репетиция</div></div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal();toast('Приглашения родителям отправлены')">📢 Пригласить родителей</button><button class="btn primary" onclick="closeModal();toast('Роль назначена')">＋ Назначить роль</button></div>`);
+}
+
+/* ============ FORMS ============ */
+function formStudent(){openModal('Новый ученик',`
+  <div class="form">
+    <div class="fg"><label>Имя и фамилия</label><input placeholder="Например, Амина Серикова"></div>
+    <div class="fg"><label>Возраст</label><input type="number" placeholder="8"></div>
+    <div class="fg"><label>Группа</label><select>${groups.map(g=>`<option>${g.name} · ${g.age}</option>`).join('')}</select></div>
+    <div class="fg"><label>Абонемент</label><select><option>8 занятий — 48 000 ₸</option><option>12 занятий — 64 000 ₸</option><option>Безлимит — 75 000 ₸</option><option>Пробное — бесплатно</option></select></div>
+    <div class="fg"><label>Родитель</label><input placeholder="Гульнара (мама)"></div>
+    <div class="fg"><label>Телефон / WhatsApp</label><input placeholder="+7 701 000-00-00"></div>
+    <div class="fg full"><label>Заметка</label><textarea rows="2" placeholder="Откуда узнали, особенности…"></textarea></div>
+  </div>${foot('Добавить ученика')}`);}
+
+function formPay(){openModal('Принять оплату',`
+  <div class="form">
+    <div class="fg full"><label>Ученик</label><select>${students.map(s=>`<option>${s.name}</option>`).join('')}</select></div>
+    <div class="fg"><label>Абонемент</label><select><option>8 занятий — 48 000 ₸</option><option>12 занятий — 64 000 ₸</option><option>Безлимит — 75 000 ₸</option></select></div>
+    <div class="fg"><label>Способ</label><select><option>Kaspi</option><option>Карта</option><option>Наличные</option><option>Перевод</option></select></div>
+    <div class="fg"><label>Сумма</label><input value="48 000 ₸"></div>
+    <div class="fg"><label>Дата</label><input value="6 июня 2026"></div>
+  </div>${foot('Провести оплату')}`);}
+
+/* ============ CREATE MENU ============ */
+$('#btn-create').onclick=()=>{
+  openModal('Что создать?',`<div class="create-menu">
+    <div class="cm" data-go="leads"><div class="ci" style="background:var(--pink-bg);color:var(--pink)">🎯</div><div><b>Лид / заявка</b><small>Новый контакт на пробное занятие</small></div></div>
+    <div class="cm" data-act="student"><div class="ci" style="background:var(--violet-bg);color:var(--violet)">🧑‍🎓</div><div><b>Ученик</b><small>Записать в группу и выдать абонемент</small></div></div>
+    <div class="cm" data-act="pay"><div class="ci" style="background:var(--green-bg);color:var(--green)">💰</div><div><b>Оплата</b><small>Принять оплату абонемента</small></div></div>
+    <div class="cm" data-go="prods"><div class="ci" style="background:var(--gold-bg);color:var(--gold)">🎟</div><div><b>Постановка</b><small>Спектакль, показ или съёмка</small></div></div>
+  </div>`);
+  $$('.create-menu .cm').forEach(c=>c.onclick=()=>{closeModal();setTimeout(()=>{if(c.dataset.go)go(c.dataset.go);else if(c.dataset.act==='student')formStudent();else if(c.dataset.act==='pay')formPay();},120);});
+};
+
+/* ============ THEME + TOAST ============ */
+$('#theme').onclick=()=>{const b=document.body;const d=b.dataset.theme==='dark';b.dataset.theme=d?'light':'dark';$('#theme').textContent=d?'🌙':'☀️';};
+let toastT;
+function toast(msg){const t=$('#toast');t.innerHTML='✅ '+msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600);}
+
+/* boot */
+go('dash');
+
+</script>
+</body>
+</html>
