@@ -19,7 +19,51 @@ const state = {
   comment: "",
   submitting: false,
   lastSubmittedId: null,
+  clientId: null,        // обязательная привязка к контакту CRM (защита от «ничейных» заказов)
+  clientName: "",
+  clientSearch: "",
 };
+
+// Поиск клиента (контакта) по имени/БИН среди контактов CRM.
+function searchClients(query) {
+  const q = String(query || "").trim().toLowerCase();
+  if (q.length < 2) return [];
+  let list = [];
+  try { list = Store.list("contacts") || []; } catch { list = []; }
+  const digits = q.replace(/\D/g, "");
+  const out = [];
+  for (const c of list) {
+    if (c.deleted || c.trashed) continue;
+    const name = String(c.name || "").toLowerCase();
+    const note = String(c.note || "").toLowerCase();
+    const byName = name.includes(q);
+    const byBin = digits.length >= 4 && note.replace(/\D/g, "").includes(digits);
+    if (byName || byBin) out.push(c);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
+// Краткая подсказка по контакту: БИН/ИИН из note, если есть.
+function clientHint(c) {
+  const m = String(c?.note || "").match(/\b\d{12}\b/);
+  return m ? "БИН/ИИН " + m[0] : (c?.company || c?.city || "");
+}
+
+function renderClientResults() {
+  const q = String(state.clientSearch || "").trim();
+  if (q.length < 2) return `<div class="field-hint">Введите название клиента или БИН (минимум 2 символа).</div>`;
+  const found = searchClients(q);
+  if (found.length === 0) return `<div class="field-hint">Клиент не найден. Проверьте написание или заведите контакт в CRM.</div>`;
+  return found.map((c) => `
+    <button type="button" class="field-product" data-client-id="${escape(c.id)}" data-client-name="${escape(c.name || "")}">
+      <div class="field-product-main">
+        <div class="field-product-name">${escape(c.name || "(без названия)")}</div>
+        ${clientHint(c) ? `<div class="field-product-sku">${escape(clientHint(c))}</div>` : ""}
+      </div>
+    </button>
+  `).join("");
+}
 
 function escape(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -55,6 +99,19 @@ export function renderFieldOrder(container) {
       ` : ""}
 
       <section class="field-section">
+        <label class="field-label">Клиент <span style="color:#dc2626">*</span></label>
+        ${state.clientId ? `
+          <div class="field-client-selected" style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:#e8f5e9;border:1px solid #16a34a;border-radius:10px;padding:10px 12px">
+            <div><strong>${escape(state.clientName)}</strong></div>
+            <button type="button" class="field-link" id="fieldClientClear">сменить</button>
+          </div>
+        ` : `
+          <input type="search" id="fieldClientSearch" class="field-input" placeholder="Найти клиента по названию или БИН…" value="${escape(state.clientSearch)}" autocomplete="off">
+          <div class="field-search-results" id="fieldClientResults">${renderClientResults()}</div>
+        `}
+      </section>
+
+      <section class="field-section">
         <label class="field-label">Найти товар</label>
         <input type="search" id="fieldSearch" class="field-input" placeholder="SKU или название…" value="${escape(state.search)}" autocomplete="off">
         <div class="field-search-results" id="fieldSearchResults">${renderSearchResults()}</div>
@@ -75,8 +132,8 @@ export function renderFieldOrder(container) {
 
       <footer class="field-footer">
         <div class="field-total">Итого: <strong>${fmtAmount(totalSum())}</strong></div>
-        <button type="button" class="field-submit" id="fieldSubmit" ${state.items.length === 0 || state.submitting ? "disabled" : ""}>
-          ${state.submitting ? "Отправляем…" : "Отправить заказ"}
+        <button type="button" class="field-submit" id="fieldSubmit" ${state.items.length === 0 || state.submitting || !state.clientId ? "disabled" : ""}>
+          ${state.submitting ? "Отправляем…" : (!state.clientId ? "Выберите клиента" : "Отправить заказ")}
         </button>
       </footer>
     </div>
@@ -162,6 +219,19 @@ function wireEvents(container) {
   container.dataset.fieldWired = "1";
 
   container.addEventListener("click", async (e) => {
+    const clientPick = e.target.closest("[data-client-id]");
+    if (clientPick) {
+      state.clientId = clientPick.dataset.clientId;
+      state.clientName = clientPick.dataset.clientName || "";
+      state.clientSearch = "";
+      renderFieldOrder(container);
+      return;
+    }
+    if (e.target.id === "fieldClientClear") {
+      state.clientId = null; state.clientName = ""; state.clientSearch = "";
+      renderFieldOrder(container);
+      return;
+    }
     const addBtn = e.target.closest("[data-add-product]");
     if (addBtn) {
       const pid = addBtn.dataset.addProduct;
@@ -197,6 +267,7 @@ function wireEvents(container) {
     }
     if (e.target.id === "fieldSubmit" || e.target.closest("#fieldSubmit")) {
       if (state.submitting) return;
+      if (!state.clientId) { alert("Сначала выберите клиента — без него заказ не отправить."); return; }
       if (state.items.length === 0) return;
       state.submitting = true;
       renderFieldOrder(container);
@@ -214,6 +285,12 @@ function wireEvents(container) {
   });
 
   container.addEventListener("input", (e) => {
+    if (e.target.id === "fieldClientSearch") {
+      state.clientSearch = e.target.value || "";
+      const results = container.querySelector("#fieldClientResults");
+      if (results) results.innerHTML = renderClientResults();
+      return;
+    }
     if (e.target.id === "fieldSearch") {
       state.search = e.target.value || "";
       const results = container.querySelector("#fieldSearchResults");
@@ -256,7 +333,7 @@ function updateRowAndTotal(container, idx) {
   const totalEl = container.querySelector(".field-total strong");
   if (totalEl) totalEl.textContent = fmtAmount(totalSum());
   const submit = container.querySelector("#fieldSubmit");
-  if (submit) submit.disabled = state.items.length === 0 || state.submitting;
+  if (submit) submit.disabled = state.items.length === 0 || state.submitting || !state.clientId;
 }
 
 function addProduct(productId) {
@@ -283,6 +360,9 @@ function resetForm({ keepLast = false } = {}) {
   state.items = [];
   state.search = "";
   state.comment = "";
+  state.clientId = null;
+  state.clientName = "";
+  state.clientSearch = "";
   if (!keepLast) state.lastSubmittedId = null;
 }
 
@@ -311,12 +391,16 @@ async function submitFieldOrder() {
   const dateLabel = new Date(now).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
   const title = `Заказ ${dateLabel} от ${(me?.name || "поле").trim()}`;
 
+  if (!state.clientId) throw new Error("Не выбран клиент. Выберите клиента из списка.");
+  const client = Store.get("contacts", state.clientId) || null;
   const deal = Store.create(COLLECTION_DEALS, {
     title,
     pipelineId,
     stage: stageId,
     amount: totalSum(),
     source: "Field",
+    contactId: state.clientId,                       // обязательная привязка к клиенту
+    contactName: client?.name || state.clientName || null,
     notes: state.comment || "",
     createdAt: now,
     ts: now,

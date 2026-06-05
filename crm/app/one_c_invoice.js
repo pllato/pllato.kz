@@ -103,6 +103,34 @@ function listContractsFor(contractorRef) {
   } catch { return []; }
 }
 
+// Поиск клиента (контакта CRM) по имени/БИН — для привязки заказа «на месте».
+function searchClientContacts(query) {
+  const q = String(query || "").trim().toLowerCase();
+  if (q.length < 2) return [];
+  const digits = q.replace(/\D/g, "");
+  let list = [];
+  try { list = Store.list("contacts") || []; } catch { list = []; }
+  const out = [];
+  for (const c of list) {
+    if (c.deleted || c.trashed) continue;
+    const name = String(c.name || "").toLowerCase();
+    const note = String(c.note || "").toLowerCase();
+    if (name.includes(q) || (digits.length >= 4 && note.replace(/\D/g, "").includes(digits))) out.push(c);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+function clientBinHint(c) {
+  const m = String(c?.note || "").match(/\b\d{12}\b/);
+  return m ? "БИН/ИИН " + m[0] : "";
+}
+function clientResultsHTML(results, query) {
+  if (results.length) {
+    return results.map((c) => `<button type="button" class="onec-client-pick" data-cid="${esc(c.id)}" style="display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;border:none;border-bottom:1px solid var(--border,#f0f0f0);background:none;padding:8px 10px;cursor:pointer;color:var(--text,#111);font:inherit"><span>${esc(c.name || "(без названия)")}</span><span style="color:var(--text-muted,#888);font-size:11.5px;white-space:nowrap">${esc(clientBinHint(c))}</span></button>`).join("");
+  }
+  return `<div style="padding:8px 10px;font-size:12px;color:var(--text-muted,#888)">${String(query || "").trim().length >= 2 ? "Не найдено — проверьте написание или заведите контакт в CRM." : ""}</div>`;
+}
+
 // Адрес доставки по умолчанию: первичная точка доставки контакта, иначе адрес из 1С.
 function defaultDeliveryAddress(contact) {
   try {
@@ -155,7 +183,7 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
   const total = lines.reduce((s, l) => s + (l.sum || 0), 0);
   const activeCount = (items || []).filter((i) => (Number(i.qty) || 0) > 0).length;
 
-  const state = { contractorRef: contact?._1c_ref_key || null, busyContractor: false, contractorMsg: "", base: "aminamed" };
+  const state = { contractorRef: contact?._1c_ref_key || null, busyContractor: false, contractorMsg: "", base: "aminamed", contact: contact || null, clientSearch: "" };
   const currentBase = () => overlay.querySelector("#onec-base")?.value || state.base || "aminamed";
 
   const overlay = document.createElement("div");
@@ -166,9 +194,12 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
   function render() {
     const alreadyNum = deal[meta.numField] || null;
     const hasContractor = !!state.contractorRef;
+    const hasClient = !!state.contact?.id;
     const contracts = listContractsFor(state.contractorRef);
-    const defaultDelivery = defaultDeliveryAddress(contact);
+    const defaultDelivery = defaultDeliveryAddress(state.contact);
+    const clientResults = hasClient ? [] : searchClientContacts(state.clientSearch);
     const blockers = [];
+    if (!hasClient) blockers.push("Не выбран клиент — выберите его выше.");
     if (lines.length === 0) blockers.push("Ни одна позиция заказа не сопоставлена с номенклатурой 1С.");
 
     overlay.innerHTML = `
@@ -186,12 +217,20 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
           </select>
 
           <div style="font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Клиент (контрагент 1С)</div>
-          <div style="font-weight:600;margin-bottom:6px">${esc(contact?.name || deal.title || "—")}${hasContractor ? ` <span style="color:#16a34a">✓ есть в Аминамед</span>` : ""}</div>
+          ${hasClient ? `
+          <div style="font-weight:600;margin-bottom:6px">${esc(state.contact?.name || deal.title || "—")}${hasContractor ? ` <span style="color:#16a34a">✓ есть в Аминамед</span>` : ""} <button type="button" id="onec-client-change" class="btn-ghost" style="padding:2px 8px;font-size:12px">сменить</button></div>
           <div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <button type="button" id="onec-find-contractor" class="btn-ghost" style="padding:6px 12px;font-size:13px" ${state.busyContractor ? "disabled" : ""}>🔍 Найти в 1С по БИН</button>
             <button type="button" id="onec-create-contractor" class="btn-ghost" style="padding:6px 12px;font-size:13px" ${state.busyContractor ? "disabled" : ""}>➕ Создать в 1С</button>
             <span style="font-size:11.5px;color:var(--text-muted,#888)">${esc(state.contractorMsg || "если клиента нет в выбранной базе — найдём по БИН или заведём; при создании счёта сервер тоже резолвит по БИН")}</span>
           </div>
+          ` : `
+          <div style="background:#fff3e0;border:1px solid #f59e0b;border-radius:8px;padding:9px 11px;margin-bottom:8px;font-size:12.5px;color:#92400e">⚠ Заказ не привязан к клиенту в CRM. Выберите клиента — без него счёт в 1С не создать.</div>
+          <input id="onec-client-search" type="text" value="${esc(state.clientSearch)}" placeholder="Найти клиента по названию или БИН…" autocomplete="off" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:6px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
+          <div id="onec-client-results" style="max-height:180px;overflow:auto;margin-bottom:14px;border:1px solid var(--border,#eee);border-radius:8px;${clientResults.length || String(state.clientSearch||'').trim().length>=2 ? '' : 'display:none'}">
+            ${clientResultsHTML(clientResults, state.clientSearch)}
+          </div>
+          `}
 
           <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Договор (1С)</label>
           <select id="onec-contract" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
@@ -262,17 +301,47 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
     overlay.querySelector("#onec-x").addEventListener("click", closeDialog);
     overlay.querySelector("#onec-cancel").addEventListener("click", closeDialog);
 
+    // Привязка клиента «на месте», если заказ не привязан к контакту CRM.
+    const bindClientPicks = () => {
+      overlay.querySelectorAll(".onec-client-pick").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const c = Store.get("contacts", btn.dataset.cid);
+          if (!c) return;
+          state.contact = c;
+          state.contractorRef = c._1c_ref_key || null;
+          state.clientSearch = "";
+          try { Store.update("deals", deal.id, { contactId: c.id, contactName: c.name || null }); } catch {}
+          render();
+        });
+      });
+    };
+    bindClientPicks();
+    overlay.querySelector("#onec-client-search")?.addEventListener("input", (e) => {
+      state.clientSearch = e.target.value || "";
+      const box = overlay.querySelector("#onec-client-results");
+      if (box) {
+        const results = searchClientContacts(state.clientSearch);
+        box.style.display = (results.length || state.clientSearch.trim().length >= 2) ? "" : "none";
+        box.innerHTML = clientResultsHTML(results, state.clientSearch);
+        bindClientPicks();
+      }
+    });
+    overlay.querySelector("#onec-client-change")?.addEventListener("click", () => {
+      state.contact = null; state.contractorRef = null; state.clientSearch = "";
+      render();
+    });
+
     // Поиск контрагента в 1С по БИН (решение встречи 01.06).
     overlay.querySelector("#onec-find-contractor")?.addEventListener("click", async () => {
-      if (!contact?.id) { alert("У клиента нет id в CRM."); return; }
+      if (!state.contact?.id) { alert("Сначала выберите клиента выше."); return; }
       const base = currentBase();
       state.base = base; state.busyContractor = true; state.contractorMsg = "Ищем в 1С по БИН…"; render();
       try {
-        const res = await apiFetch("/api/crm/1c/contractors/find", { method: "POST", body: { contactId: contact.id, base } });
+        const res = await apiFetch("/api/crm/1c/contractors/find", { method: "POST", body: { contactId: state.contact.id, base } });
         if (res?.found) {
           if (base === "aminamed") {
             state.contractorRef = res.ref_key;
-            try { Store.update("contacts", contact.id, { _1c_ref_key: res.ref_key }); } catch {}
+            try { Store.update("contacts", state.contact.id, { _1c_ref_key: res.ref_key }); } catch {}
           }
           state.busyContractor = false; state.contractorMsg = "✓ найден в выбранной базе";
         } else {
@@ -290,14 +359,14 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
 
     // Создание контрагента в 1С прямо отсюда
     overlay.querySelector("#onec-create-contractor")?.addEventListener("click", async () => {
-      if (!contact?.id) { alert("У клиента нет id в CRM."); return; }
+      if (!state.contact?.id) { alert("Сначала выберите клиента выше."); return; }
       const base = currentBase();
       state.base = base; state.busyContractor = true; state.contractorMsg = "Создаём в 1С…"; render();
       try {
-        const res = await apiFetch("/api/crm/1c/contractors/create", { method: "POST", body: { contactId: contact.id, base } });
+        const res = await apiFetch("/api/crm/1c/contractors/create", { method: "POST", body: { contactId: state.contact.id, base } });
         if (base === "aminamed") {
           state.contractorRef = res?.ref_key || null;
-          try { Store.update("contacts", contact.id, { _1c_ref_key: res?.ref_key || null }); } catch {}
+          try { Store.update("contacts", state.contact.id, { _1c_ref_key: res?.ref_key || null }); } catch {}
         }
         state.busyContractor = false; state.contractorMsg = res?.already_exists ? "✓ уже есть в базе (привязан)" : "✓ создан в выбранной базе";
         render();
@@ -332,7 +401,7 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
         const payload = {
           externalId: deal.id,
           base,
-          contactId: contact?.id || null,
+          contactId: state.contact?.id || null,
           currencyRef: ONE_C_KZT_REF,
           contractorRef: base === "aminamed" ? state.contractorRef : null,
           contractRef,
