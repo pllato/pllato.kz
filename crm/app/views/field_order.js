@@ -8,7 +8,7 @@ import { listWarehouseProducts, getWarehouseProduct, productSummary } from "../w
 import { getStages } from "../stages.js";
 import { getActivePipelineId, ensurePipelinesInitialized, getPipelines, getStagesForPipeline } from "../pipelines.js";
 import { currentEmployee } from "../employees.js";
-import { createDealItem } from "../deal_items.js";
+import { createDealItem, submitDealOrder } from "../deal_items.js";
 
 const COLLECTION_DEALS = "deals";
 
@@ -417,6 +417,10 @@ async function submitFieldOrder() {
       unitPrice: Number(it.unitPrice) || 0,
     });
   }
+
+  // «Создать заказ»: явно отправляем заказ на склад в «Предварительные».
+  // (Авто-промоция убрана — заказ уходит на склад только по этому действию.)
+  try { submitDealOrder(deal.id); } catch (e) { console.warn("[field-order] submitDealOrder:", e); }
 
   // Activity-запись для timeline
   Store.create("deal_activities", {

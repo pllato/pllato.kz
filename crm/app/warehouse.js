@@ -412,6 +412,89 @@ export function saveWarehouseProduct(payload = {}) {
   return Store.create(WH.products, data);
 }
 
+// Соответствие 1С-базы складскому юр.лицу (для авто-создания товара из живого
+// поиска по 1С). Аминамед — ТОО, остальные — ИП.
+const ONE_C_BASE_ENTITY = { aminamed: "ТОО", alisherova: "ИП", baymukhanova: "ИП" };
+
+/**
+ * Гарантировать наличие складского товара, привязанного к номенклатуре 1С.
+ * Используется живым поиском в окне заказа: менеджер выбрал позицию из 1С —
+ * находим её в каталоге склада (по _1c_ref_key или по SKU=коду) либо создаём
+ * новую карточку с привязкой. Возвращает warehouse_product.
+ *
+ * @param {{ ref:string, code?:string, name?:string, unitRef?:string, vatRef?:string, base?:string }} src
+ */
+export function ensureProductFromOneC(src = {}) {
+  const ref = String(src.ref || "").trim();
+  if (!ref) throw new Error("Нет ссылки 1С (ref)");
+  const all = safeList(WH.products);
+
+  // 1) Уже привязан по _1c_ref_key — возвращаем как есть.
+  const byRef = all.find((p) => p._1c_ref_key === ref);
+  if (byRef) return byRef;
+
+  const code = String(src.code || "").trim();
+  const now = Date.now();
+  const onecPatch = {
+    _1c_ref_key: ref,
+    _1c_unit_ref: src.unitRef || null,
+    _1c_vat_ref: src.vatRef || null,
+    _1c_match_method: "search",
+    _1c_match_ambiguous: false,
+    _1c_matched_at: now,
+  };
+
+  // 2) Есть товар с таким же SKU=код 1С — дозаполняем привязку.
+  if (code) {
+    const bySku = all.find((p) => String(p.sku || "").toLowerCase() === code.toLowerCase());
+    if (bySku) return Store.update(WH.products, bySku.id, onecPatch);
+  }
+
+  // 3) Создаём новую карточку. Юр.лицо — из 1С-базы, ед.изм. — "шт" (в 1С это GUID,
+  //    кладём его в _1c_unit_ref). SKU дедуплицируем в рамках юр.лица.
+  const entity = ONE_C_BASE_ENTITY[src.base] || WAREHOUSE_ENTITIES[0] || "ТОО";
+  let sku = code || ("1C-" + ref.slice(0, 8));
+  let n = 1;
+  while (all.some((p) =>
+    String(p.sku || "").toLowerCase() === sku.toLowerCase() &&
+    String(p.entity || "").trim() === entity
+  )) {
+    n += 1;
+    sku = `${code || ref.slice(0, 8)}-${n}`;
+  }
+  return Store.create(WH.products, {
+    sku,
+    name: asText(src.name) || sku,
+    entity,
+    unit: "шт",
+    category: "",
+    ...onecPatch,
+  });
+}
+
+/**
+ * Создать новую карточку товара В CRM без привязки к 1С (Асем заведёт код в 1С
+ * позже). Используется для «новых кодов/партий», которых ещё нет в номенклатуре.
+ * Возвращает warehouse_product. Бросает, если SKU занят в этом юр.лице.
+ *
+ * @param {{ sku:string, name:string, base?:string, entity?:string, unit?:string }} src
+ */
+export function createCrmProductForOneC(src = {}) {
+  const sku = String(src.sku || "").trim();
+  const name = String(src.name || "").trim();
+  if (!sku) throw new Error("Укажите код (SKU) товара");
+  if (!name) throw new Error("Укажите название товара");
+  const entity = src.entity || ONE_C_BASE_ENTITY[src.base] || WAREHOUSE_ENTITIES[0] || "ТОО";
+  return saveWarehouseProduct({
+    sku,
+    name,
+    entity,
+    unit: src.unit || "шт",
+    // Без _1c_ref_key — товар останется «не сопоставлен с 1С» и попадёт в очередь
+    // на сопоставление; в счёт/реализацию не войдёт пока Асем не заведёт код в 1С.
+  });
+}
+
 export function listLotsForProduct(productId, opts = {}) {
   const activeOnly = Boolean(opts.activeOnly);
   return safeList(WH.lots)

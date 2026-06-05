@@ -1936,7 +1936,7 @@ function renderDealActionBar(d, contact) {
         <span>${hasPhone ? "Открыть WhatsApp" : noPhoneTitle}</span>
         ${unreadBadge}
       </button>
-      <button type="button" class="deal-action-btn ${orderClass}" data-deal-items-open title="Открыть заказ — позиции, согласование, отгрузка, накладная">
+      <button type="button" class="deal-action-btn ${orderClass}" data-deal-items-open title="Заказ: позиции, клиент и реквизиты 1С → «Создать заказ» (дальше — на складе)">
         <span class="dab-emoji">${orderEmoji}</span>
         <span class="dab-order-text">${escape(orderText)}</span>
         ${orderChip}

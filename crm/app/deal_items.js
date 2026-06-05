@@ -3,7 +3,7 @@
 // Статусы: draft (черновик) → preliminary (отправлен на склад).
 
 import { Store } from "./store.js";
-import { listWarehouseProducts, getWarehouseProduct, productSummary } from "./warehouse.js";
+import { listWarehouseProducts, getWarehouseProduct, productSummary, ensureProductFromOneC, createCrmProductForOneC } from "./warehouse.js";
 import { currentEmployee } from "./employees.js";
 import { apiFetch } from "./auth.js";
 import {
@@ -37,6 +37,7 @@ export const ORDER_STATUS_SHIPPED = "shipped";
 const modalState = {
   dealId: null,
   mountEl: null, // элемент модалки в DOM, либо null
+  context: "crm", // "crm" (менеджер — только «Создать заказ») | "warehouse" (склад — жизненный цикл)
   focusItemId: null, // id позиции, на которую направить фокус после refreshModal
   focusField: null, // "product" | "qty" — какое поле строки фокусировать
 };
@@ -63,8 +64,10 @@ export function createDealItem(dealId, payload = {}) {
     unitPrice,
     lineAmount: qty * unitPrice,
   });
-  // Если позиция уже валидная (товар + кол-во) — сразу промоутим заказ в «Предварительный».
-  autoPromoteToPreliminary(dealId);
+  // Заказ НЕ уходит на склад автоматически. Менеджер собирает позиции в черновике
+  // и явно жмёт «Создать заказ» (submitDealOrder) — только тогда он попадает
+  // в «Предварительные» на складе. Это требование заказчика: «в СРМ можно
+  // только Создать заказ», вся дальнейшая жизнь заказа — на складе.
   return item;
 }
 
@@ -86,44 +89,9 @@ export function updateDealItem(id, patch = {}) {
     next.lineAmount = qty * unitPrice;
   }
   const updated = Store.update(ITEMS, id, next);
-  // После изменения проверяем: если в заказе появилась первая валидная позиция —
-  // автоматически отправляем на склад в «Предварительные».
-  if (updated?.dealId) autoPromoteToPreliminary(updated.dealId);
+  // Авто-промоция убрана намеренно: заказ уходит на склад только по явному
+  // нажатию «Создать заказ» (submitDealOrder). До этого живёт в черновике CRM.
   return updated;
-}
-
-// Авто-промоция: как только в сделке-черновике появилась хотя бы одна валидная
-// позиция (есть товар + кол-во > 0) — статус заказа переходит в «Предварительный».
-// Это означает, что склад сразу видит заказ в колонке «Предварительные».
-// Уже отправленные/согласованные/отгруженные заказы не трогаем.
-function autoPromoteToPreliminary(dealId) {
-  const deal = Store.get(DEALS, dealId);
-  if (!deal) return;
-  const status = deal.orderStatus || ORDER_STATUS_DRAFT;
-  if (status !== ORDER_STATUS_DRAFT) return;
-  const hasValid = listDealItems(dealId).some(
-    (i) => i.productId && (Number(i.qty) || 0) > 0
-  );
-  if (!hasValid) return;
-  const me = currentEmployee();
-  const now = Date.now();
-  Store.update(DEALS, dealId, {
-    orderStatus: ORDER_STATUS_PRELIMINARY,
-    orderSubmittedAt: now,
-    orderSubmittedBy: me?.id || null,
-    orderSubmittedByName: me?.name || me?.email || "",
-  });
-  try {
-    Store.create("deal_activities", {
-      dealId,
-      type: "order_auto_submitted",
-      text: "Заказ автоматически отправлен на склад (появилась валидная позиция)",
-      authorId: me?.id || null,
-      ts: now,
-    });
-  } catch (e) {
-    console.warn("[deal_items] не удалось записать activity order_auto_submitted:", e);
-  }
 }
 
 export function removeDealItem(id) {
@@ -386,15 +354,14 @@ export function revokeDealOrderApproval(dealId) {
  * 1) Любая sale_invoice (не cancelled) → её сделка должна быть в shipped
  *    (с заполненным orderInvoiceId/Number). Без этого после старого пути
  *    «Сформировать накладную» заказ оставался в approved хотя накладная уже была.
- * 2) Любой draft-заказ с валидной позицией → авто-промоция в preliminary
- *    (на случай если данные были созданы до того, как мы внедрили автоматику
- *    в createDealItem/updateDealItem).
  *
- * @returns {{ shipped: number, promoted: number }}
+ * Авто-промоцию черновиков в preliminary убрали: заказ уходит на склад только
+ * по явному «Создать заказ». На boot ничего не «дотягиваем» в preliminary.
+ *
+ * @returns {{ shipped: number }}
  */
 export function reconcileOrderStatuses() {
   let shipped = 0;
-  let promoted = 0;
 
   // (1) Накладные → заказы в shipped.
   const docs = Store.list("warehouse_documents").filter(
@@ -412,31 +379,10 @@ export function reconcileOrderStatuses() {
     }
   }
 
-  // (2) Draft с валидными позициями → preliminary.
-  // Группируем deal_items по dealId один раз — без перебора в цикле.
-  const validByDeal = new Map();
-  for (const it of Store.list(ITEMS)) {
-    if (it.productId && (Number(it.qty) || 0) > 0) {
-      validByDeal.set(it.dealId, true);
-    }
+  if (shipped > 0) {
+    console.log(`[reconciler] order statuses synced: shipped=${shipped}`);
   }
-  for (const [dealId] of validByDeal) {
-    const deal = Store.get(DEALS, dealId);
-    if (!deal || deal.isDeleted) continue;
-    const status = deal.orderStatus || ORDER_STATUS_DRAFT;
-    if (status !== ORDER_STATUS_DRAFT) continue;
-    try {
-      autoPromoteToPreliminary(dealId);
-      promoted += 1;
-    } catch (e) {
-      console.warn("[reconciler] autoPromote failed for deal", dealId, e);
-    }
-  }
-
-  if (shipped > 0 || promoted > 0) {
-    console.log(`[reconciler] order statuses synced: shipped=${shipped}, promoted=${promoted}`);
-  }
-  return { shipped, promoted };
+  return { shipped };
 }
 
 // === Утилиты ===
@@ -525,7 +471,7 @@ function renderItemRow(item, products, editable) {
     <tr data-deal-item-id="${escapeAttr(item.id)}">
       <td class="dim-product">
         <div class="dim-typeahead" data-item-id="${escapeAttr(item.id)}">
-          <input type="text" class="dim-ta-input" placeholder="Поиск товара по SKU или названию…"
+          <input type="text" class="dim-ta-input" placeholder="Код / название — ищем по складу и в 1С…"
                  value="${escapeAttr(initialLabel)}"
                  data-deal-item-typeahead="${escapeAttr(item.id)}"
                  ${inputDisabled}
@@ -788,7 +734,7 @@ function renderModalHTML(dealId) {
             <div class="dim-empty">
               <div class="dim-empty-icon">📦</div>
               <div class="dim-empty-title">Заказ пуст</div>
-              <div class="dim-empty-text">Нажми «➕ Добавить позицию» чтобы добавить товар со склада. Поиск работает по SKU и названию.</div>
+              <div class="dim-empty-text">Нажми «➕ Добавить позицию». Поиск товара идёт по складу и сразу по номенклатуре 1С; можно завести новый код.</div>
             </div>
           ` : `
             <table class="dim-table">
@@ -828,7 +774,7 @@ function renderModalHTML(dealId) {
         <footer class="dim-footer">
           <div class="dim-footer-left"></div>
           <div class="dim-footer-right">
-            ${renderFooterActions(deal, items)}
+            ${renderFooterActions(deal, items, modalState.context)}
             <button type="button" class="btn-ghost" data-dim-close>Закрыть</button>
           </div>
         </footer>
@@ -837,10 +783,51 @@ function renderModalHTML(dealId) {
   `;
 }
 
-// Действия в модалке — последовательный workflow, ОДНА primary-кнопка за раз:
-//   Согласование → Счёт → Отгрузка.
-// Реквизиты 1С всегда видны выше; здесь только шаги жизненного цикла.
-function renderFooterActions(deal, items) {
+// Действия в модалке зависят от контекста:
+//   context="crm"      — менеджер/поле: ТОЛЬКО «Создать заказ» (draft→preliminary).
+//                        Дальше заказ живёт на складе — здесь только статус.
+//   context="warehouse"— склад: последовательный жизненный цикл,
+//                        Согласование → Счёт в 1С → Отгрузка (ОДНА primary за раз).
+// Реквизиты 1С всегда видны выше; здесь только действия.
+function renderFooterActions(deal, items, context = "crm") {
+  if (context === "crm") return renderCrmFooterActions(deal, items);
+  return renderWarehouseFooterActions(deal, items);
+}
+
+// CRM/поле: единственное действие менеджера — «Создать заказ». Дальше — на складе.
+function renderCrmFooterActions(deal, items) {
+  const status = getDealOrderStatus(deal);
+  const hasClient = !!deal.contactId;
+
+  if (status === ORDER_STATUS_DRAFT) {
+    let disabled = "";
+    let title = "Отправить заказ на склад в «Предварительные»";
+    if (items.length === 0) { disabled = " disabled"; title = "Добавьте хотя бы одну позицию"; }
+    else if (!hasClient) { disabled = " disabled"; title = "Сначала выберите клиента в реквизитах 1С (защита от ошибок)"; }
+    return `
+      <span class="dim-footer-note" style="font-size:12px;color:var(--text-muted,#888);margin-right:8px">После создания заказ уйдёт на склад в «Предварительные».</span>
+      <button type="button" class="btn-primary" data-deal-order-create title="${escapeAttr(title)}"${disabled}>✓ Создать заказ</button>
+    `;
+  }
+  // Уже создан/в работе — менеджер видит только статус, без действий цикла.
+  let note = "";
+  if (status === ORDER_STATUS_PRELIMINARY) {
+    note = `<span class="dim-footer-note" style="font-size:12.5px;color:#6366f1">✓ Заказ создан — ждёт согласования на складе.</span>`;
+  } else if (status === ORDER_STATUS_APPROVED) {
+    note = `<span class="dim-footer-note" style="font-size:12.5px;color:#d97706">Согласован на складе — счёт и отгрузка делаются на складе.</span>`;
+  } else if (status === ORDER_STATUS_PAYMENT_PENDING) {
+    note = `<span class="dim-footer-note" style="font-size:12.5px;color:#a855f7">Ожидает оплату (контроль на складе).</span>`;
+  } else if (status === ORDER_STATUS_SHIPPED) {
+    note = `<span class="dim-footer-note" style="font-size:12.5px;color:#16a34a">✅ Отгружен${deal.orderInvoiceNumber ? ` · накладная № ${escapeHtml(deal.orderInvoiceNumber)}` : ""}.</span>`;
+  }
+  const recall = status === ORDER_STATUS_PRELIMINARY
+    ? `<button type="button" class="btn-ghost btn-sm" data-deal-order-recall title="Вернуть в черновик, чтобы поправить состав">↩ Вернуть в черновик</button>`
+    : "";
+  return `${note}${recall}`;
+}
+
+// Склад: полный жизненный цикл (последовательно, ОДНА primary за раз).
+function renderWarehouseFooterActions(deal, items) {
   const status = getDealOrderStatus(deal);
   const hasClient = !!deal.contactId;
   // Сопоставлены ли позиции с 1С (есть кол-во > 0 И привязка товара к 1С).
@@ -910,14 +897,24 @@ function filterProductsByQuery(products, query) {
     .slice(0, 50);
 }
 
-function renderProductOptions(products, query) {
-  const filtered = filterProductsByQuery(products, query);
-  if (filtered.length === 0) {
-    return `<div class="dim-ta-empty">Ничего не найдено по запросу «${escapeHtml(query)}»</div>`;
-  }
-  return filtered.map((p) => {
-    const summary = productSummary(p.id);
-    const stock = summary?.total || 0;
+// Живой поиск товара в строке заказа: одновременно по складу (мгновенно) и по
+// номенклатуре 1С (debounced fetch). Плюс опция «создать новый код в CRM».
+// Требование заказчика: «Поиск товара сразу должен идти по 1с».
+const TA_GROUP_STYLE = "padding:5px 10px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted,#888);background:var(--surface-2,#f7f7f8)";
+const TA_NOTE_STYLE = "padding:7px 10px;font-size:11.5px;color:var(--text-muted,#888)";
+const TA_1C_ITEM_STYLE = "display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--border,#f0f0f0)";
+const TA_CREATE_STYLE = "padding:8px 10px;cursor:pointer;font-size:12.5px;color:#2563eb;border-top:1px solid var(--border,#eee);background:var(--surface,#fff)";
+
+function setupRowProductSearch(input, list, opts) {
+  const { localProducts, baseKey, entity, onPick } = opts;
+  let token = 0;
+  // Состояние блока 1С: idle|loading|done|error.
+  const st = { onec: [], onecState: "idle", onecQ: "" };
+
+  const close = () => { list.hidden = true; };
+
+  const localItemHtml = (p) => {
+    const stock = productSummary(p.id)?.total || 0;
     return `
       <div class="dim-ta-item" data-product-id="${escapeAttr(p.id)}" role="option">
         <div class="dim-ta-item-main">
@@ -925,47 +922,147 @@ function renderProductOptions(products, query) {
           <span class="dim-ta-name">${escapeHtml(p.name)}</span>
         </div>
         <div class="dim-ta-item-stock">${fmtNum(stock)} ${escapeHtml(p.unit || "шт")}</div>
-      </div>
-    `;
-  }).join("");
-}
-
-function setupTypeahead(input, list, products, onSelect) {
-  const open = () => {
-    list.hidden = false;
-    list.innerHTML = renderProductOptions(products, input.value);
-    bindItems();
+      </div>`;
   };
-  const close = () => { list.hidden = true; };
 
-  const bindItems = () => {
+  const buildHtml = (q) => {
+    let html = "";
+    const loc = filterProductsByQuery(localProducts, q).slice(0, 8);
+    // Локальные refs, чтобы не дублировать те же позиции из 1С.
+    const localRefs = new Set(localProducts.map((p) => p._1c_ref_key).filter(Boolean));
+
+    if (loc.length) {
+      html += `<div style="${TA_GROUP_STYLE}">На складе</div>` + loc.map(localItemHtml).join("");
+    }
+
+    if (q.length >= 2) {
+      // Блок 1С — показываем только если запрос совпадает с тем, что искали.
+      if (st.onecState === "loading") {
+        html += `<div style="${TA_NOTE_STYLE}">Ищем в 1С…</div>`;
+      } else if (st.onecState === "error") {
+        html += `<div style="${TA_NOTE_STYLE}">⚠ 1С недоступна — можно создать код в CRM.</div>`;
+      } else if (st.onecState === "done" && st.onecQ === q) {
+        const fresh = st.onec.filter((x) => !localRefs.has(x.ref));
+        if (fresh.length) {
+          html += `<div style="${TA_GROUP_STYLE}">В 1С — привязать</div>`;
+          html += fresh.map((x) => `
+            <div class="dim-ta-1c" data-ref="${escapeAttr(x.ref)}" data-code="${escapeAttr(x.code || "")}" data-name="${escapeAttr(x.name || "")}" data-unit="${escapeAttr(x.unit || "")}" data-vat="${escapeAttr(x.vat || "")}" style="${TA_1C_ITEM_STYLE}">
+              <span style="font-size:12.5px;color:var(--text,#111)">${escapeHtml(x.name || "(без названия)")} <span style="opacity:.5">${escapeHtml(x.code || "")}</span></span>
+              <span style="font-size:11px;color:#2563eb;white-space:nowrap">из 1С →</span>
+            </div>`).join("");
+        } else {
+          html += `<div style="${TA_NOTE_STYLE}">В 1С по «${escapeHtml(q)}» не найдено.</div>`;
+        }
+      }
+      // Всегда даём создать новый код в CRM (Асем заведёт в 1С).
+      html += `<div class="dim-ta-create" data-create-q="${escapeAttr(q)}" style="${TA_CREATE_STYLE}">➕ Создать код «${escapeHtml(q)}» в CRM <span style="opacity:.6">(Асем заведёт в 1С)</span></div>`;
+    } else if (loc.length === 0) {
+      html += `<div class="dim-ta-empty">Введите 2+ символа — ищем по складу и по 1С</div>`;
+    }
+    return html;
+  };
+
+  const render = (q) => {
+    list.innerHTML = buildHtml(q);
+    list.hidden = false;
+    bindClicks();
+  };
+
+  const bindClicks = () => {
+    // Локальный товар.
     list.querySelectorAll(".dim-ta-item").forEach((el) => {
       el.addEventListener("mousedown", (e) => {
         e.preventDefault();
-        const productId = el.dataset.productId;
-        const product = products.find((p) => p.id === productId);
-        if (product) {
-          input.value = productLabel(product);
-          onSelect(productId);
+        const pid = el.dataset.productId;
+        if (pid) onPick(pid);
+        close();
+      });
+    });
+    // Привязка позиции из 1С.
+    list.querySelectorAll(".dim-ta-1c").forEach((el) => {
+      el.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        try {
+          const prod = ensureProductFromOneC({
+            ref: el.dataset.ref,
+            code: el.dataset.code,
+            name: el.dataset.name,
+            unitRef: el.dataset.unit || null,
+            vatRef: el.dataset.vat || null,
+            base: baseKey,
+          });
+          if (prod?.id) onPick(prod.id);
+        } catch (err) {
+          alert("Не удалось привязать товар из 1С: " + (err?.message || String(err)));
+        }
+        close();
+      });
+    });
+    // Создать новый код в CRM (Асем заведёт в 1С).
+    list.querySelectorAll(".dim-ta-create").forEach((el) => {
+      el.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        const q = el.dataset.createQ || "";
+        const codeGuess = /^[\w\-./]+$/.test(q) ? q : "";
+        const code = (prompt("Код (SKU) нового товара:", codeGuess) || "").trim();
+        if (!code) { close(); return; }
+        const name = (prompt("Название товара:", q) || "").trim();
+        if (!name) { close(); return; }
+        try {
+          const prod = createCrmProductForOneC({ sku: code, name, base: baseKey, entity });
+          if (prod?.id) onPick(prod.id);
+        } catch (err) {
+          alert(err?.message || "Не удалось создать товар");
         }
         close();
       });
     });
   };
 
-  input.addEventListener("focus", open);
+  const runOneCSearch = debounce((q) => {
+    if (q.length < 2) return;
+    const my = ++token;
+    st.onecState = "loading";
+    st.onecQ = q;
+    render(q);
+    apiFetch("/api/crm/1c/nomenclature/search?q=" + encodeURIComponent(q) + "&base=" + encodeURIComponent(baseKey || "aminamed"))
+      .then((r) => {
+        if (my !== token) return; // устарел
+        st.onec = r?.results || [];
+        st.onecState = "done";
+        st.onecQ = q;
+        if (input.value.trim() === q) render(q);
+      })
+      .catch(() => {
+        if (my !== token) return;
+        st.onecState = "error";
+        if (input.value.trim() === q) render(q);
+      });
+  }, 350);
+
+  input.addEventListener("focus", () => render(input.value.trim()));
   input.addEventListener("input", () => {
-    list.innerHTML = renderProductOptions(products, input.value);
-    bindItems();
-    list.hidden = false;
+    const q = input.value.trim();
+    st.onecState = "idle";
+    render(q);
+    runOneCSearch(q);
   });
-  input.addEventListener("blur", () => setTimeout(close, 150));
+  input.addEventListener("blur", () => setTimeout(close, 180));
   input.addEventListener("keydown", (e) => {
     if (e.key === "Escape") { close(); input.blur(); }
   });
 }
 
 // === Управление модалкой ===
+
+// Сообщаем складскому канбану, что заказы изменились (если он открыт под модалкой).
+// ВАЖНО: слушатель в warehouse/index.js рендерит warehouse в #mainView без проверки
+// текущего роутинга — поэтому диспатчим ТОЛЬКО в складском контексте, иначе из CRM
+// мы бы случайно затёрли вид сделок складским канбаном.
+function notifyWarehouseRefresh() {
+  if (modalState.context !== "warehouse") return;
+  try { window.dispatchEvent(new CustomEvent("pllato:warehouse-refresh")); } catch {}
+}
 
 function refreshModal() {
   if (!modalState.dealId || !modalState.mountEl) return;
@@ -1034,18 +1131,23 @@ function wireModalHandlers() {
     });
   });
 
-  // Typeahead в строках
+  // Живой поиск товара в строках: по складу + по номенклатуре 1С + создание кода.
+  const orderBaseKey = Store.get(DEALS, dealId)?.oneCBase || "aminamed";
   root.querySelectorAll(".dim-typeahead").forEach((wrap) => {
     const itemId = wrap.dataset.itemId;
     const input = wrap.querySelector(".dim-ta-input");
     const list = wrap.querySelector(".dim-ta-list");
     if (!input || !list || !itemId) return;
-    setupTypeahead(input, list, products, (productId) => {
-      updateDealItem(itemId, { productId });
-      // После выбора товара ведём фокус в поле «Кол-во» этой же строки.
-      modalState.focusItemId = itemId;
-      modalState.focusField = "qty";
-      refreshModal();
+    setupRowProductSearch(input, list, {
+      localProducts: products,
+      baseKey: orderBaseKey,
+      onPick: (productId) => {
+        updateDealItem(itemId, { productId });
+        // После выбора товара ведём фокус в поле «Кол-во» этой же строки.
+        modalState.focusItemId = itemId;
+        modalState.focusField = "qty";
+        refreshModal();
+      },
     });
   });
 
@@ -1320,12 +1422,29 @@ function wireModalHandlers() {
     };
   };
 
+  // «Создать заказ» (CRM/поле): draft→preliminary, заказ уходит на склад.
+  // Защита от дурачка: без позиций и без клиента кнопка disabled, но дублируем проверку.
+  root.querySelector("[data-deal-order-create]")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const d = Store.get(DEALS, dealId);
+    if (!d?.contactId) { alert("Сначала выберите клиента в реквизитах 1С — без клиента заказ не создать."); return; }
+    if (listDealItems(dealId).length === 0) { alert("Добавьте хотя бы одну позицию."); return; }
+    try {
+      submitDealOrder(dealId);
+      refreshModal();
+      notifyWarehouseRefresh();
+      alert("✓ Заказ создан и отправлен на склад в «Предварительные».\n\nДальнейшие шаги (согласование, счёт в 1С, отгрузка) делаются на складе.");
+    } catch (err) {
+      alert(err?.message || "Не удалось создать заказ");
+    }
+  });
   // Recall (вернуть из preliminary в draft).
   root.querySelector("[data-deal-order-recall]")?.addEventListener("click", (e) => {
     e.preventDefault();
     if (!confirm("Вернуть заказ в черновик? Со склада он исчезнет из предварительных заказов.")) return;
     recallDealOrder(dealId);
     refreshModal();
+    notifyWarehouseRefresh();
   });
   // Согласовать на отгрузку (директорское действие).
   root.querySelector("[data-deal-order-approve]")?.addEventListener("click", (e) => {
@@ -1334,6 +1453,7 @@ function wireModalHandlers() {
     try {
       approveDealOrder(dealId);
       refreshModal();
+      notifyWarehouseRefresh();
     } catch (err) {
       alert(err?.message || "Не удалось согласовать заказ");
     }
@@ -1345,6 +1465,7 @@ function wireModalHandlers() {
     try {
       revokeDealOrderApproval(dealId);
       refreshModal();
+      notifyWarehouseRefresh();
     } catch (err) {
       alert(err?.message || "Не удалось отозвать");
     }
@@ -1389,6 +1510,7 @@ function wireModalHandlers() {
         realizationMsg = `\n\n⚠ Реализацию в 1С создать не удалось (${rerr?.message || String(rerr)}). Создайте её позже кнопкой «Реализация в 1С».`;
       }
       refreshModal();
+      notifyWarehouseRefresh();
       if (!posted) {
         alert(`⚠ Накладная № ${doc.number} создана как ЧЕРНОВИК — не удалось провести (FIFO-списание):\n\n${postError}\n\nОткрой документ в Склад → Документы и проведи вручную после докомплекта остатка.${realizationMsg}`);
       } else if (realizationMsg) {
@@ -1408,6 +1530,7 @@ function wireModalHandlers() {
     try {
       const out = await submitOneCDocument({ ...args, docType });
       refreshModal();
+      notifyWarehouseRefresh();
       alert(`✓ ${word} № ${out.number || "(без номера)"} создан(а) черновиком в 1С.\n\nОткройте 1С, проверьте номенклатуру/серии/юр.лицо и проведите.`);
       if (out.unmatched?.length) {
         alert(`⚠ Не вошли в документ (нет привязки к 1С): ${out.unmatched.map((u) => u.name).join(", ")}.`);
@@ -1468,9 +1591,10 @@ function wireModalHandlers() {
   }
 }
 
-export function openDealItemsModal(dealId) {
+export function openDealItemsModal(dealId, context = "crm") {
   if (modalState.mountEl) closeDealItemsModal();
   modalState.dealId = dealId;
+  modalState.context = context === "warehouse" ? "warehouse" : "crm";
   const wrapper = document.createElement("div");
   wrapper.innerHTML = renderModalHTML(dealId);
   const root = wrapper.firstElementChild;
@@ -1495,7 +1619,14 @@ export function closeDealItemsModal() {
     modalState._escHandler = null;
   }
   const dealId = modalState.dealId;
+  const wasWarehouse = modalState.context === "warehouse";
   modalState.dealId = null;
+  modalState.context = "crm";
+  // Если окно открывалось со склада — обновим канбан предзаказов под ним.
+  // Диспатчим напрямую: notifyWarehouseRefresh() уже бы видел сброшенный контекст.
+  if (wasWarehouse) {
+    try { window.dispatchEvent(new CustomEvent("pllato:warehouse-refresh")); } catch {}
+  }
   // Обновим summary в карточке сделки
   if (dealId) {
     const summary = document.querySelector(`[data-deal-items-summary][data-deal-id="${dealId}"]`);

@@ -120,6 +120,7 @@ function renderOrderCard(deal, kind) {
         <div class="po-card-body">
           ${renderOrderDetailItems(deal.id)}
           <div class="po-card-actions" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+            <button type="button" class="btn-ghost" data-po-open="${escapeAttr(deal.id)}" title="Открыть заказ: реквизиты 1С, договор, адрес, согласование, счёт, отгрузка — в одном окне" style="margin-right:auto">📋 Открыть заказ</button>
             ${kind === "preliminary"
               ? `<button type="button" class="btn-primary" data-po-approve="${escapeAttr(deal.id)}">✓ Согласовать на отгрузку</button>`
               : kind === "approved"
@@ -229,6 +230,20 @@ export function wirePreliminaryOrdersEvents(container) {
   if (!container || container.dataset.poWired === "1") return;
   container.dataset.poWired = "1";
   container.addEventListener("click", (e) => {
+    // Открыть единое окно заказа в КОНТЕКСТЕ СКЛАДА (полный жизненный цикл +
+    // реквизиты 1С: клиент, договор, адрес, НДС). Канбан перерисуется по
+    // событию pllato:warehouse-refresh, которое окно диспатчит при изменениях.
+    const openBtn = e.target.closest("[data-po-open]");
+    if (openBtn) {
+      e.preventDefault();
+      const dealId = openBtn.dataset.poOpen;
+      import("../../deal_items.js").then((mod) => {
+        mod.openDealItemsModal(dealId, "warehouse");
+      }).catch((err) => {
+        alert("Не удалось открыть окно заказа: " + (err?.message || String(err)));
+      });
+      return;
+    }
     const approveBtn = e.target.closest("[data-po-approve]");
     if (approveBtn) {
       e.preventDefault();
