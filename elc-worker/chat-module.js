@@ -145,6 +145,12 @@ function runBg(promise) {
   return p;
 }
 
+// WA-оповещатель (sendNotify) внедряется из worker.js через setWaNotifier(),
+// чтобы не делать циклический импорт worker.js → chat-module.js → worker.js.
+// Сигнатура: (env, { uid, event, text, link }) => Promise. Никогда не бросает.
+let _waNotify = null;
+export function setWaNotifier(fn) { _waNotify = fn; }
+
 async function pushChatToDevices(env, uid, payload) {
   if (!env.VAPID_PRIVATE_JWK) return;        // пуши не настроены — тихо выходим
   let subs = [];
@@ -213,6 +219,15 @@ async function notifyChatMessage(env, channelId, authorMe, message) {
         notification: { id: notifId, type: 'chat_message', title, body: preview, link, icon: '💬', createdAt: ts, channel_id: channelId },
       });
       runBg(pushChatToDevices(env, uid, { title, body: preview, url: link, tag: 'chat_' + channelId, icon: null }));
+      // WA-оповещатель: продублировать в личный WhatsApp (sendNotify сам сверит
+      // тумблер — chat_dm для лички, chat_message для канала/группы).
+      if (_waNotify) {
+        const waEvent = (ch.type === 'dm') ? 'chat_dm' : 'chat_message';
+        const waText = (ch.type === 'dm' || !chName)
+          ? `💬 ${authorName}: ${preview}`
+          : `💬 ${authorName} в «${chName}»: ${preview}`;
+        runBg(_waNotify(env, { uid, event: waEvent, text: waText, link: 'https://pllato.kz' + link }));
+      }
     }
   } catch {}
 }

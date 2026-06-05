@@ -3639,6 +3639,10 @@ async function initApp(user) {
 
   // Floating WA chat widget — справа снизу персистентно
   setTimeout(() => initWaFloatingWidget(), 1500);
+
+  // Обязательный телефон: если в профиле его нет — блокирующая модалка.
+  // Нужен для системных уведомлений в WhatsApp (нотифаер).
+  setTimeout(() => maybeRequirePhone(), 1200);
 }
 
 async function preloadInBackground() {
@@ -4274,6 +4278,105 @@ function openMyProfileModal() {
       fileInput.value = '';
     }
   };
+}
+
+// ── Обязательный телефон сотрудника (для нотифаера) ─────────────────────────
+// Источник правды — /api/me.needsPhone (true если users.phone пустой). Телефонов
+// нет в выгрузке из Bitrix, поэтому собираем их с сотрудников при входе.
+function maybeRequirePhone() {
+  try {
+    const me = window.currentUser;
+    if (!me || !me.ok) return;
+    if (!me.isLinked) return;     // не привязан к users — отдельный кейс, не блокируем
+    if (!me.needsPhone) return;   // телефон уже есть
+    openRequirePhoneModal();
+  } catch (e) { console.warn('[phone] maybeRequirePhone failed', e); }
+}
+
+function openRequirePhoneModal() {
+  if (document.getElementById('req-phone-ov')) return; // уже открыта
+  const ov = document.createElement('div');
+  ov.className = 'qad-overlay';
+  ov.id = 'req-phone-ov';
+  ov.style.zIndex = '10050';
+  // Блокирующая модалка: клик по фону НЕ закрывает (нет close-кнопки, нет Esc).
+  ov.onclick = (e) => { e.stopPropagation(); };
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:420px;width:92vw">
+    <div class="qad-head"><h2>📱 Укажите ваш телефон</h2></div>
+    <div class="qad-body" style="padding:24px">
+      <div style="font-size:13px;color:var(--t2);margin-bottom:16px;line-height:1.5">
+        Чтобы получать уведомления портала в WhatsApp (новые сообщения, задачи,
+        сделки), укажите свой номер телефона. Это нужно сделать один раз.
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;border:1px solid var(--b1);border-radius:10px;padding:12px 14px;background:var(--bg2)">
+        <span style="font-weight:700;color:var(--t1);font-size:17px">+7</span>
+        <input id="req-phone-inp" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(700) 123-45-67"
+          style="flex:1;border:none;outline:none;background:transparent;font-size:17px;color:var(--t1)">
+      </div>
+      <div id="req-phone-err" style="color:#dc2626;font-size:12px;min-height:16px;margin-top:8px"></div>
+      <button class="qad-btn qad-btn-primary" id="req-phone-save" style="padding:12px 20px;width:100%;margin-top:4px;font-size:15px">Сохранить</button>
+      <div style="font-size:11px;color:var(--t3);margin-top:10px;text-align:center">Номер видят только администраторы. Используется для служебных уведомлений.</div>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+
+  const inp = ov.querySelector('#req-phone-inp');
+  const err = ov.querySelector('#req-phone-err');
+  const btn = ov.querySelector('#req-phone-save');
+
+  // Маска ввода: только цифры, максимум 10, формат (XXX) XXX-XX-XX.
+  function fmt(d) {
+    d = d.slice(0, 10);
+    let out = '';
+    if (d.length > 0) out = '(' + d.slice(0, 3);
+    if (d.length >= 3) out += ') ' + d.slice(3, 6);
+    if (d.length >= 6) out += '-' + d.slice(6, 8);
+    if (d.length >= 8) out += '-' + d.slice(8, 10);
+    return out;
+  }
+  inp.addEventListener('input', () => {
+    inp.value = fmt(inp.value.replace(/\D/g, '').slice(0, 10));
+    err.textContent = '';
+  });
+  // Esc внутри модалки — гасим, чтобы нельзя было закрыть.
+  ov.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); } }, true);
+  setTimeout(() => { try { inp.focus(); } catch {} }, 50);
+
+  async function save() {
+    const digits = inp.value.replace(/\D/g, '');
+    if (digits.length !== 10) {
+      err.textContent = 'Введите 10 цифр номера после +7';
+      return;
+    }
+    const phone = '+7' + digits;
+    btn.disabled = true; btn.textContent = 'Сохраняю…'; err.textContent = '';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(WORKER_BASE_URL + '/api/me/phone', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !j || !j.ok) {
+        err.textContent = (j && j.message) || 'Не удалось сохранить. Проверьте номер.';
+        btn.disabled = false; btn.textContent = 'Сохранить';
+        return;
+      }
+      if (window.currentUser) {
+        window.currentUser.needsPhone = false;
+        window.currentUser.profile = window.currentUser.profile || {};
+        window.currentUser.profile.phone = j.phone;
+      }
+      ov.remove();
+      try { showToast('Телефон сохранён ✓'); } catch {}
+    } catch (e) {
+      err.textContent = 'Сеть недоступна. Попробуйте ещё раз.';
+      btn.disabled = false; btn.textContent = 'Сохранить';
+    }
+  }
+  btn.onclick = save;
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
 }
 
 function feedAttachmentHtml(att) {
