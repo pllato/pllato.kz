@@ -26,6 +26,21 @@ const ONE_C_BASES_UI = [
   { key: "baymukhanova", label: "ИП Баймуханова К.А." },
 ];
 
+// Код назначения платежа (встреча Асем 04.06): 710 — товар (почти всегда),
+// 859 — услуга (редко, бывает у Алишеровой). Дефолт 710.
+const PAYMENT_PURPOSE_OPTS = [
+  { code: "710", label: "710 — реализация товаров" },
+  { code: "859", label: "859 — реализация услуг" },
+];
+
+// Схема оплаты (встреча Асем 04.06): хранится на сделке, статус оплаты тянется
+// из 1С опросом оплат. Постоплата — с конкретной датой (сроки у клиентов разные).
+const PAYMENT_SCHEMES = [
+  { key: "prepay", label: "100% предоплата" },
+  { key: "consignment", label: "Консигнация (оплата по факту продажи)" },
+  { key: "postpay", label: "Постоплата (к дате)" },
+];
+
 const DOC_META = {
   invoice: {
     endpoint: "/api/crm/1c/invoices/create",
@@ -176,6 +191,23 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
           <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Адрес доставки</label>
           <input id="onec-delivery" type="text" value="${esc(defaultDelivery)}" placeholder="город, адрес" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
 
+          ${docType === "invoice" ? `
+          <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Код назначения платежа</label>
+          <select id="onec-paypurpose" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
+            ${PAYMENT_PURPOSE_OPTS.map((p) => `<option value="${esc(p.code)}"${p.code === (deal.oneCPaymentPurpose || "710") ? " selected" : ""}>${esc(p.label)}</option>`).join("")}
+          </select>
+
+          <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Схема оплаты</label>
+          <select id="onec-payscheme" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:${(deal.paymentScheme || "") === "postpay" ? "8px" : "14px"};font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
+            <option value="">— не указана —</option>
+            ${PAYMENT_SCHEMES.map((s) => `<option value="${esc(s.key)}"${s.key === (deal.paymentScheme || "") ? " selected" : ""}>${esc(s.label)}</option>`).join("")}
+          </select>
+          <input id="onec-postpay-date" type="date" value="${esc(deal.postpayDueDate || "")}" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111);display:${(deal.paymentScheme || "") === "postpay" ? "block" : "none"}" title="Дата, до которой клиент должен оплатить (постоплата)">
+          ` : ""}
+
+          <label style="display:block;font-size:13px;color:var(--text-muted,#666);margin-bottom:4px">Комментарий (попадёт в 1С)</label>
+          <textarea id="onec-comment" rows="2" placeholder="необязательно — добавится к пометке Pllato CRM" style="width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;margin-bottom:14px;font:inherit;background:var(--surface,#fff);color:var(--text,#111);resize:vertical">${esc(deal.oneCComment || "")}</textarea>
+
           <div style="font-size:13px;color:var(--text-muted,#666);margin-bottom:6px">Позиции (${lines.length} из ${activeCount})</div>
           <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:6px">
             <thead><tr style="text-align:left;color:var(--text-muted,#888)">
@@ -200,7 +232,7 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
           </div>` : ""}
 
           <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:11px 13px;margin-top:8px;font-size:12.5px;color:#9a3412;line-height:1.5">
-            📝 <strong>На проверку Асем:</strong> документ создаётся <strong>черновиком</strong> (не проведён). Номенклатура 1С попартийная — у части позиций представительная запись (⚠), серию/партию, бухсчета и юр.лицо проверьте и поправьте в 1С. Договор и склад не задаются.
+            📝 <strong>На проверку Асем:</strong> документ создаётся <strong>черновиком</strong> (не проведён). Номенклатура 1С попартийная — у части позиций представительная запись (⚠), серию/партию проверьте и поправьте в 1С. Бухсчета (товар 1330, дебиторка 1230) и банковский счёт 1С проставит при проведении автоматически.
           </div>
         </div>
         <div style="padding:14px 20px;border-top:1px solid var(--border,#eee);display:flex;justify-content:flex-end;gap:8px">
@@ -259,11 +291,23 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
       }
     });
 
+    // Постоплата → показать поле даты (без перерисовки, чтобы не терять ввод).
+    overlay.querySelector("#onec-payscheme")?.addEventListener("change", (e) => {
+      const dateEl = overlay.querySelector("#onec-postpay-date");
+      if (dateEl) dateEl.style.display = e.target.value === "postpay" ? "block" : "none";
+    });
+
     const createBtn = overlay.querySelector("#onec-create");
     createBtn?.addEventListener("click", async () => {
       const base = currentBase();
       const contractRef = overlay.querySelector("#onec-contract")?.value || null;
       const deliveryAddress = (overlay.querySelector("#onec-delivery")?.value || "").trim() || null;
+      const payPurpose = overlay.querySelector("#onec-paypurpose")?.value || "710";
+      const payScheme = overlay.querySelector("#onec-payscheme")?.value || "";
+      const postpayDue = overlay.querySelector("#onec-postpay-date")?.value || "";
+      const userComment = (overlay.querySelector("#onec-comment")?.value || "").trim();
+      // Маркер Pllato + комментарий менеджера через запятую (Асем: «будем видеть, что это интеграция СРМ»).
+      const comment = ["Создано из Pllato CRM (черновик)", userComment].filter(Boolean).join(", ");
       createBtn.disabled = true;
       createBtn.textContent = "Создаём в 1С…";
       try {
@@ -275,13 +319,22 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
           contractorRef: base === "aminamed" ? state.contractorRef : null,
           contractRef,
           deliveryAddress,
-          comment: "Создано из Pllato CRM (черновик). Проверить номенклатуру/серии — Асем.",
+          paymentPurposeCode: docType === "invoice" ? payPurpose : null,
+          comment,
           post: false,
           lines: lines.map((l) => ({
             productRef: l.productRef, unitRef: l.unitRef, vatRateRef: l.vatRateRef,
             qty: l.qty, price: l.price, sum: l.sum, name: l.name,
           })),
         };
+        // Схема оплаты — CRM-сторона (в 1С статус оплачено/отгружено ставится сам).
+        try {
+          Store.update("deals", deal.id, {
+            oneCPaymentPurpose: payPurpose,
+            oneCComment: userComment || null,
+            ...(docType === "invoice" ? { paymentScheme: payScheme || null, postpayDueDate: payScheme === "postpay" ? (postpayDue || null) : null } : {}),
+          });
+        } catch {}
         const res = await apiFetch(meta.endpoint, { method: "POST", body: payload });
         const num = res?.number || "(без номера)";
         try {
