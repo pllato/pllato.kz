@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>УК Контур — система управления ЖКХ</title>
+<style>
+:root{
+  --bg:#f4f6fb; --panel:#ffffff; --panel-2:#f8fafc; --line:#e6eaf2;
+  --text:#1a2233; --muted:#6b7689; --brand:#2f6fed; --brand-2:#1e54c4;
+  --green:#1ea672; --green-bg:#e4f7ee; --red:#e04545; --red-bg:#fdecec;
+  --amber:#e0941a; --amber-bg:#fcf2dd; --violet:#7b5cf0; --violet-bg:#efeafe;
+  --radius:14px; --shadow:0 1px 3px rgba(20,30,60,.06),0 8px 24px rgba(20,30,60,.05);
+}
+[data-theme="dark"]{
+  --bg:#0e1320; --panel:#161d2e; --panel-2:#1b2336; --line:#27314a;
+  --text:#e7ecf6; --muted:#8a96ad; --brand:#4d86ff; --brand-2:#3a6fe0;
+  --green:#2fc98e; --green-bg:#10342a; --red:#ff6b6b; --red-bg:#3a1f1f;
+  --amber:#f0b350; --amber-bg:#3a2e16; --violet:#9d83ff; --violet-bg:#251f3f;
+  --shadow:0 1px 3px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif;
+  background:var(--bg);color:var(--text);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+
+/* ===== Sidebar ===== */
+.sidebar{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.logo{display:flex;align-items:center;gap:10px;padding:18px 18px 14px;border-bottom:1px solid var(--line)}
+.logo .mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--violet));
+  display:grid;place-items:center;color:#fff;font-weight:800;font-size:16px}
+.logo b{font-size:15px;letter-spacing:.2px}
+.logo small{display:block;color:var(--muted);font-size:11px;font-weight:500}
+.nav{padding:10px 10px;overflow-y:auto;flex:1}
+.nav .grp{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);padding:14px 12px 6px;font-weight:700}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;color:var(--muted);font-weight:600;cursor:pointer;position:relative}
+.nav a:hover{background:var(--panel-2);color:var(--text)}
+.nav a.active{background:var(--brand);color:#fff}
+.nav a .ic{width:18px;text-align:center;font-size:15px}
+.nav a .badge{margin-left:auto;font-size:10.5px;background:var(--red);color:#fff;padding:1px 7px;border-radius:20px;font-weight:700}
+.nav a.active .badge{background:rgba(255,255,255,.25)}
+.side-foot{padding:12px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--violet-bg);color:var(--violet);display:grid;place-items:center;font-weight:700}
+.side-foot small{color:var(--muted);font-size:11px}
+
+/* ===== Topbar ===== */
+.main{display:flex;flex-direction:column;min-width:0}
+.topbar{display:flex;align-items:center;gap:14px;padding:14px 24px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.topbar h1{font-size:18px;font-weight:800}
+.topbar .sub{color:var(--muted);font-size:12px;margin-top:1px}
+.search{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:10px;padding:8px 12px;width:280px;color:var(--muted)}
+.search input{border:0;background:transparent;color:var(--text);outline:none;width:100%;font-size:13px}
+.icbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);cursor:pointer;
+  display:grid;place-items:center;font-size:16px;color:var(--text)}
+.icbtn:hover{border-color:var(--brand)}
+.content{padding:24px;max-width:1500px;width:100%}
+
+/* ===== Generic ===== */
+.row{display:flex;gap:16px;flex-wrap:wrap}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.card-h h3{font-size:14.5px;font-weight:700}
+.card-h .act{margin-left:auto;display:flex;gap:8px}
+.card-b{padding:18px}
+.btn{border:1px solid var(--line);background:var(--panel-2);color:var(--text);padding:8px 14px;border-radius:9px;
+  font-weight:600;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{border-color:var(--brand)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary:hover{background:var(--brand-2)}
+.btn.sm{padding:5px 10px;font-size:12px}
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(4,1fr)}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.kpi .lbl{color:var(--muted);font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px}
+.kpi .val{font-size:26px;font-weight:800;margin-top:8px;letter-spacing:-.5px}
+.kpi .delta{font-size:12px;font-weight:700;margin-top:4px}
+.kpi .ic2{position:absolute;right:14px;top:14px;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:18px}
+.up{color:var(--green)} .down{color:var(--red)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.chip.green{background:var(--green-bg);color:var(--green)}
+.chip.red{background:var(--red-bg);color:var(--red)}
+.chip.amber{background:var(--amber-bg);color:var(--amber)}
+.chip.blue{background:#e7eefd;color:var(--brand)}
+.chip.violet{background:var(--violet-bg);color:var(--violet)}
+.chip.gray{background:var(--panel-2);color:var(--muted)}
+[data-theme="dark"] .chip.blue{background:#16284d}
+.dot{width:8px;height:8px;border-radius:50%}
+
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;padding:11px 14px;border-bottom:1px solid var(--line)}
+td{padding:12px 14px;border-bottom:1px solid var(--line);font-size:13px}
+tr:last-child td{border-bottom:0}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--panel-2)}
+.t-wrap{overflow-x:auto}
+.muted{color:var(--muted)}
+.b{font-weight:700}
+.tabs{display:flex;gap:6px;background:var(--panel-2);padding:4px;border-radius:11px;border:1px solid var(--line)}
+.tab{padding:7px 14px;border-radius:8px;font-weight:600;font-size:13px;color:var(--muted);cursor:pointer}
+.tab.active{background:var(--panel);color:var(--text);box-shadow:var(--shadow)}
+
+.page{display:none}
+.page.active{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* progress / bars */
+.bar{height:8px;background:var(--panel-2);border-radius:6px;overflow:hidden}
+.bar > i{display:block;height:100%;border-radius:6px;background:var(--brand)}
+.minibars{display:flex;align-items:flex-end;gap:7px;height:120px}
+.minibars .b2{flex:1;background:linear-gradient(180deg,var(--brand),var(--violet));border-radius:6px 6px 0 0;position:relative;min-height:6px;transition:.3s}
+.minibars .b2:hover{opacity:.85}
+.minibars .b2 span{position:absolute;bottom:-22px;left:0;right:0;text-align:center;font-size:10.5px;color:var(--muted)}
+
+/* signals */
+.signal{display:flex;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line);align-items:flex-start}
+.signal:last-child{border-bottom:0}
+.signal .si{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:16px;flex-shrink:0}
+.signal .tt{font-weight:700;font-size:13.5px}
+.signal .ds{color:var(--muted);font-size:12.5px;margin-top:2px}
+.signal time{margin-left:auto;color:var(--muted);font-size:11.5px;white-space:nowrap}
+
+/* kanban */
+.kanban{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.kcol{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
+.kcol h4{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:0 4px}
+.kcol h4 .cnt{margin-left:auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);font-size:11px;padding:1px 8px;border-radius:20px}
+.kcard{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px;margin-bottom:10px;cursor:pointer;box-shadow:var(--shadow)}
+.kcard:hover{border-color:var(--brand)}
+.kcard .kt{font-weight:700;font-size:13px}
+.kcard .km{color:var(--muted);font-size:12px;margin-top:3px}
+.kcard .kf{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:11.5px}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(15,22,40,.5);backdrop-filter:blur(3px);display:none;z-index:100;padding:40px 20px;overflow-y:auto}
+.modal-bg.open{display:flex;align-items:flex-start;justify-content:center}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;width:100%;max-width:760px;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:pop .2s ease}
+@keyframes pop{from{opacity:0;transform:scale(.97) translateY(10px)}to{opacity:1;transform:none}}
+.modal-h{display:flex;align-items:center;gap:12px;padding:20px 22px;border-bottom:1px solid var(--line)}
+.modal-h h3{font-size:17px;font-weight:800}
+.modal-h .x{margin-left:auto;cursor:pointer;font-size:22px;color:var(--muted);line-height:1}
+.modal-b{padding:22px;max-height:70vh;overflow-y:auto}
+.kv{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 26px}
+.kv .it .k{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.kv .it .v{font-weight:600;margin-top:3px;font-size:14px}
+.sec-title{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin:20px 0 10px}
+.syslist{display:flex;flex-wrap:wrap;gap:8px}
+.timeline .ev{display:flex;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line)}
+.timeline .ev:last-child{border-bottom:0}
+.timeline .ev .td{font-size:11.5px;color:var(--muted);width:90px;flex-shrink:0}
+
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+select,input.fld{border:1px solid var(--line);background:var(--panel-2);color:var(--text);border-radius:9px;padding:8px 11px;font-size:13px;outline:none}
+select:focus,input.fld:focus{border-color:var(--brand)}
+
+/* forms */
+.form{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}
+.form .fg{display:flex;flex-direction:column;gap:6px}
+.form .fg.full{grid-column:1 / -1}
+.form label{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700}
+.form input,.form select,.form textarea{border:1px solid var(--line);background:var(--panel-2);color:var(--text);border-radius:9px;padding:9px 11px;font-size:13.5px;outline:none;font-family:inherit;width:100%}
+.form input:focus,.form select:focus,.form textarea:focus{border-color:var(--brand)}
+.form .hint{font-size:11.5px;color:var(--muted)}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+.create-menu{display:grid;gap:10px}
+.create-menu .cm{display:flex;align-items:center;gap:13px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:var(--panel-2)}
+.create-menu .cm:hover{border-color:var(--brand);background:var(--panel)}
+.create-menu .cm .ci{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:19px;flex-shrink:0}
+.create-menu .cm b{font-size:14px}
+.create-menu .cm small{display:block;color:var(--muted);font-size:12px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);
+  padding:12px 22px;border-radius:12px;font-weight:700;font-size:13.5px;box-shadow:0 12px 40px rgba(0,0,0,.3);z-index:200;
+  opacity:0;transition:.3s;display:flex;align-items:center;gap:9px}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.donut{width:150px;height:150px;border-radius:50%;display:grid;place-items:center;flex-shrink:0}
+.donut .hole{width:100px;height:100px;border-radius:50%;background:var(--panel);display:grid;place-items:center;text-align:center}
+.legend{display:flex;flex-direction:column;gap:10px}
+.legend .lg{display:flex;align-items:center;gap:9px;font-size:13px}
+.legend .lg b{margin-left:auto}
+
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.kanban{grid-template-columns:1fr}}
+@media(max-width:860px){.app{grid-template-columns:1fr}.sidebar{display:none}.kv{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-theme="light">
+<div class="app">
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="mark">УК</div>
+      <div><b>УК Контур</b><small>Управление ЖКХ</small></div>
+    </div>
+    <nav class="nav" id="nav">
+      <a data-page="dash" class="active"><span class="ic">📊</span>Дашборд</a>
+      <div class="grp">Реестры</div>
+      <a data-page="houses"><span class="ic">🏢</span>Дома</a>
+      <a data-page="residents"><span class="ic">👥</span>Жители</a>
+      <div class="grp">Операционка</div>
+      <a data-page="requests"><span class="ic">🛠</span>Заявки<span class="badge">7</span></a>
+      <a data-page="works"><span class="ic">📋</span>Работы</a>
+      <a data-page="debtors"><span class="ic">⚠️</span>Должники<span class="badge">12</span></a>
+      <div class="grp">Деньги и контроль</div>
+      <a data-page="finance"><span class="ic">💰</span>Финансы</a>
+      <a data-page="analytics"><span class="ic">📈</span>Аналитика</a>
+      <a data-page="signals"><span class="ic">🔔</span>Сигналы</a>
+    </nav>
+    <div class="side-foot">
+      <div class="avatar">АД</div>
+      <div><b style="font-size:13px">Айбек Д.</b><small>Управляющий</small></div>
+    </div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <h1 id="ptitle">Дашборд</h1>
+        <div class="sub" id="psub">Сводка по управляющей компании · обновлено сегодня 09:14</div>
+      </div>
+      <label class="search">🔎<input placeholder="Поиск дома, жителя, заявки…"></label>
+      <button class="icbtn" id="theme">🌙</button>
+      <button class="btn primary" id="btn-create">＋ Создать</button>
+    </header>
+
+    <div class="content">
+      <!-- ============ DASHBOARD ============ -->
+      <section class="page active" id="page-dash">
+        <div class="grid kpis" style="margin-bottom:16px">
+          <div class="kpi"><div class="ic2" style="background:var(--green-bg);color:var(--green)">💵</div>
+            <div class="lbl">Собрано за месяц</div><div class="val">8.42 млн</div><div class="delta up">▲ 6.1% · собираемость 91%</div></div>
+          <div class="kpi"><div class="ic2" style="background:var(--red-bg);color:var(--red)">📉</div>
+            <div class="lbl">Дебиторка</div><div class="val">1.18 млн</div><div class="delta down">▲ 3.4% · 12 должников</div></div>
+          <div class="kpi"><div class="ic2" style="background:#e7eefd;color:var(--brand)">🛠</div>
+            <div class="lbl">Открытых заявок</div><div class="val">7</div><div class="delta up">2 аварийных · SLA 96%</div></div>
+          <div class="kpi"><div class="ic2" style="background:var(--violet-bg);color:var(--violet)">🏢</div>
+            <div class="lbl">Домов в управлении</div><div class="val">14</div><div class="delta">1 248 лицевых счетов</div></div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:1.6fr 1fr;align-items:start">
+          <div class="card">
+            <div class="card-h"><h3>Сбор средств по месяцам</h3>
+              <div class="act"><span class="chip blue">Начислено</span><span class="chip green">Оплачено</span></div></div>
+            <div class="card-b">
+              <div class="minibars" id="dashbars"></div>
+              <div style="height:24px"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><h3>🔔 Автосигналы системы</h3><div class="act"><span class="chip red">4 активных</span></div></div>
+            <div>
+              <div class="signal"><div class="si" style="background:var(--red-bg);color:var(--red)">📉</div>
+                <div><div class="tt">Дом уходит в минус</div><div class="ds">ул. Ахунбаева 132 — расход &gt; сбор на 18%</div></div><time>2 ч назад</time></div>
+              <div class="signal"><div class="si" style="background:var(--amber-bg);color:var(--amber)">⚠️</div>
+                <div><div class="tt">Должников &gt; 15%</div><div class="ds">мкр. Джал 23 — 19% квартир в долге</div></div><time>сегодня</time></div>
+              <div class="signal"><div class="si" style="background:var(--violet-bg);color:var(--violet)">🔁</div>
+                <div><div class="tt">Частые аварии → капремонт</div><div class="ds">Лифт, ул. Чуй 219 — 4 поломки за месяц</div></div><time>вчера</time></div>
+              <div class="signal"><div class="si" style="background:var(--amber-bg);color:var(--amber)">⏰</div>
+                <div><div class="tt">Просрочка SLA по заявке</div><div class="ds">№1043 «Протечка» — реакция &gt; 4ч</div></div><time>3 ч назад</time></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:16px;align-items:start">
+          <div class="card">
+            <div class="card-h"><h3>Заявки по статусам</h3></div>
+            <div class="card-b" style="display:flex;gap:24px;align-items:center">
+              <div class="donut" id="reqdonut"><div class="hole"><div><div style="font-size:22px;font-weight:800">31</div><small class="muted">за неделю</small></div></div></div>
+              <div class="legend" style="flex:1">
+                <div class="lg"><span class="dot" style="background:var(--brand)"></span>В работе <b>11</b></div>
+                <div class="lg"><span class="dot" style="background:var(--green)"></span>Закрыто <b>16</b></div>
+                <div class="lg"><span class="dot" style="background:var(--amber)"></span>Принято <b>4</b></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>Контрольные точки</h3></div>
+            <div class="card-b">
+              <div style="display:grid;gap:14px">
+                <div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Собираемость платежей</span><b>91%</b></div><div class="bar"><i style="width:91%;background:var(--green)"></i></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Заявки в SLA</span><b>96%</b></div><div class="bar"><i style="width:96%;background:var(--brand)"></i></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Бюджет домов (без перерасхода)</span><b>78%</b></div><div class="bar"><i style="width:78%;background:var(--amber)"></i></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Дома в плюсе</span><b>11 / 14</b></div><div class="bar"><i style="width:79%;background:var(--violet)"></i></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ HOUSES ============ -->
+      <section class="page" id="page-houses">
+        <div class="card">
+          <div class="card-h"><h3>Реестр объектов</h3>
+            <div class="act"><button class="btn sm">⬇ Экспорт</button><button class="btn sm primary" id="btn-house">＋ Добавить дом</button></div></div>
+          <div class="t-wrap"><table id="houses-tbl"><thead><tr>
+            <th>Адрес</th><th>Тип</th><th>Подъезды / этажи</th><th>Площадь</th><th>Тариф</th><th>Лиц. счетов</th><th>Баланс дома</th><th>Собираемость</th>
+          </tr></thead><tbody></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- ============ RESIDENTS ============ -->
+      <section class="page" id="page-residents">
+        <div class="card">
+          <div class="card-h"><h3>Реестр жителей · лицевые счета</h3>
+            <div class="act filters">
+              <select id="res-filter"><option value="">Все статусы</option><option value="Должник">Должники</option><option value="Активный">Активные</option></select>
+              <button class="btn sm">⬇ Экспорт</button>
+            </div></div>
+          <div class="t-wrap"><table id="res-tbl"><thead><tr>
+            <th>ФИО</th><th>Адрес</th><th>Площадь</th><th>Лицевой счёт</th><th>Статус</th><th>Тип</th><th>Баланс</th><th>Контакт</th>
+          </tr></thead><tbody></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- ============ REQUESTS ============ -->
+      <section class="page" id="page-requests">
+        <div class="card">
+          <div class="card-h"><h3>Заявки и инциденты</h3>
+            <div class="act"><span class="chip red">2 аварийных</span><button class="btn sm primary" id="btn-req">＋ Новая заявка</button></div></div>
+          <div class="card-b">
+            <div class="kanban" id="kanban"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ WORKS ============ -->
+      <section class="page" id="page-works">
+        <div class="grid" style="grid-template-columns:1fr 1fr;align-items:start">
+          <div class="card">
+            <div class="card-h"><h3>Плановые работы · график</h3><div class="act"><button class="btn sm primary" id="btn-work">＋ Работа</button></div></div>
+            <div class="t-wrap"><table id="works-tbl"><thead><tr><th>Работа</th><th>Дом</th><th>Исполнитель</th><th>Срок</th><th>Статус</th></tr></thead><tbody></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>Акты выполненных работ</h3></div>
+            <div class="t-wrap"><table id="acts-tbl"><thead><tr><th>Акт</th><th>Дом</th><th>Подрядчик</th><th>Сумма</th><th>Фото</th></tr></thead><tbody></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ DEBTORS ============ -->
+      <section class="page" id="page-debtors">
+        <div class="grid kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+          <div class="kpi"><div class="ic2" style="background:var(--amber-bg);color:var(--amber)">📆</div><div class="lbl">30 дней</div><div class="val">412 тыс</div><div class="delta">5 квартир</div></div>
+          <div class="kpi"><div class="ic2" style="background:#fbeede;color:var(--amber)">📆</div><div class="lbl">60 дней</div><div class="val">388 тыс</div><div class="delta">4 квартиры</div></div>
+          <div class="kpi"><div class="ic2" style="background:var(--red-bg);color:var(--red)">⚖️</div><div class="lbl">90+ дней (досудебка)</div><div class="val">380 тыс</div><div class="delta down">3 квартиры</div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>Контроль должников</h3>
+            <div class="act"><button class="btn sm">📨 Массовое напоминание</button><button class="btn sm">⚖️ Передать юристу</button></div></div>
+          <div class="t-wrap"><table id="debt-tbl"><thead><tr>
+            <th>Житель</th><th>Адрес</th><th>Сумма долга</th><th>Просрочка</th><th>Последний контакт</th><th>Действие</th>
+          </tr></thead><tbody></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- ============ FINANCE ============ -->
+      <section class="page" id="page-finance">
+        <div class="grid kpis" style="margin-bottom:16px">
+          <div class="kpi"><div class="ic2" style="background:var(--green-bg);color:var(--green)">📥</div><div class="lbl">Начислено</div><div class="val">9.25 млн</div><div class="delta">за июнь</div></div>
+          <div class="kpi"><div class="ic2" style="background:#e7eefd;color:var(--brand)">✅</div><div class="lbl">Оплачено</div><div class="val">8.42 млн</div><div class="delta up">91%</div></div>
+          <div class="kpi"><div class="ic2" style="background:var(--violet-bg);color:var(--violet)">🏦</div><div class="lbl">Фонд домов</div><div class="val">3.10 млн</div><div class="delta">накоплено</div></div>
+          <div class="kpi"><div class="ic2" style="background:var(--amber-bg);color:var(--amber)">💼</div><div class="lbl">Вознаграждение УК</div><div class="val">1.26 млн</div><div class="delta">15% от сбора</div></div>
+        </div>
+        <div class="grid" style="grid-template-columns:1.4fr 1fr;align-items:start">
+          <div class="card">
+            <div class="card-h"><h3>Движение средств по домам</h3><div class="act"><button class="btn sm">⬇ В бухгалтерию</button></div></div>
+            <div class="t-wrap"><table id="fin-tbl"><thead><tr><th>Дом</th><th>Начислено</th><th>Оплачено</th><th>Долг</th><th>Фонд дома</th><th>Баланс</th></tr></thead><tbody></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>Распределение сбора</h3></div>
+            <div class="card-b" style="display:flex;gap:24px;align-items:center">
+              <div class="donut" id="findonut"><div class="hole"><div><div style="font-size:18px;font-weight:800">8.42</div><small class="muted">млн сом</small></div></div></div>
+              <div class="legend" style="flex:1">
+                <div class="lg"><span class="dot" style="background:var(--violet)"></span>Фонд дома <b>72%</b></div>
+                <div class="lg"><span class="dot" style="background:var(--brand)"></span>Вознагражд. УК <b>15%</b></div>
+                <div class="lg"><span class="dot" style="background:var(--green)"></span>Подрядчики <b>13%</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ ANALYTICS ============ -->
+      <section class="page" id="page-analytics">
+        <div class="row" style="margin-bottom:16px"><div class="tabs">
+          <div class="tab active">По домам</div><div class="tab">По УК</div><div class="tab">По персоналу</div><div class="tab">По подрядчикам</div>
+        </div></div>
+        <div class="grid" style="grid-template-columns:1fr 1fr;align-items:start">
+          <div class="card"><div class="card-h"><h3>Отчёт по домам</h3></div>
+            <div class="t-wrap"><table><thead><tr><th>Дом</th><th>Собрано</th><th>Потрачено</th><th>Остаток</th></tr></thead><tbody>
+              <tr><td class="b">Ахунбаева 132</td><td>682 тыс</td><td>805 тыс</td><td class="down b">−123 тыс</td></tr>
+              <tr><td class="b">Чуй 219</td><td>910 тыс</td><td>540 тыс</td><td class="up b">+370 тыс</td></tr>
+              <tr><td class="b">Джал 23</td><td>596 тыс</td><td>610 тыс</td><td class="down b">−14 тыс</td></tr>
+              <tr><td class="b">Манаса 58</td><td>1.02 млн</td><td>720 тыс</td><td class="up b">+300 тыс</td></tr>
+              <tr><td class="b">Токтогула 91</td><td>740 тыс</td><td>505 тыс</td><td class="up b">+235 тыс</td></tr>
+            </tbody></table></div>
+          </div>
+          <div class="card"><div class="card-h"><h3>KPI персонала и подрядчиков</h3></div>
+            <div class="t-wrap"><table><thead><tr><th>Сотрудник / подрядчик</th><th>Заявок</th><th>Ср. реакция</th><th>KPI</th></tr></thead><tbody>
+              <tr><td class="b">Техник Бакыт</td><td>48</td><td>1.2 ч</td><td><span class="chip green">94%</span></td></tr>
+              <tr><td class="b">Техник Эрлан</td><td>39</td><td>2.1 ч</td><td><span class="chip green">88%</span></td></tr>
+              <tr><td class="b">ЛифтСервис ОсОО</td><td>14</td><td>3.4 ч</td><td><span class="chip amber">71%</span></td></tr>
+              <tr><td class="b">СантехПро</td><td>22</td><td>1.8 ч</td><td><span class="chip green">90%</span></td></tr>
+              <tr><td class="b">ЭлектроК</td><td>9</td><td>5.1 ч</td><td><span class="chip red">58%</span></td></tr>
+            </tbody></table></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px"><div class="card-h"><h3>Маржинальность УК по месяцам</h3></div>
+          <div class="card-b"><div class="minibars" id="anbars"></div><div style="height:24px"></div></div>
+        </div>
+      </section>
+
+      <!-- ============ SIGNALS ============ -->
+      <section class="page" id="page-signals">
+        <div class="card">
+          <div class="card-h"><h3>Журнал автосигналов и контрольных точек</h3><div class="act"><span class="chip red">4 активных</span><span class="chip gray">справочно</span></div></div>
+          <div id="signals-list"></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal ===== -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal"><div class="modal-h"><h3 id="m-title">—</h3><span class="x" id="m-close">×</span></div>
+  <div class="modal-b" id="m-body"></div></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====================== DATA ====================== */
+const houses=[
+  {id:1,addr:'ул. Ахунбаева 132',raion:'Свердловский',year:1998,type:'Панель',ent:6,fl:9,lift:2,area:9120,tariff:14,acc:144,balance:-123000,collect:78,
+    sys:['Отопление','ХВС','ГВС','Канализация','Электроснабжение','Газ'],mgr:'Гульнара С.',tech:'Бакыт А.',buh:'Айгуль М.',start:'01.03.2022',pkg:'Базовый+'},
+  {id:2,addr:'ул. Чуй 219',raion:'Первомайский',year:2015,type:'Монолит',ent:4,fl:16,lift:3,area:14200,tariff:22,acc:208,balance:370000,collect:95,
+    sys:['Отопление','ХВС','ГВС','Канализация','Электроснабжение'],mgr:'Эльмира К.',tech:'Эрлан Т.',buh:'Айгуль М.',start:'15.06.2021',pkg:'Премиум'},
+  {id:3,addr:'мкр. Джал 23',raion:'Ленинский',year:2005,type:'Кирпич',ent:5,fl:10,lift:2,area:10500,tariff:16,acc:160,balance:-14000,collect:81,
+    sys:['Отопление','ХВС','ГВС','Канализация','Электроснабжение','Газ'],mgr:'Гульнара С.',tech:'Бакыт А.',buh:'Нурлан Б.',start:'01.09.2022',pkg:'Базовый'},
+  {id:4,addr:'ул. Манаса 58',raion:'Октябрьский',year:2019,type:'Монолит',ent:3,fl:14,lift:2,area:11800,tariff:24,acc:126,balance:300000,collect:97,
+    sys:['Отопление','ХВС','ГВС','Канализация','Электроснабжение'],mgr:'Эльмира К.',tech:'Эрлан Т.',buh:'Нурлан Б.',start:'10.01.2023',pkg:'Премиум'},
+  {id:5,addr:'ул. Токтогула 91',raion:'Первомайский',year:2010,type:'Кирпич',ent:4,fl:12,lift:2,area:9800,tariff:18,acc:112,balance:235000,collect:93,
+    sys:['Отопление','ХВС','ГВС','Канализация','Электроснабжение'],mgr:'Гульнара С.',tech:'Бакыт А.',buh:'Айгуль М.',start:'05.04.2022',pkg:'Базовый+'},
+];
+const residents=[
+  {fio:'Иванов Сергей П.',addr:'Ахунбаева 132, кв.12',area:62,acc:'ЛС-000112',status:'Должник',type:'Собственник',bal:-18400,phone:'+996 555 12-34-56',tariff:14},
+  {fio:'Асанова Айгуль К.',addr:'Чуй 219, кв.45',area:78,acc:'ЛС-000245',status:'Активный',type:'Собственник',bal:0,phone:'+996 700 22-11-09',tariff:22},
+  {fio:'Петров Денис А.',addr:'Джал 23, кв.7',area:54,acc:'ЛС-000307',status:'Должник',type:'Арендатор',bal:-9600,phone:'+996 555 88-77-66',tariff:16},
+  {fio:'Касымова Бермет Т.',addr:'Манаса 58, кв.31',area:90,acc:'ЛС-000431',status:'Активный',type:'Собственник',bal:1200,phone:'+996 770 45-67-89',tariff:24},
+  {fio:'Орозов Тимур М.',addr:'Токтогула 91, кв.18',area:48,acc:'ЛС-000518',status:'Активный',type:'Собственник',bal:0,phone:'+996 555 33-22-11',tariff:18},
+  {fio:'Жумабекова Нур А.',addr:'Ахунбаева 132, кв.88',area:71,acc:'ЛС-000188',status:'Должник',type:'Собственник',bal:-24300,phone:'+996 700 99-88-77',tariff:14},
+  {fio:'Садыков Эмиль Б.',addr:'Чуй 219, кв.102',area:66,acc:'ЛС-000602',status:'Активный',type:'Арендатор',bal:0,phone:'+996 555 11-22-33',tariff:22},
+  {fio:'Маматова Алия Ж.',addr:'Джал 23, кв.55',area:58,acc:'ЛС-000355',status:'Должник',type:'Собственник',bal:-15700,phone:'+996 770 12-31-23',tariff:16},
+];
+const requests=[
+  {id:1043,title:'Протечка трубы ХВС',house:'Ахунбаева 132, кв.34',type:'Сантехника',urg:'Аварийная',resp:'Бакыт А.',sla:'4 ч',status:'work',cost:'—',ph:2},
+  {id:1051,title:'Не работает лифт №2',house:'Чуй 219, подъезд 3',type:'Лифт',urg:'Аварийная',resp:'ЛифтСервис',sla:'6 ч',status:'work',cost:'—',ph:1},
+  {id:1052,title:'Нет света на этаже',house:'Джал 23, эт.7',type:'Электрика',urg:'Плановая',resp:'ЭлектроК',sla:'24 ч',status:'new',cost:'—',ph:0},
+  {id:1048,title:'Засор канализации',house:'Манаса 58, кв.12',type:'Сантехника',urg:'Плановая',resp:'СантехПро',sla:'24 ч',status:'work',cost:'3 200',ph:1},
+  {id:1039,title:'Замена лампы в подъезде',house:'Токтогула 91, п.2',type:'Электрика',urg:'Плановая',resp:'Эрлан Т.',sla:'48 ч',status:'done',cost:'600',ph:1},
+  {id:1037,title:'Ремонт домофона',house:'Ахунбаева 132, п.4',type:'Прочее',urg:'Плановая',resp:'Бакыт А.',sla:'48 ч',status:'done',cost:'4 500',ph:2},
+  {id:1053,title:'Тёплый пол не греет',house:'Манаса 58, кв.31',type:'Отопление',urg:'Плановая',resp:'—',sla:'24 ч',status:'new',cost:'—',ph:0},
+];
+const works=[
+  {w:'Опрессовка системы отопления',h:'Чуй 219',exec:'СантехПро',due:'12.06',st:'plan'},
+  {w:'ТО лифтов (ежемес.)',h:'Манаса 58',exec:'ЛифтСервис',due:'08.06',st:'work'},
+  {w:'Уборка кровли',h:'Ахунбаева 132',exec:'Бакыт А.',due:'15.06',st:'plan'},
+  {w:'Замена эл.щитка',h:'Джал 23',exec:'ЭлектроК',due:'10.06',st:'work'},
+  {w:'Покраска подъезда',h:'Токтогула 91',exec:'Подряд №4',due:'20.06',st:'plan'},
+];
+const acts=[
+  {a:'АВР-0291',h:'Манаса 58',c:'СантехПро',sum:'3 200',ph:1},
+  {a:'АВР-0288',h:'Ахунбаева 132',c:'Бакыт А.',sum:'4 500',ph:2},
+  {a:'АВР-0285',h:'Чуй 219',c:'ЛифтСервис',sum:'12 000',ph:3},
+  {a:'АВР-0280',h:'Токтогула 91',c:'Эрлан Т.',sum:'600',ph:1},
+];
+const debtors=[
+  {fio:'Жумабекова Нур А.',addr:'Ахунбаева 132, кв.88',sum:24300,days:95,last:'02.05 — SMS',stage:'red'},
+  {fio:'Иванов Сергей П.',addr:'Ахунбаева 132, кв.12',sum:18400,days:62,last:'28.05 — звонок',stage:'amber'},
+  {fio:'Маматова Алия Ж.',addr:'Джал 23, кв.55',sum:15700,days:74,last:'25.05 — WhatsApp',stage:'amber'},
+  {fio:'Петров Денис А.',addr:'Джал 23, кв.7',sum:9600,days:34,last:'01.06 — SMS',stage:'amber'},
+  {fio:'Сыдыков Б.',addr:'Чуй 219, кв.71',sum:31200,days:118,last:'15.04 — досудебка',stage:'red'},
+];
+const fin=[
+  {h:'Ахунбаева 132',ch:682,pay:559,debt:123,fund:380,bal:-123},
+  {h:'Чуй 219',ch:910,pay:865,debt:45,fund:620,bal:370},
+  {h:'Джал 23',ch:596,pay:482,debt:114,fund:290,bal:-14},
+  {h:'Манаса 58',ch:1020,pay:989,debt:31,fund:710,bal:300},
+  {h:'Токтогула 91',ch:740,pay:688,debt:52,fund:455,bal:235},
+];
+const signals=[
+  {ic:'📉',c:'red',t:'Дом уходит в минус',d:'ул. Ахунбаева 132 — расход превышает сбор на 18%. Рекомендация: пересмотр тарифа / сокращение работ.',time:'2 ч назад'},
+  {ic:'⚠️',c:'amber',t:'Должников больше порога (15%)',d:'мкр. Джал 23 — 19% квартир в долге. Запустить массовое напоминание.',time:'сегодня 08:40'},
+  {ic:'🔁',c:'violet',t:'Частые аварии → кандидат на капремонт',d:'Лифт, ул. Чуй 219 — 4 поломки за месяц. Передать в план капремонта.',time:'вчера'},
+  {ic:'⏰',c:'amber',t:'Просрочка SLA по заявке №1043',d:'«Протечка трубы ХВС» — время реакции превысило 4 ч.',time:'3 ч назад'},
+  {ic:'📊',c:'gray',t:'Падение собираемости',d:'По УК собираемость −2.1% к прошлому месяцу. Контроль дебиторки.',time:'2 дня назад'},
+  {ic:'⭐',c:'gray',t:'Подрядчик с низким KPI',d:'ЭлектроК — KPI 58%, средняя реакция 5.1 ч. Рассмотреть замену.',time:'3 дня назад'},
+];
+
+/* ====================== HELPERS ====================== */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const money=n=>(n>=0?'':'−')+Math.abs(n).toLocaleString('ru-RU')+' сом';
+const k=n=>n.toLocaleString('ru-RU')+' тыс';
+function balCell(n){const cls=n<0?'down':'up';return `<span class="b ${cls}">${money(n)}</span>`;}
+const titles={dash:['Дашборд','Сводка по управляющей компании · обновлено сегодня 09:14'],
+  houses:['Дома','Реестр объектов · цифровые паспорта домов'],
+  residents:['Жители','Реестр жителей и лицевых счетов'],
+  requests:['Заявки и инциденты','Операционка · источники: приложение, WhatsApp, диспетчер'],
+  works:['Работы и обслуживание','Графики, подрядчики, акты и фотоотчёты'],
+  debtors:['Должники','Контроль дебиторской задолженности'],
+  finance:['Финансы','Начисления, оплаты, фонд дома, вознаграждение УК'],
+  analytics:['Аналитика и отчётность','Отчёты по домам, УК, персоналу и подрядчикам'],
+  signals:['Сигналы','Автоматический мониторинг контрольных точек']};
+
+/* ====================== RENDER ====================== */
+// houses
+function renderHouses(){$('#houses-tbl tbody').innerHTML=houses.map(h=>`<tr data-h="${h.id}">
+  <td><div class="b">${h.addr}</div><div class="muted" style="font-size:12px">${h.raion} · ${h.year} г.</div></td>
+  <td><span class="chip gray">${h.type}</span></td>
+  <td>${h.ent} / ${h.fl} <span class="muted">· 🛗${h.lift}</span></td>
+  <td>${h.area.toLocaleString('ru-RU')} м²</td>
+  <td>${h.tariff} сом/м²</td>
+  <td>${h.acc}</td>
+  <td>${balCell(h.balance)}</td>
+  <td><div class="bar" style="width:80px"><i style="width:${h.collect}%;background:${h.collect>90?'var(--green)':h.collect>82?'var(--amber)':'var(--red)'}"></i></div><span class="muted" style="font-size:11px">${h.collect}%</span></td>
+</tr>`).join('');}
+renderHouses();
+
+// residents
+function renderRes(f=''){
+  $('#res-tbl tbody').innerHTML=residents.filter(r=>!f||r.status===f).map(r=>`<tr data-r="${r.acc}">
+    <td class="b">${r.fio}</td><td>${r.addr}</td><td>${r.area} м²</td><td class="muted">${r.acc}</td>
+    <td><span class="chip ${r.status==='Должник'?'red':'green'}">${r.status}</span></td>
+    <td><span class="chip gray">${r.type}</span></td>
+    <td>${balCell(r.bal)}</td><td class="muted">${r.phone}</td></tr>`).join('');
+}
+renderRes();
+$('#res-filter').onchange=e=>renderRes(e.target.value);
+
+// requests kanban
+const cols={new:['Принята','amber'],work:['В работе','blue'],done:['Закрыта','green']};
+function renderKanban(){
+  $('#kanban').innerHTML=Object.entries(cols).map(([key,[name,clr]])=>{
+    const items=requests.filter(r=>r.status===key);
+    return `<div class="kcol"><h4><span class="dot" style="background:var(--${clr==='blue'?'brand':clr})"></span>${name}<span class="cnt">${items.length}</span></h4>
+    ${items.map(r=>`<div class="kcard" data-req="${r.id}">
+      <div class="kt">#${r.id} · ${r.title}</div><div class="km">${r.house}</div>
+      <div class="kf"><span class="chip ${r.urg==='Аварийная'?'red':'gray'}">${r.urg}</span><span class="chip gray">${r.type}</span></div>
+      <div class="kf"><span class="muted">👷 ${r.resp}</span><span class="muted" style="margin-left:auto">SLA ${r.sla}</span></div>
+    </div>`).join('')}</div>`;
+}).join('');}
+renderKanban();
+
+// works & acts
+function renderWorks(){$('#works-tbl tbody').innerHTML=works.map(w=>`<tr><td class="b">${w.w}</td><td>${w.h}</td><td>${w.exec}</td><td>${w.due}</td>
+  <td><span class="chip ${w.st==='work'?'blue':'gray'}">${w.st==='work'?'В работе':'План'}</span></td></tr>`).join('');}
+renderWorks();
+$('#acts-tbl tbody').innerHTML=acts.map(a=>`<tr><td class="b">${a.a}</td><td>${a.h}</td><td>${a.c}</td><td>${a.sum} сом</td>
+  <td><span class="chip violet">📷 ${a.ph}</span></td></tr>`).join('');
+
+// debtors
+$('#debt-tbl tbody').innerHTML=debtors.map(d=>`<tr>
+  <td class="b">${d.fio}</td><td>${d.addr}</td><td class="down b">${money(-d.sum)}</td>
+  <td><span class="chip ${d.stage}">${d.days} дн.</span></td><td class="muted">${d.last}</td>
+  <td>${d.days>=90?'<span class="chip red">⚖️ Досудебка</span>':'<button class="btn sm">📨 Напомнить</button>'}</td></tr>`).join('');
+
+// finance
+$('#fin-tbl tbody').innerHTML=fin.map(f=>`<tr><td class="b">${f.h}</td><td>${k(f.ch)}</td><td>${k(f.pay)}</td>
+  <td class="down">${k(f.debt)}</td><td>${k(f.fund)}</td><td>${balCell(f.bal*1000)}</td></tr>`).join('');
+
+// signals
+$('#signals-list').innerHTML=signals.map(s=>`<div class="signal">
+  <div class="si" style="background:var(--${s.c==='gray'?'panel-2':s.c+'-bg'});color:var(--${s.c==='gray'?'muted':s.c})">${s.ic}</div>
+  <div><div class="tt">${s.t}</div><div class="ds">${s.d}</div></div><time>${s.time}</time></div>`).join('');
+
+// bars
+function bars(el,data){$(el).innerHTML=data.map(d=>`<div class="b2" style="height:${d.v}%"><span>${d.m}</span></div>`).join('');}
+bars('#dashbars',[{m:'Янв',v:62},{m:'Фев',v:68},{m:'Мар',v:74},{m:'Апр',v:80},{m:'Май',v:86},{m:'Июн',v:91}]);
+bars('#anbars',[{m:'Янв',v:48},{m:'Фев',v:52},{m:'Мар',v:55},{m:'Апр',v:51},{m:'Май',v:60},{m:'Июн',v:64}]);
+
+// donuts
+$('#reqdonut').style.background='conic-gradient(var(--green) 0 52%, var(--brand) 52% 87%, var(--amber) 87% 100%)';
+$('#findonut').style.background='conic-gradient(var(--violet) 0 72%, var(--brand) 72% 87%, var(--green) 87% 100%)';
+
+/* ====================== NAV ====================== */
+$$('#nav a').forEach(a=>a.onclick=()=>{
+  $$('#nav a').forEach(x=>x.classList.remove('active'));a.classList.add('active');
+  const p=a.dataset.page;$$('.page').forEach(s=>s.classList.remove('active'));$('#page-'+p).classList.add('active');
+  $('#ptitle').textContent=titles[p][0];$('#psub').textContent=titles[p][1];window.scrollTo(0,0);
+});
+$$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');});
+
+/* ====================== THEME ====================== */
+$('#theme').onclick=()=>{const b=document.body;const d=b.dataset.theme==='dark';b.dataset.theme=d?'light':'dark';$('#theme').textContent=d?'🌙':'☀️';};
+
+/* ====================== MODAL ====================== */
+function openModal(title,body){$('#m-title').innerHTML=title;$('#m-body').innerHTML=body;$('#modal-bg').classList.add('open');}
+$('#m-close').onclick=()=>$('#modal-bg').classList.remove('open');
+$('#modal-bg').onclick=e=>{if(e.target.id==='modal-bg')$('#modal-bg').classList.remove('open');};
+
+// house card (цифровой паспорт)
+$('#houses-tbl tbody').onclick=e=>{const tr=e.target.closest('tr');if(!tr)return;const h=houses.find(x=>x.id==tr.dataset.h);
+  openModal(`🏢 ${h.addr}`,`
+  <div class="kv">
+    <div class="it"><div class="k">Район</div><div class="v">${h.raion}</div></div>
+    <div class="it"><div class="k">Год постройки</div><div class="v">${h.year}</div></div>
+    <div class="it"><div class="k">Тип дома</div><div class="v">${h.type}</div></div>
+    <div class="it"><div class="k">Общая площадь</div><div class="v">${h.area.toLocaleString('ru-RU')} м²</div></div>
+    <div class="it"><div class="k">Подъезды / этажи / лифты</div><div class="v">${h.ent} / ${h.fl} / ${h.lift}</div></div>
+    <div class="it"><div class="k">Лицевых счетов</div><div class="v">${h.acc}</div></div>
+    <div class="it"><div class="k">Тариф</div><div class="v">${h.tariff} сом/м²</div></div>
+    <div class="it"><div class="k">Пакет услуг</div><div class="v">${h.pkg}</div></div>
+  </div>
+  <div class="sec-title">Инженерные системы</div>
+  <div class="syslist">${h.sys.map(s=>`<span class="chip blue">${s}</span>`).join('')}</div>
+  <div class="sec-title">Договор с УК</div>
+  <div class="kv"><div class="it"><div class="k">Дата начала</div><div class="v">${h.start}</div></div>
+    <div class="it"><div class="k">Финансовый баланс</div><div class="v">${balCell(h.balance)}</div></div></div>
+  <div class="sec-title">Ответственные</div>
+  <div class="kv"><div class="it"><div class="k">Домовой менеджер</div><div class="v">${h.mgr}</div></div>
+    <div class="it"><div class="k">Техник</div><div class="v">${h.tech}</div></div>
+    <div class="it"><div class="k">Бухгалтер</div><div class="v">${h.buh}</div></div></div>
+  <div class="sec-title">История работ и инцидентов</div>
+  <div class="timeline">
+    <div class="ev"><div class="td">05.06</div><div><b>Заявка #1043</b> — протечка ХВС, в работе</div></div>
+    <div class="ev"><div class="td">01.06</div><div><b>АВР-0288</b> — ремонт домофона, 4 500 сом</div></div>
+    <div class="ev"><div class="td">28.05</div><div>Опрессовка системы отопления — закрыта</div></div>
+    <div class="ev"><div class="td">15.05</div><div>Плановый осмотр кровли — без замечаний</div></div>
+  </div>
+  <div style="margin-top:20px;display:flex;gap:10px"><button class="btn primary">Открыть финансы дома</button><button class="btn">Акт сверки</button></div>`);
+};
+
+// resident card (лицевой счёт)
+$('#res-tbl tbody').onclick=e=>{const tr=e.target.closest('tr');if(!tr)return;const r=residents.find(x=>x.acc==tr.dataset.r);
+  openModal(`👤 ${r.fio}`,`
+  <div class="kv">
+    <div class="it"><div class="k">Адрес</div><div class="v">${r.addr}</div></div>
+    <div class="it"><div class="k">Лицевой счёт</div><div class="v">${r.acc}</div></div>
+    <div class="it"><div class="k">Площадь квартиры</div><div class="v">${r.area} м²</div></div>
+    <div class="it"><div class="k">Тариф</div><div class="v">${r.tariff} сом/м²</div></div>
+    <div class="it"><div class="k">Статус</div><div class="v"><span class="chip ${r.status==='Должник'?'red':'green'}">${r.status}</span></div></div>
+    <div class="it"><div class="k">Тип</div><div class="v">${r.type}</div></div>
+    <div class="it"><div class="k">Текущий баланс</div><div class="v">${balCell(r.bal)}</div></div>
+    <div class="it"><div class="k">Контакт</div><div class="v">${r.phone}</div></div>
+  </div>
+  <div class="sec-title">Начисление за июнь</div>
+  <div class="kv"><div class="it"><div class="k">Расчёт</div><div class="v">${r.area} м² × ${r.tariff} = ${(r.area*r.tariff).toLocaleString('ru-RU')} сом</div></div></div>
+  <div class="sec-title">История начислений и оплат</div>
+  <div class="timeline">
+    <div class="ev"><div class="td">01.06</div><div>Начислено ${(r.area*r.tariff).toLocaleString('ru-RU')} сом</div></div>
+    <div class="ev"><div class="td">10.05</div><div>${r.bal<0?'<span class="down">Оплата не поступила</span>':'Оплачено '+(r.area*r.tariff).toLocaleString('ru-RU')+' сом'}</div></div>
+    <div class="ev"><div class="td">02.05</div><div>Начислено ${(r.area*r.tariff).toLocaleString('ru-RU')} сом</div></div>
+  </div>
+  <div class="sec-title">История заявок</div>
+  <div class="timeline"><div class="ev"><div class="td">28.05</div><div>Заявка «Замена лампы» — закрыта</div></div></div>
+  <div style="margin-top:20px;display:flex;gap:10px">
+    ${r.bal<0?'<button class="btn primary">📨 Отправить напоминание</button><button class="btn">Акт сверки</button>':'<button class="btn primary">Принять оплату</button><button class="btn">Акт сверки</button>'}</div>`);
+};
+
+// request card
+$('#kanban').onclick=e=>{const c=e.target.closest('.kcard');if(!c)return;const r=requests.find(x=>x.id==c.dataset.req);
+  const stName={new:'Принята',work:'В работе',done:'Закрыта'}[r.status];
+  openModal(`🛠 Заявка #${r.id}`,`
+  <div class="kv">
+    <div class="it"><div class="k">Проблема</div><div class="v">${r.title}</div></div>
+    <div class="it"><div class="k">Адрес</div><div class="v">${r.house}</div></div>
+    <div class="it"><div class="k">Тип</div><div class="v">${r.type}</div></div>
+    <div class="it"><div class="k">Срочность</div><div class="v"><span class="chip ${r.urg==='Аварийная'?'red':'gray'}">${r.urg}</span></div></div>
+    <div class="it"><div class="k">Ответственный</div><div class="v">${r.resp}</div></div>
+    <div class="it"><div class="k">SLA (срок реакции)</div><div class="v">${r.sla}</div></div>
+    <div class="it"><div class="k">Статус</div><div class="v"><span class="chip ${r.status==='done'?'green':r.status==='work'?'blue':'amber'}">${stName}</span></div></div>
+    <div class="it"><div class="k">Фактические затраты</div><div class="v">${r.cost==='—'?'—':r.cost+' сом'}</div></div>
+  </div>
+  <div class="sec-title">Фото / видео (${r.ph})</div>
+  <div class="syslist">${r.ph?Array(r.ph).fill('<span class="chip violet">📷 фото</span>').join(''):'<span class="muted">нет вложений</span>'}</div>
+  <div class="sec-title">Движение заявки</div>
+  <div class="timeline">
+    <div class="ev"><div class="td">сегодня</div><div>Источник: <b>мобильное приложение</b></div></div>
+    <div class="ev"><div class="td">+5 мин</div><div>Классификация: ${r.type}, ${r.urg}</div></div>
+    <div class="ev"><div class="td">+12 мин</div><div>Назначен исполнитель: ${r.resp}</div></div>
+  </div>
+  <div style="margin-top:20px;display:flex;gap:10px">
+    <button class="btn primary">${r.status==='done'?'Открыть акт':'Перевести статус →'}</button><button class="btn">Назначить исполнителя</button></div>`);
+};
+
+/* ====================== TOAST ====================== */
+let toastT;
+function toast(msg){const t=$('#toast');t.innerHTML='✅ '+msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600);}
+function closeModal(){$('#modal-bg').classList.remove('open');}
+
+/* ====================== CREATE FORMS ====================== */
+const houseOpts=()=>houses.map(h=>`<option>${h.addr}</option>`).join('');
+const footer=ok=>`<div class="modal-foot"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="m-save">${ok}</button></div>`;
+
+// New request
+function formRequest(){
+  openModal('🛠 Новая заявка',`<div class="form">
+    <div class="fg full"><label>Проблема</label><input id="f-title" placeholder="напр. Протечка трубы ХВС"></div>
+    <div class="fg"><label>Дом</label><select id="f-house">${houseOpts()}</select></div>
+    <div class="fg"><label>Квартира / подъезд</label><input id="f-flat" placeholder="кв.12"></div>
+    <div class="fg"><label>Тип проблемы</label><select id="f-type"><option>Сантехника</option><option>Электрика</option><option>Лифт</option><option>Отопление</option><option>Прочее</option></select></div>
+    <div class="fg"><label>Срочность</label><select id="f-urg"><option>Плановая</option><option>Аварийная</option></select></div>
+    <div class="fg"><label>Ответственный</label><input id="f-resp" placeholder="напр. Бакыт А."></div>
+    <div class="fg"><label>SLA (срок реакции)</label><input id="f-sla" value="24 ч"></div>
+    <div class="fg full"><span class="hint">📷 Источник: мобильное приложение · фото можно прикрепить позже</span></div>
+  </div>${footer('Создать заявку')}`);
+  $('#m-save').onclick=()=>{
+    const t=$('#f-title').value.trim();if(!t){$('#f-title').focus();return;}
+    const id=Math.max(...requests.map(r=>r.id))+1;
+    requests.unshift({id,title:t,house:$('#f-house').value+', '+($('#f-flat').value||'—'),type:$('#f-type').value,
+      urg:$('#f-urg').value,resp:$('#f-resp').value||'—',sla:$('#f-sla').value||'24 ч',status:'new',cost:'—',ph:0});
+    renderKanban();closeModal();toast('Заявка #'+id+' создана');
+  };
+}
+
+// New house
+function formHouse(){
+  openModal('🏢 Добавить дом',`<div class="form">
+    <div class="fg full"><label>Адрес</label><input id="f-addr" placeholder="ул. Примерная 1"></div>
+    <div class="fg"><label>Район</label><input id="f-raion" placeholder="Свердловский"></div>
+    <div class="fg"><label>Год постройки</label><input id="f-year" type="number" value="2015"></div>
+    <div class="fg"><label>Тип дома</label><select id="f-htype"><option>Панель</option><option>Монолит</option><option>Кирпич</option></select></div>
+    <div class="fg"><label>Площадь, м²</label><input id="f-area" type="number" value="10000"></div>
+    <div class="fg"><label>Подъезды</label><input id="f-ent" type="number" value="4"></div>
+    <div class="fg"><label>Этажи</label><input id="f-fl" type="number" value="9"></div>
+    <div class="fg"><label>Лифты</label><input id="f-lift" type="number" value="2"></div>
+    <div class="fg"><label>Тариф, сом/м²</label><input id="f-tar" type="number" value="18"></div>
+    <div class="fg"><label>Лицевых счетов</label><input id="f-acc" type="number" value="120"></div>
+    <div class="fg full"><span class="hint">После создания: загрузка техпаспорта, назначение ответственных, активация финсчёта дома (этап 1 схемы)</span></div>
+  </div>${footer('Создать карточку дома')}`);
+  $('#m-save').onclick=()=>{
+    const a=$('#f-addr').value.trim();if(!a){$('#f-addr').focus();return;}
+    houses.push({id:Math.max(...houses.map(h=>h.id))+1,addr:a,raion:$('#f-raion').value||'—',year:+$('#f-year').value,
+      type:$('#f-htype').value,ent:+$('#f-ent').value,fl:+$('#f-fl').value,lift:+$('#f-lift').value,area:+$('#f-area').value,
+      tariff:+$('#f-tar').value,acc:+$('#f-acc').value,balance:0,collect:100,
+      sys:['Отопление','ХВС','ГВС','Канализация','Электроснабжение'],mgr:'—',tech:'—',buh:'—',start:new Date().toLocaleDateString('ru-RU'),pkg:'Базовый'});
+    renderHouses();closeModal();toast('Дом «'+a+'» добавлен в реестр');
+  };
+}
+
+// New resident
+function formResident(){
+  openModal('👤 Новый житель',`<div class="form">
+    <div class="fg full"><label>ФИО</label><input id="f-fio" placeholder="Иванов Иван И."></div>
+    <div class="fg"><label>Дом</label><select id="f-rhouse">${houseOpts()}</select></div>
+    <div class="fg"><label>Квартира</label><input id="f-rflat" placeholder="кв.10"></div>
+    <div class="fg"><label>Площадь квартиры, м²</label><input id="f-rarea" type="number" value="60"></div>
+    <div class="fg"><label>Тип</label><select id="f-rtype"><option>Собственник</option><option>Арендатор</option></select></div>
+    <div class="fg"><label>Тариф, сом/м²</label><input id="f-rtar" type="number" value="18"></div>
+    <div class="fg full"><label>Контакт (телефон / WhatsApp)</label><input id="f-rphone" placeholder="+996 555 00-00-00"></div>
+  </div>${footer('Создать лицевой счёт')}`);
+  $('#m-save').onclick=()=>{
+    const f=$('#f-fio').value.trim();if(!f){$('#f-fio').focus();return;}
+    const num=String(Math.floor(Math.random()*900+100));
+    residents.unshift({fio:f,addr:$('#f-rhouse').value+', '+($('#f-rflat').value||'—'),area:+$('#f-rarea').value,
+      acc:'ЛС-000'+num,status:'Активный',type:$('#f-rtype').value,bal:0,phone:$('#f-rphone').value||'—',tariff:+$('#f-rtar').value});
+    renderRes($('#res-filter').value);closeModal();toast('Лицевой счёт ЛС-000'+num+' создан');
+  };
+}
+
+// New work
+function formWork(){
+  openModal('📋 Новая работа',`<div class="form">
+    <div class="fg full"><label>Наименование работы</label><input id="f-wname" placeholder="напр. Опрессовка системы отопления"></div>
+    <div class="fg"><label>Дом</label><select id="f-whouse">${houseOpts()}</select></div>
+    <div class="fg"><label>Исполнитель</label><input id="f-wexec" placeholder="СантехПро / Бакыт А."></div>
+    <div class="fg"><label>Срок</label><input id="f-wdue" placeholder="дд.мм"></div>
+    <div class="fg"><label>Тип</label><select id="f-wst"><option value="plan">Плановая</option><option value="work">Аварийная (сразу в работу)</option></select></div>
+  </div>${footer('Добавить в график')}`);
+  $('#m-save').onclick=()=>{
+    const w=$('#f-wname').value.trim();if(!w){$('#f-wname').focus();return;}
+    works.unshift({w,h:$('#f-whouse').value,exec:$('#f-wexec').value||'—',due:$('#f-wdue').value||'—',st:$('#f-wst').value});
+    renderWorks();closeModal();toast('Работа добавлена в график');
+  };
+}
+
+// Quick-create menu (top button)
+$('#btn-create').onclick=()=>{
+  openModal('＋ Быстрое создание',`<div class="create-menu">
+    <div class="cm" data-go="req"><div class="ci" style="background:#e7eefd;color:var(--brand)">🛠</div><div><b>Заявка / инцидент</b><small>Сантехника, лифт, электрика…</small></div></div>
+    <div class="cm" data-go="house"><div class="ci" style="background:var(--violet-bg);color:var(--violet)">🏢</div><div><b>Дом</b><small>Новая карточка объекта в реестр</small></div></div>
+    <div class="cm" data-go="res"><div class="ci" style="background:var(--green-bg);color:var(--green)">👤</div><div><b>Житель</b><small>Лицевой счёт</small></div></div>
+    <div class="cm" data-go="work"><div class="ci" style="background:var(--amber-bg);color:var(--amber)">📋</div><div><b>Работа</b><small>Плановая или аварийная</small></div></div>
+  </div>`);
+  $$('.create-menu .cm').forEach(c=>c.onclick=()=>{const g=c.dataset.go;closeModal();
+    setTimeout(()=>({req:formRequest,house:formHouse,res:formResident,work:formWork}[g]()),120);});
+};
+$('#btn-req').onclick=formRequest;
+$('#btn-house').onclick=formHouse;
+$('#btn-work').onclick=formWork;
+</script>
+</body>
+</html>
