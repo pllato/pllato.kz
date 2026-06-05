@@ -5685,6 +5685,19 @@ function handle1cCreateRealization(request, env, actor) {
  * Нужна для подбора GUID-ов справочников (валюта KZT, ставки НДС, склад, единицы)
  * без записи в базу. Только чтение, только админ.
  */
+// GET /api/crm/1c/collections?base=&q= — список ИМЁН всех коллекций OData
+// (дискавери регистров: остатки, контактная информация и т.п.). Только чтение.
+async function handle1cListCollections(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const url = new URL(request.url);
+  const { client } = await build1cClient(env, tenantId, resolve1cBaseKey(url.searchParams.get("base")));
+  const names = await client.listCollections();
+  const q = (url.searchParams.get("q") || "").trim().toLowerCase();
+  const filtered = (q ? names.filter((n) => n.toLowerCase().includes(q)) : names).sort();
+  return { ok: true, total: names.length, count: filtered.length, collections: filtered };
+}
+
 async function handle1cInspect(request, env, actor) {
   require1cAdmin(actor);
   const tenantId = resolve1cTenantId(actor);
@@ -6291,6 +6304,10 @@ export default {
       if (request.method === "GET" && path === "/api/crm/1c/inspect") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handle1cInspect(request, env, actor));
+      }
+      if (request.method === "GET" && path === "/api/crm/1c/collections") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cListCollections(request, env, actor));
       }
       if (request.method === "POST" && path === "/api/crm/1c/invoices/create") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });

@@ -5,6 +5,23 @@
 import { Store } from "./store.js";
 import { listWarehouseProducts, getWarehouseProduct, productSummary } from "./warehouse.js";
 import { currentEmployee } from "./employees.js";
+import { apiFetch } from "./auth.js";
+import {
+  submitOneCDocument,
+  ONE_C_VAT_RATES,
+  ONE_C_VAT_5,
+  PAYMENT_PURPOSE_OPTS,
+  PAYMENT_SCHEMES,
+  ONE_C_BASES_UI,
+  listContractsFor,
+  searchClientContacts,
+  clientBinHint,
+} from "./one_c_invoice.js";
+import {
+  listDeliveryPointsForContact,
+  getDeliveryPoint,
+  saveDeliveryPoint,
+} from "./delivery_points.js";
 
 const ITEMS = "deal_items";
 const DEALS = "deals";
@@ -497,6 +514,9 @@ function renderItemRow(item, products, editable) {
   const stockLabel = !item.productId ? "—" : `${fmtNum(stock)} ${escapeHtml(item.unit || "шт")}`;
   const inputDisabled = editable ? "" : "disabled";
   const initialLabel = product ? productLabel(product) : "";
+  // Товар на складе без привязки к 1С → под строкой компактный inline-матчер.
+  const storeProduct = item.productId ? Store.get("warehouse_products", item.productId) : null;
+  const needsMatch = !!(storeProduct && !storeProduct._1c_ref_key);
 
   return `
     <tr data-deal-item-id="${escapeAttr(item.id)}">
@@ -526,6 +546,129 @@ function renderItemRow(item, products, editable) {
         ${editable ? `<button type="button" class="btn-ghost btn-icon btn-sm" data-deal-item-remove data-id="${escapeAttr(item.id)}" title="Удалить позицию">✕</button>` : ""}
       </td>
     </tr>
+    ${needsMatch ? `
+    <tr class="dim-match-row" data-deal-match-row="${escapeAttr(item.productId)}">
+      <td colspan="6" style="padding:6px 8px 10px;border-top:none">
+        <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:8px 10px;font-size:12px;color:#9a3412">
+          ⚠ Не сопоставлено с 1С — без привязки не войдёт в счёт/реализацию.
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <input type="search" class="dim-match-q" placeholder="Поиск в номенклатуре 1С…" value="${escapeAttr(storeProduct?.name || item.productName || "")}" style="flex:1;padding:6px 8px;border:1px solid var(--border,#ccc);border-radius:6px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)">
+            <button type="button" class="dim-match-search btn-ghost btn-sm" style="white-space:nowrap">Искать</button>
+          </div>
+          <div class="dim-match-results" style="margin-top:6px"></div>
+        </div>
+      </td>
+    </tr>
+    ` : ""}
+  `;
+}
+
+// === RENDER: Реквизиты для 1С (всегда видимая карточка в окне «Заказ») ===
+
+const REQ_FIELD_STYLE = "width:100%;padding:8px 10px;border:1px solid var(--border,#ccc);border-radius:8px;font:inherit;background:var(--surface,#fff);color:var(--text,#111)";
+const REQ_LABEL_STYLE = "display:block;font-size:12.5px;color:var(--text-muted,#666);margin-bottom:4px";
+
+function renderClientSearchResultsHtml(results, query) {
+  if (results.length) {
+    return results.map((c) => `<button type="button" class="dim-client-pick" data-cid="${escapeAttr(c.id)}" style="display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;border:none;border-bottom:1px solid var(--border,#f0f0f0);background:none;padding:8px 10px;cursor:pointer;color:var(--text,#111);font:inherit"><span>${escapeHtml(c.name || "(без названия)")}</span><span style="color:var(--text-muted,#888);font-size:11.5px;white-space:nowrap">${escapeHtml(clientBinHint(c))}</span></button>`).join("");
+  }
+  return `<div style="padding:8px 10px;font-size:12px;color:var(--text-muted,#888)">${String(query || "").trim().length >= 2 ? "Не найдено — проверьте написание или заведите контакт в CRM." : ""}</div>`;
+}
+
+// Карточка реквизитов 1С — всегда видна. Поля префилятся из полей сделки и
+// персистятся на change/input. Здесь же привязка клиента, если заказ без контакта.
+function renderRequisitesCard(deal) {
+  const contact = deal.contactId ? Store.get("contacts", deal.contactId) : null;
+  const hasClient = !!deal.contactId;
+  const contractorRef = contact?._1c_ref_key || null;
+  const contracts = listContractsFor(contractorRef);
+  const deliveryPoints = hasClient ? listDeliveryPointsForContact(deal.contactId) : [];
+  const selectedBase = deal.oneCBase || "aminamed";
+  const selectedContract = deal.oneCContractRef || "";
+  const selectedPayPurpose = deal.oneCPaymentPurpose || "710";
+  const selectedScheme = deal.paymentScheme || "";
+  const selectedVat = deal.oneCVatRef || ONE_C_VAT_5;
+
+  // Адрес доставки: дефолт — первичная точка или адрес из 1С/контакта.
+  let defaultDelivery = "";
+  if (contact) {
+    const primary = deliveryPoints.find((p) => p.isPrimary) || deliveryPoints[0];
+    defaultDelivery = primary
+      ? (primary.label || [primary.city, primary.address].filter(Boolean).join(", "))
+      : (contact._1c_address || contact.address || "");
+  }
+  const primaryPoint = deliveryPoints.find((p) => p.isPrimary) || deliveryPoints[0] || null;
+
+  const clientBlock = hasClient
+    ? `<div style="font-weight:600">${escapeHtml(contact?.name || deal.contactName || deal.title || "—")}${contractorRef ? ` <span style="color:#16a34a;font-weight:400;font-size:12px">✓ есть в 1С</span>` : ""} <button type="button" class="btn-ghost btn-sm" data-dim-client-change style="padding:2px 8px;font-size:12px">сменить</button></div>`
+    : `
+      <div style="background:#fff3e0;border:1px solid #f59e0b;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:12px;color:#92400e">⚠ Заказ не привязан к клиенту. Без клиента счёт в 1С не создать.</div>
+      <input id="dim-client-search" type="text" value="" placeholder="Найти клиента по названию или БИН…" autocomplete="off" style="${REQ_FIELD_STYLE};margin-bottom:6px">
+      <div id="dim-client-results" style="max-height:170px;overflow:auto;border:1px solid var(--border,#eee);border-radius:8px;display:none"></div>
+    `;
+
+  const deliveryBlock = deliveryPoints.length
+    ? `
+      <select id="dim-onec-delivery-select" style="${REQ_FIELD_STYLE};margin-bottom:6px">
+        ${deliveryPoints.map((p) => `<option value="${escapeAttr(p.id)}"${primaryPoint && p.id === primaryPoint.id ? " selected" : ""}>${escapeHtml(p.label || [p.city, p.address].filter(Boolean).join(", "))}</option>`).join("")}
+        <option value="__manual__">➕ Другой адрес</option>
+      </select>
+      <input id="dim-onec-delivery" type="text" value="" placeholder="город, адрес" style="${REQ_FIELD_STYLE};display:none">
+    `
+    : `<input id="dim-onec-delivery" type="text" value="${escapeAttr(defaultDelivery)}" placeholder="город, адрес — запомнится для клиента" style="${REQ_FIELD_STYLE}">`;
+
+  return `
+    <div class="dim-req-card" style="background:var(--surface,#fff);border:1px solid var(--border,#ddd);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:12px;color:var(--text,#111)">🧾 Реквизиты для 1С</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="grid-column:1 / -1">
+          <label style="${REQ_LABEL_STYLE}">Клиент</label>
+          ${clientBlock}
+        </div>
+        <div>
+          <label style="${REQ_LABEL_STYLE}">Юр.лицо (база 1С)</label>
+          <select id="dim-onec-base" style="${REQ_FIELD_STYLE}">
+            ${ONE_C_BASES_UI.map((b) => `<option value="${escapeAttr(b.key)}"${b.key === selectedBase ? " selected" : ""}>${escapeHtml(b.label)}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label style="${REQ_LABEL_STYLE}">Договор (1С)</label>
+          <select id="dim-onec-contract" style="${REQ_FIELD_STYLE}">
+            <option value="">— без договора —</option>
+            ${contracts.map((c) => `<option value="${escapeAttr(c.ref)}"${c.ref === selectedContract ? " selected" : ""}>${escapeHtml(c.label)}</option>`).join("")}
+          </select>
+          ${contractorRef && contracts.length === 0 ? `<div style="font-size:11px;color:var(--text-muted,#888);margin-top:4px">Договоров клиента не найдено — обновите «Договоры» в «1С интеграция».</div>` : ""}
+        </div>
+        <div style="grid-column:1 / -1">
+          <label style="${REQ_LABEL_STYLE}">Адрес доставки</label>
+          ${deliveryBlock}
+        </div>
+        <div>
+          <label style="${REQ_LABEL_STYLE}">Код назначения платежа</label>
+          <select id="dim-onec-paypurpose" style="${REQ_FIELD_STYLE}">
+            ${PAYMENT_PURPOSE_OPTS.map((p) => `<option value="${escapeAttr(p.code)}"${p.code === selectedPayPurpose ? " selected" : ""}>${escapeHtml(p.label)}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label style="${REQ_LABEL_STYLE}">Ставка НДС</label>
+          <select id="dim-onec-vat" style="${REQ_FIELD_STYLE}">
+            ${ONE_C_VAT_RATES.map((v) => `<option value="${escapeAttr(v.ref)}"${v.ref === selectedVat ? " selected" : ""}>${escapeHtml(v.label)}</option>`).join("")}
+          </select>
+        </div>
+        <div style="grid-column:1 / -1">
+          <label style="${REQ_LABEL_STYLE}">Схема оплаты</label>
+          <select id="dim-onec-payscheme" style="${REQ_FIELD_STYLE};margin-bottom:${selectedScheme === "postpay" ? "6px" : "0"}">
+            <option value="">— не указана —</option>
+            ${PAYMENT_SCHEMES.map((s) => `<option value="${escapeAttr(s.key)}"${s.key === selectedScheme ? " selected" : ""}>${escapeHtml(s.label)}</option>`).join("")}
+          </select>
+          <input id="dim-onec-postpay-date" type="date" value="${escapeAttr(deal.postpayDueDate || "")}" title="Дата, до которой клиент должен оплатить" style="${REQ_FIELD_STYLE};display:${selectedScheme === "postpay" ? "block" : "none"}">
+        </div>
+        <div style="grid-column:1 / -1">
+          <label style="${REQ_LABEL_STYLE}">Комментарий (попадёт в 1С)</label>
+          <textarea id="dim-onec-comment" rows="2" placeholder="необязательно — добавится к пометке Pllato CRM" style="${REQ_FIELD_STYLE};resize:vertical">${escapeHtml(deal.oneCComment || "")}</textarea>
+        </div>
+      </div>
+    </div>
   `;
 }
 
@@ -587,7 +730,7 @@ function renderModalHTML(dealId) {
       <div class="dim-modal" role="dialog" aria-modal="true" aria-labelledby="dimTitle">
         <header class="dim-header">
           <div class="dim-header-left">
-            <h2 id="dimTitle">Состав заказа</h2>
+            <h2 id="dimTitle">Заказ</h2>
             ${statusBadgeHtml(status)}
           </div>
           <div class="dim-header-right">
@@ -602,6 +745,8 @@ function renderModalHTML(dealId) {
 
         <div class="dim-body">
           ${banner}
+
+          ${renderRequisitesCard(deal)}
 
           ${items.length === 0 ? `
             <div class="dim-empty">
@@ -657,35 +802,59 @@ function renderModalHTML(dealId) {
   `;
 }
 
-// Действия в модалке по статусу заказа: на каждой стадии — только релевантные кнопки.
+// Действия в модалке — последовательный workflow, ОДНА primary-кнопка за раз:
+//   Согласование → Счёт → Отгрузка.
+// Реквизиты 1С всегда видны выше; здесь только шаги жизненного цикла.
 function renderFooterActions(deal, items) {
   const status = getDealOrderStatus(deal);
-  const hasItems = items.length > 0;
-  // Черновик: ничего не показываем — авто-промоция переведёт в preliminary
-  // как только появится первая валидная позиция (товар + кол-во > 0).
-  if (status === ORDER_STATUS_DRAFT) {
-    return "";
-  }
-  // Предварительный: можно отозвать (менеджер) или согласовать (директор).
-  if (status === ORDER_STATUS_PRELIMINARY) {
+  const hasClient = !!deal.contactId;
+  // Сопоставлены ли позиции с 1С (есть кол-во > 0 И привязка товара к 1С).
+  const hasMatchedLines = items.some(
+    (i) => (Number(i.qty) || 0) > 0 && Store.get("warehouse_products", i.productId)?._1c_ref_key
+  );
+  const hasInvoice = !!deal.oneCInvoiceNumber;
+  const hasRealization = !!deal.oneCRealizationNumber;
+
+  // Черновик/Предварительный: шаг 1 — согласование заказа.
+  if (status === ORDER_STATUS_DRAFT || status === ORDER_STATUS_PRELIMINARY) {
+    const recallBtn = status === ORDER_STATUS_PRELIMINARY
+      ? `<button type="button" class="btn-ghost btn-sm" data-deal-order-recall title="Вернуть в черновик">↩ Вернуть в черновик</button>`
+      : "";
+    const disabled = items.length === 0;
     return `
-      <button type="button" class="btn-ghost" data-deal-order-recall title="Вернуть в черновик">↩ Вернуть в черновик</button>
-      <button type="button" class="btn-primary deal-action-btn-approve" data-deal-order-approve title="Согласовать заказ на отгрузку">✓ Согласовать на отгрузку</button>
+      ${recallBtn}
+      <button type="button" class="btn-primary deal-action-btn-approve" data-deal-order-approve title="${disabled ? "Добавьте хотя бы одну позицию" : "Согласовать заказ"}"${disabled ? " disabled" : ""}>✓ Согласовать заказ</button>
     `;
   }
-  // Согласован: можно отозвать, выставить счёт в 1С ИЛИ отгрузить.
-  if (status === ORDER_STATUS_APPROVED) {
+  // Согласован, счёта ещё нет: шаг 2 — создать счёт в 1С.
+  if (status === ORDER_STATUS_APPROVED && !hasInvoice) {
+    let invoiceDisabled = "";
+    let invoiceTitle = "Создать «Счёт на оплату покупателю» в 1С (черновик)";
+    if (!hasClient) { invoiceDisabled = " disabled"; invoiceTitle = "Сначала выберите клиента в реквизитах 1С"; }
+    else if (!hasMatchedLines) { invoiceDisabled = " disabled"; invoiceTitle = "Ни одна позиция не сопоставлена с номенклатурой 1С"; }
     return `
-      <button type="button" class="btn-ghost" data-deal-order-revoke title="Отозвать согласование">↶ Отозвать</button>
-      <button type="button" class="btn-ghost" data-deal-order-1c-invoice title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
-      <button type="button" class="btn-primary" data-deal-order-ship title="Заказ перейдёт в «Отгружены», создастся расходная накладная З-2">📦 Отгрузить и сформировать накладную</button>
+      <button type="button" class="btn-ghost btn-sm" data-deal-order-revoke title="Отозвать согласование">↶ Отозвать</button>
+      <button type="button" class="btn-primary" data-deal-order-1c-invoice title="${escapeAttr(invoiceTitle)}"${invoiceDisabled}>🧾 Создать счёт в 1С</button>
     `;
   }
-  // Отгружен: просмотр/печать + счёт и реализация в 1С.
+  // Согласован, счёт создан: шаг 3 — отгрузка (накладная + реализация в 1С).
+  if (status === ORDER_STATUS_APPROVED && hasInvoice) {
+    return `
+      <span class="dim-footer-note" style="font-size:12.5px;color:#16a34a;margin-right:6px">Счёт 1С № ${escapeHtml(deal.oneCInvoiceNumber)} ✓</span>
+      <button type="button" class="btn-primary" data-deal-order-ship title="Заказ перейдёт в «Отгружены»: расходная накладная З-2 + реализация в 1С">📦 Отгрузить (накладная + реализация в 1С)</button>
+    `;
+  }
+  // Отгружен: печать накладной + реализация в 1С (если ещё не создана).
   if (status === ORDER_STATUS_SHIPPED) {
+    const realizationBtn = hasRealization
+      ? ""
+      : `<button type="button" class="btn-ghost btn-sm" data-deal-order-1c-realization title="Создать «Реализацию товаров и услуг» в 1С (черновик)">📦 Реализация в 1С</button>`;
+    const invoiceNote = hasInvoice
+      ? `<span class="dim-footer-note" style="font-size:12.5px;color:#16a34a;margin-right:6px">Счёт 1С № ${escapeHtml(deal.oneCInvoiceNumber)} ✓</span>`
+      : "";
     return `
-      <button type="button" class="btn-ghost" data-deal-order-1c-invoice title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
-      <button type="button" class="btn-ghost" data-deal-order-1c-realization title="Создать «Реализацию товаров и услуг» в 1С (черновик)">📦 Реализация в 1С${deal.oneCRealizationNumber ? " ✓" : ""}</button>
+      ${invoiceNote}
+      ${realizationBtn}
       <button type="button" class="btn-primary" data-deal-order-print title="Открыть печатную форму З-2">📄 Открыть накладную${deal.orderInvoiceNumber ? ` № ${escapeHtml(deal.orderInvoiceNumber)}` : ""}</button>
     `;
   }
@@ -865,6 +1034,129 @@ function wireModalHandlers() {
   root.querySelectorAll('input[data-deal-item-field="qty"], input[data-deal-item-field="unitPrice"]')
     .forEach((input) => input.addEventListener("input", () => onNum(input)));
 
+  // === Реквизиты для 1С: персист на change/input ===
+
+  // Тихий апдейт без перерисовки (поля, не влияющие на остальной UI).
+  const persistDeal = (patch) => { try { Store.update(DEALS, dealId, patch); } catch {} };
+
+  // Юр.лицо: смена базы влияет на договоры/контрагента → перерисовываем.
+  root.querySelector("#dim-onec-base")?.addEventListener("change", (e) => {
+    persistDeal({ oneCBase: e.target.value || "aminamed" });
+    refreshModal();
+  });
+  // Договор: смена влияет на отображение → перерисовываем.
+  root.querySelector("#dim-onec-contract")?.addEventListener("change", (e) => {
+    persistDeal({ oneCContractRef: e.target.value || null });
+    refreshModal();
+  });
+  // Код назначения / НДС / комментарий — тихо.
+  root.querySelector("#dim-onec-paypurpose")?.addEventListener("change", (e) => persistDeal({ oneCPaymentPurpose: e.target.value || "710" }));
+  root.querySelector("#dim-onec-vat")?.addEventListener("change", (e) => persistDeal({ oneCVatRef: e.target.value || ONE_C_VAT_5 }));
+  root.querySelector("#dim-onec-comment")?.addEventListener("input", (e) => persistDeal({ oneCComment: e.target.value || null }));
+  // Схема оплаты: postpay → показать дату; перерисовываем чтобы поле появилось/исчезло.
+  root.querySelector("#dim-onec-payscheme")?.addEventListener("change", (e) => {
+    const scheme = e.target.value || null;
+    persistDeal({ paymentScheme: scheme, ...(scheme === "postpay" ? {} : { postpayDueDate: null }) });
+    refreshModal();
+  });
+  root.querySelector("#dim-onec-postpay-date")?.addEventListener("change", (e) => persistDeal({ postpayDueDate: e.target.value || null }));
+  // Адрес: «Другой адрес» → показать ручное поле без перерисовки (не терять ввод).
+  root.querySelector("#dim-onec-delivery-select")?.addEventListener("change", (e) => {
+    const inp = root.querySelector("#dim-onec-delivery");
+    if (inp) {
+      inp.style.display = e.target.value === "__manual__" ? "block" : "none";
+      if (e.target.value === "__manual__") inp.focus();
+    }
+  });
+
+  // Привязка клиента «на месте» (если заказ без контакта).
+  const bindClientPicks = () => {
+    root.querySelectorAll(".dim-client-pick").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const c = Store.get("contacts", btn.dataset.cid);
+        if (!c) return;
+        persistDeal({ contactId: c.id, contactName: c.name || null });
+        refreshModal();
+      });
+    });
+  };
+  bindClientPicks();
+  root.querySelector("#dim-client-search")?.addEventListener("input", (e) => {
+    const q = e.target.value || "";
+    const box = root.querySelector("#dim-client-results");
+    if (!box) return;
+    const results = searchClientContacts(q);
+    box.style.display = (results.length || q.trim().length >= 2) ? "" : "none";
+    box.innerHTML = renderClientSearchResultsHtml(results, q);
+    bindClientPicks();
+  });
+  root.querySelector("[data-dim-client-change]")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    persistDeal({ contactId: null, contactName: null });
+    refreshModal();
+  });
+
+  // Inline-матчер несопоставленных позиций (поиск номенклатуры 1С + привязка).
+  root.querySelectorAll("[data-deal-match-row]").forEach((row) => {
+    const pid = row.dataset.dealMatchRow;
+    if (!pid) return;
+    const q = row.querySelector(".dim-match-q");
+    const btn = row.querySelector(".dim-match-search");
+    const res = row.querySelector(".dim-match-results");
+    const doSearch = async () => {
+      const text = (q.value || "").trim();
+      if (text.length < 2) { res.innerHTML = '<span style="font-size:11px;color:#888">Введите минимум 2 символа</span>'; return; }
+      res.innerHTML = '<span style="font-size:11px;color:#888">Ищем в 1С…</span>';
+      try {
+        const r = await apiFetch("/api/crm/1c/nomenclature/search?q=" + encodeURIComponent(text));
+        const found = r?.results || [];
+        if (!found.length) { res.innerHTML = '<span style="font-size:11px;color:#888">Ничего не найдено в 1С</span>'; return; }
+        res.innerHTML = found.map((x) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-top:1px solid var(--border,#f0f0f0)"><span style="font-size:12px;color:var(--text,#111)">${escapeHtml(x.name)} <span style="opacity:.5">${escapeHtml(x.code || "")}</span></span><button type="button" class="dim-match-pick btn-ghost btn-sm" data-ref="${escapeAttr(x.ref)}" data-unit="${escapeAttr(x.unit || "")}" data-vat="${escapeAttr(x.vat || "")}" style="white-space:nowrap">Привязать</button></div>`).join("");
+        res.querySelectorAll(".dim-match-pick").forEach((b) => b.addEventListener("click", async () => {
+          b.disabled = true; b.textContent = "…";
+          try {
+            await apiFetch("/api/crm/1c/products/map", { method: "POST", body: { productId: pid, refKey: b.dataset.ref, unitRef: b.dataset.unit || null, vatRef: b.dataset.vat || null } });
+            try { Store.update("warehouse_products", pid, { _1c_ref_key: b.dataset.ref, _1c_unit_ref: b.dataset.unit || null, _1c_vat_ref: b.dataset.vat || null, _1c_match_method: "manual", _1c_match_ambiguous: false }); } catch {}
+            refreshModal();
+          } catch (err) { b.disabled = false; b.textContent = "Привязать"; alert("Ошибка привязки: " + (err?.message || String(err))); }
+        }));
+      } catch (err) { res.innerHTML = '<span style="color:#dc2626;font-size:11px">Ошибка: ' + escapeHtml(err?.message || String(err)) + '</span>'; }
+    };
+    btn?.addEventListener("click", doSearch);
+    q?.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); doSearch(); } });
+  });
+
+  // Собрать реквизиты 1С из полей сделки + разрешить адрес доставки из UI.
+  // Возвращает аргументы для submitOneCDocument (без docType).
+  const collectOneCArgs = () => {
+    const deal = Store.get(DEALS, dealId);
+    const contact = deal?.contactId ? Store.get("contacts", deal.contactId) : null;
+    // Адрес доставки: из выбранной точки клиента или ручной ввод (новый — запомним).
+    let deliveryAddress = null;
+    const deliverySel = root.querySelector("#dim-onec-delivery-select");
+    const deliveryManual = (root.querySelector("#dim-onec-delivery")?.value || "").trim();
+    if (deliverySel && deliverySel.value && deliverySel.value !== "__manual__") {
+      const pt = getDeliveryPoint(deliverySel.value);
+      deliveryAddress = pt ? (pt.label || [pt.city, pt.address].filter(Boolean).join(", ")) : null;
+    } else if (deliveryManual) {
+      deliveryAddress = deliveryManual;
+      if (deal?.contactId) { try { saveDeliveryPoint({ contactId: deal.contactId, address: deliveryManual }); } catch {} }
+    }
+    return {
+      deal,
+      contact,
+      items: listDealItems(dealId),
+      base: deal?.oneCBase || "aminamed",
+      contractRef: deal?.oneCContractRef || null,
+      deliveryAddress,
+      paymentPurposeCode: deal?.oneCPaymentPurpose || "710",
+      vatRef: deal?.oneCVatRef || ONE_C_VAT_5,
+      comment: deal?.oneCComment || "",
+      paymentScheme: deal?.paymentScheme || null,
+      postpayDueDate: deal?.postpayDueDate || null,
+    };
+  };
+
   // Recall (вернуть из preliminary в draft).
   root.querySelector("[data-deal-order-recall]")?.addEventListener("click", (e) => {
     e.preventDefault();
@@ -924,29 +1216,46 @@ function wireModalHandlers() {
       const { doc, posted, postError } = result;
       // Синхронно переводим заказ в shipped.
       markDealOrderShipped(dealId, { invoiceId: doc.id, invoiceNumber: doc.number });
+      // Best-effort: создаём реализацию в 1С (черновик). Ошибка не блокирует отгрузку.
+      let realizationMsg = "";
+      try {
+        const args = collectOneCArgs();
+        const out = await submitOneCDocument({ ...args, docType: "realization" });
+        if (out?.number) realizationMsg = `\n\n✓ Реализация в 1С создана черновиком: № ${out.number}.`;
+      } catch (rerr) {
+        realizationMsg = `\n\n⚠ Реализацию в 1С создать не удалось (${rerr?.message || String(rerr)}). Создайте её позже кнопкой «Реализация в 1С».`;
+      }
       refreshModal();
       if (!posted) {
-        alert(`⚠ Накладная № ${doc.number} создана как ЧЕРНОВИК — не удалось провести (FIFO-списание):\n\n${postError}\n\nОткрой документ в Склад → Документы и проведи вручную после докомплекта остатка.`);
+        alert(`⚠ Накладная № ${doc.number} создана как ЧЕРНОВИК — не удалось провести (FIFO-списание):\n\n${postError}\n\nОткрой документ в Склад → Документы и проведи вручную после докомплекта остатка.${realizationMsg}`);
+      } else if (realizationMsg) {
+        alert(`📦 Накладная № ${doc.number} проведена.${realizationMsg}`);
       }
     } catch (err) {
       alert("Не удалось сформировать накладную: " + (err?.message || String(err)));
     }
   });
-  // Создать документ 1С (счёт / реализацию) из позиций заказа.
-  async function openOneCDoc(docType) {
+  // Создать документ 1С (счёт / реализацию) headless — реквизиты берём из карточки.
+  const submitOneCFromModal = async (docType, btn) => {
+    const args = collectOneCArgs();
+    if (!args.deal?.contactId) { alert("Сначала выберите клиента в реквизитах 1С."); return; }
+    const word = docType === "invoice" ? "Счёт" : "Реализация";
+    const origText = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "Создаём в 1С…"; }
     try {
-      const deal = Store.get(DEALS, dealId);
-      if (!deal) return;
-      const items = listDealItems(dealId);
-      const contact = deal.contactId ? Store.get("contacts", deal.contactId) : null;
-      const mod = await import("./one_c_invoice.js");
-      mod.openCreateOneCDocDialog({ deal, items, contact, docType, onDone: () => refreshModal() });
+      const out = await submitOneCDocument({ ...args, docType });
+      refreshModal();
+      alert(`✓ ${word} № ${out.number || "(без номера)"} создан(а) черновиком в 1С.\n\nОткройте 1С, проверьте номенклатуру/серии/юр.лицо и проведите.`);
+      if (out.unmatched?.length) {
+        alert(`⚠ Не вошли в документ (нет привязки к 1С): ${out.unmatched.map((u) => u.name).join(", ")}.`);
+      }
     } catch (err) {
-      alert("Не удалось открыть форму документа 1С: " + (err?.message || String(err)));
+      if (btn) { btn.disabled = false; btn.textContent = origText; }
+      alert(`Не удалось создать «${word}» в 1С: ` + (err?.message || String(err)));
     }
-  }
-  root.querySelector("[data-deal-order-1c-invoice]")?.addEventListener("click", (e) => { e.preventDefault(); openOneCDoc("invoice"); });
-  root.querySelector("[data-deal-order-1c-realization]")?.addEventListener("click", (e) => { e.preventDefault(); openOneCDoc("realization"); });
+  };
+  root.querySelector("[data-deal-order-1c-invoice]")?.addEventListener("click", (e) => { e.preventDefault(); submitOneCFromModal("invoice", e.currentTarget); });
+  root.querySelector("[data-deal-order-1c-realization]")?.addEventListener("click", (e) => { e.preventDefault(); submitOneCFromModal("realization", e.currentTarget); });
   // Открыть/распечатать накладную (когда уже отгружен).
   root.querySelector("[data-deal-order-print]")?.addEventListener("click", async (e) => {
     e.preventDefault();

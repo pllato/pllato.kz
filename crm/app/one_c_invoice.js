@@ -18,11 +18,11 @@ import { listDeliveryPointsForContact, saveDeliveryPoint, getDeliveryPoint } fro
 const ONE_C_KZT_REF = "9e9a6ffb-aa56-11e1-b9c4-002215ba1bbe";
 // Ставка НДС по умолчанию 5% (Асем: 99% товаров — 5%). Если у товара есть своя
 // ставка из 1С (_1c_vat_ref) — берём её, иначе этот дефолт.
-const ONE_C_VAT_5 = "34dffed7-e9fb-11f0-b296-005056815627";
+export const ONE_C_VAT_5 = "34dffed7-e9fb-11f0-b296-005056815627";
 // Справочник ставок НДС из 1С (разведано 04.06 inspect Catalog_СтавкиНДС).
 // GUID-ы ОДИНАКОВЫ во всех 3 базах (проверено Аминамед/Алишерова/Баймуханова).
 // Дефолт 5%; выбор document-level (применяется ко всем позициям).
-const ONE_C_VAT_RATES = [
+export const ONE_C_VAT_RATES = [
   { ref: "34dffed7-e9fb-11f0-b296-005056815627", label: "5%" },
   { ref: "c4d32414-aa56-11e1-b9c4-002215ba1bbe", label: "0%" },
   { ref: "fecafe35-ec4d-11f0-b2a3-005056818aec", label: "10%" },
@@ -33,7 +33,7 @@ const ONE_C_VAT_RATES = [
 ];
 // Юр.лица = базы 1С. Выбор базы роутит документ/контрагента/номенклатуру в неё
 // (сервер сам подставит организацию-отправителя этой базы).
-const ONE_C_BASES_UI = [
+export const ONE_C_BASES_UI = [
   { key: "aminamed", label: "ТОО Аминамед" },
   { key: "alisherova", label: "ИП Алишерова" },
   { key: "baymukhanova", label: "ИП Баймуханова К.А." },
@@ -41,14 +41,14 @@ const ONE_C_BASES_UI = [
 
 // Код назначения платежа (встреча Асем 04.06): 710 — товар (почти всегда),
 // 859 — услуга (редко, бывает у Алишеровой). Дефолт 710.
-const PAYMENT_PURPOSE_OPTS = [
+export const PAYMENT_PURPOSE_OPTS = [
   { code: "710", label: "710 — реализация товаров" },
   { code: "859", label: "859 — реализация услуг" },
 ];
 
 // Схема оплаты (встреча Асем 04.06): хранится на сделке, статус оплаты тянется
 // из 1С опросом оплат. Постоплата — с конкретной датой (сроки у клиентов разные).
-const PAYMENT_SCHEMES = [
+export const PAYMENT_SCHEMES = [
   { key: "prepay", label: "100% предоплата" },
   { key: "consignment", label: "Консигнация (оплата по факту продажи)" },
   { key: "postpay", label: "Постоплата (к дате)" },
@@ -94,7 +94,7 @@ function listOneCOrgs() {
 }
 
 // Договоры 1С для выбранного контрагента (из импортированных contracts_1c).
-function listContractsFor(contractorRef) {
+export function listContractsFor(contractorRef) {
   if (!contractorRef) return [];
   try {
     return (Store.list("contracts_1c") || [])
@@ -105,7 +105,7 @@ function listContractsFor(contractorRef) {
 }
 
 // Поиск клиента (контакта CRM) по имени/БИН — для привязки заказа «на месте».
-function searchClientContacts(query) {
+export function searchClientContacts(query) {
   const q = String(query || "").trim().toLowerCase();
   if (q.length < 2) return [];
   const digits = q.replace(/\D/g, "");
@@ -121,7 +121,7 @@ function searchClientContacts(query) {
   }
   return out;
 }
-function clientBinHint(c) {
+export function clientBinHint(c) {
   const m = String(c?.note || "").match(/\b\d{12}\b/);
   return m ? "БИН/ИИН " + m[0] : "";
 }
@@ -165,6 +165,79 @@ function buildLines(items) {
     });
   }
   return { lines, unmatched, ambiguous };
+}
+
+/**
+ * Headless-создание документа 1С (без диалога). Используется единым окном «Заказ»
+ * (deal_items.js), а также внутренне диалогом ниже. Собирает payload ИДЕНТИЧНО
+ * диалоговой кнопке «Создать», POST'ит в DOC_META[docType].endpoint и при успехе
+ * сохраняет ref/num/at + CRM-поля (схема оплаты, НДС, комментарий) на сделке.
+ *
+ * @returns {Promise<{ ok:true, res:any, number:string|null, unmatched:Array }>}
+ */
+export async function submitOneCDocument({
+  deal,
+  items,
+  contact,
+  docType = "invoice",
+  base = "aminamed",
+  contractRef = null,
+  deliveryAddress = null,
+  paymentPurposeCode = "710",
+  vatRef = ONE_C_VAT_5,
+  comment = "",
+  paymentScheme = null,
+  postpayDueDate = null,
+}) {
+  if (!deal) throw new Error("Сделка не передана");
+  const meta = DOC_META[docType] || DOC_META.invoice;
+  const built = buildLines(items || []);
+  if (!built.lines.length) throw new Error("Нет сопоставленных с 1С позиций");
+  // Ставка НДС — document-level (применяется ко всем позициям), как в диалоге.
+  const lines = built.lines.map((l) => ({
+    productRef: l.productRef,
+    unitRef: l.unitRef,
+    vatRateRef: vatRef,
+    qty: l.qty,
+    price: l.price,
+    sum: l.sum,
+    name: l.name,
+  }));
+  // Маркер Pllato + комментарий менеджера через запятую (как в диалоге).
+  const fullComment = ["Создано из Pllato CRM (черновик)", comment].filter(Boolean).join(", ");
+  const payload = {
+    externalId: deal.id,
+    base,
+    contactId: contact?.id || null,
+    currencyRef: ONE_C_KZT_REF,
+    contractorRef: base === "aminamed" ? (contact?._1c_ref_key || null) : null,
+    contractRef,
+    deliveryAddress,
+    paymentPurposeCode: docType === "invoice" ? paymentPurposeCode : null,
+    comment: fullComment,
+    post: false,
+    lines,
+  };
+  // Сначала фиксируем CRM-сторону (схема оплаты, НДС, комментарий) — как в диалоге.
+  try {
+    Store.update("deals", deal.id, {
+      oneCPaymentPurpose: paymentPurposeCode,
+      oneCVatRef: vatRef,
+      oneCComment: comment || null,
+      ...(docType === "invoice"
+        ? { paymentScheme: paymentScheme || null, postpayDueDate: paymentScheme === "postpay" ? (postpayDueDate || null) : null }
+        : {}),
+    });
+  } catch {}
+  const res = await apiFetch(meta.endpoint, { method: "POST", body: payload });
+  try {
+    Store.update("deals", deal.id, {
+      [meta.refField]: res?.ref_key || null,
+      [meta.numField]: res?.number || null,
+      [meta.atField]: Date.now(),
+    });
+  } catch {}
+  return { ok: true, res, number: res?.number || null, unmatched: built.unmatched };
 }
 
 function closeDialog() {
@@ -473,45 +546,30 @@ export function openCreateOneCDocDialog({ deal, items, contact, docType = "invoi
       const postpayDue = overlay.querySelector("#onec-postpay-date")?.value || "";
       const vatRef = overlay.querySelector("#onec-vat")?.value || ONE_C_VAT_5;
       const userComment = (overlay.querySelector("#onec-comment")?.value || "").trim();
-      // Маркер Pllato + комментарий менеджера через запятую (Асем: «будем видеть, что это интеграция СРМ»).
-      const comment = ["Создано из Pllato CRM (черновик)", userComment].filter(Boolean).join(", ");
       createBtn.disabled = true;
       createBtn.textContent = "Создаём в 1С…";
       try {
-        const payload = {
-          externalId: deal.id,
+        // Единый headless-путь — payload собирается в submitOneCDocument (без дублей).
+        // Контрагент-реф берётся из contact._1c_ref_key, поэтому синхронизируем его
+        // с state.contractorRef (мог быть найден/создан «на месте» в этом диалоге).
+        const contactForSubmit = state.contact
+          ? { ...state.contact, _1c_ref_key: state.contractorRef || state.contact._1c_ref_key || null }
+          : null;
+        const { res, number } = await submitOneCDocument({
+          deal,
+          items: items || [],
+          contact: contactForSubmit,
+          docType,
           base,
-          contactId: state.contact?.id || null,
-          currencyRef: ONE_C_KZT_REF,
-          contractorRef: base === "aminamed" ? state.contractorRef : null,
           contractRef,
           deliveryAddress,
-          paymentPurposeCode: docType === "invoice" ? payPurpose : null,
-          comment,
-          post: false,
-          lines: lines.map((l) => ({
-            productRef: l.productRef, unitRef: l.unitRef, vatRateRef: vatRef,
-            qty: l.qty, price: l.price, sum: l.sum, name: l.name,
-          })),
-        };
-        // Схема оплаты + ставка НДС — CRM-сторона (в 1С статус оплачено/отгружено ставится сам).
-        try {
-          Store.update("deals", deal.id, {
-            oneCPaymentPurpose: payPurpose,
-            oneCVatRef: vatRef,
-            oneCComment: userComment || null,
-            ...(docType === "invoice" ? { paymentScheme: payScheme || null, postpayDueDate: payScheme === "postpay" ? (postpayDue || null) : null } : {}),
-          });
-        } catch {}
-        const res = await apiFetch(meta.endpoint, { method: "POST", body: payload });
-        const num = res?.number || "(без номера)";
-        try {
-          Store.update("deals", deal.id, {
-            [meta.refField]: res?.ref_key || null,
-            [meta.numField]: res?.number || null,
-            [meta.atField]: Date.now(),
-          });
-        } catch {}
+          paymentPurposeCode: payPurpose,
+          vatRef,
+          comment: userComment,
+          paymentScheme: payScheme,
+          postpayDueDate: postpayDue,
+        });
+        const num = number || "(без номера)";
         closeDialog();
         alert(`✓ ${meta.word} в 1С создан(а) черновиком: № ${num}.\n\nОткройте 1С, проверьте номенклатуру/серии/юр.лицо и проведите.`);
         if (typeof onDone === "function") onDone(res);

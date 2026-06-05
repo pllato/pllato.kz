@@ -162,6 +162,14 @@ export class ODataClient {
     return { ok: true, collections_total: collections };
   }
 
+  /** Список ИМЁН всех коллекций OData (из service document) — для дискавери регистров. */
+  async listCollections() {
+    const url = `${this.baseUrl}/?$format=json`;
+    const data = await this._request("GET", url);
+    const arr = Array.isArray(data?.value) ? data.value : [];
+    return arr.map((x) => x.name || x.url).filter(Boolean);
+  }
+
   /** GET коллекция с параметрами OData. */
   async get(collection, params = {}) {
     const url = this.buildUrl(collection, params);
