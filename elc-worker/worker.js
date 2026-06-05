@@ -1403,6 +1403,19 @@ async function handleList(request, env, entity) {
   if (scope === "all" && me.role !== "admin") scope = "mine";
   if (scope === "team" && me.role === "agent") scope = "mine";
 
+  // ──── ORG-структура — источник истины для видимости deals/tasks/contacts ────
+  // Если юзер состоит в оргструктуре (hasAnyNode), реальные границы видимости
+  // задаёт блок orgPerms ниже (dealScope own|team|all + whitelist pipelineIds).
+  // Legacy scope='mine'/'team' тогда НЕ применяем — иначе dealScope='all'/'team'
+  // из структуры перетирался бы жёстким responsible=me, и сотрудник с правом
+  // «Все сделки» видел бы только свои (а при отсутствии своих — пустую воронку).
+  // Касается только deals/tasks/contacts (их покрывает orgPerms-блок); для
+  // прочих сущностей legacy scope остаётся как есть.
+  if (me.role !== 'admin' && me.orgPerms && me.orgPerms.hasAnyNode &&
+      (entity === 'deals' || entity === 'tasks' || entity === 'contacts')) {
+    scope = 'all';
+  }
+
   // Какой department целевой для scope=team?
   // - manager: всегда свой
   // - admin: может явно передать ?department=X (peek в чужой отдел); если не передал — свой
