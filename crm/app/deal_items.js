@@ -1236,17 +1236,34 @@ function wireModalHandlers() {
       if (e.target.value === "__manual__") inp.focus();
     }
   });
-  // «➕ Добавить адрес» — то же, что выбрать «Другой адрес»: показать ручной ввод
-  // (CRM-адрес, в 1С не уходит) и сфокусировать его.
+  // «➕ Добавить адрес» — сохраняет адрес в адресную книгу клиента (CRM, в 1С
+  // адресов нет). Если поле ввода ещё скрыто (выбрана сохранённая точка) —
+  // первый клик показывает ручной ввод; когда в нём есть текст — сохраняем.
   root.querySelector("#dim-delivery-add")?.addEventListener("click", (e) => {
     e.preventDefault();
     const sel = root.querySelector("#dim-onec-delivery-select");
     const inp = root.querySelector("#dim-onec-delivery");
-    if (sel) sel.value = "__manual__";
-    if (inp) {
+    // Шаг 1: ручной ввод ещё не открыт — открыть и сфокусировать.
+    if (inp && (inp.style.display === "none") && (!inp.value || !inp.value.trim())) {
+      if (sel) sel.value = "__manual__";
       inp.style.display = "block";
       inp.focus();
+      return;
     }
+    // Шаг 2: в ручном вводе есть текст — сохранить адрес у клиента.
+    const cid = Store.get(DEALS, dealId)?.contactId;
+    const val = (inp?.value || "").trim();
+    if (!cid) { alert("Сначала выберите клиента — адрес сохраняется в его карточке."); return; }
+    if (!val) {
+      if (sel) sel.value = "__manual__";
+      if (inp) { inp.style.display = "block"; inp.focus(); }
+      alert("Введите адрес доставки в поле выше, затем нажмите «Добавить адрес».");
+      return;
+    }
+    try {
+      saveDeliveryPoint({ contactId: cid, address: val });
+      refreshModal(); // адрес появится в выпадашке точек доставки клиента
+    } catch (err) { alert(err?.message || "Не удалось сохранить адрес"); }
   });
 
   // Привязка клиента «на месте» (если заказ без контакта).
@@ -1294,6 +1311,15 @@ function wireModalHandlers() {
     finally { if (btn) { btn.disabled = false; btn.textContent = orig; } }
   };
 
+  // Воркер для базы Аминамед обновляет _1c_ref_key только в D1 — локальный Store
+  // об этом не знает, поэтому штампуем его сами, иначе бейдж «не сопоставлен»
+  // не сменится до следующей полной синхронизации. Для других баз реф контакта
+  // не храним (контрагент резолвится вживую по БИН при создании документа).
+  const stampContractorRef = (cid, refKey) => {
+    if (!cid || !refKey || oneCBaseNow() !== "aminamed") return;
+    try { Store.update("contacts", cid, { _1c_ref_key: refKey }); } catch {}
+  };
+
   // 🔎 Похожие: поиск контрагента 1С по названию + привязка по выбору.
   const runContractorSearch = async (text) => {
     if (!contractorResults) return;
@@ -1307,7 +1333,9 @@ function wireModalHandlers() {
       if (!found.length) { contractorResults.innerHTML = '<div style="padding:8px 10px;font-size:11px;color:#888">Ничего не найдено в 1С</div>'; return; }
       contractorResults.innerHTML = found.map((x) => `<button type="button" class="dim-contractor-pick" data-ref="${escapeAttr(x.ref)}" style="display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;border:none;border-bottom:1px solid var(--border,#f0f0f0);background:none;padding:8px 10px;cursor:pointer;color:var(--text,#111);font:inherit"><span>${escapeHtml(x.name || "(без названия)")}</span><span style="color:var(--text-muted,#888);font-size:11.5px;white-space:nowrap">${escapeHtml(x.bin || "")}</span></button>`).join("");
       contractorResults.querySelectorAll(".dim-contractor-pick").forEach((b) => b.addEventListener("click", () => withBusy(b, async () => {
-        await apiFetch("/api/crm/1c/contractors/map", { method: "POST", body: { contactId: Store.get(DEALS, dealId)?.contactId, refKey: b.dataset.ref, base: oneCBaseNow() } });
+        const cid = Store.get(DEALS, dealId)?.contactId;
+        const res = await apiFetch("/api/crm/1c/contractors/map", { method: "POST", body: { contactId: cid, refKey: b.dataset.ref, base: oneCBaseNow() } });
+        stampContractorRef(cid, res?.ref_key || b.dataset.ref);
         refreshModal();
       })));
     } catch (err) {
@@ -1325,6 +1353,7 @@ function wireModalHandlers() {
       const cid = Store.get(DEALS, dealId)?.contactId;
       const r = await apiFetch("/api/crm/1c/contractors/find", { method: "POST", body: { contactId: cid, base: oneCBaseNow() } });
       if (r?.found) {
+        stampContractorRef(cid, r?.ref_key);
         refreshModal();
       } else if (findMsgEl) {
         findMsgEl.style.display = "";
@@ -1343,8 +1372,15 @@ function wireModalHandlers() {
     e.preventDefault();
     withBusy(e.currentTarget, async () => {
       const cid = Store.get(DEALS, dealId)?.contactId;
-      await apiFetch("/api/crm/1c/contractors/create", { method: "POST", body: { contactId: cid, base: oneCBaseNow() } });
+      const r = await apiFetch("/api/crm/1c/contractors/create", { method: "POST", body: { contactId: cid, base: oneCBaseNow() } });
+      stampContractorRef(cid, r?.ref_key);
       refreshModal();
+      const base = oneCBaseNow();
+      if (r?.ref_key && base === "aminamed") {
+        alert(r?.already_exists ? "✓ Клиент уже есть в 1С — привязан." : "✓ Клиент заведён в 1С и сопоставлен.");
+      } else if (r?.ref_key) {
+        alert("✓ Клиент заведён в выбранной базе 1С. (Метка сопоставления хранится только для базы Аминамед; в других базах контрагент подтянется по БИН при создании счёта.)");
+      }
     });
   });
 
@@ -1428,7 +1464,26 @@ function wireModalHandlers() {
     e.preventDefault();
     const d = Store.get(DEALS, dealId);
     if (!d?.contactId) { alert("Сначала выберите клиента в реквизитах 1С — без клиента заказ не создать."); return; }
-    if (listDealItems(dealId).length === 0) { alert("Добавьте хотя бы одну позицию."); return; }
+    const orderItems = listDealItems(dealId);
+    if (orderItems.length === 0) { alert("Добавьте хотя бы одну позицию."); return; }
+    // Предупреждение: позиции без привязки к 1С не войдут в счёт, пока их не сопоставят.
+    const unmatched = orderItems.filter((i) => {
+      const p = i.productId ? Store.get("warehouse_products", i.productId) : null;
+      return !p || !p._1c_ref_key;
+    });
+    if (unmatched.length) {
+      const names = unmatched.slice(0, 6).map((i) => {
+        const p = i.productId ? Store.get("warehouse_products", i.productId) : null;
+        return "• " + ((p?.sku ? p.sku + " · " : "") + (p?.name || i.name || "позиция"));
+      }).join("\n");
+      const more = unmatched.length > 6 ? `\n…и ещё ${unmatched.length - 6}` : "";
+      const ok = confirm(
+        `⚠ ${unmatched.length} из ${orderItems.length} позиций не привязаны к 1С:\n${names}${more}\n\n` +
+        "Эти позиции НЕ войдут в счёт 1С, пока их не сопоставят (выбрать товар из группы «В 1С» в поиске или привязать на складе).\n\n" +
+        "Всё равно создать заказ?"
+      );
+      if (!ok) return;
+    }
     try {
       submitDealOrder(dealId);
       refreshModal();
