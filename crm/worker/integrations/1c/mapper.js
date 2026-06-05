@@ -125,12 +125,16 @@ export function contractFromOData(raw) {
     code: nullIfEmptyString(raw.Code),
     name: nullIfEmptyString(raw.Description),
     deletion_mark: bool(raw.DeletionMark),
-    contractor_ref: nullIfEmptyGuid(raw.Владелец_Key),
+    is_folder: bool(raw.IsFolder),
+    parent_ref: nullIfEmptyGuid(raw.Parent_Key),
+    // Владелец договора = контрагент. В БП поле называется Owner_Key
+    // (НЕ Владелец_Key — из-за этого contractor_ref был пустой у всех).
+    contractor_ref: nullIfEmptyGuid(raw.Owner_Key),
     organization_ref: nullIfEmptyGuid(raw.Организация_Key),
     contract_kind: nullIfEmptyString(raw.ВидДоговора),
     currency_ref: nullIfEmptyGuid(raw.ВалютаВзаиморасчетов_Key),
-    start_date: isoOrNull(raw.ДатаНачала),
-    end_date: isoOrNull(raw.ДатаОкончания),
+    start_date: isoOrNull(raw.ДатаНачалаДействияДоговора),
+    end_date: isoOrNull(raw.ДатаОкончанияДействияДоговора),
     comment: nullIfEmptyString(raw.Комментарий),
   };
 }

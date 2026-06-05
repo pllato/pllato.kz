@@ -97,7 +97,7 @@ function listContractsFor(contractorRef) {
   if (!contractorRef) return [];
   try {
     return (Store.list("contracts_1c") || [])
-      .filter((c) => !c.deletion_mark && c.contractor_ref === contractorRef)
+      .filter((c) => !c.deletion_mark && !c.is_folder && c.contractor_ref === contractorRef)
       .map((c) => ({ ref: c._1c_ref_key || c.ref_key, label: [c.name, c.code].filter(Boolean).join(" · ") || "Договор" }))
       .filter((c) => c.ref);
   } catch { return []; }

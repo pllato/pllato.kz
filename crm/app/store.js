@@ -31,6 +31,7 @@ const AUTO_COLLECTIONS = [
   "warehouse_lots",
   "stocktakes",
   "contracts",          // C.1 — справочник договоров
+  "contracts_1c",       // договоры контрагентов из 1С (для выпадашки в счёте)
   "delivery_points",    // C.3 — точки доставки клиента
   "payment_terms",      // C.2 — виды оплаты в договоре
   // 'warehouse_movements' исключён из cloud-sync: после импорта книги учёта
