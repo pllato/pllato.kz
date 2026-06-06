@@ -581,9 +581,17 @@ function renderRequisitesCard(deal) {
       <div id="dim-client-new-form" style="display:none;margin-top:8px;border:1px solid var(--border,#eee);border-radius:8px;padding:10px;background:var(--surface-2,#fafafa)">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <div style="grid-column:1 / -1"><label style="${REQ_LABEL_STYLE}">Наименование / ФИО *</label><input id="dim-nc-name" type="text" autocomplete="off" placeholder="ТОО «…», больница, ИП или ФИО" style="${REQ_FIELD_STYLE}"></div>
+          <div style="grid-column:1 / -1;font-weight:600;font-size:11px;color:var(--text-muted,#888);margin-top:2px">Юридические реквизиты</div>
+          <div style="grid-column:1 / -1"><label style="${REQ_LABEL_STYLE}">Юр. наименование</label><input id="dim-nc-legal" type="text" autocomplete="off" placeholder="напр. ТОО «Аминамед»" style="${REQ_FIELD_STYLE}"></div>
+          <div style="grid-column:1 / -1"><label style="${REQ_LABEL_STYLE}">Полное наименование</label><input id="dim-nc-fullname" type="text" autocomplete="off" placeholder="напр. Товарищество с ограниченной ответственностью «…»" style="${REQ_FIELD_STYLE}"></div>
+          <div><label style="${REQ_LABEL_STYLE}">БИН / ИИН</label><input id="dim-nc-bin" type="text" autocomplete="off" inputmode="numeric" placeholder="12 цифр (для поиска в 1С)" style="${REQ_FIELD_STYLE}"></div>
+          <div><label style="${REQ_LABEL_STYLE}">ФИО директора</label><input id="dim-nc-director" type="text" autocomplete="off" placeholder="напр. Иванов И. И." style="${REQ_FIELD_STYLE}"></div>
+          <div style="grid-column:1 / -1;font-weight:600;font-size:11px;color:var(--text-muted,#888);margin-top:2px">Банковские реквизиты</div>
+          <div><label style="${REQ_LABEL_STYLE}">Расчётный счёт</label><input id="dim-nc-account" type="text" autocomplete="off" placeholder="KZ…" style="${REQ_FIELD_STYLE}"></div>
+          <div><label style="${REQ_LABEL_STYLE}">БИК</label><input id="dim-nc-bik" type="text" autocomplete="off" placeholder="напр. HSBKKZKX" style="${REQ_FIELD_STYLE}"></div>
+          <div style="grid-column:1 / -1;font-weight:600;font-size:11px;color:var(--text-muted,#888);margin-top:2px">Контакты</div>
           <div><label style="${REQ_LABEL_STYLE}">Телефон</label><input id="dim-nc-phone" type="text" autocomplete="off" placeholder="+7 …" style="${REQ_FIELD_STYLE}"></div>
           <div><label style="${REQ_LABEL_STYLE}">Email</label><input id="dim-nc-email" type="text" autocomplete="off" placeholder="name@mail.kz" style="${REQ_FIELD_STYLE}"></div>
-          <div><label style="${REQ_LABEL_STYLE}">БИН / ИИН</label><input id="dim-nc-bin" type="text" autocomplete="off" inputmode="numeric" placeholder="12 цифр (для поиска в 1С)" style="${REQ_FIELD_STYLE}"></div>
           <div><label style="${REQ_LABEL_STYLE}">Контактное лицо</label><input id="dim-nc-person" type="text" autocomplete="off" placeholder="кто принимает заказ" style="${REQ_FIELD_STYLE}"></div>
           <div style="grid-column:1 / -1"><label style="${REQ_LABEL_STYLE}">Адрес доставки</label><input id="dim-nc-address" type="text" autocomplete="off" placeholder="город, улица, дом — сохранится в CRM" style="${REQ_FIELD_STYLE}"></div>
         </div>
@@ -1329,6 +1337,11 @@ function wireModalHandlers() {
   root.querySelector("#dim-nc-save")?.addEventListener("click", () => {
     const val = (id) => (root.querySelector(id)?.value || "").trim();
     const name = val("#dim-nc-name");
+    const legalName = val("#dim-nc-legal");
+    const fullName = val("#dim-nc-fullname");
+    const director = val("#dim-nc-director");
+    const bankAccount = val("#dim-nc-account");
+    const bik = val("#dim-nc-bik");
     const phone = val("#dim-nc-phone");
     const email = val("#dim-nc-email");
     const bin = val("#dim-nc-bin").replace(/\D+/g, "");
@@ -1345,7 +1358,12 @@ function wireModalHandlers() {
         phone,
         email,
         bin: bin || "",
-        company: name,
+        company: legalName || name,
+        legalName: legalName || "",
+        fullName: fullName || "",
+        directorName: director || "",
+        bankAccount: bankAccount || "",
+        bik: bik || "",
         contactPerson: person || "",
         _1c_address: address || "",
         source: "crm-manual",
