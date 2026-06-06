@@ -394,14 +394,45 @@
         }
       });
 
+      // После серверного обогащения подтягиваем коллекцию contacts из D1 в localStorage,
+      // чтобы новые телефоны/email/адреса сразу появились в основном приложении CRM.
+      async function refreshLocalContacts() {
+        const NS = "pllato_core_";
+        const pull = await apiCall("POST", "/store/pull", { collections: ["contacts"], limitPerCollection: 10000 });
+        const remote = Array.isArray(pull.collections?.contacts) ? pull.collections.contacts : [];
+        let local = [];
+        try { local = JSON.parse(localStorage.getItem(NS + "contacts") || "[]"); } catch {}
+        if (!Array.isArray(local)) local = [];
+        const byId = new Map(local.map((x) => [x.id, x]));
+        let applied = 0;
+        for (const r of remote) {
+          if (!r || !r.id) continue;
+          const l = byId.get(r.id);
+          if (!l || (Number(r.updatedAt) || 0) >= (Number(l.updatedAt) || 0)) {
+            byId.set(r.id, r);
+            if (l) applied++;
+          }
+        }
+        localStorage.setItem(NS + "contacts", JSON.stringify([...byId.values()]));
+        return applied;
+      }
+
       document.getElementById("btn-pull-contact-info").addEventListener("click", async () => {
         const btn = document.getElementById("btn-pull-contact-info");
         btn.disabled = true;
-        showStatus("pull-status", "info", "Тянем регистр КонтактнаяИнформация…");
+        showStatus("pull-status", "info", "Тянем регистр КонтактнаяИнформация из всех баз…");
         try {
           const r = await apiCall("POST", "/api/crm/1c/sync/contact-info/pull");
+          const perBase = (r.bases || [])
+            .map((b) => `${b.base}: ${b.info_records} зап. / ${b.objects} контр.`)
+            .join("; ");
+          let synced = 0;
+          try { synced = await refreshLocalContacts(); } catch (e) { console.warn("refreshLocalContacts:", e); }
           showStatus("pull-status", "ok",
-            `Контактная информация: записей ${r.info_records}, объектов с данными ${r.objects_with_info}, обновлено контактов ${r.contacts_enriched}.`);
+            `Регистр: всего записей ${r.info_records}, объектов с контактами ${r.objects_with_info}. ` +
+            `Совпало контактов ${r.contacts_matched}, обогащено ${r.contacts_enriched}, обновлено локально ${synced}. ` +
+            (perBase ? `По базам — ${perBase}.` : "") +
+            ` Откройте/перезагрузите CRM, чтобы увидеть телефоны и адреса.`);
         } catch (e) {
           showStatus("pull-status", "err", `Ошибка обогащения: ${e.message}`);
         } finally {

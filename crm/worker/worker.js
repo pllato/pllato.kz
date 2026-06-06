@@ -5244,42 +5244,82 @@ async function handle1cPullContracts(_request, env, actor) {
  *   НомерТелефона — отдельное поле для типа Телефон
  *   АдресЭП       — отдельное поле для типа Email
  */
-async function handle1cPullContactInfo(_request, env, actor) {
+// Читает весь регистр сведений постранично ($skip), т.к. в нём бывает > 1000 строк,
+// а $filter в этой БП (1С-Рейтинг) ломает OData. Возвращает массив строк.
+async function fetch1cRegisterAllRows(client, collection, pageSize = 1000, maxPages = 50) {
+  const all = [];
+  let skip = 0;
+  for (let page = 0; page < maxPages; page++) {
+    const data = await client.get(collection, { top: pageSize, skip });
+    const rows = Array.isArray(data?.value) ? data.value : [];
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+    skip += pageSize;
+  }
+  return all;
+}
+
+function uniqPush(arr, value) {
+  const v = String(value || "").trim();
+  if (v && !arr.includes(v)) arr.push(v);
+}
+
+async function handle1cPullContactInfo(request, env, actor) {
   require1cAdmin(actor);
   const tenantId = resolve1cTenantId(actor);
   const started = Date.now();
+  const url = new URL(request.url);
+  const baseParam = url.searchParams.get("base");
+  // По умолчанию обходим все юр.лица: контрагент может быть импортирован из любой базы,
+  // совпадение идёт по _1c_ref_key, лишние строки просто не находят пары.
+  const baseKeys = baseParam ? [resolve1cBaseKey(baseParam)] : Object.keys(ONE_C_BASES);
   try {
-    const { client } = await build1cClient(env, tenantId);
-    const data = await client.get("InformationRegister_КонтактнаяИнформация", { top: 2000 });
-    const raw = Array.isArray(data?.value) ? data.value : [];
-
-    // Группируем записи по Объект_Key (ref_key контрагента или контактного лица)
+    // Группируем контактные данные по Объект (Ref_Key владельца) из всех баз.
+    // Реальная структура регистра в этой БП:
+    //   Объект        — GUID владельца (контрагент / контактное лицо / организация)
+    //   Объект_Type   — "StandardODATA.Catalog_Контрагенты" и т.п.
+    //   Тип           — "Адрес" / "Телефон" / "АдресЭлектроннойПочты" / "ВебСтраница"
+    //   Представление — текстовое значение (адрес/телефон/email одной строкой)
     const byObject = new Map();
-    for (const r of raw) {
-      const key = r.Объект_Key || r.Object_Key;
-      if (!key) continue;
-      if (!byObject.has(key)) byObject.set(key, { phones: [], emails: [], addresses: [] });
-      const bucket = byObject.get(key);
-      const type = String(r.Тип || r.Type || "").toLowerCase();
-      const presentation = String(r.Представление || "").trim();
-      if (type.includes("телефон") || type.includes("phone")) {
-        const phone = String(r.НомерТелефона || presentation || "").trim();
-        if (phone) bucket.phones.push(phone);
-      } else if (type.includes("электрон") || type.includes("email") || type.includes("эп")) {
-        const email = String(r.АдресЭП || presentation || "").trim();
-        if (email && email.includes("@")) bucket.emails.push(email);
-      } else if (type.includes("адрес") || type.includes("address")) {
-        if (presentation) bucket.addresses.push(presentation);
+    const perBase = [];
+    let rawTotal = 0;
+    for (const baseKey of baseKeys) {
+      const { client } = await build1cClient(env, tenantId, baseKey);
+      const raw = await fetch1cRegisterAllRows(client, "InformationRegister_КонтактнаяИнформация");
+      rawTotal += raw.length;
+      let objs = 0;
+      for (const r of raw) {
+        const objType = String(r.Объект_Type || "");
+        // Интересуют только контрагенты — их Ref_Key хранится в contact._1c_ref_key.
+        if (!/Контрагенты/i.test(objType)) continue;
+        const key = r.Объект || r.Объект_Key || r.Object;
+        if (!key) continue;
+        if (!byObject.has(key)) { byObject.set(key, { phones: [], emails: [], addresses: [] }); objs++; }
+        const bucket = byObject.get(key);
+        const type = String(r.Тип || r.Type || "").toLowerCase();
+        const presentation = String(r.Представление || "").trim();
+        if (!presentation) continue;
+        if (type.includes("телефон") || type.includes("phone")) {
+          uniqPush(bucket.phones, presentation);
+        } else if (type.includes("электрон") || type.includes("email") || type.includes("почт") || type.includes("эп")) {
+          if (presentation.includes("@")) uniqPush(bucket.emails, presentation);
+        } else if (type.includes("адрес") || type.includes("address")) {
+          uniqPush(bucket.addresses, presentation);
+        }
       }
+      perBase.push({ base: baseKey, info_records: raw.length, objects: objs });
     }
 
-    // Берём все contacts из CRM, у которых _1c_ref_key выставлен, и обновляем phone/email.
+    // Берём все contacts из CRM, у которых _1c_ref_key выставлен, и обогащаем
+    // телефон/email/адрес. Заполнение неразрушающее: существующие phone/email не
+    // перезатираем, но всегда сохраняем полные списки из 1С в служебных полях.
     const db = requireStoreDb(env);
     const contactRows = await db
       .prepare(`SELECT id, data FROM store WHERE team_id = ? AND collection = ?`)
       .bind(TEAM_ID, "contacts")
       .all();
 
+    let matched = 0;
     let enriched = 0;
     const updateStmts = [];
     const now = Date.now();
@@ -5290,21 +5330,26 @@ async function handle1cPullContactInfo(_request, env, actor) {
       if (!refKey) continue;
       const bucket = byObject.get(refKey);
       if (!bucket) continue;
-      const phone = bucket.phones[0] || "";
-      const email = bucket.emails[0] || "";
-      const address = bucket.addresses[0] || "";
-      // Обновляем только если есть новые данные и они отличаются от текущих
-      const changed = (phone && contact.phone !== phone) ||
-                      (email && contact.email !== email) ||
-                      (address && contact._1c_address !== address);
-      if (!changed) continue;
+      matched++;
+      const newPhone = bucket.phones[0] || "";
+      const newEmail = bucket.emails[0] || "";
+      const newAddress = bucket.addresses[0] || "";
+      const fillPhone = !contact.phone && newPhone;
+      const fillEmail = !contact.email && newEmail;
+      const arrChanged =
+        JSON.stringify(contact._1c_phones_all || []) !== JSON.stringify(bucket.phones) ||
+        JSON.stringify(contact._1c_emails_all || []) !== JSON.stringify(bucket.emails) ||
+        JSON.stringify(contact._1c_addresses_all || []) !== JSON.stringify(bucket.addresses);
+      const addrChanged = newAddress && contact._1c_address !== newAddress;
+      if (!fillPhone && !fillEmail && !arrChanged && !addrChanged) continue;
       const updated = {
         ...contact,
-        phone: phone || contact.phone || "",
-        email: email || contact.email || "",
-        _1c_address: address || contact._1c_address || "",
+        phone: contact.phone || newPhone || "",
+        email: contact.email || newEmail || "",
+        _1c_address: newAddress || contact._1c_address || "",
         _1c_phones_all: bucket.phones,
         _1c_emails_all: bucket.emails,
+        _1c_addresses_all: bucket.addresses,
         updatedAt: now,
       };
       updateStmts.push(
@@ -5329,13 +5374,15 @@ async function handle1cPullContactInfo(_request, env, actor) {
       operation: "enrich",
       status: "ok",
       httpStatus: 200,
-      recordsProcessed: raw.length,
+      recordsProcessed: rawTotal,
       durationMs: Date.now() - started,
     });
     return {
       ok: true,
-      info_records: raw.length,
+      bases: perBase,
+      info_records: rawTotal,
       objects_with_info: byObject.size,
+      contacts_matched: matched,
       contacts_enriched: enriched,
     };
   } catch (e) {
