@@ -202,9 +202,41 @@ async function notifyChatMessage(env, channelId, authorMe, message) {
     const title = (ch.type === 'dm' || !chName) ? authorName : `${authorName} · ${chName}`;
     const link = '/team.html?page=team-chat&channel=' + encodeURIComponent(channelId);
     const ts = message.created_at || now();
+    // Кого упомянули через @ — этим людям личное уведомление приходит ДАЖE если
+    // канал заглушён (mute гасит обычный шум, но не персональное обращение).
+    const mentionSet = new Set(parseMentionsValue(message.mentions));
     for (const m of (members || [])) {
       const uid = m.user_id;
-      if (!uid || authorIds.has(uid) || m.muted) continue;
+      if (!uid || authorIds.has(uid)) continue;
+      const isMentioned = mentionSet.has(uid);
+
+      if (isMentioned) {
+        // Персональное упоминание — отдельная строка-колокольчик на сообщение,
+        // отдельный пуш и WA-событие chat_mention (со своим тумблером).
+        const mTitle = (chName) ? `${authorName} · ${chName}` : authorName;
+        const mBody = '📣 упомянул(а) вас: ' + preview;
+        const mNotifId = 'chatmention_' + message.id + '_' + uid;
+        try {
+          await env.DB.prepare(`
+            INSERT OR IGNORE INTO notifications (id, uid, type, title, body, link, icon, actor_uid, entity_type, entity_id, created_at, read_at)
+            VALUES (?, ?, 'chat_mention', ?, ?, ?, '📣', ?, 'chat_channel', ?, ?, NULL)
+          `).bind(mNotifId, uid, mTitle, mBody, link, authorMe.uid, channelId, ts).run();
+        } catch {}
+        broadcastToUser(env, uid, {
+          kind: 'notification',
+          notification: { id: mNotifId, type: 'chat_mention', title: mTitle, body: mBody, link, icon: '📣', createdAt: ts, channel_id: channelId },
+        });
+        runBg(pushChatToDevices(env, uid, { title: mTitle, body: mBody, url: link, tag: 'chatmention_' + message.id, icon: null }));
+        if (_waNotify) {
+          const waText = (chName)
+            ? `📣 ${authorName} упомянул(а) вас в «${chName}»: ${preview}`
+            : `📣 ${authorName} упомянул(а) вас: ${preview}`;
+          runBg(_waNotify(env, { uid, event: 'chat_mention', text: waText, link: 'https://pllato.kz' + link }));
+        }
+        continue;   // упомянутому хватит персонального — не дублируем обычным
+      }
+
+      if (m.muted) continue;   // обычный шум канала — заглушённым не шлём
       const notifId = 'chatnt_' + channelId + '_' + uid;
       try {
         await env.DB.prepare(`
@@ -316,6 +348,28 @@ async function ensureRolesColumn(env) {
     `).run();
   } catch (e) { /* бэкфилл best-effort */ }
   _rolesMigrated = true;
+}
+
+// ── Ленивая идемпотентная миграция: колонка mentions в team_chat_msgs ──────
+// Хранит JSON-массив uid'ов, кого упомянули через @ в сообщении. Тот же приём
+// самомиграции через биндинг env.DB (deploy-токен не имеет D1-API прав на ALTER).
+let _mentionsMigrated = false;
+async function ensureMentionsColumn(env) {
+  if (_mentionsMigrated) return;
+  try {
+    await env.DB.prepare("ALTER TABLE team_chat_msgs ADD COLUMN mentions TEXT").run();
+  } catch (e) { /* duplicate column — колонка уже есть, это норма */ }
+  _mentionsMigrated = true;
+}
+
+// Нормализуем mentions из тела запроса / из строки БД к массиву uid'ов.
+function parseMentionsValue(val) {
+  if (Array.isArray(val)) return val.filter(u => typeof u === 'string' && u);
+  if (typeof val === 'string' && val) {
+    try { const a = JSON.parse(val); return Array.isArray(a) ? a.filter(u => typeof u === 'string' && u) : []; }
+    catch { return []; }
+  }
+  return [];
 }
 
 async function isMessageAccessible(env, messageId, me) {
@@ -495,13 +549,26 @@ async function sendMessage(env, me, channelId, body) {
     else if (mime.startsWith('audio/')) type = 'audio';
     else type = 'file';
   }
+  // @-упоминания: валидируем переданные uid'ы против реальных участников канала
+  // (нельзя «упомянуть» кого попало). Дедуп + лимит 50, на каждый — 128 симв.
+  await ensureMentionsColumn(env);
+  let mentions = [];
+  const rawMentions = [...new Set(parseMentionsValue(body.mentions).map(u => u.slice(0, 128)))].slice(0, 50);
+  if (rawMentions.length) {
+    const { results: mem } = await env.DB.prepare(
+      'SELECT user_id FROM team_chat_members WHERE channel_id = ?'
+    ).bind(channelId).all();
+    const memSet = new Set((mem || []).map(x => x.user_id));
+    mentions = rawMentions.filter(u => memSet.has(u));
+  }
+  const mentionsJson = mentions.length ? JSON.stringify(mentions) : null;
   const id = uuid();
   const ts = now();
   await env.DB.prepare(`
-    INSERT INTO team_chat_msgs (id, channel_id, user_id, text, type, file_key, file_meta, reply_to, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(id, channelId, me.uid, text, type, fileKey, fileMeta, replyTo, ts).run();
-  const message = { id, channel_id: channelId, user_id: me.uid, text, type, file_key: fileKey, file_meta: fileMeta, reply_to: replyTo, created_at: ts };
+    INSERT INTO team_chat_msgs (id, channel_id, user_id, text, type, file_key, file_meta, reply_to, mentions, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(id, channelId, me.uid, text, type, fileKey, fileMeta, replyTo, mentionsJson, ts).run();
+  const message = { id, channel_id: channelId, user_id: me.uid, text, type, file_key: fileKey, file_meta: fileMeta, reply_to: replyTo, mentions, created_at: ts };
   broadcastToChannel(env, channelId, { kind: 'message_new', message });
   runBg(notifyChatMessage(env, channelId, me, message));
   return jsonRes({ message });
