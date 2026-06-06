@@ -5075,7 +5075,7 @@ async function createNotification(env, opts) {
     if (opts.actorUid && opts.actorUid === uid) return null; // не уведомляем себя
     const id = opts.id || genNotifId('nt_');
     const now = Date.now();
-    await env.DB.prepare(`
+    const ins = await env.DB.prepare(`
       INSERT OR IGNORE INTO notifications
         (id, uid, type, title, body, link, icon, actor_uid, entity_type, entity_id, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -5084,6 +5084,12 @@ async function createNotification(env, opts) {
       (opts.body || '').slice(0, 500) || null, opts.link || null, opts.icon || null,
       opts.actorUid || null, opts.entityType || null, opts.entityId || null, now
     ).run();
+    // КРИТИЧНО: для дедуп-уведомлений (передан opts.id, напр. напоминания из cron)
+    // INSERT OR IGNORE может НИЧЕГО не вставить. В этом случае строка уже была —
+    // значит push/broadcast/WhatsApp по ней уже слали. Повторно НЕ слать, иначе
+    // cron-напоминание бомбит сотрудника каждую минуту (~30 раз на одно событие).
+    const inserted = !!(ins && ins.meta && ins.meta.changes > 0);
+    if (!inserted) return id; // дубль — колокольчик уже есть, побочки не повторяем
     // real-time: бамп колокольчика в открытых вкладках (chat.js слушает kind:'notification')
     try {
       await broadcastToUser(env, uid, {
