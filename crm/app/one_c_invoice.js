@@ -104,13 +104,24 @@ function listOneCOrgs() {
   return orgs.length > 0 ? orgs : ONE_C_ORG_FALLBACK;
 }
 
+// ISO YYYY-MM-DD → DD.MM.YYYY (для подписей договоров/дат).
+function isoToDmy(iso) {
+  const s = String(iso || "").slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : "";
+}
+
 // Договоры 1С для выбранного контрагента (из импортированных contracts_1c).
 export function listContractsFor(contractorRef) {
   if (!contractorRef) return [];
   try {
     return (Store.list("contracts_1c") || [])
       .filter((c) => !c.deletion_mark && !c.is_folder && c.contractor_ref === contractorRef)
-      .map((c) => ({ ref: c._1c_ref_key || c.ref_key, label: [c.name, c.code].filter(Boolean).join(" · ") || "Договор" }))
+      .map((c) => {
+        const base = [c.name, c.code].filter(Boolean).join(" · ") || "Договор";
+        const d = isoToDmy(c.start_date);
+        return { ref: c._1c_ref_key || c.ref_key, label: d ? `${base} · от ${d}` : base, date: c.start_date || null };
+      })
       .filter((c) => c.ref);
   } catch { return []; }
 }

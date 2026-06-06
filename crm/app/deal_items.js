@@ -524,6 +524,28 @@ function renderClientSearchResultsHtml(results, query) {
   return `<div style="padding:8px 10px;font-size:12px;color:var(--text-muted,#888)">${String(query || "").trim().length >= 2 ? "Не найдено — проверьте написание или заведите контакт в CRM." : ""}</div>`;
 }
 
+// ISO YYYY-MM-DD → DD.MM.YYYY (подписи дат договоров).
+function fmtContractDmy(iso) {
+  const s = String(iso || "").slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : "";
+}
+// Подпись CRM-договора в списке: «№ … от ДД.ММ.ГГГГ (название)».
+function crmContractLabel(c) {
+  const num = String(c.number || "").trim();
+  const title = String(c.title || "").trim();
+  const head = num ? `№ ${num}` : (title || "договор");
+  const date = fmtContractDmy(c.startDate);
+  const parts = [head];
+  if (date) parts.push("от " + date);
+  if (num && title) parts.push("(" + title + ")");
+  return parts.join(" ");
+}
+// Стили строк списка договоров.
+const CONTRACT_ROW_STYLE = "display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;border:none;border-bottom:1px solid var(--border,#f2f2f2);background:none;padding:7px 10px;cursor:pointer;color:var(--text,#111);font:inherit;font-size:12px";
+const CONTRACT_ROW_ACTIVE = ";background:var(--accent-soft,#eef6ff);font-weight:600";
+const CONTRACT_BADGE_STYLE = "color:var(--text-muted,#888);font-size:10.5px;white-space:nowrap";
+
 // Карточка реквизитов 1С — всегда видна. Поля префилятся из полей сделки и
 // персистятся на change/input. Здесь же привязка клиента, если заказ без контакта.
 function renderRequisitesCard(deal) {
@@ -538,6 +560,11 @@ function renderRequisitesCard(deal) {
   const selectedContract = deal.oneCContractRef
     ? deal.oneCContractRef
     : (deal.crmContractId ? "crm:" + deal.crmContractId : "");
+  // Единый список договоров контрагента: из 1С + заведённые в CRM.
+  const contractRows = [
+    ...contracts.map((c) => ({ value: c.ref, label: c.label, src: "1С" })),
+    ...crmContracts.map((c) => ({ value: "crm:" + c.id, label: crmContractLabel(c), src: "CRM" })),
+  ];
   const selectedPayPurpose = deal.oneCPaymentPurpose || "710";
   const selectedScheme = deal.paymentScheme || "";
   const selectedVat = deal.oneCVatRef || ONE_C_VAT_5;
@@ -604,12 +631,19 @@ function renderRequisitesCard(deal) {
     `;
   }
 
-  const deliveryHint = `<div style="font-size:11px;color:var(--text-muted,#888);margin-bottom:6px">адрес сохранится у клиента в CRM (в 1С адресов нет)</div>`;
-  const deliveryBlock = deliveryPoints.length
+  // Адреса контрагента из 1С (выгружены register'ом КонтактнаяИнформация).
+  const oneCAddresses = (Array.isArray(contact?._1c_addresses_all) && contact._1c_addresses_all.length
+    ? contact._1c_addresses_all
+    : (contact?._1c_address ? [contact._1c_address] : [])).filter(Boolean);
+  const hasPoints = deliveryPoints.length > 0;
+  const hasOneCAddr = oneCAddresses.length > 0;
+  const deliveryHint = `<div style="font-size:11px;color:var(--text-muted,#888);margin-bottom:6px">адрес можно выбрать из 1С или из CRM; новый — сохранится у клиента в CRM</div>`;
+  const deliveryBlock = (hasPoints || hasOneCAddr)
     ? `
       ${deliveryHint}
       <select id="dim-onec-delivery-select" style="${REQ_FIELD_STYLE};margin-bottom:6px">
-        ${deliveryPoints.map((p) => `<option value="${escapeAttr(p.id)}"${primaryPoint && p.id === primaryPoint.id ? " selected" : ""}>${escapeHtml(p.label || [p.city, p.address].filter(Boolean).join(", "))}</option>`).join("")}
+        ${hasPoints ? `<optgroup label="Точки доставки (CRM)">${deliveryPoints.map((p) => `<option value="${escapeAttr(p.id)}"${primaryPoint && p.id === primaryPoint.id ? " selected" : ""}>${escapeHtml(p.label || [p.city, p.address].filter(Boolean).join(", "))}</option>`).join("")}</optgroup>` : ""}
+        ${hasOneCAddr ? `<optgroup label="Адреса из 1С">${oneCAddresses.map((a, i) => `<option value="1c::${escapeAttr(a)}"${(!hasPoints && i === 0) ? " selected" : ""}>${escapeHtml(a)}</option>`).join("")}</optgroup>` : ""}
         <option value="__manual__">➕ Другой адрес</option>
       </select>
       <input id="dim-onec-delivery" type="text" value="" placeholder="город, адрес — сохранится в CRM" style="${REQ_FIELD_STYLE};display:none">
@@ -636,14 +670,23 @@ function renderRequisitesCard(deal) {
           </select>
         </div>
         <div>
-          <label style="${REQ_LABEL_STYLE}">Договор</label>
-          <select id="dim-onec-contract" style="${REQ_FIELD_STYLE}">
-            <option value="">— без договора —</option>
-            ${contracts.length ? `<optgroup label="Из 1С">${contracts.map((c) => `<option value="${escapeAttr(c.ref)}"${c.ref === selectedContract ? " selected" : ""}>${escapeHtml(c.label)}</option>`).join("")}</optgroup>` : ""}
-            ${crmContracts.length ? `<optgroup label="В CRM (заведёт Асем в 1С)">${crmContracts.map((c) => { const v = "crm:" + c.id; const lbl = (c.title || c.number || "договор") + " (CRM · заведёт Асем)"; return `<option value="${escapeAttr(v)}"${v === selectedContract ? " selected" : ""}>${escapeHtml(lbl)}</option>`; }).join("")}</optgroup>` : ""}
-          </select>
-          <button type="button" class="btn-ghost btn-sm" id="dim-contract-create" style="margin-top:6px;padding:4px 10px;font-size:12px">➕ Создать договор (CRM)</button>
+          <label style="${REQ_LABEL_STYLE}">Договор клиента${contractRows.length ? ` (${contractRows.length})` : ""}</label>
+          <div id="dim-contract-list" style="border:1px solid var(--border,#eee);border-radius:8px;overflow:hidden;max-height:172px;overflow-y:auto">
+            <button type="button" class="dim-contract-pick" data-cval="" style="${CONTRACT_ROW_STYLE}${!selectedContract ? CONTRACT_ROW_ACTIVE : ""}"><span>— без договора —</span>${!selectedContract ? `<span style="${CONTRACT_BADGE_STYLE}">✓</span>` : ""}</button>
+            ${contractRows.map((r) => `<button type="button" class="dim-contract-pick" data-cval="${escapeAttr(r.value)}" style="${CONTRACT_ROW_STYLE}${r.value === selectedContract ? CONTRACT_ROW_ACTIVE : ""}"><span>${escapeHtml(r.label)}</span><span style="${CONTRACT_BADGE_STYLE}">${r.value === selectedContract ? "✓ " : ""}${r.src}</span></button>`).join("")}
+          </div>
+          <button type="button" class="btn-ghost btn-sm" id="dim-contract-create" style="margin-top:6px;padding:4px 10px;font-size:12px">➕ Создать договор</button>
           ${contractorRef && contracts.length === 0 ? `<div style="font-size:11px;color:var(--text-muted,#888);margin-top:4px">Договоров клиента в 1С не найдено — обновите «Договоры» в «1С интеграция» или создайте договор в CRM.</div>` : ""}
+          <div id="dim-contract-new-form" style="display:none;margin-top:8px;border:1px solid var(--border,#eee);border-radius:8px;padding:10px;background:var(--surface-2,#fafafa)">
+            <div style="margin-bottom:6px"><label style="${REQ_LABEL_STYLE}">Номер договора *</label><input id="dim-cnt-number" type="text" autocomplete="off" placeholder="напр. 2024/117" style="${REQ_FIELD_STYLE}"></div>
+            <div style="margin-bottom:6px"><label style="${REQ_LABEL_STYLE}">Дата договора</label><input id="dim-cnt-date" type="date" style="${REQ_FIELD_STYLE}"></div>
+            <div style="margin-bottom:6px"><label style="${REQ_LABEL_STYLE}">Название (необязательно)</label><input id="dim-cnt-title" type="text" autocomplete="off" placeholder="напр. Поставка ИМН" style="${REQ_FIELD_STYLE}"></div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button type="button" class="btn-primary btn-sm" id="dim-cnt-save">Создать и выбрать</button>
+              <button type="button" class="btn-ghost btn-sm" id="dim-cnt-cancel">Отмена</button>
+            </div>
+            <div id="dim-cnt-msg" style="font-size:12px;color:#dc2626;margin-top:6px;display:none"></div>
+          </div>
         </div>
         <div style="grid-column:1 / -1">
           <label style="${REQ_LABEL_STYLE}">Адрес доставки</label>
@@ -1211,34 +1254,53 @@ function wireModalHandlers() {
     persistDeal({ oneCBase: e.target.value || "aminamed" });
     refreshModal();
   });
-  // Договор: значение может быть 1С-guid, "crm:"+id или "" (без договора).
-  // В счёт уходит только oneCContractRef (1С); CRM-договор хранится отдельно
-  // и 1С НЕ отправляется (Асем заведёт вручную).
-  root.querySelector("#dim-onec-contract")?.addEventListener("change", (e) => {
-    const v = e.target.value || "";
-    if (v.startsWith("crm:")) {
-      persistDeal({ oneCContractRef: null, crmContractId: v.slice(4) });
-    } else if (v) {
-      persistDeal({ oneCContractRef: v, crmContractId: null });
-    } else {
-      persistDeal({ oneCContractRef: null, crmContractId: null });
-    }
-    refreshModal();
+  // Договор: выбор кликом по строке списка. Значение — 1С-guid, "crm:"+id или ""
+  // (без договора). В счёт уходит только oneCContractRef (1С); CRM-договор
+  // хранится отдельно и в 1С НЕ отправляется (Асем заведёт вручную).
+  root.querySelectorAll(".dim-contract-pick").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const v = btn.dataset.cval || "";
+      if (v.startsWith("crm:")) {
+        persistDeal({ oneCContractRef: null, crmContractId: v.slice(4) });
+      } else if (v) {
+        persistDeal({ oneCContractRef: v, crmContractId: null });
+      } else {
+        persistDeal({ oneCContractRef: null, crmContractId: null });
+      }
+      refreshModal();
+    });
   });
-  // Создать договор в CRM (Асем позже заведёт его в 1С).
+  // ➕ Создать договор в CRM (Асем позже заведёт его в 1С): inline-форма.
   root.querySelector("#dim-contract-create")?.addEventListener("click", (e) => {
     e.preventDefault();
     const deal = Store.get(DEALS, dealId);
+    if (!deal?.contactId) { alert("Сначала выберите клиента — договор подшивается к нему."); return; }
+    const form = root.querySelector("#dim-contract-new-form");
+    if (!form) return;
+    const show = form.style.display === "none";
+    form.style.display = show ? "" : "none";
+    if (show) root.querySelector("#dim-cnt-number")?.focus();
+  });
+  root.querySelector("#dim-cnt-cancel")?.addEventListener("click", () => {
+    const form = root.querySelector("#dim-contract-new-form");
+    if (form) form.style.display = "none";
+  });
+  root.querySelector("#dim-cnt-save")?.addEventListener("click", () => {
+    const deal = Store.get(DEALS, dealId);
     if (!deal?.contactId) { alert("Сначала выберите клиента."); return; }
-    const name = (prompt("Название/номер договора:") || "").trim();
-    if (!name) return;
+    const val = (id) => (root.querySelector(id)?.value || "").trim();
+    const number = val("#dim-cnt-number");
+    const startDate = val("#dim-cnt-date");
+    const title = val("#dim-cnt-title");
+    const msgEl = root.querySelector("#dim-cnt-msg");
+    const fail = (t) => { if (msgEl) { msgEl.style.display = ""; msgEl.textContent = t; } };
+    if (!number && !title) { fail("Укажите номер или название договора."); root.querySelector("#dim-cnt-number")?.focus(); return; }
     try {
-      // saveContract валидирует по number/title — кладём введённое и туда, и в name.
-      const created = saveContract({ contactId: deal.contactId, name, title: name });
+      const created = saveContract({ contactId: deal.contactId, number, startDate, title });
       if (created?.id) persistDeal({ oneCContractRef: null, crmContractId: created.id });
       refreshModal();
     } catch (err) {
-      alert(err?.message || "Не удалось создать договор");
+      fail(err?.message || "Не удалось создать договор");
     }
   });
   // Код назначения / НДС / комментарий — тихо.
@@ -1518,8 +1580,14 @@ function wireModalHandlers() {
     const deliverySel = root.querySelector("#dim-onec-delivery-select");
     const deliveryManual = (root.querySelector("#dim-onec-delivery")?.value || "").trim();
     if (deliverySel && deliverySel.value && deliverySel.value !== "__manual__") {
-      const pt = getDeliveryPoint(deliverySel.value);
-      deliveryAddress = pt ? (pt.label || [pt.city, pt.address].filter(Boolean).join(", ")) : null;
+      const v = deliverySel.value;
+      if (v.startsWith("1c::")) {
+        // Адрес выбран из 1С — используем как есть, в CRM-точки не дублируем.
+        deliveryAddress = v.slice(4);
+      } else {
+        const pt = getDeliveryPoint(v);
+        deliveryAddress = pt ? (pt.label || [pt.city, pt.address].filter(Boolean).join(", ")) : null;
+      }
     } else if (deliveryManual) {
       deliveryAddress = deliveryManual;
       if (deal?.contactId) { try { saveDeliveryPoint({ contactId: deal.contactId, address: deliveryManual }); } catch {} }
