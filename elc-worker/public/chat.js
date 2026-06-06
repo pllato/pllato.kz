@@ -282,6 +282,10 @@
   }
 
   // ── Data ───────────────────────────────────────────────────────────────
+  // Канал, который попросили открыть снаружи (deep-link из WhatsApp/push), но
+  // список ещё не загрузился — откроем его, как только loadChannels вернётся.
+  let _pendingOpenChannel = null;
+
   async function loadChannels() {
     try {
       const d = await api('/api/chat/channels');
@@ -289,7 +293,21 @@
       renderChannelList();
       renderMainHead();
       updateNavBadge();
+      if (_pendingOpenChannel) {
+        const ch = state.channels.find(c => c.id === _pendingOpenChannel);
+        if (ch) { const id = _pendingOpenChannel; _pendingOpenChannel = null; openChannel(id); }
+      }
     } catch (e) { console.error('loadChannels:', e); }
+  }
+
+  // Публичный вход для deep-link: открыть конкретный чат по id. Если канал уже в
+  // списке — открываем сразу; иначе запоминаем и догружаем список.
+  function openChannelExternal(channelId) {
+    if (!channelId) return;
+    if (!state.mounted) { _pendingOpenChannel = channelId; return; }
+    const ch = state.channels.find(c => c.id === channelId);
+    if (ch) { _pendingOpenChannel = null; openChannel(channelId); }
+    else { _pendingOpenChannel = channelId; loadChannels(); }
   }
 
   async function loadMessages(channelId) {
@@ -390,6 +408,13 @@
       .tc-ch-badge { flex-shrink:0; min-width:18px; height:18px; padding:0 5px; box-sizing:border-box; background:var(--tc-ac);
         color:#fff; font-size:11px; font-weight:700; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; }
       .tc-channel.active .tc-ch-badge { background:var(--tc-ac); }
+      /* Непрочитанный канал (в т.ч. ни разу не открытый, но с сообщениями):
+         жирное имя + контрастный превью + точка-маркер слева. */
+      .tc-channel.unread .tc-ch-name { font-weight:800; color:var(--t1); }
+      .tc-channel.unread .tc-ch-last { color:var(--t1); font-weight:600; }
+      .tc-channel.unread .tc-ch-av::after { content:''; position:absolute; top:-1px; right:-1px; width:11px; height:11px;
+        border-radius:50%; background:var(--tc-ac); border:2px solid var(--bg2); box-sizing:border-box; }
+      .tc-channel.unread .tc-ch-av { position:relative; }
       .tc-list-empty { padding:40px 20px; text-align:center; color:var(--t3); font-size:13px; line-height:1.6; }
 
       /* ── Main ── */
@@ -673,12 +698,13 @@
 
     listEl.innerHTML = chs.map(ch => {
       const active = ch.id === state.activeChannelId ? ' active' : '';
+      const hasUnread = ch.unread_count > 0 ? ' unread' : '';
       const unread = ch.unread_count > 0 ? `<span class="tc-ch-badge">${formatUnread(ch.unread_count)}</span>` : '';
       const time = ch.last_message_at ? formatTime(ch.last_message_at) : '';
       const last = ch.last_message_text
         ? escapeHtml(ch.last_message_text)
         : '<span class="tc-ch-muted">нет сообщений</span>';
-      return `<div class="tc-channel${active}" data-ch-id="${escapeHtml(ch.id)}">
+      return `<div class="tc-channel${active}${hasUnread}" data-ch-id="${escapeHtml(ch.id)}">
         ${channelAvatarHtml('tc-ch-av', ch)}
         <div class="tc-ch-body">
           <div class="tc-ch-top"><span class="tc-ch-name">${escapeHtml(channelDisplayName(ch))}</span><span class="tc-ch-time">${time}</span></div>
@@ -922,6 +948,7 @@
     // When the field gains focus the keyboard slides up; keep the latest
     // messages in view above it once the viewport settles.
     ta.onfocus = () => { setTimeout(() => { syncViewport(); scrollMsgsToBottom(false); }, 300); };
+    ta.onpaste = onComposerPaste;
     autoresizeTa(ta);
     // Auto-focusing on mobile would pop the keyboard the moment a chat opens
     // (and shove the list aside); only steal focus when explicitly requested
@@ -966,8 +993,9 @@
     } catch (e) { alert('Ошибка отправки: ' + e.message); }
   }
 
-  async function onFileSelected(ev) {
-    const file = ev.target.files[0];
+  // Загрузить файл в R2 и сразу отправить сообщением-вложением.
+  // Используется и кнопкой 📎 (onFileSelected), и вставкой из буфера (onPaste).
+  async function uploadAndSendFile(file) {
     if (!file || !state.activeChannelId) return;
     try {
       const fd = new FormData();
@@ -977,9 +1005,37 @@
         method: 'POST',
         body: JSON.stringify({ file_key: up.file_key, file_meta: up.file_meta }),
       });
-      ev.target.value = '';
       if (resp && resp.message) onMessageNew(resp.message);
     } catch (e) { alert('Ошибка загрузки: ' + e.message); }
+  }
+
+  async function onFileSelected(ev) {
+    const file = ev.target.files[0];
+    if (!file) return;
+    await uploadAndSendFile(file);
+    ev.target.value = '';
+  }
+
+  // Cmd/Ctrl+V в поле ввода: если в буфере картинка/файл — загрузить и отправить
+  // как вложение (работает и на десктопе, и на мобильном long-press → Вставить).
+  // Обычный текст пропускаем в textarea стандартным поведением (oninput обновит
+  // composerDraft), поэтому preventDefault зовём ТОЛЬКО когда нашли файл.
+  async function onComposerPaste(e) {
+    if (!state.activeChannelId) return;
+    const dt = e.clipboardData;
+    if (!dt) return;
+    const files = [];
+    if (dt.items && dt.items.length) {
+      for (const it of dt.items) {
+        if (it.kind === 'file') { const f = it.getAsFile(); if (f) files.push(f); }
+      }
+    }
+    if (!files.length && dt.files && dt.files.length) {
+      for (const f of dt.files) files.push(f);
+    }
+    if (!files.length) return;   // только текст — пусть вставляется как обычно
+    e.preventDefault();
+    for (const f of files) await uploadAndSendFile(f);
   }
 
   function onMsgAction(action, msgId) {
@@ -1663,5 +1719,5 @@
       .catch(e => alert(e.message));
   }
 
-  window.TeamChat = { mount, suspend, resume, openDmWith };
+  window.TeamChat = { mount, suspend, resume, openDmWith, openChannel: openChannelExternal };
 })();

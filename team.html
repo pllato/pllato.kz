@@ -3600,10 +3600,20 @@ async function initApp(user) {
   // Старая страница 'users' переехала в 'settings' → редирект сохранённого значения
   // Дефолт при ПЕРВОМ входе (нет сохранённой страницы) — «Чаты» (team-chat).
   // Для вернувшихся пользователей ниже восстанавливаем их последнюю страницу.
+  // Query-param deep link (из WhatsApp/push: ?page=team-chat&channel=<id>) —
+  // приоритетнее сохранённой страницы, чтобы ссылка вела точно в нужный чат.
+  let qpPage = null, qpChannel = null;
+  try {
+    const sp = new URLSearchParams(location.search);
+    qpPage = sp.get('page');
+    qpChannel = sp.get('channel');
+  } catch {}
+
   let startPage = 'team-chat';
   if (location.hash.startsWith('#deal/')) startPage = 'deals';
   else if (location.hash.startsWith('#contact/')) startPage = 'contacts';
   else if (location.hash.startsWith('#task/')) startPage = 'tasks';
+  else if (qpPage && VALID_PAGES.includes(qpPage)) startPage = qpPage;
   else {
     try {
       const saved = localStorage.getItem(LAST_PAGE_LS_KEY);
@@ -3611,6 +3621,8 @@ async function initApp(user) {
       else if (saved && VALID_PAGES.includes(saved)) startPage = saved;
     } catch {}
   }
+  // Канал из ссылки откроется в renderTeamChat сразу после mount.
+  if (qpChannel) _pendingChatChannelId = qpChannel;
   console.log('[initApp] navigating to', startPage);
   navigate(startPage);
 
@@ -3839,21 +3851,37 @@ function notifMaybeShowForeground(n) {
 }
 
 // Навигация по ссылке уведомления (/team.html?page=...&deal=...&task=...).
+// Канал чата, который надо открыть после монтирования раздела «Чаты»
+// (deep-link из WhatsApp/push: ?page=team-chat&channel=<id>). renderTeamChat
+// прочитает его сразу после mount и сбросит.
+let _pendingChatChannelId = null;
+
 function notifOpenLink(link) {
   if (!link) { navigate('notifications'); return; }
-  let page = null, deal = null, task = null;
+  let page = null, deal = null, task = null, channel = null;
   try {
     const u = new URL(link, location.origin);
     page = u.searchParams.get('page');
     deal = u.searchParams.get('deal');
     task = u.searchParams.get('task');
+    channel = u.searchParams.get('channel');
   } catch { /* relative / нестандартный link */ }
+  // Запомнить канал ДО navigate — renderTeamChat читает _pendingChatChannelId.
+  if (channel) _pendingChatChannelId = channel;
   if (page) navigate(page);
   if (deal) {
     const id = String(deal).replace(/^deal_/, '');
     setTimeout(() => { try { openDealCard(id); } catch {} }, 450);
   } else if (task) {
     setTimeout(() => { try { openTaskCard(task); } catch {} }, 450);
+  } else if (channel) {
+    // Если раздел уже смонтирован (повторный клик) — открыть чат напрямую.
+    setTimeout(() => {
+      if (_pendingChatChannelId && window.TeamChat?.openChannel) {
+        const id = _pendingChatChannelId; _pendingChatChannelId = null;
+        window.TeamChat.openChannel(id);
+      }
+    }, 500);
   }
 }
 // Экспорт для head-скрипта (клик по push / SW-уведомлению ведёт в нужный раздел).
@@ -4100,15 +4128,25 @@ async function renderTeamChat(el) {
   try { await ensureUsersLoaded(); } catch {}
   bridgeUsersForChat();
 
+  // Открыть конкретный чат, если пришли по deep-link (?channel=<id>).
+  const openPendingChannel = () => {
+    if (_pendingChatChannelId && window.TeamChat?.openChannel) {
+      const id = _pendingChatChannelId; _pendingChatChannelId = null;
+      window.TeamChat.openChannel(id);
+    }
+  };
+
   if (_teamChatScriptLoaded) {
     if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
+    openPendingChannel();
     return;
   }
   const s = document.createElement('script');
-  s.src = `${WORKER_BASE_URL}/chat.js?v=16`;
+  s.src = `${WORKER_BASE_URL}/chat.js?v=17`;
   s.onload = () => {
     _teamChatScriptLoaded = true;
     if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
+    openPendingChannel();
   };
   s.onerror = () => {
     const m = document.getElementById('team-chat-mount');
