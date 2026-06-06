@@ -26,7 +26,7 @@ import {
   markDealOrderAwaitingPayment, confirmDealOrderPayment,
   formAndApproveWaybill, shipOrderByWaybill, setOrderReservationExpiry,
   archiveDealOrder, unarchiveDealOrder,
-  getOrderPaymentScheme, autoCreateOneCInvoice,
+  getOrderPaymentScheme, autoCreateOneCInvoice, autoCreateOneCRealization,
 } from "../../deal_items.js";
 import { productSummary } from "../../warehouse.js";
 
@@ -463,6 +463,14 @@ export function wirePreliminaryOrdersEvents(container) {
           refresh();
           if (!posted) {
             alert(`⚠ Накладная № ${doc.number} НЕ проведена (FIFO-списание):\n\n${postError}\n\nЗаказ остаётся в «Согласованы». Докомплектуйте остаток/партию и повторите отгрузку.`);
+          } else {
+            // Best-effort: при успешной отгрузке формируем «Реализацию» в 1С
+            // (черновик). Ошибка не блокирует отгрузку — заказ уже отгружен.
+            const rz = await autoCreateOneCRealization(dealId);
+            if (rz && rz.error) {
+              alert("⚠ Заказ отгружен, но «Реализацию» в 1С создать не удалось:\n\n" + rz.error + "\n\nМожно повторить позже из карточки заказа.");
+            }
+            refresh();
           }
         } catch (err) {
           btn.disabled = false;

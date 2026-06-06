@@ -317,6 +317,40 @@ export async function autoCreateOneCInvoice(dealId) {
   }
 }
 
+/**
+ * Best-effort автосоздание «Реализации товаров и услуг» в 1С (черновик) при
+ * отгрузке заказа. Идемпотентно (guard на oneCRealizationNumber). Ошибка НЕ
+ * блокирует отгрузку. Используется отгрузкой на складской доске (в модалке
+ * реализация создаётся напрямую с адресом доставки из UI).
+ */
+export async function autoCreateOneCRealization(dealId) {
+  const deal = Store.get(DEALS, dealId);
+  if (!deal) return { skipped: "no_deal" };
+  if (!deal.contactId) return { skipped: "no_contact" };
+  if (deal.oneCRealizationNumber) return { skipped: "exists" };
+  const items = listDealItems(dealId);
+  if (items.length === 0) return { skipped: "no_items" };
+  const contact = Store.get("contacts", deal.contactId) || null;
+  try {
+    const out = await submitOneCDocument({
+      deal,
+      contact,
+      items,
+      docType: "realization",
+      base: deal.oneCBase || "aminamed",
+      contractRef: deal.oneCContractRef || null,
+      deliveryAddress: null,
+      vatRef: deal.oneCVatRef || ONE_C_VAT_5,
+      comment: deal.oneCComment || "",
+      paymentScheme: deal.paymentScheme || null,
+      postpayDueDate: deal.postpayDueDate || null,
+    });
+    return { number: out?.number || null, unmatched: out?.unmatched || [] };
+  } catch (err) {
+    return { error: err?.message || String(err) };
+  }
+}
+
 /** Обновить срок брони/счёта заказа (стадия «Бронь и счёт»/«Ждут оплату»). */
 export function setOrderReservationExpiry(dealId, expiresAt) {
   const deal = Store.get(DEALS, dealId);
@@ -1146,6 +1180,72 @@ function renderRequisitesCard(deal) {
   `;
 }
 
+// Блок «Документы по заказу» — информативные ссылки на 3 документа с печатью.
+// Счёт на оплату (1С-черновик / локальный №), Накладная (З-2, склад),
+// Реализация товаров и услуг (1С-черновик). Печать «при желании» — всегда,
+// даже если документ ещё не зарегистрирован в 1С (печатается локальная форма).
+function renderOrderDocs(deal, items) {
+  if (!items || items.length === 0) return "";
+
+  const invoiceNo = deal.oneCInvoiceNumber || deal.orderInvoiceForPaymentNumber || null;
+  const invoiceIs1C = !!deal.oneCInvoiceNumber;
+  const waybillNo = deal.orderInvoiceNumber || null;
+  const waybillReady = !!(deal.orderInvoiceId || waybillNo);
+  const realizationNo = deal.oneCRealizationNumber || null;
+
+  const badge = (text, kind) => {
+    const colors = {
+      ok: "background:#dcfce7;color:#166534",
+      pending: "background:#fef9c3;color:#854d0e",
+      none: "background:var(--surface-2,#f1f5f9);color:var(--text-muted,#94a3b8)",
+    };
+    return `<span style="display:inline-block;padding:2px 8px;border-radius:99px;font-size:11.5px;font-weight:600;white-space:nowrap;${colors[kind] || colors.none}">${escapeHtml(text)}</span>`;
+  };
+
+  const row = ({ icon, title, sub, badgeHtml, printType, printable, printHint }) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border,#eef0f3)">
+      <div style="font-size:18px;width:24px;text-align:center">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13.5px;font-weight:600;color:var(--text,#111)">${escapeHtml(title)}</div>
+        <div style="font-size:11.5px;color:var(--text-muted,#888);margin-top:1px">${sub}</div>
+      </div>
+      ${badgeHtml}
+      <button type="button" class="btn-ghost btn-sm" data-doc-print="${printType}"${printable ? "" : " disabled"} title="${escapeAttr(printable ? "Открыть печатную форму" : (printHint || "Документ ещё не сформирован"))}" style="white-space:nowrap">🖨 Печать</button>
+    </div>
+  `;
+
+  return `
+    <div class="dim-docs-card" style="margin-top:14px;border:1px solid var(--border,#e5e7eb);border-radius:12px;padding:6px 14px 4px;background:var(--surface,#fff)">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--text-muted,#888);padding:8px 0 2px">Документы по заказу</div>
+      ${row({
+        icon: "🧾",
+        title: "Счёт на оплату покупателю",
+        sub: invoiceNo ? `№ ${escapeHtml(invoiceNo)}${invoiceIs1C ? " · 1С (черновик)" : " · локальный"}` : "печать по позициям заказа",
+        badgeHtml: badge(invoiceIs1C ? "в 1С" : (invoiceNo ? "локально" : "печать"), invoiceIs1C ? "ok" : (invoiceNo ? "pending" : "none")),
+        printType: "invoice",
+        printable: true,
+      })}
+      ${row({
+        icon: "📄",
+        title: "Накладная (форма З-2)",
+        sub: waybillNo ? `№ ${escapeHtml(waybillNo)} · склад` : "сформируется при оплате/отгрузке",
+        badgeHtml: badge(waybillReady ? "готова" : "нет", waybillReady ? "ok" : "none"),
+        printType: "waybill",
+        printable: waybillReady,
+        printHint: "Накладная сформируется автоматически при подтверждении оплаты",
+      })}
+      ${row({
+        icon: "📦",
+        title: "Реализация товаров и услуг",
+        sub: realizationNo ? `№ ${escapeHtml(realizationNo)} · 1С (черновик)` : "печать по позициям заказа",
+        badgeHtml: badge(realizationNo ? "в 1С" : "печать", realizationNo ? "ok" : "none"),
+        printType: "realization",
+        printable: true,
+      })}
+    </div>
+  `;
+}
+
 function renderModalHTML(dealId) {
   const deal = Store.get(DEALS, dealId);
   if (!deal) return "";
@@ -1261,6 +1361,8 @@ function renderModalHTML(dealId) {
           ${editable ? `
             <button type="button" class="btn-ghost" data-deal-items-add style="width:100%;margin-top:10px;padding:10px;font-size:14px">➕ Добавить позицию</button>
           ` : ""}
+
+          ${renderOrderDocs(deal, items)}
         </div>
 
         <footer class="dim-footer">
@@ -2346,6 +2448,46 @@ function wireModalHandlers() {
     } catch (err) {
       alert("Не удалось открыть накладную: " + (err?.message || String(err)));
     }
+  });
+
+  // Печать документов из блока «Документы по заказу».
+  // invoice/realization — печатная форма из order_docs_print.js (по позициям);
+  // waybill — печатная форма З-2 из invoice_print.js (по складскому документу).
+  root.querySelectorAll("[data-doc-print]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const type = btn.getAttribute("data-doc-print");
+      try {
+        const deal = Store.get(DEALS, dealId);
+        if (!deal) { alert("Сделка не найдена."); return; }
+
+        if (type === "waybill") {
+          let invoiceId = deal.orderInvoiceId;
+          if (!invoiceId) {
+            const wh = await import("./warehouse.js");
+            const inv = wh.findInvoiceByDeal(dealId);
+            if (!inv) { alert("Накладная ещё не сформирована."); return; }
+            invoiceId = inv.id;
+          }
+          const print = await import("./views/warehouse/invoice_print.js");
+          print.printInvoiceZ2(invoiceId);
+          return;
+        }
+
+        // invoice | realization
+        const itemsNow = listDealItems(dealId);
+        if (itemsNow.length === 0) { alert("В заказе нет позиций для печати."); return; }
+        const contact = deal.contactId ? (Store.get("contacts", deal.contactId) || null) : null;
+        const docs = await import("./views/warehouse/order_docs_print.js");
+        if (type === "invoice") {
+          docs.printOrderInvoiceForPayment({ deal, items: itemsNow, contact });
+        } else if (type === "realization") {
+          docs.printOrderRealization({ deal, items: itemsNow, contact });
+        }
+      } catch (err) {
+        alert("Не удалось открыть документ: " + (err?.message || String(err)));
+      }
+    });
   });
 
   // Направленный фокус после refreshModal (товар → кол-во).
