@@ -766,6 +766,62 @@ export function findInvoiceByDeal(dealId) {
   ) || null;
 }
 
+/**
+ * Block 4: сформировать расходную накладную (sale_invoice) ЧЕРНОВИКОМ, БЕЗ
+ * проведения (без FIFO-списания). Используется на стадии «Согласованы на
+ * отгрузку»: накладная должна быть сформирована и согласована до физической
+ * отгрузки, но списание со склада происходит только при «Отгружено по
+ * накладной» (postInvoiceForDeal). Идемпотентно: если накладная уже есть —
+ * возвращается она же.
+ *
+ * @param {string} dealId
+ * @param {{ counterpartyContactId?, counterpartyText?, items?, totalAmount?, currency?, note? }} extra
+ * @returns {{ doc, created: boolean }}
+ */
+export function createFormedInvoiceFromDeal(dealId, extra = {}) {
+  if (!dealId) throw new Error("dealId обязателен");
+  const existing = findInvoiceByDeal(dealId);
+  if (existing) return { doc: existing, created: false };
+
+  const items = Array.isArray(extra.items) ? extra.items : [];
+  const totalAmount = Number(extra.totalAmount) || items.reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.unitPrice) || 0), 0);
+  const doc = createWarehouseDocument({
+    type: "sale_invoice",
+    dealId,
+    counterpartyContactId: extra.counterpartyContactId || null,
+    counterpartyText: extra.counterpartyText || "",
+    items,
+    totalAmount,
+    currency: extra.currency || "KZT",
+    note: extra.note || "",
+    status: "draft", // черновик: НЕ проводим — списание при отгрузке
+  });
+  return { doc, created: true };
+}
+
+/**
+ * Block 4: провести накладную заказа (FIFO-списание со склада). Вызывается при
+ * «Отгружено по накладной». Если накладной ещё нет — создаёт и проводит.
+ *
+ * @param {string} dealId
+ * @param {object} extra — те же поля, что и createFormedInvoiceFromDeal
+ * @returns {{ doc, posted: boolean, postError?: string }}
+ */
+export function postInvoiceForDeal(dealId, extra = {}) {
+  if (!dealId) throw new Error("dealId обязателен");
+  let doc = findInvoiceByDeal(dealId);
+  if (!doc) {
+    doc = createFormedInvoiceFromDeal(dealId, extra).doc;
+  }
+  if (doc.status === "posted") return { doc, posted: true };
+  try {
+    const posted = postWarehouseDocument(doc.id);
+    return { doc: posted, posted: true };
+  } catch (err) {
+    return { doc, posted: false, postError: err?.message || String(err) };
+  }
+}
+
 export function createWarehouseDocument(payload = {}) {
   const actor = meActor();
   const type = payload.type || "receipt";

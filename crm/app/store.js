@@ -34,6 +34,7 @@ const AUTO_COLLECTIONS = [
   "contracts_1c",       // договоры контрагентов из 1С (для выпадашки в счёте)
   "delivery_points",    // C.3 — точки доставки клиента
   "payment_terms",      // C.2 — виды оплаты в договоре
+  "warehouse_reservations", // Block 4 — бронь товара под заказ (со сроком действия)
   // 'warehouse_movements' исключён из cloud-sync: после импорта книги учёта
   // там десятки тысяч записей → pull через /store/pull сломает localStorage.
   // Движения хранятся в IndexedDB (см. app/wh_movements_db.js).

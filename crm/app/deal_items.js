@@ -23,15 +23,43 @@ import {
   saveDeliveryPoint,
 } from "./delivery_points.js";
 import { listContractsForContact, saveContract } from "./contracts.js";
+import {
+  createReservationForDeal,
+  releaseReservationsForDeal,
+  consumeReservationsForDeal,
+  setDealReservationExpiry,
+  addDaysIso,
+  RESERVATION_DEFAULT_DAYS,
+} from "./reservations.js";
 
 const ITEMS = "deal_items";
 const DEALS = "deals";
 
 export const ORDER_STATUS_DRAFT = "draft";
 export const ORDER_STATUS_PRELIMINARY = "preliminary";
+export const ORDER_STATUS_RESERVED = "reserved";        // Block 4 — бронь+счёт сформированы
 export const ORDER_STATUS_APPROVED = "approved";
 export const ORDER_STATUS_PAYMENT_PENDING = "payment_pending"; // C.5 — для 100% предоплаты
 export const ORDER_STATUS_SHIPPED = "shipped";
+
+// Схема оплаты заказа (из реквизитов сделки). По умолчанию — 100% предоплата.
+export function getOrderPaymentScheme(deal) {
+  return deal?.paymentScheme || "prepay";
+}
+
+// Условия попадания в «Согласованы на отгрузку»:
+// (оплата получена ИЛИ постоплата/консигнация) И накладная сформирована+согласована.
+export function isPaymentSatisfied(deal) {
+  const scheme = getOrderPaymentScheme(deal);
+  if (scheme === "postpay" || scheme === "consignment") return true;
+  return !!deal?.orderPaymentConfirmedAt; // prepay
+}
+export function isWaybillReady(deal) {
+  return !!deal?.waybillFormedAt && !!deal?.waybillApprovedAt;
+}
+export function canEnterApproved(deal) {
+  return isPaymentSatisfied(deal) && isWaybillReady(deal);
+}
 
 // State модалки (один заказ в один момент времени)
 const modalState = {
@@ -152,7 +180,18 @@ export function listPreliminaryDealOrders() {
 }
 
 /**
- * Заказы, согласованные на отгрузку (после клика «Согласовать» в карточке).
+ * Заказы в стадии «Бронь и счёт» (после клика «Согласовать на отгрузку»):
+ * бронь сформирована, для предоплаты — счёт со сроком действия.
+ */
+export function listReservedDealOrders() {
+  return Store.list(DEALS)
+    .filter((d) => d.orderStatus === ORDER_STATUS_RESERVED && !d.isDeleted)
+    .sort((a, b) => (b.orderReservedAt || 0) - (a.orderReservedAt || 0));
+}
+
+/**
+ * Заказы, согласованные на отгрузку (условия выполнены: оплата/постоплата/
+ * консигнация + накладная сформирована и согласована).
  * Сортировка — свежие сверху по orderApprovedAt.
  */
 export function listApprovedDealOrders() {
@@ -162,15 +201,139 @@ export function listApprovedDealOrders() {
 }
 
 /**
- * Согласовать заказ на отгрузку. Фиксируем кто и когда — пишем в сделку
- * и в timeline (deal_activities). Возвращаем обновлённую сделку.
+ * «Согласовать на отгрузку» (Block 4): предварительный заказ → «Бронь и счёт».
+ * Формируется бронь товара на складе (срок по умолчанию 3 дня, редактируется)
+ * и, для 100% предоплаты, выставляется счёт со сроком действия. Возвращаем
+ * обновлённую сделку.
+ *
+ * @param {string} dealId
+ * @param {{ reservationDays?: number, expiresAt?: string }} opts
  */
-export function approveDealOrder(dealId) {
+export function approveDealOrder(dealId, opts = {}) {
   const deal = Store.get(DEALS, dealId);
   if (!deal) throw new Error("Сделка не найдена");
   if (deal.orderStatus !== ORDER_STATUS_PRELIMINARY) {
     throw new Error("Согласовать можно только предварительный заказ");
   }
+  const items = listDealItems(dealId);
+  if (items.length === 0) throw new Error("В заказе нет позиций");
+  const me = currentEmployee();
+  const now = Date.now();
+  const expiresAt = opts.expiresAt || addDaysIso(opts.reservationDays || RESERVATION_DEFAULT_DAYS);
+
+  // 1) Бронь товара на складе под заказ.
+  try {
+    createReservationForDeal(dealId, items.map((i) => ({
+      productId: i.productId,
+      qty: Number(i.qty) || 0,
+      lotId: i.lotId || null,
+    })), { expiresAt });
+  } catch (e) {
+    console.warn("[deal_items] бронь не сформирована:", e);
+  }
+
+  // 2) Счёт (для предоплаты) — логический маркер со сроком и суммой.
+  const scheme = getOrderPaymentScheme(deal);
+  const amount = dealItemsTotal(dealId);
+  const patch = {
+    orderStatus: ORDER_STATUS_RESERVED,
+    orderReservedAt: now,
+    orderReservedBy: me?.id || null,
+    orderReservedByName: me?.name || me?.email || "Сотрудник",
+    reservationExpiresAt: expiresAt,
+    orderExpectedAmount: amount,
+    // сбрасываем флаги накладной/оплаты на случай повторного цикла
+    waybillFormedAt: null,
+    waybillApprovedAt: null,
+  };
+  if (scheme === "prepay") {
+    patch.invoiceExpiresAt = expiresAt; // счёт держится тот же срок (3 дня)
+    if (!deal.orderInvoiceForPaymentNumber) {
+      patch.orderInvoiceForPaymentNumber = `СЧ-${String(now).slice(-6)}`;
+    }
+  }
+  const updated = Store.update(DEALS, dealId, patch);
+
+  try {
+    Store.create("deal_activities", {
+      dealId,
+      type: "order_reserved",
+      text: scheme === "prepay"
+        ? `Бронь до ${expiresAt}; выставлен счёт ${patch.orderInvoiceForPaymentNumber || deal.orderInvoiceForPaymentNumber || ""} на ${amount.toLocaleString("ru-RU")} ₸`
+        : `Бронь до ${expiresAt} (${scheme === "postpay" ? "постоплата" : "консигнация"})`,
+      authorId: me?.id || null,
+      ts: now,
+    });
+  } catch (e) {
+    console.warn("[deal_items] не удалось добавить activity order_reserved:", e);
+  }
+  return updated;
+}
+
+/** Обновить срок брони/счёта заказа (стадия «Бронь и счёт»/«Ждут оплату»). */
+export function setOrderReservationExpiry(dealId, expiresAt) {
+  const deal = Store.get(DEALS, dealId);
+  if (!deal) throw new Error("Сделка не найдена");
+  if (!expiresAt) throw new Error("Укажи дату");
+  setDealReservationExpiry(dealId, expiresAt);
+  const patch = { reservationExpiresAt: expiresAt };
+  if (getOrderPaymentScheme(deal) === "prepay") patch.invoiceExpiresAt = expiresAt;
+  return Store.update(DEALS, dealId, patch);
+}
+
+/**
+ * Сформировать и согласовать накладную (черновик, без списания со склада).
+ * После этого, если выполнены условия оплаты, заказ автоматически попадает
+ * в «Согласованы на отгрузку». Списание произойдёт при «Отгружено».
+ */
+export async function formAndApproveWaybill(dealId) {
+  const deal = Store.get(DEALS, dealId);
+  if (!deal) throw new Error("Сделка не найдена");
+  const items = listDealItems(dealId);
+  if (items.length === 0) throw new Error("В заказе нет позиций");
+  const contact = deal.contactId ? Store.get("contacts", deal.contactId) : null;
+  const counterpartyText = contact?.name ? `${contact.name} · ${deal.title || ""}` : (deal.title || "");
+  const wh = await import("./warehouse.js");
+  const { doc } = wh.createFormedInvoiceFromDeal(dealId, {
+    counterpartyContactId: deal.contactId || null,
+    counterpartyText,
+    items: items.map((i) => ({
+      productId: i.productId,
+      qty: Number(i.qty) || 0,
+      unitPrice: Number(i.unitPrice) || 0,
+      lotId: i.lotId || null,
+    })),
+    totalAmount: dealItemsTotal(dealId),
+    note: `Накладная по сделке «${deal.title || ""}»`,
+  });
+  const me = currentEmployee();
+  const now = Date.now();
+  Store.update(DEALS, dealId, {
+    orderInvoiceId: doc.id,
+    orderInvoiceNumber: doc.number,
+    waybillFormedAt: deal.waybillFormedAt || now,
+    waybillApprovedAt: now,
+    waybillApprovedByName: me?.name || me?.email || "Сотрудник",
+  });
+  try {
+    Store.create("deal_activities", {
+      dealId, type: "order_waybill_approved",
+      text: `Накладная № ${doc.number} сформирована и согласована`,
+      authorId: me?.id || null, ts: now,
+    });
+  } catch (e) { /* noop */ }
+  return tryAdvanceToApproved(dealId);
+}
+
+/**
+ * Проверить условия и при выполнении перевести заказ в «Согласованы на
+ * отгрузку». Идемпотентно. Возвращает актуальную сделку.
+ */
+export function tryAdvanceToApproved(dealId) {
+  const deal = Store.get(DEALS, dealId);
+  if (!deal) return null;
+  if (deal.orderStatus === ORDER_STATUS_APPROVED || deal.orderStatus === ORDER_STATUS_SHIPPED) return deal;
+  if (!canEnterApproved(deal)) return deal;
   const me = currentEmployee();
   const now = Date.now();
   const updated = Store.update(DEALS, dealId, {
@@ -179,18 +342,13 @@ export function approveDealOrder(dealId) {
     orderApprovedBy: me?.id || null,
     orderApprovedByName: me?.name || me?.email || "Сотрудник",
   });
-  // Активность в timeline сделки.
   try {
     Store.create("deal_activities", {
-      dealId,
-      type: "order_approved",
-      text: `Согласовано на отгрузку: ${me?.name || me?.email || "сотрудник"}`,
-      authorId: me?.id || null,
-      ts: now,
+      dealId, type: "order_approved",
+      text: "Заказ согласован на отгрузку (условия выполнены)",
+      authorId: me?.id || null, ts: now,
     });
-  } catch (e) {
-    console.warn("[deal_items] не удалось добавить activity order_approved:", e);
-  }
+  } catch (e) { /* noop */ }
   return updated;
 }
 
@@ -205,14 +363,14 @@ export function listPaymentPendingDealOrders() {
 }
 
 /**
- * Перевести заказ в «Ожидание оплаты» — это стадия между approved и shipped
- * для договоров с 100% предоплатой. Менеджер ждёт пока клиент оплатит счёт.
+ * Перевести заказ в «Ждут оплату» (Block 4): из «Бронь и счёт» для 100%
+ * предоплаты — счёт выставлен клиенту, ждём поступления денег.
  */
 export function markDealOrderAwaitingPayment(dealId, extra = {}) {
   const deal = Store.get(DEALS, dealId);
   if (!deal) throw new Error("Сделка не найдена");
-  if (deal.orderStatus !== ORDER_STATUS_APPROVED) {
-    throw new Error("В ожидание оплаты можно перевести только согласованный заказ");
+  if (deal.orderStatus !== ORDER_STATUS_RESERVED && deal.orderStatus !== ORDER_STATUS_APPROVED) {
+    throw new Error("В ожидание оплаты можно перевести заказ из стадии «Бронь и счёт»");
   }
   const me = currentEmployee();
   const now = Date.now();
@@ -220,9 +378,9 @@ export function markDealOrderAwaitingPayment(dealId, extra = {}) {
     orderStatus: ORDER_STATUS_PAYMENT_PENDING,
     orderAwaitingPaymentAt: now,
     orderAwaitingPaymentBy: me?.id || null,
-    orderInvoiceForPaymentId: extra.invoiceId || null,
-    orderInvoiceForPaymentNumber: extra.invoiceNumber || null,
-    orderExpectedAmount: Number(extra.amount) || 0,
+    orderInvoiceForPaymentId: extra.invoiceId || deal.orderInvoiceForPaymentId || null,
+    orderInvoiceForPaymentNumber: extra.invoiceNumber || deal.orderInvoiceForPaymentNumber || null,
+    orderExpectedAmount: Number(extra.amount) || Number(deal.orderExpectedAmount) || dealItemsTotal(dealId),
   });
   try {
     Store.create("deal_activities", {
@@ -246,17 +404,18 @@ export function markDealOrderAwaitingPayment(dealId, extra = {}) {
  * @param {string} dealId
  * @param {{ amount: number, paidAt?: string, note?: string, attachmentUrl?: string }} payload
  */
-export function confirmDealOrderPayment(dealId, payload = {}) {
+export async function confirmDealOrderPayment(dealId, payload = {}) {
   const deal = Store.get(DEALS, dealId);
   if (!deal) throw new Error("Сделка не найдена");
   if (deal.orderStatus !== ORDER_STATUS_PAYMENT_PENDING) {
-    throw new Error("Подтвердить оплату можно только для заказа в стадии «Ожидание оплаты»");
+    throw new Error("Подтвердить оплату можно только для заказа в стадии «Ждут оплату»");
   }
   const me = currentEmployee();
   const now = Date.now();
   const amount = Number(payload.amount) || 0;
-  const updated = Store.update(DEALS, dealId, {
-    orderStatus: ORDER_STATUS_APPROVED, // возврат в approved для отгрузки
+  // Фиксируем оплату. Накладную формируем ниже — после этого, по условиям,
+  // заказ автоматически попадёт в «Согласованы на отгрузку».
+  Store.update(DEALS, dealId, {
     orderPaymentConfirmedAt: now,
     orderPaymentConfirmedBy: me?.id || null,
     orderPaymentConfirmedByName: me?.name || me?.email || "Сотрудник",
@@ -265,6 +424,15 @@ export function confirmDealOrderPayment(dealId, payload = {}) {
     orderPaymentNote: payload.note || "",
     orderPaymentAttachmentUrl: payload.attachmentUrl || "",
   });
+  // После оплаты формируется накладная (черновик, без списания) и согласуется —
+  // заказ переходит в «Согласованы на отгрузку».
+  let updated;
+  try {
+    updated = await formAndApproveWaybill(dealId);
+  } catch (e) {
+    console.warn("[deal_items] накладная после оплаты не сформирована:", e);
+    updated = Store.get(DEALS, dealId);
+  }
   try {
     Store.create("deal_activities", {
       dealId,
@@ -290,9 +458,9 @@ export function listShippedDealOrders() {
 }
 
 /**
- * Перевести заказ в статус «отгружен». Вызывается из createInvoiceFromDeal()
- * сразу после успешного создания расходной накладной.
- * Идемпотентность: если уже shipped — ничего не делаем.
+ * Перевести заказ в статус «отгружен». Block 4: вызывается из shipOrderByWaybill()
+ * после проведения накладной (FIFO-списание), а также из reconciler по факту
+ * проведённой накладной. Идемпотентность: если уже shipped — ничего не делаем.
  *
  * @param {string} dealId
  * @param {{ invoiceId?: string, invoiceNumber?: string }} extra
@@ -328,26 +496,74 @@ export function markDealOrderShipped(dealId, extra = {}) {
 }
 
 /**
- * Отозвать согласование — возврат в статус 'preliminary'.
+ * «Отгружено по накладной» (Block 4): из «Согласованы на отгрузку» проводим
+ * накладную (FIFO-списание со склада, с учётом выбранных партий), списываем
+ * бронь и переводим заказ в «Отгружены».
+ *
+ * @param {string} dealId
+ * @returns {Promise<{ deal, doc, posted: boolean, postError?: string }>}
+ */
+export async function shipOrderByWaybill(dealId) {
+  const deal = Store.get(DEALS, dealId);
+  if (!deal) throw new Error("Сделка не найдена");
+  if (deal.orderStatus !== ORDER_STATUS_APPROVED) {
+    throw new Error("Отгрузить можно только заказ из «Согласованы на отгрузку»");
+  }
+  const items = listDealItems(dealId);
+  if (items.length === 0) throw new Error("В заказе нет позиций");
+  const contact = deal.contactId ? Store.get("contacts", deal.contactId) : null;
+  const counterpartyText = contact?.name ? `${contact.name} · ${deal.title || ""}` : (deal.title || "");
+  const wh = await import("./warehouse.js");
+  // Проводим накладную (создаст, если её ещё нет). FIFO/партия — внутри.
+  const { doc, posted, postError } = wh.postInvoiceForDeal(dealId, {
+    counterpartyContactId: deal.contactId || null,
+    counterpartyText,
+    items: items.map((i) => ({
+      productId: i.productId,
+      qty: Number(i.qty) || 0,
+      unitPrice: Number(i.unitPrice) || 0,
+      lotId: i.lotId || null,
+    })),
+    totalAmount: dealItemsTotal(dealId),
+    note: `Накладная по сделке «${deal.title || ""}»`,
+  });
+  // Бронь больше не нужна — товар физически списан (consumed). Если проводка не
+  // удалась (нехватка), бронь оставляем активной.
+  if (posted) {
+    try { consumeReservationsForDeal(dealId); } catch (e) { /* noop */ }
+  }
+  markDealOrderShipped(dealId, { invoiceId: doc.id, invoiceNumber: doc.number });
+  return { deal: Store.get(DEALS, dealId), doc, posted, postError };
+}
+
+/**
+ * Отозвать заказ из «Бронь и счёт» / «Ждут оплату» / «Согласованы» обратно в
+ * «Предварительные». Снимает бронь (товар снова доступен).
  */
 export function revokeDealOrderApproval(dealId) {
   const deal = Store.get(DEALS, dealId);
   if (!deal) throw new Error("Сделка не найдена");
-  if (deal.orderStatus !== ORDER_STATUS_APPROVED) {
-    throw new Error("Отозвать согласование можно только у согласованного заказа");
+  const revocable = [ORDER_STATUS_RESERVED, ORDER_STATUS_PAYMENT_PENDING, ORDER_STATUS_APPROVED];
+  if (!revocable.includes(deal.orderStatus)) {
+    throw new Error("Отозвать можно заказ из «Бронь и счёт», «Ждут оплату» или «Согласованы»");
   }
   const me = currentEmployee();
   const now = Date.now();
+  try { releaseReservationsForDeal(dealId); } catch (e) { /* noop */ }
   const updated = Store.update(DEALS, dealId, {
     orderStatus: ORDER_STATUS_PRELIMINARY,
     orderApprovalRevokedAt: now,
     orderApprovalRevokedBy: me?.id || null,
+    // сбрасываем флаги цикла, чтобы при повторном согласовании всё пересоздалось
+    waybillFormedAt: null,
+    waybillApprovedAt: null,
+    orderPaymentConfirmedAt: null,
   });
   try {
     Store.create("deal_activities", {
       dealId,
       type: "order_approval_revoked",
-      text: `Согласование отозвано: ${me?.name || me?.email || "сотрудник"}`,
+      text: `Согласование отозвано, бронь снята: ${me?.name || me?.email || "сотрудник"}`,
       authorId: me?.id || null,
       ts: now,
     });
@@ -361,9 +577,11 @@ export function revokeDealOrderApproval(dealId) {
  * Reconciler: разовый проход на boot, синхронизирует статусы заказов с
  * фактическим состоянием склада. Идемпотентен — можно звать сколько угодно раз.
  *
- * 1) Любая sale_invoice (не cancelled) → её сделка должна быть в shipped
- *    (с заполненным orderInvoiceId/Number). Без этого после старого пути
- *    «Сформировать накладную» заказ оставался в approved хотя накладная уже была.
+ * 1) ПРОВЕДЁННАЯ sale_invoice (status="posted") → её сделка должна быть в
+ *    shipped. Block 4: накладная теперь формируется ЧЕРНОВИКОМ заранее (на
+ *    стадии «Согласованы»), а списание/проводка — только при «Отгружено».
+ *    Поэтому отгруженным считаем заказ только если накладная проведена;
+ *    черновики (draft) не трогаем.
  *
  * Авто-промоцию черновиков в preliminary убрали: заказ уходит на склад только
  * по явному «Создать заказ». На boot ничего не «дотягиваем» в preliminary.
@@ -373,9 +591,9 @@ export function revokeDealOrderApproval(dealId) {
 export function reconcileOrderStatuses() {
   let shipped = 0;
 
-  // (1) Накладные → заказы в shipped.
+  // (1) Проведённые накладные → заказы в shipped.
   const docs = Store.list("warehouse_documents").filter(
-    (d) => d.type === "sale_invoice" && d.status !== "cancelled" && d.dealId
+    (d) => d.type === "sale_invoice" && d.status === "posted" && d.dealId
   );
   for (const doc of docs) {
     const deal = Store.get(DEALS, doc.dealId);
@@ -976,8 +1194,10 @@ function renderCrmFooterActions(deal, items) {
   let note = "";
   if (status === ORDER_STATUS_PRELIMINARY) {
     note = `<span class="dim-footer-note" style="font-size:12.5px;color:#6366f1">✓ Заказ создан — ждёт согласования на складе.</span>`;
+  } else if (status === ORDER_STATUS_RESERVED) {
+    note = `<span class="dim-footer-note" style="font-size:12.5px;color:#0ea5e9">Согласован: товар забронирован${deal.reservationExpiresAt ? ` до ${escapeHtml(deal.reservationExpiresAt)}` : ""}, счёт/оплата — на складе.</span>`;
   } else if (status === ORDER_STATUS_APPROVED) {
-    note = `<span class="dim-footer-note" style="font-size:12.5px;color:#d97706">Согласован на складе — счёт и отгрузка делаются на складе.</span>`;
+    note = `<span class="dim-footer-note" style="font-size:12.5px;color:#d97706">Согласован на отгрузку (накладна сформирована) — отгрузка делается на складе.</span>`;
   } else if (status === ORDER_STATUS_PAYMENT_PENDING) {
     note = `<span class="dim-footer-note" style="font-size:12.5px;color:#a855f7">Ожидает оплату (контроль на складе).</span>`;
   } else if (status === ORDER_STATUS_SHIPPED) {
@@ -1000,33 +1220,56 @@ function renderWarehouseFooterActions(deal, items) {
   const hasInvoice = !!deal.oneCInvoiceNumber;
   const hasRealization = !!deal.oneCRealizationNumber;
 
-  // Черновик/Предварительный: шаг 1 — согласование заказа.
+  const scheme = getOrderPaymentScheme(deal);
+  const schemeWord = scheme === "postpay" ? "постоплата"
+    : scheme === "consignment" ? "реализация (консигнация)"
+    : "предоплата";
+  // Кнопка «Создать счёт в 1С» (ортогональна складскому циклу — счёт-фактура 1С).
+  const invoiceBtn = (() => {
+    if (hasInvoice) {
+      return `<span class="dim-footer-note" style="font-size:12.5px;color:#16a34a;margin-right:6px">Счёт 1С № ${escapeHtml(deal.oneCInvoiceNumber)} ✓</span>`;
+    }
+    let dis = "";
+    let t = "Создать «Счёт на оплату покупателю» в 1С (черновик)";
+    if (!hasClient) { dis = " disabled"; t = "Сначала выберите клиента в реквизитах 1С"; }
+    else if (!hasMatchedLines) { dis = " disabled"; t = "Ни одна позиция не сопоставлена с номенклатурой 1С"; }
+    return `<button type="button" class="btn-ghost btn-sm" data-deal-order-1c-invoice title="${escapeAttr(t)}"${dis}>🧾 Счёт в 1С</button>`;
+  })();
+
+  // Черновик/Предварительный: шаг 1 — согласовать на отгрузку (создаётся бронь).
   if (status === ORDER_STATUS_DRAFT || status === ORDER_STATUS_PRELIMINARY) {
     const recallBtn = status === ORDER_STATUS_PRELIMINARY
       ? `<button type="button" class="btn-ghost btn-sm" data-deal-order-recall title="Вернуть в черновик">↩ Вернуть в черновик</button>`
       : "";
     const disabled = items.length === 0;
     return `
+      <span class="dim-footer-note" style="font-size:12.5px;color:var(--text-muted,#888);margin-right:6px">Схема оплаты: ${escapeHtml(schemeWord)}</span>
       ${recallBtn}
-      <button type="button" class="btn-primary deal-action-btn-approve" data-deal-order-approve title="${disabled ? "Добавьте хотя бы одну позицию" : "Согласовать заказ"}"${disabled ? " disabled" : ""}>✓ Согласовать заказ</button>
+      <button type="button" class="btn-primary deal-action-btn-approve" data-deal-order-approve title="${disabled ? "Добавьте хотя бы одну позицию" : "Согласовать на отгрузку: забронировать товар"}"${disabled ? " disabled" : ""}>✓ Согласовать на отгрузку</button>
     `;
   }
-  // Согласован, счёта ещё нет: шаг 2 — создать счёт в 1С.
-  if (status === ORDER_STATUS_APPROVED && !hasInvoice) {
-    let invoiceDisabled = "";
-    let invoiceTitle = "Создать «Счёт на оплату покупателю» в 1С (черновик)";
-    if (!hasClient) { invoiceDisabled = " disabled"; invoiceTitle = "Сначала выберите клиента в реквизитах 1С"; }
-    else if (!hasMatchedLines) { invoiceDisabled = " disabled"; invoiceTitle = "Ни одна позиция не сопоставлена с номенклатурой 1С"; }
+  // Забронирован: товар держится, дальше — счёт/оплата/накладна на доске «Бронь и счёт».
+  if (status === ORDER_STATUS_RESERVED) {
+    const note = `<span class="dim-footer-note" style="font-size:12.5px;color:#0ea5e9;margin-right:6px">Забронирован${deal.reservationExpiresAt ? ` до ${escapeHtml(deal.reservationExpiresAt)}` : ""} · ${escapeHtml(schemeWord)}. Счёт/оплата/накладна — на складской доске.</span>`;
     return `
-      <button type="button" class="btn-ghost btn-sm" data-deal-order-revoke title="Отозвать согласование">↶ Отозвать</button>
-      <button type="button" class="btn-primary" data-deal-order-1c-invoice title="${escapeAttr(invoiceTitle)}"${invoiceDisabled}>🧾 Создать счёт в 1С</button>
+      ${note}${invoiceBtn}
+      <button type="button" class="btn-ghost btn-sm" data-deal-order-revoke title="Снять бронь, вернуть в «Предварительные»">↶ Отозвать</button>
     `;
   }
-  // Согласован, счёт создан: шаг 3 — отгрузка (накладная + реализация в 1С).
-  if (status === ORDER_STATUS_APPROVED && hasInvoice) {
+  // Ожидает оплату (100% предоплата): подтверждение оплаты — на доске «Ждут оплату».
+  if (status === ORDER_STATUS_PAYMENT_PENDING) {
+    const note = `<span class="dim-footer-note" style="font-size:12.5px;color:#a855f7;margin-right:6px">Ожидает оплату${deal.invoiceExpiresAt ? ` (счёт до ${escapeHtml(deal.invoiceExpiresAt)})` : ""}. Подтверждение оплаты — на складской доске.</span>`;
     return `
-      <span class="dim-footer-note" style="font-size:12.5px;color:#16a34a;margin-right:6px">Счёт 1С № ${escapeHtml(deal.oneCInvoiceNumber)} ✓</span>
-      <button type="button" class="btn-primary" data-deal-order-ship title="Заказ перейдёт в «Отгружены»: расходная накладная З-2 + реализация в 1С">📦 Отгрузить (накладная + реализация в 1С)</button>
+      ${note}${invoiceBtn}
+      <button type="button" class="btn-ghost btn-sm" data-deal-order-revoke title="Снять бронь, вернуть в «Предварительные»">↶ Отозвать</button>
+    `;
+  }
+  // Согласован на отгрузку: накладна сформирована и оплата закрыта — шаг отгрузки.
+  if (status === ORDER_STATUS_APPROVED) {
+    return `
+      ${invoiceBtn}
+      <button type="button" class="btn-ghost btn-sm" data-deal-order-revoke title="Отозвать согласование (снять бронь)">↶ Отозвать</button>
+      <button type="button" class="btn-primary" data-deal-order-ship title="Отгрузить по накладной: списать товар (FIFO/партии) и закрыть заказ">📦 Отгрузить по накладной</button>
     `;
   }
   // Отгружен: печать накладной + реализация в 1С (если ещё не создана).
@@ -1825,7 +2068,7 @@ function wireModalHandlers() {
   // Отозвать согласование.
   root.querySelector("[data-deal-order-revoke]")?.addEventListener("click", (e) => {
     e.preventDefault();
-    if (!confirm("Отозвать согласование? Заказ вернётся в «Предварительные».")) return;
+    if (!confirm("Отозвать согласование? Бронь снимется, заказ вернётся в «Предварительные».")) return;
     try {
       revokeDealOrderApproval(dealId);
       refreshModal();
@@ -1834,38 +2077,19 @@ function wireModalHandlers() {
       alert(err?.message || "Не удалось отозвать");
     }
   });
-  // Отгрузить и сформировать накладную (создаёт З-2, переводит заказ в shipped).
+  // Отгрузить по уже сформированной накладной (Block 4): проводим существующую
+  // накладну (FIFO/выбранные партии), списываем бронь, переводим в «Отгружены».
   // Авто-печать НЕ запускаем — пользователь сам нажмёт «📄 Открыть накладную» когда нужно.
   root.querySelector("[data-deal-order-ship]")?.addEventListener("click", async (e) => {
     e.preventDefault();
-    if (!confirm("Сформировать расходную накладную и закрыть заказ? Заказ перейдёт в «Отгружены».")) return;
+    if (!confirm("Отгрузить заказ по накладной? Товар спишется со склада (FIFO/выбранные партии), бронь закроется, заказ перейдёт в «Отгружены».")) return;
+    const btn = e.currentTarget;
+    btn.disabled = true;
     try {
-      const deal = Store.get(DEALS, dealId);
-      if (!deal) return;
       const itemsNow = listDealItems(dealId);
-      if (itemsNow.length === 0) { alert("В заказе нет позиций."); return; }
-      const contact = deal.contactId ? Store.get("contacts", deal.contactId) : null;
-      const counterpartyText = contact?.name
-        ? `${contact.name} · ${deal.title || ""}`
-        : (deal.title || "");
-      // Динамический импорт — избегаем циклической зависимости warehouse.js ↔ deal_items.js.
-      const wh = await import("./warehouse.js");
-      const result = wh.createInvoiceFromDeal(dealId, {
-        counterpartyContactId: deal.contactId || null,
-        counterpartyText,
-        items: itemsNow.map((i) => ({
-          productId: i.productId,
-          qty: Number(i.qty) || 0,
-          unitPrice: Number(i.unitPrice) || 0,
-          // Если на строке выбрана партия — списываем именно её (иначе FIFO).
-          lotId: i.lotId || null,
-        })),
-        totalAmount: dealItemsTotal(dealId),
-        note: `Накладная по сделке «${deal.title || ""}»`,
-      });
-      const { doc, posted, postError } = result;
-      // Синхронно переводим заказ в shipped.
-      markDealOrderShipped(dealId, { invoiceId: doc.id, invoiceNumber: doc.number });
+      if (itemsNow.length === 0) { alert("В заказе нет позиций."); btn.disabled = false; return; }
+      // shipOrderByWaybill: находит/проводит накладну сделки + consume брони + shipped.
+      const { doc, posted, postError } = await shipOrderByWaybill(dealId);
       // Best-effort: создаём реализацию в 1С (черновик). Ошибка не блокирует отгрузку.
       let realizationMsg = "";
       try {
@@ -1878,12 +2102,13 @@ function wireModalHandlers() {
       refreshModal();
       notifyWarehouseRefresh();
       if (!posted) {
-        alert(`⚠ Накладная № ${doc.number} создана как ЧЕРНОВИК — не удалось провести (FIFO-списание):\n\n${postError}\n\nОткрой документ в Склад → Документы и проведи вручную после докомплекта остатка.${realizationMsg}`);
-      } else if (realizationMsg) {
-        alert(`📦 Накладная № ${doc.number} проведена.${realizationMsg}`);
+        alert(`⚠ Накладная № ${doc?.number || "—"} НЕ проведена (FIFO-списание не удалось):\n\n${postError}\n\nОткрой документ в Склад → Документы и проведи вручную после докомплекта остатка.${realizationMsg}`);
+      } else {
+        alert(`📦 Накладная № ${doc?.number || "—"} проведена, заказ отгружен.${realizationMsg}`);
       }
     } catch (err) {
-      alert("Не удалось сформировать накладную: " + (err?.message || String(err)));
+      btn.disabled = false;
+      alert("Не удалось отгрузить заказ: " + (err?.message || String(err)));
     }
   });
   // Создать документ 1С (счёт / реализацию) headless — реквизиты берём из карточки.
