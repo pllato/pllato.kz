@@ -746,9 +746,12 @@ tr:hover td { background: var(--bg3); }
     -webkit-tap-highlight-color: transparent;
   }
   .mtb-btn:active { background: var(--bg3); }
-  .mtb-logo { height: 22px; display: block; }
+  .mtb-logo { height: 22px; display: block; flex: 0 0 auto; max-width: 56vw; }
   :root:not([data-theme="light"]) .mtb-logo { filter: brightness(0) invert(1) opacity(.92); }
-  .mtb-spacer { flex: 1; }
+  /* Логотип строго по центру: боковые группы кнопок равной ширины (flex:1 1 0),
+     поэтому логотип всегда визуально центрирован, сколько бы кнопок ни было справа. */
+  .mtb-side { display: flex; align-items: center; gap: 4px; flex: 1 1 0; min-width: 0; }
+  .mtb-side.mtb-right { justify-content: flex-end; }
 
   /* layout: sidebar превращается в выезжающее меню, main — на всю ширину */
   .app.active { display: block; }
@@ -3039,11 +3042,14 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
 <div id="app" class="app">
   <!-- Мобильная верхняя панель (видна только на узких экранах / в PWA) -->
   <div id="mobile-topbar">
-    <button id="drawer-toggle" class="mtb-btn" aria-label="Открыть меню">☰</button>
+    <div class="mtb-side mtb-left">
+      <button id="drawer-toggle" class="mtb-btn" aria-label="Открыть меню">☰</button>
+    </div>
     <img src="elc-logo.png" alt="ELC" class="mtb-logo">
-    <div class="mtb-spacer"></div>
-    <button id="mtb-notif" class="mtb-btn" aria-label="Уведомления" title="Уведомления" style="position:relative">🔔<span class="mtb-badge" id="mtb-notif-badge"></span></button>
-    <button id="mtb-theme" class="mtb-btn" aria-label="Сменить тему" title="Сменить тему">🌙</button>
+    <div class="mtb-side mtb-right">
+      <button id="mtb-notif" class="mtb-btn" aria-label="Уведомления" title="Уведомления" style="position:relative">🔔<span class="mtb-badge" id="mtb-notif-badge"></span></button>
+      <button id="mtb-theme" class="mtb-btn" aria-label="Сменить тему" title="Сменить тему">🌙</button>
+    </div>
   </div>
   <div id="drawer-backdrop"></div>
 
@@ -3592,7 +3598,9 @@ async function initApp(user) {
   // через navigate). Deep-link в hash (#deal/, #contact/, #task/) приоритетнее.
   const VALID_PAGES = ['dashboard', 'notifications', 'contacts', 'deals', 'tasks', 'team-chat', 'deeds', 'calendar', 'chats', 'orgchart', 'migration', 'settings'];
   // Старая страница 'users' переехала в 'settings' → редирект сохранённого значения
-  let startPage = 'dashboard';
+  // Дефолт при ПЕРВОМ входе (нет сохранённой страницы) — «Чаты» (team-chat).
+  // Для вернувшихся пользователей ниже восстанавливаем их последнюю страницу.
+  let startPage = 'team-chat';
   if (location.hash.startsWith('#deal/')) startPage = 'deals';
   else if (location.hash.startsWith('#contact/')) startPage = 'contacts';
   else if (location.hash.startsWith('#task/')) startPage = 'tasks';
