@@ -5603,15 +5603,20 @@ async function create1cSalesDocument(request, env, actor, opts) {
       contractorRef,
       currencyRef,
       contractRef: body?.contractRef || null,
-      warehouseRef: body?.warehouseRef || ONE_C_BASES[baseKey].warehouseRef || null,
+      // Простая СФ (Document_СчетФактураВыданный) НЕ имеет поля Склад_Key → пропускаем.
+      warehouseRef: entityType === "facture"
+        ? null
+        : (body?.warehouseRef || ONE_C_BASES[baseKey].warehouseRef || null),
       priceTypeRef: body?.priceTypeRef || null,
       responsibleRef: body?.responsibleRef || null,
       vatIncluded: body?.vatIncluded,
       accountForVat: body?.accountForVat,
       externalId,
       externalIdPrefix: idPrefix,
-      paymentPurposeCode: body?.paymentPurposeCode || paymentPurposeCode || null,
-      deliveryAddress: body?.deliveryAddress || null,
+      // СФ не имеет полей КодНазначенияПлатежа и АдресДоставки → принудительно null,
+      // иначе OData вернёт 400 на неизвестное поле.
+      paymentPurposeCode: entityType === "facture" ? null : (body?.paymentPurposeCode || paymentPurposeCode || null),
+      deliveryAddress: entityType === "facture" ? null : (body?.deliveryAddress || null),
       comment: body?.comment || "",
       total: body?.total,
       lines,
@@ -5624,6 +5629,25 @@ async function create1cSalesDocument(request, env, actor, opts) {
       if (invMap?.one_c_ref_key) {
         payload.ДокументОснование = invMap.one_c_ref_key;
         payload.ДокументОснование_Type = "StandardODATA.Document_СчетНаОплатуПокупателю";
+      }
+    }
+
+    // Простая СФ (Счёт-фактура выданный): выписывается СТРОГО на основании
+    // реализации в той же базе. Реализация обязана существовать.
+    if (entityType === "facture") {
+      const realEntity = baseKey === ONE_C_DEFAULT_BASE ? "realization" : `realization@${baseKey}`;
+      const realMap = await d1Get1cRefByPllatoId(env, tenantId, realEntity, externalId);
+      if (!realMap?.one_c_ref_key) {
+        throw new HttpError(400, "Сначала создайте реализацию в 1С — простая счёт-фактура выписывается на её основании.");
+      }
+      payload.ДокументОснование = realMap.one_c_ref_key;
+      payload.ДокументОснование_Type = "StandardODATA.Document_РеализацияТоваровУслуг";
+      payload.ВидСчетаФактуры = "Обычный";
+      payload.СпособВыставления = "Бумажно";
+      payload.ДатаСовершенияОборотаПоРеализации = payload.Date;
+      // У СФ табличная часть требует ОборотПоРеализации = Сумма строки.
+      if (Array.isArray(payload.Товары)) {
+        for (const row of payload.Товары) row.ОборотПоРеализации = row.Сумма;
       }
     }
 
@@ -5677,6 +5701,14 @@ function handle1cCreateInvoice(request, env, actor) {
 function handle1cCreateRealization(request, env, actor) {
   return create1cSalesDocument(request, env, actor, {
     collection: "Document_РеализацияТоваровУслуг", entityType: "realization", idPrefix: "PLLATO-REAL",
+  });
+}
+
+// Простая (бумажная) счёт-фактура выданная — на основании реализации.
+// Асем формирует на их основе ЭСФ вручную (по субботам).
+function handle1cCreateFacture(request, env, actor) {
+  return create1cSalesDocument(request, env, actor, {
+    collection: "Document_СчетФактураВыданный", entityType: "facture", idPrefix: "PLLATO-SF",
   });
 }
 
@@ -6374,6 +6406,10 @@ export default {
       if (request.method === "POST" && path === "/api/crm/1c/realizations/create") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handle1cCreateRealization(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/factures/create") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cCreateFacture(request, env, actor));
       }
       if (request.method === "POST" && path === "/api/crm/1c/contractors/create") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });

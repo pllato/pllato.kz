@@ -127,6 +127,7 @@ function renderOrderCard(deal, kind) {
           : `<span class="po-shipped-label">✅ Отгружено${deal.orderInvoiceNumber ? ` · № ${escapeHtml(deal.orderInvoiceNumber)}` : ""}</span>
              <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
              <button type="button" class="btn-ghost" data-po-onec-realization="${escapeAttr(deal.id)}" title="Создать «Реализацию товаров и услуг» в 1С (черновик)">📦 Реализация в 1С${deal.oneCRealizationNumber ? " ✓" : ""}</button>
+             <button type="button" class="btn-ghost" data-po-onec-facture="${escapeAttr(deal.id)}" title="Создать «Счёт-фактуру выданную» в 1С на основании реализации (черновик). Сначала создайте реализацию.">🧾 Простая СФ в 1С${deal.oneCFactureNumber ? " ✓" : ""}</button>
              ${deal.orderInvoiceId ? `<button type="button" class="btn-ghost" data-po-print="${escapeAttr(deal.orderInvoiceId)}" title="Открыть для печати/сохранения в PDF">📄 Открыть накладную</button>` : ""}`
         }
       </div>
@@ -258,21 +259,30 @@ export function wirePreliminaryOrdersEvents(container) {
       }
       return;
     }
-    const oneCBtn = e.target.closest("[data-po-onec-invoice], [data-po-onec-realization]");
+    const oneCBtn = e.target.closest("[data-po-onec-invoice], [data-po-onec-realization], [data-po-onec-facture]");
     if (oneCBtn) {
       e.preventDefault();
-      const isRealization = oneCBtn.hasAttribute("data-po-onec-realization");
-      const dealId = isRealization ? oneCBtn.dataset.poOnecRealization : oneCBtn.dataset.poOnecInvoice;
+      const docType = oneCBtn.hasAttribute("data-po-onec-facture")
+        ? "facture"
+        : oneCBtn.hasAttribute("data-po-onec-realization")
+        ? "realization"
+        : "invoice";
+      const dealId = oneCBtn.dataset.poOnecFacture || oneCBtn.dataset.poOnecRealization || oneCBtn.dataset.poOnecInvoice;
       (async () => {
         try {
           const deal = Store.get("deals", dealId);
           if (!deal) return;
+          // Простая СФ выписывается на основании реализации — её надо создать первой.
+          if (docType === "facture" && !deal.oneCRealizationRef) {
+            alert("Сначала создайте «Реализацию в 1С» — простая счёт-фактура выписывается на её основании.");
+            return;
+          }
           const items = listDealItems(dealId);
           const contact = deal.contactId ? Store.get("contacts", deal.contactId) : null;
           const mod = await import("../../one_c_invoice.js");
           mod.openCreateOneCDocDialog({
             deal, items, contact,
-            docType: isRealization ? "realization" : "invoice",
+            docType,
             onDone: () => window.dispatchEvent(new CustomEvent("pllato:warehouse-refresh")),
           });
         } catch (err) {

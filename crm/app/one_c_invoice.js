@@ -73,6 +73,17 @@ const DOC_META = {
     atField: "oneCRealizationAt",
     word: "Реализация",
   },
+  // Простая (бумажная) счёт-фактура выданная — на основании реализации.
+  // Асем формирует на их основе ЭСФ вручную (по субботам).
+  facture: {
+    endpoint: "/api/crm/1c/factures/create",
+    title: "Создать счёт-фактуру в 1С",
+    btn: "🧾 Создать СФ (черновик)",
+    refField: "oneCFactureRef",
+    numField: "oneCFactureNumber",
+    atField: "oneCFactureAt",
+    word: "Счёт-фактура",
+  },
 };
 
 function esc(s) {
