@@ -5502,17 +5502,24 @@ async function handleInviteCreate(request, env) {
   let body;
   try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
   const phone = String(body.phone || '').replace(/\D/g, '');
+  // Email теперь НЕОБЯЗАТЕЛЕН: приглашающий вводит только телефон+имя, а сотрудник
+  // сам войдёт своим Google-аккаунтом (его почта станет рабочей). Если админ всё
+  // же знает Gmail — впишет, тогда приём строго сверит email (как раньше).
   const email = String(body.email || '').toLowerCase().trim();
+  const name = String(body.name || '').trim().slice(0, 80);
   const deptPath = String(body.dept_path || '').trim();
   const headUid = body.head_uid || null;
   const role = ['admin', 'manager', 'agent'].includes(body.role) ? body.role : 'agent';
   if (!phone || phone.length < 10) return json({ error: "phone required (10+ digits)" }, 400, request);
-  if (!email || !email.includes('@')) return json({ error: "valid email required" }, 400, request);
+  if (email && !email.includes('@')) return json({ error: "email указан неверно" }, 400, request);
   if (!deptPath) return json({ error: "dept_path required" }, 400, request);
 
-  // Проверим что юзера с таким email ещё нет
-  const existing = await env.DB.prepare("SELECT uid FROM users WHERE LOWER(email) = ?").bind(email).first();
-  if (existing) return json({ error: `сотрудник с email ${email} уже есть` }, 409, request);
+  // Если email указан — проверим что такого сотрудника ещё нет. Без email
+  // дедуп произойдёт при приёме по фактической Google-почте.
+  if (email) {
+    const existing = await env.DB.prepare("SELECT uid FROM users WHERE LOWER(email) = ?").bind(email).first();
+    if (existing) return json({ error: `сотрудник с email ${email} уже есть` }, 409, request);
+  }
 
   // Token: 22 base64url-like chars
   const token = 'inv_' + Array.from(crypto.getRandomValues(new Uint8Array(16)))
@@ -5521,14 +5528,18 @@ async function handleInviteCreate(request, env) {
   const expires = ts + 7 * 24 * 3600 * 1000;
 
   await env.DB.prepare(`
-    INSERT INTO team_invites (token, phone, email, dept_path, head_uid, role, invited_by, status, created_at, expires_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
-  `).bind(token, phone, email, deptPath, headUid, role, me.canonicalUid || me.firebaseUid, ts, expires).run();
+    INSERT INTO team_invites (token, phone, email, name, dept_path, head_uid, role, invited_by, status, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+  `).bind(token, phone, email, name, deptPath, headUid, role, me.canonicalUid || me.firebaseUid, ts, expires).run();
 
   // Отправляем WA
   const inviteUrl = `https://pllato.kz/team.html#invite/${token}`;
   const inviterName = me.userRecord?.name ? `${me.userRecord.name} ${me.userRecord.last_name || ''}`.trim() : 'Pllato CRM';
-  const text = `👋 Привет!\n\n${inviterName} приглашает тебя в команду на платформу pllato.kz\n\nЧтобы принять — открой ссылку и войди через Google (${email}):\n\n${inviteUrl}\n\nСсылка действительна 7 дней.`;
+  const greet = name ? `👋 Привет, ${name.split(/\s+/)[0]}!` : '👋 Привет!';
+  const loginLine = email
+    ? `Чтобы принять — открой ссылку и войди через Google (${email}):`
+    : `Чтобы принять — открой ссылку и войди через свой Google-аккаунт (он станет твоей рабочей почтой):`;
+  const text = `${greet}\n\n${inviterName} приглашает тебя в команду на платформу pllato.kz\n\n${loginLine}\n\n${inviteUrl}\n\nСсылка действительна 7 дней.`;
 
   let waMessageId = null;
   let waError = null;
@@ -5562,7 +5573,7 @@ async function handleInviteCreate(request, env) {
 // GET /api/invites/:token — публично (без auth), возвращает мета приёмнику
 async function handleInviteGet(request, env, token) {
   const row = await env.DB.prepare(`
-    SELECT token, phone, email, dept_path, head_uid, role, status, expires_at
+    SELECT token, phone, email, name, dept_path, head_uid, role, status, expires_at
     FROM team_invites WHERE token = ?
   `).bind(token).first();
   if (!row) return json({ error: "invite not found" }, 404, request);
@@ -5588,7 +5599,9 @@ async function handleInviteGet(request, env, token) {
   } catch (e) { /* ignore */ }
   return json({
     ok: true,
-    email: row.email,
+    email: row.email || null,
+    hasEmail: !!(row.email && String(row.email).trim()),
+    name: row.name || null,
     role: row.role,
     deptLabel,
     headLabel,
@@ -5621,13 +5634,17 @@ async function handleInviteAccept(request, env, token) {
   `).bind(token).first();
   if (!inv) return json({ error: "invite not found or already used" }, 404, request);
   if (Date.now() > inv.expires_at) return json({ error: "invite expired" }, 410, request);
-  if (userEmail !== inv.email.toLowerCase()) {
+  // Если в invite задана почта — должна совпасть с залогиненным аккаунтом.
+  // Если почты нет (приглашение по телефону+имени) — принимаем любой Google-аккаунт,
+  // его email становится рабочей почтой сотрудника.
+  const presetEmail = (inv.email || '').toLowerCase().trim();
+  if (presetEmail && userEmail !== presetEmail) {
     return json({ error: `этот invite для ${inv.email}, ты вошёл как ${userEmail}` }, 403, request);
   }
 
   let body = {};
   try { body = await request.json(); } catch {}
-  const name = String(body.name || '').trim().slice(0, 80);
+  const name = (String(body.name || '').trim() || String(inv.name || '').trim()).slice(0, 80);
   const photo = String(body.photo || '').trim().slice(0, 500) || null;
 
   // 1) Создаём / апдейтим users (canonical uid = firebase uid для новых)

@@ -3453,6 +3453,14 @@ onAuthStateChanged(auth, async user => {
   } else {
     document.getElementById('login').style.display = '';
     document.getElementById('app').classList.remove('active');
+    // Приглашённый сотрудник открыл #invite/<token>, ещё не вошёл — покажем
+    // landing поверх логина (там кнопка «Войти через Google»). После входа
+    // onAuthStateChanged сработает снова с user → initApp → handleDeepLink
+    // переоткроет модал уже как форму приёма.
+    if (location.hash.startsWith('#invite/')) {
+      const token = location.hash.slice('#invite/'.length);
+      if (token) setTimeout(() => openInviteAcceptModal(token), 300);
+    }
   }
 });
 
@@ -18986,7 +18994,8 @@ async function openInviteCreateModal(path) {
       <div class="qad-body" style="padding:18px 24px">
         <div style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:12px;color:var(--t2);line-height:1.5">
           Сотрудник получит WhatsApp-сообщение со ссылкой. Перейдёт по ней →
-          войдёт в Google (по указанному email) → автоматически окажется в узле
+          войдёт через свой Google-аккаунт (он станет рабочей почтой) → добавит фото
+          → автоматически окажется в узле
           <b>«${escapeHtml(nodeLabel)}»</b>${node.headUid ? ` под руководством <b>${escapeHtml(orgUserLabel(node.headUid))}</b>` : ''}.
         </div>
         <label style="display:block;margin-bottom:12px">
@@ -18994,8 +19003,13 @@ async function openInviteCreateModal(path) {
           <input type="tel" id="inv-phone" class="qad-input" placeholder="+7 707 123 45 67" style="font-size:14px;padding:8px 12px;width:100%" autofocus>
         </label>
         <label style="display:block;margin-bottom:12px">
-          <div style="font-size:12px;color:var(--t2);margin-bottom:4px">📧 Gmail сотрудника</div>
-          <input type="email" id="inv-email" class="qad-input" placeholder="ivan@gmail.com" style="font-size:14px;padding:8px 12px;width:100%">
+          <div style="font-size:12px;color:var(--t2);margin-bottom:4px">👤 Имя сотрудника</div>
+          <input type="text" id="inv-name" class="qad-input" placeholder="Иван Петров" style="font-size:14px;padding:8px 12px;width:100%">
+        </label>
+        <label style="display:block;margin-bottom:12px">
+          <div style="font-size:12px;color:var(--t2);margin-bottom:4px">📧 Gmail сотрудника <span style="color:var(--t3)">(необязательно)</span></div>
+          <input type="email" id="inv-email" class="qad-input" placeholder="можно оставить пустым" style="font-size:14px;padding:8px 12px;width:100%">
+          <div style="font-size:11px;color:var(--t3);margin-top:4px">Если не знаешь — оставь пустым, сотрудник войдёт любым Google-аккаунтом.</div>
         </label>
         <label style="display:block;margin-bottom:12px">
           <div style="font-size:12px;color:var(--t2);margin-bottom:4px">🎭 Роль</div>
@@ -19019,11 +19033,13 @@ async function openInviteCreateModal(path) {
   document.getElementById('inv-cancel').onclick = close;
   document.getElementById('inv-send').onclick = async () => {
     const phone = String(document.getElementById('inv-phone').value || '').replace(/\D/g, '');
+    const name = String(document.getElementById('inv-name').value || '').trim();
     const email = String(document.getElementById('inv-email').value || '').toLowerCase().trim();
     const role = document.getElementById('inv-role').value;
     const status = document.getElementById('inv-status');
     if (!phone || phone.length < 10) { status.innerHTML = '<span style="color:#dc2626">⚠ Введи телефон полностью</span>'; return; }
-    if (!email.includes('@')) { status.innerHTML = '<span style="color:#dc2626">⚠ Введи email</span>'; return; }
+    if (!name) { status.innerHTML = '<span style="color:#dc2626">⚠ Введи имя сотрудника</span>'; return; }
+    if (email && !email.includes('@')) { status.innerHTML = '<span style="color:#dc2626">⚠ Email указан неверно (или оставь пустым)</span>'; return; }
     const btn = document.getElementById('inv-send');
     btn.disabled = true; btn.textContent = '⏳ Отправляю...';
     status.innerHTML = '';
@@ -19032,7 +19048,7 @@ async function openInviteCreateModal(path) {
       const r = await fetch(`${WORKER_BASE_URL}/api/invites`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-        body: JSON.stringify({ phone, email, dept_path: path, head_uid: node.headUid || null, role }),
+        body: JSON.stringify({ phone, name, email, dept_path: path, head_uid: node.headUid || null, role }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
@@ -19076,9 +19092,11 @@ async function openInviteAcceptModal(token) {
     return;
   }
 
-  // Если юзер уже залогинен — проверим email и сразу примем
+  // Если в invite задана почта — нужно войти именно ею. Если почты нет —
+  // принимаем любой залогиненный Google-аккаунт (его email станет рабочим).
   const me = fbAuth.currentUser;
-  if (me && (me.email || '').toLowerCase() === info.email.toLowerCase()) {
+  const presetEmail = (info.email || '').toLowerCase().trim();
+  if (me && (!presetEmail || (me.email || '').toLowerCase() === presetEmail)) {
     renderAcceptForm(ov, token, info, me);
   } else {
     renderAcceptLanding(ov, token, info, me);
@@ -19086,6 +19104,12 @@ async function openInviteAcceptModal(token) {
 }
 
 function renderAcceptLanding(ov, token, info, currentUser) {
+  const presetEmail = (info.email || '').toLowerCase().trim();
+  // Случай 1: задана почта, но вошёл другим аккаунтом → надо выйти и войти нужным.
+  const wrongAccount = !!(currentUser && presetEmail && (currentUser.email || '').toLowerCase() !== presetEmail);
+  const emailHint = presetEmail
+    ? `📧 Войди через Google с <b>${escapeHtml(info.email)}</b>`
+    : `📧 Войди через свой <b>Google-аккаунт</b> — его почта станет твоей рабочей.`;
   ov.querySelector('.qad-modal').innerHTML = `
     <div class="qad-body" style="padding:32px 28px;text-align:center">
       <div style="font-size:48px;margin-bottom:12px">👋</div>
@@ -19096,24 +19120,35 @@ function renderAcceptLanding(ov, token, info, currentUser) {
         ${info.headLabel ? `<br>под руководством <b>${escapeHtml(info.headLabel)}</b>` : ''}
       </p>
       <div style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:13px">
-        📧 Войди через Google с <b>${escapeHtml(info.email)}</b>
+        ${emailHint}
       </div>
-      ${currentUser ? `
+      ${wrongAccount ? `
         <p style="color:#dc2626;font-size:12px;margin-bottom:14px">
           ⚠ Ты сейчас вошёл как <b>${escapeHtml(currentUser.email)}</b>. Нужно выйти и войти под <b>${escapeHtml(info.email)}</b>.
         </p>
         <button class="qad-btn" id="inv-acc-logout" style="background:var(--bg3);color:var(--t1);padding:10px 18px;border:1px solid var(--b1);border-radius:6px;cursor:pointer">🚪 Выйти и войти заново</button>
       ` : `
-        <p style="font-size:11px;color:var(--t3);margin-bottom:14px">Если ты ещё не вошёл — обнови страницу, на главной появится кнопка Google.</p>
-        <button class="qad-btn qad-btn-primary" onclick="location.reload()" style="padding:10px 18px">🔄 Обновить</button>
+        <button class="qad-btn qad-btn-primary" id="inv-acc-google" style="padding:11px 22px;font-size:14px">🔓 Войти через Google</button>
       `}
       <button class="qad-btn qad-btn-ghost" onclick="document.getElementById('_invite-accept-modal').remove(); location.hash=''" style="margin-left:8px;padding:10px 18px">Позже</button>
     </div>
   `;
-  if (currentUser) {
+  if (wrongAccount) {
     document.getElementById('inv-acc-logout').onclick = async () => {
       await fbAuth.signOut();
       location.reload();
+    };
+  } else {
+    const gbtn = document.getElementById('inv-acc-google');
+    if (gbtn) gbtn.onclick = async () => {
+      gbtn.disabled = true; gbtn.textContent = '⏳ Открываю Google...';
+      try {
+        // hash #invite/<token> остаётся в URL — после входа onAuthStateChanged →
+        // initApp → handleDeepLink переоткроет модал уже как форму приёма.
+        await window.loginGoogle();
+      } catch (e) {
+        gbtn.disabled = false; gbtn.textContent = '🔓 Войти через Google';
+      }
     };
   }
 }
@@ -19127,9 +19162,12 @@ function renderAcceptForm(ov, token, info, me) {
         Отдел: <b>${escapeHtml(info.deptLabel)}</b>
         ${info.headLabel ? `<br>Руководитель: <b>${escapeHtml(info.headLabel)}</b>` : ''}
       </p>
+      <div style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:9px 13px;margin-bottom:14px;font-size:13px;text-align:left">
+        📧 Твоя рабочая почта: <b>${escapeHtml(me.email || '')}</b>
+      </div>
       <label style="display:block;text-align:left;margin-bottom:12px">
         <div style="font-size:12px;color:var(--t2);margin-bottom:4px">Твоё имя</div>
-        <input type="text" id="inv-acc-name" class="qad-input" placeholder="Иван Иванов" value="${escapeHtml(me.displayName || '')}" style="font-size:14px;padding:8px 12px;width:100%">
+        <input type="text" id="inv-acc-name" class="qad-input" placeholder="Иван Иванов" value="${escapeHtml(info.name || me.displayName || '')}" style="font-size:14px;padding:8px 12px;width:100%">
       </label>
       <label style="display:block;text-align:left;margin-bottom:18px">
         <div style="font-size:12px;color:var(--t2);margin-bottom:4px">Фото (URL, опционально)</div>

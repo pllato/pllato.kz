@@ -4,7 +4,8 @@
 CREATE TABLE IF NOT EXISTS team_invites (
   token            TEXT PRIMARY KEY,            -- секретная строка в URL
   phone            TEXT NOT NULL,                -- WhatsApp куда отправлен invite
-  email            TEXT NOT NULL,                -- ожидаемый Gmail для приёма
+  email            TEXT,                          -- (опц.) ожидаемый Gmail; пусто = принимаем любой Google-аккаунт
+  name             TEXT,                          -- имя сотрудника (вводит пригласивший)
   dept_path        TEXT NOT NULL,                -- path в org-tree (branches.0.departments.1)
   head_uid         TEXT,                          -- uid руководителя (для отображения)
   role             TEXT NOT NULL DEFAULT 'agent', -- роль которая будет назначена
