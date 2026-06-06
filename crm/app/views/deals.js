@@ -28,7 +28,7 @@ import { renderTypeahead, attachTypeahead } from "../typeahead.js";
 import { captureUtmFromUrl, enrichWithStoredUtm, renderUtmFormSection, renderUtmBadge, readUtmFromFormData, listKnownSources, getSourcePreset, UTM_SOURCE_PRESETS } from "../utm.js";
 import { openUtmReport } from "../utm_report.js";
 import { renderContacts } from "./contacts.js";
-import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal, listDealItems, dealItemsTotal, ORDER_STATUS_PRELIMINARY, ORDER_STATUS_APPROVED, ORDER_STATUS_SHIPPED } from "../deal_items.js";
+import { renderDealItemsSection, attachDealItemsHandlers, removeAllDealItemsForDeal, listDealItems, dealItemsTotal, ORDER_STATUS_PRELIMINARY, ORDER_STATUS_APPROVED, ORDER_STATUS_SHIPPED, ORDER_STATUS_ARCHIVED } from "../deal_items.js";
 import { listChannels } from "../channels.js";
 import { renderCalls } from "./calls.js";
 import { apiFetch, formatApiError } from "../auth.js";
@@ -1907,6 +1907,11 @@ function renderDealActionBar(d, contact) {
   let orderClass = "deal-action-btn-order";
   if (itemsCount === 0) {
     orderText = "Создать заказ";
+  } else if (orderStatus === ORDER_STATUS_ARCHIVED) {
+    orderEmoji = "📁";
+    orderText = `Заказ · ${fmtSum(total)} ₸`;
+    orderChip = `<span class="dab-chip dab-chip-shipped">В архиве${d.oneCRealizationNumber ? ` · реализация № ${escape(d.oneCRealizationNumber)}` : ""}</span>`;
+    orderClass = "deal-action-btn-order shipped";
   } else if (orderStatus === ORDER_STATUS_SHIPPED) {
     orderEmoji = "✅";
     orderText = `Заказ · ${fmtSum(total)} ₸`;

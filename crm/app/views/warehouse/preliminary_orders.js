@@ -1,11 +1,18 @@
 // Pllato CRM — Заказы со склада (Block 4: бронь + счёт + логика по схеме оплаты).
 //
-// Пять стадий (orderStatus):
-//   preliminary      — Предварительные (менеджер сформировал заказ)
-//   reserved         — Бронь и счёт (бронь на складе + счёт для предоплаты)
-//   payment_pending  — Ждут оплату (предоплата: счёт выставлен, ждём деньги)
-//   approved         — Согласованы на отгрузку (условия выполнены, накладная готова)
-//   shipped          — Отгружены (накладная проведена, товар списан)
+// Доска (orderStatus → колонка):
+//   preliminary                  — Предварительные (менеджер сформировал заказ)
+//   reserved + payment_pending   — Бронь · ждём оплату (одна колонка): бронь на
+//                                  складе + счёт, ждём деньги. Сюда попадает только
+//                                  предоплата.
+//   approved                     — Согласованы на отгрузку (накладная готова)
+//   shipped                      — Отгружены (накладная проведена, товар списан)
+//   archived                     — Архив (после проведения «Реализации в 1С»)
+//
+// Логика по схеме оплаты при «✓ Согласовать заказ»:
+//   • предоплата           → «Бронь · ждём оплату» (ждём поступления денег)
+//   • постоплата/консигнация → оплату не ждём: сразу формируется накладная и
+//                              заказ уходит в «Согласованы на отгрузку».
 //
 // Списание со склада (FIFO/партия) происходит ТОЛЬКО при «Отгружено по
 // накладной». До этого товар держится бронью.
@@ -13,11 +20,12 @@
 import { Store } from "../../store.js";
 import {
   listPreliminaryDealOrders, listReservedDealOrders, listApprovedDealOrders,
-  listShippedDealOrders, listPaymentPendingDealOrders,
+  listShippedDealOrders, listPaymentPendingDealOrders, listArchivedDealOrders,
   listDealItems, dealItemsTotal,
   approveDealOrder, revokeDealOrderApproval,
   markDealOrderAwaitingPayment, confirmDealOrderPayment,
   formAndApproveWaybill, shipOrderByWaybill, setOrderReservationExpiry,
+  archiveDealOrder, unarchiveDealOrder,
   getOrderPaymentScheme,
 } from "../../deal_items.js";
 import { productSummary } from "../../warehouse.js";
@@ -159,6 +167,9 @@ function renderOrderCard(deal, kind) {
     metaHtml = `<div class="po-card-date">Согласовано: ${fmtDateTime(deal.orderApprovedAt)}</div>
                 ${deal.orderInvoiceNumber ? `<div class="po-card-by">накладная № ${escapeHtml(deal.orderInvoiceNumber)}</div>` : ""}
                 ${agingBadge}`;
+  } else if (kind === "archived") {
+    metaHtml = `<div class="po-card-date">В архиве: ${fmtDateTime(deal.orderArchivedAt)}</div>
+                ${deal.oneCRealizationNumber ? `<div class="po-card-by">реализация № ${escapeHtml(deal.oneCRealizationNumber)}</div>` : (deal.orderInvoiceNumber ? `<div class="po-card-by">накладная № ${escapeHtml(deal.orderInvoiceNumber)}</div>` : "")}`;
   } else {
     metaHtml = `<div class="po-card-date">Отгружено: ${fmtDateTime(deal.orderShippedAt)}</div>
                 ${deal.orderInvoiceNumber ? `<div class="po-card-by">накладная № ${escapeHtml(deal.orderInvoiceNumber)}</div>` : ""}`;
@@ -167,12 +178,14 @@ function renderOrderCard(deal, kind) {
   // Кнопки действий по стадии.
   let actionsHtml = "";
   if (kind === "preliminary") {
-    actionsHtml = `<button type="button" class="btn-primary" data-po-approve="${escapeAttr(deal.id)}" title="Сформировать бронь на складе${scheme === "prepay" ? " и счёт на оплату; заказ перейдёт в «Ждут оплату»" : "; заказ перейдёт в «Бронь и счёт»"}">✓ Согласовать заказ (бронь)</button>`;
+    actionsHtml = `<button type="button" class="btn-primary" data-po-approve="${escapeAttr(deal.id)}" title="${scheme === "prepay" ? "Забронировать товар и выставить счёт; заказ перейдёт в «Бронь · ждём оплату»" : "Постоплата/консигнация — оплату не ждём: сразу формируется накладная, заказ перейдёт в «Согласованы на отгрузку»"}">✓ Согласовать заказ${scheme === "prepay" ? " (бронь)" : ""}</button>`;
   } else if (kind === "reserved") {
+    // Легаси/возврат: бронь без выставленного счёта. Для предоплаты — выставить
+    // счёт и ждать оплату (в той же колонке); для постоплаты — сформировать накладную.
     if (scheme === "prepay") {
       actionsHtml = `
         <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
-        <button type="button" class="btn-primary" data-po-await-payment="${escapeAttr(deal.id)}" title="Счёт выставлен клиенту — перевести в «Ждут оплату»">⏳ Ждать оплату</button>
+        <button type="button" class="btn-primary" data-po-await-payment="${escapeAttr(deal.id)}" title="Счёт выставлен клиенту — ждём оплату">⏳ Ждать оплату</button>
         <button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}" title="Снять бронь и вернуть в «Предварительные»">↶ Отозвать</button>`;
     } else {
       actionsHtml = `
@@ -181,27 +194,34 @@ function renderOrderCard(deal, kind) {
     }
   } else if (kind === "payment_pending") {
     actionsHtml = `
-      <button type="button" class="btn-ghost" data-po-cancel-await="${escapeAttr(deal.id)}" title="Вернуть в «Бронь и счёт»">↶ В бронь</button>
       <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
+      <button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}" title="Снять бронь и вернуть в «Предварительные»">↶ Отозвать</button>
       <button type="button" class="btn-primary" data-po-confirm-payment="${escapeAttr(deal.id)}" title="Оплата получена → сформируется накладная, заказ перейдёт в «Согласованы»">💰 Оплата получена</button>`;
   } else if (kind === "approved") {
     actionsHtml = `
       ${deal.orderInvoiceId ? `<button type="button" class="btn-ghost" data-po-print="${escapeAttr(deal.orderInvoiceId)}" title="Открыть накладную для печати/PDF">📄 Накладная</button>` : ""}
       <button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}" title="Снять бронь и вернуть в «Предварительные»">↶ Отозвать</button>
       <button type="button" class="btn-primary" data-po-ship="${escapeAttr(deal.id)}" title="Списать товар со склада (FIFO/партия) и закрыть заказ">📦 Отгружено по накладной</button>`;
+  } else if (kind === "archived") {
+    actionsHtml = `
+      <span class="po-shipped-label">📁 В архиве${deal.oneCRealizationNumber ? ` · реализация № ${escapeHtml(deal.oneCRealizationNumber)}` : ""}</span>
+      ${deal.orderInvoiceId ? `<button type="button" class="btn-ghost" data-po-print="${escapeAttr(deal.orderInvoiceId)}" title="Открыть для печати/сохранения в PDF">📄 Открыть накладную</button>` : ""}
+      <button type="button" class="btn-ghost" data-po-unarchive="${escapeAttr(deal.id)}" title="Вернуть заказ в «Отгружены»">↩ Из архива</button>`;
   } else {
+    // shipped: после проведения «Реализации в 1С» появляется кнопка «В архив».
     actionsHtml = `
       <span class="po-shipped-label">✅ Отгружено${deal.orderInvoiceNumber ? ` · № ${escapeHtml(deal.orderInvoiceNumber)}` : ""}</span>
       <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
       <button type="button" class="btn-ghost" data-po-onec-realization="${escapeAttr(deal.id)}" title="Создать «Реализацию товаров и услуг» в 1С (черновик)">📦 Реализация в 1С${deal.oneCRealizationNumber ? " ✓" : ""}</button>
-      ${deal.orderInvoiceId ? `<button type="button" class="btn-ghost" data-po-print="${escapeAttr(deal.orderInvoiceId)}" title="Открыть для печати/сохранения в PDF">📄 Открыть накладную</button>` : ""}`;
+      ${deal.orderInvoiceId ? `<button type="button" class="btn-ghost" data-po-print="${escapeAttr(deal.orderInvoiceId)}" title="Открыть для печати/сохранения в PDF">📄 Открыть накладную</button>` : ""}
+      ${deal.oneCRealizationNumber ? `<button type="button" class="btn-primary" data-po-archive="${escapeAttr(deal.id)}" title="Реализация в 1С проведена — отправить заказ в архив">📁 В архив</button>` : ""}`;
   }
 
   // Срок брони (редактор) на стадиях reserved/payment_pending.
   const expiryHtml = (kind === "reserved" || kind === "payment_pending") ? renderExpiryEditor(deal) : "";
 
   return `
-    <div class="po-card ${shortage ? "has-shortage" : ""} ${kind === "approved" ? "is-approved" : ""} ${isStale ? "is-stale" : ""} ${kind === "reserved" ? "is-reserved" : ""} ${kind === "payment_pending" ? "is-awaiting-payment" : ""} ${kind === "shipped" ? "is-shipped" : ""}" data-deal-id="${escapeAttr(deal.id)}">
+    <div class="po-card ${shortage ? "has-shortage" : ""} ${kind === "approved" ? "is-approved" : ""} ${isStale ? "is-stale" : ""} ${kind === "reserved" ? "is-reserved" : ""} ${kind === "payment_pending" ? "is-awaiting-payment" : ""} ${kind === "shipped" ? "is-shipped" : ""} ${kind === "archived" ? "is-archived" : ""}" data-deal-id="${escapeAttr(deal.id)}">
       <div class="po-card-head">
         <div class="po-card-title">
           <a href="#crm/${escapeAttr(deal.id)}" class="po-deal-link">
@@ -234,7 +254,10 @@ function renderOrderCard(deal, kind) {
   `;
 }
 
+// kind может быть строкой (одна стадия на колонку) или функцией (deal) => kind,
+// если в одной колонке смешаны статусы (например, «Бронь · ждём оплату»).
 function renderColumn(title, dot, list, kind, emptyText) {
+  const kindOf = typeof kind === "function" ? kind : () => kind;
   return `
     <div class="po-col">
       <div class="po-col-head">
@@ -245,7 +268,7 @@ function renderColumn(title, dot, list, kind, emptyText) {
       <div class="po-col-body">
         ${list.length === 0
           ? `<div class="po-empty"><div class="po-empty-text">${emptyText}</div></div>`
-          : list.map((d) => renderOrderCard(d, kind)).join("")
+          : list.map((d) => renderOrderCard(d, kindOf(d))).join("")
         }
       </div>
     </div>`;
@@ -255,9 +278,14 @@ export function renderPreliminaryOrdersView() {
   const preliminary = listPreliminaryDealOrders();
   const reserved = listReservedDealOrders();
   const awaitingPayment = listPaymentPendingDealOrders();
+  // «Бронь · ждём оплату» — одна колонка: предоплата (ждут оплату) + легаси-бронь.
+  const waitingPay = [...awaitingPayment, ...reserved]
+    .sort((a, b) => (b.orderAwaitingPaymentAt || b.orderReservedAt || 0) - (a.orderAwaitingPaymentAt || a.orderReservedAt || 0));
   const approved = listApprovedDealOrders();
   const shippedAll = listShippedDealOrders();
   const shipped = shippedAll.slice(0, 20);
+  const archivedAll = listArchivedDealOrders();
+  const archived = archivedAll.slice(0, 20);
 
   return `
     <section class="whm-section po-view">
@@ -265,24 +293,25 @@ export function renderPreliminaryOrdersView() {
         <h2>Заказы со склада</h2>
         <div class="po-meta">
           Предварительные: <strong>${preliminary.length}</strong> ·
-          Бронь и счёт: <strong>${reserved.length}</strong> ·
-          Ждут оплату: <strong>${awaitingPayment.length}</strong> ·
+          Бронь · ждём оплату: <strong>${waitingPay.length}</strong> ·
           Согласованы: <strong>${approved.length}</strong> ·
-          Отгружены: <strong>${shipped.length}${shippedAll.length > 20 ? "+" : ""}</strong>
+          Отгружены: <strong>${shipped.length}${shippedAll.length > 20 ? "+" : ""}</strong> ·
+          Архив: <strong>${archived.length}${archivedAll.length > 20 ? "+" : ""}</strong>
         </div>
       </div>
 
       <div class="po-kanban">
         ${renderColumn("Предварительные заказы", "#6366f1", preliminary, "preliminary",
           "Пусто. Заказы появятся когда менеджер нажмёт «Сформировать заказ» в сделке.")}
-        ${renderColumn("Бронь и счёт", "#0ea5e9", reserved, "reserved",
-          "Пусто. Сюда попадают заказы с постоплатой/консигнацией после «✓ Согласовать заказ (бронь)».")}
-        ${renderColumn("Ждут оплату", "#a855f7", awaitingPayment, "payment_pending",
-          "Пусто. Заказы со 100% предоплатой попадают сюда сразу после «✓ Согласовать заказ (бронь)».")}
+        ${renderColumn("Бронь · ждём оплату", "#a855f7", waitingPay,
+          (d) => d.orderStatus === "payment_pending" ? "payment_pending" : "reserved",
+          "Пусто. Сюда попадает предоплата после «✓ Согласовать заказ»: товар забронирован, счёт выставлен — ждём деньги. Постоплата/консигнация эту колонку минуют.")}
         ${renderColumn("Согласованы на отгрузку", "#f59e0b", approved, "approved",
-          "Пусто. Попадают сюда автоматически: оплата (или постоплата/консигнация) + накладная сформирована.")}
+          "Пусто. Сюда попадают после оплаты (предоплата) или сразу после согласования (постоплата/консигнация) — накладная сформирована.")}
         ${renderColumn("Отгружены", "#16a34a", shipped, "shipped",
           "Пусто. Заказы попадают сюда после «📦 Отгружено по накладной».")}
+        ${renderColumn("Архив", "#64748b", archived, "archived",
+          "Пусто. Заказы уходят сюда после «📁 В архив» (когда проведена «Реализация в 1С»).")}
       </div>
     </section>
   `;
@@ -323,14 +352,28 @@ export function wirePreliminaryOrdersEvents(container) {
       return;
     }
 
-    // Согласовать на отгрузку → бронь + счёт (preliminary → reserved).
+    // Согласовать заказ. Предоплата → «Бронь · ждём оплату». Постоплата/
+    // консигнация → оплату не ждём: сразу формируем накладную → «Согласованы».
     const approveBtn = e.target.closest("[data-po-approve]");
     if (approveBtn) {
       e.preventDefault();
-      try {
-        approveDealOrder(approveBtn.dataset.poApprove);
-        refresh();
-      } catch (err) { alert(err?.message || String(err)); }
+      const dealId = approveBtn.dataset.poApprove;
+      const deal = Store.get("deals", dealId);
+      const scheme = getOrderPaymentScheme(deal);
+      const btn = approveBtn;
+      btn.disabled = true;
+      (async () => {
+        try {
+          approveDealOrder(dealId);
+          if (scheme !== "prepay") {
+            await formAndApproveWaybill(dealId);
+          }
+          refresh();
+        } catch (err) {
+          btn.disabled = false;
+          alert(err?.message || String(err));
+        }
+      })();
       return;
     }
 
@@ -439,18 +482,27 @@ export function wirePreliminaryOrdersEvents(container) {
       return;
     }
 
-    // Вернуть из «Ждут оплату» в «Бронь и счёт».
-    const cancelAwaitBtn = e.target.closest("[data-po-cancel-await]");
-    if (cancelAwaitBtn) {
+    // Отправить в архив (после проведённой «Реализации в 1С») → archived.
+    const archiveBtn = e.target.closest("[data-po-archive]");
+    if (archiveBtn) {
       e.preventDefault();
-      const dealId = cancelAwaitBtn.dataset.poCancelAwait;
-      if (!confirm("Вернуть заказ в «Бронь и счёт»?")) return;
+      const dealId = archiveBtn.dataset.poArchive;
+      if (!confirm("Отправить заказ в архив? Он уйдёт из «Отгружены» в «Архив».")) return;
       try {
-        const deal = Store.get("deals", dealId);
-        if (deal) {
-          Store.update("deals", dealId, { orderStatus: "reserved", orderAwaitingPaymentAt: null });
-          refresh();
-        }
+        archiveDealOrder(dealId);
+        refresh();
+      } catch (err) { alert(err?.message || String(err)); }
+      return;
+    }
+
+    // Вернуть из архива → shipped.
+    const unarchiveBtn = e.target.closest("[data-po-unarchive]");
+    if (unarchiveBtn) {
+      e.preventDefault();
+      const dealId = unarchiveBtn.dataset.poUnarchive;
+      try {
+        unarchiveDealOrder(dealId);
+        refresh();
       } catch (err) { alert(err?.message || String(err)); }
       return;
     }
