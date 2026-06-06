@@ -5489,7 +5489,18 @@ function findCallDistributionForUid(structure, uid) {
 }
 
 // ── Приглашения новых сотрудников ──────────────────────────────────────
-// POST /api/invites { phone, email, dept_path, head_uid, role }
+// Идемпотентная миграция: колонка name появилась позже (приглашение по
+// телефону+имени без обязательного email). Применяем через D1-binding, т.к.
+// деплой-токен не имеет прав на D1 API (wrangler d1 execute → 7403).
+let _inviteNameColEnsured = false;
+async function ensureInviteNameColumn(env) {
+  if (_inviteNameColEnsured) return;
+  try { await env.DB.prepare("ALTER TABLE team_invites ADD COLUMN name TEXT").run(); }
+  catch (e) { /* колонка уже есть — ок */ }
+  _inviteNameColEnsured = true;
+}
+
+// POST /api/invites { phone, name, email, dept_path, head_uid, role }
 // → создаёт row в team_invites + отправляет WA с invite-ссылкой.
 // Ссылка: https://pllato.kz/team.html#invite/<token>
 async function handleInviteCreate(request, env) {
@@ -5527,6 +5538,7 @@ async function handleInviteCreate(request, env) {
   const ts = Date.now();
   const expires = ts + 7 * 24 * 3600 * 1000;
 
+  await ensureInviteNameColumn(env);
   await env.DB.prepare(`
     INSERT INTO team_invites (token, phone, email, name, dept_path, head_uid, role, invited_by, status, created_at, expires_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
@@ -5572,6 +5584,7 @@ async function handleInviteCreate(request, env) {
 
 // GET /api/invites/:token — публично (без auth), возвращает мета приёмнику
 async function handleInviteGet(request, env, token) {
+  await ensureInviteNameColumn(env);
   const row = await env.DB.prepare(`
     SELECT token, phone, email, name, dept_path, head_uid, role, status, expires_at
     FROM team_invites WHERE token = ?
