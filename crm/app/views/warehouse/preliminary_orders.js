@@ -26,7 +26,7 @@ import {
   markDealOrderAwaitingPayment, confirmDealOrderPayment,
   formAndApproveWaybill, shipOrderByWaybill, setOrderReservationExpiry,
   archiveDealOrder, unarchiveDealOrder,
-  getOrderPaymentScheme,
+  getOrderPaymentScheme, autoCreateOneCInvoice,
 } from "../../deal_items.js";
 import { productSummary } from "../../warehouse.js";
 
@@ -159,7 +159,9 @@ function renderOrderCard(deal, kind) {
                 <div class="po-card-by">${escapeHtml(schemeLabel(scheme))}</div>`;
   } else if (kind === "payment_pending") {
     metaHtml = `<div class="po-card-date">Ждём оплату с ${fmtDateTime(deal.orderAwaitingPaymentAt)}</div>
-                ${deal.orderInvoiceForPaymentNumber ? `<div class="po-card-by">счёт ${escapeHtml(deal.orderInvoiceForPaymentNumber)}</div>` : ""}`;
+                ${deal.oneCInvoiceNumber
+                  ? `<div class="po-card-by">счёт 1С № ${escapeHtml(deal.oneCInvoiceNumber)}</div>`
+                  : (deal.orderInvoiceForPaymentNumber ? `<div class="po-card-by">счёт ${escapeHtml(deal.orderInvoiceForPaymentNumber)}</div>` : "")}`;
   } else if (kind === "approved") {
     const agingBadge = isAging
       ? `<div class="po-aging-badge${isStale ? " is-stale" : ""}" title="Накладная готова, но заказ ещё не отгружен">${isStale ? "⚠ " : "⏳ "}висит ${agingDays} ${pluralDays(agingDays)}</div>`
@@ -183,9 +185,9 @@ function renderOrderCard(deal, kind) {
     // Легаси/возврат: бронь без выставленного счёта. Для предоплаты — выставить
     // счёт и ждать оплату (в той же колонке); для постоплаты — сформировать накладную.
     if (scheme === "prepay") {
+      // Счёт в 1С формируется автоматически при согласовании — кнопка тут не нужна.
       actionsHtml = `
-        <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
-        <button type="button" class="btn-primary" data-po-await-payment="${escapeAttr(deal.id)}" title="Счёт выставлен клиенту — ждём оплату">⏳ Ждать оплату</button>
+        <button type="button" class="btn-primary" data-po-await-payment="${escapeAttr(deal.id)}" title="Ждём оплату от клиента по выставленному счёту">⏳ Ждать оплату</button>
         <button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}" title="Снять бронь и вернуть в «Предварительные»">↶ Отозвать</button>`;
     } else {
       actionsHtml = `
@@ -193,8 +195,8 @@ function renderOrderCard(deal, kind) {
         <button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}" title="Снять бронь и вернуть в «Предварительные»">↶ Отозвать</button>`;
     }
   } else if (kind === "payment_pending") {
+    // Счёт в 1С формируется автоматически при согласовании — кнопки тут нет.
     actionsHtml = `
-      <button type="button" class="btn-ghost" data-po-onec-invoice="${escapeAttr(deal.id)}" title="Создать «Счёт на оплату покупателю» в 1С (черновик)">🧾 Счёт в 1С${deal.oneCInvoiceNumber ? " ✓" : ""}</button>
       <button type="button" class="btn-ghost" data-po-revoke="${escapeAttr(deal.id)}" title="Снять бронь и вернуть в «Предварительные»">↶ Отозвать</button>
       <button type="button" class="btn-primary" data-po-confirm-payment="${escapeAttr(deal.id)}" title="Оплата получена → сформируется накладная, заказ перейдёт в «Согласованы»">💰 Оплата получена</button>`;
   } else if (kind === "approved") {
@@ -368,7 +370,12 @@ export function wirePreliminaryOrdersEvents(container) {
           if (scheme !== "prepay") {
             await formAndApproveWaybill(dealId);
           }
+          // Best-effort: счёт на оплату в 1С (черновик) на основании согласования.
+          const inv = await autoCreateOneCInvoice(dealId);
           refresh();
+          if (inv?.error) {
+            alert(`Заказ согласован. ⚠ Счёт в 1С автоматически создать не удалось:\n${inv.error}\n\nСоздайте его вручную кнопкой «🧾 Счёт в 1С» в карточке заказа.`);
+          }
         } catch (err) {
           btn.disabled = false;
           alert(err?.message || String(err));

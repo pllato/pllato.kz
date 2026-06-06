@@ -278,6 +278,45 @@ export function approveDealOrder(dealId, opts = {}) {
   return updated;
 }
 
+/**
+ * Best-effort автосоздание «Счёта на оплату покупателю» в 1С (черновик) на
+ * основании согласования заказа. Вызывается ПОСЛЕ approveDealOrder.
+ * Ошибка НЕ блокирует согласование — счёт можно создать позже вручную кнопкой
+ * «🧾 Счёт в 1С» в карточке заказа.
+ * Возвращает:
+ *  - { number, unmatched } — счёт-черновик создан;
+ *  - { skipped } — пропущено (нет клиента/позиций или счёт уже есть);
+ *  - { error }   — попытка была, но 1С вернула ошибку.
+ */
+export async function autoCreateOneCInvoice(dealId) {
+  const deal = Store.get(DEALS, dealId);
+  if (!deal) return { skipped: "no_deal" };
+  if (!deal.contactId) return { skipped: "no_contact" };
+  if (deal.oneCInvoiceNumber) return { skipped: "exists" };
+  const items = listDealItems(dealId);
+  if (items.length === 0) return { skipped: "no_items" };
+  const contact = Store.get("contacts", deal.contactId) || null;
+  try {
+    const out = await submitOneCDocument({
+      deal,
+      contact,
+      items,
+      docType: "invoice",
+      base: deal.oneCBase || "aminamed",
+      contractRef: deal.oneCContractRef || null,
+      deliveryAddress: null,
+      paymentPurposeCode: deal.oneCPaymentPurpose || "710",
+      vatRef: deal.oneCVatRef || ONE_C_VAT_5,
+      comment: deal.oneCComment || "",
+      paymentScheme: deal.paymentScheme || null,
+      postpayDueDate: deal.postpayDueDate || null,
+    });
+    return { number: out?.number || null, unmatched: out?.unmatched || [] };
+  } catch (err) {
+    return { error: err?.message || String(err) };
+  }
+}
+
 /** Обновить срок брони/счёта заказа (стадия «Бронь и счёт»/«Ждут оплату»). */
 export function setOrderReservationExpiry(dealId, expiresAt) {
   const deal = Store.get(DEALS, dealId);
@@ -2184,8 +2223,13 @@ function wireModalHandlers() {
       if (scheme !== "prepay") {
         await formAndApproveWaybill(dealId);
       }
+      // Best-effort: счёт на оплату в 1С (черновик) на основании согласования.
+      const inv = await autoCreateOneCInvoice(dealId);
       refreshModal();
       notifyWarehouseRefresh();
+      if (inv?.error) {
+        alert(`Заказ согласован. ⚠ Счёт в 1С автоматически создать не удалось:\n${inv.error}\n\nСоздайте его вручную кнопкой «🧾 Счёт в 1С» в карточке заказа.`);
+      }
     } catch (err) {
       btn.disabled = false;
       alert(err?.message || "Не удалось согласовать заказ");
