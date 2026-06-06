@@ -180,8 +180,9 @@ export function listPreliminaryDealOrders() {
 }
 
 /**
- * Заказы в стадии «Бронь и счёт» (после клика «Согласовать на отгрузку»):
- * бронь сформирована, для предоплаты — счёт со сроком действия.
+ * Заказы в стадии «Бронь и счёт» (после «✓ Согласовать заказ (бронь)»):
+ * бронь сформирована. Сюда попадают постоплата/консигнация; 100% предоплата
+ * уходит сразу в «Ждут оплату».
  */
 export function listReservedDealOrders() {
   return Store.list(DEALS)
@@ -236,7 +237,6 @@ export function approveDealOrder(dealId, opts = {}) {
   const scheme = getOrderPaymentScheme(deal);
   const amount = dealItemsTotal(dealId);
   const patch = {
-    orderStatus: ORDER_STATUS_RESERVED,
     orderReservedAt: now,
     orderReservedBy: me?.id || null,
     orderReservedByName: me?.name || me?.email || "Сотрудник",
@@ -247,25 +247,32 @@ export function approveDealOrder(dealId, opts = {}) {
     waybillApprovedAt: null,
   };
   if (scheme === "prepay") {
+    // 100% предоплата: бронь + счёт сразу выставлены → заказ уходит прямо в
+    // «Ждут оплату» (пропускаем промежуточный шаг «Бронь и счёт» / «Ждать оплату»).
+    const invoiceNumber = deal.orderInvoiceForPaymentNumber || `СЧ-${String(now).slice(-6)}`;
+    patch.orderStatus = ORDER_STATUS_PAYMENT_PENDING;
     patch.invoiceExpiresAt = expiresAt; // счёт держится тот же срок (3 дня)
-    if (!deal.orderInvoiceForPaymentNumber) {
-      patch.orderInvoiceForPaymentNumber = `СЧ-${String(now).slice(-6)}`;
-    }
+    patch.orderInvoiceForPaymentNumber = invoiceNumber;
+    patch.orderAwaitingPaymentAt = now;
+    patch.orderAwaitingPaymentBy = me?.id || null;
+  } else {
+    // Постоплата / консигнация: остаётся в «Бронь и счёт», накладная формируется вручную.
+    patch.orderStatus = ORDER_STATUS_RESERVED;
   }
   const updated = Store.update(DEALS, dealId, patch);
 
   try {
     Store.create("deal_activities", {
       dealId,
-      type: "order_reserved",
+      type: scheme === "prepay" ? "order_awaiting_payment" : "order_reserved",
       text: scheme === "prepay"
-        ? `Бронь до ${expiresAt}; выставлен счёт ${patch.orderInvoiceForPaymentNumber || deal.orderInvoiceForPaymentNumber || ""} на ${amount.toLocaleString("ru-RU")} ₸`
+        ? `Бронь до ${expiresAt}; выставлен счёт ${patch.orderInvoiceForPaymentNumber} на ${amount.toLocaleString("ru-RU")} ₸ — ожидаем оплату`
         : `Бронь до ${expiresAt} (${scheme === "postpay" ? "постоплата" : "консигнация"})`,
       authorId: me?.id || null,
       ts: now,
     });
   } catch (e) {
-    console.warn("[deal_items] не удалось добавить activity order_reserved:", e);
+    console.warn("[deal_items] не удалось добавить activity о согласовании заказа:", e);
   }
   return updated;
 }
@@ -951,7 +958,7 @@ function renderRequisitesCard(deal) {
     : (contact?._1c_address ? [contact._1c_address] : [])).filter(Boolean);
   const hasPoints = deliveryPoints.length > 0;
   const hasOneCAddr = oneCAddresses.length > 0;
-  const deliveryHint = `<div style="font-size:11px;color:var(--text-muted,#888);margin-bottom:6px">адрес можно выбрать из 1С или из CRM; новый — сохранится у клиента в CRM</div>`;
+  const deliveryHint = `<div style="font-size:11px;color:var(--text-muted,#888);margin-bottom:6px">адрес можно выбрать из 1С или из CRM; новый сохранится у клиента в CRM${contractorRef ? ", а после — предложим записать его и в карточку 1С" : ""}</div>`;
   const deliveryBlock = (hasPoints || hasOneCAddr)
     ? `
       ${deliveryHint}
@@ -1245,7 +1252,7 @@ function renderWarehouseFooterActions(deal, items) {
     return `
       <span class="dim-footer-note" style="font-size:12.5px;color:var(--text-muted,#888);margin-right:6px">Схема оплаты: ${escapeHtml(schemeWord)}</span>
       ${recallBtn}
-      <button type="button" class="btn-primary deal-action-btn-approve" data-deal-order-approve title="${disabled ? "Добавьте хотя бы одну позицию" : "Согласовать на отгрузку: забронировать товар"}"${disabled ? " disabled" : ""}>✓ Согласовать на отгрузку</button>
+      <button type="button" class="btn-primary deal-action-btn-approve" data-deal-order-approve title="${disabled ? "Добавьте хотя бы одну позицию" : "Согласовать заказ: забронировать товар на складе"}"${disabled ? " disabled" : ""}>✓ Согласовать заказ (бронь)</button>
     `;
   }
   // Забронирован: товар держится, дальше — счёт/оплата/накладна на доске «Бронь и счёт».
@@ -1728,8 +1735,9 @@ function wireModalHandlers() {
   // «➕ Добавить адрес» — сохраняет адрес в адресную книгу клиента (CRM, в 1С
   // адресов нет). Если поле ввода ещё скрыто (выбрана сохранённая точка) —
   // первый клик показывает ручной ввод; когда в нём есть текст — сохраняем.
-  root.querySelector("#dim-delivery-add")?.addEventListener("click", (e) => {
+  root.querySelector("#dim-delivery-add")?.addEventListener("click", async (e) => {
     e.preventDefault();
+    const btn = e.currentTarget;
     const sel = root.querySelector("#dim-onec-delivery-select");
     const inp = root.querySelector("#dim-onec-delivery");
     // Шаг 1: ручной ввод ещё не открыт — открыть и сфокусировать.
@@ -1739,7 +1747,7 @@ function wireModalHandlers() {
       inp.focus();
       return;
     }
-    // Шаг 2: в ручном вводе есть текст — сохранить адрес у клиента.
+    // Шаг 2: в ручном вводе есть текст — сохранить адрес у клиента (CRM — источник истины).
     const cid = Store.get(DEALS, dealId)?.contactId;
     const val = (inp?.value || "").trim();
     if (!cid) { alert("Сначала выберите клиента — адрес сохраняется в его карточке."); return; }
@@ -1751,8 +1759,31 @@ function wireModalHandlers() {
     }
     try {
       saveDeliveryPoint({ contactId: cid, address: val });
-      refreshModal(); // адрес появится в выпадашке точек доставки клиента
-    } catch (err) { alert(err?.message || "Не удалось сохранить адрес"); }
+    } catch (err) { alert(err?.message || "Не удалось сохранить адрес"); return; }
+
+    // Шаг 3: если контрагент привязан к 1С — предложить записать адрес и в его карточку 1С.
+    const contactNow = Store.get("contacts", cid);
+    if (contactNow?._1c_ref_key) {
+      const wantPush = confirm("Адрес сохранён в CRM.\n\nЗаписать его также в карточку контрагента в 1С (контактная информация)?");
+      if (wantPush) {
+        const prevLabel = btn.textContent;
+        btn.disabled = true; btn.textContent = "Записываю в 1С…";
+        try {
+          const res = await apiFetch("/api/crm/1c/contacts/add-address", {
+            method: "POST",
+            body: { contactId: cid, address: val, base: oneCBaseNow() },
+          });
+          if (res?.already_exists) alert("✓ Такой адрес уже есть в карточке 1С — повторно не добавляли.");
+          else if (res?.ok) alert("✓ Адрес записан в карточку контрагента в 1С.");
+          else alert("Адрес сохранён в CRM, но в 1С не записан: " + (res?.error || res?.message || "неизвестная причина") + "\nНа работу заказа это не влияет.");
+        } catch (err) {
+          alert("Адрес сохранён в CRM, но в 1С не записан:\n" + (err?.message || String(err)) + "\n\nМожно повторить позже — на работу заказа это не влияет.");
+        } finally {
+          btn.disabled = false; btn.textContent = prevLabel;
+        }
+      }
+    }
+    refreshModal(); // адрес появится в выпадашке точек доставки клиента
   });
 
   // Привязка клиента «на месте» (если заказ без контакта).

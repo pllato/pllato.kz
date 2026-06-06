@@ -9046,6 +9046,31 @@ body:has(.dim-footer) .sipc-bottombar {
 .po-card.is-reserved { border-left-color: #0ea5e9; }
 .po-card.is-awaiting-payment { border-left-color: #a855f7; }
 .po-card.is-approved { border-left-color: #f59e0b; }
+/* Залежавшийся заказ: согласован на отгрузку, но не отгружен ≥ 2 дней. */
+.po-card.is-stale {
+  border-color: #dc2626;
+  border-left-color: #dc2626;
+  background: rgba(220, 38, 38, .05);
+}
+.po-aging-badge {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: rgba(245, 158, 11, .15);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, .35);
+}
+.po-aging-badge.is-stale {
+  background: rgba(220, 38, 38, .14);
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, .4);
+}
+[data-theme="dark"] .po-aging-badge { color: #fbbf24; }
+[data-theme="dark"] .po-aging-badge.is-stale { color: #f87171; }
 .po-card.is-shipped {
   border-left-color: #16a34a;
   opacity: .82;

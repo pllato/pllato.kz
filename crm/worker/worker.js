@@ -6040,6 +6040,154 @@ async function handle1cCreateContractor(request, env, actor) {
   }
 }
 
+// POST /api/crm/1c/contacts/add-address — записать новый адрес доставки в карточку
+// контрагента 1С (регистр сведений КонтактнаяИнформация).
+//
+// КОНСЕРВАТИВНО И БЕЗОПАСНО (БП 1С-Рейтинг — нетиповая конфигурация):
+//   • структуру записи берём из РЕАЛЬНОГО образца адресной строки регистра
+//     (ничего не выдумываем — клонируем поля, которые 1С уже принимает);
+//   • пишем ТОЛЬКО под СВОБОДНЫМ видом адреса этого контрагента — никогда не
+//     перезатираем уже существующий (юридический/фактический) адрес;
+//   • дубликат адреса не добавляем повторно;
+//   • при любой неудаче адрес остаётся сохранён в CRM (источник истины), а ответ
+//     содержит понятную причину.
+async function handle1cAddContractorAddress(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const body = await readRequestBodyAsJson(request);
+  const contactId = String(body?.contactId || "").trim();
+  const address = String(body?.address || "").trim();
+  if (!contactId) throw new HttpError(400, "contactId обязателен");
+  if (!address) throw new HttpError(400, "address обязателен");
+  if (address.length > 500) throw new HttpError(400, "Слишком длинный адрес (макс. 500 символов)");
+  const baseKey = resolve1cBaseKey(body?.base);
+  const mapEntity = baseKey === ONE_C_DEFAULT_BASE ? "contractor" : `contractor@${baseKey}`;
+  const started = Date.now();
+
+  // 1) Контакт CRM + Ref_Key контрагента в 1С.
+  const db = requireStoreDb(env);
+  const row = await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? AND id=?`)
+    .bind(TEAM_ID, "contacts", contactId).first();
+  if (!row) throw new HttpError(404, "Контакт не найден в CRM");
+  let contact;
+  try { contact = JSON.parse(row.data); } catch { throw new HttpError(500, "Битые данные контакта"); }
+
+  let refKey = baseKey === ONE_C_DEFAULT_BASE ? (contact._1c_ref_key || null) : null;
+  if (!refKey) {
+    const m = await d1Get1cRefByPllatoId(env, tenantId, mapEntity, contactId);
+    refKey = m?.one_c_ref_key || null;
+  }
+  if (!refKey) {
+    throw new HttpError(400, "Контрагент не привязан к 1С в этой базе — сначала найдите/создайте его в 1С.");
+  }
+
+  // Хелперы чтения полей регистра (имена полей варьируются между конфигурациями).
+  const isAddrType = (r) => String(r?.Тип || r?.Type || "").toLowerCase().includes("адрес");
+  const objOf = (r) => r?.Объект || r?.Объект_Key || r?.Object;
+  const vidKeyOf = (r) => r?.Вид_Key || r?.ВидКонтактнойИнформации_Key || r?.Вид || r?.ВидКонтактнойИнформации || null;
+  const norm = (s) => String(s || "").replace(/\s+/g, " ").trim().toLowerCase();
+
+  try {
+    const { client } = await build1cClient(env, tenantId, baseKey);
+    // 2) Все строки регистра (фильтруем в памяти — $filter в этой БП ломает OData).
+    const rows = await fetch1cRegisterAllRows(client, "InformationRegister_КонтактнаяИнформация");
+    const addrRows = rows.filter(isAddrType);
+    const mineAddr = addrRows.filter((r) => objOf(r) === refKey);
+
+    // Уже есть точно такой адрес — не дублируем, обновляем CRM-кеш и выходим.
+    if (mineAddr.some((r) => norm(r.Представление) === norm(address))) {
+      await cacheContactAddress(db, contactId, contact, address);
+      return { ok: true, already_exists: true, ref_key: refKey, base: baseKey, address };
+    }
+
+    // 3) Образец строки-адреса — для точной структуры полей.
+    const template = mineAddr[0]
+      || addrRows.find((r) => /Контрагент/i.test(String(r.Объект_Type || "")))
+      || addrRows[0]
+      || null;
+    if (!template) {
+      throw new HttpError(422, "В 1С нет ни одной адресной строки-образца — вид адреса не настроен в базе. Обратитесь к 1С-партнёру для настройки «Вида контактной информации» (адрес).");
+    }
+
+    // 4) Свободный вид адреса (не перезатираем существующие у этого контрагента).
+    const usedVids = new Set(mineAddr.map(vidKeyOf).filter(Boolean));
+    const score = (n) => {
+      const s = String(n || "").toLowerCase();
+      if (/доставк/.test(s)) return 3;
+      if (/фактическ/.test(s)) return 2;
+      if (/прочий|прочая|почтов/.test(s)) return 1;
+      return 0;
+    };
+    let chosenVidKey = null;
+    let chosenVidType = template.Вид_Type || "StandardODATA.Catalog_ВидыКонтактнойИнформации";
+
+    // 4a) Из справочника видов (если он так называется в этой конфигурации).
+    try {
+      const vids = await client.get("Catalog_ВидыКонтактнойИнформации", { top: 200 });
+      const list = (Array.isArray(vids?.value) ? vids.value : [])
+        .filter((v) => String(v.Тип || "").toLowerCase().includes("адрес"))
+        .filter((v) => !usedVids.has(v.Ref_Key));
+      list.sort((a, b) => score(b.Description || b.Наименование) - score(a.Description || a.Наименование));
+      if (list[0]) chosenVidKey = list[0].Ref_Key;
+    } catch { /* справочник может называться иначе — деградируем на виды из строк регистра */ }
+
+    // 4b) Запасной источник видов — те, что реально встречаются в адресных строках.
+    if (!chosenVidKey) {
+      const byVid = new Map();
+      for (const r of addrRows) {
+        const vk = vidKeyOf(r);
+        if (vk && !usedVids.has(vk) && !byVid.has(vk)) byVid.set(vk, r);
+      }
+      const cands = [...byVid.values()];
+      cands.sort((a, b) => score(b.Вид) - score(a.Вид));
+      if (cands[0]) { chosenVidKey = vidKeyOf(cands[0]); chosenVidType = cands[0].Вид_Type || chosenVidType; }
+    }
+    if (!chosenVidKey) {
+      throw new HttpError(409, "Все виды адреса у контрагента уже заняты — нет свободного вида, чтобы добавить адрес без перезаписи существующего. Добавьте новый «Вид контактной информации» (адрес) в 1С.");
+    }
+
+    // 5) Клонируем образец, переопределяем владельца / вид / представление.
+    const record = { ...template };
+    delete record["@odata.etag"];
+    delete record["@odata.context"];
+    if ("Объект" in record) record.Объект = refKey; else record.Объект_Key = refKey;
+    if (template.Объект_Type) record.Объект_Type = template.Объект_Type;
+    if ("Вид_Key" in record) record.Вид_Key = chosenVidKey;
+    else if ("ВидКонтактнойИнформации_Key" in record) record.ВидКонтактнойИнформации_Key = chosenVidKey;
+    else record.Вид = chosenVidKey;
+    if ("Вид_Type" in record) record.Вид_Type = chosenVidType;
+    record.Тип = template.Тип || "Адрес";
+    record.Представление = address;
+    // Структурные поля адреса обнуляем — чтобы не тащить координаты чужого адреса.
+    for (const f of ["ЗначенияПолей", "Значение", "КодРегиона", "Страна", "Страна_Key", "Поле1", "Поле2"]) {
+      if (f in record && typeof record[f] === "string") record[f] = "";
+    }
+
+    await client.post("InformationRegister_КонтактнаяИнформация", record);
+
+    // 6) Обновляем кеш адресов в CRM-контакте.
+    await cacheContactAddress(db, contactId, contact, address);
+    await d1Insert1cSyncLog(env, { tenantId, direction: "push", entityType: "contact_address", operation: "create", status: "ok", httpStatus: 200, recordsProcessed: 1, durationMs: Date.now() - started });
+    return { ok: true, ref_key: refKey, base: baseKey, address, vid_key: chosenVidKey };
+  } catch (e) {
+    const httpStatus = e instanceof ODataError ? e.httpStatus : null;
+    const message = e?.message || String(e);
+    await d1Insert1cSyncLog(env, { tenantId, direction: "push", entityType: "contact_address", operation: "create", status: "error", httpStatus, errorMessage: message, durationMs: Date.now() - started });
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(httpStatus && httpStatus >= 400 && httpStatus < 600 ? httpStatus : 502, message);
+  }
+}
+
+// Дописывает адрес в служебный кеш контакта CRM (_1c_addresses_all) без перезаписи.
+async function cacheContactAddress(db, contactId, contact, address) {
+  const now = Date.now();
+  const all = Array.isArray(contact._1c_addresses_all) ? contact._1c_addresses_all.slice() : [];
+  if (!all.includes(address)) all.push(address);
+  const updated = { ...contact, _1c_addresses_all: all, _1c_address: contact._1c_address || address, updatedAt: now };
+  await db.prepare(`UPDATE store SET data=?, updated_at=? WHERE team_id=? AND collection=? AND id=?`)
+    .bind(JSON.stringify(updated), now, TEAM_ID, "contacts", contactId).run();
+}
+
 // POST /api/crm/1c/contractors/find — найти контрагента в 1С ПО БИН/ИИН и привязать.
 // Решение встречи 01.06: искать клиента в 1С по БИН (не по номеру/телефону).
 async function handle1cFindContractorByBin(request, env, actor) {
@@ -6465,6 +6613,10 @@ export default {
       if (request.method === "POST" && path === "/api/crm/1c/contractors/find") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handle1cFindContractorByBin(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/contacts/add-address") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cAddContractorAddress(request, env, actor));
       }
       if (request.method === "GET" && path === "/api/crm/1c/contractors/search") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });

@@ -50,6 +50,23 @@ function schemeLabel(s) {
   return s === "postpay" ? "постоплата" : s === "consignment" ? "консигнация" : "100% предоплата";
 }
 
+// Склонение «день/дня/дней» по числу.
+function pluralDays(n) {
+  const a = Math.abs(n) % 100;
+  const b = a % 10;
+  if (a > 10 && a < 20) return "дней";
+  if (b > 1 && b < 5) return "дня";
+  if (b === 1) return "день";
+  return "дней";
+}
+
+// Сколько полных дней прошло с момента ts (timestamp ms). null → 0.
+function daysSince(ts) {
+  if (!ts) return 0;
+  const startOfDay = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  return Math.max(0, Math.round((startOfDay(Date.now()) - startOfDay(ts)) / 86400000));
+}
+
 function getContactName(contactId) {
   if (!contactId) return "—";
   const c = Store.get("contacts", contactId);
@@ -118,6 +135,12 @@ function renderOrderCard(deal, kind) {
   const scheme = getOrderPaymentScheme(deal);
   const positionsLabel = `${items.length} ${items.length === 1 ? "позиция" : (items.length >= 2 && items.length <= 4 ? "позиции" : "позиций")}`;
 
+  // Индикатор залежавшихся заказов: «Согласовано на отгрузку», но не отгружено.
+  // Жёлтая отметка с 1-го дня, красная подсветка карточки с 2-го дня.
+  const agingDays = kind === "approved" ? daysSince(deal.orderApprovedAt) : 0;
+  const isAging = kind === "approved" && agingDays >= 1;
+  const isStale = kind === "approved" && agingDays >= 2;
+
   // Метаданные по стадии (правый верхний угол).
   let metaHtml = "";
   if (kind === "preliminary") {
@@ -130,8 +153,12 @@ function renderOrderCard(deal, kind) {
     metaHtml = `<div class="po-card-date">Ждём оплату с ${fmtDateTime(deal.orderAwaitingPaymentAt)}</div>
                 ${deal.orderInvoiceForPaymentNumber ? `<div class="po-card-by">счёт ${escapeHtml(deal.orderInvoiceForPaymentNumber)}</div>` : ""}`;
   } else if (kind === "approved") {
+    const agingBadge = isAging
+      ? `<div class="po-aging-badge${isStale ? " is-stale" : ""}" title="Накладная готова, но заказ ещё не отгружен">${isStale ? "⚠ " : "⏳ "}висит ${agingDays} ${pluralDays(agingDays)}</div>`
+      : "";
     metaHtml = `<div class="po-card-date">Согласовано: ${fmtDateTime(deal.orderApprovedAt)}</div>
-                ${deal.orderInvoiceNumber ? `<div class="po-card-by">накладная № ${escapeHtml(deal.orderInvoiceNumber)}</div>` : ""}`;
+                ${deal.orderInvoiceNumber ? `<div class="po-card-by">накладная № ${escapeHtml(deal.orderInvoiceNumber)}</div>` : ""}
+                ${agingBadge}`;
   } else {
     metaHtml = `<div class="po-card-date">Отгружено: ${fmtDateTime(deal.orderShippedAt)}</div>
                 ${deal.orderInvoiceNumber ? `<div class="po-card-by">накладная № ${escapeHtml(deal.orderInvoiceNumber)}</div>` : ""}`;
@@ -140,7 +167,7 @@ function renderOrderCard(deal, kind) {
   // Кнопки действий по стадии.
   let actionsHtml = "";
   if (kind === "preliminary") {
-    actionsHtml = `<button type="button" class="btn-primary" data-po-approve="${escapeAttr(deal.id)}" title="Сформировать бронь на складе${scheme === "prepay" ? " и счёт на оплату" : ""}; заказ перейдёт в «Бронь и счёт»">✓ Согласовать на отгрузку</button>`;
+    actionsHtml = `<button type="button" class="btn-primary" data-po-approve="${escapeAttr(deal.id)}" title="Сформировать бронь на складе${scheme === "prepay" ? " и счёт на оплату; заказ перейдёт в «Ждут оплату»" : "; заказ перейдёт в «Бронь и счёт»"}">✓ Согласовать заказ (бронь)</button>`;
   } else if (kind === "reserved") {
     if (scheme === "prepay") {
       actionsHtml = `
@@ -174,7 +201,7 @@ function renderOrderCard(deal, kind) {
   const expiryHtml = (kind === "reserved" || kind === "payment_pending") ? renderExpiryEditor(deal) : "";
 
   return `
-    <div class="po-card ${shortage ? "has-shortage" : ""} ${kind === "approved" ? "is-approved" : ""} ${kind === "reserved" ? "is-reserved" : ""} ${kind === "payment_pending" ? "is-awaiting-payment" : ""} ${kind === "shipped" ? "is-shipped" : ""}" data-deal-id="${escapeAttr(deal.id)}">
+    <div class="po-card ${shortage ? "has-shortage" : ""} ${kind === "approved" ? "is-approved" : ""} ${isStale ? "is-stale" : ""} ${kind === "reserved" ? "is-reserved" : ""} ${kind === "payment_pending" ? "is-awaiting-payment" : ""} ${kind === "shipped" ? "is-shipped" : ""}" data-deal-id="${escapeAttr(deal.id)}">
       <div class="po-card-head">
         <div class="po-card-title">
           <a href="#crm/${escapeAttr(deal.id)}" class="po-deal-link">
@@ -249,9 +276,9 @@ export function renderPreliminaryOrdersView() {
         ${renderColumn("Предварительные заказы", "#6366f1", preliminary, "preliminary",
           "Пусто. Заказы появятся когда менеджер нажмёт «Сформировать заказ» в сделке.")}
         ${renderColumn("Бронь и счёт", "#0ea5e9", reserved, "reserved",
-          "Пусто. Нажми «✓ Согласовать на отгрузку» в предзаказе — сформируется бронь и счёт.")}
+          "Пусто. Сюда попадают заказы с постоплатой/консигнацией после «✓ Согласовать заказ (бронь)».")}
         ${renderColumn("Ждут оплату", "#a855f7", awaitingPayment, "payment_pending",
-          "Пусто. Для 100% предоплаты: кнопка «⏳ Ждать оплату» в стадии «Бронь и счёт».")}
+          "Пусто. Заказы со 100% предоплатой попадают сюда сразу после «✓ Согласовать заказ (бронь)».")}
         ${renderColumn("Согласованы на отгрузку", "#f59e0b", approved, "approved",
           "Пусто. Попадают сюда автоматически: оплата (или постоплата/консигнация) + накладная сформирована.")}
         ${renderColumn("Отгружены", "#16a34a", shipped, "shipped",
