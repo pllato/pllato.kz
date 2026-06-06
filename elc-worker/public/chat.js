@@ -30,6 +30,7 @@
     suspended: false,
     rootEl: null,
     composerDraft: '',
+    composerMentions: [],     // [{uid, label}] — выбранные через @ в текущем черновике
     replyToMsg: null,
     editingMsg: null,
     channelFilter: 'all',     // 'all' | 'channel' | 'dm'
@@ -200,10 +201,10 @@
         break;
       case 'channel_removed': loadChannels(); break;
       case 'channel_renamed': onChannelRenamed(msg); break;
-      case 'members_changed': loadChannels(); break;
+      case 'members_changed': state.members = {}; loadChannels(); break;
       case 'role_changed': loadChannels(); break;
-      case 'user_joined': loadChannels(); break;
-      case 'user_left': loadChannels(); break;
+      case 'user_joined': state.members = {}; loadChannels(); break;
+      case 'user_left': state.members = {}; loadChannels(); break;
       case 'read': break;
       case 'notif_read':
         // Прочитали канал на другом устройстве/вкладке → реактивно обновить
@@ -470,6 +471,10 @@
       .tc-msg-author { font-size:12px; font-weight:700; margin-bottom:2px; }
       .tc-msg-text { font-size:13.5px; line-height:1.45; word-break:break-word; white-space:pre-wrap; }
       .tc-msg-text a { color:inherit; text-decoration:underline; }
+      .tc-mention { color:var(--tc-ac); font-weight:700; }
+      .tc-msg.own .tc-mention { color:#fff; text-decoration:underline; }
+      .tc-mention.me { background:color-mix(in srgb, var(--tc-ac) 22%, transparent); border-radius:4px; padding:0 3px; }
+      .tc-msg.mentions-me .tc-msg-bubble { box-shadow:0 0 0 2px var(--tc-ac); }
       .tc-msg-meta { font-size:10.5px; opacity:.55; margin-top:3px; text-align:right; white-space:nowrap; }
       .tc-msg.own .tc-msg-meta { opacity:.8; }
       .tc-msg-deleted { font-style:italic; opacity:.6; }
@@ -529,6 +534,17 @@
       .tc-btn-icon:hover { background:var(--b1); }
       .tc-btn-send { background:var(--tc-ac); color:#fff; }
       .tc-btn-send:hover { background:var(--tc-ac); filter:brightness(.92); }
+      /* @-упоминания: выпадашка над композером */
+      .tc-composer { position:relative; }
+      .tc-mention-pop { position:absolute; left:16px; right:16px; bottom:100%; margin-bottom:6px; background:var(--bg2);
+        border:1px solid var(--b1); border-radius:12px; box-shadow:0 6px 22px rgba(0,0,0,.18); max-height:230px; overflow-y:auto;
+        z-index:6; display:none; }
+      .tc-mention-pop.open { display:block; }
+      .tc-mention-item { display:flex; align-items:center; gap:9px; padding:8px 12px; cursor:pointer; font-size:13.5px; }
+      .tc-mention-item:hover, .tc-mention-item.active { background:var(--bg3); }
+      .tc-mention-av { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+        color:#fff; font-size:11px; font-weight:600; flex-shrink:0; }
+      .tc-mention-name { font-weight:600; color:var(--t1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
       /* ── Modals & pickers ── */
       .tc-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:100000; display:flex;
@@ -794,7 +810,9 @@
     const own = m.user_id === state.me.uid;
     const grouped = opts && opts.grouped;
     const isDm = opts && opts.isDm;
-    const cls = `tc-msg${own ? ' own' : ''}${grouped ? ' grouped' : ''}`;
+    const msgMentions = parseMsgMentions(m);
+    const mentionsMe = !own && msgMentions.includes(state.me?.uid);
+    const cls = `tc-msg${own ? ' own' : ''}${grouped ? ' grouped' : ''}${mentionsMe ? ' mentions-me' : ''}`;
 
     // Avatar column (только для чужих сообщений)
     let avatarCol = '';
@@ -818,9 +836,29 @@
       }
     }
     if (m.text) {
-      const linkified = escapeHtml(m.text).replace(/(https?:\/\/[^\s<>"]+)/g,
+      let html = escapeHtml(m.text).replace(/(https?:\/\/[^\s<>"]+)/g,
         '<a href="$1" target="_blank" rel="noopener">$1</a>');
-      body += `<div class="tc-msg-text">${linkified}</div>`;
+      // Подсветить «@Имя» упомянутых. Один проход с альтернацией (длинные имена
+      // раньше) — «@Иван» не съест «@Иван Петров», и нет вложенных span'ов.
+      if (msgMentions.length) {
+        const byLabel = new Map();
+        for (const uid of msgMentions) {
+          const label = userLabel(uid);
+          if (!label) continue;
+          const esc = escapeHtml('@' + label);
+          if (!byLabel.has(esc)) byLabel.set(esc, uid);
+        }
+        const escLabels = [...byLabel.keys()].sort((a, b) => b.length - a.length);
+        if (escLabels.length) {
+          const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const re = new RegExp(escLabels.map(reEsc).join('|'), 'g');
+          html = html.replace(re, (mt) => {
+            const meCls = (byLabel.get(mt) === state.me?.uid) ? ' me' : '';
+            return `<span class="tc-mention${meCls}">${mt}</span>`;
+          });
+        }
+      }
+      body += `<div class="tc-msg-text">${html}</div>`;
     }
     if (m.file_key) {
       const meta = m.file_meta ? (typeof m.file_meta === 'string' ? JSON.parse(m.file_meta) : m.file_meta) : {};
@@ -913,6 +951,127 @@
   }
 
   // ── Render: composer ───────────────────────────────────────────────────
+  // ── @-упоминания в композере ───────────────────────────────────────────
+  // Печатаешь @ в групповом чате → выпадашка участников → выбор подставляет
+  // «@Имя Фамилия» и запоминает uid. На отправке шлём body.mentions = [uid…];
+  // воркер уведомит упомянутых лично (колокольчик+пуш+WA) даже в muted-канале.
+  const _mention = { items: [], index: 0, start: -1, end: -1, ta: null, pop: null };
+
+  // Лениво тянем участников активного канала в state.members[channelId].
+  function ensureChannelMembers(channelId) {
+    if (!channelId) return Promise.resolve([]);
+    if (state.members[channelId]) return Promise.resolve(state.members[channelId]);
+    return api(`/api/chat/channels/${channelId}/members`)
+      .then(d => { state.members[channelId] = (d.items || []); return state.members[channelId]; })
+      .catch(() => { state.members[channelId] = []; return []; });
+  }
+
+  // Контекст @-токена под курсором: {query, start, end} либо null.
+  function getMentionContext(ta) {
+    if (!ta || ta.selectionStart == null) return null;
+    const pos = ta.selectionStart;
+    const m = ta.value.slice(0, pos).match(/(?:^|\s)@([^\s@]*)$/);
+    if (!m) return null;
+    return { query: m[1], start: pos - m[1].length - 1, end: pos };
+  }
+
+  function mentionCandidates(channelId, query) {
+    const members = state.members[channelId] || [];
+    const q = (query || '').toLowerCase();
+    const out = [], seen = new Set();
+    for (const mem of members) {
+      const uid = mem.user_id;
+      if (!uid || uid === state.me?.uid || seen.has(uid)) continue;
+      const label = userLabel(uid);
+      if (q && !label.toLowerCase().includes(q)) continue;
+      seen.add(uid);
+      out.push({ uid, label });
+      if (out.length >= 8) break;
+    }
+    return out;
+  }
+
+  function closeMentionPop() {
+    _mention.items = []; _mention.index = 0; _mention.start = -1; _mention.end = -1;
+    if (_mention.pop) { _mention.pop.classList.remove('open'); _mention.pop.innerHTML = ''; }
+  }
+
+  function renderMentionPop() {
+    const pop = _mention.pop;
+    if (!pop) return;
+    if (!_mention.items.length) { closeMentionPop(); return; }
+    pop.innerHTML = _mention.items.map((it, i) => `
+      <div class="tc-mention-item${i === _mention.index ? ' active' : ''}" data-mi="${i}">
+        <div class="tc-mention-av" style="background:${userColor(it.uid)}">${escapeHtml(userAvatar(it.uid))}</div>
+        <div class="tc-mention-name">${escapeHtml(it.label)}</div>
+      </div>`).join('');
+    pop.classList.add('open');
+    pop.querySelectorAll('.tc-mention-item').forEach(el => {
+      // mousedown (не click) + preventDefault — чтобы textarea не потеряла фокус.
+      el.onmousedown = (e) => { e.preventDefault(); applyMention(_mention.items[Number(el.dataset.mi)]); };
+    });
+  }
+
+  function applyMention(item) {
+    const ta = _mention.ta;
+    if (!ta || !item || _mention.start < 0) return;
+    const before = ta.value.slice(0, _mention.start);
+    const after = ta.value.slice(_mention.end);
+    const insert = '@' + item.label + ' ';
+    ta.value = before + insert + after;
+    state.composerDraft = ta.value;
+    const newPos = (before + insert).length;
+    try { ta.selectionStart = ta.selectionEnd = newPos; } catch {}
+    if (!state.composerMentions.some(m => m.uid === item.uid && m.label === item.label)) {
+      state.composerMentions.push({ uid: item.uid, label: item.label });
+    }
+    closeMentionPop();
+    autoresizeTa(ta);
+    ta.focus();
+  }
+
+  function onComposerInputMention(ta) {
+    const ch = state.channels.find(c => c.id === state.activeChannelId);
+    if (!ch || ch.type === 'dm') { closeMentionPop(); return; }
+    if (!getMentionContext(ta)) { closeMentionPop(); return; }
+    ensureChannelMembers(state.activeChannelId).then(() => {
+      const ctx = getMentionContext(ta);   // курсор мог сместиться за время запроса
+      if (!ctx) { closeMentionPop(); return; }
+      _mention.start = ctx.start; _mention.end = ctx.end;
+      _mention.items = mentionCandidates(state.activeChannelId, ctx.query);
+      _mention.index = 0;
+      renderMentionPop();
+    });
+  }
+
+  // true если клавиша «съедена» выпадашкой (навигация/выбор/закрытие).
+  function onComposerKeyMention(e) {
+    if (!_mention.items.length) return false;
+    if (e.key === 'ArrowDown') { e.preventDefault(); _mention.index = (_mention.index + 1) % _mention.items.length; renderMentionPop(); return true; }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); _mention.index = (_mention.index - 1 + _mention.items.length) % _mention.items.length; renderMentionPop(); return true; }
+    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); applyMention(_mention.items[_mention.index]); return true; }
+    if (e.key === 'Escape')    { e.preventDefault(); closeMentionPop(); return true; }
+    return false;
+  }
+
+  // Финальный список uid'ов для отправки: только те, чьё «@Имя» осталось в тексте.
+  function collectComposerMentions(text) {
+    const out = [], seen = new Set();
+    for (const m of state.composerMentions) {
+      if (seen.has(m.uid)) continue;
+      if (text.includes('@' + m.label)) { out.push(m.uid); seen.add(m.uid); }
+    }
+    return out;
+  }
+
+  // mentions сообщения → массив uid'ов (приходят массивом по WS или строкой из БД).
+  function parseMsgMentions(m) {
+    const v = m && m.mentions;
+    if (Array.isArray(v)) return v.filter(Boolean);
+    if (typeof v === 'string' && v) { try { const a = JSON.parse(v); return Array.isArray(a) ? a.filter(Boolean) : []; } catch { return []; } }
+    return [];
+  }
+
   function renderComposer(opts) {
     const wantFocus = !!(opts && opts.focus);
     const root = state.rootEl;
@@ -930,6 +1089,7 @@
       banner = `<div class="tc-composer-banner"><span>✏ Редактирование сообщения</span><button data-banner-cancel="edit">×</button></div>`;
     }
     c.innerHTML = `${banner}
+      <div class="tc-mention-pop" id="tc-mention-pop"></div>
       <div class="tc-composer-row">
         <button class="tc-btn-icon" title="Прикрепить файл" id="tc-attach-btn">📎</button>
         <textarea id="tc-composer-input" rows="1" placeholder="Написать сообщение…">${escapeHtml(state.composerDraft)}</textarea>
@@ -938,9 +1098,14 @@
       <input type="file" id="tc-file-input" style="display:none">`;
 
     const ta = c.querySelector('#tc-composer-input');
+    _mention.ta = ta;
+    _mention.pop = c.querySelector('#tc-mention-pop');
+    closeMentionPop();   // композер пересобран — старая выпадашка/индексы недействительны
     const isTouch = window.matchMedia('(pointer: coarse)').matches;
-    ta.oninput = () => { state.composerDraft = ta.value; autoresizeTa(ta); };
+    ta.oninput = () => { state.composerDraft = ta.value; autoresizeTa(ta); onComposerInputMention(ta); };
     ta.onkeydown = (e) => {
+      // Сначала отдаём клавишу выпадашке @-упоминаний (стрелки/Enter/Tab/Esc).
+      if (onComposerKeyMention(e)) return;
       // On touch keyboards Enter inserts a newline (send via the button); on
       // desktop Enter sends, Shift+Enter is a newline — standard messenger UX.
       if (e.key === 'Enter' && !e.shiftKey && !isTouch) { e.preventDefault(); sendCurrent(); }
@@ -948,6 +1113,7 @@
     // When the field gains focus the keyboard slides up; keep the latest
     // messages in view above it once the viewport settles.
     ta.onfocus = () => { setTimeout(() => { syncViewport(); scrollMsgsToBottom(false); }, 300); };
+    ta.onblur = () => setTimeout(closeMentionPop, 150);   // даём mousedown по пункту успеть
     ta.onpaste = onComposerPaste;
     autoresizeTa(ta);
     // Auto-focusing on mobile would pop the keyboard the moment a chat opens
@@ -960,7 +1126,7 @@
     c.querySelectorAll('[data-banner-cancel]').forEach(b => {
       b.onclick = () => {
         if (b.dataset.bannerCancel === 'reply') state.replyToMsg = null;
-        if (b.dataset.bannerCancel === 'edit') { state.editingMsg = null; state.composerDraft = ''; }
+        if (b.dataset.bannerCancel === 'edit') { state.editingMsg = null; state.composerDraft = ''; state.composerMentions = []; }
         renderComposer();
       };
     });
@@ -977,16 +1143,19 @@
     if (state.editingMsg) {
       try {
         await api(`/api/chat/messages/${state.editingMsg.id}/edit`, { method: 'POST', body: JSON.stringify({ text }) });
-        state.editingMsg = null; state.composerDraft = ''; renderComposer({ focus: true });
+        state.editingMsg = null; state.composerDraft = ''; state.composerMentions = []; renderComposer({ focus: true });
       } catch (e) { alert('Ошибка: ' + e.message); }
       return;
     }
     if (!state.activeChannelId) return;
     const body = { text };
     if (state.replyToMsg) body.reply_to = state.replyToMsg.id;
+    const mentions = collectComposerMentions(text);
+    if (mentions.length) body.mentions = mentions;
     try {
       const resp = await api(`/api/chat/channels/${state.activeChannelId}/messages`, { method: 'POST', body: JSON.stringify(body) });
-      state.composerDraft = ''; state.replyToMsg = null;
+      state.composerDraft = ''; state.replyToMsg = null; state.composerMentions = [];
+      closeMentionPop();
       renderComposer({ focus: true });
       // Оптимистично показываем сразу, не дожидаясь WS-эха (дедуп по id).
       if (resp && resp.message) onMessageNew(resp.message);
@@ -1042,7 +1211,7 @@
     const m = state.messages.find(x => x.id === msgId);
     if (!m) return;
     if (action === 'reply') { state.replyToMsg = m; state.editingMsg = null; renderComposer({ focus: true }); }
-    if (action === 'edit') { state.editingMsg = m; state.replyToMsg = null; state.composerDraft = m.text || ''; renderComposer({ focus: true }); }
+    if (action === 'edit') { state.editingMsg = m; state.replyToMsg = null; state.composerDraft = m.text || ''; state.composerMentions = []; renderComposer({ focus: true }); }
     if (action === 'delete') {
       if (!confirm('Удалить сообщение?')) return;
       api(`/api/chat/messages/${msgId}`, { method: 'DELETE' }).catch(e => alert(e.message));
