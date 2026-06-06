@@ -52,6 +52,7 @@ function renderOrderDetailItems(dealId) {
               <div class="po-item-meta">
                 <span class="po-item-sku">${escapeHtml(item.productSku || "—")}</span>
                 <span class="po-item-qty${shortage ? " is-short" : ""}">${fmtNum(item.qty)} ${escapeHtml(item.unit || "шт")}${shortage ? ` · на складе ${fmtNum(stock)}` : ""}</span>
+                ${item.lotId ? `<span class="po-item-lot" style="color:#0369a1">🏷 партия № ${escapeHtml(item.lotCode || "—")}</span>` : ""}
               </div>
             </div>
             <div class="po-item-sum">${fmtNum(item.lineAmount)} ₸</div>
@@ -312,6 +313,8 @@ export function wirePreliminaryOrdersEvents(container) {
             productId: i.productId,
             qty: Number(i.qty) || 0,
             unitPrice: Number(i.unitPrice) || 0,
+            // Если на строке выбрана партия — списываем именно её (иначе FIFO).
+            lotId: i.lotId || null,
           })),
           totalAmount: dealItemsTotal(dealId),
           note: `Накладная по сделке «${deal.title || ""}»`,

@@ -3,7 +3,7 @@
 // Статусы: draft (черновик) → preliminary (отправлен на склад).
 
 import { Store } from "./store.js";
-import { listWarehouseProducts, getWarehouseProduct, productSummary, ensureProductFromOneC, createCrmProductForOneC } from "./warehouse.js";
+import { listWarehouseProducts, getWarehouseProduct, productSummary, ensureProductFromOneC, createCrmProductForOneC, listLotsForProduct, getLot } from "./warehouse.js";
 import { currentEmployee } from "./employees.js";
 import { apiFetch } from "./auth.js";
 import {
@@ -63,6 +63,11 @@ export function createDealItem(dealId, payload = {}) {
     qty,
     unitPrice,
     lineAmount: qty * unitPrice,
+    // Подбор партии (Block 3). null = авто-списание FIFO при проведении накладной.
+    lotId: payload.lotId || null,
+    lotCode: payload.lotCode || "",
+    lotExpiry: payload.lotExpiry || "",
+    lotInDate: payload.lotInDate || "",
   });
   // Заказ НЕ уходит на склад автоматически. Менеджер собирает позиции в черновике
   // и явно жмёт «Создать заказ» (submitDealOrder) — только тогда он попадает
@@ -80,6 +85,11 @@ export function updateDealItem(id, patch = {}) {
     next.productSku = product?.sku || "";
     next.productName = product?.name || "";
     next.unit = product?.unit || "шт";
+    // Смена товара аннулирует ранее выбранную партию (Block 3).
+    next.lotId = null;
+    next.lotCode = "";
+    next.lotExpiry = "";
+    next.lotInDate = "";
   }
   if (patch.qty !== undefined || patch.unitPrice !== undefined) {
     const qty = patch.qty !== undefined ? Number(patch.qty) || 0 : item.qty;
@@ -454,6 +464,66 @@ export function renderDealItemsSection(dealId) {
 
 // === RENDER: Модалка с полным составом заказа ===
 
+// --- Block 3: подбор партии (LOT) для строки заказа -------------------------
+// Партии лежат в warehouse_lots (приход формирует партию: № партии, срок
+// годности, дата прихода, остаток). Менеджер/склад может зафиксировать на
+// строке конкретную партию; если не выбрана — при проведении накладной товар
+// спишется по FIFO автоматически.
+const LOT_GRID = "display:grid;grid-template-columns:1.5fr 1fr .9fr auto;gap:8px;align-items:center";
+const LOT_ROW_STYLE = LOT_GRID + ";width:100%;text-align:left;border:none;border-bottom:1px solid var(--border,#f2f2f2);background:none;padding:6px 8px;cursor:pointer;color:var(--text,#111);font:inherit;font-size:12px";
+const LOT_ROW_ACTIVE = ";background:var(--accent-soft,#eef6ff);font-weight:600";
+const LOT_SORT_BTN = "border:1px solid var(--border,#d8d8d8);background:var(--surface,#fff);border-radius:6px;padding:3px 8px;font:inherit;font-size:11px;color:var(--text-muted,#666);cursor:pointer";
+
+function lotSortFn(key) {
+  if (key === "qty") return (a, b) => (Number(b.currentQty) || 0) - (Number(a.currentQty) || 0);
+  if (key === "inDate") return (a, b) => String(a.inDate || "").localeCompare(String(b.inDate || ""));
+  // expiry (по умолчанию): ближайший срок годности первым, пустые — в конец.
+  return (a, b) => String(a.expiryDate || "9999-12-31").localeCompare(String(b.expiryDate || "9999-12-31"));
+}
+
+// Возвращает HTML внутренностей панели партий (шапка + «Авто» + строки).
+// Перерисовывается на лету при смене сортировки/фильтра.
+function renderLotPickerRows(productId, selectedLotId, sort = "expiry", q = "") {
+  let lots = [];
+  try { lots = listLotsForProduct(productId, { activeOnly: true }); } catch { lots = []; }
+  const needle = String(q || "").trim().toLowerCase();
+  if (needle) lots = lots.filter((l) => String(l.lotCode || "").toLowerCase().includes(needle));
+  lots = lots.slice().sort(lotSortFn(sort));
+
+  const header = `<div style="${LOT_GRID};padding:3px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.3px;color:var(--text-muted,#999)">
+      <span>Партия</span><span>Срок годн.</span><span>Приход</span><span style="text-align:right">Остаток</span>
+    </div>`;
+
+  const autoActive = !selectedLotId;
+  const autoRow = `<button type="button" data-lot-auto style="${LOT_ROW_STYLE}${autoActive ? LOT_ROW_ACTIVE : ""}">
+      <span>⚡ Авто (FIFO)</span>
+      <span style="color:var(--text-muted,#888)">—</span>
+      <span style="color:var(--text-muted,#888)">—</span>
+      <span style="text-align:right;color:var(--text-muted,#888)">по порядку</span>
+    </button>`;
+
+  if (!lots.length) {
+    return header + autoRow + `<div style="padding:8px;font-size:11.5px;color:var(--text-muted,#888)">Нет активных партий на складе${needle ? " по фильтру" : ""}.</div>`;
+  }
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const rows = lots.map((l) => {
+    const active = l.id === selectedLotId;
+    const exp = fmtContractDmy(l.expiryDate);
+    const inD = fmtContractDmy(l.inDate);
+    let expired = false;
+    if (l.expiryDate) { const t = new Date(l.expiryDate + "T00:00:00").getTime(); expired = Number.isFinite(t) && t < today.getTime(); }
+    const expColor = expired ? "#dc2626" : "var(--text,#111)";
+    return `<button type="button" data-lot-pick="${escapeAttr(l.id)}" style="${LOT_ROW_STYLE}${active ? LOT_ROW_ACTIVE : ""}">
+        <span title="Номер партии">№ ${escapeHtml(l.lotCode || "—")}</span>
+        <span title="Срок годности" style="color:${expColor}">${exp ? (expired ? "⚠ до " : "до ") + exp : "—"}</span>
+        <span title="Дата прихода" style="color:var(--text-muted,#666)">${inD || "—"}</span>
+        <span title="Остаток" style="text-align:right;font-variant-numeric:tabular-nums">${fmtNum(l.currentQty)}</span>
+      </button>`;
+  }).join("");
+  return header + autoRow + rows;
+}
+
 function renderItemRow(item, products, editable) {
   const product = item.productId ? products.find((p) => p.id === item.productId) : null;
   const summary = item.productId ? productSummary(item.productId) : null;
@@ -478,6 +548,14 @@ function renderItemRow(item, products, editable) {
                  autocomplete="off">
           <div class="dim-ta-list" data-deal-item-list="${escapeAttr(item.id)}" hidden></div>
         </div>
+        ${item.productId ? `
+        <div style="margin-top:4px">
+          <button type="button" class="dim-lot-toggle" data-deal-lots-toggle="${escapeAttr(item.id)}"
+            title="Выбрать партию: срок годности, дата прихода, остаток"
+            style="display:inline-flex;align-items:center;gap:4px;border:1px dashed var(--border,#d0d0d0);background:var(--surface-2,#f7f7f8);border-radius:6px;padding:3px 8px;font:inherit;font-size:11px;color:${item.lotId ? "var(--text,#111)" : "var(--text-muted,#888)"};cursor:pointer">
+            🏷 ${item.lotId ? `партия № ${escapeHtml(item.lotCode || "—")}${item.lotExpiry ? " · до " + fmtContractDmy(item.lotExpiry) : ""}` : "партия: авто (FIFO)"} ▾
+          </button>
+        </div>` : ""}
       </td>
       <td class="dim-stock ${stockClass}" title="${shortage ? "Недостаточно на складе" : "Остаток на складе"}">
         ${stockLabel}
@@ -495,6 +573,24 @@ function renderItemRow(item, products, editable) {
         ${editable ? `<button type="button" class="btn-ghost btn-icon btn-sm" data-deal-item-remove data-id="${escapeAttr(item.id)}" title="Удалить позицию">✕</button>` : ""}
       </td>
     </tr>
+    ${item.productId ? `
+    <tr class="dim-lots-row" data-deal-lots-row="${escapeAttr(item.id)}" hidden>
+      <td colspan="6" style="padding:6px 8px 10px;border-top:none">
+        <div class="dim-lots-panel" data-lots-product="${escapeAttr(item.productId)}" data-lots-item="${escapeAttr(item.id)}" data-lots-sort="expiry" data-lots-q=""
+             style="border:1px solid var(--border,#e6e6e6);border-radius:8px;overflow:hidden;background:var(--surface,#fff)">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 8px;border-bottom:1px solid var(--border,#f0f0f0);background:var(--surface-2,#f7f7f8)">
+            <input type="search" class="dim-lots-filter" placeholder="Фильтр по № партии…"
+                   style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--border,#d8d8d8);border-radius:6px;font:inherit;font-size:11.5px;background:var(--surface,#fff);color:var(--text,#111)">
+            <span style="font-size:10.5px;color:var(--text-muted,#999)">Сортировка:</span>
+            <button type="button" class="dim-lots-sort" data-sort="expiry" style="${LOT_SORT_BTN}">Срок годности</button>
+            <button type="button" class="dim-lots-sort" data-sort="inDate" style="${LOT_SORT_BTN}">Дата прихода</button>
+            <button type="button" class="dim-lots-sort" data-sort="qty" style="${LOT_SORT_BTN}">Остаток</button>
+          </div>
+          <div class="dim-lots-list">${renderLotPickerRows(item.productId, item.lotId || null, "expiry", "")}</div>
+        </div>
+      </td>
+    </tr>
+    ` : ""}
     ${needsMatch ? `
     <tr class="dim-match-row" data-deal-match-row="${escapeAttr(item.productId)}">
       <td colspan="6" style="padding:6px 8px 10px;border-top:none">
@@ -1218,6 +1314,70 @@ function wireModalHandlers() {
     });
   });
 
+  // Block 3: подбор партии (LOT) для строки заказа.
+  // Кнопка-«чип» под товаром раскрывает панель с фильтром/сортировкой по сроку
+  // годности / дате прихода / остатку. Выбор партии фиксируется на строке.
+  root.querySelectorAll("[data-deal-lots-toggle]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const id = btn.dataset.dealLotsToggle;
+      const row = root.querySelector(`[data-deal-lots-row="${id}"]`);
+      if (row) row.hidden = !row.hidden;
+    });
+  });
+  root.querySelectorAll(".dim-lots-panel").forEach((panel) => {
+    const productId = panel.dataset.lotsProduct;
+    const itemId = panel.dataset.lotsItem;
+    const listEl = panel.querySelector(".dim-lots-list");
+    const filterEl = panel.querySelector(".dim-lots-filter");
+    if (!productId || !itemId || !listEl) return;
+
+    const bindRowClicks = () => {
+      listEl.querySelectorAll("[data-lot-pick]").forEach((el) => {
+        el.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          const lotId = el.dataset.lotPick;
+          const lot = getLot(lotId);
+          updateDealItem(itemId, {
+            lotId,
+            lotCode: lot?.lotCode || "",
+            lotExpiry: lot?.expiryDate || "",
+            lotInDate: lot?.inDate || "",
+          });
+          refreshModal();
+        });
+      });
+      const autoEl = listEl.querySelector("[data-lot-auto]");
+      if (autoEl) autoEl.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        updateDealItem(itemId, { lotId: null, lotCode: "", lotExpiry: "", lotInDate: "" });
+        refreshModal();
+      });
+    };
+
+    const rerender = () => {
+      const item = Store.get(ITEMS, itemId);
+      listEl.innerHTML = renderLotPickerRows(productId, item?.lotId || null, panel.dataset.lotsSort || "expiry", panel.dataset.lotsQ || "");
+      bindRowClicks();
+    };
+
+    panel.querySelectorAll(".dim-lots-sort").forEach((sb) => {
+      // Подсветим активную сортировку (по умолчанию — срок годности).
+      if (sb.dataset.sort === (panel.dataset.lotsSort || "expiry")) sb.style.fontWeight = "700";
+      sb.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        panel.dataset.lotsSort = sb.dataset.sort;
+        panel.querySelectorAll(".dim-lots-sort").forEach((x) => { x.style.fontWeight = x === sb ? "700" : "400"; });
+        rerender();
+      });
+    });
+    if (filterEl) filterEl.addEventListener("input", () => {
+      panel.dataset.lotsQ = filterEl.value || "";
+      rerender();
+    });
+    bindRowClicks();
+  });
+
   // Qty / unitPrice — debounced
   const updateAmounts = (input) => {
     const id = input.dataset.id;
@@ -1697,6 +1857,8 @@ function wireModalHandlers() {
           productId: i.productId,
           qty: Number(i.qty) || 0,
           unitPrice: Number(i.unitPrice) || 0,
+          // Если на строке выбрана партия — списываем именно её (иначе FIFO).
+          lotId: i.lotId || null,
         })),
         totalAmount: dealItemsTotal(dealId),
         note: `Накладная по сделке «${deal.title || ""}»`,
