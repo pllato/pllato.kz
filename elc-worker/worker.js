@@ -3211,16 +3211,34 @@ async function handleWaWebhook(request, env) {
   // Уведомление ответственному о входящем WhatsApp (для индивидуальных чатов).
   if (evt.direction === 'in' && dealId && !isGroup) {
     try {
-      const d = await env.DB.prepare("SELECT responsible_uid FROM deals WHERE id = ?").bind(dealId).first();
-      if (d?.responsible_uid) {
-        const who = evt.displayName || evt.senderName || ('+' + (evt.phone || ''));
-        await createNotification(env, {
-          uid: d.responsible_uid, type: 'wa_incoming',
-          title: '💬 WhatsApp: ' + who,
-          body: preview || '[сообщение]',
-          link: '/team.html?page=deals&deal=' + dealId,
-          icon: '💬', entityType: 'deal', entityId: dealId,
-        });
+      // АНТИ-БОМБАРДИРОВКА. Раньше уведомление слалось на КАЖДЫЙ вебхук без
+      // дедупа/троттла, из-за чего сотрудника заваливало сотнями WhatsApp:
+      //  1) бэклог Green-API: если вебхук был недоступен, очередь копит вебхуки
+      //     и при восстановлении разом присылает сотни старых — фильтруем по
+      //     свежести (старые входящие просто пишем в историю, но не пингуем);
+      //  2) редоставка/рапид-флуд одного чата: не чаще 1 уведомления на чат
+      //     раз в WA_NOTIF_THROTTLE_MS (умножалось ещё и на multi-phone).
+      const WA_NOTIF_FRESH_MS = 10 * 60 * 1000;   // старше 10 мин — не пингуем
+      const WA_NOTIF_THROTTLE_MS = 5 * 60 * 1000; // ≤ 1 пинг на чат / 5 мин
+      const ageMs = Date.now() - (evt.ts || 0);
+      if (ageMs < WA_NOTIF_FRESH_MS) {
+        const d = await env.DB.prepare("SELECT responsible_uid FROM deals WHERE id = ?").bind(dealId).first();
+        if (d?.responsible_uid) {
+          const recent = await env.DB.prepare(
+            "SELECT created_at FROM notifications WHERE uid = ? AND type = 'wa_incoming' AND entity_id = ? ORDER BY created_at DESC LIMIT 1"
+          ).bind(d.responsible_uid, dealId).first();
+          const sinceLast = Date.now() - (recent?.created_at || 0);
+          if (sinceLast >= WA_NOTIF_THROTTLE_MS) {
+            const who = evt.displayName || evt.senderName || ('+' + (evt.phone || ''));
+            await createNotification(env, {
+              uid: d.responsible_uid, type: 'wa_incoming',
+              title: '💬 WhatsApp: ' + who,
+              body: preview || '[сообщение]',
+              link: '/team.html?page=deals&deal=' + dealId,
+              icon: '💬', entityType: 'deal', entityId: dealId,
+            });
+          }
+        }
       }
     } catch (e) { console.warn('[notif] wa failed:', e && e.message); }
   }
