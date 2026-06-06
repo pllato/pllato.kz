@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>СТАЛЬ-ОС · Производственный портал</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --steel-950:#f4f6f9;
+  --steel-900:#ffffff;
+  --steel-850:#eef1f5;
+  --steel-800:#e4e9ef;
+  --steel-700:#d7dde5;
+  --steel-600:#b8c2cd;
+  --line:#dde3ea;
+  --text:#1a2530;
+  --text-dim:#5a6776;
+  --text-mute:#8995a3;
+  --gold:#c8941f;
+  --gold-bright:#a8780f;
+  --gold-dim:#e8d4a0;
+  --molten:#e8551a;
+  --molten-glow:#c8430f;
+  --green:#1f9d5c;
+  --red:#d23741;
+  --blue:#2d6fe0;
+  --radius:10px;
+  --shadow:0 6px 24px rgba(30,45,65,.10);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--steel-950);
+  color:var(--text);
+  font-size:14px;
+  overflow:hidden;
+  background-image:
+    radial-gradient(900px 500px at 85% -5%, rgba(200,148,31,.05), transparent 60%),
+    radial-gradient(700px 500px at 0% 100%, rgba(232,85,26,.04), transparent 55%);
+}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:var(--steel-900)}
+::-webkit-scrollbar-thumb{background:var(--steel-700);border-radius:5px}
+::-webkit-scrollbar-thumb:hover{background:var(--steel-600)}
+
+.app{display:grid;grid-template-columns:230px 1fr;height:100vh}
+
+/* ===== SIDEBAR ===== */
+.sidebar{
+  background:linear-gradient(180deg,#ffffff,#f7f9fb);
+  border-right:1px solid var(--line);
+  display:flex;flex-direction:column;
+  padding:0;
+}
+.brand{
+  padding:20px 22px 18px;
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:12px;
+}
+.logo{
+  width:42px;height:42px;border-radius:9px;
+  background:linear-gradient(135deg,var(--molten),var(--gold));
+  display:grid;place-items:center;flex-shrink:0;
+  font-family:'Oswald';font-weight:700;font-size:22px;color:#fff;
+  box-shadow:0 4px 14px rgba(232,85,26,.28);
+  position:relative;overflow:hidden;
+}
+.logo::after{content:'';position:absolute;inset:0;background:linear-gradient(120deg,transparent 40%,rgba(255,255,255,.4) 50%,transparent 60%);animation:sheen 4s infinite}
+@keyframes sheen{0%,70%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+.brand-txt h1{font-family:'Oswald';font-size:18px;letter-spacing:1px;font-weight:600}
+.brand-txt span{font-size:10px;color:var(--gold);letter-spacing:2px;text-transform:uppercase}
+
+.nav{padding:14px 12px;flex:1;overflow-y:auto}
+.nav-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-mute);padding:14px 12px 8px}
+.nav-item{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 14px;border-radius:8px;cursor:pointer;
+  color:var(--text-dim);font-weight:500;
+  transition:.15s;margin-bottom:2px;position:relative;
+}
+.nav-item svg{width:19px;height:19px;flex-shrink:0;stroke-width:1.8}
+.nav-item:hover{background:var(--steel-850);color:var(--text)}
+.nav-item.active{background:linear-gradient(90deg,rgba(224,169,59,.16),rgba(224,169,59,.02));color:var(--gold-bright)}
+.nav-item.active::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;background:var(--gold);border-radius:0 3px 3px 0}
+.nav-badge{margin-left:auto;font-size:10px;font-weight:700;background:var(--molten);color:#fff;padding:2px 7px;border-radius:10px}
+
+.sidebar-foot{padding:14px;border-top:1px solid var(--line)}
+.furnace-mini{background:var(--steel-850);border:1px solid var(--line);border-radius:9px;padding:12px}
+.furnace-mini .ft{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-mute);margin-bottom:8px}
+.furnace-mini .fr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.furnace-mini .fv{font-family:'JetBrains Mono';font-weight:700;color:var(--molten-glow)}
+.furnace-bar{height:5px;background:var(--steel-700);border-radius:3px;overflow:hidden}
+.furnace-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--molten),var(--gold-bright));border-radius:3px;animation:pulseW 3s infinite}
+@keyframes pulseW{0%,100%{opacity:.85}50%{opacity:1}}
+
+/* ===== MAIN ===== */
+.main{display:flex;flex-direction:column;overflow:hidden}
+.topbar{
+  height:62px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:20px;padding:0 26px;
+  background:rgba(255,255,255,.8);backdrop-filter:blur(8px);
+}
+.page-title{font-family:'Oswald';font-size:21px;font-weight:600;letter-spacing:.5px}
+.page-title small{display:block;font-family:'Inter';font-size:11px;color:var(--text-mute);letter-spacing:0;font-weight:400}
+.topbar-spacer{flex:1}
+.search{display:flex;align-items:center;gap:8px;background:var(--steel-850);border:1px solid var(--line);border-radius:8px;padding:8px 13px;width:240px;color:var(--text-mute)}
+.search input{background:none;border:none;outline:none;color:var(--text);font-family:inherit;font-size:13px;width:100%}
+.icon-btn{width:38px;height:38px;border-radius:8px;background:var(--steel-850);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;color:var(--text-dim);position:relative;transition:.15s}
+.icon-btn:hover{color:var(--gold);border-color:var(--gold-dim)}
+.icon-btn .dot{position:absolute;top:8px;right:9px;width:7px;height:7px;background:var(--molten);border-radius:50%;border:2px solid var(--steel-850)}
+.user{display:flex;align-items:center;gap:11px;padding-left:8px;border-left:1px solid var(--line)}
+.user .av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--molten));display:grid;place-items:center;font-family:'Oswald';font-weight:700;color:#fff}
+.user .un{font-weight:600;font-size:13px}
+.user .ur{font-size:11px;color:var(--gold)}
+
+.content{flex:1;overflow-y:auto;padding:24px 26px 40px}
+.view{display:none;animation:fade .3s ease}
+.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ===== KPI CARDS ===== */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+.kpi{background:linear-gradient(160deg,var(--steel-850),var(--steel-900));border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;position:relative;overflow:hidden}
+.kpi::after{content:'';position:absolute;right:-30px;top:-30px;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle,rgba(224,169,59,.1),transparent 70%)}
+.kpi .lbl{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-mute);display:flex;align-items:center;gap:7px}
+.kpi .lbl svg{width:15px;height:15px}
+.kpi .val{font-family:'Oswald';font-size:32px;font-weight:600;margin:8px 0 4px;letter-spacing:.5px}
+.kpi .val small{font-size:15px;color:var(--text-dim);font-weight:400}
+.kpi .delta{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.up{color:var(--green)}.down{color:var(--red)}
+.kpi.accent{border-color:var(--gold-dim);background:linear-gradient(160deg,rgba(224,169,59,.1),var(--steel-900))}
+.kpi.accent .val{color:var(--gold-bright)}
+
+/* ===== PANELS ===== */
+.row{display:grid;gap:16px;margin-bottom:20px}
+.row.c2{grid-template-columns:1.6fr 1fr}
+.row.c3{grid-template-columns:repeat(3,1fr)}
+.panel{background:var(--steel-900);border:1px solid var(--line);border-radius:var(--radius);padding:20px;overflow:hidden}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.panel-head h3{font-family:'Oswald';font-size:16px;font-weight:600;letter-spacing:.5px}
+.panel-head .sub{font-size:11px;color:var(--text-mute)}
+.tabs{display:flex;gap:4px;background:var(--steel-850);padding:3px;border-radius:7px}
+.tab{font-size:11px;padding:5px 11px;border-radius:5px;cursor:pointer;color:var(--text-dim);transition:.15s}
+.tab.on{background:var(--steel-700);color:var(--gold-bright)}
+
+/* chart */
+.chart{position:relative;height:200px}
+.chart svg{width:100%;height:100%;overflow:visible}
+.bars{display:flex;align-items:flex-end;gap:10px;height:200px;padding-top:10px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;justify-content:flex-end;height:100%}
+.bar-stack{width:100%;display:flex;flex-direction:column;justify-content:flex-end;height:100%;border-radius:5px 5px 0 0;overflow:hidden;position:relative}
+.bar-plan{background:var(--steel-700)}
+.bar-fact{background:linear-gradient(180deg,var(--gold-bright),var(--gold))}
+.bar-col .bl{font-size:10px;color:var(--text-mute)}
+.bar-grp{display:flex;gap:3px;align-items:flex-end;height:100%;width:100%}
+.bar-grp i{flex:1;border-radius:4px 4px 0 0;transition:height 1s cubic-bezier(.2,.8,.2,1)}
+
+.legend{display:flex;gap:16px;font-size:11px;color:var(--text-dim);margin-top:14px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+/* donut */
+.donut-wrap{display:flex;align-items:center;gap:22px}
+.donut{position:relative;width:150px;height:150px;flex-shrink:0}
+.donut svg{transform:rotate(-90deg)}
+.donut .ctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.donut .ctr b{font-family:'Oswald';font-size:26px}
+.donut .ctr span{font-size:10px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1px}
+.dleg{display:flex;flex-direction:column;gap:11px;flex:1}
+.dleg .di{display:flex;align-items:center;gap:9px;font-size:12px}
+.dleg .di i{width:11px;height:11px;border-radius:3px}
+.dleg .di .nm{color:var(--text-dim)}
+.dleg .di .vl{margin-left:auto;font-family:'JetBrains Mono';font-weight:700}
+
+/* table */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-mute);padding:0 14px 12px;font-weight:600;border-bottom:1px solid var(--line)}
+td{padding:13px 14px;border-bottom:1px solid var(--steel-850)}
+tbody tr{transition:.12s}
+tbody tr:hover{background:var(--steel-850)}
+.mono{font-family:'JetBrains Mono';font-weight:500}
+.tag{display:inline-block;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
+.tag.ok{background:rgba(63,185,125,.15);color:var(--green)}
+.tag.warn{background:rgba(224,169,59,.15);color:var(--gold-bright)}
+.tag.bad{background:rgba(229,72,77,.15);color:var(--red)}
+.tag.info{background:rgba(77,141,245,.15);color:var(--blue)}
+.tag.mol{background:rgba(255,90,31,.15);color:var(--molten-glow)}
+
+.mini-bar{height:6px;background:var(--steel-700);border-radius:4px;overflow:hidden;width:90px;display:inline-block;vertical-align:middle}
+.mini-bar i{display:block;height:100%;border-radius:4px}
+
+.prog-line{display:flex;align-items:center;gap:10px}
+.prog-line .pv{font-family:'JetBrains Mono';font-weight:700;font-size:12px;width:42px;text-align:right}
+
+/* furnace cards */
+.furnace-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+.furnace{background:linear-gradient(165deg,var(--steel-850),var(--steel-900));border:1px solid var(--line);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden}
+.furnace.hot{border-color:rgba(255,90,31,.4)}
+.furnace.hot::before{content:'';position:absolute;inset:0;background:radial-gradient(180px 120px at 80% 120%,rgba(255,90,31,.12),transparent 70%)}
+.furnace .fh{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;position:relative}
+.furnace .fh b{font-family:'Oswald';font-size:17px}
+.furnace .temp{font-family:'JetBrains Mono';font-weight:700;font-size:28px;position:relative}
+.furnace .temp.hot{color:var(--molten-glow)}
+.furnace .temp small{font-size:14px;color:var(--text-mute)}
+.furnace .fmeta{display:flex;gap:18px;margin-top:14px;font-size:11px;position:relative}
+.furnace .fmeta div span{display:block;color:var(--text-mute);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.furnace .fmeta div b{font-family:'JetBrains Mono';font-size:13px}
+.pulse-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
+.pulse-dot.live{background:var(--green);box-shadow:0 0 0 0 rgba(63,185,125,.6);animation:pl 2s infinite}
+.pulse-dot.idle{background:var(--text-mute)}
+.pulse-dot.heat{background:var(--molten);box-shadow:0 0 0 0 rgba(255,90,31,.6);animation:pl 1.4s infinite}
+@keyframes pl{0%{box-shadow:0 0 0 0 rgba(255,90,31,.5)}70%{box-shadow:0 0 0 9px rgba(255,90,31,0)}100%{box-shadow:0 0 0 0 rgba(255,90,31,0)}}
+
+/* warehouse cells */
+.wh-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.wh-cell{background:var(--steel-900);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.wh-cell .wt{font-size:11px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.wh-cell .wv{font-family:'Oswald';font-size:26px;font-weight:600}
+.wh-cell .wv small{font-size:13px;color:var(--text-dim)}
+.wh-cell .wbar{height:7px;background:var(--steel-700);border-radius:4px;overflow:hidden;margin:11px 0 7px}
+.wh-cell .wbar i{display:block;height:100%;border-radius:4px}
+.wh-cell .wcap{font-size:11px;color:var(--text-mute);display:flex;justify-content:space-between}
+
+.btn{font-family:inherit;font-size:12px;font-weight:600;padding:8px 16px;border-radius:7px;border:1px solid var(--line);background:var(--steel-850);color:var(--text);cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{border-color:var(--gold-dim);color:var(--gold)}
+.btn.gold{background:linear-gradient(135deg,var(--gold),var(--molten));color:#fff;border:none}
+.btn.gold:hover{filter:brightness(1.05);color:#fff}
+
+/* pipeline */
+.pipe{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.pipe-col{background:var(--steel-850);border:1px solid var(--line);border-radius:9px;padding:12px;min-height:300px}
+.pipe-col .ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.pipe-col .ph b{font-size:12px;font-weight:600}
+.pipe-col .ph .pc{font-size:11px;font-family:'JetBrains Mono';color:var(--text-mute)}
+.deal{background:var(--steel-900);border:1px solid var(--line);border-radius:8px;padding:11px;margin-bottom:9px;cursor:grab;transition:.15s;border-left:3px solid var(--gold)}
+.deal:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.deal .dn{font-weight:600;font-size:12px;margin-bottom:5px}
+.deal .da{font-family:'JetBrains Mono';font-size:14px;color:var(--gold-bright);font-weight:700}
+.deal .dm{font-size:10px;color:var(--text-mute);margin-top:6px;display:flex;justify-content:space-between}
+
+.alert-list{display:flex;flex-direction:column;gap:10px}
+.alert{display:flex;gap:12px;align-items:flex-start;padding:12px;background:var(--steel-850);border-radius:8px;border-left:3px solid var(--text-mute)}
+.alert.warn{border-color:var(--gold)}
+.alert.bad{border-color:var(--red)}
+.alert.ok{border-color:var(--green)}
+.alert .ai{width:32px;height:32px;border-radius:7px;display:grid;place-items:center;flex-shrink:0;background:var(--steel-700)}
+.alert .at{font-size:13px;font-weight:600;margin-bottom:2px}
+.alert .ad{font-size:11px;color:var(--text-dim);line-height:1.5}
+.alert .atime{font-size:10px;color:var(--text-mute);margin-left:auto;white-space:nowrap}
+
+.spark{display:flex;align-items:flex-end;gap:2px;height:34px}
+.spark i{flex:1;background:var(--gold);border-radius:1px;opacity:.7}
+
+.flow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 20px}
+.flow-node{flex:1;text-align:center;background:var(--steel-850);border:1px solid var(--line);border-radius:9px;padding:14px 8px;position:relative}
+.flow-node .fn{font-family:'Oswald';font-size:15px;color:var(--gold-bright)}
+.flow-node .fl{font-size:10px;color:var(--text-mute);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.flow-node .fq{font-family:'JetBrains Mono';font-size:18px;font-weight:700;margin-top:4px}
+.flow-arrow{color:var(--text-mute);flex-shrink:0}
+
+.section-title{font-family:'Oswald';font-size:14px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin:4px 0 14px;display:flex;align-items:center;gap:10px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--line)}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">С</div>
+      <div class="brand-txt">
+        <h1>СТАЛЬ-ОС</h1>
+        <span>ERP завода</span>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-label">Управление</div>
+      <div class="nav-item active" data-view="dash">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Дашборд
+      </div>
+      <div class="nav-item" data-view="prod">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M2 20h20M4 20V8l5 3V8l5 3V8l5 3v9"/></svg>
+        Производство
+        <span class="nav-badge">3</span>
+      </div>
+      <div class="nav-item" data-view="wh">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 21V8l9-5 9 5v13M3 21h18M9 21v-6h6v6"/></svg>
+        Склад
+      </div>
+      <div class="nav-item" data-view="sales">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 3v18h18M7 14l4-4 4 4 5-6"/></svg>
+        Продажи
+      </div>
+      <div class="nav-item" data-view="analytics">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 3"/></svg>
+        Аналитика
+      </div>
+      <div class="nav-label">Прочее</div>
+      <div class="nav-item" data-view="dash">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 7h6M9 12h6M9 17h3"/><rect x="4" y="3" width="16" height="18" rx="2"/></svg>
+        Документы
+      </div>
+      <div class="nav-item" data-view="dash">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        Персонал
+      </div>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="furnace-mini">
+        <div class="ft">Печь №2 · плавка</div>
+        <div class="fr"><span style="color:var(--text-dim);font-size:12px">Температура</span><span class="fv" id="mini-temp">1632°C</span></div>
+        <div class="furnace-bar"><i style="width:82%"></i></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <div class="page-title" id="ptitle">Дашборд завода<small>Сводка по заводу · смена А · 06.06.2026</small></div>
+      <div class="topbar-spacer"></div>
+      <div class="search">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input placeholder="Заказ, партия, клиент…">
+      </div>
+      <div class="icon-btn"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="dot"></span></div>
+      <div class="user">
+        <div class="av">М</div>
+        <div><div class="un">Мурат Б.</div></div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ===== DASHBOARD ===== -->
+      <section class="view active" id="dash">
+        <div class="kpi-grid">
+          <div class="kpi accent">
+            <div class="lbl"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Выручка, месяц</div>
+            <div class="val" id="rev">$1.04<small>М</small></div>
+            <div class="delta up">▲ 6.2% к плану</div>
+          </div>
+          <div class="kpi">
+            <div class="lbl"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M2 20h20M4 20V8l5 3V8l5 3V8l5 3v9"/></svg>Выпуск, тонн</div>
+            <div class="val" id="tons">2 840<small> т</small></div>
+            <div class="delta down">▼ 3.1% к плану</div>
+          </div>
+          <div class="kpi">
+            <div class="lbl"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>Себест. тонны</div>
+            <div class="val" id="cost">₸268<small>K</small></div>
+            <div class="delta up">▲ 2.4% — рост лома</div>
+          </div>
+          <div class="kpi">
+            <div class="lbl"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Маржа валовая</div>
+            <div class="val">31.5<small>%</small></div>
+            <div class="delta down">▼ 1.2 п.п.</div>
+          </div>
+        </div>
+
+        <div class="row c2">
+          <div class="panel">
+            <div class="panel-head">
+              <div><h3>План / факт выпуска</h3><div class="sub">тонн по дням · текущая неделя</div></div>
+              <div class="tabs"><div class="tab on">Неделя</div><div class="tab">Месяц</div><div class="tab">Квартал</div></div>
+            </div>
+            <div class="bars" id="pfbars"></div>
+            <div class="legend"><span><i class="bar-plan"></i>План</span><span><i class="bar-fact"></i>Факт</span></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><h3>Структура выпуска</h3><div class="sub">по переделам, месяц</div></div></div>
+            <div class="donut-wrap">
+              <div class="donut">
+                <svg width="150" height="150" viewBox="0 0 150 150">
+                  <circle cx="75" cy="75" r="60" fill="none" stroke="#e0e6ee" stroke-width="20"/>
+                  <circle cx="75" cy="75" r="60" fill="none" stroke="#ff5a1f" stroke-width="20" stroke-dasharray="151 377" stroke-dashoffset="0"/>
+                  <circle cx="75" cy="75" r="60" fill="none" stroke="#e0a93b" stroke-width="20" stroke-dasharray="113 377" stroke-dashoffset="-151"/>
+                  <circle cx="75" cy="75" r="60" fill="none" stroke="#4d8df5" stroke-width="20" stroke-dasharray="75 377" stroke-dashoffset="-264"/>
+                  <circle cx="75" cy="75" r="60" fill="none" stroke="#3fb97d" stroke-width="20" stroke-dasharray="38 377" stroke-dashoffset="-339"/>
+                </svg>
+                <div class="ctr"><b>2840</b><span>тонн</span></div>
+              </div>
+              <div class="dleg">
+                <div class="di"><i style="background:#ff5a1f"></i><span class="nm">Литьё / заготовка</span><span class="vl">40%</span></div>
+                <div class="di"><i style="background:#e0a93b"></i><span class="nm">Прокат / профиль</span><span class="vl">30%</span></div>
+                <div class="di"><i style="background:#4d8df5"></i><span class="nm">Метизы / изделия</span><span class="vl">20%</span></div>
+                <div class="di"><i style="background:#3fb97d"></i><span class="nm">Переработка лома</span><span class="vl">10%</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row c2">
+          <div class="panel">
+            <div class="panel-head"><div><h3>Узкие места · требуют решения</h3><div class="sub">приоритет по влиянию на маржу</div></div></div>
+            <div class="alert-list">
+              <div class="alert bad">
+                <div class="ai">🔻</div>
+                <div><div class="at">Печь №3 — простой 4.2 ч</div><div class="ad">Внеплановый ремонт футеровки. Недовыпуск ≈ 84 т, потеря ≈ ₸5.6 млн.</div></div>
+                <div class="atime">2 ч назад</div>
+              </div>
+              <div class="alert warn">
+                <div class="ai">⚠️</div>
+                <div><div class="at">Лом 3А — остаток ниже нормы</div><div class="ad">Хватит на 1.5 смены. Цена закупа выросла на 7% — давит на себестоимость.</div></div>
+                <div class="atime">сегодня</div>
+              </div>
+              <div class="alert warn">
+                <div class="ai">⚡</div>
+                <div><div class="at">Перерасход электроэнергии</div><div class="ad">Печь №2: +9% кВт·ч/т к норме. Проверить режим плавки и шихту.</div></div>
+                <div class="atime">смена А</div>
+              </div>
+              <div class="alert ok">
+                <div class="ai">✓</div>
+                <div><div class="at">Заказ «КазМеталлоконструкция» отгружен</div><div class="ad">120 т арматуры А500С. Оплата поступила полностью.</div></div>
+                <div class="atime">вчера</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><h3>Деньги</h3><div class="sub">денежный поток, месяц</div></div></div>
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:6px"><span>Поступления</span><span class="mono" style="color:var(--green)">₸412.5 млн</span></div>
+                <div class="mini-bar" style="width:100%"><i style="width:88%;background:var(--green)"></i></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:6px"><span>Расходы (сырьё+энергия+ФОТ)</span><span class="mono" style="color:var(--molten-glow)">₸283.1 млн</span></div>
+                <div class="mini-bar" style="width:100%"><i style="width:61%;background:var(--molten)"></i></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:6px"><span>Дебиторка (ждём оплату)</span><span class="mono" style="color:var(--gold-bright)">₸96.4 млн</span></div>
+                <div class="mini-bar" style="width:100%"><i style="width:48%;background:var(--gold)"></i></div>
+              </div>
+              <div style="border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-weight:600">Чистый поток</span>
+                <span class="mono" style="font-size:22px;font-weight:700;color:var(--green)">+₸129.4 млн</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== PRODUCTION ===== -->
+      <section class="view" id="prod">
+        <div class="section-title">Цеха в реальном времени</div>
+        <div class="furnace-grid">
+          <div class="furnace hot">
+            <div class="fh"><b><span class="pulse-dot heat"></span>Печь №1</b><span class="tag mol">Плавка</span></div>
+            <div class="temp hot">1648<small>°C</small></div>
+            <div class="fmeta">
+              <div><span>Марка</span><b>Ст3сп</b></div>
+              <div><span>Партия</span><b>#П-2840</b></div>
+              <div><span>До слива</span><b>22 мин</b></div>
+            </div>
+          </div>
+          <div class="furnace hot">
+            <div class="fh"><b><span class="pulse-dot heat"></span>Печь №2</b><span class="tag mol">Плавка</span></div>
+            <div class="temp hot" id="f2temp">1632<small>°C</small></div>
+            <div class="fmeta">
+              <div><span>Марка</span><b>09Г2С</b></div>
+              <div><span>Партия</span><b>#П-2841</b></div>
+              <div><span>Энергия</span><b style="color:var(--molten-glow)">+9% ⚡</b></div>
+            </div>
+          </div>
+          <div class="furnace">
+            <div class="fh"><b><span class="pulse-dot idle"></span>Печь №3</b><span class="tag bad">Ремонт</span></div>
+            <div class="temp">— <small>остановлена</small></div>
+            <div class="fmeta">
+              <div><span>Причина</span><b>Футеровка</b></div>
+              <div><span>Простой</span><b style="color:var(--red)">4.2 ч</b></div>
+              <div><span>Пуск</span><b>~18:30</b></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">Поток передела</div>
+        <div class="panel" style="margin-bottom:20px">
+          <div class="flow">
+            <div class="flow-node"><div class="fl">Лом / шихта</div><div class="fn">Вход</div><div class="fq">312 т</div></div>
+            <svg class="flow-arrow" width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <div class="flow-node"><div class="fl">Плавка</div><div class="fn">Литьё</div><div class="fq">298 т</div></div>
+            <svg class="flow-arrow" width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <div class="flow-node"><div class="fl">Прокат</div><div class="fn">Профиль</div><div class="fq">271 т</div></div>
+            <svg class="flow-arrow" width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <div class="flow-node"><div class="fl">Метизы</div><div class="fn">Готово</div><div class="fq">189 т</div></div>
+            <svg class="flow-arrow" width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <div class="flow-node" style="border-color:var(--gold-dim)"><div class="fl">Склад ГП</div><div class="fn" style="color:var(--green)">Сдано</div><div class="fq">185 т</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><div><h3>Производственные заказы · смена А</h3><div class="sub">план / факт по партиям</div></div><button class="btn gold">+ Новый наряд</button></div>
+          <table>
+            <thead><tr><th>Партия</th><th>Марка / профиль</th><th>Заказчик</th><th>План, т</th><th>Готово</th><th>Брак</th><th>Статус</th></tr></thead>
+            <tbody id="prodtable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== WAREHOUSE ===== -->
+      <section class="view" id="wh">
+        <div class="section-title">Сырьё и материалы</div>
+        <div class="wh-grid">
+          <div class="wh-cell">
+            <div class="wt">🔩 Лом 3А</div>
+            <div class="wv">214 <small>т</small></div>
+            <div class="wbar"><i style="width:24%;background:var(--red)"></i></div>
+            <div class="wcap"><span>ниже нормы</span><span>норма 900 т</span></div>
+          </div>
+          <div class="wh-cell">
+            <div class="wt">⚙️ Ферросплавы</div>
+            <div class="wv">68 <small>т</small></div>
+            <div class="wbar"><i style="width:68%;background:var(--gold)"></i></div>
+            <div class="wcap"><span>норма</span><span>норма 100 т</span></div>
+          </div>
+          <div class="wh-cell">
+            <div class="wt">🪨 Известь / флюсы</div>
+            <div class="wv">142 <small>т</small></div>
+            <div class="wbar"><i style="width:79%;background:var(--green)"></i></div>
+            <div class="wcap"><span>достаточно</span><span>норма 180 т</span></div>
+          </div>
+          <div class="wh-cell">
+            <div class="wt">⚡ Электроды</div>
+            <div class="wv">38 <small>шт</small></div>
+            <div class="wbar"><i style="width:42%;background:var(--gold)"></i></div>
+            <div class="wcap"><span>заказать</span><span>норма 90 шт</span></div>
+          </div>
+        </div>
+
+        <div class="row c2">
+          <div class="panel">
+            <div class="panel-head"><div><h3>Готовая продукция · остатки</h3><div class="sub">по маркам и складам, тонн</div></div><button class="btn">Инвентаризация</button></div>
+            <table>
+              <thead><tr><th>Номенклатура</th><th>Марка</th><th>Склад</th><th>Остаток, т</th><th>Резерв</th><th>Свободно</th></tr></thead>
+              <tbody>
+                <tr><td>Арматура Ø12 А500С</td><td class="mono">25Г2С</td><td>СГП-1</td><td class="mono">428</td><td class="mono">120</td><td class="mono" style="color:var(--green)">308</td></tr>
+                <tr><td>Лист г/к 4мм</td><td class="mono">Ст3сп</td><td>СГП-1</td><td class="mono">196</td><td class="mono">196</td><td class="mono" style="color:var(--red)">0</td></tr>
+                <tr><td>Уголок 63×63</td><td class="mono">09Г2С</td><td>СГП-2</td><td class="mono">74</td><td class="mono">0</td><td class="mono" style="color:var(--green)">74</td></tr>
+                <tr><td>Заготовка квадрат 150</td><td class="mono">Ст3сп</td><td>НЗП</td><td class="mono">312</td><td class="mono">45</td><td class="mono" style="color:var(--green)">267</td></tr>
+                <tr><td>Проволока вязальная</td><td class="mono">08кп</td><td>СГП-2</td><td class="mono">22</td><td class="mono">18</td><td class="mono" style="color:var(--gold-bright)">4</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><h3>Движение за смену</h3><div class="sub">приход / расход</div></div></div>
+            <div class="alert-list">
+              <div class="alert ok"><div class="ai">⬇</div><div><div class="at">Приход: лом 3А · 60 т</div><div class="ad">Поставщик «ВторМет КЗ» · накладная №4471</div></div></div>
+              <div class="alert"><div class="ai">⬆</div><div><div class="at">Расход в плавку · 298 т</div><div class="ad">Печи №1, №2 · партии П-2840, П-2841</div></div></div>
+              <div class="alert ok"><div class="ai">⬇</div><div><div class="at">На склад ГП · 185 т</div><div class="ad">Арматура + уголок · принято ОТК</div></div></div>
+              <div class="alert ok"><div class="ai">⬆</div><div><div class="at">Отгрузка клиенту · 120 т</div><div class="ad">«КазМеталлоконструкция» · самовывоз</div></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== SALES ===== -->
+      <section class="view" id="sales">
+        <div class="kpi-grid">
+          <div class="kpi accent"><div class="lbl">Сделок в работе</div><div class="val">37</div><div class="delta up">▲ 5 за неделю</div></div>
+          <div class="kpi"><div class="lbl">Сумма воронки</div><div class="val">₸684<small>млн</small></div><div class="delta up">▲ 12%</div></div>
+          <div class="kpi"><div class="lbl">Средний чек</div><div class="val">₸18.5<small>млн</small></div><div class="delta up">▲ 3.1%</div></div>
+          <div class="kpi"><div class="lbl">Конверсия</div><div class="val">42<small>%</small></div><div class="delta down">▼ 2 п.п.</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><div><h3>Воронка продаж</h3><div class="sub">сделки по этапам · drag & drop</div></div><button class="btn gold">+ Сделка</button></div>
+          <div class="pipe">
+            <div class="pipe-col">
+              <div class="ph"><b>Заявка</b><span class="pc">9 · ₸142М</span></div>
+              <div class="deal"><div class="dn">Каскад-Строй</div><div class="da">₸24.0 млн</div><div class="dm"><span>Арматура 400 т</span><span class="tag info">new</span></div></div>
+              <div class="deal"><div class="dn">МетПром Астана</div><div class="da">₸18.5 млн</div><div class="dm"><span>Лист 200 т</span><span>2 дн</span></div></div>
+              <div class="deal"><div class="dn">СтройГрад</div><div class="da">₸9.2 млн</div><div class="dm"><span>Уголок 80 т</span><span>3 дн</span></div></div>
+            </div>
+            <div class="pipe-col">
+              <div class="ph"><b>Расчёт КП</b><span class="pc">8 · ₸156М</span></div>
+              <div class="deal"><div class="dn">КЗ Мостострой</div><div class="da">₸42.0 млн</div><div class="dm"><span>Балка 600 т</span><span class="tag warn">срочно</span></div></div>
+              <div class="deal"><div class="dn">АлтынМет</div><div class="da">₸31.0 млн</div><div class="dm"><span>Заготовка</span><span>1 дн</span></div></div>
+            </div>
+            <div class="pipe-col">
+              <div class="ph"><b>Согласование</b><span class="pc">6 · ₸128М</span></div>
+              <div class="deal"><div class="dn">ГорМеталл</div><div class="da">₸55.0 млн</div><div class="dm"><span>Арматура 900 т</span><span class="tag mol">VIP</span></div></div>
+              <div class="deal"><div class="dn">ПромСнаб</div><div class="da">₸27.0 млн</div><div class="dm"><span>Проволока</span><span>4 дн</span></div></div>
+            </div>
+            <div class="pipe-col">
+              <div class="ph"><b>В производстве</b><span class="pc">7 · ₸178М</span></div>
+              <div class="deal" style="border-left-color:var(--molten)"><div class="dn">КазМеталлоконстр.</div><div class="da">₸38.0 млн</div><div class="dm"><span>Партия П-2840</span><span class="tag mol">плавка</span></div></div>
+              <div class="deal" style="border-left-color:var(--molten)"><div class="dn">ВостокСталь</div><div class="da">₸44.0 млн</div><div class="dm"><span>Партия П-2839</span><span>прокат</span></div></div>
+            </div>
+            <div class="pipe-col">
+              <div class="ph"><b>Отгрузка</b><span class="pc">7 · ₸80М</span></div>
+              <div class="deal" style="border-left-color:var(--green)"><div class="dn">КазМеталлоконстр.</div><div class="da">₸22.0 млн</div><div class="dm"><span>120 т готово</span><span class="tag ok">оплачено</span></div></div>
+              <div class="deal" style="border-left-color:var(--green)"><div class="dn">ТехноСтрой</div><div class="da">₸16.0 млн</div><div class="dm"><span>отгружено</span><span class="tag ok">закрыто</span></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== ANALYTICS ===== -->
+      <section class="view" id="analytics">
+        <div class="kpi-grid">
+          <div class="kpi accent"><div class="lbl">EBITDA маржа</div><div class="val">18.4<small>%</small></div><div class="delta up">▲ 0.8 п.п.</div></div>
+          <div class="kpi"><div class="lbl">OEE оборудования</div><div class="val">76<small>%</small></div><div class="delta down">▼ печь №3</div></div>
+          <div class="kpi"><div class="lbl">Энергия, кВт·ч/т</div><div class="val">612</div><div class="delta down">▼ цель 560</div></div>
+          <div class="kpi"><div class="lbl">Уровень брака</div><div class="val">2.8<small>%</small></div><div class="delta up">▲ норма 2%</div></div>
+        </div>
+
+        <div class="row c2">
+          <div class="panel">
+            <div class="panel-head"><div><h3>Маржа по маркам стали</h3><div class="sub">₸ на тонну · после всех затрат</div></div></div>
+            <div class="bars" id="marginbars"></div>
+            <div class="legend"><span><i class="bar-fact"></i>Маржа на тонну</span></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><h3>Структура себестоимости тонны</h3><div class="sub">₸268 000 / т</div></div></div>
+            <div class="donut-wrap">
+              <div class="donut">
+                <svg width="150" height="150" viewBox="0 0 150 150">
+                  <circle cx="75" cy="75" r="60" fill="none" stroke="#e0e6ee" stroke-width="20"/>
+                  <circle cx="75" cy="75" r="60" fill="none" stroke="#ff5a1f" stroke-width="20" stroke-dasharray="207 377"/>
+                  <circle cx="75" cy="75" r="60" fill="none" stroke="#e0a93b" stroke-width="20" stroke-dasharray="98 377" stroke-dashoffset="-207"/>
+                  <circle cx="75" cy="75" r="60" fill="none" stroke="#4d8df5" stroke-width="20" stroke-dasharray="45 377" stroke-dashoffset="-305"/>
+                  <circle cx="75" cy="75" r="60" fill="none" stroke="#3fb97d" stroke-width="20" stroke-dasharray="27 377" stroke-dashoffset="-350"/>
+                </svg>
+                <div class="ctr"><b>268K</b><span>₸/т</span></div>
+              </div>
+              <div class="dleg">
+                <div class="di"><i style="background:#ff5a1f"></i><span class="nm">Сырьё / лом</span><span class="vl">55%</span></div>
+                <div class="di"><i style="background:#e0a93b"></i><span class="nm">Электроэнергия</span><span class="vl">26%</span></div>
+                <div class="di"><i style="background:#4d8df5"></i><span class="nm">ФОТ</span><span class="vl">12%</span></div>
+                <div class="di"><i style="background:#3fb97d"></i><span class="nm">Прочее</span><span class="vl">7%</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><div><h3>Эффективность по цехам</h3><div class="sub">сводный рейтинг переделов</div></div></div>
+          <table>
+            <thead><tr><th>Передел</th><th>OEE</th><th>Выработка</th><th>Брак</th><th>Энергоэфф.</th><th>Оценка</th></tr></thead>
+            <tbody>
+              <tr><td>Плавильный цех</td><td><div class="prog-line"><div class="mini-bar"><i style="width:82%;background:var(--green)"></i></div><span class="pv">82%</span></div></td><td class="mono">298 т/см</td><td class="mono">1.9%</td><td class="mono" style="color:var(--green)">норма</td><td><span class="tag ok">A</span></td></tr>
+              <tr><td>Прокатный стан</td><td><div class="prog-line"><div class="mini-bar"><i style="width:74%;background:var(--gold)"></i></div><span class="pv">74%</span></div></td><td class="mono">271 т/см</td><td class="mono">2.4%</td><td class="mono" style="color:var(--gold-bright)">+4%</td><td><span class="tag warn">B</span></td></tr>
+              <tr><td>Метизный участок</td><td><div class="prog-line"><div class="mini-bar"><i style="width:88%;background:var(--green)"></i></div><span class="pv">88%</span></div></td><td class="mono">189 т/см</td><td class="mono">1.2%</td><td class="mono" style="color:var(--green)">норма</td><td><span class="tag ok">A</span></td></tr>
+              <tr><td>Переработка лома</td><td><div class="prog-line"><div class="mini-bar"><i style="width:61%;background:var(--red)"></i></div><span class="pv">61%</span></div></td><td class="mono">98 т/см</td><td class="mono">5.1%</td><td class="mono" style="color:var(--red)">+12%</td><td><span class="tag bad">C</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== navigation =====
+const titles={
+  dash:['Дашборд завода','Сводка по заводу · смена А · 06.06.2026'],
+  prod:['Производство','Цеха, печи и наряды в реальном времени'],
+  wh:['Склад','Сырьё, НЗП и готовая продукция · тонны'],
+  sales:['Продажи','Воронка сделок и клиенты'],
+  analytics:['Аналитика','Себестоимость, маржа и эффективность']
+};
+document.querySelectorAll('.nav-item').forEach(it=>{
+  it.addEventListener('click',()=>{
+    const v=it.dataset.view;
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    it.classList.add('active');
+    document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));
+    document.getElementById(v).classList.add('active');
+    const t=titles[v];
+    document.getElementById('ptitle').innerHTML=t[0]+'<small>'+t[1]+'</small>';
+  });
+});
+
+// ===== plan/fact bars =====
+const pf=[[480,460],[490,475],[500,452],[470,488],[510,470],[300,295],[0,0]];
+const days=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+const maxv=520;
+const pfc=document.getElementById('pfbars');
+pf.forEach((d,i)=>{
+  const col=document.createElement('div');col.className='bar-col';
+  col.innerHTML=`<div class="bar-grp" style="height:100%">
+    <i class="bar-plan" style="height:0"></i>
+    <i class="bar-fact" style="height:0"></i>
+  </div><div class="bl">${days[i]}</div>`;
+  pfc.appendChild(col);
+  const [p,f]=d;
+  setTimeout(()=>{
+    col.querySelector('.bar-plan').style.height=(p/maxv*100)+'%';
+    col.querySelector('.bar-fact').style.height=(f/maxv*100)+'%';
+  },80*i+100);
+});
+
+// ===== margin bars =====
+const mg=[[ 'Ст3сп',62000],['09Г2С',78000],['25Г2С',71000],['08кп',54000],['А500С',85000]];
+const mmax=90000;
+const mc=document.getElementById('marginbars');
+mg.forEach((d,i)=>{
+  const col=document.createElement('div');col.className='bar-col';
+  col.innerHTML=`<div class="bar-stack" style="height:0;background:linear-gradient(180deg,var(--gold-bright),var(--gold))"></div><div class="bl">${d[0]}</div>`;
+  mc.appendChild(col);
+  setTimeout(()=>{col.querySelector('.bar-stack').style.height=(d[1]/mmax*100)+'%';},90*i+150);
+});
+
+// ===== production table =====
+const orders=[
+  ['#П-2840','Арматура А500С','КазМеталлоконстр.',120,'118','1.2%','plavka'],
+  ['#П-2841','Лист г/к 4мм','ВостокСталь',200,'96','0.8%','prokat'],
+  ['#П-2839','Уголок 63×63','ГорМеталл',80,'80','2.1%','done'],
+  ['#П-2838','Заготовка кв.150','АлтынМет',150,'150','1.5%','done'],
+  ['#П-2842','Проволока 6мм','ПромСнаб',40,'12','3.4%','queue'],
+];
+const stMap={plavka:['Плавка','mol'],prokat:['Прокат','info'],done:['Готово ОТК','ok'],queue:['В очереди','warn']};
+const pt=document.getElementById('prodtable');
+orders.forEach(o=>{
+  const done=parseFloat(o[4]),plan=o[3],pct=Math.min(100,done/plan*100);
+  const [lbl,cls]=stMap[o[6]];
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td class="mono">${o[0]}</td><td>${o[1]}</td><td>${o[2]}</td>
+    <td class="mono">${plan}</td>
+    <td><div class="prog-line"><div class="mini-bar"><i style="width:${pct}%;background:${pct>=100?'var(--green)':'var(--gold)'}"></i></div><span class="pv">${o[4]}</span></div></td>
+    <td class="mono" style="color:${parseFloat(o[5])>2?'var(--gold-bright)':'var(--text-dim)'}">${o[5]}</td>
+    <td><span class="tag ${cls}">${lbl}</span></td>`;
+  pt.appendChild(tr);
+});
+
+// ===== live furnace temps =====
+function jitter(base,el){
+  setInterval(()=>{
+    const v=base+Math.round((Math.random()-0.5)*16);
+    el.innerHTML=v+'<small>°C</small>';
+  },2200);
+}
+jitter(1632,document.getElementById('f2temp'));
+setInterval(()=>{
+  const v=1632+Math.round((Math.random()-0.5)*16);
+  document.getElementById('mini-temp').textContent=v+'°C';
+},2200);
+</script>
+</body>
+</html>
