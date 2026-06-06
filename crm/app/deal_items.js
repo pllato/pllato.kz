@@ -577,6 +577,22 @@ function renderRequisitesCard(deal) {
       <div style="background:#fff3e0;border:1px solid #f59e0b;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:12px;color:#92400e">⚠ Заказ не привязан к клиенту. Без клиента счёт в 1С не создать.</div>
       <input id="dim-client-search" type="text" value="" placeholder="Найти клиента по названию или БИН…" autocomplete="off" style="${REQ_FIELD_STYLE};margin-bottom:6px">
       <div id="dim-client-results" style="max-height:170px;overflow:auto;border:1px solid var(--border,#eee);border-radius:8px;display:none"></div>
+      <button type="button" class="btn-ghost btn-sm" id="dim-client-new-toggle" style="margin-top:6px;padding:4px 10px;font-size:12px">➕ Создать клиента в CRM</button>
+      <div id="dim-client-new-form" style="display:none;margin-top:8px;border:1px solid var(--border,#eee);border-radius:8px;padding:10px;background:var(--surface-2,#fafafa)">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="grid-column:1 / -1"><label style="${REQ_LABEL_STYLE}">Наименование / ФИО *</label><input id="dim-nc-name" type="text" autocomplete="off" placeholder="ТОО «…», больница, ИП или ФИО" style="${REQ_FIELD_STYLE}"></div>
+          <div><label style="${REQ_LABEL_STYLE}">Телефон</label><input id="dim-nc-phone" type="text" autocomplete="off" placeholder="+7 …" style="${REQ_FIELD_STYLE}"></div>
+          <div><label style="${REQ_LABEL_STYLE}">Email</label><input id="dim-nc-email" type="text" autocomplete="off" placeholder="name@mail.kz" style="${REQ_FIELD_STYLE}"></div>
+          <div><label style="${REQ_LABEL_STYLE}">БИН / ИИН</label><input id="dim-nc-bin" type="text" autocomplete="off" inputmode="numeric" placeholder="12 цифр (для поиска в 1С)" style="${REQ_FIELD_STYLE}"></div>
+          <div><label style="${REQ_LABEL_STYLE}">Контактное лицо</label><input id="dim-nc-person" type="text" autocomplete="off" placeholder="кто принимает заказ" style="${REQ_FIELD_STYLE}"></div>
+          <div style="grid-column:1 / -1"><label style="${REQ_LABEL_STYLE}">Адрес доставки</label><input id="dim-nc-address" type="text" autocomplete="off" placeholder="город, улица, дом — сохранится в CRM" style="${REQ_FIELD_STYLE}"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button type="button" class="btn-primary btn-sm" id="dim-nc-save">Создать и привязать</button>
+          <button type="button" class="btn-ghost btn-sm" id="dim-nc-cancel">Отмена</button>
+        </div>
+        <div id="dim-nc-msg" style="font-size:12px;color:#dc2626;margin-top:6px;display:none"></div>
+      </div>
     `;
   }
 
@@ -1290,6 +1306,53 @@ function wireModalHandlers() {
   root.querySelector("[data-dim-client-change]")?.addEventListener("click", (e) => {
     e.preventDefault();
     persistDeal({ contactId: null, contactName: null });
+    refreshModal();
+  });
+
+  // ➕ Создать полного клиента в CRM «на месте» (когда в 1С/CRM не нашёлся).
+  root.querySelector("#dim-client-new-toggle")?.addEventListener("click", () => {
+    const form = root.querySelector("#dim-client-new-form");
+    if (!form) return;
+    const show = form.style.display === "none";
+    form.style.display = show ? "" : "none";
+    if (show) {
+      const q = (root.querySelector("#dim-client-search")?.value || "").trim();
+      const nameInp = root.querySelector("#dim-nc-name");
+      if (nameInp && q && !nameInp.value) nameInp.value = q;
+      nameInp?.focus();
+    }
+  });
+  root.querySelector("#dim-nc-cancel")?.addEventListener("click", () => {
+    const form = root.querySelector("#dim-client-new-form");
+    if (form) form.style.display = "none";
+  });
+  root.querySelector("#dim-nc-save")?.addEventListener("click", () => {
+    const val = (id) => (root.querySelector(id)?.value || "").trim();
+    const name = val("#dim-nc-name");
+    const phone = val("#dim-nc-phone");
+    const email = val("#dim-nc-email");
+    const bin = val("#dim-nc-bin").replace(/\D+/g, "");
+    const person = val("#dim-nc-person");
+    const address = val("#dim-nc-address");
+    const msgEl = root.querySelector("#dim-nc-msg");
+    const fail = (t) => { if (msgEl) { msgEl.style.display = ""; msgEl.textContent = t; } };
+    if (!name) { fail("Укажите наименование или ФИО клиента."); root.querySelector("#dim-nc-name")?.focus(); return; }
+    if (bin && bin.length !== 12) { fail("БИН/ИИН должен содержать 12 цифр (или оставьте поле пустым)."); root.querySelector("#dim-nc-bin")?.focus(); return; }
+    let created;
+    try {
+      created = Store.create("contacts", {
+        name,
+        phone,
+        email,
+        bin: bin || "",
+        company: name,
+        contactPerson: person || "",
+        _1c_address: address || "",
+        source: "crm-manual",
+      });
+    } catch (err) { fail(err?.message || "Не удалось создать контакт"); return; }
+    if (address) { try { saveDeliveryPoint({ contactId: created.id, address }); } catch {} }
+    persistDeal({ contactId: created.id, contactName: name });
     refreshModal();
   });
 
