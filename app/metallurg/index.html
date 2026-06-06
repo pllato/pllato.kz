@@ -240,6 +240,8 @@ tbody tr:hover{background:var(--steel-850)}
 .deal .dn{font-weight:600;font-size:12px;margin-bottom:5px}
 .deal .da{font-family:'JetBrains Mono';font-size:14px;color:var(--gold-bright);font-weight:700}
 .deal .dm{font-size:10px;color:var(--text-mute);margin-top:6px;display:flex;justify-content:space-between}
+.deal.dragging{opacity:.35;cursor:grabbing}
+.pipe-col.drag-over{background:var(--steel-800);box-shadow:inset 0 0 0 1px var(--gold-dim)}
 
 .alert-list{display:flex;flex-direction:column;gap:10px}
 .alert{display:flex;gap:12px;align-items:flex-start;padding:12px;background:var(--steel-850);border-radius:8px;border-left:3px solid var(--text-mute)}
@@ -491,6 +493,33 @@ tbody tr:hover{background:var(--steel-850)}
           </div>
         </div>
 
+        <div class="section-title">Наряды по стадиям передела · канбан</div>
+        <div class="pipe" id="prodkan" data-unit="ton" style="margin-bottom:20px">
+          <div class="pipe-col">
+            <div class="ph"><b>Очередь</b><span class="pc">2 · 130 т</span></div>
+            <div class="deal"><div class="dn">Проволока 6мм</div><div class="da">40 т</div><div class="dm"><span>#П-2842 · ПромСнаб</span><span class="tag warn">ожидает</span></div></div>
+            <div class="deal"><div class="dn">Арматура Ø10 А500С</div><div class="da">90 т</div><div class="dm"><span>#П-2843 · Каскад-Строй</span><span>план</span></div></div>
+          </div>
+          <div class="pipe-col">
+            <div class="ph"><b>Плавка</b><span class="pc">1 · 120 т</span></div>
+            <div class="deal" style="border-left-color:var(--molten)"><div class="dn">Арматура А500С</div><div class="da">120 т</div><div class="dm"><span>#П-2840 · печь №1</span><span class="tag mol">плавка</span></div></div>
+          </div>
+          <div class="pipe-col">
+            <div class="ph"><b>Прокат</b><span class="pc">2 · 360 т</span></div>
+            <div class="deal" style="border-left-color:var(--blue)"><div class="dn">Лист г/к 4мм</div><div class="da">200 т</div><div class="dm"><span>#П-2841 · ВостокСталь</span><span class="tag info">прокат</span></div></div>
+            <div class="deal" style="border-left-color:var(--blue)"><div class="dn">Лист г/к 6мм</div><div class="da">160 т</div><div class="dm"><span>#П-2837 · стан 250</span><span>профиль</span></div></div>
+          </div>
+          <div class="pipe-col">
+            <div class="ph"><b>Контроль ОТК</b><span class="pc">1 · 80 т</span></div>
+            <div class="deal"><div class="dn">Уголок 63×63</div><div class="da">80 т</div><div class="dm"><span>#П-2839 · ГорМеталл</span><span class="tag warn">контроль</span></div></div>
+          </div>
+          <div class="pipe-col">
+            <div class="ph"><b>Сдано на склад</b><span class="pc">2 · 210 т</span></div>
+            <div class="deal" style="border-left-color:var(--green)"><div class="dn">Заготовка кв.150</div><div class="da">150 т</div><div class="dm"><span>#П-2838 · АлтынМет</span><span class="tag ok">сдано</span></div></div>
+            <div class="deal" style="border-left-color:var(--green)"><div class="dn">Уголок 75×75</div><div class="da">60 т</div><div class="dm"><span>#П-2836 · СГП-2</span><span class="tag ok">сдано</span></div></div>
+          </div>
+        </div>
+
         <div class="panel">
           <div class="panel-head"><div><h3>Производственные заказы · смена А</h3><div class="sub">план / факт по партиям</div></div><button class="btn gold">+ Новый наряд</button></div>
           <table>
@@ -527,6 +556,32 @@ tbody tr:hover{background:var(--steel-850)}
             <div class="wv">38 <small>шт</small></div>
             <div class="wbar"><i style="width:42%;background:var(--gold)"></i></div>
             <div class="wcap"><span>заказать</span><span>норма 90 шт</span></div>
+          </div>
+        </div>
+
+        <div class="section-title">Отгрузки · канбан</div>
+        <div class="pipe" id="whkan" data-unit="ton" style="margin-bottom:20px">
+          <div class="pipe-col">
+            <div class="ph"><b>Заявка на отгрузку</b><span class="pc">2 · 280 т</span></div>
+            <div class="deal"><div class="dn">МетПром Астана</div><div class="da">200 т</div><div class="dm"><span>Лист г/к 4мм</span><span class="tag info">new</span></div></div>
+            <div class="deal"><div class="dn">СтройГрад</div><div class="da">80 т</div><div class="dm"><span>Уголок 63×63</span><span>2 дн</span></div></div>
+          </div>
+          <div class="pipe-col">
+            <div class="ph"><b>Комплектация</b><span class="pc">1 · 120 т</span></div>
+            <div class="deal" style="border-left-color:var(--gold)"><div class="dn">ГорМеталл</div><div class="da">120 т</div><div class="dm"><span>Арматура А500С</span><span class="tag warn">сборка</span></div></div>
+          </div>
+          <div class="pipe-col">
+            <div class="ph"><b>Готово к отгрузке</b><span class="pc">1 · 150 т</span></div>
+            <div class="deal" style="border-left-color:var(--blue)"><div class="dn">ВостокСталь</div><div class="da">150 т</div><div class="dm"><span>Заготовка кв.150</span><span class="tag info">рампа</span></div></div>
+          </div>
+          <div class="pipe-col">
+            <div class="ph"><b>В пути</b><span class="pc">1 · 120 т</span></div>
+            <div class="deal" style="border-left-color:var(--molten)"><div class="dn">КазМеталлоконстр.</div><div class="da">120 т</div><div class="dm"><span>Арматура А500С</span><span class="tag mol">в пути</span></div></div>
+          </div>
+          <div class="pipe-col">
+            <div class="ph"><b>Доставлено</b><span class="pc">2 · 150 т</span></div>
+            <div class="deal" style="border-left-color:var(--green)"><div class="dn">ТехноСтрой</div><div class="da">60 т</div><div class="dm"><span>Уголок 75×75</span><span class="tag ok">закрыто</span></div></div>
+            <div class="deal" style="border-left-color:var(--green)"><div class="dn">Каскад-Строй</div><div class="da">90 т</div><div class="dm"><span>Лист г/к 6мм</span><span class="tag ok">оплачено</span></div></div>
           </div>
         </div>
 
@@ -567,7 +622,7 @@ tbody tr:hover{background:var(--steel-850)}
 
         <div class="panel">
           <div class="panel-head"><div><h3>Воронка продаж</h3><div class="sub">сделки по этапам · drag & drop</div></div><button class="btn gold">+ Сделка</button></div>
-          <div class="pipe">
+          <div class="pipe" data-unit="money">
             <div class="pipe-col">
               <div class="ph"><b>Заявка</b><span class="pc">9 · ₸142М</span></div>
               <div class="deal"><div class="dn">Каскад-Строй</div><div class="da">₸24.0 млн</div><div class="dm"><span>Арматура 400 т</span><span class="tag info">new</span></div></div>
@@ -739,6 +794,33 @@ setInterval(()=>{
   const v=1632+Math.round((Math.random()-0.5)*16);
   document.getElementById('mini-temp').textContent=v+'°C';
 },2200);
+
+// ===== kanban drag & drop =====
+function initKanban(pipe){
+  const fmt=pipe.dataset.unit==='money'?v=>'₸'+Math.round(v)+'М':v=>Math.round(v)+' т';
+  const cols=[...pipe.querySelectorAll('.pipe-col')];
+  let dragEl=null;
+  const num=d=>{const m=(d.querySelector('.da')?.textContent||'').replace(/\s/g,'').match(/[\d.]+/);return m?parseFloat(m[0]):0;};
+  function recount(){cols.forEach(c=>{const ds=c.querySelectorAll('.deal');let s=0;ds.forEach(d=>s+=num(d));const pc=c.querySelector('.pc');if(pc)pc.textContent=ds.length+' · '+fmt(s);});}
+  function bind(d){
+    d.setAttribute('draggable','true');
+    d.addEventListener('dragstart',()=>{dragEl=d;requestAnimationFrame(()=>d.classList.add('dragging'));});
+    d.addEventListener('dragend',()=>{d.classList.remove('dragging');cols.forEach(c=>c.classList.remove('drag-over'));recount();});
+  }
+  pipe.querySelectorAll('.deal').forEach(bind);
+  function after(col,y){
+    const els=[...col.querySelectorAll('.deal:not(.dragging)')];
+    let res=null,min=-Infinity;
+    els.forEach(ch=>{const b=ch.getBoundingClientRect();const o=y-b.top-b.height/2;if(o<0&&o>min){min=o;res=ch;}});
+    return res;
+  }
+  cols.forEach(col=>{
+    col.addEventListener('dragover',e=>{e.preventDefault();if(!dragEl)return;col.classList.add('drag-over');const a=after(col,e.clientY);if(a==null)col.appendChild(dragEl);else col.insertBefore(dragEl,a);});
+    col.addEventListener('dragleave',e=>{if(!col.contains(e.relatedTarget))col.classList.remove('drag-over');});
+    col.addEventListener('drop',e=>{e.preventDefault();col.classList.remove('drag-over');});
+  });
+}
+document.querySelectorAll('.pipe').forEach(initKanban);
 </script>
 </body>
 </html>
