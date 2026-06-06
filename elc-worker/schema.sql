@@ -202,7 +202,8 @@ CREATE TABLE users (
   name                 TEXT NOT NULL,
   last_name            TEXT,
   position             TEXT,
-  phone                TEXT,                -- личный телефон сотрудника (редактируется в Настройках)
+  phone                TEXT,                -- основной личный телефон (= phones[0], legacy-совместимость)
+  phones               TEXT,                -- JSON-массив всех телефонов ["+7...","+7..."]; уведомления шлются на все
   photo                TEXT,
   active               INTEGER NOT NULL DEFAULT 1,
   bitrix_id            TEXT,

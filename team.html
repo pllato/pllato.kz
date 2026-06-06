@@ -4382,6 +4382,15 @@ function openMyProfileModal() {
       <button class="qad-btn qad-btn-primary" id="mp-pick" style="padding:10px 20px;width:100%">📷 Загрузить фото</button>
       <div id="mp-status" style="margin-top:12px;font-size:12px;min-height:16px"></div>
       <div style="font-size:11px;color:var(--t3);margin-top:6px">Фото появится в чатах, задачах и ленте.</div>
+
+      <div style="text-align:left;margin-top:20px;border-top:1px solid var(--b1);padding-top:16px">
+        <div style="font-weight:700;font-size:14px;color:var(--t1);margin-bottom:4px">📱 Телефоны для уведомлений</div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:12px;line-height:1.45">Уведомления портала (сообщения, задачи, сделки) придут в WhatsApp на <b>все</b> указанные номера.</div>
+        <div id="mp-phones" style="display:flex;flex-direction:column;gap:8px"></div>
+        <button class="qad-btn qad-btn-ghost" id="mp-phone-add" style="padding:8px 14px;width:100%;margin-top:10px;font-size:13px">＋ Добавить номер</button>
+        <div id="mp-phone-err" style="color:#dc2626;font-size:12px;min-height:16px;margin-top:8px"></div>
+        <button class="qad-btn qad-btn-primary" id="mp-phone-save" style="padding:10px 20px;width:100%;margin-top:4px">Сохранить телефоны</button>
+      </div>
     </div>
   </div>`;
   document.body.appendChild(ov);
@@ -4419,6 +4428,114 @@ function openMyProfileModal() {
       status.innerHTML = `<span style="color:#dc2626">Ошибка: ${escapeHtml(e.message || 'не удалось')}</span>`;
     } finally {
       fileInput.value = '';
+    }
+  };
+
+  // ── Телефоны для уведомлений (можно несколько) ────────────────────────────
+  const phonesWrap = ov.querySelector('#mp-phones');
+  const phoneErr   = ov.querySelector('#mp-phone-err');
+  const phoneAdd   = ov.querySelector('#mp-phone-add');
+  const phoneSave  = ov.querySelector('#mp-phone-save');
+
+  // +7XXXXXXXXXX → 10 локальных цифр для маски (XXX) XXX-XX-XX.
+  const to10 = (p) => {
+    let d = String(p || '').replace(/\D/g, '');
+    if (d.length === 11 && (d[0] === '7' || d[0] === '8')) d = d.slice(1);
+    return d.slice(0, 10);
+  };
+  const fmtPhone = (d) => {
+    d = String(d || '').replace(/\D/g, '').slice(0, 10);
+    let out = '';
+    if (d.length > 0) out = '(' + d.slice(0, 3);
+    if (d.length >= 3) out += ') ' + d.slice(3, 6);
+    if (d.length >= 6) out += '-' + d.slice(6, 8);
+    if (d.length >= 8) out += '-' + d.slice(8, 10);
+    return out;
+  };
+
+  // Начальный список из профиля (phones[] или legacy phone).
+  let phoneVals = (me?.profile?.phones && me.profile.phones.length)
+    ? me.profile.phones.map(to10)
+    : (me?.profile?.phone ? [to10(me.profile.phone)] : []);
+  if (!phoneVals.length) phoneVals = [''];   // хотя бы одно пустое поле
+
+  function renderPhoneRows() {
+    phonesWrap.innerHTML = '';
+    phoneVals.forEach((val, i) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px';
+      row.innerHTML = `
+        <div style="flex:1;display:flex;align-items:center;gap:8px;border:1px solid var(--b1);border-radius:10px;padding:10px 12px;background:var(--bg2)">
+          <span style="font-weight:700;color:var(--t1);font-size:15px">+7</span>
+          <input type="tel" inputmode="numeric" autocomplete="tel" placeholder="(700) 123-45-67"
+            value="${escapeHtml(fmtPhone(val))}" data-i="${i}"
+            style="flex:1;border:none;outline:none;background:transparent;font-size:15px;color:var(--t1);min-width:0">
+        </div>
+        <button class="qad-btn qad-btn-ghost mp-phone-del" data-i="${i}" title="Удалить номер"
+          style="padding:8px 11px;font-size:16px;line-height:1;${phoneVals.length <= 1 ? 'visibility:hidden' : ''}">×</button>`;
+      phonesWrap.appendChild(row);
+      const inp = row.querySelector('input');
+      inp.addEventListener('input', () => {
+        const d = inp.value.replace(/\D/g, '').slice(0, 10);
+        phoneVals[i] = d;
+        inp.value = fmtPhone(d);
+        phoneErr.textContent = '';
+      });
+      row.querySelector('.mp-phone-del').onclick = () => {
+        phoneVals.splice(i, 1);
+        if (!phoneVals.length) phoneVals = [''];
+        renderPhoneRows();
+      };
+    });
+  }
+  renderPhoneRows();
+
+  phoneAdd.onclick = () => {
+    phoneVals.push('');
+    renderPhoneRows();
+    const inputs = phonesWrap.querySelectorAll('input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  };
+
+  phoneSave.onclick = async () => {
+    // Собираем непустые номера, валидируем по 10 цифр, дедуп.
+    const seen = new Set();
+    const list = [];
+    for (const v of phoneVals) {
+      const d = String(v || '').replace(/\D/g, '');
+      if (!d) continue;
+      if (d.length !== 10) { phoneErr.textContent = 'Каждый номер — 10 цифр после +7'; return; }
+      const full = '+7' + d;
+      if (!seen.has(full)) { seen.add(full); list.push(full); }
+    }
+    if (!list.length) { phoneErr.textContent = 'Укажите хотя бы один номер'; return; }
+    phoneSave.disabled = true; phoneSave.textContent = 'Сохраняю…'; phoneErr.textContent = '';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(WORKER_BASE_URL + '/api/me/phone', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phones: list }),
+      });
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !j || !j.ok) {
+        phoneErr.textContent = (j && j.message) || 'Не удалось сохранить. Проверьте номера.';
+        phoneSave.disabled = false; phoneSave.textContent = 'Сохранить телефоны';
+        return;
+      }
+      if (window.currentUser) {
+        window.currentUser.needsPhone = false;
+        window.currentUser.profile = window.currentUser.profile || {};
+        window.currentUser.profile.phone = j.phone;
+        window.currentUser.profile.phones = j.phones || list;
+      }
+      phoneVals = (j.phones || list).map(to10);
+      renderPhoneRows();
+      try { showToast('Телефоны сохранены ✓'); } catch {}
+    } catch (e) {
+      phoneErr.textContent = 'Сеть недоступна. Попробуйте ещё раз.';
+    } finally {
+      phoneSave.disabled = false; phoneSave.textContent = 'Сохранить телефоны';
     }
   };
 }

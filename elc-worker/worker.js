@@ -96,7 +96,7 @@ async function resolveCanonicalUser(env, claims) {
   // Bitrix/Firebase→D1). Первую берём канонической, ОСТАЛЬНЫЕ uid'ы сохраняем
   // как алиасы — под любым из них юзер мог попасть в org-структуру.
   const { results: userRows } = await env.DB.prepare(
-    "SELECT uid, email, name, last_name, position, photo, active, phone FROM users WHERE LOWER(email) = ?"
+    "SELECT uid, email, name, last_name, position, photo, active, phone, phones FROM users WHERE LOWER(email) = ?"
   ).bind(email).all();
   const userRow = (userRows && userRows[0]) ? userRows[0] : null;
 
@@ -2559,10 +2559,11 @@ async function handleAdminListUsers(request, env) {
   const guard = await requireAdmin(request, env);
   if (guard.error) return json({ error: guard.error }, guard.status, request);
 
+  await ensureUserPhonesColumn(env);
   // LEFT JOIN users + user_roles + COUNT задач (для удобства видеть нагрузку)
   const { results } = await env.DB.prepare(`
     SELECT
-      u.uid, u.email, u.name, u.last_name, u.position, u.phone, u.photo, u.active,
+      u.uid, u.email, u.name, u.last_name, u.position, u.phone, u.phones, u.photo, u.active,
       u.bitrix_id, u.last_login, u.migrated_at,
       r.role, r.department,
       (SELECT COUNT(*) FROM tasks WHERE responsible_uid = u.uid) AS tasks_count,
@@ -2580,6 +2581,7 @@ async function handleAdminListUsers(request, env) {
     lastName: r.last_name,
     position: r.position,
     phone: r.phone,
+    phones: userPhoneList(r),
     photo: r.photo,
     active: r.active,
     bitrixId: r.bitrix_id,
@@ -2700,8 +2702,9 @@ async function handleAdminUpdateProfile(request, env, targetUid) {
     return json({ error: "invalid json body" }, 400, request);
   }
 
+  await ensureUserPhonesColumn(env);
   const before = await env.DB.prepare(
-    "SELECT uid, email, name, last_name, position, phone FROM users WHERE uid = ?"
+    "SELECT uid, email, name, last_name, position, phone, phones FROM users WHERE uid = ?"
   ).bind(targetUid).first();
   if (!before) return json({ error: "user not found", uid: targetUid }, 404, request);
 
@@ -2722,7 +2725,16 @@ async function handleAdminUpdateProfile(request, env, targetUid) {
     const position = String(body.position || '').trim() || null;
     sets.push("position = ?"); params.push(position); changed.position = position;
   }
-  if (body.phone !== undefined) {
+  // phones (массив) имеет приоритет над legacy phone. Нормализуем, пишем
+  // и phones (JSON), и phone (основной = первый) для обратной совместимости.
+  if (body.phones !== undefined) {
+    const list = normalizePhoneListInput(body.phones);
+    const primary = list.length ? list[0] : null;
+    const phonesJson = list.length ? JSON.stringify(list) : null;
+    sets.push("phones = ?"); params.push(phonesJson);
+    sets.push("phone = ?");  params.push(primary);
+    changed.phones = list; changed.phone = primary;
+  } else if (body.phone !== undefined) {
     const phone = String(body.phone || '').trim() || null;
     sets.push("phone = ?"); params.push(phone); changed.phone = phone;
   }
@@ -2747,7 +2759,7 @@ async function handleAdminUpdateProfile(request, env, targetUid) {
   ).bind(...params).run();
 
   await auditLog(env, guard.me, "user_update_profile", "user", targetUid, {
-    old: { email: before.email, name: before.name, lastName: before.last_name, position: before.position, phone: before.phone },
+    old: { email: before.email, name: before.name, lastName: before.last_name, position: before.position, phone: before.phone, phones: userPhoneList(before) },
     new: changed,
   });
 
@@ -3984,25 +3996,39 @@ async function sendNotify(env, { uid, phone, event, text, link }) {
     if (event && cfg.events && cfg.events[event] === false) {
       return logNotify(env, { uid, phone, event, text, link, status: 'skipped', error: 'event_off' });
     }
-    let targetPhone = phone || null;
+    let targetPhones = [];        // все номера получателя (1..N)
     let targetUid = uid || null;
     let firstName = null;
-    if (!targetPhone && uid) {
-      const u = await env.DB.prepare("SELECT phone, active, name FROM users WHERE uid = ?").bind(uid).first();
+    if (phone) {
+      // Явно переданный номер — приоритет (не лезем в БД).
+      const n = normalizePhoneKZ(phone);
+      targetPhones = n ? [n] : [String(phone)];
+    } else if (uid) {
+      await ensureUserPhonesColumn(env);
+      const u = await env.DB.prepare("SELECT phone, phones, active, name FROM users WHERE uid = ?").bind(uid).first();
       if (!u) return logNotify(env, { uid, phone: null, event, text, link, status: 'skipped', error: 'no_user' });
       if (u.active === 0) return logNotify(env, { uid, phone: u.phone, event, text, link, status: 'skipped', error: 'inactive' });
-      targetPhone = u.phone;
+      targetPhones = userPhoneList(u);                 // ← все телефоны сотрудника
       firstName = (u.name || '').trim().split(/\s+/)[0] || null;
     }
-    if (!targetPhone) return logNotify(env, { uid: targetUid, phone: null, event, text, link, status: 'skipped', error: 'no_phone' });
+    if (!targetPhones.length) return logNotify(env, { uid: targetUid, phone: null, event, text, link, status: 'skipped', error: 'no_phone' });
     // Персонализация (анти-бан Green-API): обращение по имени делает каждое
     // сообщение уникальным, даже если событие рассылается нескольким получателям
     // с одинаковым текстом. Идентичные массовые сообщения = спам-паттерн → бан.
     const greeting = firstName ? `${firstName},\n` : '';
     const body = greeting + text;
     const full = link ? `${body}\n\n${link}` : body;
-    const idMessage = await deliverNotifierRaw(cfg, targetPhone, full);
-    return logNotify(env, { uid: targetUid, phone: targetPhone, event, text, link, status: 'sent', wa_message_id: idMessage });
+    // Шлём на ВСЕ номера сотрудника, логируем каждый отдельно.
+    let lastLog = null;
+    for (const tp of targetPhones) {
+      try {
+        const idMessage = await deliverNotifierRaw(cfg, tp, full);
+        lastLog = await logNotify(env, { uid: targetUid, phone: tp, event, text, link, status: 'sent', wa_message_id: idMessage });
+      } catch (e) {
+        lastLog = await logNotify(env, { uid: targetUid, phone: tp, event, text, link, status: 'failed', error: String(e && e.message || e) });
+      }
+    }
+    return lastLog;
   } catch (e) {
     return logNotify(env, { uid: uid || null, phone: phone || null, event, text, link, status: 'failed', error: String(e && e.message || e) });
   }
@@ -5500,6 +5526,17 @@ async function ensureInviteNameColumn(env) {
   _inviteNameColEnsured = true;
 }
 
+// users.phones — JSON-массив доп. телефонов сотрудника ["+7...","+7..."].
+// users.phone остаётся «основным» (первый из списка) для обратной совместимости.
+// Self-миграция через D1-биндинг (деплой-токен не имеет прав на D1 API → 7403).
+let _userPhonesColEnsured = false;
+async function ensureUserPhonesColumn(env) {
+  if (_userPhonesColEnsured) return;
+  try { await env.DB.prepare("ALTER TABLE users ADD COLUMN phones TEXT").run(); }
+  catch (e) { /* колонка уже есть — ок */ }
+  _userPhonesColEnsured = true;
+}
+
 // POST /api/invites { phone, name, email, dept_path, head_uid, role }
 // → создаёт row в team_invites + отправляет WA с invite-ссылкой.
 // Ссылка: https://pllato.kz/team.html#invite/<token>
@@ -6022,10 +6059,11 @@ async function handleMe(request, env) {
       position: me.userRecord.position,
       active: me.userRecord.active,
       photo: me.userRecord.photo,
-      phone: me.userRecord.phone || null,
+      phone: me.userRecord.phone || null,            // основной (legacy)
+      phones: userPhoneList(me.userRecord),          // все номера сотрудника
     } : null,
     // Признак для фронта: нужно ли требовать заполнить телефон (для нотифаера).
-    needsPhone: !!me.userRecord && !(me.userRecord.phone && String(me.userRecord.phone).trim()),
+    needsPhone: !!me.userRecord && userPhoneList(me.userRecord).length === 0,
     isLinked: !!me.userRecord,        // false если email не нашёлся в users
     // Phase 2: effective permissions из org structure для frontend
     orgPerms: me.orgPerms ? {
@@ -6050,6 +6088,37 @@ function normalizePhoneKZ(raw) {
   return null;
 }
 
+// Нормализует список введённых телефонов → массив канонических "+7..." без
+// дублей. Принимает массив строк/объектов {value} ИЛИ одну строку. Невалидные
+// номера отбрасываются.
+function normalizePhoneListInput(raw) {
+  const arr = Array.isArray(raw) ? raw : (raw == null ? [] : [raw]);
+  const out = []; const seen = new Set();
+  for (const r of arr) {
+    const v = (r && typeof r === 'object') ? (r.value || r.phone || r.number) : r;
+    const n = normalizePhoneKZ(v);
+    if (n && !seen.has(n)) { seen.add(n); out.push(n); }
+  }
+  return out;
+}
+
+// Собирает все телефоны сотрудника из users.phones (JSON-массив) + legacy
+// users.phone в единый нормализованный список без дублей. Порядок: phones[…],
+// затем legacy phone как fallback (дубль отсеется).
+function userPhoneList(row) {
+  if (!row) return [];
+  const out = []; const seen = new Set();
+  const push = (raw) => { const n = normalizePhoneKZ(raw); if (n && !seen.has(n)) { seen.add(n); out.push(n); } };
+  if (row.phones) {
+    try {
+      const arr = JSON.parse(row.phones);
+      if (Array.isArray(arr)) for (const p of arr) push(typeof p === 'string' ? p : (p && (p.value || p.phone || p.number)));
+    } catch {}
+  }
+  if (row.phone) push(row.phone);
+  return out;
+}
+
 // POST /api/me/phone — сотрудник сам сохраняет свой телефон (для нотифаера).
 // Body: { phone }. Валидирует +7 формат, пишет в users.phone своей строки.
 async function handleSetMyPhone(request, env) {
@@ -6061,21 +6130,27 @@ async function handleSetMyPhone(request, env) {
   let body;
   try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
 
-  const phone = normalizePhoneKZ(body && body.phone);
-  if (!phone) {
+  // Принимаем массив phones (новый формат) ИЛИ единичный phone (legacy).
+  const list = normalizePhoneListInput(
+    (body && Array.isArray(body.phones)) ? body.phones : (body && body.phone)
+  );
+  if (!list.length) {
     return json({ error: "invalid_phone", message: "Введите корректный номер в формате +7XXXXXXXXXX" }, 400, request);
   }
 
+  await ensureUserPhonesColumn(env);
+  const primary = list[0];
+  const phonesJson = JSON.stringify(list);
   const res = await env.DB.prepare(
-    "UPDATE users SET phone = ? WHERE uid = ?"
-  ).bind(phone, me.canonicalUid).run();
+    "UPDATE users SET phone = ?, phones = ? WHERE uid = ?"
+  ).bind(primary, phonesJson, me.canonicalUid).run();
 
   const changed = res && res.meta ? (res.meta.changes || 0) : 0;
   try {
-    await auditLog(env, me, "user_set_own_phone", "user", me.canonicalUid, { phone });
+    await auditLog(env, me, "user_set_own_phone", "user", me.canonicalUid, { phone: primary, phones: list });
   } catch {}
 
-  return json({ ok: true, phone, linked: changed > 0 }, 200, request);
+  return json({ ok: true, phone: primary, phones: list, linked: changed > 0 }, 200, request);
 }
 
 // ══════════════════════════════════════════════════════════════════════════
