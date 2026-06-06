@@ -3671,6 +3671,10 @@ async function initApp(user) {
   // Обязательный телефон: если в профиле его нет — блокирующая модалка.
   // Нужен для системных уведомлений в WhatsApp (нотифаер).
   setTimeout(() => maybeRequirePhone(), 1200);
+
+  // Пуши: если устройство ещё не подписано — мягко предложить включить.
+  // Не накладывается на модалку телефона (ждёт её закрытия). Раз в сессию.
+  setTimeout(() => maybePromptEnablePush(), 2600);
 }
 
 async function preloadInBackground() {
@@ -3947,6 +3951,90 @@ async function ensurePushSubscription() {
   }
 }
 window.ensurePushSubscription = ensurePushSubscription;
+
+// Проактивно предложить включить пуши, если устройство ещё не подписано.
+// Браузеры требуют user-gesture для Notification.requestPermission, поэтому
+// показываем мягкую карточку с кнопкой (по клику — запрос разрешения).
+function maybePromptEnablePush(attempt = 0) {
+  try {
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (Notification.permission === 'granted') { ensurePushSubscription(); return; }
+    if (Notification.permission === 'denied') return;   // пере-спросить нельзя — не надоедаем
+    // permission === 'default' → ещё не спрашивали
+    try { if (sessionStorage.getItem('elc:pushPromptShown')) return; } catch {}
+    // Не накладываемся на блокирующую модалку телефона — ждём её закрытия.
+    if (document.getElementById('req-phone-ov')) {
+      if (attempt < 20) { setTimeout(() => maybePromptEnablePush(attempt + 1), 1500); }
+      return;
+    }
+    try { sessionStorage.setItem('elc:pushPromptShown', '1'); } catch {}
+    openEnablePushModal();
+  } catch (e) { console.warn('[push] maybePromptEnablePush failed', e); }
+}
+
+function openEnablePushModal() {
+  if (document.getElementById('enable-push-ov')) return;
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+  const isStandalone = window.matchMedia?.('(display-mode: standalone)')?.matches
+    || window.navigator.standalone === true;
+  // iOS требует установленную PWA (экран Домой) для веб-пушей.
+  const iosNeedsInstall = isIOS && !isStandalone;
+  const ov = document.createElement('div');
+  ov.className = 'qad-overlay';
+  ov.id = 'enable-push-ov';
+  ov.style.zIndex = '10040';
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:420px;width:92vw">
+    <div class="qad-body" style="padding:28px 26px;text-align:center">
+      <div style="font-size:46px;margin-bottom:10px">🔔</div>
+      <h2 style="margin:0 0 8px">Включить уведомления?</h2>
+      <p style="font-size:13px;color:var(--t2);line-height:1.5;margin:0 0 18px">
+        Чтобы не пропускать новые сообщения, задачи и сделки — включи пуш-уведомления
+        на этом устройстве. Они будут приходить, даже когда вкладка закрыта.
+      </p>
+      ${iosNeedsInstall ? `
+        <div style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--t2);line-height:1.5;text-align:left">
+          📲 На iPhone пуши работают только из приложения с экрана «Домой».<br>
+          Нажми <b>Поделиться</b> → <b>«На экран Домой»</b>, открой оттуда и включи уведомления.
+        </div>
+        <button class="qad-btn qad-btn-ghost" id="enable-push-later" style="padding:11px 22px;width:100%">Понятно</button>
+      ` : `
+        <div id="enable-push-status" style="font-size:12px;min-height:16px;margin-bottom:10px"></div>
+        <button class="qad-btn qad-btn-primary" id="enable-push-yes" style="padding:12px 22px;width:100%;font-size:15px;margin-bottom:8px">🔔 Включить уведомления</button>
+        <button class="qad-btn qad-btn-ghost" id="enable-push-later" style="padding:9px 22px;width:100%">Позже</button>
+      `}
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  function close() { ov.remove(); }
+  const laterBtn = ov.querySelector('#enable-push-later');
+  if (laterBtn) laterBtn.onclick = close;
+  const yesBtn = ov.querySelector('#enable-push-yes');
+  if (yesBtn) yesBtn.onclick = async () => {
+    const status = ov.querySelector('#enable-push-status');
+    yesBtn.disabled = true; yesBtn.textContent = '⏳ Запрашиваю…';
+    const granted = await requestNotificationPermission();
+    if (!granted) {
+      if (status) status.innerHTML = Notification.permission === 'denied'
+        ? '<span style="color:#dc2626">Уведомления заблокированы в настройках браузера. Разреши их вручную для этого сайта.</span>'
+        : '<span style="color:#dc2626">Не получилось включить. Попробуй ещё раз.</span>';
+      yesBtn.disabled = false; yesBtn.textContent = '🔔 Включить уведомления';
+      return;
+    }
+    const subscribed = await ensurePushSubscription();
+    try { playMessageBeep(); } catch {}
+    try {
+      new Notification('🔔 Уведомления включены', {
+        body: subscribed
+          ? 'Пуши будут приходить даже когда вкладка закрыта'
+          : 'Уведомления включены в этой вкладке',
+        icon: '/icon-192.png',
+      });
+    } catch {}
+    try { showToast('Уведомления включены ✓'); } catch {}
+    close();
+  };
+}
 
 async function renderNotifications(el) {
   el.innerHTML = `
