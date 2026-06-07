@@ -10,6 +10,8 @@ let AUTH = { token:null, user:null };
 const $ = (s,r=document)=>r.querySelector(s);
 const el = (h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstElementChild;};
 const ic = (id,cls='')=>`<svg class="svg-i ${cls}"><use href="#${id}"/></svg>`;
+// экранирование пользовательских/1С-данных при вставке в HTML (текст и атрибуты в "")
+const esc = (s)=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function money(kgs){const v=Math.round(kgs*DB.fx[state.cur]);return v.toLocaleString('ru-RU')+' '+DB.curSym[state.cur];}
 function initials(n){return n.split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();}
 function avBg(seed){const c=['#10b981','#2563eb','#7c3aed','#db2777','#0891b2','#d97706','#16a34a','#e1306c'];let h=0;for(const ch of seed)h=ch.charCodeAt(0)+((h<<5)-h);return c[Math.abs(h)%c.length];}
@@ -87,8 +89,11 @@ function renderNav(){
     if(!items.length)return;
     nav.appendChild(el(`<div class="nav-group">${group.g}</div>`));
     items.forEach(it=>{
+      let badge=it.badge;
+      if(it.id==='inbox') badge=String(DB.threads.reduce((a,t)=>a+(t.unread||0),0)||'');
+      if(it.id==='tasks') badge=String(DB.tasks.filter(t=>!t.done).length||'');
       const b=el(`<button class="nav-item ${state.page===it.id?'active':''}" data-page="${it.id}">
-        ${ic(it.i)}<span>${it.t}</span>${it.badge?`<span class="badge ${it.alt?'alt':''}">${it.badge}</span>`:''}</button>`);
+        ${ic(it.i)}<span>${it.t}</span>${badge?`<span class="badge ${it.alt?'alt':''}">${badge}</span>`:''}</button>`);
       b.onclick=()=>go(it.id);
       nav.appendChild(b);
     });
@@ -292,9 +297,9 @@ PAGES.clients=(c)=>{
     const loyalty=Array.isArray(cl.loyalty)?cl.loyalty:[];
     const deals=(cl.deals!=null)?cl.deals:'—';
     return `<td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(cl.name)}">${initials(cl.name)}</span>
-        <div><div>${cl.name}</div><div class="muted2" style="font-size:11px">${cl.phone||'—'}</div></div></div></td>
-      <td>${type.map(t=>`<span class="tag" style="margin:1px">${t}</span>`).join('')}</td>
-      <td class="muted">${cl.source||'—'}</td><td>${cl.mgr||'—'}</td><td>${deals}</td>
+        <div><div>${esc(cl.name)}</div><div class="muted2" style="font-size:11px">${esc(cl.phone||'—')}</div></div></div></td>
+      <td>${type.map(t=>`<span class="tag" style="margin:1px">${esc(t)}</span>`).join('')}</td>
+      <td class="muted">${esc(cl.source||'—')}</td><td>${esc(cl.mgr||'—')}</td><td>${deals}</td>
       <td class="num">${money(cl.ltv||0)}</td>
       <td>${cl.sub?'<span class="tag violet">'+ic('i-repeat','sm')+' подписка</span>':''}${loyalty.includes('не хочет рассылок')?'<span class="tag red">no-рассылки</span>':''}</td>`;
   }
@@ -375,13 +380,13 @@ function clientModalHTML(cl){
   let body='';
   if(state.clientTab===0){
     body=`<div class="grid-2b">
-      <div><div class="fld"><label>ФИО</label><input value="${cl.name||''}"></div>
-      <div class="fld"><label>Телефон</label><input value="${cl.phone||''}"></div>
-      <div class="fld-row"><div class="fld"><label>Дата рождения</label><input value="${cl.dob||''}"></div><div class="fld"><label>Дисконтная карта</label><input value="${cl.card||''}"></div></div>
-      <div class="fld"><label>Ответственный менеджер</label><input value="${cl.mgr||''}"></div></div>
+      <div><div class="fld"><label>ФИО</label><input value="${esc(cl.name||'')}"></div>
+      <div class="fld"><label>Телефон</label><input value="${esc(cl.phone||'')}"></div>
+      <div class="fld-row"><div class="fld"><label>Дата рождения</label><input value="${esc(cl.dob||'')}"></div><div class="fld"><label>Дисконтная карта</label><input value="${esc(cl.card||'')}"></div></div>
+      <div class="fld"><label>Ответственный менеджер</label><input value="${esc(cl.mgr||'')}"></div></div>
       <div><div class="fld"><label>Тип клиента</label><div class="chips">${['розница','опт','врач','дисконт','подписчик','партнёр'].map(t=>`<span class="chip ${clType.includes(t)?'on':''}">${t}</span>`).join('')}</div></div>
       <div class="fld"><label>Метки лояльности</label><div class="chips">${['постоянный','новый','не хочет рассылок','заинтересован в подписке'].map(t=>`<span class="chip ${clLoyalty.includes(t)?'on':''}">${t}</span>`).join('')}</div></div>
-      <div class="fld"><label>Источник лида</label><input value="${cl.source||''}"></div></div>
+      <div class="fld"><label>Источник лида</label><input value="${esc(cl.source||'')}"></div></div>
     </div>`;
   } else if(state.clientTab===1){
     body=`<div class="note blue">${ic('i-sync','sm')} История покупок подтягивается из 1С Listki EG автоматически. LTV: <b>${money(cl.ltv||0)}</b> · сделок: ${cl.deals!=null?cl.deals:'—'}</div>
@@ -410,7 +415,7 @@ function clientModalHTML(cl){
       :`<div class="empty">${ic('i-repeat')}<div>Подписки нет</div><button class="btn primary" style="margin-top:14px" onclick="toast('Карточка подписки создана','i-repeat','#7c3aed')">${ic('i-plus','sm')} Оформить подписку</button></div>`;
   }
   return `<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(cl.name)}">${initials(cl.name)}</span>
-    <div><h3>${cl.name}</h3><div class="mh-sub">${cl.phone||'—'} · ${(cl.card&&cl.card!=='—')?'карта '+cl.card:'без карты'}</div></div></div>
+    <div><h3>${esc(cl.name)}</h3><div class="mh-sub">${esc(cl.phone||'—')} · ${(cl.card&&cl.card!=='—')?'карта '+esc(cl.card):'без карты'}</div></div></div>
     <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b"><div class="tabs" style="margin-bottom:18px">${tabs.map((t,i)=>`<button class="tab ${state.clientTab===i?'on':''}" data-t="${i}">${t}</button>`).join('')}</div>${body}</div>`;
 }
@@ -876,8 +881,8 @@ function invitesPanel(){
     const stMap={pending:['ожидает','amber'],used:['принято','green'],expired:['истекло','']};
     body.innerHTML=`<table class="tbl"><tbody>${items.map((it,i)=>{
       const st=stMap[it.status]||['—',''];
-      return `<tr data-i="${i}"><td><div class="cell-name"><div><div>${it.name||'—'}</div>
-        <div class="muted2" style="font-size:11px">${it.roleName||it.role} · ${it.phone||''}</div></div></div></td>
+      return `<tr data-i="${i}"><td><div class="cell-name"><div><div>${esc(it.name||'—')}</div>
+        <div class="muted2" style="font-size:11px">${esc(it.roleName||it.role)} · ${esc(it.phone||'')}</div></div></div></td>
         <td style="text-align:right;white-space:nowrap"><span class="tag ${st[1]}">${st[0]}</span>
         ${it.status==='pending'?`<button class="btn sm ghost" data-act="copy" data-i="${i}" style="margin-left:8px">копи</button>
           <button class="btn sm ghost" data-act="revoke" data-i="${i}">отозвать</button>`:''}</td></tr>`;
@@ -917,7 +922,7 @@ function teamMembersPanel(){
       const me = u.is_me ? '<span class="tag blue" style="margin-left:6px">вы</span>' : '';
       const sub = (u.roleName||u.role)+(u.email?' · '+u.email:(u.login?' · '+u.login:''));
       return `<tr><td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(u.name||u.login||'?')}">${initials(u.name||u.login||'?')}</span>
-        <div><div>${u.name||u.login||'—'}${me}</div><div class="muted2" style="font-size:11px">${sub}</div></div></div></td>
+        <div><div>${esc(u.name||u.login||'—')}${me}</div><div class="muted2" style="font-size:11px">${esc(sub)}</div></div></div></td>
         <td style="text-align:right">${st}</td></tr>`;
     }).join('');
   }
@@ -930,7 +935,7 @@ function plural(n,one,few,many){ const m=n%100, d=n%10;
 // ---------- TEAM ----------
 PAGES.team=(c)=>{
   if(isAdminRole()) c.appendChild(invitesPanel());
-  const sections=[['Дашборд','dash'],['Воронки','funnels'],['Клиенты','clients'],['Чаты','inbox'],['Заказы','orders'],['Каталог','catalog'],['Маркетинг','marketing'],['Триггеры','triggers'],['Аналитика','analytics'],['KPI','kpi'],['Команда','team'],['Интеграции','integrations']];
+  const sections=[['Дашборд','dash'],['Воронки','funnels'],['Клиенты','clients'],['Чаты','inbox'],['Заказы','orders'],['Каталог','catalog'],['Маркетинг','marketing'],['Блогеры','bloggers'],['Врачи-партнёры','doctors'],['Аналитика','analytics'],['Задачи','tasks'],['Подписки','subs'],['Триггеры','triggers'],['AI-агент','ai'],['KPI','kpi'],['Команда','team'],['Интеграции','integrations'],['Настройки','settings']];
   c.appendChild(el(`<div class="page-sub" style="margin-bottom:14px">Каждая роль видит только свой раздел. WhatsApp-каналы привязаны к сотрудникам.</div>`));
   const panel=el(`<div class="panel" style="overflow-x:auto"><table class="tbl perm-tbl"><thead><tr><th>Раздел</th>${DB.roles.map(r=>`<th style="text-align:center">${r.name.split(' ')[0]}</th>`).join('')}</tr></thead><tbody>
     ${sections.map(([lbl,id])=>`<tr><td>${lbl}</td>${DB.roles.map(r=>`<td style="text-align:center">${DB.access[r.id].includes(id)?'<span class="yes">'+ic('i-check2','sm')+'</span>':'<span class="no">—</span>'}</td>`).join('')}</tr>`).join('')}
