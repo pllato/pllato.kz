@@ -1434,6 +1434,15 @@ body.tc-chat-overlay .sipc-bottombar:not([data-state="established"]):not([data-s
   border: 1px dashed var(--b2);
   border-radius: 8px;
 }
+.kanban-trunc-banner {
+  margin: 0 0 8px;
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--t2);
+  background: var(--b1);
+  border: 1px solid var(--b2);
+  border-radius: 8px;
+}
 .kanban-empty {
   text-align: center;
   padding: 24px 8px;
@@ -5476,6 +5485,10 @@ const dealsState = {
   // загрузкой сделок воронки.
   // Структура: { [pipelineId]: { wa: {dealId: {unreadCount,lastIncomingAt}}, calls: {dealId: {missedCount,lastMissedAt}} } }
   activityByPipeline: {},
+  // Точные per-stage счётчики с сервера (countsOnly=1) — для бейджей колонок на
+  // огромных воронках, где в канбан грузим только N свежих карточек.
+  // Структура: { [pipelineId]: { counts: {stageId: n}, total, at } }
+  stageCountsByPipeline: {},
 };
 
 // Геттер активности по dealId — для buildDealCard / сортировки в канбане.
@@ -7934,6 +7947,66 @@ async function loadDealsData() {
   await loadDealsForPipeline(pipelineId, { force: false });
 }
 
+// Вычисляет scope/assignee для запросов канбана — единый источник для
+// загрузки карточек И для countsOnly-счётчиков (чтобы бейджи всегда совпадали
+// с тем, что реально показано). Для админа решает getAdminKanbanFilter:
+//   'mine'  → scope=mine; '<uid>' → scope=all + assignee=uid; 'all' → scope=all.
+// ?scope=all в URL форсит «все». Менеджеры/агенты — effectiveScope() + assignee
+// из responsibleFilter (server-side).
+function computeKanbanScope() {
+  const isAdmin = window.currentUser?.role === 'admin';
+  const urlScope = new URLSearchParams(location.search).get('scope');
+  let scope, assignee = '';
+  if (isAdmin) {
+    const kf = (urlScope === 'all') ? 'all' : getAdminKanbanFilter();
+    if (kf === 'all') { scope = 'all'; }
+    else if (kf === 'mine') { scope = 'mine'; }
+    else { scope = 'all'; assignee = kf; }
+  } else {
+    scope = effectiveScope();
+    if (dealsState.responsibleFilter) assignee = dealsState.responsibleFilter;
+  }
+  return { scope, assignee };
+}
+
+// Дешёвые точные счётчики по стадиям через countsOnly=1 (один GROUP BY на
+// сервере, без выборки строк). Нужны чтобы бейджи колонок показывали ИСТИННЫЕ
+// итоги воронки, даже когда в канбан загружено только KANBAN_MAX_DEALS свежих
+// карточек. Не блокирует загрузку карточек — по приходу перерисовывает бейджи.
+async function loadDealsStageCounts(pipelineId, idToken) {
+  try {
+    const { scope, assignee } = computeKanbanScope();
+    const params = new URLSearchParams({
+      countsOnly: '1',
+      pipeline: pipelineId,
+      scope,
+      auth: idToken,
+    });
+    if (assignee) params.set('assignee', assignee);
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 25000);
+    let r;
+    try { r = await fetch(`${WORKER_LIST_URL}/deals?${params}`, { signal: ctrl.signal }); }
+    finally { clearTimeout(to); }
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    dealsState.stageCountsByPipeline[pipelineId] = {
+      counts: data.counts || {},
+      total: data.total || 0,
+      at: Date.now(),
+    };
+    // Перерисуем бейджи, если воронка ещё активна и открыт именно канбан.
+    if (dealsState.activePipelineId === pipelineId &&
+        dealsState.view === 'kanban' &&
+        document.getElementById('deals-content') &&
+        document.querySelector('[data-page="deals"].active')) {
+      renderDealsContent();
+    }
+  } catch (e) {
+    console.warn('loadDealsStageCounts:', e && e.message);
+  }
+}
+
 // Загружает сделки одной воронки через paged worker endpoint.
 // - Все сделки воронки (включая closed=0 и closed=1) — kanban должен показывать
 //   и активные стадии и финальные success/fail.
@@ -7953,6 +8026,13 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
     if (Date.now() - lastTs > 60_000) {
       setTimeout(() => loadDealsForPipeline(pipelineId, { force: true }).catch(() => {}), 100);
     }
+    // Точные счётчики стадий: если ещё не загружены или устарели — освежим в фоне.
+    const sc = dealsState.stageCountsByPipeline[pipelineId];
+    if (!sc || Date.now() - (sc.at || 0) > 60_000) {
+      fbAuth.currentUser.getIdToken()
+        .then(t => loadDealsStageCounts(pipelineId, t))
+        .catch(() => {});
+    }
     return;
   }
 
@@ -7968,29 +8048,18 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
       const all = [];
       let page = 1;
       const pageSize = 200;
-      // Жёсткий потолок защищает от уехавшей API. После миграции crm.myelc.net
-      // в воронке ELC ~33k активных сделок (66k архивных). Подняли с 30 до 175
-      // страниц = 35,000 макс. Если воронка вырастет ещё — пересмотреть либо
-      // включить virtualization канбана, либо принудительный scope=mine/team.
-      const MAX_PAGES = 175;
-      // Для админа на Канбане единый фильтр справа (getAdminKanbanFilter):
-      //   'mine'  → scope=mine (быстро)
-      //   '<uid>' → scope=all + assignee=uid (срез одного сотрудника, быстро)
-      //   'all'   → scope=all (все сделки воронки, медленно)
-      // ?scope=all в URL форсит «все». Менеджеры/агенты — scope=all/team/mine
-      // по effectiveScope(); выбор сотрудника у них уходит в assignee server-side.
-      const isAdmin = window.currentUser?.role === 'admin';
-      const urlScope = new URLSearchParams(location.search).get('scope');
-      let kanbanScope, kanbanAssignee = '';
-      if (isAdmin) {
-        const kf = (urlScope === 'all') ? 'all' : getAdminKanbanFilter();
-        if (kf === 'all') { kanbanScope = 'all'; }
-        else if (kf === 'mine') { kanbanScope = 'mine'; }
-        else { kanbanScope = 'all'; kanbanAssignee = kf; }
-      } else {
-        kanbanScope = effectiveScope();
-        if (dealsState.responsibleFilter) kanbanAssignee = dealsState.responsibleFilter;
-      }
+      // Потолок карточек в канбане: грузим только KANBAN_MAX_DEALS самых свежих
+      // (sort=modified DESC), а истинные итоги колонок берём из дешёвого
+      // countsOnly-эндпоинта (loadDealsStageCounts). На ELC ~33k / UniqBook ~22k
+      // полная загрузка = ~167 запросов и десятки МБ — канбану столько карточек
+      // не нужно (показываем max 100/колонку), а бейджи всё равно точные.
+      // Список (вкладка «Список») остаётся серверно-пагинированным — туда полный
+      // доступ ко всем сделкам.
+      const KANBAN_MAX_DEALS = 5000;
+      const MAX_PAGES = Math.ceil(KANBAN_MAX_DEALS / pageSize); // = 25
+      const { scope: kanbanScope, assignee: kanbanAssignee } = computeKanbanScope();
+      // Параллельно — точные счётчики стадий (не блокируют загрузку карточек).
+      loadDealsStageCounts(pipelineId, idToken).catch(() => {});
       // Инкрементальный рендер канбана: показываем сделки по мере прихода
       // страниц, НЕ блокируя UI до полной загрузки. На больших воронках
       // (ELC ~33k сделок = ~167 страниц) пользователь раньше застревал на
@@ -8047,6 +8116,7 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
           }
         }
         if (!data.hasMore || items.length < pageSize) break;
+        if (all.length >= KANBAN_MAX_DEALS) break; // потолок свежих карточек
         page++;
       }
       // Сортировка для kanban: по дате создания (desc) внутри стадии получается
@@ -8828,19 +8898,35 @@ function renderDealsKanban(c, arr) {
   }
   console.log(`[kanban] ${arr.length} сделок, ${stages.length} стадий, размещено ${placedCount}, orphan ${orphan.length}`);
 
-  let html = `<div class="kanban-wrap" id="kanban-wrap">`;
+  // Истинные итоги по стадиям с сервера (countsOnly). Если загружены —
+  // бейджи колонок показывают полное число сделок воронки, а не только то,
+  // что влезло в KANBAN_MAX_DEALS свежих карточек.
+  const sc = dealsState.stageCountsByPipeline?.[dealsState.activePipelineId];
+  const trueCounts = (sc && sc.counts) ? sc.counts : null;
+  const trueTotal = sc ? sc.total : null;
+
+  let html = '';
+  // Плашка усечения: показано N свежих из M (когда загружено меньше, чем всего).
+  if (trueTotal != null && trueTotal > arr.length) {
+    html += `<div class="kanban-trunc-banner">📋 Показаны ${arr.length.toLocaleString('ru')} самых свежих сделок из ${trueTotal.toLocaleString('ru')}. Остальные — во вкладке «Список» или сузьте фильтр сотрудника.</div>`;
+  }
+  html += `<div class="kanban-wrap" id="kanban-wrap">`;
   const MAX_PER_COL = 100;
 
   for (const s of stages) {
     const cards = sortDealsForKanban(byStage[s.statusId] || []);
     const totalSum = cards.reduce((acc, d) => acc + (d.opportunity || 0), 0);
     const stageColor = s.semantics === 'S' ? '#3fd88e' : s.semantics === 'F' ? '#f05975' : '#a87fff';
+    const shown = Math.min(cards.length, MAX_PER_COL);
+    // Истинный итог колонки: с сервера если есть, иначе — сколько загружено.
+    const colTotal = (trueCounts && trueCounts[s.statusId] != null) ? trueCounts[s.statusId] : cards.length;
+    const hidden = Math.max(0, colTotal - shown);
 
     html += `<div class="kanban-col" data-stage="${escapeHtml(s.statusId)}" style="--stage-color: ${stageColor}">
       <div class="kanban-col-header">
         <span class="stage-dot"></span>
         <span class="stage-title" style="color:${stageColor}">${escapeHtml(s.name)}</span>
-        <span class="col-count" style="color:${stageColor};background:${stageColor}22;border:1px solid ${stageColor}55">${cards.length.toLocaleString('ru')}</span>
+        <span class="col-count" style="color:${stageColor};background:${stageColor}22;border:1px solid ${stageColor}55">${colTotal.toLocaleString('ru')}</span>
       </div>
       <button class="kanban-add-deal" data-stage="${escapeHtml(s.statusId)}" title="Создать сделку в этой стадии">+ Сделка</button>
       ${totalSum > 0 ? `<div class="kanban-col-sum">${totalSum.toLocaleString('ru')} ₸</div>` : ''}
@@ -8849,10 +8935,10 @@ function renderDealsKanban(c, arr) {
     for (const d of cards.slice(0, MAX_PER_COL)) {
       html += buildDealCard(d, stageColor);
     }
-    if (cards.length > MAX_PER_COL) {
-      html += `<div class="kanban-more">… ещё ${(cards.length - MAX_PER_COL).toLocaleString('ru')}</div>`;
+    if (hidden > 0) {
+      html += `<div class="kanban-more">… ещё ${hidden.toLocaleString('ru')}</div>`;
     }
-    if (cards.length === 0) {
+    if (colTotal === 0) {
       html += `<div class="kanban-empty" data-stage="${escapeHtml(s.statusId)}">Перетащи сюда</div>`;
     }
     html += `</div></div>`;
