@@ -38,6 +38,7 @@ const NAV = [
     {id:'clients', t:'Клиенты', i:'i-users'},
     {id:'inbox', t:'Чаты', i:'i-chat', badge:'9', alt:false},
     {id:'orders', t:'Заказы', i:'i-cart'},
+    {id:'sales', t:'Продажи · 1С', i:'i-money'},
     {id:'catalog', t:'Каталог · 1С', i:'i-box'},
   ]},
   {g:'Маркетинг', items:[
@@ -65,6 +66,7 @@ const PAGE_META = {
   clients:['Клиенты','Единая база · история покупок из 1С'],
   inbox:['Чаты','5 WhatsApp + Instagram Direct + формы сайтов в одном окне'],
   orders:['Заказы','Сформированы в CRM → переданы в 1С Listki EG'],
+  sales:['Продажи · 1С','Выручка, прибыль, топ товаров и KPI продавцов из регистра «Продажи» 1С'],
   catalog:['Каталог · остатки 1С','Зеркало 4 000 SKU в реальном времени'],
   marketing:['Промокоды и акции','Живут в CRM · в 1С уходит итоговая цена'],
   bloggers:['Блогеры и креаторы','Персональные коды · KPI · ROI'],
@@ -342,9 +344,22 @@ function contractorModal(r){
       <div class="fld"><label>Дата рождения</label><input value="${esc((r.dob||'').slice(0,10))}"></div>
     </div>
     <div class="row" style="gap:7px;margin-top:6px">${r.is_buyer?'<span class="tag green">покупатель</span>':''}${r.is_supplier?'<span class="tag amber">поставщик</span>':''}</div>
-    <div class="note blue section-gap">${ic('i-info','sm')} Данные из 1С (контрагент). История покупок, сделки и сегмент B2B/B2C подключим из 1С следующими шагами.</div>
+    <div class="panel section-gap" style="margin-top:14px"><div class="panel-h"><h3>${ic('i-money','sm')} История покупок · 1С</h3><span class="ph-sub" id="cmHistSub" style="margin-left:auto">загрузка…</span></div>
+      <div id="cmHist"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>
   </div>
   <div class="modal-f"><button class="btn" onclick="closeModal()">Закрыть</button></div>`,'wide');
+  loadContractorHistory(r);
+}
+async function loadContractorHistory(r){
+  const box=document.getElementById('cmHist'), sub=document.getElementById('cmHistSub');
+  if(!box) return;
+  if(!r.ref_key){ if(sub)sub.textContent=''; box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">Нет привязки к 1С</div>'; return; }
+  const res=await api('/api/1c/sales?contractor='+encodeURIComponent(r.ref_key)+'&limit=200');
+  if(!res.ok){ if(sub)sub.textContent=res.status===403?'нужен доступ':res.status===401?'войдите':'нет связи'; box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">История недоступна</div>'; return; }
+  const it=res.data.items||[], docs=res.data.docs||0;
+  if(sub) sub.textContent = it.length ? (money(res.data.total||0)+' · '+docs+' '+plural(docs,'документ','документа','документов')) : 'нет покупок';
+  if(!it.length){ box.innerHTML='<div class="note section-gap" style="margin:14px">'+ic('i-info','sm')+' Покупок, привязанных к этому клиенту, в 1С пока нет. Розничные продажи без дисконтной карты учитываются обезличенно.</div>'; return; }
+  box.innerHTML='<table class="tbl"><thead><tr><th>Дата</th><th>Товар</th><th class="num">Кол-во</th><th class="num">Сумма</th></tr></thead><tbody>'+it.map(x=>`<tr><td class="muted2">${esc((x.date||'').slice(0,10))}</td><td>${esc(x.name||'—')}</td><td class="num">${(x.qty||0).toLocaleString('ru-RU')}</td><td class="num">${money(x.amount||0)}</td></tr>`).join('')+'</tbody></table>';
 }
 function newClientModal(onSaved){
   const TYPES=['розница','опт','врач','дисконт','подписчик','партнёр'];
@@ -590,6 +605,65 @@ PAGES.catalog=(c)=>{
   load();
   c.appendChild(panel); c.appendChild(pager);
   c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Товары и остатки зеркалятся из 1С (синхронизация раз в 30 мин). Цены, цвет и юр.лицо появятся, когда добавим соответствующие регистры в выгрузку 1С.</div>`));
+};
+
+// ---------- ПРОДАЖИ (зеркало регистра «Продажи» 1С) ----------
+PAGES.sales=(c)=>{
+  const tbar=el(`<div class="toolbar">
+    <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-sl="from" title="С даты"></div>
+    <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-sl="to" title="По дату"></div>
+    <button class="btn sm" data-sl="apply">Показать</button>
+    <div class="spacer"></div>
+    <span class="tag green" data-sl="cnt">${ic('i-sync','sm')} зеркало 1С</span>
+  </div>`);
+  c.appendChild(tbar);
+  const cards=el(`<div class="cards-row"></div>`);
+  const panels=el(`<div class="grid-2b section-gap"></div>`);
+  c.appendChild(cards); c.appendChild(panels);
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Продажи зеркалятся из регистра «Продажи» 1С (отчёты о розничных продажах). Прибыль = выручка − себестоимость. Имена продавцов — из справочника «Пользователи» 1С. Синхронизация раз в 30 мин.</div>`));
+  const fromI=tbar.querySelector('[data-sl=from]'), toI=tbar.querySelector('[data-sl=to]'), cnt=tbar.querySelector('[data-sl=cnt]'), applyB=tbar.querySelector('[data-sl=apply]');
+  const fmtN=(n)=>(n||0).toLocaleString('ru-RU');
+  function cardsHTML(t){
+    return miniStat('i-money','#10b981','Выручка',money(t.revenue||0))
+      + miniStat('i-chart','#2563eb','Прибыль · '+(t.margin||0)+'%',money(t.profit||0))
+      + miniStat('i-cart','#7c3aed','Продано позиций',fmtN(t.qty||0))
+      + miniStat('i-grid','#db2777','Средняя выручка/день',money(t.avg||0));
+  }
+  function topHTML(rows){
+    const body=rows.length?rows.map((p,i)=>`<tr><td class="muted2">${i+1}</td><td>${esc(p.name||'—')}</td><td class="num">${fmtN(p.qty)}</td><td class="num">${money(p.revenue||0)}</td><td class="num">${money(p.profit||0)}</td></tr>`).join(''):'<tr><td colspan="5" class="muted2" style="padding:16px">Нет данных</td></tr>';
+    return `<div class="panel"><div class="panel-h"><h3>${ic('i-box','sm')} Топ товаров</h3></div><table class="tbl"><thead><tr><th>#</th><th>Товар</th><th class="num">Кол-во</th><th class="num">Выручка</th><th class="num">Прибыль</th></tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+  function sellersHTML(rows){
+    const body=rows.length?rows.map(s=>`<tr><td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(s.name||s.key||'?')}">${initials(s.name||'П')}</span><div>${esc(s.name||('продавец '+String(s.key||'').slice(0,8)))}</div></div></td><td class="num">${money(s.revenue||0)}</td><td class="num">${money(s.profit||0)}</td><td class="num">${fmtN(s.qty)}</td></tr>`).join(''):'<tr><td colspan="4" class="muted2" style="padding:16px">Нет данных</td></tr>';
+    return `<div class="panel"><div class="panel-h"><h3>${ic('i-target','sm')} KPI продавцов</h3></div><table class="tbl"><thead><tr><th>Продавец</th><th class="num">Выручка</th><th class="num">Прибыль</th><th class="num">Позиций</th></tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+  function demo(){
+    cards.innerHTML=cardsHTML({revenue:2480000,profit:744000,margin:30,qty:3184,avg:82000});
+    panels.innerHTML=topHTML([
+      {name:'Ирригатор Revyline RL-700',qty:42,revenue:378000,profit:132000},
+      {name:'Зубная паста R.O.C.S. Bionica',qty:210,revenue:168000,profit:58000},
+      {name:'Ополаскиватель Listerine 500мл',qty:156,revenue:124800,profit:41000},
+      {name:'Зубные нити Revyline Expert',qty:198,revenue:99000,profit:38000},
+      {name:'Щётка электрическая RL-010',qty:21,revenue:94500,profit:31000},
+    ])+sellersHTML([
+      {name:'Айгерим Сапарова',revenue:920000,profit:280000,qty:1180},
+      {name:'Динара Жумабаева',revenue:800000,profit:236000,qty:1024},
+      {name:'Бекзат Орынбеков',revenue:760000,profit:228000,qty:980},
+    ]);
+  }
+  async function load(){
+    cards.innerHTML='<div class="muted2" style="padding:10px">Загрузка…</div>'; panels.innerHTML='';
+    const qs=[]; if(fromI.value)qs.push('from='+fromI.value); if(toI.value)qs.push('to='+toI.value);
+    const r=await api('/api/1c/sales/summary'+(qs.length?('?'+qs.join('&')):''));
+    if(!r.ok){ cnt.innerHTML=ic('i-sync','sm')+' '+(r.status===403?'демо · нужен доступ':r.status===401?'демо · войдите':'демо · нет связи'); demo(); return; }
+    const d=r.data, t=d.totals||{};
+    cards.innerHTML=cardsHTML(t);
+    panels.innerHTML=topHTML(d.topProducts||[])+sellersHTML(d.bySeller||[]);
+    if(t.docs){ cnt.innerHTML=ic('i-sync','sm')+' '+(t.dmin||'')+' — '+(t.dmax||'')+' · 1С'; if(!fromI.value&&t.dmin)fromI.value=t.dmin; if(!toI.value&&t.dmax)toI.value=t.dmax; }
+    else { cnt.innerHTML=ic('i-sync','sm')+' ожидание данных · запустите синхронизацию'; }
+  }
+  applyB.onclick=()=>load();
+  load();
 };
 
 // ---------- MARKETING ----------

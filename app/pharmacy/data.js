@@ -16,11 +16,11 @@ const DB = {
 
   // какие разделы видит роль (разграничение доступа из ТЗ 3.5 / 9.3)
   access: {
-    owner:      ['dash','funnels','clients','inbox','orders','catalog','marketing','bloggers','doctors','tasks','subs','triggers','ai','analytics','kpi','team','integrations','settings'],
-    rop:        ['dash','funnels','clients','inbox','orders','catalog','tasks','triggers','analytics','kpi','team','doctors'],
+    owner:      ['dash','funnels','clients','inbox','orders','sales','catalog','marketing','bloggers','doctors','tasks','subs','triggers','ai','analytics','kpi','team','integrations','settings'],
+    rop:        ['dash','funnels','clients','inbox','orders','sales','catalog','tasks','triggers','analytics','kpi','team','doctors'],
     consultant: ['funnels','clients','inbox','orders','catalog','tasks','subs'],
-    seller:     ['funnels','clients','orders','catalog','tasks','kpi'],
-    marketer:   ['dash','marketing','bloggers','doctors','triggers','analytics','clients'],
+    seller:     ['funnels','clients','orders','sales','catalog','tasks','kpi'],
+    marketer:   ['dash','marketing','bloggers','doctors','triggers','analytics','clients','sales'],
     buh:        ['orders','catalog','clients','integrations'],
   },
 
