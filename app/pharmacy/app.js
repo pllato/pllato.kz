@@ -551,14 +551,14 @@ PAGES.catalog=(c)=>{
     <span class="tag green" data-cat="cnt">${ic('i-sync','sm')} зеркало 1С</span>
   </div>`);
   c.appendChild(tbar);
-  const panel=el(`<div class="panel"><table class="tbl"><thead><tr><th>Код</th><th>Товар</th><th>Артикул</th><th>Категория</th><th>Штрихкод</th><th class="num">Остаток</th></tr></thead><tbody><tr><td colspan="6" class="muted2" style="font-size:13px">Загрузка…</td></tr></tbody></table></div>`);
+  const panel=el(`<div class="panel"><table class="tbl"><thead><tr><th>Код</th><th>Товар</th><th>Артикул</th><th>Категория</th><th>Штрихкод</th><th class="num">Цена</th><th class="num">Остаток</th></tr></thead><tbody><tr><td colspan="7" class="muted2" style="font-size:13px">Загрузка…</td></tr></tbody></table></div>`);
   const tb=panel.querySelector('tbody'), cnt=tbar.querySelector('[data-cat=cnt]'), qInput=tbar.querySelector('[data-cat=q]');
   const stCell=(s)=> s>0 ? (s<15?'<span class="tag amber">'+s+'</span>':s) : '<span class="muted2">0</span>';
   function rowsLive(items){ return items.map(p=>`<tr><td class="muted2">${esc(p.code||'')}</td><td>${esc(p.name||'')}</td>
     <td class="muted">${esc(p.article||'—')}</td><td class="muted">${esc(p.category||'—')}</td>
-    <td class="muted2">${esc(p.barcode||'—')}</td><td class="num">${stCell(p.stock||0)}</td></tr>`).join(''); }
+    <td class="muted2">${esc(p.barcode||'—')}</td><td class="num">${p.price!=null?money(p.price):'—'}</td><td class="num">${stCell(p.stock||0)}</td></tr>`).join(''); }
   function rowsDemo(){ return DB.products.map(p=>`<tr><td class="muted2">${esc(p.sku)}</td><td>${esc(p.name)}</td>
-    <td class="muted">—</td><td class="muted">${esc(p.cat)}</td><td class="muted2">—</td>
+    <td class="muted">—</td><td class="muted">${esc(p.cat)}</td><td class="muted2">—</td><td class="num">${money(p.price)}</td>
     <td class="num">${p.stock===0?'<span class="tag red">нет</span>':p.stock<15?'<span class="tag amber">'+p.stock+'</span>':p.stock}</td></tr>`).join(''); }
   const pager=el(`<div class="row section-gap" style="justify-content:center;gap:12px" hidden>
     <button class="btn sm" data-pg="prev">‹ Назад</button>
@@ -580,7 +580,7 @@ PAGES.catalog=(c)=>{
     }
     const items=r.data.items||[]; total=r.data.total!=null?r.data.total:items.length;
     cnt.innerHTML=ic('i-sync','sm')+' '+total+' SKU · зеркало 1С';
-    tb.innerHTML=items.length?rowsLive(items):'<tr><td colspan="6" class="muted2" style="font-size:13px;padding:18px">Ничего не найдено</td></tr>';
+    tb.innerHTML=items.length?rowsLive(items):'<tr><td colspan="7" class="muted2" style="font-size:13px;padding:18px">Ничего не найдено</td></tr>';
     renderPager(false,items.length);
   }
   let qt=null;
