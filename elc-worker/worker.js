@@ -2151,6 +2151,23 @@ async function handleDealComment(request, env, dealId) {
   return json({ ok: true, id, dealId, ts: nowIso }, 200, request);
 }
 
+// Idempotent self-migration: колонка stage_changed_at в deals — отметка времени,
+// когда сделка попала на ТЕКУЩУЮ (основную) стадию. Нужна для «N дней на этапе»
+// и подсветки залежавшихся сделок в канбане. Мемоизируем на изолят, чтобы не
+// дёргать ALTER на каждый запрос. "duplicate column" — норма (колонка уже есть).
+let _stageChangedAtEnsured = false;
+async function ensureStageChangedAtColumn(env) {
+  if (_stageChangedAtEnsured) return;
+  try {
+    await env.DB.prepare("ALTER TABLE deals ADD COLUMN stage_changed_at TEXT").run();
+  } catch (e) {
+    if (!/duplicate column|already exists/i.test(String(e?.message || e))) {
+      console.warn('[migrate] stage_changed_at ALTER failed:', e?.message || e);
+    }
+  }
+  _stageChangedAtEnsured = true;
+}
+
 // PATCH /api/deals/{id}/stage { pipelineId, stageId }
 // Универсальный endpoint для перемещения сделки между стадиями. Если pipelineId
 // совпадает с deal.pipeline_id — обновляет основную stage_id. Иначе обновляет
@@ -2182,6 +2199,12 @@ async function handleDealStageChange(request, env, dealId) {
   if (!deal) return json({ error: "deal not found", id: dealId }, 404, request);
 
   const nowIso = new Date().toISOString();
+  await ensureStageChangedAtColumn(env);
+  // stage_changed_at сбрасываем только когда стадия РЕАЛЬНО меняется (а не при
+  // повторном PATCH в ту же стадию). stageTs=null → COALESCE сохраняет прежнее
+  // значение. Так «N дней на этапе» считается от момента фактического перехода.
+  const stageActuallyChanged = String(deal.stage_id) !== stageId;
+  const stageTs = stageActuallyChanged ? nowIso : null;
   // Логика reject_reason: при переходе в REJECT — записываем. При переходе
   // из REJECT в любую другую стадию — обнуляем (причина больше не релевантна).
   // Применяется ТОЛЬКО для основной воронки (deal.pipeline_id === pipelineId);
@@ -2190,12 +2213,12 @@ async function handleDealStageChange(request, env, dealId) {
   if (deal.pipeline_id === pipelineId) {
     if (stageId === "REJECT") {
       await env.DB.prepare(
-        "UPDATE deals SET stage_id = ?, reject_reason = ?, bitrix_date_modify = ? WHERE id = ?"
-      ).bind(stageId, rejectReason || null, nowIso, dealId).run();
+        "UPDATE deals SET stage_id = ?, reject_reason = ?, bitrix_date_modify = ?, stage_changed_at = COALESCE(?, stage_changed_at) WHERE id = ?"
+      ).bind(stageId, rejectReason || null, nowIso, stageTs, dealId).run();
     } else {
       await env.DB.prepare(
-        "UPDATE deals SET stage_id = ?, reject_reason = NULL, bitrix_date_modify = ? WHERE id = ?"
-      ).bind(stageId, nowIso, dealId).run();
+        "UPDATE deals SET stage_id = ?, reject_reason = NULL, bitrix_date_modify = ?, stage_changed_at = COALESCE(?, stage_changed_at) WHERE id = ?"
+      ).bind(stageId, nowIso, stageTs, dealId).run();
     }
   } else {
     // Зеркало — обновляем mirrored_in[pipelineId]
@@ -3004,13 +3027,15 @@ async function maybeReviveDealsFromFailByPhone(env, pipelineId, phone) {
   const firstStage = stages.find(s => s.semantics !== 'F' && s.semantics !== 'S') || stages[0];
   if (!firstStage) return 0;
   const newStageId = firstStage.statusId || firstStage.id;
+  await ensureStageChangedAtColumn(env);
   let revived = 0;
   for (const deal of deals) {
     const currentStage = stages.find(s => (s.statusId || s.id) === deal.stage_id);
     if (currentStage && currentStage.semantics === 'F') {
+      const nowIso = new Date().toISOString();
       await env.DB.prepare(`
-        UPDATE deals SET stage_id = ?, closed = 0, bitrix_date_modify = ? WHERE id = ?
-      `).bind(newStageId, new Date().toISOString(), deal.id).run();
+        UPDATE deals SET stage_id = ?, closed = 0, bitrix_date_modify = ?, stage_changed_at = ? WHERE id = ?
+      `).bind(newStageId, nowIso, nowIso, deal.id).run();
       console.log('[wa-webhook] revived deal', deal.id, 'from', deal.stage_id, '→', newStageId);
       revived++;
     }
@@ -3064,17 +3089,18 @@ async function ensureDealForWaContact(env, channel, contactId, contactName, phon
     const rrUid = await pickNextRoundRobinUid(env, channel.id);
     if (rrUid) responsibleUid = rrUid;
   } catch (e) { /* fallback ok */ }
+  await ensureStageChangedAtColumn(env);
   await env.DB.prepare(`
     INSERT INTO deals (
       id, title, pipeline_id, stage_id, responsible_uid,
       contact_id, source_description, closed, bitrix_id,
-      bitrix_date_create, bitrix_date_modify
-    ) VALUES (?, ?, ?, ?, ?, ?, 'WhatsApp', 0, ?, ?, ?)
+      bitrix_date_create, bitrix_date_modify, stage_changed_at
+    ) VALUES (?, ?, ?, ?, ?, ?, 'WhatsApp', 0, ?, ?, ?, ?)
   `).bind(
     newId, title,
     channel.default_pipeline_id, channel.default_stage_id || null,
     responsibleUid,
-    contactId, bitrixKey, nowIso, nowIso,
+    contactId, bitrixKey, nowIso, nowIso, nowIso,
   ).run();
   return newId;
 }

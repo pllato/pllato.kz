@@ -1485,6 +1485,30 @@ body.tc-chat-overlay .sipc-bottombar:not([data-state="established"]):not([data-s
   border-left-color: #f05975 !important;
   box-shadow: 0 0 0 1px rgba(240, 89, 117, .35), 0 4px 14px -4px rgba(240, 89, 117, .35);
 }
+/* «Сколько дней сделка стоит на этапе» — бэйдж возраста на текущей стадии */
+.kanban-card-stageage-row {
+  margin-top: 6px;
+}
+.kanban-stage-age {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--t3);
+  background: rgba(127, 127, 127, 0.12);
+  padding: 1px 7px;
+  border-radius: 999px;
+  line-height: 1.6;
+}
+/* Залежалась >7 дней — янтарный бэйдж + подсветка всей карточки (пора двигать) */
+.kanban-stage-age.stuck {
+  color: #b45309;
+  background: #fde68a;
+}
+.kanban-card.deal-card-stuck {
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, .55), 0 4px 16px -4px rgba(245, 158, 11, .5);
+}
 /* Если оба — WA приоритетнее визуально (border), missed call дополняет тенью */
 .kanban-card.deal-card-wa-unread.deal-card-call-missed {
   border-left-color: #25D366 !important;
@@ -10986,6 +11010,31 @@ function buildDealCard(d, stageColor) {
       <button class="kcc-send" data-action="comment-send" data-deal-full="${escapeHtml(d.id)}" title="Отправить комментарий">➤</button>
     </div>` : '';
 
+  // ── «Сколько дней сделка стоит на текущем этапе» + подсветка залежавшихся ──
+  // Точная отметка — d.stageChangedAt (worker пишет при каждой смене стадии).
+  // У старых сделок её нет → фолбэк на дату последней правки (приблизительно, «~»).
+  // Подсветка (deal-card-stuck) — только для живых сделок (не closed, не «Отказ»),
+  // чтобы выигранные/проваленные не мигали «пора двигать».
+  let stageAgeHtml = '';
+  const stageEnterRaw = d.stageChangedAt || d.bitrixDateModify || d.bitrixDateCreate;
+  if (stageEnterRaw) {
+    const stageEnterTs = new Date(stageEnterRaw).getTime();
+    if (!isNaN(stageEnterTs)) {
+      const stageDays = Math.floor((Date.now() - stageEnterTs) / 86400000);
+      const approx = d.stageChangedAt ? '' : '~';
+      const isDoneStage = !!d.closed || d.stageId === 'REJECT';
+      const stuck = stageDays > STAGE_STUCK_DAYS && !isDoneStage;
+      if (stuck) cardClasses.push('deal-card-stuck');
+      let txt;
+      if (stageDays <= 0) txt = '⏱ сегодня на этапе';
+      else txt = `⏱ ${approx}${stageDays} ${pluralize(stageDays, 'день', 'дня', 'дней')} на этапе`;
+      const tip = stageDays <= 0
+        ? 'Сделка попала на этот этап сегодня'
+        : `На текущем этапе: ${approx}${stageDays} ${pluralize(stageDays, 'день', 'дня', 'дней')}${stuck ? ' — пора двигать' : ''}`;
+      stageAgeHtml = `<div class="kanban-card-stageage-row"><span class="kanban-stage-age${stuck ? ' stuck' : ''}" title="${escapeHtml(tip)}">${txt}${stuck ? ' · переставить' : ''}</span></div>`;
+    }
+  }
+
   // Fallback ключа: для старых WA-сделок bitrixId был NULL (фикс — см. ensureDealForWaContact).
   // Используем id с убранным префиксом 'deal_' — это и есть bitrixId по convention.
   const cardKey = d.bitrixId || (d.id ? String(d.id).replace(/^deal_/, '') : '');
@@ -11000,6 +11049,7 @@ function buildDealCard(d, stageColor) {
     ${phone ? `<div class="kanban-card-phone">📱 ${escapeHtml(phone)}</div>` : ''}
     ${cfPills.length ? `<div class="kanban-card-cf">${cfPills.join('')}</div>` : ''}
     ${clHtml}
+    ${stageAgeHtml}
     <div class="kanban-card-foot">
       <div class="kanban-card-resp" title="${escapeHtml(respName || 'Без ответственного')}">
         <span class="kanban-av">${escapeHtml(respShort)}</span>
@@ -11204,6 +11254,9 @@ const REJECT_REASON_LABELS = {
   INVALID_NUMBER: 'Номер не существует',
 };
 
+// Порог «залежавшейся» сделки: сколько дней на одном этапе → подсветить «пора двигать».
+const STAGE_STUCK_DAYS = 7;
+
 async function moveDealToStage(bitrixId, newStageId) {
   const deal = dealsState.deals.find(d => String(d.bitrixId) === String(bitrixId)
     || String(d.id) === 'deal_' + String(bitrixId)
@@ -11237,6 +11290,9 @@ async function moveDealToStage(bitrixId, newStageId) {
   if (!isMirror) {
     // reject_reason живёт только в основной воронке
     deal.rejectReason = (newStageId === 'REJECT') ? rejectReason : null;
+    // Сделка попала на новый этап прямо сейчас → сбрасываем счётчик «N дней
+    // на этапе» немедленно (worker запишет stage_changed_at на бэкенде).
+    deal.stageChangedAt = deal.bitrixDateModify;
   }
   if (isMirror) {
     // Также обновим mirroredIn локально чтобы re-render правильно показал
