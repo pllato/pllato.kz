@@ -530,21 +530,36 @@ PAGES.orders=(c)=>{
 
 // ---------- CATALOG ----------
 PAGES.catalog=(c)=>{
-  c.appendChild(el(`<div class="toolbar">
-    <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по SKU или названию…"></div>
-    <select class="sel"><option>Все категории</option><option>Полость рта</option><option>Женская гигиена</option><option>Детская гигиена</option><option>Антисептика</option></select>
-    <select class="sel"><option>Все юр.лица</option><option>ТОО</option><option>ИП</option></select>
+  const tbar=el(`<div class="toolbar">
+    <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по названию, коду, артикулу, штрихкоду…" data-cat="q"></div>
     <div class="spacer"></div>
-    <span class="tag green">${ic('i-sync','sm')} 4 012 SKU · зеркало 1С</span>
-  </div>`));
-  const panel=el(`<div class="panel"><table class="tbl"><thead><tr><th>SKU</th><th>Товар</th><th>Категория</th><th>Цвет</th><th>Юр.лицо</th><th class="num">Цена</th><th class="num">Остаток</th></tr></thead><tbody>
-    ${DB.products.map(p=>`<tr class="clickable"><td class="muted2">${p.sku}</td><td>${p.name}</td><td class="muted">${p.cat}</td><td>${p.color}</td>
-      <td><span class="tag ${p.entity==='ТОО'?'blue':'violet'}">${p.entity}</span></td><td class="num">${money(p.price)}</td>
-      <td class="num">${p.stock===0?'<span class="tag red">нет</span>':p.stock<15?'<span class="tag amber">'+p.stock+'</span>':p.stock}</td></tr>`).join('')}
-  </tbody></table></div>`);
-  panel.querySelectorAll('tr.clickable').forEach((tr,i)=>tr.onclick=()=>toast('Остаток '+DB.products[i].name+' читается из 1С на момент клика','i-box'));
+    <span class="tag green" data-cat="cnt">${ic('i-sync','sm')} зеркало 1С</span>
+  </div>`);
+  c.appendChild(tbar);
+  const panel=el(`<div class="panel"><table class="tbl"><thead><tr><th>Код</th><th>Товар</th><th>Артикул</th><th>Категория</th><th>Штрихкод</th><th class="num">Остаток</th></tr></thead><tbody><tr><td colspan="6" class="muted2" style="font-size:13px">Загрузка…</td></tr></tbody></table></div>`);
+  const tb=panel.querySelector('tbody'), cnt=tbar.querySelector('[data-cat=cnt]'), qInput=tbar.querySelector('[data-cat=q]');
+  const stCell=(s)=> s>0 ? (s<15?'<span class="tag amber">'+s+'</span>':s) : '<span class="muted2">0</span>';
+  function rowsLive(items){ return items.map(p=>`<tr><td class="muted2">${esc(p.code||'')}</td><td>${esc(p.name||'')}</td>
+    <td class="muted">${esc(p.article||'—')}</td><td class="muted">${esc(p.category||'—')}</td>
+    <td class="muted2">${esc(p.barcode||'—')}</td><td class="num">${stCell(p.stock||0)}</td></tr>`).join(''); }
+  function rowsDemo(){ return DB.products.map(p=>`<tr><td class="muted2">${esc(p.sku)}</td><td>${esc(p.name)}</td>
+    <td class="muted">—</td><td class="muted">${esc(p.cat)}</td><td class="muted2">—</td>
+    <td class="num">${p.stock===0?'<span class="tag red">нет</span>':p.stock<15?'<span class="tag amber">'+p.stock+'</span>':p.stock}</td></tr>`).join(''); }
+  async function load(q){
+    const r=await api('/api/1c/products?limit=200'+(q?('&q='+encodeURIComponent(q)):''));
+    if(!r.ok){
+      cnt.innerHTML=ic('i-sync','sm')+' '+(r.status===403?'демо · нужен доступ':r.status===401?'демо · войдите':'демо · нет связи');
+      tb.innerHTML=rowsDemo(); return;
+    }
+    const items=r.data.items||[], total=r.data.total!=null?r.data.total:items.length;
+    cnt.innerHTML=ic('i-sync','sm')+' '+total+' SKU · зеркало 1С'+(total>items.length?(' (показаны '+items.length+')'):'');
+    tb.innerHTML=items.length?rowsLive(items):'<tr><td colspan="6" class="muted2" style="font-size:13px;padding:18px">Ничего не найдено</td></tr>';
+  }
+  let qt=null;
+  qInput.addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(()=>load(qInput.value.trim()),300);});
+  load('');
   c.appendChild(panel);
-  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Остатки, цены и разбивка по цвету/юр.лицу зеркалятся из 1С Listki EG. На начальном этапе (2–3 мес) 1С — источник правды по остаткам.</div>`));
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Товары и остатки зеркалятся из 1С (синхронизация раз в 30 мин). Цены, цвет и юр.лицо появятся, когда добавим соответствующие регистры в выгрузку 1С.</div>`));
 };
 
 // ---------- MARKETING ----------
