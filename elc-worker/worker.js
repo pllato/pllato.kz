@@ -1643,6 +1643,40 @@ async function handleList(request, env, entity) {
   }
 
   const whereSQL = whereParts.length ? " WHERE " + whereParts.join(" AND ") : "";
+
+  // ──── countsOnly=1 — дешёвые per-stage счётчики для канбана ────
+  // Возвращает { counts: {stageId: n}, total } одним GROUP BY-запросом, БЕЗ
+  // выборки строк. Нужно для точных бейджей колонок на огромных воронках
+  // (ELC ~33k, UniqBook ~22k), где грузить все сделки в канбан нельзя —
+  // фронт грузит только N свежих карточек, а истинные итоги колонок берёт здесь.
+  // Переиспользует весь whereSQL/whereParams (scope, orgPerms, archived, pipeline).
+  // ВАЖНО про зеркала: mirror-сделки группируются по своему ПЕРВИЧНОМУ stage_id,
+  // поэтому в чужой воронке могут не попасть ни в одну колонку (их stage там нет).
+  // На огромных воронках зеркал практически нет → бейджи точны. total всегда верен.
+  if (url.searchParams.get("countsOnly") === "1" && cfg.stageField) {
+    const { results: cntRows } = await env.DB.prepare(
+      `SELECT ${cfg.stageField} AS k, COUNT(*) AS n FROM ${entity}${whereSQL} GROUP BY ${cfg.stageField}`
+    ).bind(...whereParams).all();
+    const counts = {};
+    let total = 0;
+    for (const r of (cntRows || [])) {
+      if (r.k != null) counts[r.k] = r.n;
+      total += r.n;
+    }
+    return new Response(JSON.stringify({
+      counts,
+      total,
+      meta: { scope, role: me.role, canonicalUid: me.canonicalUid },
+    }), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+        ...corsHeaders(request),
+      },
+    });
+  }
+
   const orderSQL = " ORDER BY " + (cfg.sorts[sortKey] || cfg.defaultSort);
   const offset = (page - 1) * pageSize;
 
