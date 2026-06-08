@@ -295,26 +295,39 @@ PAGES.clients=(c)=>{
   function rowDemo(cl){ const type=Array.isArray(cl.type)?cl.type:[]; return `<td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(cl.name)}">${initials(cl.name)}</span><div>${esc(cl.name)}</div></div></td>
     <td>${esc(cl.phone||'—')}</td><td class="muted2">${esc(cl.card||'—')}</td><td class="muted">—</td>
     <td>${type.map(t=>`<span class="tag" style="margin:1px">${esc(t)}</span>`).join('')}</td><td>${esc(cl.mgr||'—')}</td>`; }
+  const pager=el(`<div class="row section-gap" style="justify-content:center;gap:12px" hidden>
+    <button class="btn sm" data-pg="prev">‹ Назад</button>
+    <span class="muted" style="font-size:13px" data-pg="info"></span>
+    <button class="btn sm" data-pg="next">Вперёд ›</button></div>`);
+  const pgInfo=pager.querySelector('[data-pg=info]'), pgPrev=pager.querySelector('[data-pg=prev]'), pgNext=pager.querySelector('[data-pg=next]');
+  const PAGE=100; let offset=0, total=0;
+  function renderPager(shown,isDemo){
+    if(isDemo||total<=PAGE){ pager.hidden=true; return; }
+    pager.hidden=false; pgInfo.textContent=(offset+1)+'–'+(offset+shown)+' из '+total;
+    pgPrev.disabled=offset<=0; pgNext.disabled=offset+PAGE>=total;
+  }
   async function load(){
     const q=qInput.value.trim(), role=roleSel.value;
-    const r=await api('/api/1c/contractors?limit=200'+(q?('&q='+encodeURIComponent(q)):''));
+    const r=await api('/api/1c/contractors?limit='+PAGE+'&offset='+offset+(role?('&role='+role):'')+(q?('&q='+encodeURIComponent(q)):''));
     if(!r.ok){
       cnt.textContent = r.status===401?'демо · войдите' : r.status===403?'демо · нужен доступ' : 'демо · нет связи';
       tb.innerHTML=''; DB.clients.forEach(cl=>{ const tr=el(`<tr class="clickable">${rowDemo(cl)}</tr>`); tr.onclick=()=>clientModal(cl); tb.appendChild(tr); });
-      return;
+      renderPager(0,true); return;
     }
-    let items=r.data.items||[]; const total=r.data.total!=null?r.data.total:items.length;
-    if(role) items=items.filter(x=> role==='buyer'?x.is_buyer:x.is_supplier);
-    cnt.textContent = total+' '+plural(total,'клиент','клиента','клиентов')+' · 1С'+(total>items.length&&!role?(' (показаны '+items.length+')'):'');
+    const items=r.data.items||[]; total=r.data.total!=null?r.data.total:items.length;
+    cnt.textContent = total+' '+plural(total,'клиент','клиента','клиентов')+' · 1С';
     tb.innerHTML='';
-    if(!items.length){ tb.innerHTML='<tr><td colspan="6" class="muted2" style="font-size:13px;padding:18px">Ничего не найдено</td></tr>'; return; }
+    if(!items.length){ tb.innerHTML='<tr><td colspan="6" class="muted2" style="font-size:13px;padding:18px">Ничего не найдено</td></tr>'; renderPager(0,false); return; }
     items.forEach(x=>{ const tr=el(`<tr class="clickable">${rowLive(x)}</tr>`); tr.onclick=()=>contractorModal(x); tb.appendChild(tr); });
+    renderPager(items.length,false);
   }
   let qt=null;
-  qInput.addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(load,300);});
-  roleSel.onchange=load;
+  qInput.addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(()=>{offset=0;load();},300);});
+  roleSel.onchange=()=>{offset=0;load();};
+  pgPrev.onclick=()=>{ if(offset>0){offset=Math.max(0,offset-PAGE);load();$('#content').scrollTop=0;} };
+  pgNext.onclick=()=>{ if(offset+PAGE<total){offset+=PAGE;load();$('#content').scrollTop=0;} };
   load();
-  c.appendChild(panel);
+  c.appendChild(panel); c.appendChild(pager);
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} База клиентов — контрагенты из 1С (покупатели, поставщики, врачи-партнёры). Синхронизация раз в 30 мин. Сегмент B2B/B2C и историю покупок подключим следующими шагами.</div>`));
 };
 function contractorModal(r){
@@ -547,20 +560,35 @@ PAGES.catalog=(c)=>{
   function rowsDemo(){ return DB.products.map(p=>`<tr><td class="muted2">${esc(p.sku)}</td><td>${esc(p.name)}</td>
     <td class="muted">—</td><td class="muted">${esc(p.cat)}</td><td class="muted2">—</td>
     <td class="num">${p.stock===0?'<span class="tag red">нет</span>':p.stock<15?'<span class="tag amber">'+p.stock+'</span>':p.stock}</td></tr>`).join(''); }
-  async function load(q){
-    const r=await api('/api/1c/products?limit=200'+(q?('&q='+encodeURIComponent(q)):''));
+  const pager=el(`<div class="row section-gap" style="justify-content:center;gap:12px" hidden>
+    <button class="btn sm" data-pg="prev">‹ Назад</button>
+    <span class="muted" style="font-size:13px" data-pg="info"></span>
+    <button class="btn sm" data-pg="next">Вперёд ›</button></div>`);
+  const pgInfo=pager.querySelector('[data-pg=info]'), pgPrev=pager.querySelector('[data-pg=prev]'), pgNext=pager.querySelector('[data-pg=next]');
+  const PAGE=100; let offset=0, total=0;
+  function renderPager(isDemo,shown){
+    if(isDemo||total<=PAGE){ pager.hidden=true; return; }
+    pager.hidden=false; pgInfo.textContent=(offset+1)+'–'+(offset+shown)+' из '+total;
+    pgPrev.disabled=offset<=0; pgNext.disabled=offset+PAGE>=total;
+  }
+  async function load(){
+    const q=qInput.value.trim();
+    const r=await api('/api/1c/products?limit='+PAGE+'&offset='+offset+(q?('&q='+encodeURIComponent(q)):''));
     if(!r.ok){
       cnt.innerHTML=ic('i-sync','sm')+' '+(r.status===403?'демо · нужен доступ':r.status===401?'демо · войдите':'демо · нет связи');
-      tb.innerHTML=rowsDemo(); return;
+      tb.innerHTML=rowsDemo(); renderPager(true,0); return;
     }
-    const items=r.data.items||[], total=r.data.total!=null?r.data.total:items.length;
-    cnt.innerHTML=ic('i-sync','sm')+' '+total+' SKU · зеркало 1С'+(total>items.length?(' (показаны '+items.length+')'):'');
+    const items=r.data.items||[]; total=r.data.total!=null?r.data.total:items.length;
+    cnt.innerHTML=ic('i-sync','sm')+' '+total+' SKU · зеркало 1С';
     tb.innerHTML=items.length?rowsLive(items):'<tr><td colspan="6" class="muted2" style="font-size:13px;padding:18px">Ничего не найдено</td></tr>';
+    renderPager(false,items.length);
   }
   let qt=null;
-  qInput.addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(()=>load(qInput.value.trim()),300);});
-  load('');
-  c.appendChild(panel);
+  qInput.addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(()=>{offset=0;load();},300);});
+  pgPrev.onclick=()=>{ if(offset>0){offset=Math.max(0,offset-PAGE);load();$('#content').scrollTop=0;} };
+  pgNext.onclick=()=>{ if(offset+PAGE<total){offset+=PAGE;load();$('#content').scrollTop=0;} };
+  load();
+  c.appendChild(panel); c.appendChild(pager);
   c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Товары и остатки зеркалятся из 1С (синхронизация раз в 30 мин). Цены, цвет и юр.лицо появятся, когда добавим соответствующие регистры в выгрузку 1С.</div>`));
 };
 
