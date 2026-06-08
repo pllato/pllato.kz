@@ -7348,7 +7348,10 @@ async function renderDeals(el) {
     // → показывалось только empty-state, без табов → пользователь застревал
     // в пустой воронке (пример: новая «Старт ELC» с 0 сделок).
     // Empty-плашка с диагностикой выведется внутри renderDealsContent ниже.
-    renderDealsLayout(el);
+    // Инкрементальная загрузка (loadDealsForPipeline) уже могла построить
+    // layout по мере прихода страниц — тогда повторно НЕ строим, иначе
+    // сбросится поиск/скролл. Строим только если контента ещё нет (кеш-хит).
+    if (!document.getElementById('deals-content')) renderDealsLayout(el);
   } else {
     // List view — серверная пагинация. Первая страница за ~100мс.
     await loadDealsPage(1);
@@ -7988,6 +7991,15 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
         kanbanScope = effectiveScope();
         if (dealsState.responsibleFilter) kanbanAssignee = dealsState.responsibleFilter;
       }
+      // Инкрементальный рендер канбана: показываем сделки по мере прихода
+      // страниц, НЕ блокируя UI до полной загрузки. На больших воронках
+      // (ELC ~33k сделок = ~167 страниц) пользователь раньше застревал на
+      // «Загружаем…» на десятки секунд, а если один запрос подвисал (таймаута
+      // не было) — морозило навсегда. Теперь: 1-я страница → строим layout,
+      // следующие → дёшево перерисовываем колонки (throttle), + на каждый
+      // запрос таймаут 25с, чтобы один подвисший fetch не вешал всё.
+      let lastIncRender = 0;
+      let pageErr = null;
       while (page <= MAX_PAGES) {
         const params = new URLSearchParams({
           page: String(page),
@@ -7998,11 +8010,42 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
         });
         params.set('scope', kanbanScope);
         if (kanbanAssignee) params.set('assignee', kanbanAssignee);
-        const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data = await r.json();
+        let data;
+        try {
+          const ctrl = new AbortController();
+          const to = setTimeout(() => ctrl.abort(), 25000);
+          let r;
+          try {
+            r = await fetch(`${WORKER_LIST_URL}/deals?${params}`, { signal: ctrl.signal });
+          } finally { clearTimeout(to); }
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          data = await r.json();
+        } catch (e) {
+          pageErr = e;
+          console.warn(`loadDealsForPipeline page ${page} failed:`, e && e.message);
+          break; // не теряем уже загруженное — покажем что успели
+        }
         const items = data.items || [];
         all.push(...items);
+        // Инкрементальный показ — только первичная загрузка (не force-refresh,
+        // чтобы не мигать частичными данными поверх уже показанного полного
+        // списка) и только для активной воронки на открытой странице сделок.
+        if (!force && dealsState.activePipelineId === pipelineId) {
+          dealsState.deals = all;
+          dealsState.loaded = true;
+          const main = document.getElementById('main');
+          if (main && document.querySelector('[data-page="deals"].active')) {
+            const now = Date.now();
+            if (!document.getElementById('deals-content')) {
+              renderDealsLayout(main); // 1-я страница — заменяем «Загружаем…»
+              lastIncRender = now;
+            } else if (now - lastIncRender > 700) {
+              updateDealsCount();
+              renderDealsContent();    // следующие — только колонки (дёшево)
+              lastIncRender = now;
+            }
+          }
+        }
         if (!data.hasMore || items.length < pageSize) break;
         page++;
       }
@@ -8010,7 +8053,11 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
       // визуально упорядоченным — последние созданные сверху.
       all.sort((a, b) => (b.bitrixDateCreate || '').localeCompare(a.bitrixDateCreate || ''));
       all.__loadedAt = Date.now();
-      dealsState.dealsByPipeline[pipelineId] = all;
+      // Не кешируем полностью пустой результат, полученный из-за ошибки сети —
+      // иначе следующий заход покажет пустую воронку из кеша вместо ретрая.
+      if (!(pageErr && all.length === 0)) {
+        dealsState.dealsByPipeline[pipelineId] = all;
+      }
 
       // Если воронка всё ещё активна — обновим текущий массив и перерендерим
       if (dealsState.activePipelineId === pipelineId) {
@@ -8018,9 +8065,11 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
         dealsState.loaded = true;
         const main = document.getElementById('main');
         if (main && document.querySelector('[data-page="deals"].active')) {
-          // Если первый раз — renderDeals'у уже не нужно дергаться (он сам ждёт
-          // этот await). Это для фоновых обновлений.
-          if (force) renderDealsLayout(main);
+          // Финальный рендер после полной загрузки/сортировки. Если layout ещё
+          // не построен (кеш-промах или force-refresh) — строим; иначе только
+          // обновляем колонки + счётчик, сохраняя поиск и позицию скролла.
+          if (!document.getElementById('deals-content')) renderDealsLayout(main);
+          else { updateDealsCount(); renderDealsContent(); }
         }
       }
       console.log(`Loaded ${all.length} deals (pipeline=${pipelineId}) in ${Date.now() - t0}ms`);
