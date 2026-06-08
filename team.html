@@ -8080,6 +8080,8 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
         params.set('scope', kanbanScope);
         if (kanbanAssignee) params.set('assignee', kanbanAssignee);
         let data;
+        let pMs = 0;
+        const pStart = Date.now();
         try {
           const ctrl = new AbortController();
           const to = setTimeout(() => ctrl.abort(), 25000);
@@ -8089,6 +8091,7 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
           } finally { clearTimeout(to); }
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           data = await r.json();
+          pMs = Date.now() - pStart;
         } catch (e) {
           pageErr = e;
           console.warn(`loadDealsForPipeline page ${page} failed:`, e && e.message);
@@ -8117,6 +8120,16 @@ async function loadDealsForPipeline(pipelineId, opts = {}) {
         }
         if (!data.hasMore || items.length < pageSize) break;
         if (all.length >= KANBAN_MAX_DEALS) break; // потолок свежих карточек
+        // Адаптивная остановка: как только страница стала медленной — дальше
+        // грузить дорого и долго. На больших воронках сортировка ORDER BY
+        // bitrix_date_modify без индекса пересортировывает всю таблицу на каждый
+        // запрос → «глубокие» страницы упираются в секунды и в таймаут. Бейджи
+        // колонок и так точные (countsOnly), а канбану нужны только свежие
+        // карточки — поэтому останавливаемся на первой медленной странице.
+        if (pMs > 7000) {
+          console.log(`loadDealsForPipeline: страница ${page} заняла ${pMs}ms — стоп (глубокий OFFSET медленный), загружено ${all.length}`);
+          break;
+        }
         page++;
       }
       // Сортировка для kanban: по дате создания (desc) внутри стадии получается
