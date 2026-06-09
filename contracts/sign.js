@@ -9,7 +9,17 @@ function apiBase() {
   return String(window.PLLATO_API_BASE || "").trim().replace(/\/+$/, "");
 }
 
-const token = new URLSearchParams(location.search).get("t") || "";
+const params = new URLSearchParams(location.search);
+const token = params.get("t") || "";
+const ctoken = params.get("c") || "";
+const universal = !!ctoken;
+
+// Базовый путь API: общая ссылка договора (?c=) или персональная (?t=).
+function signApi(suffix = "") {
+  return universal
+    ? `${apiBase()}/api/sign/c/${encodeURIComponent(ctoken)}${suffix}`
+    : `${apiBase()}/api/sign/${encodeURIComponent(token)}${suffix}`;
+}
 
 function toast(msg, isErr = false) {
   toastEl.textContent = msg;
@@ -31,14 +41,14 @@ function fmtDate(ms) {
 }
 
 async function apiGet() {
-  const res = await fetch(`${apiBase()}/api/sign/${encodeURIComponent(token)}`);
+  const res = await fetch(signApi());
   const data = await res.json().catch(() => null);
   if (!res.ok || !data?.ok) throw new Error(data?.error || `Ошибка ${res.status}`);
   return data;
 }
 
 async function apiPost(body) {
-  const res = await fetch(`${apiBase()}/api/sign/${encodeURIComponent(token)}`, {
+  const res = await fetch(signApi(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -49,7 +59,7 @@ async function apiPost(body) {
 }
 
 async function fileBlobUrl() {
-  const res = await fetch(`${apiBase()}/api/sign/${encodeURIComponent(token)}/file`);
+  const res = await fetch(signApi("/file"));
   if (!res.ok) throw new Error(`Не удалось загрузить файл (${res.status})`);
   const blob = await res.blob();
   return { url: URL.createObjectURL(blob), mime: blob.type, blob };
@@ -80,7 +90,7 @@ function renderDone(signer) {
 
 async function render(data) {
   const { contract, signer } = data;
-  if (signer.status === "signed" || signer.status === "declined") {
+  if (!universal && (signer.status === "signed" || signer.status === "declined")) {
     renderDone(signer);
     return;
   }
@@ -101,13 +111,22 @@ async function render(data) {
   const type = signer.signerType || signer.requisites?.type || "";
   const val = (k) => esc(r[k] || "");
 
+  const parties = Array.isArray(data.parties) ? data.parties.filter((p) => p.status === "signed") : [];
+  const partiesHtml = universal && parties.length
+    ? `<div class="summary"><div style="flex-direction:column;align-items:flex-start">
+         <span>Уже подписали (${parties.length})</span>
+         <b style="font-weight:500">${parties.map((p) => esc(p.fullName) + (p.role === "owner" ? " · компания" : "")).join(", ")}</b>
+       </div></div>`
+    : "";
+
   root.innerHTML = `
     <h1 style="font-size:24px;margin:6px 0 4px">${esc(contract.title)}</h1>
     <div class="summary">
-      <div><span>Подписант</span><b>${esc(signer.fullName)}</b></div>
+      ${signer.fullName ? `<div><span>Подписант</span><b>${esc(signer.fullName)}</b></div>` : ""}
       ${signer.iin ? `<div><span>ИИН</span><b>${esc(signer.iin)}</b></div>` : ""}
       <div><span>Файл</span><b>${esc(contract.fileName)} · ${fmtSize(contract.fileSize)}</b></div>
     </div>
+    ${partiesHtml}
     ${contract.note ? `<div class="hint" style="margin-bottom:16px">${esc(contract.note)}</div>` : ""}
     ${preview}
 
@@ -137,7 +156,7 @@ async function render(data) {
     <div class="sign-actions">
       <button class="btn bronze" id="btn-sign">Подписать ЭЦП</button>
       <button class="btn" id="btn-download">Скачать договор</button>
-      <button class="btn danger" id="btn-decline">Отказаться</button>
+      ${universal ? "" : `<button class="btn danger" id="btn-decline">Отказаться</button>`}
     </div>`;
 
   const formEl = $("#req-form");
@@ -157,7 +176,8 @@ async function render(data) {
   const dl = $("#dl");
   if (dl) dl.addEventListener("click", downloadFile);
   $("#btn-download").addEventListener("click", downloadFile);
-  $("#btn-decline").addEventListener("click", () => onDecline());
+  const declineBtn = $("#btn-decline");
+  if (declineBtn) declineBtn.addEventListener("click", () => onDecline());
   $("#btn-sign").addEventListener("click", () => onSign(contract));
 
   function downloadFile() {
@@ -228,7 +248,7 @@ async function onDecline() {
 
 async function init() {
   refreshNcaBadge();
-  if (!token) {
+  if (!token && !ctoken) {
     root.innerHTML = `<div class="empty">Ссылка недействительна — отсутствует токен.</div>`;
     return;
   }

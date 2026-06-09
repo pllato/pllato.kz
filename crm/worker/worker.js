@@ -1160,11 +1160,13 @@ async function ensureContractsTables(env) {
       file_size   INTEGER NOT NULL DEFAULT 0,
       file_hash   TEXT NOT NULL,
       status      TEXT NOT NULL DEFAULT 'draft',
+      public_token TEXT,
       created_by  TEXT,
       created_at  INTEGER NOT NULL,
       updated_at  INTEGER NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_contracts_updated ON contracts(updated_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_contracts_public_token ON contracts(public_token)`,
     `CREATE TABLE IF NOT EXISTS contract_signers (
       id             TEXT PRIMARY KEY,
       contract_id    TEXT NOT NULL,
@@ -1196,6 +1198,8 @@ async function ensureContractsTables(env) {
     try { await db.prepare(`ALTER TABLE contract_signers ADD COLUMN ${col}`).run(); }
     catch (_e) { /* колонка уже есть */ }
   }
+  try { await db.prepare(`ALTER TABLE contracts ADD COLUMN public_token TEXT`).run(); }
+  catch (_e) { /* колонка уже есть */ }
   contractsTablesReady = true;
 }
 
@@ -1264,10 +1268,21 @@ function contractRowToDto(row) {
     fileSize: Number(row.file_size) || 0,
     fileHash: row.file_hash,
     status: row.status,
+    publicToken: row.public_token || "",
     createdBy: row.created_by || "",
     createdAt: Number(row.created_at) || 0,
     updatedAt: Number(row.updated_at) || 0,
   };
+}
+
+// Гарантировать у договора единую публичную ссылку (общий токен для всех подписантов).
+async function ensureContractPublicToken(env, row) {
+  if (row.public_token) return row.public_token;
+  const token = genToken();
+  const db = requireStoreDb(env);
+  await db.prepare(`UPDATE contracts SET public_token = ? WHERE id = ?`).bind(token, row.id).run();
+  row.public_token = token;
+  return token;
 }
 
 function signerRowToDto(row, { includeToken = false } = {}) {
@@ -1294,7 +1309,8 @@ function signerRowToDto(row, { includeToken = false } = {}) {
 
 function computeContractStatus(prevStatus, signers) {
   if (signers.some((s) => s.status === "declined")) return "declined";
-  if (signers.length && signers.every((s) => s.status === "signed")) return "completed";
+  const hasEmployee = signers.some((s) => s.role === "employee");
+  if (hasEmployee && signers.every((s) => s.status === "signed")) return "completed";
   if (prevStatus === "cancelled") return "cancelled";
   if (signers.some((s) => s.status === "signed")) return "in_progress";
   return prevStatus === "in_progress" ? "in_progress" : "draft";
@@ -1342,6 +1358,9 @@ async function handleContractsList(env, actor) {
     (byContract[s.contract_id] = byContract[s.contract_id] || []).push(s);
   }
   const isAdmin = Boolean(actor?.isAdmin);
+  for (const c of contracts) {
+    if (!c.public_token) await ensureContractPublicToken(env, c);
+  }
   return {
     ok: true,
     contracts: contracts.map((c) => {
@@ -1359,6 +1378,7 @@ async function handleContractsList(env, actor) {
 async function handleContractGet(env, id, actor) {
   await ensureContractsTables(env);
   const row = await loadContractOr404(env, id);
+  await ensureContractPublicToken(env, row);
   const signers = await syncContractStatus(env, row);
   return {
     ok: true,
@@ -1400,13 +1420,14 @@ async function handleContractCreate(request, env, actor) {
   const r2 = requireContractsBucket(env);
   await r2.put(fileKey, bytes, { httpMetadata: { contentType: fileMime } });
 
+  const publicToken = genToken();
   const db = requireStoreDb(env);
   await db
     .prepare(
-      `INSERT INTO contracts (id, title, note, file_key, file_name, file_mime, file_size, file_hash, status, created_by, created_at, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+      `INSERT INTO contracts (id, title, note, file_key, file_name, file_mime, file_size, file_hash, status, public_token, created_by, created_at, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
-    .bind(id, title, note, fileKey, fileName, fileMime, bytes.length, fileHash, "draft", actor?.email || "", now, now)
+    .bind(id, title, note, fileKey, fileName, fileMime, bytes.length, fileHash, "draft", publicToken, actor?.email || "", now, now)
     .run();
 
   // Подписант-владелец (подписывает внутри портала, без токена).
@@ -1699,6 +1720,94 @@ async function handleSignPost(request, env, token) {
       signedAt: Number(fresh.signed_at) || 0,
       signerCn: fresh.signer_cn || "",
       declineReason: fresh.decline_reason || "",
+      signerType: fresh.signer_type || "",
+      requisites: parseRequisites(fresh),
+    },
+  };
+}
+
+// ---- Универсальная ссылка: один общий токен договора, каждый подписант заводит себя сам ----
+async function loadContractByPublicTokenOr404(env, token) {
+  await ensureContractsTables(env);
+  const db = requireStoreDb(env);
+  const contract = await db.prepare(`SELECT * FROM contracts WHERE public_token = ?`).bind(token).first();
+  if (!contract) throw new HttpError(404, "Ссылка недействительна");
+  return contract;
+}
+
+// Публичный просмотр договора по общей ссылке (без логина): показываем сам документ
+// и список уже подписавших сторон. Форма реквизитов на фронте пустая.
+async function handleSignGetByContract(env, token) {
+  const contract = await loadContractByPublicTokenOr404(env, token);
+  const others = await loadContractSigners(env, contract.id);
+  return {
+    ok: true,
+    universal: true,
+    contract: {
+      title: contract.title,
+      note: contract.note || "",
+      fileName: contract.file_name,
+      fileMime: contract.file_mime,
+      fileSize: Number(contract.file_size) || 0,
+      fileHash: contract.file_hash,
+      status: contract.status,
+    },
+    signer: { fullName: "", iin: "", status: "pending", signerType: "", requisites: { data: {} } },
+    parties: others
+      .filter((s) => s.status === "signed")
+      .map((s) => ({ fullName: s.full_name, role: s.role, status: s.status, signedAt: Number(s.signed_at) || 0 })),
+  };
+}
+
+async function handleSignFileByContract(request, env, token) {
+  const contract = await loadContractByPublicTokenOr404(env, token);
+  const r2 = requireContractsBucket(env);
+  const obj = await r2.get(contract.file_key);
+  if (!obj) throw new HttpError(404, "Файл не найден в хранилище");
+  const buf = await obj.arrayBuffer();
+  const download = new URL(request.url).searchParams.get("download") === "1";
+  return fileResponse(request, env, buf, contract.file_mime, contract.file_name, { download });
+}
+
+// Подписание по общей ссылке: создаём новую строку-подписанта прямо в момент подписи.
+async function handleSignPostByContract(request, env, token) {
+  const contract = await loadContractByPublicTokenOr404(env, token);
+  if (contract.status === "cancelled") throw new HttpError(409, "Договор отменён");
+  const body = await readRequestBodyAsJson(request);
+  const cmsB64 = String(body?.cmsBase64 || "").trim();
+  if (!cmsB64) throw new HttpError(400, "Нет данных подписи (cmsBase64)");
+
+  const db = requireStoreDb(env);
+  const now = Date.now();
+  const maxRow = await db.prepare(`SELECT MAX(order_index) AS m FROM contract_signers WHERE contract_id = ?`).bind(contract.id).first();
+  const idx = (Number(maxRow?.m) || 0) + 1;
+  const newId = genId("sg");
+  const name = (body?.requisites?.data?.name ? String(body.requisites.data.name) : `Подписант ${idx}`).slice(0, 200);
+  await db
+    .prepare(
+      `INSERT INTO contract_signers (id, contract_id, role, full_name, iin, contact, token, order_index, status, created_at, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+    )
+    .bind(newId, contract.id, "employee", name, "", "", genToken(), idx, "pending", now, now)
+    .run();
+  const signerRow = await db.prepare(`SELECT * FROM contract_signers WHERE id = ?`).bind(newId).first();
+
+  let out;
+  try {
+    out = await applySignature(env, request, contract, signerRow, body);
+  } catch (e) {
+    await db.prepare(`DELETE FROM contract_signers WHERE id = ?`).bind(newId).run();
+    throw e;
+  }
+  const fresh = out.signers.find((s) => s.id === newId) || signerRow;
+  return {
+    ok: true,
+    contractStatus: out.contract.status,
+    signer: {
+      fullName: fresh.full_name,
+      status: fresh.status,
+      signedAt: Number(fresh.signed_at) || 0,
+      signerCn: fresh.signer_cn || "",
       signerType: fresh.signer_type || "",
       requisites: parseRequisites(fresh),
     },
@@ -7297,6 +7406,19 @@ export default {
       if (request.method === "DELETE" && contractIdMatch) {
         await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleContractDelete(env, contractIdMatch[1]));
+      }
+
+      // Публичные ручки подписания по общей ссылке договора (без логина):
+      const signCFileMatch = path.match(/^\/api\/sign\/c\/([a-zA-Z0-9_-]+)\/file$/);
+      if (request.method === "GET" && signCFileMatch) {
+        return await handleSignFileByContract(request, env, signCFileMatch[1]);
+      }
+      const signCMatch = path.match(/^\/api\/sign\/c\/([a-zA-Z0-9_-]+)$/);
+      if (request.method === "GET" && signCMatch) {
+        return json(request, env, await handleSignGetByContract(env, signCMatch[1]));
+      }
+      if (request.method === "POST" && signCMatch) {
+        return json(request, env, await handleSignPostByContract(request, env, signCMatch[1]));
       }
 
       // Публичные ручки подписания по персональной ссылке (без логина):

@@ -1,7 +1,7 @@
 import { requireSession } from "../pllato-kz-shared/pllato-api.js";
 import {
   listContracts, createContract, signOwner, sendContract, deleteContract,
-  fetchContractFileBlob, fetchSignatureBlob, generateSignLinks, fileToBase64, signLinkForToken,
+  fetchContractFileBlob, fetchSignatureBlob, fileToBase64, signLinkForToken, signLinkForContract,
 } from "./api.js";
 import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js";
 
@@ -119,7 +119,7 @@ function renderContract(c) {
       <span>${signed} из ${total} подписали</span>
       <span style="flex:1"></span>
       <button class="btn sm" data-act="download" data-id="${c.id}">Скачать оригинал</button>
-      <button class="btn sm" data-act="gen-link" data-id="${c.id}">+ Ссылка подписанту</button>
+      ${c.publicToken ? `<button class="btn sm bronze" data-act="copy" data-link="${esc(signLinkForContract(c.publicToken))}">Ссылка для подписантов</button>` : ""}
       ${canSend ? `<button class="btn sm" data-act="send" data-id="${c.id}">Отправить</button>` : ""}
       <button class="btn sm danger" data-act="delete" data-id="${c.id}">Удалить</button>
     </div>
@@ -229,10 +229,6 @@ listEl.addEventListener("click", async (e) => {
       toast("Ссылка скопирована");
     } else if (act === "download") {
       await doDownload(id);
-    } else if (act === "gen-link") {
-      await generateSignLinks(id, 1);
-      toast("Ссылка для подписанта создана");
-      await loadList();
     } else if (act === "dl-sig") {
       await doDownloadSignature(id, btn.dataset.sid);
     } else if (act === "send") {

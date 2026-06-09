@@ -76,3 +76,8 @@ export function fileToBase64(file) {
 export function signLinkForToken(token) {
   return `${location.origin}/sign.html?t=${encodeURIComponent(token)}`;
 }
+
+// Общая (универсальная) ссылка на договор — одна на всех подписантов.
+export function signLinkForContract(publicToken) {
+  return `${location.origin}/sign.html?c=${encodeURIComponent(publicToken)}`;
+}
