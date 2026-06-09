@@ -1,6 +1,6 @@
 import { requireSession } from "../pllato-kz-shared/pllato-api.js";
 import {
-  listContracts, createContract, signOwner, sendContract, deleteContract,
+  listContracts, createContract, signOwner, sendContract, deleteContract, addSigners, setContractMode,
   fetchContractFileBlob, fetchSignatureBlob, fileToBase64, signLinkForToken, signLinkForContract,
 } from "./api.js";
 import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js";
@@ -106,6 +106,10 @@ function renderContract(c) {
   const pct = total ? Math.round((signed / total) * 100) : 0;
   const signers = (c.signers || []).map((s) => renderSigner(c, s)).join("");
   const canSend = c.status === "draft";
+  const mode = c.linkMode === "named" ? "named" : "universal";
+  const linkBtn = mode === "named"
+    ? `<button class="btn sm bronze" data-act="add-named" data-id="${c.id}">+ Подписант</button>`
+    : (c.publicToken ? `<button class="btn sm bronze" data-act="copy" data-link="${esc(signLinkForContract(c.publicToken))}">Ссылка для подписантов</button>` : "");
   return `<div class="card contract-row" data-id="${c.id}">
     <div class="contract-top">
       <div>
@@ -114,12 +118,18 @@ function renderContract(c) {
       </div>
       <span class="badge ${c.status}">${STATUS_LABEL[c.status] || c.status}</span>
     </div>
+    <div class="mode-row">
+      <span class="mode-label">Режим:</span>
+      <button class="mode-btn ${mode === "universal" ? "on" : ""}" data-act="set-mode" data-id="${c.id}" data-mode="universal">Общая ссылка</button>
+      <button class="mode-btn ${mode === "named" ? "on" : ""}" data-act="set-mode" data-id="${c.id}" data-mode="named">Именные ссылки</button>
+      <span class="mode-hint">${mode === "named" ? "по ссылке на каждого подписанта отдельно" : "одна ссылка на всех — каждый заводит себя сам"}</span>
+    </div>
     <div class="progress">
       <div class="bar"><i style="width:${pct}%"></i></div>
       <span>${signed} из ${total} подписали</span>
       <span style="flex:1"></span>
       <button class="btn sm" data-act="download" data-id="${c.id}">Скачать оригинал</button>
-      ${c.publicToken ? `<button class="btn sm bronze" data-act="copy" data-link="${esc(signLinkForContract(c.publicToken))}">Ссылка для подписантов</button>` : ""}
+      ${linkBtn}
       ${canSend ? `<button class="btn sm" data-act="send" data-id="${c.id}">Отправить</button>` : ""}
       <button class="btn sm danger" data-act="delete" data-id="${c.id}">Удалить</button>
     </div>
@@ -231,6 +241,15 @@ listEl.addEventListener("click", async (e) => {
       await doDownload(id);
     } else if (act === "dl-sig") {
       await doDownloadSignature(id, btn.dataset.sid);
+    } else if (act === "set-mode") {
+      await setContractMode(id, btn.dataset.mode);
+      await loadList();
+    } else if (act === "add-named") {
+      const name = prompt("ФИО подписанта (для подписи именной ссылкой):", "");
+      if (!name || !name.trim()) return;
+      await addSigners(id, [{ fullName: name.trim() }]);
+      toast("Именная ссылка создана — скопируйте её у подписанта ниже");
+      await loadList();
     } else if (act === "send") {
       await sendContract(id);
       toast("Договор переведён в статус «На подписании»");

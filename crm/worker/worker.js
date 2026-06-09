@@ -1161,6 +1161,7 @@ async function ensureContractsTables(env) {
       file_hash   TEXT NOT NULL,
       status      TEXT NOT NULL DEFAULT 'draft',
       public_token TEXT,
+      link_mode   TEXT NOT NULL DEFAULT 'universal',
       created_by  TEXT,
       created_at  INTEGER NOT NULL,
       updated_at  INTEGER NOT NULL
@@ -1198,6 +1199,8 @@ async function ensureContractsTables(env) {
     catch (_e) { /* колонка уже есть */ }
   }
   try { await db.prepare(`ALTER TABLE contracts ADD COLUMN public_token TEXT`).run(); }
+  catch (_e) { /* колонка уже есть */ }
+  try { await db.prepare(`ALTER TABLE contracts ADD COLUMN link_mode TEXT NOT NULL DEFAULT 'universal'`).run(); }
   catch (_e) { /* колонка уже есть */ }
   try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_contracts_public_token ON contracts(public_token)`).run(); }
   catch (_e) { /* индекс уже есть */ }
@@ -1270,6 +1273,7 @@ function contractRowToDto(row) {
     fileHash: row.file_hash,
     status: row.status,
     publicToken: row.public_token || "",
+    linkMode: row.link_mode === "named" ? "named" : "universal",
     createdBy: row.created_by || "",
     createdAt: Number(row.created_at) || 0,
     updatedAt: Number(row.updated_at) || 0,
@@ -1496,6 +1500,20 @@ async function handleContractAddSigners(request, env, id, actor) {
     idx += 1;
   }
   await db.prepare(`UPDATE contracts SET updated_at = ? WHERE id = ?`).bind(now, id).run();
+  const signers = await loadContractSigners(env, id);
+  return { ok: true, contract: contractRowToDto(row), signers: signers.map((s) => signerRowToDto(s, { includeToken: true })) };
+}
+
+async function handleContractSetMode(request, env, id) {
+  await ensureContractsTables(env);
+  const row = await loadContractOr404(env, id);
+  const body = await readRequestBodyAsJson(request);
+  const mode = body?.mode === "named" ? "named" : "universal";
+  const db = requireStoreDb(env);
+  const now = Date.now();
+  await db.prepare(`UPDATE contracts SET link_mode = ?, updated_at = ? WHERE id = ?`).bind(mode, now, id).run();
+  row.link_mode = mode;
+  await ensureContractPublicToken(env, row);
   const signers = await loadContractSigners(env, id);
   return { ok: true, contract: contractRowToDto(row), signers: signers.map((s) => signerRowToDto(s, { includeToken: true })) };
 }
@@ -1740,6 +1758,7 @@ async function loadContractByPublicTokenOr404(env, token) {
 // и список уже подписавших сторон. Форма реквизитов на фронте пустая.
 async function handleSignGetByContract(env, token) {
   const contract = await loadContractByPublicTokenOr404(env, token);
+  if (contract.link_mode === "named") throw new HttpError(409, "Этот договор подписывается по именным ссылкам — запросите персональную ссылку у отправителя");
   const others = await loadContractSigners(env, contract.id);
   return {
     ok: true,
@@ -1773,6 +1792,7 @@ async function handleSignFileByContract(request, env, token) {
 // Подписание по общей ссылке: создаём новую строку-подписанта прямо в момент подписи.
 async function handleSignPostByContract(request, env, token) {
   const contract = await loadContractByPublicTokenOr404(env, token);
+  if (contract.link_mode === "named") throw new HttpError(409, "Этот договор подписывается по именным ссылкам");
   if (contract.status === "cancelled") throw new HttpError(409, "Договор отменён");
   const body = await readRequestBodyAsJson(request);
   const cmsB64 = String(body?.cmsBase64 || "").trim();
@@ -7388,6 +7408,11 @@ export default {
       if (request.method === "POST" && contractSendMatch) {
         await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleContractSend(env, contractSendMatch[1]));
+      }
+      const contractModeMatch = path.match(/^\/api\/contracts\/([a-zA-Z0-9_-]+)\/mode$/);
+      if (request.method === "POST" && contractModeMatch) {
+        await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleContractSetMode(request, env, contractModeMatch[1]));
       }
       const contractSignersMatch = path.match(/^\/api\/contracts\/([a-zA-Z0-9_-]+)\/signers$/);
       if (request.method === "POST" && contractSignersMatch) {

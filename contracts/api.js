@@ -34,6 +34,11 @@ export function sendContract(id) {
   return apiFetch(`/api/contracts/${encodeURIComponent(id)}/send`, { method: "POST", body: {} });
 }
 
+// Переключить режим ссылок договора: "universal" (общая) или "named" (именные).
+export function setContractMode(id, mode) {
+  return apiFetch(`/api/contracts/${encodeURIComponent(id)}/mode`, { method: "POST", body: { mode } });
+}
+
 export function deleteContract(id) {
   return apiFetch(`/api/contracts/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
