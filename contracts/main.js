@@ -1,7 +1,7 @@
 import { requireSession } from "../pllato-kz-shared/pllato-api.js";
 import {
   listContracts, createContract, signOwner, sendContract, deleteContract,
-  fetchContractFileBlob, fileToBase64, signLinkForToken,
+  fetchContractFileBlob, fetchSignatureBlob, generateSignLinks, fileToBase64, signLinkForToken,
 } from "./api.js";
 import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js";
 
@@ -80,9 +80,11 @@ function renderRequisites(s) {
 function renderSigner(contract, s) {
   const isOwner = s.role === "owner";
   let actions = "";
-  if (s.status === "pending") {
+  if (s.status === "signed") {
+    actions = `<button class="btn sm" data-act="dl-sig" data-id="${contract.id}" data-sid="${s.id}">Скачать подпись</button>`;
+  } else if (s.status === "pending") {
     if (isOwner) {
-      actions = `<button class="btn bronze sm" data-act="sign-owner" data-id="${contract.id}">Подписать ЭЦП</button>`;
+      actions = `<button class="btn bronze sm" data-act="sign-owner" data-id="${contract.id}">Подписать ЭЦП (компания)</button>`;
     } else {
       const link = s.token ? signLinkForToken(s.token) : "";
       actions = `<div class="link-box"><input readonly value="${esc(link)}"><button class="btn sm" data-act="copy" data-link="${esc(link)}">Копировать</button></div>`;
@@ -90,7 +92,7 @@ function renderSigner(contract, s) {
   }
   return `<div class="signer">
     <div class="signer-main">
-      <div class="who">${esc(s.fullName)} <span class="role-tag">${isOwner ? "владелец" : "сотрудник"}</span></div>
+      <div class="who">${esc(s.fullName)} <span class="role-tag">${isOwner ? "компания" : "подписант"}</span></div>
       <div class="sub">${s.iin ? "ИИН " + esc(s.iin) + " · " : ""}${signerStatusText(s)}${s.signedAt ? " · " + fmtDate(s.signedAt) : ""}</div>
       ${renderRequisites(s)}
     </div>
@@ -117,6 +119,7 @@ function renderContract(c) {
       <span>${signed} из ${total} подписали</span>
       <span style="flex:1"></span>
       <button class="btn sm" data-act="download" data-id="${c.id}">Скачать оригинал</button>
+      <button class="btn sm" data-act="gen-link" data-id="${c.id}">+ Ссылка подписанту</button>
       ${canSend ? `<button class="btn sm" data-act="send" data-id="${c.id}">Отправить</button>` : ""}
       <button class="btn sm danger" data-act="delete" data-id="${c.id}">Удалить</button>
     </div>
@@ -140,45 +143,21 @@ async function loadList() {
 
 // ---- Create modal ----
 const overlay = $("#create-overlay");
-const signersInputs = $("#signers-inputs");
-
-function addSignerInput(value = {}) {
-  const row = document.createElement("div");
-  row.className = "signer-input-row";
-  row.innerHTML = `
-    <input placeholder="ФИО сотрудника" data-f="fullName" value="${esc(value.fullName || "")}">
-    <input placeholder="ИИН (12 цифр)" data-f="iin" maxlength="12" value="${esc(value.iin || "")}">
-    <input placeholder="WhatsApp / e-mail" data-f="contact" value="${esc(value.contact || "")}">
-    <button class="rm" type="button" title="Убрать">×</button>`;
-  row.querySelector(".rm").addEventListener("click", () => row.remove());
-  signersInputs.appendChild(row);
-}
 
 function openCreate() {
   $("#c-title").value = "";
   $("#c-note").value = "";
   $("#dz-name").textContent = "";
   pendingFile = null;
-  signersInputs.innerHTML = "";
-  addSignerInput();
   overlay.classList.add("open");
 }
 function closeCreate() { overlay.classList.remove("open"); }
 
-function collectSigners() {
-  return [...signersInputs.querySelectorAll(".signer-input-row")].map((row) => {
-    const get = (f) => row.querySelector(`[data-f="${f}"]`).value.trim();
-    return { fullName: get("fullName"), iin: get("iin"), contact: get("contact") };
-  }).filter((s) => s.fullName);
-}
-
 async function submitCreate() {
   const title = $("#c-title").value.trim();
   const note = $("#c-note").value.trim();
-  const signers = collectSigners();
   if (!title) return toast("Укажите название", true);
   if (!pendingFile) return toast("Выберите файл договора", true);
-  if (!signers.length) return toast("Добавьте хотя бы одного сотрудника", true);
 
   const btn = $("#create-save");
   btn.disabled = true; btn.textContent = "Загрузка…";
@@ -189,7 +168,6 @@ async function submitCreate() {
       fileName: pendingFile.name,
       fileMime: pendingFile.type || "application/octet-stream",
       fileBase64,
-      signers,
     });
     closeCreate();
     toast("Договор создан");
@@ -231,6 +209,15 @@ async function doDownload(id) {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
+async function doDownloadSignature(contractId, signerId) {
+  const blob = await fetchSignatureBlob(contractId, signerId);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `signature_${signerId}.p7s`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
 listEl.addEventListener("click", async (e) => {
   const btn = e.target.closest("[data-act]");
   if (!btn) return;
@@ -242,6 +229,12 @@ listEl.addEventListener("click", async (e) => {
       toast("Ссылка скопирована");
     } else if (act === "download") {
       await doDownload(id);
+    } else if (act === "gen-link") {
+      await generateSignLinks(id, 1);
+      toast("Ссылка для подписанта создана");
+      await loadList();
+    } else if (act === "dl-sig") {
+      await doDownloadSignature(id, btn.dataset.sid);
     } else if (act === "send") {
       await sendContract(id);
       toast("Договор переведён в статус «На подписании»");
@@ -280,7 +273,6 @@ dz.addEventListener("drop", (e) => { e.preventDefault(); setFile(e.dataTransfer.
 $("#btn-new").addEventListener("click", openCreate);
 $("#create-cancel").addEventListener("click", closeCreate);
 $("#create-save").addEventListener("click", submitCreate);
-$("#add-signer-input").addEventListener("click", () => addSignerInput());
 overlay.addEventListener("click", (e) => { if (e.target === overlay) closeCreate(); });
 
 refreshNcaBadge();

@@ -21,6 +21,11 @@ export function addSigners(id, signers) {
   return apiFetch(`/api/contracts/${encodeURIComponent(id)}/signers`, { method: "POST", body: { signers } });
 }
 
+// Сгенерировать N пустых персональных ссылок — подписант сам заполнит реквизиты.
+export function generateSignLinks(id, count = 1) {
+  return apiFetch(`/api/contracts/${encodeURIComponent(id)}/signers`, { method: "POST", body: { count } });
+}
+
 export function signOwner(id, { cmsBase64, signer }) {
   return apiFetch(`/api/contracts/${encodeURIComponent(id)}/sign`, { method: "POST", body: { cmsBase64, signer } });
 }
@@ -41,6 +46,17 @@ export async function fetchContractFileBlob(id) {
     headers: { Authorization: `Bearer ${session.token}` },
   });
   if (!res.ok) throw new Error(`Не удалось загрузить файл (HTTP ${res.status})`);
+  return await res.blob();
+}
+
+// Скачать ЭЦП-подпись (CMS / .p7s) подписанта.
+export async function fetchSignatureBlob(contractId, signerId) {
+  const session = getSession();
+  if (!session?.token) throw new Error("Сессия не найдена");
+  const res = await fetch(`${apiBase()}/api/contracts/${encodeURIComponent(contractId)}/signature/${encodeURIComponent(signerId)}`, {
+    headers: { Authorization: `Bearer ${session.token}` },
+  });
+  if (!res.ok) throw new Error(`Не удалось загрузить подпись (HTTP ${res.status})`);
   return await res.blob();
 }
 

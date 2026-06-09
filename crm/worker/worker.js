@@ -1390,7 +1390,6 @@ async function handleContractCreate(request, env, actor) {
       contact: String(s?.contact || "").trim().slice(0, 200),
     }))
     .filter((s) => s.fullName);
-  if (!employees.length) throw new HttpError(400, "Добавьте хотя бы одного сотрудника-подписанта");
 
   const id = genId("ct");
   const now = Date.now();
@@ -1448,25 +1447,29 @@ async function handleContractAddSigners(request, env, id, actor) {
   await ensureContractsTables(env);
   const row = await loadContractOr404(env, id);
   const body = await readRequestBodyAsJson(request);
-  const list = (Array.isArray(body?.signers) ? body.signers : [])
+  // Можно передать готовых подписантов или просто запросить N пустых ссылок (count).
+  let list = (Array.isArray(body?.signers) ? body.signers : [])
     .map((s) => ({
       fullName: String(s?.fullName || "").trim(),
       iin: String(s?.iin || "").replace(/[^\d]/g, "").slice(0, 12),
       contact: String(s?.contact || "").trim().slice(0, 200),
-    }))
-    .filter((s) => s.fullName);
-  if (!list.length) throw new HttpError(400, "Нет подписантов для добавления");
+    }));
+  if (!list.length) {
+    const count = Math.max(1, Math.min(20, Number(body?.count) || 1));
+    list = Array.from({ length: count }, () => ({ fullName: "", iin: "", contact: "" }));
+  }
   const db = requireStoreDb(env);
   const maxRow = await db.prepare(`SELECT MAX(order_index) AS m FROM contract_signers WHERE contract_id = ?`).bind(id).first();
   let idx = (Number(maxRow?.m) || 0) + 1;
   const now = Date.now();
   for (const emp of list) {
+    const name = emp.fullName || `Подписант ${idx}`;
     await db
       .prepare(
         `INSERT INTO contract_signers (id, contract_id, role, full_name, iin, contact, token, order_index, status, created_at, updated_at)
          VALUES (?,?,?,?,?,?,?,?,?,?,?)`
       )
-      .bind(genId("sg"), id, "employee", emp.fullName, emp.iin, emp.contact, genToken(), idx, "pending", now, now)
+      .bind(genId("sg"), id, "employee", name, emp.iin, emp.contact, genToken(), idx, "pending", now, now)
       .run();
     idx += 1;
   }
@@ -1530,6 +1533,22 @@ async function handleContractFile(request, env, id) {
   return fileResponse(request, env, buf, row.file_mime, row.file_name, { download });
 }
 
+// Скачать ЭЦП-подпись (detached CMS / .p7s) конкретного подписанта.
+async function handleContractSignatureFile(request, env, id, signerId) {
+  await ensureContractsTables(env);
+  const row = await loadContractOr404(env, id);
+  const db = requireStoreDb(env);
+  const signer = await db.prepare(`SELECT * FROM contract_signers WHERE id = ? AND contract_id = ?`).bind(signerId, id).first();
+  if (!signer || !signer.sig_key) throw new HttpError(404, "Подпись не найдена");
+  const r2 = requireContractsBucket(env);
+  const obj = await r2.get(signer.sig_key);
+  if (!obj) throw new HttpError(404, "Файл подписи не найден в хранилище");
+  const buf = await obj.arrayBuffer();
+  const base = (row.file_name || "contract").replace(/\.[^.]+$/, "");
+  const who = (signer.full_name || "signer").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 40);
+  return fileResponse(request, env, buf, "application/pkcs7-signature", `${base}__${who}.p7s`, { download: true });
+}
+
 // Применить подпись к строке подписанта (общая логика для владельца и сотрудника).
 async function applySignature(env, request, contractRow, signerRow, body) {
   if (signerRow.status === "signed") throw new HttpError(409, "Этот подписант уже подписал договор");
@@ -1559,11 +1578,12 @@ async function applySignature(env, request, contractRow, signerRow, body) {
     const req = normalizeRequisites(body?.requisites, body?.signerType);
     const reqJson = req.data || req.type ? JSON.stringify(req) : (signerRow.requisites || null);
     const reqType = req.type || signerRow.signer_type || null;
+    const fullName = req.data?.name ? req.data.name.slice(0, 200) : signerRow.full_name;
     await db
       .prepare(
-        `UPDATE contract_signers SET status = 'signed', sig_key = ?, signer_cn = ?, signer_iin = ?, signer_serial = ?, signer_type = ?, requisites = ?, signed_at = ?, signed_ip = ?, updated_at = ? WHERE id = ?`
+        `UPDATE contract_signers SET status = 'signed', full_name = ?, sig_key = ?, signer_cn = ?, signer_iin = ?, signer_serial = ?, signer_type = ?, requisites = ?, signed_at = ?, signed_ip = ?, updated_at = ? WHERE id = ?`
       )
-      .bind(sigKey, cn, iin, serial, reqType, reqJson, now, clientIp(request), now, signerRow.id)
+      .bind(fullName, sigKey, cn, iin, serial, reqType, reqJson, now, clientIp(request), now, signerRow.id)
       .run();
   }
 
@@ -1642,9 +1662,10 @@ async function saveSignerRequisites(env, signerRow, body) {
   if (signerRow.status === "signed") throw new HttpError(409, "Договор уже подписан — реквизиты изменить нельзя");
   const req = normalizeRequisites(body?.requisites, body?.signerType);
   const db = requireStoreDb(env);
+  const name = req.data?.name ? req.data.name.slice(0, 200) : signerRow.full_name;
   await db
-    .prepare(`UPDATE contract_signers SET signer_type = ?, requisites = ?, updated_at = ? WHERE id = ?`)
-    .bind(req.type || null, req.data || req.type ? JSON.stringify(req) : null, Date.now(), signerRow.id)
+    .prepare(`UPDATE contract_signers SET full_name = ?, signer_type = ?, requisites = ?, updated_at = ? WHERE id = ?`)
+    .bind(name, req.type || null, req.data || req.type ? JSON.stringify(req) : null, Date.now(), signerRow.id)
     .run();
   return db.prepare(`SELECT * FROM contract_signers WHERE id = ?`).bind(signerRow.id).first();
 }
@@ -7262,6 +7283,11 @@ export default {
       if (request.method === "POST" && contractSignersMatch) {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleContractAddSigners(request, env, contractSignersMatch[1], actor));
+      }
+      const contractSigFileMatch = path.match(/^\/api\/contracts\/([a-zA-Z0-9_-]+)\/signature\/([a-zA-Z0-9_-]+)$/);
+      if (request.method === "GET" && contractSigFileMatch) {
+        await loadActorContext(request, env, { strictTeamCheck: true });
+        return await handleContractSignatureFile(request, env, contractSigFileMatch[1], contractSigFileMatch[2]);
       }
       const contractIdMatch = path.match(/^\/api\/contracts\/([a-zA-Z0-9_-]+)$/);
       if (request.method === "GET" && contractIdMatch) {
