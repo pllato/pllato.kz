@@ -97,6 +97,10 @@ async function render(data) {
          <button class="btn" id="dl">Скачать файл «${esc(contract.fileName)}»</button>
        </div>`;
 
+  const r = signer.requisites?.data || {};
+  const type = signer.signerType || signer.requisites?.type || "";
+  const val = (k) => esc(r[k] || "");
+
   root.innerHTML = `
     <h1 style="font-size:24px;margin:6px 0 4px">${esc(contract.title)}</h1>
     <div class="summary">
@@ -106,8 +110,28 @@ async function render(data) {
     </div>
     ${contract.note ? `<div class="hint" style="margin-bottom:16px">${esc(contract.note)}</div>` : ""}
     ${preview}
+
+    <div class="req-form" id="req-form">
+      <h2 class="req-title">Шаг 1. Ваши реквизиты</h2>
+      <p class="req-sub">Заполните данные, как вы будете указаны в договоре, затем переходите к подписанию.</p>
+      <div class="seg" id="type-seg">
+        <button type="button" class="seg-btn ${type === "ip" ? "on" : ""}" data-type="ip">Индивидуальный предприниматель</button>
+        <button type="button" class="seg-btn ${type === "individual" ? "on" : ""}" data-type="individual">Физическое лицо</button>
+      </div>
+      <div class="req-grid">
+        <label class="fld"><span id="lbl-name">Наименование / ФИО</span><input data-f="name" value="${val("name")}"></label>
+        <label class="fld"><span id="lbl-iin">ИИН / БИН</span><input data-f="iinBin" maxlength="12" value="${val("iinBin")}"></label>
+        <label class="fld indiv-only"><span>Уд. личности №</span><input data-f="idNumber" value="${val("idNumber")}"></label>
+        <label class="fld indiv-only"><span>Дата выдачи</span><input data-f="idDate" placeholder="дд.мм.гггг" value="${val("idDate")}"></label>
+        <label class="fld"><span>Адрес</span><input data-f="address" value="${val("address")}"></label>
+        <label class="fld"><span>Контакт (тел./e-mail)</span><input data-f="contact" value="${val("contact")}"></label>
+        <label class="fld"><span>Банк</span><input data-f="bank" value="${val("bank")}"></label>
+        <label class="fld"><span>IBAN счёт</span><input data-f="iban" value="${val("iban")}"></label>
+      </div>
+    </div>
+
     <div class="hint" style="margin-top:18px">
-      Для подписания нужен <a href="https://pki.gov.kz/" target="_blank" rel="noopener">NCALayer</a> и ваш ключ ЭЦП.
+      <b>Шаг 2.</b> Для подписания нужен <a href="https://pki.gov.kz/" target="_blank" rel="noopener">NCALayer</a> и ваш ключ ЭЦП.
       Запустите NCALayer, затем нажмите «Подписать ЭЦП» и выберите ключ.
     </div>
     <div class="sign-actions">
@@ -115,6 +139,20 @@ async function render(data) {
       <button class="btn" id="btn-download">Скачать договор</button>
       <button class="btn danger" id="btn-decline">Отказаться</button>
     </div>`;
+
+  const formEl = $("#req-form");
+  function applyType(t) {
+    formEl.dataset.type = t;
+    [...$("#type-seg").querySelectorAll(".seg-btn")].forEach((b) => b.classList.toggle("on", b.dataset.type === t));
+    $("#lbl-name").textContent = t === "ip" ? "Наименование ИП" : "ФИО";
+    $("#lbl-iin").textContent = t === "ip" ? "БИН / ИИН" : "ИИН";
+    formEl.classList.toggle("is-ip", t === "ip");
+  }
+  $("#type-seg").addEventListener("click", (e) => {
+    const b = e.target.closest(".seg-btn");
+    if (b) applyType(b.dataset.type);
+  });
+  if (type) applyType(type);
 
   const dl = $("#dl");
   if (dl) dl.addEventListener("click", downloadFile);
@@ -139,8 +177,26 @@ function blobToBase64(blob) {
   });
 }
 
+function collectRequisites() {
+  const form = $("#req-form");
+  if (!form) return { signerType: "", requisites: { data: {} } };
+  const signerType = form.dataset.type || "";
+  const data = {};
+  form.querySelectorAll("[data-f]").forEach((el) => {
+    const v = el.value.trim();
+    if (v) data[el.dataset.f] = v;
+  });
+  if (!signerType) throw new Error("Выберите тип: ИП или физическое лицо");
+  if (!data.name) throw new Error("Укажите наименование / ФИО");
+  if (!data.iinBin) throw new Error("Укажите ИИН / БИН");
+  return { signerType, requisites: { data } };
+}
+
 async function onSign(contract) {
   const btn = $("#btn-sign");
+  let reqs;
+  try { reqs = collectRequisites(); }
+  catch (e) { return toast(e.message, true); }
   btn.disabled = true; btn.textContent = "Подключаюсь к NCALayer…";
   try {
     if (!currentBlob) {
@@ -150,7 +206,7 @@ async function onSign(contract) {
     toast("Выберите ключ ЭЦП в окне NCALayer…");
     const { cms, signer } = await signBase64(base64);
     btn.textContent = "Сохраняю подпись…";
-    const res = await apiPost({ cmsBase64: cms, signer });
+    const res = await apiPost({ cmsBase64: cms, signer, signerType: reqs.signerType, requisites: reqs.requisites });
     renderDone(res.signer);
   } catch (e) {
     const msg = e instanceof NcaLayerError ? e.message : (e.message || String(e));

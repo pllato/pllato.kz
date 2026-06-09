@@ -60,6 +60,23 @@ function signerStatusText(s) {
   return `<span class="s-status pending">⏳ ожидает</span>`;
 }
 
+function renderRequisites(s) {
+  const r = s.requisites?.data;
+  if (!r || !Object.keys(r).length) return "";
+  const typeLabel = (s.signerType || s.requisites?.type) === "ip" ? "ИП" : (s.signerType || s.requisites?.type) === "individual" ? "Физлицо" : "";
+  const rows = [
+    ["Тип", typeLabel],
+    ["Наименование/ФИО", r.name],
+    ["ИИН/БИН", r.iinBin],
+    ["Уд. №", r.idNumber && (r.idNumber + (r.idDate ? " от " + r.idDate : ""))],
+    ["Адрес", r.address],
+    ["Контакт", r.contact],
+    ["Банк", r.bank],
+    ["IBAN", r.iban],
+  ].filter(([, v]) => v);
+  return `<div class="requisites">${rows.map(([k, v]) => `<div><span>${k}</span><b>${esc(v)}</b></div>`).join("")}</div>`;
+}
+
 function renderSigner(contract, s) {
   const isOwner = s.role === "owner";
   let actions = "";
@@ -72,9 +89,10 @@ function renderSigner(contract, s) {
     }
   }
   return `<div class="signer">
-    <div>
+    <div class="signer-main">
       <div class="who">${esc(s.fullName)} <span class="role-tag">${isOwner ? "владелец" : "сотрудник"}</span></div>
       <div class="sub">${s.iin ? "ИИН " + esc(s.iin) + " · " : ""}${signerStatusText(s)}${s.signedAt ? " · " + fmtDate(s.signedAt) : ""}</div>
+      ${renderRequisites(s)}
     </div>
     <div class="actions">${actions}</div>
   </div>`;

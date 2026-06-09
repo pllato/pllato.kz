@@ -146,3 +146,39 @@ a { color: var(--bronze-deep); }
   .signer-input-row { grid-template-columns: 1fr 1fr; }
   .contract-top { flex-direction: column; }
 }
+
+/* Requisites form (sign page) */
+.req-form {
+  margin-top: 22px; padding: 18px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow);
+}
+.req-title { font-size: 16px; margin: 0 0 4px; }
+.req-sub { font-size: 13px; color: var(--text-2); margin: 0 0 14px; }
+.seg { display: inline-flex; gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 14px; flex-wrap: wrap; }
+.seg-btn {
+  border: 0; background: var(--surface-2); color: var(--text-2);
+  padding: 9px 16px; font: inherit; font-size: 14px; cursor: pointer;
+}
+.seg-btn + .seg-btn { border-left: 1px solid var(--line); }
+.seg-btn.on { background: var(--navy); color: #fff; }
+.req-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.fld { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--text-2); }
+.fld input {
+  font: inherit; font-size: 14px; color: var(--text);
+  padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg);
+}
+.fld input:focus { outline: none; border-color: var(--bronze); }
+.req-form.is-ip .indiv-only { display: none; }
+@media (max-width: 560px) { .req-grid { grid-template-columns: 1fr; } }
+
+/* Requisites readout (registry) */
+.requisites {
+  margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px;
+  font-size: 12.5px; color: var(--text-2);
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 9px; padding: 9px 11px;
+}
+.requisites div { display: flex; gap: 6px; }
+.requisites span { color: var(--text-3); min-width: 92px; }
+.requisites b { color: var(--text); font-weight: 600; }
+@media (max-width: 560px) { .requisites { grid-template-columns: 1fr; } }

@@ -1179,6 +1179,8 @@ async function ensureContractsTables(env) {
       signer_cn      TEXT,
       signer_iin     TEXT,
       signer_serial  TEXT,
+      signer_type    TEXT,
+      requisites     TEXT,
       signed_at      INTEGER,
       signed_ip      TEXT,
       decline_reason TEXT,
@@ -1189,7 +1191,31 @@ async function ensureContractsTables(env) {
     `CREATE INDEX IF NOT EXISTS idx_contract_signers_token ON contract_signers(token)`,
   ];
   for (const s of stmts) await db.prepare(s).run();
+  // Миграция для ранее созданных таблиц: добавить недостающие колонки (SQLite без IF NOT EXISTS).
+  for (const col of ["signer_type TEXT", "requisites TEXT"]) {
+    try { await db.prepare(`ALTER TABLE contract_signers ADD COLUMN ${col}`).run(); }
+    catch (_e) { /* колонка уже есть */ }
+  }
   contractsTablesReady = true;
+}
+
+const REQUISITE_FIELDS = ["name", "iinBin", "idNumber", "idDate", "address", "contact", "bank", "iban"];
+
+// Нормализовать реквизиты подписанта в безопасный объект (ИП или физлицо).
+function normalizeRequisites(input, signerType) {
+  const type = signerType === "ip" ? "ip" : signerType === "individual" ? "individual" : "";
+  if (!input || typeof input !== "object") return { type, data: null };
+  const data = {};
+  for (const f of REQUISITE_FIELDS) {
+    const v = String(input[f] ?? "").trim().slice(0, 300);
+    if (v) data[f] = v;
+  }
+  return { type, data: Object.keys(data).length ? data : null };
+}
+
+function parseRequisites(row) {
+  if (!row?.requisites) return null;
+  try { return JSON.parse(row.requisites); } catch (_e) { return null; }
 }
 
 function requireContractsBucket(env) {
@@ -1256,6 +1282,8 @@ function signerRowToDto(row, { includeToken = false } = {}) {
     signerCn: row.signer_cn || "",
     signerIin: row.signer_iin || "",
     signerSerial: row.signer_serial || "",
+    signerType: row.signer_type || "",
+    requisites: parseRequisites(row),
     signedAt: Number(row.signed_at) || 0,
     declineReason: row.decline_reason || "",
     hasSignature: Boolean(row.sig_key),
@@ -1528,11 +1556,14 @@ async function applySignature(env, request, contractRow, signerRow, body) {
     const cn = String(body?.signer?.cn || "").trim().slice(0, 200);
     const iin = String(body?.signer?.iin || "").replace(/[^\d]/g, "").slice(0, 12);
     const serial = String(body?.signer?.serial || "").trim().slice(0, 120);
+    const req = normalizeRequisites(body?.requisites, body?.signerType);
+    const reqJson = req.data || req.type ? JSON.stringify(req) : (signerRow.requisites || null);
+    const reqType = req.type || signerRow.signer_type || null;
     await db
       .prepare(
-        `UPDATE contract_signers SET status = 'signed', sig_key = ?, signer_cn = ?, signer_iin = ?, signer_serial = ?, signed_at = ?, signed_ip = ?, updated_at = ? WHERE id = ?`
+        `UPDATE contract_signers SET status = 'signed', sig_key = ?, signer_cn = ?, signer_iin = ?, signer_serial = ?, signer_type = ?, requisites = ?, signed_at = ?, signed_ip = ?, updated_at = ? WHERE id = ?`
       )
-      .bind(sigKey, cn, iin, serial, now, clientIp(request), now, signerRow.id)
+      .bind(sigKey, cn, iin, serial, reqType, reqJson, now, clientIp(request), now, signerRow.id)
       .run();
   }
 
@@ -1589,6 +1620,8 @@ async function handleSignGet(env, token) {
       signedAt: Number(signer.signed_at) || 0,
       signerCn: signer.signer_cn || "",
       declineReason: signer.decline_reason || "",
+      signerType: signer.signer_type || "",
+      requisites: parseRequisites(signer),
     },
     parties: others.map((s) => ({ fullName: s.full_name, role: s.role, status: s.status })),
   };
@@ -1604,9 +1637,36 @@ async function handleSignFile(request, env, token) {
   return fileResponse(request, env, buf, contract.file_mime, contract.file_name, { download });
 }
 
+// Сохранить реквизиты подписанта (отдельный шаг до подписания ЭЦП).
+async function saveSignerRequisites(env, signerRow, body) {
+  if (signerRow.status === "signed") throw new HttpError(409, "Договор уже подписан — реквизиты изменить нельзя");
+  const req = normalizeRequisites(body?.requisites, body?.signerType);
+  const db = requireStoreDb(env);
+  await db
+    .prepare(`UPDATE contract_signers SET signer_type = ?, requisites = ?, updated_at = ? WHERE id = ?`)
+    .bind(req.type || null, req.data || req.type ? JSON.stringify(req) : null, Date.now(), signerRow.id)
+    .run();
+  return db.prepare(`SELECT * FROM contract_signers WHERE id = ?`).bind(signerRow.id).first();
+}
+
 async function handleSignPost(request, env, token) {
   const { signer, contract } = await loadSignerByTokenOr404(env, token);
   const body = await readRequestBodyAsJson(request);
+
+  if (body?.saveRequisites) {
+    const fresh = await saveSignerRequisites(env, signer, body);
+    return {
+      ok: true,
+      saved: true,
+      signer: {
+        fullName: fresh.full_name,
+        status: fresh.status,
+        signerType: fresh.signer_type || "",
+        requisites: parseRequisites(fresh),
+      },
+    };
+  }
+
   const out = await applySignature(env, request, contract, signer, body);
   const fresh = out.signers.find((s) => s.id === signer.id) || signer;
   return {
@@ -1618,6 +1678,8 @@ async function handleSignPost(request, env, token) {
       signedAt: Number(fresh.signed_at) || 0,
       signerCn: fresh.signer_cn || "",
       declineReason: fresh.decline_reason || "",
+      signerType: fresh.signer_type || "",
+      requisites: parseRequisites(fresh),
     },
   };
 }
