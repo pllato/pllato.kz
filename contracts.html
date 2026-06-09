@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Реестр договоров (ЭЦП) — Pllato</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="pllato_favicon_64.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="contracts/styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <a class="brand" href="app.html">
+      <img src="pllato_logo_transparent_navy.svg" alt="Pllato" onerror="this.style.display='none'">
+      <span>Реестр договоров</span>
+    </a>
+    <div id="nca-badge" class="nca-badge"><span class="dot"></span><span id="nca-text">Проверяю NCALayer…</span></div>
+  </div>
+
+  <div class="wrap">
+    <div class="page-head">
+      <div>
+        <h1>Договоры с сотрудниками</h1>
+        <p>Загрузите договор, подпишите его своей ЭЦП и отправьте персональные ссылки сотрудникам — каждый подпишет свой экземпляр НУЦ РК (через NCALayer).</p>
+      </div>
+      <button class="btn bronze" id="btn-new">+ Новый договор</button>
+    </div>
+    <div id="list"><div class="empty">Загрузка…</div></div>
+  </div>
+
+  <!-- Модалка создания -->
+  <div class="overlay" id="create-overlay">
+    <div class="modal">
+      <h2>Новый договор</h2>
+      <div class="field">
+        <label>Название</label>
+        <input id="c-title" placeholder="Трудовой договор — Иванов И.И.">
+      </div>
+      <div class="field">
+        <label>Файл договора (PDF / DOCX, до 15 МБ)</label>
+        <div class="dropzone" id="dropzone">
+          <div>Перетащите файл сюда или нажмите, чтобы выбрать</div>
+          <div class="fname" id="dz-name"></div>
+        </div>
+        <input type="file" id="c-file" accept=".pdf,.doc,.docx,application/pdf" hidden>
+      </div>
+      <div class="field">
+        <label>Комментарий (необязательно)</label>
+        <textarea id="c-note" placeholder="Например: подписать до конца недели"></textarea>
+      </div>
+      <div class="field">
+        <label>Подписанты-сотрудники</label>
+        <div id="signers-inputs"></div>
+        <button class="btn sm" id="add-signer-input" type="button">+ Добавить сотрудника</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="create-cancel" type="button">Отмена</button>
+        <button class="btn primary" id="create-save" type="button">Создать договор</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="app.config.js"></script>
+  <script type="module" src="contracts/main.js?v=20260608-1"></script>
+</body>
+</html>
