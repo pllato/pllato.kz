@@ -869,7 +869,9 @@ PAGES.doctors=(c)=>{
   load();
 };
 function doctorModalLive(d,rate){
-  const cbSum=Math.round((d.revenue||0)*(rate||0)/100);
+  const remainingBase=Math.max(0,(d.revenue||0)-(d.cb_base||0));
+  const cbSum=Math.round(remainingBase*(rate||0)/100); // к начислению (остаток)
+  const accruedAmt=Math.round(d.cb_amount||0);          // уже начислено
   openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.name||'?')}">${initials(d.name||'?')}</span>
     <div><h3>${esc(d.name||'—')}</h3><div class="mh-sub">Промокод ${esc(d.code||'—')} · ${esc(d.city||'')}</div></div></div>
     <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
@@ -878,7 +880,7 @@ function doctorModalLive(d,rate){
       ${miniStat('i-money','#10b981','Выручка',money(d.revenue||0))}
       ${miniStat('i-cart','#7c3aed','Продаж',(d.docs||0).toLocaleString('ru-RU'))}
       ${miniStat('i-box','#2563eb','Позиций',(d.qty||0).toLocaleString('ru-RU'))}
-      ${miniStat('i-gift','#db2777','Кэшбек ('+rate+'%)',money(cbSum))}
+      ${dashKpi('i-gift','#db2777','К начислению · '+rate+'%',money(cbSum),accruedAmt>0?('уже начислено '+money(accruedAmt)):'',0)}
     </div>
     <div class="grid-2b section-gap">
       <div class="fld"><label>Промокод (код 1С)</label><input value="${esc(d.code||'')}" readonly></div>
@@ -891,10 +893,10 @@ function doctorModalLive(d,rate){
   </div>
   <div class="modal-f">
     <button class="btn" id="cbReportBtn">${ic('i-doc','sm')} Выгрузить отчёт</button>
-    <button class="btn primary" id="cbAccrueBtn">${ic('i-gift','sm')} Начислить кэшбек ${money(cbSum)}</button>
+    <button class="btn primary" id="cbAccrueBtn"${cbSum>0?'':' disabled'}>${ic(cbSum>0?'i-gift':'i-check2','sm')} ${cbSum>0?('Начислить кэшбек '+money(cbSum)):'Кэшбек начислен'}</button>
   </div>`,'wide');
   const cbb=document.getElementById('cbAccrueBtn');
-  if(cbb) cbb.onclick=async()=>{
+  if(cbb && cbSum>0) cbb.onclick=async()=>{
     cbb.disabled=true; cbb.textContent='Начисляю…';
     const r=await api('/api/1c/doctors/cashback',{method:'POST',body:JSON.stringify({doctor_ref:d.ref_key,rate})});
     if(!r.ok){ cbb.disabled=false; cbb.innerHTML=ic('i-gift','sm')+' Начислить кэшбек '+money(cbSum); toast((r.data&&r.data.error)||'Не удалось начислить кэшбек','i-x','#dc2626'); return; }
@@ -933,9 +935,10 @@ async function renderCashbackJournal(){
       ${dashKpi('i-doc','#2563eb','Записей',(t.n||0).toLocaleString('ru-RU'),'в журнале',0)}
     </div>`+
     (it.length?`<table class="tbl"><thead><tr><th>Дата</th><th>Врач</th><th>Промокод</th><th class="num">База</th><th class="num">Ставка</th><th class="num">Кэшбек</th><th>Статус</th><th></th></tr></thead><tbody>`+
-      it.map(x=>`<tr><td class="muted2">${fdt(x.created_at)}</td><td>${esc(x.doctor_name||'—')}</td><td><span class="tag pink">${esc(x.doctor_code||'—')}</span></td><td class="num">${money(x.base_revenue||0)}</td><td class="num">${x.rate||0}%</td><td class="num">${money(x.amount||0)}</td><td>${x.status==='paid'?'<span class="tag green">выплачено</span>':'<span class="tag amber">начислено</span>'}</td><td>${x.status==='accrued'?`<button class="btn sm" data-pay="${x.id}">Выплатить</button>`:''}</td></tr>`).join('')+
+      it.map(x=>`<tr><td class="muted2">${fdt(x.created_at)}</td><td>${esc(x.doctor_name||'—')}</td><td><span class="tag pink">${esc(x.doctor_code||'—')}</span></td><td class="num">${money(x.base_revenue||0)}</td><td class="num">${x.rate||0}%</td><td class="num">${money(x.amount||0)}</td><td>${x.status==='paid'?'<span class="tag green">выплачено</span>':'<span class="tag amber">начислено</span>'}</td><td><div class="row" style="gap:6px;justify-content:flex-end">${x.status==='accrued'?`<button class="btn sm" data-pay="${x.id}">Выплатить</button>`:''}<button class="btn sm" data-del="${x.id}" title="Удалить запись">${ic('i-x','sm')}</button></div></td></tr>`).join('')+
       `</tbody></table>`:'<div class="muted2" style="padding:16px;font-size:13px">Начислений пока нет. Откройте карточку врача → «Начислить кэшбек».</div>');
   body.querySelectorAll('[data-pay]').forEach(b=>b.onclick=async()=>{ b.disabled=true; const rr=await api('/api/1c/doctors/cashback/'+b.dataset.pay+'/pay',{method:'POST'}); if(rr.ok){ toast('Отмечено выплаченным','i-check2','#16a34a'); renderCashbackJournal(); } else { b.disabled=false; toast('Ошибка','i-x','#dc2626'); } });
+  body.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{ if(!confirm('Удалить эту запись начисления?'))return; b.disabled=true; const rr=await api('/api/1c/doctors/cashback/'+b.dataset.del,{method:'DELETE'}); if(rr.ok){ toast('Запись удалена','i-check2'); renderCashbackJournal(); } else { b.disabled=false; toast('Ошибка','i-x','#dc2626'); } });
   const ex=document.getElementById('cbExport'); if(ex) ex.onclick=()=>{ const rows=[['Дата','Врач','Промокод','База','Ставка %','Кэшбек','Статус']].concat(it.map(x=>[new Date(x.created_at).toLocaleString('ru-RU'),x.doctor_name||'',x.doctor_code||'',Math.round(x.base_revenue||0),x.rate||0,Math.round(x.amount||0),x.status==='paid'?'выплачено':'начислено'])); const csv='﻿'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download='cashback.csv'; a.click(); URL.revokeObjectURL(a.href); toast('CSV выгружен','i-doc'); };
 }
 async function loadDoctorHistory(ref){
