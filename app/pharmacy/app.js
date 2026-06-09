@@ -873,6 +873,7 @@ function doctorModalLive(d,rate){
   const remainingBase=Math.max(0,(d.revenue||0)-(d.cb_base||0));
   const cbSum=Math.round(remainingBase*(rate||0)/100); // к начислению (остаток)
   const accruedAmt=Math.round(d.cb_amount||0);          // уже начислено
+  const cbKpiInner=(rem,acc)=>`<div class="k-ic" style="background:#db277722;color:#db2777">${ic('i-gift')}</div><div class="k-lbl">К начислению · ${rate}%</div><div class="k-val">${money(rem)}</div>${acc>0?`<div class="k-sub">уже начислено ${money(acc)}</div>`:''}`;
   openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.name||'?')}">${initials(d.name||'?')}</span>
     <div><h3>${esc(d.name||'—')}</h3><div class="mh-sub">Промокод ${esc(d.code||'—')} · ${esc(d.city||'')}</div></div></div>
     <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
@@ -881,7 +882,7 @@ function doctorModalLive(d,rate){
       ${miniStat('i-money','#10b981','Выручка',money(d.revenue||0))}
       ${miniStat('i-cart','#7c3aed','Продаж',(d.docs||0).toLocaleString('ru-RU'))}
       ${miniStat('i-box','#2563eb','Позиций',(d.qty||0).toLocaleString('ru-RU'))}
-      ${dashKpi('i-gift','#db2777','К начислению · '+rate+'%',money(cbSum),accruedAmt>0?('уже начислено '+money(accruedAmt)):'',0)}
+      <div class="kpi" id="cbKpi">${cbKpiInner(cbSum,accruedAmt)}</div>
     </div>
     <div class="grid-2b section-gap">
       <div class="fld"><label>Промокод (код 1С)</label><input value="${esc(d.code||'')}" readonly></div>
@@ -902,6 +903,7 @@ function doctorModalLive(d,rate){
     const r=await api('/api/1c/doctors/cashback',{method:'POST',body:JSON.stringify({doctor_ref:d.ref_key,rate})});
     if(!r.ok){ cbb.disabled=false; cbb.innerHTML=ic('i-gift','sm')+' Начислить кэшбек '+money(cbSum); toast((r.data&&r.data.error)||'Не удалось начислить кэшбек','i-x','#dc2626'); return; }
     cbb.disabled=true; cbb.classList.remove('primary'); cbb.innerHTML=ic('i-check2','sm')+' Начислено '+money(r.data.amount||0);
+    const k=document.getElementById('cbKpi'); if(k) k.innerHTML=cbKpiInner(0, accruedAmt+(r.data.amount||0));
     toast('Кэшбек '+money(r.data.amount||0)+' начислен · смотри «Журнал кэшбека»','i-gift','#db2777');
     if(window.__reloadDoctors) window.__reloadDoctors();
   };
