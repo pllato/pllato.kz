@@ -625,8 +625,9 @@ PAGES.sales=(c)=>{
   c.appendChild(tbar);
   const cards=el(`<div class="cards-row"></div>`);
   const panels=el(`<div class="grid-2b section-gap"></div>`);
-  c.appendChild(cards); c.appendChild(panels);
-  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Продажи зеркалятся из регистра «Продажи» 1С (отчёты о розничных продажах). Прибыль = выручка − себестоимость. Имена продавцов — из справочника «Пользователи» 1С. Синхронизация раз в 30 мин.</div>`));
+  const panels2=el(`<div class="grid-2b section-gap"></div>`);
+  c.appendChild(cards); c.appendChild(panels); c.appendChild(panels2);
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Продажи зеркалятся из регистра «Продажи» 1С (отчёты о розничных продажах). Прибыль = выручка − себестоимость. Продавцы — из справочников 1С, выручка по организациям — по юр.лицу продажи. Синхронизация раз в 30 мин.</div>`));
   const fromI=tbar.querySelector('[data-sl=from]'), toI=tbar.querySelector('[data-sl=to]'), cnt=tbar.querySelector('[data-sl=cnt]'), applyB=tbar.querySelector('[data-sl=apply]');
   const fmtN=(n)=>(n||0).toLocaleString('ru-RU');
   function cardsHTML(t){
@@ -643,6 +644,16 @@ PAGES.sales=(c)=>{
     const body=rows.length?rows.map(s=>`<tr><td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(s.name||s.key||'?')}">${initials(s.name||'П')}</span><div>${esc(s.name||('продавец '+String(s.key||'').slice(0,8)))}</div></div></td><td class="num">${money(s.revenue||0)}</td><td class="num">${money(s.profit||0)}</td><td class="num">${fmtN(s.qty)}</td></tr>`).join(''):'<tr><td colspan="4" class="muted2" style="padding:16px">Нет данных</td></tr>';
     return `<div class="panel"><div class="panel-h"><h3>${ic('i-target','sm')} KPI продавцов</h3></div><table class="tbl"><thead><tr><th>Продавец</th><th class="num">Выручка</th><th class="num">Прибыль</th><th class="num">Позиций</th></tr></thead><tbody>${body}</tbody></table></div>`;
   }
+  function orgHTML(rows){
+    const body=rows.length?rows.map(o=>`<tr><td>${esc(o.name||'—')}</td><td class="num">${money(o.revenue||0)}</td><td class="num">${money(o.profit||0)}</td></tr>`).join(''):'<tr><td colspan="3" class="muted2" style="padding:16px">Нет данных</td></tr>';
+    return `<div class="panel"><div class="panel-h"><h3>${ic('i-shield','sm')} Выручка по организациям</h3></div><table class="tbl"><thead><tr><th>Организация</th><th class="num">Выручка</th><th class="num">Прибыль</th></tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+  function storeHTML(rows){
+    const named=rows.some(s=>s.name);
+    const body=rows.length?rows.map((s,i)=>`<tr><td>${esc(s.name||('Магазин '+(i+1)))}</td><td class="num">${money(s.revenue||0)}</td><td class="num">${fmtN(s.docs)}</td></tr>`).join(''):'<tr><td colspan="3" class="muted2" style="padding:16px">Нет данных</td></tr>';
+    const hint=(!named&&rows.length)?`<div class="muted2" style="padding:8px 14px;font-size:11px">${ic('i-info','sm')} Названия магазинов появятся после добавления справочника «Склады» в выгрузку 1С OData</div>`:'';
+    return `<div class="panel"><div class="panel-h"><h3>${ic('i-truck','sm')} Выручка по магазинам</h3></div><table class="tbl"><thead><tr><th>Магазин</th><th class="num">Выручка</th><th class="num">Док-тов</th></tr></thead><tbody>${body}</tbody></table>${hint}</div>`;
+  }
   function demo(){
     cards.innerHTML=cardsHTML({revenue:2480000,profit:744000,margin:30,qty:3184,avg:82000});
     panels.innerHTML=topHTML([
@@ -656,15 +667,23 @@ PAGES.sales=(c)=>{
       {name:'Динара Жумабаева',revenue:800000,profit:236000,qty:1024},
       {name:'Бекзат Орынбеков',revenue:760000,profit:228000,qty:980},
     ]);
+    panels2.innerHTML=orgHTML([
+      {name:'ИП Каменев В.И.',revenue:1860000,profit:540000},
+      {name:'ИП Сергеева Л.С.',revenue:740000,profit:210000},
+    ])+storeHTML([
+      {name:'Магазин «Центр»',revenue:980000,docs:1240},
+      {name:'Магазин «Восток»',revenue:760000,docs:980},
+    ]);
   }
   async function load(){
-    cards.innerHTML='<div class="muted2" style="padding:10px">Загрузка…</div>'; panels.innerHTML='';
+    cards.innerHTML='<div class="muted2" style="padding:10px">Загрузка…</div>'; panels.innerHTML=''; panels2.innerHTML='';
     const qs=[]; if(fromI.value)qs.push('from='+fromI.value); if(toI.value)qs.push('to='+toI.value);
     const r=await api('/api/1c/sales/summary'+(qs.length?('?'+qs.join('&')):''));
     if(!r.ok){ cnt.innerHTML=ic('i-sync','sm')+' '+(r.status===403?'демо · нужен доступ':r.status===401?'демо · войдите':'демо · нет связи'); demo(); return; }
     const d=r.data, t=d.totals||{};
     cards.innerHTML=cardsHTML(t);
     panels.innerHTML=topHTML(d.topProducts||[])+sellersHTML(d.bySeller||[]);
+    panels2.innerHTML=orgHTML(d.byOrg||[])+storeHTML(d.byStore||[]);
     if(t.docs){ cnt.innerHTML=ic('i-sync','sm')+' '+(t.dmin||'')+' — '+(t.dmax||'')+' · 1С'; if(!fromI.value&&t.dmin)fromI.value=t.dmin; if(!toI.value&&t.dmax)toI.value=t.dmax; }
     else { cnt.innerHTML=ic('i-sync','sm')+' ожидание данных · запустите синхронизацию'; }
   }
