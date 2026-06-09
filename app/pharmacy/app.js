@@ -744,38 +744,102 @@ PAGES.bloggers=(c)=>{
 
 // ---------- DOCTORS (врачи-партнёры · промокоды · кэшбек) ----------
 PAGES.doctors=(c)=>{
-  const docs=DB.doctors||[];
-  const tPat=docs.reduce((a,d)=>a+d.patients,0);
-  const tRev=docs.reduce((a,d)=>a+d.revenue,0);
-  const tCb=docs.reduce((a,d)=>a+d.cashbackSum,0);
-  c.appendChild(el(`<div class="cards-row">
-    ${miniStat('i-users','#10b981','Врачей-партнёров',docs.length)}
-    ${miniStat('i-tooth','#2563eb','Пациентов приведено',tPat)}
-    ${miniStat('i-money','#7c3aed','Выручка по врачам',money(tRev))}
-    ${miniStat('i-gift','#db2777','Кэшбек к выплате',money(tCb))}
-  </div>`));
-  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Промокод привязан пофамильно к врачу. Скидка пациенту и кэшбек врачу зависят от бренда (Revyline 10%, прочее меньше). Продажи по промокодам тянутся из 1С — сейчас демо-данные.</div>`));
-  c.appendChild(el(`<div class="toolbar section-gap">
-    <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по ФИО, клинике, промокоду…"></div>
-    <select class="sel"><option>Все статусы</option><option>активен</option><option>на паузе</option></select>
+  let rate=10; // ставка кэшбека, %
+  const tbar=el(`<div class="toolbar">
+    <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по ФИО, промокоду, телефону…" data-dr="q"></div>
+    <div class="fld-in" title="Ставка кэшбека от выручки">${ic('i-gift','sm')}<input type="number" min="0" max="100" step="1" value="10" style="width:46px" data-dr="rate">%</div>
     <div class="spacer"></div>
-    <button class="btn primary" onclick="toast('Карточка врача создана','i-tooth')">${ic('i-plus','sm')} Врач-партнёр</button>
-  </div>`));
-  const panel=el(`<div class="panel"><table class="tbl"><thead><tr>
-    <th>Врач</th><th>Промокод</th><th>Бренд / скидка</th><th>Пациентов</th><th class="num">Выручка</th><th class="num">Кэшбек</th><th>Статус</th></tr></thead><tbody>
-    ${docs.map(d=>`<tr class="clickable" data-id="${d.id}">
-      <td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(d.name)}">${initials(d.name)}</span>
-        <div><div>${d.name}</div><div class="muted2" style="font-size:11px">${d.spec} · ${d.clinic}</div></div></div></td>
-      <td><span class="tag pink">${d.code}</span></td>
-      <td class="muted">${d.brand} · −${d.disc}% / +${d.cashback}%</td>
-      <td>${d.patients}</td>
-      <td class="num">${money(d.revenue)}</td>
-      <td class="num">${money(d.cashbackSum)}</td>
-      <td><span class="tag ${d.status==='активен'?'green':'amber'}">${d.status}</span></td></tr>`).join('')}
-  </tbody></table></div>`);
-  panel.querySelectorAll('tr.clickable').forEach(tr=>tr.onclick=()=>doctorModal(DB.doctors.find(x=>x.id===tr.dataset.id)));
-  c.appendChild(panel);
+    <span class="ph-sub" data-dr="cnt"></span>
+  </div>`);
+  const cards=el(`<div class="cards-row section-gap"></div>`);
+  const panel=el(`<div class="panel section-gap"><table class="tbl"><thead><tr>
+    <th>Промокод</th><th>Врач</th><th>Телефон</th><th>Город</th><th class="num">Выручка</th><th class="num">Продаж</th><th class="num">Кэшбек</th></tr></thead><tbody><tr><td colspan="7" class="muted2" style="font-size:13px;padding:16px">Загрузка…</td></tr></tbody></table></div>`);
+  const pager=el(`<div class="row section-gap" style="justify-content:center;gap:12px" hidden>
+    <button class="btn sm" data-pg="prev">‹ Назад</button><span class="muted" style="font-size:13px" data-pg="info"></span><button class="btn sm" data-pg="next">Вперёд ›</button></div>`);
+  c.appendChild(tbar); c.appendChild(cards); c.appendChild(panel); c.appendChild(pager);
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Врачи — контрагенты групп «Врач партнер» из 1С. Продажи привязаны к врачу через контрагента в чеке (промокод = код 1С). Кэшбек считается от выручки по выбранной ставке; реальные правила по брендам уточним.</div>`));
+  const tb=panel.querySelector('tbody'), cnt=tbar.querySelector('[data-dr=cnt]'), qI=tbar.querySelector('[data-dr=q]'), rateI=tbar.querySelector('[data-dr=rate]');
+  const pgInfo=pager.querySelector('[data-pg=info]'), pgPrev=pager.querySelector('[data-pg=prev]'), pgNext=pager.querySelector('[data-pg=next]');
+  const PAGE=100; let offset=0, total=0, lastSummary=null, lastItems=[], demoMode=false;
+  const cb=(rev)=>Math.round((rev||0)*rate/100);
+  function renderCards(s){
+    cards.innerHTML =
+      miniStat('i-tooth','#10b981','Врачей-партнёров',(s.doctors||0).toLocaleString('ru-RU'))
+      + miniStat('i-users','#2563eb','С продажами',(s.withSales||0).toLocaleString('ru-RU'))
+      + miniStat('i-money','#7c3aed','Выручка по врачам',money(s.revenue||0))
+      + miniStat('i-gift','#db2777','Кэшбек ('+rate+'%)',money(cb(s.revenue)));
+  }
+  function renderTable(){
+    if(demoMode){
+      tb.innerHTML=(DB.doctors||[]).map(d=>`<tr class="clickable" data-id="${d.id}"><td><span class="tag pink">${esc(d.code)}</span></td>
+        <td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(d.name)}">${initials(d.name)}</span><div>${esc(d.name)}</div></div></td>
+        <td>${esc(d.phone||'—')}</td><td class="muted">${esc(d.clinic||'—')}</td><td class="num">${money(d.revenue)}</td><td class="num">${d.patients}</td><td class="num">${money(d.cashbackSum)}</td></tr>`).join('');
+      tb.querySelectorAll('tr.clickable').forEach(tr=>tr.onclick=()=>doctorModal(DB.doctors.find(x=>x.id===tr.dataset.id)));
+      return;
+    }
+    if(!lastItems.length){ tb.innerHTML='<tr><td colspan="7" class="muted2" style="font-size:13px;padding:16px">Ничего не найдено</td></tr>'; return; }
+    tb.innerHTML=lastItems.map(x=>`<tr class="clickable"><td><span class="tag pink">${esc(x.code||'—')}</span></td>
+      <td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(x.name||'?')}">${initials(x.name||'?')}</span><div>${esc(x.name||'—')}</div></div></td>
+      <td>${esc(x.phone||'—')}</td><td class="muted">${esc(x.city||'—')}</td>
+      <td class="num">${x.revenue?money(x.revenue):'<span class="muted2">—</span>'}</td>
+      <td class="num">${x.docs||'<span class="muted2">0</span>'}</td>
+      <td class="num">${x.revenue?money(cb(x.revenue)):'<span class="muted2">—</span>'}</td></tr>`).join('');
+    [...tb.querySelectorAll('tr.clickable')].forEach((tr,i)=>tr.onclick=()=>doctorModalLive(lastItems[i],rate));
+  }
+  function renderPager(shown){ if(demoMode||total<=PAGE){pager.hidden=true;return;} pager.hidden=false; pgInfo.textContent=(offset+1)+'–'+(offset+shown)+' из '+total; pgPrev.disabled=offset<=0; pgNext.disabled=offset+PAGE>=total; }
+  async function load(){
+    const q=qI.value.trim();
+    const r=await api('/api/1c/doctors?limit='+PAGE+'&offset='+offset+(q?('&q='+encodeURIComponent(q)):''));
+    if(!r.ok){ demoMode=true; cnt.textContent=r.status===403?'демо · нужен доступ':r.status===401?'демо · войдите':'демо · нет связи';
+      const docs=DB.doctors||[]; renderCards({doctors:docs.length,withSales:docs.length,revenue:docs.reduce((a,d)=>a+d.revenue,0)}); renderTable(); renderPager(0); return; }
+    demoMode=false; const d=r.data; total=d.total||0; lastSummary=d.summary||{}; lastItems=d.items||[];
+    cnt.textContent=total+' '+plural(total,'врач','врача','врачей')+' · 1С';
+    renderCards(lastSummary); renderTable(); renderPager(lastItems.length);
+  }
+  let qt=null; qI.addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(()=>{offset=0;load();},300);});
+  rateI.addEventListener('input',()=>{ rate=Math.max(0,Math.min(100,+rateI.value||0)); if(lastSummary)renderCards(lastSummary); renderTable(); });
+  pgPrev.onclick=()=>{ if(offset>0){offset=Math.max(0,offset-PAGE);load();$('#content').scrollTop=0;} };
+  pgNext.onclick=()=>{ if(offset+PAGE<total){offset+=PAGE;load();$('#content').scrollTop=0;} };
+  load();
 };
+function doctorModalLive(d,rate){
+  const cbSum=Math.round((d.revenue||0)*(rate||0)/100);
+  openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.name||'?')}">${initials(d.name||'?')}</span>
+    <div><h3>${esc(d.name||'—')}</h3><div class="mh-sub">Промокод ${esc(d.code||'—')} · ${esc(d.city||'')}</div></div></div>
+    <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="cards-row">
+      ${miniStat('i-money','#10b981','Выручка',money(d.revenue||0))}
+      ${miniStat('i-cart','#7c3aed','Продаж',(d.docs||0).toLocaleString('ru-RU'))}
+      ${miniStat('i-box','#2563eb','Позиций',(d.qty||0).toLocaleString('ru-RU'))}
+      ${miniStat('i-gift','#db2777','Кэшбек ('+rate+'%)',money(cbSum))}
+    </div>
+    <div class="grid-2b section-gap">
+      <div class="fld"><label>Промокод (код 1С)</label><input value="${esc(d.code||'')}" readonly></div>
+      <div class="fld"><label>Телефон</label><input value="${esc(d.phone||'')}" readonly></div>
+      <div class="fld"><label>Город</label><input value="${esc(d.city||'')}" readonly></div>
+      <div class="fld"><label>Дата рождения</label><input value="${esc((d.dob||'').slice(0,10))}" readonly></div>
+    </div>
+    <div class="panel section-gap" style="margin-top:14px"><div class="panel-h"><h3>${ic('i-cart','sm')} Продажи по врачу · 1С</h3><span class="ph-sub" id="docHistSub" style="margin-left:auto">загрузка…</span></div>
+      <div id="docHist"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>
+  </div>
+  <div class="modal-f">
+    <button class="btn" onclick="toast('Отчёт по врачу выгружен','i-doc')">${ic('i-doc','sm')} Выгрузить отчёт</button>
+    <button class="btn primary" onclick="closeModal();toast('Кэшбек ${money(cbSum)} начислен к выплате','i-gift','#db2777')">${ic('i-gift','sm')} Начислить кэшбек</button>
+  </div>`,'wide');
+  loadDoctorHistory(d.ref_key);
+}
+async function loadDoctorHistory(ref){
+  const box=document.getElementById('docHist'), sub=document.getElementById('docHistSub');
+  if(!box) return;
+  if(!ref){ if(sub)sub.textContent=''; box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">Нет привязки к 1С</div>'; return; }
+  const res=await api('/api/1c/sales?contractor='+encodeURIComponent(ref)+'&limit=200');
+  if(!res.ok){ if(sub)sub.textContent='нет связи'; box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">История недоступна</div>'; return; }
+  const it=res.data.items||[], docs=res.data.docs||0;
+  if(sub) sub.textContent = it.length ? (money(res.data.total||0)+' · '+docs+' '+plural(docs,'продажа','продажи','продаж')) : 'нет продаж';
+  if(!it.length){ box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">Продаж по этому врачу в 1С пока нет.</div>'; return; }
+  box.innerHTML='<table class="tbl"><thead><tr><th>Дата</th><th>Товар</th><th class="num">Кол-во</th><th class="num">Сумма</th></tr></thead><tbody>'+it.map(x=>`<tr><td class="muted2">${esc((x.date||'').slice(0,10))}</td><td>${esc(x.name||'—')}</td><td class="num">${(x.qty||0).toLocaleString('ru-RU')}</td><td class="num">${money(x.amount||0)}</td></tr>`).join('')+'</tbody></table>';
+}
 function doctorModal(d){
   const maxM=Math.max(...d.months.map(m=>m[1]));
   const avg=d.patients?Math.round(d.revenue/d.patients):0;
