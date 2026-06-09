@@ -132,50 +132,63 @@ PAGES.dash=(c)=>{
     bar.querySelector('#dashInvite').onclick=()=>openInviteModal();
     c.appendChild(bar);
   }
-  const k=(ic_,col,lbl,val,sub,up)=>`<div class="kpi"><div class="k-ic" style="background:${col}22;color:${col}">${ic(ic_)}</div>
-    <div class="k-lbl">${lbl}</div><div class="k-val">${val}</div><div class="k-sub ${up>0?'up':up<0?'down':''}">${sub}</div></div>`;
-  c.appendChild(el(`<div class="cards-row">
-    ${k('i-users','#10b981','Лиды за период',' 312','▲ 18% к апрелю',1)}
-    ${k('i-funnel','#2563eb','Конверсия B2C','31%','▲ 4 п.п.',1)}
-    ${k('i-money','#7c3aed','Средний чек',money(2180),'розница',0)}
-    ${k('i-cart','#0891b2','Выручка месяц',money(4860000),'▲ 12%',1)}
-    ${k('i-clock','#d97706','Скорость ответа','4 мин','▼ 1 мин — быстрее',1)}
-  </div>`));
-  c.appendChild(el(`<div class="cards-row section-gap">
-    ${k('i-repeat','#db2777','LTV клиента',money(21400),'постоянные',0)}
-    ${k('i-target','#16a34a','Активность продавцов','92%','план выполняется',1)}
-    ${k('i-truck','#dc2626','Возвраты','1.8%','осн. причина — размер',0)}
-    ${k('i-star','#e1306c','ROI маркетинга','312%','блогеры + сезон',1)}
-    ${k('i-box','#0e7490','SKU в 1С','4 012','остатки синхронны',0)}
-  </div>`));
-
-  // funnel + channels
-  c.appendChild(el(`<div class="grid-2 section-gap">
-    <div class="panel"><div class="panel-h"><h3>Воронка B2C · этапы</h3><span class="ph-sub">розница</span></div>
-      <div class="panel-b">${funnelVis([['Заявка',312,'#10b981'],['Квалификация',214,'#22c55e'],['Консультация',158,'#2563eb'],['Подтверждение',121,'#7c3aed'],['Доставка',104,'#0891b2'],['Закрыта',97,'#16a34a']])}</div></div>
-    <div class="panel"><div class="panel-h"><h3>Лиды по каналам</h3></div><div class="panel-b">
-      ${barList([['WhatsApp · 5 каналов',148,'var(--wa)'],['Instagram Direct',84,'var(--ig)'],['Reliney.kg',46,'#d97706'],['Dental Pharmacy',22,'#16a34a'],['Сарафан',12,'#7c3aed']],312)}
-    </div></div>
-  </div>`));
-
-  c.appendChild(el(`<div class="grid-2 section-gap">
-    <div class="panel"><div class="panel-h"><h3>Топ-товары месяца</h3></div><div class="panel-b">
-      ${barList([['Pampers Premium 3',182000,'#10b981'],['Always Ultra ×10',96000,'#2563eb'],['Curaprox CS 5460',88000,'#7c3aed'],['Head&Shoulders 400мл',74000,'#0891b2'],['R.O.C.S. паста',61000,'#db2777']],182000,true)}
-    </div></div>
-    <div class="panel"><div class="panel-h"><h3>Выручка по магазинам</h3></div><div class="panel-b">
-      ${barList([['Центр',1640000,'#10b981'],['Восток',1180000,'#2563eb'],['Ала-Тоо',980000,'#7c3aed'],['Юг',720000,'#0891b2'],['Опт-канал',340000,'#d97706']],1640000,true)}
-    </div></div>
-  </div>`));
-
-  c.appendChild(el(`<div class="panel section-gap"><div class="panel-h"><h3>Активность продавцов</h3>
-    <span class="ph-sub">входящие → закрытые → конверсия</span></div>
-    <table class="tbl"><thead><tr><th>Продавец</th><th>Роль</th><th>Входящие</th><th>Закрыто</th><th>Конверсия</th><th class="num">Факт</th></tr></thead><tbody>
-    ${DB.sellers.map(s=>`<tr><td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(s.name)}">${initials(s.name)}</span>${s.name}</div></td>
-      <td class="muted">${s.role}</td><td>${s.incoming}</td><td>${s.won}</td>
-      <td><div class="row"><div class="mini-bar" style="width:80px"><i style="width:${s.conv}%;background:var(--accent)"></i></div><b>${s.conv}%</b></div></td>
-      <td class="num">${money(s.fact)}</td></tr>`).join('')}
-    </tbody></table></div>`));
+  const wrap=el(`<div><div class="muted2" style="padding:10px">Загрузка дашборда…</div></div>`);
+  c.appendChild(wrap);
+  loadDash(wrap);
 };
+const DASH_COLORS=['#10b981','#2563eb','#7c3aed','#0891b2','#db2777','#16a34a','#d97706'];
+function dashKpi(icn,col,lbl,val,sub,dir){
+  return `<div class="kpi"><div class="k-ic" style="background:${col}22;color:${col}">${ic(icn)}</div>
+    <div class="k-lbl">${lbl}</div><div class="k-val">${val}</div>${sub?`<div class="k-sub ${dir>0?'up':dir<0?'down':''}">${sub}</div>`:''}</div>`;
+}
+function dashDelta(p){ return p==null?'нет базы для сравнения':(p>0?'▲ ':p<0?'▼ ':'')+Math.abs(p)+'% к пред. 30 дн'; }
+function dashBars(rows){ const max=Math.max(...rows.map(x=>x.revenue||0),1); return barList(rows.map((x,i)=>[esc(x.name||'—'),x.revenue||0,DASH_COLORS[i%DASH_COLORS.length]]),max,true); }
+function dashDayChart(rows){
+  if(!rows||!rows.length) return '<div class="muted2" style="padding:16px">Нет данных</div>';
+  const max=Math.max(...rows.map(r=>r.revenue||0),1);
+  return `<div style="display:flex;align-items:flex-end;gap:3px;height:120px;padding:10px 2px 4px">${rows.map(p=>`<div title="${esc(p.d)}: ${money(p.revenue)}" style="flex:1;min-width:3px;background:linear-gradient(180deg,var(--accent2),var(--accent));border-radius:3px 3px 0 0;height:${Math.max(2,Math.round((p.revenue||0)/max*100))}%"></div>`).join('')}</div>`;
+}
+async function loadDash(wrap){
+  const fmt=(n)=>(n||0).toLocaleString('ru-RU');
+  const r=await api('/api/1c/dashboard');
+  if(!r.ok){
+    const why=r.status===403?'нужен доступ':r.status===401?'войдите':'нет связи';
+    wrap.innerHTML=`<div class="note section-gap" style="margin-top:0">${ic('i-info','sm')} Дашборд в демо-режиме (${why}). Реальные метрики появятся при доступе к 1С.</div>
+      <div class="cards-row">
+        ${dashKpi('i-money','#10b981','Выручка · 30 дн',money(2480000),'▲ 12% к пред. 30 дн',1)}
+        ${dashKpi('i-chart','#2563eb','Прибыль · 30%',money(744000),'▲ 8% к пред. 30 дн',1)}
+        ${dashKpi('i-doc','#7c3aed','Документов','1 240','▲ 5% к пред. 30 дн',1)}
+        ${dashKpi('i-cart','#0891b2','Средний документ',money(2000),'розница',0)}
+      </div>`;
+    return;
+  }
+  const d=r.data;
+  if(d.empty){ wrap.innerHTML=`<div class="note blue">${ic('i-info','sm')} Нет данных продаж в 1С — запустите синхронизацию.</div>`; return; }
+  const cur=d.cur, dl=d.delta, t=d.totals;
+  wrap.innerHTML=
+   `<div class="cards-row">
+      ${dashKpi('i-money','#10b981','Выручка · 30 дн',money(cur.revenue),dashDelta(dl.revenue),dl.revenue)}
+      ${dashKpi('i-chart','#2563eb','Прибыль · '+cur.margin+'%',money(cur.profit),dashDelta(dl.profit),dl.profit)}
+      ${dashKpi('i-doc','#7c3aed','Документов',fmt(cur.docs),dashDelta(dl.docs),dl.docs)}
+      ${dashKpi('i-cart','#0891b2','Средний документ',money(cur.avg),'розница',0)}
+      ${dashKpi('i-box','#db2777','Продано позиций',fmt(cur.qty),'за 30 дн',0)}
+    </div>
+    <div class="cards-row section-gap">
+      ${dashKpi('i-users','#16a34a','Покупателей',fmt(t.buyers),'в базе 1С',0)}
+      ${dashKpi('i-tooth','#10b981','Врачей-партнёров',fmt(t.doctors),'группы «Врач партнер»',0)}
+      ${dashKpi('i-box','#0e7490','SKU в каталоге',fmt(t.products),'остатки синхронны',0)}
+      ${dashKpi('i-truck','#d97706','Магазинов с продажами',fmt(d.byStore.length),'за 30 дн',0)}
+    </div>
+    <div class="grid-2 section-gap">
+      <div class="panel"><div class="panel-h"><h3>Топ товаров · 30 дн</h3></div><div class="panel-b">${d.topProducts.length?dashBars(d.topProducts):'<div class="muted2">Нет данных</div>'}</div></div>
+      <div class="panel"><div class="panel-h"><h3>Выручка по магазинам · 30 дн</h3></div><div class="panel-b">${d.byStore.length?dashBars(d.byStore):'<div class="muted2">Нет данных</div>'}</div></div>
+    </div>
+    <div class="grid-2 section-gap">
+      <div class="panel"><div class="panel-h"><h3>Топ врачи · 30 дн</h3></div><div class="panel-b">${d.topDoctors.length?dashBars(d.topDoctors):'<div class="muted2">Нет данных</div>'}</div></div>
+      <div class="panel"><div class="panel-h"><h3>Выручка по дням · 30 дн</h3><span class="ph-sub">на ${esc(d.asOf)}</span></div><div class="panel-b">${dashDayChart(d.byDay)}</div></div>
+    </div>
+    <div class="note section-gap">${ic('i-info','sm')} Метрики за 30 дней по последним данным 1С (на ${esc(d.asOf)}), сравнение — с предыдущими 30 днями. Синхронизация раз в 30 мин.</div>`;
+}
 
 function funnelVis(rows){
   const max=rows[0][1];
