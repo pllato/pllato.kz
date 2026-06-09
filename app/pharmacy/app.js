@@ -235,6 +235,13 @@ PAGES.funnels=(c)=>{
   c.appendChild(tbar);
   const board=el(`<div class="kanban" id="kanban"><div class="muted2" style="padding:14px">Загрузка…</div></div>`);
   c.appendChild(board);
+  // авто-прокрутка доски при перетаскивании карточки к левому/правому краю (HTML5 drag сам не скроллит)
+  let _dragX=0,_kScroll=null;
+  board.addEventListener('dragover',e=>{ e.preventDefault(); _dragX=e.clientX;
+    if(!_kScroll) _kScroll=setInterval(()=>{ const r=board.getBoundingClientRect(),edge=80,step=26;
+      if(_dragX>r.right-edge) board.scrollLeft+=step; else if(_dragX<r.left+edge) board.scrollLeft-=step; },16); });
+  const _kStop=()=>{ if(_kScroll){clearInterval(_kScroll);_kScroll=null;} };
+  board.addEventListener('drop',_kStop); board.addEventListener('dragend',_kStop);
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Сделки хранятся в CRM. Клиента можно выбрать из базы 1С. Перетаскивайте карточки между этапами — статус сохраняется автоматически.</div>`));
   const cnt=tbar.querySelector('#funnelCnt');
   tbar.querySelector('#funnelSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{state.funnel=b.dataset.f;renderPage();});
