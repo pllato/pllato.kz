@@ -1201,26 +1201,82 @@ function taskModalLive(t,onSaved){
 
 // ---------- SUBS ----------
 PAGES.subs=(c)=>{
-  c.appendChild(el(`<div class="toolbar"><div class="page-sub">Авто-формирование заказа каждые N месяцев · списание из 1С</div><div class="spacer"></div>
-    <button class="btn primary" onclick="toast('Новая подписка','i-repeat','#7c3aed')">${ic('i-plus','sm')} Подписка</button></div>`));
-  const grid=el(`<div class="grid-3"></div>`);
-  DB.subs.forEach(s=>{
-    grid.appendChild(el(`<div class="list-card">
+  const tbar=el(`<div class="toolbar">
+    <div class="seg" data-sb="filter"><button class="on" data-s="active">Активные</button><button data-s="all">Все</button><button data-s="paused">На паузе</button></div>
+    <div class="spacer"></div><span class="ph-sub" data-sb="cnt"></span>
+    <button class="btn primary" id="newSubBtn">${ic('i-plus','sm')} Подписка</button></div>`);
+  const cards=el(`<div class="cards-row section-gap"></div>`);
+  const grid=el(`<div class="grid-3 section-gap"><div class="muted2" style="padding:14px">Загрузка…</div></div>`);
+  c.appendChild(tbar); c.appendChild(cards); c.appendChild(grid);
+  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Подписки — авто-напоминание о следующем заказе набора. «Доставлено» сдвигает дату на период вперёд. Клиента можно привязать из 1С.</div>`));
+  const cnt=tbar.querySelector('[data-sb=cnt]'), seg=tbar.querySelector('[data-sb=filter]');
+  let status='active';
+  seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); status=b.dataset.s; load(); });
+  tbar.querySelector('#newSubBtn').onclick=()=>newSubLive(load);
+  const soon=(d)=>d&&d<=new Date(Date.now()+14*864e5).toISOString().slice(0,10);
+  function card(s){
+    const active=s.status==='active';
+    const co=el(`<div class="list-card">
       <div class="row"><div class="k-ic" style="width:38px;height:38px;border-radius:11px;background:#7c3aed22;color:#c4b5fd;display:grid;place-items:center">${ic('i-repeat')}</div>
-        <div><div style="font-weight:700">${s.client}</div><div class="muted" style="font-size:12px">${s.set}</div></div>
-        <span class="tag ${s.status==='активна'?'green':'amber'}" style="margin-left:auto">${s.status}</span></div>
+        <div style="min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.client_name||'—')}</div><div class="muted" style="font-size:12px">${esc(s.product||'—')}</div></div>
+        <span class="tag ${active?'green':'amber'}" style="margin-left:auto">${active?'активна':'пауза'}</span></div>
       <div class="grid-3 section-gap" style="gap:10px">
-        <div><div class="muted" style="font-size:11px">Период</div><div style="font-weight:600">${s.period}</div></div>
-        <div><div class="muted" style="font-size:11px">Цена</div><div style="font-weight:600">${money(s.price)}</div></div>
-        <div><div class="muted" style="font-size:11px">След. отгрузка</div><div style="font-weight:600">${s.next}</div></div>
+        <div><div class="muted" style="font-size:11px">Период</div><div style="font-weight:600">${s.interval_months||1} мес</div></div>
+        <div><div class="muted" style="font-size:11px">Цена</div><div style="font-weight:600">${money(s.amount||0)}</div></div>
+        <div><div class="muted" style="font-size:11px">След. отгрузка</div><div style="font-weight:600${soon(s.next_at)&&active?';color:var(--amber)':''}">${s.next_at?esc(s.next_at):'—'}</div></div>
       </div>
-      <div class="row section-gap" style="gap:8px;padding-top:12px;border-top:1px solid var(--line)">
-        <button class="btn sm" onclick="toast('Напоминание за 7 дней отправлено','i-bell','#7c3aed')">${ic('i-bell','sm')} Напомнить</button>
-        <button class="btn sm" onclick="toast('Подписка ${s.status==='активна'?'приостановлена':'возобновлена'}','i-pause')">${ic('i-pause','sm')} ${s.status==='активна'?'Пауза':'Возобновить'}</button>
-      </div></div>`));
-  });
-  c.appendChild(grid);
+      <div class="row section-gap" style="gap:8px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:wrap">
+        ${active?`<button class="btn sm" data-act="deliver">${ic('i-check2','sm')} Доставлено</button>`:''}
+        <button class="btn sm" data-act="toggle">${ic('i-pause','sm')} ${active?'Пауза':'Возобновить'}</button>
+        <button class="btn sm" data-act="edit">${ic('i-edit','sm')} Изменить</button>
+      </div></div>`);
+    const db=co.querySelector('[data-act=deliver]'); if(db) db.onclick=async()=>{ const r=await api('/api/subs/'+s.id,{method:'POST',body:JSON.stringify({delivered:true})}); if(r.ok){toast('Отгружено · дата сдвинута на '+(s.interval_months||1)+' мес','i-repeat','#7c3aed');load();} else toast('Ошибка','i-x','#dc2626'); };
+    co.querySelector('[data-act=toggle]').onclick=async()=>{ const r=await api('/api/subs/'+s.id,{method:'POST',body:JSON.stringify({status:active?'paused':'active'})}); if(r.ok){toast(active?'Подписка на паузе':'Подписка возобновлена','i-pause');load();} else toast('Ошибка','i-x','#dc2626'); };
+    co.querySelector('[data-act=edit]').onclick=()=>subModalLive(s,load);
+    return co;
+  }
+  async function load(){
+    const r=await api('/api/subs?status='+status);
+    if(!r.ok){ cnt.textContent='демо · нет связи'; cards.innerHTML=''; grid.innerHTML=''; (DB.subs||[]).forEach(s=>grid.appendChild(el(`<div class="list-card"><div class="row"><div style="font-weight:700">${esc(s.client)}</div><span class="tag ${s.status==='активна'?'green':'amber'}" style="margin-left:auto">${esc(s.status)}</span></div><div class="muted section-gap" style="font-size:12px">${esc(s.set)} · ${esc(s.period)} · ${money(s.price)} · след ${esc(s.next)}</div></div>`))); return; }
+    const items=r.data.items||[], tt=r.data.totals||{};
+    cnt.textContent=(tt.active||0)+' активных';
+    cards.innerHTML=miniStat('i-repeat','#7c3aed','Активных подписок',(tt.active||0))+miniStat('i-money','#10b981','Сумма активных/период',money(tt.amount||0))+miniStat('i-bell','#d97706','Ближайшие · ≤14 дн',(tt.soon||0));
+    grid.innerHTML=''; if(!items.length){ grid.innerHTML='<div class="muted2" style="padding:16px;font-size:13px">Подписок нет. Нажмите «Подписка».</div>'; return; }
+    items.forEach(s=>grid.appendChild(card(s)));
+  }
+  load();
 };
+function newSubLive(onSaved){
+  const bg=openModal(`<div class="modal-h"><div><h3>Новая подписка</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld"><label>Клиент *</label><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-ns="client" placeholder="поиск в 1С или ввод вручную" autocomplete="off" style="width:100%"></div><div id="nsSug" class="panel" style="margin-top:4px;display:none;max-height:160px;overflow:auto"></div></div>
+    <div class="fld-row"><div class="fld"><label>Телефон</label><input data-ns="phone"></div><div class="fld"><label>Набор / товар</label><input data-ns="product" placeholder="Напр. Полость рта · базовый"></div></div>
+    <div class="fld-row"><div class="fld"><label>Период</label><select data-ns="interval"><option value="1">1 мес</option><option value="2">2 мес</option><option value="3" selected>3 мес</option><option value="6">6 мес</option><option value="12">12 мес</option></select></div><div class="fld"><label>Цена, с</label><input data-ns="amount" type="number" placeholder="0"></div></div>
+    <div class="fld-row"><div class="fld"><label>След. отгрузка</label><input type="date" data-ns="next"></div><div class="fld"><label>Ответственный</label><input data-ns="mgr" value="${esc((AUTH.user||{}).name||'')}"></div></div>
+  </div>
+  <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="nsSave">Создать</button></div>`);
+  const q=bg.querySelector('[data-ns=client]'), sug=bg.querySelector('#nsSug'); let ref=null,qt=null;
+  q.addEventListener('input',()=>{ ref=null; clearTimeout(qt); const v=q.value.trim(); if(v.length<2){sug.style.display='none';return;}
+    qt=setTimeout(async()=>{ const r=await api('/api/1c/contractors?limit=6&q='+encodeURIComponent(v)); if(!r.ok||!(r.data.items||[]).length){sug.style.display='none';return;}
+      sug.innerHTML=r.data.items.map(x=>`<div class="doc-row" data-ref="${esc(x.ref_key)}" data-name="${esc(x.name||'')}" data-phone="${esc(x.phone||'')}"><div><div class="dt">${esc(x.name||'—')}</div><div class="ds">${esc(x.code||'')} · ${esc(x.phone||'')}</div></div></div>`).join(''); sug.style.display='block';
+      sug.querySelectorAll('[data-ref]').forEach(it=>it.onclick=()=>{ref=it.dataset.ref;q.value=it.dataset.name;bg.querySelector('[data-ns=phone]').value=it.dataset.phone;sug.style.display='none';}); },300); });
+  bg.querySelector('#nsSave').onclick=async()=>{ const name=q.value.trim(); if(!name){toast('Укажите клиента','i-info');return;}
+    const body={client_ref:ref,client_name:name,phone:bg.querySelector('[data-ns=phone]').value.trim(),product:bg.querySelector('[data-ns=product]').value.trim(),interval_months:bg.querySelector('[data-ns=interval]').value,next_at:bg.querySelector('[data-ns=next]').value,amount:Number(bg.querySelector('[data-ns=amount]').value)||0,mgr:bg.querySelector('[data-ns=mgr]').value.trim()};
+    const r=await api('/api/subs',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Подписка создана','i-repeat','#7c3aed'); onSaved&&onSaved(); };
+}
+function subModalLive(s,onSaved){
+  const bg=openModal(`<div class="modal-h"><div><h3>Подписка</h3><div class="mh-sub">${esc(s.client_name||'')}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld"><label>Набор / товар</label><input data-sm="product" value="${esc(s.product||'')}"></div>
+    <div class="fld-row"><div class="fld"><label>Период</label><select data-sm="interval">${[1,2,3,6,12].map(n=>`<option value="${n}" ${n===s.interval_months?'selected':''}>${n} мес</option>`).join('')}</select></div><div class="fld"><label>Цена, с</label><input data-sm="amount" type="number" value="${s.amount||0}"></div></div>
+    <div class="fld-row"><div class="fld"><label>След. отгрузка</label><input type="date" data-sm="next" value="${esc(s.next_at||'')}"></div><div class="fld"><label>Телефон</label><input data-sm="phone" value="${esc(s.phone||'')}"></div></div>
+    <div class="fld"><label>Ответственный</label><input data-sm="mgr" value="${esc(s.mgr||'')}"></div>
+    <div class="fld"><label>Комментарий</label><input data-sm="note" value="${esc(s.note||'')}"></div>
+  </div>
+  <div class="modal-f"><button class="btn" id="smDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="smSave">Сохранить</button></div>`);
+  bg.querySelector('#smSave').onclick=async()=>{ const body={product:bg.querySelector('[data-sm=product]').value.trim(),interval_months:bg.querySelector('[data-sm=interval]').value,amount:Number(bg.querySelector('[data-sm=amount]').value)||0,next_at:bg.querySelector('[data-sm=next]').value,phone:bg.querySelector('[data-sm=phone]').value.trim(),mgr:bg.querySelector('[data-sm=mgr]').value.trim(),note:bg.querySelector('[data-sm=note]').value.trim()}; const r=await api('/api/subs/'+s.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
+  bg.querySelector('#smDel').onclick=async()=>{ if(!confirm('Удалить подписку?'))return; const r=await api('/api/subs/'+s.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
+}
 
 // ---------- TRIGGERS ----------
 PAGES.triggers=(c)=>{
