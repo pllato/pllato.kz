@@ -610,6 +610,12 @@ PAGES.catalog=(c)=>{
 // ---------- ПРОДАЖИ (зеркало регистра «Продажи» 1С) ----------
 PAGES.sales=(c)=>{
   const tbar=el(`<div class="toolbar">
+    <div class="seg" data-sl="range">
+      <button data-d="30">30 дней</button>
+      <button class="on" data-d="90">90 дней</button>
+      <button data-d="365">Год</button>
+      <button data-d="0">Всё</button>
+    </div>
     <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-sl="from" title="С даты"></div>
     <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-sl="to" title="По дату"></div>
     <button class="btn sm" data-sl="apply">Показать</button>
@@ -627,7 +633,7 @@ PAGES.sales=(c)=>{
     return miniStat('i-money','#10b981','Выручка',money(t.revenue||0))
       + miniStat('i-chart','#2563eb','Прибыль · '+(t.margin||0)+'%',money(t.profit||0))
       + miniStat('i-cart','#7c3aed','Продано позиций',fmtN(t.qty||0))
-      + miniStat('i-grid','#db2777','Средняя выручка/день',money(t.avg||0));
+      + miniStat('i-doc','#db2777','Средний документ',money(t.avg||0));
   }
   function topHTML(rows){
     const body=rows.length?rows.map((p,i)=>`<tr><td class="muted2">${i+1}</td><td>${esc(p.name||'—')}</td><td class="num">${fmtN(p.qty)}</td><td class="num">${money(p.revenue||0)}</td><td class="num">${money(p.profit||0)}</td></tr>`).join(''):'<tr><td colspan="5" class="muted2" style="padding:16px">Нет данных</td></tr>';
@@ -662,8 +668,17 @@ PAGES.sales=(c)=>{
     if(t.docs){ cnt.innerHTML=ic('i-sync','sm')+' '+(t.dmin||'')+' — '+(t.dmax||'')+' · 1С'; if(!fromI.value&&t.dmin)fromI.value=t.dmin; if(!toI.value&&t.dmax)toI.value=t.dmax; }
     else { cnt.innerHTML=ic('i-sync','sm')+' ожидание данных · запустите синхронизацию'; }
   }
-  applyB.onclick=()=>load();
-  load();
+  const seg=tbar.querySelector('[data-sl=range]');
+  const ymd=(d)=>d.toISOString().slice(0,10);
+  function setRange(days){
+    seg.querySelectorAll('button').forEach(b=>b.classList.toggle('on',+b.dataset.d===days));
+    if(days){ toI.value=ymd(new Date()); fromI.value=ymd(new Date(Date.now()-days*864e5)); }
+    else { fromI.value=''; toI.value=''; }
+    load();
+  }
+  seg.querySelectorAll('button').forEach(b=>b.onclick=()=>setRange(+b.dataset.d));
+  applyB.onclick=()=>{ seg.querySelectorAll('button').forEach(b=>b.classList.remove('on')); load(); };
+  setRange(90);
 };
 
 // ---------- MARKETING ----------
