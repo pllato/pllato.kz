@@ -72,14 +72,35 @@ async function refreshNcaBadge() {
 }
 
 let currentBlob = null;
+let currentFileInfo = null;
 
-function renderDone(signer) {
+function renderDone(signer, contract) {
+  const fileInfo = currentFileInfo;
   if (signer.status === "signed") {
+    const isPdf = contract && ((contract.fileMime || "").includes("pdf") || /\.pdf$/i.test(contract.fileName || ""));
+    const preview = fileInfo && isPdf
+      ? `<iframe class="doc-frame" src="${fileInfo.url}" style="margin-top:18px"></iframe>`
+      : "";
     root.innerHTML = `<div class="result-box ok">
       <div style="font-size:40px">✓</div>
       <div>Договор подписан вашей ЭЦП${signer.signerCn ? "<br><b>" + esc(signer.signerCn) + "</b>" : ""}</div>
       <div class="muted" style="margin-top:8px">${fmtDate(signer.signedAt)}</div>
+    </div>
+    ${contract ? `<h2 style="font-size:20px;margin:24px 0 4px">${esc(contract.title)}</h2>` : ""}
+    ${contract ? `<div class="summary"><div><span>Файл</span><b>${esc(contract.fileName)} · ${fmtSize(contract.fileSize)}</b></div></div>` : ""}
+    ${preview}
+    <div class="sign-actions" style="margin-top:18px">
+      <button class="btn bronze" id="btn-dl-done"${fileInfo ? "" : " disabled"}>Скачать договор</button>
     </div>`;
+    const b = $("#btn-dl-done");
+    if (b && fileInfo) {
+      b.addEventListener("click", () => {
+        const a = document.createElement("a");
+        a.href = fileInfo.url;
+        a.download = (contract && contract.fileName) || "contract";
+        document.body.appendChild(a); a.click(); a.remove();
+      });
+    }
   } else {
     root.innerHTML = `<div class="result-box declined">
       <div style="font-size:40px">✕</div>
@@ -90,14 +111,15 @@ function renderDone(signer) {
 
 async function render(data) {
   const { contract, signer } = data;
-  if (!universal && (signer.status === "signed" || signer.status === "declined")) {
-    renderDone(signer);
-    return;
-  }
 
   let fileInfo;
-  try { fileInfo = await fileBlobUrl(); currentBlob = fileInfo.blob; }
+  try { fileInfo = await fileBlobUrl(); currentBlob = fileInfo.blob; currentFileInfo = fileInfo; }
   catch (e) { fileInfo = null; }
+
+  if (!universal && (signer.status === "signed" || signer.status === "declined")) {
+    renderDone(signer, contract);
+    return;
+  }
 
   const isPdf = (contract.fileMime || "").includes("pdf") || /\.pdf$/i.test(contract.fileName);
   const preview = fileInfo && isPdf
@@ -227,7 +249,7 @@ async function onSign(contract) {
     const { cms, signer } = await signBase64(base64);
     btn.textContent = "Сохраняю подпись…";
     const res = await apiPost({ cmsBase64: cms, signer, signerType: reqs.signerType, requisites: reqs.requisites });
-    renderDone(res.signer);
+    renderDone(res.signer, contract);
   } catch (e) {
     const msg = e instanceof NcaLayerError ? e.message : (e.message || String(e));
     toast(msg, true);
