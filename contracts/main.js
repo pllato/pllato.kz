@@ -3,7 +3,7 @@ import {
   listContracts, createContract, signOwner, sendContract, deleteContract, addSigners, setContractMode,
   fetchContractFileBlob, fetchSignatureBlob, fileToBase64, signLinkForToken, signLinkForContract,
 } from "./api.js";
-import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js";
+import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260609-2";
 
 const session = requireSession({ redirectTo: "login.html" });
 

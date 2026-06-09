@@ -56,10 +56,40 @@ function openSocket() {
   });
 }
 
+// Рекурсивно ищем в ответе самую длинную base64-строку — это и есть подпись CMS.
+// Формат ответа NCALayer заметно отличается между версиями, поэтому надёжнее
+// найти саму подпись, чем угадывать имя поля.
+function deepFindSignature(node, depth = 0) {
+  if (depth > 6 || node == null) return "";
+  if (typeof node === "string") {
+    const s = node.trim();
+    if (s.length > 100 && /^[A-Za-z0-9+/=\s]+$/.test(s)) return s;
+    return "";
+  }
+  if (Array.isArray(node)) {
+    let best = "";
+    for (const v of node) {
+      const f = deepFindSignature(v, depth + 1);
+      if (f.length > best.length) best = f;
+    }
+    return best;
+  }
+  if (typeof node === "object") {
+    let best = "";
+    for (const v of Object.values(node)) {
+      const f = deepFindSignature(v, depth + 1);
+      if (f.length > best.length) best = f;
+    }
+    return best;
+  }
+  return "";
+}
+
 // Разбор ответа NCALayer (формат отличается между версиями) — толерантно.
 function parseNcaMessage(raw) {
   let obj;
   try { obj = JSON.parse(raw); } catch { return { ok: false, error: "Некорректный ответ NCALayer" }; }
+  try { console.debug("[NCALayer] raw response:", obj); } catch {}
   let o = obj;
   if (o && typeof o.result === "object" && o.result !== null && !Array.isArray(o.result)) {
     // некоторые версии оборачивают полезную нагрузку в result:{...}
@@ -69,8 +99,12 @@ function parseNcaMessage(raw) {
   const message = o.message ?? obj.message ?? "";
   const errorCode = obj.errorCode ?? o.errorCode;
 
+  // Явная ошибка / отмена пользователем.
   if (errorCode && errorCode !== "NONE") {
     return { ok: false, error: message || ("NCALayer: " + errorCode), code: errorCode };
+  }
+  if (obj.status === false) {
+    return { ok: false, error: message || "Действие отменено в NCALayer", code: "CANCELLED" };
   }
   if (code && code !== "200") {
     if (code === "500") {
@@ -78,16 +112,19 @@ function parseNcaMessage(raw) {
     }
     return { ok: false, error: message || ("NCALayer вернул код " + code), code };
   }
-  const responseObject = o.responseObject ?? obj.responseObject;
-  if (typeof o.result === "string") return { ok: true, value: o.result };
-  if (responseObject !== undefined && responseObject !== null) return { ok: true, value: responseObject };
-  // newer basics.sign shape: { status:true, body:{ result:[...] } }
-  if (obj.status === true && obj.body) {
-    const body = obj.body;
-    const v = body.result || (Array.isArray(body) ? body[0] : null);
-    if (v) return { ok: true, value: Array.isArray(v) ? v[0] : v };
+
+  // Успех: достаём подпись из любого известного места, иначе ищем по всему ответу.
+  const explicit = (typeof o.result === "string" && o.result)
+    || (typeof obj.result === "string" && obj.result)
+    || (o.responseObject ?? obj.responseObject)
+    || obj?.body?.result;
+  let value = Array.isArray(explicit) ? explicit[0] : explicit;
+  if (typeof value !== "string" || !value.trim()) value = deepFindSignature(obj);
+  if (typeof value === "string" && value.trim().length > 100) {
+    return { ok: true, value: value.trim() };
   }
-  return { ok: false, error: "Не удалось разобрать ответ NCALayer" };
+  const snippet = String(raw).slice(0, 200);
+  return { ok: false, error: "Не удалось разобрать ответ NCALayer. Ответ: " + snippet };
 }
 
 function sendRequest(ws, payload) {
