@@ -1501,13 +1501,9 @@ body.tc-chat-overlay .sipc-bottombar:not([data-state="established"]):not([data-s
   border-radius: 999px;
   line-height: 1.6;
 }
-/* Градация «сколько стоит на этапе»: свежо → тёплая → залежалась.
-   Бэйдж окрашивается на каждой карточке, а подсветка самой карточки
-   усиливается с возрастом (мягкая для 4–7 дней, сильная для >7). */
-.kanban-stage-age.fresh {
-  color: #15803d;
-  background: #dcfce7;
-}
+/* Градация «сколько стоит на этапе»: свежо (0–3 дн) — нейтральный бэйдж
+   без подсветки, тёплая (4–7 дн) — мягкий янтарь + лёгкое свечение карточки,
+   залежалась (>7 дн) — сильный янтарь + сильное свечение. */
 .kanban-stage-age.warn {
   color: #b45309;
   background: #fef3c7;
@@ -11036,12 +11032,12 @@ function buildDealCard(d, stageColor) {
       const stageDays = Math.floor((Date.now() - stageEnterTs) / 86400000);
       const approx = d.stageChangedAt ? '' : '~';
       const isDoneStage = !!d.closed || d.stageId === 'REJECT';
-      // Уровень «залежалости». Закрытые/«Отказ» — без подсветки (нейтральный бэйдж).
-      let tier = ''; // '' | 'fresh' | 'warn' | 'stuck'
+      // Уровень «залежалости». Свежие (0–3 дн), закрытые и «Отказ» — нейтральный
+      // бэйдж без подсветки. Цветом выделяем только 4–7 дн (warn) и >7 дн (stuck).
+      let tier = ''; // '' (нейтрально) | 'warn' | 'stuck'
       if (!isDoneStage) {
         if (stageDays > STAGE_STUCK_DAYS) tier = 'stuck';
         else if (stageDays >= STAGE_WARM_DAYS) tier = 'warn';
-        else tier = 'fresh';
       }
       if (tier === 'stuck') cardClasses.push('deal-card-stuck');
       else if (tier === 'warn') cardClasses.push('deal-card-warm');
