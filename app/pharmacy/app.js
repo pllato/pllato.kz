@@ -132,62 +132,80 @@ PAGES.dash=(c)=>{
     bar.querySelector('#dashInvite').onclick=()=>openInviteModal();
     c.appendChild(bar);
   }
+  const tbar=el(`<div class="toolbar">
+    <div class="seg" data-dh="range">
+      <button data-d="7">7 дней</button>
+      <button class="on" data-d="30">30 дней</button>
+      <button data-d="90">90 дней</button>
+    </div>
+    <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-dh="from" title="С даты"></div>
+    <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-dh="to" title="По дату"></div>
+    <button class="btn sm" data-dh="apply">Показать</button>
+  </div>`);
+  c.appendChild(tbar);
   const wrap=el(`<div><div class="muted2" style="padding:10px">Загрузка дашборда…</div></div>`);
   c.appendChild(wrap);
-  loadDash(wrap);
+  const seg=tbar.querySelector('[data-dh=range]'), fromI=tbar.querySelector('[data-dh=from]'), toI=tbar.querySelector('[data-dh=to]'), applyB=tbar.querySelector('[data-dh=apply]');
+  seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); fromI.value=''; toI.value=''; loadDash(wrap,'days='+b.dataset.d); });
+  applyB.onclick=()=>{ if(fromI.value&&toI.value){ seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); loadDash(wrap,'from='+fromI.value+'&to='+toI.value); } else toast('Укажите обе даты','i-info'); };
+  loadDash(wrap,'days=30');
 };
 const DASH_COLORS=['#10b981','#2563eb','#7c3aed','#0891b2','#db2777','#16a34a','#d97706'];
 function dashKpi(icn,col,lbl,val,sub,dir){
   return `<div class="kpi"><div class="k-ic" style="background:${col}22;color:${col}">${ic(icn)}</div>
     <div class="k-lbl">${lbl}</div><div class="k-val">${val}</div>${sub?`<div class="k-sub ${dir>0?'up':dir<0?'down':''}">${sub}</div>`:''}</div>`;
 }
-function dashDelta(p){ return p==null?'нет базы для сравнения':(p>0?'▲ ':p<0?'▼ ':'')+Math.abs(p)+'% к пред. 30 дн'; }
+function dashDelta(p){ return p==null?'нет базы для сравнения':(p>0?'▲ ':p<0?'▼ ':'')+Math.abs(p)+'% к пред. периоду'; }
 function dashBars(rows){ const max=Math.max(...rows.map(x=>x.revenue||0),1); return barList(rows.map((x,i)=>[esc(x.name||'—'),x.revenue||0,DASH_COLORS[i%DASH_COLORS.length]]),max,true); }
 function dashDayChart(rows){
   if(!rows||!rows.length) return '<div class="muted2" style="padding:16px">Нет данных</div>';
   const max=Math.max(...rows.map(r=>r.revenue||0),1);
   return `<div style="display:flex;align-items:flex-end;gap:3px;height:120px;padding:10px 2px 4px">${rows.map(p=>`<div title="${esc(p.d)}: ${money(p.revenue)}" style="flex:1;min-width:3px;background:linear-gradient(180deg,var(--accent2),var(--accent));border-radius:3px 3px 0 0;height:${Math.max(2,Math.round((p.revenue||0)/max*100))}%"></div>`).join('')}</div>`;
 }
-async function loadDash(wrap){
+async function loadDash(wrap,qs){
   const fmt=(n)=>(n||0).toLocaleString('ru-RU');
-  const r=await api('/api/1c/dashboard');
+  wrap.innerHTML=`<div class="muted2" style="padding:10px">Загрузка…</div>`;
+  const r=await api('/api/1c/dashboard'+(qs?('?'+qs):''));
   if(!r.ok){
     const why=r.status===403?'нужен доступ':r.status===401?'войдите':'нет связи';
     wrap.innerHTML=`<div class="note section-gap" style="margin-top:0">${ic('i-info','sm')} Дашборд в демо-режиме (${why}). Реальные метрики появятся при доступе к 1С.</div>
       <div class="cards-row">
-        ${dashKpi('i-money','#10b981','Выручка · 30 дн',money(2480000),'▲ 12% к пред. 30 дн',1)}
-        ${dashKpi('i-chart','#2563eb','Прибыль · 30%',money(744000),'▲ 8% к пред. 30 дн',1)}
-        ${dashKpi('i-doc','#7c3aed','Документов','1 240','▲ 5% к пред. 30 дн',1)}
+        ${dashKpi('i-money','#10b981','Выручка',money(2480000),'▲ 12% к пред. периоду',1)}
+        ${dashKpi('i-chart','#2563eb','Прибыль · 30%',money(744000),'▲ 8% к пред. периоду',1)}
+        ${dashKpi('i-doc','#7c3aed','Документов','1 240','▲ 5% к пред. периоду',1)}
         ${dashKpi('i-cart','#0891b2','Средний документ',money(2000),'розница',0)}
       </div>`;
     return;
   }
   const d=r.data;
   if(d.empty){ wrap.innerHTML=`<div class="note blue">${ic('i-info','sm')} Нет данных продаж в 1С — запустите синхронизацию.</div>`; return; }
-  const cur=d.cur, dl=d.delta, t=d.totals;
+  const cur=d.cur, dl=d.delta, t=d.totals, n=d.days||30;
+  // отразить фактическое окно в полях дат (когда выбран быстрый диапазон)
+  const fi=document.querySelector('[data-dh=from]'), ti=document.querySelector('[data-dh=to]');
+  if(fi&&ti&&!fi.value&&d.from&&d.to){ fi.value=d.from; ti.value=d.to; }
   wrap.innerHTML=
    `<div class="cards-row">
-      ${dashKpi('i-money','#10b981','Выручка · 30 дн',money(cur.revenue),dashDelta(dl.revenue),dl.revenue)}
+      ${dashKpi('i-money','#10b981','Выручка · '+n+' дн',money(cur.revenue),dashDelta(dl.revenue),dl.revenue)}
       ${dashKpi('i-chart','#2563eb','Прибыль · '+cur.margin+'%',money(cur.profit),dashDelta(dl.profit),dl.profit)}
       ${dashKpi('i-doc','#7c3aed','Документов',fmt(cur.docs),dashDelta(dl.docs),dl.docs)}
       ${dashKpi('i-cart','#0891b2','Средний документ',money(cur.avg),'розница',0)}
-      ${dashKpi('i-box','#db2777','Продано позиций',fmt(cur.qty),'за 30 дн',0)}
+      ${dashKpi('i-box','#db2777','Продано позиций',fmt(cur.qty),'за '+n+' дн',0)}
     </div>
     <div class="cards-row section-gap">
       ${dashKpi('i-users','#16a34a','Покупателей',fmt(t.buyers),'в базе 1С',0)}
       ${dashKpi('i-tooth','#10b981','Врачей-партнёров',fmt(t.doctors),'группы «Врач партнер»',0)}
       ${dashKpi('i-box','#0e7490','SKU в каталоге',fmt(t.products),'остатки синхронны',0)}
-      ${dashKpi('i-truck','#d97706','Магазинов с продажами',fmt(d.byStore.length),'за 30 дн',0)}
+      ${dashKpi('i-truck','#d97706','Магазинов с продажами',fmt(d.byStore.length),'за '+n+' дн',0)}
     </div>
     <div class="grid-2 section-gap">
-      <div class="panel"><div class="panel-h"><h3>Топ товаров · 30 дн</h3></div><div class="panel-b">${d.topProducts.length?dashBars(d.topProducts):'<div class="muted2">Нет данных</div>'}</div></div>
-      <div class="panel"><div class="panel-h"><h3>Выручка по магазинам · 30 дн</h3></div><div class="panel-b">${d.byStore.length?dashBars(d.byStore):'<div class="muted2">Нет данных</div>'}</div></div>
+      <div class="panel"><div class="panel-h"><h3>Топ товаров · ${n} дн</h3></div><div class="panel-b">${d.topProducts.length?dashBars(d.topProducts):'<div class="muted2">Нет данных</div>'}</div></div>
+      <div class="panel"><div class="panel-h"><h3>Выручка по магазинам · ${n} дн</h3></div><div class="panel-b">${d.byStore.length?dashBars(d.byStore):'<div class="muted2">Нет данных</div>'}</div></div>
     </div>
     <div class="grid-2 section-gap">
-      <div class="panel"><div class="panel-h"><h3>Топ врачи · 30 дн</h3></div><div class="panel-b">${d.topDoctors.length?dashBars(d.topDoctors):'<div class="muted2">Нет данных</div>'}</div></div>
-      <div class="panel"><div class="panel-h"><h3>Выручка по дням · 30 дн</h3><span class="ph-sub">на ${esc(d.asOf)}</span></div><div class="panel-b">${dashDayChart(d.byDay)}</div></div>
+      <div class="panel"><div class="panel-h"><h3>Топ врачи · ${n} дн</h3></div><div class="panel-b">${d.topDoctors.length?dashBars(d.topDoctors):'<div class="muted2">Нет данных</div>'}</div></div>
+      <div class="panel"><div class="panel-h"><h3>Выручка по дням</h3><span class="ph-sub">${esc(d.from||'')} — ${esc(d.to||d.asOf||'')}</span></div><div class="panel-b">${dashDayChart(d.byDay)}</div></div>
     </div>
-    <div class="note section-gap">${ic('i-info','sm')} Метрики за 30 дней по последним данным 1С (на ${esc(d.asOf)}), сравнение — с предыдущими 30 днями. Синхронизация раз в 30 мин.</div>`;
+    <div class="note section-gap">${ic('i-info','sm')} Период ${esc(d.from||'')} — ${esc(d.to||d.asOf||'')} (${n} дн), сравнение — с предыдущим периодом такой же длины. Данные 1С на ${esc(d.dmax||d.asOf||'')}. Синхронизация раз в 30 мин.</div>`;
 }
 
 function funnelVis(rows){
