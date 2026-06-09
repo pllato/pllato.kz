@@ -1,5 +1,5 @@
 // Публичная страница подписания договора по персональной ссылке (без логина).
-import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260609-2";
+import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260609-3";
 
 const $ = (s) => document.querySelector(s);
 const root = $("#root");

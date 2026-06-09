@@ -90,6 +90,14 @@ function parseNcaMessage(raw) {
   let obj;
   try { obj = JSON.parse(raw); } catch { return { ok: false, error: "Некорректный ответ NCALayer" }; }
   try { console.debug("[NCALayer] raw response:", obj); } catch {}
+
+  // NCALayer 1.4+ первым делом присылает приветствие { result: { version: "1.4" } }
+  // — это не ответ на наш запрос, его нужно пропустить и ждать настоящий ответ.
+  if (obj && obj.result && typeof obj.result === "object" && !Array.isArray(obj.result)
+      && "version" in obj.result && !("responseObject" in obj.result) && !("code" in obj.result)) {
+    return { ignore: true };
+  }
+
   let o = obj;
   if (o && typeof o.result === "object" && o.result !== null && !Array.isArray(o.result)) {
     // некоторые версии оборачивают полезную нагрузку в result:{...}
@@ -133,8 +141,9 @@ function sendRequest(ws, payload) {
       reject(new NcaLayerError("Истекло время ожидания ответа от NCALayer", "TIMEOUT"));
     }, RESPONSE_TIMEOUT_MS);
     ws.onmessage = (event) => {
-      clearTimeout(timer);
       const parsed = parseNcaMessage(event.data);
+      if (parsed.ignore) return; // приветствие версии NCALayer — ждём настоящий ответ
+      clearTimeout(timer);
       if (parsed.ok) resolve(parsed.value);
       else reject(new NcaLayerError(parsed.error, parsed.code));
     };
