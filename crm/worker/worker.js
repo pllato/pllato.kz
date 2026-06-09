@@ -304,10 +304,8 @@ async function loadActorContext(request, env, { strictTeamCheck = false } = {}) 
   }
 
   const isAdmin = Boolean(user.isAdmin || user.isSuperAdmin);
-  const deniedByApp = Boolean(user.apps && user.apps[APP_ID] === false);
-  if (!isAdmin && deniedByApp) {
-    throw new HttpError(403, "Нет доступа к Pllato CRM");
-  }
+  // Членство в команде = доступ в портал. Видимость отдельных приложений
+  // решается по user.apps на фронте, поэтому здесь по плиткам не гейтим.
 
   return {
     token,
@@ -2365,12 +2363,6 @@ async function upsertWaConversationEvent(env, actorLabel, event) {
   await d1UpsertDoc(env, "chat_messages", msgDoc, actorLabel);
 }
 
-function canUseCrmApp(user) {
-  if (!user) return false;
-  if (user.isAdmin || user.isSuperAdmin) return true;
-  return !(user.apps && user.apps[APP_ID] === false);
-}
-
 function publicUserPayload(user) {
   if (!user) return null;
   return {
@@ -2502,7 +2494,7 @@ async function handleAuthEmailLogin(request, env) {
 
   const user = await d1GetUserByEmail(env, email);
   if (!user) throw new HttpError(403, "Пользователь не найден");
-  if (!canUseCrmApp(user)) throw new HttpError(403, "Нет доступа к Pllato CRM");
+  // Доступ в портал = членство в команде; видимость плиток — по user.apps на фронте.
 
   const pwRecord = await d1GetCrmPassword(env, email);
   if (!pwRecord) throw new HttpError(403, "Пароль не задан. Войди через Google или попроси администратора установить пароль.");
@@ -2600,7 +2592,8 @@ async function handleAuthGoogle(request, env) {
   const verified = await verifyGoogleIdToken(credential, env);
   const user = await d1GetUserByEmail(env, verified.email);
   if (!user) throw new HttpError(403, "Пользователь не в команде");
-  if (!canUseCrmApp(user)) throw new HttpError(403, "Нет доступа к Pllato CRM");
+  // Доступ в портал = членство в команде. Что именно видит сотрудник —
+  // фильтруется по плиткам (user.apps) на фронте, а не гейтит весь вход.
 
   const session = await issueSessionTokenForUser(env, user);
   return {

@@ -833,10 +833,10 @@ function ref(_db, rawPath = '') {
 
 function push(pathRef) {
   const rootPath = splitPath(pathRef)[0] || '';
-  if (rootPath !== 'users' && rootPath !== 'documents') {
-    return { key: crypto.randomUUID() };
-  }
-  return { key: crypto.randomUUID() };
+  const key = crypto.randomUUID();
+  // Возвращаем и key (для индексации в кэше), и полный path,
+  // чтобы set()/update() знали коллекцию (users/documents).
+  return { key, path: rootPath ? rootPath + '/' + key : key };
 }
 
 async function loadUsersMap() {
@@ -864,7 +864,9 @@ async function loadDocumentsMap() {
 }
 
 async function set(pathRef, value) {
-  const parts = splitPath(pathRef);
+  // pathRef может быть строкой-путём или объектом push() с полем .path
+  const rawPath = (pathRef && typeof pathRef === 'object') ? pathRef.path : pathRef;
+  const parts = splitPath(rawPath);
   if (!parts.length) return;
   if (parts[0] === 'users' && parts[1]) {
     const payload = { ...(value || {}), id: String(parts[1]) };
