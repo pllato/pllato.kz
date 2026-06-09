@@ -866,6 +866,7 @@ PAGES.doctors=(c)=>{
   rateI.addEventListener('input',()=>{ rate=Math.max(0,Math.min(100,+rateI.value||0)); if(lastSummary)renderCards(lastSummary); renderTable(); });
   pgPrev.onclick=()=>{ if(offset>0){offset=Math.max(0,offset-PAGE);load();$('#content').scrollTop=0;} };
   pgNext.onclick=()=>{ if(offset+PAGE<total){offset+=PAGE;load();$('#content').scrollTop=0;} };
+  window.__reloadDoctors=load; // для авто-обновления после изменений кэшбека
   load();
 };
 function doctorModalLive(d,rate){
@@ -902,6 +903,7 @@ function doctorModalLive(d,rate){
     if(!r.ok){ cbb.disabled=false; cbb.innerHTML=ic('i-gift','sm')+' Начислить кэшбек '+money(cbSum); toast((r.data&&r.data.error)||'Не удалось начислить кэшбек','i-x','#dc2626'); return; }
     cbb.disabled=true; cbb.classList.remove('primary'); cbb.innerHTML=ic('i-check2','sm')+' Начислено '+money(r.data.amount||0);
     toast('Кэшбек '+money(r.data.amount||0)+' начислен · смотри «Журнал кэшбека»','i-gift','#db2777');
+    if(window.__reloadDoctors) window.__reloadDoctors();
   };
   const rep=document.getElementById('cbReportBtn'); if(rep) rep.onclick=()=>exportDoctorReport(d);
   loadDoctorHistory(d.ref_key);
@@ -938,7 +940,7 @@ async function renderCashbackJournal(){
       it.map(x=>`<tr><td class="muted2">${fdt(x.created_at)}</td><td>${esc(x.doctor_name||'—')}</td><td><span class="tag pink">${esc(x.doctor_code||'—')}</span></td><td class="num">${money(x.base_revenue||0)}</td><td class="num">${x.rate||0}%</td><td class="num">${money(x.amount||0)}</td><td>${x.status==='paid'?'<span class="tag green">выплачено</span>':'<span class="tag amber">начислено</span>'}</td><td><div class="row" style="gap:6px;justify-content:flex-end">${x.status==='accrued'?`<button class="btn sm" data-pay="${x.id}">Выплатить</button>`:''}<button class="btn sm" data-del="${x.id}" title="Удалить запись">${ic('i-x','sm')}</button></div></td></tr>`).join('')+
       `</tbody></table>`:'<div class="muted2" style="padding:16px;font-size:13px">Начислений пока нет. Откройте карточку врача → «Начислить кэшбек».</div>');
   body.querySelectorAll('[data-pay]').forEach(b=>b.onclick=async()=>{ b.disabled=true; const rr=await api('/api/1c/doctors/cashback/'+b.dataset.pay+'/pay',{method:'POST'}); if(rr.ok){ toast('Отмечено выплаченным','i-check2','#16a34a'); renderCashbackJournal(); } else { b.disabled=false; toast('Ошибка','i-x','#dc2626'); } });
-  body.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{ if(!confirm('Удалить эту запись начисления?'))return; b.disabled=true; const rr=await api('/api/1c/doctors/cashback/'+b.dataset.del,{method:'DELETE'}); if(rr.ok){ toast('Запись удалена','i-check2'); renderCashbackJournal(); } else { b.disabled=false; toast('Ошибка','i-x','#dc2626'); } });
+  body.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{ if(!confirm('Удалить эту запись начисления? Кэшбек снова станет доступен к начислению.'))return; b.disabled=true; const rr=await api('/api/1c/doctors/cashback/'+b.dataset.del,{method:'DELETE'}); if(rr.ok){ toast('Запись удалена · кэшбек снова доступен','i-check2'); renderCashbackJournal(); if(window.__reloadDoctors) window.__reloadDoctors(); } else { b.disabled=false; toast('Ошибка','i-x','#dc2626'); } });
   const ex=document.getElementById('cbExport'); if(ex) ex.onclick=()=>{ const rows=[['Дата','Врач','Промокод','База','Ставка %','Кэшбек','Статус']].concat(it.map(x=>[new Date(x.created_at).toLocaleString('ru-RU'),x.doctor_name||'',x.doctor_code||'',Math.round(x.base_revenue||0),x.rate||0,Math.round(x.amount||0),x.status==='paid'?'выплачено':'начислено'])); const csv='﻿'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download='cashback.csv'; a.click(); URL.revokeObjectURL(a.href); toast('CSV выгружен','i-doc'); };
 }
 async function loadDoctorHistory(ref){
