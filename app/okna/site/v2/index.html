@@ -46,12 +46,10 @@ h1 .g{color:var(--brand)}
 .trust .l{color:var(--mut);font-size:13px}
 .mosaic{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:14px;aspect-ratio:1/1}
 .tile{border-radius:18px;position:relative;overflow:hidden;border:1px solid var(--line);
-  background:linear-gradient(150deg,#d4eef8,#a9dbef);display:flex;align-items:flex-end;padding:16px;font-weight:700;color:#0c5774;font-size:14px}
-.tile::after{content:"";position:absolute;inset:0;border:1px solid rgba(255,255,255,.6);border-radius:18px;margin:8px}
-.tile:nth-child(1){grid-row:span 2;background:linear-gradient(150deg,#bfe7f6,#7fc9e6)}
-.tile:nth-child(3){background:linear-gradient(150deg,#e3f4fb,#bfe7f6)}
-.tile .mull{position:absolute;inset:14px;border:1.5px solid rgba(255,255,255,.7);border-radius:10px}
-.tile span{position:relative;z-index:2;background:rgba(255,255,255,.85);padding:5px 11px;border-radius:8px}
+  background-size:cover;background-position:center;display:flex;align-items:flex-end;padding:16px;font-weight:700;color:#fff;font-size:14px}
+.tile::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,39,51,0) 45%,rgba(13,39,51,.62))}
+.tile:nth-child(1){grid-row:span 2}
+.tile span{position:relative;z-index:2;background:rgba(255,255,255,.92);color:var(--ink);padding:5px 11px;border-radius:8px}
 /* strip */
 .logos{padding:26px 0;border-bottom:1px solid var(--line)}
 .logos .row{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;color:var(--mut);font-weight:700;font-size:14px}
@@ -122,8 +120,28 @@ footer{background:var(--ink);color:#fff;padding:52px 0 28px;margin-top:70px}
 .fab a{width:58px;height:58px;border-radius:50%;background:#25D366;display:grid;place-items:center;box-shadow:0 12px 30px rgba(37,211,102,.45)}
 .fab svg{width:30px;height:30px}
 .reveal{opacity:0;transform:translateY(22px);transition:.7s}.reveal.in{opacity:1;transform:none}
-@media(max-width:920px){.hero-grid,.why,.contact{grid-template-columns:1fr}.menu,.tel{display:none}.burger{display:grid}.tl{grid-template-columns:1fr 1fr}.tl::before{display:none}.foot{grid-template-columns:1fr 1fr}.why{padding:34px}}
-@media(max-width:560px){.serv,.whygrid,.tl,.foot{grid-template-columns:1fr}.serv .srow{border-right:0}.c-left,.form{padding:30px}}
+/* gallery */
+.gal{display:grid;gap:14px}
+.gal.g3{grid-template-columns:repeat(3,1fr)}
+.gal.g4{grid-template-columns:repeat(4,1fr)}
+.gi{position:relative;display:block;border-radius:16px;overflow:hidden;border:1px solid var(--line);aspect-ratio:4/3;background:var(--soft)}
+.gi img{width:100%;height:100%;object-fit:cover;transition:.5s}
+.gi:hover img{transform:scale(1.06)}
+.gi .cap{position:absolute;left:0;right:0;bottom:0;padding:30px 14px 13px;background:linear-gradient(180deg,transparent,rgba(13,39,51,.8));color:#fff;font-weight:700;font-size:14px}
+.gi .tag{position:absolute;top:10px;left:10px;z-index:2;background:rgba(255,255,255,.93);color:var(--brand);font-weight:800;font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding:5px 10px;border-radius:999px}
+.feats{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:24px}
+.feats span{background:var(--soft);color:var(--ink2);font-weight:600;font-size:13.5px;padding:9px 16px;border-radius:999px;border:1px solid var(--line)}
+/* reviews */
+.rev{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.rcard{background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px;display:flex;flex-direction:column;gap:14px;box-shadow:0 10px 28px rgba(13,39,51,.05)}
+.rcard .stars{color:#f5a623;font-size:15px;letter-spacing:3px}
+.rcard .txt{color:var(--ink2);font-size:14.5px;line-height:1.62;flex:1}
+.rcard .who{display:flex;align-items:center;gap:12px}
+.rcard .av{width:46px;height:46px;border-radius:50%;background:linear-gradient(150deg,var(--brand-2),var(--brand));color:#fff;display:grid;place-items:center;font-weight:800;font-size:17px;flex:none}
+.rcard .who b{font-size:14.5px;display:block}.rcard .who small{color:var(--mut);font-size:12.5px}
+@media(max-width:920px){
+  .gal.g3,.gal.g4,.rev{grid-template-columns:1fr 1fr}.hero-grid,.why,.contact{grid-template-columns:1fr}.menu,.tel{display:none}.burger{display:grid}.tl{grid-template-columns:1fr 1fr}.tl::before{display:none}.foot{grid-template-columns:1fr 1fr}.why{padding:34px}}
+@media(max-width:560px){.serv,.whygrid,.tl,.foot,.gal.g3,.gal.g4,.rev{grid-template-columns:1fr}.serv .srow{border-right:0}.c-left,.form{padding:30px}}
 </style>
 </head>
 <body>
@@ -134,7 +152,8 @@ footer{background:var(--ink);color:#fff;padding:52px 0 28px;margin-top:70px}
     </a>
     <nav class="menu">
       <a href="#services" data-i="m_prod">Продукция</a>
-      <a href="#why" data-i="m_why">Преимущества</a>
+      <a href="#factory" data-i="m_fact">Производство</a>
+      <a href="#work" data-i="m_work">Работы</a>
       <a href="#process" data-i="m_proc">Как работаем</a>
       <a href="#contact" data-i="m_cont">Контакты</a>
     </nav>
@@ -165,9 +184,9 @@ footer{background:var(--ink);color:#fff;padding:52px 0 28px;margin-top:70px}
       </div>
     </div>
     <div class="mosaic">
-      <div class="tile"><div class="mull"></div><span data-i="til1">Фасады</span></div>
-      <div class="tile"><div class="mull"></div><span data-i="til2">Окна</span></div>
-      <div class="tile"><div class="mull"></div><span data-i="til3">Перегородки</span></div>
+      <div class="tile" style="background-image:url(img/work-2.jpg)"><span data-i="til1">Лофт-перегородки</span></div>
+      <div class="tile" style="background-image:url(img/work-4.jpg)"><span data-i="til2">Остекление террас</span></div>
+      <div class="tile" style="background-image:url(img/work-6.jpg)"><span data-i="til3">Душевые кабины</span></div>
     </div>
   </div>
 </section>
@@ -188,6 +207,29 @@ footer{background:var(--ink);color:#fff;padding:52px 0 28px;margin-top:70px}
       <p data-i="prod_p">От окна для квартиры до структурного фасада — всё производим и монтируем сами.</p>
     </div>
     <div class="serv reveal" id="servList"></div>
+  </div>
+</section>
+
+<section class="sec" id="factory" style="background:var(--soft2)">
+  <div class="wrap">
+    <div class="sec-head center reveal">
+      <span class="kicker" data-i="k_fact">Собственное производство</span>
+      <h2 data-i="fact_h2">Завод закалки стекла в Оше</h2>
+      <p data-i="fact_p">Закалочная линия SHEN CHENG, линия стеклопакетов и гидроабразивная резка. Производим стекло сами — без посредников, под наши же объекты.</p>
+    </div>
+    <div class="gal g4 reveal">
+      <a class="gi" href="img/prod-1.jpg" target="_blank"><span class="tag" data-i="ftag">Производство</span><img src="img/prod-1.jpg" loading="lazy" alt="Завод закалки стекла Ocean Glass"><span class="cap" data-i="fcap1">Линия закалки SHEN CHENG</span></a>
+      <a class="gi" href="img/prod-2.jpg" target="_blank"><span class="tag" data-i="ftag2">Цех</span><img src="img/prod-2.jpg" loading="lazy" alt="Закалённое стекло на линии"><span class="cap" data-i="fcap2">Закалённое стекло на выходе</span></a>
+      <a class="gi" href="img/prod-3.jpg" target="_blank"><span class="tag" data-i="ftag2">Цех</span><img src="img/prod-3.jpg" loading="lazy" alt="Процесс закалки стекла"><span class="cap" data-i="fcap3">Стекло 4–10 мм в печи</span></a>
+      <a class="gi" href="img/prod-4.jpg" target="_blank"><span class="tag" data-i="ftag">Производство</span><img src="img/prod-4.jpg" loading="lazy" alt="Производственный цех Ocean Glass"><span class="cap" data-i="fcap4">Свой производственный цех</span></a>
+    </div>
+    <div class="feats reveal">
+      <span data-i="ff1">Стекло 4–10 мм</span>
+      <span data-i="ff2">Low-E · Optiwhite · сатинат</span>
+      <span data-i="ff3">Прочнее в 5–7 раз</span>
+      <span data-i="ff4">Гидроабразивная резка</span>
+      <span data-i="ff5">Линия стеклопакетов</span>
+    </div>
   </div>
 </section>
 
@@ -220,6 +262,51 @@ footer{background:var(--ink);color:#fff;padding:52px 0 28px;margin-top:70px}
       <div class="tlitem"><div class="tlnum">2</div><h4 data-i="p2t">Проект и расчёт</h4><p data-i="p2s">Подбор профиля, фиксация цены.</p></div>
       <div class="tlitem"><div class="tlnum">3</div><h4 data-i="p3t">Производство</h4><p data-i="p3s">Своё оборудование, закалка стекла.</p></div>
       <div class="tlitem"><div class="tlnum">4</div><h4 data-i="p4t">Монтаж и гарантия</h4><p data-i="p4s">Установка по ГОСТ/ISO.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="work">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="kicker" data-i="k_work">Наши работы</span>
+      <h2 data-i="work_h2">Объекты, которые мы сделали</h2>
+      <p data-i="work_p">Перегородки в стиле лофт, душевые кабины, остекление террас и фасады — реальные объекты в Оше и по Кыргызстану.</p>
+    </div>
+    <div class="gal g3 reveal">
+      <a class="gi" href="img/work-1.jpg" target="_blank"><span class="tag" data-i="wt_part">Перегородки</span><img src="img/work-1.jpg" loading="lazy" alt="Лофт-перегородка на кухню"><span class="cap" data-i="wc1">Лофт-перегородка в чёрной раме</span></a>
+      <a class="gi" href="img/work-4.jpg" target="_blank"><span class="tag" data-i="wt_glaze">Остекление</span><img src="img/work-4.jpg" loading="lazy" alt="Безрамное остекление террасы"><span class="cap" data-i="wc2">Безрамное остекление террасы</span></a>
+      <a class="gi" href="img/work-5.jpg" target="_blank"><span class="tag" data-i="wt_fac">Фасады</span><img src="img/work-5.jpg" loading="lazy" alt="Фасадное остекление здания"><span class="cap" data-i="wc3">Фасадное остекление здания</span></a>
+      <a class="gi" href="img/work-6.jpg" target="_blank"><span class="tag" data-i="wt_show">Душевые</span><img src="img/work-6.jpg" loading="lazy" alt="Душевая кабина в чёрной раме"><span class="cap" data-i="wc4">Душевая кабина в чёрной раме</span></a>
+      <a class="gi" href="img/work-2.jpg" target="_blank"><span class="tag" data-i="wt_part">Перегородки</span><img src="img/work-2.jpg" loading="lazy" alt="Угловая стеклянная перегородка"><span class="cap" data-i="wc5">Угловая перегородка с тонировкой</span></a>
+      <a class="gi" href="img/work-3.jpg" target="_blank"><span class="tag" data-i="wt_part">Перегородки</span><img src="img/work-3.jpg" loading="lazy" alt="Стеклянная комната-перегородка"><span class="cap" data-i="wc6">Стеклянная комната в стиле лофт</span></a>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="reviews" style="background:var(--soft2)">
+  <div class="wrap">
+    <div class="sec-head center reveal">
+      <span class="kicker" data-i="k_rev">Отзывы клиентов</span>
+      <h2 data-i="rev_h2">Нам доверяют дом и бизнес</h2>
+      <p data-i="rev_p">Несколько отзывов от заказчиков из Оша и других городов Кыргызстана.</p>
+    </div>
+    <div class="rev reveal">
+      <div class="rcard">
+        <div class="stars">★★★★★</div>
+        <p class="txt" data-i="r1x">«Поставили панорамное остекление террасы и стеклянные перила. Сделали свой замер, всё рассчитали честно, смонтировали без задержек. Стекло реально качественное — видно, что своё производство.»</p>
+        <div class="who"><div class="av">Б</div><div><b data-i="r1n">Бектур А.</b><small data-i="r1m">Частный дом · Ош</small></div></div>
+      </div>
+      <div class="rcard">
+        <div class="stars">★★★★★</div>
+        <p class="txt" data-i="r2x">«Заказывали лофт-перегородку и душевую кабину в чёрном профиле. Приехали на замер, предложили варианты, сделали ровно как на эскизе. Очень довольны, рекомендую.»</p>
+        <div class="who"><div class="av">А</div><div><b data-i="r2n">Айгуль К.</b><small data-i="r2m">Квартира · Ош</small></div></div>
+      </div>
+      <div class="rcard">
+        <div class="stars">★★★★★</div>
+        <p class="txt" data-i="r3x">«Делали фасадное остекление для нашего здания. Грамотный расчёт, аккуратный монтаж на высоте, гарантия на работы. Сроки выдержали — для бизнеса это главное.»</p>
+        <div class="who"><div class="av">Э</div><div><b data-i="r3n">Эльдар М.</b><small data-i="r3m">Бизнес-центр · Джалал-Абад</small></div></div>
+      </div>
     </div>
   </div>
 </section>
@@ -301,7 +388,18 @@ const I={
   hero_eyebrow:'Ош · Кыргызстан · 2009-жылдан',hero_h1:['Айнек, терезе жана фасаддар — ','жогорку класс'],
   hero_lead:'Айнек чыңдоочу өз заводубуз, алюминий жана ПВХ ар кандай татаалдыкта, бөлмөлөр, тосмолор жана фасаддар «ачкычка чейин».',
   hero_cta1:'Баасын эсептөө',hero_cta2:'Продукцияны көрүү',st1:'жыл базарда',st2:'RAL түсү',st3:'айнектин бекемдиги',
-  til1:'Фасаддар',til2:'Терезелер',til3:'Бөлмөлөр',
+  til1:'Лофт бөлмөлөр',til2:'Террасаларды айнектөө',til3:'Душ кабиналары',
+  m_fact:'Өндүрүш',m_work:'Иштер',
+  k_fact:'Өз өндүрүшүбүз',fact_h2:'Ошто айнек чыңдоо заводу',fact_p:'SHEN CHENG чыңдоо линиясы, стеклопакет линиясы жана гидроабразивдик кесүү. Айнекти өзүбүз жасайбыз — ортомчусуз, өз объекттерибизге.',
+  ftag:'Өндүрүш',ftag2:'Цех',fcap1:'SHEN CHENG чыңдоо линиясы',fcap2:'Чыгуудагы чыңдалган айнек',fcap3:'Печтеги 4–10 мм айнек',fcap4:'Өз өндүрүш цехи',
+  ff1:'Айнек 4–10 мм',ff2:'Low-E · Optiwhite · сатинат',ff3:'5–7 эсе бекем',ff4:'Гидроабразивдик кесүү',ff5:'Стеклопакет линиясы',
+  k_work:'Биздин иштер',work_h2:'Биз жасаган объекттер',work_p:'Лофт бөлмөлөр, душ кабиналары, террасаларды айнектөө жана фасаддар — Ошто жана Кыргызстан боюнча реалдуу объекттер.',
+  wt_part:'Бөлмөлөр',wt_glaze:'Айнектөө',wt_fac:'Фасаддар',wt_show:'Душтар',
+  wc1:'Кара рамадагы лофт бөлмө',wc2:'Террасаны рамасыз айнектөө',wc3:'Имараттын фасаддык айнектөөсү',wc4:'Кара рамадагы душ кабина',wc5:'Тонировкалуу бурч бөлмө',wc6:'Лофт стилиндеги айнек бөлмө',
+  k_rev:'Кардарлардын пикирлери',rev_h2:'Үй жана бизнес бизге ишенет',rev_p:'Ош жана Кыргызстандын башка шаарларынан кардарлардын бир нече пикири.',
+  r1x:'«Террасага панорамалык айнектөө жана айнек тосмолорду орноттук. Өздөрү өлчөп, баарын адилет эсептеп, кечиктирбей орнотушту. Айнек чындап сапаттуу — өз өндүрүшү экени көрүнүп турат.»',r1n:'Бектур А.',r1m:'Жеке үй · Ош',
+  r2x:'«Лофт бөлмө жана кара профилдеги душ кабина заказ кылдык. Өлчөөгө келип, варианттарды сунушташты, эскиздегидей так жасашты. Абдан ыраазыбыз, сунуштайм.»',r2n:'Айгүл К.',r2m:'Батир · Ош',
+  r3x:'«Имаратыбызга фасаддык айнектөө жасадык. Туура эсеп, бийиктикте кылдат монтаж, жумушка кепилдик. Мөөнөттү сакташты — бизнес үчүн эң башкысы ушул.»',r3n:'Элдар М.',r3m:'Бизнес-борбор · Жалал-Абад',
   lg1:'жыл тажрыйба',lg2:'өз заводу',lg3:'ГОСТ / ISO монтаж',lg4:'жумушка кепилдик',lg5:'акысыз өлчөө',
   k_prod:'Продукция жана кызматтар',prod_h2:'Светопрозрачтуу конструкциялардын толук спектри',prod_p:'Батирдин терезесинен структуралык фасадга чейин — баарын өзүбүз жасап, орнотобуз.',
   k_why:'Эмне үчүн Ocean Glass',why_h2:'Өзүбүз жасайбыз — натыйжага жооп беребиз',why_p:'Өз чыңдоо заводу жана конструктордук бөлүм сапатты, мөөнөттү жана адилет баасын көзөмөлдөөгө мүмкүндүк берет.',
@@ -321,7 +419,18 @@ const I={
   hero_eyebrow:'Ош · Кыргызстан · с 2009',hero_h1:['Стекло, окна и фасады ','высшего класса'],
   hero_lead:'Собственный завод закалки стекла, алюминий и ПВХ любой сложности, перегородки, перила и фасады под ключ.',
   hero_cta1:'Рассчитать стоимость',hero_cta2:'Смотреть продукцию',st1:'лет на рынке',st2:'цветов RAL',st3:'прочность стекла',
-  til1:'Фасады',til2:'Окна',til3:'Перегородки',
+  til1:'Лофт-перегородки',til2:'Остекление террас',til3:'Душевые кабины',
+  m_fact:'Производство',m_work:'Работы',
+  k_fact:'Собственное производство',fact_h2:'Завод закалки стекла в Оше',fact_p:'Закалочная линия SHEN CHENG, линия стеклопакетов и гидроабразивная резка. Производим стекло сами — без посредников, под наши же объекты.',
+  ftag:'Производство',ftag2:'Цех',fcap1:'Линия закалки SHEN CHENG',fcap2:'Закалённое стекло на выходе',fcap3:'Стекло 4–10 мм в печи',fcap4:'Свой производственный цех',
+  ff1:'Стекло 4–10 мм',ff2:'Low-E · Optiwhite · сатинат',ff3:'Прочнее в 5–7 раз',ff4:'Гидроабразивная резка',ff5:'Линия стеклопакетов',
+  k_work:'Наши работы',work_h2:'Объекты, которые мы сделали',work_p:'Перегородки в стиле лофт, душевые кабины, остекление террас и фасады — реальные объекты в Оше и по Кыргызстану.',
+  wt_part:'Перегородки',wt_glaze:'Остекление',wt_fac:'Фасады',wt_show:'Душевые',
+  wc1:'Лофт-перегородка в чёрной раме',wc2:'Безрамное остекление террасы',wc3:'Фасадное остекление здания',wc4:'Душевая кабина в чёрной раме',wc5:'Угловая перегородка с тонировкой',wc6:'Стеклянная комната в стиле лофт',
+  k_rev:'Отзывы клиентов',rev_h2:'Нам доверяют дом и бизнес',rev_p:'Несколько отзывов от заказчиков из Оша и других городов Кыргызстана.',
+  r1x:'«Поставили панорамное остекление террасы и стеклянные перила. Сделали свой замер, всё рассчитали честно, смонтировали без задержек. Стекло реально качественное — видно, что своё производство.»',r1n:'Бектур А.',r1m:'Частный дом · Ош',
+  r2x:'«Заказывали лофт-перегородку и душевую кабину в чёрном профиле. Приехали на замер, предложили варианты, сделали ровно как на эскизе. Очень довольны, рекомендую.»',r2n:'Айгуль К.',r2m:'Квартира · Ош',
+  r3x:'«Делали фасадное остекление для нашего здания. Грамотный расчёт, аккуратный монтаж на высоте, гарантия на работы. Сроки выдержали — для бизнеса это главное.»',r3n:'Эльдар М.',r3m:'Бизнес-центр · Джалал-Абад',
   lg1:'лет опыта',lg2:'собственный завод',lg3:'ГОСТ / ISO монтаж',lg4:'гарантия на работы',lg5:'бесплатный замер',
   k_prod:'Продукция и услуги',prod_h2:'Полный спектр светопрозрачных конструкций',prod_p:'От окна для квартиры до структурного фасада — всё производим и монтируем сами.',
   k_why:'Почему Ocean Glass',why_h2:'Производим сами — отвечаем за результат',why_p:'Свой завод закалки и конструкторский отдел позволяют держать качество, сроки и честную цену под контролем.',
@@ -341,7 +450,18 @@ const I={
   hero_eyebrow:'Osh · Kyrgyzstan · since 2009',hero_h1:['Glass, windows & facades ','of the highest class'],
   hero_lead:'Our own glass tempering plant, aluminium and PVC of any complexity, partitions, railings and facades turnkey.',
   hero_cta1:'Get a quote',hero_cta2:'See products',st1:'years on the market',st2:'RAL colours',st3:'glass strength',
-  til1:'Facades',til2:'Windows',til3:'Partitions',
+  til1:'Loft partitions',til2:'Terrace glazing',til3:'Shower cabins',
+  m_fact:'Production',m_work:'Projects',
+  k_fact:'Our own production',fact_h2:'Glass tempering plant in Osh',fact_p:'A SHEN CHENG tempering line, an insulated-glass line and waterjet cutting. We make the glass ourselves — no middlemen, for our own projects.',
+  ftag:'Production',ftag2:'Workshop',fcap1:'SHEN CHENG tempering line',fcap2:'Tempered glass at the output',fcap3:'4–10 mm glass in the furnace',fcap4:'Our own workshop',
+  ff1:'Glass 4–10 mm',ff2:'Low-E · Optiwhite · satin',ff3:'5–7× stronger',ff4:'Waterjet cutting',ff5:'Insulated-glass line',
+  k_work:'Our projects',work_h2:'Projects we have delivered',work_p:'Loft partitions, shower cabins, terrace glazing and facades — real projects in Osh and across Kyrgyzstan.',
+  wt_part:'Partitions',wt_glaze:'Glazing',wt_fac:'Facades',wt_show:'Showers',
+  wc1:'Loft partition in a black frame',wc2:'Frameless terrace glazing',wc3:'Facade glazing of a building',wc4:'Shower cabin in a black frame',wc5:'Corner partition with tint',wc6:'Glass room in loft style',
+  k_rev:'Client reviews',rev_h2:'Homes and businesses trust us',rev_p:'A few reviews from customers in Osh and other cities of Kyrgyzstan.',
+  r1x:'“They installed panoramic terrace glazing and glass railings. Did their own measurement, quoted honestly and installed on time. The glass is genuinely high quality — you can tell it is their own production.”',r1n:'Bektur A.',r1m:'Private house · Osh',
+  r2x:'“We ordered a loft partition and a shower cabin in a black profile. They came to measure, offered options and made it exactly as in the sketch. Very happy, recommend.”',r2n:'Aigul K.',r2m:'Apartment · Osh',
+  r3x:'“They did facade glazing for our building. Solid calculations, neat work at height, warranty on the job. They met the deadline — that is what matters for business.”',r3n:'Eldar M.',r3m:'Business centre · Jalal-Abad',
   lg1:'years of experience',lg2:'own plant',lg3:'GOST / ISO install',lg4:'work warranty',lg5:'free measurement',
   k_prod:'Products & services',prod_h2:'A full range of glazing solutions',prod_p:'From a flat window to a structural facade — we make and install everything ourselves.',
   k_why:'Why Ocean Glass',why_h2:'We manufacture ourselves — we own the result',why_p:'Our own tempering plant and engineering team keep quality, lead time and fair pricing under control.',
