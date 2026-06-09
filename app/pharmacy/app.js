@@ -226,36 +226,102 @@ function barList(rows,max,isMoney){
 
 // ---------- FUNNELS ----------
 PAGES.funnels=(c)=>{
-  c.appendChild(el(`<div class="toolbar">
+  const tbar=el(`<div class="toolbar">
     <div class="seg" id="funnelSeg"><button class="${state.funnel==='b2c'?'on':''}" data-f="b2c">B2C · розница</button><button class="${state.funnel==='b2b'?'on':''}" data-f="b2b">B2B · опт</button></div>
-    <select class="sel"><option>Все ответственные</option><option>Айгуль</option><option>Нурлан</option><option>Бекзат</option></select>
-    <select class="sel"><option>Все источники</option><option>WhatsApp</option><option>Instagram</option><option>Сайт</option></select>
     <div class="spacer"></div>
-    <button class="btn" onclick="toast('Настройка этапов воронки — без программиста','i-cog')">${ic('i-cog','sm')} Настроить этапы</button>
-    <button class="btn primary" onclick="newDeal()">${ic('i-plus','sm')} Сделка</button>
-  </div>`));
-  $('#funnelSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{state.funnel=b.dataset.f;renderPage();});
-  const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
-  const deals=DB.deals.filter(d=>d.type===state.funnel);
-  const board=el(`<div class="kanban" id="kanban"></div>`);
-  stages.forEach(stg=>{
-    const list=deals.filter(d=>d.stage===stg);
-    const sum=list.reduce((a,d)=>a+d.sum,0);
-    const col=el(`<div class="kcol" data-stage="${stg}">
-      <div class="kcol-h"><span class="kc-name">${stg}</span><span class="kc-count">${list.length}</span><span class="kc-sum">${money(sum)}</span></div>
-      <div class="kcol-b"></div></div>`);
-    const body=col.querySelector('.kcol-b');
-    list.forEach(d=>body.appendChild(dealCard(d)));
-    // drop
-    col.addEventListener('dragover',e=>{e.preventDefault();col.classList.add('drop-hot');});
-    col.addEventListener('dragleave',()=>col.classList.remove('drop-hot'));
-    col.addEventListener('drop',e=>{e.preventDefault();col.classList.remove('drop-hot');
-      const id=e.dataTransfer.getData('id');const d=DB.deals.find(x=>x.id===id);
-      if(d&&d.stage!==stg){d.stage=stg;renderPage();toast(`Сделка перенесена в «${stg}» — триггер этапа отправлен`,'i-flame','var(--amber)');}});
-    board.appendChild(col);
-  });
+    <span class="ph-sub" id="funnelCnt"></span>
+    <button class="btn primary" id="newDealBtn">${ic('i-plus','sm')} Сделка</button>
+  </div>`);
+  c.appendChild(tbar);
+  const board=el(`<div class="kanban" id="kanban"><div class="muted2" style="padding:14px">Загрузка…</div></div>`);
   c.appendChild(board);
+  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Сделки хранятся в CRM. Клиента можно выбрать из базы 1С. Перетаскивайте карточки между этапами — статус сохраняется автоматически.</div>`));
+  const cnt=tbar.querySelector('#funnelCnt');
+  tbar.querySelector('#funnelSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{state.funnel=b.dataset.f;renderPage();});
+  tbar.querySelector('#newDealBtn').onclick=()=>newDealLive(load);
+  let demoMode=false, current=[];
+  function renderBoard(){
+    const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
+    board.innerHTML=''; let total=0;
+    stages.forEach(stg=>{
+      const list=current.filter(d=>d.stage===stg); const sum=list.reduce((a,d)=>a+(d.amount||d.sum||0),0); total+=list.length;
+      const col=el(`<div class="kcol" data-stage="${esc(stg)}"><div class="kcol-h"><span class="kc-name">${esc(stg)}</span><span class="kc-count">${list.length}</span><span class="kc-sum">${money(sum)}</span></div><div class="kcol-b"></div></div>`);
+      const cbody=col.querySelector('.kcol-b');
+      list.forEach(d=>cbody.appendChild(demoMode?dealCard(d):dealCardLive(d)));
+      if(!demoMode){
+        col.addEventListener('dragover',e=>{e.preventDefault();col.classList.add('drop-hot');});
+        col.addEventListener('dragleave',()=>col.classList.remove('drop-hot'));
+        col.addEventListener('drop',async e=>{e.preventDefault();col.classList.remove('drop-hot');
+          const id=e.dataTransfer.getData('id'); const d=current.find(x=>x.id===id);
+          if(d&&d.stage!==stg){ const old=d.stage; d.stage=stg; renderBoard();
+            const r=await api('/api/deals/'+id,{method:'POST',body:JSON.stringify({stage:stg})});
+            if(r.ok) toast('Сделка перенесена в «'+stg+'»','i-funnel'); else { d.stage=old; renderBoard(); toast('Не удалось сохранить','i-x','#dc2626'); } } });
+      }
+      board.appendChild(col);
+    });
+    cnt.textContent=(demoMode?'демо · ':'')+total+' '+plural(total,'сделка','сделки','сделок');
+  }
+  async function load(){
+    const r=await api('/api/deals?funnel='+state.funnel);
+    if(!r.ok){ demoMode=true; current=DB.deals.filter(d=>d.type===state.funnel); renderBoard(); return; }
+    demoMode=false; current=r.data.items||[]; renderBoard();
+  }
+  window.__reloadFunnels=load;
+  load();
 };
+function dealCardLive(d){
+  const days=d.created_at?Math.max(0,Math.round((Date.now()-d.created_at)/864e5)):0;
+  const card=el(`<div class="kcard ${d.funnel==='b2b'?'b2b':''}" draggable="true" data-id="${d.id}">
+    <div class="kc-top"><div class="kc-client">${esc(d.client_name||'—')}</div>${d.client_ref?'<span class="tag green" title="из 1С">1С</span>':''}</div>
+    ${d.note?`<div class="kc-prod">${esc(d.note)}</div>`:''}
+    <div class="kc-sum">${money(d.amount||0)}</div>
+    <div class="kc-meta">${d.source?`<span class="tag">${esc(d.source)}</span>`:''}${d.mgr?`<span class="tag amber">${esc(d.mgr)}</span>`:''}<span class="kc-days">${ic('i-clock','sm')} ${days}д</span></div></div>`);
+  card.addEventListener('dragstart',e=>{e.dataTransfer.setData('id',d.id);card.classList.add('dragging');});
+  card.addEventListener('dragend',()=>card.classList.remove('dragging'));
+  card.onclick=()=>dealModalLive(d);
+  return card;
+}
+function newDealLive(onSaved){
+  const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
+  const bg=openModal(`<div class="modal-h"><div><h3>Новая сделка</h3><div class="mh-sub">${state.funnel==='b2c'?'B2C · розница':'B2B · опт'}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld"><label>Клиент — поиск в 1С или ввод вручную</label><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-nd="client" placeholder="ФИО или название" autocomplete="off" style="width:100%"></div><div id="ndSug" class="panel" style="margin-top:4px;display:none;max-height:170px;overflow:auto"></div></div>
+    <div class="fld-row"><div class="fld"><label>Телефон</label><input data-nd="phone"></div><div class="fld"><label>Сумма, с</label><input data-nd="amount" type="number" placeholder="0"></div></div>
+    <div class="fld-row"><div class="fld"><label>Этап</label><select data-nd="stage">${stages.map(s=>`<option>${esc(s)}</option>`).join('')}</select></div><div class="fld"><label>Источник</label><select data-nd="source"><option value="">—</option><option>WhatsApp</option><option>Instagram</option><option>Сайт</option><option>Звонок</option><option>Сарафан</option></select></div></div>
+    <div class="fld"><label>Ответственный</label><input data-nd="mgr" value="${esc((AUTH.user||{}).name||'')}"></div>
+    <div class="fld"><label>Комментарий</label><input data-nd="note" placeholder="Что нужно клиенту"></div>
+  </div>
+  <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="ndSave">Создать сделку</button></div>`);
+  const q=bg.querySelector('[data-nd=client]'), sug=bg.querySelector('#ndSug'); let ref=null, qt=null;
+  q.addEventListener('input',()=>{ ref=null; clearTimeout(qt); const v=q.value.trim(); if(v.length<2){sug.style.display='none';return;}
+    qt=setTimeout(async()=>{ const r=await api('/api/1c/contractors?limit=6&q='+encodeURIComponent(v)); if(!r.ok||!(r.data.items||[]).length){sug.style.display='none';return;}
+      sug.innerHTML=r.data.items.map(x=>`<div class="doc-row" data-ref="${esc(x.ref_key)}" data-name="${esc(x.name||'')}" data-phone="${esc(x.phone||'')}"><div><div class="dt">${esc(x.name||'—')}</div><div class="ds">${esc(x.code||'')} · ${esc(x.phone||'')}</div></div></div>`).join('');
+      sug.style.display='block';
+      sug.querySelectorAll('[data-ref]').forEach(it=>it.onclick=()=>{ ref=it.dataset.ref; q.value=it.dataset.name; bg.querySelector('[data-nd=phone]').value=it.dataset.phone; sug.style.display='none'; }); },300); });
+  bg.querySelector('#ndSave').onclick=async()=>{
+    const name=q.value.trim(); if(!name){toast('Укажите клиента','i-info');return;}
+    const body={funnel:state.funnel,stage:bg.querySelector('[data-nd=stage]').value,client_ref:ref,client_name:name,phone:bg.querySelector('[data-nd=phone]').value.trim(),amount:Number(bg.querySelector('[data-nd=amount]').value)||0,source:bg.querySelector('[data-nd=source]').value,mgr:bg.querySelector('[data-nd=mgr]').value.trim(),note:bg.querySelector('[data-nd=note]').value.trim()};
+    const r=await api('/api/deals',{method:'POST',body:JSON.stringify(body)});
+    if(!r.ok){toast('Не удалось создать сделку','i-x','#dc2626');return;}
+    closeModal(); toast('Сделка создана','i-funnel'); onSaved&&onSaved();
+  };
+}
+function dealModalLive(d){
+  const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
+  const bg=openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.client_name||'?')}">${initials(d.client_name||'?')}</span><div><h3>${esc(d.client_name||'—')}</h3><div class="mh-sub">${esc(d.phone||'')} ${d.client_ref?'· привязан к 1С':''}</div></div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld-row"><div class="fld"><label>Этап</label><select data-dm="stage">${stages.map(s=>`<option ${s===d.stage?'selected':''}>${esc(s)}</option>`).join('')}</select></div><div class="fld"><label>Сумма, с</label><input data-dm="amount" type="number" value="${d.amount||0}"></div></div>
+    <div class="fld-row"><div class="fld"><label>Ответственный</label><input data-dm="mgr" value="${esc(d.mgr||'')}"></div><div class="fld"><label>Источник</label><input data-dm="source" value="${esc(d.source||'')}"></div></div>
+    <div class="fld"><label>Комментарий</label><input data-dm="note" value="${esc(d.note||'')}"></div>
+  </div>
+  <div class="modal-f"><button class="btn" id="dmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="dmSave">Сохранить</button></div>`,'wide');
+  bg.querySelector('#dmSave').onclick=async()=>{
+    const body={stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),note:bg.querySelector('[data-dm=note]').value.trim()};
+    const r=await api('/api/deals/'+d.id,{method:'POST',body:JSON.stringify(body)});
+    if(!r.ok){toast('Ошибка сохранения','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); if(window.__reloadFunnels)window.__reloadFunnels();
+  };
+  bg.querySelector('#dmDel').onclick=async()=>{ if(!confirm('Удалить сделку?'))return; const r=await api('/api/deals/'+d.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Сделка удалена','i-check2'); if(window.__reloadFunnels)window.__reloadFunnels();} else toast('Ошибка','i-x','#dc2626'); };
+}
 function dealCard(d){
   const card=el(`<div class="kcard ${d.type==='b2b'?'b2b':''}" draggable="true" data-id="${d.id}">
     <div class="kc-top"><div class="kc-client">${d.client}</div>${d.hot?`<span class="tag red">${ic('i-flame','sm')}</span>`:''}</div>
