@@ -1087,22 +1087,76 @@ PAGES.analytics=(c)=>{
 
 // ---------- TASKS ----------
 PAGES.tasks=(c)=>{
-  c.appendChild(el(`<div class="toolbar"><div class="seg"><button class="on">Все</button><button>Мои</button><button>По сделкам</button><button>Функциональные</button></div>
-    <div class="spacer"></div><button class="btn primary" onclick="toast('Задача создана','i-check2')">${ic('i-plus','sm')} Задача</button></div>`));
-  const panel=el(`<div class="panel"></div>`);
-  DB.tasks.forEach(t=>{
-    const row=el(`<div class="row" style="padding:13px 18px;border-bottom:1px solid var(--line)">
-      <div class="toggle ${t.done?'on':''}" data-id="${t.id}"></div>
-      <div style="flex:1"><div style="font-weight:600;${t.done?'text-decoration:line-through;opacity:.5':''}">${t.title}</div>
-        <div class="muted" style="font-size:12px">${t.deal!=='—'?'сделка '+t.deal+' · ':''}${t.who} · ${t.due}</div></div>
-      <span class="tag ${t.type==='звонок'?'blue':t.type==='отгрузка'?'violet':'amber'}">${t.type}</span>
-      ${t.prio==='high'?'<span class="tag red">срочно</span>':''}</div>`);
-    row.querySelector('.toggle').onclick=function(){t.done=!t.done;this.classList.toggle('on');row.querySelector('div[style*="flex"] div').style.cssText=t.done?'font-weight:600;text-decoration:line-through;opacity:.5':'font-weight:600';toast(t.done?'Задача выполнена':'Задача возвращена в работу');};
-    panel.appendChild(row);
-  });
+  const tbar=el(`<div class="toolbar">
+    <div class="seg" data-tk="filter"><button class="on" data-s="active">Активные</button><button data-s="all">Все</button><button data-s="done">Выполненные</button></div>
+    <div class="spacer"></div><span class="ph-sub" data-tk="cnt"></span>
+    <button class="btn primary" id="newTaskBtn">${ic('i-plus','sm')} Задача</button></div>`);
+  c.appendChild(tbar);
+  const panel=el(`<div class="panel"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div>`);
   c.appendChild(panel);
-  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Автоматизированные «дела» — периодика по сделкам без ручного создания. Руководитель ставит задачи продавцам и видит выполнение в дашборде.</div>`));
+  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Задачи и follow-up по клиентам и сделкам. Можно привязать клиента из 1С, поставить срок и ответственного.</div>`));
+  const cnt=tbar.querySelector('[data-tk=cnt]'), seg=tbar.querySelector('[data-tk=filter]');
+  let status='active';
+  seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); status=b.dataset.s; load(); });
+  tbar.querySelector('#newTaskBtn').onclick=()=>newTaskLive(load);
+  const typeTag=(t)=>{ const m={'звонок':'blue','встреча':'violet','отгрузка':'amber'}; return `<span class="tag ${m[t]||''}">${esc(t||'задача')}</span>`; };
+  const overdue=(due,done)=>!done&&due&&due<new Date().toISOString().slice(0,10);
+  function rowLive(t){
+    const r=el(`<div class="row" style="padding:13px 18px;border-bottom:1px solid var(--line);gap:12px;align-items:center">
+      <div class="toggle ${t.done?'on':''}" style="flex:none"></div>
+      <div style="flex:1;min-width:0;cursor:pointer" data-edit><div style="font-weight:600;${t.done?'text-decoration:line-through;opacity:.5':''}">${esc(t.title)}</div>
+        <div class="muted" style="font-size:12px">${t.client_name?esc(t.client_name)+' · ':''}${t.assignee?esc(t.assignee)+' · ':''}${t.due_at?('срок '+esc(t.due_at)):'без срока'}</div></div>
+      ${overdue(t.due_at,t.done)?'<span class="tag red">просрочено</span>':''}${t.priority==='high'&&!t.done?'<span class="tag amber">срочно</span>':''}${typeTag(t.type)}
+      <button class="btn sm" data-del title="Удалить">${ic('i-x','sm')}</button></div>`);
+    r.querySelector('.toggle').onclick=async()=>{ const nd=!t.done; const rr=await api('/api/tasks/'+t.id,{method:'POST',body:JSON.stringify({done:nd})}); if(rr.ok){ toast(nd?'Задача выполнена':'Возвращена в работу','i-check2'); load(); } else toast('Ошибка','i-x','#dc2626'); };
+    r.querySelector('[data-edit]').onclick=()=>taskModalLive(t,load);
+    r.querySelector('[data-del]').onclick=async(e)=>{ e.stopPropagation(); if(!confirm('Удалить задачу?'))return; const rr=await api('/api/tasks/'+t.id,{method:'DELETE'}); if(rr.ok){toast('Удалено','i-check2');load();} else toast('Ошибка','i-x','#dc2626'); };
+    return r;
+  }
+  function rowDemo(t){ return el(`<div class="row" style="padding:13px 18px;border-bottom:1px solid var(--line)"><div class="toggle ${t.done?'on':''}"></div><div style="flex:1"><div style="font-weight:600;${t.done?'text-decoration:line-through;opacity:.5':''}">${esc(t.title)}</div><div class="muted" style="font-size:12px">${esc(t.who||'')} · ${esc(t.due||'')}</div></div><span class="tag">${esc(t.type||'')}</span></div>`); }
+  async function load(){
+    panel.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div>';
+    const r=await api('/api/tasks?status='+status);
+    if(!r.ok){ cnt.textContent='демо · нет связи'; panel.innerHTML=''; (DB.tasks||[]).forEach(t=>panel.appendChild(rowDemo(t))); return; }
+    const items=r.data.items||[], tt=r.data.totals||{};
+    cnt.textContent=(tt.active||0)+' активных · '+(tt.total||0)+' всего';
+    panel.innerHTML=''; if(!items.length){ panel.innerHTML='<div class="muted2" style="padding:18px;font-size:13px">Задач нет. Нажмите «Задача», чтобы создать.</div>'; return; }
+    items.forEach(t=>panel.appendChild(rowLive(t)));
+  }
+  load();
 };
+function newTaskLive(onSaved){
+  const bg=openModal(`<div class="modal-h"><div><h3>Новая задача</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld"><label>Название *</label><input data-nt="title" placeholder="Напр. перезвонить клиенту"></div>
+    <div class="fld-row"><div class="fld"><label>Тип</label><select data-nt="type"><option>задача</option><option>звонок</option><option>встреча</option><option>отгрузка</option><option>email</option></select></div><div class="fld"><label>Срок</label><input type="date" data-nt="due"></div></div>
+    <div class="fld-row"><div class="fld"><label>Приоритет</label><select data-nt="prio"><option value="normal">обычный</option><option value="high">срочно</option></select></div><div class="fld"><label>Ответственный</label><input data-nt="assignee" value="${esc((AUTH.user||{}).name||'')}"></div></div>
+    <div class="fld"><label>Клиент из 1С (необязательно)</label><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-nt="client" placeholder="поиск по 1С" autocomplete="off" style="width:100%"></div><div id="ntSug" class="panel" style="margin-top:4px;display:none;max-height:160px;overflow:auto"></div></div>
+    <div class="fld"><label>Комментарий</label><input data-nt="note"></div>
+  </div>
+  <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="ntSave">Создать</button></div>`);
+  const q=bg.querySelector('[data-nt=client]'), sug=bg.querySelector('#ntSug'); let ref=null,qt=null;
+  q.addEventListener('input',()=>{ ref=null; clearTimeout(qt); const v=q.value.trim(); if(v.length<2){sug.style.display='none';return;}
+    qt=setTimeout(async()=>{ const r=await api('/api/1c/contractors?limit=6&q='+encodeURIComponent(v)); if(!r.ok||!(r.data.items||[]).length){sug.style.display='none';return;}
+      sug.innerHTML=r.data.items.map(x=>`<div class="doc-row" data-ref="${esc(x.ref_key)}" data-name="${esc(x.name||'')}"><div><div class="dt">${esc(x.name||'—')}</div><div class="ds">${esc(x.code||'')} · ${esc(x.phone||'')}</div></div></div>`).join(''); sug.style.display='block';
+      sug.querySelectorAll('[data-ref]').forEach(it=>it.onclick=()=>{ref=it.dataset.ref;q.value=it.dataset.name;sug.style.display='none';}); },300); });
+  bg.querySelector('#ntSave').onclick=async()=>{ const title=bg.querySelector('[data-nt=title]').value.trim(); if(!title){toast('Укажите название','i-info');return;}
+    const body={title,type:bg.querySelector('[data-nt=type]').value,priority:bg.querySelector('[data-nt=prio]').value,due_at:bg.querySelector('[data-nt=due]').value,assignee:bg.querySelector('[data-nt=assignee]').value.trim(),client_ref:ref,client_name:q.value.trim(),note:bg.querySelector('[data-nt=note]').value.trim()};
+    const r=await api('/api/tasks',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Задача создана','i-check2'); onSaved&&onSaved(); };
+}
+function taskModalLive(t,onSaved){
+  const bg=openModal(`<div class="modal-h"><div><h3>Задача</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld"><label>Название</label><input data-tm="title" value="${esc(t.title||'')}"></div>
+    <div class="fld-row"><div class="fld"><label>Тип</label><select data-tm="type">${['задача','звонок','встреча','отгрузка','email'].map(x=>`<option ${x===t.type?'selected':''}>${x}</option>`).join('')}</select></div><div class="fld"><label>Срок</label><input type="date" data-tm="due" value="${esc(t.due_at||'')}"></div></div>
+    <div class="fld-row"><div class="fld"><label>Приоритет</label><select data-tm="prio"><option value="normal" ${t.priority!=='high'?'selected':''}>обычный</option><option value="high" ${t.priority==='high'?'selected':''}>срочно</option></select></div><div class="fld"><label>Ответственный</label><input data-tm="assignee" value="${esc(t.assignee||'')}"></div></div>
+    <div class="fld"><label>Комментарий</label><input data-tm="note" value="${esc(t.note||'')}"></div>
+    ${t.client_name?`<div class="note blue section-gap">${ic('i-info','sm')} Клиент: ${esc(t.client_name)}</div>`:''}
+  </div>
+  <div class="modal-f"><button class="btn" id="tmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="tmSave">Сохранить</button></div>`);
+  bg.querySelector('#tmSave').onclick=async()=>{ const body={title:bg.querySelector('[data-tm=title]').value.trim(),type:bg.querySelector('[data-tm=type]').value,priority:bg.querySelector('[data-tm=prio]').value,due_at:bg.querySelector('[data-tm=due]').value,assignee:bg.querySelector('[data-tm=assignee]').value.trim(),note:bg.querySelector('[data-tm=note]').value.trim()}; const r=await api('/api/tasks/'+t.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
+  bg.querySelector('#tmDel').onclick=async()=>{ if(!confirm('Удалить задачу?'))return; const r=await api('/api/tasks/'+t.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
+}
 
 // ---------- SUBS ----------
 PAGES.subs=(c)=>{
