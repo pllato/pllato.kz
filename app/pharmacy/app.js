@@ -312,19 +312,33 @@ function newDeal(){openModal(`<div class="modal-h"><div><h3>Новая сдел�
 PAGES.clients=(c)=>{
   const tbar=el(`<div class="toolbar">
     <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по ФИО, телефону, коду, ИНН…" data-cl="q"></div>
-    <select class="sel" data-cl="role"><option value="">Все роли</option><option value="buyer">Покупатели</option><option value="supplier">Поставщики</option></select>
+    <select class="sel" data-cl="seg"><option value="">Все сегменты</option><option value="b2c">B2C · розница</option><option value="b2b">B2B · опт</option><option value="doctor">Врачи-партнёры</option><option value="supplier">Поставщики</option></select>
     <div class="spacer"></div>
     <span class="ph-sub" data-cl="cnt"></span>
   </div>`);
   c.appendChild(tbar);
+  const segCards=el(`<div class="cards-row section-gap"></div>`);
+  c.appendChild(segCards);
   const panel=el(`<div class="panel"><table class="tbl"><thead><tr>
-    <th>Клиент</th><th>Телефон</th><th>Код 1С</th><th>ИНН</th><th>Тип</th><th>Роль</th></tr></thead><tbody><tr><td colspan="6" class="muted2" style="font-size:13px">Загрузка…</td></tr></tbody></table></div>`);
-  const tb=panel.querySelector('tbody'), cnt=tbar.querySelector('[data-cl=cnt]'), qInput=tbar.querySelector('[data-cl=q]'), roleSel=tbar.querySelector('[data-cl=role]');
-  const kindTag=(k)=> k==='ЮридическоеЛицо'?'<span class="tag blue">юр.лицо</span>': k==='ФизическоеЛицо'?'<span class="tag">физ.лицо</span>':'—';
+    <th>Клиент</th><th>Телефон</th><th>Код 1С</th><th>ИНН</th><th>Сегмент</th><th>Роль</th></tr></thead><tbody><tr><td colspan="6" class="muted2" style="font-size:13px">Загрузка…</td></tr></tbody></table></div>`);
+  const tb=panel.querySelector('tbody'), cnt=tbar.querySelector('[data-cl=cnt]'), qInput=tbar.querySelector('[data-cl=q]'), segSel=tbar.querySelector('[data-cl=seg]');
+  const segTag=(s)=>{ const m={b2c:'green',b2b:'blue',doctor:'pink',supplier:'amber'},t={b2c:'B2C',b2b:'B2B',doctor:'врач',supplier:'поставщик'}; return s?`<span class="tag ${m[s]||''}">${t[s]||s}</span>`:'—'; };
   const roleTags=(r)=> ((r.is_buyer?'<span class="tag green">покупатель</span>':'')+(r.is_supplier?'<span class="tag amber">поставщик</span>':''))||'—';
   function rowLive(r){ return `<td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(r.name||'?')}">${initials(r.name||'?')}</span><div>${esc(r.name||'—')}</div></div></td>
     <td>${esc(r.phone||'—')}</td><td class="muted2">${esc(r.code||'—')}</td><td class="muted">${esc(r.inn||'—')}</td>
-    <td>${kindTag(r.kind)}</td><td>${roleTags(r)}</td>`; }
+    <td>${segTag(r.segment)}</td><td>${roleTags(r)}</td>`; }
+  async function loadSegments(){
+    const r=await api('/api/1c/segments');
+    if(!r.ok){ segCards.innerHTML=''; return; }
+    const rev=r.data.revenue||{}, n=r.data.counts||{};
+    segCards.innerHTML =
+      dashKpi('i-users','#10b981','Розница · B2C',money(rev.b2c||0),(n.b2c||0)+' '+plural(n.b2c||0,'клиент','клиента','клиентов'),0)
+      + dashKpi('i-truck','#2563eb','Опт · B2B',money(rev.b2b||0),(n.b2b||0)+' '+plural(n.b2b||0,'клиент','клиента','клиентов'),0)
+      + dashKpi('i-tooth','#db2777','Врачи-партнёры',money(rev.doctor||0),(n.doctor||0)+' '+plural(n.doctor||0,'врач','врача','врачей'),0)
+      + dashKpi('i-box','#d97706','Поставщики','—',(n.supplier||0)+' '+plural(n.supplier||0,'поставщик','поставщика','поставщиков'),0);
+    const set=(v,base,c2)=>{ const o=[...segSel.options].find(o=>o.value===v); if(o&&c2!=null)o.textContent=base+' ('+c2+')'; };
+    set('b2c','B2C · розница',n.b2c); set('b2b','B2B · опт',n.b2b); set('doctor','Врачи-партнёры',n.doctor); set('supplier','Поставщики',n.supplier);
+  }
   function rowDemo(cl){ const type=Array.isArray(cl.type)?cl.type:[]; return `<td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(cl.name)}">${initials(cl.name)}</span><div>${esc(cl.name)}</div></div></td>
     <td>${esc(cl.phone||'—')}</td><td class="muted2">${esc(cl.card||'—')}</td><td class="muted">—</td>
     <td>${type.map(t=>`<span class="tag" style="margin:1px">${esc(t)}</span>`).join('')}</td><td>${esc(cl.mgr||'—')}</td>`; }
@@ -340,8 +354,8 @@ PAGES.clients=(c)=>{
     pgPrev.disabled=offset<=0; pgNext.disabled=offset+PAGE>=total;
   }
   async function load(){
-    const q=qInput.value.trim(), role=roleSel.value;
-    const r=await api('/api/1c/contractors?limit='+PAGE+'&offset='+offset+(role?('&role='+role):'')+(q?('&q='+encodeURIComponent(q)):''));
+    const q=qInput.value.trim(), seg=segSel.value;
+    const r=await api('/api/1c/contractors?limit='+PAGE+'&offset='+offset+(seg?('&segment='+seg):'')+(q?('&q='+encodeURIComponent(q)):''));
     if(!r.ok){
       cnt.textContent = r.status===401?'демо · войдите' : r.status===403?'демо · нужен доступ' : 'демо · нет связи';
       tb.innerHTML=''; DB.clients.forEach(cl=>{ const tr=el(`<tr class="clickable">${rowDemo(cl)}</tr>`); tr.onclick=()=>clientModal(cl); tb.appendChild(tr); });
@@ -356,12 +370,12 @@ PAGES.clients=(c)=>{
   }
   let qt=null;
   qInput.addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(()=>{offset=0;load();},300);});
-  roleSel.onchange=()=>{offset=0;load();};
+  segSel.onchange=()=>{offset=0;load();};
   pgPrev.onclick=()=>{ if(offset>0){offset=Math.max(0,offset-PAGE);load();$('#content').scrollTop=0;} };
   pgNext.onclick=()=>{ if(offset+PAGE<total){offset+=PAGE;load();$('#content').scrollTop=0;} };
-  load();
+  load(); loadSegments();
   c.appendChild(panel); c.appendChild(pager);
-  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} База клиентов — контрагенты из 1С (покупатели, поставщики, врачи-партнёры). Синхронизация раз в 30 мин. Сегмент B2B/B2C и историю покупок подключим следующими шагами.</div>`));
+  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} База клиентов — контрагенты из 1С. Сегмент: B2C (физлица, розница) · B2B (юр.лица и ИП, опт) · Врачи-партнёры · Поставщики. Выручка по сегментам — из регистра «Продажи» 1С (розница без контрагента учтена в B2C). Синхронизация раз в 30 мин.</div>`));
 };
 function contractorModal(r){
   openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(r.name||'?')}">${initials(r.name||'?')}</span>
