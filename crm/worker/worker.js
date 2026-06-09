@@ -1166,7 +1166,6 @@ async function ensureContractsTables(env) {
       updated_at  INTEGER NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_contracts_updated ON contracts(updated_at DESC)`,
-    `CREATE INDEX IF NOT EXISTS idx_contracts_public_token ON contracts(public_token)`,
     `CREATE TABLE IF NOT EXISTS contract_signers (
       id             TEXT PRIMARY KEY,
       contract_id    TEXT NOT NULL,
@@ -1200,6 +1199,8 @@ async function ensureContractsTables(env) {
   }
   try { await db.prepare(`ALTER TABLE contracts ADD COLUMN public_token TEXT`).run(); }
   catch (_e) { /* колонка уже есть */ }
+  try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_contracts_public_token ON contracts(public_token)`).run(); }
+  catch (_e) { /* индекс уже есть */ }
   contractsTablesReady = true;
 }
 
