@@ -890,17 +890,29 @@ function doctorModalLive(d,rate){
       <div id="docHist"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>
   </div>
   <div class="modal-f">
-    <button class="btn" onclick="toast('Отчёт по врачу выгружен','i-doc')">${ic('i-doc','sm')} Выгрузить отчёт</button>
+    <button class="btn" id="cbReportBtn">${ic('i-doc','sm')} Выгрузить отчёт</button>
     <button class="btn primary" id="cbAccrueBtn">${ic('i-gift','sm')} Начислить кэшбек ${money(cbSum)}</button>
   </div>`,'wide');
-  const cbb=document.getElementById('cbAccrueBtn'); if(cbb) cbb.onclick=()=>accrueCashback(d.ref_key,rate);
+  const cbb=document.getElementById('cbAccrueBtn');
+  if(cbb) cbb.onclick=async()=>{
+    cbb.disabled=true; cbb.textContent='Начисляю…';
+    const r=await api('/api/1c/doctors/cashback',{method:'POST',body:JSON.stringify({doctor_ref:d.ref_key,rate})});
+    if(!r.ok){ cbb.disabled=false; cbb.innerHTML=ic('i-gift','sm')+' Начислить кэшбек '+money(cbSum); toast((r.data&&r.data.error)||'Не удалось начислить кэшбек','i-x','#dc2626'); return; }
+    cbb.disabled=true; cbb.classList.remove('primary'); cbb.innerHTML=ic('i-check2','sm')+' Начислено '+money(r.data.amount||0);
+    toast('Кэшбек '+money(r.data.amount||0)+' начислен · смотри «Журнал кэшбека»','i-gift','#db2777');
+  };
+  const rep=document.getElementById('cbReportBtn'); if(rep) rep.onclick=()=>exportDoctorReport(d);
   loadDoctorHistory(d.ref_key);
 }
-async function accrueCashback(ref,rate){
-  const r=await api('/api/1c/doctors/cashback',{method:'POST',body:JSON.stringify({doctor_ref:ref,rate})});
-  if(!r.ok){ toast((r.data&&r.data.error)||'Не удалось начислить кэшбек','i-x','#dc2626'); return; }
-  closeModal();
-  toast('Кэшбек '+money(r.data.amount||0)+' начислен · '+(r.data.doctor_name||''),'i-gift','#db2777');
+async function exportDoctorReport(d){
+  toast('Готовлю отчёт…','i-doc');
+  const r=await api('/api/1c/sales?contractor='+encodeURIComponent(d.ref_key)+'&limit=500');
+  const it=(r.ok&&r.data.items)?r.data.items:[];
+  const head=[['Врач',d.name||''],['Промокод',d.code||''],['Город',d.city||''],['Выручка (сом)',Math.round(d.revenue||0)],['Продаж',d.docs||0],['']];
+  const body=[['Дата','Товар','Кол-во','Сумма (сом)']].concat(it.map(x=>[(x.date||'').slice(0,10),x.name||'',x.qty||0,Math.round(x.amount||0)]));
+  const csv='﻿'+head.concat(body).map(row=>row.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download='Отчёт_врач_'+(d.code||'врач')+'.csv'; a.click(); URL.revokeObjectURL(a.href);
+  toast('Отчёт по врачу выгружен (CSV)','i-doc');
 }
 async function cashbackJournalModal(){
   openModal(`<div class="modal-h"><div><h3>Журнал кэшбека врачам</h3><div class="mh-sub">начисления и выплаты</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
