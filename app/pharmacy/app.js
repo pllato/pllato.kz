@@ -93,7 +93,7 @@ function renderNav(){
     items.forEach(it=>{
       let badge=it.badge;
       if(it.id==='inbox') badge=String(DB.threads.reduce((a,t)=>a+(t.unread||0),0)||'');
-      if(it.id==='tasks') badge=String(DB.tasks.filter(t=>!t.done).length||'');
+      if(it.id==='tasks') badge=String((window.__taskBadge!=null?window.__taskBadge:0)||'');
       const b=el(`<button class="nav-item ${state.page===it.id?'active':''}" data-page="${it.id}">
         ${ic(it.i)}<span>${it.t}</span>${badge?`<span class="badge ${it.alt?'alt':''}">${badge}</span>`:''}</button>`);
       b.onclick=()=>go(it.id);
@@ -1120,6 +1120,7 @@ PAGES.tasks=(c)=>{
     if(!r.ok){ cnt.textContent='демо · нет связи'; panel.innerHTML=''; (DB.tasks||[]).forEach(t=>panel.appendChild(rowDemo(t))); return; }
     const items=r.data.items||[], tt=r.data.totals||{};
     cnt.textContent=(tt.active||0)+' активных · '+(tt.total||0)+' всего';
+    window.__taskBadge=tt.active||0; renderNav();
     panel.innerHTML=''; if(!items.length){ panel.innerHTML='<div class="muted2" style="padding:18px;font-size:13px">Задач нет. Нажмите «Задача», чтобы создать.</div>'; return; }
     items.forEach(t=>panel.appendChild(rowLive(t)));
   }
@@ -1957,6 +1958,8 @@ function applyUser(user){
   const sel=$('#roleSel'); if(sel){ const o=[...sel.options].find(x=>x.value===r); if(o) sel.value=r; }
   if(!DB.access[state.role].includes(state.page)) state.page = DB.access[state.role][0];
   renderRoleSel(); renderNav(); renderPage();
+  // реальный счётчик активных задач для бейджа в меню
+  if((DB.access[state.role]||[]).includes('tasks')) api('/api/tasks?status=active').then(r=>{ if(r&&r.ok){ window.__taskBadge=(r.data.totals||{}).active||0; renderNav(); } }).catch(()=>{});
 }
 
 async function doLogin(ident, password){
