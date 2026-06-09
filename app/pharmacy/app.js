@@ -102,7 +102,10 @@ function renderNav(){
   });
 }
 function renderRoleSel(){
-  const sel=$('#roleSel');sel.innerHTML='';
+  const sel=$('#roleSel'); if(!sel) return;
+  // Переключатель ролей — только для админов (владелец/суперадмин). Остальным скрываем (роль фиксирована).
+  if(!isAdminRole()){ sel.style.display='none'; sel.onchange=null; return; }
+  sel.style.display=''; sel.innerHTML='';
   DB.roles.forEach(r=>sel.appendChild(el(`<option value="${r.id}" ${state.role===r.id?'selected':''}>${r.name} (${r.who})</option>`)));
   sel.onchange=()=>{state.role=sel.value;const r=DB.roles.find(x=>x.id===state.role);
     $('#userName').textContent=r.who;$('#userRole').textContent=r.name;
@@ -1826,7 +1829,7 @@ function applyUser(user){
   state.role = r;
   const sel=$('#roleSel'); if(sel){ const o=[...sel.options].find(x=>x.value===r); if(o) sel.value=r; }
   if(!DB.access[state.role].includes(state.page)) state.page = DB.access[state.role][0];
-  renderNav(); renderPage();
+  renderRoleSel(); renderNav(); renderPage();
 }
 
 async function doLogin(ident, password){
