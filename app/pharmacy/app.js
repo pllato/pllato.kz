@@ -1336,11 +1336,31 @@ PAGES.integrations=(c)=>{
   });
   c.appendChild(grid);
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Поведение при сбоях: 1С недоступен → заказы копятся в очереди, после восстановления — досинхронизация. GreenAPI/Meta недоступны → сотрудники работают с телефонов, синхронизация подхватит.</div>`));
-  c.appendChild(el(`<div class="panel section-gap"><div class="panel-h"><h3>Журнал обмена с 1С</h3></div>
-    <table class="tbl"><thead><tr><th>Время</th><th>Операция</th><th>Объект</th><th>Статус</th></tr></thead><tbody>
-    ${[['12:01','Чтение остатков','4 012 SKU','ok'],['11:58','Запись заказа','#1078 → заказ покупателя','ok'],['11:40','Webhook дисконт.карта','DC-0502 → клиент','ok'],['11:20','Запись заказа','#B-205','очередь · 1С недоступен']].map(r=>`<tr><td class="muted2">${r[0]}</td><td>${r[1]}</td><td class="muted">${r[2]}</td><td><span class="tag ${r[3]==='ok'?'green':'amber'}">${r[3]}</span></td></tr>`).join('')}
-  </tbody></table></div>`));
+  const syncBox=el(`<div class="panel section-gap"><div class="panel-h"><h3>${ic('i-sync','sm')} Статус синхронизации 1С</h3><span class="ph-sub" id="syncSub" style="margin-left:auto"></span></div>
+    <div id="syncBody"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>`);
+  c.appendChild(syncBox);
+  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Продажи и цены синхронизируются <b>инкрементально</b> (только свежие записи по дате) — поэтому «строк в последнем прогоне» по ним небольшое, а в зеркале — вся история. Справочники и товары — полностью. Полная сверка — ночью (04:00–06:00).</div>`));
+  loadSyncStatus();
 };
+async function loadSyncStatus(){
+  const body=document.getElementById('syncBody'), sub=document.getElementById('syncSub');
+  if(!body) return;
+  const fdt=(ms)=>ms?new Date(ms).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+  const r=await api('/api/1c/sync-status');
+  if(!r.ok){ if(sub)sub.textContent=r.status===403?'нужен доступ':r.status===401?'войдите':'демо · нет связи'; body.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">Статус доступен с боевыми данными 1С</div>'; return; }
+  const d=r.data, ents=d.entities||[], M=d.mirror||{};
+  const L={products:'Товары',categories:'Категории',orgs:'Организации',contractors:'Контрагенты',pricetypes:'Виды цен',prices:'Цены',stock:'Остатки',users:'Пользователи',persons:'Физлица',employees:'Сотрудники',stores:'Склады',sales:'Продажи'};
+  const mir={products:M.products,contractors:M.contractors,sales:M.sales,prices:M.prices,persons:M.persons,stores:M.stores};
+  const incr={sales:1,prices:1};
+  if(sub) sub.textContent = ents.length? ('обновлено '+fdt(Math.max(...ents.map(e=>e.last_sync||0)))) : '';
+  if(!ents.length){ body.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">Синхронизация ещё не запускалась</div>'; return; }
+  body.innerHTML='<table class="tbl"><thead><tr><th>Сущность</th><th>Последняя синхр.</th><th class="num">Строк в посл. прогоне</th><th class="num">Всего в зеркале</th></tr></thead><tbody>'+
+    ents.map(e=>`<tr><td>${esc(L[e.entity]||e.entity)}${incr[e.entity]?' <span class="tag green" style="font-size:9px;vertical-align:middle">инкр.</span>':''}</td>
+      <td class="muted2">${fdt(e.last_sync)}</td>
+      <td class="num">${(e.last_run_rows||0).toLocaleString('ru-RU')}</td>
+      <td class="num">${mir[e.entity]!=null?mir[e.entity].toLocaleString('ru-RU'):'<span class="muted2">—</span>'}</td></tr>`).join('')+
+    '</tbody></table>';
+}
 
 // ---------- SETTINGS ----------
 PAGES.settings=(c)=>{
