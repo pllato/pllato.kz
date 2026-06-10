@@ -905,28 +905,138 @@ function promoModalLive(p,onSaved){
 }
 
 // ---------- BLOGGERS ----------
+const BLOG_PLATFORMS=[['','—'],['instagram','instagram'],['tiktok','tiktok'],['youtube','youtube'],['telegram','telegram'],['другое','другое']];
+const BLOG_MODELS=[['per_sale','За продажу (сом)'],['percent','% от продаж'],['fixed','Фикс / мес'],['barter','Бартер']];
+function payoutLabel(b){ const m=b.payout_model||'per_sale', v=b.payout_value||0; if(m==='barter')return 'Бартер'; if(m==='percent')return v+'% с продаж'; if(m==='fixed')return money(v)+'/мес'; return money(v)+' / прод.'; }
+function blogStatusTag(s){ return s==='paused'?'<span class="tag amber">пауза</span>':s==='archived'?'<span class="tag">архив</span>':'<span class="tag green">активен</span>'; }
+function blogCard(b){
+  const cpa=(b.uses>0)?money(Math.round((b.paid||0)/b.uses)):'—';
+  return `<div class="list-card" style="cursor:pointer">
+    <div class="row"><span class="avatar-xs" style="width:42px;height:42px;font-size:14px;background:${avBg(b.nick||b.name||'?')}">${initials(b.name||b.nick||'?')}</span>
+      <div style="min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.nick||b.name||'—')}</div><div class="muted" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.name||'')}${b.topic?(' · '+esc(b.topic)):''}</div></div>
+      ${b.code?`<span class="tag pink" style="margin-left:auto;flex:none">${esc(b.code)}</span>`:`<span style="margin-left:auto;flex:none">${blogStatusTag(b.status)}</span>`}</div>
+    <div class="grid-2b section-gap" style="gap:11px">
+      <div><div class="muted" style="font-size:11px">Охват</div><div style="font-weight:700">${esc(b.reach||'—')}</div></div>
+      <div><div class="muted" style="font-size:11px">Конверсии</div><div style="font-weight:700">${b.uses||0}</div></div>
+      <div><div class="muted" style="font-size:11px">Модель</div><div style="font-weight:700;font-size:13px;white-space:nowrap">${payoutLabel(b)}</div></div>
+      <div><div class="muted" style="font-size:11px">CPA</div><div style="font-weight:700;white-space:nowrap">${cpa}</div></div>
+    </div>
+    <div class="row section-gap" style="justify-content:space-between;padding-top:12px;border-top:1px solid var(--line)">
+      <div class="row" style="gap:6px">${b.code?blogStatusTag(b.status):''}${b.platform?`<span class="tag">${esc(b.platform)}</span>`:''}</div>
+      <div style="text-align:right"><div class="muted" style="font-size:11px">Выплачено</div><div style="font-weight:800;color:var(--accent2);white-space:nowrap">${money(b.paid||0)}</div></div>
+    </div></div>`;
+}
+function blogCardDemo(b){
+  return `<div class="list-card">
+    <div class="row"><span class="avatar-xs" style="width:42px;height:42px;font-size:14px;background:${avBg(b.nick)}">${initials(b.name)}</span>
+      <div><div style="font-weight:700">${esc(b.nick)}</div><div class="muted" style="font-size:12px">${esc(b.name)} · ${esc(b.topic)}</div></div>
+      <span class="tag pink" style="margin-left:auto">${esc(b.code)}</span></div>
+    <div class="grid-2b section-gap" style="gap:11px">
+      <div><div class="muted" style="font-size:11px">Охват</div><div style="font-weight:700">${esc(b.reach)}</div></div>
+      <div><div class="muted" style="font-size:11px">Переходы</div><div style="font-weight:700">${b.clicks}</div></div>
+      <div><div class="muted" style="font-size:11px">Продажи</div><div style="font-weight:700">${b.sales}</div></div>
+      <div><div class="muted" style="font-size:11px">Средний чек</div><div style="font-weight:700">${money(b.avg)}</div></div>
+    </div>
+    <div class="row section-gap" style="justify-content:space-between;padding-top:12px;border-top:1px solid var(--line)">
+      <div><div class="muted" style="font-size:11px">ROI</div><div style="font-weight:800;color:var(--accent2);font-size:18px">${b.roi}</div></div>
+      <div style="text-align:right"><div class="muted" style="font-size:11px">Выплачено</div><div style="font-weight:700">${money(b.paid)}</div></div>
+    </div></div>`;
+}
 PAGES.bloggers=(c)=>{
-  c.appendChild(el(`<div class="toolbar"><div class="page-sub">Партнёры по маркетингу · KPI: переходы → продажи → ROI</div><div class="spacer"></div>
-    <button class="btn primary" onclick="toast('Карточка блогера создана','i-star')">${ic('i-plus','sm')} Блогер</button></div>`));
-  const grid=el(`<div class="grid-3"></div>`);
-  DB.bloggers.forEach(b=>{
-    grid.appendChild(el(`<div class="list-card">
-      <div class="row"><span class="avatar-xs" style="width:42px;height:42px;font-size:14px;background:${avBg(b.nick)}">${initials(b.name)}</span>
-        <div><div style="font-weight:700">${b.nick}</div><div class="muted" style="font-size:12px">${b.name} · ${b.topic}</div></div>
-        <span class="tag pink" style="margin-left:auto">${b.code}</span></div>
-      <div class="grid-2b section-gap" style="gap:11px">
-        <div><div class="muted" style="font-size:11px">Охват</div><div style="font-weight:700">${b.reach}</div></div>
-        <div><div class="muted" style="font-size:11px">Переходы</div><div style="font-weight:700">${b.clicks}</div></div>
-        <div><div class="muted" style="font-size:11px">Продажи</div><div style="font-weight:700">${b.sales}</div></div>
-        <div><div class="muted" style="font-size:11px">Средний чек</div><div style="font-weight:700">${money(b.avg)}</div></div>
-      </div>
-      <div class="row section-gap" style="justify-content:space-between;padding-top:12px;border-top:1px solid var(--line)">
-        <div><div class="muted" style="font-size:11px">ROI</div><div style="font-weight:800;color:var(--accent2);font-size:18px">${b.roi}</div></div>
-        <div style="text-align:right"><div class="muted" style="font-size:11px">Выплачено</div><div style="font-weight:700">${money(b.paid)}</div></div>
-      </div></div>`));
-  });
-  c.appendChild(grid);
+  const tbar=el(`<div class="toolbar">
+    <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по нику, имени, коду, нише…" data-bl="q"></div>
+    <div class="spacer"></div>
+    <button class="btn primary" id="newBlogBtn">${ic('i-plus','sm')} Блогер</button></div>`);
+  const cards=el(`<div class="cards-row section-gap"></div>`);
+  const grid=el(`<div class="grid-3 section-gap"></div>`);
+  c.appendChild(tbar); c.appendChild(cards); c.appendChild(grid);
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Блогеры — внешние партнёры с персональным промокодом. «Конверсии» = использования кода (из раздела «Маркетинг»). Выплаты фиксируются вручную по факту перечисления; CPA = выплачено ÷ конверсии.</div>`));
+  const qI=tbar.querySelector('[data-bl=q]');
+  async function load(){
+    const q=qI.value.trim();
+    const r=await api('/api/bloggers'+(q?('?q='+encodeURIComponent(q)):''));
+    if(!r.ok){ cards.innerHTML=miniStat('i-star','#db2777','Блогеры','демо'); grid.innerHTML=(DB.bloggers||[]).map(blogCardDemo).join(''); return; }
+    const t=r.data.totals||{};
+    cards.innerHTML = miniStat('i-star','#db2777','Всего блогеров',t.total||0)
+      + miniStat('i-check2','#10b981','Активных',t.active||0)
+      + miniStat('i-tag','#2563eb','Конверсий (коды)',t.conversions||0)
+      + miniStat('i-money','#d97706','Выплачено',money(t.paid||0));
+    const items=r.data.items||[];
+    if(!items.length){ grid.innerHTML=`<div class="panel" style="grid-column:1/-1;text-align:center;padding:42px;color:var(--muted)">${ic('i-star','lg')}<div style="margin-top:8px;font-weight:600">${q?'Ничего не найдено':'Блогеров пока нет'}</div><div class="muted2" style="font-size:12px;margin-top:4px">${q?'Измените запрос':'Добавьте первого партнёра кнопкой «Блогер»'}</div></div>`; return; }
+    grid.innerHTML=''; items.forEach(b=>{ const card=el(blogCard(b)); card.onclick=()=>bloggerModalLive(b,load); grid.appendChild(card); });
+  }
+  qI.addEventListener('input',()=>{clearTimeout(qI._t);qI._t=setTimeout(load,300);});
+  tbar.querySelector('#newBlogBtn').onclick=()=>newBloggerLive(load);
+  load();
 };
+function newBloggerLive(onSaved){
+  const bg=openModal(`<div class="modal-h"><div><h3>Новый блогер</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld-row"><div class="fld"><label>Ник / аккаунт *</label><input data-nb="nick" placeholder="@nick"></div><div class="fld"><label>Имя</label><input data-nb="name" placeholder="Имя Фамилия"></div></div>
+    <div class="fld-row"><div class="fld"><label>Площадка</label><select data-nb="platform">${BLOG_PLATFORMS.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></div><div class="fld"><label>Ниша / тематика</label><input data-nb="topic" placeholder="Бьюти, стоматология…"></div></div>
+    <div class="fld-row"><div class="fld"><label>Охват</label><input data-nb="reach" placeholder="82k"></div><div class="fld"><label>Промокод</label><input data-nb="code" placeholder="BLOG_NICK"></div></div>
+    <div class="fld-row"><div class="fld"><label>Модель оплаты</label><select data-nb="payout_model">${BLOG_MODELS.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></div><div class="fld"><label>Ставка</label><input data-nb="payout_value" type="number" value="0"></div></div>
+    <div class="fld"><label>Контакт для выплат</label><input data-nb="contact" placeholder="телефон / карта / Kaspi"></div>
+    <div class="fld"><label>Комментарий</label><input data-nb="note"></div>
+    <div class="note blue">${ic('i-info','sm')} Промокод свяжет блогера со статистикой использований из «Маркетинга». Сам код создаётся там же.</div>
+  </div>
+  <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="nbSave">Создать</button></div>`);
+  bg.querySelector('#nbSave').onclick=async()=>{
+    const g=s=>bg.querySelector('[data-nb='+s+']').value;
+    const nick=g('nick').trim(), name=g('name').trim();
+    if(!nick&&!name){toast('Укажите ник или имя','i-info');return;}
+    const body={nick,name,platform:g('platform'),topic:g('topic').trim(),reach:g('reach').trim(),code:g('code').trim(),payout_model:g('payout_model'),payout_value:Number(g('payout_value'))||0,contact:g('contact').trim(),note:g('note').trim()};
+    const r=await api('/api/bloggers',{method:'POST',body:JSON.stringify(body)});
+    if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Блогер добавлен','i-star'); onSaved&&onSaved();
+  };
+}
+function bloggerModalLive(b,onSaved){
+  const cpa=(b.uses>0)?money(Math.round((b.paid||0)/b.uses)):'—';
+  const bg=openModal(`<div class="modal-h"><div><h3>${esc(b.nick||b.name||'Блогер')}</h3><div class="mh-sub">${esc(b.name||'')}${b.topic?(' · '+esc(b.topic)):''}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="cards-row">
+      ${miniStat('i-eye','#2563eb','Охват',esc(b.reach||'—'))}
+      ${miniStat('i-tag','#10b981','Конверсии',b.uses||0)}
+      ${miniStat('i-money','#d97706','Выплачено',money(b.paid||0))}
+      ${miniStat('i-chart','#7c3aed','CPA',cpa)}
+    </div>
+    <div class="fld-row section-gap"><div class="fld"><label>Ник / аккаунт</label><input data-bm="nick" value="${esc(b.nick||'')}"></div><div class="fld"><label>Имя</label><input data-bm="name" value="${esc(b.name||'')}"></div></div>
+    <div class="fld-row"><div class="fld"><label>Площадка</label><select data-bm="platform">${BLOG_PLATFORMS.map(([v,t])=>`<option value="${v}" ${v===(b.platform||'')?'selected':''}>${t}</option>`).join('')}</select></div><div class="fld"><label>Ниша</label><input data-bm="topic" value="${esc(b.topic||'')}"></div></div>
+    <div class="fld-row"><div class="fld"><label>Охват</label><input data-bm="reach" value="${esc(b.reach||'')}"></div><div class="fld"><label>Промокод</label><input data-bm="code" value="${esc(b.code||'')}"></div></div>
+    <div class="fld-row"><div class="fld"><label>Модель оплаты</label><select data-bm="payout_model">${BLOG_MODELS.map(([v,t])=>`<option value="${v}" ${v===(b.payout_model||'per_sale')?'selected':''}>${t}</option>`).join('')}</select></div><div class="fld"><label>Ставка</label><input data-bm="payout_value" type="number" value="${b.payout_value||0}"></div></div>
+    <div class="fld-row"><div class="fld"><label>Контакт для выплат</label><input data-bm="contact" value="${esc(b.contact||'')}"></div><div class="fld"><label>Статус</label><select data-bm="status">${[['active','Активен'],['paused','Пауза'],['archived','Архив']].map(([v,t])=>`<option value="${v}" ${v===(b.status||'active')?'selected':''}>${t}</option>`).join('')}</select></div></div>
+    <div class="fld"><label>Комментарий</label><input data-bm="note" value="${esc(b.note||'')}"></div>
+    <div class="row section-gap" style="gap:8px;align-items:flex-end;border-top:1px solid var(--line);padding-top:14px">
+      <div class="fld" style="flex:1;margin:0"><label>Сумма выплаты</label><input data-bm="payamt" type="number" placeholder="напр. 18000"></div>
+      <div class="fld" style="flex:1;margin:0"><label>Период</label><input data-bm="payper" placeholder="Июнь 2026"></div>
+      <button class="btn" id="bmPay">${ic('i-money','sm')} Выплата</button>
+      <button class="btn sm" id="bmJournal">${ic('i-doc','sm')} Журнал</button>
+    </div>
+  </div>
+  <div class="modal-f"><button class="btn" id="bmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn primary" id="bmSave">Сохранить</button></div>`);
+  const g=s=>bg.querySelector('[data-bm='+s+']');
+  bg.querySelector('#bmSave').onclick=async()=>{ const body={nick:g('nick').value.trim(),name:g('name').value.trim(),platform:g('platform').value,topic:g('topic').value.trim(),reach:g('reach').value.trim(),code:g('code').value.trim(),payout_model:g('payout_model').value,payout_value:Number(g('payout_value').value)||0,contact:g('contact').value.trim(),status:g('status').value,note:g('note').value.trim()}; const r=await api('/api/bloggers/'+b.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
+  bg.querySelector('#bmPay').onclick=async()=>{ const amt=Number(g('payamt').value)||0; if(amt<=0){toast('Укажите сумму выплаты','i-info');return;} const r=await api('/api/bloggers/'+b.id+'/pay',{method:'POST',body:JSON.stringify({amount:amt,period_label:g('payper').value.trim()})}); if(!r.ok){toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626');return;} closeModal(); toast('Выплата зафиксирована: '+money(amt),'i-money'); onSaved&&onSaved(); };
+  bg.querySelector('#bmJournal').onclick=()=>blogPayoutsModal(b,onSaved);
+  bg.querySelector('#bmDel').onclick=async()=>{ if(!confirm('Удалить блогера и все его выплаты?'))return; const r=await api('/api/bloggers/'+b.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
+}
+function blogPayoutsModal(b,onSaved){
+  const bg=openModal(`<div class="modal-h"><div><h3>Журнал выплат</h3><div class="mh-sub">${esc(b.nick||b.name||'')}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b"><div class="panel"><table class="tbl"><thead><tr><th>Дата</th><th>Период</th><th class="num">Сумма</th><th>Кто</th><th></th></tr></thead><tbody id="bpRows"><tr><td colspan="5" class="muted2" style="padding:14px;font-size:13px">Загрузка…</td></tr></tbody></table></div></div>
+  <div class="modal-f"><button class="btn" onclick="closeModal()">Закрыть</button></div>`);
+  const fdt=(ms)=>ms?new Date(ms).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+  async function load(){
+    const r=await api('/api/bloggers/payouts?blogger_id='+b.id);
+    const tb=bg.querySelector('#bpRows');
+    if(!r.ok){ tb.innerHTML='<tr><td colspan="5" class="muted2" style="padding:14px">Ошибка загрузки</td></tr>'; return; }
+    const items=r.data.items||[];
+    if(!items.length){ tb.innerHTML='<tr><td colspan="5" class="muted2" style="padding:14px;font-size:13px">Выплат пока нет</td></tr>'; return; }
+    tb.innerHTML=items.map(p=>`<tr><td class="muted2" style="font-size:12px">${fdt(p.created_at)}</td><td>${esc(p.period_label||'—')}</td><td class="num" style="font-weight:700">${money(p.amount)}</td><td class="muted" style="font-size:12px">${esc(p.created_by||'—')}</td><td class="num"><button class="btn sm" data-del="${p.id}" title="Удалить">${ic('i-x','sm')}</button></td></tr>`).join('')
+      +`<tr><td colspan="2" style="font-weight:700">Итого</td><td class="num" style="font-weight:800;color:var(--accent2)">${money(r.data.totals.paid||0)}</td><td colspan="2"></td></tr>`;
+    tb.querySelectorAll('[data-del]').forEach(btn=>btn.onclick=async()=>{ if(!confirm('Удалить эту выплату?'))return; const rr=await api('/api/bloggers/payouts/'+btn.dataset.del,{method:'DELETE'}); if(rr.ok){toast('Выплата удалена','i-check2');load();onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); });
+  }
+  load();
+}
 
 // ---------- DOCTORS (врачи-партнёры · промокоды · кэшбек) ----------
 PAGES.doctors=(c)=>{
