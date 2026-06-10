@@ -1546,7 +1546,7 @@ PAGES.team=(c)=>{
         btn.disabled=true; btn.textContent='Сохраняю…';
         for(const role of toSave){ const rr=await api('/api/admin/roles',{method:'POST',body:JSON.stringify({role,sections:byRole[role]||[]})}); if(!rr.ok){ btn.disabled=false; toast('Ошибка сохранения','i-x','#dc2626'); return; } }
         toast('Права сохранены','i-shield','#10b981');
-        try{ const me=await api('/api/auth/me'); if(me.ok) AUTH.user=me.data; }catch(e2){}
+        try{ const me=await api('/api/auth/me'); if(me.ok) AUTH.user=me.data.user; }catch(e2){}
         loadPerm();
       };
     }
