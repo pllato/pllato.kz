@@ -83,8 +83,14 @@ const PAGE_META = {
 };
 
 // ---------- render shell ----------
+let ACCESS_MAP={}; // role -> sections (эффективные права из БД, загружаются для админов)
+function allowedSections(role){
+  if(ACCESS_MAP && ACCESS_MAP[role]) return ACCESS_MAP[role];
+  if(typeof AUTH!=='undefined' && AUTH.user && AUTH.user.role===role && Array.isArray(AUTH.user.sections)) return AUTH.user.sections;
+  return (DB.access && DB.access[role]) || [];
+}
 function renderNav(){
-  const allowed=DB.access[state.role];
+  const allowed=allowedSections(state.role);
   const nav=$('#nav');nav.innerHTML='';
   NAV.forEach(group=>{
     const items=group.items.filter(it=>allowed.includes(it.id));
@@ -110,7 +116,7 @@ function renderRoleSel(){
   sel.onchange=()=>{state.role=sel.value;const r=DB.roles.find(x=>x.id===state.role);
     $('#userName').textContent=r.who;$('#userRole').textContent=r.name;
     $('#userAv').textContent=initials(r.who);$('#userAv').style.background=r.color;
-    const allowed=DB.access[state.role];if(!allowed.includes(state.page))state.page=allowed[0];
+    const allowed=allowedSections(state.role);if(!allowed.includes(state.page))state.page=allowed[0];
     renderNav();renderPage();toast(`Роль: <b>${r.name}</b> — показаны только доступные разделы`,'i-shield',r.color);};
 }
 function go(p){state.page=p;document.getElementById('sidebar').classList.remove('open');renderNav();renderPage();}
@@ -1512,18 +1518,40 @@ function plural(n,one,few,many){ const m=n%100, d=n%10;
 // ---------- TEAM ----------
 PAGES.team=(c)=>{
   if(isAdminRole()) c.appendChild(invitesPanel());
-  const sections=[['Дашборд','dash'],['Воронки','funnels'],['Клиенты','clients'],['Чаты','inbox'],['Заказы','orders'],['Каталог','catalog'],['Маркетинг','marketing'],['Блогеры','bloggers'],['Врачи-партнёры','doctors'],['Аналитика','analytics'],['Задачи','tasks'],['Подписки','subs'],['Триггеры','triggers'],['AI-агент','ai'],['KPI','kpi'],['Команда','team'],['Интеграции','integrations'],['Настройки','settings']];
-  c.appendChild(el(`<div class="page-sub" style="margin-bottom:14px">Каждая роль видит только свой раздел. WhatsApp-каналы привязаны к сотрудникам.</div>`));
-  const panel=el(`<div class="panel" style="overflow-x:auto"><table class="tbl perm-tbl"><thead><tr><th>Раздел</th>${DB.roles.map(r=>`<th style="text-align:center">${r.name.split(' ')[0]}</th>`).join('')}</tr></thead><tbody>
-    ${sections.map(([lbl,id])=>`<tr><td>${lbl}</td>${DB.roles.map(r=>`<td style="text-align:center">${DB.access[r.id].includes(id)?'<span class="yes">'+ic('i-check2','sm')+'</span>':'<span class="no">—</span>'}</td>`).join('')}</tr>`).join('')}
-  </tbody></table></div>`);
+  const sections=[['Дашборд','dash'],['Воронки','funnels'],['Клиенты','clients'],['Чаты','inbox'],['Заказы','orders'],['Продажи','sales'],['Каталог','catalog'],['Маркетинг','marketing'],['Блогеры','bloggers'],['Врачи-партнёры','doctors'],['Аналитика','analytics'],['Задачи','tasks'],['Подписки','subs'],['Триггеры','triggers'],['AI-агент','ai'],['KPI','kpi'],['Команда','team'],['Интеграции','integrations'],['Настройки','settings']];
+  c.appendChild(el(`<div class="page-sub" style="margin-bottom:14px">${isAdminRole()?'Права ролей — отметьте галочками доступные разделы и сохраните. Владелец и Суперадмин видят всё всегда.':'Каждая роль видит только свои разделы.'}</div>`));
+  const panel=el(`<div class="panel" style="overflow-x:auto"><div class="muted2" style="padding:14px;font-size:13px">Загрузка прав…</div></div>`);
   c.appendChild(panel);
   const grid=el(`<div class="grid-2 section-gap"></div>`);
   grid.appendChild(teamMembersPanel());
   grid.appendChild(el(`<div class="panel"><div class="panel-h"><h3>Привязка WhatsApp-каналов</h3></div><table class="tbl"><tbody>
-      ${DB.channels.filter(x=>x.type==='wa').map(ch=>`<tr><td><div class="cell-name"><span class="ci" style="width:26px;height:26px;border-radius:8px;background:var(--wa)22;color:var(--wa);display:grid;place-items:center">${ic('i-phone','sm')}</span>${ch.name}</div></td><td class="muted">${ch.phone}</td><td style="text-align:right"><b>${ch.owner}</b></td></tr>`).join('')}
+      ${DB.channels.filter(x=>x.type==='wa').map(ch=>`<tr><td><div class="cell-name"><span class="ci" style="width:26px;height:26px;border-radius:8px;background:var(--wa)22;color:var(--wa);display:grid;place-items:center">${ic('i-phone','sm')}</span>${esc(ch.name)}</div></td><td class="muted">${esc(ch.phone)}</td><td style="text-align:right"><b>${esc(ch.owner)}</b></td></tr>`).join('')}
     </tbody></table></div>`));
   c.appendChild(grid);
+  async function loadPerm(){
+    const admin=isAdminRole();
+    const r= admin ? await api('/api/admin/roles') : {ok:false};
+    let roles, editable=false;
+    if(r.ok){ roles=r.data.roles; editable=true; ACCESS_MAP={}; roles.forEach(x=>ACCESS_MAP[x.id]=x.sections); renderNav(); }
+    else { roles=(DB.roles||[]).map(x=>({id:x.id,name:x.name,locked:(x.id==='owner'||x.id==='superadmin'),sections:(DB.access&&DB.access[x.id])||[]})); }
+    panel.innerHTML=`<table class="tbl perm-tbl"><thead><tr><th>Раздел</th>${roles.map(x=>`<th style="text-align:center">${esc(x.name.split(' ')[0])}</th>`).join('')}</tr></thead><tbody>
+      ${sections.map(([lbl,id])=>`<tr><td>${lbl}</td>${roles.map(x=>{const on=(x.sections||[]).includes(id);return `<td style="text-align:center">${editable&&!x.locked?`<input type="checkbox" data-role="${x.id}" data-sec="${id}" ${on?'checked':''} style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">`:(on?'<span class="yes">'+ic('i-check2','sm')+'</span>':'<span class="no">—</span>')}</td>`;}).join('')}</tr>`).join('')}
+    </tbody></table>${editable?`<div class="row" style="padding:12px 14px;justify-content:flex-end;gap:12px;border-top:1px solid var(--line)"><span class="muted" style="font-size:12px">Применится ко всем сотрудникам роли</span><button class="btn primary" data-perm="save">${ic('i-shield','sm')} Сохранить права</button></div>`:''}`;
+    if(editable){
+      const changed=new Set();
+      panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.onchange=()=>changed.add(cb.dataset.role));
+      panel.querySelector('[data-perm=save]').onclick=async(e)=>{
+        const btn=e.currentTarget; const toSave=[...changed]; if(!toSave.length){toast('Изменений нет','i-info');return;}
+        const byRole={}; panel.querySelectorAll('input[type=checkbox]').forEach(cb=>{ byRole[cb.dataset.role]=byRole[cb.dataset.role]||[]; if(cb.checked) byRole[cb.dataset.role].push(cb.dataset.sec); });
+        btn.disabled=true; btn.textContent='Сохраняю…';
+        for(const role of toSave){ const rr=await api('/api/admin/roles',{method:'POST',body:JSON.stringify({role,sections:byRole[role]||[]})}); if(!rr.ok){ btn.disabled=false; toast('Ошибка сохранения','i-x','#dc2626'); return; } }
+        toast('Права сохранены','i-shield','#10b981');
+        try{ const me=await api('/api/auth/me'); if(me.ok) AUTH.user=me.data; }catch(e2){}
+        loadPerm();
+      };
+    }
+  }
+  loadPerm();
 };
 
 // ---------- INTEGRATIONS ----------
@@ -2088,10 +2116,12 @@ function applyUser(user){
   const r = (DB.access && DB.access[user.role]) ? user.role : 'owner';
   state.role = r;
   const sel=$('#roleSel'); if(sel){ const o=[...sel.options].find(x=>x.value===r); if(o) sel.value=r; }
-  if(!DB.access[state.role].includes(state.page)) state.page = DB.access[state.role][0];
+  const al0=allowedSections(state.role); if(!al0.includes(state.page)) state.page = al0[0]||'dash';
   renderRoleSel(); renderNav(); renderPage();
   // реальный счётчик активных задач для бейджа в меню
-  if((DB.access[state.role]||[]).includes('tasks')) api('/api/tasks?status=active').then(r=>{ if(r&&r.ok){ window.__taskBadge=(r.data.totals||{}).active||0; renderNav(); } }).catch(()=>{});
+  if(allowedSections(state.role).includes('tasks')) api('/api/tasks?status=active').then(r=>{ if(r&&r.ok){ window.__taskBadge=(r.data.totals||{}).active||0; renderNav(); } }).catch(()=>{});
+  // эффективные права ролей из БД (для меню/превью/матрицы) — для админа
+  if(['owner','superadmin'].includes(user.role)) api('/api/admin/roles').then(r=>{ if(r&&r.ok){ ACCESS_MAP={}; r.data.roles.forEach(x=>ACCESS_MAP[x.id]=x.sections); renderNav(); } }).catch(()=>{});
 }
 
 async function doLogin(ident, password){
