@@ -895,11 +895,11 @@ function promoModalLive(p,onSaved){
     <div class="fld-row"><div class="fld"><label>Код</label><input data-pm="code" value="${esc(p.code||'')}"></div><div class="fld"><label>Тип</label><select data-pm="type">${['общая акция','сезонная','блогерский код','персональный'].map(x=>`<option ${x===p.type?'selected':''}>${x}</option>`).join('')}</select></div></div>
     <div class="fld-row"><div class="fld"><label>Скидка</label><input data-pm="value" type="number" value="${p.value||0}"></div><div class="fld"><label>Вид</label><select data-pm="kind"><option value="percent" ${p.kind!=='fixed'?'selected':''}>% процент</option><option value="fixed" ${p.kind==='fixed'?'selected':''}>сом фикс.</option></select></div></div>
     <div class="fld-row"><div class="fld"><label>Срок действия</label><input type="date" data-pm="exp" value="${esc(p.expires_at||'')}"></div><div class="fld"><label>Лимит</label><input data-pm="limit" type="number" value="${p.limit_uses||''}"></div></div>
-    <div class="fld"><label>Блогер</label><input data-pm="blogger" value="${esc(p.blogger||'')}"></div>
+    <div class="fld-row"><div class="fld"><label>Использований (конверсии)</label><input data-pm="uses" type="number" min="0" value="${p.uses||0}"></div><div class="fld"><label>Блогер</label><input data-pm="blogger" value="${esc(p.blogger||'')}"></div></div>
     <div class="fld"><label>Комментарий</label><input data-pm="note" value="${esc(p.note||'')}"></div>
   </div>
   <div class="modal-f"><button class="btn" id="pmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" id="pmToggle">${p.active?'На паузу':'Активировать'}</button><button class="btn primary" id="pmSave">Сохранить</button></div>`);
-  bg.querySelector('#pmSave').onclick=async()=>{ const body={code:bg.querySelector('[data-pm=code]').value.trim(),type:bg.querySelector('[data-pm=type]').value,kind:bg.querySelector('[data-pm=kind]').value,value:Number(bg.querySelector('[data-pm=value]').value)||0,expires_at:bg.querySelector('[data-pm=exp]').value,limit_uses:bg.querySelector('[data-pm=limit]').value,blogger:bg.querySelector('[data-pm=blogger]').value.trim(),note:bg.querySelector('[data-pm=note]').value.trim()}; const r=await api('/api/promos/'+p.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
+  bg.querySelector('#pmSave').onclick=async()=>{ const body={code:bg.querySelector('[data-pm=code]').value.trim(),type:bg.querySelector('[data-pm=type]').value,kind:bg.querySelector('[data-pm=kind]').value,value:Number(bg.querySelector('[data-pm=value]').value)||0,expires_at:bg.querySelector('[data-pm=exp]').value,limit_uses:bg.querySelector('[data-pm=limit]').value,uses:Number(bg.querySelector('[data-pm=uses]').value)||0,blogger:bg.querySelector('[data-pm=blogger]').value.trim(),note:bg.querySelector('[data-pm=note]').value.trim()}; const r=await api('/api/promos/'+p.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
   bg.querySelector('#pmToggle').onclick=async()=>{ const r=await api('/api/promos/'+p.id,{method:'POST',body:JSON.stringify({active:!p.active})}); if(r.ok){closeModal();toast(p.active?'Промокод на паузе':'Промокод активирован','i-tag');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
   bg.querySelector('#pmDel').onclick=async()=>{ if(!confirm('Удалить промокод?'))return; const r=await api('/api/promos/'+p.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
 }
@@ -969,16 +969,25 @@ PAGES.bloggers=(c)=>{
   tbar.querySelector('#newBlogBtn').onclick=()=>newBloggerLive(load);
   load();
 };
-function newBloggerLive(onSaved){
+async function fetchBloggerCodes(){ const r=await api('/api/promos'); if(!r||!r.ok) return []; return (r.data.items||[]).filter(p=>(p.type||'')==='блогерский код'); }
+function codeSelectHtml(codes, selected, attr){
+  const sel=(selected||'').toUpperCase();
+  let opts='<option value="">— без кода —</option>'+codes.map(c=>`<option value="${esc(c.code)}" ${(c.code||'').toUpperCase()===sel?'selected':''}>${esc(c.code)}${c.uses?(' · '+c.uses+' исп.'):''}</option>`).join('');
+  if(sel && !codes.some(c=>(c.code||'').toUpperCase()===sel)) opts+=`<option value="${esc(selected)}" selected>${esc(selected)} (текущий)</option>`;
+  return `<select ${attr}>${opts}</select>`;
+}
+function blogCodeHint(codes){ return codes.length?'':`<div class="note amber">${ic('i-info','sm')} Блогерских промокодов пока нет. Создайте код в разделе «Маркетинг» (тип «блогерский код») — он появится в списке.</div>`; }
+async function newBloggerLive(onSaved){
+  const codes=await fetchBloggerCodes();
   const bg=openModal(`<div class="modal-h"><div><h3>Новый блогер</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld-row"><div class="fld"><label>Ник / аккаунт *</label><input data-nb="nick" placeholder="@nick"></div><div class="fld"><label>Имя</label><input data-nb="name" placeholder="Имя Фамилия"></div></div>
     <div class="fld-row"><div class="fld"><label>Площадка</label><select data-nb="platform">${BLOG_PLATFORMS.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></div><div class="fld"><label>Ниша / тематика</label><input data-nb="topic" placeholder="Бьюти, стоматология…"></div></div>
-    <div class="fld-row"><div class="fld"><label>Охват</label><input data-nb="reach" placeholder="82k"></div><div class="fld"><label>Промокод</label><input data-nb="code" placeholder="BLOG_NICK"></div></div>
+    <div class="fld-row"><div class="fld"><label>Охват</label><input data-nb="reach" placeholder="82k"></div><div class="fld"><label>Промокод (блогерский)</label>${codeSelectHtml(codes,'','data-nb="code"')}</div></div>
     <div class="fld-row"><div class="fld"><label>Модель оплаты</label><select data-nb="payout_model">${BLOG_MODELS.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></div><div class="fld"><label>Ставка</label><input data-nb="payout_value" type="number" value="0"></div></div>
     <div class="fld"><label>Контакт для выплат</label><input data-nb="contact" placeholder="телефон / карта / Kaspi"></div>
     <div class="fld"><label>Комментарий</label><input data-nb="note"></div>
-    <div class="note blue">${ic('i-info','sm')} Промокод свяжет блогера со статистикой использований из «Маркетинга». Сам код создаётся там же.</div>
+    ${blogCodeHint(codes)}<div class="note blue">${ic('i-info','sm')} Конверсии берутся из выбранного промокода (использования ведутся в «Маркетинге»). CPA = выплачено ÷ конверсии.</div>
   </div>
   <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="nbSave">Создать</button></div>`);
   bg.querySelector('#nbSave').onclick=async()=>{
@@ -990,7 +999,8 @@ function newBloggerLive(onSaved){
     if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Блогер добавлен','i-star'); onSaved&&onSaved();
   };
 }
-function bloggerModalLive(b,onSaved){
+async function bloggerModalLive(b,onSaved){
+  const codes=await fetchBloggerCodes();
   const cpa=(b.uses>0)?money(Math.round((b.paid||0)/b.uses)):'—';
   const bg=openModal(`<div class="modal-h"><div><h3>${esc(b.nick||b.name||'Блогер')}</h3><div class="mh-sub">${esc(b.name||'')}${b.topic?(' · '+esc(b.topic)):''}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
@@ -1002,7 +1012,7 @@ function bloggerModalLive(b,onSaved){
     </div>
     <div class="fld-row section-gap"><div class="fld"><label>Ник / аккаунт</label><input data-bm="nick" value="${esc(b.nick||'')}"></div><div class="fld"><label>Имя</label><input data-bm="name" value="${esc(b.name||'')}"></div></div>
     <div class="fld-row"><div class="fld"><label>Площадка</label><select data-bm="platform">${BLOG_PLATFORMS.map(([v,t])=>`<option value="${v}" ${v===(b.platform||'')?'selected':''}>${t}</option>`).join('')}</select></div><div class="fld"><label>Ниша</label><input data-bm="topic" value="${esc(b.topic||'')}"></div></div>
-    <div class="fld-row"><div class="fld"><label>Охват</label><input data-bm="reach" value="${esc(b.reach||'')}"></div><div class="fld"><label>Промокод</label><input data-bm="code" value="${esc(b.code||'')}"></div></div>
+    <div class="fld-row"><div class="fld"><label>Охват</label><input data-bm="reach" value="${esc(b.reach||'')}"></div><div class="fld"><label>Промокод (блогерский)</label>${codeSelectHtml(codes,b.code,'data-bm="code"')}</div></div>
     <div class="fld-row"><div class="fld"><label>Модель оплаты</label><select data-bm="payout_model">${BLOG_MODELS.map(([v,t])=>`<option value="${v}" ${v===(b.payout_model||'per_sale')?'selected':''}>${t}</option>`).join('')}</select></div><div class="fld"><label>Ставка</label><input data-bm="payout_value" type="number" value="${b.payout_value||0}"></div></div>
     <div class="fld-row"><div class="fld"><label>Контакт для выплат</label><input data-bm="contact" value="${esc(b.contact||'')}"></div><div class="fld"><label>Статус</label><select data-bm="status">${[['active','Активен'],['paused','Пауза'],['archived','Архив']].map(([v,t])=>`<option value="${v}" ${v===(b.status||'active')?'selected':''}>${t}</option>`).join('')}</select></div></div>
     <div class="fld"><label>Комментарий</label><input data-bm="note" value="${esc(b.note||'')}"></div>
