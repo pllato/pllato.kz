@@ -292,7 +292,7 @@ function newDealLive(onSaved){
   const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
   const bg=openModal(`<div class="modal-h"><div><h3>Новая сделка</h3><div class="mh-sub">${state.funnel==='b2c'?'B2C · розница':'B2B · опт'}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
-    <div class="fld"><label>Клиент — поиск в 1С или ввод вручную</label><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-nd="client" placeholder="ФИО или название" autocomplete="off" style="width:100%"></div><div id="ndSug" class="panel" style="margin-top:4px;display:none;max-height:170px;overflow:auto"></div></div>
+    <div class="fld"><label>Клиент — поиск в 1С или ввод вручную</label><div style="position:relative"><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-nd="client" placeholder="ФИО или название" autocomplete="off" style="width:100%"></div><div id="ndSug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:200px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div></div>
     <div class="fld-row"><div class="fld"><label>Телефон</label><input data-nd="phone"></div><div class="fld"><label>Сумма, с</label><input data-nd="amount" type="number" placeholder="0"></div></div>
     <div class="fld-row"><div class="fld"><label>Этап</label><select data-nd="stage">${stages.map(s=>`<option>${esc(s)}</option>`).join('')}</select></div><div class="fld"><label>Источник</label><select data-nd="source"><option value="">—</option><option>WhatsApp</option><option>Instagram</option><option>Сайт</option><option>Звонок</option><option>Сарафан</option></select></div></div>
     <div class="fld"><label>Ответственный</label><input data-nd="mgr" value="${esc((AUTH.user||{}).name||'')}"></div>
@@ -1172,7 +1172,7 @@ function newTaskLive(onSaved){
     <div class="fld"><label>Название *</label><input data-nt="title" placeholder="Напр. перезвонить клиенту"></div>
     <div class="fld-row"><div class="fld"><label>Тип</label><select data-nt="type"><option>задача</option><option>звонок</option><option>встреча</option><option>отгрузка</option><option>email</option></select></div><div class="fld"><label>Срок</label><input type="date" data-nt="due"></div></div>
     <div class="fld-row"><div class="fld"><label>Приоритет</label><select data-nt="prio"><option value="normal">обычный</option><option value="high">срочно</option></select></div><div class="fld"><label>Ответственный</label><input data-nt="assignee" value="${esc((AUTH.user||{}).name||'')}"></div></div>
-    <div class="fld"><label>Клиент из 1С (необязательно)</label><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-nt="client" placeholder="поиск по 1С" autocomplete="off" style="width:100%"></div><div id="ntSug" class="panel" style="margin-top:4px;display:none;max-height:160px;overflow:auto"></div></div>
+    <div class="fld"><label>Клиент из 1С (необязательно)</label><div style="position:relative"><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-nt="client" placeholder="поиск по 1С" autocomplete="off" style="width:100%"></div><div id="ntSug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:200px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div></div>
     <div class="fld"><label>Комментарий</label><input data-nt="note"></div>
   </div>
   <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="ntSave">Создать</button></div>`);
@@ -1250,8 +1250,10 @@ PAGES.subs=(c)=>{
 function makeItemsEditor(initial){
   const items=(initial||[]).map(x=>({ref:x.ref||null,name:x.name||'',qty:x.qty||1,price:x.price||0}));
   const node=el(`<div>
-    <div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-ie="q" placeholder="добавить товар из каталога 1С" autocomplete="off" style="width:100%"></div>
-    <div data-ie="sug" class="panel" style="margin-top:4px;display:none;max-height:160px;overflow:auto"></div>
+    <div style="position:relative">
+      <div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-ie="q" placeholder="добавить товар из каталога 1С" autocomplete="off" style="width:100%"></div>
+      <div data-ie="sug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:220px;overflow:auto;box-shadow:var(--shadow-lg)"></div>
+    </div>
     <div data-ie="list" style="margin-top:8px"></div>
     <div class="row" style="justify-content:space-between;padding:9px 2px 2px;border-top:1px solid var(--line);margin-top:6px"><span class="muted">Итого за отгрузку</span><b data-ie="total" style="font-size:15px"></b></div>
   </div>`);
@@ -1279,7 +1281,7 @@ function newSubLive(onSaved){
   const ed=makeItemsEditor([]);
   const bg=openModal(`<div class="modal-h"><div><h3>Новая подписка</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
-    <div class="fld"><label>Клиент *</label><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-ns="client" placeholder="поиск в 1С или ввод вручную" autocomplete="off" style="width:100%"></div><div id="nsSug" class="panel" style="margin-top:4px;display:none;max-height:160px;overflow:auto"></div></div>
+    <div class="fld"><label>Клиент *</label><div style="position:relative"><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-ns="client" placeholder="поиск в 1С или ввод вручную" autocomplete="off" style="width:100%"></div><div id="nsSug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:200px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div></div>
     <div class="fld-row"><div class="fld"><label>Телефон</label><input data-ns="phone"></div><div class="fld"><label>Ответственный</label><input data-ns="mgr" value="${esc((AUTH.user||{}).name||'')}"></div></div>
     <div class="fld"><label>Состав набора (товары из 1С)</label><div id="nsItems"></div></div>
     <div class="fld-row"><div class="fld"><label>Период</label><select data-ns="interval"><option value="1">1 мес</option><option value="2">2 мес</option><option value="3" selected>3 мес</option><option value="6">6 мес</option><option value="12">12 мес</option></select></div><div class="fld"><label>След. отгрузка</label><input type="date" data-ns="next"></div></div>
