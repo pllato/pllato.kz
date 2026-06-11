@@ -1304,6 +1304,16 @@ function jparse(s,f){ try{ const v=JSON.parse(s); return v==null?f:v; }catch(e){
 const TASK_LABELS=[{k:'vip',t:'VIP',c:'#db2777'},{k:'opt',t:'Опт',c:'#7c3aed'},{k:'complaint',t:'Жалоба',c:'#dc2626'},{k:'wait',t:'Ожидание',c:'#d97706'},{k:'newcl',t:'Новый клиент',c:'#2563eb'},{k:'important',t:'Важное',c:'#16a34a'}];
 function labelBars(keys){ const a=keys||[]; if(!a.length)return ''; return `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:7px">${a.map(k=>{const L=TASK_LABELS.find(x=>x.k===k);return L?`<span title="${esc(L.t)}" style="height:7px;width:30px;border-radius:4px;background:${L.c}"></span>`:'';}).join('')}</div>`; }
 function fmtWhen(ms){ if(!ms)return ''; const d=new Date(ms),p=n=>String(n).padStart(2,'0'); return p(d.getDate())+'.'+p(d.getMonth()+1)+' '+p(d.getHours())+':'+p(d.getMinutes()); }
+function fmtSize(b){ b=b||0; return b<1024?b+' Б':b<1048576?(Math.round(b/1024)+' КБ'):((b/1048576).toFixed(1)+' МБ'); }
+async function uploadTaskFile(taskId,file){ const t=AUTH.token||getToken();
+  try{ const res=await fetch(API_BASE+'/api/tasks/'+taskId+'/attach',{method:'POST',headers:{'Authorization':'Bearer '+t,'Content-Type':file.type||'application/octet-stream','X-File-Name':encodeURIComponent(file.name)},body:file});
+    const data=await res.json().catch(()=>null); return {ok:res.ok&&data&&data.ok!==false,data}; }
+  catch(e){ return {ok:false,data:{error:'Нет связи'}}; } }
+async function downloadTaskFile(taskId,idx,name){ const t=AUTH.token||getToken();
+  try{ const res=await fetch(API_BASE+'/api/tasks/'+taskId+'/attach/'+idx,{headers:{'Authorization':'Bearer '+t}});
+    if(!res.ok){ toast('Не удалось скачать','i-x','#dc2626'); return; }
+    const blob=await res.blob(),url=URL.createObjectURL(blob),a=document.createElement('a'); a.href=url; a.download=name||'file'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000); }
+  catch(e){ toast('Ошибка скачивания','i-x','#dc2626'); } }
 PAGES.tasks=(c)=>{
   let cols=[];
   const stOf=t=>t.status||(t.done?'done':'todo');
@@ -1338,12 +1348,12 @@ PAGES.tasks=(c)=>{
   let current=[];
   function card(t){
     const od=overdue(t);
-    const cl=jparse(t.checklist,[]),dn=cl.filter(i=>i&&i.done).length,cms=jparse(t.comments,[]);
+    const cl=jparse(t.checklist,[]),dn=cl.filter(i=>i&&i.done).length,cms=jparse(t.comments,[]),att=jparse(t.attachments,[]);
     const k=el(`<div class="kcard" draggable="true" data-id="${esc(t.id)}">
       ${labelBars(jparse(t.labels,[]))}
       <div style="font-weight:600;font-size:13px;line-height:1.35">${esc(t.title)}</div>
       ${(t.client_name||t.assignee)?`<div class="kc-prod">${esc([t.client_name,t.assignee].filter(Boolean).join(' · '))}</div>`:''}
-      <div class="kc-meta">${typeTag(t.type)}${t.priority==='high'&&stOf(t)!=='done'?'<span class="tag amber">срочно</span>':''}${cl.length?`<span class="tag ${dn===cl.length?'green':''}">☑ ${dn}/${cl.length}</span>`:''}${cms.length?`<span class="tag">💬 ${cms.length}</span>`:''}${t.due_at?`<span class="tag ${od?'red':dueSoon(t)?'amber':''}" style="margin-left:auto">${ic('i-clock','sm')} ${esc(fmtDue(t.due_at))}</span>`:'<span style="margin-left:auto"></span>'}</div></div>`);
+      <div class="kc-meta">${typeTag(t.type)}${t.priority==='high'&&stOf(t)!=='done'?'<span class="tag amber">срочно</span>':''}${cl.length?`<span class="tag ${dn===cl.length?'green':''}">☑ ${dn}/${cl.length}</span>`:''}${cms.length?`<span class="tag">💬 ${cms.length}</span>`:''}${att.length?`<span class="tag">📎 ${att.length}</span>`:''}${t.due_at?`<span class="tag ${od?'red':dueSoon(t)?'amber':''}" style="margin-left:auto">${ic('i-clock','sm')} ${esc(fmtDue(t.due_at))}</span>`:'<span style="margin-left:auto"></span>'}</div></div>`);
     k.addEventListener('dragstart',e=>{e.dataTransfer.setData('id',t.id);k.classList.add('dragging');});
     k.addEventListener('dragend',()=>k.classList.remove('dragging'));
     k.onclick=()=>{ if(!k.classList.contains('dragging')) taskModalLive(t,load); };
@@ -1445,8 +1455,8 @@ async function newTaskLive(onSaved){
 }
 async function taskModalLive(t,onSaved){
   const users=await fetchUsers();
-  let lbls=jparse(t.labels,[]), cl=jparse(t.checklist,[]), cms=jparse(t.comments,[]);
-  if(!Array.isArray(lbls))lbls=[]; if(!Array.isArray(cl))cl=[]; if(!Array.isArray(cms))cms=[];
+  let lbls=jparse(t.labels,[]), cl=jparse(t.checklist,[]), cms=jparse(t.comments,[]), atts=jparse(t.attachments,[]);
+  if(!Array.isArray(lbls))lbls=[]; if(!Array.isArray(cl))cl=[]; if(!Array.isArray(cms))cms=[]; if(!Array.isArray(atts))atts=[];
   const bg=openModal(`<div class="modal-h"><div><h3>Задача</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld"><label>Название</label><input data-tm="title" value="${esc(t.title||'')}"></div>
@@ -1455,6 +1465,8 @@ async function taskModalLive(t,onSaved){
     <div class="fld"><label>Метки</label><div id="tmLabels" class="chips"></div></div>
     <div class="fld"><label>Чек-лист <span id="tmClProg" class="muted2" style="font-weight:400;font-size:11px"></span></label><div id="tmCl" style="display:flex;flex-direction:column;gap:5px"></div>
       <div class="row" style="gap:6px;margin-top:7px"><input id="tmClNew" placeholder="Добавить пункт…" style="flex:1"><button class="btn sm" id="tmClAdd">${ic('i-plus','sm')}</button></div></div>
+    <div class="fld"><label>Вложения</label><div id="tmAtt" style="display:flex;flex-direction:column;gap:6px"></div>
+      <div class="row" style="gap:8px;margin-top:7px"><input type="file" id="tmAttFile" style="display:none"><button class="btn sm" id="tmAttBtn">${ic('i-plus','sm')} Файл</button><span class="muted2" id="tmAttHint" style="font-size:11px">до 15 МБ</span></div></div>
     <div class="fld"><label>Заметка</label><input data-tm="note" value="${esc(t.note||'')}"></div>
     ${t.client_name?`<div class="note blue">${ic('i-info','sm')} Клиент: ${esc(t.client_name)}</div>`:''}
     <div class="fld section-gap"><label>Обсуждение</label><div id="tmCms" style="display:flex;flex-direction:column;gap:8px;max-height:170px;overflow:auto"></div>
@@ -1475,6 +1487,14 @@ async function taskModalLive(t,onSaved){
   renderCl();
   const clNew=bg.querySelector('#tmClNew'); const addCl=()=>{ const v=clNew.value.trim(); if(!v)return; cl.push({text:v.slice(0,200),done:false}); clNew.value=''; renderCl(); clNew.focus(); };
   bg.querySelector('#tmClAdd').onclick=addCl; clNew.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();addCl();} });
+  // Вложения
+  const attBox=bg.querySelector('#tmAtt'), attFile=bg.querySelector('#tmAttFile'), attHint=bg.querySelector('#tmAttHint');
+  function renderAtt(){ attBox.innerHTML=atts.length?atts.map((a,i)=>`<div class="row" style="gap:8px;align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:6px 9px"><span style="flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.name)}</span><span class="muted2" style="font-size:11px;flex:none">${fmtSize(a.size)}</span><button type="button" class="btn sm" data-dl="${i}" title="Скачать">↓</button><button type="button" class="btn sm" data-rm="${esc(a.key)}" title="Удалить">${ic('i-x','sm')}</button></div>`).join(''):'<div class="muted2" style="font-size:12px">Файлов нет</div>';
+    attBox.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>downloadTaskFile(t.id,+b.dataset.dl,atts[+b.dataset.dl].name));
+    attBox.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async()=>{ if(!confirm('Удалить файл?'))return; const r=await api('/api/tasks/'+t.id,{method:'POST',body:JSON.stringify({remove_attach:b.dataset.rm})}); if(r.ok){ atts=atts.filter(a=>a.key!==b.dataset.rm); renderAtt(); if(onSaved)onSaved(); } else toast('Ошибка','i-x','#dc2626'); }); }
+  renderAtt();
+  bg.querySelector('#tmAttBtn').onclick=()=>attFile.click();
+  attFile.onchange=async()=>{ const f=attFile.files[0]; if(!f)return; if(f.size>15*1024*1024){ toast('Файл больше 15 МБ','i-info'); attFile.value=''; return; } attHint.textContent='Загрузка…'; const r=await uploadTaskFile(t.id,f); attHint.textContent='до 15 МБ'; attFile.value=''; if(r.ok&&r.data.attachment){ atts=[...atts,r.data.attachment]; renderAtt(); toast('Файл загружен','i-check2'); if(onSaved)onSaved(); } else toast((r.data&&r.data.error)||'Не удалось загрузить','i-x','#dc2626'); };
   // Комментарии
   const cmsBox=bg.querySelector('#tmCms');
   function renderCms(){ cmsBox.innerHTML=cms.length?cms.map(cm=>`<div style="background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:8px 10px"><div class="muted2" style="font-size:11px;margin-bottom:3px">${esc(cm.author||'—')} · ${fmtWhen(cm.at)}</div><div style="font-size:13px;white-space:pre-wrap">${esc(cm.text)}</div></div>`).join(''):'<div class="muted2" style="font-size:12px">Комментариев нет</div>'; cmsBox.scrollTop=cmsBox.scrollHeight; }
