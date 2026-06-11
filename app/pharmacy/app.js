@@ -1300,6 +1300,10 @@ async function loadAnalytics(host,from,to){
 }
 
 // ---------- TASKS ----------
+function jparse(s,f){ try{ const v=JSON.parse(s); return v==null?f:v; }catch(e){ return f; } }
+const TASK_LABELS=[{k:'vip',t:'VIP',c:'#db2777'},{k:'opt',t:'Опт',c:'#7c3aed'},{k:'complaint',t:'Жалоба',c:'#dc2626'},{k:'wait',t:'Ожидание',c:'#d97706'},{k:'newcl',t:'Новый клиент',c:'#2563eb'},{k:'important',t:'Важное',c:'#16a34a'}];
+function labelBars(keys){ const a=keys||[]; if(!a.length)return ''; return `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:7px">${a.map(k=>{const L=TASK_LABELS.find(x=>x.k===k);return L?`<span title="${esc(L.t)}" style="height:7px;width:30px;border-radius:4px;background:${L.c}"></span>`:'';}).join('')}</div>`; }
+function fmtWhen(ms){ if(!ms)return ''; const d=new Date(ms),p=n=>String(n).padStart(2,'0'); return p(d.getDate())+'.'+p(d.getMonth()+1)+' '+p(d.getHours())+':'+p(d.getMinutes()); }
 PAGES.tasks=(c)=>{
   const COLS=[['todo','К выполнению'],['doing','В работе'],['done','Готово']];
   const stOf=t=>t.status||(t.done?'done':'todo');
@@ -1318,10 +1322,12 @@ PAGES.tasks=(c)=>{
   let current=[];
   function card(t){
     const od=overdue(t);
+    const cl=jparse(t.checklist,[]),dn=cl.filter(i=>i&&i.done).length,cms=jparse(t.comments,[]);
     const k=el(`<div class="kcard" draggable="true" data-id="${esc(t.id)}">
+      ${labelBars(jparse(t.labels,[]))}
       <div style="font-weight:600;font-size:13px;line-height:1.35">${esc(t.title)}</div>
       ${(t.client_name||t.assignee)?`<div class="kc-prod">${esc([t.client_name,t.assignee].filter(Boolean).join(' · '))}</div>`:''}
-      <div class="kc-meta">${typeTag(t.type)}${t.priority==='high'&&stOf(t)!=='done'?'<span class="tag amber">срочно</span>':''}${t.due_at?`<span class="tag ${od?'red':''}" style="margin-left:auto">${ic('i-clock','sm')} ${esc(fmtDue(t.due_at))}</span>`:'<span style="margin-left:auto"></span>'}</div></div>`);
+      <div class="kc-meta">${typeTag(t.type)}${t.priority==='high'&&stOf(t)!=='done'?'<span class="tag amber">срочно</span>':''}${cl.length?`<span class="tag ${dn===cl.length?'green':''}">☑ ${dn}/${cl.length}</span>`:''}${cms.length?`<span class="tag">💬 ${cms.length}</span>`:''}${t.due_at?`<span class="tag ${od?'red':''}" style="margin-left:auto">${ic('i-clock','sm')} ${esc(fmtDue(t.due_at))}</span>`:'<span style="margin-left:auto"></span>'}</div></div>`);
     k.addEventListener('dragstart',e=>{e.dataTransfer.setData('id',t.id);k.classList.add('dragging');});
     k.addEventListener('dragend',()=>k.classList.remove('dragging'));
     k.onclick=()=>{ if(!k.classList.contains('dragging')) taskModalLive(t,load); };
@@ -1385,16 +1391,44 @@ async function newTaskLive(onSaved){
 }
 async function taskModalLive(t,onSaved){
   const users=await fetchUsers();
+  let lbls=jparse(t.labels,[]), cl=jparse(t.checklist,[]), cms=jparse(t.comments,[]);
+  if(!Array.isArray(lbls))lbls=[]; if(!Array.isArray(cl))cl=[]; if(!Array.isArray(cms))cms=[];
   const bg=openModal(`<div class="modal-h"><div><h3>Задача</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld"><label>Название</label><input data-tm="title" value="${esc(t.title||'')}"></div>
     <div class="fld-row"><div class="fld"><label>Тип</label><select data-tm="type">${['задача','звонок','встреча','отгрузка','email'].map(x=>`<option ${x===t.type?'selected':''}>${x}</option>`).join('')}</select></div><div class="fld"><label>Срок (дата и время)</label><input type="datetime-local" data-tm="due" value="${esc(dtLocal(t.due_at))}"></div></div>
     <div class="fld-row"><div class="fld"><label>Приоритет</label><select data-tm="prio"><option value="normal" ${t.priority!=='high'?'selected':''}>обычный</option><option value="high" ${t.priority==='high'?'selected':''}>срочно</option></select></div><div class="fld"><label>Ответственный</label>${userSelectHtml(users,t.assignee,'data-tm="assignee"')}</div></div>
-    <div class="fld"><label>Комментарий</label><input data-tm="note" value="${esc(t.note||'')}"></div>
-    ${t.client_name?`<div class="note blue section-gap">${ic('i-info','sm')} Клиент: ${esc(t.client_name)}</div>`:''}
+    <div class="fld"><label>Метки</label><div id="tmLabels" class="chips"></div></div>
+    <div class="fld"><label>Чек-лист <span id="tmClProg" class="muted2" style="font-weight:400;font-size:11px"></span></label><div id="tmCl" style="display:flex;flex-direction:column;gap:5px"></div>
+      <div class="row" style="gap:6px;margin-top:7px"><input id="tmClNew" placeholder="Добавить пункт…" style="flex:1"><button class="btn sm" id="tmClAdd">${ic('i-plus','sm')}</button></div></div>
+    <div class="fld"><label>Заметка</label><input data-tm="note" value="${esc(t.note||'')}"></div>
+    ${t.client_name?`<div class="note blue">${ic('i-info','sm')} Клиент: ${esc(t.client_name)}</div>`:''}
+    <div class="fld section-gap"><label>Обсуждение</label><div id="tmCms" style="display:flex;flex-direction:column;gap:8px;max-height:170px;overflow:auto"></div>
+      <div class="row" style="gap:6px;margin-top:7px"><input id="tmCmNew" placeholder="Написать комментарий…" style="flex:1"><button class="btn sm" id="tmCmAdd">${ic('i-plus','sm')} Добавить</button></div></div>
   </div>
   <div class="modal-f"><button class="btn" id="tmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="tmSave">Сохранить</button></div>`);
-  bg.querySelector('#tmSave').onclick=async()=>{ const body={title:bg.querySelector('[data-tm=title]').value.trim(),type:bg.querySelector('[data-tm=type]').value,priority:bg.querySelector('[data-tm=prio]').value,due_at:bg.querySelector('[data-tm=due]').value,assignee:bg.querySelector('[data-tm=assignee]').value.trim(),note:bg.querySelector('[data-tm=note]').value.trim()}; const r=await api('/api/tasks/'+t.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
+  // Метки
+  const lblBox=bg.querySelector('#tmLabels');
+  function renderLabels(){ lblBox.innerHTML=TASK_LABELS.map(L=>`<button type="button" class="chip ${lbls.includes(L.k)?'on':''}" data-k="${L.k}" style="${lbls.includes(L.k)?('background:'+L.c+'22;border-color:'+L.c+';color:'+L.c):''}">${esc(L.t)}</button>`).join('');
+    lblBox.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{ const k=b.dataset.k; lbls=lbls.includes(k)?lbls.filter(x=>x!==k):[...lbls,k]; renderLabels(); }); }
+  renderLabels();
+  // Чек-лист
+  const clBox=bg.querySelector('#tmCl'), clProg=bg.querySelector('#tmClProg');
+  function renderCl(){ const dn=cl.filter(i=>i.done).length; clProg.textContent=cl.length?(dn+'/'+cl.length+' выполнено'):'';
+    clBox.innerHTML=cl.length?cl.map((it,i)=>`<div class="row" style="gap:8px;align-items:center"><button type="button" class="btn sm" data-ci="${i}" style="flex:none;width:28px;padding:4px 0;${it.done?'background:var(--accent);color:#06231a;border-color:var(--accent)':''}">${it.done?'✓':''}</button><span style="flex:1;${it.done?'text-decoration:line-through;opacity:.55':''}">${esc(it.text)}</span><button type="button" class="btn sm" data-cd="${i}" style="flex:none">${ic('i-x','sm')}</button></div>`).join(''):'<div class="muted2" style="font-size:12px">Пунктов нет</div>';
+    clBox.querySelectorAll('[data-ci]').forEach(b=>b.onclick=()=>{ cl[+b.dataset.ci].done=!cl[+b.dataset.ci].done; renderCl(); });
+    clBox.querySelectorAll('[data-cd]').forEach(b=>b.onclick=()=>{ cl.splice(+b.dataset.cd,1); renderCl(); }); }
+  renderCl();
+  const clNew=bg.querySelector('#tmClNew'); const addCl=()=>{ const v=clNew.value.trim(); if(!v)return; cl.push({text:v.slice(0,200),done:false}); clNew.value=''; renderCl(); clNew.focus(); };
+  bg.querySelector('#tmClAdd').onclick=addCl; clNew.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();addCl();} });
+  // Комментарии
+  const cmsBox=bg.querySelector('#tmCms');
+  function renderCms(){ cmsBox.innerHTML=cms.length?cms.map(cm=>`<div style="background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:8px 10px"><div class="muted2" style="font-size:11px;margin-bottom:3px">${esc(cm.author||'—')} · ${fmtWhen(cm.at)}</div><div style="font-size:13px;white-space:pre-wrap">${esc(cm.text)}</div></div>`).join(''):'<div class="muted2" style="font-size:12px">Комментариев нет</div>'; cmsBox.scrollTop=cmsBox.scrollHeight; }
+  renderCms();
+  const cmNew=bg.querySelector('#tmCmNew');
+  bg.querySelector('#tmCmAdd').onclick=async()=>{ const v=cmNew.value.trim(); if(!v)return; const r=await api('/api/tasks/'+t.id,{method:'POST',body:JSON.stringify({add_comment:{text:v}})}); if(r.ok){ cms=[...cms,{text:v,author:(AUTH.user||{}).name||'—',at:Date.now()}]; cmNew.value=''; renderCms(); if(onSaved)onSaved(); } else toast('Ошибка','i-x','#dc2626'); };
+  cmNew.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();bg.querySelector('#tmCmAdd').click();} });
+  bg.querySelector('#tmSave').onclick=async()=>{ const body={title:bg.querySelector('[data-tm=title]').value.trim(),type:bg.querySelector('[data-tm=type]').value,priority:bg.querySelector('[data-tm=prio]').value,due_at:bg.querySelector('[data-tm=due]').value,assignee:bg.querySelector('[data-tm=assignee]').value,note:bg.querySelector('[data-tm=note]').value.trim(),labels:lbls,checklist:cl}; const r=await api('/api/tasks/'+t.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
   bg.querySelector('#tmDel').onclick=async()=>{ if(!confirm('Удалить задачу?'))return; const r=await api('/api/tasks/'+t.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
 }
 
