@@ -1490,20 +1490,53 @@ function subModalLive(s,onSaved){
 
 // ---------- TRIGGERS ----------
 PAGES.triggers=(c)=>{
-  c.appendChild(el(`<div class="page-sub" style="margin-bottom:14px">Триггерные рассылки через GreenAPI · учитывают метку «не хочет рассылок»</div>`));
-  const panel=el(`<div class="panel"></div>`);
-  DB.triggers.forEach(t=>{
-    const row=el(`<div class="row" style="padding:15px 18px;border-bottom:1px solid var(--line);align-items:flex-start">
-      <div class="k-ic" style="width:40px;height:40px;border-radius:11px;background:${t.risk==='высокий'?'var(--red-soft);color:#f87171':'var(--accent-soft);color:var(--accent2)'};display:grid;place-items:center;flex:none">${ic(t.type==='ДР'?'i-gift':t.type==='рекуррент'?'i-repeat':t.type==='статус'?'i-truck':t.type==='масс'?'i-bell':'i-repeat')}</div>
-      <div style="flex:1"><div class="row" style="gap:9px"><div style="font-weight:700">${t.name}</div><span class="tag ${t.risk==='высокий'?'red':'green'}">риск ${t.risk}</span></div>
-        <div class="muted" style="font-size:12.5px;margin-top:4px">${t.desc}</div>
-        <div class="muted2" style="font-size:11.5px;margin-top:6px">Отправлено: ${t.sent}</div></div>
-      <div class="toggle ${t.on?'on':''}" data-id="${t.id}"></div></div>`);
-    row.querySelector('.toggle').onclick=function(){t.on=!t.on;this.classList.toggle('on');toast(t.name+': '+(t.on?'включена':'выключена'),'i-flame','var(--amber)');};
-    panel.appendChild(row);
-  });
-  c.appendChild(panel);
-  c.appendChild(el(`<div class="note amber section-gap">${ic('i-info','sm')} Массовые WhatsApp-рассылки через GreenAPI запрещены — риск бана номера. Для базы 10k+ рекомендуем bulk-провайдера (~15 с/сообщение) или ретаргет.</div>`));
+  const tbar=el(`<div class="toolbar">
+    <div class="seg" data-tg="tab"><button class="on" data-t="birthdays">🎂 Дни рождения</button><button data-t="lapsed">⏳ Давно не покупали</button><button data-t="repeat">🔁 Повтор покупки</button></div>
+    <div class="spacer"></div><span class="ph-sub" data-tg="cnt"></span>
+  </div>`);
+  const panel=el(`<div class="panel section-gap"><div class="muted2" style="padding:16px">Загрузка…</div></div>`);
+  c.appendChild(tbar); c.appendChild(panel);
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Триггеры — списки клиентов из 1С под действие: «🎂» ближайшие ДР, «⏳» не покупали 60+ дней, «🔁» пора повторить покупку. Кнопка «Задача» создаёт напоминание. Авто-рассылка в WhatsApp — после подключения GreenAPI.</div>`));
+  let data=null, tab='birthdays';
+  const seg=tbar.querySelector('[data-tg=tab]'), cnt=tbar.querySelector('[data-tg=cnt]');
+  function render(){
+    const sgm=(data&&data[tab])||{items:[]}, items=sgm.items||[];
+    cnt.textContent=items.length+' клиентов';
+    if(!items.length){ panel.innerHTML=`<div class="muted2" style="padding:28px;text-align:center">Нет клиентов в этом сегменте</div>`; return; }
+    const dateCol=tab==='birthdays'?'День рождения':'Последняя покупка';
+    const rows=items.map(x=>{
+      const phone=(x.phone||'').trim();
+      const phoneCell=phone?`<a href="tel:${esc(phone)}" style="color:var(--accent2)">${esc(phone)}</a>`:'<span class="muted2">—</span>';
+      let info,sub;
+      if(tab==='birthdays'){ info=esc(x.next_bday||''); sub=x.days_until<=0?'сегодня! 🎉':x.days_until===1?'завтра':('через '+x.days_until+' дн'); }
+      else { info=esc(x.last_buy||''); sub=(x.days_since||0)+' дн назад'+(x.total?(' · '+money(x.total)):''); }
+      return `<tr>
+        <td style="font-weight:600">${esc(x.name||'—')}</td>
+        <td>${phoneCell}</td>
+        <td>${info}<div class="muted2" style="font-size:11px">${sub}</div></td>
+        <td class="num"><button class="btn sm" data-task="${esc(x.ref_key)}">${ic('i-plus','sm')} Задача</button></td>
+      </tr>`;
+    }).join('');
+    panel.innerHTML=`<table class="tbl"><thead><tr><th>Клиент</th><th>Телефон</th><th>${dateCol}</th><th class="num"></th></tr></thead><tbody>${rows}</tbody></table>`;
+    panel.querySelectorAll('[data-task]').forEach(b=>b.onclick=async()=>{
+      const x=items.find(i=>i.ref_key===b.dataset.task); if(!x)return;
+      const title=tab==='birthdays'?('Поздравить с ДР — '+(x.name||'')):tab==='lapsed'?('Реактивация — '+(x.name||'')):('Напомнить о покупке — '+(x.name||''));
+      b.disabled=true;
+      const r=await api('/api/tasks',{method:'POST',body:JSON.stringify({title,type:'звонок',client_ref:x.ref_key,client_name:x.name||'',assignee:(AUTH.user||{}).name||''})});
+      if(r.ok){ toast('Задача создана','i-check2'); b.outerHTML='<span class="tag green">✓ задача</span>'; }
+      else { toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626'); b.disabled=false; }
+    });
+  }
+  seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); tab=b.dataset.t; render(); });
+  (async()=>{
+    const r=await api('/api/triggers');
+    if(!r.ok){ panel.innerHTML=`<div class="note">${ic('i-info','sm')} Триггеры в демо-режиме (нет доступа к 1С).</div>`; cnt.textContent=''; return; }
+    data=r.data;
+    seg.querySelector('[data-t=birthdays]').textContent='🎂 ДР · '+(data.birthdays.count||0);
+    seg.querySelector('[data-t=lapsed]').textContent='⏳ Не покупали · '+(data.lapsed.count||0);
+    seg.querySelector('[data-t=repeat]').textContent='🔁 Повтор · '+(data.repeat.count||0);
+    render();
+  })();
 };
 
 // ---------- AI ----------
