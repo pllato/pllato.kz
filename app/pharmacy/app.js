@@ -907,8 +907,16 @@ const BLOG_PLATFORMS=[['','—'],['instagram','instagram'],['tiktok','tiktok'],[
 const BLOG_MODELS=[['per_sale','За продажу (сом)'],['percent','% от продаж'],['fixed','Фикс / мес'],['barter','Бартер']];
 function payoutLabel(b){ const m=b.payout_model||'per_sale', v=b.payout_value||0; if(m==='barter')return 'Бартер'; if(m==='percent')return v+'% с продаж'; if(m==='fixed')return money(v)+'/мес'; return money(v)+' / прод.'; }
 function blogStatusTag(s){ return s==='paused'?'<span class="tag amber">пауза</span>':s==='archived'?'<span class="tag">архив</span>':'<span class="tag green">активен</span>'; }
+// Сколько причитается блогеру по его модели оплаты (для подсказки «сколько платить»).
+function accrualDue(b){
+  const r=Number(b.payout_value)||0, m=b.payout_model||'per_sale';
+  if(m==='per_sale') return Math.round(r*(b.uses||0));
+  if(m==='percent')  return Math.round(r*(b.revenue||0)/100);
+  if(m==='fixed')    return Math.round(r);
+  return 0; // barter
+}
 function blogCard(b){
-  const cpa=(b.uses>0)?money(Math.round((b.paid||0)/b.uses)):'—';
+  const cpa=(b.uses>0&&(b.paid||0)>0)?money(Math.round((b.paid||0)/b.uses)):'—';
   return `<div class="list-card" style="cursor:pointer">
     <div class="row"><span class="avatar-xs" style="width:42px;height:42px;font-size:14px;background:${avBg(b.nick||b.name||'?')}">${initials(b.name||b.nick||'?')}</span>
       <div style="min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.nick||b.name||'—')}</div><div class="muted" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.name||'')}${b.topic?(' · '+esc(b.topic)):''}</div></div>
@@ -1008,12 +1016,13 @@ async function newBloggerLive(onSaved){
 }
 async function bloggerModalLive(b,onSaved){
   const cards=await fetchPromoCards();
-  const cpa=(b.uses>0)?money(Math.round((b.paid||0)/b.uses)):'—';
+  const cpa=(b.uses>0&&(b.paid||0)>0)?money(Math.round((b.paid||0)/b.uses)):'—';
   const bg=openModal(`<div class="modal-h"><div><h3>${esc(b.nick||b.name||'Блогер')}</h3><div class="mh-sub">${esc(b.name||'')}${b.topic?(' · '+esc(b.topic)):''}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="cards-row">
       ${miniStat('i-tag','#10b981','Конверсии'+(b.auto?' · авто':''),b.uses||0)}
       ${miniStat('i-chart','#2563eb','Выручка',money(b.revenue||0))}
+      ${miniStat('i-gift','#16a34a','К начислению',money(accrualDue(b)))}
       ${miniStat('i-money','#d97706','Выплачено',money(b.paid||0))}
       ${miniStat('i-target','#7c3aed','CPA',cpa)}
     </div>
