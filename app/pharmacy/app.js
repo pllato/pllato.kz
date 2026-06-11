@@ -1305,7 +1305,7 @@ const TASK_LABELS=[{k:'vip',t:'VIP',c:'#db2777'},{k:'opt',t:'Опт',c:'#7c3aed'
 function labelBars(keys){ const a=keys||[]; if(!a.length)return ''; return `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:7px">${a.map(k=>{const L=TASK_LABELS.find(x=>x.k===k);return L?`<span title="${esc(L.t)}" style="height:7px;width:30px;border-radius:4px;background:${L.c}"></span>`:'';}).join('')}</div>`; }
 function fmtWhen(ms){ if(!ms)return ''; const d=new Date(ms),p=n=>String(n).padStart(2,'0'); return p(d.getDate())+'.'+p(d.getMonth()+1)+' '+p(d.getHours())+':'+p(d.getMinutes()); }
 PAGES.tasks=(c)=>{
-  const COLS=[['todo','К выполнению'],['doing','В работе'],['done','Готово']];
+  let cols=[];
   const stOf=t=>t.status||(t.done?'done':'todo');
   const typeTag=(t)=>{ const m={'звонок':'blue','встреча':'violet','отгрузка':'amber'}; return `<span class="tag ${m[t]||''}">${esc(t||'задача')}</span>`; };
   const overdue=(t)=>{ if(stOf(t)==='done'||!t.due_at)return false; const now=new Date().toISOString(); return String(t.due_at).length>10 ? t.due_at<now.slice(0,16) : t.due_at<now.slice(0,10); };
@@ -1351,10 +1351,15 @@ PAGES.tasks=(c)=>{
   }
   function renderBoard(){
     const vis=filtered();
+    const adm=typeof isAdminRole==='function'&&isAdminRole();
+    const colIds=new Set(cols.map(x=>x.id)), first=cols[0]?cols[0].id:'todo';
+    const norm=t=>{ const s=stOf(t); return colIds.has(s)?s:first; };
     board.innerHTML='';
-    COLS.forEach(([key,label])=>{
-      const list=vis.filter(t=>stOf(t)===key);
-      const col=el(`<div class="kcol" data-status="${key}"><div class="kcol-h"><span class="kc-name">${label}</span><span class="kc-count">${list.length}</span></div><div class="kcol-b"></div></div>`);
+    cols.forEach((co,ci)=>{
+      const key=co.id, label=co.title;
+      const list=vis.filter(t=>norm(t)===key);
+      const tools=adm?`<span class="kc-tools"><button class="kc-tool" data-mv="-1" title="Левее">‹</button><button class="kc-tool" data-ren title="Переименовать">✎</button>${(key!=='todo'&&key!=='done')?`<button class="kc-tool" data-del title="Удалить">✕</button>`:''}<button class="kc-tool" data-mv="1" title="Правее">›</button></span>`:'';
+      const col=el(`<div class="kcol" data-status="${esc(key)}"><div class="kcol-h"><span class="kc-name">${esc(label)}</span><span class="kc-count">${list.length}</span>${tools}</div><div class="kcol-b"></div></div>`);
       const cb=col.querySelector('.kcol-b');
       list.forEach(t=>cb.appendChild(card(t)));
       col.addEventListener('dragover',e=>{e.preventDefault();col.classList.add('drop-hot');});
@@ -1364,8 +1369,14 @@ PAGES.tasks=(c)=>{
         if(t&&stOf(t)!==key){ const oS=t.status,oD=t.done; t.status=key; t.done=(key==='done'?1:0); renderBoard(); badge();
           const r=await api('/api/tasks/'+id,{method:'POST',body:JSON.stringify({status:key})});
           if(r.ok) toast('Перенесено в «'+label+'»','i-check2'); else { t.status=oS;t.done=oD; renderBoard(); badge(); toast('Не удалось сохранить','i-x','#dc2626'); } } });
+      if(adm){
+        const ren=col.querySelector('[data-ren]'); if(ren)ren.onclick=async(e)=>{ e.stopPropagation(); const nt=prompt('Название колонки:',label); if(nt==null||!nt.trim())return; const r=await api('/api/task-columns/'+key,{method:'POST',body:JSON.stringify({title:nt.trim()})}); if(r.ok)load(); else toast('Ошибка','i-x','#dc2626'); };
+        const del=col.querySelector('[data-del]'); if(del)del.onclick=async(e)=>{ e.stopPropagation(); if(!confirm('Удалить колонку «'+label+'»? Её задачи перейдут в «К выполнению».'))return; const r=await api('/api/task-columns/'+key,{method:'DELETE'}); if(r.ok)load(); else toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626'); };
+        col.querySelectorAll('[data-mv]').forEach(b=>b.onclick=async(e)=>{ e.stopPropagation(); const j=ci+(+b.dataset.mv); if(j<0||j>=cols.length)return; const a=cols[ci],bb=cols[j]; await api('/api/task-columns/'+a.id,{method:'POST',body:JSON.stringify({position:bb.position})}); await api('/api/task-columns/'+bb.id,{method:'POST',body:JSON.stringify({position:a.position})}); load(); });
+      }
       board.appendChild(col);
     });
+    if(adm){ const ac=el(`<div class="kcol kcol-add"><button class="btn" style="width:100%;justify-content:center">${ic('i-plus','sm')} Колонка</button></div>`); ac.querySelector('button').onclick=async()=>{ const nt=prompt('Название новой колонки:'); if(nt==null||!nt.trim())return; const r=await api('/api/task-columns',{method:'POST',body:JSON.stringify({title:nt.trim()})}); if(r.ok)load(); else toast('Ошибка','i-x','#dc2626'); }; board.appendChild(ac); }
     cnt.textContent=vis.length+(vis.length!==current.length?(' из '+current.length):'')+' задач';
   }
   function renderCalendar(){
@@ -1392,8 +1403,9 @@ PAGES.tasks=(c)=>{
   }
   function badge(){ window.__taskBadge=current.filter(t=>stOf(t)!=='done').length; if(typeof renderNav==='function')renderNav(); }
   async function load(){
-    const r=await api('/api/tasks?status=all');
+    const [rc,r]=await Promise.all([api('/api/task-columns'),api('/api/tasks?status=all')]);
     if(!r.ok){ board.innerHTML=`<div class="note" style="margin:0">${ic('i-info','sm')} Задачи в демо-режиме (нет связи с сервером).</div>`; cnt.textContent=''; return; }
+    cols=(rc&&rc.ok&&(rc.data.items||[]).length)?rc.data.items:[{id:'todo',title:'К выполнению',position:1},{id:'doing',title:'В работе',position:2},{id:'done',title:'Готово',position:3}];
     current=r.data.items||[];
     const as=[...new Set(current.map(t=>(t.assignee||'').trim()).filter(Boolean))].sort();
     faSel.innerHTML='<option value="">Все ответственные</option>'+as.map(a=>`<option value="${esc(a)}" ${a===fAssignee?'selected':''}>${esc(a)}</option>`).join('');
