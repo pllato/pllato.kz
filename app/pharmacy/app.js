@@ -49,9 +49,7 @@ const NAV = [
   ]},
   {g:'Автоматизация', items:[
     {id:'tasks', t:'Задачи', i:'i-check2', badge:'5', alt:true},
-    {id:'subs', t:'Подписки', i:'i-repeat'},
     {id:'triggers', t:'Триггеры', i:'i-flame'},
-    {id:'ai', t:'AI-агент', i:'i-bot'},
     {id:'kpi', t:'KPI продавцов', i:'i-target'},
   ]},
   {g:'Система', items:[
@@ -1638,7 +1636,7 @@ function plural(n,one,few,many){ const m=n%100, d=n%10;
 // ---------- TEAM ----------
 PAGES.team=(c)=>{
   if(isAdminRole()) c.appendChild(invitesPanel());
-  const sections=[['Дашборд','dash'],['Воронки','funnels'],['Клиенты','clients'],['Чаты','inbox'],['Заказы','orders'],['Продажи','sales'],['Каталог','catalog'],['Маркетинг','marketing'],['Блогеры','bloggers'],['Врачи-партнёры','doctors'],['Аналитика','analytics'],['Задачи','tasks'],['Подписки','subs'],['Триггеры','triggers'],['AI-агент','ai'],['KPI','kpi'],['Команда','team'],['Интеграции','integrations'],['Настройки','settings']];
+  const sections=[['Дашборд','dash'],['Воронки','funnels'],['Клиенты','clients'],['Чаты','inbox'],['Заказы','orders'],['Продажи','sales'],['Каталог','catalog'],['Маркетинг','marketing'],['Блогеры','bloggers'],['Врачи-партнёры','doctors'],['Аналитика','analytics'],['Задачи','tasks'],['Триггеры','triggers'],['KPI','kpi'],['Команда','team'],['Интеграции','integrations'],['Настройки','settings']];
   c.appendChild(el(`<div class="page-sub" style="margin-bottom:14px">${isAdminRole()?'Права ролей — отметьте галочками доступные разделы и сохраните. Владелец и Суперадмин видят всё всегда.':'Каждая роль видит только свои разделы.'}</div>`));
   const panel=el(`<div class="panel" style="overflow-x:auto"><div class="muted2" style="padding:14px;font-size:13px">Загрузка прав…</div></div>`);
   c.appendChild(panel);
