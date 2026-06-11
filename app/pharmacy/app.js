@@ -1310,6 +1310,7 @@ PAGES.tasks=(c)=>{
   const typeTag=(t)=>{ const m={'звонок':'blue','встреча':'violet','отгрузка':'amber'}; return `<span class="tag ${m[t]||''}">${esc(t||'задача')}</span>`; };
   const overdue=(t)=>{ if(stOf(t)==='done'||!t.due_at)return false; const now=new Date().toISOString(); return String(t.due_at).length>10 ? t.due_at<now.slice(0,16) : t.due_at<now.slice(0,10); };
   const tbar=el(`<div class="toolbar">
+    <div class="seg" id="tkView"><button class="on" data-v="board">Доска</button><button data-v="calendar">Календарь</button></div>
     <select class="sel" id="tkFa" style="max-width:190px"><option value="">Все ответственные</option></select>
     <select class="sel" id="tkFl" style="max-width:160px"><option value="">Все метки</option>${TASK_LABELS.map(L=>`<option value="${L.k}">${esc(L.t)}</option>`).join('')}</select>
     <button class="btn sm" id="tkFclear" title="Сбросить фильтры">${ic('i-x','sm')}</button>
@@ -1317,14 +1318,19 @@ PAGES.tasks=(c)=>{
   c.appendChild(tbar);
   const board=el(`<div class="kanban" id="tkBoard"><div class="muted2" style="padding:14px">Загрузка…</div></div>`);
   c.appendChild(board);
+  const cal=el(`<div id="tkCal" style="display:none"></div>`);
+  c.appendChild(cal);
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Канбан как в Trello: «К выполнению» → «В работе» → «Готово». Статус сохраняется при перетаскивании. Клик по карточке — детали и редактирование.</div>`));
   const cnt=tbar.querySelector('#tkCnt');
   const faSel=tbar.querySelector('#tkFa'), flSel=tbar.querySelector('#tkFl');
-  let fAssignee='', fLabel='';
-  faSel.onchange=()=>{ fAssignee=faSel.value; renderBoard(); };
-  flSel.onchange=()=>{ fLabel=flSel.value; renderBoard(); };
-  tbar.querySelector('#tkFclear').onclick=()=>{ fAssignee='';fLabel='';faSel.value='';flSel.value=''; renderBoard(); };
+  let fAssignee='', fLabel='', view='board', calY=null, calM=null;
+  faSel.onchange=()=>{ fAssignee=faSel.value; render(); };
+  flSel.onchange=()=>{ fLabel=flSel.value; render(); };
+  tbar.querySelector('#tkFclear').onclick=()=>{ fAssignee='';fLabel='';faSel.value='';flSel.value=''; render(); };
+  tbar.querySelector('#tkView').querySelectorAll('button').forEach(b=>b.onclick=()=>{ tbar.querySelector('#tkView').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); view=b.dataset.v; render(); });
   tbar.querySelector('#newTaskBtn').onclick=()=>newTaskLive(load);
+  const filtered=()=>current.filter(t=>(!fAssignee||t.assignee===fAssignee)&&(!fLabel||jparse(t.labels,[]).includes(fLabel)));
+  function render(){ if(view==='calendar'){ board.style.display='none'; cal.style.display=''; renderCalendar(); } else { board.style.display=''; cal.style.display='none'; renderBoard(); } }
   let _dx=0,_sc=null;
   board.addEventListener('dragover',e=>{ e.preventDefault(); _dx=e.clientX; if(!_sc) _sc=setInterval(()=>{ const r=board.getBoundingClientRect(); if(_dx>r.right-80)board.scrollLeft+=26; else if(_dx<r.left+80)board.scrollLeft-=26; },16); });
   const stop=()=>{ if(_sc){clearInterval(_sc);_sc=null;} }; board.addEventListener('drop',stop); board.addEventListener('dragend',stop);
@@ -1343,10 +1349,10 @@ PAGES.tasks=(c)=>{
     return k;
   }
   function renderBoard(){
-    const view=current.filter(t=>(!fAssignee||t.assignee===fAssignee)&&(!fLabel||jparse(t.labels,[]).includes(fLabel)));
+    const vis=filtered();
     board.innerHTML='';
     COLS.forEach(([key,label])=>{
-      const list=view.filter(t=>stOf(t)===key);
+      const list=vis.filter(t=>stOf(t)===key);
       const col=el(`<div class="kcol" data-status="${key}"><div class="kcol-h"><span class="kc-name">${label}</span><span class="kc-count">${list.length}</span></div><div class="kcol-b"></div></div>`);
       const cb=col.querySelector('.kcol-b');
       list.forEach(t=>cb.appendChild(card(t)));
@@ -1359,7 +1365,29 @@ PAGES.tasks=(c)=>{
           if(r.ok) toast('Перенесено в «'+label+'»','i-check2'); else { t.status=oS;t.done=oD; renderBoard(); badge(); toast('Не удалось сохранить','i-x','#dc2626'); } } });
       board.appendChild(col);
     });
-    cnt.textContent=view.length+(view.length!==current.length?(' из '+current.length):'')+' задач';
+    cnt.textContent=vis.length+(vis.length!==current.length?(' из '+current.length):'')+' задач';
+  }
+  function renderCalendar(){
+    const now=new Date(); if(calY==null){ calY=now.getFullYear(); calM=now.getMonth(); }
+    const vis=filtered(); const byDay={}; vis.forEach(t=>{ if(t.due_at){ const d=String(t.due_at).slice(0,10); (byDay[d]=byDay[d]||[]).push(t); } });
+    const noDue=vis.filter(t=>!t.due_at).length, pad=n=>String(n).padStart(2,'0');
+    const first=new Date(calY,calM,1), dow=(first.getDay()+6)%7, start=new Date(calY,calM,1-dow);
+    const todayISO=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
+    const monthName=first.toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+    let cells='';
+    for(let i=0;i<42;i++){ const d=new Date(start.getFullYear(),start.getMonth(),start.getDate()+i);
+      const iso=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()), inMonth=d.getMonth()===calM, isToday=iso===todayISO, list=byDay[iso]||[];
+      cells+=`<div class="cal-cell ${inMonth?'':'cal-out'} ${isToday?'cal-today':''}"><div class="cal-d">${d.getDate()}</div>`
+        +list.slice(0,4).map(t=>{ const ov=overdue(t), lb=jparse(t.labels,[])[0], L=lb&&TASK_LABELS.find(x=>x.k===lb); return `<div class="cal-task ${ov?'ov':''}" data-id="${esc(t.id)}" title="${esc(t.title)}"><span class="cal-dot" style="background:${L?L.c:'var(--muted2)'}"></span>${esc(t.title)}</div>`; }).join('')
+        +(list.length>4?`<div class="cal-more">+${list.length-4} ещё</div>`:'')+`</div>`; }
+    cal.innerHTML=`<div class="cal-head"><button class="btn sm" id="calPrev">‹</button><div class="cal-title">${esc(monthName)}</div><button class="btn sm" id="calNext">›</button><button class="btn sm" id="calToday">Сегодня</button>${noDue?`<span class="ph-sub" style="margin-left:auto">без срока: ${noDue}</span>`:''}</div>
+      <div class="cal-grid cal-dows">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(x=>`<div class="cal-dow">${x}</div>`).join('')}</div>
+      <div class="cal-grid">${cells}</div>`;
+    cal.querySelector('#calPrev').onclick=()=>{ calM--; if(calM<0){calM=11;calY--;} renderCalendar(); };
+    cal.querySelector('#calNext').onclick=()=>{ calM++; if(calM>11){calM=0;calY++;} renderCalendar(); };
+    cal.querySelector('#calToday').onclick=()=>{ const n=new Date(); calY=n.getFullYear(); calM=n.getMonth(); renderCalendar(); };
+    cal.querySelectorAll('.cal-task').forEach(e=>e.onclick=()=>{ const t=current.find(x=>x.id===e.dataset.id); if(t)taskModalLive(t,load); });
+    cnt.textContent=vis.length+(vis.length!==current.length?(' из '+current.length):'')+' задач';
   }
   function badge(){ window.__taskBadge=current.filter(t=>stOf(t)!=='done').length; if(typeof renderNav==='function')renderNav(); }
   async function load(){
@@ -1368,7 +1396,7 @@ PAGES.tasks=(c)=>{
     current=r.data.items||[];
     const as=[...new Set(current.map(t=>(t.assignee||'').trim()).filter(Boolean))].sort();
     faSel.innerHTML='<option value="">Все ответственные</option>'+as.map(a=>`<option value="${esc(a)}" ${a===fAssignee?'selected':''}>${esc(a)}</option>`).join('');
-    badge(); renderBoard();
+    badge(); render();
   }
   window.__reloadTasks=load;
   load();
