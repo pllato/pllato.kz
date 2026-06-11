@@ -1512,25 +1512,61 @@ PAGES.ai=(c)=>{
 };
 
 // ---------- KPI ----------
+function isoDaysAgo(n){ const d=new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); }
 PAGES.kpi=(c)=>{
-  c.appendChild(el(`<div class="note">${ic('i-info','sm')} Формула KPI настраивается заказчиком, Pllato внедряет. Расчёт автоматический по данным CRM + 1С.</div>`));
-  const grid=el(`<div class="grid-2b section-gap"></div>`);
-  DB.sellers.forEach(s=>{
-    const pct=Math.round(s.fact/s.plan*100);
-    grid.appendChild(el(`<div class="list-card">
-      <div class="row"><span class="avatar-xs" style="width:42px;height:42px;font-size:14px;background:${avBg(s.name)}">${initials(s.name)}</span>
-        <div><div style="font-weight:700">${s.name}</div><div class="muted" style="font-size:12px">${s.role}</div></div>
-        <div style="margin-left:auto" class="donut" style="--p:${Math.min(100,pct)}"><div class="dv" style="font-size:16px">${pct}%</div></div></div>
-      <div class="grid-3 section-gap" style="gap:10px">
-        <div><div class="muted" style="font-size:11px">План</div><div style="font-weight:700">${money(s.plan)}</div></div>
-        <div><div class="muted" style="font-size:11px">Факт</div><div style="font-weight:700;color:var(--accent2)">${money(s.fact)}</div></div>
-        <div><div class="muted" style="font-size:11px">Бонус сейчас</div><div style="font-weight:700">${money(s.bonus)}</div></div>
-      </div>
-      <div class="row section-gap" style="justify-content:space-between;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px">
-        <span class="muted">Конверсия ${s.conv}%</span><span class="muted">Активных задач: ${s.tasks}</span></div></div>`));
-  });
-  c.appendChild(grid);
+  const tbar=el(`<div class="toolbar">
+    <div class="seg" data-kh="range">
+      <button data-d="7">7 дней</button>
+      <button class="on" data-d="30">30 дней</button>
+      <button data-d="90">90 дней</button>
+    </div>
+    <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-kh="from" title="С даты"></div>
+    <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-kh="to" title="По дату"></div>
+    <button class="btn sm" data-kh="apply">Показать</button>
+  </div>`);
+  const cards=el(`<div class="cards-row section-gap"></div>`);
+  const panel=el(`<div class="panel section-gap"><table class="tbl"><thead><tr><th style="width:38px">#</th><th>Продавец</th><th class="num">Выручка</th><th class="num">Прибыль</th><th class="num">Маржа</th><th class="num">Чеки</th><th class="num">Ср. чек</th><th class="num">Доля</th></tr></thead><tbody><tr><td colspan="8" class="muted2" style="padding:16px">Загрузка…</td></tr></tbody></table></div>`);
+  c.appendChild(tbar); c.appendChild(cards); c.appendChild(panel);
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} KPI из реальных продаж 1С по ответственному (продавцу) за период. «Чеки» — число документов продаж, «Ср. чек» — выручка ÷ чеки, «Маржа» — прибыль ÷ выручка. Планы/бонусы добавим по формуле заказчика.</div>`));
+  const seg=tbar.querySelector('[data-kh=range]'), fromI=tbar.querySelector('[data-kh=from]'), toI=tbar.querySelector('[data-kh=to]'), applyB=tbar.querySelector('[data-kh=apply]');
+  const go=(f,t)=>loadKpi(cards,panel,f,t);
+  seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); fromI.value='';toI.value=''; go(isoDaysAgo(+b.dataset.d),isoDaysAgo(0)); });
+  applyB.onclick=()=>{ if(fromI.value&&toI.value){ seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); go(fromI.value,toI.value); } else toast('Укажите обе даты','i-info'); };
+  go(isoDaysAgo(30),isoDaysAgo(0));
 };
+async function loadKpi(cards,panel,from,to){
+  const tb=panel.querySelector('tbody');
+  cards.innerHTML=''; tb.innerHTML=`<tr><td colspan="8" class="muted2" style="padding:16px">Загрузка…</td></tr>`;
+  const r=await api('/api/1c/sales/summary?from='+from+'&to='+to);
+  if(!r.ok){
+    cards.innerHTML=miniStat('i-target','#7c3aed','KPI продавцов','демо');
+    tb.innerHTML=(DB.sellers||[]).map((s,i)=>`<tr><td>${i+1}</td><td>${esc(s.name)}</td><td class="num">${money(s.fact)}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>`).join('');
+    return;
+  }
+  const t=r.data.totals||{}, sellers=(r.data.bySeller||[]).filter(s=>s.revenue>0);
+  cards.innerHTML =
+     dashKpi('i-money','#10b981','Выручка',money(t.revenue||0),sellers.length+' прод.',0)
+    +dashKpi('i-chart','#2563eb','Прибыль · '+(t.margin||0)+'%',money(t.profit||0),'',0)
+    +dashKpi('i-doc','#7c3aed','Чеки',(t.docs||0).toLocaleString('ru-RU'),'',0)
+    +dashKpi('i-cart','#0891b2','Средний чек',money(t.avg||0),'',0);
+  if(!sellers.length){ tb.innerHTML=`<tr><td colspan="8" class="muted2" style="padding:16px">Нет продаж за выбранный период</td></tr>`; return; }
+  const maxRev=Math.max(...sellers.map(s=>s.revenue),1), totalRev=t.revenue||sellers.reduce((a,s)=>a+s.revenue,0)||1;
+  tb.innerHTML=sellers.map((s,i)=>{
+    const margin=s.revenue>0?Math.round(s.profit/s.revenue*100):0, avg=s.docs?Math.round(s.revenue/s.docs):0;
+    const share=Math.round(s.revenue/totalRev*100), barW=Math.max(2,Math.round(s.revenue/maxRev*100));
+    const rank=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+    return `<tr>
+      <td style="font-weight:700">${rank}</td>
+      <td><div class="row" style="gap:9px"><span class="avatar-xs" style="width:30px;height:30px;font-size:11px;background:${avBg(s.name||'?')}">${initials(s.name||'?')}</span><span style="font-weight:600">${esc(s.name||'—')}</span></div></td>
+      <td class="num"><div style="font-weight:700">${money(s.revenue)}</div><div style="height:4px;background:var(--line);border-radius:3px;margin-top:4px;overflow:hidden"><div style="height:100%;width:${barW}%;background:var(--accent2)"></div></div></td>
+      <td class="num">${money(s.profit)}</td>
+      <td class="num">${margin}%</td>
+      <td class="num">${(s.docs||0).toLocaleString('ru-RU')}</td>
+      <td class="num">${money(avg)}</td>
+      <td class="num">${share}%</td>
+    </tr>`;
+  }).join('');
+}
 
 // ---------- приглашения сотрудников (owner/superadmin) ----------
 function roleOptions(sel){
