@@ -1428,7 +1428,7 @@ async function taskModalLive(t,onSaved){
   // Чек-лист
   const clBox=bg.querySelector('#tmCl'), clProg=bg.querySelector('#tmClProg');
   function renderCl(){ const dn=cl.filter(i=>i.done).length; clProg.textContent=cl.length?(dn+'/'+cl.length+' выполнено'):'';
-    clBox.innerHTML=cl.length?cl.map((it,i)=>`<div class="row" style="gap:8px;align-items:center"><button type="button" class="btn sm" data-ci="${i}" style="flex:none;width:28px;padding:4px 0;${it.done?'background:var(--accent);color:#06231a;border-color:var(--accent)':''}">${it.done?'✓':''}</button><span style="flex:1;${it.done?'text-decoration:line-through;opacity:.55':''}">${esc(it.text)}</span><button type="button" class="btn sm" data-cd="${i}" style="flex:none">${ic('i-x','sm')}</button></div>`).join(''):'<div class="muted2" style="font-size:12px">Пунктов нет</div>';
+    clBox.innerHTML=cl.length?cl.map((it,i)=>`<div class="row" style="gap:9px;align-items:center"><span class="ck-box ${it.done?'on':''}" data-ci="${i}">✓</span><span style="flex:1;font-size:13.5px;${it.done?'text-decoration:line-through;opacity:.55':''}">${esc(it.text)}</span><button type="button" class="btn sm" data-cd="${i}" style="flex:none">${ic('i-x','sm')}</button></div>`).join(''):'<div class="muted2" style="font-size:12px">Пунктов нет</div>';
     clBox.querySelectorAll('[data-ci]').forEach(b=>b.onclick=()=>{ cl[+b.dataset.ci].done=!cl[+b.dataset.ci].done; renderCl(); });
     clBox.querySelectorAll('[data-cd]').forEach(b=>b.onclick=()=>{ cl.splice(+b.dataset.cd,1); renderCl(); }); }
   renderCl();
