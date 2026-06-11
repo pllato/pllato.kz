@@ -6105,6 +6105,91 @@ async function handleTaskFull(request, env, taskId) {
   return json({ ok: true, task, subtasks, files, comments }, 200, request);
 }
 
+// ── Интеграция с порталом skills.myelc.net ──────────────────────────────
+// POST /api/skills/report — портал постит отчёт (оплата, пропуск, перенос,
+// баланс, новый студент …) в ленту подзадачи нужного филиала. Воспроизводит
+// старую связку Bitrix `task.item.list` + `task.commentitem.add` из
+// BitrixLoggerController.php:
+//   parent      = bitrix_id родительской задачи-категории (напр. 5494 «Опоздания/пропуски»),
+//                 ровно тот номер, что у портала уже прописан в $permaTasksId;
+//   affiliate_id= номер филиала → ищем подзадачу с "[affiliate_id]" в названии;
+//   text        = тот же текст поста, что слался в Bitrix.
+//   (либо task_bitrix_id — напрямую в конкретную подзадачу, без поиска).
+// Пост дописывается в tasks.comments_data в том же формате, что читает /full,
+// поэтому появляется в карточке задачи как обычный комментарий ленты.
+// Авторизация: shared-secret env.SKILLS_INGEST_SECRET (портал не умеет Firebase).
+// Токен принимаем в Authorization: Bearer / ?token= / x-skills-token.
+async function handleSkillsReport(request, env) {
+  const url = new URL(request.url);
+  const hdr = request.headers.get('Authorization') || '';
+  const bearer = hdr.startsWith('Bearer ') ? hdr.slice(7) : '';
+  const token = bearer || url.searchParams.get('token') || request.headers.get('x-skills-token') || '';
+  if (!env.SKILLS_INGEST_SECRET) {
+    return json({ error: "skills integration not configured (set SKILLS_INGEST_SECRET secret)" }, 503, request);
+  }
+  if (!token || token !== env.SKILLS_INGEST_SECRET) {
+    return json({ error: "invalid token" }, 401, request);
+  }
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+
+  const text = String(body.text || '').trim();
+  if (!text) return json({ error: "text required" }, 400, request);
+  if (text.length > 20000) return json({ error: "text too long (max 20000)" }, 413, request);
+  const author = String(body.author || 'SKILLS.myelc.net').slice(0, 200);
+  const occurredAt = body.occurred_at ? String(body.occurred_at).slice(0, 40) : new Date().toISOString();
+
+  // Найти целевую подзадачу: либо напрямую по bitrix_id, либо по (parent + филиал).
+  let task = null;
+  const directBitrixId = body.task_bitrix_id != null ? String(body.task_bitrix_id).trim() : '';
+  if (directBitrixId) {
+    task = await env.DB.prepare(
+      "SELECT id, bitrix_id, comments_data, comments_count FROM tasks WHERE bitrix_id = ? LIMIT 1"
+    ).bind(directBitrixId).first();
+    if (!task) return json({ error: "task not found by task_bitrix_id", task_bitrix_id: directBitrixId }, 404, request);
+  } else {
+    const parent = body.parent != null ? String(body.parent).trim() : '';
+    const affiliateId = body.affiliate_id != null ? String(body.affiliate_id).trim() : '';
+    if (!parent || !affiliateId) {
+      return json({ error: "provide task_bitrix_id, or both parent and affiliate_id" }, 400, request);
+    }
+    // Подзадача филиала: bitrix_parent_id = parent, в названии "[affiliate_id]"
+    // (LIKE-экранирование не нужно — affiliate_id числовой).
+    task = await env.DB.prepare(
+      "SELECT id, bitrix_id, title, comments_data, comments_count FROM tasks WHERE bitrix_parent_id = ? AND title LIKE ? ORDER BY bitrix_created_date DESC LIMIT 1"
+    ).bind(parent, `%[${affiliateId}]%`).first();
+    if (!task) {
+      return json({ error: "affiliate subtask not found", parent, affiliate_id: affiliateId }, 404, request);
+    }
+  }
+
+  // Дописать пост в comments_data (тот же формат, что читает handleTaskFull).
+  let comments = {};
+  try { comments = task.comments_data ? JSON.parse(task.comments_data) : {}; } catch { comments = {}; }
+  if (!comments || typeof comments !== 'object' || Array.isArray(comments)) comments = {};
+  const key = 'skills_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  comments[key] = {
+    bitrixId: key,
+    authorUid: null,
+    authorName: author,
+    bitrixAuthorId: null,
+    bitrixPostDate: occurredAt,
+    text,
+    attachedFileIds: [],
+    hasFiles: false,
+    source: 'skills_portal',
+  };
+  const newCount = Object.keys(comments).length;
+  await env.DB.prepare(
+    "UPDATE tasks SET comments_data = ?, comments_count = ?, comments_actual_count = ? WHERE id = ?"
+  ).bind(JSON.stringify(comments), newCount, newCount, task.id).run();
+
+  await auditLog(env, { canonicalUid: 'skills_portal', email: author }, "skills_report", "task", task.id, { commentKey: key, occurredAt });
+
+  return json({ ok: true, taskId: task.id, bitrixId: task.bitrix_id, commentKey: key, commentsCount: newCount }, 200, request);
+}
+
 // ── Phase 0 routes ──────────────────────────────────────
 async function handleHealth(request, env) {
   try {
@@ -6546,6 +6631,13 @@ export default {
     const taskFullMatch = path.match(/^\/api\/tasks\/([^/]+)\/full$/);
     if (taskFullMatch && request.method === "GET") {
       return handleTaskFull(request, env, taskFullMatch[1]);
+    }
+
+    // /api/skills/report — приём отчёта от портала skills.myelc.net в ленту
+    // подзадачи филиала. Своя токен-авторизация (env.SKILLS_INGEST_SECRET),
+    // НЕ Firebase — перехватываем до общего auth-гейта.
+    if (path === "/api/skills/report" && request.method === "POST") {
+      return handleSkillsReport(request, env);
     }
 
     // ── Chat-файлы — отдача через <img src>/<a href> ─────────────────────
