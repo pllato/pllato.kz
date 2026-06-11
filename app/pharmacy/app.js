@@ -1250,22 +1250,54 @@ function doctorModal(d){
 
 // ---------- ANALYTICS ----------
 PAGES.analytics=(c)=>{
-  c.appendChild(el(`<div class="note">${ic('i-info','sm')} Классическая «динозаврическая» аналитика — без AI-обобщений в первой итерации (по решению встречи). LLM-аналитика — опционально, тестовый режим.</div>`));
-  c.appendChild(el(`<div class="grid-2 section-gap">
-    <div class="panel"><div class="panel-h"><h3>Конверсия по продавцам</h3><span class="ph-sub">входящие → отработанные → результат</span></div>
-      <table class="tbl"><thead><tr><th>Продавец</th><th>Входящие</th><th>Закрыто</th><th>Конверсия</th></tr></thead><tbody>
-      ${DB.sellers.map(s=>`<tr><td>${s.name}</td><td>${s.incoming}</td><td>${s.won}</td><td><div class="row"><div class="mini-bar"><i style="width:${s.conv}%;background:var(--accent)"></i></div>${s.conv}%</div></td></tr>`).join('')}
-      </tbody></table></div>
-    <div class="panel"><div class="panel-h"><h3>Воронка B2B · опт</h3></div><div class="panel-b">
-      ${funnelVis([['Заявка',64,'#7c3aed'],['Квалификация',48,'#8b5cf6'],['КП',34,'#2563eb'],['Согласование',22,'#0891b2'],['Отгрузка',16,'#10b981'],['Оплата',12,'#16a34a']])}</div></div>
-  </div>`));
-  c.appendChild(el(`<div class="grid-2 section-gap">
-    <div class="panel"><div class="panel-h"><h3>Средний чек по сегментам</h3></div><div class="panel-b">
-      ${barList([['Опт',96000,'#7c3aed'],['Врачи',4200,'#2563eb'],['Дисконт',2900,'#0891b2'],['Розница',2180,'#10b981'],['Новые',1180,'#16a34a']],96000,true)}</div></div>
-    <div class="panel"><div class="panel-h"><h3>Возвраты и причины</h3></div><div class="panel-b">
-      ${barList([['Не подошёл размер',42,'#dc2626'],['Брак упаковки',18,'#d97706'],['Передумал',11,'#7c3aed'],['Дубль заказа',5,'#0891b2']],42)}</div></div>
-  </div>`));
+  const tbar=el(`<div class="toolbar">
+    <div class="seg" data-ah="range"><button data-d="7">7 дней</button><button class="on" data-d="30">30 дней</button><button data-d="90">90 дней</button></div>
+    <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-ah="from" title="С даты"></div>
+    <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-ah="to" title="По дату"></div>
+    <button class="btn sm" data-ah="apply">Показать</button>
+  </div>`);
+  const host=el(`<div class="section-gap"><div class="muted2" style="padding:10px">Загрузка аналитики…</div></div>`);
+  c.appendChild(tbar); c.appendChild(host);
+  const seg=tbar.querySelector('[data-ah=range]'),fromI=tbar.querySelector('[data-ah=from]'),toI=tbar.querySelector('[data-ah=to]'),applyB=tbar.querySelector('[data-ah=apply]');
+  const go=(f,t)=>loadAnalytics(host,f,t);
+  seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); fromI.value='';toI.value=''; go(isoDaysAgo(+b.dataset.d),isoDaysAgo(0)); });
+  applyB.onclick=()=>{ if(fromI.value&&toI.value){ seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); go(fromI.value,toI.value); } else toast('Укажите обе даты','i-info'); };
+  go(isoDaysAgo(30),isoDaysAgo(0));
 };
+function anMargin(x){ return x.revenue>0?Math.round((x.profit||0)/x.revenue*100):0; }
+async function loadAnalytics(host,from,to){
+  host.innerHTML=`<div class="muted2" style="padding:10px">Загрузка…</div>`;
+  const r=await api('/api/1c/sales/summary?from='+from+'&to='+to);
+  if(!r.ok){
+    host.innerHTML=`<div class="note">${ic('i-info','sm')} Аналитика в демо-режиме (нет доступа к 1С).</div>
+      <div class="grid-2 section-gap"><div class="panel"><div class="panel-h"><h3>Средний чек по сегментам</h3></div><div class="panel-b">${barList([['Опт',96000,'#7c3aed'],['Врачи',4200,'#2563eb'],['Розница',2180,'#10b981']],96000,true)}</div></div>
+      <div class="panel"><div class="panel-h"><h3>Воронка B2B</h3></div><div class="panel-b">${funnelVis([['Заявка',64,'#7c3aed'],['КП',34,'#2563eb'],['Оплата',12,'#16a34a']])}</div></div></div>`;
+    return;
+  }
+  const d=r.data,t=d.totals||{},fmt=n=>(n||0).toLocaleString('ru-RU');
+  const tp=d.topProducts||[],bs=d.byStore||[],bo=d.byOrg||[];
+  const maxTP=Math.max(...tp.map(x=>x.revenue),1);
+  const prodRows=tp.length?tp.map((x,i)=>`<tr><td class="muted2">${i+1}</td><td>${esc(x.name||'—')}</td><td class="num">${fmt(x.qty)}</td><td class="num"><div style="font-weight:600">${money(x.revenue)}</div><div style="height:3px;background:var(--line);border-radius:3px;margin-top:3px;overflow:hidden"><div style="height:100%;width:${Math.max(2,Math.round(x.revenue/maxTP*100))}%;background:var(--accent2)"></div></div></td><td class="num">${money(x.profit)}</td><td class="num">${anMargin(x)}%</td></tr>`).join(''):`<tr><td colspan="6" class="muted2" style="padding:14px">Нет данных за период</td></tr>`;
+  const chRows=(rows,empty)=>rows.length?rows.map(x=>`<tr><td>${esc(x.name||'—')}</td><td class="num">${money(x.revenue)}</td><td class="num">${money(x.profit)}</td><td class="num">${anMargin(x)}%</td><td class="num">${fmt(x.docs)}</td></tr>`).join(''):`<tr><td colspan="5" class="muted2" style="padding:14px">${empty}</td></tr>`;
+  host.innerHTML=
+    `<div class="cards-row">
+      ${dashKpi('i-money','#10b981','Выручка',money(t.revenue||0),'',0)}
+      ${dashKpi('i-chart','#2563eb','Прибыль · '+(t.margin||0)+'%',money(t.profit||0),'',0)}
+      ${dashKpi('i-doc','#7c3aed','Чеки',fmt(t.docs),'',0)}
+      ${dashKpi('i-cart','#0891b2','Средний чек',money(t.avg||0),'',0)}
+      ${dashKpi('i-box','#db2777','Продано позиций',fmt(t.qty),'',0)}
+    </div>
+    <div class="panel section-gap"><div class="panel-h"><h3>Топ-20 товаров</h3><span class="ph-sub">по выручке · с прибылью и маржой</span></div>
+      <table class="tbl"><thead><tr><th style="width:30px">#</th><th>Товар</th><th class="num">Продано</th><th class="num">Выручка</th><th class="num">Прибыль</th><th class="num">Маржа</th></tr></thead><tbody>${prodRows}</tbody></table></div>
+    <div class="grid-2 section-gap">
+      <div class="panel"><div class="panel-h"><h3>По магазинам</h3></div>
+        <table class="tbl"><thead><tr><th>Магазин</th><th class="num">Выручка</th><th class="num">Прибыль</th><th class="num">Маржа</th><th class="num">Чеки</th></tr></thead><tbody>${chRows(bs,'Нет данных')}</tbody></table></div>
+      <div class="panel"><div class="panel-h"><h3>По организациям</h3></div>
+        <table class="tbl"><thead><tr><th>Организация</th><th class="num">Выручка</th><th class="num">Прибыль</th><th class="num">Маржа</th><th class="num">Чеки</th></tr></thead><tbody>${chRows(bo,'Нет данных')}</tbody></table></div>
+    </div>
+    <div class="panel section-gap"><div class="panel-h"><h3>Динамика выручки по дням</h3><span class="ph-sub">${esc(from)} — ${esc(to)}</span></div><div class="panel-b">${dashDayChart(d.byDay)}</div></div>
+    <div class="note blue section-gap">${ic('i-info','sm')} Аналитика из продаж 1С за период. Прибыль = выручка − себестоимость, маржа = прибыль ÷ выручка.</div>`;
+}
 
 // ---------- TASKS ----------
 PAGES.tasks=(c)=>{
