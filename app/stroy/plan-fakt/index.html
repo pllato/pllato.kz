@@ -107,6 +107,17 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .spin{margin-top:18px;font-family:var(--mono);font-size:13px;color:var(--steel);display:none;}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(18px);background:var(--ink);color:#fff;padding:11px 19px;border-radius:10px;font-size:13px;font-weight:500;z-index:200;opacity:0;transition:.25s;box-shadow:0 8px 30px rgba(0,0,0,.3);pointer-events:none;max-width:80vw;text-align:center;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+/* гид «с чего начать» */
+.guide{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:24;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:13px 16px;max-width:720px;width:calc(100% - 90px);}
+.guide h3{margin:0 0 3px;font-size:14px;font-weight:700;}
+.guide .gsub{font-size:11.5px;color:var(--gray);line-height:1.45;}
+.guide .gsteps{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap;}
+.guide .gstep{flex:1;min-width:130px;border:1px solid var(--line);border-radius:9px;padding:9px 10px;background:var(--panel2);cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:2px;transition:.12s;}
+.guide .gstep:hover{background:#fff;border-color:var(--amber);box-shadow:0 0 0 2px rgba(217,131,36,.16);}
+.guide .gn{font-weight:700;font-size:12.5px;color:var(--steel);}
+.guide .gd{font-size:10.5px;color:var(--gray);line-height:1.3;}
+.guide .gx{position:absolute;top:7px;right:10px;cursor:pointer;color:var(--gray);font-size:20px;line-height:1;border:none;background:none;padding:2px 6px;}
+.guide .gx:hover{color:var(--red);}
 /* каталог знаков */
 .catgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
 .catcell{display:flex;flex-direction:column;align-items:center;gap:5px;border:1px solid var(--line);background:var(--panel2);border-radius:9px;padding:9px 7px;cursor:pointer;text-align:center;transition:.12s;}
@@ -123,7 +134,8 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
   <div class="brand"><span class="mark">СС</span><span>План-Факт</span><span class="sub">исполнительные чертежи</span></div>
   <span class="sp"></span><span class="docname" id="docname"></span>
   <div class="scalepill" id="scalePill" title="Калибровка масштаба">⌖ Масштаб: <b id="scaleVal">не задан</b></div>
-  <button class="tbtn ghost" id="btnMode" title="Импортированные трассы: правка или фон-ориентир">Импорт: правка</button>
+  <button class="tbtn ghost" id="btnDim" title="Приглушить чертёж-подложку, чтобы ваши линии были видны">Подложка: 100%</button>
+  <button class="tbtn ghost" id="btnHelp" title="Как вносить правки">? Как это работает</button>
   <button class="tbtn ghost" id="btnSaveProj" title="Сохранить проект (план + ваши правки) в файл — продолжить позже или передать">Сохранить</button>
   <button class="tbtn ghost" id="btnOpenProj" title="Открыть проект или другой план">Открыть</button>
   <button class="tbtn" id="btnUndo" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>Отменить</button>
@@ -149,6 +161,17 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
       <svg id="svg" xmlns="http://www.w3.org/2000/svg"><g id="gObjects"></g><g id="gUI"></g></svg>
     </div></div>
     <div class="float"><div class="zoomgrp"><button id="zin">+</button><div class="zlab" id="zlab">100%</div><button id="zout">−</button><button id="zfit">FIT</button></div></div>
+    <div class="guide" id="guide" style="display:none">
+      <button class="gx" id="guideX" title="Скрыть">×</button>
+      <h3>С чего начать — чертёж это фон, рисуете поверх «по факту»</h3>
+      <div class="gsub">Старый чертёж — подложка (его не двигают). Вы рисуете свои трассы, ставите знаки — длина кабеля и спецификация считаются сами.</div>
+      <div class="gsteps">
+        <button class="gstep" data-go="cal"><span class="gn">1 · Масштаб</span><span class="gd">2 клика по известному размеру + метры</span></button>
+        <button class="gstep" data-go="line"><span class="gn">2 · Трассы</span><span class="gd">Клик-клик или «Карандаш». Гнётся само</span></button>
+        <button class="gstep" data-go="sym"><span class="gn">3 · Знаки</span><span class="gd">Розетки/щит из каталога — тапом</span></button>
+        <button class="gstep" data-go="calc"><span class="gn">4 · Расчёт + PDF</span><span class="gd">Длина по маркам → «Чистый PDF»</span></button>
+      </div>
+    </div>
   </div>
   <aside class="side">
     <div class="sidetabs"><button class="on" data-tab="obj" id="tabObj">Объекты <span id="objN">0</span></button><button data-tab="sym" id="tabSym">Знаки</button><button data-tab="calc" id="tabCalc">Расчёт</button></div>
@@ -305,7 +328,7 @@ function initData(j){
   S.data=j;S.pageList=Object.keys(j.pages).map(Number).sort((a,b)=>a-b);
   $('docname').textContent=j.name||'План';
   $('loader').classList.add('hide');$('stage').style.display='flex';
-  buildStrip();goPage(S.pageList[0]);setTool('select');
+  buildStrip();goPage(S.pageList[0]);setTool('select');showGuide();
 }
 /* ---- проект: сохранить / открыть (самодостаточный файл = план + правки) ---- */
 function saveProject(){
@@ -334,9 +357,8 @@ function openProject(j){
   S.pageList=Object.keys(S.data.pages).map(Number).sort((a,b)=>a-b);
   S.history={};S.selected=null;
   $('docname').textContent=(S.data.name||'План')+' · проект';
-  $('btnMode').textContent='Импорт: '+(S.importMode==='edit'?'правка':'фон');
   $('loader').classList.add('hide');$('stage').style.display='flex';
-  buildStrip();goPage(S.pageList[0]);setTool('select');
+  buildStrip();goPage(S.pageList[0]);setTool('select');showGuide();
   toast('Проект открыт — правки восстановлены');
 }
 $('btnSaveProj').onclick=saveProject;
@@ -400,7 +422,7 @@ function importObjects(raw,sx,sy){
   });
 }
 function fitPage(){const w=$('cwrap'),pad=44;S.fitScale=Math.min((w.clientWidth-pad)/S.W,(w.clientHeight-pad)/S.H);S.scale=S.fitScale;S.pan.x=(w.clientWidth-S.W*S.scale)/2;S.pan.y=(w.clientHeight-S.H*S.scale)/2;}
-function applyTransform(){const cssW=S.W*S.scale,cssH=S.H*S.scale;baseimg.style.width=cssW+'px';baseimg.style.height=cssH+'px';svg.style.width=cssW+'px';svg.style.height=cssH+'px';stack.style.transform=`translate(${S.pan.x}px,${S.pan.y}px)`;$('zlab').textContent=Math.round(S.scale/S.fitScale*100)+'%';scaleUI();}
+function applyTransform(){const cssW=S.W*S.scale,cssH=S.H*S.scale;baseimg.style.width=cssW+'px';baseimg.style.height=cssH+'px';baseimg.style.opacity=(S.dim==null?1:S.dim);svg.style.width=cssW+'px';svg.style.height=cssH+'px';stack.style.transform=`translate(${S.pan.x}px,${S.pan.y}px)`;$('zlab').textContent=Math.round(S.scale/S.fitScale*100)+'%';scaleUI();}
 function scaleUI(){const k=1/S.scale;gUI.querySelectorAll('[data-ui=handle]').forEach(el=>{el.setAttribute('r',7*k);el.setAttribute('stroke-width',2*k);});gUI.querySelectorAll('[data-ui=end]').forEach(el=>{el.setAttribute('r',9*k);el.setAttribute('stroke-width',2.4*k);});gUI.querySelectorAll('[data-ui=bb]').forEach(el=>{el.setAttribute('stroke-width',1.4*k);el.setAttribute('stroke-dasharray',`${5*k} ${4*k}`);});gUI.querySelectorAll('[data-ui=cal]').forEach(el=>{el.setAttribute('stroke-width',2*k);});}
 
 function toImg(cx,cy){const r=baseimg.getBoundingClientRect();return{x:(cx-r.left)/r.width*S.W,y:(cy-r.top)/r.height*S.H};}
@@ -532,7 +554,7 @@ function renderOpt(){const bar=$('optbar');let h='';
       }else{
         h=`<div class="grp"><span class="lbl">Цвет</span>${COLORS_LEGACY.map(c=>swt(c,o&&o.color)).join('')}</div><div class="grp"><button class="mini" id="dupBtn">⧉ Дубль</button><button class="mini danger" id="delBtn">Удалить</button></div>`;
       }
-    }else h=`<span class="tip">Тапните трассу или знак — выделится. Двигайте, правьте форму, меняйте тип и высоты концов.</span>`;
+    }else{const mine=(cur()||[]).some(o=>o.src!=='pdf');h=mine?`<span class="tip">Тапните вашу трассу или знак — выделится. Двигайте, правьте форму, меняйте марку и высоты концов.</span>`:`<span class="tip">Чертёж — это фон, его не двигают. <b>Рисуйте поверх:</b> «Масштаб» → «Линия»/«Карандаш» → «Знаки». Нажмите <b>«? Как это работает»</b> вверху.</span>`;}
   }
   else if(S.tool==='erase')h=`<span class="tip"><b>Ластик.</b> Тапайте лишние объекты — удаляются сразу. Удобно чистить дробные фрагменты из чертежа.</span>`;
   else if(S.tool==='sym')h=`<span class="tip"><b>Каталог знаков.</b> Выберите знак справа и тапайте по плану. Знак — единый объект (двигать/вращать/масштабировать/удалять целиком).</span>`;
@@ -615,8 +637,21 @@ function calClick(p){if(!S.calPts||S.calPts.length>=2)S.calPts=[];S.calPts.push(
 }
 function updateScalePill(){const c=S.cal[S.pageNum];const el=$('scaleVal');const pill=$('scalePill');if(c){el.textContent='1 м = '+(1/c).toFixed(0)+' px';pill.classList.add('set');}else{el.textContent='не задан';pill.classList.remove('set');}}
 
-/* ---- import mode toggle ---- */
-$('btnMode').onclick=()=>{S.importMode=S.importMode==='edit'?'ref':'edit';$('btnMode').textContent='Импорт: '+(S.importMode==='edit'?'правка':'фон');S.selected=null;redrawAll();renderSide();renderOpt();toast(S.importMode==='edit'?'Импортированные трассы можно править':'Импорт — бледный фон, рисуйте свои линии');};
+/* ---- подложка: яркость ---- */
+S.dim=1;const DIMS=[1,0.55,0.3];
+$('btnDim').onclick=()=>{const i=(DIMS.indexOf(S.dim)+1)%DIMS.length;S.dim=DIMS[i];baseimg.style.opacity=S.dim;$('btnDim').textContent='Подложка: '+Math.round(S.dim*100)+'%';};
+
+/* ---- гид «с чего начать» ---- */
+function showGuide(){$('guide').style.display='block';}
+function hideGuide(){$('guide').style.display='none';}
+$('btnHelp').onclick=showGuide;
+$('guideX').onclick=hideGuide;
+$('guide').querySelectorAll('.gstep').forEach(s=>s.onclick=()=>{const g=s.dataset.go;hideGuide();
+  if(g==='calc'){S.sideTab='calc';syncTabs();renderSide();toast('Длина и спецификация — здесь');}
+  else if(g==='cal'){setTool('cal');toast('Кликните 2 точки по известному размеру, затем введите метры');}
+  else if(g==='line'){setTool('line');toast('Рисуйте трассу: клик-клик или включите «Карандаш»');}
+  else if(g==='sym'){setTool('sym');toast('Выберите знак справа и тапайте по плану');}
+});
 
 /* ---- zoom ---- */
 vp.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,e.deltaY<0?1.12:0.89);},{passive:false});
