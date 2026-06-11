@@ -1304,7 +1304,7 @@ PAGES.tasks=(c)=>{
   const COLS=[['todo','К выполнению'],['doing','В работе'],['done','Готово']];
   const stOf=t=>t.status||(t.done?'done':'todo');
   const typeTag=(t)=>{ const m={'звонок':'blue','встреча':'violet','отгрузка':'amber'}; return `<span class="tag ${m[t]||''}">${esc(t||'задача')}</span>`; };
-  const overdue=(t)=>stOf(t)!=='done'&&t.due_at&&t.due_at<new Date().toISOString().slice(0,10);
+  const overdue=(t)=>{ if(stOf(t)==='done'||!t.due_at)return false; const now=new Date().toISOString(); return String(t.due_at).length>10 ? t.due_at<now.slice(0,16) : t.due_at<now.slice(0,10); };
   const tbar=el(`<div class="toolbar"><div class="page-sub">Доска задач · перетаскивайте карточки между колонками</div><div class="spacer"></div><span class="ph-sub" id="tkCnt"></span><button class="btn primary" id="newTaskBtn">${ic('i-plus','sm')} Задача</button></div>`);
   c.appendChild(tbar);
   const board=el(`<div class="kanban" id="tkBoard"><div class="muted2" style="padding:14px">Загрузка…</div></div>`);
@@ -1321,7 +1321,7 @@ PAGES.tasks=(c)=>{
     const k=el(`<div class="kcard" draggable="true" data-id="${esc(t.id)}">
       <div style="font-weight:600;font-size:13px;line-height:1.35">${esc(t.title)}</div>
       ${(t.client_name||t.assignee)?`<div class="kc-prod">${esc([t.client_name,t.assignee].filter(Boolean).join(' · '))}</div>`:''}
-      <div class="kc-meta">${typeTag(t.type)}${t.priority==='high'&&stOf(t)!=='done'?'<span class="tag amber">срочно</span>':''}${t.due_at?`<span class="tag ${od?'red':''}" style="margin-left:auto">${ic('i-clock','sm')} ${esc(t.due_at)}</span>`:'<span style="margin-left:auto"></span>'}</div></div>`);
+      <div class="kc-meta">${typeTag(t.type)}${t.priority==='high'&&stOf(t)!=='done'?'<span class="tag amber">срочно</span>':''}${t.due_at?`<span class="tag ${od?'red':''}" style="margin-left:auto">${ic('i-clock','sm')} ${esc(fmtDue(t.due_at))}</span>`:'<span style="margin-left:auto"></span>'}</div></div>`);
     k.addEventListener('dragstart',e=>{e.dataTransfer.setData('id',t.id);k.classList.add('dragging');});
     k.addEventListener('dragend',()=>k.classList.remove('dragging'));
     k.onclick=()=>{ if(!k.classList.contains('dragging')) taskModalLive(t,load); };
@@ -1354,12 +1354,22 @@ PAGES.tasks=(c)=>{
   window.__reloadTasks=load;
   load();
 };
-function newTaskLive(onSaved){
+async function fetchUsers(){ const r=await api('/api/users'); if(!r||!r.ok) return []; return r.data.items||[]; }
+function userSelectHtml(users, selectedName, attr){
+  const sel=(selectedName||'').trim();
+  let opts='<option value="">— не назначен —</option>'+users.map(u=>`<option value="${esc(u.name)}" ${u.name===sel?'selected':''}>${esc(u.name)}${u.roleName?(' · '+esc(u.roleName)):''}</option>`).join('');
+  if(sel && !users.some(u=>u.name===sel)) opts+=`<option value="${esc(sel)}" selected>${esc(sel)} (текущий)</option>`;
+  return `<select ${attr}>${opts}</select>`;
+}
+function fmtDue(s){ if(!s)return ''; const p=String(s).split('T'); const d=p[0].split('-'); if(d.length<3)return s; return d[2]+'.'+d[1]+'.'+d[0]+(p[1]?(' '+p[1].slice(0,5)):''); }
+function dtLocal(s){ if(!s)return ''; if(String(s).length===10)return s+'T00:00'; return String(s).slice(0,16); }
+async function newTaskLive(onSaved){
+  const users=await fetchUsers();
   const bg=openModal(`<div class="modal-h"><div><h3>Новая задача</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld"><label>Название *</label><input data-nt="title" placeholder="Напр. перезвонить клиенту"></div>
-    <div class="fld-row"><div class="fld"><label>Тип</label><select data-nt="type"><option>задача</option><option>звонок</option><option>встреча</option><option>отгрузка</option><option>email</option></select></div><div class="fld"><label>Срок</label><input type="date" data-nt="due"></div></div>
-    <div class="fld-row"><div class="fld"><label>Приоритет</label><select data-nt="prio"><option value="normal">обычный</option><option value="high">срочно</option></select></div><div class="fld"><label>Ответственный</label><input data-nt="assignee" value="${esc((AUTH.user||{}).name||'')}"></div></div>
+    <div class="fld-row"><div class="fld"><label>Тип</label><select data-nt="type"><option>задача</option><option>звонок</option><option>встреча</option><option>отгрузка</option><option>email</option></select></div><div class="fld"><label>Срок (дата и время)</label><input type="datetime-local" data-nt="due"></div></div>
+    <div class="fld-row"><div class="fld"><label>Приоритет</label><select data-nt="prio"><option value="normal">обычный</option><option value="high">срочно</option></select></div><div class="fld"><label>Ответственный</label>${userSelectHtml(users,(AUTH.user||{}).name||'','data-nt="assignee"')}</div></div>
     <div class="fld"><label>Клиент из 1С (необязательно)</label><div style="position:relative"><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-nt="client" placeholder="поиск по 1С" autocomplete="off" style="width:100%"></div><div id="ntSug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:200px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div></div>
     <div class="fld"><label>Комментарий</label><input data-nt="note"></div>
   </div>
@@ -1373,12 +1383,13 @@ function newTaskLive(onSaved){
     const body={title,type:bg.querySelector('[data-nt=type]').value,priority:bg.querySelector('[data-nt=prio]').value,due_at:bg.querySelector('[data-nt=due]').value,assignee:bg.querySelector('[data-nt=assignee]').value.trim(),client_ref:ref,client_name:q.value.trim(),note:bg.querySelector('[data-nt=note]').value.trim()};
     const r=await api('/api/tasks',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Задача создана','i-check2'); onSaved&&onSaved(); };
 }
-function taskModalLive(t,onSaved){
+async function taskModalLive(t,onSaved){
+  const users=await fetchUsers();
   const bg=openModal(`<div class="modal-h"><div><h3>Задача</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld"><label>Название</label><input data-tm="title" value="${esc(t.title||'')}"></div>
-    <div class="fld-row"><div class="fld"><label>Тип</label><select data-tm="type">${['задача','звонок','встреча','отгрузка','email'].map(x=>`<option ${x===t.type?'selected':''}>${x}</option>`).join('')}</select></div><div class="fld"><label>Срок</label><input type="date" data-tm="due" value="${esc(t.due_at||'')}"></div></div>
-    <div class="fld-row"><div class="fld"><label>Приоритет</label><select data-tm="prio"><option value="normal" ${t.priority!=='high'?'selected':''}>обычный</option><option value="high" ${t.priority==='high'?'selected':''}>срочно</option></select></div><div class="fld"><label>Ответственный</label><input data-tm="assignee" value="${esc(t.assignee||'')}"></div></div>
+    <div class="fld-row"><div class="fld"><label>Тип</label><select data-tm="type">${['задача','звонок','встреча','отгрузка','email'].map(x=>`<option ${x===t.type?'selected':''}>${x}</option>`).join('')}</select></div><div class="fld"><label>Срок (дата и время)</label><input type="datetime-local" data-tm="due" value="${esc(dtLocal(t.due_at))}"></div></div>
+    <div class="fld-row"><div class="fld"><label>Приоритет</label><select data-tm="prio"><option value="normal" ${t.priority!=='high'?'selected':''}>обычный</option><option value="high" ${t.priority==='high'?'selected':''}>срочно</option></select></div><div class="fld"><label>Ответственный</label>${userSelectHtml(users,t.assignee,'data-tm="assignee"')}</div></div>
     <div class="fld"><label>Комментарий</label><input data-tm="note" value="${esc(t.note||'')}"></div>
     ${t.client_name?`<div class="note blue section-gap">${ic('i-info','sm')} Клиент: ${esc(t.client_name)}</div>`:''}
   </div>
