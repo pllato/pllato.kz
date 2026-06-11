@@ -1301,43 +1301,57 @@ async function loadAnalytics(host,from,to){
 
 // ---------- TASKS ----------
 PAGES.tasks=(c)=>{
-  const tbar=el(`<div class="toolbar">
-    <div class="seg" data-tk="filter"><button class="on" data-s="active">Активные</button><button data-s="all">Все</button><button data-s="done">Выполненные</button></div>
-    <div class="spacer"></div><span class="ph-sub" data-tk="cnt"></span>
-    <button class="btn primary" id="newTaskBtn">${ic('i-plus','sm')} Задача</button></div>`);
-  c.appendChild(tbar);
-  const panel=el(`<div class="panel"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div>`);
-  c.appendChild(panel);
-  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Задачи и follow-up по клиентам и сделкам. Можно привязать клиента из 1С, поставить срок и ответственного.</div>`));
-  const cnt=tbar.querySelector('[data-tk=cnt]'), seg=tbar.querySelector('[data-tk=filter]');
-  let status='active';
-  seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); status=b.dataset.s; load(); });
-  tbar.querySelector('#newTaskBtn').onclick=()=>newTaskLive(load);
+  const COLS=[['todo','К выполнению'],['doing','В работе'],['done','Готово']];
+  const stOf=t=>t.status||(t.done?'done':'todo');
   const typeTag=(t)=>{ const m={'звонок':'blue','встреча':'violet','отгрузка':'amber'}; return `<span class="tag ${m[t]||''}">${esc(t||'задача')}</span>`; };
-  const overdue=(due,done)=>!done&&due&&due<new Date().toISOString().slice(0,10);
-  function rowLive(t){
-    const r=el(`<div class="row" style="padding:13px 18px;border-bottom:1px solid var(--line);gap:12px;align-items:center">
-      <div class="toggle ${t.done?'on':''}" style="flex:none"></div>
-      <div style="flex:1;min-width:0;cursor:pointer" data-edit><div style="font-weight:600;${t.done?'text-decoration:line-through;opacity:.5':''}">${esc(t.title)}</div>
-        <div class="muted" style="font-size:12px">${t.client_name?esc(t.client_name)+' · ':''}${t.assignee?esc(t.assignee)+' · ':''}${t.due_at?('срок '+esc(t.due_at)):'без срока'}</div></div>
-      ${overdue(t.due_at,t.done)?'<span class="tag red">просрочено</span>':''}${t.priority==='high'&&!t.done?'<span class="tag amber">срочно</span>':''}${typeTag(t.type)}
-      <button class="btn sm" data-del title="Удалить">${ic('i-x','sm')}</button></div>`);
-    r.querySelector('.toggle').onclick=async()=>{ const nd=!t.done; const rr=await api('/api/tasks/'+t.id,{method:'POST',body:JSON.stringify({done:nd})}); if(rr.ok){ toast(nd?'Задача выполнена':'Возвращена в работу','i-check2'); load(); } else toast('Ошибка','i-x','#dc2626'); };
-    r.querySelector('[data-edit]').onclick=()=>taskModalLive(t,load);
-    r.querySelector('[data-del]').onclick=async(e)=>{ e.stopPropagation(); if(!confirm('Удалить задачу?'))return; const rr=await api('/api/tasks/'+t.id,{method:'DELETE'}); if(rr.ok){toast('Удалено','i-check2');load();} else toast('Ошибка','i-x','#dc2626'); };
-    return r;
+  const overdue=(t)=>stOf(t)!=='done'&&t.due_at&&t.due_at<new Date().toISOString().slice(0,10);
+  const tbar=el(`<div class="toolbar"><div class="page-sub">Доска задач · перетаскивайте карточки между колонками</div><div class="spacer"></div><span class="ph-sub" id="tkCnt"></span><button class="btn primary" id="newTaskBtn">${ic('i-plus','sm')} Задача</button></div>`);
+  c.appendChild(tbar);
+  const board=el(`<div class="kanban" id="tkBoard"><div class="muted2" style="padding:14px">Загрузка…</div></div>`);
+  c.appendChild(board);
+  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Канбан как в Trello: «К выполнению» → «В работе» → «Готово». Статус сохраняется при перетаскивании. Клик по карточке — детали и редактирование.</div>`));
+  const cnt=tbar.querySelector('#tkCnt');
+  tbar.querySelector('#newTaskBtn').onclick=()=>newTaskLive(load);
+  let _dx=0,_sc=null;
+  board.addEventListener('dragover',e=>{ e.preventDefault(); _dx=e.clientX; if(!_sc) _sc=setInterval(()=>{ const r=board.getBoundingClientRect(); if(_dx>r.right-80)board.scrollLeft+=26; else if(_dx<r.left+80)board.scrollLeft-=26; },16); });
+  const stop=()=>{ if(_sc){clearInterval(_sc);_sc=null;} }; board.addEventListener('drop',stop); board.addEventListener('dragend',stop);
+  let current=[];
+  function card(t){
+    const od=overdue(t);
+    const k=el(`<div class="kcard" draggable="true" data-id="${esc(t.id)}">
+      <div style="font-weight:600;font-size:13px;line-height:1.35">${esc(t.title)}</div>
+      ${(t.client_name||t.assignee)?`<div class="kc-prod">${esc([t.client_name,t.assignee].filter(Boolean).join(' · '))}</div>`:''}
+      <div class="kc-meta">${typeTag(t.type)}${t.priority==='high'&&stOf(t)!=='done'?'<span class="tag amber">срочно</span>':''}${t.due_at?`<span class="tag ${od?'red':''}" style="margin-left:auto">${ic('i-clock','sm')} ${esc(t.due_at)}</span>`:'<span style="margin-left:auto"></span>'}</div></div>`);
+    k.addEventListener('dragstart',e=>{e.dataTransfer.setData('id',t.id);k.classList.add('dragging');});
+    k.addEventListener('dragend',()=>k.classList.remove('dragging'));
+    k.onclick=()=>{ if(!k.classList.contains('dragging')) taskModalLive(t,load); };
+    return k;
   }
-  function rowDemo(t){ return el(`<div class="row" style="padding:13px 18px;border-bottom:1px solid var(--line)"><div class="toggle ${t.done?'on':''}"></div><div style="flex:1"><div style="font-weight:600;${t.done?'text-decoration:line-through;opacity:.5':''}">${esc(t.title)}</div><div class="muted" style="font-size:12px">${esc(t.who||'')} · ${esc(t.due||'')}</div></div><span class="tag">${esc(t.type||'')}</span></div>`); }
+  function renderBoard(){
+    board.innerHTML='';
+    COLS.forEach(([key,label])=>{
+      const list=current.filter(t=>stOf(t)===key);
+      const col=el(`<div class="kcol" data-status="${key}"><div class="kcol-h"><span class="kc-name">${label}</span><span class="kc-count">${list.length}</span></div><div class="kcol-b"></div></div>`);
+      const cb=col.querySelector('.kcol-b');
+      list.forEach(t=>cb.appendChild(card(t)));
+      col.addEventListener('dragover',e=>{e.preventDefault();col.classList.add('drop-hot');});
+      col.addEventListener('dragleave',()=>col.classList.remove('drop-hot'));
+      col.addEventListener('drop',async e=>{e.preventDefault();col.classList.remove('drop-hot');
+        const id=e.dataTransfer.getData('id'),t=current.find(x=>x.id===id);
+        if(t&&stOf(t)!==key){ const oS=t.status,oD=t.done; t.status=key; t.done=(key==='done'?1:0); renderBoard(); badge();
+          const r=await api('/api/tasks/'+id,{method:'POST',body:JSON.stringify({status:key})});
+          if(r.ok) toast('Перенесено в «'+label+'»','i-check2'); else { t.status=oS;t.done=oD; renderBoard(); badge(); toast('Не удалось сохранить','i-x','#dc2626'); } } });
+      board.appendChild(col);
+    });
+    cnt.textContent=current.length+' задач';
+  }
+  function badge(){ window.__taskBadge=current.filter(t=>stOf(t)!=='done').length; if(typeof renderNav==='function')renderNav(); }
   async function load(){
-    panel.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div>';
-    const r=await api('/api/tasks?status='+status);
-    if(!r.ok){ cnt.textContent='демо · нет связи'; panel.innerHTML=''; (DB.tasks||[]).forEach(t=>panel.appendChild(rowDemo(t))); return; }
-    const items=r.data.items||[], tt=r.data.totals||{};
-    cnt.textContent=(tt.active||0)+' активных · '+(tt.total||0)+' всего';
-    window.__taskBadge=tt.active||0; renderNav();
-    panel.innerHTML=''; if(!items.length){ panel.innerHTML='<div class="muted2" style="padding:18px;font-size:13px">Задач нет. Нажмите «Задача», чтобы создать.</div>'; return; }
-    items.forEach(t=>panel.appendChild(rowLive(t)));
+    const r=await api('/api/tasks?status=all');
+    if(!r.ok){ board.innerHTML=`<div class="note" style="margin:0">${ic('i-info','sm')} Задачи в демо-режиме (нет связи с сервером).</div>`; cnt.textContent=''; return; }
+    current=r.data.items||[]; badge(); renderBoard();
   }
+  window.__reloadTasks=load;
   load();
 };
 function newTaskLive(onSaved){
