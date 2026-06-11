@@ -1309,6 +1309,7 @@ PAGES.tasks=(c)=>{
   const stOf=t=>t.status||(t.done?'done':'todo');
   const typeTag=(t)=>{ const m={'звонок':'blue','встреча':'violet','отгрузка':'amber'}; return `<span class="tag ${m[t]||''}">${esc(t||'задача')}</span>`; };
   const overdue=(t)=>{ if(stOf(t)==='done'||!t.due_at)return false; const now=new Date().toISOString(); return String(t.due_at).length>10 ? t.due_at<now.slice(0,16) : t.due_at<now.slice(0,10); };
+  const dueSoon=(t)=>{ if(stOf(t)==='done'||!t.due_at)return false; const due=new Date(t.due_at).getTime(),now=Date.now(); return due>now && (due-now)<86400000; };
   const tbar=el(`<div class="toolbar">
     <div class="seg" id="tkView"><button class="on" data-v="board">Доска</button><button data-v="calendar">Календарь</button></div>
     <select class="sel" id="tkFa" style="max-width:190px"><option value="">Все ответственные</option></select>
@@ -1342,7 +1343,7 @@ PAGES.tasks=(c)=>{
       ${labelBars(jparse(t.labels,[]))}
       <div style="font-weight:600;font-size:13px;line-height:1.35">${esc(t.title)}</div>
       ${(t.client_name||t.assignee)?`<div class="kc-prod">${esc([t.client_name,t.assignee].filter(Boolean).join(' · '))}</div>`:''}
-      <div class="kc-meta">${typeTag(t.type)}${t.priority==='high'&&stOf(t)!=='done'?'<span class="tag amber">срочно</span>':''}${cl.length?`<span class="tag ${dn===cl.length?'green':''}">☑ ${dn}/${cl.length}</span>`:''}${cms.length?`<span class="tag">💬 ${cms.length}</span>`:''}${t.due_at?`<span class="tag ${od?'red':''}" style="margin-left:auto">${ic('i-clock','sm')} ${esc(fmtDue(t.due_at))}</span>`:'<span style="margin-left:auto"></span>'}</div></div>`);
+      <div class="kc-meta">${typeTag(t.type)}${t.priority==='high'&&stOf(t)!=='done'?'<span class="tag amber">срочно</span>':''}${cl.length?`<span class="tag ${dn===cl.length?'green':''}">☑ ${dn}/${cl.length}</span>`:''}${cms.length?`<span class="tag">💬 ${cms.length}</span>`:''}${t.due_at?`<span class="tag ${od?'red':dueSoon(t)?'amber':''}" style="margin-left:auto">${ic('i-clock','sm')} ${esc(fmtDue(t.due_at))}</span>`:'<span style="margin-left:auto"></span>'}</div></div>`);
     k.addEventListener('dragstart',e=>{e.dataTransfer.setData('id',t.id);k.classList.add('dragging');});
     k.addEventListener('dragend',()=>k.classList.remove('dragging'));
     k.onclick=()=>{ if(!k.classList.contains('dragging')) taskModalLive(t,load); };
@@ -1378,7 +1379,7 @@ PAGES.tasks=(c)=>{
     for(let i=0;i<42;i++){ const d=new Date(start.getFullYear(),start.getMonth(),start.getDate()+i);
       const iso=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()), inMonth=d.getMonth()===calM, isToday=iso===todayISO, list=byDay[iso]||[];
       cells+=`<div class="cal-cell ${inMonth?'':'cal-out'} ${isToday?'cal-today':''}"><div class="cal-d">${d.getDate()}</div>`
-        +list.slice(0,4).map(t=>{ const ov=overdue(t), lb=jparse(t.labels,[])[0], L=lb&&TASK_LABELS.find(x=>x.k===lb); return `<div class="cal-task ${ov?'ov':''}" data-id="${esc(t.id)}" title="${esc(t.title)}"><span class="cal-dot" style="background:${L?L.c:'var(--muted2)'}"></span>${esc(t.title)}</div>`; }).join('')
+        +list.slice(0,4).map(t=>{ const ov=overdue(t), sn=dueSoon(t), lb=jparse(t.labels,[])[0], L=lb&&TASK_LABELS.find(x=>x.k===lb); return `<div class="cal-task ${ov?'ov':sn?'soon':''}" data-id="${esc(t.id)}" title="${esc(t.title)}"><span class="cal-dot" style="background:${L?L.c:'var(--muted2)'}"></span>${esc(t.title)}</div>`; }).join('')
         +(list.length>4?`<div class="cal-more">+${list.length-4} ещё</div>`:'')+`</div>`; }
     cal.innerHTML=`<div class="cal-head"><button class="btn sm" id="calPrev">‹</button><div class="cal-title">${esc(monthName)}</div><button class="btn sm" id="calNext">›</button><button class="btn sm" id="calToday">Сегодня</button>${noDue?`<span class="ph-sub" style="margin-left:auto">без срока: ${noDue}</span>`:''}</div>
       <div class="cal-grid cal-dows">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(x=>`<div class="cal-dow">${x}</div>`).join('')}</div>
