@@ -2204,6 +2204,23 @@ document.addEventListener('click',e=>{
   const p=$('#docsPop');
   if(p && !p.hidden && !e.target.closest('.docs-wrap')) p.hidden=true;
 });
+// ---------- Напоминания (колокольчик): мои дедлайны ----------
+async function loadNotifications(){
+  const r=await api('/api/notifications'); if(!r||!r.ok)return;
+  window.__notif=r.data; const dot=document.getElementById('bellDot');
+  if(dot) dot.hidden=(r.data.items||[]).length===0;
+}
+function renderBellPop(){
+  const pop=document.getElementById('bellPop'); if(!pop)return;
+  const d=window.__notif||{items:[]}, items=d.items||[];
+  pop.innerHTML=`<div class="dp-h"><b>Напоминания</b><span class="dp-cnt">${d.overdue||0} просроч. · ${items.length}</span></div>`
+    +(items.length?items.map(t=>{const od=t.kind==='overdue';return `<a class="doc-row" data-go="1"><div class="di" style="background:${od?'var(--red-soft)':'var(--amber-soft)'};color:${od?'var(--red)':'var(--amber)'};font-size:15px">${od?'!':'⏰'}</div><div style="min-width:0"><div class="dt">${esc(t.title)}</div><div class="ds">${od?'просрочено':'скоро'} · ${esc(fmtDue(t.due_at))}${t.client_name?(' · '+esc(t.client_name)):''}</div></div></a>`;}).join(''):'<div class="dp-empty">Дедлайнов нет 🎉</div>')
+    +`<div class="dp-foot">Ваши задачи: просроченные и ближайшие 24 ч</div>`;
+  pop.querySelectorAll('[data-go]').forEach(a=>a.onclick=()=>{ pop.hidden=true; go('tasks'); });
+}
+document.getElementById('bellBtn')?.addEventListener('click',async e=>{ e.stopPropagation(); const pop=document.getElementById('bellPop'),dp=document.getElementById('docsPop'); if(dp)dp.hidden=true; if(!pop)return; const show=pop.hidden; if(show){ await loadNotifications(); renderBellPop(); } pop.hidden=!show; });
+document.addEventListener('click',e=>{ const p=document.getElementById('bellPop'); if(p&&!p.hidden&&!e.target.closest('.docs-wrap')) p.hidden=true; });
+setInterval(()=>{ if(AUTH&&AUTH.token) loadNotifications(); }, 300000);
 
 // ============================================================
 //  Плавающий виджет чатов (нижний правый угол) — как в ELC CRM.
@@ -2490,6 +2507,7 @@ function applyUser(user){
   renderRoleSel(); renderNav(); renderPage();
   // реальный счётчик активных задач для бейджа в меню
   if(allowedSections(state.role).includes('tasks')) api('/api/tasks?status=active').then(r=>{ if(r&&r.ok){ window.__taskBadge=(r.data.totals||{}).active||0; renderNav(); } }).catch(()=>{});
+  loadNotifications();
   // эффективные права ролей из БД (для меню/превью/матрицы) — для админа
   if(['owner','superadmin'].includes(user.role)) api('/api/admin/roles').then(r=>{ if(r&&r.ok){ ACCESS_MAP={}; r.data.roles.forEach(x=>ACCESS_MAP[x.id]=x.sections); renderNav(); } }).catch(()=>{});
 }
