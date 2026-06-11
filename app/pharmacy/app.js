@@ -1309,12 +1309,21 @@ PAGES.tasks=(c)=>{
   const stOf=t=>t.status||(t.done?'done':'todo');
   const typeTag=(t)=>{ const m={'звонок':'blue','встреча':'violet','отгрузка':'amber'}; return `<span class="tag ${m[t]||''}">${esc(t||'задача')}</span>`; };
   const overdue=(t)=>{ if(stOf(t)==='done'||!t.due_at)return false; const now=new Date().toISOString(); return String(t.due_at).length>10 ? t.due_at<now.slice(0,16) : t.due_at<now.slice(0,10); };
-  const tbar=el(`<div class="toolbar"><div class="page-sub">Доска задач · перетаскивайте карточки между колонками</div><div class="spacer"></div><span class="ph-sub" id="tkCnt"></span><button class="btn primary" id="newTaskBtn">${ic('i-plus','sm')} Задача</button></div>`);
+  const tbar=el(`<div class="toolbar">
+    <select class="sel" id="tkFa" style="max-width:190px"><option value="">Все ответственные</option></select>
+    <select class="sel" id="tkFl" style="max-width:160px"><option value="">Все метки</option>${TASK_LABELS.map(L=>`<option value="${L.k}">${esc(L.t)}</option>`).join('')}</select>
+    <button class="btn sm" id="tkFclear" title="Сбросить фильтры">${ic('i-x','sm')}</button>
+    <div class="spacer"></div><span class="ph-sub" id="tkCnt"></span><button class="btn primary" id="newTaskBtn">${ic('i-plus','sm')} Задача</button></div>`);
   c.appendChild(tbar);
   const board=el(`<div class="kanban" id="tkBoard"><div class="muted2" style="padding:14px">Загрузка…</div></div>`);
   c.appendChild(board);
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Канбан как в Trello: «К выполнению» → «В работе» → «Готово». Статус сохраняется при перетаскивании. Клик по карточке — детали и редактирование.</div>`));
   const cnt=tbar.querySelector('#tkCnt');
+  const faSel=tbar.querySelector('#tkFa'), flSel=tbar.querySelector('#tkFl');
+  let fAssignee='', fLabel='';
+  faSel.onchange=()=>{ fAssignee=faSel.value; renderBoard(); };
+  flSel.onchange=()=>{ fLabel=flSel.value; renderBoard(); };
+  tbar.querySelector('#tkFclear').onclick=()=>{ fAssignee='';fLabel='';faSel.value='';flSel.value=''; renderBoard(); };
   tbar.querySelector('#newTaskBtn').onclick=()=>newTaskLive(load);
   let _dx=0,_sc=null;
   board.addEventListener('dragover',e=>{ e.preventDefault(); _dx=e.clientX; if(!_sc) _sc=setInterval(()=>{ const r=board.getBoundingClientRect(); if(_dx>r.right-80)board.scrollLeft+=26; else if(_dx<r.left+80)board.scrollLeft-=26; },16); });
@@ -1334,9 +1343,10 @@ PAGES.tasks=(c)=>{
     return k;
   }
   function renderBoard(){
+    const view=current.filter(t=>(!fAssignee||t.assignee===fAssignee)&&(!fLabel||jparse(t.labels,[]).includes(fLabel)));
     board.innerHTML='';
     COLS.forEach(([key,label])=>{
-      const list=current.filter(t=>stOf(t)===key);
+      const list=view.filter(t=>stOf(t)===key);
       const col=el(`<div class="kcol" data-status="${key}"><div class="kcol-h"><span class="kc-name">${label}</span><span class="kc-count">${list.length}</span></div><div class="kcol-b"></div></div>`);
       const cb=col.querySelector('.kcol-b');
       list.forEach(t=>cb.appendChild(card(t)));
@@ -1349,13 +1359,16 @@ PAGES.tasks=(c)=>{
           if(r.ok) toast('Перенесено в «'+label+'»','i-check2'); else { t.status=oS;t.done=oD; renderBoard(); badge(); toast('Не удалось сохранить','i-x','#dc2626'); } } });
       board.appendChild(col);
     });
-    cnt.textContent=current.length+' задач';
+    cnt.textContent=view.length+(view.length!==current.length?(' из '+current.length):'')+' задач';
   }
   function badge(){ window.__taskBadge=current.filter(t=>stOf(t)!=='done').length; if(typeof renderNav==='function')renderNav(); }
   async function load(){
     const r=await api('/api/tasks?status=all');
     if(!r.ok){ board.innerHTML=`<div class="note" style="margin:0">${ic('i-info','sm')} Задачи в демо-режиме (нет связи с сервером).</div>`; cnt.textContent=''; return; }
-    current=r.data.items||[]; badge(); renderBoard();
+    current=r.data.items||[];
+    const as=[...new Set(current.map(t=>(t.assignee||'').trim()).filter(Boolean))].sort();
+    faSel.innerHTML='<option value="">Все ответственные</option>'+as.map(a=>`<option value="${esc(a)}" ${a===fAssignee?'selected':''}>${esc(a)}</option>`).join('');
+    badge(); renderBoard();
   }
   window.__reloadTasks=load;
   load();
