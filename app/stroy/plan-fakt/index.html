@@ -115,7 +115,10 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
   <span class="sp"></span><span class="docname" id="docname"></span>
   <div class="scalepill" id="scalePill" title="Калибровка масштаба">⌖ Масштаб: <b id="scaleVal">не задан</b></div>
   <button class="tbtn ghost" id="btnMode" title="Импортированные трассы: правка или фон-ориентир">Импорт: правка</button>
+  <button class="tbtn ghost" id="btnSaveProj" title="Сохранить проект (план + ваши правки) в файл — продолжить позже или передать">Сохранить</button>
+  <button class="tbtn ghost" id="btnOpenProj" title="Открыть проект или другой план">Открыть</button>
   <button class="tbtn" id="btnUndo" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>Отменить</button>
+  <button class="tbtn" id="btnSpec" title="PDF-смета: длина кабеля по типам, розетки, итоги"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17V7m4 10V11m4 6V9M5 21h14a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1z"/></svg>Смета</button>
   <button class="tbtn primary" id="btnExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Чистый PDF</button>
 </div>
 <div class="stage" id="stage" style="display:none">
@@ -195,7 +198,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
 });
 async function loadData(file){
   $('spin').style.display='block';
-  try{const txt=await file.text();initData(JSON.parse(txt));}
+  try{const txt=await file.text();const j=JSON.parse(txt);if(j&&j._planfakt)openProject(j);else initData(j);}
   catch(e){console.error(e);toast('Не удалось прочитать файл данных');$('spin').style.display='none';}
 }
 function initData(j){
@@ -204,6 +207,40 @@ function initData(j){
   $('loader').classList.add('hide');$('stage').style.display='flex';
   buildStrip();goPage(S.pageList[0]);setTool('select');
 }
+/* ---- проект: сохранить / открыть (самодостаточный файл = план + правки) ---- */
+function saveProject(){
+  if(!S.data){toast('Нет открытого плана');return;}
+  const proj={_planfakt:1,name:S.data.name||'План',data:S.data,
+    edits:{objects:S.objects,cal:S.cal},
+    settings:{panelH:S.panelH,slack:S.slack,importMode:S.importMode,seq:S.seq}};
+  try{
+    const blob=new Blob([JSON.stringify(proj)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=(S.data.name||'plan').replace(/[^\wа-яёА-ЯЁ.\- ]/gi,'_')+'_проект.json';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),8000);
+    toast('Проект сохранён — план и правки в одном файле');
+  }catch(e){console.error(e);toast('Не удалось сохранить проект');}
+}
+function openProject(j){
+  S.data=j.data;
+  S.objects=(j.edits&&j.edits.objects)||{};
+  S.cal=(j.edits&&j.edits.cal)||{};
+  const st=j.settings||{};
+  if(st.panelH!=null)S.panelH=st.panelH;
+  if(st.slack!=null)S.slack=st.slack;
+  if(st.importMode)S.importMode=st.importMode;
+  if(st.seq)S.seq=st.seq;
+  S.pageList=Object.keys(S.data.pages).map(Number).sort((a,b)=>a-b);
+  S.history={};S.selected=null;
+  $('docname').textContent=(S.data.name||'План')+' · проект';
+  $('btnMode').textContent='Импорт: '+(S.importMode==='edit'?'правка':'фон');
+  $('loader').classList.add('hide');$('stage').style.display='flex';
+  buildStrip();goPage(S.pageList[0]);setTool('select');
+  toast('Проект открыт — правки восстановлены');
+}
+$('btnSaveProj').onclick=saveProject;
+$('btnOpenProj').onclick=()=>$('fileInput').click();
 function buildStrip(){
   const strip=$('strip');strip.innerHTML='<h4>Листы</h4>';
   S.pageList.forEach(pn=>{
@@ -522,6 +559,76 @@ $('btnExport').onclick=async()=>{
     const ps=pdf.internal.pageSize;pdf.addImage(data,'JPEG',0,0,ps.getWidth(),ps.getHeight());
   }
   pdf.save((S.data.name||'plan')+'_ИСПОЛНИТЕЛЬНЫЙ.pdf');toast('Готово — чистый PDF скачан');
+};
+
+/* ---- смета (спецификация кабеля) в отдельный PDF ---- */
+function computeAll(){
+  const pages=S.pageList.map(pn=>Object.assign({pn},calcPage(pn)));
+  const catTot={};CATS.forEach(c=>catTot[c.k]={len:0,n:0});
+  const cntTot={socket:0,switch:0,light:0};let grand=0,allCal=true,anyLine=false;
+  pages.forEach(p=>{CATS.forEach(c=>{catTot[c.k].len+=p.cats[c.k].len;catTot[c.k].n+=p.cats[c.k].n;});
+    cntTot.socket+=p.cnt.socket;cntTot.switch+=p.cnt.switch;cntTot.light+=p.cnt.light;
+    if(CATS.some(c=>p.cats[c.k].n)){anyLine=true;if(!p.mpp)allCal=false;}
+    if(p.mpp)grand+=p.total;});
+  return{pages,catTot,cntTot,grand,allCal,anyLine};
+}
+function rrect(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath();}
+function hline(x,a,b,c2,d){x.beginPath();x.moveTo(a,b);x.lineTo(c2,d);x.stroke();}
+function buildSpecCanvas(){
+  const A=computeAll();const W=1240,H=1754,PAD=80;
+  const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  x.textBaseline='alphabetic';x.textAlign='left';
+  x.fillStyle='#fff';x.fillRect(0,0,W,H);
+  x.fillStyle='#1f3a5f';x.fillRect(0,0,W,152);
+  x.fillStyle='#fff';x.font='700 42px Inter,Arial,sans-serif';x.fillText('Спецификация кабеля — по факту',PAD,90);
+  x.font='500 22px Inter,Arial,sans-serif';x.fillStyle='#c7d2e2';
+  const ds=new Date().toLocaleDateString('ru-RU');
+  x.fillText((S.data.name||'План')+'   ·   '+ds+'   ·   запас '+S.slack+'%   ·   высота щита '+S.panelH.toFixed(2)+' м',PAD,128);
+  let y=222;
+  const cards=[['Розеток',A.cntTot.socket],['Выключателей',A.cntTot.switch],['Точек света',A.cntTot.light]];
+  const cw=(W-PAD*2-40)/3;
+  cards.forEach((cd,i)=>{const cx=PAD+i*(cw+20);x.fillStyle='#f3f6fa';x.strokeStyle='#dce3ec';x.lineWidth=1.5;rrect(x,cx,y,cw,112,12);x.fill();x.stroke();
+    x.fillStyle='#1f3a5f';x.font='700 46px Inter,Arial,sans-serif';x.fillText(String(cd[1]),cx+26,y+64);
+    x.fillStyle='#79828f';x.font='600 20px Inter,Arial,sans-serif';x.fillText(cd[0],cx+26,y+94);});
+  y+=170;
+  x.fillStyle='#10151c';x.font='700 26px Inter,Arial,sans-serif';x.fillText('По листам',PAD,y);y+=14;
+  const cols=[['Лист',PAD],['Масштаб',PAD+150],['Розетки',PAD+340],['Выкл',PAD+500],['Свет',PAD+630],['Длина кабеля',PAD+800]];
+  x.font='600 18px Inter,Arial,sans-serif';x.fillStyle='#79828f';y+=34;cols.forEach(c2=>x.fillText(c2[0],c2[1],y));y+=10;
+  x.strokeStyle='#dce3ec';x.lineWidth=1;hline(x,PAD,y,W-PAD,y);
+  let shown=0;
+  A.pages.forEach(p=>{if(!CATS.some(cc=>p.cats[cc.k].n))return;shown++;y+=36;
+    x.fillStyle='#10151c';x.font='600 21px Inter,Arial,sans-serif';x.fillText('№'+p.pn,cols[0][1],y);
+    x.font='500 20px Inter,Arial,sans-serif';x.fillStyle=p.mpp?'#2f7d4f':'#c0392b';x.fillText(p.mpp?'✓ задан':'нет',cols[1][1],y);
+    x.fillStyle='#10151c';x.fillText(String(p.cnt.socket),cols[2][1],y);x.fillText(String(p.cnt.switch),cols[3][1],y);x.fillText(String(p.cnt.light),cols[4][1],y);
+    x.font='600 21px Inter,Arial,sans-serif';x.fillText(p.mpp?p.total.toFixed(1)+' м':'—',cols[5][1],y);});
+  if(!shown){y+=36;x.fillStyle='#79828f';x.font='500 20px Inter,Arial,sans-serif';x.fillText('Линий пока нет — нарисуйте кабель и задайте масштаб.',cols[0][1],y);}
+  y+=18;x.strokeStyle='#dce3ec';hline(x,PAD,y,W-PAD,y);
+  y+=58;x.fillStyle='#10151c';x.font='700 26px Inter,Arial,sans-serif';x.fillText('Кабель по типам (все листы)',PAD,y);
+  CATS.forEach(cc=>{const t=A.catTot[cc.k];if(!t.n)return;y+=44;
+    x.fillStyle=cc.c;rrect(x,PAD,y-20,16,16,4);x.fill();
+    x.fillStyle='#10151c';x.font='600 22px Inter,Arial,sans-serif';x.fillText(cc.n,PAD+34,y);
+    x.fillStyle='#79828f';x.font='500 18px Inter,Arial,sans-serif';x.fillText(t.n+' линий',PAD+280,y);
+    x.fillStyle='#10151c';x.font='700 22px Inter,Arial,sans-serif';x.textAlign='right';x.fillText(t.len>0?t.len.toFixed(1)+' м':'—',W-PAD,y);x.textAlign='left';});
+  y+=54;x.fillStyle='#1f3a5f';rrect(x,PAD,y,W-PAD*2,92,12);x.fill();
+  x.fillStyle='#fff';x.font='600 24px Inter,Arial,sans-serif';x.fillText('ВСЕГО кабеля (с запасом '+S.slack+'%)',PAD+30,y+57);
+  x.font='700 40px Inter,Arial,sans-serif';x.textAlign='right';x.fillText(A.grand>0?A.grand.toFixed(1)+' м':'—',W-PAD-30,y+60);x.textAlign='left';
+  y+=140;
+  if(!A.allCal&&A.anyLine){x.fillStyle='#c0392b';x.font='500 18px Inter,Arial,sans-serif';x.fillText('⚠ Не все листы откалиброваны — длина посчитана только по листам с заданным масштабом.',PAD,y);y+=30;}
+  x.fillStyle='#79828f';x.font='400 17px Inter,Arial,sans-serif';
+  x.fillText('Длина = (длина по плану × масштаб) + выпуски/отпуски на концах + подъём к щиту, × (1 + запас%).',PAD,y);y+=26;
+  x.fillText('Сформировано в План-Факт · СТРОЙ-СНАБ.',PAD,y);
+  return c;
+}
+$('btnSpec').onclick=async()=>{
+  if(!S.data){toast('Нет открытого плана');return;}
+  toast('Готовлю смету…');
+  try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;}catch(e){}
+  try{
+    const canvas=buildSpecCanvas();
+    const pdf=new jsPDF({orientation:'p',unit:'pt',format:'a4'});
+    const ps=pdf.internal.pageSize;pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,ps.getWidth(),ps.getHeight());
+    pdf.save((S.data.name||'plan')+'_СМЕТА.pdf');toast('Смета сохранена');
+  }catch(e){console.error(e);toast('Не удалось сформировать смету');}
 };
 
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
