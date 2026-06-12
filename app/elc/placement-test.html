@@ -220,7 +220,38 @@ function renderStart(){
       чтобы преподаватель прослушал речь.<br><br>
       Вопросы идут от простого к сложному. Если вопрос слишком трудный — не угадывай, выбирай «Не знаю»:
       так система определит уровень точнее.</p>
-    <button class="btn" onclick="start()">Начать тест →</button>`;
+    <button class="btn" onclick="renderSelfIdentify()">Начать тест →</button>`;
+}
+
+/* Ссылка на пробный урок по итогам теста (lesson-воркер) */
+function lessonUrl(level){
+  const p = new URLSearchParams({ level:String(level), name:student.name||'', last:student.lastName||'', phone:student.phone||'', email:student.email||'' });
+  return 'https://elc-lesson-worker.uurraa.workers.dev/lesson?' + p.toString();
+}
+
+/* Standalone-режим: сбор контактов перед тестом */
+function renderSelfIdentify(){
+  app.innerHTML = `
+    <h1 style="font-size:22px;margin-bottom:6px">Ваши данные</h1>
+    <p class="lead">Заполните контакты — по ним преподаватель свяжется с вами, а результат теста и урок сохранятся за вами.</p>
+    <label class="fld">Имя
+      <input id="s_name" class="inp" placeholder="Имя" autocomplete="given-name" value="${esc(student.name)}"></label>
+    <label class="fld">Телефон
+      <input id="s_phone" class="inp" type="tel" placeholder="+7 (___) ___-____" autocomplete="tel" value="${esc(student.phone)}"></label>
+    <label class="fld">Email
+      <input id="s_email" class="inp" type="email" placeholder="you@mail.com" autocomplete="email" value="${esc(student.email)}"></label>
+    <div id="siErr" class="small" style="color:var(--bad);min-height:18px"></div>
+    <div class="row">
+      <button class="btn" onclick="submitSelfIdentify()">Начать тест →</button>
+      <button class="btn ghost" onclick="renderStart()">← Назад</button>
+    </div>`;
+}
+function submitSelfIdentify(){
+  const v = id => (document.getElementById(id).value || '').trim();
+  const name = v('s_name');
+  if(!name){ document.getElementById('siErr').textContent = 'Пожалуйста, укажите имя.'; return; }
+  student.name = name; student.phone = v('s_phone'); student.email = v('s_email');
+  start();
 }
 
 function renderQuestion(){
@@ -324,7 +355,8 @@ function renderResult(){
       <table><thead><tr><th>Уровень</th><th class="score">Верно</th></tr></thead><tbody>${statsRows}</tbody></table>
       <p class="small">Уровень считается освоенным при ≥60% верных ответов (одиночная ошибка не понижает уровень).</p>
       <div class="row">
-        <button class="btn" onclick="renderSpeaking()">Перейти к части 2 · Разговор →</button>
+        ${BRANCH ? '' : `<a class="btn" href="${lessonUrl(placedLevel)}">Начать пробный урок по уровню →</a>`}
+        <button class="btn ${BRANCH ? '' : 'ghost'}" onclick="renderSpeaking()">${BRANCH ? 'Перейти к части 2 · Разговор →' : 'Записать разговор (необязательно)'}</button>
         <button class="btn ghost" onclick="goHome()">${BRANCH ? '← К началу' : '← На главную'}</button>
         ${BRANCH ? '' : '<button class="btn ghost" onclick="start()">Пройти заново</button>'}
       </div>
