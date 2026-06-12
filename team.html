@@ -3823,16 +3823,20 @@ const LC_LEVELS = {1:'Beginner 1',2:'Beginner 2',3:'Elementary',4:'Pre-Intermedi
 const LC_STEP = {'words-cards':'Слова · переводы','words-speed':'Слова · на скорость','grammar':'Грамматика','reading':'Чтение','speaking':'Спикинг'};
 let lcTimer = null;
 
-function lcEnsureDict(cb){
-  if (window.ELC_DICT_WORDS) return cb();
+function lcLoadScript(src, cb){
   const s = document.createElement('script');
-  s.src = LC_API + '/dict-words.js';
-  s.onload = cb; s.onerror = cb;
+  s.src = src; s.onload = cb; s.onerror = cb;
   document.head.appendChild(s);
+}
+function lcEnsureData(cb){
+  // dict-words.js → потом lessons.js (lessons.js подмешивает словарные слова)
+  const next = () => { if (window.ELC_LESSONS) return cb(); lcLoadScript(LC_API + '/lessons.js', cb); };
+  if (window.ELC_DICT_WORDS) return next();
+  lcLoadScript(LC_API + '/dict-words.js', next);
 }
 
 function renderLessonChecks(main){
-  lcEnsureDict(() => {
+  lcEnsureData(() => {
     main.innerHTML = `
       <div style="padding:18px 20px;max-width:760px;margin:0 auto">
         <h2 style="margin:0 0 4px">📝 Проверка заданий Пробного урока</h2>
@@ -3878,6 +3882,21 @@ function lcCard(it){
     const ws = window.ELC_DICT_WORDS[it.level];
     extra += `<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--ac2);font-size:12px">Показать слова (${ws.length}) — подсказка для проверки</summary>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">${ws.map(w => `<div style="display:flex;justify-content:space-between;gap:6px;background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:6px 9px;font-size:12px"><b>${escapeHtml(w.en)}</b><span style="color:var(--t3)">${escapeHtml(w.ru)}</span></div>`).join('')}</div></details>`;
+  }
+  // Материал, который студент сдаёт/тренирует — чтобы преподаватель ориентировался
+  const Lc = window.ELC_LESSONS && window.ELC_LESSONS[it.level];
+  const matBox = (title, html) => `<div style="margin-top:8px;background:var(--bg3);border:1px solid var(--b1);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.55"><div style="font-weight:700;color:var(--ac2);margin-bottom:5px">${title}</div>${html}</div>`;
+  if (Lc) {
+    if (it.step === 'grammar' || it.step === 'grammar-test') {
+      const g = Lc.grammar;
+      extra += matBox('Грамматика урока', `<div>${escapeHtml(g.title)}</div><div style="color:var(--t3);margin-top:4px">${escapeHtml(g.form)}</div><div style="margin-top:6px">Примеры: ${g.examples.map(e => escapeHtml(e)).join('; ')}</div>`);
+    } else if (it.step === 'reading') {
+      const r = Lc.reading;
+      extra += matBox('Текст для чтения', `<div>${escapeHtml(r.text)}</div><div style="color:var(--t3);margin-top:6px">Вопросы: ${r.q.map(q => escapeHtml(q)).join(' · ')}</div>`);
+    } else if (it.step === 'speaking') {
+      const s = Lc.speaking;
+      extra += matBox('Задание спикинга', `<div>${escapeHtml(s.task)}</div><div style="color:var(--t3);margin-top:6px">Опоры: ${s.opory.map(o => escapeHtml(o)).join(' · ')}</div>`);
+    }
   }
   return `<div style="background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:14px 16px;margin-bottom:10px">
     <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
