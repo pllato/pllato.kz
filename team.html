@@ -21733,6 +21733,11 @@ async function openAddUserModal() {
   const deptOptionsHtml = orgNodeOptions.length
     ? orgNodeOptions.map(n => `<option value="${escapeHtml(n.path)}">${'   '.repeat(n.depth)}${escapeHtml(n.label)}</option>`).join('')
     : '';
+  // Каскад «Филиал/Отделение → Отдел → Подотдел». Отдел обязателен перед отправкой.
+  const branches = (orgChartState.structure && orgChartState.structure.branches) || [];
+  const hasStructure = branches.length > 0;
+  const branchOptsHtml = branches.map((b, i) =>
+    `<option value="branches.${i}">${escapeHtml(b.name || `Отделение ${i + 1}`)}</option>`).join('');
   const ov = document.createElement('div');
   ov.id = '_add-user-modal';
   ov.className = 'qad-overlay';
@@ -21746,8 +21751,10 @@ async function openAddUserModal() {
         </div>
         <div><div class="qad-label">👤 Имя *</div><input id="au-name" class="qad-input" placeholder="Например: Ирина Петрова" autofocus></div>
         <div><div class="qad-label">📱 Телефон WhatsApp *</div><input id="au-phone" class="qad-input" type="tel" placeholder="+7 707 123 45 67"></div>
-        ${deptOptionsHtml
-          ? `<div><div class="qad-label">🏢 Отдел *</div><select id="au-dept" class="qad-input">${deptOptionsHtml}</select></div>`
+        ${hasStructure
+          ? `<div><div class="qad-label">🏢 Филиал / отделение *</div><select id="au-branch" class="qad-input"><option value="">— выбери —</option>${branchOptsHtml}</select></div>
+             <div id="au-dept-wrap" style="display:none;margin-top:8px"><div class="qad-label">🏬 Отдел *</div><select id="au-dept" class="qad-input"></select></div>
+             <div id="au-subdept-wrap" style="display:none;margin-top:8px"><div class="qad-label">📁 Подотдел</div><select id="au-subdept" class="qad-input"></select></div>`
           : `<div class="dialer-hint" style="color:#dc2626">⚠ Оргструктура не настроена. Сначала добавь отделы в разделе «Структура».</div>`}
         <div>
           <div class="qad-label">🎭 Роль</div>
@@ -21761,23 +21768,57 @@ async function openAddUserModal() {
       </div>
       <div class="qad-foot">
         <button class="qad-btn qad-btn-ghost" id="au-cancel">Отмена</button>
-        <button class="qad-btn qad-btn-primary" id="au-save"${deptOptionsHtml ? '' : ' disabled'}>📨 Отправить приглашение</button>
+        <button class="qad-btn qad-btn-primary" id="au-save"${hasStructure ? '' : ' disabled'}>📨 Отправить приглашение</button>
       </div>
     </div>
   `;
   document.body.appendChild(ov);
   document.getElementById('au-close').onclick = () => ov.remove();
   document.getElementById('au-cancel').onclick = () => ov.remove();
+  // Каскад: при выборе филиала — населяем отделы; при выборе отдела — подотделы.
+  const branchEl = document.getElementById('au-branch');
+  const deptEl = document.getElementById('au-dept');
+  const subEl = document.getElementById('au-subdept');
+  const deptWrap = document.getElementById('au-dept-wrap');
+  const subWrap = document.getElementById('au-subdept-wrap');
+  const nodeOpts = (arr, base, key) => (arr || []).map((n, i) => `<option value="${base}.${key}.${i}">${escapeHtml(n.name || '—')}</option>`).join('');
+  if (branchEl) branchEl.onchange = () => {
+    if (subWrap) { subWrap.style.display = 'none'; subEl.innerHTML = ''; }
+    const bp = branchEl.value;
+    const depts = bp ? ((orgGetByPath(bp) || {}).departments || []) : [];
+    if (bp && depts.length) {
+      deptEl.innerHTML = `<option value="">— выбери отдел —</option>` + nodeOpts(depts, bp, 'departments');
+      deptWrap.style.display = '';
+    } else { deptWrap.style.display = 'none'; deptEl.innerHTML = ''; }
+  };
+  if (deptEl) deptEl.onchange = () => {
+    const dp = deptEl.value;
+    const subs = dp ? ((orgGetByPath(dp) || {}).subDepartments || []) : [];
+    if (dp && subs.length) {
+      subEl.innerHTML = `<option value="">— (необязательно) —</option>` + nodeOpts(subs, dp, 'subDepartments');
+      subWrap.style.display = '';
+    } else { subWrap.style.display = 'none'; subEl.innerHTML = ''; }
+  };
+  const computeDeptPath = () => {
+    if (subWrap && subWrap.style.display !== 'none' && subEl.value) return subEl.value;
+    if (deptWrap && deptWrap.style.display !== 'none' && deptEl.value) return deptEl.value;
+    return branchEl ? branchEl.value : '';
+  };
   const saveBtn = document.getElementById('au-save');
   if (saveBtn) saveBtn.onclick = async () => {
     const name = document.getElementById('au-name').value.trim();
     const phone = String(document.getElementById('au-phone').value || '').replace(/\D/g, '');
     const role = document.getElementById('au-role').value;
-    const deptSel = document.getElementById('au-dept');
-    const deptPath = deptSel ? deptSel.value : '';
     const status = document.getElementById('au-status');
     if (!name) { status.innerHTML = '<span style="color:#dc2626">⚠ Введи имя сотрудника</span>'; return; }
     if (!phone || phone.length < 10) { status.innerHTML = '<span style="color:#dc2626">⚠ Введи телефон полностью</span>'; return; }
+    if (!branchEl || !branchEl.value) { status.innerHTML = '<span style="color:#dc2626">⚠ Выбери филиал / отделение</span>'; return; }
+    // Если у филиала есть отделы — отдел обязателен (точное место сотрудника).
+    const branchNode = orgGetByPath(branchEl.value) || {};
+    if ((branchNode.departments || []).length && (!deptEl || !deptEl.value)) {
+      status.innerHTML = '<span style="color:#dc2626">⚠ Выбери отдел</span>'; return;
+    }
+    const deptPath = computeDeptPath();
     if (!deptPath) { status.innerHTML = '<span style="color:#dc2626">⚠ Выбери отдел</span>'; return; }
     const node = orgGetByPath(deptPath);
     const headUid = node && node.headUid ? node.headUid : null;
