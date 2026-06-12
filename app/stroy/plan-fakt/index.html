@@ -274,7 +274,7 @@ function drawSymbolCanvas(cc,o){const def=symDef(o.sym);const s=o.size/22;cc.sav
 function symPreviewSVG(s){const inner=s.parts.map(pt=>{const col=pt.c||s.col;return `<path d="${pt.p}" stroke="${pt.f?'none':col}" fill="${pt.f?col:'none'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;}).join('');return `<svg viewBox="-14 -14 28 28">${inner}</svg>`;}
 function placeSymbol(p){const def=symDef(S.armSym);const size=Math.max(22,S.W*0.016);pushHistory();
   addObj({type:'symbol',sym:S.armSym,x:p.x,y:p.y,size,rot:0,color:def.col,src:'mine'});redrawAll();renderSide();toast(def.n+' поставлен');}
-function eraseAt(target){const el=target&&target.closest&&target.closest('[data-id]');if(!el)return;const id=el.dataset.id;const o=getObj(id);if(!o||isRef(o))return;pushHistory();delObj(id);if(S.selected===id)S.selected=null;redrawAll();renderSide();toast('Удалено');}
+function eraseAt(target){const el=target&&target.closest&&target.closest('[data-id]');if(!el)return;const id=el.dataset.id;const o=getObj(id);if(!o||isRef(o))return;pushHistory();const ids=(o.type==='line'||o.type==='symbol')?connectedCluster(id):[id];ids.forEach(i=>delObj(i));if(ids.includes(S.selected))S.selected=null;redrawAll();renderSide();toast(ids.length>1?'Удалено вместе со знаком ('+ids.length+')':'Удалено');}
 function renderCatalog(){const body=$('sideBody');
   let h='<div class="catgrid">'+SYMS.map(s=>`<button class="catcell ${S.armSym===s.k?'on':''}" data-sym="${s.k}"><span class="catico">${symPreviewSVG(s)}</span><span class="catnm">${s.n}</span><span class="catdesc">${s.d}</span></button>`).join('')+'</div>';
   h+='<div class="emptyhint" style="text-align:left">Выберите знак и тапайте по плану, чтобы расставить. Каждый знак — <b>один объект</b>: двигается, вращается (ручка сверху), масштабируется (угол) и удаляется целиком. Розетки/выключатели/щит также считаются в «Расчёте».</div>';
@@ -476,13 +476,27 @@ function renderObj(o){
   }
   el.dataset.id=o.id;bindObj(el,o);return el;
 }
+/* ---- связность: знак на конце трассы = мелкие фрагменты, прицепленные к ней.
+   Тянем трассу — мелкие соединённые фрагменты едут вместе (но не другие длинные трассы). ---- */
+function objVerts(o){if(o.type==='line')return o.pts;if(o.type==='rect')return [{x:o.x,y:o.y},{x:o.x+o.w,y:o.y+o.h},{x:o.x+o.w,y:o.y},{x:o.x,y:o.y+o.h}];return [{x:o.x,y:o.y}];}
+function objDiag(o){const b=bbox(o);return Math.hypot(b.w,b.h);}
+function isSmallFrag(o){return objDiag(o) < S.W*0.045;}  // знак/короткий штрих, не длинная трасса
+function touches(a,b,th){const va=objVerts(a),vb=objVerts(b),t2=th*th;for(const p of va)for(const q of vb){const dx=p.x-q.x,dy=p.y-q.y;if(dx*dx+dy*dy<=t2)return true;}return false;}
+function connectedCluster(seedId){
+  const all=cur(),seed=getObj(seedId);if(!seed)return [seedId];
+  const th=Math.max(6,S.W*0.006),inSet=new Set([seedId]),q=[seed];
+  while(q.length){const o=q.pop();for(const c of all){if(inSet.has(c.id)||!isSmallFrag(c))continue;if(touches(o,c,th)){inSet.add(c.id);q.push(c);}}}
+  return [...inSet];
+}
+function moveObjBy(co,og,dx,dy){if(co.type==='line')co.pts=og.pts.map(q=>({x:q.x+dx,y:q.y+dy}));else{co.x=og.x+dx;co.y=og.y+dy;}}
 function bindObj(el,o){
   el.addEventListener('pointerdown',ev=>{
     if(S.tool!=='select')return;ev.stopPropagation();
     selectObj(o.id);
-    const start=toImg(ev.clientX,ev.clientY);const orig=JSON.parse(JSON.stringify(o));let moved=false,pushed=false;
+    const cluster=(o.type==='line'||o.type==='symbol')?connectedCluster(o.id):[o.id];
+    const start=toImg(ev.clientX,ev.clientY);const origs={};cluster.forEach(id=>origs[id]=JSON.parse(JSON.stringify(getObj(id))));let moved=false,pushed=false;
     const mv=e=>{const p=toImg(e.clientX,e.clientY);const dx=p.x-start.x,dy=p.y-start.y;if(Math.abs(dx)+Math.abs(dy)>2&&!pushed){pushHistory();pushed=true;}moved=true;
-      if(o.type==='line')o.pts=orig.pts.map(p=>({x:p.x+dx,y:p.y+dy}));else{o.x=orig.x+dx;o.y=orig.y+dy;}live(o);};
+      cluster.forEach(id=>{const co=getObj(id),og=origs[id];if(co&&og){moveObjBy(co,og,dx,dy);live(co);}});};
     const up=()=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);if(moved){drawSelUI();renderSide();}};
     window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
   });
