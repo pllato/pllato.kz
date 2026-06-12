@@ -3838,13 +3838,13 @@ function lcEnsureData(cb){
 
 function renderLessonChecks(main){
   lcEnsureData(() => {
-    const tabBtn = (id,txt) => `<button id="${id}" onclick="lcSwitch('${id==='lc-tab-check'?'check':'history'}')" style="border:0;cursor:pointer;font-size:14px;font-weight:600;padding:9px 16px;border-radius:9px;background:transparent;color:var(--t3)">${txt}</button>`;
+    const tabBtn = (tab,txt) => `<button id="lc-tab-${tab}" onclick="lcSwitch('${tab}')" style="border:0;cursor:pointer;font-size:14px;font-weight:600;padding:9px 16px;border-radius:9px;background:transparent;color:var(--t3)">${txt}</button>`;
     main.innerHTML = `
       <div style="padding:18px 20px;max-width:760px;margin:0 auto">
         <h2 style="margin:0 0 4px">📝 Пробные Занятия</h2>
-        <div style="color:var(--t3);font-size:13px;margin-bottom:14px">Запросы на проверку приходят во вкладку «Проверка». Завершённые занятия с результатами — во вкладке «История».</div>
+        <div style="color:var(--t3);font-size:13px;margin-bottom:14px">«Проверка» — запросы от студентов. «История» — завершённые занятия с результатами. «Ссылки» — выдать студенту тест или урок нужного уровня.</div>
         <div style="display:flex;gap:6px;background:var(--bg2);border:1px solid var(--b1);border-radius:11px;padding:4px;margin-bottom:14px;width:max-content">
-          ${tabBtn('lc-tab-check','Проверка')}${tabBtn('lc-tab-hist','История')}
+          ${tabBtn('check','Проверка')}${tabBtn('history','История')}${tabBtn('links','Ссылки')}
         </div>
         <div id="lc-content"></div>
       </div>`;
@@ -3859,13 +3859,45 @@ function renderLessonChecks(main){
 
 window.lcSwitch = function(tab){
   lcTab = tab;
-  const tc = document.getElementById('lc-tab-check'), th = document.getElementById('lc-tab-hist');
-  if (tc) { tc.style.background = tab==='check' ? 'var(--acbg)' : 'transparent'; tc.style.color = tab==='check' ? 'var(--ac2)' : 'var(--t3)'; }
-  if (th) { th.style.background = tab==='history' ? 'var(--acbg)' : 'transparent'; th.style.color = tab==='history' ? 'var(--ac2)' : 'var(--t3)'; }
+  ['check','history','links'].forEach(t => {
+    const el = document.getElementById('lc-tab-' + t);
+    if (el) { el.style.background = t===tab ? 'var(--acbg)' : 'transparent'; el.style.color = t===tab ? 'var(--ac2)' : 'var(--t3)'; }
+  });
   const c = document.getElementById('lc-content');
   if (tab === 'check') { c.innerHTML = `<div id="lc-root"><div style="color:var(--t3);padding:20px;text-align:center">Загрузка…</div></div>`; lcPoll(); }
-  else lcLoadHistory();
+  else if (tab === 'history') lcLoadHistory();
+  else lcShowLinks();
 };
+
+const LC_CEFR = {1:'A1',2:'A1',3:'A2',4:'B1',5:'B1+',6:'B2',7:'B2+'};
+window.lcCopy = function(text, btn){
+  navigator.clipboard.writeText(text).then(() => {
+    if (btn) { const o = btn.textContent; btn.textContent = 'Скопировано ✓'; setTimeout(() => btn.textContent = o, 1200); }
+  }).catch(() => { window.prompt('Скопируйте ссылку:', text); });
+};
+function lcShowLinks(){
+  const c = document.getElementById('lc-content');
+  if (!c) return;
+  const TEST = 'https://pllato.kz/app/elc/placement-test.html';
+  const linkRow = (title, sub, url) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;padding:11px 13px;margin-bottom:8px">
+      <div style="min-width:0"><div style="font-weight:600;font-size:14px;color:var(--t1)">${title}</div>
+        ${sub ? `<div style="font-size:11px;color:var(--t3);margin:2px 0">${sub}</div>` : ''}
+        <div style="font-size:11px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${url}</div></div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <a href="${url}" target="_blank" style="font-size:12px;font-weight:600;color:var(--ac2);text-decoration:none;padding:7px 10px;border:1px solid var(--b1);border-radius:8px">Открыть</a>
+        <button onclick="lcCopy('${url}',this)" style="font-size:12px;font-weight:600;cursor:pointer;color:#08130c;background:var(--gn);border:0;border-radius:8px;padding:7px 12px">Копировать</button>
+      </div></div>`;
+  const lessons = [1,2,3,4,5,6,7].map(n => linkRow(
+    `${LC_LEVELS[n]} · ${LC_CEFR[n]}`, '', `${LC_API}/lesson?level=${n}&cefr=${encodeURIComponent(LC_CEFR[n])}`
+  )).join('');
+  c.innerHTML = `
+    <div style="font-size:13px;color:var(--t3);margin-bottom:12px">В начале любой ссылки — анкета (имя, телефон, почта). Результат подшивается в «Историю».</div>
+    <div style="font-weight:700;margin:6px 0 8px">Тест на уровень (основная ссылка)</div>
+    ${linkRow('Placement-тест → урок по результату', 'Студент проходит тест, затем урок своего уровня', TEST)}
+    <div style="font-weight:700;margin:18px 0 6px">Прямые ссылки на урок по уровню</div>
+    <div style="font-size:12px;color:var(--t3);margin-bottom:10px">Если тест дал не тот уровень — дайте студенту ссылку нужного уровня напрямую (без теста).</div>
+    ${lessons}`;
+}
 
 async function lcPoll(){
   try {
