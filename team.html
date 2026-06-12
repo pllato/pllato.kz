@@ -9289,10 +9289,10 @@ function renderDealsKanban(c, arr) {
     const cards = sortDealsForKanban(byStage[s.statusId] || []);
     const totalSum = cards.reduce((acc, d) => acc + (d.opportunity || 0), 0);
     const stageColor = s.semantics === 'S' ? '#3fd88e' : s.semantics === 'F' ? '#f05975' : '#a87fff';
-    // Стадию «раскрыли» кнопкой «… ещё» → показываем все загруженные карточки
-    // (а не максимум MAX_PER_COL), иначе колонка застрянет на 100.
-    const stageExpanded = dealsState.expandedStages && dealsState.expandedStages.has(dealsState.activePipelineId + ':' + s.statusId);
-    const cap = stageExpanded ? cards.length : MAX_PER_COL;
+    // «Крышка» рендера стадии: по умолчанию MAX_PER_COL, растёт шагами при кликах
+    // «… ещё» (НЕ показываем все сразу — иначе тысячи карточек подвешивают DOM).
+    const _stKey = dealsState.activePipelineId + ':' + s.statusId;
+    const cap = (dealsState.stageRenderCap && dealsState.stageRenderCap[_stKey]) || MAX_PER_COL;
     const shown = Math.min(cards.length, cap);
     // Истинный итог колонки: с сервера если есть, иначе — сколько загружено.
     const colTotal = (trueCounts && trueCounts[s.statusId] != null) ? trueCounts[s.statusId] : cards.length;
@@ -11420,43 +11420,50 @@ function buildDealCard(d, stageColor) {
 // только самые свежие N сделок воронки целиком, поэтому в «глубоких» стадиях
 // часть карточек не подгружена. Здесь тянем их адресно фильтром ?stage= — это
 // узкая выборка (одна стадия), быстрая, без проблемы глубокого OFFSET.
+const STAGE_RENDER_STEP = 200; // на сколько раскрываем колонку за один клик
 async function loadStageMore(stageId, btn) {
   if (!stageId) return;
   const pipelineId = dealsState.activePipelineId;
   if (!pipelineId) return;
+  const key = pipelineId + ':' + stageId;
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Загружаю…'; }
   try {
-    const idToken = await fbAuth.currentUser.getIdToken();
-    const { scope, assignee } = computeKanbanScope();
-    const existing = new Set((dealsState.deals || []).map(d => d.id));
-    const fetched = [];
-    const PAGE = 200;
-    const HARD_CAP = 3000;
-    for (let page = 1; page <= 20; page++) {
-      const params = new URLSearchParams({
-        page: String(page), pageSize: String(PAGE), pipeline: pipelineId,
-        stage: stageId, sort: 'modified', scope, auth: idToken,
-      });
-      if (assignee) params.set('assignee', assignee);
-      const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const data = await r.json();
-      const items = data.items || [];
-      fetched.push(...items);
-      if (!data.hasMore || items.length < PAGE) break;
-      if (fetched.length >= HARD_CAP) break;
+    dealsState.stageRenderCap = dealsState.stageRenderCap || {};
+    dealsState.stageFetched = dealsState.stageFetched || new Set();
+    // Первый клик по стадии — один раз дотягиваем её сделки в состояние (ограниченно,
+    // чтобы не качать десятки тысяч). Дальше только поднимаем «крышку» рендера.
+    if (!dealsState.stageFetched.has(key)) {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const { scope, assignee } = computeKanbanScope();
+      const existing = new Set((dealsState.deals || []).map(d => d.id));
+      const added = [];
+      const PAGE = 200;
+      const HARD_CAP = 2000;
+      for (let page = 1; page <= 10; page++) {
+        const params = new URLSearchParams({
+          page: String(page), pageSize: String(PAGE), pipeline: pipelineId,
+          stage: stageId, sort: 'modified', scope, auth: idToken,
+        });
+        if (assignee) params.set('assignee', assignee);
+        const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        const items = data.items || [];
+        for (const it of items) { if (!existing.has(it.id)) { existing.add(it.id); added.push(it); } }
+        if (!data.hasMore || items.length < PAGE) break;
+        if (added.length >= HARD_CAP) break;
+      }
+      if (added.length) {
+        dealsState.deals = (dealsState.deals || []).concat(added);
+        dealsState.dealsByPipeline[pipelineId] = dealsState.deals;
+      }
+      dealsState.stageFetched.add(key);
     }
-    const added = [];
-    for (const it of fetched) {
-      if (!existing.has(it.id)) { existing.add(it.id); added.push(it); }
-    }
-    if (added.length) {
-      dealsState.deals = (dealsState.deals || []).concat(added);
-      dealsState.dealsByPipeline[pipelineId] = dealsState.deals;
-    }
-    // Помечаем стадию раскрытой — рендер покажет все её карточки, не обрезая до 100.
-    (dealsState.expandedStages = dealsState.expandedStages || new Set()).add(pipelineId + ':' + stageId);
-    renderDealsContent(); // перерисует колонки; кнопка «ещё» пересчитается/исчезнет
+    // Поднимаем «крышку» рендера на шаг (не всё сразу — иначе тысячи карточек
+    // в одной колонке подвешивают вкладку).
+    const cur = dealsState.stageRenderCap[key] || 100;
+    dealsState.stageRenderCap[key] = cur + STAGE_RENDER_STEP;
+    renderDealsContent();
   } catch (e) {
     console.warn('loadStageMore failed:', e);
     if (btn) { btn.disabled = false; btn.textContent = '⚠ Ошибка — повторить'; }
