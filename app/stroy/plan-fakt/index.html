@@ -378,7 +378,7 @@ function hex2rgb(h){h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseIn
 function colorToCat(hex){let best='other',bd=1e9;for(const c of CATS){const[a,b,d]=hex2rgb(c.c),[x,y,z]=hex2rgb(hex);const dist=(a-x)**2+(b-y)**2+(d-z)**2;if(dist<bd){bd=dist;best=c.k;}}return best;}
 
 /* ---- упрощение полилинии (Douglas–Peucker) + жёсткий лимит узлов ---- */
-const SIMPLIFY_TOL_PT=2.4, MAX_NODES=4;
+const SIMPLIFY_TOL_PT=2.4, MAX_NODES=4, IMPORT_MAX=10;
 function simplifyPts(pts,tol){
   const n=pts.length;if(n<=2)return pts;
   const keep=new Uint8Array(n);keep[0]=keep[n-1]=1;const t2=tol*tol;const stack=[[0,n-1]];
@@ -414,7 +414,7 @@ function importObjects(raw,sx,sy){
   return raw.map(o=>{
     if(o.t==='line'){
       const cat=colorToCat(o.c);
-      const pts=capPts(o.p,MAX_NODES).map(p=>({x:p[0]*sx,y:p[1]*sy}));
+      const pts=capPts(o.p,IMPORT_MAX).map(p=>({x:p[0]*sx,y:p[1]*sy}));
       return{id:'o'+(S.seq++),type:'line',cat,color:o.c,width:Math.max(2.4,(o.w||1)*sx),pts,
         ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'pdf'};
     }
