@@ -512,6 +512,8 @@ body {
   padding: 4px 12px; font-weight: 700; font-size: 12px; cursor: pointer; white-space: nowrap;
 }
 #ch-health-banner button:hover { background: #fee2e2; }
+/* Когда баннер показан — сдвигаем приложение вниз на его высоту (десктоп) */
+body.has-ch-banner #app { padding-top: var(--ch-banner-h, 0); }
 .sidebar {
   width: 240px;
   background: var(--bg2);
@@ -800,6 +802,15 @@ tr:hover td { background: var(--bg3); }
     height: 100dvh;
     box-sizing: border-box;
     padding: calc(52px + env(safe-area-inset-top) + 12px) 14px calc(14px + env(safe-area-inset-bottom));
+  }
+  /* Баннер «связь потеряна» на мобиле: не паддим #app (сломает 100dvh), а
+     сдвигаем фиксированную панель (☰), drawer и верхний отступ контента на
+     высоту баннера, чтобы он ничего не перекрывал. */
+  body.has-ch-banner #app { padding-top: 0; }
+  body.has-ch-banner #mobile-topbar { top: var(--ch-banner-h, 0); }
+  body.has-ch-banner .sidebar { top: var(--ch-banner-h, 0); }
+  body.has-ch-banner .main {
+    padding-top: calc(52px + env(safe-area-inset-top) + 12px + var(--ch-banner-h, 0));
   }
 
   /* Чаты команды: список занимает почти всю высоту экрана; открытый диалог
@@ -3615,11 +3626,10 @@ const LAST_PAGE_LS_KEY = 'elc:lastPage'; // dashboard|contacts|deals|tasks|users
 let _chHealthTimer = null;
 function renderChannelHealthBanner(data) {
   const existing = document.getElementById('ch-health-banner');
-  const app = document.getElementById('app');
   if (!data || !data.anyDown) {
     if (existing) existing.remove();
     document.body.classList.remove('has-ch-banner');
-    if (app) app.style.paddingTop = '';
+    document.documentElement.style.removeProperty('--ch-banner-h');
     return;
   }
   const names = (data.down || []).map(d => d.name).filter(Boolean).join(', ') || 'WhatsApp-канал';
@@ -3636,7 +3646,9 @@ function renderChannelHealthBanner(data) {
   const nm = b.querySelector('#ch-health-names');
   if (nm) nm.textContent = names;
   document.body.classList.add('has-ch-banner');
-  if (app) app.style.paddingTop = b.offsetHeight + 'px';
+  // Высота баннера → CSS-переменная. На десктопе ею сдвигаем #app, на мобиле —
+  // фиксированную верхнюю панель (☰), drawer и контент, чтобы баннер их не перекрывал.
+  document.documentElement.style.setProperty('--ch-banner-h', b.offsetHeight + 'px');
 }
 async function pollChannelHealth() {
   try {
