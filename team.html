@@ -13552,7 +13552,7 @@ async function ensureUsersLoaded() {
     }
     const idToken = await fbAuth.currentUser.getIdToken();
     const dbUrl = WORKER_RTDB_URL;
-    const r = await fetch(`${dbUrl}/users.json?auth=${idToken}`);
+    const r = await fetch(`${dbUrl}/users.json?auth=${idToken}&_cb=${Date.now()}`, { cache: 'no-store' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     usersState.users = data || {};
@@ -13572,7 +13572,7 @@ async function refreshUsersBackground() {
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
     const dbUrl = WORKER_RTDB_URL;
-    const r = await fetch(`${dbUrl}/users.json?auth=${idToken}`);
+    const r = await fetch(`${dbUrl}/users.json?auth=${idToken}&_cb=${Date.now()}`, { cache: 'no-store' });
     if (!r.ok) return;
     const data = await r.json();
     if (data && Object.keys(data).length > 0) {
@@ -18659,6 +18659,9 @@ async function renderOrgChart(el) {
   `;
   try {
     await ensureUsersLoaded();
+    // Свежий справочник сотрудников (минуя 60-сек кэш) — чтобы только что
+    // добавленный сотрудник сразу был в выпадающем списке «+ сотрудник».
+    try { await refreshUsersBackground(); } catch {}
     const idToken = await fbAuth.currentUser.getIdToken();
     const r = await fetch(`${WORKER_BASE_URL}/api/org/structure`, {
       headers: { 'Authorization': `Bearer ${idToken}` },
