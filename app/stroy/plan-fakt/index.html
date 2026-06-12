@@ -267,7 +267,7 @@ const CATS=[
 const catC=k=>(CATS.find(c=>c.k===k)||CATS[CATS.length-1]).c;
 const catN=k=>(CATS.find(c=>c.k===k)||CATS[CATS.length-1]).n;
 const catFull=k=>{const c=CATS.find(c=>c.k===k)||CATS[CATS.length-1];return c.full||c.n;};
-S.cat=CATS[0].k;S.penMode=false;S.printSpec=true;S.cluster=[];S.heights={socket:0.40,switch:0.90};S.projId=null;
+S.cat=CATS[0].k;S.penMode=false;S.printSpec=true;S.cluster=[];S.heights={socket:0.40,switch:0.90};S.projId=null;S.extraPos=[];
 /* виды концов линии (выпуск/отпуск) и высоты по умолчанию, м */
 const KINDS=[
   {k:'free',  n:'— (узел)',     h:0},
@@ -412,7 +412,7 @@ async function loadPdf(file){
   }catch(e){console.error(e);toast('Не удалось открыть PDF');$('spin').style.display='none';}
 }
 function initData(j){
-  S.projId=null;
+  S.projId=null;S.extraPos=[];
   S.data=j;S.pageList=Object.keys(j.pages).map(Number).sort((a,b)=>a-b);
   $('docname').textContent=j.name||'План';
   $('loader').classList.add('hide');$('stage').style.display='flex';
@@ -433,7 +433,7 @@ function projThumb(){return new Promise(res=>{try{const pn=S.pageList[0];const p
   img.onload=()=>{const w=160,h=Math.max(40,Math.round(img.height/img.width*w));const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);res(c.toDataURL('image/jpeg',0.55));};
   img.onerror=()=>res(null);img.src='data:image/jpeg;base64,'+pg.u;}catch(e){res(null);}});}
 function fmtDate(ts){try{return new Date(ts).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
-function buildProj(){return {_planfakt:1,name:S.data.name||'План',data:S.data,edits:{objects:S.objects,cal:S.cal},settings:{panelH:S.panelH,slack:S.slack,importMode:S.importMode,seq:S.seq}};}
+function buildProj(){return {_planfakt:1,name:S.data.name||'План',data:S.data,edits:{objects:S.objects,cal:S.cal},settings:{panelH:S.panelH,slack:S.slack,importMode:S.importMode,seq:S.seq,heights:S.heights,extraPos:S.extraPos}};}
 function downloadProjFile(proj){try{const blob=new Blob([JSON.stringify(proj)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(proj.name||'plan').replace(/[^\wа-яёА-ЯЁ.\- ]/gi,'_')+'_проект.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),8000);}catch(e){toast('Не удалось скачать файл');}}
 /* облачный архив (R2 через воркер) + локальное зеркало (IDB) */
 const ARCH_URL=CONVERT_URL+'/projects';
@@ -480,6 +480,8 @@ function openProject(j,projId){
   if(st.slack!=null)S.slack=st.slack;
   if(st.importMode)S.importMode=st.importMode;
   if(st.seq)S.seq=st.seq;
+  if(st.heights)S.heights=st.heights;
+  S.extraPos=Array.isArray(st.extraPos)?st.extraPos:[];
   S.pageList=Object.keys(S.data.pages).map(Number).sort((a,b)=>a-b);
   S.history={};S.selected=null;
   $('docname').textContent=(S.data.name||'План')+' · проект';
@@ -862,6 +864,7 @@ function calcPage(pn){const objs=S.objects[pn]||[];const mpp=S.cal[pn];const cat
     else if(k.indexOf('panel')===0)cnt.panel++;});
   let raw=0;Object.values(cats).forEach(c=>raw+=c.len);
   return{cats,cnt,mpp,raw,total:raw*(1+S.slack/100)};}
+function extraLen(p,r){if(!p)return null;if(p.mode==='fixed')return Math.max(0,p.meters||0);if(!r||!r.mpp)return null;const c=r.cats[p.markKey];return c?c.len*(p.coeff!=null?p.coeff:0.9):0;}
 function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPage(pn);
   let html='<div class="calc">';
   html+='<h5>Параметры</h5>';
@@ -879,6 +882,20 @@ function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPa
   CATS.forEach(c=>{const x=r.cats[c.k];if(x.n===0)return;html+=`<div class="crow"><span class="dot" style="background:${c.c}"></span><span class="nm">${c.n}<div class="sub">${x.n} лин · выпуски ${x.drops.toFixed(2)} м</div></span><span class="vv">${r.mpp?x.len.toFixed(2)+' м':'—'}</span></div>`;});
   if(!CATS.some(c=>r.cats[c.k].n))html+=`<div class="emptyhint">Линий пока нет. Нарисуйте кабель инструментом «Линия».</div>`;
   html+=`<div class="total"><span class="tl">Итого по листу (с запасом ${S.slack}%)</span><span class="tv">${r.mpp?r.total.toFixed(1)+' м':'—'}</span></div>`;
+  // доп. позиции (трубы, гофра и пр.)
+  html+='<h5>Доп. позиции (трубы, гофра)</h5>';
+  let extraSum=0;
+  S.extraPos.forEach((p,i)=>{const len=extraLen(p,r);if(len!=null)extraSum+=len;
+    html+=`<div class="crow" style="flex-wrap:wrap;gap:5px;align-items:center">`
+      +`<input class="epn" data-i="${i}" value="${esc(p.name||'')}" placeholder="Труба ПНД Ø20" style="flex:1;min-width:88px;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:4px 6px;background:#fff">`
+      +`<select class="epm" data-i="${i}" style="font-size:11px">${['mark','fixed'].map(m=>`<option value="${m}" ${p.mode===m?'selected':''}>${m==='mark'?'= марка ×k':'фикс, м'}</option>`).join('')}</select>`
+      +(p.mode==='fixed'
+        ?`<input class="epv" data-i="${i}" type="number" step="0.1" min="0" value="${p.meters||0}" style="width:66px;font-size:12px">`
+        :`<select class="epk" data-i="${i}" style="font-size:11px">${CATS.map(c=>`<option value="${c.k}" ${p.markKey===c.k?'selected':''}>${c.n}</option>`).join('')}</select><input class="epc" data-i="${i}" type="number" step="0.05" min="0" value="${p.coeff!=null?p.coeff:0.9}" title="коэффициент (труба ≈ кабель ×k)" style="width:50px;font-size:12px">`)
+      +`<span class="vv">${len!=null?len.toFixed(1)+' м':'—'}</span>`
+      +`<button class="adel" data-del="${i}" title="Удалить" style="border:none;background:none;cursor:pointer;color:var(--gray);font-size:13px">✕</button></div>`;});
+  html+=`<button class="mini" id="addPos" style="width:100%;margin:2px 0 6px;padding:7px">+ Добавить позицию (труба/гофра/прочее)</button>`;
+  if(S.extraPos.length)html+=`<div class="crow" style="background:var(--panel)"><span class="nm">Трубы/доп. — итого</span><span class="vv">${extraSum.toFixed(1)} м</span></div>`;
   // grand total
   let g=0,gok=true,any=false;S.pageList.forEach(pn2=>{const rr=calcPage(pn2);if(CATS.some(c=>rr.cats[c.k].n))any=true;if(rr.mpp)g+=rr.total;else if(CATS.some(c=>rr.cats[c.k].n))gok=false;});
   if(S.pageList.length>1&&any)html+=`<div class="total" style="background:var(--amber);color:#1a1205"><span class="tl">Итого по всем листам${gok?'':' (не все откалиброваны)'}</span><span class="tv">${g>0?g.toFixed(1)+' м':'—'}</span></div>`;
@@ -891,6 +908,13 @@ function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPa
   const fs=$('fSlack');if(fs)fs.onchange=()=>{S.slack=Math.max(0,parseFloat(fs.value)||0);renderCalc();};
   const tg=$('tgSpec');if(tg)tg.onclick=()=>{S.printSpec=!S.printSpec;renderCalc();};
   const ad=$('applyDrops');if(ad)ad.onclick=()=>{pushHistory();let n=0;(S.objects[pn]||[]).forEach(o=>{if(o.type!=='line'||o.grp||isRef(o))return;o.ea={kind:'socket',h:S.heights.socket};o.eb={kind:'socket',h:S.heights.socket};n++;});redrawAll();renderCalc();if(S.selected)renderOpt();toast('Выпуски проставлены на '+n+' трасс');};
+  const apos=$('addPos');if(apos)apos.onclick=()=>{S.extraPos.push({name:'Труба ПНД Ø20',mode:'mark',markKey:CATS[0].k,coeff:0.9});renderCalc();};
+  body.querySelectorAll('.epn').forEach(el=>el.onchange=()=>{S.extraPos[+el.dataset.i].name=el.value;});
+  body.querySelectorAll('.epm').forEach(el=>el.onchange=()=>{S.extraPos[+el.dataset.i].mode=el.value;renderCalc();});
+  body.querySelectorAll('.epv').forEach(el=>el.onchange=()=>{S.extraPos[+el.dataset.i].meters=Math.max(0,parseFloat(el.value)||0);renderCalc();});
+  body.querySelectorAll('.epk').forEach(el=>el.onchange=()=>{S.extraPos[+el.dataset.i].markKey=el.value;renderCalc();});
+  body.querySelectorAll('.epc').forEach(el=>el.onchange=()=>{S.extraPos[+el.dataset.i].coeff=Math.max(0,parseFloat(el.value)||0);renderCalc();});
+  body.querySelectorAll('[data-del]').forEach(el=>el.onclick=()=>{S.extraPos.splice(+el.dataset.del,1);renderCalc();});
 }
 
 /* ---- export ---- */
@@ -898,27 +922,33 @@ function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPa
 function drawSheetSpec(cc,pn,W,H){
   if(!S.printSpec)return;
   const r=calcPage(pn);const marks=CATS.filter(c=>r.cats[c.k].n);
-  if(!marks.length)return;
+  const extras=(S.extraPos||[]).map(p=>({name:p.name||'Позиция',len:extraLen(p,r)}));
+  if(!marks.length&&!extras.length)return;
   const fs=Math.max(15,W*0.0095);const rowH=fs*1.8;const pad=fs*0.9;
-  const boxW=Math.max(W*0.26,Math.min(W*0.4,520));const boxH=rowH*(marks.length+3)+pad;
+  const rows=marks.length+extras.length;const boxW=Math.max(W*0.27,Math.min(W*0.4,540));const boxH=rowH*(rows+3.4)+pad;
   const x0=pad,y0=pad;
   cc.save();cc.textAlign='left';cc.textBaseline='middle';
   cc.fillStyle='rgba(255,255,255,0.93)';cc.fillRect(x0,y0,boxW,boxH);
   cc.strokeStyle='#10151c';cc.lineWidth=Math.max(1,W*0.0007);cc.strokeRect(x0,y0,boxW,boxH);
   let y=y0+rowH;
   cc.fillStyle='#10151c';cc.font='700 '+fs+'px Inter,Arial,sans-serif';
-  cc.fillText('Спецификация кабеля (по факту)',x0+pad,y);y+=rowH;
+  cc.fillText('Спецификация (по факту)',x0+pad,y);y+=rowH;
   cc.font='600 '+(fs*0.9)+'px Inter,Arial,sans-serif';cc.fillStyle='#566472';
   cc.fillText('№   Наименование',x0+pad,y);cc.textAlign='right';cc.fillText('ед. / м',x0+boxW-pad,y);cc.textAlign='left';
   y+=rowH*0.35;cc.strokeStyle='#cbd5e1';cc.lineWidth=1;cc.beginPath();cc.moveTo(x0+pad*0.6,y);cc.lineTo(x0+boxW-pad*0.6,y);cc.stroke();y+=rowH*0.65;
+  let no=0;
   cc.font='500 '+(fs*0.9)+'px Inter,Arial,sans-serif';
-  marks.forEach((c,i)=>{const len=r.cats[c.k].len;
+  marks.forEach((c)=>{no++;const len=r.cats[c.k].len;
     cc.fillStyle=c.c;cc.fillRect(x0+pad,y-fs*0.32,fs*0.62,fs*0.62);
-    cc.fillStyle='#10151c';cc.fillText((i+1)+'   '+catFull(c.k),x0+pad+fs*1.1,y);
+    cc.fillStyle='#10151c';cc.fillText(no+'   '+catFull(c.k),x0+pad+fs*1.1,y);
     cc.textAlign='right';cc.fillText(r.mpp?len.toFixed(1):'—',x0+boxW-pad,y);cc.textAlign='left';y+=rowH;});
+  extras.forEach((e)=>{no++;
+    cc.fillStyle='#8a97a6';cc.fillRect(x0+pad,y-fs*0.32,fs*0.62,fs*0.62);
+    cc.fillStyle='#10151c';cc.fillText(no+'   '+e.name,x0+pad+fs*1.1,y);
+    cc.textAlign='right';cc.fillText(e.len!=null?e.len.toFixed(1):'—',x0+boxW-pad,y);cc.textAlign='left';y+=rowH;});
   cc.strokeStyle='#cbd5e1';cc.beginPath();cc.moveTo(x0+pad*0.6,y-rowH*0.5);cc.lineTo(x0+boxW-pad*0.6,y-rowH*0.5);cc.stroke();
   cc.font='700 '+(fs*0.95)+'px Inter,Arial,sans-serif';cc.fillStyle='#10151c';
-  cc.fillText('Итого (с запасом '+S.slack+'%)',x0+pad,y);cc.textAlign='right';cc.fillText(r.mpp?r.total.toFixed(1)+' м':'—',x0+boxW-pad,y);cc.textAlign='left';
+  cc.fillText('Кабель — итого (запас '+S.slack+'%)',x0+pad,y);cc.textAlign='right';cc.fillText(r.mpp?r.total.toFixed(1)+' м':'—',x0+boxW-pad,y);cc.textAlign='left';
   cc.restore();
 }
 $('btnExport').onclick=async()=>{
