@@ -3138,6 +3138,10 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
       <span class="nav-icon">💬</span><span>Чаты</span>
       <span class="nav-badge" id="team-chat-nav-badge" style="display:none"></span>
     </div>
+    <div class="nav-item" data-page="lesson-checks">
+      <span class="nav-icon">📝</span><span>Проверка Пробного урока</span>
+      <span class="nav-badge" id="lesson-checks-nav-badge" style="display:none"></span>
+    </div>
 
     <div class="nav-section">Инструменты</div>
     <div class="nav-item nav-item-admin" data-page="settings" style="display:none">
@@ -3793,6 +3797,7 @@ function navigate(page) {
   else if (page === 'calendar') renderCalendar(main);
   else if (page === 'chats') renderChats(main);
   else if (page === 'team-chat') renderTeamChat(main);
+  else if (page === 'lesson-checks') renderLessonChecks(main);
   else if (page === 'feed') renderFeed(main);
   else if (page === 'orgchart') renderOrgChart(main);
   else if (page === 'migration') {
@@ -3805,6 +3810,102 @@ function navigate(page) {
 // Экспортируем в global — head-скрипт (service worker message handler) и push
 // открывают разделы через window.navigate (модульная функция извне не видна).
 window.navigate = navigate;
+
+// ══════════════════════════════════════════════════════════════
+// 📝 Проверка заданий Пробного урока.
+// Фид запросов на проверку из lesson-воркера (elc-lesson-worker): студент на
+// телефоне доходит до задания → здесь карточка с кнопками Зачёт/Риворк.
+// Источник истины — воркер (KV), сюда ничего не пишется в Firebase.
+// ══════════════════════════════════════════════════════════════
+const LC_API = 'https://elc-lesson-worker.uurraa.workers.dev';
+const LC_PIN = 'elc2026';
+const LC_LEVELS = {1:'Beginner 1',2:'Beginner 2',3:'Elementary',4:'Pre-Intermediate',5:'Intermediate',6:'Upper-Int 2.0',7:'Upper-Int 3.0'};
+const LC_STEP = {'words-cards':'Слова · переводы','words-speed':'Слова · на скорость','grammar':'Грамматика','reading':'Чтение','speaking':'Спикинг'};
+let lcTimer = null;
+
+function lcEnsureDict(cb){
+  if (window.ELC_DICT_WORDS) return cb();
+  const s = document.createElement('script');
+  s.src = LC_API + '/dict-words.js';
+  s.onload = cb; s.onerror = cb;
+  document.head.appendChild(s);
+}
+
+function renderLessonChecks(main){
+  lcEnsureDict(() => {
+    main.innerHTML = `
+      <div style="padding:18px 20px;max-width:760px;margin:0 auto">
+        <h2 style="margin:0 0 4px">📝 Проверка заданий Пробного урока</h2>
+        <div style="color:var(--t3);font-size:13px;margin-bottom:16px">Запросы приходят сюда, когда студент на телефоне доходит до задания. Поставьте <b>Зачёт</b> — студент идёт дальше, <b>Риворк</b> — переделывает. Обновляется автоматически.</div>
+        <div id="lc-root"><div style="color:var(--t3);padding:20px;text-align:center">Загрузка…</div></div>
+      </div>`;
+    lcPoll();
+    clearInterval(lcTimer);
+    lcTimer = setInterval(() => {
+      if (document.getElementById('lc-root')) lcPoll(); else clearInterval(lcTimer);
+    }, 3000);
+  });
+}
+
+async function lcPoll(){
+  try {
+    const j = await fetch(`${LC_API}/api/queue/all?pin=${LC_PIN}`).then(r => r.json());
+    if (!j.ok) return;
+    lcRender(j.items || []);
+    const b = document.getElementById('lesson-checks-nav-badge');
+    if (b) { if (j.items.length) { b.textContent = j.items.length; b.style.display = 'inline-flex'; } else b.style.display = 'none'; }
+  } catch (e) { /* офлайн — не критично */ }
+}
+
+function lcRender(items){
+  const root = document.getElementById('lc-root');
+  if (!root) return;
+  if (!items.length) { root.innerHTML = `<div style="color:var(--t3);padding:30px;text-align:center;border:1px dashed var(--b1);border-radius:12px">Очередь пуста. Как только студент дойдёт до задания с проверкой — карточка появится здесь.</div>`; return; }
+  root.innerHTML = items.map(lcCard).join('');
+}
+
+function lcCard(it){
+  const lvl = LC_LEVELS[it.level] || ('Уровень ' + it.level);
+  const dict = window.dictLabel ? window.dictLabel(it.level) : '';
+  const stepLabel = LC_STEP[it.step] || it.step;
+  const name = ((it.last || '') + ' ' + (it.name || '')).trim() || 'Без имени';
+  let extra = '';
+  if (it.step === 'words-speed' && it.speed) {
+    const ok = it.speed.secs <= it.speed.total;
+    extra += `<div style="margin-top:8px;font-size:13px;font-weight:600;color:${ok ? 'var(--gn)' : '#e0a020'}">⏱ Скорость: ${it.speed.secs} сек / норматив ${it.speed.total}.0</div>`;
+  }
+  if (it.step && it.step.indexOf('words') === 0 && window.ELC_DICT_WORDS && window.ELC_DICT_WORDS[it.level]) {
+    const ws = window.ELC_DICT_WORDS[it.level];
+    extra += `<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--ac2);font-size:12px">Показать слова (${ws.length}) — подсказка для проверки</summary>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">${ws.map(w => `<div style="display:flex;justify-content:space-between;gap:6px;background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:6px 9px;font-size:12px"><b>${escapeHtml(w.en)}</b><span style="color:var(--t3)">${escapeHtml(w.ru)}</span></div>`).join('')}</div></details>`;
+  }
+  return `<div style="background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:14px 16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div><div style="font-weight:700;font-size:15px;color:var(--t1)">${escapeHtml(name)}</div>
+        <div style="font-size:12px;color:var(--t3);margin-top:2px">${escapeHtml(lvl)} · 📕 ${escapeHtml(dict)} · код ${escapeHtml(it.id)}</div></div>
+      <span style="align-self:flex-start;font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px;background:var(--acbg);color:var(--ac2)">${escapeHtml(stepLabel)}</span>
+    </div>
+    ${extra}
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button style="flex:1;border:0;cursor:pointer;font-weight:700;font-size:14px;padding:11px;border-radius:10px;background:var(--gn);color:#08130c" onclick="lcVerdict('${it.id}','${it.step}','${it.role}','pass')">✓ Зачёт</button>
+      <button style="flex:1;border:0;cursor:pointer;font-weight:700;font-size:14px;padding:11px;border-radius:10px;background:var(--rd);color:#fff" onclick="lcVerdict('${it.id}','${it.step}','${it.role}','rework')">↺ Риворк</button>
+    </div>
+  </div>`;
+}
+
+window.lcVerdict = async function(id, step, role, verdict){
+  let comment = '';
+  if (verdict === 'rework') { comment = prompt('Что студенту переделать?') || ''; if (!comment) return; }
+  const teacher = (fbAuth.currentUser && (fbAuth.currentUser.displayName || fbAuth.currentUser.email)) || '';
+  try {
+    const j = await fetch(`${LC_API}/api/verdict`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, step, role, pin: LC_PIN, verdict, comment, teacher })
+    }).then(r => r.json());
+    if (!j.ok) { alert('Ошибка: ' + (j.error || '')); return; }
+    lcPoll();
+  } catch (e) { alert('Сеть: ' + e.message); }
+};
 
 // ══════════════════════════════════════════════════════════════
 // 🔔 Центр уведомлений — единая лента всех событий портала.
