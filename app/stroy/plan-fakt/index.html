@@ -103,12 +103,37 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .handle{cursor:grab;}
 .loader{position:fixed;inset:0;z-index:100;background:rgba(236,234,227,.97);display:flex;align-items:center;justify-content:center;padding:24px;}
 .loader.hide{display:none;}
-.dropbox{border:2.5px dashed var(--steel2);border-radius:18px;background:var(--panel);padding:46px 52px;max-width:560px;text-align:center;box-shadow:var(--shadow);transition:.15s;}
-.dropbox.over{background:#fff;border-color:var(--amber);}
-.dropbox .big{font-size:22px;font-weight:700;margin:16px 0 8px;}
-.dropbox .small{color:var(--gray);font-size:13.5px;line-height:1.7;margin-bottom:20px;}.dropbox .small b{color:var(--ink);}
-.logo-ras{font-family:var(--mono);font-weight:600;font-size:13px;letter-spacing:2px;color:var(--steel);}
-.dropico{width:58px;height:58px;color:var(--steel2);}
+.dropbox{border:1px solid var(--line);border-radius:18px;background:var(--panel);max-width:800px;width:100%;text-align:left;box-shadow:var(--shadow);transition:.15s;overflow:hidden;}
+.dropbox.over{box-shadow:0 0 0 3px var(--amber),var(--shadow);}
+.lb-head{display:flex;align-items:center;gap:14px;padding:18px 26px;background:var(--steel);color:#fff;}
+.lb-head .lb-logo{height:42px;width:auto;border-radius:8px;flex-shrink:0;}
+.lb-title{font-size:21px;font-weight:700;line-height:1.1;}
+.lb-sub{font-size:12px;opacity:.78;margin-top:3px;}
+.lb-feats{display:flex;gap:1px;background:var(--line);border-bottom:1px solid var(--line);}
+.lb-feat{flex:1;background:var(--panel2);padding:11px 16px;}
+.lb-feat b{display:block;font-size:12px;color:var(--ink);}
+.lb-feat span{font-size:10.5px;color:var(--gray);}
+.lb-body{display:flex;}
+.lb-open{flex:1;padding:26px 24px;text-align:center;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;}
+.dropico{width:44px;height:44px;color:var(--steel2);margin-bottom:8px;}
+.lb-open-t{font-size:17px;font-weight:700;margin-bottom:6px;}
+.lb-open-d{font-size:12.5px;color:var(--gray);line-height:1.6;margin-bottom:16px;max-width:300px;}.lb-open-d b{color:var(--ink);}
+.lb-open .tbtn.primary{font-size:14px;padding:11px 18px;}
+.lb-demo{margin-top:12px;font-size:12px;color:var(--gray);}.lb-demo a{color:var(--amber);font-weight:600;text-decoration:none;cursor:pointer;}
+.lb-arch{width:312px;flex-shrink:0;padding:20px 20px;background:var(--panel2);display:flex;flex-direction:column;}
+.lb-arch-h{font-size:13px;font-weight:700;color:var(--steel);margin-bottom:12px;display:flex;align-items:center;gap:7px;}
+.lb-arch-n{font-family:var(--mono);font-size:11px;color:#fff;background:var(--steel2);border-radius:10px;padding:1px 7px;font-weight:600;}
+.lb-arch-list{flex:1;overflow-y:auto;max-height:280px;display:flex;flex-direction:column;gap:7px;}
+.arch-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:7px;background:#fff;cursor:pointer;transition:.12s;}
+.arch-item:hover{border-color:var(--steel2);box-shadow:0 2px 9px rgba(16,21,28,.08);}
+.arch-item img{width:48px;height:36px;object-fit:cover;border-radius:6px;background:var(--panel2);flex-shrink:0;border:1px solid var(--line);}
+.arch-item .ai{flex:1;min-width:0;}
+.arch-item .an{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.arch-item .ad{font-size:10.5px;color:var(--gray);font-family:var(--mono);}
+.arch-item .adl,.arch-item .adel{border:none;background:none;cursor:pointer;color:var(--gray);padding:4px 5px;border-radius:6px;flex-shrink:0;font-size:14px;line-height:1;}
+.arch-item .adel:hover{color:var(--red);background:#fff;}.arch-item .adl:hover{color:var(--steel);background:#fff;}
+.lb-arch-empty{font-size:12px;color:var(--gray);text-align:center;padding:26px 10px;line-height:1.6;}
+@media(max-width:700px){.lb-body{flex-direction:column;}.lb-open{border-right:none;border-bottom:1px solid var(--line);}.lb-arch{width:auto;}.lb-feats{display:none;}}
 .spin{margin-top:18px;display:none;text-align:center;}
 .spin .sp-bar{width:210px;height:5px;border-radius:3px;background:var(--panel2);overflow:hidden;position:relative;margin:0 auto 11px;}
 .spin .sp-bar i{position:absolute;left:-42%;width:42%;height:100%;border-radius:3px;background:var(--amber);animation:spbar 1.05s ease-in-out infinite;}
@@ -191,14 +216,33 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 </div>
 <div class="loader" id="loader">
   <div class="dropbox" id="dropbox">
-    <svg class="dropico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13l2 2 4-4" stroke="var(--amber)"/></svg>
-    <img src="rl-logo.png" alt="RL SYSTEM" style="height:38px;width:auto;display:block;margin:0 auto 6px;border-radius:8px;">
-    <div class="big">Откройте чертёж</div>
-    <div class="small">Перетащите или выберите <b>PDF чертежа</b> (ЭОМ) — сервер разберёт его на <b>активные трассы</b>, выберите лист. Дальше: масштаб → правка/рисование по факту → знаки → <b>длина кабеля и спецификация считаются сами</b> → чистый PDF. Либо откройте свой <b>сохранённый проект</b> (.json) и продолжите.</div>
-    <button class="tbtn primary" id="btnOpen" style="margin:0 auto;font-size:15px;padding:12px 22px;">Открыть PDF чертежа или проект</button>
-    <input type="file" id="fileInput" accept=".json,application/json,.pdf,application/pdf" hidden>
-    <div style="margin-top:14px;font-size:12.5px;color:var(--gray)">или <a id="btnDemo" href="#" style="color:var(--amber);font-weight:600;text-decoration:none">посмотреть демо-чертёж</a> (готовый пример с активными линиями)</div>
-    <div class="spin" id="spin"><div class="sp-bar"><i></i></div><div class="sp-row"><span class="sp-ring"></span><span id="spinTxt">Загрузка…</span></div></div>
+    <div class="lb-head">
+      <img src="rl-logo.png" alt="RL SYSTEM" class="lb-logo">
+      <div>
+        <div class="lb-title">План-Факт</div>
+        <div class="lb-sub">Исполнительные чертежи: правка ЭОМ по факту · расчёт кабеля · чистый PDF</div>
+      </div>
+    </div>
+    <div class="lb-feats">
+      <div class="lb-feat"><b>PDF → активные трассы</b><span>сервер разбирает чертёж</span></div>
+      <div class="lb-feat"><b>Длина кабеля и спецификация</b><span>считаются сами</span></div>
+      <div class="lb-feat"><b>Чистый PDF</b><span>исполнительная схема</span></div>
+    </div>
+    <div class="lb-body">
+      <div class="lb-open" id="lbOpen">
+        <svg class="dropico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13l2 2 4-4" stroke="var(--amber)"/></svg>
+        <div class="lb-open-t">Откройте чертёж</div>
+        <div class="lb-open-d">Перетащите или выберите <b>PDF</b> — сервер разберёт его на активные трассы. Либо откройте сохранённый <b>проект</b> (.json).</div>
+        <button class="tbtn primary" id="btnOpen">Открыть PDF чертежа или проект</button>
+        <input type="file" id="fileInput" accept=".json,application/json,.pdf,application/pdf" hidden>
+        <div class="lb-demo">или <a id="btnDemo" href="#">посмотреть демо-чертёж</a></div>
+        <div class="spin" id="spin"><div class="sp-bar"><i></i></div><div class="sp-row"><span class="sp-ring"></span><span id="spinTxt">Загрузка…</span></div></div>
+      </div>
+      <div class="lb-arch">
+        <div class="lb-arch-h">📁 Мои проекты <span class="lb-arch-n" id="archN"></span></div>
+        <div class="lb-arch-list" id="archList"><div class="lb-arch-empty">Загрузка архива…</div></div>
+      </div>
+    </div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -223,7 +267,7 @@ const CATS=[
 const catC=k=>(CATS.find(c=>c.k===k)||CATS[CATS.length-1]).c;
 const catN=k=>(CATS.find(c=>c.k===k)||CATS[CATS.length-1]).n;
 const catFull=k=>{const c=CATS.find(c=>c.k===k)||CATS[CATS.length-1];return c.full||c.n;};
-S.cat=CATS[0].k;S.penMode=false;S.printSpec=true;S.cluster=[];S.heights={socket:0.40,switch:0.90};
+S.cat=CATS[0].k;S.penMode=false;S.printSpec=true;S.cluster=[];S.heights={socket:0.40,switch:0.90};S.projId=null;
 /* виды концов линии (выпуск/отпуск) и высоты по умолчанию, м */
 const KINDS=[
   {k:'free',  n:'— (узел)',     h:0},
@@ -368,27 +412,52 @@ async function loadPdf(file){
   }catch(e){console.error(e);toast('Не удалось открыть PDF');$('spin').style.display='none';}
 }
 function initData(j){
+  S.projId=null;
   S.data=j;S.pageList=Object.keys(j.pages).map(Number).sort((a,b)=>a-b);
   $('docname').textContent=j.name||'План';
   $('loader').classList.add('hide');$('stage').style.display='flex';
   buildStrip();goPage(S.pageList[0]);setTool('select');showGuide();
 }
 /* ---- проект: сохранить / открыть (самодостаточный файл = план + правки) ---- */
-function saveProject(){
+/* ---- архив проектов в браузере (IndexedDB — тянет большие проекты) ---- */
+const IDB_NAME='planfakt-archive', IDB_STORE='projects';
+function idb(){return new Promise((res,rej)=>{let r;try{r=indexedDB.open(IDB_NAME,1);}catch(e){return rej(e);}
+  r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains(IDB_STORE))db.createObjectStore(IDB_STORE,{keyPath:'id'});};
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+function archTx(mode){return idb().then(db=>db.transaction(IDB_STORE,mode).objectStore(IDB_STORE));}
+function archPut(rec){return archTx('readwrite').then(st=>new Promise((res,rej)=>{const q=st.put(rec);q.onsuccess=()=>res();q.onerror=()=>rej(q.error);}));}
+function archAll(){return archTx('readonly').then(st=>new Promise((res,rej)=>{const q=st.getAll();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>rej(q.error);}));}
+function archGet(id){return archTx('readonly').then(st=>new Promise((res,rej)=>{const q=st.get(id);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);}));}
+function archDel(id){return archTx('readwrite').then(st=>new Promise((res,rej)=>{const q=st.delete(id);q.onsuccess=()=>res();q.onerror=()=>rej(q.error);}));}
+function projThumb(){return new Promise(res=>{try{const pn=S.pageList[0];const pg=S.data.pages[pn];const img=new Image();
+  img.onload=()=>{const w=160,h=Math.max(40,Math.round(img.height/img.width*w));const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);res(c.toDataURL('image/jpeg',0.55));};
+  img.onerror=()=>res(null);img.src='data:image/jpeg;base64,'+pg.u;}catch(e){res(null);}});}
+function fmtDate(ts){try{return new Date(ts).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
+function buildProj(){return {_planfakt:1,name:S.data.name||'План',data:S.data,edits:{objects:S.objects,cal:S.cal},settings:{panelH:S.panelH,slack:S.slack,importMode:S.importMode,seq:S.seq}};}
+function downloadProjFile(proj){try{const blob=new Blob([JSON.stringify(proj)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(proj.name||'plan').replace(/[^\wа-яёА-ЯЁ.\- ]/gi,'_')+'_проект.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),8000);}catch(e){toast('Не удалось скачать файл');}}
+async function saveProject(){
   if(!S.data){toast('Нет открытого плана');return;}
-  const proj={_planfakt:1,name:S.data.name||'План',data:S.data,
-    edits:{objects:S.objects,cal:S.cal},
-    settings:{panelH:S.panelH,slack:S.slack,importMode:S.importMode,seq:S.seq}};
+  const proj=buildProj();
   try{
-    const blob=new Blob([JSON.stringify(proj)],{type:'application/json'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-    a.download=(S.data.name||'plan').replace(/[^\wа-яёА-ЯЁ.\- ]/gi,'_')+'_проект.json';
-    document.body.appendChild(a);a.click();a.remove();
-    setTimeout(()=>URL.revokeObjectURL(a.href),8000);
-    toast('Проект сохранён — план и правки в одном файле');
-  }catch(e){console.error(e);toast('Не удалось сохранить проект');}
+    if(!S.projId)S.projId='p'+Date.now();
+    const thumb=await projThumb();
+    await archPut({id:S.projId,name:proj.name,date:Date.now(),thumb,proj});
+    toast('Сохранено в архив проектов');
+  }catch(e){console.error(e);toast('Архив недоступен — скачиваю файлом');downloadProjFile(proj);}
 }
-function openProject(j){
+async function renderArchive(){const list=$('archList');if(!list)return;let recs=[];
+  try{recs=await archAll();}catch(e){list.innerHTML='<div class="lb-arch-empty">Архив недоступен в этом браузере (приватный режим?).</div>';return;}
+  recs.sort((a,b)=>b.date-a.date);const n=$('archN');if(n)n.textContent=recs.length||'';
+  if(!recs.length){list.innerHTML='<div class="lb-arch-empty">Здесь появятся ваши проекты. Откройте чертёж, поработайте и нажмите <b>«Сохранить»</b> — сможете продолжить позже.</div>';return;}
+  list.innerHTML=recs.map(r=>`<div class="arch-item" data-id="${r.id}"><img src="${r.thumb||''}" alt=""><div class="ai"><div class="an">${esc(r.name||'Проект')}</div><div class="ad">${fmtDate(r.date)}</div></div><button class="adl" title="Скачать файл">⤓</button><button class="adel" title="Удалить из архива">✕</button></div>`).join('');
+  list.querySelectorAll('.arch-item').forEach(el=>{const id=el.dataset.id;
+    el.onclick=async ev=>{if(ev.target.closest('.adel')||ev.target.closest('.adl'))return;const r=await archGet(id);if(r&&r.proj)openProject(r.proj,r.id);};
+    const dl=el.querySelector('.adl');if(dl)dl.onclick=async ev=>{ev.stopPropagation();const r=await archGet(id);if(r)downloadProjFile(r.proj);};
+    const del=el.querySelector('.adel');if(del)del.onclick=async ev=>{ev.stopPropagation();if(confirm('Удалить проект из архива? (файл, если скачан, останется)')){await archDel(id);renderArchive();}};
+  });
+}
+function openProject(j,projId){
+  S.projId=projId||null;
   S.data=j.data;
   S.objects=(j.edits&&j.edits.objects)||{};
   S.cal=(j.edits&&j.edits.cal)||{};
@@ -406,6 +475,7 @@ function openProject(j){
 }
 $('btnSaveProj').onclick=saveProject;
 $('btnOpenProj').onclick=()=>$('fileInput').click();
+renderArchive();  // показать архив на стартовом экране
 function buildStrip(){
   const strip=$('strip');strip.innerHTML='<h4>Листы</h4>';
   S.pageList.forEach(pn=>{
