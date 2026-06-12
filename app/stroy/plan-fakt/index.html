@@ -188,6 +188,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
     <button class="tool" data-tool="cal" title="Калибровка масштаба"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M2 9v6M22 9v6M7 10v4M12 10v4M17 10v4"/></svg>Масштаб</button>
     <button class="tool" data-tool="line" title="Новая линия (кабель)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18l5-9 4 5 7-9"/><circle cx="4" cy="18" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="13" cy="14" r="1.6"/><circle cx="20" cy="5" r="1.6"/></svg>Линия</button>
     <button class="tool" data-tool="sym" title="Каталог знаков"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Знаки</button>
+    <button class="tool" data-tool="promo" title="Из фона: тап по чёрной линии/рамке/выноске — станет объектом"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h7v7H3zM14 3l7 7-4 4-7-7zM3 14h7v7H3z"/><path d="M14 17l3 3"/></svg>Из фона</button>
     <button class="tool" data-tool="text" title="Подпись"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 6h14M12 6v13M9 19h6"/></svg>Текст</button>
   </nav>
   <div class="cwrap" id="cwrap">
@@ -267,7 +268,27 @@ const CATS=[
 const catC=k=>(CATS.find(c=>c.k===k)||CATS[CATS.length-1]).c;
 const catN=k=>(CATS.find(c=>c.k===k)||CATS[CATS.length-1]).n;
 const catFull=k=>{const c=CATS.find(c=>c.k===k)||CATS[CATS.length-1];return c.full||c.n;};
-S.cat=CATS[0].k;S.penMode=false;S.printSpec=true;S.cluster=[];S.heights={socket:0.40,switch:0.90};S.projId=null;S.extraPos=[];
+S.cat=CATS[0].k;S.penMode=false;S.printSpec=true;S.cluster=[];S.heights={socket:0.40,switch:0.90};S.panelH=1.50;S.projId=null;S.extraPos=[];
+/* зоны: разные высоты выпусков/подъёмов (паркинг ≠ квартиры). S.heights/S.panelH — зеркало активной зоны */
+S.zones={apt:{name:'Квартиры',socket:0.40,switch:0.90,panel:1.50},mop:{name:'МОПы',socket:0.40,switch:0.90,panel:1.50},park:{name:'Паркинг',socket:0.50,switch:1.10,panel:1.80}};
+S.zoneByPage={};S.dark={};
+const ZONE_KEYS=['apt','mop','park'];
+/* чёрный слой чертежа (рамка/выноски) — кандидаты на промоут в объект по тапу */
+function buildDark(pg,sx,sy){return (pg.dark||[]).map(o=>o.t==='line'
+  ?{type:'line',pts:o.p.map(p=>({x:p[0]*sx,y:p[1]*sy})),width:Math.max(1.6,(o.w||0.6)*sx)}
+  :{type:'rect',x:o.x*sx,y:o.y*sy,w:o.rw*sx,h:o.rh*sy,width:Math.max(1.6,(o.w||0.6)*sx)});}
+function dSeg(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;let t=l2?((p.x-a.x)*dx+(p.y-a.y)*dy)/l2:0;t=t<0?0:t>1?1:t;return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy));}
+function dDark(p,o){if(o.type==='line'){let m=1e18;for(let i=0;i<o.pts.length-1;i++)m=Math.min(m,dSeg(p,o.pts[i],o.pts[i+1]));return m;}const x0=o.x,y0=o.y,x1=o.x+o.w,y1=o.y+o.h;let m=1e18;[[{x:x0,y:y0},{x:x1,y:y0}],[{x:x1,y:y0},{x:x1,y:y1}],[{x:x1,y:y1},{x:x0,y:y1}],[{x:x0,y:y1},{x:x0,y:y0}]].forEach(e=>m=Math.min(m,dSeg(p,e[0],e[1])));return m;}
+function promoteAt(p){const arr=S.dark[S.pageNum]||[];let best=-1,bd=Math.max(8,S.W*0.02);
+  for(let i=0;i<arr.length;i++){const d=dDark(p,arr[i]);if(d<bd){bd=d;best=i;}}
+  if(best<0){toast('Рядом нет элемента чертежа');return;}
+  const o=arr[best];pushHistory();let n;
+  if(o.type==='line')n=addObj({type:'line',cat:'other',color:'#10151c',width:Math.max(2.4,o.width),pts:o.pts.map(q=>({x:q.x,y:q.y})),ea:{kind:'free',h:0},eb:{kind:'free',h:0},nocalc:true,src:'mine'});
+  else n=addObj({type:'rect',color:'#10151c',width:Math.max(2,o.width),x:o.x,y:o.y,w:o.w,h:o.h,nocalc:true,src:'mine'});
+  arr.splice(best,1);redrawAll();setTool('select');selectObj(n.id);toast('Элемент стал объектом — двигайте/удаляйте');}
+function curZoneKey(){return (S.zoneByPage&&S.zoneByPage[S.pageNum])||'apt';}
+function loadZone(){const z=S.zones[curZoneKey()]||S.zones.apt;S.heights={socket:z.socket,switch:z.switch};S.panelH=z.panel;}
+function setZone(k){S.zoneByPage[S.pageNum]=k;loadZone();}
 /* виды концов линии (выпуск/отпуск) и высоты по умолчанию, м */
 const KINDS=[
   {k:'free',  n:'— (узел)',     h:0},
@@ -412,7 +433,7 @@ async function loadPdf(file){
   }catch(e){console.error(e);toast('Не удалось открыть PDF');$('spin').style.display='none';}
 }
 function initData(j){
-  S.projId=null;S.extraPos=[];
+  S.projId=null;S.extraPos=[];S.zoneByPage={};S.dark={};
   S.data=j;S.pageList=Object.keys(j.pages).map(Number).sort((a,b)=>a-b);
   $('docname').textContent=j.name||'План';
   $('loader').classList.add('hide');$('stage').style.display='flex';
@@ -433,7 +454,7 @@ function projThumb(){return new Promise(res=>{try{const pn=S.pageList[0];const p
   img.onload=()=>{const w=160,h=Math.max(40,Math.round(img.height/img.width*w));const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);res(c.toDataURL('image/jpeg',0.55));};
   img.onerror=()=>res(null);img.src='data:image/jpeg;base64,'+pg.u;}catch(e){res(null);}});}
 function fmtDate(ts){try{return new Date(ts).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
-function buildProj(){return {_planfakt:1,name:S.data.name||'План',data:S.data,edits:{objects:S.objects,cal:S.cal},settings:{panelH:S.panelH,slack:S.slack,importMode:S.importMode,seq:S.seq,heights:S.heights,extraPos:S.extraPos}};}
+function buildProj(){return {_planfakt:1,name:S.data.name||'План',data:S.data,edits:{objects:S.objects,cal:S.cal},settings:{panelH:S.panelH,slack:S.slack,importMode:S.importMode,seq:S.seq,heights:S.heights,extraPos:S.extraPos,zones:S.zones,zoneByPage:S.zoneByPage}};}
 function downloadProjFile(proj){try{const blob=new Blob([JSON.stringify(proj)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(proj.name||'plan').replace(/[^\wа-яёА-ЯЁ.\- ]/gi,'_')+'_проект.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),8000);}catch(e){toast('Не удалось скачать файл');}}
 /* облачный архив (R2 через воркер) + локальное зеркало (IDB) */
 const ARCH_URL=CONVERT_URL+'/projects';
@@ -471,7 +492,7 @@ async function renderArchive(){const list=$('archList');if(!list)return;
   });
 }
 function openProject(j,projId){
-  S.projId=projId||null;
+  S.projId=projId||null;S.dark={};
   S.data=j.data;
   S.objects=(j.edits&&j.edits.objects)||{};
   S.cal=(j.edits&&j.edits.cal)||{};
@@ -481,6 +502,8 @@ function openProject(j,projId){
   if(st.importMode)S.importMode=st.importMode;
   if(st.seq)S.seq=st.seq;
   if(st.heights)S.heights=st.heights;
+  if(st.zones)S.zones=st.zones;
+  S.zoneByPage=st.zoneByPage||{};
   S.extraPos=Array.isArray(st.extraPos)?st.extraPos:[];
   S.pageList=Object.keys(S.data.pages).map(Number).sort((a,b)=>a-b);
   S.history={};S.selected=null;
@@ -525,7 +548,7 @@ function capPts(pts,n){let tol=SIMPLIFY_TOL_PT,p=simplifyPts(pts,tol),i=0;while(
 
 /* ---- page ---- */
 function goPage(pn){
-  S.pageNum=pn;S.selected=null;S.draft=null;S.calPts=null;
+  S.pageNum=pn;S.selected=null;S.draft=null;S.calPts=null;loadZone();
   document.querySelectorAll('.thumb').forEach(t=>t.classList.toggle('active',+t.dataset.pg===pn));
   const pg=S.data.pages[pn];
   baseimg.onload=()=>{
@@ -533,6 +556,7 @@ function goPage(pn){
     S.sx=S.W/pg.wpt;S.sy=S.H/pg.hpt;
     svg.setAttribute('viewBox',`0 0 ${S.W} ${S.H}`);svg.setAttribute('width',S.W);svg.setAttribute('height',S.H);
     if(!S.objects[pn]){S.objects[pn]=importObjects(pg.objs);assignGroups(S.objects[pn]);}
+    if(!S.dark[pn])S.dark[pn]=buildDark(pg,S.sx,S.sy);
     if(!S.history[pn]) S.history[pn]=[];
     fitPage();applyTransform();redrawAll();renderSide();updateUndo();updateScalePill();
   };
@@ -727,6 +751,7 @@ function renderOpt(){const bar=$('optbar');let h='';
   }
   else if(S.tool==='erase')h=`<span class="tip"><b>Ластик.</b> Тапайте лишние объекты — удаляются сразу. Удобно чистить дробные фрагменты из чертежа.</span>`;
   else if(S.tool==='sym')h=`<span class="tip"><b>Каталог знаков.</b> Выберите знак справа и тапайте по плану. Знак — единый объект (двигать/вращать/масштабировать/удалять целиком).</span>`;
+  else if(S.tool==='promo')h=`<span class="tip"><b>Из фона.</b> Тапните по чёрной линии/рамке/выноске на чертеже — она станет редактируемым объектом (можно двигать/удалять). Так оживляем нецветные элементы по требованию, не нагружая планшет.</span>`;
   else if(S.tool==='pan')h=`<span class="tip">Двигайте холст, щипок/колесо — масштаб.</span>`;
   else if(S.tool==='cal'){const c=S.cal[S.pageNum];h=`<span class="tip"><b>Калибровка масштаба.</b> Кликните две точки вдоль известного размера на плане (например стену), затем введите длину в метрах.</span>`+(c?`<span class="grp" style="font-family:var(--mono);font-size:11px;color:var(--green)">✓ 1 м = ${(1/c).toFixed(0)} px</span>`:'');}
   else if(S.tool==='line')h=`<div class="grp"><span class="lbl">Марка</span>${CATS.map(c=>catBtn(c,S.cat)).join('')}</div>`
@@ -771,6 +796,7 @@ vp.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,e);if(ptrs.size===2){
   if(S.tool==='pan'){panning=true;moved=0;lastX=e.clientX;lastY=e.clientY;vp.setPointerCapture(e.pointerId);return;}
   if(!inBase(e.clientX,e.clientY))return;const p=toImg(e.clientX,e.clientY);
   if(S.tool==='cal'){calClick(p);}
+  else if(S.tool==='promo'){promoteAt(p);}
   else if(S.tool==='sym'){if(S.armSym)placeSymbol(p);else toast('Выберите знак в каталоге справа');}
   else if(S.tool==='line'){if(S.penMode){startPenDraw(p);}else{if(!S.draft)S.draft={pts:[{x:p.x,y:p.y},{x:p.x,y:p.y}]};else S.draft.pts.push({x:p.x,y:p.y});drawDraft();}}
   else if(S.tool==='text'){const t=prompt('Текст подписи:');if(t){pushHistory();const o=addObj({type:'text',x:p.x,y:p.y,text:t,color:S.textColor,size:S.fontSize,src:'mine'});redrawAll();selectObj(o.id);setTool('select');}}
@@ -852,7 +878,7 @@ function center(id){const o=getObj(id);if(!o)return;const b=bbox(o);const w=$('c
 function planLenPx(pts){let L=0;for(let i=1;i<pts.length;i++)L+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y);return L;}
 function effH(e){if(!e||!e.kind||e.kind==='free')return 0;if(e.kind==='panel')return S.panelH;return e.h||0;}
 function calcPage(pn){const objs=S.objects[pn]||[];const mpp=S.cal[pn];const cats={};CATS.forEach(c=>cats[c.k]={len:0,n:0,drops:0});const cnt={socket:0,switch:0,light:0,panel:0};
-  objs.forEach(o=>{if(o.type!=='line'||isRef(o))return;const c=cats[o.cat]||cats.other;c.n++;
+  objs.forEach(o=>{if(o.type!=='line'||isRef(o)||o.nocalc)return;const c=cats[o.cat]||cats.other;c.n++;
     const drops=effH(o.ea)+effH(o.eb);c.drops+=drops;
     if(mpp)c.len+=planLenPx(o.pts)*mpp+drops;
     [o.ea,o.eb].forEach(e=>{if(e&&cnt[e.kind]!=null)cnt[e.kind]++;});});
@@ -869,6 +895,7 @@ function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPa
   let html='<div class="calc">';
   html+='<h5>Параметры</h5>';
   if(!r.mpp)html+=`<div class="calcwarn">Масштаб этого листа не задан — длина не считается. Нажмите «⌖ Масштаб» вверху и укажите реальный размер.</div>`;
+  html+=`<div class="field" style="margin-bottom:9px"><label>Зона листа</label><div style="display:flex;gap:4px">${ZONE_KEYS.map(z=>`<button class="mini zbtn ${curZoneKey()===z?'on':''}" data-z="${z}" style="padding:5px 8px;font-size:11px;${curZoneKey()===z?'background:var(--steel);color:#fff;border-color:var(--steel)':''}">${S.zones[z].name}</button>`).join('')}</div></div>`;
   html+=`<div class="field"><label>Высота розетки (выпуск), м</label><input id="fSockH" type="number" step="0.05" min="0" value="${S.heights.socket.toFixed(2)}"></div>`;
   html+=`<div class="field"><label>Высота выключателя, м</label><input id="fSwH" type="number" step="0.05" min="0" value="${S.heights.switch.toFixed(2)}"></div>`;
   html+=`<div class="field"><label>Высота щита (подъём), м</label><input id="fPanel" type="number" step="0.05" min="0" value="${S.panelH.toFixed(2)}"></div>`;
@@ -902,9 +929,11 @@ function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPa
   html+='<div class="emptyhint" style="padding:14px 4px;text-align:left">Длина = (план × масштаб) + выпуски/отпуски на концах + подъём к щиту, ×(1+запас). У каждой линии задайте тип и высоты концов в панели сверху при выделении.</div>';
   html+='</div>';
   body.innerHTML=html;
-  const fsh=$('fSockH');if(fsh)fsh.onchange=()=>{S.heights.socket=Math.max(0,parseFloat(fsh.value)||0);renderCalc();};
-  const fswh=$('fSwH');if(fswh)fswh.onchange=()=>{S.heights.switch=Math.max(0,parseFloat(fswh.value)||0);renderCalc();};
-  const fp=$('fPanel');if(fp)fp.onchange=()=>{S.panelH=Math.max(0,parseFloat(fp.value)||0);redrawAll();renderCalc();if(S.selected)renderOpt();};
+  body.querySelectorAll('.zbtn').forEach(el=>el.onclick=()=>{setZone(el.dataset.z);redrawAll();renderCalc();if(S.selected)renderOpt();});
+  const zc=()=>S.zones[curZoneKey()]||S.zones.apt;
+  const fsh=$('fSockH');if(fsh)fsh.onchange=()=>{const v=Math.max(0,parseFloat(fsh.value)||0);S.heights.socket=v;zc().socket=v;renderCalc();};
+  const fswh=$('fSwH');if(fswh)fswh.onchange=()=>{const v=Math.max(0,parseFloat(fswh.value)||0);S.heights.switch=v;zc().switch=v;renderCalc();};
+  const fp=$('fPanel');if(fp)fp.onchange=()=>{const v=Math.max(0,parseFloat(fp.value)||0);S.panelH=v;zc().panel=v;redrawAll();renderCalc();if(S.selected)renderOpt();};
   const fs=$('fSlack');if(fs)fs.onchange=()=>{S.slack=Math.max(0,parseFloat(fs.value)||0);renderCalc();};
   const tg=$('tgSpec');if(tg)tg.onclick=()=>{S.printSpec=!S.printSpec;renderCalc();};
   const ad=$('applyDrops');if(ad)ad.onclick=()=>{pushHistory();let n=0;(S.objects[pn]||[]).forEach(o=>{if(o.type!=='line'||o.grp||isRef(o))return;o.ea={kind:'socket',h:S.heights.socket};o.eb={kind:'socket',h:S.heights.socket};n++;});redrawAll();renderCalc();if(S.selected)renderOpt();toast('Выпуски проставлены на '+n+' трасс');};
