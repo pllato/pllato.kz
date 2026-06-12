@@ -3,7 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>СТРОЙ-СНАБ · План-Факт — редактор исполнительных чертежей</title>
+<title>RL SYSTEM · План-Факт — исполнительные чертежи</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" href="favicon.ico">
+<link rel="apple-touch-icon" href="favicon-180.png">
+<meta name="theme-color" content="#046058">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -14,6 +18,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .top{height:54px;display:flex;align-items:center;gap:11px;padding:0 12px;background:var(--steel);color:#fff;z-index:60;position:relative;box-shadow:0 2px 12px rgba(0,0,0,.25);}
 .brand{display:flex;align-items:baseline;gap:8px;font-weight:700;font-size:15px;}
 .brand .mark{font-family:var(--mono);font-size:11px;background:var(--amber);color:#1a1205;padding:3px 7px;border-radius:5px;letter-spacing:1px;}
+.brand .mark-img{height:30px;width:auto;display:block;border-radius:6px;}
 .brand .sub{font-weight:500;font-size:11px;opacity:.65;}
 .top .sp{flex:1;}
 .docname{font-family:var(--mono);font-size:11px;opacity:.8;max-width:16vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -104,7 +109,13 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .dropbox .small{color:var(--gray);font-size:13.5px;line-height:1.7;margin-bottom:20px;}.dropbox .small b{color:var(--ink);}
 .logo-ras{font-family:var(--mono);font-weight:600;font-size:13px;letter-spacing:2px;color:var(--steel);}
 .dropico{width:58px;height:58px;color:var(--steel2);}
-.spin{margin-top:18px;font-family:var(--mono);font-size:13px;color:var(--steel);display:none;}
+.spin{margin-top:18px;display:none;text-align:center;}
+.spin .sp-bar{width:210px;height:5px;border-radius:3px;background:var(--panel2);overflow:hidden;position:relative;margin:0 auto 11px;}
+.spin .sp-bar i{position:absolute;left:-42%;width:42%;height:100%;border-radius:3px;background:var(--amber);animation:spbar 1.05s ease-in-out infinite;}
+@keyframes spbar{0%{left:-42%}100%{left:100%}}
+.spin .sp-row{font-family:var(--mono);font-size:13px;color:var(--steel);}
+.spin .sp-ring{display:inline-block;vertical-align:middle;width:15px;height:15px;border:2.5px solid var(--line);border-top-color:var(--amber);border-radius:50%;animation:spspin .7s linear infinite;margin-right:8px;}
+@keyframes spspin{to{transform:rotate(360deg)}}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(18px);background:var(--ink);color:#fff;padding:11px 19px;border-radius:10px;font-size:13px;font-weight:500;z-index:200;opacity:0;transition:.25s;box-shadow:0 8px 30px rgba(0,0,0,.3);pointer-events:none;max-width:80vw;text-align:center;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 /* гид «с чего начать» */
@@ -131,7 +142,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 </head>
 <body>
 <div class="top">
-  <div class="brand"><span class="mark">СС</span><span>План-Факт</span><span class="sub">исполнительные чертежи</span></div>
+  <div class="brand"><img class="mark-img" src="rl-mark.png" alt="RL SYSTEM"><span>План-Факт</span><span class="sub">исполнительные чертежи</span></div>
   <span class="sp"></span><span class="docname" id="docname"></span>
   <div class="scalepill" id="scalePill" title="Калибровка масштаба">⌖ Масштаб: <b id="scaleVal">не задан</b></div>
   <button class="tbtn ghost" id="btnDim" title="Приглушить чертёж-подложку, чтобы ваши линии были видны">Подложка: 100%</button>
@@ -181,13 +192,13 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 <div class="loader" id="loader">
   <div class="dropbox" id="dropbox">
     <svg class="dropico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13l2 2 4-4" stroke="var(--amber)"/></svg>
-    <div class="logo-ras">СТРОЙ-СНАБ · CRM</div>
+    <img src="rl-logo.png" alt="RL SYSTEM" style="height:38px;width:auto;display:block;margin:0 auto 6px;border-radius:8px;">
     <div class="big">Откройте чертёж</div>
     <div class="small">Перетащите или выберите <b>PDF чертежа</b> (ЭОМ) — сервер разберёт его на <b>активные трассы</b>, выберите лист. Дальше: масштаб → правка/рисование по факту → знаки → <b>длина кабеля и спецификация считаются сами</b> → чистый PDF. Либо откройте свой <b>сохранённый проект</b> (.json) и продолжите.</div>
     <button class="tbtn primary" id="btnOpen" style="margin:0 auto;font-size:15px;padding:12px 22px;">Открыть PDF чертежа или проект</button>
     <input type="file" id="fileInput" accept=".json,application/json,.pdf,application/pdf" hidden>
     <div style="margin-top:14px;font-size:12.5px;color:var(--gray)">или <a id="btnDemo" href="#" style="color:var(--amber);font-weight:600;text-decoration:none">посмотреть демо-чертёж</a> (готовый пример с активными линиями)</div>
-    <div class="spin" id="spin">Загрузка…</div>
+    <div class="spin" id="spin"><div class="sp-bar"><i></i></div><div class="sp-row"><span class="sp-ring"></span><span id="spinTxt">Загрузка…</span></div></div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -303,7 +314,7 @@ const dbox=$('dropbox');
 dbox.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];f&&loadData(f);});
 // Стартуем с окна загрузки (не авто-грузим демо). Демо — по кнопке.
 async function loadDemo(){
-  $('spin').style.display='block';$('spin').textContent='Загрузка демо…';
+  $('spin').style.display='block';$('spinTxt').textContent='Загрузка демо…';
   try{const r=await fetch('plan_data.json');if(r.ok){initData(await r.json());return;}}catch(e){console.warn(e);}
   toast('Демо-файл недоступен');$('spin').style.display='none';
 }
@@ -322,7 +333,7 @@ async function serverConvert(file){
   if(!CONVERT_URL)return null;
   const ctrl=new AbortController();const t=setTimeout(()=>ctrl.abort(),120000);
   try{
-    $('spin').textContent='Разбираю чертёж на сервере…';
+    $('spinTxt').textContent='Разбираю чертёж на сервере…';
     const fd=new FormData();fd.append('file',file);
     const r=await fetch(CONVERT_URL+'/convert',{method:'POST',body:fd,signal:ctrl.signal});
     if(!r.ok)return null;
@@ -335,7 +346,7 @@ async function loadPdf(file){
   $('spin').style.display='block';
   // 1) сервер-разбор → АКТИВНЫЕ линии (тапаешь/правишь/удаляешь)
   const conv=await serverConvert(file);
-  if(conv){$('spin').textContent='Загрузка…';initData(conv);return;}
+  if(conv){$('spinTxt').textContent='Загрузка…';initData(conv);return;}
   // 2) фолбэк: рендер в браузере — только фон (рисуешь поверх)
   toast('Разбор недоступен — открываю как фон, рисуйте поверх');
   if(!window.pdfjsLib){toast('PDF-движок не загрузился (нет сети?)');$('spin').style.display='none';return;}
@@ -343,7 +354,7 @@ async function loadPdf(file){
     const buf=await file.arrayBuffer();
     const pdf=await pdfjsLib.getDocument({data:buf}).promise;const N=pdf.numPages;const pages={};
     for(let i=1;i<=N;i++){
-      $('spin').textContent=`Рендер листа ${i} из ${N}…`;
+      $('spinTxt').textContent=`Рендер листа ${i} из ${N}…`;
       const page=await pdf.getPage(i);const v=page.getViewport({scale:1});
       const sc=Math.min(3,Math.max(1,2000/Math.max(v.width,v.height)));
       const vp=page.getViewport({scale:sc});
@@ -352,7 +363,7 @@ async function loadPdf(file){
       await page.render({canvasContext:ctx,viewport:vp}).promise;
       pages[i]={wpt:+v.width.toFixed(2),hpt:+v.height.toFixed(2),objs:[],u:c.toDataURL('image/jpeg',0.78).split(',')[1],title:'Лист '+i};
     }
-    $('spin').textContent='Загрузка…';
+    $('spinTxt').textContent='Загрузка…';
     initData({name:(file.name||'Чертёж').replace(/\.pdf$/i,''),pages});
   }catch(e){console.error(e);toast('Не удалось открыть PDF');$('spin').style.display='none';}
 }
