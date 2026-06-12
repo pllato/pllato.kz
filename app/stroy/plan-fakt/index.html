@@ -304,6 +304,8 @@ window.addEventListener('DOMContentLoaded',async()=>{
   try{const r=await fetch('plan_data.json');if(r.ok){const j=await r.json();initData(j);}}catch(e){}
 });
 if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+// сервер-конвертер (Cloudflare Container): разбирает PDF в активные линии
+const CONVERT_URL='https://planfakt-convert.uurraa.workers.dev';
 async function loadData(file){
   $('spin').style.display='block';
   const isPdf=/\.pdf$/i.test(file.name||'')||file.type==='application/pdf';
@@ -311,8 +313,26 @@ async function loadData(file){
   try{const txt=await file.text();const j=JSON.parse(txt);if(j&&j._planfakt)openProject(j);else initData(j);}
   catch(e){console.error(e);toast('Не удалось прочитать файл данных');$('spin').style.display='none';}
 }
+async function serverConvert(file){
+  if(!CONVERT_URL)return null;
+  const ctrl=new AbortController();const t=setTimeout(()=>ctrl.abort(),120000);
+  try{
+    $('spin').textContent='Разбираю чертёж на сервере…';
+    const fd=new FormData();fd.append('file',file);
+    const r=await fetch(CONVERT_URL+'/convert',{method:'POST',body:fd,signal:ctrl.signal});
+    if(!r.ok)return null;
+    const j=await r.json();
+    return (j&&j.pages&&Object.keys(j.pages).length)?j:null;
+  }catch(e){console.warn('convert unavailable',e);return null;}
+  finally{clearTimeout(t);}
+}
 async function loadPdf(file){
   $('spin').style.display='block';
+  // 1) сервер-разбор → АКТИВНЫЕ линии (тапаешь/правишь/удаляешь)
+  const conv=await serverConvert(file);
+  if(conv){$('spin').textContent='Загрузка…';initData(conv);return;}
+  // 2) фолбэк: рендер в браузере — только фон (рисуешь поверх)
+  toast('Разбор недоступен — открываю как фон, рисуйте поверх');
   if(!window.pdfjsLib){toast('PDF-движок не загрузился (нет сети?)');$('spin').style.display='none';return;}
   try{
     const buf=await file.arrayBuffer();
