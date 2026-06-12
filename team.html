@@ -3139,7 +3139,7 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
       <span class="nav-badge" id="team-chat-nav-badge" style="display:none"></span>
     </div>
     <div class="nav-item" data-page="lesson-checks">
-      <span class="nav-icon">📝</span><span>Проверка Пробного урока</span>
+      <span class="nav-icon">📝</span><span>Пробные Занятия</span>
       <span class="nav-badge" id="lesson-checks-nav-badge" style="display:none"></span>
     </div>
 
@@ -3820,7 +3820,8 @@ window.navigate = navigate;
 const LC_API = 'https://elc-lesson-worker.uurraa.workers.dev';
 const LC_PIN = 'elc2026';
 const LC_LEVELS = {1:'Beginner 1',2:'Beginner 2',3:'Elementary',4:'Pre-Intermediate',5:'Intermediate',6:'Upper-Int 2.0',7:'Upper-Int 3.0'};
-const LC_STEP = {'words-cards':'Слова · переводы','words-speed':'Слова · на скорость','grammar':'Грамматика','reading':'Чтение','speaking':'Спикинг'};
+const LC_STEP = {'words-cards':'Слова · переводы','words-speed':'Слова · на скорость','grammar':'Грамматика','reading':'Чтение','speaking':'Спикинг','registrar':'Регистратор · итоги'};
+let lcTab = 'check';
 let lcTimer = null;
 
 function lcLoadScript(src, cb){
@@ -3837,28 +3838,81 @@ function lcEnsureData(cb){
 
 function renderLessonChecks(main){
   lcEnsureData(() => {
+    const tabBtn = (id,txt) => `<button id="${id}" onclick="lcSwitch('${id==='lc-tab-check'?'check':'history'}')" style="border:0;cursor:pointer;font-size:14px;font-weight:600;padding:9px 16px;border-radius:9px;background:transparent;color:var(--t3)">${txt}</button>`;
     main.innerHTML = `
       <div style="padding:18px 20px;max-width:760px;margin:0 auto">
-        <h2 style="margin:0 0 4px">📝 Проверка заданий Пробного урока</h2>
-        <div style="color:var(--t3);font-size:13px;margin-bottom:16px">Запросы приходят сюда, когда студент на телефоне доходит до задания. Поставьте <b>Зачёт</b> — студент идёт дальше, <b>Риворк</b> — переделывает. Обновляется автоматически.</div>
-        <div id="lc-root"><div style="color:var(--t3);padding:20px;text-align:center">Загрузка…</div></div>
+        <h2 style="margin:0 0 4px">📝 Пробные Занятия</h2>
+        <div style="color:var(--t3);font-size:13px;margin-bottom:14px">Запросы на проверку приходят во вкладку «Проверка». Завершённые занятия с результатами — во вкладке «История».</div>
+        <div style="display:flex;gap:6px;background:var(--bg2);border:1px solid var(--b1);border-radius:11px;padding:4px;margin-bottom:14px;width:max-content">
+          ${tabBtn('lc-tab-check','Проверка')}${tabBtn('lc-tab-hist','История')}
+        </div>
+        <div id="lc-content"></div>
       </div>`;
-    lcPoll();
+    lcSwitch('check');
     clearInterval(lcTimer);
     lcTimer = setInterval(() => {
-      if (document.getElementById('lc-root')) lcPoll(); else clearInterval(lcTimer);
+      if (!document.getElementById('lc-content')) { clearInterval(lcTimer); return; }
+      if (lcTab === 'check') lcPoll();
     }, 3000);
   });
 }
+
+window.lcSwitch = function(tab){
+  lcTab = tab;
+  const tc = document.getElementById('lc-tab-check'), th = document.getElementById('lc-tab-hist');
+  if (tc) { tc.style.background = tab==='check' ? 'var(--acbg)' : 'transparent'; tc.style.color = tab==='check' ? 'var(--ac2)' : 'var(--t3)'; }
+  if (th) { th.style.background = tab==='history' ? 'var(--acbg)' : 'transparent'; th.style.color = tab==='history' ? 'var(--ac2)' : 'var(--t3)'; }
+  const c = document.getElementById('lc-content');
+  if (tab === 'check') { c.innerHTML = `<div id="lc-root"><div style="color:var(--t3);padding:20px;text-align:center">Загрузка…</div></div>`; lcPoll(); }
+  else lcLoadHistory();
+};
 
 async function lcPoll(){
   try {
     const j = await fetch(`${LC_API}/api/queue/all?pin=${LC_PIN}`).then(r => r.json());
     if (!j.ok) return;
-    lcRender(j.items || []);
+    if (lcTab === 'check') lcRender(j.items || []);
+    const n = (j.items || []).length;
     const b = document.getElementById('lesson-checks-nav-badge');
-    if (b) { if (j.items.length) { b.textContent = j.items.length; b.style.display = 'inline-flex'; } else b.style.display = 'none'; }
+    if (b) { if (n) { b.textContent = n; b.style.display = 'inline-flex'; } else b.style.display = 'none'; }
+    const tc = document.getElementById('lc-tab-check');
+    if (tc) tc.textContent = 'Проверка' + (n ? ' (' + n + ')' : '');
   } catch (e) { /* офлайн — не критично */ }
+}
+
+/* Полные результаты студента — таблицей (для карточки Регистратора и истории) */
+function lcResults(r){
+  if (!r) return '';
+  const SN = {'words-cards':'Слова — переводы','words-speed':'Слова — на скорость','grammar':'Грамматика','grammar-test':'Грамматика — мини-тест','reading':'Чтение','speaking':'Спикинг'};
+  const row = (a,b) => `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--b1);font-size:12.5px"><span style="color:var(--t3)">${a}</span><b>${b}</b></div>`;
+  const lvl = (LC_LEVELS[r.level]||('Ур.'+r.level)) + (r.cefr ? ' · ' + escapeHtml(r.cefr) : '');
+  const test = r.testResult ? row('Тест на уровень', r.testResult.score + ' / ' + r.testResult.total) : '';
+  const rows = (r.steps||[]).filter(s => SN[s.key]).map(s => {
+    const ok = s.status==='passed' || s.verdict==='pass';
+    const sp = (s.key==='words-speed' && r.speed) ? ' · ' + r.speed.secs + 'с' : '';
+    const cm = s.comment ? ' — «' + escapeHtml(s.comment) + '»' : '';
+    return row(SN[s.key] + sp + cm, `<span style="color:${ok ? 'var(--gn)' : 'var(--t3)'}">${ok ? '✓ зачёт' : '—'}</span>`);
+  }).join('');
+  return `<div style="margin-top:8px;background:var(--bg3);border:1px solid var(--b1);border-radius:10px;padding:10px 12px">${row('Уровень', lvl)}${test}${rows}</div>`;
+}
+
+function lcLoadHistory(){
+  const c = document.getElementById('lc-content');
+  if (!c) return;
+  c.innerHTML = `<div style="color:var(--t3);padding:20px;text-align:center">Загрузка истории…</div>`;
+  fetch(`${LC_API}/api/history?pin=${LC_PIN}`).then(r => r.json()).then(j => {
+    if (!j.ok) { c.innerHTML = `<div style="color:var(--rd)">Ошибка загрузки</div>`; return; }
+    if (!j.items.length) { c.innerHTML = `<div style="color:var(--t3);padding:30px;text-align:center;border:1px dashed var(--b1);border-radius:12px">История пуста. Завершённые занятия появятся здесь.</div>`; return; }
+    c.innerHTML = j.items.map(r => {
+      const name = ((r.student.lastName||'') + ' ' + (r.student.name||'')).trim() || 'Без имени';
+      const when = r.updatedAt ? new Date(r.updatedAt).toLocaleString('ru',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+      const contact = [r.student.phone, r.student.email].filter(Boolean).map(escapeHtml).join(' · ');
+      return `<details style="background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:12px 14px;margin-bottom:8px">
+        <summary style="cursor:pointer;font-weight:600;color:var(--t1)">${escapeHtml(name)} <span style="color:var(--t3);font-weight:400;font-size:12px">· ${escapeHtml(LC_LEVELS[r.level]||String(r.level))}${r.cefr?' · '+escapeHtml(r.cefr):''} · ${when}</span></summary>
+        ${contact ? `<div style="font-size:12px;color:var(--t3);margin-top:6px">${contact}</div>` : ''}
+        ${lcResults(r)}</details>`;
+    }).join('');
+  }).catch(e => { c.innerHTML = `<div style="color:var(--rd)">Сеть: ${escapeHtml(e.message)}</div>`; });
 }
 
 function lcRender(items){
@@ -3898,6 +3952,10 @@ function lcCard(it){
       extra += matBox('Задание спикинга', `<div>${escapeHtml(s.task)}</div><div style="color:var(--t3);margin-top:6px">Опоры: ${s.opory.map(o => escapeHtml(o)).join(' · ')}</div>`);
     }
   }
+  // Финал: Регистратор видит полные итоги студента
+  if (it.step === 'registrar') extra += lcResults(it.results);
+  const passLabel = it.step === 'registrar' ? '✓ Завершить занятие' : '✓ Зачёт';
+  const reworkLabel = it.step === 'registrar' ? '↺ Вернуть' : '↺ Риворк';
   return `<div style="background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:14px 16px;margin-bottom:10px">
     <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
       <div><div style="font-weight:700;font-size:15px;color:var(--t1)">${escapeHtml(name)}</div>
@@ -3906,8 +3964,8 @@ function lcCard(it){
     </div>
     ${extra}
     <div style="display:flex;gap:8px;margin-top:12px">
-      <button style="flex:1;border:0;cursor:pointer;font-weight:700;font-size:14px;padding:11px;border-radius:10px;background:var(--gn);color:#08130c" onclick="lcVerdict('${it.id}','${it.step}','${it.role}','pass')">✓ Зачёт</button>
-      <button style="flex:1;border:0;cursor:pointer;font-weight:700;font-size:14px;padding:11px;border-radius:10px;background:var(--rd);color:#fff" onclick="lcVerdict('${it.id}','${it.step}','${it.role}','rework')">↺ Риворк</button>
+      <button style="flex:1;border:0;cursor:pointer;font-weight:700;font-size:14px;padding:11px;border-radius:10px;background:var(--gn);color:#08130c" onclick="lcVerdict('${it.id}','${it.step}','${it.role}','pass')">${passLabel}</button>
+      <button style="flex:1;border:0;cursor:pointer;font-weight:700;font-size:14px;padding:11px;border-radius:10px;background:var(--rd);color:#fff" onclick="lcVerdict('${it.id}','${it.step}','${it.role}','rework')">${reworkLabel}</button>
     </div>
   </div>`;
 }

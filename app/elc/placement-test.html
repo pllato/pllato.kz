@@ -223,10 +223,13 @@ function renderStart(){
     <button class="btn" onclick="renderSelfIdentify()">Начать тест →</button>`;
 }
 
-/* Ссылка на пробный урок по итогам теста (lesson-воркер) */
-function lessonUrl(level){
-  const p = new URLSearchParams({ level:String(level), name:student.name||'', last:student.lastName||'', phone:student.phone||'', email:student.email||'' });
-  return 'https://elc-lesson-worker.uurraa.workers.dev/lesson?' + p.toString();
+/* Ссылка на пробный урок по итогам теста (lesson-воркер) — с результатами теста */
+function lessonUrl(level, score, total, cefr){
+  const o = { level:String(level), name:student.name||'', last:student.lastName||'', phone:student.phone||'', email:student.email||'' };
+  if(Number.isFinite(score)) o.score = String(score);
+  if(Number.isFinite(total)) o.total = String(total);
+  if(cefr) o.cefr = cefr;
+  return 'https://elc-lesson-worker.uurraa.workers.dev/lesson?' + new URLSearchParams(o).toString();
 }
 
 /* Standalone-режим: сбор контактов перед тестом */
@@ -355,7 +358,7 @@ function renderResult(){
       <table><thead><tr><th>Уровень</th><th class="score">Верно</th></tr></thead><tbody>${statsRows}</tbody></table>
       <p class="small">Уровень считается освоенным при ≥60% верных ответов (одиночная ошибка не понижает уровень).</p>
       <div class="row">
-        ${BRANCH ? '' : `<a class="btn" href="${lessonUrl(placedLevel)}">Начать пробный урок по уровню →</a>`}
+        ${BRANCH ? '' : `<a class="btn" href="${lessonUrl(placedLevel, correctTotal, answers.length, (levelByN(placedLevel)||{}).cefr||'')}">Начать пробный урок по уровню →</a>`}
         <button class="btn ${BRANCH ? '' : 'ghost'}" onclick="renderSpeaking()">${BRANCH ? 'Перейти к части 2 · Разговор →' : 'Записать разговор (необязательно)'}</button>
         <button class="btn ghost" onclick="goHome()">${BRANCH ? '← К началу' : '← На главную'}</button>
         ${BRANCH ? '' : '<button class="btn ghost" onclick="start()">Пройти заново</button>'}
