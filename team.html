@@ -1354,9 +1354,10 @@ body.tc-chat-overlay .sipc-bottombar:not([data-state="established"]):not([data-s
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   line-height: 1.4;
+  white-space: pre-line; /* переносы строк из заголовка показываются как строки */
 }
 .kanban-card-money {
   color: var(--gn);
@@ -2655,7 +2656,8 @@ html[data-theme="light"] .dc-wa-pane { background: #ECE5DD; }
   outline: none;
 }
 textarea.inline-edit-input { min-width: 280px; resize: vertical; }
-.inline-edit-h2 { font-size: inherit; font-weight: inherit; }
+textarea.inline-edit-input.inline-edit-h2, .inline-edit-h2 textarea { min-width: 420px; }
+.inline-edit-h2 { font-size: inherit; font-weight: inherit; white-space: pre-line; }
 .inline-edit-h2 + .inline-edit-h2 { margin-left: 4px; }
 .inline-edit-optional.inline-edit-empty {
   font-size: 13px;
@@ -11334,7 +11336,7 @@ function buildDealCard(d, stageColor) {
   return `<div class="${cardClasses.join(' ')}" draggable="true" data-deal-id="${escapeHtml(cardKey)}" data-stage="${escapeHtml(d.stageId)}" style="border-left: 3px solid ${stageColor}">
     ${activityBadges.length ? `<div class="kanban-card-activity">${activityBadges.join('')}</div>` : ''}
     ${isNew ? `<div class="kanban-card-markers"><span class="kanban-card-marker" title="Изменена за последние 24 часа">NEW</span></div>` : ''}
-    <div class="kanban-card-title">${escapeHtml(d.title || '(без названия)')}</div>
+    <div class="kanban-card-title" title="${escapeHtml(d.title || '')}">${escapeHtml(d.title || '(без названия)')}</div>
     ${d.stageId === 'REJECT' && d.rejectReason && REJECT_REASON_LABELS[d.rejectReason]
       ? `<div class="kanban-card-reject-reason" title="Причина отказа" style="font-size:11px;color:#dc2626;background:#fee2e2;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:2px;">⊘ ${escapeHtml(REJECT_REASON_LABELS[d.rejectReason])}</div>`
       : ''}
@@ -11818,7 +11820,7 @@ async function openDealCard(bitrixId) {
             recordId: 'deal_' + deal.bitrixId,
             recordCollection: 'deals',
             field: 'title',
-            type: 'text',
+            type: 'textarea',
             placeholder: '(без названия)',
             extraClass: 'inline-edit-h2',
           })} ${deal.archived ? '<span class="dc-archived-badge">🗄 в архиве</span>' : ''}</h2>
