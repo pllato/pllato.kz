@@ -183,9 +183,10 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
     <svg class="dropico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13l2 2 4-4" stroke="var(--amber)"/></svg>
     <div class="logo-ras">СТРОЙ-СНАБ · CRM</div>
     <div class="big">Откройте чертёж</div>
-    <div class="small">Перетащите или выберите <b>PDF чертежа</b> (ЭОМ) — он откроется прямо в браузере, выберите нужный лист. Затем задайте <b>масштаб</b>, нарисуйте трассы по факту, отметьте марки кабеля и высоты — <b>длина кабеля и спецификация посчитаются сами</b>. На выходе — чистый PDF исполнительной схемы. Можно открыть и готовый <b>проект</b> (.json).</div>
-    <button class="tbtn primary" id="btnOpen" style="margin:0 auto;font-size:15px;padding:12px 22px;">Открыть PDF или проект</button>
+    <div class="small">Перетащите или выберите <b>PDF чертежа</b> (ЭОМ) — сервер разберёт его на <b>активные трассы</b>, выберите лист. Дальше: масштаб → правка/рисование по факту → знаки → <b>длина кабеля и спецификация считаются сами</b> → чистый PDF. Либо откройте свой <b>сохранённый проект</b> (.json) и продолжите.</div>
+    <button class="tbtn primary" id="btnOpen" style="margin:0 auto;font-size:15px;padding:12px 22px;">Открыть PDF чертежа или проект</button>
     <input type="file" id="fileInput" accept=".json,application/json,.pdf,application/pdf" hidden>
+    <div style="margin-top:14px;font-size:12.5px;color:var(--gray)">или <a id="btnDemo" href="#" style="color:var(--amber);font-weight:600;text-decoration:none">посмотреть демо-чертёж</a> (готовый пример с активными линиями)</div>
     <div class="spin" id="spin">Загрузка…</div>
   </div>
 </div>
@@ -300,9 +301,13 @@ const dbox=$('dropbox');
 ['dragenter','dragover'].forEach(ev=>dbox.addEventListener(ev,e=>{e.preventDefault();dbox.classList.add('over');}));
 ['dragleave','drop'].forEach(ev=>dbox.addEventListener(ev,e=>{e.preventDefault();dbox.classList.remove('over');}));
 dbox.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];f&&loadData(f);});
-window.addEventListener('DOMContentLoaded',async()=>{
-  try{const r=await fetch('plan_data.json');if(r.ok){const j=await r.json();initData(j);}}catch(e){}
-});
+// Стартуем с окна загрузки (не авто-грузим демо). Демо — по кнопке.
+async function loadDemo(){
+  $('spin').style.display='block';$('spin').textContent='Загрузка демо…';
+  try{const r=await fetch('plan_data.json');if(r.ok){initData(await r.json());return;}}catch(e){console.warn(e);}
+  toast('Демо-файл недоступен');$('spin').style.display='none';
+}
+const _bd=$('btnDemo');if(_bd)_bd.onclick=e=>{e.preventDefault();loadDemo();};
 if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 // сервер-конвертер (Cloudflare Container): разбирает PDF в активные линии
 const CONVERT_URL='https://planfakt-convert.uurraa.workers.dev';
