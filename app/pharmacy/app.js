@@ -688,12 +688,13 @@ PAGES.orders=(c)=>{
   }
   load();
 };
-function newOrderLive(onSaved){
+async function newOrderLive(onSaved){
   const ed=makeItemsEditor([]);
+  const users=await fetchUsers();
   const bg=openModal(`<div class="modal-h"><div><h3>Новый заказ</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld"><label>Клиент *</label><div style="position:relative"><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-no="client" placeholder="поиск в 1С или ввод вручную" autocomplete="off" style="width:100%"></div><div id="noSug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:200px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div></div>
-    <div class="fld-row"><div class="fld"><label>Телефон</label><input data-no="phone"></div><div class="fld"><label>Ответственный</label><input data-no="mgr" value="${esc((AUTH.user||{}).name||'')}"></div></div>
+    <div class="fld-row"><div class="fld"><label>Телефон</label><input data-no="phone"></div><div class="fld"><label>Ответственный</label>${userSelectHtml(users,(AUTH.user||{}).name||'','data-no="mgr"')}</div></div>
     <div class="fld"><label>Состав заказа (товары из 1С)</label><div id="noItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-no="note"></div>
   </div>
@@ -708,13 +709,14 @@ function newOrderLive(onSaved){
     const body={client_ref:ref,client_name:name,phone:bg.querySelector('[data-no=phone]').value.trim(),items:ed.getItems(),mgr:bg.querySelector('[data-no=mgr]').value.trim(),note:bg.querySelector('[data-no=note]').value.trim()};
     const r=await api('/api/orders',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Заказ создан','i-cart'); onSaved&&onSaved(); };
 }
-function orderModalLive(o,onSaved){
+async function orderModalLive(o,onSaved){
   let init=[]; try{ init=JSON.parse(o.items||'[]'); }catch(e){}
   const ed=makeItemsEditor(init);
+  const users=await fetchUsers();
   const bg=openModal(`<div class="modal-h"><div><h3>Заказ</h3><div class="mh-sub">${esc(o.client_name||'')}${o.ext_id?(' · 1С №'+esc(o.ext_id)):''}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld-row"><div class="fld"><label>Клиент</label><input data-om="client_name" value="${esc(o.client_name||'')}"></div><div class="fld"><label>Телефон</label><input data-om="phone" value="${esc(o.phone||'')}"></div></div>
-    <div class="fld-row"><div class="fld"><label>Статус</label><select data-om="status">${[['new','Новый'],['queued_1c','Очередь 1С'],['synced_1c','В 1С'],['done','Готово'],['cancelled','Отменён']].map(([v,tt])=>`<option value="${v}" ${v===o.status?'selected':''}>${tt}</option>`).join('')}</select></div><div class="fld"><label>Ответственный</label><input data-om="mgr" value="${esc(o.mgr||'')}"></div></div>
+    <div class="fld-row"><div class="fld"><label>Статус</label><select data-om="status">${[['new','Новый'],['queued_1c','Очередь 1С'],['synced_1c','В 1С'],['done','Готово'],['cancelled','Отменён']].map(([v,tt])=>`<option value="${v}" ${v===o.status?'selected':''}>${tt}</option>`).join('')}</select></div><div class="fld"><label>Ответственный</label>${userSelectHtml(users,o.mgr,'data-om="mgr"')}</div></div>
     <div class="fld"><label>Состав заказа</label><div id="omItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-om="note" value="${esc(o.note||'')}"></div>
     ${o.error?`<div class="note amber">${ic('i-info','sm')} Ошибка 1С: ${esc(o.error)}</div>`:''}
