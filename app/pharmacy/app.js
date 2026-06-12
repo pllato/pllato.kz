@@ -36,6 +36,7 @@ const DEEPLINK = {
   tasks:   async(id)=>{ const r=await api('/api/tasks?status=all'); const t=r&&r.ok&&(r.data.items||[]).find(x=>x.id===id); if(t) taskModalLive(t,()=>go('tasks')); },
   orders:  async(id)=>{ const r=await api('/api/orders'); const o=r&&r.ok&&(r.data.items||[]).find(x=>x.id===id); if(o) orderModalLive(o,()=>go('orders')); },
   clients: async(ref)=>{ const r=await api('/api/1c/contractors?limit=1&ref='+encodeURIComponent(ref)); const x=r&&r.ok&&(r.data.items||[])[0]; if(x) contractorModal(x); },
+  funnels: async(id)=>{ for(const f of ['b2c','b2b']){ const r=await api('/api/deals?funnel='+f); const d=r&&r.ok&&(r.data.items||[]).find(x=>x.id===id); if(d){ state.funnel=f; renderPage(); dealModalLive(d); return; } } },
 };
 function applyHash(){
   const {page,sub}=parseHash();
@@ -340,6 +341,7 @@ function newDealLive(onSaved){
   };
 }
 function dealModalLive(d){
+  setEntityHash('funnels', d.id);
   const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
   const bg=openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.client_name||'?')}">${initials(d.client_name||'?')}</span><div><h3>${esc(d.client_name||'—')}</h3><div class="mh-sub">${esc(d.phone||'')} ${d.client_ref?'· привязан к 1С':''}</div></div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
