@@ -25,10 +25,27 @@ function toast(msg,icon='i-check2',color='var(--accent)'){
 }
 function openModal(html,cls=''){
   const bg=el(`<div class="modal-bg"><div class="modal ${cls}">${html}</div></div>`);
-  bg.addEventListener('click',e=>{if(e.target===bg)bg.remove();});
+  bg.addEventListener('click',e=>{if(e.target===bg)closeModal();});
   $('#modal-root').appendChild(bg);return bg;
 }
-const closeModal = ()=>$('.modal-bg')?.remove();
+const closeModal = ()=>{ $('.modal-bg')?.remove(); try{ history.replaceState(null,'','#/'+state.page); }catch(e){} };
+
+// ---------- URL-роутинг: вкладка в #hash (перезагрузка не сбрасывает) + прямые ссылки на сущности ----------
+function parseHash(){ const h=(location.hash||'').replace(/^#\/?/,''); const parts=h.split('/'); return { page: parts[0]||'', sub: parts.slice(1).join('/')||'' }; }
+const DEEPLINK = {
+  tasks:   async(id)=>{ const r=await api('/api/tasks?status=all'); const t=r&&r.ok&&(r.data.items||[]).find(x=>x.id===id); if(t) taskModalLive(t,()=>go('tasks')); },
+  orders:  async(id)=>{ const r=await api('/api/orders'); const o=r&&r.ok&&(r.data.items||[]).find(x=>x.id===id); if(o) orderModalLive(o,()=>go('orders')); },
+  clients: async(ref)=>{ const r=await api('/api/1c/contractors?limit=1&ref='+encodeURIComponent(ref)); const x=r&&r.ok&&(r.data.items||[])[0]; if(x) contractorModal(x); },
+};
+function applyHash(){
+  const {page,sub}=parseHash();
+  const allowed=allowedSections(state.role);
+  const target=(page&&allowed.includes(page))?page:(allowed.includes(state.page)?state.page:(allowed[0]||'dash'));
+  state.page=target; renderNav(); renderPage();
+  if(sub&&DEEPLINK[target]) DEEPLINK[target](sub);
+}
+function setEntityHash(page,id){ try{ history.replaceState(null,'','#/'+page+(id?('/'+id):'')); }catch(e){} }
+window.addEventListener('hashchange', applyHash);
 
 // ---------- nav config ----------
 const NAV = [
@@ -117,7 +134,12 @@ function renderRoleSel(){
     const allowed=allowedSections(state.role);if(!allowed.includes(state.page))state.page=allowed[0];
     renderNav();renderPage();toast(`Роль: <b>${r.name}</b> — показаны только доступные разделы`,'i-shield',r.color);};
 }
-function go(p){state.page=p;document.getElementById('sidebar').classList.remove('open');renderNav();renderPage();}
+function go(p, sub){
+  document.getElementById('sidebar').classList.remove('open');
+  const h='#/'+p+(sub?('/'+sub):'');
+  if(location.hash===h){ state.page=p; renderNav(); renderPage(); if(sub&&DEEPLINK[p])DEEPLINK[p](sub); }
+  else location.hash=h;
+}
 function renderPage(){
   const [t,s]=PAGE_META[state.page]||['',''];
   $('#pageTitle').textContent=t;$('#pageSub').textContent=s;
@@ -458,6 +480,7 @@ PAGES.clients=(c)=>{
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} База клиентов — контрагенты из 1С. Сегмент: B2C (физлица, розница) · B2B (юр.лица и ИП, опт) · Врачи-партнёры · Поставщики. Выручка по сегментам — из регистра «Продажи» 1С (розница без контрагента учтена в B2C). Синхронизация раз в 30 мин.</div>`));
 };
 function contractorModal(r){
+  setEntityHash('clients', r.ref_key);
   openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(r.name||'?')}">${initials(r.name||'?')}</span>
     <div><h3>${esc(r.name||'—')}</h3><div class="mh-sub">${esc(r.code||'')} · ${r.kind==='ЮридическоеЛицо'?'юр.лицо':r.kind==='ФизическоеЛицо'?'физ.лицо':'—'}</div></div></div>
     <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
@@ -710,6 +733,7 @@ async function newOrderLive(onSaved){
     const r=await api('/api/orders',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Заказ создан','i-cart'); onSaved&&onSaved(); };
 }
 async function orderModalLive(o,onSaved){
+  setEntityHash('orders', o.id);
   let init=[]; try{ init=JSON.parse(o.items||'[]'); }catch(e){}
   const ed=makeItemsEditor(init);
   const users=await fetchUsers();
@@ -1501,6 +1525,7 @@ async function newTaskLive(onSaved){
     const r=await api('/api/tasks',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Задача создана','i-check2'); onSaved&&onSaved(); };
 }
 async function taskModalLive(t,onSaved){
+  setEntityHash('tasks', t.id);
   const users=await fetchUsers();
   let lbls=jparse(t.labels,[]), cl=jparse(t.checklist,[]), cms=jparse(t.comments,[]), atts=jparse(t.attachments,[]);
   if(!Array.isArray(lbls))lbls=[]; if(!Array.isArray(cl))cl=[]; if(!Array.isArray(cms))cms=[]; if(!Array.isArray(atts))atts=[];
@@ -2551,7 +2576,7 @@ function applyUser(user){
   state.role = r;
   const sel=$('#roleSel'); if(sel){ const o=[...sel.options].find(x=>x.value===r); if(o) sel.value=r; }
   const al0=allowedSections(state.role); if(!al0.includes(state.page)) state.page = al0[0]||'dash';
-  renderRoleSel(); renderNav(); renderPage();
+  renderRoleSel(); applyHash();
   // реальный счётчик активных задач для бейджа в меню
   if(allowedSections(state.role).includes('tasks')) api('/api/tasks?status=active').then(r=>{ if(r&&r.ok){ window.__taskBadge=(r.data.totals||{}).active||0; renderNav(); } }).catch(()=>{});
   loadNotifications();
