@@ -84,9 +84,9 @@
     if (uid === state.me?.uid) return state.me?.name || 'Я';
     const u = parentUser(uid);
     if (u) {
-      return [u.lastName, u.name].filter(Boolean).join(' ').trim() || u.name || u.email || uid.slice(0, 8);
+      return [u.lastName, u.name].filter(Boolean).join(' ').trim() || u.name || u.email || 'Сотрудник';
     }
-    return state.usersIndex[uid]?.name || uid.slice(0, 8);
+    return state.usersIndex[uid]?.name || 'Сотрудник';
   }
 
   function userPhoto(uid) {

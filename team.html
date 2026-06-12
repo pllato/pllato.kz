@@ -3689,6 +3689,36 @@ async function initApp(user) {
       console.log('[initApp] role:', me.role, 'canonicalUid:', me.canonicalUid, 'linked:', me.isLinked);
       if (!me.isLinked) {
         console.warn('[initApp] юзер НЕ связан с записью в D1 (email не найден). Будет видеть пусто. Платон должен либо добавить юзера в users-таблицу либо явно admin-ом сделать.');
+        // Авто-привязка: вошёл по приглашению, но «принять» не довёл до конца
+        // (закрыл модал / потерялся #invite после Google-редиректа). Если есть
+        // токен (в hash или сохранён ранее) — завершаем регистрацию сами.
+        let inviteToken = '';
+        if (location.hash.startsWith('#invite/')) inviteToken = location.hash.slice('#invite/'.length);
+        if (!inviteToken) { try { inviteToken = localStorage.getItem('elc:pendingInvite') || ''; } catch {} }
+        if (inviteToken) {
+          try {
+            const at = await user.getIdToken();
+            const ar = await fetch(`${WORKER_BASE_URL}/api/invites/${encodeURIComponent(inviteToken)}/accept`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${at}` },
+              body: '{}',
+            });
+            if (ar.ok) {
+              try { localStorage.removeItem('elc:pendingInvite'); } catch {}
+              console.log('[initApp] авто-принятие приглашения OK → перезагрузка');
+              location.hash = '';
+              location.reload();
+              return;
+            } else {
+              const ej = await ar.json().catch(() => ({}));
+              console.warn('[initApp] авто-принятие приглашения не удалось:', ej.error || ar.status);
+              if (/already used|not found|expired/i.test(ej.error || '')) { try { localStorage.removeItem('elc:pendingInvite'); } catch {} }
+            }
+          } catch (e) { console.warn('[initApp] auto-accept invite error:', e); }
+        }
+      } else {
+        // успешно связан → убираем возможный «висящий» токен приглашения
+        try { localStorage.removeItem('elc:pendingInvite'); } catch {}
       }
     } else {
       console.error('[initApp] /api/me не отдал — без роли');
@@ -4569,7 +4599,7 @@ async function renderTeamChat(el) {
     return;
   }
   const s = document.createElement('script');
-  s.src = `${WORKER_BASE_URL}/chat.js?v=18`;
+  s.src = `${WORKER_BASE_URL}/chat.js?v=19`;
   s.onload = () => {
     _teamChatScriptLoaded = true;
     if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
@@ -19803,6 +19833,9 @@ async function openInviteCreateModal(path) {
 
 // ── Accept-страница для приёмника: открывается по #invite/TOKEN ────────
 async function openInviteAcceptModal(token) {
+  // Сохраняем токен до возможного Google-редиректа (после него #invite/<token>
+  // в URL может потеряться). initApp по нему авто-завершит регистрацию.
+  try { if (token) localStorage.setItem('elc:pendingInvite', token); } catch {}
   document.getElementById('_invite-accept-modal')?.remove();
   const ov = document.createElement('div');
   ov.id = '_invite-accept-modal';
