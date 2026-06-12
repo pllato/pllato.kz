@@ -9289,7 +9289,11 @@ function renderDealsKanban(c, arr) {
     const cards = sortDealsForKanban(byStage[s.statusId] || []);
     const totalSum = cards.reduce((acc, d) => acc + (d.opportunity || 0), 0);
     const stageColor = s.semantics === 'S' ? '#3fd88e' : s.semantics === 'F' ? '#f05975' : '#a87fff';
-    const shown = Math.min(cards.length, MAX_PER_COL);
+    // Стадию «раскрыли» кнопкой «… ещё» → показываем все загруженные карточки
+    // (а не максимум MAX_PER_COL), иначе колонка застрянет на 100.
+    const stageExpanded = dealsState.expandedStages && dealsState.expandedStages.has(dealsState.activePipelineId + ':' + s.statusId);
+    const cap = stageExpanded ? cards.length : MAX_PER_COL;
+    const shown = Math.min(cards.length, cap);
     // Истинный итог колонки: с сервера если есть, иначе — сколько загружено.
     const colTotal = (trueCounts && trueCounts[s.statusId] != null) ? trueCounts[s.statusId] : cards.length;
     const hidden = Math.max(0, colTotal - shown);
@@ -9304,7 +9308,7 @@ function renderDealsKanban(c, arr) {
       ${totalSum > 0 ? `<div class="kanban-col-sum">${totalSum.toLocaleString('ru')} ₸</div>` : ''}
       <div class="kanban-col-cards" data-stage="${escapeHtml(s.statusId)}">`;
 
-    for (const d of cards.slice(0, MAX_PER_COL)) {
+    for (const d of cards.slice(0, cap)) {
       html += buildDealCard(d, stageColor);
     }
     if (hidden > 0) {
@@ -11450,6 +11454,8 @@ async function loadStageMore(stageId, btn) {
       dealsState.deals = (dealsState.deals || []).concat(added);
       dealsState.dealsByPipeline[pipelineId] = dealsState.deals;
     }
+    // Помечаем стадию раскрытой — рендер покажет все её карточки, не обрезая до 100.
+    (dealsState.expandedStages = dealsState.expandedStages || new Set()).add(pipelineId + ':' + stageId);
     renderDealsContent(); // перерисует колонки; кнопка «ещё» пересчитается/исчезнет
   } catch (e) {
     console.warn('loadStageMore failed:', e);
