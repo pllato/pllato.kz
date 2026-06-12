@@ -1458,7 +1458,15 @@ body.tc-chat-overlay .sipc-bottombar:not([data-state="established"]):not([data-s
   font-size: 11px;
   border: 1px dashed var(--b2);
   border-radius: 8px;
+  width: 100%;
+  display: block;
+  background: var(--bg2);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
 }
+.kanban-more:hover { background: var(--bg3); color: var(--t1); border-color: var(--ac2); }
+.kanban-more:disabled { cursor: default; opacity: .7; }
 .kanban-trunc-banner {
   margin: 0 0 8px;
   padding: 7px 12px;
@@ -9300,7 +9308,7 @@ function renderDealsKanban(c, arr) {
       html += buildDealCard(d, stageColor);
     }
     if (hidden > 0) {
-      html += `<div class="kanban-more">… ещё ${hidden.toLocaleString('ru')}</div>`;
+      html += `<button class="kanban-more" data-action="load-stage-more" data-stage="${escapeHtml(s.statusId)}" title="Загрузить остальные сделки этой стадии">… ещё ${hidden.toLocaleString('ru')} — показать</button>`;
     }
     if (colTotal === 0) {
       html += `<div class="kanban-empty" data-stage="${escapeHtml(s.statusId)}">Перетащи сюда</div>`;
@@ -11404,6 +11412,52 @@ function buildDealCard(d, stageColor) {
   </div>`;
 }
 
+// «… ещё N — показать»: дозагрузить ВСЕ сделки конкретной стадии. Канбан грузит
+// только самые свежие N сделок воронки целиком, поэтому в «глубоких» стадиях
+// часть карточек не подгружена. Здесь тянем их адресно фильтром ?stage= — это
+// узкая выборка (одна стадия), быстрая, без проблемы глубокого OFFSET.
+async function loadStageMore(stageId, btn) {
+  if (!stageId) return;
+  const pipelineId = dealsState.activePipelineId;
+  if (!pipelineId) return;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Загружаю…'; }
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const { scope, assignee } = computeKanbanScope();
+    const existing = new Set((dealsState.deals || []).map(d => d.id));
+    const fetched = [];
+    const PAGE = 200;
+    const HARD_CAP = 3000;
+    for (let page = 1; page <= 20; page++) {
+      const params = new URLSearchParams({
+        page: String(page), pageSize: String(PAGE), pipeline: pipelineId,
+        stage: stageId, sort: 'modified', scope, auth: idToken,
+      });
+      if (assignee) params.set('assignee', assignee);
+      const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      const items = data.items || [];
+      fetched.push(...items);
+      if (!data.hasMore || items.length < PAGE) break;
+      if (fetched.length >= HARD_CAP) break;
+    }
+    const added = [];
+    for (const it of fetched) {
+      if (!existing.has(it.id)) { existing.add(it.id); added.push(it); }
+    }
+    if (added.length) {
+      dealsState.deals = (dealsState.deals || []).concat(added);
+      dealsState.dealsByPipeline[pipelineId] = dealsState.deals;
+    }
+    renderDealsContent(); // перерисует колонки; кнопка «ещё» пересчитается/исчезнет
+  } catch (e) {
+    console.warn('loadStageMore failed:', e);
+    if (btn) { btn.disabled = false; btn.textContent = '⚠ Ошибка — повторить'; }
+    if (typeof showToast === 'function') showToast('Не удалось загрузить сделки: ' + (e.message || e));
+  }
+}
+
 function handleKanbanCardAction(e) {
   const btn = e.target.closest('[data-action]');
   if (btn) {
@@ -11433,6 +11487,8 @@ function handleKanbanCardAction(e) {
     } else if (action === 'comment-send') {
       const input = btn.closest('.kanban-card-cadd')?.querySelector('.kcc-input');
       sendKanbanQuickComment(btn.dataset.dealFull, input);
+    } else if (action === 'load-stage-more') {
+      loadStageMore(btn.dataset.stage, btn);
     }
     return;
   }
