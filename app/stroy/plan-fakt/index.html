@@ -211,7 +211,7 @@ const CATS=[
 const catC=k=>(CATS.find(c=>c.k===k)||CATS[CATS.length-1]).c;
 const catN=k=>(CATS.find(c=>c.k===k)||CATS[CATS.length-1]).n;
 const catFull=k=>{const c=CATS.find(c=>c.k===k)||CATS[CATS.length-1];return c.full||c.n;};
-S.cat=CATS[0].k;S.penMode=false;S.printSpec=true;S.cluster=[];
+S.cat=CATS[0].k;S.penMode=false;S.printSpec=true;S.cluster=[];S.heights={socket:0.40,switch:0.90};
 /* виды концов линии (выпуск/отпуск) и высоты по умолчанию, м */
 const KINDS=[
   {k:'free',  n:'— (узел)',     h:0},
@@ -220,7 +220,7 @@ const KINDS=[
   {k:'light', n:'Свет/потолок', h:0},
   {k:'panel', n:'Щит',          h:1.50}
 ];
-const kindDefH=k=>{const d=KINDS.find(x=>x.k===k);return d?d.h:0;};
+const kindDefH=k=>{if(S.heights&&S.heights[k]!=null)return S.heights[k];const d=KINDS.find(x=>x.k===k);return d?d.h:0;};
 const kindN=k=>{const d=KINDS.find(x=>x.k===k);return d?d.n:'—';};
 S.armSym=null;
 
@@ -274,7 +274,7 @@ function drawSymbolCanvas(cc,o){const def=symDef(o.sym);const s=o.size/22;cc.sav
 function symPreviewSVG(s){const inner=s.parts.map(pt=>{const col=pt.c||s.col;return `<path d="${pt.p}" stroke="${pt.f?'none':col}" fill="${pt.f?col:'none'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;}).join('');return `<svg viewBox="-14 -14 28 28">${inner}</svg>`;}
 function placeSymbol(p){const def=symDef(S.armSym);const size=Math.max(22,S.W*0.016);pushHistory();
   addObj({type:'symbol',sym:S.armSym,x:p.x,y:p.y,size,rot:0,color:def.col,src:'mine'});redrawAll();renderSide();toast(def.n+' поставлен');}
-function eraseAt(target){const el=target&&target.closest&&target.closest('[data-id]');if(!el)return;const id=el.dataset.id;const o=getObj(id);if(!o||isRef(o))return;pushHistory();const ids=(o.type==='line'||o.type==='symbol')?connectedCluster(id):[id];ids.forEach(i=>delObj(i));if(ids.includes(S.selected))S.selected=null;redrawAll();renderSide();toast(ids.length>1?'Удалено вместе со знаком ('+ids.length+')':'Удалено');}
+function eraseAt(target){const el=target&&target.closest&&target.closest('[data-id]');if(!el)return;const id=el.dataset.id;const o=getObj(id);if(!o||isRef(o))return;pushHistory();const ids=moveCluster(o);ids.forEach(i=>delObj(i));if(ids.includes(S.selected))S.selected=null;redrawAll();renderSide();toast(ids.length>1?'Удалено вместе со знаком ('+ids.length+')':'Удалено');}
 function renderCatalog(){const body=$('sideBody');
   let h='<div class="catgrid">'+SYMS.map(s=>`<button class="catcell ${S.armSym===s.k?'on':''}" data-sym="${s.k}"><span class="catico">${symPreviewSVG(s)}</span><span class="catnm">${s.n}</span><span class="catdesc">${s.d}</span></button>`).join('')+'</div>';
   h+='<div class="emptyhint" style="text-align:left">Выберите знак и тапайте по плану, чтобы расставить. Каждый знак — <b>один объект</b>: двигается, вращается (ручка сверху), масштабируется (угол) и удаляется целиком. Розетки/выключатели/щит также считаются в «Расчёте».</div>';
@@ -410,7 +410,7 @@ function goPage(pn){
     S.W=baseimg.naturalWidth;S.H=baseimg.naturalHeight;
     S.sx=S.W/pg.wpt;S.sy=S.H/pg.hpt;
     svg.setAttribute('viewBox',`0 0 ${S.W} ${S.H}`);svg.setAttribute('width',S.W);svg.setAttribute('height',S.H);
-    if(!S.objects[pn]) S.objects[pn]=importObjects(pg.objs);
+    if(!S.objects[pn]){S.objects[pn]=importObjects(pg.objs);assignGroups(S.objects[pn]);}
     if(!S.history[pn]) S.history[pn]=[];
     fitPage();applyTransform();redrawAll();renderSide();updateUndo();updateScalePill();
   };
@@ -482,18 +482,35 @@ function objVerts(o){if(o.type==='line')return o.pts;if(o.type==='rect')return [
 function objDiag(o){const b=bbox(o);return Math.hypot(b.w,b.h);}
 function isSmallFrag(o){return objDiag(o) < S.W*0.045;}  // знак/короткий штрих, не длинная трасса
 function touches(a,b,th){const va=objVerts(a),vb=objVerts(b),t2=th*th;for(const p of va)for(const q of vb){const dx=p.x-q.x,dy=p.y-q.y;if(dx*dx+dy*dy<=t2)return true;}return false;}
-function connectedCluster(seedId){
-  const all=cur(),seed=getObj(seedId);if(!seed)return [seedId];
-  const th=Math.max(6,S.W*0.006),inSet=new Set([seedId]),q=[seed];
-  while(q.length){const o=q.pop();for(const c of all){if(inSet.has(c.id)||!isSmallFrag(c))continue;if(touches(o,c,th)){inSet.add(c.id);q.push(c);}}}
-  return [...inSet];
+let GRP_SEQ=1;
+/* один раз при загрузке: штрихи знаков (мелкие, касающиеся) → общий grp.
+   Трассы (длинные) grp не получают и остаются полноценно редактируемыми. */
+function assignGroups(arr){
+  const small=arr.filter(o=>o.type==='line'&&!o.grp&&isSmallFrag(o));
+  const par={};small.forEach(o=>par[o.id]=o.id);
+  const find=a=>{while(par[a]!==a){par[a]=par[par[a]];a=par[a];}return a;};
+  const th=Math.max(6,S.W*0.006);
+  for(let i=0;i<small.length;i++)for(let j=i+1;j<small.length;j++){if(touches(small[i],small[j],th))par[find(small[i].id)]=find(small[j].id);}
+  const comp={};small.forEach(o=>{const r=find(o.id);(comp[r]=comp[r]||[]).push(o);});
+  Object.values(comp).forEach(g=>{const gid='g'+(GRP_SEQ++);g.forEach(o=>o.grp=gid);});
 }
 function moveObjBy(co,og,dx,dy){if(co.type==='line')co.pts=og.pts.map(q=>({x:q.x+dx,y:q.y+dy}));else{co.x=og.x+dx;co.y=og.y+dy;}}
+/* выделение: знак (grp) — целиком; трасса — одна (редактируемая) */
+function selCluster(o){return o&&o.grp?cur().filter(x=>x.grp===o.grp).map(x=>x.id):[o?o.id:null].filter(Boolean);}
+/* перемещение/удаление: трасса тянет знаки на своих концах */
+function moveCluster(o){
+  if(!o)return [];
+  if(o.grp)return cur().filter(x=>x.grp===o.grp).map(x=>x.id);
+  if(o.type!=='line')return [o.id];
+  const ends=[o.pts[0],o.pts[o.pts.length-1]];const th=Math.max(8,S.W*0.012);const grps=new Set();
+  cur().forEach(x=>{if(!x.grp||x.type!=='line')return;for(const p of x.pts){for(const e of ends){if(Math.hypot(p.x-e.x,p.y-e.y)<=th){grps.add(x.grp);break;}}}});
+  const ids=new Set([o.id]);cur().forEach(x=>{if(x.grp&&grps.has(x.grp))ids.add(x.id);});return [...ids];
+}
 function bindObj(el,o){
   el.addEventListener('pointerdown',ev=>{
     if(S.tool!=='select')return;ev.stopPropagation();
     selectObj(o.id);
-    const cluster=(o.type==='line'||o.type==='symbol')?connectedCluster(o.id):[o.id];
+    const cluster=moveCluster(o);
     const start=toImg(ev.clientX,ev.clientY);const origs={};cluster.forEach(id=>origs[id]=JSON.parse(JSON.stringify(getObj(id))));let moved=false,pushed=false;
     const mv=e=>{const p=toImg(e.clientX,e.clientY);const dx=p.x-start.x,dy=p.y-start.y;if(Math.abs(dx)+Math.abs(dy)>2&&!pushed){pushHistory();pushed=true;}moved=true;
       cluster.forEach(id=>{const co=getObj(id),og=origs[id];if(co&&og){moveObjBy(co,og,dx,dy);live(co);}});};
@@ -527,7 +544,7 @@ function deleteNode(o,i){
 function bbox(o){if(o.type==='line'){const xs=o.pts.map(p=>p.x),ys=o.pts.map(p=>p.y);return{x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)};}if(o.type==='rect')return{x:o.x,y:o.y,w:o.w,h:o.h};if(o.type==='symbol'){const hf=o.size*0.66;return{x:o.x-hf,y:o.y-hf,w:hf*2,h:hf*2};}return{x:o.x,y:o.y-o.size,w:(o.text.length*o.size*0.55)||20,h:o.size*1.2};}
 function drawSelUI(){gUI.innerHTML='';drawCalUI();if(!S.selected){S.cluster=[];return;}const o=getObj(S.selected);if(!o)return;const k=1/S.scale;
   const cl=(S.cluster&&S.cluster.length?S.cluster:[S.selected]).filter(id=>getObj(id));
-  const rigid=cl.length>1&&cl.every(id=>{const co=getObj(id);return co&&co.type==='line'&&isSmallFrag(co);});
+  const rigid=o.grp!=null;
   if(cl.length>1){const b=clusterBBox(cl);const r=document.createElementNS(SVGNS,'rect');r.dataset.ui='bb';r.setAttribute('x',b.x-6*k);r.setAttribute('y',b.y-6*k);r.setAttribute('width',b.w+12*k);r.setAttribute('height',b.h+12*k);r.setAttribute('fill','none');r.setAttribute('stroke','#0a84ff');r.setAttribute('stroke-width',1.6*k);r.setAttribute('stroke-dasharray',`${6*k} ${4*k}`);gUI.appendChild(r);}
   if(rigid)return;
   if(o.type==='line'){
@@ -552,11 +569,9 @@ function mkH(x,y,k,end){const c=document.createElementNS(SVGNS,'circle');c.datas
 function nodeDrag(ev,o,i){ev.stopPropagation();let pushed=false;const mv=e=>{if(!pushed){pushHistory();pushed=true;}const p=toImg(e.clientX,e.clientY);o.pts[i]={x:p.x,y:p.y};redrawOne(o);drawSelUI();};const up=()=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);drawSelUI();renderSide();};window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);}
 function resizeDrag(ev,o){ev.stopPropagation();pushHistory();const mv=e=>{const p=toImg(e.clientX,e.clientY);o.w=Math.max(6,p.x-o.x);o.h=Math.max(6,p.y-o.y);live(o);};const up=()=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);drawSelUI();};window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);}
 function clusterBBox(ids){let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18;ids.forEach(id=>{const co=getObj(id);if(!co)return;const b=bbox(co);x0=Math.min(x0,b.x);y0=Math.min(y0,b.y);x1=Math.max(x1,b.x+b.w);y1=Math.max(y1,b.y+b.h);});return{x:x0,y:y0,w:x1-x0,h:y1-y0};}
-function selectObj(id){
-  // выделяем элемент ЦЕЛИКОМ: связный кластер (трасса + её знак, либо все штрихи знака)
-  const cl=connectedCluster(id);
-  let primary=id,best=-1;cl.forEach(cid=>{const co=getObj(cid);if(co&&co.type==='line'){const dg=objDiag(co);if(dg>best){best=dg;primary=cid;}}});
-  S.cluster=cl;S.selected=primary;
+function selectObj(id){const o=getObj(id);if(!o){S.selected=null;S.cluster=[];return;}
+  // знак (grp) выделяется целиком; трасса — одна (редактируется по узлам/длине/изгибу)
+  S.cluster=selCluster(o);S.selected=id;
   drawSelUI();renderOpt();if(S.sideTab==='obj')renderSide();
 }
 
@@ -623,7 +638,7 @@ function bindBar(){
 }
 function simplifySel(){const o=getObj(S.selected);if(!o||o.type!=='line')return;pushHistory();const raw=o.pts.map(p=>[p.x,p.y]);o.pts=capPts(raw,MAX_NODES).map(p=>({x:p[0],y:p[1]}));redrawOne(o);drawSelUI();renderSide();toast('Линия упрощена до '+o.pts.length+' точек');}
 function dup(){const ids=(S.cluster&&S.cluster.length?S.cluster:[S.selected]).filter(id=>getObj(id));if(!ids.length)return;pushHistory();const off=Math.max(18,S.W*0.012);let firstId=null;ids.forEach(id=>{const o=getObj(id);const c=JSON.parse(JSON.stringify(o));delete c.id;c.src='mine';if(c.type==='line')c.pts=c.pts.map(p=>({x:p.x+off,y:p.y+off}));else{c.x+=off;c.y+=off;}const n=addObj(c);if(!firstId)firstId=n.id;});redrawAll();if(firstId)selectObj(firstId);toast('Дубликат');}
-function delSel(){const ids=(S.cluster&&S.cluster.length?S.cluster:[S.selected]).filter(id=>getObj(id));if(!ids.length)return;pushHistory();ids.forEach(i=>delObj(i));S.selected=null;S.cluster=[];redrawAll();renderSide();renderOpt();toast(ids.length>1?'Удалено ('+ids.length+')':'Удалено');}
+function delSel(){const o=getObj(S.selected);if(!o)return;pushHistory();const ids=moveCluster(o);ids.forEach(i=>delObj(i));S.selected=null;S.cluster=[];redrawAll();renderSide();renderOpt();toast(ids.length>1?'Удалено ('+ids.length+')':'Удалено');}
 
 /* ---- canvas pointer ---- */
 let panning=false,lastX,lastY,moved=0;const ptrs=new Map();let pinching=false,pd0=0,ps0=1,pmid=null;
@@ -731,10 +746,13 @@ function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPa
   let html='<div class="calc">';
   html+='<h5>Параметры</h5>';
   if(!r.mpp)html+=`<div class="calcwarn">Масштаб этого листа не задан — длина не считается. Нажмите «⌖ Масштаб» вверху и укажите реальный размер.</div>`;
-  html+=`<div class="field"><label>Высота щита, м</label><input id="fPanel" type="number" step="0.05" min="0" value="${S.panelH.toFixed(2)}"></div>`;
+  html+=`<div class="field"><label>Высота розетки (выпуск), м</label><input id="fSockH" type="number" step="0.05" min="0" value="${S.heights.socket.toFixed(2)}"></div>`;
+  html+=`<div class="field"><label>Высота выключателя, м</label><input id="fSwH" type="number" step="0.05" min="0" value="${S.heights.switch.toFixed(2)}"></div>`;
+  html+=`<div class="field"><label>Высота щита (подъём), м</label><input id="fPanel" type="number" step="0.05" min="0" value="${S.panelH.toFixed(2)}"></div>`;
   html+=`<div class="field"><label>Запас / погрешность, %</label><input id="fSlack" type="number" step="1" min="0" value="${S.slack}"></div>`;
   html+=`<div class="field"><label>Печатать таблицу на листе</label><button class="mini" id="tgSpec">${S.printSpec?'вкл':'выкл'}</button></div>`;
-  html+=`<button class="mini" id="applySock" style="width:100%;margin:2px 0 6px;padding:8px;">Высоту розеток листа → всем (по умолч. ${kindDefH('socket').toFixed(2)} м)</button>`;
+  html+=`<button class="mini" id="applyDrops" style="width:100%;margin:4px 0 2px;padding:9px;font-weight:700">⤓ Выпуск розетки на оба конца всех трасс</button>`;
+  html+=`<div class="emptyhint" style="padding:5px 2px 8px;text-align:left">Добавит спуск к розетке (${S.heights.socket.toFixed(2)} м) на каждый конец трассы — длина станет ближе к факту. Отдельные концы потом правьте при выделении трассы (тип/высота).</div>`;
   html+='<h5>Счётчики (лист)</h5>';
   html+=`<div class="cnts"><div class="cnt"><div class="cv">${r.cnt.socket}</div><div class="cl">розеток</div></div><div class="cnt"><div class="cv">${r.cnt.switch}</div><div class="cl">выключ.</div></div><div class="cnt"><div class="cv">${r.cnt.light}</div><div class="cl">свет</div></div></div>`;
   html+='<h5>Кабель по маркам (лист)</h5>';
@@ -747,10 +765,12 @@ function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPa
   html+='<div class="emptyhint" style="padding:14px 4px;text-align:left">Длина = (план × масштаб) + выпуски/отпуски на концах + подъём к щиту, ×(1+запас). У каждой линии задайте тип и высоты концов в панели сверху при выделении.</div>';
   html+='</div>';
   body.innerHTML=html;
+  const fsh=$('fSockH');if(fsh)fsh.onchange=()=>{S.heights.socket=Math.max(0,parseFloat(fsh.value)||0);renderCalc();};
+  const fswh=$('fSwH');if(fswh)fswh.onchange=()=>{S.heights.switch=Math.max(0,parseFloat(fswh.value)||0);renderCalc();};
   const fp=$('fPanel');if(fp)fp.onchange=()=>{S.panelH=Math.max(0,parseFloat(fp.value)||0);redrawAll();renderCalc();if(S.selected)renderOpt();};
   const fs=$('fSlack');if(fs)fs.onchange=()=>{S.slack=Math.max(0,parseFloat(fs.value)||0);renderCalc();};
   const tg=$('tgSpec');if(tg)tg.onclick=()=>{S.printSpec=!S.printSpec;renderCalc();};
-  const as=$('applySock');if(as)as.onclick=()=>{const v=prompt('Высота всех розеток на листе, м:',kindDefH('socket').toFixed(2));const m=parseFloat((v||'').replace(',','.'));if(m>=0){pushHistory();(S.objects[pn]||[]).forEach(o=>{if(o.type!=='line')return;[o.ea,o.eb].forEach(e=>{if(e&&e.kind==='socket')e.h=m;});});redrawAll();renderCalc();if(S.selected)renderOpt();toast('Высота розеток обновлена');}};
+  const ad=$('applyDrops');if(ad)ad.onclick=()=>{pushHistory();let n=0;(S.objects[pn]||[]).forEach(o=>{if(o.type!=='line'||o.grp||isRef(o))return;o.ea={kind:'socket',h:S.heights.socket};o.eb={kind:'socket',h:S.heights.socket};n++;});redrawAll();renderCalc();if(S.selected)renderOpt();toast('Выпуски проставлены на '+n+' трасс');};
 }
 
 /* ---- export ---- */
