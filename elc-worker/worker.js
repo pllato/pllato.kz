@@ -6004,6 +6004,16 @@ async function handleInviteAccept(request, env, token) {
           INSERT INTO kv (k, v) VALUES ('org:structure', ?)
           ON CONFLICT(k) DO UPDATE SET v = excluded.v
         `).bind(JSON.stringify(structure)).run();
+        // Текстовое поле «Отдел» у пользователя — чтобы при принятии он сразу
+        // показывался в нужном отделе и в списке «Сотрудники» (а не «без отдела»).
+        if (node.name) {
+          try {
+            await env.DB.prepare("UPDATE users SET department = ? WHERE uid = ?")
+              .bind(String(node.name), canonicalUid).run();
+          } catch (e2) { console.warn('[invite] set users.department failed:', e2.message); }
+        }
+      } else {
+        console.warn('[invite] dept_path node not found:', inv.dept_path);
       }
     } catch (e) { console.warn('[invite] org tree update failed:', e); }
   }
