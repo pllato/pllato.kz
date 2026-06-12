@@ -660,28 +660,73 @@ function orderFromChat(name){
 }
 
 // ---------- ORDERS ----------
+const ORDER_ST={new:['Новый','blue'],queued_1c:['Очередь 1С','amber'],synced_1c:['В 1С','green'],done:['Готово','green'],cancelled:['Отменён','red']};
+function ordStTag(s){const m=ORDER_ST[s]||['—',''];return `<span class="tag ${m[1]}">${esc(m[0])}</span>`;}
+function ordItemsText(j){ let a=[]; try{a=JSON.parse(j||'[]');}catch(e){} return a.map(x=>(x.name||'')+(x.qty>1?(' ×'+x.qty):'')).join(', '); }
 PAGES.orders=(c)=>{
-  const orders=[
-    ['#1078','Динара Жумабекова','Pampers Premium 3',5200,'wa','В 1С · накладная','green'],
-    ['#1075','Салтанат Орозова','Набор «Семья»',4200,'wa','Собран','blue'],
-    ['#1071','Гульнара Осмонова','Микс гигиена',6200,'ig','Доставка','amber'],
-    ['#B-205','Аптека «Шифо» (опт)','Опт микс',142000,'wa','Очередь в 1С (1С недоступен)','red'],
-    ['#1055','Эркин Текебаев','Шампунь ×4',1730,'wp','Закрыт','green'],
-    ['#B-201','Клиника «Авиценна»','Маски, антисептик',96500,'wa','Оплата','violet'],
-  ];
-  c.appendChild(el(`<div class="toolbar">
-    <select class="sel"><option>Все статусы</option><option>В 1С</option><option>Очередь</option><option>Доставка</option></select>
-    <select class="sel"><option>Все юр.лица</option><option>ТОО</option><option>ИП</option></select>
-    <div class="spacer"></div>
-    <div class="row"><span class="tag green">${ic('i-sync','sm')} 1С синхронизирован 1 мин назад</span></div>
-  </div>`));
-  c.appendChild(el(`<div class="note amber section-gap" style="margin-top:0">${ic('i-info','sm')} Заказ #B-205 в очереди: 1С временно недоступен. После восстановления — автоматическая досинхронизация. Магазины при этом продолжают работать.</div>`));
-  const panel=el(`<div class="panel section-gap"><table class="tbl"><thead><tr><th>Заказ</th><th>Клиент</th><th>Состав</th><th>Канал</th><th class="num">Сумма</th><th>Статус 1С</th></tr></thead><tbody>
-    ${orders.map(o=>`<tr class="clickable"><td><b>${o[0]}</b></td><td>${o[1]}</td><td class="muted">${o[2]}</td><td><span class="tag ${o[4]==='wa'?'wa':o[4]==='ig'?'ig':'amber'}">${chLabel(o[4])}</span></td><td class="num">${money(o[3])}</td><td><span class="tag ${o[6]}">${o[5]}</span></td></tr>`).join('')}
-  </tbody></table></div>`);
-  panel.querySelectorAll('tr.clickable').forEach(tr=>tr.onclick=()=>toast('Карточка заказа · детализация по товарам и журнал обмена с 1С','i-cart'));
-  c.appendChild(panel);
+  const tbar=el(`<div class="toolbar">
+    <div class="seg" data-or="filter"><button class="on" data-s="all">Все</button><button data-s="new">Новые</button><button data-s="queued_1c">Очередь 1С</button><button data-s="synced_1c">В 1С</button><button data-s="done">Готово</button></div>
+    <div class="spacer"></div><span class="ph-sub" data-or="cnt"></span><button class="btn primary" id="newOrderBtn">${ic('i-plus','sm')} Заказ</button></div>`);
+  const cards=el(`<div class="cards-row section-gap"></div>`);
+  const panel=el(`<div class="panel section-gap"><table class="tbl"><thead><tr><th>Клиент</th><th>Состав</th><th class="num">Сумма</th><th>Статус</th><th>№ 1С</th></tr></thead><tbody><tr><td colspan="5" class="muted2" style="padding:16px">Загрузка…</td></tr></tbody></table></div>`);
+  c.appendChild(tbar); c.appendChild(cards); c.appendChild(panel);
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Заказы из CRM (звонок/WhatsApp/форма). Состав и сумма — из каталога 1С. «Отправить в 1С» ставит заказ в очередь записи: агент создаст «Заказ покупателя» в 1С (Фаза 2, сначала на тестовой базе).</div>`));
+  const cnt=tbar.querySelector('[data-or=cnt]'), seg=tbar.querySelector('[data-or=filter]');
+  let status='all';
+  seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); status=b.dataset.s; load(); });
+  tbar.querySelector('#newOrderBtn').onclick=()=>newOrderLive(load);
+  async function load(){
+    const tb=panel.querySelector('tbody'); tb.innerHTML=`<tr><td colspan="5" class="muted2" style="padding:16px">Загрузка…</td></tr>`;
+    const r=await api('/api/orders'+(status!=='all'?('?status='+status):''));
+    if(!r.ok){ cards.innerHTML=miniStat('i-cart','#0891b2','Заказы','демо'); tb.innerHTML='<tr><td colspan="5" class="muted2" style="padding:16px">Демо-режим (нет связи)</td></tr>'; return; }
+    const t=r.data.totals||{}, items=r.data.items||[];
+    cards.innerHTML=miniStat('i-cart','#0891b2','Всего заказов',t.total||0)+miniStat('i-check2','#10b981','В работе',t.active||0)+miniStat('i-money','#16a34a','Сумма',money(t.amount||0))+miniStat('i-sync','#d97706','В очереди 1С',t.queued||0);
+    cnt.textContent=items.length+' заказов';
+    if(!items.length){ tb.innerHTML=`<tr><td colspan="5" class="muted2" style="padding:18px">Заказов нет. Нажмите «Заказ», чтобы создать.</td></tr>`; return; }
+    tb.innerHTML='';
+    items.forEach(o=>{ const tr=el(`<tr style="cursor:pointer"><td><div style="font-weight:600">${esc(o.client_name||'—')}</div><div class="muted2" style="font-size:11px">${esc(o.phone||'')}${o.mgr?(' · '+esc(o.mgr)):''}</div></td><td class="muted" style="font-size:12px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ordItemsText(o.items))||'—'}</td><td class="num">${money(o.total||0)}</td><td>${ordStTag(o.status)}</td><td class="muted2" style="font-size:12px">${o.ext_id?esc(o.ext_id):'—'}</td></tr>`); tr.onclick=()=>orderModalLive(o,load); tb.appendChild(tr); });
+  }
+  load();
 };
+function newOrderLive(onSaved){
+  const ed=makeItemsEditor([]);
+  const bg=openModal(`<div class="modal-h"><div><h3>Новый заказ</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld"><label>Клиент *</label><div style="position:relative"><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-no="client" placeholder="поиск в 1С или ввод вручную" autocomplete="off" style="width:100%"></div><div id="noSug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:200px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div></div>
+    <div class="fld-row"><div class="fld"><label>Телефон</label><input data-no="phone"></div><div class="fld"><label>Ответственный</label><input data-no="mgr" value="${esc((AUTH.user||{}).name||'')}"></div></div>
+    <div class="fld"><label>Состав заказа (товары из 1С)</label><div id="noItems"></div></div>
+    <div class="fld"><label>Комментарий</label><input data-no="note"></div>
+  </div>
+  <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="noSave">Создать</button></div>`);
+  bg.querySelector('#noItems').appendChild(ed.node);
+  const q=bg.querySelector('[data-no=client]'), sug=bg.querySelector('#noSug'); let ref=null,qt=null;
+  q.addEventListener('input',()=>{ ref=null; clearTimeout(qt); const v=q.value.trim(); if(v.length<2){sug.style.display='none';return;}
+    qt=setTimeout(async()=>{ const r=await api('/api/1c/contractors?limit=6&q='+encodeURIComponent(v)); if(!r.ok||!(r.data.items||[]).length){sug.style.display='none';return;}
+      sug.innerHTML=r.data.items.map(x=>`<div class="doc-row" data-ref="${esc(x.ref_key)}" data-name="${esc(x.name||'')}" data-phone="${esc(x.phone||'')}"><div><div class="dt">${esc(x.name||'—')}</div><div class="ds">${esc(x.code||'')} · ${esc(x.phone||'')}</div></div></div>`).join(''); sug.style.display='block';
+      sug.querySelectorAll('[data-ref]').forEach(it=>it.onclick=()=>{ref=it.dataset.ref;q.value=it.dataset.name;bg.querySelector('[data-no=phone]').value=it.dataset.phone;sug.style.display='none';}); },300); });
+  bg.querySelector('#noSave').onclick=async()=>{ const name=q.value.trim(); if(!name){toast('Укажите клиента','i-info');return;} if(!ed.getItems().length){toast('Добавьте товары','i-info');return;}
+    const body={client_ref:ref,client_name:name,phone:bg.querySelector('[data-no=phone]').value.trim(),items:ed.getItems(),mgr:bg.querySelector('[data-no=mgr]').value.trim(),note:bg.querySelector('[data-no=note]').value.trim()};
+    const r=await api('/api/orders',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Заказ создан','i-cart'); onSaved&&onSaved(); };
+}
+function orderModalLive(o,onSaved){
+  let init=[]; try{ init=JSON.parse(o.items||'[]'); }catch(e){}
+  const ed=makeItemsEditor(init);
+  const bg=openModal(`<div class="modal-h"><div><h3>Заказ</h3><div class="mh-sub">${esc(o.client_name||'')}${o.ext_id?(' · 1С №'+esc(o.ext_id)):''}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld-row"><div class="fld"><label>Клиент</label><input data-om="client_name" value="${esc(o.client_name||'')}"></div><div class="fld"><label>Телефон</label><input data-om="phone" value="${esc(o.phone||'')}"></div></div>
+    <div class="fld-row"><div class="fld"><label>Статус</label><select data-om="status">${[['new','Новый'],['queued_1c','Очередь 1С'],['synced_1c','В 1С'],['done','Готово'],['cancelled','Отменён']].map(([v,tt])=>`<option value="${v}" ${v===o.status?'selected':''}>${tt}</option>`).join('')}</select></div><div class="fld"><label>Ответственный</label><input data-om="mgr" value="${esc(o.mgr||'')}"></div></div>
+    <div class="fld"><label>Состав заказа</label><div id="omItems"></div></div>
+    <div class="fld"><label>Комментарий</label><input data-om="note" value="${esc(o.note||'')}"></div>
+    ${o.error?`<div class="note amber">${ic('i-info','sm')} Ошибка 1С: ${esc(o.error)}</div>`:''}
+  </div>
+  <div class="modal-f"><button class="btn" id="omDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" id="omSend">${ic('i-sync','sm')} В 1С</button><button class="btn primary" id="omSave">Сохранить</button></div>`);
+  bg.querySelector('#omItems').appendChild(ed.node);
+  const g=s=>bg.querySelector('[data-om='+s+']');
+  const collect=()=>({client_name:g('client_name').value.trim(),phone:g('phone').value.trim(),mgr:g('mgr').value.trim(),note:g('note').value.trim(),items:ed.getItems()});
+  bg.querySelector('#omSave').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{status:g('status').value}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
+  bg.querySelector('#omSend').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{status:'queued_1c'}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Заказ в очереди на запись в 1С','i-sync','#d97706'); onSaved&&onSaved(); };
+  bg.querySelector('#omDel').onclick=async()=>{ if(!confirm('Удалить заказ?'))return; const r=await api('/api/orders/'+o.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
+}
 
 // ---------- CATALOG ----------
 PAGES.catalog=(c)=>{
