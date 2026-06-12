@@ -435,25 +435,39 @@ function projThumb(){return new Promise(res=>{try{const pn=S.pageList[0];const p
 function fmtDate(ts){try{return new Date(ts).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
 function buildProj(){return {_planfakt:1,name:S.data.name||'План',data:S.data,edits:{objects:S.objects,cal:S.cal},settings:{panelH:S.panelH,slack:S.slack,importMode:S.importMode,seq:S.seq}};}
 function downloadProjFile(proj){try{const blob=new Blob([JSON.stringify(proj)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(proj.name||'plan').replace(/[^\wа-яёА-ЯЁ.\- ]/gi,'_')+'_проект.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),8000);}catch(e){toast('Не удалось скачать файл');}}
+/* облачный архив (R2 через воркер) + локальное зеркало (IDB) */
+const ARCH_URL=CONVERT_URL+'/projects';
+async function cloudList(){const r=await fetch(ARCH_URL,{cache:'no-store'});if(!r.ok)throw 0;return r.json();}
+async function cloudSave(rec){const r=await fetch(ARCH_URL+'/'+encodeURIComponent(rec.id),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)});if(!r.ok)throw 0;}
+async function cloudGet(id){const r=await fetch(ARCH_URL+'/'+encodeURIComponent(id),{cache:'no-store'});if(!r.ok)throw 0;return r.json();}
+async function cloudDel(id){const r=await fetch(ARCH_URL+'/'+encodeURIComponent(id),{method:'DELETE'});if(!r.ok)throw 0;}
 async function saveProject(){
   if(!S.data){toast('Нет открытого плана');return;}
   const proj=buildProj();
-  try{
-    if(!S.projId)S.projId='p'+Date.now();
-    const thumb=await projThumb();
-    await archPut({id:S.projId,name:proj.name,date:Date.now(),thumb,proj});
-    toast('Сохранено в архив проектов');
-  }catch(e){console.error(e);toast('Архив недоступен — скачиваю файлом');downloadProjFile(proj);}
+  if(!S.projId)S.projId='p'+Date.now();
+  const thumb=await projThumb();
+  const rec={id:S.projId,name:proj.name,date:Date.now(),thumb,proj};
+  let cloud=false;
+  try{await cloudSave(rec);cloud=true;}catch(e){console.warn('cloud save fail',e);}
+  try{await archPut(rec);}catch(e){console.warn('local save fail',e);}
+  toast(cloud?'Сохранено в облачный архив':'Нет сети — сохранено локально (попадёт в облако позже)');
 }
-async function renderArchive(){const list=$('archList');if(!list)return;let recs=[];
-  try{recs=await archAll();}catch(e){list.innerHTML='<div class="lb-arch-empty">Архив недоступен в этом браузере (приватный режим?).</div>';return;}
-  recs.sort((a,b)=>b.date-a.date);const n=$('archN');if(n)n.textContent=recs.length||'';
-  if(!recs.length){list.innerHTML='<div class="lb-arch-empty">Здесь появятся ваши проекты. Откройте чертёж, поработайте и нажмите <b>«Сохранить»</b> — сможете продолжить позже.</div>';return;}
-  list.innerHTML=recs.map(r=>`<div class="arch-item" data-id="${r.id}"><img src="${r.thumb||''}" alt=""><div class="ai"><div class="an">${esc(r.name||'Проект')}</div><div class="ad">${fmtDate(r.date)}</div></div><button class="adl" title="Скачать файл">⤓</button><button class="adel" title="Удалить из архива">✕</button></div>`).join('');
-  list.querySelectorAll('.arch-item').forEach(el=>{const id=el.dataset.id;
-    el.onclick=async ev=>{if(ev.target.closest('.adel')||ev.target.closest('.adl'))return;const r=await archGet(id);if(r&&r.proj)openProject(r.proj,r.id);};
-    const dl=el.querySelector('.adl');if(dl)dl.onclick=async ev=>{ev.stopPropagation();const r=await archGet(id);if(r)downloadProjFile(r.proj);};
-    const del=el.querySelector('.adel');if(del)del.onclick=async ev=>{ev.stopPropagation();if(confirm('Удалить проект из архива? (файл, если скачан, останется)')){await archDel(id);renderArchive();}};
+async function archGetAny(id,src){let r=null;try{r=src==='cloud'?await cloudGet(id):await archGet(id);}catch(e){}if(!r){try{r=await cloudGet(id);}catch(e){}}if(!r){try{r=await archGet(id);}catch(e){}}return r;}
+async function renderArchive(){const list=$('archList');if(!list)return;
+  let cloud=[],local=[];
+  try{cloud=await cloudList();}catch(e){}
+  try{local=await archAll();}catch(e){}
+  const byId={};
+  local.forEach(r=>byId[r.id]={id:r.id,name:r.name,date:r.date,thumb:r.thumb,src:'local'});
+  cloud.forEach(r=>byId[r.id]={id:r.id,name:r.name,date:r.date,thumb:r.thumb,src:'cloud'});
+  const recs=Object.values(byId).sort((a,b)=>b.date-a.date);
+  const n=$('archN');if(n)n.textContent=recs.length||'';
+  if(!recs.length){list.innerHTML='<div class="lb-arch-empty">Здесь появятся ваши проекты (общие, в облаке). Откройте чертёж, поработайте и нажмите <b>«Сохранить»</b>.</div>';return;}
+  list.innerHTML=recs.map(r=>`<div class="arch-item" data-id="${r.id}" data-src="${r.src}"><img src="${r.thumb||''}" alt=""><div class="ai"><div class="an">${esc(r.name||'Проект')}${r.src==='local'?' <span style="color:var(--amber);font-size:9px;font-weight:700">офлайн</span>':''}</div><div class="ad">${fmtDate(r.date)}</div></div><button class="adl" title="Скачать файл">⤓</button><button class="adel" title="Удалить">✕</button></div>`).join('');
+  list.querySelectorAll('.arch-item').forEach(el=>{const id=el.dataset.id,src=el.dataset.src;
+    el.onclick=async ev=>{if(ev.target.closest('.adel')||ev.target.closest('.adl'))return;const r=await archGetAny(id,src);if(r&&r.proj)openProject(r.proj,r.id);else toast('Не удалось открыть проект');};
+    const dl=el.querySelector('.adl');if(dl)dl.onclick=async ev=>{ev.stopPropagation();const r=await archGetAny(id,src);if(r)downloadProjFile(r.proj);};
+    const del=el.querySelector('.adel');if(del)del.onclick=async ev=>{ev.stopPropagation();if(!confirm('Удалить проект из архива?'))return;try{await cloudDel(id);}catch(e){}try{await archDel(id);}catch(e){}renderArchive();};
   });
 }
 function openProject(j,projId){
