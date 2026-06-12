@@ -21465,73 +21465,110 @@ async function saveWaChannel() {
   }
 }
 
-function openAddUserModal() {
+async function openAddUserModal() {
   document.getElementById('_add-user-modal')?.remove();
+  // Гарантируем загруженную оргструктуру — нужна для выбора отдела приглашения.
+  if (!orgChartState.structure) {
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/org/structure`, { headers: { 'Authorization': 'Bearer ' + idToken } });
+      const data = await r.json();
+      if (data && data.structure) orgChartState.structure = data.structure;
+    } catch (e) { console.warn('[add-user] org structure load failed:', e); }
+  }
+  // Плоский список узлов оргструктуры (приглашение требует путь dept_path).
+  const orgNodeOptions = (() => {
+    const out = [];
+    const s = orgChartState.structure;
+    if (!s) return out;
+    (s.branches || []).forEach((b, bi) => {
+      const bp = `branches.${bi}`;
+      out.push({ path: bp, label: b.name || `Отделение ${bi + 1}`, depth: 0, headUid: b.headUid || null });
+      (b.departments || []).forEach((d, di) => {
+        const dp = `${bp}.departments.${di}`;
+        out.push({ path: dp, label: d.name || 'Отдел', depth: 1, headUid: d.headUid || null });
+        const walk = (subs, pp, depth) => (subs || []).forEach((sub, si) => {
+          const sp = `${pp}.subDepartments.${si}`;
+          out.push({ path: sp, label: sub.name || 'Подотдел', depth, headUid: sub.headUid || null });
+          walk(sub.subDepartments, sp, depth + 1);
+        });
+        walk(d.subDepartments, dp, 2);
+      });
+    });
+    return out;
+  })();
+  const deptOptionsHtml = orgNodeOptions.length
+    ? orgNodeOptions.map(n => `<option value="${escapeHtml(n.path)}">${'   '.repeat(n.depth)}${escapeHtml(n.label)}</option>`).join('')
+    : '';
   const ov = document.createElement('div');
   ov.id = '_add-user-modal';
   ov.className = 'qad-overlay';
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   ov.innerHTML = `
-    <div class="qad-modal" onclick="event.stopPropagation()">
-      <div class="qad-head"><h2>Добавить сотрудника</h2><button class="qad-btn qad-btn-ghost" id="au-close" style="padding:4px 10px">×</button></div>
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:480px;width:96vw">
+      <div class="qad-head"><h2>➕ Добавить сотрудника</h2><button class="qad-btn qad-btn-ghost" id="au-close" style="padding:4px 10px">×</button></div>
       <div class="qad-body">
-        <div><div class="qad-label">Имя *</div><input id="au-name" class="qad-input" placeholder="Например: Ирина"></div>
-        <div><div class="qad-label">Фамилия</div><input id="au-lastName" class="qad-input" placeholder="(необязательно)"></div>
-        <div><div class="qad-label">Email *</div><input id="au-email" class="qad-input" placeholder="ivanova@myelc.net" type="email"></div>
-        <div><div class="qad-label">Должность</div><input id="au-position" class="qad-input" placeholder="(необязательно)"></div>
+        <div style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:10px 14px;margin-bottom:6px;font-size:12px;color:var(--t2);line-height:1.5">
+          Сотруднику придёт <b>WhatsApp со ссылкой регистрации</b>. Он перейдёт по ней → войдёт через свой Google-аккаунт → автоматически окажется в выбранном отделе.
+        </div>
+        <div><div class="qad-label">👤 Имя *</div><input id="au-name" class="qad-input" placeholder="Например: Ирина Петрова" autofocus></div>
+        <div><div class="qad-label">📱 Телефон WhatsApp *</div><input id="au-phone" class="qad-input" type="tel" placeholder="+7 707 123 45 67"></div>
+        ${deptOptionsHtml
+          ? `<div><div class="qad-label">🏢 Отдел *</div><select id="au-dept" class="qad-input">${deptOptionsHtml}</select></div>`
+          : `<div class="dialer-hint" style="color:#dc2626">⚠ Оргструктура не настроена. Сначала добавь отделы в разделе «Структура».</div>`}
         <div>
-          <div class="qad-label">Роль</div>
+          <div class="qad-label">🎭 Роль</div>
           <select id="au-role" class="qad-input">
             <option value="agent" selected>Сотрудник (видит только свои)</option>
             <option value="manager">Менеджер (свой отдел)</option>
             <option value="admin">Админ (видит всё)</option>
           </select>
         </div>
-        <div><div class="qad-label">Отдел</div><input id="au-department" class="qad-input" list="elc-dept-list" placeholder="(необязательно)"></div>
-        <div class="dialer-hint">
-          После создания сотрудник может зайти через Google под этим email
-          — система автоматически свяжет его с записью.
-        </div>
+        <div id="au-status" style="margin-top:6px;font-size:12px"></div>
       </div>
       <div class="qad-foot">
         <button class="qad-btn qad-btn-ghost" id="au-cancel">Отмена</button>
-        <button class="qad-btn qad-btn-primary" id="au-save">Создать</button>
+        <button class="qad-btn qad-btn-primary" id="au-save"${deptOptionsHtml ? '' : ' disabled'}>📨 Отправить приглашение</button>
       </div>
     </div>
   `;
   document.body.appendChild(ov);
   document.getElementById('au-close').onclick = () => ov.remove();
   document.getElementById('au-cancel').onclick = () => ov.remove();
-  document.getElementById('au-save').onclick = async () => {
+  const saveBtn = document.getElementById('au-save');
+  if (saveBtn) saveBtn.onclick = async () => {
     const name = document.getElementById('au-name').value.trim();
-    const email = document.getElementById('au-email').value.trim().toLowerCase();
-    const lastName = document.getElementById('au-lastName').value.trim();
-    const position = document.getElementById('au-position').value.trim();
+    const phone = String(document.getElementById('au-phone').value || '').replace(/\D/g, '');
     const role = document.getElementById('au-role').value;
-    const department = document.getElementById('au-department').value.trim() || null;
-    if (!name || !email) { alert('Имя и email обязательны'); return; }
-    const btn = document.getElementById('au-save');
-    btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
+    const deptSel = document.getElementById('au-dept');
+    const deptPath = deptSel ? deptSel.value : '';
+    const status = document.getElementById('au-status');
+    if (!name) { status.innerHTML = '<span style="color:#dc2626">⚠ Введи имя сотрудника</span>'; return; }
+    if (!phone || phone.length < 10) { status.innerHTML = '<span style="color:#dc2626">⚠ Введи телефон полностью</span>'; return; }
+    if (!deptPath) { status.innerHTML = '<span style="color:#dc2626">⚠ Выбери отдел</span>'; return; }
+    const node = orgGetByPath(deptPath);
+    const headUid = node && node.headUid ? node.headUid : null;
+    saveBtn.disabled = true; saveBtn.textContent = '⏳ Отправляю…';
+    status.innerHTML = '';
     try {
       const idToken = await fbAuth.currentUser.getIdToken();
-      const r = await fetch(`${WORKER_BASE_URL}/api/admin/users`, {
+      const r = await fetch(`${WORKER_BASE_URL}/api/invites`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-        body: JSON.stringify({ name, lastName, email, position, role, department }),
+        body: JSON.stringify({ phone, name, email: '', dept_path: deptPath, head_uid: headUid, role }),
       });
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        throw new Error(j.error || `HTTP ${r.status}`);
-      }
-      ov.remove();
-      // Перерисуем страницу — новый юзер появится
-      const main = document.getElementById('main');
-      if (main) renderUsers(main);
-      showToast?.(`Сотрудник ${name} создан`);
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+      status.innerHTML = `<div style="background:#dcfce7;border:1px solid #16a34a;border-radius:6px;padding:10px 14px;color:#15803d">
+        ✅ Приглашение создано!<br>
+        <div style="font-size:11px;margin-top:6px">${data.waMessageId ? '📨 Отправлено по WhatsApp' : '⚠ ' + (data.waError || 'WhatsApp не сконфигурирован — скопируй ссылку вручную')}</div>
+        <div style="font-size:11px;margin-top:6px;word-break:break-all">🔗 ${escapeHtml(data.inviteUrl || '')}</div>
+        <button onclick="navigator.clipboard.writeText('${data.inviteUrl || ''}');this.textContent='✓ Скопировано'" style="background:none;border:1px solid #16a34a;color:#15803d;padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;margin-top:6px">📋 Копировать ссылку</button>
+      </div>`;
+      saveBtn.textContent = '✓ Готово';
     } catch (e) {
-      alert('Ошибка: ' + e.message);
-      btn.disabled = false;
-      btn.textContent = 'Создать';
+      status.innerHTML = `<span style="color:#dc2626">❌ ${escapeHtml(e.message)}</span>`;
+      saveBtn.disabled = false; saveBtn.textContent = '📨 Отправить приглашение';
     }
   };
 }
