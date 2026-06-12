@@ -19693,12 +19693,28 @@ async function openInviteCreateModal(path) {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
-      status.innerHTML = `<div style="background:#dcfce7;border:1px solid #16a34a;border-radius:6px;padding:10px 14px;color:#15803d">
-        ✅ Приглашение создано!<br>
-        <div style="font-size:11px;margin-top:6px">${data.waMessageId ? '📨 Отправлено по WhatsApp' : '⚠ ' + (data.waError || 'WA не сконфигурирован')}</div>
-        <div style="font-size:11px;margin-top:6px;word-break:break-all">🔗 ${escapeHtml(data.inviteUrl)}</div>
-        <button onclick="navigator.clipboard.writeText('${data.inviteUrl}');this.textContent='✓ Скопировано'" style="background:none;border:1px solid #16a34a;color:#15803d;padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;margin-top:6px">📋 Копировать ссылку</button>
+      // Ссылка доступна всегда (создаётся до WA-отправки) → менеджер может
+      // скопировать или открыть WhatsApp с готовым текстом и отправить сам.
+      const inviteUrl = data.inviteUrl || '';
+      const waText = `Здравствуйте! Приглашаем вас в команду на платформу pllato.kz.\nПерейдите по ссылке и войдите через свой Google-аккаунт:\n${inviteUrl}`;
+      const waMeUrl = `https://wa.me/${phone}?text=${encodeURIComponent(waText)}`;
+      status.innerHTML = `<div style="background:#dcfce7;border:1px solid #16a34a;border-radius:8px;padding:12px 14px;color:#15803d">
+        ✅ <b>Приглашение создано!</b>
+        <div style="font-size:11px;margin-top:6px">${data.waMessageId
+          ? '📨 Автоматически отправлено по WhatsApp'
+          : '⚠ Авто-отправка не сработала — отправь ссылку вручную ↓'}</div>
+        <div style="font-size:11px;margin-top:8px;word-break:break-all;background:var(--bg2,#fff);border:1px solid #bbf7d0;border-radius:6px;padding:6px 8px;color:var(--t1)">🔗 ${escapeHtml(inviteUrl)}</div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button id="inv-copy-link" type="button" style="background:none;border:1px solid #16a34a;color:#15803d;padding:4px 10px;border-radius:5px;font-size:11px;cursor:pointer">📋 Копировать ссылку</button>
+          <a href="${escapeHtml(waMeUrl)}" target="_blank" rel="noopener" style="background:#22c55e;border:1px solid #16a34a;color:#fff;padding:4px 10px;border-radius:5px;font-size:11px;text-decoration:none;display:inline-flex;align-items:center">🟢 Открыть в WhatsApp</a>
+        </div>
       </div>`;
+      const copyBtn = document.getElementById('inv-copy-link');
+      if (copyBtn) copyBtn.onclick = () => {
+        navigator.clipboard.writeText(inviteUrl)
+          .then(() => { copyBtn.textContent = '✓ Скопировано'; })
+          .catch(() => { copyBtn.textContent = '⚠ Скопируй вручную из строки выше'; });
+      };
       btn.textContent = '✓ Готово';
     } catch (e) {
       status.innerHTML = `<span style="color:#dc2626">❌ ${escapeHtml(e.message)}</span>`;
@@ -21559,12 +21575,29 @@ async function openAddUserModal() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
-      status.innerHTML = `<div style="background:#dcfce7;border:1px solid #16a34a;border-radius:6px;padding:10px 14px;color:#15803d">
-        ✅ Приглашение создано!<br>
-        <div style="font-size:11px;margin-top:6px">${data.waMessageId ? '📨 Отправлено по WhatsApp' : '⚠ ' + (data.waError || 'WhatsApp не сконфигурирован — скопируй ссылку вручную')}</div>
-        <div style="font-size:11px;margin-top:6px;word-break:break-all">🔗 ${escapeHtml(data.inviteUrl || '')}</div>
-        <button onclick="navigator.clipboard.writeText('${data.inviteUrl || ''}');this.textContent='✓ Скопировано'" style="background:none;border:1px solid #16a34a;color:#15803d;padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;margin-top:6px">📋 Копировать ссылку</button>
+      // Ссылка-приглашение возвращается ВСЕГДА (создаётся до WA-отправки), поэтому
+      // даже если авто-отправка по WhatsApp сломалась — менеджер копирует ссылку
+      // или открывает WhatsApp с готовым текстом и шлёт сам.
+      const inviteUrl = data.inviteUrl || '';
+      const waText = `Здравствуйте! Приглашаем вас в команду на платформу pllato.kz.\nПерейдите по ссылке и войдите через свой Google-аккаунт:\n${inviteUrl}`;
+      const waMeUrl = `https://wa.me/${phone}?text=${encodeURIComponent(waText)}`;
+      status.innerHTML = `<div style="background:#dcfce7;border:1px solid #16a34a;border-radius:8px;padding:12px 14px;color:#15803d">
+        ✅ <b>Приглашение создано!</b>
+        <div style="font-size:11px;margin-top:6px">${data.waMessageId
+          ? '📨 Автоматически отправлено по WhatsApp'
+          : '⚠ Авто-отправка не сработала — отправь ссылку вручную ↓'}</div>
+        <div style="font-size:11px;margin-top:8px;word-break:break-all;background:var(--bg2,#fff);border:1px solid #bbf7d0;border-radius:6px;padding:6px 8px;color:var(--t1)">🔗 ${escapeHtml(inviteUrl)}</div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button id="au-copy-link" type="button" style="background:none;border:1px solid #16a34a;color:#15803d;padding:4px 10px;border-radius:5px;font-size:11px;cursor:pointer">📋 Копировать ссылку</button>
+          <a href="${escapeHtml(waMeUrl)}" target="_blank" rel="noopener" style="background:#22c55e;border:1px solid #16a34a;color:#fff;padding:4px 10px;border-radius:5px;font-size:11px;text-decoration:none;display:inline-flex;align-items:center">🟢 Открыть в WhatsApp</a>
+        </div>
       </div>`;
+      const copyBtn = document.getElementById('au-copy-link');
+      if (copyBtn) copyBtn.onclick = () => {
+        navigator.clipboard.writeText(inviteUrl)
+          .then(() => { copyBtn.textContent = '✓ Скопировано'; })
+          .catch(() => { copyBtn.textContent = '⚠ Скопируй вручную из строки выше'; });
+      };
       saveBtn.textContent = '✓ Готово';
     } catch (e) {
       status.innerHTML = `<span style="color:#dc2626">❌ ${escapeHtml(e.message)}</span>`;
