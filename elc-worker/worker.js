@@ -5831,12 +5831,27 @@ async function handleInviteCreate(request, env) {
 
   // Отправляем WA
   const inviteUrl = `https://pllato.kz/team.html#invite/${token}`;
+  const portalUrl = `https://pllato.kz/team.html`;
   const inviterName = me.userRecord?.name ? `${me.userRecord.name} ${me.userRecord.last_name || ''}`.trim() : 'Pllato CRM';
   const greet = name ? `👋 Привет, ${name.split(/\s+/)[0]}!` : '👋 Привет!';
-  const loginLine = email
-    ? `Чтобы принять — открой ссылку и войди через Google (${email}):`
-    : `Чтобы принять — открой ссылку и войди через свой Google-аккаунт (он станет твоей рабочей почтой):`;
-  const text = `${greet}\n\n${inviterName} приглашает тебя в команду на платформу pllato.kz\n\n${loginLine}\n\n${inviteUrl}\n\nСсылка действительна 7 дней.`;
+  const loginNote = email
+    ? `войди через свой Google-аккаунт ${email}`
+    : `войди через свой Google-аккаунт (он станет твоей рабочей почтой)`;
+  const text =
+`${greet}
+
+${inviterName} приглашает тебя в команду на платформу pllato.kz 🎉
+
+1️⃣ Открой ссылку-приглашение и ${loginNote}:
+${inviteUrl}
+
+2️⃣ После входа добавь своё фото — и всё, ты в системе, в своём отделе.
+
+📲 Заходить в портал дальше — всегда по этой ссылке (тем же Google-аккаунтом):
+${portalUrl}
+Совет: открой её в браузере телефона и «Добавить на главный экран» — будет как приложение.
+
+⏳ Ссылка-приглашение действует 7 дней.`;
 
   let waMessageId = null;
   let waError = null;
