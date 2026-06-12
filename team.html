@@ -3675,6 +3675,31 @@ function startChannelHealthMonitor() {
   _chHealthTimer = setInterval(pollChannelHealth, 60000);
 }
 
+// Экран для вошедшего, но ещё не привязанного к сотруднику аккаунта — чтобы он
+// видел понятную инструкцию, а не пустой белый экран.
+function renderUnlinkedScreen(user) {
+  const main = document.getElementById('main');
+  if (!main) return;
+  const email = (user && user.email) || '';
+  main.innerHTML = `
+    <div style="max-width:480px;margin:8vh auto 0;padding:0 20px;text-align:center;font-family:var(--ff)">
+      <div style="font-size:46px;margin-bottom:8px">⏳</div>
+      <h2 style="margin:0 0 8px;color:var(--t1)">Аккаунт ещё не активирован</h2>
+      <p style="color:var(--t2);line-height:1.6;font-size:14px;margin:0">
+        Ты вошёл как <b>${escapeHtml(email)}</b>, но этот аккаунт ещё не привязан к сотруднику.
+      </p>
+      <div style="text-align:left;background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:14px 16px;margin:16px 0;color:var(--t2);font-size:14px;line-height:1.7">
+        <b>Что делать:</b><br>
+        1️⃣ Открой <b>ссылку-приглашение из WhatsApp</b> ещё раз и войди по ней — регистрация завершится сама.<br>
+        2️⃣ Или попроси руководителя добавить тебя заново («➕ Добавить сотрудника»).
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button onclick="location.reload()" style="background:var(--ac2);color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer">↻ Я зарегистрировался — обновить</button>
+        <button onclick="signOut()" style="background:none;border:1px solid var(--b1);color:var(--t2);border-radius:8px;padding:10px 16px;font-size:14px;cursor:pointer">Войти другим аккаунтом</button>
+      </div>
+    </div>`;
+}
+
 async function initApp(user) {
   console.log('[initApp] start, uid=', user.uid, 'email=', user.email);
   const profile = {
@@ -3733,6 +3758,15 @@ async function initApp(user) {
     }
   } catch (e) {
     console.error('[initApp] /api/me fetch failed:', e);
+  }
+
+  // Непривязанный аккаунт (вошёл через Google, но ещё не сотрудник) — показываем
+  // понятный экран с инструкцией, а не белую пустоту. Авто‑привязка выше уже
+  // отработала бы, если был токен приглашения.
+  if (window.currentUser && window.currentUser.isLinked === false) {
+    document.getElementById('app')?.classList.add('active');
+    renderUnlinkedScreen(user);
+    return;
   }
 
   // UI sidebar
