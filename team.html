@@ -499,6 +499,19 @@ body {
 /* ── App layout ───────────────────────────────────── */
 .app { display: none; min-height: 100vh; }
 .app.active { display: flex; }
+/* Глобальный баннер «канал связи отвалился» — только админам, сверху, поверх всего */
+#ch-health-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
+  background: #b91c1c; color: #fff;
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: 9px 16px; font-size: 13px; font-weight: 600; line-height: 1.35;
+  box-shadow: 0 2px 10px rgba(0,0,0,.28); flex-wrap: wrap; text-align: center;
+}
+#ch-health-banner button {
+  background: #fff; color: #b91c1c; border: none; border-radius: 6px;
+  padding: 4px 12px; font-weight: 700; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+#ch-health-banner button:hover { background: #fee2e2; }
 .sidebar {
   width: 240px;
   background: var(--bg2);
@@ -3592,6 +3605,54 @@ window.currentUser = null;
 const SCOPE_LS_KEY = 'elc:listScope';   // mine | team | all per-user (persist выбора)
 const LAST_PAGE_LS_KEY = 'elc:lastPage'; // dashboard|contacts|deals|tasks|users|chats|migration
 
+// ── Мониторинг связи каналов — баннер сверху админам ─────────────────────
+// Опрашивает /api/wa/channels/health раз в минуту. Если канал «отвалился»
+// (worker-крон проверяет Green-API getStateInstance) — показывает красную
+// плашку вверху со списком упавших каналов и кнопкой в Настройки. Пуш
+// админам шлёт сам worker на момент обрыва.
+let _chHealthTimer = null;
+function renderChannelHealthBanner(data) {
+  const existing = document.getElementById('ch-health-banner');
+  const app = document.getElementById('app');
+  if (!data || !data.anyDown) {
+    if (existing) existing.remove();
+    document.body.classList.remove('has-ch-banner');
+    if (app) app.style.paddingTop = '';
+    return;
+  }
+  const names = (data.down || []).map(d => d.name).filter(Boolean).join(', ') || 'WhatsApp-канал';
+  let b = existing;
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'ch-health-banner';
+    b.setAttribute('role', 'alert');
+    b.innerHTML = `<span>⚠ <b>Связь потеряна:</b> <span id="ch-health-names"></span> — сообщения не приходят.</span><button id="ch-health-go" type="button">Переподключить →</button>`;
+    document.body.appendChild(b);
+    const go = b.querySelector('#ch-health-go');
+    if (go) go.onclick = () => { try { navigate('settings'); } catch {} };
+  }
+  const nm = b.querySelector('#ch-health-names');
+  if (nm) nm.textContent = names;
+  document.body.classList.add('has-ch-banner');
+  if (app) app.style.paddingTop = b.offsetHeight + 'px';
+}
+async function pollChannelHealth() {
+  try {
+    if (!fbAuth.currentUser) return;
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/channels/health`, { headers: { 'Authorization': `Bearer ${idToken}` } });
+    if (!r.ok) return;
+    const data = await r.json();
+    renderChannelHealthBanner(data);
+  } catch (e) { /* тихо — не мешаем работе при сетевых сбоях */ }
+}
+function startChannelHealthMonitor() {
+  if (window.currentUser?.role !== 'admin') return; // баннер — только админам
+  if (_chHealthTimer) return;                        // уже запущен
+  pollChannelHealth();
+  _chHealthTimer = setInterval(pollChannelHealth, 60000);
+}
+
 async function initApp(user) {
   console.log('[initApp] start, uid=', user.uid, 'email=', user.email);
   const profile = {
@@ -3648,6 +3709,9 @@ async function initApp(user) {
   } catch (e) {
     console.warn('[initApp] sidebar UI fill failed (non-fatal):', e);
   }
+
+  // Мониторинг связи WhatsApp-каналов — баннер сверху админам, если канал отвалился.
+  try { startChannelHealthMonitor(); } catch (e) { console.warn('[initApp] channel monitor failed:', e); }
 
   // Default page — восстанавливаем последнюю открытую (persist в localStorage
   // через navigate). Deep-link в hash (#deal/, #contact/, #task/) приоритетнее.

@@ -3953,6 +3953,170 @@ async function handleWaChannelQr(request, env, channelId) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// МОНИТОРИНГ СВЯЗИ КАНАЛОВ (channel health)
+// Крон раз в минуту опрашивает Green-API getStateInstance у всех активных
+// каналов клиентов (wa_channels) и системного нотификатора (wa_notifier).
+// «Отвалился» = stateInstance ≠ 'authorized' или запрос упал. Чтобы не ловить
+// краткие сбои — ставим down только после CONN_FAIL_THRESHOLD неудач подряд.
+// На переходе up→down шлём web-push всем админам (один раз). Баннер во фронте
+// читает состояние через /api/wa/channels/health (дёшево, из БД).
+// ═══════════════════════════════════════════════════════════════════════════
+const CONN_FAIL_THRESHOLD = 2;
+
+let _channelConnColsEnsured = false;
+async function ensureChannelConnColumns(env) {
+  if (_channelConnColsEnsured) return;
+  const alters = [
+    "ALTER TABLE wa_channels ADD COLUMN conn_state TEXT",
+    "ALTER TABLE wa_channels ADD COLUMN conn_raw TEXT",
+    "ALTER TABLE wa_channels ADD COLUMN conn_checked_at TEXT",
+    "ALTER TABLE wa_channels ADD COLUMN conn_down_since TEXT",
+    "ALTER TABLE wa_channels ADD COLUMN conn_fail_count INTEGER DEFAULT 0",
+    "ALTER TABLE wa_notifier ADD COLUMN conn_state TEXT",
+    "ALTER TABLE wa_notifier ADD COLUMN conn_raw TEXT",
+    "ALTER TABLE wa_notifier ADD COLUMN conn_checked_at TEXT",
+    "ALTER TABLE wa_notifier ADD COLUMN conn_down_since TEXT",
+    "ALTER TABLE wa_notifier ADD COLUMN conn_fail_count INTEGER DEFAULT 0",
+  ];
+  for (const sql of alters) {
+    try { await env.DB.prepare(sql).run(); }
+    catch (e) { if (!/duplicate column|already exists/i.test(String(e?.message || e))) console.warn('[migrate conn]', e?.message || e); }
+  }
+  _channelConnColsEnsured = true;
+}
+
+async function getAdminUids(env) {
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT u.uid FROM user_roles r JOIN users u ON u.uid = r.uid WHERE r.role = 'admin' AND u.active = 1`
+    ).all();
+    return (results || []).map(r => r.uid).filter(Boolean);
+  } catch { return []; }
+}
+
+// Опрос состояния одного Green-API инстанса. Возвращает {up, raw}.
+async function probeGreenApiState(apiUrl, idInstance, apiToken) {
+  const base = apiUrl || 'https://api.green-api.com';
+  try {
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 10000);
+    let r;
+    try {
+      r = await fetch(`${base}/waInstance${idInstance}/getStateInstance/${apiToken}`, { signal: ctrl.signal });
+    } finally { clearTimeout(to); }
+    if (!r.ok) return { up: false, raw: `http_${r.status}` };
+    const data = await r.json().catch(() => ({}));
+    const state = String(data.stateInstance || data.state || '').trim();
+    return { up: state === 'authorized', raw: state || 'unknown' };
+  } catch (e) {
+    return { up: false, raw: 'fetch_error' };
+  }
+}
+
+async function checkChannelsHealth(env, ctx) {
+  await ensureChannelConnColumns(env);
+  const nowIso = new Date().toISOString();
+  const newlyDown = [];
+  const recovered = [];
+
+  // 1) Клиентские каналы
+  let channels = [];
+  try {
+    const { results } = await env.DB.prepare(
+      "SELECT id, display_name, id_instance, api_url, api_token_instance, conn_state, conn_fail_count, conn_down_since FROM wa_channels WHERE active = 1"
+    ).all();
+    channels = results || [];
+  } catch { channels = []; }
+
+  for (const ch of channels) {
+    if (!ch.id_instance || !ch.api_token_instance) continue;
+    const probe = await probeGreenApiState(ch.api_url, ch.id_instance, ch.api_token_instance);
+    const prevFail = ch.conn_fail_count || 0;
+    const prevDown = ch.conn_state === 'down';
+    const fail = probe.up ? 0 : prevFail + 1;
+    const down = fail >= CONN_FAIL_THRESHOLD;
+    const downSince = down ? (prevDown ? ch.conn_down_since : nowIso) : null;
+    await env.DB.prepare(
+      "UPDATE wa_channels SET conn_state = ?, conn_raw = ?, conn_checked_at = ?, conn_fail_count = ?, conn_down_since = ? WHERE id = ?"
+    ).bind(down ? 'down' : 'up', probe.raw, nowIso, fail, downSince, ch.id).run();
+    if (down && !prevDown) newlyDown.push(ch.display_name || ch.id_instance);
+    if (!down && prevDown) recovered.push(ch.display_name || ch.id_instance);
+  }
+
+  // 2) Системный нотификатор (синглтон id=1)
+  let notif = null;
+  try {
+    notif = await env.DB.prepare(
+      "SELECT id_instance, api_url, api_token_instance, active, display_name, conn_state, conn_fail_count, conn_down_since FROM wa_notifier WHERE id = 1"
+    ).first();
+  } catch {}
+  if (notif && notif.active && notif.id_instance && notif.api_token_instance) {
+    const probe = await probeGreenApiState(notif.api_url, notif.id_instance, notif.api_token_instance);
+    const prevFail = notif.conn_fail_count || 0;
+    const prevDown = notif.conn_state === 'down';
+    const fail = probe.up ? 0 : prevFail + 1;
+    const down = fail >= CONN_FAIL_THRESHOLD;
+    const downSince = down ? (prevDown ? notif.conn_down_since : nowIso) : null;
+    await env.DB.prepare(
+      "UPDATE wa_notifier SET conn_state = ?, conn_raw = ?, conn_checked_at = ?, conn_fail_count = ?, conn_down_since = ? WHERE id = 1"
+    ).bind(down ? 'down' : 'up', probe.raw, nowIso, fail, downSince).run();
+    if (down && !prevDown) newlyDown.push((notif.display_name || 'Системный нотификатор') + ' (системный)');
+    if (!down && prevDown) recovered.push(notif.display_name || 'Системный нотификатор');
+  }
+
+  // 3) Пуш админам — только на переход в down (один раз на событие)
+  if (newlyDown.length) {
+    const admins = await getAdminUids(env);
+    const names = newlyDown.join(', ');
+    const payload = {
+      title: '⚠ WhatsApp-канал отключён',
+      body: `Канал «${names}» потерял связь — сообщения не приходят. Откройте Настройки → каналы и переподключите.`,
+      url: '/team.html',
+      tag: 'channel-down',
+    };
+    for (const uid of admins) {
+      const job = pushToUserDevices(env, uid, payload);
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(job); else await job;
+    }
+  }
+  return { checked: channels.length + (notif && notif.active ? 1 : 0), newlyDown: newlyDown.length, recovered: recovered.length };
+}
+
+// GET /api/wa/channels/health — состояние связи каналов (из БД, без живых
+// запросов к Green-API). Источник для баннера во фронте.
+async function handleWaChannelsHealth(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureChannelConnColumns(env);
+  let channels = [];
+  try {
+    const { results } = await env.DB.prepare(
+      "SELECT id, display_name, conn_state, conn_raw, conn_checked_at, conn_down_since FROM wa_channels WHERE active = 1"
+    ).all();
+    channels = (results || []).map(c => ({
+      id: c.id, name: c.display_name || c.id,
+      state: c.conn_state || 'unknown', raw: c.conn_raw || null,
+      down: c.conn_state === 'down', downSince: c.conn_down_since || null,
+      checkedAt: c.conn_checked_at || null,
+    }));
+  } catch {}
+  let notifier = null;
+  try {
+    const n = await env.DB.prepare(
+      "SELECT display_name, active, conn_state, conn_raw, conn_down_since, conn_checked_at FROM wa_notifier WHERE id = 1"
+    ).first();
+    if (n && n.active) notifier = {
+      name: n.display_name || 'Системный нотификатор',
+      state: n.conn_state || 'unknown', down: n.conn_state === 'down',
+      downSince: n.conn_down_since || null, checkedAt: n.conn_checked_at || null,
+    };
+  } catch {}
+  const down = channels.filter(c => c.down);
+  if (notifier && notifier.down) down.push({ id: 'notifier', name: notifier.name, down: true, downSince: notifier.downSince });
+  return json({ ok: true, anyDown: down.length > 0, down, channels, notifier }, 200, request);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // СИСТЕМНЫЙ WHATSAPP-ОПОВЕЩАТЕЛЬ (portal notifier)
 // Отдельный Green-API инстанс, который рассылает сотрудникам в ЛИЧНЫЙ WhatsApp
 // (users.phone) системные события портала: сообщения в чатах, звонки, задачи,
@@ -6909,6 +7073,10 @@ export default {
     if (path === "/api/wa/channels" && request.method === "GET") {
       return handleWaListChannels(request, env);
     }
+    // Состояние связи каналов (для баннера). До :id-роутов — точный путь.
+    if (path === "/api/wa/channels/health" && request.method === "GET") {
+      return handleWaChannelsHealth(request, env);
+    }
     if (path === "/api/wa/channels" && request.method === "POST") {
       return handleWaCreateChannel(request, env);
     }
@@ -7040,6 +7208,14 @@ export default {
         if (rem.reminded > 0) console.log(`[cron] deed_reminders sent=${rem.reminded}`);
       } catch (e) {
         console.error("[cron] produceDeedReminders failed:", e.message);
+      }
+      try {
+        const h = await checkChannelsHealth(env, ctx);
+        if (h.newlyDown > 0 || h.recovered > 0) {
+          console.log(`[cron] channel_health newlyDown=${h.newlyDown} recovered=${h.recovered} checked=${h.checked}`);
+        }
+      } catch (e) {
+        console.error("[cron] checkChannelsHealth failed:", e.message);
       }
     })());
   },
