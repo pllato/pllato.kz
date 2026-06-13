@@ -3331,6 +3331,20 @@ const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
     return head + '.json';
   }
 
+  // Справочники, где пустой ответ {} — всегда ошибка/транзиент (воронки,
+  // сотрудники, схема полей всегда непусты). Их пустые ответы НЕ кэшируем и
+  // НЕ отдаём из кэша, иначе пустой результат залипает на 24ч TTL → «нет
+  // воронок»/«нет сотрудников» у юзера, пока кэш не истечёт.
+  function isConfigCollection(path) {
+    const head = (path || '').split('/')[0];
+    return head === 'pipelines' || head === 'users' || head === 'customFieldsSchema';
+  }
+  function isEmptyJsonBody(body) {
+    if (!body) return true;
+    const s = body.replace(/\s+/g, '');
+    return s === '' || s === '{}' || s === '[]' || s === 'null';
+  }
+
   // Бампать при изменении формата ответа или после исправления corruption-багов.
   // Старые записи с другим префиксом останутся в IDB неиспользуемыми и истекут по TTL.
   // v2: после фикса resp.clone() race в Phase 2.2 (corrupted bodies of contacts/tasks)
@@ -3338,7 +3352,9 @@ const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
   // v4: после фикса cache-key — buildCacheKey не учитывал ?shallow=true и
   //     `fetchShallowKeys('users')` затирал нормальный users.json shallow-форматом
   //     {uid: true}. renderDeals → localeCompare(undefined) → TypeError.
-  const CACHE_VERSION = 'v5';
+  // v6: не кэшируем пустые справочники (pipelines/users/schema) + бамп сбрасывает
+  //     все старые залипшие пустые записи у всех клиентов разом.
+  const CACHE_VERSION = 'v6';
 
   // ВАЖНО: query-параметры (shallow/orderBy/limitToLast) дают разные ответы
   // и должны храниться в кеше под разными ключами. auth/_v выкидываем —
@@ -3389,8 +3405,10 @@ const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
           (body[0] === '{' && body[body.length - 1] === '}') ||
           (body[0] === '[' && body[body.length - 1] === ']')
         );
-        if (!isValid) {
-          console.warn('[idb-cache] corrupt entry purged', parsed.path, body ? body.length + 'B' : 'empty');
+        // Пустой справочник в кэше — всегда транзиент, не отдаём (идём в сеть).
+        const emptyConfig = isConfigCollection(parsed.path) && isEmptyJsonBody(body);
+        if (!isValid || emptyConfig) {
+          console.warn('[idb-cache]', emptyConfig ? 'empty config purged' : 'corrupt entry purged', parsed.path, body ? body.length + 'B' : 'empty');
           idbDelByPrefix(cacheKey).catch(() => {});
           // fall through to network
         } else {
@@ -3421,10 +3439,15 @@ const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
       console.warn('[idb-cache] body read fail', e);
       throw e; // resp уже частично consumed — нечего вернуть, пусть фронт увидит ошибку
     }
-    idbSet(cacheKey, { body, fetchedAt: Date.now() })
-      .catch(e => console.warn('[idb-cache] write fail', e));
-    const ms = Math.round(performance.now() - t0);
-    console.log('[idb-cache] stored', parsed.path, ms + 'ms', body.length + 'B');
+    // Не кэшируем пустой справочник — иначе транзиентный {} залипнет на 24ч.
+    if (isConfigCollection(parsed.path) && isEmptyJsonBody(body)) {
+      console.warn('[idb-cache] skip caching empty config', parsed.path);
+    } else {
+      idbSet(cacheKey, { body, fetchedAt: Date.now() })
+        .catch(e => console.warn('[idb-cache] write fail', e));
+      const ms = Math.round(performance.now() - t0);
+      console.log('[idb-cache] stored', parsed.path, ms + 'ms', body.length + 'B');
+    }
     return new Response(body, {
       status: 200,
       headers: { 'Content-Type': 'application/json; charset=utf-8', 'X-Elc-Cache': 'fresh' },
