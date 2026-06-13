@@ -425,10 +425,12 @@ function newDeal(){openModal(`<div class="modal-h"><div><h3>Новая сдел�
   <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" onclick="closeModal();toast('Сделка создана в этапе «Заявка»')">Создать</button></div>`);}
 
 // ---------- CLIENTS ----------
-PAGES.clients=(c)=>{
+PAGES.clients=async(c)=>{
+  const clStores=await fetchStores();
   const tbar=el(`<div class="toolbar">
     <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по ФИО, телефону, коду, ИНН…" data-cl="q"></div>
     <select class="sel" data-cl="seg"><option value="">Все сегменты</option><option value="b2c">B2C · розница</option><option value="b2b">B2B · опт</option><option value="doctor">Врачи-партнёры</option><option value="supplier">Поставщики</option></select>
+    ${storeSelectHtml(clStores,'','class="sel" data-cl="store" title="Покупали в точке"','Покупали: все точки')}
     <div class="spacer"></div>
     <span class="ph-sub" data-cl="cnt"></span>
   </div>`);
@@ -470,8 +472,8 @@ PAGES.clients=(c)=>{
     pgPrev.disabled=offset<=0; pgNext.disabled=offset+PAGE>=total;
   }
   async function load(){
-    const q=qInput.value.trim(), seg=segSel.value;
-    const r=await api('/api/1c/contractors?limit='+PAGE+'&offset='+offset+(seg?('&segment='+seg):'')+(q?('&q='+encodeURIComponent(q)):''));
+    const q=qInput.value.trim(), seg=segSel.value, sv=tbar.querySelector('[data-cl=store]').value;
+    const r=await api('/api/1c/contractors?limit='+PAGE+'&offset='+offset+(seg?('&segment='+seg):'')+(q?('&q='+encodeURIComponent(q)):'')+(sv?('&store='+encodeURIComponent(sv)):''));
     if(!r.ok){
       cnt.textContent = r.status===401?'демо · войдите' : r.status===403?'демо · нужен доступ' : 'демо · нет связи';
       tb.innerHTML=''; DB.clients.forEach(cl=>{ const tr=el(`<tr class="clickable">${rowDemo(cl)}</tr>`); tr.onclick=()=>clientModal(cl); tb.appendChild(tr); });
@@ -487,6 +489,7 @@ PAGES.clients=(c)=>{
   let qt=null;
   qInput.addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(()=>{offset=0;load();},300);});
   segSel.onchange=()=>{offset=0;load();};
+  tbar.querySelector('[data-cl=store]').onchange=()=>{offset=0;load();};
   pgPrev.onclick=()=>{ if(offset>0){offset=Math.max(0,offset-PAGE);load();$('#content').scrollTop=0;} };
   pgNext.onclick=()=>{ if(offset+PAGE<total){offset+=PAGE;load();$('#content').scrollTop=0;} };
   load(); loadSegments();
