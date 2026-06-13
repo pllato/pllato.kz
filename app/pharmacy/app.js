@@ -2166,8 +2166,6 @@ PAGES.integrations=(c)=>{
     ['1С','Listki EG (Кыргызстан)','#16a34a','1С','Остатки 4 000 SKU · заказы · накладные','Синхронизирован 1 мин назад','green'],
     ['WhatsApp','GreenAPI · 5 каналов','#25d366','W','$50/мес · безлимит сообщений','5 каналов активны','green'],
     ['Instagram','Meta Business API','#e1306c','IG','Direct · webhook','2 аккаунта подключены','green'],
-    ['WordPress','Reliney + Dental Pharmacy','#d97706','WP','Формы → webhook → лиды','2 сайта · UTM активны','green'],
-    ['AI / LLM','Anthropic Claude','#2563eb','AI','Ночные консультации','Режим обкатки','amber'],
   ];
   const grid=el(`<div class="grid-2 section-gap" style="margin-top:0"></div>`);
   intgs.forEach(g=>{
