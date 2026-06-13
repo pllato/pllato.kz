@@ -189,6 +189,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
     <button class="tool" data-tool="line" title="Новая линия (кабель)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18l5-9 4 5 7-9"/><circle cx="4" cy="18" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="13" cy="14" r="1.6"/><circle cx="20" cy="5" r="1.6"/></svg>Линия</button>
     <button class="tool" data-tool="sym" title="Каталог знаков"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Знаки</button>
     <button class="tool" data-tool="promo" title="Из фона: тап по чёрной линии/рамке/выноске — станет объектом"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h7v7H3zM14 3l7 7-4 4-7-7zM3 14h7v7H3z"/><path d="M14 17l3 3"/></svg>Из фона</button>
+    <button class="tool" data-tool="field" title="Значение в таблицу: ставь над ячейкой «кол-во» — авто или вручную"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M9 4v16M9 14h12"/></svg>Значение</button>
     <button class="tool" data-tool="text" title="Подпись"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 6h14M12 6v13M9 19h6"/></svg>Текст</button>
   </nav>
   <div class="cwrap" id="cwrap">
@@ -619,6 +620,8 @@ function renderObj(o){
     el=document.createElementNS(SVGNS,'rect');el.setAttribute('x',o.x);el.setAttribute('y',o.y);el.setAttribute('width',o.w);el.setAttribute('height',o.h);el.setAttribute('fill','transparent');el.setAttribute('stroke',o.color);el.setAttribute('stroke-width',o.width);el.style.cursor='move';
   }else if(o.type==='text'){
     el=document.createElementNS(SVGNS,'text');el.setAttribute('x',o.x);el.setAttribute('y',o.y);el.setAttribute('fill',o.color);el.setAttribute('font-size',o.size);el.setAttribute('font-family','Inter,sans-serif');el.setAttribute('font-weight','600');el.textContent=o.text;el.style.cursor='move';
+  }else if(o.type==='field'){
+    el=document.createElementNS(SVGNS,'text');el.setAttribute('x',o.x);el.setAttribute('y',o.y);el.setAttribute('fill',o.color||'#10151c');el.setAttribute('font-size',o.size);el.setAttribute('font-family','Inter,sans-serif');el.setAttribute('font-weight','600');el.textContent=fieldValue(o,calcPage(S.pageNum));el.style.cursor='move';
   }
   el.dataset.id=o.id;bindObj(el,o);return el;
 }
@@ -669,7 +672,7 @@ function bindObj(el,o){
 function live(o){const el=gObj.querySelector(`[data-id="${o.id}"]`);if(!el)return;
   if(o.type==='line'||o.type==='symbol'){redrawOne(o);}
   else if(o.type==='rect'){el.setAttribute('x',o.x);el.setAttribute('y',o.y);el.setAttribute('width',o.w);el.setAttribute('height',o.h);}
-  else if(o.type==='text'){el.setAttribute('x',o.x);el.setAttribute('y',o.y);}
+  else if(o.type==='text'||o.type==='field'){el.setAttribute('x',o.x);el.setAttribute('y',o.y);}
   drawSelUI();
 }
 function redrawOne(o){const old=gObj.querySelector(`[data-id="${o.id}"]`);const ne=renderObj(o);if(old)old.replaceWith(ne);}
@@ -687,7 +690,7 @@ function deleteNode(o,i){
 }
 
 /* ---- selection UI ---- */
-function bbox(o){if(o.type==='line'){const xs=o.pts.map(p=>p.x),ys=o.pts.map(p=>p.y);return{x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)};}if(o.type==='rect')return{x:o.x,y:o.y,w:o.w,h:o.h};if(o.type==='symbol'){const hf=o.size*0.66;return{x:o.x-hf,y:o.y-hf,w:hf*2,h:hf*2};}return{x:o.x,y:o.y-o.size,w:(o.text.length*o.size*0.55)||20,h:o.size*1.2};}
+function bbox(o){if(o.type==='line'){const xs=o.pts.map(p=>p.x),ys=o.pts.map(p=>p.y);return{x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)};}if(o.type==='rect')return{x:o.x,y:o.y,w:o.w,h:o.h};if(o.type==='symbol'){const hf=o.size*0.66;return{x:o.x-hf,y:o.y-hf,w:hf*2,h:hf*2};}if(o.type==='field'){const v=fieldValue(o,calcPage(S.pageNum));return{x:o.x,y:o.y-o.size,w:(v.length*o.size*0.6)||30,h:o.size*1.2};}return{x:o.x,y:o.y-o.size,w:((o.text||'').length*o.size*0.55)||20,h:o.size*1.2};}
 function drawSelUI(){gUI.innerHTML='';drawCalUI();if(!S.selected){S.cluster=[];return;}const o=getObj(S.selected);if(!o)return;const k=1/S.scale;
   const cl=(S.cluster&&S.cluster.length?S.cluster:[S.selected]).filter(id=>getObj(id));
   const rigid=o.grp!=null;
@@ -744,6 +747,21 @@ function renderOpt(){const bar=$('optbar');let h='';
          +`<div class="grp"><span class="lbl">Размер</span><input type="range" id="syS" min="14" max="140" value="${Math.round(o.size)}"></div>`
          +`<div class="grp"><span class="lbl">Поворот</span><input type="number" id="syR" value="${Math.round(o.rot||0)}" style="width:64px"> °</div>`
          +`<div class="grp"><button class="mini" id="dupBtn">⧉ Дубль</button><button class="mini danger" id="delBtn">Удалить</button></div>`;
+      }else if(o&&o.type==='field'){
+        const lk=o.link||{t:'mark',k:CATS[0].k};
+        h=`<div class="grp"><span class="lbl">Значение</span><select id="flT">`
+         +`<option value="mark" ${lk.t==='mark'?'selected':''}>марка кабеля</option>`
+         +`<option value="extra" ${lk.t==='extra'?'selected':''}>доп. позиция (труба)</option>`
+         +`<option value="total" ${lk.t==='total'?'selected':''}>итого кабель</option>`
+         +`<option value="count" ${lk.t==='count'?'selected':''}>счётчик</option>`
+         +`<option value="manual" ${lk.t==='manual'?'selected':''}>вручную</option></select>`;
+        if(lk.t==='mark')h+=`<select id="flK">${CATS.map(c=>`<option value="${c.k}" ${lk.k===c.k?'selected':''}>${c.n}</option>`).join('')}</select>`;
+        else if(lk.t==='extra')h+=`<select id="flI">${S.extraPos.length?S.extraPos.map((p,i)=>`<option value="${i}" ${lk.i===i?'selected':''}>${esc(p.name||('Поз '+(i+1)))}</option>`).join(''):'<option value="0">нет позиций</option>'}</select>`;
+        else if(lk.t==='count')h+=`<select id="flC">${[['socket','розетки'],['switch','выключ.'],['light','свет']].map(c=>`<option value="${c[0]}" ${lk.k===c[0]?'selected':''}>${c[1]}</option>`).join('')}</select>`;
+        else if(lk.t==='manual')h+=`<input id="flM" value="${esc(o.text||'')}" placeholder="текст/число" style="width:90px;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:4px 6px">`;
+        h+=`</div><div class="grp"><span class="lbl">Кегль</span><input type="range" id="fdS" min="10" max="64" value="${Math.round(o.size)}"></div>`
+         +`<div class="grp"><button class="mini" id="dupBtn">⧉</button><button class="mini danger" id="delBtn">Удалить</button></div>`
+         +`<span class="tip">Покажет «<b>${esc(fieldValue(o,calcPage(S.pageNum)))}</b>» (${fieldLabel(o)}). Ставь над ячейкой «кол-во» в таблице.</span>`;
       }else{
         h=`<div class="grp"><span class="lbl">Цвет</span>${COLORS_LEGACY.map(c=>swt(c,o&&o.color)).join('')}</div><div class="grp"><button class="mini" id="dupBtn">⧉ Дубль</button><button class="mini danger" id="delBtn">Удалить</button></div>`;
       }
@@ -752,6 +770,7 @@ function renderOpt(){const bar=$('optbar');let h='';
   else if(S.tool==='erase')h=`<span class="tip"><b>Ластик.</b> Тапайте лишние объекты — удаляются сразу. Удобно чистить дробные фрагменты из чертежа.</span>`;
   else if(S.tool==='sym')h=`<span class="tip"><b>Каталог знаков.</b> Выберите знак справа и тапайте по плану. Знак — единый объект (двигать/вращать/масштабировать/удалять целиком).</span>`;
   else if(S.tool==='promo')h=`<span class="tip"><b>Из фона.</b> Тапните по чёрной линии/рамке/выноске на чертеже — она станет редактируемым объектом (можно двигать/удалять). Так оживляем нецветные элементы по требованию, не нагружая планшет.</span>`;
+  else if(S.tool==='field')h=`<span class="tip"><b>Значение в таблицу.</b> Тапните над ячейкой «кол-во» в таблице чертежа — появится число. Выделив, выберите, что показывать: марку кабеля / доп.позицию / итог / счётчик (авто из расчёта) или впишите вручную. На экспорте число встанет в таблицу.</span>`;
   else if(S.tool==='pan')h=`<span class="tip">Двигайте холст, щипок/колесо — масштаб.</span>`;
   else if(S.tool==='cal'){const c=S.cal[S.pageNum];h=`<span class="tip"><b>Калибровка масштаба.</b> Кликните две точки вдоль известного размера на плане (например стену), затем введите длину в метрах.</span>`+(c?`<span class="grp" style="font-family:var(--mono);font-size:11px;color:var(--green)">✓ 1 м = ${(1/c).toFixed(0)} px</span>`:'');}
   else if(S.tool==='line')h=`<div class="grp"><span class="lbl">Марка</span>${CATS.map(c=>catBtn(c,S.cat)).join('')}</div>`
@@ -777,6 +796,12 @@ function bindBar(){
   const fsr=$('fsr');if(fsr)fsr.oninput=()=>{S.fontSize=+fsr.value;$('fsv').textContent=fsr.value;};
   const syS=$('syS');if(syS)syS.oninput=()=>{const o=getObj(S.selected);if(o&&o.type==='symbol'){o.size=+syS.value;redrawOne(o);drawSelUI();}};
   const syR=$('syR');if(syR)syR.onchange=()=>{const o=getObj(S.selected);if(o&&o.type==='symbol'){pushHistory();o.rot=+syR.value||0;redrawOne(o);drawSelUI();}};
+  const flT=$('flT');if(flT)flT.onchange=()=>{const o=getObj(S.selected);if(!o)return;pushHistory();const t=flT.value;o.link=t==='mark'?{t:'mark',k:S.cat||CATS[0].k}:t==='extra'?{t:'extra',i:0}:t==='count'?{t:'count',k:'socket'}:t==='total'?{t:'total'}:{t:'manual'};redrawOne(o);renderOpt();};
+  const flK=$('flK');if(flK)flK.onchange=()=>{const o=getObj(S.selected);if(o){pushHistory();o.link={t:'mark',k:flK.value};redrawOne(o);renderOpt();}};
+  const flI=$('flI');if(flI)flI.onchange=()=>{const o=getObj(S.selected);if(o){pushHistory();o.link={t:'extra',i:+flI.value};redrawOne(o);renderOpt();}};
+  const flC=$('flC');if(flC)flC.onchange=()=>{const o=getObj(S.selected);if(o){pushHistory();o.link={t:'count',k:flC.value};redrawOne(o);renderOpt();}};
+  const flM=$('flM');if(flM)flM.onchange=()=>{const o=getObj(S.selected);if(o){o.text=flM.value;redrawOne(o);renderOpt();}};
+  const fdS=$('fdS');if(fdS)fdS.oninput=()=>{const o=getObj(S.selected);if(o){o.size=+fdS.value;redrawOne(o);drawSelUI();}};
   const pb=$('penBtn');if(pb)pb.onclick=()=>{S.penMode=!S.penMode;cancelDraft();renderOpt();toast(S.penMode?'Карандаш включён — веди линию':'Режим клика');};
   const fb=$('finLine');if(fb)fb.onclick=finishLine;
   const db=$('dupBtn');if(db)db.onclick=dup;
@@ -800,6 +825,7 @@ vp.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,e);if(ptrs.size===2){
   else if(S.tool==='sym'){if(S.armSym)placeSymbol(p);else toast('Выберите знак в каталоге справа');}
   else if(S.tool==='line'){if(S.penMode){startPenDraw(p);}else{if(!S.draft)S.draft={pts:[{x:p.x,y:p.y},{x:p.x,y:p.y}]};else S.draft.pts.push({x:p.x,y:p.y});drawDraft();}}
   else if(S.tool==='text'){const t=prompt('Текст подписи:');if(t){pushHistory();const o=addObj({type:'text',x:p.x,y:p.y,text:t,color:S.textColor,size:S.fontSize,src:'mine'});redrawAll();selectObj(o.id);setTool('select');}}
+  else if(S.tool==='field'){pushHistory();const o=addObj({type:'field',x:p.x,y:p.y,link:{t:'mark',k:S.cat},size:S.fontSize,color:'#10151c',text:'',src:'mine'});redrawAll();selectObj(o.id);setTool('select');}
 });
 vp.addEventListener('pointermove',e=>{if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,e);if(pinching&&ptrs.size>=2){doPinch();return;}
   if(panning){const dx=e.clientX-lastX,dy=e.clientY-lastY;moved+=Math.abs(dx)+Math.abs(dy);S.pan.x+=dx;S.pan.y+=dy;lastX=e.clientX;lastY=e.clientY;applyTransform();return;}
@@ -871,7 +897,7 @@ function renderObjList(){const body=$('sideBody');const list=cur()||[];$('objN')
   body.innerHTML=html;
   body.querySelectorAll('.filterbar button').forEach(b=>b.onclick=()=>{S.filter=b.dataset.f;redrawAll();renderSide();});
   body.querySelectorAll('.objrow').forEach(r=>{r.onclick=ev=>{if(ev.target.closest('.del'))return;setTool('select');selectObj(r.dataset.id);center(r.dataset.id);};const d=r.querySelector('.del');if(d)d.onclick=ev=>{ev.stopPropagation();pushHistory();delObj(r.dataset.id);if(S.selected===r.dataset.id)S.selected=null;redrawAll();renderSide();};});}
-function row(o){const sel=o.id===S.selected?'sel':'';let t1,t2,col=o.color;if(o.type==='line'){t1=catN(o.cat)+(o.src==='pdf'?' · чертёж':'');const ends=[o.ea,o.eb].filter(e=>e&&e.kind!=='free').map(e=>kindN(e.kind)).join(', ');t2=o.pts.length+' тчк'+(ends?' · '+ends:'');}else if(o.type==='symbol'){t1=symDef(o.sym).n;t2='знак'+(o.rot?' · '+Math.round(o.rot)+'°':'');}else if(o.type==='rect'){t1='Область';t2=Math.round(o.w)+'×'+Math.round(o.h);}else{t1='Подпись';t2=o.text.slice(0,18);}return `<div class="objrow ${sel}" data-id="${o.id}"><div class="sw" style="background:${col}"></div><div class="info"><div class="t1">${t1}</div><div class="t2">${esc(t2)}</div></div><button class="del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>`;}
+function row(o){const sel=o.id===S.selected?'sel':'';let t1,t2,col=o.color;if(o.type==='line'){t1=catN(o.cat)+(o.src==='pdf'?' · чертёж':'');const ends=[o.ea,o.eb].filter(e=>e&&e.kind!=='free').map(e=>kindN(e.kind)).join(', ');t2=o.pts.length+' тчк'+(ends?' · '+ends:'');}else if(o.type==='symbol'){t1=symDef(o.sym).n;t2='знак'+(o.rot?' · '+Math.round(o.rot)+'°':'');}else if(o.type==='rect'){t1='Область';t2=Math.round(o.w)+'×'+Math.round(o.h);}else if(o.type==='field'){t1='Значение: '+fieldValue(o,calcPage(S.pageNum));t2=fieldLabel(o);col='#10151c';}else{t1='Подпись';t2=(o.text||'').slice(0,18);}return `<div class="objrow ${sel}" data-id="${o.id}"><div class="sw" style="background:${col}"></div><div class="info"><div class="t1">${esc(t1)}</div><div class="t2">${esc(t2)}</div></div><button class="del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>`;}
 function center(id){const o=getObj(id);if(!o)return;const b=bbox(o);const w=$('cwrap');S.scale=Math.max(S.scale,S.fitScale*2.2);S.pan.x=w.clientWidth/2-(b.x+b.w/2)*S.scale;S.pan.y=w.clientHeight/2-(b.y+b.h/2)*S.scale;applyTransform();}
 
 /* ---- расчёт длины кабеля и счётчики ---- */
@@ -891,6 +917,15 @@ function calcPage(pn){const objs=S.objects[pn]||[];const mpp=S.cal[pn];const cat
   let raw=0;Object.values(cats).forEach(c=>raw+=c.len);
   return{cats,cnt,mpp,raw,total:raw*(1+S.slack/100)};}
 function extraLen(p,r){if(!p)return null;if(p.mode==='fixed')return Math.max(0,p.meters||0);if(!r||!r.mpp)return null;const c=r.cats[p.markKey];return c?c.len*(p.coeff!=null?p.coeff:0.9):0;}
+/* поле-значение для таблицы на чертеже: авто из расчёта или вручную */
+function fieldValue(o,r){const lk=o.link;const num=v=>v!=null?String(Math.round(v)):'—';
+  if(!lk||lk.t==='manual')return o.text||'';
+  if(lk.t==='mark'){const c=r&&r.cats[lk.k];return (c&&r.mpp)?num(c.len):'—';}
+  if(lk.t==='extra')return num(extraLen(S.extraPos[lk.i],r));
+  if(lk.t==='total')return (r&&r.mpp)?num(r.total):'—';
+  if(lk.t==='count')return r?String(r.cnt[lk.k]||0):'0';
+  return o.text||'';}
+function fieldLabel(o){const lk=o.link;if(!lk||lk.t==='manual')return 'вручную';if(lk.t==='mark')return catN(lk.k);if(lk.t==='extra'){const p=S.extraPos[lk.i];return p?(p.name||'доп.'):'доп.';}if(lk.t==='total')return 'итого';if(lk.t==='count')return ({socket:'розетки',switch:'выключ.',light:'свет'}[lk.k]||'счёт');return '';}
 function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPage(pn);
   let html='<div class="calc">';
   html+='<h5>Параметры</h5>';
@@ -989,11 +1024,13 @@ $('btnExport').onclick=async()=>{
     const c=document.createElement('canvas');c.width=W;c.height=H;const cc=c.getContext('2d');
     cc.fillStyle='#fff';cc.fillRect(0,0,W,H);cc.drawImage(img,0,0);
     const objs=S.objects[pn]||importObjects(pg.objs,sx,sy);
+    const rPage=calcPage(pn);
     objs.forEach(o=>{cc.save();
       if(o.type==='line'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.lineCap='round';cc.lineJoin='round';try{cc.stroke(new Path2D(smoothPath(o.pts)));}catch(e){cc.beginPath();o.pts.forEach((p,i)=>i?cc.lineTo(p.x,p.y):cc.moveTo(p.x,p.y));cc.stroke();}}
       else if(o.type==='symbol'){drawSymbolCanvas(cc,o);}
       else if(o.type==='rect'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.strokeRect(o.x,o.y,o.w,o.h);}
       else if(o.type==='text'){cc.fillStyle=o.color;cc.font='600 '+o.size+'px Inter,sans-serif';cc.fillText(o.text,o.x,o.y);}
+      else if(o.type==='field'){cc.fillStyle=o.color||'#10151c';cc.font='600 '+o.size+'px Inter,sans-serif';cc.fillText(fieldValue(o,rPage),o.x,o.y);}
       cc.restore();});
     drawSheetSpec(cc,pn,W,H);
     const data=c.toDataURL('image/jpeg',0.85);const orient=W>=H?'l':'p';
