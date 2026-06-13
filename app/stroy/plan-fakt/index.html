@@ -259,12 +259,16 @@ const S={data:null,pageNum:null,pageList:[],W:0,H:0,sx:1,sy:1,scale:1,fitScale:1
   textColor:'#c0392b',calPts:null};
 /* категории кабеля */
 /* марки кабеля проекта (редактируемые); n — короткое для кнопок, full — для спецификации */
+/* марки/сечения проекта (по встрече 13.06): цвет 3×10 тёмно-жёлтый, 3×4 синий, МОП красный */
 const CATS=[
-  {k:'vvg15',  n:'ВВГ 3×1,5',  full:'Кабель ВВГнг(FRLS)-3×1,5', c:'#1b4f9c'},
-  {k:'asvvg25',n:'АсВВГ 3×2,5', full:'Кабель АсВВГнг-3×2,5',     c:'#0a84ff'},
-  {k:'asvvg45',n:'АсВВГ 4×2,5', full:'Кабель АсВВГнг-4×2,5',     c:'#c0392b'},
-  {k:'pnd20',  n:'ПНД d20',    full:'Труба ПНД d20',            c:'#2f7d4f'},
-  {k:'other',  n:'Прочее',     full:'Прочее',                   c:'#7c3aed'}
+  {k:'roz34',  n:'3×4 розетки',  full:'АсВВГнг-3×4 (розетки кв.)',       c:'#1b4f9c'},
+  {k:'sil310', n:'3×10 плита',   full:'АсВВГнг-3×10 (плита/силовой)',    c:'#b8860b'},
+  {k:'sil316', n:'3×16 этажн.',  full:'АсВВГнг-3×16 (этажный→квартира)', c:'#8a5a00'},
+  {k:'osv25',  n:'3×2,5 свет',   full:'ВВГнг-3×2,5 (освещение, медь)',   c:'#2f7d4f'},
+  {k:'osv425', n:'4×2,5 свет',   full:'ВВГнг-4×2,5 (освещение, медь)',   c:'#0a84ff'},
+  {k:'mop15',  n:'МОП 3×1,5',    full:'ВВГнг-3×1,5 (МОП, медь)',         c:'#c0392b'},
+  {k:'pnd20',  n:'ПНД d20',      full:'Труба ПНД d20',                  c:'#7c3aed'},
+  {k:'other',  n:'Прочее',       full:'Прочее',                         c:'#79828f'}
 ];
 const catC=k=>(CATS.find(c=>c.k===k)||CATS[CATS.length-1]).c;
 const catN=k=>(CATS.find(c=>c.k===k)||CATS[CATS.length-1]).n;
@@ -272,7 +276,7 @@ const catFull=k=>{const c=CATS.find(c=>c.k===k)||CATS[CATS.length-1];return c.fu
 S.cat=CATS[0].k;S.penMode=false;S.printSpec=true;S.cluster=[];S.heights={socket:0.40,switch:0.90};S.panelH=1.50;S.projId=null;S.extraPos=[];
 /* зоны: разные высоты выпусков/подъёмов (паркинг ≠ квартиры). S.heights/S.panelH — зеркало активной зоны */
 S.zones={apt:{name:'Квартиры',socket:0.40,switch:0.90,panel:1.50},mop:{name:'МОПы',socket:0.40,switch:0.90,panel:1.50},park:{name:'Паркинг',socket:0.50,switch:1.10,panel:1.80}};
-S.zoneByPage={};S.dark={};
+S.zoneByPage={};S.dark={};S.outletsPer=2;S.tailLen=0.30;S.outletCorrByPage={};
 const ZONE_KEYS=['apt','mop','park'];
 /* чёрный слой чертежа (рамка/выноски) — кандидаты на промоут в объект по тапу */
 function buildDark(pg,sx,sy){return (pg.dark||[]).map(o=>o.t==='line'
@@ -434,7 +438,7 @@ async function loadPdf(file){
   }catch(e){console.error(e);toast('Не удалось открыть PDF');$('spin').style.display='none';}
 }
 function initData(j){
-  S.projId=null;S.extraPos=[];S.zoneByPage={};S.dark={};
+  S.projId=null;S.extraPos=[];S.zoneByPage={};S.dark={};S.outletCorrByPage={};
   S.data=j;S.pageList=Object.keys(j.pages).map(Number).sort((a,b)=>a-b);
   $('docname').textContent=j.name||'План';
   $('loader').classList.add('hide');$('stage').style.display='flex';
@@ -455,7 +459,7 @@ function projThumb(){return new Promise(res=>{try{const pn=S.pageList[0];const p
   img.onload=()=>{const w=160,h=Math.max(40,Math.round(img.height/img.width*w));const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);res(c.toDataURL('image/jpeg',0.55));};
   img.onerror=()=>res(null);img.src='data:image/jpeg;base64,'+pg.u;}catch(e){res(null);}});}
 function fmtDate(ts){try{return new Date(ts).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
-function buildProj(){return {_planfakt:1,name:S.data.name||'План',data:S.data,edits:{objects:S.objects,cal:S.cal},settings:{panelH:S.panelH,slack:S.slack,importMode:S.importMode,seq:S.seq,heights:S.heights,extraPos:S.extraPos,zones:S.zones,zoneByPage:S.zoneByPage}};}
+function buildProj(){return {_planfakt:1,name:S.data.name||'План',data:S.data,edits:{objects:S.objects,cal:S.cal},settings:{panelH:S.panelH,slack:S.slack,importMode:S.importMode,seq:S.seq,heights:S.heights,extraPos:S.extraPos,zones:S.zones,zoneByPage:S.zoneByPage,outletsPer:S.outletsPer,tailLen:S.tailLen,outletCorrByPage:S.outletCorrByPage}};}
 function downloadProjFile(proj){try{const blob=new Blob([JSON.stringify(proj)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(proj.name||'plan').replace(/[^\wа-яёА-ЯЁ.\- ]/gi,'_')+'_проект.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),8000);}catch(e){toast('Не удалось скачать файл');}}
 /* облачный архив (R2 через воркер) + локальное зеркало (IDB) */
 const ARCH_URL=CONVERT_URL+'/projects';
@@ -505,6 +509,9 @@ function openProject(j,projId){
   if(st.heights)S.heights=st.heights;
   if(st.zones)S.zones=st.zones;
   S.zoneByPage=st.zoneByPage||{};
+  if(st.outletsPer!=null)S.outletsPer=st.outletsPer;
+  if(st.tailLen!=null)S.tailLen=st.tailLen;
+  S.outletCorrByPage=st.outletCorrByPage||{};
   S.extraPos=Array.isArray(st.extraPos)?st.extraPos:[];
   S.pageList=Object.keys(S.data.pages).map(Number).sort((a,b)=>a-b);
   S.history={};S.selected=null;
@@ -914,8 +921,11 @@ function calcPage(pn){const objs=S.objects[pn]||[];const mpp=S.cal[pn];const cat
     else if(k.indexOf('switch')===0)cnt.switch++;
     else if(k.indexOf('lum')===0||k.indexOf('led')===0||k==='spot')cnt.light++;
     else if(k.indexOf('panel')===0)cnt.panel++;});
-  let raw=0;Object.values(cats).forEach(c=>raw+=c.len);
-  return{cats,cnt,mpp,raw,total:raw*(1+S.slack/100)};}
+  // выпуски розеток (остаток): N×2 − коррекция, ×длина выпуска (в метрах, не зависит от масштаба)
+  const N=cnt.socket;const corr=(S.outletCorrByPage&&S.outletCorrByPage[pn])||0;
+  const tail=Math.max(0,N*(S.outletsPer||2)-corr)*(S.tailLen||0.30);
+  let raw=0;Object.values(cats).forEach(c=>raw+=c.len);raw+=tail;
+  return{cats,cnt,mpp,raw,tail,outletN:N,outletCorr:corr,total:raw*(1+S.slack/100)};}
 function extraLen(p,r){if(!p)return null;if(p.mode==='fixed')return Math.max(0,p.meters||0);if(!r||!r.mpp)return null;const c=r.cats[p.markKey];return c?c.len*(p.coeff!=null?p.coeff:0.9):0;}
 /* поле-значение для таблицы на чертеже: авто из расчёта или вручную */
 function fieldValue(o,r){const lk=o.link;const num=v=>v!=null?String(Math.round(v)):'—';
@@ -940,6 +950,12 @@ function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPa
   html+=`<div class="emptyhint" style="padding:5px 2px 8px;text-align:left">Добавит спуск к розетке (${S.heights.socket.toFixed(2)} м) на каждый конец трассы — длина станет ближе к факту. Отдельные концы потом правьте при выделении трассы (тип/высота).</div>`;
   html+='<h5>Счётчики (лист)</h5>';
   html+=`<div class="cnts"><div class="cnt"><div class="cv">${r.cnt.socket}</div><div class="cl">розеток</div></div><div class="cnt"><div class="cv">${r.cnt.switch}</div><div class="cl">выключ.</div></div><div class="cnt"><div class="cv">${r.cnt.light}</div><div class="cl">свет</div></div></div>`;
+  html+='<h5>Розетки: выпуски (остаток)</h5>';
+  html+=`<div class="field"><label>Розеток на листе</label><span style="font-family:var(--mono);font-weight:700">${r.cnt.socket}</span></div>`;
+  html+=`<div class="field"><label>Выпусков на розетку</label><input id="fOPer" type="number" step="1" min="0" value="${S.outletsPer}"></div>`;
+  html+=`<div class="field"><label>Длина выпуска, м</label><input id="fTail" type="number" step="0.05" min="0" value="${S.tailLen.toFixed(2)}"></div>`;
+  html+=`<div class="field"><label>Коррекция: розеток с 1 концом</label><input id="fCorr" type="number" step="1" min="0" value="${r.outletCorr}"></div>`;
+  html+=`<div class="crow" style="background:var(--panel)"><span class="nm">Выпуски розеток (остаток)<div class="sub">(${r.cnt.socket}×${S.outletsPer}−${r.outletCorr}) × ${S.tailLen.toFixed(2)} м</div></span><span class="vv">${r.tail.toFixed(1)} м</span></div>`;
   html+='<h5>Кабель по маркам (лист)</h5>';
   CATS.forEach(c=>{const x=r.cats[c.k];if(x.n===0)return;html+=`<div class="crow"><span class="dot" style="background:${c.c}"></span><span class="nm">${c.n}<div class="sub">${x.n} лин · выпуски ${x.drops.toFixed(2)} м</div></span><span class="vv">${r.mpp?x.len.toFixed(2)+' м':'—'}</span></div>`;});
   if(!CATS.some(c=>r.cats[c.k].n))html+=`<div class="emptyhint">Линий пока нет. Нарисуйте кабель инструментом «Линия».</div>`;
@@ -972,6 +988,9 @@ function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPa
   const fs=$('fSlack');if(fs)fs.onchange=()=>{S.slack=Math.max(0,parseFloat(fs.value)||0);renderCalc();};
   const tg=$('tgSpec');if(tg)tg.onclick=()=>{S.printSpec=!S.printSpec;renderCalc();};
   const ad=$('applyDrops');if(ad)ad.onclick=()=>{pushHistory();let n=0;(S.objects[pn]||[]).forEach(o=>{if(o.type!=='line'||o.grp||isRef(o))return;o.ea={kind:'socket',h:S.heights.socket};o.eb={kind:'socket',h:S.heights.socket};n++;});redrawAll();renderCalc();if(S.selected)renderOpt();toast('Выпуски проставлены на '+n+' трасс');};
+  const fop=$('fOPer');if(fop)fop.onchange=()=>{S.outletsPer=Math.max(0,parseInt(fop.value)||0);renderCalc();};
+  const ft=$('fTail');if(ft)ft.onchange=()=>{S.tailLen=Math.max(0,parseFloat(ft.value)||0);renderCalc();};
+  const fcr=$('fCorr');if(fcr)fcr.onchange=()=>{S.outletCorrByPage[pn]=Math.max(0,parseInt(fcr.value)||0);renderCalc();};
   const apos=$('addPos');if(apos)apos.onclick=()=>{S.extraPos.push({name:'Труба ПНД Ø20',mode:'mark',markKey:CATS[0].k,coeff:0.9});renderCalc();};
   body.querySelectorAll('.epn').forEach(el=>el.onchange=()=>{S.extraPos[+el.dataset.i].name=el.value;});
   body.querySelectorAll('.epm').forEach(el=>el.onchange=()=>{S.extraPos[+el.dataset.i].mode=el.value;renderCalc();});
