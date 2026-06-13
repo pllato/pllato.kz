@@ -7968,10 +7968,14 @@ async function loadDealsMeta() {
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
     const dbUrl = WORKER_RTDB_URL;
+    // _cb=timestamp + no-store — мета СРМ (воронки/схема/юзеры) грузим ВСЕГДА
+    // свежими, в обход IDB-кеша и HTTP-кеша браузера. Иначе застрявший пустой
+    // ответ в кеше = «нет воронок / СРМ 0» у сотрудника, хотя на сервере они есть.
+    const _cb = Date.now();
     const [pipelinesObj, schema, users] = await Promise.all([
-      fetch(`${dbUrl}/pipelines.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/customFieldsSchema/deal.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/users.json?auth=${idToken}`).then(r => r.ok ? r.json() : null),
+      fetch(`${dbUrl}/pipelines.json?auth=${idToken}&_cb=${_cb}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
+      fetch(`${dbUrl}/customFieldsSchema/deal.json?auth=${idToken}&_cb=${_cb}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
+      fetch(`${dbUrl}/users.json?auth=${idToken}&_cb=${_cb}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
     ]);
     dealsState.pipelines = pipelinesObj || {};
     dealsState.customSchema = schema || {};
@@ -7990,7 +7994,13 @@ async function loadDealsMeta() {
       }
     }
 
-    dealsState.metaLoaded = true;
+    // metaLoaded=true только если воронки реально пришли. Если запрос упал
+    // (pipelinesObj === null = сетевая ошибка/таймаут) — НЕ фиксируем загрузку,
+    // чтобы следующий заход в СРМ повторил попытку, а не залип на «нет воронок».
+    // Пустой объект {} (воронок реально нет) — это валидный ответ, фиксируем.
+    if (pipelinesObj !== null) {
+      dealsState.metaLoaded = true;
+    }
     // Параллельно подгружаем per-pipeline field config (для скрытия старых
     // UF_CRM полей). Не блокируем основной flow.
     loadFieldConfig().catch(() => {});
@@ -11500,6 +11510,7 @@ function buildDealCard(d, stageColor) {
     <div class="kanban-card-actions">
       <button class="kca-btn kca-wa" data-action="wa" data-phone="${escapeHtml(phone || '')}" data-deal-id="${escapeHtml(d.bitrixId || '')}" title="${phone ? 'Открыть WhatsApp' : 'У контакта нет телефона — добавь в карточке'}" ${!phone ? 'data-no-phone="1" style="opacity:0.45"' : ''}>💬</button>
       <button class="kca-btn kca-call" data-action="call" data-phone="${escapeHtml(phone || '')}" data-deal-id="${escapeHtml(d.bitrixId || '')}" title="${phone ? 'Позвонить' : 'У контакта нет телефона — добавь в карточке'}" ${!phone ? 'data-no-phone="1" style="opacity:0.45"' : ''}>📞</button>
+      <button class="kca-btn kca-dup" data-action="dup-deal" data-deal-id="${escapeHtml(d.bitrixId || '')}" title="Дублировать сделку (создать копию в этой же стадии)">⧉</button>
       <button class="kca-btn kca-stage" data-action="stage" data-deal-id="${escapeHtml(d.bitrixId)}" title="Сменить стадию" style="margin-left:auto">→</button>
     </div>
     ${cmtsHtml}
@@ -11562,6 +11573,66 @@ async function loadStageMore(stageId, btn) {
   }
 }
 
+// Дублирование сделки прямо из канбана: создаём копию в той же стадии/воронке,
+// перенося контакт, сумму, ответственного и кастомные поля. Источник берём из
+// уже загруженного объекта сделки (та же camelCase-форма, что и при создании).
+async function duplicateDeal(bitrixId) {
+  if (!bitrixId) return;
+  const src = (dealsState.deals || []).find(x =>
+    String(x.bitrixId) === String(bitrixId) || x.id === 'deal_' + bitrixId);
+  if (!src) { alert('Не нашли исходную сделку в текущем списке. Откройте воронку заново.'); return; }
+  const srcTitle = src.title || 'без названия';
+  if (!confirm(`Дублировать сделку «${srcTitle}»?\n\nСоздастся копия в этой же стадии (контакт, сумма, поля — переносятся).`)) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const currentUid = fbAuth.currentUser?.uid;
+    const nowIso = new Date().toISOString();
+    const newId = 'deal_local_' + Math.random().toString(36).slice(2, 10);
+    const newBitrixId = newId.replace('deal_', '');
+    // Глубокая копия кастомных полей, чтобы правки копии не задели оригинал.
+    let cf = null;
+    try { cf = src.customFields ? JSON.parse(JSON.stringify(src.customFields)) : null; } catch { cf = src.customFields || null; }
+    const body = {
+      id: newId,
+      title: (src.title || 'Сделка') + ' (копия)',
+      opportunity: src.opportunity || 0,
+      currency: src.currency || 'KZT',
+      pipelineId: src.pipelineId || dealsState.activePipelineId,
+      stageId: src.stageId,
+      closed: 0,
+      beginDate: null,
+      closeDate: null,
+      contactId: src.contactId || null,
+      companyId: src.companyId || null,
+      responsibleUid: src.responsibleUid || currentUid,
+      createdByUid: currentUid,
+      modifyByUid: currentUid,
+      bitrixId: newBitrixId,
+      bitrixContactId: src.bitrixContactId || (src.contactId ? String(src.contactId).replace('contact_', '') : null),
+      bitrixDateCreate: nowIso,
+      bitrixDateModify: nowIso,
+      customFields: cf,
+      migratedAt: null,
+    };
+    const dr = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent(newId)}.json?auth=${idToken}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!dr.ok) { const t = await dr.text(); throw new Error(`HTTP ${dr.status}: ${t.slice(0, 200)}`); }
+    // Локально показываем сразу, плюс кладём в кеш воронки, чтобы не пропала при перерисовке.
+    if (Array.isArray(dealsState.deals)) dealsState.deals.unshift(body);
+    const cache = dealsState.dealsByPipeline && dealsState.dealsByPipeline[body.pipelineId];
+    if (Array.isArray(cache)) cache.unshift(body);
+    showToast?.('Сделка продублирована');
+    if (document.querySelector('[data-page="deals"].active') && dealsState.view === 'kanban') {
+      renderDealsContent();
+    }
+  } catch (e) {
+    alert('Ошибка дублирования: ' + e.message);
+  }
+}
+
 function handleKanbanCardAction(e) {
   const btn = e.target.closest('[data-action]');
   if (btn) {
@@ -11588,6 +11659,8 @@ function handleKanbanCardAction(e) {
       }
     } else if (action === 'stage') {
       showStageQuickPick(btn.dataset.dealId, btn);
+    } else if (action === 'dup-deal') {
+      duplicateDeal(btn.dataset.dealId);
     } else if (action === 'comment-send') {
       const input = btn.closest('.kanban-card-cadd')?.querySelector('.kcc-input');
       sendKanbanQuickComment(btn.dataset.dealFull, input);
