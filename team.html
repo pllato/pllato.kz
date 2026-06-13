@@ -7972,10 +7972,18 @@ async function loadDealsMeta() {
     // свежими, в обход IDB-кеша и HTTP-кеша браузера. Иначе застрявший пустой
     // ответ в кеше = «нет воронок / СРМ 0» у сотрудника, хотя на сервере они есть.
     const _cb = Date.now();
+    // КАЖДЫЙ кусок грузим НЕЗАВИСИМО, с собственным catch → null. Раньше один
+    // Promise.all: падение users.json (битый JSON) рушило загрузку воронок и
+    // схемы за компанию → пустой канбан у всех. Теперь сбой одного запроса не
+    // мешает остальным.
+    const fetchMeta = (path) =>
+      fetch(`${dbUrl}/${path}?auth=${idToken}&_cb=${_cb}`, { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null)
+        .catch(e => { console.warn('[loadDealsMeta] не загрузилось:', path, e && e.message); return null; });
     const [pipelinesObj, schema, users] = await Promise.all([
-      fetch(`${dbUrl}/pipelines.json?auth=${idToken}&_cb=${_cb}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/customFieldsSchema/deal.json?auth=${idToken}&_cb=${_cb}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
-      fetch(`${dbUrl}/users.json?auth=${idToken}&_cb=${_cb}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
+      fetchMeta('pipelines.json'),
+      fetchMeta('customFieldsSchema/deal.json'),
+      fetchMeta('users.json'),
     ]);
     dealsState.pipelines = pipelinesObj || {};
     dealsState.customSchema = schema || {};
