@@ -187,6 +187,19 @@
     if (state.ws) { try { state.ws.close(); } catch {} state.ws = null; }
   }
 
+  // Реконнект WS при возврате на вкладку / в приложение. Мобильный Safari (iPhone)
+  // убивает WebSocket при блокировке экрана или сворачивании, а таймер ws.onclose
+  // заморожен — поэтому без этого новые сообщения не приходят, пока сотрудник сам
+  // не перезагрузит страницу. По возвращении реконнектим и подтягиваем пропущенное.
+  function ensureWsAlive() {
+    if (!state.mounted || state.suspended) return;
+    const rs = state.ws ? state.ws.readyState : 3;
+    if (rs === 0 || rs === 1) return; // CONNECTING / OPEN — соединение живо
+    state.wsReconnectAttempts = 0;
+    connectWs();
+    loadChannels(); // подтянуть сообщения, пришедшие пока WS был мёртв
+  }
+
   function handleWsMessage(msg) {
     switch (msg.kind) {
       case 'connected': break;
@@ -1868,6 +1881,14 @@
     loadChannels();
     loadRoster();   // прогреть справочник сотрудников для пикеров
     if (!state.ws || state.ws.readyState >= 2) connectWs();
+    // Один раз вешаем слушатели «проснулись» — реконнект при возврате на вкладку,
+    // фокусе окна и восстановлении сети. Критично для мобильных (iOS усыпляет WS).
+    if (!state._wakeListeners) {
+      state._wakeListeners = true;
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') ensureWsAlive(); });
+      window.addEventListener('focus', ensureWsAlive);
+      window.addEventListener('online', ensureWsAlive);
+    }
   }
 
   function suspend() {
