@@ -254,11 +254,13 @@ function barList(rows,max,isMoney){
 // ---------- FUNNELS ----------
 PAGES.funnels=async(c)=>{
   const fUsers=await fetchUsers();
+  const fStores=await fetchStores();
   const fStages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
   const tbar=el(`<div class="toolbar">
     <div class="seg" id="funnelSeg"><button class="${state.funnel==='b2c'?'on':''}" data-f="b2c">B2C · розница</button><button class="${state.funnel==='b2b'?'on':''}" data-f="b2b">B2B · опт</button></div>
     <select class="sel" id="flMgr" title="Фильтр по ответственному"><option value="">Все ответственные</option>${fUsers.map(u=>`<option>${esc(u.name)}</option>`).join('')}</select>
     <select class="sel" id="flStage" title="Фильтр по этапу"><option value="">Все этапы</option>${fStages.map(s=>`<option>${esc(s)}</option>`).join('')}</select>
+    ${storeSelectHtml(fStores,'','class="sel" id="flStore" title="Фильтр по точке"','Все точки')}
     <div class="spacer"></div>
     <span class="ph-sub" id="funnelCnt"></span>
     <button class="btn primary" id="newDealBtn">${ic('i-plus','sm')} Сделка</button>
@@ -277,14 +279,15 @@ PAGES.funnels=async(c)=>{
   const cnt=tbar.querySelector('#funnelCnt');
   tbar.querySelector('#funnelSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{state.funnel=b.dataset.f;renderPage();});
   tbar.querySelector('#newDealBtn').onclick=()=>newDealLive(load);
-  let demoMode=false, current=[], flMgr='', flStage='';
+  let demoMode=false, current=[], flMgr='', flStage='', flStore='';
   tbar.querySelector('#flMgr').onchange=e=>{flMgr=e.target.value;renderBoard();};
   tbar.querySelector('#flStage').onchange=e=>{flStage=e.target.value;renderBoard();};
+  tbar.querySelector('#flStore').onchange=e=>{flStore=e.target.value;renderBoard();};
   function renderBoard(){
     const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
     board.innerHTML=''; let total=0;
     (flStage?stages.filter(s=>s===flStage):stages).forEach(stg=>{
-      let list=current.filter(d=>d.stage===stg); if(flMgr) list=list.filter(d=>(d.mgr||'')===flMgr); const sum=list.reduce((a,d)=>a+(d.amount||d.sum||0),0); total+=list.length;
+      let list=current.filter(d=>d.stage===stg); if(flMgr) list=list.filter(d=>(d.mgr||'')===flMgr); if(flStore) list=list.filter(d=>(d.store_key||'')===flStore); const sum=list.reduce((a,d)=>a+(d.amount||d.sum||0),0); total+=list.length;
       const col=el(`<div class="kcol" data-stage="${esc(stg)}"><div class="kcol-h"><span class="kc-name">${esc(stg)}</span><span class="kc-count">${list.length}</span><span class="kc-sum">${money(sum)}</span></div><div class="kcol-b"></div></div>`);
       const cbody=col.querySelector('.kcol-b');
       list.forEach(d=>cbody.appendChild(demoMode?dealCard(d):dealCardLive(d)));
@@ -321,14 +324,15 @@ function dealCardLive(d){
   card.onclick=()=>dealModalLive(d);
   return card;
 }
-function newDealLive(onSaved){
+async function newDealLive(onSaved){
+  const ndStores=await fetchStores();
   const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
   const bg=openModal(`<div class="modal-h"><div><h3>Новая сделка</h3><div class="mh-sub">${state.funnel==='b2c'?'B2C · розница':'B2B · опт'}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld"><label>Клиент — поиск в 1С или ввод вручную</label><div style="position:relative"><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-nd="client" placeholder="ФИО или название" autocomplete="off" style="width:100%"></div><div id="ndSug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:200px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div></div>
     <div class="fld-row"><div class="fld"><label>Телефон</label><input data-nd="phone"></div><div class="fld"><label>Сумма, с</label><input data-nd="amount" type="number" placeholder="0"></div></div>
     <div class="fld-row"><div class="fld"><label>Этап</label><select data-nd="stage">${stages.map(s=>`<option>${esc(s)}</option>`).join('')}</select></div><div class="fld"><label>Источник</label><select data-nd="source"><option value="">—</option><option>WhatsApp</option><option>Instagram</option><option>Сайт</option><option>Звонок</option><option>Сарафан</option></select></div></div>
-    <div class="fld"><label>Ответственный</label><input data-nd="mgr" value="${esc((AUTH.user||{}).name||'')}"></div>
+    <div class="fld-row"><div class="fld"><label>Ответственный</label><input data-nd="mgr" value="${esc((AUTH.user||{}).name||'')}"></div><div class="fld"><label>Точка</label>${storeSelectHtml(ndStores,'','data-nd="store_key"','— точка —')}</div></div>
     <div class="fld"><label>Комментарий</label><input data-nd="note" placeholder="Что нужно клиенту"></div>
   </div>
   <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="ndSave">Создать сделку</button></div>`);
@@ -340,24 +344,26 @@ function newDealLive(onSaved){
       sug.querySelectorAll('[data-ref]').forEach(it=>it.onclick=()=>{ ref=it.dataset.ref; q.value=it.dataset.name; bg.querySelector('[data-nd=phone]').value=it.dataset.phone; sug.style.display='none'; }); },300); });
   bg.querySelector('#ndSave').onclick=async()=>{
     const name=q.value.trim(); if(!name){toast('Укажите клиента','i-info');return;}
-    const body={funnel:state.funnel,stage:bg.querySelector('[data-nd=stage]').value,client_ref:ref,client_name:name,phone:bg.querySelector('[data-nd=phone]').value.trim(),amount:Number(bg.querySelector('[data-nd=amount]').value)||0,source:bg.querySelector('[data-nd=source]').value,mgr:bg.querySelector('[data-nd=mgr]').value.trim(),note:bg.querySelector('[data-nd=note]').value.trim()};
+    const body={funnel:state.funnel,stage:bg.querySelector('[data-nd=stage]').value,client_ref:ref,client_name:name,phone:bg.querySelector('[data-nd=phone]').value.trim(),amount:Number(bg.querySelector('[data-nd=amount]').value)||0,source:bg.querySelector('[data-nd=source]').value,mgr:bg.querySelector('[data-nd=mgr]').value.trim(),store_key:bg.querySelector('[data-nd=store_key]').value||null,note:bg.querySelector('[data-nd=note]').value.trim()};
     const r=await api('/api/deals',{method:'POST',body:JSON.stringify(body)});
     if(!r.ok){toast('Не удалось создать сделку','i-x','#dc2626');return;}
     closeModal(); toast('Сделка создана','i-funnel'); onSaved&&onSaved();
   };
 }
-function dealModalLive(d){
+async function dealModalLive(d){
   setEntityHash('funnels', d.id);
+  const dmStores=await fetchStores();
   const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
   const bg=openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.client_name||'?')}">${initials(d.client_name||'?')}</span><div><h3>${esc(d.client_name||'—')}</h3><div class="mh-sub">${esc(d.phone||'')} ${d.client_ref?'· привязан к 1С':''}</div></div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld-row"><div class="fld"><label>Этап</label><select data-dm="stage">${stages.map(s=>`<option ${s===d.stage?'selected':''}>${esc(s)}</option>`).join('')}</select></div><div class="fld"><label>Сумма, с</label><input data-dm="amount" type="number" value="${d.amount||0}"></div></div>
     <div class="fld-row"><div class="fld"><label>Ответственный</label><input data-dm="mgr" value="${esc(d.mgr||'')}"></div><div class="fld"><label>Источник</label><input data-dm="source" value="${esc(d.source||'')}"></div></div>
+    <div class="fld"><label>Точка</label>${storeSelectHtml(dmStores,d.store_key,'data-dm="store_key"','— точка —')}</div>
     <div class="fld"><label>Комментарий</label><input data-dm="note" value="${esc(d.note||'')}"></div>
   </div>
   <div class="modal-f"><button class="btn" id="dmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="dmSave">Сохранить</button></div>`,'wide');
   bg.querySelector('#dmSave').onclick=async()=>{
-    const body={stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),note:bg.querySelector('[data-dm=note]').value.trim()};
+    const body={stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,note:bg.querySelector('[data-dm=note]').value.trim()};
     const r=await api('/api/deals/'+d.id,{method:'POST',body:JSON.stringify(body)});
     if(!r.ok){toast('Ошибка сохранения','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); if(window.__reloadFunnels)window.__reloadFunnels();
   };
@@ -694,9 +700,11 @@ function orderFromChat(name){
 const ORDER_ST={new:['Новый','blue'],queued_1c:['Очередь 1С','amber'],synced_1c:['В 1С','green'],done:['Готово','green'],cancelled:['Отменён','red']};
 function ordStTag(s){const m=ORDER_ST[s]||['—',''];return `<span class="tag ${m[1]}">${esc(m[0])}</span>`;}
 function ordItemsText(j){ let a=[]; try{a=JSON.parse(j||'[]');}catch(e){} return a.map(x=>(x.name||'')+(x.qty>1?(' ×'+x.qty):'')).join(', '); }
-PAGES.orders=(c)=>{
+PAGES.orders=async(c)=>{
+  const oStores=await fetchStores();
   const tbar=el(`<div class="toolbar">
     <div class="seg" data-or="filter"><button class="on" data-s="all">Все</button><button data-s="new">Новые</button><button data-s="queued_1c">Очередь 1С</button><button data-s="synced_1c">В 1С</button><button data-s="done">Готово</button></div>
+    ${storeSelectHtml(oStores,'','class="sel" data-or="store" title="Точка"','Все точки')}
     <div class="spacer"></div><span class="ph-sub" data-or="cnt"></span><button class="btn primary" id="newOrderBtn">${ic('i-plus','sm')} Заказ</button></div>`);
   const cards=el(`<div class="cards-row section-gap"></div>`);
   const panel=el(`<div class="panel section-gap"><table class="tbl"><thead><tr><th>Клиент</th><th>Состав</th><th class="num">Сумма</th><th>Статус</th><th>№ 1С</th></tr></thead><tbody><tr><td colspan="5" class="muted2" style="padding:16px">Загрузка…</td></tr></tbody></table></div>`);
@@ -706,11 +714,12 @@ PAGES.orders=(c)=>{
   let status='all';
   seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); status=b.dataset.s; load(); });
   tbar.querySelector('#newOrderBtn').onclick=()=>newOrderLive(load);
+  tbar.querySelector('[data-or=store]').onchange=()=>load();
   async function load(){
     const tb=panel.querySelector('tbody'); tb.innerHTML=`<tr><td colspan="5" class="muted2" style="padding:16px">Загрузка…</td></tr>`;
     const r=await api('/api/orders'+(status!=='all'?('?status='+status):''));
     if(!r.ok){ cards.innerHTML=miniStat('i-cart','#0891b2','Заказы','демо'); tb.innerHTML='<tr><td colspan="5" class="muted2" style="padding:16px">Демо-режим (нет связи)</td></tr>'; return; }
-    const t=r.data.totals||{}, items=r.data.items||[];
+    const t=r.data.totals||{}; const sv=tbar.querySelector('[data-or=store]').value; const items=(r.data.items||[]).filter(o=>!sv||(o.store_key||'')===sv);
     cards.innerHTML=miniStat('i-cart','#0891b2','Всего заказов',t.total||0)+miniStat('i-check2','#10b981','В работе',t.active||0)+miniStat('i-money','#16a34a','Сумма',money(t.amount||0))+miniStat('i-sync','#d97706','В очереди 1С',t.queued||0);
     cnt.textContent=items.length+' заказов';
     if(!items.length){ tb.innerHTML=`<tr><td colspan="5" class="muted2" style="padding:18px">Заказов нет. Нажмите «Заказ», чтобы создать.</td></tr>`; return; }
@@ -722,10 +731,12 @@ PAGES.orders=(c)=>{
 async function newOrderLive(onSaved){
   const ed=makeItemsEditor([]);
   const users=await fetchUsers();
+  const noStores=await fetchStores();
   const bg=openModal(`<div class="modal-h"><div><h3>Новый заказ</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld"><label>Клиент *</label><div style="position:relative"><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-no="client" placeholder="поиск в 1С или ввод вручную" autocomplete="off" style="width:100%"></div><div id="noSug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:200px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div></div>
     <div class="fld-row"><div class="fld"><label>Телефон</label><input data-no="phone"></div><div class="fld"><label>Ответственный</label>${userSelectHtml(users,(AUTH.user||{}).name||'','data-no="mgr"')}</div></div>
+    <div class="fld"><label>Точка (магазин)</label>${storeSelectHtml(noStores,'','data-no="store_key"','— точка —')}</div>
     <div class="fld"><label>Состав заказа (товары из 1С)</label><div id="noItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-no="note"></div>
   </div>
@@ -737,7 +748,7 @@ async function newOrderLive(onSaved){
       sug.innerHTML=r.data.items.map(x=>`<div class="doc-row" data-ref="${esc(x.ref_key)}" data-name="${esc(x.name||'')}" data-phone="${esc(x.phone||'')}"><div><div class="dt">${esc(x.name||'—')}</div><div class="ds">${esc(x.code||'')} · ${esc(x.phone||'')}</div></div></div>`).join(''); sug.style.display='block';
       sug.querySelectorAll('[data-ref]').forEach(it=>it.onclick=()=>{ref=it.dataset.ref;q.value=it.dataset.name;bg.querySelector('[data-no=phone]').value=it.dataset.phone;sug.style.display='none';}); },300); });
   bg.querySelector('#noSave').onclick=async()=>{ const name=q.value.trim(); if(!name){toast('Укажите клиента','i-info');return;} if(!ed.getItems().length){toast('Добавьте товары','i-info');return;}
-    const body={client_ref:ref,client_name:name,phone:bg.querySelector('[data-no=phone]').value.trim(),items:ed.getItems(),mgr:bg.querySelector('[data-no=mgr]').value.trim(),note:bg.querySelector('[data-no=note]').value.trim()};
+    const body={client_ref:ref,client_name:name,phone:bg.querySelector('[data-no=phone]').value.trim(),items:ed.getItems(),mgr:bg.querySelector('[data-no=mgr]').value.trim(),store_key:bg.querySelector('[data-no=store_key]').value||null,note:bg.querySelector('[data-no=note]').value.trim()};
     const r=await api('/api/orders',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Заказ создан','i-cart'); onSaved&&onSaved(); };
 }
 async function orderModalLive(o,onSaved){
@@ -745,10 +756,12 @@ async function orderModalLive(o,onSaved){
   let init=[]; try{ init=JSON.parse(o.items||'[]'); }catch(e){}
   const ed=makeItemsEditor(init);
   const users=await fetchUsers();
+  const omStores=await fetchStores();
   const bg=openModal(`<div class="modal-h"><div><h3>Заказ</h3><div class="mh-sub">${esc(o.client_name||'')}${o.ext_id?(' · 1С №'+esc(o.ext_id)):''}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld-row"><div class="fld"><label>Клиент</label><input data-om="client_name" value="${esc(o.client_name||'')}"></div><div class="fld"><label>Телефон</label><input data-om="phone" value="${esc(o.phone||'')}"></div></div>
     <div class="fld-row"><div class="fld"><label>Статус</label><select data-om="status">${[['new','Новый'],['queued_1c','Очередь 1С'],['synced_1c','В 1С'],['done','Готово'],['cancelled','Отменён']].map(([v,tt])=>`<option value="${v}" ${v===o.status?'selected':''}>${tt}</option>`).join('')}</select></div><div class="fld"><label>Ответственный</label>${userSelectHtml(users,o.mgr,'data-om="mgr"')}</div></div>
+    <div class="fld"><label>Точка (магазин)</label>${storeSelectHtml(omStores,o.store_key,'data-om="store_key"','— точка —')}</div>
     <div class="fld"><label>Состав заказа</label><div id="omItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-om="note" value="${esc(o.note||'')}"></div>
     ${o.error?`<div class="note amber">${ic('i-info','sm')} Ошибка 1С: ${esc(o.error)}</div>`:''}
@@ -756,7 +769,7 @@ async function orderModalLive(o,onSaved){
   <div class="modal-f"><button class="btn" id="omDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" id="omSend">${ic('i-sync','sm')} В 1С</button><button class="btn primary" id="omSave">Сохранить</button></div>`);
   bg.querySelector('#omItems').appendChild(ed.node);
   const g=s=>bg.querySelector('[data-om='+s+']');
-  const collect=()=>({client_name:g('client_name').value.trim(),phone:g('phone').value.trim(),mgr:g('mgr').value.trim(),note:g('note').value.trim(),items:ed.getItems()});
+  const collect=()=>({client_name:g('client_name').value.trim(),phone:g('phone').value.trim(),mgr:g('mgr').value.trim(),store_key:g('store_key').value||null,note:g('note').value.trim(),items:ed.getItems()});
   bg.querySelector('#omSave').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{status:g('status').value}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
   bg.querySelector('#omSend').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{status:'queued_1c'}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Заказ в очереди на запись в 1С','i-sync','#d97706'); onSaved&&onSaved(); };
   bg.querySelector('#omDel').onclick=async()=>{ if(!confirm('Удалить заказ?'))return; const r=await api('/api/orders/'+o.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
@@ -812,7 +825,8 @@ PAGES.catalog=(c)=>{
 };
 
 // ---------- ПРОДАЖИ (зеркало регистра «Продажи» 1С) ----------
-PAGES.sales=(c)=>{
+PAGES.sales=async(c)=>{
+  const slStores=await fetchStores();
   const tbar=el(`<div class="toolbar">
     <div class="seg" data-sl="range">
       <button data-d="30">30 дней</button>
@@ -823,6 +837,7 @@ PAGES.sales=(c)=>{
     <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-sl="from" title="С даты"></div>
     <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-sl="to" title="По дату"></div>
     <button class="btn sm" data-sl="apply">Показать</button>
+    ${storeSelectHtml(slStores,'','class="sel" data-sl="store" title="Точка"','Все точки')}
     <div class="spacer"></div>
     <span class="tag green" data-sl="cnt">${ic('i-sync','sm')} зеркало 1С</span>
   </div>`);
@@ -882,6 +897,7 @@ PAGES.sales=(c)=>{
   async function load(){
     cards.innerHTML='<div class="muted2" style="padding:10px">Загрузка…</div>'; panels.innerHTML=''; panels2.innerHTML='';
     const qs=[]; if(fromI.value)qs.push('from='+fromI.value); if(toI.value)qs.push('to='+toI.value);
+    const storeV=tbar.querySelector('[data-sl=store]').value; if(storeV)qs.push('store='+encodeURIComponent(storeV));
     const r=await api('/api/1c/sales/summary'+(qs.length?('?'+qs.join('&')):''));
     if(!r.ok){ cnt.innerHTML=ic('i-sync','sm')+' '+(r.status===403?'демо · нужен доступ':r.status===401?'демо · войдите':'демо · нет связи'); demo(); return; }
     const d=r.data, t=d.totals||{};
@@ -901,6 +917,7 @@ PAGES.sales=(c)=>{
   }
   seg.querySelectorAll('button').forEach(b=>b.onclick=()=>setRange(+b.dataset.d));
   applyB.onclick=()=>{ seg.querySelectorAll('button').forEach(b=>b.classList.remove('on')); load(); };
+  tbar.querySelector('[data-sl=store]').onchange=()=>load();
   setRange(90);
 };
 
@@ -1328,25 +1345,29 @@ function doctorModal(d){
 }
 
 // ---------- ANALYTICS ----------
-PAGES.analytics=(c)=>{
+PAGES.analytics=async(c)=>{
+  const ahStores=await fetchStores();
   const tbar=el(`<div class="toolbar">
     <div class="seg" data-ah="range"><button data-d="7">7 дней</button><button class="on" data-d="30">30 дней</button><button data-d="90">90 дней</button></div>
     <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-ah="from" title="С даты"></div>
     <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-ah="to" title="По дату"></div>
     <button class="btn sm" data-ah="apply">Показать</button>
+    ${storeSelectHtml(ahStores,'','class="sel" data-ah="store" title="Точка"','Все точки')}
   </div>`);
   const host=el(`<div class="section-gap"><div class="muted2" style="padding:10px">Загрузка аналитики…</div></div>`);
   c.appendChild(tbar); c.appendChild(host);
   const seg=tbar.querySelector('[data-ah=range]'),fromI=tbar.querySelector('[data-ah=from]'),toI=tbar.querySelector('[data-ah=to]'),applyB=tbar.querySelector('[data-ah=apply]');
-  const go=(f,t)=>loadAnalytics(host,f,t);
+  let curF=isoDaysAgo(30), curT=isoDaysAgo(0);
+  const go=(f,t)=>{ curF=f; curT=t; loadAnalytics(host,f,t,tbar.querySelector('[data-ah=store]').value); };
   seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); fromI.value='';toI.value=''; go(isoDaysAgo(+b.dataset.d),isoDaysAgo(0)); });
   applyB.onclick=()=>{ if(fromI.value&&toI.value){ seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); go(fromI.value,toI.value); } else toast('Укажите обе даты','i-info'); };
+  tbar.querySelector('[data-ah=store]').onchange=()=>go(curF,curT);
   go(isoDaysAgo(30),isoDaysAgo(0));
 };
 function anMargin(x){ return x.revenue>0?Math.round((x.profit||0)/x.revenue*100):0; }
-async function loadAnalytics(host,from,to){
+async function loadAnalytics(host,from,to,store){
   host.innerHTML=`<div class="muted2" style="padding:10px">Загрузка…</div>`;
-  const r=await api('/api/1c/sales/summary?from='+from+'&to='+to);
+  const r=await api('/api/1c/sales/summary?from='+from+'&to='+to+(store?('&store='+encodeURIComponent(store)):''));
   if(!r.ok){
     host.innerHTML=`<div class="note">${ic('i-info','sm')} Аналитика в демо-режиме (нет доступа к 1С).</div>
       <div class="grid-2 section-gap"><div class="panel"><div class="panel-h"><h3>Средний чек по сегментам</h3></div><div class="panel-b">${barList([['Опт',96000,'#7c3aed'],['Врачи',4200,'#2563eb'],['Розница',2180,'#10b981']],96000,true)}</div></div>
@@ -1504,6 +1525,9 @@ PAGES.tasks=(c)=>{
   load();
 };
 async function fetchUsers(){ const r=await api('/api/users'); if(!r||!r.ok) return []; return r.data.items||[]; }
+let __storesCache=null;
+async function fetchStores(){ if(__storesCache) return __storesCache; const r=await api('/api/1c/stores'); __storesCache=(r&&r.ok)?(r.data.items||[]):[]; return __storesCache; }
+function storeSelectHtml(stores, selectedKey, attr, allLabel){ const sel=(selectedKey||'').toString(); return `<select ${attr}><option value="">${allLabel||'— точка —'}</option>`+(stores||[]).map(s=>`<option value="${esc(s.ref_key)}" ${s.ref_key===sel?'selected':''}>${esc(s.name)}</option>`).join('')+`</select>`; }
 function userSelectHtml(users, selectedName, attr){
   const sel=(selectedName||'').trim();
   let opts='<option value="">— не назначен —</option>'+users.map(u=>`<option value="${esc(u.name)}" ${u.name===sel?'selected':''}>${esc(u.name)}${u.roleName?(' · '+esc(u.roleName)):''}</option>`).join('');
