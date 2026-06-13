@@ -6330,11 +6330,12 @@ async function handleSkillsReport(request, env) {
   const occurredAt = body.occurred_at ? String(body.occurred_at).slice(0, 40) : new Date().toISOString();
 
   // Найти целевую подзадачу: либо напрямую по bitrix_id, либо по (parent + филиал).
+  // Включаем title + responsible_uid в SELECT — нужны для нотификации после.
   let task = null;
   const directBitrixId = body.task_bitrix_id != null ? String(body.task_bitrix_id).trim() : '';
   if (directBitrixId) {
     task = await env.DB.prepare(
-      "SELECT id, bitrix_id, comments_data, comments_count FROM tasks WHERE bitrix_id = ? LIMIT 1"
+      "SELECT id, bitrix_id, title, responsible_uid, comments_data, comments_count FROM tasks WHERE bitrix_id = ? LIMIT 1"
     ).bind(directBitrixId).first();
     if (!task) return json({ error: "task not found by task_bitrix_id", task_bitrix_id: directBitrixId }, 404, request);
   } else {
@@ -6346,7 +6347,7 @@ async function handleSkillsReport(request, env) {
     // Подзадача филиала: bitrix_parent_id = parent, в названии "[affiliate_id]"
     // (LIKE-экранирование не нужно — affiliate_id числовой).
     task = await env.DB.prepare(
-      "SELECT id, bitrix_id, title, comments_data, comments_count FROM tasks WHERE bitrix_parent_id = ? AND title LIKE ? ORDER BY bitrix_created_date DESC LIMIT 1"
+      "SELECT id, bitrix_id, title, responsible_uid, comments_data, comments_count FROM tasks WHERE bitrix_parent_id = ? AND title LIKE ? ORDER BY bitrix_created_date DESC LIMIT 1"
     ).bind(parent, `%[${affiliateId}]%`).first();
     if (!task) {
       return json({ error: "affiliate subtask not found", parent, affiliate_id: affiliateId }, 404, request);
@@ -6375,6 +6376,31 @@ async function handleSkillsReport(request, env) {
   ).bind(JSON.stringify(comments), newCount, newCount, task.id).run();
 
   await auditLog(env, { canonicalUid: 'skills_portal', email: author }, "skills_report", "task", task.id, { commentKey: key, occurredAt });
+
+  // Уведомление ответственному за подзадачу — чтобы он сразу видел что портал
+  // прислал событие, а не узнавал случайно открыв задачу. Использует общую
+  // систему createNotification: D1 запись + real-time broadcast в открытые
+  // вкладки + Web Push на смартфон + дублирование в WhatsApp (если настроено).
+  // Не блокируем основной ответ — ошибки логируем но не возвращаем.
+  if (task.responsible_uid) {
+    try {
+      // Превью текста: первые 200 символов, без markdown-разметки в превью.
+      const preview = text.replace(/\s+/g, ' ').slice(0, 200).trim();
+      await createNotification(env, {
+        uid: task.responsible_uid,
+        type: 'skills_report',
+        title: `📥 ${author}: новое событие в «${(task.title || '').slice(0, 80)}»`,
+        body: preview,
+        link: `/team.html?page=tasks&task=${encodeURIComponent(task.id)}`,
+        icon: '📥',
+        actorUid: null,  // системный источник, не реальный пользователь
+        entityType: 'task',
+        entityId: task.id,
+      });
+    } catch (e) {
+      console.warn('[skills_report] notification failed:', e && e.message);
+    }
+  }
 
   return json({ ok: true, taskId: task.id, bitrixId: task.bitrix_id, commentKey: key, commentsCount: newCount }, 200, request);
 }
