@@ -227,6 +227,26 @@ function renderStart(){
     <button class="btn" onclick="renderSelfIdentify()">Начать тест →</button>`;
 }
 
+/* Этап 2: создать placement-сессию (с итогами теста) и перейти к разговору с преподавателем.
+   Преподаватель в панели выставит уровень, после чего откроется программа этого уровня. */
+const LESSON_BASE = 'https://elc-lesson-worker.uurraa.workers.dev';
+function startConversation(btn){
+  if(btn){ btn.disabled = true; btn.textContent = 'Создаём заявку…'; }
+  const payload = {
+    placement: true,
+    level: placedLevel,
+    cefr: (levelByN(placedLevel)||{}).cefr || '',
+    student: { name:student.name, lastName:student.lastName, phone:student.phone, email:student.email, contactId:student.contactId },
+    theory: buildTheoryPayload(),
+    branch: BRANCH ? { code:BRANCH.code, label:BRANCH.label } : null,
+  };
+  fetch(LESSON_BASE + '/api/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
+    .then(r=>r.json())
+    .then(j=>{ if(j && j.ok){ location.href = LESSON_BASE + '/lesson?id=' + j.id; }
+               else { if(btn){ btn.disabled=false; btn.textContent='К разговору с преподавателем →'; } alert('Не удалось создать заявку. Попробуйте ещё раз.'); } })
+    .catch(()=>{ if(btn){ btn.disabled=false; btn.textContent='К разговору с преподавателем →'; } alert('Сеть недоступна. Попробуйте ещё раз.'); });
+}
+
 /* Ссылка на пробный урок по итогам теста (lesson-воркер) — с результатами теста */
 function lessonUrl(level, score, total, cefr){
   const o = { level:String(level), name:student.name||'', last:student.lastName||'', phone:student.phone||'', email:student.email||'' };
@@ -262,7 +282,7 @@ function submitSelfIdentify(){
 }
 
 function renderQuestion(){
-  if(idx >= QUESTIONS.length || shouldStop()){ return renderResult(); }
+  if(idx >= QUESTIONS.length){ return renderResult(); } // обзор по ВСЕМ уровням (без раннего стопа)
   const Q = QUESTIONS[idx];
   const lvl = levelByN(Q.level);
   const pct = Math.round((answers.length / QUESTIONS.length) * 100);
@@ -305,16 +325,19 @@ function levelAgg(){
   return m;
 }
 
-/* уровень для зачисления = первый уровень (снизу вверх), который студент НЕ освоил.
-   Освоен = доля верных >= PASS (одиночный промах в 4 вопросах прощается). */
+/* Обзорный тест по всем уровням: берём САМЫЙ ВЫСОКИЙ уровень, который студент освоил
+   (доля верных >= PASS), и рекомендуем следующий за ним. Так ошибки на лёгких вопросах
+   не занижают уровень, если на сложных студент справляется. Финальный уровень уточняет
+   преподаватель в разговоре. */
 function computePlacement(){
   const m = levelAgg();
+  let highest = 0;
   for(const l of LEVELS){
     const s = m[l.n];
-    if(s.total === 0) continue;            // не дошли — значит всё до этого освоено
-    if(s.ok / s.total < PASS) return { rec:l.n, graduated:false };
+    if(s.total > 0 && s.ok / s.total >= PASS) highest = l.n;
   }
-  return { rec:8, graduated:true };        // освоены все отвеченные уровни
+  if(highest >= 7) return { rec:7, graduated:true };   // освоил всё — потолок программы
+  return { rec: Math.max(1, highest + 1), graduated:false }; // старт со следующего за освоенным
 }
 
 function renderResult(){
@@ -341,14 +364,14 @@ function renderResult(){
         повторение верхних уровней или на следующую ступень.</p>`;
   } else {
     const L = levelByN(rec);
-    headline = `Рекомендуемый уровень для зачисления:`;
+    headline = `Предварительный уровень (уточнит преподаватель):`;
     lessonBlock = `
       <div class="lesson">${L.name}</div>
       <span class="badge lvl" style="color:var(--accent)">CEFR: ${L.cefr}</span>
       <div class="struct">
         <div class="s-name">${L.desc}</div>
-        <div class="s-sub">Это первый уровень, который студент ещё не освоил — с него и начинаем.
-          Грамматика: уроки ${L.lessons} программы 201.</div>
+        <div class="s-sub">Рекомендуем начать с этого уровня. Финальный уровень подтвердит
+          преподаватель в коротком разговоре. Грамматика: уроки ${L.lessons} программы 201.</div>
       </div>`;
   }
 
@@ -362,11 +385,12 @@ function renderResult(){
       <table><thead><tr><th>Уровень</th><th class="score">Верно</th></tr></thead><tbody>${statsRows}</tbody></table>
       <p class="small">Уровень считается освоенным при ≥60% верных ответов (одиночная ошибка не понижает уровень).</p>
       <div class="row">
-        ${BRANCH ? '' : `<a class="btn" href="${lessonUrl(placedLevel, correctTotal, answers.length, (levelByN(placedLevel)||{}).cefr||'')}">Начать пробный урок по уровню →</a>`}
-        <button class="btn ${BRANCH ? '' : 'ghost'}" onclick="renderSpeaking()">${BRANCH ? 'Перейти к части 2 · Разговор →' : 'Записать разговор (необязательно)'}</button>
+        ${BRANCH ? '' : `<button class="btn" onclick="startConversation(this)">К разговору с преподавателем →</button>`}
+        ${BRANCH ? `<button class="btn" onclick="renderSpeaking()">Перейти к части 2 · Разговор →</button>` : ''}
         <button class="btn ghost" onclick="goHome()">${BRANCH ? '← К началу' : '← На главную'}</button>
         ${BRANCH ? '' : '<button class="btn ghost" onclick="start()">Пройти заново</button>'}
       </div>
+      ${BRANCH ? '' : '<p class="small center" style="margin-top:8px">Вы перейдёте к преподавателю — он уточнит уровень и откроет вам нужную программу.</p>'}
     </div>`;
 }
 
