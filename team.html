@@ -4011,7 +4011,7 @@ window.navigate = navigate;
 const LC_API = 'https://elc-lesson-worker.uurraa.workers.dev';
 const LC_PIN = 'elc2026';
 const LC_LEVELS = {1:'Beginner 1',2:'Beginner 2',3:'Elementary',4:'Pre-Intermediate',5:'Intermediate',6:'Upper-Int 2.0',7:'Upper-Int 3.0'};
-const LC_STEP = {'level-set':'Разговор · выставить уровень','words-cards':'Слова · переводы','words-speed':'Слова · на скорость','grammar':'Грамматика','reading':'Чтение','speaking':'Спикинг','registrar':'Регистратор · итоги'};
+const LC_STEP = {'level-set':'Разговор · выставить уровень','tour':'Тур по школе','words-cards':'Слова · переводы','words-speed':'Слова · на скорость','grammar':'Грамматика','reading':'Чтение','speaking':'Спикинг','registrar':'Регистратор · итоги'};
 let lcTab = 'check';
 let lcTimer = null;
 
@@ -4055,7 +4055,7 @@ window.lcSwitch = function(tab){
     if (el) { el.style.background = t===tab ? 'var(--acbg)' : 'transparent'; el.style.color = t===tab ? 'var(--ac2)' : 'var(--t3)'; }
   });
   const c = document.getElementById('lc-content');
-  if (tab === 'check') { c.innerHTML = `<div id="lc-root"><div style="color:var(--t3);padding:20px;text-align:center">Загрузка…</div></div>`; lcPoll(); }
+  if (tab === 'check') { lcLastSig = ''; c.innerHTML = `<div id="lc-root"><div style="color:var(--t3);padding:20px;text-align:center">Загрузка…</div></div>`; lcPoll(); }
   else if (tab === 'history') lcLoadHistory();
   else lcShowLinks();
 };
@@ -4138,9 +4138,15 @@ function lcLoadHistory(){
   }).catch(e => { c.innerHTML = `<div style="color:var(--rd)">Сеть: ${escapeHtml(e.message)}</div>`; });
 }
 
+let lcLastSig = '';
 function lcRender(items){
   const root = document.getElementById('lc-root');
   if (!root) return;
+  // Перерисовываем только при реальном изменении набора — иначе сбрасывается
+  // открытый список выбора уровня (преподаватель не успевает выставить).
+  const sig = items.map(i => i.id + ':' + i.step + ':' + (i.speed ? i.speed.secs : '')).join('|');
+  if (sig === lcLastSig) return;
+  lcLastSig = sig;
   if (!items.length) { root.innerHTML = `<div style="color:var(--t3);padding:30px;text-align:center;border:1px dashed var(--b1);border-radius:12px">Очередь пуста. Как только студент дойдёт до задания с проверкой — карточка появится здесь.</div>`; return; }
   root.innerHTML = items.map(lcCard).join('');
 }
