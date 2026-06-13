@@ -462,7 +462,15 @@ function safeJsonVerbatim(v) {
   if (v.indexOf("[TRUNCATED") >= 0) {
     try { JSON.parse(v); return v; } catch { return "null"; }
   }
-  return v;
+  // JSON-колонки почти всегда хранят объект/массив ({...}/[...]) — отдаём verbatim
+  // дёшево, без парсинга (горячий путь для contacts/tasks/deals).
+  const c0 = v.charCodeAt(0);
+  if (c0 === 123 /* { */ || c0 === 91 /* [ */) return v;
+  // Иначе колонка хранит СЫРОЙ скаляр-текст (напр. users.department="Отделение 6"
+  // или "6 Отделение") — это НЕ валидный JSON и ломает ВЕСЬ ответ коллекции
+  // (users.json → .json() падает → пустые воронки/сотрудники у ВСЕХ). Валидируем
+  // и при провале эмитим как корректную JSON-строку.
+  try { JSON.parse(v); return v; } catch { return JSON.stringify(v); }
 }
 
 // Sparse-режим только для очень крупных таблиц где экономия CPU реально важна.
