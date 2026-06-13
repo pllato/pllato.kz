@@ -5967,6 +5967,10 @@ async function handleInviteAccept(request, env, token) {
   try { body = await request.json(); } catch {}
   const name = (String(body.name || '').trim() || String(inv.name || '').trim()).slice(0, 80);
   const photo = String(body.photo || '').trim().slice(0, 500) || null;
+  // Телефон из приглашения — для WhatsApp-оповещений сотруднику (нотификатор
+  // шлёт на users.phone/phones). Без него WA-уведомления не доходят.
+  const invPhoneNorm = inv.phone ? normalizePhoneKZ(inv.phone) : null;
+  const invPhonesJson = invPhoneNorm ? JSON.stringify([invPhoneNorm]) : null;
 
   // 1) Создаём / апдейтим users (canonical uid = firebase uid для новых)
   // Если случайно есть запись с этим email — переиспользуем её uid
@@ -5990,6 +5994,17 @@ async function handleInviteAccept(request, env, token) {
                        photo = COALESCE(NULLIF(?, ''), photo)
       WHERE uid = ?
     `).bind(firstName, lastName, photo, canonicalUid).run();
+  }
+
+  // 1.5) Телефон из приглашения → карточка сотрудника, если ещё не задан. Без
+  // него нотификатор не шлёт WhatsApp-оповещения, а фронт держит модалку
+  // «введите телефон», которая глушит запрос пушей. Ставим оба поля.
+  if (invPhoneNorm) {
+    try {
+      await env.DB.prepare(
+        "UPDATE users SET phone = COALESCE(NULLIF(phone,''), ?), phones = COALESCE(phones, ?) WHERE uid = ?"
+      ).bind(invPhoneNorm, invPhonesJson, canonicalUid).run();
+    } catch (e) { console.warn('[invite] set phone failed:', e.message); }
   }
 
   // 2) user_roles
