@@ -2171,7 +2171,8 @@ async function loadSyncStatus(){
 
 // ---------- SETTINGS ----------
 PAGES.settings=(c)=>{
-  c.appendChild(el(`<div class="grid-2 section-gap" style="margin-top:0">
+  const wrap=el('<div class="set-wrap"></div>'); c.appendChild(wrap);
+  wrap.appendChild(el(`<div class="grid-2">
     <div class="panel"><div class="panel-h"><h3>Воронки · этапы</h3><span class="ph-sub">настраиваются без программиста</span></div><div class="panel-b">
       <div style="font-weight:600;margin-bottom:8px">B2C · розница</div><div class="chips" style="margin-bottom:16px">${DB.stagesB2C.map(s=>`<span class="chip on">${s}</span>`).join('')}<span class="chip">${ic('i-plus','sm')}</span></div>
       <div style="font-weight:600;margin-bottom:8px">B2B · опт</div><div class="chips">${DB.stagesB2B.map(s=>`<span class="chip on">${s}</span>`).join('')}<span class="chip">${ic('i-plus','sm')}</span></div>
@@ -2185,7 +2186,7 @@ PAGES.settings=(c)=>{
   </div>`));
 
   // --- Курс валюты: ручной ввод + авто из НБ КР ---
-  const fxPanel=el(`<div class="panel section-gap" style="margin-top:0"><div class="panel-h"><h3>Курс валюты · сом ↔ рубль</h3><span class="ph-sub">ручной ввод или авто (НБ КР)</span></div><div class="panel-b">
+  const fxPanel=el(`<div class="panel"><div class="panel-h"><h3>Курс валюты · сом ↔ рубль</h3><span class="ph-sub">ручной ввод или авто (НБ КР)</span></div><div class="panel-b">
     <div class="note blue">${ic('i-info','sm')} В проде пересчёт валют выполняет 1С по курсу НБ КР. Здесь можно задать курс вручную (сохранится в браузере) или подтянуть из НБ КР.</div>
     <div class="row wrap section-gap" style="gap:12px;align-items:flex-end">
       <div class="fld" style="margin:0"><label>1 сом = ₽</label><input data-fx="rate" type="number" step="0.01" min="0" style="width:130px" value="${DB.fx.RUB}"></div>
@@ -2213,9 +2214,9 @@ PAGES.settings=(c)=>{
       toast('Авто-курс — нужен backend/1С','i-info','#d97706');
     }
   };
-  c.appendChild(fxPanel);
+  wrap.appendChild(fxPanel);
 
-  c.appendChild(el(`<div class="grid-2 section-gap">
+  wrap.appendChild(el(`<div class="grid-2">
     <div class="panel"><div class="panel-h"><h3>Безопасность</h3></div><div class="panel-b">
       ${['HTTPS / TLS 1.3','Аутентификация по логину + 2FA','Разграничение доступа по ролям','Логирование действий','Шифрование чувствительных данных','Ежедневный бэкап · хранение 30 дней'].map(s=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><span class="yes" style="color:var(--accent2)">${ic('i-check2','sm')}</span><span style="font-size:13px">${s}</span></div>`).join('')}
     </div></div>
