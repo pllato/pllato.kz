@@ -1815,7 +1815,8 @@ PAGES.ai=(c)=>{
 
 // ---------- KPI ----------
 function isoDaysAgo(n){ const d=new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); }
-PAGES.kpi=(c)=>{
+PAGES.kpi=async(c)=>{
+  const khStores=await fetchStores();
   const tbar=el(`<div class="toolbar">
     <div class="seg" data-kh="range">
       <button data-d="7">7 дней</button>
@@ -1825,21 +1826,24 @@ PAGES.kpi=(c)=>{
     <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-kh="from" title="С даты"></div>
     <div class="fld-in">${ic('i-clock','sm')}<input type="date" data-kh="to" title="По дату"></div>
     <button class="btn sm" data-kh="apply">Показать</button>
+    ${storeSelectHtml(khStores,'','class="sel" data-kh="store" title="Точка"','Все точки')}
   </div>`);
   const cards=el(`<div class="cards-row section-gap"></div>`);
   const panel=el(`<div class="panel section-gap"><table class="tbl"><thead><tr><th style="width:38px">#</th><th>Продавец</th><th class="num">Выручка</th><th class="num">Прибыль</th><th class="num">Маржа</th><th class="num">Чеки</th><th class="num">Ср. чек</th><th class="num">Доля</th></tr></thead><tbody><tr><td colspan="8" class="muted2" style="padding:16px">Загрузка…</td></tr></tbody></table></div>`);
   c.appendChild(tbar); c.appendChild(cards); c.appendChild(panel);
   c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} KPI из реальных продаж 1С по ответственному (продавцу) за период. «Чеки» — число документов продаж, «Ср. чек» — выручка ÷ чеки, «Маржа» — прибыль ÷ выручка. Планы/бонусы добавим по формуле заказчика.</div>`));
   const seg=tbar.querySelector('[data-kh=range]'), fromI=tbar.querySelector('[data-kh=from]'), toI=tbar.querySelector('[data-kh=to]'), applyB=tbar.querySelector('[data-kh=apply]');
-  const go=(f,t)=>loadKpi(cards,panel,f,t);
+  let curF=isoDaysAgo(30), curT=isoDaysAgo(0);
+  const go=(f,t)=>{ curF=f; curT=t; loadKpi(cards,panel,f,t,tbar.querySelector('[data-kh=store]').value); };
   seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); fromI.value='';toI.value=''; go(isoDaysAgo(+b.dataset.d),isoDaysAgo(0)); });
   applyB.onclick=()=>{ if(fromI.value&&toI.value){ seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); go(fromI.value,toI.value); } else toast('Укажите обе даты','i-info'); };
+  tbar.querySelector('[data-kh=store]').onchange=()=>go(curF,curT);
   go(isoDaysAgo(30),isoDaysAgo(0));
 };
-async function loadKpi(cards,panel,from,to){
+async function loadKpi(cards,panel,from,to,store){
   const tb=panel.querySelector('tbody');
   cards.innerHTML=''; tb.innerHTML=`<tr><td colspan="8" class="muted2" style="padding:16px">Загрузка…</td></tr>`;
-  const r=await api('/api/1c/sales/summary?from='+from+'&to='+to);
+  const r=await api('/api/1c/sales/summary?from='+from+'&to='+to+(store?('&store='+encodeURIComponent(store)):''));
   if(!r.ok){
     cards.innerHTML=miniStat('i-target','#7c3aed','KPI продавцов','демо');
     tb.innerHTML=(DB.sellers||[]).map((s,i)=>`<tr><td>${i+1}</td><td>${esc(s.name)}</td><td class="num">${money(s.fact)}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>`).join('');
