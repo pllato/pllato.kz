@@ -21952,9 +21952,8 @@ async function openAddUserModal() {
         <div><div class="qad-label">👤 Имя *</div><input id="au-name" class="qad-input" placeholder="Например: Ирина Петрова" autofocus></div>
         <div><div class="qad-label">📱 Телефон WhatsApp *</div><input id="au-phone" class="qad-input" type="tel" placeholder="+7 707 123 45 67"></div>
         ${hasStructure
-          ? `<div><div class="qad-label">🏢 Филиал / отделение *</div><select id="au-branch" class="qad-input"><option value="">— выбери —</option>${branchOptsHtml}</select></div>
-             <div id="au-dept-wrap" style="display:none;margin-top:8px"><div class="qad-label">🏬 Отдел *</div><select id="au-dept" class="qad-input"></select></div>
-             <div id="au-subdept-wrap" style="display:none;margin-top:8px"><div class="qad-label">📁 Подотдел</div><select id="au-subdept" class="qad-input"></select></div>`
+          ? `<div id="au-cascade"></div>
+             <div style="margin-top:4px;color:var(--t3);font-size:11px;line-height:1.4">Спускайся по структуре до любого уровня. Сотрудник попадёт в самый глубокий выбранный отдел.</div>`
           : `<div class="dialer-hint" style="color:#dc2626">⚠ Оргструктура не настроена. Сначала добавь отделы в разделе «Структура».</div>`}
         <div>
           <div class="qad-label">🎭 Роль</div>
@@ -21975,34 +21974,45 @@ async function openAddUserModal() {
   document.body.appendChild(ov);
   document.getElementById('au-close').onclick = () => ov.remove();
   document.getElementById('au-cancel').onclick = () => ov.remove();
-  // Каскад: при выборе филиала — населяем отделы; при выборе отдела — подотделы.
-  const branchEl = document.getElementById('au-branch');
-  const deptEl = document.getElementById('au-dept');
-  const subEl = document.getElementById('au-subdept');
-  const deptWrap = document.getElementById('au-dept-wrap');
-  const subWrap = document.getElementById('au-subdept-wrap');
-  const nodeOpts = (arr, base, key) => (arr || []).map((n, i) => `<option value="${base}.${key}.${i}">${escapeHtml(n.name || '—')}</option>`).join('');
-  if (branchEl) branchEl.onchange = () => {
-    if (subWrap) { subWrap.style.display = 'none'; subEl.innerHTML = ''; }
-    const bp = branchEl.value;
-    const depts = bp ? ((orgGetByPath(bp) || {}).departments || []) : [];
-    if (bp && depts.length) {
-      deptEl.innerHTML = `<option value="">— выбери отдел —</option>` + nodeOpts(depts, bp, 'departments');
-      deptWrap.style.display = '';
-    } else { deptWrap.style.display = 'none'; deptEl.innerHTML = ''; }
+  // Динамический каскад выбора отдела ЛЮБОЙ глубины. Уровень 0 — филиалы; при
+  // выборе узла с детьми (departments / subDepartments) появляется следующий
+  // select, и так до самого глубокого. Сотрудник попадёт в самый глубокий
+  // выбранный узел. Глубокие уровни необязательны — можно остановиться где нужно.
+  const cascadeEl = document.getElementById('au-cascade');
+  const auLevels = []; // [{wrap, sel}] сверху вниз
+  const nodeChildren = (node) => {
+    if (!node) return null;
+    if (Array.isArray(node.departments) && node.departments.length) return { arr: node.departments, key: 'departments' };
+    if (Array.isArray(node.subDepartments) && node.subDepartments.length) return { arr: node.subDepartments, key: 'subDepartments' };
+    return null;
   };
-  if (deptEl) deptEl.onchange = () => {
-    const dp = deptEl.value;
-    const subs = dp ? ((orgGetByPath(dp) || {}).subDepartments || []) : [];
-    if (dp && subs.length) {
-      subEl.innerHTML = `<option value="">— (необязательно) —</option>` + nodeOpts(subs, dp, 'subDepartments');
-      subWrap.style.display = '';
-    } else { subWrap.style.display = 'none'; subEl.innerHTML = ''; }
-  };
+  const levelLabel = (i) => i === 0 ? '🏢 Филиал / отделение *' : i === 1 ? '🏬 Отдел' : i === 2 ? '📁 Подотдел' : `📂 Подразделение (ур. ${i + 1})`;
+  function auAddLevel(arr, basePath, key, levelIndex) {
+    if (!cascadeEl) return;
+    const placeholder = levelIndex === 0 ? '— выбери —' : '— (глубже, необязательно) —';
+    const opts = ['<option value="">' + placeholder + '</option>'].concat(
+      (arr || []).map((n, i) => `<option value="${escapeHtml(basePath ? `${basePath}.${key}.${i}` : `${key}.${i}`)}">${escapeHtml(n.name || '—')}</option>`)
+    ).join('');
+    const wrap = document.createElement('div');
+    wrap.style.marginTop = '8px';
+    wrap.innerHTML = `<div class="qad-label">${levelLabel(levelIndex)}</div><select class="qad-input"></select>`;
+    const sel = wrap.querySelector('select');
+    sel.innerHTML = opts;
+    sel.onchange = () => {
+      while (auLevels.length > levelIndex + 1) { auLevels.pop().wrap.remove(); }
+      const node = sel.value ? orgGetByPath(sel.value) : null;
+      const ch = nodeChildren(node);
+      if (ch) auAddLevel(ch.arr, sel.value, ch.key, levelIndex + 1);
+    };
+    cascadeEl.appendChild(wrap);
+    auLevels.push({ wrap, sel });
+  }
+  if (hasStructure) auAddLevel(branches, '', 'branches', 0);
   const computeDeptPath = () => {
-    if (subWrap && subWrap.style.display !== 'none' && subEl.value) return subEl.value;
-    if (deptWrap && deptWrap.style.display !== 'none' && deptEl.value) return deptEl.value;
-    return branchEl ? branchEl.value : '';
+    for (let i = auLevels.length - 1; i >= 0; i--) {
+      if (auLevels[i].sel.value) return auLevels[i].sel.value;
+    }
+    return '';
   };
   const saveBtn = document.getElementById('au-save');
   if (saveBtn) saveBtn.onclick = async () => {
@@ -22012,12 +22022,8 @@ async function openAddUserModal() {
     const status = document.getElementById('au-status');
     if (!name) { status.innerHTML = '<span style="color:#dc2626">⚠ Введи имя сотрудника</span>'; return; }
     if (!phone || phone.length < 10) { status.innerHTML = '<span style="color:#dc2626">⚠ Введи телефон полностью</span>'; return; }
-    if (!branchEl || !branchEl.value) { status.innerHTML = '<span style="color:#dc2626">⚠ Выбери филиал / отделение</span>'; return; }
-    // Если у филиала есть отделы — отдел обязателен (точное место сотрудника).
-    const branchNode = orgGetByPath(branchEl.value) || {};
-    if ((branchNode.departments || []).length && (!deptEl || !deptEl.value)) {
-      status.innerHTML = '<span style="color:#dc2626">⚠ Выбери отдел</span>'; return;
-    }
+    const topVal = auLevels[0] && auLevels[0].sel.value;
+    if (!topVal) { status.innerHTML = '<span style="color:#dc2626">⚠ Выбери филиал / отделение</span>'; return; }
     const deptPath = computeDeptPath();
     if (!deptPath) { status.innerHTML = '<span style="color:#dc2626">⚠ Выбери отдел</span>'; return; }
     const node = orgGetByPath(deptPath);
