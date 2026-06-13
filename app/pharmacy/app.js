@@ -776,9 +776,11 @@ async function orderModalLive(o,onSaved){
 }
 
 // ---------- CATALOG ----------
-PAGES.catalog=(c)=>{
+PAGES.catalog=async(c)=>{
+  const catStores=await fetchStores();
   const tbar=el(`<div class="toolbar">
     <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по названию, коду, артикулу, штрихкоду…" data-cat="q"></div>
+    ${storeSelectHtml(catStores,'','class="sel" data-cat="store" title="Остаток на точке"','Остаток: все точки')}
     <div class="spacer"></div>
     <span class="tag green" data-cat="cnt">${ic('i-sync','sm')} зеркало 1С</span>
   </div>`);
@@ -805,7 +807,8 @@ PAGES.catalog=(c)=>{
   }
   async function load(){
     const q=qInput.value.trim();
-    const r=await api('/api/1c/products?limit='+PAGE+'&offset='+offset+(q?('&q='+encodeURIComponent(q)):''));
+    const sv=tbar.querySelector('[data-cat=store]').value;
+    const r=await api('/api/1c/products?limit='+PAGE+'&offset='+offset+(q?('&q='+encodeURIComponent(q)):'')+(sv?('&store='+encodeURIComponent(sv)):''));
     if(!r.ok){
       cnt.innerHTML=ic('i-sync','sm')+' '+(r.status===403?'демо · нужен доступ':r.status===401?'демо · войдите':'демо · нет связи');
       tb.innerHTML=rowsDemo(); renderPager(true,0); return;
@@ -817,6 +820,7 @@ PAGES.catalog=(c)=>{
   }
   let qt=null;
   qInput.addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(()=>{offset=0;load();},300);});
+  tbar.querySelector('[data-cat=store]').onchange=()=>{offset=0;load();};
   pgPrev.onclick=()=>{ if(offset>0){offset=Math.max(0,offset-PAGE);load();$('#content').scrollTop=0;} };
   pgNext.onclick=()=>{ if(offset+PAGE<total){offset+=PAGE;load();$('#content').scrollTop=0;} };
   load();
