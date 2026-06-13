@@ -5,19 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ELC — Тест на определение уровня</title>
 <style>
+  /* Фирменный стиль ELC: синий #373D8D, красный #E31E24, жёлтый #FFCC00, белый фон */
   :root{
-    --bg:#0f1226; --card:#1a1f3d; --card2:#222a52; --line:#2e3870;
-    --txt:#eef1ff; --muted:#9aa3d4; --accent:#5b8cff; --accent2:#7c5cff;
-    --ok:#2ecc8f; --bad:#ff6b6b; --gold:#ffd166;
+    --bg:#eef1f8; --card:#ffffff; --card2:#f7f9fd; --line:#dfe4f1;
+    --txt:#1c2247; --muted:#6b7299; --accent:#373D8D; --accent2:#2a3070;
+    --ok:#1f9d57; --bad:#E31E24; --gold:#FFCC00;
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    background:radial-gradient(1200px 600px at 50% -10%,#20275a,#0f1226);color:var(--txt);min-height:100vh}
+  body{margin:0;font-family:"Trebuchet MS",Tahoma,Verdana,-apple-system,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#ffffff,#eef1f8);color:var(--txt);min-height:100vh}
   .wrap{max-width:720px;margin:0 auto;padding:24px 18px 60px}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.5px;margin-bottom:18px;color:var(--muted)}
+  .brand{display:flex;align-items:baseline;gap:9px;margin-bottom:18px}
+  .brand .logo{font-weight:800;font-size:22px;letter-spacing:1px;color:var(--accent)}
+  .brand .logo .c{color:var(--bad)}
+  .brand .sub{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700}
   .brand b{color:var(--txt)}
   .card{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);
-    border-radius:18px;padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+    border-radius:18px;padding:26px;box-shadow:0 10px 30px rgba(55,61,141,.10)}
   h1{font-size:26px;margin:0 0 8px}
   h2{font-size:20px;margin:0 0 14px}
   p.lead{color:var(--muted);line-height:1.6;margin:0 0 18px}
@@ -27,24 +31,24 @@
   .btn:hover{filter:brightness(1.08)}
   .btn:active{transform:translateY(1px)}
   .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
-  .progress{height:8px;background:#11163a;border-radius:99px;overflow:hidden;margin:0 0 20px;border:1px solid var(--line)}
+  .progress{height:8px;background:#f1f4fc;border-radius:99px;overflow:hidden;margin:0 0 20px;border:1px solid var(--line)}
   .progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .3s ease}
   .meta{display:flex;justify-content:space-between;color:var(--muted);font-size:13px;margin-bottom:10px}
   .badge{display:inline-block;font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px;
-    background:#11163a;border:1px solid var(--line);color:var(--muted)}
+    background:#f1f4fc;border:1px solid var(--line);color:var(--muted)}
   .q{font-size:20px;line-height:1.5;margin:6px 0 6px}
-  .q .blank{color:var(--gold);font-weight:800;letter-spacing:2px}
+  .q .blank{color:var(--bad);font-weight:800;letter-spacing:2px}
   .hint{color:var(--muted);font-size:15px;margin:0 0 20px}
   .opts{display:grid;gap:12px}
-  .opt{display:flex;align-items:center;gap:12px;text-align:left;background:#11163a;border:1px solid var(--line);
+  .opt{display:flex;align-items:center;gap:12px;text-align:left;background:#f1f4fc;border:1px solid var(--line);
     color:var(--txt);padding:15px 16px;border-radius:12px;font-size:17px;cursor:pointer;transition:.12s}
-  .opt:hover{border-color:var(--accent);background:#161d47}
+  .opt:hover{border-color:var(--accent);background:#e7edfb}
   .opt .key{width:26px;height:26px;flex:0 0 26px;display:grid;place-items:center;border-radius:7px;
-    background:#0d1230;border:1px solid var(--line);font-size:13px;color:var(--muted)}
+    background:#ffffff;border:1px solid var(--line);font-size:13px;color:var(--muted)}
   .result .big{font-size:15px;color:var(--muted);margin:0 0 4px}
   .result .lesson{font-size:30px;font-weight:800;margin:0 0 4px;line-height:1.2}
   .result .lvl{display:inline-block;margin:6px 0 16px}
-  .struct{background:#11163a;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0 0 18px}
+  .struct{background:#f1f4fc;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0 0 18px}
   .struct .s-name{font-size:17px;font-weight:700}
   .struct .s-sub{color:var(--muted);font-size:13px;margin-top:3px}
   table{width:100%;border-collapse:collapse;margin:8px 0 20px;font-size:14px}
@@ -64,30 +68,30 @@
   .btn.rec{background:linear-gradient(135deg,#ff6b6b,#c0392b)}
   .steps{display:flex;gap:8px;margin:0 0 18px}
   .steps .step{flex:1;text-align:center;font-size:12px;font-weight:700;color:var(--muted);
-    background:#11163a;border:1px solid var(--line);border-radius:10px;padding:8px 6px}
-  .steps .step.on{color:#fff;border-color:var(--accent);background:#161d47}
+    background:#f1f4fc;border:1px solid var(--line);border-radius:10px;padding:8px 6px}
+  .steps .step.on{color:#fff;border-color:var(--accent);background:#e7edfb}
   .brandline{font-size:13px;color:var(--muted);margin:0 0 14px}
   .brandline b{color:var(--txt)}
-  .inp{width:100%;background:#0d1230;border:1px solid var(--line);color:var(--txt);
+  .inp{width:100%;background:#ffffff;border:1px solid var(--line);color:var(--txt);
     padding:13px 14px;border-radius:11px;font-size:16px;outline:none}
   .inp:focus{border-color:var(--accent)}
   .fld{display:block;margin:0 0 14px;font-size:13px;color:var(--muted)}
   .fld .inp{margin-top:6px}
   .roster{display:grid;gap:8px;margin:12px 0 6px;max-height:340px;overflow:auto}
   .rost{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;
-    background:#11163a;border:1px solid var(--line);color:var(--txt);padding:13px 15px;
+    background:#f1f4fc;border:1px solid var(--line);color:var(--txt);padding:13px 15px;
     border-radius:11px;font-size:16px;cursor:pointer;transition:.12s}
-  .rost:hover{border-color:var(--accent);background:#161d47}
+  .rost:hover{border-color:var(--accent);background:#e7edfb}
   .rost-name{font-weight:600}
   .rost-phone{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
   .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
-  .chip{font-size:11px;color:var(--muted);background:#0d1230;border:1px solid var(--line);
+  .chip{font-size:11px;color:var(--muted);background:#ffffff;border:1px solid var(--line);
     border-radius:99px;padding:2px 8px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="brand">ELC · <b>Placement Test</b> · Тест уровня</div>
+  <div class="brand"><span class="logo">EL<span class="c">C</span></span><span class="sub">English Lifestyle Communication</span></div>
   <div class="card" id="app"></div>
   <p class="small center" style="margin-top:16px">7 уровней программы · адаптивное размещение</p>
 </div>
@@ -323,7 +327,7 @@ function renderResult(){
   const statsRows = LEVELS.filter(l=>m[l.n].total>0).map(l=>{
     const s = m[l.n];
     const pass = s.ok/s.total >= PASS;
-    const col = pass ? 'var(--ok)' : (s.ok===0 ? 'var(--bad)' : 'var(--gold)');
+    const col = pass ? 'var(--ok)' : (s.ok===0 ? 'var(--bad)' : '#c98a00');
     return `<tr><td>${l.name} <span style="color:var(--muted)">· ${l.cefr}</span></td>
             <td class="score" style="color:${col}">${s.ok}/${s.total}</td></tr>`;
   }).join('');
@@ -332,7 +336,7 @@ function renderResult(){
   if(graduated){
     headline = `Студент уверенно прошёл все 7 уровней теста.`;
     lessonBlock = `
-      <div class="lesson" style="color:var(--gold)">Выше Upper-Intermediate 3.0</div>
+      <div class="lesson" style="color:#c98a00">Выше Upper-Intermediate 3.0</div>
       <p class="lead">Грамматика программы 201 освоена полностью — можно ставить на выпускной модуль /
         повторение верхних уровней или на следующую ступень.</p>`;
   } else {
@@ -392,7 +396,7 @@ function renderSpeaking(){
     </div>`;
   const box = document.getElementById('rec');
   if(!supported){
-    box.innerHTML = `<p class="hint" style="color:var(--gold)">Запись с микрофона не поддерживается в этом браузере.
+    box.innerHTML = `<p class="hint" style="color:#c98a00">Запись с микрофона не поддерживается в этом браузере.
       Открой страницу в Chrome или Safari (или на телефоне) — и кнопка записи появится. Тему выше можно проговорить вживую с преподавателем.</p>`
       + (CRM() ? `<button class="btn" onclick="sendResults(false)">Отправить результат преподавателю (без записи) →</button>` : '');
   } else {
