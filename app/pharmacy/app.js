@@ -252,9 +252,13 @@ function barList(rows,max,isMoney){
 }
 
 // ---------- FUNNELS ----------
-PAGES.funnels=(c)=>{
+PAGES.funnels=async(c)=>{
+  const fUsers=await fetchUsers();
+  const fStages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
   const tbar=el(`<div class="toolbar">
     <div class="seg" id="funnelSeg"><button class="${state.funnel==='b2c'?'on':''}" data-f="b2c">B2C · розница</button><button class="${state.funnel==='b2b'?'on':''}" data-f="b2b">B2B · опт</button></div>
+    <select class="sel" id="flMgr" title="Фильтр по ответственному"><option value="">Все ответственные</option>${fUsers.map(u=>`<option>${esc(u.name)}</option>`).join('')}</select>
+    <select class="sel" id="flStage" title="Фильтр по этапу"><option value="">Все этапы</option>${fStages.map(s=>`<option>${esc(s)}</option>`).join('')}</select>
     <div class="spacer"></div>
     <span class="ph-sub" id="funnelCnt"></span>
     <button class="btn primary" id="newDealBtn">${ic('i-plus','sm')} Сделка</button>
@@ -273,12 +277,14 @@ PAGES.funnels=(c)=>{
   const cnt=tbar.querySelector('#funnelCnt');
   tbar.querySelector('#funnelSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{state.funnel=b.dataset.f;renderPage();});
   tbar.querySelector('#newDealBtn').onclick=()=>newDealLive(load);
-  let demoMode=false, current=[];
+  let demoMode=false, current=[], flMgr='', flStage='';
+  tbar.querySelector('#flMgr').onchange=e=>{flMgr=e.target.value;renderBoard();};
+  tbar.querySelector('#flStage').onchange=e=>{flStage=e.target.value;renderBoard();};
   function renderBoard(){
     const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
     board.innerHTML=''; let total=0;
-    stages.forEach(stg=>{
-      const list=current.filter(d=>d.stage===stg); const sum=list.reduce((a,d)=>a+(d.amount||d.sum||0),0); total+=list.length;
+    (flStage?stages.filter(s=>s===flStage):stages).forEach(stg=>{
+      let list=current.filter(d=>d.stage===stg); if(flMgr) list=list.filter(d=>(d.mgr||'')===flMgr); const sum=list.reduce((a,d)=>a+(d.amount||d.sum||0),0); total+=list.length;
       const col=el(`<div class="kcol" data-stage="${esc(stg)}"><div class="kcol-h"><span class="kc-name">${esc(stg)}</span><span class="kc-count">${list.length}</span><span class="kc-sum">${money(sum)}</span></div><div class="kcol-b"></div></div>`);
       const cbody=col.querySelector('.kcol-b');
       list.forEach(d=>cbody.appendChild(demoMode?dealCard(d):dealCardLive(d)));
