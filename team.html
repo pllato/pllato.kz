@@ -1476,6 +1476,16 @@ body.tc-chat-overlay .sipc-bottombar:not([data-state="established"]):not([data-s
   border: 1px solid var(--b2);
   border-radius: 8px;
 }
+.kanban-empty-hint {
+  margin: 0 0 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--t1);
+  background: rgba(168, 127, 255, 0.10);
+  border: 1px solid rgba(168, 127, 255, 0.45);
+  border-radius: 10px;
+}
 .kanban-empty {
   text-align: center;
   padding: 24px 8px;
@@ -3601,9 +3611,17 @@ function emptyByScopeHtml(label1, label2) {
 }
 
 function currentScopeDefault() {
-  const role = window.currentUser?.role;
-  const dept = window.currentUser?.department;
+  const u = window.currentUser || {};
+  const role = u.role;
   if (role === 'admin') return 'all';
+  // Эффективные права из оргструктуры важнее роли: agent/manager может иметь
+  // на своём узле dealScope='all' (видит все сделки) или 'team' (свой отдел).
+  // Раньше учитывали только роль → agent с правом «все сделки» видел лишь свои.
+  const ds = u.orgPerms?.dealScope;
+  if (ds === 'all') return 'all';
+  if (ds === 'team') return 'team';
+  // ds === 'own' или нет orgPerms — дефолт по роли.
+  const dept = u.department;
   if (role === 'manager') return dept ? 'team' : 'mine';
   return 'mine';
 }
@@ -9338,6 +9356,22 @@ function renderDealsKanban(c, arr) {
   // Плашка усечения: показано N свежих из M (когда загружено меньше, чем всего).
   if (trueTotal != null && trueTotal > arr.length) {
     html += `<div class="kanban-trunc-banner">📋 Показаны ${arr.length.toLocaleString('ru')} самых свежих сделок из ${trueTotal.toLocaleString('ru')}. Остальные — во вкладке «Список» или сузьте фильтр сотрудника.</div>`;
+  }
+  // Подсказка «эта воронка пустая»: частая причина «не вижу сделки» — сотрудник
+  // открыл СРМ на пустой воронке (напр. новой), а его сделки лежат в другой.
+  // У него есть доступ ко всем воронкам — просто стоит не на той вкладке.
+  // Показываем баннер ТОЛЬКО когда воронка реально пуста (0 загружено И итог 0)
+  // и есть другие воронки, на которые можно переключиться.
+  // ВАЖНО: только когда сервер ТОЧНО вернул 0 (trueTotal===0). Если счётчики ещё
+  // не пришли/упали (null) — НЕ врём «воронка пустая» (могла быть ошибка сети).
+  const pipelineIsEmpty = arr.length === 0 && trueTotal === 0;
+  if (pipelineIsEmpty) {
+    const others = Object.values(dealsState.pipelines || {})
+      .filter(p => p && p.id !== dealsState.activePipelineId && p.isActive !== false && p.isActive !== 0);
+    if (others.length) {
+      const curName = (dealsState.pipeline && dealsState.pipeline.name) ? dealsState.pipeline.name : 'этой воронке';
+      html += `<div class="kanban-empty-hint">📭 В воронке «${escapeHtml(curName)}» пока нет сделок. Если ждёте сделки — выберите другую воронку во вкладках выше ↑ (доступно ещё ${others.length}).</div>`;
+    }
   }
   html += `<div class="kanban-wrap" id="kanban-wrap">`;
   const MAX_PER_COL = 100;
