@@ -17301,12 +17301,20 @@ async function openTaskCard(key) {
                     <div style="font-size:11px;color:var(--t3)">⏳ Загрузка ${cFiles.length} ${cFiles.length === 1 ? 'файла' : 'файлов'}...</div>
                   </div>`
                 : '';
-              return `<div style="background:var(--bg3);border:1px solid var(--b1);border-radius:10px;padding:10px 12px">
+              // Комментарии от портала skills.myelc.net (source='skills_portal')
+              // рендерим как лёгкий markdown — у них таблицы и **bold**.
+              // Старые мигрированные комментарии — через BBCode как раньше.
+              const isSkills = c.source === 'skills_portal';
+              const textRendered = isSkills ? renderSkillsMarkdown(c.text || '') : renderBitrixBBCode(c.text || '');
+              const textStyle = isSkills
+                ? 'font-size:13px;color:var(--t1);line-height:1.5'  // skills-md: переносы уже как <br>, white-space не нужен
+                : 'font-size:13px;color:var(--t1);white-space:pre-wrap;line-height:1.5';
+              return `<div style="background:var(--bg3);border:1px solid var(--b1);border-radius:10px;padding:10px 12px${isSkills ? ';border-left:3px solid #3b82f6' : ''}">
                 <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px">
-                  <span style="color:var(--ac2);font-weight:600">${escapeHtml(authorName)}</span>
+                  <span style="color:var(--ac2);font-weight:600">${isSkills ? '📥 ' : ''}${escapeHtml(authorName)}</span>
                   <span style="color:var(--t3)">${time}</span>
                 </div>
-                <div class="task-bbcode" style="font-size:13px;color:var(--t1);white-space:pre-wrap;line-height:1.5">${renderBitrixBBCode(c.text || '')}</div>
+                <div class="${isSkills ? 'task-skills-md' : 'task-bbcode'}" style="${textStyle}">${textRendered}</div>
                 ${filesBlock}
               </div>`;
             }).join('')}
@@ -17364,6 +17372,60 @@ async function openTaskCard(key) {
 //   [URL=link]label[/URL]   → <a href="link">label</a>
 //   [URL]link[/URL]         → <a href="link">link</a>
 //   просто http(s)://...    → <a href> (не трогаем если уже внутри тега)
+// Лёгкий markdown-рендер для комментариев из портала skills.myelc.net
+// (handleSkillsReport в воркере ставит source='skills_portal'). Поддерживает:
+//   — **жирный**, *курсив*, `inline code`
+//   — pipe-таблицы `| a | b |` с разделителем `| --- | --- |`
+//   — переносы строк
+// XSS: всё проходит через escapeHtml до подстановки разметки.
+function renderSkillsMarkdown(text) {
+  if (!text) return '';
+  const lines = String(text).split('\n');
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    // Pipe-таблица: текущая строка содержит '|' И следующая — separator-row
+    // (только '|', ':', '-', пробелы). Если да — рендерим как <table>.
+    const next = lines[i + 1] || '';
+    const looksLikeTableRow = line.includes('|') && line.trim().length > 0;
+    const looksLikeTableSep = /^[\s|:-]+$/.test(next) && next.includes('-') && next.includes('|');
+    if (looksLikeTableRow && looksLikeTableSep) {
+      // Собираем все строки таблицы
+      const rows = [line];
+      let j = i + 2;
+      while (j < lines.length && lines[j].includes('|') && lines[j].trim().length > 0) {
+        rows.push(lines[j]);
+        j++;
+      }
+      const parseCells = (row) => row.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim());
+      const head = parseCells(rows[0]);
+      const body = rows.slice(1).map(parseCells);
+      out.push(
+        '<table class="sk-md-table" style="border-collapse:collapse;margin:6px 0;font-size:12px;width:auto;max-width:100%;">' +
+          '<thead><tr>' + head.map(c => `<th style="border:1px solid var(--b1,#e2e8f0);padding:4px 8px;background:var(--bg3,#f8fafc);text-align:left;font-weight:600;">${renderInlineMd(c)}</th>`).join('') + '</tr></thead>' +
+          '<tbody>' + body.map(r => '<tr>' + r.map(c => `<td style="border:1px solid var(--b1,#e2e8f0);padding:4px 8px;">${renderInlineMd(c)}</td>`).join('') + '</tr>').join('') + '</tbody>' +
+        '</table>'
+      );
+      i = j;
+      continue;
+    }
+    // Обычная строка
+    out.push(renderInlineMd(line));
+    i++;
+  }
+  return out.join('<br>');
+}
+
+// Inline markdown: **bold**, *italic*, `code`. Везде сначала escapeHtml.
+function renderInlineMd(s) {
+  let h = escapeHtml(s || '');
+  h = h.replace(/`([^`\n]+)`/g, '<code style="background:var(--bg3,#f1f5f9);padding:1px 5px;border-radius:3px;font-size:12px;">$1</code>');
+  h = h.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  h = h.replace(/(^|[^*])\*([^*\n]+)\*([^*]|$)/g, '$1<em>$2</em>$3');
+  return h;
+}
+
 function renderBitrixBBCode(text) {
   if (!text) return '';
   // Защищаем от инъекций
