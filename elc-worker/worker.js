@@ -6445,6 +6445,79 @@ async function handleHealth(request, env) {
   }
 }
 
+// ── /api/analytics/funnels — агрегаты для дашборда на «Главной» ────────────
+// По каждой активной воронке: распределение по стадиям (count + выручка),
+// приток новых по неделям (8 нед) и за 7 дней, список won/lost-стадий и
+// средний цикл выигранной сделки (дни create→текущая стадия). Архивные
+// исключаются (ELC: 100k→33k). Не-админ видит только разрешённые воронки.
+function _wonLostFromStages(stagesJson) {
+  const won = [], lost = [];
+  try {
+    const st = JSON.parse(stagesJson || '{}');
+    for (const k of Object.keys(st)) {
+      const sem = st[k] && st[k].semantics;
+      if (sem === 'S') won.push(k);
+      else if (sem === 'F') lost.push(k);
+    }
+  } catch {}
+  return { won, lost };
+}
+
+async function handleAnalyticsFunnels(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+
+  let allowed = null;
+  if (me.role !== 'admin' && me.orgPerms && Array.isArray(me.orgPerms.pipelineIds)) {
+    allowed = new Set(me.orgPerms.pipelineIds);
+  }
+
+  const { results: pipes } = await env.DB.prepare(
+    "SELECT id, name, stages FROM pipelines WHERE is_active = 1 ORDER BY name"
+  ).all();
+
+  const ARCHF = "(archived IS NULL OR archived = 0)";
+  const since8w = new Date(Date.now() - 8 * 7 * 86400000).toISOString();
+  const since7 = new Date(Date.now() - 7 * 86400000).toISOString();
+  const out = {};
+  for (const p of (pipes || [])) {
+    if (allowed && !allowed.has(p.id)) continue;
+    // распределение по стадиям + выручка
+    const { results: rows } = await env.DB.prepare(
+      `SELECT stage_id AS s, COUNT(*) AS n, COALESCE(SUM(opportunity),0) AS rev FROM deals WHERE pipeline_id = ? AND ${ARCHF} GROUP BY stage_id`
+    ).bind(p.id).all();
+    const stages = {}; let total = 0;
+    for (const r of (rows || [])) { stages[r.s] = { count: r.n, rev: r.rev }; total += r.n; }
+    // приток новых по неделям (для спарклайна)
+    const { results: wk } = await env.DB.prepare(
+      `SELECT strftime('%Y-%W', substr(bitrix_date_create,1,10)) AS wk, COUNT(*) AS n FROM deals WHERE pipeline_id = ? AND ${ARCHF} AND bitrix_date_create >= ? GROUP BY wk ORDER BY wk`
+    ).bind(p.id, since8w).all();
+    // новые за 7 дней
+    const nw = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM deals WHERE pipeline_id = ? AND ${ARCHF} AND bitrix_date_create >= ?`
+    ).bind(p.id, since7).first();
+    // средний цикл по выигранным
+    const { won, lost } = _wonLostFromStages(p.stages);
+    let avgCycleDays = null;
+    if (won.length) {
+      const ph = won.map(() => '?').join(',');
+      const cyc = await env.DB.prepare(
+        `SELECT AVG(julianday(substr(COALESCE(stage_changed_at, bitrix_date_modify),1,19)) - julianday(substr(bitrix_date_create,1,19))) AS d
+         FROM deals WHERE pipeline_id = ? AND ${ARCHF} AND stage_id IN (${ph}) AND bitrix_date_create IS NOT NULL`
+      ).bind(p.id, ...won).first();
+      if (cyc && cyc.d != null && cyc.d >= 0) avgCycleDays = Math.round(cyc.d * 10) / 10;
+    }
+    out[p.id] = {
+      name: p.name, total, stages,
+      newByWeek: (wk || []).map(x => ({ wk: x.wk, n: x.n })),
+      newLast7: (nw && nw.n) || 0,
+      wonStages: won, lostStages: lost, avgCycleDays,
+    };
+  }
+  return json({ ok: true, pipelines: out, generatedAt: new Date().toISOString() }, 200, request);
+}
+
 async function handleMe(request, env) {
   const auth = await requireAuth(request, env);
   if (auth.error) return json({ ok: false, error: auth.error }, auth.status, request);
@@ -6799,6 +6872,9 @@ export default {
 
     if (path === "/api/me" && request.method === "GET") {
       return handleMe(request, env);
+    }
+    if (path === "/api/analytics/funnels" && request.method === "GET") {
+      return handleAnalyticsFunnels(request, env);
     }
     if (path === "/api/me/phone" && request.method === "POST") {
       return handleSetMyPhone(request, env);
