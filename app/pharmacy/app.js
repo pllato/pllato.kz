@@ -81,7 +81,7 @@ const PAGE_META = {
   dash:['Дашборд владельца','10 ключевых метрик · обновлено только что'],
   funnels:['Воронки продаж','B2C и B2B · drag-and-drop сделок между этапами'],
   clients:['Клиенты','Единая база · история покупок из 1С'],
-  inbox:['Чаты','5 WhatsApp + Instagram Direct + формы сайтов в одном окне'],
+  inbox:['Чаты','WhatsApp · GreenAPI — переписка с клиентами'],
   orders:['Заказы','Сформированы в CRM → переданы в 1С Listki EG'],
   sales:['Продажи · 1С','Выручка, прибыль, топ товаров и KPI продавцов из регистра «Продажи» 1С'],
   catalog:['Каталог · остатки 1С','Зеркало 4 000 SKU в реальном времени'],
@@ -710,7 +710,8 @@ function clientModalHTML(cl){
 }
 
 // ---------- INBOX ----------
-PAGES.inbox=(c)=>{
+PAGES.inbox=async(c)=>{ await liveInbox(c); };
+const _legacyInboxDemo=(c)=>{   // старый демо-инбокс (не используется)
   const wrap=el(`<div class="inbox"></div>`);
   // channels
   const chBox=el(`<div class="ib-channels"></div>`);
@@ -770,6 +771,84 @@ PAGES.inbox=(c)=>{
   c.appendChild(wrap);
   const cb=$('#chatBody');if(cb)cb.scrollTop=cb.scrollHeight;
 };
+// ---------- ЧАТЫ (live · омни-чат WhatsApp/GreenAPI) ----------
+let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibWrap=null;
+async function liveInbox(c){
+  __ibWrap=el(`<div class="inbox"></div>`);
+  __ibWrap.innerHTML='<div class="ib-channels"></div><div class="ib-threads"></div><div class="ib-chat"></div><div class="ib-context"></div>';
+  c.appendChild(__ibWrap);
+  __ibMsgsCache={};
+  const r=await api('/api/inbox/threads');
+  __ibThreads=(r&&r.ok&&r.data&&Array.isArray(r.data.items))?r.data.items:[];
+  if((!__ibCur || !__ibThreads.some(t=>t.id===__ibCur)) && __ibThreads.length) __ibCur=__ibThreads[0].id;
+  ibChannels(); ibThreadList(); ibChat(); ibContext();
+  if(__ibCur) ibOpen(__ibCur);
+}
+function ibAlive(){ return __ibWrap && document.body.contains(__ibWrap); }
+function ibChannels(){
+  const box=__ibWrap&&__ibWrap.querySelector('.ib-channels'); if(!box)return;
+  const unread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0);
+  box.innerHTML=`<div class="ib-ch-group">WhatsApp · GreenAPI</div>
+    <button class="ib-ch on"><span class="ci" style="background:var(--wa)22;color:var(--wa)">${ic('i-phone','sm')}</span><span class="cn">Все диалоги</span>${unread?`<span class="cb">${unread}</span>`:''}</button>`;
+}
+function ibThreadList(){
+  const box=__ibWrap&&__ibWrap.querySelector('.ib-threads'); if(!box)return;
+  const rows=__ibThreads.map(t=>{ const nm=t.title||t.phone||'Диалог'; const on=t.id===__ibCur?'on':'';
+    return `<button class="thread ${on}" data-t="${esc(t.id)}">
+      <div class="av" style="background:${avBg(nm)}">${esc(initials(nm))}<span class="src" style="background:var(--wa)">${ic('i-phone','sm')}</span></div>
+      <div class="ti"><div class="tn">${esc(nm)}</div><div class="tm">${esc((t.preview_dir==='out'?'✓ ':'')+(t.preview||''))}</div></div>
+      <div class="tt">${esc(cwFmtTime(t.last_ts))}</div>${t.unread?`<span class="un">${t.unread}</span>`:''}</button>`;
+  }).join('');
+  box.innerHTML=`<div class="ib-search"><div class="fld-in">${ic('i-search','sm')}<input id="ibSearch" placeholder="Поиск диалога…"></div></div>`+(rows||'<div class="empty" style="padding:34px 14px"><div>Пока нет диалогов</div></div>');
+  box.querySelectorAll('.thread').forEach(b=>b.onclick=()=>ibOpen(b.dataset.t));
+  const s=box.querySelector('#ibSearch'); if(s)s.oninput=()=>{const q=s.value.toLowerCase();box.querySelectorAll('.thread').forEach(b=>{const t=__ibThreads.find(x=>x.id===b.dataset.t);b.style.display=(!q||((t.title||'')+' '+(t.phone||'')).toLowerCase().includes(q))?'':'none';});};
+}
+function ibChat(){
+  const box=__ibWrap&&__ibWrap.querySelector('.ib-chat'); if(!box)return;
+  if(!__ibThreads.length){ box.innerHTML=`<div class="empty" style="margin:auto;text-align:center">${ic('i-chat')}<div>Диалогов пока нет</div><div class="muted2" style="font-size:12px;margin-top:6px">Появятся при входящих на подключённый номер WhatsApp</div></div>`; return; }
+  const t=__ibThreads.find(x=>x.id===__ibCur); if(!t){ box.innerHTML=''; return; }
+  const nm=t.title||t.phone||'Диалог';
+  const msgs=__ibMsgsCache[t.id];
+  const bodyHtml = (msgs===undefined) ? '<div class="cw-empty" style="margin:auto">Загрузка…</div>'
+    : (msgs.length ? msgs.map(m=>`<div class="msg ${m.dir==='out'?'out':m.dir==='ai'?'ai':'in'}">${esc(m.body||'')}<div class="mt">${esc(cwFmtTime(m.ts))}</div></div>`).join('')
+      : '<div class="cw-empty" style="margin:auto">Сообщений пока нет — напишите первым ↓</div>');
+  box.innerHTML=`<div class="chat-h"><div class="av" style="background:${avBg(nm)}">${esc(initials(nm))}</div>
+      <div><div style="font-weight:700;font-size:14px">${esc(nm)}</div><div class="muted" style="font-size:11.5px">WhatsApp · GreenAPI${t.phone?(' · +'+esc(t.phone)):''}</div></div>
+      <div class="spacer"></div></div>
+    <div class="chat-body" id="ibChatBody">${bodyHtml}</div>
+    <div class="chat-input"><div class="ci-box"><input id="ibMsgInput" placeholder="Сообщение в WhatsApp…"></div><button class="btn primary" id="ibSendBtn">${ic('i-send','sm')}</button></div>`;
+  const cb=box.querySelector('#ibChatBody'); if(cb)cb.scrollTop=cb.scrollHeight;
+  const inp=box.querySelector('#ibMsgInput'), sb=box.querySelector('#ibSendBtn');
+  const send=async()=>{ const v=(inp.value||'').trim(); if(!v)return; inp.value='';
+    const r=await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/send',{method:'POST',body:JSON.stringify({text:v})});
+    if(!r.ok){ toast(r.data&&r.data.error?r.data.error:'Не доставлено','i-info','#dc2626'); inp.value=v; return; }
+    (__ibMsgsCache[t.id]=__ibMsgsCache[t.id]||[]).push({dir:'out',body:v,ts:(r.data&&r.data.ts)||Date.now()});
+    ibChat(); const w=r.data&&r.data.whatsapp; toast(w&&w.sent?'Доставлено в WhatsApp':'Отправлено','i-send','var(--wa)');
+  };
+  if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+  if(sb)sb.onclick=send;
+}
+function ibContext(){
+  const box=__ibWrap&&__ibWrap.querySelector('.ib-context'); if(!box)return;
+  const t=__ibThreads.find(x=>x.id===__ibCur);
+  if(!t){ box.innerHTML=''; return; }
+  const nm=t.title||t.phone||'Диалог';
+  box.innerHTML=`<div class="ctx-card"><h4>Контакт</h4>
+    <div class="ctx-row"><span>Имя</span><b>${esc(nm)}</b></div>
+    <div class="ctx-row"><span>Телефон</span><b>${esc(t.phone||'—')}</b></div>
+    <div class="ctx-row"><span>Канал</span><b>WhatsApp · GreenAPI</b></div>
+    <div class="ctx-row"><span>Статус</span><b>${t.client_id?'Клиент':'Новый лид'}</b></div></div>`;
+}
+async function ibOpen(id){
+  __ibCur=id; const t=__ibThreads.find(x=>x.id===id); if(t)t.unread=0;
+  ibChannels(); ibThreadList(); ibChat(); ibContext();
+  api('/api/inbox/threads/'+encodeURIComponent(id)+'/read',{method:'POST'}).catch(()=>{});
+  if(__ibMsgsCache[id]===undefined){
+    const r=await api('/api/inbox/threads/'+encodeURIComponent(id)+'/messages');
+    __ibMsgsCache[id]=(r&&r.ok&&r.data&&Array.isArray(r.data.items))?r.data.items:[];
+    if(ibAlive() && __ibCur===id) ibChat();
+  }
+}
 function chBtn(ch){
   const b=el(`<button class="ib-ch ${DB.threads.find(t=>t.id===state.thread)?.ch===ch.id?'on':''}">
     <span class="ci" style="background:${chColor(ch.type)}22;color:${chColor(ch.type)}">${ic(chIcon(ch.type),'sm')}</span>
@@ -2159,8 +2238,8 @@ async function gaLoadStatus(refs){
     info.textContent = d.hint || 'Укажите idInstance и apiTokenInstance из консоли green-api.com.';
     tokInp.placeholder = 'apiTokenInstance';
   } else if(d.authorized){
-    gaSetBadge(badge, 'подключено'+(d.phone?(' · +'+d.phone.replace(/\D/g,'')):''), '#16a34a');
-    info.textContent = 'WhatsApp привязан. Источник конфига: '+(d.source==='crm'?'CRM':'секреты воркера')+'. Состояние: '+d.state+'.';
+    gaSetBadge(badge, 'подключено'+(d.phone?(' · +'+d.phone.replace(/\D/g,'')):'')+' · 1 канал', '#16a34a');
+    info.textContent = 'WhatsApp привязан. Каналов заведено: 1 (номер выше). Источник конфига: '+(d.source==='crm'?'CRM':'секреты воркера')+'. Состояние: '+d.state+'.';
     tokInp.placeholder = '••• токен сохранён (пусто = не менять)';
   } else if(d.state){
     gaSetBadge(badge, 'не авторизован', '#d97706');
@@ -2261,8 +2340,6 @@ PAGES.integrations=(c)=>{
   if(isAdminRole()) c.appendChild(greenApiPanel());
   const intgs=[
     ['1С','Listki EG (Кыргызстан)','#16a34a','1С','Остатки 4 000 SKU · заказы · накладные','Синхронизирован 1 мин назад','green'],
-    ['WhatsApp','GreenAPI · 5 каналов','#25d366','W','$50/мес · безлимит сообщений','5 каналов активны','green'],
-    ['Instagram','Meta Business API','#e1306c','IG','Direct · webhook','2 аккаунта подключены','green'],
   ];
   const grid=el(`<div class="grid-2 section-gap" style="margin-top:0"></div>`);
   intgs.forEach(g=>{
