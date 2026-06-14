@@ -298,7 +298,7 @@ PAGES.funnels=async(c)=>{
           const id=e.dataTransfer.getData('id'); const d=current.find(x=>x.id===id);
           if(d&&d.stage!==stg){ const old=d.stage; d.stage=stg; renderBoard();
             const r=await api('/api/deals/'+id,{method:'POST',body:JSON.stringify({stage:stg})});
-            if(r.ok) toast('Сделка перенесена в «'+stg+'»','i-funnel'); else { d.stage=old; renderBoard(); toast('Не удалось сохранить','i-x','#dc2626'); } } });
+            if(r.ok){ toast('Сделка перенесена в «'+stg+'»','i-funnel'); if(r.data&&r.data.order_created)toast('Сделка закрыта → создан черновик заказа (раздел «Заказы»)','i-cart','#16a34a'); } else { d.stage=old; renderBoard(); toast('Не удалось сохранить','i-x','#dc2626'); } } });
       }
       board.appendChild(col);
     });
@@ -365,7 +365,7 @@ async function dealModalLive(d){
   bg.querySelector('#dmSave').onclick=async()=>{
     const body={stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,note:bg.querySelector('[data-dm=note]').value.trim()};
     const r=await api('/api/deals/'+d.id,{method:'POST',body:JSON.stringify(body)});
-    if(!r.ok){toast('Ошибка сохранения','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); if(window.__reloadFunnels)window.__reloadFunnels();
+    if(!r.ok){toast('Ошибка сохранения','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); if(r.data&&r.data.order_created)toast('Сделка закрыта → создан черновик заказа (раздел «Заказы»)','i-cart','#16a34a'); if(window.__reloadFunnels)window.__reloadFunnels();
   };
   bg.querySelector('#dmDel').onclick=async()=>{ if(!confirm('Удалить сделку?'))return; const r=await api('/api/deals/'+d.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Сделка удалена','i-check2'); if(window.__reloadFunnels)window.__reloadFunnels();} else toast('Ошибка','i-x','#dc2626'); };
 }
