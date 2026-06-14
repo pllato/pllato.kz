@@ -1,14 +1,18 @@
 /* overrides.css — грузится ПОВЕРХ inline-стилей index.html, с версией в URL.
    Правки оформления подхватываются сразу (кэш index.html больше не мешает). */
 
-/* Больше воздуха между карточками */
+/* Больше воздуха между карточками — для обеих тем */
 .grid-2, .grid-2b, .grid-3 { gap: 26px !important; }
 .cards-row { gap: 20px !important; }
 .cards-5  { gap: 20px !important; }
 
-/* Тёмная тема: чтобы карточки ЯВНО отделялись — делаем их заметно светлее фона + светлая граница.
-   (Чёрная тень на тёмном фоне не видна, поэтому отделяем цветом и границей.) */
-.kpi       { background: #1a2c24 !important; border: 1px solid #355040 !important; box-shadow: none !important; }
-.intg-card { background: #1a2c24 !important; border: 1px solid #355040 !important; padding: 18px !important; box-shadow: none !important; }
-.panel     { background: #17271f !important; border: 1px solid #2e4a3a !important; }
-.panel-h   { border-bottom: 1px solid #2e4a3a !important; }
+/* ТЁМНАЯ тема: карточки заметно светлее фона + светлая граница, чтобы отделялись
+   (чёрная тень на тёмном фоне не видна). В СВЕТЛОЙ теме НЕ применяется —
+   там карточки белые из CSS-переменных. */
+body:not(.light) .kpi       { background: #1a2c24 !important; border: 1px solid #355040 !important; box-shadow: none !important; }
+body:not(.light) .intg-card { background: #1a2c24 !important; border: 1px solid #355040 !important; padding: 18px !important; box-shadow: none !important; }
+body:not(.light) .panel     { background: #17271f !important; border: 1px solid #2e4a3a !important; }
+body:not(.light) .panel-h   { border-bottom: 1px solid #2e4a3a !important; }
+
+/* СВЕТЛАЯ тема: мягкая тень, чтобы карточки тоже отделялись от светлого фона */
+body.light .kpi, body.light .intg-card { box-shadow: 0 2px 10px -4px rgba(20,45,35,.16) !important; }
