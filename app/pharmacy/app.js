@@ -534,7 +534,7 @@ PAGES.clients=async(c)=>{
   c.appendChild(tbar);
   const segCards=el(`<div class="cards-row section-gap"></div>`);
   c.appendChild(segCards);
-  const panel=el(`<div class="panel"><table class="tbl"><thead><tr>
+  const panel=el(`<div class="panel section-gap"><table class="tbl"><thead><tr>
     <th>Клиент</th><th>Телефон</th><th>Код 1С</th><th>ИНН</th><th>Сегмент</th><th>Роль</th></tr></thead><tbody><tr><td colspan="6" class="muted2" style="font-size:13px">Загрузка…</td></tr></tbody></table></div>`);
   const tb=panel.querySelector('tbody'), cnt=tbar.querySelector('[data-cl=cnt]'), qInput=tbar.querySelector('[data-cl=q]'), segSel=tbar.querySelector('[data-cl=seg]');
   const segTag=(s)=>{ const m={b2c:'green',b2b:'blue',doctor:'pink',supplier:'amber'},t={b2c:'B2C',b2b:'B2B',doctor:'врач',supplier:'поставщик'}; return s?`<span class="tag ${m[s]||''}">${t[s]||s}</span>`:'—'; };
