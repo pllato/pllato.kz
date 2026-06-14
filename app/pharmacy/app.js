@@ -776,12 +776,12 @@ const _legacyInboxDemo=(c)=>{   // старый демо-инбокс (не ис
   const cb=$('#chatBody');if(cb)cb.scrollTop=cb.scrollHeight;
 };
 // ---------- ЧАТЫ (live · омни-чат WhatsApp/GreenAPI) ----------
-let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibWrap=null;
+let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibDeal={}, __ibWrap=null;
 async function liveInbox(c){
   __ibWrap=el(`<div class="inbox"></div>`);
   __ibWrap.innerHTML='<div class="ib-threads"></div><div class="ib-chat"></div><div class="ib-context"></div>';
   c.appendChild(__ibWrap);
-  __ibMsgsCache={};
+  __ibMsgsCache={}; __ibDeal={};
   const r=await api('/api/inbox/threads');
   __ibThreads=(r&&r.ok&&r.data&&Array.isArray(r.data.items))?r.data.items:[];
   window.__inboxUnread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0); renderNav();
@@ -839,17 +839,33 @@ function ibContext(){
   const t=__ibThreads.find(x=>x.id===__ibCur);
   if(!t){ box.innerHTML=''; return; }
   const nm=t.title||t.phone||'Диалог';
+  let dealHtml='';
+  const deal=__ibDeal[t.id];
+  if(deal){
+    let arr=[]; try{arr=JSON.parse(deal.items||'[]')}catch(e){}
+    if(arr.length){
+      dealHtml=`<div class="ctx-card"><h4>Товары в сделке</h4>
+        ${arr.map(x=>`<div class="ctx-row"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(String(x.name||'').split(',')[0].trim())}</span><b style="flex:none">×${x.qty||1}</b></div>`).join('')}
+        <div class="ctx-row" style="margin-top:5px;padding-top:9px;border-top:1px solid var(--line)"><span>Сумма</span><b>${money(deal.amount||0)}</b></div>
+        <button class="btn sm" style="width:100%;justify-content:center;margin-top:11px" onclick="go('funnels','${esc(deal.id)}')">${ic('i-funnel','sm')} Открыть сделку</button>
+      </div>`;
+    }
+  }
   box.innerHTML=`<div class="ctx-card"><h4>Контакт</h4>
     <div class="ctx-row"><span>Имя</span><b>${esc(nm)}</b></div>
     <div class="ctx-row"><span>Телефон</span><b>${esc(t.phone||'—')}</b></div>
     <div class="ctx-row"><span>Канал</span><b>WhatsApp · GreenAPI</b></div>
-    <div class="ctx-row"><span>Статус</span><b>${t.client_id?'Клиент':'Новый лид'}</b></div></div>`;
+    <div class="ctx-row"><span>Статус</span><b>${t.client_id?'Клиент':'Новый лид'}</b></div></div>`+dealHtml;
 }
 async function ibOpen(id){
   __ibCur=id; const t=__ibThreads.find(x=>x.id===id); if(t)t.unread=0;
   window.__inboxUnread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0); renderNav();
   ibThreadList(); ibChat(); ibContext();
   api('/api/inbox/threads/'+encodeURIComponent(id)+'/read',{method:'POST'}).catch(()=>{});
+  if(t && t.phone && __ibDeal[id]===undefined){
+    __ibDeal[id]=null;
+    api('/api/deals/by-phone?phone='+encodeURIComponent(t.phone)).then(r=>{ __ibDeal[id]=(r&&r.ok&&r.data&&r.data.deal)?r.data.deal:null; if(ibAlive()&&__ibCur===id) ibContext(); }).catch(()=>{});
+  }
   if(__ibMsgsCache[id]===undefined){
     const r=await api('/api/inbox/threads/'+encodeURIComponent(id)+'/messages');
     __ibMsgsCache[id]=(r&&r.ok&&r.data&&Array.isArray(r.data.items))?r.data.items:[];
