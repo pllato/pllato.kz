@@ -7966,8 +7966,19 @@ function setPipelineOrder(ids) {
 // Исключение: если activePipelineId указывает на архивированную (например
 // юзер открыл «Просмотр архива» — устанавливается dealsState.viewArchivedId),
 // показываем её тоже.
+// Доступна ли воронка сотруднику. Админ/директор и «все воронки» (pipelineIds
+// === null) — видят всё. Иначе — только воронки из whitelist orgPerms.pipelineIds.
+function isPipelineAllowed(pid) {
+  if (window.currentUser?.role === 'admin') return true;
+  const allowed = window.currentUser?.orgPerms?.pipelineIds;
+  if (!Array.isArray(allowed)) return true; // null = все воронки
+  return allowed.includes(pid);
+}
+
 function getSortedPipelines(opts = {}) {
-  const all = Object.values(dealsState.pipelines || {});
+  let all = Object.values(dealsState.pipelines || {});
+  // Скрываем воронки без доступа — их не должно быть видно сотруднику во вкладках.
+  all = all.filter(p => isPipelineAllowed(p.id));
   const includeArchived = opts.includeArchived === true;
   const exception = dealsState.viewArchivedId;
   const visible = includeArchived
@@ -8232,13 +8243,14 @@ async function loadDealsMeta() {
     dealsState.customSchema = schema || {};
     dealsState.users = users || {};
 
-    // Восстанавливаем активный pipeline: localStorage → fallback на первый active → fallback на любой
+    // Восстанавливаем активный pipeline: localStorage → первая ДОСТУПНАЯ воронка.
+    // Если в localStorage осталась воронка без доступа — игнорируем её.
     const saved = localStorage.getItem(ACTIVE_PIPELINE_LS_KEY);
-    const all = Object.values(dealsState.pipelines);
-    if (saved && dealsState.pipelines[saved]) {
+    const allowed = Object.values(dealsState.pipelines).filter(p => isPipelineAllowed(p.id));
+    if (saved && dealsState.pipelines[saved] && isPipelineAllowed(saved)) {
       dealsState.activePipelineId = saved;
     } else {
-      const firstActive = all.find(p => p.isActive) || all[0];
+      const firstActive = allowed.find(p => p.isActive) || allowed[0];
       dealsState.activePipelineId = firstActive ? firstActive.id : null;
       if (dealsState.activePipelineId) {
         localStorage.setItem(ACTIVE_PIPELINE_LS_KEY, dealsState.activePipelineId);
