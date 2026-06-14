@@ -5917,10 +5917,14 @@ function _funnelCard(pid, meta, a) {
       const c = cnt(s.statusId); if (c > bnMax) { bnMax = c; bnId = s.statusId; }
     }
   }
-  // подозрительные метки исходов (выигрыш стоит в середине воронки — как в Pllato Старт)
+  // подозрительные метки исходов: выигрыш стоит в ПЕРВОЙ ПОЛОВИНЕ воронки (как в
+  // Pllato Старт, где «Квалификация» помечена как выиграно). Боковые статусы с
+  // большим sort (Недозвон/Импорт в ELC) сюда НЕ попадают — флаг только если
+  // самый ранний won-этап ближе к началу, чем середина воронки.
   const wonSorts = stagesArr.filter(s => wonSet.has(s.statusId)).map(s => s.sort || 0);
   const minWonSort = wonSorts.length ? Math.min(...wonSorts) : Infinity;
-  const suspicious = wonSorts.length && stagesArr.some(s => !wonSet.has(s.statusId) && !lostSet.has(s.statusId) && (s.sort || 0) > minWonSort && cnt(s.statusId) >= 0 && (s.sort || 0) - minWonSort > 5);
+  const maxSort = Math.max(1, ...stagesArr.map(s => s.sort || 0));
+  const suspicious = wonSorts.length > 0 && minWonSort < maxSort * 0.5;
 
   let rowsHtml = '';
   for (const s of visible) {
