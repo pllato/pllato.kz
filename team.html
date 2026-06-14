@@ -4055,7 +4055,7 @@ window.lcSwitch = function(tab){
     if (el) { el.style.background = t===tab ? 'var(--acbg)' : 'transparent'; el.style.color = t===tab ? 'var(--ac2)' : 'var(--t3)'; }
   });
   const c = document.getElementById('lc-content');
-  if (tab === 'check') { lcLastSig = ''; c.innerHTML = `<div id="lc-root"><div style="color:var(--t3);padding:20px;text-align:center">Загрузка…</div></div>`; lcPoll(); }
+  if (tab === 'check') { lcLastSig = null; c.innerHTML = `<div id="lc-root"><div style="color:var(--t3);padding:20px;text-align:center">Загрузка…</div></div>`; lcPoll(); }
   else if (tab === 'history') lcLoadHistory();
   else lcShowLinks();
 };
@@ -4092,15 +4092,27 @@ function lcShowLinks(){
 
 async function lcPoll(){
   try {
-    const j = await fetch(`${LC_API}/api/queue/all?pin=${LC_PIN}`).then(r => r.json());
-    if (!j.ok) return;
+    // таймаут, чтобы зависший запрос не оставлял «Загрузка…» навсегда
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 12000);
+    let j;
+    try { j = await fetch(`${LC_API}/api/queue/all?pin=${LC_PIN}`, { signal: ctrl.signal }).then(r => r.json()); }
+    finally { clearTimeout(to); }
+    if (!j || !j.ok) throw new Error('bad response');
     if (lcTab === 'check') lcRender(j.items || []);
     const n = (j.items || []).length;
     const b = document.getElementById('lesson-checks-nav-badge');
     if (b) { if (n) { b.textContent = n; b.style.display = 'inline-flex'; } else b.style.display = 'none'; }
     const tc = document.getElementById('lc-tab-check');
     if (tc) tc.textContent = 'Проверка' + (n ? ' (' + n + ')' : '');
-  } catch (e) { /* офлайн — не критично */ }
+  } catch (e) {
+    // Первая загрузка не удалась — НЕ оставляем «Загрузка…» висеть. Показываем
+    // понятную ошибку с кнопкой «Повторить» (последующие опросы перезапишут).
+    const root = document.getElementById('lc-root');
+    if (root && lcTab === 'check' && /Загрузка/.test(root.textContent)) {
+      root.innerHTML = `<div style="color:var(--t3);padding:24px;text-align:center;border:1px dashed var(--b1);border-radius:12px">⚠ Не удалось загрузить очередь.<br><button onclick="lcPoll()" style="margin-top:10px;cursor:pointer;font-size:13px;font-weight:600;color:#08130c;background:var(--gn);border:0;border-radius:8px;padding:8px 16px">Повторить</button></div>`;
+    }
+  }
 }
 
 /* Полные результаты студента — таблицей (для карточки Регистратора и истории) */
@@ -4138,7 +4150,7 @@ function lcLoadHistory(){
   }).catch(e => { c.innerHTML = `<div style="color:var(--rd)">Сеть: ${escapeHtml(e.message)}</div>`; });
 }
 
-let lcLastSig = '';
+let lcLastSig = null;
 function lcRender(items){
   const root = document.getElementById('lc-root');
   if (!root) return;
