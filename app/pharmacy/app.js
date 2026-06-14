@@ -433,6 +433,7 @@ PAGES.clients=async(c)=>{
     ${storeSelectHtml(clStores,'','class="sel" data-cl="store" title="Покупали в точке"','Покупали: все точки')}
     <div class="spacer"></div>
     <span class="ph-sub" data-cl="cnt"></span>
+    <button class="btn primary" id="newClientBtn">${ic('i-plus','sm')} Клиент</button>
   </div>`);
   c.appendChild(tbar);
   const segCards=el(`<div class="cards-row section-gap"></div>`);
@@ -490,6 +491,7 @@ PAGES.clients=async(c)=>{
   qInput.addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(()=>{offset=0;load();},300);});
   segSel.onchange=()=>{offset=0;load();};
   tbar.querySelector('[data-cl=store]').onchange=()=>{offset=0;load();};
+  tbar.querySelector('#newClientBtn').onclick=()=>newClientModal(load);
   pgPrev.onclick=()=>{ if(offset>0){offset=Math.max(0,offset-PAGE);load();$('#content').scrollTop=0;} };
   pgNext.onclick=()=>{ if(offset+PAGE<total){offset+=PAGE;load();$('#content').scrollTop=0;} };
   load(); loadSegments();
@@ -528,7 +530,7 @@ async function loadContractorHistory(r){
 }
 function newClientModal(onSaved){
   const TYPES=['розница','опт','врач','дисконт','подписчик','партнёр'];
-  const bg=openModal(`<div class="modal-h"><div><h3>Новый клиент</h3><div class="mh-sub">Карточка сохранится в CRM (D1)</div></div>
+  const bg=openModal(`<div class="modal-h"><div><h3>Новый клиент</h3><div class="mh-sub">Создастся в 1С как контрагент</div></div>
     <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="grid-2b">
@@ -558,7 +560,7 @@ function newClientModal(onSaved){
     btn.disabled=false;
     if(!r.ok){ toast(r.data?.error||'Не удалось сохранить','i-info','#dc2626'); return; }
     closeModal();
-    toast('Клиент «'+name+'» создан','i-users');
+    toast('Клиент «'+name+'» создаётся в 1С (появится после синхронизации)','i-users');
     if(onSaved)onSaved();
   };
 }
