@@ -55,7 +55,7 @@ const NAV = [
     {id:'dash', t:'Дашборд', i:'i-grid', badge:''},
     {id:'funnels', t:'Воронки', i:'i-funnel'},
     {id:'clients', t:'Клиенты', i:'i-users'},
-    {id:'inbox', t:'Чаты', i:'i-chat', badge:'9', alt:false},
+    {id:'inbox', t:'Чаты', i:'i-chat', badge:'', alt:false},
     {id:'orders', t:'Заказы', i:'i-cart'},
     {id:'sales', t:'Продажи · 1С', i:'i-money'},
     {id:'catalog', t:'Каталог · 1С', i:'i-box'},
@@ -115,7 +115,7 @@ function renderNav(){
     nav.appendChild(el(`<div class="nav-group">${group.g}</div>`));
     items.forEach(it=>{
       let badge=it.badge;
-      if(it.id==='inbox') badge=String(DB.threads.reduce((a,t)=>a+(t.unread||0),0)||'');
+      if(it.id==='inbox') badge=String((window.__inboxUnread!=null?window.__inboxUnread:0)||'');
       if(it.id==='tasks') badge=String((window.__taskBadge!=null?window.__taskBadge:0)||'');
       const b=el(`<button class="nav-item ${state.page===it.id?'active':''}" data-page="${it.id}">
         ${ic(it.i)}<span>${it.t}</span>${badge?`<span class="badge ${it.alt?'alt':''}">${badge}</span>`:''}</button>`);
@@ -784,6 +784,7 @@ async function liveInbox(c){
   __ibMsgsCache={};
   const r=await api('/api/inbox/threads');
   __ibThreads=(r&&r.ok&&r.data&&Array.isArray(r.data.items))?r.data.items:[];
+  window.__inboxUnread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0); renderNav();
   if((!__ibCur || !__ibThreads.some(t=>t.id===__ibCur)) && __ibThreads.length) __ibCur=__ibThreads[0].id;
   ibThreadList(); ibChat(); ibContext();
   if(__ibCur) ibOpen(__ibCur);
@@ -846,6 +847,7 @@ function ibContext(){
 }
 async function ibOpen(id){
   __ibCur=id; const t=__ibThreads.find(x=>x.id===id); if(t)t.unread=0;
+  window.__inboxUnread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0); renderNav();
   ibThreadList(); ibChat(); ibContext();
   api('/api/inbox/threads/'+encodeURIComponent(id)+'/read',{method:'POST'}).catch(()=>{});
   if(__ibMsgsCache[id]===undefined){
@@ -2800,6 +2802,7 @@ function applyUser(user){
   renderRoleSel(); applyHash();
   // реальный счётчик активных задач для бейджа в меню
   if(allowedSections(state.role).includes('tasks')) api('/api/tasks?status=active').then(r=>{ if(r&&r.ok){ window.__taskBadge=(r.data.totals||{}).active||0; renderNav(); } }).catch(()=>{});
+  if(allowedSections(state.role).includes('inbox')) api('/api/inbox/threads').then(r=>{ if(r&&r.ok&&r.data&&Array.isArray(r.data.items)){ window.__inboxUnread=r.data.items.reduce((a,t)=>a+(t.unread||0),0); renderNav(); } }).catch(()=>{});
   loadNotifications();
   // эффективные права ролей из БД (для меню/превью/матрицы) — для админа
   if(['owner','superadmin'].includes(user.role)) api('/api/admin/roles').then(r=>{ if(r&&r.ok){ ACCESS_MAP={}; r.data.roles.forEach(x=>ACCESS_MAP[x.id]=x.sections); renderNav(); } }).catch(()=>{});
