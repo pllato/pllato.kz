@@ -28,7 +28,7 @@ function openModal(html,cls=''){
   bg.addEventListener('click',e=>{if(e.target===bg)closeModal();});
   $('#modal-root').appendChild(bg);return bg;
 }
-const closeModal = ()=>{ $('.modal-bg')?.remove(); try{ history.replaceState(null,'','#/'+state.page); }catch(e){} };
+const closeModal = ()=>{ document.querySelectorAll('.modal-bg').forEach(m=>m.remove()); try{ history.replaceState(null,'','#/'+state.page); }catch(e){} };
 
 // ---------- URL-роутинг: вкладка в #hash (перезагрузка не сбрасывает) + прямые ссылки на сущности ----------
 function parseHash(){ const h=(location.hash||'').replace(/^#\/?/,''); const parts=h.split('/'); return { page: parts[0]||'', sub: parts.slice(1).join('/')||'' }; }
@@ -39,6 +39,7 @@ const DEEPLINK = {
   funnels: async(id)=>{ for(const f of ['b2c','b2b']){ const r=await api('/api/deals?funnel='+f); const d=r&&r.ok&&(r.data.items||[]).find(x=>x.id===id); if(d){ state.funnel=f; renderPage(); dealModalLive(d); return; } } },
 };
 function applyHash(){
+  document.querySelectorAll('.modal-bg').forEach(m=>m.remove());  // не оставляем осиротевшие модалки при навигации
   const {page,sub}=parseHash();
   const allowed=allowedSections(state.role);
   const target=(page&&allowed.includes(page))?page:(allowed.includes(state.page)?state.page:(allowed[0]||'dash'));
@@ -379,7 +380,7 @@ async function dealModalLive(d){
     <div class="fld"><label>Состав (товары из 1С)</label><div id="dmItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-dm="note" value="${esc(d.note||'')}"></div>
   </div>
-  <div class="modal-b" id="dmTabChat" hidden style="padding:0">
+  <div class="modal-b" id="dmTabChat" style="padding:0;display:none">
     <div class="cw-msgs" id="dmChatMsgs" style="height:330px;flex:none"><div class="cw-empty">Загрузка…</div></div>
     <div class="cw-comp" id="dmChatComp"><textarea id="dmChatInput" rows="1" placeholder="Сообщение в WhatsApp…"></textarea><button class="cw-send" id="dmChatSend" title="Отправить">${ic('i-send')}</button></div>
   </div>
@@ -410,8 +411,8 @@ async function dealModalLive(d){
   bg.querySelectorAll('.dm-tab').forEach(tb=>tb.onclick=()=>{
     const tab=tb.dataset.tab;
     bg.querySelectorAll('.dm-tab').forEach(x=>{const on=x===tb;x.style.borderBottomColor=on?'var(--accent)':'transparent';x.style.color=on?'var(--txt)':'var(--muted)';});
-    bg.querySelector('#dmTabDetails').hidden = tab!=='details';
-    bg.querySelector('#dmTabChat').hidden = tab!=='chat';
+    bg.querySelector('#dmTabDetails').style.display = tab==='details'?'':'none';
+    bg.querySelector('#dmTabChat').style.display = tab==='chat'?'':'none';
     if(tab==='chat' && !chatLoaded){ chatLoaded=true; dealChatLoad(bg,d); }
   });
   bg.querySelector('#dmSave').onclick=async()=>{
