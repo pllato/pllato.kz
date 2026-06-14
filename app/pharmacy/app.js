@@ -549,8 +549,7 @@ PAGES.clients=async(c)=>{
     segCards.innerHTML =
       dashKpi('i-users','#10b981','Розница · B2C',money(rev.b2c||0),(n.b2c||0)+' '+plural(n.b2c||0,'клиент','клиента','клиентов'),0)
       + dashKpi('i-truck','#2563eb','Опт · B2B',money(rev.b2b||0),(n.b2b||0)+' '+plural(n.b2b||0,'клиент','клиента','клиентов'),0)
-      + dashKpi('i-tooth','#db2777','Врачи-партнёры',money(rev.doctor||0),(n.doctor||0)+' '+plural(n.doctor||0,'врач','врача','врачей'),0)
-      + dashKpi('i-box','#d97706','Поставщики','—',(n.supplier||0)+' '+plural(n.supplier||0,'поставщик','поставщика','поставщиков'),0);
+      + dashKpi('i-tooth','#db2777','Врачи-партнёры',money(rev.doctor||0),(n.doctor||0)+' '+plural(n.doctor||0,'врач','врача','врачей'),0);
     const set=(v,base,c2)=>{ const o=[...segSel.options].find(o=>o.value===v); if(o&&c2!=null)o.textContent=base+' ('+c2+')'; };
     set('b2c','B2C · розница',n.b2c); set('b2b','B2B · опт',n.b2b); set('doctor','Врачи-партнёры',n.doctor); set('supplier','Поставщики',n.supplier);
   }
