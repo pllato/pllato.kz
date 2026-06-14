@@ -978,19 +978,21 @@ function newPromo(){openModal(`<div class="modal-h"><div><h3>Новый пром
   <div class="fld"><label>Тип</label><select><option>общая акция</option><option>блогерский код</option><option>персональный</option><option>сезонная</option></select></div>
   <div class="fld"><label>Срок действия</label><input type="date"></div></div>
   <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" onclick="closeModal();toast('Промокод создан')">Создать</button></div>`);}
-function newPromoLive(onSaved){
+async function newPromoLive(onSaved){
+  const cardTypes=await fetchCardTypes();
   const bg=openModal(`<div class="modal-h"><div><h3>Новый промокод</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld-row"><div class="fld"><label>Код *</label><input data-np="code" placeholder="LETO20"></div><div class="fld"><label>Тип</label><select data-np="type"><option>общая акция</option><option>сезонная</option><option>блогерский код</option><option>персональный</option></select></div></div>
     <div class="fld-row"><div class="fld"><label>Скидка</label><input data-np="value" type="number" value="10"></div><div class="fld"><label>Вид</label><select data-np="kind"><option value="percent">% процент</option><option value="fixed">сом фикс.</option></select></div></div>
     <div class="fld-row"><div class="fld"><label>Срок действия</label><input type="date" data-np="exp"></div><div class="fld"><label>Лимит использований</label><input data-np="limit" type="number" placeholder="без лимита"></div></div>
     <div class="fld"><label>Блогер (если код блогерский)</label><input data-np="blogger" placeholder="@nick"></div>
+    <div class="fld"><label>Вид карты в 1С (запишется как дисконтная карта)</label><select data-np="type_key"><option value="">— не писать в 1С —</option>${cardTypes.map(t=>`<option value="${esc(t.ref_key)}">${esc(t.name)}</option>`).join('')}</select></div>
     <div class="fld"><label>Комментарий</label><input data-np="note"></div>
   </div>
   <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="npSave">Создать</button></div>`);
   bg.querySelector('#npSave').onclick=async()=>{ const code=bg.querySelector('[data-np=code]').value.trim(); if(!code){toast('Укажите код','i-info');return;}
-    const body={code,type:bg.querySelector('[data-np=type]').value,kind:bg.querySelector('[data-np=kind]').value,value:Number(bg.querySelector('[data-np=value]').value)||0,expires_at:bg.querySelector('[data-np=exp]').value,limit_uses:bg.querySelector('[data-np=limit]').value,blogger:bg.querySelector('[data-np=blogger]').value.trim(),note:bg.querySelector('[data-np=note]').value.trim()};
-    const r=await api('/api/promos',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Промокод создан','i-tag'); onSaved&&onSaved(); };
+    const body={code,type:bg.querySelector('[data-np=type]').value,kind:bg.querySelector('[data-np=kind]').value,value:Number(bg.querySelector('[data-np=value]').value)||0,expires_at:bg.querySelector('[data-np=exp]').value,limit_uses:bg.querySelector('[data-np=limit]').value,blogger:bg.querySelector('[data-np=blogger]').value.trim(),type_key:bg.querySelector('[data-np=type_key]').value||'',note:bg.querySelector('[data-np=note]').value.trim()};
+    const r=await api('/api/promos',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast(body.type_key?'Промокод создаётся в 1С (дисконтная карта)':'Промокод создан','i-tag'); onSaved&&onSaved(); };
 }
 function promoModalLive(p,onSaved){
   const bg=openModal(`<div class="modal-h"><div><h3>Промокод ${esc(p.code)}</h3><div class="mh-sub">${esc(p.type||'')} · −${p.value||0}${p.kind==='fixed'?' с':'%'}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
@@ -1536,6 +1538,7 @@ PAGES.tasks=(c)=>{
 async function fetchUsers(){ const r=await api('/api/users'); if(!r||!r.ok) return []; return r.data.items||[]; }
 let __storesCache=null;
 async function fetchStores(){ if(__storesCache) return __storesCache; const r=await api('/api/1c/stores'); __storesCache=(r&&r.ok)?(r.data.items||[]):[]; return __storesCache; }
+async function fetchCardTypes(){ const r=await api('/api/1c/card-types'); if(!r||!r.ok) return []; return r.data.items||[]; }
 function storeSelectHtml(stores, selectedKey, attr, allLabel){ const sel=(selectedKey||'').toString(); return `<select ${attr}><option value="">${allLabel||'— точка —'}</option>`+(stores||[]).map(s=>`<option value="${esc(s.ref_key)}" ${s.ref_key===sel?'selected':''}>${esc(s.name)}</option>`).join('')+`</select>`; }
 function userSelectHtml(users, selectedName, attr){
   const sel=(selectedName||'').trim();
