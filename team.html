@@ -5800,10 +5800,12 @@ function renderDashboard(el) {
       </div>
     </div>
 
-    <div class="card" style="margin-bottom:14px">
-      <div style="font-size:14px;font-weight:600;color:var(--t1);margin-bottom:10px;font-family:var(--fd)">📊 Состояние данных</div>
-      <div id="dashboard-data-status" style="font-size:12px;color:var(--t2);line-height:1.7"></div>
-    </div>
+    <div id="dash-funnels" class="dash-funnels"></div>
+
+    <details class="card" style="margin-bottom:14px">
+      <summary style="font-size:13px;font-weight:600;color:var(--t1);cursor:pointer;font-family:var(--fd)">📊 Состояние данных</summary>
+      <div id="dashboard-data-status" style="font-size:12px;color:var(--t2);line-height:1.7;margin-top:10px"></div>
+    </details>
 
     <div class="card">
       <div style="font-size:14px;font-weight:600;color:var(--t1);margin-bottom:10px;font-family:var(--fd)">✅ Проверка соединения</div>
@@ -5814,6 +5816,7 @@ function renderDashboard(el) {
   loadDashboardStats();
   loadDashboardDataStatus();
   testConnection();
+  renderFunnelDashboard(document.getElementById('dash-funnels'));
 
   // Клик по стату → переход в раздел
   el.querySelectorAll('.stat[data-section]').forEach(s => {
@@ -5826,6 +5829,197 @@ function renderDashboard(el) {
       e.stopPropagation();
       openAddUserModal();
     });
+  }
+}
+
+// ───────────────────────── Дашборд воронок (Главная) ─────────────────────────
+let _funnelCache = { at: 0, data: null };
+async function loadFunnelAnalytics(force) {
+  if (!force && _funnelCache.data && Date.now() - _funnelCache.at < 60000) return _funnelCache.data;
+  const idToken = await fbAuth.currentUser.getIdToken();
+  const r = await fetch(`${WORKER_BASE_URL}/api/analytics/funnels?_cb=${Date.now()}`, {
+    headers: { Authorization: 'Bearer ' + idToken }, cache: 'no-store',
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const d = await r.json();
+  _funnelCache = { at: Date.now(), data: d };
+  return d;
+}
+
+function _funnelBusinessOf(name) {
+  const n = (name || '').toLowerCase();
+  if (n.startsWith('pllato')) return 'Pllato';
+  if (n.startsWith('elc')) return 'ELC';
+  return 'Другое';
+}
+function _fmtN(n) { return (n || 0).toLocaleString('ru'); }
+function _sparkSvg(vals) {
+  const v = (vals || []).map(x => x.n || 0);
+  if (v.length < 2) return '';
+  const w = 90, h = 26, max = Math.max(1, ...v), step = w / (v.length - 1);
+  const pts = v.map((y, i) => `${(i * step).toFixed(1)},${(h - 2 - (y / max) * (h - 4)).toFixed(1)}`).join(' ');
+  const last = v[v.length - 1], prev = v[v.length - 2] || 0;
+  const col = last >= prev ? '#10b981' : '#ef4444';
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="overflow:visible"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${((v.length - 1) * step).toFixed(1)}" cy="${(h - 2 - (last / max) * (h - 4)).toFixed(1)}" r="2.5" fill="${col}"/></svg>`;
+}
+
+function _ensureFunnelCss() {
+  if (document.getElementById('dash-funnel-css')) return;
+  const s = document.createElement('style');
+  s.id = 'dash-funnel-css';
+  s.textContent = `
+  .dash-funnels{display:flex;flex-direction:column;gap:18px;margin:4px 0 16px}
+  .dash-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
+  .dash-kpi .kpi{background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:12px 14px}
+  .dash-kpi .kpi-v{font-size:22px;font-weight:800;font-family:var(--fd);color:var(--t1);line-height:1.05}
+  .dash-kpi .kpi-l{font-size:10.5px;color:var(--t3);margin-top:5px;text-transform:uppercase;letter-spacing:.03em}
+  .biz-title{font-size:12px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin:2px 0 10px;display:flex;align-items:center;gap:8px}
+  .fnl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .fnl-card{background:var(--bg2);border:1px solid var(--b1);border-radius:14px;padding:16px}
+  .fnl-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px}
+  .fnl-card h3{margin:0;font-size:15px;font-family:var(--fd);color:var(--t1)}
+  .fnl-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:13px}
+  .fnl-chip{font-size:11px;padding:3px 9px;border-radius:999px;font-weight:600}
+  .fnl-rows{display:flex;flex-direction:column;gap:5px}
+  .fnl-row{display:grid;grid-template-columns:118px 1fr 46px;align-items:center;gap:8px;cursor:pointer;padding:1px 0}
+  .fnl-row:hover .fnl-name{color:var(--ac)}
+  .fnl-name{font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fnl-bar-wrap{background:var(--b1);border-radius:6px;height:16px;overflow:hidden}
+  .fnl-bar{height:100%;border-radius:6px;min-width:2px;transition:width .5s ease}
+  .fnl-cnt{font-size:12px;font-weight:700;color:var(--t1);text-align:right;font-variant-numeric:tabular-nums}
+  .fnl-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:13px;padding-top:11px;border-top:1px solid var(--b1);font-size:11px;color:var(--t3);flex-wrap:wrap}
+  .fnl-warn{font-size:11px;color:#b45309;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);border-radius:8px;padding:6px 9px;margin-bottom:11px;line-height:1.4}
+  @media(max-width:860px){.fnl-row{grid-template-columns:96px 1fr 40px}}
+  `;
+  document.head.appendChild(s);
+}
+
+function _funnelCard(pid, meta, a) {
+  const stagesArr = (meta && meta.stages ? Object.values(meta.stages) : []).sort((x, y) => (x.sort || 0) - (y.sort || 0));
+  const wonSet = new Set(a.wonStages || []), lostSet = new Set(a.lostStages || []);
+  const cnt = (id) => (a.stages[id] && a.stages[id].count) || 0;
+  const rev = (id) => (a.stages[id] && a.stages[id].rev) || 0;
+  let inProg = 0, won = 0, lost = 0, wonRev = 0;
+  for (const s of stagesArr) {
+    const c = cnt(s.statusId);
+    if (wonSet.has(s.statusId)) { won += c; wonRev += rev(s.statusId); }
+    else if (lostSet.has(s.statusId)) lost += c;
+    else inProg += c;
+  }
+  const resolved = won + lost;
+  const winRate = resolved ? Math.round(won / resolved * 100) : null;
+  const visible = stagesArr.filter(s => cnt(s.statusId) > 0);
+  const maxC = Math.max(1, ...visible.map(s => cnt(s.statusId)));
+  // затор — стадия «в работе» с макс. числом
+  let bnId = null, bnMax = -1;
+  for (const s of visible) {
+    if (!wonSet.has(s.statusId) && !lostSet.has(s.statusId)) {
+      const c = cnt(s.statusId); if (c > bnMax) { bnMax = c; bnId = s.statusId; }
+    }
+  }
+  // подозрительные метки исходов (выигрыш стоит в середине воронки — как в Pllato Старт)
+  const wonSorts = stagesArr.filter(s => wonSet.has(s.statusId)).map(s => s.sort || 0);
+  const minWonSort = wonSorts.length ? Math.min(...wonSorts) : Infinity;
+  const suspicious = wonSorts.length && stagesArr.some(s => !wonSet.has(s.statusId) && !lostSet.has(s.statusId) && (s.sort || 0) > minWonSort && cnt(s.statusId) >= 0 && (s.sort || 0) - minWonSort > 5);
+
+  let rowsHtml = '';
+  for (const s of visible) {
+    const c = cnt(s.statusId);
+    const isWon = wonSet.has(s.statusId), isLost = lostSet.has(s.statusId);
+    const col = isWon ? '#10b981' : isLost ? '#ef4444' : 'linear-gradient(90deg,#8b5cf6,#a78bfa)';
+    const w = Math.max(2, Math.round(c / maxC * 100));
+    const mark = isWon ? ' ✅' : isLost ? ' ❌' : '';
+    rowsHtml += `<div class="fnl-row" data-fnl-pid="${escapeHtml(pid)}" data-fnl-stage="${escapeHtml(s.statusId)}" title="${escapeHtml(s.name)}: ${_fmtN(c)}">
+      <div class="fnl-name">${escapeHtml(s.name)}${mark}</div>
+      <div class="fnl-bar-wrap"><div class="fnl-bar" style="width:${w}%;background:${col}"></div></div>
+      <div class="fnl-cnt">${_fmtN(c)}</div>
+    </div>`;
+  }
+  const chip = (bg, c, txt) => `<span class="fnl-chip" style="background:${bg};color:${c}">${txt}</span>`;
+  const bnName = bnId ? (stagesArr.find(s => s.statusId === bnId) || {}).name : null;
+  const spark = _sparkSvg(a.newByWeek);
+  return `<div class="fnl-card">
+    <div class="fnl-head">
+      <h3>${escapeHtml(a.name || (meta && meta.name) || '')}</h3>
+      <div style="font-size:11px;color:var(--t3);text-align:right;white-space:nowrap">${_fmtN(a.total)} сделок${a.avgCycleDays != null ? `<br>⏱ ср. цикл ${a.avgCycleDays} дн` : ''}</div>
+    </div>
+    <div class="fnl-chips">
+      ${chip('rgba(139,92,246,.14)', '#8b5cf6', '🔄 В работе ' + _fmtN(inProg))}
+      ${chip('rgba(16,185,129,.14)', '#10b981', '✅ Выиграно ' + _fmtN(won))}
+      ${chip('rgba(239,68,68,.13)', '#ef4444', '❌ Проиграно ' + _fmtN(lost))}
+      ${winRate != null ? chip('rgba(59,130,246,.13)', '#3b82f6', '🎯 Win-rate ' + winRate + '%') : ''}
+    </div>
+    ${suspicious ? `<div class="fnl-warn">⚠ Похоже, метки исходов в этой воронке настроены неверно (выигрыш стоит в середине). Из-за этого «выиграно/проиграно» могут врать. Поправь стадии через ⚙ в СРМ.</div>` : ''}
+    <div class="fnl-rows">${rowsHtml || '<div style="font-size:12px;color:var(--t3)">Нет активных сделок</div>'}</div>
+    <div class="fnl-foot">
+      <span>${bnName ? `🔥 Затор: <span class="fnl-bn">${escapeHtml(bnName)}</span> (${_fmtN(bnMax)})` : 'Поток ровный'}</span>
+      <span style="display:flex;align-items:center;gap:7px">+${_fmtN(a.newLast7)} за 7 дн ${spark}</span>
+    </div>
+  </div>`;
+}
+
+async function renderFunnelDashboard(container) {
+  if (!container) return;
+  _ensureFunnelCss();
+  container.innerHTML = `<div class="card" style="color:var(--t3);font-size:13px">📈 Загружаем аналитику воронок…</div>`;
+  try {
+    await loadDealsMeta();
+    const data = await loadFunnelAnalytics();
+    const pipes = data.pipelines || {};
+    const ids = Object.keys(pipes);
+    if (!ids.length) { container.innerHTML = ''; return; }
+    // агрегаты для KPI-стрипа
+    let tIn = 0, tWon = 0, tLost = 0, tNew7 = 0, tRev = 0;
+    for (const pid of ids) {
+      const a = pipes[pid], wonSet = new Set(a.wonStages || []), lostSet = new Set(a.lostStages || []);
+      for (const sid of Object.keys(a.stages || {})) {
+        const c = a.stages[sid].count || 0, rv = a.stages[sid].rev || 0;
+        if (wonSet.has(sid)) { tWon += c; tRev += rv; }
+        else if (lostSet.has(sid)) tLost += c;
+        else tIn += c;
+      }
+      tNew7 += a.newLast7 || 0;
+    }
+    const resolved = tWon + tLost, winRate = resolved ? Math.round(tWon / resolved * 100) : null;
+    const kpi = (v, l) => `<div class="kpi"><div class="kpi-v">${v}</div><div class="kpi-l">${l}</div></div>`;
+    let html = `<div class="dash-kpi">
+      ${kpi(_fmtN(tIn), '🔄 В работе')}
+      ${kpi('+' + _fmtN(tNew7), 'Новых за 7 дн')}
+      ${kpi(_fmtN(tWon), '✅ Выиграно')}
+      ${kpi(winRate != null ? winRate + '%' : '—', '🎯 Win-rate')}
+      ${tRev > 0 ? kpi(_fmtN(tRev) + ' ₸', '💰 Выручка') : ''}
+    </div>`;
+    // группировка по бизнесам
+    const groups = {};
+    for (const pid of ids) {
+      const g = _funnelBusinessOf(pipes[pid].name);
+      (groups[g] = groups[g] || []).push(pid);
+    }
+    const order = ['Pllato', 'ELC', 'Другое'];
+    const icon = { Pllato: '🟣', ELC: '🔵', 'Другое': '⚪' };
+    for (const g of order) {
+      if (!groups[g]) continue;
+      // в группе: сортируем по total убыв.
+      const sorted = groups[g].sort((a, b) => (pipes[b].total || 0) - (pipes[a].total || 0));
+      html += `<div class="biz-block"><div class="biz-title">${icon[g]} ${escapeHtml(g)}</div><div class="fnl-grid">`;
+      for (const pid of sorted) html += _funnelCard(pid, dealsState.pipelines[pid], pipes[pid]);
+      html += `</div></div>`;
+    }
+    container.innerHTML = html;
+    // клик по стадии → СРМ с этой воронкой
+    container.querySelectorAll('.fnl-row[data-fnl-pid]').forEach(row => {
+      row.addEventListener('click', () => {
+        const pid = row.dataset.fnlPid;
+        if (pid && dealsState.pipelines[pid]) {
+          dealsState.activePipelineId = pid;
+          try { localStorage.setItem(ACTIVE_PIPELINE_LS_KEY, pid); } catch {}
+        }
+        navigate('deals');
+      });
+    });
+  } catch (e) {
+    console.warn('[funnel-dash]', e);
+    container.innerHTML = `<div class="card" style="font-size:12px;color:var(--t3)">Аналитика воронок недоступна: ${escapeHtml(e.message || '')}</div>`;
   }
 }
 
