@@ -362,21 +362,78 @@ async function dealModalLive(d){
   const ed=makeItemsEditor(dInit);
   const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
   const bg=openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.client_name||'?')}">${initials(d.client_name||'?')}</span><div><h3>${esc(d.client_name||'—')}</h3><div class="mh-sub">${esc(d.phone||'')} ${d.client_ref?'· привязан к 1С':''}</div></div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
-  <div class="modal-b">
+  <div class="dm-tabs" style="display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--line)">
+    <button class="dm-tab" data-tab="details" style="background:none;border:none;border-bottom:2px solid var(--accent);color:var(--txt);font-weight:700;font-size:13px;padding:11px 12px;cursor:pointer">Детали</button>
+    <button class="dm-tab" data-tab="chat" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:700;font-size:13px;padding:11px 12px;cursor:pointer;display:flex;align-items:center;gap:6px">${ic('i-phone','sm')} Чат WhatsApp</button>
+  </div>
+  <div class="modal-b" id="dmTabDetails">
+    <div class="fld-row"><div class="fld"><label>Клиент</label><input data-dm="client_name" value="${esc(d.client_name||'')}" placeholder="ФИО или название"></div><div class="fld"><label>Телефон</label><input data-dm="phone" value="${esc(d.phone||'')}" placeholder="+996…"></div></div>
+    ${d.client_ref?`<div class="note" style="margin:-2px 0 12px">${ic('i-check2','sm')} Клиент привязан к контрагенту 1С</div>`:''}
     <div class="fld-row"><div class="fld"><label>Этап</label><select data-dm="stage">${stages.map(s=>`<option ${s===d.stage?'selected':''}>${esc(s)}</option>`).join('')}</select></div><div class="fld"><label>Сумма, с</label><input data-dm="amount" type="number" value="${d.amount||0}"></div></div>
     <div class="fld-row"><div class="fld"><label>Ответственный</label><input data-dm="mgr" value="${esc(d.mgr||'')}"></div><div class="fld"><label>Источник</label><input data-dm="source" value="${esc(d.source||'')}"></div></div>
     <div class="fld"><label>Точка</label>${storeSelectHtml(dmStores,d.store_key,'data-dm="store_key"','— точка —')}</div>
     <div class="fld"><label>Состав (товары из 1С)</label><div id="dmItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-dm="note" value="${esc(d.note||'')}"></div>
   </div>
+  <div class="modal-b" id="dmTabChat" hidden style="padding:0;display:flex;flex-direction:column">
+    <div class="cw-msgs" id="dmChatMsgs" style="height:330px;flex:none"><div class="cw-empty">Загрузка…</div></div>
+    <div class="cw-comp" id="dmChatComp"><textarea id="dmChatInput" rows="1" placeholder="Сообщение в WhatsApp…"></textarea><button class="cw-send" id="dmChatSend" title="Отправить">${ic('i-send')}</button></div>
+  </div>
   <div class="modal-f"><button class="btn" id="dmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="dmSave">Сохранить</button></div>`,'wide');
   bg.querySelector('#dmItems').appendChild(ed.node);
+  let chatLoaded=false;
+  bg.querySelectorAll('.dm-tab').forEach(tb=>tb.onclick=()=>{
+    const tab=tb.dataset.tab;
+    bg.querySelectorAll('.dm-tab').forEach(x=>{const on=x===tb;x.style.borderBottomColor=on?'var(--accent)':'transparent';x.style.color=on?'var(--txt)':'var(--muted)';});
+    bg.querySelector('#dmTabDetails').hidden = tab!=='details';
+    bg.querySelector('#dmTabChat').hidden = tab!=='chat';
+    if(tab==='chat' && !chatLoaded){ chatLoaded=true; dealChatLoad(bg,d); }
+  });
   bg.querySelector('#dmSave').onclick=async()=>{
-    const body={stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,items:ed.getItems(),note:bg.querySelector('[data-dm=note]').value.trim()};
+    const body={client_name:bg.querySelector('[data-dm=client_name]').value.trim(),phone:bg.querySelector('[data-dm=phone]').value.trim(),stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,items:ed.getItems(),note:bg.querySelector('[data-dm=note]').value.trim()};
     const r=await api('/api/deals/'+d.id,{method:'POST',body:JSON.stringify(body)});
     if(!r.ok){toast('Ошибка сохранения','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); if(r.data&&r.data.order_created)toast('Сделка закрыта → создан черновик заказа (раздел «Заказы»)','i-cart','#16a34a'); if(window.__reloadFunnels)window.__reloadFunnels();
   };
   bg.querySelector('#dmDel').onclick=async()=>{ if(!confirm('Удалить сделку?'))return; const r=await api('/api/deals/'+d.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Сделка удалена','i-check2'); if(window.__reloadFunnels)window.__reloadFunnels();} else toast('Ошибка','i-x','#dc2626'); };
+}
+// Переписка WhatsApp в карточке сделки (общий омни-чат по телефону контакта).
+async function dealChatLoad(bg,d){
+  const box=bg.querySelector('#dmChatMsgs');
+  const r=await api('/api/deals/'+d.id+'/chat');
+  if(!r.ok){ box.innerHTML='<div class="cw-empty">Не удалось загрузить переписку</div>'; return; }
+  const data=r.data||{};
+  const render=()=>{
+    const msgs=data.messages||[];
+    if(!msgs.length){
+      const m = data.reason==='no_phone'
+        ? 'У сделки нет телефона — укажите номер во вкладке «Детали», и переписка привяжется автоматически.'
+        : (data.connected ? 'Переписки пока нет. Напишите первым ↓'
+            : 'Здесь появится переписка WhatsApp с клиентом — после подключения GreenAPI в разделе «Интеграции».');
+      box.innerHTML='<div class="cw-empty">'+m+'</div>';
+    } else {
+      box.innerHTML=msgs.map(x=>{const cls=x.dir==='out'?'out':(x.dir==='ai'?'ai':'in');return `<div class="cw-msg ${cls}">${cwEsc(x.body||'')}<div class="cw-mt">${cwEsc(cwFmtTime(x.ts))}</div></div>`;}).join('');
+      box.scrollTop=box.scrollHeight;
+    }
+  };
+  render();
+  const ta=bg.querySelector('#dmChatInput'), sb=bg.querySelector('#dmChatSend');
+  const canSend = data.connected && data.reason!=='no_phone';
+  if(!canSend){
+    if(ta){ ta.disabled=true; ta.style.opacity=.55; ta.placeholder = data.reason==='no_phone' ? 'Нет телефона у сделки' : 'WhatsApp не подключён (GreenAPI)'; }
+    if(sb){ sb.disabled=true; sb.style.opacity=.45; sb.style.cursor='default'; }
+    return;
+  }
+  const send=async()=>{
+    const v=ta.value.trim(); if(!v) return;
+    ta.value=''; ta.style.height='auto';
+    const r2=await api('/api/deals/'+d.id+'/chat/send',{method:'POST',body:JSON.stringify({text:v})});
+    if(!r2.ok){ toast(r2.data&&r2.data.error?r2.data.error:'Не доставлено','i-info','#dc2626'); ta.value=v; return; }
+    data.messages=data.messages||[]; data.messages.push({dir:'out',body:v,ts:(r2.data&&r2.data.ts)||Date.now()}); render();
+    const w=r2.data&&r2.data.whatsapp; toast(w&&w.sent?'Доставлено в WhatsApp':'Отправлено','i-send','var(--wa)');
+  };
+  ta.addEventListener('input',()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,100)+'px'; });
+  ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(); } });
+  sb.onclick=send;
 }
 function dealCard(d){
   const card=el(`<div class="kcard ${d.type==='b2b'?'b2b':''}" draggable="true" data-id="${d.id}">
