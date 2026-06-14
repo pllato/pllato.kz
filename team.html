@@ -4014,7 +4014,7 @@ const LC_LEVELS = {1:'Beginner 1',2:'Beginner 2',3:'Elementary',4:'Pre-Intermedi
 const LC_STEP = {'level-set':'Разговор · выставить уровень','tour':'Тур по школе','words-cards':'Слова · переводы','words-speed':'Слова · на скорость','grammar':'Грамматика','reading':'Чтение','speaking':'Спикинг','registrar':'Регистратор · итоги'};
 // Порядок и короткие подписи шагов — для полоски прогресса студента.
 const LC_ORDER = ['level-set','tour','words-cards','grammar','reading','speaking','registrar'];
-const LC_SHORT = {'level-set':'Уровень','tour':'Тур','words-cards':'Слова','grammar':'Грамм.','reading':'Чтение','speaking':'Спикинг','registrar':'Финал'};
+const LC_SHORT = {'level-set':'Уровень','tour':'Тур','words-cards':'Слова','grammar':'Грамм.','reading':'Чтение','speaking':'Спикинг','registrar':'Регистрация'};
 function lcProgress(steps, curStep){
   const byKey = {}; (steps||[]).forEach(s => byKey[s.key] = s);
   return `<div style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 2px">${LC_ORDER.map(k => {
@@ -4157,11 +4157,13 @@ function lcLoadHistory(){
       const name = ((r.student.lastName||'') + ' ' + (r.student.name||'')).trim() || 'Без имени';
       const when = r.updatedAt ? new Date(r.updatedAt).toLocaleString('ru',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
       const contact = [r.student.phone, r.student.email].filter(Boolean).map(escapeHtml).join(' · ');
-      return `<details style="background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:12px 14px;margin-bottom:8px">
-        <summary style="cursor:pointer;font-weight:600;color:var(--t1)">${escapeHtml(name)} <span style="color:var(--t3);font-weight:400;font-size:12px">· ${escapeHtml(LC_LEVELS[r.level]||String(r.level))}${r.cefr?' · '+escapeHtml(r.cefr):''} · ${when}</span></summary>
+      const cancelled = r.status === 'cancelled';
+      const cancelBadge = cancelled ? ` <span style="color:var(--rd);font-weight:700;font-size:12px">· ✕ отменено: ${escapeHtml(r.cancelReason||'—')}</span>` : '';
+      return `<details style="background:var(--bg2);border:1px solid ${cancelled?'var(--rd)':'var(--b1)'};border-radius:12px;padding:12px 14px;margin-bottom:8px">
+        <summary style="cursor:pointer;font-weight:600;color:var(--t1)">${escapeHtml(name)} <span style="color:var(--t3);font-weight:400;font-size:12px">· ${escapeHtml(LC_LEVELS[r.level]||String(r.level))}${r.cefr?' · '+escapeHtml(r.cefr):''} · ${when}</span>${cancelBadge}</summary>
         ${contact ? `<div style="font-size:12px;color:var(--t3);margin-top:6px">${contact}</div>` : ''}
         ${lcResults(r)}
-        <button onclick="lcCertificate(${idx})" style="margin-top:10px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;background:linear-gradient(135deg,#1e3a8a,#c0392b);border:0;border-radius:9px;padding:9px 16px">📜 Сертификат PDF</button>
+        ${cancelled ? '' : `<button onclick="lcCertificate(${idx})" style="margin-top:10px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;background:linear-gradient(135deg,#1e3a8a,#c0392b);border:0;border-radius:9px;padding:9px 16px">📜 Сертификат PDF</button>`}
       </details>`;
     }).join('');
   }).catch(e => { c.innerHTML = `<div style="color:var(--rd)">Сеть: ${escapeHtml(e.message)}</div>`; });
@@ -4294,8 +4296,34 @@ function lcCard(it){
     </div>
     ${lcProgress(it.results && it.results.steps, it.step)}
     ${pending ? extra + actions : note}
+    <details style="margin-top:10px">
+      <summary style="cursor:pointer;font-size:12px;color:var(--t3)">✕ Отменить занятие</summary>
+      <div style="display:flex;gap:6px;margin-top:8px;align-items:stretch">
+        <select id="cxr-${it.id}" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--b1);background:var(--bg3);color:var(--t1);font-size:13px">
+          <option value="Студент не на занятии">Студент не на занятии</option>
+          <option value="Отказ">Отказ</option>
+          <option value="Прочее">Прочее</option>
+        </select>
+        <button onclick="lcCancel('${it.id}')" style="border:0;cursor:pointer;font-weight:700;font-size:13px;padding:8px 14px;border-radius:8px;background:var(--rd);color:#fff">Отменить</button>
+      </div>
+    </details>
   </div>`;
 }
+
+window.lcCancel = async function(id){
+  const sel = document.getElementById('cxr-' + id);
+  const reason = sel ? sel.value : 'Прочее';
+  if (!confirm('Отменить занятие? Причина: ' + reason)) return;
+  const teacher = (fbAuth.currentUser && (fbAuth.currentUser.displayName || fbAuth.currentUser.email)) || '';
+  try {
+    const j = await fetch(`${LC_API}/api/cancel`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, reason, pin: LC_PIN, teacher })
+    }).then(r => r.json());
+    if (!j.ok) { alert('Ошибка: ' + (j.error || '')); return; }
+    lcLastSig = null; lcPoll();
+  } catch (e) { alert('Сеть: ' + e.message); }
+};
 
 // Итоги теории (для разговора по выставлению уровня)
 function lcTheory(theory, curLevel){
@@ -4815,7 +4843,7 @@ async function renderTeamChat(el) {
     return;
   }
   const s = document.createElement('script');
-  s.src = `${WORKER_BASE_URL}/chat.js?v=20`;
+  s.src = `${WORKER_BASE_URL}/chat.js?v=21`;
   s.onload = () => {
     _teamChatScriptLoaded = true;
     if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
