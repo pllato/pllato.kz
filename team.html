@@ -4138,17 +4138,76 @@ function lcLoadHistory(){
   fetch(`${LC_API}/api/history?pin=${LC_PIN}`).then(r => r.json()).then(j => {
     if (!j.ok) { c.innerHTML = `<div style="color:var(--rd)">Ошибка загрузки</div>`; return; }
     if (!j.items.length) { c.innerHTML = `<div style="color:var(--t3);padding:30px;text-align:center;border:1px dashed var(--b1);border-radius:12px">История пуста. Завершённые занятия появятся здесь.</div>`; return; }
-    c.innerHTML = j.items.map(r => {
+    window._lcHistory = j.items;  // для генерации сертификата
+    c.innerHTML = j.items.map((r, idx) => {
       const name = ((r.student.lastName||'') + ' ' + (r.student.name||'')).trim() || 'Без имени';
       const when = r.updatedAt ? new Date(r.updatedAt).toLocaleString('ru',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
       const contact = [r.student.phone, r.student.email].filter(Boolean).map(escapeHtml).join(' · ');
       return `<details style="background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:12px 14px;margin-bottom:8px">
         <summary style="cursor:pointer;font-weight:600;color:var(--t1)">${escapeHtml(name)} <span style="color:var(--t3);font-weight:400;font-size:12px">· ${escapeHtml(LC_LEVELS[r.level]||String(r.level))}${r.cefr?' · '+escapeHtml(r.cefr):''} · ${when}</span></summary>
         ${contact ? `<div style="font-size:12px;color:var(--t3);margin-top:6px">${contact}</div>` : ''}
-        ${lcResults(r)}</details>`;
+        ${lcResults(r)}
+        <button onclick="lcCertificate(${idx})" style="margin-top:10px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;background:linear-gradient(135deg,#1e3a8a,#c0392b);border:0;border-radius:9px;padding:9px 16px">📜 Сертификат PDF</button>
+      </details>`;
     }).join('');
   }).catch(e => { c.innerHTML = `<div style="color:var(--rd)">Сеть: ${escapeHtml(e.message)}</div>`; });
 }
+
+// Мини-сертификат ELC из результатов занятия → новое окно → печать/«Сохранить
+// в PDF». Без внешних библиотек: браузерный print-to-PDF, A4 альбомная.
+window.lcCertificate = function(idx){
+  const r = (window._lcHistory || [])[idx];
+  if (!r) { alert('Данные занятия не найдены — обнови «Историю».'); return; }
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const name = ((r.student?.lastName || '') + ' ' + (r.student?.name || '')).trim() || 'Студент';
+  const level = (LC_LEVELS[r.level] || ('Уровень ' + r.level)) + (r.cefr ? ' · ' + r.cefr : '');
+  const SN = {'words-cards':'Словарный запас','words-speed':'Слова на скорость','grammar':'Грамматика','grammar-test':'Грамматика','reading':'Чтение','speaking':'Разговорная речь'};
+  const seen = new Set(), passed = [];
+  (r.steps || []).forEach(s => { const ok = s.status === 'passed' || s.verdict === 'pass'; const nm = SN[s.key]; if (ok && nm && !seen.has(nm)) { seen.add(nm); passed.push(nm); } });
+  const test = r.testResult ? `Тест на уровень: ${r.testResult.score} / ${r.testResult.total}` : '';
+  const date = (r.updatedAt ? new Date(r.updatedAt) : new Date()).toLocaleDateString('ru', { day: '2-digit', month: 'long', year: 'numeric' });
+  const ach = (passed.length ? passed : ['Пробное занятие']).map(p => `<span class="ach">✓ ${esc(p)}</span>`).join('');
+  const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Сертификат ELC — ${esc(name)}</title>
+  <style>
+    @page{size:A4 landscape;margin:0}*{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Georgia,'Times New Roman',serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .cert{width:297mm;height:210mm;padding:13mm}
+    .frame{width:100%;height:100%;border:3px solid #1e3a8a;border-radius:8px;position:relative;padding:13mm 18mm;display:flex;flex-direction:column;align-items:center;text-align:center;background:#fff}
+    .frame:before{content:'';position:absolute;inset:6px;border:1px solid #c0392b;border-radius:5px;pointer-events:none}
+    .brand{font-size:30px;font-weight:800;letter-spacing:1px;color:#1e3a8a}.brand b{color:#c0392b}
+    .tag{font-size:11px;letter-spacing:3px;color:#64748b;text-transform:uppercase;margin-top:2px}
+    .title{font-size:38px;font-weight:800;color:#1e3a8a;letter-spacing:4px;margin:18mm 0 5mm;text-transform:uppercase}
+    .sub{font-size:15px;color:#475569}
+    .name{font-size:34px;font-weight:700;color:#0f172a;margin:6mm 0 4mm;border-bottom:2px solid #c0392b;padding:0 14mm 4mm}
+    .lvl{display:inline-block;background:#1e3a8a;color:#fff;font-size:16px;font-weight:700;padding:7px 20px;border-radius:999px;margin-top:3mm;font-family:Arial,sans-serif}
+    .achs{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:6mm;max-width:200mm}
+    .ach{background:#ecfdf5;color:#047857;border:1px solid #6ee7b7;border-radius:999px;padding:5px 14px;font-size:13px;font-weight:600;font-family:Arial,sans-serif}
+    .test{font-size:13px;color:#475569;margin-top:4mm;font-family:Arial,sans-serif}
+    .foot{margin-top:auto;width:100%;display:flex;justify-content:space-between;align-items:flex-end;font-family:Arial,sans-serif;font-size:12px;color:#475569}
+    .sig{text-align:center}.sig .line{width:55mm;border-top:1px solid #94a3b8;margin-bottom:4px}
+  </style></head>
+  <body><div class="cert"><div class="frame">
+    <div class="brand">EL<b>C</b></div>
+    <div class="tag">English Lifestyle Communication</div>
+    <div class="title">Сертификат</div>
+    <div class="sub">Настоящим подтверждается, что</div>
+    <div class="name">${esc(name)}</div>
+    <div class="sub">успешно прошёл(а) пробное занятие по английскому языку</div>
+    <div class="lvl">Уровень: ${esc(level)}</div>
+    <div class="achs">${ach}</div>
+    ${test ? `<div class="test">${esc(test)}</div>` : ''}
+    <div class="foot">
+      <div class="sig"><div class="line"></div>Дата<br><b>${esc(date)}</b></div>
+      <div style="font-weight:700;color:#1e3a8a;font-size:14px">ELC · English Lifestyle Communication</div>
+      <div class="sig"><div class="line"></div>Преподаватель</div>
+    </div>
+  </div></div>
+  <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  if (!w) { alert('Разрешите всплывающие окна для этого сайта, чтобы открыть сертификат.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+};
 
 let lcLastSig = null;
 function lcRender(items){
