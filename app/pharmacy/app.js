@@ -2275,9 +2275,12 @@ async function gaLoadStatus(refs){
 }
 function greenApiPanel(){
   const panel = el(`<div class="panel section-gap" style="margin-top:0">
-    <div class="panel-h"><h3>WhatsApp · GreenAPI</h3>
-      <span class="tag" data-ga="badge" style="border:1px solid">…</span></div>
-    <div class="panel-b">
+    <button class="panel-h" data-ga="toggle" style="width:100%;text-align:left;background:none;cursor:pointer">
+      <span style="width:44px;height:44px;border-radius:12px;background:#25d366;color:#06231a;display:grid;place-items:center;font-weight:800;font-size:17px;flex:none">W</span>
+      <span style="flex:1;min-width:0"><span style="display:block;font-weight:700;font-size:15px">WhatsApp · GreenAPI</span><span class="tag" data-ga="badge" style="border:1px solid;margin-top:4px;display:inline-flex">…</span></span>
+      <span class="muted" data-ga="chev" style="font-size:12.5px;font-weight:600;flex:none;display:flex;align-items:center;gap:5px">${ic('i-cog','sm')} Настроить</span>
+    </button>
+    <div class="panel-b" data-ga="body">
       <div class="note">${ic('i-info','sm')} Подключение WhatsApp для авто-отправки приглашений сотрудникам (и далее — омни-чатов). <b>idInstance</b> и <b>apiTokenInstance</b> берутся в консоли green-api.com. Токен хранится на сервере и не показывается целиком.</div>
       <div style="display:grid;gap:10px;margin-top:14px;max-width:540px">
         <label style="display:grid;gap:5px;font-size:12px;color:var(--muted)">idInstance
@@ -2303,6 +2306,11 @@ function greenApiPanel(){
     tokInp:panel.querySelector('[data-ga=token]'),
     urlInp:panel.querySelector('[data-ga=url]'),
   };
+  // сворачиваемая карточка (как 1С): настройки WhatsApp — внутри, по клику на шапку
+  const gaTog=panel.querySelector('[data-ga=toggle]'), gaBody=panel.querySelector('[data-ga=body]'), gaChev=panel.querySelector('[data-ga=chev]');
+  const gaSetOpen=(open)=>{ gaBody.style.display=open?'':'none'; gaTog.style.borderBottom=open?'':'none'; gaChev.innerHTML=`${ic('i-cog','sm')} ${open?'Свернуть':'Настроить'}`; };
+  gaSetOpen(false);
+  gaTog.onclick=()=>gaSetOpen(gaBody.style.display==='none');
   const btnSave = panel.querySelector('[data-ga=save]');
   const btnCheck= panel.querySelector('[data-ga=check]');
   const btnTest = panel.querySelector('[data-ga=test]');
@@ -2364,7 +2372,7 @@ PAGES.integrations=(c)=>{
   const intgs=[
     ['1С','Listki EG (Кыргызстан)','#16a34a','1С','Остатки 4 000 SKU · заказы · накладные','Синхронизирован 1 мин назад','green'],
   ];
-  const grid=el(`<div class="grid-2 section-gap" style="margin-top:0"></div>`);
+  const grid=el(`<div class="section-gap" style="margin-top:0;display:flex;flex-direction:column;gap:16px"></div>`);
   intgs.forEach(g=>{
     grid.appendChild(el(`<div class="intg-card"><div class="ic" style="background:${g[2]}">${g[3]}</div>
       <div class="ii"><div class="in">${g[0]} <span class="muted" style="font-weight:500;font-size:12px">· ${g[1]}</span></div>
