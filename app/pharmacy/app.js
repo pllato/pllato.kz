@@ -779,13 +779,13 @@ const _legacyInboxDemo=(c)=>{   // старый демо-инбокс (не ис
 let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibWrap=null;
 async function liveInbox(c){
   __ibWrap=el(`<div class="inbox"></div>`);
-  __ibWrap.innerHTML='<div class="ib-channels"></div><div class="ib-threads"></div><div class="ib-chat"></div><div class="ib-context"></div>';
+  __ibWrap.innerHTML='<div class="ib-threads"></div><div class="ib-chat"></div><div class="ib-context"></div>';
   c.appendChild(__ibWrap);
   __ibMsgsCache={};
   const r=await api('/api/inbox/threads');
   __ibThreads=(r&&r.ok&&r.data&&Array.isArray(r.data.items))?r.data.items:[];
   if((!__ibCur || !__ibThreads.some(t=>t.id===__ibCur)) && __ibThreads.length) __ibCur=__ibThreads[0].id;
-  ibChannels(); ibThreadList(); ibChat(); ibContext();
+  ibThreadList(); ibChat(); ibContext();
   if(__ibCur) ibOpen(__ibCur);
 }
 function ibAlive(){ return __ibWrap && document.body.contains(__ibWrap); }
@@ -803,7 +803,8 @@ function ibThreadList(){
       <div class="ti"><div class="tn">${esc(nm)}</div><div class="tm">${esc((t.preview_dir==='out'?'✓ ':'')+(t.preview||''))}</div></div>
       <div class="tt">${esc(cwFmtTime(t.last_ts))}</div>${t.unread?`<span class="un">${t.unread}</span>`:''}</button>`;
   }).join('');
-  box.innerHTML=`<div class="ib-search"><div class="fld-in">${ic('i-search','sm')}<input id="ibSearch" placeholder="Поиск диалога…"></div></div>`+(rows||'<div class="empty" style="padding:34px 14px"><div>Пока нет диалогов</div></div>');
+  const unread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0);
+  box.innerHTML=`<div class="ib-thead"><span>WhatsApp · GreenAPI</span>${unread?`<span class="b">${unread}</span>`:''}</div><div class="ib-search"><div class="fld-in">${ic('i-search','sm')}<input id="ibSearch" placeholder="Поиск диалога…"></div></div>`+(rows||'<div class="empty" style="padding:34px 14px"><div>Пока нет диалогов</div></div>');
   box.querySelectorAll('.thread').forEach(b=>b.onclick=()=>ibOpen(b.dataset.t));
   const s=box.querySelector('#ibSearch'); if(s)s.oninput=()=>{const q=s.value.toLowerCase();box.querySelectorAll('.thread').forEach(b=>{const t=__ibThreads.find(x=>x.id===b.dataset.t);b.style.display=(!q||((t.title||'')+' '+(t.phone||'')).toLowerCase().includes(q))?'':'none';});};
 }
@@ -845,7 +846,7 @@ function ibContext(){
 }
 async function ibOpen(id){
   __ibCur=id; const t=__ibThreads.find(x=>x.id===id); if(t)t.unread=0;
-  ibChannels(); ibThreadList(); ibChat(); ibContext();
+  ibThreadList(); ibChat(); ibContext();
   api('/api/inbox/threads/'+encodeURIComponent(id)+'/read',{method:'POST'}).catch(()=>{});
   if(__ibMsgsCache[id]===undefined){
     const r=await api('/api/inbox/threads/'+encodeURIComponent(id)+'/messages');
