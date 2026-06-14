@@ -2372,7 +2372,7 @@ PAGES.integrations=(c)=>{
   const intgs=[
     ['1С','Listki EG (Кыргызстан)','#16a34a','1С','Остатки 4 000 SKU · заказы · накладные','Синхронизирован 1 мин назад','green'],
   ];
-  const grid=el(`<div class="section-gap" style="margin-top:0;display:flex;flex-direction:column;gap:16px"></div>`);
+  const grid=el(`<div class="section-gap" style="display:flex;flex-direction:column;gap:16px"></div>`);
   intgs.forEach(g=>{
     grid.appendChild(el(`<div class="intg-card"><div class="ic" style="background:${g[2]}">${g[3]}</div>
       <div class="ii"><div class="in">${g[0]} <span class="muted" style="font-weight:500;font-size:12px">· ${g[1]}</span></div>
