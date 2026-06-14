@@ -328,6 +328,7 @@ function dealCardLive(d){
 }
 async function newDealLive(onSaved){
   const ndStores=await fetchStores();
+  const ndUsers=await fetchUsers();
   const ed=makeItemsEditor([]);
   const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
   const bg=openModal(`<div class="modal-h"><div><h3>Новая сделка</h3><div class="mh-sub">${state.funnel==='b2c'?'B2C · розница':'B2B · опт'}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
@@ -335,7 +336,7 @@ async function newDealLive(onSaved){
     <div class="fld"><label>Клиент — поиск в 1С или ввод вручную</label><div style="position:relative"><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-nd="client" placeholder="ФИО или название" autocomplete="off" style="width:100%"></div><div id="ndSug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:200px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div></div>
     <div class="fld-row"><div class="fld"><label>Телефон</label><input data-nd="phone"></div><div class="fld"><label>Сумма, с</label><input data-nd="amount" type="number" placeholder="0"></div></div>
     <div class="fld-row"><div class="fld"><label>Этап</label><select data-nd="stage">${stages.map(s=>`<option>${esc(s)}</option>`).join('')}</select></div><div class="fld"><label>Источник</label><select data-nd="source"><option value="">—</option><option>WhatsApp</option><option>Instagram</option><option>Сайт</option><option>Звонок</option><option>Сарафан</option></select></div></div>
-    <div class="fld-row"><div class="fld"><label>Ответственный</label><input data-nd="mgr" value="${esc((AUTH.user||{}).name||'')}"></div><div class="fld"><label>Точка</label>${storeSelectHtml(ndStores,'','data-nd="store_key"','— точка —')}</div></div>
+    <div class="fld-row"><div class="fld"><label>Ответственный</label>${userSelectHtml(ndUsers,(AUTH.user||{}).name||'','data-nd="mgr"')}</div><div class="fld"><label>Точка</label>${storeSelectHtml(ndStores,'','data-nd="store_key"','— точка —')}</div></div>
     <div class="fld"><label>Состав (товары из 1С — можно добавить позже)</label><div id="ndItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-nd="note" placeholder="Что нужно клиенту"></div>
   </div>
@@ -360,27 +361,51 @@ async function dealModalLive(d){
   const dmStores=await fetchStores();
   let dInit=[]; try{ dInit=JSON.parse(d.items||'[]'); }catch(e){}
   const ed=makeItemsEditor(dInit);
+  const dmUsers=await fetchUsers();
   const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
+  const DM_SRC=['WhatsApp','Instagram','Сайт','Звонок','Сарафан'];
+  const dmCurSrc=(d.source||'').trim();
+  const dmSourceSel=`<select data-dm="source"><option value="">— источник —</option>`+DM_SRC.map(s=>`<option ${s===dmCurSrc?'selected':''}>${esc(s)}</option>`).join('')+(dmCurSrc&&!DM_SRC.includes(dmCurSrc)?`<option selected>${esc(dmCurSrc)}</option>`:'')+`</select>`;
   const bg=openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.client_name||'?')}">${initials(d.client_name||'?')}</span><div><h3>${esc(d.client_name||'—')}</h3><div class="mh-sub">${esc(d.phone||'')} ${d.client_ref?'· привязан к 1С':''}</div></div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="dm-tabs" style="display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--line)">
     <button class="dm-tab" data-tab="details" style="background:none;border:none;border-bottom:2px solid var(--accent);color:var(--txt);font-weight:700;font-size:13px;padding:11px 12px;cursor:pointer">Детали</button>
     <button class="dm-tab" data-tab="chat" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:700;font-size:13px;padding:11px 12px;cursor:pointer;display:flex;align-items:center;gap:6px">${ic('i-phone','sm')} Чат WhatsApp</button>
   </div>
   <div class="modal-b" id="dmTabDetails">
-    <div class="fld-row"><div class="fld"><label>Клиент</label><input data-dm="client_name" value="${esc(d.client_name||'')}" placeholder="ФИО или название"></div><div class="fld"><label>Телефон</label><input data-dm="phone" value="${esc(d.phone||'')}" placeholder="+996…"></div></div>
-    ${d.client_ref?`<div class="note" style="margin:-2px 0 12px">${ic('i-check2','sm')} Клиент привязан к контрагенту 1С</div>`:''}
-    <div class="fld-row"><div class="fld"><label>Этап</label><select data-dm="stage">${stages.map(s=>`<option ${s===d.stage?'selected':''}>${esc(s)}</option>`).join('')}</select></div><div class="fld"><label>Сумма, с</label><input data-dm="amount" type="number" value="${d.amount||0}"></div></div>
-    <div class="fld-row"><div class="fld"><label>Ответственный</label><input data-dm="mgr" value="${esc(d.mgr||'')}"></div><div class="fld"><label>Источник</label><input data-dm="source" value="${esc(d.source||'')}"></div></div>
-    <div class="fld"><label>Точка</label>${storeSelectHtml(dmStores,d.store_key,'data-dm="store_key"','— точка —')}</div>
+    <div class="fld"><label>Клиент</label><div id="dmClientZone"></div></div>
+    <div class="fld-row"><div class="fld"><label>Телефон</label><input data-dm="phone" value="${esc(d.phone||'')}" placeholder="+996…"></div><div class="fld"><label>Этап</label><select data-dm="stage">${stages.map(s=>`<option ${s===d.stage?'selected':''}>${esc(s)}</option>`).join('')}</select></div></div>
+    <div class="fld-row"><div class="fld"><label>Сумма, с</label><input data-dm="amount" type="number" value="${d.amount||0}"></div><div class="fld"><label>Ответственный</label>${userSelectHtml(dmUsers,d.mgr,'data-dm="mgr"')}</div></div>
+    <div class="fld-row"><div class="fld"><label>Источник</label>${dmSourceSel}</div><div class="fld"><label>Точка</label>${storeSelectHtml(dmStores,d.store_key,'data-dm="store_key"','— точка —')}</div></div>
     <div class="fld"><label>Состав (товары из 1С)</label><div id="dmItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-dm="note" value="${esc(d.note||'')}"></div>
   </div>
-  <div class="modal-b" id="dmTabChat" hidden style="padding:0;display:flex;flex-direction:column">
+  <div class="modal-b" id="dmTabChat" hidden style="padding:0">
     <div class="cw-msgs" id="dmChatMsgs" style="height:330px;flex:none"><div class="cw-empty">Загрузка…</div></div>
     <div class="cw-comp" id="dmChatComp"><textarea id="dmChatInput" rows="1" placeholder="Сообщение в WhatsApp…"></textarea><button class="cw-send" id="dmChatSend" title="Отправить">${ic('i-send')}</button></div>
   </div>
   <div class="modal-f"><button class="btn" id="dmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="dmSave">Сохранить</button></div>`,'wide');
   bg.querySelector('#dmItems').appendChild(ed.node);
+  // Клиент: пикер контрагента 1С; когда привязан — read-only + «Сменить»
+  let dRef=d.client_ref||null, dName=d.client_name||'';
+  const zone=bg.querySelector('#dmClientZone');
+  function renderClientZone(){
+    if(dRef){
+      zone.innerHTML=`<div class="fld-in" style="width:100%;justify-content:space-between;gap:8px;cursor:default">
+        <span style="display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(dName||'Контрагент 1С')}</b><span class="tag green" style="flex:none">1С</span></span>
+        <button type="button" class="btn sm" data-act="unlink" style="flex:none">Сменить</button></div>`;
+      zone.querySelector('[data-act=unlink]').onclick=()=>{ dRef=null; renderClientZone(); const i=zone.querySelector('[data-dm=client]'); if(i)i.focus(); };
+    } else {
+      zone.innerHTML=`<div style="position:relative"><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-dm="client" placeholder="ФИО или название" value="${esc(dName)}" autocomplete="off" style="width:100%"></div><div id="dmSug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:200px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div>
+        <div class="muted" style="font-size:11px;margin-top:5px">Найдите контрагента в 1С или впишите имя лида.</div>`;
+      const q=zone.querySelector('[data-dm=client]'), sug=zone.querySelector('#dmSug'); let qt=null;
+      q.addEventListener('input',()=>{ dName=q.value.trim(); clearTimeout(qt); const v=q.value.trim(); if(v.length<2){sug.style.display='none';return;}
+        qt=setTimeout(async()=>{ const r=await api('/api/1c/contractors?limit=6&q='+encodeURIComponent(v)); if(!r.ok||!(r.data.items||[]).length){sug.style.display='none';return;}
+          sug.innerHTML=r.data.items.map(x=>`<div class="doc-row" data-ref="${esc(x.ref_key)}" data-name="${esc(x.name||'')}" data-phone="${esc(x.phone||'')}"><div><div class="dt">${esc(x.name||'—')}</div><div class="ds">${esc(x.code||'')} · ${esc(x.phone||'')}</div></div></div>`).join('');
+          sug.style.display='block';
+          sug.querySelectorAll('[data-ref]').forEach(it=>it.onclick=()=>{ dRef=it.dataset.ref; dName=it.dataset.name; const ph=bg.querySelector('[data-dm=phone]'); if(it.dataset.phone&&ph)ph.value=it.dataset.phone; sug.style.display='none'; renderClientZone(); }); },300); });
+    }
+  }
+  renderClientZone();
   let chatLoaded=false;
   bg.querySelectorAll('.dm-tab').forEach(tb=>tb.onclick=()=>{
     const tab=tb.dataset.tab;
@@ -390,7 +415,7 @@ async function dealModalLive(d){
     if(tab==='chat' && !chatLoaded){ chatLoaded=true; dealChatLoad(bg,d); }
   });
   bg.querySelector('#dmSave').onclick=async()=>{
-    const body={client_name:bg.querySelector('[data-dm=client_name]').value.trim(),phone:bg.querySelector('[data-dm=phone]').value.trim(),stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,items:ed.getItems(),note:bg.querySelector('[data-dm=note]').value.trim()};
+    const body={client_ref:dRef,client_name:(dName||'').trim(),phone:bg.querySelector('[data-dm=phone]').value.trim(),stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,items:ed.getItems(),note:bg.querySelector('[data-dm=note]').value.trim()};
     const r=await api('/api/deals/'+d.id,{method:'POST',body:JSON.stringify(body)});
     if(!r.ok){toast('Ошибка сохранения','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); if(r.data&&r.data.order_created)toast('Сделка закрыта → создан черновик заказа (раздел «Заказы»)','i-cart','#16a34a'); if(window.__reloadFunnels)window.__reloadFunnels();
   };
