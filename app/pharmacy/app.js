@@ -316,7 +316,8 @@ function dealCardLive(d){
   const days=d.created_at?Math.max(0,Math.round((Date.now()-d.created_at)/864e5)):0;
   const card=el(`<div class="kcard ${d.funnel==='b2b'?'b2b':''}" draggable="true" data-id="${d.id}">
     <div class="kc-top"><div class="kc-client">${esc(d.client_name||'—')}</div>${d.client_ref?'<span class="tag green" title="из 1С">1С</span>':''}</div>
-    ${d.note?`<div class="kc-prod">${esc(d.note)}</div>`:''}
+    ${(function(){const t=ordItemsText(d.items);return t?`<div class="kc-prod">${ic('i-box','sm')} ${esc(t)}</div>`:'';})()}
+    ${d.note?`<div class="kc-prod" style="font-size:11px;color:var(--muted2)">${esc(d.note)}</div>`:''}
     <div class="kc-sum">${money(d.amount||0)}</div>
     <div class="kc-meta">${d.source?`<span class="tag">${esc(d.source)}</span>`:''}${d.mgr?`<span class="tag amber">${esc(d.mgr)}</span>`:''}<span class="kc-days">${ic('i-clock','sm')} ${days}д</span></div></div>`);
   card.addEventListener('dragstart',e=>{e.dataTransfer.setData('id',d.id);card.classList.add('dragging');});
