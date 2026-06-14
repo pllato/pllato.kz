@@ -145,9 +145,13 @@ function go(p, sub){
 function renderPage(){
   const [t,s]=PAGE_META[state.page]||['',''];
   $('#pageTitle').textContent=t;$('#pageSub').textContent=s;
-  $('#content').innerHTML='';
-  (PAGES[state.page]||(()=>{}))($('#content'));
-  $('#content').scrollTop=0;
+  const host=$('#content');
+  host.innerHTML='';
+  window.__reloadFunnels=null;          // сброс устаревшего reloader при смене страницы
+  const box=el('<div class="page-box"></div>');  // свежий контейнер: поздние async-дорисовки старой страницы уходят в отсоединённый box и не видны
+  host.appendChild(box);
+  (PAGES[state.page]||(()=>{}))(box);
+  host.scrollTop=0;
 }
 
 // ============================================================
