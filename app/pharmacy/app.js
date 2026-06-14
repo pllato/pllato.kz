@@ -326,6 +326,7 @@ function dealCardLive(d){
 }
 async function newDealLive(onSaved){
   const ndStores=await fetchStores();
+  const ed=makeItemsEditor([]);
   const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
   const bg=openModal(`<div class="modal-h"><div><h3>Новая сделка</h3><div class="mh-sub">${state.funnel==='b2c'?'B2C · розница':'B2B · опт'}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
@@ -333,9 +334,11 @@ async function newDealLive(onSaved){
     <div class="fld-row"><div class="fld"><label>Телефон</label><input data-nd="phone"></div><div class="fld"><label>Сумма, с</label><input data-nd="amount" type="number" placeholder="0"></div></div>
     <div class="fld-row"><div class="fld"><label>Этап</label><select data-nd="stage">${stages.map(s=>`<option>${esc(s)}</option>`).join('')}</select></div><div class="fld"><label>Источник</label><select data-nd="source"><option value="">—</option><option>WhatsApp</option><option>Instagram</option><option>Сайт</option><option>Звонок</option><option>Сарафан</option></select></div></div>
     <div class="fld-row"><div class="fld"><label>Ответственный</label><input data-nd="mgr" value="${esc((AUTH.user||{}).name||'')}"></div><div class="fld"><label>Точка</label>${storeSelectHtml(ndStores,'','data-nd="store_key"','— точка —')}</div></div>
+    <div class="fld"><label>Состав (товары из 1С — можно добавить позже)</label><div id="ndItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-nd="note" placeholder="Что нужно клиенту"></div>
   </div>
   <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="ndSave">Создать сделку</button></div>`);
+  bg.querySelector('#ndItems').appendChild(ed.node);
   const q=bg.querySelector('[data-nd=client]'), sug=bg.querySelector('#ndSug'); let ref=null, qt=null;
   q.addEventListener('input',()=>{ ref=null; clearTimeout(qt); const v=q.value.trim(); if(v.length<2){sug.style.display='none';return;}
     qt=setTimeout(async()=>{ const r=await api('/api/1c/contractors?limit=6&q='+encodeURIComponent(v)); if(!r.ok||!(r.data.items||[]).length){sug.style.display='none';return;}
@@ -344,7 +347,7 @@ async function newDealLive(onSaved){
       sug.querySelectorAll('[data-ref]').forEach(it=>it.onclick=()=>{ ref=it.dataset.ref; q.value=it.dataset.name; bg.querySelector('[data-nd=phone]').value=it.dataset.phone; sug.style.display='none'; }); },300); });
   bg.querySelector('#ndSave').onclick=async()=>{
     const name=q.value.trim(); if(!name){toast('Укажите клиента','i-info');return;}
-    const body={funnel:state.funnel,stage:bg.querySelector('[data-nd=stage]').value,client_ref:ref,client_name:name,phone:bg.querySelector('[data-nd=phone]').value.trim(),amount:Number(bg.querySelector('[data-nd=amount]').value)||0,source:bg.querySelector('[data-nd=source]').value,mgr:bg.querySelector('[data-nd=mgr]').value.trim(),store_key:bg.querySelector('[data-nd=store_key]').value||null,note:bg.querySelector('[data-nd=note]').value.trim()};
+    const body={funnel:state.funnel,stage:bg.querySelector('[data-nd=stage]').value,client_ref:ref,client_name:name,phone:bg.querySelector('[data-nd=phone]').value.trim(),amount:Number(bg.querySelector('[data-nd=amount]').value)||0,source:bg.querySelector('[data-nd=source]').value,mgr:bg.querySelector('[data-nd=mgr]').value.trim(),store_key:bg.querySelector('[data-nd=store_key]').value||null,items:ed.getItems(),note:bg.querySelector('[data-nd=note]').value.trim()};
     const r=await api('/api/deals',{method:'POST',body:JSON.stringify(body)});
     if(!r.ok){toast('Не удалось создать сделку','i-x','#dc2626');return;}
     closeModal(); toast('Сделка создана','i-funnel'); onSaved&&onSaved();
@@ -353,17 +356,21 @@ async function newDealLive(onSaved){
 async function dealModalLive(d){
   setEntityHash('funnels', d.id);
   const dmStores=await fetchStores();
+  let dInit=[]; try{ dInit=JSON.parse(d.items||'[]'); }catch(e){}
+  const ed=makeItemsEditor(dInit);
   const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
   const bg=openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.client_name||'?')}">${initials(d.client_name||'?')}</span><div><h3>${esc(d.client_name||'—')}</h3><div class="mh-sub">${esc(d.phone||'')} ${d.client_ref?'· привязан к 1С':''}</div></div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld-row"><div class="fld"><label>Этап</label><select data-dm="stage">${stages.map(s=>`<option ${s===d.stage?'selected':''}>${esc(s)}</option>`).join('')}</select></div><div class="fld"><label>Сумма, с</label><input data-dm="amount" type="number" value="${d.amount||0}"></div></div>
     <div class="fld-row"><div class="fld"><label>Ответственный</label><input data-dm="mgr" value="${esc(d.mgr||'')}"></div><div class="fld"><label>Источник</label><input data-dm="source" value="${esc(d.source||'')}"></div></div>
     <div class="fld"><label>Точка</label>${storeSelectHtml(dmStores,d.store_key,'data-dm="store_key"','— точка —')}</div>
+    <div class="fld"><label>Состав (товары из 1С)</label><div id="dmItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-dm="note" value="${esc(d.note||'')}"></div>
   </div>
   <div class="modal-f"><button class="btn" id="dmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="dmSave">Сохранить</button></div>`,'wide');
+  bg.querySelector('#dmItems').appendChild(ed.node);
   bg.querySelector('#dmSave').onclick=async()=>{
-    const body={stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,note:bg.querySelector('[data-dm=note]').value.trim()};
+    const body={stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,items:ed.getItems(),note:bg.querySelector('[data-dm=note]').value.trim()};
     const r=await api('/api/deals/'+d.id,{method:'POST',body:JSON.stringify(body)});
     if(!r.ok){toast('Ошибка сохранения','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); if(r.data&&r.data.order_created)toast('Сделка закрыта → создан черновик заказа (раздел «Заказы»)','i-cart','#16a34a'); if(window.__reloadFunnels)window.__reloadFunnels();
   };
