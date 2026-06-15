@@ -2189,6 +2189,7 @@ function openInviteModal(onDone){
   </div>
   <div class="modal-f"><button class="btn" id="invCancel">Отмена</button><button class="btn primary" id="invSend">${ic('i-phone','sm')} Создать и отправить</button></div>`);
   bg.querySelector('#invCancel').onclick=()=>closeModal();
+  (async()=>{ const rr=await api('/api/admin/roles'); if(rr.ok&&rr.data&&rr.data.roles){ const sel=bg.querySelector('#invRole'); if(sel) sel.innerHTML=rr.data.roles.filter(x=>x.id!=='superadmin').map(x=>`<option value="${esc(x.id)}" ${x.id==='seller'?'selected':''}>${esc(x.name)}</option>`).join(''); } })();
   bg.querySelector('#invSend').onclick=async ()=>{
     const name=bg.querySelector('#invName').value.trim();
     const phone=bg.querySelector('#invPhone').value.trim();
@@ -2302,10 +2303,18 @@ PAGES.team=(c)=>{
     let roles, editable=false;
     if(r.ok){ roles=r.data.roles; editable=true; ACCESS_MAP={}; roles.forEach(x=>ACCESS_MAP[x.id]=x.sections); renderNav(); }
     else { roles=(DB.roles||[]).map(x=>({id:x.id,name:x.name,locked:(x.id==='owner'||x.id==='superadmin'),sections:(DB.access&&DB.access[x.id])||[]})); }
-    panel.innerHTML=`<table class="tbl perm-tbl"><thead><tr><th>Раздел</th>${roles.map(x=>`<th style="text-align:center">${esc(x.name.split(' ')[0])}</th>`).join('')}</tr></thead><tbody>
+    panel.innerHTML=`<table class="tbl perm-tbl"><thead><tr><th>Раздел</th>${roles.map(x=>{
+        const nm=esc(x.name.split(' ')[0]);
+        if(!editable||x.god||x.id==='owner') return `<th style="text-align:center">${nm}</th>`;
+        const del=(!x.builtin)?` <span data-delrole="${esc(x.id)}" title="Удалить роль" style="cursor:pointer;color:#dc2626">✕</span>`:'';
+        return `<th style="text-align:center"><span data-renrole="${esc(x.id)}" data-rolename="${esc(x.name)}" title="Переименовать (клик)" style="cursor:pointer;border-bottom:1px dashed currentColor">${nm}</span>${del}</th>`;
+      }).join('')}</tr></thead><tbody>
       ${sections.map(([lbl,id])=>`<tr><td>${lbl}</td>${roles.map(x=>{const on=(x.sections||[]).includes(id);return `<td style="text-align:center">${editable&&!x.locked?`<input type="checkbox" data-role="${x.id}" data-sec="${id}" ${on?'checked':''} style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">`:(on?'<span class="yes">'+ic('i-check2','sm')+'</span>':'<span class="no">—</span>')}</td>`;}).join('')}</tr>`).join('')}
-    </tbody></table>${editable?`<div class="row" style="padding:12px 14px;justify-content:flex-end;gap:12px;border-top:1px solid var(--line)"><span class="muted" style="font-size:12px">Применится ко всем сотрудникам роли</span><button class="btn primary" data-perm="save">${ic('i-shield','sm')} Сохранить права</button></div>`:''}`;
+    </tbody></table>${editable?`<div class="row" style="padding:12px 14px;justify-content:flex-end;gap:12px;border-top:1px solid var(--line)"><button class="btn" data-perm="addrole" style="margin-right:auto">${ic('i-plus','sm')} Добавить роль</button><span class="muted" style="font-size:12px">Клик по названию — переименовать · ✕ — удалить</span><button class="btn primary" data-perm="save">${ic('i-shield','sm')} Сохранить права</button></div>`:''}`;
     if(editable){
+      panel.querySelectorAll('[data-renrole]').forEach(s=>s.onclick=async()=>{ const nv=prompt('Новое название роли:',s.dataset.rolename); if(!nv||!nv.trim())return; const rr=await api('/api/admin/roles/rename',{method:'POST',body:JSON.stringify({role:s.dataset.renrole,name:nv.trim()})}); if(!rr.ok){toast((rr.data&&rr.data.error)||'Ошибка','i-x','#dc2626');return;} toast('Переименовано','i-check2'); loadPerm(); });
+      panel.querySelectorAll('[data-delrole]').forEach(s=>s.onclick=async()=>{ if(!confirm('Удалить эту роль? Действие необратимо.'))return; const rr=await api('/api/admin/roles/delete',{method:'POST',body:JSON.stringify({role:s.dataset.delrole})}); if(!rr.ok){toast((rr.data&&rr.data.error)||'Ошибка','i-x','#dc2626');return;} toast('Роль удалена','i-check2'); loadPerm(); });
+      const ab=panel.querySelector('[data-perm=addrole]'); if(ab) ab.onclick=async()=>{ const nm=prompt('Название новой роли:'); if(!nm||!nm.trim())return; const rr=await api('/api/admin/roles/create',{method:'POST',body:JSON.stringify({name:nm.trim(),sections:[]})}); if(!rr.ok){toast((rr.data&&rr.data.error)||'Ошибка','i-x','#dc2626');return;} toast('Роль создана — отметьте разделы и сохраните','i-check2'); loadPerm(); };
       const changed=new Set();
       panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.onchange=()=>changed.add(cb.dataset.role));
       panel.querySelector('[data-perm=save]').onclick=async(e)=>{
