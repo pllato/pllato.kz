@@ -540,8 +540,8 @@ PAGES.clients=async(c)=>{
   const tb=panel.querySelector('tbody'), cnt=tbar.querySelector('[data-cl=cnt]'), qInput=tbar.querySelector('[data-cl=q]'), segSel=tbar.querySelector('[data-cl=seg]');
   const segTag=(s)=>{ const m={b2c:'green',b2b:'blue',doctor:'pink',supplier:'amber'},t={b2c:'B2C',b2b:'B2B',doctor:'врач',supplier:'поставщик'}; return s?`<span class="tag ${m[s]||''}">${t[s]||s}</span>`:'—'; };
   const roleTags=(r)=> ((r.is_buyer?'<span class="tag green">покупатель</span>':'')+(r.is_supplier?'<span class="tag amber">поставщик</span>':''))||'—';
-  function rowLive(r){ return `<td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(r.name||'?')}">${initials(r.name||'?')}</span><div>${esc(r.name||'—')}</div></div></td>
-    <td>${esc(r.phone||'—')}</td><td class="muted2">${esc(r.code||'—')}</td><td class="muted">${esc(r.inn||'—')}</td>
+  function rowLive(r){ return `<td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(r.name||'?')}">${initials(r.name||'?')}</span><div>${esc(r.name||'—')}${r.pending?' <span class="tag amber" style="font-size:9px;padding:0 6px">⏳ в 1С</span>':''}</div></div></td>
+    <td>${esc(r.phone||'—')}</td><td class="muted2">${r.pending?'<span class="muted2">очередь 1С</span>':esc(r.code||'—')}</td><td class="muted">${esc(r.inn||'—')}</td>
     <td>${segTag(r.segment)}</td><td>${roleTags(r)}</td>`; }
   async function loadSegments(){
     const r=await api('/api/1c/segments');
@@ -580,7 +580,7 @@ PAGES.clients=async(c)=>{
     cnt.textContent = total+' '+plural(total,'клиент','клиента','клиентов')+' · 1С';
     tb.innerHTML='';
     if(!items.length){ tb.innerHTML='<tr><td colspan="6" class="muted2" style="font-size:13px;padding:18px">Ничего не найдено</td></tr>'; renderPager(0,false); return; }
-    items.forEach(x=>{ const tr=el(`<tr class="clickable">${rowLive(x)}</tr>`); tr.onclick=()=>contractorModal(x); tb.appendChild(tr); });
+    items.forEach(x=>{ const tr=el(`<tr class="clickable">${rowLive(x)}</tr>`); tr.onclick=()=> x.pending ? toast('Клиент создаётся в 1С — карточка появится после синхронизации','i-sync','#d97706') : contractorModal(x); tb.appendChild(tr); });
     renderPager(items.length,false);
   }
   let qt=null;
