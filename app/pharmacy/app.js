@@ -2160,18 +2160,22 @@ function roleOptions(sel){
 async function copyText(t){ try{ await navigator.clipboard.writeText(t); toast('Ссылка скопирована','i-check2'); }
   catch(e){ toast('Скопируйте вручную: '+t,'i-info','#d97706'); } }
 
-// Показать ссылку-инвайт в модалке (ручной режим, если WhatsApp не отправился авто).
-function showInviteLinkBox(bg, inv, waLink){
-  bg.querySelector('.modal').innerHTML = `<h3 style="margin:0 0 4px">Приглашение создано</h3>
-    <div class="muted" style="font-size:13px;margin-bottom:14px">Авто-отправка в WhatsApp не настроена. Отправьте ссылку сотруднику вручную:</div>
-    <div style="background:var(--bg2,#0c1424);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;word-break:break-all;margin-bottom:14px">${inv.link}</div>
-    <div class="row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn" id="invOpenWa">${ic('i-phone','sm')} Открыть WhatsApp</button>
-      <button class="btn ghost" id="invCopy">Скопировать ссылку</button>
-      <button class="btn ghost" id="invClose" style="margin-left:auto">Готово</button></div>`;
-  bg.querySelector('#invOpenWa').onclick=()=>window.open(waLink,'_blank');
+// Подтверждение инвайта в стиле CRM: отправлено в WhatsApp ✓ либо ручной режим со ссылкой.
+function showInviteLinkBox(bg, inv, waLink, sent){
+  bg.querySelector('.modal').innerHTML = `<div class="modal-h"><div><h3>${sent?'Приглашение отправлено':'Приглашение создано'}</h3>
+    <div class="mh-sub">${sent?'Ссылка ушла сотруднику в WhatsApp ✓':'Авто-отправка не сработала — отправьте ссылку вручную'}</div></div>
+    <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld"><label>Ссылка-приглашение <span class="muted2">(сотрудник откроет и сам задаст пароль)</span></label>
+      <div style="background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:12px;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${esc(inv.link)}</div></div>
+  </div>
+  <div class="modal-f">
+    ${sent?'':`<button class="btn" id="invOpenWa">${ic('i-phone','sm')} Открыть WhatsApp</button>`}
+    <button class="btn" id="invCopy">Скопировать ссылку</button>
+    <button class="btn primary" id="invClose" style="margin-left:auto">Готово</button></div>`;
+  const ow=bg.querySelector('#invOpenWa'); if(ow) ow.onclick=()=>window.open(waLink,'_blank');
   bg.querySelector('#invCopy').onclick=()=>copyText(inv.link);
-  bg.querySelector('#invClose').onclick=()=>bg.remove();
+  bg.querySelector('#invClose').onclick=()=>closeModal();
 }
 
 function openInviteModal(onDone){
@@ -2198,8 +2202,8 @@ function openInviteModal(onDone){
       b.innerHTML=ic('i-phone','sm')+' Создать и отправить'; return; }
     if(onDone) onDone();
     const wa=r.data.whatsapp;
-    if(wa&&wa.sent){ toast('Приглашение отправлено в WhatsApp ✓','i-check2'); bg.remove(); }
-    else showInviteLinkBox(bg, r.data.invite, r.data.wa_link);
+    if(wa&&wa.sent) toast('Приглашение отправлено в WhatsApp ✓','i-check2');
+    showInviteLinkBox(bg, r.data.invite, r.data.wa_link, !!(wa&&wa.sent));
   };
 }
 
