@@ -775,7 +775,7 @@ const _legacyInboxDemo=(c)=>{   // старый демо-инбокс (не ис
   const cb=$('#chatBody');if(cb)cb.scrollTop=cb.scrollHeight;
 };
 // ---------- ЧАТЫ (live · омни-чат WhatsApp/GreenAPI) ----------
-let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibDeal={}, __ibWrap=null;
+let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibDeal={}, __ibWrap=null, __ibChannelFilter=null;
 async function liveInbox(c){
   __ibWrap=el(`<div class="inbox"></div>`);
   __ibWrap.innerHTML='<div class="ib-threads"></div><div class="ib-chat"></div><div class="ib-context"></div>';
@@ -791,13 +791,22 @@ async function liveInbox(c){
 function ibAlive(){ return __ibWrap && document.body.contains(__ibWrap); }
 function ibChannels(){
   const box=__ibWrap&&__ibWrap.querySelector('.ib-channels'); if(!box)return;
-  const unread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0);
-  box.innerHTML=`<div class="ib-ch-group">WhatsApp · GreenAPI</div>
-    <button class="ib-ch on"><span class="ci" style="background:var(--wa)22;color:var(--wa)">${ic('i-phone','sm')}</span><span class="cn">Все диалоги</span>${unread?`<span class="cb">${unread}</span>`:''}</button>`;
+  const totalUnread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0);
+  // каналы (номера) из диалогов — разбивка показывается только если их больше одного
+  const chMap=new Map();
+  __ibThreads.forEach(t=>{ const k=t.channel_id||'_'; if(!chMap.has(k)) chMap.set(k,{id:t.channel_id||null,name:t.chName||'WhatsApp',unread:0}); chMap.get(k).unread+=(t.unread||0); });
+  const chans=[...chMap.values()];
+  const cur=__ibChannelFilter;
+  let html=`<div class="ib-ch-group">WhatsApp · GreenAPI</div>
+    <button class="ib-ch ${cur==null?'on':''}" data-ch=""><span class="ci" style="background:var(--wa)22;color:var(--wa)">${ic('i-phone','sm')}</span><span class="cn">Все диалоги</span>${totalUnread?`<span class="cb">${totalUnread}</span>`:''}</button>`;
+  if(chans.length>1) html+=chans.map(ch=>`<button class="ib-ch ${cur===ch.id?'on':''}" data-ch="${esc(ch.id||'')}"><span class="ci" style="background:var(--wa)22;color:var(--wa)">${ic('i-phone','sm')}</span><span class="cn">${esc(ch.name)}</span>${ch.unread?`<span class="cb">${ch.unread}</span>`:''}</button>`).join('');
+  box.innerHTML=html;
+  box.querySelectorAll('[data-ch]').forEach(b=>b.onclick=()=>{ __ibChannelFilter=b.dataset.ch||null; ibChannels(); ibThreadList(); });
 }
 function ibThreadList(){
   const box=__ibWrap&&__ibWrap.querySelector('.ib-threads'); if(!box)return;
-  const rows=__ibThreads.map(t=>{ const nm=t.title||t.phone||'Диалог'; const on=t.id===__ibCur?'on':'';
+  const flt=__ibChannelFilter?__ibThreads.filter(t=>t.channel_id===__ibChannelFilter):__ibThreads;
+  const rows=flt.map(t=>{ const nm=t.title||t.phone||'Диалог'; const on=t.id===__ibCur?'on':'';
     return `<button class="thread ${on}" data-t="${esc(t.id)}">
       <div class="av" style="background:${avBg(nm)}">${esc(initials(nm))}<span class="src" style="background:var(--wa)">${ic('i-phone','sm')}</span></div>
       <div class="ti"><div class="tn">${esc(nm)}</div><div class="tm">${esc((t.preview_dir==='out'?'✓ ':'')+(t.preview||''))}</div></div>
