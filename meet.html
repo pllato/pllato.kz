@@ -204,7 +204,7 @@ button{font-family:inherit;cursor:pointer}
 .grid.presenting .tile{position:static}
 .grid.presenting .tile.screen{position:absolute;inset:0;width:100%;height:100%;border:none;background:#000}
 .grid.presenting .tile.screen video{object-fit:contain;background:#000}
-#thumbs{position:absolute;right:14px;bottom:14px;display:flex;gap:8px;max-width:72%;overflow-x:auto;z-index:8;padding:2px}
+#thumbs{position:absolute;right:14px;top:14px;display:flex;gap:8px;max-width:72%;flex-wrap:wrap;justify-content:flex-end;z-index:8;padding:2px}
 #thumbs:empty{display:none}
 #thumbs .tile{width:148px;height:100px;flex:0 0 auto;box-shadow:0 6px 18px rgba(0,0,0,.5)}
 @media(max-width:560px){#thumbs .tile{width:96px;height:66px}}
@@ -346,6 +346,7 @@ button{font-family:inherit;cursor:pointer}
     <div class="meta">
       <div class="brand"><img src="pllato_logo_transparent_white.svg" alt="Pllato"></div>
       <span class="room-pill" id="room-pill"></span>
+      <span class="room-pill" id="timer-pill" style="font-variant-numeric:tabular-nums">00:00</span>
       <span class="rec-dot hidden" id="rec-indicator"><span class="dot"></span>Запись</span>
     </div>
     <div class="tools">
@@ -414,6 +415,7 @@ button{font-family:inherit;cursor:pointer}
     <button class="cb" id="cb-cam"><span id="cb-cam-ic"></span><span>Видео</span></button>
     <button class="cb" id="cb-blur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20" opacity=".4"/></svg><span>Фон</span></button>
     <button class="cb" id="cb-share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Экран</span></button>
+    <button class="cb" id="cb-pip" title="Лица плавающим окном поверх всех приложений"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="12" width="8" height="6" rx="1" fill="currentColor"/></svg><span>Поверх</span></button>
     <button class="cb" id="cb-cc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M7 12h2M11 12h2M15 12h2M7 15h4M13 15h4" stroke-linecap="round"/></svg><span>Субтитры</span></button>
     <button class="cb" id="cb-rec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg><span>Запись</span></button>
     <button class="cb" id="cb-settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Настр.</span></button>
@@ -447,7 +449,7 @@ import { getSession } from './pllato-kz-shared/pllato-api.js';
 // Адрес сигналинг-воркера (Cloudflare). Разверни meet-worker/ командой `wrangler deploy`.
 const MEET_WS = 'wss://pllato-meet.uurraa.workers.dev';
 const MEET_API = 'https://pllato-meet.uurraa.workers.dev';
-const LOGO_URL = '/pllato_icon_512.svg'; // лого Pllato для фона
+const LOGO_URL = '/pllato_logo_transparent_white.svg'; // светлый логотип Pllato для фона
 
 const ICE_SERVERS = [
   { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
@@ -650,13 +652,11 @@ async function ensureMediaPipe(){
 // логотип для фона (грузим как data-URL с явным размером, чтобы корректно рисовался на canvas)
 let logoImg=null;
 async function loadLogo(){
-  if(logoImg) return logoImg;
+  if(logoImg && logoImg.naturalWidth) return logoImg;
   try{
-    const r=await fetch(LOGO_URL); let svg=await r.text();
-    if(!/\bwidth=/.test(svg)) svg=svg.replace(/<svg/i,'<svg width="512" height="512"');
-    const img=new Image(); img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
-    await (img.decode?.().catch(()=>{}) || new Promise(r=>{img.onload=r;img.onerror=r;}));
-    logoImg=img;
+    const r=await fetch(LOGO_URL); const svg=await r.text();
+    // data-URL гарантирует, что canvas не «протухнет» (tainted) и captureStream продолжит работать
+    await new Promise((res)=>{ const img=new Image(); img.onload=()=>{ logoImg=img; res(); }; img.onerror=res; img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg); });
   }catch{}
   return logoImg;
 }
@@ -694,9 +694,10 @@ class BgPipeline{
     const w=results.image.width, h=results.image.height; if(!w) return;
     this.canvas.width=w; this.canvas.height=h; this.mask.width=w; this.mask.height=h;
     const ctx=this.ctx, mctx=this.mctx;
-    // 1) сглаженная (feathered) маска человека — убирает «просветы» по контуру
+    // 1) маска человека: сглаживаем и слегка «сжимаем» (erode), чтобы убрать
+    //    светлый ореол по контуру (яркий фон, просвечивающий по краю силуэта)
     mctx.clearRect(0,0,w,h);
-    mctx.filter='blur(4px)';
+    mctx.filter='blur(3px) brightness(0.7) contrast(9)';
     mctx.drawImage(results.segmentationMask,0,0,w,h);
     mctx.filter='none';
     // 2) человек по маске
@@ -707,10 +708,17 @@ class BgPipeline{
     // 3) фон позади человека
     ctx.globalCompositeOperation='destination-over';
     if(this.mode==='logo'){
-      ctx.filter='none'; ctx.fillStyle='#0a1628'; ctx.fillRect(0,0,w,h);
-      if(logoImg){ const s=Math.min(w,h)*0.5; ctx.globalAlpha=0.9; ctx.drawImage(logoImg,(w-s)/2,(h-s)/2,s,s); ctx.globalAlpha=1; }
+      ctx.filter='none';
+      // фирменный градиент Pllato + светлый логотип по центру
+      const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,'#0e1d33'); g.addColorStop(1,'#0a1628');
+      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      if(logoImg && logoImg.complete && logoImg.naturalWidth){
+        const ar=logoImg.naturalWidth/logoImg.naturalHeight||3;
+        const lw=Math.min(w*0.62, 520), lh=lw/ar;
+        ctx.globalAlpha=0.95; ctx.drawImage(logoImg,(w-lw)/2,(h-lh)/2,lw,lh); ctx.globalAlpha=1;
+      }
     }else{ // blur
-      ctx.filter='blur(14px)'; ctx.drawImage(results.image,0,0,w,h); ctx.filter='none';
+      ctx.filter='blur(16px)'; ctx.drawImage(results.image,0,0,w,h); ctx.filter='none';
     }
     ctx.restore();
   }
@@ -845,6 +853,7 @@ function onAdmitted(){
   $('room-pill').textContent = state.roomId + (state.isHost?' · вы организатор':'');
   setupLocalTile();
   initControls();
+  startTimer();
   renderPeopleList(); updateBadges();
   // субтитры (транскрипция) включаются у всех — чтобы записывалась речь каждого
   setTimeout(()=>{ startCaptions(true); }, 700);
@@ -1085,6 +1094,7 @@ function initControls(){
   $('cb-cam').onclick=toggleCam;
   $('cb-blur').onclick=cycleBackground;
   $('cb-share').onclick=toggleShare;
+  $('cb-pip').onclick=()=>togglePiP(false);
   $('cb-cc').onclick=toggleCaptions;
   $('cb-rec').onclick=toggleRecording;
   $('cb-leave').onclick=leaveRoom;
@@ -1149,10 +1159,55 @@ async function toggleShare(){
     selfPatch({ sharing:false, screenStreamId:null });
     setLocalTileStream();
   }
-  refreshControlIcons(); toast(state.sharing?'Показ экрана включён':'Показ экрана выключен');
+  refreshControlIcons();
+  if(state.sharing){ toast('Показ экрана включён. Нажмите «Поверх», чтобы видеть лица плавающим окном над другими приложениями'); togglePiP(true); }
+  else toast('Показ экрана выключен');
+}
+
+/* ---- Картинка-в-картинке: лица участников плавающим окном поверх всех окон ---- */
+let facesCanvas=null, facesRAF=null, pipVideo=null;
+function buildFacesCanvas(){
+  if(facesCanvas) return facesCanvas;
+  facesCanvas=document.createElement('canvas'); facesCanvas.width=480; facesCanvas.height=320;
+  const ctx=facesCanvas.getContext('2d');
+  const draw=()=>{
+    const cams=[...document.querySelectorAll('#video-grid .tile, #thumbs .tile')].filter(t=>t.dataset.kind!=='screen');
+    const n=Math.max(cams.length,1); const cols=Math.ceil(Math.sqrt(n)); const rows=Math.ceil(n/cols);
+    const cw=240, chh=160; facesCanvas.width=cols*cw; facesCanvas.height=rows*chh;
+    ctx.fillStyle='#0b0f1a'; ctx.fillRect(0,0,facesCanvas.width,facesCanvas.height);
+    cams.forEach((t,i)=> drawRecTile(ctx, t, (i%cols)*cw, Math.floor(i/cols)*chh, cw, chh, false));
+    facesRAF=requestAnimationFrame(draw);
+  };
+  draw();
+  return facesCanvas;
+}
+async function togglePiP(silent){
+  try{
+    if(document.pictureInPictureElement){ await document.exitPictureInPicture(); $('cb-pip').classList.remove('on'); return; }
+    if(!document.pictureInPictureEnabled){ if(!silent) toast('Плавающее окно поддерживается в Chrome/Edge на компьютере'); return; }
+    buildFacesCanvas();
+    if(!pipVideo){ pipVideo=document.createElement('video'); pipVideo.muted=true; pipVideo.playsInline=true; pipVideo.srcObject=facesCanvas.captureStream(15); }
+    await pipVideo.play().catch(()=>{});
+    await pipVideo.requestPictureInPicture();
+    $('cb-pip').classList.add('on');
+    pipVideo.addEventListener('leavepictureinpicture',()=>$('cb-pip').classList.remove('on'),{once:true});
+  }catch(e){ if(!silent) toast('Не удалось открыть плавающее окно: '+(e.message||'')); }
+}
+
+/* ---- таймер встречи ---- */
+let timerInt=null;
+function startTimer(){
+  clearInterval(timerInt);
+  timerInt=setInterval(()=>{
+    const s=Math.max(0,Math.floor((Date.now()-(state.startedAt||Date.now()))/1000));
+    const h=Math.floor(s/3600), mm=String(Math.floor((s%3600)/60)).padStart(2,'0'), ss=String(s%60).padStart(2,'0');
+    const el=$('timer-pill'); if(el) el.textContent=(h>0?h+':':'')+mm+':'+ss;
+  },1000);
 }
 
 function leaveRoom(){
+  clearInterval(timerInt);
+  try{ if(document.pictureInPictureElement) document.exitPictureInPicture(); }catch{}
   wsClosedByUser=true; try{ wsSend({t:'bye'}); ws?.close(); }catch{}
   for(const {pc} of peers.values()){ try{pc.close();}catch{} }
   state.rawStream?.getTracks().forEach(t=>t.stop());
@@ -1359,16 +1414,24 @@ async function saveMeeting(blob){
     durationSec: Math.round((Date.now()-(recStartTs||state.startedAt||Date.now()))/1000),
     participants:names, transcript: transcriptLog.map(m=>({name:m.name,text:m.text})),
     size: blob.size, mime:recMime };
-  toast('Сохраняю встречу в архив…', 4000);
+  // 1) всегда сразу скачиваем запись и транскрипт на устройство
+  downloadBlob(blob, `pllato-meet-${state.roomId}-${new Date().toISOString().slice(0,10)}.webm`);
+  downloadTranscriptFile(`pllato-meet-${state.roomId}-${new Date().toISOString().slice(0,10)}`);
+  // 2) и сохраняем копию в облачный архив
+  toast('Запись и транскрипт скачаны. Сохраняю копию в облако…', 4000);
   try{
     const r1=await fetch(`${MEET_API}/archive/rec/${owner}/${id}`, { method:'PUT', headers:{'Content-Type':recMime}, body:blob });
     if(!r1.ok) throw new Error('rec '+r1.status);
     await fetch(`${MEET_API}/archive/meta/${owner}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(meta) });
-    toast('Встреча сохранена в архив ✅');
-  }catch(e){
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`pllato-meet-${id}.webm`; a.click();
-    toast('Облачный архив недоступен — запись скачана на устройство');
-  }
+    toast('Встреча сохранена в облачный архив ✅');
+  }catch(e){ toast('Облачный архив недоступен (запись и текст уже скачаны на устройство)'); }
+}
+function downloadBlob(blob, filename){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); a.remove(); }
+function downloadTranscriptFile(base){
+  if(!transcriptLog.length) return;
+  const lines=transcriptLog.map(m=>`${m.name}: ${m.text}`).join('\n');
+  const head=`Pllato Meet — транскрипция\nКомната: ${state.roomId}\nДата: ${new Date().toLocaleString('ru-RU')}\n\n`;
+  downloadBlob(new Blob([head+lines],{type:'text/plain;charset=utf-8'}), base+'.txt');
 }
 
 /* ============================================================
