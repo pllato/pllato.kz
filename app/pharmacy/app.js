@@ -1191,8 +1191,15 @@ PAGES.marketing=(c)=>{
     <div class="spacer"></div>
     <button class="btn primary" id="newPromoBtn">${ic('i-plus','sm')} Промокод</button></div>`);
   const panel=el(`<div class="panel"><table class="tbl"><thead><tr><th>Код</th><th>Тип</th><th>Скидка</th><th>Срок</th><th>Блогер</th><th class="num">Исп.</th><th>Статус</th></tr></thead><tbody><tr><td colspan="7" class="muted2" style="font-size:13px;padding:14px">Загрузка…</td></tr></tbody></table></div>`);
-  c.appendChild(cards); c.appendChild(tbar); c.appendChild(panel);
-  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Промокоды и акции хранятся в CRM. Скидка применяется на кассе в 1С; счётчик использований и выручку по коду подключим, когда сопоставим скидки 1С. Промокоды врачей — в разделе «Врачи-партнёры».</div>`));
+  const cardsPanel=el(`<div class="panel section-gap"><div class="panel-h"><h3>${ic('i-tag','sm')} Карты и промокоды из 1С</h3><span class="ph-sub" style="margin-left:auto">виды дисконтных карт · только просмотр</span></div><div id="mkCardTypes"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>`);
+  c.appendChild(cards); c.appendChild(tbar); c.appendChild(panel); c.appendChild(cardsPanel);
+  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Сверху — промокоды, созданные в CRM (уходят в 1С как дисконтные карты, статистика возвращается). Снизу — виды карт и промокодов, уже заведённые в 1С. Промокоды врачей — в разделе «Врачи-партнёры».</div>`));
+  (async()=>{ const r=await api('/api/1c/card-types'); const box=cardsPanel.querySelector('#mkCardTypes'); if(!box)return;
+    if(!r.ok){ box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">'+(r.status===403?'нужен доступ':'нет связи с 1С')+'</div>'; return; }
+    const it=r.data.items||[], t=r.data.totals||{};
+    if(!it.length){ box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">В 1С нет видов карт</div>'; return; }
+    box.innerHTML='<table class="tbl"><thead><tr><th>Вид карты / программа</th><th class="num">Карт</th><th class="num">Использований</th><th class="num">Выручка</th></tr></thead><tbody>'+it.map(x=>`<tr><td><b>${esc(x.name||'—')}</b></td><td class="num">${(x.cards||0).toLocaleString('ru-RU')}</td><td class="num">${(x.uses||0).toLocaleString('ru-RU')}</td><td class="num">${money(x.revenue||0)}</td></tr>`).join('')+`</tbody></table><div class="muted2" style="padding:10px 14px;font-size:11.5px">Итого ${t.types||it.length} видов · ${(t.cards||0).toLocaleString('ru-RU')} карт · использований ${(t.uses||0).toLocaleString('ru-RU')} · выручка ${money(t.revenue||0)}</div>`;
+  })();
   const tb=panel.querySelector('tbody'), qI=tbar.querySelector('[data-mk=q]');
   const typeTag=(t)=>{ const m={'блогерский код':'pink','сезонная':'cyan','персональный':'violet','общая акция':'blue'}; return `<span class="tag ${m[t]||''}">${esc(t||'—')}</span>`; };
   const expd=(e)=>e&&e<new Date().toISOString().slice(0,10);
@@ -2161,19 +2168,16 @@ function showInviteLinkBox(bg, inv, waLink){
 }
 
 function openInviteModal(onDone){
-  const lab='display:grid;gap:5px;font-size:12px;color:var(--muted);margin-bottom:12px';
-  const bg = openModal(`<h3 style="margin:0 0 4px">Пригласить сотрудника</h3>
-    <div class="muted" style="font-size:13px;margin-bottom:16px">Сотрудник получит ссылку в WhatsApp и сам задаст пароль для входа.</div>
-    <label style="${lab}">Имя<input id="invName" class="login-field" placeholder="Имя Фамилия" style="margin:0"></label>
-    <label style="${lab}">Телефон · WhatsApp <span class="muted2">(в межд. формате, только цифры)</span>
-      <input id="invPhone" class="login-field" inputmode="numeric" placeholder="996700123456" style="margin:0"></label>
-    <label style="${lab}">Роль<select id="invRole" class="login-field" style="margin:0">${roleOptions('seller')}</select></label>
-    <label style="${lab}">Email <span class="muted2">(опц., для входа через Google)</span>
-      <input id="invEmail" class="login-field" type="email" placeholder="name@gmail.com" style="margin:0"></label>
-    <div class="row" style="gap:8px;justify-content:flex-end;margin-top:6px">
-      <button class="btn ghost" id="invCancel">Отмена</button>
-      <button class="btn" id="invSend">${ic('i-phone','sm')} Создать и отправить</button></div>`);
-  bg.querySelector('#invCancel').onclick=()=>bg.remove();
+  const bg = openModal(`<div class="modal-h"><div><h3>Пригласить сотрудника</h3><div class="mh-sub">Сотрудник получит ссылку в WhatsApp и сам задаст пароль для входа.</div></div>
+    <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld"><label>Имя</label><input id="invName" placeholder="Имя Фамилия"></div>
+    <div class="fld"><label>Телефон · WhatsApp <span class="muted2">(в межд. формате, только цифры)</span></label><input id="invPhone" inputmode="numeric" placeholder="996700123456"></div>
+    <div class="fld"><label>Роль</label><select id="invRole" class="sel">${roleOptions('seller')}</select></div>
+    <div class="fld"><label>Email <span class="muted2">(опц., для входа через Google)</span></label><input id="invEmail" type="email" placeholder="name@gmail.com"></div>
+  </div>
+  <div class="modal-f"><button class="btn" id="invCancel">Отмена</button><button class="btn primary" id="invSend">${ic('i-phone','sm')} Создать и отправить</button></div>`);
+  bg.querySelector('#invCancel').onclick=()=>closeModal();
   bg.querySelector('#invSend').onclick=async ()=>{
     const name=bg.querySelector('#invName').value.trim();
     const phone=bg.querySelector('#invPhone').value.trim();
