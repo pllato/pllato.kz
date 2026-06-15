@@ -158,6 +158,7 @@ button{font-family:inherit;cursor:pointer}
 
 .trn-line{margin-bottom:9px}
 .trn-line .who{font-size:11.5px;font-weight:700;color:var(--bronze);margin-bottom:1px}
+.trn-line .who .t{font-weight:500;color:var(--text-3);margin-left:6px;font-variant-numeric:tabular-nums}
 .trn-line .tx{font-size:13.5px;line-height:1.5}
 .trn-line.interim .tx{color:var(--text-3);font-style:italic}
 .trn-empty{color:var(--text-3);font-size:13px;text-align:center;padding:30px 10px;line-height:1.6}
@@ -1269,6 +1270,7 @@ let recogLang='ru-RU', recognition=null, recogRestart=false;
 let lastCaption=null;       // {name,text,ts} — for burned-in caption + overlay
 let capHideTimer=null;
 const transcriptLog=[]; // {name,text,ts}
+function fmtClock(ts){ try{ return new Date(ts).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); }catch{ return ''; } }
 function showCaption(name, text){
   lastCaption={ name, text, ts:Date.now() };
   const bar=$('caption-bar');
@@ -1282,7 +1284,7 @@ function onTranscriptMessage(m){
   showCaption(m.name, m.text);
   const list=$('trn-list'); const empty=list.querySelector('.trn-empty'); if(empty) empty.remove();
   const el=document.createElement('div'); el.className='trn-line';
-  el.innerHTML=`<div class="who">${escapeHtml(m.name)}</div><div class="tx">${escapeHtml(m.text)}</div>`;
+  el.innerHTML=`<div class="who">${escapeHtml(m.name)}<span class="t">${fmtClock(m.ts||Date.now())}</span></div><div class="tx">${escapeHtml(m.text)}</div>`;
   list.appendChild(el); list.scrollTop=list.scrollHeight;
 }
 function toggleCaptions(){
@@ -1312,15 +1314,23 @@ function startRecognition(){
     if(interim){ if(!interimEl.parentNode){ const empty=list.querySelector('.trn-empty'); if(empty)empty.remove(); list.appendChild(interimEl);} interimEl.querySelector('.tx').textContent=interim; list.scrollTop=list.scrollHeight; }
     else if(interimEl.parentNode){ interimEl.remove(); }
   };
-  recognition.onerror=(e)=>{ if(e.error==='not-allowed'){ toast('Нет доступа к микрофону для субтитров'); state.captioning=false; refreshControlIcons(); recogRestart=false; } };
-  recognition.onend=()=>{ if(recogRestart && state.captioning){ try{recognition.start();}catch{} } };
+  recognition.onerror=(e)=>{
+    // not-allowed / service-not-allowed — фатально (нет доступа к микрофону): выключаем
+    if(e.error==='not-allowed' || e.error==='service-not-allowed'){
+      toast('Нет доступа к микрофону для субтитров'); state.captioning=false; refreshControlIcons(); recogRestart=false; return;
+    }
+    // no-speech / aborted / network — временные: onend сам перезапустит распознавание
+  };
+  // Chrome завершает распознавание после паузы — перезапускаем с небольшой задержкой,
+  // чтобы не словить InvalidStateError из-за слишком частого start().
+  recognition.onend=()=>{ if(recogRestart && state.captioning){ setTimeout(()=>{ if(recogRestart && state.captioning){ try{recognition&&recognition.start();}catch{} } }, 350); } };
   recogRestart=true;
   try{ recognition.start(); }catch{}
 }
 function stopRecognition(){ recogRestart=false; try{recognition?.stop();}catch{} recognition=null; }
 function downloadTranscript(){
   if(!transcriptLog.length){ toast('Транскрипция пока пуста'); return; }
-  const lines=transcriptLog.map(m=>`${m.name}: ${m.text}`).join('\n');
+  const lines=transcriptLog.map(m=>`[${fmtClock(m.ts||Date.now())}] ${m.name}: ${m.text}`).join('\n');
   const head=`Pllato Meet — транскрипция\nКомната: ${state.roomId}\nДата: ${new Date().toLocaleString('ru-RU')}\n\n`;
   const blob=new Blob([head+lines],{type:'text/plain;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`transcript-${state.roomId}.txt`; a.click();
@@ -1412,7 +1422,7 @@ async function saveMeeting(blob){
   const names=[...new Set([state.name, ...[...presenceCache.values()].map(i=>i.name).filter(Boolean)])];
   const meta={ id, room:state.roomId, date:Date.now(),
     durationSec: Math.round((Date.now()-(recStartTs||state.startedAt||Date.now()))/1000),
-    participants:names, transcript: transcriptLog.map(m=>({name:m.name,text:m.text})),
+    participants:names, transcript: transcriptLog.map(m=>({name:m.name,text:m.text,ts:m.ts||null})),
     size: blob.size, mime:recMime };
   // 1) всегда сразу скачиваем запись и транскрипт на устройство
   downloadBlob(blob, `pllato-meet-${state.roomId}-${new Date().toISOString().slice(0,10)}.webm`);
@@ -1429,7 +1439,7 @@ async function saveMeeting(blob){
 function downloadBlob(blob, filename){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); a.remove(); }
 function downloadTranscriptFile(base){
   if(!transcriptLog.length) return;
-  const lines=transcriptLog.map(m=>`${m.name}: ${m.text}`).join('\n');
+  const lines=transcriptLog.map(m=>`[${fmtClock(m.ts||Date.now())}] ${m.name}: ${m.text}`).join('\n');
   const head=`Pllato Meet — транскрипция\nКомната: ${state.roomId}\nДата: ${new Date().toLocaleString('ru-RU')}\n\n`;
   downloadBlob(new Blob([head+lines],{type:'text/plain;charset=utf-8'}), base+'.txt');
 }
@@ -1467,7 +1477,7 @@ async function loadArchive(){
   }catch(e){ box.innerHTML='<div class="trn-empty">Не удалось загрузить архив. Проверьте, что воркер развёрнут с R2-хранилищем.</div>'; }
 }
 function showTranscriptModal(it){
-  const lines=(it.transcript||[]).map(m=>`${m.name}: ${m.text}`).join('\n')||'(транскрипт пуст)';
+  const lines=(it.transcript||[]).map(m=>`${m.ts?'['+fmtClock(m.ts)+'] ':''}${m.name}: ${m.text}`).join('\n')||'(транскрипт пуст)';
   const w=window.open('','_blank');
   if(w){ w.document.write(`<title>Транскрипт ${escapeHtml(it.room||'')}</title><pre style="font-family:Inter,system-ui;white-space:pre-wrap;padding:24px;line-height:1.6;background:#0b0f1a;color:#f3f5fa;min-height:100vh">Pllato Meet — транскрипт\n${escapeHtml(it.room||'')} · ${new Date(it.date||0).toLocaleString('ru-RU')}\n\n${escapeHtml(lines)}</pre>`); }
 }
