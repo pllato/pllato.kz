@@ -2272,7 +2272,7 @@ async function gaLoadStatus(refs){
     info.textContent = 'GreenAPI не отвечает ('+(d.error||'')+'). Проверьте idInstance / токен / API URL.';
   }
 }
-function greenApiPanel(){
+function _legacyGreenApiPanel(){
   const panel = el(`<div class="panel section-gap" style="margin-top:0">
     <button class="panel-h" data-ga="toggle" style="width:100%;text-align:left;background:none;cursor:pointer">
       <span style="width:44px;height:44px;border-radius:12px;background:#25d366;color:#06231a;display:grid;place-items:center;font-weight:800;font-size:17px;flex:none">W</span>
@@ -2364,6 +2364,73 @@ function greenApiPanel(){
 
   gaLoadStatus(refs);
   return panel;
+}
+
+// --- WhatsApp · GreenAPI: менеджер номеров (мульти-инстанс) ---
+function greenApiPanel(){
+  const panel = el(`<div class="panel section-gap" style="margin-top:0">
+    <button class="panel-h" data-ga="toggle" style="width:100%;text-align:left;background:none;cursor:pointer">
+      <span style="width:44px;height:44px;border-radius:12px;background:#25d366;color:#06231a;display:grid;place-items:center;font-weight:800;font-size:17px;flex:none">W</span>
+      <span style="flex:1;min-width:0"><span style="display:block;font-weight:700;font-size:15px">WhatsApp · GreenAPI</span><span class="muted" data-ga="sub" style="font-size:12.5px">загрузка…</span></span>
+      <span class="muted" data-ga="chev" style="font-size:12.5px;font-weight:600;flex:none;display:flex;align-items:center;gap:5px">${ic('i-cog','sm')} Управление</span>
+    </button>
+    <div class="panel-b" data-ga="body" style="display:none">
+      <div class="note">${ic('i-info','sm')} Каждый номер — отдельный инстанс GreenAPI, привязанный к точке. Входящие сами падают в нужную точку, ответы уходят с того же номера. idInstance и токен берутся в консоли green-api.com.</div>
+      <div data-ga="list" style="display:flex;flex-direction:column;gap:12px;margin-top:14px"><div class="muted2" style="font-size:13px">Загрузка…</div></div>
+      <button class="btn primary" data-ga="add" style="margin-top:14px">${ic('i-plus','sm')} Добавить номер</button>
+    </div></div>`);
+  const tog=panel.querySelector('[data-ga=toggle]'), gaBody=panel.querySelector('[data-ga=body]'), chev=panel.querySelector('[data-ga=chev]'), sub=panel.querySelector('[data-ga=sub]'), list=panel.querySelector('[data-ga=list]');
+  const setOpen=(o)=>{ gaBody.style.display=o?'':'none'; chev.innerHTML=`${ic('i-cog','sm')} ${o?'Свернуть':'Управление'}`; };
+  setOpen(false);
+  tog.onclick=()=>setOpen(gaBody.style.display==='none');
+  panel.querySelector('[data-ga=add]').onclick=()=>waInstanceModal(null);
+  const stTag=(s)=> s==='authorized' ? '<span class="tag green">подключён</span>'
+    : (s ? `<span class="tag amber">${esc(s==='notAuthorized'?'не авторизован':s)}</span>` : '<span class="tag amber">не проверен</span>');
+  async function load(){
+    const r=await api('/api/admin/greenapi/instances');
+    const items=(r.ok&&r.data&&Array.isArray(r.data.items))?r.data.items:[];
+    const okN=items.filter(i=>i.state==='authorized').length;
+    sub.textContent = items.length ? (items.length+' '+plural(items.length,'канал','канала','каналов')+' · подключено '+okN) : 'нет номеров';
+    if(window.__waStores===undefined) window.__waStores=await fetchStores();
+    const sName=(k)=>{ if(!k) return '— без точки —'; const s=(window.__waStores||[]).find(x=>x.ref_key===k); return s?s.name:'точка'; };
+    list.innerHTML = items.length ? items.map(i=>`<div class="intg-card" data-id="${esc(i.id)}" style="cursor:pointer">
+      <div class="ic" style="background:#25d366">W</div>
+      <div class="ii"><div class="in">${esc(i.name||'WhatsApp')}${i.phone?` <span class="muted" style="font-weight:500;font-size:12px">· +${esc(i.phone)}</span>`:''}</div>
+        <div class="id">${esc(sName(i.store_key))} · id ${esc(i.id_instance||'—')}</div>
+        <div class="row" style="margin-top:7px">${stTag(i.state)}</div></div>
+      <button class="btn sm" data-edit="${esc(i.id)}">${ic('i-cog','sm')}</button></div>`).join('')
+      : '<div class="muted2" style="font-size:13px;padding:4px 2px">Номеров пока нет. Нажмите «Добавить номер».</div>';
+    list.querySelectorAll('[data-id]').forEach(cd=>cd.onclick=()=>{ const it=items.find(x=>x.id===cd.dataset.id); if(it) waInstanceModal(it); });
+    list.querySelectorAll('[data-edit]').forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); const it=items.find(x=>x.id===b.dataset.edit); if(it) waInstanceModal(it); });
+  }
+  window.__reloadGreenApi=load;
+  load();
+  return panel;
+}
+async function waInstanceModal(inst){
+  const stores=await fetchStores(); const isEdit=!!(inst&&inst.id);
+  const bg=openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:15px;background:#25d366;color:#06231a">W</span><div><h3>${isEdit?esc(inst.name||'Номер WhatsApp'):'Новый номер WhatsApp'}</h3><div class="mh-sub">GreenAPI · один номер = одна точка</div></div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld"><label>Название (для себя)</label><input data-wi="name" value="${esc(inst&&inst.name||'')}" placeholder="Напр. Центр / Ала-Арча"></div>
+    <div class="fld"><label>Точка (магазин)</label>${storeSelectHtml(stores, inst&&inst.store_key||'', 'data-wi="store_key"','— выбрать точку —')}</div>
+    <div class="fld"><label>idInstance</label><input data-wi="id_instance" inputmode="numeric" value="${esc(inst&&inst.id_instance||'')}" placeholder="напр. 7107651880"></div>
+    <div class="fld"><label>apiTokenInstance ${isEdit?'<span class="muted2">(пусто = не менять)</span>':''}</label><input data-wi="token" type="password" autocomplete="off" placeholder="${isEdit?'••• сохранён':'apiTokenInstance'}"></div>
+    <div class="fld"><label>API URL <span class="muted2">(у новых инстансов вида https://7107.api.greenapi.com)</span></label><input data-wi="api_url" value="${esc(inst&&inst.api_url||'')}" placeholder="https://api.green-api.com"></div>
+    <div class="note blue" style="margin-top:2px">${ic('i-info','sm')} Webhook пропишется автоматически. В консоли GreenAPI этого инстанса включи уведомления (incoming/outgoing).</div>
+  </div>
+  <div class="modal-f">${isEdit?`<button class="btn" id="wiDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button>`:''}<button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="wiSave">Сохранить и проверить</button></div>`,'wide');
+  bg.querySelector('#wiSave').onclick=async()=>{
+    const body={ name:bg.querySelector('[data-wi=name]').value.trim(), id_instance:bg.querySelector('[data-wi=id_instance]').value.trim(), api_url:bg.querySelector('[data-wi=api_url]').value.trim(), store_key:bg.querySelector('[data-wi=store_key]').value||null };
+    const tok=bg.querySelector('[data-wi=token]').value.trim(); if(tok) body.token=tok;
+    if(!body.id_instance){ toast('Укажите idInstance','i-info','#d97706'); return; }
+    if(!isEdit && !tok){ toast('Укажите токен','i-info','#d97706'); return; }
+    const btn=bg.querySelector('#wiSave'); btn.disabled=true; btn.textContent='Сохранение…';
+    const r=await api('/api/admin/greenapi/instances'+(isEdit?('/'+inst.id):''),{method:'POST',body:JSON.stringify(body)});
+    btn.disabled=false; btn.textContent='Сохранить и проверить';
+    if(!r.ok){ toast(r.data&&r.data.error?r.data.error:'Ошибка','i-x','#dc2626'); return; }
+    closeModal(); toast('Номер сохранён'+(r.data&&r.data.state==='authorized'?' · подключён':(r.data&&r.data.state?(' · '+esc(r.data.state)):'')),'i-check2'); if(window.__reloadGreenApi)window.__reloadGreenApi();
+  };
+  if(isEdit){ bg.querySelector('#wiDel').onclick=async()=>{ if(!confirm('Удалить этот номер из CRM?'))return; const r=await api('/api/admin/greenapi/instances/'+inst.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Номер удалён','i-check2'); if(window.__reloadGreenApi)window.__reloadGreenApi();} else toast('Ошибка','i-x','#dc2626'); }; }
 }
 
 PAGES.integrations=(c)=>{
