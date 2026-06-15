@@ -120,6 +120,20 @@ foreach ($o in $orders) {
 $ktrCat = $C.InvokeMember('Контрагенты',$get,$null,$cats,$null)
 foreach ($cl in @($obx.clients)) {
   try {
+    if ($cl.ref) {
+      # обновление существующего контрагента (правка из CRM: имя/телефон)
+      $uuidObj = $C.InvokeMember('NewObject',$inv,$null,$ib,@('УникальныйИдентификатор',[string]$cl.ref))
+      $erefU = $C.InvokeMember('ПолучитьСсылку',$inv,$null,$ktrCat,@($uuidObj))
+      $objU = $C.InvokeMember('ПолучитьОбъект',$inv,$null,$erefU,@())
+      if ($objU) {
+        if ($cl.name)  { [void]$C.InvokeMember('Наименование',$set,$null,$objU,@([string]$cl.name)); [void]$C.InvokeMember('НаименованиеПолное',$set,$null,$objU,@([string]$cl.name)) }
+        if ($cl.phone) { [void]$C.InvokeMember('НомерТелефонаДляПоиска',$set,$null,$objU,@([string]$cl.phone)) }
+        [void]$C.InvokeMember('Записать',$inv,$null,$objU,@())
+        Log "OK обновлён контрагент $($cl.ref) (правка из CRM)"
+        $results += @{ kind='client'; id=$cl.id; ok=$true; ref=[string]$cl.ref }
+        continue
+      }
+    }
     $qc = $C.InvokeMember('NewObject',$inv,$null,$ib,@('Запрос'))
     [void]$C.InvokeMember('Текст',$set,$null,$qc,@('ВЫБРАТЬ ПЕРВЫЕ 1 Контрагенты.Ссылка КАК Ссылка ИЗ Справочник.Контрагенты КАК Контрагенты ГДЕ Контрагенты.Комментарий ПОДОБНО &Шаблон'))
     [void]$C.InvokeMember('УстановитьПараметр',$inv,$null,$qc,@('Шаблон',"%CRM-клиент #$($cl.id)%"))

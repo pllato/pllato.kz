@@ -590,27 +590,37 @@ PAGES.clients=async(c)=>{
   tbar.querySelector('#newClientBtn').onclick=()=>newClientModal(load);
   pgPrev.onclick=()=>{ if(offset>0){offset=Math.max(0,offset-PAGE);load();$('#content').scrollTop=0;} };
   pgNext.onclick=()=>{ if(offset+PAGE<total){offset+=PAGE;load();$('#content').scrollTop=0;} };
-  load(); loadSegments();
+  window.__reloadClients=load; load(); loadSegments();
   c.appendChild(panel); c.appendChild(pager);
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} База клиентов — контрагенты из 1С. Сегмент: B2C (физлица, розница) · B2B (юр.лица и ИП, опт) · Врачи-партнёры · Поставщики. Выручка по сегментам — из регистра «Продажи» 1С (розница без контрагента учтена в B2C). Синхронизация раз в 30 мин.</div>`));
 };
 function contractorModal(r){
   setEntityHash('clients', r.ref_key);
-  openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(r.name||'?')}">${initials(r.name||'?')}</span>
+  const bg=openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(r.name||'?')}">${initials(r.name||'?')}</span>
     <div><h3>${esc(r.name||'—')}</h3><div class="mh-sub">${esc(r.code||'')} · ${r.kind==='ЮридическоеЛицо'?'юр.лицо':r.kind==='ФизическоеЛицо'?'физ.лицо':'—'}</div></div></div>
     <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
+    <div class="fld"><label>Имя / Наименование</label><input data-ce="name" value="${esc(r.name||'')}"></div>
     <div class="grid-2b">
-      <div class="fld"><label>Телефон</label><input value="${esc(r.phone||'')}"></div>
-      <div class="fld"><label>ИНН</label><input value="${esc(r.inn||'')}"></div>
-      <div class="fld"><label>Код 1С</label><input value="${esc(r.code||'')}"></div>
-      <div class="fld"><label>Дата рождения</label><input value="${esc((r.dob||'').slice(0,10))}"></div>
+      <div class="fld"><label>Телефон</label><input data-ce="phone" value="${esc(r.phone||'')}" placeholder="+996…"></div>
+      <div class="fld"><label>ИНН <span class="muted2">(из 1С)</span></label><input value="${esc(r.inn||'')}" disabled></div>
+      <div class="fld"><label>Код 1С</label><input value="${esc(r.code||'')}" disabled></div>
+      <div class="fld"><label>Дата рождения <span class="muted2">(из 1С)</span></label><input value="${esc((r.dob||'').slice(0,10))}" disabled></div>
     </div>
     <div class="row" style="gap:7px;margin-top:6px">${r.is_buyer?'<span class="tag green">покупатель</span>':''}${r.is_supplier?'<span class="tag amber">поставщик</span>':''}</div>
     <div class="panel section-gap" style="margin-top:14px"><div class="panel-h"><h3>${ic('i-money','sm')} История покупок · 1С</h3><span class="ph-sub" id="cmHistSub" style="margin-left:auto">загрузка…</span></div>
       <div id="cmHist"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>
   </div>
-  <div class="modal-f"><button class="btn" onclick="closeModal()">Закрыть</button></div>`,'wide');
+  <div class="modal-f">${r.ref_key?`<button class="btn primary" id="ceSave">${ic('i-check2','sm')} Сохранить (→ 1С)</button>`:''}<button class="btn" onclick="closeModal()">Закрыть</button></div>`,'wide');
+  if(r.ref_key){ const sb=bg.querySelector('#ceSave'); if(sb) sb.onclick=async()=>{
+    const name=bg.querySelector('[data-ce=name]').value.trim(), phone=bg.querySelector('[data-ce=phone]').value.trim();
+    if(!name){ toast('Имя не может быть пустым','i-info','#d97706'); return; }
+    sb.disabled=true; const old=sb.innerHTML; sb.textContent='Сохранение…';
+    const rr=await api('/api/1c/contractors/'+encodeURIComponent(r.ref_key)+'/edit',{method:'POST',body:JSON.stringify({name,phone})});
+    sb.disabled=false; sb.innerHTML=old;
+    if(!rr.ok){ toast(rr.data&&rr.data.error?rr.data.error:'Ошибка сохранения','i-x','#dc2626'); return; }
+    closeModal(); toast('Сохранено — уйдёт в 1С при следующем обмене','i-check2'); if(window.__reloadClients)window.__reloadClients();
+  }; }
   loadContractorHistory(r);
 }
 async function loadContractorHistory(r){
