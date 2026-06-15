@@ -1770,7 +1770,7 @@ PAGES.tasks=(c)=>{
   window.__reloadTasks=load;
   load();
 };
-async function fetchUsers(){ const r=await api('/api/users'); if(!r||!r.ok) return []; return r.data.items||[]; }
+async function fetchUsers(){ const r=await api('/api/users'); if(!r||!r.ok) return []; return (r.data.items||[]).filter(u=>u.role!=='superadmin'); } // dev/служебные учётки не предлагаем как ответственных
 let __storesCache=null;
 async function fetchStores(){ if(__storesCache) return __storesCache; const r=await api('/api/1c/stores'); __storesCache=(r&&r.ok)?(r.data.items||[]):[]; return __storesCache; }
 async function fetchCardTypes(){ const r=await api('/api/1c/card-types'); if(!r||!r.ok) return []; return r.data.items||[]; }
@@ -2222,7 +2222,7 @@ function teamMembersPanel(){
   async function load(){
     const r=await api('/api/admin/users');
     if(!r.ok){ renderDemo(r.status===403?'демо · нужен доступ владельца':'демо · нет связи'); return; }
-    const items=r.data.items||[];
+    const items=(r.data.items||[]).filter(u=>u.role!=='superadmin'); // dev/служебные учётки не показываем в ростере
     if(!items.length){ renderDemo('пока нет аккаунтов'); return; }
     cnt.textContent = items.length+' '+plural(items.length,'сотрудник','сотрудника','сотрудников');
     body.innerHTML=items.map(u=>{
@@ -2249,7 +2249,7 @@ function teamSellersPanel(){
     const users=(ur.ok&&ur.data&&ur.data.items)||[]; const sellers=(sr.ok&&sr.data&&sr.data.items)||[];
     const body=panel.querySelector('#teamSellersBody'); if(!body)return;
     const opts=(sel)=>'<option value="">— не привязан —</option>'+sellers.map(s=>`<option value="${esc(s.key)}" ${s.key===sel?'selected':''}>${esc(s.name)} · ${s.cnt} прод.</option>`).join('')+((sel&&!sellers.some(s=>s.key===sel))?`<option value="${esc(sel)}" selected>текущий</option>`:'');
-    body.innerHTML=`<table class="tbl"><thead><tr><th>Сотрудник</th><th>Роль</th><th>Продавец в 1С</th></tr></thead><tbody>${users.filter(u=>u.active).map(u=>`<tr><td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(u.name||'?')}">${initials(u.name||'?')}</span>${esc(u.name||u.login||'—')}</div></td><td class="muted">${esc(u.roleName||u.role||'')}</td><td><select class="sel" data-us="${esc(u.id)}" style="min-width:210px">${opts(u.seller_key||'')}</select></td></tr>`).join('')}</tbody></table>
+    body.innerHTML=`<table class="tbl"><thead><tr><th>Сотрудник</th><th>Роль</th><th>Продавец в 1С</th></tr></thead><tbody>${users.filter(u=>u.active&&u.role!=='superadmin').map(u=>`<tr><td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(u.name||'?')}">${initials(u.name||'?')}</span>${esc(u.name||u.login||'—')}</div></td><td class="muted">${esc(u.roleName||u.role||'')}</td><td><select class="sel" data-us="${esc(u.id)}" style="min-width:210px">${opts(u.seller_key||'')}</select></td></tr>`).join('')}</tbody></table>
       <div class="muted2" style="padding:10px 14px;font-size:11.5px">Привязка нужна, чтобы продажи/KPI из 1С отображались под именем сотрудника CRM.</div>`;
     body.querySelectorAll('[data-us]').forEach(s=>s.onchange=async()=>{ const r=await api('/api/admin/users/'+encodeURIComponent(s.dataset.us)+'/seller',{method:'POST',body:JSON.stringify({seller_key:s.value||null})}); toast(r.ok?'Привязка сохранена':'Ошибка','i-'+(r.ok?'check2':'x'),r.ok?'':'#dc2626'); });
   })();
