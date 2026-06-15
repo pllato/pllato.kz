@@ -2496,13 +2496,14 @@ function buildStageEditor(){
     box.innerHTML = funnels.map(([f,label])=>`
       <div data-f="${f}" style="margin-bottom:18px">
         <div style="font-weight:600;margin-bottom:8px">${label}</div>
-        <div class="chips" style="margin-bottom:10px">${work[f].map((s,i)=>`<span class="chip on" style="display:inline-flex;align-items:center;gap:7px"><span data-ren="${i}" style="cursor:pointer">${esc(s)}</span><span data-del="${i}" style="cursor:pointer;opacity:.6" title="Удалить">✕</span></span>`).join('')}</div>
+        <div class="chips" style="margin-bottom:10px">${work[f].map((s,i)=>`<span class="chip on" style="display:inline-flex;align-items:center;gap:6px"><span data-mv="${i}|-1" style="cursor:pointer;opacity:${i===0?'.2':'.6'}" title="Левее">‹</span><span data-ren="${i}" style="cursor:pointer">${esc(s)}</span><span data-mv="${i}|1" style="cursor:pointer;opacity:${i===work[f].length-1?'.2':'.6'}" title="Правее">›</span><span data-del="${i}" style="cursor:pointer;opacity:.6" title="Удалить">✕</span></span>`).join('')}</div>
         <div class="row" style="gap:8px;align-items:center"><input data-add placeholder="Новый этап" style="max-width:240px"><button class="btn sm" data-addbtn>${ic('i-plus','sm')} Добавить</button><button class="btn sm primary" data-save style="margin-left:auto">${ic('i-check2','sm')} Сохранить ${label}</button></div>
-      </div>`).join('') + `<div class="muted2" style="font-size:11.5px">Клик по названию — переименовать, ✕ — удалить. После «Сохранить» этапы применяются в воронке и карточках сделок.</div>`;
+      </div>`).join('') + `<div class="muted2" style="font-size:11.5px">Клик по названию — переименовать, ‹ › — порядок, ✕ — удалить. После «Сохранить» этапы применяются в воронке и карточках сделок.</div>`;
     funnels.forEach(([f])=>{
       const blk=box.querySelector('[data-f="'+f+'"]');
       blk.querySelectorAll('[data-del]').forEach(d=>d.onclick=()=>{ work[f].splice(+d.dataset.del,1); render(); });
       blk.querySelectorAll('[data-ren]').forEach(rn=>rn.onclick=()=>{ const i=+rn.dataset.ren; const nv=prompt('Переименовать этап:', work[f][i]); if(nv&&nv.trim()){ work[f][i]=nv.trim(); render(); } });
+      blk.querySelectorAll('[data-mv]').forEach(m=>m.onclick=()=>{ const p=m.dataset.mv.split('|'); const i=+p[0], j=i+(+p[1]); if(j<0||j>=work[f].length)return; const t=work[f][i]; work[f][i]=work[f][j]; work[f][j]=t; render(); });
       const addInp=blk.querySelector('[data-add]');
       const addFn=()=>{ const v=(addInp.value||'').trim(); if(!v)return; if(work[f].includes(v)){toast('Такой этап уже есть','i-info','#d97706');return;} work[f].push(v); render(); };
       blk.querySelector('[data-addbtn]').onclick=addFn;
