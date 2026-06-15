@@ -1201,12 +1201,15 @@ PAGES.marketing=(c)=>{
   const cardsPanel=el(`<div class="panel section-gap"><div class="panel-h"><h3>${ic('i-tag','sm')} Карты и промокоды из 1С</h3><span class="ph-sub" style="margin-left:auto">виды дисконтных карт · только просмотр</span></div><div id="mkCardTypes"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>`);
   c.appendChild(cards); c.appendChild(tbar); c.appendChild(panel); c.appendChild(cardsPanel);
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Сверху — промокоды, созданные в CRM (уходят в 1С как дисконтные карты, статистика возвращается). Снизу — виды карт и промокодов, уже заведённые в 1С. Промокоды врачей — в разделе «Врачи-партнёры».</div>`));
-  (async()=>{ const r=await api('/api/1c/card-types/stats'); const box=cardsPanel.querySelector('#mkCardTypes'); if(!box)return;
+  async function loadCardTypes(){ const r=await api('/api/1c/card-types/stats'); const box=cardsPanel.querySelector('#mkCardTypes'); if(!box)return;
     if(!r.ok){ box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">'+(r.status===403?'нужен доступ':'нет связи с 1С')+'</div>'; return; }
     const it=r.data.items||[], t=r.data.totals||{};
     if(!it.length){ box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">В 1С нет видов карт</div>'; return; }
-    box.innerHTML='<table class="tbl"><thead><tr><th>Вид карты / программа</th><th class="num">Карт</th><th class="num">Использований</th><th class="num">Выручка</th></tr></thead><tbody>'+it.map(x=>`<tr><td><b>${esc(x.name||'—')}</b></td><td class="num">${(x.cards||0).toLocaleString('ru-RU')}</td><td class="num">${(x.uses||0).toLocaleString('ru-RU')}</td><td class="num">${money(x.revenue||0)}</td></tr>`).join('')+`</tbody></table><div class="muted2" style="padding:10px 14px;font-size:11.5px">Итого ${t.types||it.length} видов · ${(t.cards||0).toLocaleString('ru-RU')} карт · использований ${(t.uses||0).toLocaleString('ru-RU')} · выручка ${money(t.revenue||0)}</div>`;
-  })();
+    const dtxt=x=>x.kind==='fixed'?money(x.discount||0):((x.discount||0)+'%');
+    box.innerHTML='<table class="tbl"><thead><tr><th>Вид карты / программа</th><th class="num">Скидка</th><th class="num">Карт</th><th class="num">Исп.</th><th class="num">Выручка</th></tr></thead><tbody>'+it.map((x,i)=>`<tr class="clickable" data-cti="${i}"><td><b>${esc(x.name||'—')}</b>${x.deleted?' <span class="tag red">не активна</span>':''}${x.pending?' <span class="tag amber">⏳ в 1С</span>':''}</td><td class="num">${dtxt(x)}</td><td class="num">${(x.cards||0).toLocaleString('ru-RU')}</td><td class="num">${(x.uses||0).toLocaleString('ru-RU')}</td><td class="num">${money(x.revenue||0)}</td></tr>`).join('')+`</tbody></table><div class="muted2" style="padding:10px 14px;font-size:11.5px">Клик по строке — редактировать название / % скидки / активность → запись в 1С. Итого ${t.types||it.length} видов · ${(t.cards||0).toLocaleString('ru-RU')} карт.</div>`;
+    box.querySelectorAll('[data-cti]').forEach(tr=>tr.onclick=()=>cardTypeModal(it[+tr.dataset.cti],loadCardTypes));
+  }
+  loadCardTypes();
   const tb=panel.querySelector('tbody'), qI=tbar.querySelector('[data-mk=q]');
   const typeTag=(t)=>{ const m={'блогерский код':'pink','сезонная':'cyan','персональный':'violet','общая акция':'blue'}; return `<span class="tag ${m[t]||''}">${esc(t||'—')}</span>`; };
   const expd=(e)=>e&&e<new Date().toISOString().slice(0,10);
@@ -1260,6 +1263,28 @@ async function newPromoLive(onSaved){
   bg.querySelector('#npSave').onclick=async()=>{ const code=bg.querySelector('[data-np=code]').value.trim(); if(!code){toast('Укажите код','i-info');return;}
     const body={code,type:bg.querySelector('[data-np=type]').value,kind:bg.querySelector('[data-np=kind]').value,value:Number(bg.querySelector('[data-np=value]').value)||0,expires_at:bg.querySelector('[data-np=exp]').value,limit_uses:bg.querySelector('[data-np=limit]').value,blogger:bg.querySelector('[data-np=blogger]').value.trim(),type_key:bg.querySelector('[data-np=type_key]').value||'',note:bg.querySelector('[data-np=note]').value.trim()};
     const r=await api('/api/promos',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast(body.type_key?'Промокод создаётся в 1С (дисконтная карта)':'Промокод создан','i-tag'); onSaved&&onSaved(); };
+}
+function cardTypeModal(ct,onSaved){
+  const isFixed=ct.kind==='fixed';
+  const bg=openModal(`<div class="modal-h"><div><h3>${esc(ct.name||'—')}</h3><div class="mh-sub">Вид карты / промо-программа 1С · ${ct.cards||0} карт</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld"><label>Название</label><input data-ct="name" value="${esc(ct.name||'')}"></div>
+    <div class="fld"><label>Скидка${isFixed?' (фиксированная, сом)':' (%)'}</label><input data-ct="discount" type="number" step="0.01" min="0" value="${ct.discount||0}"></div>
+    <label class="ck" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin-top:4px"><input type="checkbox" data-ct="active" ${ct.deleted?'':'checked'}> Активна <span class="muted2">(снять галочку — пометит на удаление в 1С)</span></label>
+    <div class="muted2" style="font-size:11px;margin-top:8px">Скидка применяется ко всем картам этого вида (${ct.cards||0}). Изменение уйдёт в 1С при следующем обмене.</div>
+  </div>
+  <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="ctSave">${ic('i-check2','sm')} Сохранить (→ 1С)</button></div>`);
+  bg.querySelector('#ctSave').onclick=async()=>{
+    const name=bg.querySelector('[data-ct=name]').value.trim();
+    const discount=Number(bg.querySelector('[data-ct=discount]').value)||0;
+    const active=bg.querySelector('[data-ct=active]').checked;
+    if(!name){ toast('Название не может быть пустым','i-info','#d97706'); return; }
+    const sb=bg.querySelector('#ctSave'); sb.disabled=true; const old=sb.innerHTML; sb.textContent='Сохранение…';
+    const r=await api('/api/1c/card-types/'+encodeURIComponent(ct.key)+'/edit',{method:'POST',body:JSON.stringify({name,discount,deleted:!active})});
+    sb.disabled=false; sb.innerHTML=old;
+    if(!r.ok){ toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626'); return; }
+    closeModal(); toast('Сохранено — уйдёт в 1С при обмене','i-check2'); onSaved&&onSaved();
+  };
 }
 function promoModalLive(p,onSaved){
   const bg=openModal(`<div class="modal-h"><div><h3>Промокод ${esc(p.code)}</h3><div class="mh-sub">${esc(p.type||'')} · −${p.value||0}${p.kind==='fixed'?' с':'%'}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>

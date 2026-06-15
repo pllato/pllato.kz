@@ -28,8 +28,9 @@ catch { Log "ОШИБКА получения очереди: $($_.Exception.Mess
 $orders = @($obx.orders)
 $clients = @($obx.clients)
 $promos = @($obx.promos)
-Log "в очереди: заказов $($orders.Count), клиентов $($clients.Count), промокодов $($promos.Count)"
-if ($orders.Count -eq 0 -and $clients.Count -eq 0 -and $promos.Count -eq 0) { Log "===== нечего отправлять ====="; exit 0 }
+$cardtypes = @($obx.card_types)
+Log "в очереди: заказов $($orders.Count), клиентов $($clients.Count), промокодов $($promos.Count), видов карт $($cardtypes.Count)"
+if ($orders.Count -eq 0 -and $clients.Count -eq 0 -and $promos.Count -eq 0 -and $cardtypes.Count -eq 0) { Log "===== нечего отправлять ====="; exit 0 }
 
 # 2) COM-подключение к 1С (нужно право «Внешнее соединение»)
 $comUser = if ($cfg.comUser) { $cfg.comUser } else { $cfg.odataUser }
@@ -238,6 +239,25 @@ foreach ($pm in @($obx.promos)) {
   } catch {
     Log "ERR промокод $($pm.id): $($_.Exception.Message)"
     $results += @{ kind='promo'; id=$pm.id; ok=$false; error=$_.Exception.Message }
+  }
+}
+
+# === Виды дисконтных карт (промо-программы) CRM -> 1С: название / % скидки / деактивация ===
+foreach ($ct in @($obx.card_types)) {
+  try {
+    $ctu  = $C.InvokeMember('NewObject',$inv,$null,$ib,@('УникальныйИдентификатор',[string]$ct.ref))
+    $ctref = $C.InvokeMember('ПолучитьСсылку',$inv,$null,$vidCat,@($ctu))
+    $cto = $C.InvokeMember('ПолучитьОбъект',$inv,$null,$ctref,@())
+    if (-not $cto) { $results += @{ kind='card_type'; id=$ct.ref; ok=$false; error='вид карты не найден' }; continue }
+    if ($ct.name) { [void]$C.InvokeMember('Наименование',$set,$null,$cto,@([string]$ct.name)) }
+    if ($ct.discount -ne $null) { [void]$C.InvokeMember('Скидка',$set,$null,$cto,@([double]$ct.discount)) }
+    [void]$C.InvokeMember('Записать',$inv,$null,$cto,@())
+    if ($ct.deleted -ne $null) { [void]$C.InvokeMember('УстановитьПометкуУдаления',$inv,$null,$cto,@([bool]$ct.deleted,$false)) }
+    Log "OK вид карты обновлён: $($ct.name) ($($ct.ref))"
+    $results += @{ kind='card_type'; id=$ct.ref; ok=$true; ref=[string]$ct.ref }
+  } catch {
+    Log "ERR вид карты $($ct.ref): $($_.Exception.Message)"
+    $results += @{ kind='card_type'; id=$ct.ref; ok=$false; error=$_.Exception.Message }
   }
 }
 
