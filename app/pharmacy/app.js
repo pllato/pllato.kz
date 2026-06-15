@@ -1,5 +1,6 @@
 /* ===== Pllato CRM demo — app.js ===== */
 const state = { page:'dash', role:'owner', cur:'KGS', funnel:'b2c', thread:'t1', clientTab:0, theme:'dark' };
+let STAGES = { b2c:(DB.stagesB2C||[]).slice(), b2b:(DB.stagesB2B||[]).slice() };  // этапы воронок (из D1, дефолт — из data.js)
 
 // ---------- AUTH / API config ----------
 const API_BASE = 'https://pharmacy-crm-worker.uurraa.workers.dev';
@@ -260,7 +261,7 @@ function barList(rows,max,isMoney){
 PAGES.funnels=async(c)=>{
   const fUsers=await fetchUsers();
   const fStores=await fetchStores();
-  const fStages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
+  const fStages=state.funnel==='b2c'?STAGES.b2c:STAGES.b2b;
   const tbar=el(`<div class="toolbar">
     <div class="seg" id="funnelSeg"><button class="${state.funnel==='b2c'?'on':''}" data-f="b2c">B2C</button><button class="${state.funnel==='b2b'?'on':''}" data-f="b2b">B2B</button></div>
     <select class="sel" id="flMgr" title="Фильтр по ответственному"><option value="">Все ответственные</option>${fUsers.map(u=>`<option>${esc(u.name)}</option>`).join('')}</select>
@@ -289,7 +290,7 @@ PAGES.funnels=async(c)=>{
   tbar.querySelector('#flStage').onchange=e=>{flStage=e.target.value;renderBoard();};
   tbar.querySelector('#flStore').onchange=e=>{flStore=e.target.value;renderBoard();};
   function renderBoard(){
-    const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
+    const stages=state.funnel==='b2c'?STAGES.b2c:STAGES.b2b;
     board.innerHTML=''; let total=0;
     (flStage?stages.filter(s=>s===flStage):stages).forEach(stg=>{
       let list=current.filter(d=>d.stage===stg); if(flMgr) list=list.filter(d=>(d.mgr||'')===flMgr); if(flStore) list=list.filter(d=>(d.store_key||'')===flStore); const sum=list.reduce((a,d)=>a+(d.amount||d.sum||0),0); total+=list.length;
@@ -335,7 +336,7 @@ async function newDealLive(onSaved){
   const ndStores=await fetchStores();
   const ndUsers=await fetchUsers();
   const ed=makeItemsEditor([]);
-  const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
+  const stages=state.funnel==='b2c'?STAGES.b2c:STAGES.b2b;
   const bg=openModal(`<div class="modal-h"><div><h3>Новая сделка</h3><div class="mh-sub">${state.funnel==='b2c'?'B2C · розница':'B2B · опт'}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld"><label>Клиент — поиск в 1С или ввод вручную</label><div style="position:relative"><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-nd="client" placeholder="ФИО или название" autocomplete="off" style="width:100%"></div><div id="ndSug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:200px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div></div>
@@ -367,7 +368,7 @@ async function dealModalLive(d){
   let dInit=[]; try{ dInit=JSON.parse(d.items||'[]'); }catch(e){}
   const ed=makeItemsEditor(dInit);
   const dmUsers=await fetchUsers();
-  const stages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
+  const stages=state.funnel==='b2c'?STAGES.b2c:STAGES.b2b;
   const DM_SRC=['WhatsApp','Instagram','Сайт','Звонок','Сарафан'];
   const dmCurSrc=(d.source||'').trim();
   const dmSourceSel=`<select data-dm="source"><option value="">— источник —</option>`+DM_SRC.map(s=>`<option ${s===dmCurSrc?'selected':''}>${esc(s)}</option>`).join('')+(dmCurSrc&&!DM_SRC.includes(dmCurSrc)?`<option selected>${esc(dmCurSrc)}</option>`:'')+`</select>`;
@@ -2483,20 +2484,45 @@ async function loadSyncStatus(){
 }
 
 // ---------- SETTINGS ----------
+async function loadStages(){
+  try{ const r=await api('/api/settings/stages'); if(r&&r.ok&&r.data){ if(Array.isArray(r.data.b2c)&&r.data.b2c.length)STAGES.b2c=r.data.b2c; if(Array.isArray(r.data.b2b)&&r.data.b2b.length)STAGES.b2b=r.data.b2b; } }catch(e){}
+}
+// Редактор этапов воронок (Настройки): добавить/переименовать/удалить + сохранить в D1
+function buildStageEditor(){
+  const box=document.getElementById('stageEditor'); if(!box) return;
+  const funnels=[['b2c','B2C'],['b2b','B2B']];
+  const work={ b2c:(STAGES.b2c||[]).slice(), b2b:(STAGES.b2b||[]).slice() };
+  function render(){
+    box.innerHTML = funnels.map(([f,label])=>`
+      <div data-f="${f}" style="margin-bottom:18px">
+        <div style="font-weight:600;margin-bottom:8px">${label}</div>
+        <div class="chips" style="margin-bottom:10px">${work[f].map((s,i)=>`<span class="chip on" style="display:inline-flex;align-items:center;gap:7px"><span data-ren="${i}" style="cursor:pointer">${esc(s)}</span><span data-del="${i}" style="cursor:pointer;opacity:.6" title="Удалить">✕</span></span>`).join('')}</div>
+        <div class="row" style="gap:8px;align-items:center"><input data-add placeholder="Новый этап" style="max-width:240px"><button class="btn sm" data-addbtn>${ic('i-plus','sm')} Добавить</button><button class="btn sm primary" data-save style="margin-left:auto">${ic('i-check2','sm')} Сохранить ${label}</button></div>
+      </div>`).join('') + `<div class="muted2" style="font-size:11.5px">Клик по названию — переименовать, ✕ — удалить. После «Сохранить» этапы применяются в воронке и карточках сделок.</div>`;
+    funnels.forEach(([f])=>{
+      const blk=box.querySelector('[data-f="'+f+'"]');
+      blk.querySelectorAll('[data-del]').forEach(d=>d.onclick=()=>{ work[f].splice(+d.dataset.del,1); render(); });
+      blk.querySelectorAll('[data-ren]').forEach(rn=>rn.onclick=()=>{ const i=+rn.dataset.ren; const nv=prompt('Переименовать этап:', work[f][i]); if(nv&&nv.trim()){ work[f][i]=nv.trim(); render(); } });
+      const addInp=blk.querySelector('[data-add]');
+      const addFn=()=>{ const v=(addInp.value||'').trim(); if(!v)return; if(work[f].includes(v)){toast('Такой этап уже есть','i-info','#d97706');return;} work[f].push(v); render(); };
+      blk.querySelector('[data-addbtn]').onclick=addFn;
+      addInp.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();addFn();} });
+      blk.querySelector('[data-save]').onclick=async()=>{
+        if(!work[f].length){ toast('Нужен хотя бы один этап','i-info','#d97706'); return; }
+        const r=await api('/api/settings/stages',{method:'POST',body:JSON.stringify({funnel:f,stages:work[f]})});
+        if(!r.ok){ toast(r.data&&r.data.error?r.data.error:'Не удалось сохранить','i-x','#dc2626'); return; }
+        STAGES[f]=work[f].slice(); toast('Этапы '+f.toUpperCase()+' сохранены — применятся в воронке','i-check2');
+      };
+    });
+  }
+  render();
+  loadStages().then(()=>{ work.b2c=(STAGES.b2c||[]).slice(); work.b2b=(STAGES.b2b||[]).slice(); render(); });
+}
+
 PAGES.settings=(c)=>{
   const wrap=el('<div class="set-wrap"></div>'); c.appendChild(wrap);
-  wrap.appendChild(el(`<div class="grid-2">
-    <div class="panel"><div class="panel-h"><h3>Воронки · этапы</h3><span class="ph-sub">настраиваются без программиста</span></div><div class="panel-b">
-      <div style="font-weight:600;margin-bottom:8px">B2C · розница</div><div class="chips" style="margin-bottom:16px">${DB.stagesB2C.map(s=>`<span class="chip on">${s}</span>`).join('')}<span class="chip">${ic('i-plus','sm')}</span></div>
-      <div style="font-weight:600;margin-bottom:8px">B2B · опт</div><div class="chips">${DB.stagesB2B.map(s=>`<span class="chip on">${s}</span>`).join('')}<span class="chip">${ic('i-plus','sm')}</span></div>
-    </div></div>
-    <div class="panel"><div class="panel-h"><h3>Локализация</h3></div><div class="panel-b">
-      <div class="ctx-row"><span>Интерфейс</span><b>Русский</b></div>
-      <div class="ctx-row"><span>Валюты</span><b>Сом · рубль (переключение)</b></div>
-      <div class="ctx-row"><span>Часовой пояс</span><b>UTC+5</b></div>
-      <div class="ctx-row"><span>Курс для отчётов</span><b>НБ КР / вручную ↓</b></div>
-    </div></div>
-  </div>`));
+  wrap.appendChild(el(`<div class="panel"><div class="panel-h"><h3>Воронки · этапы</h3><span class="ph-sub">добавляйте, переименовывайте, удаляйте — без программиста</span></div><div class="panel-b" id="stageEditor"><div class="muted2" style="font-size:13px">Загрузка…</div></div></div>`));
+  buildStageEditor();
 
   // --- Курс валюты: ручной ввод + авто из НБ КР ---
   const fxPanel=el(`<div class="panel"><div class="panel-h"><h3>Курс валюты · сом ↔ рубль</h3><span class="ph-sub">ручной ввод или авто (НБ КР)</span></div><div class="panel-b">
@@ -2531,7 +2557,7 @@ PAGES.settings=(c)=>{
 
   wrap.appendChild(el(`<div class="grid-2">
     <div class="panel"><div class="panel-h"><h3>Безопасность</h3></div><div class="panel-b">
-      ${['HTTPS / TLS 1.3','Аутентификация по логину + 2FA','Разграничение доступа по ролям','Логирование действий','Шифрование чувствительных данных','Ежедневный бэкап · хранение 30 дней'].map(s=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><span class="yes" style="color:var(--accent2)">${ic('i-check2','sm')}</span><span style="font-size:13px">${s}</span></div>`).join('')}
+      ${[['HTTPS / TLS 1.3',1],['Аутентификация: логин/пароль (PBKDF2-SHA256, соль)',1],['Разграничение доступа по ролям',1],['Логирование действий (аудит-журнал)',1],['Двухфакторная аутентификация (2FA)',0],['Ежедневный бэкап · хранение 30 дней',0]].map(([s,ok])=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line);gap:9px"><span style="flex:none">${ok?`<span style="color:var(--accent2)">${ic('i-check2','sm')}</span>`:`<span class="tag amber" style="padding:0 7px;font-size:10px">в плане</span>`}</span><span style="font-size:13px;${ok?'':'color:var(--muted)'}">${s}</span></div>`).join('')}
     </div></div>
     <div class="panel"><div class="panel-h"><h3>Собственность</h3></div><div class="panel-b">
       <div class="note">${ic('i-info','sm')} Исходный код в приватном GitHub заказчика. Wiki с инструкциями. Аккаунты CloudFlare/GreenAPI/Meta переводятся на заказчика к приёмке. Без vendor-lock.</div>
@@ -2901,6 +2927,7 @@ function applyUser(user){
   renderRoleSel(); applyHash();
   // реальный счётчик активных задач для бейджа в меню
   if(allowedSections(state.role).includes('tasks')) api('/api/tasks?status=active').then(r=>{ if(r&&r.ok){ window.__taskBadge=(r.data.totals||{}).active||0; renderNav(); } }).catch(()=>{});
+  loadStages();  // подтянуть этапы воронок из D1 (дефолт уже есть)
   if(allowedSections(state.role).includes('inbox')) api('/api/inbox/threads').then(r=>{ if(r&&r.ok&&r.data&&Array.isArray(r.data.items)){ window.__inboxUnread=r.data.items.reduce((a,t)=>a+(t.unread||0),0); renderNav(); } }).catch(()=>{});
   loadNotifications();
   // эффективные права ролей из БД (для меню/превью/матрицы) — для админа
