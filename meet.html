@@ -191,6 +191,43 @@ button{font-family:inherit;cursor:pointer}
   background:rgba(0,0,0,.72);backdrop-filter:blur(6px);border-radius:10px;padding:9px 16px;font-size:15px;line-height:1.4;text-align:center;pointer-events:none}
 #caption-bar.show{display:block}
 #caption-bar .cap-who{color:var(--bronze);font-weight:700;margin-right:6px}
+
+/* background options (pre-join) */
+.bg-options{display:flex;gap:8px}
+.bg-opt{flex:1;padding:10px;border:1px solid var(--line-2);background:var(--surface);color:var(--text-2);
+  border-radius:10px;font-size:13px;font-weight:600;transition:.15s}
+.bg-opt:hover{border-color:var(--bronze)}
+.bg-opt.active{background:var(--bronze);border-color:var(--bronze);color:#1a1206}
+
+/* presentation layout (screen share): big screen + small face thumbs */
+.grid.presenting{display:block;position:relative}
+.grid.presenting .tile{position:static}
+.grid.presenting .tile.screen{position:absolute;inset:0;width:100%;height:100%;border:none;background:#000}
+.grid.presenting .tile.screen video{object-fit:contain;background:#000}
+#thumbs{position:absolute;right:14px;bottom:14px;display:flex;gap:8px;max-width:72%;overflow-x:auto;z-index:8;padding:2px}
+#thumbs:empty{display:none}
+#thumbs .tile{width:148px;height:100px;flex:0 0 auto;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+@media(max-width:560px){#thumbs .tile{width:96px;height:66px}}
+.tile.screen .tile-name{background:rgba(184,137,90,.85);color:#1a1206}
+
+/* settings menu (devices) */
+.menu{position:absolute;bottom:78px;left:50%;transform:translateX(-50%);background:var(--surface-2);
+  border:1px solid var(--line-2);border-radius:14px;padding:14px;width:300px;max-width:92vw;z-index:50;
+  box-shadow:0 18px 50px rgba(0,0,0,.55);display:none}
+.menu.show{display:block}
+.menu .label{margin-top:10px}
+.menu .label:first-child{margin-top:0}
+.req-banner{background:var(--bronze-tint,rgba(184,137,90,.12));border:1px solid var(--bronze);color:var(--text);
+  font-size:12px;padding:7px 12px;border-radius:9px;margin:0 14px 8px;display:flex;align-items:center;gap:8px}
+
+/* archive list */
+.arch-item{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px;border:1px solid var(--line-2);
+  border-radius:11px;margin-bottom:8px;background:var(--surface-2)}
+.arch-main{min-width:0;flex:1}
+.arch-title{font-size:14.5px;font-weight:700}
+.arch-meta{font-size:12px;color:var(--text-3);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arch-actions{display:flex;gap:6px;flex-shrink:0}
+@media(max-width:560px){.arch-item{flex-direction:column;align-items:stretch}.arch-actions{justify-content:flex-end}}
 </style>
 </head>
 <body>
@@ -222,6 +259,24 @@ button{font-family:inherit;cursor:pointer}
           <input class="input" id="join-code" placeholder="Код или ссылка комнаты">
           <button class="btn" id="btn-join-code">Войти</button>
         </div>
+        <button class="btn btn-ghost" style="width:100%;margin-top:14px" id="btn-archive">📁 Архив встреч</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ARCHIVE ============ -->
+<section class="screen" id="screen-archive">
+  <div class="center-wrap">
+    <div style="width:100%;max-width:680px">
+      <div class="landing-head brand" style="justify-content:space-between">
+        <div class="brand"><img src="pllato_logo_transparent_white.svg" alt="Pllato"><span class="tag">Архив</span></div>
+        <button class="btn btn-ghost" id="btn-archive-back">← Назад</button>
+      </div>
+      <div class="card" style="max-width:680px">
+        <h1>Архив встреч</h1>
+        <p class="sub">Записи и транскрипты ваших встреч. Хранятся в облаке Pllato.</p>
+        <div id="archive-list"><div class="trn-empty">Загрузка…</div></div>
       </div>
     </div>
   </div>
@@ -258,12 +313,13 @@ button{font-family:inherit;cursor:pointer}
           <label class="label">Микрофон</label>
           <select class="select" id="sel-mic"></select>
         </div>
-        <div class="toggle-row">
-          <div>
-            <div class="t-label">Размытие фона</div>
-            <div class="t-desc" id="blur-desc">Скрыть всё, что позади вас</div>
+        <div class="field">
+          <label class="label">Фон <span id="bg-desc" style="color:var(--text-3);font-weight:400"></span></label>
+          <div class="bg-options" id="bg-options">
+            <button class="bg-opt" data-bg="none">Без фона</button>
+            <button class="bg-opt" data-bg="blur">Размытие</button>
+            <button class="bg-opt" data-bg="logo">Логотип</button>
           </div>
-          <label class="switch"><input type="checkbox" id="tg-blur"><span class="slider"></span></label>
         </div>
         <button class="btn btn-primary" style="width:100%" id="btn-enter">Войти во встречу</button>
         <div id="pre-error"></div>
@@ -313,6 +369,7 @@ button{font-family:inherit;cursor:pointer}
   <div class="room-body">
     <div class="stage">
       <div class="grid" id="video-grid"></div>
+      <div id="thumbs"></div>
       <div id="caption-bar"></div>
     </div>
 
@@ -359,21 +416,38 @@ button{font-family:inherit;cursor:pointer}
     <button class="cb" id="cb-share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Экран</span></button>
     <button class="cb" id="cb-cc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M7 12h2M11 12h2M15 12h2M7 15h4M13 15h4" stroke-linecap="round"/></svg><span>Субтитры</span></button>
     <button class="cb" id="cb-rec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg><span>Запись</span></button>
+    <button class="cb" id="cb-settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Настр.</span></button>
     <button class="cb btn-danger" id="cb-leave" style="background:var(--red);border-color:var(--red);color:#fff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>Выйти</span></button>
+  </div>
+
+  <div class="menu" id="settings-menu">
+    <label class="label">Камера</label>
+    <select class="select" id="r-cam"></select>
+    <label class="label">Микрофон</label>
+    <select class="select" id="r-mic"></select>
+    <label class="label">Фон</label>
+    <div class="bg-options" id="r-bg-options">
+      <button class="bg-opt" data-bg="none">Нет</button>
+      <button class="bg-opt" data-bg="blur">Размытие</button>
+      <button class="bg-opt" data-bg="logo">Лого</button>
+    </div>
   </div>
 </section>
 
 <div id="toast"></div>
 
 <script type="module">
+import { getSession } from './pllato-kz-shared/pllato-api.js';
 /* ============================================================
    Pllato Meet — WebRTC mesh + Cloudflare Worker (Durable Object) signaling
    Single-link rooms · waiting room · recording · live transcript
-   · background blur · pre-join preview. Vanilla, no build, no Firebase.
+   · background blur/logo · pre-join preview · cloud archive. No build.
    ============================================================ */
 
 // Адрес сигналинг-воркера (Cloudflare). Разверни meet-worker/ командой `wrangler deploy`.
 const MEET_WS = 'wss://pllato-meet.uurraa.workers.dev';
+const MEET_API = 'https://pllato-meet.uurraa.workers.dev';
+const LOGO_URL = '/pllato_icon_512.svg'; // лого Pllato для фона
 
 const ICE_SERVERS = [
   { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
@@ -386,9 +460,15 @@ const ICE_SERVERS = [
 const $ = (id) => document.getElementById(id);
 const peerId = 'p_' + Math.random().toString(36).slice(2, 11);
 const LS = {
-  name: 'pmeet_name', blur: 'pmeet_blur', myroom: 'pmeet_myroom',
-  hostKeyPrefix: 'pmeet_hostkey_',
+  name: 'pmeet_name', bg: 'pmeet_bg', myroom: 'pmeet_myroom',
+  hostKeyPrefix: 'pmeet_hostkey_', archiveOwner: 'pmeet_archive_owner',
 };
+// владелец архива (стабильный id): email сотрудника, либо случайный для гостя
+function archiveOwner(){
+  let o = localStorage.getItem(LS.archiveOwner);
+  if(!o){ o = 'g_'+Math.random().toString(36).slice(2,10); localStorage.setItem(LS.archiveOwner, o); }
+  return o;
+}
 function rndRoom(){ const c='abcdefghijkmnpqrstuvwxyz23456789'; let s=''; for(let i=0;i<9;i++){ s+=c[Math.floor(Math.random()*c.length)]; if(i===2||i===5)s+='-'; } return s; }
 function initials(name){ const p=String(name||'?').trim().split(/\s+/); return ((p[0]?.[0]||'')+(p[1]?.[0]||'')).toUpperCase()||'?'; }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -412,12 +492,13 @@ const state = {
   isHost: false,
   hostKey: null,
   name: localStorage.getItem(LS.name) || '',
-  micOn: true, camOn: true, blurOn: localStorage.getItem(LS.blur)==='1',
+  micOn: true, camOn: true, bgMode: localStorage.getItem(LS.bg) || 'none', // none | blur | logo
   sharing: false, captioning: false, recording: false, locked: false,
   rawStream: null,        // camera+mic from getUserMedia
-  outStream: null,        // what we send (blurred canvas video + mic audio)
+  outStream: null,        // what we send (processed video + mic audio)
   screenStream: null,
   selCam: null, selMic: null,
+  startedAt: 0,
 };
 const peers = new Map();   // peerId -> { pc, makingOffer, polite, ignoreOffer, videoEl, info }
 const presenceCache = new Map(); // peerId -> info
@@ -468,13 +549,13 @@ $('btn-join-code').onclick = ()=>{ const r=parseRoomFromInput($('join-code').val
 $('join-code').addEventListener('keydown',e=>{ if(e.key==='Enter') $('btn-join-code').click(); });
 
 /* ============================================================
-   PRE-JOIN: device preview + blur
+   PRE-JOIN: device preview + background
    ============================================================ */
-let previewBlur = null;
+let previewBg = null;
 
 async function startPreview(){
   $('pre-name').value = state.name;
-  $('tg-blur').checked = state.blurOn;
+  applyBgUI();
   updatePreMicCam();
   try{
     await getLocalMedia();
@@ -494,18 +575,29 @@ async function getLocalMedia(){
   state.rawStream = await navigator.mediaDevices.getUserMedia(constraints);
   state.rawStream.getAudioTracks().forEach(t=> t.enabled = state.micOn);
   state.rawStream.getVideoTracks().forEach(t=> t.enabled = state.camOn);
+  // запомнить фактически выбранные устройства (важно при автоподборе)
+  const vt=state.rawStream.getVideoTracks()[0], at=state.rawStream.getAudioTracks()[0];
+  if(vt?.getSettings().deviceId) state.selCam=vt.getSettings().deviceId;
+  if(at?.getSettings().deviceId) state.selMic=at.getSettings().deviceId;
 }
 
 async function populateDevices(){
   const devs = await navigator.mediaDevices.enumerateDevices();
   const cams = devs.filter(d=>d.kind==='videoinput'), mics = devs.filter(d=>d.kind==='audioinput');
-  const fill=(sel,list,cur)=>{ sel.innerHTML=''; list.forEach((d,i)=>{ const o=document.createElement('option'); o.value=d.deviceId; o.textContent=d.label||('Устройство '+(i+1)); if(d.deviceId===cur)o.selected=true; sel.appendChild(o); }); };
+  const fill=(sel,list,cur)=>{ if(!sel)return; sel.innerHTML=''; list.forEach((d,i)=>{ const o=document.createElement('option'); o.value=d.deviceId; o.textContent=d.label||('Устройство '+(i+1)); if(d.deviceId===cur)o.selected=true; sel.appendChild(o); }); };
   fill($('sel-cam'),cams,state.selCam); fill($('sel-mic'),mics,state.selMic);
+  fill($('r-cam'),cams,state.selCam);  fill($('r-mic'),mics,state.selMic);
   if(!state.selCam && cams[0]) state.selCam=cams[0].deviceId;
   if(!state.selMic && mics[0]) state.selMic=mics[0].deviceId;
 }
+// смена устройства в зале ожидания/превью
 $('sel-cam').onchange = async (e)=>{ state.selCam=e.target.value; await getLocalMedia(); renderPreview(); };
-$('sel-mic').onchange = async (e)=>{ state.selMic=e.target.value; await getLocalMedia(); };
+$('sel-mic').onchange = async (e)=>{ state.selMic=e.target.value; await getLocalMedia(); renderPreview(); };
+// устройства подключили/отключили (например, надели наушники) — обновляем списки
+navigator.mediaDevices.addEventListener?.('devicechange', async ()=>{
+  try{ await populateDevices(); }catch{}
+  if(state._joined) toast('Список устройств обновился — выберите наушники/микрофон в «Настройках»');
+});
 
 function updatePreMicCam(){
   $('pre-mic').className='round-btn'+(state.micOn?'':' off'); $('pre-mic').innerHTML=state.micOn?MIC_ON:MIC_OFF;
@@ -513,19 +605,25 @@ function updatePreMicCam(){
 }
 $('pre-mic').onclick=()=>{ state.micOn=!state.micOn; state.rawStream?.getAudioTracks().forEach(t=>t.enabled=state.micOn); updatePreMicCam(); };
 $('pre-cam').onclick=()=>{ state.camOn=!state.camOn; state.rawStream?.getVideoTracks().forEach(t=>t.enabled=state.camOn); updatePreMicCam(); renderPreview(); };
-$('tg-blur').onchange = async (e)=>{ state.blurOn=e.target.checked; localStorage.setItem(LS.blur, state.blurOn?'1':'0'); renderPreview(); };
 $('pre-name').oninput = (e)=>{ state.name=e.target.value; };
+
+// background mode UI (используется и в превью, и в комнате)
+function applyBgUI(){
+  document.querySelectorAll('#bg-options .bg-opt, #r-bg-options .bg-opt').forEach(b=> b.classList.toggle('active', b.dataset.bg===state.bgMode));
+  const d=$('bg-desc'); if(d) d.textContent = state.bgMode==='blur'?'— размыто':(state.bgMode==='logo'?'— логотип Pllato':'');
+}
+document.querySelectorAll('#bg-options .bg-opt').forEach(b=> b.onclick=()=>{ state.bgMode=b.dataset.bg; localStorage.setItem(LS.bg,state.bgMode); applyBgUI(); renderPreview(); });
 
 function renderPreview(){
   const v=$('pre-video'), c=$('pre-canvas'), nov=$('pre-novid');
-  if(!state.camOn){ v.classList.add('hidden'); c.classList.add('hidden'); nov.classList.remove('hidden'); $('pre-avatar').textContent=initials(state.name); if(previewBlur){previewBlur.stop();previewBlur=null;} return; }
+  if(!state.camOn){ v.classList.add('hidden'); c.classList.add('hidden'); nov.classList.remove('hidden'); $('pre-avatar').textContent=initials(state.name); if(previewBg){previewBg.stop();previewBg=null;} return; }
   nov.classList.add('hidden');
-  if(state.blurOn){
+  if(state.bgMode!=='none'){
     v.classList.add('hidden'); c.classList.remove('hidden');
-    if(!previewBlur) previewBlur = new BlurPipeline(state.rawStream, c);
-    previewBlur.update(state.rawStream);
+    if(!previewBg) previewBg = new BgPipeline(state.rawStream, c, state.bgMode);
+    else { previewBg.setMode(state.bgMode); previewBg.update(state.rawStream); }
   }else{
-    if(previewBlur){ previewBlur.stop(); previewBlur=null; }
+    if(previewBg){ previewBg.stop(); previewBg=null; }
     c.classList.add('hidden'); v.classList.remove('hidden'); v.srcObject=state.rawStream;
   }
 }
@@ -538,7 +636,7 @@ $('btn-enter').onclick = async ()=>{
 };
 
 /* ============================================================
-   BACKGROUND BLUR  (MediaPipe Selfie Segmentation via CDN)
+   BACKGROUND (MediaPipe Selfie Segmentation) — blur / logo
    ============================================================ */
 let mpReady=false, mpFailed=false;
 async function ensureMediaPipe(){
@@ -546,74 +644,95 @@ async function ensureMediaPipe(){
   try{
     await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
     mpReady=true; return true;
-  }catch(e){ mpFailed=true; $('blur-desc').textContent='Недоступно в этом браузере'; return false; }
+  }catch(e){ mpFailed=true; return false; }
 }
 
-class BlurPipeline{
-  constructor(stream, canvas){
-    this.canvas=canvas; this.ctx=canvas.getContext('2d'); this.running=true; this.stream=stream;
+// логотип для фона (грузим как data-URL с явным размером, чтобы корректно рисовался на canvas)
+let logoImg=null;
+async function loadLogo(){
+  if(logoImg) return logoImg;
+  try{
+    const r=await fetch(LOGO_URL); let svg=await r.text();
+    if(!/\bwidth=/.test(svg)) svg=svg.replace(/<svg/i,'<svg width="512" height="512"');
+    const img=new Image(); img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+    await (img.decode?.().catch(()=>{}) || new Promise(r=>{img.onload=r;img.onerror=r;}));
+    logoImg=img;
+  }catch{}
+  return logoImg;
+}
+
+class BgPipeline{
+  constructor(stream, canvas, mode){
+    this.canvas=canvas; this.ctx=canvas.getContext('2d'); this.running=true; this.stream=stream; this.mode=mode||'blur';
+    this.mask=document.createElement('canvas'); this.mctx=this.mask.getContext('2d');
     this.video=document.createElement('video'); this.video.muted=true; this.video.playsInline=true; this.video.autoplay=true;
     this.video.srcObject=stream; this.video.play().catch(()=>{});
     this.init();
   }
+  setMode(m){ this.mode=m; }
   async init(){
     const ok=await ensureMediaPipe();
     if(!ok){ this.fallbackLoop(); return; }
     this.seg=new SelfieSegmentation({ locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${f}` });
-    this.seg.setOptions({ modelSelection:1 });
+    this.seg.setOptions({ modelSelection:1, selfieMode:false });
     this.seg.onResults(r=>this.onResults(r));
     this.loop();
   }
-  update(stream){ if(stream && stream!==this.stream){ this.stream=stream; this.video.srcObject=stream; } }
+  update(stream){ if(stream && stream!==this.stream){ this.stream=stream; this.video.srcObject=stream; this.video.play().catch(()=>{}); } }
   async loop(){
     if(!this.running) return;
-    if(this.video.readyState>=2 && this.seg){
-      try{ await this.seg.send({image:this.video}); }catch{}
-    }
+    if(this.video.readyState>=2 && this.seg){ try{ await this.seg.send({image:this.video}); }catch{} }
     requestAnimationFrame(()=>this.loop());
   }
-  fallbackLoop(){ // no segmentation available: just mirror raw frame
+  fallbackLoop(){
     if(!this.running) return;
     const w=this.video.videoWidth||1280, h=this.video.videoHeight||720;
     if(w){ this.canvas.width=w; this.canvas.height=h; this.ctx.drawImage(this.video,0,0,w,h); }
     requestAnimationFrame(()=>this.fallbackLoop());
   }
   onResults(results){
-    const w=results.image.width, h=results.image.height;
-    if(!w) return;
-    this.canvas.width=w; this.canvas.height=h;
-    const ctx=this.ctx;
+    const w=results.image.width, h=results.image.height; if(!w) return;
+    this.canvas.width=w; this.canvas.height=h; this.mask.width=w; this.mask.height=h;
+    const ctx=this.ctx, mctx=this.mctx;
+    // 1) сглаженная (feathered) маска человека — убирает «просветы» по контуру
+    mctx.clearRect(0,0,w,h);
+    mctx.filter='blur(4px)';
+    mctx.drawImage(results.segmentationMask,0,0,w,h);
+    mctx.filter='none';
+    // 2) человек по маске
     ctx.save(); ctx.clearRect(0,0,w,h);
-    // draw person (mask)
-    ctx.drawImage(results.segmentationMask,0,0,w,h);
+    ctx.drawImage(this.mask,0,0,w,h);
     ctx.globalCompositeOperation='source-in';
     ctx.drawImage(results.image,0,0,w,h);
-    // draw blurred background behind
+    // 3) фон позади человека
     ctx.globalCompositeOperation='destination-over';
-    ctx.filter='blur(12px)';
-    ctx.drawImage(results.image,0,0,w,h);
+    if(this.mode==='logo'){
+      ctx.filter='none'; ctx.fillStyle='#0a1628'; ctx.fillRect(0,0,w,h);
+      if(logoImg){ const s=Math.min(w,h)*0.5; ctx.globalAlpha=0.9; ctx.drawImage(logoImg,(w-s)/2,(h-s)/2,s,s); ctx.globalAlpha=1; }
+    }else{ // blur
+      ctx.filter='blur(14px)'; ctx.drawImage(results.image,0,0,w,h); ctx.filter='none';
+    }
     ctx.restore();
   }
-  getStream(fps=24){ return this.canvas.captureStream(fps); }
+  getStream(fps=24){ if(!this._cs) this._cs=this.canvas.captureStream(fps); return this._cs; }
   stop(){ this.running=false; try{this.seg?.close();}catch{} try{this.video.srcObject=null;}catch{} }
 }
 
 /* ============================================================
-   OUTGOING STREAM (blur applied if on)
+   OUTGOING STREAM (camera video + mic audio; background applied)
    ============================================================ */
-let outBlur=null, outCanvas=null;
+let outBg=null, outCanvas=null;
 async function buildOutStream(){
-  // audio comes straight from raw
   const audio = state.rawStream.getAudioTracks();
   let videoTrack;
-  if(state.blurOn){
+  if(state.bgMode!=='none'){
     if(!outCanvas){ outCanvas=document.createElement('canvas'); }
-    if(!outBlur){ outBlur=new BlurPipeline(state.rawStream, outCanvas); }
-    else outBlur.update(state.rawStream);
-    await new Promise(r=>setTimeout(r,500)); // let first frames render
-    const cs=outBlur.getStream(24); videoTrack=cs.getVideoTracks()[0];
+    if(!outBg){ outBg=new BgPipeline(state.rawStream, outCanvas, state.bgMode); }
+    else { outBg.setMode(state.bgMode); outBg.update(state.rawStream); }
+    await new Promise(r=>setTimeout(r,500));
+    videoTrack=outBg.getStream(24).getVideoTracks()[0];
   }else{
-    if(outBlur){ outBlur.stop(); outBlur=null; }
+    if(outBg){ outBg.stop(); outBg=null; }
     videoTrack=state.rawStream.getVideoTracks()[0];
   }
   state.outStream = new MediaStream();
@@ -621,15 +740,44 @@ async function buildOutStream(){
   audio.forEach(t=>state.outStream.addTrack(t));
 }
 
-async function applyVideoToPeers(){
-  const track = state.sharing ? state.screenStream.getVideoTracks()[0]
-              : (state.blurOn && outBlur ? outBlur.getStream(24).getVideoTracks()[0] : state.rawStream.getVideoTracks()[0]);
-  for(const {pc} of peers.values()){
-    const sender = pc.getSenders().find(s=>s.track && s.track.kind==='video') || pc.getSenders().find(s=>!s.track);
-    if(sender && track) try{ await sender.replaceTrack(track); }catch(e){}
-  }
-  // update local tile
+// текущий исходящий видео-трек камеры (с учётом фона)
+function currentCamVideoTrack(){
+  return (state.bgMode!=='none' && outBg) ? outBg.getStream(24).getVideoTracks()[0] : state.rawStream.getVideoTracks()[0];
+}
+
+// сменить фон во время встречи
+async function setBgRuntime(mode){
+  state.bgMode=mode; localStorage.setItem(LS.bg,mode); applyBgUI();
+  if(mode!=='none'){
+    if(!outCanvas) outCanvas=document.createElement('canvas');
+    if(!outBg) outBg=new BgPipeline(state.rawStream, outCanvas, mode); else { outBg.setMode(mode); outBg.update(state.rawStream); }
+    await new Promise(r=>setTimeout(r,400));
+  }else if(outBg){ outBg.stop(); outBg=null; }
+  await applyCameraVideoToPeers();
   setLocalTileStream();
+}
+
+// заменить исходящий видео-трек камеры у всех пиров
+async function applyCameraVideoToPeers(){
+  const track=currentCamVideoTrack();
+  for(const peer of peers.values()){ if(peer.camSender && track){ try{ await peer.camSender.replaceTrack(track); }catch{} } }
+}
+// заменить исходящий аудио-трек у всех пиров (после смены микрофона)
+async function applyAudioToPeers(){
+  const a=state.rawStream.getAudioTracks()[0];
+  for(const peer of peers.values()){ if(peer.audioSender && a){ try{ await peer.audioSender.replaceTrack(a); }catch{} } }
+}
+
+// сменить камеру/микрофон во время встречи (например, надели наушники)
+async function changeDevicesRuntime(){
+  await getLocalMedia();
+  if(outBg) outBg.update(state.rawStream);
+  state.rawStream.getAudioTracks().forEach(t=> t.enabled=state.micOn);
+  state.rawStream.getVideoTracks().forEach(t=> t.enabled=state.camOn);
+  await applyCameraVideoToPeers();
+  await applyAudioToPeers();
+  setLocalTileStream();
+  if(state.recording && recDest && mixAC){ try{ mixAC.createMediaStreamSource(state.rawStream).connect(recDest); }catch{} }
 }
 
 /* ============================================================
@@ -646,7 +794,9 @@ function connectWS(){
   try{ ws=new WebSocket(`${MEET_WS}/room/${encodeURIComponent(rid)}`); }
   catch(e){ showSignalError(); return; }
 
-  ws.onopen=()=>{ wsSend({ t:'join', peer:peerId, name:state.name, hostKey, micOn:state.micOn, camOn:state.camOn }); };
+  ws.onopen=()=>{ wsSend({ t:'join', peer:peerId, name:state.name, hostKey, micOn:state.micOn, camOn:state.camOn,
+    camStreamId: state.outStream?.id||null, sharing: state.sharing||false,
+    screenStreamId: state.sharing? state.screenStream?.id : null }); };
   ws.onmessage=(ev)=>{ let m; try{m=JSON.parse(ev.data);}catch{return;} handleWsMessage(m); };
   ws.onclose=()=>{
     if(wsClosedByUser) return;
@@ -675,7 +825,7 @@ function handleWsMessage(m){
     case 'peer-update': {
       presenceCache.set(m.peer, m.info);
       if(m.info.admitted && state.admitted && !peers.has(m.peer)) ensurePeer(m.peer, m.info);
-      if(peers.has(m.peer)) updatePeerTileInfo(m.peer, m.info);
+      if(peers.has(m.peer)){ const p=peers.get(m.peer); p.info=m.info; updatePeerTileInfo(m.peer, m.info); if(m.info.sharing===false) removeScreenTile(p); }
       renderPeopleList(); updateBadges(); break;
     }
     case 'peer-leave': removePeer(m.peer); break;
@@ -690,12 +840,16 @@ function connectToAdmittedPeers(){ for(const [id,info] of presenceCache){ if(id!
 
 function onAdmitted(){
   if(state._joined) return; state._joined=true;
+  state.startedAt=Date.now();
   showScreen('screen-room');
   $('room-pill').textContent = state.roomId + (state.isHost?' · вы организатор':'');
   setupLocalTile();
   initControls();
   renderPeopleList(); updateBadges();
-  if(state.isHost) toast('Вы организатор. Встреча открыта для всех 🎉');
+  // субтитры (транскрипция) включаются у всех — чтобы записывалась речь каждого
+  setTimeout(()=>{ startCaptions(true); }, 700);
+  // запись ведёт организатор (требование: встреча идёт с записью)
+  if(state.isHost){ setTimeout(()=>{ startRecording(); }, 1000); toast('Вы организатор. Запись и транскрипция включены автоматически 🔴'); }
 }
 
 /* ============================================================
@@ -704,7 +858,7 @@ function onAdmitted(){
 function removePeer(id){
   presenceCache.delete(id);
   const peer=peers.get(id);
-  if(peer){ try{peer.pc.close();}catch{} peer.tile?.remove(); peers.delete(id); }
+  if(peer){ try{peer.pc.close();}catch{} peer.tile?.remove(); peer.screenTile?.remove(); peers.delete(id); }
   relayoutGrid();
   renderPeopleList(); updateBadges();
 }
@@ -750,25 +904,49 @@ function updateBadges(){
 function ensurePeer(id, info){
   if(peers.has(id)) return peers.get(id);
   const pc=new RTCPeerConnection({ iceServers: ICE_SERVERS });
-  const peer={ pc, makingOffer:false, ignoreOffer:false, polite: peerId>id, tile:null, videoEl:null, stream:new MediaStream(), info };
+  const peer={ pc, makingOffer:false, ignoreOffer:false, polite: peerId>id,
+    tile:null, videoEl:null, camStream:new MediaStream(),
+    screenTile:null, screenVideoEl:null, screenStream:new MediaStream(),
+    camSender:null, audioSender:null, screenSender:null, hasCamVideo:false, info };
   peers.set(id, peer);
 
-  // add our outgoing tracks
-  const vTrack = (state.sharing && state.screenStream)? state.screenStream.getVideoTracks()[0]
-               : state.outStream.getVideoTracks()[0];
+  // исходящие дорожки: видео камеры (с фоном) + аудио (в потоке outStream)
+  const vTrack = currentCamVideoTrack();
   const aTrack = state.outStream.getAudioTracks()[0];
-  if(vTrack) pc.addTrack(vTrack, state.outStream);
-  if(aTrack) pc.addTrack(aTrack, state.outStream);
+  if(vTrack) peer.camSender = pc.addTrack(vTrack, state.outStream);
+  if(aTrack) peer.audioSender = pc.addTrack(aTrack, state.outStream);
+  // если уже идёт показ экрана — добавляем отдельной дорожкой (свой поток)
+  if(state.sharing && state.screenStream){
+    peer.screenSender = pc.addTrack(state.screenStream.getVideoTracks()[0], state.screenStream);
+  }
 
   pc.onnegotiationneeded = async ()=>{
     try{ peer.makingOffer=true; await pc.setLocalDescription(); sendSignal(id, { description: pc.localDescription }); }
     catch(e){} finally{ peer.makingOffer=false; }
   };
   pc.onicecandidate = ({candidate})=>{ if(candidate) sendSignal(id, { candidate }); };
-  pc.ontrack = (ev)=>{ ev.streams[0].getTracks().forEach(t=>peer.stream.addTrack(t)); attachPeerTile(id, peer); };
+  pc.ontrack = (ev)=>{ handleRemoteTrack(id, peer, ev); };
   pc.onconnectionstatechange = ()=>{ if(pc.connectionState==='failed'){ try{pc.restartIce();}catch{} } };
   createPeerTile(id, peer, info);
   return peer;
+}
+
+// разбор входящих дорожек: камера vs демонстрация экрана (по msid потока)
+function handleRemoteTrack(id, peer, ev){
+  const track=ev.track, stream=ev.streams[0];
+  if(track.kind==='audio'){ peer.camStream.addTrack(track); attachPeerTile(id, peer); return; }
+  // видео: экран, если id потока совпал с заявленным screenStreamId, либо это второе видео
+  const isScreen = (peer.info?.screenStreamId && stream && stream.id===peer.info.screenStreamId) || peer.hasCamVideo;
+  if(isScreen){
+    peer.screenStream.addTrack(track);
+    attachScreenTile(id, peer);
+    track.onended=()=>{ removeScreenTile(peer); };
+    track.onmute=()=>{ /* временно */ };
+  }else{
+    peer.hasCamVideo=true;
+    peer.camStream.addTrack(track);
+    attachPeerTile(id, peer);
+  }
 }
 
 function sendSignal(toId, payload){ wsSend({ t:'signal', to:toId, data:payload }); }
@@ -797,7 +975,7 @@ async function handleSignal(from, data){
    ============================================================ */
 function createPeerTile(id, peer, info){
   if(peer.tile) return;
-  const tile=document.createElement('div'); tile.className='tile'; tile.id='tile_'+id;
+  const tile=document.createElement('div'); tile.className='tile'; tile.id='tile_'+id; tile.dataset.kind='camera';
   tile.innerHTML=`<video autoplay playsinline></video>
     <div class="tile-noimg"><div class="avatar" style="width:64px;height:64px;font-size:26px">${initials(info?.name)}</div></div>
     <div class="tile-name"><span class="mic-off hidden">${MIC_OFF}</span><span class="nm">${escapeHtml(info?.name||'Участник')}</span></div>`;
@@ -807,22 +985,37 @@ function createPeerTile(id, peer, info){
 }
 function attachPeerTile(id, peer){
   if(!peer.tile) return;
-  peer.videoEl.srcObject=peer.stream;
-  const hasVid=peer.stream.getVideoTracks().length>0;
+  peer.videoEl.srcObject=peer.camStream;
+  const hasVid=peer.camStream.getVideoTracks().length>0;
   peer.tile.querySelector('.tile-noimg').style.display=hasVid?'none':'flex';
   monitorAudioLevel(peer);
+}
+// плитка демонстрации экрана участника
+function attachScreenTile(id, peer){
+  if(!peer.screenTile){
+    const t=document.createElement('div'); t.className='tile'; t.id='screen_'+id; t.dataset.kind='screen';
+    t.innerHTML=`<video autoplay playsinline></video><div class="tile-name"><span class="nm">${escapeHtml((peer.info?.name||'Участник'))} — экран</span></div>`;
+    $('video-grid').appendChild(t);
+    peer.screenTile=t; peer.screenVideoEl=t.querySelector('video');
+  }
+  peer.screenVideoEl.srcObject=peer.screenStream;
+  relayoutGrid();
+}
+function removeScreenTile(peer){
+  if(peer.screenTile){ peer.screenTile.remove(); peer.screenTile=null; peer.screenVideoEl=null; peer.screenStream=new MediaStream(); }
+  relayoutGrid();
 }
 function updatePeerTileInfo(id, info){
   const peer=peers.get(id); if(!peer?.tile) return;
   peer.tile.querySelector('.nm').textContent=info.name||'Участник';
   peer.tile.querySelector('.mic-off').classList.toggle('hidden', info.micOn!==false);
-  const hasVid=info.camOn!==false && peer.stream.getVideoTracks().some(t=>t.readyState==='live');
-  peer.tile.querySelector('.tile-noimg').style.display=(info.camOn===false)?'flex':(peer.stream.getVideoTracks().length?'none':'flex');
+  peer.tile.querySelector('.tile-noimg').style.display=(info.camOn===false)?'flex':(peer.camStream.getVideoTracks().length?'none':'flex');
+  if(peer.screenTile) peer.screenTile.querySelector('.nm').textContent=(info.name||'Участник')+' — экран';
 }
 
-let localTile=null;
+let localTile=null, localScreenTile=null;
 function setupLocalTile(){
-  localTile=document.createElement('div'); localTile.className='tile local'; localTile.id='tile_local';
+  localTile=document.createElement('div'); localTile.className='tile local'; localTile.id='tile_local'; localTile.dataset.kind='camera';
   localTile.innerHTML=`<video autoplay playsinline muted></video>
     <div class="tile-noimg"><div class="avatar" style="width:64px;height:64px;font-size:26px">${initials(state.name)}</div></div>
     <div class="tile-name"><span class="mic-off ${state.micOn?'hidden':''}">${MIC_OFF}</span><span class="nm">${escapeHtml(state.name)} (вы)</span></div>`;
@@ -834,24 +1027,47 @@ function setLocalTileStream(){
   if(!localTile) return;
   const v=localTile.querySelector('video');
   const ms=new MediaStream();
-  const vt = state.sharing && state.screenStream ? state.screenStream.getVideoTracks()[0]
-           : (state.blurOn && outBlur ? outBlur.getStream(24).getVideoTracks()[0] : state.rawStream?.getVideoTracks()[0]);
+  const vt=currentCamVideoTrack();
   if(vt && state.camOn) ms.addTrack(vt);
   v.srcObject=ms;
-  localTile.querySelector('.tile-noimg').style.display=(state.camOn||state.sharing)?'none':'flex';
+  localTile.querySelector('.tile-noimg').style.display=state.camOn?'none':'flex';
+  // локальная плитка экрана
+  if(state.sharing && state.screenStream){
+    if(!localScreenTile){
+      localScreenTile=document.createElement('div'); localScreenTile.className='tile local'; localScreenTile.id='screen_local'; localScreenTile.dataset.kind='screen';
+      localScreenTile.innerHTML=`<video autoplay playsinline muted></video><div class="tile-name"><span class="nm">Ваш экран</span></div>`;
+      $('video-grid').appendChild(localScreenTile);
+    }
+    localScreenTile.querySelector('video').srcObject=state.screenStream;
+  }else if(localScreenTile){ localScreenTile.remove(); localScreenTile=null; }
+  relayoutGrid();
 }
+// раскладка: обычная сетка, либо «презентация» (экран крупно + лица мелко)
 function relayoutGrid(){
-  const grid=$('video-grid'); const n=grid.children.length||1;
-  const cols=Math.ceil(Math.sqrt(n));
-  grid.style.gridTemplateColumns=`repeat(${cols}, 1fr)`;
+  const grid=$('video-grid'), thumbs=$('thumbs');
+  const all=[...grid.children, ...thumbs.children];
+  const screens=all.filter(t=>t.dataset.kind==='screen');
+  const cams=all.filter(t=>t.dataset.kind!=='screen');
+  if(screens.length){
+    grid.classList.add('presenting'); grid.style.display='block';
+    screens.forEach(t=>{ t.classList.add('screen'); if(t.parentNode!==grid) grid.appendChild(t); });
+    cams.forEach(t=>{ t.classList.remove('screen'); if(t.parentNode!==thumbs) thumbs.appendChild(t); });
+    if(screens.length>1){ grid.style.display='grid'; grid.style.gridTemplateColumns=`repeat(${screens.length},1fr)`; grid.classList.remove('presenting'); }
+  }else{
+    grid.classList.remove('presenting'); grid.style.display='grid';
+    cams.forEach(t=>{ t.classList.remove('screen'); if(t.parentNode!==grid) grid.appendChild(t); });
+    const n=cams.length||1; const cols=Math.ceil(Math.sqrt(n));
+    grid.style.gridTemplateColumns=`repeat(${cols}, 1fr)`;
+  }
 }
 
 /* active-speaker highlight via WebAudio */
 function monitorAudioLevel(peer){
   try{
     if(peer._meter) return;
+    if(!peer.camStream.getAudioTracks().length) return;
     const ac=getMixAudioContext();
-    const src=ac.createMediaStreamSource(peer.stream);
+    const src=ac.createMediaStreamSource(peer.camStream);
     const an=ac.createAnalyser(); an.fftSize=512; src.connect(an);
     const buf=new Uint8Array(an.frequencyBinCount); peer._meter=an;
     const tick=()=>{ if(!peers.has(peerIdOf(peer))) return; an.getByteFrequencyData(buf); const v=buf.reduce((a,b)=>a+b,0)/buf.length; peer.tile?.classList.toggle('speaking', v>22); requestAnimationFrame(tick); };
@@ -867,11 +1083,12 @@ function initControls(){
   refreshControlIcons();
   $('cb-mic').onclick=toggleMic;
   $('cb-cam').onclick=toggleCam;
-  $('cb-blur').onclick=toggleBlur;
+  $('cb-blur').onclick=cycleBackground;
   $('cb-share').onclick=toggleShare;
   $('cb-cc').onclick=toggleCaptions;
   $('cb-rec').onclick=toggleRecording;
   $('cb-leave').onclick=leaveRoom;
+  $('cb-settings').onclick=toggleSettings;
 
   $('btn-copy-invite').onclick=copyInvite;
   $('btn-people').onclick=()=>openPane('people');
@@ -882,12 +1099,20 @@ function initControls(){
   $('chat-input').addEventListener('keydown',e=>{ if(e.key==='Enter') sendChat(); });
   $('trn-download').onclick=downloadTranscript;
   $('trn-lang').value=recogLang; $('trn-lang').onchange=e=>{ recogLang=e.target.value; if(state.captioning){ stopRecognition(); startRecognition(); } };
+
+  // settings menu: device switching + background
+  $('r-cam').onchange = async (e)=>{ state.selCam=e.target.value; await changeDevicesRuntime(); toast('Камера переключена'); };
+  $('r-mic').onchange = async (e)=>{ state.selMic=e.target.value; await changeDevicesRuntime(); toast('Микрофон переключён'); };
+  document.querySelectorAll('#r-bg-options .bg-opt').forEach(b=> b.onclick=()=>{ setBgRuntime(b.dataset.bg); });
+  applyBgUI();
 }
+
+function toggleSettings(){ const m=$('settings-menu'); m.classList.toggle('show'); $('cb-settings').classList.toggle('on', m.classList.contains('show')); if(m.classList.contains('show')) populateDevices(); }
 
 function refreshControlIcons(){
   $('cb-mic-ic').innerHTML=state.micOn?MIC_ON:MIC_OFF; $('cb-mic').classList.toggle('off',!state.micOn);
   $('cb-cam-ic').innerHTML=state.camOn?CAM_ON:CAM_OFF; $('cb-cam').classList.toggle('off',!state.camOn);
-  $('cb-blur').classList.toggle('on',state.blurOn);
+  $('cb-blur').classList.toggle('on',state.bgMode!=='none');
   $('cb-share').classList.toggle('on',state.sharing);
   $('cb-cc').classList.toggle('on',state.captioning);
   $('cb-rec').classList.toggle('off',state.recording);
@@ -897,25 +1122,32 @@ function selfPatch(patch){ const me=presenceCache.get(peerId); if(me){ Object.as
 function toggleMic(){ state.micOn=!state.micOn; state.rawStream.getAudioTracks().forEach(t=>t.enabled=state.micOn); selfPatch({micOn:state.micOn}); localTile?.querySelector('.mic-off').classList.toggle('hidden',state.micOn); refreshControlIcons(); }
 function toggleCam(){ state.camOn=!state.camOn; state.rawStream.getVideoTracks().forEach(t=>t.enabled=state.camOn); selfPatch({camOn:state.camOn}); setLocalTileStream(); refreshControlIcons(); }
 
-async function toggleBlur(){
-  state.blurOn=!state.blurOn; localStorage.setItem(LS.blur, state.blurOn?'1':'0');
-  if(state.blurOn){ if(!outCanvas)outCanvas=document.createElement('canvas'); if(!outBlur)outBlur=new BlurPipeline(state.rawStream,outCanvas); else outBlur.update(state.rawStream); await new Promise(r=>setTimeout(r,400)); }
-  else { if(outBlur){ outBlur.stop(); outBlur=null; } }
-  if(!state.sharing) await applyVideoToPeers();
-  refreshControlIcons(); toast(state.blurOn?'Фон размыт':'Размытие выключено');
+// кнопка «Фон» циклически: нет → размытие → логотип → нет
+async function cycleBackground(){
+  const order=['none','blur','logo']; const next=order[(order.indexOf(state.bgMode)+1)%order.length];
+  await setBgRuntime(next); refreshControlIcons();
+  toast(next==='blur'?'Фон размыт':(next==='logo'?'Фон: логотип Pllato':'Фон выключен'));
 }
 
+// показ экрана отдельной дорожкой — камера (лицо) продолжает идти
 async function toggleShare(){
   if(!state.sharing){
     try{
-      state.screenStream=await navigator.mediaDevices.getDisplayMedia({ video:true, audio:false });
+      state.screenStream=await navigator.mediaDevices.getDisplayMedia({ video:{frameRate:15}, audio:false });
       state.sharing=true;
-      state.screenStream.getVideoTracks()[0].addEventListener('ended',()=>{ if(state.sharing) toggleShare(); });
-      await applyVideoToPeers();
+      const st=state.screenStream.getVideoTracks()[0];
+      st.addEventListener('ended',()=>{ if(state.sharing) toggleShare(); });
+      // сообщаем id потока, чтобы получатели отличили экран от камеры
+      selfPatch({ sharing:true, screenStreamId: state.screenStream.id });
+      for(const peer of peers.values()){ try{ peer.screenSender = peer.pc.addTrack(st, state.screenStream); }catch{} }
+      setLocalTileStream();
     }catch(e){ return; }
   }else{
-    state.sharing=false; state.screenStream?.getTracks().forEach(t=>t.stop()); state.screenStream=null;
-    await applyVideoToPeers();
+    state.sharing=false;
+    for(const peer of peers.values()){ if(peer.screenSender){ try{ peer.pc.removeTrack(peer.screenSender); }catch{} peer.screenSender=null; } }
+    state.screenStream?.getTracks().forEach(t=>t.stop()); state.screenStream=null;
+    selfPatch({ sharing:false, screenStreamId:null });
+    setLocalTileStream();
   }
   refreshControlIcons(); toast(state.sharing?'Показ экрана включён':'Показ экрана выключен');
 }
@@ -999,9 +1231,12 @@ function onTranscriptMessage(m){
   list.appendChild(el); list.scrollTop=list.scrollHeight;
 }
 function toggleCaptions(){
-  state.captioning=!state.captioning;
-  if(state.captioning){ startRecognition(); openPane('transcript'); toast('Субтитры включены — ваша речь распознаётся'); }
-  else { stopRecognition(); toast('Субтитры выключены'); }
+  if(!state.captioning){ startCaptions(false); } else { state.captioning=false; stopRecognition(); toast('Субтитры выключены'); refreshControlIcons(); }
+}
+function startCaptions(silent){
+  if(state.captioning) return;
+  state.captioning=true; startRecognition();
+  if(!silent){ openPane('transcript'); toast('Субтитры включены — ваша речь распознаётся'); }
   refreshControlIcons();
 }
 function startRecognition(){
@@ -1039,40 +1274,50 @@ function downloadTranscript(){
 /* ============================================================
    RECORDING (composite grid + mixed audio → webm)
    ============================================================ */
-let mixAC=null;
+let mixAC=null, recDest=null;
 function getMixAudioContext(){ if(!mixAC) mixAC=new (window.AudioContext||window.webkitAudioContext)(); return mixAC; }
-let mediaRecorder=null, recChunks=[], recCanvas=null, recRAF=null, recStartTs=0;
+let mediaRecorder=null, recChunks=[], recCanvas=null, recRAF=null, recStartTs=0, recMime='video/webm';
 function toggleRecording(){ if(!state.recording) startRecording(); else stopRecording(); }
 
+function drawRecTile(ctx, tile, x,y,w,h, contain){
+  const v=tile.querySelector('video'); const name=tile.querySelector('.nm')?.textContent||'';
+  const mirrored=tile.classList.contains('local') && tile.dataset.kind!=='screen';
+  const hasVid=v && v.srcObject && v.srcObject.getVideoTracks().length;
+  ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+  try{
+    if(hasVid && contain){
+      const vw=v.videoWidth||16, vh=v.videoHeight||9, sc=Math.min(w/vw,h/vh), dw=vw*sc, dh=vh*sc;
+      ctx.fillStyle='#000'; ctx.fillRect(x,y,w,h); ctx.drawImage(v,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
+    }else if(hasVid && mirrored){ ctx.translate(x+w,y); ctx.scale(-1,1); ctx.drawImage(v,0,0,w,h); }
+    else if(hasVid){ ctx.drawImage(v,x,y,w,h); }
+    else{ ctx.fillStyle='#0d1322'; ctx.fillRect(x,y,w,h);
+      const r=Math.min(w,h)*0.18; ctx.fillStyle='#b8895a'; ctx.beginPath(); ctx.arc(x+w/2,y+h/2,r,0,7); ctx.fill();
+      ctx.fillStyle='#1a1206'; ctx.font=`700 ${r}px Inter,sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(initials(name),x+w/2,y+h/2); }
+  }catch{}
+  ctx.restore();
+  if(name){ ctx.save(); ctx.font='600 15px Inter,sans-serif'; const tw=Math.min(ctx.measureText(name).width,w-20);
+    ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fillRect(x+8,y+h-28,tw+14,22);
+    ctx.fillStyle='#fff'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(name,x+15,y+h-17); ctx.restore(); }
+}
+
 function startRecording(){
+  if(state.recording) return;
   try{
     recCanvas=document.createElement('canvas'); recCanvas.width=1280; recCanvas.height=720;
     const ctx=recCanvas.getContext('2d');
     const draw=()=>{
-      const tileEls=[...document.querySelectorAll('#video-grid .tile')];
       ctx.fillStyle='#0b0f1a'; ctx.fillRect(0,0,1280,720);
-      const n=tileEls.length||1; const cols=Math.ceil(Math.sqrt(n)); const rows=Math.ceil(n/cols);
-      const cw=1280/cols, chh=720/rows;
-      tileEls.forEach((tile,i)=>{ const cx=(i%cols)*cw, cy=Math.floor(i/cols)*chh;
-        const v=tile.querySelector('video'); const name=tile.querySelector('.nm')?.textContent||'';
-        const mirrored=tile.classList.contains('local');
-        const hasVid=v && v.srcObject && v.srcObject.getVideoTracks().length;
-        try{
-          if(hasVid){ ctx.save(); if(mirrored){ ctx.translate(cx+cw,cy); ctx.scale(-1,1); ctx.drawImage(v,0,0,cw,chh);} else ctx.drawImage(v,cx,cy,cw,chh); ctx.restore(); }
-          else{ // avatar with initials when camera off
-            ctx.fillStyle='#0d1322'; ctx.fillRect(cx,cy,cw,chh);
-            const r=Math.min(cw,chh)*0.18; ctx.fillStyle='#b8895a'; ctx.beginPath(); ctx.arc(cx+cw/2,cy+chh/2,r,0,7); ctx.fill();
-            ctx.fillStyle='#1a1206'; ctx.font=`700 ${r}px Inter,sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-            ctx.fillText(initials(name), cx+cw/2, cy+chh/2);
-          }
-          // name label baked into the video
-          if(name){ ctx.font='600 18px Inter,sans-serif'; const tw=ctx.measureText(name).width;
-            ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fillRect(cx+10,cy+chh-38,tw+20,28);
-            ctx.fillStyle='#fff'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(name, cx+20, cy+chh-24);
-          }
-        }catch{}
-      });
-      // burned-in caption (current speaker) at the bottom
+      const tiles=[...document.querySelectorAll('#video-grid .tile, #thumbs .tile')];
+      const screens=tiles.filter(t=>t.dataset.kind==='screen');
+      const cams=tiles.filter(t=>t.dataset.kind!=='screen');
+      if(screens.length){ // презентация: экран крупно + лица снизу
+        drawRecTile(ctx, screens[0], 0,0,1280,556, true);
+        const m=cams.length||1; const cw=Math.min(1280/m, 230); const startx=(1280-cw*m)/2;
+        cams.forEach((t,i)=> drawRecTile(ctx,t, startx+i*cw+2, 562, cw-4, 150, false));
+      }else{
+        const n=cams.length||1, cols=Math.ceil(Math.sqrt(n)), cw=1280/cols, chh=720/Math.ceil(n/cols);
+        cams.forEach((t,i)=> drawRecTile(ctx,t,(i%cols)*cw,Math.floor(i/cols)*chh,cw,chh,false));
+      }
       if(lastCaption && Date.now()-lastCaption.ts<6000){
         ctx.font='600 22px Inter,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
         const line=`${lastCaption.name}: ${lastCaption.text}`; const tw=Math.min(ctx.measureText(line).width,1180);
@@ -1083,23 +1328,17 @@ function startRecording(){
     };
     draw();
     const canvasStream=recCanvas.captureStream(25);
-
-    // mix audio: local mic + all remote streams
-    const ac=getMixAudioContext(); const dest=ac.createMediaStreamDestination();
-    const addAudio=(stream)=>{ try{ if(stream && stream.getAudioTracks().length){ ac.createMediaStreamSource(stream).connect(dest);} }catch{} };
+    const ac=getMixAudioContext(); recDest=ac.createMediaStreamDestination();
+    const addAudio=(stream)=>{ try{ if(stream && stream.getAudioTracks().length){ ac.createMediaStreamSource(stream).connect(recDest);} }catch{} };
     addAudio(state.rawStream);
-    for(const peer of peers.values()) addAudio(peer.stream);
+    for(const peer of peers.values()) addAudio(peer.camStream);
 
-    const mixed=new MediaStream([...canvasStream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
-    const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';
-    mediaRecorder=new MediaRecorder(mixed,{mimeType:mime}); recChunks=[];
+    const mixed=new MediaStream([...canvasStream.getVideoTracks(), ...recDest.stream.getAudioTracks()]);
+    recMime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';
+    mediaRecorder=new MediaRecorder(mixed,{mimeType:recMime}); recChunks=[];
     mediaRecorder.ondataavailable=e=>{ if(e.data.size) recChunks.push(e.data); };
-    mediaRecorder.onstop=()=>{
-      const blob=new Blob(recChunks,{type:mime}); const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob); a.download=`pllato-meet-${state.roomId}-${Date.now()}.webm`; a.click();
-      toast('Запись сохранена в загрузки');
-    };
-    mediaRecorder.start(1000); state.recording=true; recStartTs=Date.now();
+    mediaRecorder.onstop=()=>{ const blob=new Blob(recChunks,{type:recMime}); saveMeeting(blob); };
+    mediaRecorder.start(2000); state.recording=true; recStartTs=Date.now();
     $('rec-indicator').classList.remove('hidden'); refreshControlIcons();
     toast('Запись началась');
   }catch(e){ toast('Не удалось начать запись: '+(e.message||'')); }
@@ -1110,9 +1349,83 @@ function stopRecording(){
 }
 
 /* ============================================================
+   ARCHIVE — сохранение встречи в облако (Cloudflare R2 через воркер)
+   ============================================================ */
+async function saveMeeting(blob){
+  const owner=archiveOwner();
+  const id=state.roomId+'-'+Date.now();
+  const names=[...new Set([state.name, ...[...presenceCache.values()].map(i=>i.name).filter(Boolean)])];
+  const meta={ id, room:state.roomId, date:Date.now(),
+    durationSec: Math.round((Date.now()-(recStartTs||state.startedAt||Date.now()))/1000),
+    participants:names, transcript: transcriptLog.map(m=>({name:m.name,text:m.text})),
+    size: blob.size, mime:recMime };
+  toast('Сохраняю встречу в архив…', 4000);
+  try{
+    const r1=await fetch(`${MEET_API}/archive/rec/${owner}/${id}`, { method:'PUT', headers:{'Content-Type':recMime}, body:blob });
+    if(!r1.ok) throw new Error('rec '+r1.status);
+    await fetch(`${MEET_API}/archive/meta/${owner}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(meta) });
+    toast('Встреча сохранена в архив ✅');
+  }catch(e){
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`pllato-meet-${id}.webm`; a.click();
+    toast('Облачный архив недоступен — запись скачана на устройство');
+  }
+}
+
+/* ============================================================
+   ARCHIVE VIEW (список встреч из облака)
+   ============================================================ */
+$('btn-archive').onclick=()=>{ showScreen('screen-archive'); loadArchive(); };
+$('btn-archive-back').onclick=()=>{ showScreen('screen-landing'); };
+async function loadArchive(){
+  const box=$('archive-list'); box.innerHTML='<div class="trn-empty">Загрузка…</div>';
+  try{
+    const r=await fetch(`${MEET_API}/archive/list/${archiveOwner()}`);
+    const items=await r.json();
+    if(!Array.isArray(items) || !items.length){ box.innerHTML='<div class="trn-empty">Пока нет сохранённых встреч.<br>Проведите встречу как организатор — запись попадёт сюда.</div>'; return; }
+    items.sort((a,b)=>(b.date||0)-(a.date||0));
+    box.innerHTML='';
+    for(const it of items){
+      const d=new Date(it.date||0).toLocaleString('ru-RU');
+      const dur = it.durationSec ? Math.floor(it.durationSec/60)+' мин' : '';
+      const who = (it.participants||[]).join(', ');
+      const el=document.createElement('div'); el.className='arch-item';
+      el.innerHTML=`<div class="arch-main"><div class="arch-title">${escapeHtml(it.room||'Встреча')}</div>
+        <div class="arch-meta">${d}${dur?' · '+dur:''}${who?' · '+escapeHtml(who):''}</div></div>
+        <div class="arch-actions">
+          <button class="btn btn-ghost arch-play" style="padding:7px 12px;font-size:12.5px">▶ Видео</button>
+          <button class="btn btn-ghost arch-txt" style="padding:7px 12px;font-size:12.5px">📝 Текст</button>
+          <button class="btn btn-ghost arch-del" style="padding:7px 10px;font-size:12.5px">✕</button>
+        </div>`;
+      el.querySelector('.arch-play').onclick=()=> window.open(`${MEET_API}/archive/rec/${archiveOwner()}/${it.id}`,'_blank');
+      el.querySelector('.arch-txt').onclick=()=> showTranscriptModal(it);
+      el.querySelector('.arch-del').onclick=async ()=>{ if(confirm('Удалить запись встречи?')){ await fetch(`${MEET_API}/archive/${archiveOwner()}/${it.id}`,{method:'DELETE'}); loadArchive(); } };
+      box.appendChild(el);
+    }
+  }catch(e){ box.innerHTML='<div class="trn-empty">Не удалось загрузить архив. Проверьте, что воркер развёрнут с R2-хранилищем.</div>'; }
+}
+function showTranscriptModal(it){
+  const lines=(it.transcript||[]).map(m=>`${m.name}: ${m.text}`).join('\n')||'(транскрипт пуст)';
+  const w=window.open('','_blank');
+  if(w){ w.document.write(`<title>Транскрипт ${escapeHtml(it.room||'')}</title><pre style="font-family:Inter,system-ui;white-space:pre-wrap;padding:24px;line-height:1.6;background:#0b0f1a;color:#f3f5fa;min-height:100vh">Pllato Meet — транскрипт\n${escapeHtml(it.room||'')} · ${new Date(it.date||0).toLocaleString('ru-RU')}\n\n${escapeHtml(lines)}</pre>`); }
+}
+
+/* ============================================================
    BOOT
    ============================================================ */
 (function boot(){
+  loadLogo();
+  // если сотрудник вошёл в Pllato — берём имя и личную постоянную ссылку из аккаунта
+  try{
+    const sess=getSession();
+    if(sess?.user){
+      const email=String(sess.user.email||'');
+      if(!state.name){ state.name = sess.user.name || email.split('@')[0] || ''; localStorage.setItem(LS.name, state.name); }
+      if(email){
+        localStorage.setItem(LS.archiveOwner, slugify(email.replace('@','-')) || archiveOwner());
+        if(!localStorage.getItem(LS.myroom)){ const slug=slugify(email.split('@')[0]); if(slug){ localStorage.setItem(LS.myroom, slug); ensureHostKey(slug); } }
+      }
+    }
+  }catch{}
   const params=new URLSearchParams(location.search);
   const pathMatch=location.pathname.match(/^\/m\/([a-z0-9\-]+)/i);
   const room=params.get('room') || (pathMatch && pathMatch[1]);

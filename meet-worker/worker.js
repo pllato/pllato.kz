@@ -16,14 +16,35 @@
  * Адрес:   wss://pllato-meet.<account>.workers.dev/room/<roomId>
  */
 
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Max-Age': '86400',
+};
+const SAFE = /^[A-Za-z0-9_.-]{1,80}$/;
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+
     if (url.pathname === '/health') {
-      return new Response(JSON.stringify({ ok: true, service: 'pllato-meet', ts: Date.now() }), {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      return new Response(JSON.stringify({ ok: true, service: 'pllato-meet', ts: Date.now(), archive: !!env.ARCHIVE }), {
+        headers: { 'Content-Type': 'application/json', ...CORS },
       });
+    }
+
+    // ===== Архив встреч (Cloudflare R2) =====
+    const aRec = url.pathname.match(/^\/archive\/rec\/([^/]+)\/([^/]+)$/);
+    const aMeta = url.pathname.match(/^\/archive\/meta\/([^/]+)\/([^/]+)$/);
+    const aList = url.pathname.match(/^\/archive\/list\/([^/]+)$/);
+    const aDel = url.pathname.match(/^\/archive\/([^/]+)\/([^/]+)$/);
+    if (aRec || aMeta || aList || (aDel && request.method === 'DELETE')) {
+      if (!env.ARCHIVE) return json({ error: 'R2 не подключён. Создай бакет и добавь binding ARCHIVE.' }, 501);
+      try { return await handleArchive(request, env, { aRec, aMeta, aList, aDel }); }
+      catch (e) { return json({ error: String(e && e.message || e) }, 500); }
     }
 
     const m = url.pathname.match(/^\/room\/([A-Za-z0-9_-]{1,64})$/);
@@ -37,9 +58,52 @@ export default {
       return stub.fetch(request);
     }
 
-    return new Response('Pllato Meet signaling', { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
+    return new Response('Pllato Meet signaling', { status: 200, headers: CORS });
   },
 };
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
+}
+
+// Архив в R2: rec/<owner>/<id>.webm  +  meta/<owner>/<id>.json
+async function handleArchive(request, env, { aRec, aMeta, aList, aDel }) {
+  if (aList && request.method === 'GET') {
+    const owner = aList[1]; if (!SAFE.test(owner)) return json({ error: 'bad owner' }, 400);
+    const listed = await env.ARCHIVE.list({ prefix: `meta/${owner}/`, limit: 1000 });
+    const items = [];
+    for (const o of listed.objects) {
+      const obj = await env.ARCHIVE.get(o.key);
+      if (obj) { try { items.push(JSON.parse(await obj.text())); } catch {} }
+    }
+    return json(items);
+  }
+  if (aRec) {
+    const [, owner, id] = aRec; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
+    const key = `rec/${owner}/${id}.webm`;
+    if (request.method === 'PUT') {
+      await env.ARCHIVE.put(key, request.body, { httpMetadata: { contentType: request.headers.get('Content-Type') || 'video/webm' } });
+      return json({ ok: true });
+    }
+    if (request.method === 'GET') {
+      const obj = await env.ARCHIVE.get(key);
+      if (!obj) return json({ error: 'not found' }, 404);
+      return new Response(obj.body, { headers: { 'Content-Type': 'video/webm', 'Access-Control-Allow-Origin': '*' } });
+    }
+  }
+  if (aMeta && request.method === 'PUT') {
+    const [, owner, id] = aMeta; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
+    await env.ARCHIVE.put(`meta/${owner}/${id}.json`, request.body, { httpMetadata: { contentType: 'application/json' } });
+    return json({ ok: true });
+  }
+  if (aDel && request.method === 'DELETE') {
+    const [, owner, id] = aDel; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
+    await env.ARCHIVE.delete(`rec/${owner}/${id}.webm`);
+    await env.ARCHIVE.delete(`meta/${owner}/${id}.json`);
+    return json({ ok: true });
+  }
+  return json({ error: 'unsupported' }, 405);
+}
 
 export class MeetRoom {
   constructor(ctx, env) {

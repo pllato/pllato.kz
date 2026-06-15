@@ -7,7 +7,14 @@ Cloudflare Worker + Durable Object для видеовстреч (`/meet.html`).
 ## Что внутри
 - `worker.js` — воркер + Durable Object `MeetRoom` (одна комната = один объект).
   WebSocket Hibernation API → почти бесплатно даже при простое.
+  Плюс архив встреч в R2 (`/archive/*`): записи `.webm` и транскрипты `.json`.
 - `wrangler.toml` — конфиг (account_id уже прописан, как у других воркеров репо).
+
+## Архив встреч (R2)
+`deploy.sh` сам создаёт бакет `pllato-meet-archive` при первом запуске.
+Если делаешь вручную: `wrangler r2 bucket create pllato-meet-archive`, затем deploy.
+Эндпоинты: `PUT/GET /archive/rec/<owner>/<id>`, `PUT /archive/meta/...`,
+`GET /archive/list/<owner>`, `DELETE /archive/<owner>/<id>`.
 
 ## Деплой
 ```bash
