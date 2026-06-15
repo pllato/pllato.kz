@@ -2502,17 +2502,19 @@ function buildStageEditor(){
   const box=document.getElementById('stageEditor'); if(!box) return;
   const funnels=[['b2c','B2C'],['b2b','B2B']];
   const work={ b2c:(STAGES.b2c||[]).slice(), b2b:(STAGES.b2b||[]).slice() };
+  const won={ b2c:new Set(), b2b:new Set() };
   function render(){
     box.innerHTML = funnels.map(([f,label])=>`
       <div data-f="${f}" style="margin-bottom:18px">
         <div style="font-weight:600;margin-bottom:8px">${label}</div>
-        <div class="chips" style="margin-bottom:10px">${work[f].map((s,i)=>`<span class="chip on" style="display:inline-flex;align-items:center;gap:6px"><span data-mv="${i}|-1" style="cursor:pointer;opacity:${i===0?'.2':'.6'}" title="Левее">‹</span><span data-ren="${i}" style="cursor:pointer">${esc(s)}</span><span data-mv="${i}|1" style="cursor:pointer;opacity:${i===work[f].length-1?'.2':'.6'}" title="Правее">›</span><span data-del="${i}" style="cursor:pointer;opacity:.6" title="Удалить">✕</span></span>`).join('')}</div>
+        <div class="chips" style="margin-bottom:10px">${work[f].map((s,i)=>`<span class="chip on" style="display:inline-flex;align-items:center;gap:6px${won[f].has(s)?';border-color:#16a34a':''}"><span data-mv="${i}|-1" style="cursor:pointer;opacity:${i===0?'.2':'.6'}" title="Левее">‹</span><span data-ren="${i}" style="cursor:pointer">${esc(s)}</span><span data-won="${i}" title="Этап закрытия — создаёт заказ" style="cursor:pointer;opacity:${won[f].has(s)?'1':'.3'}">🏁</span><span data-mv="${i}|1" style="cursor:pointer;opacity:${i===work[f].length-1?'.2':'.6'}" title="Правее">›</span><span data-del="${i}" style="cursor:pointer;opacity:.6" title="Удалить">✕</span></span>`).join('')}</div>
         <div class="row" style="gap:8px;align-items:center"><input data-add placeholder="Новый этап" style="max-width:240px"><button class="btn sm" data-addbtn>${ic('i-plus','sm')} Добавить</button><button class="btn sm primary" data-save style="margin-left:auto">${ic('i-check2','sm')} Сохранить ${label}</button></div>
-      </div>`).join('') + `<div class="muted2" style="font-size:11.5px">Клик по названию — переименовать, ‹ › — порядок, ✕ — удалить. После «Сохранить» этапы применяются в воронке и карточках сделок.</div>`;
+      </div>`).join('') + `<div class="muted2" style="font-size:11.5px">Клик по названию — переименовать, ‹ › — порядок, ✕ — удалить, 🏁 — этап закрытия (создаёт заказ). После «Сохранить» применяется в воронке.</div>`;
     funnels.forEach(([f])=>{
       const blk=box.querySelector('[data-f="'+f+'"]');
-      blk.querySelectorAll('[data-del]').forEach(d=>d.onclick=()=>{ work[f].splice(+d.dataset.del,1); render(); });
-      blk.querySelectorAll('[data-ren]').forEach(rn=>rn.onclick=()=>{ const i=+rn.dataset.ren; const nv=prompt('Переименовать этап:', work[f][i]); if(nv&&nv.trim()){ work[f][i]=nv.trim(); render(); } });
+      blk.querySelectorAll('[data-del]').forEach(d=>d.onclick=()=>{ const i=+d.dataset.del; won[f].delete(work[f][i]); work[f].splice(i,1); render(); });
+      blk.querySelectorAll('[data-ren]').forEach(rn=>rn.onclick=()=>{ const i=+rn.dataset.ren, oldn=work[f][i]; const nv=prompt('Переименовать этап:', oldn); if(nv&&nv.trim()){ work[f][i]=nv.trim(); if(won[f].has(oldn)){won[f].delete(oldn);won[f].add(nv.trim());} render(); } });
+      blk.querySelectorAll('[data-won]').forEach(w=>w.onclick=()=>{ const s=work[f][+w.dataset.won]; if(won[f].has(s))won[f].delete(s); else won[f].add(s); render(); });
       blk.querySelectorAll('[data-mv]').forEach(m=>m.onclick=()=>{ const p=m.dataset.mv.split('|'); const i=+p[0], j=i+(+p[1]); if(j<0||j>=work[f].length)return; const t=work[f][i]; work[f][i]=work[f][j]; work[f][j]=t; render(); });
       const addInp=blk.querySelector('[data-add]');
       const addFn=()=>{ const v=(addInp.value||'').trim(); if(!v)return; if(work[f].includes(v)){toast('Такой этап уже есть','i-info','#d97706');return;} work[f].push(v); render(); };
@@ -2520,14 +2522,19 @@ function buildStageEditor(){
       addInp.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();addFn();} });
       blk.querySelector('[data-save]').onclick=async()=>{
         if(!work[f].length){ toast('Нужен хотя бы один этап','i-info','#d97706'); return; }
-        const r=await api('/api/settings/stages',{method:'POST',body:JSON.stringify({funnel:f,stages:work[f]})});
+        const r=await api('/api/settings/stages',{method:'POST',body:JSON.stringify({funnel:f,stages:work[f],won:[...won[f]].filter(x=>work[f].includes(x))})});
         if(!r.ok){ toast(r.data&&r.data.error?r.data.error:'Не удалось сохранить','i-x','#dc2626'); return; }
         STAGES[f]=work[f].slice(); toast('Этапы '+f.toUpperCase()+' сохранены — применятся в воронке','i-check2');
       };
     });
   }
   render();
-  loadStages().then(()=>{ work.b2c=(STAGES.b2c||[]).slice(); work.b2b=(STAGES.b2b||[]).slice(); render(); });
+  api('/api/settings/stages').then(r=>{ if(r&&r.ok&&r.data){
+    if(Array.isArray(r.data.b2c)&&r.data.b2c.length){STAGES.b2c=r.data.b2c; work.b2c=r.data.b2c.slice();}
+    if(Array.isArray(r.data.b2b)&&r.data.b2b.length){STAGES.b2b=r.data.b2b; work.b2b=r.data.b2b.slice();}
+    won.b2c=new Set(r.data.b2c_won||[]); won.b2b=new Set(r.data.b2b_won||[]);
+    render();
+  }});
 }
 
 PAGES.settings=(c)=>{
