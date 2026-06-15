@@ -2558,7 +2558,7 @@ PAGES.settings=(c)=>{
 
   wrap.appendChild(el(`<div class="grid-2">
     <div class="panel"><div class="panel-h"><h3>Безопасность</h3></div><div class="panel-b">
-      ${[['HTTPS / TLS 1.3',1],['Аутентификация: логин/пароль (PBKDF2-SHA256, соль)',1],['Разграничение доступа по ролям',1],['Логирование действий (аудит-журнал)',1],['Двухфакторная аутентификация (2FA)',0],['Ежедневный бэкап · хранение 30 дней',0]].map(([s,ok])=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line);gap:9px"><span style="flex:none">${ok?`<span style="color:var(--accent2)">${ic('i-check2','sm')}</span>`:`<span class="tag amber" style="padding:0 7px;font-size:10px">в плане</span>`}</span><span style="font-size:13px;${ok?'':'color:var(--muted)'}">${s}</span></div>`).join('')}
+      ${['HTTPS / TLS 1.3','Аутентификация: логин/пароль (PBKDF2-SHA256, соль)','Разграничение доступа по ролям','Логирование действий (аудит-журнал)'].map(s=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line);gap:9px"><span style="flex:none;color:var(--accent2)">${ic('i-check2','sm')}</span><span style="font-size:13px">${s}</span></div>`).join('')}
     </div></div>
     <div class="panel"><div class="panel-h"><h3>Собственность</h3></div><div class="panel-b">
       <div class="note">${ic('i-info','sm')} Исходный код в приватном GitHub заказчика. Wiki с инструкциями. Аккаунты CloudFlare/GreenAPI/Meta переводятся на заказчика к приёмке. Без vendor-lock.</div>
