@@ -1194,7 +1194,7 @@ PAGES.marketing=(c)=>{
   const cardsPanel=el(`<div class="panel section-gap"><div class="panel-h"><h3>${ic('i-tag','sm')} Карты и промокоды из 1С</h3><span class="ph-sub" style="margin-left:auto">виды дисконтных карт · только просмотр</span></div><div id="mkCardTypes"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>`);
   c.appendChild(cards); c.appendChild(tbar); c.appendChild(panel); c.appendChild(cardsPanel);
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Сверху — промокоды, созданные в CRM (уходят в 1С как дисконтные карты, статистика возвращается). Снизу — виды карт и промокодов, уже заведённые в 1С. Промокоды врачей — в разделе «Врачи-партнёры».</div>`));
-  (async()=>{ const r=await api('/api/1c/card-types'); const box=cardsPanel.querySelector('#mkCardTypes'); if(!box)return;
+  (async()=>{ const r=await api('/api/1c/card-types/stats'); const box=cardsPanel.querySelector('#mkCardTypes'); if(!box)return;
     if(!r.ok){ box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">'+(r.status===403?'нужен доступ':'нет связи с 1С')+'</div>'; return; }
     const it=r.data.items||[], t=r.data.totals||{};
     if(!it.length){ box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">В 1С нет видов карт</div>'; return; }
