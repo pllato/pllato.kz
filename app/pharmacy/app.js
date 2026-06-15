@@ -1162,7 +1162,7 @@ PAGES.marketing=(c)=>{
     tb.innerHTML='';
     items.forEach(p=>{ const tr=el(`<tr class="clickable"><td><b>${esc(p.code)}</b></td><td>${typeTag(p.type)}</td>
       <td>−${p.value||0}${p.kind==='fixed'?' с':'%'}</td><td class="muted2">${p.expires_at?(esc(p.expires_at)+(expd(p.expires_at)?' ⚠':'')):'бессрочно'}</td>
-      <td class="muted">${esc(p.blogger||'—')}</td><td class="num">${p.uses||0}${p.limit_uses?('/'+p.limit_uses):''}</td>
+      <td class="muted">${esc(p.blogger||'—')}</td><td class="num">${(p.uses_1c!=null?p.uses_1c:(p.uses||0))}${p.limit_uses?('/'+p.limit_uses):''}${p.revenue_1c?`<div class="muted2" style="font-size:11px;font-weight:600">${money(p.revenue_1c)}</div>`:''}</td>
       <td><span class="tag ${p.active?'green':'red'}">${p.active?'активен':'на паузе'}</span></td></tr>`);
       tr.onclick=()=>promoModalLive(p,load); tb.appendChild(tr); });
   }
