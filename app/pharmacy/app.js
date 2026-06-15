@@ -607,16 +607,23 @@ function contractorModal(r){
       <div class="fld"><label>Код 1С <span class="muted2">(только чтение)</span></label><input value="${esc(r.code||'')}" disabled></div>
       <div class="fld"><label>Дата рождения</label><input data-ce="dob" type="date" value="${esc((r.dob||'').slice(0,10))}"></div>
     </div>
-    <div class="row" style="gap:7px;margin-top:6px">${r.is_buyer?'<span class="tag green">покупатель</span>':''}${r.is_supplier?'<span class="tag amber">поставщик</span>':''}</div>
+    <div class="fld" style="margin-top:10px"><label>Роль и сегмент ${r.ref_key?'<span class="muted2">(сохранится в 1С)</span>':''}</label>
+      <div class="row" style="gap:18px;flex-wrap:wrap;padding:2px 0">
+        <label class="ck" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" data-ce="is_buyer" ${r.is_buyer?'checked':''} ${r.ref_key?'':'disabled'}> Покупатель</label>
+        <label class="ck" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" data-ce="is_supplier" ${r.is_supplier?'checked':''} ${r.ref_key?'':'disabled'}> Поставщик</label>
+        <label class="ck" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" data-ce="is_doctor" ${(r.is_doctor||r.segment==='doctor')?'checked':''} ${r.ref_key?'':'disabled'}> Врач-партнёр</label>
+      </div>
+      <div class="muted2" style="font-size:11px;margin-top:3px">B2B/B2C определяется типом (юр./физ. лицо) автоматически. «Врач» — перенос в группу врачей 1С.</div></div>
     <div class="panel section-gap" style="margin-top:14px"><div class="panel-h"><h3>${ic('i-money','sm')} История покупок · 1С</h3><span class="ph-sub" id="cmHistSub" style="margin-left:auto">загрузка…</span></div>
       <div id="cmHist"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>
   </div>
   <div class="modal-f">${r.ref_key?`<button class="btn primary" id="ceSave">${ic('i-check2','sm')} Сохранить (→ 1С)</button>`:''}<button class="btn" onclick="closeModal()">Закрыть</button></div>`,'wide');
   if(r.ref_key){ const sb=bg.querySelector('#ceSave'); if(sb) sb.onclick=async()=>{
     const name=bg.querySelector('[data-ce=name]').value.trim(), phone=bg.querySelector('[data-ce=phone]').value.trim(), inn=bg.querySelector('[data-ce=inn]').value.trim(), dob=bg.querySelector('[data-ce=dob]').value;
+    const is_buyer=bg.querySelector('[data-ce=is_buyer]').checked, is_supplier=bg.querySelector('[data-ce=is_supplier]').checked, is_doctor=bg.querySelector('[data-ce=is_doctor]').checked;
     if(!name){ toast('Имя не может быть пустым','i-info','#d97706'); return; }
     sb.disabled=true; const old=sb.innerHTML; sb.textContent='Сохранение…';
-    const rr=await api('/api/1c/contractors/'+encodeURIComponent(r.ref_key)+'/edit',{method:'POST',body:JSON.stringify({name,phone,inn,dob})});
+    const rr=await api('/api/1c/contractors/'+encodeURIComponent(r.ref_key)+'/edit',{method:'POST',body:JSON.stringify({name,phone,inn,dob,is_buyer,is_supplier,is_doctor})});
     sb.disabled=false; sb.innerHTML=old;
     if(!rr.ok){ toast(rr.data&&rr.data.error?rr.data.error:'Ошибка сохранения','i-x','#dc2626'); return; }
     closeModal(); toast('Сохранено — уйдёт в 1С при следующем обмене','i-check2'); if(window.__reloadClients)window.__reloadClients();

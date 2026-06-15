@@ -148,6 +148,25 @@ foreach ($cl in @($obx.clients)) {
         if ($cl.phone) { [void]$C.InvokeMember('НомерТелефонаДляПоиска',$set,$null,$objU,@([string]$cl.phone)) }
         if ($cl.inn) { [void]$C.InvokeMember('ИНН',$set,$null,$objU,@([string]$cl.inn)) }
         if ($cl.dob) { try { $bd=[datetime]::ParseExact([string]$cl.dob,'yyyy-MM-dd',$null); [void]$C.InvokeMember('ДатаРождения',$set,$null,$objU,@($bd)) } catch {} }
+        # роль/сегмент из CRM: флаги Покупатель/Поставщик + группа врачей
+        if ($cl.is_buyer -ne $null) { [void]$C.InvokeMember('Покупатель',$set,$null,$objU,@([bool]$cl.is_buyer)) }
+        if ($cl.is_supplier -ne $null) { [void]$C.InvokeMember('Поставщик',$set,$null,$objU,@([bool]$cl.is_supplier)) }
+        if ($cl.is_doctor -ne $null) {
+          if ([bool]$cl.is_doctor) {
+            $guid = $C.InvokeMember('NewObject',$inv,$null,$ib,@('УникальныйИдентификатор',[string]$cl.doctor_group))
+            $gref = $C.InvokeMember('ПолучитьСсылку',$inv,$null,$ktrCat,@($guid))
+            [void]$C.InvokeMember('Родитель',$set,$null,$objU,@($gref))
+          } else {
+            # снять из группы врачей только если контрагент сейчас в ней (прочие группы не трогаем)
+            $curParent = $C.InvokeMember('Родитель',$get,$null,$objU,$null)
+            $curUid = ''
+            try { $cpu = $C.InvokeMember('УникальныйИдентификатор',$inv,$null,$curParent,@()); $curUid = [string]$C.InvokeMember('String',$inv,$null,$ib,@($cpu)) } catch {}
+            if (@($cl.doctor_groups) -contains $curUid) {
+              $empty = $C.InvokeMember('ПустаяСсылка',$inv,$null,$ktrCat,@())
+              [void]$C.InvokeMember('Родитель',$set,$null,$objU,@($empty))
+            }
+          }
+        }
         [void]$C.InvokeMember('Записать',$inv,$null,$objU,@())
         Log "OK обновлён контрагент $($cl.ref) (правка из CRM)"
         $results += @{ kind='client'; id=$cl.id; ok=$true; ref=[string]$cl.ref }
