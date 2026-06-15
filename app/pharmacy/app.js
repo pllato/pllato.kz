@@ -2274,6 +2274,28 @@ function invitesPanel(){
 
 // Живой список сотрудников: GET /api/admin/users (D1). Если нет прав/связи —
 // откатываемся на демо-состав из DB.roles, чтобы раздел не выглядел пустым.
+function userEditModal(u,onSaved){
+  const bg=openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:38px;height:38px;background:${avBg(u.name||u.login||'?')}">${initials(u.name||u.login||'?')}</span><div><h3>${esc(u.name||u.login||'—')}</h3><div class="mh-sub">${esc(u.login||'')}${u.is_me?' · это вы':''}</div></div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld"><label>Имя</label><input data-ue="name" value="${esc(u.name||'')}"></div>
+    <div class="fld"><label>Роль${(u.role==='owner'||u.is_me)?' <span class="muted2">(менять нельзя)</span>':''}</label><select data-ue="role" class="sel" id="ueRole" ${(u.role==='owner'||u.is_me)?'disabled':''}><option>загрузка…</option></select></div>
+    <div class="fld"><label>Email <span class="muted2">(опц., для входа через Google)</span></label><input data-ue="email" type="email" value="${esc(u.email||'')}" placeholder="name@gmail.com"></div>
+  </div>
+  <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="ueSave">${ic('i-check2','sm')} Сохранить</button></div>`);
+  (async()=>{ const rr=await api('/api/admin/roles'); const sel=bg.querySelector('#ueRole'); if(!sel)return; const roles=((rr.ok&&rr.data&&rr.data.roles)||[]).filter(x=>x.id!=='superadmin'||u.role==='superadmin'); sel.innerHTML=roles.map(x=>`<option value="${esc(x.id)}" ${x.id===u.role?'selected':''}>${esc(x.name)}</option>`).join(''); })();
+  bg.querySelector('#ueSave').onclick=async()=>{
+    const name=bg.querySelector('[data-ue=name]').value.trim();
+    const email=bg.querySelector('[data-ue=email]').value.trim();
+    const roleSel=bg.querySelector('[data-ue=role]'); const role=roleSel.disabled?undefined:roleSel.value;
+    if(!name){ toast('Имя не может быть пустым','i-info','#d97706'); return; }
+    const body={name,email}; if(role) body.role=role;
+    const sb=bg.querySelector('#ueSave'); sb.disabled=true; const old=sb.innerHTML; sb.textContent='Сохранение…';
+    const r=await api('/api/admin/users/'+encodeURIComponent(u.id),{method:'POST',body:JSON.stringify(body)});
+    sb.disabled=false; sb.innerHTML=old;
+    if(!r.ok){ toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626'); return; }
+    closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved();
+  };
+}
 function teamMembersPanel(){
   const panel=el(`<div class="panel"><div class="panel-h"><h3>Команда</h3>
     <span class="ph-sub" data-tm="cnt"></span></div>
@@ -2295,11 +2317,13 @@ function teamMembersPanel(){
       const me = u.is_me ? '<span class="tag blue" style="margin-left:6px">вы</span>' : '';
       const act = (!u.is_me && u.role!=='owner') ? `<button class="btn sm tm-toggle" data-uid="${esc(u.id)}" data-act="${u.active?0:1}" data-name="${esc(u.name||u.login||'')}" style="margin-left:8px">${u.active?'Отключить':'Включить'}</button>` : '';
       const sub = (u.roleName||u.role)+(u.email?' · '+u.email:(u.login?' · '+u.login:''));
-      return `<tr><td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(u.name||u.login||'?')}">${initials(u.name||u.login||'?')}</span>
+      return `<tr class="clickable" data-erow="${esc(u.id)}" title="Изменить сотрудника"><td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(u.name||u.login||'?')}">${initials(u.name||u.login||'?')}</span>
         <div><div>${esc(u.name||u.login||'—')}${me}</div><div class="muted2" style="font-size:11px">${esc(sub)}</div></div></div></td>
         <td style="text-align:right;white-space:nowrap">${st}${act}</td></tr>`;
     }).join('');
-    body.querySelectorAll('.tm-toggle').forEach(b=>b.onclick=async()=>{
+    body.querySelectorAll('[data-erow]').forEach(tr=>tr.onclick=()=>{ const usr=items.find(x=>x.id===tr.dataset.erow); if(usr) userEditModal(usr,load); });
+    body.querySelectorAll('.tm-toggle').forEach(b=>b.onclick=async(e)=>{
+      e.stopPropagation();
       const act=b.dataset.act==='1';
       if(!act && !confirm('Отключить сотрудника «'+b.dataset.name+'»? Он сразу выйдет и больше не сможет войти.')) return;
       const r=await api('/api/admin/users/'+encodeURIComponent(b.dataset.uid)+'/active',{method:'POST',body:JSON.stringify({active:act})});
