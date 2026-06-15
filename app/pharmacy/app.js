@@ -984,13 +984,14 @@ async function orderModalLive(o,onSaved){
     <div class="fld"><label>Комментарий</label><input data-om="note" value="${esc(o.note||'')}"></div>
     ${o.error?`<div class="note amber">${ic('i-info','sm')} Ошибка 1С: ${esc(o.error)}</div>`:''}
   </div>
-  <div class="modal-f"><button class="btn" id="omDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" id="omSend">${ic('i-sync','sm')} В 1С</button><button class="btn primary" id="omSave">Сохранить</button></div>`);
+  <div class="modal-f"><button class="btn" id="omDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button>${o.status!=='cancelled'?`<button class="btn" id="omCancel" style="color:var(--amber)">${ic('i-x','sm')} Отменить</button>`:''}<button class="btn" id="omSend">${ic('i-sync','sm')} В 1С</button><button class="btn primary" id="omSave">Сохранить</button></div>`);
   bg.querySelector('#omItems').appendChild(ed.node);
   const g=s=>bg.querySelector('[data-om='+s+']');
   const collect=()=>({client_name:g('client_name').value.trim(),phone:g('phone').value.trim(),mgr:g('mgr').value.trim(),store_key:g('store_key').value||null,note:g('note').value.trim(),items:ed.getItems()});
   bg.querySelector('#omSave').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{status:g('status').value}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
   bg.querySelector('#omSend').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{status:'queued_1c'}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Заказ в очереди на запись в 1С','i-sync','#d97706'); onSaved&&onSaved(); };
   bg.querySelector('#omDel').onclick=async()=>{ if(!confirm('Удалить заказ?'))return; const r=await api('/api/orders/'+o.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
+  { const cb=bg.querySelector('#omCancel'); if(cb) cb.onclick=async()=>{ if(!confirm('Отменить заказ?'+(o.ext_id?' Документ будет помечен на удаление в 1С при следующем обмене.':'')))return; const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify({status:'cancelled'})}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast(o.ext_id?'Отмена в очереди в 1С':'Заказ отменён','i-check2'); onSaved&&onSaved(); }; }
 }
 
 // ---------- CATALOG ----------

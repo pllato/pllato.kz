@@ -57,6 +57,24 @@ $nomCat  = $C.InvokeMember('Номенклатура',$get,$null,$cats,$null)
 $results = @()
 foreach ($o in $orders) {
   try {
+    # отмена заказа: помечаем документ в 1С на удаление
+    if ($o.op -eq 'cancel') {
+      $qd = $C.InvokeMember('NewObject',$inv,$null,$ib,@('Запрос'))
+      [void]$C.InvokeMember('Текст',$set,$null,$qd,@('ВЫБРАТЬ ПЕРВЫЕ 1 ЗаказПокупателя.Ссылка КАК Ссылка ИЗ Документ.ЗаказПокупателя КАК ЗаказПокупателя ГДЕ ЗаказПокупателя.Комментарий ПОДОБНО &Шаблон'))
+      [void]$C.InvokeMember('УстановитьПараметр',$inv,$null,$qd,@('Шаблон',"%CRM-заказ #$($o.id)%"))
+      $seld = $C.InvokeMember('Выбрать',$inv,$null,($C.InvokeMember('Выполнить',$inv,$null,$qd,@())),@())
+      if ($C.InvokeMember('Следующий',$inv,$null,$seld,@())) {
+        $dref = $C.InvokeMember('Ссылка',$get,$null,$seld,$null)
+        $dobj = $C.InvokeMember('ПолучитьОбъект',$inv,$null,$dref,@())
+        try { [void]$C.InvokeMember('ОтменитьПроведение',$inv,$null,$dobj,@()) } catch {}
+        [void]$C.InvokeMember('УстановитьПометкуУдаления',$inv,$null,$dobj,@($true))
+        Log "OK заказ $($o.id) -> помечен на удаление в 1С (отмена)"
+      } else {
+        Log "CANCEL заказ $($o.id) — документ в 1С не найден"
+      }
+      $results += @{ id = $o.id; ok = $true; op = 'cancel' }
+      continue
+    }
     # идемпотентность: если документ с этим CRM-id уже есть в 1С — не создаём повторно
     $q = $C.InvokeMember('NewObject',$inv,$null,$ib,@('Запрос'))
     [void]$C.InvokeMember('Текст',$set,$null,$q,@('ВЫБРАТЬ ПЕРВЫЕ 1 ЗаказПокупателя.Номер КАК Номер ИЗ Документ.ЗаказПокупателя КАК ЗаказПокупателя ГДЕ ЗаказПокупателя.Комментарий ПОДОБНО &Шаблон'))
