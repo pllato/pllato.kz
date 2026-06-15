@@ -9,11 +9,14 @@ Cloudflare Worker + Durable Object для видеовстреч (`/meet.html`).
   WebSocket Hibernation API → почти бесплатно даже при простое.
 - `wrangler.toml` — конфиг (account_id уже прописан, как у других воркеров репо).
 
-## Деплой (один раз)
+## Деплой
 ```bash
 cd meet-worker
-wrangler deploy
+./deploy.sh        # или: WRANGLER_CONFIG= npx wrangler deploy --config ./wrangler.toml
 ```
+⚠️ Флаг `--config ./wrangler.toml` обязателен: на машине Pllato рядом есть
+перенаправляющий конфиг Cloudflare, из-за которого обычный `wrangler deploy`
+деплоит чужой воркер (`loude`). Скрипт `deploy.sh` уже делает всё правильно.
 Воркер появится по адресу:
 ```
 https://pllato-meet.<твой-аккаунт>.workers.dev
