@@ -2241,12 +2241,7 @@ PAGES.team=(c)=>{
   c.appendChild(el(`<div class="page-sub" style="margin-bottom:14px">${isAdminRole()?'Права ролей — отметьте галочками доступные разделы и сохраните. Владелец и Суперадмин видят всё всегда.':'Каждая роль видит только свои разделы.'}</div>`));
   const panel=el(`<div class="panel" style="overflow-x:auto"><div class="muted2" style="padding:14px;font-size:13px">Загрузка прав…</div></div>`);
   c.appendChild(panel);
-  const grid=el(`<div class="grid-2 section-gap"></div>`);
-  grid.appendChild(teamMembersPanel());
-  grid.appendChild(el(`<div class="panel"><div class="panel-h"><h3>Привязка WhatsApp-каналов</h3></div><table class="tbl"><tbody>
-      ${DB.channels.filter(x=>x.type==='wa').map(ch=>`<tr><td><div class="cell-name"><span class="ci" style="width:26px;height:26px;border-radius:8px;background:var(--wa)22;color:var(--wa);display:grid;place-items:center">${ic('i-phone','sm')}</span>${esc(ch.name)}</div></td><td class="muted">${esc(ch.phone)}</td><td style="text-align:right"><b>${esc(ch.owner)}</b></td></tr>`).join('')}
-    </tbody></table></div>`));
-  c.appendChild(grid);
+  c.appendChild(teamMembersPanel());
   async function loadPerm(){
     const admin=isAdminRole();
     const r= admin ? await api('/api/admin/roles') : {ok:false};
