@@ -193,10 +193,16 @@ function dashKpi(icn,col,lbl,val,sub,dir){
 }
 function dashDelta(p){ return p==null?'нет базы для сравнения':(p>0?'▲ ':p<0?'▼ ':'')+Math.abs(p)+'% к пред. периоду'; }
 function dashBars(rows){ const max=Math.max(...rows.map(x=>x.revenue||0),1); return barList(rows.map((x,i)=>[esc(x.name||'—'),x.revenue||0,DASH_COLORS[i%DASH_COLORS.length]]),max,true); }
+function dcFmtDate(d){ const M=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек']; const p=String(d||'').split('-'); if(p.length<3) return esc(d||''); return (+p[2])+' '+(M[(+p[1])-1]||''); }
+function dcTip(ev,el){ let t=document.getElementById('dcTip'); if(!t){ t=document.createElement('div'); t.id='dcTip'; t.style.cssText='position:fixed;z-index:9999;pointer-events:none;background:var(--panel,#16241c);border:1px solid var(--line,#2e4a3a);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--txt,#e9f3ee);box-shadow:0 6px 20px rgba(0,0,0,.4);white-space:nowrap'; document.body.appendChild(t); }
+  t.innerHTML='<b>'+dcFmtDate(el.dataset.d)+'</b> · '+money(+el.dataset.rev||0); t.style.display='block';
+  let x=ev.clientX+12; const w=t.offsetWidth; if(x+w>window.innerWidth-8) x=ev.clientX-w-12;
+  t.style.left=x+'px'; t.style.top=(ev.clientY-14)+'px'; el.style.filter='brightness(1.3)'; }
+function dcTipHide(){ const t=document.getElementById('dcTip'); if(t) t.style.display='none'; document.querySelectorAll('.day-bar').forEach(b=>b.style.filter=''); }
 function dashDayChart(rows){
   if(!rows||!rows.length) return '<div class="muted2" style="padding:16px">Нет данных</div>';
   const max=Math.max(...rows.map(r=>r.revenue||0),1);
-  return `<div style="display:flex;align-items:flex-end;gap:3px;height:120px;padding:10px 2px 4px">${rows.map(p=>`<div title="${esc(p.d)}: ${money(p.revenue)}" style="flex:1;min-width:3px;background:linear-gradient(180deg,var(--accent2),var(--accent));border-radius:3px 3px 0 0;height:${Math.max(2,Math.round((p.revenue||0)/max*100))}%"></div>`).join('')}</div>`;
+  return `<div class="day-chart" style="display:flex;align-items:flex-end;gap:3px;height:120px;padding:10px 2px 4px">${rows.map(p=>`<div class="day-bar" data-d="${esc(p.d)}" data-rev="${p.revenue||0}" onmouseenter="dcTip(event,this)" onmousemove="dcTip(event,this)" onmouseleave="dcTipHide()" style="flex:1;min-width:3px;background:linear-gradient(180deg,var(--accent2),var(--accent));border-radius:3px 3px 0 0;height:${Math.max(2,Math.round((p.revenue||0)/max*100))}%;cursor:pointer;transition:filter .1s"></div>`).join('')}</div>`;
 }
 async function loadDash(wrap,qs){
   const fmt=(n)=>(n||0).toLocaleString('ru-RU');
@@ -2287,11 +2293,19 @@ function teamMembersPanel(){
     body.innerHTML=items.map(u=>{
       const st = u.active ? '<span class="tag green">активен</span>' : '<span class="tag">отключён</span>';
       const me = u.is_me ? '<span class="tag blue" style="margin-left:6px">вы</span>' : '';
+      const act = (!u.is_me && u.role!=='owner') ? `<button class="btn sm tm-toggle" data-uid="${esc(u.id)}" data-act="${u.active?0:1}" data-name="${esc(u.name||u.login||'')}" style="margin-left:8px">${u.active?'Отключить':'Включить'}</button>` : '';
       const sub = (u.roleName||u.role)+(u.email?' · '+u.email:(u.login?' · '+u.login:''));
       return `<tr><td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(u.name||u.login||'?')}">${initials(u.name||u.login||'?')}</span>
         <div><div>${esc(u.name||u.login||'—')}${me}</div><div class="muted2" style="font-size:11px">${esc(sub)}</div></div></div></td>
-        <td style="text-align:right">${st}</td></tr>`;
+        <td style="text-align:right;white-space:nowrap">${st}${act}</td></tr>`;
     }).join('');
+    body.querySelectorAll('.tm-toggle').forEach(b=>b.onclick=async()=>{
+      const act=b.dataset.act==='1';
+      if(!act && !confirm('Отключить сотрудника «'+b.dataset.name+'»? Он сразу выйдет и больше не сможет войти.')) return;
+      const r=await api('/api/admin/users/'+encodeURIComponent(b.dataset.uid)+'/active',{method:'POST',body:JSON.stringify({active:act})});
+      if(!r.ok){toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626');return;}
+      toast(act?'Сотрудник включён':'Сотрудник отключён · сессии сброшены','i-check2'); load();
+    });
   }
   load();
   return panel;
