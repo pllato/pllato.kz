@@ -942,7 +942,25 @@ PAGES.orders=async(c)=>{
     cnt.textContent=items.length+' заказов';
     if(!items.length){ tb.innerHTML=`<tr><td colspan="5" class="muted2" style="padding:18px">Заказов нет. Нажмите «Заказ», чтобы создать.</td></tr>`; return; }
     tb.innerHTML='';
-    items.forEach(o=>{ const tr=el(`<tr style="cursor:pointer"><td><div style="font-weight:600">${esc(o.client_name||'—')}</div><div class="muted2" style="font-size:11px">${esc(o.phone||'')}${o.mgr?(' · '+esc(o.mgr)):''}</div></td><td class="muted" style="font-size:12px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ordItemsText(o.items))||'—'}</td><td class="num">${money(o.total||0)}</td><td>${ordStTag(o.status)}</td><td class="muted2" style="font-size:12px">${o.ext_id?esc(o.ext_id):'—'}</td></tr>`); tr.onclick=()=>orderModalLive(o,load); tb.appendChild(tr); });
+    items.forEach(o=>{
+      const isCancel=(o.status==='cancelled'||o.status==='cancel_queued');
+      // инлайн-смена статуса: даём ручные переходы (Новый/Готово/Отменён); системные 1С-статусы показываем, но не предлагаем выставлять руками
+      let optKeys=['new','done','cancelled']; if(!optKeys.includes(o.status)) optKeys=[o.status,...optKeys];
+      const stCell=isCancel?ordStTag(o.status):`<select class="sel ord-st" data-id="${esc(o.id)}" data-cur="${esc(o.status)}" data-ext="${o.ext_id?1:0}" title="Сменить статус" style="font-size:12px;padding:3px 6px">${optKeys.map(k=>`<option value="${k}" ${k===o.status?'selected':''}>${ORDER_ST[k]?ORDER_ST[k][0]:k}</option>`).join('')}</select>`;
+      const tr=el(`<tr style="cursor:pointer"><td><div style="font-weight:600">${esc(o.client_name||'—')}</div><div class="muted2" style="font-size:11px">${esc(o.phone||'')}${o.mgr?(' · '+esc(o.mgr)):''}</div></td><td class="muted" style="font-size:12px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ordItemsText(o.items))||'—'}</td><td class="num">${money(o.total||0)}</td><td>${stCell}</td><td class="muted2" style="font-size:12px">${o.ext_id?esc(o.ext_id):'—'}</td></tr>`);
+      tr.onclick=()=>orderModalLive(o,load);
+      const sel=tr.querySelector('.ord-st');
+      if(sel){
+        sel.onclick=e=>e.stopPropagation();
+        sel.onchange=async(e)=>{ e.stopPropagation(); const nv=sel.value,cur=sel.dataset.cur; if(nv===cur)return;
+          if(nv==='cancelled'&&!confirm('Отменить заказ?'+(sel.dataset.ext==='1'?' Документ будет помечен на удаление в 1С при следующем обмене.':''))){ sel.value=cur; return; }
+          const r=await api('/api/orders/'+sel.dataset.id,{method:'POST',body:JSON.stringify({status:nv})});
+          if(!r.ok){ toast('Ошибка','i-x','#dc2626'); sel.value=cur; return; }
+          toast('Статус: '+(ORDER_ST[nv]?ORDER_ST[nv][0]:nv),'i-check2'); load();
+        };
+      }
+      tb.appendChild(tr);
+    });
   }
   load();
 };
