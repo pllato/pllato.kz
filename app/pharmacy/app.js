@@ -262,7 +262,7 @@ PAGES.funnels=async(c)=>{
   const fStores=await fetchStores();
   const fStages=state.funnel==='b2c'?DB.stagesB2C:DB.stagesB2B;
   const tbar=el(`<div class="toolbar">
-    <div class="seg" id="funnelSeg"><button class="${state.funnel==='b2c'?'on':''}" data-f="b2c">B2C · розница</button><button class="${state.funnel==='b2b'?'on':''}" data-f="b2b">B2B · опт</button></div>
+    <div class="seg" id="funnelSeg"><button class="${state.funnel==='b2c'?'on':''}" data-f="b2c">B2C</button><button class="${state.funnel==='b2b'?'on':''}" data-f="b2b">B2B</button></div>
     <select class="sel" id="flMgr" title="Фильтр по ответственному"><option value="">Все ответственные</option>${fUsers.map(u=>`<option>${esc(u.name)}</option>`).join('')}</select>
     <select class="sel" id="flStage" title="Фильтр по этапу"><option value="">Все этапы</option>${fStages.map(s=>`<option>${esc(s)}</option>`).join('')}</select>
     ${storeSelectHtml(fStores,'','class="sel" id="flStore" title="Фильтр по точке"','Все точки')}
