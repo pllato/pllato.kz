@@ -366,29 +366,14 @@ button{font-family:inherit;cursor:pointer}
 <div id="toast"></div>
 
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import {
-  getDatabase, ref, child, push, set, update, remove, get,
-  onValue, onChildAdded, onChildRemoved, onChildChanged, onDisconnect, serverTimestamp
-} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
-
 /* ============================================================
-   Pllato Meet — WebRTC mesh + Firebase RTDB signaling
+   Pllato Meet — WebRTC mesh + Cloudflare Worker (Durable Object) signaling
    Single-link rooms · waiting room · recording · live transcript
-   · background blur · pre-join preview. Vanilla, no build.
+   · background blur · pre-join preview. Vanilla, no build, no Firebase.
    ============================================================ */
 
-const firebaseConfig = {
-  apiKey: "AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",
-  authDomain: "pllato-crm.firebaseapp.com",
-  databaseURL: "https://pllato-crm-default-rtdb.firebaseio.com",
-  projectId: "pllato-crm",
-  storageBucket: "pllato-crm.firebasestorage.app",
-  messagingSenderId: "690738857241",
-  appId: "1:690738857241:web:2356e97c435656890ab188"
-};
-const fbApp = initializeApp(firebaseConfig);
-const db = getDatabase(fbApp);
+// Адрес сигналинг-воркера (Cloudflare). Разверни meet-worker/ командой `wrangler deploy`.
+const MEET_WS = 'wss://pllato-meet.uurraa.workers.dev';
 
 const ICE_SERVERS = [
   { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
@@ -459,8 +444,9 @@ function gotoPrejoin(roomId){
 
 function slugify(v){ return String(v||'').toLowerCase().replace(/[^a-z0-9\-]/g,'').slice(0,24); }
 function shortLink(slug){ return location.origin+'/m/'+slug; }
+function ensureHostKey(room){ let k=localStorage.getItem(LS.hostKeyPrefix+room); if(!k){ k='hk_'+Math.random().toString(36).slice(2); localStorage.setItem(LS.hostKeyPrefix+room,k); } return k; }
 
-$('btn-new-meeting').onclick = ()=> gotoPrejoin(rndRoom());
+$('btn-new-meeting').onclick = ()=>{ const r=rndRoom(); ensureHostKey(r); gotoPrejoin(r); };
 $('btn-my-room').onclick = ()=>{
   let r = slugify($('my-slug').value) || localStorage.getItem(LS.myroom);
   if(!r){ r = rndRoom().replace(/-/g,'').slice(0,5); }
@@ -647,100 +633,74 @@ async function applyVideoToPeers(){
 }
 
 /* ============================================================
-   ENTER ROOM + WAITING ROOM LOGIC
+   ENTER ROOM — Cloudflare signaling worker (WebSocket)
    ============================================================ */
-let roomRefs={};
-function roomRef(...p){ return ref(db, ['meet', state.roomId, ...p].join('/')); }
+let ws=null, wsReconnectTimer=null, wsClosedByUser=false;
+function wsSend(obj){ if(ws && ws.readyState===1) ws.send(JSON.stringify(obj)); }
 
-async function enterRoom(){
+function enterRoom(){ wsClosedByUser=false; connectWS(); }
+
+function connectWS(){
   const rid=state.roomId;
-  // determine host: holder of host key for this room, OR claim if room has no host yet
-  const metaSnap = await get(roomRef('meta'));
-  const meta = metaSnap.val() || null;
-  const myHostKey = localStorage.getItem(LS.hostKeyPrefix+rid);
+  const hostKey=localStorage.getItem(LS.hostKeyPrefix+rid)||null;
+  try{ ws=new WebSocket(`${MEET_WS}/room/${encodeURIComponent(rid)}`); }
+  catch(e){ showSignalError(); return; }
 
-  if(meta && meta.hostKey){
-    state.isHost = !!(myHostKey && myHostKey===meta.hostKey);
-  }else{
-    // no host yet → claim host role and create room
-    const hk = myHostKey || ('hk_'+Math.random().toString(36).slice(2));
-    localStorage.setItem(LS.hostKeyPrefix+rid, hk);
-    await set(roomRef('meta'), { hostKey: hk, createdAt: serverTimestamp(), status:'open', locked:false });
-    state.isHost = true;
-  }
+  ws.onopen=()=>{ wsSend({ t:'join', peer:peerId, name:state.name, hostKey, micOn:state.micOn, camOn:state.camOn }); };
+  ws.onmessage=(ev)=>{ let m; try{m=JSON.parse(ev.data);}catch{return;} handleWsMessage(m); };
+  ws.onclose=()=>{
+    if(wsClosedByUser) return;
+    // авто-переподключение при сбоях сети, чтобы встреча не падала
+    if(state._joined || state._everConnected){ clearTimeout(wsReconnectTimer); wsReconnectTimer=setTimeout(connectWS, 1500); }
+  };
+  ws.onerror=()=>{ if(!state._everConnected) showSignalError(); };
+}
+function showSignalError(){
+  const box=$('pre-error'); if(box) box.innerHTML='<div class="alert">Не удалось подключиться к серверу видеовстреч. Похоже, воркер <code>pllato-meet</code> ещё не развёрнут (<code>wrangler deploy</code> в папке meet-worker).</div>';
+}
 
-  // host opens the meeting for everyone on entry (requirement: организатор зашёл → открылось для всех)
-  if(state.isHost){
-    await update(roomRef('meta'), { status:'open' });
-  }
-
-  // write presence
-  state.admitted = state.isHost; // host always admitted
-  const pRef = roomRef('presence', peerId);
-  await set(pRef, {
-    name: state.name, role: state.isHost?'host':'guest',
-    admitted: state.isHost, micOn: state.micOn, camOn: state.camOn,
-    joinedAt: serverTimestamp(),
-  });
-  onDisconnect(pRef).remove();
-  onDisconnect(roomRef('signals', peerId)).remove();
-
-  // watch meta (status/lock) to know when we get let in
-  onValue(roomRef('meta'), (snap)=>{
-    const m=snap.val()||{}; state.locked=!!m.locked;
-    if(!state.isHost && !state.admitted){
-      // auto-admit when room open and not locked
-      if(m.status==='open' && !m.locked){ grantSelfAdmission(); }
+function handleWsMessage(m){
+  switch(m.t){
+    case 'welcome': {
+      state._everConnected=true;
+      state.isHost=m.self.isHost; state.admitted=m.self.admitted;
+      presenceCache.clear();
+      for(const p of (m.peers||[])) presenceCache.set(p.peer, p.info);
+      presenceCache.set(peerId, { name:state.name, role:state.isHost?'host':'guest', admitted:state.admitted, micOn:state.micOn, camOn:state.camOn });
+      if(state.admitted){ onAdmitted(); connectToAdmittedPeers(); }
+      else{ showScreen('screen-waiting'); $('waiting-text').textContent='Встреча ещё не началась. Как только организатор откроет её — вы войдёте автоматически.'; }
+      break;
     }
-    updateLockUI();
-  });
-  // watch my own admission (host may admit manually when locked)
-  onValue(roomRef('presence', peerId, 'admitted'), (snap)=>{
-    if(snap.val()===true && !state.admitted){ state.admitted=true; onAdmitted(); }
-  });
-
-  if(state.admitted){ onAdmitted(); }
-  else{ showScreen('screen-waiting'); $('waiting-text').textContent='Встреча ещё не началась или организатор включил ручной вход. Как только вас впустят — вы войдёте автоматически.'; }
+    case 'peer-join': { presenceCache.set(m.peer, m.info); if(m.info.admitted && state.admitted) ensurePeer(m.peer, m.info); renderPeopleList(); updateBadges(); break; }
+    case 'peer-update': {
+      presenceCache.set(m.peer, m.info);
+      if(m.info.admitted && state.admitted && !peers.has(m.peer)) ensurePeer(m.peer, m.info);
+      if(peers.has(m.peer)) updatePeerTileInfo(m.peer, m.info);
+      renderPeopleList(); updateBadges(); break;
+    }
+    case 'peer-leave': removePeer(m.peer); break;
+    case 'you-admitted': if(!state.admitted){ state.admitted=true; const me=presenceCache.get(peerId); if(me) me.admitted=true; onAdmitted(); connectToAdmittedPeers(); } break;
+    case 'room-update': state.locked=!!m.locked; break;
+    case 'signal': handleSignal(m.from, m.data); break;
+    case 'chat': onChatMessage(m); break;
+    case 'transcript': onTranscriptMessage(m); break;
+  }
 }
-
-async function grantSelfAdmission(){
-  state.admitted=true;
-  await update(roomRef('presence', peerId), { admitted:true });
-  onAdmitted();
-}
+function connectToAdmittedPeers(){ for(const [id,info] of presenceCache){ if(id!==peerId && info.admitted) ensurePeer(id, info); } }
 
 function onAdmitted(){
   if(state._joined) return; state._joined=true;
   showScreen('screen-room');
   $('room-pill').textContent = state.roomId + (state.isHost?' · вы организатор':'');
   setupLocalTile();
-  startSignaling();
-  watchPresence();
-  watchChat();
-  watchTranscript();
   initControls();
+  renderPeopleList(); updateBadges();
   if(state.isHost) toast('Вы организатор. Встреча открыта для всех 🎉');
 }
 
 /* ============================================================
    PRESENCE + WAITING LIST (host admits)
    ============================================================ */
-function watchPresence(){
-  onChildAdded(roomRef('presence'), (snap)=> handlePresence(snap.key, snap.val()));
-  onChildChanged(roomRef('presence'), (snap)=> handlePresence(snap.key, snap.val()));
-  onChildRemoved(roomRef('presence'), (snap)=> removePeer(snap.key));
-}
-function handlePresence(id, info){
-  if(!info) return;
-  presenceCache.set(id, info);
-  if(id===peerId){ renderPeopleList(); return; }
-  if(info.admitted && state.admitted){
-    ensurePeer(id, info);
-  }
-  if(peers.has(id)){ updatePeerTileInfo(id, info); }
-  renderPeopleList();
-  updateBadges();
-}
 function removePeer(id){
   presenceCache.delete(id);
   const peer=peers.get(id);
@@ -769,13 +729,13 @@ function renderPeopleList(){
   }
   list.innerHTML=html;
   list.querySelectorAll('.person-admit').forEach(b=> b.onclick=()=> admitGuest(b.dataset.id));
-  const aa=list.querySelector('.admit-all'); if(aa) aa.onclick=()=> waiting.forEach(([id])=>admitGuest(id));
+  const aa=list.querySelector('.admit-all'); if(aa) aa.onclick=()=> wsSend({ t:'open' });
   // waiting banner for host
   const wb=$('waiting-banner');
   if(state.isHost && waiting.length){ wb.classList.remove('hidden'); $('waiting-banner-txt').textContent=`${waiting.length} ждут входа`; }
   else wb.classList.add('hidden');
 }
-async function admitGuest(id){ await update(roomRef('presence', id), { admitted:true }); }
+function admitGuest(id){ wsSend({ t:'admit', target:id }); }
 
 function updateBadges(){
   const waiting=[...presenceCache.values()].filter(i=>!i.admitted).length;
@@ -811,33 +771,25 @@ function ensurePeer(id, info){
   return peer;
 }
 
-function sendSignal(toId, payload){
-  push(roomRef('signals', toId), { from: peerId, ...payload, ts: serverTimestamp() });
-}
+function sendSignal(toId, payload){ wsSend({ t:'signal', to:toId, data:payload }); }
 
-function startSignaling(){
-  const myBox=roomRef('signals', peerId);
-  onChildAdded(myBox, async (snap)=>{
-    const msg=snap.val(); const key=snap.key;
-    remove(child(myBox, key)); // consume
-    if(!msg || msg.from===peerId) return;
-    const id=msg.from;
-    let peer=peers.get(id);
-    if(!peer){ const info=presenceCache.get(id)||{name:'Участник'}; peer=ensurePeer(id, info); }
-    const pc=peer.pc;
-    try{
-      if(msg.description){
-        const desc=msg.description;
-        const collision = desc.type==='offer' && (peer.makingOffer || pc.signalingState!=='stable');
-        peer.ignoreOffer = !peer.polite && collision;
-        if(peer.ignoreOffer) return;
-        await pc.setRemoteDescription(desc);
-        if(desc.type==='offer'){ await pc.setLocalDescription(); sendSignal(id, { description: pc.localDescription }); }
-      }else if(msg.candidate){
-        try{ await pc.addIceCandidate(msg.candidate); }catch(e){ if(!peer.ignoreOffer) {} }
-      }
-    }catch(e){ /* ignore */ }
-  });
+async function handleSignal(from, data){
+  if(!from || from===peerId || !data) return;
+  let peer=peers.get(from);
+  if(!peer){ const info=presenceCache.get(from)||{name:'Участник'}; peer=ensurePeer(from, info); }
+  const pc=peer.pc;
+  try{
+    if(data.description){
+      const desc=data.description;
+      const collision = desc.type==='offer' && (peer.makingOffer || pc.signalingState!=='stable');
+      peer.ignoreOffer = !peer.polite && collision;
+      if(peer.ignoreOffer) return;
+      await pc.setRemoteDescription(desc);
+      if(desc.type==='offer'){ await pc.setLocalDescription(); sendSignal(from, { description: pc.localDescription }); }
+    }else if(data.candidate){
+      try{ await pc.addIceCandidate(data.candidate); }catch(e){ if(!peer.ignoreOffer){} }
+    }
+  }catch(e){ /* ignore */ }
 }
 
 /* ============================================================
@@ -941,8 +893,9 @@ function refreshControlIcons(){
   $('cb-rec').classList.toggle('off',state.recording);
 }
 
-function toggleMic(){ state.micOn=!state.micOn; state.rawStream.getAudioTracks().forEach(t=>t.enabled=state.micOn); update(roomRef('presence',peerId),{micOn:state.micOn}); localTile?.querySelector('.mic-off').classList.toggle('hidden',state.micOn); refreshControlIcons(); }
-function toggleCam(){ state.camOn=!state.camOn; state.rawStream.getVideoTracks().forEach(t=>t.enabled=state.camOn); update(roomRef('presence',peerId),{camOn:state.camOn}); setLocalTileStream(); refreshControlIcons(); }
+function selfPatch(patch){ const me=presenceCache.get(peerId); if(me){ Object.assign(me, patch); renderPeopleList(); } wsSend({t:'presence',patch}); }
+function toggleMic(){ state.micOn=!state.micOn; state.rawStream.getAudioTracks().forEach(t=>t.enabled=state.micOn); selfPatch({micOn:state.micOn}); localTile?.querySelector('.mic-off').classList.toggle('hidden',state.micOn); refreshControlIcons(); }
+function toggleCam(){ state.camOn=!state.camOn; state.rawStream.getVideoTracks().forEach(t=>t.enabled=state.camOn); selfPatch({camOn:state.camOn}); setLocalTileStream(); refreshControlIcons(); }
 
 async function toggleBlur(){
   state.blurOn=!state.blurOn; localStorage.setItem(LS.blur, state.blurOn?'1':'0');
@@ -968,16 +921,14 @@ async function toggleShare(){
 }
 
 function leaveRoom(){
-  try{ remove(roomRef('presence',peerId)); }catch{}
+  wsClosedByUser=true; try{ wsSend({t:'bye'}); ws?.close(); }catch{}
   for(const {pc} of peers.values()){ try{pc.close();}catch{} }
   state.rawStream?.getTracks().forEach(t=>t.stop());
   state.screenStream?.getTracks().forEach(t=>t.stop());
   if(state.recording) stopRecording();
   location.href=location.pathname;
 }
-window.addEventListener('beforeunload',()=>{ try{ remove(roomRef('presence',peerId)); }catch{} });
-
-function updateLockUI(){ /* lock toggle could be exposed in people pane; kept simple */ }
+window.addEventListener('beforeunload',()=>{ wsClosedByUser=true; try{ ws?.close(); }catch{} });
 
 /* side panel */
 let activePane=null;
@@ -1011,18 +962,16 @@ function copyInvite(){ shareInvite(location.origin+'/m/'+encodeURIComponent(stat
    CHAT
    ============================================================ */
 let unreadChat=0;
-function watchChat(){
-  onChildAdded(roomRef('chat'), (snap)=>{
-    const m=snap.val(); if(!m) return;
-    const el=document.createElement('div'); el.className='chat-msg';
-    el.innerHTML=`<div class="who">${escapeHtml(m.name)}</div><div class="tx">${escapeHtml(m.text)}</div>`;
-    const list=$('chat-list'); list.appendChild(el); list.scrollTop=list.scrollHeight;
-    if(activePane!=='chat' || $('side-panel').classList.contains('hidden')){ unreadChat++; const b=$('chat-badge'); b.classList.remove('hidden'); b.textContent=unreadChat; }
-  });
+function onChatMessage(m){
+  if(!m || !m.text) return;
+  const el=document.createElement('div'); el.className='chat-msg';
+  el.innerHTML=`<div class="who">${escapeHtml(m.name)}</div><div class="tx">${escapeHtml(m.text)}</div>`;
+  const list=$('chat-list'); list.appendChild(el); list.scrollTop=list.scrollHeight;
+  if(activePane!=='chat' || $('side-panel').classList.contains('hidden')){ unreadChat++; const b=$('chat-badge'); b.classList.remove('hidden'); b.textContent=unreadChat; }
 }
 function sendChat(){
   const inp=$('chat-input'); const t=inp.value.trim(); if(!t) return;
-  push(roomRef('chat'), { name:state.name, text:t, ts:serverTimestamp() });
+  wsSend({ t:'chat', text:t });
   inp.value='';
 }
 
@@ -1040,16 +989,14 @@ function showCaption(name, text){
   bar.classList.add('show');
   clearTimeout(capHideTimer); capHideTimer=setTimeout(()=>bar.classList.remove('show'),6000);
 }
-function watchTranscript(){
-  onChildAdded(roomRef('transcript'), (snap)=>{
-    const m=snap.val(); if(!m) return;
-    transcriptLog.push(m);
-    showCaption(m.name, m.text);
-    const list=$('trn-list'); const empty=list.querySelector('.trn-empty'); if(empty) empty.remove();
-    const el=document.createElement('div'); el.className='trn-line';
-    el.innerHTML=`<div class="who">${escapeHtml(m.name)}</div><div class="tx">${escapeHtml(m.text)}</div>`;
-    list.appendChild(el); list.scrollTop=list.scrollHeight;
-  });
+function onTranscriptMessage(m){
+  if(!m || !m.text) return;
+  transcriptLog.push(m);
+  showCaption(m.name, m.text);
+  const list=$('trn-list'); const empty=list.querySelector('.trn-empty'); if(empty) empty.remove();
+  const el=document.createElement('div'); el.className='trn-line';
+  el.innerHTML=`<div class="who">${escapeHtml(m.name)}</div><div class="tx">${escapeHtml(m.text)}</div>`;
+  list.appendChild(el); list.scrollTop=list.scrollHeight;
 }
 function toggleCaptions(){
   state.captioning=!state.captioning;
@@ -1066,7 +1013,7 @@ function startRecognition(){
     let interim='';
     for(let i=e.resultIndex;i<e.results.length;i++){
       const r=e.results[i];
-      if(r.isFinal){ const txt=r[0].transcript.trim(); if(txt) push(roomRef('transcript'),{ name:state.name, text:txt, ts:serverTimestamp() }); }
+      if(r.isFinal){ const txt=r[0].transcript.trim(); if(txt) wsSend({ t:'transcript', text:txt }); }
       else interim+=r[0].transcript;
     }
     // show own interim locally
@@ -1176,7 +1123,7 @@ function stopRecording(){
     if(my){ $('my-slug').value=my; renderMyRoomLink(); }
   }
 })();
-$('btn-leave-wait').onclick=()=>{ try{remove(roomRef('presence',peerId));}catch{} location.href=location.pathname; };
+$('btn-leave-wait').onclick=()=>{ wsClosedByUser=true; try{ ws?.close(); }catch{} location.href=location.pathname; };
 </script>
 </body>
 </html>

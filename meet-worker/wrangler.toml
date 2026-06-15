@@ -1,0 +1,15 @@
+name = "pllato-meet"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+account_id = "d0655e161d8fca8487f88d55c0eeb215"
+
+# Durable Object — одна «комната» = один объект. Хранит список участников,
+# зал ожидания и пересылает WebRTC-сигналы. Видео/звук идут P2P, мимо воркера.
+[[durable_objects.bindings]]
+name = "MEET_ROOM"
+class_name = "MeetRoom"
+
+# SQLite-backed Durable Objects доступны на бесплатном плане Workers.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MeetRoom"]
