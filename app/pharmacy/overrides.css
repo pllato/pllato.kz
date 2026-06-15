@@ -24,3 +24,17 @@ body.light .kpi, body.light .intg-card { box-shadow: 0 2px 10px -4px rgba(20,45,
    (nowrap) через min-width:auto раздувало колонку на всю ширину. */
 .kanban .kcol  { min-width: 0 !important; }
 .kanban .kcard { overflow: hidden; }
+
+/* Продажи → «Точки → продавцы внутри»: раскрывающиеся точки (native <details>) */
+.ss-wrap { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+.ss-store { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.ss-sum { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; list-style: none; user-select: none; }
+.ss-sum::-webkit-details-marker { display: none; }
+.ss-sum::before { content: "\25B8"; transition: transform .15s ease; font-size: 12px; opacity: .6; }
+.ss-store[open] .ss-sum::before { transform: rotate(90deg); }
+.ss-sum:hover { background: rgba(127,127,127,.08); }
+.ss-name { font-weight: 600; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ss-meta { font-size: 12px; opacity: .7; white-space: nowrap; }
+.ss-meta b { opacity: 1; font-weight: 700; }
+.ss-tbl { margin: 0; border-top: 1px solid var(--line); }
+.ss-tbl thead th { font-size: 11px; }

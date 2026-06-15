@@ -1068,8 +1068,9 @@ PAGES.sales=async(c)=>{
   const cards=el(`<div class="cards-row"></div>`);
   const panels=el(`<div class="grid-2b section-gap"></div>`);
   const panels2=el(`<div class="grid-2b section-gap"></div>`);
-  c.appendChild(cards); c.appendChild(panels); c.appendChild(panels2);
-  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Продажи зеркалятся из регистра «Продажи» 1С (отчёты о розничных продажах). Прибыль = выручка − себестоимость. Продавцы — из справочников 1С, выручка по организациям — по юр.лицу продажи. Синхронизация раз в 30 мин.</div>`));
+  const panels3=el(`<div class="section-gap"></div>`);
+  c.appendChild(cards); c.appendChild(panels); c.appendChild(panels2); c.appendChild(panels3);
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Продажи зеркалятся из регистра «Продажи» 1С (отчёты о розничных продажах). Прибыль = выручка − себестоимость. Продавцы в 1С не закреплены за точкой — связь «точка → продавцы» считается из самих продаж. Синхронизация раз в 30 мин.</div>`));
   const fromI=tbar.querySelector('[data-sl=from]'), toI=tbar.querySelector('[data-sl=to]'), cnt=tbar.querySelector('[data-sl=cnt]'), applyB=tbar.querySelector('[data-sl=apply]');
   const fmtN=(n)=>(n||0).toLocaleString('ru-RU');
   function cardsHTML(t){
@@ -1096,6 +1097,18 @@ PAGES.sales=async(c)=>{
     const hint=(!named&&rows.length)?`<div class="muted2" style="padding:8px 14px;font-size:11px">${ic('i-info','sm')} Названия магазинов появятся после добавления справочника «Склады» в выгрузку 1С OData</div>`:'';
     return `<div class="panel"><div class="panel-h"><h3>${ic('i-truck','sm')} Выручка по магазинам</h3></div><table class="tbl"><thead><tr><th>Магазин</th><th class="num">Выручка</th><th class="num">Док-тов</th></tr></thead><tbody>${body}</tbody></table>${hint}</div>`;
   }
+  function storeSellersHTML(rows){
+    if(!rows||!rows.length) return `<div class="panel"><div class="panel-h"><h3>${ic('i-users','sm')} Точки → продавцы внутри</h3></div><div class="panel-b muted2" style="padding:16px">Нет данных за период</div></div>`;
+    const stores=rows.map((s,si)=>{
+      const sl=(s.sellers||[]);
+      const body=sl.length?sl.map(v=>`<tr><td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(v.name||v.key||'?')}">${initials(v.name||'П')}</span><div>${esc(v.name||'—')}</div></div></td><td class="num">${money(v.revenue||0)}</td><td class="num">${money(v.profit||0)}</td><td class="num">${fmtN(v.qty)}</td></tr>`).join(''):'<tr><td colspan="4" class="muted2" style="padding:12px">Нет продавцов с продажами</td></tr>';
+      return `<details class="ss-store"${si===0?' open':''}>
+        <summary class="ss-sum"><span class="ss-name">${esc(s.name||'—')}</span><span class="ss-meta"><b>${money(s.revenue||0)}</b> · приб. ${money(s.profit||0)} · ${sl.length} прод.</span></summary>
+        <table class="tbl ss-tbl"><thead><tr><th>Продавец</th><th class="num">Выручка</th><th class="num">Прибыль</th><th class="num">Позиций</th></tr></thead><tbody>${body}</tbody></table>
+      </details>`;
+    }).join('');
+    return `<div class="panel"><div class="panel-h"><h3>${ic('i-users','sm')} Точки → продавцы внутри</h3></div><div class="panel-b ss-wrap">${stores}</div></div>`;
+  }
   function demo(){
     cards.innerHTML=cardsHTML({revenue:2480000,profit:744000,margin:30,qty:3184,avg:82000});
     panels.innerHTML=topHTML([
@@ -1116,9 +1129,16 @@ PAGES.sales=async(c)=>{
       {name:'Магазин «Центр»',revenue:980000,docs:1240},
       {name:'Магазин «Восток»',revenue:760000,docs:980},
     ]);
+    panels3.innerHTML=storeSellersHTML([
+      {name:'Магазин «Центр»',revenue:980000,profit:294000,sellers:[
+        {name:'Айгерим Сапарова',revenue:560000,profit:170000,qty:720},
+        {name:'Динара Жумабаева',revenue:420000,profit:124000,qty:560}]},
+      {name:'Магазин «Восток»',revenue:760000,profit:228000,sellers:[
+        {name:'Бекзат Орынбеков',revenue:760000,profit:228000,qty:980}]},
+    ]);
   }
   async function load(){
-    cards.innerHTML='<div class="muted2" style="padding:10px">Загрузка…</div>'; panels.innerHTML=''; panels2.innerHTML='';
+    cards.innerHTML='<div class="muted2" style="padding:10px">Загрузка…</div>'; panels.innerHTML=''; panels2.innerHTML=''; panels3.innerHTML='';
     const qs=[]; if(fromI.value)qs.push('from='+fromI.value); if(toI.value)qs.push('to='+toI.value);
     const storeV=tbar.querySelector('[data-sl=store]').value; if(storeV)qs.push('store='+encodeURIComponent(storeV));
     const r=await api('/api/1c/sales/summary'+(qs.length?('?'+qs.join('&')):''));
@@ -1127,6 +1147,7 @@ PAGES.sales=async(c)=>{
     cards.innerHTML=cardsHTML(t);
     panels.innerHTML=topHTML(d.topProducts||[])+sellersHTML(d.bySeller||[]);
     panels2.innerHTML=orgHTML(d.byOrg||[])+storeHTML(d.byStore||[]);
+    panels3.innerHTML=storeSellersHTML(d.byStoreSellers||[]);
     if(t.docs){ cnt.innerHTML=ic('i-sync','sm')+' '+(t.dmin||'')+' — '+(t.dmax||'')+' · 1С'; if(!fromI.value&&t.dmin)fromI.value=t.dmin; if(!toI.value&&t.dmax)toI.value=t.dmax; }
     else { cnt.innerHTML=ic('i-sync','sm')+' ожидание данных · запустите синхронизацию'; }
   }
