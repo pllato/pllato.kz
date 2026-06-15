@@ -128,6 +128,8 @@ foreach ($cl in @($obx.clients)) {
       if ($objU) {
         if ($cl.name)  { [void]$C.InvokeMember('Наименование',$set,$null,$objU,@([string]$cl.name)); [void]$C.InvokeMember('НаименованиеПолное',$set,$null,$objU,@([string]$cl.name)) }
         if ($cl.phone) { [void]$C.InvokeMember('НомерТелефонаДляПоиска',$set,$null,$objU,@([string]$cl.phone)) }
+        if ($cl.inn) { [void]$C.InvokeMember('ИНН',$set,$null,$objU,@([string]$cl.inn)) }
+        if ($cl.dob) { try { $bd=[datetime]::ParseExact([string]$cl.dob,'yyyy-MM-dd',$null); [void]$C.InvokeMember('ДатаРождения',$set,$null,$objU,@($bd)) } catch {} }
         [void]$C.InvokeMember('Записать',$inv,$null,$objU,@())
         Log "OK обновлён контрагент $($cl.ref) (правка из CRM)"
         $results += @{ kind='client'; id=$cl.id; ok=$true; ref=[string]$cl.ref }
@@ -150,6 +152,8 @@ foreach ($cl in @($obx.clients)) {
     [void]$C.InvokeMember('Наименование',$set,$null,$obj,@([string]$cl.name))
     [void]$C.InvokeMember('НаименованиеПолное',$set,$null,$obj,@([string]$cl.name))
     if ($cl.phone) { [void]$C.InvokeMember('НомерТелефонаДляПоиска',$set,$null,$obj,@([string]$cl.phone)) }
+    if ($cl.inn) { [void]$C.InvokeMember('ИНН',$set,$null,$obj,@([string]$cl.inn)) }
+    if ($cl.dob) { try { $bd=[datetime]::ParseExact([string]$cl.dob,'yyyy-MM-dd',$null); [void]$C.InvokeMember('ДатаРождения',$set,$null,$obj,@($bd)) } catch {} }
     [void]$C.InvokeMember('Покупатель',$set,$null,$obj,@($true))
     $cmtc = "CRM-клиент #$($cl.id)"; if ($cl.source) { $cmtc += " | источник: $($cl.source)" }
     [void]$C.InvokeMember('Комментарий',$set,$null,$obj,@($cmtc))
