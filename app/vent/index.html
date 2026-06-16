@@ -242,6 +242,23 @@
 </head>
 <body>
 
+<!-- ============================ ACCESS EXPIRED OVERLAY ============================ -->
+<div id="expired" class="hidden" style="position:fixed;inset:0;z-index:200;background:radial-gradient(1200px 700px at 75% -10%,#0e3a47 0%,#0a1622 45%,#070f18 100%);display:flex;align-items:center;justify-content:center;padding:24px;font-family:'Inter',system-ui,sans-serif">
+  <div style="max-width:470px;text-align:center;color:#cfe3ec">
+    <div style="width:66px;height:66px;border-radius:18px;background:linear-gradient(135deg,#22d3ee,#0891b2);display:grid;place-items:center;margin:0 auto 22px;box-shadow:0 10px 30px rgba(34,211,238,.35)">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#06222b" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    </div>
+    <div style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#5f93a8;font-weight:700;margin-bottom:12px">Поток · демо завода вентиляции</div>
+    <h1 id="exTitle" style="font-size:26px;font-weight:800;color:#fff;margin:0 0 14px">Срок доступа к демо истёк</h1>
+    <p id="exBody" style="font-size:15px;color:#9fc2d2;line-height:1.65;margin:0 0 10px"></p>
+    <p style="font-size:13.5px;color:#7da6b8;margin:0 0 26px">Чтобы продлить доступ — напишите нам, вышлем новую ссылку.</p>
+    <a href="https://wa.me/77011239999" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#22d3ee,#0891b2);color:#06222b;font-weight:800;font-size:14px;padding:12px 22px;border-radius:12px;text-decoration:none">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#06222b" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Запросить продление
+    </a>
+    <div style="margin-top:28px;color:#5f8294;font-size:12px">Поток by Pllato · pllato.kz</div>
+  </div>
+</div>
+
 <!-- ============================ ROLE GATE ============================ -->
 <div class="gate" id="gate">
   <svg class="airflow" viewBox="0 0 1200 800" preserveAspectRatio="none">
@@ -261,6 +278,7 @@
     </div>
     <h1>Войдите в свой кабинет</h1>
     <p class="lead">Единая платформа завода. У каждого сотрудника — свой рабочий стол и свои данные: продажи, производство, склад, снабжение, качество и финансы. Выберите роль, чтобы посмотреть демо изнутри.</p>
+    <div id="accessBadge" class="hidden" style="display:inline-flex;align-items:center;gap:8px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.5);color:#7ff0c4;font-size:12.5px;font-weight:700;padding:8px 14px;border-radius:11px;margin-bottom:22px"></div>
     <div class="gsec">Кабинеты · 9 ролей</div>
     <div class="rolegrid" id="rolegrid"></div>
     <div class="gfoot">
@@ -719,6 +737,30 @@
 </div>
 
 <script>
+  /* ---------- time-limited access (share links) ---------- */
+  (function(){
+    var SECRET="ptk7_rk_2026_q9";
+    function h(s){var x=5381;for(var i=0;i<s.length;i++)x=((x*33)^s.charCodeAt(i))>>>0;return x.toString(36);}
+    function b64d(s){s=s.replace(/-/g,'+').replace(/_/g,'/');return decodeURIComponent(escape(atob(s)));}
+    function fmt(ms){var d=new Date(ms),p=function(n){return String(n).padStart(2,'0')};return p(d.getDate())+'.'+p(d.getMonth()+1)+'.'+d.getFullYear();}
+    var tok=new URLSearchParams(location.search).get('a');
+    if(!tok)return; // ссылка без токена — открытый доступ (галерея, портфолио)
+    function showExpired(title,body){
+      document.getElementById('exTitle').textContent=title;
+      document.getElementById('exBody').innerHTML=body;
+      document.getElementById('expired').classList.remove('hidden');
+      document.getElementById('gate').classList.add('hidden');
+      var app=document.getElementById('app');if(app)app.classList.add('hidden');
+    }
+    var parts=tok.split('.'),bad=false,exp=0,client='';
+    if(parts.length!==2||h(parts[0]+SECRET)!==parts[1]){bad=true;}
+    else{try{var p=b64d(parts[0]).split('|');exp=parseInt(p[0],10);client=p[1]||'';}catch(e){bad=true;}}
+    if(bad){showExpired('Ссылка недействительна','Похоже, ссылка повреждена или изменена. Запросите новую у менеджера.');return;}
+    if(Date.now()>exp){showExpired('Срок доступа к демо истёк',(client?('Демо было открыто для: <b style="color:#fff">'+client+'</b><br>'):'')+'Доступ действовал до <b style="color:#fff">'+fmt(exp)+'</b>.');return;}
+    var b=document.getElementById('accessBadge');
+    if(b){b.classList.remove('hidden');b.innerHTML='🟢 Гостевой доступ активен до <b style="margin-left:3px">'+fmt(exp)+'</b>'+(client?(' · для '+client):'');}
+  })();
+
   /* ---------- role + nav config ---------- */
   const COLORS={purple:'#7c3aed',cyan:'#0891b2',blue:'#2563eb',amber:'#d97706',teal:'#0d9488',green:'#16a34a',orange:'#ea580c',steel:'#475569',pink:'#db2777'};
   const ICON={

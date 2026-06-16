@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Поток · генератор ссылки доступа</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;background:radial-gradient(1200px 700px at 75% -10%,#0e3a47 0%,#0a1622 45%,#070f18 100%);color:#cfe3ec;font-family:"Inter","Segoe UI",system-ui,sans-serif;font-size:14px;display:flex;align-items:center;justify-content:center;padding:30px}
+  .wrap{width:100%;max-width:560px}
+  .head{display:flex;align-items:center;gap:13px;margin-bottom:8px}
+  .logo{width:48px;height:48px;border-radius:13px;background:linear-gradient(135deg,#22d3ee,#0891b2);display:grid;place-items:center;box-shadow:0 8px 26px rgba(34,211,238,.4)}
+  .logo svg{width:27px;height:27px}
+  .bn{font-size:21px;font-weight:800;color:#fff;letter-spacing:-.02em}
+  .bs{font-size:12px;color:#7da6b8}
+  h1{color:#fff;font-size:23px;font-weight:800;margin:22px 0 6px}
+  .lead{color:#9fc2d2;font-size:14px;margin-bottom:24px;line-height:1.55}
+  .card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:22px;backdrop-filter:blur(6px)}
+  label{display:block;font-size:12px;font-weight:700;color:#8fb4c5;letter-spacing:.04em;text-transform:uppercase;margin-bottom:9px}
+  .field{margin-bottom:20px}
+  input[type=text],input[type=number]{width:100%;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.16);border-radius:11px;padding:12px 14px;color:#fff;font-size:15px;outline:none}
+  input:focus{border-color:#22d3ee}
+  .presets{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:11px}
+  .pst{flex:1;min-width:64px;text-align:center;padding:11px 6px;border:1px solid rgba(255,255,255,.16);border-radius:11px;font-size:14px;font-weight:700;color:#9fc2d2;cursor:pointer;background:rgba(255,255,255,.04);transition:.12s}
+  .pst:hover{border-color:rgba(34,211,238,.5)}
+  .pst.on{background:rgba(34,211,238,.16);border-color:#22d3ee;color:#7ff0f5}
+  .expinfo{font-size:13px;color:#7da6b8;margin-top:2px}
+  .expinfo b{color:#7ff0c4}
+  .out{margin-top:22px;border-top:1px solid rgba(255,255,255,.1);padding-top:20px}
+  .linkbox{display:flex;gap:9px;margin-top:9px}
+  .linkbox input{flex:1;font-size:12.5px;color:#cfe3ec}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:linear-gradient(135deg,#22d3ee,#0891b2);color:#06222b;font-weight:800;font-size:14px;padding:12px 18px;border:none;border-radius:11px;cursor:pointer;white-space:nowrap}
+  .btn svg{width:16px;height:16px}
+  .open{display:inline-flex;align-items:center;gap:6px;color:#34d8f0;font-size:13px;font-weight:700;margin-top:14px;text-decoration:none}
+  .note{margin-top:20px;font-size:12px;color:#6f93a5;line-height:1.55;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:12px 14px}
+  .foot{margin-top:18px;color:#5f8294;font-size:12px;text-align:center}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#06222b" stroke-width="2.2" stroke-linecap="round"><path d="M3 8h10a3 3 0 1 0-3-3"/><path d="M3 12h14a3 3 0 1 1-3 3"/><path d="M3 16h8a2.5 2.5 0 1 1-2.5 2.5"/></svg></div>
+      <div><div class="bn">Поток</div><div class="bs">генератор ссылки доступа</div></div>
+    </div>
+    <h1>Ссылка с ограничением по времени</h1>
+    <p class="lead">Задайте, сколько дней демо будет активным, и отправьте ссылку клиенту. По истечении срока вместо демо откроется экран «срок доступа истёк».</p>
+
+    <div class="card">
+      <div class="field">
+        <label>Кому (необязательно)</label>
+        <input id="client" type="text" placeholder="Напр. ОВиК-Инжиниринг — покажется на экране истечения">
+      </div>
+      <div class="field">
+        <label>Срок доступа</label>
+        <div class="presets" id="presets">
+          <div class="pst" data-d="3">3 дня</div>
+          <div class="pst on" data-d="7">7 дней</div>
+          <div class="pst" data-d="14">14 дней</div>
+          <div class="pst" data-d="30">30 дней</div>
+        </div>
+        <input id="days" type="number" min="1" max="365" value="7">
+        <div class="expinfo" id="expinfo"></div>
+      </div>
+
+      <div class="out">
+        <label>Ссылка для клиента</label>
+        <div class="linkbox">
+          <input id="link" type="text" readonly>
+          <button class="btn" id="copy"><svg viewBox="0 0 24 24" fill="none" stroke="#06222b" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span id="copytx">Копировать</span></button>
+        </div>
+        <a class="open" id="preview" target="_blank">Открыть превью ссылки ↗</a>
+      </div>
+
+      <div class="note">⚠️ Это «мягкий» гейт для демонстрации: срок зашит в ссылку и проверяется в браузере. Этого достаточно, чтобы клиент не пользовался демо бесконечно. Если нужен жёсткий контроль (отзыв доступа в любой момент, защита от смены даты на устройстве) — сделаем через Cloudflare-воркер.</div>
+    </div>
+    <div class="foot">Поток by Pllato · pllato.kz</div>
+  </div>
+
+<script>
+  var SECRET="ptk7_rk_2026_q9";
+  function h(s){var x=5381;for(var i=0;i<s.length;i++)x=((x*33)^s.charCodeAt(i))>>>0;return x.toString(36);}
+  function b64e(s){return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+  function fmt(ms){var d=new Date(ms),p=function(n){return String(n).padStart(2,'0')};return p(d.getDate())+'.'+p(d.getMonth()+1)+'.'+d.getFullYear();}
+  var base=location.href.replace(/share\.html.*$/,'');
+
+  var daysEl=document.getElementById('days'),clientEl=document.getElementById('client'),
+      linkEl=document.getElementById('link'),infoEl=document.getElementById('expinfo'),
+      prevEl=document.getElementById('preview');
+
+  function build(){
+    var days=Math.max(1,parseInt(daysEl.value||'7',10));
+    var exp=Date.now()+days*86400000;
+    var client=(clientEl.value||'').replace(/\|/g,' ').trim();
+    var pay=exp+'|'+client;
+    var b=b64e(pay);
+    var tok=b+'.'+h(b+SECRET);
+    var url=base+'?a='+tok;
+    linkEl.value=url; prevEl.href=url;
+    infoEl.innerHTML='Активна до <b>'+fmt(exp)+'</b> ('+days+' дн.)';
+  }
+  document.querySelectorAll('#presets .pst').forEach(function(el){
+    el.onclick=function(){
+      document.querySelectorAll('#presets .pst').forEach(function(x){x.classList.remove('on')});
+      el.classList.add('on'); daysEl.value=el.dataset.d; build();
+    };
+  });
+  daysEl.addEventListener('input',function(){
+    document.querySelectorAll('#presets .pst').forEach(function(x){x.classList.toggle('on',x.dataset.d===daysEl.value)});
+    build();
+  });
+  clientEl.addEventListener('input',build);
+  document.getElementById('copy').onclick=function(){
+    linkEl.select();
+    navigator.clipboard.writeText(linkEl.value).then(function(){
+      var t=document.getElementById('copytx');t.textContent='Скопировано ✓';setTimeout(function(){t.textContent='Копировать'},1600);
+    }).catch(function(){document.execCommand('copy');});
+  };
+  build();
+</script>
+</body>
+</html>
