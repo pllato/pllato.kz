@@ -2694,6 +2694,10 @@ textarea.inline-edit-input { min-width: 280px; resize: vertical; }
 textarea.inline-edit-input.inline-edit-h2, .inline-edit-h2 textarea { min-width: 420px; }
 .inline-edit-h2 { font-size: inherit; font-weight: inherit; white-space: pre-line; }
 .inline-edit-h2 + .inline-edit-h2 { margin-left: 4px; }
+/* Заголовок сделки — поле на всю ширину карточки (для длинных многострочных
+   названий). Только для него (inline-edit-wide); имена контактов остаются в строку. */
+.inline-edit-wide { display: block; width: 100%; }
+.inline-edit-wide textarea, textarea.inline-edit-input.inline-edit-wide { width: 100%; min-width: 0; box-sizing: border-box; }
 .inline-edit-optional.inline-edit-empty {
   font-size: 13px;
   font-weight: 400;
@@ -12497,7 +12501,7 @@ async function openDealCard(bitrixId) {
             field: 'title',
             type: 'textarea',
             placeholder: '(без названия)',
-            extraClass: 'inline-edit-h2',
+            extraClass: 'inline-edit-h2 inline-edit-wide',
           })} ${deal.archived ? '<span class="dc-archived-badge">🗄 в архиве</span>' : ''}</h2>
           <div class="modal-sub" style="margin-top:4px">
             ID: <code>${escapeHtml(deal.bitrixId)}</code> ·
