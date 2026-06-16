@@ -1454,11 +1454,21 @@ async function handleList(request, env, entity) {
       variants.add("%" + capitalized + "%");
     }
     const variantList = [...variants];
-    const clauses = cfg.searchFields.flatMap(f => variantList.map(_ => `${f} LIKE ?`));
-    whereParts.push("(" + clauses.join(" OR ") + ")");
-    for (let i = 0; i < cfg.searchFields.length; i++) {
-      for (const v of variantList) whereParams.push(v);
+    const orClauses = [];
+    for (const f of cfg.searchFields) {
+      for (const v of variantList) { orClauses.push(`${f} LIKE ?`); whereParams.push(v); }
     }
+    // Поиск по ТЕЛЕФОНУ для сделок. У deals телефона нет в самой строке — он у
+    // привязанного контакта (contact_id → contacts.phones). Если в запросе есть
+    // цифры, ищем контакт с этим номером и его сделки. Берём последние 10 цифр
+    // (локальная часть без кода страны), чтобы матчить любой формат (+7/8/без).
+    const digits = q.replace(/\D/g, '');
+    if (entity === 'deals' && digits.length >= 5) {
+      const tail = digits.slice(-10);
+      orClauses.push(`contact_id IN (SELECT id FROM contacts WHERE phones LIKE ?)`);
+      whereParams.push('%' + tail + '%');
+    }
+    if (orClauses.length) whereParts.push("(" + orClauses.join(" OR ") + ")");
   }
 
   if (status && status !== "all" && cfg.statusField) {

@@ -9569,7 +9569,18 @@ function getFilteredDeals() {
   let arr = dealsState.deals;
   if (dealsState.search) {
     const q = dealsState.search.toLowerCase();
-    arr = arr.filter(d => (d.title || '').toLowerCase().includes(q));
+    const qDigits = q.replace(/\D/g, '');
+    const tail = qDigits.length >= 5 ? qDigits.slice(-10) : null; // поиск по номеру
+    arr = arr.filter(d => {
+      if ((d.title || '').toLowerCase().includes(q)) return true;
+      if (!tail) return false;
+      // телефон сделки: из d.phones / preload-кеша контакта
+      const phones = [];
+      if (Array.isArray(d.phones)) for (const p of d.phones) phones.push(p && (p.value || p));
+      if (d._contactPhone) phones.push(d._contactPhone);
+      if (d.contactId && dealsState.contactPhones?.[d.contactId]) phones.push(dealsState.contactPhones[d.contactId]);
+      return phones.some(p => String(p || '').replace(/\D/g, '').includes(tail));
+    });
   }
   if (dealsState.stageFilter) {
     arr = arr.filter(d => d.stageId === dealsState.stageFilter);
