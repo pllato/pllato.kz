@@ -711,6 +711,14 @@
     if (!listEl) return;
 
     let chs = sortedChannels();
+    // Счётчики на вкладках — сразу видно, сколько чатов в каждой категории.
+    // Убирает путаницу «видно только Все»: пустая вкладка = реально нет чатов,
+    // а не сломанный фильтр.
+    const nGroups = chs.filter(c => c.type === 'channel' || c.type === 'group').length;
+    const nDm = chs.filter(c => c.type === 'dm').length;
+    const setTab = (tab, base, n) => { const t = root.querySelector(`.tc-tab[data-tab="${tab}"]`); if (t) t.textContent = base + (n ? ' ' + n : ''); };
+    setTab('all', 'Все', chs.length); setTab('channel', 'Группы', nGroups); setTab('dm', 'Личные', nDm);
+
     if (state.channelFilter === 'channel') chs = chs.filter(c => c.type === 'channel' || c.type === 'group');
     else if (state.channelFilter === 'dm') chs = chs.filter(c => c.type === 'dm');
     const q = state.channelSearch.trim().toLowerCase();

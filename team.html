@@ -827,6 +827,12 @@ tr:hover td { background: var(--bg3); }
    режиме. Активный/входящий звонок оставляем — нужна кнопка «завершить». */
 body.tc-chat-overlay #wa-widget-root { display: none !important; }
 body.tc-chat-overlay .sipc-bottombar:not([data-state="established"]):not([data-state="ringing"]) { display: none !important; }
+/* То же на полноэкранной странице «Чаты» (десктоп): плавающий WhatsApp-виджет и
+   простаивающая плашка «Готов к звонкам» налезали на поле ввода и кнопку
+   отправки. Прячем оба; SIP-плашку оставляем только во время активного/входящего
+   звонка (нужна кнопка «завершить»). */
+body.page-team-chat #wa-widget-root { display: none !important; }
+body.page-team-chat .sipc-bottombar:not([data-state="established"]):not([data-state="ringing"]) { display: none !important; }
 
 /* ── Deals page ───────────────────────────────────── */
 .toolbar {
@@ -3975,6 +3981,10 @@ function navigate(page) {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.page === page);
   });
+  // На полноэкранной странице «Чаты» прячем плавающий WhatsApp-виджет и уводим
+  // SIP-плашку «Готов к звонкам» из зоны поля ввода — чтобы не перекрывали
+  // кнопку отправки и последнее сообщение (см. CSS .page-team-chat).
+  document.body.classList.toggle('page-team-chat', page === 'team-chat');
   // Persist последнюю открытую страницу — при F5 / reload откроется она же
   // (а не "Главная"). См. initApp.
   try { localStorage.setItem(LAST_PAGE_LS_KEY, page); } catch {}
