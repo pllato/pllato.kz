@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Поток · ERP завода вентиляционного оборудования</title>
+<style>
+  :root{
+    --bg:#eef2f6; --surface:#ffffff; --surface2:#f6f9fb; --line:#e4e9ef; --line2:#eef2f6;
+    --text:#0f1f2e; --muted:#64748b; --faint:#94a3b8;
+    --accent:#0891b2; --accent2:#0e7490; --accentSoft:#e0f5fb;
+    --steel:#475569; --ok:#16a34a; --okSoft:#dcfce7; --warn:#d97706; --warnSoft:#fef3c7;
+    --bad:#dc2626; --badSoft:#fee2e2; --purple:#7c3aed; --purpleSoft:#ede9fe;
+    --blue:#2563eb; --blueSoft:#dbeafe; --teal:#0d9488; --tealSoft:#ccfbf1;
+    --shadow:0 1px 2px rgba(15,31,46,.06),0 4px 16px rgba(15,31,46,.06);
+    --shadow2:0 10px 34px rgba(15,31,46,.13);
+    --radius:14px;
+  }
+  [data-theme="dark"]{
+    --bg:#0b1623; --surface:#11202f; --surface2:#0e1b27; --line:#1f3344; --line2:#15273400;
+    --text:#e6eef5; --muted:#8aa1b4; --faint:#5f7689;
+    --accent:#22d3ee; --accent2:#38bdf8; --accentSoft:#0c2c39;
+    --steel:#94a3b8; --ok:#34d399; --okSoft:#0c2e23; --warn:#fbbf24; --warnSoft:#33270a;
+    --bad:#f87171; --badSoft:#3a1414; --purple:#a78bfa; --purpleSoft:#241a3a;
+    --blue:#60a5fa; --blueSoft:#10243f; --teal:#2dd4bf; --tealSoft:#0c2e2a;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 22px rgba(0,0,0,.35);
+    --shadow2:0 14px 42px rgba(0,0,0,.5);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--text);font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+  .hidden{display:none!important}
+
+  /* ============ ROLE GATE ============ */
+  .gate{position:fixed;inset:0;z-index:100;background:radial-gradient(1200px 700px at 75% -10%,#0e3a47 0%,#0a1622 45%,#070f18 100%);overflow:auto;display:flex;flex-direction:column}
+  .gate .airflow{position:absolute;inset:0;opacity:.20;pointer-events:none}
+  .gate .gwrap{position:relative;z-index:2;max-width:1080px;margin:0 auto;padding:46px 28px 40px;width:100%}
+  .gate .ghead{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+  .gate .glogo{width:50px;height:50px;border-radius:14px;background:linear-gradient(135deg,#22d3ee,#0891b2);display:grid;place-items:center;box-shadow:0 8px 26px rgba(34,211,238,.4)}
+  .gate .glogo svg{width:28px;height:28px}
+  .gate .gbn{font-size:23px;font-weight:800;color:#fff;letter-spacing:-.02em}
+  .gate .gbs{font-size:12px;color:#7da6b8}
+  .gate h1{color:#fff;font-size:32px;font-weight:800;letter-spacing:-.02em;margin:30px 0 8px}
+  .gate .lead{color:#9fc2d2;font-size:15px;max-width:560px;margin-bottom:26px}
+  .gate .gsec{color:#6f93a5;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;margin:6px 0 14px}
+  .rolegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:820px){.rolegrid{grid-template-columns:repeat(2,1fr)}}
+  .rcard{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:18px;cursor:pointer;transition:.15s;backdrop-filter:blur(6px)}
+  .rcard:hover{transform:translateY(-3px);background:rgba(255,255,255,.10);border-color:rgba(34,211,238,.5);box-shadow:0 16px 40px rgba(0,0,0,.4)}
+  .rcard .rtop{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .rcard .rav{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff;flex:none}
+  .rcard .rn{font-size:15.5px;font-weight:800;color:#fff}
+  .rcard .rt{font-size:12px;color:#8fb4c5}
+  .rcard .rd{font-size:12.5px;color:#bcd4de;line-height:1.5}
+  .rcard .renter{margin-top:13px;display:flex;align-items:center;gap:6px;color:#34d8f0;font-size:12.5px;font-weight:700}
+  .gate .gfoot{margin-top:30px;color:#5f8294;font-size:12px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;border-top:1px solid rgba(255,255,255,.08);padding-top:16px}
+
+  /* ============ APP SHELL ============ */
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:238px;flex:none;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+  .brand{display:flex;align-items:center;gap:11px;padding:18px 20px 14px}
+  .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;flex:none;box-shadow:0 4px 12px rgba(8,145,178,.35)}
+  .logo svg{width:22px;height:22px}
+  .brand .bn{font-weight:800;font-size:18px;letter-spacing:-.02em}
+  .brand .bs{font-size:10.5px;color:var(--muted)}
+  .nav{padding:6px 12px;overflow-y:auto;flex:1}
+  .nav .sec{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:13px 12px 5px}
+  .nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;color:var(--muted);font-weight:600;font-size:13.5px;cursor:pointer;margin-bottom:1px;transition:.12s}
+  .nav a svg{width:18px;height:18px;flex:none;opacity:.85}
+  .nav a:hover{background:var(--surface2);color:var(--text)}
+  .nav a.active{background:var(--accentSoft);color:var(--accent2)}
+  [data-theme="dark"] .nav a.active{color:var(--accent)}
+  .nav a .badge{margin-left:auto;background:var(--accent);color:#fff;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:9px}
+  [data-theme="dark"] .nav a .badge{color:#06222b}
+  .navfoot{padding:12px;border-top:1px solid var(--line)}
+  .userchip{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:10px}
+  .avatar{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:13px;flex:none;color:#fff}
+  .userchip .un{font-weight:700;font-size:13px}.userchip .ur{font-size:11px;color:var(--muted)}
+  .switch{margin-top:8px;width:100%;display:flex;align-items:center;justify-content:center;gap:7px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:8px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer}
+  .switch svg{width:15px;height:15px}
+
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{height:62px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 24px;position:sticky;top:0;z-index:20}
+  .search{flex:1;max-width:440px;display:flex;align-items:center;gap:9px;background:var(--surface2);border:1px solid var(--line);border-radius:11px;padding:9px 14px;color:var(--faint);font-size:13px}
+  .search svg{width:16px;height:16px}
+  .topbar .spacer{flex:1}
+  .rolesel{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--line);border-radius:11px;padding:7px 12px;font-size:12.5px;font-weight:700;color:var(--text)}
+  .rolesel .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .iconbtn{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--surface2);display:grid;place-items:center;cursor:pointer;color:var(--muted);position:relative}
+  .iconbtn svg{width:18px;height:18px}
+  .iconbtn .ndot{position:absolute;top:8px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--bad);border:2px solid var(--surface)}
+  .content{padding:24px;overflow-y:auto;flex:1}
+  .page{display:none;animation:fade .25s ease}.page.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .phead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+  .phead h1{font-size:23px;font-weight:800;letter-spacing:-.02em}
+  .phead .sub{color:var(--muted);font-size:13px;margin-top:3px}
+  .btn{display:inline-flex;align-items:center;gap:7px;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 3px 10px rgba(8,145,178,.3)}
+  [data-theme="dark"] .btn{color:#06222b}
+  .btn svg{width:16px;height:16px}
+  .btn.ghost{background:var(--surface);color:var(--text);border:1px solid var(--line);box-shadow:none}
+
+  .grid{display:grid;gap:16px}.kpis{grid-template-columns:repeat(4,1fr)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .kpi{padding:18px}
+  .kpi .t{font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:7px}
+  .kpi .v{font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:9px}
+  .kpi .d{font-size:11.5px;font-weight:700;margin-top:5px}
+  .up{color:var(--ok)}.down{color:var(--bad)}
+  .kpi .ic{float:right;width:40px;height:40px;border-radius:11px;display:grid;place-items:center}.kpi .ic svg{width:20px;height:20px}
+  .panel{padding:18px 20px}
+  .panel .ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .panel h3{font-size:15px;font-weight:800}.panel .more{font-size:12px;color:var(--accent);font-weight:700}
+
+  .bars{display:flex;align-items:flex-end;gap:14px;height:165px;padding-top:10px}
+  .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end}
+  .bar .col{width:60%;border-radius:7px 7px 0 0;background:linear-gradient(180deg,var(--accent),var(--accent2))}
+  .bar .col.m{background:linear-gradient(180deg,#cbd5e1,#94a3b8)}
+  [data-theme="dark"] .bar .col.m{background:linear-gradient(180deg,#334155,#1f3344)}
+  .bar .lb{font-size:11px;color:var(--muted);font-weight:600}.bar .vl{font-size:11px;font-weight:700}
+
+  .loads{display:flex;flex-direction:column;gap:13px}
+  .load .lh{display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;margin-bottom:6px}.load .lh .pct{color:var(--muted)}
+  .track{height:9px;background:var(--line2);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .track i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  .track i.amber{background:linear-gradient(90deg,#f59e0b,#d97706)}.track i.red{background:linear-gradient(90deg,#ef4444,#dc2626)}.track i.green{background:linear-gradient(90deg,#22c55e,#16a34a)}
+
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:10px 14px;border-bottom:1px solid var(--line)}
+  td{padding:12px 14px;border-bottom:1px solid var(--line2);font-size:13px}
+  tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--surface2)}
+  .tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:7px}
+  .t-ok{background:var(--okSoft);color:var(--ok)}.t-warn{background:var(--warnSoft);color:var(--warn)}
+  .t-bad{background:var(--badSoft);color:var(--bad)}.t-acc{background:var(--accentSoft);color:var(--accent2)}
+  .t-pur{background:var(--purpleSoft);color:var(--purple)}.t-blue{background:var(--blueSoft);color:var(--blue)}
+  .t-steel{background:var(--surface2);color:var(--steel);border:1px solid var(--line)}
+  [data-theme="dark"] .t-acc{color:var(--accent)}
+  .cust{display:flex;align-items:center;gap:10px}.mono{font-variant-numeric:tabular-nums}
+
+  /* kanban */
+  .board{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px}
+  .col2{flex:none;width:250px;background:var(--surface2);border:1px solid var(--line);border-radius:13px;display:flex;flex-direction:column;max-height:74vh}
+  .col2 .ch{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+  .col2 .ch .nm{font-weight:800;font-size:12.5px}
+  .col2 .ch .cnt{margin-left:auto;font-size:11px;font-weight:700;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:1px 8px}
+  .col2 .ch .stg{width:9px;height:9px;border-radius:50%}
+  .col2 .body{padding:10px;display:flex;flex-direction:column;gap:9px;overflow-y:auto}
+  .col2 .sumrow{padding:8px 14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);font-weight:700}
+  .tk{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:11px 12px;box-shadow:var(--shadow);cursor:pointer}
+  .tk:hover{box-shadow:var(--shadow2);transform:translateY(-1px);transition:.12s}
+  .tk .tt{font-weight:700;font-size:12.5px;margin-bottom:5px}
+  .tk .meta{display:flex;align-items:center;justify-content:space-between;margin-top:9px}
+  .tk .sum{font-weight:800;font-size:12.5px}.tk .who{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+  .av2{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#0e7490,#155e75);color:#fff;display:grid;place-items:center;font-size:9.5px;font-weight:800}
+  .tk .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+  .chip{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--surface2);border:1px solid var(--line);color:var(--muted)}
+  .pbar{height:5px;background:var(--line2);border-radius:4px;overflow:hidden;margin-top:9px}.pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+
+  .two{display:grid;grid-template-columns:1.6fr 1fr;gap:16px}
+  .two-eq{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .three{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:1150px){.kpis{grid-template-columns:repeat(2,1fr)}.two,.two-eq,.three{grid-template-columns:1fr}}
+
+  .info{display:flex;gap:10px;background:var(--accentSoft);border:1px solid var(--accent);border-radius:12px;padding:12px 15px;font-size:12.5px;color:var(--accent2);font-weight:600;align-items:flex-start}
+  [data-theme="dark"] .info{color:var(--accent)}.info svg{width:18px;height:18px;flex:none;margin-top:1px}
+
+  .listrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line2)}.listrow:last-child{border:none}
+  .listrow .ic2{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex:none}.listrow .ic2 svg{width:17px;height:17px}
+  .listrow .gr{flex:1;min-width:0}.listrow .gr .t1{font-weight:700;font-size:13px}.listrow .gr .t2{font-size:11.5px;color:var(--muted)}
+  .listrow .tm{font-size:11px;color:var(--faint);font-weight:600}
+
+  /* gantt */
+  .gantt{overflow-x:auto}
+  .gantt .grow{display:grid;grid-template-columns:170px 1fr;align-items:center;border-bottom:1px solid var(--line2);min-height:42px}
+  .gantt .gname{font-size:12px;font-weight:700;padding-right:10px}.gantt .gname small{display:block;color:var(--muted);font-weight:600;font-size:10.5px}
+  .gantt .gtrack{position:relative;height:42px}
+  .gantt .gtrack .gb{position:absolute;top:9px;height:24px;border-radius:7px;display:flex;align-items:center;padding:0 8px;font-size:10.5px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden}
+  .gantt .ghead{display:grid;grid-template-columns:170px 1fr;border-bottom:1px solid var(--line)}
+  .gantt .gdays{display:grid;grid-template-columns:repeat(10,1fr)}
+  .gantt .gd{font-size:10px;color:var(--faint);font-weight:700;text-align:center;padding:6px 0;border-left:1px solid var(--line2)}
+
+  /* gauge */
+  .gauges{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .gauge{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px}
+  .gauge svg{width:108px;height:64px}
+  .gauge .gv{font-size:19px;font-weight:800;margin-top:-8px}
+  .gauge .gl{font-size:11.5px;color:var(--muted);font-weight:600;text-align:center}
+
+  /* selection / configurator */
+  .selwrap{display:grid;grid-template-columns:1fr 1.2fr;gap:16px}
+  @media(max-width:1150px){.selwrap{grid-template-columns:1fr}}
+  .field{margin-bottom:16px}
+  .field .fl{font-size:12px;font-weight:700;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:7px}
+  .field .fl b{color:var(--accent2);font-size:13px}
+  [data-theme="dark"] .field .fl b{color:var(--accent)}
+  .range{appearance:none;width:100%;height:7px;border-radius:6px;background:linear-gradient(90deg,var(--accent) 60%,var(--line) 60%);outline:none}
+  .range::-webkit-slider-thumb{appearance:none;width:19px;height:19px;border-radius:50%;background:#fff;border:3px solid var(--accent);cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  .seg .s{flex:1;text-align:center;padding:8px;border:1px solid var(--line);border-radius:9px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;background:var(--surface2)}
+  .seg .s.on{background:var(--accentSoft);color:var(--accent2);border-color:var(--accent)}
+  [data-theme="dark"] .seg .s.on{color:var(--accent)}
+  .result{background:linear-gradient(160deg,var(--accentSoft),var(--surface));border:1px solid var(--accent)}
+  .specrow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--line)}.specrow:last-child{border:none}
+  .specrow .k{color:var(--muted);font-size:12.5px}.specrow .v{font-weight:800;font-size:13px}
+  .curve{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:8px}
+
+  /* big task cards (shop) */
+  .taskbig{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:13px;padding:16px 18px;box-shadow:var(--shadow);margin-bottom:14px}
+  .taskbig.warn{border-left-color:var(--warn)}.taskbig.ok{border-left-color:var(--ok)}
+  .taskbig .tbh{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+  .taskbig .tbt{font-size:17px;font-weight:800}.taskbig .tbm{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .checkline{display:flex;align-items:center;gap:9px;font-size:13px;padding:5px 0}
+  .checkline .cb{width:18px;height:18px;border-radius:5px;border:2px solid var(--line);flex:none;display:grid;place-items:center}
+  .checkline.done .cb{background:var(--ok);border-color:var(--ok)}.checkline.done .cb svg{width:11px;height:11px}
+  .checkline.done{color:var(--muted);text-decoration:line-through}
+  .tbtns{display:flex;gap:9px;margin-top:13px}
+
+  /* aging bar */
+  .aging{display:flex;height:13px;border-radius:7px;overflow:hidden;border:1px solid var(--line)}
+  .aging i{height:100%}
+  .leg{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:var(--muted)}
+  .leg span{display:flex;align-items:center;gap:6px}.leg b{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+  /* cert cards */
+  .certrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line2)}.certrow:last-child{border:none}
+  .certrow .cdoc{width:36px;height:44px;border-radius:6px;background:var(--surface2);border:1px solid var(--line);display:grid;place-items:center;flex:none;color:var(--accent2)}
+  .certrow .cdoc svg{width:18px;height:18px}
+
+  /* roles page cards */
+  .rolecard{padding:18px;display:flex;flex-direction:column;gap:12px}
+  .rolecard .rh{display:flex;align-items:center;gap:12px}
+  .rolecard .ri{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;color:#fff}.rolecard .ri svg{width:22px;height:22px}
+  .rolecard .rn{font-weight:800;font-size:15px}.rolecard .rp{font-size:12px;color:var(--muted)}
+  .rolecard ul{list-style:none;display:flex;flex-direction:column;gap:7px}
+  .rolecard li{font-size:12.5px;display:flex;align-items:center;gap:8px}
+  .rolecard li svg{width:15px;height:15px;color:var(--ok);flex:none}
+  .rolecard li.off{color:var(--faint)}.rolecard li.off svg{color:var(--faint)}
+</style>
+</head>
+<body>
+
+<!-- ============================ ROLE GATE ============================ -->
+<div class="gate" id="gate">
+  <svg class="airflow" viewBox="0 0 1200 800" preserveAspectRatio="none">
+    <g fill="none" stroke="#22d3ee" stroke-width="1.5">
+      <path d="M-50 120 Q 300 70 600 120 T 1250 120"/>
+      <path d="M-50 220 Q 350 160 650 220 T 1250 220"/>
+      <path d="M-50 330 Q 300 270 600 330 T 1250 330"/>
+      <path d="M-50 460 Q 360 400 700 460 T 1250 460"/>
+      <path d="M-50 600 Q 320 540 640 600 T 1250 600"/>
+      <path d="M-50 720 Q 380 660 720 720 T 1250 720"/>
+    </g>
+  </svg>
+  <div class="gwrap">
+    <div class="ghead">
+      <div class="glogo"><svg viewBox="0 0 24 24" fill="none" stroke="#06222b" stroke-width="2.2" stroke-linecap="round"><path d="M3 8h10a3 3 0 1 0-3-3"/><path d="M3 12h14a3 3 0 1 1-3 3"/><path d="M3 16h8a2.5 2.5 0 1 1-2.5 2.5"/></svg></div>
+      <div><div class="gbn">Поток</div><div class="gbs">ERP завода вентиляционного оборудования</div></div>
+    </div>
+    <h1>Войдите в свой кабинет</h1>
+    <p class="lead">Единая платформа завода. У каждого сотрудника — свой рабочий стол и свои данные: продажи, производство, склад, снабжение, качество и финансы. Выберите роль, чтобы посмотреть демо изнутри.</p>
+    <div class="gsec">Кабинеты · 9 ролей</div>
+    <div class="rolegrid" id="rolegrid"></div>
+    <div class="gfoot">
+      <span>Демо-данные · Поток by Pllato · кастомная разработка под ваш завод</span>
+      <span>pllato.kz</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ APP SHELL ============================ -->
+<div class="app hidden" id="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M3 8h10a3 3 0 1 0-3-3"/><path d="M3 12h14a3 3 0 1 1-3 3"/><path d="M3 16h8a2.5 2.5 0 1 1-2.5 2.5"/></svg></div>
+      <div><div class="bn">Поток</div><div class="bs">завод вентиляции · ERP</div></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="navfoot">
+      <div class="userchip"><div class="avatar" id="uav">РК</div><div><div class="un" id="uname">Рустам К.</div><div class="ur" id="urole">Директор</div></div></div>
+      <button class="switch" onclick="showGate()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 17l5-5-5-5M21 12H9M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4"/></svg>Сменить роль</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Поиск: заказ, клиент, бланк, модель вентилятора…</div>
+      <div class="spacer"></div>
+      <div class="rolesel"><span class="dot"></span>Кабинет: <span id="rolebadge">Директор</span></div>
+      <div class="iconbtn" onclick="toggleTheme()" title="Тема"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg></div>
+      <div class="iconbtn" title="Уведомления"><span class="ndot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.5 21a2 2 0 0 1-3 0"/></svg></div>
+    </div>
+
+    <div class="content" id="content">
+
+      <!-- ===== DASH (director) ===== -->
+      <section class="page" id="page-dash">
+        <div class="phead"><div><h1>Дашборд завода</h1><div class="sub">Всё в одном месте — продажи, производство, снабжение и финансы. Сегодня, 11:30</div></div><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Новый заказ</button></div>
+        <div class="grid kpis" style="margin-bottom:16px">
+          <div class="card kpi"><div class="ic" style="background:var(--accentSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div><div class="t">Выручка, июнь</div><div class="v">84,6 млн ₸</div><div class="d up">▲ 23% к маю</div></div>
+          <div class="card kpi"><div class="ic" style="background:var(--purpleSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M2 20h20M4 20V8l5 3V8l5 3V8l5 3v9"/></svg></div><div class="t">В производстве</div><div class="v">37 заказов</div><div class="d up">▲ 12 на сборке</div></div>
+          <div class="card kpi"><div class="ic" style="background:var(--warnSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div><div class="t">Срывы сроков</div><div class="v" style="color:var(--warn)">2 заказа</div><div class="d down">цех №2 перегружен</div></div>
+          <div class="card kpi"><div class="ic" style="background:var(--okSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div><div class="t">Конверсия лид→договор</div><div class="v">31%</div><div class="d up">▲ 8 п.п.</div></div>
+        </div>
+        <div class="two" style="margin-bottom:16px">
+          <div class="card panel">
+            <div class="ph"><h3>Отгрузки, 6 месяцев</h3><span class="more">млн ₸</span></div>
+            <div class="bars">
+              <div class="bar"><div class="vl">52</div><div class="col m" style="height:48%"></div><div class="lb">Янв</div></div>
+              <div class="bar"><div class="vl">58</div><div class="col m" style="height:54%"></div><div class="lb">Фев</div></div>
+              <div class="bar"><div class="vl">61</div><div class="col m" style="height:58%"></div><div class="lb">Мар</div></div>
+              <div class="bar"><div class="vl">64</div><div class="col m" style="height:61%"></div><div class="lb">Апр</div></div>
+              <div class="bar"><div class="vl">69</div><div class="col" style="height:66%"></div><div class="lb">Май</div></div>
+              <div class="bar"><div class="vl">85</div><div class="col" style="height:92%"></div><div class="lb">Июн</div></div>
+            </div>
+          </div>
+          <div class="card panel">
+            <div class="ph"><h3>Загрузка цехов</h3><span class="more">сейчас</span></div>
+            <div class="loads">
+              <div class="load"><div class="lh"><span>Цех №1 · Раскрой</span><span class="pct">72%</span></div><div class="track"><i style="width:72%"></i></div></div>
+              <div class="load"><div class="lh"><span>Цех №2 · Сборка</span><span class="pct">94%</span></div><div class="track"><i class="amber" style="width:94%"></i></div></div>
+              <div class="load"><div class="lh"><span>Цех №3 · Двигатели</span><span class="pct">61%</span></div><div class="track"><i style="width:61%"></i></div></div>
+              <div class="load"><div class="lh"><span>Покраска</span><span class="pct">38%</span></div><div class="track"><i style="width:38%"></i></div></div>
+              <div class="load"><div class="lh"><span>ОТК / испытания</span><span class="pct">45%</span></div><div class="track"><i style="width:45%"></i></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="two">
+          <div class="card panel">
+            <div class="ph"><h3>Заказы под контролем</h3><span class="more">Все →</span></div>
+            <table><thead><tr><th>Заказ</th><th>Клиент</th><th>Этап</th><th>Срок</th><th class="mono">Сумма</th></tr></thead><tbody>
+              <tr><td><b>№ 2418</b><br><span class="mono" style="color:var(--muted);font-size:11px">ВР 80-75 №6,3 · 4 шт</span></td><td>ОВиК-Инжиниринг</td><td><span class="tag t-acc">Сборка</span></td><td>24.06</td><td class="mono"><b>3,8 млн</b></td></tr>
+              <tr><td><b>№ 2415</b><br><span class="mono" style="color:var(--muted);font-size:11px">ВРС-ДУ дымоуд. · 2 шт</span></td><td>СтройМонтаж KZ</td><td><span class="tag t-warn">ОТК</span></td><td>22.06</td><td class="mono"><b>5,1 млн</b></td></tr>
+              <tr><td><b>№ 2409</b><br><span class="mono" style="color:var(--muted);font-size:11px">ВКР-4 крышный · 8 шт</span></td><td>ТЦ «Аврора»</td><td><span class="tag t-bad">Просрочка</span></td><td>18.06</td><td class="mono"><b>2,2 млн</b></td></tr>
+              <tr><td><b>№ 2421</b><br><span class="mono" style="color:var(--muted);font-size:11px">Клапан КОМ-1 · 30 шт</span></td><td>ВентПроект</td><td><span class="tag t-pur">Раскрой</span></td><td>28.06</td><td class="mono"><b>1,4 млн</b></td></tr>
+            </tbody></table>
+          </div>
+          <div class="card panel">
+            <div class="ph"><h3>Лента событий</h3><span class="more">сегодня</span></div>
+            <div class="listrow"><div class="ic2" style="background:var(--okSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div><div class="gr"><div class="t1">Заказ № 2415 прошёл ОТК</div><div class="t2">Испытания пройдены, готов к упаковке</div></div><div class="tm">10:58</div></div>
+            <div class="listrow"><div class="ic2" style="background:var(--accentSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div class="gr"><div class="t1">Заявка с сайта: ОВиК-Инжиниринг</div><div class="t2">КП на 4× ВР 80-75 №6,3</div></div><div class="tm">10:21</div></div>
+            <div class="listrow"><div class="ic2" style="background:var(--badSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--bad)" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div><div class="gr"><div class="t1">Дефицит: рабочее колесо Ø630</div><div class="t2">6 шт при потребности 12 — снабжению</div></div><div class="tm">09:40</div></div>
+            <div class="listrow"><div class="ic2" style="background:var(--purpleSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="gr"><div class="t1">Предоплата по № 2418</div><div class="t2">10% · 380 000 ₸ · подтверждено 1С</div></div><div class="tm">09:05</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== SALES ===== -->
+      <section class="page" id="page-sales">
+        <div class="phead"><div><h1>Воронка продаж · B2B</h1><div class="sub">Лиды с сайта, WhatsApp и звонков — в одном окне. При предоплате заказ уходит в производство</div></div><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Новая сделка</button></div>
+        <div class="board">
+          <div class="col2"><div class="ch"><span class="stg" style="background:#94a3b8"></span><span class="nm">Лид</span><span class="cnt">5</span></div><div class="body">
+            <div class="tk"><div class="tt">ОВиК-Инжиниринг</div><div class="chips"><span class="chip">сайт</span><span class="chip">ВР 80-75</span></div><div class="meta"><span class="sum">3,8 млн</span><span class="who"><span class="av2">АД</span></span></div></div>
+            <div class="tk"><div class="tt">ЖК «Северное сияние»</div><div class="chips"><span class="chip">WhatsApp</span><span class="chip">дымоуд.</span></div><div class="meta"><span class="sum">6,2 млн</span><span class="who"><span class="av2">МС</span></span></div></div>
+            <div class="tk"><div class="tt">Холодсклад-Логистик</div><div class="chips"><span class="chip">звонок</span></div><div class="meta"><span class="sum">1,1 млн</span><span class="who"><span class="av2">АД</span></span></div></div>
+          </div><div class="sumrow">Σ 14,3 млн ₸</div></div>
+          <div class="col2"><div class="ch"><span class="stg" style="background:#0891b2"></span><span class="nm">Подбор / КП</span><span class="cnt">4</span></div><div class="body">
+            <div class="tk"><div class="tt">ТЦ «Аврора»</div><div class="chips"><span class="chip">ВКР-4 · 8</span></div><div class="meta"><span class="sum">2,2 млн</span><span class="who"><span class="av2">МС</span></span></div><div class="pbar"><i style="width:40%"></i></div></div>
+            <div class="tk"><div class="tt">Завод «Каскад»</div><div class="chips"><span class="chip">осевые ВО</span></div><div class="meta"><span class="sum">4,9 млн</span><span class="who"><span class="av2">ИТ</span></span></div><div class="pbar"><i style="width:40%"></i></div></div>
+          </div><div class="sumrow">Σ 11,4 млн ₸</div></div>
+          <div class="col2"><div class="ch"><span class="stg" style="background:#7c3aed"></span><span class="nm">Договор</span><span class="cnt">3</span></div><div class="body">
+            <div class="tk"><div class="tt">СтройМонтаж KZ</div><div class="chips"><span class="chip">ВРС-ДУ · 2</span><span class="chip">счёт</span></div><div class="meta"><span class="sum">5,1 млн</span><span class="who"><span class="av2">ИТ</span></span></div><div class="pbar"><i style="width:65%"></i></div></div>
+            <div class="tk"><div class="tt">ВентПроект</div><div class="chips"><span class="chip">КОМ-1 · 30</span></div><div class="meta"><span class="sum">1,4 млн</span><span class="who"><span class="av2">АД</span></span></div><div class="pbar"><i style="width:65%"></i></div></div>
+          </div><div class="sumrow">Σ 6,5 млн ₸</div></div>
+          <div class="col2"><div class="ch"><span class="stg" style="background:#d97706"></span><span class="nm">Предоплата</span><span class="cnt">2</span></div><div class="body">
+            <div class="tk"><div class="tt">ОВиК-Инжиниринг</div><div class="chips"><span class="chip">10% получено</span></div><div class="meta"><span class="sum">3,8 млн</span><span class="who"><span class="av2">АД</span></span></div><div class="pbar"><i style="width:80%"></i></div></div>
+          </div><div class="sumrow">Σ 3,8 млн ₸</div></div>
+          <div class="col2"><div class="ch"><span class="stg" style="background:#0e7490"></span><span class="nm">В производстве</span><span class="cnt">37</span></div><div class="body">
+            <div class="tk"><div class="tt">→ передано в цех</div><div class="chips"><span class="chip">авто-переход</span></div><div class="meta"><span class="who" style="color:var(--accent2)">см. Производство →</span></div></div>
+          </div><div class="sumrow">Σ 142 млн ₸</div></div>
+          <div class="col2"><div class="ch"><span class="stg" style="background:#16a34a"></span><span class="nm">Отгружен / Оплачен</span><span class="cnt">28</span></div><div class="body">
+            <div class="tk"><div class="tt">ТЦ «Аврора» · 1 очередь</div><div class="chips"><span class="chip">закрыт</span></div><div class="meta"><span class="sum">3,2 млн</span><span class="who"><span class="av2">МС</span></span></div></div>
+          </div><div class="sumrow">Σ 96 млн ₸</div></div>
+        </div>
+        <div class="info" style="margin-top:18px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>Сделка автоматически перетекает в воронку производства при получении предоплаты — без ручного дублирования заказа.</div>
+      </section>
+
+      <!-- ===== SELECTION (configurator) ===== -->
+      <section class="page" id="page-selection">
+        <div class="phead"><div><h1>Подбор вентилятора</h1><div class="sub">Менеджер задаёт параметры объекта — система подбирает модель, считает мощность и шум, формирует КП</div></div><button class="btn ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>В КП клиенту</button></div>
+        <div class="selwrap">
+          <div class="card panel">
+            <h3 style="margin-bottom:14px">Параметры объекта</h3>
+            <div class="field"><div class="fl"><span>Расход воздуха</span><b>9 000 м³/ч</b></div><input class="range" type="range" value="60"></div>
+            <div class="field"><div class="fl"><span>Полное давление</span><b>650 Па</b></div><input class="range" type="range" value="52"></div>
+            <div class="field"><div class="fl" style="margin-bottom:8px"><span>Тип вентилятора</span></div><div class="seg"><span class="s on">Радиальный</span><span class="s">Осевой</span><span class="s">Крышный</span></div></div>
+            <div class="field"><div class="fl" style="margin-bottom:8px"><span>Назначение</span></div><div class="seg"><span class="s on">Общеобмен.</span><span class="s">Дымоудал.</span><span class="s">Коррозионностойк.</span></div></div>
+            <div class="field"><div class="fl" style="margin-bottom:8px"><span>Исполнение двигателя</span></div><div class="seg"><span class="s">IP54</span><span class="s on">IP55</span><span class="s">Взрывозащ.</span></div></div>
+          </div>
+          <div class="card panel result">
+            <div class="ph"><h3>Рекомендованная модель</h3><span class="tag t-ok">КПД 0,78 · оптимум</span></div>
+            <div style="font-size:21px;font-weight:800;margin:2px 0 2px">Вентилятор радиальный ВР 80-75 №6,3</div>
+            <div class="mono" style="color:var(--muted);font-size:12.5px;margin-bottom:12px">прав. вращение · 0° · схема 1 · корпус оцинк. 0,7 мм</div>
+            <div class="two-eq" style="gap:18px">
+              <div>
+                <div class="specrow"><span class="k">Расход</span><span class="v">9 200 м³/ч</span></div>
+                <div class="specrow"><span class="k">Полное давление</span><span class="v">680 Па</span></div>
+                <div class="specrow"><span class="k">Двигатель</span><span class="v">АИР 90L4 · 2,2 кВт</span></div>
+                <div class="specrow"><span class="k">Обороты</span><span class="v">1 460 об/мин</span></div>
+                <div class="specrow"><span class="k">Уровень шума</span><span class="v">74 дБ(А)</span></div>
+                <div class="specrow"><span class="k">Цена за ед.</span><span class="v">945 000 ₸</span></div>
+              </div>
+              <div class="curve">
+                <div style="font-size:11px;color:var(--muted);font-weight:700;margin:2px 0 4px">Аэродинамическая характеристика</div>
+                <svg viewBox="0 0 220 150" style="width:100%">
+                  <line x1="28" y1="10" x2="28" y2="128" stroke="var(--line)"/><line x1="28" y1="128" x2="210" y2="128" stroke="var(--line)"/>
+                  <path d="M30 30 Q 110 40 150 95 T 205 125" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+                  <path d="M30 118 Q 120 70 205 40" fill="none" stroke="var(--accent2)" stroke-width="1.6" stroke-dasharray="4 3"/>
+                  <circle cx="135" cy="86" r="5" fill="var(--accent)"/>
+                  <text x="142" y="80" font-size="9" fill="var(--text)">рабочая точка</text>
+                  <text x="6" y="20" font-size="8" fill="var(--faint)">Pa</text>
+                  <text x="186" y="142" font-size="8" fill="var(--faint)">м³/ч</text>
+                </svg>
+              </div>
+            </div>
+            <div class="info" style="margin-top:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Рабочая точка в зоне максимального КПД. Альтернатива: ВР 86-77 №6,3 (тише на 3 дБ, дороже на 12%).</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== CLIENTS ===== -->
+      <section class="page" id="page-clients">
+        <div class="phead"><div><h1>Клиенты · B2B</h1><div class="sub">Проектировщики, монтажники, дилеры, конечные заказчики. История, договоры, дебиторка, переписка</div></div><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Новый клиент</button></div>
+        <div class="card panel"><table><thead><tr><th>Клиент</th><th>Тип</th><th>Заказов</th><th class="mono">Оборот, год</th><th class="mono">Дебиторка</th><th>Менеджер</th><th>Статус</th></tr></thead><tbody>
+          <tr><td class="cust"><span class="av2">ОВ</span><b>ОВиК-Инжиниринг</b></td><td>проектная орг.</td><td>14</td><td class="mono">31,2 млн</td><td class="mono">0</td><td>Аскар Д.</td><td><span class="tag t-ok">активный</span></td></tr>
+          <tr><td class="cust"><span class="av2">СМ</span><b>СтройМонтаж KZ</b></td><td>монтаж</td><td>9</td><td class="mono">22,8 млн</td><td class="mono" style="color:var(--warn)">1,7 млн</td><td>Игорь Т.</td><td><span class="tag t-warn">оплата</span></td></tr>
+          <tr><td class="cust"><span class="av2">АВ</span><b>ТЦ «Аврора»</b></td><td>заказчик</td><td>5</td><td class="mono">9,4 млн</td><td class="mono">0</td><td>Марина С.</td><td><span class="tag t-ok">активный</span></td></tr>
+          <tr><td class="cust"><span class="av2">ВП</span><b>ВентПроект</b></td><td>дилер</td><td>21</td><td class="mono">44,6 млн</td><td class="mono">0</td><td>Аскар Д.</td><td><span class="tag t-acc">дилер</span></td></tr>
+          <tr><td class="cust"><span class="av2">КС</span><b>Завод «Каскад»</b></td><td>промышл.</td><td>3</td><td class="mono">12,1 млн</td><td class="mono">0</td><td>Игорь Т.</td><td><span class="tag t-ok">активный</span></td></tr>
+        </tbody></table></div>
+      </section>
+
+      <!-- ===== OBJECTS ===== -->
+      <section class="page" id="page-objects">
+        <div class="phead"><div><h1>Объекты и проекты</h1><div class="sub">Комплект оборудования на объект: десятки позиций, спецификация, статус по каждой</div></div></div>
+        <div class="three">
+          <div class="card panel"><div class="ph"><h3>ЖК «Северное сияние»</h3><span class="tag t-acc">проект</span></div><p style="color:var(--muted);font-size:12.5px;margin-bottom:10px">Дымоудаление, 9 этажей · ОВиК-Инжиниринг</p>
+            <div class="specrow"><span class="k">Позиций в спецификации</span><span class="v">18</span></div><div class="specrow"><span class="k">Сумма проекта</span><span class="v">6,2 млн ₸</span></div><div class="specrow"><span class="k">Готовность</span><span class="v">подбор</span></div>
+            <div class="track" style="margin-top:10px"><i style="width:25%"></i></div></div>
+          <div class="card panel"><div class="ph"><h3>ТЦ «Аврора»</h3><span class="tag t-warn">в работе</span></div><p style="color:var(--muted);font-size:12.5px;margin-bottom:10px">Реконструкция кровли · крышные ВКР</p>
+            <div class="specrow"><span class="k">Позиций</span><span class="v">12</span></div><div class="specrow"><span class="k">Сумма</span><span class="v">2,2 млн ₸</span></div><div class="specrow"><span class="k">Готовность</span><span class="v">производство</span></div>
+            <div class="track" style="margin-top:10px"><i class="amber" style="width:60%"></i></div></div>
+          <div class="card panel"><div class="ph"><h3>Завод «Каскад»</h3><span class="tag t-ok">отгрузка</span></div><p style="color:var(--muted);font-size:12.5px;margin-bottom:10px">Цех покраски · осевые ВО, шумоглушители</p>
+            <div class="specrow"><span class="k">Позиций</span><span class="v">9</span></div><div class="specrow"><span class="k">Сумма</span><span class="v">12,1 млн ₸</span></div><div class="specrow"><span class="k">Готовность</span><span class="v">90%</span></div>
+            <div class="track" style="margin-top:10px"><i class="green" style="width:90%"></i></div></div>
+        </div>
+      </section>
+
+      <!-- ===== PROD ===== -->
+      <section class="page" id="page-prod">
+        <div class="phead"><div><h1>Воронка производства</h1><div class="sub">Этапы цеха: каждый заказ виден от раскроя до отгрузки</div></div><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Заказ-наряд</button></div>
+        <div class="board">
+          <div class="col2"><div class="ch"><span class="stg" style="background:#7c3aed"></span><span class="nm">Заказ принят</span><span class="cnt">6</span></div><div class="body">
+            <div class="tk"><div class="tt">№ 2421 · Клапан КОМ-1</div><div class="chips"><span class="chip">30 шт</span><span class="chip">ВентПроект</span></div><div class="meta"><span class="who">срок 28.06</span><span class="who"><span class="av2">ПР</span></span></div></div>
+            <div class="tk"><div class="tt">№ 2423 · ВО 06-300 №4</div><div class="chips"><span class="chip">6 шт</span></div><div class="meta"><span class="who">срок 02.07</span><span class="who"><span class="av2">ПР</span></span></div></div>
+          </div></div>
+          <div class="col2"><div class="ch"><span class="stg" style="background:#0891b2"></span><span class="nm">Раскрой металла</span><span class="cnt">5</span></div><div class="body">
+            <div class="tk"><div class="tt">№ 2421 · Клапан КОМ-1</div><div class="chips"><span class="chip">сталь 0,7</span></div><div class="meta"><span class="who">цех №1</span><span class="who"><span class="av2">СВ</span></span></div><div class="pbar"><i style="width:30%"></i></div></div>
+            <div class="tk"><div class="tt">№ 2425 · ВКП 60-35</div><div class="chips"><span class="chip">канальный</span></div><div class="meta"><span class="who">цех №1</span><span class="who"><span class="av2">СВ</span></span></div><div class="pbar"><i style="width:30%"></i></div></div>
+          </div></div>
+          <div class="col2"><div class="ch"><span class="stg" style="background:#0e7490"></span><span class="nm">Сборка корпуса</span><span class="cnt">12</span></div><div class="body">
+            <div class="tk"><div class="tt">№ 2418 · ВР 80-75 №6,3</div><div class="chips"><span class="chip">4 шт</span><span class="chip">ОВиК</span></div><div class="meta"><span class="who">цех №2</span><span class="who"><span class="av2">ДА</span></span></div><div class="pbar"><i style="width:55%"></i></div></div>
+            <div class="tk"><div class="tt">№ 2419 · ВКР-6 крышный</div><div class="chips"><span class="chip">3 шт</span></div><div class="meta"><span class="who">цех №2</span><span class="who"><span class="av2">ДА</span></span></div><div class="pbar"><i style="width:55%"></i></div></div>
+          </div></div>
+          <div class="col2"><div class="ch"><span class="stg" style="background:#0284c7"></span><span class="nm">Двигатель / крыльчатка</span><span class="cnt">7</span></div><div class="body">
+            <div class="tk"><div class="tt">№ 2418 · ВР 80-75 №6,3</div><div class="chips"><span class="chip">АИР 90</span><span class="chip">балансир.</span></div><div class="meta"><span class="who">цех №3</span><span class="who"><span class="av2">КН</span></span></div><div class="pbar"><i style="width:70%"></i></div></div>
+          </div></div>
+          <div class="col2"><div class="ch"><span class="stg" style="background:#d97706"></span><span class="nm">ОТК / испытания</span><span class="cnt">5</span></div><div class="body">
+            <div class="tk"><div class="tt">№ 2415 · ВРС-ДУ дымоуд.</div><div class="chips"><span class="chip">2 шт</span><span class="chip">протокол</span></div><div class="meta"><span class="who">ОТК</span><span class="who"><span class="av2">ОТ</span></span></div><div class="pbar"><i style="width:88%"></i></div></div>
+          </div></div>
+          <div class="col2"><div class="ch"><span class="stg" style="background:#16a34a"></span><span class="nm">Упаковка / отгрузка</span><span class="cnt">9</span></div><div class="body">
+            <div class="tk"><div class="tt">№ 2412 · ВО 06-300 №5</div><div class="chips"><span class="chip">готов</span><span class="chip">ТТН</span></div><div class="meta"><span class="who">склад ГП</span><span class="who"><span class="av2">СК</span></span></div><div class="pbar"><i style="width:100%"></i></div></div>
+          </div></div>
+        </div>
+        <div class="info" style="margin-top:18px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>Если станок не подключается по API — этап двигается вручную: мастер перетаскивает карточку, время на этапе фиксируется автоматически.</div>
+      </section>
+
+      <!-- ===== PLAN (ПДО) ===== -->
+      <section class="page" id="page-plan">
+        <div class="phead"><div><h1>План производства</h1><div class="sub">Диспетчеризация: график заказов по цехам, загрузка, потребность в материалах (MRP)</div></div><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Спланировать заказ</button></div>
+        <div class="card panel" style="margin-bottom:16px">
+          <div class="ph"><h3>График загрузки · 16–25 июня</h3><span class="more">по заказам</span></div>
+          <div class="gantt">
+            <div class="ghead"><div></div><div class="gdays"><div class="gd">16</div><div class="gd">17</div><div class="gd">18</div><div class="gd">19</div><div class="gd">20</div><div class="gd">21</div><div class="gd">22</div><div class="gd">23</div><div class="gd">24</div><div class="gd">25</div></div></div>
+            <div class="grow"><div class="gname">№ 2418 ВР 80-75<small>ОВиК · 4 шт</small></div><div class="gtrack"><div class="gb" style="left:2%;width:46%;background:linear-gradient(90deg,#0891b2,#0e7490)">Сборка → двигатель</div></div></div>
+            <div class="grow"><div class="gname">№ 2415 ВРС-ДУ<small>СтройМонтаж · 2 шт</small></div><div class="gtrack"><div class="gb" style="left:2%;width:24%;background:linear-gradient(90deg,#d97706,#b45309)">ОТК</div></div></div>
+            <div class="grow"><div class="gname">№ 2421 КОМ-1<small>ВентПроект · 30 шт</small></div><div class="gtrack"><div class="gb" style="left:14%;width:60%;background:linear-gradient(90deg,#7c3aed,#6d28d9)">Раскрой → сборка</div></div></div>
+            <div class="grow"><div class="gname">№ 2409 ВКР-4<small>Аврора · 8 шт</small></div><div class="gtrack"><div class="gb" style="left:0%;width:20%;background:linear-gradient(90deg,#dc2626,#b91c1c)">Просрочка!</div></div></div>
+            <div class="grow"><div class="gname">№ 2423 ВО 06-300<small>Каскад · 6 шт</small></div><div class="gtrack"><div class="gb" style="left:36%;width:44%;background:linear-gradient(90deg,#0d9488,#0f766e)">Раскрой → сборка</div></div></div>
+          </div>
+        </div>
+        <div class="two-eq">
+          <div class="card panel"><div class="ph"><h3>Загрузка цехов</h3><span class="more">неделя</span></div>
+            <div class="gauges">
+              <div class="gauge"><svg viewBox="0 0 100 60"><path d="M10 55 A40 40 0 0 1 90 55" fill="none" stroke="var(--line)" stroke-width="9"/><path d="M10 55 A40 40 0 0 1 80 25" fill="none" stroke="var(--accent)" stroke-width="9" stroke-linecap="round"/></svg><div class="gv">72%</div><div class="gl">Цех №1<br>Раскрой</div></div>
+              <div class="gauge"><svg viewBox="0 0 100 60"><path d="M10 55 A40 40 0 0 1 90 55" fill="none" stroke="var(--line)" stroke-width="9"/><path d="M10 55 A40 40 0 0 1 89 52" fill="none" stroke="#d97706" stroke-width="9" stroke-linecap="round"/></svg><div class="gv" style="color:var(--warn)">94%</div><div class="gl">Цех №2<br>Сборка</div></div>
+              <div class="gauge"><svg viewBox="0 0 100 60"><path d="M10 55 A40 40 0 0 1 90 55" fill="none" stroke="var(--line)" stroke-width="9"/><path d="M10 55 A40 40 0 0 1 66 19" fill="none" stroke="var(--accent)" stroke-width="9" stroke-linecap="round"/></svg><div class="gv">61%</div><div class="gl">Цех №3<br>Двигатели</div></div>
+            </div>
+            <div class="info" style="margin-top:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9z"/></svg>Цех №2 перегружен — перенесите № 2419 на 20.06 или подключите 2-ю смену.</div>
+          </div>
+          <div class="card panel"><div class="ph"><h3>Потребность в материалах (MRP)</h3><span class="more">под план</span></div>
+            <table><thead><tr><th>Материал</th><th class="mono">Нужно</th><th class="mono">Склад</th><th>Дефицит</th></tr></thead><tbody>
+              <tr><td>Рабочее колесо Ø630</td><td class="mono">12</td><td class="mono">6</td><td><span class="tag t-bad">−6</span></td></tr>
+              <tr><td>Двигатель АИР 90L4</td><td class="mono">16</td><td class="mono">12</td><td><span class="tag t-warn">−4</span></td></tr>
+              <tr><td>Сталь оцинк. 0,7 мм</td><td class="mono">1 840 кг</td><td class="mono">2 140</td><td><span class="tag t-ok">ок</span></td></tr>
+              <tr><td>Подшипниковый узел</td><td class="mono">16</td><td class="mono">28</td><td><span class="tag t-ok">ок</span></td></tr>
+            </tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== ORDERS (zakaz-naryad + blanks) ===== -->
+      <section class="page" id="page-orders">
+        <div class="phead"><div><h1>Заказ-наряд № 2418</h1><div class="sub">Печатные формы под ваши шаблоны: заказ-наряд, перемещение, приёмка, списание</div></div><div style="display:flex;gap:9px"><button class="btn ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><rect x="6" y="13" width="12" height="8"/><path d="M6 17H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2"/></svg>Печать</button><button class="btn">PDF</button></div></div>
+        <div class="card" style="overflow:hidden;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;padding:18px 22px;border-bottom:2px solid var(--accent)">
+            <div><div style="font-size:17px;font-weight:800">Заказ-наряд на производство</div><div class="mono" style="color:var(--muted);font-size:12px;margin-top:3px">№ 2418 от 14.06.2026 · основание: договор № 2418, предоплата 10%</div></div>
+            <div style="text-align:right;font-size:12px;color:var(--muted);line-height:1.7"><div>Цех №2 · Сборка</div><div>Мастер: <b style="color:var(--text)">Даулет А.</b></div><div>Срок: <b style="color:var(--text)">24.06.2026</b></div></div>
+          </div>
+          <div class="two-eq" style="padding:16px 22px;gap:0 30px;border-bottom:1px solid var(--line)">
+            <div><div class="specrow"><span class="k">Заказчик</span><span class="v">ОВиК-Инжиниринг</span></div><div class="specrow"><span class="k">Изделие</span><span class="v">ВР 80-75 №6,3</span></div><div class="specrow"><span class="k">Исполнение</span><span class="v">правое, 0°, схема 1</span></div></div>
+            <div><div class="specrow"><span class="k">Двигатель</span><span class="v">АИР 90L4 · 2,2 кВт</span></div><div class="specrow"><span class="k">Материал</span><span class="v">оцинк. 0,7 мм</span></div><div class="specrow"><span class="k">Количество</span><span class="v">4 шт</span></div></div>
+          </div>
+          <div style="padding:14px 22px 4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:800">Спецификация материалов (со склада 1С)</div>
+          <table><thead><tr><th>Материал / узел</th><th class="mono">Норма</th><th class="mono">На 4 шт</th><th>Списание</th></tr></thead><tbody>
+            <tr><td>Сталь оцинк. 0,7 мм</td><td class="mono">105 кг</td><td class="mono">420 кг</td><td><span class="tag t-ok">М-338 списан</span></td></tr>
+            <tr><td>Двигатель АИР 90L4</td><td class="mono">1 шт</td><td class="mono">4 шт</td><td><span class="tag t-ok">М-339 списан</span></td></tr>
+            <tr><td>Рабочее колесо Ø630</td><td class="mono">1 шт</td><td class="mono">4 шт</td><td><span class="tag t-warn">резерв</span></td></tr>
+            <tr><td>Подшипниковый узел</td><td class="mono">1 компл</td><td class="mono">4 компл</td><td><span class="tag t-warn">резерв</span></td></tr>
+          </tbody></table>
+        </div>
+        <div class="three">
+          <div class="card panel"><div class="ph"><h3>Перемещение</h3><span class="more">М-15</span></div><div class="listrow"><div class="ic2" style="background:var(--accentSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div><div class="gr"><div class="t1">Склад → Цех №1</div><div class="t2">Сталь 0,7 · 420 кг</div></div></div><div class="listrow"><div class="ic2" style="background:var(--accentSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div><div class="gr"><div class="t1">Цех №2 → Цех №3</div><div class="t2">Корпус · 4 шт</div></div></div></div>
+          <div class="card panel"><div class="ph"><h3>Приёмка</h3><span class="more">М-4</span></div><div class="listrow"><div class="ic2" style="background:var(--okSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div><div class="gr"><div class="t1">ГП № 2412</div><div class="t2">ВО 06-300 · 5 шт</div></div></div><div class="listrow"><div class="ic2" style="background:var(--warnSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2"><path d="M12 9v4M12 17h.01"/></svg></div><div class="gr"><div class="t1">Двигатели АИР</div><div class="t2">20 шт · 2 на проверку</div></div></div></div>
+          <div class="card panel"><div class="ph"><h3>Списание</h3><span class="more">М-11</span></div><div class="listrow"><div class="ic2" style="background:var(--badSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--bad)" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></div><div class="gr"><div class="t1">Сталь 0,7 · 420 кг</div><div class="t2">№ 2418 · проводка в 1С</div></div></div><div class="listrow"><div class="ic2" style="background:var(--badSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--bad)" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></div><div class="gr"><div class="t1">Двигатели · 4 шт</div><div class="t2">№ 2418 · проводка в 1С</div></div></div></div>
+        </div>
+      </section>
+
+      <!-- ===== SHOP (master cabinet) ===== -->
+      <section class="page" id="page-shop">
+        <div class="phead"><div><h1>Сменное задание · Цех №2</h1><div class="sub">Что делаем сегодня. Отмечайте этапы — план обновится у директора автоматически</div></div><div class="rolesel"><span class="dot"></span>Смена: 16.06 · день</div></div>
+        <div class="taskbig">
+          <div class="tbh"><div><div class="tbt">№ 2418 · ВР 80-75 №6,3 · 4 шт</div><div class="tbm">ОВиК-Инжиниринг · срок 24.06 · сборка корпуса</div></div><span class="tag t-acc">в работе</span></div>
+          <div class="checkline done"><span class="cb"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span>Корпус-улитка раскроен и согнут</div>
+          <div class="checkline done"><span class="cb"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span>Сварка корпуса, зачистка</div>
+          <div class="checkline"><span class="cb"></span>Установка рабочего колеса Ø630</div>
+          <div class="checkline"><span class="cb"></span>Монтаж двигателя АИР 90L4, виброопоры</div>
+          <div class="tbtns"><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Этап готов → в ОТК</button><button class="btn ghost">Сообщить о проблеме</button></div>
+        </div>
+        <div class="taskbig warn">
+          <div class="tbh"><div><div class="tbt">№ 2419 · ВКР-6 крышный · 3 шт</div><div class="tbm">срок 20.06 · ждёт материал</div></div><span class="tag t-warn">дефицит</span></div>
+          <div class="checkline"><span class="cb"></span>Рабочее колесо Ø630 — нет на складе (заказано снабжением)</div>
+          <div class="tbtns"><button class="btn ghost">Открыть заказ-наряд</button></div>
+        </div>
+        <div class="taskbig ok">
+          <div class="tbh"><div><div class="tbt">№ 2412 · ВО 06-300 №5 · 5 шт</div><div class="tbm">сдан на склад ГП · 10:40</div></div><span class="tag t-ok">готов</span></div>
+        </div>
+      </section>
+
+      <!-- ===== SUPPLY ===== -->
+      <section class="page" id="page-supply">
+        <div class="phead"><div><h1>Снабжение и закупки</h1><div class="sub">Потребность под план, заказы поставщикам, отслеживание поставок</div></div><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Заказ поставщику</button></div>
+        <div class="grid kpis" style="margin-bottom:16px">
+          <div class="card kpi"><div class="t">Дефицит позиций</div><div class="v" style="color:var(--bad)">7</div><div class="d down">требуется закупка</div></div>
+          <div class="card kpi"><div class="t">Заказов в пути</div><div class="v">5</div><div class="d" style="color:var(--muted)">на 8,4 млн ₸</div></div>
+          <div class="card kpi"><div class="t">Просрочка поставки</div><div class="v" style="color:var(--warn)">1</div><div class="d down">двигатели АИР</div></div>
+          <div class="card kpi"><div class="t">Поставщиков</div><div class="v">14</div><div class="d" style="color:var(--muted)">активных</div></div>
+        </div>
+        <div class="two-eq">
+          <div class="card panel"><div class="ph"><h3>Заказать (дефицит под план)</h3><span class="more">MRP →</span></div>
+            <table><thead><tr><th>Позиция</th><th class="mono">Дефицит</th><th>Поставщик</th><th></th></tr></thead><tbody>
+              <tr><td>Рабочее колесо Ø630</td><td class="mono"><span class="tag t-bad">6</span></td><td>МеталлКомплект</td><td><button class="btn" style="padding:5px 11px;font-size:11.5px">Заказать</button></td></tr>
+              <tr><td>Двигатель АИР 90L4</td><td class="mono"><span class="tag t-warn">4</span></td><td>ЭлектроМотор</td><td><button class="btn" style="padding:5px 11px;font-size:11.5px">Заказать</button></td></tr>
+              <tr><td>Краска RAL 7035</td><td class="mono"><span class="tag t-warn">мало</span></td><td>ХимПром</td><td><button class="btn ghost" style="padding:5px 11px;font-size:11.5px">Запрос</button></td></tr>
+            </tbody></table>
+          </div>
+          <div class="card panel"><div class="ph"><h3>Поставки в пути</h3><span class="more">отслеживание</span></div>
+            <div class="listrow"><div class="ic2" style="background:var(--warnSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7M5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg></div><div class="gr"><div class="t1">Двигатели АИР · 20 шт</div><div class="t2">ЭлектроМотор · просрочка 2 дня</div></div><span class="tag t-warn">задержка</span></div>
+            <div class="listrow"><div class="ic2" style="background:var(--accentSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7"/></svg></div><div class="gr"><div class="t1">Сталь оцинк. 0,7 · 3 т</div><div class="t2">МеталлКомплект · прибытие 18.06</div></div><span class="tag t-acc">в пути</span></div>
+            <div class="listrow"><div class="ic2" style="background:var(--okSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div><div class="gr"><div class="t1">Подшипники SKF · 40 компл</div><div class="t2">принято на склад 15.06</div></div><span class="tag t-ok">принято</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== STOCK ===== -->
+      <section class="page" id="page-stock">
+        <div class="phead"><div><h1>Склад <span style="color:var(--muted);font-weight:700;font-size:15px">· синхронизация с 1С</span></h1><div class="sub">Остатки тянутся из 1С в реальном времени. Списания возвращаются обратно в 1С</div></div><div class="rolesel" style="background:var(--okSoft);border-color:var(--ok);color:var(--ok)"><span class="dot" style="background:var(--ok)"></span>1С синхронизировано · 11:29</div></div>
+        <div class="grid kpis" style="margin-bottom:16px">
+          <div class="card kpi"><div class="t">Позиций на складе</div><div class="v">1 248</div><div class="d" style="color:var(--muted)">сырьё + комплект. + ГП</div></div>
+          <div class="card kpi"><div class="t">Стоимость остатков</div><div class="v">61 млн ₸</div><div class="d" style="color:var(--muted)">по данным 1С</div></div>
+          <div class="card kpi"><div class="t">Ниже минимума</div><div class="v" style="color:var(--warn)">7</div><div class="d down">требуется закупка</div></div>
+          <div class="card kpi"><div class="t">В резерве</div><div class="v">9,3 млн ₸</div><div class="d" style="color:var(--muted)">38 заказов</div></div>
+        </div>
+        <div class="two">
+          <div class="card panel"><div class="ph"><h3>Остатки · сырьё и комплектующие</h3><span class="more">из 1С →</span></div>
+            <table><thead><tr><th>Номенклатура</th><th>Код 1С</th><th class="mono">Остаток</th><th>Статус</th></tr></thead><tbody>
+              <tr><td>Сталь оцинк. 0,7 мм</td><td class="mono" style="color:var(--muted)">МТ-0701</td><td class="mono">2 140 кг</td><td><span class="tag t-ok">норма</span></td></tr>
+              <tr><td>Сталь оцинк. 1,0 мм</td><td class="mono" style="color:var(--muted)">МТ-1001</td><td class="mono">980 кг</td><td><span class="tag t-ok">норма</span></td></tr>
+              <tr><td>Двигатель АИР 90L4</td><td class="mono" style="color:var(--muted)">ДВ-9024</td><td class="mono">12 шт</td><td><span class="tag t-warn">мало</span></td></tr>
+              <tr><td>Рабочее колесо Ø630</td><td class="mono" style="color:var(--muted)">РК-0630</td><td class="mono">6 шт</td><td><span class="tag t-bad">ниже мин.</span></td></tr>
+              <tr><td>Подшипниковый узел SKF</td><td class="mono" style="color:var(--muted)">ПУ-204</td><td class="mono">28 компл</td><td><span class="tag t-ok">норма</span></td></tr>
+              <tr><td>Краска RAL 7035</td><td class="mono" style="color:var(--muted)">КР-7035</td><td class="mono">85 кг</td><td><span class="tag t-ok">норма</span></td></tr>
+            </tbody></table>
+          </div>
+          <div class="card panel"><div class="ph"><h3>Готовая продукция</h3><span class="more">к отгрузке</span></div>
+            <table><thead><tr><th>Изделие</th><th class="mono">Кол-во</th><th>Под заказ</th></tr></thead><tbody>
+              <tr><td>ВО 06-300 №5</td><td class="mono">5</td><td><span class="tag t-acc">№ 2412</span></td></tr>
+              <tr><td>ВКР-4 крышный</td><td class="mono">2</td><td><span class="tag t-steel">склад</span></td></tr>
+              <tr><td>Клапан КОМ-1</td><td class="mono">14</td><td><span class="tag t-acc">№ 2421</span></td></tr>
+              <tr><td>ВР 80-75 №5</td><td class="mono">3</td><td><span class="tag t-steel">склад</span></td></tr>
+            </tbody></table>
+            <div class="info" style="margin-top:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2"/><rect x="3" y="8" width="18" height="12" rx="1"/></svg>Учёт остаётся в 1С. «Поток» — единое окно: остатки, резервы и движение без захода в 1С.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== QC / ОТК ===== -->
+      <section class="page" id="page-qc">
+        <div class="phead"><div><h1>ОТК · качество и сертификаты</h1><div class="sub">Очередь на контроль, протоколы испытаний, сертификаты дымоудаления</div></div><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Новый протокол</button></div>
+        <div class="two">
+          <div class="card panel"><div class="ph"><h3>На контроле</h3><span class="more">очередь ОТК</span></div>
+            <table><thead><tr><th>Заказ</th><th>Изделие</th><th>Проверка</th><th>Статус</th></tr></thead><tbody>
+              <tr><td><b>№ 2415</b></td><td>ВРС-ДУ дымоуд.</td><td>аэродин. + огневые</td><td><span class="tag t-warn">идёт</span></td></tr>
+              <tr><td><b>№ 2418</b></td><td>ВР 80-75 №6,3</td><td>вибро + аэродин.</td><td><span class="tag t-steel">ожидает</span></td></tr>
+              <tr><td><b>№ 2410</b></td><td>ВКР-4 крышный</td><td>визуальный + ток</td><td><span class="tag t-ok">принят</span></td></tr>
+              <tr><td><b>№ 2407</b></td><td>Клапан КОМ-1</td><td>привод, ход</td><td><span class="tag t-bad">брак · 1 шт</span></td></tr>
+            </tbody></table>
+            <div class="info" style="margin-top:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9z"/></svg>Брак фиксируется с фото и причиной → возврат в цех, виден в воронке производства.</div>
+          </div>
+          <div class="card panel"><div class="ph"><h3>Сертификаты и протоколы</h3><span class="more">архив</span></div>
+            <div class="certrow"><div class="cdoc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></div><div class="gr"><div class="t1">Сертификат ПБ · ВРС-ДУ</div><div class="t2">пожарная безопасность · дымоудаление</div></div><span class="tag t-ok">до 2028</span></div>
+            <div class="certrow"><div class="cdoc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></div><div class="gr"><div class="t1">Протокол аэродин. испытаний</div><div class="t2">№ 2415 · расход/давление в норме</div></div><span class="tag t-ok">подписан</span></div>
+            <div class="certrow"><div class="cdoc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></div><div class="gr"><div class="t1">Декларация соответствия ТР ТС</div><div class="t2">общепромышленные вентиляторы</div></div><span class="tag t-warn">обновить</span></div>
+            <div class="certrow"><div class="cdoc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></div><div class="gr"><div class="t1">Паспорт изделия (шаблон)</div><div class="t2">авто-генерация при отгрузке</div></div><span class="tag t-acc">авто</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== FINANCE ===== -->
+      <section class="page" id="page-finance">
+        <div class="phead"><div><h1>Финансы · дебиторка</h1><div class="sub">Платёжный календарь, дебиторка по срокам, предоплаты и постоплата</div></div></div>
+        <div class="grid kpis" style="margin-bottom:16px">
+          <div class="card kpi"><div class="t">Дебиторка всего</div><div class="v">7,8 млн ₸</div><div class="d down">▲ просрочено 1,7 млн</div></div>
+          <div class="card kpi"><div class="t">Поступления, июнь</div><div class="v">84,6 млн ₸</div><div class="d up">▲ 23%</div></div>
+          <div class="card kpi"><div class="t">Ожидается на неделе</div><div class="v">11,2 млн ₸</div><div class="d" style="color:var(--muted)">по графику</div></div>
+          <div class="card kpi"><div class="t">Предоплаты получено</div><div class="v">3 заказа</div><div class="d" style="color:var(--muted)">старт производства</div></div>
+        </div>
+        <div class="two">
+          <div class="card panel"><div class="ph"><h3>Дебиторка по клиентам</h3><span class="more">aging</span></div>
+            <table><thead><tr><th>Клиент</th><th class="mono">Сумма</th><th>Срок</th></tr></thead><tbody>
+              <tr><td>СтройМонтаж KZ</td><td class="mono">1,7 млн</td><td><span class="tag t-bad">61–90 дн</span></td></tr>
+              <tr><td>ТЦ «Аврора»</td><td class="mono">2,4 млн</td><td><span class="tag t-warn">31–60 дн</span></td></tr>
+              <tr><td>Завод «Каскад»</td><td class="mono">3,1 млн</td><td><span class="tag t-acc">0–30 дн</span></td></tr>
+              <tr><td>ВентПроект</td><td class="mono">0,6 млн</td><td><span class="tag t-acc">0–30 дн</span></td></tr>
+            </tbody></table>
+          </div>
+          <div class="card panel"><div class="ph"><h3>Структура дебиторки</h3><span class="more">7,8 млн ₸</span></div>
+            <div class="aging"><i style="width:47%;background:var(--accent)"></i><i style="width:31%;background:var(--warn)"></i><i style="width:22%;background:var(--bad)"></i></div>
+            <div class="leg"><span><b style="background:var(--accent)"></b>0–30 дн · 3,7 млн</span><span><b style="background:var(--warn)"></b>31–60 дн · 2,4 млн</span><span><b style="background:var(--bad)"></b>61–90 дн · 1,7 млн</span></div>
+            <div style="margin-top:16px" class="ph"><h3>Платёжный календарь</h3></div>
+            <div class="listrow"><div class="ic2" style="background:var(--okSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="gr"><div class="t1">ОВиК · постоплата № 2418</div><div class="t2">ожидается 26.06</div></div><div class="tm mono">3,4 млн</div></div>
+            <div class="listrow"><div class="ic2" style="background:var(--warnSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div><div class="gr"><div class="t1">СтройМонтаж · напоминание</div><div class="t2">просрочка 65 дн · авто-WhatsApp</div></div><div class="tm mono">1,7 млн</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== ACCOUNTING ===== -->
+      <section class="page" id="page-accounting">
+        <div class="phead"><div><h1>Бухгалтерия · 1С</h1><div class="sub">Движения и документы из 1С. Учёт ведётся в 1С, здесь — единое окно для сверки</div></div><div class="rolesel" style="background:var(--okSoft);border-color:var(--ok);color:var(--ok)"><span class="dot" style="background:var(--ok)"></span>Обмен с 1С активен</div></div>
+        <div class="two">
+          <div class="card panel"><div class="ph"><h3>Документы</h3><span class="more">из 1С</span></div>
+            <table><thead><tr><th>Документ</th><th>Контрагент</th><th class="mono">Сумма</th><th>Статус</th></tr></thead><tbody>
+              <tr><td>Счёт № 2418</td><td>ОВиК-Инжиниринг</td><td class="mono">3,8 млн</td><td><span class="tag t-ok">проведён</span></td></tr>
+              <tr><td>Реализация № 2412</td><td>ТЦ «Аврора»</td><td class="mono">3,2 млн</td><td><span class="tag t-ok">проведён</span></td></tr>
+              <tr><td>ТТН № 2412</td><td>ТЦ «Аврора»</td><td class="mono">—</td><td><span class="tag t-acc">отгрузка</span></td></tr>
+              <tr><td>Поступление · сталь</td><td>МеталлКомплект</td><td class="mono">1,9 млн</td><td><span class="tag t-warn">проверить</span></td></tr>
+            </tbody></table>
+          </div>
+          <div class="card panel"><div class="ph"><h3>Движения склада (1С)</h3><span class="more">сегодня</span></div>
+            <div class="listrow"><div class="ic2" style="background:var(--badSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--bad)" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg></div><div class="gr"><div class="t1">Списание · сталь 0,7</div><div class="t2">420 кг → заказ № 2418</div></div><div class="tm">09:40</div></div>
+            <div class="listrow"><div class="ic2" style="background:var(--okSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div><div class="gr"><div class="t1">Приёмка · подшипники SKF</div><div class="t2">40 компл от поставщика</div></div><div class="tm">вчера</div></div>
+            <div class="listrow"><div class="ic2" style="background:var(--accentSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div><div class="gr"><div class="t1">Перемещение · ГП</div><div class="t2">ВО 06-300 · цех → склад</div></div><div class="tm">10:40</div></div>
+            <div class="info" style="margin-top:12px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>Двусторонний обмен: проводки, инициированные в «Потоке», уходят в 1С; документы 1С видны здесь.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== TEAM ===== -->
+      <section class="page" id="page-team">
+        <div class="phead"><div><h1>Команда и роли</h1><div class="sub">У каждого свой кабинет и свои права. Настраивается под вашу структуру</div></div><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Добавить сотрудника</button></div>
+        <div class="three" id="teamcards"></div>
+        <div class="info" style="margin-top:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>Это типовые кабинеты для завода вентиляции. На внедрении соберём точные права по каждому отделу.</div>
+      </section>
+
+      <!-- ===== CHATS ===== -->
+      <section class="page" id="page-chats">
+        <div class="phead"><div><h1>Чаты и заявки</h1><div class="sub">Заявки с сайта, WhatsApp и звонки — в одной ленте, сразу в воронку</div></div></div>
+        <div class="two">
+          <div class="card panel"><div class="ph"><h3>Входящие заявки</h3><span class="more">сегодня · 3 новых</span></div>
+            <div class="listrow"><div class="ic2" style="background:var(--accentSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div><div class="gr"><div class="t1">ОВиК-Инжиниринг · сайт</div><div class="t2">«Нужны 4× ВР 80-75 №6,3, КП и срок»</div></div><div class="tm">10:21</div></div>
+            <div class="listrow"><div class="ic2" style="background:var(--okSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div class="gr"><div class="t1">+7 ··· 41 · WhatsApp</div><div class="t2">«Дымоудаление на 9 этажей, посчитаете?»</div></div><div class="tm">09:47</div></div>
+            <div class="listrow"><div class="ic2" style="background:var(--warnSoft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div><div class="gr"><div class="t1">Звонок · ВентПроект</div><div class="t2">Запись · 3:12 · дозаказ КОМ-1</div></div><div class="tm">09:30</div></div>
+          </div>
+          <div class="card panel"><div class="ph"><h3>Диалог · ОВиК-Инжиниринг</h3><span class="more">WhatsApp</span></div>
+            <div style="display:flex;flex-direction:column;gap:10px;padding-top:4px">
+              <div style="align-self:flex-start;max-width:80%;background:var(--surface2);border:1px solid var(--line);border-radius:12px 12px 12px 4px;padding:9px 12px;font-size:12.5px">Добрый день! По 4× ВР 80-75 №6,3 — когда сможете отгрузить?</div>
+              <div style="align-self:flex-end;max-width:80%;background:var(--accent);color:#fff;border-radius:12px 12px 4px 12px;padding:9px 12px;font-size:12.5px">Здравствуйте! КП отправил, срок 10 рабочих дней.</div>
+              <div style="align-self:flex-start;max-width:80%;background:var(--surface2);border:1px solid var(--line);border-radius:12px 12px 12px 4px;padding:9px 12px;font-size:12.5px">Принято, выставляйте счёт на предоплату.</div>
+            </div>
+            <div class="info" style="margin-top:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>Переписка хранится в карточке сделки — менеджер ушёл, история осталась на заводе.</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ---------- role + nav config ---------- */
+  const COLORS={purple:'#7c3aed',cyan:'#0891b2',blue:'#2563eb',amber:'#d97706',teal:'#0d9488',green:'#16a34a',orange:'#ea580c',steel:'#475569',pink:'#db2777'};
+  const ICON={
+    dash:'<rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>',
+    sales:'<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/>',
+    selection:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>',
+    clients:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>',
+    objects:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+    prod:'<path d="M2 20h20"/><path d="M4 20V8l5 3V8l5 3V8l5 3v9"/>',
+    plan:'<path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/>',
+    orders:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/>',
+    shop:'<path d="M3 9l1-5h16l1 5"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 13h6"/>',
+    supply:'<rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7M5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/>',
+    stock:'<path d="M21 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2"/><rect x="3" y="8" width="18" height="12" rx="1"/><path d="M3 12h18"/>',
+    qc:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+    finance:'<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+    accounting:'<path d="M9 2h6a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M9 6h6M9 10h6M9 14h4"/>',
+    team:'<path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/>',
+    chats:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'
+  };
+  const LABEL={dash:'Дашборд',sales:'Воронка продаж',selection:'Подбор вентилятора',clients:'Клиенты',objects:'Объекты',prod:'Производство',plan:'План / ПДО',orders:'Заказ-наряды',shop:'Сменное задание',supply:'Снабжение',stock:'Склад · 1С',qc:'ОТК · качество',finance:'Финансы',accounting:'Бухгалтерия 1С',team:'Команда и роли',chats:'Чаты и заявки'};
+  const BADGE={sales:'4',prod:'7',chats:'3',shop:'3'};
+  const SECTIONS=[
+    {t:'Обзор',items:['dash']},
+    {t:'Продажи',items:['sales','selection','clients','objects']},
+    {t:'Производство',items:['plan','prod','shop','orders']},
+    {t:'Снабжение и склад',items:['supply','stock']},
+    {t:'Качество',items:['qc']},
+    {t:'Финансы',items:['finance','accounting']},
+    {t:'Управление',items:['team','chats']}
+  ];
+  const ROLES={
+    director:{name:'Рустам Каримов',title:'Директор завода',av:'РК',color:'purple',landing:'dash',
+      pages:['dash','sales','selection','clients','objects','prod','plan','shop','orders','supply','stock','qc','finance','accounting','team','chats'],
+      desc:'Видит весь завод: продажи, производство, склад, финансы и аналитику.'},
+    sales:{name:'Аскар Дюсенов',title:'Менеджер продаж',av:'АД',color:'cyan',landing:'sales',
+      pages:['sales','selection','clients','objects','chats'],
+      desc:'Воронка, подбор вентиляторов, клиенты, КП и счета.'},
+    pdo:{name:'Ержан Сапаров',title:'Начальник производства (ПДО)',av:'ЕС',color:'blue',landing:'plan',
+      pages:['plan','prod','orders','supply','stock'],
+      desc:'План и диспетчеризация, загрузка цехов, MRP, наряды.'},
+    master:{name:'Даулет Ахметов',title:'Мастер цеха №2',av:'ДА',color:'amber',landing:'shop',
+      pages:['shop','prod','orders'],
+      desc:'Сменное задание: что делать сегодня, отметка этапов.'},
+    supply:{name:'Нурлан Беков',title:'Снабжение / закупки',av:'НБ',color:'teal',landing:'supply',
+      pages:['supply','stock'],
+      desc:'Потребность под план, заказы поставщикам, поставки.'},
+    stock:{name:'Сергей Ким',title:'Складовщик',av:'СК',color:'green',landing:'stock',
+      pages:['stock','orders'],
+      desc:'Остатки, приёмка, перемещение, списание, бланки.'},
+    qc:{name:'Ольга Тен',title:'ОТК · качество',av:'ОТ',color:'orange',landing:'qc',
+      pages:['qc','prod'],
+      desc:'Контроль, протоколы испытаний, сертификаты ДУ.'},
+    finance:{name:'Марина Цой',title:'Финансист',av:'МЦ',color:'pink',landing:'finance',
+      pages:['finance','clients'],
+      desc:'Дебиторка, платёжный календарь, предоплаты.'},
+    buh:{name:'Гульнара А.',title:'Бухгалтер',av:'ГА',color:'steel',landing:'accounting',
+      pages:['accounting','stock'],
+      desc:'Документы и движения из 1С, сверка.'}
+  };
+
+  /* ---------- build role gate ---------- */
+  const rg=document.getElementById('rolegrid');
+  Object.entries(ROLES).forEach(([k,r])=>{
+    const el=document.createElement('div');el.className='rcard';el.onclick=()=>enterRole(k);
+    el.innerHTML=`<div class="rtop"><div class="rav" style="background:linear-gradient(135deg,${COLORS[r.color]},${COLORS[r.color]}cc)">${r.av}</div><div><div class="rn">${r.title}</div><div class="rt">${r.name}</div></div></div><div class="rd">${r.desc}</div><div class="renter">Войти как ${r.title.split(' ')[0].toLowerCase()} <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>`;
+    rg.appendChild(el);
+  });
+
+  /* ---------- team cards ---------- */
+  const tc=document.getElementById('teamcards');
+  Object.entries(ROLES).forEach(([k,r])=>{
+    const can=r.pages.slice(0,3).map(p=>`<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>${LABEL[p]}</li>`).join('');
+    const el=document.createElement('div');el.className='card rolecard';
+    el.innerHTML=`<div class="rh"><div class="ri" style="background:${COLORS[r.color]}"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">${ICON[r.landing]||ICON.team}</svg></div><div><div class="rn">${r.title}</div><div class="rp">${r.name}</div></div></div><ul>${can}<li class="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>остальное скрыто по роли</li></ul>`;
+    tc.appendChild(el);
+  });
+
+  /* ---------- navigation ---------- */
+  function go(page){
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    const pg=document.getElementById('page-'+page); if(pg)pg.classList.add('active');
+    document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('active',a.dataset.page===page));
+    document.getElementById('content').scrollTop=0;
+  }
+  function buildNav(role){
+    const nav=document.getElementById('nav');nav.innerHTML='';
+    SECTIONS.forEach(sec=>{
+      const items=sec.items.filter(i=>role.pages.includes(i));
+      if(!items.length)return;
+      const h=document.createElement('div');h.className='sec';h.textContent=sec.t;nav.appendChild(h);
+      items.forEach(p=>{
+        const a=document.createElement('a');a.dataset.page=p;
+        a.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${ICON[p]}</svg>${LABEL[p]}${BADGE[p]?`<span class="badge">${BADGE[p]}</span>`:''}`;
+        a.onclick=()=>go(p);
+        nav.appendChild(a);
+      });
+    });
+  }
+  function enterRole(key){
+    const r=ROLES[key];
+    buildNav(r);
+    document.getElementById('uav').textContent=r.av;
+    document.getElementById('uav').style.background=`linear-gradient(135deg,${COLORS[r.color]},${COLORS[r.color]}cc)`;
+    document.getElementById('uname').textContent=r.name;
+    document.getElementById('urole').textContent=r.title;
+    document.getElementById('rolebadge').textContent=r.title;
+    document.getElementById('gate').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    go(r.landing);
+  }
+  function showGate(){document.getElementById('app').classList.add('hidden');document.getElementById('gate').classList.remove('hidden');}
+  function toggleTheme(){const h=document.documentElement;h.dataset.theme=h.dataset.theme==='dark'?'light':'dark';}
+
+  /* shot helper: #role=master&theme=dark or #gate */
+  (function(){
+    const hp=new URLSearchParams(location.hash.replace('#',''));
+    if(hp.get('theme'))document.documentElement.dataset.theme=hp.get('theme');
+    if(hp.has('gate'))return; // stay on gate
+    if(hp.get('role')&&ROLES[hp.get('role')]){enterRole(hp.get('role'));if(hp.get('page'))go(hp.get('page'));}
+  })();
+</script>
+</body>
+</html>
