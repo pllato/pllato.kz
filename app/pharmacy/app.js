@@ -423,7 +423,8 @@ async function dealModalLive(d){
   let dInit=[]; try{ dInit=JSON.parse(d.items||'[]'); }catch(e){}
   const ed=makeItemsEditor(dInit);
   const dmUsers=await fetchUsers();
-  const stages=STAGES[state.funnel]||[];
+  const dmFunnel=d.funnel||state.funnel;
+  const stages=STAGES[dmFunnel]||[];
   const DM_SRC=['WhatsApp','Instagram','Сайт','Звонок','Сарафан'];
   const dmCurSrc=(d.source||'').trim();
   const dmSourceSel=`<select data-dm="source"><option value="">— источник —</option>`+DM_SRC.map(s=>`<option ${s===dmCurSrc?'selected':''}>${esc(s)}</option>`).join('')+(dmCurSrc&&!DM_SRC.includes(dmCurSrc)?`<option selected>${esc(dmCurSrc)}</option>`:'')+`</select>`;
@@ -434,7 +435,8 @@ async function dealModalLive(d){
   </div>
   <div class="modal-b" id="dmTabDetails">
     <div class="fld"><label>Клиент</label><div id="dmClientZone"></div></div>
-    <div class="fld-row"><div class="fld"><label>Телефон</label><input data-dm="phone" value="${esc(d.phone||'')}" placeholder="+996…"></div><div class="fld"><label>Этап</label><select data-dm="stage">${stages.map(s=>`<option ${s===d.stage?'selected':''}>${esc(s)}</option>`).join('')}</select></div></div>
+    <div class="fld-row"><div class="fld"><label>Воронка <span class="muted2">(сменить — перемещает сделку)</span></label><select data-dm="funnel" id="dmFunnelSel">${FUNNELS.map(f=>`<option value="${esc(f.id)}" ${f.id===dmFunnel?'selected':''}>${esc(f.name)}</option>`).join('')}</select></div><div class="fld"><label>Этап</label><select data-dm="stage" id="dmStageSel">${stages.map(s=>`<option ${s===d.stage?'selected':''}>${esc(s)}</option>`).join('')}</select></div></div>
+    <div class="fld"><label>Телефон</label><input data-dm="phone" value="${esc(d.phone||'')}" placeholder="+996…"></div>
     <div class="fld-row"><div class="fld"><label>Сумма, с</label><input data-dm="amount" type="number" value="${d.amount||0}"></div><div class="fld"><label>Ответственный</label>${userSelectHtml(dmUsers,d.mgr,'data-dm="mgr"')}</div></div>
     <div class="fld-row"><div class="fld"><label>Источник</label>${dmSourceSel}</div><div class="fld"><label>Точка</label>${storeSelectHtml(dmStores,d.store_key,'data-dm="store_key"','— точка —')}</div></div>
     <div class="fld"><label>Состав (товары из 1С)</label><div id="dmItems"></div></div>
@@ -475,8 +477,10 @@ async function dealModalLive(d){
     bg.querySelector('#dmTabChat').style.display = tab==='chat'?'':'none';
     if(tab==='chat' && !chatLoaded){ chatLoaded=true; dealChatLoad(bg,d); }
   });
+  const dmFunSel=bg.querySelector('#dmFunnelSel'), dmStgSel=bg.querySelector('#dmStageSel');
+  if(dmFunSel&&dmStgSel) dmFunSel.onchange=()=>{ const st=STAGES[dmFunSel.value]||[]; dmStgSel.innerHTML=st.map(s=>`<option>${esc(s)}</option>`).join(''); toast('Этап сброшен на первый для новой воронки','i-info','#d97706'); };
   bg.querySelector('#dmSave').onclick=async()=>{
-    const body={client_ref:dRef,client_name:(dName||'').trim(),phone:bg.querySelector('[data-dm=phone]').value.trim(),stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,items:ed.getItems(),note:bg.querySelector('[data-dm=note]').value.trim()};
+    const body={funnel:bg.querySelector('[data-dm=funnel]').value,client_ref:dRef,client_name:(dName||'').trim(),phone:bg.querySelector('[data-dm=phone]').value.trim(),stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,items:ed.getItems(),note:bg.querySelector('[data-dm=note]').value.trim()};
     const r=await api('/api/deals/'+d.id,{method:'POST',body:JSON.stringify(body)});
     if(!r.ok){toast('Ошибка сохранения','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); if(r.data&&r.data.order_created)toast('Сделка закрыта → создан черновик заказа (раздел «Заказы»)','i-cart','#16a34a'); if(window.__reloadFunnels)window.__reloadFunnels();
   };
