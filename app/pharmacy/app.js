@@ -499,7 +499,7 @@ async function dealChatLoad(bg,d){
     if(comp && !comp.querySelector('#dmChatMic')){
       const mic=el(`<button class="cw-send" id="dmChatMic" title="Голосовое: тап — начать запись, тап ещё раз — отправить" style="margin-right:6px">${ic('i-mic')}</button>`);
       comp.insertBefore(mic, sb);
-      mic.onclick=()=>micToggle(d.id, mic, ()=>{ data.messages=data.messages||[]; data.messages.push({dir:'out',body:'🎤 голосовое',ts:Date.now()}); render(); });
+      mic.onclick=()=>micToggle('/api/deals/'+d.id+'/chat/audio', mic, ()=>{ data.messages=data.messages||[]; data.messages.push({dir:'out',body:'🎤 голосовое',ts:Date.now()}); render(); });
     }
   }
   const send=async()=>{
@@ -840,7 +840,7 @@ const _legacyInboxDemo=(c)=>{   // старый демо-инбокс (не ис
   const cb=$('#chatBody');if(cb)cb.scrollTop=cb.scrollHeight;
 };
 // ---------- ЧАТЫ (live · омни-чат WhatsApp/GreenAPI) ----------
-let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibDeal={}, __ibWrap=null, __ibChannelFilter=null;
+let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibDeal={}, __ibWrap=null, __ibChannelFilter=null, __ibAllowAudio=false;
 async function liveInbox(c){
   __ibWrap=el(`<div class="inbox"></div>`);
   __ibWrap.innerHTML='<div class="ib-threads"></div><div class="ib-chat"></div><div class="ib-context"></div>';
@@ -848,6 +848,7 @@ async function liveInbox(c){
   __ibMsgsCache={}; __ibDeal={};
   const r=await api('/api/inbox/threads');
   __ibThreads=(r&&r.ok&&r.data&&Array.isArray(r.data.items))?r.data.items:[];
+  __ibAllowAudio=!!(r&&r.ok&&r.data&&r.data.allow_audio);
   window.__inboxUnread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0); renderNav();
   if((!__ibCur || !__ibThreads.some(t=>t.id===__ibCur)) && __ibThreads.length) __ibCur=__ibThreads[0].id;
   ibThreadList(); ibChat(); ibContext();
@@ -895,7 +896,7 @@ function ibChat(){
       <div><div style="font-weight:700;font-size:14px">${esc(nm)}</div><div class="muted" style="font-size:11.5px">WhatsApp · GreenAPI${t.phone?(' · +'+esc(t.phone)):''}</div></div>
       <div class="spacer"></div></div>
     <div class="chat-body" id="ibChatBody">${bodyHtml}</div>
-    <div class="chat-input"><div class="ci-box"><input id="ibMsgInput" placeholder="Сообщение в WhatsApp…"></div><button class="btn primary" id="ibSendBtn">${ic('i-send','sm')}</button></div>`;
+    <div class="chat-input"><div class="ci-box"><input id="ibMsgInput" placeholder="Сообщение в WhatsApp…"></div>${__ibAllowAudio?`<button class="btn" id="ibMic" title="Голосовое: тап — запись, тап ещё раз — отправить" style="padding:0 13px">${ic('i-mic','sm')}</button>`:''}<button class="btn primary" id="ibSendBtn">${ic('i-send','sm')}</button></div>`;
   const cb=box.querySelector('#ibChatBody'); if(cb)cb.scrollTop=cb.scrollHeight;
   const inp=box.querySelector('#ibMsgInput'), sb=box.querySelector('#ibSendBtn');
   const send=async()=>{ const v=(inp.value||'').trim(); if(!v)return; inp.value='';
@@ -906,6 +907,7 @@ function ibChat(){
   };
   if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
   if(sb)sb.onclick=send;
+  const mic=box.querySelector('#ibMic'); if(mic) mic.onclick=()=>micToggle('/api/inbox/threads/'+encodeURIComponent(t.id)+'/audio', mic, ()=>{ (__ibMsgsCache[t.id]=__ibMsgsCache[t.id]||[]).push({dir:'out',body:'🎤 голосовое',ts:Date.now()}); ibChat(); });
 }
 function ibContext(){
   const box=__ibWrap&&__ibWrap.querySelector('.ib-context'); if(!box)return;
@@ -960,7 +962,7 @@ function sendMsg(tid){
 // Запись и отправка голосового в WhatsApp (тап — старт, тап ещё раз — стоп+отправка)
 let _waRec=null,_waChunks=[];
 function blobToB64(blob){ return new Promise(res=>{ const fr=new FileReader(); fr.onloadend=()=>res(String(fr.result).split(',')[1]||''); fr.readAsDataURL(blob); }); }
-async function micToggle(dealId, btn, onSent){
+async function micToggle(audioUrl, btn, onSent){
   if(_waRec && _waRec.state==='recording'){ _waRec.stop(); return; }
   if(!navigator.mediaDevices || !window.MediaRecorder){ toast('Запись не поддерживается браузером','i-x','#dc2626'); return; }
   let stream; try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(e){ toast('Нет доступа к микрофону','i-x','#dc2626'); return; }
@@ -972,7 +974,7 @@ async function micToggle(dealId, btn, onSent){
     const blob=new Blob(_waChunks,{type:(_waRec.mimeType||'audio/webm')});
     if(!blob.size){ toast('Пустая запись','i-info','#d97706'); return; }
     const b64=await blobToB64(blob); const old=btn.innerHTML; btn.innerHTML=ic('i-sync','sm'); btn.disabled=true;
-    const r=await api('/api/deals/'+dealId+'/chat/audio',{method:'POST',body:JSON.stringify({audio_b64:b64,mime:blob.type})});
+    const r=await api(audioUrl,{method:'POST',body:JSON.stringify({audio_b64:b64,mime:blob.type})});
     btn.disabled=false; btn.innerHTML=old;
     if(!r.ok){ toast((r.data&&r.data.error)||'Не удалось отправить','i-x','#dc2626'); return; }
     toast((r.data&&r.data.whatsapp&&r.data.whatsapp.sent)?'Голосовое отправлено в WhatsApp':'Записано (доставка при подключённом WhatsApp)','i-check2'); onSent&&onSent();
