@@ -296,11 +296,11 @@ async function loadDash(wrap,qs){
 }
 
 function funnelVis(rows){
-  const max=rows[0][1];
-  return `<div class="funnel-vis">${rows.map((r,i)=>{const w=Math.max(18,r[1]/max*100);const conv=i?Math.round(r[1]/rows[i-1][1]*100):100;
+  const max=rows[0][1]||1;
+  return `<div class="funnel-vis">${rows.map((r,i)=>{const w=Math.max(18,(r[1]/max)*100);const conv=i?(rows[i-1][1]>0?Math.round(r[1]/rows[i-1][1]*100)+'%':'—'):'';
     return `<div class="fv-row"><div class="fv-lbl">${r[0]}</div>
       <div class="fv-bar" style="width:${w}%;background:linear-gradient(90deg,${r[2]},${r[2]}cc)"><span>${r[1]}</span></div>
-      <div class="fv-conv">${i?conv+'%':''}</div></div>`;}).join('')}</div>`;
+      <div class="fv-conv">${conv}</div></div>`;}).join('')}</div>`;
 }
 function barList(rows,max,isMoney){
   return `<div class="bars">${rows.map(r=>`<div class="bar-row"><div class="bl">${r[0]}</div>
