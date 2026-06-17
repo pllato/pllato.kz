@@ -297,7 +297,8 @@ async function loadDash(wrap,qs){
 
 function funnelVis(rows){
   const max=rows[0][1]||1;
-  return `<div class="funnel-vis">${rows.map((r,i)=>{const w=Math.max(18,(r[1]/max)*100);const conv=i?(rows[i-1][1]>0?Math.round(r[1]/rows[i-1][1]*100)+'%':'—'):'';
+  const head=`<div class="fv-row" style="margin-bottom:3px"><div class="fv-lbl" style="font-size:10px;color:var(--muted2)">этап</div><div style="flex:1;font-size:10.5px;color:var(--muted2)">в полоске — сколько сделок дошло до этапа</div><div class="fv-conv" style="color:var(--muted2);line-height:1.15">конв. с пред.</div></div>`;
+  return `<div class="funnel-vis">${head}${rows.map((r,i)=>{const w=Math.max(18,(r[1]/max)*100);const conv=i?(rows[i-1][1]>0?Math.round(r[1]/rows[i-1][1]*100)+'%':'—'):'';
     return `<div class="fv-row"><div class="fv-lbl">${r[0]}</div>
       <div class="fv-bar" style="width:${w}%;background:linear-gradient(90deg,${r[2]},${r[2]}cc)"><span>${r[1]}</span></div>
       <div class="fv-conv">${conv}</div></div>`;}).join('')}</div>`;
