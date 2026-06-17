@@ -416,7 +416,7 @@ async function newDealLive(onSaved){
     if(ndPromo){ let pt=null; const chk=async()=>{ const c=ndPromo.value.trim(); if(!c){ if(ndHint){ndHint.textContent='— если клиент назвал';ndHint.style.color='';} return; }
       const r=await api('/api/promos/resolve?code='+encodeURIComponent(c)); if(!r.ok)return;
       if(r.data.kind==='blogger'){ if(ndHint){ndHint.textContent='✓ блогер: '+r.data.name;ndHint.style.color='#16a34a';} if(ndSrc)ndSrc.value='Блогер'; }
-      else if(r.data.kind==='promo'){ if(ndHint){ndHint.textContent='✓ промокод найден';ndHint.style.color='#16a34a';} if(ndSrc)ndSrc.value='Промокод'; }
+      else if(r.data.kind==='promo'){ if(ndHint){ndHint.textContent='✓ '+r.data.name;ndHint.style.color='#16a34a';} if(ndSrc)ndSrc.value='Промокод'; }
       else if(ndHint){ ndHint.textContent='код не найден в базе';ndHint.style.color='#d97706'; } };
       ndPromo.addEventListener('input',()=>{ clearTimeout(pt); pt=setTimeout(chk,400); }); } }
   bg.querySelector('#ndSave').onclick=async()=>{
@@ -494,7 +494,7 @@ async function dealModalLive(d){
   if(dmPromo){ let pt=null; const chk=async()=>{ const c=dmPromo.value.trim(); if(!c){ if(dmHint){dmHint.textContent='— если клиент назвал';dmHint.style.color='';} return; }
     const r=await api('/api/promos/resolve?code='+encodeURIComponent(c)); if(!r.ok)return;
     if(r.data.kind==='blogger'){ if(dmHint){dmHint.textContent='✓ блогер: '+r.data.name;dmHint.style.color='#16a34a';} if(dmSrc)dmSrc.value='Блогер'; }
-    else if(r.data.kind==='promo'){ if(dmHint){dmHint.textContent='✓ промокод найден';dmHint.style.color='#16a34a';} if(dmSrc)dmSrc.value='Промокод'; }
+    else if(r.data.kind==='promo'){ if(dmHint){dmHint.textContent='✓ '+r.data.name;dmHint.style.color='#16a34a';} if(dmSrc)dmSrc.value='Промокод'; }
     else if(dmHint){ dmHint.textContent='код не найден в базе';dmHint.style.color='#d97706'; } };
     dmPromo.addEventListener('input',()=>{ clearTimeout(pt); pt=setTimeout(chk,400); }); }
   bg.querySelector('#dmSave').onclick=async()=>{
