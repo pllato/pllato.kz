@@ -193,6 +193,7 @@ function dashKpi(icn,col,lbl,val,sub,dir){
 }
 function dashDelta(p){ return p==null?'нет базы для сравнения':(p>0?'▲ ':p<0?'▼ ':'')+Math.abs(p)+'% к пред. периоду'; }
 function dashBars(rows){ const max=Math.max(...rows.map(x=>x.revenue||0),1); return barList(rows.map((x,i)=>[esc(x.name||'—'),x.revenue||0,DASH_COLORS[i%DASH_COLORS.length]]),max,true); }
+function dashBarsBy(rows,metric){ const max=Math.max(...rows.map(x=>x[metric]||0),1); const isMoney=metric!=='qty'; return barList(rows.map((x,i)=>[esc(x.name||'—'),x[metric]||0,DASH_COLORS[i%DASH_COLORS.length]]),max,isMoney); }
 function dcFmtDate(d){ const M=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек']; const p=String(d||'').split('-'); if(p.length<3) return esc(d||''); return (+p[2])+' '+(M[(+p[1])-1]||''); }
 function dcTip(ev,el){ let t=document.getElementById('dcTip'); if(!t){ t=document.createElement('div'); t.id='dcTip'; t.style.cssText='position:fixed;z-index:9999;pointer-events:none;background:var(--panel,#16241c);border:1px solid var(--line,#2e4a3a);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--txt,#e9f3ee);box-shadow:0 6px 20px rgba(0,0,0,.4);white-space:nowrap'; document.body.appendChild(t); }
   t.innerHTML='<b>'+dcFmtDate(el.dataset.d)+'</b> · '+money(+el.dataset.rev||0); t.style.display='block';
@@ -240,7 +241,7 @@ async function loadDash(wrap,qs){
       ${dashKpi('i-truck','#d97706','Магазинов с продажами',fmt(d.byStore.length),'за '+n+' дн',0)}
     </div>
     <div class="grid-2 section-gap">
-      <div class="panel"><div class="panel-h"><h3>Топ товаров · ${n} дн</h3></div><div class="panel-b">${d.topProducts.length?dashBars(d.topProducts):'<div class="muted2">Нет данных</div>'}</div></div>
+      <div class="panel"><div class="panel-h"><h3>Топ товаров · ${n} дн</h3><span style="margin-left:auto;display:flex;gap:6px"><select id="dashTopSort" class="sel" style="font-size:12px;padding:2px 6px"><option value="revenue">по выручке</option><option value="profit">по прибыли</option><option value="qty">по количеству</option></select><select id="dashTopN" class="sel" style="font-size:12px;padding:2px 6px"><option>5</option><option selected>10</option><option>20</option></select></span></div><div class="panel-b" id="dashTopBody">${d.topProducts.length?'':'<div class="muted2">Нет данных</div>'}</div></div>
       <div class="panel"><div class="panel-h"><h3>Выручка по магазинам · ${n} дн</h3></div><div class="panel-b">${d.byStore.length?dashBars(d.byStore):'<div class="muted2">Нет данных</div>'}</div></div>
     </div>
     <div class="grid-2 section-gap">
@@ -248,6 +249,10 @@ async function loadDash(wrap,qs){
       <div class="panel"><div class="panel-h"><h3>Выручка по дням</h3><span class="ph-sub">${esc(d.from||'')} — ${esc(d.to||d.asOf||'')}</span></div><div class="panel-b">${dashDayChart(d.byDay)}</div></div>
     </div>
     <div class="note section-gap">${ic('i-info','sm')} Период ${esc(d.from||'')} — ${esc(d.to||d.asOf||'')} (${n} дн), сравнение — с предыдущим периодом такой же длины. Данные 1С на ${esc(d.dmax||d.asOf||'')}. Синхронизация раз в 30 мин.</div>`;
+  // Топ товаров: интерактивная сортировка (выручка/прибыль/кол-во) + число (5/10/20)
+  const tpAll=d.topProducts||[];
+  const renderTop=()=>{ const body=wrap.querySelector('#dashTopBody'); if(!body)return; const sort=(wrap.querySelector('#dashTopSort')||{}).value||'revenue', nn=+(((wrap.querySelector('#dashTopN')||{}).value))||10; const sorted=tpAll.slice().sort((a,b)=>(b[sort]||0)-(a[sort]||0)).slice(0,nn); body.innerHTML=sorted.length?dashBarsBy(sorted,sort):'<div class="muted2">Нет данных</div>'; };
+  const ts=wrap.querySelector('#dashTopSort'), tn=wrap.querySelector('#dashTopN'); if(ts&&tn){ ts.onchange=renderTop; tn.onchange=renderTop; } renderTop();
 }
 
 function funnelVis(rows){
@@ -606,10 +611,9 @@ function contractorModal(r){
     <div><h3>${esc(r.name||'—')}</h3><div class="mh-sub">${esc(r.code||'')} · ${r.kind==='ЮридическоеЛицо'?'юр.лицо':r.kind==='ФизическоеЛицо'?'физ.лицо':'—'}</div></div></div>
     <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
+    <div class="fld"><label>Телефон</label><input data-ce="phone" value="${esc(r.phone||'')}" placeholder="+996…"></div>
     <div class="fld"><label>Имя / Наименование</label><input data-ce="name" value="${esc(r.name||'')}"></div>
     <div class="grid-2b">
-      <div class="fld"><label>Телефон</label><input data-ce="phone" value="${esc(r.phone||'')}" placeholder="+996…"></div>
-      <div class="fld"><label>ИНН</label><input data-ce="inn" value="${esc(r.inn||'')}"></div>
       <div class="fld"><label>Код 1С <span class="muted2">(только чтение)</span></label><input value="${esc(r.code||'')}" disabled></div>
       <div class="fld"><label>Дата рождения</label><input data-ce="dob" type="date" value="${esc((r.dob||'').slice(0,10))}"></div>
     </div>
@@ -625,7 +629,7 @@ function contractorModal(r){
   </div>
   <div class="modal-f">${r.ref_key?`<button class="btn primary" id="ceSave">${ic('i-check2','sm')} Сохранить (→ 1С)</button>`:''}<button class="btn" onclick="closeModal()">Закрыть</button></div>`,'wide');
   if(r.ref_key){ const sb=bg.querySelector('#ceSave'); if(sb) sb.onclick=async()=>{
-    const name=bg.querySelector('[data-ce=name]').value.trim(), phone=bg.querySelector('[data-ce=phone]').value.trim(), inn=bg.querySelector('[data-ce=inn]').value.trim(), dob=bg.querySelector('[data-ce=dob]').value;
+    const name=bg.querySelector('[data-ce=name]').value.trim(), phone=bg.querySelector('[data-ce=phone]').value.trim(), inn=(r.inn||''), dob=bg.querySelector('[data-ce=dob]').value;
     const is_buyer=bg.querySelector('[data-ce=is_buyer]').checked, is_supplier=bg.querySelector('[data-ce=is_supplier]').checked, is_doctor=bg.querySelector('[data-ce=is_doctor]').checked;
     if(!name){ toast('Имя не может быть пустым','i-info','#d97706'); return; }
     sb.disabled=true; const old=sb.innerHTML; sb.textContent='Сохранение…';
@@ -775,7 +779,7 @@ const _legacyInboxDemo=(c)=>{   // старый демо-инбокс (не ис
     </div>
     <div class="chat-input">
       <button class="icon-btn" title="Файл">${ic('i-paperclip')}</button>
-      <div class="ci-box"><input id="msgInput" placeholder="Сообщение в ${chLabel(ch.type)}…"><button class="icon-btn" style="width:30px;height:30px;border:none;background:none" title="Голосовое">${ic('i-mic','sm')}</button></div>
+      <div class="ci-box"><input id="msgInput" placeholder="Сообщение в ${chLabel(ch.type)}…"></div>
       <button class="btn primary" onclick="sendMsg('${t.id}')">${ic('i-send','sm')}</button>
     </div></div>`);
   wrap.appendChild(chat);
