@@ -5291,6 +5291,37 @@ const ONE_C_BASES = {
 };
 const ONE_C_DEFAULT_BASE = "aminamed";
 
+// Бухгалтерская аналитика строк реализации для базы Аминамед. GUID-ы плана счетов
+// и субконто СВОИ у каждой базы, поэтому блок применяется ТОЛЬКО для aminamed.
+// Значения сверены по 51 строке реальных проведённых реализаций (все идентичны):
+//   счёт учёта/доходов/себестоимости/НДС, статья доходов «Доход от реализации
+//   товара», номенклатурная группа «Товары», статья затрат «Себестоимость товаров».
+// Через OData 1С не заполняет аналитику строки сама — иначе у Асем «не садится».
+const ONE_C_AMINAMED_REAL_LINE_ACCOUNTS = {
+  СчетУчетаБУ_Key: "f0f0c706-e37a-4156-b430-0d4a6fbdecc3",
+  СчетУчетаНУ_Key: "b7a16180-2cf5-4920-af55-a0c8e37f9356",
+  СчетДоходовБУ_Key: "ac7aab45-1127-4549-8d0c-659cedbab312",
+  СчетДоходовНУ_Key: "5501ffb4-1f90-46eb-ba21-cf05a2763550",
+  СчетСписанияСебестоимостиБУ_Key: "46c23ea9-3e23-4666-b28e-ac56d15305ba",
+  СчетСписанияСебестоимостиНУ_Key: "6e52e195-7efc-4f2a-ba4b-65cdcd8c09f3",
+  СчетУчетаНДСПоРеализации_Key: "05c0dc58-5cfc-4f6f-a37b-66ee68a56966",
+  НДСВидОперацииРеализации_Key: "0fbefb02-5c4e-4169-9fff-c159a570092b",
+  СубконтоДоходовБУ1: "b3d07cd4-9e79-11e7-b969-1c1b0dc9a089",
+  СубконтоДоходовБУ1_Type: "StandardODATA.Catalog_Доходы",
+  СубконтоДоходовБУ2: "c4d3242b-aa56-11e1-b9c4-002215ba1bbe",
+  СубконтоДоходовБУ2_Type: "StandardODATA.Catalog_НоменклатурныеГруппы",
+  СубконтоДоходовНУ1: "b3d07cd4-9e79-11e7-b969-1c1b0dc9a089",
+  СубконтоДоходовНУ1_Type: "StandardODATA.Catalog_Доходы",
+  СубконтоСписанияСебестоимостиБУ1: "cafb169d-aa56-11e1-b9c4-002215ba1bbe",
+  СубконтоСписанияСебестоимостиБУ1_Type: "StandardODATA.Catalog_СтатьиЗатрат",
+  СубконтоСписанияСебестоимостиБУ2: "c4d3242b-aa56-11e1-b9c4-002215ba1bbe",
+  СубконтоСписанияСебестоимостиБУ2_Type: "StandardODATA.Catalog_НоменклатурныеГруппы",
+  СубконтоСписанияСебестоимостиНУ1: "cafb169d-aa56-11e1-b9c4-002215ba1bbe",
+  СубконтоСписанияСебестоимостиНУ1_Type: "StandardODATA.Catalog_СтатьиЗатрат",
+  СубконтоСписанияСебестоимостиНУ2: "c4d3242b-aa56-11e1-b9c4-002215ba1bbe",
+  СубконтоСписанияСебестоимостиНУ2_Type: "StandardODATA.Catalog_НоменклатурныеГруппы",
+};
+
 function resolve1cBaseKey(value) {
   const k = String(value || "").trim();
   return ONE_C_BASES[k] ? k : ONE_C_DEFAULT_BASE;
@@ -6213,6 +6244,39 @@ async function oneCFindContractorByBin(client, bin) {
   return null;
 }
 
+// Основной договор контрагента — для автоподстановки ДоговорКонтрагента_Key, когда
+// в заказе договор не выбран («договор не сел» у Асем).
+async function oneCContractorPrimaryContract(client, contractorRef) {
+  if (!contractorRef) return null;
+  try {
+    const c = await client.getByKey("Catalog_Контрагенты", contractorRef, {
+      select: ["ОсновнойДоговорКонтрагента_Key"],
+    });
+    const ref = c?.ОсновнойДоговорКонтрагента_Key;
+    if (ref && ref !== "00000000-0000-0000-0000-000000000000") return ref;
+  } catch { /* у контрагента может не быть основного договора — не критично */ }
+  return null;
+}
+
+// Адрес контрагента из регистра контактной информации — фолбэк, когда в заказе
+// адрес доставки не задан («адрес поставки не сел» у Асем). Берём первый непустой
+// адрес контрагента.
+async function oneCContractorAddress(client, contractorRef) {
+  if (!contractorRef) return null;
+  try {
+    const rows = await fetch1cRegisterAllRows(client, "InformationRegister_КонтактнаяИнформация");
+    const isAddr = (r) => String(r?.Тип || r?.Type || "").toLowerCase().includes("адрес");
+    const objOf = (r) => r?.Объект || r?.Объект_Key || r?.Object;
+    for (const r of rows) {
+      if (isAddr(r) && objOf(r) === contractorRef) {
+        const repr = String(r?.Представление || "").trim();
+        if (repr) return repr;
+      }
+    }
+  } catch { /* нет адреса — не критично */ }
+  return null;
+}
+
 // Карта «ведущий артикул названия → {ref,unit,vat}» по всей номенклатуре базы
 // (первая запись на артикул — представительная). Общий ключ между базами — артикул.
 async function buildNomenTokenMap(client) {
@@ -6335,13 +6399,23 @@ async function create1cSalesDocument(request, env, actor, opts) {
   const currencyRef = ONE_C_BASES[baseKey].currencyRef || String(body?.currencyRef || "").trim();
   if (!currencyRef) throw new HttpError(400, "currencyRef (валюта документа, GUID 1С) обязателен");
 
+  // Договор и адрес доставки: берём из заказа, иначе автоподстановка из 1С (основной
+  // договор контрагента / его адрес). СФ этих полей не имеет → не трогаем.
+  // Закрывает замечания Асем «договор не сел» и «адрес поставки не сел».
+  let contractRef = String(body?.contractRef || "").trim() || null;
+  let deliveryAddress = entityType === "facture" ? null : (String(body?.deliveryAddress || "").trim() || null);
+  if (entityType !== "facture") {
+    if (!contractRef) contractRef = await oneCContractorPrimaryContract(client, contractorRef);
+    if (!deliveryAddress) deliveryAddress = await oneCContractorAddress(client, contractorRef);
+  }
+
   try {
     const payload = invoiceToOData({
       date: body?.date,
       organizationRef,
       contractorRef,
       currencyRef,
-      contractRef: body?.contractRef || null,
+      contractRef,
       // Простая СФ (Document_СчетФактураВыданный) НЕ имеет поля Склад_Key → пропускаем.
       warehouseRef: entityType === "facture"
         ? null
@@ -6355,7 +6429,7 @@ async function create1cSalesDocument(request, env, actor, opts) {
       // СФ не имеет полей КодНазначенияПлатежа и АдресДоставки → принудительно null,
       // иначе OData вернёт 400 на неизвестное поле.
       paymentPurposeCode: entityType === "facture" ? null : (body?.paymentPurposeCode || paymentPurposeCode || null),
-      deliveryAddress: entityType === "facture" ? null : (body?.deliveryAddress || null),
+      deliveryAddress,
       comment: body?.comment || "",
       total: body?.total,
       lines,
@@ -6368,6 +6442,17 @@ async function create1cSalesDocument(request, env, actor, opts) {
       if (invMap?.one_c_ref_key) {
         payload.ДокументОснование = invMap.one_c_ref_key;
         payload.ДокументОснование_Type = "StandardODATA.Document_СчетНаОплатуПокупателю";
+      }
+      // КЗ-учёт: флаг КПН + бухгалтерская аналитика строк (доходы/себестоимость).
+      // Только база Аминамед — GUID-ы плана счетов/субконто у баз разные.
+      if (baseKey === ONE_C_DEFAULT_BASE) {
+        payload.УчитыватьКПН = true;
+        for (const row of (payload.Товары || [])) {
+          Object.assign(row, ONE_C_AMINAMED_REAL_LINE_ACCOUNTS);
+          // НУ-субконто2 доходов = сама номенклатура строки (per-product).
+          row.СубконтоДоходовНУ2 = row.Номенклатура_Key;
+          row.СубконтоДоходовНУ2_Type = "StandardODATA.Catalog_Номенклатура";
+        }
       }
     }
 
