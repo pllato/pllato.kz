@@ -207,9 +207,12 @@ function topProductsModal(periodQs){
     <div id="tpmBody"><div class="muted2" style="padding:16px">Загрузка…</div></div>
   </div>`,'wide');
   async function load(){
-    bg.querySelector('#tpmBody').innerHTML='<div class="muted2" style="padding:16px">Загрузка…</div>';
-    const r=await api('/api/1c/top-products?'+(periodQs?periodQs+'&':'')+'limit='+limit+'&sort='+sort);
     const box=bg.querySelector('#tpmBody'); if(!box)return;
+    if(!box.querySelector('table')) box.innerHTML='<div class="muted2" style="padding:16px">Загрузка…</div>';
+    box.style.transition='opacity .12s'; box.style.opacity='.45';
+    const r=await api('/api/1c/top-products?'+(periodQs?periodQs+'&':'')+'limit='+limit+'&sort='+sort);
+    if(!box.isConnected) return;
+    box.style.opacity='';
     if(!r.ok){ box.innerHTML='<div class="muted2" style="padding:16px">Нет данных</div>'; return; }
     const rows=r.data.items||[]; const sub=bg.querySelector('#tpmSub'); if(sub) sub.textContent=(r.data.from||'')+' — '+(r.data.to||'')+' · из продаж 1С';
     const tot=rows.reduce((a,p)=>({qty:a.qty+(p.qty||0),revenue:a.revenue+(p.revenue||0),profit:a.profit+(p.profit||0)}),{qty:0,revenue:0,profit:0});
