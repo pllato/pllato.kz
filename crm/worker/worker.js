@@ -762,20 +762,15 @@ function normalizeStoreItem(collection, value) {
   };
 }
 
-async function d1ListCollection(env, collection, limit = DEFAULT_STORE_PULL_LIMIT) {
+async function d1ListCollection(env, collection, limit = DEFAULT_STORE_PULL_LIMIT, updatedSince = null) {
   await ensureD1Schema(env);
   const db = requireStoreDb(env);
   const cappedLimit = Math.max(1, Math.min(Number(limit) || DEFAULT_STORE_PULL_LIMIT, 10000));
-  const res = await db
-    .prepare(`
-      SELECT data
-      FROM store
-      WHERE team_id = ? AND collection = ?
-      ORDER BY updated_at DESC
-      LIMIT ?
-    `)
-    .bind(TEAM_ID, collection, cappedLimit)
-    .run();
+  const sinceTs = (updatedSince != null && Number.isFinite(Number(updatedSince)) && Number(updatedSince) > 0)
+    ? Number(updatedSince) : null;
+  const res = sinceTs != null
+    ? await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? AND updated_at>? ORDER BY updated_at DESC LIMIT ?`).bind(TEAM_ID, collection, sinceTs, cappedLimit).run()
+    : await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? ORDER BY updated_at DESC LIMIT ?`).bind(TEAM_ID, collection, cappedLimit).run();
   return (res.results || [])
     .map((row) => safeParseJson(row.data, null))
     .filter(Boolean);
@@ -835,13 +830,14 @@ async function handleStorePull(request, env, actor) {
   const body = await readRequestBodyAsJson(request);
   const collections = normalizeCollectionList(body.collections || []);
   const limit = Number(body.limitPerCollection) || DEFAULT_STORE_PULL_LIMIT;
+  const updatedSince = body.updatedSince != null ? Number(body.updatedSince) : null;
   if (collections.length === 0) {
     throw new HttpError(400, "Передай массив collections для pull");
   }
 
   const data = {};
   for (const collection of collections) {
-    data[collection] = await d1ListCollection(env, collection, limit);
+    data[collection] = await d1ListCollection(env, collection, limit, updatedSince);
   }
 
   return {
