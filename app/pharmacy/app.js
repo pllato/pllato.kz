@@ -1,6 +1,7 @@
 /* ===== Pllato CRM demo — app.js ===== */
 const state = { page:'dash', role:'owner', cur:'KGS', funnel:'b2c', thread:'t1', clientTab:0, theme:'dark' };
 let STAGES = { b2c:(DB.stagesB2C||[]).slice(), b2b:(DB.stagesB2B||[]).slice() };  // этапы воронок (из D1, дефолт — из data.js)
+let FUNNELS = [{id:'b2c',name:'B2C'},{id:'b2b',name:'B2B'}];  // реестр воронок (из D1)
 
 // ---------- AUTH / API config ----------
 const API_BASE = 'https://pharmacy-crm-worker.uurraa.workers.dev';
@@ -37,7 +38,7 @@ const DEEPLINK = {
   tasks:   async(id)=>{ const r=await api('/api/tasks?status=all'); const t=r&&r.ok&&(r.data.items||[]).find(x=>x.id===id); if(t) taskModalLive(t,()=>go('tasks')); },
   orders:  async(id)=>{ const r=await api('/api/orders'); const o=r&&r.ok&&(r.data.items||[]).find(x=>x.id===id); if(o) orderModalLive(o,()=>go('orders')); },
   clients: async(ref)=>{ const r=await api('/api/1c/contractors?limit=1&ref='+encodeURIComponent(ref)); const x=r&&r.ok&&(r.data.items||[])[0]; if(x) contractorModal(x); },
-  funnels: async(id)=>{ for(const f of ['b2c','b2b']){ const r=await api('/api/deals?funnel='+f); const d=r&&r.ok&&(r.data.items||[]).find(x=>x.id===id); if(d){ state.funnel=f; renderPage(); dealModalLive(d); return; } } },
+  funnels: async(id)=>{ for(const f of FUNNELS.map(x=>x.id)){ const r=await api('/api/deals?funnel='+f); const d=r&&r.ok&&(r.data.items||[]).find(x=>x.id===id); if(d){ state.funnel=f; renderPage(); dealModalLive(d); return; } } },
 };
 function applyHash(){
   document.querySelectorAll('.modal-bg').forEach(m=>m.remove());  // не оставляем осиротевшие модалки при навигации
@@ -278,20 +279,20 @@ async function loadDash(wrap,qs){
       <div class="panel"><div class="panel-h"><h3>Топ врачи · ${n} дн</h3></div><div class="panel-b">${d.topDoctors.length?dashBars(d.topDoctors):'<div class="muted2">Нет данных</div>'}</div></div>
       <div class="panel"><div class="panel-h"><h3>Выручка по дням</h3><span class="ph-sub">${esc(d.from||'')} — ${esc(d.to||d.asOf||'')}</span></div><div class="panel-b">${dashDayChart(d.byDay)}</div></div>
     </div>
-    <div class="panel section-gap"><div class="panel-h"><h3>Воронка продаж · конверсия по этапам</h3><div class="seg" id="dashFunnelSeg" style="margin-left:auto"><button class="on" data-f="b2c">B2C</button><button data-f="b2b">B2B</button></div></div><div class="panel-b" id="dashFunnelBody"><div class="muted2" style="padding:14px">Загрузка…</div></div></div>
+    <div class="panel section-gap"><div class="panel-h"><h3>Воронка продаж · конверсия по этапам</h3><select class="sel" id="dashFunnelSel" style="margin-left:auto">${FUNNELS.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('')}</select></div><div class="panel-b" id="dashFunnelBody"><div class="muted2" style="padding:14px">Загрузка…</div></div></div>
     <div class="note section-gap">${ic('i-info','sm')} Период ${esc(d.from||'')} — ${esc(d.to||d.asOf||'')} (${n} дн), сравнение — с предыдущим периодом такой же длины. Данные 1С на ${esc(d.dmax||d.asOf||'')}. Синхронизация раз в 30 мин. Воронка — из сделок CRM (накопительный охват этапов).</div>`;
   // Топ товаров: клик по заголовку «подробнее →» → модал с полной таблицей (N + сортировка с сервера)
   const tpMore=wrap.querySelector('#dashTopMore'); if(tpMore) tpMore.onclick=()=>topProductsModal(qs||'');
   // Воронка продаж — конверсия по этапам выбранной воронки (B2C/B2B)
-  let dfFunnel='b2c'; const dfBody=wrap.querySelector('#dashFunnelBody');
+  let dfFunnel=(FUNNELS[0]||{id:'b2c'}).id; const dfBody=wrap.querySelector('#dashFunnelBody');
   async function renderFunnel(){ if(!dfBody)return; dfBody.innerHTML='<div class="muted2" style="padding:14px">Загрузка…</div>';
     const fr=await api('/api/deals/funnel?funnel='+dfFunnel);
     if(!fr.ok||!fr.data||!fr.data.stages||!fr.data.stages.length){ dfBody.innerHTML='<div class="muted2" style="padding:14px">Нет данных по воронке</div>'; return; }
     if(!(fr.data.total>0)){ dfBody.innerHTML='<div class="muted2" style="padding:14px">Пока нет сделок в этой воронке</div>'; return; }
     dfBody.innerHTML=funnelVis(fr.data.stages.map((s,i)=>[s.stage,s.reached,DASH_COLORS[i%DASH_COLORS.length]]));
   }
-  const dfSeg=wrap.querySelector('#dashFunnelSeg');
-  if(dfSeg) dfSeg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ dfSeg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); dfFunnel=b.dataset.f; renderFunnel(); });
+  const dfSel=wrap.querySelector('#dashFunnelSel');
+  if(dfSel) dfSel.onchange=e=>{ dfFunnel=e.target.value; renderFunnel(); };
   renderFunnel();
 }
 
@@ -313,9 +314,10 @@ function barList(rows,max,isMoney){
 PAGES.funnels=async(c)=>{
   const fUsers=await fetchUsers();
   const fStores=await fetchStores();
-  const fStages=state.funnel==='b2c'?STAGES.b2c:STAGES.b2b;
+  const fStages=STAGES[state.funnel]||[];
   const tbar=el(`<div class="toolbar">
-    <div class="seg" id="funnelSeg"><button class="${state.funnel==='b2c'?'on':''}" data-f="b2c">B2C</button><button class="${state.funnel==='b2b'?'on':''}" data-f="b2b">B2B</button></div>
+    <select class="sel" id="funnelSel" title="Воронка">${FUNNELS.map(f=>`<option value="${esc(f.id)}" ${f.id===state.funnel?'selected':''}>${esc(f.name)}</option>`).join('')}</select>
+    <button class="btn sm" id="funnelManage" title="Управление воронками">${ic('i-cog','sm')}</button>
     <select class="sel" id="flMgr" title="Фильтр по ответственному"><option value="">Все ответственные</option>${fUsers.map(u=>`<option>${esc(u.name)}</option>`).join('')}</select>
     <select class="sel" id="flStage" title="Фильтр по этапу"><option value="">Все этапы</option>${fStages.map(s=>`<option>${esc(s)}</option>`).join('')}</select>
     ${storeSelectHtml(fStores,'','class="sel" id="flStore" title="Фильтр по точке"','Все точки')}
@@ -335,14 +337,15 @@ PAGES.funnels=async(c)=>{
   board.addEventListener('drop',_kStop); board.addEventListener('dragend',_kStop);
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Сделки хранятся в CRM. Клиента можно выбрать из базы 1С. Перетаскивайте карточки между этапами — статус сохраняется автоматически.</div>`));
   const cnt=tbar.querySelector('#funnelCnt');
-  tbar.querySelector('#funnelSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{state.funnel=b.dataset.f;renderPage();});
+  tbar.querySelector('#funnelSel').onchange=e=>{state.funnel=e.target.value;renderPage();};
+  tbar.querySelector('#funnelManage').onclick=()=>funnelsManageModal();
   tbar.querySelector('#newDealBtn').onclick=()=>newDealLive(load);
   let demoMode=false, current=[], flMgr='', flStage='', flStore='';
   tbar.querySelector('#flMgr').onchange=e=>{flMgr=e.target.value;renderBoard();};
   tbar.querySelector('#flStage').onchange=e=>{flStage=e.target.value;renderBoard();};
   tbar.querySelector('#flStore').onchange=e=>{flStore=e.target.value;renderBoard();};
   function renderBoard(){
-    const stages=state.funnel==='b2c'?STAGES.b2c:STAGES.b2b;
+    const stages=STAGES[state.funnel]||[];
     board.innerHTML=''; let total=0;
     (flStage?stages.filter(s=>s===flStage):stages).forEach(stg=>{
       let list=current.filter(d=>d.stage===stg); if(flMgr) list=list.filter(d=>(d.mgr||'')===flMgr); if(flStore) list=list.filter(d=>(d.store_key||'')===flStore); const sum=list.reduce((a,d)=>a+(d.amount||d.sum||0),0); total+=list.length;
@@ -388,8 +391,8 @@ async function newDealLive(onSaved){
   const ndStores=await fetchStores();
   const ndUsers=await fetchUsers();
   const ed=makeItemsEditor([]);
-  const stages=state.funnel==='b2c'?STAGES.b2c:STAGES.b2b;
-  const bg=openModal(`<div class="modal-h"><div><h3>Новая сделка</h3><div class="mh-sub">${state.funnel==='b2c'?'B2C · розница':'B2B · опт'}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  const stages=STAGES[state.funnel]||[];
+  const bg=openModal(`<div class="modal-h"><div><h3>Новая сделка</h3><div class="mh-sub">Воронка: ${esc((FUNNELS.find(f=>f.id===state.funnel)||{}).name||state.funnel)}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld"><label>Клиент — поиск в 1С или ввод вручную</label><div style="position:relative"><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-nd="client" placeholder="ФИО или название" autocomplete="off" style="width:100%"></div><div id="ndSug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:200px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div></div>
     <div class="fld-row"><div class="fld"><label>Телефон</label><input data-nd="phone"></div><div class="fld"><label>Сумма, с</label><input data-nd="amount" type="number" placeholder="0"></div></div>
@@ -420,7 +423,7 @@ async function dealModalLive(d){
   let dInit=[]; try{ dInit=JSON.parse(d.items||'[]'); }catch(e){}
   const ed=makeItemsEditor(dInit);
   const dmUsers=await fetchUsers();
-  const stages=state.funnel==='b2c'?STAGES.b2c:STAGES.b2b;
+  const stages=STAGES[state.funnel]||[];
   const DM_SRC=['WhatsApp','Instagram','Сайт','Звонок','Сарафан'];
   const dmCurSrc=(d.source||'').trim();
   const dmSourceSel=`<select data-dm="source"><option value="">— источник —</option>`+DM_SRC.map(s=>`<option ${s===dmCurSrc?'selected':''}>${esc(s)}</option>`).join('')+(dmCurSrc&&!DM_SRC.includes(dmCurSrc)?`<option selected>${esc(dmCurSrc)}</option>`:'')+`</select>`;
@@ -2726,14 +2729,35 @@ async function loadSyncStatus(){
 
 // ---------- SETTINGS ----------
 async function loadStages(){
-  try{ const r=await api('/api/settings/stages'); if(r&&r.ok&&r.data){ if(Array.isArray(r.data.b2c)&&r.data.b2c.length)STAGES.b2c=r.data.b2c; if(Array.isArray(r.data.b2b)&&r.data.b2b.length)STAGES.b2b=r.data.b2b; } }catch(e){}
+  try{ const r=await api('/api/settings/stages'); if(r&&r.ok&&r.data){
+    if(Array.isArray(r.data.funnels)&&r.data.funnels.length) FUNNELS=r.data.funnels;
+    FUNNELS.forEach(fn=>{ if(Array.isArray(r.data[fn.id])&&r.data[fn.id].length) STAGES[fn.id]=r.data[fn.id]; });
+    if(!FUNNELS.some(f=>f.id===state.funnel)) state.funnel=FUNNELS[0].id;
+  } }catch(e){}
+}
+// Управление воронками (создать/переименовать/удалить)
+function funnelsManageModal(){
+  const bg=openModal(`<div class="modal-h"><div><h3>Воронки</h3><div class="mh-sub">создание, переименование, удаление</div></div><button class="x" id="fmX">${ic('i-x')}</button></div>
+  <div class="modal-b" id="fmBody"></div>
+  <div class="modal-f"><button class="btn" id="fmClose">Закрыть</button><button class="btn primary" id="fmAdd">${ic('i-plus','sm')} Добавить воронку</button></div>`);
+  const close=()=>{ closeModal(); if(state.page==='funnels') renderPage(); };
+  bg.querySelector('#fmX').onclick=close; bg.querySelector('#fmClose').onclick=close;
+  function render(){
+    bg.querySelector('#fmBody').innerHTML='<table class="tbl"><tbody>'+FUNNELS.map(f=>{
+      const builtin=(f.id==='b2c'||f.id==='b2b');
+      return `<tr><td><b>${esc(f.name)}</b>${builtin?' <span class="muted2" style="font-size:11px">встроенная</span>':''}</td><td style="text-align:right;white-space:nowrap"><button class="btn sm fm-ren" data-id="${esc(f.id)}" data-name="${esc(f.name)}">Переименовать</button>${builtin?'':`<button class="btn sm fm-del" data-id="${esc(f.id)}" data-name="${esc(f.name)}" style="margin-left:6px">Удалить</button>`}</td></tr>`;
+    }).join('')+'</tbody></table><div class="muted2" style="padding:10px 2px;font-size:11.5px">Новой воронке задаются дефолтные этапы — настройте их в Настройки → этапы. Встроенные B2C/B2B удалить нельзя.</div>';
+    bg.querySelectorAll('.fm-ren').forEach(b=>b.onclick=async()=>{ const nv=prompt('Новое название воронки:',b.dataset.name); if(!nv||!nv.trim())return; const r=await api('/api/settings/funnels/rename',{method:'POST',body:JSON.stringify({id:b.dataset.id,name:nv.trim()})}); if(!r.ok){toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626');return;} await loadStages(); render(); toast('Переименовано','i-check2'); });
+    bg.querySelectorAll('.fm-del').forEach(b=>b.onclick=async()=>{ if(!confirm('Удалить воронку «'+b.dataset.name+'»? Этапы воронки тоже удалятся.'))return; const r=await api('/api/settings/funnels/delete',{method:'POST',body:JSON.stringify({id:b.dataset.id})}); if(!r.ok){toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626');return;} await loadStages(); if(state.funnel===b.dataset.id)state.funnel=(FUNNELS[0]||{id:'b2c'}).id; render(); toast('Воронка удалена','i-check2'); });
+  }
+  render();
+  bg.querySelector('#fmAdd').onclick=async()=>{ const nm=prompt('Название новой воронки:'); if(!nm||!nm.trim())return; const r=await api('/api/settings/funnels/create',{method:'POST',body:JSON.stringify({name:nm.trim()})}); if(!r.ok){toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626');return;} await loadStages(); render(); toast('Воронка создана — настройте этапы в Настройках','i-check2'); };
 }
 // Редактор этапов воронок (Настройки): добавить/переименовать/удалить + сохранить в D1
 function buildStageEditor(){
   const box=document.getElementById('stageEditor'); if(!box) return;
-  const funnels=[['b2c','B2C'],['b2b','B2B']];
-  const work={ b2c:(STAGES.b2c||[]).slice(), b2b:(STAGES.b2b||[]).slice() };
-  const won={ b2c:new Set(), b2b:new Set() };
+  const funnels=FUNNELS.map(f=>[f.id,f.name]);
+  const work={}, won={}; funnels.forEach(([f])=>{ work[f]=(STAGES[f]||[]).slice(); won[f]=new Set(); });
   function render(){
     box.innerHTML = funnels.map(([f,label])=>`
       <div data-f="${f}" style="margin-bottom:18px">
@@ -2741,7 +2765,7 @@ function buildStageEditor(){
         <div class="chips" style="margin-bottom:10px">${work[f].map((s,i)=>`<span class="chip on" style="display:inline-flex;align-items:center;gap:6px${won[f].has(s)?';border-color:#16a34a':''}"><span data-mv="${i}|-1" style="cursor:pointer;opacity:${i===0?'.2':'.6'}" title="Левее">‹</span><span data-ren="${i}" style="cursor:pointer">${esc(s)}</span><span data-won="${i}" title="Этап закрытия — создаёт заказ" style="cursor:pointer;opacity:${won[f].has(s)?'1':'.3'}">🏁</span><span data-mv="${i}|1" style="cursor:pointer;opacity:${i===work[f].length-1?'.2':'.6'}" title="Правее">›</span><span data-del="${i}" style="cursor:pointer;opacity:.6" title="Удалить">✕</span></span>`).join('')}</div>
         <div class="row" style="gap:8px;align-items:center"><input data-add placeholder="Новый этап" style="max-width:240px"><button class="btn sm" data-addbtn>${ic('i-plus','sm')} Добавить</button><button class="btn sm primary" data-save style="margin-left:auto">${ic('i-check2','sm')} Сохранить ${label}</button></div>
       </div>`).join('') + `<div class="muted2" style="font-size:11.5px">Клик по названию — переименовать, ‹ › — порядок, ✕ — удалить, 🏁 — этап закрытия (создаёт заказ). После «Сохранить» применяется в воронке.</div>`;
-    funnels.forEach(([f])=>{
+    funnels.forEach(([f,label])=>{
       const blk=box.querySelector('[data-f="'+f+'"]');
       blk.querySelectorAll('[data-del]').forEach(d=>d.onclick=()=>{ const i=+d.dataset.del; won[f].delete(work[f][i]); work[f].splice(i,1); render(); });
       blk.querySelectorAll('[data-ren]').forEach(rn=>rn.onclick=()=>{ const i=+rn.dataset.ren, oldn=work[f][i]; const nv=prompt('Переименовать этап:', oldn); if(nv&&nv.trim()){ work[f][i]=nv.trim(); if(won[f].has(oldn)){won[f].delete(oldn);won[f].add(nv.trim());} render(); } });
@@ -2755,15 +2779,13 @@ function buildStageEditor(){
         if(!work[f].length){ toast('Нужен хотя бы один этап','i-info','#d97706'); return; }
         const r=await api('/api/settings/stages',{method:'POST',body:JSON.stringify({funnel:f,stages:work[f],won:[...won[f]].filter(x=>work[f].includes(x))})});
         if(!r.ok){ toast(r.data&&r.data.error?r.data.error:'Не удалось сохранить','i-x','#dc2626'); return; }
-        STAGES[f]=work[f].slice(); toast('Этапы '+f.toUpperCase()+' сохранены — применятся в воронке','i-check2');
+        STAGES[f]=work[f].slice(); toast('Этапы «'+label+'» сохранены — применятся в воронке','i-check2');
       };
     });
   }
   render();
   api('/api/settings/stages').then(r=>{ if(r&&r.ok&&r.data){
-    if(Array.isArray(r.data.b2c)&&r.data.b2c.length){STAGES.b2c=r.data.b2c; work.b2c=r.data.b2c.slice();}
-    if(Array.isArray(r.data.b2b)&&r.data.b2b.length){STAGES.b2b=r.data.b2b; work.b2b=r.data.b2b.slice();}
-    won.b2c=new Set(r.data.b2c_won||[]); won.b2b=new Set(r.data.b2b_won||[]);
+    funnels.forEach(([f])=>{ if(Array.isArray(r.data[f])&&r.data[f].length){ STAGES[f]=r.data[f]; work[f]=r.data[f].slice(); } won[f]=new Set(r.data[f+'_won']||[]); });
     render();
   }});
 }
@@ -3176,7 +3198,7 @@ function applyUser(user){
   renderRoleSel(); applyHash();
   // реальный счётчик активных задач для бейджа в меню
   if(allowedSections(state.role).includes('tasks')) api('/api/tasks?status=active').then(r=>{ if(r&&r.ok){ window.__taskBadge=(r.data.totals||{}).active||0; renderNav(); } }).catch(()=>{});
-  loadStages();  // подтянуть этапы воронок из D1 (дефолт уже есть)
+  loadStages().then(()=>{ if(['funnels','dash','settings'].includes(state.page)) renderPage(); });  // реестр воронок+этапы из D1, затем перерисовать воронко-зависимые страницы
   if(allowedSections(state.role).includes('inbox')) api('/api/inbox/threads').then(r=>{ if(r&&r.ok&&r.data&&Array.isArray(r.data.items)){ window.__inboxUnread=r.data.items.reduce((a,t)=>a+(t.unread||0),0); renderNav(); } }).catch(()=>{});
   loadNotifications();
   // эффективные права ролей из БД (для меню/превью/матрицы) — для админа
