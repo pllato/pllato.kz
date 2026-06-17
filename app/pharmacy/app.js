@@ -1033,6 +1033,8 @@ function orderFromChat(name){
 
 // ---------- ORDERS ----------
 const ORDER_ST={new:['Новый','blue'],queued_1c:['Очередь 1С','amber'],synced_1c:['В 1С','green'],done:['Готово','green'],cancelled:['Отменён','red']};
+const PAY_ST={paid:['Оплачено','green'],debt:['Долг','red'],consign:['Консигнация','amber']};
+const PAY_CYCLE=['','paid','debt','consign'];
 function ordStTag(s){const m=ORDER_ST[s]||['—',''];return `<span class="tag ${m[1]}">${esc(m[0])}</span>`;}
 function ordItemsText(j){ let a=[]; try{a=JSON.parse(j||'[]');}catch(e){} return a.map(x=>(x.name||'')+(x.qty>1?(' ×'+x.qty):'')).join(', '); }
 let ORDER_STAGES=['Новый','Сборка','Собран','Отгружен'];
@@ -1062,10 +1064,12 @@ PAGES.orders=async(c)=>{
       const col=el(`<div class="kcol" data-stage="${esc(stg)}"><div class="kcol-h"><span class="kc-name">${esc(stg)}</span><span class="kc-count">${list.length}</span><span class="kc-sum">${money(sum)}</span></div><div class="kcol-b"></div></div>`);
       const cb=col.querySelector('.kcol-b');
       list.forEach(o=>{
-        const card=el(`<div class="kcard" draggable="true" data-id="${esc(o.id)}"><div class="kc-top"><div class="kc-client">${esc(o.client_name||'—')}</div>${c1(o)}</div>${o.phone?`<div class="kc-prod" style="font-size:11px;color:var(--muted)">${esc(o.phone)}</div>`:''}<div class="kc-prod" style="font-size:11px;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ordItemsText(o.items))||'—'}</div><div class="kc-sum">${money(o.total||0)}</div></div>`);
+        const pst=o.pay_status&&PAY_ST[o.pay_status]?PAY_ST[o.pay_status]:null;
+        const card=el(`<div class="kcard" draggable="true" data-id="${esc(o.id)}"><div class="kc-top"><div class="kc-client">${esc(o.client_name||'—')}</div>${c1(o)}</div>${o.phone?`<div class="kc-prod" style="font-size:11px;color:var(--muted)">${esc(o.phone)}</div>`:''}<div class="kc-prod" style="font-size:11px;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ordItemsText(o.items))||'—'}</div><div class="kc-sum">${money(o.total||0)}</div><div class="kc-meta"><span class="tag ${pst?pst[1]:''} ord-pay" title="Клик — сменить статус оплаты" style="cursor:pointer">${pst?pst[0]:'оплата?'}</span></div></div>`);
         card.addEventListener('dragstart',e=>{e.dataTransfer.setData('id',o.id);card.classList.add('dragging');});
         card.addEventListener('dragend',()=>card.classList.remove('dragging'));
         card.onclick=()=>orderModalLive(o,load);
+        const pb=card.querySelector('.ord-pay'); if(pb) pb.onclick=async(e)=>{ e.stopPropagation(); const cur=o.pay_status||''; const next=PAY_CYCLE[(PAY_CYCLE.indexOf(cur)+1)%PAY_CYCLE.length]; o.pay_status=next; renderBoard(); const rr=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify({pay_status:next})}); if(rr.ok)toast('Оплата: '+(PAY_ST[next]?PAY_ST[next][0]:'не указана'),'i-money'); else { o.pay_status=cur; renderBoard(); toast('Ошибка','i-x','#dc2626'); } };
         cb.appendChild(card);
       });
       col.addEventListener('dragover',e=>{e.preventDefault();col.classList.add('drop-hot');});
@@ -1077,7 +1081,7 @@ PAGES.orders=async(c)=>{
   }
   function renderList(){
     const items=visible(); const tb=panel.querySelector('tbody'); cnt.textContent=items.length+' заказов';
-    tb.innerHTML=items.length?items.map(o=>`<tr class="clickable" data-id="${esc(o.id)}"><td><div style="font-weight:600">${esc(o.client_name||'—')}</div><div class="muted2" style="font-size:11px">${esc(o.phone||'')}</div></td><td class="muted" style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ordItemsText(o.items))||'—'}</td><td class="num">${money(o.total||0)}</td><td><span class="tag">${esc(o.stage||'Новый')}</span></td><td class="muted2" style="font-size:12px">${o.ext_id?esc(o.ext_id):(o.status==='queued_1c'?'очередь':'—')}</td></tr>`).join(''):'<tr><td colspan="5" class="muted2" style="padding:16px">Заказов нет</td></tr>';
+    tb.innerHTML=items.length?items.map(o=>`<tr class="clickable" data-id="${esc(o.id)}"><td><div style="font-weight:600">${esc(o.client_name||'—')}</div><div class="muted2" style="font-size:11px">${esc(o.phone||'')}</div></td><td class="muted" style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ordItemsText(o.items))||'—'}</td><td class="num">${money(o.total||0)}</td><td><span class="tag">${esc(o.stage||'Новый')}</span>${o.pay_status&&PAY_ST[o.pay_status]?` <span class="tag ${PAY_ST[o.pay_status][1]}">${PAY_ST[o.pay_status][0]}</span>`:''}</td><td class="muted2" style="font-size:12px">${o.ext_id?esc(o.ext_id):(o.status==='queued_1c'?'очередь':'—')}</td></tr>`).join(''):'<tr><td colspan="5" class="muted2" style="padding:16px">Заказов нет</td></tr>';
     tb.querySelectorAll('[data-id]').forEach(tr=>tr.onclick=()=>{ const o=allOrders.find(x=>x.id===tr.dataset.id); if(o)orderModalLive(o,load); });
   }
   function render(){ if(view==='board'){ boardWrap.style.display=''; panel.style.display='none'; renderBoard(); } else { boardWrap.style.display='none'; panel.style.display=''; renderList(); } }
@@ -1141,8 +1145,9 @@ async function orderModalLive(o,onSaved){
   const bg=openModal(`<div class="modal-h"><div><h3>Заказ</h3><div class="mh-sub">${esc(o.client_name||'')}${o.ext_id?(' · 1С №'+esc(o.ext_id)):''}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld-row"><div class="fld"><label>Клиент</label><input data-om="client_name" value="${esc(o.client_name||'')}"></div><div class="fld"><label>Телефон</label><input data-om="phone" value="${esc(o.phone||'')}"></div></div>
-    <div class="fld-row"><div class="fld"><label>Статус</label><select data-om="status">${[['new','Новый'],['queued_1c','Очередь 1С'],['synced_1c','В 1С'],['done','Готово'],['cancelled','Отменён']].map(([v,tt])=>`<option value="${v}" ${v===o.status?'selected':''}>${tt}</option>`).join('')}</select></div><div class="fld"><label>Ответственный</label>${userSelectHtml(users,o.mgr,'data-om="mgr"')}</div></div>
-    <div class="fld"><label>Точка (магазин)</label>${storeSelectHtml(omStores,o.store_key,'data-om="store_key"','— точка —')}</div>
+    <div class="fld-row"><div class="fld"><label>Стадия сборки</label><select data-om="stage">${ORDER_STAGES.map(s=>`<option ${s===(o.stage||'Новый')?'selected':''}>${esc(s)}</option>`).join('')}</select></div><div class="fld"><label>Оплата</label><select data-om="pay"><option value="">— не указана —</option>${Object.keys(PAY_ST).map(k=>`<option value="${k}" ${k===(o.pay_status||'')?'selected':''}>${PAY_ST[k][0]}</option>`).join('')}</select></div></div>
+    <div class="fld-row"><div class="fld"><label>Ответственный</label>${userSelectHtml(users,o.mgr,'data-om="mgr"')}</div><div class="fld"><label>Точка (магазин)</label>${storeSelectHtml(omStores,o.store_key,'data-om="store_key"','— точка —')}</div></div>
+    <div class="note ${o.ext_id?'':'blue'}" style="margin-top:2px">${ic('i-info','sm')} 1С: ${o.ext_id?('записан, № '+esc(o.ext_id)):(o.status==='queued_1c'?'в очереди на запись':'не отправлен — кнопка «В 1С» ниже')}</div>
     <div class="fld"><label>Состав заказа</label><div id="omItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-om="note" value="${esc(o.note||'')}"></div>
     ${o.error?`<div class="note amber">${ic('i-info','sm')} Ошибка 1С: ${esc(o.error)}</div>`:''}
@@ -1151,7 +1156,7 @@ async function orderModalLive(o,onSaved){
   bg.querySelector('#omItems').appendChild(ed.node);
   const g=s=>bg.querySelector('[data-om='+s+']');
   const collect=()=>({client_name:g('client_name').value.trim(),phone:g('phone').value.trim(),mgr:g('mgr').value.trim(),store_key:g('store_key').value||null,note:g('note').value.trim(),items:ed.getItems()});
-  bg.querySelector('#omSave').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{status:g('status').value}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
+  bg.querySelector('#omSave').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{stage:g('stage').value,pay_status:g('pay').value}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
   bg.querySelector('#omSend').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{status:'queued_1c'}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Заказ в очереди на запись в 1С','i-sync','#d97706'); onSaved&&onSaved(); };
   bg.querySelector('#omDel').onclick=async()=>{ if(!confirm('Удалить заказ?'))return; const r=await api('/api/orders/'+o.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
   { const cb=bg.querySelector('#omCancel'); if(cb) cb.onclick=async()=>{ if(!confirm('Отменить заказ?'+(o.ext_id?' Документ будет помечен на удаление в 1С при следующем обмене.':'')))return; const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify({status:'cancelled'})}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast(o.ext_id?'Отмена в очереди в 1С':'Заказ отменён','i-check2'); onSaved&&onSaved(); }; }
