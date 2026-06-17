@@ -194,6 +194,20 @@ function dashKpi(icn,col,lbl,val,sub,dir){
 function dashDelta(p){ return p==null?'нет базы для сравнения':(p>0?'▲ ':p<0?'▼ ':'')+Math.abs(p)+'% к пред. периоду'; }
 function dashBars(rows){ const max=Math.max(...rows.map(x=>x.revenue||0),1); return barList(rows.map((x,i)=>[esc(x.name||'—'),x.revenue||0,DASH_COLORS[i%DASH_COLORS.length]]),max,true); }
 function dashBarsBy(rows,metric){ const max=Math.max(...rows.map(x=>x[metric]||0),1); const isMoney=metric!=='qty'; return barList(rows.map((x,i)=>[esc(x.name||'—'),x[metric]||0,DASH_COLORS[i%DASH_COLORS.length]]),max,isMoney); }
+function topProductsModal(rows){
+  rows=rows||[]; let sort='revenue';
+  const bg=openModal(`<div class="modal-h"><div><h3>${ic('i-box','sm')} Топ товаров — подробно</h3><div class="mh-sub">${rows.length} позиций · из продаж 1С · клик по колонке — сортировка</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div><div class="modal-b" id="tpmBody"></div>`,'wide');
+  function render(){
+    const sorted=rows.slice().sort((a,b)=>(b[sort]||0)-(a[sort]||0));
+    const th=(k,lbl)=>`<th class="num tpm-sort" data-k="${k}" style="cursor:pointer;white-space:nowrap">${lbl}${sort===k?' ▾':''}</th>`;
+    const tot=sorted.reduce((a,p)=>({qty:a.qty+(p.qty||0),revenue:a.revenue+(p.revenue||0),profit:a.profit+(p.profit||0)}),{qty:0,revenue:0,profit:0});
+    const body=sorted.map((p,i)=>{const m=p.revenue>0?Math.round(p.profit/p.revenue*100):0; return `<tr><td class="muted2">${i+1}</td><td>${esc(p.name||'—')}</td><td class="num">${(p.qty||0).toLocaleString('ru-RU')}</td><td class="num">${money(p.revenue||0)}</td><td class="num">${money(p.profit||0)}</td><td class="num">${m}%</td></tr>`;}).join('');
+    const tm=tot.revenue>0?Math.round(tot.profit/tot.revenue*100):0;
+    bg.querySelector('#tpmBody').innerHTML=`<table class="tbl"><thead><tr><th>#</th><th>Товар</th>${th('qty','Кол-во')}${th('revenue','Выручка')}${th('profit','Прибыль')}<th class="num">Маржа</th></tr></thead><tbody>${body||'<tr><td colspan="6" class="muted2" style="padding:16px">Нет данных</td></tr>'}</tbody>${sorted.length?`<tfoot><tr style="font-weight:700"><td></td><td>Итого</td><td class="num">${tot.qty.toLocaleString('ru-RU')}</td><td class="num">${money(tot.revenue)}</td><td class="num">${money(tot.profit)}</td><td class="num">${tm}%</td></tr></tfoot>`:''}</table>`;
+    bg.querySelectorAll('.tpm-sort').forEach(h=>h.onclick=()=>{ sort=h.dataset.k; render(); });
+  }
+  render();
+}
 function dcFmtDate(d){ const M=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек']; const p=String(d||'').split('-'); if(p.length<3) return esc(d||''); return (+p[2])+' '+(M[(+p[1])-1]||''); }
 function dcTip(ev,el){ let t=document.getElementById('dcTip'); if(!t){ t=document.createElement('div'); t.id='dcTip'; t.style.cssText='position:fixed;z-index:9999;pointer-events:none;background:var(--panel,#16241c);border:1px solid var(--line,#2e4a3a);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--txt,#e9f3ee);box-shadow:0 6px 20px rgba(0,0,0,.4);white-space:nowrap'; document.body.appendChild(t); }
   t.innerHTML='<b>'+dcFmtDate(el.dataset.d)+'</b> · '+money(+el.dataset.rev||0); t.style.display='block';
@@ -241,7 +255,7 @@ async function loadDash(wrap,qs){
       ${dashKpi('i-truck','#d97706','Магазинов с продажами',fmt(d.byStore.length),'за '+n+' дн',0)}
     </div>
     <div class="grid-2 section-gap">
-      <div class="panel"><div class="panel-h"><h3>Топ товаров · ${n} дн</h3><span style="margin-left:auto;display:flex;gap:6px"><select id="dashTopSort" class="sel" style="font-size:12px;padding:2px 6px"><option value="revenue">по выручке</option><option value="profit">по прибыли</option><option value="qty">по количеству</option></select><select id="dashTopN" class="sel" style="font-size:12px;padding:2px 6px"><option>5</option><option selected>10</option><option>20</option></select></span></div><div class="panel-b" id="dashTopBody">${d.topProducts.length?'':'<div class="muted2">Нет данных</div>'}</div></div>
+      <div class="panel"><div class="panel-h"><h3 id="dashTopMore" style="cursor:pointer" title="Открыть подробно">Топ товаров · ${n} дн <span style="opacity:.55;font-weight:400;font-size:12px">подробнее →</span></h3><span style="margin-left:auto;display:flex;gap:6px"><select id="dashTopSort" class="sel" style="font-size:12px;padding:2px 6px"><option value="revenue">по выручке</option><option value="profit">по прибыли</option><option value="qty">по количеству</option></select><select id="dashTopN" class="sel" style="font-size:12px;padding:2px 6px"><option>5</option><option selected>10</option><option>20</option></select></span></div><div class="panel-b" id="dashTopBody">${d.topProducts.length?'':'<div class="muted2">Нет данных</div>'}</div></div>
       <div class="panel"><div class="panel-h"><h3>Выручка по магазинам · ${n} дн</h3></div><div class="panel-b">${d.byStore.length?dashBars(d.byStore):'<div class="muted2">Нет данных</div>'}</div></div>
     </div>
     <div class="grid-2 section-gap">
@@ -253,6 +267,9 @@ async function loadDash(wrap,qs){
   const tpAll=d.topProducts||[];
   const renderTop=()=>{ const body=wrap.querySelector('#dashTopBody'); if(!body)return; const sort=(wrap.querySelector('#dashTopSort')||{}).value||'revenue', nn=+(((wrap.querySelector('#dashTopN')||{}).value))||10; const sorted=tpAll.slice().sort((a,b)=>(b[sort]||0)-(a[sort]||0)).slice(0,nn); body.innerHTML=sorted.length?dashBarsBy(sorted,sort):'<div class="muted2">Нет данных</div>'; };
   const ts=wrap.querySelector('#dashTopSort'), tn=wrap.querySelector('#dashTopN'); if(ts&&tn){ ts.onchange=renderTop; tn.onchange=renderTop; } renderTop();
+  const tpMore=wrap.querySelector('#dashTopMore'), tpBody=wrap.querySelector('#dashTopBody');
+  if(tpMore) tpMore.onclick=()=>topProductsModal(d.topProducts||[]);
+  if(tpBody){ tpBody.style.cursor='pointer'; tpBody.title='Открыть подробно'; tpBody.onclick=()=>topProductsModal(d.topProducts||[]); }
 }
 
 function funnelVis(rows){
