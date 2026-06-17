@@ -896,7 +896,7 @@ function ibChat(){
       <div><div style="font-weight:700;font-size:14px">${esc(nm)}</div><div class="muted" style="font-size:11.5px">WhatsApp · GreenAPI${t.phone?(' · +'+esc(t.phone)):''}</div></div>
       <div class="spacer"></div></div>
     <div class="chat-body" id="ibChatBody">${bodyHtml}</div>
-    <div class="chat-input"><div class="ci-box"><input id="ibMsgInput" placeholder="Сообщение в WhatsApp…"></div>${__ibAllowAudio?`<button class="btn" id="ibMic" title="Голосовое: тап — запись, тап ещё раз — отправить" style="padding:0 13px">${ic('i-mic','sm')}</button>`:''}<button class="btn primary" id="ibSendBtn">${ic('i-send','sm')}</button></div>`;
+    <div class="chat-input"><div class="ci-box"><input id="ibMsgInput" placeholder="Сообщение в WhatsApp…"></div>${__ibAllowAudio?`<button class="btn primary" id="ibMic" title="Голосовое: тап — запись, тап ещё раз — отправить">${ic('i-mic','sm')}</button>`:''}<button class="btn primary" id="ibSendBtn">${ic('i-send','sm')}</button></div>`;
   const cb=box.querySelector('#ibChatBody'); if(cb)cb.scrollTop=cb.scrollHeight;
   const inp=box.querySelector('#ibMsgInput'), sb=box.querySelector('#ibSendBtn');
   const send=async()=>{ const v=(inp.value||'').trim(); if(!v)return; inp.value='';
