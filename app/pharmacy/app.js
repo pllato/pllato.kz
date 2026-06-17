@@ -278,9 +278,21 @@ async function loadDash(wrap,qs){
       <div class="panel"><div class="panel-h"><h3>Топ врачи · ${n} дн</h3></div><div class="panel-b">${d.topDoctors.length?dashBars(d.topDoctors):'<div class="muted2">Нет данных</div>'}</div></div>
       <div class="panel"><div class="panel-h"><h3>Выручка по дням</h3><span class="ph-sub">${esc(d.from||'')} — ${esc(d.to||d.asOf||'')}</span></div><div class="panel-b">${dashDayChart(d.byDay)}</div></div>
     </div>
-    <div class="note section-gap">${ic('i-info','sm')} Период ${esc(d.from||'')} — ${esc(d.to||d.asOf||'')} (${n} дн), сравнение — с предыдущим периодом такой же длины. Данные 1С на ${esc(d.dmax||d.asOf||'')}. Синхронизация раз в 30 мин.</div>`;
+    <div class="panel section-gap"><div class="panel-h"><h3>Воронка продаж · конверсия по этапам</h3><div class="seg" id="dashFunnelSeg" style="margin-left:auto"><button class="on" data-f="b2c">B2C</button><button data-f="b2b">B2B</button></div></div><div class="panel-b" id="dashFunnelBody"><div class="muted2" style="padding:14px">Загрузка…</div></div></div>
+    <div class="note section-gap">${ic('i-info','sm')} Период ${esc(d.from||'')} — ${esc(d.to||d.asOf||'')} (${n} дн), сравнение — с предыдущим периодом такой же длины. Данные 1С на ${esc(d.dmax||d.asOf||'')}. Синхронизация раз в 30 мин. Воронка — из сделок CRM (накопительный охват этапов).</div>`;
   // Топ товаров: клик по заголовку «подробнее →» → модал с полной таблицей (N + сортировка с сервера)
   const tpMore=wrap.querySelector('#dashTopMore'); if(tpMore) tpMore.onclick=()=>topProductsModal(qs||'');
+  // Воронка продаж — конверсия по этапам выбранной воронки (B2C/B2B)
+  let dfFunnel='b2c'; const dfBody=wrap.querySelector('#dashFunnelBody');
+  async function renderFunnel(){ if(!dfBody)return; dfBody.innerHTML='<div class="muted2" style="padding:14px">Загрузка…</div>';
+    const fr=await api('/api/deals/funnel?funnel='+dfFunnel);
+    if(!fr.ok||!fr.data||!fr.data.stages||!fr.data.stages.length){ dfBody.innerHTML='<div class="muted2" style="padding:14px">Нет данных по воронке</div>'; return; }
+    if(!(fr.data.total>0)){ dfBody.innerHTML='<div class="muted2" style="padding:14px">Пока нет сделок в этой воронке</div>'; return; }
+    dfBody.innerHTML=funnelVis(fr.data.stages.map((s,i)=>[s.stage,s.reached,DASH_COLORS[i%DASH_COLORS.length]]));
+  }
+  const dfSeg=wrap.querySelector('#dashFunnelSeg');
+  if(dfSeg) dfSeg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ dfSeg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); dfFunnel=b.dataset.f; renderFunnel(); });
+  renderFunnel();
 }
 
 function funnelVis(rows){
