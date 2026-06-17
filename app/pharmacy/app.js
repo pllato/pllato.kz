@@ -1151,6 +1151,7 @@ async function orderModalLive(o,onSaved){
     <div class="fld"><label>Состав заказа</label><div id="omItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-om="note" value="${esc(o.note||'')}"></div>
     ${o.error?`<div class="note amber">${ic('i-info','sm')} Ошибка 1С: ${esc(o.error)}</div>`:''}
+    <div class="fld"><label>Вложения <span class="muted2" style="font-weight:400">— счёт, фото, PDF · до 15 МБ</span></label><div id="omAtt" style="display:flex;flex-direction:column;gap:6px"></div><input type="file" id="omAttFile" style="display:none"><button type="button" class="btn sm" id="omAttBtn" style="margin-top:7px">📎 Прикрепить файл</button></div>
     <details class="om-log section-gap" style="margin-top:12px"><summary>Протокол<span class="muted2">кто и когда менял</span></summary><div id="omLog"><div class="muted2" style="padding:10px 14px;font-size:12px">Загрузка…</div></div></details>
   </div>
   <div class="modal-f"><button class="btn" id="omDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button>${o.status!=='cancelled'?`<button class="btn" id="omCancel" style="color:var(--amber)">${ic('i-x','sm')} Отменить</button>`:''}<button class="btn" id="omSend">${ic('i-sync','sm')} В 1С</button><button class="btn primary" id="omSave">Сохранить</button></div>`);
@@ -1159,6 +1160,14 @@ async function orderModalLive(o,onSaved){
   if(dlog) dlog.addEventListener('toggle',async()=>{ if(!dlog.open||logLoaded)return; logLoaded=true;
     const lr=await api('/api/orders/'+o.id+'/log'); const box=bg.querySelector('#omLog'); if(!box)return; const items=(lr.ok&&lr.data&&lr.data.items)||[];
     box.innerHTML=items.length?'<div style="padding:2px 14px 12px">'+items.map(x=>`<div style="display:flex;gap:10px;padding:6px 0;font-size:12px;border-top:1px solid var(--line)"><span style="flex:1;min-width:0">${esc(x.text||'')}</span><span class="muted2" style="white-space:nowrap">${esc(x.who||'')} · ${new Date(x.ts).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span></div>`).join('')+'</div>':'<div class="muted2" style="padding:12px;font-size:12px">Пока нет записей</div>'; });
+  // Вложения к заказу
+  let atts=jparse(o.attachments,[]); const oaBox=bg.querySelector('#omAtt'), oaFile=bg.querySelector('#omAttFile');
+  function renderOAtt(){ if(!oaBox)return; oaBox.innerHTML=atts.length?atts.map((a,i)=>`<div class="row" style="gap:8px;align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:6px 9px"><span style="flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.name)}</span><span class="muted2" style="font-size:11px;flex:none">${fmtSize(a.size)}</span><button type="button" class="btn sm" data-dl="${i}" title="Скачать">↓</button><button type="button" class="btn sm" data-rm="${esc(a.key)}" title="Удалить">${ic('i-x','sm')}</button></div>`).join(''):'<div class="muted2" style="font-size:12px">Файлов нет</div>';
+    oaBox.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>downloadOrderFile(o.id,+b.dataset.dl,atts[+b.dataset.dl].name));
+    oaBox.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async()=>{ if(!confirm('Удалить файл?'))return; const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify({remove_attach:b.dataset.rm})}); if(r.ok){ atts=atts.filter(a=>a.key!==b.dataset.rm); renderOAtt(); logLoaded=false; onSaved&&onSaved(); } else toast('Ошибка','i-x','#dc2626'); }); }
+  renderOAtt();
+  const oaBtn=bg.querySelector('#omAttBtn'); if(oaBtn) oaBtn.onclick=()=>oaFile.click();
+  if(oaFile) oaFile.onchange=async()=>{ const f=oaFile.files[0]; if(!f)return; if(f.size>15*1024*1024){ toast('Файл больше 15 МБ','i-info'); oaFile.value=''; return; } toast('Загрузка…','i-sync'); const r=await uploadOrderFile(o.id,f); oaFile.value=''; if(r.ok&&r.data.attachment){ atts=[...atts,r.data.attachment]; renderOAtt(); logLoaded=false; toast('Файл загружен','i-check2'); onSaved&&onSaved(); } else toast((r.data&&r.data.error)||'Не удалось загрузить','i-x','#dc2626'); };
   const g=s=>bg.querySelector('[data-om='+s+']');
   const collect=()=>({client_name:g('client_name').value.trim(),phone:g('phone').value.trim(),mgr:g('mgr').value.trim(),store_key:g('store_key').value||null,note:g('note').value.trim(),items:ed.getItems()});
   bg.querySelector('#omSave').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{stage:g('stage').value,pay_status:g('pay').value}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
@@ -1862,6 +1871,15 @@ async function uploadTaskFile(taskId,file){ const t=AUTH.token||getToken();
   catch(e){ return {ok:false,data:{error:'Нет связи'}}; } }
 async function downloadTaskFile(taskId,idx,name){ const t=AUTH.token||getToken();
   try{ const res=await fetch(API_BASE+'/api/tasks/'+taskId+'/attach/'+idx,{headers:{'Authorization':'Bearer '+t}});
+    if(!res.ok){ toast('Не удалось скачать','i-x','#dc2626'); return; }
+    const blob=await res.blob(),url=URL.createObjectURL(blob),a=document.createElement('a'); a.href=url; a.download=name||'file'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000); }
+  catch(e){ toast('Ошибка скачивания','i-x','#dc2626'); } }
+async function uploadOrderFile(orderId,file){ const t=AUTH.token||getToken();
+  try{ const res=await fetch(API_BASE+'/api/orders/'+orderId+'/attach',{method:'POST',headers:{'Authorization':'Bearer '+t,'Content-Type':file.type||'application/octet-stream','X-File-Name':encodeURIComponent(file.name)},body:file});
+    const data=await res.json().catch(()=>null); return {ok:res.ok&&data&&data.ok!==false,data}; }
+  catch(e){ return {ok:false,data:{error:'Нет связи'}}; } }
+async function downloadOrderFile(orderId,idx,name){ const t=AUTH.token||getToken();
+  try{ const res=await fetch(API_BASE+'/api/orders/'+orderId+'/attach/'+idx,{headers:{'Authorization':'Bearer '+t}});
     if(!res.ok){ toast('Не удалось скачать','i-x','#dc2626'); return; }
     const blob=await res.blob(),url=URL.createObjectURL(blob),a=document.createElement('a'); a.href=url; a.download=name||'file'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000); }
   catch(e){ toast('Ошибка скачивания','i-x','#dc2626'); } }
