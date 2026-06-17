@@ -1035,52 +1035,80 @@ function orderFromChat(name){
 const ORDER_ST={new:['Новый','blue'],queued_1c:['Очередь 1С','amber'],synced_1c:['В 1С','green'],done:['Готово','green'],cancelled:['Отменён','red']};
 function ordStTag(s){const m=ORDER_ST[s]||['—',''];return `<span class="tag ${m[1]}">${esc(m[0])}</span>`;}
 function ordItemsText(j){ let a=[]; try{a=JSON.parse(j||'[]');}catch(e){} return a.map(x=>(x.name||'')+(x.qty>1?(' ×'+x.qty):'')).join(', '); }
+let ORDER_STAGES=['Новый','Сборка','Собран','Отгружен'];
 PAGES.orders=async(c)=>{
   const oStores=await fetchStores();
+  try{ const sr=await api('/api/orders/stages'); if(sr&&sr.ok&&Array.isArray(sr.data.stages)&&sr.data.stages.length) ORDER_STAGES=sr.data.stages; }catch(e){}
+  let view='board';
   const tbar=el(`<div class="toolbar">
-    <div class="seg" data-or="filter"><button class="on" data-s="all">Все</button><button data-s="new">Новые</button><button data-s="queued_1c">Очередь 1С</button><button data-s="synced_1c">В 1С</button><button data-s="done">Готово</button></div>
+    <div class="seg" id="ordView"><button class="on" data-v="board">Доска</button><button data-v="list">Список</button></div>
     ${storeSelectHtml(oStores,'','class="sel" data-or="store" title="Точка"','Все точки')}
+    <button class="btn sm" id="ordStagesBtn" title="Настроить стадии сборки">${ic('i-cog','sm')} Этапы</button>
     <div class="spacer"></div><span class="ph-sub" data-or="cnt"></span><button class="btn primary" id="newOrderBtn">${ic('i-plus','sm')} Заказ</button></div>`);
   const cards=el(`<div class="cards-row section-gap"></div>`);
-  const panel=el(`<div class="panel section-gap"><table class="tbl"><thead><tr><th>Клиент</th><th>Состав</th><th class="num">Сумма</th><th>Статус</th><th>№ 1С</th></tr></thead><tbody><tr><td colspan="5" class="muted2" style="padding:16px">Загрузка…</td></tr></tbody></table></div>`);
-  c.appendChild(tbar); c.appendChild(cards); c.appendChild(panel);
-  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Заказы из CRM (звонок/WhatsApp/форма). Состав и сумма — из каталога 1С. «Отправить в 1С» ставит заказ в очередь записи: агент создаст «Заказ покупателя» в 1С (Фаза 2, сначала на тестовой базе).</div>`));
-  const cnt=tbar.querySelector('[data-or=cnt]'), seg=tbar.querySelector('[data-or=filter]');
-  let status='all';
-  seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); status=b.dataset.s; load(); });
-  tbar.querySelector('#newOrderBtn').onclick=()=>newOrderLive(load);
-  tbar.querySelector('[data-or=store]').onchange=()=>load();
-  async function load(){
-    const tb=panel.querySelector('tbody'); tb.innerHTML=`<tr><td colspan="5" class="muted2" style="padding:16px">Загрузка…</td></tr>`;
-    const r=await api('/api/orders'+(status!=='all'?('?status='+status):''));
-    if(!r.ok){ cards.innerHTML=miniStat('i-cart','#0891b2','Заказы','демо'); tb.innerHTML='<tr><td colspan="5" class="muted2" style="padding:16px">Демо-режим (нет связи)</td></tr>'; return; }
-    const t=r.data.totals||{}; const sv=tbar.querySelector('[data-or=store]').value; const items=(r.data.items||[]).filter(o=>!sv||(o.store_key||'')===sv);
-    cards.innerHTML=miniStat('i-cart','#0891b2','Всего заказов',t.total||0)+miniStat('i-check2','#10b981','В работе',t.active||0)+miniStat('i-money','#16a34a','Сумма',money(t.amount||0))+miniStat('i-sync','#d97706','В очереди 1С',t.queued||0);
-    cnt.textContent=items.length+' заказов';
-    if(!items.length){ tb.innerHTML=`<tr><td colspan="5" class="muted2" style="padding:18px">Заказов нет. Нажмите «Заказ», чтобы создать.</td></tr>`; return; }
-    tb.innerHTML='';
-    items.forEach(o=>{
-      const isCancel=(o.status==='cancelled'||o.status==='cancel_queued');
-      // инлайн-смена статуса: даём ручные переходы (Новый/Готово/Отменён); системные 1С-статусы показываем, но не предлагаем выставлять руками
-      let optKeys=['new','done','cancelled']; if(!optKeys.includes(o.status)) optKeys=[o.status,...optKeys];
-      const stCell=isCancel?ordStTag(o.status):`<select class="sel ord-st" data-id="${esc(o.id)}" data-cur="${esc(o.status)}" data-ext="${o.ext_id?1:0}" title="Сменить статус" style="font-size:12px;padding:3px 6px">${optKeys.map(k=>`<option value="${k}" ${k===o.status?'selected':''}>${ORDER_ST[k]?ORDER_ST[k][0]:k}</option>`).join('')}</select>`;
-      const tr=el(`<tr style="cursor:pointer"><td><div style="font-weight:600">${esc(o.client_name||'—')}</div><div class="muted2" style="font-size:11px">${esc(o.phone||'')}${o.mgr?(' · '+esc(o.mgr)):''}</div></td><td class="muted" style="font-size:12px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ordItemsText(o.items))||'—'}</td><td class="num">${money(o.total||0)}</td><td>${stCell}</td><td class="muted2" style="font-size:12px">${o.ext_id?esc(o.ext_id):'—'}</td></tr>`);
-      tr.onclick=()=>orderModalLive(o,load);
-      const sel=tr.querySelector('.ord-st');
-      if(sel){
-        sel.onclick=e=>e.stopPropagation();
-        sel.onchange=async(e)=>{ e.stopPropagation(); const nv=sel.value,cur=sel.dataset.cur; if(nv===cur)return;
-          if(nv==='cancelled'&&!confirm('Отменить заказ?'+(sel.dataset.ext==='1'?' Документ будет помечен на удаление в 1С при следующем обмене.':''))){ sel.value=cur; return; }
-          const r=await api('/api/orders/'+sel.dataset.id,{method:'POST',body:JSON.stringify({status:nv})});
-          if(!r.ok){ toast('Ошибка','i-x','#dc2626'); sel.value=cur; return; }
-          toast('Статус: '+(ORDER_ST[nv]?ORDER_ST[nv][0]:nv),'i-check2'); load();
-        };
-      }
-      tb.appendChild(tr);
+  const boardWrap=el(`<div class="kanban section-gap" id="ordBoard"><div class="muted2" style="padding:14px">Загрузка…</div></div>`);
+  const panel=el(`<div class="panel section-gap" style="display:none"><table class="tbl"><thead><tr><th>Клиент</th><th>Состав</th><th class="num">Сумма</th><th>Стадия</th><th>№ 1С</th></tr></thead><tbody></tbody></table></div>`);
+  c.appendChild(tbar); c.appendChild(cards); c.appendChild(boardWrap); c.appendChild(panel);
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Перетаскивайте заказ по стадиям сборки. «Этапы» — настроить стадии (прямо здесь). «Отправить в 1С» — в карточке заказа (Фаза 2).</div>`));
+  const cnt=tbar.querySelector('[data-or=cnt]');
+  let allOrders=[];
+  const visible=()=>{ const sv=tbar.querySelector('[data-or=store]').value; return allOrders.filter(o=>!sv||(o.store_key||'')===sv); };
+  const onBoard=()=>visible().filter(o=>o.status!=='cancelled'&&o.status!=='cancel_queued');
+  const c1=(o)=> o.ext_id?'<span class="tag green" title="в 1С">1С</span>':(o.status==='queued_1c'?'<span class="tag amber">очередь 1С</span>':'');
+  function renderBoard(){
+    const items=onBoard(); boardWrap.innerHTML='';
+    ORDER_STAGES.forEach(stg=>{
+      const list=items.filter(o=>(o.stage||'Новый')===stg); const sum=list.reduce((a,o)=>a+(o.total||0),0);
+      const col=el(`<div class="kcol" data-stage="${esc(stg)}"><div class="kcol-h"><span class="kc-name">${esc(stg)}</span><span class="kc-count">${list.length}</span><span class="kc-sum">${money(sum)}</span></div><div class="kcol-b"></div></div>`);
+      const cb=col.querySelector('.kcol-b');
+      list.forEach(o=>{
+        const card=el(`<div class="kcard" draggable="true" data-id="${esc(o.id)}"><div class="kc-top"><div class="kc-client">${esc(o.client_name||'—')}</div>${c1(o)}</div>${o.phone?`<div class="kc-prod" style="font-size:11px;color:var(--muted)">${esc(o.phone)}</div>`:''}<div class="kc-prod" style="font-size:11px;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ordItemsText(o.items))||'—'}</div><div class="kc-sum">${money(o.total||0)}</div></div>`);
+        card.addEventListener('dragstart',e=>{e.dataTransfer.setData('id',o.id);card.classList.add('dragging');});
+        card.addEventListener('dragend',()=>card.classList.remove('dragging'));
+        card.onclick=()=>orderModalLive(o,load);
+        cb.appendChild(card);
+      });
+      col.addEventListener('dragover',e=>{e.preventDefault();col.classList.add('drop-hot');});
+      col.addEventListener('dragleave',()=>col.classList.remove('drop-hot'));
+      col.addEventListener('drop',async e=>{e.preventDefault();col.classList.remove('drop-hot'); const id=e.dataTransfer.getData('id'); const o=allOrders.find(x=>x.id===id); if(o&&(o.stage||'Новый')!==stg){ const old=o.stage; o.stage=stg; renderBoard(); const r=await api('/api/orders/'+id,{method:'POST',body:JSON.stringify({stage:stg})}); if(r.ok)toast('Заказ → «'+stg+'»','i-cart'); else { o.stage=old; renderBoard(); toast('Не удалось сохранить','i-x','#dc2626'); } } });
+      boardWrap.appendChild(col);
     });
+    cnt.textContent=items.length+' заказов';
   }
+  function renderList(){
+    const items=visible(); const tb=panel.querySelector('tbody'); cnt.textContent=items.length+' заказов';
+    tb.innerHTML=items.length?items.map(o=>`<tr class="clickable" data-id="${esc(o.id)}"><td><div style="font-weight:600">${esc(o.client_name||'—')}</div><div class="muted2" style="font-size:11px">${esc(o.phone||'')}</div></td><td class="muted" style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ordItemsText(o.items))||'—'}</td><td class="num">${money(o.total||0)}</td><td><span class="tag">${esc(o.stage||'Новый')}</span></td><td class="muted2" style="font-size:12px">${o.ext_id?esc(o.ext_id):(o.status==='queued_1c'?'очередь':'—')}</td></tr>`).join(''):'<tr><td colspan="5" class="muted2" style="padding:16px">Заказов нет</td></tr>';
+    tb.querySelectorAll('[data-id]').forEach(tr=>tr.onclick=()=>{ const o=allOrders.find(x=>x.id===tr.dataset.id); if(o)orderModalLive(o,load); });
+  }
+  function render(){ if(view==='board'){ boardWrap.style.display=''; panel.style.display='none'; renderBoard(); } else { boardWrap.style.display='none'; panel.style.display=''; renderList(); } }
+  async function load(){
+    const r=await api('/api/orders');
+    if(!r.ok){ cards.innerHTML=miniStat('i-cart','#0891b2','Заказы','демо'); boardWrap.innerHTML='<div class="muted2" style="padding:14px">Демо-режим (нет связи)</div>'; return; }
+    const t=r.data.totals||{}; allOrders=r.data.items||[];
+    cards.innerHTML=miniStat('i-cart','#0891b2','Всего заказов',t.total||0)+miniStat('i-check2','#10b981','В работе',t.active||0)+miniStat('i-money','#16a34a','Сумма',money(t.amount||0))+miniStat('i-sync','#d97706','В очереди 1С',t.queued||0);
+    render();
+  }
+  tbar.querySelector('#ordView').querySelectorAll('button').forEach(b=>b.onclick=()=>{ tbar.querySelector('#ordView').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); view=b.dataset.v; render(); });
+  tbar.querySelector('[data-or=store]').onchange=()=>render();
+  tbar.querySelector('#newOrderBtn').onclick=()=>newOrderLive(load);
+  tbar.querySelector('#ordStagesBtn').onclick=()=>orderStagesModal(load);
   load();
 };
+// Редактор стадий сборки заказа (внутри Заказов)
+function orderStagesModal(onSaved){
+  const work=ORDER_STAGES.slice();
+  const bg=openModal(`<div class="modal-h"><div><h3>Стадии сборки заказа</h3><div class="mh-sub">колонки доски заказов · ‹ › — порядок, ✕ — удалить</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div><div class="modal-b" id="osBody"></div><div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="osSave">${ic('i-check2','sm')} Сохранить</button></div>`);
+  function render(){
+    bg.querySelector('#osBody').innerHTML=`<div class="chips" style="gap:9px;margin-bottom:12px">${work.map((s,i)=>`<span class="chip on" style="display:inline-flex;align-items:center;gap:6px;color:var(--txt)"><span data-mv="${i}|-1" style="cursor:pointer;opacity:${i===0?'.2':'.6'}">‹</span><span data-ren="${i}" style="cursor:pointer">${esc(s)}</span><span data-mv="${i}|1" style="cursor:pointer;opacity:${i===work.length-1?'.2':'.6'}">›</span><span data-del="${i}" style="cursor:pointer;opacity:.6;color:#dc2626">✕</span></span>`).join('')}</div><div class="row" style="gap:8px"><input id="osAdd" placeholder="Новый этап" style="max-width:240px"><button class="btn sm" id="osAddBtn">${ic('i-plus','sm')} Добавить</button></div>`;
+    bg.querySelectorAll('[data-del]').forEach(d=>d.onclick=()=>{ work.splice(+d.dataset.del,1); render(); });
+    bg.querySelectorAll('[data-ren]').forEach(rn=>rn.onclick=()=>{ const i=+rn.dataset.ren; const nv=prompt('Переименовать этап:',work[i]); if(nv&&nv.trim()){ work[i]=nv.trim(); render(); } });
+    bg.querySelectorAll('[data-mv]').forEach(m=>m.onclick=()=>{ const p=m.dataset.mv.split('|'); const i=+p[0],j=i+(+p[1]); if(j<0||j>=work.length)return; const t=work[i];work[i]=work[j];work[j]=t; render(); });
+    const ai=bg.querySelector('#osAdd'); const add=()=>{ const v=(ai.value||'').trim(); if(!v)return; if(work.includes(v)){toast('Уже есть','i-info','#d97706');return;} work.push(v); render(); };
+    bg.querySelector('#osAddBtn').onclick=add; ai.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();add();}});
+  }
+  render();
+  bg.querySelector('#osSave').onclick=async()=>{ if(!work.length){toast('Нужен хотя бы один этап','i-info','#d97706');return;} const r=await api('/api/orders/stages',{method:'POST',body:JSON.stringify({stages:work})}); if(!r.ok){toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626');return;} ORDER_STAGES=work.slice(); closeModal(); toast('Стадии сохранены','i-check2'); onSaved&&onSaved(); };
+}
 async function newOrderLive(onSaved){
   const ed=makeItemsEditor([]);
   const users=await fetchUsers();
