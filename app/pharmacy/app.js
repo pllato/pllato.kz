@@ -1151,9 +1151,12 @@ async function orderModalLive(o,onSaved){
     <div class="fld"><label>Состав заказа</label><div id="omItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-om="note" value="${esc(o.note||'')}"></div>
     ${o.error?`<div class="note amber">${ic('i-info','sm')} Ошибка 1С: ${esc(o.error)}</div>`:''}
+    <div class="panel section-gap" style="margin-top:12px"><div class="panel-h"><h3>${ic('i-clock','sm')} Протокол</h3><span class="ph-sub" style="margin-left:auto">кто и когда менял</span></div><div id="omLog"><div class="muted2" style="padding:12px;font-size:12px">Загрузка…</div></div></div>
   </div>
   <div class="modal-f"><button class="btn" id="omDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button>${o.status!=='cancelled'?`<button class="btn" id="omCancel" style="color:var(--amber)">${ic('i-x','sm')} Отменить</button>`:''}<button class="btn" id="omSend">${ic('i-sync','sm')} В 1С</button><button class="btn primary" id="omSave">Сохранить</button></div>`);
   bg.querySelector('#omItems').appendChild(ed.node);
+  (async()=>{ const lr=await api('/api/orders/'+o.id+'/log'); const box=bg.querySelector('#omLog'); if(!box)return; const items=(lr.ok&&lr.data&&lr.data.items)||[];
+    box.innerHTML=items.length?'<div style="padding:2px 14px 12px">'+items.map(x=>`<div style="display:flex;gap:10px;padding:6px 0;font-size:12px;border-top:1px solid var(--line)"><span style="flex:1;min-width:0">${esc(x.text||'')}</span><span class="muted2" style="white-space:nowrap">${esc(x.who||'')} · ${new Date(x.ts).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span></div>`).join('')+'</div>':'<div class="muted2" style="padding:12px;font-size:12px">Пока нет записей</div>'; })();
   const g=s=>bg.querySelector('[data-om='+s+']');
   const collect=()=>({client_name:g('client_name').value.trim(),phone:g('phone').value.trim(),mgr:g('mgr').value.trim(),store_key:g('store_key').value||null,note:g('note').value.trim(),items:ed.getItems()});
   bg.querySelector('#omSave').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{stage:g('stage').value,pay_status:g('pay').value}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
