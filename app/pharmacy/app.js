@@ -66,6 +66,7 @@ const NAV = [
     {id:'marketing', t:'Промокоды и акции', i:'i-tag'},
     {id:'bloggers', t:'Блогеры', i:'i-star'},
     {id:'doctors', t:'Врачи-партнёры', i:'i-tooth'},
+    {id:'loyalty', t:'Накопительная', i:'i-gift'},
     {id:'analytics', t:'Аналитика', i:'i-chart'},
   ]},
   {g:'Автоматизация', items:[
@@ -90,6 +91,7 @@ const PAGE_META = {
   marketing:['Промокоды и акции','Живут в CRM · в 1С уходит итоговая цена'],
   bloggers:['Блогеры и креаторы','Персональные коды · KPI · ROI'],
   doctors:['Врачи-партнёры','Промокоды врачей · пациенты · кэшбек · сводная по врачу'],
+  loyalty:['Накопительная система','Карта постоянного клиента · уровни и % кэшбека по сумме покупок из 1С'],
   analytics:['Аналитика','Классическая вороночная аналитика'],
   tasks:['Задачи и дела','Привязанные к сделкам и функциональные'],
   subs:['Подписочная модель','Авто-заказ наборов каждые N месяцев'],
@@ -1640,6 +1642,57 @@ function blogPayoutsModal(b,onSaved){
 }
 
 // ---------- DOCTORS (врачи-партнёры · промокоды · кэшбек) ----------
+PAGES.loyalty=(c)=>{
+  const tbar=el(`<div class="toolbar">
+    <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по ФИО / телефону…" data-ly="q"></div>
+    <div class="spacer"></div>
+    <span class="ph-sub" data-ly="cnt"></span>
+  </div>`);
+  const cards=el(`<div class="cards-row section-gap"></div>`);
+  const chips=el(`<div class="row section-gap" style="gap:8px;flex-wrap:wrap"></div>`);
+  const panel=el(`<div class="panel section-gap"><table class="tbl"><thead><tr>
+    <th>Клиент</th><th>Телефон</th><th class="num">Накоплено</th><th>Уровень</th><th>Карта</th><th>До следующего</th></tr></thead>
+    <tbody><tr><td colspan="6" class="muted2" style="font-size:13px;padding:16px">Загрузка…</td></tr></tbody></table></div>`);
+  c.appendChild(tbar); c.appendChild(cards); c.appendChild(chips); c.appendChild(panel);
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Накопительная «Карта постоянного клиента»: уровень и % кэшбека по сумме покупок из 1С. Баллы начисляются и списываются на кассе 1С. Участвуют только розничные клиенты (физлица).</div>`));
+  const tb=panel.querySelector('tbody'), cnt=tbar.querySelector('[data-ly=cnt]'), qI=tbar.querySelector('[data-ly=q]');
+  let filter='all', lvl=0, q='', tiers=[];
+  const FILTERS=[['all','Все'],['near','Близко к порогу'],['nocard','Без карты (выдать)']];
+  function lvlBadge(x){ return x.level>0 ? `<span class="loy-pill">Ур.${x.level} · ${x.pct}%</span>` : '<span class="muted2">—</span>'; }
+  function renderChips(){
+    const fl=FILTERS.map(([k,t])=>`<button class="chip ${filter===k&&!lvl?'on':''}" data-f="${k}">${t}</button>`).join('');
+    const ll=tiers.map((t,i)=>`<button class="chip ${lvl===i+1?'on':''}" data-l="${i+1}">${t.pct}%</button>`).join('');
+    chips.innerHTML=fl+(ll?`<span style="width:1px;background:var(--line);margin:2px 4px"></span>`+ll:'');
+    chips.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{ filter=b.dataset.f; lvl=0; renderChips(); load(); });
+    chips.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{ lvl=(lvl===+b.dataset.l?0:+b.dataset.l); renderChips(); load(); });
+  }
+  function renderCards(s){
+    cards.innerHTML=
+      miniStat('i-gift','#16a34a','В системе',(s.in_system||0).toLocaleString('ru-RU'))
+      +miniStat('i-info','#d97706','Без карты',(s.nocard||0).toLocaleString('ru-RU'))
+      +miniStat('i-target','#2563eb','Близко к порогу',(s.near||0).toLocaleString('ru-RU'))
+      +(s.by_level||[]).map(b=>miniStat('i-star','#10b981',b.pct+'% · от '+money(b.min),(b.count||0).toLocaleString('ru-RU'))).join('');
+  }
+  async function load(){
+    const qs=['filter='+filter]; if(lvl)qs.push('level='+lvl); if(q)qs.push('q='+encodeURIComponent(q));
+    const r=await api('/api/loyalty?'+qs.join('&'));
+    if(!r.ok){ tb.innerHTML=`<tr><td colspan="6" class="muted2" style="padding:16px">${r.status===403?'Нет доступа к разделу':'Нет связи'}</td></tr>`; return; }
+    tiers=r.data.tiers||[]; renderChips(); renderCards(r.data.summary||{});
+    const items=r.data.items||[];
+    cnt.textContent=(r.data.total||0)+' '+plural(r.data.total||0,'клиент','клиента','клиентов');
+    if(!items.length){ tb.innerHTML='<tr><td colspan="6" class="muted2" style="padding:16px">Никого нет по фильтру</td></tr>'; return; }
+    tb.innerHTML='';
+    items.forEach(x=>{
+      const nx=x.next?('до '+x.next.pct+'% · '+money(x.next.remaining)):(x.level>0?'макс. уровень':'—');
+      const card=x.has_card?'<span class="yes">'+ic('i-check2','sm')+'</span>':(x.level>0?'<span class="loy-pill warn">выдать</span>':'<span class="muted2">—</span>');
+      const tr=el(`<tr class="clickable"><td>${esc(x.name||'—')}</td><td class="muted2">${esc(x.phone||'—')}</td><td class="num">${money(x.total||0)}</td><td>${lvlBadge(x)}</td><td>${card}</td><td class="muted2" style="font-size:12px">${nx}</td></tr>`);
+      tr.onclick=async()=>{ const rr=await api('/api/1c/contractors?limit=1&ref='+encodeURIComponent(x.ref_key)); const full=rr&&rr.ok&&(rr.data.items||[])[0]; contractorModal(full||{ref_key:x.ref_key,name:x.name,phone:x.phone,segment:'b2c',is_buyer:true}); };
+      tb.appendChild(tr);
+    });
+  }
+  let qt; qI.oninput=()=>{ clearTimeout(qt); qt=setTimeout(()=>{ q=qI.value.trim(); load(); },300); };
+  renderChips(); load();
+};
 PAGES.doctors=(c)=>{
   let rate=10; // ставка кэшбека, %
   const tbar=el(`<div class="toolbar">
@@ -2534,7 +2587,7 @@ function teamSellersPanel(){
 PAGES.team=(c)=>{
   if(isAdminRole()) c.appendChild(teamSellersPanel());
   if(isAdminRole()) c.appendChild(invitesPanel());
-  const sections=[['Дашборд','dash'],['Воронки','funnels'],['Клиенты','clients'],['Чаты','inbox'],['Заказы','orders'],['Продажи','sales'],['Каталог','catalog'],['Маркетинг','marketing'],['Блогеры','bloggers'],['Врачи-партнёры','doctors'],['Аналитика','analytics'],['Задачи','tasks'],['Триггеры','triggers'],['KPI','kpi'],['Команда','team'],['Интеграции','integrations'],['Настройки','settings']];
+  const sections=[['Дашборд','dash'],['Воронки','funnels'],['Клиенты','clients'],['Чаты','inbox'],['Заказы','orders'],['Продажи','sales'],['Каталог','catalog'],['Маркетинг','marketing'],['Блогеры','bloggers'],['Врачи-партнёры','doctors'],['Накопительная','loyalty'],['Аналитика','analytics'],['Задачи','tasks'],['Триггеры','triggers'],['KPI','kpi'],['Команда','team'],['Интеграции','integrations'],['Настройки','settings']];
   c.appendChild(el(`<div class="page-sub" style="margin-bottom:14px">${isAdminRole()?'Права ролей — отметьте галочками доступные разделы и сохраните. Владелец и Суперадмин видят всё всегда.':'Каждая роль видит только свои разделы.'}</div>`));
   const panel=el(`<div class="panel" style="overflow-x:auto"><div class="muted2" style="padding:14px;font-size:13px">Загрузка прав…</div></div>`);
   c.appendChild(panel);
