@@ -279,20 +279,22 @@ async function loadDash(wrap,qs){
       <div class="panel"><div class="panel-h"><h3>Топ врачи · ${n} дн</h3></div><div class="panel-b">${d.topDoctors.length?dashBars(d.topDoctors):'<div class="muted2">Нет данных</div>'}</div></div>
       <div class="panel"><div class="panel-h"><h3>Выручка по дням</h3><span class="ph-sub">${esc(d.from||'')} — ${esc(d.to||d.asOf||'')}</span></div><div class="panel-b">${dashDayChart(d.byDay)}</div></div>
     </div>
-    <div class="panel section-gap"><div class="panel-h"><h3>Воронка продаж · конверсия по этапам</h3><select class="sel" id="dashFunnelSel" style="margin-left:auto">${FUNNELS.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('')}</select></div><div class="panel-b" id="dashFunnelBody"><div class="muted2" style="padding:14px">Загрузка…</div></div></div>
+    <div class="panel section-gap"><div class="panel-h"><h3>Воронка продаж · конверсия по этапам</h3><select class="sel" id="dashFunnelSel" style="margin-left:auto">${FUNNELS.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('')}</select><select class="sel" id="dashSrcSel" style="margin-left:8px"><option value="">все источники</option></select></div><div class="panel-b" id="dashFunnelBody"><div class="muted2" style="padding:14px">Загрузка…</div></div></div>
     <div class="note section-gap">${ic('i-info','sm')} Период ${esc(d.from||'')} — ${esc(d.to||d.asOf||'')} (${n} дн), сравнение — с предыдущим периодом такой же длины. Данные 1С на ${esc(d.dmax||d.asOf||'')}. Синхронизация раз в 30 мин. Воронка — из сделок CRM (накопительный охват этапов).</div>`;
   // Топ товаров: клик по заголовку «подробнее →» → модал с полной таблицей (N + сортировка с сервера)
   const tpMore=wrap.querySelector('#dashTopMore'); if(tpMore) tpMore.onclick=()=>topProductsModal(qs||'');
   // Воронка продаж — конверсия по этапам выбранной воронки (B2C/B2B)
-  let dfFunnel=(FUNNELS[0]||{id:'b2c'}).id; const dfBody=wrap.querySelector('#dashFunnelBody');
+  let dfFunnel=(FUNNELS[0]||{id:'b2c'}).id, dfSource=''; const dfBody=wrap.querySelector('#dashFunnelBody'), dfSrcSel=wrap.querySelector('#dashSrcSel');
   async function renderFunnel(){ if(!dfBody)return; dfBody.innerHTML='<div class="muted2" style="padding:14px">Загрузка…</div>';
-    const fr=await api('/api/deals/funnel?funnel='+dfFunnel);
+    const fr=await api('/api/deals/funnel?funnel='+dfFunnel+(dfSource?('&source='+encodeURIComponent(dfSource)):''));
     if(!fr.ok||!fr.data||!fr.data.stages||!fr.data.stages.length){ dfBody.innerHTML='<div class="muted2" style="padding:14px">Нет данных по воронке</div>'; return; }
-    if(!(fr.data.total>0)){ dfBody.innerHTML='<div class="muted2" style="padding:14px">Пока нет сделок в этой воронке</div>'; return; }
+    if(dfSrcSel){ dfSrcSel.innerHTML='<option value="">все источники</option>'+(fr.data.sources||[]).map(s=>`<option value="${esc(s.source)}" ${s.source===dfSource?'selected':''}>${esc(s.source)} (${s.n})</option>`).join(''); }
+    if(!(fr.data.total>0)){ dfBody.innerHTML='<div class="muted2" style="padding:14px">'+(dfSource?'Нет сделок по этому источнику':'Пока нет сделок в этой воронке')+'</div>'; return; }
     dfBody.innerHTML=funnelVis(fr.data.stages.map((s,i)=>[s.stage,s.reached,DASH_COLORS[i%DASH_COLORS.length]]));
   }
   const dfSel=wrap.querySelector('#dashFunnelSel');
-  if(dfSel) dfSel.onchange=e=>{ dfFunnel=e.target.value; renderFunnel(); };
+  if(dfSel) dfSel.onchange=e=>{ dfFunnel=e.target.value; dfSource=''; renderFunnel(); };
+  if(dfSrcSel) dfSrcSel.onchange=e=>{ dfSource=e.target.value; renderFunnel(); };
   renderFunnel();
 }
 
@@ -396,8 +398,9 @@ async function newDealLive(onSaved){
   <div class="modal-b">
     <div class="fld"><label>Клиент — поиск в 1С или ввод вручную</label><div style="position:relative"><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-nd="client" placeholder="ФИО или название" autocomplete="off" style="width:100%"></div><div id="ndSug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:200px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div></div>
     <div class="fld-row"><div class="fld"><label>Телефон</label><input data-nd="phone"></div><div class="fld"><label>Сумма, с</label><input data-nd="amount" type="number" placeholder="0"></div></div>
-    <div class="fld-row"><div class="fld"><label>Этап</label><select data-nd="stage">${stages.map(s=>`<option>${esc(s)}</option>`).join('')}</select></div><div class="fld"><label>Источник</label><select data-nd="source"><option value="">—</option><option>WhatsApp</option><option>Instagram</option><option>Сайт</option><option>Звонок</option><option>Сарафан</option></select></div></div>
+    <div class="fld-row"><div class="fld"><label>Этап</label><select data-nd="stage">${stages.map(s=>`<option>${esc(s)}</option>`).join('')}</select></div><div class="fld"><label>Источник</label><select data-nd="source"><option value="">—</option><option>WhatsApp</option><option>Instagram</option><option>Сайт</option><option>Звонок</option><option>Сарафан</option><option>Блогер</option><option>Промокод</option><option>Другое</option></select></div></div>
     <div class="fld-row"><div class="fld"><label>Ответственный</label>${userSelectHtml(ndUsers,(AUTH.user||{}).name||'','data-nd="mgr"')}</div><div class="fld"><label>Точка</label>${storeSelectHtml(ndStores,'','data-nd="store_key"','— точка —')}</div></div>
+    <div class="fld"><label>Промокод / код блогера <span class="muted2" id="ndPromoHint">— если клиент назвал</span></label><input data-nd="promo" id="ndPromoInp" placeholder="код, если есть"></div>
     <div class="fld"><label>Состав (товары из 1С — можно добавить позже)</label><div id="ndItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-nd="note" placeholder="Что нужно клиенту"></div>
   </div>
@@ -409,9 +412,16 @@ async function newDealLive(onSaved){
       sug.innerHTML=r.data.items.map(x=>`<div class="doc-row" data-ref="${esc(x.ref_key)}" data-name="${esc(x.name||'')}" data-phone="${esc(x.phone||'')}"><div><div class="dt">${esc(x.name||'—')}</div><div class="ds">${esc(x.code||'')} · ${esc(x.phone||'')}</div></div></div>`).join('');
       sug.style.display='block';
       sug.querySelectorAll('[data-ref]').forEach(it=>it.onclick=()=>{ ref=it.dataset.ref; q.value=it.dataset.name; bg.querySelector('[data-nd=phone]').value=it.dataset.phone; sug.style.display='none'; }); },300); });
+  { const ndPromo=bg.querySelector('#ndPromoInp'), ndHint=bg.querySelector('#ndPromoHint'), ndSrc=bg.querySelector('[data-nd=source]');
+    if(ndPromo){ let pt=null; const chk=async()=>{ const c=ndPromo.value.trim(); if(!c){ if(ndHint){ndHint.textContent='— если клиент назвал';ndHint.style.color='';} return; }
+      const r=await api('/api/promos/resolve?code='+encodeURIComponent(c)); if(!r.ok)return;
+      if(r.data.kind==='blogger'){ if(ndHint){ndHint.textContent='✓ блогер: '+r.data.name;ndHint.style.color='#16a34a';} if(ndSrc)ndSrc.value='Блогер'; }
+      else if(r.data.kind==='promo'){ if(ndHint){ndHint.textContent='✓ промокод найден';ndHint.style.color='#16a34a';} if(ndSrc)ndSrc.value='Промокод'; }
+      else if(ndHint){ ndHint.textContent='код не найден в базе';ndHint.style.color='#d97706'; } };
+      ndPromo.addEventListener('input',()=>{ clearTimeout(pt); pt=setTimeout(chk,400); }); } }
   bg.querySelector('#ndSave').onclick=async()=>{
     const name=q.value.trim(); if(!name){toast('Укажите клиента','i-info');return;}
-    const body={funnel:state.funnel,stage:bg.querySelector('[data-nd=stage]').value,client_ref:ref,client_name:name,phone:bg.querySelector('[data-nd=phone]').value.trim(),amount:Number(bg.querySelector('[data-nd=amount]').value)||0,source:bg.querySelector('[data-nd=source]').value,mgr:bg.querySelector('[data-nd=mgr]').value.trim(),store_key:bg.querySelector('[data-nd=store_key]').value||null,items:ed.getItems(),note:bg.querySelector('[data-nd=note]').value.trim()};
+    const body={funnel:state.funnel,stage:bg.querySelector('[data-nd=stage]').value,client_ref:ref,client_name:name,phone:bg.querySelector('[data-nd=phone]').value.trim(),amount:Number(bg.querySelector('[data-nd=amount]').value)||0,source:bg.querySelector('[data-nd=source]').value,promo:bg.querySelector('[data-nd=promo]').value.trim(),mgr:bg.querySelector('[data-nd=mgr]').value.trim(),store_key:bg.querySelector('[data-nd=store_key]').value||null,items:ed.getItems(),note:bg.querySelector('[data-nd=note]').value.trim()};
     const r=await api('/api/deals',{method:'POST',body:JSON.stringify(body)});
     if(!r.ok){toast('Не удалось создать сделку','i-x','#dc2626');return;}
     closeModal(); toast('Сделка создана','i-funnel'); onSaved&&onSaved();
@@ -425,7 +435,7 @@ async function dealModalLive(d){
   const dmUsers=await fetchUsers();
   const dmFunnel=d.funnel||state.funnel;
   const stages=STAGES[dmFunnel]||[];
-  const DM_SRC=['WhatsApp','Instagram','Сайт','Звонок','Сарафан'];
+  const DM_SRC=['WhatsApp','Instagram','Сайт','Звонок','Сарафан','Блогер','Промокод','Другое'];
   const dmCurSrc=(d.source||'').trim();
   const dmSourceSel=`<select data-dm="source"><option value="">— источник —</option>`+DM_SRC.map(s=>`<option ${s===dmCurSrc?'selected':''}>${esc(s)}</option>`).join('')+(dmCurSrc&&!DM_SRC.includes(dmCurSrc)?`<option selected>${esc(dmCurSrc)}</option>`:'')+`</select>`;
   const bg=openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.client_name||'?')}">${initials(d.client_name||'?')}</span><div><h3>${esc(d.client_name||'—')}</h3><div class="mh-sub">${esc(d.phone||'')} ${d.client_ref?'· привязан к 1С':''}</div></div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
@@ -439,6 +449,7 @@ async function dealModalLive(d){
     <div class="fld"><label>Телефон</label><input data-dm="phone" value="${esc(d.phone||'')}" placeholder="+996…"></div>
     <div class="fld-row"><div class="fld"><label>Сумма, с</label><input data-dm="amount" type="number" value="${d.amount||0}"></div><div class="fld"><label>Ответственный</label>${userSelectHtml(dmUsers,d.mgr,'data-dm="mgr"')}</div></div>
     <div class="fld-row"><div class="fld"><label>Источник</label>${dmSourceSel}</div><div class="fld"><label>Точка</label>${storeSelectHtml(dmStores,d.store_key,'data-dm="store_key"','— точка —')}</div></div>
+    <div class="fld"><label>Промокод / код блогера <span class="muted2" id="dmPromoHint">${d.promo?'':'— если клиент назвал'}</span></label><input data-dm="promo" id="dmPromoInp" value="${esc(d.promo||'')}" placeholder="код, если есть"></div>
     <div class="fld"><label>Состав (товары из 1С)</label><div id="dmItems"></div></div>
     <div class="fld"><label>Комментарий</label><input data-dm="note" value="${esc(d.note||'')}"></div>
   </div>
@@ -479,8 +490,15 @@ async function dealModalLive(d){
   });
   const dmFunSel=bg.querySelector('#dmFunnelSel'), dmStgSel=bg.querySelector('#dmStageSel');
   if(dmFunSel&&dmStgSel) dmFunSel.onchange=()=>{ const st=STAGES[dmFunSel.value]||[]; dmStgSel.innerHTML=st.map(s=>`<option>${esc(s)}</option>`).join(''); toast('Этап сброшен на первый для новой воронки','i-info','#d97706'); };
+  const dmPromo=bg.querySelector('#dmPromoInp'), dmHint=bg.querySelector('#dmPromoHint'), dmSrc=bg.querySelector('[data-dm=source]');
+  if(dmPromo){ let pt=null; const chk=async()=>{ const c=dmPromo.value.trim(); if(!c){ if(dmHint){dmHint.textContent='— если клиент назвал';dmHint.style.color='';} return; }
+    const r=await api('/api/promos/resolve?code='+encodeURIComponent(c)); if(!r.ok)return;
+    if(r.data.kind==='blogger'){ if(dmHint){dmHint.textContent='✓ блогер: '+r.data.name;dmHint.style.color='#16a34a';} if(dmSrc)dmSrc.value='Блогер'; }
+    else if(r.data.kind==='promo'){ if(dmHint){dmHint.textContent='✓ промокод найден';dmHint.style.color='#16a34a';} if(dmSrc)dmSrc.value='Промокод'; }
+    else if(dmHint){ dmHint.textContent='код не найден в базе';dmHint.style.color='#d97706'; } };
+    dmPromo.addEventListener('input',()=>{ clearTimeout(pt); pt=setTimeout(chk,400); }); }
   bg.querySelector('#dmSave').onclick=async()=>{
-    const body={funnel:bg.querySelector('[data-dm=funnel]').value,client_ref:dRef,client_name:(dName||'').trim(),phone:bg.querySelector('[data-dm=phone]').value.trim(),stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,items:ed.getItems(),note:bg.querySelector('[data-dm=note]').value.trim()};
+    const body={funnel:bg.querySelector('[data-dm=funnel]').value,client_ref:dRef,client_name:(dName||'').trim(),phone:bg.querySelector('[data-dm=phone]').value.trim(),stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),promo:bg.querySelector('[data-dm=promo]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,items:ed.getItems(),note:bg.querySelector('[data-dm=note]').value.trim()};
     const r=await api('/api/deals/'+d.id,{method:'POST',body:JSON.stringify(body)});
     if(!r.ok){toast('Ошибка сохранения','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); if(r.data&&r.data.order_created)toast('Сделка закрыта → создан черновик заказа (раздел «Заказы»)','i-cart','#16a34a'); if(window.__reloadFunnels)window.__reloadFunnels();
   };
