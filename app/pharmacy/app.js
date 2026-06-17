@@ -493,6 +493,15 @@ async function dealChatLoad(bg,d){
     if(sb){ sb.disabled=true; sb.style.opacity=.45; sb.style.cursor='default'; }
     return;
   }
+  // Микрофон — только если в интеграциях GreenAPI включена отправка аудио
+  if(data.allow_audio){
+    const comp=bg.querySelector('#dmChatComp');
+    if(comp && !comp.querySelector('#dmChatMic')){
+      const mic=el(`<button class="cw-send" id="dmChatMic" title="Голосовое: тап — начать запись, тап ещё раз — отправить" style="margin-right:6px">${ic('i-mic')}</button>`);
+      comp.insertBefore(mic, sb);
+      mic.onclick=()=>micToggle(d.id, mic, ()=>{ data.messages=data.messages||[]; data.messages.push({dir:'out',body:'🎤 голосовое',ts:Date.now()}); render(); });
+    }
+  }
   const send=async()=>{
     const v=ta.value.trim(); if(!v) return;
     ta.value=''; ta.style.height='auto';
@@ -947,6 +956,29 @@ function sendMsg(tid){
   const inp=$('#msgInput');if(!inp||!inp.value.trim())return;
   const t=DB.threads.find(x=>x.id===tid);t.msgs.push({dir:'out',t:inp.value,tm:'сейчас'});t.last=inp.value;
   inp.value='';renderPage();toast('Отправлено в WhatsApp (GreenAPI)','i-send','var(--wa)');
+}
+// Запись и отправка голосового в WhatsApp (тап — старт, тап ещё раз — стоп+отправка)
+let _waRec=null,_waChunks=[];
+function blobToB64(blob){ return new Promise(res=>{ const fr=new FileReader(); fr.onloadend=()=>res(String(fr.result).split(',')[1]||''); fr.readAsDataURL(blob); }); }
+async function micToggle(dealId, btn, onSent){
+  if(_waRec && _waRec.state==='recording'){ _waRec.stop(); return; }
+  if(!navigator.mediaDevices || !window.MediaRecorder){ toast('Запись не поддерживается браузером','i-x','#dc2626'); return; }
+  let stream; try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(e){ toast('Нет доступа к микрофону','i-x','#dc2626'); return; }
+  _waChunks=[]; let mime=''; try{ if(MediaRecorder.isTypeSupported('audio/ogg;codecs=opus'))mime='audio/ogg;codecs=opus'; else if(MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))mime='audio/webm;codecs=opus'; }catch(e){}
+  try{ _waRec=new MediaRecorder(stream, mime?{mimeType:mime}:undefined); }catch(e){ try{_waRec=new MediaRecorder(stream);}catch(e2){ toast('Запись недоступна','i-x','#dc2626'); stream.getTracks().forEach(t=>t.stop()); return; } }
+  _waRec.ondataavailable=e=>{ if(e.data&&e.data.size)_waChunks.push(e.data); };
+  _waRec.onstop=async()=>{
+    stream.getTracks().forEach(t=>t.stop()); btn.style.color='';
+    const blob=new Blob(_waChunks,{type:(_waRec.mimeType||'audio/webm')});
+    if(!blob.size){ toast('Пустая запись','i-info','#d97706'); return; }
+    const b64=await blobToB64(blob); const old=btn.innerHTML; btn.innerHTML=ic('i-sync','sm'); btn.disabled=true;
+    const r=await api('/api/deals/'+dealId+'/chat/audio',{method:'POST',body:JSON.stringify({audio_b64:b64,mime:blob.type})});
+    btn.disabled=false; btn.innerHTML=old;
+    if(!r.ok){ toast((r.data&&r.data.error)||'Не удалось отправить','i-x','#dc2626'); return; }
+    toast((r.data&&r.data.whatsapp&&r.data.whatsapp.sent)?'Голосовое отправлено в WhatsApp':'Записано (доставка при подключённом WhatsApp)','i-check2'); onSent&&onSent();
+  };
+  try{ _waRec.start(); }catch(e){ stream.getTracks().forEach(t=>t.stop()); toast('Не удалось начать запись','i-x','#dc2626'); return; }
+  btn.style.color='#ef4444'; toast('Запись… тап по микрофону ещё раз — отправить','i-mic');
 }
 function orderFromChat(name){
   openModal(`<div class="modal-h"><div><h3>Заказ · ${name}</h3><div class="mh-sub">товары из каталога 1С · остатки в реальном времени</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
@@ -2444,6 +2476,7 @@ async function gaLoadStatus(refs){
   // заполняем поля сохранённым (без перезаписи введённого токена)
   if(d.id_instance && document.activeElement!==idInp) idInp.value = d.id_instance;
   if(document.activeElement!==urlInp) urlInp.value = (d.api_url && d.api_url!=='https://api.green-api.com') ? d.api_url : '';
+  if(refs.audioInp) refs.audioInp.checked = !!d.allow_audio;
   if(!d.configured){
     gaSetBadge(badge, 'не настроено', '#64748b');
     info.textContent = d.hint || 'Укажите idInstance и apiTokenInstance из консоли green-api.com.';
@@ -2477,6 +2510,9 @@ function _legacyGreenApiPanel(){
           <input data-ga="token" class="login-field" type="password" autocomplete="off" placeholder="apiTokenInstance" style="margin:0"></label>
         <label style="display:grid;gap:5px;font-size:12px;color:var(--muted)">API URL <span class="muted2">(опц., у новых инстансов вида https://1101.api.greenapi.com)</span>
           <input data-ga="url" class="login-field" placeholder="https://api.green-api.com" style="margin:0"></label>
+        <label class="ck" style="display:flex;align-items:center;gap:9px;font-size:13px;color:var(--txt);cursor:pointer;margin-top:2px">
+          <input type="checkbox" data-ga="audio"> Разрешить отправку аудиосообщений (голосовых) клиентам
+          <span class="muted2" style="font-size:11px">— включит микрофон в чате</span></label>
       </div>
       <div class="row" style="gap:8px;margin-top:14px;flex-wrap:wrap">
         <button class="btn" data-ga="save">${ic('i-check2','sm')} Сохранить и проверить</button>
@@ -2493,7 +2529,10 @@ function _legacyGreenApiPanel(){
     idInp: panel.querySelector('[data-ga=id]'),
     tokInp:panel.querySelector('[data-ga=token]'),
     urlInp:panel.querySelector('[data-ga=url]'),
+    audioInp:panel.querySelector('[data-ga=audio]'),
   };
+  // галочка «разрешить аудио» — сохраняем сразу при переключении
+  if(refs.audioInp) refs.audioInp.onchange=async()=>{ const r=await api('/api/admin/greenapi/settings',{method:'PUT',body:JSON.stringify({allow_audio:refs.audioInp.checked})}); toast(r.ok?(refs.audioInp.checked?'Аудио включено — в чате появился микрофон':'Аудио отключено'):'Ошибка','i-'+(r.ok?'check2':'x'),r.ok?'':'#dc2626'); };
   // сворачиваемая карточка (как 1С): настройки WhatsApp — внутри, по клику на шапку
   const gaTog=panel.querySelector('[data-ga=toggle]'), gaBody=panel.querySelector('[data-ga=body]'), gaChev=panel.querySelector('[data-ga=chev]');
   const gaSetOpen=(open)=>{ gaBody.style.display=open?'':'none'; gaTog.style.borderBottom=open?'':'none'; gaChev.innerHTML=`${ic('i-cog','sm')} ${open?'Свернуть':'Настроить'}`; };
