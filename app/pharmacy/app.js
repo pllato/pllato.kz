@@ -249,7 +249,7 @@ async function loadDash(wrap,qs){
         ${dashKpi('i-money','#10b981','Выручка',money(2480000),'▲ 12% к пред. периоду',1)}
         ${dashKpi('i-chart','#2563eb','Прибыль · 30%',money(744000),'▲ 8% к пред. периоду',1)}
         ${dashKpi('i-doc','#7c3aed','Документов','1 240','▲ 5% к пред. периоду',1)}
-        ${dashKpi('i-cart','#0891b2','Средний документ',money(2000),'розница',0)}
+        ${dashKpi('i-cart','#0891b2','Средний чек',money(2000),'розница',0)}
       </div>`;
     return;
   }
@@ -264,7 +264,7 @@ async function loadDash(wrap,qs){
       ${dashKpi('i-money','#10b981','Выручка · '+n+' дн',money(cur.revenue),dashDelta(dl.revenue),dl.revenue)}
       ${dashKpi('i-chart','#2563eb','Прибыль · '+cur.margin+'%',money(cur.profit),dashDelta(dl.profit),dl.profit)}
       ${dashKpi('i-doc','#7c3aed','Документов',fmt(cur.docs),dashDelta(dl.docs),dl.docs)}
-      ${dashKpi('i-cart','#0891b2','Средний документ',money(cur.avg),'розница',0)}
+      ${dashKpi('i-cart','#0891b2','Средний чек',money(cur.avg),'розница',0)}
       ${dashKpi('i-box','#db2777','Продано позиций',fmt(cur.qty),'за '+n+' дн',0)}
     </div>
     <div class="cards-row section-gap">
@@ -1404,7 +1404,7 @@ PAGES.sales=async(c)=>{
     return miniStat('i-money','#10b981','Выручка',money(t.revenue||0))
       + miniStat('i-chart','#2563eb','Прибыль · '+(t.margin||0)+'%',money(t.profit||0))
       + miniStat('i-cart','#7c3aed','Продано позиций',fmtN(t.qty||0))
-      + miniStat('i-doc','#db2777','Средний документ',money(t.avg||0));
+      + miniStat('i-doc','#db2777','Средний чек',money(t.avg||0));
   }
   function topHTML(rows){
     const body=rows.length?rows.map((p,i)=>`<tr><td class="muted2">${i+1}</td><td>${esc(p.name||'—')}</td><td class="num">${fmtN(p.qty)}</td><td class="num">${money(p.revenue||0)}</td><td class="num">${money(p.profit||0)}</td></tr>`).join(''):'<tr><td colspan="5" class="muted2" style="padding:16px">Нет данных</td></tr>';
