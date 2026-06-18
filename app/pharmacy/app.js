@@ -682,13 +682,26 @@ PAGES.clients=async(c)=>{
   c.appendChild(panel); c.appendChild(pager);
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} База клиентов — контрагенты из 1С. Сегмент: B2C (физлица, розница) · B2B (юр.лица и ИП, опт) · Врачи-партнёры · Поставщики. Выручка по сегментам — из регистра «Продажи» 1С (розница без контрагента учтена в B2C). Синхронизация раз в 30 мин.</div>`));
 };
+// Редактор списка телефонов (несколько номеров; первый — основной). п.5
+function makePhoneList(box, phones){
+  let arr=(phones&&phones.length)?phones.slice():[''], cb=null;
+  function render(){
+    box.innerHTML=arr.map((p,i)=>`<div class="row" style="gap:6px;margin-bottom:6px"><input data-pi="${i}" value="${esc(p)}" placeholder="${i===0?'+996 XXX XXX XXX (основной)':'доп. номер'}" autocomplete="off" style="flex:1">${arr.length>1?`<button type="button" class="btn sm" data-pd="${i}" title="Удалить номер" style="flex:none;color:var(--red)">${ic('i-x','sm')}</button>`:''}</div>`).join('')
+      +`<button type="button" class="btn sm" data-pa style="margin-top:2px">${ic('i-plus','sm')} ещё номер</button>`;
+    box.querySelectorAll('[data-pi]').forEach(inp=>{ inp.oninput=e=>{ arr[+e.target.dataset.pi]=e.target.value; if(cb)cb(); }; });
+    box.querySelectorAll('[data-pd]').forEach(b=>b.onclick=()=>{ arr.splice(+b.dataset.pd,1); if(!arr.length)arr=['']; render(); if(cb)cb(); });
+    box.querySelector('[data-pa]').onclick=()=>{ arr.push(''); render(); };
+  }
+  render();
+  return { get:()=>arr.map(p=>String(p||'').trim()).filter(Boolean), onChange:f=>{cb=f;}, set:a=>{arr=(a&&a.length)?a.slice():['']; render();} };
+}
 function contractorModal(r){
   setEntityHash('clients', r.ref_key);
   const bg=openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(r.name||'?')}">${initials(r.name||'?')}</span>
     <div><h3>${esc(r.name||'—')}</h3><div class="mh-sub">${esc(r.code||'')} · ${r.kind==='ЮридическоеЛицо'?'юр.лицо':r.kind==='ФизическоеЛицо'?'физ.лицо':'—'}</div></div></div>
     <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
-    <div class="fld"><label>Телефон</label><input data-ce="phone" value="${esc(r.phone||'')}" placeholder="+996…"></div>
+    <div class="fld"><label>Телефоны ${r.ref_key?'<span class="muted2">(доп. номера — в CRM; в 1С уйдут на этапе записи)</span>':''}</label><div data-ce="phones"></div></div>
     <div class="fld"><label>Имя / Наименование</label><input data-ce="name" value="${esc(r.name||'')}"></div>
     <div class="grid-2b">
       <div class="fld"><label>Код 1С <span class="muted2">(только чтение)</span></label><input value="${esc(r.code||'')}" disabled></div>
@@ -706,12 +719,14 @@ function contractorModal(r){
       <div id="cmHist"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>
   </div>
   <div class="modal-f">${r.ref_key?`<button class="btn primary" id="ceSave">${ic('i-check2','sm')} Сохранить (→ 1С)</button>`:''}<button class="btn" onclick="closeModal()">Закрыть</button></div>`,'wide');
+  const cePhones=makePhoneList(bg.querySelector('[data-ce=phones]'), r.phone?[r.phone]:[]);
+  if(r.ref_key) api('/api/1c/contractors/'+encodeURIComponent(r.ref_key)+'/phones').then(pr=>{ if(pr.ok&&pr.data.phones&&pr.data.phones.length) cePhones.set(pr.data.phones); });
   if(r.ref_key){ const sb=bg.querySelector('#ceSave'); if(sb) sb.onclick=async()=>{
-    const name=bg.querySelector('[data-ce=name]').value.trim(), phone=bg.querySelector('[data-ce=phone]').value.trim(), inn=(r.inn||''), dob=bg.querySelector('[data-ce=dob]').value;
+    const name=bg.querySelector('[data-ce=name]').value.trim(), phones=cePhones.get(), inn=(r.inn||''), dob=bg.querySelector('[data-ce=dob]').value;
     const is_buyer=bg.querySelector('[data-ce=is_buyer]').checked, is_supplier=bg.querySelector('[data-ce=is_supplier]').checked, is_doctor=bg.querySelector('[data-ce=is_doctor]').checked;
     if(!name){ toast('Имя не может быть пустым','i-info','#d97706'); return; }
     sb.disabled=true; const old=sb.innerHTML; sb.textContent='Сохранение…';
-    const rr=await api('/api/1c/contractors/'+encodeURIComponent(r.ref_key)+'/edit',{method:'POST',body:JSON.stringify({name,phone,inn,dob,is_buyer,is_supplier,is_doctor})});
+    const rr=await api('/api/1c/contractors/'+encodeURIComponent(r.ref_key)+'/edit',{method:'POST',body:JSON.stringify({name,phones,inn,dob,is_buyer,is_supplier,is_doctor})});
     sb.disabled=false; sb.innerHTML=old;
     if(!rr.ok){ toast(rr.data&&rr.data.error?rr.data.error:'Ошибка сохранения','i-x','#dc2626'); return; }
     closeModal(); toast('Сохранено — уйдёт в 1С при следующем обмене','i-check2'); if(window.__reloadClients)window.__reloadClients();
@@ -760,7 +775,7 @@ function newClientModal(onSaved){
   <div class="modal-b">
     <div class="grid-2b">
       <div><div class="fld"><label>ФИО *</label><input data-nc="name" placeholder="Иванова Анна"></div>
-        <div class="fld"><label>Телефон</label><input data-nc="phone" placeholder="+996 XXX XXX XXX" autocomplete="off"><div data-nc="dupwarn"></div></div>
+        <div class="fld"><label>Телефоны</label><div data-nc="phones"></div><div data-nc="dupwarn"></div></div>
         <div class="fld-row"><div class="fld"><label>Дисконтная карта</label><input data-nc="card" placeholder="—"></div>
           <div class="fld"><label>Источник лида</label><input data-nc="source" placeholder="WhatsApp / сайт / рекомендация"></div></div></div>
       <div><div class="fld"><label>Тип клиента</label><div class="chips" data-nc="types">${TYPES.map(t=>`<span class="chip" data-t="${t}">${t}</span>`).join('')}</div></div>
@@ -776,18 +791,20 @@ function newClientModal(onSaved){
     const t=ch.dataset.t; if(sel.has(t)){sel.delete(t);ch.classList.remove('on');}else{sel.add(t);ch.classList.add('on');}
   }));
   const gv=k=>(bg.querySelector(`[data-nc=${k}]`)?.value||'').trim();
-  const warnBox=bg.querySelector('[data-nc=dupwarn]'), phoneInp=bg.querySelector('[data-nc=phone]');
+  const warnBox=bg.querySelector('[data-nc=dupwarn]');
+  const phoneList=makePhoneList(bg.querySelector('[data-nc=phones]'), []);
   const renderDupes=(dupes,withForce)=>{ if(!warnBox)return; if(!dupes||!dupes.length){ warnBox.innerHTML=''; return; }
     warnBox.innerHTML='<div class="dup-warn">'+ic('i-info','sm')+' Такой номер уже есть: '+dupes.map(d=>`<b>${esc(d.name||'—')}</b> <span class="muted2">(${d.source==='1c'?'1С':'CRM'})</span>`).join(', ')+(withForce?' <button class="btn sm" data-nc="force" style="margin-left:8px;color:var(--amber)">Всё равно создать</button>':'')+'</div>';
     if(withForce){ const fb=warnBox.querySelector('[data-nc=force]'); if(fb) fb.onclick=()=>doSave(true); } };
-  let pt; phoneInp.addEventListener('input',()=>{ clearTimeout(pt); const v=phoneInp.value.trim();
-    if(v.replace(/\D/g,'').length<6){ renderDupes([]); return; }
-    pt=setTimeout(async()=>{ const r=await api('/api/clients/check-phone?phone='+encodeURIComponent(v)); if(r.ok) renderDupes(r.data.dupes||[],false); },400); });
+  let pt; phoneList.onChange(()=>{ clearTimeout(pt); const ph=phoneList.get();
+    if(!ph.length || ph.join('').replace(/\D/g,'').length<6){ renderDupes([]); return; }
+    pt=setTimeout(async()=>{ let all=[]; for(const p of ph){ if(p.replace(/\D/g,'').length<6) continue; const r=await api('/api/clients/check-phone?phone='+encodeURIComponent(p)); if(r.ok) all=all.concat(r.data.dupes||[]); }
+      const seen=new Set(); all=all.filter(x=>{ const k=x.ref_key||x.id||x.name; if(seen.has(k))return false; seen.add(k); return true; }); renderDupes(all,false); },400); });
   async function doSave(force){
     const name=gv('name');
     if(!name){ toast('Укажите ФИО','i-info','#dc2626'); return; }
     const btn=bg.querySelector('[data-nc=save]'); btn.disabled=true;
-    const body={ name, phone:gv('phone'), card:gv('card'), source:gv('source'), mgr:gv('mgr'), type:[...sel] };
+    const body={ name, phones:phoneList.get(), card:gv('card'), source:gv('source'), mgr:gv('mgr'), type:[...sel] };
     if(force) body.force=true;
     const r=await api('/api/clients',{method:'POST',body:JSON.stringify(body)});
     btn.disabled=false;
