@@ -1267,7 +1267,7 @@ async function orderModalLive(o,onSaved){
     <div class="fld"><label>Вложения <span class="muted2" style="font-weight:400">— счёт, фото, PDF · до 15 МБ</span></label><div id="omAtt" style="display:flex;flex-direction:column;gap:6px"></div><input type="file" id="omAttFile" style="display:none"><button type="button" class="btn sm" id="omAttBtn" style="margin-top:7px">📎 Прикрепить файл</button></div>
     <details class="om-log section-gap" style="margin-top:12px"><summary>Протокол<span class="muted2">кто и когда менял</span></summary><div id="omLog"><div class="muted2" style="padding:10px 14px;font-size:12px">Загрузка…</div></div></details>
   </div>
-  <div class="modal-f"><button class="btn" id="omDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button>${o.status!=='cancelled'?`<button class="btn" id="omCancel" style="color:var(--amber)">${ic('i-x','sm')} Отменить</button>`:''}<button class="btn" id="omSend">${ic('i-sync','sm')} В 1С</button><button class="btn primary" id="omSave">Сохранить</button></div>`);
+  <div class="modal-f"><button class="btn" id="omDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button>${o.status!=='cancelled'?`<button class="btn" id="omCancel" style="color:var(--amber)">${ic('i-x','sm')} Отменить</button>`:''}${o.phone?`<button class="btn" id="omNotify" title="Сообщить клиенту статус заказа в WhatsApp">${ic('i-chat','sm')} Уведомить</button>`:''}<button class="btn" id="omSend">${ic('i-sync','sm')} В 1С</button><button class="btn primary" id="omSave">Сохранить</button></div>`);
   bg.querySelector('#omItems').appendChild(ed.node);
   const dlog=bg.querySelector('details.om-log'); let logLoaded=false;
   if(dlog) dlog.addEventListener('toggle',async()=>{ if(!dlog.open||logLoaded)return; logLoaded=true;
@@ -1294,6 +1294,12 @@ async function orderModalLive(o,onSaved){
   bg.querySelector('#omSend').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{status:'queued_1c'}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Заказ в очереди на запись в 1С','i-sync','#d97706'); onSaved&&onSaved(); };
   bg.querySelector('#omDel').onclick=async()=>{ if(!confirm('Удалить заказ?'))return; const r=await api('/api/orders/'+o.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
   { const cb=bg.querySelector('#omCancel'); if(cb) cb.onclick=async()=>{ if(!confirm('Отменить заказ?'+(o.ext_id?' Документ будет помечен на удаление в 1С при следующем обмене.':'')))return; const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify({status:'cancelled'})}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast(o.ext_id?'Отмена в очереди в 1С':'Заказ отменён','i-check2'); onSaved&&onSaved(); }; }
+  { const nb=bg.querySelector('#omNotify'); if(nb) nb.onclick=async()=>{
+    const tr=await api('/api/wa/templates'); const TPL=(tr.ok&&tr.data.templates)||{}, CH=(tr.ok&&tr.data.channels)||[], conn=!!(tr.ok&&tr.data.connected);
+    const stg=(o.stage||'').toLowerCase(); const kind=/отгру|отправ|достав|выдан/.test(stg)?'order_shipped':'order_ready';
+    const stores=await fetchStores(); const stName=(k)=>{ const s=stores.find(x=>x.ref_key===k); return s?s.name:''; };
+    const vars={'имя':o.client_name||'','точка':stName(o.store_key),'сумма':money(ordNet(o)),'дней':''};
+    waSendModal({phone:o.phone,name:o.client_name,text:fillTpl((TPL[kind]||{}).text||'',vars),channels:CH,connected:conn,store_key:o.store_key,trigger:kind}); }; }
 }
 
 // ---------- CATALOG ----------
@@ -2589,15 +2595,63 @@ function subModalLive(s,onSaved){
 }
 
 // ---------- TRIGGERS ----------
+// Подстановка переменных в шаблон (зеркало серверной fillTemplate)
+function fillTpl(text,vars){ vars=vars||{}; return String(text||'').replace(/\{(имя|точка|сумма|дней)\}/g,(m,k)=>(vars[k]!=null&&vars[k]!=='')?String(vars[k]):''); }
+// Модалка: отправить сообщение клиенту в WhatsApp (шаблон подставлен, менеджер проверяет)
+function waSendModal(opts){
+  // opts: { phone, name, text, channels, connected, store_key, trigger }
+  const chans=opts.channels||[]; const connected=opts.connected!==false; const phone=(opts.phone||'').trim();
+  let cur=(chans[0]&&chans[0].id)||null;
+  if(opts.store_key){ const sc=chans.find(c=>c.store_key===opts.store_key); if(sc)cur=sc.id; }
+  const fromSel = chans.length?`<div class="fld"><label>Отправитель (номер WhatsApp)</label><select data-ws="ch">${chans.map(c=>`<option value="${esc(c.id)}" ${c.id===cur?'selected':''}>${esc(c.name||'WhatsApp')}${c.phone?(' · +'+esc(c.phone)):''}</option>`).join('')}</select></div>`:'';
+  const bg=openModal(`<div class="modal-h"><div><h3>Сообщение клиенту</h3><div class="mh-sub">${esc(opts.name||phone||'—')}${phone?(' · '+esc(phone)):''}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    ${!connected?`<div class="note amber">${ic('i-info','sm')} WhatsApp не подключён — добавьте номер в «Интеграции».</div>`:''}
+    ${!phone?`<div class="note amber">${ic('i-info','sm')} У клиента нет телефона — отправить нельзя.</div>`:''}
+    <div class="fld"><label>Текст сообщения <span class="muted2">(можно отредактировать перед отправкой)</span></label><textarea data-ws="text" rows="5" style="width:100%;resize:vertical">${esc(opts.text||'')}</textarea></div>
+    ${fromSel}
+    <div class="muted2" style="font-size:11px">Клиент получит сообщение в WhatsApp с выбранного номера.</div>
+  </div>
+  <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="wsSend" ${(!connected||!phone)?'disabled':''}>${ic('i-send','sm')} Отправить</button></div>`);
+  const btn=bg.querySelector('#wsSend'); if(btn) btn.onclick=async()=>{
+    const text=(bg.querySelector('[data-ws=text]').value||'').trim(); if(!text){toast('Пустое сообщение','i-info','#d97706');return;}
+    const chSel=bg.querySelector('[data-ws=ch]'); const channel_id=chSel?chSel.value:null;
+    btn.disabled=true; btn.textContent='Отправка…';
+    const r=await api('/api/wa/send',{method:'POST',body:JSON.stringify({phone,text,channel_id,name:opts.name||'',trigger:opts.trigger||null})});
+    btn.disabled=false; btn.innerHTML=ic('i-send','sm')+' Отправить';
+    if(!r.ok){ toast((r.data&&r.data.error)||'Не удалось отправить','i-x','#dc2626'); return; }
+    closeModal(); const w=r.data&&r.data.whatsapp; toast(w&&w.sent?'Отправлено в WhatsApp':'Записано (доставка при подключённом WhatsApp)','i-send','var(--wa)'); opts.onSent&&opts.onSent();
+  };
+}
+// Редактор шаблонов сообщений
+async function waTemplatesModal(){
+  const r=await api('/api/wa/templates'); if(!r.ok){toast('Не удалось загрузить','i-x','#dc2626');return;}
+  const tpl=r.data.templates||{};
+  const LBL={birthday:'🎂 День рождения',lapsed:'⏳ Давно не покупали',repeat:'🔁 Повтор покупки',order_ready:'📦 Заказ собран',order_shipped:'🚚 Заказ отправлен'};
+  const order=['birthday','lapsed','repeat','order_ready','order_shipped']; const keys=order.filter(k=>tpl[k]).concat(Object.keys(tpl).filter(k=>!order.includes(k)));
+  const bg=openModal(`<div class="modal-h"><div><h3>Шаблоны сообщений</h3><div class="mh-sub">переменные: {имя} · {точка} · {сумма} · {дней}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="note blue">${ic('i-info','sm')} Подставляются автоматически: <b>{имя}</b> — имя клиента, <b>{точка}</b> — магазин, <b>{сумма}</b> — сумма покупок, <b>{дней}</b> — дней с покупки.</div>
+    ${keys.map(k=>`<div class="fld section-gap"><label>${LBL[k]||esc(k)}</label><textarea data-tk="${esc(k)}" rows="3" style="width:100%;resize:vertical">${esc((tpl[k]||{}).text||'')}</textarea></div>`).join('')}
+  </div>
+  <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="tplSave">${ic('i-check2','sm')} Сохранить</button></div>`);
+  bg.querySelector('#tplSave').onclick=async()=>{
+    const out={}; bg.querySelectorAll('[data-tk]').forEach(t=>{ out[t.dataset.tk]={name:(tpl[t.dataset.tk]||{}).name||t.dataset.tk,text:t.value}; });
+    const rr=await api('/api/wa/templates',{method:'POST',body:JSON.stringify({templates:out})});
+    if(!rr.ok){ toast(rr.status===403?'Только админ/маркетолог может менять':'Ошибка','i-x','#dc2626'); return; }
+    closeModal(); toast('Шаблоны сохранены','i-check2');
+  };
+}
 PAGES.triggers=(c)=>{
   const tbar=el(`<div class="toolbar">
     <div class="seg" data-tg="tab"><button class="on" data-t="birthdays">🎂 Дни рождения</button><button data-t="lapsed">⏳ Давно не покупали</button><button data-t="repeat">🔁 Повтор покупки</button></div>
     <div class="spacer"></div><span class="ph-sub" data-tg="cnt"></span>
+    <button class="btn sm" id="tgTpl">${ic('i-doc','sm')} Шаблоны</button>
   </div>`);
   const panel=el(`<div class="panel section-gap"><div class="muted2" style="padding:16px">Загрузка…</div></div>`);
   c.appendChild(tbar); c.appendChild(panel);
-  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Триггеры — списки клиентов из 1С под действие: «🎂» ближайшие ДР, «⏳» не покупали 60+ дней, «🔁» пора повторить покупку. Кнопка «Задача» создаёт напоминание. Авто-рассылка в WhatsApp — после подключения GreenAPI.</div>`));
-  let data=null, tab='birthdays';
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Триггеры — списки клиентов из 1С под действие: «🎂» ближайшие ДР, «⏳» не покупали 60+ дней, «🔁» пора повторить покупку. «Написать» — отправить клиенту сообщение по шаблону (можно отредактировать). «Задача» — напоминание менеджеру. Шаблоны настраиваются кнопкой «Шаблоны».</div>`));
+  let data=null, tab='birthdays', TPL={}, CHANS=[], waConn=false;
   const seg=tbar.querySelector('[data-tg=tab]'), cnt=tbar.querySelector('[data-tg=cnt]');
   function render(){
     const sgm=(data&&data[tab])||{items:[]}, items=sgm.items||[];
@@ -2614,7 +2668,7 @@ PAGES.triggers=(c)=>{
         <td style="font-weight:600">${esc(x.name||'—')}</td>
         <td>${phoneCell}</td>
         <td>${info}<div class="muted2" style="font-size:11px">${sub}</div></td>
-        <td class="num"><button class="btn sm" data-task="${esc(x.ref_key)}">${ic('i-plus','sm')} Задача</button></td>
+        <td class="num" style="white-space:nowrap">${phone?`<button class="btn sm" data-msg="${esc(x.ref_key)}">${ic('i-chat','sm')} Написать</button> `:''}<button class="btn sm" data-task="${esc(x.ref_key)}">${ic('i-plus','sm')} Задача</button></td>
       </tr>`;
     }).join('');
     panel.innerHTML=`<table class="tbl"><thead><tr><th>Клиент</th><th>Телефон</th><th>${dateCol}</th><th class="num"></th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -2626,12 +2680,20 @@ PAGES.triggers=(c)=>{
       if(r.ok){ toast('Задача создана','i-check2'); b.outerHTML='<span class="tag green">✓ задача</span>'; }
       else { toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626'); b.disabled=false; }
     });
+    panel.querySelectorAll('[data-msg]').forEach(b=>b.onclick=()=>{
+      const x=items.find(i=>i.ref_key===b.dataset.msg); if(!x)return;
+      const kind=tab==='birthdays'?'birthday':tab;
+      const vars={'имя':x.name||'','дней':(tab==='birthdays'?x.days_until:x.days_since)||'','сумма':x.total?money(x.total):'','точка':''};
+      waSendModal({phone:x.phone,name:x.name,text:fillTpl((TPL[kind]||{}).text||'',vars),channels:CHANS,connected:waConn,trigger:kind});
+    });
   }
   seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); tab=b.dataset.t; render(); });
+  tbar.querySelector('#tgTpl').onclick=()=>waTemplatesModal();
   (async()=>{
     const r=await api('/api/triggers');
     if(!r.ok){ panel.innerHTML=`<div class="note">${ic('i-info','sm')} Триггеры в демо-режиме (нет доступа к 1С).</div>`; cnt.textContent=''; return; }
     data=r.data;
+    const tr=await api('/api/wa/templates'); if(tr.ok){ TPL=tr.data.templates||{}; CHANS=tr.data.channels||[]; waConn=!!tr.data.connected; }
     seg.querySelector('[data-t=birthdays]').textContent='🎂 ДР · '+(data.birthdays.count||0);
     seg.querySelector('[data-t=lapsed]').textContent='⏳ Не покупали · '+(data.lapsed.count||0);
     seg.querySelector('[data-t=repeat]').textContent='🔁 Повтор · '+(data.repeat.count||0);
