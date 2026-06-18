@@ -3639,11 +3639,15 @@ async function handleWaListMessages(request, env) {
   const limit = Math.min(500, Math.max(10, parseInt(url.searchParams.get("limit") || "200", 10) || 200));
   const before = parseInt(url.searchParams.get("before") || "0", 10) || 0;
   const since = parseInt(url.searchParams.get("since") || "0", 10) || 0;
+  const q = (url.searchParams.get("q") || "").trim();
 
   const where = ["chat_id = ?"];
   const params = [chatId];
   if (before > 0) { where.push("ts < ?"); params.push(before); }
   if (since > 0) { where.push("ts > ?"); params.push(since); }
+  // q — поиск по всей истории чата (текст + подпись к медиа), не только по
+  // загруженным сообщениям. Используется строкой поиска в окне переписки.
+  if (q) { where.push("(text LIKE ? OR caption LIKE ?)"); params.push('%' + q + '%', '%' + q + '%'); }
   const { results } = await env.DB.prepare(`
     SELECT * FROM wa_messages WHERE ${where.join(" AND ")}
     ORDER BY ts DESC LIMIT ?
