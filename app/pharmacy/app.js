@@ -1802,9 +1802,9 @@ function doctorModalLive(d,rate,period){
   const remainingBase=hasPeriod?(d.revenue||0):Math.max(0,(d.revenue||0)-(d.cb_base||0));
   const cbSum=Math.round(remainingBase*(rate||0)/100); // к начислению (оценка)
   const accruedAmt=Math.round(d.cb_amount||0);          // уже начислено (за всё время)
-  // C: доходность = выручка − кэшбэк врача − кэшбэк клиента (оба ≈ по ставке, оценка)
-  const dCbEst=Math.round((d.revenue||0)*(rate||0)/100);
-  const marginEst=Math.max(0,(d.revenue||0)-dCbEst*2);
+  // C: реалистичная доходность = выручка − себестоимость(1С) − кэшбэк врача(ставка%)
+  const dCb=Math.round((d.revenue||0)*(rate||0)/100);
+  const marginReal=Math.round((d.revenue||0)-(d.cost||0)-dCb);
   const perLbl=hasPeriod?(' · период '+(period.from||'…')+'…'+(period.to||'…')):'';
   const cbKpiInner=(rem,acc)=>`<div class="k-ic" style="background:#db277722;color:#db2777">${ic('i-gift')}</div><div class="k-lbl">К начислению · ${rate}%${perLbl}</div><div class="k-val">${money(rem)}</div>${acc>0?`<div class="k-sub">уже начислено ${money(acc)} (всего)</div>`:''}`;
   openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.name||'?')}">${initials(d.name||'?')}</span>
@@ -1814,10 +1814,10 @@ function doctorModalLive(d,rate,period){
     <div class="cards-row">
       ${miniStat('i-money','#10b981','Выручка',money(d.revenue||0))}
       ${miniStat('i-cart','#7c3aed','Продаж',(d.docs||0).toLocaleString('ru-RU'))}
-      ${miniStat('i-chart','#16a34a','Доходность · оценка',money(marginEst))}
+      <div class="kpi" id="docProfitKpi" style="cursor:pointer" title="Подробно по каждому товару"><div class="k-ic" style="background:#16a34a22;color:#16a34a">${ic('i-chart')}</div><div class="k-lbl">Доходность ▸</div><div class="k-val">${money(marginReal)}</div><div class="k-sub">по товарам — клик</div></div>
       <div class="kpi" id="cbKpi">${cbKpiInner(cbSum,accruedAmt)}</div>
     </div>
-    <div class="muted2" style="font-size:11px;margin-top:6px">Доходность (оценка) = выручка − кэшбэк врача − кэшбэк клиента (оба ≈ по ставке ${rate}%). Точные правила по брендам уточним.</div>
+    <div class="muted2" style="font-size:11px;margin-top:6px">Доходность = выручка − себестоимость (1С) − кэшбэк врача (${rate}%). Скидка клиенту по промокоду — в разбивке по товарам (клик по «Доходность»).</div>
     <div class="grid-2b section-gap">
       <div class="fld"><label>Промокод (код 1С)</label><input value="${esc(d.code||'')}" readonly></div>
       <div class="fld"><label>Телефон</label><input value="${esc(d.phone||'')}" readonly></div>
@@ -1844,8 +1844,31 @@ function doctorModalLive(d,rate,period){
     if(window.__reloadDoctors) window.__reloadDoctors();
   };
   const rep=document.getElementById('cbReportBtn'); if(rep) rep.onclick=()=>exportDoctorReport(d);
+  const dpk=document.getElementById('docProfitKpi'); if(dpk) dpk.onclick=()=>doctorProfitModal(d,rate,period);
   loadDoctorHistory(d.ref_key);
   loadDoctorCashback(d.ref_key);
+}
+async function doctorProfitModal(d,rate,period){
+  const perTxt=(period&&(period.from||period.to))?(' · '+(period.from||'…')+'…'+(period.to||'…')):'';
+  const bg=openModal(`<div class="modal-h"><div><h3>Доходность по товарам</h3><div class="mh-sub">${esc(d.name||'')} · кэшбэк врача ${rate}%${perTxt}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+    <div class="modal-b" id="dpBody"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div>
+    <div class="modal-f"><button class="btn" id="dpExport">${ic('i-doc','sm')} Экспорт CSV</button><button class="btn" onclick="closeModal()">Закрыть</button></div>`,'wide');
+  const qs='/api/1c/doctors/profit?doctor='+encodeURIComponent(d.ref_key)+((period&&period.from)?('&from='+period.from):'')+((period&&period.to)?('&to='+period.to):'');
+  const r=await api(qs); const body=bg.querySelector('#dpBody');
+  if(!r.ok){ body.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">'+(r.status===403?'Нужен доступ':'Недоступно')+'</div>'; return; }
+  const rows=(r.data.items||[]).map(x=>{ const disc=x.revenue_full-x.revenue, cb=Math.round(x.revenue*(rate||0)/100), margin=x.revenue-x.cost-cb, mp=x.revenue?Math.round(margin/x.revenue*100):0; return Object.assign({disc,cb,margin,mp},x); });
+  const tot=rows.reduce((a,x)=>({revenue:a.revenue+x.revenue,disc:a.disc+x.disc,cost:a.cost+x.cost,cb:a.cb+x.cb,margin:a.margin+x.margin,qty:a.qty+x.qty}),{revenue:0,disc:0,cost:0,cb:0,margin:0,qty:0});
+  body.innerHTML=`<div class="cards-row" style="margin-bottom:12px">
+      ${miniStat('i-money','#10b981','Выручка',money(tot.revenue))}
+      ${miniStat('i-tag','#d97706','Скидка клиенту',money(tot.disc))}
+      ${miniStat('i-box','#64748b','Себестоимость',money(tot.cost))}
+      ${miniStat('i-gift','#db2777','Кэшбэк врача',money(tot.cb))}
+      ${miniStat('i-chart','#16a34a','Маржа',money(tot.margin))}
+    </div>`+
+    (rows.length?`<table class="tbl"><thead><tr><th>Товар</th><th class="num">Кол-во</th><th class="num">Выручка</th><th class="num">Скидка клиенту</th><th class="num">Себест.</th><th class="num">Кэшбэк врача</th><th class="num">Маржа</th><th class="num">Маржа %</th></tr></thead><tbody>`+
+      rows.map(x=>`<tr><td>${esc(x.name||'—')}</td><td class="num">${(x.qty||0).toLocaleString('ru-RU')}</td><td class="num">${money(x.revenue)}</td><td class="num muted2">${money(x.disc)}</td><td class="num muted2">${money(x.cost)}</td><td class="num">${money(x.cb)}</td><td class="num"${x.margin<0?' style="color:#dc2626;font-weight:600"':''}>${money(x.margin)}</td><td class="num muted2">${x.mp}%</td></tr>`).join('')+
+      `</tbody></table>`:'<div class="muted2" style="padding:14px;font-size:13px">Нет продаж за период.</div>');
+  const ex=bg.querySelector('#dpExport'); if(ex) ex.onclick=()=>{ const csv='﻿'+[['Товар','Кол-во','Выручка','Скидка клиенту','Себестоимость','Кэшбэк врача','Маржа','Маржа %']].concat(rows.map(x=>[x.name||'',x.qty||0,x.revenue,x.disc,x.cost,x.cb,x.margin,x.mp])).map(rr=>rr.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download='доходность-'+(d.name||'врач')+'.csv'; a.click(); URL.revokeObjectURL(a.href); toast('CSV выгружен','i-doc'); };
 }
 async function loadDoctorCashback(ref){
   const box=document.getElementById('docCb'), sub=document.getElementById('docCbSub');
