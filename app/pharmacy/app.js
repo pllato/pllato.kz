@@ -1652,8 +1652,8 @@ PAGES.loyalty=(c)=>{
   const cards=el(`<div class="cards-row section-gap"></div>`);
   const chips=el(`<div class="row section-gap" style="gap:8px;flex-wrap:wrap"></div>`);
   const panel=el(`<div class="panel section-gap"><table class="tbl"><thead><tr>
-    <th>Клиент</th><th>Телефон</th><th class="num">Накоплено</th><th class="num">Баллы</th><th>Уровень</th><th>Карта</th><th>До следующего</th></tr></thead>
-    <tbody><tr><td colspan="7" class="muted2" style="font-size:13px;padding:16px">Загрузка…</td></tr></tbody></table></div>`);
+    <th>Клиент</th><th>Телефон</th><th class="num">Накоплено</th><th class="num">Баллы</th><th class="num">Покупок</th><th>Уровень</th><th>Карта</th><th>До следующего</th></tr></thead>
+    <tbody><tr><td colspan="8" class="muted2" style="font-size:13px;padding:16px">Загрузка…</td></tr></tbody></table></div>`);
   c.appendChild(tbar); c.appendChild(cards); c.appendChild(chips); c.appendChild(panel);
   c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Накопительная «Карта постоянного клиента»: уровень и % кэшбека по сумме покупок из 1С. Баллы начисляются и списываются на кассе 1С. Участвуют только розничные клиенты (физлица).</div>`));
   const tb=panel.querySelector('tbody'), cnt=tbar.querySelector('[data-ly=cnt]'), qI=tbar.querySelector('[data-ly=q]');
@@ -1677,16 +1677,17 @@ PAGES.loyalty=(c)=>{
   async function load(){
     const qs=['filter='+filter]; if(lvl)qs.push('level='+lvl); if(q)qs.push('q='+encodeURIComponent(q));
     const r=await api('/api/loyalty?'+qs.join('&'));
-    if(!r.ok){ tb.innerHTML=`<tr><td colspan="7" class="muted2" style="padding:16px">${r.status===403?'Нет доступа к разделу':'Нет связи'}</td></tr>`; return; }
+    if(!r.ok){ tb.innerHTML=`<tr><td colspan="8" class="muted2" style="padding:16px">${r.status===403?'Нет доступа к разделу':'Нет связи'}</td></tr>`; return; }
     tiers=r.data.tiers||[]; renderChips(); renderCards(r.data.summary||{});
     const items=r.data.items||[];
     cnt.textContent=(r.data.total||0)+' '+plural(r.data.total||0,'клиент','клиента','клиентов');
-    if(!items.length){ tb.innerHTML='<tr><td colspan="7" class="muted2" style="padding:16px">Никого нет по фильтру</td></tr>'; return; }
+    if(!items.length){ tb.innerHTML='<tr><td colspan="8" class="muted2" style="padding:16px">Никого нет по фильтру</td></tr>'; return; }
     tb.innerHTML='';
     items.forEach(x=>{
+      const near=!!(x.next && x.next.remaining>0 && x.next.remaining<=Math.max(2000,Math.round(x.next.min*0.15)));
       const nx=x.next?('до '+x.next.pct+'% · '+money(x.next.remaining)):(x.level>0?'макс. уровень':'—');
       const card=x.has_card?'<span class="yes">'+ic('i-check2','sm')+'</span>':(x.level>0?'<span class="loy-pill warn">выдать</span>':'<span class="muted2">—</span>');
-      const tr=el(`<tr class="clickable"><td>${esc(x.name||'—')}</td><td class="muted2">${esc(x.phone||'—')}</td><td class="num">${money(x.total||0)}</td><td class="num">${(x.points||0).toLocaleString('ru-RU')}</td><td>${lvlBadge(x)}</td><td>${card}</td><td class="muted2" style="font-size:12px">${nx}</td></tr>`);
+      const tr=el(`<tr class="clickable${near?' loy-near':''}"><td>${esc(x.name||'—')}</td><td class="muted2">${esc(x.phone||'—')}</td><td class="num">${money(x.total||0)}</td><td class="num">${(x.points||0).toLocaleString('ru-RU')}</td><td class="num muted2">${x.docs||0}</td><td>${lvlBadge(x)}</td><td>${card}</td><td class="${near?'loy-rem':'muted2'}" style="font-size:12px">${nx}</td></tr>`);
       tr.onclick=async()=>{ const rr=await api('/api/1c/contractors?limit=1&ref='+encodeURIComponent(x.ref_key)); const full=rr&&rr.ok&&(rr.data.items||[])[0]; contractorModal(full||{ref_key:x.ref_key,name:x.name,phone:x.phone,segment:'b2c',is_buyer:true}); };
       tb.appendChild(tr);
     });
