@@ -214,6 +214,7 @@
         break;
       case 'channel_removed': loadChannels(); break;
       case 'channel_renamed': onChannelRenamed(msg); break;
+      case 'channel_icon': { const c = state.channels.find(x => x.id === msg.channel_id); if (c) { c.icon = msg.icon; renderMainHead(); renderChannelList(); } break; }
       case 'members_changed': state.members = {}; loadChannels(); break;
       case 'role_changed': loadChannels(); break;
       case 'user_joined': state.members = {}; loadChannels(); break;
@@ -692,7 +693,7 @@
     if (ch.type === 'dm') {
       return avatarHtml(cls, ch.other_user_id, userAvatar(ch.other_user_id || ''), userColor(ch.other_user_id || ''));
     }
-    return `<div class="${cls}" style="background:${groupGradient(ch)};color:#fff"><span style="font-size:1.4em;line-height:1">${groupEmoji(ch)}</span></div>`;
+    return `<div class="${cls}" style="background:${groupGradient(ch)};color:#fff"><span style="font-size:1.4em;line-height:1">${escapeHtml(ch.icon || groupEmoji(ch))}</span></div>`;
   }
 
   function sortedChannels() {
@@ -935,6 +936,8 @@
     const isAdmin = !!ch.is_admin;
     const renameBtn = (ch.type !== 'dm' && isAdmin) ?
       `<button class="tc-head-rename" title="Переименовать чат">✏️</button>` : '';
+    const iconBtn = (ch.type !== 'dm' && isAdmin) ?
+      `<button class="tc-head-rename tc-head-iconbtn" title="Сменить иконку">🎨</button>` : '';
     const membersBtn = ch.type === 'dm' ? '' :
       `<button class="tc-head-members" title="Участники">👥</button>`;
     head.innerHTML = `
@@ -945,9 +948,12 @@
         <div class="tc-head-sub">${escapeHtml(sub)}</div>
       </div>
       ${renameBtn}
+      ${iconBtn}
       ${membersBtn}`;
-    const rb = head.querySelector('.tc-head-rename');
+    const rb = head.querySelector('.tc-head-rename:not(.tc-head-iconbtn)');
     if (rb) rb.onclick = () => renameChannelPrompt(ch);
+    const ib = head.querySelector('.tc-head-iconbtn');
+    if (ib) ib.onclick = () => openIconPicker(ch);
     const mb = head.querySelector('.tc-head-members');
     if (mb) mb.onclick = () => openMembersModal(ch.id);
     const back = head.querySelector('.tc-back');
@@ -1532,6 +1538,38 @@
       renderMainHead();
       renderChannelList();
     } catch (e) { alert(e.message); }
+  }
+
+  // Сменить иконку группы — выбор эмодзи (или сброс к авто).
+  function openIconPicker(ch) {
+    if (!ch) return;
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100000;display:flex;align-items:center;justify-content:center';
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    const grid = GROUP_EMOJIS.map(e =>
+      `<button class="tc-icon-pick" data-e="${e}" style="font-size:24px;width:46px;height:46px;border:1px solid var(--b1,#e3e5ea);background:var(--bg2,#fff);border-radius:10px;cursor:pointer">${e}</button>`
+    ).join('');
+    ov.innerHTML = `<div style="background:var(--bg2,#fff);border-radius:14px;padding:18px;max-width:340px;width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.25)">
+      <div style="font-weight:700;margin-bottom:12px;color:var(--t1,#111)">🎨 Иконка группы</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">${grid}</div>
+      <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+        <button id="tc-icon-reset" style="padding:8px 12px;border:1px solid var(--b1,#e3e5ea);background:none;border-radius:8px;cursor:pointer">Сбросить</button>
+        <button id="tc-icon-close" style="padding:8px 12px;border:none;background:var(--bg3,#eee);border-radius:8px;cursor:pointer">Закрыть</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    const apply = async (icon) => {
+      try {
+        await api(`/api/chat/channels/${ch.id}/icon`, { method: 'POST', body: JSON.stringify({ icon }) });
+        ch.icon = icon || null;
+        ov.remove();
+        renderMainHead();
+        renderChannelList();
+      } catch (e) { alert('Ошибка: ' + (e.message || e)); }
+    };
+    ov.querySelectorAll('.tc-icon-pick').forEach(b => { b.onclick = () => apply(b.dataset.e); });
+    ov.querySelector('#tc-icon-reset').onclick = () => apply('');
+    ov.querySelector('#tc-icon-close').onclick = () => ov.remove();
   }
 
   // Управление участниками канала: список ролей + добавление (для админов).

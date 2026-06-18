@@ -350,6 +350,15 @@ async function ensureRolesColumn(env) {
   _rolesMigrated = true;
 }
 
+// Ленивая миграция: колонка icon в team_chat_channels (кастомная иконка группы).
+let _iconColMigrated = false;
+async function ensureChannelIconColumn(env) {
+  if (_iconColMigrated) return;
+  try { await env.DB.prepare("ALTER TABLE team_chat_channels ADD COLUMN icon TEXT").run(); }
+  catch (e) { /* колонка уже есть — норма */ }
+  _iconColMigrated = true;
+}
+
 // ── Ленивая идемпотентная миграция: колонка mentions в team_chat_msgs ──────
 // Хранит JSON-массив uid'ов, кого упомянули через @ в сообщении. Тот же приём
 // самомиграции через биндинг env.DB (deploy-токен не имеет D1-API прав на ALTER).
@@ -400,7 +409,7 @@ async function listChannels(env, me) {
   // задвоится. Снаружи cm.* — обычные скалярные колонки (без агрегатов).
   const { results } = await env.DB.prepare(`
     SELECT
-      c.id, c.type, c.name, c.description, c.created_by, c.created_at, c.archived_at,
+      c.id, c.type, c.name, c.description, c.created_by, c.created_at, c.archived_at, c.icon,
       cm.last_read_message_id, cm.muted, cm.is_admin,
       (SELECT COUNT(*) FROM team_chat_msgs m
          WHERE m.channel_id = c.id
@@ -815,6 +824,19 @@ async function renameChannel(env, me, channelId, body) {
   return jsonRes({ ok: true, name });
 }
 
+// POST /api/chat/channels/:id/icon { icon } — сменить иконку группы (эмодзи).
+async function setChannelIcon(env, me, channelId, body) {
+  const ch = await env.DB.prepare("SELECT type FROM team_chat_channels WHERE id = ?").bind(channelId).first();
+  if (!ch) return errRes('not found', 404);
+  if (ch.type === 'dm') return errRes('у личной переписки нельзя менять иконку', 400);
+  if (!(await isChannelAdmin(env, channelId, me))) return errRes('только администратор может менять иконку', 403);
+  await ensureChannelIconColumn(env);
+  const icon = String(body.icon || '').trim().slice(0, 16) || null;
+  await env.DB.prepare("UPDATE team_chat_channels SET icon = ? WHERE id = ?").bind(icon, channelId).run();
+  broadcastToChannel(env, channelId, { kind: 'channel_icon', channel_id: channelId, icon });
+  return jsonRes({ ok: true, icon });
+}
+
 // POST /api/chat/channels/:id/members/:uid/role { role: 'admin'|'member' }
 // Только админ может назначать/снимать админов (передавать права). Роль
 // создателя канала не трогаем — он всегда остаётся админом.
@@ -909,8 +931,9 @@ export async function handleChatRequest(request, env, url, me, ctx) {
   const p = url.pathname;
   const m = request.method;
 
-  // Идемпотентно гарантируем колонку role (ленивая миграция, флаг на изолят).
+  // Идемпотентно гарантируем колонки (ленивые миграции, флаг на изолят).
   await ensureRolesColumn(env);
+  await ensureChannelIconColumn(env);
 
   // Channels
   if (p === '/api/chat/channels' && m === 'GET')  return listChannels(env, me);
@@ -932,6 +955,7 @@ export async function handleChatRequest(request, env, url, me, ctx) {
     if (sub === '/mute'     && m === 'POST') return setMuted(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/leave'    && m === 'POST') return leaveChannel(env, me, channelId);
     if (sub === '/rename'   && m === 'POST') return renameChannel(env, me, channelId, await request.json().catch(() => ({})));
+    if (sub === '/icon'     && m === 'POST') return setChannelIcon(env, me, channelId, await request.json().catch(() => ({})));
     // /api/chat/channels/:id/members/:uid/role (POST) — назначить/снять админа
     const roleMatch = sub.match(/^\/members\/(.+)\/role$/);
     if (roleMatch && m === 'POST') return setMemberRole(env, me, channelId, decodeURIComponent(roleMatch[1]), await request.json().catch(() => ({})));
