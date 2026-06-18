@@ -3771,6 +3771,29 @@ async function handleWaMarkReadByDeal(request, env) {
   return json({ ok: true }, 200, request);
 }
 
+// POST /api/wa/mark-all-read { instanceId? }
+// Обнуляет unread_count у всех чатов (или одного инстанса). Для тестов/чистки
+// «непрочитанных», чтобы новые входящие были заметны. Стадии сделок не трогаем.
+async function handleWaMarkAllRead(request, env) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  let body = {};
+  try { body = await request.json(); } catch {}
+  const instanceId = body.instanceId ? String(body.instanceId) : null;
+  const now = Date.now();
+  let res;
+  if (instanceId) {
+    res = await env.DB.prepare(
+      "UPDATE wa_chats SET unread_count = 0, last_read_at = ?, updated_at = datetime('now') WHERE instance_id = ? AND COALESCE(unread_count, 0) > 0"
+    ).bind(now, instanceId).run();
+  } else {
+    res = await env.DB.prepare(
+      "UPDATE wa_chats SET unread_count = 0, last_read_at = ?, updated_at = datetime('now') WHERE COALESCE(unread_count, 0) > 0"
+    ).bind(now).run();
+  }
+  return json({ ok: true, updated: res?.meta?.changes ?? null }, 200, request);
+}
+
 // ── WhatsApp admin: каналы ────────────────────────────────────────
 async function handleWaListChannels(request, env) {
   const guard = await requireAdmin(request, env);
@@ -7230,6 +7253,9 @@ export default {
     }
     if (path === "/api/wa/mark-read" && request.method === "POST") {
       return handleWaMarkRead(request, env);
+    }
+    if (path === "/api/wa/mark-all-read" && request.method === "POST") {
+      return handleWaMarkAllRead(request, env);
     }
     if (path === "/api/wa/mark-read-by-deal" && request.method === "POST") {
       return handleWaMarkReadByDeal(request, env);

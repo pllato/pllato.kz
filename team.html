@@ -6731,7 +6731,7 @@ function _waWidgetChatRowHtml(c) {
 
 function renderWaWidgetList(root) {
   const allChats = (waWidget.chats || []).slice()
-    .sort((a, b) => (b.unreadCount || 0) - (a.unreadCount || 0) || (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+    .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
 
   // Группируем чаты по instanceId. Каналы достаём из waWidget.channels
   // (там уже только те, к которым у юзера есть доступ — фильтр на бэке).
@@ -6748,14 +6748,13 @@ function renderWaWidgetList(root) {
     groups.get(key).chats.push(c);
   }
 
-  // Сортируем группы: сначала с непрочитанными, потом по имени канала
+  // Сортируем группы по свежести: группа с самым недавним сообщением — сверху,
+  // чтобы новые входящие всегда были видны вверху списка (а не тонули под
+  // группами с бОльшим числом непрочитанных).
   const sortedGroups = [...groups.entries()].sort((a, b) => {
-    const ua = a[1].chats.reduce((s, c) => s + (c.unreadCount || 0), 0);
-    const ub = b[1].chats.reduce((s, c) => s + (c.unreadCount || 0), 0);
-    if (ub !== ua) return ub - ua;
-    const na = a[1].channel?.displayName || 'Прочее';
-    const nb = b[1].channel?.displayName || 'Прочее';
-    return na.localeCompare(nb, 'ru');
+    const ra = a[1].chats.reduce((m, c) => Math.max(m, c.lastMessageAt || 0), 0);
+    const rb = b[1].chats.reduce((m, c) => Math.max(m, c.lastMessageAt || 0), 0);
+    return rb - ra;
   });
 
   // Лимит общий — 50 чатов суммарно (по группам). Чтобы не рендерить 500 строк.
@@ -6814,6 +6813,7 @@ function renderWaWidgetList(root) {
         <div class="wa-w-title">💬 WhatsApp</div>
         <div class="wa-w-sub">${subText}</div>
       </div>
+      <button class="wa-w-icon-btn" id="wa-w-mark-all" title="Отметить все чаты прочитанными" style="margin-right:4px;font-size:13px">✓✓</button>
       <button class="wa-w-icon-btn" id="wa-w-sync-groups" title="Подтянуть WhatsApp-группы из Green-API" style="margin-right:4px;font-size:13px">🔄</button>
       <button class="wa-w-icon-btn" id="wa-w-close" title="Свернуть">×</button>
     </div>
@@ -6824,6 +6824,29 @@ function renderWaWidgetList(root) {
   if (newList && savedScrollTop > 0) newList.scrollTop = savedScrollTop;
 
   document.getElementById('wa-w-close').onclick = () => { waWidget.open = false; renderWaWidget(); };
+  const markAllBtn = document.getElementById('wa-w-mark-all');
+  if (markAllBtn) markAllBtn.onclick = async (e) => {
+    const btn = e.currentTarget;
+    if (!confirm('Отметить ВСЕ WhatsApp-чаты прочитанными?\nСчётчики непрочитанных обнулятся (на стадии сделок это не влияет).')) return;
+    const orig = btn.textContent;
+    btn.textContent = '⏳'; btn.disabled = true;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/wa/mark-all-read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+        body: JSON.stringify({}),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      await refreshWaWidgetChats();
+      renderWaWidget();
+    } catch (err) {
+      alert('Ошибка: ' + err.message);
+    } finally {
+      btn.textContent = orig; btn.disabled = false;
+    }
+  };
   document.getElementById('wa-w-sync-groups').onclick = async (e) => {
     const btn = e.currentTarget;
     if (!confirm('Подтянуть список WhatsApp-групп из Green-API?\nГруппы появятся в списке чатов без ожидания первого сообщения.')) return;
@@ -22067,7 +22090,7 @@ async function refreshWaChannelsList() {
       html += `<div class="wa-channel-card" data-channel-id="${escapeHtml(c.id)}">
         <div class="wa-channel-head">
           <div>
-            <div class="wa-channel-name">${escapeHtml(c.display_name || 'Green-API ' + c.id_instance)}</div>
+            <div class="wa-channel-name">${escapeHtml(c.display_name || 'Green-API ' + c.id_instance)}<button class="wa-rename-btn" data-channel-id="${escapeHtml(c.id)}" data-name="${escapeHtml(c.display_name || '')}" title="Переименовать интеграцию" style="background:none;border:none;cursor:pointer;font-size:13px;opacity:0.55;padding:0 4px;vertical-align:middle">✏️</button></div>
             <div class="wa-channel-sub">id: <code>${escapeHtml(c.id_instance)}</code> · воронка: ${escapeHtml(pipeName)}</div>
           </div>
           <div class="wa-channel-status" data-status-for="${escapeHtml(c.id)}">${c.active ? '⏳ Проверяю…' : '⏸ Отключен'}</div>
@@ -22151,6 +22174,22 @@ function onWaChannelListChange(e) {
 
 // Делегированные handlers для кнопок в карточках каналов (на #wc-list, см. выше).
 async function onWaChannelListClick(e) {
+  // Переименовать интеграцию (display_name) через PATCH — без пересоздания.
+  const renameBtn = e.target.closest('.wa-rename-btn');
+  if (renameBtn) {
+    e.preventDefault();
+    const cur = renameBtn.dataset.name || '';
+    const name = prompt('Новое название интеграции:', cur);
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === cur) return;
+    try {
+      await patchWaChannel(renameBtn.dataset.channelId, { displayName: trimmed });
+      showToast('Название обновлено');
+      await refreshWaChannelsList();
+    } catch (err) { alert('Ошибка: ' + err.message); }
+    return;
+  }
   const copyBtn = e.target.closest('.wa-copy-webhook-btn');
   if (copyBtn) {
     e.preventDefault();
