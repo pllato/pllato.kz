@@ -6896,7 +6896,8 @@ function renderWaWidgetList(root) {
   // (полноэкранный TeamChat). Здесь только интеграции Green-API (WhatsApp).
 
   const totalWa = (waWidget.chats || []).length;
-  const subText = `${totalWa} чат${totalWa === 1 ? '' : 'ов'} WhatsApp`
+  const subText = (waWidget.showArchived ? '🗄 Архив · ' : '')
+    + `${totalWa} чат${totalWa === 1 ? '' : 'ов'} WhatsApp`
     + (waWidget.unreadTotal > 0 ? ` · ${waWidget.unreadTotal} непрочит.` : '');
 
   // FIX: при polling viewport списка перерисовывался полностью → скролл прыгал
@@ -6909,6 +6910,7 @@ function renderWaWidgetList(root) {
         <div class="wa-w-title">💬 WhatsApp</div>
         <div class="wa-w-sub">${subText}</div>
       </div>
+      <button class="wa-w-icon-btn" id="wa-w-archive-toggle" title="${waWidget.showArchived ? 'Показать активные чаты' : 'Показать архив'}" style="margin-right:4px;font-size:13px;${waWidget.showArchived ? 'background:rgba(255,255,255,.25);border-radius:6px' : ''}">🗄</button>
       <button class="wa-w-icon-btn" id="wa-w-mark-all" title="Отметить все чаты прочитанными" style="margin-right:4px;font-size:13px">✓✓</button>
       <button class="wa-w-icon-btn" id="wa-w-sync-groups" title="Подтянуть WhatsApp-группы из Green-API" style="margin-right:4px;font-size:13px">🔄</button>
       <button class="wa-w-icon-btn" id="wa-w-close" title="Свернуть">×</button>
@@ -6920,6 +6922,12 @@ function renderWaWidgetList(root) {
   if (newList && savedScrollTop > 0) newList.scrollTop = savedScrollTop;
 
   document.getElementById('wa-w-close').onclick = () => { waWidget.open = false; renderWaWidget(); };
+  const archToggleBtn = document.getElementById('wa-w-archive-toggle');
+  if (archToggleBtn) archToggleBtn.onclick = async () => {
+    waWidget.showArchived = !waWidget.showArchived;
+    try { await refreshWaWidgetChats(); } catch {}
+    renderWaWidget();
+  };
   const markAllBtn = document.getElementById('wa-w-mark-all');
   if (markAllBtn) markAllBtn.onclick = async (e) => {
     const btn = e.currentTarget;
@@ -7358,7 +7366,8 @@ async function loadWaWidgetMessages(opts = {}) {
 async function refreshWaWidgetChats() {
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const r = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=200`, {
+    const archPart = waWidget.showArchived ? '&archived=1' : '';
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=200${archPart}`, {
       headers: { 'Authorization': `Bearer ${idToken}` },
     });
     if (!r.ok) return;
@@ -10390,6 +10399,7 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
       <div class="wa-float-head-actions">
         <button class="wa-float-icon-btn" id="wa-float-search" title="Поиск в переписке">🔎</button>
         <button class="wa-float-icon-btn" id="wa-float-call" title="Позвонить">📞</button>
+        <button class="wa-float-icon-btn" id="wa-float-archive" title="Архивировать чат">🗄</button>
         <button class="wa-float-icon-btn" id="wa-float-close" title="Закрыть">✕</button>
       </div>
     </div>
@@ -10428,7 +10438,36 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
     renderWaMessages(window.__waOpenState.canonicalChatId, { searchQuery: e.target.value });
   });
 
-  window.__waOpenState = { canonicalChatId, rawChatId: chatId, phone: digits, contactId, dealId, contactName };
+  window.__waOpenState = { canonicalChatId, rawChatId: chatId, phone: digits, contactId, dealId, contactName, archived: !!(match && match.archived) || !!(typeof waWidget !== 'undefined' && waWidget.showArchived) };
+
+  // Архивировать / вернуть из архива текущий чат
+  const archiveBtn = document.getElementById('wa-float-archive');
+  if (archiveBtn) {
+    const paintArchiveBtn = () => {
+      const a = window.__waOpenState?.archived;
+      archiveBtn.textContent = a ? '📤' : '🗄';
+      archiveBtn.title = a ? 'Вернуть из архива' : 'Архивировать чат';
+    };
+    paintArchiveBtn();
+    archiveBtn.onclick = async () => {
+      const st = window.__waOpenState;
+      if (!st || !st.canonicalChatId) return;
+      const toArchive = !st.archived;
+      if (toArchive && !confirm('Архивировать этот чат? Он уйдёт из основного списка (вернуть можно в разделе «Архив» 🗄 в шапке списка).')) return;
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_BASE_URL}/api/wa/chats/archive`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+          body: JSON.stringify({ chatId: st.canonicalChatId, archived: toArchive }),
+        });
+        if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || ('HTTP ' + r.status)); }
+        if (window.__waPollTimer) { clearInterval(window.__waPollTimer); window.__waPollTimer = null; }
+        ov.remove();
+        try { if (typeof refreshWaWidgetChats === 'function') { await refreshWaWidgetChats(); renderWaWidget(); } } catch {}
+        try { showToast(toArchive ? 'Чат архивирован' : 'Чат возвращён из архива'); } catch {}
+      } catch (e) { alert('Ошибка: ' + e.message); }
+    };
+  }
 
   await renderWaMessages(canonicalChatId);
 
