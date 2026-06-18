@@ -850,7 +850,7 @@
     }
 
     if (m.deleted_at) {
-      return `<div class="${cls}">${avatarCol}
+      return `<div class="${cls}" data-mid="${escapeHtml(m.id)}">${avatarCol}
         <div class="tc-msg-bubble"><div class="tc-msg-text tc-msg-deleted">Сообщение удалено</div></div>
       </div>`;
     }
@@ -910,7 +910,7 @@
       : '';
     const editedTag = m.edited_at ? '<span class="tc-msg-edited">(изм.)</span>' : '';
 
-    return `<div class="${cls}">
+    return `<div class="${cls}" data-mid="${escapeHtml(m.id)}">
       ${avatarCol}
       <div class="tc-msg-bubble">
         ${author}${body}${reactionsHtml}
@@ -1568,6 +1568,30 @@
     } catch (e) { alert(e.message); }
   }
 
+  // Перейти к конкретному сообщению: если оно не загружено — подгружаем окно
+  // вокруг него (around), затем прокручиваем и подсвечиваем.
+  async function jumpToMessage(channelId, messageId) {
+    const esc = (window.CSS && CSS.escape) ? CSS.escape(messageId) : messageId;
+    const sel = `.tc-msg[data-mid="${esc}"]`;
+    let el = state.rootEl && state.rootEl.querySelector(sel);
+    if (!el) {
+      try {
+        const d = await api(`/api/chat/channels/${channelId}/messages?around=${encodeURIComponent(messageId)}&limit=50`);
+        state.messages = d.items || [];
+        renderMessages();
+      } catch (e) { return; }
+      el = state.rootEl && state.rootEl.querySelector(sel);
+    }
+    if (el) {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      const bub = el.querySelector('.tc-msg-bubble') || el;
+      const prev = bub.style.boxShadow;
+      bub.style.transition = 'box-shadow .3s';
+      bub.style.boxShadow = '0 0 0 3px rgba(37,99,235,.6)';
+      setTimeout(() => { bub.style.boxShadow = prev; }, 1900);
+    }
+  }
+
   // Поиск по сообщениям внутри открытого чата (вся история, через FTS-бэкенд).
   function openChatSearch(ch) {
     if (!ch) return;
@@ -1600,11 +1624,16 @@
           res.innerHTML = items.map(m => {
             const who = escapeHtml(userLabel(m.user_id));
             const when = m.created_at ? formatTime(m.created_at) : '';
-            return `<div style="padding:9px 10px;border-bottom:1px solid var(--b1,#eee)">
-              <div style="font-size:12px"><b style="color:var(--ac2,#4f46e5)">${who}</b> <span style="color:var(--t3,#999)">${when}</span></div>
+            return `<div class="tc-srch-row" data-jump="${escapeHtml(m.id)}" style="padding:9px 10px;border-bottom:1px solid var(--b1,#eee);cursor:pointer;border-radius:8px">
+              <div style="font-size:12px"><b style="color:var(--ac2,#4f46e5)">${who}</b> <span style="color:var(--t3,#999)">${when}</span> <span style="color:var(--t3,#bbb);float:right">перейти ›</span></div>
               <div style="color:var(--t1,#222);margin-top:2px;white-space:pre-wrap">${escapeHtml(m.text || '')}</div>
             </div>`;
           }).join('');
+          res.querySelectorAll('.tc-srch-row').forEach(row => {
+            row.onmouseenter = () => row.style.background = 'var(--bg3,#f0f0f3)';
+            row.onmouseleave = () => row.style.background = '';
+            row.onclick = () => { ov.remove(); jumpToMessage(ch.id, row.dataset.jump); };
+          });
         } catch (e) { res.innerHTML = '<div style="color:#dc2626;padding:10px">Ошибка: ' + (e.message || e) + '</div>'; }
       }, 300);
     };

@@ -507,24 +507,46 @@ async function openDm(env, me, body) {
   return jsonRes({ channel_id: id });
 }
 
-// GET /api/chat/channels/:id/messages?before=&limit=
+// GET /api/chat/channels/:id/messages?before=&limit=&around=
+// around=<messageId> — окно сообщений вокруг конкретного (для перехода из поиска).
 async function getMessages(env, me, channelId, url) {
   if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 50));
   const before = url.searchParams.get('before') || null;
-  let q, params;
-  if (before) {
-    q = `SELECT * FROM team_chat_msgs
-         WHERE channel_id = ?
-           AND created_at < (SELECT created_at FROM team_chat_msgs WHERE id = ?)
-         ORDER BY created_at DESC LIMIT ?`;
-    params = [channelId, before, limit];
+  const around = url.searchParams.get('around') || null;
+  let results;
+  if (around) {
+    const tgt = await env.DB.prepare(
+      "SELECT created_at FROM team_chat_msgs WHERE id = ? AND channel_id = ?"
+    ).bind(around, channelId).first();
+    if (!tgt) {
+      results = [];
+    } else {
+      const half = Math.max(8, Math.floor(limit / 2));
+      const { results: newer } = await env.DB.prepare(
+        `SELECT * FROM team_chat_msgs WHERE channel_id = ? AND created_at > ? ORDER BY created_at DESC LIMIT ?`
+      ).bind(channelId, tgt.created_at, half).all();
+      const { results: older } = await env.DB.prepare(
+        `SELECT * FROM team_chat_msgs WHERE channel_id = ? AND created_at <= ? ORDER BY created_at DESC LIMIT ?`
+      ).bind(channelId, tgt.created_at, half + 1).all();
+      results = newer.concat(older);  // общий порядок DESC (как у обычной выборки)
+    }
   } else {
-    q = `SELECT * FROM team_chat_msgs WHERE channel_id = ?
-         ORDER BY created_at DESC LIMIT ?`;
-    params = [channelId, limit];
+    let q, params;
+    if (before) {
+      q = `SELECT * FROM team_chat_msgs
+           WHERE channel_id = ?
+             AND created_at < (SELECT created_at FROM team_chat_msgs WHERE id = ?)
+           ORDER BY created_at DESC LIMIT ?`;
+      params = [channelId, before, limit];
+    } else {
+      q = `SELECT * FROM team_chat_msgs WHERE channel_id = ?
+           ORDER BY created_at DESC LIMIT ?`;
+      params = [channelId, limit];
+    }
+    const r = await env.DB.prepare(q).bind(...params).all();
+    results = r.results;
   }
-  const { results } = await env.DB.prepare(q).bind(...params).all();
   // Реакции для всех сообщений
   if (results.length) {
     const ids = results.map(m => m.id);
