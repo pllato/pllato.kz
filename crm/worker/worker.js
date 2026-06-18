@@ -7165,8 +7165,14 @@ async function handle1cPullNomenclatureCatalog(request, env, actor) {
   const started = Date.now();
   const bases = [];
   let total = 0;
-  for (const baseKey of Object.keys(ONE_C_BASES)) {
+  const baseKeys = Object.keys(ONE_C_BASES);
+  for (let i = 0; i < baseKeys.length; i += 1) {
+    const baseKey = baseKeys[i];
     const label = ONE_C_BASES[baseKey].label;
+    // Пауза между базами: 1С:Фреш ограничивает число одновременных сеансов/обращений
+    // OData и отдаёт 402 при превышении. Разносим базы во времени, чтобы сессии
+    // предыдущей базы успели закрыться по таймауту и пик не выбивал лимит.
+    if (i > 0) await new Promise((r) => setTimeout(r, 3000));
     try {
       const count = await pullNomenclatureMirrorForBase(env, tenantId, baseKey);
       total += count;
