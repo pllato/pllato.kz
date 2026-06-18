@@ -755,7 +755,7 @@ function newClientModal(onSaved){
   <div class="modal-b">
     <div class="grid-2b">
       <div><div class="fld"><label>ФИО *</label><input data-nc="name" placeholder="Иванова Анна"></div>
-        <div class="fld"><label>Телефон</label><input data-nc="phone" placeholder="+7 7XX XXX XX XX"></div>
+        <div class="fld"><label>Телефон</label><input data-nc="phone" placeholder="+996 XXX XXX XXX" autocomplete="off"><div data-nc="dupwarn"></div></div>
         <div class="fld-row"><div class="fld"><label>Дисконтная карта</label><input data-nc="card" placeholder="—"></div>
           <div class="fld"><label>Источник лида</label><input data-nc="source" placeholder="WhatsApp / сайт / рекомендация"></div></div></div>
       <div><div class="fld"><label>Тип клиента</label><div class="chips" data-nc="types">${TYPES.map(t=>`<span class="chip" data-t="${t}">${t}</span>`).join('')}</div></div>
@@ -771,18 +771,28 @@ function newClientModal(onSaved){
     const t=ch.dataset.t; if(sel.has(t)){sel.delete(t);ch.classList.remove('on');}else{sel.add(t);ch.classList.add('on');}
   }));
   const gv=k=>(bg.querySelector(`[data-nc=${k}]`)?.value||'').trim();
-  bg.querySelector('[data-nc=save]').onclick=async()=>{
+  const warnBox=bg.querySelector('[data-nc=dupwarn]'), phoneInp=bg.querySelector('[data-nc=phone]');
+  const renderDupes=(dupes,withForce)=>{ if(!warnBox)return; if(!dupes||!dupes.length){ warnBox.innerHTML=''; return; }
+    warnBox.innerHTML='<div class="dup-warn">'+ic('i-info','sm')+' Такой номер уже есть: '+dupes.map(d=>`<b>${esc(d.name||'—')}</b> <span class="muted2">(${d.source==='1c'?'1С':'CRM'})</span>`).join(', ')+(withForce?' <button class="btn sm" data-nc="force" style="margin-left:8px;color:var(--amber)">Всё равно создать</button>':'')+'</div>';
+    if(withForce){ const fb=warnBox.querySelector('[data-nc=force]'); if(fb) fb.onclick=()=>doSave(true); } };
+  let pt; phoneInp.addEventListener('input',()=>{ clearTimeout(pt); const v=phoneInp.value.trim();
+    if(v.replace(/\D/g,'').length<6){ renderDupes([]); return; }
+    pt=setTimeout(async()=>{ const r=await api('/api/clients/check-phone?phone='+encodeURIComponent(v)); if(r.ok) renderDupes(r.data.dupes||[],false); },400); });
+  async function doSave(force){
     const name=gv('name');
     if(!name){ toast('Укажите ФИО','i-info','#dc2626'); return; }
     const btn=bg.querySelector('[data-nc=save]'); btn.disabled=true;
     const body={ name, phone:gv('phone'), card:gv('card'), source:gv('source'), mgr:gv('mgr'), type:[...sel] };
+    if(force) body.force=true;
     const r=await api('/api/clients',{method:'POST',body:JSON.stringify(body)});
     btn.disabled=false;
+    if(r.status===409 && r.data&&r.data.dupes){ renderDupes(r.data.dupes,true); toast('Клиент с таким телефоном уже есть','i-info','#d97706'); return; }
     if(!r.ok){ toast(r.data?.error||'Не удалось сохранить','i-info','#dc2626'); return; }
     closeModal();
     toast('Клиент «'+name+'» создаётся в 1С (появится после синхронизации)','i-users');
     if(onSaved)onSaved();
-  };
+  }
+  bg.querySelector('[data-nc=save]').onclick=()=>doSave(false);
 }
 function clientModal(cl){
   state.clientTab=0;
