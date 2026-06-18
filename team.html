@@ -22034,6 +22034,8 @@ async function openWaChannelsModal() {
 async function refreshWaChannelsList() {
   const wrap = document.getElementById('wc-list');
   if (!wrap) return;
+  // Нужны воронки/стадии для селектов смены воронки в карточке канала.
+  if (!dealsState.metaLoaded) { try { await loadDealsMeta(); } catch {} }
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
     const data = await fetch(`${WORKER_BASE_URL}/api/wa/channels`, {
@@ -22051,6 +22053,17 @@ async function refreshWaChannelsList() {
     for (const c of items) {
       const pipeName = dealsState.pipelines?.[c.default_pipeline_id]?.name || '—';
       const webhookUrl = `${WORKER_BASE_URL}/api/wa/webhook?token=${encodeURIComponent(c.webhook_token || '')}`;
+      // Опции воронки/стадии для inline-смены (PATCH без пересоздания канала).
+      const _pipes = Object.values(dealsState.pipelines || {});
+      const _pipeOpts = ['<option value="">— не создавать сделки —</option>'].concat(
+        _pipes.map(p => `<option value="${escapeHtml(p.id)}"${p.id === c.default_pipeline_id ? ' selected' : ''}>${escapeHtml(p.name || p.id)}</option>`)
+      ).join('');
+      const _curPipe = dealsState.pipelines?.[c.default_pipeline_id];
+      let _stageOpts = '<option value="">первая стадия</option>';
+      if (_curPipe?.stages) {
+        const _st = Array.isArray(_curPipe.stages) ? _curPipe.stages : Object.values(_curPipe.stages);
+        _stageOpts += _st.map(s => { const sid = s.statusId || s.id; return `<option value="${escapeHtml(sid)}"${sid === c.default_stage_id ? ' selected' : ''}>${escapeHtml(s.name || sid)}</option>`; }).join('');
+      }
       html += `<div class="wa-channel-card" data-channel-id="${escapeHtml(c.id)}">
         <div class="wa-channel-head">
           <div>
@@ -22069,6 +22082,14 @@ async function refreshWaChannelsList() {
           <input readonly value="${escapeHtml(webhookUrl)}" onclick="this.select()"
             style="width:100%;font-family:monospace;font-size:10px;background:var(--bg);border:1px solid var(--b1);padding:5px 8px;border-radius:4px;color:var(--t2)">
         </div>
+        <div class="wa-channel-routing" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--b1)">
+          <span style="font-size:11px;color:var(--t3)">🎯 Воронка:</span>
+          <select class="wa-pipe-sel qad-input" data-channel-id="${escapeHtml(c.id)}" style="font-size:12px;padding:4px 6px;width:auto;min-width:130px">${_pipeOpts}</select>
+          <select class="wa-stage-sel qad-input" data-channel-id="${escapeHtml(c.id)}" style="font-size:12px;padding:4px 6px;width:auto;min-width:120px">${_stageOpts}</select>
+          <button class="tbtn tbtn-xs wa-save-routing-btn" data-channel-id="${escapeHtml(c.id)}">💾 Сохранить</button>
+          <button class="tbtn tbtn-xs wa-backfill-btn" data-channel-id="${escapeHtml(c.id)}" title="Создать сделки по уже накопленным чатам этого канала">🪄 Сделки по чатам</button>
+          <button class="tbtn tbtn-xs wa-toggle-active-btn" data-channel-id="${escapeHtml(c.id)}" data-active="${c.active ? 1 : 0}">${c.active ? '⏸ Отключить' : '▶ Включить'}</button>
+        </div>
         <div class="wa-channel-extra" data-extra-for="${escapeHtml(c.id)}"></div>
       </div>`;
     }
@@ -22084,6 +22105,40 @@ async function refreshWaChannelsList() {
   }
 }
 
+// Хелпер: PATCH /api/wa/channels/{id} — меняем воронку/стадию/активность канала
+// без пересоздания (и без повторного ввода apiToken). Бэкенд: handleWaUpdateChannel.
+async function patchWaChannel(channelId, payload) {
+  const idToken = await fbAuth.currentUser.getIdToken();
+  const r = await fetch(`${WORKER_BASE_URL}/api/wa/channels/${encodeURIComponent(channelId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+    body: JSON.stringify(payload),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+  return j;
+}
+
+// При смене воронки в карточке канала — пересобираем список её стадий.
+document.addEventListener('change', (e) => {
+  const pipeSel = e.target.closest('.wa-pipe-sel');
+  if (!pipeSel) return;
+  const card = pipeSel.closest('.wa-channel-card');
+  const stageSel = card && card.querySelector('.wa-stage-sel');
+  if (!stageSel) return;
+  const p = dealsState.pipelines && dealsState.pipelines[pipeSel.value];
+  stageSel.innerHTML = '<option value="">первая стадия</option>';
+  if (p && p.stages) {
+    const stages = Array.isArray(p.stages) ? p.stages : Object.values(p.stages);
+    for (const s of stages) {
+      const opt = document.createElement('option');
+      opt.value = s.statusId || s.id;
+      opt.textContent = s.name || s.statusId;
+      stageSel.appendChild(opt);
+    }
+  }
+});
+
 // Делегированные handlers для кнопок в карточках каналов
 document.addEventListener('click', async (e) => {
   const copyBtn = e.target.closest('.wa-copy-webhook-btn');
@@ -22095,6 +22150,67 @@ document.addEventListener('click', async (e) => {
       copyBtn.textContent = '✓ Скопировано';
       setTimeout(() => { copyBtn.textContent = orig; }, 1500);
     } catch { alert('Не удалось скопировать. Скопируй вручную из поля ниже.'); }
+    return;
+  }
+  // Смена воронки/стадии канала (PATCH, без пересоздания и токена)
+  const saveRoutingBtn = e.target.closest('.wa-save-routing-btn');
+  if (saveRoutingBtn) {
+    e.preventDefault();
+    const card = saveRoutingBtn.closest('.wa-channel-card');
+    const pipeSel = card && card.querySelector('.wa-pipe-sel');
+    const stageSel = card && card.querySelector('.wa-stage-sel');
+    const orig = saveRoutingBtn.textContent;
+    saveRoutingBtn.disabled = true; saveRoutingBtn.textContent = '⏳…';
+    try {
+      await patchWaChannel(saveRoutingBtn.dataset.channelId, {
+        defaultPipelineId: (pipeSel && pipeSel.value) || null,
+        defaultStageId: (stageSel && stageSel.value) || null,
+      });
+      showToast('Воронка канала обновлена');
+      await refreshWaChannelsList();
+    } catch (err) {
+      saveRoutingBtn.textContent = orig; saveRoutingBtn.disabled = false;
+      alert('Ошибка: ' + err.message);
+    }
+    return;
+  }
+  // Включить/отключить канал
+  const toggleActiveBtn = e.target.closest('.wa-toggle-active-btn');
+  if (toggleActiveBtn) {
+    e.preventDefault();
+    const next = toggleActiveBtn.dataset.active !== '1';
+    if (!confirm(next ? 'Включить канал? Входящие снова будут попадать в CRM.' : 'Отключить канал? Входящие по нему перестанут попадать в CRM.')) return;
+    toggleActiveBtn.disabled = true;
+    try {
+      await patchWaChannel(toggleActiveBtn.dataset.channelId, { active: next });
+      showToast(next ? 'Канал включён' : 'Канал отключён');
+      await refreshWaChannelsList();
+    } catch (err) {
+      toggleActiveBtn.disabled = false;
+      alert('Ошибка: ' + err.message);
+    }
+    return;
+  }
+  // Бэкофилл: создать сделки по уже накопленным чатам канала
+  const backfillBtn = e.target.closest('.wa-backfill-btn');
+  if (backfillBtn) {
+    e.preventDefault();
+    if (!confirm('Создать сделки в воронке канала по всем уже накопленным чатам этого номера?\n\nДубликаты не создаются: если сделка по контакту в этой воронке уже есть — она просто привяжется к чату.\nСделки появятся только для приватных (не групповых) чатов с известным номером.')) return;
+    const orig = backfillBtn.textContent;
+    backfillBtn.disabled = true; backfillBtn.textContent = '⏳ Создаю…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/wa/channels/${encodeURIComponent(backfillBtn.dataset.channelId)}/backfill-deals`, {
+        method: 'POST', headers: { 'Authorization': `Bearer ${idToken}` },
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      alert(`Готово.\nЧатов обработано: ${j.totalChats}\nНовых сделок создано: ${j.created}\nПривязано к чатам: ${j.linked}\nПропущено (без номера): ${j.skipped}` + (j.failed ? `\nОшибок: ${j.failed}` : ''));
+    } catch (err) {
+      alert('Ошибка: ' + err.message);
+    } finally {
+      backfillBtn.disabled = false; backfillBtn.textContent = orig;
+    }
     return;
   }
   const statusBtn = e.target.closest('.wa-check-status-btn');
