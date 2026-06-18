@@ -701,7 +701,7 @@ function contractorModal(r){
         <label class="ck" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" data-ce="is_doctor" ${(r.is_doctor||r.segment==='doctor')?'checked':''} ${r.ref_key?'':'disabled'}> Врач-партнёр</label>
       </div>
       <div class="muted2" style="font-size:11px;margin-top:3px">B2B/B2C определяется типом (юр./физ. лицо) автоматически. «Врач» — перенос в группу врачей 1С.</div></div>
-    <div class="panel section-gap" style="margin-top:14px"><div class="panel-h"><h3>${ic('i-money','sm')} История покупок · 1С</h3><span class="ph-sub" id="cmHistSub" style="margin-left:auto">загрузка…</span></div>
+    <div class="panel section-gap" style="margin-top:14px"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h3>${ic('i-money','sm')} История покупок · 1С</h3><div style="margin-left:auto;display:flex;align-items:center;gap:6px"><input type="date" id="cmFrom" class="sel" style="padding:4px 7px;font-size:12px" title="С даты"><span class="muted2">—</span><input type="date" id="cmTo" class="sel" style="padding:4px 7px;font-size:12px" title="По дату"><button class="btn sm" id="cmHistReset" title="Сбросить период">${ic('i-x','sm')}</button><span class="ph-sub" id="cmHistSub">загрузка…</span></div></div>
       <div id="cmLoyalty"></div>
       <div id="cmHist"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>
   </div>
@@ -740,12 +740,17 @@ async function loadContractorHistory(r){
   if(!box) return;
   if(lb) lb.innerHTML='';
   if(!r.ref_key){ if(sub)sub.textContent=''; box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">Нет привязки к 1С</div>'; return; }
-  const res=await api('/api/1c/sales?contractor='+encodeURIComponent(r.ref_key)+'&limit=200');
+  const fromI=document.getElementById('cmFrom'), toI=document.getElementById('cmTo'), rstB=document.getElementById('cmHistReset');
+  if(fromI) fromI.onchange=()=>loadContractorHistory(r);
+  if(toI) toI.onchange=()=>loadContractorHistory(r);
+  if(rstB) rstB.onclick=()=>{ if(fromI)fromI.value=''; if(toI)toI.value=''; loadContractorHistory(r); };
+  const from=fromI&&fromI.value?fromI.value:'', to=toI&&toI.value?toI.value:'';
+  const res=await api('/api/1c/sales?contractor='+encodeURIComponent(r.ref_key)+'&limit=200'+(from?'&from='+from:'')+(to?'&to='+to:''));
   if(!res.ok){ if(sub)sub.textContent=res.status===403?'нужен доступ':res.status===401?'войдите':'нет связи'; box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">История недоступна</div>'; return; }
   const it=res.data.items||[], docs=res.data.docs||0;
   const L=res.data.loyalty; if(lb) lb.innerHTML=(L&&(L.total>0||L.has_card))?loyaltyBannerHtml(L):'';
   if(sub) sub.textContent = it.length ? (money(res.data.total||0)+' · '+docs+' '+plural(docs,'документ','документа','документов')) : 'нет покупок';
-  if(!it.length){ box.innerHTML='<div class="note section-gap" style="margin:14px">'+ic('i-info','sm')+' Покупок, привязанных к этому клиенту, в 1С пока нет. Розничные продажи без дисконтной карты учитываются обезличенно.</div>'; return; }
+  if(!it.length){ box.innerHTML='<div class="note section-gap" style="margin:14px">'+ic('i-info','sm')+(from||to?' За выбранный период покупок нет — измените даты или сбросьте период.':' Покупок, привязанных к этому клиенту, в 1С пока нет. Розничные продажи без дисконтной карты учитываются обезличенно.')+'</div>'; return; }
   box.innerHTML='<table class="tbl"><thead><tr><th>Дата</th><th>Товар</th><th class="num">Кол-во</th><th class="num">Сумма</th></tr></thead><tbody>'+it.map(x=>`<tr><td class="muted2">${esc((x.date||'').slice(0,10))}</td><td>${esc(x.name||'—')}</td><td class="num">${(x.qty||0).toLocaleString('ru-RU')}</td><td class="num">${money(x.amount||0)}</td></tr>`).join('')+'</tbody></table>';
 }
 function newClientModal(onSaved){
