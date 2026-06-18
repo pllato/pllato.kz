@@ -512,6 +512,10 @@ async function dealChatLoad(bg,d){
   const r=await api('/api/deals/'+d.id+'/chat');
   if(!r.ok){ box.innerHTML='<div class="cw-empty">Не удалось загрузить переписку</div>'; return; }
   const data=r.data||{};
+  const chans=data.channels||[]; const multi=chans.length>1;
+  const chById=Object.fromEntries(chans.map(c=>[c.id,c]));
+  let curChannel=data.send_channel_id||(chans[0]&&chans[0].id)||null;
+  const chTag=(id)=>{ const c=chById[id]; if(!c)return ''; return ` <span class="cw-via">через ${esc(c.name||'WhatsApp')}</span>`; };
   const render=()=>{
     const msgs=data.messages||[];
     if(!msgs.length){
@@ -521,13 +525,23 @@ async function dealChatLoad(bg,d){
             : 'Здесь появится переписка WhatsApp с клиентом — после подключения GreenAPI в разделе «Интеграции».');
       box.innerHTML='<div class="cw-empty">'+m+'</div>';
     } else {
-      box.innerHTML=msgs.map(x=>{const cls=x.dir==='out'?'out':(x.dir==='ai'?'ai':'in');return `<div class="cw-msg ${cls}">${cwEsc(x.body||'')}<div class="cw-mt">${cwEsc(cwFmtTime(x.ts))}</div></div>`;}).join('');
+      box.innerHTML=msgs.map(x=>{const cls=x.dir==='out'?'out':(x.dir==='ai'?'ai':'in');const via=(multi&&x.dir==='out'&&x.channel_id)?chTag(x.channel_id):'';return `<div class="cw-msg ${cls}">${cwEsc(x.body||'')}<div class="cw-mt">${cwEsc(cwFmtTime(x.ts))}${via}</div></div>`;}).join('');
       box.scrollTop=box.scrollHeight;
     }
   };
   render();
   const ta=bg.querySelector('#dmChatInput'), sb=bg.querySelector('#dmChatSend');
   const canSend = data.connected && data.reason!=='no_phone';
+  // селектор номера-отправителя (только если номеров > 1)
+  if(multi && canSend){
+    const comp=bg.querySelector('#dmChatComp');
+    if(comp && !bg.querySelector('#dmChatFrom')){
+      const fromBar=el(`<div class="cw-from" id="dmChatFrom">${ic('i-phone','sm')} <span class="muted2">Отправитель:</span> <select class="sel sm">${chans.map(c=>`<option value="${esc(c.id)}" ${c.id===curChannel?'selected':''}>${esc(c.name||'WhatsApp')}${c.phone?(' · +'+esc(c.phone)):''}${c.funnel&&FUNNELS.find(f=>f.id===c.funnel)?(' · '+esc((FUNNELS.find(f=>f.id===c.funnel)||{}).name)):''}</option>`).join('')}</select></div>`);
+      comp.parentNode.insertBefore(fromBar, comp);
+      const sel=fromBar.querySelector('select');
+      sel.onchange=async()=>{ curChannel=sel.value; if(data.thread_id){ await api('/api/inbox/threads/'+data.thread_id+'/send-channel',{method:'POST',body:JSON.stringify({channel_id:curChannel})}); } toast('Отвечаем с номера: '+((chById[curChannel]||{}).name||'WhatsApp'),'i-phone','var(--wa)'); };
+    }
+  }
   if(!canSend){
     if(ta){ ta.disabled=true; ta.style.opacity=.55; ta.placeholder = data.reason==='no_phone' ? 'Нет телефона у сделки' : 'WhatsApp не подключён (GreenAPI)'; }
     if(sb){ sb.disabled=true; sb.style.opacity=.45; sb.style.cursor='default'; }
@@ -539,15 +553,16 @@ async function dealChatLoad(bg,d){
     if(comp && !comp.querySelector('#dmChatMic')){
       const mic=el(`<button class="cw-send" id="dmChatMic" title="Голосовое: тап — начать запись, тап ещё раз — отправить" style="margin-right:6px">${ic('i-mic')}</button>`);
       comp.insertBefore(mic, sb);
-      mic.onclick=()=>micToggle('/api/deals/'+d.id+'/chat/audio', mic, ()=>{ data.messages=data.messages||[]; data.messages.push({dir:'out',body:'🎤 голосовое',ts:Date.now()}); render(); });
+      mic.onclick=()=>micToggle('/api/deals/'+d.id+'/chat/audio', mic, ()=>{ data.messages=data.messages||[]; data.messages.push({dir:'out',body:'🎤 голосовое',ts:Date.now(),channel_id:curChannel}); render(); }, ()=>({channel_id:curChannel}));
     }
   }
   const send=async()=>{
     const v=ta.value.trim(); if(!v) return;
     ta.value=''; ta.style.height='auto';
-    const r2=await api('/api/deals/'+d.id+'/chat/send',{method:'POST',body:JSON.stringify({text:v})});
+    const r2=await api('/api/deals/'+d.id+'/chat/send',{method:'POST',body:JSON.stringify({text:v,channel_id:curChannel})});
     if(!r2.ok){ toast(r2.data&&r2.data.error?r2.data.error:'Не доставлено','i-info','#dc2626'); ta.value=v; return; }
-    data.messages=data.messages||[]; data.messages.push({dir:'out',body:v,ts:(r2.data&&r2.data.ts)||Date.now()}); render();
+    if(r2.data&&r2.data.thread_id) data.thread_id=r2.data.thread_id;
+    data.messages=data.messages||[]; data.messages.push({dir:'out',body:v,ts:(r2.data&&r2.data.ts)||Date.now(),channel_id:curChannel}); render();
     const w=r2.data&&r2.data.whatsapp; toast(w&&w.sent?'Доставлено в WhatsApp':'Отправлено','i-send','var(--wa)');
   };
   ta.addEventListener('input',()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,100)+'px'; });
@@ -932,7 +947,7 @@ const _legacyInboxDemo=(c)=>{   // старый демо-инбокс (не ис
   const cb=$('#chatBody');if(cb)cb.scrollTop=cb.scrollHeight;
 };
 // ---------- ЧАТЫ (live · омни-чат WhatsApp/GreenAPI) ----------
-let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibDeal={}, __ibWrap=null, __ibChannelFilter=null, __ibAllowAudio=false;
+let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibDeal={}, __ibWrap=null, __ibChannelFilter=null, __ibAllowAudio=false, __ibChannels=[];
 async function liveInbox(c){
   __ibWrap=el(`<div class="inbox"></div>`);
   __ibWrap.innerHTML='<div class="ib-threads"></div><div class="ib-chat"></div><div class="ib-context"></div>';
@@ -941,6 +956,7 @@ async function liveInbox(c){
   const r=await api('/api/inbox/threads');
   __ibThreads=(r&&r.ok&&r.data&&Array.isArray(r.data.items))?r.data.items:[];
   __ibAllowAudio=!!(r&&r.ok&&r.data&&r.data.allow_audio);
+  __ibChannels=(r&&r.ok&&r.data&&Array.isArray(r.data.channels))?r.data.channels:[];
   window.__inboxUnread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0); renderNav();
   if((!__ibCur || !__ibThreads.some(t=>t.id===__ibCur)) && __ibThreads.length) __ibCur=__ibThreads[0].id;
   ibThreadList(); ibChat(); ibContext();
@@ -980,26 +996,33 @@ function ibChat(){
   if(!__ibThreads.length){ box.innerHTML=`<div class="empty" style="margin:auto;text-align:center">${ic('i-chat')}<div>Диалогов пока нет</div><div class="muted2" style="font-size:12px;margin-top:6px">Появятся при входящих на подключённый номер WhatsApp</div></div>`; return; }
   const t=__ibThreads.find(x=>x.id===__ibCur); if(!t){ box.innerHTML=''; return; }
   const nm=t.title||t.phone||'Диалог';
+  const multi=__ibChannels.length>1;
+  const chById=Object.fromEntries(__ibChannels.map(c=>[c.id,c]));
+  if(!t._sendCh) t._sendCh=t.send_channel_id||t.channel_id||(__ibChannels[0]&&__ibChannels[0].id)||null;
+  const chTag=(id)=>{ const c=chById[id]; return c?` <span class="cw-via">через ${esc(c.name||'WhatsApp')}</span>`:''; };
   const msgs=__ibMsgsCache[t.id];
   const bodyHtml = (msgs===undefined) ? '<div class="cw-empty" style="margin:auto">Загрузка…</div>'
-    : (msgs.length ? msgs.map(m=>`<div class="msg ${m.dir==='out'?'out':m.dir==='ai'?'ai':'in'}">${esc(m.body||'')}<div class="mt">${esc(cwFmtTime(m.ts))}</div></div>`).join('')
+    : (msgs.length ? msgs.map(m=>{const via=(multi&&m.dir==='out'&&m.channel_id)?chTag(m.channel_id):'';return `<div class="msg ${m.dir==='out'?'out':m.dir==='ai'?'ai':'in'}">${esc(m.body||'')}<div class="mt">${esc(cwFmtTime(m.ts))}${via}</div></div>`;}).join('')
       : '<div class="cw-empty" style="margin:auto">Сообщений пока нет — напишите первым ↓</div>');
+  const fromBar = multi?`<div class="cw-from">${ic('i-phone','sm')} <span class="muted2">Отправитель:</span> <select class="sel sm" id="ibFrom">${__ibChannels.map(c=>`<option value="${esc(c.id)}" ${c.id===t._sendCh?'selected':''}>${esc(c.name||'WhatsApp')}${c.phone?(' · +'+esc(c.phone)):''}</option>`).join('')}</select></div>`:'';
   box.innerHTML=`<div class="chat-h"><div class="av" style="background:${avBg(nm)}">${esc(initials(nm))}</div>
       <div><div style="font-weight:700;font-size:14px">${esc(nm)}</div><div class="muted" style="font-size:11.5px">WhatsApp · GreenAPI${t.phone?(' · +'+esc(t.phone)):''}</div></div>
       <div class="spacer"></div></div>
     <div class="chat-body" id="ibChatBody">${bodyHtml}</div>
+    ${fromBar}
     <div class="chat-input"><div class="ci-box"><input id="ibMsgInput" placeholder="Сообщение в WhatsApp…"></div>${__ibAllowAudio?`<button class="btn primary" id="ibMic" title="Голосовое: тап — запись, тап ещё раз — отправить">${ic('i-mic','sm')}</button>`:''}<button class="btn primary" id="ibSendBtn">${ic('i-send','sm')}</button></div>`;
   const cb=box.querySelector('#ibChatBody'); if(cb)cb.scrollTop=cb.scrollHeight;
   const inp=box.querySelector('#ibMsgInput'), sb=box.querySelector('#ibSendBtn');
+  const fromSel=box.querySelector('#ibFrom'); if(fromSel) fromSel.onchange=async()=>{ t._sendCh=fromSel.value; t.send_channel_id=fromSel.value; await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/send-channel',{method:'POST',body:JSON.stringify({channel_id:t._sendCh})}); toast('Отвечаем с номера: '+((chById[t._sendCh]||{}).name||'WhatsApp'),'i-phone','var(--wa)'); };
   const send=async()=>{ const v=(inp.value||'').trim(); if(!v)return; inp.value='';
-    const r=await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/send',{method:'POST',body:JSON.stringify({text:v})});
+    const r=await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/send',{method:'POST',body:JSON.stringify({text:v,channel_id:t._sendCh})});
     if(!r.ok){ toast(r.data&&r.data.error?r.data.error:'Не доставлено','i-info','#dc2626'); inp.value=v; return; }
-    (__ibMsgsCache[t.id]=__ibMsgsCache[t.id]||[]).push({dir:'out',body:v,ts:(r.data&&r.data.ts)||Date.now()});
+    (__ibMsgsCache[t.id]=__ibMsgsCache[t.id]||[]).push({dir:'out',body:v,ts:(r.data&&r.data.ts)||Date.now(),channel_id:t._sendCh});
     ibChat(); const w=r.data&&r.data.whatsapp; toast(w&&w.sent?'Доставлено в WhatsApp':'Отправлено','i-send','var(--wa)');
   };
   if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
   if(sb)sb.onclick=send;
-  const mic=box.querySelector('#ibMic'); if(mic) mic.onclick=()=>micToggle('/api/inbox/threads/'+encodeURIComponent(t.id)+'/audio', mic, ()=>{ (__ibMsgsCache[t.id]=__ibMsgsCache[t.id]||[]).push({dir:'out',body:'🎤 голосовое',ts:Date.now()}); ibChat(); });
+  const mic=box.querySelector('#ibMic'); if(mic) mic.onclick=()=>micToggle('/api/inbox/threads/'+encodeURIComponent(t.id)+'/audio', mic, ()=>{ (__ibMsgsCache[t.id]=__ibMsgsCache[t.id]||[]).push({dir:'out',body:'🎤 голосовое',ts:Date.now(),channel_id:t._sendCh}); ibChat(); }, ()=>({channel_id:t._sendCh}));
 }
 function ibContext(){
   const box=__ibWrap&&__ibWrap.querySelector('.ib-context'); if(!box)return;
@@ -1054,7 +1077,7 @@ function sendMsg(tid){
 // Запись и отправка голосового в WhatsApp (тап — старт, тап ещё раз — стоп+отправка)
 let _waRec=null,_waChunks=[];
 function blobToB64(blob){ return new Promise(res=>{ const fr=new FileReader(); fr.onloadend=()=>res(String(fr.result).split(',')[1]||''); fr.readAsDataURL(blob); }); }
-async function micToggle(audioUrl, btn, onSent){
+async function micToggle(audioUrl, btn, onSent, extraBody){
   if(_waRec && _waRec.state==='recording'){ _waRec.stop(); return; }
   if(!navigator.mediaDevices || !window.MediaRecorder){ toast('Запись не поддерживается браузером','i-x','#dc2626'); return; }
   let stream; try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(e){ toast('Нет доступа к микрофону','i-x','#dc2626'); return; }
@@ -1066,7 +1089,8 @@ async function micToggle(audioUrl, btn, onSent){
     const blob=new Blob(_waChunks,{type:(_waRec.mimeType||'audio/webm')});
     if(!blob.size){ toast('Пустая запись','i-info','#d97706'); return; }
     const b64=await blobToB64(blob); const old=btn.innerHTML; btn.innerHTML=ic('i-sync','sm'); btn.disabled=true;
-    const r=await api(audioUrl,{method:'POST',body:JSON.stringify({audio_b64:b64,mime:blob.type})});
+    const extra = typeof extraBody==='function'?(extraBody()||{}):(extraBody||{});
+    const r=await api(audioUrl,{method:'POST',body:JSON.stringify({audio_b64:b64,mime:blob.type,...extra})});
     btn.disabled=false; btn.innerHTML=old;
     if(!r.ok){ toast((r.data&&r.data.error)||'Не удалось отправить','i-x','#dc2626'); return; }
     toast((r.data&&r.data.whatsapp&&r.data.whatsapp.sent)?'Голосовое отправлено в WhatsApp':'Записано (доставка при подключённом WhatsApp)','i-check2'); onSent&&onSent();
@@ -3042,7 +3066,7 @@ function greenApiPanel(){
       <span class="muted" data-ga="chev" style="font-size:12.5px;font-weight:600;flex:none;display:flex;align-items:center;gap:5px">${ic('i-cog','sm')} Управление</span>
     </button>
     <div class="panel-b" data-ga="body" style="display:none">
-      <div class="note">${ic('i-info','sm')} Каждый номер — отдельный инстанс GreenAPI, привязанный к точке. Входящие сами падают в нужную точку, ответы уходят с того же номера. idInstance и токен берутся в консоли green-api.com.</div>
+      <div class="note">${ic('i-info','sm')} Каждый номер — отдельный инстанс GreenAPI, привязанный к <b>точке</b> и <b>воронке</b>. Входящее сообщение само создаёт лид в нужной воронке и точке этого номера; ответ по умолчанию уходит с того же номера (в чате номер можно сменить). idInstance и токен — в консоли green-api.com.</div>
       <div data-ga="list" style="display:flex;flex-direction:column;gap:12px;margin-top:14px"><div class="muted2" style="font-size:13px">Загрузка…</div></div>
       <button class="btn primary" data-ga="add" style="margin-top:14px">${ic('i-plus','sm')} Добавить номер</button>
       <label class="ck" style="display:flex;align-items:center;gap:9px;font-size:13px;color:var(--txt);cursor:pointer;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
@@ -3068,10 +3092,11 @@ function greenApiPanel(){
     sub.textContent = items.length ? (items.length+' '+plural(items.length,'канал','канала','каналов')+' · подключено '+okN) : 'нет номеров';
     if(window.__waStores===undefined) window.__waStores=await fetchStores();
     const sName=(k)=>{ if(!k) return '— без точки —'; const s=(window.__waStores||[]).find(x=>x.ref_key===k); return s?s.name:'точка'; };
+    const fName=(id)=>{ const f=FUNNELS.find(x=>x.id===id); return f?f.name:'B2C'; };
     list.innerHTML = items.length ? items.map(i=>`<div class="intg-card" data-id="${esc(i.id)}" style="cursor:pointer">
       <div class="ic" style="background:#25d366">W</div>
       <div class="ii"><div class="in">${esc(i.name||'WhatsApp')}${i.phone?` <span class="muted" style="font-weight:500;font-size:12px">· +${esc(i.phone)}</span>`:''}</div>
-        <div class="id">${esc(sName(i.store_key))} · id ${esc(i.id_instance||'—')}</div>
+        <div class="id">${esc(sName(i.store_key))} · ${ic('i-funnel','sm')} ${esc(fName(i.funnel))} · id ${esc(i.id_instance||'—')}</div>
         <div class="row" style="margin-top:7px">${stTag(i.state)}</div></div>
       <button class="btn sm" data-edit="${esc(i.id)}">${ic('i-cog','sm')}</button></div>`).join('')
       : '<div class="muted2" style="font-size:13px;padding:4px 2px">Номеров пока нет. Нажмите «Добавить номер».</div>';
@@ -3084,10 +3109,10 @@ function greenApiPanel(){
 }
 async function waInstanceModal(inst){
   const stores=await fetchStores(); const isEdit=!!(inst&&inst.id);
-  const bg=openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:15px;background:#25d366;color:#06231a">W</span><div><h3>${isEdit?esc(inst.name||'Номер WhatsApp'):'Новый номер WhatsApp'}</h3><div class="mh-sub">GreenAPI · один номер = одна точка</div></div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  const bg=openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:15px;background:#25d366;color:#06231a">W</span><div><h3>${isEdit?esc(inst.name||'Номер WhatsApp'):'Новый номер WhatsApp'}</h3><div class="mh-sub">GreenAPI · номер → точка + воронка</div></div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld"><label>Название (для себя)</label><input data-wi="name" value="${esc(inst&&inst.name||'')}" placeholder="Напр. Центр / Ала-Арча"></div>
-    <div class="fld"><label>Точка (магазин)</label>${storeSelectHtml(stores, inst&&inst.store_key||'', 'data-wi="store_key"','— выбрать точку —')}</div>
+    <div class="fld-row"><div class="fld"><label>Точка (магазин)</label>${storeSelectHtml(stores, inst&&inst.store_key||'', 'data-wi="store_key"','— выбрать точку —')}</div><div class="fld"><label>Воронка <span class="muted2">(куда падают лиды)</span></label><select data-wi="funnel"><option value="">— по умолчанию (B2C) —</option>${FUNNELS.map(f=>`<option value="${esc(f.id)}" ${(inst&&inst.funnel)===f.id?'selected':''}>${esc(f.name)}</option>`).join('')}</select></div></div>
     <div class="fld"><label>idInstance</label><input data-wi="id_instance" inputmode="numeric" value="${esc(inst&&inst.id_instance||'')}" placeholder="напр. 7107651880"></div>
     <div class="fld"><label>apiTokenInstance ${isEdit?'<span class="muted2">(пусто = не менять)</span>':''}</label><input data-wi="token" type="password" autocomplete="off" placeholder="${isEdit?'••• сохранён':'apiTokenInstance'}"></div>
     <div class="fld"><label>API URL <span class="muted2">(у новых инстансов вида https://7107.api.greenapi.com)</span></label><input data-wi="api_url" value="${esc(inst&&inst.api_url||'')}" placeholder="https://api.green-api.com"></div>
@@ -3095,7 +3120,7 @@ async function waInstanceModal(inst){
   </div>
   <div class="modal-f">${isEdit?`<button class="btn" id="wiDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button>`:''}<button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="wiSave">Сохранить и проверить</button></div>`,'wide');
   bg.querySelector('#wiSave').onclick=async()=>{
-    const body={ name:bg.querySelector('[data-wi=name]').value.trim(), id_instance:bg.querySelector('[data-wi=id_instance]').value.trim(), api_url:bg.querySelector('[data-wi=api_url]').value.trim(), store_key:bg.querySelector('[data-wi=store_key]').value||null };
+    const body={ name:bg.querySelector('[data-wi=name]').value.trim(), id_instance:bg.querySelector('[data-wi=id_instance]').value.trim(), api_url:bg.querySelector('[data-wi=api_url]').value.trim(), store_key:bg.querySelector('[data-wi=store_key]').value||null, funnel:bg.querySelector('[data-wi=funnel]').value||null };
     const tok=bg.querySelector('[data-wi=token]').value.trim(); if(tok) body.token=tok;
     if(!body.id_instance){ toast('Укажите idInstance','i-info','#d97706'); return; }
     if(!isEdit && !tok){ toast('Укажите токен','i-info','#d97706'); return; }
