@@ -1627,6 +1627,8 @@ async function newBloggerLive(onSaved){
 async function bloggerModalLive(b,onSaved){
   const cards=await fetchPromoCards();
   const cpa=(b.uses>0&&(b.paid||0)>0)?money(Math.round((b.paid||0)/b.uses)):'—';
+  const cpc=((b.clicks||0)>0&&(b.paid||0)>0)?money(Math.round((b.paid||0)/b.clicks)):'—';
+  const cpm=((b.impressions||0)>0&&(b.paid||0)>0)?money(Math.round((b.paid||0)/b.impressions*1000)):'—';
   const bg=openModal(`<div class="modal-h"><div><h3>${esc(b.nick||b.name||'Блогер')}</h3><div class="mh-sub">${esc(b.name||'')}${b.topic?(' · '+esc(b.topic)):''}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="cards-row">
@@ -1634,11 +1636,15 @@ async function bloggerModalLive(b,onSaved){
       ${miniStat('i-chart','#2563eb','Выручка',money(b.revenue||0))}
       ${miniStat('i-gift','#16a34a','К начислению',money(accrualDue(b)))}
       ${miniStat('i-money','#d97706','Выплачено',money(b.paid||0))}
-      ${miniStat('i-target','#7c3aed','CPA',cpa)}
+      ${miniStat('i-target','#7c3aed','CPA · за конверсию',cpa)}
+      ${miniStat('i-target','#0891b2','CPC · за клик',cpc)}
+      ${miniStat('i-target','#db2777','CPM · за 1000 показов',cpm)}
     </div>
+    <div class="muted2" style="font-size:11px;margin-top:6px">CPA = выплачено ÷ конверсии · CPC = выплачено ÷ переходы · CPM = выплачено ÷ показы × 1000. Метрики кампании (показы/переходы/ER) вносятся вручную ниже.</div>
     <div class="fld-row section-gap"><div class="fld"><label>Ник / аккаунт</label><input data-bm="nick" value="${esc(b.nick||'')}"></div><div class="fld"><label>Имя</label><input data-bm="name" value="${esc(b.name||'')}"></div></div>
     <div class="fld-row"><div class="fld"><label>Площадка</label><select data-bm="platform">${BLOG_PLATFORMS.map(([v,t])=>`<option value="${v}" ${v===(b.platform||'')?'selected':''}>${t}</option>`).join('')}</select></div><div class="fld"><label>Ниша</label><input data-bm="topic" value="${esc(b.topic||'')}"></div></div>
     <div class="fld-row"><div class="fld"><label>Охват</label><input data-bm="reach" value="${esc(b.reach||'')}"></div><div class="fld"><label>Промокод (карта 1С)</label>${cardSelectHtml(cards,b.card_ref,'data-bm="card_ref"')}</div></div>
+    <div class="fld-row"><div class="fld"><label>Показы</label><input data-bm="impressions" type="number" min="0" value="${b.impressions||0}"></div><div class="fld"><label>Переходы (клики)</label><input data-bm="clicks" type="number" min="0" value="${b.clicks||0}"></div><div class="fld"><label>ER, %</label><input data-bm="er" type="number" min="0" step="0.1" value="${b.er||0}"></div></div>
     <div class="fld-row"><div class="fld"><label>Модель оплаты</label><select data-bm="payout_model">${BLOG_MODELS.map(([v,t])=>`<option value="${v}" ${v===(b.payout_model||'per_sale')?'selected':''}>${t}</option>`).join('')}</select></div><div class="fld"><label>Ставка</label><input data-bm="payout_value" type="number" value="${b.payout_value||0}"></div></div>
     <div class="fld-row"><div class="fld"><label>Контакт для выплат</label><input data-bm="contact" value="${esc(b.contact||'')}"></div><div class="fld"><label>Статус</label><select data-bm="status">${[['active','Активен'],['paused','Пауза'],['archived','Архив']].map(([v,t])=>`<option value="${v}" ${v===(b.status||'active')?'selected':''}>${t}</option>`).join('')}</select></div></div>
     <div class="fld"><label>Комментарий</label><input data-bm="note" value="${esc(b.note||'')}"></div>
@@ -1651,7 +1657,7 @@ async function bloggerModalLive(b,onSaved){
   </div>
   <div class="modal-f"><button class="btn" id="bmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn primary" id="bmSave">Сохранить</button></div>`);
   const g=s=>bg.querySelector('[data-bm='+s+']');
-  bg.querySelector('#bmSave').onclick=async()=>{ const body={nick:g('nick').value.trim(),name:g('name').value.trim(),platform:g('platform').value,topic:g('topic').value.trim(),reach:g('reach').value.trim(),card_ref:g('card_ref').value,payout_model:g('payout_model').value,payout_value:Number(g('payout_value').value)||0,contact:g('contact').value.trim(),status:g('status').value,note:g('note').value.trim()}; const r=await api('/api/bloggers/'+b.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
+  bg.querySelector('#bmSave').onclick=async()=>{ const body={nick:g('nick').value.trim(),name:g('name').value.trim(),platform:g('platform').value,topic:g('topic').value.trim(),reach:g('reach').value.trim(),card_ref:g('card_ref').value,payout_model:g('payout_model').value,payout_value:Number(g('payout_value').value)||0,contact:g('contact').value.trim(),status:g('status').value,note:g('note').value.trim(),impressions:Number(g('impressions').value)||0,clicks:Number(g('clicks').value)||0,er:Number(g('er').value)||0}; const r=await api('/api/bloggers/'+b.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
   bg.querySelector('#bmPay').onclick=async()=>{ const amt=Number(g('payamt').value)||0; if(amt<=0){toast('Укажите сумму выплаты','i-info');return;} const r=await api('/api/bloggers/'+b.id+'/pay',{method:'POST',body:JSON.stringify({amount:amt,period_label:g('payper').value.trim()})}); if(!r.ok){toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626');return;} closeModal(); toast('Выплата зафиксирована: '+money(amt),'i-money'); onSaved&&onSaved(); };
   bg.querySelector('#bmJournal').onclick=()=>blogPayoutsModal(b,onSaved);
   bg.querySelector('#bmDel').onclick=async()=>{ if(!confirm('Удалить блогера и все его выплаты?'))return; const r=await api('/api/bloggers/'+b.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
