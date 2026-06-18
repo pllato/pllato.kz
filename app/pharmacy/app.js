@@ -1571,11 +1571,12 @@ PAGES.bloggers=(c)=>{
   const tbar=el(`<div class="toolbar">
     <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по нику, имени, коду, нише…" data-bl="q"></div>
     <div class="spacer"></div>
+    <button class="btn" id="blogHelpBtn">${ic('i-info','sm')} Как считается</button>
     <button class="btn primary" id="newBlogBtn">${ic('i-plus','sm')} Блогер</button></div>`);
   const cards=el(`<div class="cards-row section-gap"></div>`);
   const grid=el(`<div class="grid-3 section-gap"></div>`);
   c.appendChild(tbar); c.appendChild(cards); c.appendChild(grid);
-  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Блогеры — внешние партнёры с промо-картой 1С. «Конверсии» и «Выручка» считаются автоматически из чеков (по применённой карте). Выплаты фиксируются вручную; CPA = выплачено ÷ конверсии.</div>`));
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Конверсии и выручка — авто из чеков 1С (по промо-карте); показы/переходы/ER — вручную; выплаты — вручную. Подробно про все метрики — кнопка «Как считается».</div>`));
   const qI=tbar.querySelector('[data-bl=q]');
   async function load(){
     const q=qI.value.trim();
@@ -1592,8 +1593,39 @@ PAGES.bloggers=(c)=>{
   }
   qI.addEventListener('input',()=>{clearTimeout(qI._t);qI._t=setTimeout(load,300);});
   tbar.querySelector('#newBlogBtn').onclick=()=>newBloggerLive(load);
+  tbar.querySelector('#blogHelpBtn').onclick=()=>bloggerMethodModal();
   load();
 };
+function bloggerMethodModal(){
+  const R='style="padding:4px 0"';
+  openModal(`<div class="modal-h"><div><h3>Как считаются метрики блогеров</h3><div class="mh-sub">Откуда данные и формулы</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b" style="font-size:13.5px;line-height:1.5">
+    <div class="panel" style="margin-top:0"><div class="panel-h"><h3>${ic('i-sync','sm')} Откуда данные</h3></div><div class="panel-b">
+      <div ${R}><b>Конверсии</b> — автоматически из чеков 1С по промокоду/карте блогера (реальные покупки).</div>
+      <div ${R}><b>Выручка</b> — автоматически из тех же чеков.</div>
+      <div ${R}><b>Показы / Переходы / ER</b> — вручную (статистика из аккаунта блогера: скрин инсайтов).</div>
+    </div></div>
+    <div class="panel section-gap"><div class="panel-h"><h3>${ic('i-money','sm')} Модели оплаты</h3></div><div class="panel-b">
+      <div ${R}><b>За продажу (сом)</b> — фикс. сумма за каждую конверсию.</div>
+      <div ${R}><b>% от продаж</b> — процент от выручки по коду.</div>
+      <div ${R}><b>Фикс / мес</b> — фиксированная сумма в месяц.</div>
+      <div ${R}><b>Бартер</b> — оплата товаром, без денег.</div>
+    </div></div>
+    <div class="panel section-gap"><div class="panel-h"><h3>${ic('i-target','sm')} Стоимость · план и факт</h3></div><div class="panel-b">
+      <div ${R}><span class="tag amber">план</span> — ожидаемо по модели оплаты (ещё до выплаты).</div>
+      <div ${R}><span class="tag green">факт</span> — по реальным выплатам.</div>
+      <div ${R}><b>CPA</b> = выплата ÷ конверсии — стоимость одной покупки.</div>
+      <div ${R}><b>CPC</b> = выплата ÷ переходы — стоимость клика.</div>
+      <div ${R}><b>CPM</b> = выплата ÷ показы × 1000 — стоимость 1000 показов.</div>
+    </div></div>
+    <div class="panel section-gap"><div class="panel-h"><h3>${ic('i-star','sm')} ER · вовлечённость</h3></div><div class="panel-b">
+      <div ${R}>ER = (лайки + комментарии + репосты) ÷ охват × 100%.</div>
+      <div ${R}><span style="color:#dc2626;font-weight:700">&lt;1%</span> возможна накрутка · <span style="color:#d97706;font-weight:700">1–3%</span> норма · <span style="color:#16a34a;font-weight:700">3–6%</span> хорошо · <span style="color:#10b981;font-weight:700">&gt;6%</span> отлично.</div>
+    </div></div>
+    <div class="note blue">${ic('i-info','sm')} Выплаты фиксируются вручную (кнопка «Выплата» в карточке блогера), история — в «Журнале».</div>
+  </div>
+  <div class="modal-f"><button class="btn primary" onclick="closeModal()">Понятно</button></div>`,'wide');
+}
 async function fetchBloggerCodes(){ const r=await api('/api/promos'); if(!r||!r.ok) return []; return (r.data.items||[]).filter(p=>(p.type||'')==='блогерский код'); }
 function codeSelectHtml(codes, selected, attr){
   const sel=(selected||'').toUpperCase();
