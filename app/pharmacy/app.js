@@ -1184,7 +1184,7 @@ PAGES.orders=async(c)=>{
   let allOrders=[];
   const visible=()=>{ const sv=tbar.querySelector('[data-or=store]').value; return allOrders.filter(o=>!sv||(o.store_key||'')===sv); };
   const onBoard=()=>visible().filter(o=>o.status!=='cancelled'&&o.status!=='cancel_queued');
-  const c1=(o)=> o.ext_id?'<span class="tag green" title="в 1С">1С</span>':(o.status==='queued_1c'?'<span class="tag amber">очередь 1С</span>':'');
+  const c1=(o)=> o.origin==='1c'?'<span class="tag cyan" title="Заказ создан в 1С, подтянут в CRM">из 1С</span>':(o.ext_id?'<span class="tag green" title="в 1С, № '+esc(o.ext_id)+'">1С</span>':(o.status==='queued_1c'?'<span class="tag amber">очередь 1С</span>':''));
   function renderBoard(){
     const items=onBoard(); boardWrap.innerHTML='';
     ORDER_STAGES.forEach(stg=>{
@@ -1209,7 +1209,7 @@ PAGES.orders=async(c)=>{
   }
   function renderList(){
     const items=visible(); const tb=panel.querySelector('tbody'); cnt.textContent=items.length+' заказов';
-    tb.innerHTML=items.length?items.map(o=>`<tr class="clickable" data-id="${esc(o.id)}"><td><div style="font-weight:600">${esc(o.client_name||'—')}</div><div class="muted2" style="font-size:11px">${esc(o.phone||'')}</div></td><td class="muted" style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ordItemsText(o.items))||'—'}</td><td class="num">${ordPriceHtml(o,true)}</td><td><span class="tag">${esc(o.stage||'Новый')}</span> <span class="tag ${o.pay_status&&PAY_ST[o.pay_status]?PAY_ST[o.pay_status][1]:''}">${o.pay_status&&PAY_ST[o.pay_status]?PAY_ST[o.pay_status][0]:'Не оплачено'}</span></td><td class="muted2" style="font-size:12px">${o.ext_id?esc(o.ext_id):(o.status==='queued_1c'?'очередь':'—')}</td></tr>`).join(''):'<tr><td colspan="5" class="muted2" style="padding:16px">Заказов нет</td></tr>';
+    tb.innerHTML=items.length?items.map(o=>`<tr class="clickable" data-id="${esc(o.id)}"><td><div style="font-weight:600">${esc(o.client_name||'—')}</div><div class="muted2" style="font-size:11px">${esc(o.phone||'')}</div></td><td class="muted" style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ordItemsText(o.items))||'—'}</td><td class="num">${ordPriceHtml(o,true)}</td><td><span class="tag">${esc(o.stage||'Новый')}</span> <span class="tag ${o.pay_status&&PAY_ST[o.pay_status]?PAY_ST[o.pay_status][1]:''}">${o.pay_status&&PAY_ST[o.pay_status]?PAY_ST[o.pay_status][0]:'Не оплачено'}</span></td><td class="muted2" style="font-size:12px">${o.origin==='1c'?'<span class="tag cyan" style="font-size:9px">из 1С</span> ':''}${o.ext_id?esc(o.ext_id):(o.status==='queued_1c'?'очередь':'—')}</td></tr>`).join(''):'<tr><td colspan="5" class="muted2" style="padding:16px">Заказов нет</td></tr>';
     tb.querySelectorAll('[data-id]').forEach(tr=>tr.onclick=()=>{ const o=allOrders.find(x=>x.id===tr.dataset.id); if(o)orderModalLive(o,load); });
   }
   function render(){ if(view==='board'){ boardWrap.style.display=''; panel.style.display='none'; renderBoard(); } else { boardWrap.style.display='none'; panel.style.display=''; renderList(); } }
