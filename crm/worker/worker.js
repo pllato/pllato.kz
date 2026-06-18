@@ -7205,7 +7205,7 @@ async function pullNomenclatureMirrorForBase(env, tenantId, baseKey) {
   // Имя базовой единицы измерения для каждой позиции (фронт показывает «шт»).
   const unitNames = new Map();
   try {
-    const u = await client.get("Catalog_ЕдиницыИзмерения", { top: 1000 });
+    const u = await client.get("Catalog_ЕдиницыИзмерения", { top: 1000, select: ["Ref_Key", "Description"] });
     for (const row of (Array.isArray(u?.value) ? u.value : [])) {
       const ref = row?.Ref_Key;
       const label = String(row?.Description || row?.Наименование || "").trim();
@@ -7213,8 +7213,22 @@ async function pullNomenclatureMirrorForBase(env, tenantId, baseKey) {
     }
   } catch { /* без справочника единиц не критично — оставим unit пустым */ }
 
-  const data = await client.get("Catalog_Номенклатура", { top: 10000 });
-  const raw = Array.isArray(data?.value) ? data.value : [];
+  // Номенклатуру тянем ПОСТРАНИЧНО и только нужные поля ($select). Один запрос на
+  // 10 000 строк со всеми полями выбивал у 1С:Фреш защитный лимит (HTTP 402 →
+  // кулдаун всего аккаунта). Лёгкие страницы с паузой держат нагрузку низкой.
+  // Зеркало пишется upsert'ом по ref_key, поэтому перекрытие окон $skip безвредно.
+  const NOMEN_SELECT = ["Ref_Key", "Code", "Description", "НаименованиеПолное", "Артикул",
+    "БазоваяЕдиницаИзмерения_Key", "ЕдиницаИзмерения_Key", "СтавкаНДС_Key", "IsFolder", "DeletionMark"];
+  const PAGE = 2000;
+  const raw = [];
+  for (let skip = 0, page = 0; page < 40; page += 1) {
+    const data = await client.get("Catalog_Номенклатура", { top: PAGE, skip, select: NOMEN_SELECT, orderby: "Ref_Key" });
+    const chunk = Array.isArray(data?.value) ? data.value : [];
+    raw.push(...chunk);
+    if (chunk.length < PAGE) break;
+    skip += PAGE;
+    await new Promise((r) => setTimeout(r, 500)); // пауза между страницами — не давить на лимит
+  }
   const rows = [];
   for (const r of raw) {
     const p = productFromOData(r);
