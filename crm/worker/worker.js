@@ -5659,6 +5659,94 @@ function settingsToPublicView(row) {
   };
 }
 
+// Мини-страница для смены пароля OData 1С без консоли (в интерфейсе CRM такой
+// формы нет). Открывается на origin воркера, поэтому fetch к /api/crm/1c/* идёт
+// тем же origin. Авторизация — токен сессии CRM (вставляется из Local Storage),
+// все вызовы проверяются require1cAdmin на бэке. noindex.
+const ONE_C_SETUP_PAGE_HTML = `<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>1С: обновить пароль OData</title>
+<style>
+ body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:24px auto;padding:0 16px;color:#1f2937}
+ h1{font-size:20px} h2{font-size:15px;margin-top:6px}
+ label{display:block;font-size:13px;color:#6b7280;margin:12px 0 4px}
+ input,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d1d5db;border-radius:8px;font:inherit}
+ textarea{height:84px}
+ button{margin-top:14px;padding:10px 16px;border:0;border-radius:8px;background:#16a34a;color:#fff;font:inherit;cursor:pointer}
+ .box{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-top:14px}
+ .ok{color:#16a34a} .err{color:#dc2626} .muted{color:#6b7280;font-size:13px}
+ ol{font-size:13px;color:#374151;padding-left:18px;line-height:1.55} code{background:#eef;padding:1px 4px;border-radius:4px}
+ #step2{display:none}
+</style></head><body>
+<h1>1С:Фреш — обновить пароль OData</h1>
+<p class="muted">Меняет пароль технического подключения 1С в CRM. Нужен доступ администратора.</p>
+
+<div class="box">
+<h2>Шаг 1. Вставь ключ сессии</h2>
+<ol>
+<li>На вкладке <b>crm.aminamed.kz</b>: DevTools → вкладка <b>Application</b> (Приложение).</li>
+<li>Слева: <b>Local Storage</b> → <code>https://crm.aminamed.kz</code>.</li>
+<li>Ключ <code>pllato_session</code> → справа скопируй <b>Value</b> целиком.</li>
+<li>Вставь сюда (в поле вставка Cmd+V работает):</li>
+</ol>
+<textarea id="sess" placeholder='значение pllato_session (начинается с {&quot;token&quot;:...)'></textarea>
+<button id="connect">Подключиться</button>
+<div id="connres" class="muted" style="margin-top:8px"></div>
+</div>
+
+<div class="box" id="step2">
+<h2>Шаг 2. Новый пароль OData</h2>
+<div class="muted">Логин 1С: <b id="uname"></b><br>Сервер: <span id="host"></span></div>
+<label>Новый пароль для этого логина</label>
+<input id="pwd" type="text" autocomplete="off" placeholder="новый пароль 1С">
+<button id="save">Сохранить и проверить связь</button>
+<div id="saveres" style="margin-top:8px"></div>
+</div>
+
+<script>
+ var B=location.origin, TOKEN=null;
+ function el(id){return document.getElementById(id);}
+ function tok(raw){raw=(raw||'').trim();if(raw.charAt(0)==='{'){try{return JSON.parse(raw).token||'';}catch(e){return '';}}return raw;}
+ function hdr(){return {'Content-Type':'application/json','Authorization':'Bearer '+TOKEN};}
+ el('connect').onclick=async function(){
+   TOKEN=tok(el('sess').value);
+   if(!TOKEN){el('connres').innerHTML='<span class=err>Не нашёл token. Скопируй значение pllato_session целиком.</span>';return;}
+   el('connres').textContent='Проверяю...';
+   try{
+     var r=await fetch(B+'/api/crm/1c/settings',{headers:hdr()});
+     var d=await r.json();
+     if(!r.ok||!d.settings){el('connres').innerHTML='<span class=err>'+(d.error||('HTTP '+r.status))+'</span>';return;}
+     el('uname').textContent=d.settings.odata_username||'(не задан)';
+     el('host').textContent=(d.settings.host||'')+(d.settings.base_path||'');
+     el('connres').innerHTML='<span class=ok>Подключено. Проверь логин и впиши новый пароль ниже.</span>';
+     el('step2').style.display='block';
+   }catch(e){el('connres').innerHTML='<span class=err>'+e.message+'</span>';}
+ };
+ el('save').onclick=async function(){
+   var p=el('pwd').value;
+   if(!p){el('saveres').innerHTML='<span class=err>Впиши пароль.</span>';return;}
+   el('saveres').textContent='Сохраняю...';
+   try{
+     var cur=(await (await fetch(B+'/api/crm/1c/settings',{headers:hdr()})).json()).settings;
+     var sv=await fetch(B+'/api/crm/1c/settings',{method:'POST',headers:hdr(),body:JSON.stringify({host:cur.host,base_path:cur.base_path,odata_username:cur.odata_username,odata_password:p})});
+     var sd=await sv.json();
+     if(!sv.ok){el('saveres').innerHTML='<span class=err>Не сохранил: '+(sd.error||sv.status)+'</span>';return;}
+     el('saveres').textContent='Сохранено. Проверяю связь с 1С...';
+     var t=await fetch(B+'/api/crm/1c/test-connection',{method:'POST',headers:hdr()});
+     var td=await t.json();
+     if(td.result&&td.result.ok){
+       el('saveres').innerHTML='<div class=box><span class=ok><b>Готово. Связь с 1С есть.</b></span><br>Коллекций в 1С: '+(td.result.collections_total||'?')+'<br>Вернись в CRM и нажми «Синхронизировать из 1С».</div>';
+     }else{
+       el('saveres').innerHTML='<div class=box><span class=err><b>Пароль сохранён, но связь не прошла.</b></span><br>'+JSON.stringify(td.error||td)+'<br>Скорее всего пароль не тот или не тот логин 1С.</div>';
+     }
+   }catch(e){el('saveres').innerHTML='<span class=err>'+e.message+'</span>';}
+ };
+</script>
+</body></html>`;
+
 async function handle1cGetSettings(_request, env, actor) {
   require1cAdmin(actor);
   const tenantId = resolve1cTenantId(actor);
@@ -7410,6 +7498,13 @@ export default {
         const agreementId = agreementMatch[1];
         if (request.method === "GET") return json(request, env, await handleAgreementGet(env, agreementId));
         if (request.method === "POST") return json(request, env, await handleAgreementPost(env, agreementId, request));
+      }
+      // Страница смены пароля OData 1С (в UI CRM формы нет) — публичный HTML,
+      // но любые действия требуют admin-токен сессии CRM.
+      if (request.method === "GET" && path === "/1c-setup") {
+        return new Response(ONE_C_SETUP_PAGE_HTML, {
+          headers: { "content-type": "text/html; charset=utf-8", "x-robots-tag": "noindex" },
+        });
       }
       if (request.method === "POST" && path === "/auth/google") {
         return json(request, env, await handleAuthGoogle(request, env));
