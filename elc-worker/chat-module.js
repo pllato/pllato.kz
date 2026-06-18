@@ -837,6 +837,31 @@ async function setChannelIcon(env, me, channelId, body) {
   return jsonRes({ ok: true, icon });
 }
 
+// POST /api/chat/channels/:id/icon-upload (multipart file) — иконка-картинка.
+// Кладём в R2, отдаём через публичный /api/avatar/{key}, ставим icon = URL.
+async function uploadChannelIcon(request, env, me, channelId) {
+  const ch = await env.DB.prepare("SELECT type FROM team_chat_channels WHERE id = ?").bind(channelId).first();
+  if (!ch) return errRes('not found', 404);
+  if (ch.type === 'dm') return errRes('у личной переписки нельзя менять иконку', 400);
+  if (!(await isChannelAdmin(env, channelId, me))) return errRes('только администратор может менять иконку', 403);
+  if (!env.FILES) return errRes('R2 не настроен', 500);
+  const form = await request.formData();
+  const file = form.get('file');
+  if (!file || typeof file === 'string') return errRes('file required');
+  if (!/^image\//i.test(file.type || '')) return errRes('нужен файл-изображение', 400);
+  if (file.size > 3 * 1024 * 1024) return errRes('файл слишком большой (макс 3 МБ)', 413);
+  const ext = (file.type || '').includes('png') ? 'png' : (file.type || '').includes('webp') ? 'webp' : 'jpg';
+  const rand = Math.random().toString(36).slice(2, 8);
+  const safe = String(channelId).replace(/[^\w.\-]/g, '_').slice(0, 60);
+  const key = `wa-avatars/chat-${safe}-${rand}.${ext}`;
+  await env.FILES.put(key, file.stream(), { httpMetadata: { contentType: file.type }, customMetadata: { kind: 'chat-icon' } });
+  const icon = `${new URL(request.url).origin}/api/avatar/${encodeURIComponent(key)}`;
+  await ensureChannelIconColumn(env);
+  await env.DB.prepare("UPDATE team_chat_channels SET icon = ? WHERE id = ?").bind(icon, channelId).run();
+  broadcastToChannel(env, channelId, { kind: 'channel_icon', channel_id: channelId, icon });
+  return jsonRes({ ok: true, icon });
+}
+
 // POST /api/chat/channels/:id/members/:uid/role { role: 'admin'|'member' }
 // Только админ может назначать/снимать админов (передавать права). Роль
 // создателя канала не трогаем — он всегда остаётся админом.
@@ -956,6 +981,7 @@ export async function handleChatRequest(request, env, url, me, ctx) {
     if (sub === '/leave'    && m === 'POST') return leaveChannel(env, me, channelId);
     if (sub === '/rename'   && m === 'POST') return renameChannel(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/icon'     && m === 'POST') return setChannelIcon(env, me, channelId, await request.json().catch(() => ({})));
+    if (sub === '/icon-upload' && m === 'POST') return uploadChannelIcon(request, env, me, channelId);
     // /api/chat/channels/:id/members/:uid/role (POST) — назначить/снять админа
     const roleMatch = sub.match(/^\/members\/(.+)\/role$/);
     if (roleMatch && m === 'POST') return setMemberRole(env, me, channelId, decodeURIComponent(roleMatch[1]), await request.json().catch(() => ({})));
