@@ -1193,9 +1193,11 @@ async function newOrderLive(onSaved){
 async function orderModalLive(o,onSaved){
   setEntityHash('orders', o.id);
   let init=[]; try{ init=JSON.parse(o.items||'[]'); }catch(e){}
-  const ed=makeItemsEditor(init);
+  let recalc=()=>{}; let curDisc=Number(o.discount)||0;
+  const ed=makeItemsEditor(init,()=>recalc());
   const users=await fetchUsers();
   const omStores=await fetchStores();
+  const activePromos=(((await api('/api/promos')).data||{}).items||[]).filter(p=>p.active);
   const bg=openModal(`<div class="modal-h"><div><h3>Заказ</h3><div class="mh-sub">${esc(o.client_name||'')}${o.ext_id?(' · 1С №'+esc(o.ext_id)):''}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld-row"><div class="fld"><label>Клиент</label><input data-om="client_name" value="${esc(o.client_name||'')}"></div><div class="fld"><label>Телефон</label><input data-om="phone" value="${esc(o.phone||'')}"></div></div>
@@ -1203,6 +1205,7 @@ async function orderModalLive(o,onSaved){
     <div class="fld-row"><div class="fld"><label>Ответственный</label>${userSelectHtml(users,o.mgr,'data-om="mgr"')}</div><div class="fld"><label>Точка (магазин)</label>${storeSelectHtml(omStores,o.store_key,'data-om="store_key"','— точка —')}</div></div>
     <div class="note ${o.ext_id?'':'blue'}" style="margin-top:2px">${ic('i-info','sm')} 1С: ${o.ext_id?('записан, № '+esc(o.ext_id)):(o.status==='queued_1c'?'в очереди на запись':'не отправлен — кнопка «В 1С» ниже')}</div>
     <div class="fld"><label>Состав заказа</label><div id="omItems"></div></div>
+    <div class="fld"><label>Промокод (скидка для онлайн-заказа)</label><select data-om="promo"><option value="">— без промокода —</option>${activePromos.map(p=>`<option value="${esc(p.code)}" ${p.code===(o.promo_code||'')?'selected':''}>${esc(p.code)} · −${p.value||0}${p.kind==='fixed'?' с':'%'}</option>`).join('')}</select><div data-om="discline" class="muted2" style="font-size:12.5px;margin-top:5px"></div></div>
     <div class="fld"><label>Комментарий</label><input data-om="note" value="${esc(o.note||'')}"></div>
     ${o.error?`<div class="note amber">${ic('i-info','sm')} Ошибка 1С: ${esc(o.error)}</div>`:''}
     <div class="fld"><label>Вложения <span class="muted2" style="font-weight:400">— счёт, фото, PDF · до 15 МБ</span></label><div id="omAtt" style="display:flex;flex-direction:column;gap:6px"></div><input type="file" id="omAttFile" style="display:none"><button type="button" class="btn sm" id="omAttBtn" style="margin-top:7px">📎 Прикрепить файл</button></div>
@@ -1223,7 +1226,11 @@ async function orderModalLive(o,onSaved){
   const oaBtn=bg.querySelector('#omAttBtn'); if(oaBtn) oaBtn.onclick=()=>oaFile.click();
   if(oaFile) oaFile.onchange=async()=>{ const f=oaFile.files[0]; if(!f)return; if(f.size>15*1024*1024){ toast('Файл больше 15 МБ','i-info'); oaFile.value=''; return; } toast('Загрузка…','i-sync'); const r=await uploadOrderFile(o.id,f); oaFile.value=''; if(r.ok&&r.data.attachment){ atts=[...atts,r.data.attachment]; renderOAtt(); logLoaded=false; toast('Файл загружен','i-check2'); onSaved&&onSaved(); } else toast((r.data&&r.data.error)||'Не удалось загрузить','i-x','#dc2626'); };
   const g=s=>bg.querySelector('[data-om='+s+']');
-  const collect=()=>({client_name:g('client_name').value.trim(),phone:g('phone').value.trim(),mgr:g('mgr').value.trim(),store_key:g('store_key').value||null,note:g('note').value.trim(),items:ed.getItems()});
+  const promoSel=g('promo');
+  recalc=function(){ const code=promoSel?promoSel.value:''; const promo=activePromos.find(p=>p.code===code); const items=ed.getItems(); const sub=items.reduce((a,x)=>a+(x.price||0)*(x.qty||1),0); curDisc=computePromoDiscount(items,promo); const line=bg.querySelector('[data-om=discline]'); if(line) line.innerHTML=!code?'':(curDisc>0?`Скидка по «${esc(code)}»: <b style="color:var(--accent)">−${money(curDisc)}</b> · к оплате: <b>${money(Math.max(0,sub-curDisc))}</b>`:'<span style="color:var(--amber)">Промокод не даёт скидки на эти товары (вне области действия)</span>'); };
+  if(promoSel) promoSel.onchange=recalc;
+  recalc();
+  const collect=()=>({client_name:g('client_name').value.trim(),phone:g('phone').value.trim(),mgr:g('mgr').value.trim(),store_key:g('store_key').value||null,note:g('note').value.trim(),items:ed.getItems(),promo_code:(promoSel&&promoSel.value)||null,discount:curDisc});
   bg.querySelector('#omSave').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{stage:g('stage').value,pay_status:g('pay').value}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
   bg.querySelector('#omSend').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{status:'queued_1c'}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Заказ в очереди на запись в 1С','i-sync','#d97706'); onSaved&&onSaved(); };
   bg.querySelector('#omDel').onclick=async()=>{ if(!confirm('Удалить заказ?'))return; const r=await api('/api/orders/'+o.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
@@ -1504,6 +1511,19 @@ async function fetchGroups(){ const r=await api('/api/1c/groups'); return (r&&r.
 function parseScope(s){ try{ return s?(typeof s==='string'?JSON.parse(s):s):{}; }catch(e){ return {}; } }
 // сводка scope для списка: «все товары» / «ROCS, Ирригаторы +N»
 function scopeSummary(s){ s=parseScope(s); const g=(s.groups||[]).map(x=>x.name), p=(s.products||[]); const parts=[...g]; if(p.length) parts.push(p.length+' тов.'); if(!parts.length) return '<span class="muted2">все товары</span>'; const head=parts.slice(0,2).join(', '); return esc(head)+(parts.length>2?(' +'+(parts.length-2)):''); }
+// Скидка промокода на состав заказа: применяется к товарам из scope (пусто = ко всем). % или фикс.
+function computePromoDiscount(items, promo){
+  if(!promo||!items||!items.length) return 0;
+  const sc=parseScope(promo.scope);
+  const groups=new Set((sc.groups||[]).map(g=>g.ref));
+  const prods=new Set((sc.products||[]).map(p=>p.key));
+  const all=groups.size===0&&prods.size===0;
+  let sub=0;
+  for(const it of items){ const inScope=all||prods.has(it.ref)||(it.parent&&groups.has(it.parent)); if(inScope) sub+=(it.price||0)*(it.qty||1); }
+  if(sub<=0) return 0;
+  if(promo.kind==='fixed') return Math.min(Math.round(promo.value||0),Math.round(sub));
+  return Math.round(sub*(promo.value||0)/100);
+}
 // Редактор «на что распространяется»: группы (бренды/категории) + конкретные товары. Пусто = все товары.
 function makeScopeEditor(box, scope, allGroups){
   let groups=((scope&&scope.groups)||[]).map(g=>({ref:g.ref,name:g.name}));
@@ -2372,8 +2392,8 @@ PAGES.subs=(c)=>{
   load();
 };
 // Редактор состава набора: поиск товаров в каталоге 1С + мультивыбор + кол-во + авто-сумма
-function makeItemsEditor(initial){
-  const items=(initial||[]).map(x=>({ref:x.ref||null,name:x.name||'',qty:x.qty||1,price:x.price||0}));
+function makeItemsEditor(initial,onChange){
+  const items=(initial||[]).map(x=>({ref:x.ref||null,name:x.name||'',qty:x.qty||1,price:x.price||0,parent:x.parent||''}));
   const node=el(`<div>
     <div style="position:relative">
       <div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-ie="q" placeholder="добавить товар из каталога 1С" autocomplete="off" style="width:100%"></div>
@@ -2392,13 +2412,14 @@ function makeItemsEditor(initial){
     list.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;items[i].qty=Math.max(1,(items[i].qty||1)+(b.dataset.q==='+'?1:-1));renderList();});
     list.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{items.splice(+b.dataset.rm,1);renderList();});
     totalEl.textContent=money(total());
+    if(onChange)onChange();
   }
   let qt=null;
   q.addEventListener('input',()=>{clearTimeout(qt);const v=q.value.trim();if(v.length<2){sug.style.display='none';return;}
     qt=setTimeout(async()=>{const r=await api('/api/1c/products?limit=8&q='+encodeURIComponent(v));if(!r.ok||!(r.data.items||[]).length){sug.style.display='none';return;}
-      sug.innerHTML=r.data.items.map(p=>`<div class="doc-row" data-ref="${esc(p.ref_key)}" data-name="${esc(p.name||'')}" data-price="${p.price||0}"><div><div class="dt">${esc(p.name||'—')}</div><div class="ds">${esc(p.code||'')} · ${p.price!=null?money(p.price):'без цены'}</div></div></div>`).join('');
+      sug.innerHTML=r.data.items.map(p=>`<div class="doc-row" data-ref="${esc(p.ref_key)}" data-name="${esc(p.name||'')}" data-price="${p.price||0}" data-parent="${esc(p.parent_key||'')}"><div><div class="dt">${esc(p.name||'—')}</div><div class="ds">${esc(p.code||'')} · ${p.price!=null?money(p.price):'без цены'}</div></div></div>`).join('');
       sug.style.display='block';
-      sug.querySelectorAll('[data-ref]').forEach(it=>it.onclick=()=>{const ref=it.dataset.ref;const ex=items.find(x=>x.ref===ref);if(ex)ex.qty++;else items.push({ref,name:it.dataset.name,qty:1,price:Number(it.dataset.price)||0});q.value='';sug.style.display='none';renderList();});},300);});
+      sug.querySelectorAll('[data-ref]').forEach(it=>it.onclick=()=>{const ref=it.dataset.ref;const ex=items.find(x=>x.ref===ref);if(ex)ex.qty++;else items.push({ref,name:it.dataset.name,qty:1,price:Number(it.dataset.price)||0,parent:it.dataset.parent||''});q.value='';sug.style.display='none';renderList();});},300);});
   renderList();
   return {node,getItems:()=>items,total};
 }
