@@ -35,6 +35,7 @@
     editingMsg: null,
     channelFilter: 'all',     // 'all' | 'channel' | 'dm'
     channelSearch: '',
+    showArchived: false,      // показывать архивные чаты вместо активных
     loadingMsgs: false,
   };
 
@@ -215,6 +216,7 @@
       case 'channel_removed': loadChannels(); break;
       case 'channel_renamed': onChannelRenamed(msg); break;
       case 'channel_icon': { const c = state.channels.find(x => x.id === msg.channel_id); if (c) { c.icon = msg.icon; renderMainHead(); renderChannelList(); } break; }
+      case 'channel_archived': case 'channel_unarchived': loadChannels(); break;
       case 'members_changed': state.members = {}; loadChannels(); break;
       case 'role_changed': loadChannels(); break;
       case 'user_joined': state.members = {}; loadChannels(); break;
@@ -303,7 +305,7 @@
 
   async function loadChannels() {
     try {
-      const d = await api('/api/chat/channels');
+      const d = await api('/api/chat/channels' + (state.showArchived ? '?archived=1' : ''));
       state.channels = d.items || [];
       renderChannelList();
       renderMainHead();
@@ -693,6 +695,9 @@
     if (ch.type === 'dm') {
       return avatarHtml(cls, ch.other_user_id, userAvatar(ch.other_user_id || ''), userColor(ch.other_user_id || ''));
     }
+    if (ch.icon && /^(https?:|\/)/.test(ch.icon)) {
+      return `<div class="${cls}" style="overflow:hidden"><img src="${escapeHtml(ch.icon)}" alt="" style="width:100%;height:100%;object-fit:cover"></div>`;
+    }
     return `<div class="${cls}" style="background:${groupGradient(ch)};color:#fff"><span style="font-size:1.4em;line-height:1">${escapeHtml(ch.icon || groupEmoji(ch))}</span></div>`;
   }
 
@@ -934,10 +939,14 @@
     else sub = ch.member_count ? `Группа · ${ch.member_count} ${pluralMembers(ch.member_count)}` : 'Группа';
 
     const isAdmin = !!ch.is_admin;
+    const searchBtn = `<button class="tc-head-rename tc-head-searchbtn" title="Поиск в переписке">🔎</button>`;
     const renameBtn = (ch.type !== 'dm' && isAdmin) ?
       `<button class="tc-head-rename" title="Переименовать чат">✏️</button>` : '';
     const iconBtn = (ch.type !== 'dm' && isAdmin) ?
       `<button class="tc-head-rename tc-head-iconbtn" title="Сменить иконку">🎨</button>` : '';
+    const canArchive = (ch.type === 'dm') || isAdmin;
+    const archiveBtn = canArchive ?
+      `<button class="tc-head-rename tc-head-archbtn" title="${state.showArchived ? 'Вернуть из архива' : 'Архивировать чат'}">${state.showArchived ? '📤' : '🗄'}</button>` : '';
     const membersBtn = ch.type === 'dm' ? '' :
       `<button class="tc-head-members" title="Участники">👥</button>`;
     head.innerHTML = `
@@ -947,13 +956,31 @@
         <div class="tc-head-name">${escapeHtml(channelDisplayName(ch))}</div>
         <div class="tc-head-sub">${escapeHtml(sub)}</div>
       </div>
+      ${searchBtn}
       ${renameBtn}
       ${iconBtn}
+      ${archiveBtn}
       ${membersBtn}`;
-    const rb = head.querySelector('.tc-head-rename:not(.tc-head-iconbtn)');
+    const sb = head.querySelector('.tc-head-searchbtn');
+    if (sb) sb.onclick = () => openChatSearch(ch);
+    const rb = head.querySelector('.tc-head-rename:not(.tc-head-iconbtn):not(.tc-head-searchbtn):not(.tc-head-archbtn)');
     if (rb) rb.onclick = () => renameChannelPrompt(ch);
     const ib = head.querySelector('.tc-head-iconbtn');
     if (ib) ib.onclick = () => openIconPicker(ch);
+    const ab = head.querySelector('.tc-head-archbtn');
+    if (ab) ab.onclick = async () => {
+      const toArchive = !state.showArchived;
+      if (toArchive && !confirm('Архивировать этот чат? Он уйдёт из списка (вернуть можно через 🗄 «Архив» в шапке списка).')) return;
+      try {
+        await api(`/api/chat/channels/${ch.id}/archive`, { method: 'POST', body: JSON.stringify({ archived: toArchive }) });
+        state.channels = state.channels.filter(c => c.id !== ch.id);
+        state.activeChannelId = null;
+        const r = state.rootEl && state.rootEl.querySelector('.tc-root');
+        if (r) r.classList.remove('tc-show-main');
+        syncViewport();
+        renderChannelList(); renderMainHead(); renderMessages(); renderComposer();
+      } catch (e) { alert('Ошибка: ' + (e.message || e)); }
+    };
     const mb = head.querySelector('.tc-head-members');
     if (mb) mb.onclick = () => openMembersModal(ch.id);
     const back = head.querySelector('.tc-back');
@@ -1540,7 +1567,71 @@
     } catch (e) { alert(e.message); }
   }
 
-  // Сменить иконку группы — выбор эмодзи (или сброс к авто).
+  // Поиск по сообщениям внутри открытого чата (вся история, через FTS-бэкенд).
+  function openChatSearch(ch) {
+    if (!ch) return;
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding-top:8vh';
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = `<div style="background:var(--bg2,#fff);border-radius:14px;padding:16px;max-width:480px;width:94vw;box-shadow:0 10px 40px rgba(0,0,0,.25);max-height:80vh;display:flex;flex-direction:column">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <input id="tc-msrch-inp" placeholder="🔎 Поиск по сообщениям…" style="flex:1;padding:9px 12px;border:1px solid var(--b1,#e3e5ea);border-radius:8px;font-size:14px">
+        <button id="tc-msrch-close" style="padding:8px 12px;border:none;background:var(--bg3,#eee);border-radius:8px;cursor:pointer">✕</button>
+      </div>
+      <div id="tc-msrch-res" style="overflow:auto;font-size:13px"></div>
+    </div>`;
+    document.body.appendChild(ov);
+    const inp = ov.querySelector('#tc-msrch-inp');
+    const res = ov.querySelector('#tc-msrch-res');
+    ov.querySelector('#tc-msrch-close').onclick = () => ov.remove();
+    inp.focus();
+    let t;
+    inp.oninput = () => {
+      clearTimeout(t);
+      const q = inp.value.trim();
+      if (q.length < 2) { res.innerHTML = '<div style="color:var(--t3,#888);padding:10px">Введите минимум 2 символа…</div>'; return; }
+      t = setTimeout(async () => {
+        res.innerHTML = '<div style="color:var(--t3,#888);padding:10px">⏳ Ищу…</div>';
+        try {
+          const d = await api(`/api/chat/search?channel_id=${encodeURIComponent(ch.id)}&q=${encodeURIComponent(q)}`);
+          const items = d.items || [];
+          if (!items.length) { res.innerHTML = '<div style="color:var(--t3,#888);padding:10px">Ничего не найдено</div>'; return; }
+          res.innerHTML = items.map(m => {
+            const who = escapeHtml(userLabel(m.user_id));
+            const when = m.created_at ? formatTime(m.created_at) : '';
+            return `<div style="padding:9px 10px;border-bottom:1px solid var(--b1,#eee)">
+              <div style="font-size:12px"><b style="color:var(--ac2,#4f46e5)">${who}</b> <span style="color:var(--t3,#999)">${when}</span></div>
+              <div style="color:var(--t1,#222);margin-top:2px;white-space:pre-wrap">${escapeHtml(m.text || '')}</div>
+            </div>`;
+          }).join('');
+        } catch (e) { res.innerHTML = '<div style="color:#dc2626;padding:10px">Ошибка: ' + (e.message || e) + '</div>'; }
+      }, 300);
+    };
+  }
+
+  // Ужать картинку до квадрата maxSize (cover-кроп по центру) → JPEG Blob.
+  function downscaleImageBlob(file, maxSize) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        try {
+          const side = Math.min(img.width, img.height);
+          const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+          const out = Math.min(maxSize, side) || maxSize;
+          const cv = document.createElement('canvas');
+          cv.width = out; cv.height = out;
+          cv.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, out, out);
+          cv.toBlob(b => b ? resolve(b) : reject(new Error('не удалось сжать')), 'image/jpeg', 0.85);
+        } catch (e) { reject(e); }
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('не удалось прочитать изображение')); };
+      img.src = url;
+    });
+  }
+
+  // Сменить иконку группы — фото с компьютера, либо эмодзи, либо сброс к авто.
   function openIconPicker(ch) {
     if (!ch) return;
     const ov = document.createElement('div');
@@ -1549,15 +1640,20 @@
     const grid = GROUP_EMOJIS.map(e =>
       `<button class="tc-icon-pick" data-e="${e}" style="font-size:24px;width:46px;height:46px;border:1px solid var(--b1,#e3e5ea);background:var(--bg2,#fff);border-radius:10px;cursor:pointer">${e}</button>`
     ).join('');
-    ov.innerHTML = `<div style="background:var(--bg2,#fff);border-radius:14px;padding:18px;max-width:340px;width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.25)">
+    ov.innerHTML = `<div style="background:var(--bg2,#fff);border-radius:14px;padding:18px;max-width:360px;width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.25)">
       <div style="font-weight:700;margin-bottom:12px;color:var(--t1,#111)">🎨 Иконка группы</div>
+      <button id="tc-icon-photo" style="width:100%;padding:10px;border:none;background:#25D366;color:#fff;border-radius:9px;cursor:pointer;font-weight:600;margin-bottom:14px">📷 Загрузить фото с компьютера</button>
+      <input type="file" id="tc-icon-file" accept="image/*" style="display:none">
+      <div style="font-size:12px;color:var(--t3,#888);margin-bottom:6px">или выбери эмодзи:</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">${grid}</div>
-      <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+      <div id="tc-icon-status" style="font-size:12px;margin-top:10px;min-height:14px"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
         <button id="tc-icon-reset" style="padding:8px 12px;border:1px solid var(--b1,#e3e5ea);background:none;border-radius:8px;cursor:pointer">Сбросить</button>
         <button id="tc-icon-close" style="padding:8px 12px;border:none;background:var(--bg3,#eee);border-radius:8px;cursor:pointer">Закрыть</button>
       </div>
     </div>`;
     document.body.appendChild(ov);
+    const status = ov.querySelector('#tc-icon-status');
     const apply = async (icon) => {
       try {
         await api(`/api/chat/channels/${ch.id}/icon`, { method: 'POST', body: JSON.stringify({ icon }) });
@@ -1570,6 +1666,24 @@
     ov.querySelectorAll('.tc-icon-pick').forEach(b => { b.onclick = () => apply(b.dataset.e); });
     ov.querySelector('#tc-icon-reset').onclick = () => apply('');
     ov.querySelector('#tc-icon-close').onclick = () => ov.remove();
+    const fileInput = ov.querySelector('#tc-icon-file');
+    ov.querySelector('#tc-icon-photo').onclick = () => fileInput.click();
+    fileInput.onchange = async () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file || !/^image\//.test(file.type)) return;
+      status.textContent = '⏳ Загружаю…';
+      try {
+        const blob = await downscaleImageBlob(file, 256);
+        const fd = new FormData();
+        fd.append('file', blob, 'icon.jpg');
+        const res = await api(`/api/chat/channels/${ch.id}/icon-upload`, { method: 'POST', body: fd });
+        ch.icon = res.icon;
+        ov.remove();
+        renderMainHead();
+        renderChannelList();
+      } catch (e) { status.innerHTML = '<span style="color:#dc2626">Ошибка: ' + (e.message || e) + '</span>'; }
+      finally { fileInput.value = ''; }
+    };
   }
 
   // Управление участниками канала: список ролей + добавление (для админов).
@@ -1867,6 +1981,7 @@
       <aside class="tc-sidebar">
         <div class="tc-sidebar-head">
           <h3>Чаты</h3>
+          <button class="tc-hbtn" id="tc-archive-toggle" title="Архив чатов">🗄</button>
           <button class="tc-hbtn" id="tc-new-ch-btn" title="Новый чат">＋</button>
         </div>
         <div class="tc-search"><span class="tc-search-ic">🔍</span><input id="tc-ch-search" placeholder="Поиск чата" autocomplete="off"></div>
@@ -1888,6 +2003,17 @@
     </div>`;
 
     el.querySelector('#tc-new-ch-btn').onclick = openNewChatModal;
+
+    const archToggle = el.querySelector('#tc-archive-toggle');
+    if (archToggle) archToggle.onclick = () => {
+      state.showArchived = !state.showArchived;
+      archToggle.style.background = state.showArchived ? 'var(--tc-ac,#2563eb)' : '';
+      archToggle.style.color = state.showArchived ? '#fff' : '';
+      const h = el.querySelector('.tc-sidebar-head h3');
+      if (h) h.textContent = state.showArchived ? 'Архив' : 'Чаты';
+      state.activeChannelId = null;
+      loadChannels();
+    };
 
     const search = el.querySelector('#tc-ch-search');
     search.oninput = () => { state.channelSearch = search.value; renderChannelList(); };

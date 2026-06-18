@@ -401,9 +401,11 @@ async function isMessageAuthor(env, messageId, me) {
 
 // ── REST handlers ────────────────────────────────────────────────────────
 
-// GET /api/chat/channels — список каналов юзера + unread counts
-async function listChannels(env, me) {
+// GET /api/chat/channels?archived=1 — список каналов юзера + unread counts.
+// archived=1 — показать архивные вместо активных.
+async function listChannels(env, me, url) {
   const ids = meIds(me);
+  const wantArchived = !!(url && (url.searchParams.get('archived') === '1' || url.searchParams.get('archived') === 'true'));
   // Derived-таблица cm схлопывает membership-строки юзера к ОДНОЙ на канал —
   // если он числится под несколькими uid (canonical+firebase), канал не
   // задвоится. Снаружи cm.* — обычные скалярные колонки (без агрегатов).
@@ -431,7 +433,7 @@ async function listChannels(env, me) {
       WHERE user_id IN (${phList(ids)})
       GROUP BY channel_id
     ) cm ON cm.channel_id = c.id
-    WHERE c.archived_at IS NULL
+    WHERE c.archived_at IS ${wantArchived ? 'NOT NULL' : 'NULL'}
     ORDER BY last_message_at DESC NULLS LAST, c.created_at DESC
   `).bind(...ids).all();
 
@@ -837,6 +839,46 @@ async function setChannelIcon(env, me, channelId, body) {
   return jsonRes({ ok: true, icon });
 }
 
+// POST /api/chat/channels/:id/icon-upload (multipart file) — иконка-картинка.
+// Кладём в R2, отдаём через публичный /api/avatar/{key}, ставим icon = URL.
+async function uploadChannelIcon(request, env, me, channelId) {
+  const ch = await env.DB.prepare("SELECT type FROM team_chat_channels WHERE id = ?").bind(channelId).first();
+  if (!ch) return errRes('not found', 404);
+  if (ch.type === 'dm') return errRes('у личной переписки нельзя менять иконку', 400);
+  if (!(await isChannelAdmin(env, channelId, me))) return errRes('только администратор может менять иконку', 403);
+  if (!env.FILES) return errRes('R2 не настроен', 500);
+  const form = await request.formData();
+  const file = form.get('file');
+  if (!file || typeof file === 'string') return errRes('file required');
+  if (!/^image\//i.test(file.type || '')) return errRes('нужен файл-изображение', 400);
+  if (file.size > 3 * 1024 * 1024) return errRes('файл слишком большой (макс 3 МБ)', 413);
+  const ext = (file.type || '').includes('png') ? 'png' : (file.type || '').includes('webp') ? 'webp' : 'jpg';
+  const rand = Math.random().toString(36).slice(2, 8);
+  const safe = String(channelId).replace(/[^\w.\-]/g, '_').slice(0, 60);
+  const key = `wa-avatars/chat-${safe}-${rand}.${ext}`;
+  await env.FILES.put(key, file.stream(), { httpMetadata: { contentType: file.type }, customMetadata: { kind: 'chat-icon' } });
+  const icon = `${new URL(request.url).origin}/api/avatar/${encodeURIComponent(key)}`;
+  await ensureChannelIconColumn(env);
+  await env.DB.prepare("UPDATE team_chat_channels SET icon = ? WHERE id = ?").bind(icon, channelId).run();
+  broadcastToChannel(env, channelId, { kind: 'channel_icon', channel_id: channelId, icon });
+  return jsonRes({ ok: true, icon });
+}
+
+// POST /api/chat/channels/:id/archive { archived } — архивировать/вернуть чат.
+// Группу архивирует только админ; личную переписку — любой её участник.
+async function archiveChannel(env, me, channelId, body) {
+  const ch = await env.DB.prepare("SELECT type FROM team_chat_channels WHERE id = ?").bind(channelId).first();
+  if (!ch) return errRes('not found', 404);
+  if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
+  if (ch.type !== 'dm' && !(await isChannelAdmin(env, channelId, me))) {
+    return errRes('только администратор может архивировать группу', 403);
+  }
+  const ts = body.archived === false ? null : Date.now();
+  await env.DB.prepare("UPDATE team_chat_channels SET archived_at = ? WHERE id = ?").bind(ts, channelId).run();
+  broadcastToChannel(env, channelId, { kind: ts ? 'channel_archived' : 'channel_unarchived', channel_id: channelId });
+  return jsonRes({ ok: true, archived: !!ts });
+}
+
 // POST /api/chat/channels/:id/members/:uid/role { role: 'admin'|'member' }
 // Только админ может назначать/снимать админов (передавать права). Роль
 // создателя канала не трогаем — он всегда остаётся админом.
@@ -936,7 +978,7 @@ export async function handleChatRequest(request, env, url, me, ctx) {
   await ensureChannelIconColumn(env);
 
   // Channels
-  if (p === '/api/chat/channels' && m === 'GET')  return listChannels(env, me);
+  if (p === '/api/chat/channels' && m === 'GET')  return listChannels(env, me, url);
   if (p === '/api/chat/channels' && m === 'POST') return createChannel(env, me, await request.json().catch(() => ({})));
   if (p === '/api/chat/dm'       && m === 'POST') return openDm(env, me, await request.json().catch(() => ({})));
   if (p === '/api/chat/roster'   && m === 'GET')  return getRoster(env, me);
@@ -956,6 +998,8 @@ export async function handleChatRequest(request, env, url, me, ctx) {
     if (sub === '/leave'    && m === 'POST') return leaveChannel(env, me, channelId);
     if (sub === '/rename'   && m === 'POST') return renameChannel(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/icon'     && m === 'POST') return setChannelIcon(env, me, channelId, await request.json().catch(() => ({})));
+    if (sub === '/icon-upload' && m === 'POST') return uploadChannelIcon(request, env, me, channelId);
+    if (sub === '/archive'  && m === 'POST') return archiveChannel(env, me, channelId, await request.json().catch(() => ({})));
     // /api/chat/channels/:id/members/:uid/role (POST) — назначить/снять админа
     const roleMatch = sub.match(/^\/members\/(.+)\/role$/);
     if (roleMatch && m === 'POST') return setMemberRole(env, me, channelId, decodeURIComponent(roleMatch[1]), await request.json().catch(() => ({})));
