@@ -7218,8 +7218,10 @@ async function pullNomenclatureMirrorForBase(env, tenantId, baseKey) {
   // 10 000 строк со всеми полями выбивал у 1С:Фреш защитный лимит (HTTP 402 →
   // кулдаун всего аккаунта). Лёгкие страницы с паузой держат нагрузку низкой.
   // Зеркало пишется upsert'ом по ref_key, поэтому перекрытие окон $skip безвредно.
+  // У Catalog_Номенклатура единица — это БазоваяЕдиницаИзмерения_Key; поля
+  // ЕдиницаИзмерения_Key тут НЕТ, и его наличие в $select даёт 400 OData.
   const NOMEN_SELECT = ["Ref_Key", "Code", "Description", "НаименованиеПолное", "Артикул",
-    "БазоваяЕдиницаИзмерения_Key", "ЕдиницаИзмерения_Key", "СтавкаНДС_Key", "IsFolder", "DeletionMark"];
+    "БазоваяЕдиницаИзмерения_Key", "СтавкаНДС_Key", "IsFolder", "DeletionMark"];
   const PAGE = 2000;
   const raw = [];
   for (let skip = 0, page = 0; page < 40; page += 1) {
