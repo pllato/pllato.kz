@@ -570,6 +570,12 @@ async function dealChatLoad(bg,d){
       mic.onclick=()=>micToggle('/api/deals/'+d.id+'/chat/audio', mic, ()=>{ data.messages=data.messages||[]; data.messages.push({dir:'out',body:'🎤 голосовое',ts:Date.now(),channel_id:curChannel}); render(); }, ()=>({channel_id:curChannel}));
     }
   }
+  // кнопка «шаблон» в композере
+  { const comp=bg.querySelector('#dmChatComp'); if(comp && !comp.querySelector('#dmChatTpl')){
+    const tb=el(`<button class="cw-send" id="dmChatTpl" title="Вставить шаблон" style="margin-right:6px">${ic('i-doc')}</button>`);
+    comp.insertBefore(tb, comp.firstChild);
+    tb.onclick=()=>pickTemplate(tb,{'имя':d.client_name||'','точка':storeName(dealStore)},text=>{ ta.value=text; ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,100)+'px'; ta.focus(); });
+  } }
   const send=async()=>{
     const v=ta.value.trim(); if(!v) return;
     ta.value=''; ta.style.height='auto';
@@ -1026,7 +1032,7 @@ function ibChat(){
       <div class="spacer"></div></div>
     <div class="chat-body" id="ibChatBody">${bodyHtml}</div>
     ${fromBar}
-    <div class="chat-input"><div class="ci-box"><input id="ibMsgInput" placeholder="Сообщение в WhatsApp…"></div>${__ibAllowAudio?`<button class="btn primary" id="ibMic" title="Голосовое: тап — запись, тап ещё раз — отправить">${ic('i-mic','sm')}</button>`:''}<button class="btn primary" id="ibSendBtn">${ic('i-send','sm')}</button></div>`;
+    <div class="chat-input"><div class="ci-box"><input id="ibMsgInput" placeholder="Сообщение в WhatsApp…"></div><button class="btn" id="ibTpl" title="Вставить шаблон">${ic('i-doc','sm')}</button>${__ibAllowAudio?`<button class="btn primary" id="ibMic" title="Голосовое: тап — запись, тап ещё раз — отправить">${ic('i-mic','sm')}</button>`:''}<button class="btn primary" id="ibSendBtn">${ic('i-send','sm')}</button></div>`;
   const cb=box.querySelector('#ibChatBody'); if(cb)cb.scrollTop=cb.scrollHeight;
   const inp=box.querySelector('#ibMsgInput'), sb=box.querySelector('#ibSendBtn');
   const refStore=(chById[t.channel_id]||{}).store_key||null; // точка исходного номера диалога
@@ -1048,6 +1054,7 @@ function ibChat(){
   };
   if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
   if(sb)sb.onclick=send;
+  const tplBtn=box.querySelector('#ibTpl'); if(tplBtn) tplBtn.onclick=()=>pickTemplate(tplBtn,{'имя':t.title||t.phone||''},text=>{ if(inp){ inp.value=text; inp.focus(); } });
   const mic=box.querySelector('#ibMic'); if(mic) mic.onclick=()=>micToggle('/api/inbox/threads/'+encodeURIComponent(t.id)+'/audio', mic, ()=>{ (__ibMsgsCache[t.id]=__ibMsgsCache[t.id]||[]).push({dir:'out',body:'🎤 голосовое',ts:Date.now(),channel_id:t._sendCh}); ibChat(); }, ()=>({channel_id:t._sendCh}));
 }
 function ibContext(){
@@ -2597,6 +2604,24 @@ function subModalLive(s,onSaved){
 // ---------- TRIGGERS ----------
 // Подстановка переменных в шаблон (зеркало серверной fillTemplate)
 function fillTpl(text,vars){ vars=vars||{}; return String(text||'').replace(/\{(имя|точка|сумма|дней)\}/g,(m,k)=>(vars[k]!=null&&vars[k]!=='')?String(vars[k]):''); }
+// Кэш шаблонов на сессию (чтобы не дёргать API на каждый чат)
+async function waTplCached(force){ if(!force && window.__waTplCache) return window.__waTplCache; const r=await api('/api/wa/templates'); window.__waTplCache=(r&&r.ok&&r.data&&r.data.templates)||{}; return window.__waTplCache; }
+// Всплывающее меню выбора шаблона у кнопки (в композере чата). onPick(filledText).
+async function pickTemplate(btn, vars, onPick){
+  const tpls=await waTplCached(); const keys=Object.keys(tpls);
+  document.querySelectorAll('.tpl-menu').forEach(m=>m.remove());
+  if(!keys.length){ toast('Шаблонов нет — добавьте в «Триггеры → Шаблоны»','i-info'); return; }
+  const menu=el(`<div class="tpl-menu" style="position:fixed;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);max-height:280px;overflow:auto;width:320px;max-width:88vw;padding:6px">
+    <div class="muted2" style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:5px 8px 6px">Вставить шаблон</div>
+    ${keys.map(k=>`<button class="tpl-item" data-k="${esc(k)}" style="display:block;width:100%;text-align:left;padding:8px 10px;border-radius:8px;color:var(--txt)"><b style="font-size:12.5px">${esc(tplLabel(k,tpls[k]))}</b><div class="muted2" style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc((fillTpl((tpls[k]||{}).text,vars)||'').slice(0,80))}</div></button>`).join('')}</div>`);
+  document.body.appendChild(menu);
+  const rect=btn.getBoundingClientRect();
+  let top=rect.top-menu.offsetHeight-6; if(top<8) top=rect.bottom+6;
+  let left=rect.right-menu.offsetWidth; if(left<8) left=8;
+  menu.style.top=top+'px'; menu.style.left=left+'px';
+  menu.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{ onPick(fillTpl((tpls[b.dataset.k]||{}).text,vars)); menu.remove(); });
+  setTimeout(()=>{ const close=(e)=>{ if(!menu.contains(e.target)&&e.target!==btn){ menu.remove(); document.removeEventListener('mousedown',close); } }; document.addEventListener('mousedown',close); },10);
+}
 const TPL_LBL={birthday:'🎂 День рождения',lapsed:'⏳ Давно не покупали',repeat:'🔁 Повтор покупки',order_ready:'📦 Заказ собран',order_shipped:'🚚 Заказ отправлен'};
 const tplLabel=(k,t)=>TPL_LBL[k]||(t&&t.name)||k;
 // Модалка: отправить сообщение клиенту в WhatsApp (шаблон подставлен, менеджер проверяет)
