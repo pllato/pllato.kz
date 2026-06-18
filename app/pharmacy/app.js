@@ -514,6 +514,8 @@ async function dealChatLoad(bg,d){
   const data=r.data||{};
   const chans=data.channels||[]; const multi=chans.length>1; const hasCh=chans.length>=1;
   const chById=Object.fromEntries(chans.map(c=>[c.id,c]));
+  const dealStore=(d&&d.store_key)||data.store_key||null;
+  const stores=hasCh?await fetchStores():[]; const storeName=(k)=>{ if(!k)return'без точки'; const s=stores.find(x=>x.ref_key===k); return s?s.name:'точка'; };
   let curChannel=data.send_channel_id||(chans[0]&&chans[0].id)||null;
   const chTag=(id)=>{ const c=chById[id]; if(!c)return ''; return ` <span class="cw-via">через ${esc(c.name||'WhatsApp')}</span>`; };
   const render=()=>{
@@ -540,8 +542,18 @@ async function dealChatLoad(bg,d){
         +`<option disabled>──────────</option><option value="__add">＋ нужен доп. номер? добавьте в «Интеграции»</option>`;
       const fromBar=el(`<div class="cw-from" id="dmChatFrom">${ic('i-phone','sm')} <span class="muted2">Отправитель:</span> <select class="sel sm">${opts}</select></div>`);
       comp.parentNode.insertBefore(fromBar, comp);
-      const sel=fromBar.querySelector('select');
-      sel.onchange=async()=>{ if(sel.value==='__add'){ sel.value=curChannel||''; closeModal(); go('integrations'); toast('Добавьте номер: «Добавить номер»','i-phone'); return; } curChannel=sel.value; if(data.thread_id){ await api('/api/inbox/threads/'+data.thread_id+'/send-channel',{method:'POST',body:JSON.stringify({channel_id:curChannel})}); } toast('Отвечаем с номера: '+((chById[curChannel]||{}).name||'WhatsApp'),'i-phone','var(--wa)'); };
+      const sel=fromBar.querySelector('select'); let prevVal=curChannel;
+      sel.onchange=async()=>{
+        if(sel.value==='__add'){ sel.value=prevVal||''; closeModal(); go('integrations'); toast('Добавьте номер: «Добавить номер»','i-phone'); return; }
+        const c=chById[sel.value];
+        if(c && dealStore && c.store_key && c.store_key!==dealStore){
+          const ok=confirm('⚠ Внимание!\n\nНомер «'+(c.name||'WhatsApp')+'» привязан к точке «'+storeName(c.store_key)+'», а клиент относится к точке «'+storeName(dealStore)+'».\n\nКлиент получит сообщение с ДРУГОГО номера — у него это будет новый чат WhatsApp.\n\nВсё равно отвечать с этого номера?');
+          if(!ok){ sel.value=prevVal||''; return; }
+        }
+        curChannel=sel.value; prevVal=curChannel;
+        if(data.thread_id){ await api('/api/inbox/threads/'+data.thread_id+'/send-channel',{method:'POST',body:JSON.stringify({channel_id:curChannel})}); }
+        toast('Отвечаем с номера: '+((chById[curChannel]||{}).name||'WhatsApp'),'i-phone','var(--wa)');
+      };
     }
   }
   if(!canSend){
@@ -950,7 +962,7 @@ const _legacyInboxDemo=(c)=>{   // старый демо-инбокс (не ис
   const cb=$('#chatBody');if(cb)cb.scrollTop=cb.scrollHeight;
 };
 // ---------- ЧАТЫ (live · омни-чат WhatsApp/GreenAPI) ----------
-let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibDeal={}, __ibWrap=null, __ibChannelFilter=null, __ibAllowAudio=false, __ibChannels=[];
+let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibDeal={}, __ibWrap=null, __ibChannelFilter=null, __ibAllowAudio=false, __ibChannels=[], __ibStores=[];
 async function liveInbox(c){
   __ibWrap=el(`<div class="inbox"></div>`);
   __ibWrap.innerHTML='<div class="ib-threads"></div><div class="ib-chat"></div><div class="ib-context"></div>';
@@ -960,6 +972,7 @@ async function liveInbox(c){
   __ibThreads=(r&&r.ok&&r.data&&Array.isArray(r.data.items))?r.data.items:[];
   __ibAllowAudio=!!(r&&r.ok&&r.data&&r.data.allow_audio);
   __ibChannels=(r&&r.ok&&r.data&&Array.isArray(r.data.channels))?r.data.channels:[];
+  if(__ibChannels.length>1) __ibStores=await fetchStores();
   window.__inboxUnread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0); renderNav();
   if((!__ibCur || !__ibThreads.some(t=>t.id===__ibCur)) && __ibThreads.length) __ibCur=__ibThreads[0].id;
   ibThreadList(); ibChat(); ibContext();
@@ -1016,7 +1029,17 @@ function ibChat(){
     <div class="chat-input"><div class="ci-box"><input id="ibMsgInput" placeholder="Сообщение в WhatsApp…"></div>${__ibAllowAudio?`<button class="btn primary" id="ibMic" title="Голосовое: тап — запись, тап ещё раз — отправить">${ic('i-mic','sm')}</button>`:''}<button class="btn primary" id="ibSendBtn">${ic('i-send','sm')}</button></div>`;
   const cb=box.querySelector('#ibChatBody'); if(cb)cb.scrollTop=cb.scrollHeight;
   const inp=box.querySelector('#ibMsgInput'), sb=box.querySelector('#ibSendBtn');
-  const fromSel=box.querySelector('#ibFrom'); if(fromSel) fromSel.onchange=async()=>{ if(fromSel.value==='__add'){ fromSel.value=t._sendCh||''; go('integrations'); toast('Добавьте номер: «Добавить номер»','i-phone'); return; } t._sendCh=fromSel.value; t.send_channel_id=fromSel.value; await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/send-channel',{method:'POST',body:JSON.stringify({channel_id:t._sendCh})}); toast('Отвечаем с номера: '+((chById[t._sendCh]||{}).name||'WhatsApp'),'i-phone','var(--wa)'); };
+  const refStore=(chById[t.channel_id]||{}).store_key||null; // точка исходного номера диалога
+  const stName=(k)=>{ if(!k)return'без точки'; const s=__ibStores.find(x=>x.ref_key===k); return s?s.name:'точка'; };
+  const fromSel=box.querySelector('#ibFrom'); if(fromSel){ let prevVal=t._sendCh; fromSel.onchange=async()=>{
+    if(fromSel.value==='__add'){ fromSel.value=prevVal||''; go('integrations'); toast('Добавьте номер: «Добавить номер»','i-phone'); return; }
+    const c=chById[fromSel.value];
+    if(c && refStore && c.store_key && c.store_key!==refStore){
+      const ok=confirm('⚠ Внимание!\n\nНомер «'+(c.name||'WhatsApp')+'» привязан к точке «'+stName(c.store_key)+'», а диалог пришёл на точку «'+stName(refStore)+'».\n\nКлиент получит сообщение с ДРУГОГО номера — у него это будет новый чат WhatsApp.\n\nВсё равно отвечать с этого номера?');
+      if(!ok){ fromSel.value=prevVal||''; return; }
+    }
+    t._sendCh=fromSel.value; t.send_channel_id=fromSel.value; prevVal=t._sendCh;
+    await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/send-channel',{method:'POST',body:JSON.stringify({channel_id:t._sendCh})}); toast('Отвечаем с номера: '+((chById[t._sendCh]||{}).name||'WhatsApp'),'i-phone','var(--wa)'); }; }
   const send=async()=>{ const v=(inp.value||'').trim(); if(!v)return; inp.value='';
     const r=await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/send',{method:'POST',body:JSON.stringify({text:v,channel_id:t._sendCh})});
     if(!r.ok){ toast(r.data&&r.data.error?r.data.error:'Не доставлено','i-info','#dc2626'); inp.value=v; return; }
