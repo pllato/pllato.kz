@@ -7401,6 +7401,30 @@ async function handle1cReadNomenclatureCatalog(request, env, actor) {
   return { ok: true, items: page, total, counts, source: usedApproved ? "approved" : "1c" };
 }
 
+// GET /api/crm/catalog/approved/lots?base=&code= — серии/партии товара утверждённого
+// каталога. Данные в store-коллекции catalog_lots_<base>: { code, series:[{lot,srok,stock}] }.
+// Ответ: { series:[...] } (фронт раскрывает партии под строкой каталога).
+async function handleCatalogApprovedLots(request, env, actor) {
+  const url = new URL(request.url);
+  const base = (url.searchParams.get("base") || "").trim();
+  const code = (url.searchParams.get("code") || "").trim();
+  if (!base || !code || !/^[a-z0-9_]+$/.test(base)) return { ok: true, series: [] };
+  const db = requireStoreDb(env);
+  const collection = `catalog_lots_${base}`;
+  // id строки = код товара (так пишет импорт), поэтому прямой lookup; с фолбэком на скан.
+  let row = await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? AND id=? LIMIT 1`)
+    .bind(TEAM_ID, collection, code).first();
+  if (!row?.data) {
+    const res = await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=?`).bind(TEAM_ID, collection).run();
+    for (const r of (res.results || [])) {
+      try { const o = JSON.parse(r.data); if (o && o.code === code) { row = { data: r.data }; break; } } catch { /* skip */ }
+    }
+  }
+  if (!row?.data) return { ok: true, series: [] };
+  let obj; try { obj = JSON.parse(row.data); } catch { return { ok: true, series: [] }; }
+  return { ok: true, series: Array.isArray(obj.series) ? obj.series : [] };
+}
+
 // POST /api/crm/1c/products/map — ручная привязка товара склада к номенклатуре 1С.
 async function handle1cMapProduct(request, env, actor) {
   require1cAdmin(actor);
@@ -7727,6 +7751,10 @@ export default {
       if (request.method === "GET" && path === "/api/crm/1c/nomenclature/catalog") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handle1cReadNomenclatureCatalog(request, env, actor));
+      }
+      if (request.method === "GET" && path === "/api/crm/catalog/approved/lots") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleCatalogApprovedLots(request, env, actor));
       }
       if (request.method === "POST" && path === "/api/crm/1c/nomenclature/catalog/pull") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
