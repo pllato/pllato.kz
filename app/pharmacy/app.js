@@ -1414,7 +1414,9 @@ PAGES.marketing=(c)=>{
   const tbar=el(`<div class="toolbar section-gap">
     <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по коду, блогеру, типу…" data-mk="q"></div>
     <div class="spacer"></div>
+    <button class="btn" id="mkArch" title="Показать архивные промокоды">Архив</button>
     <button class="btn primary" id="newPromoBtn">${ic('i-plus','sm')} Промокод</button></div>`);
+  let showArch=false;
   const panel=el(`<div class="panel"><table class="tbl"><thead><tr><th>Код</th><th>Тип</th><th>Скидка</th><th>Срок</th><th>Блогер</th><th class="num">Исп.</th><th>Статус</th></tr></thead><tbody><tr><td colspan="7" class="muted2" style="font-size:13px;padding:14px">Загрузка…</td></tr></tbody></table></div>`);
   const cardsPanel=el(`<div class="panel section-gap"><div class="panel-h"><h3>${ic('i-tag','sm')} Карты и промокоды из 1С</h3><span class="ph-sub" style="margin-left:auto">виды дисконтных карт · только просмотр</span></div><div id="mkCardTypes"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>`);
   c.appendChild(cards); c.appendChild(tbar); c.appendChild(panel); c.appendChild(cardsPanel);
@@ -1438,17 +1440,19 @@ PAGES.marketing=(c)=>{
     items.forEach(p=>{ const tr=el(`<tr class="clickable"><td><b>${esc(p.code)}</b><div class="muted2" style="font-size:11px" title="На что распространяется">${scopeSummary(p.scope)}</div></td><td>${typeTag(p.type)}</td>
       <td>−${p.value||0}${p.kind==='fixed'?' с':'%'}</td><td class="muted2">${p.expires_at?(esc(p.expires_at)+(expd(p.expires_at)?' ⚠':'')):'бессрочно'}</td>
       <td class="muted">${esc(p.blogger||'—')}</td><td class="num">${(p.uses_1c!=null?p.uses_1c:(p.uses||0))}${p.limit_uses?('/'+p.limit_uses):''}${p.revenue_1c?`<div class="muted2" style="font-size:11px;font-weight:600">${money(p.revenue_1c)}</div>`:''}</td>
-      <td><span class="tag ${p.active?'green':'red'}">${p.active?'активен':'на паузе'}</span></td></tr>`);
+      <td>${p.archived?'<span class="tag">архив</span>':`<span class="tag ${p.active?'green':'red'}">${p.active?'активен':'на паузе'}</span>`}</td></tr>`);
       tr.onclick=()=>promoModalLive(p,load); tb.appendChild(tr); });
   }
   async function load(){
     const q=qI.value.trim();
-    const r=await api('/api/promos'+(q?('?q='+encodeURIComponent(q)):''));
+    const qs=[]; if(q)qs.push('q='+encodeURIComponent(q)); if(showArch)qs.push('archived=1');
+    const r=await api('/api/promos'+(qs.length?('?'+qs.join('&')):''));
     if(!r.ok){ cards.innerHTML=miniStat('i-tag','#10b981','Промокоды','демо'); tb.innerHTML=(DB.promos||[]).map(p=>`<tr><td><b>${esc(p.code)}</b></td><td>${typeTag(p.type)}</td><td>−${p.disc}%</td><td class="muted2">${esc(p.until||'')}</td><td class="muted">${esc(p.blogger||'—')}</td><td class="num">${p.used}</td><td><span class="tag ${p.status==='активна'?'green':'red'}">${esc(p.status)}</span></td></tr>`).join(''); return; }
     render(r.data.items||[], r.data.totals||{});
   }
   let qt=null; qI.addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(load,300);});
   tbar.querySelector('#newPromoBtn').onclick=()=>newPromoLive(load);
+  const archBtn=tbar.querySelector('#mkArch'); archBtn.onclick=()=>{ showArch=!showArch; archBtn.classList.toggle('primary',showArch); archBtn.textContent=showArch?'Скрыть архив':'Архив'; load(); };
   load();
 };
 const miniStat=(i,col,lbl,val)=>`<div class="kpi"><div class="k-ic" style="background:${col}22;color:${col}">${ic(i)}</div><div class="k-lbl">${lbl}</div><div class="k-val">${val}</div></div>`;
@@ -1475,7 +1479,7 @@ async function newPromoLive(onSaved){
     <div class="fld-row"><div class="fld"><label>Скидка</label><input data-np="value" type="number" value="10"></div><div class="fld"><label>Вид</label><select data-np="kind"><option value="percent">% процент</option><option value="fixed">сом фикс.</option></select></div></div>
     <div class="fld-row"><div class="fld"><label>Срок действия</label><input type="date" data-np="exp"></div><div class="fld"><label>Лимит использований</label><input data-np="limit" type="number" placeholder="без лимита"></div></div>
     <div class="fld"><label>Блогер (если код блогерский)</label><input data-np="blogger" placeholder="@nick"></div>
-    <div class="fld"><label>Вид карты в 1С (запишется как дисконтная карта)</label><select data-np="type_key"><option value="">— не писать в 1С —</option>${cardTypes.map(t=>`<option value="${esc(t.ref_key)}">${esc(t.name)}</option>`).join('')}</select></div>
+    <div class="fld"><label title="В 1С нет отдельной сущности «промокод» — он хранится как дисконтная карта определённого вида. Выбери вид, под которым промокод запишется в 1С при синхронизации.">Записать в 1С как дисконтную карту</label><select data-np="type_key"><option value="">— не писать в 1С (только CRM) —</option>${cardTypes.map(t=>`<option value="${esc(t.ref_key)}">${esc(t.name)}</option>`).join('')}</select><div class="muted2" style="font-size:11px;margin-top:3px">В 1С промокод = дисконтная карта. Выбранный вид определяет, под какой программой он создастся в 1С.</div></div>
     <div class="fld"><label>Комментарий</label><input data-np="note"></div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:12px"><label>На что распространяется</label><div data-np="scopebox"></div></div>
   </div>
@@ -1558,8 +1562,9 @@ async function promoModalLive(p,onSaved){
     <div class="fld"><label>Комментарий</label><input data-pm="note" value="${esc(p.note||'')}"></div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:12px"><label>На что распространяется</label><div data-pm="scopebox"></div></div>
   </div>
-  <div class="modal-f"><button class="btn" id="pmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" id="pmToggle">${p.active?'На паузу':'Активировать'}</button><button class="btn primary" id="pmSave">Сохранить</button></div>`);
+  <div class="modal-f"><button class="btn" id="pmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" id="pmArchive">${p.archived?'Из архива':'В архив'}</button><button class="btn" id="pmToggle">${p.active?'На паузу':'Активировать'}</button><button class="btn primary" id="pmSave">Сохранить</button></div>`);
   const scopeEd=makeScopeEditor(bg.querySelector('[data-pm=scopebox]'), parseScope(p.scope), allGroups);
+  bg.querySelector('#pmArchive').onclick=async()=>{ const r=await api('/api/promos/'+p.id,{method:'POST',body:JSON.stringify({archived:!p.archived})}); if(r.ok){closeModal();toast(p.archived?'Возвращён из архива':'Перенесён в архив','i-tag');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
   bg.querySelector('#pmSave').onclick=async()=>{ const body={code:bg.querySelector('[data-pm=code]').value.trim(),type:bg.querySelector('[data-pm=type]').value,kind:bg.querySelector('[data-pm=kind]').value,value:Number(bg.querySelector('[data-pm=value]').value)||0,expires_at:bg.querySelector('[data-pm=exp]').value,limit_uses:bg.querySelector('[data-pm=limit]').value,uses:Number(bg.querySelector('[data-pm=uses]').value)||0,blogger:bg.querySelector('[data-pm=blogger]').value.trim(),note:bg.querySelector('[data-pm=note]').value.trim(),scope:scopeEd.get()}; const r=await api('/api/promos/'+p.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
   bg.querySelector('#pmToggle').onclick=async()=>{ const r=await api('/api/promos/'+p.id,{method:'POST',body:JSON.stringify({active:!p.active})}); if(r.ok){closeModal();toast(p.active?'Промокод на паузе':'Промокод активирован','i-tag');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
   bg.querySelector('#pmDel').onclick=async()=>{ if(!confirm('Удалить промокод?'))return; const r=await api('/api/promos/'+p.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
