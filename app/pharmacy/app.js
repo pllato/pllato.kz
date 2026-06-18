@@ -1824,10 +1824,10 @@ function doctorModalLive(d,rate,period){
       <div class="fld"><label>Город</label><input value="${esc(d.city||'')}" readonly></div>
       <div class="fld"><label>Дата рождения</label><input value="${esc((d.dob||'').slice(0,10))}" readonly></div>
     </div>
-    <div class="panel section-gap" style="margin-top:14px"><div class="panel-h"><h3>${ic('i-cart','sm')} Продажи по врачу · 1С</h3><span class="ph-sub" id="docHistSub" style="margin-left:auto">загрузка…</span></div>
-      <div id="docHist"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>
-    <div class="panel section-gap" style="margin-top:14px"><div class="panel-h"><h3>${ic('i-gift','sm')} Кэшбэк — история начислений</h3><span class="ph-sub" id="docCbSub" style="margin-left:auto">загрузка…</span></div>
-      <div id="docCb"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>
+    <details class="fold section-gap" style="margin-top:14px"><summary><h3>${ic('i-cart','sm')} Продажи по врачу · 1С</h3><span class="ph-sub" id="docHistSub">загрузка…</span></summary>
+      <div id="docHist"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></details>
+    <details class="fold section-gap" style="margin-top:14px"><summary><h3>${ic('i-gift','sm')} Кэшбэк — история начислений</h3><span class="ph-sub" id="docCbSub">загрузка…</span></summary>
+      <div id="docCb"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></details>
   </div>
   <div class="modal-f">
     <button class="btn" id="cbReportBtn">${ic('i-doc','sm')} Выгрузить отчёт</button>
