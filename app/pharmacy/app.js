@@ -1802,6 +1802,9 @@ function doctorModalLive(d,rate,period){
   const remainingBase=hasPeriod?(d.revenue||0):Math.max(0,(d.revenue||0)-(d.cb_base||0));
   const cbSum=Math.round(remainingBase*(rate||0)/100); // к начислению (оценка)
   const accruedAmt=Math.round(d.cb_amount||0);          // уже начислено (за всё время)
+  // C: доходность = выручка − кэшбэк врача − кэшбэк клиента (оба ≈ по ставке, оценка)
+  const dCbEst=Math.round((d.revenue||0)*(rate||0)/100);
+  const marginEst=Math.max(0,(d.revenue||0)-dCbEst*2);
   const perLbl=hasPeriod?(' · период '+(period.from||'…')+'…'+(period.to||'…')):'';
   const cbKpiInner=(rem,acc)=>`<div class="k-ic" style="background:#db277722;color:#db2777">${ic('i-gift')}</div><div class="k-lbl">К начислению · ${rate}%${perLbl}</div><div class="k-val">${money(rem)}</div>${acc>0?`<div class="k-sub">уже начислено ${money(acc)} (всего)</div>`:''}`;
   openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.name||'?')}">${initials(d.name||'?')}</span>
@@ -1811,9 +1814,10 @@ function doctorModalLive(d,rate,period){
     <div class="cards-row">
       ${miniStat('i-money','#10b981','Выручка',money(d.revenue||0))}
       ${miniStat('i-cart','#7c3aed','Продаж',(d.docs||0).toLocaleString('ru-RU'))}
-      ${miniStat('i-box','#2563eb','Позиций',(d.qty||0).toLocaleString('ru-RU'))}
+      ${miniStat('i-chart','#16a34a','Доходность · оценка',money(marginEst))}
       <div class="kpi" id="cbKpi">${cbKpiInner(cbSum,accruedAmt)}</div>
     </div>
+    <div class="muted2" style="font-size:11px;margin-top:6px">Доходность (оценка) = выручка − кэшбэк врача − кэшбэк клиента (оба ≈ по ставке ${rate}%). Точные правила по брендам уточним.</div>
     <div class="grid-2b section-gap">
       <div class="fld"><label>Промокод (код 1С)</label><input value="${esc(d.code||'')}" readonly></div>
       <div class="fld"><label>Телефон</label><input value="${esc(d.phone||'')}" readonly></div>
@@ -1822,6 +1826,8 @@ function doctorModalLive(d,rate,period){
     </div>
     <div class="panel section-gap" style="margin-top:14px"><div class="panel-h"><h3>${ic('i-cart','sm')} Продажи по врачу · 1С</h3><span class="ph-sub" id="docHistSub" style="margin-left:auto">загрузка…</span></div>
       <div id="docHist"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>
+    <div class="panel section-gap" style="margin-top:14px"><div class="panel-h"><h3>${ic('i-gift','sm')} Кэшбэк — история начислений</h3><span class="ph-sub" id="docCbSub" style="margin-left:auto">загрузка…</span></div>
+      <div id="docCb"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>
   </div>
   <div class="modal-f">
     <button class="btn" id="cbReportBtn">${ic('i-doc','sm')} Выгрузить отчёт</button>
@@ -1839,6 +1845,19 @@ function doctorModalLive(d,rate,period){
   };
   const rep=document.getElementById('cbReportBtn'); if(rep) rep.onclick=()=>exportDoctorReport(d);
   loadDoctorHistory(d.ref_key);
+  loadDoctorCashback(d.ref_key);
+}
+async function loadDoctorCashback(ref){
+  const box=document.getElementById('docCb'), sub=document.getElementById('docCbSub');
+  if(!box) return;
+  const r=await api('/api/1c/doctors/cashback?doctor='+encodeURIComponent(ref));
+  if(!r.ok){ if(sub)sub.textContent='нет связи'; box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">Недоступно</div>'; return; }
+  const it=r.data.items||[];
+  const acc=it.filter(x=>x.status==='accrued').reduce((a,x)=>a+(x.amount||0),0), paid=it.filter(x=>x.status==='paid').reduce((a,x)=>a+(x.amount||0),0);
+  if(sub) sub.textContent = it.length ? ('к выплате '+money(acc)+' · выплачено '+money(paid)) : 'начислений нет';
+  if(!it.length){ box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">Начислений по этому врачу пока нет — кнопка «Начислить кэшбек» ниже.</div>'; return; }
+  const per=x=>(x.period_from||x.period_to)?((x.period_from||'…')+'…'+(x.period_to||'…')):'всё время';
+  box.innerHTML='<table class="tbl"><thead><tr><th>Дата</th><th>Период</th><th class="num">База</th><th class="num">Ставка</th><th class="num">Кэшбэк</th><th>Статус</th></tr></thead><tbody>'+it.map(x=>`<tr><td class="muted2">${esc(new Date(x.created_at).toLocaleDateString('ru-RU'))}</td><td class="muted2" style="font-size:12px">${esc(per(x))}</td><td class="num">${money(x.base_revenue||0)}</td><td class="num">${x.rate||0}%</td><td class="num">${money(x.amount||0)}</td><td>${x.status==='paid'?'<span class="tag green">выплачено</span>':'<span class="tag amber">начислено</span>'}</td></tr>`).join('')+'</tbody></table>';
 }
 async function exportDoctorReport(d){
   toast('Готовлю отчёт…','i-doc');
