@@ -1428,7 +1428,7 @@ PAGES.marketing=(c)=>{
     cards.innerHTML = miniStat('i-tag','#10b981','Активных промокодов',(tt.active||0)) + miniStat('i-doc','#2563eb','Всего промокодов',(tt.total||0)) + miniStat('i-star','#db2777','Блогерских кодов',(tt.blogger||0));
     if(!items.length){ tb.innerHTML='<tr><td colspan="7" class="muted2" style="font-size:13px;padding:16px">Промокодов нет. Нажмите «Промокод».</td></tr>'; return; }
     tb.innerHTML='';
-    items.forEach(p=>{ const tr=el(`<tr class="clickable"><td><b>${esc(p.code)}</b></td><td>${typeTag(p.type)}</td>
+    items.forEach(p=>{ const tr=el(`<tr class="clickable"><td><b>${esc(p.code)}</b><div class="muted2" style="font-size:11px" title="На что распространяется">${scopeSummary(p.scope)}</div></td><td>${typeTag(p.type)}</td>
       <td>−${p.value||0}${p.kind==='fixed'?' с':'%'}</td><td class="muted2">${p.expires_at?(esc(p.expires_at)+(expd(p.expires_at)?' ⚠':'')):'бессрочно'}</td>
       <td class="muted">${esc(p.blogger||'—')}</td><td class="num">${(p.uses_1c!=null?p.uses_1c:(p.uses||0))}${p.limit_uses?('/'+p.limit_uses):''}${p.revenue_1c?`<div class="muted2" style="font-size:11px;font-weight:600">${money(p.revenue_1c)}</div>`:''}</td>
       <td><span class="tag ${p.active?'green':'red'}">${p.active?'активен':'на паузе'}</span></td></tr>`);
@@ -1461,6 +1461,7 @@ function newPromo(){openModal(`<div class="modal-h"><div><h3>Новый пром
   <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" onclick="closeModal();toast('Промокод создан')">Создать</button></div>`);}
 async function newPromoLive(onSaved){
   const cardTypes=await fetchCardTypes();
+  const allGroups=await fetchGroups();
   const bg=openModal(`<div class="modal-h"><div><h3>Новый промокод</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld-row"><div class="fld"><label>Код *</label><input data-np="code" placeholder="LETO20"></div><div class="fld"><label>Тип</label><select data-np="type"><option>общая акция</option><option>сезонная</option><option>блогерский код</option><option>персональный</option></select></div></div>
@@ -1469,10 +1470,12 @@ async function newPromoLive(onSaved){
     <div class="fld"><label>Блогер (если код блогерский)</label><input data-np="blogger" placeholder="@nick"></div>
     <div class="fld"><label>Вид карты в 1С (запишется как дисконтная карта)</label><select data-np="type_key"><option value="">— не писать в 1С —</option>${cardTypes.map(t=>`<option value="${esc(t.ref_key)}">${esc(t.name)}</option>`).join('')}</select></div>
     <div class="fld"><label>Комментарий</label><input data-np="note"></div>
+    <div class="fld" style="border-top:1px solid var(--line);padding-top:12px"><label>На что распространяется</label><div data-np="scopebox"></div></div>
   </div>
   <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="npSave">Создать</button></div>`);
+  const scopeEd=makeScopeEditor(bg.querySelector('[data-np=scopebox]'), {}, allGroups);
   bg.querySelector('#npSave').onclick=async()=>{ const code=bg.querySelector('[data-np=code]').value.trim(); if(!code){toast('Укажите код','i-info');return;}
-    const body={code,type:bg.querySelector('[data-np=type]').value,kind:bg.querySelector('[data-np=kind]').value,value:Number(bg.querySelector('[data-np=value]').value)||0,expires_at:bg.querySelector('[data-np=exp]').value,limit_uses:bg.querySelector('[data-np=limit]').value,blogger:bg.querySelector('[data-np=blogger]').value.trim(),type_key:bg.querySelector('[data-np=type_key]').value||'',note:bg.querySelector('[data-np=note]').value.trim()};
+    const body={code,type:bg.querySelector('[data-np=type]').value,kind:bg.querySelector('[data-np=kind]').value,value:Number(bg.querySelector('[data-np=value]').value)||0,expires_at:bg.querySelector('[data-np=exp]').value,limit_uses:bg.querySelector('[data-np=limit]').value,blogger:bg.querySelector('[data-np=blogger]').value.trim(),type_key:bg.querySelector('[data-np=type_key]').value||'',note:bg.querySelector('[data-np=note]').value.trim(),scope:scopeEd.get()};
     const r=await api('/api/promos',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast(body.type_key?'Промокод создаётся в 1С (дисконтная карта)':'Промокод создан','i-tag'); onSaved&&onSaved(); };
 }
 function cardTypeModal(ct,onSaved){
@@ -1497,7 +1500,35 @@ function cardTypeModal(ct,onSaved){
     closeModal(); toast('Сохранено — уйдёт в 1С при обмене','i-check2'); onSaved&&onSaved();
   };
 }
-function promoModalLive(p,onSaved){
+async function fetchGroups(){ const r=await api('/api/1c/groups'); return (r&&r.ok)?(r.data.items||[]):[]; }
+function parseScope(s){ try{ return s?(typeof s==='string'?JSON.parse(s):s):{}; }catch(e){ return {}; } }
+// сводка scope для списка: «все товары» / «ROCS, Ирригаторы +N»
+function scopeSummary(s){ s=parseScope(s); const g=(s.groups||[]).map(x=>x.name), p=(s.products||[]); const parts=[...g]; if(p.length) parts.push(p.length+' тов.'); if(!parts.length) return '<span class="muted2">все товары</span>'; const head=parts.slice(0,2).join(', '); return esc(head)+(parts.length>2?(' +'+(parts.length-2)):''); }
+// Редактор «на что распространяется»: группы (бренды/категории) + конкретные товары. Пусто = все товары.
+function makeScopeEditor(box, scope, allGroups){
+  let groups=((scope&&scope.groups)||[]).map(g=>({ref:g.ref,name:g.name}));
+  let products=((scope&&scope.products)||[]).map(p=>({key:p.key,name:p.name}));
+  const chip=(name,kind,i)=>`<span class="chip on" style="cursor:default;margin:0 4px 4px 0">${esc(name)} <span data-rm${kind}="${i}" style="cursor:pointer;color:var(--red);font-weight:700">×</span></span>`;
+  function render(){
+    box.innerHTML=`<div class="muted2" style="font-size:11px;margin-bottom:6px">Пусто = промокод на ВСЕ товары. Можно выбрать группы (бренды/категории) и/или конкретные товары.</div>
+      <div class="row" style="gap:6px;align-items:flex-end;margin-bottom:6px">
+        <div class="fld" style="flex:1;margin:0"><label>Группа (бренд / категория)</label><select data-se="gsel"><option value="">— выбрать —</option>${allGroups.map(g=>`<option value="${esc(g.ref_key)}" data-name="${esc(g.name)}">${esc(g.name)} (${g.count})</option>`).join('')}</select></div>
+        <button type="button" class="btn sm" data-se="gadd">${ic('i-plus','sm')} группу</button>
+      </div>
+      <div style="margin-bottom:8px">${groups.length?groups.map((g,i)=>chip(g.name,'g',i)).join(''):'<span class="muted2" style="font-size:12px">группы не выбраны</span>'}</div>
+      <div class="fld" style="margin:0;position:relative"><label>Конкретные товары</label><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-se="psearch" placeholder="поиск товара в каталоге 1С" autocomplete="off" style="width:100%"></div><div data-se="psug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 2px);z-index:40;display:none;max-height:180px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div>
+      <div style="margin-top:6px">${products.length?products.map((p,i)=>chip(p.name,'p',i)).join(''):''}</div>`;
+    box.querySelector('[data-se=gadd]').onclick=()=>{ const sel=box.querySelector('[data-se=gsel]'); const ref=sel.value; if(!ref)return; const name=sel.options[sel.selectedIndex].dataset.name; if(!groups.some(g=>g.ref===ref)){ groups.push({ref,name}); render(); } };
+    box.querySelectorAll('[data-rmg]').forEach(b=>b.onclick=()=>{ groups.splice(+b.dataset.rmg,1); render(); });
+    box.querySelectorAll('[data-rmp]').forEach(b=>b.onclick=()=>{ products.splice(+b.dataset.rmp,1); render(); });
+    const ps=box.querySelector('[data-se=psearch]'), sug=box.querySelector('[data-se=psug]'); let qt;
+    ps.oninput=()=>{ clearTimeout(qt); const v=ps.value.trim(); if(v.length<2){sug.style.display='none';return;} qt=setTimeout(async()=>{ const r=await api('/api/1c/products?limit=8&q='+encodeURIComponent(v)); if(!r.ok||!(r.data.items||[]).length){sug.style.display='none';return;} sug.innerHTML=r.data.items.map(x=>`<div class="doc-row" data-key="${esc(x.ref_key)}" data-name="${esc(x.name)}"><div class="dt">${esc(x.name)}</div></div>`).join(''); sug.style.display='block'; sug.querySelectorAll('[data-key]').forEach(it=>it.onclick=()=>{ const key=it.dataset.key; if(!products.some(p=>p.key===key)) products.push({key,name:it.dataset.name}); ps.value=''; sug.style.display='none'; render(); }); },280); };
+  }
+  render();
+  return { get:()=>({groups:groups.map(g=>({ref:g.ref,name:g.name})), products:products.map(p=>({key:p.key,name:p.name}))}) };
+}
+async function promoModalLive(p,onSaved){
+  const allGroups=await fetchGroups();
   const bg=openModal(`<div class="modal-h"><div><h3>Промокод ${esc(p.code)}</h3><div class="mh-sub">${esc(p.type||'')} · −${p.value||0}${p.kind==='fixed'?' с':'%'}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="fld-row"><div class="fld"><label>Код</label><input data-pm="code" value="${esc(p.code||'')}"></div><div class="fld"><label>Тип</label><select data-pm="type">${['общая акция','сезонная','блогерский код','персональный'].map(x=>`<option ${x===p.type?'selected':''}>${x}</option>`).join('')}</select></div></div>
@@ -1505,9 +1536,11 @@ function promoModalLive(p,onSaved){
     <div class="fld-row"><div class="fld"><label>Срок действия</label><input type="date" data-pm="exp" value="${esc(p.expires_at||'')}"></div><div class="fld"><label>Лимит</label><input data-pm="limit" type="number" value="${p.limit_uses||''}"></div></div>
     <div class="fld-row"><div class="fld"><label>Использований (конверсии)</label><input data-pm="uses" type="number" min="0" value="${p.uses||0}"></div><div class="fld"><label>Блогер</label><input data-pm="blogger" value="${esc(p.blogger||'')}"></div></div>
     <div class="fld"><label>Комментарий</label><input data-pm="note" value="${esc(p.note||'')}"></div>
+    <div class="fld" style="border-top:1px solid var(--line);padding-top:12px"><label>На что распространяется</label><div data-pm="scopebox"></div></div>
   </div>
   <div class="modal-f"><button class="btn" id="pmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" id="pmToggle">${p.active?'На паузу':'Активировать'}</button><button class="btn primary" id="pmSave">Сохранить</button></div>`);
-  bg.querySelector('#pmSave').onclick=async()=>{ const body={code:bg.querySelector('[data-pm=code]').value.trim(),type:bg.querySelector('[data-pm=type]').value,kind:bg.querySelector('[data-pm=kind]').value,value:Number(bg.querySelector('[data-pm=value]').value)||0,expires_at:bg.querySelector('[data-pm=exp]').value,limit_uses:bg.querySelector('[data-pm=limit]').value,uses:Number(bg.querySelector('[data-pm=uses]').value)||0,blogger:bg.querySelector('[data-pm=blogger]').value.trim(),note:bg.querySelector('[data-pm=note]').value.trim()}; const r=await api('/api/promos/'+p.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
+  const scopeEd=makeScopeEditor(bg.querySelector('[data-pm=scopebox]'), parseScope(p.scope), allGroups);
+  bg.querySelector('#pmSave').onclick=async()=>{ const body={code:bg.querySelector('[data-pm=code]').value.trim(),type:bg.querySelector('[data-pm=type]').value,kind:bg.querySelector('[data-pm=kind]').value,value:Number(bg.querySelector('[data-pm=value]').value)||0,expires_at:bg.querySelector('[data-pm=exp]').value,limit_uses:bg.querySelector('[data-pm=limit]').value,uses:Number(bg.querySelector('[data-pm=uses]').value)||0,blogger:bg.querySelector('[data-pm=blogger]').value.trim(),note:bg.querySelector('[data-pm=note]').value.trim(),scope:scopeEd.get()}; const r=await api('/api/promos/'+p.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
   bg.querySelector('#pmToggle').onclick=async()=>{ const r=await api('/api/promos/'+p.id,{method:'POST',body:JSON.stringify({active:!p.active})}); if(r.ok){closeModal();toast(p.active?'Промокод на паузе':'Промокод активирован','i-tag');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
   bg.querySelector('#pmDel').onclick=async()=>{ if(!confirm('Удалить промокод?'))return; const r=await api('/api/promos/'+p.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
 }
