@@ -10516,7 +10516,12 @@ async function renderWaMessages(chatId, opts = {}) {
   const searchQuery = (opts.searchQuery || '').toLowerCase().trim();
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const r = await fetch(`${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(chatId)}&limit=200`, {
+    // При поиске — спрашиваем сервер по ВСЕЙ истории чата (q=...), а не только
+    // по загруженным 200 сообщениям. Без поиска — обычная подгрузка хвоста.
+    const qPart = searchQuery
+      ? `&q=${encodeURIComponent((opts.searchQuery || '').trim())}&limit=500`
+      : '&limit=200';
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(chatId)}${qPart}`, {
       headers: { 'Authorization': `Bearer ${idToken}` },
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
