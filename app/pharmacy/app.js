@@ -512,7 +512,7 @@ async function dealChatLoad(bg,d){
   const r=await api('/api/deals/'+d.id+'/chat');
   if(!r.ok){ box.innerHTML='<div class="cw-empty">Не удалось загрузить переписку</div>'; return; }
   const data=r.data||{};
-  const chans=data.channels||[]; const multi=chans.length>1;
+  const chans=data.channels||[]; const multi=chans.length>1; const hasCh=chans.length>=1;
   const chById=Object.fromEntries(chans.map(c=>[c.id,c]));
   let curChannel=data.send_channel_id||(chans[0]&&chans[0].id)||null;
   const chTag=(id)=>{ const c=chById[id]; if(!c)return ''; return ` <span class="cw-via">через ${esc(c.name||'WhatsApp')}</span>`; };
@@ -532,14 +532,16 @@ async function dealChatLoad(bg,d){
   render();
   const ta=bg.querySelector('#dmChatInput'), sb=bg.querySelector('#dmChatSend');
   const canSend = data.connected && data.reason!=='no_phone';
-  // селектор номера-отправителя (только если номеров > 1)
-  if(multi && canSend){
+  // селектор номера-отправителя (показываем всегда, даже если номер один)
+  if(hasCh && canSend){
     const comp=bg.querySelector('#dmChatComp');
     if(comp && !bg.querySelector('#dmChatFrom')){
-      const fromBar=el(`<div class="cw-from" id="dmChatFrom">${ic('i-phone','sm')} <span class="muted2">Отправитель:</span> <select class="sel sm">${chans.map(c=>`<option value="${esc(c.id)}" ${c.id===curChannel?'selected':''}>${esc(c.name||'WhatsApp')}${c.phone?(' · +'+esc(c.phone)):''}${c.funnel&&FUNNELS.find(f=>f.id===c.funnel)?(' · '+esc((FUNNELS.find(f=>f.id===c.funnel)||{}).name)):''}</option>`).join('')}</select></div>`);
+      const opts=chans.map(c=>`<option value="${esc(c.id)}" ${c.id===curChannel?'selected':''}>${esc(c.name||'WhatsApp')}${c.phone?(' · +'+esc(c.phone)):''}${c.funnel&&FUNNELS.find(f=>f.id===c.funnel)?(' · '+esc((FUNNELS.find(f=>f.id===c.funnel)||{}).name)):''}</option>`).join('')
+        +`<option disabled>──────────</option><option value="__add">＋ нужен доп. номер? добавьте в «Интеграции»</option>`;
+      const fromBar=el(`<div class="cw-from" id="dmChatFrom">${ic('i-phone','sm')} <span class="muted2">Отправитель:</span> <select class="sel sm">${opts}</select></div>`);
       comp.parentNode.insertBefore(fromBar, comp);
       const sel=fromBar.querySelector('select');
-      sel.onchange=async()=>{ curChannel=sel.value; if(data.thread_id){ await api('/api/inbox/threads/'+data.thread_id+'/send-channel',{method:'POST',body:JSON.stringify({channel_id:curChannel})}); } toast('Отвечаем с номера: '+((chById[curChannel]||{}).name||'WhatsApp'),'i-phone','var(--wa)'); };
+      sel.onchange=async()=>{ if(sel.value==='__add'){ sel.value=curChannel||''; closeModal(); go('integrations'); toast('Добавьте номер: «Добавить номер»','i-phone'); return; } curChannel=sel.value; if(data.thread_id){ await api('/api/inbox/threads/'+data.thread_id+'/send-channel',{method:'POST',body:JSON.stringify({channel_id:curChannel})}); } toast('Отвечаем с номера: '+((chById[curChannel]||{}).name||'WhatsApp'),'i-phone','var(--wa)'); };
     }
   }
   if(!canSend){
@@ -996,7 +998,7 @@ function ibChat(){
   if(!__ibThreads.length){ box.innerHTML=`<div class="empty" style="margin:auto;text-align:center">${ic('i-chat')}<div>Диалогов пока нет</div><div class="muted2" style="font-size:12px;margin-top:6px">Появятся при входящих на подключённый номер WhatsApp</div></div>`; return; }
   const t=__ibThreads.find(x=>x.id===__ibCur); if(!t){ box.innerHTML=''; return; }
   const nm=t.title||t.phone||'Диалог';
-  const multi=__ibChannels.length>1;
+  const multi=__ibChannels.length>1; const hasCh=__ibChannels.length>=1;
   const chById=Object.fromEntries(__ibChannels.map(c=>[c.id,c]));
   if(!t._sendCh) t._sendCh=t.send_channel_id||t.channel_id||(__ibChannels[0]&&__ibChannels[0].id)||null;
   const chTag=(id)=>{ const c=chById[id]; return c?` <span class="cw-via">через ${esc(c.name||'WhatsApp')}</span>`:''; };
@@ -1004,7 +1006,7 @@ function ibChat(){
   const bodyHtml = (msgs===undefined) ? '<div class="cw-empty" style="margin:auto">Загрузка…</div>'
     : (msgs.length ? msgs.map(m=>{const via=(multi&&m.dir==='out'&&m.channel_id)?chTag(m.channel_id):'';return `<div class="msg ${m.dir==='out'?'out':m.dir==='ai'?'ai':'in'}">${esc(m.body||'')}<div class="mt">${esc(cwFmtTime(m.ts))}${via}</div></div>`;}).join('')
       : '<div class="cw-empty" style="margin:auto">Сообщений пока нет — напишите первым ↓</div>');
-  const fromBar = multi?`<div class="cw-from">${ic('i-phone','sm')} <span class="muted2">Отправитель:</span> <select class="sel sm" id="ibFrom">${__ibChannels.map(c=>`<option value="${esc(c.id)}" ${c.id===t._sendCh?'selected':''}>${esc(c.name||'WhatsApp')}${c.phone?(' · +'+esc(c.phone)):''}</option>`).join('')}</select></div>`:'';
+  const fromBar = hasCh?`<div class="cw-from">${ic('i-phone','sm')} <span class="muted2">Отправитель:</span> <select class="sel sm" id="ibFrom">${__ibChannels.map(c=>`<option value="${esc(c.id)}" ${c.id===t._sendCh?'selected':''}>${esc(c.name||'WhatsApp')}${c.phone?(' · +'+esc(c.phone)):''}${c.funnel&&FUNNELS.find(f=>f.id===c.funnel)?(' · '+esc((FUNNELS.find(f=>f.id===c.funnel)||{}).name)):''}</option>`).join('')}<option disabled>──────────</option><option value="__add">＋ нужен доп. номер? добавьте в «Интеграции»</option></select></div>`:'';
   box.innerHTML=`<div class="chat-h"><div class="av" style="background:${avBg(nm)}">${esc(initials(nm))}</div>
       <div><div style="font-weight:700;font-size:14px">${esc(nm)}</div><div class="muted" style="font-size:11.5px">WhatsApp · GreenAPI${t.phone?(' · +'+esc(t.phone)):''}</div></div>
       <div class="spacer"></div></div>
@@ -1013,7 +1015,7 @@ function ibChat(){
     <div class="chat-input"><div class="ci-box"><input id="ibMsgInput" placeholder="Сообщение в WhatsApp…"></div>${__ibAllowAudio?`<button class="btn primary" id="ibMic" title="Голосовое: тап — запись, тап ещё раз — отправить">${ic('i-mic','sm')}</button>`:''}<button class="btn primary" id="ibSendBtn">${ic('i-send','sm')}</button></div>`;
   const cb=box.querySelector('#ibChatBody'); if(cb)cb.scrollTop=cb.scrollHeight;
   const inp=box.querySelector('#ibMsgInput'), sb=box.querySelector('#ibSendBtn');
-  const fromSel=box.querySelector('#ibFrom'); if(fromSel) fromSel.onchange=async()=>{ t._sendCh=fromSel.value; t.send_channel_id=fromSel.value; await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/send-channel',{method:'POST',body:JSON.stringify({channel_id:t._sendCh})}); toast('Отвечаем с номера: '+((chById[t._sendCh]||{}).name||'WhatsApp'),'i-phone','var(--wa)'); };
+  const fromSel=box.querySelector('#ibFrom'); if(fromSel) fromSel.onchange=async()=>{ if(fromSel.value==='__add'){ fromSel.value=t._sendCh||''; go('integrations'); toast('Добавьте номер: «Добавить номер»','i-phone'); return; } t._sendCh=fromSel.value; t.send_channel_id=fromSel.value; await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/send-channel',{method:'POST',body:JSON.stringify({channel_id:t._sendCh})}); toast('Отвечаем с номера: '+((chById[t._sendCh]||{}).name||'WhatsApp'),'i-phone','var(--wa)'); };
   const send=async()=>{ const v=(inp.value||'').trim(); if(!v)return; inp.value='';
     const r=await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/send',{method:'POST',body:JSON.stringify({text:v,channel_id:t._sendCh})});
     if(!r.ok){ toast(r.data&&r.data.error?r.data.error:'Не доставлено','i-info','#dc2626'); inp.value=v; return; }
