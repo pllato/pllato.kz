@@ -3577,17 +3577,46 @@ async function processScheduledWaMessages(env) {
   return { processed: results.length, sent, failed };
 }
 
-// GET /api/wa/chats?scope=mine|team|all&limit=200
+// Ленивая миграция: колонка archived в wa_chats (архив групповых/личных чатов).
+let _waArchivedColEnsured = false;
+async function ensureWaArchivedColumn(env) {
+  if (_waArchivedColEnsured) return;
+  try { await env.DB.prepare("ALTER TABLE wa_chats ADD COLUMN archived INTEGER DEFAULT 0").run(); }
+  catch (e) { /* колонка уже есть — ок */ }
+  _waArchivedColEnsured = true;
+}
+
+// POST /api/wa/chats/archive { chatId, archived } — архивировать/вернуть чат.
+async function handleWaArchiveChat(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const chatId = body.chatId;
+  if (!chatId) return json({ error: "chatId required" }, 400, request);
+  await ensureWaArchivedColumn(env);
+  const archived = body.archived === false ? 0 : 1;
+  await env.DB.prepare(
+    "UPDATE wa_chats SET archived = ?, updated_at = datetime('now') WHERE id = ?"
+  ).bind(archived, chatId).run();
+  return json({ ok: true, archived: !!archived }, 200, request);
+}
+
+// GET /api/wa/chats?scope=mine|team|all&limit=200&archived=0|1
 async function handleWaListChats(request, env) {
   const auth = await requireAuthFlexible(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
   const me = await resolveCanonicalUser(env, auth.claims);
+  await ensureWaArchivedColumn(env);
 
   const url = new URL(request.url);
   const limit = Math.min(500, Math.max(10, parseInt(url.searchParams.get("limit") || "200", 10) || 200));
   let scope = (url.searchParams.get("scope") || "").trim();
   if (!scope) scope = me.role === "admin" ? "all" : "mine";
   if (scope === "all" && me.role !== "admin") scope = "mine";
+  // По умолчанию архивные чаты скрыты; ?archived=1 — показать только архив.
+  const archivedParam = (url.searchParams.get("archived") || "").trim();
+  const wantArchived = (archivedParam === "1" || archivedParam === "true");
 
   let whereSQL = "";
   const params = [];
@@ -3612,8 +3641,10 @@ async function handleWaListChats(request, env) {
     for (const u of uids) params.push(u);
   }
 
+  const archivedCond = `COALESCE(c.archived, 0) = ${wantArchived ? 1 : 0}`;
+  const finalWhere = whereSQL ? `${whereSQL} AND ${archivedCond}` : `WHERE ${archivedCond}`;
   const { results } = await env.DB.prepare(`
-    SELECT c.* FROM wa_chats c ${whereSQL}
+    SELECT c.* FROM wa_chats c ${finalWhere}
     ORDER BY c.last_message_at DESC LIMIT ?
   `).bind(...params, limit).all();
 
@@ -3622,9 +3653,9 @@ async function handleWaListChats(request, env) {
     isGroup: !!r.is_group, name: r.name, contactId: r.contact_id, dealId: r.deal_id,
     lastMessageText: r.last_message_text, lastMessageAt: r.last_message_at,
     lastMessageFrom: r.last_message_from, lastReadAt: r.last_read_at,
-    unreadCount: r.unread_count || 0,
+    unreadCount: r.unread_count || 0, archived: !!r.archived,
   }));
-  return json({ items, total: items.length, scope }, 200, request);
+  return json({ items, total: items.length, scope, archived: wantArchived }, 200, request);
 }
 
 // GET /api/wa/messages?chatId=X&limit=200&before=ts&since=ts
@@ -7359,6 +7390,9 @@ export default {
     }
     if (path === "/api/wa/mark-all-read" && request.method === "POST") {
       return handleWaMarkAllRead(request, env);
+    }
+    if (path === "/api/wa/chats/archive" && request.method === "POST") {
+      return handleWaArchiveChat(request, env);
     }
     if (path === "/api/wa/mark-read-by-deal" && request.method === "POST") {
       return handleWaMarkReadByDeal(request, env);
