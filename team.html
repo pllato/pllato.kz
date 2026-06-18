@@ -6813,8 +6813,11 @@ function _waWidgetChatRowHtml(c) {
   const time = c.lastMessageAt ? formatWaShortTime(c.lastMessageAt) : '';
   const unread = c.unreadCount > 0 ? `<span class="wa-w-chat-unread">${c.unreadCount}</span>` : '';
   const groupLabel = isGroup ? `<span style="background:rgba(37,211,102,0.18);color:#1b5e20;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:6px;text-transform:uppercase">Группа</span>` : '';
+  const avatarInner = c.avatar
+    ? `<img src="${escapeHtml(c.avatar)}" alt="" style="width:100%;height:100%;object-fit:cover">`
+    : escapeHtml(avatarContent);
   return `<div class="wa-w-chat-row" data-chat-id="${escapeHtml(c.id)}">
-    <div class="wa-w-chat-avatar" style="background:${avatarBg};font-size:${isGroup ? '18px' : '14px'}">${escapeHtml(avatarContent)}</div>
+    <div class="wa-w-chat-avatar" style="background:${avatarBg};font-size:${isGroup ? '18px' : '14px'};overflow:hidden">${avatarInner}</div>
     <div class="wa-w-chat-body">
       <div class="wa-w-chat-name">
         <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}${groupLabel}</span>
@@ -10363,9 +10366,11 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
 
   const displayName = contactName || ('+' + (digits || ''));
   const initials = (displayName.match(/[A-Za-zА-Яа-я]/g) || ['?']).slice(0, 2).join('').toUpperCase();
+  const isGroupChat = String(chatId || '').includes('@g.us');
 
   // Резолвим имя канала (для шапки "Канал: X")
   let channelName = '';
+  let chatAvatar = '';
   let canonicalChatId = chatId;
   try {
     const idToken0 = await fbAuth.currentUser.getIdToken();
@@ -10375,7 +10380,7 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
     const match = list?.items?.find(c => c.chatId === chatId
       || (contactId && c.contactId === contactId)
       || (dealId && c.dealId === dealId));
-    if (match) canonicalChatId = match.id;
+    if (match) { canonicalChatId = match.id; chatAvatar = match.avatar || ''; }
     // Канал — берём первый активный (или по имени из match.instanceId)
     const ch = await fetch(`${WORKER_BASE_URL}/api/wa/channels`, {
       headers: { 'Authorization': `Bearer ${idToken0}` },
@@ -10391,7 +10396,8 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
   ov.className = 'wa-float';
   ov.innerHTML = `
     <div class="wa-float-head">
-      <div class="wa-float-avatar">${escapeHtml(initials)}</div>
+      <div class="wa-float-avatar" id="wa-float-avatar"${isGroupChat ? ' style="cursor:pointer;position:relative;overflow:hidden" title="Сменить иконку группы"' : ' style="overflow:hidden"'}>${chatAvatar ? `<img src="${escapeHtml(chatAvatar)}" alt="" style="width:100%;height:100%;object-fit:cover">` : escapeHtml(initials)}${isGroupChat ? '<span style="position:absolute;right:0;bottom:0;font-size:10px;background:rgba(0,0,0,.45);border-radius:50%;padding:0 1px">📷</span>' : ''}</div>
+      <input type="file" id="wa-float-avatar-file" accept="image/*" style="display:none">
       <div class="wa-float-meta">
         <div class="wa-float-name">${escapeHtml(displayName)}</div>
         <div class="wa-float-sub">${channelName ? 'Канал: ' + escapeHtml(channelName) : ('+' + escapeHtml(digits))}</div>
@@ -10467,6 +10473,32 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
         try { showToast(toArchive ? 'Чат архивирован' : 'Чат возвращён из архива'); } catch {}
       } catch (e) { alert('Ошибка: ' + e.message); }
     };
+  }
+
+  // Сменить иконку группового чата (загрузка фото → R2 → wa_chats.avatar)
+  if (isGroupChat) {
+    const avEl = document.getElementById('wa-float-avatar');
+    const avFile = document.getElementById('wa-float-avatar-file');
+    if (avEl && avFile) {
+      avEl.onclick = () => avFile.click();
+      avFile.onchange = async () => {
+        const file = avFile.files?.[0];
+        if (!file || !/^image\//.test(file.type)) return;
+        try {
+          const blob = await downscaleImage(file, 256);
+          const idToken = await fbAuth.currentUser.getIdToken();
+          const r = await fetch(`${WORKER_BASE_URL}/api/wa/chat-avatar?chatId=${encodeURIComponent(window.__waOpenState.canonicalChatId)}`, {
+            method: 'POST', headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'image/jpeg' }, body: blob,
+          });
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+          avEl.innerHTML = `<img src="${j.url}" alt="" style="width:100%;height:100%;object-fit:cover">`;
+          try { if (typeof refreshWaWidgetChats === 'function') { await refreshWaWidgetChats(); renderWaWidget(); } } catch {}
+          try { showToast('Иконка группы обновлена'); } catch {}
+        } catch (e) { alert('Ошибка: ' + e.message); }
+        finally { avFile.value = ''; }
+      };
+    }
   }
 
   await renderWaMessages(canonicalChatId);

@@ -3586,6 +3586,40 @@ async function ensureWaArchivedColumn(env) {
   _waArchivedColEnsured = true;
 }
 
+// Ленивая миграция: колонка avatar в wa_chats (кастомная иконка группы/чата).
+let _waAvatarColEnsured = false;
+async function ensureWaAvatarColumn(env) {
+  if (_waAvatarColEnsured) return;
+  try { await env.DB.prepare("ALTER TABLE wa_chats ADD COLUMN avatar TEXT").run(); }
+  catch (e) { /* колонка уже есть — ок */ }
+  _waAvatarColEnsured = true;
+}
+
+// POST /api/wa/chat-avatar?chatId=X (raw image body) — кастомная иконка чата
+// (в основном для групп). Кладём в R2, ставим wa_chats.avatar, отдаём URL.
+async function handleWaChatAvatarUpload(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  if (!env.FILES) return json({ error: "R2 binding FILES not configured" }, 500, request);
+  const url = new URL(request.url);
+  const chatId = (url.searchParams.get("chatId") || "").trim();
+  if (!chatId) return json({ error: "chatId required" }, 400, request);
+  const contentType = request.headers.get('Content-Type') || '';
+  if (!/^image\//i.test(contentType)) return json({ error: "Нужен файл-изображение" }, 400, request);
+  const body = await request.arrayBuffer();
+  if (body.byteLength === 0) return json({ error: "Пустой файл" }, 400, request);
+  if (body.byteLength > 3 * 1024 * 1024) return json({ error: "Файл слишком большой (макс 3 МБ)" }, 413, request);
+  const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
+  const rand = Math.random().toString(36).slice(2, 8);
+  const safe = String(chatId).replace(/[^\w.\-]/g, '_').slice(0, 80);
+  const r2Key = `wa-avatars/${safe}-${rand}.${ext}`;
+  await env.FILES.put(r2Key, body, { httpMetadata: { contentType }, customMetadata: { kind: 'wa-chat-avatar' } });
+  const publicUrl = `${url.origin}/api/avatar/${encodeURIComponent(r2Key)}`;
+  await ensureWaAvatarColumn(env);
+  await env.DB.prepare("UPDATE wa_chats SET avatar = ?, updated_at = datetime('now') WHERE id = ?").bind(publicUrl, chatId).run();
+  return json({ ok: true, url: publicUrl }, 200, request);
+}
+
 // POST /api/wa/chats/archive { chatId, archived } — архивировать/вернуть чат.
 async function handleWaArchiveChat(request, env) {
   const auth = await requireAuthFlexible(request, env);
@@ -3608,6 +3642,7 @@ async function handleWaListChats(request, env) {
   if (auth.error) return json({ error: auth.error }, auth.status, request);
   const me = await resolveCanonicalUser(env, auth.claims);
   await ensureWaArchivedColumn(env);
+  await ensureWaAvatarColumn(env);
 
   const url = new URL(request.url);
   const limit = Math.min(500, Math.max(10, parseInt(url.searchParams.get("limit") || "200", 10) || 200));
@@ -3653,7 +3688,7 @@ async function handleWaListChats(request, env) {
     isGroup: !!r.is_group, name: r.name, contactId: r.contact_id, dealId: r.deal_id,
     lastMessageText: r.last_message_text, lastMessageAt: r.last_message_at,
     lastMessageFrom: r.last_message_from, lastReadAt: r.last_read_at,
-    unreadCount: r.unread_count || 0, archived: !!r.archived,
+    unreadCount: r.unread_count || 0, archived: !!r.archived, avatar: r.avatar || null,
   }));
   return json({ items, total: items.length, scope, archived: wantArchived }, 200, request);
 }
@@ -7393,6 +7428,9 @@ export default {
     }
     if (path === "/api/wa/chats/archive" && request.method === "POST") {
       return handleWaArchiveChat(request, env);
+    }
+    if (path === "/api/wa/chat-avatar" && request.method === "POST") {
+      return handleWaChatAvatarUpload(request, env);
     }
     if (path === "/api/wa/mark-read-by-deal" && request.method === "POST") {
       return handleWaMarkReadByDeal(request, env);
