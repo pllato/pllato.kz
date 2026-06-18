@@ -721,8 +721,8 @@ function contractorModal(r){
 function loyaltyBannerHtml(L){
   if(!L) return '';
   const tiers=L.tiers||[], total=L.total||0, lvl=L.level||0, pct=L.pct||0;
-  const lo=L.min||0, hi=L.next?L.next.min:lo;
-  const prog=L.next? Math.min(100,Math.max(2,Math.round((total-lo)/Math.max(1,hi-lo)*100))) : 100;
+  // прогресс = насколько накоплено приблизилось к следующему порогу (от нуля): 51 345 из 60 000 ≈ 86%
+  const prog=L.next? Math.min(100,Math.max(3,Math.round(total/Math.max(1,L.next.min)*100))) : 100;
   const cardBadge=L.has_card?'<span class="lb-badge ok">✓ карта есть</span>':(lvl>0?'<span class="lb-badge warn">выдать карту</span>':'');
   const head=lvl>0?`Уровень ${lvl} · кэшбэк <b>${pct}%</b>`:'Пока без накопительной карты';
   const nextLine=L.next?`до ${L.next.pct}% не хватает <b>${money(L.next.remaining)}</b>`:(lvl>0?'максимальный уровень 🎉':'');
