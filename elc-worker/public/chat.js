@@ -944,7 +944,8 @@
       `<button class="tc-head-rename" title="Переименовать чат">✏️</button>` : '';
     const iconBtn = (ch.type !== 'dm' && isAdmin) ?
       `<button class="tc-head-rename tc-head-iconbtn" title="Сменить иконку">🎨</button>` : '';
-    const canArchive = (ch.type === 'dm') || isAdmin;
+    // Архивировать может только создатель/админ (у них is_admin=1).
+    const canArchive = isAdmin;
     const archiveBtn = canArchive ?
       `<button class="tc-head-rename tc-head-archbtn" title="${state.showArchived ? 'Вернуть из архива' : 'Архивировать чат'}">${state.showArchived ? '📤' : '🗄'}</button>` : '';
     const membersBtn = ch.type === 'dm' ? '' :

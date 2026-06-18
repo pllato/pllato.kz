@@ -865,13 +865,14 @@ async function uploadChannelIcon(request, env, me, channelId) {
 }
 
 // POST /api/chat/channels/:id/archive { archived } — архивировать/вернуть чат.
-// Группу архивирует только админ; личную переписку — любой её участник.
+// Только создатель чата или администратор (для групп и для личных переписок).
 async function archiveChannel(env, me, channelId, body) {
-  const ch = await env.DB.prepare("SELECT type FROM team_chat_channels WHERE id = ?").bind(channelId).first();
+  const ch = await env.DB.prepare("SELECT type, created_by FROM team_chat_channels WHERE id = ?").bind(channelId).first();
   if (!ch) return errRes('not found', 404);
   if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
-  if (ch.type !== 'dm' && !(await isChannelAdmin(env, channelId, me))) {
-    return errRes('только администратор может архивировать группу', 403);
+  const isCreator = meIds(me).includes(ch.created_by);
+  if (!isCreator && !(await isChannelAdmin(env, channelId, me))) {
+    return errRes('архивировать может только создатель или администратор чата', 403);
   }
   const ts = body.archived === false ? null : Date.now();
   await env.DB.prepare("UPDATE team_chat_channels SET archived_at = ? WHERE id = ?").bind(ts, channelId).run();
