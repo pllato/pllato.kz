@@ -1299,7 +1299,7 @@ async function orderModalLive(o,onSaved){
     const stg=(o.stage||'').toLowerCase(); const kind=/отгру|отправ|достав|выдан/.test(stg)?'order_shipped':'order_ready';
     const stores=await fetchStores(); const stName=(k)=>{ const s=stores.find(x=>x.ref_key===k); return s?s.name:''; };
     const vars={'имя':o.client_name||'','точка':stName(o.store_key),'сумма':money(ordNet(o)),'дней':''};
-    waSendModal({phone:o.phone,name:o.client_name,text:fillTpl((TPL[kind]||{}).text||'',vars),channels:CH,connected:conn,store_key:o.store_key,trigger:kind}); }; }
+    waSendModal({phone:o.phone,name:o.client_name,text:fillTpl((TPL[kind]||{}).text||'',vars),channels:CH,connected:conn,store_key:o.store_key,trigger:kind,templates:TPL,vars}); }; }
 }
 
 // ---------- CATALOG ----------
@@ -2597,22 +2597,28 @@ function subModalLive(s,onSaved){
 // ---------- TRIGGERS ----------
 // Подстановка переменных в шаблон (зеркало серверной fillTemplate)
 function fillTpl(text,vars){ vars=vars||{}; return String(text||'').replace(/\{(имя|точка|сумма|дней)\}/g,(m,k)=>(vars[k]!=null&&vars[k]!=='')?String(vars[k]):''); }
+const TPL_LBL={birthday:'🎂 День рождения',lapsed:'⏳ Давно не покупали',repeat:'🔁 Повтор покупки',order_ready:'📦 Заказ собран',order_shipped:'🚚 Заказ отправлен'};
+const tplLabel=(k,t)=>TPL_LBL[k]||(t&&t.name)||k;
 // Модалка: отправить сообщение клиенту в WhatsApp (шаблон подставлен, менеджер проверяет)
 function waSendModal(opts){
-  // opts: { phone, name, text, channels, connected, store_key, trigger }
+  // opts: { phone, name, text, channels, connected, store_key, trigger, templates, vars }
   const chans=opts.channels||[]; const connected=opts.connected!==false; const phone=(opts.phone||'').trim();
+  const tpls=opts.templates||{}; const tkeys=Object.keys(tpls); const vars=opts.vars||{};
   let cur=(chans[0]&&chans[0].id)||null;
   if(opts.store_key){ const sc=chans.find(c=>c.store_key===opts.store_key); if(sc)cur=sc.id; }
   const fromSel = chans.length?`<div class="fld"><label>Отправитель (номер WhatsApp)</label><select data-ws="ch">${chans.map(c=>`<option value="${esc(c.id)}" ${c.id===cur?'selected':''}>${esc(c.name||'WhatsApp')}${c.phone?(' · +'+esc(c.phone)):''}</option>`).join('')}</select></div>`:'';
+  const tplSel = tkeys.length?`<div class="fld"><label>Вставить шаблон</label><select data-ws="tpl"><option value="">— выбрать шаблон —</option>${tkeys.map(k=>`<option value="${esc(k)}">${esc(tplLabel(k,tpls[k]))}</option>`).join('')}</select></div>`:'';
   const bg=openModal(`<div class="modal-h"><div><h3>Сообщение клиенту</h3><div class="mh-sub">${esc(opts.name||phone||'—')}${phone?(' · '+esc(phone)):''}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     ${!connected?`<div class="note amber">${ic('i-info','sm')} WhatsApp не подключён — добавьте номер в «Интеграции».</div>`:''}
     ${!phone?`<div class="note amber">${ic('i-info','sm')} У клиента нет телефона — отправить нельзя.</div>`:''}
+    ${tplSel}
     <div class="fld"><label>Текст сообщения <span class="muted2">(можно отредактировать перед отправкой)</span></label><textarea data-ws="text" rows="5" style="width:100%;resize:vertical">${esc(opts.text||'')}</textarea></div>
     ${fromSel}
     <div class="muted2" style="font-size:11px">Клиент получит сообщение в WhatsApp с выбранного номера.</div>
   </div>
   <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="wsSend" ${(!connected||!phone)?'disabled':''}>${ic('i-send','sm')} Отправить</button></div>`);
+  const tsel=bg.querySelector('[data-ws=tpl]'); if(tsel) tsel.onchange=()=>{ const k=tsel.value; if(!k)return; bg.querySelector('[data-ws=text]').value=fillTpl((tpls[k]||{}).text||'',vars); };
   const btn=bg.querySelector('#wsSend'); if(btn) btn.onclick=async()=>{
     const text=(bg.querySelector('[data-ws=text]').value||'').trim(); if(!text){toast('Пустое сообщение','i-info','#d97706');return;}
     const chSel=bg.querySelector('[data-ws=ch]'); const channel_id=chSel?chSel.value:null;
@@ -2623,22 +2629,47 @@ function waSendModal(opts){
     closeModal(); const w=r.data&&r.data.whatsapp; toast(w&&w.sent?'Отправлено в WhatsApp':'Записано (доставка при подключённом WhatsApp)','i-send','var(--wa)'); opts.onSent&&opts.onSent();
   };
 }
-// Редактор шаблонов сообщений
+// Редактор шаблонов сообщений (5 базовых + свои)
 async function waTemplatesModal(){
   const r=await api('/api/wa/templates'); if(!r.ok){toast('Не удалось загрузить','i-x','#dc2626');return;}
   const tpl=r.data.templates||{};
-  const LBL={birthday:'🎂 День рождения',lapsed:'⏳ Давно не покупали',repeat:'🔁 Повтор покупки',order_ready:'📦 Заказ собран',order_shipped:'🚚 Заказ отправлен'};
-  const order=['birthday','lapsed','repeat','order_ready','order_shipped']; const keys=order.filter(k=>tpl[k]).concat(Object.keys(tpl).filter(k=>!order.includes(k)));
-  const bg=openModal(`<div class="modal-h"><div><h3>Шаблоны сообщений</h3><div class="mh-sub">переменные: {имя} · {точка} · {сумма} · {дней}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  const DEF=['birthday','lapsed','repeat','order_ready','order_shipped'];
+  let rows=[];
+  DEF.forEach(k=>{ rows.push({key:k,name:TPL_LBL[k],text:(tpl[k]||{}).text||'',custom:false}); });
+  Object.keys(tpl).forEach(k=>{ if(!DEF.includes(k)) rows.push({key:k,name:(tpl[k]||{}).name||k,text:(tpl[k]||{}).text||'',custom:true}); });
+  const bg=openModal(`<div class="modal-h"><div><h3>Шаблоны сообщений</h3><div class="mh-sub">базовые + свои</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
-    <div class="note blue">${ic('i-info','sm')} Подставляются автоматически: <b>{имя}</b> — имя клиента, <b>{точка}</b> — магазин, <b>{сумма}</b> — сумма покупок, <b>{дней}</b> — дней с покупки.</div>
-    ${keys.map(k=>`<div class="fld section-gap"><label>${LBL[k]||esc(k)}</label><textarea data-tk="${esc(k)}" rows="3" style="width:100%;resize:vertical">${esc((tpl[k]||{}).text||'')}</textarea></div>`).join('')}
+    <div class="note blue" style="display:block;line-height:1.6">${ic('i-info','sm')} <b>Переменные</b> подставляются сами:
+      <div style="margin-top:7px;display:flex;flex-wrap:wrap;gap:5px 18px;font-size:12.5px">
+        <span><b style="color:var(--accent2)">{имя}</b> — имя клиента</span>
+        <span><b style="color:var(--accent2)">{точка}</b> — магазин</span>
+        <span><b style="color:var(--accent2)">{сумма}</b> — сумма покупок</span>
+        <span><b style="color:var(--accent2)">{дней}</b> — дней с покупки</span>
+      </div>
+    </div>
+    <div id="tplBody"></div>
+    <button class="btn" id="tplAdd" style="margin-top:10px">${ic('i-plus','sm')} Добавить свой шаблон</button>
   </div>
   <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="tplSave">${ic('i-check2','sm')} Сохранить</button></div>`);
+  const body=bg.querySelector('#tplBody');
+  function syncFromDom(){ body.querySelectorAll('[data-row]').forEach(div=>{ const i=+div.dataset.row; if(!rows[i])return; const t=div.querySelector('[data-f=text]'), n=div.querySelector('[data-f=name]'); if(t)rows[i].text=t.value; if(n)rows[i].name=n.value; }); }
+  function render(){
+    body.innerHTML=rows.map((row,i)=>`<div class="fld section-gap" data-row="${i}">
+      ${row.custom
+        ? `<div class="row" style="gap:6px;align-items:center"><input data-f="name" value="${esc(row.name||'')}" placeholder="Название шаблона (для себя)" style="flex:1;font-weight:600"><button type="button" class="btn sm" data-del="${i}" title="Удалить шаблон" style="flex:none;color:var(--red)">${ic('i-x','sm')}</button></div>`
+        : `<label>${esc(row.name)}</label>`}
+      <textarea data-f="text" rows="3" placeholder="Текст сообщения…" style="width:100%;resize:vertical;margin-top:${row.custom?'6px':'0'}">${esc(row.text||'')}</textarea>
+    </div>`).join('');
+    body.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ syncFromDom(); rows.splice(+b.dataset.del,1); render(); });
+  }
+  render();
+  bg.querySelector('#tplAdd').onclick=()=>{ syncFromDom(); rows.push({key:'c_'+Math.random().toString(36).slice(2,9),name:'',text:'',custom:true}); render(); setTimeout(()=>{ const last=body.querySelector('[data-row="'+(rows.length-1)+'"] [data-f=name]'); if(last)last.focus(); },20); };
   bg.querySelector('#tplSave').onclick=async()=>{
-    const out={}; bg.querySelectorAll('[data-tk]').forEach(t=>{ out[t.dataset.tk]={name:(tpl[t.dataset.tk]||{}).name||t.dataset.tk,text:t.value}; });
+    syncFromDom();
+    const out={};
+    for(const row of rows){ if(row.custom && !(row.name||'').trim() && !(row.text||'').trim()) continue; out[row.key]={name:row.custom?((row.name||'').trim()||'Шаблон'):row.name, text:row.text||''}; }
     const rr=await api('/api/wa/templates',{method:'POST',body:JSON.stringify({templates:out})});
-    if(!rr.ok){ toast(rr.status===403?'Только админ/маркетолог может менять':'Ошибка','i-x','#dc2626'); return; }
+    if(!rr.ok){ toast(rr.status===403?'Менять шаблоны может только админ/маркетолог':'Ошибка','i-x','#dc2626'); return; }
     closeModal(); toast('Шаблоны сохранены','i-check2');
   };
 }
@@ -2684,7 +2715,7 @@ PAGES.triggers=(c)=>{
       const x=items.find(i=>i.ref_key===b.dataset.msg); if(!x)return;
       const kind=tab==='birthdays'?'birthday':tab;
       const vars={'имя':x.name||'','дней':(tab==='birthdays'?x.days_until:x.days_since)||'','сумма':x.total?money(x.total):'','точка':''};
-      waSendModal({phone:x.phone,name:x.name,text:fillTpl((TPL[kind]||{}).text||'',vars),channels:CHANS,connected:waConn,trigger:kind});
+      waSendModal({phone:x.phone,name:x.name,text:fillTpl((TPL[kind]||{}).text||'',vars),channels:CHANS,connected:waConn,trigger:kind,templates:TPL,vars});
     });
   }
   seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); tab=b.dataset.t; render(); });
