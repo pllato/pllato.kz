@@ -1535,7 +1535,7 @@ function blogCard(b){
       <div><div class="muted" style="font-size:11px">Конверсии</div><div style="font-weight:700">${b.uses||0}</div></div>
       <div><div class="muted" style="font-size:11px">Выручка</div><div style="font-weight:700;white-space:nowrap">${money(b.revenue||0)}</div></div>
       <div><div class="muted" style="font-size:11px">CPA</div><div style="font-weight:700;white-space:nowrap">${cpa}</div></div>
-      <div><div class="muted" style="font-size:11px">Охват</div><div style="font-weight:700">${esc(b.reach||'—')}</div></div>
+      <div><div class="muted" style="font-size:11px" title="ER — вовлечённость аудитории">ER</div><div style="font-weight:700">${erBadge(b.er,true)}</div></div>
     </div>
     <div class="row section-gap" style="justify-content:space-between;padding-top:12px;border-top:1px solid var(--line)">
       <div class="row" style="gap:6px">${blogStatusTag(b.status)}${b.platform?`<span class="tag">${esc(b.platform)}</span>`:''}</div>
@@ -1624,6 +1624,9 @@ async function newBloggerLive(onSaved){
     if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Блогер добавлен','i-star'); onSaved&&onSaved();
   };
 }
+// ER (вовлечённость): цвет + словесная оценка. <1% низкий, 1–3 норма, 3–6 хорошо, >6 отлично.
+function erRate(er){ er=Number(er)||0; if(!er) return {c:'var(--muted)',w:''}; if(er<1) return {c:'#dc2626',w:'низкий — возможна накрутка'}; if(er<3) return {c:'#d97706',w:'норма'}; if(er<6) return {c:'#16a34a',w:'хорошо'}; return {c:'#10b981',w:'отлично'}; }
+function erBadge(er,compact){ er=Number(er)||0; const r=erRate(er); if(!er) return '<span class="muted2">—</span>'; return `<span style="color:${r.c};font-weight:700">${er}%</span>${(!compact&&r.w)?` <span class="muted2" style="font-size:11px">· ${r.w}</span>`:''}`; }
 async function bloggerModalLive(b,onSaved){
   const cards=await fetchPromoCards();
   const cpa=(b.uses>0&&(b.paid||0)>0)?money(Math.round((b.paid||0)/b.uses)):'—';
@@ -1639,12 +1642,17 @@ async function bloggerModalLive(b,onSaved){
       ${miniStat('i-target','#7c3aed','CPA · за конверсию',cpa)}
       ${miniStat('i-target','#0891b2','CPC · за клик',cpc)}
       ${miniStat('i-target','#db2777','CPM · за 1000 показов',cpm)}
+      <div class="kpi"><div class="k-ic" style="background:#7c3aed22;color:#7c3aed">${ic('i-star')}</div><div class="k-lbl">ER · вовлечённость</div><div class="k-val">${erBadge(b.er)}</div></div>
     </div>
-    <div class="muted2" style="font-size:11px;margin-top:6px">CPA = выплачено ÷ конверсии · CPC = выплачено ÷ переходы · CPM = выплачено ÷ показы × 1000. Метрики кампании (показы/переходы/ER) вносятся вручную ниже.</div>
+    <div class="muted2" style="font-size:11px;margin-top:6px">CPA = выплачено ÷ конверсии · CPC = выплачено ÷ переходы · CPM = выплачено ÷ показы × 1000. Считаются после фиксации выплаты. Метрики кампании (показы/переходы/ER) вносятся вручную ниже.</div>
     <div class="fld-row section-gap"><div class="fld"><label>Ник / аккаунт</label><input data-bm="nick" value="${esc(b.nick||'')}"></div><div class="fld"><label>Имя</label><input data-bm="name" value="${esc(b.name||'')}"></div></div>
     <div class="fld-row"><div class="fld"><label>Площадка</label><select data-bm="platform">${BLOG_PLATFORMS.map(([v,t])=>`<option value="${v}" ${v===(b.platform||'')?'selected':''}>${t}</option>`).join('')}</select></div><div class="fld"><label>Ниша</label><input data-bm="topic" value="${esc(b.topic||'')}"></div></div>
     <div class="fld-row"><div class="fld"><label>Охват</label><input data-bm="reach" value="${esc(b.reach||'')}"></div><div class="fld"><label>Промокод (карта 1С)</label>${cardSelectHtml(cards,b.card_ref,'data-bm="card_ref"')}</div></div>
-    <div class="fld-row"><div class="fld"><label>Показы</label><input data-bm="impressions" type="number" min="0" value="${b.impressions||0}"></div><div class="fld"><label>Переходы (клики)</label><input data-bm="clicks" type="number" min="0" value="${b.clicks||0}"></div><div class="fld"><label>ER, %</label><input data-bm="er" type="number" min="0" step="0.1" value="${b.er||0}"></div></div>
+    <div class="fld-row">
+      <div class="fld"><label title="Сколько раз увидели публикацию/сторис (impressions). Нужно для расчёта CPM.">Показы (impressions)</label><input data-bm="impressions" type="number" min="0" value="${b.impressions||0}" placeholder="напр. 10000"></div>
+      <div class="fld"><label title="Клики по ссылке / переходы в профиль по этой кампании. Нужно для расчёта CPC.">Переходы (клики)</label><input data-bm="clicks" type="number" min="0" value="${b.clicks||0}" placeholder="напр. 200"></div>
+      <div class="fld"><label title="Engagement Rate — вовлечённость аудитории: (лайки+комментарии+репосты)÷охват. 1–3% норма, 3–6% хорошо, >6% отлично, <1% — возможна накрутка.">ER (вовлечённость), %</label><input data-bm="er" type="number" min="0" step="0.1" value="${b.er||0}" placeholder="напр. 3.2"><div data-bm="erhint" style="font-size:11px;margin-top:3px">${b.er?erBadge(b.er):'<span class="muted2">оценка появится при вводе</span>'}</div></div>
+    </div>
     <div class="fld-row"><div class="fld"><label>Модель оплаты</label><select data-bm="payout_model">${BLOG_MODELS.map(([v,t])=>`<option value="${v}" ${v===(b.payout_model||'per_sale')?'selected':''}>${t}</option>`).join('')}</select></div><div class="fld"><label>Ставка</label><input data-bm="payout_value" type="number" value="${b.payout_value||0}"></div></div>
     <div class="fld-row"><div class="fld"><label>Контакт для выплат</label><input data-bm="contact" value="${esc(b.contact||'')}"></div><div class="fld"><label>Статус</label><select data-bm="status">${[['active','Активен'],['paused','Пауза'],['archived','Архив']].map(([v,t])=>`<option value="${v}" ${v===(b.status||'active')?'selected':''}>${t}</option>`).join('')}</select></div></div>
     <div class="fld"><label>Комментарий</label><input data-bm="note" value="${esc(b.note||'')}"></div>
@@ -1657,6 +1665,7 @@ async function bloggerModalLive(b,onSaved){
   </div>
   <div class="modal-f"><button class="btn" id="bmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn primary" id="bmSave">Сохранить</button></div>`);
   const g=s=>bg.querySelector('[data-bm='+s+']');
+  const erI=g('er'), erH=bg.querySelector('[data-bm=erhint]'); if(erI&&erH) erI.oninput=()=>{ erH.innerHTML=erI.value?erBadge(erI.value):'<span class="muted2">оценка появится при вводе</span>'; };
   bg.querySelector('#bmSave').onclick=async()=>{ const body={nick:g('nick').value.trim(),name:g('name').value.trim(),platform:g('platform').value,topic:g('topic').value.trim(),reach:g('reach').value.trim(),card_ref:g('card_ref').value,payout_model:g('payout_model').value,payout_value:Number(g('payout_value').value)||0,contact:g('contact').value.trim(),status:g('status').value,note:g('note').value.trim(),impressions:Number(g('impressions').value)||0,clicks:Number(g('clicks').value)||0,er:Number(g('er').value)||0}; const r=await api('/api/bloggers/'+b.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
   bg.querySelector('#bmPay').onclick=async()=>{ const amt=Number(g('payamt').value)||0; if(amt<=0){toast('Укажите сумму выплаты','i-info');return;} const r=await api('/api/bloggers/'+b.id+'/pay',{method:'POST',body:JSON.stringify({amount:amt,period_label:g('payper').value.trim()})}); if(!r.ok){toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626');return;} closeModal(); toast('Выплата зафиксирована: '+money(amt),'i-money'); onSaved&&onSaved(); };
   bg.querySelector('#bmJournal').onclick=()=>blogPayoutsModal(b,onSaved);
