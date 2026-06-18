@@ -2976,6 +2976,42 @@ PAGES.settings=(c)=>{
   };
   wrap.appendChild(fxPanel);
 
+  // --- Накопительная система: пороги уровней ---
+  const loyPanel=el(`<div class="panel"><div class="panel-h"><h3>Накопительная система · уровни</h3><span class="ph-sub">порог накоплений (сом) → % кэшбека</span></div><div class="panel-b" id="loyTiers"><div class="muted2" style="font-size:13px">Загрузка…</div></div></div>`);
+  wrap.appendChild(loyPanel);
+  (async()=>{
+    const box=loyPanel.querySelector('#loyTiers');
+    const r=await api('/api/loyalty/tiers');
+    if(!r.ok){ box.innerHTML='<div class="muted2" style="font-size:13px">'+(r.status===403?'Доступно только администратору':'Не удалось загрузить уровни')+'</div>'; return; }
+    let tiers=(r.data.tiers||[]).map(t=>({min:t.min,pct:t.pct}));
+    function render(){
+      box.innerHTML=`<div class="note blue">${ic('i-info','sm')} Уровень присваивается по сумме покупок клиента из 1С: накопил ≥ порога → получает соответствующий % кэшбека. Применяется и в карточке клиента, и в разделе «Накопительная».</div>
+        <div id="loyRows" style="display:flex;flex-direction:column;gap:8px;margin-top:12px"></div>
+        <div class="row" style="gap:10px;margin-top:12px"><button class="btn sm" id="loyAdd">${ic('i-plus','sm')} Добавить уровень</button><div class="spacer"></div><button class="btn primary" id="loySave">${ic('i-check2','sm')} Сохранить</button></div>`;
+      const rows=box.querySelector('#loyRows');
+      rows.innerHTML=tiers.length?tiers.map((t,i)=>`<div class="row" style="gap:10px;align-items:center;flex-wrap:wrap" data-i="${i}">
+        <span class="muted2" style="width:74px;font-size:12px">Уровень ${i+1}</span>
+        <div class="fld-in" style="margin:0">от&nbsp;<input type="number" min="0" step="1000" value="${t.min}" data-lt="min" style="width:120px">&nbsp;сом</div>
+        <div class="fld-in" style="margin:0"><input type="number" min="0" max="100" step="1" value="${t.pct}" data-lt="pct" style="width:56px">&nbsp;% кэшбек</div>
+        <button class="btn sm" data-lt="del" title="Удалить уровень" style="color:var(--red)">${ic('i-x','sm')}</button>
+      </div>`).join(''):'<div class="muted2" style="font-size:12px">Нет уровней — добавьте хотя бы один.</div>';
+      rows.querySelectorAll('[data-i]').forEach(row=>{ const i=+row.dataset.i;
+        row.querySelector('[data-lt=min]').oninput=e=>{ tiers[i].min=parseInt(e.target.value,10)||0; };
+        row.querySelector('[data-lt=pct]').oninput=e=>{ tiers[i].pct=parseFloat(e.target.value)||0; };
+        row.querySelector('[data-lt=del]').onclick=()=>{ tiers.splice(i,1); render(); };
+      });
+      box.querySelector('#loyAdd').onclick=()=>{ const last=tiers[tiers.length-1]; tiers.push({min:last?last.min*2:10000,pct:last?last.pct+2:3}); render(); };
+      box.querySelector('#loySave').onclick=async()=>{
+        const clean=tiers.map(t=>({min:parseInt(t.min,10)||0,pct:parseFloat(t.pct)||0})).filter(t=>t.min>0&&t.pct>0).sort((a,b)=>a.min-b.min);
+        if(!clean.length){ toast('Нужен хотя бы один уровень (порог и %)','i-info','#d97706'); return; }
+        const rr=await api('/api/loyalty/tiers',{method:'POST',body:JSON.stringify({tiers:clean})});
+        if(!rr.ok){ toast((rr.data&&rr.data.error)||'Не удалось сохранить','i-x','#dc2626'); return; }
+        tiers=(rr.data.tiers||[]).map(t=>({min:t.min,pct:t.pct})); render(); toast('Уровни сохранены','i-check2');
+      };
+    }
+    render();
+  })();
+
   wrap.appendChild(el(`<div class="grid-2">
     <div class="panel"><div class="panel-h"><h3>Безопасность</h3></div><div class="panel-b">
       ${['HTTPS / TLS 1.3','Аутентификация: логин/пароль (PBKDF2-SHA256, соль)','Разграничение доступа по ролям','Логирование действий (аудит-журнал)'].map(s=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line);gap:9px"><span style="flex:none;color:var(--accent2)">${ic('i-check2','sm')}</span><span style="font-size:13px">${s}</span></div>`).join('')}
