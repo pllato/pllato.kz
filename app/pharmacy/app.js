@@ -1525,8 +1525,17 @@ function accrualDue(b){
   if(m==='fixed')    return Math.round(r);
   return 0; // barter
 }
+// Стоимость действий: «факт» (по выплатам) если есть выплаты, иначе «план» (ожидаемо по модели оплаты).
+// Бартер — деньгами не платим, показываем «бартер».
+function blogCost(b){
+  const isBarter=(b.payout_model||'')==='barter';
+  const basis=(b.paid||0)>0?(b.paid||0):accrualDue(b);
+  const lbl=(b.paid||0)>0?'факт':'план';
+  const cm=(denom,mult)=> isBarter?'бартер':((denom>0&&basis>0)?money(Math.round(basis/denom*(mult||1))):'—');
+  return { cpa:cm(b.uses,1), cpc:cm(b.clicks,1), cpm:cm(b.impressions,1000), lbl, basis, isBarter };
+}
 function blogCard(b){
-  const cpa=(b.uses>0&&(b.paid||0)>0)?money(Math.round((b.paid||0)/b.uses)):'—';
+  const {cpa,lbl}=blogCost(b);
   return `<div class="list-card" style="cursor:pointer">
     <div class="row"><span class="avatar-xs" style="width:42px;height:42px;font-size:14px;background:${avBg(b.nick||b.name||'?')}">${initials(b.name||b.nick||'?')}</span>
       <div style="min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.nick||b.name||'—')}</div><div class="muted" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.name||'')}${b.topic?(' · '+esc(b.topic)):''}</div></div>
@@ -1534,7 +1543,7 @@ function blogCard(b){
     <div class="grid-2b section-gap" style="gap:11px">
       <div><div class="muted" style="font-size:11px">Конверсии</div><div style="font-weight:700">${b.uses||0}</div></div>
       <div><div class="muted" style="font-size:11px">Выручка</div><div style="font-weight:700;white-space:nowrap">${money(b.revenue||0)}</div></div>
-      <div><div class="muted" style="font-size:11px">CPA</div><div style="font-weight:700;white-space:nowrap">${cpa}</div></div>
+      <div><div class="muted" style="font-size:11px" title="CPA — стоимость за конверсию. «план» — ожидаемо по модели оплаты, «факт» — по выплатам.">CPA · ${lbl}</div><div style="font-weight:700;white-space:nowrap">${cpa}</div></div>
       <div><div class="muted" style="font-size:11px" title="ER — вовлечённость аудитории">ER</div><div style="font-weight:700">${erBadge(b.er,true)}</div></div>
     </div>
     <div class="row section-gap" style="justify-content:space-between;padding-top:12px;border-top:1px solid var(--line)">
@@ -1629,9 +1638,7 @@ function erRate(er){ er=Number(er)||0; if(!er) return {c:'var(--muted)',w:''}; i
 function erBadge(er,compact){ er=Number(er)||0; const r=erRate(er); if(!er) return '<span class="muted2">—</span>'; return `<span style="color:${r.c};font-weight:700">${er}%</span>${(!compact&&r.w)?` <span class="muted2" style="font-size:11px">· ${r.w}</span>`:''}`; }
 async function bloggerModalLive(b,onSaved){
   const cards=await fetchPromoCards();
-  const cpa=(b.uses>0&&(b.paid||0)>0)?money(Math.round((b.paid||0)/b.uses)):'—';
-  const cpc=((b.clicks||0)>0&&(b.paid||0)>0)?money(Math.round((b.paid||0)/b.clicks)):'—';
-  const cpm=((b.impressions||0)>0&&(b.paid||0)>0)?money(Math.round((b.paid||0)/b.impressions*1000)):'—';
+  const {cpa,cpc,cpm,lbl}=blogCost(b);
   const bg=openModal(`<div class="modal-h"><div><h3>${esc(b.nick||b.name||'Блогер')}</h3><div class="mh-sub">${esc(b.name||'')}${b.topic?(' · '+esc(b.topic)):''}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
     <div class="cards-row">
@@ -1639,12 +1646,12 @@ async function bloggerModalLive(b,onSaved){
       ${miniStat('i-chart','#2563eb','Выручка',money(b.revenue||0))}
       ${miniStat('i-gift','#16a34a','К начислению',money(accrualDue(b)))}
       ${miniStat('i-money','#d97706','Выплачено',money(b.paid||0))}
-      ${miniStat('i-target','#7c3aed','CPA · за конверсию',cpa)}
-      ${miniStat('i-target','#0891b2','CPC · за клик',cpc)}
-      ${miniStat('i-target','#db2777','CPM · за 1000 показов',cpm)}
+      ${miniStat('i-target','#7c3aed','CPA · '+lbl,cpa)}
+      ${miniStat('i-target','#0891b2','CPC · '+lbl,cpc)}
+      ${miniStat('i-target','#db2777','CPM · '+lbl,cpm)}
       <div class="kpi"><div class="k-ic" style="background:#7c3aed22;color:#7c3aed">${ic('i-star')}</div><div class="k-lbl">ER · вовлечённость</div><div class="k-val">${erBadge(b.er)}</div></div>
     </div>
-    <div class="muted2" style="font-size:11px;margin-top:6px">CPA = выплачено ÷ конверсии · CPC = выплачено ÷ переходы · CPM = выплачено ÷ показы × 1000. Считаются после фиксации выплаты. Метрики кампании (показы/переходы/ER) вносятся вручную ниже.</div>
+    <div class="muted2" style="font-size:11px;margin-top:6px"><b>план</b> — ожидаемая стоимость по модели оплаты (до выплаты), <b>факт</b> — по реальным выплатам. CPA ÷ конверсии · CPC ÷ переходы · CPM ÷ показы×1000. Бартер — без денег. Показы/переходы/ER вносятся вручную ниже.</div>
     <div class="fld-row section-gap"><div class="fld"><label>Ник / аккаунт</label><input data-bm="nick" value="${esc(b.nick||'')}"></div><div class="fld"><label>Имя</label><input data-bm="name" value="${esc(b.name||'')}"></div></div>
     <div class="fld-row"><div class="fld"><label>Площадка</label><select data-bm="platform">${BLOG_PLATFORMS.map(([v,t])=>`<option value="${v}" ${v===(b.platform||'')?'selected':''}>${t}</option>`).join('')}</select></div><div class="fld"><label>Ниша</label><input data-bm="topic" value="${esc(b.topic||'')}"></div></div>
     <div class="fld-row"><div class="fld"><label>Охват</label><input data-bm="reach" value="${esc(b.reach||'')}"></div><div class="fld"><label>Промокод (карта 1С)</label>${cardSelectHtml(cards,b.card_ref,'data-bm="card_ref"')}</div></div>
