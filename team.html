@@ -22095,6 +22095,14 @@ async function refreshWaChannelsList() {
     }
     html += '</div>';
     wrap.innerHTML = html;
+    // Хендлеры вешаем на сам список (#wc-list, внутри модалки): клик/change до
+    // document не доходят — .qad-modal глушит всплытие (onclick=stopPropagation).
+    // Привязываем один раз на жизнь модалки (#wc-list пересоздаётся при открытии).
+    if (!wrap._waBound) {
+      wrap.addEventListener('click', onWaChannelListClick);
+      wrap.addEventListener('change', onWaChannelListChange);
+      wrap._waBound = true;
+    }
 
     // Запустим check-status для всех активных каналов
     for (const c of items) {
@@ -22120,7 +22128,9 @@ async function patchWaChannel(channelId, payload) {
 }
 
 // При смене воронки в карточке канала — пересобираем список её стадий.
-document.addEventListener('change', (e) => {
+// Привязывается к #wc-list (см. refreshWaChannelsList), а не к document, т.к.
+// модалка глушит всплытие до document (.qad-modal onclick=stopPropagation).
+function onWaChannelListChange(e) {
   const pipeSel = e.target.closest('.wa-pipe-sel');
   if (!pipeSel) return;
   const card = pipeSel.closest('.wa-channel-card');
@@ -22137,10 +22147,10 @@ document.addEventListener('change', (e) => {
       stageSel.appendChild(opt);
     }
   }
-});
+}
 
-// Делегированные handlers для кнопок в карточках каналов
-document.addEventListener('click', async (e) => {
+// Делегированные handlers для кнопок в карточках каналов (на #wc-list, см. выше).
+async function onWaChannelListClick(e) {
   const copyBtn = e.target.closest('.wa-copy-webhook-btn');
   if (copyBtn) {
     e.preventDefault();
@@ -22231,7 +22241,7 @@ document.addEventListener('click', async (e) => {
     await runWaWebhookAutoSetup(setupBtn.dataset.channelId, setupBtn);
     return;
   }
-});
+}
 
 // Дёргает POST /api/wa/channels/{id}/setup-webhook — worker сам POST'ит в
 // Green-API метод setSettings с правильным URL и нужными webhook-событиями.
