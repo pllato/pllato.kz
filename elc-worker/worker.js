@@ -3061,6 +3061,24 @@ async function maybeReviveDealsFromFailByPhone(env, pipelineId, phone) {
   return revived;
 }
 
+// Первая активная стадия воронки (не Fail/Success), по порядку sort.
+// Нужна когда у канала не задана default_stage_id — иначе новая WA-сделка
+// создаётся с stage_id = NULL, в канбане висит «orphan» (доклеивается в первую
+// колонку лишь визуально) и ведёт себя нестабильно. Возвращаем реальный
+// statusId «Новой», чтобы сделка прочно лежала в первой стадии.
+async function getFirstStageId(env, pipelineId) {
+  if (!pipelineId) return null;
+  const pipeline = await env.DB.prepare("SELECT stages FROM pipelines WHERE id = ?").bind(pipelineId).first();
+  if (!pipeline?.stages) return null;
+  let stagesObj;
+  try { stagesObj = JSON.parse(pipeline.stages); } catch { return null; }
+  const stages = Array.isArray(stagesObj) ? stagesObj : Object.values(stagesObj || {});
+  if (!stages.length) return null;
+  stages.sort((a, b) => (a.sort || 0) - (b.sort || 0));
+  const first = stages.find(s => s.semantics !== 'F' && s.semantics !== 'S') || stages[0];
+  return first ? (first.statusId || first.id) : null;
+}
+
 // Создать сделку в default_pipeline канала, если по этому контакту нет открытой.
 // FIX: убран `OR contact_ids LIKE ?` — в схеме deals нет колонки contact_ids
 // (только contact_id). Падал D1_ERROR на каждом входящем webhook → все
@@ -3107,6 +3125,12 @@ async function ensureDealForWaContact(env, channel, contactId, contactName, phon
     const rrUid = await pickNextRoundRobinUid(env, channel.id);
     if (rrUid) responsibleUid = rrUid;
   } catch (e) { /* fallback ok */ }
+  // Стадия: заданная у канала, иначе — первая активная стадия воронки
+  // (чтобы сделка не создавалась с stage_id = NULL и прочно легла в «Новую»).
+  let stageId = channel.default_stage_id || null;
+  if (!stageId) {
+    try { stageId = await getFirstStageId(env, channel.default_pipeline_id); } catch {}
+  }
   await ensureStageChangedAtColumn(env);
   await env.DB.prepare(`
     INSERT INTO deals (
@@ -3116,7 +3140,7 @@ async function ensureDealForWaContact(env, channel, contactId, contactName, phon
     ) VALUES (?, ?, ?, ?, ?, ?, 'WhatsApp', 0, ?, ?, ?, ?)
   `).bind(
     newId, title,
-    channel.default_pipeline_id, channel.default_stage_id || null,
+    channel.default_pipeline_id, stageId,
     responsibleUid,
     contactId, bitrixKey, nowIso, nowIso, nowIso,
   ).run();
