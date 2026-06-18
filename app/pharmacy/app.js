@@ -1802,9 +1802,7 @@ function doctorModalLive(d,rate,period){
   const remainingBase=hasPeriod?(d.revenue||0):Math.max(0,(d.revenue||0)-(d.cb_base||0));
   const cbSum=Math.round(remainingBase*(rate||0)/100); // к начислению (оценка)
   const accruedAmt=Math.round(d.cb_amount||0);          // уже начислено (за всё время)
-  // C: реалистичная доходность = выручка − себестоимость(1С) − кэшбэк врача(ставка%)
-  const dCb=Math.round((d.revenue||0)*(rate||0)/100);
-  const marginReal=Math.round((d.revenue||0)-(d.cost||0)-dCb);
+  // C: реалистичная доходность = выручка − себестоимость(закупка из каталога) − кэшбэк врача; считаем из /profit (асинхронно)
   const perLbl=hasPeriod?(' · период '+(period.from||'…')+'…'+(period.to||'…')):'';
   const cbKpiInner=(rem,acc)=>`<div class="k-ic" style="background:#db277722;color:#db2777">${ic('i-gift')}</div><div class="k-lbl">К начислению · ${rate}%${perLbl}</div><div class="k-val">${money(rem)}</div>${acc>0?`<div class="k-sub">уже начислено ${money(acc)} (всего)</div>`:''}`;
   openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.name||'?')}">${initials(d.name||'?')}</span>
@@ -1814,7 +1812,7 @@ function doctorModalLive(d,rate,period){
     <div class="cards-row">
       ${miniStat('i-money','#10b981','Выручка',money(d.revenue||0))}
       ${miniStat('i-cart','#7c3aed','Продаж',(d.docs||0).toLocaleString('ru-RU'))}
-      <div class="kpi" id="docProfitKpi" style="cursor:pointer" title="Подробно по каждому товару"><div class="k-ic" style="background:#16a34a22;color:#16a34a">${ic('i-chart')}</div><div class="k-lbl">Доходность ▸</div><div class="k-val">${money(marginReal)}</div><div class="k-sub">по товарам — клик</div></div>
+      <div class="kpi" id="docProfitKpi" style="cursor:pointer" title="Подробно по каждому товару"><div class="k-ic" style="background:#16a34a22;color:#16a34a">${ic('i-chart')}</div><div class="k-lbl">Доходность ▸</div><div class="k-val" id="docProfitVal">…</div><div class="k-sub">по товарам — клик</div></div>
       <div class="kpi" id="cbKpi">${cbKpiInner(cbSum,accruedAmt)}</div>
     </div>
     <div class="muted2" style="font-size:11px;margin-top:6px">Доходность = выручка − себестоимость (1С) − кэшбэк врача (${rate}%). Скидка клиенту по промокоду — в разбивке по товарам (клик по «Доходность»).</div>
@@ -1845,6 +1843,7 @@ function doctorModalLive(d,rate,period){
   };
   const rep=document.getElementById('cbReportBtn'); if(rep) rep.onclick=()=>exportDoctorReport(d);
   const dpk=document.getElementById('docProfitKpi'); if(dpk) dpk.onclick=()=>doctorProfitModal(d,rate,period);
+  (async()=>{ const pr=await api('/api/1c/doctors/profit?doctor='+encodeURIComponent(d.ref_key)+((period&&period.from)?('&from='+period.from):'')+((period&&period.to)?('&to='+period.to):'')); const v=document.getElementById('docProfitVal'); if(!v)return; if(!pr.ok){ v.textContent='—'; return; } const t=pr.data.totals||{}; const m=Math.round((t.revenue||0)-(t.cost||0)-Math.round((t.revenue||0)*(rate||0)/100)); v.textContent=money(m); })();
   loadDoctorHistory(d.ref_key);
   loadDoctorCashback(d.ref_key);
 }
