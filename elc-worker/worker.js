@@ -3942,6 +3942,69 @@ async function handleWaUpdateChannel(request, env, channelId) {
   return json({ ok: true, id: channelId }, 200, request);
 }
 
+// POST /api/wa/channels/{id}/backfill-deals
+// Создаёт сделки в воронке канала по УЖЕ накопленным 1:1 чатам этого инстанса.
+// Нужно после привязки воронки к каналу, который раньше копил переписки без
+// сделок (default_pipeline_id был пуст или указывал на другую воронку): новые
+// входящие создают сделки сами через webhook, а старые чаты иначе бы потерялись.
+// Идемпотентно: если по контакту/телефону в этой воронке сделка уже есть —
+// не дублируем, только до-привязываем chat.contact_id/deal_id.
+async function handleWaChannelBackfillDeals(request, env, channelId) {
+  const guard = await requireAdmin(request, env);
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  const channel = await getWaChannel(env, channelId);
+  if (!channel) return json({ error: "channel not found" }, 404, request);
+  if (!channel.default_pipeline_id) {
+    return json({ error: "у канала не задана воронка — сначала привяжите её" }, 400, request);
+  }
+  let chats = [];
+  try {
+    const { results } = await env.DB.prepare(
+      "SELECT id, phone, name, contact_id, deal_id FROM wa_chats WHERE instance_id = ? AND COALESCE(is_group, 0) = 0"
+    ).bind(channel.id_instance).all();
+    chats = results || [];
+  } catch (e) {
+    return json({ error: "db error: " + e.message }, 500, request);
+  }
+  let created = 0, linked = 0, skipped = 0, failed = 0;
+  for (const chat of chats) {
+    try {
+      if (!chat.phone) { skipped++; continue; }
+      const phoneDigits = String(chat.phone).replace(/\D/g, '');
+      let contactId = chat.contact_id;
+      if (!contactId) contactId = await findOrCreateContactByPhone(env, chat.phone, chat.name);
+      if (!contactId) { skipped++; continue; }
+      // Дедуп: сделка в этой воронке по контакту ИЛИ по любому контакту с тем же номером.
+      const existing = await env.DB.prepare(`
+        SELECT id FROM deals
+        WHERE pipeline_id = ?
+          AND (contact_id = ? OR contact_id IN (SELECT id FROM contacts WHERE phones LIKE ?))
+        ORDER BY (closed = 0) DESC, bitrix_date_modify DESC LIMIT 1
+      `).bind(channel.default_pipeline_id, contactId, `%${phoneDigits}%`).first();
+      let dealId;
+      if (existing) {
+        dealId = existing.id;
+      } else {
+        dealId = await ensureDealForWaContact(env, channel, contactId, chat.name, chat.phone);
+        if (dealId) created++;
+      }
+      if (dealId && (chat.contact_id !== contactId || chat.deal_id !== dealId)) {
+        await env.DB.prepare(
+          "UPDATE wa_chats SET contact_id = COALESCE(contact_id, ?), deal_id = ?, updated_at = datetime('now') WHERE id = ?"
+        ).bind(contactId, dealId, chat.id).run();
+        linked++;
+      }
+    } catch (e) {
+      failed++;
+      console.warn('[wa-backfill] chat', chat.id, 'failed:', e?.message || e);
+    }
+  }
+  await auditLog(env, guard.me, "wa_channel_backfill", "wa_channel", channelId, {
+    pipelineId: channel.default_pipeline_id, totalChats: chats.length, created, linked, skipped, failed,
+  });
+  return json({ ok: true, totalChats: chats.length, created, linked, skipped, failed }, 200, request);
+}
+
 async function handleWaChannelState(request, env, channelId) {
   const auth = await requireAuthFlexible(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
@@ -7255,6 +7318,10 @@ export default {
     const waChannelSetupMatch = path.match(/^\/api\/wa\/channels\/([^/]+)\/setup-webhook$/);
     if (waChannelSetupMatch && request.method === "POST") {
       return handleWaChannelSetupWebhook(request, env, waChannelSetupMatch[1]);
+    }
+    const waChannelBackfillMatch = path.match(/^\/api\/wa\/channels\/([^/]+)\/backfill-deals$/);
+    if (waChannelBackfillMatch && request.method === "POST") {
+      return handleWaChannelBackfillDeals(request, env, waChannelBackfillMatch[1]);
     }
 
     // ── /api/notifier — системный WhatsApp-оповещатель портала ──────────
