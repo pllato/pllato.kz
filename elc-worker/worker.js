@@ -5025,6 +5025,105 @@ async function handleMyAvatarUpload(request, env) {
   return json({ ok: true, url: publicUrl, uid: me.userRecord.uid }, 200, request);
 }
 
+// ── Профиль сотрудника ───────────────────────────────────────────────
+// Карточка сотрудника: контакты + отдел + руководитель (из оргструктуры) +
+// «примечание» (bio), которое сотрудник правит сам. Фото — через /api/me/avatar.
+let _usersBioColEnsured = false;
+async function ensureUsersBioColumn(env) {
+  if (_usersBioColEnsured) return;
+  try { await env.DB.prepare("ALTER TABLE users ADD COLUMN bio TEXT").run(); }
+  catch (e) { /* колонка уже есть — ок */ }
+  _usersBioColEnsured = true;
+}
+
+// Найти в оргструктуре отдел и руководителя сотрудника.
+// Структура: { director:{uid}, branches:[ {name,headUid,memberUids[],departments:[
+//   {name,headUid,memberUids[],subDepartments:[…]} ]} ] }. Руководитель = headUid
+// узла, в memberUids которого состоит uid; если uid сам глава узла — берём главу
+// родителя (выше по дереву), на верхнем уровне — директора.
+function resolveOrgPlacement(structure, uid) {
+  if (!structure || !uid) return { departmentName: null, managerUid: null };
+  const directorUid = structure.director && structure.director.uid || null;
+  if (uid === directorUid) return { departmentName: 'Дирекция', managerUid: null };
+  function visit(node, parentHeadUid, parentName) {
+    const members = node.memberUids || [];
+    if (node.headUid === uid) {
+      return { departmentName: node.name || parentName || null, managerUid: parentHeadUid || directorUid || null };
+    }
+    if (members.includes(uid)) {
+      return { departmentName: node.name || null, managerUid: node.headUid || parentHeadUid || directorUid || null };
+    }
+    const children = node.departments || node.subDepartments || [];
+    for (const ch of children) {
+      const r = visit(ch, node.headUid || parentHeadUid, node.name || parentName);
+      if (r) return r;
+    }
+    return null;
+  }
+  for (const br of (structure.branches || [])) {
+    const r = visit(br, directorUid, null);
+    if (r) return r;
+  }
+  return { departmentName: null, managerUid: null };
+}
+
+// GET /api/users/{uid}/profile — карточка сотрудника (любому авторизованному).
+async function handleUserProfileGet(request, env, uid) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  await ensureUsersBioColumn(env);
+  const u = await env.DB.prepare(
+    "SELECT uid, email, name, last_name, position, phone, phones, photo, photo_url, bio, active FROM users WHERE uid = ? LIMIT 1"
+  ).bind(uid).first();
+  if (!u) return json({ error: "user not found" }, 404, request);
+
+  let departmentName = null, managerUid = null, managerName = null;
+  try {
+    const row = await env.DB.prepare("SELECT v FROM kv WHERE k = 'org:structure'").first();
+    if (row?.v) {
+      const pl = resolveOrgPlacement(JSON.parse(row.v), uid);
+      departmentName = pl.departmentName; managerUid = pl.managerUid;
+    }
+  } catch {}
+  if (managerUid) {
+    const m = await env.DB.prepare("SELECT name, last_name FROM users WHERE uid = ? LIMIT 1").bind(managerUid).first();
+    if (m) managerName = [m.name, m.last_name].filter(Boolean).join(' ').trim() || null;
+  }
+  let phones = [];
+  try { phones = u.phones ? JSON.parse(u.phones) : []; } catch { phones = []; }
+  if (!phones.length && u.phone) phones = [u.phone];
+
+  return json({
+    ok: true,
+    profile: {
+      uid: u.uid, name: u.name, lastName: u.last_name, position: u.position,
+      email: u.email, phones, photoUrl: u.photo_url || u.photo || null,
+      department: departmentName, managerUid, managerName,
+      bio: u.bio || '', active: !!u.active,
+    },
+    canEdit: me.canonicalUid === uid || me.role === 'admin',
+    isSelf: me.canonicalUid === uid,
+  }, 200, request);
+}
+
+// PUT /api/users/{uid}/profile { bio } — правка примечания (сам сотрудник/admin).
+async function handleUserProfilePut(request, env, uid) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  if (me.canonicalUid !== uid && me.role !== 'admin') {
+    return json({ error: "можно редактировать только свой профиль" }, 403, request);
+  }
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  await ensureUsersBioColumn(env);
+  if (typeof body.bio === 'string') {
+    await env.DB.prepare("UPDATE users SET bio = ? WHERE uid = ?").bind(body.bio.slice(0, 4000), uid).run();
+  }
+  return json({ ok: true }, 200, request);
+}
+
 // ── Лента (корпоративный фид, как в Битрикс24) ───────────────
 // Посты + комментарии + лайки. Аудитория: audience_uids NULL = всем;
 // иначе JSON-массив uid (автор всегда включён). admin видит всё.
@@ -7275,6 +7374,13 @@ export default {
     }
     if (path === "/api/wa/sync-groups" && request.method === "POST") {
       return handleWaSyncGroups(request, env);
+    }
+    const empProfileMatch = path.match(/^\/api\/users\/([^/]+)\/profile$/);
+    if (empProfileMatch && request.method === "GET") {
+      return handleUserProfileGet(request, env, decodeURIComponent(empProfileMatch[1]));
+    }
+    if (empProfileMatch && request.method === "PUT") {
+      return handleUserProfilePut(request, env, decodeURIComponent(empProfileMatch[1]));
     }
     // ── Аватар сотрудника (self-service) ──
     if (path === "/api/me/avatar" && request.method === "POST") {

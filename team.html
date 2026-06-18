@@ -4978,6 +4978,102 @@ async function uploadMyAvatarBlob(blob) {
   return data.url;
 }
 
+// Модалка профиля сотрудника — просмотр любым авторизованным; примечание правит
+// сам сотрудник или admin; фото меняет только сам (через /api/me/avatar).
+// Глобальна (window.openEmployeeProfile) — можно звать из структуры, чатов, таблиц.
+async function openEmployeeProfile(uid) {
+  if (!uid) return;
+  const ov = document.createElement('div');
+  ov.className = 'qad-overlay';
+  ov.style.zIndex = '10001';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:420px;width:94vw">
+    <div class="qad-head"><h2>👤 Профиль сотрудника</h2>
+      <button class="qad-btn qad-btn-ghost" id="ep-close" style="padding:4px 10px">×</button></div>
+    <div class="qad-body" id="ep-body" style="padding:24px"><div class="empty">Загрузка…</div></div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#ep-close').onclick = () => ov.remove();
+  const body = ov.querySelector('#ep-body');
+  let data;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/users/${encodeURIComponent(uid)}/profile`, { headers: { 'Authorization': 'Bearer ' + idToken } });
+    data = await r.json();
+    if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+  } catch (e) {
+    body.innerHTML = `<div style="color:var(--rd)">Ошибка: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  const p = data.profile;
+  const fullName = [p.name, p.lastName].filter(Boolean).join(' ').trim() || p.email || '—';
+  const phonesHtml = (p.phones && p.phones.length)
+    ? p.phones.map(ph => `<a href="tel:${escapeHtml(ph)}" style="color:var(--ac2);text-decoration:none">${escapeHtml(ph)}</a>`).join(', ')
+    : '<span style="color:var(--t3)">—</span>';
+  const row = (label, val) => `<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--b1);font-size:13px">
+      <span style="color:var(--t3);min-width:120px">${label}</span><span style="color:var(--t1);flex:1">${val}</span></div>`;
+  body.innerHTML = `
+    <div style="text-align:center;margin-bottom:16px">
+      <div id="ep-avatar" style="width:96px;height:96px;border-radius:50%;margin:0 auto 10px;overflow:hidden;background:var(--ac);display:flex;align-items:center;justify-content:center;color:#fff;font-size:34px;font-weight:700"></div>
+      ${data.isSelf ? `<input type="file" id="ep-file" accept="image/*" style="display:none"><button class="qad-btn qad-btn-ghost" id="ep-photo" style="padding:6px 14px;font-size:12px">📷 Изменить фото</button>` : ''}
+      <div style="font-weight:700;font-size:17px;color:var(--t1);margin-top:6px">${escapeHtml(fullName)}</div>
+      <div style="font-size:13px;color:var(--t3)">${escapeHtml(p.position || '')}${p.active ? '' : ' · ⏸ неактивен'}</div>
+    </div>
+    <div>
+      ${row('📞 Телефон', phonesHtml)}
+      ${row('✉️ Email', p.email ? `<a href="mailto:${escapeHtml(p.email)}" style="color:var(--ac2);text-decoration:none">${escapeHtml(p.email)}</a>` : '<span style="color:var(--t3)">—</span>')}
+      ${row('🏢 Отдел', escapeHtml(p.department || '—'))}
+      ${row('👔 Руководитель', p.managerName ? `<a href="#" id="ep-mgr" data-uid="${escapeHtml(p.managerUid || '')}" style="color:var(--ac2);text-decoration:none">${escapeHtml(p.managerName)}</a>` : '<span style="color:var(--t3)">—</span>')}
+    </div>
+    <div style="margin-top:16px">
+      <div style="font-weight:700;font-size:13px;color:var(--t1);margin-bottom:6px">📝 Примечание</div>
+      ${data.canEdit
+        ? `<textarea id="ep-bio" rows="4" placeholder="О себе, зона ответственности, заметки…" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--b1);border-radius:8px;background:var(--bg3);color:var(--t1);font-size:13px;resize:vertical">${escapeHtml(p.bio || '')}</textarea>
+           <button class="qad-btn qad-btn-primary" id="ep-bio-save" style="padding:8px 16px;margin-top:8px">💾 Сохранить примечание</button>
+           <span id="ep-bio-status" style="font-size:12px;margin-left:8px"></span>`
+        : `<div style="font-size:13px;color:var(--t1);white-space:pre-wrap">${p.bio ? escapeHtml(p.bio) : '<span style="color:var(--t3)">—</span>'}</div>`}
+    </div>`;
+  paintAvatarEl(body.querySelector('#ep-avatar'), p.photoUrl, fullName);
+
+  const mgrLink = body.querySelector('#ep-mgr');
+  if (mgrLink) mgrLink.onclick = (e) => { e.preventDefault(); if (mgrLink.dataset.uid) { ov.remove(); openEmployeeProfile(mgrLink.dataset.uid); } };
+
+  if (data.isSelf) {
+    const fileInput = body.querySelector('#ep-file');
+    body.querySelector('#ep-photo').onclick = () => fileInput.click();
+    fileInput.onchange = async () => {
+      const file = fileInput.files?.[0];
+      if (!file || !/^image\//.test(file.type)) return;
+      try {
+        const blob = await downscaleImage(file, 256);
+        const url = await uploadMyAvatarBlob(blob);
+        paintAvatarEl(body.querySelector('#ep-avatar'), url, fullName);
+        const topAv = document.getElementById('ux-avatar');
+        if (topAv) paintAvatarEl(topAv, url, fullName);
+      } catch (e) { alert('Ошибка фото: ' + (e.message || e)); }
+      finally { fileInput.value = ''; }
+    };
+  }
+
+  const bioSave = body.querySelector('#ep-bio-save');
+  if (bioSave) bioSave.onclick = async () => {
+    const bio = body.querySelector('#ep-bio').value;
+    const st = body.querySelector('#ep-bio-status');
+    bioSave.disabled = true; st.textContent = '⏳…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/users/${encodeURIComponent(uid)}/profile`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+        body: JSON.stringify({ bio }),
+      });
+      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || ('HTTP ' + r.status)); }
+      st.innerHTML = '<span style="color:var(--gn)">✓ Сохранено</span>';
+    } catch (e) { st.innerHTML = `<span style="color:var(--rd)">${escapeHtml(e.message)}</span>`; }
+    finally { bioSave.disabled = false; }
+  };
+}
+window.openEmployeeProfile = openEmployeeProfile;
+
 // Модалка «Мой профиль» — доступна каждому, кто кликнул свой аватар в сайдбаре.
 function openMyProfileModal() {
   const me = window.currentUser;
@@ -21734,7 +21830,7 @@ function _renderUsersTable() {
     const toggleTitle = isActive ? 'Деактивировать (soft delete)' : 'Восстановить';
     const toggleIcon = isActive ? '🚫' : '↩';
     html += `<tr data-uid="${escapeHtml(u.uid)}" data-active="${isActive ? 1 : 0}" style="${rowStyle}">
-      <td>${escapeHtml(fullName)}${isActive ? '' : ' <span style="font-size:10px;color:var(--rd)">(деактивирован)</span>'}</td>
+      <td><a href="#" class="usr-open-profile" data-uid="${escapeHtml(u.uid)}" title="Открыть профиль" style="color:var(--ac2);text-decoration:none;font-weight:600;cursor:pointer">${escapeHtml(fullName)}</a>${isActive ? '' : ' <span style="font-size:10px;color:var(--rd)">(деактивирован)</span>'}</td>
       <td style="color:var(--t3);font-size:11px">${escapeHtml(u.email || '—')}</td>
       <td style="color:var(--t3);font-size:11px">${escapeHtml(u.phone || '—')}</td>
       <td>
@@ -21757,6 +21853,11 @@ function _renderUsersTable() {
   }
   html += '</tbody></table>';
   wrap.innerHTML = html;
+
+  // Клик по имени — карточка профиля сотрудника
+  wrap.querySelectorAll('.usr-open-profile').forEach(a => {
+    a.addEventListener('click', (e) => { e.preventDefault(); openEmployeeProfile(a.dataset.uid); });
+  });
 
   // Inline-сохранение при изменении select/input
   wrap.querySelectorAll('.usr-role-select').forEach(sel => {
