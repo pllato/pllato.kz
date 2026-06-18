@@ -5737,8 +5737,9 @@ const ONE_C_SETUP_PAGE_HTML = `<!doctype html>
      el('saveres').textContent='Сохранено. Проверяю связь с 1С...';
      var t=await fetch(B+'/api/crm/1c/test-connection',{method:'POST',headers:hdr()});
      var td=await t.json();
-     if(td.result&&td.result.ok){
-       el('saveres').innerHTML='<div class=box><span class=ok><b>Готово. Связь с 1С есть.</b></span><br>Коллекций в 1С: '+(td.result.collections_total||'?')+'<br>Вернись в CRM и нажми «Синхронизировать из 1С».</div>';
+     var R=(td&&td.result)?td.result:td; // ответ может быть {ok,...} или {result:{ok,...}}
+     if(t.ok&&R&&R.ok){
+       el('saveres').innerHTML='<div class=box><span class=ok><b>Готово. Связь с 1С есть.</b></span><br>Коллекций в 1С: '+(R.collections_total||'?')+'<br>Вернись в CRM и нажми «Синхронизировать из 1С».</div>';
      }else{
        el('saveres').innerHTML='<div class=box><span class=err><b>Пароль сохранён, но связь не прошла.</b></span><br>'+JSON.stringify(td.error||td)+'<br>Скорее всего пароль не тот или не тот логин 1С.</div>';
      }
