@@ -7309,7 +7309,11 @@ async function handle1cReadNomenclatureCatalog(request, env, actor) {
   const onlyPriced = url.searchParams.get("onlyPriced") === "1";
   const onlyUnpriced = url.searchParams.get("onlyUnpriced") === "1";
   const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
-  const limit = Math.max(1, Math.min(Number(url.searchParams.get("limit")) || 200, 200));
+  // Фронт запрашивает страницами по 200 и циклится оффсетом — для «Все юр.лица»
+  // это ~115 запросов, каждый перечитывает всё зеркало (очень долгая загрузка).
+  // Отдаём весь отфильтрованный набор за один ответ (фронт корректно завершит
+  // цикл: получит items.length >= total и остановится). Кап на всякий случай.
+  const MAX_ITEMS = 50000;
 
   const db = requireStoreDb(env);
   const res = baseKey
@@ -7362,7 +7366,7 @@ async function handle1cReadNomenclatureCatalog(request, env, actor) {
   filtered.sort(sorters[sort] || byName);
 
   const total = filtered.length;
-  const page = filtered.slice(offset, offset + limit);
+  const page = filtered.slice(offset, offset + MAX_ITEMS);
   return { ok: true, items: page, total, counts, source: "1c" };
 }
 
