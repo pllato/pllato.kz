@@ -281,10 +281,22 @@ async function loadDash(wrap,qs){
       <div class="panel"><div class="panel-h"><h3>Топ врачи · ${n} дн</h3></div><div class="panel-b">${d.topDoctors.length?dashBars(d.topDoctors):'<div class="muted2">Нет данных</div>'}</div></div>
       <div class="panel"><div class="panel-h"><h3>Выручка по дням</h3><span class="ph-sub">${esc(d.from||'')} — ${esc(d.to||d.asOf||'')}</span></div><div class="panel-b">${dashDayChart(d.byDay)}</div></div>
     </div>
+    <div class="panel section-gap"><div class="panel-h"><h3>${ic('i-funnel','sm')} Источники сделок (лиды) · ${n} дн</h3><span class="ph-sub" style="margin-left:auto">откуда приходят сделки</span></div><div class="panel-b" id="dashSources"><div class="muted2" style="padding:14px">Загрузка…</div></div></div>
     <div class="panel section-gap"><div class="panel-h"><h3>Воронка продаж · конверсия по этапам</h3><select class="sel" id="dashFunnelSel" style="margin-left:auto">${FUNNELS.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('')}</select><select class="sel" id="dashSrcSel" style="margin-left:8px"><option value="">все источники</option></select></div><div class="panel-b" id="dashFunnelBody"><div class="muted2" style="padding:14px">Загрузка…</div></div></div>
     <div class="note section-gap">${ic('i-info','sm')} Период ${esc(d.from||'')} — ${esc(d.to||d.asOf||'')} (${n} дн), сравнение — с предыдущим периодом такой же длины. Данные 1С на ${esc(d.dmax||d.asOf||'')}. Синхронизация раз в 30 мин. Воронка — из сделок CRM (накопительный охват этапов).</div>`;
   // Топ товаров: клик по заголовку «подробнее →» → модал с полной таблицей (N + сортировка с сервера)
   const tpMore=wrap.querySelector('#dashTopMore'); if(tpMore) tpMore.onclick=()=>topProductsModal(qs||'');
+  // Источники сделок (лиды) — из сделок CRM за тот же период
+  (async()=>{ const sb=wrap.querySelector('#dashSources'); if(!sb)return;
+    const sr=await api('/api/deals/by-source'+(qs?('?'+qs):''));
+    if(!sr.ok){ sb.innerHTML='<div class="muted2" style="padding:14px">'+(sr.status===403?'нужен доступ':'нет данных')+'</div>'; return; }
+    const it=sr.data.items||[], tt=sr.data.totals||{};
+    if(!it.length){ sb.innerHTML='<div class="muted2" style="padding:14px">Пока нет сделок за период</div>'; return; }
+    sb.innerHTML='<table class="tbl"><thead><tr><th>Источник</th><th class="num">Лидов</th><th class="num">Сумма</th><th class="num">Выиграно</th><th class="num">Конверсия</th></tr></thead><tbody>'+
+      it.map(x=>{ const conv=x.leads?Math.round((x.won||0)/x.leads*100):0; return `<tr><td>${esc(x.source)}</td><td class="num">${(x.leads||0).toLocaleString('ru-RU')}</td><td class="num">${money(x.amount||0)}</td><td class="num">${x.won||0}</td><td class="num">${conv}%</td></tr>`; }).join('')+
+      `<tr style="font-weight:700;border-top:2px solid var(--line2)"><td>Итого</td><td class="num">${(tt.leads||0).toLocaleString('ru-RU')}</td><td class="num">${money(tt.amount||0)}</td><td class="num">${tt.won||0}</td><td class="num">${tt.leads?Math.round((tt.won||0)/tt.leads*100):0}%</td></tr>`+
+      '</tbody></table>';
+  })();
   // Воронка продаж — конверсия по этапам выбранной воронки (B2C/B2B)
   let dfFunnel=(FUNNELS[0]||{id:'b2c'}).id, dfSource=''; const dfBody=wrap.querySelector('#dashFunnelBody'), dfSrcSel=wrap.querySelector('#dashSrcSel');
   async function renderFunnel(){ if(!dfBody)return; dfBody.innerHTML='<div class="muted2" style="padding:14px">Загрузка…</div>';
