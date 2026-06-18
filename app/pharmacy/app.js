@@ -1091,6 +1091,11 @@ const PAY_ST={paid:['Оплачено','green'],debt:['Долг','red'],consign:
 const PAY_CYCLE=['','paid','debt','consign'];
 function ordStTag(s){const m=ORDER_ST[s]||['—',''];return `<span class="tag ${m[1]}">${esc(m[0])}</span>`;}
 function ordItemsText(j){ let a=[]; try{a=JSON.parse(j||'[]');}catch(e){} return a.map(x=>(x.name||'')+(x.qty>1?(' ×'+x.qty):'')).join(', '); }
+// Сумма заказа со скидкой промокода. total — за товары, discount — скидка → к оплате = total−discount.
+const ordNet=(o)=>Math.max(0,(o.total||0)-(o.discount||0));
+const ordHasDisc=(o)=>(o.discount||0)>0;
+// Цена для карточки/строки: если есть скидка — зачёркнутая сумма + «к оплате».
+function ordPriceHtml(o,small){ if(!ordHasDisc(o)) return money(o.total||0); const fs=small?'10px':'12px'; return `<span style="text-decoration:line-through;opacity:.45;font-weight:500;font-size:${fs}">${money(o.total||0)}</span> ${money(ordNet(o))}`; }
 let ORDER_STAGES=['Новый','Сборка','Собран','Отгружен'];
 PAGES.orders=async(c)=>{
   const oStores=await fetchStores();
@@ -1114,12 +1119,12 @@ PAGES.orders=async(c)=>{
   function renderBoard(){
     const items=onBoard(); boardWrap.innerHTML='';
     ORDER_STAGES.forEach(stg=>{
-      const list=items.filter(o=>(o.stage||'Новый')===stg); const sum=list.reduce((a,o)=>a+(o.total||0),0);
+      const list=items.filter(o=>(o.stage||'Новый')===stg); const sum=list.reduce((a,o)=>a+ordNet(o),0);
       const col=el(`<div class="kcol" data-stage="${esc(stg)}"><div class="kcol-h"><span class="kc-name">${esc(stg)}</span><span class="kc-count">${list.length}</span><span class="kc-sum">${money(sum)}</span></div><div class="kcol-b"></div></div>`);
       const cb=col.querySelector('.kcol-b');
       list.forEach(o=>{
         const pst=o.pay_status&&PAY_ST[o.pay_status]?PAY_ST[o.pay_status]:null;
-        const card=el(`<div class="kcard" draggable="true" data-id="${esc(o.id)}"><div class="kc-top"><div class="kc-client">${esc(o.client_name||'—')}</div>${c1(o)}</div>${o.phone?`<div class="kc-prod" style="font-size:11px;color:var(--muted)">${esc(o.phone)}</div>`:''}<div class="kc-prod" style="font-size:11px;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ordItemsText(o.items))||'—'}</div><div class="kc-sum">${money(o.total||0)}</div><div class="kc-meta"><span class="tag ${pst?pst[1]:''} ord-pay" title="Клик — сменить статус оплаты" style="cursor:pointer">${pst?pst[0]:'Не оплачено'}</span></div></div>`);
+        const card=el(`<div class="kcard" draggable="true" data-id="${esc(o.id)}"><div class="kc-top"><div class="kc-client">${esc(o.client_name||'—')}</div>${c1(o)}</div>${o.phone?`<div class="kc-prod" style="font-size:11px;color:var(--muted)">${esc(o.phone)}</div>`:''}<div class="kc-prod" style="font-size:11px;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ordItemsText(o.items))||'—'}</div><div class="kc-sum">${ordPriceHtml(o)}</div>${ordHasDisc(o)&&o.promo_code?`<div class="muted2" style="font-size:10.5px;margin-top:-2px">промокод ${esc(o.promo_code)} · −${money(o.discount||0)}</div>`:''}<div class="kc-meta"><span class="tag ${pst?pst[1]:''} ord-pay" title="Клик — сменить статус оплаты" style="cursor:pointer">${pst?pst[0]:'Не оплачено'}</span></div></div>`);
         card.addEventListener('dragstart',e=>{e.dataTransfer.setData('id',o.id);card.classList.add('dragging');});
         card.addEventListener('dragend',()=>card.classList.remove('dragging'));
         card.onclick=()=>orderModalLive(o,load);
@@ -1135,7 +1140,7 @@ PAGES.orders=async(c)=>{
   }
   function renderList(){
     const items=visible(); const tb=panel.querySelector('tbody'); cnt.textContent=items.length+' заказов';
-    tb.innerHTML=items.length?items.map(o=>`<tr class="clickable" data-id="${esc(o.id)}"><td><div style="font-weight:600">${esc(o.client_name||'—')}</div><div class="muted2" style="font-size:11px">${esc(o.phone||'')}</div></td><td class="muted" style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ordItemsText(o.items))||'—'}</td><td class="num">${money(o.total||0)}</td><td><span class="tag">${esc(o.stage||'Новый')}</span> <span class="tag ${o.pay_status&&PAY_ST[o.pay_status]?PAY_ST[o.pay_status][1]:''}">${o.pay_status&&PAY_ST[o.pay_status]?PAY_ST[o.pay_status][0]:'Не оплачено'}</span></td><td class="muted2" style="font-size:12px">${o.ext_id?esc(o.ext_id):(o.status==='queued_1c'?'очередь':'—')}</td></tr>`).join(''):'<tr><td colspan="5" class="muted2" style="padding:16px">Заказов нет</td></tr>';
+    tb.innerHTML=items.length?items.map(o=>`<tr class="clickable" data-id="${esc(o.id)}"><td><div style="font-weight:600">${esc(o.client_name||'—')}</div><div class="muted2" style="font-size:11px">${esc(o.phone||'')}</div></td><td class="muted" style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ordItemsText(o.items))||'—'}</td><td class="num">${ordPriceHtml(o,true)}</td><td><span class="tag">${esc(o.stage||'Новый')}</span> <span class="tag ${o.pay_status&&PAY_ST[o.pay_status]?PAY_ST[o.pay_status][1]:''}">${o.pay_status&&PAY_ST[o.pay_status]?PAY_ST[o.pay_status][0]:'Не оплачено'}</span></td><td class="muted2" style="font-size:12px">${o.ext_id?esc(o.ext_id):(o.status==='queued_1c'?'очередь':'—')}</td></tr>`).join(''):'<tr><td colspan="5" class="muted2" style="padding:16px">Заказов нет</td></tr>';
     tb.querySelectorAll('[data-id]').forEach(tr=>tr.onclick=()=>{ const o=allOrders.find(x=>x.id===tr.dataset.id); if(o)orderModalLive(o,load); });
   }
   function render(){ if(view==='board'){ boardWrap.style.display=''; panel.style.display='none'; renderBoard(); } else { boardWrap.style.display='none'; panel.style.display=''; renderList(); } }
@@ -1143,7 +1148,8 @@ PAGES.orders=async(c)=>{
     const r=await api('/api/orders');
     if(!r.ok){ cards.innerHTML=miniStat('i-cart','#0891b2','Заказы','демо'); boardWrap.innerHTML='<div class="muted2" style="padding:14px">Демо-режим (нет связи)</div>'; return; }
     const t=r.data.totals||{}; allOrders=r.data.items||[];
-    cards.innerHTML=miniStat('i-cart','#0891b2','Всего заказов',t.total||0)+miniStat('i-check2','#10b981','В работе',t.active||0)+miniStat('i-money','#16a34a','Сумма',money(t.amount||0))+miniStat('i-sync','#d97706','В очереди 1С',t.queued||0);
+    const netAll=allOrders.reduce((a,o)=>a+((o.status==='cancelled'||o.status==='cancel_queued')?0:ordNet(o)),0);
+    cards.innerHTML=miniStat('i-cart','#0891b2','Всего заказов',t.total||0)+miniStat('i-check2','#10b981','В работе',t.active||0)+miniStat('i-money','#16a34a','Сумма к оплате',money(netAll))+miniStat('i-sync','#d97706','В очереди 1С',t.queued||0);
     render();
   }
   tbar.querySelector('#ordView').querySelectorAll('button').forEach(b=>b.onclick=()=>{ tbar.querySelector('#ordView').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); view=b.dataset.v; render(); });
