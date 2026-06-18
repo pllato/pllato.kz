@@ -55,6 +55,39 @@ $cats    = $C.InvokeMember('Справочники',$get,$null,$ib,$null)
 $orgCat  = $C.InvokeMember('Организации',$get,$null,$cats,$null)
 $nomCat  = $C.InvokeMember('Номенклатура',$get,$null,$cats,$null)
 
+# --- Контактная информация: вид «Телефон контрагента» + тип «Телефон» (для записи доп. номеров) ---
+$phoneKindKey = if ($cfg.phoneKindKey) { [string]$cfg.phoneKindKey } else { '0eaaf2cf-ea71-11ee-b402-7c5079d8e98c' }
+$telVidRef = $null; $telTipEnum = $null
+try {
+  $kiVidCat   = $C.InvokeMember('ВидыКонтактнойИнформации',$get,$null,$cats,$null)
+  $vUid       = $C.InvokeMember('NewObject',$inv,$null,$ib,@('УникальныйИдентификатор',$phoneKindKey))
+  $telVidRef  = $C.InvokeMember('ПолучитьСсылку',$inv,$null,$kiVidCat,@($vUid))
+  $enums      = $C.InvokeMember('Перечисления',$get,$null,$ib,$null)
+  $tkiEnum    = $C.InvokeMember('ТипыКонтактнойИнформации',$get,$null,$enums,$null)
+  $telTipEnum = $C.InvokeMember('Телефон',$get,$null,$tkiEnum,$null)
+} catch { Log "КИ init предупреждение: $($_.Exception.Message)" }
+
+# Записать список телефонов в КонтактнуюИнформацию контрагента (очищает старые телефоны, добавляет новые)
+function Set-Phones($obj, $phones) {
+  if (-not $telVidRef -or -not $phones -or @($phones).Count -eq 0) { return }
+  try {
+    $ki  = $C.InvokeMember('КонтактнаяИнформация',$get,$null,$obj,$null)
+    $cnt = [int]$C.InvokeMember('Количество',$inv,$null,$ki,@())
+    for ($i = $cnt - 1; $i -ge 0; $i--) {
+      $row = $C.InvokeMember('Получить',$inv,$null,$ki,@($i))
+      $tp  = [string]$C.InvokeMember('Тип',$get,$null,$row,$null)
+      if ($tp -match 'Телефон') { [void]$C.InvokeMember('Удалить',$inv,$null,$ki,@($i)) }
+    }
+    foreach ($ph in @($phones)) {
+      $v = ([string]$ph).Trim(); if (-not $v) { continue }
+      $r = $C.InvokeMember('Добавить',$inv,$null,$ki,@())
+      [void]$C.InvokeMember('Вид',$set,$null,$r,@($telVidRef))
+      if ($telTipEnum) { [void]$C.InvokeMember('Тип',$set,$null,$r,@($telTipEnum)) }
+      [void]$C.InvokeMember('Представление',$set,$null,$r,@($v))
+    }
+  } catch { Log "  КИ телефоны не записаны: $($_.Exception.Message)" }
+}
+
 $results = @()
 foreach ($o in $orders) {
   try {
@@ -146,7 +179,8 @@ foreach ($cl in @($obx.clients)) {
       $objU = $C.InvokeMember('ПолучитьОбъект',$inv,$null,$erefU,@())
       if ($objU) {
         if ($cl.name)  { [void]$C.InvokeMember('Наименование',$set,$null,$objU,@([string]$cl.name)); [void]$C.InvokeMember('НаименованиеПолное',$set,$null,$objU,@([string]$cl.name)) }
-        if ($cl.phone) { [void]$C.InvokeMember('НомерТелефонаДляПоиска',$set,$null,$objU,@([string]$cl.phone)) }
+        $phlU = if ($cl.phones) { @($cl.phones) } elseif ($cl.phone) { @($cl.phone) } else { @() }
+        if (@($phlU).Count) { [void]$C.InvokeMember('НомерТелефонаДляПоиска',$set,$null,$objU,@([string](@($phlU) -join ', '))); Set-Phones $objU $phlU }
         if ($cl.inn) { [void]$C.InvokeMember('ИНН',$set,$null,$objU,@([string]$cl.inn)) }
         if ($cl.dob) { try { $bd=[datetime]::ParseExact([string]$cl.dob,'yyyy-MM-dd',$null); [void]$C.InvokeMember('ДатаРождения',$set,$null,$objU,@($bd)) } catch {} }
         # роль/сегмент из CRM: флаги Покупатель/Поставщик + группа врачей
@@ -189,7 +223,8 @@ foreach ($cl in @($obx.clients)) {
     $obj = $C.InvokeMember('СоздатьЭлемент',$inv,$null,$ktrCat,@())
     [void]$C.InvokeMember('Наименование',$set,$null,$obj,@([string]$cl.name))
     [void]$C.InvokeMember('НаименованиеПолное',$set,$null,$obj,@([string]$cl.name))
-    if ($cl.phone) { [void]$C.InvokeMember('НомерТелефонаДляПоиска',$set,$null,$obj,@([string]$cl.phone)) }
+    $phlC = if ($cl.phones) { @($cl.phones) } elseif ($cl.phone) { @($cl.phone) } else { @() }
+    if (@($phlC).Count) { [void]$C.InvokeMember('НомерТелефонаДляПоиска',$set,$null,$obj,@([string](@($phlC) -join ', '))); Set-Phones $obj $phlC }
     if ($cl.inn) { [void]$C.InvokeMember('ИНН',$set,$null,$obj,@([string]$cl.inn)) }
     if ($cl.dob) { try { $bd=[datetime]::ParseExact([string]$cl.dob,'yyyy-MM-dd',$null); [void]$C.InvokeMember('ДатаРождения',$set,$null,$obj,@($bd)) } catch {} }
     [void]$C.InvokeMember('Покупатель',$set,$null,$obj,@($true))
