@@ -1732,6 +1732,10 @@ PAGES.doctors=(c)=>{
   const tbar=el(`<div class="toolbar">
     <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по ФИО, промокоду, телефону…" data-dr="q"></div>
     <div class="fld-in" title="Ставка кэшбека от выручки">${ic('i-gift','sm')}<input type="number" min="0" max="100" step="1" value="10" style="width:46px" data-dr="rate">%</div>
+    <input type="date" class="sel" data-dr="from" style="padding:5px 7px;font-size:12px" title="Период: с даты">
+    <span class="muted2">—</span>
+    <input type="date" class="sel" data-dr="to" style="padding:5px 7px;font-size:12px" title="Период: по дату">
+    <button class="btn sm" data-dr="perreset" title="Сбросить период">${ic('i-x','sm')}</button>
     <button class="btn sm" data-dr="journal">${ic('i-gift','sm')} Журнал кэшбека</button>
     <div class="spacer"></div>
     <span class="ph-sub" data-dr="cnt"></span>
@@ -1743,7 +1747,7 @@ PAGES.doctors=(c)=>{
     <button class="btn sm" data-pg="prev">‹ Назад</button><span class="muted" style="font-size:13px" data-pg="info"></span><button class="btn sm" data-pg="next">Вперёд ›</button></div>`);
   c.appendChild(tbar); c.appendChild(cards); c.appendChild(panel); c.appendChild(pager);
   c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Врачи — контрагенты групп «Врач партнер» из 1С. Продажи привязаны к врачу через контрагента в чеке (промокод = код 1С). Кэшбек считается от выручки по выбранной ставке; реальные правила по брендам уточним.</div>`));
-  const tb=panel.querySelector('tbody'), cnt=tbar.querySelector('[data-dr=cnt]'), qI=tbar.querySelector('[data-dr=q]'), rateI=tbar.querySelector('[data-dr=rate]');
+  const tb=panel.querySelector('tbody'), cnt=tbar.querySelector('[data-dr=cnt]'), qI=tbar.querySelector('[data-dr=q]'), rateI=tbar.querySelector('[data-dr=rate]'), fromI=tbar.querySelector('[data-dr=from]'), toI=tbar.querySelector('[data-dr=to]');
   tbar.querySelector('[data-dr=journal]').onclick=()=>cashbackJournalModal();
   const pgInfo=pager.querySelector('[data-pg=info]'), pgPrev=pager.querySelector('[data-pg=prev]'), pgNext=pager.querySelector('[data-pg=next]');
   const PAGE=100; let offset=0, total=0, lastSummary=null, lastItems=[], demoMode=false;
@@ -1770,12 +1774,12 @@ PAGES.doctors=(c)=>{
       <td class="num">${x.revenue?money(x.revenue):'<span class="muted2">—</span>'}</td>
       <td class="num">${x.docs||'<span class="muted2">0</span>'}</td>
       <td class="num">${x.revenue?money(cb(x.revenue)):'<span class="muted2">—</span>'}</td></tr>`).join('');
-    [...tb.querySelectorAll('tr.clickable')].forEach((tr,i)=>tr.onclick=()=>doctorModalLive(lastItems[i],rate));
+    [...tb.querySelectorAll('tr.clickable')].forEach((tr,i)=>tr.onclick=()=>doctorModalLive(lastItems[i],rate,{from:fromI.value||'',to:toI.value||''}));
   }
   function renderPager(shown){ if(demoMode||total<=PAGE){pager.hidden=true;return;} pager.hidden=false; pgInfo.textContent=(offset+1)+'–'+(offset+shown)+' из '+total; pgPrev.disabled=offset<=0; pgNext.disabled=offset+PAGE>=total; }
   async function load(){
-    const q=qI.value.trim();
-    const r=await api('/api/1c/doctors?limit='+PAGE+'&offset='+offset+(q?('&q='+encodeURIComponent(q)):''));
+    const q=qI.value.trim(), from=fromI.value||'', to=toI.value||'';
+    const r=await api('/api/1c/doctors?limit='+PAGE+'&offset='+offset+(q?('&q='+encodeURIComponent(q)):'')+(from?('&from='+from):'')+(to?('&to='+to):''));
     if(!r.ok){ demoMode=true; cnt.textContent=r.status===403?'демо · нужен доступ':r.status===401?'демо · войдите':'демо · нет связи';
       const docs=DB.doctors||[]; renderCards({doctors:docs.length,withSales:docs.length,revenue:docs.reduce((a,d)=>a+d.revenue,0)}); renderTable(); renderPager(0); return; }
     demoMode=false; const d=r.data; total=d.total||0; lastSummary=d.summary||{}; lastItems=d.items||[];
@@ -1784,16 +1788,22 @@ PAGES.doctors=(c)=>{
   }
   let qt=null; qI.addEventListener('input',()=>{clearTimeout(qt);qt=setTimeout(()=>{offset=0;load();},300);});
   rateI.addEventListener('input',()=>{ rate=Math.max(0,Math.min(100,+rateI.value||0)); if(lastSummary)renderCards(lastSummary); renderTable(); });
+  fromI.addEventListener('change',()=>{offset=0;load();}); toI.addEventListener('change',()=>{offset=0;load();});
+  tbar.querySelector('[data-dr=perreset]').onclick=()=>{ fromI.value=''; toI.value=''; offset=0; load(); };
   pgPrev.onclick=()=>{ if(offset>0){offset=Math.max(0,offset-PAGE);load();$('#content').scrollTop=0;} };
   pgNext.onclick=()=>{ if(offset+PAGE<total){offset+=PAGE;load();$('#content').scrollTop=0;} };
   window.__reloadDoctors=load; // для авто-обновления после изменений кэшбека
   load();
 };
-function doctorModalLive(d,rate){
-  const remainingBase=Math.max(0,(d.revenue||0)-(d.cb_base||0));
-  const cbSum=Math.round(remainingBase*(rate||0)/100); // к начислению (остаток)
-  const accruedAmt=Math.round(d.cb_amount||0);          // уже начислено
-  const cbKpiInner=(rem,acc)=>`<div class="k-ic" style="background:#db277722;color:#db2777">${ic('i-gift')}</div><div class="k-lbl">К начислению · ${rate}%</div><div class="k-val">${money(rem)}</div>${acc>0?`<div class="k-sub">уже начислено ${money(acc)}</div>`:''}`;
+function doctorModalLive(d,rate,period){
+  const hasPeriod=!!(period&&(period.from||period.to));
+  // в режиме периода остаток = вся выручка периода × ставка (бэкенд дедупит по периоду при начислении);
+  // без периода — старое поведение (вся выручка − уже начисленная база за всё время).
+  const remainingBase=hasPeriod?(d.revenue||0):Math.max(0,(d.revenue||0)-(d.cb_base||0));
+  const cbSum=Math.round(remainingBase*(rate||0)/100); // к начислению (оценка)
+  const accruedAmt=Math.round(d.cb_amount||0);          // уже начислено (за всё время)
+  const perLbl=hasPeriod?(' · период '+(period.from||'…')+'…'+(period.to||'…')):'';
+  const cbKpiInner=(rem,acc)=>`<div class="k-ic" style="background:#db277722;color:#db2777">${ic('i-gift')}</div><div class="k-lbl">К начислению · ${rate}%${perLbl}</div><div class="k-val">${money(rem)}</div>${acc>0?`<div class="k-sub">уже начислено ${money(acc)} (всего)</div>`:''}`;
   openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.name||'?')}">${initials(d.name||'?')}</span>
     <div><h3>${esc(d.name||'—')}</h3><div class="mh-sub">Промокод ${esc(d.code||'—')} · ${esc(d.city||'')}</div></div></div>
     <button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
@@ -1820,7 +1830,7 @@ function doctorModalLive(d,rate){
   const cbb=document.getElementById('cbAccrueBtn');
   if(cbb && cbSum>0) cbb.onclick=async()=>{
     cbb.disabled=true; cbb.textContent='Начисляю…';
-    const r=await api('/api/1c/doctors/cashback',{method:'POST',body:JSON.stringify({doctor_ref:d.ref_key,rate})});
+    const r=await api('/api/1c/doctors/cashback',{method:'POST',body:JSON.stringify({doctor_ref:d.ref_key,rate,from:(period&&period.from)||'',to:(period&&period.to)||''})});
     if(!r.ok){ cbb.disabled=false; cbb.innerHTML=ic('i-gift','sm')+' Начислить кэшбек '+money(cbSum); toast((r.data&&r.data.error)||'Не удалось начислить кэшбек','i-x','#dc2626'); return; }
     cbb.disabled=true; cbb.classList.remove('primary'); cbb.innerHTML=ic('i-check2','sm')+' Начислено '+money(r.data.amount||0);
     const k=document.getElementById('cbKpi'); if(k) k.innerHTML=cbKpiInner(0, accruedAmt+(r.data.amount||0));
