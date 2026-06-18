@@ -1421,9 +1421,23 @@ PAGES.marketing=(c)=>{
     <button class="btn primary" id="newPromoBtn">${ic('i-plus','sm')} Промокод</button></div>`);
   let showArch=false;
   const panel=el(`<div class="panel"><table class="tbl"><thead><tr><th>Код</th><th>Тип</th><th>Скидка</th><th>Срок</th><th>Блогер</th><th class="num">Исп.</th><th>Статус</th></tr></thead><tbody><tr><td colspan="7" class="muted2" style="font-size:13px;padding:14px">Загрузка…</td></tr></tbody></table></div>`);
+  const actPanel=el(`<div class="panel section-gap"><div class="panel-h"><h3>${ic('i-star','sm')} Акции</h3><span class="ph-sub" style="margin-left:auto">скидки, 1+1, наборы · живут в CRM</span></div>
+    <div class="toolbar" style="padding:8px 12px 0"><div class="spacer"></div><button class="btn sm" id="mkActArch" title="Показать архивные акции">Архив</button><button class="btn sm primary" id="newActBtn">${ic('i-plus','sm')} Акция</button></div>
+    <table class="tbl"><thead><tr><th>Акция</th><th>Тип</th><th>Скидка</th><th>Срок</th><th>Статус</th></tr></thead><tbody id="actBody"><tr><td colspan="5" class="muted2" style="padding:14px;font-size:13px">Загрузка…</td></tr></tbody></table></div>`);
   const cardsPanel=el(`<div class="panel section-gap"><div class="panel-h"><h3>${ic('i-tag','sm')} Карты и промокоды из 1С</h3><span class="ph-sub" style="margin-left:auto">виды дисконтных карт · только просмотр</span></div><div id="mkCardTypes"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>`);
-  c.appendChild(cards); c.appendChild(tbar); c.appendChild(panel); c.appendChild(cardsPanel);
-  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Сверху — промокоды, созданные в CRM (уходят в 1С как дисконтные карты, статистика возвращается). Снизу — виды карт и промокодов, уже заведённые в 1С. Промокоды врачей — в разделе «Врачи-партнёры».</div>`));
+  c.appendChild(cards); c.appendChild(tbar); c.appendChild(panel); c.appendChild(actPanel); c.appendChild(cardsPanel);
+  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} <b>Промокоды</b> — клиент вводит код (уходят в 1С как дисконтные карты). <b>Акции</b> — авто-скидки на товары/бренды (1+1, наборы), применение на кассе/в 1С — Фаза 2. Снизу — виды карт из 1С. Промокоды врачей — в разделе «Врачи-партнёры».</div>`));
+  let actArch=false;
+  async function loadActions(){ const r=await api('/api/actions'+(actArch?'?archived=1':'')); const tb=actPanel.querySelector('#actBody'); if(!tb)return;
+    if(!r.ok){ tb.innerHTML='<tr><td colspan="5" class="muted2" style="padding:14px;font-size:13px">'+(r.status===403?'нужен доступ':'нет связи')+'</td></tr>'; return; }
+    const it=r.data.items||[]; const today=new Date().toISOString().slice(0,10);
+    if(!it.length){ tb.innerHTML='<tr><td colspan="5" class="muted2" style="padding:16px;font-size:13px">Акций нет. Нажмите «Акция» — создайте 1+1, набор или скидку на бренд.</td></tr>'; return; }
+    tb.innerHTML='';
+    it.forEach(a=>{ const exp=a.date_to&&a.date_to<today; const tr=el(`<tr class="clickable"><td><b>${esc(a.name)}</b><div class="muted2" style="font-size:11px">${scopeSummary(a.scope)}</div></td><td><span class="tag">${esc(actionTypeLabel(a.type))}</span></td><td>${actionDiscTxt(a)}</td><td class="muted2">${(a.date_from||a.date_to)?((esc(a.date_from||'…'))+' – '+(esc(a.date_to||'…'))+(exp?' ⚠':'')):'бессрочно'}</td><td>${a.active?'<span class="tag green">активна</span>':'<span class="tag">архив</span>'}</td></tr>`); tr.onclick=()=>actionModalLive(a,loadActions); tb.appendChild(tr); });
+  }
+  loadActions();
+  actPanel.querySelector('#newActBtn').onclick=()=>newActionLive(loadActions);
+  const aArch=actPanel.querySelector('#mkActArch'); aArch.onclick=()=>{ actArch=!actArch; aArch.classList.toggle('primary',actArch); aArch.textContent=actArch?'Скрыть архив':'Архив'; loadActions(); };
   async function loadCardTypes(){ const r=await api('/api/1c/card-types/stats'); const box=cardsPanel.querySelector('#mkCardTypes'); if(!box)return;
     if(!r.ok){ box.innerHTML='<div class="muted2" style="padding:14px;font-size:13px">'+(r.status===403?'нужен доступ':'нет связи с 1С')+'</div>'; return; }
     const it=r.data.items||[], t=r.data.totals||{};
@@ -1531,6 +1545,11 @@ function computePromoDiscount(items, promo){
   if(promo.kind==='fixed') return Math.min(Math.round(promo.value||0),Math.round(sub));
   return Math.round(sub*(promo.value||0)/100);
 }
+// ---------- АКЦИИ (CRM-конструктор) ----------
+const ACTION_TYPES=[['percent','% скидка'],['fixed','Скидка, сом'],['1plus1','1+1 / N+1 подарок'],['bundle','Набор со скидкой'],['gift','Подарок за покупку']];
+function actionTypeLabel(t){ const m=Object.fromEntries(ACTION_TYPES); return m[t]||t||'—'; }
+function actionValueLabel(t){ return t==='fixed'?'Скидка, сом':t==='percent'?'Скидка, %':'Параметр (необяз.)'; }
+function actionDiscTxt(a){ const t=a.type,v=a.value||0; if(t==='percent')return '−'+v+'%'; if(t==='fixed')return '−'+money(v); if(t==='1plus1')return '1+1'; if(t==='bundle')return 'набор'; if(t==='gift')return 'подарок'; return '—'; }
 // Редактор «на что распространяется»: группы (бренды/категории) + конкретные товары. Пусто = все товары.
 function makeScopeEditor(box, scope, allGroups){
   let groups=((scope&&scope.groups)||[]).map(g=>({ref:g.ref,name:g.name}));
@@ -1571,6 +1590,51 @@ async function promoModalLive(p,onSaved){
   bg.querySelector('#pmSave').onclick=async()=>{ const body={code:bg.querySelector('[data-pm=code]').value.trim(),type:bg.querySelector('[data-pm=type]').value,kind:bg.querySelector('[data-pm=kind]').value,value:Number(bg.querySelector('[data-pm=value]').value)||0,expires_at:bg.querySelector('[data-pm=exp]').value,limit_uses:bg.querySelector('[data-pm=limit]').value,uses:Number(bg.querySelector('[data-pm=uses]').value)||0,blogger:bg.querySelector('[data-pm=blogger]').value.trim(),note:bg.querySelector('[data-pm=note]').value.trim(),scope:scopeEd.get()}; const r=await api('/api/promos/'+p.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
   bg.querySelector('#pmToggle').onclick=async()=>{ const r=await api('/api/promos/'+p.id,{method:'POST',body:JSON.stringify({active:!p.active})}); if(r.ok){closeModal();toast(p.active?'Промокод на паузе':'Промокод активирован','i-tag');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
   bg.querySelector('#pmDel').onclick=async()=>{ if(!confirm('Удалить промокод?'))return; const r=await api('/api/promos/'+p.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
+}
+async function newActionLive(onSaved){
+  const allGroups=await fetchGroups();
+  const bg=openModal(`<div class="modal-h"><div><h3>Новая акция</h3></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld"><label>Название *</label><input data-na="name" placeholder="напр. 1+1 на детские щётки"></div>
+    <div class="fld-row"><div class="fld"><label>Тип</label><select data-na="type">${ACTION_TYPES.map(t=>`<option value="${t[0]}">${t[1]}</option>`).join('')}</select></div><div class="fld"><label data-na="vlabel">Скидка, %</label><input data-na="value" type="number" value="10"></div></div>
+    <div class="fld-row"><div class="fld"><label>Начало</label><input type="date" data-na="from"></div><div class="fld"><label>Конец</label><input type="date" data-na="to"></div></div>
+    <div class="fld"><label>Комментарий / условия</label><input data-na="note" placeholder="напр. при покупке от 2 шт."></div>
+    <div class="fld" style="border-top:1px solid var(--line);padding-top:12px"><label>На какие товары</label><div data-na="scopebox"></div></div>
+  </div>
+  <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="naSave">Создать</button></div>`);
+  const scopeEd=makeScopeEditor(bg.querySelector('[data-na=scopebox]'), {}, allGroups);
+  const typeSel=bg.querySelector('[data-na=type]'), vlabel=bg.querySelector('[data-na=vlabel]');
+  typeSel.onchange=()=>{ vlabel.textContent=actionValueLabel(typeSel.value); };
+  bg.querySelector('#naSave').onclick=async()=>{ const name=bg.querySelector('[data-na=name]').value.trim(); if(!name){toast('Укажите название','i-info');return;}
+    const body={name,type:typeSel.value,value:Number(bg.querySelector('[data-na=value]').value)||0,date_from:bg.querySelector('[data-na=from]').value,date_to:bg.querySelector('[data-na=to]').value,note:bg.querySelector('[data-na=note]').value.trim(),scope:scopeEd.get()};
+    const r=await api('/api/actions',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Акция создана','i-tag'); onSaved&&onSaved(); };
+}
+async function actionModalLive(a,onSaved){
+  const allGroups=await fetchGroups();
+  const bg=openModal(`<div class="modal-h"><div><h3>${esc(a.name)}</h3><div class="mh-sub">${esc(actionTypeLabel(a.type))} · ${actionDiscTxt(a)}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="note">${ic('i-info','sm')} Акция живёт в CRM. Авто-применение скидки на кассе/в 1С (Автоматические скидки) — Фаза 2. Сейчас можно вести правило и смотреть отчёт по продажам этих товаров.</div>
+    <div class="fld section-gap"><label>Название</label><input data-am="name" value="${esc(a.name||'')}"></div>
+    <div class="fld-row"><div class="fld"><label>Тип</label><select data-am="type">${ACTION_TYPES.map(t=>`<option value="${t[0]}" ${t[0]===a.type?'selected':''}>${t[1]}</option>`).join('')}</select></div><div class="fld"><label data-am="vlabel">${actionValueLabel(a.type)}</label><input data-am="value" type="number" value="${a.value||0}"></div></div>
+    <div class="fld-row"><div class="fld"><label>Начало</label><input type="date" data-am="from" value="${esc((a.date_from||'').slice(0,10))}"></div><div class="fld"><label>Конец</label><input type="date" data-am="to" value="${esc((a.date_to||'').slice(0,10))}"></div></div>
+    <div class="fld"><label>Комментарий / условия</label><input data-am="note" value="${esc(a.note||'')}"></div>
+    <div class="fld" style="border-top:1px solid var(--line);padding-top:12px"><label>На какие товары</label><div data-am="scopebox"></div></div>
+    <details class="fold section-gap"><summary>${ic('i-chart','sm')} Отчёт — продажи этих товаров за период</summary><div data-am="report" style="padding-top:8px"><div class="muted2" style="font-size:12px">Раскройте, чтобы загрузить…</div></div></details>
+  </div>
+  <div class="modal-f"><button class="btn" id="amDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" id="amArch">${a.active?'В архив':'Из архива'}</button><button class="btn primary" id="amSave">Сохранить</button></div>`);
+  const scopeEd=makeScopeEditor(bg.querySelector('[data-am=scopebox]'), parseScope(a.scope), allGroups);
+  const typeSel=bg.querySelector('[data-am=type]'), vlabel=bg.querySelector('[data-am=vlabel]');
+  typeSel.onchange=()=>{ vlabel.textContent=actionValueLabel(typeSel.value); };
+  const rep=bg.querySelector('[data-am=report]'); let repLoaded=false;
+  bg.querySelector('details.fold').addEventListener('toggle',async function(){ if(!this.open||repLoaded)return; repLoaded=true;
+    const r=await api('/api/actions/'+a.id+'/report'); if(!r.ok){rep.innerHTML='<div class="muted2" style="font-size:12px">'+(r.status===403?'нет доступа':'нет данных / нет связи с 1С')+'</div>';return;}
+    const d=r.data, t=d.totals||{};
+    rep.innerHTML=`<div class="cards-row" style="margin-bottom:8px">${miniStat('i-box','#2563eb','Продано, шт',(t.qty||0).toLocaleString('ru-RU'))}${miniStat('i-money','#10b981','Выручка',money(t.revenue||0))}${miniStat('i-doc','#7c3aed','Чеков',(t.docs||0).toLocaleString('ru-RU'))}</div>`+
+      `<div class="muted2" style="font-size:11px;margin-bottom:6px">период: ${esc(d.from||'весь')} – ${esc(d.to||'сейчас')}${d.scoped?'':' · <b>по ВСЕМ товарам</b> (область не задана)'}</div>`+
+      (d.items&&d.items.length?('<table class="tbl"><thead><tr><th>Товар</th><th class="num">Шт</th><th class="num">Выручка</th></tr></thead><tbody>'+d.items.slice(0,30).map(x=>`<tr><td>${esc(x.name)}</td><td class="num">${(x.qty||0).toLocaleString('ru-RU')}</td><td class="num">${money(x.revenue||0)}</td></tr>`).join('')+'</tbody></table>'):'<div class="muted2" style="font-size:12px">Продаж по этим товарам за период нет.</div>'); });
+  bg.querySelector('#amArch').onclick=async()=>{ const r=await api('/api/actions/'+a.id,{method:'POST',body:JSON.stringify({active:a.active?0:1})}); if(r.ok){closeModal();toast(a.active?'В архив':'Из архива','i-tag');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
+  bg.querySelector('#amSave').onclick=async()=>{ const body={name:bg.querySelector('[data-am=name]').value.trim(),type:typeSel.value,value:Number(bg.querySelector('[data-am=value]').value)||0,date_from:bg.querySelector('[data-am=from]').value,date_to:bg.querySelector('[data-am=to]').value,note:bg.querySelector('[data-am=note]').value.trim(),scope:scopeEd.get()}; if(!body.name){toast('Укажите название','i-info');return;} const r=await api('/api/actions/'+a.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
+  bg.querySelector('#amDel').onclick=async()=>{ if(!confirm('Удалить акцию?'))return; const r=await api('/api/actions/'+a.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
 }
 
 // ---------- BLOGGERS ----------
