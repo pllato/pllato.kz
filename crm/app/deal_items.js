@@ -3,7 +3,7 @@
 // Статусы: draft (черновик) → preliminary (отправлен на склад).
 
 import { Store } from "./store.js";
-import { listWarehouseProducts, getWarehouseProduct, productSummary, ensureProductFromOneC, createCrmProductForOneC, listLotsForProduct, getLot } from "./warehouse.js";
+import { listWarehouseProducts, getWarehouseProduct, productSummary, createCrmProductForOneC, listLotsForProduct, getLot } from "./warehouse.js";
 import { currentEmployee } from "./employees.js";
 import { apiFetch } from "./auth.js";
 import {
@@ -69,7 +69,25 @@ const modalState = {
   context: "crm", // "crm" (менеджер — только «Создать заказ») | "warehouse" (склад — жизненный цикл)
   focusItemId: null, // id позиции, на которую направить фокус после refreshModal
   focusField: null, // "product" | "qty" — какое поле строки фокусировать
+  priceLists: [], // [{id,name,count}] — прайс-листы для выпадашки (кэш на сессию)
+  priceListsLoaded: false, // подгружали ли список прайсов с воркера
 };
+
+// Прайс-листы каталога подгружаем один раз с воркера (GET /api/crm/catalog/price-lists)
+// и кэшируем в modalState. Цены применяются на сервере в каталоге по priceListId —
+// сюда тянем только id+name для выпадашки. Тихо игнорируем ошибку (заказ работает и
+// без прайса — цену можно вбить руками).
+async function loadPriceLists() {
+  if (modalState.priceListsLoaded) return modalState.priceLists;
+  try {
+    const r = await apiFetch("/api/crm/catalog/price-lists");
+    modalState.priceLists = Array.isArray(r?.lists) ? r.lists : [];
+  } catch {
+    modalState.priceLists = [];
+  }
+  modalState.priceListsLoaded = true;
+  return modalState.priceLists;
+}
 
 // === API: Позиции ===
 
@@ -114,6 +132,8 @@ export function updateDealItem(id, patch = {}) {
     next.productSku = product?.sku || "";
     next.productName = product?.name || "";
     next.unit = product?.unit || "шт";
+    // Привязка к складскому товару — сбрасываем привязку к каталогу 1С (взаимоисключаемы).
+    if (patch.productId) { next.catalogRef = null; next.catalogBase = null; next.catalogStock = null; }
     // Смена товара аннулирует ранее выбранную партию (Block 3).
     next.lotId = null;
     next.lotCode = "";
@@ -131,6 +151,40 @@ export function updateDealItem(id, patch = {}) {
   // Авто-промоция убрана намеренно: заказ уходит на склад только по явному
   // нажатию «Создать заказ» (submitDealOrder). До этого живёт в черновике CRM.
   return updated;
+}
+
+/**
+ * Привязать строку заказа к позиции НОВОГО КАТАЛОГА 1С (из /nomenclature/catalog).
+ * Строка несёт идентификатор товара (catalogRef = новый код = «Артикул» карточки 1С),
+ * чтобы воркер при создании счёта/реализации сел на новую карточку по «Артикул».
+ * Автоцена: unitPrice берётся из прайс-листа (cat.price), если она задана.
+ * Складскую привязку (productId/партию) сбрасываем — каталог не из склада.
+ * @param {string} id
+ * @param {{ref:string, base?:string, code?:string, name?:string, unit?:string, price?:number, stock?:number}} cat
+ */
+export function setDealItemFromCatalog(id, cat = {}) {
+  const item = Store.get(ITEMS, id);
+  if (!item) return null;
+  const code = String(cat.ref || cat.code || "").trim();
+  if (!code) return item;
+  const qty = Number(item.qty) || 0;
+  const hasPrice = cat.price != null && cat.price !== "" && Number.isFinite(Number(cat.price));
+  const unitPrice = hasPrice ? Number(cat.price) : (Number(item.unitPrice) || 0);
+  return Store.update(ITEMS, id, {
+    // Идентификатор товара каталога на строке (для резолва в 1С по «Артикул»).
+    catalogRef: code,
+    catalogBase: cat.base || item.catalogBase || null,
+    catalogStock: cat.stock != null ? Number(cat.stock) || 0 : (item.catalogStock ?? null),
+    productId: null,            // каталог не привязан к складскому товару
+    productSku: cat.code || code,
+    productName: cat.name || "",
+    unit: cat.unit || "шт",
+    qty,
+    unitPrice,
+    lineAmount: qty * unitPrice,
+    // Смена товара аннулирует ранее выбранную складскую партию.
+    lotId: null, lotCode: "", lotExpiry: "", lotInDate: "",
+  });
 }
 
 export function removeDealItem(id) {
@@ -889,14 +943,26 @@ function renderLotPickerRows(productId, selectedLotId, sort = "expiry", q = "") 
 
 function renderItemRow(item, products, editable) {
   const product = item.productId ? products.find((p) => p.id === item.productId) : null;
+  // Строка может быть привязана к каталогу 1С (catalogRef) ВМЕСТО складского товара.
+  const fromCatalog = !item.productId && !!item.catalogRef;
   const summary = item.productId ? productSummary(item.productId) : null;
   const stock = summary?.total || 0;
   const shortage = item.qty > stock && item.productId;
-  const stockClass = !item.productId ? "" : (shortage ? "stock-low" : "stock-ok");
-  const stockLabel = !item.productId ? "—" : `${fmtNum(stock)} ${escapeHtml(item.unit || "шт")}`;
   const inputDisabled = editable ? "" : "disabled";
-  const initialLabel = product ? productLabel(product) : "";
+  let stockClass, stockLabel, initialLabel;
+  if (fromCatalog) {
+    // Остаток каталога = сумма серий (catalogStock); привязки к складу нет.
+    const cstock = Number(item.catalogStock);
+    stockClass = "";
+    stockLabel = Number.isFinite(cstock) ? `${fmtNum(cstock)} ${escapeHtml(item.unit || "шт")}` : "—";
+    initialLabel = `${item.catalogRef} · ${item.productName || ""}`;
+  } else {
+    stockClass = !item.productId ? "" : (shortage ? "stock-low" : "stock-ok");
+    stockLabel = !item.productId ? "—" : `${fmtNum(stock)} ${escapeHtml(item.unit || "шт")}`;
+    initialLabel = product ? productLabel(product) : "";
+  }
   // Товар на складе без привязки к 1С → под строкой компактный inline-матчер.
+  // Каталожные строки уже несут код 1С — матчер не нужен.
   const storeProduct = item.productId ? Store.get("warehouse_products", item.productId) : null;
   const needsMatch = !!(storeProduct && !storeProduct._1c_ref_key);
 
@@ -904,7 +970,7 @@ function renderItemRow(item, products, editable) {
     <tr data-deal-item-id="${escapeAttr(item.id)}">
       <td class="dim-product">
         <div class="dim-typeahead" data-item-id="${escapeAttr(item.id)}">
-          <input type="text" class="dim-ta-input" placeholder="Код / название — ищем по складу и в 1С…"
+          <input type="text" class="dim-ta-input" placeholder="Код / название — ищем в каталоге 1С…"
                  value="${escapeAttr(initialLabel)}"
                  data-deal-item-typeahead="${escapeAttr(item.id)}"
                  ${inputDisabled}
@@ -1322,11 +1388,21 @@ function renderModalHTML(dealId) {
 
           ${renderRequisitesCard(deal)}
 
+          ${editable ? `
+            <div class="dim-pricelist-row" style="display:flex;align-items:center;gap:8px;margin:8px 0 4px">
+              <label style="font-size:12.5px;color:var(--text-muted,#666);white-space:nowrap">💲 Прайс-лист</label>
+              <select data-dim-pricelist style="flex:1;min-width:160px;padding:6px 8px;border:1px solid var(--border,#d8d8d8);border-radius:6px;font:inherit;font-size:12.5px;background:var(--surface,#fff);color:var(--text,#111)">
+                <option value="">${deal.priceListId ? "загрузка…" : "— без прайса —"}</option>
+              </select>
+              <span style="font-size:11px;color:var(--text-muted,#999);white-space:nowrap">цена подставится автоматически</span>
+            </div>
+          ` : ""}
+
           ${items.length === 0 ? `
             <div class="dim-empty">
               <div class="dim-empty-icon">📦</div>
               <div class="dim-empty-title">Заказ пуст</div>
-              <div class="dim-empty-text">Нажми «➕ Добавить позицию». Поиск товара идёт по складу и сразу по номенклатуре 1С; можно завести новый код.</div>
+              <div class="dim-empty-text">Выбери прайс-лист и нажми «➕ Добавить позицию». Поиск товара идёт по каталогу 1С — цена подставится из прайса; можно выбрать со склада или завести новый код.</div>
             </div>
           ` : `
             <table class="dim-table">
@@ -1542,10 +1618,10 @@ const TA_1C_ITEM_STYLE = "display:flex;justify-content:space-between;align-items
 const TA_CREATE_STYLE = "padding:8px 10px;cursor:pointer;font-size:12.5px;color:#2563eb;border-top:1px solid var(--border,#eee);background:var(--surface,#fff)";
 
 function setupRowProductSearch(input, list, opts) {
-  const { localProducts, baseKey, entity, onPick } = opts;
+  const { localProducts, baseKey, entity, priceListId, onPick, onPickCatalog } = opts;
   let token = 0;
-  // Состояние блока 1С: idle|loading|done|error.
-  const st = { onec: [], onecState: "idle", onecQ: "" };
+  // Состояние блока каталога 1С: idle|loading|done|error. cat — позиции каталога.
+  const st = { cat: [], catState: "idle", catQ: "" };
 
   const close = () => { list.hidden = true; };
 
@@ -1561,39 +1637,46 @@ function setupRowProductSearch(input, list, opts) {
       </div>`;
   };
 
+  // Позиция каталога 1С: код + название слева, остаток и цена справа. data-* несут
+  // идентификатор товара (ref = новый код = «Артикул» карточки 1С) и автоцену.
+  const catItemHtml = (x) => {
+    const priceTxt = (x.price == null || x.price === "") ? "цена —" : `${fmtNum(x.price)} ₸`;
+    const priceColor = (x.price == null || x.price === "") ? "var(--text-muted,#999)" : "#16a34a";
+    return `
+      <div class="dim-ta-cat" data-ref="${escapeAttr(x.ref)}" data-base="${escapeAttr(x.base || baseKey || "")}" data-code="${escapeAttr(x.code || "")}" data-name="${escapeAttr(x.name || "")}" data-unit="${escapeAttr(x.unit || "")}" data-stock="${escapeAttr(x.stock != null ? x.stock : "")}" data-price="${escapeAttr(x.price != null ? x.price : "")}" style="${TA_1C_ITEM_STYLE}">
+        <span style="font-size:12.5px;color:var(--text,#111)">${escapeHtml(x.name || "(без названия)")} <span style="opacity:.5">${escapeHtml(x.code || x.ref || "")}</span></span>
+        <span style="white-space:nowrap;font-size:11px"><span style="color:var(--text-muted,#888)">${fmtNum(Number(x.stock) || 0)}</span> · <span style="color:${priceColor};font-weight:600">${priceTxt}</span></span>
+      </div>`;
+  };
+
   const buildHtml = (q) => {
     let html = "";
-    const loc = filterProductsByQuery(localProducts, q).slice(0, 8);
-    // Локальные refs, чтобы не дублировать те же позиции из 1С.
-    const localRefs = new Set(localProducts.map((p) => p._1c_ref_key).filter(Boolean));
-
-    if (loc.length) {
-      html += `<div style="${TA_GROUP_STYLE}">На складе</div>` + loc.map(localItemHtml).join("");
-    }
 
     if (q.length >= 2) {
-      // Блок 1С — показываем только если запрос совпадает с тем, что искали.
-      if (st.onecState === "loading") {
-        html += `<div style="${TA_NOTE_STYLE}">Ищем в 1С…</div>`;
-      } else if (st.onecState === "error") {
-        html += `<div style="${TA_NOTE_STYLE}">⚠ 1С недоступна — можно создать код в CRM.</div>`;
-      } else if (st.onecState === "done" && st.onecQ === q) {
-        const fresh = st.onec.filter((x) => !localRefs.has(x.ref));
-        if (fresh.length) {
-          html += `<div style="${TA_GROUP_STYLE}">В 1С — привязать</div>`;
-          html += fresh.map((x) => `
-            <div class="dim-ta-1c" data-ref="${escapeAttr(x.ref)}" data-code="${escapeAttr(x.code || "")}" data-name="${escapeAttr(x.name || "")}" data-unit="${escapeAttr(x.unit || "")}" data-vat="${escapeAttr(x.vat || "")}" style="${TA_1C_ITEM_STYLE}">
-              <span style="font-size:12.5px;color:var(--text,#111)">${escapeHtml(x.name || "(без названия)")} <span style="opacity:.5">${escapeHtml(x.code || "")}</span></span>
-              <span style="font-size:11px;color:#2563eb;white-space:nowrap">из 1С →</span>
-            </div>`).join("");
+      // Каталог 1С — основной источник (новые карточки + цены прайса).
+      if (st.catState === "loading") {
+        html += `<div style="${TA_NOTE_STYLE}">Ищем в каталоге 1С…</div>`;
+      } else if (st.catState === "error") {
+        html += `<div style="${TA_NOTE_STYLE}">⚠ Каталог недоступен — можно выбрать со склада или создать код.</div>`;
+      } else if (st.catState === "done" && st.catQ === q) {
+        if (st.cat.length) {
+          html += `<div style="${TA_GROUP_STYLE}">Каталог 1С${priceListId ? "" : " · прайс не выбран"}</div>`;
+          html += st.cat.map(catItemHtml).join("");
         } else {
-          html += `<div style="${TA_NOTE_STYLE}">В 1С по «${escapeHtml(q)}» не найдено.</div>`;
+          html += `<div style="${TA_NOTE_STYLE}">В каталоге по «${escapeHtml(q)}» не найдено.</div>`;
         }
       }
-      // Всегда даём создать новый код в CRM (Асем заведёт в 1С).
+    } else {
+      html += `<div class="dim-ta-empty">Введите 2+ символа — ищем по каталогу 1С</div>`;
+    }
+
+    // Вторично — товары склада (быстрый подбор без каталога) и создание кода.
+    const loc = filterProductsByQuery(localProducts, q).slice(0, 6);
+    if (loc.length) {
+      html += `<div style="${TA_GROUP_STYLE}">На складе (без каталога)</div>` + loc.map(localItemHtml).join("");
+    }
+    if (q.length >= 2) {
       html += `<div class="dim-ta-create" data-create-q="${escapeAttr(q)}" style="${TA_CREATE_STYLE}">➕ Создать код «${escapeHtml(q)}» в CRM <span style="opacity:.6">(Асем заведёт в 1С)</span></div>`;
-    } else if (loc.length === 0) {
-      html += `<div class="dim-ta-empty">Введите 2+ символа — ищем по складу и по 1С</div>`;
     }
     return html;
   };
@@ -1605,32 +1688,29 @@ function setupRowProductSearch(input, list, opts) {
   };
 
   const bindClicks = () => {
-    // Локальный товар.
+    // Позиция каталога 1С → привязать строку к новому коду + автоцена.
+    list.querySelectorAll(".dim-ta-cat").forEach((el) => {
+      el.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        const d = el.dataset;
+        onPickCatalog({
+          ref: d.ref,
+          base: d.base || baseKey || null,
+          code: d.code || "",
+          name: d.name || "",
+          unit: d.unit || "",
+          stock: d.stock === "" ? null : Number(d.stock),
+          price: d.price === "" ? null : Number(d.price),
+        });
+        close();
+      });
+    });
+    // Локальный складской товар (вторичный путь).
     list.querySelectorAll(".dim-ta-item").forEach((el) => {
       el.addEventListener("mousedown", (e) => {
         e.preventDefault();
         const pid = el.dataset.productId;
         if (pid) onPick(pid);
-        close();
-      });
-    });
-    // Привязка позиции из 1С.
-    list.querySelectorAll(".dim-ta-1c").forEach((el) => {
-      el.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        try {
-          const prod = ensureProductFromOneC({
-            ref: el.dataset.ref,
-            code: el.dataset.code,
-            name: el.dataset.name,
-            unitRef: el.dataset.unit || null,
-            vatRef: el.dataset.vat || null,
-            base: baseKey,
-          });
-          if (prod?.id) onPick(prod.id);
-        } catch (err) {
-          alert("Не удалось привязать товар из 1С: " + (err?.message || String(err)));
-        }
         close();
       });
     });
@@ -1655,23 +1735,25 @@ function setupRowProductSearch(input, list, opts) {
     });
   };
 
-  const runOneCSearch = debounce((q) => {
+  const runCatalogSearch = debounce((q) => {
     if (q.length < 2) return;
     const my = ++token;
-    st.onecState = "loading";
-    st.onecQ = q;
+    st.catState = "loading";
+    st.catQ = q;
     render(q);
-    apiFetch("/api/crm/1c/nomenclature/search?q=" + encodeURIComponent(q) + "&base=" + encodeURIComponent(baseKey || "aminamed"))
+    const params = new URLSearchParams({ q, base: baseKey || "aminamed", limit: "20" });
+    if (priceListId) params.set("priceListId", priceListId);
+    apiFetch("/api/crm/1c/nomenclature/catalog?" + params.toString())
       .then((r) => {
         if (my !== token) return; // устарел
-        st.onec = r?.results || [];
-        st.onecState = "done";
-        st.onecQ = q;
+        st.cat = (Array.isArray(r?.items) ? r.items : []).slice(0, 20);
+        st.catState = "done";
+        st.catQ = q;
         if (input.value.trim() === q) render(q);
       })
       .catch(() => {
         if (my !== token) return;
-        st.onecState = "error";
+        st.catState = "error";
         if (input.value.trim() === q) render(q);
       });
   }, 350);
@@ -1679,9 +1761,9 @@ function setupRowProductSearch(input, list, opts) {
   input.addEventListener("focus", () => render(input.value.trim()));
   input.addEventListener("input", () => {
     const q = input.value.trim();
-    st.onecState = "idle";
+    st.catState = "idle";
     render(q);
-    runOneCSearch(q);
+    runCatalogSearch(q);
   });
   input.addEventListener("blur", () => setTimeout(close, 180));
   input.addEventListener("keydown", (e) => {
@@ -1767,8 +1849,10 @@ function wireModalHandlers() {
     });
   });
 
-  // Живой поиск товара в строках: по складу + по номенклатуре 1С + создание кода.
-  const orderBaseKey = Store.get(DEALS, dealId)?.oneCBase || "aminamed";
+  // Живой поиск товара в строках: каталог 1С (новые карточки + цены прайса) → склад → код.
+  const orderDeal = Store.get(DEALS, dealId);
+  const orderBaseKey = orderDeal?.oneCBase || "aminamed";
+  const orderPriceListId = orderDeal?.priceListId || "";
   root.querySelectorAll(".dim-typeahead").forEach((wrap) => {
     const itemId = wrap.dataset.itemId;
     const input = wrap.querySelector(".dim-ta-input");
@@ -1777,6 +1861,7 @@ function wireModalHandlers() {
     setupRowProductSearch(input, list, {
       localProducts: products,
       baseKey: orderBaseKey,
+      priceListId: orderPriceListId,
       onPick: (productId) => {
         updateDealItem(itemId, { productId });
         // После выбора товара ведём фокус в поле «Кол-во» этой же строки.
@@ -1784,8 +1869,35 @@ function wireModalHandlers() {
         modalState.focusField = "qty";
         refreshModal();
       },
+      // Выбор из каталога 1С: строка несёт код товара (для резолва в 1С по «Артикул»)
+      // и автоцену из прайса. Затем фокус — в «Кол-во».
+      onPickCatalog: (cat) => {
+        setDealItemFromCatalog(itemId, cat);
+        modalState.focusItemId = itemId;
+        modalState.focusField = "qty";
+        refreshModal();
+      },
     });
   });
+
+  // Выпадашка прайс-листа: сохраняем выбор на сделке и перерисовываем модалку,
+  // чтобы поиск товара подхватил новый прайс (автоцена). Опции догружаем асинхронно.
+  const priceSel = root.querySelector("[data-dim-pricelist]");
+  if (priceSel) {
+    const fill = (lists) => {
+      const cur = Store.get(DEALS, dealId)?.priceListId || "";
+      priceSel.innerHTML = `<option value="">— без прайса —</option>` +
+        lists.map((pl) => `<option value="${escapeAttr(pl.id)}"${pl.id === cur ? " selected" : ""}>${escapeHtml(pl.name)}${pl.count ? ` (${pl.count})` : ""}</option>`).join("");
+    };
+    fill(modalState.priceLists);
+    if (!modalState.priceListsLoaded) {
+      loadPriceLists().then((lists) => { if (root.isConnected) fill(lists); });
+    }
+    priceSel.addEventListener("change", () => {
+      Store.update(DEALS, dealId, { priceListId: priceSel.value || null });
+      refreshModal();
+    });
+  }
 
   // Block 3: подбор партии (LOT) для строки заказа.
   // Кнопка-«чип» под товаром раскрывает панель с фильтром/сортировкой по сроку

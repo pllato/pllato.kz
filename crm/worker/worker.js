@@ -6383,21 +6383,48 @@ async function oneCContractorAddress(client, contractorRef) {
   return null;
 }
 
-// Карта «ведущий артикул названия → {ref,unit,vat}» по всей номенклатуре базы
-// (первая запись на артикул — представительная). Общий ключ между базами — артикул.
-async function buildNomenTokenMap(client) {
+// Нормализация кода каталога/«Артикул»/«Код» для матчинга (трим + верхний регистр).
+function normCatalogCode(s) {
+  return String(s || "").trim().toUpperCase();
+}
+
+// Единый индекс номенклатуры выбранной базы 1С (один проход по Catalog_Номенклатура):
+//   byArticle — «Артикул» → {ref,unit,vat} (полный новый код карточки, напр. NEW-ТОО-0018);
+//   byCode    — «Код»      → {ref,unit,vat} (короткий код карточки, напр. ТОО-0018);
+//   byToken   — ведущий числовой токен названия → {ref,unit,vat} (старый фолбэк-резолв).
+// Первая запись на ключ — представительная. Общий ключ нового каталога — «Артикул».
+async function build1cNomenIndex(client) {
   const data = await client.get("Catalog_Номенклатура", { top: 10000 });
   const rows = Array.isArray(data?.value) ? data.value : [];
-  const map = new Map();
+  const byArticle = new Map();
+  const byCode = new Map();
+  const byToken = new Map();
   for (const raw of rows) {
     const p = productFromOData(raw);
-    if (!p || p.is_folder || p.deletion_mark) continue;
+    if (!p || p.is_folder || p.deletion_mark || !p.ref_key) continue;
+    const rec = { ref: p.ref_key, unit: p.unit_ref || null, vat: p.vat_rate_ref || null };
+    const art = normCatalogCode(p.article);
+    const code = normCatalogCode(p.code);
+    if (art && !byArticle.has(art)) byArticle.set(art, rec);
+    if (code && !byCode.has(code)) byCode.set(code, rec);
     const tok = oneCLeadingToken(p.name);
-    if (tok && /\d/.test(tok) && !map.has(tok)) {
-      map.set(tok, { ref: p.ref_key, unit: p.unit_ref || null, vat: p.vat_rate_ref || null });
-    }
+    if (tok && /\d/.test(tok) && !byToken.has(tok)) byToken.set(tok, rec);
   }
-  return map;
+  return { byArticle, byCode, byToken };
+}
+
+// Резолв строки заказа из нового каталога → карточка 1С по «Артикул» (новый код).
+// Гочи: в 1С «Код» = «Артикул» без префикса NEW- (макс 11 символов), поэтому
+// пробуем код как есть, без NEW- и с NEW-, и по «Артикул», и по «Код».
+function resolveCatalogNomenRef(index, code) {
+  const norm = normCatalogCode(code);
+  if (!norm) return null;
+  const stripped = norm.replace(/^NEW-/, "");
+  for (const c of [norm, stripped, `NEW-${stripped}`]) {
+    const hit = index.byArticle.get(c) || index.byCode.get(c);
+    if (hit) return hit;
+  }
+  return null;
 }
 
 // Общий механизм создания «торгового» документа в 1С (счёт / реализация).
@@ -6471,17 +6498,28 @@ async function create1cSalesDocument(request, env, actor, opts) {
   if (rawLines.length === 0) throw new HttpError(400, "lines пуст — нужна хотя бы одна позиция");
   const lines = [];
   const skipped = [];
-  let nomenMap = null; // строится один раз при первой необходимости (живой резолв)
+  let nomenIndex = null; // индекс номенклатуры базы; строится один раз при первой необходимости
   for (const ln of rawLines) {
     let productRef = null;
     let unitRef = ln?.unitRef || null;
     let vatRateRef = ln?.vatRateRef || null;
-    if (baseKey === ONE_C_DEFAULT_BASE && ln?.productRef) {
-      productRef = String(ln.productRef).trim();        // сохранённый матч (Аминамед)
-    } else {
-      if (!nomenMap) nomenMap = await buildNomenTokenMap(client); // живой резолв по артикулу
+    // 1) Новый каталог: строка несёт «Артикул» (новый код) → резолвим Ref_Key
+    //    карточки 1С по «Артикул» (документы садятся на новые карточки).
+    const article = String(ln?.article || ln?.catalogRef || ln?.productCode || "").trim();
+    if (article) {
+      if (!nomenIndex) nomenIndex = await build1cNomenIndex(client);
+      const hit = resolveCatalogNomenRef(nomenIndex, article);
+      if (hit) { productRef = hit.ref; unitRef = unitRef || hit.unit; vatRateRef = vatRateRef || hit.vat; }
+    }
+    // 2) Сохранённый прямой матч (старый путь warehouse_products, только Аминамед).
+    if (!productRef && baseKey === ONE_C_DEFAULT_BASE && ln?.productRef) {
+      productRef = String(ln.productRef).trim();
+    }
+    // 3) Фолбэк: живой резолв по ведущему числовому токену названия.
+    if (!productRef) {
+      if (!nomenIndex) nomenIndex = await build1cNomenIndex(client);
       const tok = oneCLeadingToken(ln?.name);
-      const hit = tok ? nomenMap.get(tok) : null;
+      const hit = tok ? nomenIndex.byToken.get(tok) : null;
       if (hit) { productRef = hit.ref; unitRef = unitRef || hit.unit; vatRateRef = vatRateRef || hit.vat; }
     }
     if (!productRef) { skipped.push(ln?.name || ln?.productId || "?"); continue; }
@@ -7425,6 +7463,161 @@ async function handleCatalogApprovedLots(request, env, actor) {
   return { ok: true, series: Array.isArray(obj.series) ? obj.series : [] };
 }
 
+// ─── Вкладка «Каталог»: управление утверждённым каталогом (catalog_approved_*) и
+//     партиями (catalog_lots_*). Все ручки — только админ. base — ключ юр.лица.
+
+// Валидирует ключ базы для имён коллекций catalog_*_<base> (строго из ONE_C_BASES).
+function requireCatalogBase(value) {
+  const base = String(value || "").trim();
+  if (!ONE_C_BASES[base]) throw new HttpError(400, `Неизвестная база каталога: «${base}»`);
+  return base;
+}
+
+// GET /api/crm/catalog/price-lists — лёгкий список прайс-листов для выпадашки в заказе
+// (без тяжёлой карты цен). Ответ: { ok, lists:[{id,name,count}] }. Цены применяются
+// на сервере в /api/crm/1c/nomenclature/catalog по priceListId.
+async function handleCatalogPriceLists(request, env, actor) {
+  const rows = await d1ListCollection(env, "price_lists", 1000);
+  const lists = rows
+    .filter((r) => r && !r.isDeleted)
+    .map((r) => ({
+      id: String(r.id),
+      name: r.name || "(без названия)",
+      count: r.prices && typeof r.prices === "object" ? Object.keys(r.prices).length : 0,
+    }))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+  return { ok: true, lists };
+}
+
+// POST /api/crm/catalog/approved/receipt {base, code, lot, srok, qty} — приход партии
+// в утверждённый каталог: добавляет/увеличивает серию {lot,srok,stock} в
+// catalog_lots_<base> для товара code. Остаток товара пересчитывается из серий
+// (см. handle1cReadNomenclatureCatalog), поэтому отдельно его не храним.
+async function handleCatalogApprovedReceipt(request, env, actor) {
+  require1cAdmin(actor);
+  const body = await readRequestBodyAsJson(request);
+  const base = requireCatalogBase(body?.base);
+  const code = String(body?.code || "").trim();
+  if (!code) throw new HttpError(400, "code (код товара каталога) обязателен");
+  const lot = String(body?.lot || "").trim();
+  const srok = String(body?.srok || "").trim();
+  const qty = Number(body?.qty);
+  if (!Number.isFinite(qty)) throw new HttpError(400, "qty (количество) должно быть числом");
+
+  const collection = `catalog_lots_${base}`;
+  const existing = await d1GetDoc(env, collection, code);
+  const series = Array.isArray(existing?.series) ? existing.series.map((s) => ({ ...s })) : [];
+  // Серия идентифицируется парой (номер партии, срок). Пустой lot → одна «безпартийная».
+  const idx = series.findIndex((s) => String(s.lot || "") === lot && String(s.srok || "") === srok);
+  if (idx >= 0) series[idx].stock = (Number(series[idx].stock) || 0) + qty;
+  else series.push({ lot, srok, stock: qty });
+  // Чистим нулевые/отрицательные серии (расход в ноль убирает партию).
+  const cleaned = series.filter((s) => (Number(s.stock) || 0) > 0);
+  const stock = cleaned.reduce((s, x) => s + (Number(x.stock) || 0), 0);
+
+  await d1UpsertDoc(env, collection, {
+    id: code, code, base, series: cleaned, stock,
+    createdAt: existing?.createdAt || Date.now(), updatedAt: Date.now(),
+  });
+  return { ok: true, base, code, stock, series: cleaned };
+}
+
+// POST /api/crm/catalog/approved/update {base, items:[{code, name?, unit?, oldCode?, stock?}]}
+// — точечный апдейт полей строк утверждённого каталога. Обновляются только
+// переданные поля; пропущенные сохраняются. Несуществующие коды игнорируются.
+async function handleCatalogApprovedUpdate(request, env, actor) {
+  require1cAdmin(actor);
+  const body = await readRequestBodyAsJson(request);
+  const base = requireCatalogBase(body?.base);
+  const items = Array.isArray(body?.items) ? body.items : [];
+  if (!items.length) throw new HttpError(400, "items пуст");
+  const collection = `catalog_approved_${base}`;
+  let updated = 0;
+  const missing = [];
+  for (const it of items) {
+    const code = String(it?.code || it?.id || "").trim();
+    if (!code) continue;
+    const existing = await d1GetDoc(env, collection, code);
+    if (!existing) { missing.push(code); continue; }
+    const next = { ...existing };
+    if (it.name !== undefined) next.name = it.name == null ? null : String(it.name);
+    if (it.unit !== undefined) next.unit = it.unit == null ? null : String(it.unit);
+    if (it.oldCode !== undefined) next.oldCode = it.oldCode == null ? null : String(it.oldCode);
+    if (it.stock !== undefined) next.stock = Number(it.stock) || 0;
+    next.id = code; next.code = code; next.base = base; next.updatedAt = Date.now();
+    await d1UpsertDoc(env, collection, next);
+    updated += 1;
+  }
+  return { ok: true, base, updated, missing };
+}
+
+// POST /api/crm/catalog/approved/delete {base, codes:[]} — мягкое удаление строк
+// каталога (isDeleted=true; каталог-эндпоинт их отфильтровывает). Партии не трогаем.
+async function handleCatalogApprovedDelete(request, env, actor) {
+  require1cAdmin(actor);
+  const body = await readRequestBodyAsJson(request);
+  const base = requireCatalogBase(body?.base);
+  const codes = Array.isArray(body?.codes) ? body.codes.map((c) => String(c || "").trim()).filter(Boolean) : [];
+  if (!codes.length) throw new HttpError(400, "codes пуст");
+  const collection = `catalog_approved_${base}`;
+  let deleted = 0;
+  for (const code of codes) {
+    const existing = await d1GetDoc(env, collection, code);
+    if (!existing) continue;
+    await d1UpsertDoc(env, collection, { ...existing, id: code, isDeleted: true, updatedAt: Date.now() });
+    deleted += 1;
+  }
+  return { ok: true, base, deleted };
+}
+
+// POST /api/crm/catalog/approved/import {base, items:[{code, name, unit, oldCode, stock}], replace}
+// — массовый импорт строк утверждённого каталога. replace=true: коды, отсутствующие
+// в импорте, помечаются isDeleted=true (полная замена набора). Ключ цены прайсов —
+// «<base>:<code>», поэтому code здесь = новый код карточки.
+async function handleCatalogApprovedImport(request, env, actor) {
+  require1cAdmin(actor);
+  const body = await readRequestBodyAsJson(request);
+  const base = requireCatalogBase(body?.base);
+  const items = Array.isArray(body?.items) ? body.items : [];
+  if (!items.length) throw new HttpError(400, "items пуст");
+  const replace = oneCBool(body?.replace);
+  const collection = `catalog_approved_${base}`;
+
+  const now = Date.now();
+  const seen = new Set();
+  let imported = 0;
+  for (const it of items) {
+    const code = String(it?.code || it?.id || "").trim();
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    const existing = await d1GetDoc(env, collection, code);
+    await d1UpsertDoc(env, collection, {
+      ...(existing || {}),
+      id: code, code, base,
+      name: it.name == null ? (existing?.name || null) : String(it.name),
+      unit: it.unit == null ? (existing?.unit ?? null) : String(it.unit),
+      oldCode: it.oldCode == null ? (existing?.oldCode ?? null) : String(it.oldCode),
+      stock: it.stock === undefined ? (Number(existing?.stock) || 0) : (Number(it.stock) || 0),
+      isDeleted: false,
+      createdAt: existing?.createdAt || now, updatedAt: now,
+    });
+    imported += 1;
+  }
+
+  let removed = 0;
+  if (replace) {
+    const all = await d1ListCollection(env, collection, 50000);
+    for (const row of all) {
+      if (!row || row.isDeleted) continue;
+      const code = String(row.code || row.id || "");
+      if (seen.has(code)) continue;
+      await d1UpsertDoc(env, collection, { ...row, id: code, isDeleted: true, updatedAt: now });
+      removed += 1;
+    }
+  }
+  return { ok: true, base, imported, removed, replace };
+}
+
 // POST /api/crm/1c/products/map — ручная привязка товара склада к номенклатуре 1С.
 async function handle1cMapProduct(request, env, actor) {
   require1cAdmin(actor);
@@ -7755,6 +7948,26 @@ export default {
       if (request.method === "GET" && path === "/api/crm/catalog/approved/lots") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleCatalogApprovedLots(request, env, actor));
+      }
+      if (request.method === "GET" && path === "/api/crm/catalog/price-lists") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleCatalogPriceLists(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/catalog/approved/receipt") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleCatalogApprovedReceipt(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/catalog/approved/update") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleCatalogApprovedUpdate(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/catalog/approved/delete") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleCatalogApprovedDelete(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/catalog/approved/import") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleCatalogApprovedImport(request, env, actor));
       }
       if (request.method === "POST" && path === "/api/crm/1c/nomenclature/catalog/pull") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
