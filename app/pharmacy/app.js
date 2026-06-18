@@ -631,7 +631,7 @@ PAGES.clients=async(c)=>{
   const clStores=await fetchStores();
   const tbar=el(`<div class="toolbar">
     <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по ФИО, телефону, коду, ИНН…" data-cl="q"></div>
-    <select class="sel" data-cl="seg"><option value="">Все сегменты</option><option value="b2c">B2C · розница</option><option value="b2b">B2B · опт</option><option value="doctor">Врачи-партнёры</option><option value="supplier">Поставщики</option></select>
+    <select class="sel" data-cl="seg"><option value="">Все сегменты</option><option value="b2c">B2C · розница</option><option value="b2b">B2B · опт</option><option value="online">Онлайн</option><option value="doctor">Врачи-партнёры</option><option value="supplier">Поставщики</option></select>
     ${storeSelectHtml(clStores,'','class="sel" data-cl="store" title="Покупали в точке"','Покупали: все точки')}
     <div class="spacer"></div>
     <span class="ph-sub" data-cl="cnt"></span>
@@ -647,7 +647,7 @@ PAGES.clients=async(c)=>{
   const roleTags=(r)=> ((r.is_buyer?'<span class="tag green">покупатель</span>':'')+(r.is_supplier?'<span class="tag amber">поставщик</span>':''))||'—';
   function rowLive(r){ return `<td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(r.name||'?')}">${initials(r.name||'?')}</span><div>${esc(r.name||'—')}${r.pending?' <span class="tag amber" style="font-size:9px;padding:0 6px">⏳ в 1С</span>':''}</div></div></td>
     <td>${esc(r.phone||'—')}</td><td class="muted2">${r.pending?'<span class="muted2">очередь 1С</span>':esc(r.code||'—')}</td><td class="muted">${esc(r.inn||'—')}</td>
-    <td>${segTag(r.segment)}</td><td>${roleTags(r)}</td>`; }
+    <td>${segTag(r.segment)}${r.online?' <span class="tag cyan" title="Покупает онлайн (WhatsApp / сайт)">онлайн</span>':''}</td><td>${roleTags(r)}</td>`; }
   async function loadSegments(){
     const r=await api('/api/1c/segments');
     if(!r.ok){ segCards.innerHTML=''; return; }
@@ -655,9 +655,10 @@ PAGES.clients=async(c)=>{
     segCards.innerHTML =
       dashKpi('i-users','#10b981','Розница · B2C',money(rev.b2c||0),(n.b2c||0)+' '+plural(n.b2c||0,'клиент','клиента','клиентов'),0)
       + dashKpi('i-truck','#2563eb','Опт · B2B',money(rev.b2b||0),(n.b2b||0)+' '+plural(n.b2b||0,'клиент','клиента','клиентов'),0)
+      + dashKpi('i-phone','#0891b2','Онлайн',money(rev.online||0),(n.online||0)+' '+plural(n.online||0,'клиент','клиента','клиентов'),0)
       + dashKpi('i-tooth','#db2777','Врачи-партнёры',money(rev.doctor||0),(n.doctor||0)+' '+plural(n.doctor||0,'врач','врача','врачей'),0);
     const set=(v,base,c2)=>{ const o=[...segSel.options].find(o=>o.value===v); if(o&&c2!=null)o.textContent=base+' ('+c2+')'; };
-    set('b2c','B2C · розница',n.b2c); set('b2b','B2B · опт',n.b2b); set('doctor','Врачи-партнёры',n.doctor); set('supplier','Поставщики',n.supplier);
+    set('b2c','B2C · розница',n.b2c); set('b2b','B2B · опт',n.b2b); set('online','Онлайн',n.online); set('doctor','Врачи-партнёры',n.doctor); set('supplier','Поставщики',n.supplier);
   }
   function rowDemo(cl){ const type=Array.isArray(cl.type)?cl.type:[]; return `<td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(cl.name)}">${initials(cl.name)}</span><div>${esc(cl.name)}</div></div></td>
     <td>${esc(cl.phone||'—')}</td><td class="muted2">${esc(cl.card||'—')}</td><td class="muted">—</td>
@@ -697,7 +698,7 @@ PAGES.clients=async(c)=>{
   pgNext.onclick=()=>{ if(offset+PAGE<total){offset+=PAGE;load();$('#content').scrollTop=0;} };
   window.__reloadClients=load; load(); loadSegments();
   c.appendChild(panel); c.appendChild(pager);
-  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} База клиентов — контрагенты из 1С. Сегмент: B2C (физлица, розница) · B2B (юр.лица и ИП, опт) · Врачи-партнёры · Поставщики. Выручка по сегментам — из регистра «Продажи» 1С (розница без контрагента учтена в B2C). Синхронизация раз в 30 мин.</div>`));
+  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} База клиентов — контрагенты из 1С. Сегмент: B2C (физлица, розница) · B2B (юр.лица и ИП, опт) · Врачи-партнёры · Поставщики. <b>Онлайн</b> — доп. метка: клиент покупал через онлайн-канал (WhatsApp / сайт), ставится автоматически по источнику сделки и не зависит от B2C/B2B. Выручка по сегментам — из регистра «Продажи» 1С. Синхронизация раз в 30 мин.</div>`));
 };
 // Редактор списка телефонов (несколько номеров; первый — основной). п.5
 function makePhoneList(box, phones){
