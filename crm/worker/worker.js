@@ -7203,21 +7203,9 @@ async function handle1cNomenclatureSearch(request, env, actor) {
 async function pullNomenclatureMirrorForBase(env, tenantId, baseKey) {
   const { client } = await build1cClient(env, tenantId, baseKey);
 
-  // Имя базовой единицы измерения для каждой позиции (фронт показывает «шт»).
-  const unitNames = new Map();
-  try {
-    const u = await client.get("Catalog_ЕдиницыИзмерения", { top: 1000, select: ["Ref_Key", "Description"] });
-    for (const row of (Array.isArray(u?.value) ? u.value : [])) {
-      const ref = row?.Ref_Key;
-      const label = String(row?.Description || row?.Наименование || "").trim();
-      if (ref && label) unitNames.set(ref, label);
-    }
-  } catch { /* без справочника единиц не критично — оставим unit пустым */ }
-
   // Номенклатуру тянем ПОСТРАНИЧНО и только нужные поля ($select). Один запрос на
   // 10 000 строк со всеми полями выбивал у 1С:Фреш защитный лимит (HTTP 402 →
   // кулдаун всего аккаунта). Лёгкие страницы с паузой держат нагрузку низкой.
-  // Зеркало пишется upsert'ом по ref_key, поэтому перекрытие окон $skip безвредно.
   // У Catalog_Номенклатура единица — это БазоваяЕдиницаИзмерения_Key; поля
   // ЕдиницаИзмерения_Key тут НЕТ, и его наличие в $select даёт 400 OData.
   const NOMEN_SELECT = ["Ref_Key", "Code", "Description", "НаименованиеПолное", "Артикул",
@@ -7232,31 +7220,31 @@ async function pullNomenclatureMirrorForBase(env, tenantId, baseKey) {
     skip += PAGE;
     await new Promise((r) => setTimeout(r, 500)); // пауза между страницами — не давить на лимит
   }
+  const now = Date.now();
   const rows = [];
   for (const r of raw) {
     const p = productFromOData(r);
     if (!p || p.is_folder || p.deletion_mark || !p.ref_key) continue;
     rows.push({
-      ref_key: p.ref_key,
-      code: p.code || null,
-      name: p.name || null,
-      article: p.article || null,
-      unit: (p.unit_ref && unitNames.get(p.unit_ref)) || null,
-      vat_rate_ref: p.vat_rate_ref || null,
+      id: p.ref_key, ref_key: p.ref_key, base: baseKey,
+      code: p.code || null, name: p.name || null, article: p.article || null,
+      unit_ref: p.unit_ref || null, vat_rate_ref: p.vat_rate_ref || null,
+      is_folder: false, deletion_mark: false, stock: 0,
+      createdAt: now, updatedAt: now,
     });
   }
 
+  // Пишем в store-коллекцию nomenclature_1c_<base> — это «сырое зеркало 1С», ФОЛБЭК
+  // для каталога. Утверждённый каталог (catalog_approved_*, ручные коды/Excel) НЕ
+  // трогаем. Полная замена: старое чистим, новое пишем пачками (лимиты D1).
   const db = requireStoreDb(env);
-  const now = Date.now();
-  // Полная замена зеркала по базе: старое чистим, актуальное пишем пачками (лимиты D1).
-  await db.prepare(`DELETE FROM nomenclature_mirror WHERE team_id=? AND base=?`).bind(TEAM_ID, baseKey).run();
+  const collection = `nomenclature_1c_${baseKey}`;
+  await db.prepare(`DELETE FROM store WHERE team_id=? AND collection=?`).bind(TEAM_ID, collection).run();
   const CHUNK = 50;
   for (let i = 0; i < rows.length; i += CHUNK) {
     const batch = rows.slice(i, i + CHUNK).map((x) =>
-      db.prepare(`INSERT OR REPLACE INTO nomenclature_mirror
-        (team_id, base, ref_key, code, name, article, unit, vat_rate_ref, updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?)`)
-        .bind(TEAM_ID, baseKey, x.ref_key, x.code, x.name, x.article, x.unit, x.vat_rate_ref, now));
+      db.prepare(`INSERT OR REPLACE INTO store (team_id, collection, id, data, created_at, updated_at) VALUES (?,?,?,?,?,?)`)
+        .bind(TEAM_ID, collection, x.id, JSON.stringify(x), x.createdAt, x.updatedAt));
     if (batch.length) await db.batch(batch);
   }
   return rows.length;
@@ -7316,12 +7304,10 @@ async function handle1cReadNomenclatureCatalog(request, env, actor) {
   const MAX_ITEMS = 50000;
 
   const db = requireStoreDb(env);
-  const res = baseKey
-    ? await db.prepare(`SELECT base, ref_key, code, name, article, unit FROM nomenclature_mirror WHERE team_id=? AND base=?`).bind(TEAM_ID, baseKey).run()
-    : await db.prepare(`SELECT base, ref_key, code, name, article, unit FROM nomenclature_mirror WHERE team_id=?`).bind(TEAM_ID).run();
-  let rows = res.results || [];
+  const baseList = baseKey ? [baseKey] : Object.keys(ONE_C_BASES);
 
-  // Карта цен выбранного прайса (своя копия в store), ключ "<base>:<ref_key>".
+  // Карта цен выбранного прайса (своя копия в store). Ключ позиции = "<base>:<ref>",
+  // где ref у утверждённого каталога — это НОВЫЙ КОД (к нему привязаны цены).
   let priceMap = {};
   if (priceListId) {
     const plRow = await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? AND id=?`)
@@ -7331,28 +7317,73 @@ async function handle1cReadNomenclatureCatalog(request, env, actor) {
     }
   }
 
-  // Текстовый фильтр (код / название / артикул).
-  if (q) {
-    rows = rows.filter((r) =>
-      String(r.name || "").toLowerCase().includes(q) ||
-      String(r.code || "").toLowerCase().includes(q) ||
-      String(r.article || "").toLowerCase().includes(q));
+  // Источник каталога по каждому юр.лицу: УТВЕРЖДЁННЫЙ список (catalog_approved_*,
+  // ref = новый код — к нему привязаны цены прайсов) приоритетнее. Если его нет —
+  // сырое зеркало 1С (nomenclature_1c_*, ref = Ref_Key). Остаток — сумма серий из
+  // партий (catalog_lots_*). Pull обновляет только зеркало 1С, утверждённый каталог
+  // (ручные коды/Excel) НЕ трогает.
+  let usedApproved = false;
+  const items = [];
+  for (const base of baseList) {
+    const approved = await d1ListCollection(env, `catalog_approved_${base}`, 50000);
+    const approvedLive = approved.filter((a) => a && !a.isDeleted);
+    if (approvedLive.length) {
+      usedApproved = true;
+      const lots = await d1ListCollection(env, `catalog_lots_${base}`, 50000);
+      const stockByCode = new Map();
+      for (const l of lots) {
+        if (!l || !l.code) continue;
+        const tot = Array.isArray(l.series)
+          ? l.series.reduce((s, x) => s + (Number(x.stock) || 0), 0)
+          : (Number(l.stock) || 0);
+        stockByCode.set(l.code, tot);
+      }
+      for (const a of approvedLive) {
+        const code = a.code || a.id;
+        const pv = priceMap[`${base}:${code}`];
+        items.push({
+          ref: code, base, code,
+          name: a.name || null,
+          article: a.oldCode || null,
+          unit: a.unit || null,
+          stock: stockByCode.has(code) ? stockByCode.get(code) : (Number(a.stock) || 0),
+          price: (pv == null || pv === "") ? null : Number(pv),
+        });
+      }
+    } else {
+      const nomen = await d1ListCollection(env, `nomenclature_1c_${base}`, 50000);
+      for (const n of nomen) {
+        if (!n || n.is_folder || n.deletion_mark) continue;
+        const ref = n.ref_key || n.id;
+        const pv = priceMap[`${base}:${ref}`];
+        items.push({
+          ref, base,
+          code: n.code || null,
+          name: n.name || null,
+          article: n.article || null,
+          unit: null,
+          stock: Number(n.stock) || 0,
+          price: (pv == null || pv === "") ? null : Number(pv),
+        });
+      }
+    }
   }
 
-  const items = rows.map((r) => {
-    const key = `${r.base}:${r.ref_key}`;
-    const pv = priceMap[key];
-    const price = (pv == null || pv === "") ? null : Number(pv);
-    return { ref: r.ref_key, base: r.base, code: r.code, name: r.name, article: r.article, unit: r.unit, stock: 0, price };
-  });
+  // Текстовый фильтр (код / название / артикул).
+  const list = q
+    ? items.filter((it) =>
+        String(it.name || "").toLowerCase().includes(q) ||
+        String(it.code || "").toLowerCase().includes(q) ||
+        String(it.article || "").toLowerCase().includes(q))
+    : items;
 
   // Счётчики — по всему набору (base+q), ДО фильтра по наличию цены.
-  const counts = { all: items.length, priced: 0, unpriced: 0 };
-  for (const it of items) { if (it.price != null) counts.priced += 1; else counts.unpriced += 1; }
+  const counts = { all: list.length, priced: 0, unpriced: 0 };
+  for (const it of list) { if (it.price != null) counts.priced += 1; else counts.unpriced += 1; }
 
-  let filtered = items;
-  if (onlyPriced) filtered = items.filter((it) => it.price != null);
-  else if (onlyUnpriced) filtered = items.filter((it) => it.price == null);
+  let filtered = list;
+  if (onlyPriced) filtered = list.filter((it) => it.price != null);
+  else if (onlyUnpriced) filtered = list.filter((it) => it.price == null);
 
   const byName = (a, b) => String(a.name || "").localeCompare(String(b.name || ""), "ru");
   const sorters = {
@@ -7367,7 +7398,7 @@ async function handle1cReadNomenclatureCatalog(request, env, actor) {
 
   const total = filtered.length;
   const page = filtered.slice(offset, offset + MAX_ITEMS);
-  return { ok: true, items: page, total, counts, source: "1c" };
+  return { ok: true, items: page, total, counts, source: usedApproved ? "approved" : "1c" };
 }
 
 // POST /api/crm/1c/products/map — ручная привязка товара склада к номенклатуре 1С.
