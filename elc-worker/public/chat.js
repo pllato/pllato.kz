@@ -504,6 +504,13 @@
       .tc-msg.own .tc-react { background:rgba(255,255,255,.2); border-color:transparent; color:#fff; }
       .tc-react.own { background:color-mix(in srgb, var(--tc-ac) 22%, transparent); border-color:var(--tc-ac); }
       .tc-react:hover { filter:brightness(.97); }
+      .tc-react[title]:not([title=""]) { cursor:pointer; }
+      .tc-qr-pop { position:fixed; z-index:100000; display:flex; gap:2px; background:var(--bg2,#fff);
+        border:1px solid var(--b1,#e3e5ea); border-radius:24px; padding:4px 6px; box-shadow:0 8px 28px rgba(0,0,0,.2); }
+      .tc-qr-btn { border:none; background:none; font-size:21px; cursor:pointer; width:36px; height:36px;
+        border-radius:50%; line-height:1; transition:transform .1s, background .1s; padding:0; }
+      .tc-qr-btn:hover { background:var(--bg3,#eee); transform:scale(1.25); }
+      .tc-qr-more { font-size:16px; color:var(--t3,#888); }
       .tc-msg-actions { position:absolute; top:-13px; right:6px; display:none; gap:1px; background:var(--bg2);
         border:1px solid var(--b1); border-radius:9px; padding:2px; box-shadow:0 3px 10px rgba(0,0,0,.14); z-index:2; }
       .tc-msg.own .tc-msg-actions { right:auto; left:6px; }
@@ -814,7 +821,7 @@
     updateScrollBtn();
 
     msgsEl.querySelectorAll('[data-msg-act]').forEach(b => {
-      b.onclick = () => onMsgAction(b.dataset.msgAct, b.dataset.msgId);
+      b.onclick = (e) => { e.stopPropagation(); onMsgAction(b.dataset.msgAct, b.dataset.msgId, b); };
     });
     msgsEl.querySelectorAll('[data-react-toggle]').forEach(b => {
       b.onclick = () => toggleReaction(b.dataset.reactToggle, b.dataset.emoji, b.dataset.own === '1');
@@ -904,7 +911,9 @@
     if (m.reactions && m.reactions.length) {
       reactionsHtml = '<div class="tc-reactions">' + m.reactions.map(r => {
         const isOwn = r.users.includes(state.me.uid);
-        return `<button class="tc-react${isOwn ? ' own' : ''}" data-react-toggle="${m.id}" data-emoji="${escapeHtml(r.emoji)}" data-own="${isOwn ? '1' : '0'}">${escapeHtml(r.emoji)} ${r.users.length}</button>`;
+        // Кто поставил эту реакцию — в подсказке при наведении.
+        const who = (r.users || []).map(u => userLabel(u)).filter(Boolean).join(', ');
+        return `<button class="tc-react${isOwn ? ' own' : ''}" data-react-toggle="${m.id}" data-emoji="${escapeHtml(r.emoji)}" data-own="${isOwn ? '1' : '0'}" title="${escapeHtml(who)}">${escapeHtml(r.emoji)} ${r.users.length}</button>`;
       }).join('') + '</div>';
     }
 
@@ -1289,7 +1298,7 @@
     for (const f of files) await uploadAndSendFile(f);
   }
 
-  function onMsgAction(action, msgId) {
+  function onMsgAction(action, msgId, btn) {
     const m = state.messages.find(x => x.id === msgId);
     if (!m) return;
     if (action === 'reply') { state.replyToMsg = m; state.editingMsg = null; renderComposer({ focus: true }); }
@@ -1298,13 +1307,36 @@
       if (!confirm('Удалить сообщение?')) return;
       api(`/api/chat/messages/${msgId}`, { method: 'DELETE' }).catch(e => alert(e.message));
     }
-    if (action === 'react') addReactionPrompt(msgId);
+    if (action === 'react') openQuickReact(msgId, btn);
   }
 
-  function addReactionPrompt(msgId) {
-    const emoji = prompt('Эмодзи:', '👍');
-    if (!emoji) return;
-    api(`/api/chat/messages/${msgId}/reactions`, { method: 'POST', body: JSON.stringify({ emoji }) }).catch(e => alert(e.message));
+  // Быстрые реакции — одним нажатием. Жмёшь 😊 → ряд эмодзи → один тап ставит.
+  const QUICK_REACTIONS = ['👍', '❤️', '😂', '🔥', '👏', '🎉', '😮', '✅'];
+  let _qrPop = null;
+  function closeQuickReact() {
+    if (_qrPop) { _qrPop.remove(); _qrPop = null; document.removeEventListener('click', closeQuickReact); }
+  }
+  function openQuickReact(msgId, btn) {
+    closeQuickReact();
+    const pop = document.createElement('div');
+    pop.className = 'tc-qr-pop';
+    pop.innerHTML = QUICK_REACTIONS.map(e => `<button class="tc-qr-btn" data-e="${e}">${e}</button>`).join('')
+      + `<button class="tc-qr-btn tc-qr-more" title="Другой эмодзи">＋</button>`;
+    document.body.appendChild(pop);
+    _qrPop = pop;
+    const rect = btn ? btn.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 2 };
+    pop.style.left = Math.max(8, Math.min(rect.left - 10, innerWidth - 290)) + 'px';
+    pop.style.top = Math.max(8, rect.top - 48) + 'px';
+    pop.querySelectorAll('.tc-qr-btn').forEach(b => {
+      b.onclick = (ev) => {
+        ev.stopPropagation();
+        let emoji = b.dataset.e;
+        if (b.classList.contains('tc-qr-more')) emoji = prompt('Эмодзи:', '👍');
+        closeQuickReact();
+        if (emoji) api(`/api/chat/messages/${msgId}/reactions`, { method: 'POST', body: JSON.stringify({ emoji }) }).catch(e => alert(e.message));
+      };
+    });
+    setTimeout(() => document.addEventListener('click', closeQuickReact), 0);
   }
 
   function toggleReaction(msgId, emoji, isOwn) {
