@@ -16,6 +16,116 @@
 <link rel="icon" type="image/svg+xml" href="pllato_favicon_64.svg">
 <link rel="apple-touch-icon" href="pllato_icon_512.svg">
 
+<link rel="canonical" href="https://pllato.kz/">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Своя CRM под ваш бизнес за 4 недели | Pllato">
+<meta name="twitter:description" content="То же, что Bitrix и Amo, но под ваш процесс. С передачей кода. Без подписок.">
+<meta name="twitter:image" content="https://pllato.kz/pllato_icon_512.svg">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": ["Organization", "ProfessionalService"],
+  "name": "Pllato",
+  "url": "https://pllato.kz/",
+  "logo": "https://pllato.kz/pllato_icon_512.svg",
+  "image": "https://pllato.kz/pllato_icon_512.svg",
+  "description": "Разработка кастомных CRM-систем под бизнес-процессы клиента за 4–8 недель с передачей кода в собственность. Алматы, Казахстан.",
+  "telephone": "+7 701 123 99 99",
+  "email": "uurraa@gmail.com",
+  "priceRange": "$$",
+  "areaServed": "KZ",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Алматы",
+    "addressCountry": "KZ"
+  },
+  "sameAs": ["https://wa.me/77011239999"],
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "telephone": "+7 701 123 99 99",
+    "contactType": "sales",
+    "areaServed": "KZ",
+    "availableLanguage": ["ru", "kk"]
+  }
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Pllato",
+  "url": "https://pllato.kz/",
+  "inLanguage": "ru"
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "serviceType": "Разработка CRM под ключ",
+  "provider": {
+    "@type": "Organization",
+    "name": "Pllato",
+    "url": "https://pllato.kz/"
+  },
+  "areaServed": "KZ",
+  "description": "Заказная разработка CRM-системы под процессы компании: канбан, карточки клиентов, чаты, интеграции с мессенджерами и 1С, коллтрекинг. Срок 4–8 недель, код передаётся в собственность."
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Сколько времени занимает разработка CRM?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "От 4 до 8 недель в зависимости от сложности: простой проект — 3–4 недели, средний — 5–6 недель, сложный — от 8 недель."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Код CRM остаётся у меня?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Да. Мы передаём код в собственность — без ежемесячных подписок и привязки к платформе."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Чем заказная CRM отличается от Bitrix24 или amoCRM?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Те же возможности — канбан, карточки, чаты, интеграции — но система собрана под ваши процессы, а не вы подстраиваетесь под чужой шаблон. Код принадлежит вам."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Можно ли перенести данные из текущей CRM?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Да, мы выполняем миграцию данных из существующих CRM-систем."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "С чего начать?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "С бесплатной 30-минутной диагностики бизнеса — разберём процессы и предложим решение."
+      }
+    }
+  ]
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -3643,6 +3753,28 @@ document.querySelectorAll('.js-footer-feedback-form').forEach(form => {
   });
 });
 
+</script>
+
+<!-- Отслеживание кликов по WhatsApp и телефону как конверсий (тот же паттерн, что у формы) -->
+<script>
+(function () {
+  function sendContact(eventName, label) {
+    if (window.dataLayer) window.dataLayer.push({ event: eventName, lead_source: label });
+    if (typeof gtag === 'function') gtag('event', eventName, { source: label });
+    if (typeof ym === 'function' && window.YANDEX_METRIKA_ID) ym(window.YANDEX_METRIKA_ID, 'reachGoal', eventName);
+    if (typeof fbq === 'function') fbq('track', 'Contact', { source: label });
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a) return;
+    var href = a.getAttribute('href') || '';
+    if (/(?:wa\.me|api\.whatsapp\.com|web\.whatsapp\.com)/i.test(href)) {
+      sendContact('contact_whatsapp', 'whatsapp_link');
+    } else if (/^tel:/i.test(href)) {
+      sendContact('contact_phone', 'phone_link');
+    }
+  }, true);
+})();
 </script>
 </body>
 </html>
