@@ -4,8 +4,9 @@ let STAGES = { b2c:(DB.stagesB2C||[]).slice(), b2b:(DB.stagesB2B||[]).slice() };
 let FUNNELS = [{id:'b2c',name:'B2C'},{id:'b2b',name:'B2B'}];  // реестр воронок (из D1)
 
 // ---------- AUTH / API config ----------
-const API_BASE = 'https://pharmacy-crm-worker.uurraa.workers.dev';
-const GOOGLE_CLIENT_ID = '773798066647-jg137in0mum92famuml70kauonp7amgg.apps.googleusercontent.com';
+const API_BASE = (window.PHARMA_CONFIG&&window.PHARMA_CONFIG.API_BASE) || 'https://pharmacy-crm-worker.uurraa.workers.dev';
+const GOOGLE_CLIENT_ID = (window.PHARMA_CONFIG&&window.PHARMA_CONFIG.GOOGLE_CLIENT_ID) || '773798066647-jg137in0mum92famuml70kauonp7amgg.apps.googleusercontent.com';
+window.API_BASE = API_BASE;  // для sip-client.js и прочих модулей
 let AUTH = { token:null, user:null };
 
 // ---------- helpers ----------
