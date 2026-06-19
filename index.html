@@ -3408,6 +3408,41 @@ document.querySelectorAll('.lead-form input[name="phone"]').forEach(input => {
 });
 
 /* ============== LEAD MESSAGE BUILDERS ============== */
+/* ============== ATTRIBUTION: захват gclid/utm для сквозной аналитики (закрытый цикл) ============== */
+(function captureAdAttribution() {
+  try {
+    const p = new URLSearchParams(location.search);
+    const fields = ['gclid', 'gbraid', 'wbraid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term'];
+    const found = {};
+    fields.forEach(k => { const v = p.get(k); if (v) found[k] = v; });
+    if (Object.keys(found).length) {
+      found._ts = new Date().toISOString();
+      // Храним первое касание 90 дней (если уже есть gclid — не перетираем)
+      const exists = /(?:^|;\s*)pllato_attr=/.test(document.cookie);
+      if (!exists || found.gclid || found.gbraid || found.wbraid) {
+        document.cookie = 'pllato_attr=' + encodeURIComponent(JSON.stringify(found)) +
+          ';path=/;max-age=' + (90 * 24 * 3600) + ';SameSite=Lax';
+      }
+    }
+  } catch (e) { /* no-op */ }
+})();
+
+function getAdAttribution() {
+  try {
+    const m = document.cookie.match(/(?:^|;\s*)pllato_attr=([^;]+)/);
+    if (!m) return [];
+    const a = JSON.parse(decodeURIComponent(m[1]));
+    const lines = [];
+    if (a.gclid)  lines.push('gclid: ' + a.gclid);
+    if (a.gbraid) lines.push('gbraid: ' + a.gbraid);
+    if (a.wbraid) lines.push('wbraid: ' + a.wbraid);
+    const utm = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term']
+      .map(k => a[k]).filter(Boolean);
+    if (utm.length) lines.push('UTM: ' + utm.join(' / '));
+    return lines.length ? ['', '— Источник рекламы —', ...lines] : [];
+  } catch (e) { return []; }
+}
+
 function buildLeadText(phone, source) {
   // Защита: не строим сообщение, если телефон пустой или некорректный
   const digits = (phone || '').replace(/\D/g, '');
@@ -3685,6 +3720,10 @@ function handleFormSubmit(form, isExtended) {
       navigator.userAgent.includes('Mobile') ? '📱 Мобайл' : '💻 Десктоп',
     ].join('\n');
   }
+
+  // Подмешиваем источник рекламы (gclid/utm) в каждую заявку — для офлайн-конверсий в Google Ads
+  const _attr = getAdAttribution();
+  if (_attr.length) text = (text || '') + '\n' + _attr.join('\n');
 
   Promise.allSettled([
     sendToTelegram(text),
