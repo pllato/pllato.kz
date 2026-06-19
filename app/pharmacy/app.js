@@ -238,6 +238,7 @@ function dashDayChart(rows){
   const max=Math.max(...rows.map(r=>r.revenue||0),1);
   return `<div class="day-chart" style="display:flex;align-items:flex-end;gap:3px;height:120px;padding:10px 2px 4px">${rows.map(p=>`<div class="day-bar" data-d="${esc(p.d)}" data-rev="${p.revenue||0}" onmouseenter="dcTip(event,this)" onmousemove="dcTip(event,this)" onmouseleave="dcTipHide()" style="flex:1;min-width:3px;background:linear-gradient(180deg,var(--accent2),var(--accent));border-radius:3px 3px 0 0;height:${Math.max(2,Math.round((p.revenue||0)/max*100))}%;cursor:pointer;transition:filter .1s"></div>`).join('')}</div>`;
 }
+function fmtBytes(b){ b=Number(b)||0; if(b<1024)return b+' Б'; const u=['КБ','МБ','ГБ','ТБ']; let i=-1; do{ b/=1024; i++; }while(b>=1024&&i<u.length-1); return (b<10?b.toFixed(1):Math.round(b))+' '+u[i]; }
 async function loadDash(wrap,qs){
   const fmt=(n)=>(n||0).toLocaleString('ru-RU');
   wrap.innerHTML=`<div class="muted2" style="padding:10px">Загрузка…</div>`;
@@ -283,6 +284,7 @@ async function loadDash(wrap,qs){
     </div>
     <div class="panel section-gap"><div class="panel-h"><h3>${ic('i-funnel','sm')} Источники сделок (лиды) · ${n} дн</h3><span class="ph-sub" style="margin-left:auto">откуда приходят сделки</span></div><div class="panel-b" id="dashSources"><div class="muted2" style="padding:14px">Загрузка…</div></div></div>
     <div class="panel section-gap"><div class="panel-h"><h3>Воронка продаж · конверсия по этапам</h3><select class="sel" id="dashFunnelSel" style="margin-left:auto">${FUNNELS.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('')}</select><select class="sel" id="dashSrcSel" style="margin-left:8px"><option value="">все источники</option></select></div><div class="panel-b" id="dashFunnelBody"><div class="muted2" style="padding:14px">Загрузка…</div></div></div>
+    ${isAdminRole()?`<div class="panel section-gap"><div class="panel-h"><h3>💾 Хранилище</h3><span class="ph-sub" style="margin-left:auto" id="dashStorageAt"></span></div><div class="panel-b" id="dashStorageBody"><div class="muted2" style="padding:14px">Загрузка…</div></div></div>`:''}
     <div class="note section-gap">${ic('i-info','sm')} Период ${esc(d.from||'')} — ${esc(d.to||d.asOf||'')} (${n} дн), сравнение — с предыдущим периодом такой же длины. Данные 1С на ${esc(d.dmax||d.asOf||'')}. Синхронизация раз в 30 мин. Воронка — из сделок CRM (накопительный охват этапов).</div>`;
   // Топ товаров: клик по заголовку «подробнее →» → модал с полной таблицей (N + сортировка с сервера)
   const tpMore=wrap.querySelector('#dashTopMore'); if(tpMore) tpMore.onclick=()=>topProductsModal(qs||'');
@@ -297,6 +299,16 @@ async function loadDash(wrap,qs){
       `<tr style="font-weight:700;border-top:2px solid var(--line2)"><td>Итого</td><td class="num">${(tt.leads||0).toLocaleString('ru-RU')}</td><td class="num">${money(tt.amount||0)}</td><td class="num">${tt.won||0}</td><td class="num">${tt.leads?Math.round((tt.won||0)/tt.leads*100):0}%</td></tr>`+
       '</tbody></table>';
   })();
+  // Хранилище (R2 + D1) — мониторинг наполняемости, только админ
+  if(isAdminRole()){ (async()=>{ const sb=wrap.querySelector('#dashStorageBody'); if(!sb)return;
+    const r=await api('/api/admin/storage'); if(!r.ok){ sb.innerHTML='<div class="muted2" style="padding:14px">'+(r.status===403?'нужен доступ':'нет данных')+'</div>'; return; }
+    const d2=r.data, r2=d2.r2||{}, d1=d2.d1||{}; const at=wrap.querySelector('#dashStorageAt');
+    if(at&&d2.at) at.textContent='обновлено '+new Date(d2.at).toLocaleString('ru-RU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    const usageRow=(label,used,limit)=>{ const pct=limit?Math.min(100,Math.round(used/limit*1000)/10):0; const col=pct>85?'#dc2626':pct>60?'#d97706':'var(--accent)'; return `<div style="padding:11px 0;border-top:1px solid var(--line)"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><b>${label}</b><span class="muted2">${fmtBytes(used)} / ${fmtBytes(limit)} (${pct}%)</span></div><div style="height:7px;background:var(--bg2);border-radius:4px;overflow:hidden"><div style="width:${Math.max(0.4,pct)}%;height:100%;background:${col}"></div></div></div>`; };
+    let h=usageRow('R2 файлы', r2.bytes||0, r2.limit||0)+usageRow('D1 база', d1.bytes||0, d1.limit||0);
+    if((r2.byType||[]).length){ h+='<div class="muted2" style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:14px 0 4px">Разбивка R2 по типам</div><table class="tbl"><tbody>'+r2.byType.map(t=>`<tr><td>${esc(t.name)}</td><td class="num muted2" style="font-size:12px">${t.files} ${plural(t.files,'файл','файла','файлов')}</td><td class="num"><b>${fmtBytes(t.bytes)}</b></td></tr>`).join('')+'</tbody></table>'; }
+    sb.innerHTML=h;
+  })(); }
   // Воронка продаж — конверсия по этапам выбранной воронки (B2C/B2B)
   let dfFunnel=(FUNNELS[0]||{id:'b2c'}).id, dfSource=''; const dfBody=wrap.querySelector('#dashFunnelBody'), dfSrcSel=wrap.querySelector('#dashSrcSel');
   async function renderFunnel(){ if(!dfBody)return; dfBody.innerHTML='<div class="muted2" style="padding:14px">Загрузка…</div>';
