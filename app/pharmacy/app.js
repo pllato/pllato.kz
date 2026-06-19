@@ -1631,7 +1631,14 @@ function computePromoDiscount(items, promo){
 // ---------- АКЦИИ (CRM-конструктор) ----------
 const ACTION_TYPES=[['percent','% скидка'],['fixed','Скидка, сом'],['1plus1','1+1 / N+1 подарок'],['bundle','Набор со скидкой'],['gift','Подарок за покупку']];
 function actionTypeLabel(t){ const m=Object.fromEntries(ACTION_TYPES); return m[t]||t||'—'; }
-function actionValueLabel(t){ return t==='fixed'?'Скидка, сом':t==='percent'?'Скидка, %':'Параметр (необяз.)'; }
+function actionValueLabel(t){ return ({percent:'Скидка, %',fixed:'Скидка, сом','1plus1':'Купи N (1 = «1+1»)',bundle:'Скидка на набор, %',gift:'Порог суммы, сом (0 = любая)'})[t]||'Параметр'; }
+function actionTypeHint(t){ return ({
+  percent:'Скидка N% на товары из области ниже.',
+  fixed:'Фиксированная скидка (сом) на товары из области.',
+  '1plus1':'Купи N шт из области — 1 в подарок (для «1+1» поставь N=1). Бесплатным считается самый дешёвый товар.',
+  bundle:'Купи товары набора (область ниже) вместе — скидка N% на набор. Состав набора опиши в комментарии.',
+  gift:'Покупка из области на сумму ≥ порога → подарок. Что именно дарим — опиши в комментарии.',
+})[t]||''; }
 function actionDiscTxt(a){ const t=a.type,v=a.value||0; if(t==='percent')return '−'+v+'%'; if(t==='fixed')return '−'+money(v); if(t==='1plus1')return '1+1'; if(t==='bundle')return 'набор'; if(t==='gift')return 'подарок'; return '—'; }
 // Редактор «на что распространяется»: группы (бренды/категории) + конкретные товары. Пусто = все товары.
 function makeScopeEditor(box, scope, allGroups){
@@ -1680,14 +1687,16 @@ async function newActionLive(onSaved){
   <div class="modal-b">
     <div class="fld"><label>Название *</label><input data-na="name" placeholder="напр. 1+1 на детские щётки"></div>
     <div class="fld-row"><div class="fld"><label>Тип</label><select data-na="type">${ACTION_TYPES.map(t=>`<option value="${t[0]}">${t[1]}</option>`).join('')}</select></div><div class="fld"><label data-na="vlabel">Скидка, %</label><input data-na="value" type="number" value="10"></div></div>
+    <div class="note blue" data-na="vhint" style="margin:0 0 4px;font-size:11.5px"></div>
     <div class="fld-row"><div class="fld"><label>Начало</label><input type="date" data-na="from"></div><div class="fld"><label>Конец</label><input type="date" data-na="to"></div></div>
     <div class="fld"><label>Комментарий / условия</label><input data-na="note" placeholder="напр. при покупке от 2 шт."></div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:12px"><label>На какие товары</label><div data-na="scopebox"></div></div>
   </div>
   <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="naSave">Создать</button></div>`);
   const scopeEd=makeScopeEditor(bg.querySelector('[data-na=scopebox]'), {}, allGroups);
-  const typeSel=bg.querySelector('[data-na=type]'), vlabel=bg.querySelector('[data-na=vlabel]');
-  typeSel.onchange=()=>{ vlabel.textContent=actionValueLabel(typeSel.value); };
+  const typeSel=bg.querySelector('[data-na=type]'), vlabel=bg.querySelector('[data-na=vlabel]'), vhint=bg.querySelector('[data-na=vhint]');
+  const upd=()=>{ vlabel.textContent=actionValueLabel(typeSel.value); if(vhint)vhint.innerHTML=ic('i-info','sm')+' '+actionTypeHint(typeSel.value); };
+  typeSel.onchange=upd; upd();
   bg.querySelector('#naSave').onclick=async()=>{ const name=bg.querySelector('[data-na=name]').value.trim(); if(!name){toast('Укажите название','i-info');return;}
     const body={name,type:typeSel.value,value:Number(bg.querySelector('[data-na=value]').value)||0,date_from:bg.querySelector('[data-na=from]').value,date_to:bg.querySelector('[data-na=to]').value,note:bg.querySelector('[data-na=note]').value.trim(),scope:scopeEd.get()};
     const r=await api('/api/actions',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Акция создана','i-tag'); onSaved&&onSaved(); };
@@ -1699,6 +1708,7 @@ async function actionModalLive(a,onSaved){
     <div class="note">${ic('i-info','sm')} Акция живёт в CRM. Авто-применение скидки на кассе/в 1С (Автоматические скидки) — Фаза 2. Сейчас можно вести правило и смотреть отчёт по продажам этих товаров.</div>
     <div class="fld section-gap"><label>Название</label><input data-am="name" value="${esc(a.name||'')}"></div>
     <div class="fld-row"><div class="fld"><label>Тип</label><select data-am="type">${ACTION_TYPES.map(t=>`<option value="${t[0]}" ${t[0]===a.type?'selected':''}>${t[1]}</option>`).join('')}</select></div><div class="fld"><label data-am="vlabel">${actionValueLabel(a.type)}</label><input data-am="value" type="number" value="${a.value||0}"></div></div>
+    <div class="note blue" data-am="vhint" style="margin:0 0 4px;font-size:11.5px"></div>
     <div class="fld-row"><div class="fld"><label>Начало</label><input type="date" data-am="from" value="${esc((a.date_from||'').slice(0,10))}"></div><div class="fld"><label>Конец</label><input type="date" data-am="to" value="${esc((a.date_to||'').slice(0,10))}"></div></div>
     <div class="fld"><label>Комментарий / условия</label><input data-am="note" value="${esc(a.note||'')}"></div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:12px"><label>На какие товары</label><div data-am="scopebox"></div></div>
@@ -1706,8 +1716,9 @@ async function actionModalLive(a,onSaved){
   </div>
   <div class="modal-f"><button class="btn" id="amDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" id="amArch">${a.active?'В архив':'Из архива'}</button><button class="btn primary" id="amSave">Сохранить</button></div>`);
   const scopeEd=makeScopeEditor(bg.querySelector('[data-am=scopebox]'), parseScope(a.scope), allGroups);
-  const typeSel=bg.querySelector('[data-am=type]'), vlabel=bg.querySelector('[data-am=vlabel]');
-  typeSel.onchange=()=>{ vlabel.textContent=actionValueLabel(typeSel.value); };
+  const typeSel=bg.querySelector('[data-am=type]'), vlabel=bg.querySelector('[data-am=vlabel]'), vhint=bg.querySelector('[data-am=vhint]');
+  const updH=()=>{ vlabel.textContent=actionValueLabel(typeSel.value); if(vhint)vhint.innerHTML=ic('i-info','sm')+' '+actionTypeHint(typeSel.value); };
+  typeSel.onchange=updH; updH();
   const rep=bg.querySelector('[data-am=report]'); let repLoaded=false;
   bg.querySelector('details.fold').addEventListener('toggle',async function(){ if(!this.open||repLoaded)return; repLoaded=true;
     const r=await api('/api/actions/'+a.id+'/report'); if(!r.ok){rep.innerHTML='<div class="muted2" style="font-size:12px">'+(r.status===403?'нет доступа':'нет данных / нет связи с 1С')+'</div>';return;}
