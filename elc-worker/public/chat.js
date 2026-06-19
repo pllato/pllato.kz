@@ -505,15 +505,23 @@
       .tc-react.own { background:color-mix(in srgb, var(--tc-ac) 22%, transparent); border-color:var(--tc-ac); }
       .tc-react:hover { filter:brightness(.97); }
       .tc-react[title]:not([title=""]) { cursor:pointer; }
+      .tc-react-emoji { font-size:13px; }
+      .tc-react-avs { display:inline-flex; align-items:center; }
+      .tc-react-av { width:16px; height:16px; border-radius:50%; font-size:8px; font-weight:700;
+        display:inline-flex; align-items:center; justify-content:center; color:#fff;
+        border:1.5px solid var(--bg2,#fff); margin-left:-5px; overflow:hidden; }
+      .tc-react-av:first-child { margin-left:2px; }
+      .tc-react-more { font-size:10px; margin-left:3px; color:var(--t3,#888); }
+      .tc-msg.own .tc-react-more { color:rgba(255,255,255,.85); }
       .tc-qr-pop { position:fixed; z-index:100000; display:flex; gap:2px; background:var(--bg2,#fff);
         border:1px solid var(--b1,#e3e5ea); border-radius:24px; padding:4px 6px; box-shadow:0 8px 28px rgba(0,0,0,.2); }
       .tc-qr-btn { border:none; background:none; font-size:21px; cursor:pointer; width:36px; height:36px;
         border-radius:50%; line-height:1; transition:transform .1s, background .1s; padding:0; }
       .tc-qr-btn:hover { background:var(--bg3,#eee); transform:scale(1.25); }
       .tc-qr-more { font-size:16px; color:var(--t3,#888); }
-      .tc-msg-actions { position:absolute; top:-13px; right:6px; display:none; gap:1px; background:var(--bg2);
+      .tc-msg-actions { position:absolute; top:-13px; left:48px; right:auto; display:none; gap:1px; background:var(--bg2);
         border:1px solid var(--b1); border-radius:9px; padding:2px; box-shadow:0 3px 10px rgba(0,0,0,.14); z-index:2; }
-      .tc-msg.own .tc-msg-actions { right:auto; left:6px; }
+      .tc-msg.own .tc-msg-actions { left:auto; right:6px; }
       .tc-msg:hover .tc-msg-actions { display:flex; }
       .tc-msg-btn { background:transparent; border:none; width:26px; height:26px; border-radius:6px; font-size:13px;
         cursor:pointer; color:var(--t2); display:flex; align-items:center; justify-content:center; }
@@ -910,10 +918,13 @@
     let reactionsHtml = '';
     if (m.reactions && m.reactions.length) {
       reactionsHtml = '<div class="tc-reactions">' + m.reactions.map(r => {
-        const isOwn = r.users.includes(state.me.uid);
-        // Кто поставил эту реакцию — в подсказке при наведении.
-        const who = (r.users || []).map(u => userLabel(u)).filter(Boolean).join(', ');
-        return `<button class="tc-react${isOwn ? ' own' : ''}" data-react-toggle="${m.id}" data-emoji="${escapeHtml(r.emoji)}" data-own="${isOwn ? '1' : '0'}" title="${escapeHtml(who)}">${escapeHtml(r.emoji)} ${r.users.length}</button>`;
+        const users = r.users || [];
+        const isOwn = users.includes(state.me.uid);
+        // Аватарки тех, кто поставил реакцию — видно сразу, без наведения.
+        const avs = users.slice(0, 3).map(u => avatarHtml('tc-react-av', u, userAvatar(u), userColor(u))).join('');
+        const extra = users.length > 3 ? `<span class="tc-react-more">+${users.length - 3}</span>` : '';
+        const who = users.map(u => userLabel(u)).filter(Boolean).join(', ');
+        return `<button class="tc-react${isOwn ? ' own' : ''}" data-react-toggle="${m.id}" data-emoji="${escapeHtml(r.emoji)}" data-own="${isOwn ? '1' : '0'}" title="${escapeHtml(who)}"><span class="tc-react-emoji">${escapeHtml(r.emoji)}</span><span class="tc-react-avs">${avs}${extra}</span></button>`;
       }).join('') + '</div>';
     }
 
@@ -1333,7 +1344,10 @@
         let emoji = b.dataset.e;
         if (b.classList.contains('tc-qr-more')) emoji = prompt('Эмодзи:', '👍');
         closeQuickReact();
-        if (emoji) api(`/api/chat/messages/${msgId}/reactions`, { method: 'POST', body: JSON.stringify({ emoji }) }).catch(e => alert(e.message));
+        if (emoji) {
+          applyLocalReaction(msgId, emoji, true);   // показываем сразу
+          api(`/api/chat/messages/${msgId}/reactions`, { method: 'POST', body: JSON.stringify({ emoji }) }).catch(e => alert(e.message));
+        }
       };
     });
     setTimeout(() => document.addEventListener('click', closeQuickReact), 0);
@@ -1341,7 +1355,26 @@
 
   function toggleReaction(msgId, emoji, isOwn) {
     const method = isOwn ? 'DELETE' : 'POST';
+    applyLocalReaction(msgId, emoji, !isOwn);   // мгновенно, не дожидаясь сервера
     api(`/api/chat/messages/${msgId}/reactions`, { method, body: JSON.stringify({ emoji }) }).catch(e => alert(e.message));
+  }
+
+  // Оптимистично обновляем реакции локально, чтобы появлялись сразу. Сервер
+  // потом пришлёт reaction_changed и перерисует уже своими данными.
+  function applyLocalReaction(msgId, emoji, add) {
+    const m = state.messages.find(x => x.id === msgId);
+    if (!m) return;
+    m.reactions = m.reactions || [];
+    let r = m.reactions.find(x => x.emoji === emoji);
+    const uid = state.me && state.me.uid;
+    if (add) {
+      if (!r) { r = { emoji, users: [] }; m.reactions.push(r); }
+      if (uid && !r.users.includes(uid)) r.users.push(uid);
+    } else if (r) {
+      r.users = (r.users || []).filter(u => u !== uid);
+      if (!r.users.length) m.reactions = m.reactions.filter(x => x !== r);
+    }
+    renderMessages();
   }
 
   async function openChannel(channelId) {
