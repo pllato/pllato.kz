@@ -704,6 +704,27 @@ async function ensureD1Schema(env) {
       CREATE INDEX IF NOT EXISTS idx_one_c_sync_log_tenant_ts
         ON one_c_sync_log(tenant_id, ts DESC)
     `,
+    // Зеркало номенклатуры 1С — справочник прайс-листов читает его БЕЗ захода в 1С.
+    // Живой OData нужен только чтобы обновить зеркало («Обновить из 1С»). Ключ позиции
+    // в карте цен прайса = "<base>:<ref_key>", поэтому base входит в первичный ключ.
+    `
+      CREATE TABLE IF NOT EXISTS nomenclature_mirror (
+        team_id      TEXT NOT NULL,
+        base         TEXT NOT NULL,
+        ref_key      TEXT NOT NULL,
+        code         TEXT,
+        name         TEXT,
+        article      TEXT,
+        unit         TEXT,
+        vat_rate_ref TEXT,
+        updated_at   INTEGER NOT NULL,
+        PRIMARY KEY (team_id, base, ref_key)
+      )
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_nomen_mirror_base
+        ON nomenclature_mirror(team_id, base)
+    `,
   ];
 
   for (const statement of schemaStatements) {
@@ -762,20 +783,15 @@ function normalizeStoreItem(collection, value) {
   };
 }
 
-async function d1ListCollection(env, collection, limit = DEFAULT_STORE_PULL_LIMIT) {
+async function d1ListCollection(env, collection, limit = DEFAULT_STORE_PULL_LIMIT, updatedSince = null) {
   await ensureD1Schema(env);
   const db = requireStoreDb(env);
   const cappedLimit = Math.max(1, Math.min(Number(limit) || DEFAULT_STORE_PULL_LIMIT, 10000));
-  const res = await db
-    .prepare(`
-      SELECT data
-      FROM store
-      WHERE team_id = ? AND collection = ?
-      ORDER BY updated_at DESC
-      LIMIT ?
-    `)
-    .bind(TEAM_ID, collection, cappedLimit)
-    .run();
+  const sinceTs = (updatedSince != null && Number.isFinite(Number(updatedSince)) && Number(updatedSince) > 0)
+    ? Number(updatedSince) : null;
+  const res = sinceTs != null
+    ? await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? AND updated_at>? ORDER BY updated_at DESC LIMIT ?`).bind(TEAM_ID, collection, sinceTs, cappedLimit).run()
+    : await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? ORDER BY updated_at DESC LIMIT ?`).bind(TEAM_ID, collection, cappedLimit).run();
   return (res.results || [])
     .map((row) => safeParseJson(row.data, null))
     .filter(Boolean);
@@ -835,13 +851,14 @@ async function handleStorePull(request, env, actor) {
   const body = await readRequestBodyAsJson(request);
   const collections = normalizeCollectionList(body.collections || []);
   const limit = Number(body.limitPerCollection) || DEFAULT_STORE_PULL_LIMIT;
+  const updatedSince = body.updatedSince != null ? Number(body.updatedSince) : null;
   if (collections.length === 0) {
     throw new HttpError(400, "Передай массив collections для pull");
   }
 
   const data = {};
   for (const collection of collections) {
-    data[collection] = await d1ListCollection(env, collection, limit);
+    data[collection] = await d1ListCollection(env, collection, limit, updatedSince);
   }
 
   return {
@@ -5291,6 +5308,37 @@ const ONE_C_BASES = {
 };
 const ONE_C_DEFAULT_BASE = "aminamed";
 
+// Бухгалтерская аналитика строк реализации для базы Аминамед. GUID-ы плана счетов
+// и субконто СВОИ у каждой базы, поэтому блок применяется ТОЛЬКО для aminamed.
+// Значения сверены по 51 строке реальных проведённых реализаций (все идентичны):
+//   счёт учёта/доходов/себестоимости/НДС, статья доходов «Доход от реализации
+//   товара», номенклатурная группа «Товары», статья затрат «Себестоимость товаров».
+// Через OData 1С не заполняет аналитику строки сама — иначе у Асем «не садится».
+const ONE_C_AMINAMED_REAL_LINE_ACCOUNTS = {
+  СчетУчетаБУ_Key: "f0f0c706-e37a-4156-b430-0d4a6fbdecc3",
+  СчетУчетаНУ_Key: "b7a16180-2cf5-4920-af55-a0c8e37f9356",
+  СчетДоходовБУ_Key: "ac7aab45-1127-4549-8d0c-659cedbab312",
+  СчетДоходовНУ_Key: "5501ffb4-1f90-46eb-ba21-cf05a2763550",
+  СчетСписанияСебестоимостиБУ_Key: "46c23ea9-3e23-4666-b28e-ac56d15305ba",
+  СчетСписанияСебестоимостиНУ_Key: "6e52e195-7efc-4f2a-ba4b-65cdcd8c09f3",
+  СчетУчетаНДСПоРеализации_Key: "05c0dc58-5cfc-4f6f-a37b-66ee68a56966",
+  НДСВидОперацииРеализации_Key: "0fbefb02-5c4e-4169-9fff-c159a570092b",
+  СубконтоДоходовБУ1: "b3d07cd4-9e79-11e7-b969-1c1b0dc9a089",
+  СубконтоДоходовБУ1_Type: "StandardODATA.Catalog_Доходы",
+  СубконтоДоходовБУ2: "c4d3242b-aa56-11e1-b9c4-002215ba1bbe",
+  СубконтоДоходовБУ2_Type: "StandardODATA.Catalog_НоменклатурныеГруппы",
+  СубконтоДоходовНУ1: "b3d07cd4-9e79-11e7-b969-1c1b0dc9a089",
+  СубконтоДоходовНУ1_Type: "StandardODATA.Catalog_Доходы",
+  СубконтоСписанияСебестоимостиБУ1: "cafb169d-aa56-11e1-b9c4-002215ba1bbe",
+  СубконтоСписанияСебестоимостиБУ1_Type: "StandardODATA.Catalog_СтатьиЗатрат",
+  СубконтоСписанияСебестоимостиБУ2: "c4d3242b-aa56-11e1-b9c4-002215ba1bbe",
+  СубконтоСписанияСебестоимостиБУ2_Type: "StandardODATA.Catalog_НоменклатурныеГруппы",
+  СубконтоСписанияСебестоимостиНУ1: "cafb169d-aa56-11e1-b9c4-002215ba1bbe",
+  СубконтоСписанияСебестоимостиНУ1_Type: "StandardODATA.Catalog_СтатьиЗатрат",
+  СубконтоСписанияСебестоимостиНУ2: "c4d3242b-aa56-11e1-b9c4-002215ba1bbe",
+  СубконтоСписанияСебестоимостиНУ2_Type: "StandardODATA.Catalog_НоменклатурныеГруппы",
+};
+
 function resolve1cBaseKey(value) {
   const k = String(value || "").trim();
   return ONE_C_BASES[k] ? k : ONE_C_DEFAULT_BASE;
@@ -5610,6 +5658,95 @@ function settingsToPublicView(row) {
     has_password: Boolean(row.odata_password_encrypted),
   };
 }
+
+// Мини-страница для смены пароля OData 1С без консоли (в интерфейсе CRM такой
+// формы нет). Открывается на origin воркера, поэтому fetch к /api/crm/1c/* идёт
+// тем же origin. Авторизация — токен сессии CRM (вставляется из Local Storage),
+// все вызовы проверяются require1cAdmin на бэке. noindex.
+const ONE_C_SETUP_PAGE_HTML = `<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>1С: обновить пароль OData</title>
+<style>
+ body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:24px auto;padding:0 16px;color:#1f2937}
+ h1{font-size:20px} h2{font-size:15px;margin-top:6px}
+ label{display:block;font-size:13px;color:#6b7280;margin:12px 0 4px}
+ input,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d1d5db;border-radius:8px;font:inherit}
+ textarea{height:84px}
+ button{margin-top:14px;padding:10px 16px;border:0;border-radius:8px;background:#16a34a;color:#fff;font:inherit;cursor:pointer}
+ .box{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-top:14px}
+ .ok{color:#16a34a} .err{color:#dc2626} .muted{color:#6b7280;font-size:13px}
+ ol{font-size:13px;color:#374151;padding-left:18px;line-height:1.55} code{background:#eef;padding:1px 4px;border-radius:4px}
+ #step2{display:none}
+</style></head><body>
+<h1>1С:Фреш — обновить пароль OData</h1>
+<p class="muted">Меняет пароль технического подключения 1С в CRM. Нужен доступ администратора.</p>
+
+<div class="box">
+<h2>Шаг 1. Вставь ключ сессии</h2>
+<ol>
+<li>На вкладке <b>crm.aminamed.kz</b>: DevTools → вкладка <b>Application</b> (Приложение).</li>
+<li>Слева: <b>Local Storage</b> → <code>https://crm.aminamed.kz</code>.</li>
+<li>Ключ <code>pllato_session</code> → справа скопируй <b>Value</b> целиком.</li>
+<li>Вставь сюда (в поле вставка Cmd+V работает):</li>
+</ol>
+<textarea id="sess" placeholder='значение pllato_session (начинается с {&quot;token&quot;:...)'></textarea>
+<button id="connect">Подключиться</button>
+<div id="connres" class="muted" style="margin-top:8px"></div>
+</div>
+
+<div class="box" id="step2">
+<h2>Шаг 2. Новый пароль OData</h2>
+<div class="muted">Логин 1С: <b id="uname"></b><br>Сервер: <span id="host"></span></div>
+<label>Новый пароль для этого логина</label>
+<input id="pwd" type="text" autocomplete="off" placeholder="новый пароль 1С">
+<button id="save">Сохранить и проверить связь</button>
+<div id="saveres" style="margin-top:8px"></div>
+</div>
+
+<script>
+ var B=location.origin, TOKEN=null;
+ function el(id){return document.getElementById(id);}
+ function tok(raw){raw=(raw||'').trim();if(raw.charAt(0)==='{'){try{return JSON.parse(raw).token||'';}catch(e){return '';}}return raw;}
+ function hdr(){return {'Content-Type':'application/json','Authorization':'Bearer '+TOKEN};}
+ el('connect').onclick=async function(){
+   TOKEN=tok(el('sess').value);
+   if(!TOKEN){el('connres').innerHTML='<span class=err>Не нашёл token. Скопируй значение pllato_session целиком.</span>';return;}
+   el('connres').textContent='Проверяю...';
+   try{
+     var r=await fetch(B+'/api/crm/1c/settings',{headers:hdr()});
+     var d=await r.json();
+     if(!r.ok||!d.settings){el('connres').innerHTML='<span class=err>'+(d.error||('HTTP '+r.status))+'</span>';return;}
+     el('uname').textContent=d.settings.odata_username||'(не задан)';
+     el('host').textContent=(d.settings.host||'')+(d.settings.base_path||'');
+     el('connres').innerHTML='<span class=ok>Подключено. Проверь логин и впиши новый пароль ниже.</span>';
+     el('step2').style.display='block';
+   }catch(e){el('connres').innerHTML='<span class=err>'+e.message+'</span>';}
+ };
+ el('save').onclick=async function(){
+   var p=el('pwd').value;
+   if(!p){el('saveres').innerHTML='<span class=err>Впиши пароль.</span>';return;}
+   el('saveres').textContent='Сохраняю...';
+   try{
+     var cur=(await (await fetch(B+'/api/crm/1c/settings',{headers:hdr()})).json()).settings;
+     var sv=await fetch(B+'/api/crm/1c/settings',{method:'POST',headers:hdr(),body:JSON.stringify({host:cur.host,base_path:cur.base_path,odata_username:cur.odata_username,odata_password:p})});
+     var sd=await sv.json();
+     if(!sv.ok){el('saveres').innerHTML='<span class=err>Не сохранил: '+(sd.error||sv.status)+'</span>';return;}
+     el('saveres').textContent='Сохранено. Проверяю связь с 1С...';
+     var t=await fetch(B+'/api/crm/1c/test-connection',{method:'POST',headers:hdr()});
+     var td=await t.json();
+     var R=(td&&td.result)?td.result:td; // ответ может быть {ok,...} или {result:{ok,...}}
+     if(t.ok&&R&&R.ok){
+       el('saveres').innerHTML='<div class=box><span class=ok><b>Готово. Связь с 1С есть.</b></span><br>Коллекций в 1С: '+(R.collections_total||'?')+'<br>Вернись в CRM и нажми «Синхронизировать из 1С».</div>';
+     }else{
+       el('saveres').innerHTML='<div class=box><span class=err><b>Пароль сохранён, но связь не прошла.</b></span><br>'+JSON.stringify(td.error||td)+'<br>Скорее всего пароль не тот или не тот логин 1С.</div>';
+     }
+   }catch(e){el('saveres').innerHTML='<span class=err>'+e.message+'</span>';}
+ };
+</script>
+</body></html>`;
 
 async function handle1cGetSettings(_request, env, actor) {
   require1cAdmin(actor);
@@ -6213,21 +6350,81 @@ async function oneCFindContractorByBin(client, bin) {
   return null;
 }
 
-// Карта «ведущий артикул названия → {ref,unit,vat}» по всей номенклатуре базы
-// (первая запись на артикул — представительная). Общий ключ между базами — артикул.
-async function buildNomenTokenMap(client) {
+// Основной договор контрагента — для автоподстановки ДоговорКонтрагента_Key, когда
+// в заказе договор не выбран («договор не сел» у Асем).
+async function oneCContractorPrimaryContract(client, contractorRef) {
+  if (!contractorRef) return null;
+  try {
+    const c = await client.getByKey("Catalog_Контрагенты", contractorRef, {
+      select: ["ОсновнойДоговорКонтрагента_Key"],
+    });
+    const ref = c?.ОсновнойДоговорКонтрагента_Key;
+    if (ref && ref !== "00000000-0000-0000-0000-000000000000") return ref;
+  } catch { /* у контрагента может не быть основного договора — не критично */ }
+  return null;
+}
+
+// Адрес контрагента из регистра контактной информации — фолбэк, когда в заказе
+// адрес доставки не задан («адрес поставки не сел» у Асем). Берём первый непустой
+// адрес контрагента.
+async function oneCContractorAddress(client, contractorRef) {
+  if (!contractorRef) return null;
+  try {
+    const rows = await fetch1cRegisterAllRows(client, "InformationRegister_КонтактнаяИнформация");
+    const isAddr = (r) => String(r?.Тип || r?.Type || "").toLowerCase().includes("адрес");
+    const objOf = (r) => r?.Объект || r?.Объект_Key || r?.Object;
+    for (const r of rows) {
+      if (isAddr(r) && objOf(r) === contractorRef) {
+        const repr = String(r?.Представление || "").trim();
+        if (repr) return repr;
+      }
+    }
+  } catch { /* нет адреса — не критично */ }
+  return null;
+}
+
+// Нормализация кода каталога/«Артикул»/«Код» для матчинга (трим + верхний регистр).
+function normCatalogCode(s) {
+  return String(s || "").trim().toUpperCase();
+}
+
+// Единый индекс номенклатуры выбранной базы 1С (один проход по Catalog_Номенклатура):
+//   byArticle — «Артикул» → {ref,unit,vat} (полный новый код карточки, напр. NEW-ТОО-0018);
+//   byCode    — «Код»      → {ref,unit,vat} (короткий код карточки, напр. ТОО-0018);
+//   byToken   — ведущий числовой токен названия → {ref,unit,vat} (старый фолбэк-резолв).
+// Первая запись на ключ — представительная. Общий ключ нового каталога — «Артикул».
+async function build1cNomenIndex(client) {
   const data = await client.get("Catalog_Номенклатура", { top: 10000 });
   const rows = Array.isArray(data?.value) ? data.value : [];
-  const map = new Map();
+  const byArticle = new Map();
+  const byCode = new Map();
+  const byToken = new Map();
   for (const raw of rows) {
     const p = productFromOData(raw);
-    if (!p || p.is_folder || p.deletion_mark) continue;
+    if (!p || p.is_folder || p.deletion_mark || !p.ref_key) continue;
+    const rec = { ref: p.ref_key, unit: p.unit_ref || null, vat: p.vat_rate_ref || null };
+    const art = normCatalogCode(p.article);
+    const code = normCatalogCode(p.code);
+    if (art && !byArticle.has(art)) byArticle.set(art, rec);
+    if (code && !byCode.has(code)) byCode.set(code, rec);
     const tok = oneCLeadingToken(p.name);
-    if (tok && /\d/.test(tok) && !map.has(tok)) {
-      map.set(tok, { ref: p.ref_key, unit: p.unit_ref || null, vat: p.vat_rate_ref || null });
-    }
+    if (tok && /\d/.test(tok) && !byToken.has(tok)) byToken.set(tok, rec);
   }
-  return map;
+  return { byArticle, byCode, byToken };
+}
+
+// Резолв строки заказа из нового каталога → карточка 1С по «Артикул» (новый код).
+// Гочи: в 1С «Код» = «Артикул» без префикса NEW- (макс 11 символов), поэтому
+// пробуем код как есть, без NEW- и с NEW-, и по «Артикул», и по «Код».
+function resolveCatalogNomenRef(index, code) {
+  const norm = normCatalogCode(code);
+  if (!norm) return null;
+  const stripped = norm.replace(/^NEW-/, "");
+  for (const c of [norm, stripped, `NEW-${stripped}`]) {
+    const hit = index.byArticle.get(c) || index.byCode.get(c);
+    if (hit) return hit;
+  }
+  return null;
 }
 
 // Общий механизм создания «торгового» документа в 1С (счёт / реализация).
@@ -6301,17 +6498,28 @@ async function create1cSalesDocument(request, env, actor, opts) {
   if (rawLines.length === 0) throw new HttpError(400, "lines пуст — нужна хотя бы одна позиция");
   const lines = [];
   const skipped = [];
-  let nomenMap = null; // строится один раз при первой необходимости (живой резолв)
+  let nomenIndex = null; // индекс номенклатуры базы; строится один раз при первой необходимости
   for (const ln of rawLines) {
     let productRef = null;
     let unitRef = ln?.unitRef || null;
     let vatRateRef = ln?.vatRateRef || null;
-    if (baseKey === ONE_C_DEFAULT_BASE && ln?.productRef) {
-      productRef = String(ln.productRef).trim();        // сохранённый матч (Аминамед)
-    } else {
-      if (!nomenMap) nomenMap = await buildNomenTokenMap(client); // живой резолв по артикулу
+    // 1) Новый каталог: строка несёт «Артикул» (новый код) → резолвим Ref_Key
+    //    карточки 1С по «Артикул» (документы садятся на новые карточки).
+    const article = String(ln?.article || ln?.catalogRef || ln?.productCode || "").trim();
+    if (article) {
+      if (!nomenIndex) nomenIndex = await build1cNomenIndex(client);
+      const hit = resolveCatalogNomenRef(nomenIndex, article);
+      if (hit) { productRef = hit.ref; unitRef = unitRef || hit.unit; vatRateRef = vatRateRef || hit.vat; }
+    }
+    // 2) Сохранённый прямой матч (старый путь warehouse_products, только Аминамед).
+    if (!productRef && baseKey === ONE_C_DEFAULT_BASE && ln?.productRef) {
+      productRef = String(ln.productRef).trim();
+    }
+    // 3) Фолбэк: живой резолв по ведущему числовому токену названия.
+    if (!productRef) {
+      if (!nomenIndex) nomenIndex = await build1cNomenIndex(client);
       const tok = oneCLeadingToken(ln?.name);
-      const hit = tok ? nomenMap.get(tok) : null;
+      const hit = tok ? nomenIndex.byToken.get(tok) : null;
       if (hit) { productRef = hit.ref; unitRef = unitRef || hit.unit; vatRateRef = vatRateRef || hit.vat; }
     }
     if (!productRef) { skipped.push(ln?.name || ln?.productId || "?"); continue; }
@@ -6335,13 +6543,23 @@ async function create1cSalesDocument(request, env, actor, opts) {
   const currencyRef = ONE_C_BASES[baseKey].currencyRef || String(body?.currencyRef || "").trim();
   if (!currencyRef) throw new HttpError(400, "currencyRef (валюта документа, GUID 1С) обязателен");
 
+  // Договор и адрес доставки: берём из заказа, иначе автоподстановка из 1С (основной
+  // договор контрагента / его адрес). СФ этих полей не имеет → не трогаем.
+  // Закрывает замечания Асем «договор не сел» и «адрес поставки не сел».
+  let contractRef = String(body?.contractRef || "").trim() || null;
+  let deliveryAddress = entityType === "facture" ? null : (String(body?.deliveryAddress || "").trim() || null);
+  if (entityType !== "facture") {
+    if (!contractRef) contractRef = await oneCContractorPrimaryContract(client, contractorRef);
+    if (!deliveryAddress) deliveryAddress = await oneCContractorAddress(client, contractorRef);
+  }
+
   try {
     const payload = invoiceToOData({
       date: body?.date,
       organizationRef,
       contractorRef,
       currencyRef,
-      contractRef: body?.contractRef || null,
+      contractRef,
       // Простая СФ (Document_СчетФактураВыданный) НЕ имеет поля Склад_Key → пропускаем.
       warehouseRef: entityType === "facture"
         ? null
@@ -6355,7 +6573,7 @@ async function create1cSalesDocument(request, env, actor, opts) {
       // СФ не имеет полей КодНазначенияПлатежа и АдресДоставки → принудительно null,
       // иначе OData вернёт 400 на неизвестное поле.
       paymentPurposeCode: entityType === "facture" ? null : (body?.paymentPurposeCode || paymentPurposeCode || null),
-      deliveryAddress: entityType === "facture" ? null : (body?.deliveryAddress || null),
+      deliveryAddress,
       comment: body?.comment || "",
       total: body?.total,
       lines,
@@ -6368,6 +6586,17 @@ async function create1cSalesDocument(request, env, actor, opts) {
       if (invMap?.one_c_ref_key) {
         payload.ДокументОснование = invMap.one_c_ref_key;
         payload.ДокументОснование_Type = "StandardODATA.Document_СчетНаОплатуПокупателю";
+      }
+      // КЗ-учёт: флаг КПН + бухгалтерская аналитика строк (доходы/себестоимость).
+      // Только база Аминамед — GUID-ы плана счетов/субконто у баз разные.
+      if (baseKey === ONE_C_DEFAULT_BASE) {
+        payload.УчитыватьКПН = true;
+        for (const row of (payload.Товары || [])) {
+          Object.assign(row, ONE_C_AMINAMED_REAL_LINE_ACCOUNTS);
+          // НУ-субконто2 доходов = сама номенклатура строки (per-product).
+          row.СубконтоДоходовНУ2 = row.Номенклатура_Key;
+          row.СубконтоДоходовНУ2_Type = "StandardODATA.Catalog_Номенклатура";
+        }
       }
     }
 
@@ -7006,6 +7235,389 @@ async function handle1cNomenclatureSearch(request, env, actor) {
   }
 }
 
+// Обновляет зеркало номенклатуры одной базы: тянет Catalog_Номенклатура (+ имена
+// единиц измерения для показа «шт» вместо GUID) и полностью переписывает строки
+// этой базы в nomenclature_mirror. Возвращает число записанных позиций.
+async function pullNomenclatureMirrorForBase(env, tenantId, baseKey) {
+  const { client } = await build1cClient(env, tenantId, baseKey);
+
+  // Номенклатуру тянем ПОСТРАНИЧНО и только нужные поля ($select). Один запрос на
+  // 10 000 строк со всеми полями выбивал у 1С:Фреш защитный лимит (HTTP 402 →
+  // кулдаун всего аккаунта). Лёгкие страницы с паузой держат нагрузку низкой.
+  // У Catalog_Номенклатура единица — это БазоваяЕдиницаИзмерения_Key; поля
+  // ЕдиницаИзмерения_Key тут НЕТ, и его наличие в $select даёт 400 OData.
+  const NOMEN_SELECT = ["Ref_Key", "Code", "Description", "НаименованиеПолное", "Артикул",
+    "БазоваяЕдиницаИзмерения_Key", "СтавкаНДС_Key", "IsFolder", "DeletionMark"];
+  const PAGE = 2000;
+  const raw = [];
+  for (let skip = 0, page = 0; page < 40; page += 1) {
+    const data = await client.get("Catalog_Номенклатура", { top: PAGE, skip, select: NOMEN_SELECT, orderby: "Ref_Key" });
+    const chunk = Array.isArray(data?.value) ? data.value : [];
+    raw.push(...chunk);
+    if (chunk.length < PAGE) break;
+    skip += PAGE;
+    await new Promise((r) => setTimeout(r, 500)); // пауза между страницами — не давить на лимит
+  }
+  const now = Date.now();
+  const rows = [];
+  for (const r of raw) {
+    const p = productFromOData(r);
+    if (!p || p.is_folder || p.deletion_mark || !p.ref_key) continue;
+    rows.push({
+      id: p.ref_key, ref_key: p.ref_key, base: baseKey,
+      code: p.code || null, name: p.name || null, article: p.article || null,
+      unit_ref: p.unit_ref || null, vat_rate_ref: p.vat_rate_ref || null,
+      is_folder: false, deletion_mark: false, stock: 0,
+      createdAt: now, updatedAt: now,
+    });
+  }
+
+  // Пишем в store-коллекцию nomenclature_1c_<base> — это «сырое зеркало 1С», ФОЛБЭК
+  // для каталога. Утверждённый каталог (catalog_approved_*, ручные коды/Excel) НЕ
+  // трогаем. Полная замена: старое чистим, новое пишем пачками (лимиты D1).
+  const db = requireStoreDb(env);
+  const collection = `nomenclature_1c_${baseKey}`;
+  await db.prepare(`DELETE FROM store WHERE team_id=? AND collection=?`).bind(TEAM_ID, collection).run();
+  const CHUNK = 50;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const batch = rows.slice(i, i + CHUNK).map((x) =>
+      db.prepare(`INSERT OR REPLACE INTO store (team_id, collection, id, data, created_at, updated_at) VALUES (?,?,?,?,?,?)`)
+        .bind(TEAM_ID, collection, x.id, JSON.stringify(x), x.createdAt, x.updatedAt));
+    if (batch.length) await db.batch(batch);
+  }
+  return rows.length;
+}
+
+// POST /api/crm/1c/nomenclature/catalog/pull — обновляет зеркало номенклатуры из
+// ВСЕХ баз 1С (только админ). Ответ: { total, bases:[{ key,label,count,error? }] }.
+async function handle1cPullNomenclatureCatalog(request, env, actor) {
+  require1cAdmin(actor);
+  const tenantId = resolve1cTenantId(actor);
+  const started = Date.now();
+  const bases = [];
+  let total = 0;
+  const baseKeys = Object.keys(ONE_C_BASES);
+  for (let i = 0; i < baseKeys.length; i += 1) {
+    const baseKey = baseKeys[i];
+    const label = ONE_C_BASES[baseKey].label;
+    // Пауза между базами: 1С:Фреш ограничивает число одновременных сеансов/обращений
+    // OData и отдаёт 402 при превышении. Разносим базы во времени, чтобы сессии
+    // предыдущей базы успели закрыться по таймауту и пик не выбивал лимит.
+    if (i > 0) await new Promise((r) => setTimeout(r, 3000));
+    try {
+      const count = await pullNomenclatureMirrorForBase(env, tenantId, baseKey);
+      total += count;
+      bases.push({ key: baseKey, label, count });
+    } catch (e) {
+      const msg = e instanceof ODataError ? `${e.httpStatus || ""} ${e.message}`.trim() : (e?.message || String(e));
+      bases.push({ key: baseKey, label, count: 0, error: msg });
+    }
+  }
+  await d1Insert1cSyncLog(env, {
+    tenantId, direction: "pull", entityType: "nomenclature_mirror", operation: "pull",
+    status: bases.some((b) => b.error) ? "error" : "ok", httpStatus: 200,
+    recordsProcessed: total, durationMs: Date.now() - started,
+  });
+  return { ok: true, total, bases };
+}
+
+// GET /api/crm/1c/nomenclature/catalog — отдаёт позиции зеркала (БЕЗ захода в 1С) с
+// ценами выбранного прайса. Параметры: base, q, priceListId, sort, offset, limit,
+// onlyPriced/onlyUnpriced. Ответ: { items, total, counts:{all,priced,unpriced}, source }.
+// Позиция: { ref, base, code, name, article, unit, stock, price } — ключ цены = base:ref.
+async function handle1cReadNomenclatureCatalog(request, env, actor) {
+  const url = new URL(request.url);
+  const baseParam = (url.searchParams.get("base") || "").trim();
+  const baseKey = baseParam && ONE_C_BASES[baseParam] ? baseParam : null;
+  const q = (url.searchParams.get("q") || "").trim().toLowerCase();
+  const priceListId = (url.searchParams.get("priceListId") || "").trim();
+  const sort = (url.searchParams.get("sort") || "name_asc").trim();
+  const onlyPriced = url.searchParams.get("onlyPriced") === "1";
+  const onlyUnpriced = url.searchParams.get("onlyUnpriced") === "1";
+  const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
+  // Фронт запрашивает страницами по 200 и циклится оффсетом — для «Все юр.лица»
+  // это ~115 запросов, каждый перечитывает всё зеркало (очень долгая загрузка).
+  // Отдаём весь отфильтрованный набор за один ответ (фронт корректно завершит
+  // цикл: получит items.length >= total и остановится). Кап на всякий случай.
+  const MAX_ITEMS = 50000;
+
+  const db = requireStoreDb(env);
+  const baseList = baseKey ? [baseKey] : Object.keys(ONE_C_BASES);
+
+  // Карта цен выбранного прайса (своя копия в store). Ключ позиции = "<base>:<ref>",
+  // где ref у утверждённого каталога — это НОВЫЙ КОД (к нему привязаны цены).
+  let priceMap = {};
+  if (priceListId) {
+    const plRow = await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? AND id=?`)
+      .bind(TEAM_ID, "price_lists", priceListId).first();
+    if (plRow?.data) {
+      try { const pl = JSON.parse(plRow.data); if (pl && !pl.isDeleted) priceMap = pl.prices || {}; } catch { /* битый прайс — без цен */ }
+    }
+  }
+
+  // Источник каталога по каждому юр.лицу: УТВЕРЖДЁННЫЙ список (catalog_approved_*,
+  // ref = новый код — к нему привязаны цены прайсов) приоритетнее. Если его нет —
+  // сырое зеркало 1С (nomenclature_1c_*, ref = Ref_Key). Остаток — сумма серий из
+  // партий (catalog_lots_*). Pull обновляет только зеркало 1С, утверждённый каталог
+  // (ручные коды/Excel) НЕ трогает.
+  let usedApproved = false;
+  const items = [];
+  for (const base of baseList) {
+    const approved = await d1ListCollection(env, `catalog_approved_${base}`, 50000);
+    const approvedLive = approved.filter((a) => a && !a.isDeleted);
+    if (approvedLive.length) {
+      usedApproved = true;
+      const lots = await d1ListCollection(env, `catalog_lots_${base}`, 50000);
+      const stockByCode = new Map();
+      for (const l of lots) {
+        if (!l || !l.code) continue;
+        const tot = Array.isArray(l.series)
+          ? l.series.reduce((s, x) => s + (Number(x.stock) || 0), 0)
+          : (Number(l.stock) || 0);
+        stockByCode.set(l.code, tot);
+      }
+      for (const a of approvedLive) {
+        const code = a.code || a.id;
+        const pv = priceMap[`${base}:${code}`];
+        items.push({
+          ref: code, base, code,
+          name: a.name || null,
+          article: a.oldCode || null,
+          unit: a.unit || null,
+          stock: stockByCode.has(code) ? stockByCode.get(code) : (Number(a.stock) || 0),
+          price: (pv == null || pv === "") ? null : Number(pv),
+        });
+      }
+    } else {
+      const nomen = await d1ListCollection(env, `nomenclature_1c_${base}`, 50000);
+      for (const n of nomen) {
+        if (!n || n.is_folder || n.deletion_mark) continue;
+        const ref = n.ref_key || n.id;
+        const pv = priceMap[`${base}:${ref}`];
+        items.push({
+          ref, base,
+          code: n.code || null,
+          name: n.name || null,
+          article: n.article || null,
+          unit: null,
+          stock: Number(n.stock) || 0,
+          price: (pv == null || pv === "") ? null : Number(pv),
+        });
+      }
+    }
+  }
+
+  // Текстовый фильтр (код / название / артикул).
+  const list = q
+    ? items.filter((it) =>
+        String(it.name || "").toLowerCase().includes(q) ||
+        String(it.code || "").toLowerCase().includes(q) ||
+        String(it.article || "").toLowerCase().includes(q))
+    : items;
+
+  // Счётчики — по всему набору (base+q), ДО фильтра по наличию цены.
+  const counts = { all: list.length, priced: 0, unpriced: 0 };
+  for (const it of list) { if (it.price != null) counts.priced += 1; else counts.unpriced += 1; }
+
+  let filtered = list;
+  if (onlyPriced) filtered = list.filter((it) => it.price != null);
+  else if (onlyUnpriced) filtered = list.filter((it) => it.price == null);
+
+  const byName = (a, b) => String(a.name || "").localeCompare(String(b.name || ""), "ru");
+  const sorters = {
+    name_asc: byName,
+    name_desc: (a, b) => byName(b, a),
+    price_desc: (a, b) => ((b.price == null ? -1 : b.price) - (a.price == null ? -1 : a.price)) || byName(a, b),
+    price_asc: (a, b) => ((a.price == null ? Infinity : a.price) - (b.price == null ? Infinity : b.price)) || byName(a, b),
+    stock_desc: (a, b) => (b.stock - a.stock) || byName(a, b),
+    stock_asc: (a, b) => (a.stock - b.stock) || byName(a, b),
+  };
+  filtered.sort(sorters[sort] || byName);
+
+  const total = filtered.length;
+  const page = filtered.slice(offset, offset + MAX_ITEMS);
+  return { ok: true, items: page, total, counts, source: usedApproved ? "approved" : "1c" };
+}
+
+// GET /api/crm/catalog/approved/lots?base=&code= — серии/партии товара утверждённого
+// каталога. Данные в store-коллекции catalog_lots_<base>: { code, series:[{lot,srok,stock}] }.
+// Ответ: { series:[...] } (фронт раскрывает партии под строкой каталога).
+async function handleCatalogApprovedLots(request, env, actor) {
+  const url = new URL(request.url);
+  const base = (url.searchParams.get("base") || "").trim();
+  const code = (url.searchParams.get("code") || "").trim();
+  if (!base || !code || !/^[a-z0-9_]+$/.test(base)) return { ok: true, series: [] };
+  const db = requireStoreDb(env);
+  const collection = `catalog_lots_${base}`;
+  // id строки = код товара (так пишет импорт), поэтому прямой lookup; с фолбэком на скан.
+  let row = await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=? AND id=? LIMIT 1`)
+    .bind(TEAM_ID, collection, code).first();
+  if (!row?.data) {
+    const res = await db.prepare(`SELECT data FROM store WHERE team_id=? AND collection=?`).bind(TEAM_ID, collection).run();
+    for (const r of (res.results || [])) {
+      try { const o = JSON.parse(r.data); if (o && o.code === code) { row = { data: r.data }; break; } } catch { /* skip */ }
+    }
+  }
+  if (!row?.data) return { ok: true, series: [] };
+  let obj; try { obj = JSON.parse(row.data); } catch { return { ok: true, series: [] }; }
+  return { ok: true, series: Array.isArray(obj.series) ? obj.series : [] };
+}
+
+// ─── Вкладка «Каталог»: управление утверждённым каталогом (catalog_approved_*) и
+//     партиями (catalog_lots_*). Все ручки — только админ. base — ключ юр.лица.
+
+// Валидирует ключ базы для имён коллекций catalog_*_<base> (строго из ONE_C_BASES).
+function requireCatalogBase(value) {
+  const base = String(value || "").trim();
+  if (!ONE_C_BASES[base]) throw new HttpError(400, `Неизвестная база каталога: «${base}»`);
+  return base;
+}
+
+// GET /api/crm/catalog/price-lists — лёгкий список прайс-листов для выпадашки в заказе
+// (без тяжёлой карты цен). Ответ: { ok, lists:[{id,name,count}] }. Цены применяются
+// на сервере в /api/crm/1c/nomenclature/catalog по priceListId.
+async function handleCatalogPriceLists(request, env, actor) {
+  const rows = await d1ListCollection(env, "price_lists", 1000);
+  const lists = rows
+    .filter((r) => r && !r.isDeleted)
+    .map((r) => ({
+      id: String(r.id),
+      name: r.name || "(без названия)",
+      count: r.prices && typeof r.prices === "object" ? Object.keys(r.prices).length : 0,
+    }))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+  return { ok: true, lists };
+}
+
+// POST /api/crm/catalog/approved/receipt {base, code, lot, srok, qty} — приход партии
+// в утверждённый каталог: добавляет/увеличивает серию {lot,srok,stock} в
+// catalog_lots_<base> для товара code. Остаток товара пересчитывается из серий
+// (см. handle1cReadNomenclatureCatalog), поэтому отдельно его не храним.
+async function handleCatalogApprovedReceipt(request, env, actor) {
+  require1cAdmin(actor);
+  const body = await readRequestBodyAsJson(request);
+  const base = requireCatalogBase(body?.base);
+  const code = String(body?.code || "").trim();
+  if (!code) throw new HttpError(400, "code (код товара каталога) обязателен");
+  const lot = String(body?.lot || "").trim();
+  const srok = String(body?.srok || "").trim();
+  const qty = Number(body?.qty);
+  if (!Number.isFinite(qty)) throw new HttpError(400, "qty (количество) должно быть числом");
+
+  const collection = `catalog_lots_${base}`;
+  const existing = await d1GetDoc(env, collection, code);
+  const series = Array.isArray(existing?.series) ? existing.series.map((s) => ({ ...s })) : [];
+  // Серия идентифицируется парой (номер партии, срок). Пустой lot → одна «безпартийная».
+  const idx = series.findIndex((s) => String(s.lot || "") === lot && String(s.srok || "") === srok);
+  if (idx >= 0) series[idx].stock = (Number(series[idx].stock) || 0) + qty;
+  else series.push({ lot, srok, stock: qty });
+  // Чистим нулевые/отрицательные серии (расход в ноль убирает партию).
+  const cleaned = series.filter((s) => (Number(s.stock) || 0) > 0);
+  const stock = cleaned.reduce((s, x) => s + (Number(x.stock) || 0), 0);
+
+  await d1UpsertDoc(env, collection, {
+    id: code, code, base, series: cleaned, stock,
+    createdAt: existing?.createdAt || Date.now(), updatedAt: Date.now(),
+  });
+  return { ok: true, base, code, stock, series: cleaned };
+}
+
+// POST /api/crm/catalog/approved/update {base, items:[{code, name?, unit?, oldCode?, stock?}]}
+// — точечный апдейт полей строк утверждённого каталога. Обновляются только
+// переданные поля; пропущенные сохраняются. Несуществующие коды игнорируются.
+async function handleCatalogApprovedUpdate(request, env, actor) {
+  require1cAdmin(actor);
+  const body = await readRequestBodyAsJson(request);
+  const base = requireCatalogBase(body?.base);
+  const items = Array.isArray(body?.items) ? body.items : [];
+  if (!items.length) throw new HttpError(400, "items пуст");
+  const collection = `catalog_approved_${base}`;
+  let updated = 0;
+  const missing = [];
+  for (const it of items) {
+    const code = String(it?.code || it?.id || "").trim();
+    if (!code) continue;
+    const existing = await d1GetDoc(env, collection, code);
+    if (!existing) { missing.push(code); continue; }
+    const next = { ...existing };
+    if (it.name !== undefined) next.name = it.name == null ? null : String(it.name);
+    if (it.unit !== undefined) next.unit = it.unit == null ? null : String(it.unit);
+    if (it.oldCode !== undefined) next.oldCode = it.oldCode == null ? null : String(it.oldCode);
+    if (it.stock !== undefined) next.stock = Number(it.stock) || 0;
+    next.id = code; next.code = code; next.base = base; next.updatedAt = Date.now();
+    await d1UpsertDoc(env, collection, next);
+    updated += 1;
+  }
+  return { ok: true, base, updated, missing };
+}
+
+// POST /api/crm/catalog/approved/delete {base, codes:[]} — мягкое удаление строк
+// каталога (isDeleted=true; каталог-эндпоинт их отфильтровывает). Партии не трогаем.
+async function handleCatalogApprovedDelete(request, env, actor) {
+  require1cAdmin(actor);
+  const body = await readRequestBodyAsJson(request);
+  const base = requireCatalogBase(body?.base);
+  const codes = Array.isArray(body?.codes) ? body.codes.map((c) => String(c || "").trim()).filter(Boolean) : [];
+  if (!codes.length) throw new HttpError(400, "codes пуст");
+  const collection = `catalog_approved_${base}`;
+  let deleted = 0;
+  for (const code of codes) {
+    const existing = await d1GetDoc(env, collection, code);
+    if (!existing) continue;
+    await d1UpsertDoc(env, collection, { ...existing, id: code, isDeleted: true, updatedAt: Date.now() });
+    deleted += 1;
+  }
+  return { ok: true, base, deleted };
+}
+
+// POST /api/crm/catalog/approved/import {base, items:[{code, name, unit, oldCode, stock}], replace}
+// — массовый импорт строк утверждённого каталога. replace=true: коды, отсутствующие
+// в импорте, помечаются isDeleted=true (полная замена набора). Ключ цены прайсов —
+// «<base>:<code>», поэтому code здесь = новый код карточки.
+async function handleCatalogApprovedImport(request, env, actor) {
+  require1cAdmin(actor);
+  const body = await readRequestBodyAsJson(request);
+  const base = requireCatalogBase(body?.base);
+  const items = Array.isArray(body?.items) ? body.items : [];
+  if (!items.length) throw new HttpError(400, "items пуст");
+  const replace = oneCBool(body?.replace);
+  const collection = `catalog_approved_${base}`;
+
+  const now = Date.now();
+  const seen = new Set();
+  let imported = 0;
+  for (const it of items) {
+    const code = String(it?.code || it?.id || "").trim();
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    const existing = await d1GetDoc(env, collection, code);
+    await d1UpsertDoc(env, collection, {
+      ...(existing || {}),
+      id: code, code, base,
+      name: it.name == null ? (existing?.name || null) : String(it.name),
+      unit: it.unit == null ? (existing?.unit ?? null) : String(it.unit),
+      oldCode: it.oldCode == null ? (existing?.oldCode ?? null) : String(it.oldCode),
+      stock: it.stock === undefined ? (Number(existing?.stock) || 0) : (Number(it.stock) || 0),
+      isDeleted: false,
+      createdAt: existing?.createdAt || now, updatedAt: now,
+    });
+    imported += 1;
+  }
+
+  let removed = 0;
+  if (replace) {
+    const all = await d1ListCollection(env, collection, 50000);
+    for (const row of all) {
+      if (!row || row.isDeleted) continue;
+      const code = String(row.code || row.id || "");
+      if (seen.has(code)) continue;
+      await d1UpsertDoc(env, collection, { ...row, id: code, isDeleted: true, updatedAt: now });
+      removed += 1;
+    }
+  }
+  return { ok: true, base, imported, removed, replace };
+}
+
 // POST /api/crm/1c/products/map — ручная привязка товара склада к номенклатуре 1С.
 async function handle1cMapProduct(request, env, actor) {
   require1cAdmin(actor);
@@ -7155,6 +7767,13 @@ export default {
         const agreementId = agreementMatch[1];
         if (request.method === "GET") return json(request, env, await handleAgreementGet(env, agreementId));
         if (request.method === "POST") return json(request, env, await handleAgreementPost(env, agreementId, request));
+      }
+      // Страница смены пароля OData 1С (в UI CRM формы нет) — публичный HTML,
+      // но любые действия требуют admin-токен сессии CRM.
+      if (request.method === "GET" && path === "/1c-setup") {
+        return new Response(ONE_C_SETUP_PAGE_HTML, {
+          headers: { "content-type": "text/html; charset=utf-8", "x-robots-tag": "noindex" },
+        });
       }
       if (request.method === "POST" && path === "/auth/google") {
         return json(request, env, await handleAuthGoogle(request, env));
@@ -7321,6 +7940,38 @@ export default {
       if (request.method === "GET" && path === "/api/crm/1c/nomenclature/search") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handle1cNomenclatureSearch(request, env, actor));
+      }
+      if (request.method === "GET" && path === "/api/crm/1c/nomenclature/catalog") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cReadNomenclatureCatalog(request, env, actor));
+      }
+      if (request.method === "GET" && path === "/api/crm/catalog/approved/lots") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleCatalogApprovedLots(request, env, actor));
+      }
+      if (request.method === "GET" && path === "/api/crm/catalog/price-lists") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleCatalogPriceLists(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/catalog/approved/receipt") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleCatalogApprovedReceipt(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/catalog/approved/update") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleCatalogApprovedUpdate(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/catalog/approved/delete") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleCatalogApprovedDelete(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/catalog/approved/import") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleCatalogApprovedImport(request, env, actor));
+      }
+      if (request.method === "POST" && path === "/api/crm/1c/nomenclature/catalog/pull") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handle1cPullNomenclatureCatalog(request, env, actor));
       }
       if (request.method === "POST" && path === "/api/crm/1c/products/map") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });

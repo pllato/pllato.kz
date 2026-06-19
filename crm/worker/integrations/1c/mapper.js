@@ -185,6 +185,34 @@ function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
 }
 
+// GUID ставки НДС → процент. GUID-ы одинаковы во всех 3 базах (Catalog_СтавкиНДС,
+// разведано inspect 04.06; «Без НДС»/«0%» → 0). Нужно, чтобы посчитать СуммаНДС:
+// через OData 1С НЕ запускает обработчик «при изменении» и оставляет НДС=0.
+const VAT_RATE_PERCENT = {
+  "34dffed7-e9fb-11f0-b296-005056815627": 5,
+  "c4d32414-aa56-11e1-b9c4-002215ba1bbe": 0,
+  "fecafe35-ec4d-11f0-b2a3-005056818aec": 10,
+  "2aac9ae8-aa57-11e1-b9c4-002215ba1bbe": 12,
+  "c4d32415-aa56-11e1-b9c4-002215ba1bbe": 13,
+  "fecafe34-ec4d-11f0-b2a3-005056818aec": 16,
+  "2aac9ae9-aa57-11e1-b9c4-002215ba1bbe": 0, // Без НДС
+};
+
+function vatPercentFromRef(ref) {
+  if (!ref) return 0;
+  return VAT_RATE_PERCENT[String(ref).toLowerCase()] ?? 0;
+}
+
+/**
+ * Сумма НДС по строке. При СуммаВключаетНДС=true налог «в том числе» (выделяется
+ * из суммы), иначе «сверху». Возвращает 0 для нулевой/неизвестной ставки.
+ */
+function lineVatSum(sum, vatRateRef, vatIncluded) {
+  const pct = vatPercentFromRef(vatRateRef);
+  if (pct <= 0) return 0;
+  return round2(vatIncluded ? (sum * pct) / (100 + pct) : (sum * pct) / 100);
+}
+
 /**
  * CRM-счёт → тело OData POST для Document_СчетНаОплатуПокупателю.
  * Чистая функция: на вход — уже разрезолвленные GUID-ы 1С, на выход — готовый payload.
@@ -211,6 +239,8 @@ export function invoiceToOData(inv) {
   const lines = Array.isArray(inv.lines) ? inv.lines : [];
   if (lines.length === 0) throw new Error("invoiceToOData: at least one line required");
 
+  const vatIncluded = inv.vatIncluded !== false;
+
   const tovary = lines.map((ln, i) => {
     const qty = Number(ln.qty) || 0;
     const price = Number(ln.price) || 0;
@@ -222,7 +252,8 @@ export function invoiceToOData(inv) {
       Цена: price,
       Сумма: sum,
       Коэффициент: 1,
-      СуммаНДС: ln.vatSum != null ? round2(ln.vatSum) : 0,
+      // Явный расчёт НДС: OData не вызывает обработчик строки, без этого НДС=0.
+      СуммаНДС: ln.vatSum != null ? round2(ln.vatSum) : lineVatSum(sum, ln.vatRateRef, vatIncluded),
     };
     if (ln.unitRef) row.ЕдиницаИзмерения_Key = ln.unitRef;
     if (ln.vatRateRef) row.СтавкаНДС_Key = ln.vatRateRef;
@@ -244,7 +275,7 @@ export function invoiceToOData(inv) {
     Контрагент_Key: inv.contractorRef,
     ВалютаДокумента_Key: inv.currencyRef,
     СуммаДокумента: total,
-    СуммаВключаетНДС: inv.vatIncluded !== false,
+    СуммаВключаетНДС: vatIncluded,
     УчитыватьНДС: inv.accountForVat !== false,
     КурсВзаиморасчетов: 1,
     КратностьВзаиморасчетов: 1,

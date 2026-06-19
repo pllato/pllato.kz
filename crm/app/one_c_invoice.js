@@ -173,12 +173,29 @@ function buildLines(items) {
     const price = Number(it.unitPrice) || 0;
     if (qty <= 0) continue;
     const product = it.productId ? Store.get("warehouse_products", it.productId) : null;
-    const name = product?.name || it.name || "Позиция";
+    const name = product?.name || it.productName || it.name || "Позиция";
+    // Каталог 1С: строка несёт код товара (catalogRef = «Артикул» новой карточки).
+    // Воркер сядет на карточку по «Артикул» — складская привязка не нужна.
+    const article = String(it.catalogRef || "").trim();
+    if (article) {
+      lines.push({
+        productRef: null,
+        article,
+        unitRef: null,
+        vatRateRef: ONE_C_VAT_5,
+        qty, price,
+        sum: Math.round(qty * price * 100) / 100,
+        name,
+      });
+      continue;
+    }
+    // Старый путь — товар склада с прямой привязкой к 1С (_1c_ref_key).
     const ref = product?._1c_ref_key || null;
     if (!ref) { unmatched.push({ name, productId: it.productId || null, sku: product?.sku || "" }); continue; }
     if (product?._1c_match_ambiguous) ambiguous.push(name);
     lines.push({
       productRef: ref,
+      article: null,
       unitRef: product?._1c_unit_ref || null,
       vatRateRef: product?._1c_vat_ref || ONE_C_VAT_5,
       qty, price,
@@ -218,6 +235,7 @@ export async function submitOneCDocument({
   // Ставка НДС — document-level (применяется ко всем позициям), как в диалоге.
   const lines = built.lines.map((l) => ({
     productRef: l.productRef,
+    article: l.article || null,   // код каталога (новый код) → резолв в 1С по «Артикул»
     unitRef: l.unitRef,
     vatRateRef: vatRef,
     qty: l.qty,

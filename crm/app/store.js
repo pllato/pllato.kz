@@ -6,6 +6,7 @@ import { apiFetch } from "./auth.js";
 const NS = "pllato_core_";
 const QUEUE_KEY = "pllato_store_sync_queue_v1";
 const SYNC_TS_KEY = "pllato_store_last_sync_ts";
+const COLL_TS_PREFIX = "pllato_store_coll_ts_v1_";
 const FLUSH_BATCH_SIZE = 200;
 const AUTO_COLLECTIONS = [
   "contacts",
@@ -84,6 +85,21 @@ function queueWrite(items) {
   localStorage.setItem(QUEUE_KEY, JSON.stringify(items));
 }
 
+function getCollSyncTs(collection) {
+  const n = Number(localStorage.getItem(COLL_TS_PREFIX + collection) || "0");
+  return n > 0 ? n : null;
+}
+
+function setCollSyncTs(collection, ts) {
+  localStorage.setItem(COLL_TS_PREFIX + collection, String(ts));
+}
+
+function getMinCollSyncTs(collections) {
+  const tsList = collections.map(getCollSyncTs);
+  if (tsList.some((t) => t == null)) return null;
+  return Math.min(...tsList);
+}
+
 function enqueue(op) {
   const q = queueRead();
   q.push(op);
@@ -155,7 +171,7 @@ async function flushQueue() {
   }
 }
 
-function mergeRemoteIntoLocal(collection, remoteItems) {
+function mergeRemoteIntoLocal(collection, remoteItems, { incremental = false } = {}) {
   const localItems = read(collection);
   const safeLocal = Array.isArray(localItems) ? localItems : [];
   const safeRemote = Array.isArray(remoteItems) ? remoteItems : [];
@@ -181,7 +197,8 @@ function mergeRemoteIntoLocal(collection, remoteItems) {
     }
     if (l && !r) {
       merged.set(id, l);
-      toPush.push({ type: "upsert", collection, item: safeJson(l) });
+      // Incremental pull: отсутствие в дельте означает «не изменилось», не толкаем обратно.
+      if (!incremental) toPush.push({ type: "upsert", collection, item: safeJson(l) });
       continue;
     }
     if (!l && r) merged.set(id, r);
@@ -197,11 +214,19 @@ async function cloudBootstrapInternal({ collections } = {}) {
     ? collections
     : extractCollectionsFromLocal();
 
-  const pull = await workerCall("/store/pull", { collections: list, limitPerCollection: 10000 });
+  // Инкрементальный pull, если уже есть данные от прошлой сессии.
+  const updatedSince = getMinCollSyncTs(list);
+  const incremental = updatedSince != null;
+
+  const pull = await workerCall("/store/pull", {
+    collections: list,
+    limitPerCollection: 10000,
+    ...(incremental ? { updatedSince } : {}),
+  });
   const toPush = [];
   for (const collection of list) {
     const remoteItems = Array.isArray(pull.collections?.[collection]) ? pull.collections[collection] : [];
-    toPush.push(...mergeRemoteIntoLocal(collection, remoteItems));
+    toPush.push(...mergeRemoteIntoLocal(collection, remoteItems, { incremental }));
   }
 
   if (toPush.length > 0) {
@@ -210,7 +235,9 @@ async function cloudBootstrapInternal({ collections } = {}) {
   }
 
   await flushQueue();
-  localStorage.setItem(SYNC_TS_KEY, String(Date.now()));
+  const now = Date.now();
+  localStorage.setItem(SYNC_TS_KEY, String(now));
+  for (const c of list) setCollSyncTs(c, now);
   return { ok: true };
 }
 
@@ -221,13 +248,20 @@ async function cloudSyncCollectionsInternal(collections, { pushLocalDivergence =
     : extractCollectionsFromLocal();
   if (list.length === 0) return { ok: true, collections: [], pulled: 0 };
 
-  const pull = await workerCall("/store/pull", { collections: list, limitPerCollection: 10000 });
+  const updatedSince = getMinCollSyncTs(list);
+  const incremental = updatedSince != null;
+
+  const pull = await workerCall("/store/pull", {
+    collections: list,
+    limitPerCollection: 10000,
+    ...(incremental ? { updatedSince } : {}),
+  });
   const toPush = [];
   let pulled = 0;
   for (const collection of list) {
     const remoteItems = Array.isArray(pull.collections?.[collection]) ? pull.collections[collection] : [];
     pulled += remoteItems.length;
-    toPush.push(...mergeRemoteIntoLocal(collection, remoteItems));
+    toPush.push(...mergeRemoteIntoLocal(collection, remoteItems, { incremental }));
   }
 
   if (pushLocalDivergence && toPush.length > 0) {
@@ -236,7 +270,9 @@ async function cloudSyncCollectionsInternal(collections, { pushLocalDivergence =
     await flushQueue();
   }
 
-  localStorage.setItem(SYNC_TS_KEY, String(Date.now()));
+  const now = Date.now();
+  localStorage.setItem(SYNC_TS_KEY, String(now));
+  for (const c of list) setCollSyncTs(c, now);
   return { ok: true, collections: list, pulled };
 }
 
