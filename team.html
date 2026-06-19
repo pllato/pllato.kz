@@ -10534,6 +10534,39 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send('', ''); }
   });
 
+  // Загрузить и отправить медиа-файл (картинку/документ) через worker → Green-API.
+  // Текст в поле уходит подписью к файлу.
+  const sendMediaBlob = async (blob, fileName) => {
+    const st = window.__waOpenState;
+    if (!st || !blob) return;
+    const caption = input.value.trim() || null;
+    sendBtn.disabled = true;
+    try {
+      await sendWaMediaFile({ rawChatId: st.rawChatId, phone: st.phone }, blob, fileName || 'file', caption, async (data) => {
+        st.canonicalChatId = data.chatId || st.canonicalChatId;
+        await renderWaMessages(st.canonicalChatId);
+      });
+      input.value = '';
+    } catch (e) {
+      alert('Ошибка отправки файла: ' + (e.message || e));
+    } finally {
+      sendBtn.disabled = false;
+    }
+  };
+
+  // Вставка скриншота/картинки из буфера прямо в строку сообщения (Cmd/Ctrl+V).
+  input.addEventListener('paste', async (e) => {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    let file = null;
+    for (const it of items) {
+      if (it.kind === 'file') { const f = it.getAsFile(); if (f && /^image\//.test(f.type)) { file = f; break; } }
+    }
+    if (!file) return;  // обычный текст — пусть вставляется как обычно
+    e.preventDefault();
+    await sendMediaBlob(file, file.name || 'screenshot.png');
+  });
+
   // Прикрепить файл — открывает file picker. Загружает на временный хост
   // или просим юзера дать URL. Простой путь: prompt URL (как раньше).
   // TODO: загружать в R2 через worker.
@@ -10546,15 +10579,8 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
   const onFileSelected = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Файлы пока — через URL prompt (загрузка через worker — TODO).
-    // Если хочешь сразу отправить локальный файл, нужен R2-uploader на бэке.
-    const url = prompt(
-      `Выбран файл: ${file.name}\n\nВведи публичный URL файла (Green-API требует доступный URL).\nПозже добавим прямую загрузку.`,
-      ''
-    );
     e.target.value = ''; // reset input
-    if (!url) return;
-    await send(url, file.name);
+    await sendMediaBlob(file, file.name);
   };
   document.getElementById('wa-file-input').addEventListener('change', onFileSelected);
   document.getElementById('wa-camera-input').addEventListener('change', onFileSelected);
