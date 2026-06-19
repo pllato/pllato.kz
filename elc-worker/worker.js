@@ -3756,12 +3756,14 @@ async function handleWaDealsActivity(request, env) {
   const url = new URL(request.url);
   const pipeline = (url.searchParams.get("pipeline") || "").trim();
 
-  // Новая логика: JOIN через contacts.phones — активность применяется ко
-  // ВСЕМ сделкам в воронке у которых контакт с телефоном из wa_chats.
-  // Раньше группировали по wa_chats.deal_id (одной сделке) → если у клиента
-  // несколько сделок с одним номером, бейдж был только на одной.
-  // Юзер: «если в воронке есть несколько сделок с одним номером, ВСЕ они
-  // должны подсвечиваться непрочитанным».
+  // Активность WA-чатов по сделкам воронки. Джойн по contact_id (он
+  // проиндексирован и в deals, и в wa_chats) — это O(сделки) с индексным
+  // поиском, а не перебор 230k контактов.
+  //
+  // ВАЖНО (перф): раньше тут был `contacts.phones LIKE '%'||w.phone||'%'` —
+  // он не использовал индексы и сканировал ВСЕ контакты на каждый опрос
+  // канбана, что перегружало D1 ("D1 DB is overloaded"). Несколько сделок с
+  // одним клиентом всё равно подсвечиваются: они ссылаются на один contact_id.
   const sql = `
     SELECT d.id AS deal_id,
            MAX(w.last_message_at) AS last_message_at,
@@ -3769,8 +3771,7 @@ async function handleWaDealsActivity(request, env) {
            SUM(COALESCE(w.unread_count, 0)) AS unread_count,
            MAX(CASE WHEN w.last_message_from = 'them' THEN w.last_message_at ELSE 0 END) AS last_incoming_at
     FROM deals d
-    INNER JOIN contacts c ON c.id = d.contact_id
-    INNER JOIN wa_chats w ON w.phone IS NOT NULL AND w.phone != '' AND c.phones LIKE '%' || w.phone || '%'
+    INNER JOIN wa_chats w ON w.contact_id = d.contact_id AND w.contact_id IS NOT NULL
     ${pipeline ? 'WHERE d.pipeline_id = ?' : ''}
     GROUP BY d.id
     HAVING unread_count > 0 OR last_message_at IS NOT NULL
