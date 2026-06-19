@@ -360,6 +360,16 @@ async function ensurePinColumn(env) {
   _pinColMigrated = true;
 }
 
+// Ленивая миграция: колонка archived_at в team_chat_members — ПЕРСОНАЛЬНЫЙ
+// архив (каждый прячет чат у себя; у других чат остаётся). NULL = не в архиве.
+let _memArchColMigrated = false;
+async function ensureMemberArchivedColumn(env) {
+  if (_memArchColMigrated) return;
+  try { await env.DB.prepare("ALTER TABLE team_chat_members ADD COLUMN archived_at INTEGER").run(); }
+  catch (e) { /* колонка уже есть — норма */ }
+  _memArchColMigrated = true;
+}
+
 // Ленивая миграция: колонка icon в team_chat_channels (кастомная иконка группы).
 let _iconColMigrated = false;
 async function ensureChannelIconColumn(env) {
@@ -438,13 +448,15 @@ async function listChannels(env, me, url) {
     FROM team_chat_channels c
     JOIN (
       SELECT channel_id, MAX(last_read_message_id) AS last_read_message_id, MAX(muted) AS muted,
-             MAX(pinned_at) AS pinned_at,
+             MAX(pinned_at) AS pinned_at, MAX(archived_at) AS archived_at,
              MAX(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) AS is_admin
       FROM team_chat_members
       WHERE user_id IN (${phList(ids)})
       GROUP BY channel_id
     ) cm ON cm.channel_id = c.id
-    WHERE c.archived_at IS ${wantArchived ? 'NOT NULL' : 'NULL'}
+    WHERE ${wantArchived
+      ? '(cm.archived_at IS NOT NULL OR c.archived_at IS NOT NULL)'
+      : '(c.archived_at IS NULL AND cm.archived_at IS NULL)'}
     ORDER BY last_message_at DESC NULLS LAST, c.created_at DESC
   `).bind(...ids).all();
 
@@ -897,19 +909,21 @@ async function uploadChannelIcon(request, env, me, channelId) {
   return jsonRes({ ok: true, icon });
 }
 
-// POST /api/chat/channels/:id/archive { archived } — архивировать/вернуть чат.
-// Только создатель чата или администратор (для групп и для личных переписок).
+// POST /api/chat/channels/:id/archive { archived } — ПЕРСОНАЛЬНЫЙ архив:
+// прячет чат только у меня, у других он остаётся. Может любой участник.
 async function archiveChannel(env, me, channelId, body) {
-  const ch = await env.DB.prepare("SELECT type, created_by FROM team_chat_channels WHERE id = ?").bind(channelId).first();
-  if (!ch) return errRes('not found', 404);
   if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
-  const isCreator = meIds(me).includes(ch.created_by);
-  if (!isCreator && !(await isChannelAdmin(env, channelId, me))) {
-    return errRes('архивировать может только создатель или администратор чата', 403);
-  }
+  await ensureMemberArchivedColumn(env);
+  const ids = meIds(me);
   const ts = body.archived === false ? null : Date.now();
-  await env.DB.prepare("UPDATE team_chat_channels SET archived_at = ? WHERE id = ?").bind(ts, channelId).run();
-  broadcastToChannel(env, channelId, { kind: ts ? 'channel_archived' : 'channel_unarchived', channel_id: channelId });
+  await env.DB.prepare(
+    `UPDATE team_chat_members SET archived_at = ? WHERE channel_id = ? AND user_id IN (${phList(ids)})`
+  ).bind(ts, channelId, ...ids).run();
+  // Возврат из архива заодно снимает старый «глобальный» архив канала, если он
+  // остался от прежней (общей) версии — чтобы чат точно вернулся в список.
+  if (ts === null) {
+    try { await env.DB.prepare("UPDATE team_chat_channels SET archived_at = NULL WHERE id = ?").bind(channelId).run(); } catch {}
+  }
   return jsonRes({ ok: true, archived: !!ts });
 }
 
@@ -1035,6 +1049,7 @@ export async function handleChatRequest(request, env, url, me, ctx) {
   await ensureRolesColumn(env);
   await ensureChannelIconColumn(env);
   await ensurePinColumn(env);
+  await ensureMemberArchivedColumn(env);
 
   // Channels
   if (p === '/api/chat/channels' && m === 'GET')  return listChannels(env, me, url);

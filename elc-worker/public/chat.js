@@ -753,7 +753,7 @@
       return `<div class="tc-channel${active}${hasUnread}" data-ch-id="${escapeHtml(ch.id)}">
         ${channelAvatarHtml('tc-ch-av', ch)}
         <div class="tc-ch-body">
-          <div class="tc-ch-top"><span class="tc-ch-name">${ch.pinned_at ? '📌 ' : ''}${escapeHtml(channelDisplayName(ch))}</span><span class="tc-ch-time">${time}</span></div>
+          <div class="tc-ch-top"><span class="tc-ch-name">${ch.pinned_at ? '📌 ' : ''}${ch.muted ? '🔕 ' : ''}${escapeHtml(channelDisplayName(ch))}</span><span class="tc-ch-time">${time}</span></div>
           <div class="tc-ch-bottom"><span class="tc-ch-last">${last}</span>${unread}</div>
         </div>
       </div>`;
@@ -944,12 +944,13 @@
     const isAdmin = !!ch.is_admin;
     const searchBtn = `<button class="tc-head-rename tc-head-searchbtn" title="Поиск в переписке">🔎</button>`;
     const pinBtn = `<button class="tc-head-rename tc-head-pinbtn" title="${ch.pinned_at ? 'Открепить чат' : 'Закрепить чат (до 5)'}"${ch.pinned_at ? ' style="background:var(--bg3,#eee)"' : ''}>📌</button>`;
+    const muteBtn = `<button class="tc-head-rename tc-head-mutebtn" title="${ch.muted ? 'Включить уведомления' : 'Беззвучно (без уведомлений)'}"${ch.muted ? ' style="background:var(--bg3,#eee)"' : ''}>${ch.muted ? '🔕' : '🔔'}</button>`;
     const renameBtn = (ch.type !== 'dm' && isAdmin) ?
       `<button class="tc-head-rename" title="Переименовать чат">✏️</button>` : '';
     const iconBtn = (ch.type !== 'dm' && isAdmin) ?
       `<button class="tc-head-rename tc-head-iconbtn" title="Сменить иконку">🎨</button>` : '';
-    // Архивировать может только создатель/админ (у них is_admin=1).
-    const canArchive = isAdmin;
+    // Персональный архив — прячет чат только у меня, поэтому доступен всем.
+    const canArchive = true;
     const archiveBtn = canArchive ?
       `<button class="tc-head-rename tc-head-archbtn" title="${state.showArchived ? 'Вернуть из архива' : 'Архивировать чат'}">${state.showArchived ? '📤' : '🗄'}</button>` : '';
     const membersBtn = ch.type === 'dm' ? '' :
@@ -963,6 +964,7 @@
       </div>
       ${searchBtn}
       ${pinBtn}
+      ${muteBtn}
       ${renameBtn}
       ${iconBtn}
       ${archiveBtn}
@@ -979,7 +981,17 @@
         renderChannelList();
       } catch (e) { alert(e.message || e); }
     };
-    const rb = head.querySelector('.tc-head-rename:not(.tc-head-iconbtn):not(.tc-head-searchbtn):not(.tc-head-archbtn):not(.tc-head-pinbtn)');
+    const mtb = head.querySelector('.tc-head-mutebtn');
+    if (mtb) mtb.onclick = async () => {
+      const want = !ch.muted;
+      try {
+        await api(`/api/chat/channels/${ch.id}/mute`, { method: 'POST', body: JSON.stringify({ muted: want }) });
+        ch.muted = want ? 1 : 0;
+        renderMainHead();
+        renderChannelList();
+      } catch (e) { alert(e.message || e); }
+    };
+    const rb = head.querySelector('.tc-head-rename:not(.tc-head-iconbtn):not(.tc-head-searchbtn):not(.tc-head-archbtn):not(.tc-head-pinbtn):not(.tc-head-mutebtn)');
     if (rb) rb.onclick = () => renameChannelPrompt(ch);
     const ib = head.querySelector('.tc-head-iconbtn');
     if (ib) ib.onclick = () => openIconPicker(ch);
