@@ -3246,7 +3246,7 @@ function greenApiPanel(){
       <span class="muted" data-ga="chev" style="font-size:12.5px;font-weight:600;flex:none;display:flex;align-items:center;gap:5px">${ic('i-cog','sm')} Управление</span>
     </button>
     <div class="panel-b" data-ga="body" style="display:none">
-      <div class="note">${ic('i-info','sm')} Каждый номер — отдельный инстанс GreenAPI, привязанный к <b>точке</b> и <b>воронке</b>. Входящее сообщение само создаёт лид в нужной воронке и точке этого номера; ответ по умолчанию уходит с того же номера (в чате номер можно сменить). idInstance и токен — в консоли green-api.com.</div>
+      <div class="note" style="display:block;line-height:1.55">${ic('i-info','sm')} Каждый номер — отдельный инстанс GreenAPI, привязан к своей <b>точке</b> и <b>воронке</b>. Входящее сообщение само создаёт лид в воронке и точке этого номера; ответ по умолчанию уходит с того же номера (в чате номер можно сменить). idInstance и токен — в консоли green-api.com.</div>
       <div data-ga="list" style="display:flex;flex-direction:column;gap:12px;margin-top:14px"><div class="muted2" style="font-size:13px">Загрузка…</div></div>
       <button class="btn primary" data-ga="add" style="margin-top:14px">${ic('i-plus','sm')} Добавить номер</button>
       <label class="ck" style="display:flex;align-items:center;gap:9px;font-size:13px;color:var(--txt);cursor:pointer;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
