@@ -445,8 +445,10 @@ async function dealModalLive(d){
   setEntityHash('funnels', d.id);
   const dmStores=await fetchStores();
   let dInit=[]; try{ dInit=JSON.parse(d.items||'[]'); }catch(e){}
-  const ed=makeItemsEditor(dInit);
+  let dmRecalc=()=>{};
+  const ed=makeItemsEditor(dInit,()=>dmRecalc());
   const dmUsers=await fetchUsers();
+  let dmPromos=[]; try{ const _pr=await api('/api/promos'); if(_pr.ok) dmPromos=(_pr.data.items||[]).filter(p=>p.active&&!p.archived); }catch(e){}
   const dmFunnel=d.funnel||state.funnel;
   const stages=STAGES[dmFunnel]||[];
   const DM_SRC=['WhatsApp','Instagram','Сайт','Звонок','Сарафан','Блогер','Промокод','Другое'];
@@ -464,7 +466,7 @@ async function dealModalLive(d){
     <div class="fld-row"><div class="fld"><label>Сумма, с</label><input data-dm="amount" type="number" value="${d.amount||0}"></div><div class="fld"><label>Ответственный</label>${userSelectHtml(dmUsers,d.mgr,'data-dm="mgr"')}</div></div>
     <div class="fld-row"><div class="fld"><label>Источник</label>${dmSourceSel}</div><div class="fld"><label>Точка</label>${storeSelectHtml(dmStores,d.store_key,'data-dm="store_key"','— точка —')}</div></div>
     <div class="fld"><label>Промокод / код блогера <span class="muted2" id="dmPromoHint">${d.promo?'':'— если клиент назвал'}</span></label><input data-dm="promo" id="dmPromoInp" value="${esc(d.promo||'')}" placeholder="код, если есть"></div>
-    <div class="fld"><label>Состав (товары из 1С)</label><div id="dmItems"></div></div>
+    <div class="fld"><label>Состав (товары из 1С)</label><div id="dmItems"></div><div data-dm="discline" style="margin-top:6px"></div></div>
     <div class="fld"><label>Комментарий</label><input data-dm="note" value="${esc(d.note||'')}"></div>
   </div>
   <div class="modal-b" id="dmTabChat" style="padding:0;display:none">
@@ -473,6 +475,15 @@ async function dealModalLive(d){
   </div>
   <div class="modal-f"><button class="btn" id="dmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="dmSave">Сохранить</button></div>`,'wide');
   bg.querySelector('#dmItems').appendChild(ed.node);
+  dmRecalc=function(){
+    const c=((bg.querySelector('#dmPromoInp')||{}).value||'').trim();
+    const promo=dmPromos.find(p=>String(p.code||'').toUpperCase()===c.toUpperCase());
+    const items=ed.getItems(); const sub=items.reduce((a,x)=>a+(x.price||0)*(x.qty||1),0);
+    const disc=computePromoDiscount(items,promo); const line=bg.querySelector('[data-dm=discline]'); if(!line)return;
+    if(promo&&disc>0) line.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:rgba(16,185,129,.10);border:1px solid var(--accent2,#2e4a3a);border-radius:10px;padding:9px 13px"><span class="muted2" style="font-size:12px">Сумма ${money(sub)} · скидка «${esc(promo.code)}» <b style="color:var(--accent)">−${money(disc)}</b></span><span style="font-weight:800;font-size:16px;white-space:nowrap">К оплате: ${money(Math.max(0,sub-disc))}</span></div>`;
+    else line.innerHTML='';
+  };
+  dmRecalc();
   // Клиент: пикер контрагента 1С; когда привязан — read-only + «Сменить»
   let dRef=d.client_ref||null, dName=d.client_name||'';
   const zone=bg.querySelector('#dmClientZone');
@@ -510,7 +521,7 @@ async function dealModalLive(d){
     if(r.data.kind==='blogger'){ if(dmHint){dmHint.textContent='✓ блогер: '+r.data.name;dmHint.style.color='#16a34a';} if(dmSrc)dmSrc.value='Блогер'; }
     else if(r.data.kind==='promo'){ if(dmHint){dmHint.textContent='✓ '+r.data.name;dmHint.style.color='#16a34a';} if(dmSrc)dmSrc.value='Промокод'; }
     else if(dmHint){ dmHint.textContent='код не найден в базе';dmHint.style.color='#d97706'; } };
-    dmPromo.addEventListener('input',()=>{ clearTimeout(pt); pt=setTimeout(chk,400); }); }
+    dmPromo.addEventListener('input',()=>{ dmRecalc(); clearTimeout(pt); pt=setTimeout(chk,400); }); }
   bg.querySelector('#dmSave').onclick=async()=>{
     const body={funnel:bg.querySelector('[data-dm=funnel]').value,client_ref:dRef,client_name:(dName||'').trim(),phone:bg.querySelector('[data-dm=phone]').value.trim(),stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),promo:bg.querySelector('[data-dm=promo]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,items:ed.getItems(),note:bg.querySelector('[data-dm=note]').value.trim()};
     const r=await api('/api/deals/'+d.id,{method:'POST',body:JSON.stringify(body)});
