@@ -350,6 +350,16 @@ async function ensureRolesColumn(env) {
   _rolesMigrated = true;
 }
 
+// Ленивая миграция: колонка pinned_at в team_chat_members (закрепление чата
+// каждым юзером отдельно; NULL = не закреплён).
+let _pinColMigrated = false;
+async function ensurePinColumn(env) {
+  if (_pinColMigrated) return;
+  try { await env.DB.prepare("ALTER TABLE team_chat_members ADD COLUMN pinned_at INTEGER").run(); }
+  catch (e) { /* колонка уже есть — норма */ }
+  _pinColMigrated = true;
+}
+
 // Ленивая миграция: колонка icon в team_chat_channels (кастомная иконка группы).
 let _iconColMigrated = false;
 async function ensureChannelIconColumn(env) {
@@ -412,7 +422,7 @@ async function listChannels(env, me, url) {
   const { results } = await env.DB.prepare(`
     SELECT
       c.id, c.type, c.name, c.description, c.created_by, c.created_at, c.archived_at, c.icon,
-      cm.last_read_message_id, cm.muted, cm.is_admin,
+      cm.last_read_message_id, cm.muted, cm.is_admin, cm.pinned_at,
       (SELECT COUNT(*) FROM team_chat_msgs m
          WHERE m.channel_id = c.id
            AND m.deleted_at IS NULL
@@ -428,6 +438,7 @@ async function listChannels(env, me, url) {
     FROM team_chat_channels c
     JOIN (
       SELECT channel_id, MAX(last_read_message_id) AS last_read_message_id, MAX(muted) AS muted,
+             MAX(pinned_at) AS pinned_at,
              MAX(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) AS is_admin
       FROM team_chat_members
       WHERE user_id IN (${phList(ids)})
@@ -902,6 +913,30 @@ async function archiveChannel(env, me, channelId, body) {
   return jsonRes({ ok: true, archived: !!ts });
 }
 
+// POST /api/chat/channels/:id/pin { pinned } — закрепить/открепить чат (для себя).
+// Не больше 5 закреплённых на юзера.
+const MAX_PINNED = 5;
+async function pinChannel(env, me, channelId, body) {
+  if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
+  await ensurePinColumn(env);
+  const ids = meIds(me);
+  const wantPin = body.pinned !== false;
+  if (wantPin) {
+    const { results } = await env.DB.prepare(
+      `SELECT DISTINCT channel_id FROM team_chat_members WHERE user_id IN (${phList(ids)}) AND pinned_at IS NOT NULL`
+    ).bind(...ids).all();
+    const already = results.some(r => r.channel_id === channelId);
+    if (!already && results.length >= MAX_PINNED) {
+      return errRes(`можно закрепить не больше ${MAX_PINNED} чатов`, 400);
+    }
+  }
+  const ts = wantPin ? Date.now() : null;
+  await env.DB.prepare(
+    `UPDATE team_chat_members SET pinned_at = ? WHERE channel_id = ? AND user_id IN (${phList(ids)})`
+  ).bind(ts, channelId, ...ids).run();
+  return jsonRes({ ok: true, pinned: !!ts });
+}
+
 // POST /api/chat/channels/:id/members/:uid/role { role: 'admin'|'member' }
 // Только админ может назначать/снимать админов (передавать права). Роль
 // создателя канала не трогаем — он всегда остаётся админом.
@@ -999,6 +1034,7 @@ export async function handleChatRequest(request, env, url, me, ctx) {
   // Идемпотентно гарантируем колонки (ленивые миграции, флаг на изолят).
   await ensureRolesColumn(env);
   await ensureChannelIconColumn(env);
+  await ensurePinColumn(env);
 
   // Channels
   if (p === '/api/chat/channels' && m === 'GET')  return listChannels(env, me, url);
@@ -1023,6 +1059,7 @@ export async function handleChatRequest(request, env, url, me, ctx) {
     if (sub === '/icon'     && m === 'POST') return setChannelIcon(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/icon-upload' && m === 'POST') return uploadChannelIcon(request, env, me, channelId);
     if (sub === '/archive'  && m === 'POST') return archiveChannel(env, me, channelId, await request.json().catch(() => ({})));
+    if (sub === '/pin'      && m === 'POST') return pinChannel(env, me, channelId, await request.json().catch(() => ({})));
     // /api/chat/channels/:id/members/:uid/role (POST) — назначить/снять админа
     const roleMatch = sub.match(/^\/members\/(.+)\/role$/);
     if (roleMatch && m === 'POST') return setMemberRole(env, me, channelId, decodeURIComponent(roleMatch[1]), await request.json().catch(() => ({})));

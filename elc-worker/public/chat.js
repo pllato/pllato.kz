@@ -703,6 +703,9 @@
 
   function sortedChannels() {
     return state.channels.slice().sort((a, b) => {
+      // Закреплённые — всегда наверху.
+      const pa = a.pinned_at ? 1 : 0, pb = b.pinned_at ? 1 : 0;
+      if (pa !== pb) return pb - pa;
       const ta = a.last_message_at || 0, tb = b.last_message_at || 0;
       if (tb !== ta) return tb - ta;
       return channelDisplayName(a).localeCompare(channelDisplayName(b), 'ru');
@@ -750,7 +753,7 @@
       return `<div class="tc-channel${active}${hasUnread}" data-ch-id="${escapeHtml(ch.id)}">
         ${channelAvatarHtml('tc-ch-av', ch)}
         <div class="tc-ch-body">
-          <div class="tc-ch-top"><span class="tc-ch-name">${escapeHtml(channelDisplayName(ch))}</span><span class="tc-ch-time">${time}</span></div>
+          <div class="tc-ch-top"><span class="tc-ch-name">${ch.pinned_at ? '📌 ' : ''}${escapeHtml(channelDisplayName(ch))}</span><span class="tc-ch-time">${time}</span></div>
           <div class="tc-ch-bottom"><span class="tc-ch-last">${last}</span>${unread}</div>
         </div>
       </div>`;
@@ -940,6 +943,7 @@
 
     const isAdmin = !!ch.is_admin;
     const searchBtn = `<button class="tc-head-rename tc-head-searchbtn" title="Поиск в переписке">🔎</button>`;
+    const pinBtn = `<button class="tc-head-rename tc-head-pinbtn" title="${ch.pinned_at ? 'Открепить чат' : 'Закрепить чат (до 5)'}"${ch.pinned_at ? ' style="background:var(--bg3,#eee)"' : ''}>📌</button>`;
     const renameBtn = (ch.type !== 'dm' && isAdmin) ?
       `<button class="tc-head-rename" title="Переименовать чат">✏️</button>` : '';
     const iconBtn = (ch.type !== 'dm' && isAdmin) ?
@@ -958,13 +962,24 @@
         <div class="tc-head-sub">${escapeHtml(sub)}</div>
       </div>
       ${searchBtn}
+      ${pinBtn}
       ${renameBtn}
       ${iconBtn}
       ${archiveBtn}
       ${membersBtn}`;
     const sb = head.querySelector('.tc-head-searchbtn');
     if (sb) sb.onclick = () => openChatSearch(ch);
-    const rb = head.querySelector('.tc-head-rename:not(.tc-head-iconbtn):not(.tc-head-searchbtn):not(.tc-head-archbtn)');
+    const pb = head.querySelector('.tc-head-pinbtn');
+    if (pb) pb.onclick = async () => {
+      const want = !ch.pinned_at;
+      try {
+        const r = await api(`/api/chat/channels/${ch.id}/pin`, { method: 'POST', body: JSON.stringify({ pinned: want }) });
+        ch.pinned_at = r.pinned ? Date.now() : null;
+        renderMainHead();
+        renderChannelList();
+      } catch (e) { alert(e.message || e); }
+    };
+    const rb = head.querySelector('.tc-head-rename:not(.tc-head-iconbtn):not(.tc-head-searchbtn):not(.tc-head-archbtn):not(.tc-head-pinbtn)');
     if (rb) rb.onclick = () => renameChannelPrompt(ch);
     const ib = head.querySelector('.tc-head-iconbtn');
     if (ib) ib.onclick = () => openIconPicker(ch);
