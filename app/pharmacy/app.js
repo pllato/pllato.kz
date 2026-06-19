@@ -3250,6 +3250,9 @@ function greenApiPanel(){
       <div data-ga="list" style="display:flex;flex-direction:column;gap:12px;margin-top:14px"><div class="muted2" style="font-size:13px">Загрузка…</div></div>
       <button class="btn primary" data-ga="add" style="margin-top:14px">${ic('i-plus','sm')} Добавить номер</button>
       <label class="ck" style="display:flex;align-items:center;gap:9px;font-size:13px;color:var(--txt);cursor:pointer;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+        <input type="checkbox" data-ga="autolead"> Авто-лид: входящее сообщение создаёт сделку
+        <span class="muted2" style="font-size:11px">— новый/повторный контакт → сделка «Заявка» в воронке номера</span></label>
+      <label class="ck" style="display:flex;align-items:center;gap:9px;font-size:13px;color:var(--txt);cursor:pointer;margin-top:10px">
         <input type="checkbox" data-ga="audio"> Разрешить отправку аудиосообщений (голосовых) клиентам
         <span class="muted2" style="font-size:11px">— включит микрофон в чате</span></label>
     </div></div>`);
@@ -3258,11 +3261,10 @@ function greenApiPanel(){
   setOpen(false);
   tog.onclick=()=>setOpen(gaBody.style.display==='none');
   panel.querySelector('[data-ga=add]').onclick=()=>waInstanceModal(null);
-  const audioCb=panel.querySelector('[data-ga=audio]');
-  if(audioCb){
-    api('/api/admin/greenapi/status').then(r=>{ if(r&&r.ok&&r.data) audioCb.checked=!!r.data.allow_audio; });
-    audioCb.onchange=async()=>{ const r=await api('/api/admin/greenapi/settings',{method:'PUT',body:JSON.stringify({allow_audio:audioCb.checked})}); toast(r.ok?(audioCb.checked?'Аудио включено — в чате появится микрофон':'Аудио отключено'):'Ошибка','i-'+(r.ok?'check2':'x'),r.ok?'':'#dc2626'); };
-  }
+  const audioCb=panel.querySelector('[data-ga=audio]'), leadCb=panel.querySelector('[data-ga=autolead]');
+  api('/api/admin/greenapi/status').then(r=>{ if(r&&r.ok&&r.data){ if(audioCb)audioCb.checked=!!r.data.allow_audio; if(leadCb)leadCb.checked=!!r.data.autolead; } });
+  if(audioCb) audioCb.onchange=async()=>{ const r=await api('/api/admin/greenapi/settings',{method:'PUT',body:JSON.stringify({allow_audio:audioCb.checked})}); toast(r.ok?(audioCb.checked?'Аудио включено — в чате появится микрофон':'Аудио отключено'):'Ошибка','i-'+(r.ok?'check2':'x'),r.ok?'':'#dc2626'); };
+  if(leadCb) leadCb.onchange=async()=>{ const r=await api('/api/admin/greenapi/settings',{method:'PUT',body:JSON.stringify({autolead:leadCb.checked})}); toast(r.ok?(leadCb.checked?'Авто-лид включён — входящие создают сделки':'Авто-лид выключен'):'Ошибка','i-'+(r.ok?'check2':'x'),r.ok?'':'#dc2626'); };
   const stTag=(s)=> s==='authorized' ? '<span class="tag green">подключён</span>'
     : (s ? `<span class="tag amber">${esc(s==='notAuthorized'?'не авторизован':s)}</span>` : '<span class="tag amber">не проверен</span>');
   async function load(){
