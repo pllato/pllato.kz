@@ -441,6 +441,14 @@ async function newDealLive(onSaved){
     closeModal(); toast('Сделка создана','i-funnel'); onSaved&&onSaved();
   };
 }
+// Звонок из CRM через софтфон (мягкие тосты вместо alert; тихо если телефония не настроена)
+function crmCall(phone, opts){
+  const p=String(phone||'').replace(/[^\d+]/g,''); if(!p){ toast('У контакта нет номера','i-info','#d97706'); return; }
+  if(!window.SipClient){ toast('Софтфон ещё не загрузился','i-info','#d97706'); return; }
+  window.SipClient.call(p, opts||{}).catch(e=>{ const m=String((e&&e.message)||'');
+    if(m.includes('sip_not_configured')||m.includes('not_registered')) toast('Телефония не подключена — настройте сервер звонков','i-phone','#d97706');
+    else toast('Не удалось позвонить: '+m,'i-x','#dc2626'); });
+}
 async function dealModalLive(d){
   setEntityHash('funnels', d.id);
   const dmStores=await fetchStores();
@@ -462,7 +470,7 @@ async function dealModalLive(d){
   <div class="modal-b" id="dmTabDetails">
     <div class="fld"><label>Клиент</label><div id="dmClientZone"></div></div>
     <div class="fld-row"><div class="fld"><label>Воронка <span class="muted2">(сменить — перемещает сделку)</span></label><select data-dm="funnel" id="dmFunnelSel">${FUNNELS.map(f=>`<option value="${esc(f.id)}" ${f.id===dmFunnel?'selected':''}>${esc(f.name)}</option>`).join('')}</select></div><div class="fld"><label>Этап</label><select data-dm="stage" id="dmStageSel">${stages.map(s=>`<option ${s===d.stage?'selected':''}>${esc(s)}</option>`).join('')}</select></div></div>
-    <div class="fld"><label>Телефон</label><input data-dm="phone" value="${esc(d.phone||'')}" placeholder="+996…"></div>
+    <div class="fld"><label>Телефон</label><div class="row" style="gap:6px"><input data-dm="phone" value="${esc(d.phone||'')}" placeholder="+996…" style="flex:1"><button type="button" class="btn" id="dmCallBtn" title="Позвонить" style="flex:none">${ic('i-phone','sm')} Позвонить</button></div></div>
     <div class="fld-row"><div class="fld"><label>Сумма, с</label><input data-dm="amount" type="number" value="${d.amount||0}"></div><div class="fld"><label>Ответственный</label>${userSelectHtml(dmUsers,d.mgr,'data-dm="mgr"')}</div></div>
     <div class="fld-row"><div class="fld"><label>Источник</label>${dmSourceSel}</div><div class="fld"><label>Точка</label>${storeSelectHtml(dmStores,d.store_key,'data-dm="store_key"','— точка —')}</div></div>
     <div class="fld"><label>Промокод / код блогера <span class="muted2" id="dmPromoHint">${d.promo?'':'— если клиент назвал'}</span></label><input data-dm="promo" id="dmPromoInp" value="${esc(d.promo||'')}" placeholder="код, если есть"></div>
@@ -484,6 +492,7 @@ async function dealModalLive(d){
     else line.innerHTML='';
   };
   dmRecalc();
+  { const cb=bg.querySelector('#dmCallBtn'); if(cb) cb.onclick=()=>crmCall((bg.querySelector('[data-dm=phone]')||{}).value,{dealId:d.id,contactName:d.client_name||''}); }
   // Клиент: пикер контрагента 1С; когда привязан — read-only + «Сменить»
   let dRef=d.client_ref||null, dName=d.client_name||'';
   const zone=bg.querySelector('#dmClientZone');
@@ -777,8 +786,9 @@ function contractorModal(r){
       <div id="cmLoyalty"></div>
       <div id="cmHist"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>
   </div>
-  <div class="modal-f">${r.ref_key?`<button class="btn primary" id="ceSave">${ic('i-check2','sm')} Сохранить (→ 1С)</button>`:''}<button class="btn" onclick="closeModal()">Закрыть</button></div>`,'wide');
+  <div class="modal-f"><button class="btn" id="ceCallBtn" title="Позвонить">${ic('i-phone','sm')} Позвонить</button>${r.ref_key?`<button class="btn primary" id="ceSave">${ic('i-check2','sm')} Сохранить (→ 1С)</button>`:''}<button class="btn" onclick="closeModal()">Закрыть</button></div>`,'wide');
   const cePhones=makePhoneList(bg.querySelector('[data-ce=phones]'), r.phone?[r.phone]:[]);
+  { const cb=bg.querySelector('#ceCallBtn'); if(cb) cb.onclick=()=>{ const ph=(cePhones&&cePhones.get&&cePhones.get()[0])||r.phone; crmCall(ph,{customerId:r.ref_key,contactName:r.name||''}); }; }
   if(r.ref_key) api('/api/1c/contractors/'+encodeURIComponent(r.ref_key)+'/phones').then(pr=>{ if(pr.ok&&pr.data.phones&&pr.data.phones.length) cePhones.set(pr.data.phones); });
   if(r.ref_key){ const sb=bg.querySelector('#ceSave'); if(sb) sb.onclick=async()=>{
     const name=bg.querySelector('[data-ce=name]').value.trim(), phones=cePhones.get(), inn=(r.inn||''), dob=bg.querySelector('[data-ce=dob]').value;
@@ -3867,6 +3877,8 @@ function applyUser(user){
   loadNotifications();
   // эффективные права ролей из БД (для меню/превью/матрицы) — для админа
   if(['owner','superadmin'].includes(user.role)) api('/api/admin/roles').then(r=>{ if(r&&r.ok){ ACCESS_MAP={}; r.data.roles.forEach(x=>ACCESS_MAP[x.id]=x.sections); renderNav(); } }).catch(()=>{});
+  // SIP-софтфон: пре-варм (если Asterisk не настроен — /sip/token отдаст 503, UI тихо скрыт)
+  if(window.SipClient) setTimeout(()=>{ window.SipClient.init().catch(e=>{ if(!String((e&&e.message)||'').includes('sip_not_configured')) console.warn('[sip]',e&&e.message); }); }, 2000);
 }
 
 async function doLogin(ident, password){

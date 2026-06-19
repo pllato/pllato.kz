@@ -101,3 +101,34 @@ details.om-log > summary .muted2 { margin-left: auto; font-size: 12px; font-weig
 details.om-log > #omLog { border-top: 1px solid var(--line); }
 
 .tpl-item:hover{background:var(--accent-soft)}
+
+/* ===== SIP софтфон (звонки из браузера) ===== */
+#sip-ui{position:fixed;z-index:9000}
+.sip-bar{position:fixed;right:18px;bottom:18px;display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:8px 14px;box-shadow:var(--shadow-lg);font-size:13px;color:var(--txt);cursor:pointer;z-index:9000}
+.sip-bar-dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.sip-bar-ready .sip-bar-dot{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.sip-bar-connecting .sip-bar-dot{background:var(--amber)}
+.sip-bar-calling .sip-bar-dot,.sip-bar-ringing .sip-bar-dot{background:var(--blue);animation:sipPulse 1s infinite}
+.sip-bar-in-call .sip-bar-dot{background:var(--green)}
+@keyframes sipPulse{0%,100%{opacity:1}50%{opacity:.3}}
+.sip-bar-timer{font-variant-numeric:tabular-nums;color:var(--muted)}
+.sip-bar-hangup{width:24px;height:24px;border-radius:50%;background:var(--red);color:#fff;font-size:13px;line-height:1;flex:none}
+.sip-overlay{position:fixed;inset:0;background:rgba(4,10,8,.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:9001}
+.sip-overlay-card{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-lg);padding:26px 30px;min-width:300px;text-align:center}
+.sip-overlay-state{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.sip-overlay-name{font-size:20px;font-weight:700;margin-top:8px}
+.sip-overlay-phone{font-size:14px;color:var(--muted);margin-top:2px}
+.sip-overlay-timer{font-size:22px;font-variant-numeric:tabular-nums;margin-top:10px;font-weight:600}
+.sip-dtmf-pad{margin-top:14px}
+.sip-dtmf-display-row{display:flex;gap:6px;margin-bottom:8px}
+.sip-dtmf-display{flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-variant-numeric:tabular-nums;min-height:32px}
+.sip-dtmf-clear{width:32px;border:1px solid var(--line);border-radius:8px;color:var(--muted)}
+.sip-dtmf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sip-dtmf-key{padding:11px 0;border:1px solid var(--line);border-radius:10px;font-size:16px;font-weight:600;color:var(--txt);background:var(--bg2)}
+.sip-dtmf-key:hover{background:var(--accent-soft)}
+.sip-overlay-actions{display:flex;gap:12px;justify-content:center;margin-top:20px}
+.sip-btn{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--bg2);border:1px solid var(--line);color:var(--txt)}
+.sip-btn:hover{border-color:var(--line2)}
+.sip-btn-active{background:var(--accent);color:#06231a}
+.sip-btn-hangup-overlay{background:var(--red);color:#fff;border-color:var(--red)}
+.sip-btn-answer{background:var(--green);color:#fff;border-color:var(--green)}
