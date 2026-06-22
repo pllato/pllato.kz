@@ -2036,8 +2036,16 @@ async function handleSipToken(request, env) {
   if (auth.error) return json({ error: auth.error }, auth.status, request);
 
   const domain = env.SIP_DOMAIN || "130-61-243-44.nip.io";
-  const user = env.SIP_USER || "100";
-  const password = env.SIP_PASSWORD;
+  // Персональная линия: если сотруднику назначен свой endpoint — отдаём его
+  // креды (он регистрируется на наш Asterisk как отдельный пользователь, звонит
+  // и принимает через свою линию Бинотел). Иначе — общий endpoint 100 (как было).
+  let user = env.SIP_USER || "100";
+  let password = env.SIP_PASSWORD;
+  try {
+    const me = await resolveCanonicalUser(env, auth.claims);
+    const creds = await sipAgentCreds(env, me.canonicalUid);
+    if (creds) { user = creds.user; password = creds.password; }
+  } catch (e) { /* fallback на общий endpoint */ }
   if (!password) {
     return json({
       error: "SIP_PASSWORD secret not set on worker. Run: wrangler secret put SIP_PASSWORD",
@@ -5958,6 +5966,380 @@ async function handleSipExtensionsPut(request, env) {
   return json({ ok: true, extensions: clean }, 200, request);
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// ПЕРСОНАЛЬНЫЕ ЛИНИИ БИНОТЕЛ
+// Модель: каждая «внутренняя линия Бинотел» (напр. 1906) = транк со своими
+// SIP-кредами. Каждый сотрудник = свой endpoint на нашем Asterisk + назначенная
+// линия. Браузер сотрудника регистрируется на наш Asterisk своим endpoint'ом;
+// исходящие идут через назначенную линию (его Caller ID), входящие на линию —
+// звонят его браузеру. Пароли линий (Asterisk↔Бинотел) браузеру не отдаются —
+// только генератору конфига под секретом. Пароль endpoint'а — лично сотруднику.
+// ════════════════════════════════════════════════════════════════════════
+let _sipTablesReady = false;
+async function ensureSipTables(env) {
+  if (_sipTablesReady) return;
+  try {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS sip_lines (
+      id TEXT PRIMARY KEY, number TEXT, label TEXT, sip_server TEXT, sip_port TEXT,
+      sip_user TEXT, sip_password TEXT, caller_id TEXT, enabled INTEGER DEFAULT 1,
+      created_at INTEGER, updated_at INTEGER
+    )`).run();
+  } catch (e) {}
+  try {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS sip_agents (
+      uid TEXT PRIMARY KEY, extension TEXT, endpoint_password TEXT, line_id TEXT,
+      enabled INTEGER DEFAULT 1, updated_at INTEGER
+    )`).run();
+  } catch (e) {}
+  _sipTablesReady = true;
+}
+
+function sipRandomPassword(len = 20) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const buf = new Uint8Array(len);
+  crypto.getRandomValues(buf);
+  let out = '';
+  for (let i = 0; i < len; i++) out += chars[buf[i] % chars.length];
+  return out;
+}
+
+async function sipRequireAdmin(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return { error: json({ error: auth.error }, auth.status, request) };
+  const me = await resolveCanonicalUser(env, auth.claims);
+  if (me.role !== "admin") return { error: json({ error: "admin only" }, 403, request) };
+  return { me };
+}
+
+// GET /api/sip/lines — список линий (пароли скрыты, отдаём только наличие).
+async function handleSipLinesGet(request, env) {
+  const g = await sipRequireAdmin(request, env);
+  if (g.error) return g.error;
+  await ensureSipTables(env);
+  const { results } = await env.DB.prepare(
+    `SELECT id, number, label, sip_server, sip_port, sip_user, caller_id, enabled,
+            (sip_password IS NOT NULL AND sip_password != '') AS has_password
+       FROM sip_lines ORDER BY number`
+  ).all();
+  return json({ ok: true, lines: results || [] }, 200, request);
+}
+
+// POST /api/sip/lines — создать/обновить линию. Если пароль не передан при
+// обновлении — старый сохраняется (не затираем пустым).
+async function handleSipLinesPut(request, env) {
+  const g = await sipRequireAdmin(request, env);
+  if (g.error) return g.error;
+  await ensureSipTables(env);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const number = String(body.number || '').replace(/\D/g, '').slice(0, 12);
+  if (!number) return json({ error: "number required" }, 400, request);
+  const id = body.id ? String(body.id) : crypto.randomUUID();
+  const label = String(body.label || '').slice(0, 80);
+  const sipServer = String(body.sip_server || '').slice(0, 200);
+  const sipPort = String(body.sip_port || '5060').replace(/\D/g, '').slice(0, 6) || '5060';
+  const sipUser = String(body.sip_user || '').slice(0, 120);
+  const callerId = String(body.caller_id || '').slice(0, 40);
+  const enabled = body.enabled === false ? 0 : 1;
+  const now = Date.now();
+  const existing = await env.DB.prepare(`SELECT id, sip_password FROM sip_lines WHERE id = ?`).bind(id).first();
+  // Пароль: берём новый если передан, иначе сохраняем существующий.
+  let sipPassword = (body.sip_password != null && String(body.sip_password) !== '')
+    ? String(body.sip_password) : (existing ? existing.sip_password : '');
+  await env.DB.prepare(`
+    INSERT INTO sip_lines (id, number, label, sip_server, sip_port, sip_user, sip_password, caller_id, enabled, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET number=excluded.number, label=excluded.label, sip_server=excluded.sip_server,
+      sip_port=excluded.sip_port, sip_user=excluded.sip_user, sip_password=excluded.sip_password,
+      caller_id=excluded.caller_id, enabled=excluded.enabled, updated_at=excluded.updated_at
+  `).bind(id, number, label, sipServer, sipPort, sipUser, sipPassword, callerId, enabled, now, now).run();
+  return json({ ok: true, id }, 200, request);
+}
+
+// DELETE /api/sip/lines/:id
+async function handleSipLineDelete(request, env, id) {
+  const g = await sipRequireAdmin(request, env);
+  if (g.error) return g.error;
+  await ensureSipTables(env);
+  await env.DB.prepare(`DELETE FROM sip_lines WHERE id = ?`).bind(id).run();
+  // Снимаем назначение у агентов, у кого была эта линия.
+  await env.DB.prepare(`UPDATE sip_agents SET line_id = NULL WHERE line_id = ?`).bind(id).run();
+  return json({ ok: true }, 200, request);
+}
+
+// GET /api/sip/agents — назначения сотрудник→(extension, линия). Без паролей.
+async function handleSipAgentsGet(request, env) {
+  const g = await sipRequireAdmin(request, env);
+  if (g.error) return g.error;
+  await ensureSipTables(env);
+  const { results } = await env.DB.prepare(
+    `SELECT uid, extension, line_id, enabled,
+            (endpoint_password IS NOT NULL AND endpoint_password != '') AS has_password
+       FROM sip_agents`
+  ).all();
+  return json({ ok: true, agents: results || [] }, 200, request);
+}
+
+// POST /api/sip/agents — назначить сотруднику extension и линию. Пароль
+// endpoint'а генерим автоматически при первом сохранении (или по запросу regen).
+async function handleSipAgentsPut(request, env) {
+  const g = await sipRequireAdmin(request, env);
+  if (g.error) return g.error;
+  await ensureSipTables(env);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const uid = String(body.uid || '').trim();
+  if (!uid) return json({ error: "uid required" }, 400, request);
+  const extension = String(body.extension || '').replace(/\D/g, '').slice(0, 6);
+  const lineId = body.line_id ? String(body.line_id) : null;
+  const enabled = body.enabled === false ? 0 : 1;
+  const now = Date.now();
+  const existing = await env.DB.prepare(`SELECT endpoint_password FROM sip_agents WHERE uid = ?`).bind(uid).first();
+  let pwd = existing && existing.endpoint_password ? existing.endpoint_password : '';
+  if (!pwd || body.regen_password) pwd = sipRandomPassword();
+  await env.DB.prepare(`
+    INSERT INTO sip_agents (uid, extension, endpoint_password, line_id, enabled, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(uid) DO UPDATE SET extension=excluded.extension, endpoint_password=excluded.endpoint_password,
+      line_id=excluded.line_id, enabled=excluded.enabled, updated_at=excluded.updated_at
+  `).bind(uid, extension, pwd, lineId, enabled, now).run();
+  return json({ ok: true, uid }, 200, request);
+}
+
+// DELETE /api/sip/agents/:uid — снять телефонию у сотрудника (вернётся к общему 100).
+async function handleSipAgentDelete(request, env, uid) {
+  const g = await sipRequireAdmin(request, env);
+  if (g.error) return g.error;
+  await ensureSipTables(env);
+  await env.DB.prepare(`DELETE FROM sip_agents WHERE uid = ?`).bind(uid).run();
+  return json({ ok: true }, 200, request);
+}
+
+// Возвращает персональные SIP-креды сотрудника, если он настроен; иначе null.
+async function sipAgentCreds(env, uid) {
+  if (!uid) return null;
+  try {
+    await ensureSipTables(env);
+    const row = await env.DB.prepare(
+      `SELECT extension, endpoint_password, enabled FROM sip_agents WHERE uid = ?`
+    ).bind(uid).first();
+    if (row && row.enabled && row.extension && row.endpoint_password) {
+      return { user: String(row.extension), password: String(row.endpoint_password) };
+    }
+  } catch (e) {}
+  return null;
+}
+
+// GET /api/sip/asterisk-config?secret=XXX — генерирует pjsip.conf + extensions.conf
+// из линий и назначений в CRM. Защищён тем же секретом, что /api/sip/route
+// (Asterisk не умеет Firebase Auth). Сервер тянет это curl'ом и применяет.
+// Это БЕЗОПАСНО: пароли линий уходят только сюда (под секретом), не в браузер.
+async function handleSipAsteriskConfig(request, env) {
+  const url = new URL(request.url);
+  const secret = url.searchParams.get('secret') || request.headers.get('x-sip-route-secret') || '';
+  if (!env.SIP_ROUTE_SECRET || secret !== env.SIP_ROUTE_SECRET) {
+    return new Response("invalid secret", { status: 401 });
+  }
+  await ensureSipTables(env);
+  const domain = env.SIP_DOMAIN || "your-domain.nip.io";
+  const certDir = url.searchParams.get('cert_dir') || `/etc/letsencrypt/live/${domain}`;
+  const sharedPwd = env.SIP_PASSWORD || "changeme_set_strong_password";
+
+  const { results: linesRaw } = await env.DB.prepare(
+    `SELECT * FROM sip_lines WHERE enabled = 1 ORDER BY number`).all();
+  const lines = linesRaw || [];
+  const { results: agentsRaw } = await env.DB.prepare(
+    `SELECT * FROM sip_agents WHERE enabled = 1 AND extension != '' AND endpoint_password != ''`).all();
+  const agents = agentsRaw || [];
+
+  const lineById = {};
+  for (const l of lines) lineById[l.id] = l;
+  const defaultLine = lines[0] || null;
+  const lineCtx = (l) => `from-agent-${l.number}`;     // исходящий контекст линии
+  const lineIn = (l) => `from-line-${l.number}`;        // входящий контекст линии
+  const agentCtx = (a) => {
+    const l = a.line_id && lineById[a.line_id] ? lineById[a.line_id] : defaultLine;
+    return l ? lineCtx(l) : 'from-internal';
+  };
+
+  // ── pjsip.conf ──
+  let pjsip = `; ===========================================================================
+; СГЕНЕРИРОВАНО CRM (/api/sip/asterisk-config). Не редактируйте вручную —
+; меняйте линии/назначения в CRM и перегенерируйте. Линий: ${lines.length}, агентов: ${agents.length}.
+; ВАЖНО: проверьте сопоставление ВХОДЯЩИХ (секция identify/registration) под
+; поведение вашего Бинотел — если все линии на одном SIP-сервере, может
+; потребоваться различать вызовы по набранному номеру (DID) в dialplan.
+; ===========================================================================
+[global]
+type=global
+endpoint_identifier_order=username,ip
+
+[transport-wss]
+type=transport
+protocol=wss
+bind=0.0.0.0:8089
+cert_file=${certDir}/fullchain.pem
+priv_key_file=${certDir}/privkey.pem
+
+[transport-udp]
+type=transport
+protocol=udp
+bind=0.0.0.0:5060
+`;
+
+  // Транки линий Бинотел
+  for (const l of lines) {
+    const server = l.sip_server || 'sip.binotel.com';
+    const port = l.sip_port || '5060';
+    pjsip += `
+;=== Линия ${l.number}${l.label ? ' ('+l.label+')' : ''} ===
+[line-${l.number}-auth]
+type=auth
+auth_type=userpass
+username=${l.sip_user || l.number}
+password=${l.sip_password || ''}
+
+[line-${l.number}]
+type=endpoint
+transport=transport-udp
+context=${lineIn(l)}
+disallow=all
+allow=alaw,ulaw
+outbound_auth=line-${l.number}-auth
+aors=line-${l.number}
+from_user=${l.sip_user || l.number}
+from_domain=${server}
+direct_media=no
+
+[line-${l.number}]
+type=aor
+contact=sip:${server}:${port}
+
+[line-${l.number}]
+type=identify
+endpoint=line-${l.number}
+match=${server}
+
+[line-${l.number}-reg]
+type=registration
+outbound_auth=line-${l.number}-auth
+server_uri=sip:${server}:${port}
+client_uri=sip:${l.sip_user || l.number}@${server}
+retry_interval=60
+`;
+  }
+
+  // Общий endpoint 100 (fallback для несконфигурированных сотрудников)
+  pjsip += `
+;=== Общий браузерный endpoint 100 (fallback) ===
+[100-auth]
+type=auth
+auth_type=userpass
+username=100
+password=${sharedPwd}
+
+[100]
+type=endpoint
+transport=transport-wss
+context=${defaultLine ? lineCtx(defaultLine) : 'from-internal'}
+disallow=all
+allow=alaw,ulaw
+auth=100-auth
+aors=100
+webrtc=yes
+dtls_cert_file=${certDir}/fullchain.pem
+dtls_private_key=${certDir}/privkey.pem
+dtls_setup=actpass
+dtls_verify=fingerprint
+ice_support=yes
+media_use_received_transport=yes
+rtcp_mux=yes
+
+[100]
+type=aor
+max_contacts=5
+remove_existing=yes
+`;
+
+  // Персональные endpoint'ы сотрудников
+  for (const a of agents) {
+    pjsip += `
+;=== Сотрудник ext ${a.extension} → ${a.line_id && lineById[a.line_id] ? 'линия '+lineById[a.line_id].number : 'линия по умолчанию'} ===
+[${a.extension}-auth]
+type=auth
+auth_type=userpass
+username=${a.extension}
+password=${a.endpoint_password}
+
+[${a.extension}]
+type=endpoint
+transport=transport-wss
+context=${agentCtx(a)}
+disallow=all
+allow=alaw,ulaw
+auth=${a.extension}-auth
+aors=${a.extension}
+webrtc=yes
+dtls_cert_file=${certDir}/fullchain.pem
+dtls_private_key=${certDir}/privkey.pem
+dtls_setup=actpass
+dtls_verify=fingerprint
+ice_support=yes
+media_use_received_transport=yes
+rtcp_mux=yes
+
+[${a.extension}]
+type=aor
+max_contacts=3
+remove_existing=yes
+`;
+  }
+
+  // ── extensions.conf ──
+  let ext = `; ===========================================================================
+; СГЕНЕРИРОВАНО CRM. extensions.conf
+; ===========================================================================
+[general]
+static=yes
+writeprotect=no
+`;
+  // Исходящие: контекст на линию → набор через её транк с её Caller ID
+  for (const l of lines) {
+    const cid = (l.caller_id || l.number || '').replace(/[^\d+]/g, '');
+    ext += `
+;=== Исходящие через линию ${l.number} ===
+[${lineCtx(l)}]
+exten => _X.,1,NoOp(Out via line ${l.number}: \${EXTEN})
+${cid ? ` same => n,Set(CALLERID(num)=${cid})\n` : ''} same => n,Dial(PJSIP/\${EXTEN}@line-${l.number},60)
+ same => n,Hangup()
+`;
+  }
+  // Входящие: на каждую линию → звоним назначенным сотрудникам (или 100)
+  for (const l of lines) {
+    const ringAgents = agents.filter(a => a.line_id === l.id && a.extension);
+    const dialStr = ringAgents.length
+      ? ringAgents.map(a => `PJSIP/${a.extension}`).join('&')
+      : 'PJSIP/100';
+    ext += `
+;=== Входящие на линию ${l.number} → ${ringAgents.length ? ringAgents.map(a=>a.extension).join(', ') : '100 (никто не назначен)'} ===
+[${lineIn(l)}]
+exten => _X.,1,NoOp(In on line ${l.number} to \${EXTEN})
+ same => n,Dial(${dialStr},30)
+ same => n,Hangup()
+`;
+  }
+  // Legacy fallback-контекст (если 100 без линий)
+  ext += `
+[from-internal]
+exten => _X.,1,NoOp(Outbound legacy: \${EXTEN})
+${defaultLine ? ` same => n,Dial(PJSIP/\${EXTEN}@line-${defaultLine.number},60)` : ' same => n,Hangup()'}
+ same => n,Hangup()
+`;
+
+  const body = `; ##### /etc/asterisk/pjsip.conf #####\n${pjsip}\n\n; ##### /etc/asterisk/extensions.conf #####\n${ext}\n`;
+  return new Response(body, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+}
+
 // GET /api/sip/route?phone=77073320409 — Asterisk дёргает при входящем.
 // Возвращает: { extensions: ["101","102"], mobile: "+7...", fallbackSeconds: 30 }
 // Логика: phone → contact → recent open deal → responsible_uid → org-tree node →
@@ -7641,6 +8023,32 @@ export default {
     }
     if (path === "/api/sip/extensions" && request.method === "PUT") {
       return handleSipExtensionsPut(request, env);
+    }
+    // ── /api/sip/lines — линии Бинотел (admin) ─────────────────────────
+    if (path === "/api/sip/lines" && request.method === "GET") {
+      return handleSipLinesGet(request, env);
+    }
+    if (path === "/api/sip/lines" && request.method === "POST") {
+      return handleSipLinesPut(request, env);
+    }
+    const sipLineDelMatch = path.match(/^\/api\/sip\/lines\/([^/]+)$/);
+    if (sipLineDelMatch && request.method === "DELETE") {
+      return handleSipLineDelete(request, env, decodeURIComponent(sipLineDelMatch[1]));
+    }
+    // ── /api/sip/agents — назначения сотрудник→линия (admin) ────────────
+    if (path === "/api/sip/agents" && request.method === "GET") {
+      return handleSipAgentsGet(request, env);
+    }
+    if (path === "/api/sip/agents" && request.method === "POST") {
+      return handleSipAgentsPut(request, env);
+    }
+    const sipAgentDelMatch = path.match(/^\/api\/sip\/agents\/([^/]+)$/);
+    if (sipAgentDelMatch && request.method === "DELETE") {
+      return handleSipAgentDelete(request, env, decodeURIComponent(sipAgentDelMatch[1]));
+    }
+    // ── /api/sip/asterisk-config — генератор конфига (секрет, для сервера) ─
+    if (path === "/api/sip/asterisk-config" && request.method === "GET") {
+      return handleSipAsteriskConfig(request, env);
     }
     // ── /api/sip/route?phone=X — Asterisk запрашивает кому звонить ─────
     // Auth: shared secret env.SIP_ROUTE_SECRET (Asterisk не умеет Firebase Auth)
