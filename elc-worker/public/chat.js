@@ -154,6 +154,23 @@
 
   function formatUnread(n) { return n > 99 ? '99+' : String(n); }
 
+  // ── Черновики сообщений ────────────────────────────────────────────────
+  // Незаконченное сообщение сохраняем в localStorage по каждому чату отдельно,
+  // чтобы оно не пропадало при переключении чата, сворачивании или перезагрузке.
+  // Очищается при отправке. Ключ привязан к id канала.
+  function draftKey(ch) { return 'tc-draft:' + ch; }
+  function loadDraft(ch) {
+    if (!ch) return '';
+    try { return localStorage.getItem(draftKey(ch)) || ''; } catch (e) { return ''; }
+  }
+  function saveDraft(ch, text) {
+    if (!ch) return;
+    try {
+      if (text && text.trim()) localStorage.setItem(draftKey(ch), text);
+      else localStorage.removeItem(draftKey(ch));
+    } catch (e) {}
+  }
+
   // ── WebSocket ──────────────────────────────────────────────────────────
   async function connectWs() {
     try {
@@ -1340,7 +1357,11 @@
     _mention.pop = c.querySelector('#tc-mention-pop');
     closeMentionPop();   // композер пересобран — старая выпадашка/индексы недействительны
     const isTouch = window.matchMedia('(pointer: coarse)').matches;
-    ta.oninput = () => { state.composerDraft = ta.value; autoresizeTa(ta); onComposerInputMention(ta); };
+    ta.oninput = () => {
+      state.composerDraft = ta.value;
+      if (!state.editingMsg) saveDraft(state.activeChannelId, ta.value);
+      autoresizeTa(ta); onComposerInputMention(ta);
+    };
     ta.onkeydown = (e) => {
       // Сначала отдаём клавишу выпадашке @-упоминаний (стрелки/Enter/Tab/Esc).
       if (onComposerKeyMention(e)) return;
@@ -1366,7 +1387,7 @@
     c.querySelectorAll('[data-banner-cancel]').forEach(b => {
       b.onclick = () => {
         if (b.dataset.bannerCancel === 'reply') state.replyToMsg = null;
-        if (b.dataset.bannerCancel === 'edit') { state.editingMsg = null; state.composerDraft = ''; state.composerMentions = []; }
+        if (b.dataset.bannerCancel === 'edit') { state.editingMsg = null; state.composerDraft = loadDraft(state.activeChannelId); state.composerMentions = []; }
         renderComposer();
       };
     });
@@ -1383,7 +1404,7 @@
     if (state.editingMsg) {
       try {
         await api(`/api/chat/messages/${state.editingMsg.id}/edit`, { method: 'POST', body: JSON.stringify({ text }) });
-        state.editingMsg = null; state.composerDraft = ''; state.composerMentions = []; renderComposer({ focus: true });
+        state.editingMsg = null; state.composerDraft = loadDraft(state.activeChannelId); state.composerMentions = []; renderComposer({ focus: true });
       } catch (e) { alert('Ошибка: ' + e.message); }
       return;
     }
@@ -1394,6 +1415,7 @@
     if (mentions.length) body.mentions = mentions;
     try {
       const resp = await api(`/api/chat/channels/${state.activeChannelId}/messages`, { method: 'POST', body: JSON.stringify(body) });
+      saveDraft(state.activeChannelId, '');   // отправлено → черновик больше не нужен
       state.composerDraft = ''; state.replyToMsg = null; state.composerMentions = [];
       closeMentionPop();
       renderComposer({ focus: true });
@@ -1586,6 +1608,7 @@
     const ta = c.querySelector('#tc-composer-input');
     const cur = state.composerDraft || '';
     state.composerDraft = cur ? (cur.replace(/\s+$/, '') + '\n' + body) : body;
+    if (!state.editingMsg) saveDraft(state.activeChannelId, state.composerDraft);
     closeTemplatesPop(c);
     renderComposer({ focus: true });
   }
@@ -1710,7 +1733,7 @@
     state.activeChannelId = channelId;
     state.replyToMsg = null;
     state.editingMsg = null;
-    state.composerDraft = '';
+    state.composerDraft = loadDraft(channelId);   // восстановить незаконченное сообщение этого чата
     state.loadingMsgs = true;
     if (state.rootEl) {
       const r = state.rootEl.querySelector('.tc-root');
@@ -2510,9 +2533,14 @@
     // фокусе окна и восстановлении сети. Критично для мобильных (iOS усыпляет WS).
     if (!state._wakeListeners) {
       state._wakeListeners = true;
-      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') ensureWsAlive(); });
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') ensureWsAlive();
+        // уходим со страницы/сворачиваем → подстраховочно фиксируем черновик
+        else if (!state.editingMsg) saveDraft(state.activeChannelId, state.composerDraft);
+      });
       window.addEventListener('focus', ensureWsAlive);
       window.addEventListener('online', ensureWsAlive);
+      window.addEventListener('pagehide', () => { if (!state.editingMsg) saveDraft(state.activeChannelId, state.composerDraft); });
     }
   }
 
