@@ -587,7 +587,21 @@ async function getMessages(env, me, channelId, url) {
       m.reactions = Object.entries(byMsg[m.id] || {}).map(([emoji, users]) => ({ emoji, users }));
     }
   }
-  return jsonRes({ items: results.reverse() });
+  // Водяные знаки прочтения других участников: для каждого участника (кроме
+  // меня) — created_at его последнего прочитанного сообщения. Фронт по нему
+  // рисует галочки доставки/прочтения у МОИХ сообщений.
+  const myIds = meIds(me);
+  const read_watermarks = {};
+  try {
+    const { results: wm } = await env.DB.prepare(
+      `SELECT tm.user_id AS user_id, mm.created_at AS read_at
+         FROM team_chat_members tm
+         LEFT JOIN team_chat_msgs mm ON mm.id = tm.last_read_message_id
+        WHERE tm.channel_id = ? AND tm.user_id NOT IN (${phList(myIds)})`
+    ).bind(channelId, ...myIds).all();
+    for (const r of (wm || [])) read_watermarks[r.user_id] = r.read_at || 0;
+  } catch (e) { /* best-effort: без галочек, но сообщения отдадим */ }
+  return jsonRes({ items: results.reverse(), read_watermarks });
 }
 
 // POST /api/chat/channels/:id/messages
@@ -717,7 +731,14 @@ async function markAsRead(env, me, channelId, body) {
   await env.DB.prepare(
     `UPDATE team_chat_members SET last_read_message_id = ? WHERE channel_id = ? AND user_id IN (${phList(ids)})`
   ).bind(lastReadId, channelId, ...ids).run();
-  broadcastToChannel(env, channelId, { kind: 'read', channel_id: channelId, user_id: me.uid, last_read_message_id: lastReadId });
+  // created_at прочитанного сообщения — чтобы у отправителя галочки прочтения
+  // обновились мгновенно по WS, не подгружая это сообщение.
+  let lastReadAt = 0;
+  try {
+    const row = await env.DB.prepare('SELECT created_at FROM team_chat_msgs WHERE id = ?').bind(lastReadId).first();
+    lastReadAt = row?.created_at || 0;
+  } catch (e) {}
+  broadcastToChannel(env, channelId, { kind: 'read', channel_id: channelId, user_id: me.uid, last_read_message_id: lastReadId, last_read_at: lastReadAt });
   // Открыл канал → схлопнутое уведомление «chatnt_<channel>_<uid>» считаем прочитанным,
   // колокольчик в team.html обновляем реактивно (kind:'notif_read'), без ожидания поллинга.
   try {
