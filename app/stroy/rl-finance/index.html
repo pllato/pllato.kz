@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RL SYSTEM — Финансы по объектам · Демо</title>
+<style>
+  :root{
+    --faraday:#046058;
+    --electron:#A7CD74;
+    --faraday-deep:#03413c;
+    --electron-soft:#c9e0a3;
+    --bg:#0c1413;
+    --bg-2:#10201d;
+    --panel:#13211f;
+    --panel-2:#172a27;
+    --line:#22403a;
+    --line-soft:#1a322e;
+    --txt:#e8f1ec;
+    --txt-dim:#8fa89f;
+    --txt-faint:#5e756d;
+    --good:#A7CD74;
+    --warn:#e7b85c;
+    --bad:#e0735f;
+    --radius:14px;
+    --shadow:0 18px 50px -20px rgba(0,0,0,.7);
+    --font:"Proxima Nova","Segoe UI",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--font);
+    background:
+      radial-gradient(900px 600px at 78% -8%, rgba(4,96,88,.30), transparent 60%),
+      radial-gradient(700px 500px at 8% 105%, rgba(167,205,116,.10), transparent 55%),
+      var(--bg);
+    color:var(--txt);
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding:0 24px 80px}
+
+  /* ---------- Header ---------- */
+  header{
+    position:sticky;top:0;z-index:40;
+    backdrop-filter:blur(14px);
+    background:linear-gradient(180deg,rgba(12,20,19,.92),rgba(12,20,19,.7));
+    border-bottom:1px solid var(--line-soft);
+  }
+  .head-inner{max-width:1280px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .logo{display:flex;align-items:center;gap:11px;flex-shrink:0}
+  .logo .badge{
+    width:46px;height:30px;border:2px solid var(--electron);border-radius:30px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--faraday);font-weight:800;font-size:14px;letter-spacing:.5px;color:var(--electron);
+  }
+  .logo .word{font-size:15px;letter-spacing:5px;color:var(--electron);font-weight:400}
+  .head-meta{display:flex;flex-direction:column;border-left:1px solid var(--line);padding-left:18px}
+  .head-meta .t{font-size:14px;font-weight:600;letter-spacing:.3px}
+  .head-meta .s{font-size:11px;color:var(--txt-faint);letter-spacing:1.5px;text-transform:uppercase}
+  .demo-tag{
+    font-size:11px;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--electron);border:1px solid var(--line);padding:6px 12px;border-radius:30px;
+    background:rgba(167,205,116,.06);display:flex;align-items:center;gap:7px;
+  }
+  .demo-tag::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--electron);box-shadow:0 0 10px var(--electron)}
+  .head-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .btn-add-tx{
+    background:var(--faraday);color:var(--electron);border:none;border-radius:30px;
+    padding:8px 16px;font-size:13px;cursor:pointer;letter-spacing:.3px;font-family:var(--font);
+    transition:.15s;
+  }
+  .btn-add-tx:hover{background:var(--faraday-deep)}
+
+  /* ---------- Intro ---------- */
+  .intro{padding:40px 0 26px}
+  .intro h1{font-size:30px;font-weight:600;letter-spacing:-.4px;margin-bottom:10px}
+  .intro h1 span{color:var(--electron)}
+  .intro p{color:var(--txt-dim);max-width:760px;font-size:15px}
+
+  /* ---------- KPI row ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:14px}
+  .kpi{
+    background:linear-gradient(165deg,var(--panel-2),var(--panel));
+    border:1px solid var(--line-soft);border-radius:var(--radius);padding:18px 18px 16px;
+    position:relative;overflow:hidden;
+  }
+  .kpi::after{content:"";position:absolute;right:-30px;top:-30px;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle,rgba(167,205,116,.10),transparent 70%)}
+  .kpi .lbl{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--txt-faint);margin-bottom:10px}
+  .kpi .val{font-size:25px;font-weight:700;letter-spacing:-.5px}
+  .kpi .sub{font-size:12px;color:var(--txt-dim);margin-top:5px}
+  .kpi.accent{border-color:rgba(167,205,116,.35)}
+  .kpi.accent .val{color:var(--electron)}
+  .kpi.warn .val{color:var(--warn)}
+  .kpi.bad .val{color:var(--bad)}
+  .kpi .hint{position:absolute;top:14px;right:14px;width:16px;height:16px;border-radius:50%;border:1px solid var(--line);color:var(--txt-faint);font-size:10px;display:flex;align-items:center;justify-content:center;cursor:help;z-index:2}
+
+  .insight{
+    background:linear-gradient(120deg,rgba(4,96,88,.22),rgba(167,205,116,.05));
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 18px;margin-bottom:30px;font-size:14px;color:var(--electron-soft);
+    display:flex;gap:12px;align-items:flex-start;
+  }
+  .insight b{color:var(--electron)}
+  .insight .ic{flex-shrink:0;width:22px;height:22px;border-radius:6px;background:rgba(167,205,116,.15);display:flex;align-items:center;justify-content:center;font-size:13px}
+
+  /* ---------- Section ---------- */
+  .sec{margin-bottom:38px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:16px}
+  .sec-head h2{font-size:18px;font-weight:600;letter-spacing:-.2px}
+  .sec-head .eyebrow{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--faraday);font-weight:700}
+  .sec-head .note{margin-left:auto;font-size:12px;color:var(--txt-faint)}
+
+  /* ---------- Objects table ---------- */
+  .panel{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);overflow:hidden}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  thead th{
+    text-align:right;padding:13px 16px;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--txt-faint);font-weight:600;border-bottom:1px solid var(--line);background:var(--bg-2);
+  }
+  thead th:first-child{text-align:left}
+  tbody td{padding:13px 16px;text-align:right;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+  tbody td:first-child{text-align:left}
+  tbody tr{cursor:pointer;transition:background .15s}
+  tbody tr:hover{background:var(--panel-2)}
+  tbody tr.active{background:rgba(4,96,88,.25)}
+  tbody tr:last-child td{border-bottom:none}
+  .obj-name{display:flex;align-items:center;gap:10px}
+  .obj-name .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .obj-name .meta{display:flex;flex-direction:column;line-height:1.25}
+  .obj-name .meta b{font-weight:600;font-size:13.5px}
+  .obj-name .meta s{text-decoration:none;font-size:11px;color:var(--txt-faint)}
+  .num{font-variant-numeric:tabular-nums}
+  .pos{color:var(--good)}
+  .neg{color:var(--bad)}
+  .mut{color:var(--txt-dim)}
+  .chip{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.3px}
+  .chip.active{background:rgba(167,205,116,.14);color:var(--electron)}
+  .chip.planning{background:rgba(231,184,92,.13);color:var(--warn)}
+  .chip.done{background:rgba(143,168,159,.14);color:var(--txt-dim)}
+  .chip.paused{background:rgba(224,115,95,.13);color:var(--bad)}
+  .risk-led{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600}
+  .risk-led .l{width:9px;height:9px;border-radius:50%}
+  .risk-led.ok .l{background:var(--good);box-shadow:0 0 8px var(--good)}
+  .risk-led.mid .l{background:var(--warn);box-shadow:0 0 8px var(--warn)}
+  .risk-led.hi .l{background:var(--bad);box-shadow:0 0 8px var(--bad)}
+  .bar{height:5px;border-radius:3px;background:var(--line);overflow:hidden;width:74px;display:inline-block;vertical-align:middle;margin-left:8px}
+  .bar i{display:block;height:100%;border-radius:3px}
+  tfoot td{padding:13px 16px;text-align:right;font-weight:700;border-top:2px solid var(--line);background:var(--bg-2);font-size:13.5px}
+  tfoot td:first-child{text-align:left;letter-spacing:.5px}
+
+  /* ---------- Detail drawer ---------- */
+  .detail{margin-top:18px;display:none}
+  .detail.open{display:block;animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .detail-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:18px}
+  .card{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);padding:20px}
+  .card h3{font-size:15px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:10px}
+  .card .csub{font-size:12px;color:var(--txt-faint);margin-bottom:16px}
+  .pl-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line-soft);font-size:13.5px}
+  .pl-row:last-of-type{border-bottom:none}
+  .pl-row .k{color:var(--txt-dim)}
+  .pl-row.tot{margin-top:8px;border-top:2px solid var(--line);border-bottom:none;padding-top:14px;font-weight:700;font-size:16px}
+  .pl-row .note{font-size:11px;color:var(--txt-faint);display:block}
+  .flowbox{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+  .flowln{display:flex;align-items:center;gap:10px;font-size:13px;padding:10px 12px;border-radius:10px;background:var(--bg-2);border:1px solid var(--line-soft)}
+  .flowln .arr{font-size:15px}
+  .flowln.in{border-left:3px solid var(--good)}
+  .flowln.out{border-left:3px solid var(--bad)}
+  .flowln .txt{flex:1}
+  .flowln .txt s{text-decoration:none;display:block;font-size:11px;color:var(--txt-faint)}
+
+  /* transactions ledger */
+  .ledger{max-height:340px;overflow:auto}
+  .ledger table{font-size:13px}
+  .ledger thead th{position:sticky;top:0;z-index:2}
+  .tx-cat{display:inline-flex;align-items:center;gap:7px}
+  .tx-cat .pin{width:7px;height:7px;border-radius:2px}
+  .filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .fbtn{font:inherit;font-size:12.5px;color:var(--txt-dim);background:var(--panel);border:1px solid var(--line);padding:7px 13px;border-radius:30px;cursor:pointer;transition:.15s}
+  .fbtn:hover{border-color:var(--faraday);color:var(--txt)}
+  .fbtn.on{background:var(--faraday);border-color:var(--faraday);color:#fff}
+
+  /* ---------- Money flow map ---------- */
+  .flowmap{padding:24px}
+  .flow-legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;font-size:12px;color:var(--txt-dim)}
+  .flow-legend span{display:inline-flex;align-items:center;gap:7px}
+  .flow-legend i{width:18px;height:3px;border-radius:2px;display:inline-block}
+
+  /* ---------- Supplier debts ---------- */
+  .debt-row .due{font-size:12px}
+  .debt-row .due.soon{color:var(--bad);font-weight:600}
+  .debt-row .due.mid{color:var(--warn)}
+
+  /* ---------- Risks ---------- */
+  .risks{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+  .risk-card{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);padding:16px;border-left:3px solid var(--line)}
+  .risk-card.hi{border-left-color:var(--bad)}
+  .risk-card.mid{border-left-color:var(--warn)}
+  .risk-card .rt{font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+  .risk-card .rt .lvl{font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:20px}
+  .risk-card.hi .lvl{background:rgba(224,115,95,.15);color:var(--bad)}
+  .risk-card.mid .lvl{background:rgba(231,184,92,.15);color:var(--warn)}
+  .risk-card p{font-size:13px;color:var(--txt-dim)}
+  .risk-card p b{color:var(--txt)}
+
+  footer{margin-top:50px;padding-top:24px;border-top:1px solid var(--line-soft);font-size:12px;color:var(--txt-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+
+  .empty-hint{padding:30px;text-align:center;color:var(--txt-faint);font-size:14px}
+
+  @media(max-width:900px){
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .detail-grid{grid-template-columns:1fr}
+    .head-meta{display:none}
+    table{font-size:12.5px}
+    thead th,tbody td{padding:11px 10px}
+    .hide-sm{display:none}
+  }
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  /* ---------- View Toggle buttons ---------- */
+  .view-toggle{display:flex;align-items:center;gap:6px}
+  .vtbtn{
+    width:32px;height:32px;border-radius:8px;border:1px solid var(--line);
+    background:transparent;color:var(--txt-dim);cursor:pointer;
+    font-size:15px;display:flex;align-items:center;justify-content:center;
+    transition:.15s;font-family:var(--font);
+  }
+  .vtbtn:hover{border-color:var(--faraday);color:var(--txt)}
+  .vtbtn.vt-active{background:var(--faraday);color:#fff;border-color:var(--faraday)}
+
+  /* ---------- Objects cards grid ---------- */
+  #objCards{display:none;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+  .obj-card{
+    background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);
+    overflow:hidden;cursor:pointer;transition:background .15s;
+  }
+  .obj-card:hover{background:var(--panel-2)}
+  .obj-card .card-bar{height:4px}
+  .obj-card .card-body{padding:16px}
+  .obj-card .card-title{font-size:15px;font-weight:700;margin-bottom:2px}
+  .obj-card .card-cust{font-size:12px;color:var(--txt-dim);margin-bottom:10px}
+  .obj-card .card-progress-label{font-size:12px;color:var(--txt-faint);margin-bottom:4px;display:flex;justify-content:space-between}
+  .obj-card .card-progress-bar{height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-bottom:12px}
+  .obj-card .card-progress-bar i{display:block;height:100%;border-radius:3px;background:var(--electron)}
+  .obj-card .card-stats{display:flex;gap:12px;margin-bottom:12px}
+  .obj-card .card-stat{flex:1}
+  .obj-card .card-stat .st-label{font-size:11px;color:var(--txt-faint);letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px}
+  .obj-card .card-stat .st-val{font-size:14px;font-weight:700}
+  .obj-card .card-stat .st-sub{font-size:11px;color:var(--txt-dim)}
+  .obj-card .card-bottom{border-top:1px solid var(--line-soft);padding:10px 16px;display:flex;align-items:center;gap:8px}
+
+  /* ---------- Modal overlay ---------- */
+  .modal-overlay{
+    display:none;position:fixed;inset:0;z-index:100;
+    background:rgba(0,0,0,.65);
+    align-items:center;justify-content:center;
+    padding:20px;
+  }
+  .modal-overlay.open{display:flex}
+  .modal-card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    width:100%;max-width:480px;box-shadow:var(--shadow);
+    display:flex;flex-direction:column;max-height:90vh;overflow:hidden;
+  }
+  .modal-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 20px 14px;border-bottom:1px solid var(--line);
+  }
+  .modal-header .modal-title{font-size:16px;font-weight:600}
+  .modal-close{
+    background:none;border:none;color:var(--txt-dim);font-size:20px;cursor:pointer;
+    width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+    border-radius:6px;transition:.15s;
+  }
+  .modal-close:hover{background:var(--panel-2);color:var(--txt)}
+  .modal-tabs{display:flex;gap:8px;padding:14px 20px 0}
+  .modal-tab{
+    font-size:13px;padding:7px 18px;border-radius:30px;cursor:pointer;
+    font-family:var(--font);border:1px solid var(--line);background:var(--panel);color:var(--txt-dim);
+    transition:.15s;
+  }
+  .modal-tab.tab-active{background:var(--faraday);color:#fff;border-color:var(--faraday)}
+  .modal-body{padding:18px 20px 20px;overflow-y:auto;flex:1}
+  .form-row{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+  .form-row label{font-size:13px;color:var(--txt-dim)}
+  .form-row input,.form-row select,.form-row textarea{
+    background:var(--bg-2);border:1px solid var(--line);color:var(--txt);
+    border-radius:8px;padding:9px 12px;font-size:14px;font-family:var(--font);
+    outline:none;transition:.15s;width:100%;
+  }
+  .form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--faraday)}
+  .form-row input::placeholder{color:var(--txt-faint)}
+  .form-row select option{background:var(--bg-2)}
+  .radio-group{display:flex;gap:12px}
+  .radio-group label{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--txt);cursor:pointer}
+  .radio-group input[type=radio]{accent-color:var(--faraday);width:16px;height:16px}
+  .btn-submit{
+    width:100%;background:var(--faraday);color:var(--electron);border:none;
+    border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;
+    font-family:var(--font);letter-spacing:.3px;margin-top:4px;transition:.15s;
+  }
+  .btn-submit:hover{background:var(--faraday-deep)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-inner">
+    <div class="logo">
+      <div class="badge">RL</div>
+      <div class="word">SYSTEM</div>
+    </div>
+    <div class="head-meta">
+      <span class="t">Финансы по объектам</span>
+      <span class="s">Электромонтаж · учёт проектов</span>
+    </div>
+    <div class="head-right">
+      <div class="demo-tag">Демо-данные</div>
+      <button class="btn-add-tx" onclick="openModal()">＋ Транзакция</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="intro">
+    <h1>Где мы <span>зарабатываем</span>, где теряем и куда утекают деньги</h1>
+    <p>Один экран собственника. Видно прибыль каждого объекта, физическое движение денег, перетекание средств между проектами и долги поставщикам. Главное правило: <b>деньги на счету — это не прибыль</b>. Часть из них — чужие предоплаты, часть прибыли спрятана в неоплаченных долгах.</p>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpis">
+    <div class="kpi accent">
+      <span class="hint" title="Сумма прибыли по всем активным и закрытым объектам с учётом всех долгов поставщикам">i</span>
+      <div class="lbl">Чистая прибыль (факт)</div>
+      <div class="val num" id="kpiProfit">—</div>
+      <div class="sub">по 6 объектам, с учётом долгов</div>
+    </div>
+    <div class="kpi">
+      <span class="hint" title="Сколько физически денег есть в кассе и на счетах прямо сейчас">i</span>
+      <div class="lbl">Денег на счету</div>
+      <div class="val num" id="kpiCash">—</div>
+      <div class="sub">общий остаток компании</div>
+    </div>
+    <div class="kpi warn">
+      <span class="hint" title="Деньги на счету минус незакрытые предоплаты заказчиков минус долги поставщикам. Это деньги, которые реально свободны">i</span>
+      <div class="lbl">Свободные деньги</div>
+      <div class="val num" id="kpiFree">—</div>
+      <div class="sub">счёт − чужие предоплаты − долги</div>
+    </div>
+    <div class="kpi bad">
+      <span class="hint" title="Объекты, которые потратили больше, чем получили, и финансируются деньгами других объектов">i</span>
+      <div class="lbl">Объекты в риске</div>
+      <div class="val num" id="kpiRisk">—</div>
+      <div class="sub">живут на чужие деньги</div>
+    </div>
+  </div>
+
+  <div class="insight">
+    <span class="ic">⚡</span>
+    <div id="insightText">…</div>
+  </div>
+
+  <!-- OBJECTS -->
+  <div class="sec">
+    <div class="sec-head">
+      <span class="eyebrow">01</span>
+      <h2>Объекты — прибыль и денежное сальдо</h2>
+      <div class="view-toggle" style="margin-left:auto">
+        <button class="vtbtn vt-active" id="btnTableView" title="Таблица" onclick="setView('table')">☰</button>
+        <button class="vtbtn" id="btnCardsView" title="Карточки" onclick="setView('cards')">⊞</button>
+      </div>
+      <span class="note" style="margin-left:10px">нажмите на строку, чтобы раскрыть проект</span>
+    </div>
+    <div class="panel" id="objTablePanel">
+      <table id="objTable">
+        <thead>
+          <tr>
+            <th>Объект</th>
+            <th>Статус</th>
+            <th>Договор</th>
+            <th class="hide-sm">Получено</th>
+            <th class="hide-sm">Затраты*</th>
+            <th>Прибыль факт</th>
+            <th>Ден. сальдо**</th>
+            <th>Риск</th>
+          </tr>
+        </thead>
+        <tbody id="objBody"></tbody>
+        <tfoot id="objFoot"></tfoot>
+      </table>
+    </div>
+    <div id="objCards"></div>
+    <p style="font-size:11.5px;color:var(--txt-faint);margin-top:9px">
+      * Затраты включают весь материал в долг сразу, даже неоплаченный — иначе прибыль завышается.&nbsp;&nbsp;
+      ** Денежное сальдо = получено − реально оплачено − отдано на другие объекты + взято с других. Минус значит, что объект живёт на чужие деньги.
+    </p>
+  </div>
+
+  <!-- DETAIL -->
+  <div class="detail" id="detail">
+    <div class="sec-head">
+      <span class="eyebrow">02</span>
+      <h2 id="detailTitle">Объект</h2>
+      <span class="note" id="detailAddr"></span>
+    </div>
+    <div class="detail-grid">
+      <div class="card">
+        <h3>Отчёт по объекту (P&amp;L)</h3>
+        <div class="csub">Сколько реально заработано на этом проекте</div>
+        <div id="plBody"></div>
+      </div>
+      <div class="card">
+        <h3>Движение денег</h3>
+        <div class="csub">Поступления, расходы и переброски между объектами</div>
+        <div class="flowbox" id="flowBody"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <h3>Транзакции по объекту</h3>
+      <div class="csub">Все операции в хронологии</div>
+      <div class="filterbar" id="txFilter"></div>
+      <div class="ledger panel" style="border:none">
+        <table>
+          <thead>
+            <tr><th>Дата</th><th>Категория</th><th>Описание</th><th>Сумма</th></tr>
+          </thead>
+          <tbody id="txBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOW MAP -->
+  <div class="sec">
+    <div class="sec-head">
+      <span class="eyebrow">03</span>
+      <h2>Карта перетекания денег</h2>
+      <span class="note">кто кого кормит между объектами</span>
+    </div>
+    <div class="panel flowmap">
+      <div id="flowMap"></div>
+      <div class="flow-legend">
+        <span><i style="background:var(--electron)"></i> объект-донор (отдаёт свои деньги)</span>
+        <span><i style="background:var(--bad)"></i> объект-заёмщик (берёт чужие)</span>
+        <span><i style="background:var(--faraday)"></i> переброска средств</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEBTS -->
+  <div class="sec">
+    <div class="sec-head">
+      <span class="eyebrow">04</span>
+      <h2>Долги поставщикам</h2>
+      <span class="note">материал, взятый в долг — будущий отток денег</span>
+    </div>
+    <div class="panel">
+      <table>
+        <thead>
+          <tr><th>Поставщик</th><th>Объект</th><th>Сумма</th><th>Взято</th><th>Срок оплаты</th><th>Статус</th></tr>
+        </thead>
+        <tbody id="debtBody"></tbody>
+        <tfoot id="debtFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- RISKS -->
+  <div class="sec">
+    <div class="sec-head">
+      <span class="eyebrow">05</span>
+      <h2>Сигналы риска</h2>
+      <span class="note">автоматически по данным выше</span>
+    </div>
+    <div class="risks" id="riskBody"></div>
+  </div>
+
+  <footer>
+    <span>RL SYSTEM · демонстрационный прототип финансового учёта</span>
+    <span>Данные вымышленные · ₸ тенге</span>
+  </footer>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Новая запись</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab tab-active" id="tabTx" onclick="switchTab('tx')">Транзакция</button>
+      <button class="modal-tab" id="tabTransfer" onclick="switchTab('transfer')">Переброска</button>
+    </div>
+    <div class="modal-body">
+      <!-- Транзакция form -->
+      <div id="formTx">
+        <div class="form-row">
+          <label>Дата</label>
+          <input type="date" id="txDate" value="2026-06-22">
+        </div>
+        <div class="form-row">
+          <label>Объект</label>
+          <select id="txObj"></select>
+        </div>
+        <div class="form-row">
+          <label>Направление</label>
+          <div class="radio-group">
+            <label><input type="radio" name="txDir" value="in" checked onchange="updateTxCats()"> Приход</label>
+            <label><input type="radio" name="txDir" value="out" onchange="updateTxCats()"> Расход</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Категория</label>
+          <select id="txCat"></select>
+        </div>
+        <div class="form-row">
+          <label>Сумма (₸)</label>
+          <input type="number" id="txAmount" placeholder="0" min="0">
+        </div>
+        <div class="form-row">
+          <label>Описание</label>
+          <input type="text" id="txDesc" placeholder="Краткое описание">
+        </div>
+        <button class="btn-submit" onclick="submitTx()">Добавить</button>
+      </div>
+      <!-- Переброска form -->
+      <div id="formTransfer" style="display:none">
+        <div class="form-row">
+          <label>Откуда</label>
+          <select id="trFrom" onchange="updateTrTo()"></select>
+        </div>
+        <div class="form-row">
+          <label>Куда</label>
+          <select id="trTo"></select>
+        </div>
+        <div class="form-row">
+          <label>Сумма (₸)</label>
+          <input type="number" id="trAmount" placeholder="0" min="0">
+        </div>
+        <div class="form-row">
+          <label>Дата</label>
+          <input type="date" id="trDate" value="2026-06-22">
+        </div>
+        <div class="form-row">
+          <label>Примечание</label>
+          <input type="text" id="trNote" placeholder="Причина переброски">
+        </div>
+        <button class="btn-submit" onclick="submitTransfer()">Добавить переброску</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ ДЕМО-ДАННЫЕ ============ */
+const objects = [
+  {id:'o1', name:'ЖК «Алмалы», секция Б', addr:'Алматы, мкр. Алмалы · 96 квартир',
+   customer:'ТОО «Базис-Строй»', status:'active', color:'#A7CD74',
+   contract:14_800_000, estimate:9_200_000, markupPct:30},
+  {id:'o2', name:'Бизнес-центр «Куат»', addr:'Алматы, пр. Достык · 7 этажей',
+   customer:'ТОО «Куат Девелопмент»', status:'active', color:'#5fb7a8',
+   contract:9_400_000, estimate:6_100_000, markupPct:28},
+  {id:'o3', name:'Склад «Логос», блок 2', addr:'Алматы, Промзона · 4 200 м²',
+   customer:'ИП Сарсенов', status:'active', color:'#e7b85c',
+   contract:5_200_000, estimate:3_600_000, markupPct:30},
+  {id:'o4', name:'Коттеджный пос. «Ак-Жол»', addr:'Талгар · 12 домов',
+   customer:'ТОО «Ак-Жол Build»', status:'active', color:'#e0735f',
+   contract:7_800_000, estimate:5_400_000, markupPct:25},
+  {id:'o5', name:'Ресторан «Дастархан»', addr:'Алматы, ул. Толе би',
+   customer:'ИП Нурлан', status:'done', color:'#8fa89f',
+   contract:3_100_000, estimate:1_950_000, markupPct:32},
+  {id:'o6', name:'Автосалон «Орбита»', addr:'Алматы, пр. Райымбека',
+   customer:'ТОО «Орбита Авто»', status:'planning', color:'#c9e0a3',
+   contract:6_600_000, estimate:4_400_000, markupPct:30},
+];
+
+const tx = [
+  {obj:'o1', dir:'in',  cat:'prepayment',   amount:4_440_000, date:'2026-04-08', desc:'Предоплата 30% от заказчика'},
+  {obj:'o1', dir:'in',  cat:'stage',        amount:3_700_000, date:'2026-05-20', desc:'Этап 1 — черновая разводка принята'},
+  {obj:'o1', dir:'out', cat:'materials',    amount:3_900_000, date:'2026-04-14', desc:'Кабель ВВГнг, автоматы Schneider'},
+  {obj:'o1', dir:'out', cat:'materials',    amount:1_850_000, date:'2026-05-25', desc:'Щиты, УЗО, лотки'},
+  {obj:'o1', dir:'out', cat:'salary',       amount:1_600_000, date:'2026-05-30', desc:'Бригада, апрель–май'},
+  {obj:'o1', dir:'out', cat:'transport',    amount:140_000,   date:'2026-05-12', desc:'Доставка материала'},
+  {obj:'o2', dir:'in',  cat:'prepayment',   amount:2_820_000, date:'2026-04-22', desc:'Предоплата 30%'},
+  {obj:'o2', dir:'out', cat:'materials',    amount:2_600_000, date:'2026-04-28', desc:'Кабель, кабель-каналы'},
+  {obj:'o2', dir:'out', cat:'salary',       amount:980_000,   date:'2026-05-18', desc:'Бригада, май'},
+  {obj:'o2', dir:'out', cat:'transport',    amount:90_000,    date:'2026-05-02', desc:'Логистика'},
+  {obj:'o3', dir:'in',  cat:'prepayment',   amount:1_560_000, date:'2026-05-06', desc:'Предоплата 30%'},
+  {obj:'o3', dir:'out', cat:'materials',    amount:780_000,   date:'2026-05-10', desc:'Кабель силовой (частично)'},
+  {obj:'o3', dir:'out', cat:'salary',       amount:420_000,   date:'2026-05-28', desc:'Бригада'},
+  {obj:'o4', dir:'in',  cat:'prepayment',   amount:1_950_000, date:'2026-03-30', desc:'Предоплата 25%'},
+  {obj:'o4', dir:'in',  cat:'stage',        amount:1_500_000, date:'2026-05-15', desc:'Этап 1'},
+  {obj:'o4', dir:'out', cat:'materials',    amount:3_700_000, date:'2026-04-05', desc:'Кабель, СИП, столбы'},
+  {obj:'o4', dir:'out', cat:'salary',       amount:1_350_000, date:'2026-05-22', desc:'Бригада + спецтехника'},
+  {obj:'o4', dir:'out', cat:'transport',    amount:260_000,   date:'2026-04-18', desc:'Доставка, аренда крана'},
+  {obj:'o5', dir:'in',  cat:'prepayment',   amount:990_000,   date:'2026-02-12', desc:'Предоплата 30%'},
+  {obj:'o5', dir:'in',  cat:'final',        amount:2_110_000, date:'2026-04-02', desc:'Финальная оплата при сдаче'},
+  {obj:'o5', dir:'out', cat:'materials',    amount:1_550_000, date:'2026-02-20', desc:'Кабель, светильники'},
+  {obj:'o5', dir:'out', cat:'salary',       amount:560_000,   date:'2026-03-25', desc:'Бригада'},
+  {obj:'o6', dir:'out', cat:'materials',    amount:380_000,   date:'2026-06-10', desc:'Закуп материала под старт (за счёт компании)'},
+];
+
+const debts = [
+  {obj:'o1', supplier:'Кабель-Маркет KZ',  amount:1_200_000, taken:'2026-05-25', due:'2026-06-25', status:'open'},
+  {obj:'o3', supplier:'ЭлектроОпт',        amount:1_640_000, taken:'2026-05-10', due:'2026-06-24', status:'open'},
+  {obj:'o3', supplier:'СветТехника',       amount:520_000,   due:'2026-07-15', taken:'2026-05-29', status:'open'},
+  {obj:'o4', supplier:'Кабель-Маркет KZ',  amount:900_000,   taken:'2026-04-05', due:'2026-06-28', status:'open'},
+  {obj:'o2', supplier:'ЭлектроОпт',        amount:620_000,   taken:'2026-04-28', due:'2026-06-10', status:'paid', paid:'2026-06-08'},
+];
+
+const transfers = [
+  {from:'o1', to:'o2', amount:1_200_000, date:'2026-04-26', note:'Аванс o2 не покрыл закуп — добрали с o1'},
+  {from:'o1', to:'o4', amount:800_000,   date:'2026-04-30', note:'Срочный закуп СИП на Ак-Жол'},
+  {from:'o5', to:'o3', amount:700_000,   date:'2026-05-08', note:'Деньги закрытого ресторана пошли на склад'},
+  {from:'o2', to:'o6', amount:380_000,   date:'2026-06-10', note:'Старт автосалона за счёт остатка o2'},
+];
+
+/* ============ РАСЧЁТЫ ============ */
+const fmt = n => (n<0?'−':'') + Math.abs(Math.round(n)).toLocaleString('ru-RU') + ' ₸';
+const fmtShort = n => {const a=Math.abs(n); const s=n<0?'−':''; if(a>=1e6)return s+(a/1e6).toFixed(1).replace('.0','')+' млн'; if(a>=1e3)return s+Math.round(a/1e3)+' тыс'; return s+a;};
+const byId = id => objects.find(o=>o.id===id);
+
+const catMeta = {
+  prepayment:{label:'Предоплата', color:'#A7CD74'},
+  stage:{label:'Этап', color:'#7fc4a6'},
+  final:{label:'Финал. оплата', color:'#5fb7a8'},
+  materials:{label:'Материалы', color:'#e0735f'},
+  salary:{label:'Зарплата', color:'#e7b85c'},
+  transport:{label:'Логистика', color:'#c98bd0'},
+  other:{label:'Прочее', color:'#8fa89f'},
+};
+
+const incomeCats  = ['prepayment','stage','final'];
+const expenseCats = ['materials','salary','transport','other'];
+
+function calc(o){
+  const t = tx.filter(x=>x.obj===o.id);
+  const received = t.filter(x=>x.dir==='in').reduce((s,x)=>s+x.amount,0);
+  const paidOut  = t.filter(x=>x.dir==='out').reduce((s,x)=>s+x.amount,0);
+  const objDebts = debts.filter(d=>d.obj===o.id);
+  const debtOpen = objDebts.filter(d=>d.status==='open').reduce((s,d)=>s+d.amount,0);
+  const debtAll  = objDebts.reduce((s,d)=>s+d.amount,0);
+  const materialsPaid = t.filter(x=>x.cat==='materials').reduce((s,x)=>s+x.amount,0);
+  const salary = t.filter(x=>x.cat==='salary').reduce((s,x)=>s+x.amount,0);
+  const transport = t.filter(x=>x.cat==='transport'||x.cat==='other').reduce((s,x)=>s+x.amount,0);
+  const totalCost = paidOut + debtAll;
+  const profit = o.contract - totalCost;
+  const out = transfers.filter(x=>x.from===o.id).reduce((s,x)=>s+x.amount,0);
+  const inn = transfers.filter(x=>x.to===o.id).reduce((s,x)=>s+x.amount,0);
+  const cashBalance = received - paidOut - out + inn - debtOpen;
+  return {received,paidOut,debtOpen,debtAll,materialsPaid,salary,transport,totalCost,profit,out,inn,cashBalance};
+}
+
+function riskLevel(o,c){
+  if(o.status==='active' && c.cashBalance < -300_000) return 'hi';
+  if(o.profit < 0) return 'hi';
+  if(o.status==='active' && c.cashBalance < 300_000) return 'mid';
+  if(c.debtOpen > c.received*0.6 && o.status==='active') return 'mid';
+  return 'ok';
+}
+
+function fmtDate(s){const[y,m,d]=s.split('-');const mo=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];return d+' '+mo[+m-1];}
+
+const statusLabel={active:'В работе',planning:'План',done:'Сдан',paused:'Пауза'};
+const today=new Date('2026-06-22');
+
+/* ============ STATE ============ */
+let currentObj=null, activeFilter='all';
+let currentView='table'; // 'table' | 'cards'
+
+/* ============ renderAll ============ */
+function renderAll(){
+  renderKPIs();
+  renderObjectsTable();
+  renderObjectsCards();
+  renderFlowMap();
+  renderDebts();
+  renderRisks();
+  if(currentObj != null) openDetail(currentObj, null);
+}
+
+/* ============ KPIs ============ */
+function renderKPIs(){
+  let totalProfit=0,totalReceived=0,totalPaid=0,totalDebtOpen=0,riskCount=0;
+  objects.forEach(o=>{
+    const c=calc(o);
+    totalProfit += o.contract - c.totalCost;
+    totalReceived += c.received;
+    totalPaid += c.paidOut;
+    totalDebtOpen += c.debtOpen;
+    if(riskLevel(o,c)==='hi') riskCount++;
+  });
+  const totalCash = totalReceived - totalPaid;
+  const reserve = Math.round(totalReceived*0.35);
+  const freeCash = totalCash - totalDebtOpen - reserve;
+
+  document.getElementById('kpiProfit').textContent = fmt(totalProfit);
+  document.getElementById('kpiCash').textContent = fmt(totalCash);
+  document.getElementById('kpiFree').textContent = fmt(freeCash);
+  document.getElementById('kpiRisk').textContent = riskCount + ' из ' + objects.length;
+
+  document.getElementById('insightText').innerHTML =
+    `На счету <b>${fmt(totalCash)}</b>, но свободно лишь <b>${fmt(freeCash)}</b>. ` +
+    `Разница — это ${fmt(totalDebtOpen)} долгов поставщикам и ~${fmt(reserve)} чужих предоплат по незавершённым объектам. ` +
+    `Прибыль <b>${fmt(totalProfit)}</b> существует «на бумаге», но часть её ещё не получена деньгами. ` +
+    `<b>${riskCount}</b> объекта финансируются за счёт других.`;
+}
+
+/* ============ Objects Table ============ */
+function renderObjectsTable(){
+  const objBody=document.getElementById('objBody');
+  objBody.innerHTML='';
+  let sumContract=0,sumRec=0,sumCost=0,sumProfit=0,sumBal=0;
+  objects.forEach(o=>{
+    const c=calc(o);
+    sumContract+=o.contract; sumRec+=c.received; sumCost+=c.totalCost; sumProfit+=o.contract-c.totalCost; sumBal+=c.cashBalance;
+    const rk=riskLevel(o,c);
+    const rkLabel={hi:'Высокий',mid:'Средний',ok:'Норма'}[rk];
+    const profit=o.contract-c.totalCost;
+    const marginPct=Math.round(profit/o.contract*100);
+    const tr=document.createElement('tr');
+    tr.dataset.id=o.id;
+    tr.innerHTML=`
+      <td>
+        <div class="obj-name">
+          <span class="dot" style="background:${o.color}"></span>
+          <span class="meta"><b>${o.name}</b><s>${o.customer}</s></span>
+        </div>
+      </td>
+      <td><span class="chip ${o.status}">${statusLabel[o.status]}</span></td>
+      <td class="num mut">${fmtShort(o.contract)}</td>
+      <td class="num hide-sm">${fmtShort(c.received)}</td>
+      <td class="num hide-sm">${fmtShort(c.totalCost)}</td>
+      <td class="num ${profit>=0?'pos':'neg'}">${fmtShort(profit)}
+          <span class="bar"><i style="width:${Math.max(4,Math.min(100,marginPct*2.4))}%;background:${profit>=0?'var(--good)':'var(--bad)'}"></i></span>
+      </td>
+      <td class="num ${c.cashBalance>=0?'pos':'neg'}">${fmtShort(c.cashBalance)}</td>
+      <td><span class="risk-led ${rk}"><span class="l"></span>${rkLabel}</span></td>`;
+    tr.addEventListener('click',()=>openDetail(o.id, tr));
+    objBody.appendChild(tr);
+  });
+  document.getElementById('objFoot').innerHTML=`
+    <tr><td>Итого</td><td></td>
+    <td class="num">${fmtShort(sumContract)}</td>
+    <td class="num hide-sm">${fmtShort(sumRec)}</td>
+    <td class="num hide-sm">${fmtShort(sumCost)}</td>
+    <td class="num ${sumProfit>=0?'pos':'neg'}">${fmtShort(sumProfit)}</td>
+    <td class="num ${sumBal>=0?'pos':'neg'}">${fmtShort(sumBal)}</td>
+    <td></td></tr>`;
+}
+
+/* ============ Objects Cards ============ */
+function renderObjectsCards(){
+  const grid=document.getElementById('objCards');
+  grid.innerHTML='';
+  objects.forEach(o=>{
+    const c=calc(o);
+    const rk=riskLevel(o,c);
+    const rkLabel={hi:'Высокий',mid:'Средний',ok:'Норма'}[rk];
+    const rkColor={hi:'var(--bad)',mid:'var(--warn)',ok:'var(--good)'}[rk];
+    const profit=o.contract-c.totalCost;
+    const marginPct=Math.round(profit/o.contract*100);
+    const recvPct=Math.min(100,Math.round(c.received/o.contract*100));
+    const card=document.createElement('div');
+    card.className='obj-card';
+    card.innerHTML=`
+      <div class="card-bar" style="background:${o.color}"></div>
+      <div class="card-body">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <span class="card-title">${o.name}</span>
+          <span class="chip ${o.status}">${statusLabel[o.status]}</span>
+        </div>
+        <div class="card-cust">${o.customer}</div>
+        <div class="card-progress-label">
+          <span>Получено / Договор</span>
+          <span class="num" style="font-size:12px">${fmtShort(c.received)} / ${fmtShort(o.contract)}</span>
+        </div>
+        <div class="card-progress-bar"><i style="width:${recvPct}%;background:${o.color}"></i></div>
+        <div class="card-stats">
+          <div class="card-stat">
+            <div class="st-label">Прибыль</div>
+            <div class="st-val num ${profit>=0?'pos':'neg'}">${fmtShort(profit)}</div>
+            <div class="st-sub num ${marginPct>=0?'pos':'neg'}">${marginPct}% маржа</div>
+          </div>
+          <div class="card-stat">
+            <div class="st-label">Сальдо</div>
+            <div class="st-val num ${c.cashBalance>=0?'pos':'neg'}">${fmtShort(c.cashBalance)}</div>
+            <div class="st-sub" style="color:var(--txt-faint)">денежное</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-bottom">
+        <span class="risk-led ${rk}"><span class="l"></span>${rkLabel} риск</span>
+      </div>`;
+    card.addEventListener('click',()=>openDetail(o.id, null));
+    grid.appendChild(card);
+  });
+}
+
+/* ============ Flow Map ============ */
+function renderFlowMap(){
+  const W=1180, rowH=120, pad=70;
+  const nodes=objects.filter(o=>transfers.some(t=>t.from===o.id||t.to===o.id));
+  const colGap=(W-pad*2)/(nodes.length-1);
+  const pos={};
+  nodes.forEach((o,i)=>pos[o.id]={x:pad+i*colGap, y:rowH});
+  const net={};
+  nodes.forEach(o=>net[o.id]=0);
+  transfers.forEach(t=>{net[t.from]-=t.amount; net[t.to]+=t.amount;});
+
+  let svg=`<svg viewBox="0 0 ${W} 260" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">`;
+  svg+=`<defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#046058"/></marker>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#A7CD74" stop-opacity=".7"/><stop offset="1" stop-color="#046058" stop-opacity=".9"/></linearGradient>
+  </defs>`;
+
+  transfers.forEach((t,i)=>{
+    const a=pos[t.from], b=pos[t.to];
+    const mx=(a.x+b.x)/2;
+    const lift=70+(i%2)*26;
+    const cy=rowH-lift;
+    const sw=Math.max(2,Math.min(9,t.amount/350000));
+    svg+=`<path d="M${a.x},${a.y-14} Q${mx},${cy} ${b.x},${b.y-14}" fill="none" stroke="url(#edge)" stroke-width="${sw}" opacity=".85" marker-end="url(#arrow)"/>`;
+    svg+=`<text x="${mx}" y="${cy-6}" fill="#c9e0a3" font-size="12" text-anchor="middle" font-family="var(--font)">${fmtShort(t.amount)}</text>`;
+  });
+
+  nodes.forEach(o=>{
+    const p=pos[o.id];
+    const isDonor=net[o.id]<0;
+    const ring=isDonor?'#A7CD74':(net[o.id]>0?'#e0735f':'#5fb7a8');
+    svg+=`<circle cx="${p.x}" cy="${p.y}" r="26" fill="#13211f" stroke="${ring}" stroke-width="3"/>`;
+    svg+=`<circle cx="${p.x}" cy="${p.y}" r="26" fill="${ring}" opacity=".12"/>`;
+    svg+=`<text x="${p.x}" y="${p.y+5}" fill="${ring}" font-size="15" font-weight="700" text-anchor="middle">${isDonor?'↑':(net[o.id]>0?'↓':'↔')}</text>`;
+    const short=o.name.replace(/«|»/g,'').split(',')[0].split(' ').slice(0,2).join(' ');
+    svg+=`<text x="${p.x}" y="${p.y+48}" fill="#e8f1ec" font-size="12.5" text-anchor="middle" font-weight="600">${short}</text>`;
+    svg+=`<text x="${p.x}" y="${p.y+65}" fill="${isDonor?'#A7CD74':(net[o.id]>0?'#e0735f':'#8fa89f')}" font-size="11.5" text-anchor="middle">${net[o.id]>0?'+':''}${fmtShort(net[o.id])}</text>`;
+  });
+
+  svg+=`</svg>`;
+  document.getElementById('flowMap').innerHTML=svg;
+}
+
+/* ============ Debts ============ */
+function renderDebts(){
+  const debtBody=document.getElementById('debtBody');
+  debtBody.innerHTML='';
+  let debtOpenSum=0;
+  debts.sort((a,b)=>a.due.localeCompare(b.due)).forEach(d=>{
+    const o=byId(d.obj);
+    const dd=new Date(d.due);
+    const days=Math.round((dd-today)/86400000);
+    let dueClass='', dueTxt='';
+    if(d.status==='paid'){dueTxt='оплачено '+fmtDate(d.paid);}
+    else{
+      debtOpenSum+=d.amount;
+      if(days<=5){dueClass='soon';dueTxt=days<0?`просрочено ${-days} дн.`:`через ${days} дн.`;}
+      else if(days<=20){dueClass='mid';dueTxt=`через ${days} дн.`;}
+      else dueTxt=`через ${days} дн.`;
+    }
+    const tr=document.createElement('tr');
+    tr.className='debt-row';
+    tr.innerHTML=`
+      <td style="text-align:left">${d.supplier}</td>
+      <td style="text-align:left"><span class="obj-name"><span class="dot" style="background:${o.color}"></span>${o.name}</span></td>
+      <td class="num">${fmt(d.amount)}</td>
+      <td class="num mut">${fmtDate(d.taken)}</td>
+      <td class="num"><span class="due ${dueClass}">${fmtDate(d.due)} · ${dueTxt}</span></td>
+      <td><span class="chip ${d.status==='paid'?'done':'planning'}">${d.status==='paid'?'Оплачен':'Открыт'}</span></td>`;
+    debtBody.appendChild(tr);
+  });
+  document.getElementById('debtFoot').innerHTML=`<tr><td>Открытых долгов</td><td></td><td class="num" style="color:var(--warn)">${fmt(debtOpenSum)}</td><td colspan="3"></td></tr>`;
+}
+
+/* ============ Risks ============ */
+function renderRisks(){
+  const riskCards=[];
+  objects.forEach(o=>{
+    const c=calc(o);
+    if(o.status==='active' && c.cashBalance<0){
+      riskCards.push({lvl:'hi',title:o.name,
+        text:`Денежное сальдо <b>${fmt(c.cashBalance)}</b> — объект потратил больше, чем получил, и финансируется деньгами других проектов. Когда придёт срок своих расходов, денег не будет.`});
+    }
+  });
+  debts.filter(d=>d.status==='open').forEach(d=>{
+    const dd=new Date(d.due); const days=Math.round((dd-today)/86400000);
+    const o=byId(d.obj); const c=calc(o);
+    if(days<=5){
+      riskCards.push({lvl:'hi',title:`Долг: ${d.supplier}`,
+        text:`По объекту «${o.name}» нужно оплатить <b>${fmt(d.amount)}</b> ${days<0?`(просрочено ${-days} дн.)`:`через ${days} дн.`} а денежное сальдо объекта ${fmt(c.cashBalance)}.`});
+    }
+  });
+  objects.forEach(o=>{
+    const c=calc(o); const profit=o.contract-c.totalCost;
+    if(profit<0) riskCards.push({lvl:'hi',title:o.name,text:`Фактическая себестоимость превысила договор. Объект уходит в минус на <b>${fmt(profit)}</b> — перерасход по материалу или заниженная смета.`});
+    else if(o.status==='active' && profit/o.contract<0.12) riskCards.push({lvl:'mid',title:o.name,text:`Маржа всего <b>${Math.round(profit/o.contract*100)}%</b> — ниже нормы для электромонтажа. Стоит проверить смету и закуп.`});
+  });
+  objects.filter(o=>o.status==='done').forEach(o=>{
+    const c=calc(o);
+    if(c.received < o.contract*0.98)
+      riskCards.push({lvl:'mid',title:o.name,text:`Объект сдан, но получено ${fmt(c.received)} из ${fmt(o.contract)}. Зависла дебиторка <b>${fmt(o.contract-c.received)}</b>.`});
+  });
+  const lvlLabel={hi:'Высокий',mid:'Средний'};
+  document.getElementById('riskBody').innerHTML = riskCards.map(r=>`
+    <div class="risk-card ${r.lvl}">
+      <div class="rt"><span class="lvl">${lvlLabel[r.lvl]}</span> ${r.title}</div>
+      <p>${r.text}</p>
+    </div>`).join('') || `<div class="empty-hint">Рисков не обнаружено</div>`;
+}
+
+/* ============ DETAIL ============ */
+function openDetail(id, tr){
+  currentObj = id;
+  activeFilter = 'all';
+  // highlight row in table
+  document.querySelectorAll('#objBody tr').forEach(r=>r.classList.remove('active'));
+  if(tr) tr.classList.add('active');
+  const o=byId(id), c=calc(o);
+  const detail=document.getElementById('detail');
+  detail.classList.add('open');
+  document.getElementById('detailTitle').textContent=o.name;
+  document.getElementById('detailAddr').textContent=o.addr+' · '+o.customer;
+
+  const profit=o.contract-c.totalCost;
+  document.getElementById('plBody').innerHTML=`
+    <div class="pl-row"><span class="k">Сумма договора</span><span class="num">${fmt(o.contract)}</span></div>
+    <div class="pl-row"><span class="k">Материалы (оплачено)</span><span class="num neg">−${fmt(c.materialsPaid).replace('−','')}</span></div>
+    <div class="pl-row"><span class="k">Материал в долг <span class="note">входит в себестоимость сразу</span></span><span class="num neg">−${fmt(c.debtAll).replace('−','')}</span></div>
+    <div class="pl-row"><span class="k">Зарплата бригад</span><span class="num neg">−${fmt(c.salary).replace('−','')}</span></div>
+    <div class="pl-row"><span class="k">Логистика / прочее</span><span class="num neg">−${fmt(c.transport).replace('−','')}</span></div>
+    <div class="pl-row tot"><span class="k">Прибыль объекта</span><span class="num ${profit>=0?'pos':'neg'}">${fmt(profit)}</span></div>
+    <div class="pl-row" style="border:none;padding-top:6px"><span class="k" style="font-size:12px">Маржа</span><span class="num ${profit>=0?'pos':'neg'}" style="font-size:13px">${Math.round(profit/o.contract*100)}%</span></div>`;
+
+  const flow=document.getElementById('flowBody');
+  let html='';
+  html+=`<div class="flowln in"><span class="arr">↓</span><span class="txt">Получено от заказчика<s>предоплаты + этапы</s></span><span class="num pos">${fmt(c.received)}</span></div>`;
+  html+=`<div class="flowln out"><span class="arr">↑</span><span class="txt">Оплачено по объекту<s>материалы, зарплата, логистика</s></span><span class="num neg">${fmt(c.paidOut)}</span></div>`;
+  transfers.filter(x=>x.from===id).forEach(x=>{
+    html+=`<div class="flowln out"><span class="arr">→</span><span class="txt">Отдано на «${byId(x.to).name}»<s>${x.note}</s></span><span class="num neg">${fmt(x.amount)}</span></div>`;});
+  transfers.filter(x=>x.to===id).forEach(x=>{
+    html+=`<div class="flowln in"><span class="arr">←</span><span class="txt">Взято с «${byId(x.from).name}»<s>${x.note}</s></span><span class="num pos">${fmt(x.amount)}</span></div>`;});
+  if(c.debtOpen>0)
+    html+=`<div class="flowln out" style="border-left-color:var(--warn)"><span class="arr">⏳</span><span class="txt">Предстоит оплатить поставщикам<s>открытые долги</s></span><span class="num" style="color:var(--warn)">${fmt(c.debtOpen)}</span></div>`;
+  html+=`<div class="flowln" style="border-left:3px solid ${c.cashBalance>=0?'var(--good)':'var(--bad)'};background:var(--panel-2);font-weight:700"><span class="arr">=</span><span class="txt">Денежное сальдо объекта</span><span class="num ${c.cashBalance>=0?'pos':'neg'}">${fmt(c.cashBalance)}</span></div>`;
+  flow.innerHTML=html;
+
+  buildTxFilter(id);
+  renderTx(id);
+  detail.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function buildTxFilter(id){
+  const cats=[...new Set(tx.filter(x=>x.obj===id).map(x=>x.cat))];
+  const fb=document.getElementById('txFilter');
+  fb.innerHTML='';
+  const all=document.createElement('button');
+  all.className='fbtn on'; all.textContent='Все'; all.onclick=()=>{activeFilter='all';renderTx(id);setActive(all);};
+  fb.appendChild(all);
+  cats.forEach(cat=>{
+    const b=document.createElement('button');
+    b.className='fbtn'; b.textContent=catMeta[cat].label;
+    b.onclick=()=>{activeFilter=cat;renderTx(id);setActive(b);};
+    fb.appendChild(b);
+  });
+}
+function setActive(btn){document.querySelectorAll('#txFilter .fbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
+
+function renderTx(id){
+  let rows=tx.filter(x=>x.obj===id);
+  if(activeFilter!=='all') rows=rows.filter(x=>x.cat===activeFilter);
+  rows=rows.sort((a,b)=>a.date.localeCompare(b.date));
+  const tb=document.getElementById('txBody');
+  if(!rows.length){tb.innerHTML=`<tr><td colspan="4" class="empty-hint">Нет операций в этой категории</td></tr>`;return;}
+  tb.innerHTML=rows.map(x=>{
+    const m=catMeta[x.cat];
+    return `<tr>
+      <td style="text-align:left" class="mut">${fmtDate(x.date)}</td>
+      <td style="text-align:left"><span class="tx-cat"><span class="pin" style="background:${m.color}"></span>${m.label}</span></td>
+      <td style="text-align:left">${x.desc}</td>
+      <td class="num ${x.dir==='in'?'pos':'neg'}">${x.dir==='in'?'+':'−'}${fmt(x.amount).replace('−','')}</td>
+    </tr>`;}).join('');
+}
+
+/* ============ VIEW TOGGLE ============ */
+function setView(v){
+  currentView=v;
+  const tablePanel=document.getElementById('objTablePanel');
+  const cardsGrid=document.getElementById('objCards');
+  const btnT=document.getElementById('btnTableView');
+  const btnC=document.getElementById('btnCardsView');
+  if(v==='table'){
+    tablePanel.style.display='';
+    cardsGrid.style.display='none';
+    btnT.classList.add('vt-active');
+    btnC.classList.remove('vt-active');
+  } else {
+    tablePanel.style.display='none';
+    cardsGrid.style.display='grid';
+    btnT.classList.remove('vt-active');
+    btnC.classList.add('vt-active');
+  }
+}
+
+/* ============ MODAL ============ */
+let activeTab='tx';
+
+function openModal(){
+  // populate object selects
+  const selObj=document.getElementById('txObj');
+  selObj.innerHTML=objects.map(o=>`<option value="${o.id}">${o.name}</option>`).join('');
+  const selFrom=document.getElementById('trFrom');
+  selFrom.innerHTML=objects.map(o=>`<option value="${o.id}">${o.name}</option>`).join('');
+  updateTrTo();
+  updateTxCats();
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function handleOverlayClick(e){
+  if(e.target===document.getElementById('modalOverlay')) closeModal();
+}
+
+function switchTab(tab){
+  activeTab=tab;
+  document.getElementById('tabTx').classList.toggle('tab-active', tab==='tx');
+  document.getElementById('tabTransfer').classList.toggle('tab-active', tab==='transfer');
+  document.getElementById('formTx').style.display = tab==='tx' ? '' : 'none';
+  document.getElementById('formTransfer').style.display = tab==='transfer' ? '' : 'none';
+}
+
+function updateTxCats(){
+  const dir=document.querySelector('input[name="txDir"]:checked').value;
+  const cats = dir==='in' ? incomeCats : expenseCats;
+  const sel=document.getElementById('txCat');
+  sel.innerHTML=cats.map(c=>`<option value="${c}">${catMeta[c].label}</option>`).join('');
+}
+
+function updateTrTo(){
+  const fromVal=document.getElementById('trFrom').value;
+  const sel=document.getElementById('trTo');
+  sel.innerHTML=objects.filter(o=>o.id!==fromVal).map(o=>`<option value="${o.id}">${o.name}</option>`).join('');
+}
+
+function submitTx(){
+  const date=document.getElementById('txDate').value;
+  const obj=document.getElementById('txObj').value;
+  const dir=document.querySelector('input[name="txDir"]:checked').value;
+  const cat=document.getElementById('txCat').value;
+  const amount=parseFloat(document.getElementById('txAmount').value)||0;
+  const desc=document.getElementById('txDesc').value.trim();
+  if(!date||!obj||!amount){alert('Заполните дату, объект и сумму');return;}
+  tx.push({obj,dir,cat,amount,date,desc});
+  renderAll();
+  closeModal();
+}
+
+function submitTransfer(){
+  const from=document.getElementById('trFrom').value;
+  const to=document.getElementById('trTo').value;
+  const amount=parseFloat(document.getElementById('trAmount').value)||0;
+  const date=document.getElementById('trDate').value;
+  const note=document.getElementById('trNote').value.trim();
+  if(!from||!to||!amount||!date){alert('Заполните все поля');return;}
+  if(from===to){alert('Откуда и Куда не могут совпадать');return;}
+  transfers.push({from,to,amount,date,note});
+  renderAll();
+  closeModal();
+}
+
+/* ============ INIT ============ */
+renderAll();
+window.addEventListener('load',()=>{
+  const first=document.querySelector('#objBody tr');
+  if(first) openDetail(first.dataset.id, first);
+});
+</script>
+</body>
+</html>
