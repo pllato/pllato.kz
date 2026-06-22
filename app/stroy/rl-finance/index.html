@@ -3,1082 +3,1387 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RL SYSTEM — Финансы по объектам · Демо</title>
+<title>RL Finance — Электромонтаж</title>
 <style>
-  :root{
-    --faraday:#046058;
-    --electron:#A7CD74;
-    --faraday-deep:#03413c;
-    --electron-soft:#c9e0a3;
-    --bg:#0c1413;
-    --bg-2:#10201d;
-    --panel:#13211f;
-    --panel-2:#172a27;
-    --line:#22403a;
-    --line-soft:#1a322e;
-    --txt:#e8f1ec;
-    --txt-dim:#8fa89f;
-    --txt-faint:#5e756d;
-    --good:#A7CD74;
-    --warn:#e7b85c;
-    --bad:#e0735f;
-    --radius:14px;
-    --shadow:0 18px 50px -20px rgba(0,0,0,.7);
-    --font:"Proxima Nova","Segoe UI",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html{scroll-behavior:smooth}
-  body{
-    font-family:var(--font);
-    background:
-      radial-gradient(900px 600px at 78% -8%, rgba(4,96,88,.30), transparent 60%),
-      radial-gradient(700px 500px at 8% 105%, rgba(167,205,116,.10), transparent 55%),
-      var(--bg);
-    color:var(--txt);
-    line-height:1.45;
-    -webkit-font-smoothing:antialiased;
-    min-height:100vh;
-  }
-  .wrap{max-width:1280px;margin:0 auto;padding:0 24px 80px}
+:root {
+  --bg:#0d1521; --surface:#14202f; --surface-2:#172537; --surface-3:#1f3145;
+  --line:#26384d; --line-2:#33485f; --text:#e9eff6; --text-dim:#9fb0c2;
+  --text-mute:#6b7e92; --brand:#4d8df5; --brand-dim:#1e3a63;
+  --amber:#fbbf24; --green:#34d399; --red:#f87171; --violet:#a78bfa;
+  --cyan:#22d3ee; --radius:11px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,sans-serif;font-size:14px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer;font-family:inherit}
+input,select,textarea{font-family:inherit;font-size:inherit}
 
-  /* ---------- Header ---------- */
-  header{
-    position:sticky;top:0;z-index:40;
-    backdrop-filter:blur(14px);
-    background:linear-gradient(180deg,rgba(12,20,19,.92),rgba(12,20,19,.7));
-    border-bottom:1px solid var(--line-soft);
-  }
-  .head-inner{max-width:1280px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
-  .logo{display:flex;align-items:center;gap:11px;flex-shrink:0}
-  .logo .badge{
-    width:46px;height:30px;border:2px solid var(--electron);border-radius:30px;
-    display:flex;align-items:center;justify-content:center;
-    background:var(--faraday);font-weight:800;font-size:14px;letter-spacing:.5px;color:var(--electron);
-  }
-  .logo .word{font-size:15px;letter-spacing:5px;color:var(--electron);font-weight:400}
-  .head-meta{display:flex;flex-direction:column;border-left:1px solid var(--line);padding-left:18px}
-  .head-meta .t{font-size:14px;font-weight:600;letter-spacing:.3px}
-  .head-meta .s{font-size:11px;color:var(--txt-faint);letter-spacing:1.5px;text-transform:uppercase}
-  .demo-tag{
-    font-size:11px;letter-spacing:1.5px;text-transform:uppercase;
-    color:var(--electron);border:1px solid var(--line);padding:6px 12px;border-radius:30px;
-    background:rgba(167,205,116,.06);display:flex;align-items:center;gap:7px;
-  }
-  .demo-tag::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--electron);box-shadow:0 0 10px var(--electron)}
-  .head-right{margin-left:auto;display:flex;align-items:center;gap:10px}
-  .btn-add-tx{
-    background:var(--faraday);color:var(--electron);border:none;border-radius:30px;
-    padding:8px 16px;font-size:13px;cursor:pointer;letter-spacing:.3px;font-family:var(--font);
-    transition:.15s;
-  }
-  .btn-add-tx:hover{background:var(--faraday-deep)}
+.app{display:flex;height:100vh;overflow:hidden}
 
-  /* ---------- Intro ---------- */
-  .intro{padding:40px 0 26px}
-  .intro h1{font-size:30px;font-weight:600;letter-spacing:-.4px;margin-bottom:10px}
-  .intro h1 span{color:var(--electron)}
-  .intro p{color:var(--txt-dim);max-width:760px;font-size:15px}
+/* SIDEBAR */
+.sidebar{width:220px;min-width:220px;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;transition:width .2s}
+.sidebar-logo{padding:20px 16px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.logo-mark{width:36px;height:36px;background:var(--brand);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff;flex-shrink:0}
+.logo-text{font-weight:700;font-size:15px}
+.logo-sub{font-size:11px;color:var(--text-mute)}
+.sidebar-nav{flex:1;padding:12px 8px;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--text-dim);cursor:pointer;transition:background .15s,color .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;font-size:13.5px}
+.nav-item:hover{background:var(--surface-2);color:var(--text)}
+.nav-item.active{background:var(--brand-dim);color:var(--brand)}
+.nav-item svg{flex-shrink:0;opacity:.7}
+.nav-item.active svg{opacity:1}
+.nav-divider{height:1px;background:var(--line);margin:8px 4px}
+.nav-add-btn{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--green);cursor:pointer;transition:background .15s;border:none;background:none;width:100%;text-align:left;font-size:13.5px;font-weight:500}
+.nav-add-btn:hover{background:rgba(52,211,153,.1)}
 
-  /* ---------- KPI row ---------- */
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:14px}
-  .kpi{
-    background:linear-gradient(165deg,var(--panel-2),var(--panel));
-    border:1px solid var(--line-soft);border-radius:var(--radius);padding:18px 18px 16px;
-    position:relative;overflow:hidden;
-  }
-  .kpi::after{content:"";position:absolute;right:-30px;top:-30px;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle,rgba(167,205,116,.10),transparent 70%)}
-  .kpi .lbl{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--txt-faint);margin-bottom:10px}
-  .kpi .val{font-size:25px;font-weight:700;letter-spacing:-.5px}
-  .kpi .sub{font-size:12px;color:var(--txt-dim);margin-top:5px}
-  .kpi.accent{border-color:rgba(167,205,116,.35)}
-  .kpi.accent .val{color:var(--electron)}
-  .kpi.warn .val{color:var(--warn)}
-  .kpi.bad .val{color:var(--bad)}
-  .kpi .hint{position:absolute;top:14px;right:14px;width:16px;height:16px;border-radius:50%;border:1px solid var(--line);color:var(--txt-faint);font-size:10px;display:flex;align-items:center;justify-content:center;cursor:help;z-index:2}
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:56px;min-height:56px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 24px;gap:16px}
+.topbar-title{font-weight:600;font-size:16px;flex:1}
+.topbar-bc{font-size:12px;color:var(--text-mute)}
+.topbar-actions{display:flex;gap:8px}
+.page-content{flex:1;overflow-y:auto;padding:24px}
 
-  .insight{
-    background:linear-gradient(120deg,rgba(4,96,88,.22),rgba(167,205,116,.05));
-    border:1px solid var(--line);border-radius:var(--radius);
-    padding:16px 18px;margin-bottom:30px;font-size:14px;color:var(--electron-soft);
-    display:flex;gap:12px;align-items:flex-start;
-  }
-  .insight b{color:var(--electron)}
-  .insight .ic{flex-shrink:0;width:22px;height:22px;border-radius:6px;background:rgba(167,205,116,.15);display:flex;align-items:center;justify-content:center;font-size:13px}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:500;border:none;transition:background .15s,opacity .15s;cursor:pointer}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-primary:hover{opacity:.85}
+.btn-ghost{background:var(--surface-3);color:var(--text-dim)}
+.btn-ghost:hover{background:var(--line);color:var(--text)}
+.btn-sm{padding:5px 10px;font-size:12px}
 
-  /* ---------- Section ---------- */
-  .sec{margin-bottom:38px}
-  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:16px}
-  .sec-head h2{font-size:18px;font-weight:600;letter-spacing:-.2px}
-  .sec-head .eyebrow{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--faraday);font-weight:700}
-  .sec-head .note{margin-left:auto;font-size:12px;color:var(--txt-faint)}
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+.card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute);margin-bottom:14px}
 
-  /* ---------- Objects table ---------- */
-  .panel{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);overflow:hidden}
-  table{width:100%;border-collapse:collapse;font-size:13.5px}
-  thead th{
-    text-align:right;padding:13px 16px;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;
-    color:var(--txt-faint);font-weight:600;border-bottom:1px solid var(--line);background:var(--bg-2);
-  }
-  thead th:first-child{text-align:left}
-  tbody td{padding:13px 16px;text-align:right;border-bottom:1px solid var(--line-soft);white-space:nowrap}
-  tbody td:first-child{text-align:left}
-  tbody tr{cursor:pointer;transition:background .15s}
-  tbody tr:hover{background:var(--panel-2)}
-  tbody tr.active{background:rgba(4,96,88,.25)}
-  tbody tr:last-child td{border-bottom:none}
-  .obj-name{display:flex;align-items:center;gap:10px}
-  .obj-name .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-  .obj-name .meta{display:flex;flex-direction:column;line-height:1.25}
-  .obj-name .meta b{font-weight:600;font-size:13.5px}
-  .obj-name .meta s{text-decoration:none;font-size:11px;color:var(--txt-faint)}
-  .num{font-variant-numeric:tabular-nums}
-  .pos{color:var(--good)}
-  .neg{color:var(--bad)}
-  .mut{color:var(--txt-dim)}
-  .chip{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.3px}
-  .chip.active{background:rgba(167,205,116,.14);color:var(--electron)}
-  .chip.planning{background:rgba(231,184,92,.13);color:var(--warn)}
-  .chip.done{background:rgba(143,168,159,.14);color:var(--txt-dim)}
-  .chip.paused{background:rgba(224,115,95,.13);color:var(--bad)}
-  .risk-led{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600}
-  .risk-led .l{width:9px;height:9px;border-radius:50%}
-  .risk-led.ok .l{background:var(--good);box-shadow:0 0 8px var(--good)}
-  .risk-led.mid .l{background:var(--warn);box-shadow:0 0 8px var(--warn)}
-  .risk-led.hi .l{background:var(--bad);box-shadow:0 0 8px var(--bad)}
-  .bar{height:5px;border-radius:3px;background:var(--line);overflow:hidden;width:74px;display:inline-block;vertical-align:middle;margin-left:8px}
-  .bar i{display:block;height:100%;border-radius:3px}
-  tfoot td{padding:13px 16px;text-align:right;font-weight:700;border-top:2px solid var(--line);background:var(--bg-2);font-size:13.5px}
-  tfoot td:first-child{text-align:left;letter-spacing:.5px}
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.kpi-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px}
+.kpi-label{font-size:12px;color:var(--text-mute);margin-bottom:6px}
+.kpi-value{font-size:22px;font-weight:700;line-height:1.1}
+.kpi-sub{font-size:11px;color:var(--text-mute);margin-top:4px}
 
-  /* ---------- Detail drawer ---------- */
-  .detail{margin-top:18px;display:none}
-  .detail.open{display:block;animation:fade .35s ease}
-  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-  .detail-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:18px}
-  .card{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);padding:20px}
-  .card h3{font-size:15px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:10px}
-  .card .csub{font-size:12px;color:var(--txt-faint);margin-bottom:16px}
-  .pl-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line-soft);font-size:13.5px}
-  .pl-row:last-of-type{border-bottom:none}
-  .pl-row .k{color:var(--txt-dim)}
-  .pl-row.tot{margin-top:8px;border-top:2px solid var(--line);border-bottom:none;padding-top:14px;font-weight:700;font-size:16px}
-  .pl-row .note{font-size:11px;color:var(--txt-faint);display:block}
-  .flowbox{display:flex;flex-direction:column;gap:10px;margin-top:4px}
-  .flowln{display:flex;align-items:center;gap:10px;font-size:13px;padding:10px 12px;border-radius:10px;background:var(--bg-2);border:1px solid var(--line-soft)}
-  .flowln .arr{font-size:15px}
-  .flowln.in{border-left:3px solid var(--good)}
-  .flowln.out{border-left:3px solid var(--bad)}
-  .flowln .txt{flex:1}
-  .flowln .txt s{text-decoration:none;display:block;font-size:11px;color:var(--txt-faint)}
+/* CHIPS */
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.chip-green{background:rgba(52,211,153,.15);color:var(--green)}
+.chip-red{background:rgba(248,113,113,.15);color:var(--red)}
+.chip-amber{background:rgba(251,191,36,.15);color:var(--amber)}
+.chip-violet{background:rgba(167,139,250,.15);color:var(--violet)}
+.chip-gray{background:var(--surface-3);color:var(--text-mute)}
+.chip-blue{background:var(--brand-dim);color:var(--brand)}
 
-  /* transactions ledger */
-  .ledger{max-height:340px;overflow:auto}
-  .ledger table{font-size:13px}
-  .ledger thead th{position:sticky;top:0;z-index:2}
-  .tx-cat{display:inline-flex;align-items:center;gap:7px}
-  .tx-cat .pin{width:7px;height:7px;border-radius:2px}
-  .filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-  .fbtn{font:inherit;font-size:12.5px;color:var(--txt-dim);background:var(--panel);border:1px solid var(--line);padding:7px 13px;border-radius:30px;cursor:pointer;transition:.15s}
-  .fbtn:hover{border-color:var(--faraday);color:var(--txt)}
-  .fbtn.on{background:var(--faraday);border-color:var(--faraday);color:#fff}
+/* TABLES */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-mute);padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface-2)}
 
-  /* ---------- Money flow map ---------- */
-  .flowmap{padding:24px}
-  .flow-legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;font-size:12px;color:var(--txt-dim)}
-  .flow-legend span{display:inline-flex;align-items:center;gap:7px}
-  .flow-legend i{width:18px;height:3px;border-radius:2px;display:inline-block}
+/* TABS */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:20px}
+.tab{padding:10px 16px;font-size:13px;font-weight:500;color:var(--text-mute);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;background:none;border-top:none;border-left:none;border-right:none}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--brand);border-bottom-color:var(--brand)}
 
-  /* ---------- Supplier debts ---------- */
-  .debt-row .due{font-size:12px}
-  .debt-row .due.soon{color:var(--bad);font-weight:600}
-  .debt-row .due.mid{color:var(--warn)}
+/* FILTER TABS */
+.filter-tabs{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap}
+.ftab{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--line);background:none;color:var(--text-mute);transition:all .15s}
+.ftab:hover{background:var(--surface-2);color:var(--text)}
+.ftab.active{background:var(--brand-dim);color:var(--brand);border-color:transparent}
 
-  /* ---------- Risks ---------- */
-  .risks{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
-  .risk-card{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);padding:16px;border-left:3px solid var(--line)}
-  .risk-card.hi{border-left-color:var(--bad)}
-  .risk-card.mid{border-left-color:var(--warn)}
-  .risk-card .rt{font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px}
-  .risk-card .rt .lvl{font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:20px}
-  .risk-card.hi .lvl{background:rgba(224,115,95,.15);color:var(--bad)}
-  .risk-card.mid .lvl{background:rgba(231,184,92,.15);color:var(--warn)}
-  .risk-card p{font-size:13px;color:var(--txt-dim)}
-  .risk-card p b{color:var(--txt)}
+/* OBJECT CARDS */
+.obj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.obj-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:border-color .15s,transform .1s}
+.obj-card:hover{border-color:var(--line-2);transform:translateY(-1px)}
+.obj-card-top{height:4px}
+.obj-card-body{padding:16px}
 
-  footer{margin-top:50px;padding-top:24px;border-top:1px solid var(--line-soft);font-size:12px;color:var(--txt-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+/* DETAIL */
+.detail-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px}
+.detail-kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.detail-kpi-label{font-size:11px;color:var(--text-mute);margin-bottom:4px}
+.detail-kpi-val{font-size:18px;font-weight:700}
 
-  .empty-hint{padding:30px;text-align:center;color:var(--txt-faint);font-size:14px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 
-  @media(max-width:900px){
-    .kpis{grid-template-columns:repeat(2,1fr)}
-    .detail-grid{grid-template-columns:1fr}
-    .head-meta{display:none}
-    table{font-size:12.5px}
-    thead th,tbody td{padding:11px 10px}
-    .hide-sm{display:none}
-  }
-  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* CASH FLOW ROW */
+.cf-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.cf-row:last-child{border:none}
+.cf-label{font-size:13px;color:var(--text-dim)}
+.cf-val{font-size:13px;font-weight:600}
 
-  /* ---------- View Toggle buttons ---------- */
-  .view-toggle{display:flex;align-items:center;gap:6px}
-  .vtbtn{
-    width:32px;height:32px;border-radius:8px;border:1px solid var(--line);
-    background:transparent;color:var(--txt-dim);cursor:pointer;
-    font-size:15px;display:flex;align-items:center;justify-content:center;
-    transition:.15s;font-family:var(--font);
-  }
-  .vtbtn:hover{border-color:var(--faraday);color:var(--txt)}
-  .vtbtn.vt-active{background:var(--faraday);color:#fff;border-color:var(--faraday)}
+/* TIMELINE */
+.timeline{position:relative;padding-left:22px}
+.timeline::before{content:'';position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.tl-item{position:relative;margin-bottom:14px}
+.tl-dot{position:absolute;left:-22px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--brand);border:2px solid var(--surface)}
+.tl-dot.in{background:var(--green)}
+.tl-dot.out{background:var(--red)}
+.tl-dot.tr{background:var(--violet)}
+.tl-date{font-size:11px;color:var(--text-mute)}
+.tl-desc{font-size:13px;margin-top:1px}
+.tl-amount{font-size:12px;font-weight:600}
 
-  /* ---------- Objects cards grid ---------- */
-  #objCards{display:none;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
-  .obj-card{
-    background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);
-    overflow:hidden;cursor:pointer;transition:background .15s;
-  }
-  .obj-card:hover{background:var(--panel-2)}
-  .obj-card .card-bar{height:4px}
-  .obj-card .card-body{padding:16px}
-  .obj-card .card-title{font-size:15px;font-weight:700;margin-bottom:2px}
-  .obj-card .card-cust{font-size:12px;color:var(--txt-dim);margin-bottom:10px}
-  .obj-card .card-progress-label{font-size:12px;color:var(--txt-faint);margin-bottom:4px;display:flex;justify-content:space-between}
-  .obj-card .card-progress-bar{height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-bottom:12px}
-  .obj-card .card-progress-bar i{display:block;height:100%;border-radius:3px;background:var(--electron)}
-  .obj-card .card-stats{display:flex;gap:12px;margin-bottom:12px}
-  .obj-card .card-stat{flex:1}
-  .obj-card .card-stat .st-label{font-size:11px;color:var(--txt-faint);letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px}
-  .obj-card .card-stat .st-val{font-size:14px;font-weight:700}
-  .obj-card .card-stat .st-sub{font-size:11px;color:var(--txt-dim)}
-  .obj-card .card-bottom{border-top:1px solid var(--line-soft);padding:10px 16px;display:flex;align-items:center;gap:8px}
+/* RISK */
+.risk-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.risk-item:last-child{border:none}
+.risk-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
 
-  /* ---------- Modal overlay ---------- */
-  .modal-overlay{
-    display:none;position:fixed;inset:0;z-index:100;
-    background:rgba(0,0,0,.65);
-    align-items:center;justify-content:center;
-    padding:20px;
-  }
-  .modal-overlay.open{display:flex}
-  .modal-card{
-    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
-    width:100%;max-width:480px;box-shadow:var(--shadow);
-    display:flex;flex-direction:column;max-height:90vh;overflow:hidden;
-  }
-  .modal-header{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:18px 20px 14px;border-bottom:1px solid var(--line);
-  }
-  .modal-header .modal-title{font-size:16px;font-weight:600}
-  .modal-close{
-    background:none;border:none;color:var(--txt-dim);font-size:20px;cursor:pointer;
-    width:30px;height:30px;display:flex;align-items:center;justify-content:center;
-    border-radius:6px;transition:.15s;
-  }
-  .modal-close:hover{background:var(--panel-2);color:var(--txt)}
-  .modal-tabs{display:flex;gap:8px;padding:14px 20px 0}
-  .modal-tab{
-    font-size:13px;padding:7px 18px;border-radius:30px;cursor:pointer;
-    font-family:var(--font);border:1px solid var(--line);background:var(--panel);color:var(--txt-dim);
-    transition:.15s;
-  }
-  .modal-tab.tab-active{background:var(--faraday);color:#fff;border-color:var(--faraday)}
-  .modal-body{padding:18px 20px 20px;overflow-y:auto;flex:1}
-  .form-row{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
-  .form-row label{font-size:13px;color:var(--txt-dim)}
-  .form-row input,.form-row select,.form-row textarea{
-    background:var(--bg-2);border:1px solid var(--line);color:var(--txt);
-    border-radius:8px;padding:9px 12px;font-size:14px;font-family:var(--font);
-    outline:none;transition:.15s;width:100%;
-  }
-  .form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--faraday)}
-  .form-row input::placeholder{color:var(--txt-faint)}
-  .form-row select option{background:var(--bg-2)}
-  .radio-group{display:flex;gap:12px}
-  .radio-group label{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--txt);cursor:pointer}
-  .radio-group input[type=radio]{accent-color:var(--faraday);width:16px;height:16px}
-  .btn-submit{
-    width:100%;background:var(--faraday);color:var(--electron);border:none;
-    border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;
-    font-family:var(--font);letter-spacing:.3px;margin-top:4px;transition:.15s;
-  }
-  .btn-submit:hover{background:var(--faraday-deep)}
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:1000;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border:1px solid var(--line-2);border-radius:14px;width:500px;max-width:96vw;max-height:92vh;overflow-y:auto;transform:translateY(12px);transition:transform .2s}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1}
+.modal-title{font-weight:700;font-size:16px}
+.modal-close{background:none;border:none;color:var(--text-mute);font-size:20px;cursor:pointer;padding:0 4px;line-height:1}
+.modal-close:hover{color:var(--text)}
+.modal-body{padding:20px 24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:var(--surface)}
+
+/* FORM */
+.form-group{margin-bottom:14px}
+.form-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-mute);margin-bottom:5px;display:block}
+.form-control{width:100%;background:var(--surface-2);border:1px solid var(--line-2);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;transition:border-color .15s}
+.form-control:focus{border-color:var(--brand)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.radio-group{display:flex;gap:6px}
+.radio-btn{flex:1;padding:8px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--text-dim);text-align:center;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s}
+.radio-btn.sel-in{border-color:var(--green);background:rgba(52,211,153,.1);color:var(--green)}
+.radio-btn.sel-out{border-color:var(--red);background:rgba(248,113,113,.1);color:var(--red)}
+
+/* FUND SPLIT */
+.fund-split-box{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:14px;margin-top:2px}
+.fund-split-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute);margin-bottom:10px}
+.fund-split-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:12px}
+
+/* WATERFALL */
+.waterfall{display:flex;height:18px;border-radius:6px;overflow:hidden;gap:2px;margin:8px 0}
+.wf-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
+.wf-legend-item{display:flex;align-items:center;gap:5px;font-size:12px}
+.wf-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+/* FUND INPUTS */
+.fund-input-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+.fund-input-row:last-child{border:none}
+.fund-input-name{width:90px;font-size:13px;font-weight:500}
+.fund-pct-input{width:65px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:6px;padding:5px 8px;color:var(--text);font-size:13px;outline:none;text-align:right}
+.fund-pct-input:focus{border-color:var(--brand)}
+
+/* PL */
+.pl-row{padding:9px 0;border-bottom:1px solid var(--line)}
+.pl-row:last-child{border:none}
+.pl-total{background:var(--surface-2);border-radius:9px;padding:14px 16px;margin-top:10px}
+
+/* GAUGE */
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;padding:8px 0}
+
+/* PROJ STRIP */
+.proj-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}
+.proj-mini{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:12px 14px;min-width:145px;cursor:pointer;transition:border-color .15s}
+.proj-mini:hover{border-color:var(--line-2)}
+
+/* BACK */
+.back-btn{display:flex;align-items:center;gap:6px;color:var(--text-mute);font-size:13px;cursor:pointer;background:none;border:none;padding:4px 0;margin-bottom:12px;transition:color .15s}
+.back-btn:hover{color:var(--text)}
+
+/* FAB */
+.fab{position:fixed;bottom:24px;right:24px;width:50px;height:50px;border-radius:50%;background:var(--brand);color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 4px 20px rgba(77,141,245,.45);display:flex;align-items:center;justify-content:center;transition:transform .15s;z-index:500}
+.fab:hover{transform:scale(1.1)}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:3px}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .two-col{grid-template-columns:1fr}
+  .detail-kpis{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:700px){
+  .sidebar{width:52px;min-width:52px}
+  .logo-text,.logo-sub,.nav-item span,.nav-add-btn span{display:none}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:480px){
+  .kpi-grid{grid-template-columns:1fr}
+  .detail-kpis{grid-template-columns:1fr 1fr}
+  .obj-grid{grid-template-columns:1fr}
+}
+
+/* DEBT ROWS */
+.debt-hot td{background:rgba(248,113,113,.05)}
+.debt-warn td{background:rgba(251,191,36,.04)}
+
+/* FUND OVERVIEW */
+.fo-row{margin-bottom:13px}
+.fo-label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.fo-bar-track{height:8px;background:var(--surface-3);border-radius:4px;overflow:hidden;display:flex}
 </style>
 </head>
 <body>
-
-<header>
-  <div class="head-inner">
-    <div class="logo">
-      <div class="badge">RL</div>
-      <div class="word">SYSTEM</div>
-    </div>
-    <div class="head-meta">
-      <span class="t">Финансы по объектам</span>
-      <span class="s">Электромонтаж · учёт проектов</span>
-    </div>
-    <div class="head-right">
-      <div class="demo-tag">Демо-данные</div>
-      <button class="btn-add-tx" onclick="openModal()">＋ Транзакция</button>
-    </div>
-  </div>
-</header>
-
-<div class="wrap">
-
-  <div class="intro">
-    <h1>Где мы <span>зарабатываем</span>, где теряем и куда утекают деньги</h1>
-    <p>Один экран собственника. Видно прибыль каждого объекта, физическое движение денег, перетекание средств между проектами и долги поставщикам. Главное правило: <b>деньги на счету — это не прибыль</b>. Часть из них — чужие предоплаты, часть прибыли спрятана в неоплаченных долгах.</p>
-  </div>
-
-  <!-- KPI -->
-  <div class="kpis">
-    <div class="kpi accent">
-      <span class="hint" title="Сумма прибыли по всем активным и закрытым объектам с учётом всех долгов поставщикам">i</span>
-      <div class="lbl">Чистая прибыль (факт)</div>
-      <div class="val num" id="kpiProfit">—</div>
-      <div class="sub">по 6 объектам, с учётом долгов</div>
-    </div>
-    <div class="kpi">
-      <span class="hint" title="Сколько физически денег есть в кассе и на счетах прямо сейчас">i</span>
-      <div class="lbl">Денег на счету</div>
-      <div class="val num" id="kpiCash">—</div>
-      <div class="sub">общий остаток компании</div>
-    </div>
-    <div class="kpi warn">
-      <span class="hint" title="Деньги на счету минус незакрытые предоплаты заказчиков минус долги поставщикам. Это деньги, которые реально свободны">i</span>
-      <div class="lbl">Свободные деньги</div>
-      <div class="val num" id="kpiFree">—</div>
-      <div class="sub">счёт − чужие предоплаты − долги</div>
-    </div>
-    <div class="kpi bad">
-      <span class="hint" title="Объекты, которые потратили больше, чем получили, и финансируются деньгами других объектов">i</span>
-      <div class="lbl">Объекты в риске</div>
-      <div class="val num" id="kpiRisk">—</div>
-      <div class="sub">живут на чужие деньги</div>
-    </div>
-  </div>
-
-  <div class="insight">
-    <span class="ic">⚡</span>
-    <div id="insightText">…</div>
-  </div>
-
-  <!-- OBJECTS -->
-  <div class="sec">
-    <div class="sec-head">
-      <span class="eyebrow">01</span>
-      <h2>Объекты — прибыль и денежное сальдо</h2>
-      <div class="view-toggle" style="margin-left:auto">
-        <button class="vtbtn vt-active" id="btnTableView" title="Таблица" onclick="setView('table')">☰</button>
-        <button class="vtbtn" id="btnCardsView" title="Карточки" onclick="setView('cards')">⊞</button>
-      </div>
-      <span class="note" style="margin-left:10px">нажмите на строку, чтобы раскрыть проект</span>
-    </div>
-    <div class="panel" id="objTablePanel">
-      <table id="objTable">
-        <thead>
-          <tr>
-            <th>Объект</th>
-            <th>Статус</th>
-            <th>Договор</th>
-            <th class="hide-sm">Получено</th>
-            <th class="hide-sm">Затраты*</th>
-            <th>Прибыль факт</th>
-            <th>Ден. сальдо**</th>
-            <th>Риск</th>
-          </tr>
-        </thead>
-        <tbody id="objBody"></tbody>
-        <tfoot id="objFoot"></tfoot>
-      </table>
-    </div>
-    <div id="objCards"></div>
-    <p style="font-size:11.5px;color:var(--txt-faint);margin-top:9px">
-      * Затраты включают весь материал в долг сразу, даже неоплаченный — иначе прибыль завышается.&nbsp;&nbsp;
-      ** Денежное сальдо = получено − реально оплачено − отдано на другие объекты + взято с других. Минус значит, что объект живёт на чужие деньги.
-    </p>
-  </div>
-
-  <!-- DETAIL -->
-  <div class="detail" id="detail">
-    <div class="sec-head">
-      <span class="eyebrow">02</span>
-      <h2 id="detailTitle">Объект</h2>
-      <span class="note" id="detailAddr"></span>
-    </div>
-    <div class="detail-grid">
-      <div class="card">
-        <h3>Отчёт по объекту (P&amp;L)</h3>
-        <div class="csub">Сколько реально заработано на этом проекте</div>
-        <div id="plBody"></div>
-      </div>
-      <div class="card">
-        <h3>Движение денег</h3>
-        <div class="csub">Поступления, расходы и переброски между объектами</div>
-        <div class="flowbox" id="flowBody"></div>
+<div class="app">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">RL</div>
+      <div>
+        <div class="logo-text">RL Finance</div>
+        <div class="logo-sub">Электромонтаж</div>
       </div>
     </div>
-    <div class="card" style="margin-top:18px">
-      <h3>Транзакции по объекту</h3>
-      <div class="csub">Все операции в хронологии</div>
-      <div class="filterbar" id="txFilter"></div>
-      <div class="ledger panel" style="border:none">
-        <table>
-          <thead>
-            <tr><th>Дата</th><th>Категория</th><th>Описание</th><th>Сумма</th></tr>
-          </thead>
-          <tbody id="txBody"></tbody>
-        </table>
-      </div>
+    <div class="sidebar-nav">
+      <button class="nav-item" id="nav-dashboard" onclick="go('#dashboard')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span>Дашборд</span>
+      </button>
+      <button class="nav-item" id="nav-objects" onclick="go('#objects')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>Объекты</span>
+      </button>
+      <div class="nav-divider"></div>
+      <button class="nav-add-btn" onclick="openModal()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span>Добавить запись</span>
+      </button>
     </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Дашборд</div>
+      <div class="topbar-bc" id="topbar-bc"></div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </div>
+    <div class="page-content" id="page-content"></div>
   </div>
-
-  <!-- FLOW MAP -->
-  <div class="sec">
-    <div class="sec-head">
-      <span class="eyebrow">03</span>
-      <h2>Карта перетекания денег</h2>
-      <span class="note">кто кого кормит между объектами</span>
-    </div>
-    <div class="panel flowmap">
-      <div id="flowMap"></div>
-      <div class="flow-legend">
-        <span><i style="background:var(--electron)"></i> объект-донор (отдаёт свои деньги)</span>
-        <span><i style="background:var(--bad)"></i> объект-заёмщик (берёт чужие)</span>
-        <span><i style="background:var(--faraday)"></i> переброска средств</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- DEBTS -->
-  <div class="sec">
-    <div class="sec-head">
-      <span class="eyebrow">04</span>
-      <h2>Долги поставщикам</h2>
-      <span class="note">материал, взятый в долг — будущий отток денег</span>
-    </div>
-    <div class="panel">
-      <table>
-        <thead>
-          <tr><th>Поставщик</th><th>Объект</th><th>Сумма</th><th>Взято</th><th>Срок оплаты</th><th>Статус</th></tr>
-        </thead>
-        <tbody id="debtBody"></tbody>
-        <tfoot id="debtFoot"></tfoot>
-      </table>
-    </div>
-  </div>
-
-  <!-- RISKS -->
-  <div class="sec">
-    <div class="sec-head">
-      <span class="eyebrow">05</span>
-      <h2>Сигналы риска</h2>
-      <span class="note">автоматически по данным выше</span>
-    </div>
-    <div class="risks" id="riskBody"></div>
-  </div>
-
-  <footer>
-    <span>RL SYSTEM · демонстрационный прототип финансового учёта</span>
-    <span>Данные вымышленные · ₸ тенге</span>
-  </footer>
-
 </div>
 
 <!-- MODAL -->
-<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
-  <div class="modal-card" onclick="event.stopPropagation()">
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">Новая запись</span>
-      <button class="modal-close" onclick="closeModal()">×</button>
+      <div class="modal-title">Новая запись</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
-    <div class="modal-tabs">
-      <button class="modal-tab tab-active" id="tabTx" onclick="switchTab('tx')">Транзакция</button>
-      <button class="modal-tab" id="tabTransfer" onclick="switchTab('transfer')">Переброска</button>
-    </div>
-    <div class="modal-body">
-      <!-- Транзакция form -->
-      <div id="formTx">
-        <div class="form-row">
-          <label>Дата</label>
-          <input type="date" id="txDate" value="2026-06-22">
-        </div>
-        <div class="form-row">
-          <label>Объект</label>
-          <select id="txObj"></select>
-        </div>
-        <div class="form-row">
-          <label>Направление</label>
-          <div class="radio-group">
-            <label><input type="radio" name="txDir" value="in" checked onchange="updateTxCats()"> Приход</label>
-            <label><input type="radio" name="txDir" value="out" onchange="updateTxCats()"> Расход</label>
-          </div>
-        </div>
-        <div class="form-row">
-          <label>Категория</label>
-          <select id="txCat"></select>
-        </div>
-        <div class="form-row">
-          <label>Сумма (₸)</label>
-          <input type="number" id="txAmount" placeholder="0" min="0">
-        </div>
-        <div class="form-row">
-          <label>Описание</label>
-          <input type="text" id="txDesc" placeholder="Краткое описание">
-        </div>
-        <button class="btn-submit" onclick="submitTx()">Добавить</button>
-      </div>
-      <!-- Переброска form -->
-      <div id="formTransfer" style="display:none">
-        <div class="form-row">
-          <label>Откуда</label>
-          <select id="trFrom" onchange="updateTrTo()"></select>
-        </div>
-        <div class="form-row">
-          <label>Куда</label>
-          <select id="trTo"></select>
-        </div>
-        <div class="form-row">
-          <label>Сумма (₸)</label>
-          <input type="number" id="trAmount" placeholder="0" min="0">
-        </div>
-        <div class="form-row">
-          <label>Дата</label>
-          <input type="date" id="trDate" value="2026-06-22">
-        </div>
-        <div class="form-row">
-          <label>Примечание</label>
-          <input type="text" id="trNote" placeholder="Причина переброски">
-        </div>
-        <button class="btn-submit" onclick="submitTransfer()">Добавить переброску</button>
-      </div>
-    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
   </div>
 </div>
 
+<button class="fab" onclick="openModal()" title="Добавить транзакцию">＋</button>
+
 <script>
-/* ============ ДЕМО-ДАННЫЕ ============ */
-const objects = [
+// ============================================================
+// DEMO DATA
+// ============================================================
+const TODAY = '2026-06-22';
+
+const DEMO_OBJECTS = [
   {id:'o1', name:'ЖК «Алмалы», секция Б', addr:'Алматы, мкр. Алмалы · 96 квартир',
-   customer:'ТОО «Базис-Строй»', status:'active', color:'#A7CD74',
-   contract:14_800_000, estimate:9_200_000, markupPct:30},
+   customer:'ТОО «Базис-Строй»', status:'active', color:'#34d399',
+   contract:14800000, startDate:'2026-03-15',
+   funds:{materials:55,salary:20,logistics:5,profit:15,reserve:5}},
   {id:'o2', name:'Бизнес-центр «Куат»', addr:'Алматы, пр. Достык · 7 этажей',
-   customer:'ТОО «Куат Девелопмент»', status:'active', color:'#5fb7a8',
-   contract:9_400_000, estimate:6_100_000, markupPct:28},
-  {id:'o3', name:'Склад «Логос», блок 2', addr:'Алматы, Промзона · 4 200 м²',
-   customer:'ИП Сарсенов', status:'active', color:'#e7b85c',
-   contract:5_200_000, estimate:3_600_000, markupPct:30},
+   customer:'ТОО «Куат Девелопмент»', status:'active', color:'#4d8df5',
+   contract:9400000, startDate:'2026-04-10',
+   funds:{materials:55,salary:20,logistics:5,profit:15,reserve:5}},
+  {id:'o3', name:'Склад «Логос», блок 2', addr:'Алматы, Промзона · 4200 м²',
+   customer:'ИП Сарсенов', status:'active', color:'#fbbf24',
+   contract:5200000, startDate:'2026-04-28',
+   funds:{materials:60,salary:18,logistics:7,profit:12,reserve:3}},
   {id:'o4', name:'Коттеджный пос. «Ак-Жол»', addr:'Талгар · 12 домов',
-   customer:'ТОО «Ак-Жол Build»', status:'active', color:'#e0735f',
-   contract:7_800_000, estimate:5_400_000, markupPct:25},
+   customer:'ТОО «Ак-Жол Build»', status:'active', color:'#f87171',
+   contract:7800000, startDate:'2026-03-01',
+   funds:{materials:58,salary:22,logistics:5,profit:12,reserve:3}},
   {id:'o5', name:'Ресторан «Дастархан»', addr:'Алматы, ул. Толе би',
-   customer:'ИП Нурлан', status:'done', color:'#8fa89f',
-   contract:3_100_000, estimate:1_950_000, markupPct:32},
+   customer:'ИП Нурлан', status:'done', color:'#9fb0c2',
+   contract:3100000, startDate:'2026-01-20',
+   funds:{materials:52,salary:22,logistics:6,profit:16,reserve:4}},
   {id:'o6', name:'Автосалон «Орбита»', addr:'Алматы, пр. Райымбека',
-   customer:'ТОО «Орбита Авто»', status:'planning', color:'#c9e0a3',
-   contract:6_600_000, estimate:4_400_000, markupPct:30},
+   customer:'ТОО «Орбита Авто»', status:'planning', color:'#a78bfa',
+   contract:6600000, startDate:'2026-07-01',
+   funds:{materials:55,salary:20,logistics:5,profit:15,reserve:5}},
 ];
 
-const tx = [
-  {obj:'o1', dir:'in',  cat:'prepayment',   amount:4_440_000, date:'2026-04-08', desc:'Предоплата 30% от заказчика'},
-  {obj:'o1', dir:'in',  cat:'stage',        amount:3_700_000, date:'2026-05-20', desc:'Этап 1 — черновая разводка принята'},
-  {obj:'o1', dir:'out', cat:'materials',    amount:3_900_000, date:'2026-04-14', desc:'Кабель ВВГнг, автоматы Schneider'},
-  {obj:'o1', dir:'out', cat:'materials',    amount:1_850_000, date:'2026-05-25', desc:'Щиты, УЗО, лотки'},
-  {obj:'o1', dir:'out', cat:'salary',       amount:1_600_000, date:'2026-05-30', desc:'Бригада, апрель–май'},
-  {obj:'o1', dir:'out', cat:'transport',    amount:140_000,   date:'2026-05-12', desc:'Доставка материала'},
-  {obj:'o2', dir:'in',  cat:'prepayment',   amount:2_820_000, date:'2026-04-22', desc:'Предоплата 30%'},
-  {obj:'o2', dir:'out', cat:'materials',    amount:2_600_000, date:'2026-04-28', desc:'Кабель, кабель-каналы'},
-  {obj:'o2', dir:'out', cat:'salary',       amount:980_000,   date:'2026-05-18', desc:'Бригада, май'},
-  {obj:'o2', dir:'out', cat:'transport',    amount:90_000,    date:'2026-05-02', desc:'Логистика'},
-  {obj:'o3', dir:'in',  cat:'prepayment',   amount:1_560_000, date:'2026-05-06', desc:'Предоплата 30%'},
-  {obj:'o3', dir:'out', cat:'materials',    amount:780_000,   date:'2026-05-10', desc:'Кабель силовой (частично)'},
-  {obj:'o3', dir:'out', cat:'salary',       amount:420_000,   date:'2026-05-28', desc:'Бригада'},
-  {obj:'o4', dir:'in',  cat:'prepayment',   amount:1_950_000, date:'2026-03-30', desc:'Предоплата 25%'},
-  {obj:'o4', dir:'in',  cat:'stage',        amount:1_500_000, date:'2026-05-15', desc:'Этап 1'},
-  {obj:'o4', dir:'out', cat:'materials',    amount:3_700_000, date:'2026-04-05', desc:'Кабель, СИП, столбы'},
-  {obj:'o4', dir:'out', cat:'salary',       amount:1_350_000, date:'2026-05-22', desc:'Бригада + спецтехника'},
-  {obj:'o4', dir:'out', cat:'transport',    amount:260_000,   date:'2026-04-18', desc:'Доставка, аренда крана'},
-  {obj:'o5', dir:'in',  cat:'prepayment',   amount:990_000,   date:'2026-02-12', desc:'Предоплата 30%'},
-  {obj:'o5', dir:'in',  cat:'final',        amount:2_110_000, date:'2026-04-02', desc:'Финальная оплата при сдаче'},
-  {obj:'o5', dir:'out', cat:'materials',    amount:1_550_000, date:'2026-02-20', desc:'Кабель, светильники'},
-  {obj:'o5', dir:'out', cat:'salary',       amount:560_000,   date:'2026-03-25', desc:'Бригада'},
-  {obj:'o6', dir:'out', cat:'materials',    amount:380_000,   date:'2026-06-10', desc:'Закуп материала под старт (за счёт компании)'},
+const DEMO_TX = [
+  {id:'t1', obj:'o1', dir:'in', cat:'prepayment', amount:4440000, date:'2026-04-08', desc:'Предоплата 30% от заказчика'},
+  {id:'t2', obj:'o1', dir:'in', cat:'stage', amount:3700000, date:'2026-05-20', desc:'Этап 1 — черновая разводка принята'},
+  {id:'t3', obj:'o1', dir:'out', cat:'materials', amount:3900000, date:'2026-04-14', desc:'Кабель ВВГнг, автоматы Schneider'},
+  {id:'t4', obj:'o1', dir:'out', cat:'materials', amount:1850000, date:'2026-05-25', desc:'Щиты, УЗО, лотки'},
+  {id:'t5', obj:'o1', dir:'out', cat:'salary', amount:1600000, date:'2026-05-30', desc:'Бригада, апрель–май'},
+  {id:'t6', obj:'o1', dir:'out', cat:'transport', amount:140000, date:'2026-05-12', desc:'Доставка материала'},
+  {id:'t7', obj:'o2', dir:'in', cat:'prepayment', amount:2820000, date:'2026-04-22', desc:'Предоплата 30%'},
+  {id:'t8', obj:'o2', dir:'out', cat:'materials', amount:2600000, date:'2026-04-28', desc:'Кабель, кабель-каналы'},
+  {id:'t9', obj:'o2', dir:'out', cat:'salary', amount:980000, date:'2026-05-18', desc:'Бригада, май'},
+  {id:'t10', obj:'o2', dir:'out', cat:'transport', amount:90000, date:'2026-05-02', desc:'Логистика'},
+  {id:'t11', obj:'o3', dir:'in', cat:'prepayment', amount:1560000, date:'2026-05-06', desc:'Предоплата 30%'},
+  {id:'t12', obj:'o3', dir:'out', cat:'materials', amount:780000, date:'2026-05-10', desc:'Кабель силовой'},
+  {id:'t13', obj:'o3', dir:'out', cat:'salary', amount:420000, date:'2026-05-28', desc:'Бригада'},
+  {id:'t14', obj:'o4', dir:'in', cat:'prepayment', amount:1950000, date:'2026-03-30', desc:'Предоплата 25%'},
+  {id:'t15', obj:'o4', dir:'in', cat:'stage', amount:1500000, date:'2026-05-15', desc:'Этап 1'},
+  {id:'t16', obj:'o4', dir:'out', cat:'materials', amount:3700000, date:'2026-04-05', desc:'Кабель, СИП, столбы'},
+  {id:'t17', obj:'o4', dir:'out', cat:'salary', amount:1350000, date:'2026-05-22', desc:'Бригада + спецтехника'},
+  {id:'t18', obj:'o4', dir:'out', cat:'transport', amount:260000, date:'2026-04-18', desc:'Доставка, аренда крана'},
+  {id:'t19', obj:'o5', dir:'in', cat:'prepayment', amount:990000, date:'2026-02-12', desc:'Предоплата 30%'},
+  {id:'t20', obj:'o5', dir:'in', cat:'final', amount:2110000, date:'2026-04-02', desc:'Финальная оплата при сдаче'},
+  {id:'t21', obj:'o5', dir:'out', cat:'materials', amount:1550000, date:'2026-02-20', desc:'Кабель, светильники'},
+  {id:'t22', obj:'o5', dir:'out', cat:'salary', amount:560000, date:'2026-03-25', desc:'Бригада'},
+  {id:'t23', obj:'o6', dir:'out', cat:'materials', amount:380000, date:'2026-06-10', desc:'Закуп материала под старт'},
 ];
 
-const debts = [
-  {obj:'o1', supplier:'Кабель-Маркет KZ',  amount:1_200_000, taken:'2026-05-25', due:'2026-06-25', status:'open'},
-  {obj:'o3', supplier:'ЭлектроОпт',        amount:1_640_000, taken:'2026-05-10', due:'2026-06-24', status:'open'},
-  {obj:'o3', supplier:'СветТехника',       amount:520_000,   due:'2026-07-15', taken:'2026-05-29', status:'open'},
-  {obj:'o4', supplier:'Кабель-Маркет KZ',  amount:900_000,   taken:'2026-04-05', due:'2026-06-28', status:'open'},
-  {obj:'o2', supplier:'ЭлектроОпт',        amount:620_000,   taken:'2026-04-28', due:'2026-06-10', status:'paid', paid:'2026-06-08'},
+const DEMO_DEBTS = [
+  {id:'d1', obj:'o1', supplier:'Кабель-Маркет KZ', amount:1200000, taken:'2026-05-25', due:'2026-06-25', status:'open'},
+  {id:'d2', obj:'o3', supplier:'ЭлектроОпт', amount:1640000, taken:'2026-05-10', due:'2026-06-24', status:'open'},
+  {id:'d3', obj:'o3', supplier:'СветТехника', amount:520000, taken:'2026-05-29', due:'2026-07-15', status:'open'},
+  {id:'d4', obj:'o4', supplier:'Кабель-Маркет KZ', amount:900000, taken:'2026-04-05', due:'2026-06-28', status:'open'},
+  {id:'d5', obj:'o2', supplier:'ЭлектроОпт', amount:620000, taken:'2026-04-28', due:'2026-06-10', status:'paid', paid:'2026-06-08'},
 ];
 
-const transfers = [
-  {from:'o1', to:'o2', amount:1_200_000, date:'2026-04-26', note:'Аванс o2 не покрыл закуп — добрали с o1'},
-  {from:'o1', to:'o4', amount:800_000,   date:'2026-04-30', note:'Срочный закуп СИП на Ак-Жол'},
-  {from:'o5', to:'o3', amount:700_000,   date:'2026-05-08', note:'Деньги закрытого ресторана пошли на склад'},
-  {from:'o2', to:'o6', amount:380_000,   date:'2026-06-10', note:'Старт автосалона за счёт остатка o2'},
+const DEMO_TRANSFERS = [
+  {id:'tr1', from:'o1', to:'o2', amount:1200000, date:'2026-04-26', note:'Аванс o2 не покрыл закуп — добрали с o1'},
+  {id:'tr2', from:'o1', to:'o4', amount:800000, date:'2026-04-30', note:'Срочный закуп СИП на Ак-Жол'},
+  {id:'tr3', from:'o5', to:'o3', amount:700000, date:'2026-05-08', note:'Деньги закрытого ресторана пошли на склад'},
+  {id:'tr4', from:'o2', to:'o6', amount:380000, date:'2026-06-10', note:'Старт автосалона за счёт остатка o2'},
 ];
 
-/* ============ РАСЧЁТЫ ============ */
-const fmt = n => (n<0?'−':'') + Math.abs(Math.round(n)).toLocaleString('ru-RU') + ' ₸';
-const fmtShort = n => {const a=Math.abs(n); const s=n<0?'−':''; if(a>=1e6)return s+(a/1e6).toFixed(1).replace('.0','')+' млн'; if(a>=1e3)return s+Math.round(a/1e3)+' тыс'; return s+a;};
-const byId = id => objects.find(o=>o.id===id);
+// ============================================================
+// STATE
+// ============================================================
+function loadState() {
+  try {
+    const raw = localStorage.getItem('rl_finance_v1');
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && s.objects && s.tx) return s;
+    }
+  } catch(e) {}
+  return {
+    objects: JSON.parse(JSON.stringify(DEMO_OBJECTS)),
+    tx: JSON.parse(JSON.stringify(DEMO_TX)),
+    debts: JSON.parse(JSON.stringify(DEMO_DEBTS)),
+    transfers: JSON.parse(JSON.stringify(DEMO_TRANSFERS)),
+  };
+}
 
-const catMeta = {
-  prepayment:{label:'Предоплата', color:'#A7CD74'},
-  stage:{label:'Этап', color:'#7fc4a6'},
-  final:{label:'Финал. оплата', color:'#5fb7a8'},
-  materials:{label:'Материалы', color:'#e0735f'},
-  salary:{label:'Зарплата', color:'#e7b85c'},
-  transport:{label:'Логистика', color:'#c98bd0'},
-  other:{label:'Прочее', color:'#8fa89f'},
-};
+function saveState() {
+  localStorage.setItem('rl_finance_v1', JSON.stringify({objects, tx, debts, transfers}));
+}
 
-const incomeCats  = ['prepayment','stage','final'];
-const expenseCats = ['materials','salary','transport','other'];
+let state = loadState();
+let objects = state.objects;
+let tx = state.tx;
+let debts = state.debts;
+let transfers = state.transfers;
 
-function calc(o){
-  const t = tx.filter(x=>x.obj===o.id);
-  const received = t.filter(x=>x.dir==='in').reduce((s,x)=>s+x.amount,0);
-  const paidOut  = t.filter(x=>x.dir==='out').reduce((s,x)=>s+x.amount,0);
-  const objDebts = debts.filter(d=>d.obj===o.id);
+// UI state
+let activeObjTab = 'overview';
+let activeFilter = 'all';
+let activeTxCat = 'all';
+let _modalDir = 'in';
+let _modalObjId = null;
+let _modalAmount = '';
+let _trFrom = null;
+let _modalTab = 'tx';
+
+// ============================================================
+// FINANCIAL MODEL
+// ============================================================
+function calcObj(obj) {
+  const id = obj.id;
+  const objTx = tx.filter(t => t.obj === id);
+  const received = objTx.filter(t => t.dir==='in').reduce((s,t)=>s+t.amount,0);
+  const paidOut = objTx.filter(t => t.dir==='out').reduce((s,t)=>s+t.amount,0);
+  const matPaid = objTx.filter(t=>t.dir==='out'&&t.cat==='materials').reduce((s,t)=>s+t.amount,0);
+  const salary = objTx.filter(t=>t.dir==='out'&&t.cat==='salary').reduce((s,t)=>s+t.amount,0);
+  const transport = objTx.filter(t=>t.dir==='out'&&(t.cat==='transport'||t.cat==='other')).reduce((s,t)=>s+t.amount,0);
+
+  const objDebts = debts.filter(d=>d.obj===id);
   const debtOpen = objDebts.filter(d=>d.status==='open').reduce((s,d)=>s+d.amount,0);
-  const debtAll  = objDebts.reduce((s,d)=>s+d.amount,0);
-  const materialsPaid = t.filter(x=>x.cat==='materials').reduce((s,x)=>s+x.amount,0);
-  const salary = t.filter(x=>x.cat==='salary').reduce((s,x)=>s+x.amount,0);
-  const transport = t.filter(x=>x.cat==='transport'||x.cat==='other').reduce((s,x)=>s+x.amount,0);
+  const debtAll = objDebts.reduce((s,d)=>s+d.amount,0);
+
+  const tOut = transfers.filter(t=>t.from===id).reduce((s,t)=>s+t.amount,0);
+  const tIn  = transfers.filter(t=>t.to===id).reduce((s,t)=>s+t.amount,0);
+
   const totalCost = paidOut + debtAll;
-  const profit = o.contract - totalCost;
-  const out = transfers.filter(x=>x.from===o.id).reduce((s,x)=>s+x.amount,0);
-  const inn = transfers.filter(x=>x.to===o.id).reduce((s,x)=>s+x.amount,0);
-  const cashBalance = received - paidOut - out + inn - debtOpen;
-  return {received,paidOut,debtOpen,debtAll,materialsPaid,salary,transport,totalCost,profit,out,inn,cashBalance};
+  const profit = obj.contract - totalCost;
+  const margin = obj.contract > 0 ? profit/obj.contract*100 : 0;
+  const cashBalance = received - paidOut - tOut + tIn - debtOpen;
+
+  const f = obj.funds;
+  const funds = {
+    materials:{pct:f.materials, allocated:received*f.materials/100, spent:matPaid},
+    salary:   {pct:f.salary,    allocated:received*f.salary/100,    spent:salary},
+    logistics:{pct:f.logistics, allocated:received*f.logistics/100, spent:transport},
+    profit:   {pct:f.profit,    allocated:received*f.profit/100,    spent:0},
+    reserve:  {pct:f.reserve,   allocated:received*f.reserve/100,   spent:0},
+  };
+  Object.keys(funds).forEach(k=>{ funds[k].balance = funds[k].allocated - funds[k].spent; });
+
+  let risk = 'ok';
+  if (cashBalance < -300000 || profit < 0) risk = 'hi';
+  else if (cashBalance < 300000 || margin < 12) risk = 'mid';
+
+  return {received, paidOut, matPaid, salary, transport,
+          debtOpen, debtAll, tOut, tIn,
+          totalCost, profit, margin, cashBalance, funds, risk};
 }
 
-function riskLevel(o,c){
-  if(o.status==='active' && c.cashBalance < -300_000) return 'hi';
-  if(o.profit < 0) return 'hi';
-  if(o.status==='active' && c.cashBalance < 300_000) return 'mid';
-  if(c.debtOpen > c.received*0.6 && o.status==='active') return 'mid';
-  return 'ok';
-}
-
-function fmtDate(s){const[y,m,d]=s.split('-');const mo=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];return d+' '+mo[+m-1];}
-
-const statusLabel={active:'В работе',planning:'План',done:'Сдан',paused:'Пауза'};
-const today=new Date('2026-06-22');
-
-/* ============ STATE ============ */
-let currentObj=null, activeFilter='all';
-let currentView='table'; // 'table' | 'cards'
-
-/* ============ renderAll ============ */
-function renderAll(){
-  renderKPIs();
-  renderObjectsTable();
-  renderObjectsCards();
-  renderFlowMap();
-  renderDebts();
-  renderRisks();
-  if(currentObj != null) openDetail(currentObj, null);
-}
-
-/* ============ KPIs ============ */
-function renderKPIs(){
-  let totalProfit=0,totalReceived=0,totalPaid=0,totalDebtOpen=0,riskCount=0;
-  objects.forEach(o=>{
-    const c=calc(o);
-    totalProfit += o.contract - c.totalCost;
-    totalReceived += c.received;
-    totalPaid += c.paidOut;
-    totalDebtOpen += c.debtOpen;
-    if(riskLevel(o,c)==='hi') riskCount++;
-  });
-  const totalCash = totalReceived - totalPaid;
-  const reserve = Math.round(totalReceived*0.35);
+function calcGlobal() {
+  const all = objects.map(o=>({obj:o, c:calcObj(o)}));
+  const totalCash = all.reduce((s,x)=>s+x.c.received-x.c.paidOut, 0);
+  const totalDebtOpen = all.reduce((s,x)=>s+x.c.debtOpen, 0);
+  const reserve = totalCash > 0 ? Math.round(totalCash * 0.35) : 0;
   const freeCash = totalCash - totalDebtOpen - reserve;
-
-  document.getElementById('kpiProfit').textContent = fmt(totalProfit);
-  document.getElementById('kpiCash').textContent = fmt(totalCash);
-  document.getElementById('kpiFree').textContent = fmt(freeCash);
-  document.getElementById('kpiRisk').textContent = riskCount + ' из ' + objects.length;
-
-  document.getElementById('insightText').innerHTML =
-    `На счету <b>${fmt(totalCash)}</b>, но свободно лишь <b>${fmt(freeCash)}</b>. ` +
-    `Разница — это ${fmt(totalDebtOpen)} долгов поставщикам и ~${fmt(reserve)} чужих предоплат по незавершённым объектам. ` +
-    `Прибыль <b>${fmt(totalProfit)}</b> существует «на бумаге», но часть её ещё не получена деньгами. ` +
-    `<b>${riskCount}</b> объекта финансируются за счёт других.`;
+  const totalProfit = all.reduce((s,x)=>s+x.c.profit, 0);
+  const riskCount = all.filter(x=>x.c.risk==='hi').length;
+  const keys = ['materials','salary','logistics','profit','reserve'];
+  const ft = {};
+  keys.forEach(k=>{ ft[k]={allocated:0,spent:0}; });
+  all.forEach(x=>keys.forEach(k=>{
+    ft[k].allocated += x.c.funds[k].allocated;
+    ft[k].spent += x.c.funds[k].spent;
+  }));
+  return {totalCash, totalDebtOpen, reserve, freeCash, totalProfit, riskCount, all, ft};
 }
 
-/* ============ Objects Table ============ */
-function renderObjectsTable(){
-  const objBody=document.getElementById('objBody');
-  objBody.innerHTML='';
-  let sumContract=0,sumRec=0,sumCost=0,sumProfit=0,sumBal=0;
-  objects.forEach(o=>{
-    const c=calc(o);
-    sumContract+=o.contract; sumRec+=c.received; sumCost+=c.totalCost; sumProfit+=o.contract-c.totalCost; sumBal+=c.cashBalance;
-    const rk=riskLevel(o,c);
-    const rkLabel={hi:'Высокий',mid:'Средний',ok:'Норма'}[rk];
-    const profit=o.contract-c.totalCost;
-    const marginPct=Math.round(profit/o.contract*100);
-    const tr=document.createElement('tr');
-    tr.dataset.id=o.id;
-    tr.innerHTML=`
-      <td>
-        <div class="obj-name">
-          <span class="dot" style="background:${o.color}"></span>
-          <span class="meta"><b>${o.name}</b><s>${o.customer}</s></span>
-        </div>
-      </td>
-      <td><span class="chip ${o.status}">${statusLabel[o.status]}</span></td>
-      <td class="num mut">${fmtShort(o.contract)}</td>
-      <td class="num hide-sm">${fmtShort(c.received)}</td>
-      <td class="num hide-sm">${fmtShort(c.totalCost)}</td>
-      <td class="num ${profit>=0?'pos':'neg'}">${fmtShort(profit)}
-          <span class="bar"><i style="width:${Math.max(4,Math.min(100,marginPct*2.4))}%;background:${profit>=0?'var(--good)':'var(--bad)'}"></i></span>
-      </td>
-      <td class="num ${c.cashBalance>=0?'pos':'neg'}">${fmtShort(c.cashBalance)}</td>
-      <td><span class="risk-led ${rk}"><span class="l"></span>${rkLabel}</span></td>`;
-    tr.addEventListener('click',()=>openDetail(o.id, tr));
-    objBody.appendChild(tr);
+// ============================================================
+// FORMATTERS
+// ============================================================
+const MONTHS = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+function fmt(n){ return Math.round(n).toLocaleString('ru-RU')+' ₸'; }
+function fmtS(n){
+  const a=Math.abs(n), s=n<0?'−':'';
+  if(a>=1000000) return s+(a/1000000).toFixed(1).replace('.',',')+' млн';
+  if(a>=1000) return s+Math.round(a/1000)+' тыс';
+  return s+Math.round(a)+' ₸';
+}
+function fmtD(str){
+  if(!str) return '—';
+  const d=new Date(str);
+  return d.getDate()+' '+MONTHS[d.getMonth()];
+}
+function fmtDL(str){
+  if(!str) return '—';
+  const d=new Date(str);
+  return d.getDate()+' '+MONTHS[d.getMonth()]+' '+d.getFullYear();
+}
+function daysTo(str){
+  const now=new Date(TODAY), due=new Date(str);
+  return Math.round((due-now)/86400000);
+}
+function oBy(id){ return objects.find(o=>o.id===id); }
+
+// ============================================================
+// CHIPS / LABELS
+// ============================================================
+function statusChip(s){
+  const m={active:'chip-green',planning:'chip-violet',done:'chip-gray',paused:'chip-red'};
+  const l={active:'В работе',planning:'Планирование',done:'Сдан',paused:'Пауза'};
+  return `<span class="chip ${m[s]||'chip-gray'}">${l[s]||s}</span>`;
+}
+function riskChip(r){
+  if(r==='hi') return '<span class="chip chip-red">⚡ Риск</span>';
+  if(r==='mid') return '<span class="chip chip-amber">⚠ Внимание</span>';
+  return '<span class="chip chip-green">✓ Норма</span>';
+}
+function catL(c){
+  return {prepayment:'Предоплата',stage:'Этап',final:'Финал',materials:'Материалы',
+          salary:'Зарплата',transport:'Логистика',other:'Прочее'}[c]||c;
+}
+
+const FUND_KEYS = ['materials','salary','logistics','profit','reserve'];
+const FUND_LABELS = {materials:'Материалы',salary:'Зарплата',logistics:'Логистика',profit:'Прибыль',reserve:'Резерв'};
+const FUND_COLORS = {materials:'#4d8df5',salary:'#34d399',logistics:'#22d3ee',profit:'#fbbf24',reserve:'#a78bfa'};
+
+// ============================================================
+// SVG HELPERS
+// ============================================================
+function svgGauge(value, max, color, size=180){
+  const pct = max>0 ? Math.max(0,Math.min(1,value/max)) : 0;
+  const r = size/2-14, cx=size/2, cy=size/2;
+  const circ = Math.PI*r;
+  const dash = (pct*circ).toFixed(2);
+  return `<svg width="${size}" height="${Math.round(size/2)+22}" viewBox="0 0 ${size} ${Math.round(size/2)+22}" style="display:block">
+    <path d="M ${cx-r},${cy} A ${r},${r} 0 0,1 ${cx+r},${cy}" fill="none" stroke="var(--surface-3)" stroke-width="14" stroke-linecap="round"/>
+    <path d="M ${cx-r},${cy} A ${r},${r} 0 0,1 ${cx+r},${cy}" fill="none" stroke="${color}" stroke-width="14" stroke-linecap="round"
+          stroke-dasharray="${dash} ${circ.toFixed(2)}"/>
+    <text x="${cx}" y="${cy+2}" text-anchor="middle" fill="${color}" font-size="22" font-weight="700" font-family="Inter,sans-serif">${Math.round(pct*100)}%</text>
+    <text x="${cx}" y="${cy+18}" text-anchor="middle" fill="var(--text-mute)" font-size="11" font-family="Inter,sans-serif">${fmtS(value)} / ${fmtS(max)}</text>
+  </svg>`;
+}
+
+function bar(value, max, color, h=7){
+  const pct = max>0 ? Math.max(0,Math.min(100,value/max*100)).toFixed(1) : 0;
+  return `<div style="background:var(--surface-3);border-radius:4px;height:${h}px;overflow:hidden">
+    <div style="width:${pct}%;height:100%;background:${color};border-radius:4px;transition:.3s"></div>
+  </div>`;
+}
+
+function buildDonut(slices, size=130){
+  const total = slices.reduce((s,x)=>s+x.v,0);
+  if(!total) return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size/2}" cy="${size/2}" r="${size/2-12}" fill="none" stroke="var(--surface-3)" stroke-width="18"/></svg>`;
+  const cx=size/2, cy=size/2, ro=size/2-10, ri=size/2-28;
+  let angle=-Math.PI/2, paths='';
+  slices.forEach(s=>{
+    const a = s.v/total*Math.PI*2;
+    const x1=cx+ro*Math.cos(angle), y1=cy+ro*Math.sin(angle);
+    const x2=cx+ro*Math.cos(angle+a), y2=cy+ro*Math.sin(angle+a);
+    const ix1=cx+ri*Math.cos(angle), iy1=cy+ri*Math.sin(angle);
+    const ix2=cx+ri*Math.cos(angle+a), iy2=cy+ri*Math.sin(angle+a);
+    const lg=a>Math.PI?1:0;
+    paths+=`<path d="M ${ix1.toFixed(1)},${iy1.toFixed(1)} L ${x1.toFixed(1)},${y1.toFixed(1)} A ${ro},${ro} 0 ${lg},1 ${x2.toFixed(1)},${y2.toFixed(1)} L ${ix2.toFixed(1)},${iy2.toFixed(1)} A ${ri},${ri} 0 ${lg},0 ${ix1.toFixed(1)},${iy1.toFixed(1)} Z" fill="${s.color}" opacity=".85"/>`;
+    angle+=a;
   });
-  document.getElementById('objFoot').innerHTML=`
-    <tr><td>Итого</td><td></td>
-    <td class="num">${fmtShort(sumContract)}</td>
-    <td class="num hide-sm">${fmtShort(sumRec)}</td>
-    <td class="num hide-sm">${fmtShort(sumCost)}</td>
-    <td class="num ${sumProfit>=0?'pos':'neg'}">${fmtShort(sumProfit)}</td>
-    <td class="num ${sumBal>=0?'pos':'neg'}">${fmtShort(sumBal)}</td>
-    <td></td></tr>`;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex-shrink:0">${paths}</svg>`;
 }
 
-/* ============ Objects Cards ============ */
-function renderObjectsCards(){
-  const grid=document.getElementById('objCards');
-  grid.innerHTML='';
-  objects.forEach(o=>{
-    const c=calc(o);
-    const rk=riskLevel(o,c);
-    const rkLabel={hi:'Высокий',mid:'Средний',ok:'Норма'}[rk];
-    const rkColor={hi:'var(--bad)',mid:'var(--warn)',ok:'var(--good)'}[rk];
-    const profit=o.contract-c.totalCost;
-    const marginPct=Math.round(profit/o.contract*100);
-    const recvPct=Math.min(100,Math.round(c.received/o.contract*100));
-    const card=document.createElement('div');
-    card.className='obj-card';
-    card.innerHTML=`
-      <div class="card-bar" style="background:${o.color}"></div>
-      <div class="card-body">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-          <span class="card-title">${o.name}</span>
-          <span class="chip ${o.status}">${statusLabel[o.status]}</span>
+// ============================================================
+// ROUTING
+// ============================================================
+function go(h){ window.location.hash=h; }
+
+function router(){
+  const h = window.location.hash||'#dashboard';
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  if(h==='#dashboard') { document.getElementById('nav-dashboard')?.classList.add('active'); renderDashboard(); }
+  else if(h==='#objects') { document.getElementById('nav-objects')?.classList.add('active'); renderObjects(); }
+  else if(h.startsWith('#object/')) { document.getElementById('nav-objects')?.classList.add('active'); renderDetail(h.replace('#object/','')); }
+  else renderDashboard();
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard(){
+  document.getElementById('topbar-title').textContent='Дашборд';
+  document.getElementById('topbar-bc').textContent=TODAY;
+  document.getElementById('topbar-actions').innerHTML=`<button class="btn btn-primary btn-sm" onclick="openModal()">＋ Транзакция</button>`;
+
+  const g=calcGlobal();
+  const fcColor = g.freeCash<0?'var(--red)':g.freeCash<500000?'var(--amber)':'var(--green)';
+
+  // Build risks
+  const risks=[];
+  g.all.forEach(({obj,c})=>{
+    if(c.profit<0) risks.push({lv:'hi',txt:'Убыточный проект',sub:`${obj.name} · маржа ${c.margin.toFixed(0)}%`});
+    else if(c.cashBalance < -300000) risks.push({lv:'hi',txt:`Отрицательное сальдо ${fmtS(c.cashBalance)}`,sub:obj.name});
+    else if(c.margin<12) risks.push({lv:'mid',txt:`Низкая маржа ${c.margin.toFixed(0)}%`,sub:obj.name});
+    else if(c.cashBalance<300000&&obj.status!=='done'&&obj.status!=='planning') risks.push({lv:'mid',txt:`Сальдо близко к нулю ${fmtS(c.cashBalance)}`,sub:obj.name});
+  });
+  debts.filter(d=>d.status==='open').forEach(d=>{
+    const days=daysTo(d.due);
+    if(days<=3) risks.unshift({lv:'hi',txt:`Долг горит: ${d.supplier} — ${fmtS(d.amount)}`,sub:`Срок: ${fmtD(d.due)} (${days<0?'просрочен!':days+'д'})`});
+    else if(days<=7) risks.push({lv:'mid',txt:`Долг через ${days}д: ${d.supplier}`,sub:`${fmt(d.amount)} · до ${fmtD(d.due)}`});
+  });
+
+  const wTotal = Math.max(g.totalCash,1);
+  const wD = (g.totalDebtOpen/wTotal*100).toFixed(1);
+  const wR = (g.reserve/wTotal*100).toFixed(1);
+  const wF = Math.max(0,g.freeCash/wTotal*100).toFixed(1);
+
+  document.getElementById('page-content').innerHTML=`
+    <!-- KPI -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Денег на счету</div>
+        <div class="kpi-value">${fmtS(g.totalCash)}</div>
+        <div class="kpi-sub">Физически в компании</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Свободные деньги</div>
+        <div class="kpi-value" style="color:${fcColor}">${fmtS(g.freeCash)}</div>
+        <div class="kpi-sub">После долгов и резерва</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Прибыль (план)</div>
+        <div class="kpi-value" style="color:${g.totalProfit>=0?'var(--green)':'var(--red)'}">${g.totalProfit>=0?'+':''}${fmtS(g.totalProfit)}</div>
+        <div class="kpi-sub">По всем договорам</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Объекты в риске</div>
+        <div class="kpi-value" style="color:${g.riskCount>0?'var(--red)':'var(--text)'}">${g.riskCount} <span style="font-size:14px;font-weight:400;color:var(--text-mute)">/ ${objects.length}</span></div>
+        <div class="kpi-sub">${g.riskCount===0?'Все в норме':'Требуют внимания'}</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
+      <!-- CASH WATERFALL -->
+      <div class="card">
+        <div class="card-title">Структура денег на счету</div>
+        <div style="font-size:12px;color:var(--text-mute);margin-bottom:6px">Всего: <strong style="color:var(--text);font-size:14px">${fmt(g.totalCash)}</strong></div>
+        <div class="waterfall">
+          <div style="width:${wD}%;background:var(--red);opacity:.8;min-width:${wD>0?3:0}px"></div>
+          <div style="width:${wR}%;background:var(--amber);opacity:.8;min-width:${wR>0?3:0}px"></div>
+          <div style="width:${wF}%;background:var(--green);opacity:.8;min-width:${wF>0?3:0}px"></div>
         </div>
-        <div class="card-cust">${o.customer}</div>
-        <div class="card-progress-label">
-          <span>Получено / Договор</span>
-          <span class="num" style="font-size:12px">${fmtShort(c.received)} / ${fmtShort(o.contract)}</span>
+        <div class="wf-legend">
+          <div class="wf-legend-item"><div class="wf-dot" style="background:var(--red)"></div><span style="color:var(--text-mute)">Долги: </span>&nbsp;<strong style="color:var(--red)">${fmt(g.totalDebtOpen)}</strong></div>
+          <div class="wf-legend-item"><div class="wf-dot" style="background:var(--amber)"></div><span style="color:var(--text-mute)">Резерв 35%: </span>&nbsp;<strong style="color:var(--amber)">${fmt(g.reserve)}</strong></div>
+          <div class="wf-legend-item"><div class="wf-dot" style="background:var(--green)"></div><span style="color:var(--text-mute)">Свободно: </span>&nbsp;<strong style="color:${fcColor}">${fmt(g.freeCash)}</strong></div>
         </div>
-        <div class="card-progress-bar"><i style="width:${recvPct}%;background:${o.color}"></i></div>
-        <div class="card-stats">
-          <div class="card-stat">
-            <div class="st-label">Прибыль</div>
-            <div class="st-val num ${profit>=0?'pos':'neg'}">${fmtShort(profit)}</div>
-            <div class="st-sub num ${marginPct>=0?'pos':'neg'}">${marginPct}% маржа</div>
-          </div>
-          <div class="card-stat">
-            <div class="st-label">Сальдо</div>
-            <div class="st-val num ${c.cashBalance>=0?'pos':'neg'}">${fmtShort(c.cashBalance)}</div>
-            <div class="st-sub" style="color:var(--txt-faint)">денежное</div>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:0">
+          <div class="cf-row"><span class="cf-label">Всего на счету</span><span class="cf-val">${fmt(g.totalCash)}</span></div>
+          <div class="cf-row"><span class="cf-label" style="color:var(--red)">− Долги поставщикам</span><span class="cf-val" style="color:var(--red)">−${fmt(g.totalDebtOpen)}</span></div>
+          <div class="cf-row"><span class="cf-label" style="color:var(--amber)">− Резерв 35% (незавершёнка)</span><span class="cf-val" style="color:var(--amber)">−${fmt(g.reserve)}</span></div>
+          <div class="cf-row" style="border-top:2px solid var(--line-2);margin-top:4px;padding-top:10px">
+            <span class="cf-label" style="font-weight:700;color:var(--text)">= Свободные деньги</span>
+            <span class="cf-val" style="font-size:15px;color:${fcColor}">${fmt(g.freeCash)}</span>
           </div>
         </div>
       </div>
-      <div class="card-bottom">
-        <span class="risk-led ${rk}"><span class="l"></span>${rkLabel} риск</span>
-      </div>`;
-    card.addEventListener('click',()=>openDetail(o.id, null));
-    grid.appendChild(card);
-  });
+
+      <!-- FUNDS OVERVIEW -->
+      <div class="card">
+        <div class="card-title">Фонды по всем объектам</div>
+        ${FUND_KEYS.map(k=>{
+          const ft=g.ft[k];
+          const pct = ft.allocated>0 ? ft.spent/ft.allocated*100 : 0;
+          const bal = ft.allocated - ft.spent;
+          return `<div class="fo-row">
+            <div class="fo-label">
+              <span style="color:${FUND_COLORS[k]};font-weight:600">${FUND_LABELS[k]}</span>
+              <span style="color:var(--text-mute)">${fmtS(ft.allocated)} выд. · <span style="color:var(--text)">${fmtS(bal)}</span> остаток</span>
+            </div>
+            <div class="fo-bar-track">
+              <div style="width:${pct.toFixed(1)}%;background:${FUND_COLORS[k]};opacity:.9;transition:.3s"></div>
+              <div style="flex:1;background:${FUND_COLORS[k]};opacity:.18"></div>
+            </div>
+          </div>`;
+        }).join('')}
+        <div style="font-size:11px;color:var(--text-mute);margin-top:8px">Тёмная — потрачено, светлая — доступный остаток</div>
+      </div>
+    </div>
+
+    <!-- PROJECT STRIP -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:600;color:var(--text-dim)">Объекты — быстрый обзор</div>
+      <button class="btn btn-ghost btn-sm" onclick="go('#objects')">Все объекты →</button>
+    </div>
+    <div class="proj-strip">
+      ${g.all.map(({obj,c})=>{
+        const bc=c.cashBalance<0?'var(--red)':c.cashBalance<300000?'var(--amber)':'var(--green)';
+        return `<div class="proj-mini" onclick="go('#object/${obj.id}')">
+          <div style="display:flex;align-items:center;gap=6px;margin-bottom:6px">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${obj.color};margin-right:6px"></span>
+            <span style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">${obj.name.replace(/«.*?»/,'').trim()||obj.name}</span>
+          </div>
+          <div style="font-size:13px;font-weight:700;color:${bc};margin-bottom:6px">${fmtS(c.cashBalance)}</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">${riskChip(c.risk)} ${statusChip(obj.status)}</div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <!-- RISKS -->
+      <div class="card">
+        <div class="card-title">Сигналы рисков</div>
+        ${risks.length===0
+          ? `<div style="color:var(--green);font-size:13px;padding:8px 0">✓ Критических рисков не обнаружено</div>`
+          : risks.map(r=>`<div class="risk-item">
+              <div class="risk-dot" style="background:${r.lv==='hi'?'var(--red)':'var(--amber)'}"></div>
+              <div>
+                <div style="font-size:13px">${r.txt}</div>
+                <div style="font-size:11px;color:var(--text-mute);margin-top:2px">${r.sub}</div>
+              </div>
+            </div>`).join('')}
+      </div>
+
+      <!-- DEBTS -->
+      <div class="card">
+        <div class="card-title">Долги поставщикам</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Поставщик</th><th>Объект</th><th>Сумма</th><th>Срок</th><th>Статус</th></tr></thead>
+            <tbody>
+              ${debts.sort((a,b)=>new Date(a.due)-new Date(b.due)).map(d=>{
+                const days=daysTo(d.due);
+                const cls=d.status==='open'&&days<=2?'debt-hot':d.status==='open'&&days<=7?'debt-warn':'';
+                const o=oBy(d.obj);
+                return `<tr class="${cls}">
+                  <td>${d.supplier}</td>
+                  <td style="color:var(--text-mute);font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o?.name||''}</td>
+                  <td style="color:var(--red);font-weight:600;white-space:nowrap">${fmtS(d.amount)}</td>
+                  <td style="font-size:12px;white-space:nowrap">${fmtD(d.due)}${d.status==='open'?`<span style="color:${days<=2?'var(--red)':days<=7?'var(--amber)':'var(--text-mute)'}"> ${days<0?'просрочен':days+'д'}</span>`:''}</td>
+                  <td>${d.status==='paid'?'<span class="chip chip-green">Оплачен</span>':days<0?'<span class="chip chip-red">Просрочен</span>':'<span class="chip chip-amber">Открыт</span>'}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
-/* ============ Flow Map ============ */
-function renderFlowMap(){
-  const W=1180, rowH=120, pad=70;
-  const nodes=objects.filter(o=>transfers.some(t=>t.from===o.id||t.to===o.id));
-  const colGap=(W-pad*2)/(nodes.length-1);
-  const pos={};
-  nodes.forEach((o,i)=>pos[o.id]={x:pad+i*colGap, y:rowH});
-  const net={};
-  nodes.forEach(o=>net[o.id]=0);
-  transfers.forEach(t=>{net[t.from]-=t.amount; net[t.to]+=t.amount;});
+// ============================================================
+// OBJECTS PAGE
+// ============================================================
+function renderObjects(){
+  document.getElementById('topbar-title').textContent='Объекты';
+  document.getElementById('topbar-bc').textContent='';
+  document.getElementById('topbar-actions').innerHTML=`<button class="btn btn-ghost btn-sm" onclick="alert('Добавить объект — в разработке')">+ Объект</button>`;
 
-  let svg=`<svg viewBox="0 0 ${W} 260" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">`;
-  svg+=`<defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#046058"/></marker>
-    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#A7CD74" stop-opacity=".7"/><stop offset="1" stop-color="#046058" stop-opacity=".9"/></linearGradient>
-  </defs>`;
+  const filt = activeFilter;
+  const objs = filt==='all' ? objects
+    : filt==='active' ? objects.filter(o=>o.status==='active')
+    : filt==='done'   ? objects.filter(o=>o.status==='done')
+    : objects.filter(o=>o.status==='planning');
 
-  transfers.forEach((t,i)=>{
-    const a=pos[t.from], b=pos[t.to];
-    const mx=(a.x+b.x)/2;
-    const lift=70+(i%2)*26;
-    const cy=rowH-lift;
-    const sw=Math.max(2,Math.min(9,t.amount/350000));
-    svg+=`<path d="M${a.x},${a.y-14} Q${mx},${cy} ${b.x},${b.y-14}" fill="none" stroke="url(#edge)" stroke-width="${sw}" opacity=".85" marker-end="url(#arrow)"/>`;
-    svg+=`<text x="${mx}" y="${cy-6}" fill="#c9e0a3" font-size="12" text-anchor="middle" font-family="var(--font)">${fmtShort(t.amount)}</text>`;
-  });
-
-  nodes.forEach(o=>{
-    const p=pos[o.id];
-    const isDonor=net[o.id]<0;
-    const ring=isDonor?'#A7CD74':(net[o.id]>0?'#e0735f':'#5fb7a8');
-    svg+=`<circle cx="${p.x}" cy="${p.y}" r="26" fill="#13211f" stroke="${ring}" stroke-width="3"/>`;
-    svg+=`<circle cx="${p.x}" cy="${p.y}" r="26" fill="${ring}" opacity=".12"/>`;
-    svg+=`<text x="${p.x}" y="${p.y+5}" fill="${ring}" font-size="15" font-weight="700" text-anchor="middle">${isDonor?'↑':(net[o.id]>0?'↓':'↔')}</text>`;
-    const short=o.name.replace(/«|»/g,'').split(',')[0].split(' ').slice(0,2).join(' ');
-    svg+=`<text x="${p.x}" y="${p.y+48}" fill="#e8f1ec" font-size="12.5" text-anchor="middle" font-weight="600">${short}</text>`;
-    svg+=`<text x="${p.x}" y="${p.y+65}" fill="${isDonor?'#A7CD74':(net[o.id]>0?'#e0735f':'#8fa89f')}" font-size="11.5" text-anchor="middle">${net[o.id]>0?'+':''}${fmtShort(net[o.id])}</text>`;
-  });
-
-  svg+=`</svg>`;
-  document.getElementById('flowMap').innerHTML=svg;
+  document.getElementById('page-content').innerHTML=`
+    <div class="filter-tabs">
+      ${[['all','Все'],['active','В работе'],['done','Сдан'],['planning','Планирование']].map(([v,l])=>
+        `<button class="ftab ${filt===v?'active':''}" onclick="setFilter('${v}')">${l}</button>`
+      ).join('')}
+    </div>
+    <div class="obj-grid">
+      ${objs.map(obj=>{
+        const c=calcObj(obj);
+        const rPct = obj.contract>0 ? c.received/obj.contract*100 : 0;
+        const pcol = c.profit>=0?'var(--green)':'var(--red)';
+        const bcol = c.cashBalance<0?'var(--red)':c.cashBalance<300000?'var(--amber)':'var(--green)';
+        return `<div class="obj-card" onclick="go('#object/${obj.id}')">
+          <div class="obj-card-top" style="background:${obj.color}"></div>
+          <div class="obj-card-body">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+              <div style="font-weight:600;font-size:14px;flex:1;margin-right:8px;line-height:1.3">${obj.name}</div>
+              ${statusChip(obj.status)}
+            </div>
+            <div style="font-size:12px;color:var(--text-mute);margin-bottom:12px">${obj.customer}</div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-mute);margin-bottom:10px">
+              <span>Договор: <strong style="color:var(--text)">${fmtS(obj.contract)}</strong></span>
+              <span>Старт: ${fmtD(obj.startDate)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-mute);margin-bottom:4px">
+              <span>Получено: ${fmtS(c.received)}</span><span>${rPct.toFixed(0)}%</span>
+            </div>
+            ${bar(c.received, obj.contract, obj.color, 6)}
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+              <div>
+                <span style="font-size:11px;color:var(--text-mute)">Прибыль: </span>
+                <span style="font-weight:700;color:${pcol}">${c.profit>=0?'+':''}${fmtS(c.profit)}</span>
+                <span style="font-size:11px;color:var(--text-mute)"> (${c.margin.toFixed(0)}%)</span>
+              </div>
+              ${riskChip(c.risk)}
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px">
+              <span style="color:var(--text-mute)">Сальдо:</span>
+              <span style="font-weight:600;color:${bcol}">${c.cashBalance>=0?'+':''}${fmtS(c.cashBalance)}</span>
+            </div>
+            <!-- Mini funds -->
+            <div style="margin-top:10px">
+              <div style="font-size:10px;color:var(--text-mute);margin-bottom:3px">Фонды (выбрано / выделено)</div>
+              <div style="display:flex;gap:3px;align-items:center">
+                ${FUND_KEYS.map(k=>{
+                  const f=c.funds[k];
+                  const pct=f.allocated>0?Math.min(100,f.spent/f.allocated*100):0;
+                  return `<div style="flex:1;height:5px;background:var(--surface-3);border-radius:2px;overflow:hidden" title="${FUND_LABELS[k]}: ${fmtS(f.balance)} остаток">
+                    <div style="width:${pct.toFixed(0)}%;height:100%;background:${FUND_COLORS[k]}"></div>
+                  </div>`;
+                }).join('')}
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-mute);margin-top:2px">
+                <span>М</span><span>З</span><span>Л</span><span>П</span><span>Р</span>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
 }
 
-/* ============ Debts ============ */
-function renderDebts(){
-  const debtBody=document.getElementById('debtBody');
-  debtBody.innerHTML='';
-  let debtOpenSum=0;
-  debts.sort((a,b)=>a.due.localeCompare(b.due)).forEach(d=>{
-    const o=byId(d.obj);
-    const dd=new Date(d.due);
-    const days=Math.round((dd-today)/86400000);
-    let dueClass='', dueTxt='';
-    if(d.status==='paid'){dueTxt='оплачено '+fmtDate(d.paid);}
-    else{
-      debtOpenSum+=d.amount;
-      if(days<=5){dueClass='soon';dueTxt=days<0?`просрочено ${-days} дн.`:`через ${days} дн.`;}
-      else if(days<=20){dueClass='mid';dueTxt=`через ${days} дн.`;}
-      else dueTxt=`через ${days} дн.`;
-    }
-    const tr=document.createElement('tr');
-    tr.className='debt-row';
-    tr.innerHTML=`
-      <td style="text-align:left">${d.supplier}</td>
-      <td style="text-align:left"><span class="obj-name"><span class="dot" style="background:${o.color}"></span>${o.name}</span></td>
-      <td class="num">${fmt(d.amount)}</td>
-      <td class="num mut">${fmtDate(d.taken)}</td>
-      <td class="num"><span class="due ${dueClass}">${fmtDate(d.due)} · ${dueTxt}</span></td>
-      <td><span class="chip ${d.status==='paid'?'done':'planning'}">${d.status==='paid'?'Оплачен':'Открыт'}</span></td>`;
-    debtBody.appendChild(tr);
-  });
-  document.getElementById('debtFoot').innerHTML=`<tr><td>Открытых долгов</td><td></td><td class="num" style="color:var(--warn)">${fmt(debtOpenSum)}</td><td colspan="3"></td></tr>`;
+function setFilter(f){ activeFilter=f; renderObjects(); }
+
+// ============================================================
+// OBJECT DETAIL
+// ============================================================
+function renderDetail(id){
+  const obj=oBy(id);
+  if(!obj){ go('#objects'); return; }
+  const c=calcObj(obj);
+  document.getElementById('topbar-title').textContent=obj.name;
+  document.getElementById('topbar-bc').innerHTML=`<a href="#objects" style="color:var(--brand)">Объекты</a> / ${obj.name}`;
+  document.getElementById('topbar-actions').innerHTML=`<button class="btn btn-primary btn-sm" onclick="openModal('${id}')">＋ Транзакция</button>`;
+
+  const pcol=c.profit>=0?'var(--green)':'var(--red)';
+  const bcol=c.cashBalance<0?'var(--red)':c.cashBalance<300000?'var(--amber)':'var(--green)';
+
+  document.getElementById('page-content').innerHTML=`
+    <button class="back-btn" onclick="go('#objects')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/></svg>
+      Все объекты
+    </button>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+      <div style="width:12px;height:12px;border-radius:50%;background:${obj.color}"></div>
+      <h2 style="font-size:20px;font-weight:700">${obj.name}</h2>
+      ${statusChip(obj.status)} ${riskChip(c.risk)}
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--text-mute);margin-bottom:0">
+      <span>${obj.customer}</span><span>·</span><span>${obj.addr}</span><span>·</span><span>Старт: ${fmtDL(obj.startDate)}</span>
+    </div>
+    <div class="detail-kpis">
+      <div class="detail-kpi"><div class="detail-kpi-label">Договор</div><div class="detail-kpi-val">${fmtS(obj.contract)}</div></div>
+      <div class="detail-kpi"><div class="detail-kpi-label">Получено</div><div class="detail-kpi-val" style="color:var(--green)">${fmtS(c.received)}</div></div>
+      <div class="detail-kpi"><div class="detail-kpi-label">Прибыль (план)</div><div class="detail-kpi-val" style="color:${pcol}">${c.profit>=0?'+':''}${fmtS(c.profit)}</div></div>
+      <div class="detail-kpi"><div class="detail-kpi-label">Сальдо кассы</div><div class="detail-kpi-val" style="color:${bcol}">${c.cashBalance>=0?'+':''}${fmtS(c.cashBalance)}</div></div>
+    </div>
+    <div style="height:24px"></div>
+    <div class="tabs" id="obj-tabs">
+      ${[['overview','Обзор'],['pl','P&L'],['funds','Фонды'],['transactions','Транзакции']].map(([k,l])=>
+        `<button class="tab ${activeObjTab===k?'active':''}" onclick="setObjTab('${id}','${k}')">${l}</button>`
+      ).join('')}
+    </div>
+    <div id="obj-tab-body"></div>
+  `;
+  renderObjTab(id);
 }
 
-/* ============ Risks ============ */
-function renderRisks(){
-  const riskCards=[];
-  objects.forEach(o=>{
-    const c=calc(o);
-    if(o.status==='active' && c.cashBalance<0){
-      riskCards.push({lvl:'hi',title:o.name,
-        text:`Денежное сальдо <b>${fmt(c.cashBalance)}</b> — объект потратил больше, чем получил, и финансируется деньгами других проектов. Когда придёт срок своих расходов, денег не будет.`});
-    }
+function setObjTab(id,tab){
+  activeObjTab=tab;
+  document.querySelectorAll('#obj-tabs .tab').forEach((t,i)=>{
+    const k=['overview','pl','funds','transactions'][i];
+    t.classList.toggle('active',k===tab);
   });
-  debts.filter(d=>d.status==='open').forEach(d=>{
-    const dd=new Date(d.due); const days=Math.round((dd-today)/86400000);
-    const o=byId(d.obj); const c=calc(o);
-    if(days<=5){
-      riskCards.push({lvl:'hi',title:`Долг: ${d.supplier}`,
-        text:`По объекту «${o.name}» нужно оплатить <b>${fmt(d.amount)}</b> ${days<0?`(просрочено ${-days} дн.)`:`через ${days} дн.`} а денежное сальдо объекта ${fmt(c.cashBalance)}.`});
-    }
-  });
-  objects.forEach(o=>{
-    const c=calc(o); const profit=o.contract-c.totalCost;
-    if(profit<0) riskCards.push({lvl:'hi',title:o.name,text:`Фактическая себестоимость превысила договор. Объект уходит в минус на <b>${fmt(profit)}</b> — перерасход по материалу или заниженная смета.`});
-    else if(o.status==='active' && profit/o.contract<0.12) riskCards.push({lvl:'mid',title:o.name,text:`Маржа всего <b>${Math.round(profit/o.contract*100)}%</b> — ниже нормы для электромонтажа. Стоит проверить смету и закуп.`});
-  });
-  objects.filter(o=>o.status==='done').forEach(o=>{
-    const c=calc(o);
-    if(c.received < o.contract*0.98)
-      riskCards.push({lvl:'mid',title:o.name,text:`Объект сдан, но получено ${fmt(c.received)} из ${fmt(o.contract)}. Зависла дебиторка <b>${fmt(o.contract-c.received)}</b>.`});
-  });
-  const lvlLabel={hi:'Высокий',mid:'Средний'};
-  document.getElementById('riskBody').innerHTML = riskCards.map(r=>`
-    <div class="risk-card ${r.lvl}">
-      <div class="rt"><span class="lvl">${lvlLabel[r.lvl]}</span> ${r.title}</div>
-      <p>${r.text}</p>
-    </div>`).join('') || `<div class="empty-hint">Рисков не обнаружено</div>`;
+  renderObjTab(id);
 }
 
-/* ============ DETAIL ============ */
-function openDetail(id, tr){
-  currentObj = id;
-  activeFilter = 'all';
-  // highlight row in table
-  document.querySelectorAll('#objBody tr').forEach(r=>r.classList.remove('active'));
-  if(tr) tr.classList.add('active');
-  const o=byId(id), c=calc(o);
-  const detail=document.getElementById('detail');
-  detail.classList.add('open');
-  document.getElementById('detailTitle').textContent=o.name;
-  document.getElementById('detailAddr').textContent=o.addr+' · '+o.customer;
-
-  const profit=o.contract-c.totalCost;
-  document.getElementById('plBody').innerHTML=`
-    <div class="pl-row"><span class="k">Сумма договора</span><span class="num">${fmt(o.contract)}</span></div>
-    <div class="pl-row"><span class="k">Материалы (оплачено)</span><span class="num neg">−${fmt(c.materialsPaid).replace('−','')}</span></div>
-    <div class="pl-row"><span class="k">Материал в долг <span class="note">входит в себестоимость сразу</span></span><span class="num neg">−${fmt(c.debtAll).replace('−','')}</span></div>
-    <div class="pl-row"><span class="k">Зарплата бригад</span><span class="num neg">−${fmt(c.salary).replace('−','')}</span></div>
-    <div class="pl-row"><span class="k">Логистика / прочее</span><span class="num neg">−${fmt(c.transport).replace('−','')}</span></div>
-    <div class="pl-row tot"><span class="k">Прибыль объекта</span><span class="num ${profit>=0?'pos':'neg'}">${fmt(profit)}</span></div>
-    <div class="pl-row" style="border:none;padding-top:6px"><span class="k" style="font-size:12px">Маржа</span><span class="num ${profit>=0?'pos':'neg'}" style="font-size:13px">${Math.round(profit/o.contract*100)}%</span></div>`;
-
-  const flow=document.getElementById('flowBody');
-  let html='';
-  html+=`<div class="flowln in"><span class="arr">↓</span><span class="txt">Получено от заказчика<s>предоплаты + этапы</s></span><span class="num pos">${fmt(c.received)}</span></div>`;
-  html+=`<div class="flowln out"><span class="arr">↑</span><span class="txt">Оплачено по объекту<s>материалы, зарплата, логистика</s></span><span class="num neg">${fmt(c.paidOut)}</span></div>`;
-  transfers.filter(x=>x.from===id).forEach(x=>{
-    html+=`<div class="flowln out"><span class="arr">→</span><span class="txt">Отдано на «${byId(x.to).name}»<s>${x.note}</s></span><span class="num neg">${fmt(x.amount)}</span></div>`;});
-  transfers.filter(x=>x.to===id).forEach(x=>{
-    html+=`<div class="flowln in"><span class="arr">←</span><span class="txt">Взято с «${byId(x.from).name}»<s>${x.note}</s></span><span class="num pos">${fmt(x.amount)}</span></div>`;});
-  if(c.debtOpen>0)
-    html+=`<div class="flowln out" style="border-left-color:var(--warn)"><span class="arr">⏳</span><span class="txt">Предстоит оплатить поставщикам<s>открытые долги</s></span><span class="num" style="color:var(--warn)">${fmt(c.debtOpen)}</span></div>`;
-  html+=`<div class="flowln" style="border-left:3px solid ${c.cashBalance>=0?'var(--good)':'var(--bad)'};background:var(--panel-2);font-weight:700"><span class="arr">=</span><span class="txt">Денежное сальдо объекта</span><span class="num ${c.cashBalance>=0?'pos':'neg'}">${fmt(c.cashBalance)}</span></div>`;
-  flow.innerHTML=html;
-
-  buildTxFilter(id);
-  renderTx(id);
-  detail.scrollIntoView({behavior:'smooth',block:'start'});
+function renderObjTab(id){
+  const obj=oBy(id); if(!obj) return;
+  const c=calcObj(obj);
+  const el=document.getElementById('obj-tab-body'); if(!el) return;
+  if(activeObjTab==='overview') el.innerHTML=renderOverview(obj,c);
+  else if(activeObjTab==='pl') el.innerHTML=renderPL(obj,c);
+  else if(activeObjTab==='funds') el.innerHTML=renderFunds(obj,c,id);
+  else el.innerHTML=renderTxTab(obj,c,id);
 }
 
-function buildTxFilter(id){
-  const cats=[...new Set(tx.filter(x=>x.obj===id).map(x=>x.cat))];
-  const fb=document.getElementById('txFilter');
-  fb.innerHTML='';
-  const all=document.createElement('button');
-  all.className='fbtn on'; all.textContent='Все'; all.onclick=()=>{activeFilter='all';renderTx(id);setActive(all);};
-  fb.appendChild(all);
-  cats.forEach(cat=>{
-    const b=document.createElement('button');
-    b.className='fbtn'; b.textContent=catMeta[cat].label;
-    b.onclick=()=>{activeFilter=cat;renderTx(id);setActive(b);};
-    fb.appendChild(b);
+// --- OVERVIEW TAB ---
+function renderOverview(obj,c){
+  const tOut=transfers.filter(t=>t.from===obj.id);
+  const tIn =transfers.filter(t=>t.to===obj.id);
+  const allTx=tx.filter(t=>t.obj===obj.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  let riskMsg='Проект в хорошем состоянии.';
+  if(c.profit<0) riskMsg='Проект убыточен! Затраты превысили сумму договора. Срочно пересмотреть смету.';
+  else if(c.cashBalance<-300000) riskMsg='Касса проекта в минусе — нужна переброска или аванс.';
+  else if(c.margin<12) riskMsg=`Маржа ${c.margin.toFixed(0)}% ниже нормы. Контролируйте расходы.`;
+  else if(c.cashBalance<300000) riskMsg='Сальдо кассы низкое. Следите за ликвидностью.';
+
+  const donutSlices = FUND_KEYS.map(k=>({v:c.funds[k].allocated,color:FUND_COLORS[k]}));
+  const donutSvg = buildDonut(donutSlices,130);
+
+  return `<div class="two-col">
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <!-- GAUGE -->
+      <div class="card">
+        <div class="card-title">Выполнение договора</div>
+        <div class="gauge-wrap">
+          ${svgGauge(c.received,obj.contract,obj.color,180)}
+          <div style="font-size:12px;color:var(--text-mute);margin-top:6px">Получено от заказчика</div>
+        </div>
+        ${c.received<obj.contract?`<div style="text-align:center;font-size:12px;color:var(--text-mute);margin-top:6px">Ожидается ещё: <strong style="color:var(--text)">${fmt(obj.contract-c.received)}</strong></div>`:''}
+      </div>
+
+      <!-- CASH FLOW -->
+      <div class="card">
+        <div class="card-title">Движение денег</div>
+        <div class="cf-row"><span class="cf-label">▼ Получено от заказчика</span><span class="cf-val" style="color:var(--green)">+${fmt(c.received)}</span></div>
+        <div class="cf-row"><span class="cf-label">▲ Оплачено расходы</span><span class="cf-val" style="color:var(--red)">−${fmt(c.paidOut)}</span></div>
+        ${tOut.map(t=>`<div class="cf-row"><span class="cf-label">→ Перебр. на ${oBy(t.to)?.name||t.to}</span><span class="cf-val" style="color:var(--red)">−${fmt(t.amount)}</span></div>`).join('')}
+        ${tIn.map(t=>`<div class="cf-row"><span class="cf-label">← Перебр. с ${oBy(t.from)?.name||t.from}</span><span class="cf-val" style="color:var(--green)">+${fmt(t.amount)}</span></div>`).join('')}
+        <div class="cf-row"><span class="cf-label">⊘ Долги поставщикам (откр.)</span><span class="cf-val" style="color:var(--red)">−${fmt(c.debtOpen)}</span></div>
+        <div class="cf-row" style="border-top:2px solid var(--line-2);margin-top:4px;padding-top:10px">
+          <span class="cf-label" style="font-weight:700;color:var(--text)">= Сальдо кассы</span>
+          <span class="cf-val" style="font-size:15px;color:${c.cashBalance<0?'var(--red)':c.cashBalance<300000?'var(--amber)':'var(--green)'}">${c.cashBalance>=0?'+':''}${fmt(c.cashBalance)}</span>
+        </div>
+      </div>
+
+      <!-- RISK -->
+      <div class="card" style="border-color:${c.risk==='hi'?'rgba(248,113,113,.3)':c.risk==='mid'?'rgba(251,191,36,.3)':'var(--line)'}">
+        <div class="card-title">Оценка рисков</div>
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div style="width:42px;height:42px;border-radius:50%;background:${c.risk==='hi'?'rgba(248,113,113,.15)':c.risk==='mid'?'rgba(251,191,36,.15)':'rgba(52,211,153,.15)'};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">
+            ${c.risk==='hi'?'⚡':c.risk==='mid'?'⚠':'✓'}
+          </div>
+          <div>
+            <div style="font-weight:600;margin-bottom:4px">${c.risk==='hi'?'Высокий риск':c.risk==='mid'?'Средний риск':'Норма'}</div>
+            <div style="font-size:13px;color:var(--text-dim)">${riskMsg}</div>
+            <div style="margin-top:8px;font-size:12px;color:var(--text-mute)">Маржа: <strong>${c.margin.toFixed(1)}%</strong> &nbsp;·&nbsp; Сальдо: <strong>${fmtS(c.cashBalance)}</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <!-- FUND DONUT -->
+      <div class="card">
+        <div class="card-title">Распределение аванса по фондам</div>
+        <div style="display:flex;gap:16px;align-items:flex-start">
+          ${donutSvg}
+          <div style="flex:1;padding-top:6px">
+            ${FUND_KEYS.map(k=>{
+              const f=c.funds[k];
+              return `<div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+                <div style="width:8px;height:8px;border-radius:50%;background:${FUND_COLORS[k]};flex-shrink:0"></div>
+                <span style="font-size:12px;flex:1">${FUND_LABELS[k]}</span>
+                <span style="font-size:11px;color:var(--text-mute)">${obj.funds[k]}%</span>
+                <span style="font-size:12px;font-weight:600">${fmtS(f.allocated)}</span>
+              </div>`;
+            }).join('')}
+            ${c.received===0?`<div style="font-size:11px;color:var(--text-mute);margin-top:6px">Нет поступлений — запишите аванс</div>`:''}
+          </div>
+        </div>
+      </div>
+
+      <!-- TIMELINE -->
+      <div class="card">
+        <div class="card-title">Лента событий</div>
+        <div class="timeline">
+          ${[...allTx.slice(0,8), ...transfers.filter(t=>t.from===obj.id||t.to===obj.id)].sort((a,b)=>new Date(b.date||b.date)-new Date(a.date||a.date)).slice(0,10).map(item=>{
+            if(item.dir){
+              return `<div class="tl-item">
+                <div class="tl-dot ${item.dir}"></div>
+                <div class="tl-date">${fmtD(item.date)}</div>
+                <div class="tl-desc">${item.desc}</div>
+                <div class="tl-amount" style="color:${item.dir==='in'?'var(--green)':'var(--red)'}">${item.dir==='in'?'+':'−'}${fmt(item.amount)}</div>
+              </div>`;
+            } else {
+              const dir = item.from===obj.id?'out':'in';
+              const other = dir==='out'?oBy(item.to):oBy(item.from);
+              return `<div class="tl-item">
+                <div class="tl-dot tr"></div>
+                <div class="tl-date">${fmtD(item.date)}</div>
+                <div class="tl-desc"><span style="font-size:11px;background:rgba(167,139,250,.15);color:var(--violet);padding:1px 6px;border-radius:20px">⇄ Переброска</span> ${item.note}</div>
+                <div class="tl-amount" style="color:${dir==='out'?'var(--red)':'var(--green)'}">${dir==='out'?'−':'+'}${fmt(item.amount)}</div>
+              </div>`;
+            }
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// --- P&L TAB ---
+function renderPL(obj,c){
+  const maxV = obj.contract||1;
+  const bp = v => Math.max(0,Math.min(100,Math.abs(v)/maxV*100)).toFixed(1);
+  const rows=[
+    {label:'Материалы (оплачено)',  v:c.matPaid,   color:'#4d8df5'},
+    {label:'Материалы в долг',      v:c.debtAll,   color:'#6366f1'},
+    {label:'Зарплата',              v:c.salary,    color:'#34d399'},
+    {label:'Логистика / прочее',    v:c.transport, color:'#22d3ee'},
+  ];
+  const totalC = rows.reduce((s,r)=>s+r.v,0);
+  return `<div class="card" style="max-width:680px">
+    <div class="card-title">P&L — ${obj.name}</div>
+
+    <div class="pl-row">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:13px;color:var(--text-dim)">Сумма договора</span>
+        <span style="font-size:14px;font-weight:700">${fmt(obj.contract)}</span>
+      </div>
+      ${bar(obj.contract,maxV,'var(--brand)',6)}
+    </div>
+
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute);padding:8px 0 6px;border-bottom:1px solid var(--line)">Затраты</div>
+
+    ${rows.map(r=>`<div class="pl-row">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:13px;color:var(--text-dim)">${r.label}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--red)">− ${fmt(r.v)}</span>
+      </div>
+      <div style="background:var(--surface-3);border-radius:3px;height:5px;overflow:hidden">
+        <div style="width:${bp(r.v)}%;height:100%;background:${r.color}"></div>
+      </div>
+    </div>`).join('')}
+
+    <div style="height:1px;background:var(--line-2);margin:10px 0 14px"></div>
+    <div class="pl-total">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:13px;color:var(--text-dim)">Итого затрат</span>
+        <span style="font-weight:600;color:var(--red)">− ${fmt(c.totalCost)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:16px;font-weight:700">= Прибыль</span>
+        <span style="font-size:20px;font-weight:800;color:${c.profit>=0?'var(--green)':'var(--red)'}">${c.profit>=0?'+':''}${fmt(c.profit)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-size:12px;color:var(--text-mute)">Маржинальность</span>
+        <span style="font-size:14px;font-weight:700;color:${c.margin>=15?'var(--green)':c.margin>=10?'var(--amber)':'var(--red)'}">${c.margin.toFixed(1)}%</span>
+      </div>
+    </div>
+
+    ${c.debtOpen>0?`<div style="margin-top:16px;padding:12px 14px;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.25);border-radius:9px;font-size:13px">
+      <strong style="color:var(--red)">⚠ Открытые долги поставщикам: ${fmt(c.debtOpen)}</strong><br>
+      <span style="color:var(--text-mute);font-size:12px">Включены в затраты по методу начисления. Физически ещё не выплачены.</span>
+    </div>`:''}
+
+    <div style="margin-top:20px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute);margin-bottom:8px">Структура затрат</div>
+      <div style="display:flex;height:14px;border-radius:6px;overflow:hidden;gap:1px">
+        ${rows.map(r=>{const w=totalC>0?r.v/totalC*100:0; return `<div style="width:${w.toFixed(1)}%;background:${r.color};height:100%" title="${r.label}: ${fmt(r.v)}"></div>`;}).join('')}
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+        ${rows.map(r=>`<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-mute)">
+          <div style="width:8px;height:8px;border-radius:2px;background:${r.color}"></div>
+          ${r.label}: ${totalC>0?(r.v/totalC*100).toFixed(0):'0'}%
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+// --- FUNDS TAB ---
+function renderFunds(obj,c,id){
+  const pctSum = FUND_KEYS.reduce((s,k)=>s+(obj.funds[k]||0),0);
+  const insights = {
+    materials: c.funds.materials.balance<0?'Перерасход! Нужно доп. финансирование.':c.funds.materials.balance===0?'Фонд выбран полностью.':'Остаток есть — можно докупить материалы.',
+    salary: c.funds.salary.balance<=0?'Фонд зарплаты выбран.':c.funds.salary.balance<200000?'Почти весь ФОТ выплачен.':'Осталось на зарплату.',
+    logistics: c.funds.logistics.balance>0?'Остаток логистики в норме.':'Перерасход логистики.',
+    profit: `Не распределена — ждёт сдачи объекта: ${fmtS(c.funds.profit.allocated)}`,
+    reserve: `Резервный фонд ${fmtS(c.funds.reserve.allocated)} — только аварийные случаи.`,
+  };
+  return `<div style="display:flex;flex-direction:column;gap:20px;max-width:780px">
+    <!-- SETTINGS -->
+    <div class="card">
+      <div class="card-title">Настройка распределения фондов</div>
+      ${pctSum!==100?`<div style="padding:8px 12px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:8px;font-size:13px;color:var(--red);margin-bottom:12px">Сумма процентов: ${pctSum}% — должно быть 100%</div>`:''}
+      ${FUND_KEYS.map(k=>`<div class="fund-input-row">
+        <span class="fund-input-name" style="color:${FUND_COLORS[k]}">${FUND_LABELS[k]}</span>
+        <input class="fund-pct-input" type="number" min="0" max="100" value="${obj.funds[k]}" oninput="updFund('${id}','${k}',this.value)">
+        <span style="font-size:12px;color:var(--text-mute)">%</span>
+        <div style="flex:1;max-width:180px">${bar(obj.funds[k],100,FUND_COLORS[k],6)}</div>
+        <span style="font-size:12px;color:var(--text-mute);width:95px;text-align:right">${fmt(c.funds[k].allocated)}</span>
+      </div>`).join('')}
+      <div style="padding-top:10px;font-size:13px" id="fsum-${id}">
+        Сумма: <strong style="color:${pctSum===100?'var(--green)':'var(--red)'}">${pctSum}%</strong>
+        ${pctSum!==100?`<button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="normFunds('${id}')">Нормализовать</button>`:''}
+      </div>
+    </div>
+
+    <!-- FUND TABLE -->
+    <div class="card">
+      <div class="card-title">Состояние фондов</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Фонд</th><th>Выделено</th><th>Потрачено</th><th>Остаток</th><th>Заполнено</th><th>Статус</th></tr></thead>
+          <tbody>
+            ${FUND_KEYS.map(k=>{
+              const f=c.funds[k];
+              const pct=f.allocated>0?f.spent/f.allocated*100:0;
+              const st = f.balance<0?'<span class="chip chip-red">Перерасход</span>':pct>=90?'<span class="chip chip-amber">На исходе</span>':'<span class="chip chip-green">✓ Норма</span>';
+              return `<tr>
+                <td><span style="display:inline-flex;align-items:center;gap:7px">
+                  <span style="width:8px;height:8px;border-radius:50%;background:${FUND_COLORS[k]}"></span>
+                  <strong>${FUND_LABELS[k]}</strong>
+                </span></td>
+                <td style="white-space:nowrap">${fmt(f.allocated)}</td>
+                <td style="color:${f.spent>0?'var(--red)':'var(--text-mute)'}; white-space:nowrap">${f.spent>0?fmt(f.spent):'—'}</td>
+                <td style="font-weight:600;color:${f.balance<0?'var(--red)':f.balance===0?'var(--amber)':'var(--green)'};white-space:nowrap">${f.balance>=0?'+':''}${fmt(f.balance)}</td>
+                <td style="min-width:100px">${bar(f.spent,f.allocated||1,FUND_COLORS[k],6)}<span style="font-size:10px;color:var(--text-mute)">${pct.toFixed(0)}%</span></td>
+                <td>${st}</td>
+              </tr>`;
+            }).join('')}
+            <tr style="background:var(--surface-2)">
+              <td><strong>Итого</strong></td>
+              <td><strong style="white-space:nowrap">${fmt(FUND_KEYS.reduce((s,k)=>s+c.funds[k].allocated,0))}</strong></td>
+              <td><strong style="color:var(--red);white-space:nowrap">−${fmt(c.paidOut)}</strong></td>
+              <td><strong style="white-space:nowrap">${fmt(FUND_KEYS.reduce((s,k)=>s+c.funds[k].allocated,0)-c.paidOut)}</strong></td>
+              <td colspan="2"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      ${c.received===0?`<div style="text-align:center;padding:16px;color:var(--text-mute);font-size:13px">Нет поступлений — запишите аванс, чтобы увидеть разбивку по фондам.</div>`:''}
+    </div>
+
+    <!-- INSIGHTS -->
+    <div class="card">
+      <div class="card-title">Комментарии</div>
+      ${FUND_KEYS.map(k=>`<div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
+        <div style="width:8px;height:8px;border-radius:50%;background:${FUND_COLORS[k]};margin-top:4px;flex-shrink:0"></div>
+        <div>
+          <strong style="font-size:13px">${FUND_LABELS[k]}</strong>
+          <div style="font-size:13px;color:var(--text-mute);margin-top:2px">${insights[k]}</div>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function updFund(id,key,val){
+  const obj=oBy(id); if(!obj) return;
+  obj.funds[key]=Math.max(0,Math.min(100,parseFloat(val)||0));
+  const sum=FUND_KEYS.reduce((s,k)=>s+(obj.funds[k]||0),0);
+  const el=document.getElementById(`fsum-${id}`);
+  if(el) el.innerHTML=`Сумма: <strong style="color:${sum===100?'var(--green)':'var(--red)'}">${sum}%</strong>${sum!==100?`<button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="normFunds('${id}')">Нормализовать</button>`:''}`;
+  saveState();
+}
+
+function normFunds(id){
+  const obj=oBy(id); if(!obj) return;
+  const sum=FUND_KEYS.reduce((s,k)=>s+(obj.funds[k]||0),0);
+  if(!sum) return;
+  let rem=100;
+  FUND_KEYS.forEach((k,i)=>{
+    if(i<FUND_KEYS.length-1){ obj.funds[k]=Math.round(obj.funds[k]/sum*100); rem-=obj.funds[k]; }
+    else obj.funds[k]=rem;
   });
-}
-function setActive(btn){document.querySelectorAll('#txFilter .fbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
-
-function renderTx(id){
-  let rows=tx.filter(x=>x.obj===id);
-  if(activeFilter!=='all') rows=rows.filter(x=>x.cat===activeFilter);
-  rows=rows.sort((a,b)=>a.date.localeCompare(b.date));
-  const tb=document.getElementById('txBody');
-  if(!rows.length){tb.innerHTML=`<tr><td colspan="4" class="empty-hint">Нет операций в этой категории</td></tr>`;return;}
-  tb.innerHTML=rows.map(x=>{
-    const m=catMeta[x.cat];
-    return `<tr>
-      <td style="text-align:left" class="mut">${fmtDate(x.date)}</td>
-      <td style="text-align:left"><span class="tx-cat"><span class="pin" style="background:${m.color}"></span>${m.label}</span></td>
-      <td style="text-align:left">${x.desc}</td>
-      <td class="num ${x.dir==='in'?'pos':'neg'}">${x.dir==='in'?'+':'−'}${fmt(x.amount).replace('−','')}</td>
-    </tr>`;}).join('');
+  saveState(); renderDetail(id);
 }
 
-/* ============ VIEW TOGGLE ============ */
-function setView(v){
-  currentView=v;
-  const tablePanel=document.getElementById('objTablePanel');
-  const cardsGrid=document.getElementById('objCards');
-  const btnT=document.getElementById('btnTableView');
-  const btnC=document.getElementById('btnCardsView');
-  if(v==='table'){
-    tablePanel.style.display='';
-    cardsGrid.style.display='none';
-    btnT.classList.add('vt-active');
-    btnC.classList.remove('vt-active');
-  } else {
-    tablePanel.style.display='none';
-    cardsGrid.style.display='grid';
-    btnT.classList.remove('vt-active');
-    btnC.classList.add('vt-active');
+// --- TRANSACTIONS TAB ---
+function renderTxTab(obj,c,id){
+  const cat = activeTxCat;
+  const filtered = tx.filter(t=>t.obj===id&&(cat==='all'||t.cat===cat)).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const objDebts = debts.filter(d=>d.obj===id);
+  const objTr = transfers.filter(t=>t.from===id||t.to===id);
+
+  const cats=[['all','Все'],['prepayment','Предоплата'],['stage','Этапы'],['final','Финал'],['materials','Материалы'],['salary','Зарплата'],['transport','Логистика']];
+  return `<div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="filter-tabs" style="margin-bottom:0">
+        ${cats.map(([v,l])=>`<button class="ftab ${cat===v?'active':''}" onclick="setTxCat('${id}','${v}')">${l}</button>`).join('')}
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('${id}')">＋ Транзакция</button>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Дата</th><th>Тип</th><th>Категория</th><th>Описание</th><th>Сумма</th></tr></thead>
+          <tbody>
+            ${filtered.length===0
+              ?`<tr><td colspan="5" style="text-align:center;color:var(--text-mute);padding:24px">Нет транзакций</td></tr>`
+              :filtered.map(t=>`<tr>
+                <td style="color:var(--text-mute);white-space:nowrap">${fmtD(t.date)}</td>
+                <td>${t.dir==='in'?'<span class="chip chip-green">Приход</span>':'<span class="chip chip-red">Расход</span>'}</td>
+                <td><span style="font-size:12px;color:var(--text-dim)">${catL(t.cat)}</span></td>
+                <td style="color:var(--text-dim);font-size:13px">${t.desc}</td>
+                <td style="font-weight:600;white-space:nowrap;color:${t.dir==='in'?'var(--green)':'var(--red)'}">${t.dir==='in'?'+':'−'}${fmt(t.amount)}</td>
+              </tr>`).join('')
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    ${objDebts.length?`<div class="card" style="margin-bottom:16px">
+      <div class="card-title">Долги поставщикам</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Поставщик</th><th>Сумма</th><th>Взято</th><th>Срок</th><th>Статус</th></tr></thead>
+          <tbody>
+            ${objDebts.map(d=>`<tr>
+              <td>${d.supplier}</td>
+              <td style="color:var(--red);font-weight:600;white-space:nowrap">${fmt(d.amount)}</td>
+              <td style="color:var(--text-mute)">${fmtD(d.taken)}</td>
+              <td>${fmtD(d.due)}</td>
+              <td>${d.status==='paid'?'<span class="chip chip-green">Оплачен</span>':'<span class="chip chip-amber">Открыт</span>'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`:''}
+
+    ${objTr.length?`<div class="card">
+      <div class="card-title">Переброски</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Дата</th><th>Направление</th><th>Сумма</th><th>Примечание</th></tr></thead>
+          <tbody>
+            ${objTr.map(t=>`<tr>
+              <td style="color:var(--text-mute);white-space:nowrap">${fmtD(t.date)}</td>
+              <td>${t.from===id
+                ?`<span style="color:var(--red)">→ ${oBy(t.to)?.name||t.to}</span>`
+                :`<span style="color:var(--green)">← ${oBy(t.from)?.name||t.from}</span>`}</td>
+              <td style="font-weight:600;white-space:nowrap;color:${t.from===id?'var(--red)':'var(--green)'}">${t.from===id?'−':'+'}${fmt(t.amount)}</td>
+              <td style="color:var(--text-mute);font-size:12px">${t.note}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`:''}
+  </div>`;
+}
+
+function setTxCat(id,cat){
+  activeTxCat=cat;
+  const el=document.getElementById('obj-tab-body');
+  if(el){ const obj=oBy(id); el.innerHTML=renderTxTab(obj,calcObj(obj),id); }
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+function openModal(preselObj){
+  _modalObjId = preselObj||null;
+  _modalTab='tx';
+  buildModal();
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('open'); }
+function closeModalOutside(e){ if(e.target===document.getElementById('modal-overlay')) closeModal(); }
+
+function buildModal(){
+  document.getElementById('modal-body').innerHTML=`
+    <div class="tabs" style="margin-bottom:16px">
+      <button class="tab ${_modalTab==='tx'?'active':''}" onclick="_modalTab='tx';buildModal()">Транзакция</button>
+      <button class="tab ${_modalTab==='tr'?'active':''}" onclick="_modalTab='tr';buildModal()">Переброска</button>
+    </div>
+    <div id="mtab"></div>
+  `;
+  document.getElementById('modal-footer').innerHTML=`
+    <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
+    <button class="btn btn-primary" onclick="submitModal()">Сохранить</button>
+  `;
+  if(_modalTab==='tx') buildTxForm();
+  else buildTrForm();
+}
+
+function buildTxForm(){
+  const dir=_modalDir||'in';
+  const selObjId=_modalObjId||objects[0]?.id;
+  const selObj=oBy(selObjId);
+  const inCats=[{v:'prepayment',l:'Предоплата'},{v:'stage',l:'Этап'},{v:'final',l:'Финальная оплата'},{v:'other',l:'Прочее'}];
+  const outCats=[{v:'materials',l:'Материалы'},{v:'salary',l:'Зарплата'},{v:'transport',l:'Логистика'},{v:'other',l:'Прочее'}];
+  const cats=dir==='in'?inCats:outCats;
+  const amount=parseFloat(_modalAmount)||0;
+
+  let splitHtml='';
+  if(dir==='in'&&selObj&&amount>0){
+    splitHtml=`<div class="fund-split-box">
+      <div class="fund-split-title">Разбивка по фондам при поступлении ${fmt(amount)}</div>
+      ${FUND_KEYS.map(k=>{
+        const alloc=amount*selObj.funds[k]/100;
+        return `<div class="fund-split-row">
+          <span style="color:${FUND_COLORS[k]};width:85px">${FUND_LABELS[k]}</span>
+          <span style="color:var(--text-mute);width:28px;text-align:right">${selObj.funds[k]}%</span>
+          <div style="flex:1;margin:0 10px;height:4px;background:var(--surface-3);border-radius:2px;overflow:hidden">
+            <div style="width:${selObj.funds[k]}%;height:100%;background:${FUND_COLORS[k]}"></div>
+          </div>
+          <span style="font-weight:600;color:${FUND_COLORS[k]};white-space:nowrap">${fmt(alloc)}</span>
+        </div>`;
+      }).join('')}
+      <div style="border-top:1px solid var(--line);margin-top:7px;padding-top:7px;display:flex;justify-content:space-between;font-size:12px">
+        <span style="color:var(--text-mute)">Итого</span><span style="font-weight:600">${fmt(amount)}</span>
+      </div>
+    </div>`;
   }
+
+  document.getElementById('mtab').innerHTML=`
+    <div class="form-group">
+      <label class="form-label">Объект</label>
+      <select class="form-control" id="m-obj" onchange="_modalObjId=this.value;buildTxForm()">
+        ${objects.map(o=>`<option value="${o.id}" ${selObjId===o.id?'selected':''}>${o.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Дата</label>
+        <input class="form-control" type="date" id="m-date" value="${TODAY}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Тип</label>
+        <div class="radio-group">
+          <button class="radio-btn ${dir==='in'?'sel-in':''}" onclick="_modalDir='in';buildTxForm()">▼ Приход</button>
+          <button class="radio-btn ${dir==='out'?'sel-out':''}" onclick="_modalDir='out';buildTxForm()">▲ Расход</button>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Категория</label>
+        <select class="form-control" id="m-cat">
+          ${cats.map(c=>`<option value="${c.v}">${c.l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Сумма, ₸</label>
+        <input class="form-control" type="number" id="m-amount" value="${_modalAmount||''}" placeholder="0" oninput="_modalAmount=this.value;buildTxForm()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Описание</label>
+      <input class="form-control" type="text" id="m-desc" placeholder="Краткое описание...">
+    </div>
+    ${splitHtml}
+  `;
 }
 
-/* ============ MODAL ============ */
-let activeTab='tx';
-
-function openModal(){
-  // populate object selects
-  const selObj=document.getElementById('txObj');
-  selObj.innerHTML=objects.map(o=>`<option value="${o.id}">${o.name}</option>`).join('');
-  const selFrom=document.getElementById('trFrom');
-  selFrom.innerHTML=objects.map(o=>`<option value="${o.id}">${o.name}</option>`).join('');
-  updateTrTo();
-  updateTxCats();
-  document.getElementById('modalOverlay').classList.add('open');
+function buildTrForm(){
+  const fromId=_trFrom||_modalObjId||objects[0]?.id;
+  const activeObjs=objects.filter(o=>o.status!=='planning');
+  document.getElementById('mtab').innerHTML=`
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Откуда</label>
+        <select class="form-control" id="tr-from" onchange="_trFrom=this.value;buildTrForm()">
+          ${activeObjs.map(o=>`<option value="${o.id}" ${fromId===o.id?'selected':''}>${o.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Куда</label>
+        <select class="form-control" id="tr-to">
+          ${activeObjs.filter(o=>o.id!==fromId).map(o=>`<option value="${o.id}">${o.name}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Сумма, ₸</label>
+        <input class="form-control" type="number" id="tr-amount" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Дата</label>
+        <input class="form-control" type="date" id="tr-date" value="${TODAY}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Примечание</label>
+      <input class="form-control" type="text" id="tr-note" placeholder="Причина переброски...">
+    </div>
+  `;
 }
 
-function closeModal(){
-  document.getElementById('modalOverlay').classList.remove('open');
-}
-
-function handleOverlayClick(e){
-  if(e.target===document.getElementById('modalOverlay')) closeModal();
-}
-
-function switchTab(tab){
-  activeTab=tab;
-  document.getElementById('tabTx').classList.toggle('tab-active', tab==='tx');
-  document.getElementById('tabTransfer').classList.toggle('tab-active', tab==='transfer');
-  document.getElementById('formTx').style.display = tab==='tx' ? '' : 'none';
-  document.getElementById('formTransfer').style.display = tab==='transfer' ? '' : 'none';
-}
-
-function updateTxCats(){
-  const dir=document.querySelector('input[name="txDir"]:checked').value;
-  const cats = dir==='in' ? incomeCats : expenseCats;
-  const sel=document.getElementById('txCat');
-  sel.innerHTML=cats.map(c=>`<option value="${c}">${catMeta[c].label}</option>`).join('');
-}
-
-function updateTrTo(){
-  const fromVal=document.getElementById('trFrom').value;
-  const sel=document.getElementById('trTo');
-  sel.innerHTML=objects.filter(o=>o.id!==fromVal).map(o=>`<option value="${o.id}">${o.name}</option>`).join('');
-}
-
-function submitTx(){
-  const date=document.getElementById('txDate').value;
-  const obj=document.getElementById('txObj').value;
-  const dir=document.querySelector('input[name="txDir"]:checked').value;
-  const cat=document.getElementById('txCat').value;
-  const amount=parseFloat(document.getElementById('txAmount').value)||0;
-  const desc=document.getElementById('txDesc').value.trim();
-  if(!date||!obj||!amount){alert('Заполните дату, объект и сумму');return;}
-  tx.push({obj,dir,cat,amount,date,desc});
-  renderAll();
+function submitModal(){
+  if(_modalTab==='tx'){
+    const objId=document.getElementById('m-obj')?.value;
+    const date=document.getElementById('m-date')?.value;
+    const dir=_modalDir||'in';
+    const cat=document.getElementById('m-cat')?.value;
+    const amount=parseFloat(document.getElementById('m-amount')?.value);
+    const desc=document.getElementById('m-desc')?.value||'';
+    if(!objId||!date||!cat||!amount||amount<=0){ alert('Заполните все поля'); return; }
+    tx.push({id:'t'+Date.now(),obj:objId,dir,cat,amount,date,desc});
+  } else {
+    const from=document.getElementById('tr-from')?.value;
+    const to=document.getElementById('tr-to')?.value;
+    const amount=parseFloat(document.getElementById('tr-amount')?.value);
+    const date=document.getElementById('tr-date')?.value;
+    const note=document.getElementById('tr-note')?.value||'';
+    if(!from||!to||!amount||amount<=0||!date){ alert('Заполните все поля'); return; }
+    if(from===to){ alert('Откуда и куда совпадают'); return; }
+    transfers.push({id:'tr'+Date.now(),from,to,amount,date,note});
+  }
+  saveState();
+  _modalAmount='';
+  _modalDir='in';
   closeModal();
+  router();
 }
 
-function submitTransfer(){
-  const from=document.getElementById('trFrom').value;
-  const to=document.getElementById('trTo').value;
-  const amount=parseFloat(document.getElementById('trAmount').value)||0;
-  const date=document.getElementById('trDate').value;
-  const note=document.getElementById('trNote').value.trim();
-  if(!from||!to||!amount||!date){alert('Заполните все поля');return;}
-  if(from===to){alert('Откуда и Куда не могут совпадать');return;}
-  transfers.push({from,to,amount,date,note});
-  renderAll();
-  closeModal();
-}
-
-/* ============ INIT ============ */
-renderAll();
-window.addEventListener('load',()=>{
-  const first=document.querySelector('#objBody tr');
-  if(first) openDetail(first.dataset.id, first);
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('hashchange', router);
+window.addEventListener('load', ()=>{
+  if(!window.location.hash) window.location.hash='#dashboard';
+  router();
 });
 </script>
 </body>
