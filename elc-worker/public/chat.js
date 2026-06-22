@@ -754,6 +754,11 @@
         .tc-root.tc-narrow.tc-show-main .tc-main-head {
           padding-top: calc(10px + env(safe-area-inset-top));
         }
+        /* На узком экране ужимаем шапку, чтобы все кнопки действий (в т.ч. 👥)
+           помещались и не уезжали за край. */
+        .tc-root.tc-narrow .tc-main-head { gap:3px; padding-left:10px; padding-right:6px; }
+        .tc-root.tc-narrow .tc-head-members,
+        .tc-root.tc-narrow .tc-head-rename { width:32px; height:32px; font-size:16px; }
         .tc-root.tc-narrow.tc-show-main .tc-composer {
           padding-bottom: calc(12px + env(safe-area-inset-bottom));
         }
@@ -1128,10 +1133,10 @@
       ${searchBtn}
       ${pinBtn}
       ${muteBtn}
+      ${membersBtn}
       ${renameBtn}
       ${iconBtn}
-      ${archiveBtn}
-      ${membersBtn}`;
+      ${archiveBtn}`;
     const sb = head.querySelector('.tc-head-searchbtn');
     if (sb) sb.onclick = () => openChatSearch(ch);
     const pb = head.querySelector('.tc-head-pinbtn');
@@ -1174,6 +1179,16 @@
     };
     const mb = head.querySelector('.tc-head-members');
     if (mb) mb.onclick = () => openMembersModal(ch.id);
+    // Тап по названию/аватарке группы тоже открывает состав — на узком экране
+    // кнопка 👥 может не влезть в шапку, а посмотреть участников хотят все (не
+    // только админ). Для личных чатов состава нет — не вешаем.
+    if (ch.type !== 'dm') {
+      const openMem = () => openMembersModal(ch.id);
+      const meta = head.querySelector('.tc-head-meta');
+      const av = head.querySelector('.tc-head-av');
+      if (meta) { meta.style.cursor = 'pointer'; meta.title = 'Показать участников'; meta.onclick = openMem; }
+      if (av) { av.style.cursor = 'pointer'; av.onclick = openMem; }
+    }
     const back = head.querySelector('.tc-back');
     if (back) back.onclick = () => {
       state.activeChannelId = null;
