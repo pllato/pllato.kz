@@ -6345,6 +6345,110 @@ ${defaultLine ? ` same => n,Dial(PJSIP/\${EXTEN}@line-${defaultLine.number},60)`
   return new Response(body, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// ПОЧТА — общие ящики (Яндекс и др.). Этап 1: конфиг ящика + назначение
+// сотрудников. Админ вводит данные сервера (IMAP/SMTP) и пароль приложения,
+// указывает, кто из сотрудников работает с ящиком. Все админы управляют.
+// Чтение (IMAP) и отправка (SMTP) — следующие этапы.
+// ════════════════════════════════════════════════════════════════════════
+let _mailTablesReady = false;
+async function ensureMailTables(env) {
+  if (_mailTablesReady) return;
+  try {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mail_accounts (
+      id TEXT PRIMARY KEY, email TEXT, label TEXT,
+      imap_host TEXT, imap_port TEXT, smtp_host TEXT, smtp_port TEXT,
+      login TEXT, password TEXT, assigned_uids TEXT, enabled INTEGER DEFAULT 1,
+      created_at INTEGER, updated_at INTEGER
+    )`).run();
+  } catch (e) {}
+  _mailTablesReady = true;
+}
+
+async function mailRequireAdmin(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return { error: json({ error: auth.error }, auth.status, request) };
+  const me = await resolveCanonicalUser(env, auth.claims);
+  if (me.role !== "admin") return { error: json({ error: "admin only" }, 403, request) };
+  return { me };
+}
+
+function mailParseAssigned(v) {
+  if (!v) return [];
+  try { const a = JSON.parse(v); return Array.isArray(a) ? a.filter(Boolean) : []; } catch { return []; }
+}
+
+// GET /api/mail/accounts — admin: все ящики (пароль скрыт).
+async function handleMailAccountsGet(request, env) {
+  const g = await mailRequireAdmin(request, env);
+  if (g.error) return g.error;
+  await ensureMailTables(env);
+  const { results } = await env.DB.prepare(
+    `SELECT id, email, label, imap_host, imap_port, smtp_host, smtp_port, login, assigned_uids, enabled,
+            (password IS NOT NULL AND password != '') AS has_password
+       FROM mail_accounts ORDER BY email`).all();
+  const accounts = (results || []).map(a => ({ ...a, assigned_uids: mailParseAssigned(a.assigned_uids) }));
+  return json({ ok: true, accounts }, 200, request);
+}
+
+// POST /api/mail/accounts — admin: создать/обновить ящик.
+async function handleMailAccountsPut(request, env) {
+  const g = await mailRequireAdmin(request, env);
+  if (g.error) return g.error;
+  await ensureMailTables(env);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const email = String(body.email || '').trim().slice(0, 200);
+  if (!email) return json({ error: "email required" }, 400, request);
+  const id = body.id ? String(body.id) : crypto.randomUUID();
+  const label = String(body.label || '').slice(0, 80);
+  const imapHost = String(body.imap_host || 'imap.yandex.ru').slice(0, 200);
+  const imapPort = String(body.imap_port || '993').replace(/\D/g, '').slice(0, 6) || '993';
+  const smtpHost = String(body.smtp_host || 'smtp.yandex.ru').slice(0, 200);
+  const smtpPort = String(body.smtp_port || '465').replace(/\D/g, '').slice(0, 6) || '465';
+  const login = String(body.login || email).trim().slice(0, 200);
+  const assigned = Array.isArray(body.assigned_uids) ? body.assigned_uids.filter(Boolean).map(String).slice(0, 200) : [];
+  const enabled = body.enabled === false ? 0 : 1;
+  const now = Date.now();
+  const existing = await env.DB.prepare(`SELECT password FROM mail_accounts WHERE id = ?`).bind(id).first();
+  const password = (body.password != null && String(body.password) !== '')
+    ? String(body.password) : (existing ? existing.password : '');
+  await env.DB.prepare(`
+    INSERT INTO mail_accounts (id, email, label, imap_host, imap_port, smtp_host, smtp_port, login, password, assigned_uids, enabled, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET email=excluded.email, label=excluded.label, imap_host=excluded.imap_host,
+      imap_port=excluded.imap_port, smtp_host=excluded.smtp_host, smtp_port=excluded.smtp_port,
+      login=excluded.login, password=excluded.password, assigned_uids=excluded.assigned_uids,
+      enabled=excluded.enabled, updated_at=excluded.updated_at
+  `).bind(id, email, label, imapHost, imapPort, smtpHost, smtpPort, login, password, JSON.stringify(assigned), enabled, now, now).run();
+  return json({ ok: true, id }, 200, request);
+}
+
+// DELETE /api/mail/accounts/:id — admin.
+async function handleMailAccountDelete(request, env, id) {
+  const g = await mailRequireAdmin(request, env);
+  if (g.error) return g.error;
+  await ensureMailTables(env);
+  await env.DB.prepare(`DELETE FROM mail_accounts WHERE id = ?`).bind(id).run();
+  return json({ ok: true }, 200, request);
+}
+
+// GET /api/mail/my — ящики, доступные текущему сотруднику (admin → все).
+async function handleMailMy(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureMailTables(env);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const { results } = await env.DB.prepare(
+    `SELECT id, email, label, assigned_uids, enabled FROM mail_accounts WHERE enabled = 1 ORDER BY email`).all();
+  const isAdmin = me.role === 'admin';
+  const myUid = me.canonicalUid;
+  const accounts = (results || [])
+    .filter(a => isAdmin || mailParseAssigned(a.assigned_uids).includes(myUid))
+    .map(a => ({ id: a.id, email: a.email, label: a.label }));
+  return json({ ok: true, accounts, isAdmin }, 200, request);
+}
+
 // GET /api/sip/route?phone=77073320409 — Asterisk дёргает при входящем.
 // Возвращает: { extensions: ["101","102"], mobile: "+7...", fallbackSeconds: 30 }
 // Логика: phone → contact → recent open deal → responsible_uid → org-tree node →
@@ -8028,6 +8132,20 @@ export default {
     }
     if (path === "/api/sip/extensions" && request.method === "PUT") {
       return handleSipExtensionsPut(request, env);
+    }
+    // ── /api/mail — почтовые ящики ──────────────────────────────────────
+    if (path === "/api/mail/accounts" && request.method === "GET") {
+      return handleMailAccountsGet(request, env);
+    }
+    if (path === "/api/mail/accounts" && request.method === "POST") {
+      return handleMailAccountsPut(request, env);
+    }
+    const mailAccDelMatch = path.match(/^\/api\/mail\/accounts\/([^/]+)$/);
+    if (mailAccDelMatch && request.method === "DELETE") {
+      return handleMailAccountDelete(request, env, decodeURIComponent(mailAccDelMatch[1]));
+    }
+    if (path === "/api/mail/my" && request.method === "GET") {
+      return handleMailMy(request, env);
     }
     // ── /api/sip/lines — линии Бинотел (admin) ─────────────────────────
     if (path === "/api/sip/lines" && request.method === "GET") {
