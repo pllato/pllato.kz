@@ -38,6 +38,7 @@
     showArchived: false,      // показывать архивные чаты вместо активных
     loadingMsgs: false,
     readWatermarks: {},       // uid другого участника → created_at его последнего прочитанного (для галочек)
+    deliveredWatermarks: {},  // uid → created_at последнего доставленного (вторые серые галочки)
     templates: null,          // личные шаблоны сообщений (ленивая загрузка)
   };
 
@@ -224,6 +225,7 @@
       case 'user_joined': state.members = {}; loadChannels(); break;
       case 'user_left': state.members = {}; loadChannels(); break;
       case 'read': onReadReceipt(msg); break;
+      case 'delivered': onDeliveredReceipt(msg); break;
       case 'notif_read':
         // Прочитали канал на другом устройстве/вкладке → реактивно обновить
         // колокольчик в team.html (без ожидания 25-сек поллинга).
@@ -250,6 +252,9 @@
 
   function onMessageNew(m) {
     if (!m || !m.id) return;
+    // Чужое сообщение долетело до нас по WS → подтверждаем доставку отправителю
+    // (вторые серые галочки у него). Делаем для любого канала, не только активного.
+    if (m.user_id && m.user_id !== state.me.uid) ackDelivered(m.channel_id, m.id);
     // Дедуп: сообщение уже в активном канале (оптимистичный append + WS-эхо,
     // либо дубликат пуша). Без этого свои сообщения двоятся.
     if (m.channel_id === state.activeChannelId && state.messages.some(x => x.id === m.id)) return;
@@ -303,6 +308,19 @@
     const ts = msg.last_read_at || 0;
     if (ts && ts > (state.readWatermarks[msg.user_id] || 0)) {
       state.readWatermarks[msg.user_id] = ts;
+      // Прочитано ⇒ заведомо доставлено: подтягиваем и второй знак.
+      if (ts > (state.deliveredWatermarks[msg.user_id] || 0)) state.deliveredWatermarks[msg.user_id] = ts;
+      renderMessages();
+    }
+  }
+
+  // Сообщение долетело до клиента другого участника → двигаем «доставлено».
+  function onDeliveredReceipt(msg) {
+    if (!msg || msg.channel_id !== state.activeChannelId) return;
+    if (!msg.user_id || msg.user_id === state.me?.uid) return;
+    const ts = msg.last_delivered_at || 0;
+    if (ts && ts > (state.deliveredWatermarks[msg.user_id] || 0)) {
+      state.deliveredWatermarks[msg.user_id] = ts;
       renderMessages();
     }
   }
@@ -348,6 +366,7 @@
       if (channelId !== state.activeChannelId) return; // переключились пока грузили
       state.messages = d.items || [];
       state.readWatermarks = d.read_watermarks || {};
+      state.deliveredWatermarks = d.delivered_watermarks || {};
       state.loadingMsgs = false;
       renderMessages();
       scrollMsgsToBottom(false);
@@ -358,6 +377,21 @@
       console.error('loadMessages:', e);
       renderMessages();
     }
+  }
+
+  // Подтверждение доставки. Дебаунсим по каналу (300 мс) и шлём только самый
+  // свежий id — чтобы серия входящих не превратилась в серию запросов.
+  const _deliverAck = {};
+  function ackDelivered(channelId, messageId) {
+    if (!channelId || !messageId) return;
+    const slot = _deliverAck[channelId] || (_deliverAck[channelId] = {});
+    slot.id = messageId;
+    if (slot.timer) return;
+    slot.timer = setTimeout(async () => {
+      const id = slot.id; slot.timer = null;
+      try { await api(`/api/chat/channels/${channelId}/delivered`, { method: 'POST', body: JSON.stringify({ last_delivered_message_id: id }) }); }
+      catch (e) {}
+    }, 300);
   }
 
   async function markAsRead(lastMessageId) {
@@ -508,7 +542,8 @@
       .tc-msg.mentions-me .tc-msg-bubble { box-shadow:0 0 0 2px var(--tc-ac); }
       .tc-msg-meta { font-size:10.5px; opacity:.55; margin-top:3px; text-align:right; white-space:nowrap; }
       .tc-ticks { margin-left:4px; font-size:11px; letter-spacing:-2px; vertical-align:middle; }
-      .tc-ticks.read { color:#4fc3f7; opacity:1; }
+      .tc-ticks.delivered { letter-spacing:-3px; }
+      .tc-ticks.read { color:#4fc3f7; opacity:1; letter-spacing:-3px; }
       .tc-msg.own .tc-msg-meta { opacity:.8; }
       .tc-msg-deleted { font-style:italic; opacity:.6; }
       .tc-msg-edited { margin-left:5px; opacity:.8; }
@@ -908,28 +943,33 @@
     }
   }
 
-  // Галочки доставки/прочтения для МОИХ сообщений (как в мессенджерах):
-  //   ✓   — доставлено (сообщение на сервере), серым
-  //   ✓✓  — прочитано собеседником, синим
-  // В группе ✓✓ загорается, когда прочитали ВСЕ участники; иначе ✓ с подсказкой
-  // «Прочитали N/M». Оптимистичные (ещё не подтверждённые) — без галочек.
+  // Галочки статуса для МОИХ сообщений (как в мессенджерах):
+  //   ✓    — отправлено (на сервере), серым
+  //   ✓✓   — доставлено собеседнику, серым
+  //   ✓✓   — прочитано, ярко-синим
+  // В группе ✓✓ доставлено/прочитано — когда у ВСЕХ участников; иначе подсказка
+  // «N из M». Прочитано подразумевает доставлено.
   function readTicksHtml(m) {
-    if (!m || m.optimistic || m.deleted_at) return '';
-    const wm = state.readWatermarks || {};
-    const others = Object.keys(wm);
+    if (!m || m.deleted_at) return '';
+    const rwm = state.readWatermarks || {};
+    const dwm = state.deliveredWatermarks || {};
+    const others = Object.keys(rwm);
     const total = others.length;
-    const readers = others.filter(u => (wm[u] || 0) >= m.created_at).length;
-    const allRead = total > 0 && readers === total;
-    const someRead = readers > 0;
+    const readers = others.filter(u => (rwm[u] || 0) >= m.created_at).length;
+    // доставлено = прочитано ИЛИ доставлено (read ⊇ delivered)
+    const delivered = others.filter(u => Math.max(rwm[u] || 0, dwm[u] || 0) >= m.created_at).length;
     if (total <= 1) {
-      // Личка (или канал без других участников): просто ✓ / ✓✓.
-      return someRead
-        ? '<span class="tc-ticks read" title="Прочитано">✓✓</span>'
-        : '<span class="tc-ticks" title="Доставлено">✓</span>';
+      if (readers > 0) return '<span class="tc-ticks read" title="Прочитано">✓✓</span>';
+      if (delivered > 0) return '<span class="tc-ticks delivered" title="Доставлено">✓✓</span>';
+      return '<span class="tc-ticks" title="Отправлено">✓</span>';
     }
-    // Группа: ✓✓ синим только когда прочитали все.
-    if (allRead) return '<span class="tc-ticks read" title="Прочитали все">✓✓</span>';
-    const title = someRead ? `Прочитали ${readers} из ${total}` : 'Доставлено';
+    // Группа.
+    if (total > 0 && readers === total) return '<span class="tc-ticks read" title="Прочитали все">✓✓</span>';
+    if (total > 0 && delivered === total) {
+      const t = readers > 0 ? `Доставлено всем · прочитали ${readers} из ${total}` : 'Доставлено всем';
+      return `<span class="tc-ticks delivered" title="${t}">✓✓</span>`;
+    }
+    const title = readers > 0 ? `Прочитали ${readers} из ${total}` : (delivered > 0 ? `Доставлено ${delivered} из ${total}` : 'Отправлено');
     return `<span class="tc-ticks" title="${title}">✓</span>`;
   }
 
@@ -1960,6 +2000,7 @@
         const d = await api(`/api/chat/channels/${channelId}/messages?around=${encodeURIComponent(messageId)}&limit=50`);
         state.messages = d.items || [];
         if (d.read_watermarks) state.readWatermarks = d.read_watermarks;
+        if (d.delivered_watermarks) state.deliveredWatermarks = d.delivered_watermarks;
         renderMessages();
       } catch (e) { return; }
       el = state.rootEl && state.rootEl.querySelector(sel);

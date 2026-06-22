@@ -370,6 +370,18 @@ async function ensureMemberArchivedColumn(env) {
   _memArchColMigrated = true;
 }
 
+// Ленивая миграция: колонка last_delivered_message_id в team_chat_members —
+// «доставлено»: до какого сообщения клиент участника реально получил по WS.
+// Вместе с last_read_message_id даёт модель ✓ отправлено / ✓✓ доставлено /
+// ✓✓ прочитано (как в мессенджерах).
+let _deliveredColMigrated = false;
+async function ensureDeliveredColumn(env) {
+  if (_deliveredColMigrated) return;
+  try { await env.DB.prepare("ALTER TABLE team_chat_members ADD COLUMN last_delivered_message_id TEXT").run(); }
+  catch (e) { /* колонка уже есть — норма */ }
+  _deliveredColMigrated = true;
+}
+
 // Ленивая миграция: колонка icon в team_chat_channels (кастомная иконка группы).
 let _iconColMigrated = false;
 async function ensureChannelIconColumn(env) {
@@ -592,16 +604,22 @@ async function getMessages(env, me, channelId, url) {
   // рисует галочки доставки/прочтения у МОИХ сообщений.
   const myIds = meIds(me);
   const read_watermarks = {};
+  const delivered_watermarks = {};
   try {
+    await ensureDeliveredColumn(env);
     const { results: wm } = await env.DB.prepare(
-      `SELECT tm.user_id AS user_id, mm.created_at AS read_at
+      `SELECT tm.user_id AS user_id, mm.created_at AS read_at, dm.created_at AS delivered_at
          FROM team_chat_members tm
          LEFT JOIN team_chat_msgs mm ON mm.id = tm.last_read_message_id
+         LEFT JOIN team_chat_msgs dm ON dm.id = tm.last_delivered_message_id
         WHERE tm.channel_id = ? AND tm.user_id NOT IN (${phList(myIds)})`
     ).bind(channelId, ...myIds).all();
-    for (const r of (wm || [])) read_watermarks[r.user_id] = r.read_at || 0;
+    for (const r of (wm || [])) {
+      read_watermarks[r.user_id] = r.read_at || 0;
+      delivered_watermarks[r.user_id] = r.delivered_at || 0;
+    }
   } catch (e) { /* best-effort: без галочек, но сообщения отдадим */ }
-  return jsonRes({ items: results.reverse(), read_watermarks });
+  return jsonRes({ items: results.reverse(), read_watermarks, delivered_watermarks });
 }
 
 // POST /api/chat/channels/:id/messages
@@ -748,6 +766,31 @@ async function markAsRead(env, me, channelId, body) {
     ).bind(now(), ...notifIds).run();
   } catch {}
   for (const u of ids) broadcastToUser(env, u, { kind: 'notif_read', channel_id: channelId });
+  return jsonRes({ ok: true });
+}
+
+// POST /api/chat/channels/:id/delivered { last_delivered_message_id }
+// Клиент участника получил сообщение по WS → отмечаем «доставлено» и шлём
+// отправителю событие delivered, чтобы у него загорелись вторые (серые) галочки.
+async function markDelivered(env, me, channelId, body) {
+  await ensureDeliveredColumn(env);
+  if (!(await isChannelMember(env, channelId, me))) return errRes('forbidden', 403);
+  const id = String(body.last_delivered_message_id || '');
+  if (!id) return errRes('last_delivered_message_id required');
+  const ids = meIds(me);
+  // Двигаем водяной знак только вперёд (по created_at), чтобы запоздавшее эхо
+  // старого сообщения не «откатило» доставку.
+  await env.DB.prepare(
+    `UPDATE team_chat_members
+        SET last_delivered_message_id = ?
+      WHERE channel_id = ? AND user_id IN (${phList(ids)})
+        AND (last_delivered_message_id IS NULL
+             OR (SELECT created_at FROM team_chat_msgs WHERE id = ?)
+                > COALESCE((SELECT created_at FROM team_chat_msgs WHERE id = last_delivered_message_id), 0))`
+  ).bind(id, channelId, ...ids, id).run();
+  let ts = 0;
+  try { const row = await env.DB.prepare('SELECT created_at FROM team_chat_msgs WHERE id = ?').bind(id).first(); ts = row?.created_at || 0; } catch (e) {}
+  broadcastToChannel(env, channelId, { kind: 'delivered', channel_id: channelId, user_id: me.uid, last_delivered_message_id: id, last_delivered_at: ts });
   return jsonRes({ ok: true });
 }
 
@@ -1118,6 +1161,7 @@ export async function handleChatRequest(request, env, url, me, ctx) {
   await ensureChannelIconColumn(env);
   await ensurePinColumn(env);
   await ensureMemberArchivedColumn(env);
+  await ensureDeliveredColumn(env);
 
   // Channels
   if (p === '/api/chat/channels' && m === 'GET')  return listChannels(env, me, url);
@@ -1136,6 +1180,7 @@ export async function handleChatRequest(request, env, url, me, ctx) {
     if (sub === '/members'  && m === 'POST') return addMembers(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/members/remove' && m === 'POST') return removeMembers(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/read'     && m === 'POST') return markAsRead(env, me, channelId, await request.json().catch(() => ({})));
+    if (sub === '/delivered' && m === 'POST') return markDelivered(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/mute'     && m === 'POST') return setMuted(env, me, channelId, await request.json().catch(() => ({})));
     if (sub === '/leave'    && m === 'POST') return leaveChannel(env, me, channelId);
     if (sub === '/rename'   && m === 'POST') return renameChannel(env, me, channelId, await request.json().catch(() => ({})));
