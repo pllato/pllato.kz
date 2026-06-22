@@ -1410,6 +1410,7 @@ body.page-team-chat .sipc-bottombar:not([data-state="established"]):not([data-st
   font-family: var(--fd);
   border: 1px solid var(--acb);
 }
+.task-resp-chip { display: inline-flex; align-items: center; gap: 7px; }
 .kanban-card-resp-name {
   font-size: 11px;
   color: var(--t2);
@@ -17848,6 +17849,40 @@ async function deleteTaskConfirm(key, title) {
   }
 }
 
+// Быстрая смена статуса задачи (Завершить / Открыть заново) одним кликом из
+// карточки — тот же PATCH, что и в модалке редактирования, но без формы.
+async function quickSetTaskStatus(key, t, newStatus, btn) {
+  if (btn) { btn.disabled = true; btn._old = btn.textContent; btn.textContent = '⏳…'; }
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const currentUid = window.currentUser?.canonicalUid || fbAuth.currentUser?.uid;
+    const nowIso = new Date().toISOString();
+    const body = { status: String(newStatus), changedByUid: currentUid, bitrixDateModify: nowIso };
+    // Перевод в «Завершена» проставляет дату закрытия; переоткрытие — снимает.
+    if (String(newStatus) === '4') body.bitrixDateClosed = nowIso;
+    else body.bitrixDateClosed = null;
+    const r = await fetch(`${WORKER_RTDB_URL}/tasks/${encodeURIComponent(key)}.json?auth=${idToken}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const tx = await r.text();
+      throw new Error(`HTTP ${r.status}: ${tx.slice(0, 160)}`);
+    }
+    showToast?.(String(newStatus) === '4' ? '✅ Задача завершена' : '↩️ Задача снова открыта');
+    if (t) Object.assign(t, body);
+    const item = (tasksState?.list || []).find(x => x.key === key || x.id === key);
+    if (item) Object.assign(item, body);
+    closeDealCard();
+    setTimeout(() => openTaskCard(key), 60);
+    if (document.querySelector('[data-page="tasks"].active')) { try { filterAndRenderTasks(); } catch {} }
+  } catch (e) {
+    alert('Не удалось изменить статус: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = btn._old || 'Готово'; }
+  }
+}
+
 async function openTaskCard(key) {
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
@@ -17886,6 +17921,8 @@ async function openTaskCard(key) {
     const prMeta = TASK_PRIORITY_META[String(t.priority || '1')] || TASK_PRIORITY_META['1'];
     const respUser = getUserById(t.responsibleUid);
     const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
+    const respShort = (respName && respName !== '—')
+      ? respName.split(' ').filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() : '?';
     const createdByUser = getUserById(t.createdByUid);
     const createdByName = createdByUser ? `${createdByUser.lastName || ''} ${createdByUser.name || ''}`.trim() : '—';
     const bitrixUrl = `https://elcalmaty.bitrix24.kz/company/personal/user/1/tasks/task/view/${t.bitrixId}/`;
@@ -17943,8 +17980,11 @@ async function openTaskCard(key) {
           ${parentTask || subtasks.length > 0 ? ` · <span style="color:var(--t3)">${parentTask ? '↳ подзадача' : ''}${subtasks.length > 0 ? `📂 ${subtasks.length} подзадач(и)` : ''}</span>` : ''}
         </div>
         ${canEdit ? `<div class="task-card-actions" style="display:flex;gap:8px;margin:10px 0 2px;flex-wrap:wrap">
+          ${['1', '2', '3'].includes(String(t.status || '1'))
+            ? `<button class="tbtn tbtn-xs tbtn-g" id="task-done-btn">✅ Завершить</button>`
+            : `<button class="tbtn tbtn-xs" id="task-reopen-btn">↩️ Открыть заново</button>`}
           <button class="tbtn tbtn-xs" id="task-edit-btn">✏️ Редактировать</button>
-          ${canManage ? `<button class="tbtn tbtn-xs" id="task-delete-btn" style="color:var(--rd);border-color:var(--rd)">🗑 Удалить</button>` : ''}
+          ${canManage ? `<button class="tbtn tbtn-xs tbtn-r" id="task-delete-btn">🗑 Удалить</button>` : ''}
         </div>` : ''}
 
         ${parentTask ? `<div class="section-h">Родительская задача</div>
@@ -17970,7 +18010,7 @@ async function openTaskCard(key) {
           <div class="fl">Приоритет</div>
           <div class="fv"><span class="badge ${prMeta.class}">${escapeHtml(prMeta.label)}</span></div>
           <div class="fl">Исполнитель</div>
-          <div class="fv">${escapeHtml(respName)}</div>
+          <div class="fv"><span class="task-resp-chip"><span class="kanban-av">${escapeHtml(respShort)}</span>${escapeHtml(respName)}</span></div>
           <div class="fl">Постановщик</div>
           <div class="fv">${escapeHtml(createdByName)}</div>
           ${t.deadline ? `<div class="fl">Дедлайн</div><div class="fv">${new Date(t.deadline).toLocaleString('ru')}</div>` : ''}
@@ -18064,6 +18104,11 @@ async function openTaskCard(key) {
     if (editBtn) editBtn.onclick = () => openTaskEditModal(t, key);
     const delBtn = modal.querySelector('#task-delete-btn');
     if (delBtn) delBtn.onclick = () => deleteTaskConfirm(key, t.title);
+    // Быстрое завершение / переоткрытие — один клик, без модалки редактирования
+    const doneBtn = modal.querySelector('#task-done-btn');
+    if (doneBtn) doneBtn.onclick = () => quickSetTaskStatus(key, t, '4', doneBtn);
+    const reopenBtn = modal.querySelector('#task-reopen-btn');
+    if (reopenBtn) reopenBtn.onclick = () => quickSetTaskStatus(key, t, '3', reopenBtn);
 
     // Подгружаем метаданные файлов задачи (если есть)
     if (t.hasFiles && asArray(t.bitrixFileIds).length > 0) {
