@@ -21024,6 +21024,7 @@ async function renderSettings(el) {
       <button class="vt-btn ${settingsState.tab === 'pipelines' ? 'active' : ''}" data-stab="pipelines">🗄 Воронки</button>
       <button class="vt-btn ${settingsState.tab === 'permissions' ? 'active' : ''}" data-stab="permissions">🔒 Права доступа</button>
       <button class="vt-btn ${settingsState.tab === 'channels' ? 'active' : ''}" data-stab="channels">🔌 Каналы подключения</button>
+      <button class="vt-btn ${settingsState.tab === 'telephony' ? 'active' : ''}" data-stab="telephony">📞 Телефония</button>
       <button class="vt-btn ${settingsState.tab === 'audit' ? 'active' : ''}" data-stab="audit">📋 Журнал</button>
       <button class="vt-btn ${settingsState.tab === 'migration' ? 'active' : ''}" data-stab="migration">🔄 Миграция Bitrix</button>
     </div>
@@ -21044,12 +21045,205 @@ async function renderSettings(el) {
     await renderSettingsPermissions(content);
   } else if (settingsState.tab === 'channels') {
     await renderSettingsChannels(content);
+  } else if (settingsState.tab === 'telephony') {
+    await renderSettingsTelephony(content);
   } else if (settingsState.tab === 'audit') {
     await renderSettingsAudit(content);
   } else if (settingsState.tab === 'migration') {
     // Переехало из отдельной страницы sidebar — renderMigration работает в любом контейнере
     renderMigration(content);
   }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Настройки → Телефония: линии Бинотел + назначение сотрудникам + конфиг сервера
+// ════════════════════════════════════════════════════════════════════════
+async function renderSettingsTelephony(el) {
+  el.innerHTML = `<div class="card" style="padding:24px;color:var(--t3)">⏳ Загрузка…</div>`;
+  let lines = [], agents = [];
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const headers = { 'Authorization': 'Bearer ' + idToken };
+    const [lr, ar] = await Promise.all([
+      fetch(`${WORKER_BASE_URL}/api/sip/lines`, { headers }).then(r => r.json()).catch(() => ({})),
+      fetch(`${WORKER_BASE_URL}/api/sip/agents`, { headers }).then(r => r.json()).catch(() => ({})),
+    ]);
+    lines = lr.lines || []; agents = ar.agents || [];
+  } catch (e) {}
+  const agentByUid = {}; for (const a of agents) agentByUid[a.uid] = a;
+  const lineById = {}; for (const l of lines) lineById[l.id] = l;
+  const users = (typeof orgSortedUsers === 'function') ? orgSortedUsers() : [];
+
+  const lineRows = lines.length ? lines.map(l => `
+    <div class="tel-line-row" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--b1)">
+      <div style="font-family:ui-monospace,monospace;font-weight:700;font-size:15px;min-width:64px">${escapeHtml(l.number)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:var(--t1)">${escapeHtml(l.label || 'без названия')}</div>
+        <div style="font-size:11px;color:var(--t3)">${escapeHtml(l.sip_user || '—')}@${escapeHtml(l.sip_server || '—')}:${escapeHtml(l.sip_port || '5060')} · пароль: ${l.has_password ? '✅ задан' : '⚠️ нет'}</div>
+      </div>
+      <span class="badge ${l.enabled ? 'badge-g' : 'badge-n'}">${l.enabled ? 'вкл' : 'выкл'}</span>
+      <button class="tbtn tbtn-xs" data-tel-edit="${escapeHtml(l.id)}">✏️</button>
+      <button class="tbtn tbtn-xs tbtn-r" data-tel-del="${escapeHtml(l.id)}">🗑</button>
+    </div>`).join('') : '<div style="color:var(--t3);font-style:italic;padding:14px 0">Линий пока нет. Добавьте первую линию Бинотел.</div>';
+
+  const lineOpts = (sel) => `<option value="">— нет линии —</option>` +
+    lines.map(l => `<option value="${escapeHtml(l.id)}" ${l.id === sel ? 'selected' : ''}>${escapeHtml(l.number)}${l.label ? ' · ' + escapeHtml(l.label) : ''}</option>`).join('');
+
+  const userRows = users.length ? users.map(u => {
+    const a = agentByUid[u.uid] || {};
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--b1)" data-tel-agent-row="${escapeHtml(u.uid)}">
+      <div style="flex:1;min-width:0;font-size:13px;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(u.label)}</div>
+      <input type="text" class="qad-input" data-tel-ext value="${escapeHtml(a.extension || '')}" placeholder="101" style="width:74px;text-align:center;font-family:ui-monospace,monospace;padding:5px 6px">
+      <select class="qad-input" data-tel-line style="width:170px;padding:5px 6px">${lineOpts(a.line_id || '')}</select>
+      <button class="tbtn tbtn-xs tbtn-g" data-tel-save="${escapeHtml(u.uid)}">Сохранить</button>
+      ${a.has_password ? `<span class="badge badge-ac" title="endpoint настроен">✓</span>` : ''}
+    </div>`;
+  }).join('') : '<div style="color:var(--t3);padding:12px 0">Нет сотрудников в структуре.</div>';
+
+  const cfgUrl = `${WORKER_BASE_URL}/api/sip/asterisk-config?secret=ВАШ_SIP_ROUTE_SECRET`;
+
+  el.innerHTML = `
+    <div class="card" style="padding:18px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <h3 style="margin:0;font-size:16px">📞 Линии Бинотел</h3>
+        <button class="tbtn tbtn-sm tbtn-a" id="tel-add-line">+ Линия</button>
+      </div>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:8px">Внутренние линии Бинотел (например 1906). У каждой свой SIP-логин и пароль из кабинета Бинотел.</div>
+      <div id="tel-lines-list">${lineRows}</div>
+    </div>
+
+    <div class="card" style="padding:18px;margin-bottom:14px">
+      <h3 style="margin:0 0 6px 0;font-size:16px">🧑‍💼 Сотрудники → линия</h3>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:8px">Внутренний номер (extension) сотрудника на нашем Asterisk и его линия Бинотел. Исходящие пойдут с его линии, входящие на линию — позвонят ему. Пароль endpoint'а создаётся автоматически.</div>
+      <div id="tel-agents-list">${userRows}</div>
+    </div>
+
+    <div class="card" style="padding:18px">
+      <h3 style="margin:0 0 6px 0;font-size:16px">🛠 Конфиг для сервера Asterisk</h3>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:8px">После изменения линий/назначений примените конфиг на сервере (по SSH). Команда тянет готовый pjsip.conf + extensions.conf и перезагружает Asterisk:</div>
+      <pre style="background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:12px;font-size:12px;overflow-x:auto;white-space:pre-wrap;word-break:break-all">curl -s "${escapeHtml(cfgUrl)}"</pre>
+      <div style="font-size:11px;color:var(--t3)">Замените <code>ВАШ_SIP_ROUTE_SECRET</code> на секрет воркера. Конфиг — это шаблон; проверьте сопоставление входящих под ваш Бинотел. Подробные шаги дам отдельно.</div>
+      <button class="tbtn tbtn-xs" id="tel-preview-cfg" style="margin-top:8px">👁 Показать сгенерированный конфиг</button>
+      <pre id="tel-cfg-preview" style="display:none;background:var(--bg3);border:1px solid var(--b1);border-radius:8px;padding:12px;font-size:11px;max-height:340px;overflow:auto;margin-top:8px"></pre>
+    </div>`;
+
+  // ── Линии: добавить / изменить / удалить ──
+  el.querySelector('#tel-add-line').onclick = () => openSipLineForm(null);
+  el.querySelectorAll('[data-tel-edit]').forEach(b => {
+    b.onclick = () => openSipLineForm(lineById[b.dataset.telEdit] || null);
+  });
+  el.querySelectorAll('[data-tel-del]').forEach(b => {
+    b.onclick = async () => {
+      const l = lineById[b.dataset.telDel];
+      if (!confirm(`Удалить линию ${l ? l.number : ''}? У сотрудников с этой линией привязка снимется.`)) return;
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_BASE_URL}/api/sip/lines/${encodeURIComponent(b.dataset.telDel)}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + idToken } });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        showToast?.('Линия удалена'); renderSettingsTelephony(el);
+      } catch (e) { alert('Ошибка: ' + e.message); }
+    };
+  });
+
+  // ── Сотрудники: сохранить назначение ──
+  el.querySelectorAll('[data-tel-save]').forEach(b => {
+    b.onclick = async () => {
+      const row = b.closest('[data-tel-agent-row]');
+      const uid = b.dataset.telSave;
+      const extension = row.querySelector('[data-tel-ext]').value.replace(/\D/g, '');
+      const line_id = row.querySelector('[data-tel-line]').value || null;
+      b.disabled = true; b.textContent = '⏳';
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_BASE_URL}/api/sip/agents`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+          body: JSON.stringify({ uid, extension, line_id }),
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        showToast?.('Сохранено'); b.textContent = '✓';
+        setTimeout(() => { b.disabled = false; b.textContent = 'Сохранить'; }, 1200);
+      } catch (e) { alert('Ошибка: ' + e.message); b.disabled = false; b.textContent = 'Сохранить'; }
+    };
+  });
+
+  // ── Превью конфига ──
+  el.querySelector('#tel-preview-cfg').onclick = async () => {
+    const pre = el.querySelector('#tel-cfg-preview');
+    if (pre.style.display === 'block') { pre.style.display = 'none'; return; }
+    pre.style.display = 'block'; pre.textContent = '⏳ Секрет не передаётся из браузера — это превью генерится только на сервере. Запустите команду выше по SSH, чтобы увидеть готовый конфиг.';
+  };
+}
+
+// Форма добавления/редактирования линии Бинотел
+function openSipLineForm(line) {
+  document.getElementById('_sip-line-modal')?.remove();
+  const l = line || {};
+  const ov = document.createElement('div');
+  ov.id = '_sip-line-modal';
+  ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:480px">
+      <div class="qad-head"><h2>${line ? 'Изменить линию' : 'Новая линия Бинотел'}</h2>
+        <button class="qad-btn qad-btn-ghost" id="sl-close" style="padding:4px 10px">×</button></div>
+      <div class="qad-body" style="max-height:70vh;overflow-y:auto">
+        <div><div class="qad-label">Номер линии (например 1906)</div>
+          <input id="sl-number" class="qad-input" value="${escapeHtml(l.number || '')}" placeholder="1906"></div>
+        <div><div class="qad-label">Название (для себя)</div>
+          <input id="sl-label" class="qad-input" value="${escapeHtml(l.label || '')}" placeholder="Отдел продаж"></div>
+        <div style="display:flex;gap:10px">
+          <div style="flex:2"><div class="qad-label">SIP-сервер Бинотел</div>
+            <input id="sl-server" class="qad-input" value="${escapeHtml(l.sip_server || '')}" placeholder="sip.binotel.com"></div>
+          <div style="flex:1"><div class="qad-label">Порт</div>
+            <input id="sl-port" class="qad-input" value="${escapeHtml(l.sip_port || '5060')}" placeholder="5060"></div>
+        </div>
+        <div><div class="qad-label">SIP-логин</div>
+          <input id="sl-user" class="qad-input" value="${escapeHtml(l.sip_user || '')}" placeholder="логин из кабинета Бинотел"></div>
+        <div><div class="qad-label">SIP-пароль ${line ? '<span style="color:var(--t3);font-weight:400">(пусто = не менять)</span>' : ''}</div>
+          <input id="sl-pass" class="qad-input" type="password" value="" placeholder="${line && l.has_password ? '•••••• (сохранён)' : 'пароль из кабинета Бинотел'}"></div>
+        <div><div class="qad-label">Caller ID для исходящих (необязательно)</div>
+          <input id="sl-cid" class="qad-input" value="${escapeHtml(l.caller_id || '')}" placeholder="напр. 1906 или внешний номер"></div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="sl-enabled" ${l.enabled === 0 ? '' : 'checked'}> Линия включена</label>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" id="sl-cancel">Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="sl-save">Сохранить</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#sl-close').onclick = () => ov.remove();
+  ov.querySelector('#sl-cancel').onclick = () => ov.remove();
+  ov.querySelector('#sl-save').onclick = async () => {
+    const btn = ov.querySelector('#sl-save');
+    const number = ov.querySelector('#sl-number').value.replace(/\D/g, '');
+    if (!number) { alert('Укажите номер линии'); return; }
+    const body = {
+      id: l.id || undefined,
+      number,
+      label: ov.querySelector('#sl-label').value.trim(),
+      sip_server: ov.querySelector('#sl-server').value.trim(),
+      sip_port: ov.querySelector('#sl-port').value.trim() || '5060',
+      sip_user: ov.querySelector('#sl-user').value.trim(),
+      caller_id: ov.querySelector('#sl-cid').value.trim(),
+      enabled: ov.querySelector('#sl-enabled').checked,
+    };
+    const pass = ov.querySelector('#sl-pass').value;
+    if (pass) body.sip_password = pass;
+    btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/sip/lines`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      ov.remove();
+      showToast?.('Линия сохранена');
+      const content = document.getElementById('settings-content');
+      if (content) renderSettingsTelephony(content);
+    } catch (e) { alert('Ошибка: ' + e.message); btn.disabled = false; btn.textContent = 'Сохранить'; }
+  };
 }
 
 // ── Права доступа (виды ролей: ИД, Рег 6, Рег 2, ...) ──
