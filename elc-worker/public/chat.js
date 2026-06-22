@@ -37,6 +37,7 @@
     channelSearch: '',
     showArchived: false,      // показывать архивные чаты вместо активных
     loadingMsgs: false,
+    readWatermarks: {},       // uid другого участника → created_at его последнего прочитанного (для галочек)
   };
 
   // ── Auth token ─────────────────────────────────────────────────────────
@@ -221,7 +222,7 @@
       case 'role_changed': loadChannels(); break;
       case 'user_joined': state.members = {}; loadChannels(); break;
       case 'user_left': state.members = {}; loadChannels(); break;
-      case 'read': break;
+      case 'read': onReadReceipt(msg); break;
       case 'notif_read':
         // Прочитали канал на другом устройстве/вкладке → реактивно обновить
         // колокольчик в team.html (без ожидания 25-сек поллинга).
@@ -293,6 +294,18 @@
     if (m) { m.reactions = msg.reactions; renderMessages(); }
   }
 
+  // Кто-то прочитал сообщения в активном канале → двигаем его водяной знак и
+  // перерисовываем галочки у моих сообщений (доставлено ✓ / прочитано ✓✓).
+  function onReadReceipt(msg) {
+    if (!msg || msg.channel_id !== state.activeChannelId) return;
+    if (!msg.user_id || msg.user_id === state.me?.uid) return; // свои события не учитываем
+    const ts = msg.last_read_at || 0;
+    if (ts && ts > (state.readWatermarks[msg.user_id] || 0)) {
+      state.readWatermarks[msg.user_id] = ts;
+      renderMessages();
+    }
+  }
+
   function onChannelRenamed(msg) {
     const ch = state.channels.find(c => c.id === msg.channel_id);
     if (ch) { ch.name = msg.name; renderChannelList(); if (msg.channel_id === state.activeChannelId) renderMainHead(); }
@@ -333,6 +346,7 @@
       const d = await api(`/api/chat/channels/${channelId}/messages?limit=50`);
       if (channelId !== state.activeChannelId) return; // переключились пока грузили
       state.messages = d.items || [];
+      state.readWatermarks = d.read_watermarks || {};
       state.loadingMsgs = false;
       renderMessages();
       scrollMsgsToBottom(false);
@@ -492,6 +506,8 @@
       .tc-mention.me { background:color-mix(in srgb, var(--tc-ac) 22%, transparent); border-radius:4px; padding:0 3px; }
       .tc-msg.mentions-me .tc-msg-bubble { box-shadow:0 0 0 2px var(--tc-ac); }
       .tc-msg-meta { font-size:10.5px; opacity:.55; margin-top:3px; text-align:right; white-space:nowrap; }
+      .tc-ticks { margin-left:4px; font-size:11px; letter-spacing:-2px; vertical-align:middle; }
+      .tc-ticks.read { color:#4fc3f7; opacity:1; }
       .tc-msg.own .tc-msg-meta { opacity:.8; }
       .tc-msg-deleted { font-style:italic; opacity:.6; }
       .tc-msg-edited { margin-left:5px; opacity:.8; }
@@ -870,6 +886,31 @@
     }
   }
 
+  // Галочки доставки/прочтения для МОИХ сообщений (как в мессенджерах):
+  //   ✓   — доставлено (сообщение на сервере), серым
+  //   ✓✓  — прочитано собеседником, синим
+  // В группе ✓✓ загорается, когда прочитали ВСЕ участники; иначе ✓ с подсказкой
+  // «Прочитали N/M». Оптимистичные (ещё не подтверждённые) — без галочек.
+  function readTicksHtml(m) {
+    if (!m || m.optimistic || m.deleted_at) return '';
+    const wm = state.readWatermarks || {};
+    const others = Object.keys(wm);
+    const total = others.length;
+    const readers = others.filter(u => (wm[u] || 0) >= m.created_at).length;
+    const allRead = total > 0 && readers === total;
+    const someRead = readers > 0;
+    if (total <= 1) {
+      // Личка (или канал без других участников): просто ✓ / ✓✓.
+      return someRead
+        ? '<span class="tc-ticks read" title="Прочитано">✓✓</span>'
+        : '<span class="tc-ticks" title="Доставлено">✓</span>';
+    }
+    // Группа: ✓✓ синим только когда прочитали все.
+    if (allRead) return '<span class="tc-ticks read" title="Прочитали все">✓✓</span>';
+    const title = someRead ? `Прочитали ${readers} из ${total}` : 'Доставлено';
+    return `<span class="tc-ticks" title="${title}">✓</span>`;
+  }
+
   function renderMessage(m, opts) {
     const own = m.user_id === state.me.uid;
     const grouped = opts && opts.grouped;
@@ -954,12 +995,13 @@
       ? `<div class="tc-msg-author" style="color:${userColor(m.user_id)}">${escapeHtml(userLabel(m.user_id))}</div>`
       : '';
     const editedTag = m.edited_at ? '<span class="tc-msg-edited">(изм.)</span>' : '';
+    const ticks = own ? readTicksHtml(m) : '';
 
     return `<div class="${cls}" data-mid="${escapeHtml(m.id)}">
       ${avatarCol}
       <div class="tc-msg-bubble">
         ${author}${body}${reactionsHtml}
-        <div class="tc-msg-meta">${formatClock(m.created_at)}${editedTag}</div>
+        <div class="tc-msg-meta">${formatClock(m.created_at)}${editedTag}${ticks}</div>
       </div>
       <div class="tc-msg-actions">
         <button class="tc-msg-btn" data-msg-act="reply" data-msg-id="${m.id}" title="Ответить">↩</button>
@@ -1794,6 +1836,7 @@
       try {
         const d = await api(`/api/chat/channels/${channelId}/messages?around=${encodeURIComponent(messageId)}&limit=50`);
         state.messages = d.items || [];
+        if (d.read_watermarks) state.readWatermarks = d.read_watermarks;
         renderMessages();
       } catch (e) { return; }
       el = state.rootEl && state.rootEl.querySelector(sel);
