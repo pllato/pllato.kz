@@ -3242,6 +3242,28 @@ const firebaseConfig = {
 };
 const WORKER_URL = 'https://pllato-crm-worker.uurraa.workers.dev';
 const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
+
+// ── Экономия запросов: на скрытой вкладке не опрашиваем сервер ──────────────
+// Когда вкладку свернули/ушли в другую, нет смысла раз в несколько секунд
+// дёргать worker/D1 — это лишние запросы (и деньги). Глобально «гейтим»
+// длинные интервалы (>= 3 сек — это поллеры; короткие 16-мс анимации прокрутки
+// не трогаем) проверкой document.hidden: таймер тикает, но колбэк пропускается,
+// пока вкладка невидима. Вернулись на вкладку — поллеры сами оживут на след.
+// тике, плюс шлём событие 'elc:visible' для мгновенного обновления.
+(function installPollPauseOnHidden() {
+  const _origSetInterval = window.setInterval.bind(window);
+  window.setInterval = function (fn, delay) {
+    const extra = Array.prototype.slice.call(arguments, 2);
+    if (typeof fn === 'function' && typeof delay === 'number' && delay >= 3000) {
+      const gated = function () { if (document.hidden) return; return fn.apply(this, extra); };
+      return _origSetInterval(gated, delay);
+    }
+    return _origSetInterval.apply(window, arguments);
+  };
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) { try { window.dispatchEvent(new CustomEvent('elc:visible')); } catch (e) {} }
+  });
+})();
 // === ELC IndexedDB RTDB cache ===
 // Monkey-patch window.fetch для WORKER_RTDB_URL: коллекции (users.json, contacts.json,
 // deals.json, tasks.json, groupChats.json, customFieldsSchema/*.json, pipelines/*.json)

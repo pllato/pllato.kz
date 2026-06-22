@@ -1458,15 +1458,23 @@ async function handleList(request, env, entity) {
     for (const f of cfg.searchFields) {
       for (const v of variantList) { orClauses.push(`${f} LIKE ?`); whereParams.push(v); }
     }
-    // Поиск по ТЕЛЕФОНУ для сделок. У deals телефона нет в самой строке — он у
-    // привязанного контакта (contact_id → contacts.phones). Если в запросе есть
-    // цифры, ищем контакт с этим номером и его сделки. Берём последние 10 цифр
-    // (локальная часть без кода страны), чтобы матчить любой формат (+7/8/без).
+    // Поиск по ТЕЛЕФОНУ. Телефоны в БД хранятся как сплошные цифры в каноне
+    // "+7XXXXXXXXXX" (JSON в contacts.phones). Пользователь же может ввести номер
+    // в любом виде: "+7 705 123-45-67", "8 (705) 1234567", "7051234567" — поэтому
+    // вытаскиваем из запроса только цифры и матчим по «хвосту» (до 10 цифр —
+    // локальная часть без кода страны). Так работает и полный номер, и фрагмент.
     const digits = q.replace(/\D/g, '');
-    if (entity === 'deals' && digits.length >= 5) {
+    if (digits.length >= 4) {
       const tail = digits.slice(-10);
-      orClauses.push(`contact_id IN (SELECT id FROM contacts WHERE phones LIKE ?)`);
-      whereParams.push('%' + tail + '%');
+      if (entity === 'deals') {
+        // У сделки телефона нет — он у привязанного контакта (contact_id → contacts.phones).
+        orClauses.push(`contact_id IN (SELECT id FROM contacts WHERE phones LIKE ?)`);
+        whereParams.push('%' + tail + '%');
+      } else if (cfg.searchFields.includes('phones')) {
+        // Контакты: нормализованный поиск по цифрам поверх обычного LIKE по phones.
+        orClauses.push(`phones LIKE ?`);
+        whereParams.push('%' + tail + '%');
+      }
     }
     if (orClauses.length) whereParts.push("(" + orClauses.join(" OR ") + ")");
   }

@@ -1040,6 +1040,53 @@ async function uploadFile(request, env, me) {
   });
 }
 
+// ── Шаблоны сообщений ────────────────────────────────────────────────────
+// Личные заготовки текста (у каждого сотрудника свои): сохранил частый ответ —
+// и вставляешь одним кликом в композер. Ленивое создание таблицы.
+let _tplTableReady = false;
+async function ensureTemplatesTable(env) {
+  if (_tplTableReady) return;
+  try {
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS team_chat_templates (
+         id TEXT PRIMARY KEY, owner_uid TEXT NOT NULL, title TEXT, body TEXT NOT NULL, created_at INTEGER
+       )`
+    ).run();
+  } catch (e) { /* best-effort */ }
+  _tplTableReady = true;
+}
+
+async function listTemplates(env, me) {
+  await ensureTemplatesTable(env);
+  const ids = meIds(me);
+  const { results } = await env.DB.prepare(
+    `SELECT id, title, body, created_at FROM team_chat_templates
+      WHERE owner_uid IN (${phList(ids)}) ORDER BY created_at DESC LIMIT 200`
+  ).bind(...ids).all();
+  return jsonRes({ items: results || [] });
+}
+
+async function createTemplate(env, me, body) {
+  await ensureTemplatesTable(env);
+  const text = (body.body == null ? '' : String(body.body)).trim().slice(0, 4000);
+  if (!text) return errRes('body required');
+  const title = (body.title == null ? '' : String(body.title)).trim().slice(0, 120) || null;
+  const id = uuid(); const ts = now();
+  await env.DB.prepare(
+    `INSERT INTO team_chat_templates (id, owner_uid, title, body, created_at) VALUES (?, ?, ?, ?, ?)`
+  ).bind(id, me.uid, title, text, ts).run();
+  return jsonRes({ template: { id, title, body: text, created_at: ts } });
+}
+
+async function deleteTemplate(env, me, id) {
+  await ensureTemplatesTable(env);
+  const ids = meIds(me);
+  await env.DB.prepare(
+    `DELETE FROM team_chat_templates WHERE id = ? AND owner_uid IN (${phList(ids)})`
+  ).bind(id, ...ids).run();
+  return jsonRes({ ok: true });
+}
+
 // GET /api/chat/files/:key — отдача файла.
 // Экспортируется: worker.js перехватывает GET ДО auth-гейта /api/chat/* и
 // пускает через requireAuthFlexible (?auth=token), т.к. <img src>/<a href>
@@ -1121,6 +1168,12 @@ export async function handleChatRequest(request, env, url, me, ctx) {
     if (sub === '/reactions' && m === 'POST')   return addReaction(env, me, messageId, await request.json().catch(() => ({})));
     if (sub === '/reactions' && m === 'DELETE') return removeReaction(env, me, messageId, await request.json().catch(() => ({})));
   }
+
+  // Шаблоны сообщений (личные, у каждого свои)
+  if (p === '/api/chat/templates' && m === 'GET')  return listTemplates(env, me);
+  if (p === '/api/chat/templates' && m === 'POST') return createTemplate(env, me, await request.json().catch(() => ({})));
+  const tplMatch = p.match(/^\/api\/chat\/templates\/([^/]+)$/);
+  if (tplMatch && m === 'DELETE') return deleteTemplate(env, me, tplMatch[1]);
 
   // Search + files
   if (p === '/api/chat/search'        && m === 'GET')  return searchMessages(env, me, url);
