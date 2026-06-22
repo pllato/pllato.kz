@@ -38,6 +38,7 @@
     showArchived: false,      // показывать архивные чаты вместо активных
     loadingMsgs: false,
     readWatermarks: {},       // uid другого участника → created_at его последнего прочитанного (для галочек)
+    templates: null,          // личные шаблоны сообщений (ленивая загрузка)
   };
 
   // ── Auth token ─────────────────────────────────────────────────────────
@@ -588,6 +589,27 @@
       .tc-btn-send { background:var(--tc-ac); color:#fff; }
       .tc-btn-send:hover { background:var(--tc-ac); filter:brightness(.92); }
       .tc-btn-mic:hover { background:color-mix(in srgb, var(--tc-ac) 18%, var(--bg3)); }
+      .tc-btn-tpl:hover { background:color-mix(in srgb, var(--tc-ac) 18%, var(--bg3)); }
+      /* Поп-ап шаблонов сообщений */
+      .tc-tpl-pop { position:absolute; left:16px; right:16px; bottom:100%; margin-bottom:6px; background:var(--bg2);
+        border:1px solid var(--b1); border-radius:12px; box-shadow:0 6px 22px rgba(0,0,0,.2); max-height:300px; overflow-y:auto;
+        z-index:7; display:none; }
+      .tc-tpl-pop.open { display:block; }
+      .tc-tpl-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px;
+        border-bottom:1px solid var(--b1); font-size:12.5px; font-weight:700; color:var(--t2); position:sticky; top:0; background:var(--bg2); }
+      .tc-tpl-save { border:none; background:var(--tc-ac); color:#fff; border-radius:8px; padding:5px 10px; font-size:11.5px;
+        cursor:pointer; font-weight:600; }
+      .tc-tpl-save:hover { filter:brightness(.93); }
+      .tc-tpl-empty { padding:18px 14px; text-align:center; color:var(--t3); font-size:12.5px; line-height:1.5; }
+      .tc-tpl-list { padding:6px; }
+      .tc-tpl-item { display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:9px; cursor:pointer; transition:.12s; }
+      .tc-tpl-item:hover { background:var(--bg3); }
+      .tc-tpl-body { flex:1; min-width:0; }
+      .tc-tpl-title { font-size:13px; font-weight:600; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .tc-tpl-text { font-size:11.5px; color:var(--t3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
+      .tc-tpl-del { border:none; background:none; color:var(--t3); font-size:18px; line-height:1; cursor:pointer; padding:2px 6px;
+        border-radius:6px; flex-shrink:0; }
+      .tc-tpl-del:hover { background:rgba(244,67,54,.15); color:#e53935; }
       /* Панель записи голосового */
       .tc-rec-bar { display:flex; align-items:center; gap:10px; padding:6px 6px; }
       .tc-rec-bar .tc-rec-cancel, .tc-rec-bar .tc-rec-send { width:42px; height:42px; border:none; border-radius:50%;
@@ -1256,8 +1278,10 @@
     }
     c.innerHTML = `${banner}
       <div class="tc-mention-pop" id="tc-mention-pop"></div>
+      <div class="tc-tpl-pop" id="tc-tpl-pop"></div>
       <div class="tc-composer-row">
         <button class="tc-btn-icon" title="Прикрепить файл" id="tc-attach-btn">📎</button>
+        <button class="tc-btn-icon tc-btn-tpl" title="Шаблоны сообщений" id="tc-tpl-btn">⚡</button>
         <textarea id="tc-composer-input" rows="1" placeholder="Написать сообщение…">${escapeHtml(state.composerDraft)}</textarea>
         <button class="tc-btn-icon tc-btn-mic" title="Записать голосовое" id="tc-mic-btn">🎤</button>
         <button class="tc-btn-icon tc-btn-send" title="Отправить (Enter)" id="tc-send-btn">➤</button>
@@ -1297,6 +1321,7 @@
     c.querySelector('#tc-send-btn').onclick = sendCurrent;
     c.querySelector('#tc-attach-btn').onclick = () => c.querySelector('#tc-file-input').click();
     c.querySelector('#tc-file-input').onchange = onFileSelected;
+    c.querySelector('#tc-tpl-btn').onclick = (e) => { e.stopPropagation(); toggleTemplatesPop(c); };
     wireVoiceRecorder(c);
     c.querySelectorAll('[data-banner-cancel]').forEach(b => {
       b.onclick = () => {
@@ -1444,6 +1469,104 @@
     const ext = mime.indexOf('mp4') >= 0 ? 'm4a' : (mime.indexOf('ogg') >= 0 ? 'ogg' : 'webm');
     const file = new File([blob], 'voice-' + Date.now() + '.' + ext, { type: mime });
     await uploadAndSendFile(file, { voice: true, duration: durSec, mime });
+  }
+
+  // ── Шаблоны сообщений ─────────────────────────────────────────────────
+  // Личные заготовки текста: ⚡ открывает список, клик — вставка в композер,
+  // «＋ Сохранить текущий текст» — превращает черновик в шаблон. У каждого свои.
+  function toggleTemplatesPop(c) {
+    const pop = c.querySelector('#tc-tpl-pop');
+    if (!pop) return;
+    if (pop.classList.contains('open')) { closeTemplatesPop(c); return; }
+    closeMentionPop();
+    pop.classList.add('open');
+    renderTemplatesPop(c, state.templates || null);
+    // первая загрузка / обновление списка
+    api('/api/chat/templates').then(d => {
+      state.templates = d.items || [];
+      if (pop.classList.contains('open')) renderTemplatesPop(c, state.templates);
+    }).catch(() => {});
+    // закрытие по клику вне попапа
+    setTimeout(() => {
+      const onDoc = (e) => {
+        if (!pop.contains(e.target) && !e.target.closest('#tc-tpl-btn')) {
+          closeTemplatesPop(c); document.removeEventListener('mousedown', onDoc);
+        }
+      };
+      document.addEventListener('mousedown', onDoc);
+      pop._onDoc = onDoc;
+    }, 0);
+  }
+
+  function closeTemplatesPop(c) {
+    const pop = c.querySelector('#tc-tpl-pop');
+    if (!pop) return;
+    pop.classList.remove('open');
+    pop.innerHTML = '';
+    if (pop._onDoc) { document.removeEventListener('mousedown', pop._onDoc); pop._onDoc = null; }
+  }
+
+  function renderTemplatesPop(c, items) {
+    const pop = c.querySelector('#tc-tpl-pop');
+    if (!pop) return;
+    const draft = (state.composerDraft || '').trim();
+    let html = '<div class="tc-tpl-head"><span>⚡ Шаблоны</span>'
+      + (draft ? '<button class="tc-tpl-save" id="tc-tpl-save">＋ Сохранить текущий текст</button>' : '')
+      + '</div>';
+    if (items == null) {
+      html += '<div class="tc-tpl-empty">Загрузка…</div>';
+    } else if (!items.length) {
+      html += '<div class="tc-tpl-empty">Пока нет шаблонов.<br>Наберите текст и нажмите «Сохранить текущий текст».</div>';
+    } else {
+      html += '<div class="tc-tpl-list">' + items.map(t => {
+        const title = t.title || (t.body || '').slice(0, 40);
+        return `<div class="tc-tpl-item" data-tpl-id="${escapeHtml(t.id)}">
+          <div class="tc-tpl-body"><div class="tc-tpl-title">${escapeHtml(title)}</div>
+          <div class="tc-tpl-text">${escapeHtml((t.body || '').slice(0, 120))}</div></div>
+          <button class="tc-tpl-del" data-tpl-del="${escapeHtml(t.id)}" title="Удалить">×</button>
+        </div>`;
+      }).join('') + '</div>';
+    }
+    pop.innerHTML = html;
+    const saveBtn = pop.querySelector('#tc-tpl-save');
+    if (saveBtn) saveBtn.onclick = (e) => { e.stopPropagation(); saveCurrentAsTemplate(c); };
+    pop.querySelectorAll('[data-tpl-id]').forEach(el => {
+      el.onclick = (e) => {
+        if (e.target.closest('[data-tpl-del]')) return;
+        const t = (state.templates || []).find(x => x.id === el.dataset.tplId);
+        if (t) insertTemplate(c, t.body);
+      };
+    });
+    pop.querySelectorAll('[data-tpl-del]').forEach(el => {
+      el.onclick = (e) => { e.stopPropagation(); deleteTemplate(c, el.dataset.tplDel); };
+    });
+  }
+
+  function insertTemplate(c, body) {
+    const ta = c.querySelector('#tc-composer-input');
+    const cur = state.composerDraft || '';
+    state.composerDraft = cur ? (cur.replace(/\s+$/, '') + '\n' + body) : body;
+    closeTemplatesPop(c);
+    renderComposer({ focus: true });
+  }
+
+  async function saveCurrentAsTemplate(c) {
+    const body = (state.composerDraft || '').trim();
+    if (!body) return;
+    const title = (prompt('Название шаблона (необязательно):', body.slice(0, 40)) || '').trim();
+    try {
+      const d = await api('/api/chat/templates', { method: 'POST', body: JSON.stringify({ body, title }) });
+      state.templates = [d.template, ...(state.templates || [])];
+      renderTemplatesPop(c, state.templates);
+    } catch (e) { alert('Не удалось сохранить шаблон: ' + e.message); }
+  }
+
+  async function deleteTemplate(c, id) {
+    try {
+      await api('/api/chat/templates/' + encodeURIComponent(id), { method: 'DELETE' });
+      state.templates = (state.templates || []).filter(t => t.id !== id);
+      renderTemplatesPop(c, state.templates);
+    } catch (e) { alert('Не удалось удалить: ' + e.message); }
   }
 
   async function onFileSelected(ev) {
