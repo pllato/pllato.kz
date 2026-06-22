@@ -3193,6 +3193,9 @@ textarea.inline-edit-input.inline-edit-h2, .inline-edit-h2 textarea { min-width:
       <span class="nav-icon">💬</span><span>Чаты</span>
       <span class="nav-badge" id="team-chat-nav-badge" style="display:none"></span>
     </div>
+    <div class="nav-item" data-page="mail">
+      <span class="nav-icon">📧</span><span>Почта</span>
+    </div>
     <div class="nav-item" data-page="lesson-checks">
       <span class="nav-icon">📝</span><span>Пробные Занятия</span>
       <span class="nav-badge" id="lesson-checks-nav-badge" style="display:none"></span>
@@ -4025,6 +4028,7 @@ function navigate(page) {
   else if (page === 'calendar') renderCalendar(main);
   else if (page === 'chats') renderChats(main);
   else if (page === 'team-chat') renderTeamChat(main);
+  else if (page === 'mail') renderMail(main);
   else if (page === 'lesson-checks') renderLessonChecks(main);
   else if (page === 'feed') renderFeed(main);
   else if (page === 'orgchart') renderOrgChart(main);
@@ -21242,6 +21246,169 @@ function openSipLineForm(line) {
       showToast?.('Линия сохранена');
       const content = document.getElementById('settings-content');
       if (content) renderSettingsTelephony(content);
+    } catch (e) { alert('Ошибка: ' + e.message); btn.disabled = false; btn.textContent = 'Сохранить'; }
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// ПОЧТА — вкладка. Этап 1: список доступных ящиков + управление (для админов).
+// ════════════════════════════════════════════════════════════════════════
+async function renderMail(el) {
+  const isAdmin = window.currentUser?.role === 'admin';
+  el.innerHTML = `<div class="page-title">📧 Почта</div><div class="card" style="padding:24px;color:var(--t3)">⏳ Загрузка…</div>`;
+  let accounts = [];
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/mail/my`, { headers: { Authorization: 'Bearer ' + idToken } });
+    const d = await r.json(); accounts = d.accounts || [];
+  } catch (e) {}
+  const adminBtn = isAdmin ? `<button class="tbtn tbtn-sm tbtn-a" id="mail-manage">⚙ Управление ящиками</button>` : '';
+  let listHtml;
+  if (!accounts.length) {
+    listHtml = `<div class="card" style="padding:26px;text-align:center;color:var(--t3)">${isAdmin
+      ? 'Ящиков пока нет. Нажмите «Управление ящиками», чтобы завести почту.'
+      : 'Вам ещё не назначен почтовый ящик. Обратитесь к администратору.'}</div>`;
+  } else {
+    listHtml = '<div style="display:flex;flex-direction:column;gap:10px">' + accounts.map(a => `
+      <div class="card mail-box-card" data-mail-id="${escapeHtml(a.id)}" style="padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer">
+        <div style="width:42px;height:42px;border-radius:50%;background:var(--acbg);color:var(--ac2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📧</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;font-weight:700">${escapeHtml(a.label || a.email)}</div>
+          <div style="font-size:12px;color:var(--t3)">${escapeHtml(a.email)}</div>
+        </div>
+        <span style="color:var(--t3);font-size:18px">→</span>
+      </div>`).join('') + '</div>';
+  }
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div class="page-title" style="margin:0">📧 Почта</div>${adminBtn}
+    </div>
+    <div class="page-sub">Общие почтовые ящики компании.</div>
+    ${listHtml}`;
+  if (isAdmin) document.getElementById('mail-manage').onclick = () => renderMailAdmin(el);
+  el.querySelectorAll('.mail-box-card').forEach(c => {
+    c.onclick = () => openMailbox(c.dataset.mailId, accounts.find(a => a.id === c.dataset.mailId));
+  });
+}
+
+function openMailbox(id, acc) {
+  const el = document.getElementById('main');
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="tbtn tbtn-sm" id="mail-back">‹ Назад</button>
+      <div class="page-title" style="margin:0">📧 ${escapeHtml(acc?.label || acc?.email || 'Ящик')}</div>
+    </div>
+    <div class="card" style="padding:34px;text-align:center;color:var(--t3)">
+      <div style="font-size:42px">📬</div>
+      <div style="font-size:15px;font-weight:600;margin-top:8px;color:var(--t2)">Ящик подключён</div>
+      <div style="font-size:13px;margin-top:6px;max-width:420px;margin-left:auto;margin-right:auto">Данные сервера и доступ сотрудников сохранены. Чтение входящих и отправка писем — следующий этап.</div>
+    </div>`;
+  document.getElementById('mail-back').onclick = () => renderMail(el);
+}
+
+async function renderMailAdmin(el) {
+  el.innerHTML = `<div class="page-title">📧 Управление ящиками</div><div class="card" style="padding:24px;color:var(--t3)">⏳ Загрузка…</div>`;
+  let accounts = [];
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/mail/accounts`, { headers: { Authorization: 'Bearer ' + idToken } });
+    const d = await r.json(); accounts = d.accounts || [];
+  } catch (e) {}
+  const users = (typeof orgSortedUsers === 'function') ? orgSortedUsers() : [];
+  const uidLabel = (uid) => (users.find(u => u.uid === uid) || {}).label || uid;
+  const rows = accounts.length ? accounts.map(a => {
+    const who = (a.assigned_uids || []).map(uidLabel).join(', ') || '—';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--b1)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600">${escapeHtml(a.label || a.email)} <span style="font-weight:400;color:var(--t3)">${escapeHtml(a.email)}</span></div>
+        <div style="font-size:11px;color:var(--t3)">IMAP ${escapeHtml(a.imap_host)}:${escapeHtml(a.imap_port)} · SMTP ${escapeHtml(a.smtp_host)}:${escapeHtml(a.smtp_port)} · пароль ${a.has_password ? '✅' : '⚠️'} · доступ: ${escapeHtml(who)}</div>
+      </div>
+      <span class="badge ${a.enabled ? 'badge-g' : 'badge-n'}">${a.enabled ? 'вкл' : 'выкл'}</span>
+      <button class="tbtn tbtn-xs" data-mail-edit="${escapeHtml(a.id)}">✏️</button>
+      <button class="tbtn tbtn-xs tbtn-r" data-mail-del="${escapeHtml(a.id)}">🗑</button>
+    </div>`;
+  }).join('') : '<div style="color:var(--t3);padding:14px 0">Ящиков пока нет.</div>';
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="tbtn tbtn-sm" id="mail-admin-back">‹ Назад</button>
+      <div class="page-title" style="margin:0">📧 Управление ящиками</div>
+      <button class="tbtn tbtn-sm tbtn-a" id="mail-add" style="margin-left:auto">+ Ящик</button>
+    </div>
+    <div class="card" style="padding:18px;margin-top:12px">${rows}</div>`;
+  document.getElementById('mail-admin-back').onclick = () => renderMail(el);
+  document.getElementById('mail-add').onclick = () => openMailAccountForm(null, users, () => renderMailAdmin(el));
+  el.querySelectorAll('[data-mail-edit]').forEach(b => b.onclick = () => openMailAccountForm(accounts.find(a => a.id === b.dataset.mailEdit), users, () => renderMailAdmin(el)));
+  el.querySelectorAll('[data-mail-del]').forEach(b => b.onclick = async () => {
+    const a = accounts.find(x => x.id === b.dataset.mailDel);
+    if (!confirm(`Удалить ящик ${a ? a.email : ''}?`)) return;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/mail/accounts/${encodeURIComponent(b.dataset.mailDel)}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + idToken } });
+      if (!r.ok) throw new Error('HTTP ' + r.status); showToast?.('Удалено'); renderMailAdmin(el);
+    } catch (e) { alert('Ошибка: ' + e.message); }
+  });
+}
+
+function openMailAccountForm(acc, users, onSaved) {
+  document.getElementById('_mail-acc-modal')?.remove();
+  const a = acc || {};
+  const assigned = new Set((a.assigned_uids || []).map(String));
+  const ov = document.createElement('div');
+  ov.id = '_mail-acc-modal'; ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:520px">
+    <div class="qad-head"><h2>${acc ? 'Изменить ящик' : 'Новый ящик'}</h2><button class="qad-btn qad-btn-ghost" id="ma-close" style="padding:4px 10px">×</button></div>
+    <div class="qad-body" style="max-height:72vh;overflow-y:auto">
+      <div><div class="qad-label">Email ящика</div><input id="ma-email" class="qad-input" value="${escapeHtml(a.email || '')}" placeholder="info@elca.kz"></div>
+      <div><div class="qad-label">Название</div><input id="ma-label" class="qad-input" value="${escapeHtml(a.label || '')}" placeholder="Общая почта"></div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:2"><div class="qad-label">IMAP сервер</div><input id="ma-imaph" class="qad-input" value="${escapeHtml(a.imap_host || 'imap.yandex.ru')}"></div>
+        <div style="flex:1"><div class="qad-label">Порт</div><input id="ma-imapp" class="qad-input" value="${escapeHtml(a.imap_port || '993')}"></div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:2"><div class="qad-label">SMTP сервер</div><input id="ma-smtph" class="qad-input" value="${escapeHtml(a.smtp_host || 'smtp.yandex.ru')}"></div>
+        <div style="flex:1"><div class="qad-label">Порт</div><input id="ma-smtpp" class="qad-input" value="${escapeHtml(a.smtp_port || '465')}"></div>
+      </div>
+      <div><div class="qad-label">Логин (обычно = email)</div><input id="ma-login" class="qad-input" value="${escapeHtml(a.login || a.email || '')}" placeholder="info@elca.kz"></div>
+      <div><div class="qad-label">Пароль приложения ${acc ? '<span style="color:var(--t3);font-weight:400">(пусто = не менять)</span>' : ''}</div><input id="ma-pass" class="qad-input" type="password" placeholder="${acc && a.has_password ? '•••••• (сохранён)' : 'пароль приложения Яндекс'}"></div>
+      <div style="font-size:11px;color:var(--t3);margin-top:2px">Для Яндекса нужен «пароль приложения» (Яндекс ID → Безопасность → Пароли приложений), а не основной пароль.</div>
+      <div style="margin-top:10px"><div class="qad-label">Кто работает с ящиком</div>
+        <input id="ma-search" class="qad-input" placeholder="поиск сотрудника…" style="margin-bottom:6px">
+        <div id="ma-users" style="max-height:200px;overflow-y:auto;border:1px solid var(--b1);border-radius:8px;padding:4px"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer"><input type="checkbox" id="ma-enabled" ${a.enabled === 0 ? '' : 'checked'}> Ящик включён</label>
+    </div>
+    <div class="qad-foot"><button class="qad-btn qad-btn-ghost" id="ma-cancel">Отмена</button><button class="qad-btn qad-btn-primary" id="ma-save">Сохранить</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  let q = '';
+  function renderUsers() {
+    const box = ov.querySelector('#ma-users');
+    const list = q ? users.filter(u => u.label.toLowerCase().includes(q)) : users;
+    box.innerHTML = list.map(u => `<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer;font-size:13px"><input type="checkbox" data-uid="${escapeHtml(u.uid)}" ${assigned.has(u.uid) ? 'checked' : ''}> ${escapeHtml(u.label)}</label>`).join('') || '<div style="padding:8px;color:var(--t3);font-size:12px">Никого не найдено</div>';
+    box.querySelectorAll('input[type=checkbox]').forEach(cb => cb.onchange = () => { if (cb.checked) assigned.add(cb.dataset.uid); else assigned.delete(cb.dataset.uid); });
+  }
+  renderUsers();
+  ov.querySelector('#ma-search').oninput = (e) => { q = e.target.value.toLowerCase(); renderUsers(); };
+  ov.querySelector('#ma-close').onclick = () => ov.remove();
+  ov.querySelector('#ma-cancel').onclick = () => ov.remove();
+  ov.querySelector('#ma-save').onclick = async () => {
+    const btn = ov.querySelector('#ma-save');
+    const email = ov.querySelector('#ma-email').value.trim();
+    if (!email) { alert('Укажите email'); return; }
+    const body = {
+      id: a.id || undefined, email, label: ov.querySelector('#ma-label').value.trim(),
+      imap_host: ov.querySelector('#ma-imaph').value.trim(), imap_port: ov.querySelector('#ma-imapp').value.trim(),
+      smtp_host: ov.querySelector('#ma-smtph').value.trim(), smtp_port: ov.querySelector('#ma-smtpp').value.trim(),
+      login: ov.querySelector('#ma-login').value.trim() || email, assigned_uids: Array.from(assigned),
+      enabled: ov.querySelector('#ma-enabled').checked,
+    };
+    const pass = ov.querySelector('#ma-pass').value; if (pass) body.password = pass;
+    btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/mail/accounts`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error('HTTP ' + r.status); ov.remove(); showToast?.('Ящик сохранён'); onSaved && onSaved();
     } catch (e) { alert('Ошибка: ' + e.message); btn.disabled = false; btn.textContent = 'Сохранить'; }
   };
 }
