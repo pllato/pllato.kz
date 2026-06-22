@@ -6336,7 +6336,12 @@ ${defaultLine ? ` same => n,Dial(PJSIP/\${EXTEN}@line-${defaultLine.number},60)`
  same => n,Hangup()
 `;
 
-  const body = `; ##### /etc/asterisk/pjsip.conf #####\n${pjsip}\n\n; ##### /etc/asterisk/extensions.conf #####\n${ext}\n`;
+  // ?file=pjsip | extensions → отдаём только один файл (удобно для tee на сервере).
+  const file = (url.searchParams.get('file') || '').toLowerCase();
+  let body;
+  if (file === 'pjsip') body = pjsip + '\n';
+  else if (file === 'extensions' || file === 'ext') body = ext + '\n';
+  else body = `; ##### /etc/asterisk/pjsip.conf (file=pjsip) #####\n${pjsip}\n\n; ##### /etc/asterisk/extensions.conf (file=extensions) #####\n${ext}\n`;
   return new Response(body, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 }
 
