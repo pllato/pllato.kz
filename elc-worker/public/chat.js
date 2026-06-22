@@ -531,6 +531,12 @@
       .tc-msg.own .tc-file-att { background:rgba(255,255,255,.18); }
       .tc-file-att:hover { filter:brightness(.97); }
       .tc-img-att { max-width:280px; max-height:300px; border-radius:10px; margin-top:4px; cursor:pointer; display:block; }
+      .tc-audio-att { display:flex; align-items:center; gap:8px; margin-top:4px; padding:6px 10px; background:rgba(0,0,0,.06);
+        border-radius:12px; max-width:300px; }
+      .tc-msg.own .tc-audio-att { background:rgba(255,255,255,.18); }
+      .tc-audio-att .tc-audio-ico { font-size:16px; flex-shrink:0; }
+      .tc-audio-att audio { height:34px; max-width:220px; flex:1; }
+      .tc-audio-dur { font-size:11.5px; opacity:.65; flex-shrink:0; }
 
       .tc-scroll-btn { position:absolute; right:18px; bottom:14px; width:40px; height:40px; border-radius:50%;
         border:1px solid var(--b1); background:var(--bg2); color:var(--t2); font-size:20px; cursor:pointer;
@@ -565,6 +571,19 @@
       .tc-btn-icon:hover { background:var(--b1); }
       .tc-btn-send { background:var(--tc-ac); color:#fff; }
       .tc-btn-send:hover { background:var(--tc-ac); filter:brightness(.92); }
+      .tc-btn-mic:hover { background:color-mix(in srgb, var(--tc-ac) 18%, var(--bg3)); }
+      /* Панель записи голосового */
+      .tc-rec-bar { display:flex; align-items:center; gap:10px; padding:6px 6px; }
+      .tc-rec-bar .tc-rec-cancel, .tc-rec-bar .tc-rec-send { width:42px; height:42px; border:none; border-radius:50%;
+        cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:.15s; }
+      .tc-rec-cancel { background:var(--bg3); color:var(--t2); }
+      .tc-rec-cancel:hover { background:var(--b1); }
+      .tc-rec-send { background:var(--tc-ac); color:#fff; }
+      .tc-rec-send:hover { filter:brightness(.92); }
+      .tc-rec-dot { width:12px; height:12px; border-radius:50%; background:#e53935; flex-shrink:0; animation:tc-rec-pulse 1s infinite; }
+      @keyframes tc-rec-pulse { 0%,100% { opacity:1; } 50% { opacity:.25; } }
+      .tc-rec-time { font-size:14px; font-weight:700; color:var(--t1); font-variant-numeric:tabular-nums; min-width:42px; }
+      .tc-rec-hint { flex:1; font-size:12px; color:var(--t3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       /* @-упоминания: выпадашка над композером */
       .tc-composer { position:relative; }
       .tc-mention-pop { position:absolute; left:16px; right:16px; bottom:100%; margin-bottom:6px; background:var(--bg2);
@@ -910,6 +929,9 @@
       const furl = fileUrl(m.file_key);
       if (m.type === 'image' || (meta.mime && meta.mime.startsWith('image/'))) {
         body += `<img class="tc-img-att" src="${furl}" alt="${escapeHtml(meta.name || '')}" loading="lazy" onclick="window.open('${furl}','_blank')">`;
+      } else if (m.type === 'audio' || meta.voice || (meta.mime && meta.mime.startsWith('audio/'))) {
+        const dur = meta.duration ? `<span class="tc-audio-dur">${fmtDuration(meta.duration)}</span>` : '';
+        body += `<div class="tc-audio-att"><span class="tc-audio-ico">🎤</span><audio controls preload="metadata" src="${furl}"></audio>${dur}</div>`;
       } else {
         body += `<a class="tc-file-att" href="${furl}" target="_blank" rel="noopener">📎 ${escapeHtml(meta.name || 'файл')}${meta.size ? ` <span style="opacity:.6">(${Math.round(meta.size / 1024)} КБ)</span>` : ''}</a>`;
       }
@@ -1195,7 +1217,15 @@
       <div class="tc-composer-row">
         <button class="tc-btn-icon" title="Прикрепить файл" id="tc-attach-btn">📎</button>
         <textarea id="tc-composer-input" rows="1" placeholder="Написать сообщение…">${escapeHtml(state.composerDraft)}</textarea>
+        <button class="tc-btn-icon tc-btn-mic" title="Записать голосовое" id="tc-mic-btn">🎤</button>
         <button class="tc-btn-icon tc-btn-send" title="Отправить (Enter)" id="tc-send-btn">➤</button>
+      </div>
+      <div class="tc-rec-bar" id="tc-rec-bar" style="display:none">
+        <button class="tc-rec-cancel" id="tc-rec-cancel" title="Отменить">🗑</button>
+        <span class="tc-rec-dot"></span>
+        <span class="tc-rec-time" id="tc-rec-time">0:00</span>
+        <span class="tc-rec-hint">Запись… отпустите для отправки</span>
+        <button class="tc-rec-send" id="tc-rec-send" title="Отправить">➤</button>
       </div>
       <input type="file" id="tc-file-input" style="display:none">`;
 
@@ -1225,6 +1255,7 @@
     c.querySelector('#tc-send-btn').onclick = sendCurrent;
     c.querySelector('#tc-attach-btn').onclick = () => c.querySelector('#tc-file-input').click();
     c.querySelector('#tc-file-input').onchange = onFileSelected;
+    wireVoiceRecorder(c);
     c.querySelectorAll('[data-banner-cancel]').forEach(b => {
       b.onclick = () => {
         if (b.dataset.bannerCancel === 'reply') state.replyToMsg = null;
@@ -1266,18 +1297,111 @@
 
   // Загрузить файл в R2 и сразу отправить сообщением-вложением.
   // Используется и кнопкой 📎 (onFileSelected), и вставкой из буфера (onPaste).
-  async function uploadAndSendFile(file) {
+  async function uploadAndSendFile(file, extraMeta) {
     if (!file || !state.activeChannelId) return;
     try {
       const fd = new FormData();
       fd.append('file', file);
       const up = await api('/api/chat/files/upload', { method: 'POST', body: fd });
+      // Бэкенд ждёт file_meta объектом (делает JSON.stringify и читает .mime),
+      // и сам выводит type из mime — для голосовых это даст type='audio'.
+      let fileMeta = (typeof up.file_meta === 'string') ? JSON.parse(up.file_meta) : (up.file_meta || {});
+      if (extraMeta) fileMeta = Object.assign(fileMeta, extraMeta);
+      const body = { file_key: up.file_key, file_meta: fileMeta };
       const resp = await api(`/api/chat/channels/${state.activeChannelId}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ file_key: up.file_key, file_meta: up.file_meta }),
+        body: JSON.stringify(body),
       });
       if (resp && resp.message) onMessageNew(resp.message);
     } catch (e) { alert('Ошибка загрузки: ' + e.message); }
+  }
+
+  // ── Голосовые сообщения ───────────────────────────────────────────────
+  // Запись через MediaRecorder, превью таймера, отправка как audio-вложение.
+  const _voice = { rec: null, chunks: [], stream: null, startedAt: 0, timer: null, cancelled: false };
+
+  function fmtDuration(sec) {
+    sec = Math.max(0, Math.round(sec || 0));
+    const m = Math.floor(sec / 60), s = sec % 60;
+    return m + ':' + String(s).padStart(2, '0');
+  }
+
+  function pickAudioMime() {
+    const cand = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+    for (const t of cand) { if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t; }
+    return '';
+  }
+
+  function wireVoiceRecorder(c) {
+    const micBtn = c.querySelector('#tc-mic-btn');
+    const recBar = c.querySelector('#tc-rec-bar');
+    if (!micBtn || !recBar) return;
+    micBtn.onclick = () => startVoiceRecording(c);
+    c.querySelector('#tc-rec-cancel').onclick = () => stopVoiceRecording(c, true);
+    c.querySelector('#tc-rec-send').onclick = () => stopVoiceRecording(c, false);
+  }
+
+  async function startVoiceRecording(c) {
+    if (_voice.rec) return;
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      alert('Браузер не поддерживает запись голоса'); return;
+    }
+    try {
+      _voice.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      alert('Нет доступа к микрофону. Разрешите доступ в настройках браузера.'); return;
+    }
+    const mime = pickAudioMime();
+    try {
+      _voice.rec = mime ? new MediaRecorder(_voice.stream, { mimeType: mime }) : new MediaRecorder(_voice.stream);
+    } catch (e) {
+      _voice.rec = new MediaRecorder(_voice.stream);
+    }
+    _voice.chunks = []; _voice.cancelled = false; _voice.startedAt = Date.now();
+    _voice.rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) _voice.chunks.push(ev.data); };
+    _voice.rec.onstop = () => onVoiceStopped(c);
+    _voice.rec.start();
+    // UI: прячем строку ввода, показываем панель записи с таймером.
+    const row = c.querySelector('.tc-composer-row');
+    const recBar = c.querySelector('#tc-rec-bar');
+    if (row) row.style.display = 'none';
+    recBar.style.display = '';
+    const timeEl = c.querySelector('#tc-rec-time');
+    _voice.timer = setInterval(() => {
+      const sec = (Date.now() - _voice.startedAt) / 1000;
+      if (timeEl) timeEl.textContent = fmtDuration(sec);
+      if (sec >= 300) stopVoiceRecording(c, false); // лимит 5 минут
+    }, 250);
+  }
+
+  function stopVoiceRecording(c, cancelled) {
+    if (!_voice.rec) return;
+    _voice.cancelled = !!cancelled;
+    try { _voice.rec.stop(); } catch (e) {}
+  }
+
+  async function onVoiceStopped(c) {
+    if (_voice.timer) { clearInterval(_voice.timer); _voice.timer = null; }
+    const stream = _voice.stream;
+    const chunks = _voice.chunks;
+    const cancelled = _voice.cancelled;
+    const durSec = Math.round((Date.now() - _voice.startedAt) / 1000);
+    const mime = (_voice.rec && _voice.rec.mimeType) || 'audio/webm';
+    _voice.rec = null; _voice.stream = null; _voice.chunks = [];
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    // Возвращаем обычный композер.
+    const row = c.querySelector('.tc-composer-row');
+    const recBar = c.querySelector('#tc-rec-bar');
+    if (recBar) recBar.style.display = 'none';
+    if (row) row.style.display = '';
+    const timeEl = c.querySelector('#tc-rec-time');
+    if (timeEl) timeEl.textContent = '0:00';
+    if (cancelled || !chunks.length) return;
+    const blob = new Blob(chunks, { type: mime });
+    if (!blob.size) return;
+    const ext = mime.indexOf('mp4') >= 0 ? 'm4a' : (mime.indexOf('ogg') >= 0 ? 'ogg' : 'webm');
+    const file = new File([blob], 'voice-' + Date.now() + '.' + ext, { type: mime });
+    await uploadAndSendFile(file, { voice: true, duration: durSec, mime });
   }
 
   async function onFileSelected(ev) {
