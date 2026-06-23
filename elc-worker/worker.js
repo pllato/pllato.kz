@@ -1441,42 +1441,42 @@ async function handleList(request, env, entity) {
   const whereParams = [];
 
   if (q) {
-    // SQLite LOWER() работает только с ASCII — для кириллицы возвращает
-    // строку без изменений. Поэтому делаем case-insensitive вручную:
-    // три варианта LIKE — как ввёл + всё малыми + Capitalize первой буквы.
-    // Покрывает 95% случаев ("Кодекс", "кодекс", "КОДЕКС" → найдут "Кодекс").
-    // Для tasks (1 search field) → 3 LIKE; для contacts (5 fields) → 15.
-    const variants = new Set();
-    variants.add("%" + q + "%");
-    variants.add("%" + q.toLowerCase() + "%");
-    if (q.length > 0) {
-      const capitalized = q[0].toUpperCase() + q.slice(1).toLowerCase();
-      variants.add("%" + capitalized + "%");
-    }
-    const variantList = [...variants];
-    const orClauses = [];
-    for (const f of cfg.searchFields) {
-      for (const v of variantList) { orClauses.push(`${f} LIKE ?`); whereParams.push(v); }
-    }
-    // Поиск по ТЕЛЕФОНУ. Телефоны в БД хранятся как сплошные цифры в каноне
-    // "+7XXXXXXXXXX" (JSON в contacts.phones). Пользователь же может ввести номер
-    // в любом виде: "+7 705 123-45-67", "8 (705) 1234567", "7051234567" — поэтому
-    // вытаскиваем из запроса только цифры и матчим по «хвосту» (до 10 цифр —
-    // локальная часть без кода страны). Так работает и полный номер, и фрагмент.
-    const digits = q.replace(/\D/g, '');
-    if (digits.length >= 4) {
-      const tail = digits.slice(-10);
-      if (entity === 'deals') {
-        // У сделки телефона нет — он у привязанного контакта (contact_id → contacts.phones).
-        orClauses.push(`contact_id IN (SELECT id FROM contacts WHERE phones LIKE ?)`);
-        whereParams.push('%' + tail + '%');
-      } else if (cfg.searchFields.includes('phones')) {
-        // Контакты: нормализованный поиск по цифрам поверх обычного LIKE по phones.
-        orClauses.push(`phones LIKE ?`);
-        whereParams.push('%' + tail + '%');
+    // Поиск по СЛОВАМ: запрос бьём на токены (по пробелам) и каждое слово ищем
+    // по всем полям — все слова должны совпасть (AND между словами, OR внутри
+    // слова по полям). Так «Иван Петров» найдёт контакт с name=Иван,
+    // last_name=Петров (раньше искалось одним куском и не находилось), а
+    // «Петров 705» — фамилия + фрагмент телефона.
+    //
+    // SQLite LOWER() работает только с ASCII — для кириллицы не меняет регистр.
+    // Поэтому case-insensitive делаем вручную: 3 варианта каждого слова —
+    // как ввёл + всё малыми + Capitalize первой буквы.
+    const tokens = q.trim().split(/\s+/).filter(Boolean);
+    for (const tok of tokens) {
+      const variants = new Set();
+      variants.add("%" + tok + "%");
+      variants.add("%" + tok.toLowerCase() + "%");
+      variants.add("%" + (tok[0].toUpperCase() + tok.slice(1).toLowerCase()) + "%");
+      const orClauses = [];
+      for (const f of cfg.searchFields) {
+        for (const v of variants) { orClauses.push(`${f} LIKE ?`); whereParams.push(v); }
       }
+      // Телефон: если в слове есть цифры — нормализуем и матчим по «хвосту»
+      // (до 10 цифр). Телефоны хранятся сплошными цифрами в каноне "+7XXXXXXXXXX",
+      // а пользователь вводит в любом виде ("+7 705 123-45-67", "8(705)…", "705…").
+      const digits = tok.replace(/\D/g, '');
+      if (digits.length >= 4) {
+        const tail = digits.slice(-10);
+        if (entity === 'deals') {
+          orClauses.push(`contact_id IN (SELECT id FROM contacts WHERE phones LIKE ?)`);
+          whereParams.push('%' + tail + '%');
+        } else if (cfg.searchFields.includes('phones')) {
+          orClauses.push(`phones LIKE ?`);
+          whereParams.push('%' + tail + '%');
+        }
+      }
+      // Каждое слово — отдельное условие (whereParts соединяются через AND).
+      if (orClauses.length) whereParts.push("(" + orClauses.join(" OR ") + ")");
     }
-    if (orClauses.length) whereParts.push("(" + orClauses.join(" OR ") + ")");
   }
 
   if (status && status !== "all" && cfg.statusField) {
