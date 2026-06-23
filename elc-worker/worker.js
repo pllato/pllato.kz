@@ -5,6 +5,7 @@
 import { jwtVerify, createRemoteJWKSet } from "jose";
 import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser, downloadFile as downloadChatFile, setWaNotifier } from "./chat-module.js";
 import { sendWebPush, VAPID_PUBLIC_KEY } from "./webpush.js";
+import { imapList, imapFetchMessage, smtpSend, mailTestConnection } from "./mail.js";
 
 // ctx последнего fetch/scheduled — чтобы фоновую рассылку пушей (несколько
 // сетевых запросов к FCM/Mozilla/Apple) повесить на ctx.waitUntil и не держать
@@ -2773,10 +2774,10 @@ async function handleAdminSetUserActive(request, env, targetUid) {
   await env.DB.prepare(
     "UPDATE users SET active = ? WHERE uid = ?"
   ).bind(active, targetUid).run();
-  // При активации сбрасываем метку «последнего захода», иначе сотрудника снова
-  // авто-приостановит на ближайшем /api/me (его last_seen_at старше 3 недель).
+  // При активации сбрасываем метку авто-приостановки и «последнего захода»,
+  // иначе сотрудника снова заблокирует на ближайшем /api/me.
   if (active === 1) {
-    try { await ensureLastSeenColumn(env); await env.DB.prepare("UPDATE users SET last_seen_at = ? WHERE uid = ?").bind(Date.now(), targetUid).run(); } catch (e) {}
+    try { await ensureLastSeenColumn(env); await env.DB.prepare("UPDATE users SET last_seen_at = ?, auto_suspended_at = NULL WHERE uid = ?").bind(Date.now(), targetUid).run(); } catch (e) {}
   }
 
   await auditLog(env, guard.me, active === 1 ? "user_activate" : "user_deactivate", "user", targetUid, {
@@ -6454,6 +6455,81 @@ async function handleMailMy(request, env) {
   return json({ ok: true, accounts, isAdmin }, 200, request);
 }
 
+// Загружает ящик с паролем и проверяет доступ (admin ИЛИ назначенный сотрудник).
+// Возвращает { acc } или { error: Response }.
+async function mailAccountForUser(request, env, id) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return { error: json({ error: auth.error }, auth.status, request) };
+  await ensureMailTables(env);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const acc = await env.DB.prepare("SELECT * FROM mail_accounts WHERE id = ?").bind(id).first();
+  if (!acc) return { error: json({ error: "mailbox not found" }, 404, request) };
+  const allowed = me.role === 'admin' || mailParseAssigned(acc.assigned_uids).includes(me.canonicalUid);
+  if (!allowed) return { error: json({ error: "forbidden" }, 403, request) };
+  return { acc, me };
+}
+
+// GET /api/mail/:id/messages?folder=INBOX&limit=30 — список писем.
+async function handleMailMessages(request, env, id) {
+  const g = await mailAccountForUser(request, env, id);
+  if (g.error) return g.error;
+  const url = new URL(request.url);
+  const folder = url.searchParams.get('folder') || 'INBOX';
+  const limit = Math.min(50, Math.max(5, parseInt(url.searchParams.get('limit') || '30', 10) || 30));
+  try {
+    const r = await imapList(g.acc, { folder, limit });
+    return json({ ok: true, ...r }, 200, request);
+  } catch (e) {
+    return json({ ok: false, error: String(e && e.message || e) }, 502, request);
+  }
+}
+
+// GET /api/mail/:id/message/:uid — одно письмо целиком.
+async function handleMailMessage(request, env, id, uid) {
+  const g = await mailAccountForUser(request, env, id);
+  if (g.error) return g.error;
+  const url = new URL(request.url);
+  const folder = url.searchParams.get('folder') || 'INBOX';
+  try {
+    const msg = await imapFetchMessage(g.acc, uid, { folder });
+    return json({ ok: true, message: msg }, 200, request);
+  } catch (e) {
+    return json({ ok: false, error: String(e && e.message || e) }, 502, request);
+  }
+}
+
+// POST /api/mail/:id/send { to, cc, subject, text, html, inReplyTo } — отправка.
+async function handleMailSend(request, env, id) {
+  const g = await mailAccountForUser(request, env, id);
+  if (g.error) return g.error;
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  if (!body.to || !String(body.to).trim()) return json({ error: "recipient required" }, 400, request);
+  const fromName = g.me && g.me.userRecord ? [g.me.userRecord.name, g.me.userRecord.last_name].filter(Boolean).join(' ') : '';
+  try {
+    await smtpSend(g.acc, {
+      to: String(body.to), cc: body.cc ? String(body.cc) : '',
+      subject: String(body.subject || ''), text: String(body.text || ''),
+      html: body.html ? String(body.html) : '', inReplyTo: body.inReplyTo || '', fromName,
+    });
+    return json({ ok: true }, 200, request);
+  } catch (e) {
+    return json({ ok: false, error: String(e && e.message || e) }, 502, request);
+  }
+}
+
+// POST /api/mail/:id/test — проверка подключения (admin/назначенный).
+async function handleMailTest(request, env, id) {
+  const g = await mailAccountForUser(request, env, id);
+  if (g.error) return g.error;
+  try {
+    const r = await mailTestConnection(g.acc);
+    return json({ ok: true, ...r }, 200, request);
+  } catch (e) {
+    return json({ ok: false, error: String(e && e.message || e) }, 502, request);
+  }
+}
+
 // GET /api/sip/route?phone=77073320409 — Asterisk дёргает при входящем.
 // Возвращает: { extensions: ["101","102"], mobile: "+7...", fallbackSeconds: 30 }
 // Логика: phone → contact → recent open deal → responsible_uid → org-tree node →
@@ -7312,11 +7388,13 @@ async function handleAnalyticsFunnels(request, env) {
   return json({ ok: true, pipelines: out, generatedAt: new Date().toISOString() }, 200, request);
 }
 
-// Ленивая идемпотентная миграция: метка последнего захода на портал.
+// Ленивая идемпотентная миграция: метка последнего захода + метка авто-приостановки.
 let _lastSeenColReady = false;
 async function ensureLastSeenColumn(env) {
   if (_lastSeenColReady) return;
   try { await env.DB.prepare("ALTER TABLE users ADD COLUMN last_seen_at INTEGER").run(); }
+  catch (e) { /* колонка уже есть — норма */ }
+  try { await env.DB.prepare("ALTER TABLE users ADD COLUMN auto_suspended_at INTEGER").run(); }
   catch (e) { /* колонка уже есть — норма */ }
   _lastSeenColReady = true;
 }
@@ -7327,14 +7405,29 @@ async function handleMe(request, env) {
 
   const me = await resolveCanonicalUser(env, auth.claims);
 
-  // Авто-приостановка доступа ВРЕМЕННО ОТКЛЮЧЕНА (вызывала блокировку входа).
-  // Только обновляем метку «последнего захода», никого не приостанавливаем.
+  // Авто-приостановка доступа (БЕЗОПАСНЫЙ вариант): блокируем ТОЛЬКО тех, кого
+  // реально авто-приостановило за простой > 3 недель (метка auto_suspended_at).
+  // Никогда не трогаем админов/директора и НЕ блокируем аккаунты, отключённые
+  // вручную (active=0 без auto_suspended_at) — они входят как раньше.
   let suspended = false;
   if (me.userRecord && me.userRecord.uid) {
     try {
       await ensureLastSeenColumn(env);
-      await env.DB.prepare("UPDATE users SET last_seen_at = ? WHERE uid = ?").bind(Date.now(), me.userRecord.uid).run();
-    } catch (e) { /* метка не критична */ }
+      const row = await env.DB.prepare("SELECT last_seen_at, active, auto_suspended_at FROM users WHERE uid = ?").bind(me.userRecord.uid).first();
+      const now = Date.now();
+      const THREE_WEEKS = 21 * 24 * 60 * 60 * 1000;
+      const lastSeen = row && row.last_seen_at ? Number(row.last_seen_at) : null;
+      const isPrivileged = me.role === 'admin' || (me.orgPerms && me.orgPerms.isDirector);
+      if (row && row.auto_suspended_at) {
+        suspended = true;                       // уже авто-приостановлен — держим до ручной реактивации
+      } else if (!isPrivileged && row && row.active === 1 && lastSeen && (now - lastSeen) > THREE_WEEKS) {
+        await env.DB.prepare("UPDATE users SET active = 0, auto_suspended_at = ? WHERE uid = ?").bind(now, me.userRecord.uid).run();
+        suspended = true;
+        try { await auditLog(env, me, "user_auto_suspend", "user", me.userRecord.uid, { reason: "inactive_over_21d", lastSeen }); } catch {}
+      } else {
+        await env.DB.prepare("UPDATE users SET last_seen_at = ? WHERE uid = ?").bind(now, me.userRecord.uid).run();
+      }
+    } catch (e) { /* не блокируем вход из-за сбоя метки */ }
   }
 
   return json({
@@ -8172,6 +8265,23 @@ export default {
     }
     if (path === "/api/mail/my" && request.method === "GET") {
       return handleMailMy(request, env);
+    }
+    // Работа с письмами конкретного ящика
+    const mailMsgsMatch = path.match(/^\/api\/mail\/([^/]+)\/messages$/);
+    if (mailMsgsMatch && request.method === "GET") {
+      return handleMailMessages(request, env, decodeURIComponent(mailMsgsMatch[1]));
+    }
+    const mailMsgMatch = path.match(/^\/api\/mail\/([^/]+)\/message\/([^/]+)$/);
+    if (mailMsgMatch && request.method === "GET") {
+      return handleMailMessage(request, env, decodeURIComponent(mailMsgMatch[1]), decodeURIComponent(mailMsgMatch[2]));
+    }
+    const mailSendMatch = path.match(/^\/api\/mail\/([^/]+)\/send$/);
+    if (mailSendMatch && request.method === "POST") {
+      return handleMailSend(request, env, decodeURIComponent(mailSendMatch[1]));
+    }
+    const mailTestMatch = path.match(/^\/api\/mail\/([^/]+)\/test$/);
+    if (mailTestMatch && request.method === "POST") {
+      return handleMailTest(request, env, decodeURIComponent(mailTestMatch[1]));
     }
     // ── /api/sip/lines — линии Бинотел (admin) ─────────────────────────
     if (path === "/api/sip/lines" && request.method === "GET") {

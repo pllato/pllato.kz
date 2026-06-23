@@ -21318,19 +21318,153 @@ async function renderMail(el) {
   });
 }
 
-function openMailbox(id, acc) {
+async function openMailbox(id, acc) {
   const el = document.getElementById('main');
   el.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <button class="tbtn tbtn-sm" id="mail-back">‹ Назад</button>
       <div class="page-title" style="margin:0">📧 ${escapeHtml(acc?.label || acc?.email || 'Ящик')}</div>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="tbtn tbtn-sm tbtn-a" id="mail-compose">✏️ Написать</button>
+        <button class="tbtn tbtn-sm" id="mail-refresh" title="Обновить">🔄</button>
+        <button class="tbtn tbtn-sm" id="mail-test" title="Проверить подключение">⚙</button>
+      </div>
     </div>
-    <div class="card" style="padding:34px;text-align:center;color:var(--t3)">
-      <div style="font-size:42px">📬</div>
-      <div style="font-size:15px;font-weight:600;margin-top:8px;color:var(--t2)">Ящик подключён</div>
-      <div style="font-size:13px;margin-top:6px;max-width:420px;margin-left:auto;margin-right:auto">Данные сервера и доступ сотрудников сохранены. Чтение входящих и отправка писем — следующий этап.</div>
-    </div>`;
+    <div class="card" id="mail-list" style="padding:8px;margin-top:12px;min-height:200px"><div style="padding:24px;color:var(--t3);text-align:center">⏳ Загрузка писем…</div></div>`;
   document.getElementById('mail-back').onclick = () => renderMail(el);
+  document.getElementById('mail-compose').onclick = () => openMailCompose(id, acc);
+  document.getElementById('mail-refresh').onclick = () => loadMailbox();
+  document.getElementById('mail-test').onclick = async () => {
+    const btn = document.getElementById('mail-test'); btn.textContent = '⏳';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/mail/${encodeURIComponent(id)}/test`, { method: 'POST', headers: { Authorization: 'Bearer ' + idToken } });
+      const d = await r.json();
+      alert(d.ok ? `✅ Подключение работает. Писем во входящих: ${d.total}` : `❌ Ошибка: ${d.error}`);
+    } catch (e) { alert('❌ ' + e.message); }
+    btn.textContent = '⚙';
+  };
+
+  async function loadMailbox() {
+    const list = document.getElementById('mail-list');
+    list.innerHTML = `<div style="padding:24px;color:var(--t3);text-align:center">⏳ Загрузка писем…</div>`;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/mail/${encodeURIComponent(id)}/messages?limit=30`, { headers: { Authorization: 'Bearer ' + idToken } });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error || 'ошибка');
+      const msgs = d.messages || [];
+      if (!msgs.length) { list.innerHTML = `<div style="padding:30px;color:var(--t3);text-align:center">Писем нет</div>`; return; }
+      list.innerHTML = msgs.map(m => `
+        <div class="mail-msg-row" data-uid="${escapeHtml(String(m.uid))}" style="display:flex;gap:10px;padding:11px 12px;border-bottom:1px solid var(--b1);cursor:pointer;align-items:center">
+          <div style="width:8px;height:8px;border-radius:50%;background:${m.seen ? 'transparent' : 'var(--ac2)'};flex-shrink:0"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;${m.seen ? '' : 'font-weight:700'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(m.from || '—')}</div>
+            <div style="font-size:13px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(m.subject || '(без темы)')}</div>
+          </div>
+          <div style="font-size:11px;color:var(--t3);flex-shrink:0">${escapeHtml(mailShortDate(m.date))}</div>
+        </div>`).join('');
+      list.querySelectorAll('.mail-msg-row').forEach(row => {
+        row.onclick = () => openMailMessage(id, acc, row.dataset.uid);
+      });
+    } catch (e) {
+      list.innerHTML = `<div style="padding:24px;color:var(--rd);text-align:center">Не удалось загрузить: ${escapeHtml(e.message)}<br><span style="color:var(--t3);font-size:12px">Проверьте данные ящика (кнопка ⚙) — для Яндекса нужен пароль приложения.</span></div>`;
+    }
+  }
+  loadMailbox();
+}
+
+function mailShortDate(d) {
+  if (!d) return '';
+  const t = Date.parse(d);
+  if (isNaN(t)) return String(d).slice(0, 16);
+  const dt = new Date(t), now = new Date();
+  if (dt.toDateString() === now.toDateString()) return dt.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+  return dt.toLocaleDateString('ru', { day: '2-digit', month: '2-digit' });
+}
+
+async function openMailMessage(id, acc, uid) {
+  document.getElementById('_mail-msg-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_mail-msg-modal'; ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:720px;width:96vw">
+    <div class="qad-head"><h2 style="font-size:16px">Письмо</h2><button class="qad-btn qad-btn-ghost" id="mm-close" style="padding:4px 10px">×</button></div>
+    <div class="qad-body" id="mm-body" style="max-height:78vh;overflow-y:auto"><div style="padding:24px;color:var(--t3);text-align:center">⏳ Загрузка…</div></div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#mm-close').onclick = () => ov.remove();
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/mail/${encodeURIComponent(id)}/message/${encodeURIComponent(uid)}`, { headers: { Authorization: 'Bearer ' + idToken } });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || 'ошибка');
+    const m = d.message;
+    const atts = (m.attachments || []).map(a => `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--b1);border-radius:6px;padding:3px 8px;font-size:12px;margin:2px">📎 ${escapeHtml(a.filename)}</span>`).join('');
+    let bodyHtml;
+    if (m.html) {
+      bodyHtml = `<iframe id="mm-frame" style="width:100%;border:none;background:#fff;border-radius:8px;min-height:320px"></iframe>`;
+    } else {
+      bodyHtml = `<div style="white-space:pre-wrap;font-size:14px;line-height:1.5;color:var(--t1)">${escapeHtml(m.text || '(пусто)')}</div>`;
+    }
+    ov.querySelector('#mm-body').innerHTML = `
+      <div style="font-size:17px;font-weight:700;margin-bottom:6px">${escapeHtml(m.subject || '(без темы)')}</div>
+      <div style="font-size:13px;color:var(--t2)"><b>От:</b> ${escapeHtml(m.from || '')}</div>
+      <div style="font-size:13px;color:var(--t2)"><b>Кому:</b> ${escapeHtml(m.to || '')}</div>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:10px">${escapeHtml(m.date || '')}</div>
+      ${atts ? `<div style="margin-bottom:10px">${atts}</div>` : ''}
+      <div style="border-top:1px solid var(--b1);padding-top:12px">${bodyHtml}</div>
+      <div style="margin-top:14px"><button class="tbtn tbtn-sm tbtn-a" id="mm-reply">↩ Ответить</button></div>`;
+    if (m.html) {
+      const frame = ov.querySelector('#mm-frame');
+      if (frame) { frame.srcdoc = m.html; frame.onload = () => { try { frame.style.height = (frame.contentWindow.document.body.scrollHeight + 24) + 'px'; } catch {} }; }
+    }
+    ov.querySelector('#mm-reply').onclick = () => {
+      ov.remove();
+      const replyTo = (m.from.match(/<([^>]+)>/) || [null, m.from])[1];
+      openMailCompose(id, acc, { to: replyTo, subject: (/^re:/i.test(m.subject) ? '' : 'Re: ') + (m.subject || ''), inReplyTo: m.messageId, quote: m.text || '' });
+    };
+  } catch (e) {
+    ov.querySelector('#mm-body').innerHTML = `<div style="padding:24px;color:var(--rd);text-align:center">Не удалось открыть письмо: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function openMailCompose(id, acc, opts) {
+  opts = opts || {};
+  document.getElementById('_mail-compose-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_mail-compose-modal'; ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  const quote = opts.quote ? `\n\n--- исходное письмо ---\n${opts.quote}` : '';
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:600px;width:96vw">
+    <div class="qad-head"><h2>✉️ Новое письмо</h2><button class="qad-btn qad-btn-ghost" id="mc-close" style="padding:4px 10px">×</button></div>
+    <div class="qad-body" style="max-height:74vh;overflow-y:auto">
+      <div style="font-size:12px;color:var(--t3);margin-bottom:8px">От: <b>${escapeHtml(acc?.email || '')}</b></div>
+      <div><div class="qad-label">Кому</div><input id="mc-to" class="qad-input" value="${escapeHtml(opts.to || '')}" placeholder="email@example.com"></div>
+      <div><div class="qad-label">Тема</div><input id="mc-subject" class="qad-input" value="${escapeHtml(opts.subject || '')}"></div>
+      <div><div class="qad-label">Сообщение</div><textarea id="mc-body" class="qad-input" rows="10" style="resize:vertical;min-height:160px;font-family:inherit">${escapeHtml(quote)}</textarea></div>
+    </div>
+    <div class="qad-foot"><button class="qad-btn qad-btn-ghost" id="mc-cancel">Отмена</button><button class="qad-btn qad-btn-primary" id="mc-send">Отправить</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#mc-close').onclick = () => ov.remove();
+  ov.querySelector('#mc-cancel').onclick = () => ov.remove();
+  ov.querySelector('#mc-send').onclick = async () => {
+    const to = ov.querySelector('#mc-to').value.trim();
+    if (!to) { alert('Укажите получателя'); return; }
+    const btn = ov.querySelector('#mc-send'); btn.disabled = true; btn.textContent = '⏳ Отправка…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/mail/${encodeURIComponent(id)}/send`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+        body: JSON.stringify({ to, subject: ov.querySelector('#mc-subject').value, text: ov.querySelector('#mc-body').value, inReplyTo: opts.inReplyTo || '' }),
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error || 'ошибка');
+      ov.remove(); showToast?.('Письмо отправлено ✅');
+    } catch (e) { alert('Не удалось отправить: ' + e.message); btn.disabled = false; btn.textContent = 'Отправить'; }
+  };
+  setTimeout(() => ov.querySelector(opts.to ? '#mc-body' : '#mc-to')?.focus(), 60);
 }
 
 async function renderMailAdmin(el) {
