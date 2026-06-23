@@ -983,6 +983,16 @@
     msgsEl.querySelectorAll('[data-react-toggle]').forEach(b => {
       b.onclick = () => toggleReaction(b.dataset.reactToggle, b.dataset.emoji, b.dataset.own === '1');
     });
+    // Клик по аватарке/имени автора чужого сообщения → профиль сотрудника.
+    msgsEl.querySelectorAll('.tc-msg-av, .tc-msg-author').forEach(elm => {
+      elm.style.cursor = 'pointer';
+      elm.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const mid = elm.closest('.tc-msg')?.getAttribute('data-mid');
+        const m = state.messages.find(x => x.id === mid);
+        if (m && m.user_id && window.openEmployeeProfile) window.openEmployeeProfile(m.user_id);
+      });
+    });
 
     // Touch devices have no real hover, so the reply/edit/react toolbar must be
     // summoned with a tap on the bubble (ignoring taps on links/images/reactions).
@@ -1223,6 +1233,13 @@
       const av = head.querySelector('.tc-head-av');
       if (meta) { meta.style.cursor = 'pointer'; meta.title = 'Показать участников'; meta.onclick = openMem; }
       if (av) { av.style.cursor = 'pointer'; av.onclick = openMem; }
+    } else if (ch.other_user_id) {
+      // Личный чат — тап по имени/аватарке открывает профиль собеседника.
+      const openProf = () => { if (window.openEmployeeProfile) window.openEmployeeProfile(ch.other_user_id); };
+      const meta = head.querySelector('.tc-head-meta');
+      const av = head.querySelector('.tc-head-av');
+      if (meta) { meta.style.cursor = 'pointer'; meta.title = 'Открыть профиль'; meta.onclick = openProf; }
+      if (av) { av.style.cursor = 'pointer'; av.onclick = openProf; }
     }
     const back = head.querySelector('.tc-back');
     if (back) back.onclick = () => {
