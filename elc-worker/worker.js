@@ -2773,6 +2773,11 @@ async function handleAdminSetUserActive(request, env, targetUid) {
   await env.DB.prepare(
     "UPDATE users SET active = ? WHERE uid = ?"
   ).bind(active, targetUid).run();
+  // При активации сбрасываем метку «последнего захода», иначе сотрудника снова
+  // авто-приостановит на ближайшем /api/me (его last_seen_at старше 3 недель).
+  if (active === 1) {
+    try { await ensureLastSeenColumn(env); await env.DB.prepare("UPDATE users SET last_seen_at = ? WHERE uid = ?").bind(Date.now(), targetUid).run(); } catch (e) {}
+  }
 
   await auditLog(env, guard.me, active === 1 ? "user_activate" : "user_deactivate", "user", targetUid, {
     old: { active: before.active },
@@ -7307,13 +7312,51 @@ async function handleAnalyticsFunnels(request, env) {
   return json({ ok: true, pipelines: out, generatedAt: new Date().toISOString() }, 200, request);
 }
 
+// Ленивая идемпотентная миграция: метка последнего захода на портал.
+let _lastSeenColReady = false;
+async function ensureLastSeenColumn(env) {
+  if (_lastSeenColReady) return;
+  try { await env.DB.prepare("ALTER TABLE users ADD COLUMN last_seen_at INTEGER").run(); }
+  catch (e) { /* колонка уже есть — норма */ }
+  _lastSeenColReady = true;
+}
+
 async function handleMe(request, env) {
   const auth = await requireAuth(request, env);
   if (auth.error) return json({ ok: false, error: auth.error }, auth.status, request);
 
   const me = await resolveCanonicalUser(env, auth.claims);
+
+  // Авто-приостановка доступа: если сотрудник (не админ) не заходил на портал
+  // больше 3 недель — приостанавливаем доступ (active=0). Вернётся — увидит
+  // «обратитесь к администратору». Используем ОТДЕЛЬНУЮ метку last_seen_at,
+  // которая стартует с первого захода после запуска фичи, чтобы legacy-значения
+  // last_login (проставлены при миграции) не залочили всех разом.
+  let suspended = false;
+  if (me.userRecord && me.userRecord.uid) {
+    try {
+      await ensureLastSeenColumn(env);
+      const row = await env.DB.prepare("SELECT last_seen_at, active FROM users WHERE uid = ?").bind(me.userRecord.uid).first();
+      const now = Date.now();
+      const THREE_WEEKS = 21 * 24 * 60 * 60 * 1000;
+      const lastSeen = row && row.last_seen_at ? Number(row.last_seen_at) : null;
+      const isAdmin = me.role === 'admin';
+      if (row && row.active === 0) {
+        suspended = true;                       // уже приостановлен (вручную или авто)
+      } else if (!isAdmin && lastSeen && (now - lastSeen) > THREE_WEEKS) {
+        await env.DB.prepare("UPDATE users SET active = 0 WHERE uid = ?").bind(me.userRecord.uid).run();
+        suspended = true;
+        if (me.userRecord) me.userRecord.active = 0;
+        try { await auditLog(env, me, "user_auto_suspend", "user", me.userRecord.uid, { reason: "inactive_over_21d", lastSeen }); } catch {}
+      } else {
+        await env.DB.prepare("UPDATE users SET last_seen_at = ? WHERE uid = ?").bind(now, me.userRecord.uid).run();
+      }
+    } catch (e) { /* не блокируем вход из-за сбоя метки */ }
+  }
+
   return json({
     ok: true,
+    suspended,                       // true → фронт показывает экран «обратитесь к администратору»
     firebaseUid: me.firebaseUid,
     canonicalUid: me.canonicalUid,   // используется как responsible_uid в filters
     email: me.email,
