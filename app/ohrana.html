@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pllato CRM — демо для охранного агентства</title>
+<style>
+  :root{
+    --navy:#0a1628;--navy2:#142339;--navy3:#1d3050;
+    --bronze:#b8895a;--bronzel:#d4a978;
+    --off:#f7f6f1;--card:#fff;--line:#e6e3da;
+    --ink:#1d2630;--muted:#6b7585;
+    --green:#3f7d52;--greenbg:#eaf3ed;
+    --red:#b1492f;--redbg:#fbeee9;
+    --amber:#c8911f;--amberbg:#fbf2dd;
+    --blue:#2f5d8a;--bluebg:#e9f0f7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--off);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
+  .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+  .side{background:var(--navy);color:#cdd4df;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .brand{padding:22px 22px 6px;font-weight:800;font-size:22px;color:#fff;display:flex;align-items:center;gap:2px}
+  .brand .dot{width:7px;height:7px;border-radius:50%;background:var(--bronze);margin-top:10px}
+  .brand small{display:block;font-size:10px;font-weight:600;color:#5f6b82;letter-spacing:.1em;margin-top:4px}
+  .nav{padding:6px 12px;flex:1}
+  .nav .lbl{font-size:10px;letter-spacing:.12em;color:#5f6b82;padding:14px 10px 6px;font-weight:600}
+  .nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;color:#cdd4df;cursor:pointer;font-size:13px;font-weight:500;transition:.15s;margin-bottom:1px}
+  .nav a:hover{background:var(--navy2);color:#fff}
+  .nav a.active{background:var(--navy3);color:#fff}
+  .nav a .ic{width:18px;text-align:center;opacity:.85}
+  .nav a .bdg{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;animation:pulse 1.5s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  .who{padding:14px 18px;border-top:1px solid #1c2a40;font-size:12px;display:flex;align-items:center;gap:10px}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--bronze);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+  .main{display:flex;flex-direction:column;min-width:0}
+  .top{background:var(--card);border-bottom:1px solid var(--line);padding:15px 28px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:5}
+  .top h1{font-size:18px;font-weight:700;color:var(--navy)}
+  .top .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .top .search{margin-left:auto;background:var(--off);border:1px solid var(--line);border-radius:9px;padding:8px 13px;font-size:13px;color:var(--muted);min-width:200px}
+  .top .btn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:9px 15px;font-weight:600;font-size:13px;cursor:pointer}
+  .content{padding:24px 28px 70px;overflow:auto}
+  .page{display:none}.page.show{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;position:relative;overflow:hidden}
+  .kpi:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--bronze)}
+  .kpi.alarm:before{background:var(--red)}.kpi.ok:before{background:var(--green)}
+  .kpi .k{font-size:11px;color:var(--muted);font-weight:600}
+  .kpi .v{font-size:26px;font-weight:800;color:var(--navy);margin-top:6px;line-height:1}
+  .kpi .d{font-size:11.5px;margin-top:7px;font-weight:600}
+  .up{color:var(--green)}.down{color:var(--red)}
+  .grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:18px}
+  .panel h3{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .panel .ph{font-size:12px;color:var(--muted);margin-bottom:14px}
+  .row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .row:last-child{border:none}.row .rl{color:var(--muted)}.row .rv{font-weight:600;color:var(--navy)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:11px;color:var(--muted);font-weight:700;padding:9px 12px;border-bottom:2px solid var(--line)}
+  td{padding:11px 12px;border-bottom:1px solid var(--line)}
+  tr:hover td{background:var(--off)}
+  .pill{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;display:inline-block}
+  .p-over{background:var(--redbg);color:var(--red)}.p-soon{background:var(--amberbg);color:var(--amber)}.p-paid{background:var(--greenbg);color:var(--green)}.p-act{background:var(--bluebg);color:var(--blue)}
+  .mini{background:var(--navy);color:#fff;border:none;border-radius:7px;padding:6px 11px;font-size:11.5px;font-weight:600;cursor:pointer}
+  .mini.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
+  .mini.red{background:var(--red)}.mini.green{background:var(--green)}
+  /* board */
+  .board{display:grid;gap:14px;grid-template-columns:repeat(5,1fr)}
+  .col{background:var(--off);border:1px solid var(--line);border-radius:12px;padding:11px;min-height:110px}
+  .col .ch{font-size:12px;font-weight:700;color:var(--navy);display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 2px}
+  .col .ch .n{background:#fff;border:1px solid var(--line);border-radius:8px;font-size:11px;padding:1px 7px;color:var(--muted)}
+  .deal{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px;margin-bottom:9px;cursor:pointer;transition:.15s}
+  .deal:hover{border-color:var(--bronze);box-shadow:0 3px 12px rgba(10,22,40,.07);transform:translateY(-1px)}
+  .deal .dn{font-weight:700;font-size:12.5px;color:var(--navy)}
+  .deal .da{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .deal .dm{font-size:11px;color:var(--bronze);font-weight:700;margin-top:7px}
+  /* object cards (ПЦН) */
+  .objgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  .obj{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px;cursor:pointer;transition:.15s;position:relative;border-left:4px solid var(--green)}
+  .obj:hover{box-shadow:0 4px 16px rgba(10,22,40,.08)}
+  .obj.st-alarm{border-left-color:var(--red);background:var(--redbg)}
+  .obj.st-nosig{border-left-color:var(--amber);background:var(--amberbg)}
+  .obj .on{font-weight:700;font-size:13.5px;color:var(--navy)}
+  .obj .ot{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .obj .ostat{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;margin-top:12px}
+  .obj .led{width:9px;height:9px;border-radius:50%;background:var(--green)}
+  .obj.st-alarm .led{background:var(--red);animation:pulse 1s infinite}
+  .obj.st-nosig .led{background:var(--amber)}
+  .obj .dev{margin-top:9px;font-size:10.5px;color:var(--muted)}
+  /* live map */
+  .map{position:relative;height:460px;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#dfe6e2;background-image:linear-gradient(rgba(120,140,130,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(120,140,130,.18) 1px,transparent 1px);background-size:48px 48px}
+  .map .road{position:absolute;background:#fff;opacity:.85}
+  .map .rh{height:13px;left:0;right:0}.map .rv{width:13px;top:0;bottom:0}
+  .map .river{position:absolute;left:-5%;right:-5%;height:40px;background:#bcd4e0;opacity:.7;transform:rotate(-7deg)}
+  .pin{position:absolute;transform:translate(-50%,-100%);cursor:pointer;z-index:2}
+  .pin .dot{width:28px;height:28px;border-radius:50% 50% 50% 0;background:var(--green);transform:rotate(-45deg);box-shadow:0 3px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center}
+  .pin .dot b{transform:rotate(45deg);color:#fff;font-size:13px;font-weight:800;line-height:1}
+  .pin.alarm .dot{background:var(--red);animation:pulse 1s infinite}.pin.nosig .dot{background:var(--amber)}
+  .pin.gbr .dot{background:var(--navy);border-radius:8px}.pin.gbr .dot b{transform:none}
+  .pin:hover{z-index:6}.pin:hover .lbl{display:block}
+  .pin .lbl{display:none;position:absolute;bottom:32px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .maplegend{position:absolute;bottom:14px;left:14px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 13px;font-size:12px;display:flex;gap:14px;flex-wrap:wrap;max-width:80%}
+  .maplegend i{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
+  /* alarm console */
+  .alarmbox{background:var(--navy);color:#fff;border-radius:16px;padding:22px 24px;margin-bottom:18px;position:relative;overflow:hidden}
+  .alarmbox.live{box-shadow:0 0 0 2px var(--red)}
+  .alarmbox .at{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;color:var(--bronzel)}
+  .alarmbox .ev{font-size:22px;font-weight:800;margin-top:10px}
+  .alarmbox .meta{font-size:13px;color:#9aa6ba;margin-top:6px}
+  .alarmbox .timer{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:14px;color:#fff}
+  .alarmbox .acts{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+  .blip{width:11px;height:11px;border-radius:50%;background:var(--red);animation:pulse 1s infinite}
+  .feed{max-height:340px;overflow:auto}
+  .feeditem{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px;align-items:flex-start}
+  .feeditem .fled{width:9px;height:9px;border-radius:50%;flex:none;margin-top:5px}
+  .fl-red{background:var(--red)}.fl-amber{background:var(--amber)}.fl-green{background:var(--green)}.fl-blue{background:var(--blue)}
+  .feeditem .ft{font-weight:600;color:var(--navy)}.feeditem .fm{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .feeditem .fw{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap}
+  /* gbr crews */
+  .crew{display:flex;align-items:center;gap:14px;padding:13px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:#fff}
+  .crew .ci{width:38px;height:38px;border-radius:10px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex:none;font-size:13px}
+  .crew .cn{font-weight:700;font-size:13.5px;color:var(--navy)}
+  .crew .cs{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .crew .cstat{margin-left:auto;text-align:right}
+  .crew .badge{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px}
+  .b-free{background:var(--greenbg);color:var(--green)}.b-way{background:var(--amberbg);color:var(--amber)}.b-site{background:var(--bluebg);color:var(--blue)}
+  /* integrations */
+  .intg{display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:#fff}
+  .intg .ilogo{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:15px;flex:none}
+  .intg .inm{font-weight:700;font-size:13.5px;color:var(--navy)}
+  .intg .id2{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .toggle{margin-left:auto;width:44px;height:24px;border-radius:20px;background:var(--green);position:relative;cursor:pointer;flex:none}
+  .toggle:after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;right:3px}
+  .toggle.off{background:var(--line)}.toggle.off:after{right:auto;left:3px}
+  /* audio */
+  .audio{display:flex;align-items:center;gap:10px;background:var(--off);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-top:8px}
+  .play{width:30px;height:30px;border-radius:50%;background:var(--bronze);color:#fff;border:none;cursor:pointer;font-size:12px;flex:none}
+  .wave{flex:1;height:22px;background:repeating-linear-gradient(90deg,var(--bronzel) 0 2px,transparent 2px 5px);opacity:.55;border-radius:4px}
+  /* SLA bars */
+  .slabar{height:9px;border-radius:5px;background:var(--off);overflow:hidden;margin-top:8px}
+  .slabar i{display:block;height:100%;border-radius:5px;background:var(--green)}
+  /* timeline */
+  .timeline{margin-top:14px}
+  .tl{display:flex;gap:12px;padding-bottom:16px;position:relative}
+  .tl:before{content:"";position:absolute;left:6px;top:16px;bottom:-2px;width:2px;background:var(--line)}
+  .tl:last-child:before{display:none}
+  .tl .td{width:14px;height:14px;border-radius:50%;background:var(--bronze);flex:none;margin-top:2px;z-index:1;border:3px solid #fff;box-shadow:0 0 0 1px var(--line)}
+  .tl.red .td{background:var(--red)}.tl.green .td{background:var(--green)}.tl.blue .td{background:var(--blue)}
+  .tl .tx{font-size:13px;font-weight:600;color:var(--navy)}.tl .ty{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .ov{position:fixed;inset:0;background:rgba(10,22,40,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .ov.show{display:flex;animation:fade .2s}
+  .modal{background:#fff;border-radius:16px;max-width:580px;width:100%;max-height:88vh;overflow:auto}
+  .modal .mh{background:var(--navy);color:#fff;padding:20px 24px;border-radius:16px 16px 0 0;position:relative}
+  .modal .mh.alarm{background:var(--red)}
+  .modal .mh .mt{font-size:18px;font-weight:800}.modal .mh .ms{font-size:12.5px;color:#9aa6ba;margin-top:3px}
+  .modal .mh.alarm .ms{color:#f5d5ca}
+  .modal .mx{position:absolute;right:18px;top:18px;cursor:pointer;color:#9aa6ba;font-size:20px;background:none;border:none}
+  .modal .mb{padding:22px 24px}
+  .note{background:var(--navy2);color:#cdd4df;border-radius:12px;padding:14px 16px;font-size:12.5px;line-height:1.6;margin-top:6px}
+  .note b{color:var(--bronzel)}
+  .demo-tag{position:fixed;right:14px;bottom:14px;background:var(--bronze);color:#fff;font-size:11px;font-weight:700;padding:7px 13px;border-radius:20px;z-index:40;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+  @media(max-width:900px){.app{grid-template-columns:1fr}.side{position:static;height:auto}.kpis{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.board{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">Pllato<span class="dot"></span><small style="margin-left:6px">ОХРАНА</small></div>
+    <nav class="nav">
+      <div class="lbl">ПУЛЬТ (ПЦН)</div>
+      <a data-p="monitor" class="active"><span class="ic">🛰</span> Тревожный монитор <span class="bdg" id="alarmBdg">1</span></a>
+      <a data-p="map"><span class="ic">📍</span> Карта объектов</a>
+      <a data-p="objects"><span class="ic">🏢</span> Объекты</a>
+      <a data-p="crews"><span class="ic">🚓</span> Экипажи ГБР</a>
+      <a data-p="journal"><span class="ic">📓</span> Журнал событий</a>
+      <a data-p="integrations"><span class="ic">🔌</span> Интеграции</a>
+      <div class="lbl">УПРАВЛЕНИЕ</div>
+      <a data-p="dash"><span class="ic">▦</span> Дашборд / SLA</a>
+      <a data-p="funnel"><span class="ic">⇲</span> Воронка продаж</a>
+      <a data-p="billing"><span class="ic">₸</span> Абонплата и долги</a>
+      <a data-p="patrol"><span class="ic">🚶</span> Обходы / патрули</a>
+    </nav>
+    <div class="who"><div class="avatar">А</div><div>Алексей<br><span style="color:#7e8aa0;font-size:11px">Руководитель</span></div></div>
+  </aside>
+  <div class="main">
+    <div class="top">
+      <div><h1 id="ptitle">Тревожный монитор</h1><div class="sub" id="psub">Центральный пульт наблюдения · реальное время</div></div>
+      <input class="search" placeholder="Поиск объекта, клиента, события…">
+      <button class="btn">+ Создать</button>
+    </div>
+    <div class="content">
+
+      <!-- MONITOR -->
+      <section class="page show" id="monitor">
+        <div class="alarmbox live" id="alarmBox">
+          <div class="at"><span class="blip"></span> АКТИВНАЯ ТРЕВОГА</div>
+          <div class="ev" id="alEv">Ломбард «Алтын» — сработка датчика движения</div>
+          <div class="meta" id="alMeta">ул. Розыбакиева 247 · оборудование Ajax · поступило 11:42:08</div>
+          <div class="timer" id="alTimer">00:38</div>
+          <div class="acts">
+            <button class="mini green" onclick="dispatch()">🚓 Отправить ГБР-2</button>
+            <button class="mini ghost" style="background:#fff" onclick="openObj(objs[1])">Открыть объект</button>
+            <button class="mini red" onclick="falseAlarm()">Ложная тревога</button>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="panel"><h3>🔴 Лента событий пульта</h3><div class="ph">Сигналы, тревоги, постановки/снятия с охраны — в реальном времени</div>
+            <div class="feed" id="feed"></div></div>
+          <div class="panel"><h3>🚓 Экипажи ГБР</h3><div class="ph">Статус групп быстрого реагирования</div>
+            <div id="crewMini"></div>
+            <div class="note">Среднее время реагирования сегодня: <b>6 мин 12 сек</b> (норматив 10 мин).</div></div>
+        </div>
+      </section>
+
+      <!-- MAP -->
+      <section class="page" id="map">
+        <div class="panel" style="padding:14px"><div class="map" id="mapBox">
+          <div class="river" style="top:62%"></div>
+          <div class="road rh" style="top:28%"></div><div class="road rh" style="top:74%"></div>
+          <div class="road rv" style="left:33%"></div><div class="road rv" style="left:66%"></div>
+          <div class="maplegend">
+            <span><i style="background:var(--green)"></i>На охране</span>
+            <span><i style="background:var(--red)"></i>Тревога</span>
+            <span><i style="background:var(--amber)"></i>Нет связи</span>
+            <span><i style="background:var(--navy)"></i>Экипаж ГБР</span>
+          </div>
+        </div></div>
+        <div class="note">Все охраняемые объекты и экипажи ГБР на карте города в реальном времени. Цвет пина — статус объекта. Нажмите на объект.</div>
+      </section>
+
+      <!-- OBJECTS -->
+      <section class="page" id="objects">
+        <div class="objgrid" id="objgrid"></div>
+        <div class="note" style="margin-top:18px">Карточка каждого объекта: тип, адрес, оборудование, статус связи, история сигналов. Нажмите на объект.</div>
+      </section>
+
+      <!-- CREWS -->
+      <section class="page" id="crews">
+        <div class="panel"><h3>🚓 Экипажи ГБР</h3><div class="ph">Группы быстрого реагирования: статус, текущая задача, время на смене</div><div id="crewFull"></div></div>
+        <div class="note">Диспетчер видит, какой экипаж свободен и ближе к объекту. Назначение ГБР — в один клик из карточки тревоги.</div>
+      </section>
+
+      <!-- JOURNAL -->
+      <section class="page" id="journal">
+        <div class="panel"><h3>📓 Журнал событий</h3><div class="ph">Полный аудит: тревоги, выезды ГБР, постановки/снятия, звонки</div><table id="journalTbl"></table></div>
+        <div class="note">Каждое событие фиксируется с меткой времени и оператором. Спорную ситуацию можно поднять и разобрать по записям.</div>
+      </section>
+
+      <!-- INTEGRATIONS -->
+      <section class="page" id="integrations">
+        <div class="panel"><h3>🔌 Интеграции систем безопасности</h3><div class="ph">3–4 системы на разном железе и протоколах — в едином окне пульта</div><div id="intgList"></div></div>
+        <div class="note">Сигналы со всех систем (Hikvision, Ajax и аналогов) сводятся в одну ленту пульта. Оператор не переключается между приложениями.</div>
+      </section>
+
+      <!-- DASH / SLA -->
+      <section class="page" id="dash">
+        <div class="kpis">
+          <div class="kpi ok"><div class="k">Объектов на охране</div><div class="v">142</div><div class="d up">+6 за месяц</div></div>
+          <div class="kpi alarm"><div class="k">Тревог сегодня</div><div class="v">8</div><div class="d" style="color:var(--muted)">1 активная</div></div>
+          <div class="kpi"><div class="k">Ср. время реагирования</div><div class="v">6:12</div><div class="d up">норматив 10:00</div></div>
+          <div class="kpi"><div class="k">Объектов без связи</div><div class="v">2</div><div class="d down">требуют проверки</div></div>
+        </div>
+        <div class="grid2">
+          <div class="panel"><h3>SLA по времени реагирования</h3><div class="ph">Доля выездов в норматив по типам объектов</div>
+            <div id="slaList"></div></div>
+          <div class="panel"><h3>Тревоги за неделю</h3><div class="ph">Распределение по типу сигнала</div>
+            <div class="row"><span class="rl">Тревожная кнопка</span><span class="rv">14</span></div>
+            <div class="row"><span class="rl">Датчик движения</span><span class="rv">23</span></div>
+            <div class="row"><span class="rl">Открытие двери/окна</span><span class="rv">9</span></div>
+            <div class="row"><span class="rl">Потеря связи</span><span class="rv">6</span></div>
+            <div class="note">Цифры в демо — <b>примерные</b>. В рабочей системе считаются из ваших событий.</div></div>
+        </div>
+      </section>
+
+      <!-- FUNNEL -->
+      <section class="page" id="funnel">
+        <div class="board" id="board"></div>
+        <div class="note" style="margin-top:18px">Воронка продаж охранных услуг. Заявка → выезд на осмотр → договор → монтаж → на охране. Нажмите на сделку.</div>
+      </section>
+
+      <!-- BILLING -->
+      <section class="page" id="billing">
+        <div class="panel"><h3>₸ Абонентская плата и задолженность</h3><div class="ph">Ежемесячная охрана — подписочная модель. Авто-выставление счетов и автообзвон должников</div><table id="billTbl"></table></div>
+        <div class="note">Автообзвон должников: система сама звонит по дебиторке и шлёт напоминание, без выгорания операторов. Счёт выставляется автоматически в начале месяца.</div>
+      </section>
+
+      <!-- PATROL -->
+      <section class="page" id="patrol">
+        <div class="panel"><h3>🚶 Обходы и контрольные точки</h3><div class="ph">Маршруты патрулей и отметки на контрольных точках (QR/NFC)</div><table id="patrolTbl"></table></div>
+        <div class="note">Охранник отмечается на контрольной точке через QR/NFC — руководитель видит, что обход реально пройден, а не отмечен «на бумаге».</div>
+      </section>
+    </div>
+  </div>
+</div>
+<div class="ov" id="ov"><div class="modal" id="modal"></div></div>
+<div class="demo-tag">демо · Pllato</div>
+
+<script>
+const titles={
+  monitor:["Тревожный монитор","Центральный пульт наблюдения · реальное время"],
+  map:["Карта объектов","Объекты и экипажи ГБР на карте города"],
+  objects:["Объекты","Охраняемые объекты и их статус"],
+  crews:["Экипажи ГБР","Группы быстрого реагирования"],
+  journal:["Журнал событий","Полный аудит событий пульта"],
+  integrations:["Интеграции","Системы безопасности в едином окне"],
+  dash:["Дашборд / SLA","Аналитика пульта и время реагирования"],
+  funnel:["Воронка продаж","Продажа охранных услуг по этапам"],
+  billing:["Абонплата и долги","Подписочная оплата и автообзвон"],
+  patrol:["Обходы / патрули","Маршруты и контрольные точки"],
+};
+function go(p){
+  document.querySelectorAll('.nav a').forEach(x=>x.classList.toggle('active',x.dataset.p==p));
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('show'));
+  document.getElementById(p).classList.add('show');
+  document.getElementById('ptitle').textContent=titles[p][0];
+  document.getElementById('psub').textContent=titles[p][1];
+}
+document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>go(a.dataset.p));
+
+// objects
+const objs=[
+  {n:"ТЦ «Меркур»",t:"Торговый центр",addr:"пр. Абая 150",dev:"Hikvision · 24 камеры",st:"ok",x:30,y:34},
+  {n:"Ломбард «Алтын»",t:"Ломбард",addr:"ул. Розыбакиева 247",dev:"Ajax · кнопка + датчики",st:"alarm",x:58,y:48},
+  {n:"Аптека «Здоровье»",t:"Аптека",addr:"мкр. Самал-2, 14",dev:"Ajax · тревожная кнопка",st:"ok",x:44,y:64},
+  {n:"Школа №38",t:"Учебное заведение",addr:"ул. Жандосова 58",dev:"Hikvision · периметр",st:"ok",x:72,y:24},
+  {n:"Квартира Ахметова",t:"Квартира",addr:"ЖК «Нурлы», кв. 88",dev:"Ajax · датчики",st:"nosig",x:22,y:56},
+  {n:"Склад «Логист»",t:"Склад",addr:"Илийский тракт 9",dev:"Dahua · периметр",st:"ok",x:80,y:70},
+  {n:"Ювелирный «Карат»",t:"Магазин",addr:"ТРЦ «Достык», 1 эт.",dev:"Ajax · кнопка + сейф",st:"ok",x:52,y:30},
+  {n:"Офис «Финанс»",t:"Офис",addr:"БЦ «Нурлы Тау»",dev:"Hikvision · СКУД",st:"nosig",x:38,y:42},
+];
+const stName={ok:"На охране",alarm:"ТРЕВОГА",nosig:"Нет связи"};
+const og=document.getElementById('objgrid');
+objs.forEach(o=>{const el=document.createElement('div');el.className='obj st-'+(o.st=='ok'?'':o.st=='alarm'?'alarm':'nosig');
+  if(o.st=='ok')el.className='obj';
+  el.innerHTML=`<div class="on">${o.n}</div><div class="ot">${o.t} · ${o.addr}</div>
+    <div class="ostat"><span class="led"></span>${stName[o.st]}</div><div class="dev">🔌 ${o.dev}</div>`;
+  el.onclick=()=>openObj(o);og.appendChild(el);});
+
+// map pins + crews
+const mb=document.getElementById('mapBox');
+objs.forEach(o=>{const p=document.createElement('div');p.className='pin '+(o.st=='ok'?'':o.st);
+  p.style.left=o.x+'%';p.style.top=o.y+'%';
+  p.innerHTML=`<div class="lbl">${o.n} · ${stName[o.st]}</div><div class="dot"><b>●</b></div>`;
+  p.onclick=()=>openObj(o);mb.appendChild(p);});
+[{x:50,y:54,n:"ГБР-2"},{x:25,y:30,n:"ГБР-1"}].forEach(c=>{const p=document.createElement('div');p.className='pin gbr';
+  p.style.left=c.x+'%';p.style.top=c.y+'%';p.innerHTML=`<div class="lbl">${c.n}</div><div class="dot"><b>🚓</b></div>`;mb.appendChild(p);});
+
+// crews
+const crews=[
+  {n:"ГБР-1",c:"Экипаж Сергеев / Тлеу",st:"free",task:"На базе, свободен",shift:"08:00–20:00"},
+  {n:"ГБР-2",c:"Экипаж Ким / Абдулла",st:"way",task:"Выезд: Ломбард «Алтын»",shift:"08:00–20:00"},
+  {n:"ГБР-3",c:"Экипаж Нуров / Ли",st:"site",task:"На объекте: ТЦ «Меркур»",shift:"08:00–20:00"},
+];
+const cb={free:["b-free","Свободен"],way:["b-way","В пути"],site:["b-site","На объекте"]};
+function renderCrews(el,full){el.innerHTML=crews.map(c=>`<div class="crew"><div class="ci">${c.n.split('-')[1]}</div>
+  <div><div class="cn">${c.n}</div><div class="cs">${full?c.c+' · ':''}${c.task}</div></div>
+  <div class="cstat"><span class="badge ${cb[c.st][0]}">${cb[c.st][1]}</span>${full?`<div style="font-size:11px;color:var(--muted);margin-top:5px">${c.shift}</div>`:''}</div></div>`).join('');}
+renderCrews(document.getElementById('crewMini'),false);
+renderCrews(document.getElementById('crewFull'),true);
+
+// live feed
+const feedData=[
+  ["red","🚨 ТРЕВОГА: Ломбард «Алтын»","Датчик движения · Ajax","11:42"],
+  ["blue","🚓 ГБР-2 направлен на объект","Ломбард «Алтын»","11:42"],
+  ["green","✅ Объект снят с охраны: Аптека «Здоровье»","Код владельца","11:30"],
+  ["amber","⚠ Потеря связи: Офис «Финанс»","Hikvision · проверка линии","11:18"],
+  ["green","✅ Объект на охране: ТЦ «Меркур»","Автопостановка по графику","09:00"],
+  ["blue","📞 Входящий звонок: Квартира Ахметова","Длительность 2:14","08:51"],
+];
+const feed=document.getElementById('feed');
+feed.innerHTML=feedData.map(f=>`<div class="feeditem"><span class="fled fl-${f[0]}"></span>
+  <div><div class="ft">${f[1]}</div><div class="fm">${f[2]}</div></div><div class="fw">${f[3]}</div></div>`).join('');
+
+// integrations
+const intg=[
+  {n:"Hikvision",d:"Видеонаблюдение · 3 объекта",c:"#c8453a",on:true,ab:"HIK"},
+  {n:"Ajax",d:"Сигнализация и кнопки · 4 объекта",c:"#3f7d52",on:true,ab:"AJX"},
+  {n:"Dahua",d:"Видеонаблюдение · 1 объект",c:"#2f5d8a",on:true,ab:"DH"},
+  {n:"Telphin / SIP",d:"Телефония пульта",c:"#b8895a",on:true,ab:"SIP"},
+  {n:"1С Бухгалтерия",d:"Выгрузка счетов и оплат (опция)",c:"#7a828e",on:false,ab:"1С"},
+];
+document.getElementById('intgList').innerHTML=intg.map((i,idx)=>`<div class="intg">
+  <div class="ilogo" style="background:${i.c}">${i.ab}</div>
+  <div><div class="inm">${i.n}</div><div class="id2">${i.d}</div></div>
+  <div class="toggle ${i.on?'':'off'}" onclick="this.classList.toggle('off')"></div></div>`).join('');
+
+// journal
+const journal=[
+  {t:"11:42",ev:"Тревога — датчик движения",ob:"Ломбард «Алтын»",op:"Оператор Жанна",st:"p-over"},
+  {t:"11:42",ev:"Назначен выезд ГБР-2",ob:"Ломбард «Алтын»",op:"Оператор Жанна",st:"p-act"},
+  {t:"11:30",ev:"Снятие с охраны",ob:"Аптека «Здоровье»",op:"Код владельца",st:"p-paid"},
+  {t:"11:18",ev:"Потеря связи с объектом",ob:"Офис «Финанс»",op:"Система",st:"p-soon"},
+  {t:"09:00",ev:"Автопостановка на охрану",ob:"ТЦ «Меркур»",op:"Система",st:"p-paid"},
+  {t:"08:51",ev:"Входящий звонок 2:14",ob:"Квартира Ахметова",op:"Оператор Жанна",st:"p-act"},
+];
+document.getElementById('journalTbl').innerHTML='<tr><th>Время</th><th>Событие</th><th>Объект</th><th>Источник</th><th></th></tr>'+
+  journal.map(j=>`<tr><td><b>${j.t}</b></td><td>${j.ev}</td><td>${j.ob}</td><td style="color:var(--muted)">${j.op}</td>
+    <td><span class="pill ${j.st}">${j.st=='p-over'?'Тревога':j.st=='p-act'?'Выезд':j.st=='p-soon'?'Внимание':'OK'}</span></td></tr>`).join('');
+
+// SLA
+const sla=[{n:"Ломбарды и ювелирные",v:98},{n:"Аптеки",v:95},{n:"Торговые центры",v:92},{n:"Квартиры",v:88},{n:"Школы",v:96}];
+document.getElementById('slaList').innerHTML=sla.map(s=>`<div style="margin-bottom:13px">
+  <div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="color:var(--muted)">${s.n}</span><b>${s.v}%</b></div>
+  <div class="slabar"><i style="width:${s.v}%;background:${s.v>=95?'var(--green)':s.v>=90?'var(--amber)':'var(--red)'}"></i></div></div>`).join('');
+
+// funnel
+const deals={
+  "Заявка":[{n:"Сеть аптек (3 точки)",m:"~₸ 90 000/мес",who:"Заявка с сайта"},{n:"Автосалон, Тимирязева",m:"~₸ 120 000/мес",who:"Krisha"}],
+  "Осмотр объекта":[{n:"Ресторан «Сити»",m:"~₸ 45 000/мес",who:"Рекомендация"}],
+  "Договор":[{n:"ЖК «Алмалы» (паркинг)",m:"~₸ 200 000/мес",who:"Тендер"}],
+  "Монтаж":[{n:"Склад «КаргоПлюс»",m:"~₸ 75 000/мес",who:"Прямой"}],
+  "На охране":[{n:"Бутик «Карат»",m:"₸ 60 000/мес",who:"—"}],
+};
+const board=document.getElementById('board');
+for(const[st,list]of Object.entries(deals)){const col=document.createElement('div');col.className='col';
+  col.innerHTML=`<div class="ch"><span>${st}</span><span class="n">${list.length}</span></div>`;
+  list.forEach(d=>{const e=document.createElement('div');e.className='deal';
+    e.innerHTML=`<div class="dn">${d.n}</div><div class="da">${d.who}</div><div class="dm">${d.m}</div>`;
+    e.onclick=()=>openDeal(d,st);col.appendChild(e);});board.appendChild(col);}
+
+// billing
+const bills=[
+  {c:"ТЦ «Меркур»",sum:"₸ 180 000/мес",due:"оплачено",st:"p-paid"},
+  {c:"Ломбард «Алтын»",sum:"₸ 65 000/мес",due:"просрочено 8 дн",st:"p-over"},
+  {c:"Аптека «Здоровье»",sum:"₸ 40 000/мес",due:"до 28.06",st:"p-soon"},
+  {c:"Школа №38",sum:"₸ 95 000/мес",due:"оплачено",st:"p-paid"},
+  {c:"Квартира Ахметова",sum:"₸ 18 000/мес",due:"просрочено 3 дн",st:"p-over"},
+];
+document.getElementById('billTbl').innerHTML='<tr><th>Объект / клиент</th><th>Абонплата</th><th>Статус</th><th>Срок</th><th></th></tr>'+
+  bills.map(b=>`<tr><td><b>${b.c}</b></td><td>${b.sum}</td><td><span class="pill ${b.st}">${b.st=='p-over'?'Долг':b.st=='p-soon'?'Скоро':'Оплачено'}</span></td>
+    <td style="color:var(--muted)">${b.due}</td><td>${b.st=='p-over'?'<button class="mini ghost" onclick="autocall(this)">📞 Автообзвон</button>':b.st=='p-soon'?'<button class="mini ghost">⎙ Счёт</button>':'—'}</td></tr>`).join('');
+function autocall(btn){btn.textContent='✓ В очереди обзвона';btn.style.color='var(--green)';}
+
+// patrol
+const patrol=[
+  {r:"Маршрут Центр (ночь)",g:"Охранник Досжан",pts:"6 из 6 точек",t:"завершён 03:14",st:"p-paid"},
+  {r:"Маршрут Промзона",g:"Охранник Ермек",pts:"4 из 6 точек",t:"в процессе",st:"p-act"},
+  {r:"Маршрут ЖК «Алмалы»",g:"Охранник Бакыт",pts:"0 из 5 точек",t:"начало 22:00",st:"p-soon"},
+];
+document.getElementById('patrolTbl').innerHTML='<tr><th>Маршрут</th><th>Охранник</th><th>Контрольные точки</th><th>Статус</th></tr>'+
+  patrol.map(p=>`<tr><td><b>${p.r}</b></td><td>${p.g}</td><td>${p.pts}</td>
+    <td><span class="pill ${p.st}">${p.t}</span></td></tr>`).join('');
+
+// modals
+const ov=document.getElementById('ov'),modal=document.getElementById('modal');
+function show(h){modal.innerHTML=h;ov.classList.add('show');}
+ov.onclick=e=>{if(e.target===ov)ov.classList.remove('show');};
+function close(){ov.classList.remove('show');}
+function openObj(o){
+  const alarm=o.st=='alarm';
+  show(`<div class="mh ${alarm?'alarm':''}"><button class="mx" onclick="close()">×</button>
+    <div class="mt">${o.n}</div><div class="ms">${o.t} · ${o.addr} · ${stName[o.st]}</div></div>
+    <div class="mb">
+      <div class="row"><span class="rl">Оборудование</span><span class="rv">${o.dev}</span></div>
+      <div class="row"><span class="rl">Статус связи</span><span class="rv" style="color:${o.st=='ok'?'var(--green)':o.st=='alarm'?'var(--red)':'var(--amber)'}">${stName[o.st]}</span></div>
+      <div class="row"><span class="rl">Тариф охраны</span><span class="rv">₸ 65 000 / мес</span></div>
+      ${alarm?'<div style="display:flex;gap:8px;margin-top:14px"><button class="mini green" onclick="dispatch()">🚓 Отправить ГБР</button><button class="mini red" onclick="falseAlarm()">Ложная тревога</button></div>':''}
+      <h3 style="margin:16px 0 4px;font-size:14px;color:var(--navy)">История по объекту</h3>
+      <div class="timeline">
+        ${alarm?'<div class="tl red"><div class="td"></div><div><div class="tx">🚨 Тревога — датчик движения</div><div class="ty">Сегодня, 11:42</div></div></div>':''}
+        <div class="tl green"><div class="td"></div><div><div class="tx">Постановка на охрану</div><div class="ty">Сегодня, 09:00</div></div></div>
+        <div class="tl"><div class="td"></div><div><div class="tx">Плановое ТО оборудования</div><div class="ty">3 дня назад</div></div></div>
+        <div class="tl blue"><div class="td"></div><div><div class="tx">Входящий звонок 2:14</div><div class="ty">Неделю назад</div>
+          <div class="audio"><button class="play">▶</button><div class="wave"></div><span style="font-size:11px;color:var(--muted)">2:14</span></div></div></div>
+      </div></div>`);
+}
+function openDeal(d,st){
+  show(`<div class="mh"><button class="mx" onclick="close()">×</button><div class="mt">${d.n}</div><div class="ms">${st} · ${d.m}</div></div>
+    <div class="mb"><div class="row"><span class="rl">Источник</span><span class="rv">${d.who}</span></div>
+    <div class="row"><span class="rl">Стадия</span><span class="rv">${st}</span></div>
+    <div class="row"><span class="rl">Абонплата</span><span class="rv">${d.m}</span></div>
+    <h3 style="margin:16px 0 4px;font-size:14px;color:var(--navy)">Коммуникация</h3>
+    <div class="timeline">
+      <div class="tl"><div class="td"></div><div><div class="tx">WhatsApp: отправили КП на охрану</div><div class="ty">Сегодня</div></div></div>
+      <div class="tl blue"><div class="td"></div><div><div class="tx">Звонок 3:40 — обсудили объект</div><div class="ty">Вчера</div>
+        <div class="audio"><button class="play">▶</button><div class="wave"></div><span style="font-size:11px;color:var(--muted)">3:40</span></div></div></div>
+      <div class="tl"><div class="td"></div><div><div class="tx">Заявка получена</div><div class="ty">2 дня назад</div></div></div>
+    </div></div>`);
+}
+// alarm interactions
+let timerSec=38,timerInt=setInterval(()=>{timerSec++;const m=String(Math.floor(timerSec/60)).padStart(2,'0'),s=String(timerSec%60).padStart(2,'0');const el=document.getElementById('alTimer');if(el)el.textContent=m+':'+s;},1000);
+function dispatch(){const box=document.getElementById('alarmBox');box.innerHTML=`<div class="at"><span class="fled fl-blue" style="width:11px;height:11px;border-radius:50%;background:var(--blue)"></span> ГБР НАПРАВЛЕН</div>
+  <div class="ev">Ломбард «Алтын» — выезжает ГБР-2</div><div class="meta">Расчётное время прибытия: 5 мин · экипаж Ким / Абдулла</div>
+  <div class="acts"><button class="mini green" onclick="resolve()">✓ Прибыли, объект проверен</button></div>`;close();}
+function falseAlarm(){const box=document.getElementById('alarmBox');box.classList.remove('live');box.innerHTML=`<div class="at" style="color:var(--green)">✓ ОТМЕНЕНО</div><div class="ev">Тревога отмечена как ложная</div><div class="meta">Объект остаётся на охране. Событие записано в журнал.</div>`;document.getElementById('alarmBdg').style.display='none';close();}
+function resolve(){const box=document.getElementById('alarmBox');box.classList.remove('live');box.innerHTML=`<div class="at" style="color:var(--green)">✓ ОТРАБОТАНО</div><div class="ev">Ломбард «Алтын» — объект в норме</div><div class="meta">Время реагирования: 5 мин 02 сек · в нормативе</div>`;document.getElementById('alarmBdg').style.display='none';clearInterval(timerInt);}
+</script>
+</body>
+</html>
