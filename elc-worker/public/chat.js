@@ -37,6 +37,8 @@
     channelSearch: '',
     showArchived: false,      // показывать архивные чаты вместо активных
     loadingMsgs: false,
+    loadingOlder: false,      // идёт догрузка истории (старых сообщений)
+    hasMoreOlder: true,       // есть ли ещё старые сообщения для подгрузки
     readWatermarks: {},       // uid другого участника → created_at его последнего прочитанного (для галочек)
     deliveredWatermarks: {},  // uid → created_at последнего доставленного (вторые серые галочки)
     templates: null,          // личные шаблоны сообщений (ленивая загрузка)
@@ -382,6 +384,9 @@
       const d = await api(`/api/chat/channels/${channelId}/messages?limit=50`);
       if (channelId !== state.activeChannelId) return; // переключились пока грузили
       state.messages = d.items || [];
+      // Если пришёл полный лимит — вероятно есть и более старые сообщения.
+      state.hasMoreOlder = (d.items || []).length >= 50;
+      state.loadingOlder = false;
       state.readWatermarks = d.read_watermarks || {};
       state.deliveredWatermarks = d.delivered_watermarks || {};
       state.loadingMsgs = false;
@@ -393,6 +398,36 @@
       state.loadingMsgs = false;
       console.error('loadMessages:', e);
       renderMessages();
+    }
+  }
+
+  // Догрузка истории: старые сообщения выше текущих. Вызывается при прокрутке
+  // к началу списка. Подставляет ?before=<самый старый id> и дописывает сверху,
+  // сохраняя позицию прокрутки (чтобы лента не «прыгала»).
+  async function loadOlderMessages() {
+    if (state.loadingOlder || !state.hasMoreOlder || state.loadingMsgs) return;
+    if (!state.activeChannelId || !state.messages.length) return;
+    const channelId = state.activeChannelId;
+    const oldest = state.messages[0];
+    if (!oldest) return;
+    state.loadingOlder = true;
+    const msgsEl = state.rootEl?.querySelector('.tc-msgs');
+    const prevH = msgsEl ? msgsEl.scrollHeight : 0;
+    const prevTop = msgsEl ? msgsEl.scrollTop : 0;
+    try {
+      const d = await api(`/api/chat/channels/${channelId}/messages?before=${encodeURIComponent(oldest.id)}&limit=50`);
+      if (channelId !== state.activeChannelId) { state.loadingOlder = false; return; }
+      const older = (d.items || []).filter(m => !state.messages.some(x => x.id === m.id));
+      if (!older.length) { state.hasMoreOlder = false; state.loadingOlder = false; return; }
+      state.hasMoreOlder = (d.items || []).length >= 50;
+      state.messages = older.concat(state.messages);
+      renderMessages();
+      // сохранить позицию: новый scrollHeight больше — сдвигаем на разницу
+      if (msgsEl) msgsEl.scrollTop = prevTop + (msgsEl.scrollHeight - prevH);
+    } catch (e) {
+      console.error('loadOlderMessages:', e);
+    } finally {
+      state.loadingOlder = false;
     }
   }
 
@@ -1750,6 +1785,7 @@
     state.editingMsg = null;
     state.composerDraft = loadDraft(channelId);   // восстановить незаконченное сообщение этого чата
     state.loadingMsgs = true;
+    state.hasMoreOlder = true; state.loadingOlder = false;   // сброс пагинации истории
     if (state.rootEl) {
       const r = state.rootEl.querySelector('.tc-root');
       if (r) r.classList.add('tc-show-main');
@@ -2518,7 +2554,11 @@
     });
 
     const msgsEl = el.querySelector('.tc-msgs');
-    msgsEl.onscroll = updateScrollBtn;
+    msgsEl.onscroll = () => {
+      updateScrollBtn();
+      // у самого верха — подгружаем историю
+      if (msgsEl.scrollTop < 120) loadOlderMessages();
+    };
     el.querySelector('.tc-scroll-btn').onclick = () => scrollMsgsToBottom(true);
 
     applyResponsive();
