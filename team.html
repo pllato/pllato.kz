@@ -3195,6 +3195,7 @@ textarea.inline-edit-input.inline-edit-h2, .inline-edit-h2 textarea { min-width:
     </div>
     <div class="nav-item" data-page="mail">
       <span class="nav-icon">📧</span><span>Почта</span>
+      <span class="nav-badge" id="mail-nav-badge" style="display:none"></span>
     </div>
     <div class="nav-item" data-page="lesson-checks">
       <span class="nav-icon">📝</span><span>Пробные Занятия</span>
@@ -3958,6 +3959,8 @@ async function initApp(user) {
   // Центр уведомлений: realtime-listener (WS) + поллинг бэйджа непрочитанных
   notifBindRealtime();
   notifStartPolling();
+  // Почта: бейдж непрочитанных в меню + уведомления о новых письмах
+  try { mailStartUnreadPolling(); } catch (e) {}
   // Если пуши уже разрешены — переподписать устройство (ключи/endpoint могли
   // протухнуть, или подписки ещё нет на воркере). Фоном, без блокировки.
   setTimeout(() => { try { ensurePushSubscription(); } catch {} }, 1500);
@@ -21280,6 +21283,34 @@ function openSipLineForm(line) {
 // ════════════════════════════════════════════════════════════════════════
 // ПОЧТА — вкладка. Этап 1: список доступных ящиков + управление (для админов).
 // ════════════════════════════════════════════════════════════════════════
+// Бейдж непрочитанных писем в меню + уведомление о новых письмах.
+let _mailUnreadState = { total: -1, timer: null, perBox: {} };
+async function mailRefreshUnread(notify) {
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/mail/unread-summary`, { headers: { Authorization: 'Bearer ' + idToken } });
+    const d = await r.json();
+    if (!d.ok) return;
+    const badge = document.getElementById('mail-nav-badge');
+    if (badge) {
+      if (d.total > 0) { badge.style.display = 'inline-flex'; badge.textContent = d.total > 99 ? '99+' : d.total; }
+      else badge.style.display = 'none';
+    }
+    // Новые письма пришли (рост счётчика) → тост, если это не первый замер.
+    if (notify && _mailUnreadState.total >= 0 && d.total > _mailUnreadState.total) {
+      const diff = d.total - _mailUnreadState.total;
+      try { showToast?.(`📧 ${diff} ${diff === 1 ? 'новое письмо' : 'новых писем'} в почте`); } catch {}
+      try { if (typeof window.playMessageBeep === 'function') window.playMessageBeep(); } catch {}
+    }
+    _mailUnreadState.total = d.total; _mailUnreadState.perBox = d.perBox || {};
+  } catch (e) {}
+}
+function mailStartUnreadPolling() {
+  if (_mailUnreadState.timer) return;
+  mailRefreshUnread(false);
+  _mailUnreadState.timer = setInterval(() => mailRefreshUnread(true), 90000);
+}
+
 async function renderMail(el) {
   const isAdmin = window.currentUser?.role === 'admin';
   el.innerHTML = `<div class="page-title">📧 Почта</div><div class="card" style="padding:24px;color:var(--t3)">⏳ Загрузка…</div>`;
@@ -21289,6 +21320,12 @@ async function renderMail(el) {
     const r = await fetch(`${WORKER_BASE_URL}/api/mail/my`, { headers: { Authorization: 'Bearer ' + idToken } });
     const d = await r.json(); accounts = d.accounts || [];
   } catch (e) {}
+  // Один ящик — открываем сразу (без промежуточного списка).
+  if (accounts.length === 1 && !el._mailForceList) {
+    openMailbox(accounts[0].id, accounts[0], { sole: true, isAdmin });
+    return;
+  }
+  el._mailForceList = false;
   const adminBtn = isAdmin ? `<button class="tbtn tbtn-sm tbtn-a" id="mail-manage">⚙ Управление ящиками</button>` : '';
   let listHtml;
   if (!accounts.length) {
@@ -21333,7 +21370,8 @@ function mailInjectStyles() {
     .mailx-listhdr{padding:9px 14px;border-bottom:1px solid var(--b1);font-size:12.5px;color:var(--t3);display:flex;align-items:center;gap:8px}
     .mail-row{display:flex;gap:12px;padding:11px 14px;border-bottom:1px solid var(--b1);cursor:pointer;align-items:center}
     .mail-row:hover{background:var(--bg2)}
-    .mail-row.unread{background:color-mix(in srgb,var(--ac2) 6%,transparent)}
+    .mail-row.unread{background:color-mix(in srgb,var(--ac2) 7%,transparent);box-shadow:inset 3px 0 0 var(--ac2)}
+    .mail-row:not(.unread) .mail-rfrom{color:var(--t2)}
     .mail-av{width:40px;height:40px;border-radius:50%;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
     .mail-rmid{flex:1;min-width:0}
     .mail-rfrom{font-size:13.5px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -21369,14 +21407,18 @@ function mailFolderLabel(f) {
   return f.name || f.raw;
 }
 
-async function openMailbox(id, acc) {
+async function openMailbox(id, acc, opts) {
+  opts = opts || {};
   mailInjectStyles();
   const el = document.getElementById('main');
   const state = { folder: 'INBOX', folders: [{ raw: 'INBOX', name: 'Входящие' }], msgs: [], oldestSeq: null, total: 0, q: '', loading: false };
+  const backBtn = opts.sole
+    ? (opts.isAdmin ? `<button class="tbtn tbtn-sm" id="mail-back">⚙ Ящики</button>` : '')
+    : `<button class="tbtn tbtn-sm" id="mail-back">‹ Назад</button>`;
 
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <button class="tbtn tbtn-sm" id="mail-back">‹ Назад</button>
+      ${backBtn}
       <div class="page-title" style="margin:0">📧 ${escapeHtml(acc?.label || acc?.email || 'Ящик')}</div>
       <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
         <input id="mail-search" class="qad-input" placeholder="🔍 поиск" style="width:180px;padding:6px 10px;font-size:13px">
@@ -21393,7 +21435,11 @@ async function openMailbox(id, acc) {
         <div id="mail-more"></div>
       </div>
     </div>`;
-  document.getElementById('mail-back').onclick = () => renderMail(el);
+  const backEl = document.getElementById('mail-back');
+  if (backEl) backEl.onclick = () => {
+    if (opts.sole && opts.isAdmin) { renderMailAdmin(el); }
+    else { el._mailForceList = true; renderMail(el); }
+  };
   document.getElementById('mail-compose').onclick = () => openMailCompose(id, acc);
   document.getElementById('mail-refresh').onclick = () => loadMessages(true);
   document.getElementById('mail-search').oninput = (e) => { state.q = e.target.value.toLowerCase(); renderList(); };
@@ -21560,11 +21606,33 @@ function openMailCompose(id, acc, opts) {
       <div style="font-size:12px;color:var(--t3);margin-bottom:8px">От: <b>${escapeHtml(acc?.email || '')}</b></div>
       <div><div class="qad-label">Кому</div><input id="mc-to" class="qad-input" value="${escapeHtml(opts.to || '')}" placeholder="email@example.com"></div>
       <div><div class="qad-label">Тема</div><input id="mc-subject" class="qad-input" value="${escapeHtml(opts.subject || '')}"></div>
-      <div><div class="qad-label">Сообщение</div><textarea id="mc-body" class="qad-input" rows="10" style="resize:vertical;min-height:160px;font-family:inherit">${escapeHtml(quote)}</textarea></div>
+      <div><div class="qad-label">Сообщение</div><textarea id="mc-body" class="qad-input" rows="9" style="resize:vertical;min-height:150px;font-family:inherit">${escapeHtml(quote)}</textarea></div>
+      <div style="margin-top:8px">
+        <button class="tbtn tbtn-xs" id="mc-attach-btn">📎 Прикрепить файл</button>
+        <input type="file" id="mc-file" multiple style="display:none">
+        <div id="mc-atts" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
+      </div>
     </div>
     <div class="qad-foot"><button class="qad-btn qad-btn-ghost" id="mc-cancel">Отмена</button><button class="qad-btn qad-btn-primary" id="mc-send">Отправить</button></div>
   </div>`;
   document.body.appendChild(ov);
+  const attachments = [];
+  function renderAtts() {
+    ov.querySelector('#mc-atts').innerHTML = attachments.map((a, i) => `
+      <span style="display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--b1);border-radius:6px;padding:3px 8px;font-size:12px">📎 ${escapeHtml(a.filename)} <span style="color:var(--t3)">${Math.round(a.b64.length * 0.75 / 1024)}КБ</span> <b data-att-rm="${i}" style="cursor:pointer;color:var(--rd)">×</b></span>`).join('');
+    ov.querySelectorAll('[data-att-rm]').forEach(b => b.onclick = () => { attachments.splice(+b.dataset.attRm, 1); renderAtts(); });
+  }
+  ov.querySelector('#mc-attach-btn').onclick = () => ov.querySelector('#mc-file').click();
+  ov.querySelector('#mc-file').onchange = (e) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(f => {
+      if (f.size > 18 * 1024 * 1024) { alert(`Файл «${f.name}» больше 18 МБ`); return; }
+      const rd = new FileReader();
+      rd.onload = () => { attachments.push({ filename: f.name, mime: f.type || 'application/octet-stream', b64: String(rd.result).split(',')[1] || '' }); renderAtts(); };
+      rd.readAsDataURL(f);
+    });
+    e.target.value = '';
+  };
   ov.querySelector('#mc-close').onclick = () => ov.remove();
   ov.querySelector('#mc-cancel').onclick = () => ov.remove();
   ov.querySelector('#mc-send').onclick = async () => {
@@ -21575,7 +21643,7 @@ function openMailCompose(id, acc, opts) {
       const idToken = await fbAuth.currentUser.getIdToken();
       const r = await fetch(`${WORKER_BASE_URL}/api/mail/${encodeURIComponent(id)}/send`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
-        body: JSON.stringify({ to, subject: ov.querySelector('#mc-subject').value, text: ov.querySelector('#mc-body').value, inReplyTo: opts.inReplyTo || '' }),
+        body: JSON.stringify({ to, subject: ov.querySelector('#mc-subject').value, text: ov.querySelector('#mc-body').value, inReplyTo: opts.inReplyTo || '', attachments }),
       });
       const d = await r.json();
       if (!d.ok) throw new Error(d.error || 'ошибка');
