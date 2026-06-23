@@ -376,7 +376,7 @@ async function smtpExpect(conn, okCodes) {
   return r;
 }
 
-export async function smtpSend(acc, { to, cc, subject, text, html, inReplyTo, fromName } = {}) {
+export async function smtpSend(acc, { to, cc, subject, text, html, inReplyTo, fromName, attachments } = {}) {
   const recipients = []
     .concat(splitAddrs(to))
     .concat(splitAddrs(cc));
@@ -400,12 +400,26 @@ export async function smtpSend(acc, { to, cc, subject, text, html, inReplyTo, fr
     }
     await sendLine(conn, "DATA");
     await smtpExpect(conn, [354]);
-    const msg = buildMessage(acc, { to, cc, subject, text, html, inReplyTo, fromName });
+    const msg = buildMessage(acc, { to, cc, subject, text, html, inReplyTo, fromName, attachments });
     await sendRaw(conn, msg + CRLF + "." + CRLF);
     await smtpExpect(conn, [250]);
     await sendLine(conn, "QUIT");
     return { ok: true };
   } finally {
+    await closeConn(conn);
+  }
+}
+
+// Кол-во непрочитанных (для бейджа/уведомлений). STATUS — дёшево, без SELECT.
+export async function imapUnreadCount(acc, folder = "INBOX") {
+  const conn = await imapLogin(acc);
+  try {
+    const r = await imapCmd(conn, conn._tag(), `STATUS ${imapQuote(folder)} (UNSEEN MESSAGES)`);
+    const u = r.resp.match(/UNSEEN (\d+)/);
+    const t = r.resp.match(/MESSAGES (\d+)/);
+    return { unseen: u ? parseInt(u[1], 10) : 0, total: t ? parseInt(t[1], 10) : 0 };
+  } finally {
+    try { await imapCmd(conn, conn._tag(), "LOGOUT"); } catch {}
     await closeConn(conn);
   }
 }
@@ -420,7 +434,7 @@ function encodeHeaderWord(s) {
   if (/^[\x00-\x7F]*$/.test(s)) return s;     // ascii — как есть
   return "=?UTF-8?B?" + btoa(unescape(encodeURIComponent(s))) + "?=";
 }
-function buildMessage(acc, { to, cc, subject, text, html, inReplyTo, fromName }) {
+function buildMessage(acc, { to, cc, subject, text, html, inReplyTo, fromName, attachments }) {
   const date = new Date().toUTCString();
   const msgId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@${(acc.email || "crm").split("@")[1] || "crm"}>`;
   const fromHeader = fromName ? `${encodeHeaderWord(fromName)} <${acc.email}>` : acc.email;
@@ -435,21 +449,47 @@ function buildMessage(acc, { to, cc, subject, text, html, inReplyTo, fromName })
     inReplyTo ? `References: ${inReplyTo}` : null,
     "MIME-Version: 1.0",
   ].filter(Boolean);
+
+  // Тело (text или multipart/alternative с html)
+  function buildBody() {
+    if (html) {
+      const b = "b_" + Math.random().toString(36).slice(2);
+      const plain = text || html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      return {
+        ctype: `multipart/alternative; boundary="${b}"`,
+        content:
+          `--${b}${CRLF}Content-Type: text/plain; charset=UTF-8${CRLF}Content-Transfer-Encoding: base64${CRLF}${CRLF}` +
+          chunk76(btoa(unescape(encodeURIComponent(plain)))) + CRLF +
+          `--${b}${CRLF}Content-Type: text/html; charset=UTF-8${CRLF}Content-Transfer-Encoding: base64${CRLF}${CRLF}` +
+          chunk76(btoa(unescape(encodeURIComponent(html)))) + CRLF +
+          `--${b}--`,
+      };
+    }
+    return { ctype: "text/plain; charset=UTF-8", content: chunk76(btoa(unescape(encodeURIComponent(text || "")))), enc: "base64" };
+  }
+
+  const atts = Array.isArray(attachments) ? attachments.filter(a => a && a.b64 && a.filename) : [];
   let bodyPart;
-  if (html) {
-    const boundary = "b_" + Math.random().toString(36).slice(2);
-    headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
-    const plain = text || html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    bodyPart =
-      `--${boundary}${CRLF}Content-Type: text/plain; charset=UTF-8${CRLF}Content-Transfer-Encoding: base64${CRLF}${CRLF}` +
-      chunk76(btoa(unescape(encodeURIComponent(plain)))) + CRLF +
-      `--${boundary}${CRLF}Content-Type: text/html; charset=UTF-8${CRLF}Content-Transfer-Encoding: base64${CRLF}${CRLF}` +
-      chunk76(btoa(unescape(encodeURIComponent(html)))) + CRLF +
-      `--${boundary}--`;
+  if (atts.length) {
+    // multipart/mixed: тело + вложения
+    const mb = "mix_" + Math.random().toString(36).slice(2);
+    headers.push(`Content-Type: multipart/mixed; boundary="${mb}"`);
+    const body = buildBody();
+    let out = `--${mb}${CRLF}Content-Type: ${body.ctype}${CRLF}${body.enc ? `Content-Transfer-Encoding: ${body.enc}${CRLF}` : ""}${CRLF}${body.content}${CRLF}`;
+    for (const a of atts) {
+      const mime = a.mime || "application/octet-stream";
+      const fn = encodeHeaderWord(a.filename);
+      out += `--${mb}${CRLF}Content-Type: ${mime}; name="${fn}"${CRLF}` +
+        `Content-Transfer-Encoding: base64${CRLF}Content-Disposition: attachment; filename="${fn}"${CRLF}${CRLF}` +
+        chunk76(String(a.b64).replace(/[^A-Za-z0-9+/=]/g, "")) + CRLF;
+    }
+    out += `--${mb}--`;
+    bodyPart = out;
   } else {
-    headers.push("Content-Type: text/plain; charset=UTF-8");
-    headers.push("Content-Transfer-Encoding: base64");
-    bodyPart = chunk76(btoa(unescape(encodeURIComponent(text || ""))));
+    const body = buildBody();
+    headers.push(`Content-Type: ${body.ctype}`);
+    if (body.enc) headers.push(`Content-Transfer-Encoding: ${body.enc}`);
+    bodyPart = body.content;
   }
   // dot-stuffing: строки, начинающиеся с точки, экранируем
   const message = headers.join(CRLF) + CRLF + CRLF + bodyPart;

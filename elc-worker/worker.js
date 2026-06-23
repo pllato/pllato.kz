@@ -5,7 +5,7 @@
 import { jwtVerify, createRemoteJWKSet } from "jose";
 import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser, downloadFile as downloadChatFile, setWaNotifier } from "./chat-module.js";
 import { sendWebPush, VAPID_PUBLIC_KEY } from "./webpush.js";
-import { imapList, imapFetchMessage, smtpSend, mailTestConnection, imapFolders } from "./mail.js";
+import { imapList, imapFetchMessage, smtpSend, mailTestConnection, imapFolders, imapUnreadCount } from "./mail.js";
 
 // ctx последнего fetch/scheduled — чтобы фоновую рассылку пушей (несколько
 // сетевых запросов к FCM/Mozilla/Apple) повесить на ctx.waitUntil и не держать
@@ -6519,11 +6519,16 @@ async function handleMailSend(request, env, id) {
   try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
   if (!body.to || !String(body.to).trim()) return json({ error: "recipient required" }, 400, request);
   const fromName = g.me && g.me.userRecord ? [g.me.userRecord.name, g.me.userRecord.last_name].filter(Boolean).join(' ') : '';
+  // Вложения: [{filename, mime, b64}]. Ограничим суммарный размер ~20 МБ.
+  let attachments = Array.isArray(body.attachments) ? body.attachments : [];
+  let totalB64 = 0;
+  for (const a of attachments) totalB64 += (a && a.b64 ? String(a.b64).length : 0);
+  if (totalB64 > 27 * 1024 * 1024) return json({ error: "вложения слишком большие (макс ~20 МБ)" }, 413, request);
   try {
     await smtpSend(g.acc, {
       to: String(body.to), cc: body.cc ? String(body.cc) : '',
       subject: String(body.subject || ''), text: String(body.text || ''),
-      html: body.html ? String(body.html) : '', inReplyTo: body.inReplyTo || '', fromName,
+      html: body.html ? String(body.html) : '', inReplyTo: body.inReplyTo || '', fromName, attachments,
     });
     return json({ ok: true }, 200, request);
   } catch (e) {
@@ -6541,6 +6546,34 @@ async function handleMailTest(request, env, id) {
   } catch (e) {
     return json({ ok: false, error: String(e && e.message || e) }, 502, request);
   }
+}
+
+// GET /api/mail/:id/unread — кол-во непрочитанных во входящих (для бейджа).
+async function handleMailUnread(request, env, id) {
+  const g = await mailAccountForUser(request, env, id);
+  if (g.error) return g.error;
+  try {
+    const r = await imapUnreadCount(g.acc, 'INBOX');
+    return json({ ok: true, ...r }, 200, request);
+  } catch (e) {
+    return json({ ok: false, error: String(e && e.message || e) }, 502, request);
+  }
+}
+
+// GET /api/mail/unread-summary — суммарно непрочитанных по доступным ящикам.
+async function handleMailUnreadSummary(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureMailTables(env);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const { results } = await env.DB.prepare("SELECT * FROM mail_accounts WHERE enabled = 1").all();
+  const mine = (results || []).filter(a => me.role === 'admin' || mailParseAssigned(a.assigned_uids).includes(me.canonicalUid));
+  let total = 0; const perBox = {};
+  for (const a of mine) {
+    try { const r = await imapUnreadCount(a, 'INBOX'); perBox[a.id] = r.unseen; total += r.unseen; }
+    catch (e) { perBox[a.id] = 0; }
+  }
+  return json({ ok: true, total, perBox }, 200, request);
 }
 
 // GET /api/sip/route?phone=77073320409 — Asterisk дёргает при входящем.
@@ -8279,7 +8312,14 @@ export default {
     if (path === "/api/mail/my" && request.method === "GET") {
       return handleMailMy(request, env);
     }
+    if (path === "/api/mail/unread-summary" && request.method === "GET") {
+      return handleMailUnreadSummary(request, env);
+    }
     // Работа с письмами конкретного ящика
+    const mailUnreadMatch = path.match(/^\/api\/mail\/([^/]+)\/unread$/);
+    if (mailUnreadMatch && request.method === "GET") {
+      return handleMailUnread(request, env, decodeURIComponent(mailUnreadMatch[1]));
+    }
     const mailFoldersMatch = path.match(/^\/api\/mail\/([^/]+)\/folders$/);
     if (mailFoldersMatch && request.method === "GET") {
       return handleMailFolders(request, env, decodeURIComponent(mailFoldersMatch[1]));
