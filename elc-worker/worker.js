@@ -5,7 +5,7 @@
 import { jwtVerify, createRemoteJWKSet } from "jose";
 import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser, downloadFile as downloadChatFile, setWaNotifier } from "./chat-module.js";
 import { sendWebPush, VAPID_PUBLIC_KEY } from "./webpush.js";
-import { imapList, imapFetchMessage, smtpSend, mailTestConnection } from "./mail.js";
+import { imapList, imapFetchMessage, smtpSend, mailTestConnection, imapFolders } from "./mail.js";
 
 // ctx последнего fetch/scheduled — чтобы фоновую рассылку пушей (несколько
 // сетевых запросов к FCM/Mozilla/Apple) повесить на ctx.waitUntil и не держать
@@ -6469,15 +6469,28 @@ async function mailAccountForUser(request, env, id) {
   return { acc, me };
 }
 
-// GET /api/mail/:id/messages?folder=INBOX&limit=30 — список писем.
+// GET /api/mail/:id/folders — список папок ящика.
+async function handleMailFolders(request, env, id) {
+  const g = await mailAccountForUser(request, env, id);
+  if (g.error) return g.error;
+  try {
+    const r = await imapFolders(g.acc);
+    return json({ ok: true, ...r }, 200, request);
+  } catch (e) {
+    return json({ ok: false, error: String(e && e.message || e) }, 502, request);
+  }
+}
+
+// GET /api/mail/:id/messages?folder=INBOX&limit=30&beforeSeq=N — список писем.
 async function handleMailMessages(request, env, id) {
   const g = await mailAccountForUser(request, env, id);
   if (g.error) return g.error;
   const url = new URL(request.url);
   const folder = url.searchParams.get('folder') || 'INBOX';
   const limit = Math.min(50, Math.max(5, parseInt(url.searchParams.get('limit') || '30', 10) || 30));
+  const beforeSeq = parseInt(url.searchParams.get('beforeSeq') || '0', 10) || null;
   try {
-    const r = await imapList(g.acc, { folder, limit });
+    const r = await imapList(g.acc, { folder, limit, beforeSeq });
     return json({ ok: true, ...r }, 200, request);
   } catch (e) {
     return json({ ok: false, error: String(e && e.message || e) }, 502, request);
@@ -8267,6 +8280,10 @@ export default {
       return handleMailMy(request, env);
     }
     // Работа с письмами конкретного ящика
+    const mailFoldersMatch = path.match(/^\/api\/mail\/([^/]+)\/folders$/);
+    if (mailFoldersMatch && request.method === "GET") {
+      return handleMailFolders(request, env, decodeURIComponent(mailFoldersMatch[1]));
+    }
     const mailMsgsMatch = path.match(/^\/api\/mail\/([^/]+)\/messages$/);
     if (mailMsgsMatch && request.method === "GET") {
       return handleMailMessages(request, env, decodeURIComponent(mailMsgsMatch[1]));
