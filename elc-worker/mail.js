@@ -101,22 +101,58 @@ async function imapLogin(acc) {
 }
 function imapQuote(s) { return '"' + String(s).replace(/([\\"])/g, "\\$1") + '"'; }
 
-// Список писем в папке: последние `limit` (новые сверху).
-export async function imapList(acc, { folder = "INBOX", limit = 30 } = {}) {
+// Декод имён папок IMAP (modified UTF-7) — Яндекс отдаёт «&BB4-…» для кириллицы.
+function decodeImapUtf7(s) {
+  return String(s).replace(/&([^-]*)-/g, (mm, b64) => {
+    if (b64 === "") return "&";
+    const b = b64.replace(/,/g, "/");
+    const bytes = base64ToBytes(b + "===".slice((b.length + 3) % 4));
+    let out = "";
+    for (let i = 0; i + 1 < bytes.length; i += 2) out += String.fromCharCode((bytes[i] << 8) | bytes[i + 1]);
+    return out;
+  });
+}
+
+// Список папок ящика (для боковой панели). raw — имя для SELECT, name — читаемое.
+export async function imapFolders(acc) {
+  const conn = await imapLogin(acc);
+  try {
+    const r = await imapCmd(conn, conn._tag(), `LIST "" "*"`);
+    const folders = [];
+    const re = /\* LIST \(([^)]*)\) "[^"]*" (?:"([^"]*)"|(\S+))\r\n/g;
+    let m;
+    while ((m = re.exec(r.resp)) !== null) {
+      const flags = m[1];
+      const raw = (m[2] != null ? m[2] : m[3]) || "";
+      if (/\\Noselect/i.test(flags)) continue;
+      folders.push({ raw, name: decodeImapUtf7(raw), flags });
+    }
+    return { folders };
+  } finally {
+    try { await imapCmd(conn, conn._tag(), "LOGOUT"); } catch {}
+    await closeConn(conn);
+  }
+}
+
+// Список писем в папке: `limit` штук, новые сверху. Пагинация: beforeSeq —
+// грузим письма со sequence НИЖЕ указанного (для «показать ещё»).
+export async function imapList(acc, { folder = "INBOX", limit = 30, beforeSeq = null } = {}) {
   const conn = await imapLogin(acc);
   try {
     const sel = await imapCmd(conn, conn._tag(), `SELECT ${imapQuote(folder)}`);
     if (sel.status !== "OK") throw new Error("SELECT failed: " + sel.text);
     const exM = sel.resp.match(/\* (\d+) EXISTS/);
     const total = exM ? parseInt(exM[1], 10) : 0;
-    if (!total) return { total: 0, messages: [] };
-    const from = Math.max(1, total - limit + 1);
-    const range = `${from}:${total}`;
+    if (!total) return { total: 0, messages: [], oldestSeq: 1 };
+    const hi = (beforeSeq && beforeSeq > 1) ? Math.min(total, beforeSeq - 1) : total;
+    if (hi < 1) return { total, messages: [], oldestSeq: 1 };
+    const lo = Math.max(1, hi - limit + 1);
+    const range = `${lo}:${hi}`;
     const f = await imapCmd(conn, conn._tag(),
       `FETCH ${range} (UID FLAGS INTERNALDATE RFC822.SIZE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])`);
     const messages = parseFetchList(f.resp);
     messages.sort((a, b) => b.seq - a.seq);   // новые сверху
-    return { total, messages };
+    return { total, messages, oldestSeq: lo };
   } finally {
     try { await imapCmd(conn, conn._tag(), "LOGOUT"); } catch {}
     await closeConn(conn);

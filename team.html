@@ -21318,22 +21318,85 @@ async function renderMail(el) {
   });
 }
 
+function mailInjectStyles() {
+  if (document.getElementById('mailx-styles')) return;
+  const s = document.createElement('style'); s.id = 'mailx-styles';
+  s.textContent = `
+    .mailx-body{display:flex;gap:14px;margin-top:12px;align-items:flex-start}
+    .mailx-rail{width:200px;flex-shrink:0;display:flex;flex-direction:column;gap:2px}
+    .mailx-folder{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:9px;cursor:pointer;font-size:13.5px;color:var(--t1)}
+    .mailx-folder:hover{background:var(--bg3)}
+    .mailx-folder.active{background:var(--acbg);color:var(--ac2);font-weight:600}
+    .mailx-folder .mf-count{margin-left:auto;font-size:11px;color:var(--t3)}
+    .mailx-folder.active .mf-count{color:var(--ac2)}
+    .mailx-main{flex:1;min-width:0;border:1px solid var(--b1);border-radius:12px;overflow:hidden;background:var(--bg)}
+    .mailx-listhdr{padding:9px 14px;border-bottom:1px solid var(--b1);font-size:12.5px;color:var(--t3);display:flex;align-items:center;gap:8px}
+    .mail-row{display:flex;gap:12px;padding:11px 14px;border-bottom:1px solid var(--b1);cursor:pointer;align-items:center}
+    .mail-row:hover{background:var(--bg2)}
+    .mail-row.unread{background:color-mix(in srgb,var(--ac2) 6%,transparent)}
+    .mail-av{width:40px;height:40px;border-radius:50%;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
+    .mail-rmid{flex:1;min-width:0}
+    .mail-rfrom{font-size:13.5px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .mail-row.unread .mail-rfrom{font-weight:700}
+    .mail-rsubj{font-size:13px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+    .mail-rdate{font-size:11.5px;color:var(--t3);flex-shrink:0;align-self:flex-start;padding-top:2px}
+    @media(max-width:760px){.mailx-body{flex-direction:column}.mailx-rail{width:100%;flex-direction:row;overflow-x:auto;padding-bottom:4px}.mailx-folder{flex-shrink:0}}
+  `;
+  document.head.appendChild(s);
+}
+function mailParseFrom(from) {
+  const m = String(from || '').match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  if (m) return { name: (m[1].trim() || m[2].trim()), email: m[2].trim() };
+  const f = String(from || '').trim();
+  return { name: f, email: f };
+}
+function mailAvatarColor(s) {
+  let h = 0; s = String(s || '');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return `hsl(${h % 360} 52% 52%)`;
+}
+function mailFolderIcon(name, flags) {
+  const n = (name || '').toLowerCase();
+  if (/inbox|входящ/.test(n)) return '📥';
+  if (/sent|отправ/.test(n)) return '📤';
+  if (/draft|чернов/.test(n)) return '📝';
+  if (/spam|junk|спам/.test(n)) return '🚫';
+  if (/trash|delet|корзин|удал/.test(n)) return '🗑';
+  return '📁';
+}
+function mailFolderLabel(f) {
+  if (/^inbox$/i.test(f.raw)) return 'Входящие';
+  return f.name || f.raw;
+}
+
 async function openMailbox(id, acc) {
+  mailInjectStyles();
   const el = document.getElementById('main');
+  const state = { folder: 'INBOX', folders: [{ raw: 'INBOX', name: 'Входящие' }], msgs: [], oldestSeq: null, total: 0, q: '', loading: false };
+
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <button class="tbtn tbtn-sm" id="mail-back">‹ Назад</button>
       <div class="page-title" style="margin:0">📧 ${escapeHtml(acc?.label || acc?.email || 'Ящик')}</div>
-      <div style="margin-left:auto;display:flex;gap:8px">
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <input id="mail-search" class="qad-input" placeholder="🔍 поиск" style="width:180px;padding:6px 10px;font-size:13px">
         <button class="tbtn tbtn-sm tbtn-a" id="mail-compose">✏️ Написать</button>
         <button class="tbtn tbtn-sm" id="mail-refresh" title="Обновить">🔄</button>
         <button class="tbtn tbtn-sm" id="mail-test" title="Проверить подключение">⚙</button>
       </div>
     </div>
-    <div class="card" id="mail-list" style="padding:8px;margin-top:12px;min-height:200px"><div style="padding:24px;color:var(--t3);text-align:center">⏳ Загрузка писем…</div></div>`;
+    <div class="mailx-body">
+      <div class="mailx-rail" id="mail-rail"></div>
+      <div class="mailx-main">
+        <div class="mailx-listhdr" id="mail-listhdr">Загрузка…</div>
+        <div id="mail-list"><div style="padding:30px;color:var(--t3);text-align:center">⏳ Загрузка писем…</div></div>
+        <div id="mail-more"></div>
+      </div>
+    </div>`;
   document.getElementById('mail-back').onclick = () => renderMail(el);
   document.getElementById('mail-compose').onclick = () => openMailCompose(id, acc);
-  document.getElementById('mail-refresh').onclick = () => loadMailbox();
+  document.getElementById('mail-refresh').onclick = () => loadMessages(true);
+  document.getElementById('mail-search').oninput = (e) => { state.q = e.target.value.toLowerCase(); renderList(); };
   document.getElementById('mail-test').onclick = async () => {
     const btn = document.getElementById('mail-test'); btn.textContent = '⏳';
     try {
@@ -21345,33 +21408,87 @@ async function openMailbox(id, acc) {
     btn.textContent = '⚙';
   };
 
-  async function loadMailbox() {
+  async function authHeaders() { return { Authorization: 'Bearer ' + await fbAuth.currentUser.getIdToken() }; }
+
+  function renderRail() {
+    const rail = document.getElementById('mail-rail');
+    rail.innerHTML = state.folders.map(f => `
+      <div class="mailx-folder ${f.raw === state.folder ? 'active' : ''}" data-folder="${escapeHtml(f.raw)}">
+        <span>${mailFolderIcon(f.name, f.flags)}</span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(mailFolderLabel(f))}</span>
+      </div>`).join('');
+    rail.querySelectorAll('[data-folder]').forEach(b => b.onclick = () => {
+      if (state.folder === b.dataset.folder) return;
+      state.folder = b.dataset.folder; renderRail(); loadMessages(true);
+    });
+  }
+
+  function renderList() {
     const list = document.getElementById('mail-list');
-    list.innerHTML = `<div style="padding:24px;color:var(--t3);text-align:center">⏳ Загрузка писем…</div>`;
+    const hdr = document.getElementById('mail-listhdr');
+    let msgs = state.msgs;
+    if (state.q) msgs = msgs.filter(m => (m.from + ' ' + m.subject).toLowerCase().includes(state.q));
+    const unread = state.msgs.filter(m => !m.seen).length;
+    const curLabel = mailFolderLabel(state.folders.find(f => f.raw === state.folder) || { raw: state.folder });
+    hdr.innerHTML = `<b style="color:var(--t1)">${escapeHtml(curLabel)}</b> · ${state.total} писем${unread ? ` · <span style="color:var(--ac2)">${unread} непроч.</span>` : ''}`;
+    if (!msgs.length) { list.innerHTML = `<div style="padding:30px;color:var(--t3);text-align:center">${state.q ? 'Ничего не найдено' : 'Писем нет'}</div>`; return; }
+    list.innerHTML = msgs.map(m => {
+      const fr = mailParseFrom(m.from);
+      const ini = (fr.name || fr.email || '?').trim().charAt(0).toUpperCase() || '?';
+      return `<div class="mail-row ${m.seen ? '' : 'unread'}" data-uid="${escapeHtml(String(m.uid))}">
+        <div class="mail-av" style="background:${mailAvatarColor(fr.email)}">${escapeHtml(ini)}</div>
+        <div class="mail-rmid">
+          <div class="mail-rfrom">${escapeHtml(fr.name || fr.email)}</div>
+          <div class="mail-rsubj">${escapeHtml(m.subject || '(без темы)')}</div>
+        </div>
+        <div class="mail-rdate">${escapeHtml(mailShortDate(m.date))}</div>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.mail-row').forEach(row => row.onclick = () => openMailMessage(id, acc, row.dataset.uid, () => { const m = state.msgs.find(x => String(x.uid) === row.dataset.uid); if (m) { m.seen = true; renderList(); } }));
+    // «показать ещё»
+    const more = document.getElementById('mail-more');
+    if (!state.q && state.oldestSeq && state.oldestSeq > 1) {
+      more.innerHTML = `<button class="tbtn tbtn-sm" id="mail-loadmore" style="margin:12px auto;display:block">↓ Показать ещё</button>`;
+      document.getElementById('mail-loadmore').onclick = () => loadMessages(false);
+    } else more.innerHTML = '';
+  }
+
+  async function loadFolders() {
     try {
-      const idToken = await fbAuth.currentUser.getIdToken();
-      const r = await fetch(`${WORKER_BASE_URL}/api/mail/${encodeURIComponent(id)}/messages?limit=30`, { headers: { Authorization: 'Bearer ' + idToken } });
+      const r = await fetch(`${WORKER_BASE_URL}/api/mail/${encodeURIComponent(id)}/folders`, { headers: await authHeaders() });
+      const d = await r.json();
+      if (d.ok && d.folders && d.folders.length) {
+        // INBOX первым, затем остальные
+        const inbox = d.folders.filter(f => /^inbox$/i.test(f.raw));
+        const rest = d.folders.filter(f => !/^inbox$/i.test(f.raw));
+        state.folders = [...(inbox.length ? inbox : [{ raw: 'INBOX', name: 'Входящие' }]), ...rest];
+        renderRail();
+      }
+    } catch (e) { /* папки не критичны */ }
+  }
+
+  async function loadMessages(reset) {
+    if (state.loading) return;
+    state.loading = true;
+    if (reset) { state.msgs = []; state.oldestSeq = null; document.getElementById('mail-list').innerHTML = `<div style="padding:30px;color:var(--t3);text-align:center">⏳ Загрузка…</div>`; }
+    try {
+      const qs = `folder=${encodeURIComponent(state.folder)}&limit=30` + (!reset && state.oldestSeq ? `&beforeSeq=${state.oldestSeq}` : '');
+      const r = await fetch(`${WORKER_BASE_URL}/api/mail/${encodeURIComponent(id)}/messages?${qs}`, { headers: await authHeaders() });
       const d = await r.json();
       if (!d.ok) throw new Error(d.error || 'ошибка');
-      const msgs = d.messages || [];
-      if (!msgs.length) { list.innerHTML = `<div style="padding:30px;color:var(--t3);text-align:center">Писем нет</div>`; return; }
-      list.innerHTML = msgs.map(m => `
-        <div class="mail-msg-row" data-uid="${escapeHtml(String(m.uid))}" style="display:flex;gap:10px;padding:11px 12px;border-bottom:1px solid var(--b1);cursor:pointer;align-items:center">
-          <div style="width:8px;height:8px;border-radius:50%;background:${m.seen ? 'transparent' : 'var(--ac2)'};flex-shrink:0"></div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;${m.seen ? '' : 'font-weight:700'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(m.from || '—')}</div>
-            <div style="font-size:13px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(m.subject || '(без темы)')}</div>
-          </div>
-          <div style="font-size:11px;color:var(--t3);flex-shrink:0">${escapeHtml(mailShortDate(m.date))}</div>
-        </div>`).join('');
-      list.querySelectorAll('.mail-msg-row').forEach(row => {
-        row.onclick = () => openMailMessage(id, acc, row.dataset.uid);
-      });
+      state.total = d.total || 0;
+      state.oldestSeq = d.oldestSeq;
+      const existing = new Set(state.msgs.map(m => m.uid));
+      for (const m of (d.messages || [])) if (!existing.has(m.uid)) state.msgs.push(m);
+      state.msgs.sort((a, b) => b.seq - a.seq);
+      renderList();
     } catch (e) {
-      list.innerHTML = `<div style="padding:24px;color:var(--rd);text-align:center">Не удалось загрузить: ${escapeHtml(e.message)}<br><span style="color:var(--t3);font-size:12px">Проверьте данные ящика (кнопка ⚙) — для Яндекса нужен пароль приложения.</span></div>`;
-    }
+      document.getElementById('mail-list').innerHTML = `<div style="padding:24px;color:var(--rd);text-align:center">Не удалось загрузить: ${escapeHtml(e.message)}<br><span style="color:var(--t3);font-size:12px">Проверьте ящик (⚙) — для Яндекса нужен пароль приложения и включённый IMAP.</span></div>`;
+    } finally { state.loading = false; }
   }
-  loadMailbox();
+
+  renderRail();
+  loadFolders();
+  loadMessages(true);
 }
 
 function mailShortDate(d) {
@@ -21383,7 +21500,8 @@ function mailShortDate(d) {
   return dt.toLocaleDateString('ru', { day: '2-digit', month: '2-digit' });
 }
 
-async function openMailMessage(id, acc, uid) {
+async function openMailMessage(id, acc, uid, onSeen) {
+  if (typeof onSeen === 'function') { try { onSeen(); } catch {} }
   document.getElementById('_mail-msg-modal')?.remove();
   const ov = document.createElement('div');
   ov.id = '_mail-msg-modal'; ov.className = 'qad-overlay';
