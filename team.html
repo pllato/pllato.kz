@@ -3796,53 +3796,6 @@ function renderSuspendedScreen(user) {
     </div>`;
 }
 
-// Карточка профиля сотрудника (read-only) — открывается по клику на сотрудника
-// в чатах, списке участников и других местах.
-async function openEmployeeProfile(uid) {
-  if (!uid) return;
-  document.getElementById('_emp-profile-modal')?.remove();
-  const ov = document.createElement('div');
-  ov.id = '_emp-profile-modal'; ov.className = 'qad-overlay';
-  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
-  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:440px">
-    <div class="qad-head"><h2>👤 Профиль</h2><button class="qad-btn qad-btn-ghost" id="ep-close" style="padding:4px 10px">×</button></div>
-    <div class="qad-body" id="ep-body" style="max-height:74vh;overflow-y:auto"><div style="padding:24px;color:var(--t3);text-align:center">⏳ Загрузка…</div></div>
-  </div>`;
-  document.body.appendChild(ov);
-  ov.querySelector('#ep-close').onclick = () => ov.remove();
-  try {
-    const idToken = await fbAuth.currentUser.getIdToken();
-    const r = await fetch(`${WORKER_BASE_URL}/api/users/${encodeURIComponent(uid)}/profile`, { headers: { Authorization: 'Bearer ' + idToken } });
-    const d = await r.json();
-    if (!d.ok) throw new Error(d.error || 'не найдено');
-    const p = d.profile;
-    const fullName = [p.name, p.lastName].filter(Boolean).join(' ') || p.email || 'Сотрудник';
-    const initials = ((p.name || '')[0] || '') + ((p.lastName || '')[0] || '');
-    const avatar = p.photoUrl
-      ? `<img src="${escapeHtml(p.photoUrl)}" style="width:72px;height:72px;border-radius:50%;object-fit:cover">`
-      : `<div style="width:72px;height:72px;border-radius:50%;background:var(--acbg);color:var(--ac2);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700">${escapeHtml(initials.toUpperCase() || '·')}</div>`;
-    const row = (label, val) => val ? `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--b1)"><div style="width:120px;color:var(--t3);font-size:13px;flex-shrink:0">${label}</div><div style="font-size:13px;color:var(--t1);min-width:0;word-break:break-word">${val}</div></div>` : '';
-    const phones = (p.phones || []).map(ph => `<a href="tel:${escapeHtml(ph)}" style="color:var(--ac2)">${escapeHtml(ph)}</a>`).join(', ');
-    ov.querySelector('#ep-body').innerHTML = `
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">${avatar}
-        <div style="min-width:0">
-          <div style="font-size:17px;font-weight:700">${escapeHtml(fullName)}</div>
-          <div style="font-size:13px;color:var(--t3)">${escapeHtml(p.position || '')}</div>
-          ${p.active ? '' : '<span class="badge badge-r" style="margin-top:5px;display:inline-block">доступ приостановлен</span>'}
-        </div>
-      </div>
-      ${row('Отдел', escapeHtml(p.department || '—'))}
-      ${row('Руководитель', escapeHtml(p.managerName || '—'))}
-      ${row('Email', p.email ? `<a href="mailto:${escapeHtml(p.email)}" style="color:var(--ac2)">${escapeHtml(p.email)}</a>` : '—')}
-      ${row('Телефон', phones || '—')}
-      ${p.bio ? `<div style="margin-top:12px"><div style="color:var(--t3);font-size:13px;margin-bottom:4px">Примечание</div><div style="font-size:13px;white-space:pre-wrap;color:var(--t1)">${escapeHtml(p.bio)}</div></div>` : ''}`;
-  } catch (e) {
-    const b = ov.querySelector('#ep-body');
-    if (b) b.innerHTML = `<div style="padding:22px;color:var(--rd);text-align:center">Не удалось загрузить профиль: ${escapeHtml(e.message)}</div>`;
-  }
-}
-window.openEmployeeProfile = openEmployeeProfile;
-
 async function initApp(user) {
   console.log('[initApp] start, uid=', user.uid, 'email=', user.email);
   const profile = {
