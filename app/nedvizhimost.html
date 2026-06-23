@@ -3,398 +3,1007 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pllato CRM — демо для агентства недвижимости</title>
+<title>Pllato · Недвижимость</title>
 <style>
-  :root{
-    --navy:#0a1628;--navy2:#142339;--navy3:#1d3050;
-    --bronze:#b8895a;--bronzel:#d4a978;
-    --off:#f7f6f1;--card:#fff;--line:#e6e3da;
-    --ink:#1d2630;--muted:#6b7585;
-    --green:#3f7d52;--greenbg:#eaf3ed;
-    --red:#b1492f;--redbg:#fbeee9;
-    --amber:#c8911f;--amberbg:#fbf2dd;
-    --blue:#2f5d8a;--bluebg:#e9f0f7;
-    --purple:#6a4d8a;--purplebg:#efeaf5;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--off);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
-  .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
-  .side{background:var(--navy);color:#cdd4df;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
-  .brand{padding:22px 22px 6px;font-weight:800;font-size:22px;color:#fff;display:flex;align-items:center;gap:2px}
-  .brand .dot{width:7px;height:7px;border-radius:50%;background:var(--bronze);margin-top:10px}
-  .ctx{margin:14px 16px 4px;background:var(--navy2);border-radius:11px;padding:4px;display:flex;gap:3px}
-  .ctx button{flex:1;border:none;background:none;color:#9aa6ba;font-weight:600;font-size:11.5px;padding:8px 4px;border-radius:8px;cursor:pointer;transition:.15s}
-  .ctx button.on{background:var(--bronze);color:#fff}
-  .nav{padding:6px 12px;flex:1}
-  .nav .lbl{font-size:10px;letter-spacing:.12em;color:#5f6b82;padding:14px 10px 6px;font-weight:600}
-  .nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;color:#cdd4df;cursor:pointer;font-size:13px;font-weight:500;transition:.15s;margin-bottom:1px}
-  .nav a:hover{background:var(--navy2);color:#fff}
-  .nav a.active{background:var(--navy3);color:#fff}
-  .nav a .ic{width:18px;text-align:center;opacity:.85}
-  .nav .grp{display:none}.nav .grp.show{display:block;animation:fade .2s}
-  .who{padding:14px 18px;border-top:1px solid #1c2a40;font-size:12px;display:flex;align-items:center;gap:10px}
-  .avatar{width:30px;height:30px;border-radius:50%;background:var(--bronze);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
-  .main{display:flex;flex-direction:column;min-width:0}
-  .top{background:var(--card);border-bottom:1px solid var(--line);padding:15px 28px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:5}
-  .top h1{font-size:18px;font-weight:700;color:var(--navy)}
-  .top .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
-  .top .search{margin-left:auto;background:var(--off);border:1px solid var(--line);border-radius:9px;padding:8px 13px;font-size:13px;color:var(--muted);min-width:210px}
-  .top .btn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:9px 15px;font-weight:600;font-size:13px;cursor:pointer}
-  .content{padding:24px 28px 70px;overflow:auto}
-  .page{display:none}.page.show{display:block;animation:fade .25s ease}
-  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
-  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;position:relative;overflow:hidden}
-  .kpi:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--bronze)}
-  .kpi .k{font-size:11px;color:var(--muted);font-weight:600}
-  .kpi .v{font-size:26px;font-weight:800;color:var(--navy);margin-top:6px;line-height:1}
-  .kpi .d{font-size:11.5px;margin-top:7px;font-weight:600}
-  .up{color:var(--green)}.down{color:var(--red)}
-  .grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}
-  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:18px}
-  .panel h3{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:4px;display:flex;align-items:center;gap:8px}
-  .panel .ph{font-size:12px;color:var(--muted);margin-bottom:14px}
-  .row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
-  .row:last-child{border:none}.row .rl{color:var(--muted)}.row .rv{font-weight:600;color:var(--navy)}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th{text-align:left;font-size:11px;color:var(--muted);font-weight:700;padding:9px 12px;border-bottom:2px solid var(--line)}
-  td{padding:11px 12px;border-bottom:1px solid var(--line)}
-  tr:hover td{background:var(--off)}
-  .pill{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;display:inline-block}
-  .p-over{background:var(--redbg);color:var(--red)}.p-soon{background:var(--amberbg);color:var(--amber)}.p-paid{background:var(--greenbg);color:var(--green)}.p-act{background:var(--bluebg);color:var(--blue)}
-  .stars{color:var(--bronze);letter-spacing:1px;font-size:13px}
-  .mini{background:var(--navy);color:#fff;border:none;border-radius:7px;padding:6px 11px;font-size:11.5px;font-weight:600;cursor:pointer}
-  .mini.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
-  .board{display:grid;gap:14px}
-  .col{background:var(--off);border:1px solid var(--line);border-radius:12px;padding:11px;min-height:110px}
-  .col .ch{font-size:12px;font-weight:700;color:var(--navy);display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 2px}
-  .col .ch .n{background:#fff;border:1px solid var(--line);border-radius:8px;font-size:11px;padding:1px 7px;color:var(--muted)}
-  .deal{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px;margin-bottom:9px;cursor:pointer;transition:.15s}
-  .deal:hover{border-color:var(--bronze);box-shadow:0 3px 12px rgba(10,22,40,.07);transform:translateY(-1px)}
-  .deal .dn{font-weight:700;font-size:12.5px;color:var(--navy)}
-  .deal .da{font-size:11.5px;color:var(--muted);margin-top:3px}
-  .deal .dm{font-size:11px;color:var(--bronze);font-weight:700;margin-top:7px}
-  .deal .brk{font-size:10.5px;color:var(--muted);margin-top:6px}
-  .chip{display:inline-block;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:6px;margin-top:7px;margin-right:4px}
-  .c-wa{background:var(--greenbg);color:var(--green)}.c-tg{background:var(--bluebg);color:var(--blue)}
-  .c-call{background:var(--amberbg);color:var(--amber)}.c-rent{background:var(--bluebg);color:var(--blue)}.c-sale{background:#efe7df;color:var(--bronze)}
-  .filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-  .filters .f{background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 13px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
-  .filters .f.on{background:var(--navy);color:#fff;border-color:var(--navy)}
-  .listgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(252px,1fr));gap:16px}
-  .lst{background:var(--card);border:1px solid var(--line);border-radius:13px;overflow:hidden;cursor:pointer;transition:.15s}
-  .lst:hover{border-color:var(--bronze);box-shadow:0 6px 20px rgba(10,22,40,.1);transform:translateY(-2px)}
-  .lst .img{height:130px;position:relative;display:flex;align-items:flex-end;padding:10px}
-  .lst .img .badge{position:absolute;top:10px;left:10px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:7px;background:rgba(255,255,255,.92);color:var(--navy)}
-  .lst .img .stat{position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:7px}
-  .s-active{background:var(--green);color:#fff}.s-deal{background:var(--amber);color:#fff}.s-sold{background:#7a828e;color:#fff}
-  .lst .img .price{background:rgba(10,22,40,.82);color:#fff;font-weight:800;font-size:14px;padding:5px 10px;border-radius:8px}
-  .lst .b{padding:12px 14px}
-  .lst .b .t{font-weight:700;font-size:13.5px;color:var(--navy)}
-  .lst .b .meta{font-size:11.5px;color:var(--muted);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap}
-  .lst .b .post{margin-top:10px;display:flex;gap:5px;flex-wrap:wrap}
-  .post .pp{font-size:9px;font-weight:700;padding:2px 6px;border-radius:5px;background:var(--greenbg);color:var(--green)}
-  .post .pp.off{background:var(--off);color:var(--muted)}
-  .ph1{background:linear-gradient(135deg,#2f4a6e,#1d3050)}.ph2{background:linear-gradient(135deg,#6e5a3f,#b8895a)}.ph3{background:linear-gradient(135deg,#3f6e5a,#2f5d4a)}.ph4{background:linear-gradient(135deg,#4a3f6e,#6a4d8a)}.ph5{background:linear-gradient(135deg,#6e3f4a,#8a4d5a)}.ph6{background:linear-gradient(135deg,#3f5a6e,#2f6e8a)}
-  .ph-win{position:absolute;inset:0;opacity:.18;background-image:linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px);background-size:22px 22px}
-  .matchcard{background:var(--purplebg);border:1px solid #d6c9e6;border-radius:13px;padding:16px 18px;margin-bottom:16px}
-  .matchcard .mt{font-weight:700;color:var(--purple);font-size:13px}
-  .matchrow{display:flex;align-items:center;gap:14px;padding:12px;background:#fff;border:1px solid var(--line);border-radius:11px;margin-bottom:9px;cursor:pointer;transition:.15s}
-  .matchrow:hover{border-color:var(--bronze)}
-  .matchrow .mimg{width:54px;height:54px;border-radius:9px;flex:none;position:relative;overflow:hidden}
-  .matchrow .md{flex:1}.matchrow .mn{font-weight:700;font-size:13px;color:var(--navy)}
-  .matchrow .ms{font-size:11.5px;color:var(--muted);margin-top:3px}
-  .matchrow .score{text-align:center;flex:none}
-  .matchrow .score .sv{font-size:20px;font-weight:800;color:var(--green)}
-  .matchrow .score .sl{font-size:10px;color:var(--muted);font-weight:600}
-  .map{position:relative;height:440px;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#dfe6e2;background-image:linear-gradient(rgba(120,140,130,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(120,140,130,.18) 1px,transparent 1px);background-size:48px 48px}
-  .map .road{position:absolute;background:#fff;opacity:.85}
-  .map .rh{height:13px;left:0;right:0}.map .rv{width:13px;top:0;bottom:0}
-  .map .river{position:absolute;left:-5%;right:-5%;height:40px;background:#bcd4e0;opacity:.7;transform:rotate(-7deg)}
-  .pin{position:absolute;transform:translate(-50%,-100%);cursor:pointer;z-index:2}
-  .pin .dot{width:30px;height:30px;border-radius:50% 50% 50% 0;background:var(--bronze);transform:rotate(-45deg);box-shadow:0 3px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center}
-  .pin .dot b{transform:rotate(45deg);color:#fff;font-size:11px;font-weight:800}
-  .pin.rent .dot{background:var(--blue)}.pin.sale .dot{background:var(--bronze)}
-  .pin:hover{z-index:5}.pin:hover .lbl{display:block}
-  .pin .lbl{display:none;position:absolute;bottom:34px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:6px 10px;border-radius:8px;white-space:nowrap}
-  .maplegend{position:absolute;bottom:14px;left:14px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 13px;font-size:12px;display:flex;gap:16px}
-  .maplegend i{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
-  .calc{max-width:520px}
-  .field{margin-bottom:14px}.field label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px}
-  .field input{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;color:var(--ink)}
-  .field input:focus{outline:none;border-color:var(--bronze)}
-  .warn{background:var(--redbg);border:1px solid #e6b8a8;border-radius:11px;padding:14px 16px;margin-top:6px;display:none}
-  .warn.show{display:block;animation:fade .2s}
-  .warn .wt{font-weight:700;color:var(--red);font-size:13px}
-  .warn .ws{font-size:12.5px;color:#7a3a28;margin-top:6px;line-height:1.5}
-  .ok{background:var(--greenbg);border:1px solid #b8d6c2;border-radius:11px;padding:13px 16px;margin-top:6px;display:none;color:var(--green);font-weight:600;font-size:13px}
-  .ok.show{display:block;animation:fade .2s}
-  .objgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
-  .obj{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px;cursor:pointer;transition:.15s}
-  .obj:hover{border-color:var(--bronze);box-shadow:0 4px 16px rgba(10,22,40,.08)}
-  .obj .on{font-weight:700;font-size:14px;color:var(--navy)}.obj .ot{font-size:11.5px;color:var(--muted);margin-top:2px}
-  .obj .bar{height:7px;border-radius:5px;background:var(--line);margin-top:13px;overflow:hidden}
-  .obj .bar i{display:block;height:100%;background:var(--green);border-radius:5px}
-  .obj .bl{display:flex;justify-content:space-between;font-size:11px;margin-top:7px;color:var(--muted)}.obj .bl b{color:var(--navy)}
-  .lead{display:flex;align-items:center;gap:14px;padding:13px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:#fff}
-  .lead .rk{width:30px;height:30px;border-radius:8px;background:var(--off);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--muted);flex:none}
-  .lead.top1 .rk{background:var(--bronze);color:#fff}.lead.top2 .rk{background:#c9cdd4;color:#fff}.lead.top3 .rk{background:#d9b38a;color:#fff}
-  .lead .ln{font-weight:700;font-size:13.5px;color:var(--navy)}.lead .lp{flex:1;margin-left:6px}
-  .lead .pbar{height:8px;border-radius:5px;background:var(--off);margin-top:6px;overflow:hidden}
-  .lead .pbar i{display:block;height:100%;background:var(--bronze);border-radius:5px}
-  .lead .lv{text-align:right;flex:none}.lead .lv b{font-size:16px;color:var(--navy)}.lead .lv span{font-size:11px;color:var(--muted);display:block}
-  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
-  .cal .dh{font-size:11px;font-weight:700;color:var(--muted);text-align:center;padding:4px}
-  .cal .cell{background:var(--off);border:1px solid var(--line);border-radius:9px;min-height:84px;padding:7px;font-size:11px}
-  .cal .cell .dn{font-weight:700;color:var(--muted);font-size:11px}
-  .cal .cell.today{border-color:var(--bronze);background:#fff}
-  .ev{font-size:10px;font-weight:600;padding:3px 6px;border-radius:6px;margin-top:4px}
-  .ev.show{background:var(--bluebg);color:var(--blue)}.ev.deal{background:var(--greenbg);color:var(--green)}.ev.end{background:var(--amberbg);color:var(--amber)}
-  .chat{max-width:420px;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
-  .chat .chh{background:var(--green);color:#fff;padding:13px 16px;font-weight:700;font-size:13px}
-  .chat .chh small{font-weight:500;opacity:.85;display:block;font-size:11px}
-  .chat .body{padding:16px;background:#e9e3da;min-height:300px}
-  .bub{max-width:80%;padding:9px 13px;border-radius:13px;font-size:13px;margin-bottom:9px;line-height:1.45}
-  .bub.bot{background:#fff;border-top-left-radius:4px}
-  .bub.usr{background:#d6f0c8;margin-left:auto;border-top-right-radius:4px}
-  .bub .qopts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-  .bub .qopts span{background:var(--off);border:1px solid var(--line);border-radius:14px;padding:4px 10px;font-size:11.5px;font-weight:600;color:var(--navy)}
-  .prez{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
-  .slide{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;transition:.15s}
-  .slide:hover{border-color:var(--bronze);box-shadow:0 4px 16px rgba(10,22,40,.08)}
-  .slide .pv{height:104px;background:linear-gradient(135deg,var(--navy),var(--navy3));position:relative;padding:14px;color:#fff}
-  .slide .pv .pt{font-size:13px;font-weight:800}.slide .pv .pd{position:absolute;right:12px;bottom:10px;width:18px;height:2px;background:var(--bronze)}
-  .slide .pl{padding:11px 13px;font-size:12px;font-weight:600;color:var(--navy)}.slide .ps{font-size:11px;color:var(--muted);padding:0 13px 12px}
-  .audio{display:flex;align-items:center;gap:10px;background:var(--off);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-top:8px}
-  .play{width:30px;height:30px;border-radius:50%;background:var(--bronze);color:#fff;border:none;cursor:pointer;font-size:12px;flex:none}
-  .wave{flex:1;height:22px;background:repeating-linear-gradient(90deg,var(--bronzel) 0 2px,transparent 2px 5px);opacity:.55;border-radius:4px}
-  .ov{position:fixed;inset:0;background:rgba(10,22,40,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
-  .ov.show{display:flex;animation:fade .2s}
-  .modal{background:#fff;border-radius:16px;max-width:600px;width:100%;max-height:88vh;overflow:auto}
-  .modal .mh{background:var(--navy);color:#fff;padding:20px 24px;border-radius:16px 16px 0 0;position:relative}
-  .modal .mh .mt{font-size:18px;font-weight:800}.modal .mh .ms{font-size:12.5px;color:#9aa6ba;margin-top:3px}
-  .modal .mx{position:absolute;right:18px;top:18px;cursor:pointer;color:#9aa6ba;font-size:20px;background:none;border:none}
-  .modal .mb{padding:22px 24px}
-  .mgal{display:flex;gap:8px;margin:-22px -24px 16px;height:170px}
-  .mgal>div{flex:1;position:relative}
-  .timeline{margin-top:14px}
-  .tl{display:flex;gap:12px;padding-bottom:16px;position:relative}
-  .tl:before{content:"";position:absolute;left:6px;top:16px;bottom:-2px;width:2px;background:var(--line)}
-  .tl:last-child:before{display:none}
-  .tl .td{width:14px;height:14px;border-radius:50%;background:var(--bronze);flex:none;margin-top:2px;z-index:1;border:3px solid #fff;box-shadow:0 0 0 1px var(--line)}
-  .tl .tx{font-size:13px;font-weight:600;color:var(--navy)}.tl .ty{font-size:11.5px;color:var(--muted);margin-top:2px}
-  .note{background:var(--navy2);color:#cdd4df;border-radius:12px;padding:14px 16px;font-size:12.5px;line-height:1.6;margin-top:6px}
-  .note b{color:var(--bronzel)}
-  .demo-tag{position:fixed;right:14px;bottom:14px;background:var(--bronze);color:#fff;font-size:11px;font-weight:700;padding:7px 13px;border-radius:20px;z-index:40;box-shadow:0 4px 14px rgba(0,0,0,.2)}
-  @media(max-width:900px){.app{grid-template-columns:1fr}.side{position:static;height:auto}.kpis{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.cal{font-size:9px}}
+:root{
+--navy:#0a1628; --navy2:#142339; --navy3:#1d3050;
+--bronze:#b8895a; --bronzel:#d4a978;
+--off:#f7f6f1; --card:#fff; --line:#e6e3da;
+--ink:#1d2630; --muted:#6b7585;
+--green:#3f7d52; --greenbg:#eaf3ed;
+--red:#b1492f; --redbg:#fbeee9;
+--amber:#c8911f; --amberbg:#fbf2dd;
+--blue:#2f5d8a; --bluebg:#e9f0f7;
+--purple:#6a4d8a; --purplebg:#efeaf5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--off);color:var(--ink);font-size:14px;line-height:1.45}
+button{font-family:inherit;cursor:pointer}
+a{color:inherit;text-decoration:none}
+.hidden{display:none!important}
+
+/* LOGIN */
+#login{position:fixed;inset:0;background:linear-gradient(135deg,var(--navy),var(--navy3));display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100}
+#login h1{color:var(--bronzel);font-size:34px;font-weight:600;letter-spacing:.5px;margin-bottom:8px}
+#login .sub{color:#94a3b8;margin-bottom:42px;font-size:15px}
+.role-cards{display:flex;gap:22px}
+.role-card{width:240px;background:var(--navy2);border:1px solid #24344f;border-radius:14px;padding:26px 22px;text-align:center;transition:.2s;cursor:pointer}
+.role-card:hover{transform:translateY(-4px);border-color:var(--bronze);box-shadow:0 12px 30px rgba(0,0,0,.4)}
+.role-card .ic{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--bronze),var(--bronzel));margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:24px}
+.role-card .rname{color:#fff;font-size:17px;font-weight:600;margin-bottom:6px}
+.role-card .rsub{color:#8b96a8;font-size:12.5px;line-height:1.4}
+
+/* APP LAYOUT */
+#app{display:flex;min-height:100vh}
+.sidebar{width:240px;background:var(--navy);color:#cbd5e1;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;overflow-y:auto}
+.brand{padding:20px 22px 14px;font-size:22px;font-weight:700;color:var(--bronzel)}
+.ctx-pills{display:flex;gap:6px;padding:0 18px 14px}
+.ctx-pills button{flex:1;background:var(--navy2);color:#9fb0c4;border:1px solid #24344f;border-radius:8px;padding:7px 0;font-size:12.5px}
+.ctx-pills button.active{background:var(--bronze);color:#fff;border-color:var(--bronze)}
+.nav-group{padding:10px 0 4px}
+.nav-label{font-size:10.5px;letter-spacing:1px;color:#5a6b80;padding:6px 22px;font-weight:600}
+.nav-link{display:block;padding:8px 22px;font-size:13.5px;color:#aab6c6;border-left:3px solid transparent}
+.nav-link:hover{background:var(--navy2);color:#fff}
+.nav-link.active{background:var(--navy2);color:#fff;border-left-color:var(--bronze)}
+.side-footer{margin-top:auto;padding:16px 18px;border-top:1px solid #1c2c45;display:flex;align-items:center;gap:10px}
+.avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--bronze),var(--bronzel));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:14px;flex-shrink:0}
+.side-footer .fn{color:#fff;font-size:13px;font-weight:600}
+.side-footer .fr{color:#7e8ca0;font-size:11px}
+.side-footer .chg{color:var(--bronzel);font-size:11px;display:block;margin-top:3px;cursor:pointer}
+.main{margin-left:240px;flex:1;padding:28px 34px;max-width:1400px}
+.page-title{font-size:24px;font-weight:700;margin-bottom:4px}
+.page-sub{color:var(--muted);margin-bottom:22px}
+.section{display:none}
+.section.active{display:block;animation:fade .25s}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* COMPONENTS */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.kpi .lab{color:var(--muted);font-size:12.5px;margin-bottom:8px}
+.kpi .val{font-size:26px;font-weight:700;color:var(--navy)}
+.kpi .dl{font-size:11.5px;margin-top:6px}
+.up{color:var(--green)} .down{color:var(--red)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:20px}
+.card h3{font-size:16px;margin-bottom:14px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11.5px;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;padding:10px 12px;border-bottom:2px solid var(--line)}
+td{padding:11px 12px;border-bottom:1px solid var(--line);font-size:13.5px}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600}
+.b-green{background:var(--greenbg);color:var(--green)}
+.b-red{background:var(--redbg);color:var(--red)}
+.b-amber{background:var(--amberbg);color:var(--amber)}
+.b-blue{background:var(--bluebg);color:var(--blue)}
+.b-purple{background:var(--purplebg);color:var(--purple)}
+.b-gray{background:#eef0f3;color:var(--muted)}
+.b-bronze{background:#f3e6d8;color:var(--bronze)}
+.bar{height:8px;background:#eef0f3;border-radius:5px;overflow:hidden;display:inline-block;width:80px;vertical-align:middle;margin-right:8px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--bronze),var(--bronzel))}
+.btn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:500}
+.btn:hover{background:var(--navy3)}
+.btn-bronze{background:var(--bronze)} .btn-bronze:hover{background:var(--bronzel)}
+.btn-ghost{background:transparent;color:var(--navy);border:1px solid var(--line);border-radius:8px;padding:9px 16px;font-size:13px}
+.btn-ghost:hover{background:var(--off)}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:500}
+input,select,textarea{font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;width:100%;background:#fff}
+input:focus,select:focus{outline:none;border-color:var(--bronze)}
+label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px;font-weight:500}
+.field{margin-bottom:14px}
+
+/* CATALOG */
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.listing{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;transition:.2s}
+.listing:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(10,22,40,.12)}
+.listing .photo{height:140px;position:relative}
+.listing .tags{position:absolute;top:10px;left:10px;display:flex;gap:6px}
+.listing .body{padding:14px 16px}
+.listing .lt{font-weight:600;font-size:14.5px;margin-bottom:6px;line-height:1.3}
+.listing .lp{color:var(--bronze);font-weight:700;font-size:16px}
+.ph-a{background:linear-gradient(135deg,#2f5d8a,#1d3050)}
+.ph-b{background:linear-gradient(135deg,#3f7d52,#1d4030)}
+.ph-c{background:linear-gradient(135deg,#b8895a,#6a4d2a)}
+.ph-d{background:linear-gradient(135deg,#6a4d8a,#2d2150)}
+.ph-e{background:linear-gradient(135deg,#2f7d8a,#13404a)}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(10,22,40,.55);display:none;align-items:flex-start;justify-content:center;z-index:200;overflow-y:auto;padding:40px 16px}
+.overlay.open{display:flex;animation:fade .2s}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:620px;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.4)}
+.modal.wide{max-width:760px}
+.modal-head{background:var(--navy);color:#fff;padding:20px 24px;position:relative}
+.modal-head h2{font-size:19px;margin-bottom:8px;padding-right:30px}
+.modal-head .mp{color:var(--bronzel);font-weight:700;font-size:17px}
+.x{position:absolute;top:16px;right:18px;background:rgba(255,255,255,.12);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:18px;line-height:1}
+.x:hover{background:rgba(255,255,255,.25)}
+.modal-body{padding:20px 24px;max-height:70vh;overflow-y:auto}
+.photo-strip{display:flex;gap:8px;margin-bottom:18px}
+.photo-strip>div{height:160px;border-radius:8px}
+.char-table{width:100%;margin-bottom:18px}
+.char-table td{padding:8px 0;border-bottom:1px solid var(--line)}
+.char-table td:first-child{color:var(--muted);width:45%}
+.sec-h{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:18px 0 10px}
+.pub-pills{display:flex;gap:8px;flex-wrap:wrap}
+.mini-chat{display:flex;gap:10px;align-items:center;padding:9px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px}
+.mini-chat .mc-name{font-weight:600;font-size:13px}
+.mini-chat .mc-msg{color:var(--muted);font-size:12.5px}
+.mini-chat .mc-time{margin-left:auto;color:var(--muted);font-size:11.5px;white-space:nowrap}
+.call-row{display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px}
+.call-row .cn{font-weight:600;font-size:13px}
+.call-row .cd{color:var(--muted);font-size:11.5px}
+.play{width:34px;height:34px;border-radius:50%;background:var(--bronze);border:none;color:#fff;font-size:13px;flex-shrink:0}
+.wave{display:flex;align-items:center;gap:2px;height:34px;flex:1}
+.wave span{flex:1;background:var(--navy3);border-radius:2px;opacity:.55}
+.modal-actions{display:flex;flex-wrap:wrap;gap:8px;padding:16px 24px;border-top:1px solid var(--line);background:var(--off)}
+.modal-actions .btn,.modal-actions .btn-ghost,.modal-actions .btn-bronze{font-size:12.5px;padding:8px 13px}
+
+/* TABS */
+.tabs{display:flex;gap:4px;padding:0 24px;background:var(--navy);border-top:1px solid #1c2c45}
+.tabs button{background:transparent;border:none;color:#9fb0c4;padding:12px 16px;font-size:13px;border-bottom:2px solid transparent}
+.tabs button.active{color:#fff;border-bottom-color:var(--bronze)}
+.tab-pane{display:none} .tab-pane.active{display:block}
+.info-line{display:flex;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.info-line .il{color:var(--muted);width:38%}
+.info-line .iv{font-weight:500}
+
+/* CHAT BUBBLES */
+.chat{background:#e7ddd0;padding:16px;border-radius:10px}
+.bubble{max-width:78%;padding:9px 13px;border-radius:12px;margin-bottom:10px;font-size:13px;line-height:1.4}
+.bubble.client{background:#fff;border-bottom-left-radius:3px}
+.bubble.broker{background:var(--navy);color:#fff;margin-left:auto;border-bottom-right-radius:3px}
+.bubble .bt{display:block;font-size:10.5px;opacity:.6;margin-top:4px;text-align:right}
+
+/* KANBAN */
+.kanban{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;overflow-x:auto}
+.kanban.k4{grid-template-columns:repeat(4,1fr)}
+.kcol{background:#eceae3;border-radius:11px;padding:12px}
+.kcol-h{font-size:12.5px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;color:var(--navy)}
+.kcol-h .cnt{background:#fff;border-radius:20px;padding:1px 9px;color:var(--muted);font-size:11.5px}
+.dcard{background:#fff;border:1px solid var(--line);border-radius:9px;padding:12px;margin-bottom:10px;cursor:pointer;transition:.15s}
+.dcard:hover{box-shadow:0 6px 16px rgba(0,0,0,.1);transform:translateY(-2px)}
+.dcard .dn{font-weight:600;font-size:13px}
+.dcard .dco{color:var(--muted);font-size:12px;margin:3px 0}
+.dcard .dbot{display:flex;align-items:center;justify-content:space-between;margin-top:9px}
+.dcard .dbud{color:var(--bronze);font-weight:700;font-size:12.5px}
+.av-sm{width:24px;height:24px;border-radius:50%;background:var(--navy3);color:#fff;font-size:10.5px;display:flex;align-items:center;justify-content:center}
+
+/* TASKS */
+.task{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px}
+.task input{width:auto}
+.task.done span{text-decoration:line-through;color:var(--muted)}
+
+/* MAP */
+.map{height:440px;background:var(--navy);border-radius:12px;position:relative;overflow:hidden;background-image:linear-gradient(#142339 1px,transparent 1px),linear-gradient(90deg,#142339 1px,transparent 1px);background-size:40px 40px}
+.dot{position:absolute;width:18px;height:18px;border-radius:50%;border:3px solid #fff;cursor:pointer;transform:translate(-50%,-50%)}
+.dot:hover .tip{display:block}
+.tip{display:none;position:absolute;bottom:24px;left:50%;transform:translateX(-50%);background:#fff;color:var(--ink);padding:6px 10px;border-radius:7px;font-size:12px;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+
+/* CALENDAR */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:22px}
+.cal-day{background:var(--card);border:1px solid var(--line);border-radius:9px;min-height:130px;padding:8px}
+.cal-day .cdh{font-size:11.5px;color:var(--muted);font-weight:600;margin-bottom:8px}
+.event{font-size:11px;border-radius:6px;padding:5px 7px;margin-bottom:5px;line-height:1.25}
+
+/* BOT */
+.bot-wrap{display:grid;grid-template-columns:280px 1fr;gap:18px}
+.bot-chat{background:#e7ddd0;border-radius:12px;padding:16px;height:520px;overflow-y:auto;display:flex;flex-direction:column}
+.opts{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.opts button{background:#fff;border:1px solid var(--bronze);color:var(--bronze);border-radius:18px;padding:7px 14px;font-size:12.5px}
+.opts button:disabled{opacity:.45;cursor:default}
+.bot-input{display:flex;gap:8px;margin-bottom:12px}
+.mini-prop{background:#fff;border-radius:9px;padding:10px;margin-bottom:8px;max-width:80%;display:flex;gap:10px;align-items:center}
+.mini-prop .mph{width:46px;height:46px;border-radius:7px;flex-shrink:0}
+
+/* REVIEWS */
+.stars{color:var(--amber);letter-spacing:1px}
+.review{border:1px solid var(--line);border-radius:9px;padding:13px;margin-bottom:10px}
+.review .rh{display:flex;justify-content:space-between;margin-bottom:6px}
+
+/* PRESENTATIONS */
+.thumbs{display:flex;gap:10px;margin-bottom:16px}
+.thumb{width:100px;height:64px;border:2px solid var(--line);border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10.5px;text-align:center;color:var(--muted);background:#fff;flex-shrink:0;padding:4px}
+.thumb.active{border-color:var(--bronze)}
+.slide-prev{height:400px;border-radius:11px;border:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center}
+.slide-cover{background:linear-gradient(135deg,var(--navy),var(--navy3));color:#fff}
+.slide-cover .sp{color:var(--bronzel);font-size:42px;font-weight:700;margin:14px 0}
+
+/* misc */
+.demo-tag{position:fixed;bottom:16px;right:16px;background:var(--bronze);color:#fff;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.toggle{position:relative;width:42px;height:23px;background:#ccc;border-radius:20px;cursor:pointer;flex-shrink:0}
+.toggle.on{background:var(--green)}
+.toggle i{position:absolute;top:2px;left:2px;width:19px;height:19px;background:#fff;border-radius:50%;transition:.2s}
+.toggle.on i{left:21px}
+.match-form{display:grid;grid-template-columns:300px 1fr;gap:22px}
 </style>
 </head>
 <body>
-<div class="app">
-  <aside class="side">
-    <div class="brand">Pllato<span class="dot"></span></div>
-    <div class="ctx">
-      <button id="bSales" class="on" onclick="ctx('sales')">Продажи</button>
-      <button id="bMgmt" onclick="ctx('mgmt')">Управление</button>
+
+<!-- ===== LOGIN ===== -->
+<div id="login">
+  <h1>Pllato · Недвижимость</h1>
+  <div class="sub">Коммерческая недвижимость Алматы · Demo CRM</div>
+  <div class="role-cards">
+    <div class="role-card" onclick="login('boss')">
+      <div class="ic">★</div>
+      <div class="rname">Руководитель</div>
+      <div class="rsub">Полный доступ: продажи + управление</div>
     </div>
-    <nav class="nav">
-      <div class="grp show" id="g-sales">
-        <div class="lbl">ОБЗОР</div>
-        <a data-p="dash" class="active"><span class="ic">▦</span> Дашборд</a>
-        <a data-p="lead"><span class="ic">🏆</span> Рейтинг брокеров</a>
-        <div class="lbl">ОБЪЯВЛЕНИЯ</div>
-        <a data-p="listings"><span class="ic">🏢</span> Каталог объектов</a>
-        <a data-p="map"><span class="ic">📍</span> Карта</a>
-        <a data-p="match"><span class="ic">🎯</span> Подбор / матчинг</a>
-        <div class="lbl">СДЕЛКИ И КЛИЕНТЫ</div>
-        <a data-p="funnel"><span class="ic">⇲</span> Воронка сделок</a>
-        <a data-p="owners"><span class="ic">🤝</span> Воронка собственников</a>
-        <a data-p="newdeal"><span class="ic">＋</span> Новая сделка</a>
-        <a data-p="calls"><span class="ic">☎</span> Звонки и записи</a>
-        <a data-p="showings"><span class="ic">📅</span> Календарь показов</a>
-        <div class="lbl">ИНСТРУМЕНТЫ</div>
-        <a data-p="bot"><span class="ic">🤖</span> WhatsApp-бот</a>
-        <a data-p="reviews"><span class="ic">★</span> Отзывы и KPI</a>
-        <a data-p="prez"><span class="ic">▤</span> Презентации</a>
-      </div>
-      <div class="grp" id="g-mgmt">
-        <div class="lbl">УПРАВЛЕНИЕ ОБЪЕКТАМИ</div>
-        <a data-p="mdash"><span class="ic">▦</span> Сводка</a>
-        <a data-p="objects"><span class="ic">⌂</span> Объекты</a>
-        <a data-p="contracts"><span class="ic">📄</span> Договоры аренды</a>
-        <a data-p="debt"><span class="ic">₸</span> Платежи и балансы</a>
-      </div>
-    </nav>
-    <div class="who"><div class="avatar">Д</div><div>Дильшат<br><span style="color:#7e8aa0;font-size:11px">Руководитель</span></div></div>
-  </aside>
-  <div class="main">
-    <div class="top">
-      <div><h1 id="ptitle">Дашборд</h1><div class="sub" id="psub">Сводка по продажам коммерческой недвижимости</div></div>
-      <input class="search" placeholder="Поиск объекта, клиента, сделки…">
-      <button class="btn">+ Создать</button>
+    <div class="role-card" onclick="login('broker')">
+      <div class="ic">И</div>
+      <div class="rname">Брокер · Иван Иванович</div>
+      <div class="rsub">Ваши сделки и рейтинг</div>
     </div>
-    <div class="content">
-      <section class="page show" id="dash">
-        <div class="kpis">
-          <div class="kpi"><div class="k">Объектов в каталоге</div><div class="v">64</div><div class="d up">+8 за неделю</div></div>
-          <div class="kpi"><div class="k">Активных сделок</div><div class="v">23</div><div class="d up">на $312 000</div></div>
-          <div class="kpi"><div class="k">Звонков за неделю</div><div class="v">418</div><div class="d up">+12%</div></div>
-          <div class="kpi"><div class="k">Показов на неделе</div><div class="v">31</div><div class="d" style="color:var(--muted)">9 запланировано</div></div>
-        </div>
-        <div class="grid2">
-          <div class="panel"><h3>Эффективность брокеров</h3><div class="ph">Сделки, звонки и средняя оценка клиентов</div><table id="brokTbl"></table></div>
-          <div class="panel"><h3>Источники заявок</h3><div class="ph">Откуда приходят клиенты</div>
-            <div class="row"><span class="rl">Krisha.kz</span><span class="rv">182</span></div>
-            <div class="row"><span class="rl">Собственные соцсети</span><span class="rv">96</span></div>
-            <div class="row"><span class="rl">WhatsApp-бот</span><span class="rv">73</span></div>
-            <div class="row"><span class="rl">Сарафан / рекомендации</span><span class="rv">61</span></div>
-            <div class="note">Цифры в демо — <b>примерные</b>. В рабочей системе подтягиваются из ваших данных.</div></div>
-        </div>
-      </section>
-      <section class="page" id="lead">
-        <div class="panel"><h3>🏆 Рейтинг брокеров — июнь</h3><div class="ph">Мотивация команды: план по сделкам, бонусная гонка</div><div id="leadList"></div></div>
-        <div class="note">Геймификация повышает активность новой команды. План, факт и бонус видны каждому брокеру в своём кабинете.</div>
-      </section>
-      <section class="page" id="listings">
-        <div class="filters" id="listFilters"><span class="f on" data-f="all">Все</span><span class="f" data-f="rent">Аренда</span><span class="f" data-f="sale">Продажа</span><span class="f" data-f="active">Активные</span></div>
-        <div class="listgrid" id="listGrid"></div>
-        <div class="note" style="margin-top:18px">Каталог объектов с фото, ценой и статусом. Заполнили карточку один раз — объявление автопостится на Krisha и площадки. Нажмите на объект.</div>
-      </section>
-      <section class="page" id="map">
-        <div class="panel" style="padding:14px"><div class="map" id="mapBox">
-          <div class="river" style="top:60%"></div><div class="road rh" style="top:30%"></div><div class="road rh" style="top:75%"></div>
-          <div class="road rv" style="left:35%"></div><div class="road rv" style="left:68%"></div>
-          <div class="maplegend"><span><i style="background:var(--blue)"></i>Аренда</span><span><i style="background:var(--bronze)"></i>Продажа</span></div>
-        </div></div>
-        <div class="note">Объекты на карте города. Цвет — тип сделки. Помогает быстро подобрать объект рядом с запросом клиента.</div>
-      </section>
-      <section class="page" id="match">
-        <div class="matchcard"><div class="mt">🎯 Запрос клиента: ТОО «Вектор»</div><div style="font-size:12.5px;color:#4a3d5e;margin-top:6px">Аренда офиса 100–150 м² · центр / Достык · до $3 000/мес · ремонт не критичен</div></div>
-        <div class="panel"><h3>Подходящие объекты из каталога</h3><div class="ph">Система автоматически сопоставила запрос с листингами — по совпадению</div><div id="matchList"></div></div>
-        <div class="note">Матчинг экономит часы: брокер сразу видит, что предложить, и отправляет подборку в один клик.</div>
-      </section>
-      <section class="page" id="funnel">
-        <div class="board" id="board" style="grid-template-columns:repeat(5,1fr)"></div>
-        <div class="note" style="margin-top:18px">Воронка клиентов. Каждая сделка закреплена за брокером, звонки и переписка — внутри карточки. Нажмите на сделку.</div>
-      </section>
-      <section class="page" id="owners">
-        <div class="board" id="ownerBoard" style="grid-template-columns:repeat(4,1fr)"></div>
-        <div class="note" style="margin-top:18px">Отдельная воронка собственников — откуда агентство берёт объекты. Контроль наполнения каталога.</div>
-      </section>
-      <section class="page" id="newdeal">
-        <div class="panel calc"><h3>Новая сделка</h3><div class="ph">Введите номер клиента — система проверит, не работает ли с ним уже другой брокер</div>
-          <div class="field"><label>Телефон клиента</label><input id="phone" placeholder="+7 ___ ___ __ __" oninput="checkDup(this.value)"></div>
-          <div class="warn" id="dupWarn"><div class="wt">⚠ Клиент уже в работе</div><div class="ws" id="dupText"></div></div>
-          <div class="ok" id="dupOk">✓ Новый контакт — можно заводить сделку на себя</div>
-          <div class="field" style="margin-top:14px"><label>Объект / запрос</label><input placeholder="Напр. аренда офиса 120 м², пр. Достык"></div>
-          <button class="mini" style="padding:10px 18px">Создать сделку</button>
-          <div class="note" style="margin-top:18px">Попробуйте ввести <b>+7 701 234 56 78</b> — этот номер уже закреплён за другим брокером. Любой другой пройдёт как новый.</div></div>
-      </section>
-      <section class="page" id="calls">
-        <div class="panel"><h3>Звонки и записи</h3><div class="ph">Входящие и исходящие закреплены за брокером. Запись хранится в карточке.</div><table id="callsTbl"></table></div>
-        <div class="note">Телефония Binotel поверх Tele2/Altel. Звонок из браузера или приложения Linphone. Каждый звонок привязан к брокеру.</div>
-      </section>
-      <section class="page" id="showings">
-        <div class="panel"><h3>📅 Календарь показов — июнь</h3><div class="ph">Показы объектов, дедлайны сделок и окончания договоров</div><div class="cal" id="calGrid"></div></div>
-        <div class="note">Брокер планирует показ из карточки сделки — клиенту автоматически уходит напоминание в WhatsApp.</div>
-      </section>
-      <section class="page" id="bot">
-        <div class="grid2">
-          <div class="chat"><div class="chh">🤖 Pllato-бот <small>квалификация входящих 24/7</small></div><div class="body" id="botBody"></div></div>
-          <div><div class="panel"><h3>Что делает бот</h3>
-            <div class="row"><span class="rl">Отвечает мгновенно 24/7</span><span class="rv">✓</span></div>
-            <div class="row"><span class="rl">Квалифицирует: аренда/покупка, бюджет</span><span class="rv">✓</span></div>
-            <div class="row"><span class="rl">Создаёт сделку и назначает брокера</span><span class="rv">✓</span></div>
-            <div class="row"><span class="rl">Отправляет подборку объектов</span><span class="rv">✓</span></div></div>
-            <div class="note">Бот ловит лида, пока брокер занят, и не даёт заявке остыть. Передаёт квалифицированный контакт в воронку с заполненными полями.</div></div>
-        </div>
-      </section>
-      <section class="page" id="reviews">
-        <div class="panel"><h3>Отзывы клиентов → KPI</h3><div class="ph">После сделки клиенту уходит ссылка в WhatsApp с оценкой 1–5. Оценка привязывается к брокеру.</div><table id="revTbl"></table></div>
-        <div class="note">На старте KPI дисциплинарные, через 1.5–2 месяца переходим на KPI по продажам. Показатели меняются без программирования.</div>
-      </section>
-      <section class="page" id="prez">
-        <div class="panel"><h3>Конструктор презентаций</h3><div class="ph">Утверждённый шаблон-эталон. Новые презентации формируются на его основе из карточки объекта.</div><div class="prez" id="prezGrid"></div></div>
-      </section>
-      <section class="page" id="mdash">
-        <div class="kpis">
-          <div class="kpi"><div class="k">Объектов в управлении</div><div class="v">18</div><div class="d up">+3 за месяц</div></div>
-          <div class="kpi"><div class="k">Собираемость</div><div class="v">92%</div><div class="d up">за месяц</div></div>
-          <div class="kpi"><div class="k">Долг по объектам</div><div class="v">₸ 1.4М</div><div class="d down">5 объектов</div></div>
-          <div class="kpi"><div class="k">Договоров истекает</div><div class="v">3</div><div class="d down">в течение 60 дней</div></div>
-        </div>
-        <div class="note">Вкладка «Управление» — отдельный кастомный контур. Связан с продажами: сделка переходит в объект управления.</div>
-      </section>
-      <section class="page" id="objects">
-        <div class="objgrid" id="objgrid"></div>
-        <div class="note" style="margin-top:18px">Карточка объекта в управлении: тарифы, баланс, собираемость, заявки. Нажмите на объект.</div>
-      </section>
-      <section class="page" id="contracts">
-        <div class="panel"><h3>📄 Договоры аренды</h3><div class="ph">Сроки, индексация, авто-напоминания об окончании</div><table id="contractsTbl"></table></div>
-        <div class="note">Система заранее предупреждает об окончании договора и индексации ставки — ни один продляемый договор не теряется.</div>
-      </section>
-      <section class="page" id="debt">
-        <div class="panel"><h3>Платежи и балансы</h3><div class="ph">Платежи и задолженность по объектам · авто-выставление счетов</div><table id="debtTbl"></table></div>
-      </section>
+    <div class="role-card" onclick="login('manager')">
+      <div class="ic">Д</div>
+      <div class="rname">Управляющий · Дильшат</div>
+      <div class="rsub">Объекты, договоры, платежи</div>
     </div>
   </div>
 </div>
-<div class="ov" id="ov"><div class="modal" id="modal"></div></div>
+
+<!-- ===== APP ===== -->
+<div id="app" class="hidden">
+  <aside class="sidebar">
+    <div class="brand">Pllato·</div>
+    <div class="ctx-pills" id="ctxPills">
+      <button id="pillSales" class="active" onclick="switchContext('sales')">Продажи</button>
+      <button id="pillMgmt" onclick="switchContext('mgmt')">Управление</button>
+    </div>
+
+    <nav id="navSales">
+      <div class="nav-group">
+        <div class="nav-label">ОБЗОР</div>
+        <a class="nav-link active" onclick="showSection('dashboard',this)">Дашборд</a>
+        <a class="nav-link" onclick="showSection('rating',this)">Рейтинг брокеров</a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">ОБЪЯВЛЕНИЯ</div>
+        <a class="nav-link" onclick="showSection('catalog',this)">Каталог объектов</a>
+        <a class="nav-link" onclick="showSection('map',this)">Карта</a>
+        <a class="nav-link" onclick="showSection('match',this)">Подбор / матчинг</a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">СДЕЛКИ И КЛИЕНТЫ</div>
+        <a class="nav-link" onclick="showSection('deals',this)">Воронка сделок</a>
+        <a class="nav-link" onclick="showSection('owners',this)">Воронка собственников</a>
+        <a class="nav-link" onclick="showSection('newdeal',this)">Новая сделка</a>
+        <a class="nav-link" onclick="showSection('calls',this)">Звонки и записи</a>
+        <a class="nav-link" onclick="showSection('calendar',this)">Календарь показов</a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">ИНСТРУМЕНТЫ</div>
+        <a class="nav-link" onclick="showSection('bot',this)">WhatsApp-бот</a>
+        <a class="nav-link" onclick="showSection('reviews',this)">Отзывы и KPI</a>
+        <a class="nav-link" onclick="showSection('presents',this)">Презентации</a>
+        <a class="nav-link" onclick="showSection('integrations',this)">Интеграции</a>
+      </div>
+    </nav>
+
+    <nav id="navMgmt" class="hidden">
+      <div class="nav-group">
+        <div class="nav-label">УПРАВЛЕНИЕ</div>
+        <a class="nav-link" onclick="showSection('m_summary',this)">Сводка</a>
+        <a class="nav-link" onclick="showSection('m_objects',this)">Объекты</a>
+        <a class="nav-link" onclick="showSection('m_contracts',this)">Договоры аренды</a>
+        <a class="nav-link" onclick="showSection('m_payments',this)">Платежи и балансы</a>
+      </div>
+    </nav>
+
+    <div class="side-footer">
+      <div class="avatar" id="sfAv">И</div>
+      <div>
+        <div class="fn" id="sfName">Иван Иванович</div>
+        <div class="fr" id="sfRole">Брокер</div>
+        <a class="chg" onclick="logout()">Сменить роль ›</a>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <section class="section active" id="dashboard">
+      <div class="page-title">Дашборд</div>
+      <div class="page-sub">Сводка по продажам · июнь 2026</div>
+      <div class="kpi-row">
+        <div class="kpi"><div class="lab">Сделок в работе</div><div class="val">12</div><div class="dl up">▲ 3 за неделю</div></div>
+        <div class="kpi"><div class="lab">Показов на неделе</div><div class="val">8</div><div class="dl up">▲ 2</div></div>
+        <div class="kpi"><div class="lab">Выручка месяц</div><div class="val">$47 200</div><div class="dl up">▲ 14%</div></div>
+        <div class="kpi"><div class="lab">Конверсия</div><div class="val">23%</div><div class="dl down">▼ 2%</div></div>
+      </div>
+      <div class="card">
+        <h3>Сводка по воронке</h3>
+        <div style="display:flex;gap:2px;border-radius:8px;overflow:hidden;margin-bottom:14px">
+          <div style="flex:3;background:var(--blue);color:#fff;padding:14px;text-align:center"><b>3</b><br><small>Новые</small></div>
+          <div style="flex:2;background:var(--purple);color:#fff;padding:14px;text-align:center"><b>2</b><br><small>Показ</small></div>
+          <div style="flex:2;background:var(--amber);color:#fff;padding:14px;text-align:center"><b>2</b><br><small>Переговоры</small></div>
+          <div style="flex:1;background:var(--bronze);color:#fff;padding:14px;text-align:center"><b>1</b><br><small>Договор</small></div>
+          <div style="flex:1;background:var(--green);color:#fff;padding:14px;text-align:center"><b>1</b><br><small>Закрыта</small></div>
+        </div>
+        <small style="color:var(--muted)">Всего 9 активных сделок · средний цикл сделки 18 дней</small>
+      </div>
+    </section>
+
+    <!-- RATING -->
+    <section class="section" id="rating">
+      <div class="page-title">Рейтинг брокеров</div>
+      <div class="page-sub">Итоги месяца</div>
+      <div class="card">
+        <table>
+          <thead><tr><th>#</th><th>Брокер</th><th>Сделок</th><th>Выручка</th><th>Конверсия</th><th>Рейтинг</th></tr></thead>
+          <tbody>
+            <tr><td><b>1</b></td><td>Иван Петров</td><td><span class="bar"><i style="width:100%"></i></span>14</td><td>$21 400</td><td>31%</td><td class="stars">★★★★★</td></tr>
+            <tr><td><b>2</b></td><td>Асель Кажимова</td><td><span class="bar"><i style="width:85%"></i></span>11</td><td>$18 200</td><td>28%</td><td class="stars">★★★★★</td></tr>
+            <tr><td><b>3</b></td><td>Тимур Бекенов</td><td><span class="bar"><i style="width:62%"></i></span>8</td><td>$12 900</td><td>24%</td><td class="stars">★★★★☆</td></tr>
+            <tr><td><b>4</b></td><td>Дамир Сатыбалдиев</td><td><span class="bar"><i style="width:43%"></i></span>5</td><td>$8 100</td><td>19%</td><td class="stars">★★★★☆</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CATALOG -->
+    <section class="section" id="catalog">
+      <div class="page-title">Каталог объектов</div>
+      <div class="page-sub">8 активных объявлений</div>
+      <div class="grid3" id="catalogGrid"></div>
+    </section>
+
+    <!-- MAP -->
+    <section class="section" id="map">
+      <div class="page-title">Карта объектов</div>
+      <div class="page-sub">Алматы · коммерческая недвижимость</div>
+      <div class="card" style="padding:14px">
+        <div class="map">
+          <div class="dot" style="left:30%;top:35%;background:var(--green)"><span class="tip">Офис на Достык · $3200/мес</span></div>
+          <div class="dot" style="left:62%;top:28%;background:var(--blue)"><span class="tip">Склад Илийский тракт · ₸3 100 000</span></div>
+          <div class="dot" style="left:48%;top:55%;background:var(--bronze)"><span class="tip">Торговый Абая · $5800/мес</span></div>
+          <div class="dot" style="left:25%;top:62%;background:var(--purple)"><span class="tip">Офис Самал-2 · $1800/мес</span></div>
+          <div class="dot" style="left:72%;top:48%;background:var(--amber)"><span class="tip">Производство Сатпаева · ₸5 500 000</span></div>
+          <div class="dot" style="left:55%;top:72%;background:var(--red)"><span class="tip">Торговый Панфилова · $2900/мес</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MATCH -->
+    <section class="section" id="match">
+      <div class="page-title">Подбор / матчинг</div>
+      <div class="page-sub">Подберите объекты под запрос клиента</div>
+      <div class="card">
+        <div class="match-form">
+          <div>
+            <div class="field"><label>Тип помещения</label><select><option>Офис</option><option>Склад</option><option>Торговое</option><option>Производство</option></select></div>
+            <div class="field"><label>Площадь, м²</label><div style="display:flex;gap:8px"><input placeholder="от" value="80"><input placeholder="до" value="200"></div></div>
+            <div class="field"><label>Бюджет</label><input value="до $4000/мес"></div>
+            <div class="field"><label>Район</label><select><option>Медеуский</option><option>Бостандыкский</option><option>Алмалинский</option><option>Ауэзовский</option></select></div>
+            <button class="btn btn-bronze" style="width:100%" onclick="runMatch()">Подобрать</button>
+          </div>
+          <div id="matchResults" style="color:var(--muted)">Заполните параметры и нажмите «Подобрать».</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DEALS -->
+    <section class="section" id="deals">
+      <div class="page-title">Воронка сделок</div>
+      <div class="page-sub">9 активных сделок</div>
+      <div class="kanban" id="dealsKanban"></div>
+    </section>
+
+    <!-- OWNERS -->
+    <section class="section" id="owners">
+      <div class="page-title">Воронка собственников</div>
+      <div class="page-sub">Привлечение объектов в каталог</div>
+      <div class="kanban k4" id="ownersKanban"></div>
+    </section>
+
+    <!-- NEW DEAL -->
+    <section class="section" id="newdeal">
+      <div class="page-title">Новая сделка</div>
+      <div class="page-sub">Создание карточки клиента</div>
+      <div class="card" style="max-width:640px">
+        <div class="two-col">
+          <div class="field"><label>Клиент</label><input placeholder="ФИО"></div>
+          <div class="field"><label>Телефон</label><input placeholder="+7 ___ ___ __ __"></div>
+        </div>
+        <div class="field"><label>Компания</label><input placeholder="ТОО / ИП"></div>
+        <div class="field"><label>Тип запроса</label><select><option>Аренда офиса</option><option>Покупка помещения</option><option>Склад / производство</option><option>Торговые площади</option></select></div>
+        <div class="two-col">
+          <div class="field"><label>Площадь от, м²</label><input value="100"></div>
+          <div class="field"><label>Площадь до, м²</label><input value="200"></div>
+        </div>
+        <div class="field"><label>Бюджет</label><input placeholder="$2000–3500/мес"></div>
+        <div class="two-col">
+          <div class="field"><label>Район</label><select><option>Медеуский</option><option>Бостандыкский</option><option>Алмалинский</option><option>Ауэзовский</option><option>Наурызбайский</option></select></div>
+          <div class="field"><label>Источник</label><select><option>Krisha.kz</option><option>Instagram</option><option>WhatsApp-бот</option><option>Рекомендация</option><option>Звонок</option></select></div>
+        </div>
+        <div class="field"><label>Брокер</label><select><option>Иван Петров</option><option>Асель Кажимова</option><option>Тимур Бекенов</option><option>Дамир Сатыбалдиев</option></select></div>
+        <button class="btn btn-bronze" onclick="alert('Сделка создана (демо)')">Создать сделку</button>
+      </div>
+    </section>
+
+    <!-- CALLS -->
+    <section class="section" id="calls">
+      <div class="page-title">Звонки и записи</div>
+      <div class="page-sub">Интеграция с Binotel</div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Клиент</th><th>Брокер</th><th>Дата/время</th><th>Тип</th><th>Длит.</th><th></th></tr></thead>
+          <tbody id="callsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CALENDAR -->
+    <section class="section" id="calendar">
+      <div class="page-title">Календарь показов</div>
+      <div class="page-sub">Неделя 23–29 июня</div>
+      <div class="cal" id="calGrid"></div>
+      <div class="card">
+        <h3>Ближайшие показы</h3>
+        <div class="mini-chat"><div class="mc-name">Офис на Достык · Марат Сейтов</div><div class="mc-time">ср 25.06 15:00</div></div>
+        <div class="mini-chat"><div class="mc-name">Склад Илийский · ТОО «КаргоПлюс»</div><div class="mc-time">чт 26.06 11:00</div></div>
+        <div class="mini-chat"><div class="mc-name">Торговый Абая · ИП Сериков</div><div class="mc-time">пт 27.06 14:30</div></div>
+      </div>
+    </section>
+
+    <!-- BOT -->
+    <section class="section" id="bot">
+      <div class="page-title">WhatsApp-бот</div>
+      <div class="page-sub">Автоматический сбор заявок</div>
+      <div class="bot-wrap">
+        <div class="card" style="margin:0">
+          <h3>Статистика</h3>
+          <div class="kpi" style="margin-bottom:12px"><div class="lab">Лидов за месяц</div><div class="val">73</div></div>
+          <div class="kpi" style="margin-bottom:12px"><div class="lab">Среднее время ответа</div><div class="val">2.3 мин</div></div>
+          <div class="kpi"><div class="lab">Конверсия в показ</div><div class="val">34%</div></div>
+        </div>
+        <div class="bot-chat" id="botChat"></div>
+      </div>
+    </section>
+
+    <!-- REVIEWS -->
+    <section class="section" id="reviews">
+      <div class="page-title">Отзывы и KPI</div>
+      <div class="page-sub">Качество работы брокеров</div>
+      <div class="kpi-row">
+        <div class="kpi"><div class="lab">Иван Петров</div><div class="stars" style="font-size:18px">★★★★★</div><div class="dl">14 сделок · 12 дн · 96%</div></div>
+        <div class="kpi"><div class="lab">Асель Кажимова</div><div class="stars" style="font-size:18px">★★★★★</div><div class="dl">11 сделок · 15 дн · 94%</div></div>
+        <div class="kpi"><div class="lab">Тимур Бекенов</div><div class="stars" style="font-size:18px">★★★★☆</div><div class="dl">8 сделок · 19 дн · 88%</div></div>
+        <div class="kpi"><div class="lab">Дамир Сатыбалдиев</div><div class="stars" style="font-size:18px">★★★★☆</div><div class="dl">5 сделок · 22 дн · 85%</div></div>
+      </div>
+      <div class="card">
+        <h3>Последние отзывы</h3>
+        <div class="review"><div class="rh"><b>Марат Сейтов · ТОО «Меркур»</b><span class="stars">★★★★★</span></div>Асель подобрала идеальный офис за 3 дня. Очень профессионально.</div>
+        <div class="review"><div class="rh"><b>ИП Сериков</b><span class="stars">★★★★★</span></div>Быстро нашли торговое помещение, помогли с договором.</div>
+        <div class="review"><div class="rh"><b>ТОО «КаргоПлюс»</b><span class="stars">★★★★☆</span></div>Хороший склад, но согласование заняло чуть дольше ожидаемого.</div>
+        <div class="review"><div class="rh"><b>Айгерим Жанова</b><span class="stars">★★★★★</span></div>Дамир был на связи весь процесс. Рекомендую агентство.</div>
+      </div>
+    </section>
+
+    <!-- PRESENTATIONS -->
+    <section class="section" id="presents">
+      <div class="page-title">Презентации</div>
+      <div class="page-sub">PDF-презентации объектов</div>
+      <div class="grid3" id="presGrid"></div>
+    </section>
+
+    <!-- INTEGRATIONS -->
+    <section class="section" id="integrations">
+      <div class="page-title">Интеграции</div>
+      <div class="page-sub">Подключённые сервисы</div>
+      <div class="two-col" id="intGrid"></div>
+    </section>
+
+    <!-- MGMT: SUMMARY -->
+    <section class="section" id="m_summary">
+      <div class="page-title">Сводка управления</div>
+      <div class="page-sub">Объекты в управлении</div>
+      <div class="kpi-row">
+        <div class="kpi"><div class="lab">Объектов</div><div class="val">24</div></div>
+        <div class="kpi"><div class="lab">Активных договоров</div><div class="val">19</div></div>
+        <div class="kpi"><div class="lab">Сбор за месяц</div><div class="val">₸38.4 млн</div><div class="dl up">▲ 6%</div></div>
+        <div class="kpi"><div class="lab">Задолженность</div><div class="val">₸2.1 млн</div><div class="dl down">3 арендатора</div></div>
+      </div>
+    </section>
+
+    <!-- MGMT: OBJECTS -->
+    <section class="section" id="m_objects">
+      <div class="page-title">Объекты в управлении</div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Объект</th><th>Тип</th><th>Площадь</th><th>Арендатор</th><th>Статус</th></tr></thead>
+          <tbody>
+            <tr><td>БЦ «Достык», офис 412</td><td>Офис</td><td>145 м²</td><td>ТОО «Меркур»</td><td><span class="badge b-green">Сдан</span></td></tr>
+            <tr><td>Склад Илийский тракт</td><td>Склад</td><td>800 м²</td><td>ТОО «КаргоПлюс»</td><td><span class="badge b-green">Сдан</span></td></tr>
+            <tr><td>ТЦ Абая, секция 1-04</td><td>Торговое</td><td>220 м²</td><td>ИП Сериков</td><td><span class="badge b-green">Сдан</span></td></tr>
+            <tr><td>Офис Самал-2</td><td>Офис</td><td>90 м²</td><td>—</td><td><span class="badge b-amber">Свободен</span></td></tr>
+            <tr><td>Производство Сатпаева</td><td>Производство</td><td>1200 м²</td><td>ТОО «АлмаПром»</td><td><span class="badge b-green">Сдан</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- MGMT: CONTRACTS -->
+    <section class="section" id="m_contracts">
+      <div class="page-title">Договоры аренды</div>
+      <div class="card">
+        <table>
+          <thead><tr><th>№ договора</th><th>Арендатор</th><th>Объект</th><th>Срок до</th><th>Сумма/мес</th><th>Статус</th></tr></thead>
+          <tbody>
+            <tr><td>АР-2026-014</td><td>ТОО «Меркур»</td><td>Офис Достык 412</td><td>31.12.2026</td><td>$3 200</td><td><span class="badge b-green">Активен</span></td></tr>
+            <tr><td>АР-2025-088</td><td>ТОО «КаргоПлюс»</td><td>Склад Илийский</td><td>15.08.2026</td><td>₸3 100 000</td><td><span class="badge b-green">Активен</span></td></tr>
+            <tr><td>АР-2026-003</td><td>ИП Сериков</td><td>ТЦ Абая 1-04</td><td>10.07.2026</td><td>$5 800</td><td><span class="badge b-amber">Истекает</span></td></tr>
+            <tr><td>АР-2025-061</td><td>ТОО «АлмаПром»</td><td>Производство Сатпаева</td><td>01.03.2027</td><td>₸5 500 000</td><td><span class="badge b-green">Активен</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- MGMT: PAYMENTS -->
+    <section class="section" id="m_payments">
+      <div class="page-title">Платежи и балансы</div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Арендатор</th><th>Начислено</th><th>Оплачено</th><th>Баланс</th><th>Статус</th></tr></thead>
+          <tbody>
+            <tr><td>ТОО «Меркур»</td><td>$3 200</td><td>$3 200</td><td>$0</td><td><span class="badge b-green">Оплачено</span></td></tr>
+            <tr><td>ТОО «КаргоПлюс»</td><td>₸3 100 000</td><td>₸3 100 000</td><td>₸0</td><td><span class="badge b-green">Оплачено</span></td></tr>
+            <tr><td>ИП Сериков</td><td>$5 800</td><td>$2 900</td><td style="color:var(--red)">−$2 900</td><td><span class="badge b-red">Долг</span></td></tr>
+            <tr><td>ТОО «АлмаПром»</td><td>₸5 500 000</td><td>₸4 000 000</td><td style="color:var(--red)">−₸1 500 000</td><td><span class="badge b-red">Долг</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===== MODALS ===== -->
+<div class="overlay" id="ov-listing" onclick="overlayClose(event,'ov-listing')"><div class="modal" id="listingModal"></div></div>
+<div class="overlay" id="ov-deal" onclick="overlayClose(event,'ov-deal')"><div class="modal" id="dealModal"></div></div>
+<div class="overlay" id="ov-owner" onclick="overlayClose(event,'ov-owner')"><div class="modal" id="ownerModal"></div></div>
+<div class="overlay" id="ov-call" onclick="overlayClose(event,'ov-call')"><div class="modal" id="callModal"></div></div>
+<div class="overlay" id="ov-pres" onclick="overlayClose(event,'ov-pres')"><div class="modal wide" id="presModal"></div></div>
+<div class="overlay" id="ov-int" onclick="overlayClose(event,'ov-int')"><div class="modal" id="intModal"></div></div>
+
 <div class="demo-tag">демо · Pllato</div>
+
 <script>
-const titles={dash:["Дашборд","Сводка по продажам коммерческой недвижимости"],lead:["Рейтинг брокеров","Мотивация и план по команде"],listings:["Каталог объектов","Объявления с фото, ценой и автопостингом"],map:["Карта объектов","Объекты на карте города"],match:["Подбор / матчинг","Автоподбор объектов под запрос клиента"],funnel:["Воронка сделок","Сделки по этапам · все каналы внутри карточки"],owners:["Воронка собственников","Откуда агентство берёт объекты"],newdeal:["Новая сделка","Создание сделки с проверкой на дубли"],calls:["Звонки и записи","Фиксация звонков по каждому брокеру"],showings:["Календарь показов","Показы, дедлайны и окончания договоров"],bot:["WhatsApp-бот","Квалификация входящих заявок 24/7"],reviews:["Отзывы и KPI","Оценки клиентов привязаны к брокерам"],prez:["Презентации","Конструктор презентаций для клиентов"],mdash:["Управление · сводка","Объекты в управлении, балансы, договоры"],objects:["Объекты","Карточки объектов в управлении"],contracts:["Договоры аренды","Сроки, индексация, напоминания"],debt:["Платежи и балансы","Собираемость и задолженность по объектам"]};
-function ctx(c){document.getElementById('bSales').classList.toggle('on',c=='sales');document.getElementById('bMgmt').classList.toggle('on',c=='mgmt');document.getElementById('g-sales').classList.toggle('show',c=='sales');document.getElementById('g-mgmt').classList.toggle('show',c=='mgmt');go(c=='sales'?'dash':'mdash');}
-function go(p){document.querySelectorAll('.nav a').forEach(x=>x.classList.toggle('active',x.dataset.p==p));document.querySelectorAll('.page').forEach(x=>x.classList.remove('show'));document.getElementById(p).classList.add('show');document.getElementById('ptitle').textContent=titles[p][0];document.getElementById('psub').textContent=titles[p][1];}
-document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>go(a.dataset.p));
-const brokers=[{n:"Иван Иванович",d:8,c:112,r:4.8},{n:"Асель К.",d:6,c:98,r:4.7},{n:"Тимур Б.",d:5,c:121,r:4.3},{n:"Дамир С.",d:4,c:87,r:4.5}];
-document.getElementById('brokTbl').innerHTML='<tr><th>Брокер</th><th>Сделки</th><th>Звонки</th><th>Оценка</th></tr>'+brokers.map(b=>`<tr><td><b>${b.n}</b></td><td>${b.d}</td><td>${b.c}</td><td><span class="stars">${'★'.repeat(Math.round(b.r))}</span> ${b.r}</td></tr>`).join('');
-const lead=[{n:"Тимур Б.",v:5,plan:6,bonus:"₸ 420 000"},{n:"Иван Иванович",v:8,plan:10,bonus:"₸ 380 000"},{n:"Асель К.",v:6,plan:8,bonus:"₸ 310 000"},{n:"Дамир С.",v:4,plan:8,bonus:"₸ 190 000"}];
-const ranked=[...lead].sort((a,b)=>(b.v/b.plan)-(a.v/a.plan));
-document.getElementById('leadList').innerHTML=ranked.map((b,i)=>{const pct=Math.round(b.v/b.plan*100);return `<div class="lead top${i+1}"><div class="rk">${i+1}</div><div class="lp"><div class="ln">${b.n}</div><div class="pbar"><i style="width:${Math.min(pct,100)}%"></i></div><div style="font-size:11px;color:var(--muted);margin-top:4px">План: ${b.v} из ${b.plan} сделок · ${pct}%</div></div><div class="lv"><b>${b.bonus}</b><span>бонус</span></div></div>`;}).join('');
-const ph=['ph1','ph2','ph3','ph4','ph5','ph6'];
-const listings=[{t:"Офис 120 м²",loc:"пр. Достык, БЦ «Нурлы»",price:"$2 400/мес",type:"rent",st:"active",area:"120 м²",fl:"4 этаж",img:'ph1',x:42,y:28},{t:"Торговое пом. 200 м²",loc:"мкр. Сайран",price:"$185 000",type:"sale",st:"active",area:"200 м²",fl:"1 этаж",img:'ph2',x:22,y:50},{t:"Склад 800 м²",loc:"Илийский тракт",price:"$3 100/мес",type:"rent",st:"deal",area:"800 м²",fl:"отд. стоящ.",img:'ph3',x:78,y:18},{t:"БЦ, этаж 4 · 340 м²",loc:"пр. Аль-Фараби",price:"$5 600/мес",type:"rent",st:"active",area:"340 м²",fl:"4 этаж",img:'ph6',x:60,y:62},{t:"Помещение HoReCa 90 м²",loc:"центр, ул. Панфилова",price:"$240 000",type:"sale",st:"active",area:"90 м²",fl:"1 этаж",img:'ph5',x:48,y:42},{t:"Офис 60 м²",loc:"мкр. Самал-2",price:"$1 300/мес",type:"rent",st:"active",area:"60 м²",fl:"7 этаж",img:'ph4',x:32,y:70},{t:"Ритейл 150 м²",loc:"пр. Абая",price:"$320 000",type:"sale",st:"sold",area:"150 м²",fl:"1 этаж",img:'ph2',x:70,y:80},{t:"Офис open-space 240 м²",loc:"Көктем",price:"$3 800/мес",type:"rent",st:"active",area:"240 м²",fl:"5 этаж",img:'ph1',x:55,y:35}];
-const stName={active:'Активно',deal:'В сделке',sold:'Продано'};
-function renderListings(f){const g=document.getElementById('listGrid');const arr=listings.filter(l=>f=='all'?1:f=='active'?l.st=='active':l.type==f);g.innerHTML=arr.map(l=>`<div class="lst" onclick="openListing(${listings.indexOf(l)})"><div class="img ${l.img}"><div class="ph-win"></div><span class="badge">${l.type=='rent'?'Аренда':'Продажа'}</span><span class="stat s-${l.st}">${stName[l.st]}</span><span class="price">${l.price}</span></div><div class="b"><div class="t">${l.t}</div><div class="meta"><span>📐 ${l.area}</span><span>🏢 ${l.fl}</span></div><div class="meta" style="margin-top:2px">📍 ${l.loc}</div><div class="post"><span class="pp">Krisha ✓</span><span class="pp">Instagram ✓</span><span class="pp off">OLX</span></div></div></div>`).join('');}
-renderListings('all');
-document.querySelectorAll('#listFilters .f').forEach(f=>f.onclick=()=>{document.querySelectorAll('#listFilters .f').forEach(x=>x.classList.remove('on'));f.classList.add('on');renderListings(f.dataset.f);});
-const mb=document.getElementById('mapBox');
-listings.filter(l=>l.st!='sold').forEach(l=>{const p=document.createElement('div');p.className='pin '+l.type;p.style.left=l.x+'%';p.style.top=l.y+'%';p.innerHTML=`<div class="lbl">${l.t} · ${l.price}</div><div class="dot"><b>${l.type=='rent'?'А':'П'}</b></div>`;p.onclick=()=>openListing(listings.indexOf(l));mb.appendChild(p);});
-const matches=[{i:0,score:96,why:"120 м² · Достык · $2 400 — в бюджете и районе"},{i:7,score:78,why:"240 м² · больше площади, выше бюджета на $800"},{i:3,score:64,why:"340 м² · другой район, выше бюджета"}];
-document.getElementById('matchList').innerHTML=matches.map(m=>{const l=listings[m.i];return `<div class="matchrow" onclick="openListing(${m.i})"><div class="mimg ${l.img}"><div class="ph-win"></div></div><div class="md"><div class="mn">${l.t}</div><div class="ms">${l.loc} · ${l.price} · ${m.why}</div></div><div class="score"><div class="sv">${m.score}%</div><div class="sl">совпадение</div></div></div>`;}).join('');
-const deals={"Новая заявка":[{n:"Офис 120 м², Достык",a:"Аренда",m:"$2 400/мес",b:"Асель К.",c:["c-rent","c-call"]},{n:"Торговое пом., Сайран",a:"Продажа",m:"$185 000",b:"Тимур Б.",c:["c-sale","c-wa"]}],"Показ":[{n:"Склад 800 м², Илийский",a:"Аренда",m:"$3 100/мес",b:"Иван Иванович",c:["c-rent","c-tg"]}],"Переговоры":[{n:"БЦ, этаж 4, Аль-Фараби",a:"Аренда",m:"$5 600/мес",b:"Иван Иванович",c:["c-rent","c-call"]},{n:"Помещение HoReCa, центр",a:"Продажа",m:"$240 000",b:"Дамир С.",c:["c-sale","c-wa"]}],"Договор":[{n:"Офис 60 м², Самал",a:"Аренда",m:"$1 300/мес",b:"Асель К.",c:["c-rent"]}],"Закрыта":[{n:"Ритейл, пр. Абая",a:"Продажа",m:"$320 000",b:"Тимур Б.",c:["c-sale"]}]};
-const chip={"c-wa":"WhatsApp","c-tg":"Telegram","c-call":"Звонок","c-rent":"Аренда","c-sale":"Продажа"};
-function buildBoard(el,data){for(const[st,list]of Object.entries(data)){const col=document.createElement('div');col.className='col';col.innerHTML=`<div class="ch"><span>${st}</span><span class="n">${list.length}</span></div>`;list.forEach(d=>{const e=document.createElement('div');e.className='deal';e.innerHTML=`<div class="dn">${d.n}</div><div class="da">${d.a}</div><div class="dm">${d.m}</div>${d.c?`<div>${d.c.map(c=>`<span class="chip ${c}">${chip[c]}</span>`).join('')}</div>`:''}${d.b?`<div class="brk">⬤ ${d.b}</div>`:''}`;e.onclick=()=>openDeal(d,st);col.appendChild(e);});el.appendChild(col);}}
-buildBoard(document.getElementById('board'),deals);
-const owners={"Холодный контакт":[{n:"Собственник БЦ «Алмалы»",a:"Хочет сдать 3 этажа",b:"Тимур Б."}],"Встреча":[{n:"Владелец склада, Илийский",a:"Продажа 1200 м²",b:"Иван Иванович"}],"Эксклюзив":[{n:"ТОО «Гранд», ритейл",a:"Аренда, эксклюзив 6 мес",b:"Асель К."}],"В каталоге":[{n:"Офис 240 м², Көктем",a:"Опубликован",b:"Дамир С."}]};
-buildBoard(document.getElementById('ownerBoard'),owners);
-function checkDup(v){const d=v.replace(/\D/g,'');const w=document.getElementById('dupWarn'),ok=document.getElementById('dupOk');if(d.length<10){w.classList.remove('show');ok.classList.remove('show');return;}if(d.endsWith('7012345678')){document.getElementById('dupText').innerHTML='С этим номером уже работает <b>Иван Иванович</b> с 14.06. Сделка «БЦ, этаж 4, Аль-Фараби», стадия «Переговоры». Свяжитесь с коллегой, чтобы не дублировать звонки.';w.classList.add('show');ok.classList.remove('show');}else{w.classList.remove('show');ok.classList.add('show');}}
-const calls=[{dir:"вх",cl:"+7 701 234 56 78",b:"Иван Иванович",t:"4:12",when:"Сегодня 11:20"},{dir:"исх",cl:"+7 707 555 11 22",b:"Асель К.",t:"2:38",when:"Сегодня 10:05"},{dir:"вх",cl:"+7 700 998 77 66",b:"Тимур Б.",t:"1:54",when:"Вчера 17:40"},{dir:"исх",cl:"+7 705 444 33 22",b:"Дамир С.",t:"6:01",when:"Вчера 15:12"}];
-document.getElementById('callsTbl').innerHTML='<tr><th>Тип</th><th>Клиент</th><th>Брокер</th><th>Длит.</th><th>Запись</th></tr>'+calls.map(c=>`<tr><td><span class="pill ${c.dir=='вх'?'p-paid':'p-soon'}">${c.dir=='вх'?'Входящий':'Исходящий'}</span></td><td><b>${c.cl}</b><div style="font-size:11px;color:var(--muted)">${c.when}</div></td><td>${c.b}</td><td>${c.t}</td><td><button class="mini ghost" onclick="playCall('${c.cl}','${c.t}','${c.b}')">▶ Слушать</button></td></tr>`).join('');
-const events={3:[['show','Показ: Офис 120 м²']],5:[['deal','Дедлайн: Склад 800 м²']],10:[['show','Показ: HoReCa 90 м²'],['show','Показ: БЦ этаж 4']],14:[['show','Показ: Офис 60 м²']],18:[['end','Договор истекает: ТЦ Сайран']],23:[['show','Показ: open-space 240 м²']],27:[['deal','Подписание: Ритейл Абая']]};
-const dh=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];let cal=dh.map(d=>`<div class="dh">${d}</div>`).join('');for(let i=0;i<2;i++)cal+='<div class="cell" style="opacity:.4"></div>';for(let d=1;d<=30;d++){const ev=events[d]||[];cal+=`<div class="cell${d==23?' today':''}"><div class="dn">${d}</div>${ev.map(e=>`<div class="ev ${e[0]}">${e[1]}</div>`).join('')}</div>`;}
-document.getElementById('calGrid').innerHTML=cal;
-const botMsgs=[['bot','Здравствуйте! 👋 Я бот агентства. Помогу подобрать коммерческую недвижимость. Вас интересует аренда или покупка?',['Аренда','Покупка']],['usr','Аренда'],['bot','Отлично! Какой тип объекта нужен?',['Офис','Склад','Торговое','HoReCa']],['usr','Офис'],['bot','Какая площадь и район интересуют? Например: «100–150 м², центр»'],['usr','120 м², Достык, до $2500'],['bot','Принял ✅ Подобрал 3 объекта под ваш запрос и передал брокеру Асель — она свяжется в течение 10 минут. Отправляю подборку...']];
-let bi=0;const bb=document.getElementById('botBody');
-function botStep(){if(bi>=botMsgs.length){bi=0;bb.innerHTML='';setTimeout(botStep,1200);return;}const[role,txt,opts]=botMsgs[bi];const el=document.createElement('div');el.className='bub '+role;el.innerHTML=txt+(opts?`<div class="qopts">${opts.map(o=>`<span>${o}</span>`).join('')}</div>`:'');bb.appendChild(el);bb.scrollTop=bb.scrollHeight;bi++;setTimeout(botStep,role=='bot'?1700:900);}
-botStep();
-const revs=[{cl:"ТОО «Восток»",b:"Иван Иванович",r:5,txt:"Быстро подобрали офис, всё чётко"},{cl:"ИП Сериков",b:"Асель К.",r:5,txt:"Отличный сервис"},{cl:"ТОО «Меркур»",b:"Тимур Б.",r:4,txt:"Хорошо, но долго отвечали"},{cl:"Кафе «Алма»",b:"Дамир С.",r:5,txt:"Помогли с арендой под HoReCa"}];
-document.getElementById('revTbl').innerHTML='<tr><th>Клиент</th><th>Брокер</th><th>Оценка</th><th>Отзыв</th></tr>'+revs.map(r=>`<tr><td><b>${r.cl}</b></td><td>${r.b}</td><td><span class="stars">${'★'.repeat(r.r)}${'☆'.repeat(5-r.r)}</span></td><td style="color:var(--muted)">${r.txt}</td></tr>`).join('');
-const prez=[{t:"Офис 120 м²",l:"Аренда · Достык",s:"Шаблон-эталон"},{t:"Торговое пом.",l:"Продажа · Сайран",s:"На основе эталона"},{t:"Склад 800 м²",l:"Аренда · Илийский",s:"На основе эталона"},{t:"БЦ, этаж 4",l:"Аренда · Аль-Фараби",s:"На основе эталона"}];
-document.getElementById('prezGrid').innerHTML=prez.map(p=>`<div class="slide"><div class="pv"><div class="pt">${p.t}</div><div class="pd"></div></div><div class="pl">${p.l}</div><div class="ps">${p.s}</div></div>`).join('')+`<div class="slide" style="display:flex;align-items:center;justify-content:center;min-height:150px;border-style:dashed"><div style="text-align:center;color:var(--muted)"><div style="font-size:26px;color:var(--bronze)">＋</div><div style="font-size:12px;font-weight:600;margin-top:4px">Новая презентация</div></div></div>`;
-const objs=[{n:"БЦ «Достык Плаза»",t:"Бизнес-центр · 4 этажа",coll:96},{n:"ТЦ «Сайран»",t:"Торговый центр",coll:88},{n:"Склад «Илийский»",t:"Складской комплекс",coll:100},{n:"Офисный блок Самал",t:"Офисы · 12 помещений",coll:74}];
-const og=document.getElementById('objgrid');objs.forEach(o=>{const el=document.createElement('div');el.className='obj';el.innerHTML=`<div class="on">${o.n}</div><div class="ot">${o.t}</div><div class="bar"><i style="width:${o.coll}%"></i></div><div class="bl"><span>Собираемость</span><b>${o.coll}%</b></div>`;el.onclick=()=>openObj(o);og.appendChild(el);});
-const contracts=[{ob:"БЦ «Достык Плаза» · оф.4",ten:"ТОО «Логос»",end:"31.08.2026",idx:"+8% с 01.07",st:"p-act"},{ob:"ТЦ «Сайран» · бутик 14",ten:"ИП Аскарова",end:"18.07.2026",idx:"индексация скоро",st:"p-soon"},{ob:"Офисный блок Самал · оф.7",ten:"ТОО «Дина»",end:"05.07.2026",idx:"продление?",st:"p-soon"},{ob:"Склад «Илийский» · секц.2",ten:"ТОО «КаргоПлюс»",end:"31.12.2026",idx:"фикс",st:"p-act"}];
-document.getElementById('contractsTbl').innerHTML='<tr><th>Объект</th><th>Арендатор</th><th>Окончание</th><th>Индексация</th><th>Статус</th></tr>'+contracts.map(c=>`<tr><td><b>${c.ob}</b></td><td>${c.ten}</td><td>${c.end}</td><td style="color:var(--muted)">${c.idx}</td><td><span class="pill ${c.st}">${c.st=='p-soon'?'Истекает скоро':'Действует'}</span></td></tr>`).join('');
-const debts=[{c:"БЦ «Достык Плаза» · оф.3",sum:"₸ 480 000",due:"просрочено 9 дн",st:"p-over"},{c:"Офисный блок Самал · оф.7",sum:"₸ 210 000",due:"просрочено 3 дн",st:"p-over"},{c:"ТЦ «Сайран» · бутик 14",sum:"₸ 95 000",due:"до 26.06",st:"p-soon"},{c:"Склад «Илийский» · секц.2",sum:"₸ 320 000",due:"оплачено",st:"p-paid"}];
-document.getElementById('debtTbl').innerHTML='<tr><th>Объект / арендатор</th><th>Сумма</th><th>Статус</th><th>Срок</th><th></th></tr>'+debts.map(d=>`<tr><td><b>${d.c}</b></td><td>${d.sum}</td><td><span class="pill ${d.st}">${d.st=='p-over'?'Долг':d.st=='p-soon'?'Скоро':'Оплачено'}</span></td><td style="color:var(--muted)">${d.due}</td><td>${d.st=='p-paid'?'—':'<button class="mini ghost">⎙ Счёт</button>'}</td></tr>`).join('');
-const ov=document.getElementById('ov'),modal=document.getElementById('modal');
-function show(h){modal.innerHTML=h;ov.classList.add('show');}
-ov.onclick=e=>{if(e.target===ov)ov.classList.remove('show');};
-function close(){ov.classList.remove('show');}
-function openListing(i){const l=listings[i];show(`<div class="mh"><button class="mx" onclick="close()">×</button><div class="mt">${l.t}</div><div class="ms">${l.type=='rent'?'Аренда':'Продажа'} · ${l.price} · ${stName[l.st]}</div></div><div class="mb"><div class="mgal"><div class="${l.img}"><div class="ph-win"></div></div><div class="${ph[(i+1)%6]}"><div class="ph-win"></div></div><div class="${ph[(i+3)%6]}"><div class="ph-win"></div></div></div><div class="row"><span class="rl">Площадь</span><span class="rv">${l.area}</span></div><div class="row"><span class="rl">Этаж / тип</span><span class="rv">${l.fl}</span></div><div class="row"><span class="rl">Адрес</span><span class="rv">${l.loc}</span></div><div class="row"><span class="rl">Публикация</span><span class="rv" style="color:var(--green)">Krisha ✓ · Instagram ✓</span></div><div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap"><button class="mini">📄 Презентация</button><button class="mini ghost">📅 Назначить показ</button><button class="mini ghost">🎯 Подобрать клиента</button></div></div>`);}
-function openDeal(d,st){show(`<div class="mh"><button class="mx" onclick="close()">×</button><div class="mt">${d.n}</div><div class="ms">${st}${d.a?' · '+d.a:''}${d.m?' · '+d.m:''}</div></div><div class="mb">${d.b?`<div class="row"><span class="rl">Ответственный</span><span class="rv">${d.b}</span></div>`:''}<div class="row"><span class="rl">Стадия</span><span class="rv">${st}</span></div><h3 style="margin:16px 0 4px;font-size:14px;color:var(--navy)">Коммуникация</h3><div class="timeline"><div class="tl"><div class="td"></div><div><div class="tx">WhatsApp: отправили подборку объектов</div><div class="ty">Сегодня, 12:10</div></div></div><div class="tl"><div class="td"></div><div><div class="tx">Входящий звонок 4:12</div><div class="ty">Сегодня, 11:20</div><div class="audio"><button class="play">▶</button><div class="wave"></div><span style="font-size:11px;color:var(--muted)">4:12</span></div></div></div><div class="tl"><div class="td"></div><div><div class="tx">Заявка с Krisha.kz</div><div class="ty">2 дня назад</div></div></div></div></div>`);}
-function playCall(cl,t,b){show(`<div class="mh"><button class="mx" onclick="close()">×</button><div class="mt">Запись разговора</div><div class="ms">${cl} · брокер ${b}</div></div><div class="mb"><div class="row"><span class="rl">Клиент</span><span class="rv">${cl}</span></div><div class="row"><span class="rl">Брокер</span><span class="rv">${b}</span></div><div class="row"><span class="rl">Длительность</span><span class="rv">${t}</span></div><div class="audio" style="margin-top:14px"><button class="play">▶</button><div class="wave"></div><span style="font-size:11px;color:var(--muted)">${t}</span></div><div class="note" style="margin-top:14px">Запись хранится в карточке клиента. В демо воспроизведение не активно.</div></div>`);}
-function openObj(o){show(`<div class="mh"><button class="mx" onclick="close()">×</button><div class="mt">${o.n}</div><div class="ms">${o.t}</div></div><div class="mb"><div class="row"><span class="rl">Собираемость</span><span class="rv">${o.coll}%</span></div><div class="row"><span class="rl">Тариф аренды</span><span class="rv">от ₸ 4 500 / м²</span></div><div class="row"><span class="rl">Связанная сделка</span><span class="rv">из контура «Продажи»</span></div><h3 style="margin:16px 0 4px;font-size:14px;color:var(--navy)">Заявки и события</h3><div class="timeline"><div class="tl"><div class="td"></div><div><div class="tx">Заявка арендатора: ремонт кондиционера</div><div class="ty">Сегодня</div></div></div><div class="tl"><div class="td"></div><div><div class="tx">Платёж зачислен — ₸ 1 200 000</div><div class="ty">3 дня назад</div></div></div><div class="tl"><div class="td"></div><div><div class="tx">Объект принят в управление</div><div class="ty">2 мес назад</div></div></div></div></div>`);}
+/* ---------- AUTH ---------- */
+const roles={
+  boss:{name:'Руководитель',role:'Руководитель',av:'Р'},
+  broker:{name:'Иван Иванович',role:'Брокер',av:'И'},
+  manager:{name:'Дильшат',role:'Управляющий',av:'Д'}
+};
+function login(r){
+  const u=roles[r];
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('sfName').textContent=u.name;
+  document.getElementById('sfRole').textContent=u.role;
+  document.getElementById('sfAv').textContent=u.av;
+  const pills=document.getElementById('ctxPills');
+  if(r==='boss'){pills.classList.remove('hidden');switchContext('sales');}
+  else if(r==='manager'){pills.classList.add('hidden');switchContext('mgmt');}
+  else {pills.classList.add('hidden');switchContext('sales');}
+}
+function logout(){
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login').classList.remove('hidden');
+}
+function switchContext(ctx){
+  document.getElementById('pillSales').classList.toggle('active',ctx==='sales');
+  document.getElementById('pillMgmt').classList.toggle('active',ctx==='mgmt');
+  document.getElementById('navSales').classList.toggle('hidden',ctx!=='sales');
+  document.getElementById('navMgmt').classList.toggle('hidden',ctx!=='mgmt');
+  showSection(ctx==='sales'?'dashboard':'m_summary',null);
+  const links=document.querySelectorAll((ctx==='sales'?'#navSales':'#navMgmt')+' .nav-link');
+  links.forEach((l,i)=>l.classList.toggle('active',i===0));
+}
+function showSection(id,el){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(el){document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));el.classList.add('active');}
+}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function overlayClose(e,id){if(e.target.id===id)closeModal(id);}
+
+/* ---------- WAVEFORM ---------- */
+function wave(n,color,h){
+  let s='';n=n||34;for(let i=0;i<n;i++){s+=`<span style="height:${20+Math.random()*80}%;background:${color||'var(--navy3)'}"></span>`;}
+  return `<div class="wave" style="height:${h||34}px">${s}</div>`;
+}
+
+/* ---------- CATALOG ---------- */
+const listings=[
+  {t:'Офис на пр. Достык',a:'145 м²',p:'$3200/мес',type:'Офис',st:'Активен',floor:'4 этаж',ph:'ph-a',addr:'пр. Достык 240',year:'2018',park:'Подземная',rem:'Евроремонт'},
+  {t:'Склад на Илийском тракте',a:'800 м²',p:'₸3 100 000/мес',type:'Склад',st:'Активен',floor:'1 этаж',ph:'ph-b',addr:'Илийский тракт 15',year:'2015',park:'Грузовая',rem:'Под отделку'},
+  {t:'Торговый на пр. Абая',a:'220 м²',p:'$5800/мес',type:'Торговый',st:'Активен',floor:'1 этаж',ph:'ph-c',addr:'пр. Абая 109',year:'2020',park:'Наземная',rem:'Дизайнерский'},
+  {t:'Офис мкр. Самал-2',a:'90 м²',p:'$1800/мес',type:'Офис',st:'Аренда',floor:'3 этаж',ph:'ph-d',addr:'мкр. Самал-2, 33',year:'2012',park:'Наземная',rem:'Свежий ремонт'},
+  {t:'Производство пр. Сатпаева',a:'1200 м²',p:'₸5 500 000/мес',type:'Склад',st:'Активен',floor:'1 этаж',ph:'ph-e',addr:'пр. Сатпаева 90',year:'2010',park:'Грузовая',rem:'Промышленный'},
+  {t:'Офис пр. Аль-Фараби',a:'185 м²',p:'$4100/мес',type:'Офис',st:'Активен',floor:'8 этаж',ph:'ph-a',addr:'пр. Аль-Фараби 77',year:'2021',park:'Подземная',rem:'Премиум'},
+  {t:'Торговый ул. Панфилова',a:'78 м²',p:'$2900/мес',type:'Торговый',st:'Аренда',floor:'1 этаж',ph:'ph-c',addr:'ул. Панфилова 98',year:'2016',park:'Наземная',rem:'Готов к работе'},
+  {t:'Склад мкр. Сайран',a:'450 м²',p:'₸1 900 000/мес',type:'Склад',st:'Активен',floor:'1 этаж',ph:'ph-b',addr:'мкр. Сайран 12',year:'2014',park:'Грузовая',rem:'Стандарт'}
+];
+function typeBadge(t){return t==='Офис'?'b-blue':t==='Склад'?'b-amber':'b-purple';}
+(function(){
+  document.getElementById('catalogGrid').innerHTML=listings.map((l,i)=>`
+    <div class="listing" onclick="openListing(${i})">
+      <div class="photo ${l.ph}"><div class="tags"><span class="badge ${typeBadge(l.type)}">${l.type}</span><span class="badge ${l.st==='Активен'?'b-green':'b-amber'}">${l.st}</span></div></div>
+      <div class="body"><div class="lt">${l.t}, ${l.a}</div><div class="lp">${l.p}</div></div>
+    </div>`).join('');
+})();
+function openListing(i){
+  const l=listings[i];
+  document.getElementById('listingModal').innerHTML=`
+    <div class="modal-head">
+      <button class="x" onclick="closeModal('ov-listing')">×</button>
+      <h2>${l.t}, ${l.a}</h2>
+      <div style="display:flex;gap:8px;align-items:center"><span class="mp">${l.p}</span>
+      <span class="badge ${typeBadge(l.type)}">${l.type}</span><span class="badge b-green">${l.st}</span></div>
+    </div>
+    <div class="modal-body">
+      <div class="photo-strip"><div class="${l.ph}" style="flex:2"></div><div class="ph-c" style="flex:1"></div><div class="ph-d" style="flex:1"></div></div>
+      <table class="char-table">
+        <tr><td>Площадь</td><td>${l.a}</td></tr>
+        <tr><td>Этаж</td><td>${l.floor}</td></tr>
+        <tr><td>Адрес</td><td>${l.addr}</td></tr>
+        <tr><td>Ремонт</td><td>${l.rem}</td></tr>
+        <tr><td>Парковка</td><td>${l.park}</td></tr>
+        <tr><td>Год постройки</td><td>${l.year}</td></tr>
+      </table>
+      <div class="sec-h">Опубликовано на:</div>
+      <div class="pub-pills">
+        <span class="pill b-green">Krisha.kz ✓</span>
+        <span class="pill b-green">Instagram ✓</span>
+        <span class="pill b-gray">OLX <button class="btn-ghost" style="padding:2px 8px;margin-left:4px;font-size:11px">Добавить</button></span>
+      </div>
+      <div class="sec-h">Коммуникация с клиентами</div>
+      <div class="mini-chat"><div class="avatar" style="width:34px;height:34px;font-size:12px">МС</div><div><div class="mc-name">Марат Сейтов</div><div class="mc-msg">Можно посмотреть в среду?</div></div><div class="mc-time">14:30</div></div>
+      <div class="mini-chat"><div class="avatar" style="width:34px;height:34px;font-size:12px">АЖ</div><div><div class="mc-name">Айгерим Жанова</div><div class="mc-msg">Какая площадь свободна?</div></div><div class="mc-time">вчера</div></div>
+      <div class="mini-chat"><div class="avatar" style="width:34px;height:34px;font-size:12px">СС</div><div><div class="mc-name">ИП Сериков</div><div class="mc-msg">Спасибо, подумаем</div></div><div class="mc-time">2 дня</div></div>
+      <div class="sec-h">Звонки по объекту</div>
+      <div class="call-row"><button class="play">▶</button><div><div class="cn">Марат Сейтов</div><div class="cd">входящий · 4:23</div></div>${wave(30,'var(--bronze)')}</div>
+      <div class="call-row"><button class="play">▶</button><div><div class="cn">Айгерим Жанова</div><div class="cd">исходящий · 2:11</div></div>${wave(30,'var(--bronze)')}</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-bronze">Создать презентацию PDF</button>
+      <button class="btn">Назначить показ</button>
+      <button class="btn-ghost">Найти похожих клиентов</button>
+      <button class="btn-ghost">Поделиться в WhatsApp</button>
+    </div>`;
+  openModal('ov-listing');
+}
+
+/* ---------- MATCH ---------- */
+function runMatch(){
+  const r=[0,3,5];
+  document.getElementById('matchResults').innerHTML='<div style="font-weight:600;margin-bottom:12px;color:var(--ink)">Найдено 3 объекта:</div>'+
+  r.map(i=>{const l=listings[i];return `<div class="mini-chat" style="cursor:pointer" onclick="openListing(${i})"><div class="${l.ph}" style="width:46px;height:46px;border-radius:7px"></div><div><div class="mc-name">${l.t}, ${l.a}</div><div class="mc-msg">${l.p} · ${l.floor}</div></div><span class="badge b-green" style="margin-left:auto">94% совпадение</span></div>`;}).join('');
+}
+
+/* ---------- DEALS KANBAN ---------- */
+const dealCols=[
+  {h:'Новая заявка',cards:[
+    {n:'Марат Сейтов',co:'ТОО «Меркур»',bud:'$2500–3500',br:'АК'},
+    {n:'Айгерим Жанова',co:'ИП Жанова',bud:'$1500–2000',br:'ДС'},
+    {n:'Бауржан Алиев',co:'ТОО «СтройМир»',bud:'$3000–5000',br:'ИП'}
+  ]},
+  {h:'Показ',cards:[
+    {n:'ТОО «КаргоПлюс»',co:'логистика',bud:'₸3 000 000',br:'ТБ'},
+    {n:'Самал Нуржанова',co:'ИП',bud:'$2000–2800',br:'АК'}
+  ]},
+  {h:'Переговоры',cards:[
+    {n:'ИП Сериков',co:'розница',bud:'$5000–6000',br:'ИП'},
+    {n:'ТОО «АлмаПром»',co:'производство',bud:'₸5 000 000',br:'ТБ'}
+  ]},
+  {h:'Договор',cards:[{n:'ТОО «Глобал»',co:'IT',bud:'$4000',br:'АК'}]},
+  {h:'Закрыта',cards:[{n:'Ержан Касымов',co:'ТОО «Вектор»',bud:'$3200',br:'ИП'}]}
+];
+(function(){
+  document.getElementById('dealsKanban').innerHTML=dealCols.map(c=>`
+    <div class="kcol"><div class="kcol-h">${c.h}<span class="cnt">${c.cards.length}</span></div>
+    ${c.cards.map(d=>`<div class="dcard" onclick="openDeal('${d.n}')"><div class="dn">${d.n}</div><div class="dco">${d.co}</div><div class="dbot"><span class="dbud">${d.bud}</span><span class="av-sm">${d.br}</span></div></div>`).join('')}
+    </div>`).join('');
+})();
+function openDeal(name){
+  document.getElementById('dealModal').innerHTML=`
+    <div class="modal-head"><button class="x" onclick="closeModal('ov-deal')">×</button>
+      <h2>Сделка · ${name}</h2><div><span class="badge b-purple">Показ</span></div></div>
+    <div class="tabs">
+      <button class="active" onclick="switchTab('dealModal','d1',this)">Сделка</button>
+      <button onclick="switchTab('dealModal','d2',this)">Диалог</button>
+      <button onclick="switchTab('dealModal','d3',this)">Звонки</button>
+      <button onclick="switchTab('dealModal','d4',this)">Задачи</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-pane active" id="d1">
+        <div class="info-line"><span class="il">Клиент</span><span class="iv">Марат Сейтов</span></div>
+        <div class="info-line"><span class="il">Телефон</span><span class="iv">+7 701 234 56 78</span></div>
+        <div class="info-line"><span class="il">Компания</span><span class="iv">ТОО «Меркур»</span></div>
+        <div class="info-line"><span class="il">Запрос</span><span class="iv">Аренда офиса 120 м², центр</span></div>
+        <div class="info-line"><span class="il">Стадия</span><span class="iv">Показ</span></div>
+        <div class="info-line"><span class="il">Бюджет</span><span class="iv">$2500–3500/мес</span></div>
+        <div class="info-line"><span class="il">Источник</span><span class="iv">Krisha.kz</span></div>
+        <div class="info-line"><span class="il">Брокер</span><span class="iv">Асель Кажимова</span></div>
+      </div>
+      <div class="tab-pane" id="d2"><div class="chat">
+        <div class="bubble broker">Добрый день, Марат Ержанович! Это Асель из агентства Pllato. Вы оставили заявку на аренду офиса?<span class="bt">10:02</span></div>
+        <div class="bubble client">Да, здравствуйте. Нам нужно около 120 квадратов, желательно на Достык или Сатпаева<span class="bt">10:05</span></div>
+        <div class="bubble broker">Отлично, у нас есть несколько вариантов. Отправляю подборку в WhatsApp, удобно?<span class="bt">10:06</span></div>
+        <div class="bubble client">Да, буду ждать<span class="bt">10:07</span></div>
+        <div class="bubble broker">Вот 3 объекта — смотрите подборку. Какой из них заинтересовал?<span class="bt">10:20</span></div>
+        <div class="bubble client">Первый интересует, можно посмотреть на этой неделе?<span class="bt">10:42</span></div>
+        <div class="bubble broker">Конечно! Предлагаю среду в 15:00 или четверг в 11:00?<span class="bt">10:44</span></div>
+      </div></div>
+      <div class="tab-pane" id="d3">
+        <div class="call-row"><button class="play">▶</button><div><div class="cn">Входящий · 23.06 14:30</div><div class="cd">4:23 · уточнение по объекту</div></div>${wave(28,'var(--bronze)')}</div>
+        <div class="call-row"><button class="play">▶</button><div><div class="cn">Исходящий · 22.06 11:00</div><div class="cd">2:11 · согласование показа</div></div>${wave(28,'var(--bronze)')}</div>
+      </div>
+      <div class="tab-pane" id="d4">
+        <div class="task"><input type="checkbox"><span>Выезд на показ — ср 25 июня 15:00</span></div>
+        <div class="task done"><input type="checkbox" checked><span>Отправить КП по объекту</span></div>
+        <div class="task"><input type="checkbox"><span>Согласовать договор аренды</span></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn">Позвонить</button>
+      <button class="btn btn-bronze">WhatsApp</button>
+      <button class="btn-ghost">Перевести дальше ›</button>
+      <button class="btn-ghost">Прикрепить объект</button>
+    </div>`;
+  openModal('ov-deal');
+}
+
+/* ---------- OWNERS ---------- */
+const ownerCols=[
+  {h:'Холодный контакт',cards:[{n:'Дильшат Мухамедов',pr:'БЦ на Розыбакиева'},{n:'Гульнара Ким',pr:'Склад на Толе би'}]},
+  {h:'Встреча',cards:[{n:'Ербол Темиров',pr:'Офис на Сейфуллина'},{n:'ТОО «Капитал»',pr:'ТЦ на Жандосова'}]},
+  {h:'Эксклюзив',cards:[{n:'Аскар Жумабаев',pr:'Производство Бекмаханова'}]},
+  {h:'В каталоге',cards:[{n:'ТОО «Меркур»',pr:'Офис Достык'},{n:'ИП Сериков',pr:'Торговый Абая'}]}
+];
+(function(){
+  document.getElementById('ownersKanban').innerHTML=ownerCols.map(c=>`
+    <div class="kcol"><div class="kcol-h">${c.h}<span class="cnt">${c.cards.length}</span></div>
+    ${c.cards.map(o=>`<div class="dcard" onclick="openOwner('${o.n}','${o.pr}')"><div class="dn">${o.n}</div><div class="dco">${o.pr}</div></div>`).join('')}
+    </div>`).join('');
+})();
+function openOwner(n,pr){
+  document.getElementById('ownerModal').innerHTML=`
+    <div class="modal-head"><button class="x" onclick="closeModal('ov-owner')">×</button>
+      <h2>Собственник · ${n}</h2><div><span class="badge b-amber">Встреча</span></div></div>
+    <div class="modal-body">
+      <div class="info-line"><span class="il">Имя</span><span class="iv">${n}</span></div>
+      <div class="info-line"><span class="il">Телефон</span><span class="iv">+7 701 555 22 11</span></div>
+      <div class="info-line"><span class="il">Объект</span><span class="iv">${pr}</span></div>
+      <div class="sec-h">История контакта</div>
+      <p style="color:var(--muted);font-size:13.5px">Познакомились на выставке ExpoReal. Собственник рассматривает сдачу через агентство.</p>
+      <div class="sec-h">WhatsApp-диалог</div>
+      <div class="chat">
+        <div class="bubble client">Нам не нужен эксклюзив, мы работаем с несколькими агентствами<span class="bt">12:10</span></div>
+        <div class="bubble broker">Понимаю, Дильшат Мухамедович. При эксклюзиве мы вкладываем в рекламу до ₸500 000 и приводим проверенных арендаторов<span class="bt">12:14</span></div>
+        <div class="bubble client">Интересно, давайте встретимся и обсудим<span class="bt">12:20</span></div>
+        <div class="bubble broker">Отлично! Предлагаю пятницу в 14:00, удобно?<span class="bt">12:21</span></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn">Позвонить</button><button class="btn btn-bronze">WhatsApp</button>
+      <button class="btn-ghost">Назначить встречу</button><button class="btn-ghost">Перевести в эксклюзив ›</button>
+    </div>`;
+  openModal('ov-owner');
+}
+
+/* ---------- CALLS ---------- */
+const calls=[
+  {c:'Марат Сейтов',co:'+7 701 234 56 78',br:'Тимур Бекенов',dir:'входящий',dur:'4:23',dt:'сегодня 14:30'},
+  {c:'ТОО «КаргоПлюс»',co:'логистика',br:'Асель Кажимова',dir:'исходящий',dur:'2:11',dt:'вчера 11:15'},
+  {c:'ИП Сериков',co:'розница',br:'Иван Петров',dir:'входящий',dur:'6:47',dt:'20 июня 16:00'},
+  {c:'Айгерим Жанова',co:'ИП',br:'Дамир Сатыбалдиев',dir:'исходящий',dur:'3:30',dt:'19 июня 10:45'}
+];
+(function(){
+  document.getElementById('callsBody').innerHTML=calls.map((c,i)=>`
+    <tr style="cursor:pointer" onclick="openCall(${i})">
+      <td><b>${c.c}</b><br><small style="color:var(--muted)">${c.co}</small></td>
+      <td>${c.br}</td><td>${c.dt}</td>
+      <td><span class="badge ${c.dir==='входящий'?'b-green':'b-blue'}">${c.dir==='входящий'?'↓ вх':'↑ исх'}</span></td>
+      <td>${c.dur}</td>
+      <td><button class="btn-ghost" onclick="event.stopPropagation();openCall(${i})">Слушать</button></td>
+    </tr>`).join('');
+})();
+function openCall(i){
+  const c=calls[i];
+  document.getElementById('callModal').innerHTML=`
+    <div class="modal-head"><button class="x" onclick="closeModal('ov-call')">×</button>
+      <h2>${c.c} · ${c.co}</h2>
+      <div style="font-size:13px;color:#9fb0c4">${c.br} · ${c.dt} · ${c.dir} · ${c.dur}</div></div>
+    <div class="modal-body">
+      <div class="call-row" style="border-color:var(--bronze)"><button class="play">▶</button><div style="flex:1">${wave(40,'var(--bronze)',44)}</div><span class="cd">${c.dur}</span></div>
+      <div class="sec-h">Транскрипция</div>
+      <div class="chat">
+        <div class="bubble broker">Агентство Pllato, добрый день, Тимур слушает</div>
+        <div class="bubble client">Здравствуйте, хотел уточнить по складу на Илийском тракте</div>
+        <div class="bubble broker">Да, склад 800 квадратов, аренда ₸3 100 000 в месяц. Что именно интересует?</div>
+        <div class="bubble client">Можно ли разделить на две секции?</div>
+        <div class="bubble broker">Да, секционирование возможно. Давайте назначим показ?</div>
+      </div>
+      <div class="sec-h">Связанная сделка</div>
+      <span class="pill b-blue" style="cursor:pointer" onclick="closeModal('ov-call');openDeal('${c.c}')">Сделка · ${c.c} ›</span>
+      <div class="sec-h">Итог</div>
+      <p style="font-size:13.5px">Клиент заинтересован. Следующий шаг — назначить показ на этой неделе.</p>
+    </div>
+    <div class="modal-actions"><button class="btn">Перезвонить</button><button class="btn btn-bronze">WhatsApp</button><button class="btn-ghost">К сделке ›</button></div>`;
+  openModal('ov-call');
+}
+
+/* ---------- CALENDAR ---------- */
+(function(){
+  const days=['Пн 23','Вт 24','Ср 25','Чт 26','Пт 27','Сб 28','Вс 29'];
+  const ev={2:[{t:'15:00 Показ · Достык',c:'b-blue'}],3:[{t:'11:00 Показ · Склад',c:'b-green'}],4:[{t:'14:30 Показ · Абая',c:'b-amber'},{t:'17:00 Встреча',c:'b-purple'}],0:[{t:'10:00 Звонок ТОО',c:'b-bronze'}]};
+  document.getElementById('calGrid').innerHTML=days.map((d,i)=>`
+    <div class="cal-day"><div class="cdh">${d}</div>
+    ${(ev[i]||[]).map(e=>`<div class="event ${e.c}">${e.t}</div>`).join('')}</div>`).join('');
+})();
+
+/* ---------- BOT ---------- */
+function botMsg(text,from){
+  const c=document.getElementById('botChat');
+  const div=document.createElement('div');
+  div.className='bubble '+(from==='bot'?'client':'broker');
+  div.style.margin=from==='bot'?'0 auto 10px 0':'0 0 10px auto';
+  div.innerHTML=text;
+  c.appendChild(div);c.scrollTop=c.scrollHeight;
+}
+function botOpts(opts,fn){
+  const c=document.getElementById('botChat');
+  const wrap=document.createElement('div');wrap.className='opts';
+  opts.forEach(o=>{const b=document.createElement('button');b.textContent=o;b.onclick=()=>{wrap.querySelectorAll('button').forEach(x=>x.disabled=true);fn(o);};wrap.appendChild(b);});
+  c.appendChild(wrap);c.scrollTop=c.scrollHeight;
+}
+function botInput(fn){
+  const c=document.getElementById('botChat');
+  const wrap=document.createElement('div');wrap.className='bot-input';
+  const inp=document.createElement('input');inp.placeholder='Ваше имя';
+  const b=document.createElement('button');b.className='btn btn-bronze';b.textContent='Отправить';
+  b.onclick=()=>{if(!inp.value)return;inp.disabled=true;b.disabled=true;fn(inp.value);};
+  wrap.appendChild(inp);wrap.appendChild(b);c.appendChild(wrap);c.scrollTop=c.scrollHeight;
+}
+function initBot(){
+  const c=document.getElementById('botChat');c.innerHTML='';
+  botMsg('Здравствуйте! Агентство Pllato — коммерческая недвижимость Алматы. Что вас интересует?','bot');
+  botOpts(['Аренда офиса','Покупка помещения','Склад/производство','Торговые площади'],(o)=>{
+    botMsg(o,'user');
+    botMsg('Отлично! Укажите нужную площадь:','bot');
+    botOpts(['до 100 м²','100–200 м²','200+ м²'],(a)=>{
+      botMsg(a,'user');
+      botMsg('Какой бюджет планируете? Офисы в центре стоят $1500–4000/мес','bot');
+      botOpts(['до $1500/мес','$1500–3000/мес','выше $3000/мес'],(bd)=>{
+        botMsg(bd,'user');
+        botMsg('Принял! Подбираю варианты и передаю брокеру. Как вас зовут?','bot');
+        botInput((name)=>{
+          botMsg(name,'user');
+          botMsg('Спасибо, '+name+'! Брокер свяжется с вами в течение 10 минут. Вот 3 подходящих объекта:','bot');
+          const props=[listings[0],listings[3],listings[5]];
+          const c2=document.getElementById('botChat');
+          props.forEach(p=>{const d=document.createElement('div');d.className='mini-prop';d.innerHTML=`<div class="mph ${p.ph}"></div><div><div style="font-weight:600;font-size:13px">${p.t}</div><div style="color:var(--muted);font-size:12px">${p.a} · ${p.p}</div></div>`;c2.appendChild(d);});
+          c2.scrollTop=c2.scrollHeight;
+        });
+      });
+    });
+  });
+}
+initBot();
+
+/* ---------- PRESENTATIONS ---------- */
+const press=[
+  {t:'Офис на Достык',p:'$3200/мес',ph:'ph-a'},
+  {t:'Склад Илийский',p:'₸3 100 000',ph:'ph-b'},
+  {t:'Торговый Абая',p:'$5800/мес',ph:'ph-c'},
+  {t:'Офис Аль-Фараби',p:'$4100/мес',ph:'ph-a'}
+];
+(function(){
+  document.getElementById('presGrid').innerHTML=press.map((p,i)=>`
+    <div class="listing" onclick="openPres(${i})"><div class="photo ${p.ph}"><div class="tags"><span class="badge b-bronze">PDF</span></div></div>
+    <div class="body"><div class="lt">Презентация · ${p.t}</div><div class="lp" style="font-size:13px">4 слайда</div></div></div>`).join('');
+})();
+let presCur=0,presData=null;
+function openPres(i){
+  presData=press[i];presCur=0;
+  document.getElementById('presModal').innerHTML=`
+    <div class="modal-head"><button class="x" onclick="closeModal('ov-pres')">×</button>
+      <h2>Презентация · ${presData.t}</h2><div style="color:#9fb0c4;font-size:13px">4 слайда</div></div>
+    <div class="modal-body">
+      <div class="thumbs" id="presThumbs"></div>
+      <div id="presPrev"></div>
+    </div>
+    <div class="modal-actions"><button class="btn btn-bronze">Скачать PDF</button><button class="btn">Поделиться ссылкой</button><button class="btn-ghost">Отправить в WhatsApp</button></div>`;
+  renderPres();openModal('ov-pres');
+}
+function renderPres(){
+  const names=['Обложка','О объекте','Характеристики','Условия'];
+  document.getElementById('presThumbs').innerHTML=names.map((n,i)=>`<div class="thumb ${i===presCur?'active':''}" onclick="presCur=${i};renderPres()">${n}</div>`).join('');
+  const prev=document.getElementById('presPrev');
+  if(presCur===0)prev.innerHTML=`<div class="slide-prev slide-cover"><div style="color:var(--bronzel);font-weight:700;font-size:18px">Pllato·</div><div style="font-size:22px">${presData.t}</div><div class="sp">${presData.p}</div><div style="opacity:.6">Коммерческая недвижимость Алматы</div></div>`;
+  else if(presCur===1)prev.innerHTML=`<div class="slide-prev" style="background:#fff;align-items:stretch;justify-content:flex-start"><h3 style="margin-bottom:14px">О объекте</h3><div style="display:flex;gap:16px"><div class="${presData.ph}" style="width:180px;height:130px;border-radius:8px"></div><p style="color:var(--muted);text-align:left">Современное помещение в престижном районе Алматы. Удобная транспортная развязка, парковка, развитая инфраструктура. Идеально для офиса или представительства.</p></div></div>`;
+  else if(presCur===2)prev.innerHTML=`<div class="slide-prev" style="background:#fff;align-items:stretch"><h3 style="margin-bottom:14px">Характеристики</h3><table class="char-table" style="text-align:left"><tr><td>Площадь</td><td>145 м²</td></tr><tr><td>Этаж</td><td>4 из 9</td></tr><tr><td>Ремонт</td><td>Евро</td></tr><tr><td>Парковка</td><td>Подземная</td></tr></table></div>`;
+  else prev.innerHTML=`<div class="slide-prev slide-cover"><h3 style="color:#fff">Условия аренды</h3><div class="sp">${presData.p}</div><div style="opacity:.8">Депозит · 1 месяц<br>Комиссия агентства · 50%<br>Срок договора · от 11 месяцев</div></div>`;
+}
+
+/* ---------- INTEGRATIONS ---------- */
+const ints=[
+  {id:0,t:'Binotel',sub:'Телефония',st:'Подключён',stc:'b-green',stat:'4 SIP номера · 418 звонков/нед (142 вх / 276 исх)'},
+  {id:1,t:'WhatsApp Business',sub:'Сообщения',st:'Активен',stc:'b-green',stat:'+7 727 310 45 60 · 3 шаблона'},
+  {id:2,t:'Krisha.kz',sub:'Площадка',st:'Подключён',stc:'b-green',stat:'12 объявлений · синхронизация 3 мин назад',toggle:true},
+  {id:3,t:'Instagram',sub:'Соцсети',st:'Активен',stc:'b-green',stat:'@pllato.commercial · охват 12 400/нед',toggle:true},
+  {id:4,t:'WhatsApp-бот',sub:'Автоматизация',st:'Активен',stc:'b-green',stat:'73 лида/мес · конверсия 34%'},
+  {id:5,t:'1С:Бухгалтерия',sub:'Учёт',st:'Не подключён',stc:'b-gray',stat:'Интеграция не настроена'}
+];
+(function(){
+  document.getElementById('intGrid').innerHTML=ints.map(x=>`
+    <div class="card" style="margin:0;cursor:pointer" onclick="openInt(${x.id})">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div class="avatar" style="border-radius:10px">${x.t[0]}</div>
+        <div style="flex:1"><div style="font-weight:600">${x.t}</div><div style="color:var(--muted);font-size:12px">${x.sub}</div></div>
+        <span class="badge ${x.stc}">${x.st}</span>
+      </div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:12px">${x.stat}</div>
+      ${x.toggle?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><div class="toggle on" onclick="event.stopPropagation();this.classList.toggle('on')"><i></i></div><span style="font-size:12.5px">Автопубликация</span></div>`:''}
+      <button class="btn-ghost" onclick="event.stopPropagation();openInt(${x.id})">Настроить</button>
+    </div>`).join('');
+})();
+function openInt(id){
+  let body='';
+  if(id===0)body=`<div class="sec-h">SIP-номера брокеров</div>
+    <table><thead><tr><th>Брокер</th><th>SIP</th><th>Статус</th></tr></thead><tbody>
+    <tr><td>Иван Петров</td><td>101</td><td><span class="badge b-green">онлайн</span></td></tr>
+    <tr><td>Асель Кажимова</td><td>102</td><td><span class="badge b-green">онлайн</span></td></tr>
+    <tr><td>Тимур Бекенов</td><td>103</td><td><span class="badge b-amber">занят</span></td></tr>
+    <tr><td>Дамир Сатыбалдиев</td><td>104</td><td><span class="badge b-gray">офлайн</span></td></tr></tbody></table>
+    <div class="sec-h">Последние звонки</div>
+    <table><tbody>${calls.map(c=>`<tr><td>${c.c}</td><td>${c.dir}</td><td>${c.dur}</td><td>${c.dt}</td></tr>`).join('')}</tbody></table>`;
+  else if(id===1)body=`<div class="sec-h">Шаблоны сообщений</div>
+    <div class="chat"><div class="bubble broker">Здравствуйте! Подобрали для вас 3 объекта: [ссылки]. Какой заинтересовал?<span class="bt">Подборка объектов</span></div></div>
+    <div class="chat" style="margin-top:10px"><div class="bubble broker">Напоминаем, что показ запланирован завтра в 15:00 по адресу [адрес]. Будем ждать!<span class="bt">Напоминание о показе</span></div></div>
+    <div class="chat" style="margin-top:10px"><div class="bubble broker">Спасибо, что выбрали Pllato! Оцените нашу работу: [ссылка]<span class="bt">После сделки — оцените нас</span></div></div>`;
+  else if(id===2)body=`<div class="info-line"><span class="il">API-ключ</span><span class="iv">krsh_••••••••3f9a</span></div>
+    <div class="info-line"><span class="il">Объявлений</span><span class="iv">12</span></div>
+    <div class="info-line"><span class="il">Автопубликация</span><span class="iv">Включена</span></div>
+    <div class="sec-h">Лог синхронизации</div>
+    <div class="mini-chat"><div class="mc-name">Синхронизация успешна</div><div class="mc-time">3 мин назад</div></div>
+    <div class="mini-chat"><div class="mc-name">Обновлено 12 объявлений</div><div class="mc-time">1 час назад</div></div>`;
+  else if(id===3)body=`<div class="info-line"><span class="il">Аккаунт</span><span class="iv">@pllato.commercial</span></div>
+    <div class="info-line"><span class="il">Подписчиков</span><span class="iv">4 820</span></div>
+    <div class="info-line"><span class="il">Охват за неделю</span><span class="iv">12 400</span></div>
+    <div class="sec-h">Последние посты</div>
+    <div class="mini-chat"><div class="ph-a" style="width:46px;height:46px;border-radius:7px"></div><div><div class="mc-name">Офис на Достык</div><div class="mc-msg">2 340 показов · 87 лайков</div></div></div>
+    <div class="mini-chat"><div class="ph-c" style="width:46px;height:46px;border-radius:7px"></div><div><div class="mc-name">Торговый Абая</div><div class="mc-msg">1 980 показов · 64 лайка</div></div></div>`;
+  else if(id===4)body=`<div class="sec-h">Сценарий бота</div>
+    <div style="font-size:13.5px;line-height:2">
+    ● Приветствие<br>&nbsp;&nbsp;└ Выбор типа (офис / покупка / склад / торговое)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;└ Площадь<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ Бюджет<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ Имя клиента<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ Передача брокеру + подборка
+    </div>
+    <button class="btn btn-bronze" style="margin-top:14px">Редактировать сценарий</button>`;
+  else body=`<div class="sec-h">Подключение 1С:Бухгалтерия</div>
+    <p style="font-size:13.5px;color:var(--muted);line-height:1.6">1. Установите модуль обмена в конфигурации 1С.<br>2. Укажите URL веб-сервиса Pllato CRM.<br>3. Введите логин и пароль интеграции.<br>4. Запустите тестовую синхронизацию.</p>
+    <button class="btn btn-bronze" style="margin-top:14px">Подключить</button>`;
+  const x=ints[id];
+  document.getElementById('intModal').innerHTML=`
+    <div class="modal-head"><button class="x" onclick="closeModal('ov-int')">×</button>
+      <h2>${x.t}</h2><div style="color:#9fb0c4;font-size:13px">${x.sub} · ${x.st}</div></div>
+    <div class="modal-body">${body}</div>`;
+  openModal('ov-int');
+}
+
+/* ---------- MODAL TABS ---------- */
+function switchTab(modalId,tab,el){
+  const m=document.getElementById(modalId);
+  m.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  m.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  m.querySelector('#'+tab).classList.add('active');
+}
 </script>
 </body>
 </html>

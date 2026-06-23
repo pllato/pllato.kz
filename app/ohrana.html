@@ -5,165 +5,285 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pllato CRM — демо для охранного агентства</title>
 <style>
-  :root{
-    --navy:#0a1628;--navy2:#142339;--navy3:#1d3050;
-    --bronze:#b8895a;--bronzel:#d4a978;
-    --off:#f7f6f1;--card:#fff;--line:#e6e3da;
-    --ink:#1d2630;--muted:#6b7585;
-    --green:#3f7d52;--greenbg:#eaf3ed;
-    --red:#b1492f;--redbg:#fbeee9;
-    --amber:#c8911f;--amberbg:#fbf2dd;
-    --blue:#2f5d8a;--bluebg:#e9f0f7;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--off);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
-  .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
-  .side{background:var(--navy);color:#cdd4df;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
-  .brand{padding:22px 22px 6px;font-weight:800;font-size:22px;color:#fff;display:flex;align-items:center;gap:2px}
-  .brand .dot{width:7px;height:7px;border-radius:50%;background:var(--bronze);margin-top:10px}
-  .brand small{display:block;font-size:10px;font-weight:600;color:#5f6b82;letter-spacing:.1em;margin-top:4px}
-  .nav{padding:6px 12px;flex:1}
-  .nav .lbl{font-size:10px;letter-spacing:.12em;color:#5f6b82;padding:14px 10px 6px;font-weight:600}
-  .nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;color:#cdd4df;cursor:pointer;font-size:13px;font-weight:500;transition:.15s;margin-bottom:1px}
-  .nav a:hover{background:var(--navy2);color:#fff}
-  .nav a.active{background:var(--navy3);color:#fff}
-  .nav a .ic{width:18px;text-align:center;opacity:.85}
-  .nav a .bdg{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;animation:pulse 1.5s infinite}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-  .who{padding:14px 18px;border-top:1px solid #1c2a40;font-size:12px;display:flex;align-items:center;gap:10px}
-  .avatar{width:30px;height:30px;border-radius:50%;background:var(--bronze);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
-  .main{display:flex;flex-direction:column;min-width:0}
-  .top{background:var(--card);border-bottom:1px solid var(--line);padding:15px 28px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:5}
-  .top h1{font-size:18px;font-weight:700;color:var(--navy)}
-  .top .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
-  .top .search{margin-left:auto;background:var(--off);border:1px solid var(--line);border-radius:9px;padding:8px 13px;font-size:13px;color:var(--muted);min-width:200px}
-  .top .btn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:9px 15px;font-weight:600;font-size:13px;cursor:pointer}
-  .content{padding:24px 28px 70px;overflow:auto}
-  .page{display:none}.page.show{display:block;animation:fade .25s ease}
-  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
-  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;position:relative;overflow:hidden}
-  .kpi:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--bronze)}
-  .kpi.alarm:before{background:var(--red)}.kpi.ok:before{background:var(--green)}
-  .kpi .k{font-size:11px;color:var(--muted);font-weight:600}
-  .kpi .v{font-size:26px;font-weight:800;color:var(--navy);margin-top:6px;line-height:1}
-  .kpi .d{font-size:11.5px;margin-top:7px;font-weight:600}
-  .up{color:var(--green)}.down{color:var(--red)}
-  .grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}
-  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:18px}
-  .panel h3{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:4px;display:flex;align-items:center;gap:8px}
-  .panel .ph{font-size:12px;color:var(--muted);margin-bottom:14px}
-  .row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
-  .row:last-child{border:none}.row .rl{color:var(--muted)}.row .rv{font-weight:600;color:var(--navy)}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th{text-align:left;font-size:11px;color:var(--muted);font-weight:700;padding:9px 12px;border-bottom:2px solid var(--line)}
-  td{padding:11px 12px;border-bottom:1px solid var(--line)}
-  tr:hover td{background:var(--off)}
-  .pill{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;display:inline-block}
-  .p-over{background:var(--redbg);color:var(--red)}.p-soon{background:var(--amberbg);color:var(--amber)}.p-paid{background:var(--greenbg);color:var(--green)}.p-act{background:var(--bluebg);color:var(--blue)}
-  .mini{background:var(--navy);color:#fff;border:none;border-radius:7px;padding:6px 11px;font-size:11.5px;font-weight:600;cursor:pointer}
-  .mini.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
-  .mini.red{background:var(--red)}.mini.green{background:var(--green)}
-  /* board */
-  .board{display:grid;gap:14px;grid-template-columns:repeat(5,1fr)}
-  .col{background:var(--off);border:1px solid var(--line);border-radius:12px;padding:11px;min-height:110px}
-  .col .ch{font-size:12px;font-weight:700;color:var(--navy);display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 2px}
-  .col .ch .n{background:#fff;border:1px solid var(--line);border-radius:8px;font-size:11px;padding:1px 7px;color:var(--muted)}
-  .deal{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px;margin-bottom:9px;cursor:pointer;transition:.15s}
-  .deal:hover{border-color:var(--bronze);box-shadow:0 3px 12px rgba(10,22,40,.07);transform:translateY(-1px)}
-  .deal .dn{font-weight:700;font-size:12.5px;color:var(--navy)}
-  .deal .da{font-size:11.5px;color:var(--muted);margin-top:3px}
-  .deal .dm{font-size:11px;color:var(--bronze);font-weight:700;margin-top:7px}
-  /* object cards (ПЦН) */
-  .objgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
-  .obj{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px;cursor:pointer;transition:.15s;position:relative;border-left:4px solid var(--green)}
-  .obj:hover{box-shadow:0 4px 16px rgba(10,22,40,.08)}
-  .obj.st-alarm{border-left-color:var(--red);background:var(--redbg)}
-  .obj.st-nosig{border-left-color:var(--amber);background:var(--amberbg)}
-  .obj .on{font-weight:700;font-size:13.5px;color:var(--navy)}
-  .obj .ot{font-size:11.5px;color:var(--muted);margin-top:2px}
-  .obj .ostat{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;margin-top:12px}
-  .obj .led{width:9px;height:9px;border-radius:50%;background:var(--green)}
-  .obj.st-alarm .led{background:var(--red);animation:pulse 1s infinite}
-  .obj.st-nosig .led{background:var(--amber)}
-  .obj .dev{margin-top:9px;font-size:10.5px;color:var(--muted)}
-  /* live map */
-  .map{position:relative;height:460px;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#dfe6e2;background-image:linear-gradient(rgba(120,140,130,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(120,140,130,.18) 1px,transparent 1px);background-size:48px 48px}
-  .map .road{position:absolute;background:#fff;opacity:.85}
-  .map .rh{height:13px;left:0;right:0}.map .rv{width:13px;top:0;bottom:0}
-  .map .river{position:absolute;left:-5%;right:-5%;height:40px;background:#bcd4e0;opacity:.7;transform:rotate(-7deg)}
-  .pin{position:absolute;transform:translate(-50%,-100%);cursor:pointer;z-index:2}
-  .pin .dot{width:28px;height:28px;border-radius:50% 50% 50% 0;background:var(--green);transform:rotate(-45deg);box-shadow:0 3px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center}
-  .pin .dot b{transform:rotate(45deg);color:#fff;font-size:13px;font-weight:800;line-height:1}
-  .pin.alarm .dot{background:var(--red);animation:pulse 1s infinite}.pin.nosig .dot{background:var(--amber)}
-  .pin.gbr .dot{background:var(--navy);border-radius:8px}.pin.gbr .dot b{transform:none}
-  .pin:hover{z-index:6}.pin:hover .lbl{display:block}
-  .pin .lbl{display:none;position:absolute;bottom:32px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:6px 10px;border-radius:8px;white-space:nowrap}
-  .maplegend{position:absolute;bottom:14px;left:14px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 13px;font-size:12px;display:flex;gap:14px;flex-wrap:wrap;max-width:80%}
-  .maplegend i{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
-  /* alarm console */
-  .alarmbox{background:var(--navy);color:#fff;border-radius:16px;padding:22px 24px;margin-bottom:18px;position:relative;overflow:hidden}
-  .alarmbox.live{box-shadow:0 0 0 2px var(--red)}
-  .alarmbox .at{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;color:var(--bronzel)}
-  .alarmbox .ev{font-size:22px;font-weight:800;margin-top:10px}
-  .alarmbox .meta{font-size:13px;color:#9aa6ba;margin-top:6px}
-  .alarmbox .timer{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:14px;color:#fff}
-  .alarmbox .acts{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
-  .blip{width:11px;height:11px;border-radius:50%;background:var(--red);animation:pulse 1s infinite}
-  .feed{max-height:340px;overflow:auto}
-  .feeditem{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px;align-items:flex-start}
-  .feeditem .fled{width:9px;height:9px;border-radius:50%;flex:none;margin-top:5px}
-  .fl-red{background:var(--red)}.fl-amber{background:var(--amber)}.fl-green{background:var(--green)}.fl-blue{background:var(--blue)}
-  .feeditem .ft{font-weight:600;color:var(--navy)}.feeditem .fm{font-size:11.5px;color:var(--muted);margin-top:2px}
-  .feeditem .fw{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap}
-  /* gbr crews */
-  .crew{display:flex;align-items:center;gap:14px;padding:13px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:#fff}
-  .crew .ci{width:38px;height:38px;border-radius:10px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex:none;font-size:13px}
-  .crew .cn{font-weight:700;font-size:13.5px;color:var(--navy)}
-  .crew .cs{font-size:11.5px;color:var(--muted);margin-top:2px}
-  .crew .cstat{margin-left:auto;text-align:right}
-  .crew .badge{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px}
-  .b-free{background:var(--greenbg);color:var(--green)}.b-way{background:var(--amberbg);color:var(--amber)}.b-site{background:var(--bluebg);color:var(--blue)}
-  /* integrations */
-  .intg{display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:#fff}
-  .intg .ilogo{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:15px;flex:none}
-  .intg .inm{font-weight:700;font-size:13.5px;color:var(--navy)}
-  .intg .id2{font-size:11.5px;color:var(--muted);margin-top:2px}
-  .toggle{margin-left:auto;width:44px;height:24px;border-radius:20px;background:var(--green);position:relative;cursor:pointer;flex:none}
-  .toggle:after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;right:3px}
-  .toggle.off{background:var(--line)}.toggle.off:after{right:auto;left:3px}
-  /* audio */
-  .audio{display:flex;align-items:center;gap:10px;background:var(--off);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-top:8px}
-  .play{width:30px;height:30px;border-radius:50%;background:var(--bronze);color:#fff;border:none;cursor:pointer;font-size:12px;flex:none}
-  .wave{flex:1;height:22px;background:repeating-linear-gradient(90deg,var(--bronzel) 0 2px,transparent 2px 5px);opacity:.55;border-radius:4px}
-  /* SLA bars */
-  .slabar{height:9px;border-radius:5px;background:var(--off);overflow:hidden;margin-top:8px}
-  .slabar i{display:block;height:100%;border-radius:5px;background:var(--green)}
-  /* timeline */
-  .timeline{margin-top:14px}
-  .tl{display:flex;gap:12px;padding-bottom:16px;position:relative}
-  .tl:before{content:"";position:absolute;left:6px;top:16px;bottom:-2px;width:2px;background:var(--line)}
-  .tl:last-child:before{display:none}
-  .tl .td{width:14px;height:14px;border-radius:50%;background:var(--bronze);flex:none;margin-top:2px;z-index:1;border:3px solid #fff;box-shadow:0 0 0 1px var(--line)}
-  .tl.red .td{background:var(--red)}.tl.green .td{background:var(--green)}.tl.blue .td{background:var(--blue)}
-  .tl .tx{font-size:13px;font-weight:600;color:var(--navy)}.tl .ty{font-size:11.5px;color:var(--muted);margin-top:2px}
-  .ov{position:fixed;inset:0;background:rgba(10,22,40,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
-  .ov.show{display:flex;animation:fade .2s}
-  .modal{background:#fff;border-radius:16px;max-width:580px;width:100%;max-height:88vh;overflow:auto}
-  .modal .mh{background:var(--navy);color:#fff;padding:20px 24px;border-radius:16px 16px 0 0;position:relative}
-  .modal .mh.alarm{background:var(--red)}
-  .modal .mh .mt{font-size:18px;font-weight:800}.modal .mh .ms{font-size:12.5px;color:#9aa6ba;margin-top:3px}
-  .modal .mh.alarm .ms{color:#f5d5ca}
-  .modal .mx{position:absolute;right:18px;top:18px;cursor:pointer;color:#9aa6ba;font-size:20px;background:none;border:none}
-  .modal .mb{padding:22px 24px}
-  .note{background:var(--navy2);color:#cdd4df;border-radius:12px;padding:14px 16px;font-size:12.5px;line-height:1.6;margin-top:6px}
-  .note b{color:var(--bronzel)}
-  .demo-tag{position:fixed;right:14px;bottom:14px;background:var(--bronze);color:#fff;font-size:11px;font-weight:700;padding:7px 13px;border-radius:20px;z-index:40;box-shadow:0 4px 14px rgba(0,0,0,.2)}
-  @media(max-width:900px){.app{grid-template-columns:1fr}.side{position:static;height:auto}.kpis{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.board{grid-template-columns:1fr}}
+:root{
+  --navy:#0a1628;--navy2:#142339;--navy3:#1d3050;
+  --bronze:#b8895a;--bronzel:#d4a978;
+  --off:#f7f6f1;--card:#fff;--line:#e6e3da;
+  --ink:#1d2630;--muted:#6b7585;
+  --green:#3f7d52;--greenbg:#eaf3ed;
+  --red:#b1492f;--redbg:#fbeee9;
+  --amber:#c8911f;--amberbg:#fbf2dd;
+  --blue:#2f5d8a;--bluebg:#e9f0f7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--off);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
+
+/* ─── ROLE SELECTOR ─── */
+#roleScreen{position:fixed;inset:0;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;animation:fade .3s}
+#roleScreen.hide{display:none}
+.role-logo{font-size:28px;font-weight:800;color:#fff;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.role-logo .dot{width:9px;height:9px;border-radius:50%;background:var(--bronze);margin-top:12px}
+.role-logo small{font-size:12px;font-weight:600;color:#5f6b82;letter-spacing:.12em;margin-top:6px;margin-left:4px}
+.role-sub{color:#7e8aa0;font-size:14px;margin-bottom:40px}
+.role-cards{display:flex;gap:20px;flex-wrap:wrap;justify-content:center}
+.role-card{background:var(--navy2);border:2px solid #1c2a40;border-radius:18px;padding:28px 30px;width:230px;cursor:pointer;transition:.2s;text-align:left}
+.role-card:hover{border-color:var(--bronze);background:var(--navy3);transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.role-card .ri{font-size:32px;margin-bottom:14px}
+.role-card .rn{font-size:17px;font-weight:800;color:#fff;margin-bottom:6px}
+.role-card .rd{font-size:12px;color:#7e8aa0;line-height:1.5;margin-bottom:14px}
+.role-card .ra{font-size:11px;color:#5f6b82;line-height:1.6}
+
+/* ─── APP SHELL ─── */
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+.side{background:var(--navy);color:#cdd4df;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.brand{padding:22px 22px 6px;font-weight:800;font-size:22px;color:#fff;display:flex;align-items:center;gap:2px}
+.brand .dot{width:7px;height:7px;border-radius:50%;background:var(--bronze);margin-top:10px}
+.brand small{display:block;font-size:10px;font-weight:600;color:#5f6b82;letter-spacing:.1em;margin-top:4px}
+.nav{padding:6px 12px;flex:1}
+.nav .lbl{font-size:10px;letter-spacing:.12em;color:#5f6b82;padding:14px 10px 6px;font-weight:600}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;color:#cdd4df;cursor:pointer;font-size:13px;font-weight:500;transition:.15s;margin-bottom:1px}
+.nav a:hover{background:var(--navy2);color:#fff}
+.nav a.active{background:var(--navy3);color:#fff}
+.nav a.hidden{display:none}
+.nav a .ic{width:18px;text-align:center;opacity:.85}
+.nav a .bdg{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.who{padding:14px 18px;border-top:1px solid #1c2a40;font-size:12px;display:flex;align-items:center;gap:10px}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--bronze);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.switch-role{background:none;border:1px solid #2a3d5a;color:#7e8aa0;border-radius:7px;padding:5px 10px;font-size:11px;cursor:pointer;margin-top:8px;width:100%;text-align:left;font-family:inherit}
+.switch-role:hover{background:#1c2a40;color:#cdd4df}
+
+.main{display:flex;flex-direction:column;min-width:0}
+.top{background:var(--card);border-bottom:1px solid var(--line);padding:15px 28px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:5}
+.top h1{font-size:18px;font-weight:700;color:var(--navy)}
+.top .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.top .search{margin-left:auto;background:var(--off);border:1px solid var(--line);border-radius:9px;padding:8px 13px;font-size:13px;color:var(--muted);min-width:200px}
+.top .btn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:9px 15px;font-weight:600;font-size:13px;cursor:pointer}
+.content{padding:24px 28px 70px;overflow:auto}
+.page{display:none}.page.show{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ─── KPI ─── */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;position:relative;overflow:hidden}
+.kpi:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--bronze)}
+.kpi.alarm:before{background:var(--red)}.kpi.ok:before{background:var(--green)}
+.kpi .k{font-size:11px;color:var(--muted);font-weight:600}
+.kpi .v{font-size:26px;font-weight:800;color:var(--navy);margin-top:6px;line-height:1}
+.kpi .d{font-size:11.5px;margin-top:7px;font-weight:600}
+.up{color:var(--green)}.down{color:var(--red)}
+.grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:18px}
+.panel h3{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.panel .ph{font-size:12px;color:var(--muted);margin-bottom:14px}
+.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.row:last-child{border:none}.row .rl{color:var(--muted)}.row .rv{font-weight:600;color:var(--navy)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;color:var(--muted);font-weight:700;padding:9px 12px;border-bottom:2px solid var(--line)}
+td{padding:11px 12px;border-bottom:1px solid var(--line)}
+tr:hover td{background:var(--off)}
+tr.clickable{cursor:pointer}
+.pill{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;display:inline-block}
+.p-over{background:var(--redbg);color:var(--red)}.p-soon{background:var(--amberbg);color:var(--amber)}.p-paid{background:var(--greenbg);color:var(--green)}.p-act{background:var(--bluebg);color:var(--blue)}
+.mini{background:var(--navy);color:#fff;border:none;border-radius:7px;padding:6px 11px;font-size:11.5px;font-weight:600;cursor:pointer}
+.mini.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
+.mini.red{background:var(--red)}.mini.green{background:var(--green)}
+
+/* ─── BOARD ─── */
+.board{display:grid;gap:14px;grid-template-columns:repeat(5,1fr)}
+.col{background:var(--off);border:1px solid var(--line);border-radius:12px;padding:11px;min-height:110px}
+.col .ch{font-size:12px;font-weight:700;color:var(--navy);display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 2px}
+.col .ch .n{background:#fff;border:1px solid var(--line);border-radius:8px;font-size:11px;padding:1px 7px;color:var(--muted)}
+.deal{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px;margin-bottom:9px;cursor:pointer;transition:.15s}
+.deal:hover{border-color:var(--bronze);box-shadow:0 3px 12px rgba(10,22,40,.07);transform:translateY(-1px)}
+.deal .dn{font-weight:700;font-size:12.5px;color:var(--navy)}
+.deal .da{font-size:11.5px;color:var(--muted);margin-top:3px}
+.deal .dm{font-size:11px;color:var(--bronze);font-weight:700;margin-top:7px}
+
+/* ─── OBJECTS ─── */
+.objgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.obj{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px;cursor:pointer;transition:.15s;position:relative;border-left:4px solid var(--green)}
+.obj:hover{box-shadow:0 4px 16px rgba(10,22,40,.08)}
+.obj.st-alarm{border-left-color:var(--red);background:var(--redbg)}
+.obj.st-nosig{border-left-color:var(--amber);background:var(--amberbg)}
+.obj .on{font-weight:700;font-size:13.5px;color:var(--navy)}
+.obj .ot{font-size:11.5px;color:var(--muted);margin-top:2px}
+.obj .ostat{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;margin-top:12px}
+.obj .led{width:9px;height:9px;border-radius:50%;background:var(--green)}
+.obj.st-alarm .led{background:var(--red);animation:pulse 1s infinite}
+.obj.st-nosig .led{background:var(--amber)}
+.obj .dev{margin-top:9px;font-size:10.5px;color:var(--muted)}
+
+/* ─── MAP ─── */
+.map{position:relative;height:460px;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#dfe6e2;background-image:linear-gradient(rgba(120,140,130,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(120,140,130,.18) 1px,transparent 1px);background-size:48px 48px}
+.map .road{position:absolute;background:#fff;opacity:.85}
+.map .rh{height:13px;left:0;right:0}.map .rv{width:13px;top:0;bottom:0}
+.map .river{position:absolute;left:-5%;right:-5%;height:40px;background:#bcd4e0;opacity:.7;transform:rotate(-7deg)}
+.pin{position:absolute;transform:translate(-50%,-100%);cursor:pointer;z-index:2}
+.pin .dot{width:28px;height:28px;border-radius:50% 50% 50% 0;background:var(--green);transform:rotate(-45deg);box-shadow:0 3px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center}
+.pin .dot b{transform:rotate(45deg);color:#fff;font-size:13px;font-weight:800;line-height:1}
+.pin.alarm .dot{background:var(--red);animation:pulse 1s infinite}.pin.nosig .dot{background:var(--amber)}
+.pin.gbr .dot{background:var(--navy);border-radius:8px}.pin.gbr .dot b{transform:none}
+.pin:hover{z-index:6}.pin:hover .lbl{display:block}
+.pin .lbl{display:none;position:absolute;bottom:32px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:6px 10px;border-radius:8px;white-space:nowrap}
+.maplegend{position:absolute;bottom:14px;left:14px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 13px;font-size:12px;display:flex;gap:14px;flex-wrap:wrap;max-width:80%}
+.maplegend i{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
+
+/* ─── ALARM CONSOLE ─── */
+.alarmbox{background:var(--navy);color:#fff;border-radius:16px;padding:22px 24px;margin-bottom:18px;position:relative;overflow:hidden}
+.alarmbox.live{box-shadow:0 0 0 2px var(--red)}
+.alarmbox .at{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;color:var(--bronzel)}
+.alarmbox .ev{font-size:22px;font-weight:800;margin-top:10px}
+.alarmbox .meta{font-size:13px;color:#9aa6ba;margin-top:6px}
+.alarmbox .timer{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:14px;color:#fff}
+.alarmbox .acts{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.blip{width:11px;height:11px;border-radius:50%;background:var(--red);animation:pulse 1s infinite}
+.feed{max-height:340px;overflow:auto}
+.feeditem{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px;align-items:flex-start;cursor:pointer;transition:.1s}
+.feeditem:hover{background:var(--off);margin:0 -4px;padding:11px 4px;border-radius:6px}
+.feeditem .fled{width:9px;height:9px;border-radius:50%;flex:none;margin-top:5px}
+.fl-red{background:var(--red)}.fl-amber{background:var(--amber)}.fl-green{background:var(--green)}.fl-blue{background:var(--blue)}
+.feeditem .ft{font-weight:600;color:var(--navy)}.feeditem .fm{font-size:11.5px;color:var(--muted);margin-top:2px}
+.feeditem .fw{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap}
+
+/* ─── CREWS ─── */
+.crew{display:flex;align-items:center;gap:14px;padding:13px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:#fff;cursor:pointer;transition:.15s}
+.crew:hover{border-color:var(--bronze);box-shadow:0 3px 10px rgba(10,22,40,.06)}
+.crew .ci{width:38px;height:38px;border-radius:10px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex:none;font-size:13px}
+.crew .cn{font-weight:700;font-size:13.5px;color:var(--navy)}
+.crew .cs{font-size:11.5px;color:var(--muted);margin-top:2px}
+.crew .cstat{margin-left:auto;text-align:right}
+.crew .badge{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px}
+.b-free{background:var(--greenbg);color:var(--green)}.b-way{background:var(--amberbg);color:var(--amber)}.b-site{background:var(--bluebg);color:var(--blue)}
+
+/* ─── INTEGRATIONS ─── */
+.intg{display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:#fff;cursor:pointer;transition:.15s}
+.intg:hover{border-color:var(--bronze);box-shadow:0 3px 10px rgba(10,22,40,.06)}
+.intg .ilogo{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:15px;flex:none}
+.intg .inm{font-weight:700;font-size:13.5px;color:var(--navy)}
+.intg .id2{font-size:11.5px;color:var(--muted);margin-top:2px}
+.toggle{margin-left:auto;width:44px;height:24px;border-radius:20px;background:var(--green);position:relative;cursor:pointer;flex:none}
+.toggle:after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;right:3px}
+.toggle.off{background:var(--line)}.toggle.off:after{right:auto;left:3px}
+
+/* ─── AUDIO ─── */
+.audio{display:flex;align-items:center;gap:10px;background:var(--off);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-top:8px}
+.play{width:30px;height:30px;border-radius:50%;background:var(--bronze);color:#fff;border:none;cursor:pointer;font-size:12px;flex:none}
+.wave{flex:1;height:22px;background:repeating-linear-gradient(90deg,var(--bronzel) 0 2px,transparent 2px 5px);opacity:.55;border-radius:4px}
+
+/* ─── SLA ─── */
+.slabar{height:9px;border-radius:5px;background:var(--off);overflow:hidden;margin-top:8px}
+.slabar i{display:block;height:100%;border-radius:5px;background:var(--green)}
+
+/* ─── TIMELINE ─── */
+.timeline{margin-top:14px}
+.tl{display:flex;gap:12px;padding-bottom:16px;position:relative}
+.tl:before{content:"";position:absolute;left:6px;top:16px;bottom:-2px;width:2px;background:var(--line)}
+.tl:last-child:before{display:none}
+.tl .td{width:14px;height:14px;border-radius:50%;background:var(--bronze);flex:none;margin-top:2px;z-index:1;border:3px solid #fff;box-shadow:0 0 0 1px var(--line)}
+.tl.red .td{background:var(--red)}.tl.green .td{background:var(--green)}.tl.blue .td{background:var(--blue)}
+.tl .tx{font-size:13px;font-weight:600;color:var(--navy)}.tl .ty{font-size:11.5px;color:var(--muted);margin-top:2px}
+
+/* ─── WA CHAT BUBBLES ─── */
+.wa-chat{background:#e5ddd5;border-radius:12px;padding:12px;margin-top:8px}
+.wa-msg{display:flex;margin-bottom:8px}
+.wa-msg.out{justify-content:flex-end}
+.wa-bubble{max-width:78%;padding:8px 12px;border-radius:12px;font-size:12.5px;line-height:1.5;position:relative}
+.wa-bubble.in{background:#fff;border-radius:0 12px 12px 12px}
+.wa-bubble.out{background:#dcf8c6;border-radius:12px 0 12px 12px}
+.wa-time{font-size:10px;color:#888;text-align:right;margin-top:3px}
+
+/* ─── MODAL ─── */
+.ov{position:fixed;inset:0;background:rgba(10,22,40,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.ov.show{display:flex;animation:fade .2s}
+.modal{background:#fff;border-radius:16px;max-width:620px;width:100%;max-height:88vh;overflow:auto}
+.modal .mh{background:var(--navy);color:#fff;padding:20px 24px;border-radius:16px 16px 0 0;position:relative}
+.modal .mh.alarm{background:var(--red)}
+.modal .mh .mt{font-size:18px;font-weight:800}.modal .mh .ms{font-size:12.5px;color:#9aa6ba;margin-top:3px}
+.modal .mh.alarm .ms{color:#f5d5ca}
+.modal .mx{position:absolute;right:18px;top:18px;cursor:pointer;color:#9aa6ba;font-size:20px;background:none;border:none}
+.modal .mb{padding:22px 24px}
+
+/* ─── TABS ─── */
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin-bottom:18px}
+.tab{padding:8px 16px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:.15s;border-radius:6px 6px 0 0}
+.tab.active{color:var(--navy);border-bottom-color:var(--bronze)}
+.tab:hover{color:var(--navy)}
+.tab-pane{display:none}.tab-pane.show{display:block;animation:fade .2s}
+
+/* ─── ACTIONS ROW ─── */
+.acts-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+.btn-act{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:12.5px;font-weight:600;cursor:pointer;transition:.15s}
+.btn-act:hover{background:var(--navy3)}
+.btn-act.bronze{background:var(--bronze)}
+.btn-act.green{background:var(--green)}
+.btn-act.red{background:var(--red)}
+.btn-act.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
+
+/* ─── MISC ─── */
+.note{background:var(--navy2);color:#cdd4df;border-radius:12px;padding:14px 16px;font-size:12.5px;line-height:1.6;margin-top:6px}
+.note b{color:var(--bronzel)}
+.demo-tag{position:fixed;right:14px;bottom:14px;background:var(--bronze);color:#fff;font-size:11px;font-weight:700;padding:7px 13px;border-radius:20px;z-index:40;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+
+/* wa-preview blocks */
+.wa-prev{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:12.5px;cursor:pointer;transition:.1s}
+.wa-prev:hover{background:var(--off);margin:0 -4px;padding:10px 4px;border-radius:6px}
+.wa-prev:last-child{border:none}
+.wa-prev .wa-ava{width:32px;height:32px;border-radius:50%;background:var(--bronze);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex:none}
+.wa-prev .wa-nm{font-weight:700;color:var(--navy)}
+.wa-prev .wa-tx{color:var(--muted);margin-top:2px;font-size:11.5px}
+.wa-prev .wa-tm{font-size:10.5px;color:var(--muted);margin-left:auto;white-space:nowrap}
+
+/* crew avatars */
+.crew-member{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.crew-member:last-child{border:none}
+.crew-ava{width:40px;height:40px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none}
+.crew-info .cm-name{font-weight:700;font-size:13px;color:var(--navy)}
+.crew-info .cm-role{font-size:11.5px;color:var(--muted);margin-top:2px}
+
+/* tag-line */
+.tag-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:6px}
+
+@media(max-width:900px){
+  .app{grid-template-columns:1fr}
+  .side{position:static;height:auto}
+  .kpis{grid-template-columns:1fr 1fr}
+  .grid2{grid-template-columns:1fr}
+  .board{grid-template-columns:1fr}
+  .role-cards{flex-direction:column;align-items:center}
+}
 </style>
 </head>
 <body>
-<div class="app">
+
+<!-- ─── ROLE SELECTOR ─── -->
+<div id="roleScreen">
+  <div class="role-logo">Pllato<span class="dot"></span><small>ОХРАНА</small></div>
+  <p class="role-sub">Выберите роль для входа в систему</p>
+  <div class="role-cards">
+    <div class="role-card" onclick="selectRole('operator')">
+      <div class="ri">🛰</div>
+      <div class="rn">Оператор ПЦН</div>
+      <div class="rd">Дежурный диспетчер пульта центрального наблюдения</div>
+      <div class="ra">📌 Тревожный монитор · Карта · Объекты<br>🚓 Экипажи ГБР · Журнал · Интеграции</div>
+    </div>
+    <div class="role-card" onclick="selectRole('manager')">
+      <div class="ri">👔</div>
+      <div class="rn">Руководитель</div>
+      <div class="rd">Полный доступ ко всем разделам системы</div>
+      <div class="ra">📌 Все разделы пульта<br>📊 Дашборд · Воронка · Абонплата · Обходы</div>
+    </div>
+    <div class="role-card" onclick="selectRole('gbr')">
+      <div class="ri">🚔</div>
+      <div class="rn">Командир ГБР</div>
+      <div class="rd">Группа быстрого реагирования</div>
+      <div class="ra">📌 Карта объектов · Экипажи<br>🚶 Обходы · Журнал событий</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── APP SHELL ─── -->
+<div class="app" id="appShell" style="display:none">
   <aside class="side">
     <div class="brand">Pllato<span class="dot"></span><small style="margin-left:6px">ОХРАНА</small></div>
     <nav class="nav">
@@ -174,13 +294,20 @@
       <a data-p="crews"><span class="ic">🚓</span> Экипажи ГБР</a>
       <a data-p="journal"><span class="ic">📓</span> Журнал событий</a>
       <a data-p="integrations"><span class="ic">🔌</span> Интеграции</a>
-      <div class="lbl">УПРАВЛЕНИЕ</div>
-      <a data-p="dash"><span class="ic">▦</span> Дашборд / SLA</a>
-      <a data-p="funnel"><span class="ic">⇲</span> Воронка продаж</a>
-      <a data-p="billing"><span class="ic">₸</span> Абонплата и долги</a>
-      <a data-p="patrol"><span class="ic">🚶</span> Обходы / патрули</a>
+      <div class="lbl" id="mgmtLabel">УПРАВЛЕНИЕ</div>
+      <a data-p="dash" id="navDash"><span class="ic">▦</span> Дашборд / SLA</a>
+      <a data-p="funnel" id="navFunnel"><span class="ic">⇲</span> Воронка продаж</a>
+      <a data-p="billing" id="navBilling"><span class="ic">₸</span> Абонплата и долги</a>
+      <a data-p="patrol" id="navPatrol"><span class="ic">🚶</span> Обходы / патрули</a>
     </nav>
-    <div class="who"><div class="avatar">А</div><div>Алексей<br><span style="color:#7e8aa0;font-size:11px">Руководитель</span></div></div>
+    <div class="who">
+      <div class="avatar" id="sideAvatar">А</div>
+      <div>
+        <div id="sideName">—</div>
+        <div style="color:#7e8aa0;font-size:11px" id="sideRole">—</div>
+        <button class="switch-role" onclick="backToRoles()">⟵ Сменить роль</button>
+      </div>
+    </div>
   </aside>
   <div class="main">
     <div class="top">
@@ -204,11 +331,15 @@
           </div>
         </div>
         <div class="grid2">
-          <div class="panel"><h3>🔴 Лента событий пульта</h3><div class="ph">Сигналы, тревоги, постановки/снятия с охраны — в реальном времени</div>
+          <div class="panel"><h3>🔴 Лента событий пульта</h3><div class="ph">Сигналы, тревоги, постановки/снятия — в реальном времени. Нажмите на событие.</div>
             <div class="feed" id="feed"></div></div>
-          <div class="panel"><h3>🚓 Экипажи ГБР</h3><div class="ph">Статус групп быстрого реагирования</div>
-            <div id="crewMini"></div>
-            <div class="note">Среднее время реагирования сегодня: <b>6 мин 12 сек</b> (норматив 10 мин).</div></div>
+          <div>
+            <div class="panel"><h3>🚓 Экипажи ГБР</h3><div class="ph">Статус групп быстрого реагирования</div>
+              <div id="crewMini"></div>
+              <div class="note">Среднее время реагирования: <b>6 мин 12 сек</b> (норматив 10 мин).</div></div>
+            <div class="panel" style="margin-top:0"><h3>💬 Последние WhatsApp-уведомления</h3><div class="ph">Автоматические уведомления клиентам</div>
+              <div id="waPreviews"></div></div>
+          </div>
         </div>
       </section>
 
@@ -225,31 +356,31 @@
             <span><i style="background:var(--navy)"></i>Экипаж ГБР</span>
           </div>
         </div></div>
-        <div class="note">Все охраняемые объекты и экипажи ГБР на карте города в реальном времени. Цвет пина — статус объекта. Нажмите на объект.</div>
+        <div class="note">Все охраняемые объекты и экипажи ГБР на карте. Нажмите на пин для открытия карточки объекта.</div>
       </section>
 
       <!-- OBJECTS -->
       <section class="page" id="objects">
         <div class="objgrid" id="objgrid"></div>
-        <div class="note" style="margin-top:18px">Карточка каждого объекта: тип, адрес, оборудование, статус связи, история сигналов. Нажмите на объект.</div>
+        <div class="note" style="margin-top:18px">Нажмите на карточку объекта — откроется детальная карточка с историей сигналов, связью и действиями.</div>
       </section>
 
       <!-- CREWS -->
       <section class="page" id="crews">
-        <div class="panel"><h3>🚓 Экипажи ГБР</h3><div class="ph">Группы быстрого реагирования: статус, текущая задача, время на смене</div><div id="crewFull"></div></div>
-        <div class="note">Диспетчер видит, какой экипаж свободен и ближе к объекту. Назначение ГБР — в один клик из карточки тревоги.</div>
+        <div class="panel"><h3>🚓 Экипажи ГБР</h3><div class="ph">Нажмите на экипаж для просмотра состава, маршрута и назначения задачи</div><div id="crewFull"></div></div>
+        <div class="note">Диспетчер видит, какой экипаж свободен и ближе к объекту. Назначение ГБР — в один клик.</div>
       </section>
 
       <!-- JOURNAL -->
       <section class="page" id="journal">
-        <div class="panel"><h3>📓 Журнал событий</h3><div class="ph">Полный аудит: тревоги, выезды ГБР, постановки/снятия, звонки</div><table id="journalTbl"></table></div>
-        <div class="note">Каждое событие фиксируется с меткой времени и оператором. Спорную ситуацию можно поднять и разобрать по записям.</div>
+        <div class="panel"><h3>📓 Журнал событий</h3><div class="ph">Нажмите на строку для просмотра полных деталей, аудио и таймлайна обработки</div><table id="journalTbl"></table></div>
+        <div class="note">Каждое событие фиксируется с меткой времени и оператором. Спорную ситуацию разбирают по записям.</div>
       </section>
 
       <!-- INTEGRATIONS -->
       <section class="page" id="integrations">
-        <div class="panel"><h3>🔌 Интеграции систем безопасности</h3><div class="ph">3–4 системы на разном железе и протоколах — в едином окне пульта</div><div id="intgList"></div></div>
-        <div class="note">Сигналы со всех систем (Hikvision, Ajax и аналогов) сводятся в одну ленту пульта. Оператор не переключается между приложениями.</div>
+        <div class="panel"><h3>🔌 Интеграции систем безопасности</h3><div class="ph">Нажмите на интеграцию для просмотра настроек, статуса и статистики</div><div id="intgList"></div></div>
+        <div class="note">Сигналы со всех систем сводятся в одну ленту пульта. Оператор не переключается между приложениями.</div>
       </section>
 
       <!-- DASH / SLA -->
@@ -268,34 +399,75 @@
             <div class="row"><span class="rl">Датчик движения</span><span class="rv">23</span></div>
             <div class="row"><span class="rl">Открытие двери/окна</span><span class="rv">9</span></div>
             <div class="row"><span class="rl">Потеря связи</span><span class="rv">6</span></div>
-            <div class="note">Цифры в демо — <b>примерные</b>. В рабочей системе считаются из ваших событий.</div></div>
+            <div class="note" style="margin-top:12px">Цифры в демо — <b>примерные</b>. В рабочей системе считаются из ваших событий.</div>
+          </div>
         </div>
+        <div class="panel"><h3>💬 WhatsApp-уведомления клиентам</h3><div class="ph">Последние 5 автоматических сообщений</div><div id="waDash"></div></div>
       </section>
 
       <!-- FUNNEL -->
       <section class="page" id="funnel">
         <div class="board" id="board"></div>
-        <div class="note" style="margin-top:18px">Воронка продаж охранных услуг. Заявка → выезд на осмотр → договор → монтаж → на охране. Нажмите на сделку.</div>
+        <div class="note" style="margin-top:18px">Воронка продаж охранных услуг. Нажмите на сделку для просмотра коммуникации и действий.</div>
       </section>
 
       <!-- BILLING -->
       <section class="page" id="billing">
         <div class="panel"><h3>₸ Абонентская плата и задолженность</h3><div class="ph">Ежемесячная охрана — подписочная модель. Авто-выставление счетов и автообзвон должников</div><table id="billTbl"></table></div>
-        <div class="note">Автообзвон должников: система сама звонит по дебиторке и шлёт напоминание, без выгорания операторов. Счёт выставляется автоматически в начале месяца.</div>
+        <div class="note">Автообзвон должников: система сама звонит по дебиторке и шлёт напоминание. Счёт выставляется автоматически в начале месяца.</div>
       </section>
 
       <!-- PATROL -->
       <section class="page" id="patrol">
         <div class="panel"><h3>🚶 Обходы и контрольные точки</h3><div class="ph">Маршруты патрулей и отметки на контрольных точках (QR/NFC)</div><table id="patrolTbl"></table></div>
-        <div class="note">Охранник отмечается на контрольной точке через QR/NFC — руководитель видит, что обход реально пройден, а не отмечен «на бумаге».</div>
+        <div class="note">Охранник отмечается на контрольной точке через QR/NFC — руководитель видит, что обход реально пройден.</div>
       </section>
     </div>
   </div>
 </div>
+
 <div class="ov" id="ov"><div class="modal" id="modal"></div></div>
 <div class="demo-tag">демо · Pllato</div>
 
 <script>
+// ─────────────────── ROLES ───────────────────
+const ROLES = {
+  operator: {name:'Жанна Сейткали',short:'Ж',title:'Оператор ПЦН',pages:['monitor','map','objects','crews','journal','integrations']},
+  manager:  {name:'Алексей Петров', short:'А',title:'Руководитель',  pages:['monitor','map','objects','crews','journal','integrations','dash','funnel','billing','patrol']},
+  gbr:      {name:'Мурат Дюсеков', short:'М',title:'Командир ГБР',  pages:['map','crews','patrol','journal']},
+};
+let currentRole = null;
+
+function selectRole(r){
+  currentRole = r;
+  const role = ROLES[r];
+  document.getElementById('roleScreen').classList.add('hide');
+  document.getElementById('appShell').style.display='';
+  document.getElementById('sideName').textContent = role.name;
+  document.getElementById('sideRole').textContent = role.title;
+  document.getElementById('sideAvatar').textContent = role.short;
+
+  // show/hide nav items
+  const allPages=['monitor','map','objects','crews','journal','integrations','dash','funnel','billing','patrol'];
+  allPages.forEach(p=>{
+    const el=document.querySelector(`[data-p="${p}"]`);
+    if(el) el.classList.toggle('hidden', !role.pages.includes(p));
+  });
+  // hide management label if no management pages
+  const hasMgmt = ['dash','funnel','billing','patrol'].some(p=>role.pages.includes(p));
+  document.getElementById('mgmtLabel').style.display = hasMgmt ? '' : 'none';
+
+  // navigate to first available page
+  const first = role.pages[0];
+  go(first);
+}
+function backToRoles(){
+  document.getElementById('roleScreen').classList.remove('hide');
+  document.getElementById('appShell').style.display='none';
+  currentRole = null;
+}
+
+// ─────────────────── NAV ───────────────────
 const titles={
   monitor:["Тревожный монитор","Центральный пульт наблюдения · реальное время"],
   map:["Карта объектов","Объекты и экипажи ГБР на карте города"],
@@ -317,85 +489,178 @@ function go(p){
 }
 document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>go(a.dataset.p));
 
-// objects
+// ─────────────────── DATA ───────────────────
 const objs=[
-  {n:"ТЦ «Меркур»",t:"Торговый центр",addr:"пр. Абая 150",dev:"Hikvision · 24 камеры",st:"ok",x:30,y:34},
-  {n:"Ломбард «Алтын»",t:"Ломбард",addr:"ул. Розыбакиева 247",dev:"Ajax · кнопка + датчики",st:"alarm",x:58,y:48},
-  {n:"Аптека «Здоровье»",t:"Аптека",addr:"мкр. Самал-2, 14",dev:"Ajax · тревожная кнопка",st:"ok",x:44,y:64},
-  {n:"Школа №38",t:"Учебное заведение",addr:"ул. Жандосова 58",dev:"Hikvision · периметр",st:"ok",x:72,y:24},
-  {n:"Квартира Ахметова",t:"Квартира",addr:"ЖК «Нурлы», кв. 88",dev:"Ajax · датчики",st:"nosig",x:22,y:56},
-  {n:"Склад «Логист»",t:"Склад",addr:"Илийский тракт 9",dev:"Dahua · периметр",st:"ok",x:80,y:70},
-  {n:"Ювелирный «Карат»",t:"Магазин",addr:"ТРЦ «Достык», 1 эт.",dev:"Ajax · кнопка + сейф",st:"ok",x:52,y:30},
-  {n:"Офис «Финанс»",t:"Офис",addr:"БЦ «Нурлы Тау»",dev:"Hikvision · СКУД",st:"nosig",x:38,y:42},
+  {n:"ТЦ «Меркур»",        t:"Торговый центр",      addr:"пр. Абая 150",             dev:"Hikvision · 24 камеры",      st:"ok",   x:30,y:34, contact:"Бекзат Омаров, +7 701 234 5678", tariff:"₸ 180 000/мес", contract:"Действует до 31.12.2025"},
+  {n:"Ломбард «Алтын»",    t:"Ломбард",              addr:"ул. Розыбакиева 247",       dev:"Ajax · кнопка + датчики",    st:"alarm",x:58,y:48, contact:"Гульнара Нурова, +7 702 345 6789",tariff:"₸ 65 000/мес",  contract:"Действует до 30.06.2025"},
+  {n:"Аптека «Здоровье»",  t:"Аптека",               addr:"мкр. Самал-2, 14",          dev:"Ajax · тревожная кнопка",    st:"ok",   x:44,y:64, contact:"Серик Ахметов, +7 707 456 7890",  tariff:"₸ 40 000/мес",  contract:"Действует до 31.08.2025"},
+  {n:"Школа №38",          t:"Учебное заведение",    addr:"ул. Жандосова 58",          dev:"Hikvision · периметр",       st:"ok",   x:72,y:24, contact:"Директор Байкенова А.С., +7 705 567 8901",tariff:"₸ 95 000/мес",contract:"Действует до 31.05.2026"},
+  {n:"Квартира Ахметова",  t:"Квартира",             addr:"ЖК «Нурлы», кв. 88",        dev:"Ajax · датчики",             st:"nosig",x:22,y:56, contact:"Назгуль Ахметова, +7 778 678 9012",tariff:"₸ 18 000/мес",  contract:"Действует до 31.10.2025"},
+  {n:"Склад «Логист»",     t:"Склад",                addr:"Илийский тракт 9",          dev:"Dahua · периметр",           st:"ok",   x:80,y:70, contact:"Досжан Сатыбалдин, +7 771 789 0123",tariff:"₸ 75 000/мес",contract:"Действует до 28.02.2026"},
+  {n:"Ювелирный «Карат»",  t:"Магазин",              addr:"ТРЦ «Достык», 1 эт.",       dev:"Ajax · кнопка + сейф",       st:"ok",   x:52,y:30, contact:"Алибек Жаксыбеков, +7 700 890 1234",tariff:"₸ 60 000/мес",contract:"Действует до 30.09.2025"},
+  {n:"Офис «Финанс»",      t:"Офис",                 addr:"БЦ «Нурлы Тау», 12 эт.",    dev:"Hikvision · СКУД",           st:"nosig",x:38,y:42, contact:"Айнур Сейтова, +7 747 901 2345",   tariff:"₸ 55 000/мес",  contract:"Действует до 15.11.2025"},
 ];
 const stName={ok:"На охране",alarm:"ТРЕВОГА",nosig:"Нет связи"};
+
+// Render objects grid
 const og=document.getElementById('objgrid');
-objs.forEach(o=>{const el=document.createElement('div');el.className='obj st-'+(o.st=='ok'?'':o.st=='alarm'?'alarm':'nosig');
-  if(o.st=='ok')el.className='obj';
+objs.forEach(o=>{
+  const el=document.createElement('div');
+  el.className='obj'+(o.st=='alarm'?' st-alarm':o.st=='nosig'?' st-nosig':'');
   el.innerHTML=`<div class="on">${o.n}</div><div class="ot">${o.t} · ${o.addr}</div>
     <div class="ostat"><span class="led"></span>${stName[o.st]}</div><div class="dev">🔌 ${o.dev}</div>`;
-  el.onclick=()=>openObj(o);og.appendChild(el);});
+  el.onclick=()=>openObj(o);
+  og.appendChild(el);
+});
 
-// map pins + crews
+// Map pins + crews
 const mb=document.getElementById('mapBox');
-objs.forEach(o=>{const p=document.createElement('div');p.className='pin '+(o.st=='ok'?'':o.st);
+objs.forEach(o=>{
+  const p=document.createElement('div');
+  p.className='pin '+(o.st=='ok'?'':o.st);
   p.style.left=o.x+'%';p.style.top=o.y+'%';
   p.innerHTML=`<div class="lbl">${o.n} · ${stName[o.st]}</div><div class="dot"><b>●</b></div>`;
-  p.onclick=()=>openObj(o);mb.appendChild(p);});
-[{x:50,y:54,n:"ГБР-2"},{x:25,y:30,n:"ГБР-1"}].forEach(c=>{const p=document.createElement('div');p.className='pin gbr';
-  p.style.left=c.x+'%';p.style.top=c.y+'%';p.innerHTML=`<div class="lbl">${c.n}</div><div class="dot"><b>🚓</b></div>`;mb.appendChild(p);});
+  p.onclick=()=>openObj(o);
+  mb.appendChild(p);
+});
+[{x:50,y:54,n:"ГБР-2"},{x:25,y:30,n:"ГБР-1"}].forEach(c=>{
+  const p=document.createElement('div');p.className='pin gbr';
+  p.style.left=c.x+'%';p.style.top=c.y+'%';
+  p.innerHTML=`<div class="lbl">${c.n}</div><div class="dot"><b>🚓</b></div>`;
+  mb.appendChild(p);
+});
 
-// crews
-const crews=[
-  {n:"ГБР-1",c:"Экипаж Сергеев / Тлеу",st:"free",task:"На базе, свободен",shift:"08:00–20:00"},
-  {n:"ГБР-2",c:"Экипаж Ким / Абдулла",st:"way",task:"Выезд: Ломбард «Алтын»",shift:"08:00–20:00"},
-  {n:"ГБР-3",c:"Экипаж Нуров / Ли",st:"site",task:"На объекте: ТЦ «Меркур»",shift:"08:00–20:00"},
+// Crews data
+const crewsData=[
+  {n:"ГБР-1", members:[{init:"СС",name:"Сергеев Сергей",role:"Старший группы"},{init:"ТА",name:"Тлеубаев Асхат",role:"Боец"}], st:"free", task:"На базе, свободен",  shift:"08:00–20:00",
+    route:[{t:"08:05",ev:"Заступление на смену, инструктаж"},{t:"09:30",ev:"Плановый осмотр: ТЦ «Меркур»"},{t:"11:00",ev:"Патрулирование сектора Алмалы"},{t:"12:30",ev:"Обед, на базе"}]},
+  {n:"ГБР-2", members:[{init:"КД",name:"Ким Дмитрий",role:"Старший группы"},{init:"АА",name:"Абдулла Айдос",role:"Боец"}],    st:"way",  task:"Выезд: Ломбард «Алтын»",shift:"08:00–20:00",
+    route:[{t:"08:05",ev:"Заступление на смену"},{t:"10:15",ev:"Выезд: Аптека «Здоровье» — ложная тревога"},{t:"11:00",ev:"Возврат на базу"},{t:"11:42",ev:"🚨 Выезд: Ломбард «Алтын» — тревога"}]},
+  {n:"ГБР-3", members:[{init:"НС",name:"Нуров Санжар",role:"Старший группы"},{init:"ЛИ",name:"Ли Игорь",role:"Боец"}],        st:"site", task:"На объекте: ТЦ «Меркур»",shift:"08:00–20:00",
+    route:[{t:"08:05",ev:"Заступление на смену"},{t:"09:45",ev:"Выезд: Школа №38 — проверка сигнализации"},{t:"10:30",ev:"Возврат на базу"},{t:"11:20",ev:"Выезд: ТЦ «Меркур» — плановый осмотр"}]},
 ];
 const cb={free:["b-free","Свободен"],way:["b-way","В пути"],site:["b-site","На объекте"]};
-function renderCrews(el,full){el.innerHTML=crews.map(c=>`<div class="crew"><div class="ci">${c.n.split('-')[1]}</div>
-  <div><div class="cn">${c.n}</div><div class="cs">${full?c.c+' · ':''}${c.task}</div></div>
-  <div class="cstat"><span class="badge ${cb[c.st][0]}">${cb[c.st][1]}</span>${full?`<div style="font-size:11px;color:var(--muted);margin-top:5px">${c.shift}</div>`:''}</div></div>`).join('');}
+
+function renderCrews(el,full){
+  el.innerHTML=crewsData.map((c,i)=>`
+    <div class="crew" onclick="openCrew(${i})">
+      <div class="ci">${c.n.split('-')[1]}</div>
+      <div><div class="cn">${c.n}</div><div class="cs">${full?c.members[0].name+' / '+c.members[1].name+' · ':''}${c.task}</div></div>
+      <div class="cstat"><span class="badge ${cb[c.st][0]}">${cb[c.st][1]}</span>${full?`<div style="font-size:11px;color:var(--muted);margin-top:5px">${c.shift}</div>`:''}</div>
+    </div>`).join('');
+}
 renderCrews(document.getElementById('crewMini'),false);
 renderCrews(document.getElementById('crewFull'),true);
 
-// live feed
+// Feed data
 const feedData=[
-  ["red","🚨 ТРЕВОГА: Ломбард «Алтын»","Датчик движения · Ajax","11:42"],
-  ["blue","🚓 ГБР-2 направлен на объект","Ломбард «Алтын»","11:42"],
-  ["green","✅ Объект снят с охраны: Аптека «Здоровье»","Код владельца","11:30"],
-  ["amber","⚠ Потеря связи: Офис «Финанс»","Hikvision · проверка линии","11:18"],
-  ["green","✅ Объект на охране: ТЦ «Меркур»","Автопостановка по графику","09:00"],
-  ["blue","📞 Входящий звонок: Квартира Ахметова","Длительность 2:14","08:51"],
+  {c:"red",  t:"🚨 ТРЕВОГА: Ломбард «Алтын»",        m:"Датчик движения · Ajax",           w:"11:42", ji:1},
+  {c:"blue", t:"🚓 ГБР-2 направлен на объект",        m:"Ломбард «Алтын»",                  w:"11:42", ji:1},
+  {c:"green",t:"✅ Снят с охраны: Аптека «Здоровье»", m:"Код владельца",                    w:"11:30", ji:2},
+  {c:"amber",t:"⚠ Потеря связи: Офис «Финанс»",       m:"Hikvision · проверка линии",       w:"11:18", ji:3},
+  {c:"green",t:"✅ На охране: ТЦ «Меркур»",           m:"Автопостановка по графику",         w:"09:00", ji:4},
+  {c:"blue", t:"📞 Входящий звонок: Кв. Ахметова",    m:"Длительность 2:14",                w:"08:51", ji:5},
 ];
 const feed=document.getElementById('feed');
-feed.innerHTML=feedData.map(f=>`<div class="feeditem"><span class="fled fl-${f[0]}"></span>
-  <div><div class="ft">${f[1]}</div><div class="fm">${f[2]}</div></div><div class="fw">${f[3]}</div></div>`).join('');
+feed.innerHTML=feedData.map((f,i)=>`<div class="feeditem" onclick="openJournalItem(${f.ji})">
+  <span class="fled fl-${f.c}"></span>
+  <div><div class="ft">${f.t}</div><div class="fm">${f.m}</div></div>
+  <div class="fw">${f.w}</div></div>`).join('');
 
-// integrations
-const intg=[
-  {n:"Hikvision",d:"Видеонаблюдение · 3 объекта",c:"#c8453a",on:true,ab:"HIK"},
-  {n:"Ajax",d:"Сигнализация и кнопки · 4 объекта",c:"#3f7d52",on:true,ab:"AJX"},
-  {n:"Dahua",d:"Видеонаблюдение · 1 объект",c:"#2f5d8a",on:true,ab:"DH"},
-  {n:"Telphin / SIP",d:"Телефония пульта",c:"#b8895a",on:true,ab:"SIP"},
-  {n:"1С Бухгалтерия",d:"Выгрузка счетов и оплат (опция)",c:"#7a828e",on:false,ab:"1С"},
+// WA Previews
+const waPrevData=[
+  {name:"Ломбард «Алтын»", text:"Тревога на вашем объекте — ул. Розыбакиева 247. ГБР выехал.", time:"11:42"},
+  {name:"Аптека «Здоровье»", text:"Ваш объект снят с охраны. Код: 4412. Время: 11:30.", time:"11:30"},
+  {name:"Квартира Ахметова", text:"Связь с вашим объектом временно потеряна. Техник уведомлён.", time:"11:18"},
+  {name:"Школа №38", text:"Объект успешно поставлен на охрану в 09:00.", time:"09:00"},
+  {name:"ТЦ «Меркур»", text:"Ежемесячный счёт на ₸ 180 000 выставлен. Срок оплаты: 25 июня.", time:"09:00"},
 ];
-document.getElementById('intgList').innerHTML=intg.map((i,idx)=>`<div class="intg">
-  <div class="ilogo" style="background:${i.c}">${i.ab}</div>
-  <div><div class="inm">${i.n}</div><div class="id2">${i.d}</div></div>
-  <div class="toggle ${i.on?'':'off'}" onclick="this.classList.toggle('off')"></div></div>`).join('');
+function renderWAPrev(elId){
+  document.getElementById(elId).innerHTML=waPrevData.map(w=>`
+    <div class="wa-prev">
+      <div class="wa-ava">${w.name[0]}</div>
+      <div style="flex:1;min-width:0">
+        <div class="wa-nm">${w.name}</div>
+        <div class="wa-tx" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.text}</div>
+      </div>
+      <div class="wa-tm">${w.time}</div>
+    </div>`).join('');
+}
+renderWAPrev('waPreviews');
+renderWAPrev('waDash');
 
-// journal
-const journal=[
-  {t:"11:42",ev:"Тревога — датчик движения",ob:"Ломбард «Алтын»",op:"Оператор Жанна",st:"p-over"},
-  {t:"11:42",ev:"Назначен выезд ГБР-2",ob:"Ломбард «Алтын»",op:"Оператор Жанна",st:"p-act"},
-  {t:"11:30",ev:"Снятие с охраны",ob:"Аптека «Здоровье»",op:"Код владельца",st:"p-paid"},
-  {t:"11:18",ev:"Потеря связи с объектом",ob:"Офис «Финанс»",op:"Система",st:"p-soon"},
-  {t:"09:00",ev:"Автопостановка на охрану",ob:"ТЦ «Меркур»",op:"Система",st:"p-paid"},
-  {t:"08:51",ev:"Входящий звонок 2:14",ob:"Квартира Ахметова",op:"Оператор Жанна",st:"p-act"},
+// Integrations
+const intgData=[
+  {n:"Hikvision",      d:"Видеонаблюдение · 3 объекта",       c:"#c8453a",on:true, ab:"HIK",
+   detail:{type:"cam",  ip:"192.168.10.45", port:"8000", user:"admin", pass:"••••••••", status:"Активно", lastEv:"Движение, 11:42", devices:[
+     {name:"Камера входа",model:"DS-2CD2143G2",ip:"192.168.10.46",status:"В сети"},
+     {name:"Зал 1",model:"DS-2CD2143G2",ip:"192.168.10.47",status:"В сети"},
+     {name:"Кассовая зона",model:"DS-2CD2T47G2",ip:"192.168.10.48",status:"В сети"},
+   ]}},
+  {n:"Ajax",          d:"Сигнализация и кнопки · 4 объекта", c:"#3f7d52",on:true, ab:"AJX",
+   detail:{type:"ajax", hubId:"HUB-77423", apiKey:"aj••••••••1a3f", devCount:24, lastSig:"Тревога 11:42", devices:[
+     {name:"Датчик движения (вход)",model:"MotionProtect",status:"Активен"},
+     {name:"Тревожная кнопка",model:"Button",status:"Активен"},
+     {name:"Магнит на дверь",model:"DoorProtect",status:"Активен"},
+     {name:"Датчик дыма",model:"FireProtect",status:"Активен"},
+   ]}},
+  {n:"Telphin / SIP", d:"Телефония пульта",                  c:"#b8895a",on:true, ab:"SIP",
+   detail:{type:"sip",  sipLogin:"10001@pbx.telphin.com", server:"pbx.telphin.com:5060", status:"В сети", calls:[
+     {from:"+7 702 345 6789",dir:"Входящий",dur:"2:14",time:"08:51"},
+     {from:"+7 701 234 5678",dir:"Исходящий",dur:"1:05",time:"09:30"},
+     {from:"+7 778 678 9012",dir:"Входящий",dur:"3:22",time:"10:05"},
+     {from:"+7 700 890 1234",dir:"Исходящий",dur:"0:48",time:"10:55"},
+     {from:"+7 747 901 2345",dir:"Входящий",dur:"1:33",time:"11:20"},
+   ]}},
+  {n:"WhatsApp Business",d:"Уведомления клиентам и чаты",   c:"#25d366",on:true, ab:"WA",
+   detail:{type:"wa",   phone:"+7 727 123 45 67", status:"Подключён",
+   templates:["Тревога на вашем объекте — {адрес}. ГБР выехал.","Объект поставлен/снят с охраны в {время}.","Счёт на ₸{сумма} выставлен. Срок оплаты: {дата}."],
+   stats:{sent:412,delivered:409,read:387},
+   chats:[
+     {name:"Ломбард «Алтын»",last:"Тревога на вашем объекте...",time:"11:42"},
+     {name:"Аптека «Здоровье»",last:"Объект снят с охраны.",time:"11:30"},
+     {name:"ТЦ «Меркур»",last:"Счёт на ₸ 180 000 выставлен.",time:"09:00"},
+   ]}},
+  {n:"Dahua",         d:"Видеонаблюдение · 1 объект",        c:"#2f5d8a",on:true, ab:"DH",
+   detail:{type:"cam",  ip:"10.0.0.22", port:"37777", user:"admin", pass:"••••••••", status:"Активно", lastEv:"Плановая запись, 09:00", devices:[
+     {name:"Внешняя камера периметра",model:"IPC-HFW2849S",ip:"10.0.0.23",status:"В сети"},
+     {name:"Ворота",model:"IPC-HDW2831T",ip:"10.0.0.24",status:"В сети"},
+   ]}},
+  {n:"1С Бухгалтерия",d:"Выгрузка счетов и оплат (опция)",  c:"#7a828e",on:false,ab:"1С",
+   detail:{type:"1c"}},
 ];
-document.getElementById('journalTbl').innerHTML='<tr><th>Время</th><th>Событие</th><th>Объект</th><th>Источник</th><th></th></tr>'+
-  journal.map(j=>`<tr><td><b>${j.t}</b></td><td>${j.ev}</td><td>${j.ob}</td><td style="color:var(--muted)">${j.op}</td>
-    <td><span class="pill ${j.st}">${j.st=='p-over'?'Тревога':j.st=='p-act'?'Выезд':j.st=='p-soon'?'Внимание':'OK'}</span></td></tr>`).join('');
+document.getElementById('intgList').innerHTML=intgData.map((ig,i)=>`
+  <div class="intg" onclick="openIntg(${i})">
+    <div class="ilogo" style="background:${ig.c}">${ig.ab}</div>
+    <div style="flex:1"><div class="inm">${ig.n}</div><div class="id2">${ig.d}</div></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="mini ghost" onclick="event.stopPropagation();openIntg(${i})">Настроить</button>
+      <div class="toggle ${ig.on?'':'off'}" onclick="event.stopPropagation();this.classList.toggle('off')"></div>
+    </div>
+  </div>`).join('');
+
+// Journal
+const journalItems=[
+  {t:"11:42",ev:"Тревога — датчик движения",   ob:"Ломбард «Алтын»",   op:"Оператор Жанна Сейткали",  st:"p-over", st2:"Тревога",
+   detail:{accept:"Жанна Сейткали, 11:42:08",resp:"ГБР-2 (Ким / Абдулла), выезд 11:42",
+   timeline:[{t:"11:42:08",ev:"Сигнал тревоги от Ajax",cls:"red"},{t:"11:42:15",ev:"Принято оператором Жанна",cls:""},{t:"11:42:22",ev:"Отправлен ГБР-2",cls:"blue"},{t:"11:47:30",ev:"ГБР прибыл на объект",cls:"green"}]}},
+  {t:"11:42",ev:"Назначен выезд ГБР-2",        ob:"Ломбард «Алтын»",   op:"Оператор Жанна Сейткали",  st:"p-act",  st2:"Выезд",
+   detail:{accept:"Жанна Сейткали, 11:42:22",resp:"ГБР-2 выехал с базы",timeline:[{t:"11:42:22",ev:"Назначен выезд ГБР-2",cls:"blue"},{t:"11:47:30",ev:"ГБР прибыл",cls:"green"}]}},
+  {t:"11:30",ev:"Снятие с охраны",              ob:"Аптека «Здоровье»", op:"Код владельца (4412)",    st:"p-paid", st2:"OK",
+   detail:{accept:"Автоматически (код владельца)",resp:"—",timeline:[{t:"11:30:05",ev:"Введён код 4412 владельцем",cls:"green"},{t:"11:30:05",ev:"Объект снят с охраны",cls:"green"}]}},
+  {t:"11:18",ev:"Потеря связи с объектом",      ob:"Офис «Финанс»",     op:"Система",                 st:"p-soon", st2:"Внимание",
+   detail:{accept:"Системный алерт",resp:"Уведомлён техник Ермек Баймаханов",timeline:[{t:"11:18:00",ev:"Потеря связи Hikvision",cls:"red"},{t:"11:18:30",ev:"Уведомление направлено технику",cls:"amber"}]}},
+  {t:"09:00",ev:"Автопостановка на охрану",     ob:"ТЦ «Меркур»",       op:"Система",                 st:"p-paid", st2:"OK",
+   detail:{accept:"Автоматически по расписанию",resp:"—",timeline:[{t:"09:00:00",ev:"Расписание: постановка на охрану",cls:"green"},{t:"09:00:02",ev:"Объект на охране",cls:"green"}]}},
+  {t:"08:51",ev:"Входящий звонок 2:14",         ob:"Квартира Ахметова", op:"Оператор Жанна Сейткали",  st:"p-act",  st2:"Звонок",
+   detail:{accept:"Жанна Сейткали, 08:51",resp:"Информирован владелец, нет тревоги",timeline:[{t:"08:51:00",ev:"Входящий звонок +7 778 678 9012",cls:"blue"},{t:"08:51:30",ev:"Принято оператором",cls:""},{t:"08:53:14",ev:"Завершён (2:14)",cls:"green"}]}},
+];
+document.getElementById('journalTbl').innerHTML=
+  '<tr><th>Время</th><th>Событие</th><th>Объект</th><th>Источник</th><th>Статус</th></tr>'+
+  journalItems.map((j,i)=>`<tr class="clickable" onclick="openJournalItem(${i})">
+    <td><b>${j.t}</b></td><td>${j.ev}</td><td>${j.ob}</td>
+    <td style="color:var(--muted)">${j.op}</td>
+    <td><span class="pill ${j.st}">${j.st2}</span></td></tr>`).join('');
 
 // SLA
 const sla=[{n:"Ломбарды и ювелирные",v:98},{n:"Аптеки",v:95},{n:"Торговые центры",v:92},{n:"Квартиры",v:88},{n:"Школы",v:96}];
@@ -403,87 +668,375 @@ document.getElementById('slaList').innerHTML=sla.map(s=>`<div style="margin-bott
   <div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="color:var(--muted)">${s.n}</span><b>${s.v}%</b></div>
   <div class="slabar"><i style="width:${s.v}%;background:${s.v>=95?'var(--green)':s.v>=90?'var(--amber)':'var(--red)'}"></i></div></div>`).join('');
 
-// funnel
-const deals={
-  "Заявка":[{n:"Сеть аптек (3 точки)",m:"~₸ 90 000/мес",who:"Заявка с сайта"},{n:"Автосалон, Тимирязева",m:"~₸ 120 000/мес",who:"Krisha"}],
-  "Осмотр объекта":[{n:"Ресторан «Сити»",m:"~₸ 45 000/мес",who:"Рекомендация"}],
-  "Договор":[{n:"ЖК «Алмалы» (паркинг)",m:"~₸ 200 000/мес",who:"Тендер"}],
-  "Монтаж":[{n:"Склад «КаргоПлюс»",m:"~₸ 75 000/мес",who:"Прямой"}],
-  "На охране":[{n:"Бутик «Карат»",m:"₸ 60 000/мес",who:"—"}],
+// Funnel deals
+const dealsData={
+  "Заявка":[
+    {n:"Сеть аптек (3 точки)", m:"~₸ 90 000/мес", who:"Заявка с сайта", contact:"Айгерим Касымова, +7 707 111 2233",
+     comms:[{type:"wa",dir:"out",text:"Добрый день! Отправляем КП на охрану трёх аптек.",time:"Сегодня, 10:00"},{type:"call",dur:"3:22",time:"Вчера, 15:30"},{type:"note",text:"Клиент хочет Ajax-сигнализацию на каждой точке. Готовы к осмотру в пятницу.",time:"2 дня назад"}]},
+    {n:"Автосалон, ул. Тимирязева", m:"~₸ 120 000/мес", who:"Krisha.kz", contact:"Руслан Байкенов, +7 701 222 3344",
+     comms:[{type:"call",dur:"2:14",time:"Сегодня, 09:15"},{type:"note",text:"Просят видеонаблюдение + СКУД. Бюджет до ₸130 000.",time:"Сегодня, 09:30"}]},
+  ],
+  "Осмотр объекта":[
+    {n:"Ресторан «Сити»", m:"~₸ 45 000/мес", who:"Рекомендация", contact:"Марат Джаксыбеков, +7 702 333 4455",
+     comms:[{type:"wa",dir:"in",text:"Когда приедет ваш специалист на осмотр?",time:"Вчера, 14:20"},{type:"wa",dir:"out",text:"Специалист будет в среду, 10 июня в 11:00. Адрес подтвердите?",time:"Вчера, 14:25"},{type:"call",dur:"1:05",time:"3 дня назад"}]},
+  ],
+  "Договор":[
+    {n:"ЖК «Алмалы» (паркинг)", m:"~₸ 200 000/мес", who:"Тендер", contact:"Управляющий Нурлан Есенов, +7 705 444 5566",
+     comms:[{type:"call",dur:"5:40",time:"3 дня назад"},{type:"note",text:"Договор на согласовании у юриста. Ждём подписания до 25 июня.",time:"Вчера"}]},
+  ],
+  "Монтаж":[
+    {n:"Склад «КаргоПлюс»", m:"~₸ 75 000/мес", who:"Прямой", contact:"Ермек Сатыбеков, +7 771 555 6677",
+     comms:[{type:"note",text:"Монтаж начался 18 июня. Завершение — 24 июня. Охрана стартует 25-го.",time:"18 июня"}]},
+  ],
+  "На охране":[
+    {n:"Бутик «Карат»", m:"₸ 60 000/мес", who:"—", contact:"Алибек Жаксыбеков, +7 700 890 1234",
+     comms:[{type:"wa",dir:"out",text:"Поздравляем! Ваш объект взят под охрану. Номер договора: ОА-2025-0847.",time:"01 июня"},{type:"call",dur:"0:48",time:"01 июня"}]},
+  ],
 };
 const board=document.getElementById('board');
-for(const[st,list]of Object.entries(deals)){const col=document.createElement('div');col.className='col';
+for(const[st,list]of Object.entries(dealsData)){
+  const col=document.createElement('div');col.className='col';
   col.innerHTML=`<div class="ch"><span>${st}</span><span class="n">${list.length}</span></div>`;
-  list.forEach(d=>{const e=document.createElement('div');e.className='deal';
+  list.forEach((d,i)=>{
+    const e=document.createElement('div');e.className='deal';
     e.innerHTML=`<div class="dn">${d.n}</div><div class="da">${d.who}</div><div class="dm">${d.m}</div>`;
-    e.onclick=()=>openDeal(d,st);col.appendChild(e);});board.appendChild(col);}
+    e.onclick=()=>openDeal(d,st);
+    col.appendChild(e);
+  });
+  board.appendChild(col);
+}
 
-// billing
+// Billing
 const bills=[
-  {c:"ТЦ «Меркур»",sum:"₸ 180 000/мес",due:"оплачено",st:"p-paid"},
-  {c:"Ломбард «Алтын»",sum:"₸ 65 000/мес",due:"просрочено 8 дн",st:"p-over"},
-  {c:"Аптека «Здоровье»",sum:"₸ 40 000/мес",due:"до 28.06",st:"p-soon"},
-  {c:"Школа №38",sum:"₸ 95 000/мес",due:"оплачено",st:"p-paid"},
-  {c:"Квартира Ахметова",sum:"₸ 18 000/мес",due:"просрочено 3 дн",st:"p-over"},
+  {c:"ТЦ «Меркур»",       sum:"₸ 180 000/мес",due:"оплачено",   st:"p-paid"},
+  {c:"Ломбард «Алтын»",   sum:"₸ 65 000/мес", due:"просрочено 8 дн",st:"p-over"},
+  {c:"Аптека «Здоровье»", sum:"₸ 40 000/мес", due:"до 28.06",   st:"p-soon"},
+  {c:"Школа №38",         sum:"₸ 95 000/мес", due:"оплачено",   st:"p-paid"},
+  {c:"Квартира Ахметова", sum:"₸ 18 000/мес", due:"просрочено 3 дн",st:"p-over"},
 ];
-document.getElementById('billTbl').innerHTML='<tr><th>Объект / клиент</th><th>Абонплата</th><th>Статус</th><th>Срок</th><th></th></tr>'+
-  bills.map(b=>`<tr><td><b>${b.c}</b></td><td>${b.sum}</td><td><span class="pill ${b.st}">${b.st=='p-over'?'Долг':b.st=='p-soon'?'Скоро':'Оплачено'}</span></td>
-    <td style="color:var(--muted)">${b.due}</td><td>${b.st=='p-over'?'<button class="mini ghost" onclick="autocall(this)">📞 Автообзвон</button>':b.st=='p-soon'?'<button class="mini ghost">⎙ Счёт</button>':'—'}</td></tr>`).join('');
-function autocall(btn){btn.textContent='✓ В очереди обзвона';btn.style.color='var(--green)';}
+document.getElementById('billTbl').innerHTML=
+  '<tr><th>Объект / клиент</th><th>Абонплата</th><th>Статус</th><th>Срок</th><th></th></tr>'+
+  bills.map(b=>`<tr><td><b>${b.c}</b></td><td>${b.sum}</td>
+    <td><span class="pill ${b.st}">${b.st=='p-over'?'Долг':b.st=='p-soon'?'Скоро':'Оплачено'}</span></td>
+    <td style="color:var(--muted)">${b.due}</td>
+    <td>${b.st=='p-over'?'<button class="mini ghost" onclick="autocall(this)">📞 Автообзвон</button>':b.st=='p-soon'?'<button class="mini ghost">⎙ Счёт</button>':'—'}</td></tr>`).join('');
+function autocall(btn){btn.textContent='✓ В очереди';btn.style.color='var(--green)';}
 
-// patrol
+// Patrol
 const patrol=[
-  {r:"Маршрут Центр (ночь)",g:"Охранник Досжан",pts:"6 из 6 точек",t:"завершён 03:14",st:"p-paid"},
-  {r:"Маршрут Промзона",g:"Охранник Ермек",pts:"4 из 6 точек",t:"в процессе",st:"p-act"},
-  {r:"Маршрут ЖК «Алмалы»",g:"Охранник Бакыт",pts:"0 из 5 точек",t:"начало 22:00",st:"p-soon"},
+  {r:"Маршрут Центр (ночь)",    g:"Охранник Досжан Сатыбалдин", pts:"6 из 6 точек",t:"завершён 03:14",st:"p-paid"},
+  {r:"Маршрут Промзона",        g:"Охранник Ермек Баймаханов",  pts:"4 из 6 точек",t:"в процессе",   st:"p-act"},
+  {r:"Маршрут ЖК «Алмалы»",    g:"Охранник Бакыт Нурланов",    pts:"0 из 5 точек",t:"начало 22:00", st:"p-soon"},
 ];
-document.getElementById('patrolTbl').innerHTML='<tr><th>Маршрут</th><th>Охранник</th><th>Контрольные точки</th><th>Статус</th></tr>'+
+document.getElementById('patrolTbl').innerHTML=
+  '<tr><th>Маршрут</th><th>Охранник</th><th>Контрольные точки</th><th>Статус</th></tr>'+
   patrol.map(p=>`<tr><td><b>${p.r}</b></td><td>${p.g}</td><td>${p.pts}</td>
     <td><span class="pill ${p.st}">${p.t}</span></td></tr>`).join('');
 
-// modals
+// ─────────────────── MODAL HELPERS ───────────────────
 const ov=document.getElementById('ov'),modal=document.getElementById('modal');
 function show(h){modal.innerHTML=h;ov.classList.add('show');}
 ov.onclick=e=>{if(e.target===ov)ov.classList.remove('show');};
-function close(){ov.classList.remove('show');}
+function closeModal(){ov.classList.remove('show');}
+
+function tabInit(modalEl){
+  modalEl.querySelectorAll('.tab').forEach(t=>{
+    t.onclick=()=>{
+      const group=t.dataset.group||'default';
+      modalEl.querySelectorAll(`.tab[data-group="${group}"]`).forEach(x=>x.classList.remove('active'));
+      modalEl.querySelectorAll(`.tab-pane[data-group="${group}"]`).forEach(x=>x.classList.remove('show'));
+      t.classList.add('active');
+      modalEl.querySelector(`#${t.dataset.tab}`).classList.add('show');
+    };
+  });
+}
+
+function audioWidget(dur){
+  return `<div class="audio"><button class="play" onclick="playAudio(this)">▶</button><div class="wave"></div><span style="font-size:11px;color:var(--muted)">${dur}</span></div>`;
+}
+function playAudio(btn){btn.textContent=btn.textContent=='▶'?'⏸':'▶';}
+
+// ─────────────────── OPEN OBJECT ───────────────────
 function openObj(o){
   const alarm=o.st=='alarm';
-  show(`<div class="mh ${alarm?'alarm':''}"><button class="mx" onclick="close()">×</button>
-    <div class="mt">${o.n}</div><div class="ms">${o.t} · ${o.addr} · ${stName[o.st]}</div></div>
-    <div class="mb">
+  const html=`
+  <div class="mh ${alarm?'alarm':''}">
+    <button class="mx" onclick="closeModal()">×</button>
+    <div class="mt">${o.n}</div>
+    <div class="ms">${o.t} · ${o.addr} · <span style="color:${alarm?'#f5d5ca':o.st=='nosig'?'#ffd080':'#a8e0b8'}">${stName[o.st]}</span></div>
+  </div>
+  <div class="mb">
+    <div class="tabs">
+      <div class="tab active" data-group="obj" data-tab="obj-main">Основное</div>
+      <div class="tab" data-group="obj" data-tab="obj-hist">История сигналов</div>
+      <div class="tab" data-group="obj" data-tab="obj-comm">Связь</div>
+      <div class="tab" data-group="obj" data-tab="obj-acts">Действия</div>
+    </div>
+
+    <div class="tab-pane show" id="obj-main" data-group="obj">
+      <div class="row"><span class="rl">Адрес</span><span class="rv">${o.addr}</span></div>
+      <div class="row"><span class="rl">Тип объекта</span><span class="rv">${o.t}</span></div>
       <div class="row"><span class="rl">Оборудование</span><span class="rv">${o.dev}</span></div>
+      <div class="row"><span class="rl">Контактное лицо</span><span class="rv">${o.contact}</span></div>
+      <div class="row"><span class="rl">Тариф охраны</span><span class="rv">${o.tariff}</span></div>
+      <div class="row"><span class="rl">Договор</span><span class="rv">${o.contract}</span></div>
       <div class="row"><span class="rl">Статус связи</span><span class="rv" style="color:${o.st=='ok'?'var(--green)':o.st=='alarm'?'var(--red)':'var(--amber)'}">${stName[o.st]}</span></div>
-      <div class="row"><span class="rl">Тариф охраны</span><span class="rv">₸ 65 000 / мес</span></div>
-      ${alarm?'<div style="display:flex;gap:8px;margin-top:14px"><button class="mini green" onclick="dispatch()">🚓 Отправить ГБР</button><button class="mini red" onclick="falseAlarm()">Ложная тревога</button></div>':''}
-      <h3 style="margin:16px 0 4px;font-size:14px;color:var(--navy)">История по объекту</h3>
+    </div>
+
+    <div class="tab-pane" id="obj-hist" data-group="obj">
       <div class="timeline">
-        ${alarm?'<div class="tl red"><div class="td"></div><div><div class="tx">🚨 Тревога — датчик движения</div><div class="ty">Сегодня, 11:42</div></div></div>':''}
+        ${alarm?`<div class="tl red"><div class="td"></div><div><div class="tx">🚨 Тревога — датчик движения (Ajax)</div><div class="ty">Сегодня, 11:42</div></div></div>`:''}
         <div class="tl green"><div class="td"></div><div><div class="tx">Постановка на охрану</div><div class="ty">Сегодня, 09:00</div></div></div>
-        <div class="tl"><div class="td"></div><div><div class="tx">Плановое ТО оборудования</div><div class="ty">3 дня назад</div></div></div>
-        <div class="tl blue"><div class="td"></div><div><div class="tx">Входящий звонок 2:14</div><div class="ty">Неделю назад</div>
-          <div class="audio"><button class="play">▶</button><div class="wave"></div><span style="font-size:11px;color:var(--muted)">2:14</span></div></div></div>
-      </div></div>`);
+        <div class="tl"><div class="td"></div><div><div class="tx">Плановое ТО оборудования</div><div class="ty">3 дня назад, 14:00</div></div></div>
+        <div class="tl blue"><div class="td"></div><div><div class="tx">Входящий звонок оператора 2:14</div><div class="ty">Неделю назад</div></div></div>
+        <div class="tl green"><div class="td"></div><div><div class="tx">Снятие с охраны — код владельца</div><div class="ty">Неделю назад, 22:05</div></div></div>
+        <div class="tl green"><div class="td"></div><div><div class="tx">Постановка на охрану</div><div class="ty">Неделю назад, 09:00</div></div></div>
+        <div class="tl"><div class="td"></div><div><div class="tx">Замена батареи датчика</div><div class="ty">2 недели назад</div></div></div>
+        <div class="tl red"><div class="td"></div><div><div class="tx">Тревога — ложная (хозяин забыл снять)</div><div class="ty">3 недели назад</div></div></div>
+        <div class="tl green"><div class="td"></div><div><div class="tx">Подключение к пульту</div><div class="ty">01.03.2025</div></div></div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="obj-comm" data-group="obj">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px">ЗВОНКИ</div>
+      ${audioWidget('2:14')}
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;margin-bottom:12px">Входящий · ${o.contact} · 1 неделю назад</div>
+      ${audioWidget('0:55')}
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;margin-bottom:16px">Исходящий · Оператор Жанна · 3 недели назад</div>
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px">WHATSAPP</div>
+      <div class="wa-chat">
+        <div class="wa-msg out"><div class="wa-bubble out">Ваш объект взят под охрану. Договор ОА-2025-0847.<div class="wa-time">01.03.2025, 09:02 ✓✓</div></div></div>
+        <div class="wa-msg in"><div class="wa-bubble in">Спасибо! Всё получил.<div class="wa-time">01.03.2025, 09:15</div></div></div>
+        <div class="wa-msg out"><div class="wa-bubble out">Тревога на вашем объекте — ${o.addr}. ГБР выехал.<div class="wa-time">Сегодня, 11:42 ✓✓</div></div></div>
+        <div class="wa-msg in"><div class="wa-bubble in">Понял, жду информацию.<div class="wa-time">Сегодня, 11:44</div></div></div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="obj-acts" data-group="obj">
+      <div class="acts-row" style="flex-direction:column;gap:10px">
+        <button class="btn-act green" style="text-align:left">🚓 Вызвать ГБР — объект тревоги</button>
+        <button class="btn-act" style="text-align:left">📞 Позвонить клиенту (${o.contact.split(',')[1]||''})</button>
+        <button class="btn-act bronze" style="text-align:left">💬 Написать в WhatsApp</button>
+        <button class="btn-act ghost" style="text-align:left">🔧 Создать заявку на ТО оборудования</button>
+        ${alarm?'<button class="btn-act red" onclick="falseAlarm()">❌ Ложная тревога — отменить</button>':''}
+      </div>
+    </div>
+  </div>`;
+  show(html);
+  tabInit(modal);
 }
+
+// ─────────────────── OPEN DEAL ───────────────────
 function openDeal(d,st){
-  show(`<div class="mh"><button class="mx" onclick="close()">×</button><div class="mt">${d.n}</div><div class="ms">${st} · ${d.m}</div></div>
-    <div class="mb"><div class="row"><span class="rl">Источник</span><span class="rv">${d.who}</span></div>
-    <div class="row"><span class="rl">Стадия</span><span class="rv">${st}</span></div>
+  const stageOrder=["Заявка","Осмотр объекта","Договор","Монтаж","На охране"];
+  const nextStage=stageOrder[stageOrder.indexOf(st)+1];
+  const commsHtml=d.comms.map(c=>{
+    if(c.type=='call') return `<div class="tl blue"><div class="td"></div><div>
+      <div class="tx">📞 Звонок — ${c.dur}</div><div class="ty">${c.time}</div>
+      ${audioWidget(c.dur)}</div></div>`;
+    if(c.type=='wa') return `<div class="tl"><div class="td"></div><div>
+      <div class="tx">💬 WhatsApp${c.dir=='in'?' (входящее)':''}</div><div class="ty">${c.time}</div>
+      <div style="margin-top:6px;max-width:360px">
+        <div class="wa-chat" style="padding:8px">
+          <div class="wa-msg ${c.dir=='out'?'out':'in'}"><div class="wa-bubble ${c.dir=='out'?'out':'in'}">${c.text}<div class="wa-time">${c.time}${c.dir=='out'?' ✓✓':''}</div></div></div>
+        </div></div></div></div>`;
+    return `<div class="tl"><div class="td"></div><div>
+      <div class="tx">📝 Заметка менеджера</div><div class="ty">${c.time}</div>
+      <div style="background:var(--off);border-radius:8px;padding:8px 11px;margin-top:5px;font-size:12.5px;color:var(--muted)">${c.text}</div>
+    </div></div>`;
+  }).join('');
+  const html=`
+  <div class="mh">
+    <button class="mx" onclick="closeModal()">×</button>
+    <div class="mt">${d.n}</div>
+    <div class="ms">${st} · ${d.m}</div>
+  </div>
+  <div class="mb">
+    <div class="row"><span class="rl">Клиент / объект</span><span class="rv">${d.n}</span></div>
     <div class="row"><span class="rl">Абонплата</span><span class="rv">${d.m}</span></div>
-    <h3 style="margin:16px 0 4px;font-size:14px;color:var(--navy)">Коммуникация</h3>
-    <div class="timeline">
-      <div class="tl"><div class="td"></div><div><div class="tx">WhatsApp: отправили КП на охрану</div><div class="ty">Сегодня</div></div></div>
-      <div class="tl blue"><div class="td"></div><div><div class="tx">Звонок 3:40 — обсудили объект</div><div class="ty">Вчера</div>
-        <div class="audio"><button class="play">▶</button><div class="wave"></div><span style="font-size:11px;color:var(--muted)">3:40</span></div></div></div>
-      <div class="tl"><div class="td"></div><div><div class="tx">Заявка получена</div><div class="ty">2 дня назад</div></div></div>
-    </div></div>`);
+    <div class="row"><span class="rl">Источник заявки</span><span class="rv">${d.who}</span></div>
+    <div class="row"><span class="rl">Контакт</span><span class="rv">${d.contact}</span></div>
+    <div class="row"><span class="rl">Стадия</span><span class="rv">${st}</span></div>
+    <h3 style="margin:18px 0 6px;font-size:14px">История коммуникации</h3>
+    <div class="timeline">${commsHtml}</div>
+    <div class="acts-row">
+      <button class="btn-act">📞 Позвонить</button>
+      <button class="btn-act bronze">💬 WhatsApp</button>
+      ${nextStage?`<button class="btn-act green">→ Перевести: ${nextStage}</button>`:''}
+      <button class="btn-act ghost">📋 Задача</button>
+    </div>
+  </div>`;
+  show(html);
 }
-// alarm interactions
-let timerSec=38,timerInt=setInterval(()=>{timerSec++;const m=String(Math.floor(timerSec/60)).padStart(2,'0'),s=String(timerSec%60).padStart(2,'0');const el=document.getElementById('alTimer');if(el)el.textContent=m+':'+s;},1000);
-function dispatch(){const box=document.getElementById('alarmBox');box.innerHTML=`<div class="at"><span class="fled fl-blue" style="width:11px;height:11px;border-radius:50%;background:var(--blue)"></span> ГБР НАПРАВЛЕН</div>
-  <div class="ev">Ломбард «Алтын» — выезжает ГБР-2</div><div class="meta">Расчётное время прибытия: 5 мин · экипаж Ким / Абдулла</div>
-  <div class="acts"><button class="mini green" onclick="resolve()">✓ Прибыли, объект проверен</button></div>`;close();}
-function falseAlarm(){const box=document.getElementById('alarmBox');box.classList.remove('live');box.innerHTML=`<div class="at" style="color:var(--green)">✓ ОТМЕНЕНО</div><div class="ev">Тревога отмечена как ложная</div><div class="meta">Объект остаётся на охране. Событие записано в журнал.</div>`;document.getElementById('alarmBdg').style.display='none';close();}
-function resolve(){const box=document.getElementById('alarmBox');box.classList.remove('live');box.innerHTML=`<div class="at" style="color:var(--green)">✓ ОТРАБОТАНО</div><div class="ev">Ломбард «Алтын» — объект в норме</div><div class="meta">Время реагирования: 5 мин 02 сек · в нормативе</div>`;document.getElementById('alarmBdg').style.display='none';clearInterval(timerInt);}
+
+// ─────────────────── OPEN INTEGRATION ───────────────────
+function openIntg(i){
+  const ig=intgData[i];
+  const d=ig.detail;
+  let body='';
+
+  if(d.type=='cam'){
+    body=`
+      <div class="row"><span class="rl">IP-адрес</span><span class="rv">${d.ip}</span></div>
+      <div class="row"><span class="rl">Порт</span><span class="rv">${d.port}</span></div>
+      <div class="row"><span class="rl">Логин</span><span class="rv">${d.user}</span></div>
+      <div class="row"><span class="rl">Пароль</span><span class="rv">${d.pass}</span></div>
+      <div class="row"><span class="rl">Статус подключения</span><span class="rv" style="color:var(--green)">● ${d.status}</span></div>
+      <div class="row"><span class="rl">Последнее событие</span><span class="rv">${d.lastEv}</span></div>
+      <h3 style="margin:16px 0 8px;font-size:13px">Устройства</h3>
+      <table><tr><th>Название</th><th>Модель</th><th>IP</th><th>Статус</th></tr>
+        ${d.devices.map(dv=>`<tr><td>${dv.name}</td><td style="color:var(--muted)">${dv.model}</td><td style="color:var(--muted)">${dv.ip}</td><td><span style="color:var(--green)">● ${dv.status}</span></td></tr>`).join('')}
+      </table>
+      <div class="acts-row"><button class="btn-act ghost" onclick="this.textContent='✓ Связь проверена'">🔗 Проверить связь</button></div>`;
+  } else if(d.type=='ajax'){
+    body=`
+      <div class="row"><span class="rl">Hub ID</span><span class="rv">${d.hubId}</span></div>
+      <div class="row"><span class="rl">API-ключ</span><span class="rv">${d.apiKey}</span></div>
+      <div class="row"><span class="rl">Устройств подключено</span><span class="rv">${d.devCount}</span></div>
+      <div class="row"><span class="rl">Последний сигнал</span><span class="rv">${d.lastSig}</span></div>
+      <div class="row"><span class="rl">Статус</span><span class="rv" style="color:var(--green)">● Активно</span></div>
+      <h3 style="margin:16px 0 8px;font-size:13px">Устройства</h3>
+      <table><tr><th>Устройство</th><th>Модель</th><th>Статус</th></tr>
+        ${d.devices.map(dv=>`<tr><td>${dv.name}</td><td style="color:var(--muted)">${dv.model}</td><td><span style="color:var(--green)">● ${dv.status}</span></td></tr>`).join('')}
+      </table>
+      <div class="acts-row"><button class="btn-act ghost" onclick="this.textContent='✓ Связь ОК'">🔗 Проверить связь</button></div>`;
+  } else if(d.type=='sip'){
+    body=`
+      <div class="row"><span class="rl">SIP-логин</span><span class="rv">${d.sipLogin}</span></div>
+      <div class="row"><span class="rl">Сервер</span><span class="rv">${d.server}</span></div>
+      <div class="row"><span class="rl">Статус</span><span class="rv" style="color:var(--green)">● ${d.status}</span></div>
+      <h3 style="margin:16px 0 8px;font-size:13px">Последние звонки</h3>
+      <table><tr><th>Номер</th><th>Тип</th><th>Длит.</th><th>Время</th><th></th></tr>
+        ${d.calls.map(c=>`<tr><td>${c.from}</td><td style="color:var(--muted)">${c.dir}</td><td>${c.dur}</td><td style="color:var(--muted)">${c.time}</td>
+        <td><button class="mini ghost" onclick="playAudio(this)">▶</button></td></tr>`).join('')}
+      </table>`;
+  } else if(d.type=='wa'){
+    body=`
+      <div class="row"><span class="rl">Номер телефона</span><span class="rv">${d.phone}</span></div>
+      <div class="row"><span class="rl">Статус</span><span class="rv" style="color:var(--green)">● ${d.status}</span></div>
+      <h3 style="margin:16px 0 8px;font-size:13px">Шаблоны сообщений</h3>
+      ${d.templates.map((t,i)=>`<div style="background:var(--off);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12.5px;display:flex;gap:8px;align-items:flex-start">
+        <span style="color:var(--bronze);font-weight:700;flex:none">#${i+1}</span><span>${t}</span></div>`).join('')}
+      <h3 style="margin:16px 0 8px;font-size:13px">Статистика за месяц</h3>
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <div style="flex:1;text-align:center;background:var(--off);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--navy)">${d.stats.sent}</div><div style="font-size:11px;color:var(--muted)">Отправлено</div></div>
+        <div style="flex:1;text-align:center;background:var(--off);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--green)">${d.stats.delivered}</div><div style="font-size:11px;color:var(--muted)">Доставлено</div></div>
+        <div style="flex:1;text-align:center;background:var(--off);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--blue)">${d.stats.read}</div><div style="font-size:11px;color:var(--muted)">Прочитано</div></div>
+      </div>
+      <h3 style="margin:0 0 8px;font-size:13px">Последние чаты</h3>
+      ${d.chats.map(c=>`<div class="wa-prev"><div class="wa-ava">${c.name[0]}</div>
+        <div style="flex:1"><div class="wa-nm">${c.name}</div><div class="wa-tx">${c.last}</div></div>
+        <div class="wa-tm">${c.time}</div></div>`).join('')}`;
+  } else {
+    body=`
+      <div style="text-align:center;padding:30px 0">
+        <div style="font-size:42px;margin-bottom:12px">📊</div>
+        <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:8px">Интеграция не подключена</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6">Подключение к 1С позволит автоматически выставлять счета,<br>синхронизировать оплаты и формировать акты сверки.</div>
+        <button class="btn-act green">🔗 Подключить 1С Бухгалтерию</button>
+      </div>`;
+  }
+
+  show(`
+  <div class="mh">
+    <button class="mx" onclick="closeModal()">×</button>
+    <div class="mt">${ig.n}</div>
+    <div class="ms">${ig.d} · ${ig.on?'<span style="color:#a8e0b8">● Активно</span>':'<span style="color:#f5a08a">● Отключено</span>'}</div>
+  </div>
+  <div class="mb">${body}</div>`);
+}
+
+// ─────────────────── OPEN CREW ───────────────────
+function openCrew(i){
+  const c=crewsData[i];
+  const routeHtml=c.route.map(r=>`<div class="tl ${r.ev.includes('тревог')||r.ev.includes('Тревога')?'red':r.ev.includes('Возврат')||r.ev.includes('завершён')?'green':'blue'}">
+    <div class="td"></div><div><div class="tx">${r.ev}</div><div class="ty">${r.t}</div></div></div>`).join('');
+  show(`
+  <div class="mh">
+    <button class="mx" onclick="closeModal()">×</button>
+    <div class="mt">${c.n}</div>
+    <div class="ms">Смена ${c.shift} · <span style="color:${c.st=='free'?'#a8e0b8':c.st=='way'?'#ffd080':'#a8c8f0'}">${cb[c.st][1]}</span></div>
+  </div>
+  <div class="mb">
+    <h3 style="font-size:13px;margin-bottom:12px">Состав экипажа</h3>
+    <div>
+      ${c.members.map(m=>`<div class="crew-member">
+        <div class="crew-ava">${m.init}</div>
+        <div class="crew-info"><div class="cm-name">${m.name}</div><div class="cm-role">${m.role}</div></div>
+      </div>`).join('')}
+    </div>
+    <div class="row" style="margin-top:12px"><span class="rl">Текущий статус</span><span class="rv">${cb[c.st][1]}</span></div>
+    <div class="row"><span class="rl">Текущая задача</span><span class="rv">${c.task}</span></div>
+    <h3 style="font-size:13px;margin:16px 0 6px">Маршрут смены сегодня</h3>
+    <div class="timeline">${routeHtml}</div>
+    <div class="acts-row">
+      <button class="btn-act green">🚓 Назначить вызов</button>
+      <button class="btn-act ghost">📻 Связаться по рации</button>
+    </div>
+  </div>`);
+}
+
+// ─────────────────── OPEN JOURNAL ITEM ───────────────────
+function openJournalItem(i){
+  const j=journalItems[i];
+  const tlHtml=j.detail.timeline.map(tl=>`<div class="tl ${tl.cls}"><div class="td"></div>
+    <div><div class="tx">${tl.ev}</div><div class="ty">${tl.t}</div></div></div>`).join('');
+  show(`
+  <div class="mh ${j.st=='p-over'?'alarm':''}">
+    <button class="mx" onclick="closeModal()">×</button>
+    <div class="mt">${j.ev}</div>
+    <div class="ms">${j.ob} · ${j.t}</div>
+  </div>
+  <div class="mb">
+    <div class="row"><span class="rl">Объект</span><span class="rv">${j.ob}</span></div>
+    <div class="row"><span class="rl">Время события</span><span class="rv">${j.t}</span></div>
+    <div class="row"><span class="rl">Принял</span><span class="rv">${j.detail.accept}</span></div>
+    <div class="row"><span class="rl">Ответ / реакция</span><span class="rv">${j.detail.resp}</span></div>
+    <h3 style="font-size:13px;margin:16px 0 6px">Таймлайн обработки</h3>
+    <div class="timeline">${tlHtml}</div>
+    ${j.st=='p-over'||j.st=='p-act'?`<h3 style="font-size:13px;margin:16px 0 6px">Аудиозапись переговоров</h3>${audioWidget('1:32')}
+    <div style="font-size:11px;color:var(--muted);margin-top:4px">Оператор Жанна Сейткали · ${j.t} · ПЦН</div>`:''}
+  </div>`);
+}
+
+// ─────────────────── ALARM TIMER ───────────────────
+let timerSec=38;
+const timerInt=setInterval(()=>{
+  timerSec++;
+  const m=String(Math.floor(timerSec/60)).padStart(2,'0'),s=String(timerSec%60).padStart(2,'0');
+  const el=document.getElementById('alTimer');
+  if(el) el.textContent=m+':'+s;
+},1000);
+
+function dispatch(){
+  const box=document.getElementById('alarmBox');
+  box.innerHTML=`<div class="at"><span style="width:11px;height:11px;border-radius:50%;background:var(--blue);display:inline-block"></span> ГБР НАПРАВЛЕН</div>
+    <div class="ev">Ломбард «Алтын» — выезжает ГБР-2</div>
+    <div class="meta">Расчётное время прибытия: 5 мин · экипаж Ким / Абдулла</div>
+    <div class="acts"><button class="mini green" onclick="resolve()">✓ Прибыли, объект проверен</button></div>`;
+  closeModal();
+}
+function falseAlarm(){
+  const box=document.getElementById('alarmBox');
+  box.classList.remove('live');
+  box.innerHTML=`<div class="at" style="color:var(--green)">✓ ОТМЕНЕНО</div>
+    <div class="ev">Тревога отмечена как ложная</div>
+    <div class="meta">Объект остаётся на охране. Событие записано в журнал.</div>`;
+  const b=document.getElementById('alarmBdg');
+  if(b) b.style.display='none';
+  clearInterval(timerInt);
+  closeModal();
+}
+function resolve(){
+  const box=document.getElementById('alarmBox');
+  box.classList.remove('live');
+  box.innerHTML=`<div class="at" style="color:var(--green)">✓ ОТРАБОТАНО</div>
+    <div class="ev">Ломбард «Алтын» — объект в норме</div>
+    <div class="meta">Время реагирования: 5 мин 02 сек · в нормативе</div>`;
+  const b=document.getElementById('alarmBdg');
+  if(b) b.style.display='none';
+  clearInterval(timerInt);
+}
 </script>
 </body>
 </html>
