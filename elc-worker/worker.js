@@ -5214,8 +5214,8 @@ async function handleUserProfilePut(request, env, uid) {
   if (typeof body.bio === 'string') {
     await env.DB.prepare("UPDATE users SET bio = ? WHERE uid = ?").bind(body.bio.slice(0, 4000), uid).run();
   }
-  // Имя и фамилию может менять только администратор.
-  if (me.role === 'admin') {
+  // Имя и фамилию может менять администратор ИЛИ сам сотрудник (свой профиль).
+  if (me.role === 'admin' || me.canonicalUid === uid) {
     const before = await env.DB.prepare("SELECT name, last_name FROM users WHERE uid = ?").bind(uid).first();
     let changed = false; const upd = {};
     if (typeof body.name === 'string') { upd.name = body.name.trim().slice(0, 120); changed = true; }
