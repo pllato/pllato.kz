@@ -3197,6 +3197,9 @@ textarea.inline-edit-input.inline-edit-h2, .inline-edit-h2 textarea { min-width:
       <span class="nav-icon">📧</span><span>Почта</span>
       <span class="nav-badge" id="mail-nav-badge" style="display:none"></span>
     </div>
+    <div class="nav-item" data-page="onboarding">
+      <span class="nav-icon">🎓</span><span>Обучение</span>
+    </div>
     <div class="nav-item" data-page="lesson-checks">
       <span class="nav-icon">📝</span><span>Пробные Занятия</span>
       <span class="nav-badge" id="lesson-checks-nav-badge" style="display:none"></span>
@@ -3906,7 +3909,7 @@ async function initApp(user) {
 
   // Default page — восстанавливаем последнюю открытую (persist в localStorage
   // через navigate). Deep-link в hash (#deal/, #contact/, #task/) приоритетнее.
-  const VALID_PAGES = ['dashboard', 'notifications', 'contacts', 'deals', 'tasks', 'team-chat', 'deeds', 'calendar', 'chats', 'orgchart', 'migration', 'settings', 'feed', 'lesson-checks'];
+  const VALID_PAGES = ['dashboard', 'notifications', 'contacts', 'deals', 'tasks', 'team-chat', 'deeds', 'calendar', 'chats', 'orgchart', 'migration', 'settings', 'feed', 'lesson-checks', 'mail', 'onboarding'];
   // Старая страница 'users' переехала в 'settings' → редирект сохранённого значения
   // Дефолт при ПЕРВОМ входе (нет сохранённой страницы) — «Чаты» (team-chat).
   // Для вернувшихся пользователей ниже восстанавливаем их последнюю страницу.
@@ -4059,6 +4062,7 @@ function navigate(page) {
   else if (page === 'chats') renderChats(main);
   else if (page === 'team-chat') renderTeamChat(main);
   else if (page === 'mail') renderMail(main);
+  else if (page === 'onboarding') renderOnboarding(main);
   else if (page === 'lesson-checks') renderLessonChecks(main);
   else if (page === 'feed') renderFeed(main);
   else if (page === 'orgchart') renderOrgChart(main);
@@ -21329,6 +21333,235 @@ function openSipLineForm(line) {
 // ════════════════════════════════════════════════════════════════════════
 // ПОЧТА — вкладка. Этап 1: список доступных ящиков + управление (для админов).
 // ════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════════
+// ОНБОРДИНГ — обучение порталу + итоговый тест.
+// ════════════════════════════════════════════════════════════════════════
+const ONB_PASS = 70; // % правильных для зачёта
+
+// Иллюстрация «экрана» — путь до кнопки + подпись (вместо реального скрина).
+function onbScreen(path, cap) {
+  return `<div class="onb-screen"><div class="onb-screen-path">${escapeHtml(path)}</div>${cap ? `<div class="onb-screen-cap">${escapeHtml(cap)}</div>` : ''}</div>`;
+}
+const ONBOARDING_LESSONS = [
+  { id: 'intro', icon: '👋', title: 'Знакомство с порталом', steps: [
+    { t: 'Что это за портал', d: 'Это рабочая система ELC: общение команды, клиенты и сделки (СРМ), задачи, почта и звонки — всё в одном месте. Слева — меню разделов.', s: () => onbScreen('Меню слева: 📊 Главная · 💼 СРМ · ✅ Задачи · 💬 Чаты · 📧 Почта · 🎓 Обучение', 'Переключайтесь между разделами кликом по пункту меню') },
+    { t: 'Ваш профиль', d: 'Нажмите на свой аватар внизу слева — там можно загрузить фото, указать телефоны для уведомлений и изменить своё имя (✏ рядом с именем).', s: () => onbScreen('Аватар (внизу слева) → Мой профиль', 'Фото, телефоны, изменить имя') },
+  ]},
+  { id: 'people', icon: '🧑‍💼', title: 'Добавление сотрудников', steps: [
+    { t: 'Где добавить', d: 'Раздел «Настройки» (только у админов) → вкладка «🧑‍💼 Сотрудники» → кнопка «➕ Добавить сотрудника».', s: () => onbScreen('⚙️ Настройки → 🧑‍💼 Сотрудники → ➕ Добавить', 'Раздел доступен администраторам') },
+    { t: 'Приглашение', d: 'Укажите имя и контакт — сотрудник получит ссылку-приглашение (в WhatsApp), войдёт через Google и попадёт в портал.', s: () => onbScreen('Добавить → ссылка-приглашение → вход через Google', 'Сотрудник входит по ссылке') },
+    { t: 'Роли и доступ', d: 'Роль определяет права: сотрудник видит своё, менеджер — отдел, админ — всё. Если сотрудник не заходит больше 3 недель — доступ авто-приостанавливается.', s: () => onbScreen('Роли: сотрудник · менеджер · админ', 'Права зависят от роли и оргструктуры') },
+  ]},
+  { id: 'chat', icon: '💬', title: 'Чаты команды', steps: [
+    { t: 'Открыть и создать чат', d: 'Раздел «💬 Чаты». Кнопкой «＋» создайте личный чат с сотрудником или групповой. Слева — список чатов с поиском.', s: () => onbScreen('💬 Чаты → ＋ → Личный / Групповой', 'Поиск чата — сверху списка') },
+    { t: 'Сообщения и реакции', d: 'Пишите сообщение и Enter — отправка. Можно реагировать (😊), отвечать (↩), редактировать своё (✏), прикреплять файлы (📎) и записывать голосовые (🎤).', s: () => onbScreen('📎 файл · 🎤 голосовое · ⚡ шаблоны · 😊 реакция', 'На своём сообщении — ✏ редактировать') },
+    { t: 'Удобства', d: 'Чаты можно закреплять (до 5), искать по истории, делать беззвучными и архивировать (только у себя). Клик по имени/аватарке — профиль сотрудника. Галочки: ✓ отправлено, ✓✓ доставлено, ✓✓ синие — прочитано.', s: () => onbScreen('📌 закрепить · 🔕 беззвучно · 🗄 архив · 🔎 поиск', 'Черновик сохраняется, история подгружается при прокрутке') },
+  ]},
+  { id: 'crm', icon: '💼', title: 'СРМ: клиенты и сделки', steps: [
+    { t: 'Сделки и воронки', d: 'Раздел «💼 СРМ» — сделки по этапам (канбан). Перетаскивайте карточки между этапами. Клик по сделке — карточка с деталями, контактом, задачами и звонками.', s: () => onbScreen('💼 СРМ → воронка (канбан) → карточка сделки', 'Перетаскивайте сделки между этапами') },
+    { t: 'Контакты и поиск', d: 'Раздел «👥 Контакты». Поиск работает по имени, фамилии, email и по телефону в любом формате (даже по части цифр). Можно искать сразу по нескольким словам.', s: () => onbScreen('👥 Контакты → 🔍 поиск по имени/телефону', '«Иван Петров», «Петров 705» — найдёт') },
+    { t: 'Звонок из системы', d: 'У контакта/сделки есть кнопка 📞 — звонок прямо из браузера. Входящие звонки всплывают с карточкой клиента.', s: () => onbScreen('📞 рядом с номером — позвонить', 'Звонки идут через подключённую телефонию') },
+  ]},
+  { id: 'tasks', icon: '✅', title: 'Задачи', steps: [
+    { t: 'Создание задачи', d: 'Раздел «✅ Задачи». Создайте задачу: название, описание, ответственный, дедлайн, приоритет. Есть список и канбан по статусам.', s: () => onbScreen('✅ Задачи → создать → ответственный, дедлайн', 'Список или канбан по статусам') },
+    { t: 'Работа со статусом', d: 'В карточке задачи — «✅ Завершить» (для открытых) и «↩️ Открыть заново» (для закрытых) в один клик. Ответственного назначают постановщик/ответственный/админ.', s: () => onbScreen('Карточка задачи → ✅ Завершить / ↩️ Открыть заново', 'Статус меняется одним кликом') },
+  ]},
+  { id: 'mail', icon: '📧', title: 'Почта', steps: [
+    { t: 'Работа с ящиком', d: 'Раздел «📧 Почта» — общий ящик компании. Слева папки (Входящие/Отправленные), справа письма. Непрочитанные — жирные с полоской. Бейдж в меню показывает число новых.', s: () => onbScreen('📧 Почта → Входящие → письмо', 'Бейдж = непрочитанные, тост — о новых') },
+    { t: 'Чтение и ответ', d: 'Клик по письму — чтение. Кнопка «↩ Ответить». «✏️ Написать» — новое письмо. Можно прикрепить файлы (📎) к письму и ответу.', s: () => onbScreen('Письмо → ↩ Ответить → 📎 прикрепить файл', 'Поиск и «Показать ещё» — для старых писем') },
+  ]},
+];
+const ONBOARDING_QUIZ = [
+  { q: 'Где добавить нового сотрудника?', o: ['Настройки → Сотрудники → ➕ Добавить', 'Чаты → ＋', 'Главная → Добавить'], c: 0 },
+  { q: 'Как сотрудник попадает в портал после приглашения?', o: ['Придумывает пароль', 'Входит через Google по ссылке-приглашению', 'Звонит админу'], c: 1 },
+  { q: 'Что делает кнопка 🎤 в чате?', o: ['Звонок', 'Запись голосового сообщения', 'Поиск'], c: 1 },
+  { q: 'Что значат синие галочки ✓✓ у сообщения?', o: ['Отправлено', 'Доставлено', 'Прочитано собеседником'], c: 2 },
+  { q: 'Как найти контакт по телефону?', o: ['Только по полному номеру с +7', 'По любой части цифр в любом формате', 'По телефону искать нельзя'], c: 1 },
+  { q: 'Как быстро завершить задачу?', o: ['Удалить её', 'Кнопка «✅ Завершить» в карточке', 'Написать в чат'], c: 1 },
+  { q: 'Как позвонить клиенту из СРМ?', o: ['Кнопка 📞 у номера', 'Скопировать номер в телефон', 'Через почту'], c: 0 },
+  { q: 'Где видно непрочитанные письма?', o: ['Нигде', 'Бейдж на пункте «Почта» + жирные письма', 'Только в Яндексе'], c: 1 },
+  { q: 'Архивирование чата у себя…', o: ['Удаляет чат у всех', 'Прячет чат только у вас', 'Блокирует собеседника'], c: 1 },
+  { q: 'Что будет, если не заходить в портал больше 3 недель?', o: ['Ничего', 'Доступ авто-приостановят, нужно к админу', 'Удалят аккаунт'], c: 1 },
+];
+
+function onbInjectStyles() {
+  if (document.getElementById('onb-styles')) return;
+  const s = document.createElement('style'); s.id = 'onb-styles';
+  s.textContent = `
+    .onb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:14px}
+    .onb-card{border:1px solid var(--b1);border-radius:12px;padding:16px;cursor:pointer;background:var(--bg);transition:.15s;display:flex;gap:12px;align-items:center}
+    .onb-card:hover{border-color:var(--ac2);box-shadow:0 3px 12px rgba(0,0,0,.06)}
+    .onb-ic{width:46px;height:46px;border-radius:12px;background:var(--acbg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+    .onb-card.done .onb-ic{background:var(--gnbg)}
+    .onb-screen{background:var(--bg3);border:1px dashed var(--b1);border-radius:10px;padding:14px 16px;margin:10px 0}
+    .onb-screen-path{font-size:13.5px;font-weight:600;color:var(--ac2)}
+    .onb-screen-cap{font-size:12px;color:var(--t3);margin-top:4px}
+    .onb-bar{height:8px;border-radius:6px;background:var(--bg3);overflow:hidden;margin-top:8px}
+    .onb-bar > div{height:100%;background:var(--ac2);transition:width .3s}
+    .onb-q{border:1px solid var(--b1);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+    .onb-opt{display:flex;gap:9px;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13.5px}
+    .onb-opt:hover{background:var(--bg3)}
+    .onb-opt.sel{background:var(--acbg);color:var(--ac2)}
+    .onb-opt.correct{background:var(--gnbg);color:var(--gn)}
+    .onb-opt.wrong{background:var(--rdbg);color:var(--rd)}
+  `;
+  document.head.appendChild(s);
+}
+
+async function onbSaveProgress(body) {
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    await fetch(`${WORKER_BASE_URL}/api/onboarding/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken }, body: JSON.stringify(body) });
+  } catch (e) {}
+}
+
+async function renderOnboarding(el) {
+  onbInjectStyles();
+  const isAdmin = window.currentUser?.role === 'admin';
+  el.innerHTML = `<div class="page-title">🎓 Обучение порталу</div><div class="card" style="padding:24px;color:var(--t3)">⏳ Загрузка…</div>`;
+  let progress = { completedLessons: [], testPassed: false, testScore: null };
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/onboarding/me`, { headers: { Authorization: 'Bearer ' + idToken } });
+    const d = await r.json(); if (d.ok) progress = d.progress;
+  } catch (e) {}
+  const done = new Set(progress.completedLessons || []);
+  const lessonsDone = ONBOARDING_LESSONS.filter(l => done.has(l.id)).length;
+  const pct = Math.round(lessonsDone / ONBOARDING_LESSONS.length * 100);
+  const adminBtn = isAdmin ? `<button class="tbtn tbtn-sm tbtn-a" id="onb-admin">👥 Прогресс сотрудников</button>` : '';
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div class="page-title" style="margin:0">🎓 Обучение порталу</div>${adminBtn}
+    </div>
+    <div class="page-sub">Пройдите уроки и сдайте тест, чтобы освоить портал. Можно возвращаться в любой момент.</div>
+    <div class="card" style="padding:16px 18px;margin-top:10px">
+      <div style="display:flex;justify-content:space-between;font-size:13px"><span>Прогресс уроков: <b>${lessonsDone}/${ONBOARDING_LESSONS.length}</b></span>
+        <span>${progress.testPassed ? `<span style="color:var(--gn);font-weight:700">✅ Тест сдан (${progress.testScore}%)</span>` : 'Тест не сдан'}</span></div>
+      <div class="onb-bar"><div style="width:${pct}%"></div></div>
+    </div>
+    <div class="onb-grid">
+      ${ONBOARDING_LESSONS.map((l, i) => `
+        <div class="onb-card ${done.has(l.id) ? 'done' : ''}" data-lesson="${l.id}">
+          <div class="onb-ic">${done.has(l.id) ? '✅' : l.icon}</div>
+          <div style="min-width:0"><div style="font-weight:700;font-size:14px">${i + 1}. ${escapeHtml(l.title)}</div>
+          <div style="font-size:12px;color:var(--t3)">${l.steps.length} шага${done.has(l.id) ? ' · пройдено' : ''}</div></div>
+        </div>`).join('')}
+    </div>
+    <div style="margin-top:18px;text-align:center">
+      <button class="tbtn tbtn-a" id="onb-test" style="padding:11px 24px;font-size:15px">📝 ${progress.testPassed ? 'Пройти тест заново' : 'Пройти итоговый тест'}</button>
+      <div style="font-size:12px;color:var(--t3);margin-top:6px">Для зачёта нужно ${ONB_PASS}% правильных ответов</div>
+    </div>`;
+  el.querySelectorAll('[data-lesson]').forEach(c => c.onclick = () => openOnboardingLesson(c.dataset.lesson, () => renderOnboarding(el)));
+  document.getElementById('onb-test').onclick = () => openOnboardingTest(() => renderOnboarding(el));
+  if (isAdmin) document.getElementById('onb-admin').onclick = () => openOnboardingStatus();
+}
+
+function openOnboardingLesson(lessonId, onDone) {
+  const lesson = ONBOARDING_LESSONS.find(l => l.id === lessonId);
+  if (!lesson) return;
+  let i = 0;
+  document.getElementById('_onb-lesson')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_onb-lesson'; ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:560px;width:96vw">
+    <div class="qad-head"><h2>${lesson.icon} ${escapeHtml(lesson.title)}</h2><button class="qad-btn qad-btn-ghost" id="ol-close" style="padding:4px 10px">×</button></div>
+    <div class="qad-body" id="ol-body" style="max-height:74vh;overflow-y:auto"></div>
+    <div class="qad-foot"><button class="qad-btn qad-btn-ghost" id="ol-prev">← Назад</button><span id="ol-num" style="font-size:12px;color:var(--t3);align-self:center"></span><button class="qad-btn qad-btn-primary" id="ol-next">Далее →</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#ol-close').onclick = () => ov.remove();
+  function renderStep() {
+    const st = lesson.steps[i];
+    ov.querySelector('#ol-body').innerHTML = `<div style="font-weight:700;font-size:15px;margin-bottom:6px">${escapeHtml(st.t)}</div>
+      <div style="font-size:13.5px;line-height:1.55;color:var(--t1)">${escapeHtml(st.d)}</div>${st.s ? st.s() : ''}`;
+    ov.querySelector('#ol-num').textContent = `${i + 1} / ${lesson.steps.length}`;
+    ov.querySelector('#ol-prev').style.visibility = i === 0 ? 'hidden' : 'visible';
+    ov.querySelector('#ol-next').textContent = i === lesson.steps.length - 1 ? '✓ Завершить урок' : 'Далее →';
+  }
+  ov.querySelector('#ol-prev').onclick = () => { if (i > 0) { i--; renderStep(); } };
+  ov.querySelector('#ol-next').onclick = async () => {
+    if (i < lesson.steps.length - 1) { i++; renderStep(); return; }
+    await onbSaveProgress({ completedLessons: [lesson.id] });
+    ov.remove(); showToast?.('Урок пройден ✅'); onDone && onDone();
+  };
+  renderStep();
+}
+
+function openOnboardingTest(onDone) {
+  document.getElementById('_onb-test')?.remove();
+  const answers = {};
+  const ov = document.createElement('div');
+  ov.id = '_onb-test'; ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:600px;width:96vw">
+    <div class="qad-head"><h2>📝 Тест на знание портала</h2><button class="qad-btn qad-btn-ghost" id="ot-close" style="padding:4px 10px">×</button></div>
+    <div class="qad-body" id="ot-body" style="max-height:72vh;overflow-y:auto">
+      ${ONBOARDING_QUIZ.map((q, qi) => `<div class="onb-q"><div style="font-weight:600;font-size:14px;margin-bottom:8px">${qi + 1}. ${escapeHtml(q.q)}</div>
+        ${q.o.map((opt, oi) => `<div class="onb-opt" data-q="${qi}" data-o="${oi}">${escapeHtml(opt)}</div>`).join('')}</div>`).join('')}
+    </div>
+    <div class="qad-foot"><button class="qad-btn qad-btn-primary" id="ot-submit">Проверить</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#ot-close').onclick = () => ov.remove();
+  ov.querySelectorAll('.onb-opt').forEach(o => o.onclick = () => {
+    const qi = o.dataset.q;
+    ov.querySelectorAll(`.onb-opt[data-q="${qi}"]`).forEach(x => x.classList.remove('sel'));
+    o.classList.add('sel'); answers[qi] = +o.dataset.o;
+  });
+  ov.querySelector('#ot-submit').onclick = async () => {
+    if (Object.keys(answers).length < ONBOARDING_QUIZ.length) { alert('Ответьте на все вопросы'); return; }
+    let correct = 0;
+    ONBOARDING_QUIZ.forEach((q, qi) => {
+      const chosen = answers[qi];
+      if (chosen === q.c) correct++;
+      ov.querySelectorAll(`.onb-opt[data-q="${qi}"]`).forEach(x => {
+        const oi = +x.dataset.o;
+        if (oi === q.c) x.classList.add('correct');
+        else if (oi === chosen) x.classList.add('wrong');
+        x.style.pointerEvents = 'none';
+      });
+    });
+    const score = Math.round(correct / ONBOARDING_QUIZ.length * 100);
+    const passed = score >= ONB_PASS;
+    await onbSaveProgress({ testScore: score, testPassed: passed });
+    const foot = ov.querySelector('.qad-foot');
+    foot.innerHTML = `<div style="flex:1;font-size:14px;font-weight:700;color:${passed ? 'var(--gn)' : 'var(--rd)'}">${passed ? `✅ Тест сдан! ${score}% правильных` : `Не сдан: ${score}% (нужно ${ONB_PASS}%)`}</div>
+      <button class="qad-btn qad-btn-primary" id="ot-done">${passed ? 'Готово' : 'Закрыть'}</button>`;
+    ov.querySelector('#ot-done').onclick = () => { ov.remove(); onDone && onDone(); };
+    if (passed) { try { showToast?.('🎓 Тест сдан!'); } catch {} }
+  };
+}
+
+async function openOnboardingStatus() {
+  document.getElementById('_onb-status')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_onb-status'; ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:640px;width:96vw">
+    <div class="qad-head"><h2>👥 Прогресс обучения</h2><button class="qad-btn qad-btn-ghost" id="os-close" style="padding:4px 10px">×</button></div>
+    <div class="qad-body" id="os-body" style="max-height:74vh;overflow-y:auto"><div style="padding:20px;color:var(--t3)">⏳ Загрузка…</div></div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#os-close').onclick = () => ov.remove();
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/onboarding/status`, { headers: { Authorization: 'Bearer ' + idToken } });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || 'ошибка');
+    const passed = d.items.filter(x => x.testPassed).length;
+    ov.querySelector('#os-body').innerHTML = `
+      <div style="font-size:13px;color:var(--t3);margin-bottom:10px">Сдали тест: <b style="color:var(--gn)">${passed}</b> из ${d.items.length}</div>
+      ${d.items.map(x => `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--b1)">
+        <div style="flex:1;min-width:0;font-size:13.5px">${escapeHtml(x.name)}</div>
+        <div style="font-size:12px;color:var(--t3)">${x.lessonsCount}/${ONBOARDING_LESSONS.length} ур.</div>
+        <div style="width:120px;text-align:right">${x.testPassed ? `<span class="badge badge-g">✅ сдан ${x.testScore}%</span>` : (x.testScore != null ? `<span class="badge badge-r">${x.testScore}%</span>` : '<span class="badge badge-n">не начал</span>')}</div>
+      </div>`).join('')}`;
+  } catch (e) {
+    ov.querySelector('#os-body').innerHTML = `<div style="padding:20px;color:var(--rd)">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
 // Бейдж непрочитанных писем в меню + уведомление о новых письмах.
 let _mailUnreadState = { total: -1, timer: null, perBox: {} };
 async function mailRefreshUnread(notify) {
