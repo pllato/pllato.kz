@@ -3172,6 +3172,10 @@ textarea.inline-edit-input.inline-edit-h2, .inline-edit-h2 textarea { min-width:
     <div class="nav-item" data-page="contacts" style="padding-left:32px">
       <span class="nav-icon">👥</span><span>Контакты</span>
     </div>
+    <div class="nav-item" data-page="chats" style="padding-left:32px">
+      <span class="nav-icon">💬</span><span>WhatsApp</span>
+      <span class="nav-badge" id="wa-nav-badge" style="display:none"></span>
+    </div>
     <div class="nav-item" data-page="deeds" style="padding-left:32px">
       <span class="nav-icon">🗓</span><span>Дела</span>
     </div>
@@ -7502,6 +7506,11 @@ function recomputeWaWidgetUnread() {
   let total = 0;
   for (const c of (waWidget.chats || [])) total += c.unreadCount || 0;
   waWidget.unreadTotal = total;
+  // Бейдж непрочитанных WhatsApp на пункте меню «WhatsApp».
+  try {
+    const wb = document.getElementById('wa-nav-badge');
+    if (wb) { if (total > 0) { wb.style.display = 'inline-flex'; wb.textContent = total > 99 ? '99+' : total; } else wb.style.display = 'none'; }
+  } catch (e) {}
 
   // Сайдбар-бэйдж «Чаты»: считаем только командные каналы, капаем на 99+.
   // Глобальный поллинг (каждые 7с) держит бэйдж корректным, даже если chat.js не смонтирован.
