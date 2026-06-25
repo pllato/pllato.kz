@@ -5073,7 +5073,7 @@ async function openEmployeeProfile(uid) {
     <div style="text-align:center;margin-bottom:16px">
       <div id="ep-avatar" style="width:96px;height:96px;border-radius:50%;margin:0 auto 10px;overflow:hidden;background:var(--ac);display:flex;align-items:center;justify-content:center;color:#fff;font-size:34px;font-weight:700"></div>
       ${data.isSelf ? `<input type="file" id="ep-file" accept="image/*" style="display:none"><button class="qad-btn qad-btn-ghost" id="ep-photo" style="padding:6px 14px;font-size:12px">📷 Изменить фото</button>` : ''}
-      <div style="font-weight:700;font-size:17px;color:var(--t1);margin-top:6px">${escapeHtml(fullName)}</div>
+      <div id="ep-name" style="font-weight:700;font-size:17px;color:var(--t1);margin-top:6px">${escapeHtml(fullName)}${(data.canEdit && window.currentUser?.role === 'admin') ? ` <button id="ep-edit-name" title="Изменить имя" style="border:none;background:none;cursor:pointer;font-size:14px;vertical-align:middle">✏️</button>` : ''}</div>
       <div style="font-size:13px;color:var(--t3)">${escapeHtml(p.position || '')}${p.active ? '' : ' · ⏸ неактивен'}</div>
     </div>
     <div>
@@ -5111,6 +5111,40 @@ async function openEmployeeProfile(uid) {
       finally { fileInput.value = ''; }
     };
   }
+
+  // Админ может изменить имя/фамилию сотрудника.
+  const editNameBtn = body.querySelector('#ep-edit-name');
+  if (editNameBtn) editNameBtn.onclick = () => {
+    const nameEl = body.querySelector('#ep-name');
+    nameEl.innerHTML = `
+      <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
+        <input id="ep-fn" placeholder="Имя" value="${escapeHtml(p.name || '')}" style="width:130px;padding:6px 9px;border:1px solid var(--b1);border-radius:6px;background:var(--bg3);color:var(--t1);font-size:14px">
+        <input id="ep-ln" placeholder="Фамилия" value="${escapeHtml(p.lastName || '')}" style="width:130px;padding:6px 9px;border:1px solid var(--b1);border-radius:6px;background:var(--bg3);color:var(--t1);font-size:14px">
+      </div>
+      <div style="margin-top:8px">
+        <button class="qad-btn qad-btn-primary" id="ep-name-save" style="padding:6px 14px;font-size:13px">Сохранить</button>
+        <button class="qad-btn qad-btn-ghost" id="ep-name-cancel" style="padding:6px 14px;font-size:13px">Отмена</button>
+      </div>
+      <div id="ep-name-status" style="font-size:12px;margin-top:4px"></div>`;
+    body.querySelector('#ep-name-cancel').onclick = () => { ov.remove(); openEmployeeProfile(uid); };
+    body.querySelector('#ep-name-save').onclick = async () => {
+      const name = body.querySelector('#ep-fn').value.trim();
+      const lastName = body.querySelector('#ep-ln').value.trim();
+      const st = body.querySelector('#ep-name-status');
+      if (!name && !lastName) { st.innerHTML = '<span style="color:var(--rd)">Укажите имя</span>'; return; }
+      st.textContent = '⏳…';
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_BASE_URL}/api/users/${encodeURIComponent(uid)}/profile`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+          body: JSON.stringify({ name, lastName }),
+        });
+        if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || ('HTTP ' + r.status)); }
+        showToast?.('Имя обновлено ✅');
+        ov.remove(); openEmployeeProfile(uid);
+      } catch (e) { st.innerHTML = `<span style="color:var(--rd)">${escapeHtml(e.message)}</span>`; }
+    };
+  };
 
   const bioSave = body.querySelector('#ep-bio-save');
   if (bioSave) bioSave.onclick = async () => {
