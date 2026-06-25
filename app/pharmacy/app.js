@@ -86,7 +86,7 @@ const PAGE_META = {
   funnels:['Воронки продаж','B2C и B2B · drag-and-drop сделок между этапами'],
   clients:['Клиенты','Единая база · история покупок из 1С'],
   inbox:['Чаты','WhatsApp · GreenAPI — переписка с клиентами'],
-  orders:['Заказы','Сформированы в CRM → переданы в 1С Listki EG'],
+  orders:['Заказы','Сформированы в CRM → переданы в 1С'],
   sales:['Продажи · 1С','Выручка, прибыль, топ товаров и KPI продавцов из регистра «Продажи» 1С'],
   catalog:['Каталог · остатки 1С','Зеркало 4 000 SKU в реальном времени'],
   marketing:['Промокоды и акции','Живут в CRM · в 1С уходит итоговая цена'],
@@ -134,12 +134,10 @@ function renderRoleSel(){
   // Переключатель ролей — только для админов (владелец/суперадмин). Остальным скрываем (роль фиксирована).
   if(!isAdminRole()){ sel.style.display='none'; sel.onchange=null; return; }
   sel.style.display=''; sel.innerHTML='';
-  DB.roles.forEach(r=>sel.appendChild(el(`<option value="${r.id}" ${state.role===r.id?'selected':''}>${r.name} (${r.who})</option>`)));
-  sel.onchange=()=>{state.role=sel.value;const r=DB.roles.find(x=>x.id===state.role);
-    $('#userName').textContent=r.who;$('#userRole').textContent=r.name;
-    $('#userAv').textContent=initials(r.who);$('#userAv').style.background=r.color;
-    const allowed=allowedSections(state.role);if(!allowed.includes(state.page))state.page=allowed[0];
-    renderNav();renderPage();toast(`Роль: <b>${r.name}</b> — показаны только доступные разделы`,'i-shield',r.color);};
+  DB.roles.forEach(r=>sel.appendChild(el(`<option value="${r.id}" ${state.role===r.id?'selected':''}>${esc(r.name)}</option>`)));
+  sel.onchange=()=>{ state.role=sel.value; const r=DB.roles.find(x=>x.id===state.role)||{name:state.role};
+    const allowed=allowedSections(state.role); if(!allowed.includes(state.page)) state.page=allowed[0];
+    renderNav(); renderPage(); toast(`Просмотр как роль: <b>${esc(r.name)}</b>`,'i-shield'); };
 }
 function go(p, sub){
   document.getElementById('sidebar').classList.remove('open');
@@ -245,14 +243,8 @@ async function loadDash(wrap,qs){
   wrap.innerHTML=`<div class="muted2" style="padding:10px">Загрузка…</div>`;
   const r=await api('/api/1c/dashboard'+(qs?('?'+qs):''));
   if(!r.ok){
-    const why=r.status===403?'нужен доступ':r.status===401?'войдите':'нет связи';
-    wrap.innerHTML=`<div class="note section-gap" style="margin-top:0">${ic('i-info','sm')} Дашборд в демо-режиме (${why}). Реальные метрики появятся при доступе к 1С.</div>
-      <div class="cards-row">
-        ${dashKpi('i-money','#10b981','Выручка',money(2480000),'▲ 12% к пред. периоду',1)}
-        ${dashKpi('i-chart','#2563eb','Прибыль · 30%',money(744000),'▲ 8% к пред. периоду',1)}
-        ${dashKpi('i-doc','#7c3aed','Документов','1 240','▲ 5% к пред. периоду',1)}
-        ${dashKpi('i-cart','#0891b2','Средний чек',money(2000),'розница',0)}
-      </div>`;
+    const why=r.status===403?'нужен доступ к 1С':r.status===401?'войдите заново':'нет связи с сервером';
+    wrap.innerHTML=`<div class="note section-gap" style="margin-top:0">${ic('i-info','sm')} Метрики недоступны (${why}). Появятся после подключения и синхронизации 1С.</div>`;
     return;
   }
   const d=r.data;
@@ -679,7 +671,7 @@ function dealModal(d){
   </div>
   <div class="modal-f">
     <button class="btn" onclick="toast('WhatsApp-диалог встроен в карточку','i-chat','var(--wa)')">${ic('i-chat','sm')} Открыть переписку</button>
-    <button class="btn primary" onclick="closeModal();toast('Заказ сформирован и передан в 1С Listki EG','i-cart')">${ic('i-cart','sm')} Сформировать заказ → 1С</button>
+    <button class="btn primary" onclick="closeModal();toast('Заказ сформирован и передан в 1С','i-cart')">${ic('i-cart','sm')} Сформировать заказ → 1С</button>
   </div>`,'wide');
 }
 const tl=(col,i,t,d)=>`<div class="tl-item"><div class="tl-dot" style="background:${col}22;color:${col}">${ic(i,'sm')}</div><div class="tl-c"><div class="tl-t">${t}</div><div class="tl-d">${d}</div></div></div>`;
@@ -920,7 +912,7 @@ function clientModalHTML(cl){
       <div class="fld"><label>Источник лида</label><input value="${esc(cl.source||'')}"></div></div>
     </div>`;
   } else if(state.clientTab===1){
-    body=`<div class="note blue">${ic('i-sync','sm')} История покупок подтягивается из 1С Listki EG автоматически. LTV: <b>${money(cl.ltv||0)}</b> · сделок: ${cl.deals!=null?cl.deals:'—'}</div>
+    body=`<div class="note blue">${ic('i-sync','sm')} История покупок подтягивается из 1С автоматически. LTV: <b>${money(cl.ltv||0)}</b> · сделок: ${cl.deals!=null?cl.deals:'—'}</div>
     ${clHistory.length?`<div class="timeline section-gap">${clHistory.map(h=>tl('#16a34a','i-cart',h.t,h.d)).join('')}</div>`:`<div class="empty section-gap">${ic('i-cart')}<div>Истории покупок пока нет</div></div>`}`;
   } else if(state.clientTab===2){
     body=`<div class="note">${ic('i-chat','sm')} Единая лента: WhatsApp + Instagram Direct + комментарии менеджеров — в одной карточке.</div>
@@ -3010,6 +3002,9 @@ function userEditModal(u,onSaved){
     <div class="fld"><label>Имя</label><input data-ue="name" value="${esc(u.name||'')}"></div>
     <div class="fld"><label>Роль${(u.role==='owner'||u.is_me)?' <span class="muted2">(менять нельзя)</span>':''}</label><select data-ue="role" class="sel" id="ueRole" ${(u.role==='owner'||u.is_me)?'disabled':''}><option>загрузка…</option></select></div>
     <div class="fld"><label>Email <span class="muted2">(опц., для входа через Google)</span></label><input data-ue="email" type="email" value="${esc(u.email||'')}" placeholder="name@gmail.com"></div>
+    ${u.is_me?'':`<div class="fld" style="border-top:1px solid var(--line);padding-top:12px;margin-top:4px"><label>Сбросить пароль <span class="muted2">(задать новый сотруднику)</span></label>
+      <div class="row" style="gap:8px"><input data-ue="newpass" type="text" placeholder="новый пароль (мин. 6)" autocomplete="new-password" style="flex:1"><button class="btn" type="button" id="ueResetPass">${ic('i-shield','sm')} Сбросить</button></div>
+      <div class="muted2" style="font-size:11px;margin-top:4px">Сотрудник выйдет со всех устройств и войдёт с новым паролем.</div></div>`}
   </div>
   <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="ueSave">${ic('i-check2','sm')} Сохранить</button></div>`);
   (async()=>{ const rr=await api('/api/admin/roles'); const sel=bg.querySelector('#ueRole'); if(!sel)return; const roles=((rr.ok&&rr.data&&rr.data.roles)||[]).filter(x=>x.id!=='superadmin'||u.role==='superadmin'); sel.innerHTML=roles.map(x=>`<option value="${esc(x.id)}" ${x.id===u.role?'selected':''}>${esc(x.name)}</option>`).join(''); })();
@@ -3025,6 +3020,16 @@ function userEditModal(u,onSaved){
     if(!r.ok){ toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626'); return; }
     closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved();
   };
+  const rp=bg.querySelector('#ueResetPass'); if(rp) rp.onclick=async()=>{
+    const np=bg.querySelector('[data-ue=newpass]').value.trim();
+    if(np.length<6){ toast('Пароль слишком короткий (мин. 6)','i-info','#d97706'); return; }
+    if(!confirm('Сбросить пароль сотруднику «'+(u.name||u.login||'')+'»? Он выйдет со всех устройств.')) return;
+    rp.disabled=true; const ro=rp.innerHTML; rp.textContent='…';
+    const r=await api('/api/admin/users/'+encodeURIComponent(u.id)+'/password',{method:'POST',body:JSON.stringify({new_password:np})});
+    rp.disabled=false; rp.innerHTML=ro;
+    if(!r.ok){ toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626'); return; }
+    toast('Пароль сброшен — передайте новый сотруднику','i-check2'); bg.querySelector('[data-ue=newpass]').value='';
+  };
 }
 function teamMembersPanel(){
   const panel=el(`<div class="panel"><div class="panel-h"><h3>Команда</h3>
@@ -3033,14 +3038,14 @@ function teamMembersPanel(){
   const body=panel.querySelector('[data-tm=body]');
   const cnt=panel.querySelector('[data-tm=cnt]');
   function renderDemo(note){
-    cnt.textContent = note||'демо-состав';
-    body.innerHTML=DB.roles.map(r=>`<tr><td><div class="cell-name"><span class="avatar-xs" style="background:${r.color}">${initials(r.who)}</span><div><div>${r.who}</div><div class="muted2" style="font-size:11px">${r.name}</div></div></div></td><td style="text-align:right"><span class="tag green">активен</span></td></tr>`).join('');
+    cnt.textContent='';
+    body.innerHTML=`<tr><td colspan="2" class="muted2" style="padding:16px;font-size:13px">${esc(note||'Сотрудников пока нет.')}</td></tr>`;
   }
   async function load(){
     const r=await api('/api/admin/users');
-    if(!r.ok){ renderDemo(r.status===403?'демо · нужен доступ владельца':'демо · нет связи'); return; }
-    const items=(r.data.items||[]).filter(u=>u.role!=='superadmin'); // dev/служебные учётки не показываем в ростере
-    if(!items.length){ renderDemo('пока нет аккаунтов'); return; }
+    if(!r.ok){ renderDemo(r.status===403?'Недостаточно прав — нужен доступ владельца':'Нет связи с сервером'); return; }
+    const items=(r.data.items||[]).filter(u=>u.role!=='superadmin'); // служебные учётки в ростере не показываем
+    if(!items.length){ renderDemo('Сотрудников пока нет — пригласите кнопкой «Пригласить сотрудника».'); return; }
     cnt.textContent = items.length+' '+plural(items.length,'сотрудник','сотрудника','сотрудников');
     body.innerHTML=items.map(u=>{
       const st = u.active ? '<span class="tag green">активен</span>' : '<span class="tag">отключён</span>';
@@ -3338,19 +3343,61 @@ async function waInstanceModal(inst){
   if(isEdit){ bg.querySelector('#wiDel').onclick=async()=>{ if(!confirm('Удалить этот номер из CRM?'))return; const r=await api('/api/admin/greenapi/instances/'+inst.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Номер удалён','i-check2'); if(window.__reloadGreenApi)window.__reloadGreenApi();} else toast('Ошибка','i-x','#dc2626'); }; }
 }
 
+// Телефония Binotel — self-service: креды вводятся тут, агент VM подтягивает их в Asterisk
+function sipPanel(){
+  const panel=el(`<div class="panel section-gap" style="margin-top:0">
+    <button class="panel-h" data-sip="toggle" style="width:100%;text-align:left;background:none;cursor:pointer">
+      <span style="width:44px;height:44px;border-radius:12px;background:#2563eb;color:#fff;display:grid;place-items:center;flex:none">${ic('i-phone')}</span>
+      <span style="flex:1;min-width:0"><span style="display:block;font-weight:700;font-size:15px">Телефония · Binotel</span><span class="muted" data-sip="sub" style="font-size:12.5px">загрузка…</span></span>
+      <span class="muted" data-sip="chev" style="font-size:12.5px;font-weight:600;flex:none;display:flex;align-items:center;gap:5px">${ic('i-cog','sm')} Управление</span>
+    </button>
+    <div class="panel-b" data-sip="body" style="display:none"><div class="muted2" style="font-size:13px">Загрузка…</div></div></div>`);
+  const body=panel.querySelector('[data-sip=body]'), sub=panel.querySelector('[data-sip=sub]'), chev=panel.querySelector('[data-sip=chev]'), tog=panel.querySelector('[data-sip=toggle]');
+  const setOpen=(o)=>{ body.style.display=o?'':'none'; chev.innerHTML=`${ic('i-cog','sm')} ${o?'Свернуть':'Управление'}`; };
+  setOpen(false);
+  tog.onclick=()=>setOpen(body.style.display==='none');
+  (async()=>{
+    const r=await api('/api/admin/sip/trunk');
+    if(!r.ok){ body.innerHTML=`<div class="muted2" style="font-size:13px">${r.status===403?'Доступно только владельцу':'Не удалось загрузить'}</div>`; sub.textContent='—'; return; }
+    const d=r.data||{}, t=d.trunk||{}, ep=d.endpoint||{};
+    const fdt=(ms)=>ms?new Date(ms).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+    sub.textContent = ep.online ? 'сервер звонков подключён' : 'сервер звонков не поднят';
+    body.innerHTML=`
+      <div class="muted2" style="font-size:12px;margin-bottom:12px">Введите данные SIP-транка Binotel — сервер звонков подтянет их автоматически (~1 мин). Сменить номер можно тут же, без нашего участия.</div>
+      <div class="grid-2b">
+        <div class="fld"><label>Логин SIP (Binotel)</label><input id="sipUser" value="${esc(t.username||'')}" placeholder="из кабинета Binotel"></div>
+        <div class="fld"><label>Пароль SIP ${t.has_password?'<span class="muted2">(задан — пусто = не менять)</span>':''}</label><input id="sipPass" type="password" placeholder="${t.has_password?'••••••••':'пароль из Binotel'}" autocomplete="new-password"></div>
+        <div class="fld"><label>SIP-сервер</label><input id="sipServer" value="${esc(t.server||'sip52.binotel.com')}"></div>
+        <div class="fld"><label>Порт</label><input id="sipPort" value="${esc(t.port||'5060')}"></div>
+        <div class="fld"><label>Исходящий номер (Caller ID) <span class="muted2">(опц.)</span></label><input id="sipCid" value="${esc(t.caller_id||'')}" placeholder="напр. 0312XXXXXX"></div>
+      </div>
+      <div class="row" style="margin-top:10px;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn primary" id="sipSave">${ic('i-check2','sm')} Сохранить</button>
+        <span class="muted2" style="font-size:12px">Сервер звонков: ${ep.domain?('<b>'+esc(ep.domain)+'</b>'):'<span style="color:var(--red)">не подключён</span>'} · синк агента: ${fdt(d.last_sync)}</span>
+      </div>
+      <details style="margin-top:14px"><summary style="cursor:pointer;font-size:12px;color:var(--muted)">Как поднять сервер звонков (один раз)</summary>
+        <div class="note" style="margin-top:8px;font-size:12px">VM: Google Cloud e2-micro, Ubuntu 22.04, статичный IP, порты TCP 22/80/443/8089 + UDP 5060/10000-20000/3478. На VM:
+        <pre style="white-space:pre-wrap;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0 0;font-size:11px">git clone https://github.com/crmdentpharmacy-ui/pharmacy-1c-sync.git
+cd pharmacy-1c-sync/sip-connector
+sudo WORKER_URL="${esc(d.worker_url||'')}" \\
+     AGENT_SECRET="${esc(d.agent_secret||'')}" \\
+     LE_EMAIL="ваш-email" ./setup-asterisk.sh</pre>
+        Binotel-креды — здесь в CRM (выше), в установщик их вписывать не нужно.</div></details>`;
+    body.querySelector('#sipSave').onclick=async()=>{
+      const b={ username:body.querySelector('#sipUser').value.trim(), server:body.querySelector('#sipServer').value.trim(), port:body.querySelector('#sipPort').value.trim(), caller_id:body.querySelector('#sipCid').value.trim() };
+      const pw=body.querySelector('#sipPass').value; if(pw) b.password=pw;
+      const sv=body.querySelector('#sipSave'); sv.disabled=true; const old=sv.innerHTML; sv.textContent='Сохранение…';
+      const rr=await api('/api/admin/sip/trunk',{method:'PUT',body:JSON.stringify(b)});
+      sv.disabled=false; sv.innerHTML=old;
+      if(!rr.ok){ toast((rr.data&&rr.data.error)||'Ошибка','i-x','#dc2626'); return; }
+      toast('Сохранено — сервер звонков подтянет через ~1 мин','i-check2');
+    };
+  })();
+  return panel;
+}
 PAGES.integrations=(c)=>{
   if(isAdminRole()) c.appendChild(greenApiPanel());
-  const intgs=[
-    ['1С','Listki EG (Кыргызстан)','#16a34a','1С','Остатки 4 000 SKU · заказы · накладные','Синхронизирован 1 мин назад','green'],
-  ];
-  const grid=el(`<div class="section-gap" style="display:flex;flex-direction:column;gap:16px"></div>`);
-  intgs.forEach(g=>{
-    grid.appendChild(el(`<div class="intg-card"><div class="ic" style="background:${g[2]}">${g[3]}</div>
-      <div class="ii"><div class="in">${g[0]} <span class="muted" style="font-weight:500;font-size:12px">· ${g[1]}</span></div>
-        <div class="id">${g[4]}</div><div class="row" style="margin-top:7px"><span class="tag ${g[6]}">${ic('i-sync','sm')} ${g[5]}</span></div></div>
-      <button class="btn sm" onclick="toast('Настройки интеграции ${g[0]}','i-cog')">${ic('i-cog','sm')}</button></div>`));
-  });
-  c.appendChild(grid);
+  if(isAdminRole()) c.appendChild(sipPanel());
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Поведение при сбоях: 1С недоступен → заказы копятся в очереди, после восстановления — досинхронизация. GreenAPI/Meta недоступны → сотрудники работают с телефонов, синхронизация подхватит.</div>`));
   const syncBox=el(`<div class="panel section-gap"><div class="panel-h"><h3>${ic('i-sync','sm')} Статус синхронизации 1С</h3><span class="ph-sub" id="syncSub" style="margin-left:auto"></span></div>
     <div id="syncBody"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>`);
@@ -3632,18 +3679,14 @@ function cwNormFromLive(items){
     unread:it.unread||0, time:cwFmtTime(it.last_ts), last:it.preview||'', online:false,
     phone:it.phone||'', msgs:[], live:true, loaded:false }));
 }
-// Все диалоги (ленивая инициализация демо-составом для бейджа до первой загрузки).
-function cwAll(){ if(!CW.threads) CW.threads=cwNormFromDemo(); return CW.threads; }
+// Все диалоги (из CRM; пусто, пока не подключён WhatsApp/нет переписок).
+function cwAll(){ return CW.threads || []; }
 function cwFindThread(tid){ return cwAll().find(t=>t.id===tid); }
-// Подтянуть диалоги из CRM (live); при недоступности — демо-фолбэк.
+// Подтянуть диалоги из CRM (live). Пусто, пока нет реальных переписок (WhatsApp/IG).
 async function cwLoadThreads(){
   const r=await api('/api/inbox/threads');
-  // живые диалоги показываем, как только они появятся; пока их нет — оставляем демо-ленту (мокап «живой»)
-  if(r.ok && r.data && Array.isArray(r.data.items) && r.data.items.length){
-    CW.source='live'; CW.threads=cwNormFromLive(r.data.items);
-  } else {
-    CW.source='demo'; CW.threads=cwNormFromDemo();
-  }
+  CW.source='live';
+  CW.threads = (r.ok && r.data && Array.isArray(r.data.items)) ? cwNormFromLive(r.data.items) : [];
 }
 
 function cwUnreadTotal(){ return cwAll().reduce((s,t)=>s+(t.unread||0),0); }
@@ -3917,6 +3960,41 @@ async function doLogout(){
   showLogin();
   toast('Вы вышли','i-logout','var(--muted)');
 }
+// Смена своего пароля (из меню пользователя слева внизу)
+function openChangePassword(){
+  const bg=openModal(`<div class="modal-h"><div><h3>Смена пароля</h3><div class="mh-sub">Текущий и новый пароль</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">
+    <div class="fld"><label>Текущий пароль</label><input id="cpOld" type="password" autocomplete="current-password"></div>
+    <div class="fld"><label>Новый пароль <span class="muted2">(мин. 6 символов)</span></label><input id="cpNew" type="password" autocomplete="new-password"></div>
+    <div class="fld"><label>Повторите новый</label><input id="cpNew2" type="password" autocomplete="new-password"></div>
+  </div>
+  <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="cpSave">${ic('i-check2','sm')} Сменить</button></div>`);
+  bg.querySelector('#cpSave').onclick=async()=>{
+    const o=bg.querySelector('#cpOld').value, n=bg.querySelector('#cpNew').value, n2=bg.querySelector('#cpNew2').value;
+    if(!o||!n){ toast('Заполните поля','i-info','#d97706'); return; }
+    if(n.length<6){ toast('Новый пароль слишком короткий','i-info','#d97706'); return; }
+    if(n!==n2){ toast('Пароли не совпадают','i-info','#d97706'); return; }
+    const b=bg.querySelector('#cpSave'); b.disabled=true; const old=b.innerHTML; b.textContent='Сохранение…';
+    const r=await api('/api/auth/change-password',{method:'POST',body:JSON.stringify({old_password:o,new_password:n})});
+    b.disabled=false; b.innerHTML=old;
+    if(!r.ok){ toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626'); return; }
+    closeModal(); toast('Пароль изменён','i-check2');
+  };
+}
+// Меню пользователя (клик по себе слева внизу): сменить пароль / выход
+function openUserMenu(){
+  document.querySelector('.user-menu-pop')?.remove();
+  const chip=document.querySelector('.user-chip'); if(!chip) return;
+  const r=chip.getBoundingClientRect();
+  const pop=el(`<div class="user-menu-pop" style="position:fixed;left:${Math.round(r.left)}px;bottom:${Math.round(window.innerHeight-r.top+6)}px;z-index:200;background:var(--bg2);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 34px rgba(0,0,0,.28);min-width:200px;overflow:hidden">
+    <button data-um="pass" style="display:flex;align-items:center;gap:9px;width:100%;padding:11px 14px;background:none;border:none;color:var(--t);font-size:13px;cursor:pointer;text-align:left">${ic('i-shield','sm')} Сменить пароль</button>
+    <button data-um="logout" style="display:flex;align-items:center;gap:9px;width:100%;padding:11px 14px;background:none;border:none;border-top:1px solid var(--line);color:var(--t);font-size:13px;cursor:pointer;text-align:left">${ic('i-logout','sm')} Выход</button>
+  </div>`);
+  document.body.appendChild(pop);
+  pop.querySelector('[data-um=pass]').onclick=()=>{ pop.remove(); openChangePassword(); };
+  pop.querySelector('[data-um=logout]').onclick=()=>{ pop.remove(); doLogout(); };
+  setTimeout(()=>{ const close=(e)=>{ if(!pop.contains(e.target)){ pop.remove(); document.removeEventListener('mousedown',close); } }; document.addEventListener('mousedown',close); },0);
+}
 
 function initGoogleBtn(tries=0){
   if(!(window.google&&google.accounts&&google.accounts.id)){
@@ -3935,6 +4013,8 @@ async function bootAuth(){
     doLogin($('#loginIdent').value.trim(), $('#loginPass').value); });
   const logoutBtn=document.querySelector('.user-chip .icon-btn');
   if(logoutBtn) logoutBtn.onclick=doLogout;
+  const uchip=document.querySelector('.user-chip .ui'); if(uchip){ uchip.style.cursor='pointer'; uchip.title='Профиль · сменить пароль'; uchip.onclick=openUserMenu; }
+  const uav=document.querySelector('.user-chip #userAv'); if(uav){ uav.style.cursor='pointer'; uav.onclick=openUserMenu; }
   initGoogleBtn();
 
   const t=getToken();

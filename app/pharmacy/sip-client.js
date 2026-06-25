@@ -601,6 +601,7 @@
     document.getElementById('sip-btn-answer').onclick = answer;
     document.getElementById('sip-btn-min').onclick = () => {
       document.getElementById('sip-overlay').style.display = 'none';
+      document.getElementById('sip-bar').style.display = 'flex';
     };
 
     // Backdrop click — клик мимо card сворачивает overlay (как в обычных
@@ -613,6 +614,7 @@
       // будут закрывать overlay.
       if (e.target.id === 'sip-overlay') {
         e.currentTarget.style.display = 'none';
+        document.getElementById('sip-bar').style.display = 'flex';
       }
     };
 
@@ -644,6 +646,7 @@
     document.getElementById('sip-bar').onclick = (e) => {
       if (e.target.id === 'sip-bar-hangup') return;
       document.getElementById('sip-overlay').style.display = 'flex';
+      document.getElementById('sip-bar').style.display = 'none';
     };
 
     return uiEl;
@@ -687,13 +690,15 @@
       if (state.state === 'in_call' && !state._autoMinScheduled) {
         state._autoMinScheduled = true;
         setTimeout(() => {
-          if (state.state === 'in_call') overlay.style.display = 'none';
+          if (state.state === 'in_call') { overlay.style.display = 'none'; bar.style.display = 'flex'; }
         }, 700);
       }
     } else {
       overlay.style.display = 'none';
       state._autoMinScheduled = false;
     }
+    // открыта панель → прячем пилюлю (как WhatsApp: либо панель, либо «пузырь»)
+    if (overlay.style.display === 'flex') bar.style.display = 'none';
 
     // Mute button visual
     const muteBtn = document.getElementById('sip-btn-mute');
