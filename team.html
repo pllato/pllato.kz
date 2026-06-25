@@ -5073,7 +5073,7 @@ async function openEmployeeProfile(uid) {
     <div style="text-align:center;margin-bottom:16px">
       <div id="ep-avatar" style="width:96px;height:96px;border-radius:50%;margin:0 auto 10px;overflow:hidden;background:var(--ac);display:flex;align-items:center;justify-content:center;color:#fff;font-size:34px;font-weight:700"></div>
       ${data.isSelf ? `<input type="file" id="ep-file" accept="image/*" style="display:none"><button class="qad-btn qad-btn-ghost" id="ep-photo" style="padding:6px 14px;font-size:12px">📷 Изменить фото</button>` : ''}
-      <div id="ep-name" style="font-weight:700;font-size:17px;color:var(--t1);margin-top:6px">${escapeHtml(fullName)}${(data.canEdit && window.currentUser?.role === 'admin') ? ` <button id="ep-edit-name" title="Изменить имя" style="border:none;background:none;cursor:pointer;font-size:14px;vertical-align:middle">✏️</button>` : ''}</div>
+      <div id="ep-name" style="font-weight:700;font-size:17px;color:var(--t1);margin-top:6px">${escapeHtml(fullName)}${data.canEdit ? ` <button id="ep-edit-name" title="Изменить имя" style="border:none;background:none;cursor:pointer;font-size:14px;vertical-align:middle">✏️</button>` : ''}</div>
       <div style="font-size:13px;color:var(--t3)">${escapeHtml(p.position || '')}${p.active ? '' : ' · ⏸ неактивен'}</div>
     </div>
     <div>
@@ -5140,6 +5140,18 @@ async function openEmployeeProfile(uid) {
           body: JSON.stringify({ name, lastName }),
         });
         if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || ('HTTP ' + r.status)); }
+        // Сменил своё имя → обновим имя в сайдбаре сразу, без перезагрузки.
+        if (data.isSelf && window.currentUser?.profile) {
+          window.currentUser.profile.name = name;
+          window.currentUser.profile.lastName = lastName;
+          const nm = document.getElementById('ux-name');
+          if (nm) {
+            const role = window.currentUser?.role;
+            const badge = (role && role !== 'agent')
+              ? ` <span style="font-size:9px;padding:1px 5px;border-radius:8px;background:var(--ac2);color:#fff;font-weight:700;vertical-align:middle;text-transform:uppercase">${role}</span>` : '';
+            nm.innerHTML = escapeHtml((name + ' ' + lastName).trim()) + badge;
+          }
+        }
         showToast?.('Имя обновлено ✅');
         ov.remove(); openEmployeeProfile(uid);
       } catch (e) { st.innerHTML = `<span style="color:var(--rd)">${escapeHtml(e.message)}</span>`; }
