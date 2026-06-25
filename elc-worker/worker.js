@@ -5214,6 +5214,18 @@ async function handleUserProfilePut(request, env, uid) {
   if (typeof body.bio === 'string') {
     await env.DB.prepare("UPDATE users SET bio = ? WHERE uid = ?").bind(body.bio.slice(0, 4000), uid).run();
   }
+  // Имя и фамилию может менять только администратор.
+  if (me.role === 'admin') {
+    const before = await env.DB.prepare("SELECT name, last_name FROM users WHERE uid = ?").bind(uid).first();
+    let changed = false; const upd = {};
+    if (typeof body.name === 'string') { upd.name = body.name.trim().slice(0, 120); changed = true; }
+    if (typeof body.lastName === 'string') { upd.last_name = body.lastName.trim().slice(0, 120); changed = true; }
+    if (changed) {
+      const sets = Object.keys(upd).map(k => `${k} = ?`).join(', ');
+      await env.DB.prepare(`UPDATE users SET ${sets} WHERE uid = ?`).bind(...Object.values(upd), uid).run();
+      try { await auditLog(env, me, "user_rename", "user", uid, { old: before, new: upd }); } catch {}
+    }
+  }
   return json({ ok: true }, 200, request);
 }
 
