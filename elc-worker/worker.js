@@ -6588,6 +6588,87 @@ async function handleMailUnreadSummary(request, env) {
   return json({ ok: true, total, perBox }, 200, request);
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// ОНБОРДИНГ — обучение новых сотрудников + итоговый тест. Прогресс в D1.
+// ════════════════════════════════════════════════════════════════════════
+let _onbTableReady = false;
+async function ensureOnboardingTable(env) {
+  if (_onbTableReady) return;
+  try {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS onboarding_progress (
+      uid TEXT PRIMARY KEY, completed_lessons TEXT, test_score INTEGER,
+      test_passed INTEGER DEFAULT 0, completed_at INTEGER, updated_at INTEGER
+    )`).run();
+  } catch (e) {}
+  _onbTableReady = true;
+}
+function onbParseLessons(v) { try { const a = JSON.parse(v); return Array.isArray(a) ? a : []; } catch { return []; } }
+
+async function handleOnboardingMe(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureOnboardingTable(env);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const row = await env.DB.prepare("SELECT * FROM onboarding_progress WHERE uid = ?").bind(me.canonicalUid).first();
+  return json({
+    ok: true,
+    progress: {
+      completedLessons: row ? onbParseLessons(row.completed_lessons) : [],
+      testScore: row ? row.test_score : null,
+      testPassed: row ? !!row.test_passed : false,
+      completedAt: row ? row.completed_at : null,
+    },
+  }, 200, request);
+}
+
+async function handleOnboardingProgress(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureOnboardingTable(env);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  let body; try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const ex = await env.DB.prepare("SELECT * FROM onboarding_progress WHERE uid = ?").bind(me.canonicalUid).first();
+  let completed = ex ? onbParseLessons(ex.completed_lessons) : [];
+  if (Array.isArray(body.completedLessons)) completed = [...new Set([...completed, ...body.completedLessons.map(String)])];
+  let testScore = ex ? ex.test_score : null;
+  let testPassed = ex ? ex.test_passed : 0;
+  let completedAt = ex ? ex.completed_at : null;
+  if (typeof body.testScore === 'number') {
+    testScore = body.testScore; testPassed = body.testPassed ? 1 : 0;
+    if (testPassed && !completedAt) completedAt = Date.now();
+  }
+  const now = Date.now();
+  await env.DB.prepare(`
+    INSERT INTO onboarding_progress (uid, completed_lessons, test_score, test_passed, completed_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(uid) DO UPDATE SET completed_lessons=excluded.completed_lessons, test_score=excluded.test_score,
+      test_passed=excluded.test_passed, completed_at=excluded.completed_at, updated_at=excluded.updated_at
+  `).bind(me.canonicalUid, JSON.stringify(completed), testScore, testPassed, completedAt, now).run();
+  return json({ ok: true }, 200, request);
+}
+
+async function handleOnboardingStatus(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  if (me.role !== 'admin') return json({ error: "admin only" }, 403, request);
+  await ensureOnboardingTable(env);
+  const { results } = await env.DB.prepare(`
+    SELECT u.uid, u.name, u.last_name, u.email, o.test_passed, o.test_score, o.completed_at, o.completed_lessons
+      FROM users u LEFT JOIN onboarding_progress o ON o.uid = u.uid
+     WHERE u.active = 1 ORDER BY u.last_name, u.name`).all();
+  const items = (results || []).map(r => ({
+    uid: r.uid,
+    name: [r.name, r.last_name].filter(Boolean).join(' ') || r.email,
+    email: r.email,
+    testPassed: !!r.test_passed,
+    testScore: r.test_score,
+    completedAt: r.completed_at,
+    lessonsCount: onbParseLessons(r.completed_lessons).length,
+  }));
+  return json({ ok: true, items }, 200, request);
+}
+
 // GET /api/sip/route?phone=77073320409 — Asterisk дёргает при входящем.
 // Возвращает: { extensions: ["101","102"], mobile: "+7...", fallbackSeconds: 30 }
 // Логика: phone → contact → recent open deal → responsible_uid → org-tree node →
@@ -8326,6 +8407,16 @@ export default {
     }
     if (path === "/api/mail/unread-summary" && request.method === "GET") {
       return handleMailUnreadSummary(request, env);
+    }
+    // ── Онбординг (обучение + тест) ─────────────────────────────────────
+    if (path === "/api/onboarding/me" && request.method === "GET") {
+      return handleOnboardingMe(request, env);
+    }
+    if (path === "/api/onboarding/progress" && request.method === "POST") {
+      return handleOnboardingProgress(request, env);
+    }
+    if (path === "/api/onboarding/status" && request.method === "GET") {
+      return handleOnboardingStatus(request, env);
     }
     // Работа с письмами конкретного ящика
     const mailUnreadMatch = path.match(/^\/api\/mail\/([^/]+)\/unread$/);
