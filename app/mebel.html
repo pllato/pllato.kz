@@ -3,1150 +3,1191 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pllato МЕБЕЛЬ · ERP+CRM демо</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a1628'/%3E%3Crect x='8' y='8' width='7' height='16' rx='2' fill='%23b8895a'/%3E%3Crect x='17' y='8' width='7' height='16' rx='2' fill='%23b8895a'/%3E%3C/svg%3E">
+<title>Pllato МЕБЕЛЬ · ERP+CRM</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f2318'/%3E%3Crect x='8' y='8' width='7' height='16' rx='2' fill='%23c8913e'/%3E%3Crect x='17' y='8' width='7' height='16' rx='2' fill='%23c8913e'/%3E%3C/svg%3E">
 <style>
-:root {
-  --navy:#0a1628; --navy2:#142339; --navy3:#1d3050;
-  --bronze:#b8895a; --bronzel:#d4a978;
-  --off:#f7f6f1; --card:#fff; --line:#e6e3da;
-  --green:#3f7d52; --red:#b1492f; --amber:#c8911f; --blue:#2f5d8a;
-  --text:#1a1a1a; --text2:#555; --text3:#888;
+/* ──────────── DESIGN TOKENS ──────────── */
+:root{
+  --f:  #0f2318;   /* forest  */
+  --f2: #162e1f;
+  --f3: #1e3d2a;
+  --b:  #c8913e;   /* brass   */
+  --bl: #e0b96e;
+  --bd: #9c6e28;
+  --cream: #f5efe5;
+  --paper: #faf7f2;
+  --card: #ffffff;
+  --line: #e8e0d3;
+  --ink:  #1e1a14;
+  --ink2: #5a5145;
+  --ink3: #9a9087;
+  --sage: #3d6e52;
+  --sagel: #edf4ef;
+  --amber: #b87a1a;
+  --amberl: #fdf3e3;
+  --red: #b13a2a;
+  --redl: #fbeeed;
+  --blue: #2a5d8a;
+  --bluel: #e8f0f8;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,-apple-system,sans-serif;background:var(--off);color:var(--text);min-height:100vh}
+html{font-size:14px}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--cream);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh}
 
-/* ROLE SCREEN */
-#role-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--navy);flex-direction:column;gap:2rem;padding:2rem}
-#role-screen h1{color:#fff;font-size:1.8rem;font-weight:600;letter-spacing:.02em}
-#role-screen .subtitle{color:var(--bronzel);font-size:.95rem;margin-top:-.5rem}
-.role-cards{display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center}
-.role-card{background:var(--navy2);border:1.5px solid var(--navy3);border-radius:16px;padding:2rem 2.5rem;cursor:pointer;transition:border-color .2s,transform .15s;text-align:center;min-width:200px}
-.role-card:hover{border-color:var(--bronze);transform:translateY(-3px)}
-.role-card .avatar{width:64px;height:64px;border-radius:50%;background:var(--navy3);display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:700;color:var(--bronzel);margin:0 auto 1rem}
-.role-card h2{color:#fff;font-size:1.15rem;font-weight:600;margin-bottom:.3rem}
-.role-card p{color:var(--text3);font-size:.82rem;line-height:1.4}
+/* ──────────── LOGIN ──────────── */
+#login{
+  display:flex;align-items:center;justify-content:center;min-height:100vh;
+  background:var(--f);
+  background-image:radial-gradient(circle at 20% 50%, rgba(200,145,62,.12) 0%, transparent 60%),
+                   radial-gradient(circle at 80% 20%, rgba(61,110,82,.18) 0%, transparent 50%);
+}
+.login-inner{text-align:center;padding:0 1rem}
+.login-brand{display:inline-flex;align-items:center;gap:10px;margin-bottom:2.5rem}
+.login-logo-bars{display:flex;gap:4px}
+.login-logo-bars span{display:block;width:8px;height:28px;border-radius:3px;background:var(--b)}
+.login-logo-bars span:first-child{height:22px;margin-top:6px}
+.login-brand-txt{font-size:1.7rem;font-weight:800;color:#fff;letter-spacing:.02em}
+.login-brand-sub{font-size:.75rem;color:var(--bl);letter-spacing:.14em;font-weight:600;margin-top:4px;text-align:left}
+.login-title{font-size:1.15rem;color:rgba(255,255,255,.7);font-weight:400;margin-bottom:2.5rem;line-height:1.5}
+.login-cards{display:flex;gap:1.25rem;flex-wrap:wrap;justify-content:center;max-width:720px;margin:0 auto}
+.login-card{
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:18px;
+  padding:2rem 1.75rem;
+  cursor:pointer;
+  transition:border-color .2s,background .2s,transform .15s;
+  width:200px;text-align:center;
+}
+.login-card:hover{border-color:var(--b);background:rgba(200,145,62,.08);transform:translateY(-4px)}
+.login-card .av{
+  width:60px;height:60px;border-radius:50%;
+  background:rgba(200,145,62,.18);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.4rem;font-weight:800;color:var(--bl);
+  margin:0 auto 1rem;
+}
+.login-card h3{color:#fff;font-size:1rem;font-weight:700;margin-bottom:.3rem}
+.login-card p{color:rgba(255,255,255,.45);font-size:.78rem;line-height:1.5}
+.login-card .tags{margin-top:.75rem;display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
+.login-card .tag{font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:10px;background:rgba(200,145,62,.15);color:var(--bl);letter-spacing:.04em}
 
-/* MAIN APP */
+/* ──────────── SHELL ──────────── */
 #app{display:none;min-height:100vh}
-.layout{display:flex;min-height:100vh}
+.shell{display:flex;min-height:100vh}
 
-/* SIDEBAR */
-.sidebar{width:240px;background:var(--navy);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
-.logo{padding:1.4rem 1.25rem 1rem;border-bottom:1px solid var(--navy3)}
-.logo-text{color:#fff;font-size:1.1rem;font-weight:700;letter-spacing:.02em}
-.logo-text span{color:var(--bronze)}
-.nav{flex:1;padding:.75rem 0}
-.nav-group-label{color:var(--text3);font-size:.68rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:.6rem 1.25rem .3rem}
-.nav-item{display:flex;align-items:center;gap:.6rem;padding:.55rem 1.25rem;color:#b0bdd0;font-size:.85rem;cursor:pointer;transition:background .15s,color .15s;border-left:3px solid transparent}
-.nav-item:hover{background:var(--navy2);color:#fff}
-.nav-item.active{background:var(--navy2);color:#fff;border-left-color:var(--bronze)}
-.nav-item svg{flex-shrink:0;opacity:.7}
-.nav-item.active svg{opacity:1}
-.sidebar-footer{padding:1rem 1.25rem;border-top:1px solid var(--navy3)}
-.sync-status{display:flex;align-items:center;gap:.5rem;color:var(--text3);font-size:.75rem;margin-bottom:.75rem}
-.green-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
-.sidebar-user{display:flex;align-items:center;gap:.6rem}
-.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--navy3);display:flex;align-items:center;justify-content:center;color:var(--bronzel);font-size:.8rem;font-weight:600;flex-shrink:0}
-.user-info{flex:1;min-width:0}
-.user-name{color:#fff;font-size:.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.user-role{color:var(--text3);font-size:.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ──────────── SIDEBAR ──────────── */
+.sidebar{
+  width:232px;flex-shrink:0;
+  background:var(--f);
+  display:flex;flex-direction:column;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.sb-brand{padding:1.35rem 1.25rem .9rem;border-bottom:1px solid rgba(255,255,255,.07)}
+.sb-brand-row{display:flex;align-items:center;gap:9px}
+.sb-bars{display:flex;gap:3px;align-items:flex-end}
+.sb-bars span{display:block;border-radius:2px;background:var(--b)}
+.sb-bars span:nth-child(1){width:5px;height:12px}
+.sb-bars span:nth-child(2){width:5px;height:18px}
+.sb-name{font-size:1.1rem;font-weight:800;color:#fff;letter-spacing:.02em}
+.sb-name em{color:var(--b);font-style:normal}
+.sb-badge{font-size:.6rem;color:rgba(200,145,62,.7);letter-spacing:.14em;font-weight:700;margin-top:2px;margin-left:1px}
+.sb-nav{flex:1;padding:.6rem 0}
+.sb-sect{font-size:.62rem;font-weight:700;letter-spacing:.13em;color:rgba(255,255,255,.25);padding:.8rem 1.25rem .3rem;text-transform:uppercase}
+.sb-link{
+  display:flex;align-items:center;gap:9px;
+  padding:.5rem 1.25rem;
+  color:rgba(255,255,255,.5);
+  cursor:pointer;font-size:.82rem;font-weight:500;
+  transition:background .15s,color .15s;
+  border-left:2px solid transparent;
+  position:relative;
+}
+.sb-link:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.85)}
+.sb-link.on{background:rgba(200,145,62,.12);color:#fff;border-left-color:var(--b)}
+.sb-link .ic{width:16px;text-align:center;font-size:.95rem;flex-shrink:0}
+.sb-link .bdg{margin-left:auto;background:var(--b);color:var(--f);font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:9px}
+.sb-sync{margin:auto 1.1rem .7rem;background:rgba(61,110,82,.2);border:1px solid rgba(61,110,82,.3);border-radius:9px;padding:.55rem .75rem;display:flex;align-items:center;gap:.5rem}
+.sb-sync .dot{width:7px;height:7px;border-radius:50%;background:#5cb87a;box-shadow:0 0 0 3px rgba(92,184,122,.2);flex-shrink:0;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(92,184,122,.2)}50%{box-shadow:0 0 0 5px rgba(92,184,122,.08)}}
+.sb-sync-txt b{color:#5cb87a;font-size:.75rem;font-weight:700}
+.sb-sync-txt small{color:rgba(255,255,255,.35);font-size:.67rem;display:block}
+.sb-user{display:flex;align-items:center;gap:.6rem;padding:.75rem 1.25rem;border-top:1px solid rgba(255,255,255,.07)}
+.sb-av{width:30px;height:30px;border-radius:50%;background:rgba(200,145,62,.25);display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;color:var(--bl);flex-shrink:0}
+.sb-uname{color:#fff;font-size:.82rem;font-weight:600}
+.sb-urole{color:rgba(255,255,255,.35);font-size:.7rem}
+.sb-logout{margin-left:auto;color:rgba(255,255,255,.2);font-size:.75rem;cursor:pointer;padding:.2rem .4rem;border-radius:5px;transition:.15s}
+.sb-logout:hover{color:rgba(255,255,255,.6);background:rgba(255,255,255,.07)}
 
-/* HEADER */
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.topbar{background:var(--card);border-bottom:1px solid var(--line);padding:.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
-.topbar-left{display:flex;align-items:center;gap:.75rem}
-.topbar-title{font-size:1rem;font-weight:600;color:var(--text)}
-.topbar-right{display:flex;align-items:center;gap:.75rem}
-.topbar-user{display:flex;align-items:center;gap:.5rem;color:var(--text2);font-size:.83rem}
-.btn-role{background:none;border:1px solid var(--line);border-radius:8px;padding:.3rem .75rem;font-size:.78rem;cursor:pointer;color:var(--text2);transition:border-color .15s}
-.btn-role:hover{border-color:var(--bronze);color:var(--bronze)}
-.content{flex:1;padding:1.5rem;overflow-y:auto}
+/* ──────────── MAIN ──────────── */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{
+  background:var(--paper);
+  border-bottom:1px solid var(--line);
+  padding:.9rem 1.75rem;
+  display:flex;align-items:center;gap:1rem;
+  position:sticky;top:0;z-index:10;
+}
+.tb-title{font-size:1.1rem;font-weight:800;color:var(--f);line-height:1.2}
+.tb-sub{font-size:.75rem;color:var(--ink3);margin-top:2px}
+.tb-spacer{flex:1}
+.tb-search{
+  background:var(--cream);border:1px solid var(--line);border-radius:9px;
+  padding:.5rem .9rem;font-size:.82rem;color:var(--ink2);width:210px;outline:none;
+  transition:border-color .2s;
+}
+.tb-search:focus{border-color:var(--b)}
+.tb-btn{
+  background:var(--f);color:#fff;border:none;border-radius:9px;
+  padding:.55rem 1rem;font-size:.82rem;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;gap:.4rem;transition:background .15s;
+}
+.tb-btn:hover{background:var(--f3)}
+.body{padding:1.5rem 1.75rem 4rem;overflow:auto}
+.page{display:none}.page.on{display:block;animation:fadein .2s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 
-/* SECTIONS */
-.section{display:none}
-.section.active{display:block}
+/* ──────────── KPIS ROW ──────────── */
+.krow{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.kcard{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:1.1rem 1.25rem;position:relative;overflow:hidden;
+}
+.kcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--b)}
+.kcard .kk{font-size:.7rem;color:var(--ink3);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.kcard .kv{font-size:1.6rem;font-weight:900;color:var(--f);margin-top:.3rem;line-height:1}
+.kcard .kd{font-size:.72rem;font-weight:600;margin-top:.4rem}
+.kup{color:var(--sage)}.kdn{color:var(--red)}.kneu{color:var(--amber)}
 
-/* KPI CARDS */
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
-.kpi-card{background:var(--card);border-radius:12px;border:1px solid var(--line);padding:1rem 1.25rem}
-.kpi-label{font-size:.75rem;color:var(--text2);margin-bottom:.3rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
-.kpi-value{font-size:1.6rem;font-weight:700;color:var(--text);line-height:1}
-.kpi-sub{font-size:.78rem;color:var(--green);margin-top:.3rem;font-weight:500}
-.kpi-sub.amber{color:var(--amber)}
+/* ──────────── PANELS ──────────── */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.25rem 1.5rem;margin-bottom:16px}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem}
+.panel-title{font-size:.9rem;font-weight:800;color:var(--f)}
+.panel-sub{font-size:.72rem;color:var(--ink3);margin-bottom:1rem}
+.grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
 
-/* CHARTS */
-.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem}
-.chart-card{background:var(--card);border-radius:12px;border:1px solid var(--line);padding:1.25rem}
-.chart-title{font-size:.85rem;font-weight:600;color:var(--text);margin-bottom:1rem}
-.bar-chart{display:flex;align-items:flex-end;gap:.5rem;height:160px;padding-bottom:1.5rem;position:relative}
-.bar-col{display:flex;flex-direction:column;align-items:center;flex:1;height:100%}
-.bar-val{font-size:.65rem;color:var(--text2);margin-bottom:2px;text-align:center}
-.bar-fill{background:var(--bronze);border-radius:4px 4px 0 0;width:100%;transition:height .4s}
-.bar-lbl{font-size:.65rem;color:var(--text3);margin-top:4px;text-align:center}
-.hbar-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem}
-.hbar-label{font-size:.78rem;color:var(--text2);width:160px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hbar-track{flex:1;background:#f0ede6;border-radius:4px;height:10px;overflow:hidden}
-.hbar-fill{height:100%;border-radius:4px;background:var(--bronze)}
-.hbar-count{font-size:.78rem;font-weight:600;color:var(--text);width:22px;text-align:right;flex-shrink:0}
+/* bar chart */
+.bars{display:flex;align-items:flex-end;gap:10px;height:120px;padding-bottom:20px;margin-top:.5rem}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.bar{width:100%;border-radius:5px 5px 0 0;background:linear-gradient(180deg,var(--bl) 0%,var(--b) 100%);transition:height .4s;position:relative;min-height:4px}
+.bar:hover{background:var(--f);cursor:pointer}
+.bar-lbl{font-size:.65rem;color:var(--ink3)}
+.bar-val{font-size:.68rem;font-weight:700;color:var(--b);position:absolute;top:-16px;left:0;right:0;text-align:center}
 
-/* TABLE */
-.table-card{background:var(--card);border-radius:12px;border:1px solid var(--line);padding:1.25rem;margin-bottom:1.5rem}
-.table-title{font-size:.85rem;font-weight:600;margin-bottom:.85rem}
-table{width:100%;border-collapse:collapse;font-size:.82rem}
-th{text-align:left;padding:.5rem .75rem;border-bottom:1px solid var(--line);color:var(--text2);font-weight:500;font-size:.75rem;text-transform:uppercase;letter-spacing:.04em}
-td{padding:.6rem .75rem;border-bottom:1px solid var(--line);color:var(--text)}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:#fafaf8}
-.badge{display:inline-block;padding:.2rem .55rem;border-radius:20px;font-size:.72rem;font-weight:600}
-.badge-green{background:#e6f2eb;color:#2d6b41}
-.badge-amber{background:#fef3e2;color:#965e0a}
-.badge-blue{background:#e4edf7;color:#1e4570}
-.badge-red{background:#fbeae6;color:#8c3220}
-.badge-purple{background:#ede8f7;color:#5a3da0}
-.badge-navy{background:#e8ecf2;color:#2a3c55}
-.badge-gray{background:#f0efeb;color:#555}
+/* table */
+.tbl{width:100%;border-collapse:collapse;font-size:.82rem}
+.tbl th{text-align:left;font-size:.67rem;color:var(--ink3);font-weight:700;padding:.55rem .75rem;border-bottom:2px solid var(--line);text-transform:uppercase;letter-spacing:.05em}
+.tbl td{padding:.7rem .75rem;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border:none}
+.tbl tr:hover td{background:var(--cream)}
+.tbl-link{color:var(--b);font-weight:700;cursor:pointer}
+.tbl-link:hover{text-decoration:underline}
 
-/* KANBAN */
-.kanban-wrap{overflow-x:auto;padding-bottom:.5rem}
-.kanban-board{display:flex;gap:1rem;min-width:max-content;padding:.25rem .25rem 1rem}
-.kanban-col{width:260px;background:var(--off);border-radius:12px;padding:.85rem;flex-shrink:0}
-.kanban-col-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
-.kanban-col-title{font-size:.8rem;font-weight:600;color:var(--text);text-transform:uppercase;letter-spacing:.04em}
-.kanban-col-count{background:var(--line);color:var(--text2);border-radius:20px;padding:.1rem .5rem;font-size:.72rem;font-weight:600}
-.k-card{background:var(--card);border-radius:10px;border:1px solid var(--line);padding:.85rem;margin-bottom:.6rem;cursor:pointer;transition:border-color .15s,box-shadow .15s}
-.k-card:hover{border-color:var(--bronze);box-shadow:0 2px 8px rgba(0,0,0,.07)}
-.k-card-title{font-size:.83rem;font-weight:600;color:var(--text);margin-bottom:.35rem}
-.k-card-meta{font-size:.74rem;color:var(--text2);line-height:1.4}
-.k-card-sum{font-size:.8rem;font-weight:600;color:var(--bronze);margin-top:.35rem}
-.k-card-badge{margin-top:.35rem}
-.k-card.border-amber{border-left:3px solid var(--amber)}
-.k-card.border-red{border-left:3px solid var(--red)}
-.k-card.border-green{border-left:3px solid var(--green)}
-.progress-bar{background:#f0ede6;border-radius:4px;height:5px;overflow:hidden;margin-top:.5rem}
-.progress-fill{height:100%;border-radius:4px;background:var(--bronze)}
-.progress-fill.green{background:var(--green)}
-.progress-fill.red{background:var(--red)}
+/* pill */
+.pill{font-size:.67rem;font-weight:700;padding:2px 8px;border-radius:10px;display:inline-block;white-space:nowrap}
+.p-green{background:var(--sagel);color:var(--sage)}
+.p-amber{background:var(--amberl);color:var(--amber)}
+.p-red{background:var(--redl);color:var(--red)}
+.p-blue{background:var(--bluel);color:var(--blue)}
+.p-brass{background:#fdf5e9;color:var(--bd)}
 
-/* TABS */
-.tabs{display:flex;gap:.25rem;margin-bottom:1rem;border-bottom:1px solid var(--line);padding-bottom:0}
-.tab{padding:.5rem 1rem;font-size:.82rem;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s}
-.tab.active{color:var(--bronze);border-bottom-color:var(--bronze);font-weight:600}
-.tab:hover:not(.active){color:var(--text)}
+/* small row */
+.srow{display:flex;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--line);font-size:.82rem}
+.srow:last-child{border:none}
+.srow-l{color:var(--ink3)}.srow-r{font-weight:700;color:var(--f)}
 
-/* MODAL */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,22,40,.55);z-index:100;align-items:center;justify-content:center;padding:1rem}
-.modal-overlay.open{display:flex}
-.modal{background:var(--card);border-radius:16px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
-.modal-header{padding:1.25rem 1.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:1}
-.modal-title{font-size:1rem;font-weight:600}
-.modal-close{background:none;border:none;cursor:pointer;color:var(--text3);font-size:1.3rem;line-height:1;padding:.2rem;border-radius:6px}
-.modal-close:hover{color:var(--text);background:var(--off)}
-.modal-body{padding:1.25rem 1.5rem}
-.modal-tabs{display:flex;gap:.25rem;margin-bottom:1.25rem;border-bottom:1px solid var(--line)}
-.modal-tab{padding:.45rem .9rem;font-size:.8rem;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px}
-.modal-tab.active{color:var(--bronze);border-bottom-color:var(--bronze);font-weight:600}
-.modal-tab-panel{display:none}
-.modal-tab-panel.active{display:block}
-.detail-row{display:flex;gap:.5rem;margin-bottom:.65rem;font-size:.83rem}
-.detail-label{color:var(--text2);width:130px;flex-shrink:0;font-weight:500}
-.detail-val{color:var(--text);flex:1}
+/* note box */
+.note{background:var(--f);color:rgba(255,255,255,.65);border-radius:12px;padding:.85rem 1rem;font-size:.78rem;line-height:1.65;margin-top:.75rem}
+.note b{color:var(--bl)}
 
-/* CHAT */
-.chat-wrap{display:flex;flex-direction:column;gap:.6rem;margin-bottom:1rem}
-.chat-bubble{max-width:75%;border-radius:12px;padding:.55rem .85rem;font-size:.82rem;line-height:1.45}
-.chat-in{background:#f0ede6;color:var(--text);align-self:flex-start;border-bottom-left-radius:4px}
-.chat-out{background:var(--navy2);color:#e8eef5;align-self:flex-end;border-bottom-right-radius:4px}
-.chat-meta{font-size:.68rem;color:var(--text3);margin-top:.2rem}
-.call-log{display:flex;align-items:center;gap:.75rem;background:var(--off);border-radius:10px;padding:.65rem .85rem;margin-bottom:.5rem}
-.call-icon{color:var(--green);font-size:1rem}
-.call-info{flex:1}
-.call-title{font-size:.8rem;font-weight:500}
-.call-sub{font-size:.72rem;color:var(--text3)}
-.waveform{display:flex;align-items:center;gap:2px;height:20px}
-.wave-bar{width:3px;border-radius:2px;background:var(--bronze);opacity:.7}
+/* ──────────── FUNNEL / BOARD ──────────── */
+.funnel-wrap{overflow-x:auto;padding-bottom:.5rem}
+.funnel-filters{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
+.ff{
+  display:flex;align-items:center;gap:6px;
+  background:var(--card);border:1px solid var(--line);border-radius:9px;
+  padding:.38rem .85rem;font-size:.78rem;font-weight:700;color:var(--ink3);cursor:pointer;
+  transition:border-color .15s,background .15s,color .15s;
+}
+.ff:hover{border-color:var(--b);color:var(--b)}
+.ff.on{background:var(--f);color:#fff;border-color:var(--f)}
+.ff .dot{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.8}
+.board{display:flex;gap:12px;min-width:max-content;padding-bottom:4px}
+.bcol{width:230px;flex-shrink:0}
+.bcol-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.55rem .85rem;border-radius:10px 10px 0 0;
+  font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
+}
+.bcol-body{background:var(--cream);border:1px solid var(--line);border-top:none;border-radius:0 0 10px 10px;padding:.6rem;min-height:120px}
+.cn{background:rgba(255,255,255,.35);border-radius:6px;font-size:.7rem;font-weight:800;padding:1px 7px}
 
-/* 1C FLOW */
-.flow-row{display:flex;align-items:center;gap:0;margin-bottom:1.5rem;flex-wrap:wrap}
-.flow-box{background:var(--navy2);border:1.5px solid var(--bronze);border-radius:12px;padding:.85rem 1.25rem;text-align:center;min-width:130px}
-.flow-box .flow-icon{font-size:1.5rem;margin-bottom:.3rem}
-.flow-box .flow-label{color:#fff;font-size:.8rem;font-weight:600}
-.flow-box .flow-sub{color:var(--bronzel);font-size:.7rem;margin-top:.15rem}
-.flow-arrow{color:var(--bronze);font-size:1.4rem;padding:0 .6rem;font-weight:300}
-.info-box{background:#e8f0f8;border:1px solid #b5cce6;border-radius:10px;padding:1rem 1.25rem;color:#1e3a5f;font-size:.83rem;line-height:1.5;margin-top:1rem}
+/* stage colours */
+.st-new .bcol-head{background:#e8f0f8;color:#2a5d8a}
+.st-design .bcol-head{background:#f0ebf8;color:#6a3d8a}
+.st-deal .bcol-head{background:var(--amberl);color:var(--amber)}
+.st-prod .bcol-head{background:var(--sagel);color:var(--sage)}
+.st-done .bcol-head{background:#e8f4ec;color:#27734a}
 
-/* KPI TABLE */
-.kpi-progress{background:#f0ede6;border-radius:4px;height:8px;overflow:hidden;margin-top:3px}
-.kpi-progress-fill{height:100%;border-radius:4px}
+/* deal card */
+.dcard{
+  background:var(--card);border:1px solid var(--line);border-radius:11px;
+  padding:.75rem .85rem;margin-bottom:8px;cursor:pointer;
+  transition:border-color .15s,box-shadow .15s,transform .1s;
+}
+.dcard:hover{border-color:var(--b);box-shadow:0 4px 16px rgba(15,35,24,.09);transform:translateY(-1px)}
+.dc-name{font-weight:800;font-size:.82rem;color:var(--f);line-height:1.3}
+.dc-client{font-size:.72rem;color:var(--ink3);margin-top:2px}
+.dc-price{font-size:.88rem;font-weight:900;color:var(--b);margin-top:.45rem}
+.dc-meta{display:flex;align-items:center;gap:5px;margin-top:.5rem;flex-wrap:wrap}
+.ch-tag{font-size:.63rem;font-weight:700;padding:2px 6px;border-radius:6px}
+.ch-retail{background:#fdf3e3;color:#9c6e28}
+.ch-opt{background:#e8f0f8;color:#2a5d8a}
+.ch-ind{background:#f3edf8;color:#6a3d8a}
+.ch-wa{background:#e8f4ec;color:#27734a}
+.ch-inst{background:#f8eaf3;color:#8a3d6a}
+.dc-dead{margin-left:auto;font-size:.65rem;font-weight:700}
+.dead-ok{color:var(--sage)}.dead-warn{color:var(--amber)}.dead-late{color:var(--red)}
 
-/* CATALOG */
-.catalog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
-.product-card{background:var(--card);border-radius:12px;border:1px solid var(--line);overflow:hidden;cursor:pointer;transition:border-color .15s}
-.product-card:hover{border-color:var(--bronze)}
-.product-photo{height:130px;display:flex;align-items:center;justify-content:center;font-size:.78rem;color:#fff;font-weight:500;letter-spacing:.02em}
-.product-body{padding:.85rem}
-.product-name{font-size:.88rem;font-weight:700;margin-bottom:.25rem}
-.product-price{font-size:.9rem;font-weight:600;color:var(--bronze);margin-bottom:.25rem}
-.product-term{font-size:.75rem;color:var(--text3);margin-bottom:.4rem}
+/* progress micro */
+.dc-prog{height:3px;border-radius:2px;background:var(--line);margin-top:.5rem;overflow:hidden}
+.dc-prog i{display:block;height:100%;border-radius:2px;background:var(--b)}
 
-/* LEADS */
-.leads-list{display:flex;flex-direction:column;gap:.5rem}
-.lead-row{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:.85rem 1rem;display:flex;align-items:center;gap:1rem;cursor:pointer;transition:border-color .15s}
-.lead-row:hover{border-color:var(--bronze)}
-.lead-msg{flex:1}
-.lead-msg-text{font-size:.83rem;color:var(--text);margin-bottom:.2rem}
-.lead-msg-meta{font-size:.73rem;color:var(--text3)}
-.lead-time{font-size:.73rem;color:var(--text3);white-space:nowrap}
+/* ──────────── PRODUCTION BOARD ──────────── */
+.prod-board{display:flex;gap:12px;min-width:max-content;padding-bottom:4px}
+.pcol{width:240px;flex-shrink:0}
+.pcol-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.55rem .85rem;border-radius:10px 10px 0 0;
+  font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
+}
+.pcol-body{background:var(--cream);border:1px solid var(--line);border-top:none;border-radius:0 0 10px 10px;padding:.6rem;min-height:200px}
+.ps0 .pcol-head{background:#e8f0f8;color:#2a5d8a}
+.ps1 .pcol-head{background:#fdf3e3;color:#9c6e28}
+.ps2 .pcol-head{background:#f0ebf8;color:#6a3d8a}
+.ps3 .pcol-head{background:var(--sagel);color:var(--sage)}
+.ps4 .pcol-head{background:#e8f4ec;color:#27734a}
+.pcard{
+  background:var(--card);border:1px solid var(--line);border-radius:11px;
+  padding:.75rem .85rem;margin-bottom:8px;cursor:pointer;
+  border-left:3px solid var(--b);
+  transition:box-shadow .15s,transform .1s,border-color .15s;
+}
+.pcard:hover{box-shadow:0 4px 16px rgba(15,35,24,.09);transform:translateY(-1px);border-color:var(--bd)}
+.pcard.late{border-left-color:var(--red)}
+.pcard.late:hover{border-color:var(--red)}
+.pc-name{font-weight:800;font-size:.82rem;color:var(--f)}
+.pc-client{font-size:.7rem;color:var(--ink3);margin-top:2px}
+.pc-mat{font-size:.68rem;color:var(--ink2);margin-top:.35rem;display:flex;align-items:center;gap:4px}
+.pc-mat::before{content:"🪵";font-size:.75rem}
+.pc-bar{height:5px;border-radius:3px;background:var(--line);margin-top:.6rem;overflow:hidden}
+.pc-bar i{display:block;height:100%;border-radius:3px;background:var(--b)}
+.pcard.late .pc-bar i{background:var(--red)}
+.pc-foot{display:flex;justify-content:space-between;font-size:.67rem;margin-top:.4rem}
+.pc-pct{font-weight:700;color:var(--b)}.pcard.late .pc-pct{color:var(--red)}
+.pc-due{font-weight:700}
 
-/* FORM */
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
-.form-group{display:flex;flex-direction:column;gap:.35rem}
-.form-group.full{grid-column:1/-1}
-label{font-size:.8rem;font-weight:500;color:var(--text2)}
-input,select,textarea{border:1px solid var(--line);border-radius:8px;padding:.6rem .85rem;font-size:.85rem;font-family:inherit;color:var(--text);background:var(--card);width:100%;transition:border-color .15s}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bronze)}
-.btn-primary{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:.7rem 1.5rem;font-size:.88rem;font-weight:600;cursor:pointer;transition:background .15s}
-.btn-primary:hover{background:var(--navy2)}
-.btn-secondary{background:none;border:1px solid var(--line);border-radius:8px;padding:.6rem 1.25rem;font-size:.85rem;cursor:pointer;color:var(--text2);transition:border-color .15s}
-.btn-secondary:hover{border-color:var(--bronze);color:var(--bronze)}
+/* ──────────── MODAL ──────────── */
+.ov{position:fixed;inset:0;background:rgba(10,20,15,.55);display:none;align-items:center;justify-content:center;z-index:60;padding:1.25rem;backdrop-filter:blur(3px)}
+.ov.show{display:flex;animation:fadein .2s}
+.modal{background:var(--paper);border-radius:20px;max-width:600px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.mh{background:var(--f);color:#fff;padding:1.25rem 1.5rem;position:relative}
+.mh-title{font-size:1.05rem;font-weight:800}
+.mh-sub{font-size:.75rem;color:rgba(255,255,255,.5);margin-top:3px}
+.mh-close{position:absolute;right:1.1rem;top:1rem;background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.7);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:.15s}
+.mh-close:hover{background:rgba(255,255,255,.2);color:#fff}
+.mtabs{display:flex;background:var(--cream);border-bottom:1px solid var(--line)}
+.mtab{flex:1;padding:.6rem;text-align:center;font-size:.75rem;font-weight:700;color:var(--ink3);cursor:pointer;border-bottom:2px solid transparent;transition:.15s}
+.mtab.on{color:var(--f);border-bottom-color:var(--b)}
+.mbody{padding:1.25rem 1.5rem;overflow-y:auto;flex:1}
+.mpanel{display:none}.mpanel.on{display:block}
 
-/* TOAST */
-#toast{position:fixed;bottom:2rem;right:2rem;background:var(--green);color:#fff;padding:.75rem 1.25rem;border-radius:10px;font-size:.85rem;font-weight:500;z-index:999;display:none;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+/* sync banner */
+.sync-row{display:flex;align-items:center;gap:.6rem;background:var(--sagel);border:1px solid #b8d6c2;border-radius:10px;padding:.65rem .9rem;margin-bottom:1rem}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--sage);flex-shrink:0}
+.sync-t{font-weight:700;color:var(--sage);font-size:.78rem}
+.sync-s{font-size:.7rem;color:#3a6048}
 
-/* DEMO LABEL */
-#demo-label{position:fixed;bottom:.75rem;left:50%;transform:translateX(-50%);color:var(--text3);font-size:.72rem;opacity:.6;z-index:50;pointer-events:none}
+/* chat bubbles */
+.chat{display:flex;flex-direction:column;gap:8px;margin-top:.5rem}
+.bub{max-width:80%;border-radius:14px;padding:.55rem .85rem;font-size:.8rem;line-height:1.5}
+.bub.bot{background:var(--cream);color:var(--ink);align-self:flex-start;border-bottom-left-radius:4px}
+.bub.usr{background:var(--f);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.bub-time{font-size:.62rem;opacity:.55;margin-top:3px;text-align:right}
+.chat-name{font-size:.68rem;font-weight:700;color:var(--ink3);margin-bottom:2px}
 
-/* STAGE TIMELINE */
-.stage-timeline{display:flex;gap:0;margin:1rem 0;overflow-x:auto}
-.stage-step{display:flex;flex-direction:column;align-items:center;flex:1;min-width:80px}
-.stage-dot{width:28px;height:28px;border-radius:50%;background:var(--off);border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;position:relative;z-index:1}
-.stage-dot.done{background:var(--green);border-color:var(--green);color:#fff}
-.stage-dot.current{background:var(--bronze);border-color:var(--bronze);color:#fff}
-.stage-line{flex:1;height:2px;background:var(--line);align-self:flex-start;margin-top:13px;margin-left:-4px;margin-right:-4px}
-.stage-line.done{background:var(--green)}
-.stage-label{font-size:.65rem;color:var(--text3);text-align:center;margin-top:.3rem;line-height:1.3}
-.stage-date{font-size:.62rem;color:var(--text3);text-align:center}
-.stage-step.current .stage-label{color:var(--bronze);font-weight:600}
-.photo-placeholder{height:100px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:.78rem;color:#fff;font-weight:500;margin-bottom:.5rem}
-.photos-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem}
+/* audio */
+.audio-row{display:flex;align-items:center;gap:.6rem;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:.55rem .75rem;margin-top:.5rem}
+.play-btn{width:28px;height:28px;border-radius:50%;background:var(--b);color:#fff;border:none;cursor:pointer;font-size:.75rem;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.waveform{flex:1;height:20px;background:repeating-linear-gradient(90deg,var(--bl) 0 2px,transparent 2px 5px);opacity:.5;border-radius:3px}
+.audio-dur{font-size:.7rem;color:var(--ink3)}
 
-/* UTILS */
-.section-title{font-size:1.1rem;font-weight:700;margin-bottom:1.25rem}
-.section-subtitle{font-size:.8rem;color:var(--text2);margin-top:-.75rem;margin-bottom:1.25rem}
-.note{font-size:.78rem;color:var(--text3);margin-top:.75rem;font-style:italic}
-.spacer{height:1rem}
+/* timeline */
+.tl-wrap{margin-top:.75rem;display:flex;flex-direction:column;gap:0}
+.tl-item{display:flex;gap:.75rem;padding-bottom:.9rem;position:relative}
+.tl-item:not(:last-child)::before{content:"";position:absolute;left:6px;top:14px;bottom:0;width:1.5px;background:var(--line)}
+.tl-dot{width:14px;height:14px;border-radius:50%;background:var(--b);flex-shrink:0;margin-top:2px;border:2.5px solid var(--paper);box-shadow:0 0 0 1.5px var(--line);z-index:1}
+.tl-dot.late{background:var(--red)}
+.tl-dot.done{background:var(--sage)}
+.tl-t{font-size:.82rem;font-weight:700;color:var(--f)}
+.tl-s{font-size:.72rem;color:var(--ink3);margin-top:2px}
+.tl-card{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:.6rem .75rem;margin-top:.4rem;font-size:.78rem}
 
-@media(max-width:900px){
-  .kpi-row{grid-template-columns:repeat(2,1fr)}
-  .charts-row{grid-template-columns:1fr}
-  .catalog-grid{grid-template-columns:repeat(2,1fr)}
-  .form-grid{grid-template-columns:1fr}
+/* spec grid */
+.spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:.75rem}
+.sg-item{background:var(--cream);border-radius:10px;padding:.65rem .8rem}
+.sg-l{font-size:.68rem;color:var(--ink3);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.sg-v{font-size:.85rem;font-weight:800;color:var(--f);margin-top:3px}
+
+/* KPI leaderboard */
+.kpi-board{display:flex;flex-direction:column;gap:10px}
+.kpi-item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.85rem 1rem;display:flex;align-items:center;gap:.75rem}
+.kpi-rank{width:28px;height:28px;border-radius:8px;background:var(--cream);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.78rem;color:var(--ink3);flex-shrink:0}
+.kpi-item.r1 .kpi-rank{background:var(--b);color:#fff}
+.kpi-item.r2 .kpi-rank{background:#c5cad4;color:#fff}
+.kpi-item.r3 .kpi-rank{background:#d6b07a;color:#fff}
+.kpi-name{font-weight:800;font-size:.85rem;color:var(--f)}
+.kpi-bar{height:7px;border-radius:4px;background:var(--line);margin-top:5px;overflow:hidden}
+.kpi-bar i{display:block;height:100%;border-radius:4px;background:var(--b)}
+.kpi-item.r1 .kpi-bar i{background:var(--b)}
+.kpi-item.r2 .kpi-bar i{background:#8a9ab0}
+.kpi-item.r3 .kpi-bar i{background:#c9a06e}
+.kpi-sub{font-size:.7rem;color:var(--ink3);margin-top:4px}
+.kpi-mid{flex:1}
+.kpi-sal{text-align:right;flex-shrink:0}
+.kpi-sal b{font-size:.9rem;font-weight:900;color:var(--f)}
+.kpi-sal span{display:block;font-size:.68rem;color:var(--ink3)}
+
+/* 1C flow */
+.flow{display:flex;align-items:stretch;gap:0;margin:1rem 0 1.25rem}
+.fnode{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem;text-align:center}
+.fnode .fi{font-size:1.5rem;margin-bottom:.4rem}
+.fnode .ft{font-weight:800;font-size:.82rem;color:var(--f)}
+.fnode .fs{font-size:.7rem;color:var(--ink3);margin-top:3px;line-height:1.45}
+.farr{display:flex;align-items:center;padding:0 8px;color:var(--b);font-size:1.1rem;font-weight:900}
+
+/* integrations grid */
+.int-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.int-card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:1rem;text-align:center}
+.int-logo{font-size:1.6rem;margin-bottom:.5rem}
+.int-name{font-weight:800;font-size:.82rem;color:var(--f)}
+.int-desc{font-size:.7rem;color:var(--ink3);margin-top:3px;line-height:1.45}
+.int-status{margin-top:.6rem}
+
+/* channels inbox */
+.inbox{display:flex;flex-direction:column;gap:8px}
+.inbox-item{
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;cursor:pointer;
+  transition:border-color .15s,box-shadow .15s;
+}
+.inbox-item:hover{border-color:var(--b);box-shadow:0 3px 12px rgba(15,35,24,.07)}
+.inbox-src{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;background:var(--cream)}
+.inbox-info{flex:1;min-width:0}
+.inbox-name{font-weight:700;font-size:.82rem;color:var(--f)}
+.inbox-msg{font-size:.72rem;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.inbox-time{font-size:.68rem;color:var(--ink3);flex-shrink:0}
+.inbox-unread{width:18px;height:18px;background:var(--b);border-radius:50%;font-size:.62rem;font-weight:800;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* finance */
+.fin-total{background:var(--f);border-radius:14px;padding:1.1rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between}
+.fin-total .ft-l{font-size:.78rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.05em}
+.fin-total .ft-v{font-size:1.6rem;font-weight:900;color:#fff;margin-top:3px}
+.fin-total .ft-d{font-size:.72rem;color:var(--bl);margin-top:2px}
+
+/* mini btn */
+.btn-mini{background:var(--cream);border:1px solid var(--line);border-radius:7px;padding:.3rem .7rem;font-size:.72rem;font-weight:700;color:var(--f);cursor:pointer;transition:.15s}
+.btn-mini:hover{background:var(--f);color:#fff;border-color:var(--f)}
+.btn-mini.brass{background:var(--b);border-color:var(--b);color:#fff}
+.btn-mini.brass:hover{background:var(--bd);border-color:var(--bd)}
+
+/* demo watermark */
+.demo-mark{position:fixed;right:1rem;bottom:1rem;background:rgba(15,35,24,.8);color:rgba(255,255,255,.6);font-size:.7rem;font-weight:700;padding:.4rem .8rem;border-radius:20px;z-index:30;backdrop-filter:blur(4px);pointer-events:none}
+
+@media(max-width:860px){
+  .shell{flex-direction:column}
+  .sidebar{width:100%;height:auto;position:static}
+  .krow{grid-template-columns:1fr 1fr}
+  .grid2{grid-template-columns:1fr}
+  .int-grid{grid-template-columns:1fr 1fr}
+  .spec-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
-<!-- ROLE SELECTION SCREEN -->
-<div id="role-screen">
-  <h1>Pllato<span style="color:var(--bronze)">•</span> МЕБЕЛЬ</h1>
-  <p class="subtitle">Выберите роль для демонстрации</p>
-  <div class="role-cards">
-    <div class="role-card" onclick="selectRole('ruslan')">
-      <div class="avatar">Р</div>
-      <h2>Руслан</h2>
-      <p>Руководитель<br>полный доступ</p>
+<!-- ═══════════════════════════════════ LOGIN ═══════════════════════════════════ -->
+<div id="login">
+  <div class="login-inner">
+    <div class="login-brand">
+      <div class="login-logo-bars"><span></span><span></span></div>
+      <div>
+        <div class="login-brand-txt">Pllato</div>
+        <div class="login-brand-sub">МЕБЕЛЬ ERP+CRM</div>
+      </div>
     </div>
-    <div class="role-card" onclick="selectRole('aigerim')">
-      <div class="avatar">А</div>
-      <h2>Айгерим</h2>
-      <p>Менеджер продаж<br>заявки, клиенты</p>
-    </div>
-    <div class="role-card" onclick="selectRole('serik')">
-      <div class="avatar">С</div>
-      <h2>Серик</h2>
-      <p>Мастер цеха<br>производство, этапы, дедлайны</p>
+    <div class="login-title">Выберите роль для входа в демо-систему</div>
+    <div class="login-cards">
+      <div class="login-card" onclick="enter('rusl')">
+        <div class="av">Р</div>
+        <h3>Руслан</h3>
+        <p>Владелец производства</p>
+        <div class="tags"><span class="tag">ДАШБОРД</span><span class="tag">ФИНАНСЫ</span><span class="tag">KPI</span><span class="tag">1С</span></div>
+      </div>
+      <div class="login-card" onclick="enter('aig')">
+        <div class="av">А</div>
+        <h3>Айгерим</h3>
+        <p>Менеджер продаж</p>
+        <div class="tags"><span class="tag">ВОРОНКА</span><span class="tag">КАНАЛЫ</span><span class="tag">ЗАКАЗЫ</span></div>
+      </div>
+      <div class="login-card" onclick="enter('ser')">
+        <div class="av">С</div>
+        <h3>Серик</h3>
+        <p>Мастер цеха</p>
+        <div class="tags"><span class="tag">ЦЕХ</span><span class="tag">КАТАЛОГ</span><span class="tag">ЗАДАЧИ</span></div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- MAIN APP -->
+<!-- ═══════════════════════════════════ APP ═══════════════════════════════════ -->
 <div id="app">
-  <div class="layout">
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-      <div class="logo">
-        <div class="logo-text">Pllato<span>•</span> МЕБЕЛЬ</div>
-      </div>
-      <nav class="nav">
-        <div class="nav-group nav-group-obzor">
-          <div class="nav-group-label">Обзор</div>
-          <div class="nav-item active" data-section="dashboard" onclick="showSection('dashboard',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-            Дашборд
-          </div>
-          <div class="nav-item" data-section="kpi" onclick="showSection('kpi',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            KPI и зарплата
-          </div>
+<div class="shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-brand-row">
+        <div class="sb-bars"><span></span><span></span></div>
+        <div>
+          <div class="sb-name">Pll<em>a</em>to</div>
+          <div class="sb-badge">МЕБЕЛЬ · СЕМЕЙ</div>
         </div>
-        <div class="nav-group nav-group-sales">
-          <div class="nav-group-label">Продажи</div>
-          <div class="nav-item" data-section="funnel" onclick="showSection('funnel',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-            Воронка заказов
-          </div>
-          <div class="nav-item" data-section="neworder" onclick="showSection('neworder',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Новый заказ
-          </div>
-          <div class="nav-item" data-section="channels" onclick="showSection('channels',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Каналы и заявки
-          </div>
-        </div>
-        <div class="nav-group nav-group-prod">
-          <div class="nav-group-label">Производство</div>
-          <div class="nav-item" data-section="workshop" onclick="showSection('workshop',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-            Цех / производство
-          </div>
-          <div class="nav-item" data-section="catalog" onclick="showSection('catalog',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-            Каталог изделий
-          </div>
-        </div>
-        <div class="nav-group nav-group-accounting">
-          <div class="nav-group-label">Учёт</div>
-          <div class="nav-item" data-section="onecs" onclick="showSection('onecs',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            Интеграция 1С
-          </div>
-          <div class="nav-item" data-section="finance" onclick="showSection('finance',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            Финансы
-          </div>
-        </div>
-      </nav>
-      <div class="sidebar-footer">
-        <div class="sync-status">
-          <div class="green-dot"></div>
-          <span>1С синхронизирован · 2 мин назад</span>
-        </div>
-        <div class="sidebar-user">
-          <div class="user-avatar" id="sidebar-avatar">Р</div>
-          <div class="user-info">
-            <div class="user-name" id="sidebar-name">Руслан</div>
-            <div class="user-role" id="sidebar-role">Руководитель</div>
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <!-- MAIN CONTENT -->
-    <div class="main">
-      <div class="topbar">
-        <div class="topbar-left">
-          <div class="topbar-title" id="topbar-title">Дашборд</div>
-        </div>
-        <div class="topbar-right">
-          <div class="topbar-user">
-            <span id="topbar-user-name">Руслан</span>
-            <span style="color:var(--line)">·</span>
-            <span id="topbar-user-role" style="color:var(--text3)">Руководитель</span>
-          </div>
-          <button class="btn-role" onclick="switchRole()">Сменить роль</button>
-        </div>
-      </div>
-
-      <div class="content">
-
-        <!-- SECTION: DASHBOARD -->
-        <div class="section active" id="section-dashboard">
-          <div class="section-title">Дашборд</div>
-          <div class="kpi-row">
-            <div class="kpi-card">
-              <div class="kpi-label">Заказов в работе</div>
-              <div class="kpi-value">28</div>
-              <div class="kpi-sub">↑ +8.4 млн</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">Заявок за неделю</div>
-              <div class="kpi-value">14</div>
-              <div class="kpi-sub">↑ +9%</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">В производстве</div>
-              <div class="kpi-value">3</div>
-              <div class="kpi-sub amber">⚠ с дедлайном</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">Выручка за месяц</div>
-              <div class="kpi-value">12.1 млн</div>
-              <div class="kpi-sub">↑ +6%</div>
-            </div>
-          </div>
-
-          <div class="charts-row">
-            <div class="chart-card">
-              <div class="chart-title">Выручка по месяцам, млн ₸</div>
-              <div class="bar-chart" id="revenue-chart"></div>
-            </div>
-            <div class="chart-card">
-              <div class="chart-title">Заявки по каналам</div>
-              <div id="channel-chart"></div>
-            </div>
-          </div>
-
-          <div class="table-card">
-            <div class="table-title">Последние заявки</div>
-            <table>
-              <thead><tr><th>Клиент</th><th>Изделие</th><th>Сумма</th><th>Статус</th></tr></thead>
-              <tbody>
-                <tr><td>ТОО Айтпаев и К</td><td>Шкаф-купе 2.4м</td><td>₸420 000</td><td><span class="badge badge-amber">Замер/дизайн</span></td></tr>
-                <tr><td>Досымова А.Н.</td><td>Кухня угловая</td><td>₸760 000</td><td><span class="badge badge-green">Отгружен</span></td></tr>
-                <tr><td>Сейткали Б.</td><td>Спальный гарнитур</td><td>₸1 240 000</td><td><span class="badge badge-blue">Производство</span></td></tr>
-                <tr><td>Отель Семей Плаза</td><td>Гарнитур 20 номеров</td><td>₸4 800 000</td><td><span class="badge badge-gray">Новая заявка</span></td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- SECTION: FUNNEL -->
-        <div class="section" id="section-funnel">
-          <div class="section-title">Воронка заказов</div>
-          <div class="tabs">
-            <div class="tab active" onclick="activateTab(this)">Все каналы</div>
-            <div class="tab" onclick="activateTab(this)">Розница</div>
-            <div class="tab" onclick="activateTab(this)">Опт</div>
-            <div class="tab" onclick="activateTab(this)">Индивидуальные</div>
-          </div>
-          <div class="kanban-wrap">
-            <div class="kanban-board" id="kanban-funnel"></div>
-          </div>
-        </div>
-
-        <!-- SECTION: WORKSHOP -->
-        <div class="section" id="section-workshop">
-          <div class="section-title">Цех / Производство</div>
-          <div class="kanban-wrap">
-            <div class="kanban-board" id="kanban-workshop"></div>
-          </div>
-        </div>
-
-        <!-- SECTION: 1C -->
-        <div class="section" id="section-onecs">
-          <div class="section-title">Интеграция 1С</div>
-          <div class="flow-row">
-            <div class="flow-box">
-              <div class="flow-icon">📋</div>
-              <div class="flow-label">Заявка</div>
-              <div class="flow-sub">Портал менеджера</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-box">
-              <div class="flow-icon">🏗</div>
-              <div class="flow-label">Портал Pllato</div>
-              <div class="flow-sub">ERP + CRM</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-box">
-              <div class="flow-icon">🗂</div>
-              <div class="flow-label">1С (зеркало)</div>
-              <div class="flow-sub">Бухгалтерия</div>
-            </div>
-          </div>
-          <div class="table-card">
-            <div class="table-title">Документы в 1С</div>
-            <table>
-              <thead><tr><th>Документ</th><th>Заказ</th><th>Сумма</th><th>Статус 1С</th></tr></thead>
-              <tbody>
-                <tr><td>Счёт №1042</td><td>Шкаф-купе 2.4м</td><td>₸420 000</td><td><span class="badge badge-green">✓ в 1С</span></td></tr>
-                <tr><td>Накладная №880</td><td>Кухня 3.2м (опт)</td><td>₸890 000</td><td><span class="badge badge-green">✓ в 1С</span></td></tr>
-                <tr><td>Реализация №651</td><td>Кухня угловая</td><td>₸760 000</td><td><span class="badge badge-green">✓ в 1С</span></td></tr>
-                <tr><td>Счёт №1043</td><td>Спальный гарнитур</td><td>₸1 240 000</td><td><span class="badge badge-amber">⟳ синхр.</span></td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="info-box">
-            💡 Собственник перестаёт заходить в 1С — вся аналитика в портале. В 1С уходит только то, что нужно бухгалтерии.
-          </div>
-        </div>
-
-        <!-- SECTION: KPI -->
-        <div class="section" id="section-kpi">
-          <div class="section-title">KPI и зарплата</div>
-          <div class="table-card">
-            <div class="table-title">Выполнение плана — менеджеры продаж</div>
-            <table>
-              <thead><tr><th>Менеджер</th><th>План</th><th>Факт</th><th>Выполнение</th><th>Бонус</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td><strong>Айгерим</strong></td>
-                  <td>8 сделок</td>
-                  <td>6</td>
-                  <td>
-                    <div style="font-size:.78rem;margin-bottom:3px">75%</div>
-                    <div class="kpi-progress" style="width:120px"><div class="kpi-progress-fill" style="width:75%;background:var(--bronze)"></div></div>
-                  </td>
-                  <td><strong>₸180 000</strong></td>
-                </tr>
-                <tr>
-                  <td><strong>Тимур</strong></td>
-                  <td>6 сделок</td>
-                  <td>5</td>
-                  <td>
-                    <div style="font-size:.78rem;margin-bottom:3px">83%</div>
-                    <div class="kpi-progress" style="width:120px"><div class="kpi-progress-fill" style="width:83%;background:var(--green)"></div></div>
-                  </td>
-                  <td><strong>₸145 000</strong></td>
-                </tr>
-                <tr>
-                  <td><strong>Ержан</strong></td>
-                  <td>5 сделок</td>
-                  <td>3</td>
-                  <td>
-                    <div style="font-size:.78rem;margin-bottom:3px">60%</div>
-                    <div class="kpi-progress" style="width:120px"><div class="kpi-progress-fill" style="width:60%;background:var(--bronze)"></div></div>
-                  </td>
-                  <td><strong>₸87 000</strong></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="note">Зарплата = сумма KPI × коэффициент. Рассчитывается автоматически.</p>
-        </div>
-
-        <!-- SECTION: CHANNELS -->
-        <div class="section" id="section-channels">
-          <div class="section-title">Каналы и заявки</div>
-          <div class="leads-list" id="leads-list"></div>
-        </div>
-
-        <!-- SECTION: CATALOG -->
-        <div class="section" id="section-catalog">
-          <div class="section-title">Каталог изделий</div>
-          <div class="catalog-grid" id="catalog-grid"></div>
-        </div>
-
-        <!-- SECTION: FINANCE -->
-        <div class="section" id="section-finance">
-          <div class="section-title">Финансы</div>
-          <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">
-            <div class="kpi-card">
-              <div class="kpi-label">Выручка</div>
-              <div class="kpi-value" style="color:var(--green)">₸12.1 млн</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">Расходы</div>
-              <div class="kpi-value" style="color:var(--red)">₸7.3 млн</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">Прибыль</div>
-              <div class="kpi-value" style="color:var(--bronze)">₸4.8 млн</div>
-            </div>
-          </div>
-          <div class="table-card">
-            <div class="table-title">Финансовые транзакции</div>
-            <table>
-              <thead><tr><th>Дата</th><th>Описание</th><th>Тип</th><th>Сумма</th></tr></thead>
-              <tbody>
-                <tr><td>23.06.2025</td><td>Оплата — Кухня угловая (Досымова)</td><td><span class="badge badge-green">Приход</span></td><td style="color:var(--green)">+₸760 000</td></tr>
-                <tr><td>22.06.2025</td><td>Закупка фурнитуры — ТД Мебельщик</td><td><span class="badge badge-red">Расход</span></td><td style="color:var(--red)">−₸180 000</td></tr>
-                <tr><td>20.06.2025</td><td>Аванс — Спальный гарнитур (Сейткали)</td><td><span class="badge badge-green">Приход</span></td><td style="color:var(--green)">+₸620 000</td></tr>
-                <tr><td>18.06.2025</td><td>Зарплата — цех июнь (аванс)</td><td><span class="badge badge-red">Расход</span></td><td style="color:var(--red)">−₸450 000</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="note">Данные синхронизированы с 1С · обновлено 25.06.2025</p>
-        </div>
-
-        <!-- SECTION: NEW ORDER -->
-        <div class="section" id="section-neworder">
-          <div class="section-title">Новый заказ</div>
-          <div class="table-card" style="max-width:640px">
-            <form id="new-order-form" onsubmit="submitOrder(event)">
-              <div class="form-grid">
-                <div class="form-group">
-                  <label>Имя клиента</label>
-                  <input type="text" placeholder="Иванов Иван">
-                </div>
-                <div class="form-group">
-                  <label>Телефон</label>
-                  <input type="tel" placeholder="+7 777 000 00 00">
-                </div>
-                <div class="form-group">
-                  <label>Тип изделия</label>
-                  <select>
-                    <option>Шкаф-купе</option>
-                    <option>Кухонный гарнитур</option>
-                    <option>Спальный гарнитур</option>
-                    <option>Прихожая</option>
-                    <option>Стол</option>
-                    <option>Гардеробная</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Размеры</label>
-                  <input type="text" placeholder="напр. 2400×600×2200">
-                </div>
-                <div class="form-group">
-                  <label>Материал</label>
-                  <select>
-                    <option>Берёза</option>
-                    <option>МДФ</option>
-                    <option>ЛДСП</option>
-                    <option>Дуб</option>
-                    <option>Ясень</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Канал</label>
-                  <select>
-                    <option>Розница (Семей)</option>
-                    <option>Опт</option>
-                    <option>Индивидуальный</option>
-                    <option>WhatsApp</option>
-                    <option>Instagram</option>
-                    <option>Сайт</option>
-                  </select>
-                </div>
-                <div class="form-group full">
-                  <label>Ответственный</label>
-                  <select>
-                    <option>Айгерим</option>
-                    <option>Тимур</option>
-                    <option>Ержан</option>
-                  </select>
-                </div>
-              </div>
-              <div style="margin-top:1.25rem">
-                <button type="submit" class="btn-primary">Создать заказ</button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-      </div><!-- end content -->
-    </div><!-- end main -->
-  </div><!-- end layout -->
-</div><!-- end app -->
-
-<!-- TOAST -->
-<div id="toast">✓ Заказ создан!</div>
-
-<!-- DEMO LABEL -->
-<div id="demo-label">демо · Pllato</div>
-
-<!-- MODAL: FUNNEL CARD -->
-<div class="modal-overlay" id="modal-funnel" onclick="closeModalOnOverlay(event,'modal-funnel')">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="mf-title">Шкаф-купе 2.4м</div>
-      <button class="modal-close" onclick="closeModal('modal-funnel')">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-tabs">
-        <div class="modal-tab active" onclick="switchModalTab(this,'modal-funnel',0)">Сделка</div>
-        <div class="modal-tab" onclick="switchModalTab(this,'modal-funnel',1)">Производство</div>
-        <div class="modal-tab" onclick="switchModalTab(this,'modal-funnel',2)">Общение</div>
-        <div class="modal-tab" onclick="switchModalTab(this,'modal-funnel',3)">1С</div>
-      </div>
-      <!-- Tab 0: Сделка -->
-      <div class="modal-tab-panel active">
-        <div class="detail-row"><div class="detail-label">Клиент</div><div class="detail-val">ТОО Айтпаев и К</div></div>
-        <div class="detail-row"><div class="detail-label">Телефон</div><div class="detail-val" style="color:var(--blue)">+7 777 123 45 67</div></div>
-        <div class="detail-row"><div class="detail-label">Изделие</div><div class="detail-val">Шкаф-купе 2.4м</div></div>
-        <div class="detail-row"><div class="detail-label">Размеры</div><div class="detail-val">2400×600×2200 мм</div></div>
-        <div class="detail-row"><div class="detail-label">Материал</div><div class="detail-val">Берёза натуральная</div></div>
-        <div class="detail-row"><div class="detail-label">Канал</div><div class="detail-val"><span class="badge badge-purple">Instagram</span></div></div>
-        <div class="detail-row"><div class="detail-label">Ответственный</div><div class="detail-val">Айгерим Сейтова</div></div>
-        <div class="detail-row"><div class="detail-label">Сумма</div><div class="detail-val" style="font-weight:700;color:var(--bronze)">₸420 000</div></div>
-        <div class="detail-row"><div class="detail-label">Статус</div><div class="detail-val"><span class="badge badge-amber">Замер/дизайн</span></div></div>
-      </div>
-      <!-- Tab 1: Производство -->
-      <div class="modal-tab-panel">
-        <div class="detail-row"><div class="detail-label">Текущий этап</div><div class="detail-val"><span class="badge badge-amber">Кромка и сборка</span></div></div>
-        <div style="margin:.75rem 0">
-          <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--text2);margin-bottom:5px"><span>Прогресс</span><span>45%</span></div>
-          <div class="progress-bar" style="height:10px"><div class="progress-fill" style="width:45%"></div></div>
-        </div>
-        <div class="detail-row"><div class="detail-label">Дедлайн</div><div class="detail-val" style="color:var(--amber);font-weight:600">04.07.2025</div></div>
-        <div class="detail-row"><div class="detail-label">Мастер цеха</div><div class="detail-val">Серик Байжанов</div></div>
-        <div class="detail-row"><div class="detail-label">Приоритет</div><div class="detail-val"><span class="badge badge-amber">Средний</span></div></div>
-      </div>
-      <!-- Tab 2: Общение -->
-      <div class="modal-tab-panel">
-        <div class="chat-wrap">
-          <div>
-            <div class="chat-bubble chat-in">Здравствуйте! Интересует шкаф-купе 2.4 метра в берёзе, с зеркальными дверями. Сколько будет стоить?</div>
-            <div class="chat-meta" style="padding-left:.5rem">Клиент · 10:15</div>
-          </div>
-          <div style="align-self:flex-end;text-align:right">
-            <div class="chat-bubble chat-out">Добрый день! Шкаф-купе 2400×600×2200 в берёзе с зеркальным фасадом — от ₸380 000. Уточните, сколько секций нужно?</div>
-            <div class="chat-meta" style="padding-right:.5rem">Айгерим · 10:22</div>
-          </div>
-          <div>
-            <div class="chat-bubble chat-in">Три секции. Две под одежду, одна с полками. Можно сделать замер на этой неделе?</div>
-            <div class="chat-meta" style="padding-left:.5rem">Клиент · 10:35</div>
-          </div>
-          <div style="align-self:flex-end;text-align:right">
-            <div class="chat-bubble chat-out">Конечно! Наш замерщик свободен в пятницу 27.06 после 14:00. Адрес вашей квартиры?</div>
-            <div class="chat-meta" style="padding-right:.5rem">Айгерим · 10:38</div>
-          </div>
-          <div>
-            <div class="chat-bubble chat-in">Семей, ул. Абая 45, кв. 12. Пятница подходит, жду.</div>
-            <div class="chat-meta" style="padding-left:.5rem">Клиент · 10:41</div>
-          </div>
-        </div>
-        <div style="font-size:.78rem;font-weight:600;color:var(--text2);margin-bottom:.5rem">Журнал звонков</div>
-        <div class="call-log">
-          <div class="call-icon">📞</div>
-          <div class="call-info">
-            <div class="call-title">Входящий · +7 777 123 45 67</div>
-            <div class="call-sub">24.06.2025 · 3 мин 12 сек</div>
-          </div>
-          <div class="waveform">
-            <div class="wave-bar" style="height:6px"></div><div class="wave-bar" style="height:12px"></div><div class="wave-bar" style="height:18px"></div><div class="wave-bar" style="height:10px"></div><div class="wave-bar" style="height:16px"></div><div class="wave-bar" style="height:8px"></div><div class="wave-bar" style="height:14px"></div><div class="wave-bar" style="height:20px"></div><div class="wave-bar" style="height:9px"></div><div class="wave-bar" style="height:13px"></div>
-          </div>
-        </div>
-        <div class="call-log">
-          <div class="call-icon">📞</div>
-          <div class="call-info">
-            <div class="call-title">Исходящий · +7 777 123 45 67</div>
-            <div class="call-sub">22.06.2025 · 1 мин 45 сек</div>
-          </div>
-          <div class="waveform">
-            <div class="wave-bar" style="height:8px"></div><div class="wave-bar" style="height:14px"></div><div class="wave-bar" style="height:10px"></div><div class="wave-bar" style="height:18px"></div><div class="wave-bar" style="height:7px"></div><div class="wave-bar" style="height:15px"></div><div class="wave-bar" style="height:11px"></div><div class="wave-bar" style="height:19px"></div><div class="wave-bar" style="height:6px"></div><div class="wave-bar" style="height:12px"></div>
-          </div>
-        </div>
-      </div>
-      <!-- Tab 3: 1С -->
-      <div class="modal-tab-panel">
-        <table style="margin-bottom:1rem">
-          <thead><tr><th>Документ</th><th>Сумма</th><th>Статус</th></tr></thead>
-          <tbody>
-            <tr><td>Счёт №1042</td><td>₸420 000</td><td><span class="badge badge-green">✓ в 1С</span></td></tr>
-          </tbody>
-        </table>
-        <button class="btn-secondary" onclick="alert('Документ уже в 1С')">Сформировать в 1С</button>
       </div>
     </div>
-  </div>
+    <nav class="sb-nav" id="nav">
+      <div class="sb-sect">Обзор</div>
+      <div class="sb-link on" data-p="dash"><span class="ic">▦</span> Дашборд</div>
+      <div class="sb-link" data-p="kpi"><span class="ic">🏆</span> KPI и зарплата</div>
+      <div class="sb-sect">Продажи</div>
+      <div class="sb-link" data-p="funnel"><span class="ic">⇲</span> Воронка заказов <span class="bdg" id="fnbdg">14</span></div>
+      <div class="sb-link" data-p="channels"><span class="ic">📡</span> Каналы и заявки <span class="bdg" id="chbdg">5</span></div>
+      <div class="sb-link" data-p="neworder"><span class="ic">＋</span> Новый заказ</div>
+      <div class="sb-sect">Производство</div>
+      <div class="sb-link" data-p="production"><span class="ic">🪚</span> Цех / производство</div>
+      <div class="sb-link" data-p="catalog"><span class="ic">🛋</span> Каталог изделий</div>
+      <div class="sb-sect">Учёт</div>
+      <div class="sb-link" data-p="onec"><span class="ic">🔄</span> Интеграция 1С</div>
+      <div class="sb-link" data-p="finance"><span class="ic">💰</span> Финансы</div>
+    </nav>
+    <div class="sb-sync">
+      <div class="dot"></div>
+      <div class="sb-sync-txt">
+        <b>1С синхронизирован</b>
+        <small>обновлено 2 мин назад</small>
+      </div>
+    </div>
+    <div class="sb-user">
+      <div class="sb-av" id="sbuav">Р</div>
+      <div>
+        <div class="sb-uname" id="sbuname">Руслан</div>
+        <div class="sb-urole" id="sbrole">Руководитель</div>
+      </div>
+      <div class="sb-logout" onclick="logout()" title="Выйти">↩</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="tb-title" id="ptitle">Дашборд</div>
+        <div class="tb-sub" id="psub">Сводка по производству · Семей</div>
+      </div>
+      <div class="tb-spacer"></div>
+      <input class="tb-search" placeholder="Поиск заказа, клиента…">
+      <button class="tb-btn" onclick="openNewOrder()">＋ Создать</button>
+    </div>
+
+    <div class="body">
+
+      <!-- ───── ДАШБОРД ───── -->
+      <section class="page on" id="dash">
+        <div class="krow">
+          <div class="kcard"><div class="kk">Заказов в работе</div><div class="kv">28</div><div class="kd kup">↑ на 8.4 млн ₸</div></div>
+          <div class="kcard"><div class="kk">Заявок за неделю</div><div class="kv">63</div><div class="kd kup">↑ +9% к прошлой</div></div>
+          <div class="kcard"><div class="kk">В производстве</div><div class="kv">14</div><div class="kd kneu">3 с дедлайном сегодня</div></div>
+          <div class="kcard"><div class="kk">Выручка (июнь)</div><div class="kv">12.1 млн</div><div class="kd kup">₸ · +6% к маю</div></div>
+        </div>
+        <div class="grid2">
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">Выручка по месяцам</div></div>
+            <div class="panel-sub">Млн ₸, отгружено клиентам</div>
+            <div class="bars">
+              <div class="bar-wrap"><div class="bar" style="height:52%"><span class="bar-val">7.8</span></div><span class="bar-lbl">Янв</span></div>
+              <div class="bar-wrap"><div class="bar" style="height:60%"><span class="bar-val">9.1</span></div><span class="bar-lbl">Фев</span></div>
+              <div class="bar-wrap"><div class="bar" style="height:68%"><span class="bar-val">10.3</span></div><span class="bar-lbl">Мар</span></div>
+              <div class="bar-wrap"><div class="bar" style="height:64%"><span class="bar-val">9.7</span></div><span class="bar-lbl">Апр</span></div>
+              <div class="bar-wrap"><div class="bar" style="height:76%"><span class="bar-val">11.4</span></div><span class="bar-lbl">Май</span></div>
+              <div class="bar-wrap"><div class="bar" style="height:100%"><span class="bar-val">12.1</span></div><span class="bar-lbl">Июн</span></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">Заявки по каналам</div></div>
+            <div class="panel-sub">Распределение за июнь</div>
+            <div class="srow"><span class="srow-l">🏪 Розница (точка Семей)</span><span class="srow-r">21</span></div>
+            <div class="srow"><span class="srow-l">📦 Опт (Казахстан)</span><span class="srow-r">18</span></div>
+            <div class="srow"><span class="srow-l">✏️ Индивидуальные</span><span class="srow-r">14</span></div>
+            <div class="srow"><span class="srow-l">💬 WhatsApp / Instagram</span><span class="srow-r">10</span></div>
+            <div class="note">Цифры в демо — <b>примерные</b>. В рабочей системе считаются из ваших данных + 1С.</div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="panel">
+            <div class="panel-title" style="margin-bottom:.75rem">Последние заказы</div>
+            <table class="tbl">
+              <tr><th>Изделие</th><th>Клиент</th><th>Сумма</th><th>Статус</th></tr>
+              <tr><td><span class="tbl-link" onclick="showDashDeal(0)">Шкаф-купе 2.4м</span></td><td>Самал А.</td><td>₸ 420 000</td><td><span class="pill p-amber">Замер</span></td></tr>
+              <tr><td><span class="tbl-link" onclick="showDashDeal(1)">Кухня 3.2м</span></td><td>ТОО «Комфорт»</td><td>₸ 890 000</td><td><span class="pill p-blue">Договор</span></td></tr>
+              <tr><td><span class="tbl-link" onclick="showDashDeal(2)">Спальный гарнитур</span></td><td>Опт · Павлодар</td><td>₸ 1 240 000</td><td><span class="pill p-green">Производство</span></td></tr>
+              <tr><td><span class="tbl-link" onclick="showDashDeal(3)">Кухня угловая</span></td><td>Опт · УКГ</td><td>₸ 760 000</td><td><span class="pill p-green">Отгружен</span></td></tr>
+            </table>
+          </div>
+          <div class="panel">
+            <div class="panel-title" style="margin-bottom:.75rem">Цех — сегодня</div>
+            <div class="srow"><span class="srow-l">🟠 Просрочены</span><span class="srow-r" style="color:var(--red);font-weight:900">2</span></div>
+            <div class="srow"><span class="srow-l">🟡 Дедлайн сегодня</span><span class="srow-r" style="color:var(--amber)">3</span></div>
+            <div class="srow"><span class="srow-l">🟢 В работе (ок)</span><span class="srow-r">9</span></div>
+            <div class="srow"><span class="srow-l">✅ Готовы к отгрузке</span><span class="srow-r">2</span></div>
+            <div style="margin-top:.75rem"><button class="btn-mini brass" onclick="go('production')">Открыть цех →</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───── KPI ───── -->
+      <section class="page" id="kpi">
+        <div class="panel">
+          <div class="panel-title">🏆 KPI менеджеров → зарплата</div>
+          <div class="panel-sub">Июнь 2025 · план, факт, коэффициент</div>
+          <div class="kpi-board" id="kpiList"></div>
+        </div>
+        <div class="note">Зарплата = оклад + <b>коэффициент KPI</b>. Каждый менеджер видит свой план, факт и то, как он влияет на доход. Дисциплина применения встроена — понятно, что двигать.</div>
+      </section>
+
+      <!-- ───── ВОРОНКА ───── -->
+      <section class="page" id="funnel">
+        <div class="funnel-filters" id="chFilters">
+          <div class="ff on" data-f="all"><span class="dot"></span>Все каналы</div>
+          <div class="ff" data-f="retail"><span class="dot"></span>Розница</div>
+          <div class="ff" data-f="opt"><span class="dot"></span>Опт</div>
+          <div class="ff" data-f="ind"><span class="dot"></span>Индивидуальные</div>
+          <div class="ff" data-f="online"><span class="dot"></span>Онлайн</div>
+        </div>
+        <div class="funnel-wrap">
+          <div class="board" id="board"></div>
+        </div>
+        <div class="note" style="margin-top:1rem">Воронка разделена по каналам. Каждая карточка — живой заказ: клиент, изделие, сумма, дедлайн, менеджер. <b>Нажмите на карточку</b> чтобы увидеть историю, диалоги, спецификацию и статус в 1С.</div>
+      </section>
+
+      <!-- ───── КАНАЛЫ ───── -->
+      <section class="page" id="channels">
+        <div class="panel">
+          <div class="panel-title">📡 Входящие заявки</div>
+          <div class="panel-sub">Все источники в одном окне · WhatsApp · Instagram · Сайт · Розница</div>
+          <div class="inbox" id="inbox"></div>
+        </div>
+        <div class="note">Заявка автоматически маршрутизируется: <b>розница</b> → розничный менеджер, <b>индивидуальный</b> → дизайнер, <b>опт</b> → оптовый отдел. Источник фиксируется для аналитики.</div>
+      </section>
+
+      <!-- ───── НОВЫЙ ЗАКАЗ ───── -->
+      <section class="page" id="neworder">
+        <div class="panel" style="max-width:540px">
+          <div class="panel-title">Новый заказ</div>
+          <div class="panel-sub">Заявка из любого канала превращается в заказ и сразу зеркалится в 1С</div>
+          <div class="srow"><span class="srow-l">Канал</span><span class="srow-r">Индивидуальный заказ</span></div>
+          <div class="srow"><span class="srow-l">Источник заявки</span><span class="srow-r">Instagram Direct</span></div>
+          <div class="srow"><span class="srow-l">Изделие</span><span class="srow-r">Шкаф-купе 2.4м, берёза</span></div>
+          <div class="srow"><span class="srow-l">Материал</span><span class="srow-r">ЛДСП / берёза, зеркало</span></div>
+          <div class="srow"><span class="srow-l">Сумма</span><span class="srow-r">₸ 420 000</span></div>
+          <div class="srow"><span class="srow-l">Менеджер</span><span class="srow-r">Айгерим</span></div>
+          <div class="sync-row" style="margin-top:.85rem">
+            <div class="sync-dot"></div>
+            <div><div class="sync-t">✓ Авто-выгрузка в 1С включена</div><div class="sync-s">Заказ создаст счёт и накладную в 1С — заносить вручную не нужно</div></div>
+          </div>
+          <button class="btn-mini brass" style="padding:.5rem 1.2rem;margin-top:.5rem;font-size:.82rem">Создать заказ</button>
+          <div class="note" style="margin-top:.85rem">Главная боль решена: <b>один ввод</b> вместо двойной работы «сначала в CRM, потом в 1С».</div>
+        </div>
+      </section>
+
+      <!-- ───── ЦЕХ ───── -->
+      <section class="page" id="production">
+        <div style="overflow-x:auto;padding-bottom:.5rem">
+          <div class="prod-board" id="prodBoard"></div>
+        </div>
+        <div class="note" style="margin-top:1rem">Каждый заказ проходит цех по этапам. Просроченные — <b>красная полоса</b>. Нажмите на изделие — увидите маршрут, материалы, ответственного и связанный заказ.</div>
+      </section>
+
+      <!-- ───── КАТАЛОГ ───── -->
+      <section class="page" id="catalog">
+        <div class="panel">
+          <div class="panel-title">🛋 Каталог изделий</div>
+          <div class="panel-sub">Типовые изделия с ценами и сроком производства</div>
+          <table class="tbl" id="catTbl"></table>
+        </div>
+        <div class="note">Типовой продукт = масштабирование. Менеджер собирает заказ из каталога за минуту; нестандарт уходит дизайнеру.</div>
+      </section>
+
+      <!-- ───── 1С ───── -->
+      <section class="page" id="onec">
+        <div class="panel">
+          <div class="panel-title">🔄 Интеграция с 1С</div>
+          <div class="panel-sub">Учётные данные зеркалятся — никакой двойной работы</div>
+          <div class="flow">
+            <div class="fnode"><div class="fi">📥</div><div class="ft">Заявка</div><div class="fs">WhatsApp · Instagram · сайт · розница</div></div>
+            <div class="farr">→</div>
+            <div class="fnode"><div class="fi">🖥</div><div class="ft">Портал Pllato</div><div class="fs">сделка, спецификация, цех</div></div>
+            <div class="farr">→</div>
+            <div class="fnode"><div class="fi">🔄</div><div class="ft">1С (авто)</div><div class="fs">счёт, накладная, учёт</div></div>
+          </div>
+          <table class="tbl" id="onecTbl"></table>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Интеграции</div>
+          <div class="panel-sub">Подключённые каналы и сервисы</div>
+          <div class="int-grid">
+            <div class="int-card"><div class="int-logo">💬</div><div class="int-name">WhatsApp Business</div><div class="int-desc">Заявки и переписка прямо в карточке клиента</div><div class="int-status"><span class="pill p-green">Подключён</span></div></div>
+            <div class="int-card"><div class="int-logo">📸</div><div class="int-name">Instagram Direct</div><div class="int-desc">Входящие директы → заявки автоматически</div><div class="int-status"><span class="pill p-green">Подключён</span></div></div>
+            <div class="int-card"><div class="int-logo">🔄</div><div class="int-name">1С Предприятие</div><div class="int-desc">Двусторонняя синхронизация счетов и накладных</div><div class="int-status"><span class="pill p-green">Активно</span></div></div>
+            <div class="int-card"><div class="int-logo">📞</div><div class="int-name">Телефония (Telphin)</div><div class="int-desc">Запись звонков, всплывающая карточка клиента</div><div class="int-status"><span class="pill p-amber">Настройка</span></div></div>
+            <div class="int-card"><div class="int-logo">🌐</div><div class="int-name">Форма на сайте</div><div class="int-desc">Заявки с сайта сразу попадают в воронку</div><div class="int-status"><span class="pill p-green">Активно</span></div></div>
+            <div class="int-card"><div class="int-logo">📊</div><div class="int-name">Яндекс.Метрика</div><div class="int-desc">Аналитика рекламы → UTM в карточке заявки</div><div class="int-status"><span class="pill p-blue">Скоро</span></div></div>
+          </div>
+        </div>
+        <div class="note">Собственник перестаёт заходить в 1С — вся аналитика в портале. В 1С уходит только то, что нужно бухгалтерии: счета, накладные, реализации.</div>
+      </section>
+
+      <!-- ───── ФИНАНСЫ ───── -->
+      <section class="page" id="finance">
+        <div class="fin-total">
+          <div><div class="ft-l">Выручка июнь</div><div class="ft-v">12.1 млн ₸</div><div class="ft-d">↑ +6% к маю · маржа 39%</div></div>
+          <div style="text-align:right"><div class="ft-l">Дебиторка</div><div class="ft-v" style="font-size:1.2rem;color:#f0c070">1.9 млн ₸</div><div class="ft-d">8 заказов ожидают</div></div>
+        </div>
+        <div class="krow">
+          <div class="kcard"><div class="kk">Выручка (месяц)</div><div class="kv">12.1 млн</div><div class="kd kup">₸</div></div>
+          <div class="kcard"><div class="kk">Себестоимость</div><div class="kv">7.4 млн</div><div class="kd kneu">₸ · материалы + цех</div></div>
+          <div class="kcard"><div class="kk">Дебиторка</div><div class="kv">1.9 млн</div><div class="kd kdn">↑ 8 заказов</div></div>
+          <div class="kcard"><div class="kk">Маржа</div><div class="kv">39%</div><div class="kd kup">↑ по отгрузкам</div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Движение по заказам</div>
+          <div class="panel-sub">Оплаты и остатки · синхронно с 1С</div>
+          <table class="tbl" id="finTbl"></table>
+        </div>
+      </section>
+
+    </div><!-- /body -->
+  </div><!-- /main -->
+</div><!-- /shell -->
+</div><!-- /app -->
+
+<!-- ═══════════════════════════════════ MODAL ═══════════════════════════════════ -->
+<div class="ov" id="ov">
+  <div class="modal" id="modal"></div>
 </div>
-
-<!-- MODAL: WORKSHOP CARD -->
-<div class="modal-overlay" id="modal-workshop" onclick="closeModalOnOverlay(event,'modal-workshop')">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="mw-title">Шкаф-купе 2.4м</div>
-      <button class="modal-close" onclick="closeModal('modal-workshop')">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="detail-row"><div class="detail-label">Материал</div><div class="detail-val" id="mw-material">Берёза натуральная</div></div>
-      <div class="detail-row"><div class="detail-label">Размеры</div><div class="detail-val" id="mw-dims">2400×600×2200 мм</div></div>
-      <div class="detail-row"><div class="detail-label">Цвет/отделка</div><div class="detail-val" id="mw-color">Натуральный лак</div></div>
-      <div class="detail-row"><div class="detail-label">Мастер</div><div class="detail-val" id="mw-master">Серик Байжанов</div></div>
-      <div class="detail-row"><div class="detail-label">Дедлайн</div><div class="detail-val" id="mw-deadline" style="font-weight:600;color:var(--amber)">02.07.2025</div></div>
-      <div style="margin:1rem 0 .5rem;font-size:.8rem;font-weight:600;color:var(--text2)">Этапы производства</div>
-      <div class="stage-timeline" id="mw-stages"></div>
-      <div style="margin-top:1rem">
-        <span style="font-size:.83rem;color:var(--blue);cursor:pointer;text-decoration:underline;text-underline-offset:2px" onclick="closeModal('modal-workshop');showSection('funnel',document.querySelector('[data-section=funnel]'))">Открыть заказ →</span>
-      </div>
-      <div class="photos-grid">
-        <div class="photo-placeholder" style="background:linear-gradient(135deg,#b8895a,#8a6a3e)">Фото изделия 1</div>
-        <div class="photo-placeholder" style="background:linear-gradient(135deg,#6b8fa8,#4a6a82)">Фото изделия 2</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: LEAD -->
-<div class="modal-overlay" id="modal-lead" onclick="closeModalOnOverlay(event,'modal-lead')">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="ml-title">Заявка</div>
-      <button class="modal-close" onclick="closeModal('modal-lead')">×</button>
-    </div>
-    <div class="modal-body">
-      <div id="ml-channel-header" style="margin-bottom:1rem"></div>
-      <div style="font-size:.8rem;font-weight:600;color:var(--text2);margin-bottom:.4rem">Сообщение</div>
-      <div id="ml-message" style="background:var(--off);border-radius:10px;padding:.75rem 1rem;font-size:.85rem;margin-bottom:1rem;line-height:1.5"></div>
-      <div style="font-size:.8rem;font-weight:600;color:var(--text2);margin-bottom:.6rem">История переписки</div>
-      <div id="ml-history" class="chat-wrap" style="margin-bottom:1rem"></div>
-      <button class="btn-primary" onclick="closeModal('modal-lead');showSection('neworder',document.querySelector('[data-section=neworder]'))">Создать сделку</button>
-    </div>
-  </div>
-</div>
+<div class="demo-mark">демо · Pllato Мебель</div>
 
 <script>
-// ============================
-// DATA
-// ============================
-const roles = {
-  ruslan: { name:'Руслан', role:'Руководитель', avatar:'Р', sections:['obzor','sales','prod','accounting'] },
-  aigerim: { name:'Айгерим', role:'Менеджер продаж', avatar:'А', sections:['sales'] },
-  serik: { name:'Серик', role:'Мастер цеха', avatar:'С', sections:['prod'] }
+/* ══════════════════ DATA ══════════════════ */
+const ROLES={
+  rusl:{name:"Руслан",role:"Руководитель",av:"Р",pages:["dash","kpi","funnel","channels","neworder","production","catalog","onec","finance"]},
+  aig: {name:"Айгерим",role:"Менеджер продаж",av:"А",pages:["funnel","channels","neworder","catalog"]},
+  ser: {name:"Серик",role:"Мастер цеха",av:"С",pages:["production","catalog","dash"]},
 };
 
-let currentRole = null;
-
-const funnelCols = [
-  { id:'new', title:'Новая заявка', cards:[
-    { title:'Шкаф-купе 2.4м · берёза', meta:'Семей · Инстаграм', sum:'₸420 000' },
-    { title:'Кухня 3.2м · розница', meta:'WhatsApp', sum:'' }
-  ]},
-  { id:'design', title:'Замер/дизайн', cards:[
-    { title:'Гардеробная · инд · Семей', meta:'Индивидуальный', sum:'₸650 000' },
-    { title:'Прихожая · розница', meta:'Розница', sum:'' }
-  ]},
-  { id:'contract', title:'Договор/счёт', cards:[
-    { title:'Спальный гарнитур · опт', meta:'Павлодар', sum:'₸1 240 000' }
-  ]},
-  { id:'production', title:'Производство', cards:[
-    { title:'Стол из берёзы · инд', meta:'Алматы', sum:'₸320 000' },
-    { title:'Шкаф 1.8м · розница', meta:'Семей', sum:'₸240 000' }
-  ]},
-  { id:'shipped', title:'Отгружен', cards:[
-    { title:'Кухня угловая · опт', meta:'Усть-Каменогорск', sum:'₸760 000' }
-  ]}
+const KPI_DATA=[
+  {n:"Айдос",dept:"Опт",plan:7,fact:6,sal:480000},
+  {n:"Гульмира",dept:"Розница",plan:10,fact:9,sal:420000},
+  {n:"Ербол",dept:"Индивид.",plan:8,fact:5,sal:360000},
+  {n:"Динара",dept:"Розница",plan:8,fact:4,sal:240000},
 ];
 
-const workshopCols = [
-  { title:'Раскрой', cards:[
-    { title:'Шкаф-купе 2.4м', meta:'Инд · Айтпаев', pct:20, deadline:'до 02.07', style:'border-amber',
-      material:'Берёза натуральная', dims:'2400×600×2200', color:'Натуральный лак', master:'Серик Байжанов', dlStyle:'amber', stage:0 }
-  ]},
-  { title:'Кромка и сборка', cards:[
-    { title:'Кухня 3.2м', meta:'Опт · Астана', pct:45, deadline:'до 04.07', style:'',
-      material:'МДФ + плёнка', dims:'3200×600×850', color:'Белый матовый', master:'Серик Байжанов', dlStyle:'', stage:1 }
-  ]},
-  { title:'Покраска и лак', cards:[
-    { title:'Стол из берёзы', meta:'Инд · Алматы', pct:70, deadline:'до 01.07', style:'border-red',
-      material:'Берёза массив', dims:'1800×900×760', color:'Тёмный орех, лак', master:'Мерей Сейтов', dlStyle:'red', stage:2 }
-  ]},
-  { title:'Контроль качества', cards:[
-    { title:'Спальный гарнитур', meta:'Опт · Павлодар', pct:90, deadline:'до 03.07', style:'border-amber',
-      material:'ЛДСП + МДФ фасады', dims:'3600×580×2100', color:'Серый шёлк', master:'Серик Байжанов', dlStyle:'amber', stage:3 }
-  ]},
-  { title:'Готово/отгрузка', cards:[
-    { title:'Шкаф 1.8м', meta:'Розница', pct:100, deadline:'готово', style:'border-green',
-      material:'ЛДСП', dims:'1800×520×2200', color:'Венге', master:'Мерей Сейтов', dlStyle:'green', stage:4 }
-  ]}
-];
-
-const catalogItems = [
-  { name:'Шкаф-купе 2.4м', price:'от ₸380 000', category:'Шкаф', grad:'135deg,#b8895a,#7a5c32' },
-  { name:'Кухонный гарнитур', price:'от ₸650 000', category:'Кухня', grad:'135deg,#6b8fa8,#3d6070' },
-  { name:'Спальный гарнитур', price:'от ₸980 000', category:'Спальня', grad:'135deg,#8a7d9e,#5a4d6e' },
-  { name:'Прихожая', price:'от ₸240 000', category:'Прихожая', grad:'135deg,#a07850,#6e5030' },
-  { name:'Стол из берёзы', price:'от ₸180 000', category:'Стол', grad:'135deg,#7e9e70,#4d6c40' },
-  { name:'Гардеробная', price:'от ₸520 000', category:'Шкаф', grad:'135deg,#9e8a6a,#6e5a40' }
-];
-
-const leadsData = [
-  { badge:'badge-green', channel:'WhatsApp', msg:'Интересует шкаф-купе 2 метра, есть в наличии?', manager:'Айгерим', time:'только что',
-    fullMsg:'Привет! Интересует шкаф-купе примерно 2 метра, под берёзу. Есть в наличии или только на заказ? И сколько примерно стоить будет?',
-    history:[
-      { dir:'in', text:'Здравствуйте, видел ваш аккаунт в Instagram, делаете шкафы под заказ?', time:'вчера 18:32' },
-      { dir:'out', text:'Добрый день! Да, делаем шкафы-купе, кухни, прихожие — всё на заказ. Пришлите размеры, посчитаем!', time:'вчера 18:45' }
-    ]},
-  { badge:'badge-purple', channel:'Instagram Direct', msg:'Хочу кухню под заказ, можете сделать?', manager:'Тимур', time:'15 мин назад',
-    fullMsg:'Добрый день! Хочу сделать кухню под заказ, угловую, примерно 3,5 метра. У меня нестандартная планировка. Вы можете сделать с выездом замерщика?',
-    history:[
-      { dir:'in', text:'Посмотрел ваши работы в Instagram — очень нравятся фасады! Работаете ли в Семее?', time:'2 дня назад' },
-      { dir:'out', text:'Спасибо! Да, работаем в Семее и области. Также доставляем в Павлодар и Усть-Каменогорск.', time:'2 дня назад' }
-    ]},
-  { badge:'badge-blue', channel:'Форма сайта', msg:'Прихожая под ключ, Семей', manager:'Ержан', time:'1 час назад',
-    fullMsg:'Добрый день. Нужна прихожая под ключ — шкаф, вешалка, зеркало. Квартира в Семее, планирую ремонт в августе. Можно ли получить расчёт стоимости?',
-    history:[
-      { dir:'in', text:'Уже второй раз оставляю заявку — никто не перезвонил в прошлый раз.', time:'3 дня назад' },
-      { dir:'out', text:'Приносим извинения! Передаём ваш контакт менеджеру прямо сейчас.', time:'3 дня назад' }
-    ]},
-  { badge:'badge-navy', channel:'Pact', msg:'Гарнитур для гостиницы 20 номеров · опт', manager:'Айгерим', time:'2 часа назад',
-    fullMsg:'Представляю отель Семей Плаза. Нас интересует оснащение 20 номеров — тумбы, шкафы, столики. Готовы рассмотреть оптовые условия и рассрочку. Пришлите КП.',
-    history:[
-      { dir:'in', text:'Видели ваш стенд на выставке в Алматы. Впечатлила качество сборки.', time:'вчера' },
-      { dir:'out', text:'Благодарим! По оптовым заказам — скидки от 15%, персональный менеджер, расчёт за 24 часа.', time:'вчера' }
-    ]}
-];
-
-// ============================
-// INIT
-// ============================
-function selectRole(roleKey) {
-  currentRole = roles[roleKey];
-  document.getElementById('role-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  applyRole(roleKey);
-  // Default section
-  if(roleKey === 'serik') {
-    showSection('workshop', document.querySelector('[data-section=workshop]'));
-  } else if(roleKey === 'aigerim') {
-    showSection('funnel', document.querySelector('[data-section=funnel]'));
-  } else {
-    showSection('dashboard', document.querySelector('[data-section=dashboard]'));
-  }
-}
-
-function applyRole(roleKey) {
-  const r = roles[roleKey];
-  document.getElementById('sidebar-avatar').textContent = r.avatar;
-  document.getElementById('sidebar-name').textContent = r.name;
-  document.getElementById('sidebar-role').textContent = r.role;
-  document.getElementById('topbar-user-name').textContent = r.name;
-  document.getElementById('topbar-user-role').textContent = r.role;
-
-  // Show/hide nav groups
-  const showAll = roleKey === 'ruslan';
-  const showSales = roleKey === 'ruslan' || roleKey === 'aigerim';
-  const showProd = roleKey === 'ruslan' || roleKey === 'serik';
-  const showAccounting = roleKey === 'ruslan';
-  const showObzor = roleKey === 'ruslan';
-
-  document.querySelector('.nav-group-obzor').style.display = showObzor ? '' : 'none';
-  document.querySelector('.nav-group-sales').style.display = showSales ? '' : 'none';
-  document.querySelector('.nav-group-prod').style.display = showProd ? '' : 'none';
-  document.querySelector('.nav-group-accounting').style.display = showAccounting ? '' : 'none';
-}
-
-function switchRole() {
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('role-screen').style.display = 'flex';
-  // reset active
-  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-  document.querySelector('[data-section=dashboard]').classList.add('active');
-}
-
-// ============================
-// NAVIGATION
-// ============================
-const sectionTitles = {
-  dashboard:'Дашборд', kpi:'KPI и зарплата', funnel:'Воронка заказов',
-  neworder:'Новый заказ', channels:'Каналы и заявки', workshop:'Цех / Производство',
-  catalog:'Каталог изделий', onecs:'Интеграция 1С', finance:'Финансы'
+const DEALS={
+  "Новая заявка":[
+    {id:1,name:"Шкаф-купе 2.4м",client:"Самал А.",city:"Семей",ch:"ind",src:"Instagram",mgr:"Ербол",price:"₸ 420 000",dead:"02.07",deadOk:true,pct:5,mat:"ЛДСП + зеркало, берёза"},
+    {id:2,name:"Кухня 3.2м",client:"ТОО «Вкус»",city:"Астана",ch:"opt",src:"Форма сайта",mgr:"Айдос",price:"₸ 890 000",dead:"08.07",deadOk:true,pct:5,mat:"МДФ эмаль, белый"},
+    {id:3,name:"Прихожая+вешалка",client:"Диана К.",city:"Семей",ch:"online",src:"WhatsApp",mgr:"Айгерим",price:"₸ 195 000",dead:"05.07",deadOk:true,pct:5,mat:"ЛДСП"},
+  ],
+  "Замер / дизайн":[
+    {id:4,name:"Гардеробная 4м",client:"Нурлан О.",city:"Семей",ch:"ind",src:"Instagram",mgr:"Ербол",price:"₸ 650 000",dead:"01.07",deadOk:false,pct:20,mat:"ЛДСП + стекло"},
+    {id:5,name:"Прихожая модуль",client:"Розница",city:"Семей",ch:"retail",src:"Точка продаж",mgr:"Динара",price:"₸ 180 000",dead:"03.07",deadOk:true,pct:15,mat:"ЛДСП"},
+  ],
+  "Договор / счёт":[
+    {id:6,name:"Спальный гарнитур",client:"ТОО «Комфорт»",city:"Павлодар",ch:"opt",src:"Pact",mgr:"Айдос",price:"₸ 1 240 000",dead:"10.07",deadOk:true,pct:40,mat:"ЛДСП, 5 предметов"},
+    {id:7,name:"Детская комната",client:"Асель Т.",city:"Семей",ch:"ind",src:"WhatsApp",mgr:"Ербол",price:"₸ 540 000",dead:"09.07",deadOk:true,pct:35,mat:"МДФ эмаль, синий"},
+  ],
+  "Производство":[
+    {id:8,name:"Стол обеденный",client:"Марат Н.",city:"Семей",ch:"ind",src:"Сайт",mgr:"Гульмира",price:"₸ 320 000",dead:"30.06",deadOk:false,pct:65,mat:"Массив берёзы"},
+    {id:9,name:"Шкаф 1.8м",client:"Розница",city:"Семей",ch:"retail",src:"Точка продаж",mgr:"Динара",price:"₸ 240 000",dead:"04.07",deadOk:true,pct:75,mat:"ЛДСП, венге"},
+    {id:10,name:"Кухня угловая",client:"ТОО «Астра»",city:"Усть-Каменогорск",ch:"opt",src:"Pact",mgr:"Айдос",price:"₸ 760 000",dead:"03.07",deadOk:true,pct:80,mat:"МДФ эмаль"},
+  ],
+  "Отгружен / закрыт":[
+    {id:11,name:"Кухня линейная",client:"Опт · УКГ",city:"Усть-Каменогорск",ch:"opt",src:"Pact",mgr:"Айдос",price:"₸ 620 000",dead:"—",deadOk:true,pct:100,mat:"МДФ"},
+    {id:12,name:"Комод 5-ящичный",client:"Розница",city:"Семей",ch:"retail",src:"Точка",mgr:"Гульмира",price:"₸ 98 000",dead:"—",deadOk:true,pct:100,mat:"ЛДСП"},
+  ],
 };
 
-function showSection(key, navEl) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById('section-' + key).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-  if(navEl) navEl.classList.add('active');
-  document.getElementById('topbar-title').textContent = sectionTitles[key] || key;
-}
+const PROD_STAGES=[
+  {id:"s0",name:"Раскрой",cls:"ps0",cards:[
+    {id:"p1",name:"Шкаф-купе 2.4м",client:"Самал А. · Индивид.",mat:"ЛДСП+зеркало,берёза",worker:"Нурлан",pct:15,due:"02.07",late:false,ord:1},
+    {id:"p2",name:"Детская комната",client:"Асель Т. · Индивид.",mat:"МДФ эмаль синий",worker:"Серик",pct:10,due:"09.07",late:false,ord:7},
+  ]},
+  {id:"s1",name:"Кромка / сборка",cls:"ps1",cards:[
+    {id:"p3",name:"Кухня 3.2м",client:"ТОО «Вкус» · Опт",mat:"МДФ эмаль белый",worker:"Серик",pct:42,due:"04.07",late:false,ord:2},
+    {id:"p4",name:"Прихожая",client:"Розница · Семей",mat:"ЛДСП стандарт",worker:"Нурлан",pct:55,due:"28.06",late:true,ord:5},
+  ]},
+  {id:"s2",name:"Покраска / лак",cls:"ps2",cards:[
+    {id:"p5",name:"Стол из берёзы",client:"Марат Н. · Индивид.",mat:"Массив берёзы",worker:"Жанат",pct:68,due:"30.06",late:true,ord:8},
+    {id:"p6",name:"Кухня угловая",client:"ТОО «Астра» · Опт",mat:"МДФ эмаль",worker:"Серик",pct:75,due:"03.07",late:false,ord:10},
+  ]},
+  {id:"s3",name:"Контроль качества",cls:"ps3",cards:[
+    {id:"p7",name:"Спальный гарнитур",client:"ТОО «Комфорт» · Опт",mat:"ЛДСП 5 предметов",worker:"Нурлан",pct:90,due:"10.07",late:false,ord:6},
+    {id:"p8",name:"Шкаф 1.8м",client:"Розница · Семей",mat:"ЛДСП венге",worker:"Серик",pct:88,due:"04.07",late:false,ord:9},
+  ]},
+  {id:"s4",name:"Готов / отгрузка",cls:"ps4",cards:[
+    {id:"p9",name:"Кухня линейная",client:"Опт · УКГ",mat:"МДФ",worker:"—",pct:100,due:"отгружена",late:false,ord:11},
+  ]},
+];
 
-function activateTab(el) {
-  el.closest('.tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-}
+const INBOX_DATA=[
+  {src:"WhatsApp",icon:"💬",name:"+7 705 333 22 11",msg:"Добрый день, интересует шкаф-купе на 2,4м",time:"5 мин",ch:"Индивид.",mgr:"Айгерим",unread:2},
+  {src:"Instagram",icon:"📸",name:"@mebel_fan_kz",msg:"Можно цену на кухонный гарнитур?",time:"22 мин",ch:"Розница",mgr:"Гульмира",unread:1},
+  {src:"Форма сайта",icon:"🌐",name:"ТОО «Комфорт»",msg:"Заявка на поставку — нужно обсудить условия",time:"1 ч",ch:"Опт",mgr:"Айдос",unread:0},
+  {src:"Точка продаж",icon:"🏪",name:"Самал Ахметова",msg:"Интересовалась прихожей и комодом",time:"2 ч",ch:"Розница",mgr:"Динара",unread:0},
+  {src:"Pact (звонок)",icon:"📞",name:"+7 701 998 44 55",msg:"Входящий звонок — запрос на опт",time:"вчера",ch:"Опт",mgr:"Айдос",unread:0},
+];
 
-// ============================
-// BUILD CHARTS
-// ============================
-function buildCharts() {
-  // Revenue bar chart
-  const months = [{l:'Янв',v:5.2},{l:'Фев',v:6.8},{l:'Мар',v:7.1},{l:'Апр',v:9.4},{l:'Май',v:10.7},{l:'Июн',v:12.1}];
-  const max = 12.1;
-  const c = document.getElementById('revenue-chart');
-  c.innerHTML = months.map(m => {
-    const pct = (m.v / max * 100).toFixed(1);
-    return `<div class="bar-col">
-      <div class="bar-val">${m.v}</div>
-      <div style="flex:1;display:flex;align-items:flex-end;width:100%">
-        <div class="bar-fill" style="height:${pct}%"></div>
-      </div>
-      <div class="bar-lbl">${m.l}</div>
-    </div>`;
-  }).join('');
+const CH_MAP={all:"Все",retail:"Розница",opt:"Опт",ind:"Индивидуальные",online:"Онлайн"};
+const CH_COLORS={ind:"ch-ind",retail:"ch-retail",opt:"ch-opt",online:"ch-wa"};
 
-  // Channel hbar chart
-  const channels = [{l:'Розница (Семей)',v:21,max:21},{l:'Опт (Казахстан)',v:18,max:21},{l:'Индивидуальные',v:14,max:21},{l:'WhatsApp / Instagram / сайт',v:10,max:21}];
-  const cc = document.getElementById('channel-chart');
-  cc.innerHTML = channels.map(ch => {
-    const pct = (ch.v / ch.max * 100).toFixed(1);
-    return `<div class="hbar-row">
-      <div class="hbar-label">${ch.l}</div>
-      <div class="hbar-track"><div class="hbar-fill" style="width:${pct}%"></div></div>
-      <div class="hbar-count">${ch.v}</div>
-    </div>`;
-  }).join('');
-}
-
-// ============================
-// BUILD KANBAN
-// ============================
-function buildFunnelKanban() {
-  const board = document.getElementById('kanban-funnel');
-  board.innerHTML = funnelCols.map(col => {
-    const cards = col.cards.map((c,i) => `
-      <div class="k-card" onclick="openFunnelModal(${funnelCols.indexOf(col)},${i})">
-        <div class="k-card-title">${c.title}</div>
-        <div class="k-card-meta">${c.meta}</div>
-        ${c.sum ? `<div class="k-card-sum">${c.sum}</div>` : ''}
-      </div>`).join('');
-    return `<div class="kanban-col">
-      <div class="kanban-col-header">
-        <div class="kanban-col-title">${col.title}</div>
-        <div class="kanban-col-count">${col.cards.length}</div>
-      </div>
-      ${cards}
-    </div>`;
-  }).join('');
-}
-
-function buildWorkshopKanban() {
-  const board = document.getElementById('kanban-workshop');
-  board.innerHTML = workshopCols.map(col => {
-    const cards = col.cards.map((c,i) => {
-      const pgColor = c.pct === 100 ? 'green' : (c.style === 'border-red' ? 'red' : '');
-      return `<div class="k-card ${c.style}" onclick="openWorkshopModal(${workshopCols.indexOf(col)},${i})">
-        <div class="k-card-title">${c.title}</div>
-        <div class="k-card-meta">${c.meta}</div>
-        <div class="progress-bar"><div class="progress-fill ${pgColor}" style="width:${c.pct}%"></div></div>
-        <div style="display:flex;justify-content:space-between;margin-top:.35rem">
-          <span style="font-size:.7rem;color:var(--text3)">${c.pct}%</span>
-          <span style="font-size:.7rem;color:${c.style==='border-red'?'var(--red)':c.style==='border-amber'?'var(--amber)':c.style==='border-green'?'var(--green)':'var(--text3)'}">${c.deadline}</span>
-        </div>
-      </div>`;
-    }).join('');
-    return `<div class="kanban-col">
-      <div class="kanban-col-header">
-        <div class="kanban-col-title">${col.title}</div>
-        <div class="kanban-col-count">${col.cards.length}</div>
-      </div>
-      ${cards}
-    </div>`;
-  }).join('');
-}
-
-// ============================
-// BUILD CATALOG
-// ============================
-function buildCatalog() {
-  const g = document.getElementById('catalog-grid');
-  g.innerHTML = catalogItems.map(p => `
-    <div class="product-card">
-      <div class="product-photo" style="background:linear-gradient(${p.grad})">${p.name}</div>
-      <div class="product-body">
-        <div class="product-name">${p.name}</div>
-        <div class="product-price">${p.price}</div>
-        <div class="product-term">Срок производства: 2–3 нед.</div>
-        <span class="badge badge-amber">${p.category}</span>
-      </div>
-    </div>`).join('');
-}
-
-// ============================
-// BUILD LEADS
-// ============================
-function buildLeads() {
-  const list = document.getElementById('leads-list');
-  list.innerHTML = leadsData.map((l,i) => `
-    <div class="lead-row" onclick="openLeadModal(${i})">
-      <span class="badge ${l.badge}">${l.channel}</span>
-      <div class="lead-msg">
-        <div class="lead-msg-text">${l.msg}</div>
-        <div class="lead-msg-meta">${l.manager}</div>
-      </div>
-      <div class="lead-time">${l.time}</div>
-    </div>`).join('');
-}
-
-// ============================
-// MODALS
-// ============================
-function openFunnelModal(colIdx, cardIdx) {
-  const card = funnelCols[colIdx].cards[cardIdx];
-  document.getElementById('mf-title').textContent = card.title;
-  openModal('modal-funnel');
-  // reset to first tab
-  switchModalTab(document.querySelector('#modal-funnel .modal-tab'), 'modal-funnel', 0);
-}
-
-function openWorkshopModal(colIdx, cardIdx) {
-  const c = workshopCols[colIdx].cards[cardIdx];
-  document.getElementById('mw-title').textContent = c.title;
-  document.getElementById('mw-material').textContent = c.material;
-  document.getElementById('mw-dims').textContent = c.dims;
-  document.getElementById('mw-color').textContent = c.color;
-  document.getElementById('mw-master').textContent = c.master;
-  const dlEl = document.getElementById('mw-deadline');
-  dlEl.textContent = c.deadline;
-  dlEl.style.color = c.dlStyle === 'red' ? 'var(--red)' : c.dlStyle === 'green' ? 'var(--green)' : c.dlStyle === 'amber' ? 'var(--amber)' : 'var(--text)';
-
-  // Build stage timeline
-  const stageNames = ['Раскрой','Кромка и сборка','Покраска и лак','Контроль качества','Отгрузка'];
-  const stageDates = ['20.06','24.06','28.06','02.07','05.07'];
-  const st = document.getElementById('mw-stages');
-  let html = '';
-  stageNames.forEach((s,i) => {
-    const done = i < c.stage;
-    const cur = i === c.stage;
-    const dotClass = done ? 'done' : cur ? 'current' : '';
-    const lineClass = done ? 'done' : '';
-    html += `<div class="stage-step ${cur?'current':''}">
-      <div style="display:flex;align-items:center;width:100%">
-        ${i > 0 ? `<div class="stage-line ${lineClass}" style="flex:1"></div>` : ''}
-        <div class="stage-dot ${dotClass}">${done?'✓':i+1}</div>
-        ${i < stageNames.length-1 ? `<div class="stage-line" style="flex:1"></div>` : ''}
-      </div>
-      <div class="stage-label">${s}</div>
-      <div class="stage-date">${stageDates[i]}</div>
-    </div>`;
+/* ══════════════════ ROLE LOGIC ══════════════════ */
+let currentRole=null;
+function enter(role){
+  currentRole=role;
+  const r=ROLES[role];
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('sbuav').textContent=r.av;
+  document.getElementById('sbuname').textContent=r.name;
+  document.getElementById('sbrole').textContent=r.role;
+  // show/hide nav items by role
+  document.querySelectorAll('.sb-link').forEach(el=>{
+    const p=el.dataset.p;
+    el.style.display=(r.pages.includes(p)||!p)?'':'none';
   });
-  st.innerHTML = html;
-
-  openModal('modal-workshop');
+  // default page
+  const def=r.pages[0]||'dash';
+  go(def);
+  buildAll();
+}
+function logout(){
+  document.getElementById('app').style.display='none';
+  document.getElementById('login').style.display='flex';
 }
 
-function openLeadModal(idx) {
-  const l = leadsData[idx];
-  document.getElementById('ml-title').textContent = l.channel + ' · заявка';
-  document.getElementById('ml-channel-header').innerHTML = `<span class="badge ${l.badge}">${l.channel}</span> <span style="color:var(--text3);font-size:.8rem;margin-left:.5rem">${l.time} · ${l.manager}</span>`;
-  document.getElementById('ml-message').textContent = l.fullMsg;
-  const hist = document.getElementById('ml-history');
-  hist.innerHTML = l.history.map(m => `
-    <div>
-      <div class="chat-bubble ${m.dir==='in'?'chat-in':'chat-out'}">${m.text}</div>
-      <div class="chat-meta" style="${m.dir==='out'?'text-align:right;padding-right:.5rem':'padding-left:.5rem'}">${m.time}</div>
+/* ══════════════════ NAVIGATION ══════════════════ */
+const PAGE_TITLES={
+  dash:["Дашборд","Сводка по производству · Семей"],
+  kpi:["KPI и зарплата","План, факт и расчёт ЗП по коэффициенту"],
+  funnel:["Воронка заказов","Заказы по этапам и каналам"],
+  channels:["Каналы и заявки","Все источники в одном окне"],
+  neworder:["Новый заказ","Создание с авто-выгрузкой в 1С"],
+  production:["Цех / производство","Заказы по этапам производства"],
+  catalog:["Каталог изделий","Типовые изделия с ценами и сроком"],
+  onec:["Интеграция 1С","Зеркалирование учёта без двойного ввода"],
+  finance:["Финансы","Движение денег синхронно с 1С"],
+};
+function go(p){
+  document.querySelectorAll('.sb-link').forEach(el=>el.classList.toggle('on',el.dataset.p===p));
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('on'));
+  const pg=document.getElementById(p);
+  if(pg)pg.classList.add('on');
+  const t=PAGE_TITLES[p]||[p,''];
+  document.getElementById('ptitle').textContent=t[0];
+  document.getElementById('psub').textContent=t[1];
+}
+document.querySelectorAll('.sb-link').forEach(el=>el.onclick=()=>go(el.dataset.p));
+
+/* ══════════════════ BUILD ALL ══════════════════ */
+function buildAll(){
+  buildKPI();
+  renderBoard('all');
+  buildProdBoard();
+  buildInbox();
+  buildCatalog();
+  buildOnec();
+  buildFinance();
+}
+
+/* ──── KPI ──── */
+function buildKPI(){
+  const sorted=[...KPI_DATA].sort((a,b)=>(b.fact/b.plan)-(a.fact/a.plan));
+  document.getElementById('kpiList').innerHTML=sorted.map((k,i)=>{
+    const pct=Math.round(k.fact/k.plan*100);
+    return `<div class="kpi-item r${i+1}">
+      <div class="kpi-rank">${i+1}</div>
+      <div class="kpi-mid">
+        <div class="kpi-name">${k.n} <span style="font-size:.72rem;font-weight:500;color:var(--ink3)">(${k.dept})</span></div>
+        <div class="kpi-bar"><i style="width:${Math.min(pct,100)}%"></i></div>
+        <div class="kpi-sub">${k.fact} из ${k.plan} заказов · ${pct}% плана</div>
+      </div>
+      <div class="kpi-sal"><b>₸ ${k.sal.toLocaleString('ru')}</b><span>ЗП за период</span></div>
+    </div>`;
+  }).join('');
+}
+
+/* ──── FUNNEL BOARD ──── */
+const STAGE_CLS={
+  "Новая заявка":"st-new",
+  "Замер / дизайн":"st-design",
+  "Договор / счёт":"st-deal",
+  "Производство":"st-prod",
+  "Отгружен / закрыт":"st-done",
+};
+function renderBoard(filter){
+  const board=document.getElementById('board');board.innerHTML='';
+  let total=0;
+  for(const [stage,list] of Object.entries(DEALS)){
+    const items=list.filter(d=>filter==='all'||d.ch===filter);
+    total+=items.length;
+    const cls=STAGE_CLS[stage]||'';
+    const col=document.createElement('div');
+    col.className=`bcol ${cls}`;
+    col.innerHTML=`<div class="bcol-head"><span>${stage}</span><span class="cn">${items.length}</span></div><div class="bcol-body" id="bc_${stage.replace(/[^a-z]/gi,'_')}"></div>`;
+    board.appendChild(col);
+    const body=col.querySelector('.bcol-body');
+    items.forEach(d=>{
+      const dead=d.dead==='—'?'' : (d.deadOk
+        ? `<span class="dc-dead dead-ok">до ${d.dead}</span>`
+        : `<span class="dc-dead dead-late">⚠ ${d.dead}</span>`);
+      const srcTag=`<span class="ch-tag ${CH_COLORS[d.ch]||''}">${d.src}</span>`;
+      const e=document.createElement('div');e.className='dcard';
+      e.innerHTML=`
+        <div class="dc-name">${d.name}</div>
+        <div class="dc-client">${d.client}${d.city?` · ${d.city}`:''}</div>
+        <div class="dc-price">${d.price}</div>
+        <div class="dc-meta">${srcTag}${dead}</div>
+        <div class="dc-prog"><i style="width:${d.pct}%"></i></div>`;
+      e.onclick=()=>openDeal(d,stage);
+      body.appendChild(e);
+    });
+  }
+  document.getElementById('fnbdg').textContent=total;
+}
+document.querySelectorAll('#chFilters .ff').forEach(f=>f.onclick=()=>{
+  document.querySelectorAll('#chFilters .ff').forEach(x=>x.classList.remove('on'));
+  f.classList.add('on');
+  renderBoard(f.dataset.f);
+});
+
+/* ──── PRODUCTION BOARD ──── */
+function buildProdBoard(){
+  const pb=document.getElementById('prodBoard');pb.innerHTML='';
+  PROD_STAGES.forEach(st=>{
+    const col=document.createElement('div');col.className=`pcol ${st.cls}`;
+    col.innerHTML=`<div class="pcol-head"><span>${st.name}</span><span class="cn">${st.cards.length}</span></div><div class="pcol-body" id="pb_${st.id}"></div>`;
+    pb.appendChild(col);
+    const body=col.querySelector('.pcol-body');
+    st.cards.forEach(c=>{
+      const e=document.createElement('div');e.className='pcard'+(c.late?' late':'');
+      e.innerHTML=`
+        <div class="pc-name">${c.name}</div>
+        <div class="pc-client">${c.client}</div>
+        <div class="pc-mat">${c.mat}</div>
+        <div class="pc-bar"><i style="width:${c.pct}%"></i></div>
+        <div class="pc-foot"><span class="pc-pct">${c.pct}%</span><span class="pc-due" style="color:${c.late?'var(--red)':'var(--ink3)'}">${c.due}</span></div>`;
+      e.onclick=()=>openProd(c,st.name);
+      body.appendChild(e);
+    });
+  });
+}
+
+/* ──── INBOX ──── */
+function buildInbox(){
+  const c=document.getElementById('inbox');
+  c.innerHTML=INBOX_DATA.map((item,i)=>`
+    <div class="inbox-item" onclick="openInbox(${i})">
+      <div class="inbox-src">${item.icon}</div>
+      <div class="inbox-info">
+        <div class="inbox-name">${item.name} <span style="font-size:.68rem;color:var(--ink3);font-weight:500">· ${item.src}</span></div>
+        <div class="inbox-msg">${item.msg}</div>
+      </div>
+      <div class="inbox-time">${item.time}</div>
+      ${item.unread?`<div class="inbox-unread">${item.unread}</div>`:''}
     </div>`).join('');
-  openModal('modal-lead');
+  document.getElementById('chbdg').textContent=INBOX_DATA.filter(x=>x.unread).length||INBOX_DATA.length;
 }
 
-function openModal(id) {
-  document.getElementById(id).classList.add('open');
-}
-function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
-}
-function closeModalOnOverlay(e, id) {
-  if(e.target === e.currentTarget) closeModal(id);
-}
-
-function switchModalTab(el, modalId, idx) {
-  const modal = document.getElementById(modalId);
-  modal.querySelectorAll('.modal-tab').forEach((t,i) => t.classList.toggle('active', i===idx));
-  modal.querySelectorAll('.modal-tab-panel').forEach((p,i) => p.classList.toggle('active', i===idx));
-}
-
-// ============================
-// FORM
-// ============================
-function submitOrder(e) {
-  e.preventDefault();
-  const toast = document.getElementById('toast');
-  toast.style.display = 'block';
-  setTimeout(() => { toast.style.display = 'none'; }, 3000);
-  e.target.reset();
+/* ──── CATALOG ──── */
+const CAT=[
+  {n:"Шкаф-купе 2.4м",mat:"ЛДСП / берёза",price:"от ₸ 380 000",days:"14 дней"},
+  {n:"Кухонный гарнитур 3м",mat:"МДФ эмаль",price:"от ₸ 850 000",days:"21 день"},
+  {n:"Спальный гарнитур",mat:"ЛДСП, 5 пр.",price:"от ₸ 1 100 000",days:"25 дней"},
+  {n:"Прихожая стандарт",mat:"ЛДСП",price:"от ₸ 160 000",days:"10 дней"},
+  {n:"Стол обеденный, берёза",mat:"Массив берёзы",price:"от ₸ 280 000",days:"12 дней"},
+  {n:"Детская комната",mat:"МДФ эмаль",price:"от ₸ 480 000",days:"18 дней"},
+  {n:"Гардеробная система",mat:"ЛДСП + стекло",price:"от ₸ 540 000",days:"16 дней"},
+];
+function buildCatalog(){
+  document.getElementById('catTbl').innerHTML='<tr><th>Изделие</th><th>Материал</th><th>Цена от</th><th>Срок</th><th></th></tr>'+
+    CAT.map(c=>`<tr><td><b>${c.n}</b></td><td style="color:var(--ink3)">${c.mat}</td><td style="font-weight:700">${c.price}</td><td>${c.days}</td><td><button class="btn-mini" onclick="openNewOrder()">В заказ</button></td></tr>`).join('');
 }
 
-// ============================
-// INIT ALL
-// ============================
-buildCharts();
-buildFunnelKanban();
-buildWorkshopKanban();
-buildCatalog();
-buildLeads();
+/* ──── 1С ──── */
+const ONEC=[
+  {doc:"Счёт №1042",ord:"Шкаф-купе 2.4м",sum:"₸ 420 000",st:"✓ в 1С",ok:true},
+  {doc:"Накладная №880",ord:"Кухня 3.2м (Опт)",sum:"₸ 890 000",st:"✓ в 1С",ok:true},
+  {doc:"Реализация №651",ord:"Кухня угловая",sum:"₸ 760 000",st:"✓ в 1С",ok:true},
+  {doc:"Счёт №1043",ord:"Спальный гарнитур",sum:"₸ 1 240 000",st:"⏳ синхр.",ok:false},
+  {doc:"Счёт №1044",ord:"Стол из берёзы",sum:"₸ 320 000",st:"✓ в 1С",ok:true},
+];
+function buildOnec(){
+  document.getElementById('onecTbl').innerHTML='<tr><th>Документ</th><th>Заказ</th><th>Сумма</th><th>Статус в 1С</th></tr>'+
+    ONEC.map(o=>`<tr><td><b>${o.doc}</b></td><td>${o.ord}</td><td>${o.sum}</td><td><span class="pill ${o.ok?'p-green':'p-amber'}">${o.st}</span></td></tr>`).join('');
+}
+
+/* ──── FINANCE ──── */
+const FIN=[
+  {c:"Кухня 3.2м · Опт Астана",sum:"₸ 890 000",paid:"Оплачено",st:"p-green"},
+  {c:"Спальный гарнитур · Павлодар",sum:"₸ 1 240 000",paid:"Аванс 50%",st:"p-amber"},
+  {c:"Шкаф-купе 2.4м · Индивид.",sum:"₸ 420 000",paid:"Ожидает",st:"p-red"},
+  {c:"Кухня угловая · Усть-Кам.",sum:"₸ 760 000",paid:"Оплачено",st:"p-green"},
+  {c:"Детская комната · Индивид.",sum:"₸ 540 000",paid:"Аванс 30%",st:"p-amber"},
+];
+function buildFinance(){
+  document.getElementById('finTbl').innerHTML='<tr><th>Заказ</th><th>Сумма</th><th>Оплата</th><th></th></tr>'+
+    FIN.map(f=>`<tr><td><b>${f.c}</b></td><td>${f.sum}</td><td><span class="pill ${f.st}">${f.paid}</span></td><td><button class="btn-mini">Счёт из 1С</button></td></tr>`).join('');
+}
+
+/* ══════════════════ MODALS ══════════════════ */
+const ov=document.getElementById('ov'),modal=document.getElementById('modal');
+function showModal(html){modal.innerHTML=html;ov.classList.add('show');}
+function closeModal(){ov.classList.remove('show');}
+ov.onclick=e=>{if(e.target===ov)closeModal();};
+
+function tabs(id){
+  document.querySelectorAll(`#${id} .mtab`).forEach(t=>t.classList.toggle('on',t.dataset.t===t.closest('.modal').querySelector('.mtab.on')?.dataset.t));
+}
+function switchTab(el,panelId){
+  const m=el.closest('.modal');
+  m.querySelectorAll('.mtab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  m.querySelectorAll('.mpanel').forEach(p=>p.classList.remove('on'));
+  m.querySelector('#'+panelId).classList.add('on');
+}
+
+/* ──── DEAL MODAL ──── */
+function openDeal(d,stage){
+  showModal(`
+    <div class="mh">
+      <button class="mh-close" onclick="closeModal()">×</button>
+      <div class="mh-title">${d.name}</div>
+      <div class="mh-sub">${stage} · ${d.client}${d.city?' · '+d.city:''} · ${d.price}</div>
+    </div>
+    <div class="mtabs">
+      <div class="mtab on" onclick="switchTab(this,'dm-info')">Детали</div>
+      <div class="mtab" onclick="switchTab(this,'dm-comm')">WhatsApp / Звонки</div>
+      <div class="mtab" onclick="switchTab(this,'dm-spec')">Спецификация</div>
+      <div class="mtab" onclick="switchTab(this,'dm-1c')">1С</div>
+    </div>
+    <div class="mbody">
+      <!-- ДЕТАЛИ -->
+      <div class="mpanel on" id="dm-info">
+        <div class="sync-row">
+          <div class="sync-dot"></div>
+          <div><div class="sync-t">✓ Зеркалится в 1С</div><div class="sync-s">Счёт и накладная создаются автоматически</div></div>
+        </div>
+        <div class="spec-grid">
+          <div class="sg-item"><div class="sg-l">Канал</div><div class="sg-v">${d.src}</div></div>
+          <div class="sg-item"><div class="sg-l">Менеджер</div><div class="sg-v">${d.mgr}</div></div>
+          <div class="sg-item"><div class="sg-l">Сумма</div><div class="sg-v">${d.price}</div></div>
+          <div class="sg-item"><div class="sg-l">Стадия</div><div class="sg-v">${stage}</div></div>
+          ${d.dead!=='—'?`<div class="sg-item"><div class="sg-l">Дедлайн</div><div class="sg-v" style="color:${d.deadOk?'var(--sage)':'var(--red)'}">${d.dead}</div></div>`:''}
+          <div class="sg-item"><div class="sg-l">Материал</div><div class="sg-v">${d.mat}</div></div>
+        </div>
+        <h4 style="font-size:.82rem;color:var(--f);margin-bottom:.5rem">История</h4>
+        <div class="tl-wrap">
+          <div class="tl-item"><div class="tl-dot done"></div><div><div class="tl-t">Заявка получена</div><div class="tl-s">${d.src} · ${d.city||'Семей'}</div></div></div>
+          <div class="tl-item"><div class="tl-dot done"></div><div><div class="tl-t">Менеджер назначен — ${d.mgr}</div><div class="tl-s">Авто-маршрутизация по каналу</div></div></div>
+          ${stage!=="Новая заявка"?`<div class="tl-item"><div class="tl-dot done"></div><div><div class="tl-t">Замер согласован</div><div class="tl-s">Выехали на объект, размеры сняты</div></div></div>`:''}
+          ${["Договор / счёт","Производство","Отгружен / закрыт"].includes(stage)?`<div class="tl-item"><div class="tl-dot done"></div><div><div class="tl-t">Договор подписан · ${d.price}</div><div class="tl-s">Счёт выставлен — зеркало в 1С</div></div></div>`:''}
+          ${["Производство","Отгружен / закрыт"].includes(stage)?`<div class="tl-item"><div class="tl-dot"></div><div><div class="tl-t">Передан в цех</div><div class="tl-s">Серик принял в работу · ${d.mat}</div></div></div>`:''}
+          ${stage==="Отгружен / закрыт"?`<div class="tl-item"><div class="tl-dot done"></div><div><div class="tl-t">Отгружен клиенту ✓</div><div class="tl-s">Накладная закрыта в 1С</div></div></div>`:''}
+        </div>
+      </div>
+      <!-- КОММУНИКАЦИЯ -->
+      <div class="mpanel" id="dm-comm">
+        <div style="font-size:.72rem;font-weight:700;color:var(--ink3);margin-bottom:.6rem">💬 WhatsApp · ${d.client}</div>
+        <div class="chat">
+          <div class="chat-name">${d.client}</div>
+          <div class="bub bot">Добрый день! Интересует ${d.name}. Подскажите цену и срок?<div class="bub-time">вчера 10:14</div></div>
+          <div class="bub usr">Здравствуйте! ${d.name} — ${d.price}, срок ${d.deadOk?'2–3 недели':'срочно, обсудим'}. Могу выслать замерщика.<div class="bub-time">10:22</div></div>
+          <div class="bub bot">Отлично! Когда можно замер?<div class="bub-time">10:35</div></div>
+          <div class="bub usr">Завтра с 10:00 удобно? Пришлю мастера.<div class="bub-time">10:41</div></div>
+          <div class="bub bot">Да, договорились! Адрес: ул. Найманбаева, 15<div class="bub-time">10:43</div></div>
+        </div>
+        <div style="font-size:.72rem;font-weight:700;color:var(--ink3);margin:.85rem 0 .4rem">📞 Звонки</div>
+        <div class="tl-wrap">
+          <div class="tl-item"><div class="tl-dot done"></div><div><div class="tl-t">Входящий звонок · 4:12</div><div class="tl-s">Вчера 11:30 · ${d.mgr}</div>
+            <div class="audio-row"><button class="play-btn">▶</button><div class="waveform"></div><span class="audio-dur">4:12</span></div>
+          </div></div>
+          <div class="tl-item"><div class="tl-dot done"></div><div><div class="tl-t">Исходящий · согласовали эскиз</div><div class="tl-s">2 дня назад · 1:54</div>
+            <div class="audio-row"><button class="play-btn">▶</button><div class="waveform"></div><span class="audio-dur">1:54</span></div>
+          </div></div>
+        </div>
+      </div>
+      <!-- СПЕЦИФИКАЦИЯ -->
+      <div class="mpanel" id="dm-spec">
+        <div class="srow"><span class="srow-l">Изделие</span><span class="srow-r">${d.name}</span></div>
+        <div class="srow"><span class="srow-l">Материал</span><span class="srow-r">${d.mat}</span></div>
+        <div class="srow"><span class="srow-l">Цвет / декор</span><span class="srow-r">Берёза / натуральный</span></div>
+        <div class="srow"><span class="srow-l">Размер</span><span class="srow-r">240 × 210 × 60 см</span></div>
+        <div class="srow"><span class="srow-l">Фурнитура</span><span class="srow-r">Hettich · Германия</span></div>
+        <div class="srow"><span class="srow-l">Срок производства</span><span class="srow-r">14 рабочих дней</span></div>
+        <div class="srow"><span class="srow-l">Сумма</span><span class="srow-r" style="color:var(--b);font-size:.95rem">${d.price}</span></div>
+        <div class="note" style="margin-top:.75rem">Спецификация передаётся в цех автоматически — Серик видит материал, размеры и дедлайн в своём кабинете.</div>
+      </div>
+      <!-- 1С -->
+      <div class="mpanel" id="dm-1c">
+        <div class="sync-row">
+          <div class="sync-dot"></div>
+          <div><div class="sync-t">✓ Синхронизировано с 1С</div><div class="sync-s">Обновлено 2 мин назад</div></div>
+        </div>
+        <div class="srow"><span class="srow-l">Счёт</span><span class="srow-r">№1042 · <span class="pill p-green">выставлен</span></span></div>
+        <div class="srow"><span class="srow-l">Оплата</span><span class="srow-r"><span class="pill p-amber">Аванс 50% получен</span></span></div>
+        <div class="srow"><span class="srow-l">Накладная</span><span class="srow-r">Создастся при отгрузке</span></div>
+        <div class="srow"><span class="srow-l">Сумма в 1С</span><span class="srow-r">${d.price}</span></div>
+        <div class="note" style="margin-top:.75rem"><b>Один ввод</b>: менеджер создаёт заказ в портале — счёт, накладная и реализация формируются в 1С автоматически. Бухгалтер не дублирует данные.</div>
+      </div>
+    </div>`);
+}
+
+/* ──── PRODUCTION MODAL ──── */
+const STAGE_ORDER=["Раскрой","Кромка / сборка","Покраска / лак","Контроль качества","Готов / отгрузка"];
+function openProd(c,stageName){
+  showModal(`
+    <div class="mh">
+      <button class="mh-close" onclick="closeModal()">×</button>
+      <div class="mh-title">${c.name}</div>
+      <div class="mh-sub">${stageName} · ${c.client} · ${c.pct}%</div>
+    </div>
+    <div class="mtabs">
+      <div class="mtab on" onclick="switchTab(this,'pm-route')">Маршрут цеха</div>
+      <div class="mtab" onclick="switchTab(this,'pm-spec')">Материалы</div>
+      <div class="mtab" onclick="switchTab(this,'pm-deal')">Связанный заказ</div>
+    </div>
+    <div class="mbody">
+      <!-- МАРШРУТ -->
+      <div class="mpanel on" id="pm-route">
+        <div class="spec-grid">
+          <div class="sg-item"><div class="sg-l">Текущий этап</div><div class="sg-v">${stageName}</div></div>
+          <div class="sg-item"><div class="sg-l">Готовность</div><div class="sg-v">${c.pct}%</div></div>
+          <div class="sg-item"><div class="sg-l">Дедлайн</div><div class="sg-v" style="color:${c.late?'var(--red)':'var(--sage)'}">${c.due}${c.late?' ⚠ Просрочен':''}</div></div>
+          <div class="sg-item"><div class="sg-l">Мастер</div><div class="sg-v">${c.worker}</div></div>
+        </div>
+        <h4 style="font-size:.82rem;color:var(--f);margin-bottom:.6rem">Маршрутный лист</h4>
+        <div class="tl-wrap">
+          ${STAGE_ORDER.map((s,i)=>{
+            const cur=STAGE_ORDER.indexOf(stageName);
+            const done=i<cur;const active=i===cur;
+            return `<div class="tl-item">
+              <div class="tl-dot ${done?'done':active&&c.late?'late':active?'':''}"></div>
+              <div>
+                <div class="tl-t" style="opacity:${done||active?1:.4}">${s}</div>
+                <div class="tl-s">${done?'Завершено':active?`В работе · ${c.pct}%`:'Ожидает'}</div>
+                ${active&&c.late?`<div class="tl-card" style="border-left:3px solid var(--red)">⚠ Просрочено · дедлайн был ${c.due}</div>`:''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <!-- МАТЕРИАЛЫ -->
+      <div class="mpanel" id="pm-spec">
+        <div class="srow"><span class="srow-l">Основной материал</span><span class="srow-r">${c.mat}</span></div>
+        <div class="srow"><span class="srow-l">Кромка</span><span class="srow-r">ПВХ 2мм, берёза</span></div>
+        <div class="srow"><span class="srow-l">Фурнитура</span><span class="srow-r">Hettich, направляющие Blum</span></div>
+        <div class="srow"><span class="srow-l">Зеркало / стекло</span><span class="srow-r">${c.mat.includes('зеркало')?'4мм, серебро':'нет'}</span></div>
+        <div class="srow"><span class="srow-l">Покраска</span><span class="srow-r">${c.mat.includes('массив')?'Лак матовый 2 слоя':'Эмаль / плёнка ПВХ'}</span></div>
+        <div class="srow"><span class="srow-l">Общий вес, кг</span><span class="srow-r">~${40+Math.floor(c.pct/3)} кг</span></div>
+        <div class="note" style="margin-top:.75rem">Спецификация формируется из карточки заказа автоматически — Серик видит детали без лишних звонков менеджеру.</div>
+      </div>
+      <!-- СВЯЗАННЫЙ ЗАКАЗ -->
+      <div class="mpanel" id="pm-deal">
+        <div class="sync-row">
+          <div class="sync-dot"></div>
+          <div><div class="sync-t">✓ Связан с заказом CRM и 1С</div><div class="sync-s">Любое изменение статуса — менеджер видит сразу</div></div>
+        </div>
+        <div class="srow"><span class="srow-l">Клиент</span><span class="srow-r">${c.client}</span></div>
+        <div class="srow"><span class="srow-l">Менеджер</span><span class="srow-r">Айгерим</span></div>
+        <div class="srow"><span class="srow-l">Сумма заказа</span><span class="srow-r">₸ 420 000</span></div>
+        <div class="srow"><span class="srow-l">Статус в CRM</span><span class="srow-r"><span class="pill p-green">Производство</span></span></div>
+        <div class="srow"><span class="srow-l">Счёт 1С</span><span class="srow-r"><span class="pill p-green">✓ в 1С</span></span></div>
+        <button class="btn-mini brass" style="margin-top:.75rem" onclick="closeModal();go('funnel')">Открыть в воронке →</button>
+      </div>
+    </div>`);
+}
+
+/* ──── INBOX MODAL ──── */
+function openInbox(i){
+  const item=INBOX_DATA[i];
+  showModal(`
+    <div class="mh">
+      <button class="mh-close" onclick="closeModal()">×</button>
+      <div class="mh-title">${item.icon} ${item.name}</div>
+      <div class="mh-sub">${item.src} · ${item.ch} · ${item.time}</div>
+    </div>
+    <div class="mtabs">
+      <div class="mtab on" onclick="switchTab(this,'im-chat')">Диалог</div>
+      <div class="mtab" onclick="switchTab(this,'im-info')">Клиент</div>
+    </div>
+    <div class="mbody">
+      <div class="mpanel on" id="im-chat">
+        <div class="chat">
+          <div class="chat-name">${item.name}</div>
+          <div class="bub bot">${item.msg}<div class="bub-time">${item.time}</div></div>
+          <div class="bub usr">Здравствуйте! Пришлите, пожалуйста, размеры комнаты — подготовим расчёт.<div class="bub-time">только что</div></div>
+        </div>
+        <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-mini brass" onclick="closeModal();openNewOrder()">Создать заказ</button>
+          <button class="btn-mini">Назначить менеджера</button>
+        </div>
+      </div>
+      <div class="mpanel" id="im-info">
+        <div class="srow"><span class="srow-l">Источник</span><span class="srow-r">${item.src}</span></div>
+        <div class="srow"><span class="srow-l">Канал</span><span class="srow-r">${item.ch}</span></div>
+        <div class="srow"><span class="srow-l">Менеджер</span><span class="srow-r">${item.mgr}</span></div>
+        <div class="srow"><span class="srow-l">Статус</span><span class="srow-r"><span class="pill p-blue">Новая заявка</span></span></div>
+      </div>
+    </div>`);
+}
+
+/* ──── DASHBOARD DEAL MODAL ──── */
+const DASH_DEALS=[
+  {name:"Шкаф-купе 2.4м",ch:"Индивид.",price:"₸ 420 000",st:"Замер / дизайн"},
+  {name:"Кухня 3.2м",ch:"Опт",price:"₸ 890 000",st:"Договор / счёт"},
+  {name:"Спальный гарнитур",ch:"Опт",price:"₸ 1 240 000",st:"Производство"},
+  {name:"Кухня угловая",ch:"Опт",price:"₸ 760 000",st:"Отгружен / закрыт"},
+];
+function showDashDeal(i){
+  const d=DASH_DEALS[i];
+  openDeal({
+    name:d.name,client:"ТОО / Физлицо",city:"Семей",ch:"opt",src:"CRM",mgr:"Айгерим",
+    price:d.price,dead:"07.07",deadOk:true,pct:50,mat:"ЛДСП / МДФ"
+  },d.st);
+}
+
+/* ──── NEW ORDER (quick) ──── */
+function openNewOrder(){
+  go('neworder');
+}
 </script>
 </body>
 </html>
