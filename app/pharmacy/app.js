@@ -7,6 +7,7 @@ let FUNNELS = [{id:'b2c',name:'B2C'},{id:'b2b',name:'B2B'}];  // реестр в
 const API_BASE = (window.PHARMA_CONFIG&&window.PHARMA_CONFIG.API_BASE) || 'https://pharmacy-crm-worker.uurraa.workers.dev';
 const GOOGLE_CLIENT_ID = (window.PHARMA_CONFIG&&window.PHARMA_CONFIG.GOOGLE_CLIENT_ID) || '773798066647-jg137in0mum92famuml70kauonp7amgg.apps.googleusercontent.com';
 window.API_BASE = API_BASE;  // для sip-client.js и прочих модулей
+const TELEPHONY_ON = !(window.PHARMA_CONFIG && window.PHARMA_CONFIG.TELEPHONY === false); // телефония скрыта, если в config.js TELEPHONY:false
 let AUTH = { token:null, user:null };
 
 // ---------- helpers ----------
@@ -475,7 +476,7 @@ async function dealModalLive(d){
   <div class="modal-b" id="dmTabDetails">
     <div class="fld"><label>Клиент</label><div id="dmClientZone"></div></div>
     <div class="fld-row"><div class="fld"><label>Воронка <span class="muted2">(сменить — перемещает сделку)</span></label><select data-dm="funnel" id="dmFunnelSel">${FUNNELS.map(f=>`<option value="${esc(f.id)}" ${f.id===dmFunnel?'selected':''}>${esc(f.name)}</option>`).join('')}</select></div><div class="fld"><label>Этап</label><select data-dm="stage" id="dmStageSel">${stages.map(s=>`<option ${s===d.stage?'selected':''}>${esc(s)}</option>`).join('')}</select></div></div>
-    <div class="fld"><label>Телефон</label><div class="row" style="gap:6px"><input data-dm="phone" value="${esc(d.phone||'')}" placeholder="+996…" style="flex:1"><button type="button" class="btn" id="dmCallBtn" title="Позвонить" style="flex:none">${ic('i-phone','sm')} Позвонить</button></div></div>
+    <div class="fld"><label>Телефон</label><div class="row" style="gap:6px"><input data-dm="phone" value="${esc(d.phone||'')}" placeholder="+996…" style="flex:1">${TELEPHONY_ON?`<button type="button" class="btn" id="dmCallBtn" title="Позвонить" style="flex:none">${ic('i-phone','sm')} Позвонить</button>`:''}</div></div>
     <div class="fld-row"><div class="fld"><label>Сумма, с</label><input data-dm="amount" type="number" value="${d.amount||0}"></div><div class="fld"><label>Ответственный</label>${userSelectHtml(dmUsers,d.mgr,'data-dm="mgr"')}</div></div>
     <div class="fld-row"><div class="fld"><label>Источник</label>${dmSourceSel}</div><div class="fld"><label>Точка</label>${storeSelectHtml(dmStores,d.store_key,'data-dm="store_key"','— точка —')}</div></div>
     <div class="fld"><label>Промокод / код блогера <span class="muted2" id="dmPromoHint">${d.promo?'':'— если клиент назвал'}</span></label><input data-dm="promo" id="dmPromoInp" value="${esc(d.promo||'')}" placeholder="код, если есть"></div>
@@ -791,7 +792,7 @@ function contractorModal(r){
       <div id="cmLoyalty"></div>
       <div id="cmHist"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>
   </div>
-  <div class="modal-f"><button class="btn" id="ceCallBtn" title="Позвонить">${ic('i-phone','sm')} Позвонить</button>${r.ref_key?`<button class="btn primary" id="ceSave">${ic('i-check2','sm')} Сохранить (→ 1С)</button>`:''}<button class="btn" onclick="closeModal()">Закрыть</button></div>`,'wide');
+  <div class="modal-f">${TELEPHONY_ON?`<button class="btn" id="ceCallBtn" title="Позвонить">${ic('i-phone','sm')} Позвонить</button>`:''}${r.ref_key?`<button class="btn primary" id="ceSave">${ic('i-check2','sm')} Сохранить (→ 1С)</button>`:''}<button class="btn" onclick="closeModal()">Закрыть</button></div>`,'wide');
   const cePhones=makePhoneList(bg.querySelector('[data-ce=phones]'), r.phone?[r.phone]:[]);
   { const cb=bg.querySelector('#ceCallBtn'); if(cb) cb.onclick=()=>{ const ph=(cePhones&&cePhones.get&&cePhones.get()[0])||r.phone; crmCall(ph,{customerId:r.ref_key,contactName:r.name||''}); }; }
   if(r.ref_key) api('/api/1c/contractors/'+encodeURIComponent(r.ref_key)+'/phones').then(pr=>{ if(pr.ok&&pr.data.phones&&pr.data.phones.length) cePhones.set(pr.data.phones); });
@@ -3397,7 +3398,7 @@ sudo WORKER_URL="${esc(d.worker_url||'')}" \\
 }
 PAGES.integrations=(c)=>{
   if(isAdminRole()) c.appendChild(greenApiPanel());
-  if(isAdminRole()) c.appendChild(sipPanel());
+  if(isAdminRole() && TELEPHONY_ON) c.appendChild(sipPanel());
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Поведение при сбоях: 1С недоступен → заказы копятся в очереди, после восстановления — досинхронизация. GreenAPI/Meta недоступны → сотрудники работают с телефонов, синхронизация подхватит.</div>`));
   const syncBox=el(`<div class="panel section-gap"><div class="panel-h"><h3>${ic('i-sync','sm')} Статус синхронизации 1С</h3><span class="ph-sub" id="syncSub" style="margin-left:auto"></span></div>
     <div id="syncBody"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>`);
@@ -3934,7 +3935,7 @@ function applyUser(user){
   // эффективные права ролей из БД (для меню/превью/матрицы) — для админа
   if(['owner','superadmin'].includes(user.role)) api('/api/admin/roles').then(r=>{ if(r&&r.ok){ ACCESS_MAP={}; r.data.roles.forEach(x=>ACCESS_MAP[x.id]=x.sections); renderNav(); } }).catch(()=>{});
   // SIP-софтфон: пре-варм (если Asterisk не настроен — /sip/token отдаст 503, UI тихо скрыт)
-  if(window.SipClient) setTimeout(()=>{ window.SipClient.init().catch(e=>{ if(!String((e&&e.message)||'').includes('sip_not_configured')) console.warn('[sip]',e&&e.message); }); }, 2000);
+  if(window.SipClient && TELEPHONY_ON) setTimeout(()=>{ window.SipClient.init().catch(e=>{ if(!String((e&&e.message)||'').includes('sip_not_configured')) console.warn('[sip]',e&&e.message); }); }, 2000);
 }
 
 async function doLogin(ident, password){
