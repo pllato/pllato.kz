@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MELLIGRI · Кабинет косметолога</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23203553'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%235EE1E5' stroke-width='2'/%3E%3Cpath d='M12 16 Q16 11 20 16 Q16 21 12 16Z' fill='%235EE1E5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#0d1826;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column}
+a{color:inherit;text-decoration:none}
+
+/* Login */
+#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0d1826;padding:2rem}
+.login-logo{font-size:1.5rem;font-weight:600;letter-spacing:2px;color:#5EE1E5;margin-bottom:.4rem}
+.login-sub{font-size:.8rem;color:#57B0BD;letter-spacing:3px;text-transform:uppercase;margin-bottom:3rem}
+.login-title{font-size:1rem;color:#94a3b8;margin-bottom:1.5rem}
+.role-cards{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;margin-bottom:1rem}
+.role-card{background:#111f35;border:1.5px solid #203553;border-radius:14px;padding:1.5rem 2rem;cursor:pointer;transition:all .2s;min-width:160px;text-align:center}
+.role-card:hover{border-color:#5EE1E5;background:#162845}
+.role-card .rc-avatar{width:56px;height:56px;border-radius:50%;background:#203553;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:600;color:#5EE1E5;margin:0 auto 1rem}
+.role-card .rc-name{font-size:1rem;font-weight:600;color:#e2e8f0;margin-bottom:.2rem}
+.role-card .rc-meta{font-size:.78rem;color:#64748b}
+.role-card .rc-badge{display:inline-block;background:#1a3a5c;color:#5EE1E5;font-size:.7rem;padding:.2rem .6rem;border-radius:20px;margin-top:.5rem}
+.btn-other{background:transparent;border:1px solid #334155;color:#94a3b8;padding:.65rem 1.5rem;border-radius:8px;cursor:pointer;font-size:.85rem;margin-top:.5rem;transition:all .2s}
+.btn-other:hover{border-color:#5EE1E5;color:#5EE1E5}
+
+/* App layout */
+#app{display:none;flex-direction:row;min-height:100vh}
+.sidebar{width:220px;min-width:220px;background:#111f35;display:flex;flex-direction:column;padding:0;border-right:1px solid #1e3a5c}
+.sidebar-header{padding:1.2rem 1.2rem .8rem;border-bottom:1px solid #1e3a5c}
+.sidebar-logo{font-size:1rem;font-weight:600;letter-spacing:2px;color:#5EE1E5}
+.sidebar-sub{font-size:.65rem;color:#57B0BD;letter-spacing:2px;text-transform:uppercase;margin-top:.1rem}
+.sidebar-user{display:flex;align-items:center;gap:.6rem;padding:.8rem 1.2rem;border-bottom:1px solid #1e3a5c}
+.s-avatar{width:34px;height:34px;border-radius:50%;background:#203553;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:.8rem;color:#5EE1E5;flex-shrink:0}
+.s-name{font-size:.83rem;font-weight:500;color:#e2e8f0}
+.s-city{font-size:.72rem;color:#64748b}
+nav{padding:.5rem 0;flex:1}
+.nav-item{display:flex;align-items:center;gap:.7rem;padding:.6rem 1.2rem;cursor:pointer;font-size:.83rem;color:#94a3b8;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{color:#e2e8f0;background:#162845}
+.nav-item.active{color:#5EE1E5;border-left-color:#5EE1E5;background:#162845}
+.nav-item svg{width:16px;height:16px;flex-shrink:0;opacity:.7}
+.nav-item.active svg{opacity:1}
+.nav-badge{margin-left:auto;background:#5EE1E5;color:#0d1826;font-size:.65rem;padding:.1rem .4rem;border-radius:10px;font-weight:600}
+.sidebar-back{padding:.8rem 1.2rem;border-top:1px solid #1e3a5c}
+.sidebar-back a{font-size:.75rem;color:#64748b;display:flex;align-items:center;gap:.4rem;transition:color .2s}
+.sidebar-back a:hover{color:#5EE1E5}
+.main{flex:1;overflow-y:auto;background:#0d1826}
+.section{display:none;padding:1.5rem}
+.section.active{display:block}
+.section-title{font-size:1.1rem;font-weight:600;color:#e2e8f0;margin-bottom:1.2rem}
+
+/* KPI cards */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin-bottom:1.5rem}
+.kpi-card{background:#111f35;border:1px solid #1e3a5c;border-radius:10px;padding:1rem}
+.kpi-label{font-size:.72rem;color:#64748b;margin-bottom:.3rem}
+.kpi-value{font-size:1.4rem;font-weight:600;color:#e2e8f0}
+.kpi-value.accent{color:#5EE1E5}
+
+/* Today schedule */
+.schedule-block{background:#111f35;border:1px solid #1e3a5c;border-radius:10px;padding:1rem;margin-bottom:1rem}
+.schedule-title{font-size:.78rem;font-weight:600;color:#57B0BD;text-transform:uppercase;letter-spacing:1px;margin-bottom.8rem}
+.time-slot{display:flex;align-items:center;gap:1rem;padding:.6rem 0;border-bottom:1px solid #1a2d47;cursor:pointer}
+.time-slot:last-child{border-bottom:none}
+.time-slot:hover .ts-name{color:#5EE1E5}
+.ts-time{font-size:.78rem;font-weight:600;color:#5EE1E5;width:48px;flex-shrink:0}
+.ts-dot{width:8px;height:8px;border-radius:50%;background:#203553;flex-shrink:0}
+.ts-dot.done{background:#5EE1E5}
+.ts-dot.upcoming{background:#57B0BD;opacity:.5}
+.ts-name{font-size:.85rem;color:#e2e8f0;flex:1}
+.ts-proc{font-size:.75rem;color:#64748b}
+.ts-price{font-size:.8rem;font-weight:500;color:#e2e8f0;white-space:nowrap}
+.ts-status{font-size:.68rem;padding:.15rem .5rem;border-radius:10px;white-space:nowrap}
+.ts-status.done{background:#0f3a2e;color:#5EE1E5}
+.ts-status.upcoming{background:#1a2d47;color:#64748b}
+.ts-status.next{background:#1a3a5c;color:#57B0BD}
+
+/* Notifications */
+.notif-list{display:flex;flex-direction:column;gap:.5rem}
+.notif-item{background:#111f35;border:1px solid #1e3a5c;border-left:3px solid #5EE1E5;border-radius:8px;padding:.7rem 1rem;font-size:.82rem}
+.notif-item.warn{border-left-color:#e8a830}
+.notif-time{font-size:.7rem;color:#64748b;margin-top:.2rem}
+
+/* Calendar */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.cal-month{font-size:.95rem;font-weight:600;color:#e2e8f0}
+.cal-btn{background:#111f35;border:1px solid #1e3a5c;color:#94a3b8;padding:.3rem .7rem;border-radius:6px;cursor:pointer;font-size:.8rem}
+.cal-btn:hover{border-color:#5EE1E5;color:#5EE1E5}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:1rem}
+.cal-day-name{text-align:center;font-size:.7rem;color:#64748b;padding:.3rem 0}
+.cal-day{text-align:center;font-size:.78rem;color:#94a3b8;padding:.4rem;border-radius:6px;cursor:pointer;transition:all .15s}
+.cal-day:hover{background:#111f35}
+.cal-day.today{background:#203553;color:#5EE1E5;font-weight:600}
+.cal-day.has-appt{color:#e2e8f0}
+.cal-day.has-appt::after{content:'·';display:block;color:#5EE1E5;font-size:1.2rem;line-height:.3rem;margin-top:1px}
+.cal-day.empty{cursor:default}
+.appt-list{display:flex;flex-direction:column;gap:.5rem}
+.appt-item{background:#111f35;border:1px solid #1e3a5c;border-radius:8px;padding:.7rem 1rem;cursor:pointer;display:flex;align-items:center;gap:1rem;transition:border-color .15s}
+.appt-item:hover{border-color:#5EE1E5}
+.appt-time{font-size:.78rem;font-weight:600;color:#5EE1E5;width:52px;flex-shrink:0}
+.appt-info{flex:1}
+.appt-name{font-size:.85rem;font-weight:500;color:#e2e8f0}
+.appt-proc{font-size:.75rem;color:#64748b}
+.appt-price{font-size:.85rem;font-weight:600;color:#e2e8f0}
+.appt-badge{font-size:.68rem;padding:.15rem .5rem;border-radius:10px;background:#1a3a5c;color:#57B0BD}
+
+/* Procedures */
+.proc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem}
+.proc-card{background:#111f35;border:1px solid #1e3a5c;border-radius:10px;padding:1rem;cursor:pointer;transition:all .15s}
+.proc-card:hover{border-color:#5EE1E5;background:#162845}
+.proc-icon{font-size:1.5rem;margin-bottom:.6rem}
+.proc-name{font-size:.88rem;font-weight:600;color:#e2e8f0;margin-bottom:.2rem}
+.proc-drug{font-size:.73rem;color:#57B0BD;margin-bottom:.6rem}
+.proc-price{font-size:1rem;font-weight:600;color:#5EE1E5}
+.proc-duration{font-size:.72rem;color:#64748b;margin-top:.2rem}
+
+/* Clients table */
+.clients-table{width:100%;border-collapse:collapse}
+.clients-table th{font-size:.72rem;color:#64748b;font-weight:500;text-align:left;padding:.5rem .8rem;border-bottom:1px solid #1e3a5c;text-transform:uppercase;letter-spacing:.5px}
+.clients-table td{padding:.65rem .8rem;border-bottom:1px solid #1a2d47;font-size:.83rem}
+.clients-table tr:hover td{background:#111f35;cursor:pointer}
+.client-avatar{width:30px;height:30px;border-radius:50%;background:#203553;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:600;color:#5EE1E5;flex-shrink:0}
+.client-name-cell{display:flex;align-items:center;gap:.6rem}
+.badge-soon{display:inline-block;background:#1a3a2a;color:#5EE1E5;font-size:.68rem;padding:.15rem .5rem;border-radius:10px}
+.badge-later{display:inline-block;background:#1a2d47;color:#57B0BD;font-size:.68rem;padding:.15rem .5rem;border-radius:10px}
+
+/* Stock */
+.stock-grid{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.2rem}
+.stock-item{background:#111f35;border:1px solid #1e3a5c;border-radius:8px;padding:.8rem 1rem;display:flex;align-items:center;gap:1rem}
+.stock-item.low{border-left:3px solid #e8a830}
+.stock-item.out{border-left:3px solid #e85050}
+.stock-name{flex:1;font-size:.85rem;font-weight:500;color:#e2e8f0}
+.stock-sub{font-size:.73rem;color:#64748b;margin-top:.1rem}
+.stock-qty{font-size:.85rem;font-weight:600;color:#e2e8f0;white-space:nowrap}
+.stock-qty.out{color:#e85050}
+.stock-procs{font-size:.72rem;color:#64748b;text-align:right}
+.stock-warn{font-size:.7rem;color:#e8a830;margin-top:.1rem}
+.btn-order{background:#5EE1E5;color:#0d1826;border:none;padding:.7rem 1.5rem;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.4rem;transition:opacity .2s}
+.btn-order:hover{opacity:.85}
+
+/* Orders history */
+.order-list{display:flex;flex-direction:column;gap:.6rem}
+.order-item{background:#111f35;border:1px solid #1e3a5c;border-radius:10px;padding:1rem}
+.order-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem}
+.order-num{font-size:.75rem;color:#64748b}
+.order-date{font-size:.75rem;color:#64748b}
+.order-items{font-size:.83rem;color:#e2e8f0;margin-bottom:.4rem}
+.order-total{font-size:.9rem;font-weight:600;color:#5EE1E5}
+.order-status{font-size:.7rem;padding:.2rem .6rem;border-radius:10px;display:inline-block}
+.order-status.delivered{background:#0f3a2e;color:#5EE1E5}
+.order-status.transit{background:#1a3a5c;color:#57B0BD}
+.order-status.pending{background:#3a2a0a;color:#e8a830}
+
+/* Modals */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:100;padding:1rem}
+.modal-overlay.hidden{display:none}
+.modal{background:#111f35;border:1px solid #1e3a5c;border-radius:14px;padding:1.5rem;max-width:480px;width:100%;max-height:90vh;overflow-y:auto}
+.modal-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem}
+.modal-title{font-size:1rem;font-weight:600;color:#e2e8f0}
+.modal-close{background:none;border:none;color:#64748b;cursor:pointer;font-size:1.2rem;line-height:1;padding:.2rem}
+.modal-close:hover{color:#e2e8f0}
+.modal-row{display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid #1a2d47;font-size:.83rem}
+.modal-row:last-child{border-bottom:none}
+.modal-row .label{color:#64748b}
+.modal-row .val{color:#e2e8f0;text-align:right}
+.modal-section{margin-top:1rem}
+.modal-section-title{font-size:.73rem;color:#57B0BD;text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem;font-weight:600}
+.modal-price{font-size:1.3rem;font-weight:600;color:#5EE1E5;margin:.5rem 0}
+
+/* Cart modal */
+.cart-item{display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid #1a2d47;font-size:.83rem}
+.cart-item:last-child{border-bottom:none}
+.cart-item-name{color:#e2e8f0;flex:1}
+.cart-item-qty{color:#64748b;margin:0 1rem;font-size:.75rem}
+.cart-item-price{color:#5EE1E5;font-weight:500;white-space:nowrap}
+.cart-total-row{display:flex;justify-content:space-between;align-items:center;margin-top:1rem;padding-top:1rem;border-top:1px solid #1e3a5c}
+.cart-total-label{font-size:.85rem;color:#64748b}
+.cart-total-val{font-size:1.2rem;font-weight:600;color:#5EE1E5}
+.btn-checkout{background:#5EE1E5;color:#0d1826;border:none;padding:.7rem 1.2rem;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;width:100%;margin-top:.8rem;transition:opacity .2s}
+.btn-checkout:hover{opacity:.85}
+
+/* Watermark */
+.watermark{position:fixed;bottom:.6rem;right:.8rem;font-size:.65rem;color:#1e3a5c;pointer-events:none;letter-spacing:1px;z-index:9}
+
+/* Notification badge on nav */
+.notif-count{background:#e85050;color:#fff;font-size:.6rem;padding:.1rem .35rem;border-radius:10px;margin-left:auto;font-weight:600}
+
+/* Client card history */
+.history-item{display:flex;align-items:flex-start;gap:.8rem;padding:.5rem 0;border-bottom:1px solid #1a2d47}
+.history-item:last-child{border-bottom:none}
+.h-date{font-size:.72rem;color:#64748b;width:70px;flex-shrink:0}
+.h-proc{font-size:.82rem;color:#e2e8f0}
+.h-price{font-size:.8rem;color:#5EE1E5;margin-left:auto;white-space:nowrap}
+
+/* Photo placeholder */
+.photo-row{display:flex;gap:.8rem;margin-top:.8rem}
+.photo-ph{flex:1;background:#0d1826;border:1px dashed #1e3a5c;border-radius:8px;height:90px;display:flex;align-items:center;justify-content:center;font-size:.72rem;color:#334155;flex-direction:column;gap:.3rem}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-logo">MELLIGRI</div>
+  <div class="login-sub">Кабинет косметолога</div>
+  <div class="login-title">Выберите профиль для входа</div>
+  <div class="role-cards">
+    <div class="role-card" onclick="login('alina')">
+      <div class="rc-avatar">АН</div>
+      <div class="rc-name">Алина</div>
+      <div class="rc-meta">Нурмухамедова</div>
+      <div class="rc-badge">Алматы</div>
+    </div>
+    <div class="role-card" onclick="login('gulnara')">
+      <div class="rc-avatar">ГС</div>
+      <div class="rc-name">Гульнара</div>
+      <div class="rc-meta">Сейткалиева</div>
+      <div class="rc-badge">Астана</div>
+    </div>
+  </div>
+  <button class="btn-other" onclick="login('demo')">Войти как другой →</button>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">MELLIGRI</div>
+      <div class="sidebar-sub">Кабинет косметолога</div>
+    </div>
+    <div class="sidebar-user">
+      <div class="s-avatar" id="s-avatar">АН</div>
+      <div>
+        <div class="s-name" id="s-name">Алина Нурмухамедова</div>
+        <div class="s-city" id="s-city">Алматы</div>
+      </div>
+    </div>
+    <nav>
+      <div class="nav-item active" onclick="showSection('today')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Главная / Сегодня
+        <span class="nav-badge">4</span>
+      </div>
+      <div class="nav-item" onclick="showSection('calendar')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Запись клиентов
+      </div>
+      <div class="nav-item" onclick="showSection('procedures')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+        Процедуры
+      </div>
+      <div class="nav-item" onclick="showSection('clients')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Мои клиенты
+      </div>
+      <div class="nav-item" onclick="showSection('stock')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Склад
+        <span class="notif-count">1</span>
+      </div>
+      <div class="nav-item" onclick="showSection('orders')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        Мои покупки
+      </div>
+      <div class="nav-item" onclick="showSection('notifications')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Уведомления
+        <span class="notif-count">3</span>
+      </div>
+    </nav>
+    <div class="sidebar-back">
+      <a href="index.html">← Портал MELLIGRI</a>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- TODAY -->
+    <div class="section active" id="section-today">
+      <div class="section-title">Сегодня · 27 июня 2025</div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Записей сегодня</div>
+          <div class="kpi-value accent">4</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Процедур выполнено</div>
+          <div class="kpi-value">2</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Выручка сегодня</div>
+          <div class="kpi-value accent">68 000 ₸</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Клиентов всего</div>
+          <div class="kpi-value">38</div>
+        </div>
+      </div>
+
+      <div class="schedule-block">
+        <div class="schedule-title" style="margin-bottom:.8rem">Расписание на сегодня</div>
+        <div class="time-slot" onclick="openAppt('anna')">
+          <span class="ts-time">10:00</span>
+          <span class="ts-dot done"></span>
+          <span class="ts-name">Анна Карпова</span>
+          <span class="ts-proc">Коррекция губ</span>
+          <span class="ts-price">45 000 ₸</span>
+          <span class="ts-status done">Выполнено</span>
+        </div>
+        <div class="time-slot" onclick="openAppt('svetlana')">
+          <span class="ts-time">12:00</span>
+          <span class="ts-dot done"></span>
+          <span class="ts-name">Светлана Морозова</span>
+          <span class="ts-proc">Ботулинотерапия</span>
+          <span class="ts-price">35 000 ₸</span>
+          <span class="ts-status done">Выполнено</span>
+        </div>
+        <div class="time-slot" onclick="openAppt('diana')">
+          <span class="ts-time">14:30</span>
+          <span class="ts-dot next"></span>
+          <span class="ts-name">Диана Ахметова</span>
+          <span class="ts-proc">Биоревитализация</span>
+          <span class="ts-price">28 000 ₸</span>
+          <span class="ts-status next">Скоро</span>
+        </div>
+        <div class="time-slot" onclick="openAppt('karina')">
+          <span class="ts-time">16:00</span>
+          <span class="ts-dot upcoming"></span>
+          <span class="ts-name">Карина Шалгымбаева</span>
+          <span class="ts-proc">Мезотерапия лица</span>
+          <span class="ts-price">18 000 ₸</span>
+          <span class="ts-status upcoming">Ожидает</span>
+        </div>
+      </div>
+
+      <div class="schedule-title" style="font-size:.78rem;font-weight:600;color:#57B0BD;text-transform:uppercase;letter-spacing:1px;margin-bottom:.6rem">Уведомления</div>
+      <div class="notif-list">
+        <div class="notif-item">
+          <div>📦 Заказ №ML-2847 от MELLIGRI подтверждён — ожидайте доставку 29 июня</div>
+          <div class="notif-time">Сегодня, 09:14</div>
+        </div>
+        <div class="notif-item warn">
+          <div>⏰ Напоминание: Светлана Морозова — запись 20 июля (Ботокс лоб). Отправить SMS?</div>
+          <div class="notif-time">Сегодня, 08:30</div>
+        </div>
+        <div class="notif-item">
+          <div>🎁 Акция MELLIGRI: при заказе Dysport от 3 шт — скидка 8% до 30 июня</div>
+          <div class="notif-time">Вчера, 18:00</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="section" id="section-calendar">
+      <div class="section-title">Запись клиентов</div>
+      <div style="display:grid;grid-template-columns:260px 1fr;gap:1rem">
+        <div>
+          <div class="schedule-block">
+            <div class="cal-nav">
+              <button class="cal-btn" onclick="changeMonth(-1)">‹</button>
+              <span class="cal-month" id="cal-month-label">Июль 2025</span>
+              <button class="cal-btn" onclick="changeMonth(1)">›</button>
+            </div>
+            <div class="cal-grid" id="cal-grid"></div>
+          </div>
+        </div>
+        <div>
+          <div id="cal-day-label" style="font-size:.85rem;color:#57B0BD;margin-bottom:.8rem;font-weight:500">Все записи — июль</div>
+          <div class="appt-list" id="appt-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROCEDURES -->
+    <div class="section" id="section-procedures">
+      <div class="section-title">Процедуры</div>
+      <div class="proc-grid">
+        <div class="proc-card" onclick="openProc('lips')">
+          <div class="proc-icon">💉</div>
+          <div class="proc-name">Коррекция губ</div>
+          <div class="proc-drug">Juvederm Ultra 1ml</div>
+          <div class="proc-price">45 000 ₸</div>
+          <div class="proc-duration">45–60 мин</div>
+        </div>
+        <div class="proc-card" onclick="openProc('nasolabial')">
+          <div class="proc-icon">✨</div>
+          <div class="proc-name">Носогубные складки</div>
+          <div class="proc-drug">Restylane / Belotero</div>
+          <div class="proc-price">38 000 ₸</div>
+          <div class="proc-duration">30–45 мин</div>
+        </div>
+        <div class="proc-card" onclick="openProc('botox')">
+          <div class="proc-icon">🔬</div>
+          <div class="proc-name">Ботулинотерапия</div>
+          <div class="proc-drug">Dysport 500ед / Botulax</div>
+          <div class="proc-price">35 000 ₸</div>
+          <div class="proc-duration">30–40 мин</div>
+        </div>
+        <div class="proc-card" onclick="openProc('biorev')">
+          <div class="proc-icon">💧</div>
+          <div class="proc-name">Биоревитализация</div>
+          <div class="proc-drug">NCTF / IAL-System</div>
+          <div class="proc-price">28 000 ₸</div>
+          <div class="proc-duration">40–50 мин</div>
+        </div>
+        <div class="proc-card" onclick="openProc('cheeks')">
+          <div class="proc-icon">🌟</div>
+          <div class="proc-name">Контурная пластика скул</div>
+          <div class="proc-drug">Juvederm Voluma / Radiesse</div>
+          <div class="proc-price">65 000 ₸</div>
+          <div class="proc-duration">60–90 мин</div>
+        </div>
+        <div class="proc-card" onclick="openProc('meso')">
+          <div class="proc-icon">🌿</div>
+          <div class="proc-name">Мезотерапия лица</div>
+          <div class="proc-drug">Cocktail / витамины</div>
+          <div class="proc-price">18 000 ₸</div>
+          <div class="proc-duration">30–40 мин</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLIENTS -->
+    <div class="section" id="section-clients">
+      <div class="section-title">Мои клиенты</div>
+      <table class="clients-table">
+        <thead>
+          <tr>
+            <th>Клиент</th>
+            <th>Последняя процедура</th>
+            <th>Следующая запись</th>
+            <th>Сумма за год</th>
+          </tr>
+        </thead>
+        <tbody id="clients-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- STOCK -->
+    <div class="section" id="section-stock">
+      <div class="section-title">Склад препаратов</div>
+      <div class="stock-grid">
+        <div class="stock-item">
+          <div style="flex:1">
+            <div class="stock-name">Juvederm Ultra 1ml</div>
+            <div class="stock-sub">Гиалуроновый филлер · губы, скулы</div>
+          </div>
+          <div style="text-align:right">
+            <div class="stock-qty">3 шт</div>
+            <div class="stock-procs">≈ 2 процедуры</div>
+          </div>
+        </div>
+        <div class="stock-item">
+          <div style="flex:1">
+            <div class="stock-name">Dysport 500ед</div>
+            <div class="stock-sub">Ботулотоксин · лоб, межбровье, гусиные лапки</div>
+          </div>
+          <div style="text-align:right">
+            <div class="stock-qty">2 шт</div>
+            <div class="stock-procs">≈ 4 процедуры</div>
+          </div>
+        </div>
+        <div class="stock-item low">
+          <div style="flex:1">
+            <div class="stock-name">Botulax 100ед</div>
+            <div class="stock-sub">Ботулотоксин · точечные зоны</div>
+            <div class="stock-warn">⚠ Мало — закажите заранее</div>
+          </div>
+          <div style="text-align:right">
+            <div class="stock-qty">1 шт</div>
+            <div class="stock-procs">≈ 1 процедура</div>
+          </div>
+        </div>
+        <div class="stock-item out">
+          <div style="flex:1">
+            <div class="stock-name">Restylane Defyne</div>
+            <div class="stock-sub">Динамичный филлер · носогубные складки</div>
+          </div>
+          <div style="text-align:right">
+            <div class="stock-qty out">0 шт</div>
+            <div class="stock-procs" style="color:#e85050">Закончился</div>
+          </div>
+        </div>
+        <div class="stock-item">
+          <div style="flex:1">
+            <div class="stock-name">Belotero Balance</div>
+            <div class="stock-sub">Тонкий филлер · периоральная зона, слёзная борозда</div>
+          </div>
+          <div style="text-align:right">
+            <div class="stock-qty">2 шт</div>
+            <div class="stock-procs">≈ 3 процедуры</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn-order" onclick="openCart()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+        Заказать у Маргариты
+      </button>
+    </div>
+
+    <!-- ORDERS -->
+    <div class="section" id="section-orders">
+      <div class="section-title">Мои покупки у MELLIGRI</div>
+      <div class="order-list">
+        <div class="order-item">
+          <div class="order-header">
+            <div>
+              <div style="font-size:.85rem;font-weight:600;color:#e2e8f0">Заказ №ML-2847</div>
+              <div class="order-num">от 25 июня 2025</div>
+            </div>
+            <span class="order-status transit">В пути</span>
+          </div>
+          <div class="order-items">Dysport 500ед × 2 шт, Belotero Balance × 2 шт</div>
+          <div class="order-total">78 000 ₸</div>
+          <div style="font-size:.72rem;color:#64748b;margin-top:.3rem">Ожидаемая доставка: 29 июня</div>
+        </div>
+        <div class="order-item">
+          <div class="order-header">
+            <div>
+              <div style="font-size:.85rem;font-weight:600;color:#e2e8f0">Заказ №ML-2791</div>
+              <div class="order-num">от 10 июня 2025</div>
+            </div>
+            <span class="order-status delivered">Доставлен</span>
+          </div>
+          <div class="order-items">Juvederm Ultra 1ml × 3 шт, Botulax 100ед × 2 шт</div>
+          <div class="order-total">112 500 ₸</div>
+        </div>
+        <div class="order-item">
+          <div class="order-header">
+            <div>
+              <div style="font-size:.85rem;font-weight:600;color:#e2e8f0">Заказ №ML-2735</div>
+              <div class="order-num">от 22 мая 2025</div>
+            </div>
+            <span class="order-status delivered">Доставлен</span>
+          </div>
+          <div class="order-items">Restylane Defyne × 2 шт, Dysport 500ед × 1 шт</div>
+          <div class="order-total">59 000 ₸</div>
+        </div>
+        <div class="order-item">
+          <div class="order-header">
+            <div>
+              <div style="font-size:.85rem;font-weight:600;color:#e2e8f0">Заказ №ML-2680</div>
+              <div class="order-num">от 5 мая 2025</div>
+            </div>
+            <span class="order-status delivered">Доставлен</span>
+          </div>
+          <div class="order-items">Juvederm Ultra 1ml × 2 шт, Belotero Balance × 1 шт</div>
+          <div class="order-total">63 000 ₸</div>
+        </div>
+      </div>
+      <div style="margin-top:1rem;font-size:.8rem;color:#64748b">Итого за 2025 год: <span style="color:#5EE1E5;font-weight:600">312 500 ₸</span></div>
+    </div>
+
+    <!-- NOTIFICATIONS -->
+    <div class="section" id="section-notifications">
+      <div class="section-title">Уведомления</div>
+      <div class="notif-list">
+        <div class="notif-item">
+          <div>📦 <strong>Заказ №ML-2847 подтверждён</strong> — Dysport 500ед × 2, Belotero Balance × 2. Ожидайте доставку 29 июня.</div>
+          <div class="notif-time">27 июня, 09:14</div>
+        </div>
+        <div class="notif-item warn">
+          <div>⏰ <strong>Напоминание клиенту:</strong> Светлана Морозова — запись 20 июля (Ботокс лоб). SMS-напоминание отправлено.</div>
+          <div class="notif-time">27 июня, 08:30</div>
+        </div>
+        <div class="notif-item">
+          <div>🎁 <strong>Акция MELLIGRI:</strong> при заказе Dysport от 3 шт — скидка 8%. Действует до 30 июня.</div>
+          <div class="notif-time">26 июня, 18:00</div>
+        </div>
+        <div class="notif-item warn">
+          <div>⚠ <strong>Склад:</strong> Restylane Defyne закончился. Рекомендуем оформить заказ у Маргариты.</div>
+          <div class="notif-time">25 июня, 12:00</div>
+        </div>
+        <div class="notif-item">
+          <div>✅ <strong>Заказ №ML-2791 доставлен</strong> — Juvederm Ultra 1ml × 3, Botulax 100ед × 2.</div>
+          <div class="notif-time">15 июня, 14:22</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL: Appointment -->
+<div class="modal-overlay hidden" id="modal-appt" onclick="closeModal('modal-appt')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-appt-title">Запись</div>
+      <button class="modal-close" onclick="closeModal('modal-appt')">✕</button>
+    </div>
+    <div id="modal-appt-body"></div>
+  </div>
+</div>
+
+<!-- MODAL: Procedure -->
+<div class="modal-overlay hidden" id="modal-proc" onclick="closeModal('modal-proc')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-proc-title">Процедура</div>
+      <button class="modal-close" onclick="closeModal('modal-proc')">✕</button>
+    </div>
+    <div id="modal-proc-body"></div>
+  </div>
+</div>
+
+<!-- MODAL: Client -->
+<div class="modal-overlay hidden" id="modal-client" onclick="closeModal('modal-client')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-client-title">Клиент</div>
+      <button class="modal-close" onclick="closeModal('modal-client')">✕</button>
+    </div>
+    <div id="modal-client-body"></div>
+  </div>
+</div>
+
+<!-- MODAL: Cart -->
+<div class="modal-overlay hidden" id="modal-cart" onclick="closeModal('modal-cart')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">Заказать у Маргариты</div>
+      <button class="modal-close" onclick="closeModal('modal-cart')">✕</button>
+    </div>
+    <div class="modal-section-title">Рекомендуемый заказ</div>
+    <div class="cart-item"><span class="cart-item-name">Restylane Defyne</span><span class="cart-item-qty">2 шт</span><span class="cart-item-price">34 000 ₸</span></div>
+    <div class="cart-item"><span class="cart-item-name">Botulax 100ед</span><span class="cart-item-qty">2 шт</span><span class="cart-item-price">28 000 ₸</span></div>
+    <div class="cart-item"><span class="cart-item-name">Juvederm Ultra 1ml</span><span class="cart-item-qty">2 шт</span><span class="cart-item-price">46 000 ₸</span></div>
+    <div class="cart-total-row">
+      <span class="cart-total-label">Итого</span>
+      <span class="cart-total-val">108 000 ₸</span>
+    </div>
+    <div style="font-size:.75rem;color:#64748b;margin-top:.6rem;margin-bottom:.5rem">Маргарита свяжется с вами для подтверждения и оплаты</div>
+    <button class="btn-checkout" onclick="submitOrder()">Отправить заявку Маргарите →</button>
+  </div>
+</div>
+
+<div class="watermark">демо · MELLIGRI Кабинет косметолога</div>
+
+<script>
+const users={
+  alina:{avatar:'АН',name:'Алина Нурмухамедова',city:'Алматы'},
+  gulnara:{avatar:'ГС',name:'Гульнара Сейткалиева',city:'Астана'},
+  demo:{avatar:'ДМ',name:'Демо Профиль',city:'Казахстан'}
+};
+
+function login(role){
+  const u=users[role];
+  document.getElementById('s-avatar').textContent=u.avatar;
+  document.getElementById('s-name').textContent=u.name;
+  document.getElementById('s-city').textContent=u.city;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  buildCalendar();
+  buildClients();
+}
+
+function showSection(id){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('section-'+id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+function closeModal(id){document.getElementById(id).classList.add('hidden')}
+
+const appts={
+  anna:{name:'Анна Карпова',proc:'Коррекция губ',drug:'Juvederm Ultra 1ml',price:'45 000 ₸',time:'10:00',status:'Выполнено',note:'Первичная коррекция губ, 1 шприц. Клиент доволен.'},
+  svetlana:{name:'Светлана Морозова',proc:'Ботулинотерапия (лоб)',drug:'Dysport 500ед',price:'35 000 ₸',time:'12:00',status:'Выполнено',note:'30 ед на лоб, 20 ед межбровье. Коррекция через 2 нед.'},
+  diana:{name:'Диана Ахметова',proc:'Биоревитализация',drug:'NCTF 135HA',price:'28 000 ₸',time:'14:30',status:'Ожидает',note:'Курс 3 процедуры, сегодня вторая.'},
+  karina:{name:'Карина Шалгымбаева',proc:'Мезотерапия лица',drug:'Мезококтейль витамины',price:'18 000 ₸',time:'16:00',status:'Ожидает',note:'Комплексное увлажнение и питание.'}
+};
+
+function openAppt(key){
+  const a=appts[key];
+  document.getElementById('modal-appt-title').textContent=a.name;
+  document.getElementById('modal-appt-body').innerHTML=`
+    <div class="modal-row"><span class="label">Время</span><span class="val">${a.time}</span></div>
+    <div class="modal-row"><span class="label">Процедура</span><span class="val">${a.proc}</span></div>
+    <div class="modal-row"><span class="label">Препарат</span><span class="val">${a.drug}</span></div>
+    <div class="modal-row"><span class="label">Стоимость</span><span class="val" style="color:#5EE1E5;font-weight:600">${a.price}</span></div>
+    <div class="modal-row"><span class="label">Статус</span><span class="val">${a.status}</span></div>
+    <div class="modal-section"><div class="modal-section-title">Заметка</div><div style="font-size:.82rem;color:#94a3b8;line-height:1.5">${a.note}</div></div>`;
+  document.getElementById('modal-appt').classList.remove('hidden');
+}
+
+const procs={
+  lips:{name:'Коррекция губ',icon:'💉',desc:'Увеличение объёма и коррекция формы губ с использованием гиалуронового филлера. Результат сохраняется 8–12 месяцев.',drugs:'Juvederm Ultra 1ml, Juvederm Ultra Plus',protocol:'Аппликационная анестезия 30 мин → разметка губ → введение филлера канюлей или иглой → массаж → оценка симметрии',price:'45 000 ₸',duration:'45–60 мин'},
+  nasolabial:{name:'Носогубные складки',icon:'✨',desc:'Коррекция носогубных складок и марионеточных линий. Восстановление объёма средней трети лица.',drugs:'Restylane Defyne, Belotero Balance',protocol:'Очищение кожи → аппликационная анестезия → введение иглой или канюлей → массаж зоны',price:'38 000 ₸',duration:'30–45 мин'},
+  botox:{name:'Ботулинотерапия',icon:'🔬',desc:'Расслабление мимических мышц для коррекции морщин. Лоб, межбровье, область глаз. Эффект 4–6 месяцев.',drugs:'Dysport 500ед, Botulax 100ед',protocol:'Разметка зон → введение микродозами → лёд на зоны введения → рекомендации на 4 часа',price:'35 000 ₸',duration:'30–40 мин'},
+  biorev:{name:'Биоревитализация',icon:'💧',desc:'Внутрикожное введение гиалуроновой кислоты для глубокого увлажнения и запуска регенерации кожи.',drugs:'NCTF 135HA, IAL-System',protocol:'Очищение → нанесение крема-анестетика 40 мин → введение папульным методом → SPF-защита',price:'28 000 ₸',duration:'40–50 мин'},
+  cheeks:{name:'Контурная пластика скул',icon:'🌟',desc:'Моделирование скуловой области для создания выраженных скул и подъёма средней трети лица. Эффект до 18 мес.',drugs:'Juvederm Voluma, Radiesse',protocol:'Разметка скуловой дуги → болюсное введение глубокими слоями → лепка формы → фиксирующий массаж',price:'65 000 ₸',duration:'60–90 мин'},
+  meso:{name:'Мезотерапия лица',icon:'🌿',desc:'Микроинъекции коктейлей с витаминами, аминокислотами и микроэлементами. Улучшение тонуса и сияния кожи.',drugs:'Мезококтейль NCTF, витамины группы B, гиалуроновая кислота',protocol:'Очищение → введение с шагом 1 см папульным методом или наппаж → SPF-уход',price:'18 000 ₸',duration:'30–40 мин'}
+};
+
+function openProc(key){
+  const p=procs[key];
+  document.getElementById('modal-proc-title').textContent=`${p.icon} ${p.name}`;
+  document.getElementById('modal-proc-body').innerHTML=`
+    <div class="modal-price">${p.price}</div>
+    <div style="font-size:.82rem;color:#94a3b8;line-height:1.5;margin-bottom:1rem">${p.desc}</div>
+    <div class="modal-section"><div class="modal-section-title">Препараты</div><div style="font-size:.82rem;color:#e2e8f0">${p.drugs}</div></div>
+    <div class="modal-section" style="margin-top:.8rem"><div class="modal-section-title">Протокол</div><div style="font-size:.8rem;color:#94a3b8;line-height:1.6">${p.protocol}</div></div>
+    <div class="modal-row" style="margin-top:1rem"><span class="label">Длительность</span><span class="val">${p.duration}</span></div>`;
+  document.getElementById('modal-proc').classList.remove('hidden');
+}
+
+const clients=[
+  {init:'АК',name:'Анна Карпова',last:'Коррекция губ',lastDate:'27 июня',next:'15 июля',nextShort:'15 июл',amount:'127 000 ₸',history:[{d:'27.06.25',p:'Коррекция губ (Juvederm Ultra)',price:'45 000 ₸'},{d:'15.03.25',p:'Биоревитализация',price:'28 000 ₸'},{d:'10.01.25',p:'Носогубные складки',price:'38 000 ₸'},{d:'05.11.24',p:'Коррекция губ',price:'45 000 ₸'}],phone:'+7 701 234 5678',note:'Аллергия на лидокаин — использовать крем-анестетик'},
+  {init:'СМ',name:'Светлана Морозова',last:'Ботулинотерапия',lastDate:'27 июня',next:'20 июля',nextShort:'20 июл',amount:'98 000 ₸',history:[{d:'27.06.25',p:'Ботулинотерапия (Dysport)',price:'35 000 ₸'},{d:'20.03.25',p:'Ботулинотерапия',price:'35 000 ₸'},{d:'01.02.25',p:'Биоревитализация',price:'28 000 ₸'}],phone:'+7 702 345 6789',note:'Постоянный клиент. Предпочитает утренние записи.'},
+  {init:'ДА',name:'Диана Ахметова',last:'Биоревитализация',lastDate:'27 июня',next:'8 августа',nextShort:'8 авг',amount:'84 000 ₸',history:[{d:'27.06.25',p:'Биоревитализация (курс 2/3)',price:'28 000 ₸'},{d:'06.06.25',p:'Биоревитализация (курс 1/3)',price:'28 000 ₸'},{d:'10.04.25',p:'Мезотерапия лица',price:'18 000 ₸'},{d:'12.02.25',p:'Мезотерапия лица',price:'18 000 ₸'}],phone:'+7 707 456 7890',note:'Курс биоревитализации — 3 процедуры через 3 нед.'},
+  {init:'КШ',name:'Карина Шалгымбаева',last:'Мезотерапия',lastDate:'27 июня',next:'25 июля',nextShort:'25 июл',amount:'72 000 ₸',history:[{d:'27.06.25',p:'Мезотерапия лица',price:'18 000 ₸'},{d:'30.05.25',p:'Мезотерапия лица',price:'18 000 ₸'},{d:'15.04.25',p:'Биоревитализация',price:'28 000 ₸'},{d:'05.02.25',p:'Мезотерапия',price:'18 000 ₸'}],phone:'+7 705 567 8901',note:'Чувствительная кожа. Медленно вводить.'},
+  {init:'ИС',name:'Ирина Соколова',last:'Контурная пластика скул',lastDate:'20 июня',next:'30 июля',nextShort:'30 июл',amount:'195 000 ₸',history:[{d:'20.06.25',p:'Контурная пластика скул',price:'65 000 ₸'},{d:'18.03.25',p:'Коррекция губ',price:'45 000 ₸'},{d:'10.01.25',p:'Контурная пластика скул',price:'65 000 ₸'},{d:'05.10.24',p:'Ботулинотерапия',price:'35 000 ₸'}],phone:'+7 778 678 9012',note:'VIP-клиент. Всегда 15% скидка.'},
+  {init:'ЗН',name:'Зарина Нурланова',last:'Ботулинотерапия',lastDate:'15 июня',next:'2 августа',nextShort:'2 авг',amount:'56 000 ₸',history:[{d:'15.06.25',p:'Ботулинотерапия',price:'35 000 ₸'},{d:'02.02.25',p:'Мезотерапия',price:'18 000 ₸'}],phone:'+7 701 789 0123',note:'Впервые делала ботокс в июне.'},
+  {init:'МД',name:'Молдир Джаксыбекова',last:'Носогубные складки',lastDate:'10 июня',next:'10 сентября',nextShort:'10 сен',amount:'114 000 ₸',history:[{d:'10.06.25',p:'Носогубные складки (Belotero)',price:'38 000 ₸'},{d:'10.12.24',p:'Носогубные складки',price:'38 000 ₸'},{d:'01.09.24',p:'Биоревитализация',price:'28 000 ₸'},{d:'05.06.24',p:'Мезотерапия',price:'18 000 ₸'}],phone:'+7 702 890 1234',note:'Приезжает из другого города, планирует заранее.'},
+  {init:'АИ',name:'Айгерим Исабекова',last:'Биоревитализация',lastDate:'5 июня',next:'5 июля',nextShort:'5 июл',amount:'84 000 ₸',history:[{d:'05.06.25',p:'Биоревитализация',price:'28 000 ₸'},{d:'05.04.25',p:'Биоревитализация',price:'28 000 ₸'},{d:'05.02.25',p:'Биоревитализация',price:'28 000 ₸'}],phone:'+7 707 901 2345',note:'Регулярный курс каждые 2 мес.'},
+  {init:'НА',name:'Надежда Антонова',last:'Мезотерапия',lastDate:'1 июня',next:'15 августа',nextShort:'15 авг',amount:'36 000 ₸',history:[{d:'01.06.25',p:'Мезотерапия лица',price:'18 000 ₸'},{d:'15.03.25',p:'Мезотерапия лица',price:'18 000 ₸'}],phone:'+7 705 012 3456',note:'Новый клиент с весны 2025.'},
+  {init:'ГМ',name:'Гаухар Мусина',last:'Коррекция губ',lastDate:'28 мая',next:'28 ноября',nextShort:'28 ноя',amount:'45 000 ₸',history:[{d:'28.05.25',p:'Коррекция губ (Juvederm)',price:'45 000 ₸'}],phone:'+7 778 123 4567',note:'Первичная. Результатом очень довольна.'}
+];
+
+function buildClients(){
+  const tb=document.getElementById('clients-tbody');
+  tb.innerHTML='';
+  clients.forEach((c,i)=>{
+    const soon=c.nextShort.includes('июл')||c.nextShort.includes('5 июл');
+    const badge=soon?`<span class="badge-soon">${c.nextShort}</span>`:`<span class="badge-later">${c.nextShort}</span>`;
+    tb.innerHTML+=`<tr onclick="openClient(${i})">
+      <td><div class="client-name-cell"><div class="client-avatar">${c.init}</div>${c.name}</div></td>
+      <td><div>${c.last}</div><div style="font-size:.72rem;color:#64748b">${c.lastDate}</div></td>
+      <td>${badge}</td>
+      <td style="font-weight:600;color:#5EE1E5">${c.amount}</td>
+    </tr>`;
+  });
+}
+
+function openClient(i){
+  const c=clients[i];
+  document.getElementById('modal-client-title').textContent=c.name;
+  let hist=c.history.map(h=>`<div class="history-item"><span class="h-date">${h.d}</span><span class="h-proc">${h.p}</span><span class="h-price">${h.price}</span></div>`).join('');
+  document.getElementById('modal-client-body').innerHTML=`
+    <div class="modal-row"><span class="label">Телефон</span><span class="val">${c.phone}</span></div>
+    <div class="modal-row"><span class="label">Следующая запись</span><span class="val" style="color:#5EE1E5">${c.next}</span></div>
+    <div class="modal-row"><span class="label">Сумма за год</span><span class="val" style="color:#5EE1E5;font-weight:600">${c.amount}</span></div>
+    <div class="modal-section"><div class="modal-section-title">Заметка</div><div style="font-size:.8rem;color:#94a3b8">${c.note}</div></div>
+    <div class="modal-section" style="margin-top:.8rem"><div class="modal-section-title">История процедур</div>${hist}</div>
+    <div class="modal-section" style="margin-top:.8rem"><div class="modal-section-title">Фото до / после</div>
+    <div class="photo-row"><div class="photo-ph"><span style="font-size:1.2rem">📷</span>До</div><div class="photo-ph"><span style="font-size:1.2rem">📷</span>После</div></div></div>`;
+  document.getElementById('modal-client').classList.remove('hidden');
+}
+
+function openCart(){document.getElementById('modal-cart').classList.remove('hidden')}
+
+function submitOrder(){
+  document.getElementById('modal-cart').classList.add('hidden');
+  alert('Заявка отправлена Маргарите! Она свяжется с вами в ближайшее время.');
+}
+
+// Calendar
+let calYear=2025,calMonth=6;
+const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const apptDays={5:'Айгерим И.',10:'Молдир Д.',15:'Анна К.',20:'Светлана М.',25:'Карина Ш.',27:'Светлана М.',30:'Ирина С.'};
+
+const allAppts=[
+  {day:5,time:'10:00',name:'Айгерим Исабекова',proc:'Биоревитализация',price:'28 000 ₸'},
+  {day:10,time:'11:00',name:'Зарина Нурланова',proc:'Биоревитализация',price:'28 000 ₸'},
+  {day:15,time:'10:00',name:'Анна Карпова',proc:'Носогубные складки',price:'38 000 ₸'},
+  {day:15,time:'13:00',name:'Надежда Антонова',proc:'Мезотерапия',price:'18 000 ₸'},
+  {day:20,time:'10:30',name:'Светлана Морозова',proc:'Ботулинотерапия',price:'35 000 ₸'},
+  {day:25,time:'12:00',name:'Карина Шалгымбаева',proc:'Мезотерапия',price:'18 000 ₸'},
+  {day:25,time:'15:00',name:'Гаухар Мусина',proc:'Коррекция губ',price:'45 000 ₸'},
+  {day:30,time:'11:00',name:'Ирина Соколова',proc:'Контурная пластика',price:'65 000 ₸'}
+];
+
+function buildCalendar(){
+  const label=document.getElementById('cal-month-label');
+  label.textContent=months[calMonth]+' '+calYear;
+  const grid=document.getElementById('cal-grid');
+  const days=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  let html=days.map(d=>`<div class="cal-day-name">${d}</div>`).join('');
+  const first=new Date(calYear,calMonth,1).getDay();
+  const startOffset=(first===0?6:first-1);
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  for(let i=0;i<startOffset;i++) html+=`<div class="cal-day empty"></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const hasAppt=apptDays[d];
+    const isToday=(calMonth===5&&d===27);
+    let cls='cal-day';
+    if(isToday) cls+=' today';
+    if(hasAppt) cls+=' has-appt';
+    html+=`<div class="${cls}" onclick="filterDay(${d})">${d}</div>`;
+  }
+  grid.innerHTML=html;
+  filterDay(null);
+}
+
+function filterDay(day){
+  const label=document.getElementById('cal-day-label');
+  const list=document.getElementById('appt-list');
+  const filtered=day?allAppts.filter(a=>a.day===day):allAppts;
+  label.textContent=day?`${day} ${months[calMonth]} ${calYear}`:`Все записи — ${months[calMonth]}`;
+  list.innerHTML=filtered.length?filtered.map(a=>`
+    <div class="appt-item" onclick="openApptInline('${a.name}','${a.proc}','${a.price}','${a.time}')">
+      <span class="appt-time">${a.time}</span>
+      <div class="appt-info"><div class="appt-name">${a.name}</div><div class="appt-proc">${a.proc}</div></div>
+      <div style="text-align:right"><div class="appt-price">${a.price}</div><div class="appt-badge">${a.day} июл</div></div>
+    </div>`).join(''):`<div style="font-size:.83rem;color:#64748b;padding:1rem 0">Нет записей на этот день</div>`;
+}
+
+function openApptInline(name,proc,price,time){
+  document.getElementById('modal-appt-title').textContent=name;
+  document.getElementById('modal-appt-body').innerHTML=`
+    <div class="modal-row"><span class="label">Время</span><span class="val">${time}</span></div>
+    <div class="modal-row"><span class="label">Процедура</span><span class="val">${proc}</span></div>
+    <div class="modal-row"><span class="label">Стоимость</span><span class="val" style="color:#5EE1E5;font-weight:600">${price}</span></div>
+    <div class="modal-row"><span class="label">Статус</span><span class="val">Запланировано</span></div>`;
+  document.getElementById('modal-appt').classList.remove('hidden');
+}
+
+function changeMonth(dir){
+  calMonth+=dir;
+  if(calMonth>11){calMonth=0;calYear++;}
+  if(calMonth<0){calMonth=11;calYear--;}
+  buildCalendar();
+}
+</script>
+</body>
+</html>
