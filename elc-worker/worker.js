@@ -4328,12 +4328,12 @@ async function handleWaChannelsHealth(request, env) {
     ).first();
     if (n && n.active) notifier = {
       name: n.display_name || 'Системный нотификатор',
-      state: n.conn_state || 'unknown', down: n.conn_state === 'down',
+      state: n.conn_state || 'unknown', raw: n.conn_raw || null, down: n.conn_state === 'down',
       downSince: n.conn_down_since || null, checkedAt: n.conn_checked_at || null,
     };
   } catch {}
   const down = channels.filter(c => c.down);
-  if (notifier && notifier.down) down.push({ id: 'notifier', name: notifier.name, down: true, downSince: notifier.downSince });
+  if (notifier && notifier.down) down.push({ id: 'notifier', name: notifier.name, raw: notifier.raw, down: true, downSince: notifier.downSince });
   return json({ ok: true, anyDown: down.length > 0, down, channels, notifier }, 200, request);
 }
 

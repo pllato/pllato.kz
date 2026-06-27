@@ -3725,16 +3725,28 @@ function renderChannelHealthBanner(data) {
     document.documentElement.style.removeProperty('--ch-banner-h');
     return;
   }
-  const names = (data.down || []).map(d => d.name).filter(Boolean).join(', ') || 'WhatsApp-канал';
+  // Человеческая причина по raw-состоянию Green-API — чтобы было понятно,
+  // реальный это обрыв (пересканировать QR) или мёртвый/лишний канал (убрать).
+  const reasonOf = (raw) => {
+    const r = String(raw || '').toLowerCase();
+    if (r === 'notauthorized' || r.includes('notauth')) return 'не авторизован — пересканируйте QR в Green-API';
+    if (r === 'starting') return 'запускается…';
+    if (r.includes('yellow') || r.includes('block')) return 'инстанс заблокирован';
+    if (r.startsWith('http_4') || r.includes('401') || r.includes('403')) return 'неверный токен/инстанс';
+    if (r === 'fetch_error' || r.startsWith('http_')) return 'инстанс недоступен (проверьте токен/URL или удалите лишний канал)';
+    if (r === 'unknown' || !r) return 'состояние неизвестно';
+    return r;
+  };
+  const names = (data.down || []).map(d => `${d.name} — ${reasonOf(d.raw)}`).filter(Boolean).join('; ') || 'WhatsApp-канал';
   let b = existing;
   if (!b) {
     b = document.createElement('div');
     b.id = 'ch-health-banner';
     b.setAttribute('role', 'alert');
-    b.innerHTML = `<span>⚠ <b>Связь потеряна:</b> <span id="ch-health-names"></span> — сообщения не приходят.</span><button id="ch-health-go" type="button">Переподключить →</button>`;
+    b.innerHTML = `<span>⚠ <b>Связь потеряна:</b> <span id="ch-health-names"></span></span><button id="ch-health-go" type="button">Открыть каналы →</button>`;
     document.body.appendChild(b);
     const go = b.querySelector('#ch-health-go');
-    if (go) go.onclick = () => { try { navigate('settings'); } catch {} };
+    if (go) go.onclick = () => { try { settingsState.tab = 'channels'; navigate('settings'); } catch { navigate('settings'); } };
   }
   const nm = b.querySelector('#ch-health-names');
   if (nm) nm.textContent = names;
