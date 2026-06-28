@@ -6149,6 +6149,8 @@ function renderDashboard(el) {
       </div>
     </div>
 
+    <div id="dash-charts"></div>
+
     <div id="dash-funnels" class="dash-funnels"></div>
 
     <details class="card" style="margin-bottom:14px">
@@ -6165,6 +6167,7 @@ function renderDashboard(el) {
   loadDashboardStats();
   loadDashboardDataStatus();
   testConnection();
+  renderDashboardCharts(document.getElementById('dash-charts'));
   renderFunnelDashboard(document.getElementById('dash-funnels'));
 
   // Клик по стату → переход в раздел
@@ -6179,6 +6182,171 @@ function renderDashboard(el) {
       openAddUserModal();
     });
   }
+}
+
+// ───────────────────────── Настраиваемые графики (Главная) ───────────────────
+function _ensureChartCss() {
+  if (document.getElementById('dchart-css')) return;
+  const s = document.createElement('style'); s.id = 'dchart-css';
+  s.textContent = `
+    .dch-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-bottom:14px}
+    .dch-card{border:1px solid var(--b1);border-radius:12px;padding:14px 16px;background:var(--bg)}
+    .dch-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .dch-title{font-size:14px;font-weight:700;color:var(--t1)}
+    .dch-sub{font-size:11px;color:var(--t3);margin:2px 0 12px}
+    .dch-bars{display:flex;align-items:flex-end;gap:8px;height:130px;border-bottom:2px solid var(--b1)}
+    .dch-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
+    .dch-bar{width:72%;max-width:32px;background:linear-gradient(180deg,var(--ac2),var(--ac));border-radius:5px 5px 0 0;min-height:2px}
+    .dch-val{font-size:11px;font-weight:700;color:var(--t1);margin-bottom:3px}
+    .dch-lbls{display:flex;gap:8px;margin-top:5px}
+    .dch-lbl{flex:1;text-align:center;font-size:10px;color:var(--t3);white-space:nowrap;overflow:hidden}
+    .dch-ib{border:none;background:none;cursor:pointer;color:var(--t3);font-size:13px;padding:2px 5px;border-radius:6px}
+    .dch-ib:hover{background:var(--bg3);color:var(--t1)}
+  `;
+  document.head.appendChild(s);
+}
+const _PERIOD_LBL = { day: 'день', week: 'неделя', month: 'месяц' };
+function _pipeName(pid) { return (dealsState.pipelines && dealsState.pipelines[pid] && dealsState.pipelines[pid].name) || pid; }
+function _pipeStages(pid) {
+  const st = dealsState.pipelines && dealsState.pipelines[pid] && dealsState.pipelines[pid].stages;
+  if (!st) return [];
+  return Object.entries(st).map(([id, v]) => ({ id: v.statusId || id, name: v.name || id, sort: v.sort || 0 })).sort((a, b) => a.sort - b.sort);
+}
+function _stageName(pid, sid) {
+  if (sid === '__new__') return 'Новые сделки';
+  const s = _pipeStages(pid).find(x => x.id === sid);
+  return (s && s.name) || sid;
+}
+
+async function renderDashboardCharts(container) {
+  if (!container) return;
+  _ensureChartCss();
+  const isAdmin = window.currentUser?.role === 'admin';
+  try { if (!dealsState.pipelines || !Object.keys(dealsState.pipelines).length) await loadDealsMeta(); } catch {}
+  let charts = [];
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/charts/config`, { headers: { Authorization: 'Bearer ' + idToken } });
+    const d = await r.json(); if (d.ok) charts = d.charts || [];
+  } catch {}
+  const addBtn = isAdmin ? `<button class="tbtn tbtn-sm tbtn-a" id="dch-add">＋ График</button>` : '';
+  if (!charts.length) {
+    container.innerHTML = `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px">
+      <div style="font-size:13px;color:var(--t3)">📊 Графики обращений и стартов по воронкам${isAdmin ? ' — добавьте первый' : ''}</div>${addBtn}</div>`;
+    if (isAdmin) container.querySelector('#dch-add').onclick = () => openChartConfig(null);
+    return;
+  }
+  container.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+      <div style="font-size:15px;font-weight:700;font-family:var(--fd)">📊 Графики</div>${addBtn}</div>
+    <div class="dch-wrap" id="dch-wrap"></div>`;
+  if (isAdmin) container.querySelector('#dch-add').onclick = () => openChartConfig(null);
+  const wrap = container.querySelector('#dch-wrap');
+  for (const c of charts) {
+    const card = document.createElement('div'); card.className = 'dch-card';
+    card.innerHTML = `<div class="dch-head"><div class="dch-title">${escapeHtml(c.name)}</div>
+      ${isAdmin ? `<div><button class="dch-ib" data-edit>✏️</button><button class="dch-ib" data-del>🗑</button></div>` : ''}</div>
+      <div class="dch-sub">${escapeHtml(_pipeName(c.pipeline))} · ${escapeHtml(_stageName(c.pipeline, c.stage))} · по ${_PERIOD_LBL[c.period] || 'день'}</div>
+      <div class="dch-bars" data-bars><div style="color:var(--t3);font-size:12px;margin:auto">⏳…</div></div>
+      <div class="dch-lbls" data-lbls></div>`;
+    wrap.appendChild(card);
+    if (isAdmin) { card.querySelector('[data-edit]').onclick = () => openChartConfig(c); card.querySelector('[data-del]').onclick = () => deleteChart(c.id); }
+    loadChartSeries(c, card);
+  }
+}
+
+async function loadChartSeries(c, card) {
+  const bars = card.querySelector('[data-bars]');
+  const lbls = card.querySelector('[data-lbls]');
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_BASE_URL}/api/charts/series?pipeline=${encodeURIComponent(c.pipeline)}&stage=${encodeURIComponent(c.stage)}&period=${c.period}&points=7`, { headers: { Authorization: 'Bearer ' + idToken } });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || 'ошибка');
+    const series = d.series || [];
+    const maxVal = c.max && c.max > 0 ? c.max : Math.max(1, ...series.map(s => s.value));
+    bars.innerHTML = series.map(s => {
+      const h = Math.max(2, Math.round((s.value / maxVal) * 104));
+      return `<div class="dch-col"><div class="dch-val">${s.value}</div><div class="dch-bar" style="height:${h}px" title="${s.value}"></div></div>`;
+    }).join('');
+    lbls.innerHTML = series.map(s => `<div class="dch-lbl">${escapeHtml(s.label)}</div>`).join('');
+  } catch (e) {
+    bars.innerHTML = `<div style="color:var(--rd);font-size:12px;margin:auto">Ошибка: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function saveChartsConfig(charts) {
+  const idToken = await fbAuth.currentUser.getIdToken();
+  const r = await fetch(`${WORKER_BASE_URL}/api/charts/config`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+    body: JSON.stringify({ charts }),
+  });
+  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || ('HTTP ' + r.status)); }
+}
+
+async function deleteChart(id) {
+  if (!confirm('Удалить график?')) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const cur = await fetch(`${WORKER_BASE_URL}/api/charts/config`, { headers: { Authorization: 'Bearer ' + idToken } }).then(r => r.json());
+    await saveChartsConfig((cur.charts || []).filter(c => c.id !== id));
+    renderDashboardCharts(document.getElementById('dash-charts'));
+  } catch (e) { alert('Ошибка: ' + e.message); }
+}
+
+function openChartConfig(chart) {
+  document.getElementById('_chart-cfg')?.remove();
+  const c = chart || { id: '', name: '', pipeline: '', stage: '__new__', period: 'day', max: 0 };
+  const pipes = Object.entries(dealsState.pipelines || {}).map(([id, v]) => ({ id, name: v.name || id }));
+  const ov = document.createElement('div');
+  ov.id = '_chart-cfg'; ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  const stageOpts = (pid, sel) => `<option value="__new__" ${sel === '__new__' ? 'selected' : ''}>🆕 Новые сделки (создано)</option>` +
+    _pipeStages(pid).map(s => `<option value="${escapeHtml(s.id)}" ${s.id === sel ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('');
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:460px">
+    <div class="qad-head"><h2>${chart ? 'Изменить график' : 'Новый график'}</h2><button class="qad-btn qad-btn-ghost" id="cc-close" style="padding:4px 10px">×</button></div>
+    <div class="qad-body" style="max-height:74vh;overflow-y:auto">
+      <div><div class="qad-label">Название</div><input id="cc-name" class="qad-input" value="${escapeHtml(c.name)}" placeholder="Количество новых обращений"></div>
+      <div><div class="qad-label">Воронка</div><select id="cc-pipe" class="qad-input"><option value="">— выберите —</option>${pipes.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === c.pipeline ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}</select></div>
+      <div><div class="qad-label">Стадия</div><select id="cc-stage" class="qad-input">${c.pipeline ? stageOpts(c.pipeline, c.stage) : '<option value="__new__">🆕 Новые сделки (создано)</option>'}</select></div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:1"><div class="qad-label">Период (1 точка)</div><select id="cc-period" class="qad-input">
+          <option value="day" ${c.period === 'day' ? 'selected' : ''}>День</option>
+          <option value="week" ${c.period === 'week' ? 'selected' : ''}>Неделя</option>
+          <option value="month" ${c.period === 'month' ? 'selected' : ''}>Месяц</option></select></div>
+        <div style="flex:1"><div class="qad-label">Максимум (0 = авто)</div><input id="cc-max" class="qad-input" type="number" min="0" value="${c.max || 0}"></div>
+      </div>
+      <div style="font-size:11px;color:var(--t3);margin-top:6px">График строится за последние 7 периодов. «Новые сделки» — точная история по дате создания; для остальных стадий счёт идёт с момента включения учёта переходов.</div>
+    </div>
+    <div class="qad-foot"><button class="qad-btn qad-btn-ghost" id="cc-cancel">Отмена</button><button class="qad-btn qad-btn-primary" id="cc-save">Сохранить</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#cc-close').onclick = () => ov.remove();
+  ov.querySelector('#cc-cancel').onclick = () => ov.remove();
+  ov.querySelector('#cc-pipe').onchange = (e) => {
+    ov.querySelector('#cc-stage').innerHTML = stageOpts(e.target.value, '__new__');
+  };
+  ov.querySelector('#cc-save').onclick = async () => {
+    const pipeline = ov.querySelector('#cc-pipe').value;
+    if (!pipeline) { alert('Выберите воронку'); return; }
+    const newChart = {
+      id: c.id || ('ch_' + Math.random().toString(36).slice(2, 9)),
+      name: ov.querySelector('#cc-name').value.trim() || 'График',
+      pipeline, stage: ov.querySelector('#cc-stage').value,
+      period: ov.querySelector('#cc-period').value,
+      max: parseInt(ov.querySelector('#cc-max').value, 10) || 0,
+    };
+    const btn = ov.querySelector('#cc-save'); btn.disabled = true; btn.textContent = '⏳…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const cur = await fetch(`${WORKER_BASE_URL}/api/charts/config`, { headers: { Authorization: 'Bearer ' + idToken } }).then(r => r.json());
+      let list = cur.charts || [];
+      const idx = list.findIndex(x => x.id === newChart.id);
+      if (idx >= 0) list[idx] = newChart; else list.push(newChart);
+      await saveChartsConfig(list);
+      ov.remove();
+      renderDashboardCharts(document.getElementById('dash-charts'));
+    } catch (e) { alert('Ошибка: ' + e.message); btn.disabled = false; btn.textContent = 'Сохранить'; }
+  };
 }
 
 // ───────────────────────── Дашборд воронок (Главная) ─────────────────────────
