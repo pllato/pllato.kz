@@ -2203,6 +2203,47 @@ async function ensureStageChangedAtColumn(env) {
   _stageChangedAtEnsured = true;
 }
 
+// ── Журнал входов сделок в стадии (для графиков «количество обращений/стартов») ─
+// Каждый раз, когда сделка ВХОДИТ в стадию (создание или переход) — пишем строку.
+// Так можно считать «сколько сделок попало на стадию X за период», даже если
+// сделка потом ушла дальше. Историю до запуска бэкфиллим текущими занятыми.
+let _stageEventsEnsured = false;
+async function ensureStageEventsTable(env) {
+  if (_stageEventsEnsured) return;
+  try {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS deal_stage_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, deal_id TEXT, pipeline_id TEXT, stage_id TEXT, entered_at TEXT
+    )`).run();
+    await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_dse_pipe_stage_time ON deal_stage_events(pipeline_id, stage_id, entered_at)`).run();
+  } catch (e) {}
+  _stageEventsEnsured = true;
+}
+async function logStageEvent(env, dealId, pipelineId, stageId, iso) {
+  if (!dealId || !pipelineId || !stageId) return;
+  try {
+    await ensureStageEventsTable(env);
+    await env.DB.prepare("INSERT INTO deal_stage_events (deal_id, pipeline_id, stage_id, entered_at) VALUES (?, ?, ?, ?)")
+      .bind(String(dealId), String(pipelineId), String(stageId), iso || new Date().toISOString()).run();
+  } catch (e) {}
+}
+// Разовый бэкфилл: по текущему состоянию сделок создаём по событию «вход в текущую
+// стадию» (stage_changed_at или дата создания). Флаг в kv, чтобы не повторять.
+async function ensureStageEventsBackfill(env) {
+  try {
+    await ensureStageEventsTable(env);
+    const flag = await env.DB.prepare("SELECT v FROM kv WHERE k = 'deal_stage_events:backfilled'").first();
+    if (flag && flag.v) return;
+    await env.DB.prepare(`
+      INSERT INTO deal_stage_events (deal_id, pipeline_id, stage_id, entered_at)
+      SELECT id, pipeline_id, stage_id, COALESCE(stage_changed_at, bitrix_date_create)
+        FROM deals WHERE pipeline_id IS NOT NULL AND stage_id IS NOT NULL
+          AND COALESCE(stage_changed_at, bitrix_date_create) IS NOT NULL
+    `).run();
+    await env.DB.prepare("INSERT INTO kv (k, v) VALUES ('deal_stage_events:backfilled', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v")
+      .bind(new Date().toISOString()).run();
+  } catch (e) { console.warn('[stage-events backfill]', e?.message || e); }
+}
+
 // PATCH /api/deals/{id}/stage { pipelineId, stageId }
 // Универсальный endpoint для перемещения сделки между стадиями. Если pipelineId
 // совпадает с deal.pipeline_id — обновляет основную stage_id. Иначе обновляет
@@ -2255,15 +2296,19 @@ async function handleDealStageChange(request, env, dealId) {
         "UPDATE deals SET stage_id = ?, reject_reason = NULL, bitrix_date_modify = ?, stage_changed_at = COALESCE(?, stage_changed_at) WHERE id = ?"
       ).bind(stageId, nowIso, stageTs, dealId).run();
     }
+    // Журнал входа в стадию — только при реальной смене (для графиков).
+    if (stageActuallyChanged) await logStageEvent(env, dealId, pipelineId, stageId, nowIso);
   } else {
     // Зеркало — обновляем mirrored_in[pipelineId]
     let mir = {};
     try { mir = deal.mirrored_in ? JSON.parse(deal.mirrored_in) : {}; } catch {}
     if (!mir || typeof mir !== 'object' || Array.isArray(mir)) mir = {};
+    const prevMir = mir[pipelineId];
     mir[pipelineId] = stageId;
     await env.DB.prepare(
       "UPDATE deals SET mirrored_in = ?, bitrix_date_modify = ? WHERE id = ?"
     ).bind(JSON.stringify(mir), nowIso, dealId).run();
+    if (prevMir !== stageId) await logStageEvent(env, dealId, pipelineId, stageId, nowIso);
   }
 
   await auditLog(env, me, "deal_stage_change", "deal", dealId, { pipelineId, stageId, isMirror: deal.pipeline_id !== pipelineId });
@@ -3166,6 +3211,7 @@ async function ensureDealForWaContact(env, channel, contactId, contactName, phon
     responsibleUid,
     contactId, bitrixKey, nowIso, nowIso, nowIso,
   ).run();
+  await logStageEvent(env, newId, channel.default_pipeline_id, stageId, nowIso);
   return newId;
 }
 
@@ -6669,6 +6715,114 @@ async function handleOnboardingStatus(request, env) {
   return json({ ok: true, items }, 200, request);
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// ГРАФИКИ НА ГЛАВНОЙ — количество обращений/стартов по воронке и стадии.
+// Конфиг графиков — глобальный (kv 'dashboard:charts'), правят админы.
+// Данные: «новые сделки» (по дате создания) либо «вход в стадию» (по журналу).
+// ════════════════════════════════════════════════════════════════════════
+function _ymd(d) { return d.toISOString().slice(0, 10); }
+function buildChartBuckets(period, points) {
+  const now = new Date();
+  const RU_MON = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  const buckets = [];
+  if (period === 'week') {
+    const day = now.getUTCDay() || 7;
+    const monday = new Date(now); monday.setUTCDate(now.getUTCDate() - (day - 1));
+    for (let i = points - 1; i >= 0; i--) {
+      const ws = new Date(monday); ws.setUTCDate(monday.getUTCDate() - i * 7);
+      const we = new Date(ws); we.setUTCDate(ws.getUTCDate() + 7);
+      const s = _ymd(ws), e = _ymd(we);
+      buckets.push({ key: s, start: s, end: e, label: s.slice(8, 10) + '.' + s.slice(5, 7) });
+    }
+  } else if (period === 'month') {
+    for (let i = points - 1; i >= 0; i--) {
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+      const key = d.toISOString().slice(0, 7);
+      buckets.push({ key, start: key + '-01', label: RU_MON[d.getUTCMonth()] });
+    }
+  } else {
+    for (let i = points - 1; i >= 0; i--) {
+      const d = new Date(now); d.setUTCDate(d.getUTCDate() - i);
+      const key = _ymd(d);
+      buckets.push({ key, start: key, label: key.slice(8, 10) + '.' + key.slice(5, 7) });
+    }
+  }
+  return buckets;
+}
+function countIntoBuckets(dates, buckets, period) {
+  const counts = buckets.map(() => 0);
+  for (const ds of dates) {
+    if (!ds) continue;
+    let idx = -1;
+    if (period === 'month') idx = buckets.findIndex(b => b.key === ds.slice(0, 7));
+    else if (period === 'week') idx = buckets.findIndex(b => ds >= b.start && ds < b.end);
+    else idx = buckets.findIndex(b => b.key === ds);
+    if (idx >= 0) counts[idx]++;
+  }
+  return buckets.map((b, i) => ({ label: b.label, value: counts[i] }));
+}
+
+async function handleChartsConfigGet(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const row = await env.DB.prepare("SELECT v FROM kv WHERE k = 'dashboard:charts'").first();
+  let charts = []; try { charts = row && row.v ? JSON.parse(row.v) : []; } catch {}
+  return json({ ok: true, charts }, 200, request);
+}
+async function handleChartsConfigPut(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  if (me.role !== 'admin') return json({ error: "admin only" }, 403, request);
+  let body; try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const charts = Array.isArray(body.charts) ? body.charts.slice(0, 30).map(c => ({
+    id: String(c.id || crypto.randomUUID()),
+    name: String(c.name || 'График').slice(0, 80),
+    pipeline: String(c.pipeline || ''),
+    stage: String(c.stage || '__new__'),
+    period: ['day', 'week', 'month'].includes(c.period) ? c.period : 'day',
+    max: Math.max(0, parseInt(c.max, 10) || 0),
+  })) : [];
+  await env.DB.prepare("INSERT INTO kv (k, v) VALUES ('dashboard:charts', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(JSON.stringify(charts)).run();
+  return json({ ok: true, charts }, 200, request);
+}
+async function handleChartsSeries(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureStageEventsBackfill(env);
+  const url = new URL(request.url);
+  const pipeline = (url.searchParams.get('pipeline') || '').trim();
+  const stage = (url.searchParams.get('stage') || '__new__').trim();
+  const period = ['day', 'week', 'month'].includes(url.searchParams.get('period')) ? url.searchParams.get('period') : 'day';
+  const points = Math.min(24, Math.max(2, parseInt(url.searchParams.get('points') || '7', 10) || 7));
+  if (!pipeline) return json({ ok: false, error: "pipeline required" }, 400, request);
+  // Первая стадия воронки — для неё «вход» эквивалентен созданию (точная история).
+  let firstStage = null;
+  try {
+    const pr = await env.DB.prepare("SELECT stages FROM pipelines WHERE id = ?").bind(pipeline).first();
+    if (pr && pr.stages) {
+      const st = JSON.parse(pr.stages);
+      const arr = Object.entries(st).map(([id, v]) => ({ id, sort: (v && v.sort) || 0 })).sort((a, b) => a.sort - b.sort);
+      firstStage = arr.length ? arr[0].id : null;
+    }
+  } catch {}
+  const usesCreated = stage === '__new__' || (firstStage && stage === firstStage);
+  const buckets = buildChartBuckets(period, points);
+  const minDate = buckets[0].start;
+  let rows = [];
+  try {
+    if (usesCreated) {
+      const r = await env.DB.prepare("SELECT substr(bitrix_date_create,1,10) AS d FROM deals WHERE pipeline_id = ? AND bitrix_date_create >= ?").bind(pipeline, minDate).all();
+      rows = r.results || [];
+    } else {
+      const r = await env.DB.prepare("SELECT substr(entered_at,1,10) AS d FROM deal_stage_events WHERE pipeline_id = ? AND stage_id = ? AND entered_at >= ?").bind(pipeline, stage, minDate).all();
+      rows = r.results || [];
+    }
+  } catch (e) { return json({ ok: false, error: String(e && e.message || e) }, 500, request); }
+  const series = countIntoBuckets(rows.map(x => x.d), buckets, period);
+  return json({ ok: true, series, period, usesCreated }, 200, request);
+}
+
 // GET /api/sip/route?phone=77073320409 — Asterisk дёргает при входящем.
 // Возвращает: { extensions: ["101","102"], mobile: "+7...", fallbackSeconds: 30 }
 // Логика: phone → contact → recent open deal → responsible_uid → org-tree node →
@@ -8417,6 +8571,16 @@ export default {
     }
     if (path === "/api/onboarding/status" && request.method === "GET") {
       return handleOnboardingStatus(request, env);
+    }
+    // ── Графики на главной ──────────────────────────────────────────────
+    if (path === "/api/charts/config" && request.method === "GET") {
+      return handleChartsConfigGet(request, env);
+    }
+    if (path === "/api/charts/config" && request.method === "PUT") {
+      return handleChartsConfigPut(request, env);
+    }
+    if (path === "/api/charts/series" && request.method === "GET") {
+      return handleChartsSeries(request, env);
     }
     // Работа с письмами конкретного ящика
     const mailUnreadMatch = path.match(/^\/api\/mail\/([^/]+)\/unread$/);
