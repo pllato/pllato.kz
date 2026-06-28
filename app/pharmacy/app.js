@@ -1351,6 +1351,9 @@ async function orderModalLive(o,onSaved){
 // ---------- CATALOG ----------
 PAGES.catalog=async(c)=>{
   const catStores=await fetchStores();
+  const seeCost=['owner','superadmin','rop','buh'].includes((AUTH.user||{}).role); // закупочную/маржу видят только управляющие роли
+  const NC=seeCost?10:8; // колонок в таблице (для colspan заглушек)
+  const pcell=(v)=> v!=null?money(v):'<span class="muted2">—</span>';
   const tbar=el(`<div class="toolbar">
     <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по названию, коду, артикулу, штрихкоду…" data-cat="q"></div>
     ${storeSelectHtml(catStores,'','class="sel" data-cat="store" title="Остаток на точке"','Остаток: все точки')}
@@ -1358,14 +1361,19 @@ PAGES.catalog=async(c)=>{
     <span class="tag green" data-cat="cnt">${ic('i-sync','sm')} зеркало 1С</span>
   </div>`);
   c.appendChild(tbar);
-  const panel=el(`<div class="panel"><table class="tbl"><thead><tr><th>Код</th><th>Товар</th><th>Артикул</th><th>Категория</th><th>Штрихкод</th><th class="num">Цена</th><th class="num">Остаток</th></tr></thead><tbody><tr><td colspan="7" class="muted2" style="font-size:13px">Загрузка…</td></tr></tbody></table></div>`);
+  const panel=el(`<div class="panel"><table class="tbl"><thead><tr><th>Код</th><th>Товар</th><th>Артикул</th><th>Категория</th><th>Штрихкод</th><th class="num">Розн</th><th class="num">Опт</th>${seeCost?'<th class="num">Закуп</th><th class="num" title="Маржа = (розн − закуп) / розн">Маржа</th>':''}<th class="num">Остаток</th></tr></thead><tbody><tr><td colspan="${NC}" class="muted2" style="font-size:13px">Загрузка…</td></tr></tbody></table></div>`);
   const tb=panel.querySelector('tbody'), cnt=tbar.querySelector('[data-cat=cnt]'), qInput=tbar.querySelector('[data-cat=q]');
   const stCell=(s)=> s>0 ? (s<15?'<span class="tag amber">'+s+'</span>':s) : '<span class="muted2">0</span>';
-  function rowsLive(items){ return items.map(p=>`<tr><td class="muted2">${esc(p.code||'')}</td><td>${esc(p.name||'')}</td>
+  function rowsLive(items){ return items.map(p=>{ const pr=p.prices||{}; const ret=pr.retail!=null?pr.retail:p.price;
+    const mp=(seeCost&&pr.purchase>0&&ret>0)?Math.round((ret-pr.purchase)/ret*100):null;
+    return `<tr><td class="muted2">${esc(p.code||'')}</td><td>${esc(p.name||'')}</td>
     <td class="muted">${esc(p.article||'—')}</td><td class="muted">${esc(p.category||'—')}</td>
-    <td class="muted2">${esc(p.barcode||'—')}</td><td class="num">${p.price!=null?money(p.price):'—'}</td><td class="num">${stCell(p.stock||0)}</td></tr>`).join(''); }
+    <td class="muted2">${esc(p.barcode||'—')}</td>
+    <td class="num">${pcell(ret)}</td><td class="num">${pcell(pr.wholesale)}</td>
+    ${seeCost?`<td class="num muted2">${pcell(pr.purchase)}</td><td class="num">${mp!=null?`<span${mp<0?' style="color:#dc2626;font-weight:600"':''}>${mp}%</span>`:'<span class="muted2">—</span>'}</td>`:''}
+    <td class="num">${stCell(p.stock||0)}</td></tr>`; }).join(''); }
   function rowsDemo(){ return DB.products.map(p=>`<tr><td class="muted2">${esc(p.sku)}</td><td>${esc(p.name)}</td>
-    <td class="muted">—</td><td class="muted">${esc(p.cat)}</td><td class="muted2">—</td><td class="num">${money(p.price)}</td>
+    <td class="muted">—</td><td class="muted">${esc(p.cat)}</td><td class="muted2">—</td><td class="num">${money(p.price)}</td><td class="num muted2">—</td>${seeCost?'<td class="num muted2">—</td><td class="num muted2">—</td>':''}
     <td class="num">${p.stock===0?'<span class="tag red">нет</span>':p.stock<15?'<span class="tag amber">'+p.stock+'</span>':p.stock}</td></tr>`).join(''); }
   const pager=el(`<div class="row section-gap" style="justify-content:center;gap:12px" hidden>
     <button class="btn sm" data-pg="prev">‹ Назад</button>
@@ -1388,7 +1396,7 @@ PAGES.catalog=async(c)=>{
     }
     const items=r.data.items||[]; total=r.data.total!=null?r.data.total:items.length;
     cnt.innerHTML=ic('i-sync','sm')+' '+total+' SKU · зеркало 1С';
-    tb.innerHTML=items.length?rowsLive(items):'<tr><td colspan="7" class="muted2" style="font-size:13px;padding:18px">Ничего не найдено</td></tr>';
+    tb.innerHTML=items.length?rowsLive(items):'<tr><td colspan="'+NC+'" class="muted2" style="font-size:13px;padding:18px">Ничего не найдено</td></tr>';
     renderPager(false,items.length);
   }
   let qt=null;
@@ -1398,7 +1406,7 @@ PAGES.catalog=async(c)=>{
   pgNext.onclick=()=>{ if(offset+PAGE<total){offset+=PAGE;load();$('#content').scrollTop=0;} };
   load();
   c.appendChild(panel); c.appendChild(pager);
-  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Товары и остатки зеркалятся из 1С (синхронизация раз в 30 мин). Цены, цвет и юр.лицо появятся, когда добавим соответствующие регистры в выгрузку 1С.</div>`));
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Товары, остатки и цены зеркалятся из 1С (синхронизация раз в 30 мин). Цены: розничная, оптовая${seeCost?', закупочная (себестоимость) и маржа':''} — из регистра «Цены номенклатуры» 1С. «—» = у товара нет такой цены в 1С.</div>`));
 };
 
 // ---------- ПРОДАЖИ (зеркало регистра «Продажи» 1С) ----------
