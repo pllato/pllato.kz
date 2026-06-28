@@ -412,7 +412,7 @@ function dealCardLive(d){
 async function newDealLive(onSaved){
   const ndStores=await fetchStores();
   const ndUsers=await fetchUsers();
-  const ed=makeItemsEditor([]);
+  const ed=makeItemsEditor([],null,{priceType:state.funnel==='b2b'?'wholesale':'retail'});
   const stages=STAGES[state.funnel]||[];
   const bg=openModal(`<div class="modal-h"><div><h3>Новая сделка</h3><div class="mh-sub">Воронка: ${esc((FUNNELS.find(f=>f.id===state.funnel)||{}).name||state.funnel)}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="modal-b">
@@ -460,7 +460,7 @@ async function dealModalLive(d){
   const dmStores=await fetchStores();
   let dInit=[]; try{ dInit=JSON.parse(d.items||'[]'); }catch(e){}
   let dmRecalc=()=>{};
-  const ed=makeItemsEditor(dInit,()=>dmRecalc());
+  const ed=makeItemsEditor(dInit,()=>dmRecalc(),{priceType:(d.funnel||state.funnel)==='b2b'?'wholesale':'retail'});
   const dmUsers=await fetchUsers();
   let dmPromos=[]; try{ const _pr=await api('/api/promos'); if(_pr.ok) dmPromos=(_pr.data.items||[]).filter(p=>p.active&&!p.archived); }catch(e){}
   const dmFunnel=d.funnel||state.funnel;
@@ -2593,9 +2593,17 @@ PAGES.subs=(c)=>{
   load();
 };
 // Редактор состава набора: поиск товаров в каталоге 1С + мультивыбор + кол-во + авто-сумма
-function makeItemsEditor(initial,onChange){
-  const items=(initial||[]).map(x=>({ref:x.ref||null,name:x.name||'',qty:x.qty||1,price:x.price||0,parent:x.parent||''}));
+function makeItemsEditor(initial,onChange,opts){
+  opts=opts||{};
+  const PT=[['retail','Розничная'],['wholesale','Оптовая']]; // виды цен для продажи (закупочная — себестоимость, не для продажи)
+  let ptype=(opts.priceType==='wholesale')?'wholesale':'retail';
+  const items=(initial||[]).map(x=>({ref:x.ref||null,name:x.name||'',qty:x.qty||1,price:x.price||0,prices:x.prices||null,parent:x.parent||'',manual:!!x.manual}));
   const node=el(`<div>
+    <div class="row" style="gap:7px;align-items:center;margin-bottom:7px;flex-wrap:wrap">
+      <span class="muted2" style="font-size:12px">Тип цены:</span>
+      <select data-ie="ptype" class="sel sm" style="width:auto">${PT.map(([k,n])=>`<option value="${k}" ${k===ptype?'selected':''}>${n}</option>`).join('')}</select>
+      <span class="muted2" style="font-size:11px">— ставится новым позициям; цену можно поправить вручную</span>
+    </div>
     <div style="position:relative">
       <div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-ie="q" placeholder="добавить товар из каталога 1С" autocomplete="off" style="width:100%"></div>
       <div data-ie="sug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:220px;overflow:auto;box-shadow:var(--shadow-lg)"></div>
@@ -2603,26 +2611,31 @@ function makeItemsEditor(initial,onChange){
     <div data-ie="list" style="margin-top:8px"></div>
     <div class="row" style="justify-content:space-between;padding:9px 2px 2px;border-top:1px solid var(--line);margin-top:6px"><span class="muted">Итого за отгрузку</span><b data-ie="total" style="font-size:15px"></b></div>
   </div>`);
-  const q=node.querySelector('[data-ie=q]'),sug=node.querySelector('[data-ie=sug]'),list=node.querySelector('[data-ie=list]'),totalEl=node.querySelector('[data-ie=total]');
+  const q=node.querySelector('[data-ie=q]'),sug=node.querySelector('[data-ie=sug]'),list=node.querySelector('[data-ie=list]'),totalEl=node.querySelector('[data-ie=total]'),ptSel=node.querySelector('[data-ie=ptype]');
   const total=()=>items.reduce((a,x)=>a+(x.price||0)*(x.qty||1),0);
+  const priceFor=(it)=>{ if(it.prices){ if(it.prices[ptype]!=null) return it.prices[ptype]; if(it.prices.retail!=null) return it.prices.retail; } return it.price||0; };
   function renderList(){
     list.innerHTML = items.length ? items.map((x,i)=>`<div class="row" style="gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)">
-      <div style="flex:1;min-width:0"><div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name||'—')}</div><div class="muted2" style="font-size:11px">${money(x.price||0)} × ${x.qty}</div></div>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name||'—')}</div>
+        <div class="row" style="gap:5px;align-items:center;margin-top:3px"><input data-price="${i}" type="number" min="0" value="${x.price||0}" style="width:92px;padding:3px 6px;font-size:12px" title="Цена за единицу — можно изменить"><span class="muted2" style="font-size:11px">× ${x.qty}${x.manual?' · вручную':''}</span></div></div>
       <button class="btn sm" data-q="-" data-i="${i}">−</button><b style="min-width:20px;text-align:center">${x.qty}</b><button class="btn sm" data-q="+" data-i="${i}">+</button>
       <button class="btn sm" data-rm="${i}" title="Убрать">${ic('i-x','sm')}</button></div>`).join('') : '<div class="muted2" style="font-size:12px;padding:6px 2px">Товары не добавлены — найдите выше</div>';
     list.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;items[i].qty=Math.max(1,(items[i].qty||1)+(b.dataset.q==='+'?1:-1));renderList();});
     list.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{items.splice(+b.dataset.rm,1);renderList();});
+    list.querySelectorAll('[data-price]').forEach(inp=>inp.onchange=()=>{const i=+inp.dataset.price;items[i].price=Math.max(0,Number(inp.value)||0);items[i].manual=true;renderList();});
     totalEl.textContent=money(total());
     if(onChange)onChange();
   }
+  ptSel.onchange=()=>{ ptype=ptSel.value; items.forEach(it=>{ if(!it.manual) it.price=priceFor(it); }); renderList(); }; // сменили тип — переоценили неручные позиции
   let qt=null;
   q.addEventListener('input',()=>{clearTimeout(qt);const v=q.value.trim();if(v.length<2){sug.style.display='none';return;}
     qt=setTimeout(async()=>{const r=await api('/api/1c/products?limit=8&q='+encodeURIComponent(v));if(!r.ok||!(r.data.items||[]).length){sug.style.display='none';return;}
-      sug.innerHTML=r.data.items.map(p=>`<div class="doc-row" data-ref="${esc(p.ref_key)}" data-name="${esc(p.name||'')}" data-price="${p.price||0}" data-parent="${esc(p.parent_key||'')}"><div><div class="dt">${esc(p.name||'—')}</div><div class="ds">${esc(p.code||'')} · ${p.price!=null?money(p.price):'без цены'}</div></div></div>`).join('');
+      const found=r.data.items;
+      sug.innerHTML=found.map((p,idx)=>`<div class="doc-row" data-idx="${idx}"><div><div class="dt">${esc(p.name||'—')}</div><div class="ds">${esc(p.code||'')} · ${p.price!=null?money(p.price):'без цены'}</div></div></div>`).join('');
       sug.style.display='block';
-      sug.querySelectorAll('[data-ref]').forEach(it=>it.onclick=()=>{const ref=it.dataset.ref;const ex=items.find(x=>x.ref===ref);if(ex)ex.qty++;else items.push({ref,name:it.dataset.name,qty:1,price:Number(it.dataset.price)||0,parent:it.dataset.parent||''});q.value='';sug.style.display='none';renderList();});},300);});
+      sug.querySelectorAll('[data-idx]').forEach(it=>it.onclick=()=>{const p=found[+it.dataset.idx];const ex=items.find(x=>x.ref===p.ref_key);if(ex){ex.qty++;}else{const np={ref:p.ref_key,name:p.name||'',qty:1,prices:p.prices||{retail:p.price},parent:p.parent_key||'',manual:false};np.price=priceFor(np);items.push(np);}q.value='';sug.style.display='none';renderList();});},300);});
   renderList();
-  return {node,getItems:()=>items,total};
+  return {node,getItems:()=>items.map(x=>({ref:x.ref,name:x.name,qty:x.qty,price:x.price,parent:x.parent})),total};
 }
 function newSubLive(onSaved){
   const ed=makeItemsEditor([]);
