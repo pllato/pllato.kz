@@ -6194,11 +6194,11 @@ function _ensureChartCss() {
     .dch-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
     .dch-title{font-size:14px;font-weight:700;color:var(--t1)}
     .dch-sub{font-size:11px;color:var(--t3);margin:2px 0 12px}
-    .dch-bars{display:flex;align-items:flex-end;gap:8px;height:130px;border-bottom:2px solid var(--b1)}
-    .dch-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
-    .dch-bar{width:72%;max-width:32px;background:linear-gradient(180deg,var(--ac2),var(--ac));border-radius:5px 5px 0 0;min-height:2px}
-    .dch-val{font-size:11px;font-weight:700;color:var(--t1);margin-bottom:3px}
-    .dch-lbls{display:flex;gap:8px;margin-top:5px}
+    .dch-vals{display:flex;margin-bottom:2px}
+    .dch-vals > div{flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--t1);min-width:0}
+    .dch-plot{height:120px;position:relative}
+    .dch-plot svg{display:block}
+    .dch-lbls{display:flex;margin-top:6px}
     .dch-lbl{flex:1;text-align:center;font-size:10px;color:var(--t3);white-space:nowrap;overflow:hidden}
     .dch-ib{border:none;background:none;cursor:pointer;color:var(--t3);font-size:13px;padding:2px 5px;border-radius:6px}
     .dch-ib:hover{background:var(--bg3);color:var(--t1)}
@@ -6246,7 +6246,8 @@ async function renderDashboardCharts(container) {
     card.innerHTML = `<div class="dch-head"><div class="dch-title">${escapeHtml(c.name)}</div>
       ${isAdmin ? `<div><button class="dch-ib" data-edit>✏️</button><button class="dch-ib" data-del>🗑</button></div>` : ''}</div>
       <div class="dch-sub">${escapeHtml(_pipeName(c.pipeline))} · ${escapeHtml(_stageName(c.pipeline, c.stage))} · по ${_PERIOD_LBL[c.period] || 'день'}</div>
-      <div class="dch-bars" data-bars><div style="color:var(--t3);font-size:12px;margin:auto">⏳…</div></div>
+      <div class="dch-vals" data-vals></div>
+      <div class="dch-plot" data-plot><div style="color:var(--t3);font-size:12px;text-align:center;padding-top:48px">⏳…</div></div>
       <div class="dch-lbls" data-lbls></div>`;
     wrap.appendChild(card);
     if (isAdmin) { card.querySelector('[data-edit]').onclick = () => openChartConfig(c); card.querySelector('[data-del]').onclick = () => deleteChart(c.id); }
@@ -6255,7 +6256,8 @@ async function renderDashboardCharts(container) {
 }
 
 async function loadChartSeries(c, card) {
-  const bars = card.querySelector('[data-bars]');
+  const valsEl = card.querySelector('[data-vals]');
+  const plot = card.querySelector('[data-plot]');
   const lbls = card.querySelector('[data-lbls]');
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
@@ -6263,14 +6265,27 @@ async function loadChartSeries(c, card) {
     const d = await r.json();
     if (!d.ok) throw new Error(d.error || 'ошибка');
     const series = d.series || [];
+    const n = series.length || 1;
     const maxVal = c.max && c.max > 0 ? c.max : Math.max(1, ...series.map(s => s.value));
-    bars.innerHTML = series.map(s => {
-      const h = Math.max(2, Math.round((s.value / maxVal) * 104));
-      return `<div class="dch-col"><div class="dch-val">${s.value}</div><div class="dch-bar" style="height:${h}px" title="${s.value}"></div></div>`;
-    }).join('');
+    // Линейный график: SVG-полилиния через точки. viewBox растягиваем по ширине
+    // (preserveAspectRatio=none + non-scaling-stroke), точки — по центрам колонок.
+    const VW = n * 100, VH = 300, padT = 24, padB = 16;
+    const usableH = VH - padT - padB;
+    const x = (i) => (i + 0.5) * 100;
+    const y = (v) => padT + (1 - (v / maxVal)) * usableH;
+    const pts = series.map((s, i) => `${x(i).toFixed(1)},${y(s.value).toFixed(1)}`).join(' ');
+    // сетка: верх (max) и низ (0)
+    const dots = series.map((s, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(s.value).toFixed(1)}" r="5" fill="var(--ac)" stroke="var(--bg)" stroke-width="2" vector-effect="non-scaling-stroke"><title>${s.label}: ${s.value}</title></circle>`).join('');
+    plot.innerHTML = `<svg viewBox="0 0 ${VW} ${VH}" preserveAspectRatio="none" style="width:100%;height:100%;overflow:visible">
+        <line x1="0" y1="${padT}" x2="${VW}" y2="${padT}" stroke="var(--b1)" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
+        <line x1="0" y1="${VH - padB}" x2="${VW}" y2="${VH - padB}" stroke="var(--b1)" stroke-width="1" vector-effect="non-scaling-stroke"/>
+        <polyline points="${pts}" fill="none" stroke="var(--ac)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+        ${dots}
+      </svg>`;
+    valsEl.innerHTML = series.map(s => `<div>${s.value}</div>`).join('');
     lbls.innerHTML = series.map(s => `<div class="dch-lbl">${escapeHtml(s.label)}</div>`).join('');
   } catch (e) {
-    bars.innerHTML = `<div style="color:var(--rd);font-size:12px;margin:auto">Ошибка: ${escapeHtml(e.message)}</div>`;
+    plot.innerHTML = `<div style="color:var(--rd);font-size:12px;text-align:center;padding-top:48px">Ошибка: ${escapeHtml(e.message)}</div>`;
   }
 }
 
