@@ -2635,7 +2635,7 @@ function makeItemsEditor(initial,onChange,opts){
       sug.style.display='block';
       sug.querySelectorAll('[data-idx]').forEach(it=>it.onclick=()=>{const p=found[+it.dataset.idx];const ex=items.find(x=>x.ref===p.ref_key);if(ex){ex.qty++;}else{const np={ref:p.ref_key,name:p.name||'',qty:1,prices:p.prices||{retail:p.price},parent:p.parent_key||'',manual:false};np.price=priceFor(np);items.push(np);}q.value='';sug.style.display='none';renderList();});},300);});
   renderList();
-  return {node,getItems:()=>items.map(x=>({ref:x.ref,name:x.name,qty:x.qty,price:x.price,parent:x.parent})),total};
+  return {node,getItems:()=>{ list.querySelectorAll('[data-price]').forEach(inp=>{ const i=+inp.dataset.price; if(items[i]) items[i].price=Math.max(0,Number(inp.value)||0); }); return items.map(x=>({ref:x.ref,name:x.name,qty:x.qty,price:x.price,parent:x.parent})); },total};
 }
 function newSubLive(onSaved){
   const ed=makeItemsEditor([]);
