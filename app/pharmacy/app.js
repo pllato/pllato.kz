@@ -3658,11 +3658,19 @@ document.addEventListener('click',e=>{
   if(p && !p.hidden && !e.target.closest('.docs-wrap')) p.hidden=true;
 });
 // ---------- Уведомления (колокольчик): события + мои дедлайны ----------
+let __prevUnread=null;
+function notifBeep(){ try{ const ac=window.__ac; if(!ac)return; if(ac.state==='suspended')ac.resume(); const t=ac.currentTime; [[660,0],[880,.13]].forEach(([f,d])=>{ const o=ac.createOscillator(),g=ac.createGain(); o.type='sine'; o.frequency.value=f; o.connect(g); g.connect(ac.destination); g.gain.setValueAtTime(.0001,t+d); g.gain.exponentialRampToValueAtTime(.18,t+d+.02); g.gain.exponentialRampToValueAtTime(.0001,t+d+.22); o.start(t+d); o.stop(t+d+.24); }); }catch(e){} }
+function flashBell(){ const b=document.getElementById('bellBtn'); if(b){ b.style.transition='transform .15s'; b.style.transform='scale(1.3)'; setTimeout(()=>{b.style.transform='';},220); } }
 async function loadNotifications(){
   const r=await api('/api/notifications'); if(!r||!r.ok)return;
   window.__notif=r.data; const dot=document.getElementById('bellDot');
-  if(dot) dot.hidden=((r.data.unread||0)+((r.data.items||[]).length))===0;
+  const unread=r.data.unread||0;
+  if(dot) dot.hidden=(unread+((r.data.items||[]).length))===0;
+  if(__prevUnread!==null && unread>__prevUnread){ notifBeep(); flashBell(); } // прилетело новое → звук + анимация
+  __prevUnread=unread;
 }
+// разблокировать аудио после первого клика (автоплей-политика браузеров)
+document.addEventListener('click',function(){ try{ window.__ac=window.__ac||new (window.AudioContext||window.webkitAudioContext)(); if(window.__ac.state==='suspended')window.__ac.resume(); }catch(e){} },{once:true});
 function notifAgo(ts){ const s=Math.floor((Date.now()-(ts||0))/1000); if(s<60)return 'только что'; if(s<3600)return Math.floor(s/60)+' мин назад'; if(s<86400)return Math.floor(s/3600)+' ч назад'; return new Date(ts).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'}); }
 function notifGoEvent(ev){ const pop=document.getElementById('bellPop'); if(pop)pop.hidden=true; if(ev.link_type==='deal'&&ev.link_id) go('funnels',ev.link_id); else if(ev.link_type==='task') go('tasks'); }
 function renderBellPop(){
@@ -3678,7 +3686,7 @@ function renderBellPop(){
 }
 document.getElementById('bellBtn')?.addEventListener('click',async e=>{ e.stopPropagation(); const pop=document.getElementById('bellPop'),dp=document.getElementById('docsPop'); if(dp)dp.hidden=true; if(!pop)return; const show=pop.hidden; if(show){ await loadNotifications(); renderBellPop(); if((window.__notif||{}).unread){ api('/api/notifications/read',{method:'POST'}); window.__notif.unread=0; const dot=document.getElementById('bellDot'); if(dot&&!(((window.__notif||{}).items)||[]).length)dot.hidden=true; } } pop.hidden=!show; });
 document.addEventListener('click',e=>{ const p=document.getElementById('bellPop'); if(p&&!p.hidden&&!e.target.closest('.docs-wrap')) p.hidden=true; });
-setInterval(()=>{ if(AUTH&&AUTH.token) loadNotifications(); }, 120000);
+setInterval(()=>{ if(AUTH&&AUTH.token) loadNotifications(); }, 60000);
 
 // ============================================================
 //  Плавающий виджет чатов (нижний правый угол) — как в ELC CRM.
