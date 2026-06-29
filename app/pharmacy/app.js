@@ -1992,6 +1992,7 @@ function blogPayoutsModal(b,onSaved){
 PAGES.loyalty=(c)=>{
   const tbar=el(`<div class="toolbar">
     <div class="fld-in">${ic('i-search','sm')}<input placeholder="Поиск по ФИО / телефону…" data-ly="q"></div>
+    <select class="sel" data-ly="seg" title="Сегмент"><option value="">Все сегменты</option><option value="b2c">B2C · розница</option><option value="b2b">B2B · опт</option><option value="doctor">Врачи</option><option value="supplier">Поставщики</option></select>
     <div class="spacer"></div>
     <span class="ph-sub" data-ly="cnt"></span>
   </div>`);
@@ -2001,9 +2002,9 @@ PAGES.loyalty=(c)=>{
     <th>Клиент</th><th>Телефон</th><th class="num">Накоплено</th><th class="num">Баллы</th><th class="num">Покупок</th><th>Уровень</th><th>Карта</th><th>До следующего</th></tr></thead>
     <tbody><tr><td colspan="8" class="muted2" style="font-size:13px;padding:16px">Загрузка…</td></tr></tbody></table></div>`);
   c.appendChild(tbar); c.appendChild(cards); c.appendChild(chips); c.appendChild(panel);
-  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Накопительная «Карта постоянного клиента»: уровень и % кэшбека по сумме покупок из 1С. Баллы начисляются и списываются на кассе 1С. Участвуют только розничные клиенты (физлица).</div>`));
+  c.appendChild(el(`<div class="note blue section-gap">${ic('i-info','sm')} Накопительная «Карта постоянного клиента»: уровень и % кэшбека по сумме покупок из 1С. Баллы начисляются и списываются на кассе 1С. Показаны все держатели карт — фильтруйте по сегменту (B2C — розница, B2B — опт/бонусные карты).</div>`));
   const tb=panel.querySelector('tbody'), cnt=tbar.querySelector('[data-ly=cnt]'), qI=tbar.querySelector('[data-ly=q]');
-  let filter='all', lvl=0, q='', tiers=[];
+  let filter='all', lvl=0, q='', seg='', tiers=[];
   const FILTERS=[['all','Все'],['near','Близко к порогу'],['nocard','Без карты (выдать)']];
   function lvlBadge(x){ return x.level>0 ? `<span class="loy-pill">Ур.${x.level} · ${x.pct}%</span>` : '<span class="muted2">—</span>'; }
   function renderChips(){
@@ -2021,7 +2022,7 @@ PAGES.loyalty=(c)=>{
       +(s.by_level||[]).map(b=>miniStat('i-star','#10b981',b.pct+'% · от '+money(b.min),(b.count||0).toLocaleString('ru-RU'))).join('');
   }
   async function load(){
-    const qs=['filter='+filter]; if(lvl)qs.push('level='+lvl); if(q)qs.push('q='+encodeURIComponent(q));
+    const qs=['filter='+filter]; if(lvl)qs.push('level='+lvl); if(q)qs.push('q='+encodeURIComponent(q)); if(seg)qs.push('segment='+seg);
     const r=await api('/api/loyalty?'+qs.join('&'));
     if(!r.ok){ tb.innerHTML=`<tr><td colspan="8" class="muted2" style="padding:16px">${r.status===403?'Нет доступа к разделу':'Нет связи'}</td></tr>`; return; }
     tiers=r.data.tiers||[]; renderChips(); renderCards(r.data.summary||{});
@@ -2039,6 +2040,7 @@ PAGES.loyalty=(c)=>{
     });
   }
   let qt; qI.oninput=()=>{ clearTimeout(qt); qt=setTimeout(()=>{ q=qI.value.trim(); load(); },300); };
+  tbar.querySelector('[data-ly=seg]').onchange=(e)=>{ seg=e.target.value; load(); };
   renderChips(); load();
 };
 PAGES.doctors=(c)=>{
