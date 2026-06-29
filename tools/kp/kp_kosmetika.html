@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Inter';src:url('fonts/Inter-Regular.ttf');font-weight:400}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Medium.ttf');font-weight:500}
+@font-face{font-family:'Inter';src:url('fonts/Inter-SemiBold.ttf');font-weight:600}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Bold.ttf');font-weight:700}
+@font-face{font-family:'Inter';src:url('fonts/Inter-ExtraBold.ttf');font-weight:800}
+:root{--navy:#0a1628;--navy3:#1d3050;--bronze:#b8895a;--bronzeL:#d4a978;--off:#f7f6f1;--line:#e6e3da;--text:#1a2230;--muted:#5d6573;--faint:#8a909c;--green:#3f7d52;--greenbg:#eaf3ed;--teal:#0d7d8a;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55}
+.page{width:210mm;min-height:297mm;position:relative;page-break-after:always;padding:20mm 18mm 16mm;display:flex;flex-direction:column}
+.page:last-child{page-break-after:auto}
+.page.cover{padding:0;color:#fff;background:radial-gradient(900px 520px at 72% -8%,#15384a,var(--navy) 58%);justify-content:space-between}
+.foot{position:absolute;bottom:9mm;left:18mm;right:18mm;display:flex;justify-content:space-between;font-size:8.5px;color:var(--faint);border-top:1px solid var(--line);padding-top:7px}
+.cov-top{padding:22mm 18mm 0}
+.cov-brand{font-size:30px;font-weight:800;letter-spacing:-.01em}.cov-brand .d{color:var(--bronze)}
+.cov-kicker{margin-top:44mm;font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-title{font-size:38px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin-top:14px}
+.cov-sub{margin-top:18px;font-size:13.5px;color:#aebccd;max-width:138mm;line-height:1.6}
+.cov-route{margin-top:18px;font-size:12px;color:#86a0b6}
+.cov-band{background:rgba(255,255,255,.05);border-top:1px solid rgba(255,255,255,.12);padding:9mm 18mm;display:flex;justify-content:space-between;align-items:flex-end}
+.cov-band .pl{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-band .pv{font-size:46px;font-weight:800;letter-spacing:-.01em;line-height:1;margin-top:6px}
+.cov-band .pm{text-align:right;font-size:12px;color:#aebccd;line-height:1.7}.cov-band .pm b{color:#fff}
+.sec{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
+.sec .num{font-size:13px;font-weight:800;color:var(--bronze)}
+.sec .ti{font-size:21px;font-weight:800;letter-spacing:-.01em}
+h3.sub{font-size:13px;font-weight:700;margin:14px 0 8px;color:var(--navy3)}
+p{margin-bottom:9px}p.lead{font-size:12px;color:var(--muted)}
+.bull{display:flex;gap:9px;margin-bottom:8px}.bull .bh{font-weight:700;white-space:nowrap}
+.quote{background:var(--navy);color:#fff;border-radius:12px;padding:18px 22px;margin:6px 0 18px}
+.quote .qt{font-size:13.5px;line-height:1.6;font-style:italic;color:#e7eef5}
+.quote .qw{margin-top:10px;font-size:11px;color:var(--bronzeL);font-weight:600}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:6px 0 4px}
+.fcard{background:var(--off);border-left:3px solid var(--bronze);border-radius:0 8px 8px 0;padding:12px 14px}
+.fcard .ft{font-weight:700;font-size:11.5px;margin-bottom:4px}.fcard .fb{font-size:9.5px;color:var(--muted);line-height:1.5}
+.shot{margin:4px 0 6px;border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 6px 20px rgba(10,22,40,.08)}
+.shot img{width:100%;display:block}
+.cap{font-size:9.5px;color:var(--faint);margin:0 0 16px;padding-left:2px}.cap b{color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:10.5px}
+thead th{background:var(--navy);color:#fff;text-align:left;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:9px 11px}
+thead th.r{text-align:right}
+tbody td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody td.r{text-align:right;font-weight:700;white-space:nowrap}tbody tr:last-child td{border-bottom:none}
+.softbox{background:var(--greenbg);border-left:3px solid var(--green);border-radius:0 8px 8px 0;padding:14px 18px;margin:6px 0 14px}
+.softbox .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.softbox .sl{display:flex;justify-content:space-between;font-size:11px;padding:4px 0}
+.priceband{background:var(--navy);color:#fff;border-radius:12px;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.priceband .pl{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--bronzeL)}
+.priceband .pn{font-size:10px;color:#aebccd;margin-top:5px;max-width:118mm;line-height:1.5}
+.priceband .pv{font-size:32px;font-weight:800;white-space:nowrap}
+.kvs{margin:4px 0 10px}.kv{display:flex;gap:10px;font-size:10.5px;padding:6px 0;border-bottom:1px solid var(--line)}
+.kv .kk{width:42mm;color:var(--muted);flex-shrink:0}.kv .vv{font-weight:500}
+.refgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:8px}
+.ref{background:var(--off);border:1px solid var(--line);border-radius:8px;padding:11px 13px;font-size:10px}
+.ref b{display:block;margin-bottom:3px;font-size:11px}.ref span{color:var(--muted);line-height:1.45}
+.note{font-size:9.5px;color:var(--faint);margin-top:4px}.avoid{page-break-inside:avoid}
+.gift{display:inline-block;background:#f3e6d8;color:var(--bronze);font-size:9px;font-weight:700;padding:2px 9px;border-radius:10px;margin-left:6px}
+</style></head>
+<body>
+
+<section class="page cover">
+  <div class="cov-top">
+    <div class="cov-brand">Pllato<span class="d">.</span></div>
+    <div class="cov-kicker">Коммерческое предложение · MELLIGRI</div>
+    <div class="cov-title">CRM для дистрибуции<br>косметологии</div>
+    <div class="cov-sub">Единый портал для B2B-дистрибуции препаратов врачам: воронки с проверкой диплома, склад с сериями и сроками годности, мульти-прайс, план-факт и KPI→зарплата, каналы Instagram/WhatsApp/Telegram, триггеры, блогер-коды и двусторонняя 1С. Плюс кабинет косметолога для ваших клиентов.</div>
+    <div class="cov-route">Лид (IG/WA/TG) → проверка диплома → просчёт → заказ → склад/отгрузка → 1С · план-факт и KPI</div>
+  </div>
+  <div class="cov-band">
+    <div><div class="pl">Со скидкой 10% за скорость</div><div class="pv">$2 700</div></div>
+    <div class="pm">$3 000 → <b>$2 700</b> при решении в 24 ч<br>Срок <b>4–6 недель</b> · в собственность<br>Кабинет косметолога — <b>в подарок</b></div>
+  </div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">01</span><span class="ti">Что мы услышали</span></div>
+  <p class="lead">Вы дотошно знаете, что вам нужно — и хотите увидеть это «вживую», а не на словах. Прошлый опыт научил: «купила — а там нет того, нет этого». Поэтому всё проговариваем и прописываем. Вам нужна система, где видна <b>реальная картина</b> («не вырежешь, не приклеешь»), а менеджеры работают в одном месте без лишних отчётов.</p>
+  <div class="quote">
+    <div class="qt">«Я хочу всё систематизировать, чтобы мне никого не дёргать. Реальная картина — не вырежешь, не приклеешь. Менеджеры вносят, всё считается само. Мне нужно понимать, какие цифры я контролирую и что вижу — я уже это знаю.»</div>
+    <div class="qw">— из разговора, Маргарита (MELLIGRI)</div>
+  </div>
+  <h3 class="sub">Ключевые задачи</h3>
+  <div class="bull"><span class="bh">Проверка диплома врача.</span><span>Цены показываются только врачам: пока диплом не прикреплён — цены скрыты, сделку нельзя двигать. Документы тянутся в карточку (Viber/Telegram/Instagram).</span></div>
+  <div class="bull"><span class="bh">Реальная картина без ручных отчётов.</span><span>Обязательные поля, лиды по каналам считаются сами, дашборд по менеджеру/воронке/каналу.</span></div>
+  <div class="bull"><span class="bh">План-факт и KPI→зарплата.</span><span>План на месяц по менеджеру, % выполнения в реальном времени, бонус по тирам.</span></div>
+  <div class="bull"><span class="bh">Склад и заказы как у дистрибьютора.</span><span>Серии/лоты, сроки годности, инвентаризация, мульти-прайс, согласование и отгрузка, 1С.</span></div>
+  <div class="bull"><span class="bh">Каналы, триггеры, блогер-коды.</span><span>Instagram/WhatsApp/Telegram, авто-триггеры (дни рождения, повторные заказы, заходы в каталог), промокоды с атрибуцией.</span></div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для дистрибуции косметологии (MELLIGRI)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">02</span><span class="ti">Что мы построим</span></div>
+  <p class="lead">Большая система, собранная из наших проверенных модулей и кастомизированная под MELLIGRI. Весь функционал ниже входит в стандартный пакет — без доплат «по часам».</p>
+  <div class="cards">
+    <div class="fcard"><div class="ft">🗂 Мульти-воронки</div><div class="fb">Продажи, повторные клиенты, семинары. Перенос сделок между воронками, авто-этапы.</div></div>
+    <div class="fcard"><div class="ft">🎓 Диплом-гейт</div><div class="fb">Цены только врачам: нет диплома — цены скрыты, сделка не двигается.</div></div>
+    <div class="fcard"><div class="ft">👥 Карточка клиента</div><div class="fb">Последние покупки, обязательные поля, документы, история — всё видно при звонке.</div></div>
+    <div class="fcard"><div class="ft">💬 Каналы и лиды</div><div class="fb">Instagram/WhatsApp/Telegram в одном инбоксе, лиды считаются автоматически.</div></div>
+    <div class="fcard"><div class="ft">🧾 Заказы и мульти-прайс</div><div class="fb">Сборка заказа в сделке, нужный прайс (дистрибьютор/опт/розница) подтягивается сам.</div></div>
+    <div class="fcard"><div class="ft">📦 Склад</div><div class="fb">Серии/лоты, сроки годности, остатки, инвентаризация с причинами, согласование и отгрузка.</div></div>
+    <div class="fcard"><div class="ft">🎯 План-факт и KPI→ЗП</div><div class="fb">План на месяц по менеджеру, % выполнения, зарплата по тирам.</div></div>
+    <div class="fcard"><div class="ft">⚡ Триггеры и 🎟 коды</div><div class="fb">Дни рождения, повторные заказы, заходы в каталог; блогер-коды с атрибуцией.</div></div>
+    <div class="fcard"><div class="ft">🔄 1С (двусторонняя)</div><div class="fb">Работаете в портале, данные синхронны с 1С — в 1С заходить не нужно.</div></div>
+    <div class="fcard"><div class="ft">💎 Кабинет косметолога <span class="gift">подарок</span></div><div class="fb">Мини-портал для ваших врачей: процедуры, мини-склад, маржа, заказ препаратов у вас.</div></div>
+  </div>
+  <p class="note" style="margin-top:12px">Ниже — рабочий кликабельный прототип под MELLIGRI. Данные и имена демонстрационные.</p>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для дистрибуции косметологии (MELLIGRI)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">03</span><span class="ti">Дашборд: реальная картина</span></div>
+  <p class="lead">Всё, что вы хотите контролировать, на одном экране: обращения по дням, выручка, план месяца, лиды по каналам, план-факт по менеджерам, топ препаратов. Без ручных отчётов.</p>
+  <div class="shot"><img src="../../app/kosmetika/shots/dashboard.png"></div>
+  <div class="cap"><b>Дашборд собственника.</b> Лиды Instagram/WhatsApp/Telegram считаются автоматически; план-факт и средний чек — в реальном времени.</div>
+  <div class="sec" style="margin-top:6px"><span class="num">04</span><span class="ti">Воронки и проверка диплома</span></div>
+  <div class="shot"><img src="../../app/kosmetika/shots/deal_locked.png"></div>
+  <div class="cap"><b>Диплом-гейт.</b> Пока врач не прикрепил диплом — цены скрыты (🔒), сделку нельзя двигать, обязательные поля не заполнены. Так вы не показываете цены конечным потребителям.</div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для дистрибуции косметологии (MELLIGRI)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">05</span><span class="ti">Каналы и переписка</span></div>
+  <p class="lead">Instagram, WhatsApp и Telegram — в одном инбоксе. Каждый новый диалог = лид, считается сам. Видно, сколько людей пришло с каждого канала за день/неделю.</p>
+  <div class="shot"><img src="../../app/kosmetika/shots/inbox.png"></div>
+  <div class="cap"><b>Омни-инбокс.</b> Подключение каналов ~$20/канал. Переписка ведётся из CRM, лиды по каналам — в отчёте автоматически.</div>
+  <div class="sec" style="margin-top:6px"><span class="num">06</span><span class="ti">Склад: серии, сроки, инвентаризация</span></div>
+  <div class="shot"><img src="../../app/kosmetika/shots/warehouse.png"></div>
+  <div class="cap"><b>Склад дистрибьютора.</b> ~500 SKU, серии/лоты, сроки годности с подсветкой, остатки и резерв, инвентаризация с причинами расхождений. Мульти-прайс подтягивается в заказ.</div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для дистрибуции косметологии (MELLIGRI)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">07</span><span class="ti">План-факт и KPI → зарплата</span></div>
+  <p class="lead">План ставится на месяц по каждому менеджеру; система сама считает % выполнения. Зарплата — по тирам выполнения. Отдельные отчёты не нужны.</p>
+  <div class="shot"><img src="../../app/kosmetika/shots/planfact.png"></div>
+  <div class="cap"><b>План-факт и KPI.</b> Менеджер в любой момент видит свой %; бонус считается автоматически. KPI: % плана, выручка, чеки, средний чек, звонки, новые/повторные.</div>
+  <div class="sec" style="margin-top:6px"><span class="num">08</span><span class="ti">Блогеры, коды и триггеры</span></div>
+  <div class="shot"><img src="../../app/kosmetika/shots/promo.png"></div>
+  <div class="cap"><b>Промокоды с атрибуцией.</b> Врачу/блогеру — персональный код; клиент с кодом получает скидку, заказ закрепляется за кодом, считаются привлечённые и выплаты. Триггеры (дни рождения, повторные заказы, заходы в каталог) работают сами.</div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для дистрибуции косметологии (MELLIGRI)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">09</span><span class="ti">Кабинет косметолога <span class="gift" style="font-size:11px;vertical-align:middle">в подарок</span></span></div>
+  <p class="lead">Отдельный мини-портал для ваших клиентов-врачей. Он привязывает их к MELLIGRI: косметолог видит свою маржу и понимает, что у вас закупать выгоднее. Растёт повторная закупка и LTV.</p>
+  <div class="shot"><img src="../../app/kosmetika/shots/cabinet.png"></div>
+  <div class="cap"><b>Кабинет косметолога.</b> Процедуры и записи, мини-склад с себестоимостью → маржа врача, кнопка «заказать препараты у MELLIGRI». Ядро рождается внутри вашего портала и переносится врачам.</div>
+  <h3 class="sub">Двусторонняя 1С и каналы</h3>
+  <p>Данные синхронны с 1С — вы и менеджеры работаете только в портале, в 1С заходить не нужно. Instagram/WhatsApp/Telegram, телефония с записью и транскрибацией, сайт с cookie-трекингом — подключаются под процессы.</p>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для дистрибуции косметологии (MELLIGRI)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">10</span><span class="ti">Как мы работаем</span></div>
+  <p class="lead">Короткими итерациями, постоплатой. Сначала — рабочее ядро, потом доработки по вашим правкам. Вы кликаете живую версию и говорите, что докрутить — мы заранее закладываем правки.</p>
+  <div class="bull"><span class="bh">Шаг 0 · Старт.</span><span>Небольшая предоплата — разворачиваем ядро, уже кликабельное.</span></div>
+  <div class="bull"><span class="bh">Шаг 1 · Скелет.</span><span>Воронки, диплом-гейт, склад, заказы, план-факт, каналы. Прокликиваем вместе, собираем правки.</span></div>
+  <div class="bull"><span class="bh">Шаг 2 · Финал.</span><span>Правки, 1С и каналы, кабинет косметолога, передача кода. Платите за принятый результат.</span></div>
+
+  <div class="sec" style="margin-top:14px"><span class="num">11</span><span class="ti">Стоимость</span></div>
+  <div class="softbox avoid">
+    <div class="st">Скидка 10% за скорость</div>
+    <div class="sl"><span>Стандартная разработка «под ключ» (весь функционал выше)</span><span>$3 000</span></div>
+    <div class="sl"><span>Скидка за решение в течение 24 часов</span><span style="color:var(--green)">− $300</span></div>
+    <div class="sl" style="border-top:1px solid #cfe0d4;margin-top:4px;padding-top:8px"><span><b>Итого со скидкой</b></span><span><b>$2 700</b></span></div>
+  </div>
+  <table class="avoid">
+    <thead><tr><th>Этап</th><th>Что включает</th><th class="r">Оплата</th></tr></thead>
+    <tbody>
+      <tr><td><b>Шаг 0 · Старт</b></td><td>Запуск ядра, развёртывание прототипа</td><td class="r">$300</td></tr>
+      <tr><td><b>Шаг 1 · Скелет</b></td><td>Воронки, диплом-гейт, склад, заказы, план-факт, каналы — принято</td><td class="r">$1 200</td></tr>
+      <tr><td><b>Шаг 2 · Финал</b></td><td>Правки, 1С, кабинет косметолога, передача кода</td><td class="r">$1 200</td></tr>
+    </tbody>
+  </table>
+  <div class="priceband avoid">
+    <div><div class="pl">Итого со скидкой 10%</div><div class="pn">В собственность, на вашем сервере. Кабинет косметолога — в подарок. Без абонентской платы за «коробку». Поддержка и доработки — $20/час.</div></div>
+    <div class="pv">$2 700</div>
+  </div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для дистрибуции косметологии (MELLIGRI)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">12</span><span class="ti">Что оплачивается отдельно</span></div>
+  <div class="kvs">
+    <div class="kv"><span class="kk">Каналы (IG/WA/TG)</span><span class="vv">~$20/канал/мес. WhatsApp через нашего партнёра — около 10 000 ₸/мес вместо ~36 000 ₸ на рынке.</span></div>
+    <div class="kv"><span class="kk">Хостинг</span><span class="vv">Облако; на старте — бесплатные тарифы, платное — при росте нагрузки.</span></div>
+    <div class="kv"><span class="kk">Доработки после сдачи</span><span class="vv">$20/час. Что-то новое придумаете — оценим по часам.</span></div>
+    <div class="kv"><span class="kk">Кабинет косметолога — масштаб</span><span class="vv">Базовая версия в подарок. Если вырастет в самостоятельный продукт для продажи врачам — развиваем отдельно.</span></div>
+  </div>
+  <div class="sec" style="margin-top:14px"><span class="num">13</span><span class="ti">О Pllato</span></div>
+  <p class="lead">Студия разработки в Алматы. Пишем CRM/ERP с нуля под процесс клиента, с передачей в собственность. Понимаем бизнес, а не только код. Релевантные кейсы:</p>
+  <div class="refgrid">
+    <div class="ref"><b>Сеть из 7 аптек (Бишкек)</b><span>Двусторонняя 1С, омни-чаты, воронки B2C/B2B, накопительные скидки, блогер-коды, KPI и триггеры — прямой аналог вашей задачи.</span></div>
+    <div class="ref"><b>Дистрибуция мед. изделий</b><span>1С, склад, заказ по ссылке, логистика, аналитика для собственника.</span></div>
+    <div class="ref"><b>Производитель окон</b><span>Воронка, склад, канбан, замер с расчётом и КП, WhatsApp в карточке.</span></div>
+    <div class="ref"><b>Сеть языковых школ (15+ лет)</b><span>Наш собственный бизнес, ~120 человек: расписание, KPI, дисциплина внедрения.</span></div>
+  </div>
+  <h3 class="sub" style="margin-top:18px">Готовы начать</h3>
+  <p>Скажете «да» в течение суток — фиксируем <b>$2 700</b> и стартуем. Развернём ядро, и вы прокликаете живую версию — дальше докручиваем под вас. Постоплата: вам важно увидеть результат, нам — его доказать.</p>
+  <div class="priceband avoid" style="margin-top:10px">
+    <div><div class="pl">Контакты</div><div class="pn">Платон Цай · +7 701 123 99 99 (тел / WhatsApp) · uurraa@gmail.com · pllato.kz</div></div>
+    <div class="pv" style="font-size:24px">Pllato<span style="color:var(--bronzeL)">.</span></div>
+  </div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для дистрибуции косметологии (MELLIGRI)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+</body></html>
