@@ -481,6 +481,7 @@ async function dealModalLive(d){
     <div class="fld-row"><div class="fld"><label>Источник</label>${dmSourceSel}</div><div class="fld"><label>Точка</label>${storeSelectHtml(dmStores,d.store_key,'data-dm="store_key"','— точка —')}</div></div>
     <div class="fld"><label>Промокод / код блогера <span class="muted2" id="dmPromoHint">${d.promo?'':'— если клиент назвал'}</span></label><input data-dm="promo" id="dmPromoInp" value="${esc(d.promo||'')}" placeholder="код, если есть"></div>
     <div class="fld"><label>Состав (товары из 1С)</label><div id="dmItems"></div><div data-dm="discline" style="margin-top:6px"></div></div>
+    <div class="fld"><label>Доставка (расход), с <span class="muted2">— наш расход</span></label><input data-dm="delivery" type="number" min="0" value="${Number(d.delivery)||0}"></div>
     <div class="fld"><label>Комментарий</label><input data-dm="note" value="${esc(d.note||'')}"></div>
   </div>
   <div class="modal-b" id="dmTabChat" style="padding:0;display:none">
@@ -538,7 +539,7 @@ async function dealModalLive(d){
     else if(dmHint){ dmHint.textContent='код не найден в базе';dmHint.style.color='#d97706'; } };
     dmPromo.addEventListener('input',()=>{ dmRecalc(); clearTimeout(pt); pt=setTimeout(chk,400); }); }
   bg.querySelector('#dmSave').onclick=async()=>{
-    const body={funnel:bg.querySelector('[data-dm=funnel]').value,client_ref:dRef,client_name:(dName||'').trim(),phone:bg.querySelector('[data-dm=phone]').value.trim(),stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),promo:bg.querySelector('[data-dm=promo]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,items:ed.getItems(),note:bg.querySelector('[data-dm=note]').value.trim()};
+    const body={funnel:bg.querySelector('[data-dm=funnel]').value,client_ref:dRef,client_name:(dName||'').trim(),phone:bg.querySelector('[data-dm=phone]').value.trim(),stage:bg.querySelector('[data-dm=stage]').value,amount:Number(bg.querySelector('[data-dm=amount]').value)||0,mgr:bg.querySelector('[data-dm=mgr]').value.trim(),source:bg.querySelector('[data-dm=source]').value.trim(),promo:bg.querySelector('[data-dm=promo]').value.trim(),store_key:bg.querySelector('[data-dm=store_key]').value||null,items:ed.getItems(),delivery:Number((bg.querySelector('[data-dm=delivery]')||{}).value)||0,note:bg.querySelector('[data-dm=note]').value.trim()};
     const r=await api('/api/deals/'+d.id,{method:'POST',body:JSON.stringify(body)});
     if(!r.ok){toast('Ошибка сохранения','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); if(r.data&&r.data.order_created)toast('Сделка закрыта → создан черновик заказа (раздел «Заказы»)','i-cart','#16a34a'); if(window.__reloadFunnels)window.__reloadFunnels();
   };
@@ -1308,6 +1309,8 @@ async function orderModalLive(o,onSaved){
     <div class="note ${o.ext_id?'':'blue'}" style="margin-top:2px">${ic('i-info','sm')} 1С: ${o.ext_id?('записан, № '+esc(o.ext_id)):(o.status==='queued_1c'?'в очереди на запись':'не отправлен — кнопка «В 1С» ниже')}</div>
     <div class="fld"><label>Состав заказа</label><div id="omItems"></div></div>
     <div class="fld"><label>Промокод (скидка для онлайн-заказа)</label><select data-om="promo"><option value="">— без промокода —</option>${activePromos.map(p=>`<option value="${esc(p.code)}" ${p.code===(o.promo_code||'')?'selected':''}>${esc(p.code)} · −${p.value||0}${p.kind==='fixed'?' с':'%'}</option>`).join('')}</select><div data-om="discline" style="margin-top:6px"></div></div>
+    <div class="fld"><label>Доставка (расход), с <span class="muted2">— наш расход, на сумму клиента не влияет</span></label><input data-om="delivery" type="number" min="0" value="${Number(o.delivery)||0}"></div>
+    <div data-om="econ" class="note blue" style="margin-top:2px;font-size:12px"></div>
     <div class="fld"><label>Комментарий</label><input data-om="note" value="${esc(o.note||'')}"></div>
     ${o.error?`<div class="note amber">${ic('i-info','sm')} Ошибка 1С: ${esc(o.error)}</div>`:''}
     <div class="fld"><label>Вложения <span class="muted2" style="font-weight:400">— счёт, фото, PDF · до 15 МБ</span></label><div id="omAtt" style="display:flex;flex-direction:column;gap:6px"></div><input type="file" id="omAttFile" style="display:none"><button type="button" class="btn sm" id="omAttBtn" style="margin-top:7px">📎 Прикрепить файл</button></div>
@@ -1329,13 +1332,16 @@ async function orderModalLive(o,onSaved){
   if(oaFile) oaFile.onchange=async()=>{ const f=oaFile.files[0]; if(!f)return; if(f.size>15*1024*1024){ toast('Файл больше 15 МБ','i-info'); oaFile.value=''; return; } toast('Загрузка…','i-sync'); const r=await uploadOrderFile(o.id,f); oaFile.value=''; if(r.ok&&r.data.attachment){ atts=[...atts,r.data.attachment]; renderOAtt(); logLoaded=false; toast('Файл загружен','i-check2'); onSaved&&onSaved(); } else toast((r.data&&r.data.error)||'Не удалось загрузить','i-x','#dc2626'); };
   const g=s=>bg.querySelector('[data-om='+s+']');
   const promoSel=g('promo');
-  recalc=function(){ const code=promoSel?promoSel.value:''; const promo=activePromos.find(p=>p.code===code); const items=ed.getItems(); const sub=items.reduce((a,x)=>a+(x.price||0)*(x.qty||1),0); curDisc=computePromoDiscount(items,promo); const line=bg.querySelector('[data-om=discline]'); if(!line)return;
+  recalc=function(){ const code=promoSel?promoSel.value:''; const promo=activePromos.find(p=>p.code===code); const items=ed.getItems(); const sub=items.reduce((a,x)=>a+(x.price||0)*(x.qty||1),0); curDisc=computePromoDiscount(items,promo);
+    { const deliv=Number((g('delivery')||{}).value)||0, payable=Math.max(0,sub-curDisc), econ=bg.querySelector('[data-om=econ]'); if(econ) econ.innerHTML='Товары: <b>'+money(sub)+'</b>'+(curDisc>0?(' · скидка −'+money(curDisc)):'')+' · к оплате: <b>'+money(payable)+'</b>'+(deliv>0?(' · доставка (расход): <b style="color:#dc2626">−'+money(deliv)+'</b> · после доставки: <b>'+money(payable-deliv)+'</b>'):''); }
+    const line=bg.querySelector('[data-om=discline]'); if(!line)return;
     if(!code){ line.innerHTML=''; return; }
     if(curDisc>0){ line.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:rgba(16,185,129,.10);border:1px solid var(--accent2,#2e4a3a);border-radius:10px;padding:9px 13px"><span class="muted2" style="font-size:12px">Сумма ${money(sub)} · скидка «${esc(code)}» <b style="color:var(--accent)">−${money(curDisc)}</b></span><span style="font-weight:800;font-size:17px;white-space:nowrap">К оплате: ${money(Math.max(0,sub-curDisc))}</span></div>`; }
     else { line.innerHTML='<div class="note amber" style="margin:0;font-size:12px">'+ic('i-info','sm')+' Промокод не действует на эти товары (вне области действия)</div>'; } };
   if(promoSel) promoSel.onchange=recalc;
+  { const dv=g('delivery'); if(dv) dv.oninput=recalc; }
   recalc();
-  const collect=()=>({client_name:g('client_name').value.trim(),phone:g('phone').value.trim(),mgr:g('mgr').value.trim(),store_key:g('store_key').value||null,note:g('note').value.trim(),items:ed.getItems(),promo_code:(promoSel&&promoSel.value)||null,discount:curDisc});
+  const collect=()=>({client_name:g('client_name').value.trim(),phone:g('phone').value.trim(),mgr:g('mgr').value.trim(),store_key:g('store_key').value||null,note:g('note').value.trim(),items:ed.getItems(),promo_code:(promoSel&&promoSel.value)||null,discount:curDisc,delivery:Number((g('delivery')||{}).value)||0});
   bg.querySelector('#omSave').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{stage:g('stage').value,pay_status:g('pay').value}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
   bg.querySelector('#omSend').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{status:'queued_1c'}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Заказ в очереди на запись в 1С','i-sync','#d97706'); onSaved&&onSaved(); };
   bg.querySelector('#omDel').onclick=async()=>{ if(!confirm('Удалить заказ?'))return; const r=await api('/api/orders/'+o.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
