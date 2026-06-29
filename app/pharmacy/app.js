@@ -2481,11 +2481,11 @@ function taskAssignees(t){ const a=jparse(t&&t.assignees,null); if(Array.isArray
 function assigneeMulti(users, selected){
   const sel=new Set((Array.isArray(selected)?selected:(selected?[selected]:[])).map(s=>String(s).trim()).filter(Boolean));
   const node=el('<div class="asg-dd" style="position:relative"></div>');
-  const btn=el('<button type="button" class="sel" style="width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer"><span class="asg-lbl" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Выбрать ответственных</span><span style="opacity:.6;flex:none">▾</span></button>');
+  const btn=el('<button type="button" class="sel" style="width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer"><span class="asg-lbl" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Выбрать ответственных</span><span style="opacity:.6;flex:none">▾</span></button>');
   const pop=el('<div class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:50;display:none;max-height:230px;overflow:auto;box-shadow:var(--shadow-lg);padding:4px"></div>');
   node.appendChild(btn); node.appendChild(pop);
   const lblEl=btn.querySelector('.asg-lbl');
-  function updateLbl(){ const a=Array.from(sel); lblEl.textContent=a.length?(a.length+' выбрано: '+a.join(', ')):'Выбрать ответственных'; lblEl.style.color=a.length?'':'var(--muted)'; }
+  function updateLbl(){ const a=Array.from(sel); lblEl.textContent = !a.length?'Выбрать ответственных' : (a.length<=2 ? a.join(', ') : (a.length+' выбрано')); lblEl.style.color=a.length?'':'var(--muted)'; lblEl.title=a.join(', '); }
   pop.innerHTML=(users.length?users.map(u=>`<label class="asg-opt" style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;cursor:pointer;font-size:13px"><input type="checkbox" data-n="${esc(u.name)}" ${sel.has(u.name)?'checked':''} style="width:16px;height:16px;flex:none;accent-color:var(--accent)"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name)}${u.roleName?(' · <span class="muted2" style="font-size:11px">'+esc(u.roleName)+'</span>'):''}</span></label>`).join(''):'<div class="muted2" style="padding:8px;font-size:12px">Нет пользователей</div>');
   pop.onclick=(e)=>e.stopPropagation();
   pop.querySelectorAll('input[data-n]').forEach(cb=>cb.onchange=()=>{ const n=cb.dataset.n; if(cb.checked)sel.add(n); else sel.delete(n); updateLbl(); });
