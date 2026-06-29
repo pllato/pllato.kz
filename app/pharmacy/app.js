@@ -3457,8 +3457,35 @@ sudo WORKER_URL="${esc(d.worker_url||'')}" \\
   })();
   return panel;
 }
+function leadsPanel(){
+  const p=el(`<div class="panel section-gap"><div class="panel-h"><h3>${ic('i-funnel','sm')} Заявки с сайтов</h3><span class="ph-sub" style="margin-left:auto">сайт/форма → сделка автоматически</span></div>
+    <div id="leadsBody" style="padding:14px"><div class="muted2" style="font-size:13px">Загрузка…</div></div></div>`);
+  (async()=>{
+    const r=await api('/api/admin/leads/webhook'); const body=p.querySelector('#leadsBody'); if(!body)return;
+    if(!r.ok){ body.innerHTML='<div class="muted2" style="font-size:13px">'+(r.status===403?'нужен админ':'нет связи')+'</div>'; return; }
+    const url=r.data.webhook_url||'';
+    body.innerHTML=`<div class="muted2" style="font-size:12.5px;margin-bottom:8px">Любой сайт или форма отправляет POST на этот адрес — в CRM создаётся сделка (источник = сайт) + уведомление. Подходит для обоих сайтов и любых форм (Tilda, WordPress и т.д.).</div>
+      <label style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">URL вебхука</label>
+      <div class="row" style="gap:6px;margin:4px 0 12px"><input id="leadsUrl" readonly value="${esc(url)}" style="flex:1;font-size:12px"><button class="btn sm" id="leadsCopy">Копировать</button><button class="btn sm" id="leadsRegen" title="Сменить ключ (старый перестанет работать)">Сменить ключ</button></div>
+      <label style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">Формат тела (JSON)</label>
+      <pre style="background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px;overflow:auto;margin:4px 0 12px">{
+  "name": "Имя клиента",
+  "phone": "+996700000000",
+  "source": "revyline.kg",
+  "message": "текст заявки"
+}</pre>
+      <div class="muted2" style="font-size:12px;line-height:1.7">
+        <b>Сайт 1 (API-токен):</b> настроить отправку заявки POST-ом на этот URL (или дай доступ к API — подключу опрос на нашей стороне).<br>
+        <b>Сайт 2 (WordPress):</b> в плагине формы (Contact Form 7 / WPForms / Elementor) включить webhook на этот URL. Помогу настроить.
+      </div>`;
+    body.querySelector('#leadsCopy').onclick=()=>{ navigator.clipboard.writeText(url).then(()=>toast('Скопировано','i-check2')).catch(()=>{ const i=body.querySelector('#leadsUrl'); i.select(); try{document.execCommand('copy');}catch(e){} toast('Скопировано','i-check2'); }); };
+    body.querySelector('#leadsRegen').onclick=async()=>{ if(!confirm('Сменить ключ? Старый URL перестанет принимать заявки.'))return; const rr=await api('/api/admin/leads/webhook',{method:'POST'}); if(rr.ok){ p.querySelector('#leadsUrl').value=rr.data.webhook_url; toast('Ключ обновлён','i-check2'); } else toast('Ошибка','i-x','#dc2626'); };
+  })();
+  return p;
+}
 PAGES.integrations=(c)=>{
   if(isAdminRole()) c.appendChild(greenApiPanel());
+  if(isAdminRole()) c.appendChild(leadsPanel());
   if(isAdminRole() && TELEPHONY_ON) c.appendChild(sipPanel());
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Поведение при сбоях: 1С недоступен → заказы копятся в очереди, после восстановления — досинхронизация. GreenAPI/Meta недоступны → сотрудники работают с телефонов, синхронизация подхватит.</div>`));
   const syncBox=el(`<div class="panel section-gap"><div class="panel-h"><h3>${ic('i-sync','sm')} Статус синхронизации 1С</h3><span class="ph-sub" id="syncSub" style="margin-left:auto"></span></div>
