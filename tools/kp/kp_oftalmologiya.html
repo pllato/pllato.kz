@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Inter';src:url('fonts/Inter-Regular.ttf');font-weight:400}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Medium.ttf');font-weight:500}
+@font-face{font-family:'Inter';src:url('fonts/Inter-SemiBold.ttf');font-weight:600}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Bold.ttf');font-weight:700}
+@font-face{font-family:'Inter';src:url('fonts/Inter-ExtraBold.ttf');font-weight:800}
+:root{--navy:#0a1628;--navy3:#1d3050;--bronze:#b8895a;--bronzeL:#d4a978;--off:#f7f6f1;--line:#e6e3da;--text:#1a2230;--muted:#5d6573;--faint:#8a909c;--green:#3f7d52;--greenbg:#eaf3ed;--teal:#0d8a8a;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55}
+.page{width:210mm;min-height:297mm;position:relative;page-break-after:always;padding:20mm 18mm 16mm;display:flex;flex-direction:column}
+.page:last-child{page-break-after:auto}
+.page.cover{padding:0;color:#fff;background:radial-gradient(900px 520px at 72% -8%,#163a44,var(--navy) 58%);justify-content:space-between}
+.foot{position:absolute;bottom:9mm;left:18mm;right:18mm;display:flex;justify-content:space-between;font-size:8.5px;color:var(--faint);border-top:1px solid var(--line);padding-top:7px}
+.cov-top{padding:22mm 18mm 0}
+.cov-brand{font-size:30px;font-weight:800;letter-spacing:-.01em}.cov-brand .d{color:var(--bronze)}
+.cov-kicker{margin-top:46mm;font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-title{font-size:40px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin-top:14px}
+.cov-sub{margin-top:18px;font-size:13.5px;color:#aebccd;max-width:135mm;line-height:1.6}
+.cov-route{margin-top:20px;font-size:12px;color:#86a0b6}
+.cov-band{background:rgba(255,255,255,.05);border-top:1px solid rgba(255,255,255,.12);padding:9mm 18mm;display:flex;justify-content:space-between;align-items:flex-end}
+.cov-band .pl{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-band .pv{font-size:42px;font-weight:800;letter-spacing:-.01em;line-height:1;margin-top:6px}
+.cov-band .pm{text-align:right;font-size:12px;color:#aebccd;line-height:1.7}.cov-band .pm b{color:#fff}
+.sec{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
+.sec .num{font-size:13px;font-weight:800;color:var(--bronze)}
+.sec .ti{font-size:21px;font-weight:800;letter-spacing:-.01em}
+h3.sub{font-size:13px;font-weight:700;margin:14px 0 8px;color:var(--navy3)}
+p{margin-bottom:9px}p.lead{font-size:12px;color:var(--muted)}
+.bull{display:flex;gap:9px;margin-bottom:8px}.bull .bh{font-weight:700;white-space:nowrap}
+.quote{background:var(--navy);color:#fff;border-radius:12px;padding:18px 22px;margin:6px 0 18px}
+.quote .qt{font-size:13.5px;line-height:1.6;font-style:italic;color:#e7eef5}
+.quote .qw{margin-top:10px;font-size:11px;color:var(--bronzeL);font-weight:600}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0 4px}
+.fcard{background:var(--off);border-left:3px solid var(--bronze);border-radius:0 8px 8px 0;padding:13px 15px}
+.fcard .ft{font-weight:700;font-size:12px;margin-bottom:5px}.fcard .fb{font-size:10px;color:var(--muted);line-height:1.5}
+.shot{margin:4px 0 6px;border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 6px 20px rgba(10,22,40,.08)}
+.shot img{width:100%;display:block}
+.cap{font-size:9.5px;color:var(--faint);margin:0 0 16px;padding-left:2px}.cap b{color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:10.5px}
+thead th{background:var(--navy);color:#fff;text-align:left;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:9px 11px}
+thead th.r{text-align:right}
+tbody td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody td.r{text-align:right;font-weight:700;white-space:nowrap}tbody tr:last-child td{border-bottom:none}
+.softbox{background:var(--greenbg);border-left:3px solid var(--green);border-radius:0 8px 8px 0;padding:14px 18px;margin:6px 0 14px}
+.softbox .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.softbox .sl{display:flex;justify-content:space-between;font-size:11px;padding:4px 0}
+.priceband{background:var(--navy);color:#fff;border-radius:12px;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.priceband .pl{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--bronzeL)}
+.priceband .pn{font-size:10px;color:#aebccd;margin-top:5px;max-width:118mm;line-height:1.5}
+.priceband .pv{font-size:30px;font-weight:800;white-space:nowrap}
+.kvs{margin:4px 0 10px}.kv{display:flex;gap:10px;font-size:10.5px;padding:6px 0;border-bottom:1px solid var(--line)}
+.kv .kk{width:42mm;color:var(--muted);flex-shrink:0}.kv .vv{font-weight:500}
+.refgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:8px}
+.ref{background:var(--off);border:1px solid var(--line);border-radius:8px;padding:11px 13px;font-size:10px}
+.ref b{display:block;margin-bottom:3px;font-size:11px}.ref span{color:var(--muted);line-height:1.45}
+.note{font-size:9.5px;color:var(--faint);margin-top:4px}.avoid{page-break-inside:avoid}
+</style></head>
+<body>
+
+<section class="page cover">
+  <div class="cov-top">
+    <div class="cov-brand">Pllato<span class="d">.</span></div>
+    <div class="cov-kicker">Коммерческое предложение</div>
+    <div class="cov-title">CRM для глазной<br>клиники</div>
+    <div class="cov-sub">Единая система для офтальмологического центра: воронка первичных приёмов, шахматка врачей, планы лечения с прайсом, касса, склад и аналитика. Разгружает администратора, превращает поток заявок в записи и операции — и готовит клинику к росту и второму филиалу.</div>
+    <div class="cov-route">📞 Заявка → запись на первичный → 🩺 осмотр и план лечения → 💵 касса → 👁 операция → контроль</div>
+  </div>
+  <div class="cov-band">
+    <div><div class="pl">Разработка «под ключ»</div><div class="pv">1 350 000 ₸</div></div>
+    <div class="pm">Срок <b>4–6 недель</b> · в собственность<br>Предоплата <b>150 000 ₸</b>, остальное — постоплатой<br>Сервер <b>в Казахстане</b> (биометрия)</div>
+  </div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">01</span><span class="ti">Что мы услышали</span></div>
+  <p class="lead">Вы запустили таргет — пошли заявки, 15–20+ в день и растёт. Один администратор тянет на себе всё: обработку заявок, повторный прозвон, приглашение на операцию, контроль. Старый «скелет CRM» от прошлых разработчиков так и не запустили — есть только таблицы прихода/расхода и записи, без воронки и WhatsApp. Нужна система, которая разгрузит людей и наведёт порядок.</p>
+  <div class="quote">
+    <div class="qt">«Заявки пошли, мы таргет запустили — администратор не справляется. Нужно систему модернизировать, оптимизировать… Я знаю, что мне нужна эта система, но как донести это сотрудникам, чтобы легло.»</div>
+    <div class="qw">— из разговора, собственник центра</div>
+  </div>
+  <h3 class="sub">Ключевые задачи</h3>
+  <div class="bull"><span class="bh">Воронка первичных приёмов.</span><span>Лиды не теряются: квалификация, запись, контроль дохождения и оплаты первичного приёма (15 000 ₸). Отдельный человек на воронке с бонусом за дошедших.</span></div>
+  <div class="bull"><span class="bh">Шахматка и загрузка врачей.</span><span>Расписание 4 врачей, запись из воронки попадает в слоты автоматически, видна загрузка.</span></div>
+  <div class="bull"><span class="bh">Планы лечения с прайсом.</span><span>Врач собирает план (карта глаза, процедуры, цены), согласовывает с пациентом и отправляет в кассу.</span></div>
+  <div class="bull"><span class="bh">Касса, склад, финансы.</span><span>Оплаты по планам, списание ИОЛ-линз и расходников, единый учёт.</span></div>
+  <div class="bull"><span class="bh">WhatsApp и обзвоны.</span><span>Переписка и напоминания в карточке пациента, задачи на повторный прозвон и приглашение на операцию.</span></div>
+  <div class="bull"><span class="bh">Аналитика и рост.</span><span>Показатели по каждому врачу; готовность к открытию второго филиала в верхней части города.</span></div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для глазной клиники</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">02</span><span class="ti">Что мы построим</span></div>
+  <p class="lead">Система написана с нуля под офтальмологию, на вашем сервере в Казахстане, в собственность — без абонентской платы за «коробку». Похожую систему мы уже поднимали для стоматологии; профиль другой, логика медицины та же.</p>
+  <div class="cards">
+    <div class="fcard"><div class="ft">🗂 Воронка первичных</div><div class="fb">Канбан от лида до оплаты первичного приёма. Источник (таргет), квалификация, запись, контроль дохождения.</div></div>
+    <div class="fcard"><div class="ft">🗓 Шахматка врачей</div><div class="fb">Расписание 4 врачей по слотам, автозапись из воронки, контроль 100% загрузки.</div></div>
+    <div class="fcard"><div class="ft">📋 Планы лечения</div><div class="fb">Карта глаза, прайс-конструктор процедур, согласование с пациентом, передача в кассу.</div></div>
+    <div class="fcard"><div class="ft">💵 Касса и финансы</div><div class="fb">Оплаты по планам, сверка с планом и складом, выручка по направлениям.</div></div>
+    <div class="fcard"><div class="ft">📦 Склад</div><div class="fb">ИОЛ-линзы, расходники, препараты. Резерв под план лечения, контроль остатков.</div></div>
+    <div class="fcard"><div class="ft">💬 WhatsApp и обзвоны</div><div class="fb">Переписка в карточке, шаблоны записи/напоминаний, задачи на прозвон и приглашение на операцию.</div></div>
+    <div class="fcard"><div class="ft">📈 Аналитика по врачам</div><div class="fb">Выручка, приёмы, конверсия в план, средний чек, бонусы за первичные. Видна собственнику.</div></div>
+    <div class="fcard"><div class="ft">🔐 Роли и филиалы</div><div class="fb">Доступ по ролям (админ, врач, касса, собственник). Готово к второму филиалу. Сервер в РК.</div></div>
+  </div>
+  <p class="note" style="margin-top:14px">Ниже — рабочий кликабельный прототип под вашу клинику. Данные и имена демонстрационные.</p>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для глазной клиники</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">03</span><span class="ti">Воронка первичных приёмов</span></div>
+  <p class="lead">Заявка с таргета сразу попадает в воронку. Отдельный человек ведёт лид до оплаты первичного приёма и получает бонус за дошедших — администратор разгружен, лиды не теряются.</p>
+  <div class="shot"><img src="../../app/oftalmologiya/shots/funnel.png"></div>
+  <div class="cap"><b>Канбан-воронка.</b> Цвет = группа этапа (лид → запись → лечение → завершено). Метка 💬 — переписка в WhatsApp. Каждая карточка раскрывается в карту пациента.</div>
+  <div class="sec" style="margin-top:6px"><span class="num">04</span><span class="ti">Дашборд собственника</span></div>
+  <div class="shot"><img src="../../app/oftalmologiya/shots/dashboard.png"></div>
+  <div class="cap"><b>Вся клиника на одном экране.</b> Заявки, дохождение и конверсия, выручка, загрузка врачей, воронка первичных и «сегодня в клинике».</div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для глазной клиники</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">05</span><span class="ti">Шахматка и загрузка врачей</span></div>
+  <p class="lead">Расписание 4 врачей по слотам. Запись из воронки попадает сюда автоматически; первичные, повторные, операции и диагностика — разными цветами. Видна загрузка и свободные окна.</p>
+  <div class="shot"><img src="../../app/oftalmologiya/shots/schedule.png"></div>
+  <div class="cap"><b>Шахматка.</b> Свободные слоты — пунктиром, занятые — цветом по типу приёма. Цель — 100% загрузка врачей.</div>
+  <div class="sec" style="margin-top:6px"><span class="num">06</span><span class="ti">План лечения с прайсом</span></div>
+  <div class="shot"><img src="../../app/oftalmologiya/shots/plans.png"></div>
+  <div class="cap"><b>Карта глаза + прайс-конструктор.</b> Врач собирает план из позиций в один клик, согласовывает с пациентом и отправляет в кассу. Прайс редактирует собственник.</div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для глазной клиники</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">07</span><span class="ti">Карточка пациента и WhatsApp</span></div>
+  <p class="lead">Вся история пациента в одном окне: карта, план лечения, переписка. Запись, напоминания и приглашение на операцию уходят в WhatsApp прямо из карточки.</p>
+  <div class="shot"><img src="../../app/oftalmologiya/shots/patient_wa.png"></div>
+  <div class="cap"><b>Карточка пациента → WhatsApp.</b> Администратор пишет из CRM, видит всю переписку; план лечения уходит в тот же чат.</div>
+  <div class="sec" style="margin-top:6px"><span class="num">08</span><span class="ti">Аналитика по врачам</span></div>
+  <div class="shot"><img src="../../app/oftalmologiya/shots/analytics.png"></div>
+  <div class="cap"><b>Видна собственнику.</b> Выручка, приёмы, конверсия в план и средний чек по каждому врачу; бонусы за первичные; зарплата от показателей в системе.</div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для глазной клиники</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">09</span><span class="ti">Роли, филиалы и хранение данных</span></div>
+  <div class="shot"><img src="../../app/oftalmologiya/shots/roles.png"></div>
+  <div class="cap"><b>Один портал — доступ по ролям.</b> Администратор, врач, касса, собственник видят только своё. Система готова к открытию второго филиала с отдельной воронкой и кассой.</div>
+  <h3 class="sub">Интеграции и инфраструктура</h3>
+  <table>
+    <thead><tr><th>Что</th><th>Назначение</th><th class="r">Статус</th></tr></thead>
+    <tbody>
+      <tr><td><b>WhatsApp Business</b></td><td>Заявки, напоминания, переписка в карточке</td><td class="r" style="color:var(--green)">входит</td></tr>
+      <tr><td><b>IP-телефония</b></td><td>Запись + транскрибация, контроль скрипта администратора</td><td class="r" style="color:var(--green)">входит</td></tr>
+      <tr><td><b>Таргет (Instagram/FB)</b></td><td>Заявки сразу в воронку, фиксация источника</td><td class="r" style="color:var(--green)">входит</td></tr>
+      <tr><td><b>Kaspi / эквайринг</b></td><td>Оплаты в кассу</td><td class="r">этап 2</td></tr>
+      <tr><td><b>Импорт из 1С / таблиц</b></td><td>Перенос базы пациентов и склада</td><td class="r" style="color:var(--green)">входит</td></tr>
+      <tr><td><b>Сервер в РК</b></td><td>Хранение данных в Казахстане (биометрия)</td><td class="r" style="color:var(--blue,#2f6d9a)">обязательно</td></tr>
+    </tbody>
+  </table>
+  <p class="note">Данные пациентов размещаются на сервере на территории Казахстана в соответствии с требованиями о хранении биометрии.</p>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для глазной клиники</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">10</span><span class="ti">Как мы работаем</span></div>
+  <p class="lead">Короткими итерациями, на скорость. Сначала — рабочее ядро, потом доработки по вашим правкам. Постоплата: платите за принятый результат. Первую кликабельную версию даём уже на первой неделе.</p>
+  <div class="bull"><span class="bh">Шаг 0 · Старт.</span><span>Предоплата 150 000 ₸ (10%). Разворачиваем ядро, уже кликабельное.</span></div>
+  <div class="bull"><span class="bh">Шаг 1 · Скелет.</span><span>Воронка, шахматка, планы лечения, касса, роли. Созваниваемся, кликаем вместе, собираем правки.</span></div>
+  <div class="bull"><span class="bh">Шаг 2 · Финал.</span><span>Правки, интеграции, сервер в РК, передача кода и обучение. Сопровождаем внедрение (приказы, дисциплина применения).</span></div>
+
+  <div class="sec" style="margin-top:14px"><span class="num">11</span><span class="ti">Стоимость</span></div>
+  <table class="avoid">
+    <thead><tr><th>Этап</th><th>Что включает</th><th class="r">Оплата</th></tr></thead>
+    <tbody>
+      <tr><td><b>Шаг 0 · Старт</b></td><td>Запуск ядра, развёртывание прототипа</td><td class="r">150 000 ₸</td></tr>
+      <tr><td><b>Шаг 1 · Скелет</b></td><td>Воронка, шахматка, планы лечения, касса, роли — принято</td><td class="r">600 000 ₸</td></tr>
+      <tr><td><b>Шаг 2 · Финал</b></td><td>Правки, интеграции, сервер в РК, передача кода</td><td class="r">600 000 ₸</td></tr>
+    </tbody>
+  </table>
+  <div class="priceband avoid">
+    <div><div class="pl">Итого «под ключ»</div><div class="pn">В собственность, на вашем сервере в РК. Без абонентской платы за «коробку». Поддержка и доработки — $20/час. Помощь с наймом и внедрением — по-дружески, в рамках старта.</div></div>
+    <div class="pv">1 350 000 ₸</div>
+  </div>
+  <p class="note">Рыночная стоимость подобной разработки «с нуля» — от $10 000. Наш чек ниже за счёт отлаженного процесса и шаблонного ядра, кастомизируемого под вас.</p>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для глазной клиники</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">12</span><span class="ti">Что оплачивается отдельно</span></div>
+  <div class="kvs">
+    <div class="kv"><span class="kk">Хостинг (сервер РК)</span><span class="vv">Казахстанский хостинг — от 5 000 до 15 000 ₸/мес. Альтернатива (если допустимо законом) — бесплатные облачные тарифы.</span></div>
+    <div class="kv"><span class="kk">Интеграция WhatsApp</span><span class="vv">Через нашего казахстанского партнёра — около 10 000 ₸/мес безлимит (на рынке обычно 36 000 ₸ / $70–80).</span></div>
+    <div class="kv"><span class="kk">Доработки после сдачи</span><span class="vv">$20/час. Первый год собственники обычно вносят много правок — идём по часам.</span></div>
+    <div class="kv"><span class="kk">Рефакторинг под рост</span><span class="vv">При масштабировании (несколько филиалов) — отдельная оптимизация.</span></div>
+  </div>
+  <div class="sec" style="margin-top:14px"><span class="num">13</span><span class="ti">О Pllato</span></div>
+  <p class="lead">Студия разработки в Алматы. Пишем CRM и ERP с нуля под процесс клиента, с передачей в собственность. Понимаем не только код, но и бизнес-процессы. Релевантные кейсы:</p>
+  <div class="refgrid">
+    <div class="ref"><b>Стоматологическая клиника</b><span>Воронка, расписание, планы лечения (зубная карта), касса, склад, финансы, аналитика — прямой аналог вашей задачи.</span></div>
+    <div class="ref"><b>Сеть из 7 аптек, Бишкек</b><span>Воронки, дашборды, WhatsApp-чаты, накопительные скидки, промо.</span></div>
+    <div class="ref"><b>Сеть языковых школ (15+ лет)</b><span>Наш собственный бизнес: расписание, преподаватели, рейтинги, ~120 человек в штате.</span></div>
+    <div class="ref"><b>Дистрибуция мед. изделий</b><span>Интеграция с 1С: склад, заказ по ссылке, логистика, аналитика.</span></div>
+  </div>
+  <h3 class="sub" style="margin-top:18px">Готовы начать</h3>
+  <p>Стартуем с небольшой предоплаты 150 000 ₸ — развернём ядро и покажем на встрече. Приедем, расскажем и соучредителю. Работаем постоплатой — вам важно увидеть результат, нам важно его доказать.</p>
+  <div class="priceband avoid" style="margin-top:10px">
+    <div><div class="pl">Контакты</div><div class="pn">Платон Цай · +7 701 123 99 99 (тел / WhatsApp) · uurraa@gmail.com · pllato.kz</div></div>
+    <div class="pv" style="font-size:24px">Pllato<span style="color:var(--bronzeL)">.</span></div>
+  </div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для глазной клиники</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+</body></html>

@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Inter';src:url('fonts/Inter-Regular.ttf');font-weight:400}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Medium.ttf');font-weight:500}
+@font-face{font-family:'Inter';src:url('fonts/Inter-SemiBold.ttf');font-weight:600}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Bold.ttf');font-weight:700}
+@font-face{font-family:'Inter';src:url('fonts/Inter-ExtraBold.ttf');font-weight:800}
+:root{--navy:#0a1628;--navy3:#1d3050;--bronze:#b8895a;--bronzeL:#d4a978;--off:#f7f6f1;--line:#e6e3da;--text:#1a2230;--muted:#5d6573;--faint:#8a909c;--green:#3f7d52;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55}
+.page{width:210mm;min-height:297mm;position:relative;page-break-after:always;padding:18mm 18mm 16mm;display:flex;flex-direction:column}
+.page:last-child{page-break-after:auto}
+.page.cover{padding:0;color:#fff;background:radial-gradient(900px 520px at 72% -8%,#163a44,var(--navy) 58%);justify-content:space-between}
+.foot{position:absolute;bottom:9mm;left:18mm;right:18mm;display:flex;justify-content:space-between;font-size:8.5px;color:var(--faint);border-top:1px solid var(--line);padding-top:7px}
+.cov-top{padding:22mm 18mm 0}
+.cov-brand{font-size:30px;font-weight:800}.cov-brand .d{color:var(--bronze)}
+.cov-kicker{margin-top:48mm;font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-title{font-size:38px;font-weight:800;line-height:1.12;letter-spacing:-.02em;margin-top:14px}
+.cov-sub{margin-top:18px;font-size:13px;color:#aebccd;max-width:135mm;line-height:1.6}
+.cov-meta{padding:9mm 18mm;background:rgba(255,255,255,.05);border-top:1px solid rgba(255,255,255,.12);display:flex;gap:36px;font-size:11px;color:#aebccd}
+.cov-meta b{color:#fff;display:block;font-size:12px;margin-bottom:3px}
+.sec{display:flex;align-items:baseline;gap:11px;margin:2px 0 12px}
+.sec .num{font-size:12px;font-weight:800;color:var(--bronze)}.sec .ti{font-size:19px;font-weight:800;letter-spacing:-.01em}
+.ssec{font-size:12.5px;font-weight:700;color:var(--navy3);margin:13px 0 6px}
+p{margin-bottom:8px}p.lead{font-size:11.5px;color:var(--muted)}
+ul{margin:4px 0 9px 0;padding-left:15px}li{margin-bottom:4px}li b{font-weight:700}
+.tag{display:inline-block;background:var(--off);border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:9.5px;color:var(--muted);margin:0 4px 4px 0}
+table{width:100%;border-collapse:collapse;margin:6px 0 12px;font-size:10px}
+thead th{background:var(--navy);color:#fff;text-align:left;font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:8px 10px}
+thead th.c{text-align:center}
+tbody td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}tbody td.c{text-align:center}tbody tr:last-child td{border-bottom:none}
+.mod{border:1px solid var(--line);border-radius:9px;padding:13px 16px;margin-bottom:11px;page-break-inside:avoid}
+.mod .mh{font-size:13px;font-weight:700;margin-bottom:3px}.mod .mh .mn{color:var(--bronze);font-weight:800;margin-right:7px}
+.mod .md{font-size:10px;color:var(--muted);margin-bottom:7px}.mod ul{margin:0;padding-left:15px}
+.box{background:var(--off);border-left:3px solid var(--bronze);border-radius:0 8px 8px 0;padding:12px 16px;margin:6px 0 12px;font-size:10.5px}
+.note{font-size:9.5px;color:var(--faint);margin-top:4px}
+</style></head>
+<body>
+
+<section class="page cover">
+  <div class="cov-top">
+    <div class="cov-brand">Pllato<span class="d">.</span></div>
+    <div class="cov-kicker">Техническое задание</div>
+    <div class="cov-title">CRM для глазной<br>клиники</div>
+    <div class="cov-sub">Функциональные и нефункциональные требования к системе управления офтальмологическим центром: поток пациентов от заявки до операции, расписание врачей, планы лечения, касса, склад и аналитика. Хранение данных — на сервере в Казахстане.</div>
+  </div>
+  <div class="cov-meta">
+    <div><b>Заказчик</b>Офтальмологический центр · Алматы</div>
+    <div><b>Исполнитель</b>Pllato · pllato.kz</div>
+    <div><b>Редакция</b>1.0 · черновик</div>
+    <div><b>Срок</b>4–6 недель</div>
+  </div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">1</span><span class="ti">Общие сведения</span></div>
+  <p class="lead"><b>Назначение.</b> Единая система управления офтальмологической клиникой: приём и обработка заявок (лидов), запись на первичный приём, ведение пациентов, планы лечения, касса, склад, аналитика. Цель — разгрузить администратора, повысить конверсию заявок в приёмы и операции, навести порядок в процессах.</p>
+  <p class="lead"><b>Текущее состояние.</b> Запущен таргет, поток заявок 15–20+/день. Один администратор. Прежний «скелет CRM» не запущен (только таблицы прихода/расхода и записи; нет воронки и WhatsApp).</p>
+  <p class="lead"><b>Пользователи.</b> Собственник, 4 врача, администратор; касса. Готовность к второму филиалу.</p>
+
+  <div class="sec" style="margin-top:14px"><span class="num">2</span><span class="ti">Архитектура и общие требования</span></div>
+  <ul>
+    <li><b>Тип:</b> веб-приложение, доступ из браузера, адаптивно (десктоп + планшет на ресепшене).</li>
+    <li><b>Хранение данных:</b> сервер на территории Казахстана (требование к биометрии/мед.данным). Казахстанский хостинг или допустимая по закону альтернатива.</li>
+    <li><b>Собственность:</b> исходный код и права передаются заказчику после финальной оплаты; без абонентской платы за «коробку».</li>
+    <li><b>Импорт:</b> перенос базы пациентов и склада из старых таблиц / 1С.</li>
+    <li><b>Многофилиальность:</b> один портал, отдельные воронки и касса по филиалам; готовность к открытию второго филиала.</li>
+    <li><b>Масштабирование:</b> без доработок на текущий объём; при росте — отдельный этап оптимизации.</li>
+  </ul>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для глазной клиники · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">3</span><span class="ti">Роли и права доступа</span></div>
+  <p class="lead">Один портал, доступ по ролям. Финансовые и аналитические данные — у собственника; врач видит только свои показатели.</p>
+  <table>
+    <thead><tr><th>Раздел</th><th class="c">Администратор</th><th class="c">Врач</th><th class="c">Касса</th><th class="c">Собственник</th></tr></thead>
+    <tbody>
+      <tr><td>Воронка / запись</td><td class="c">Редакт.</td><td class="c">Просмотр</td><td class="c">—</td><td class="c">Редакт.</td></tr>
+      <tr><td>Расписание (шахматка)</td><td class="c">Редакт.</td><td class="c">Редакт.</td><td class="c">—</td><td class="c">Редакт.</td></tr>
+      <tr><td>План лечения</td><td class="c">—</td><td class="c">Редакт.</td><td class="c">Просмотр</td><td class="c">Редакт.</td></tr>
+      <tr><td>Касса / оплаты</td><td class="c">—</td><td class="c">—</td><td class="c">Редакт.</td><td class="c">Редакт.</td></tr>
+      <tr><td>Склад</td><td class="c">Просмотр</td><td class="c">Просмотр</td><td class="c">Редакт.</td><td class="c">Редакт.</td></tr>
+      <tr><td>Аналитика / финансы</td><td class="c">—</td><td class="c">свои</td><td class="c">—</td><td class="c">Редакт.</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>Аутентификация:</b> логин/пароль, единая точка входа; роли назначает собственник.</li>
+    <li><b>Дисциплина внедрения:</b> начисление зарплаты — на основании протокола в системе (поддерживается отчётностью и показателями).</li>
+    <li><b>Безопасность:</b> доступ к данным только из системы, журнал действий, ограничение выгрузки по роли.</li>
+  </ul>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для глазной клиники · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">4</span><span class="ti">Функциональные модули</span></div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.1</span>Воронка первичных приёмов</div>
+    <div class="md">Канбан от лида до оплаты первичного приёма.</div>
+    <ul>
+      <li>Этапы: <span class="tag">Новый лид</span><span class="tag">Квалификация</span><span class="tag">Записан</span><span class="tag">Пришёл · первичный</span><span class="tag">План лечения</span><span class="tag">Операция / лечение</span><span class="tag">Завершён</span> (редактируются).</li>
+      <li>Источник лида фиксируется (таргет / сарафан); фильтры по менеджеру и статусу.</li>
+      <li>Контроль дохождения и оплаты первичного приёма (15 000 ₸); бонус ответственному за дошедших.</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.2</span>Расписание (шахматка)</div>
+    <div class="md">Загрузка врачей по слотам.</div>
+    <ul>
+      <li>Сетка: врачи × время; типы приёма (первичный, повторный/контроль, операция, диагностика) разными цветами.</li>
+      <li>Запись из воронки попадает в слот автоматически; видны свободные окна и загрузка (%).</li>
+      <li>Привязка приёма к пациенту, врачу и плану лечения.</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.3</span>Карта пациента и план лечения</div>
+    <div class="md">Медицинская карта + план с прайсом.</div>
+    <ul>
+      <li>Карта: ФИО, возраст, диагноз (МКБ), острота зрения OD/OS, история приёмов и операций.</li>
+      <li>План лечения: схема глаза, набор процедур из прайс-конструктора, статусы оплаты по позициям, итог.</li>
+      <li>Действия: согласовать план с пациентом, отправить в WhatsApp, передать в кассу, записать на операцию.</li>
+      <li>Прайс-конструктор процедур редактируется собственником.</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.4</span>Касса и финансы</div>
+    <div class="md">Оплаты по планам лечения.</div>
+    <ul>
+      <li>Приём оплат (Kaspi / карта / наличные), привязка к плану и пациенту; сверка с планом и складом.</li>
+      <li>Выручка по дням/месяцам, по направлениям и врачам; дебиторка (ожидают оплаты).</li>
+    </ul>
+  </div>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для глазной клиники · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="mod"><div class="mh"><span class="mn">4.5</span>Склад</div>
+    <div class="md">ИОЛ-линзы, расходники, препараты.</div>
+    <ul>
+      <li>Учёт остатков по категориям; списание по плану лечения; резерв позиций под согласованный план.</li>
+      <li>Контроль минимальных остатков, задачи на дозаказ.</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.6</span>Коммуникации и обзвоны</div>
+    <div class="md">Каналы и задачи на контакт.</div>
+    <ul>
+      <li>WhatsApp Business в карточке пациента; шаблоны (запись, напоминание, приглашение на операцию).</li>
+      <li>IP-телефония: запись и транскрибация звонков, контроль скрипта администратора.</li>
+      <li>Задачи: повторный прозвон не дошедших, напоминания о приёме, контроль после операции.</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.7</span>Дашборд и аналитика</div>
+    <div class="md">Показатели клиники и врачей.</div>
+    <ul>
+      <li>KPI: заявки, дохождение, конверсия заявка→первичный и первичный→план, выручка, средний чек, загрузка.</li>
+      <li>По каждому врачу: первичные, конверсия в план, операции, выручка, загрузка.</li>
+      <li>Бонусы за первичные; основа для начисления зарплаты от показателей.</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.8</span>Филиалы</div>
+    <div class="md">Готовность к росту.</div>
+    <ul>
+      <li>Отдельные воронка, расписание и касса по филиалам; сводная аналитика для собственника.</li>
+    </ul>
+  </div>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для глазной клиники · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">5</span><span class="ti">Интеграции</span></div>
+  <table>
+    <thead><tr><th>Интеграция</th><th>Назначение</th><th class="c">Этап</th></tr></thead>
+    <tbody>
+      <tr><td>WhatsApp Business API</td><td>Заявки, напоминания, переписка в карточке</td><td class="c">MVP</td></tr>
+      <tr><td>IP-телефония</td><td>Запись + транскрибация, контроль скрипта</td><td class="c">MVP</td></tr>
+      <tr><td>Таргет (Instagram/Facebook)</td><td>Заявки в воронку, фиксация источника</td><td class="c">MVP</td></tr>
+      <tr><td>Импорт из 1С / таблиц</td><td>Перенос пациентов и склада</td><td class="c">MVP</td></tr>
+      <tr><td>Kaspi / эквайринг</td><td>Оплаты в кассу</td><td class="c">Финал</td></tr>
+    </tbody>
+  </table>
+
+  <div class="sec" style="margin-top:14px"><span class="num">6</span><span class="ti">Нефункциональные требования</span></div>
+  <ul>
+    <li><b>Хранение данных:</b> сервер на территории РК (биометрия / мед.данные).</li>
+    <li><b>Безопасность:</b> доступ по ролям, единая точка входа, журнал действий, ограничение выгрузки.</li>
+    <li><b>Производительность:</b> устойчивая работа при текущем потоке заявок и 4+ врачах.</li>
+    <li><b>Надёжность:</b> резервное копирование данных.</li>
+    <li><b>Удобство:</b> адаптивный интерфейс, работа с планшета на ресепшене.</li>
+  </ul>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для глазной клиники · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">7</span><span class="ti">Этапы реализации и приёмка</span></div>
+  <table>
+    <thead><tr><th>Этап</th><th>Содержание</th><th class="c">Оплата</th></tr></thead>
+    <tbody>
+      <tr><td><b>Шаг 0 · Старт</b></td><td>Развёртывание ядра, кликабельный прототип</td><td class="c">150 000 ₸</td></tr>
+      <tr><td><b>Шаг 1 · Скелет</b></td><td>Воронка, шахматка, карта пациента и план лечения, касса, склад, роли, каналы, дашборд</td><td class="c">600 000 ₸</td></tr>
+      <tr><td><b>Шаг 2 · Финал</b></td><td>Правки по итогам, эквайринг, развёртывание на сервере в РК, передача кода и обучение</td><td class="c">600 000 ₸</td></tr>
+    </tbody>
+  </table>
+  <div class="box"><b>Порядок приёмки.</b> На каждом шаге — совместный прокликивание (Zoom или на месте). Заказчик фиксирует правки, исполнитель вносит их в рамках этапа. Этап принят после подтверждения заказчиком; затем выставляется счёт за этап. Первая кликабельная версия — на первой неделе.</div>
+
+  <div class="sec" style="margin-top:10px"><span class="num">8</span><span class="ti">Вне рамок (отдельно)</span></div>
+  <ul>
+    <li>Хостинг (сервер РК), интеграция WhatsApp, эквайринг — по тарифам провайдеров.</li>
+    <li>Доработки после сдачи — $20/час.</li>
+    <li>Рефакторинг под рост, дополнительные филиалы сверх базовой готовности.</li>
+    <li>Подбор персонала (HR) — консультируем по-дружески, но не предоставляем как услугу.</li>
+  </ul>
+  <div class="box" style="border-left-color:var(--green);background:#eaf3ed;margin-top:14px"><b>Стоимость и сроки.</b> Разработка «под ключ» — 1 350 000 ₸. Срок 4–6 недель. Предоплата 150 000 ₸, далее 2 этапа постоплатой (600 000 + 600 000 ₸). В собственность, на сервере в РК. Поддержка — $20/час. Детали — в коммерческом предложении.</div>
+  <p class="note">Настоящее ТЗ — редакция 1.0 (черновик). Финальный состав модулей и полей уточняется на этапе скелета по итогам встреч (в т.ч. с соучредителем).</p>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для глазной клиники · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+</body></html>
