@@ -3657,23 +3657,28 @@ document.addEventListener('click',e=>{
   const p=$('#docsPop');
   if(p && !p.hidden && !e.target.closest('.docs-wrap')) p.hidden=true;
 });
-// ---------- Напоминания (колокольчик): мои дедлайны ----------
+// ---------- Уведомления (колокольчик): события + мои дедлайны ----------
 async function loadNotifications(){
   const r=await api('/api/notifications'); if(!r||!r.ok)return;
   window.__notif=r.data; const dot=document.getElementById('bellDot');
-  if(dot) dot.hidden=(r.data.items||[]).length===0;
+  if(dot) dot.hidden=((r.data.unread||0)+((r.data.items||[]).length))===0;
 }
+function notifAgo(ts){ const s=Math.floor((Date.now()-(ts||0))/1000); if(s<60)return 'только что'; if(s<3600)return Math.floor(s/60)+' мин назад'; if(s<86400)return Math.floor(s/3600)+' ч назад'; return new Date(ts).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'}); }
+function notifGoEvent(ev){ const pop=document.getElementById('bellPop'); if(pop)pop.hidden=true; if(ev.link_type==='deal'&&ev.link_id) go('funnels',ev.link_id); else if(ev.link_type==='task') go('tasks'); }
 function renderBellPop(){
   const pop=document.getElementById('bellPop'); if(!pop)return;
-  const d=window.__notif||{items:[]}, items=d.items||[];
-  pop.innerHTML=`<div class="dp-h"><b>Напоминания</b><span class="dp-cnt">${d.overdue||0} просроч. · ${items.length}</span></div>`
-    +(items.length?items.map(t=>{const od=t.kind==='overdue';return `<a class="doc-row" data-go="1"><div class="di" style="background:${od?'var(--red-soft)':'var(--amber-soft)'};color:${od?'var(--red)':'var(--amber)'};font-size:15px">${od?'!':'⏰'}</div><div style="min-width:0"><div class="dt">${esc(t.title)}</div><div class="ds">${od?'просрочено':'скоро'} · ${esc(fmtDue(t.due_at))}${t.client_name?(' · '+esc(t.client_name)):''}</div></div></a>`;}).join(''):'<div class="dp-empty">Дедлайнов нет 🎉</div>')
-    +`<div class="dp-foot">Ваши задачи: просроченные и ближайшие 24 ч</div>`;
-  pop.querySelectorAll('[data-go]').forEach(a=>a.onclick=()=>{ pop.hidden=true; go('tasks'); });
+  const d=window.__notif||{}, items=d.items||[], events=d.events||[];
+  const icon=t=>t==='task'?'📋':t==='deal'?'🤝':t==='done'?'✅':'🔔';
+  let h=`<div class="dp-h"><b>Уведомления</b><span class="dp-cnt">${d.unread||0} новых</span></div>`;
+  h+=events.length?events.map(ev=>`<a class="doc-row" data-ev="${esc(ev.id)}" ${ev.read?'':'style="background:rgba(16,185,129,.07)"'}><div class="di" style="background:rgba(16,185,129,.15);color:var(--accent)">${icon(ev.type)}</div><div style="min-width:0"><div class="dt">${esc(ev.title||'')}${ev.body?(' · '+esc(ev.body)):''}</div><div class="ds">${esc(notifAgo(ev.created_at))}</div></div></a>`).join(''):'<div class="dp-empty">Новых уведомлений нет</div>';
+  if(items.length){ h+=`<div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:9px 14px 4px">Дедлайны задач</div>`+items.map(t=>{const od=t.kind==='overdue';return `<a class="doc-row" data-tgo="1"><div class="di" style="background:${od?'var(--red-soft)':'var(--amber-soft)'};color:${od?'var(--red)':'var(--amber)'};font-size:15px">${od?'!':'⏰'}</div><div style="min-width:0"><div class="dt">${esc(t.title)}</div><div class="ds">${od?'просрочено':'скоро'} · ${esc(fmtDue(t.due_at))}${t.client_name?(' · '+esc(t.client_name)):''}</div></div></a>`;}).join(''); }
+  pop.innerHTML=h;
+  pop.querySelectorAll('[data-ev]').forEach(a=>a.onclick=()=>{ const ev=events.find(x=>x.id===a.dataset.ev); if(ev)notifGoEvent(ev); });
+  pop.querySelectorAll('[data-tgo]').forEach(a=>a.onclick=()=>{ pop.hidden=true; go('tasks'); });
 }
-document.getElementById('bellBtn')?.addEventListener('click',async e=>{ e.stopPropagation(); const pop=document.getElementById('bellPop'),dp=document.getElementById('docsPop'); if(dp)dp.hidden=true; if(!pop)return; const show=pop.hidden; if(show){ await loadNotifications(); renderBellPop(); } pop.hidden=!show; });
+document.getElementById('bellBtn')?.addEventListener('click',async e=>{ e.stopPropagation(); const pop=document.getElementById('bellPop'),dp=document.getElementById('docsPop'); if(dp)dp.hidden=true; if(!pop)return; const show=pop.hidden; if(show){ await loadNotifications(); renderBellPop(); if((window.__notif||{}).unread){ api('/api/notifications/read',{method:'POST'}); window.__notif.unread=0; const dot=document.getElementById('bellDot'); if(dot&&!(((window.__notif||{}).items)||[]).length)dot.hidden=true; } } pop.hidden=!show; });
 document.addEventListener('click',e=>{ const p=document.getElementById('bellPop'); if(p&&!p.hidden&&!e.target.closest('.docs-wrap')) p.hidden=true; });
-setInterval(()=>{ if(AUTH&&AUTH.token) loadNotifications(); }, 300000);
+setInterval(()=>{ if(AUTH&&AUTH.token) loadNotifications(); }, 120000);
 
 // ============================================================
 //  Плавающий виджет чатов (нижний правый угол) — как в ELC CRM.
