@@ -2380,7 +2380,7 @@ PAGES.tasks=(c)=>{
   tbar.querySelector('#tkFclear').onclick=()=>{ fAssignee='';fLabel='';faSel.value='';flSel.value=''; render(); };
   tbar.querySelector('#tkView').querySelectorAll('button').forEach(b=>b.onclick=()=>{ tbar.querySelector('#tkView').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); view=b.dataset.v; render(); });
   tbar.querySelector('#newTaskBtn').onclick=()=>newTaskLive(load);
-  const filtered=()=>current.filter(t=>(!fAssignee||t.assignee===fAssignee)&&(!fLabel||jparse(t.labels,[]).includes(fLabel)));
+  const filtered=()=>current.filter(t=>(!fAssignee||taskAssignees(t).includes(fAssignee))&&(!fLabel||jparse(t.labels,[]).includes(fLabel)));
   function render(){ if(view==='calendar'){ board.style.display='none'; cal.style.display=''; renderCalendar(); } else { board.style.display=''; cal.style.display='none'; renderBoard(); } }
   let _dx=0,_sc=null;
   board.addEventListener('dragover',e=>{ e.preventDefault(); _dx=e.clientX; if(!_sc) _sc=setInterval(()=>{ const r=board.getBoundingClientRect(); if(_dx>r.right-80)board.scrollLeft+=26; else if(_dx<r.left+80)board.scrollLeft-=26; },16); });
@@ -2392,7 +2392,7 @@ PAGES.tasks=(c)=>{
     const k=el(`<div class="kcard" draggable="true" data-id="${esc(t.id)}">
       ${labelBars(jparse(t.labels,[]))}
       <div style="font-weight:600;font-size:13px;line-height:1.35">${esc(t.title)}</div>
-      ${(t.client_name||t.assignee)?`<div class="kc-prod">${esc([t.client_name,t.assignee].filter(Boolean).join(' · '))}</div>`:''}
+      ${(t.client_name||taskAssignees(t).length)?`<div class="kc-prod">${esc([t.client_name,taskAssignees(t).join(', ')].filter(Boolean).join(' · '))}</div>`:''}
       <div class="kc-meta">${typeTag(t.type)}${t.priority==='high'&&stOf(t)!=='done'?'<span class="tag amber">срочно</span>':''}${cl.length?`<span class="tag ${dn===cl.length?'green':''}">☑ ${dn}/${cl.length}</span>`:''}${cms.length?`<span class="tag">💬 ${cms.length}</span>`:''}${att.length?`<span class="tag">📎 ${att.length}</span>`:''}${t.due_at?`<span class="tag ${od?'red':dueSoon(t)?'amber':''}" style="margin-left:auto">${ic('i-clock','sm')} ${esc(fmtDue(t.due_at))}</span>`:'<span style="margin-left:auto"></span>'}</div></div>`);
     k.addEventListener('dragstart',e=>{e.dataTransfer.setData('id',t.id);k.classList.add('dragging');});
     k.addEventListener('dragend',()=>k.classList.remove('dragging'));
@@ -2457,7 +2457,7 @@ PAGES.tasks=(c)=>{
     if(!r.ok){ board.innerHTML=`<div class="note" style="margin:0">${ic('i-info','sm')} Задачи в демо-режиме (нет связи с сервером).</div>`; cnt.textContent=''; return; }
     cols=(rc&&rc.ok&&(rc.data.items||[]).length)?rc.data.items:[{id:'todo',title:'К выполнению',position:1},{id:'doing',title:'В работе',position:2},{id:'done',title:'Готово',position:3}];
     current=r.data.items||[];
-    const as=[...new Set(current.map(t=>(t.assignee||'').trim()).filter(Boolean))].sort();
+    const as=[...new Set(current.flatMap(t=>taskAssignees(t)))].sort();
     faSel.innerHTML='<option value="">Все ответственные</option>'+as.map(a=>`<option value="${esc(a)}" ${a===fAssignee?'selected':''}>${esc(a)}</option>`).join('');
     badge(); render();
   }
@@ -2475,6 +2475,17 @@ function userSelectHtml(users, selectedName, attr){
   if(sel && !users.some(u=>u.name===sel)) opts+=`<option value="${esc(sel)}" selected>${esc(sel)} (текущий)</option>`;
   return `<select ${attr}>${opts}</select>`;
 }
+// Список ответственных задачи: из assignees(JSON) или старого одиночного assignee
+function taskAssignees(t){ const a=jparse(t&&t.assignees,null); if(Array.isArray(a)&&a.length)return a.filter(Boolean); const s=((t&&t.assignee)||'').trim(); return s?[s]:[]; }
+// Мультивыбор ответственных — кликабельные чипы пользователей
+function assigneeMulti(users, selected){
+  const sel=new Set((Array.isArray(selected)?selected:(selected?[selected]:[])).map(s=>String(s).trim()).filter(Boolean));
+  const node=el('<div class="asg-multi" style="display:flex;flex-wrap:wrap;gap:6px;padding:2px 0"></div>');
+  function render(){ node.innerHTML=(users.length?users.map(u=>{const on=sel.has(u.name);return `<button type="button" class="btn sm" data-n="${esc(u.name)}"${on?' style="background:var(--accent);border-color:var(--accent);color:#04130b;font-weight:600"':''}>${on?'✓ ':''}${esc(u.name)}</button>`;}).join(''):'<span class="muted2" style="font-size:12px">Нет пользователей</span>');
+    node.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>{const n=b.dataset.n; if(sel.has(n))sel.delete(n); else sel.add(n); render();}); }
+  render();
+  return {node, get:()=>Array.from(sel)};
+}
 function fmtDue(s){ if(!s)return ''; const p=String(s).split('T'); const d=p[0].split('-'); if(d.length<3)return s; return d[2]+'.'+d[1]+'.'+d[0]+(p[1]?(' '+p[1].slice(0,5)):''); }
 function dtLocal(s){ if(!s)return ''; if(String(s).length===10)return s+'T00:00'; return String(s).slice(0,16); }
 async function newTaskLive(onSaved){
@@ -2483,18 +2494,19 @@ async function newTaskLive(onSaved){
   <div class="modal-b">
     <div class="fld"><label>Название *</label><input data-nt="title" placeholder="Напр. перезвонить клиенту"></div>
     <div class="fld-row"><div class="fld"><label>Тип</label><select data-nt="type"><option>задача</option><option>звонок</option><option>встреча</option><option>отгрузка</option><option>email</option></select></div><div class="fld"><label>Срок (дата и время)</label><input type="datetime-local" data-nt="due"></div></div>
-    <div class="fld-row"><div class="fld"><label>Приоритет</label><select data-nt="prio"><option value="normal">обычный</option><option value="high">срочно</option></select></div><div class="fld"><label>Ответственный</label>${userSelectHtml(users,(AUTH.user||{}).name||'','data-nt="assignee"')}</div></div>
+    <div class="fld-row"><div class="fld"><label>Приоритет</label><select data-nt="prio"><option value="normal">обычный</option><option value="high">срочно</option></select></div><div class="fld"><label>Ответственные <span class="muted2">(можно несколько)</span></label><div id="ntAsg"></div></div></div>
     <div class="fld"><label>Клиент из 1С (необязательно)</label><div style="position:relative"><div class="fld-in" style="width:100%">${ic('i-search','sm')}<input data-nt="client" placeholder="поиск по 1С" autocomplete="off" style="width:100%"></div><div id="ntSug" class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;display:none;max-height:200px;overflow:auto;box-shadow:var(--shadow-lg)"></div></div></div>
     <div class="fld"><label>Комментарий</label><input data-nt="note"></div>
   </div>
   <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="ntSave">Создать</button></div>`);
+  const ntAsgW=assigneeMulti(users,[(AUTH.user||{}).name||''].filter(Boolean)); bg.querySelector('#ntAsg').appendChild(ntAsgW.node);
   const q=bg.querySelector('[data-nt=client]'), sug=bg.querySelector('#ntSug'); let ref=null,qt=null;
   q.addEventListener('input',()=>{ ref=null; clearTimeout(qt); const v=q.value.trim(); if(v.length<2){sug.style.display='none';return;}
     qt=setTimeout(async()=>{ const r=await api('/api/1c/contractors?limit=6&q='+encodeURIComponent(v)); if(!r.ok||!(r.data.items||[]).length){sug.style.display='none';return;}
       sug.innerHTML=r.data.items.map(x=>`<div class="doc-row" data-ref="${esc(x.ref_key)}" data-name="${esc(x.name||'')}"><div><div class="dt">${esc(x.name||'—')}</div><div class="ds">${esc(x.code||'')} · ${esc(x.phone||'')}</div></div></div>`).join(''); sug.style.display='block';
       sug.querySelectorAll('[data-ref]').forEach(it=>it.onclick=()=>{ref=it.dataset.ref;q.value=it.dataset.name;sug.style.display='none';}); },300); });
   bg.querySelector('#ntSave').onclick=async()=>{ const title=bg.querySelector('[data-nt=title]').value.trim(); if(!title){toast('Укажите название','i-info');return;}
-    const body={title,type:bg.querySelector('[data-nt=type]').value,priority:bg.querySelector('[data-nt=prio]').value,due_at:bg.querySelector('[data-nt=due]').value,assignee:bg.querySelector('[data-nt=assignee]').value.trim(),client_ref:ref,client_name:q.value.trim(),note:bg.querySelector('[data-nt=note]').value.trim()};
+    const body={title,type:bg.querySelector('[data-nt=type]').value,priority:bg.querySelector('[data-nt=prio]').value,due_at:bg.querySelector('[data-nt=due]').value,assignees:ntAsgW.get(),client_ref:ref,client_name:q.value.trim(),note:bg.querySelector('[data-nt=note]').value.trim()};
     const r=await api('/api/tasks',{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Не удалось создать','i-x','#dc2626');return;} closeModal(); toast('Задача создана','i-check2'); onSaved&&onSaved(); };
 }
 async function taskModalLive(t,onSaved){
@@ -2506,7 +2518,7 @@ async function taskModalLive(t,onSaved){
   <div class="modal-b">
     <div class="fld"><label>Название</label><input data-tm="title" value="${esc(t.title||'')}"></div>
     <div class="fld-row"><div class="fld"><label>Тип</label><select data-tm="type">${['задача','звонок','встреча','отгрузка','email'].map(x=>`<option ${x===t.type?'selected':''}>${x}</option>`).join('')}</select></div><div class="fld"><label>Срок (дата и время)</label><input type="datetime-local" data-tm="due" value="${esc(dtLocal(t.due_at))}"></div></div>
-    <div class="fld-row"><div class="fld"><label>Приоритет</label><select data-tm="prio"><option value="normal" ${t.priority!=='high'?'selected':''}>обычный</option><option value="high" ${t.priority==='high'?'selected':''}>срочно</option></select></div><div class="fld"><label>Ответственный</label>${userSelectHtml(users,t.assignee,'data-tm="assignee"')}</div></div>
+    <div class="fld-row"><div class="fld"><label>Приоритет</label><select data-tm="prio"><option value="normal" ${t.priority!=='high'?'selected':''}>обычный</option><option value="high" ${t.priority==='high'?'selected':''}>срочно</option></select></div><div class="fld"><label>Ответственные <span class="muted2">(можно несколько)</span></label><div id="tmAsg"></div></div></div>
     <div class="fld"><label>Метки</label><div id="tmLabels" class="chips"></div></div>
     <div class="fld"><label>Чек-лист <span id="tmClProg" class="muted2" style="font-weight:400;font-size:11px"></span></label><div id="tmCl" style="display:flex;flex-direction:column;gap:5px"></div>
       <div class="row" style="gap:6px;margin-top:7px"><input id="tmClNew" placeholder="Добавить пункт…" style="flex:1"><button class="btn sm" id="tmClAdd">${ic('i-plus','sm')}</button></div></div>
@@ -2518,6 +2530,7 @@ async function taskModalLive(t,onSaved){
       <div class="row" style="gap:6px;margin-top:7px"><input id="tmCmNew" placeholder="Написать комментарий…" style="flex:1"><button class="btn sm" id="tmCmAdd">${ic('i-plus','sm')} Добавить</button></div></div>
   </div>
   <div class="modal-f"><button class="btn" id="tmDel" style="color:var(--red)">${ic('i-x','sm')} Удалить</button><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="tmSave">Сохранить</button></div>`);
+  const tmAsgW=assigneeMulti(users, taskAssignees(t)); bg.querySelector('#tmAsg').appendChild(tmAsgW.node);
   // Метки
   const lblBox=bg.querySelector('#tmLabels');
   function renderLabels(){ lblBox.innerHTML=TASK_LABELS.map(L=>`<button type="button" class="chip ${lbls.includes(L.k)?'on':''}" data-k="${L.k}" style="${lbls.includes(L.k)?('background:'+L.c+'22;border-color:'+L.c+';color:'+L.c):''}">${esc(L.t)}</button>`).join('');
@@ -2547,7 +2560,7 @@ async function taskModalLive(t,onSaved){
   const cmNew=bg.querySelector('#tmCmNew');
   bg.querySelector('#tmCmAdd').onclick=async()=>{ const v=cmNew.value.trim(); if(!v)return; const r=await api('/api/tasks/'+t.id,{method:'POST',body:JSON.stringify({add_comment:{text:v}})}); if(r.ok){ cms=[...cms,{text:v,author:(AUTH.user||{}).name||'—',at:Date.now()}]; cmNew.value=''; renderCms(); if(onSaved)onSaved(); } else toast('Ошибка','i-x','#dc2626'); };
   cmNew.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();bg.querySelector('#tmCmAdd').click();} });
-  bg.querySelector('#tmSave').onclick=async()=>{ const body={title:bg.querySelector('[data-tm=title]').value.trim(),type:bg.querySelector('[data-tm=type]').value,priority:bg.querySelector('[data-tm=prio]').value,due_at:bg.querySelector('[data-tm=due]').value,assignee:bg.querySelector('[data-tm=assignee]').value,note:bg.querySelector('[data-tm=note]').value.trim(),labels:lbls,checklist:cl}; const r=await api('/api/tasks/'+t.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
+  bg.querySelector('#tmSave').onclick=async()=>{ const body={title:bg.querySelector('[data-tm=title]').value.trim(),type:bg.querySelector('[data-tm=type]').value,priority:bg.querySelector('[data-tm=prio]').value,due_at:bg.querySelector('[data-tm=due]').value,assignees:tmAsgW.get(),note:bg.querySelector('[data-tm=note]').value.trim(),labels:lbls,checklist:cl}; const r=await api('/api/tasks/'+t.id,{method:'POST',body:JSON.stringify(body)}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
   bg.querySelector('#tmDel').onclick=async()=>{ if(!confirm('Удалить задачу?'))return; const r=await api('/api/tasks/'+t.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
 }
 
