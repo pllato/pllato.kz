@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Inter';src:url('fonts/Inter-Regular.ttf');font-weight:400}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Medium.ttf');font-weight:500}
+@font-face{font-family:'Inter';src:url('fonts/Inter-SemiBold.ttf');font-weight:600}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Bold.ttf');font-weight:700}
+@font-face{font-family:'Inter';src:url('fonts/Inter-ExtraBold.ttf');font-weight:800}
+:root{--navy:#0a1628;--navy3:#1d3050;--bronze:#b8895a;--bronzeL:#d4a978;--off:#f7f6f1;--line:#e6e3da;--text:#1a2230;--muted:#5d6573;--faint:#8a909c;--green:#3f7d52;--greenbg:#eaf3ed;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55}
+.page{width:210mm;min-height:297mm;position:relative;page-break-after:always;padding:20mm 18mm 16mm;display:flex;flex-direction:column}
+.page:last-child{page-break-after:auto}
+.page.cover{padding:0;color:#fff;background:radial-gradient(900px 520px at 72% -8%,#1b3142,var(--navy) 58%);justify-content:space-between}
+.foot{position:absolute;bottom:9mm;left:18mm;right:18mm;display:flex;justify-content:space-between;font-size:8.5px;color:var(--faint);border-top:1px solid var(--line);padding-top:7px}
+.cov-top{padding:22mm 18mm 0}
+.cov-brand{font-size:30px;font-weight:800}.cov-brand .d{color:var(--bronze)}
+.cov-kicker{margin-top:46mm;font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-title{font-size:38px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin-top:14px}
+.cov-sub{margin-top:18px;font-size:13.5px;color:#aebccd;max-width:135mm;line-height:1.6}
+.cov-route{margin-top:18px;font-size:12px;color:#86a0b6}
+.cov-band{background:rgba(255,255,255,.05);border-top:1px solid rgba(255,255,255,.12);padding:9mm 18mm;display:flex;justify-content:space-between;align-items:flex-end}
+.cov-band .pl{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-band .pv{font-size:44px;font-weight:800;line-height:1;margin-top:6px}
+.cov-band .pm{text-align:right;font-size:12px;color:#aebccd;line-height:1.7}.cov-band .pm b{color:#fff}
+.sec{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
+.sec .num{font-size:13px;font-weight:800;color:var(--bronze)}.sec .ti{font-size:21px;font-weight:800;letter-spacing:-.01em}
+h3.sub{font-size:13px;font-weight:700;margin:14px 0 8px;color:var(--navy3)}
+p{margin-bottom:9px}p.lead{font-size:12px;color:var(--muted)}
+.bull{display:flex;gap:9px;margin-bottom:8px}.bull .bh{font-weight:700;white-space:nowrap}
+.quote{background:var(--navy);color:#fff;border-radius:12px;padding:18px 22px;margin:6px 0 18px}
+.quote .qt{font-size:13.5px;line-height:1.6;font-style:italic;color:#e7eef5}.quote .qw{margin-top:10px;font-size:11px;color:var(--bronzeL);font-weight:600}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:6px 0 4px}
+.fcard{background:var(--off);border-left:3px solid var(--bronze);border-radius:0 8px 8px 0;padding:12px 14px}
+.fcard .ft{font-weight:700;font-size:11.5px;margin-bottom:4px}.fcard .fb{font-size:9.5px;color:var(--muted);line-height:1.5}
+.shot{margin:4px 0 6px;border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 6px 20px rgba(10,22,40,.08)}.shot img{width:100%;display:block}
+.cap{font-size:9.5px;color:var(--faint);margin:0 0 16px;padding-left:2px}.cap b{color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:10.5px}
+thead th{background:var(--navy);color:#fff;text-align:left;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:9px 11px}thead th.r{text-align:right}
+tbody td{padding:9px 11px;border-bottom:1px solid var(--line)}tbody td.r{text-align:right;font-weight:700;white-space:nowrap}tbody tr:last-child td{border-bottom:none}
+.priceband{background:var(--navy);color:#fff;border-radius:12px;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.priceband .pl{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--bronzeL)}.priceband .pn{font-size:10px;color:#aebccd;margin-top:5px;max-width:118mm;line-height:1.5}.priceband .pv{font-size:30px;font-weight:800;white-space:nowrap}
+.kvs{margin:4px 0 10px}.kv{display:flex;gap:10px;font-size:10.5px;padding:6px 0;border-bottom:1px solid var(--line)}.kv .kk{width:42mm;color:var(--muted);flex-shrink:0}.kv .vv{font-weight:500}
+.refgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:8px}.ref{background:var(--off);border:1px solid var(--line);border-radius:8px;padding:11px 13px;font-size:10px}.ref b{display:block;margin-bottom:3px;font-size:11px}.ref span{color:var(--muted);line-height:1.45}
+.note{font-size:9.5px;color:var(--faint);margin-top:4px}.avoid{page-break-inside:avoid}
+</style></head>
+<body>
+
+<section class="page cover">
+  <div class="cov-top">
+    <div class="cov-brand">Pllato<span class="d">.</span></div>
+    <div class="cov-kicker">Коммерческое предложение</div>
+    <div class="cov-title">Мини-CRM для<br>стройматериалов</div>
+    <div class="cov-sub">Простой, но сильный инструмент: «записная книжка» клиентов с WhatsApp и Telegram, воронка проектных заявок от обращения до оплаты, шаблоны КП и прайсов. Только нужное — без перегруза Bitrix. В собственность, на вашем сервере.</div>
+    <div class="cov-route">Обращение (WhatsApp/Telegram) → актуализация → просчёт/КП → счёт → производство → отгрузка</div>
+  </div>
+  <div class="cov-band">
+    <div><div class="pl">Мини-CRM «под ключ»</div><div class="pv">500 000 ₸</div></div>
+    <div class="pm">Срок <b>~2 недели</b> · в собственность<br>Первая версия за <b>5–7 дней</b><br>Вместо Bitrix (внедрение ~1 млн ₸)</div>
+  </div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">01</span><span class="ti">Что мы услышали</span></div>
+  <p class="lead">Производство и торговля стройматериалами (ограждения, заборы, слаботочка), B2B, 8 лет на рынке. Заявки проектные и индивидуальные — не «коробочный» товар. Bitrix пробовали — слишком сложный и перегруженный, «удали половину». Нужен простой инструмент, где заявки из WhatsApp ложатся в одну доску, и не нужно тратить время людей на лишнее.</p>
+  <div class="quote">
+    <div class="qt">«Мне надо записную книжку контактов с доступом к WhatsApp — это 98% запросов — и Telegram, чтобы заявки ложились. Мини-CRM. Bitrix для нас слишком сложный. Лишнего не нужно.»</div>
+    <div class="qw">— из разговора, Аман</div>
+  </div>
+  <h3 class="sub">Ключевые задачи</h3>
+  <div class="bull"><span class="bh">Контакт-книга с каналами.</span><span>Клиенты с WhatsApp (98%) и Telegram, вся переписка — в карточке.</span></div>
+  <div class="bull"><span class="bh">Воронка проектных заявок.</span><span>От обращения до оплаты, со спецификацией под изделие (высота, ячейка, сечение, противоподкоп, слаботочка).</span></div>
+  <div class="bull"><span class="bh">КП и прайсы в один клик.</span><span>Шаблоны и роботы: прайс, опросный лист, КП, счёт, уведомление о готовности.</span></div>
+  <div class="bull"><span class="bh">Только нужное.</span><span>Без склада, без 1С, без перегруза. Дашборд из нескольких показателей. Захотите больше — добавим позже.</span></div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · Мини-CRM для стройматериалов</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">02</span><span class="ti">Что мы построим</span></div>
+  <p class="lead">Кастомная мини-CRM с нуля, на вашем сервере. Берём только то, что реально нужно вашему процессу.</p>
+  <div class="cards">
+    <div class="fcard"><div class="ft">🗂 Воронка заявок</div><div class="fb">Доска: обращение → актуализация → просчёт/КП → счёт → производство → отгрузка → оплачено.</div></div>
+    <div class="fcard"><div class="ft">📇 Контакт-книга</div><div class="fb">Клиенты, контакты, история заявок и оборот. Импорт существующих контактов.</div></div>
+    <div class="fcard"><div class="ft">💬 WhatsApp + Telegram</div><div class="fb">Переписка (текст и вложения) в карточке заявки, в одном окне.</div></div>
+    <div class="fcard"><div class="ft">📐 Спецификация заявки</div><div class="fb">Проектные поля под изделие; КП собирается из спецификации.</div></div>
+    <div class="fcard"><div class="ft">📄 КП, прайсы, роботы</div><div class="fb">Шаблоны и авто-сообщения: прайс, опросный лист, КП, счёт, «готово к отгрузке».</div></div>
+    <div class="fcard"><div class="ft">📊 Простой дашборд</div><div class="fb">Несколько ключевых показателей: заявки, в производстве, выручка, конверсия.</div></div>
+  </div>
+  <p class="note" style="margin-top:12px">Ниже — рабочий кликабельный прототип под ваш процесс. Данные и имена демонстрационные.</p>
+  <div class="foot"><span>Pllato · Коммерческое предложение · Мини-CRM для стройматериалов</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">03</span><span class="ti">Воронка заявок</span></div>
+  <p class="lead">Каждая проектная заявка ведётся от обращения до оплаты. Видно, что в просчёте, что в производстве, что отгружено — без лишних полей.</p>
+  <div class="shot"><img src="../../app/perimetr/shots/funnel.png"></div>
+  <div class="cap"><b>Доска заявок.</b> Карточка = заявка клиента, метка 💬 — переписка в WhatsApp. Этапы настраиваются под ваш процесс.</div>
+  <div class="sec" style="margin-top:6px"><span class="num">04</span><span class="ti">Карточка заявки и спецификация</span></div>
+  <div class="shot"><img src="../../app/perimetr/shots/deal_spec.png"></div>
+  <div class="cap"><b>Спецификация под изделие.</b> Высота, длина, ячейка, диаметр прутка, сечение стойки, противоподкоп, слаботочка — поля под ваши проекты. КП собирается из спецификации.</div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · Мини-CRM для стройматериалов</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">05</span><span class="ti">Переписка и шаблоны</span></div>
+  <p class="lead">WhatsApp и Telegram в одном окне, привязаны к заявкам. Прайсы, опросный лист и КП отправляются клиенту в один клик.</p>
+  <div class="shot"><img src="../../app/perimetr/shots/inbox.png"></div>
+  <div class="cap"><b>Инбокс WhatsApp / Telegram.</b> Переписка и вложения (чертежи) — в карточке заявки.</div>
+  <div class="shot"><img src="../../app/perimetr/shots/templates.png"></div>
+  <div class="cap"><b>КП и прайсы.</b> Шаблоны и роботы: прайс, опросный лист, КП по спецификации, счёт, уведомление «готово к отгрузке».</div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · Мини-CRM для стройматериалов</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">06</span><span class="ti">Как работаем · стоимость</span></div>
+  <p class="lead">Быстро и постоплатой. Первую версию покажем за 5–7 дней, потом правим под вас по мелочам. Сдаём в два этапа.</p>
+  <div class="bull"><span class="bh">Шаг 1 · Версия.</span><span>Воронка, контакт-книга, WhatsApp/Telegram, спецификация, дашборд — за 5–7 дней. Прокликиваете, вносите правки.</span></div>
+  <div class="bull"><span class="bh">Шаг 2 · Финал.</span><span>Правки, шаблоны КП/прайсов, интеграции, передача кода на ваш сервер.</span></div>
+  <table class="avoid" style="margin-top:10px">
+    <thead><tr><th>Этап</th><th>Что включает</th><th class="r">Оплата</th></tr></thead>
+    <tbody>
+      <tr><td><b>Старт</b></td><td>Запуск, развёртывание рабочей версии</td><td class="r">50 000 ₸</td></tr>
+      <tr><td><b>Шаг 1</b></td><td>Воронка, контакты, каналы, спецификация, дашборд — принято</td><td class="r">225 000 ₸</td></tr>
+      <tr><td><b>Шаг 2 · Финал</b></td><td>Правки, шаблоны, передача кода</td><td class="r">225 000 ₸</td></tr>
+    </tbody>
+  </table>
+  <div class="priceband avoid">
+    <div><div class="pl">Итого мини-CRM</div><div class="pn">В собственность, на вашем сервере (облако — на старте бесплатно). WhatsApp ~10 000 ₸/мес через нашего партнёра вместо ~36 000 ₸. Поддержка — $20/час.</div></div>
+    <div class="pv">500 000 ₸</div>
+  </div>
+  <p class="note">Это «мини», но с возможностью роста: захотите склад, 1С, глубокую аналитику — расширим тем же кодом, без переписывания.</p>
+
+  <h3 class="sub" style="margin-top:16px">О Pllato</h3>
+  <p class="lead">Студия разработки в Алматы. Кастомные CRM/ERP с нуля, в собственность. Не «коробка»: всё в одной системе, без сшивания разных сервисов как в Bitrix.</p>
+  <div class="refgrid">
+    <div class="ref"><b>Сеть из 7 аптек</b><span>Воронки, чаты, дашборды, 1С — большая система.</span></div>
+    <div class="ref"><b>Производитель окон</b><span>Воронка, заказы, счета при просчёте, склад.</span></div>
+  </div>
+  <div class="priceband avoid" style="margin-top:12px">
+    <div><div class="pl">Контакты</div><div class="pn">Платон Цай · +7 701 123 99 99 (тел / WhatsApp) · uurraa@gmail.com · pllato.kz</div></div>
+    <div class="pv" style="font-size:24px">Pllato<span style="color:var(--bronzeL)">.</span></div>
+  </div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · Мини-CRM для стройматериалов</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+</body></html>

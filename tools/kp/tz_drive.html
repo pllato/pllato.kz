@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Inter';src:url('fonts/Inter-Regular.ttf');font-weight:400}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Medium.ttf');font-weight:500}
+@font-face{font-family:'Inter';src:url('fonts/Inter-SemiBold.ttf');font-weight:600}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Bold.ttf');font-weight:700}
+@font-face{font-family:'Inter';src:url('fonts/Inter-ExtraBold.ttf');font-weight:800}
+:root{--navy:#0a1628;--navy3:#1d3050;--bronze:#b8895a;--bronzeL:#d4a978;--off:#f7f6f1;--line:#e6e3da;--text:#1a2230;--muted:#5d6573;--faint:#8a909c;--green:#3f7d52;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55}
+.page{width:210mm;min-height:297mm;position:relative;page-break-after:always;padding:18mm 18mm 16mm;display:flex;flex-direction:column}
+.page:last-child{page-break-after:auto}
+.page.cover{padding:0;color:#fff;background:radial-gradient(900px 520px at 72% -8%,#16314e,var(--navy) 58%);justify-content:space-between}
+.foot{position:absolute;bottom:9mm;left:18mm;right:18mm;display:flex;justify-content:space-between;font-size:8.5px;color:var(--faint);border-top:1px solid var(--line);padding-top:7px}
+.cov-top{padding:22mm 18mm 0}
+.cov-brand{font-size:30px;font-weight:800}.cov-brand .d{color:var(--bronze)}
+.cov-kicker{margin-top:48mm;font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-title{font-size:38px;font-weight:800;line-height:1.12;letter-spacing:-.02em;margin-top:14px}
+.cov-sub{margin-top:18px;font-size:13px;color:#aebccd;max-width:138mm;line-height:1.6}
+.cov-meta{padding:9mm 18mm;background:rgba(255,255,255,.05);border-top:1px solid rgba(255,255,255,.12);display:flex;gap:34px;font-size:11px;color:#aebccd}
+.cov-meta b{color:#fff;display:block;font-size:12px;margin-bottom:3px}
+.sec{display:flex;align-items:baseline;gap:11px;margin:2px 0 12px}
+.sec .num{font-size:12px;font-weight:800;color:var(--bronze)}.sec .ti{font-size:19px;font-weight:800;letter-spacing:-.01em}
+.ssec{font-size:12.5px;font-weight:700;color:var(--navy3);margin:13px 0 6px}
+p{margin-bottom:8px}p.lead{font-size:11.5px;color:var(--muted)}
+ul{margin:4px 0 9px 0;padding-left:15px}li{margin-bottom:4px}li b{font-weight:700}
+.tag{display:inline-block;background:var(--off);border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:9.5px;color:var(--muted);margin:0 4px 4px 0}
+table{width:100%;border-collapse:collapse;margin:6px 0 12px;font-size:10px}
+thead th{background:var(--navy);color:#fff;text-align:left;font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:8px 10px}
+thead th.c{text-align:center}
+tbody td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}tbody td.c{text-align:center}tbody tr:last-child td{border-bottom:none}
+.mod{border:1px solid var(--line);border-radius:9px;padding:13px 16px;margin-bottom:11px;page-break-inside:avoid}
+.mod .mh{font-size:13px;font-weight:700;margin-bottom:3px}.mod .mh .mn{color:var(--bronze);font-weight:800;margin-right:7px}
+.mod .md{font-size:10px;color:var(--muted);margin-bottom:7px}.mod ul{margin:0;padding-left:15px}
+.box{background:var(--off);border-left:3px solid var(--bronze);border-radius:0 8px 8px 0;padding:12px 16px;margin:6px 0 12px;font-size:10.5px}
+.note{font-size:9.5px;color:var(--faint);margin-top:4px}
+</style></head>
+<body>
+
+<section class="page cover">
+  <div class="cov-top">
+    <div class="cov-brand">Pllato<span class="d">.</span></div>
+    <div class="cov-kicker">Техническое задание · черновик</div>
+    <div class="cov-title">CRM для прокат-<br>сервиса автопарка</div>
+    <div class="cov-sub">Предварительные требования к платформе Drive Taxi: квалификация лидов, умный автодозвон, воронки под аренду такси / B2C / подключение к Яндекс Go, KPI по менеджерам и дашборд. Документ для согласования перед стартом.</div>
+  </div>
+  <div class="cov-meta">
+    <div><b>Заказчик</b>Drive Taxi · Юлия</div>
+    <div><b>Исполнитель</b>Pllato · pllato.kz</div>
+    <div><b>Редакция</b>1.0 · черновик</div>
+    <div><b>Срок</b>4–6 недель</div>
+  </div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">1</span><span class="ti">Общие сведения</span></div>
+  <p class="lead"><b>Назначение.</b> Собственная CRM-платформа для прокат-сервиса автомобилей: автоматизация отдела продаж от первого касания до выезда клиента, квалификация лидов, прозрачные KPI. Замена amoCRM, которая используется ~на 20%.</p>
+  <p class="lead"><b>Компания.</b> 10 лет на рынке, Алматы. Динамичная сфера (правила площадок меняются часто) — система должна легко перенастраиваться.</p>
+  <p class="lead"><b>Продукты.</b> (1) Аренда авто под такси для водителей; (2) Аренда авто B2C (на день-два, личные цели); (3) Услуга подключения к платформе Яндекс Go.</p>
+  <p class="lead"><b>Пользователи.</b> 5 менеджеров продаж, РОП (планируется), собственник. Поток ~40–70 лидов/день (сезонно).</p>
+
+  <div class="sec" style="margin-top:14px"><span class="num">2</span><span class="ti">Архитектура и общие требования</span></div>
+  <ul>
+    <li><b>Тип:</b> веб-приложение (портал), доступ из браузера, адаптивно. По духу — как amoCRM, но кастомное и в собственности.</li>
+    <li><b>Размещение:</b> облако (Cloudflare / AWS / GCP), на старте бесплатные тарифы; при росте — недорогой хостинг. Аудио из WhatsApp хранится в интеграции и в объём не входит.</li>
+    <li><b>Собственность:</b> код и права передаются заказчику; без помесячной оплаты за пользователей.</li>
+    <li><b>Гибкость:</b> воронки, поля, этапы, триггеры и KPI настраиваются под меняющиеся правила рынка.</li>
+    <li><b>Перенос:</b> удачные текущие триггеры и сценарии из amoCRM переносятся в новую систему.</li>
+  </ul>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для прокат-сервиса (Drive Taxi) · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">3</span><span class="ti">Роли и доступы</span></div>
+  <table>
+    <thead><tr><th>Раздел</th><th class="c">Менеджер</th><th class="c">РОП</th><th class="c">Собственник</th></tr></thead>
+    <tbody>
+      <tr><td>Лиды / воронки</td><td class="c">свои</td><td class="c">все</td><td class="c">все</td></tr>
+      <tr><td>Квалификация</td><td class="c">просмотр</td><td class="c">настройка</td><td class="c">настройка</td></tr>
+      <tr><td>KPI</td><td class="c">свои</td><td class="c">все</td><td class="c">все</td></tr>
+      <tr><td>Дашборд / аналитика</td><td class="c">—</td><td class="c">да</td><td class="c">да</td></tr>
+      <tr><td>Настройки системы</td><td class="c">—</td><td class="c">частично</td><td class="c">да</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>Менеджер:</b> работает только со своими лидами и видит свой KPI и прогресс.</li>
+    <li><b>РОП:</b> контроль отдела, распределение, ежедневная отчётность, настройка воронок/KPI.</li>
+    <li><b>Собственник:</b> полный дашборд, реальная картина по менеджерам/каналам/продуктам.</li>
+  </ul>
+
+  <div class="sec" style="margin-top:12px"><span class="num">4</span><span class="ti">Квалификация лидов</span></div>
+  <div class="box">
+    Поток: <b>лид → бот-фильтр → квалифицированный лид → менеджер → выезд.</b> Бот собирает данные и фото документов; неподходящие отсекаются до менеджера.
+  </div>
+  <p class="ssec">Критерии (аренда под такси):</p>
+  <div><span class="tag">Возраст 21+</span><span class="tag">Класс риска выше 4-го</span><span class="tag">Оригинал удостоверения</span><span class="tag">Оригинал прав</span><span class="tag">Регион: Алматы</span></div>
+  <ul>
+    <li>Этап фотографирования оригинальных документов (загрузка через бота/ссылку, максимально просто).</li>
+    <li>Подсказка по классу риска на основе базовых документов.</li>
+    <li>Аренда B2C — без жёсткого фильтра, сразу на менеджера.</li>
+  </ul>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для прокат-сервиса (Drive Taxi) · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">5</span><span class="ti">Функциональные модули</span></div>
+
+  <div class="mod"><div class="mh"><span class="mn">5.1</span>Воронки под продукты</div>
+    <div class="md">Отдельные воронки и этапы для каждого продукта.</div>
+    <ul>
+      <li>Воронки: <span class="tag">Аренда под такси</span><span class="tag">Аренда B2C</span><span class="tag">Подключение к Яндекс Go</span>.</li>
+      <li>Кастомные этапы и поля под каждый продукт; перенос лида между воронками.</li>
+      <li>Источник лида (таргет / OLX / TikTok / объявления) фиксируется автоматически.</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">5.2</span>Умный автодозвон и распределение</div>
+    <div class="md">Разумная очередь звонков вместо «бомбардировки».</div>
+    <ul>
+      <li>Распределение звонков по времени и приоритету (сначала — кто обратился недавно / утром).</li>
+      <li>Без массовых микрозвонков; корректная передача звонка менеджеру.</li>
+      <li>Фиксация попыток дозвона и результата в карточке лида.</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">5.3</span>Карточка лида / клиента и автопарк</div>
+    <div class="md">Полная история работы с лидом.</div>
+    <ul>
+      <li>Данные водителя, документы (фото), класс риска, регион, источник, история касаний.</li>
+      <li>Связь с автомобилем: какое авто выдано, статус (в аренде / свободно / на ТО).</li>
+      <li>Видно: обработали ли заявку, выехал клиент или нет.</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">5.4</span>KPI по менеджерам</div>
+    <div class="md">Справедливая прозрачная система, собирается из воронки.</div>
+    <ul>
+      <li>Показатели: обработанные лиды, конверсия, выезды, закрытия, среднее время ответа, повторные касания.</li>
+      <li>Менеджер видит свой прогресс; KPI привязывается к зарплате.</li>
+      <li>Состав KPI настраивается под отдел и под РОПа.</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">5.5</span>Дашборд и отчётность</div>
+    <div class="md">Реальная картина для РОПа и собственника.</div>
+    <ul>
+      <li>Сводка по менеджерам, каналам, продуктам; воронка и конверсия.</li>
+      <li>Ежедневные отчёты (3–5 видов) для РОПа; контроль «пришёл на работу / на месте».</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">5.6</span>Коммуникации и триггеры</div>
+    <div class="md">Каналы и автоматизации.</div>
+    <ul>
+      <li>WhatsApp в карточке (текст + аудио), лиды по каналам считаются автоматически.</li>
+      <li>Триггеры/рассылки (напоминания о визите, повторные касания) — перенос удачных из amoCRM.</li>
+      <li>Служба поддержки на ИИ — отдельным этапом позже.</li>
+    </ul>
+  </div>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для прокат-сервиса (Drive Taxi) · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">6</span><span class="ti">Интеграции и нефункциональные требования</span></div>
+  <table>
+    <thead><tr><th>Интеграция</th><th>Назначение</th><th class="c">Этап</th></tr></thead>
+    <tbody>
+      <tr><td>WhatsApp Business</td><td>Переписка и аудио в карточке</td><td class="c">MVP</td></tr>
+      <tr><td>IP-телефония + автодозвон</td><td>Умное распределение звонков, запись</td><td class="c">MVP</td></tr>
+      <tr><td>Каналы лидов (таргет/OLX/TikTok/формы)</td><td>Заявки в воронку, фиксация источника</td><td class="c">MVP</td></tr>
+      <tr><td>Бот-квалификация</td><td>Фильтрация и сбор документов</td><td class="c">MVP</td></tr>
+      <tr><td>ИИ служба поддержки</td><td>Ответы на типовые вопросы</td><td class="c">Позже</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>Производительность:</b> устойчивая работа при 40–70 лидах/день и 5+ менеджерах.</li>
+    <li><b>Удобство:</b> простой ввод для менеджеров; обязательные поля; единая точка входа.</li>
+    <li><b>Гибкость:</b> быстрая перенастройка воронок/полей/KPI под меняющиеся правила.</li>
+    <li><b>Надёжность:</b> резервное копирование; данные в собственности заказчика.</li>
+  </ul>
+
+  <div class="sec" style="margin-top:12px"><span class="num">7</span><span class="ti">Этапы и приёмка</span></div>
+  <table>
+    <thead><tr><th>Этап</th><th>Содержание</th><th class="c">Оплата</th></tr></thead>
+    <tbody>
+      <tr><td><b>Шаг 0 · Старт</b></td><td>Ядро: воронки, квалификация, карточки — кликабельный прототип</td><td class="c">150 000 ₸</td></tr>
+      <tr><td><b>Шаг 1 · Скелет</b></td><td>Автодозвон, KPI, дашборд, каналы — принято</td><td class="c">675 000 ₸</td></tr>
+      <tr><td><b>Шаг 2 · Финал</b></td><td>Правки, интеграции, перенос триггеров, передача кода</td><td class="c">675 000 ₸</td></tr>
+    </tbody>
+  </table>
+  <div class="box"><b>Порядок приёмки.</b> На каждом шаге — совместный прокликивание (Zoom). Заказчик фиксирует правки, исполнитель вносит их в рамках этапа. Этап принят после подтверждения; затем счёт за этап. Постоплата.</div>
+
+  <div class="sec" style="margin-top:10px"><span class="num">8</span><span class="ti">Вне рамок</span></div>
+  <ul>
+    <li>Хостинг, каналы (WhatsApp), номера телефонии — по тарифам провайдеров.</li>
+    <li>Доработки после сдачи — $20/час.</li>
+    <li>ИИ-служба поддержки, третий продукт (в разработке у заказчика) — отдельными этапами.</li>
+  </ul>
+  <div class="box" style="border-left-color:var(--green);background:#eaf3ed">
+    <b>Стоимость и сроки.</b> Разработка «под ключ» — 1 500 000 ₸ (150 000 предоплата + 675 000 + 675 000 постоплатой). Срок 4–6 недель. В собственность, на сервере заказчика. Поддержка — $20/час. Детали — в коммерческом предложении. Перед стартом ТЗ детализируется с РОПом.
+  </div>
+  <p class="note">Редакция 1.0 (черновик). Документ намеренно подробный, чтобы ожидания совпали с результатом; финальный состав уточняется с РОПом перед стартом.</p>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для прокат-сервиса (Drive Taxi) · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+</body></html>

@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Inter';src:url('fonts/Inter-Regular.ttf');font-weight:400}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Medium.ttf');font-weight:500}
+@font-face{font-family:'Inter';src:url('fonts/Inter-SemiBold.ttf');font-weight:600}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Bold.ttf');font-weight:700}
+@font-face{font-family:'Inter';src:url('fonts/Inter-ExtraBold.ttf');font-weight:800}
+:root{--navy:#0a1628;--navy3:#1d3050;--bronze:#b8895a;--bronzeL:#d4a978;--off:#f7f6f1;--line:#e6e3da;--text:#1a2230;--muted:#5d6573;--faint:#8a909c;--green:#3f7d52;--greenbg:#eaf3ed;--blue:#2f5d8a;--amber:#c8911f;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55}
+.page{width:210mm;min-height:297mm;position:relative;page-break-after:always;padding:20mm 18mm 16mm;display:flex;flex-direction:column}
+.page:last-child{page-break-after:auto}
+.page.cover{padding:0;color:#fff;background:radial-gradient(900px 520px at 72% -8%,#16314e,var(--navy) 58%);justify-content:space-between}
+.foot{position:absolute;bottom:9mm;left:18mm;right:18mm;display:flex;justify-content:space-between;font-size:8.5px;color:var(--faint);border-top:1px solid var(--line);padding-top:7px}
+.cov-top{padding:22mm 18mm 0}
+.cov-brand{font-size:30px;font-weight:800;letter-spacing:-.01em}.cov-brand .d{color:var(--bronze)}
+.cov-kicker{margin-top:44mm;font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-title{font-size:38px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin-top:14px}
+.cov-sub{margin-top:18px;font-size:13.5px;color:#aebccd;max-width:138mm;line-height:1.6}
+.cov-route{margin-top:18px;font-size:12px;color:#86a0b6}
+.cov-band{background:rgba(255,255,255,.05);border-top:1px solid rgba(255,255,255,.12);padding:9mm 18mm;display:flex;justify-content:space-between;align-items:flex-end}
+.cov-band .pl{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-band .pv{font-size:44px;font-weight:800;letter-spacing:-.01em;line-height:1;margin-top:6px}
+.cov-band .pm{text-align:right;font-size:12px;color:#aebccd;line-height:1.7}.cov-band .pm b{color:#fff}
+.sec{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
+.sec .num{font-size:13px;font-weight:800;color:var(--bronze)}
+.sec .ti{font-size:21px;font-weight:800;letter-spacing:-.01em}
+h3.sub{font-size:13px;font-weight:700;margin:16px 0 8px;color:var(--navy3)}
+p{margin-bottom:9px}p.lead{font-size:12px;color:var(--muted)}
+.bull{display:flex;gap:9px;margin-bottom:8px}.bull .bh{font-weight:700;white-space:nowrap}
+.quote{background:var(--navy);color:#fff;border-radius:12px;padding:18px 22px;margin:6px 0 18px}
+.quote .qt{font-size:13.5px;line-height:1.6;font-style:italic;color:#e7eef5}
+.quote .qw{margin-top:10px;font-size:11px;color:var(--bronzeL);font-weight:600}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:6px 0 4px}
+.fcard{background:var(--off);border-left:3px solid var(--bronze);border-radius:0 8px 8px 0;padding:12px 14px}
+.fcard .ft{font-weight:700;font-size:11.5px;margin-bottom:4px}.fcard .fb{font-size:9.5px;color:var(--muted);line-height:1.5}
+/* qualification flow */
+.flow{display:flex;align-items:stretch;gap:0;margin:10px 0 6px}
+.fstep{flex:1;background:var(--off);border:1px solid var(--line);border-radius:10px;padding:12px 13px;position:relative;margin-right:18px}
+.fstep:last-child{margin-right:0}
+.fstep:not(:last-child):after{content:'→';position:absolute;right:-15px;top:50%;transform:translateY(-50%);color:var(--bronze);font-weight:800;font-size:15px}
+.fstep .fn{font-size:10px;font-weight:800;color:var(--bronze);letter-spacing:.05em;text-transform:uppercase;margin-bottom:5px}
+.fstep .fb{font-size:10px;color:var(--text);font-weight:600;margin-bottom:3px}
+.fstep .fd{font-size:9px;color:var(--muted);line-height:1.4}
+.fstep.ok{background:var(--greenbg);border-color:#cfe0d4}
+.crit{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 4px}
+.crit span{background:var(--navy);color:#fff;font-size:10px;font-weight:600;padding:5px 11px;border-radius:8px}
+.crit span.x{background:#fbeee9;color:#b1492f}
+/* kpi mock */
+.kmock{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:8px 0 6px}
+.kcard{background:var(--navy);color:#fff;border-radius:10px;padding:13px 14px}
+.kcard .kl{font-size:9px;color:#9fb0c4;text-transform:uppercase;letter-spacing:.04em}
+.kcard .kv{font-size:21px;font-weight:800;margin-top:5px}
+.kcard .kd{font-size:9px;color:var(--bronzeL);margin-top:3px}
+.mrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.mrow .mn{width:30mm;font-size:10.5px;font-weight:600}
+.mrow .mbar{flex:1;height:9px;background:var(--off);border-radius:6px;overflow:hidden}
+.mrow .mbar i{display:block;height:100%;background:linear-gradient(90deg,var(--bronze),var(--bronzeL))}
+.mrow .mp{width:14mm;text-align:right;font-size:10.5px;font-weight:700}
+.softbox{background:var(--greenbg);border-left:3px solid var(--green);border-radius:0 8px 8px 0;padding:14px 18px;margin:6px 0 14px}
+.softbox .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.softbox .sl{display:flex;justify-content:space-between;font-size:11px;padding:4px 0}
+table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:10.5px}
+thead th{background:var(--navy);color:#fff;text-align:left;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:9px 11px}
+thead th.r{text-align:right}
+tbody td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody td.r{text-align:right;font-weight:700;white-space:nowrap}tbody tr:last-child td{border-bottom:none}
+.priceband{background:var(--navy);color:#fff;border-radius:12px;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.priceband .pl{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--bronzeL)}
+.priceband .pn{font-size:10px;color:#aebccd;margin-top:5px;max-width:118mm;line-height:1.5}
+.priceband .pv{font-size:30px;font-weight:800;white-space:nowrap}
+.kvs{margin:4px 0 10px}.kv{display:flex;gap:10px;font-size:10.5px;padding:6px 0;border-bottom:1px solid var(--line)}
+.kv .kk{width:42mm;color:var(--muted);flex-shrink:0}.kv .vv{font-weight:500}
+.refgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:8px}
+.ref{background:var(--off);border:1px solid var(--line);border-radius:8px;padding:11px 13px;font-size:10px}
+.ref b{display:block;margin-bottom:3px;font-size:11px}.ref span{color:var(--muted);line-height:1.45}
+.note{font-size:9.5px;color:var(--faint);margin-top:4px}.avoid{page-break-inside:avoid}
+</style></head>
+<body>
+
+<section class="page cover">
+  <div class="cov-top">
+    <div class="cov-brand">Pllato<span class="d">.</span></div>
+    <div class="cov-kicker">Коммерческое предложение · Drive Taxi</div>
+    <div class="cov-title">CRM для прокат-<br>сервиса автопарка</div>
+    <div class="cov-sub">Своя платформа вместо amoCRM: автоматическая квалификация лидов (возраст, класс риска, документы, регион), умный автодозвон, отдельные воронки под аренду такси / B2C / подключение к Яндекс Go, прозрачные KPI по менеджерам и дашборд собственника.</div>
+    <div class="cov-route">Лид (таргет/OLX/TikTok) → бот-квалификация → умный автодозвон → менеджер → выезд · KPI и дашборд</div>
+  </div>
+  <div class="cov-band">
+    <div><div class="pl">Разработка «под ключ»</div><div class="pv">1 500 000 ₸</div></div>
+    <div class="pm">Срок <b>4–6 недель</b> · в собственность<br>Предоплата <b>150 000 ₸</b>, остальное — постоплатой<br>Вместо amoCRM <b>70 000 ₸/мес</b></div>
+  </div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">01</span><span class="ti">Что мы услышали</span></div>
+  <p class="lead">Компания 10 лет на рынке, сфера динамичная — правила меняются постоянно. Отдел продаж (5 менеджеров) работает в amoCRM, но используется она на ~20%. Главная боль — менеджеры тратят время на «бракованные» лиды (водители без нужных документов/класса риска), а старый дашборд после реорганизации перестал работать. Нужна своя система, которая фильтрует лиды на входе и даёт честный KPI.</p>
+  <div class="quote">
+    <div class="qt">«Хочу максимально автоматизировать отдел продаж: чтобы лид на входе был квалифицирован под нас, а менеджеры не тратили время на тех, кто априори не подходит. И нужна справедливая, прозрачная система KPI — чтобы специалисты видели свой прогресс, а я адекватно оценивала вклад.»</div>
+    <div class="qw">— из разговора, Юлия (Drive Taxi)</div>
+  </div>
+  <h3 class="sub">Ключевые задачи</h3>
+  <div class="bull"><span class="bh">Квалификация лидов на входе.</span><span>Бот-фильтр отсекает заведомо неподходящих (возраст, класс риска, документы, регион) — менеджер получает уже «чистый» лид.</span></div>
+  <div class="bull"><span class="bh">Умный автодозвон.</span><span>Звонки распределяются разумно по времени (сначала тем, кто обратился недавно/утром), без «бомбардировки» микрозвонками.</span></div>
+  <div class="bull"><span class="bh">Воронки под продукты.</span><span>Аренда под такси, аренда B2C, подключение к Яндекс Go — отдельные воронки и этапы.</span></div>
+  <div class="bull"><span class="bh">Прозрачный KPI и дашборд.</span><span>Кто с каким лидом работал, сколько закрыл, сколько выехало; менеджер видит свой прогресс, собственник — реальную картину.</span></div>
+  <div class="bull"><span class="bh">Управленческий учёт.</span><span>Видеть конкретного водителя/заявку: обработали ли, выехал или нет — то, чего нет в amoCRM.</span></div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для прокат-сервиса (Drive Taxi)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">02</span><span class="ti">Квалификация лидов на входе</span></div>
+  <p class="lead">Тот, кто хочет арендовать авто под такси, готов пройти короткую процедуру. Бот собирает данные и фото оригинальных документов; до менеджера доходит уже квалифицированный лид. «Брак» отсеивается сам, менеджер работает только с качественными обращениями.</p>
+  <div class="flow">
+    <div class="fstep"><div class="fn">1 · Лид</div><div class="fb">Заявка с канала</div><div class="fd">Таргет · OLX · TikTok · объявления</div></div>
+    <div class="fstep"><div class="fn">2 · Бот-фильтр</div><div class="fb">Квалификация</div><div class="fd">Возраст, класс риска, регион, фото документов</div></div>
+    <div class="fstep ok"><div class="fn">3 · Менеджер</div><div class="fb">Квалифиц. лид</div><div class="fd">Все данные и документы на месте</div></div>
+    <div class="fstep ok"><div class="fn">4 · Выезд</div><div class="fb">Аренда / подключение</div><div class="fd">Договор и выдача авто</div></div>
+  </div>
+  <h3 class="sub">Критерии квалификации (под такси)</h3>
+  <div class="crit">
+    <span>Возраст 21+</span><span>Класс риска выше 4-го</span><span>Оригинал удостоверения</span><span>Оригинал прав</span><span>Регион: Алматы</span>
+  </div>
+  <p class="note">Класс риска можно подсказать клиенту по базовым документам. Аренда B2C (на день-два) идёт сразу на менеджера без жёсткого фильтра.</p>
+
+  <div class="sec" style="margin-top:18px"><span class="num">03</span><span class="ti">Что мы построим</span></div>
+  <div class="cards">
+    <div class="fcard"><div class="ft">🤖 Бот-квалификация</div><div class="fb">Сбор данных и фото документов, отсев брака, передача чистого лида менеджеру.</div></div>
+    <div class="fcard"><div class="ft">📞 Умный автодозвон</div><div class="fb">Распределение звонков по времени и приоритету, без «бомбардировки».</div></div>
+    <div class="fcard"><div class="ft">🗂 Воронки под продукты</div><div class="fb">Аренда под такси / B2C / Яндекс Go — свои этапы и поля.</div></div>
+    <div class="fcard"><div class="ft">🎯 KPI по менеджерам</div><div class="fb">Лиды, обработка, конверсия, выезды, закрытия — честно и прозрачно.</div></div>
+    <div class="fcard"><div class="ft">📊 Дашборд собственника</div><div class="fb">Реальная картина по менеджерам, каналам, продуктам.</div></div>
+    <div class="fcard"><div class="ft">💬 Каналы и WhatsApp</div><div class="fb">Переписка и аудио в карточке, лиды по каналам считаются сами.</div></div>
+  </div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для прокат-сервиса (Drive Taxi)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">04</span><span class="ti">KPI и дашборд</span></div>
+  <p class="lead">Показатели собираются автоматически из воронки — не нужно вести отдельные отчёты. Менеджер видит свой прогресс, собственник — вклад каждого. Зарплата привязывается к KPI, поэтому менеджеры реально работают в системе.</p>
+  <div class="kmock">
+    <div class="kcard"><div class="kl">Лидов сегодня</div><div class="kv">52</div><div class="kd">▲ сезон</div></div>
+    <div class="kcard"><div class="kl">Квалифицировано</div><div class="kv">31</div><div class="kd">60% годных</div></div>
+    <div class="kcard"><div class="kl">Выехали</div><div class="kv">14</div><div class="kd">конверсия 27%</div></div>
+    <div class="kcard"><div class="kl">Авто в аренде</div><div class="kv">112</div><div class="kd">загрузка 89%</div></div>
+  </div>
+  <h3 class="sub">KPI по менеджерам · сегодня</h3>
+  <div class="mrow"><div class="mn">Менеджер 1</div><div class="mbar"><i style="width:92%"></i></div><div class="mp">92%</div></div>
+  <div class="mrow"><div class="mn">Менеджер 2</div><div class="mbar"><i style="width:78%"></i></div><div class="mp">78%</div></div>
+  <div class="mrow"><div class="mn">Менеджер 3</div><div class="mbar"><i style="width:64%"></i></div><div class="mp">64%</div></div>
+  <div class="mrow"><div class="mn">Менеджер 4</div><div class="mbar"><i style="width:51%"></i></div><div class="mp">51%</div></div>
+  <p class="note">Состав показателей (обработанные лиды, конверсия, выезды, среднее время ответа, повторные касания) согласуем под ваш отдел продаж и под нового РОПа.</p>
+
+  <div class="sec" style="margin-top:14px"><span class="num">05</span><span class="ti">Почему не бот-продажи, а квалификация</span></div>
+  <p class="lead">Честно: ИИ-боты и обзвон-роботы хороши для службы поддержки, но в продажах они «собирают сливки» и уступают живому отделу. Поэтому бот мы ставим на <b>квалификацию и фильтрацию</b>, а сами продажи остаются за менеджерами — с умным распределением и контролем. Службу поддержки на ИИ можем проработать отдельно позже.</p>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для прокат-сервиса (Drive Taxi)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">06</span><span class="ti">Как мы работаем</span></div>
+  <p class="lead">Короткими итерациями, постоплатой. Сначала — рабочее ядро, потом доработки по вашим правкам. Перед стартом пишем предварительное ТЗ (приложено отдельно) — чтобы ожидания совпали с результатом.</p>
+  <div class="bull"><span class="bh">Шаг 0 · Старт.</span><span>Предоплата 150 000 ₸. Разворачиваем ядро: воронки, квалификация, карточки — уже кликабельно.</span></div>
+  <div class="bull"><span class="bh">Шаг 1 · Скелет.</span><span>Автодозвон, KPI, дашборд, каналы. Прокликиваем вместе, собираем правки.</span></div>
+  <div class="bull"><span class="bh">Шаг 2 · Финал.</span><span>Правки, интеграции (WhatsApp, телефония), перенос удачных триггеров, передача кода.</span></div>
+
+  <div class="sec" style="margin-top:14px"><span class="num">07</span><span class="ti">Стоимость</span></div>
+  <table class="avoid">
+    <thead><tr><th>Этап</th><th>Что включает</th><th class="r">Оплата</th></tr></thead>
+    <tbody>
+      <tr><td><b>Шаг 0 · Старт</b></td><td>Запуск ядра, развёртывание прототипа</td><td class="r">150 000 ₸</td></tr>
+      <tr><td><b>Шаг 1 · Скелет</b></td><td>Воронки, квалификация, автодозвон, KPI, дашборд — принято</td><td class="r">675 000 ₸</td></tr>
+      <tr><td><b>Шаг 2 · Финал</b></td><td>Правки, интеграции, передача кода и документации</td><td class="r">675 000 ₸</td></tr>
+    </tbody>
+  </table>
+  <div class="softbox avoid">
+    <div class="st">Экономия против amoCRM</div>
+    <div class="sl"><span>amoCRM сейчас</span><span>~70 000 ₸/мес · ~840 000 ₸/год</span></div>
+    <div class="sl"><span>Интеграция WhatsApp (рынок vs через нас)</span><span>36 000 → ~10 000 ₸/мес</span></div>
+    <div class="sl" style="border-top:1px solid #cfe0d4;margin-top:4px;padding-top:8px"><span><b>Своя платформа</b></span><span><b>в собственность, без абонплаты за «коробку»</b></span></div>
+  </div>
+  <div class="priceband avoid">
+    <div><div class="pl">Итого «под ключ»</div><div class="pn">В собственность, на вашем сервере (облако — на старте бесплатные тарифы). Поддержка и доработки — $20/час.</div></div>
+    <div class="pv">1 500 000 ₸</div>
+  </div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для прокат-сервиса (Drive Taxi)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">08</span><span class="ti">Что оплачивается отдельно · О Pllato</span></div>
+  <div class="kvs">
+    <div class="kv"><span class="kk">Хостинг</span><span class="vv">Облако; на старте — бесплатные тарифы (до ~10 ГБ; аудио из WhatsApp в объём не считается). Далее — копейки.</span></div>
+    <div class="kv"><span class="kk">Каналы / телефония</span><span class="vv">WhatsApp ~10 000 ₸/мес через нашего партнёра, номера телефонии — по тарифам.</span></div>
+    <div class="kv"><span class="kk">Доработки после сдачи</span><span class="vv">$20/час. Сфера динамичная — правки идут по часам, без переплат за «всё сразу».</span></div>
+    <div class="kv"><span class="kk">ИИ для службы поддержки</span><span class="vv">Отдельный блок — проработаем позже, когда закроем основную задачу.</span></div>
+  </div>
+  <h3 class="sub">О Pllato</h3>
+  <p class="lead">Студия разработки в Алматы. Пишем CRM/ERP с нуля под процесс клиента, с передачей в собственность. Понимаем бизнес, а не только код — и пишем предварительное ТЗ, чтобы не было «доплат за доработки». Релевантные кейсы:</p>
+  <div class="refgrid">
+    <div class="ref"><b>Сеть из 7 аптек (Бишкек)</b><span>Воронки, дашборды из 13 показателей, омни-чаты, KPI, триггеры, 1С.</span></div>
+    <div class="ref"><b>Онлайн-школа английского</b><span>Рейтинги преподавателей, карточки учеников, показатели успеваемости, видео с уроков.</span></div>
+    <div class="ref"><b>Производитель окон</b><span>Воронка, склад, сбор заказов и счета при просчёте, KPI.</span></div>
+    <div class="ref"><b>Сеть языковых школ (15+ лет)</b><span>Наш собственный бизнес, ~120 человек: KPI и дисциплина внедрения.</span></div>
+  </div>
+  <h3 class="sub" style="margin-top:16px">Дальше</h3>
+  <p>Вместе с этим КП — предварительное ТЗ. После вашего «да» детализируем ТЗ с РОПом, зафиксируем цифры и стартуем. Предоплата 150 000 ₸, первый прототип — на встрече в Zoom.</p>
+  <div class="priceband avoid" style="margin-top:10px">
+    <div><div class="pl">Контакты</div><div class="pn">Платон Цай · +7 701 123 99 99 (тел / WhatsApp) · uurraa@gmail.com · pllato.kz</div></div>
+    <div class="pv" style="font-size:24px">Pllato<span style="color:var(--bronzeL)">.</span></div>
+  </div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для прокат-сервиса (Drive Taxi)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+</body></html>
