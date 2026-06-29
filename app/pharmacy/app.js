@@ -2453,11 +2453,11 @@ PAGES.tasks=(c)=>{
   }
   function badge(){ window.__taskBadge=current.filter(t=>stOf(t)!=='done').length; if(typeof renderNav==='function')renderNav(); }
   async function load(){
-    const [rc,r]=await Promise.all([api('/api/task-columns'),api('/api/tasks?status=all')]);
+    const [rc,r,us]=await Promise.all([api('/api/task-columns'),api('/api/tasks?status=all'),fetchUsers()]);
     if(!r.ok){ board.innerHTML=`<div class="note" style="margin:0">${ic('i-info','sm')} Задачи в демо-режиме (нет связи с сервером).</div>`; cnt.textContent=''; return; }
     cols=(rc&&rc.ok&&(rc.data.items||[]).length)?rc.data.items:[{id:'todo',title:'К выполнению',position:1},{id:'doing',title:'В работе',position:2},{id:'done',title:'Готово',position:3}];
     current=r.data.items||[];
-    const as=[...new Set(current.flatMap(t=>taskAssignees(t)))].sort();
+    const nm=new Set((us||[]).map(u=>u.name).filter(Boolean)); current.flatMap(t=>taskAssignees(t)).forEach(n=>{ if(n)nm.add(n); }); const as=[...nm].sort();
     faSel.innerHTML='<option value="">Все ответственные</option>'+as.map(a=>`<option value="${esc(a)}" ${a===fAssignee?'selected':''}>${esc(a)}</option>`).join('');
     badge(); render();
   }
