@@ -2477,13 +2477,21 @@ function userSelectHtml(users, selectedName, attr){
 }
 // Список ответственных задачи: из assignees(JSON) или старого одиночного assignee
 function taskAssignees(t){ const a=jparse(t&&t.assignees,null); if(Array.isArray(a)&&a.length)return a.filter(Boolean); const s=((t&&t.assignee)||'').trim(); return s?[s]:[]; }
-// Мультивыбор ответственных — кликабельные чипы пользователей
+// Мультивыбор ответственных — выпадающее меню с чекбоксами
 function assigneeMulti(users, selected){
   const sel=new Set((Array.isArray(selected)?selected:(selected?[selected]:[])).map(s=>String(s).trim()).filter(Boolean));
-  const node=el('<div class="asg-multi" style="display:flex;flex-wrap:wrap;gap:6px;padding:2px 0"></div>');
-  function render(){ node.innerHTML=(users.length?users.map(u=>{const on=sel.has(u.name);return `<button type="button" class="btn sm" data-n="${esc(u.name)}"${on?' style="background:var(--accent);border-color:var(--accent);color:#04130b;font-weight:600"':''}>${on?'✓ ':''}${esc(u.name)}</button>`;}).join(''):'<span class="muted2" style="font-size:12px">Нет пользователей</span>');
-    node.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>{const n=b.dataset.n; if(sel.has(n))sel.delete(n); else sel.add(n); render();}); }
-  render();
+  const node=el('<div class="asg-dd" style="position:relative"></div>');
+  const btn=el('<button type="button" class="sel" style="width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer"><span class="asg-lbl" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Выбрать ответственных</span><span style="opacity:.6;flex:none">▾</span></button>');
+  const pop=el('<div class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:50;display:none;max-height:230px;overflow:auto;box-shadow:var(--shadow-lg);padding:4px"></div>');
+  node.appendChild(btn); node.appendChild(pop);
+  const lblEl=btn.querySelector('.asg-lbl');
+  function updateLbl(){ const a=Array.from(sel); lblEl.textContent=a.length?(a.length+' выбрано: '+a.join(', ')):'Выбрать ответственных'; lblEl.style.color=a.length?'':'var(--muted)'; }
+  pop.innerHTML=(users.length?users.map(u=>`<label class="asg-opt" style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;cursor:pointer;font-size:13px"><input type="checkbox" data-n="${esc(u.name)}" ${sel.has(u.name)?'checked':''} style="width:16px;height:16px;flex:none;accent-color:var(--accent)"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name)}${u.roleName?(' · <span class="muted2" style="font-size:11px">'+esc(u.roleName)+'</span>'):''}</span></label>`).join(''):'<div class="muted2" style="padding:8px;font-size:12px">Нет пользователей</div>');
+  pop.onclick=(e)=>e.stopPropagation();
+  pop.querySelectorAll('input[data-n]').forEach(cb=>cb.onchange=()=>{ const n=cb.dataset.n; if(cb.checked)sel.add(n); else sel.delete(n); updateLbl(); });
+  btn.onclick=(e)=>{ e.stopPropagation(); pop.style.display = pop.style.display==='none' ? 'block' : 'none'; };
+  document.addEventListener('click',()=>{ pop.style.display='none'; });
+  updateLbl();
   return {node, get:()=>Array.from(sel)};
 }
 function fmtDue(s){ if(!s)return ''; const p=String(s).split('T'); const d=p[0].split('-'); if(d.length<3)return s; return d[2]+'.'+d[1]+'.'+d[0]+(p[1]?(' '+p[1].slice(0,5)):''); }
