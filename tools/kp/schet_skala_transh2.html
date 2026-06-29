@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Inter';src:url('fonts/Inter-Regular.ttf');font-weight:400}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Medium.ttf');font-weight:500}
+@font-face{font-family:'Inter';src:url('fonts/Inter-SemiBold.ttf');font-weight:600}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Bold.ttf');font-weight:700}
+@font-face{font-family:'Inter';src:url('fonts/Inter-ExtraBold.ttf');font-weight:800}
+:root{
+  --cream:#f6f3ea;--surf:#fbfaf4;--ink:#16241b;--text:#26342b;--muted:#6a7568;--faint:#9aa394;
+  --green:#3f6b47;--greenD:#2c4a32;--band:#15241b;--line:#e2dccb;--line2:#ece7d8;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.5;background:var(--cream)}
+.page{width:210mm;min-height:297mm;position:relative;padding:16mm 16mm 18mm;display:flex;flex-direction:column;background:var(--cream)}
+.runfoot{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+
+header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.brand{font-size:25px;font-weight:800;color:var(--ink);letter-spacing:-.01em}.brand .d{color:var(--green)}
+.brand-sub{font-size:9.5px;color:var(--muted);margin-top:2px}
+.hr{text-align:right}
+.badge{display:inline-block;border:1.5px solid var(--green);color:var(--green);font-size:9px;font-weight:800;letter-spacing:.12em;padding:4px 11px;border-radius:5px;margin-bottom:10px}
+.hr .t{font-size:11px;color:var(--muted)}
+.hr .n{font-size:20px;font-weight:800;color:var(--ink);margin:2px 0}
+.hr .dt{font-size:10px;color:var(--muted)}
+.rule{height:2px;background:linear-gradient(90deg,var(--green),transparent);margin:12px 0 16px}
+
+.parties{display:flex;gap:34px;margin-bottom:16px}
+.party{flex:1}
+.party .lbl{font-size:9px;font-weight:800;letter-spacing:.12em;color:var(--green);margin-bottom:6px}
+.party .nm{font-weight:700;font-size:12px;color:var(--ink);margin-bottom:2px}
+.party div{margin-bottom:1px;color:#33403a;font-size:10px}
+
+.accept{background:var(--band);color:#dfe7df;border-radius:10px;padding:13px 16px;margin-bottom:18px;font-size:10px;line-height:1.55}
+.accept b{color:#fff}
+.accept a{color:#9fd0ab}
+
+.seclbl{font-size:9.5px;font-weight:800;letter-spacing:.1em;color:var(--green);margin-bottom:9px}
+table{width:100%;border-collapse:collapse;margin-bottom:6px}
+thead th{background:var(--band);color:#fff;font-size:9px;font-weight:700;letter-spacing:.06em;text-align:left;padding:9px 12px}
+thead th.r{text-align:right}
+tbody td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top;background:var(--surf)}
+tbody td.r{text-align:right;font-weight:700;white-space:nowrap;font-size:12px}
+.ittitle{font-weight:700;color:var(--ink);margin-bottom:4px}
+.itdesc{font-size:10px;color:#4a554c;line-height:1.5}
+.pnote{font-size:9.5px;color:var(--muted);font-style:italic;line-height:1.55;margin:10px 2px 18px}
+
+.total{background:var(--band);color:#fff;border-radius:12px;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.total .tl .k{font-size:11px;font-weight:800;letter-spacing:.08em;color:#8fbf99}
+.total .tl .s{font-size:10px;color:#aab8ac;margin:5px 0 6px}
+.total .tl .w{font-size:9.5px;color:#8b988c;max-width:108mm;line-height:1.45}
+.total .tv{font-size:34px;font-weight:800;white-space:nowrap}
+
+.reqlbl{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:9px}
+table.req{width:100%;border-collapse:collapse;margin-bottom:22px}
+table.req td{padding:8px 12px;font-size:10px;border-bottom:1px solid var(--line2)}
+table.req tr:nth-child(odd) td{background:var(--surf)}
+table.req td.k{width:30%;color:var(--muted)}
+table.req td.v{font-weight:600;color:var(--ink)}
+
+.foot2{display:flex;justify-content:space-between;gap:30px;border-top:1px solid var(--line);padding-top:14px}
+.foot2 .sl{font-size:9px;font-weight:800;letter-spacing:.1em;color:var(--muted);margin-bottom:10px}
+.foot2 .snm{font-size:11px;color:var(--ink)}
+.foot2 .snm u{display:inline-block;width:90px;border-bottom:1px solid #aeb6a9;text-decoration:none}
+.foot2 .auto{font-size:10px;color:var(--muted);line-height:1.8}
+.foot2 .auto b{color:var(--ink)}
+</style></head>
+<body>
+<section class="page">
+  <header>
+    <div><div class="brand">Pllato<span class="d">.</span></div>
+      <div class="brand-sub">Партнёр по операционной отцифровке · pllato.kz</div></div>
+    <div class="hr">
+      <div class="badge">ПОСТОПЛАТА · ТРАНШ 2</div>
+      <div class="t">Счёт на оплату · транш 2</div>
+      <div class="n">№ SKL-2026-002</div>
+      <div class="dt">от 29 июня 2026 г.<br>Действителен 7 банковских дней</div>
+    </div>
+  </header>
+  <div class="rule"></div>
+
+  <div class="parties">
+    <div class="party">
+      <div class="lbl">ПОСТАВЩИК · BENEFICIARY</div>
+      <div class="nm">ИП «STUDYSTORIES.APP»</div>
+      <div>БИН: 880607300110</div>
+      <div>РК, г. Алматы, мкр. Орбита-4, д. 3, оф. 2</div>
+      <div>Email: uurraa@gmail.com · Тел.: +7 701 123 99 99</div>
+      <div>Директор: Цай Платон Львович</div>
+    </div>
+    <div class="party">
+      <div class="lbl">ПЛАТЕЛЬЩИК · PAYER</div>
+      <div class="nm">ИП «СКАЛА» (Жунусов)</div>
+      <div>ИИН/БИН: 650504301346</div>
+      <div>г. Алматы, мкр. Нурлытау, ул. Салтанат, 8/1</div>
+      <div>Банк: АО «Kaspi Bank»</div>
+      <div>Счёт: KZ96722S000044027190 · БИК: CASPKZKA · КБе: 19</div>
+    </div>
+  </div>
+
+  <div class="accept">
+    <b>Оплата счёта = продолжение договора.</b> Транш 2 по Договору-оферте Pllato
+    (pllato.kz/offer/custom-development/v2026-05-26/, Ред. 1.0) и КП по CRM для скалодрома от 15.06.2026.
+    Предоплата 150 000 ₸ (счёт SKL-2026-001) оплачена ранее. Доп. подписей не требуется.
+  </div>
+
+  <div class="seclbl">НАЗНАЧЕНИЕ ПЛАТЕЖА · ТРАНШ 2 (ПОСЛЕ СОГЛАСОВАНИЯ СКЕЛЕТА)</div>
+  <table>
+    <thead><tr><th style="width:34px">№</th><th>Наименование работ</th><th class="r" style="width:120px">Сумма, ₸</th></tr></thead>
+    <tbody>
+      <tr>
+        <td style="color:var(--faint);font-weight:700">1</td>
+        <td><div class="ittitle">Транш 2 за разработку CRM-системы для скалодрома — после согласования скелета.</div>
+          <div class="itdesc">Воронки, абонементы, чек-ин по QR, расписание и ЗП тренеров, клиенты, касса. Полностью развёрнутый скелет согласован — продолжаем доработку и полировку.</div></td>
+        <td class="r">652 500</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="pnote">Проект: 1 500 000 ₸ (со скидкой 3% — 1 455 000 ₸). Старт 150 000 ₸ — оплачено · транш 2 — 652 500 ₸ (этот счёт) · транш 3 — 652 500 ₸ постоплатой после сдачи.</div>
+
+  <div class="total">
+    <div class="tl"><div class="k">К ОПЛАТЕ — ТРАНШ 2</div>
+      <div class="s">2-й из 3 этапов · остаток постоплатой после сдачи</div>
+      <div class="w">Шестьсот пятьдесят две тысячи пятьсот тенге 00 тиын. НДС не облагается (поставщик не является плательщиком НДС РК).</div></div>
+    <div class="tv">652 500 ₸</div>
+  </div>
+
+  <div class="reqlbl">Реквизиты для оплаты · АО «Kaspi Bank»</div>
+  <table class="req">
+    <tr><td class="k">Получатель · БИН</td><td class="v">ИП «STUDYSTORIES.APP» (Цай П.Л.) · 880607300110</td></tr>
+    <tr><td class="k">Банк · IBAN (KZT)</td><td class="v">АО «Kaspi Bank» · KZ31722S000010366450</td></tr>
+    <tr><td class="k">БИК · КБе · КНП</td><td class="v">CASPKZKA · 19 · 851</td></tr>
+    <tr><td class="k">Карта (быстрый перевод)</td><td class="v">4400 4303 0208 4337 · PLATON TSAY</td></tr>
+    <tr><td class="k">Назначение платежа</td><td class="v">Оплата по счёту SKL-2026-002 от 29.06.2026, транш 2 за разработку ПО. Без НДС.</td></tr>
+  </table>
+
+  <div class="foot2">
+    <div><div class="sl">ПОСТАВЩИК / SUPPLIER</div>
+      <div class="snm">ИП «STUDYSTORIES.APP» · <u></u> / Цай П.Л.<br><span style="color:var(--muted);font-size:10px">М.П. (при наличии)</span></div></div>
+    <div style="text-align:right"><div class="auto">Счёт сформирован автоматически.<br>Дата выставления: <b>29.06.2026</b><br>Срок оплаты: <b>до 06.07.2026</b><br>К оплате: <b>652 500 ₸</b></div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · Счёт SKL-2026-002 · скалодром</span><span>pllato.kz/offer/custom-development/v2026-05-26/</span></div>
+</section>
+</body></html>
