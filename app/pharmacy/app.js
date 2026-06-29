@@ -2484,7 +2484,7 @@ function assigneeMulti(users, selected, opts){
   opts=opts||{}; const empty=opts.emptyLabel||'Выбрать ответственных';
   const sel=new Set((Array.isArray(selected)?selected:(selected?[selected]:[])).map(s=>String(s).trim()).filter(Boolean));
   const node=el('<div class="asg-dd" style="position:relative"></div>');
-  const btn=el('<button type="button" class="sel" style="width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer"><span class="asg-lbl" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><span style="opacity:.6;flex:none">▾</span></button>');
+  const btn=el('<button type="button" class="dd-trigger"><span class="asg-lbl"></span></button>');
   const pop=el('<div class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:50;display:none;max-height:230px;overflow:auto;box-shadow:var(--shadow-lg);padding:4px"></div>');
   node.appendChild(btn); node.appendChild(pop);
   const lblEl=btn.querySelector('.asg-lbl');
