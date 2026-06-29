@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Inter';src:url('fonts/Inter-Regular.ttf');font-weight:400}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Medium.ttf');font-weight:500}
+@font-face{font-family:'Inter';src:url('fonts/Inter-SemiBold.ttf');font-weight:600}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Bold.ttf');font-weight:700}
+@font-face{font-family:'Inter';src:url('fonts/Inter-ExtraBold.ttf');font-weight:800}
+:root{
+  --navy:#0a1628;--navy2:#142339;--navy3:#1d3050;--bronze:#b8895a;--bronzeL:#d4a978;
+  --off:#f7f6f1;--line:#e6e3da;--text:#1a2230;--muted:#5d6573;--faint:#8a909c;
+  --green:#3f7d52;--greenbg:#eaf3ed;--teal:#0d7d8a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55}
+.page{width:210mm;min-height:297mm;position:relative;page-break-after:always;padding:20mm 18mm 16mm;display:flex;flex-direction:column}
+.page:last-child{page-break-after:auto}
+.page.cover{padding:0;color:#fff;background:radial-gradient(900px 520px at 72% -8%,#1a3850,var(--navy) 58%);justify-content:space-between}
+
+/* footer */
+.foot{position:absolute;bottom:9mm;left:18mm;right:18mm;display:flex;justify-content:space-between;font-size:8.5px;color:var(--faint);border-top:1px solid var(--line);padding-top:7px}
+
+/* COVER */
+.cov-top{padding:22mm 18mm 0}
+.cov-brand{font-size:30px;font-weight:800;letter-spacing:-.01em}
+.cov-brand .d{color:var(--bronze)}
+.cov-kicker{margin-top:46mm;font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-title{font-size:40px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin-top:14px}
+.cov-sub{margin-top:18px;font-size:13.5px;color:#aebccd;max-width:135mm;line-height:1.6}
+.cov-route{margin-top:20px;font-size:12px;color:#86a0b6;letter-spacing:.02em}
+.cov-band{background:rgba(255,255,255,.05);border-top:1px solid rgba(255,255,255,.12);padding:9mm 18mm;display:flex;justify-content:space-between;align-items:flex-end}
+.cov-band .pl{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-band .pv{font-size:46px;font-weight:800;letter-spacing:-.01em;line-height:1;margin-top:6px}
+.cov-band .pm{text-align:right;font-size:12px;color:#aebccd;line-height:1.7}
+.cov-band .pm b{color:#fff}
+
+/* sections */
+.sec{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
+.sec .num{font-size:13px;font-weight:800;color:var(--bronze);letter-spacing:.02em}
+.sec .ti{font-size:21px;font-weight:800;letter-spacing:-.01em}
+h3.sub{font-size:13px;font-weight:700;margin:14px 0 8px;color:var(--navy3)}
+p{margin-bottom:9px}
+p.lead{font-size:12px;color:var(--muted)}
+.bull{display:flex;gap:9px;margin-bottom:8px}
+.bull .bh{font-weight:700;white-space:nowrap}
+ul{margin:6px 0 10px 0;padding-left:16px}
+li{margin-bottom:5px}
+
+.quote{background:var(--navy);color:#fff;border-radius:12px;padding:18px 22px;margin:6px 0 18px;position:relative}
+.quote .qt{font-size:13.5px;line-height:1.6;font-style:italic;color:#e7eef5}
+.quote .qw{margin-top:10px;font-size:11px;color:var(--bronzeL);font-weight:600}
+
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0 4px}
+.fcard{background:var(--off);border-left:3px solid var(--bronze);border-radius:0 8px 8px 0;padding:13px 15px}
+.fcard .ft{font-weight:700;font-size:12px;margin-bottom:5px}
+.fcard .fb{font-size:10px;color:var(--muted);line-height:1.5}
+
+.shot{margin:4px 0 6px;border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 6px 20px rgba(10,22,40,.08)}
+.shot img{width:100%;display:block}
+.cap{font-size:9.5px;color:var(--faint);margin:0 0 16px;padding-left:2px}
+.cap b{color:var(--muted)}
+
+table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:10.5px}
+thead th{background:var(--navy);color:#fff;text-align:left;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:9px 11px}
+thead th.r{text-align:right}
+tbody td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody td.r{text-align:right;font-weight:700;white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+
+.softbox{background:var(--greenbg);border-left:3px solid var(--green);border-radius:0 8px 8px 0;padding:14px 18px;margin:6px 0 14px}
+.softbox .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.softbox .sl{display:flex;justify-content:space-between;font-size:11px;padding:4px 0}
+.softbox .sl b{font-weight:700}
+
+.priceband{background:var(--navy);color:#fff;border-radius:12px;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.priceband .pl{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--bronzeL)}
+.priceband .pn{font-size:10px;color:#aebccd;margin-top:5px;max-width:115mm;line-height:1.5}
+.priceband .pv{font-size:34px;font-weight:800;white-space:nowrap}
+
+.kvs{margin:4px 0 10px}
+.kv{display:flex;gap:10px;font-size:10.5px;padding:6px 0;border-bottom:1px solid var(--line)}
+.kv .kk{width:42mm;color:var(--muted);flex-shrink:0}
+.kv .vv{font-weight:500}
+.refgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:8px}
+.ref{background:var(--off);border:1px solid var(--line);border-radius:8px;padding:11px 13px;font-size:10px}
+.ref b{display:block;margin-bottom:3px;font-size:11px}
+.ref span{color:var(--muted);line-height:1.45}
+.badge{display:inline-block;background:#f3e6d8;color:var(--bronze);font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px}
+.note{font-size:9.5px;color:var(--faint);margin-top:4px}
+.avoid{page-break-inside:avoid}
+</style></head>
+<body>
+
+<!-- ===== COVER ===== -->
+<section class="page cover">
+  <div class="cov-top">
+    <div class="cov-brand">Pllato<span class="d">.</span></div>
+    <div class="cov-kicker">Коммерческое предложение</div>
+    <div class="cov-title">CRM для фулфилмент-<br>сервиса селлеров</div>
+    <div class="cov-sub">Единое операционное ядро для полного цикла: фабрика в Китае → инспекция товара → логистика → доставка до Испании. Три офиса — Казахстан, Китай, Испания — в одной системе, с разными правами и сквозным контролем сделки.</div>
+    <div class="cov-route">🇪🇸 Продажи · Испания &nbsp;→&nbsp; 🇨🇳 Закуп и инспекция · Китай &nbsp;→&nbsp; 🚢 Логистика &nbsp;→&nbsp; 🇰🇿 Контроль · HQ</div>
+  </div>
+  <div class="cov-band">
+    <div><div class="pl">Со скидкой 10% за скорость</div><div class="pv">$2 700</div></div>
+    <div class="pm">$3 000 → <b>$2 700</b> при решении в 24 ч<br>Срок <b>4–6 недель</b> · в собственность<br>Предоплата <b>$300</b>, остальное — постоплатой</div>
+  </div>
+</section>
+
+<!-- ===== 01 ЧТО МЫ УСЛЫШАЛИ ===== -->
+<section class="page">
+  <div class="sec"><span class="num">01</span><span class="ti">Что мы услышали</span></div>
+  <p class="lead">Вы строите сервис полного цикла для европейских селлеров на Amazon и маркетплейсах: находите фабрику в Китае, проверяете товар, везёте и растамаживаете до Испании. Команда распределена по трём странам, и сейчас процесс держится на людях, переписках и таблицах — без единой системы это не масштабируется.</p>
+
+  <div class="quote">
+    <div class="qt">«Отдел продаж в Испании принял клиента — это переход в продажи. Дальше сделка идёт в китайский офис: связаться с заводом, сделать анализ, инспекцию. Мы должны описать процесс от начала до конца, чтобы не было хаоса, когда людей много, а кто что делает — непонятно.»</div>
+    <div class="qw">— из разговора, Илияс</div>
+  </div>
+
+  <h3 class="sub">Ключевые задачи, которые мы зафиксировали</h3>
+  <div class="bull"><span class="bh">Сквозная сделка между странами.</span><span>Заявка создаётся в Испании и поэтапно передаётся в Китай и логистику. На каждом этапе видно, кто отвечает и что происходит.</span></div>
+  <div class="bull"><span class="bh">Права по ролям и офисам.</span><span>Продажи, бэк-офис, логистика и руководитель видят и редактируют только своё. Финансы — только у вас.</span></div>
+  <div class="bull"><span class="bh">Переписка внутри сделки.</span><span>WhatsApp и Telegram прямо в карточке клиента, чтобы вся история была в одном месте (WeChat — добавим, когда будет доступ из Китая).</span></div>
+  <div class="bull"><span class="bh">Расчёт стоимости «под ключ».</span><span>Менеджер вводит вес/объём/маршрут — клиент сразу видит цену и получает её в WhatsApp.</span></div>
+  <div class="bull"><span class="bh">Контроль качества.</span><span>Инспекция на фабрике с чек-листом и фото до отгрузки, трекинг груза до склада клиента.</span></div>
+  <div class="bull"><span class="bh">Два рынка — один портал.</span><span>Европа и Россия в одной системе, с раздельными воронками и доступами. Собственник один — портал один, безопасно.</span></div>
+
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для фулфилмент-сервиса</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<!-- ===== 02 ЧТО МЫ ПОСТРОИМ ===== -->
+<section class="page">
+  <div class="sec"><span class="num">02</span><span class="ti">Что мы построим</span></div>
+  <p class="lead">Не «коробка», которую вы арендуете, — а система, написанная с нуля под ваш процесс, на вашем сервере, в вашу собственность. «Золотой стандарт» (воронка, контакты, дашборды, каналы) плюс то, что нужно именно фулфилменту.</p>
+  <div class="cards">
+    <div class="fcard"><div class="ft">🗂 Мультистрановая воронка</div><div class="fb">Канбан, где сделка едет от продаж в Испании через закуп и инспекцию в Китае до логистики. Несколько воронок, перенос сделок между ними.</div></div>
+    <div class="fcard"><div class="ft">🔐 Роли и доступы</div><div class="fb">Матрица «кто на каком этапе что видит». Логины и роли для каждого офиса, финансы — только руководителю.</div></div>
+    <div class="fcard"><div class="ft">💬 Каналы в сделке</div><div class="fb">WhatsApp и Telegram встроены в карточку. Вся переписка с клиентом и фабрикой — в одном месте.</div></div>
+    <div class="fcard"><div class="ft">🧮 Калькулятор «под ключ»</div><div class="fb">Вес, объём, маршрут, доп. услуги → итоговая цена клиенту за секунды, с отправкой в WhatsApp.</div></div>
+    <div class="fcard"><div class="ft">🏭 Заводы и инспекция</div><div class="fb">База проверенных фабрик с рейтингом, чек-лист контроля качества с фото до отгрузки.</div></div>
+    <div class="fcard"><div class="ft">🚢 Трекинг грузов</div><div class="fb">Сквозной статус от фабрики до склада клиента: инспекция → отгрузка → растаможка → доставка.</div></div>
+    <div class="fcard"><div class="ft">👥 База клиентов-селлеров</div><div class="fb">Импорт из Google Sheets / 1С. Доступ — только из системы, по правам. Безопасное хранение.</div></div>
+    <div class="fcard"><div class="ft">📊 Дашборды и KPI</div><div class="fb">Настраиваемые показатели бизнеса: воронка, выручка, средний чек, эффективность менеджеров.</div></div>
+  </div>
+  <p class="note" style="margin-top:14px">Ниже — рабочий кликабельный прототип под ваш процесс. Все цифры и имена демонстрационные.</p>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для фулфилмент-сервиса</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<!-- ===== 03 ВОРОНКА ===== -->
+<section class="page">
+  <div class="sec"><span class="num">03</span><span class="ti">Воронка: сделка едет между офисами</span></div>
+  <p class="lead">Заявка создаётся в Испании и поэтапно переходит к закупу и инспекции в Китае, затем в логистику. Каждый этап подсвечен цветом ответственного офиса — видно, где сделка прямо сейчас.</p>
+  <div class="shot"><img src="../../app/logistika/shots/pipe.png"></div>
+  <div class="cap"><b>Канбан-воронка.</b> Цвет карточки = ответственный офис (Испания / Китай / логистика). Метка 💬 — есть переписка в WhatsApp. Сделку можно перенести в другую воронку (например, Россия).</div>
+
+  <div class="sec" style="margin-top:6px"><span class="num">04</span><span class="ti">Дашборд руководителя</span></div>
+  <div class="shot"><img src="../../app/logistika/shots/dashboard.png"></div>
+  <div class="cap"><b>Сводка по направлению.</b> Активные сделки, грузы в пути, выручка, средний цикл, воронка по этапам и ближайшие прибытия — настраивается под ваши показатели.</div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для фулфилмент-сервиса</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<!-- ===== 05 КАРТОЧКА + WHATSAPP ===== -->
+<section class="page">
+  <div class="sec"><span class="num">05</span><span class="ti">Карточка сделки и переписка</span></div>
+  <p class="lead">Вся сделка в одном окне: этап, ответственные в Испании и Китае, фабрика, статус инспекции и оплаты, расчёт и логистика. Переписка с клиентом в WhatsApp — здесь же, ничего не теряется.</p>
+  <div class="shot"><img src="../../app/logistika/shots/deal_wa.png"></div>
+  <div class="cap"><b>Карточка сделки → вкладка WhatsApp.</b> Менеджер пишет клиенту прямо из CRM; расчёт и PDF уходят в тот же чат. Вкладки «Расчёт» и «Логистика» хранят цену и трек.</div>
+
+  <div class="sec" style="margin-top:6px"><span class="num">06</span><span class="ti">Калькулятор стоимости «под ключ»</span></div>
+  <div class="shot"><img src="../../app/logistika/shots/calc.png"></div>
+  <div class="cap"><b>Расчёт за секунды.</b> Категория, способ доставки (море / ЖД / авиа), вес и объём, доп. услуги — система считает фрахт, инспекцию, растаможку, страховку и комиссию, показывает итог и срок. Кнопка «Отправить в WhatsApp».</div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для фулфилмент-сервиса</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<!-- ===== 07 ИНСПЕКЦИЯ + ТРЕКИНГ ===== -->
+<section class="page">
+  <div class="sec"><span class="num">07</span><span class="ti">Инспекция и контроль качества</span></div>
+  <p class="lead">Бэк-офис в Китае проверяет товар на фабрике по чек-листу с фото до отгрузки. Результат видит вся команда — клиент получает товар без сюрпризов.</p>
+  <div class="shot"><img src="../../app/logistika/shots/inspection.png"></div>
+  <div class="cap"><b>Чек-лист инспекции.</b> Количество, маркировка Amazon FNSKU, тест, упаковка, сертификаты, фото. Сводка качества по фабрикам — кто стабильно даёт годный товар.</div>
+
+  <div class="sec" style="margin-top:6px"><span class="num">08</span><span class="ti">Трекинг грузов</span></div>
+  <div class="shot"><img src="../../app/logistika/shots/tracking.png"></div>
+  <div class="cap"><b>Сквозной статус.</b> От фабрики до склада клиента: заказ → фабрика → инспекция → в пути → растаможка → доставлено, с маршрутом и ETA по каждому грузу.</div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для фулфилмент-сервиса</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<!-- ===== 09 РОЛИ + ИНТЕГРАЦИИ ===== -->
+<section class="page">
+  <div class="sec"><span class="num">09</span><span class="ti">Роли, доступы и интеграции</span></div>
+  <p class="lead">Один портal — разные права. Каждый офис видит и меняет только своё; финансы и маржа — только у руководителя в Казахстане.</p>
+  <div class="shot"><img src="../../app/logistika/shots/roles.png"></div>
+  <div class="cap"><b>Матрица доступов по этапам сделки.</b> ✅ — редактирование, 👁 — просмотр, — — нет доступа. Настраивается под вашу оргструктуру.</div>
+
+  <h3 class="sub">Что подключаем</h3>
+  <table>
+    <thead><tr><th>Интеграция</th><th>Назначение</th><th class="r">Статус</th></tr></thead>
+    <tbody>
+      <tr><td><b>WhatsApp Business</b></td><td>Переписка в карточке сделки</td><td class="r" style="color:var(--green)">входит</td></tr>
+      <tr><td><b>Telegram</b></td><td>Чаты и уведомления о статусе</td><td class="r" style="color:var(--green)">входит</td></tr>
+      <tr><td><b>IP-телефония</b></td><td>Запись + транскрибация звонков, контроль по скрипту</td><td class="r" style="color:var(--green)">входит</td></tr>
+      <tr><td><b>Платежи (карты, ЕС)</b></td><td>Приём карт, зачисление на испанский счёт</td><td class="r">этап 2</td></tr>
+      <tr><td><b>Google Sheets / 1С</b></td><td>Импорт базы клиентов</td><td class="r" style="color:var(--green)">входит</td></tr>
+      <tr><td><b>WeChat</b></td><td>Связь с фабриками</td><td class="r" style="color:var(--muted)">позже*</td></tr>
+    </tbody>
+  </table>
+  <p class="note">* WeChat требует регистрации на территории Китая (~1–2 мес). Заложим место в интерфейсе, подключим, как появится доступ.</p>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для фулфилмент-сервиса</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<!-- ===== 10 КАК РАБОТАЕМ + СТОИМОСТЬ ===== -->
+<section class="page">
+  <div class="sec"><span class="num">10</span><span class="ti">Как мы работаем</span></div>
+  <p class="lead">Короткими итерациями, на скорость. Сначала — рабочее ядро, потом два полировочных прогона по вашим правкам. Постоплата: платите за принятый результат.</p>
+  <div class="bull"><span class="bh">Шаг 0 · Старт.</span><span>Предоплата $300 — символическая, чтобы начать. Разворачиваем ядро («болванку»), уже кликабельное.</span></div>
+  <div class="bull"><span class="bh">Шаг 1 · MVP.</span><span>Полностью настроенная воронка, карточки, калькулятор, роли. Созваниваемся в Zoom, кликаем вместе, собираем правки.</span></div>
+  <div class="bull"><span class="bh">Шаг 2 · Финал.</span><span>Вносим правки, подключаем интеграции, разворачиваем на вашем сервере, передаём код и документацию.</span></div>
+
+  <div class="sec" style="margin-top:14px"><span class="num">11</span><span class="ti">Стоимость</span></div>
+  <div class="softbox avoid">
+    <div class="st">Скидка 10% за скорость</div>
+    <div class="sl"><span>Стандартная разработка «под ключ»</span><span>$3 000</span></div>
+    <div class="sl"><span>Скидка за решение в течение 24 часов</span><span style="color:var(--green)">− $300</span></div>
+    <div class="sl" style="border-top:1px solid #cfe0d4;margin-top:4px;padding-top:8px"><span><b>Итого со скидкой</b></span><span><b>$2 700</b></span></div>
+  </div>
+  <table class="avoid">
+    <thead><tr><th>Этап</th><th>Что включает</th><th class="r">Оплата</th></tr></thead>
+    <tbody>
+      <tr><td><b>Шаг 0 · Старт</b></td><td>Запуск ядра, развёртывание прототипа</td><td class="r">$300</td></tr>
+      <tr><td><b>Шаг 1 · MVP</b></td><td>Воронка, карточки, калькулятор, роли, каналы — принято</td><td class="r">$1 200</td></tr>
+      <tr><td><b>Шаг 2 · Финал</b></td><td>Правки, интеграции, сервер, передача кода</td><td class="r">$1 200</td></tr>
+    </tbody>
+  </table>
+  <div class="priceband avoid">
+    <div><div class="pl">Итого со скидкой 10%</div><div class="pn">В собственность, на вашем сервере. Без абонентской платы за «коробку». Поддержка и доработки — $20/час.</div></div>
+    <div class="pv">$2 700</div>
+  </div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для фулфилмент-сервиса</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<!-- ===== 12 ОТДЕЛЬНО + О PLLATO ===== -->
+<section class="page">
+  <div class="sec"><span class="num">12</span><span class="ti">Что оплачивается отдельно</span></div>
+  <div class="kvs">
+    <div class="kv"><span class="kk">Хостинг</span><span class="vv">Облако (Cloudflare / AWS / GCP). На старте — бесплатные тарифы; платное — только при росте нагрузки.</span></div>
+    <div class="kv"><span class="kk">Доработки после сдачи</span><span class="vv">$20/час. Первый год собственники обычно вносят много правок — это нормально, идём по часам.</span></div>
+    <div class="kv"><span class="kk">Рефакторинг под рост</span><span class="vv">Когда команда перевалит за ~50 человек / откроются филиалы — отдельная оптимизация под масштаб.</span></div>
+    <div class="kv"><span class="kk">Внешние сервисы</span><span class="vv">Платёжный провайдер, номера телефонии, WhatsApp API — по тарифам провайдеров (обычно в разы дешевле, чем у Bitrix/amoCRM).</span></div>
+  </div>
+
+  <div class="sec" style="margin-top:14px"><span class="num">13</span><span class="ti">О Pllato</span></div>
+  <p class="lead">Студия разработки в Алматы. Пишем CRM и ERP с нуля под процесс клиента, с передачей в собственность. Несколько релевантных кейсов:</p>
+  <div class="refgrid">
+    <div class="ref"><b>Дистрибуция мед. изделий (Аминамед)</b><span>Полная интеграция с 1С: склад, заказ по ссылке, логистика, зеркалирование данных.</span></div>
+    <div class="ref"><b>B2B-дистрибуция косметологии</b><span>Воронка с проверкой клиента, накопительные скидки, быстрый заказ по ссылке, чат и запись звонков.</span></div>
+    <div class="ref"><b>Производитель окон</b><span>Канбан производства, замер с расчётом и предоплатой, WhatsApp в карточке, финансы.</span></div>
+    <div class="ref"><b>Сеть из 7 аптек, Бишкек</b><span>Воронки, дашборды, WhatsApp-чаты, промо с блогерами, накопительные скидки.</span></div>
+  </div>
+
+  <h3 class="sub" style="margin-top:18px">Готовы начать</h3>
+  <p>Скажете «да» в течение суток — фиксируем цену <b>$2 700</b> и стартуем. Предоплата $300, первый прототип — уже на следующей встрече в Zoom.</p>
+  <div class="priceband avoid" style="margin-top:10px">
+    <div><div class="pl">Контакты</div><div class="pn">Платон Цай · +7 701 123 99 99 (тел / WhatsApp) · uurraa@gmail.com · pllato.kz</div></div>
+    <div class="pv" style="font-size:24px">Pllato<span style="color:var(--bronzeL)">.</span></div>
+  </div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для фулфилмент-сервиса</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+</body></html>

@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Inter';src:url('fonts/Inter-Regular.ttf');font-weight:400}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Medium.ttf');font-weight:500}
+@font-face{font-family:'Inter';src:url('fonts/Inter-SemiBold.ttf');font-weight:600}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Bold.ttf');font-weight:700}
+@font-face{font-family:'Inter';src:url('fonts/Inter-ExtraBold.ttf');font-weight:800}
+:root{
+  --navy:#0a1628;--navy3:#1d3050;--bronze:#b8895a;--bronzeL:#d4a978;
+  --off:#f7f6f1;--line:#e6e3da;--text:#1a2230;--muted:#5d6573;--faint:#8a909c;--green:#3f7d52;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55}
+.page{width:210mm;min-height:297mm;position:relative;page-break-after:always;padding:18mm 18mm 16mm;display:flex;flex-direction:column}
+.page:last-child{page-break-after:auto}
+.page.cover{padding:0;color:#fff;background:radial-gradient(900px 520px at 72% -8%,#1a3850,var(--navy) 58%);justify-content:space-between}
+.foot{position:absolute;bottom:9mm;left:18mm;right:18mm;display:flex;justify-content:space-between;font-size:8.5px;color:var(--faint);border-top:1px solid var(--line);padding-top:7px}
+
+.cov-top{padding:22mm 18mm 0}
+.cov-brand{font-size:30px;font-weight:800;letter-spacing:-.01em}.cov-brand .d{color:var(--bronze)}
+.cov-kicker{margin-top:48mm;font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-title{font-size:38px;font-weight:800;line-height:1.12;letter-spacing:-.02em;margin-top:14px}
+.cov-sub{margin-top:18px;font-size:13px;color:#aebccd;max-width:135mm;line-height:1.6}
+.cov-meta{padding:9mm 18mm;background:rgba(255,255,255,.05);border-top:1px solid rgba(255,255,255,.12);display:flex;gap:40px;font-size:11px;color:#aebccd}
+.cov-meta b{color:#fff;display:block;font-size:12px;margin-bottom:3px}
+
+.sec{display:flex;align-items:baseline;gap:11px;margin:2px 0 12px}
+.sec .num{font-size:12px;font-weight:800;color:var(--bronze)}
+.sec .ti{font-size:19px;font-weight:800;letter-spacing:-.01em}
+.ssec{font-size:12.5px;font-weight:700;color:var(--navy3);margin:13px 0 6px}
+p{margin-bottom:8px}p.lead{font-size:11.5px;color:var(--muted)}
+ul{margin:4px 0 9px 0;padding-left:15px}li{margin-bottom:4px}li b{font-weight:700}
+.tag{display:inline-block;background:var(--off);border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:9.5px;color:var(--muted);margin:0 4px 4px 0}
+
+table{width:100%;border-collapse:collapse;margin:6px 0 12px;font-size:10px}
+thead th{background:var(--navy);color:#fff;text-align:left;font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:8px 10px}
+thead th.c{text-align:center}
+tbody td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody td.c{text-align:center}
+tbody tr:last-child td{border-bottom:none}
+.mod{border:1px solid var(--line);border-radius:9px;padding:13px 16px;margin-bottom:11px;page-break-inside:avoid}
+.mod .mh{font-size:13px;font-weight:700;margin-bottom:3px}
+.mod .mh .mn{color:var(--bronze);font-weight:800;margin-right:7px}
+.mod .md{font-size:10px;color:var(--muted);margin-bottom:7px}
+.mod ul{margin:0;padding-left:15px}
+.box{background:var(--off);border-left:3px solid var(--bronze);border-radius:0 8px 8px 0;padding:12px 16px;margin:6px 0 12px;font-size:10.5px}
+.note{font-size:9.5px;color:var(--faint);margin-top:4px}
+</style></head>
+<body>
+
+<!-- COVER -->
+<section class="page cover">
+  <div class="cov-top">
+    <div class="cov-brand">Pllato<span class="d">.</span></div>
+    <div class="cov-kicker">Техническое задание</div>
+    <div class="cov-title">CRM для фулфилмент-<br>сервиса селлеров</div>
+    <div class="cov-sub">Функциональные и нефункциональные требования к системе управления полным циклом: закуп на фабриках в Китае, инспекция, логистика и доставка до Европы. Распределённая команда (Казахстан · Китай · Испания), сквозной контроль сделки.</div>
+  </div>
+  <div class="cov-meta">
+    <div><b>Заказчик</b>Фулфилмент-сервис · Илияс С.</div>
+    <div><b>Исполнитель</b>Pllato · pllato.kz</div>
+    <div><b>Редакция</b>1.0 · черновик к согласованию</div>
+    <div><b>Срок</b>4–6 недель</div>
+  </div>
+</section>
+
+<!-- 1-2 -->
+<section class="page">
+  <div class="sec"><span class="num">1</span><span class="ti">Общие сведения</span></div>
+  <p class="lead"><b>Назначение системы.</b> Единое операционное ядро для сервиса полного цикла (sourcing + fulfillment) для селлеров на Amazon и маркетплейсах: поиск и проверка товара на фабриках в Китае, логистика и растаможка до Европы (старт — Испания), сопровождение клиента от заявки до доставки.</p>
+  <p class="lead"><b>Цель.</b> Заменить разрозненные таблицы и переписки на единую систему с прозрачным процессом, ролями и контролем; ускорить обработку заявок и исключить «потерю» сделок между офисами.</p>
+  <p class="lead"><b>Пользователи.</b> До ~50 сотрудников в первый год: отдел продаж (Испания), бэк-офис и инспекторы (Китай), логистика, руководитель (HQ, Казахстан).</p>
+
+  <div class="sec" style="margin-top:14px"><span class="num">2</span><span class="ti">Архитектура и общие требования</span></div>
+  <ul>
+    <li><b>Тип:</b> веб-приложение, доступ из браузера, адаптивно (десктоп + планшет).</li>
+    <li><b>Размещение:</b> сервер заказчика в облаке (Cloudflare / AWS / GCP). На старте — бесплатные тарифы; платные — при росте нагрузки. Без привязки к статическому IP (для безопасности каналов WhatsApp/Meta).</li>
+    <li><b>Собственность:</b> исходный код и права передаются заказчику после финальной оплаты; разворачивается на его инфраструктуре.</li>
+    <li><b>Данные:</b> единая база, доступ только через систему по правам. Импорт начальной базы клиентов из Google Sheets / 1С.</li>
+    <li><b>Мультитенантность процессов:</b> один портал — несколько направлений (Европа, Россия) с раздельными воронками и доступами.</li>
+    <li><b>Масштабирование:</b> до ~50 пользователей без доработок; при росте (филиалы, 100+ пользователей) — отдельный этап оптимизации (рефакторинг) без изменения интерфейса.</li>
+    <li><b>Локализация:</b> интерфейс на русском; данные — мультивалютные (EUR / USD / RUB), курс на дату.</li>
+  </ul>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для фулфилмент-сервиса · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<!-- 3 ROLES -->
+<section class="page">
+  <div class="sec"><span class="num">3</span><span class="ti">Роли и права доступа</span></div>
+  <p class="lead">Один портал, разграничение по офисам и этапам сделки. На каждом этапе роль либо редактирует, либо только просматривает, либо не видит данные. Финансовые данные доступны только руководителю.</p>
+  <table>
+    <thead><tr><th>Этап сделки</th><th class="c">Продажи 🇪🇸</th><th class="c">Бэк-офис 🇨🇳</th><th class="c">Логистика</th><th class="c">Руководитель 🇰🇿</th></tr></thead>
+    <tbody>
+      <tr><td>Заявка / расчёт</td><td class="c">Редакт.</td><td class="c">Просмотр</td><td class="c">—</td><td class="c">Редакт.</td></tr>
+      <tr><td>Сделка заключена</td><td class="c">Редакт.</td><td class="c">Просмотр</td><td class="c">—</td><td class="c">Редакт.</td></tr>
+      <tr><td>Поиск завода</td><td class="c">Просмотр</td><td class="c">Редакт.</td><td class="c">—</td><td class="c">Редакт.</td></tr>
+      <tr><td>Инспекция товара</td><td class="c">—</td><td class="c">Редакт.</td><td class="c">Просмотр</td><td class="c">Редакт.</td></tr>
+      <tr><td>Логистика и трек</td><td class="c">Просмотр</td><td class="c">Просмотр</td><td class="c">Редакт.</td><td class="c">Редакт.</td></tr>
+      <tr><td>Финансы / маржа</td><td class="c">—</td><td class="c">—</td><td class="c">—</td><td class="c">Редакт.</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>Аутентификация:</b> логин/пароль, роли назначает руководитель.</li>
+    <li><b>Гибкость:</b> матрица доступов настраивается под фактическую оргструктуру (роли можно добавлять/менять).</li>
+    <li><b>Безопасность:</b> доступ к базе только из системы; журнал действий; ограничение выгрузки данных по роли.</li>
+  </ul>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для фулфилмент-сервиса · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<!-- 4 MODULES -->
+<section class="page">
+  <div class="sec"><span class="num">4</span><span class="ti">Функциональные модули</span></div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.1</span>Воронки и сделки</div>
+    <div class="md">Канбан-доска со сквозным движением сделки между офисами.</div>
+    <ul>
+      <li>Этапы: <span class="tag">Новая заявка</span><span class="tag">Расчёт / КП</span><span class="tag">Сделка · Испания</span><span class="tag">Завод · Китай</span><span class="tag">Инспекция</span><span class="tag">Логистика</span><span class="tag">Доставлено</span> (редактируются).</li>
+      <li>Несколько воронок (Европа, Россия); перенос сделки между воронками с сохранением истории.</li>
+      <li>Цветовая маркировка этапа по ответственному офису; счётчики и фильтры (менеджер, статус, маркетплейс).</li>
+      <li>Видимость карточек на этапе — согласно матрице прав (раздел 3).</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.2</span>Карточка сделки</div>
+    <div class="md">Полная информация по заказу в одном окне, кастомные поля под процесс.</div>
+    <ul>
+      <li>Поля: клиент, маркетплейс, товар, кол-во, фабрика, ответственные (Испания/Китай), этап, статус инспекции, статус оплаты, маршрут, ETA.</li>
+      <li>Вкладки: <b>Сделка</b>, <b>WhatsApp/Telegram</b> (переписка), <b>Расчёт</b> (фиксация цены), <b>Логистика</b> (трек).</li>
+      <li>Действия: передвинуть этап, передать в другую воронку, отправить расчёт/КП клиенту.</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.3</span>Калькулятор стоимости «под ключ»</div>
+    <div class="md">Расчёт итоговой цены для клиента на основе параметров груза.</div>
+    <ul>
+      <li>Входные данные: категория товара, способ доставки (море / ЖД / авиа), вес, объём, стоимость товара (инвойс), пункт назначения, доп. услуги (страхование, инспекция, растаможка).</li>
+      <li>Расчёт: фрахт (по большему из веса/объёмного веса × тариф), инспекция, растаможка (% от инвойса), страхование, комиссия сервиса; итог и срок доставки.</li>
+      <li>Результат фиксируется в карточке сделки и отправляется клиенту в WhatsApp одним кликом.</li>
+      <li>Тарифы и коэффициенты вынесены в настройки (редактируются без программиста).</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.4</span>Клиенты-селлеры (контакты)</div>
+    <div class="md">База B2B-клиентов с историей заказов.</div>
+    <ul>
+      <li>Карточка клиента: контакты, маркетплейс, регион, менеджер, оборот, история заказов.</li>
+      <li>Импорт из Google Sheets / 1С; защита от дублей; доступ по правам.</li>
+    </ul>
+  </div>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для фулфилмент-сервиса · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<!-- 4 MODULES cont -->
+<section class="page">
+  <div class="mod"><div class="mh"><span class="mn">4.5</span>Заводы и инспекция (Китай)</div>
+    <div class="md">База поставщиков и контроль качества до отгрузки.</div>
+    <ul>
+      <li>Карточка завода: категория, рейтинг, история заказов, сводка качества (% годных).</li>
+      <li>Инспекция: чек-лист (количество, маркировка Amazon FNSKU, тест, упаковка, сертификаты CE/RoHS), фото, статус (пройдена / брак / на проверке).</li>
+      <li>Результат инспекции виден всей команде; решение «одобрить отгрузку / на доработку».</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.6</span>Логистика и трекинг</div>
+    <div class="md">Сквозной статус груза от фабрики до склада клиента.</div>
+    <ul>
+      <li>Этапы трека: заказ → фабрика → инспекция → в пути → растаможка → доставлено.</li>
+      <li>Поля: маршрут, способ (море/ЖД/авиа), контейнер/трек-номер, ETA.</li>
+      <li>Список «Грузы в пути» с фильтрами; уведомления о смене статуса клиенту (Telegram/WhatsApp).</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.7</span>Коммуникации</div>
+    <div class="md">Каналы связи, привязанные к сделкам.</div>
+    <ul>
+      <li><b>WhatsApp Business</b> и <b>Telegram</b> — встроены в карточку сделки, единый инбокс, шаблоны сообщений.</li>
+      <li><b>IP-телефония</b> — приём/исходящие, запись и транскрибация звонков, контроль по скрипту.</li>
+      <li><b>WeChat</b> — место в интерфейсе заложено; подключение после регистрации в Китае.</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.8</span>Дашборды и аналитика</div>
+    <div class="md">Настраиваемые показатели бизнеса.</div>
+    <ul>
+      <li>KPI: активные сделки, грузы в пути, выручка, средний чек, средний цикл сделки, конверсия воронки.</li>
+      <li>Графики: воронка по этапам, эффективность менеджеров, динамика выручки.</li>
+      <li>Состав виджетов согласовывается на этапе MVP.</li>
+    </ul>
+  </div>
+
+  <div class="mod"><div class="mh"><span class="mn">4.9</span>Финансы и платежи</div>
+    <div class="md">Видны только руководителю.</div>
+    <ul>
+      <li>Учёт оплат и авансов по заказам, маржа сервиса, дебиторка.</li>
+      <li>Приём оплат: банковские карты ЕС, зачисление на испанский счёт (платёжный провайдер — этап 2).</li>
+    </ul>
+  </div>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для фулфилмент-сервиса · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<!-- 5-6 -->
+<section class="page">
+  <div class="sec"><span class="num">5</span><span class="ti">Интеграции</span></div>
+  <table>
+    <thead><tr><th>Интеграция</th><th>Назначение</th><th class="c">Этап</th></tr></thead>
+    <tbody>
+      <tr><td>WhatsApp Business API</td><td>Переписка в карточке, шаблоны, отправка расчётов</td><td class="c">MVP</td></tr>
+      <tr><td>Telegram</td><td>Чаты и уведомления о статусе груза</td><td class="c">MVP</td></tr>
+      <tr><td>IP-телефония</td><td>Запись + транскрибация, контроль по скрипту</td><td class="c">MVP</td></tr>
+      <tr><td>Google Sheets / 1С</td><td>Импорт базы клиентов</td><td class="c">MVP</td></tr>
+      <tr><td>Платёжный провайдер (карты ЕС)</td><td>Приём оплат на испанский счёт</td><td class="c">Финал</td></tr>
+      <tr><td>WeChat</td><td>Связь с фабриками</td><td class="c">Позже*</td></tr>
+    </tbody>
+  </table>
+  <p class="note">* Требует регистрации на территории Китая (~1–2 мес). Интерфейс готовится заранее.</p>
+
+  <div class="sec" style="margin-top:14px"><span class="num">6</span><span class="ti">Нефункциональные требования</span></div>
+  <ul>
+    <li><b>Безопасность:</b> доступ по ролям, журнал действий, доступ к данным только из системы, рекомендация заходить в каналы (WhatsApp/Meta) с динамических адресов.</li>
+    <li><b>Производительность:</b> комфортная работа до ~50 одновременных пользователей.</li>
+    <li><b>Надёжность:</b> облачное размещение у крупного провайдера, резервное копирование данных.</li>
+    <li><b>Масштабируемость:</b> готовность к росту; оптимизация под 100+ пользователей — отдельный этап.</li>
+    <li><b>Удобство:</b> адаптивный интерфейс, работа с планшета (для инспекторов и выездных сценариев).</li>
+  </ul>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для фулфилмент-сервиса · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<!-- 7-8 -->
+<section class="page">
+  <div class="sec"><span class="num">7</span><span class="ti">Этапы реализации и приёмка</span></div>
+  <table>
+    <thead><tr><th>Этап</th><th>Содержание</th><th class="c">Приёмка</th></tr></thead>
+    <tbody>
+      <tr><td><b>Шаг 0 · Старт</b></td><td>Развёртывание ядра, кликабельный прототип</td><td class="c">демо</td></tr>
+      <tr><td><b>Шаг 1 · MVP</b></td><td>Воронки, карточки, калькулятор, роли, контакты, каналы (WhatsApp/TG/телефония), дашборд, заводы/инспекция, трекинг</td><td class="c">Zoom-приёмка, правки</td></tr>
+      <tr><td><b>Шаг 2 · Финал</b></td><td>Правки по итогам MVP, платежи, развёртывание на сервере заказчика, передача кода и документации, обучение</td><td class="c">финальная приёмка</td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <b>Порядок приёмки.</b> На каждом шаге — совместный прокликивание в Zoom (обычно 1–2 ч). Заказчик фиксирует правки, исполнитель вносит их в рамках этапа. Этап считается принятым после подтверждения заказчиком; затем выставляется счёт за этап.
+  </div>
+
+  <div class="sec" style="margin-top:10px"><span class="num">8</span><span class="ti">Вне рамок проекта (оплачивается отдельно)</span></div>
+  <ul>
+    <li>Хостинг и внешние сервисы (платёжный провайдер, номера телефонии, WhatsApp API) — по тарифам провайдеров.</li>
+    <li>Доработки после сдачи — $20/час.</li>
+    <li>Рефакторинг под рост (100+ пользователей, филиалы) — отдельный этап.</li>
+    <li>Подключение WeChat после получения доступа из Китая.</li>
+    <li>Дизайн витрины/лендинга, мобильное приложение (нативное) — при необходимости отдельно.</li>
+  </ul>
+
+  <div class="box" style="border-left-color:var(--green);background:#eaf3ed;margin-top:14px">
+    <b>Стоимость и сроки.</b> Разработка «под ключ» — $3 000 (со скидкой 10% за решение в течение 24 ч — $2 700). Срок 4–6 недель. Предоплата $300, остальное — постоплатой по этапам. В собственность, на сервере заказчика. Детали — в коммерческом предложении.
+  </div>
+  <p class="note">Настоящее ТЗ — редакция 1.0 (черновик). Финальный состав модулей и полей уточняется на этапе MVP по итогам совместных встреч.</p>
+  <div class="foot"><span>Pllato · Техническое задание · CRM для фулфилмент-сервиса · ред. 1.0</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+</body></html>

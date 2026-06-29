@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Inter';src:url('fonts/Inter-Regular.ttf');font-weight:400}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Medium.ttf');font-weight:500}
+@font-face{font-family:'Inter';src:url('fonts/Inter-SemiBold.ttf');font-weight:600}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Bold.ttf');font-weight:700}
+@font-face{font-family:'Inter';src:url('fonts/Inter-ExtraBold.ttf');font-weight:800}
+:root{
+  --navy:#0a1628; --navy2:#142339; --bronze:#b8895a; --bronzeL:#d4a978;
+  --off:#f7f6f1; --line:#e6e3da; --text:#1a2230; --muted:#6b7280; --faint:#9aa1ad;
+  --green:#3f7d52;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:11px;line-height:1.5}
+.page{width:210mm;height:297mm;position:relative;display:flex;flex-direction:column;page-break-after:always;overflow:hidden}
+.page:last-child{page-break-after:auto}
+
+/* header band */
+.head{background:var(--navy);color:#fff;padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start}
+.head .brand{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.head .brand .dot{color:var(--bronze)}
+.head .brand-sub{font-size:10px;color:#9fb0c4;margin-top:3px;font-weight:400}
+.head .tag{text-align:right}
+.head .tag .k{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--bronzeL)}
+.head .tag .n{font-size:11px;color:#c4cedb;margin-top:4px}
+
+.body{flex:1;padding:26px 24px 0}
+h1.doc{font-size:23px;font-weight:800;letter-spacing:-.01em;margin-bottom:6px}
+.docsub{font-size:11px;color:var(--muted);margin-bottom:24px}
+
+.cols{display:flex;gap:36px;margin-bottom:22px}
+.cols .col{flex:1}
+.lbl{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--bronze);margin-bottom:7px}
+.party .nm{font-weight:700;font-size:12px;margin-bottom:3px}
+.party div{margin-bottom:1px;color:#33404f}
+
+.accept{background:var(--off);border-left:3px solid var(--bronze);padding:13px 16px;border-radius:0 6px 6px 0;margin-bottom:22px}
+.accept .at{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);margin-bottom:6px}
+.accept p{font-size:10px;color:#3a4655;line-height:1.55}
+
+.sec{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--navy);margin:0 0 10px}
+table{width:100%;border-collapse:collapse;margin-bottom:22px}
+thead th{background:var(--navy);color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;text-align:left;padding:9px 12px}
+thead th.r{text-align:right}
+tbody td{padding:11px 12px;vertical-align:top;border-bottom:1px solid var(--line)}
+tbody td.r{text-align:right;font-weight:700;font-size:13px;white-space:nowrap}
+.itnum{color:var(--faint);font-weight:700}
+.ittitle{font-weight:700;font-size:11.5px;margin-bottom:5px}
+.itdesc{font-size:10px;color:#4a5664;line-height:1.55}
+
+.schedule{margin-bottom:20px}
+.schedule .row{display:flex;align-items:center;padding:8px 2px;border-bottom:1px solid var(--line);font-size:11px}
+.schedule .row .nm{flex:1;color:#33404f}
+.schedule .row .amt{font-weight:700;width:80px;text-align:right;margin-right:14px}
+.schedule .row .st{width:120px;text-align:right;color:var(--faint);font-size:10px}
+.schedule .row.cur .nm{font-weight:700;color:var(--navy)}
+.schedule .row.cur .st{color:var(--bronze);font-weight:700}
+.schedule .row.paid .st{color:var(--green);font-weight:600}
+
+.total{background:var(--navy);color:#fff;border-radius:8px;padding:16px 22px;display:flex;justify-content:space-between;align-items:center}
+.total .tl{max-width:70%}
+.total .tl .k{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--bronzeL);margin-bottom:5px}
+.total .tl p{font-size:9.5px;color:#aeb9c7;line-height:1.45}
+.total .tv{font-size:30px;font-weight:800;letter-spacing:-.01em;white-space:nowrap}
+
+.foot{padding:14px 24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;font-size:9px;color:var(--faint)}
+
+/* page 2 requisites */
+.rtable{width:100%;border-collapse:collapse;margin-bottom:24px}
+.rtable tr{border-bottom:1px solid var(--line)}
+.rtable td{padding:9px 4px;font-size:10.5px}
+.rtable td.k{width:36%;color:var(--muted)}
+.rtable td.v{color:var(--text);font-weight:500;font-family:'Inter'}
+.rtable td.mono{font-family:'Inter';letter-spacing:.02em}
+.fast{background:var(--off);border-left:3px solid var(--bronze);padding:15px 18px;border-radius:0 6px 6px 0;margin-bottom:20px}
+.fast .ft{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--navy);margin-bottom:8px}
+.fast .card{font-size:20px;font-weight:700;letter-spacing:.06em;color:var(--navy);margin-bottom:5px}
+.fast .who{font-size:11px;font-weight:700;color:var(--bronze);margin-bottom:6px}
+.fast .note{font-size:9.5px;color:#4a5664;line-height:1.5}
+.fine{font-size:9.5px;color:#5a6573;line-height:1.6;margin-bottom:26px}
+.sign{border-top:1px solid var(--line);padding-top:18px}
+.sign .sl{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.sign .sr{font-size:11px}
+.sign .sr .ln{display:inline-block;width:120px;border-bottom:1px solid #b9c0ca;margin:0 6px}
+.autofin{margin-top:18px;font-size:9.5px;color:var(--faint)}
+.autofin b{color:var(--navy);font-weight:700}
+</style></head>
+<body>
+
+<!-- ===================== PAGE 1 ===================== -->
+<section class="page">
+  <div class="head">
+    <div><div class="brand">Pllato<span class="dot">.</span></div>
+      <div class="brand-sub">Партнёр по операционной оцифровке · pllato.kz</div></div>
+    <div class="tag"><div class="k">Финальный этап · передача</div>
+      <div class="n">Счёт № OG-2026-004 · CRM</div></div>
+  </div>
+
+  <div class="body">
+    <h1 class="doc">Счёт на оплату · CRM (Шаг 2 — Финал)</h1>
+    <div class="docsub">№ OG-2026-004 от 29 июня 2026 г. · Действителен 7 банковских дней</div>
+
+    <div class="cols">
+      <div class="col party">
+        <div class="lbl">Поставщик · Beneficiary</div>
+        <div class="nm">ИП «STUDYSTORIES.APP»</div>
+        <div>БИН: 880607300110</div>
+        <div>РК, г. Алматы, мкр. Орбита-4, д. 3, оф. 2</div>
+        <div>Email: uurraa@gmail.com</div>
+        <div>Тел.: +7 701 123 99 99</div>
+        <div>Директор: Цай Платон</div>
+      </div>
+      <div class="col party">
+        <div class="lbl">Плательщик · Payer</div>
+        <div class="nm">ОсОО «Оушн Гласс»</div>
+        <div>ИНН: 00312202410141</div>
+        <div>ОКПО: 33480357 · УГНС 032 г. Ош</div>
+        <div>Кыргызстан, г. Ош, ул. Абдразакова 25</div>
+        <div>Р/с: 1090320873000134</div>
+        <div>ФОАО «Оптима Банк» в г. Ош · БИК 109003</div>
+        <div>Рук.: Ысманов Ибрагим Рахманалиевич</div>
+      </div>
+    </div>
+
+    <div class="accept">
+      <div class="at">Акцепт публичной оферты · оплата счёта = продолжение договора</div>
+      <p>Счёт выставлен по факту сдачи Шага 2 (Финал) проекта «CRM для оконного бизнеса» согласно КП от 26.05.2026
+      и Договору-оферте Pllato pllato.kz/offer/custom-development/v2026-05-26/ (Ред. 1.0). Предоплата $300 (Шаг 0)
+      и этап MVP $1 350 (Шаг 1) оплачены ранее. Настоящий счёт — финальная постоплата; после оплаты — полная
+      передача исходного кода и прав в собственность заказчику.</p>
+    </div>
+
+    <div class="sec">Назначение платежа · Шаг 2 — Финал (производство + финансы + дашборд + передача кода)</div>
+    <table>
+      <thead><tr><th>№ &nbsp;Наименование работ</th><th class="r">Сумма, USD</th></tr></thead>
+      <tbody><tr>
+        <td><span class="itnum">1</span> &nbsp;
+          <span class="ittitle">Сдача финального этапа — CRM для оконного бизнеса (Ocean Glass)</span>
+          <div class="itdesc">
+          Модуль 3 — Производство: канбан этапов изготовления, статусы заказов, контроль сроков, фото готовности.<br>
+          Модуль 4 — Финансы: учёт авансов и оплат по заказам, маржа и себестоимость, сводка по менеджерам.<br>
+          Модуль 5 — Дашборд: настраиваемые виджеты и KPI бизнеса, воронка и графики выручки.<br>
+          Развёртывание на сервере заказчика, передача исходного кода и документации, обучение команды.
+          Проект согласован и принят в полном объёме.</div>
+        </td>
+        <td class="r">1 350.00</td>
+      </tr></tbody>
+    </table>
+
+    <div class="sec">График оплаты по проекту · Итого $3 000</div>
+    <div class="schedule">
+      <div class="row paid"><div class="nm">Шаг 0 · Предоплата 10% — старт</div><div class="amt">$300</div><div class="st">оплачено</div></div>
+      <div class="row paid"><div class="nm">Шаг 1 · MVP — лиды + воронка + замер</div><div class="amt">$1 350</div><div class="st">оплачено</div></div>
+      <div class="row cur"><div class="nm">Шаг 2 · Финал — производство + финансы + дашборд + передача кода</div><div class="amt">$1 350</div><div class="st">← текущий счёт</div></div>
+    </div>
+
+    <div class="total">
+      <div class="tl"><div class="k">К оплате по этому счёту</div>
+        <p>Одна тысяча триста пятьдесят долларов США. НДС не облагается (поставщик не плательщик НДС РК).</p></div>
+      <div class="tv">$1 350.00</div>
+    </div>
+  </div>
+
+  <div class="foot"><span>Pllato · Счёт OG-2026-004 · CRM Ocean Glass</span>
+    <span>pllato.kz/offer/custom-development/v2026-05-26/</span></div>
+</section>
+
+<!-- ===================== PAGE 2 ===================== -->
+<section class="page">
+  <div class="head">
+    <div><div class="brand">Pllato<span class="dot">.</span></div>
+      <div class="brand-sub">Партнёр по операционной оцифровке · pllato.kz</div></div>
+    <div class="tag"><div class="k">Финальный этап · передача</div>
+      <div class="n">Реквизиты · OG-2026-004</div></div>
+  </div>
+
+  <div class="body">
+    <h1 class="doc">Реквизиты для оплаты</h1>
+    <div class="docsub">АО «Kaspi Bank» · оплата в любой валюте по курсу банка на день платежа</div>
+
+    <table class="rtable">
+      <tr><td class="k">Beneficiary / Получатель</td><td class="v">IP «STUDYSTORIES.APP» (Tsay Platon)</td></tr>
+      <tr><td class="k">BIN / БИН</td><td class="v mono">880607300110</td></tr>
+      <tr><td class="k">Адрес</td><td class="v">г. Алматы, мкр. Орбита-4, д. 3, оф. 2</td></tr>
+      <tr><td class="k">Банк / Bank</td><td class="v">АО «Kaspi Bank»</td></tr>
+      <tr><td class="k">IBAN / Счёт (KZT)</td><td class="v mono">KZ31722S000010366450</td></tr>
+      <tr><td class="k">SWIFT / BIC</td><td class="v mono">CASPKZKA</td></tr>
+      <tr><td class="k">КБе</td><td class="v mono">19</td></tr>
+      <tr><td class="k">КНП</td><td class="v mono">851</td></tr>
+      <tr><td class="k">Назначение платежа</td><td class="v">«Оплата по счёту OG-2026-004 от 29.06.2026 за финальный этап разработки CRM. Акцепт оферты pllato.kz/offer/custom-development/v2026-05-26/. Без НДС.»</td></tr>
+    </table>
+
+    <div class="fast">
+      <div class="ft">Быстрая оплата — перевод на карту (при необходимости)</div>
+      <div class="card">4400&nbsp;4303&nbsp;0208&nbsp;4337</div>
+      <div class="who">PLATON TSAY · Kaspi Bank · +7 701 123 99 99</div>
+      <div class="note">Для физлица / быстрого перевода из Кыргызстана. После оплаты пришлите чек в WhatsApp +7 701 123 99 99.</div>
+    </div>
+
+    <div class="fine">Оплата в любой валюте. Сумма указана в USD. Допускается оплата в эквиваленте в кыргызских сомах (KGS) или
+    казахстанских тенге (KZT) по курсу банка на день оплаты. Для USD / международного перевода из Кыргызстана
+    уточните у «Оптима Банк» данные корреспондентского банка получателя Kaspi (SWIFT CASPKZKA).</div>
+
+    <div class="sign">
+      <div class="sl">Поставщик / Supplier</div>
+      <div class="sr">ИП «STUDYSTORIES.APP» <span class="ln"></span> / Цай П. / М.П. (при наличии)</div>
+      <div class="autofin">Счёт сформирован автоматически. Дата выставления: 29.06.2026 &nbsp; Срок оплаты: до 08.07.2026 &nbsp; <b>К оплате: $1 350</b></div>
+    </div>
+  </div>
+
+  <div class="foot"><span>Pllato · Счёт OG-2026-004 · CRM Ocean Glass</span>
+    <span>pllato.kz/offer/custom-development/v2026-05-26/</span></div>
+</section>
+
+</body></html>
