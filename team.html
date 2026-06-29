@@ -503,15 +503,24 @@ body {
 #ch-health-banner {
   position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
   background: #b91c1c; color: #fff;
-  display: flex; align-items: center; justify-content: center; gap: 14px;
-  padding: 9px 16px; font-size: 13px; font-weight: 600; line-height: 1.35;
-  box-shadow: 0 2px 10px rgba(0,0,0,.28); flex-wrap: wrap; text-align: center;
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 10px; font-size: 12px; font-weight: 600; line-height: 1.25;
+  box-shadow: 0 1px 6px rgba(0,0,0,.22); white-space: nowrap; overflow: hidden;
 }
-#ch-health-banner button {
+#ch-health-banner #ch-health-names { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+#ch-health-banner button.ch-go {
   background: #fff; color: #b91c1c; border: none; border-radius: 6px;
-  padding: 4px 12px; font-weight: 700; font-size: 12px; cursor: pointer; white-space: nowrap;
+  padding: 3px 9px; font-weight: 700; font-size: 11px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
 }
-#ch-health-banner button:hover { background: #fee2e2; }
+#ch-health-banner button.ch-go:hover { background: #fee2e2; }
+#ch-health-banner button.ch-close {
+  background: transparent; color: #fff; border: none; font-size: 17px; line-height: 1;
+  cursor: pointer; padding: 0 4px; flex-shrink: 0; opacity: .85;
+}
+#ch-health-banner button.ch-close:hover { opacity: 1; }
+/* SIP-индикатор показываем ТОЛЬКО во время звонка (звонит/идёт). Холостые
+   состояния (подключение/готов/ошибка/закрыт) не выводим — не мешаем работе. */
+.sipc-bottombar:not([data-state="established"]):not([data-state="ringing"]) { display: none !important; }
 /* Когда баннер показан — сдвигаем приложение вниз на его высоту (десктоп) */
 body.has-ch-banner #app { padding-top: var(--ch-banner-h, 0); }
 .sidebar {
@@ -3738,16 +3747,26 @@ function renderChannelHealthBanner(data) {
     return r;
   };
   const names = (data.down || []).map(d => `${d.name} — ${reasonOf(d.raw)}`).filter(Boolean).join('; ') || 'WhatsApp-канал';
+  // Сигнатура набора упавших каналов. Если админ закрыл баннер по этой проблеме —
+  // не показываем повторно, пока набор не изменится (новый канал отвалится).
+  const sig = (data.down || []).map(d => String(d.id || d.name)).sort().join('|');
+  try { if (localStorage.getItem('ch-banner-dismissed') === sig) { if (existing) { existing.remove(); document.body.classList.remove('has-ch-banner'); document.documentElement.style.removeProperty('--ch-banner-h'); } return; } } catch {}
   let b = existing;
   if (!b) {
     b = document.createElement('div');
     b.id = 'ch-health-banner';
     b.setAttribute('role', 'alert');
-    b.innerHTML = `<span>⚠ <b>Связь потеряна:</b> <span id="ch-health-names"></span></span><button id="ch-health-go" type="button">Открыть каналы →</button>`;
+    b.innerHTML = `<span style="flex-shrink:0">⚠</span><span id="ch-health-names"></span><button class="ch-go" type="button">Каналы →</button><button class="ch-close" type="button" title="Скрыть">×</button>`;
     document.body.appendChild(b);
-    const go = b.querySelector('#ch-health-go');
+    const go = b.querySelector('.ch-go');
     if (go) go.onclick = () => { try { settingsState.tab = 'channels'; navigate('settings'); } catch { navigate('settings'); } };
   }
+  b.dataset.sig = sig;
+  const closeBtn = b.querySelector('.ch-close');
+  if (closeBtn) closeBtn.onclick = () => {
+    try { localStorage.setItem('ch-banner-dismissed', b.dataset.sig || sig); } catch {}
+    b.remove(); document.body.classList.remove('has-ch-banner'); document.documentElement.style.removeProperty('--ch-banner-h');
+  };
   const nm = b.querySelector('#ch-health-names');
   if (nm) nm.textContent = names;
   document.body.classList.add('has-ch-banner');
