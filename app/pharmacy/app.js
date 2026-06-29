@@ -2362,7 +2362,7 @@ PAGES.tasks=(c)=>{
   const dueSoon=(t)=>{ if(stOf(t)==='done'||!t.due_at)return false; const due=new Date(t.due_at).getTime(),now=Date.now(); return due>now && (due-now)<86400000; };
   const tbar=el(`<div class="toolbar">
     <div class="seg" id="tkView"><button class="on" data-v="board">Доска</button><button data-v="calendar">Календарь</button></div>
-    <select class="sel" id="tkFa" style="max-width:190px"><option value="">Все ответственные</option></select>
+    <div id="tkFa" style="min-width:180px;max-width:260px"></div>
     <select class="sel" id="tkFl" style="max-width:160px"><option value="">Все метки</option>${TASK_LABELS.map(L=>`<option value="${L.k}">${esc(L.t)}</option>`).join('')}</select>
     <button class="btn sm" id="tkFclear" title="Сбросить фильтры">${ic('i-x','sm')}</button>
     <div class="spacer"></div><span class="ph-sub" id="tkCnt"></span><button class="btn primary" id="newTaskBtn">${ic('i-plus','sm')} Задача</button></div>`);
@@ -2373,14 +2373,16 @@ PAGES.tasks=(c)=>{
   c.appendChild(cal);
   c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} Канбан как в Trello: «К выполнению» → «В работе» → «Готово». Статус сохраняется при перетаскивании. Клик по карточке — детали и редактирование.</div>`));
   const cnt=tbar.querySelector('#tkCnt');
-  const faSel=tbar.querySelector('#tkFa'), flSel=tbar.querySelector('#tkFl');
-  let fAssignee='', fLabel='', view='board', calY=null, calM=null;
-  faSel.onchange=()=>{ fAssignee=faSel.value; render(); };
+  const faHost=tbar.querySelector('#tkFa'), flSel=tbar.querySelector('#tkFl');
+  const TFKEY='pf_taskAsg_'+((AUTH.user&&AUTH.user.id)||'');
+  let fAssignees=(()=>{try{const v=JSON.parse(localStorage.getItem(TFKEY)||'[]');return Array.isArray(v)?v:[];}catch(e){return [];}})();
+  let faW=null, fLabel='', view='board', calY=null, calM=null;
+  const saveTaskFilter=(arr)=>{ try{ localStorage.setItem(TFKEY, JSON.stringify(arr)); }catch(e){} };
   flSel.onchange=()=>{ fLabel=flSel.value; render(); };
-  tbar.querySelector('#tkFclear').onclick=()=>{ fAssignee='';fLabel='';faSel.value='';flSel.value=''; render(); };
+  tbar.querySelector('#tkFclear').onclick=()=>{ fAssignees=[];saveTaskFilter([]);fLabel='';if(faW)faW.set([]);flSel.value=''; render(); };
   tbar.querySelector('#tkView').querySelectorAll('button').forEach(b=>b.onclick=()=>{ tbar.querySelector('#tkView').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); view=b.dataset.v; render(); });
   tbar.querySelector('#newTaskBtn').onclick=()=>newTaskLive(load);
-  const filtered=()=>current.filter(t=>(!fAssignee||taskAssignees(t).includes(fAssignee))&&(!fLabel||jparse(t.labels,[]).includes(fLabel)));
+  const filtered=()=>current.filter(t=>(!fAssignees.length||taskAssignees(t).some(n=>fAssignees.includes(n)))&&(!fLabel||jparse(t.labels,[]).includes(fLabel)));
   function render(){ if(view==='calendar'){ board.style.display='none'; cal.style.display=''; renderCalendar(); } else { board.style.display=''; cal.style.display='none'; renderBoard(); } }
   let _dx=0,_sc=null;
   board.addEventListener('dragover',e=>{ e.preventDefault(); _dx=e.clientX; if(!_sc) _sc=setInterval(()=>{ const r=board.getBoundingClientRect(); if(_dx>r.right-80)board.scrollLeft+=26; else if(_dx<r.left+80)board.scrollLeft-=26; },16); });
@@ -2457,8 +2459,8 @@ PAGES.tasks=(c)=>{
     if(!r.ok){ board.innerHTML=`<div class="note" style="margin:0">${ic('i-info','sm')} Задачи в демо-режиме (нет связи с сервером).</div>`; cnt.textContent=''; return; }
     cols=(rc&&rc.ok&&(rc.data.items||[]).length)?rc.data.items:[{id:'todo',title:'К выполнению',position:1},{id:'doing',title:'В работе',position:2},{id:'done',title:'Готово',position:3}];
     current=r.data.items||[];
-    const nm=new Set((us||[]).map(u=>u.name).filter(Boolean)); current.flatMap(t=>taskAssignees(t)).forEach(n=>{ if(n)nm.add(n); }); const as=[...nm].sort();
-    faSel.innerHTML='<option value="">Все ответственные</option>'+as.map(a=>`<option value="${esc(a)}" ${a===fAssignee?'selected':''}>${esc(a)}</option>`).join('');
+    const nm=new Set((us||[]).map(u=>u.name).filter(Boolean)); current.flatMap(t=>taskAssignees(t)).forEach(n=>{ if(n)nm.add(n); }); const asUsers=[...nm].sort().map(n=>({name:n}));
+    faHost.innerHTML=''; faW=assigneeMulti(asUsers, fAssignees, {emptyLabel:'Все ответственные', onChange:(arr)=>{ fAssignees=arr; saveTaskFilter(arr); render(); }}); faHost.appendChild(faW.node);
     badge(); render();
   }
   window.__reloadTasks=load;
@@ -2478,21 +2480,22 @@ function userSelectHtml(users, selectedName, attr){
 // Список ответственных задачи: из assignees(JSON) или старого одиночного assignee
 function taskAssignees(t){ const a=jparse(t&&t.assignees,null); if(Array.isArray(a)&&a.length)return a.filter(Boolean); const s=((t&&t.assignee)||'').trim(); return s?[s]:[]; }
 // Мультивыбор ответственных — выпадающее меню с чекбоксами
-function assigneeMulti(users, selected){
+function assigneeMulti(users, selected, opts){
+  opts=opts||{}; const empty=opts.emptyLabel||'Выбрать ответственных';
   const sel=new Set((Array.isArray(selected)?selected:(selected?[selected]:[])).map(s=>String(s).trim()).filter(Boolean));
   const node=el('<div class="asg-dd" style="position:relative"></div>');
-  const btn=el('<button type="button" class="sel" style="width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer"><span class="asg-lbl" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Выбрать ответственных</span><span style="opacity:.6;flex:none">▾</span></button>');
+  const btn=el('<button type="button" class="sel" style="width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer"><span class="asg-lbl" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><span style="opacity:.6;flex:none">▾</span></button>');
   const pop=el('<div class="panel" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:50;display:none;max-height:230px;overflow:auto;box-shadow:var(--shadow-lg);padding:4px"></div>');
   node.appendChild(btn); node.appendChild(pop);
   const lblEl=btn.querySelector('.asg-lbl');
-  function updateLbl(){ const a=Array.from(sel); lblEl.textContent = !a.length?'Выбрать ответственных' : (a.length<=2 ? a.join(', ') : (a.length+' выбрано')); lblEl.style.color=a.length?'':'var(--muted)'; lblEl.title=a.join(', '); }
+  function updateLbl(){ const a=Array.from(sel); lblEl.textContent = !a.length?empty : (a.length<=2 ? a.join(', ') : (a.length+' выбрано')); lblEl.style.color=a.length?'':'var(--muted)'; lblEl.title=a.join(', '); }
   pop.innerHTML=(users.length?users.map(u=>`<label class="asg-opt" style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;cursor:pointer;font-size:13px"><input type="checkbox" data-n="${esc(u.name)}" ${sel.has(u.name)?'checked':''} style="width:16px;height:16px;flex:none;accent-color:var(--accent)"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name)}${u.roleName?(' · <span class="muted2" style="font-size:11px">'+esc(u.roleName)+'</span>'):''}</span></label>`).join(''):'<div class="muted2" style="padding:8px;font-size:12px">Нет пользователей</div>');
   pop.onclick=(e)=>e.stopPropagation();
-  pop.querySelectorAll('input[data-n]').forEach(cb=>cb.onchange=()=>{ const n=cb.dataset.n; if(cb.checked)sel.add(n); else sel.delete(n); updateLbl(); });
+  pop.querySelectorAll('input[data-n]').forEach(cb=>cb.onchange=()=>{ const n=cb.dataset.n; if(cb.checked)sel.add(n); else sel.delete(n); updateLbl(); if(opts.onChange)opts.onChange(Array.from(sel)); });
   btn.onclick=(e)=>{ e.stopPropagation(); pop.style.display = pop.style.display==='none' ? 'block' : 'none'; };
   document.addEventListener('click',()=>{ pop.style.display='none'; });
   updateLbl();
-  return {node, get:()=>Array.from(sel)};
+  return {node, get:()=>Array.from(sel), set:(arr)=>{ sel.clear(); (arr||[]).forEach(n=>sel.add(String(n).trim())); pop.querySelectorAll('input[data-n]').forEach(cb=>{cb.checked=sel.has(cb.dataset.n);}); updateLbl(); }};
 }
 function fmtDue(s){ if(!s)return ''; const p=String(s).split('T'); const d=p[0].split('-'); if(d.length<3)return s; return d[2]+'.'+d[1]+'.'+d[0]+(p[1]?(' '+p[1].slice(0,5)):''); }
 function dtLocal(s){ if(!s)return ''; if(String(s).length===10)return s+'T00:00'; return String(s).slice(0,16); }
