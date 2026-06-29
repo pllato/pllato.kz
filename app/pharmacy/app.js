@@ -1549,8 +1549,10 @@ PAGES.marketing=(c)=>{
     <div class="toolbar" style="padding:8px 12px 0"><div class="spacer"></div><button class="btn sm" id="mkActArch" title="Показать архивные акции">Архив</button><button class="btn sm primary" id="newActBtn">${ic('i-plus','sm')} Акция</button></div>
     <table class="tbl"><thead><tr><th>Акция</th><th>Тип</th><th>Скидка</th><th>Срок</th><th>Статус</th></tr></thead><tbody id="actBody"><tr><td colspan="5" class="muted2" style="padding:14px;font-size:13px">Загрузка…</td></tr></tbody></table></div>`);
   const cardsPanel=el(`<div class="panel section-gap"><div class="panel-h"><h3>${ic('i-tag','sm')} Карты и промокоды из 1С</h3><span class="ph-sub" style="margin-left:auto">виды дисконтных карт · только просмотр</span></div><div id="mkCardTypes"><div class="muted2" style="padding:14px;font-size:13px">Загрузка…</div></div></div>`);
-  c.appendChild(cards); c.appendChild(tbar); c.appendChild(panel); c.appendChild(actPanel); c.appendChild(cardsPanel);
-  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} <b>Промокоды</b> — клиент вводит код (уходят в 1С как дисконтные карты). <b>Акции</b> — авто-скидки на товары/бренды (1+1, наборы), применение на кассе/в 1С — Фаза 2. Снизу — виды карт из 1С. Промокоды врачей — в разделе «Врачи-партнёры».</div>`));
+  const s1cActPanel=el(`<div class="panel section-gap"><div class="panel-h"><h3>${ic('i-star','sm')} Акции из 1С (на кассе)</h3><span class="ph-sub" id="s1cActSub" style="margin-left:auto">из 1С</span></div>
+    <table class="tbl"><thead><tr><th>Акция</th><th>Тип</th><th>Значение</th><th>Срок</th><th>Статус</th></tr></thead><tbody id="s1cActBody"><tr><td colspan="5" class="muted2" style="padding:14px;font-size:13px">Загрузка…</td></tr></tbody></table></div>`);
+  c.appendChild(cards); c.appendChild(tbar); c.appendChild(panel); c.appendChild(actPanel); c.appendChild(s1cActPanel); c.appendChild(cardsPanel);
+  c.appendChild(el(`<div class="note section-gap">${ic('i-info','sm')} <b>Промокоды</b> — клиент вводит код (уходят в 1С как дисконтные карты). <b>Акции</b> — конструктор в CRM (1+1, наборы). <b>«Акции из 1С»</b> — зеркало того, что реально применяется на кассе (синхронизируется из 1С раз в 30 мин). Снизу — виды карт из 1С. Промокоды врачей — в разделе «Врачи-партнёры».</div>`));
   let actArch=false;
   async function loadActions(){ const r=await api('/api/actions'+(actArch?'?archived=1':'')); const tb=actPanel.querySelector('#actBody'); if(!tb)return;
     if(!r.ok){ tb.innerHTML='<tr><td colspan="5" class="muted2" style="padding:14px;font-size:13px">'+(r.status===403?'нужен доступ':'нет связи')+'</td></tr>'; return; }
@@ -1560,6 +1562,12 @@ PAGES.marketing=(c)=>{
     it.forEach(a=>{ const exp=a.date_to&&a.date_to<today; const tr=el(`<tr class="clickable"><td><b>${esc(a.name)}</b><div class="muted2" style="font-size:11px">${scopeSummary(a.scope)}</div></td><td><span class="tag">${esc(actionTypeLabel(a.type))}</span></td><td>${actionDiscTxt(a)}</td><td class="muted2">${(a.date_from||a.date_to)?((esc(a.date_from||'…'))+' – '+(esc(a.date_to||'…'))+(exp?' ⚠':'')):'бессрочно'}</td><td>${a.active?'<span class="tag green">активна</span>':'<span class="tag">архив</span>'}</td></tr>`); tr.onclick=()=>actionModalLive(a,loadActions); tb.appendChild(tr); });
   }
   loadActions();
+  async function loadS1cActs(){ const r=await api('/api/1c/autodiscounts'); const tb=s1cActPanel.querySelector('#s1cActBody'); if(!tb)return;
+    if(!r.ok){ tb.innerHTML='<tr><td colspan="5" class="muted2" style="padding:14px;font-size:13px">'+(r.status===403?'нужен доступ':'нет связи')+'</td></tr>'; return; }
+    const it=r.data.items||[]; const sub=s1cActPanel.querySelector('#s1cActSub'); if(sub&&r.data.synced_at)sub.textContent='из 1С · обновлено '+fmtWhen(r.data.synced_at);
+    if(!it.length){ tb.innerHTML='<tr><td colspan="5" class="muted2" style="padding:16px;font-size:13px">Пусто — подтянется при следующей синхронизации 1С (раз в 30 мин).</td></tr>'; return; }
+    tb.innerHTML=it.map(a=>{ const typ=a.is_bonus?'<span class="tag violet">баллы</span>':'<span class="tag blue">скидка</span>'; const val=a.value==null?'—':(a.value+(a.value<=100?'%':' с')); const dd=(s)=>s?esc(String(s).slice(0,10)):'…'; const srok=(a.date_from||a.date_to)?(dd(a.date_from)+' – '+dd(a.date_to)):'бессрочно'; return `<tr><td><b>${esc(a.name||'—')}</b></td><td>${typ}</td><td>${val}</td><td class="muted2">${srok}</td><td>${a.active?'<span class="tag green">действует</span>':'<span class="tag">выкл</span>'}</td></tr>`; }).join(''); }
+  loadS1cActs();
   actPanel.querySelector('#newActBtn').onclick=()=>newActionLive(loadActions);
   const aArch=actPanel.querySelector('#mkActArch'); aArch.onclick=()=>{ actArch=!actArch; aArch.classList.toggle('primary',actArch); aArch.textContent=actArch?'Скрыть архив':'Архив'; loadActions(); };
   async function loadCardTypes(){ const r=await api('/api/1c/card-types/stats'); const box=cardsPanel.querySelector('#mkCardTypes'); if(!box)return;
