@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a1628'/%3E%3Cpath d='M5 11h22v4H5zM7 15v8h18v-8M11 23v2M21 23v2M5 11l3-4h16l3 4' fill='none' stroke='%23d4a978' stroke-width='1.8' stroke-linejoin='round'/%3E%3C/svg%3E">
+<title>Корпус · CRM мебели на заказ</title>
+<style>
+:root{
+--navy:#0a1628;--navy2:#142339;--navy3:#1d3050;--bronze:#b8895a;--bronzel:#d4a978;
+--off:#f7f6f1;--card:#fff;--line:#e6e3da;--ink:#1d2630;--muted:#6b7585;
+--green:#3f7d52;--greenbg:#eaf3ed;--red:#b1492f;--redbg:#fbeee9;
+--amber:#c8911f;--amberbg:#fbf2dd;--blue:#2f5d8a;--bluebg:#e9f0f7;
+--wood:#a9763f;--woodbg:#f3eadf;--teal:#0d7d8a;--tealbg:#e0f3f3;--purple:#6a4d8a;--purplebg:#efeaf5;
+--wa:#25d366;--tg:#229ed9;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--off);color:var(--ink);font-size:14px;line-height:1.45}
+button{font-family:inherit;cursor:pointer}a{color:inherit;text-decoration:none}.hidden{display:none!important}
+
+#login{position:fixed;inset:0;background:radial-gradient(1100px 600px at 70% -10%,#2a2418,var(--navy) 55%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;padding:20px}
+#login .lg{color:var(--bronzel);font-size:32px;font-weight:700;letter-spacing:.5px;margin-bottom:4px}#login .lg span{color:#fff}
+#login .sub{color:#94a3b8;margin-bottom:36px;font-size:14px}
+.role-cards{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;max-width:880px}
+.rc{width:200px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:20px;text-align:left;cursor:pointer;transition:.2s}
+.rc:hover{transform:translateY(-4px);border-color:var(--bronze);box-shadow:0 16px 38px rgba(0,0,0,.45)}
+.rc .ic{font-size:23px;margin-bottom:11px}.rc .rn{color:#fff;font-size:15px;font-weight:600;margin-bottom:4px}
+.rc .rd{color:#9fb0c4;font-size:12px;line-height:1.45;margin-bottom:9px}.rc .re{color:var(--bronzel);font-size:12px;font-weight:600}
+#login .ft{color:#5f7286;font-size:11.5px;margin-top:32px}
+
+#app{display:flex;min-height:100vh}
+.sidebar{width:240px;background:var(--navy);color:#cbd5e1;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;overflow-y:auto}
+.brand{padding:20px 22px 4px;font-size:21px;font-weight:700;color:var(--bronzel)}.brand span{color:#fff}
+.brand-sub{padding:0 22px 14px;font-size:11px;color:#64748b}
+.nav-group{font-size:10px;letter-spacing:1px;color:#5a6b80;padding:11px 22px 4px;font-weight:700;text-transform:uppercase}
+.nav-link{display:flex;align-items:center;gap:10px;padding:8px 22px;font-size:13.5px;color:#aab6c6;border-left:3px solid transparent}
+.nav-link:hover{background:var(--navy2);color:#fff}.nav-link.active{background:var(--navy2);color:#fff;border-left-color:var(--bronze)}
+.nav-link .nb{margin-left:auto;background:var(--bronze);color:#fff;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:9px}
+.side-foot{margin-top:auto;padding:14px 18px;border-top:1px solid #1c2c45;display:flex;align-items:center;gap:10px}
+.av{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--bronze),var(--bronzel));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex:none}
+.side-foot .fn{color:#fff;font-size:13px;font-weight:600}.side-foot .fr{color:#7e8ca0;font-size:11px}.side-foot .chg{color:var(--bronzel);font-size:11px;display:block;margin-top:2px;cursor:pointer}
+.main{margin-left:240px;flex:1;padding:26px 32px;max-width:1440px}
+.topline{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.pt{font-size:23px;font-weight:700}.psub{color:var(--muted);font-size:13.5px;margin-top:3px}
+.section{display:none}.section.active{display:block;animation:fade .25s}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.synbadge{display:inline-flex;align-items:center;gap:6px;background:var(--navy2);color:#9fb0c4;font-size:11px;padding:5px 12px;border-radius:20px;margin:0 16px 12px;border:1px solid #24344f}
+.synbadge .d{width:7px;height:7px;border-radius:50%;background:var(--green)}
+
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.kpi .lab{color:var(--muted);font-size:12.5px;margin-bottom:8px}.kpi .val{font-size:24px;font-weight:700;color:var(--navy)}.kpi .dl{font-size:11.5px;margin-top:6px}.up{color:var(--green)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:20px}.card h3{font-size:15px;margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+table{width:100%;border-collapse:collapse}th{text-align:left;font-size:11px;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;padding:9px 11px;border-bottom:2px solid var(--line)}
+td{padding:10px 11px;border-bottom:1px solid var(--line);font-size:13px}tr:last-child td{border-bottom:none}tbody tr.clk{cursor:pointer}tbody tr.clk:hover{background:var(--off)}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.b-green{background:var(--greenbg);color:var(--green)}.b-amber{background:var(--amberbg);color:var(--amber)}.b-blue{background:var(--bluebg);color:var(--blue)}.b-wood{background:#f3eadf;color:var(--wood)}.b-teal{background:var(--tealbg);color:var(--teal)}.b-purple{background:var(--purplebg);color:var(--purple)}.b-gray{background:#eef0f3;color:var(--muted)}.b-bronze{background:#f3e6d8;color:var(--bronze)}
+.b-wa{background:#25d36622;color:#1a9c4c}.b-tg{background:#229ed922;color:var(--tg)}
+.btn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:500}.btn:hover{background:var(--navy3)}
+.btn-bronze{background:var(--bronze)}.btn-bronze:hover{background:var(--bronzel)}
+.btn-ghost{background:transparent;color:var(--navy);border:1px solid var(--line);border-radius:8px;padding:9px 16px;font-size:13px}.btn-ghost:hover{background:var(--off)}
+.btn-sm{padding:6px 11px;font-size:12px}
+input,select,textarea{font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;width:100%;background:#fff}
+label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px;font-weight:500}.field{margin-bottom:13px}
+.bar{height:8px;background:#eef0f3;border-radius:5px;overflow:hidden}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--bronze),var(--bronzel))}
+.sec-h{font-size:11px;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;font-weight:700;margin:18px 0 10px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}.legend span{display:inline-flex;align-items:center;gap:6px}.legend .sd{width:10px;height:10px;border-radius:50%}
+
+.board{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}
+.col{min-width:194px;flex:1;background:#f0eee6;border-radius:12px;padding:10px}
+.col-h{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-bottom:10px;color:var(--navy)}.col-h .cnt{margin-left:auto;background:#fff;color:var(--muted);font-size:11px;padding:1px 7px;border-radius:9px}.col-h .dot{width:8px;height:8px;border-radius:50%}
+.deal{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;cursor:pointer;transition:.15s;border-left:3px solid var(--bronze)}
+.deal:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(10,22,40,.1)}.deal .dt{font-weight:600;font-size:12.5px;margin-bottom:3px}.deal .dm{color:var(--muted);font-size:11px;margin-bottom:6px}
+.deal .drow{display:flex;align-items:center;justify-content:space-between;font-size:11px}.deal .dprice{color:var(--bronze);font-weight:700}.deal .dwa{color:#1a9c4c;font-size:10.5px}
+
+.overlay{position:fixed;inset:0;background:rgba(10,22,40,.55);display:none;align-items:flex-start;justify-content:center;z-index:200;overflow-y:auto;padding:36px 16px}
+.overlay.open{display:flex;animation:fade .2s}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:700px;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.4)}
+.modal-head{background:var(--navy);color:#fff;padding:20px 24px;position:relative}.modal-head h2{font-size:19px;margin-bottom:6px;padding-right:34px}.modal-head .ms{color:#9fb0c4;font-size:12.5px}
+.x{position:absolute;top:16px;right:18px;background:rgba(255,255,255,.12);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:18px}
+.modal-body{padding:20px 24px;max-height:72vh;overflow-y:auto}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px;flex-wrap:wrap}.tabs button{background:none;border:none;padding:9px 13px;font-size:12.5px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}.tabs button.on{color:var(--navy);border-bottom-color:var(--bronze)}
+.tab-pane{display:none}.tab-pane.on{display:block}
+.iline{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}.iline .l{color:var(--muted)}.iline .v{font-weight:600}
+.steps{display:flex;align-items:flex-start;margin:6px 0 12px;overflow-x:auto}
+.tstep{flex:1;min-width:74px;text-align:center;position:relative;padding:0 4px}
+.tstep .dot{width:24px;height:24px;border-radius:50%;background:#dfe3e8;color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:11px;position:relative;z-index:2}
+.tstep.done .dot{background:var(--green)}.tstep.cur .dot{background:var(--bronze);box-shadow:0 0 0 4px #f3e6d8}
+.tstep:not(:last-child):after{content:'';position:absolute;top:12px;left:50%;width:100%;height:2px;background:#dfe3e8;z-index:1}.tstep.done:not(:last-child):after{background:var(--green)}
+.tstep .tl{font-size:10px;font-weight:600}
+.chat{background:#e9e3d8;border-radius:12px;padding:14px;max-height:260px;overflow-y:auto}.bub{max-width:80%;padding:9px 12px;border-radius:12px;font-size:13px;margin-bottom:9px;line-height:1.4}.bub.in{background:#fff;border-top-left-radius:3px}.bub.out{background:#dcf8c6;margin-left:auto;border-top-right-radius:3px}.bub .bt{display:block;font-size:10px;color:#7a8a76;margin-top:4px;text-align:right}
+.chat-in{display:flex;gap:8px;margin-top:10px}.chat-in input{flex:1}
+.calc-wrap{display:grid;grid-template-columns:1fr 320px;gap:20px}
+.calc-out{background:var(--navy);color:#fff;border-radius:14px;padding:22px;align-self:start;position:sticky;top:20px}
+.calc-out .cl{font-size:11px;color:#9fb0c4;text-transform:uppercase;letter-spacing:.06em}.calc-out .ct{font-size:32px;font-weight:800;margin:6px 0 4px}.calc-out .cs{color:var(--bronzel);font-size:13px;margin-bottom:16px}
+.calc-out .cline{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1)}.calc-out .cline span:last-child{font-weight:600}
+.calc-out .cnote{font-size:11px;color:#8fa1b5;margin-top:14px;line-height:1.5}
+.robo{display:flex;align-items:center;gap:13px;padding:13px;border:1px solid var(--line);border-radius:11px;margin-bottom:10px;background:#fff}.robo .ri{flex:1}.robo .rn{font-size:13px;font-weight:600}.robo .rd{font-size:11.5px;color:var(--muted);margin-top:2px}
+.toggle{width:40px;height:22px;background:#cfd5dd;border-radius:12px;position:relative;cursor:pointer;flex:none}.toggle.on{background:var(--green)}.toggle i{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}.toggle.on i{left:20px}
+.matrix td,.matrix th{text-align:center}.matrix td:first-child,.matrix th:first-child{text-align:left;font-weight:600}.mk{font-size:15px}
+.note{font-size:12px;color:var(--muted);line-height:1.5}
+.brig{display:inline-block;padding:2px 9px;border-radius:7px;font-size:11px;font-weight:600;background:#f0eee6;color:var(--navy);margin-right:5px}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="lg">Корпус<span>.</span></div>
+  <div class="sub">CRM для мебели на заказ · вместо Bitrix · в собственность</div>
+  <div class="role-cards">
+    <div class="rc" onclick="enter('Нуржан','Собственник','owner')"><div class="ic">👔</div><div class="rn">Собственник</div><div class="rd">Воронка, дашборд, аналитика, маржа, доступы.</div><div class="re">Войти →</div></div>
+    <div class="rc" onclick="enter('Менеджер','Продажи','manager')"><div class="ic">💬</div><div class="rn">Менеджер</div><div class="rd">Квалификация, запись на замер, чаты WhatsApp/TG.</div><div class="re">Войти →</div></div>
+    <div class="rc" onclick="enter('Замерщик','Выезд','meter')"><div class="ic">📐</div><div class="rn">Замерщик</div><div class="rd">Замер на месте, калькулятор, предоплата.</div><div class="re">Войти →</div></div>
+    <div class="rc" onclick="enter('Снабжение','Закуп','supply')"><div class="ic">📦</div><div class="rn">Снабжение / склад</div><div class="rd">Закуп, материалы, фурнитура, остатки.</div><div class="re">Войти →</div></div>
+    <div class="rc" onclick="enter('Бригадир','Цех','prod')"><div class="ic">🔨</div><div class="rn">Производство</div><div class="rd">Бригады берут проекты, статусы сборки.</div><div class="re">Войти →</div></div>
+  </div>
+  <div class="ft">Демо · данные и имена демонстрационные · pllato.kz</div>
+</div>
+
+<div id="app" class="hidden">
+  <aside class="sidebar">
+    <div class="brand">Корпус<span>.</span></div>
+    <div class="brand-sub">Мебель на заказ · CRM</div>
+    <nav>
+      <div class="nav-group">Обзор</div>
+      <a class="nav-link active" onclick="show('dashboard',this)">📊 Дашборд</a>
+      <div class="nav-group">Продажи</div>
+      <a class="nav-link" onclick="show('funnel',this)">🗂 Воронка заявок</a>
+      <a class="nav-link" onclick="show('clients',this)">👥 Клиенты</a>
+      <a class="nav-link" onclick="show('measure',this)">📐 Замеры и калькулятор</a>
+      <a class="nav-link" onclick="show('inbox',this)">💬 Чаты <span class="nb">6</span></a>
+      <div class="nav-group">Производство</div>
+      <a class="nav-link" onclick="show('supply',this)">📦 Снабжение</a>
+      <a class="nav-link" onclick="show('warehouse',this)">🏷 Склад материалов</a>
+      <a class="nav-link" onclick="show('production',this)">🔨 Цех и бригады</a>
+      <a class="nav-link" onclick="show('install',this)">🚚 Монтаж и передача</a>
+      <div class="nav-group">Управление</div>
+      <a class="nav-link" onclick="show('analytics',this)">📈 Аналитика и маржа</a>
+      <a class="nav-link" onclick="show('robots',this)">⚡ Роботы</a>
+      <a class="nav-link" onclick="show('roles',this)">🔐 Роли и доступы</a>
+    </nav>
+    <div class="synbadge"><span class="d"></span> Облако · ваш сервер</div>
+    <div class="side-foot"><div class="av" id="av">Н</div>
+      <div><div class="fn" id="fn">Нуржан</div><div class="fr" id="fr">Собственник</div><span class="chg" onclick="location.reload()">Сменить роль</span></div></div>
+  </aside>
+
+  <main class="main">
+
+    <section class="section active" id="s-dashboard">
+      <div class="topline"><div><div class="pt">Дашборд</div><div class="psub">Сводка по компании · июнь 2026</div></div>
+        <button class="btn btn-bronze" onclick="show('funnel',document.querySelector('[onclick*=funnel]'))">🗂 Открыть воронку</button></div>
+      <div class="kpi-row">
+        <div class="kpi"><div class="lab">Лидов за месяц</div><div class="val">214</div><div class="dl up">▲ таргет · WA</div></div>
+        <div class="kpi"><div class="lab">Конверсия в договор</div><div class="val">22%</div><div class="dl">лид → продажа</div></div>
+        <div class="kpi"><div class="lab">Выручка за месяц</div><div class="val">4,8 млн с</div><div class="dl up">▲ 14%</div></div>
+        <div class="kpi"><div class="lab">Маржа</div><div class="val">31%</div><div class="dl">цена − себестоимость</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><h3>Лиды по каналам · за неделю</h3><div id="dashChannels"></div>
+          <div class="note" style="margin-top:8px">Источники и конверсия — автоматически из воронки, без ручных отчётов.</div></div>
+        <div class="card"><h3>Воронка по этапам</h3><div id="dashFunnel"></div></div>
+      </div>
+      <div class="grid3">
+        <div class="card"><h3>Заказы в работе</h3><div style="font-size:30px;font-weight:800;color:var(--navy)">17</div><div class="note">из них 6 в цеху, 3 на монтаже</div></div>
+        <div class="card"><h3>Средний чек</h3><div style="font-size:30px;font-weight:800;color:var(--navy)">186 000 с</div><div class="note">кухни, шкафы, гардеробные</div></div>
+        <div class="card"><h3>Загрузка бригад</h3>
+          <div style="margin-bottom:7px"><span class="brig">Бригада 1</span><span class="badge b-amber">занята</span></div>
+          <div style="margin-bottom:7px"><span class="brig">Бригада 2</span><span class="badge b-green">свободна</span></div>
+          <div><span class="brig">Бригада 3</span><span class="badge b-amber">занята</span></div></div>
+      </div>
+    </section>
+
+    <section class="section" id="s-funnel">
+      <div class="topline"><div><div class="pt">Воронка заявок</div><div class="psub">Весь путь индивидуального заказа: от онлайн-консультации до передачи. Каждый этап — своя роль.</div></div>
+        <button class="btn btn-bronze" onclick="openDeal()">+ Новая заявка</button></div>
+      <div class="legend"><span><span class="sd" style="background:var(--blue)"></span> Продажи</span><span><span class="sd" style="background:var(--purple)"></span> Дизайн</span><span><span class="sd" style="background:var(--wood)"></span> Снабжение</span><span><span class="sd" style="background:var(--amber)"></span> Производство</span><span><span class="sd" style="background:var(--green)"></span> Сдано</span></div>
+      <div class="board" id="board" style="margin-top:14px"></div>
+    </section>
+
+    <section class="section" id="s-clients">
+      <div class="topline"><div><div class="pt">Клиенты</div><div class="psub">База с историей заказов. Импорт из Excel.</div></div><button class="btn-ghost btn-sm">⬇ Импорт из Excel</button></div>
+      <div class="card" style="padding:0"><table><thead><tr><th>Клиент</th><th>Канал</th><th>Заказ</th><th>Этап</th><th style="text-align:right">Сумма</th></tr></thead><tbody id="clientRows"></tbody></table></div>
+    </section>
+
+    <section class="section" id="s-measure">
+      <div class="topline"><div><div class="pt">Замеры и калькулятор</div><div class="psub">Замерщик на выезде: считает стоимость на месте и берёт предоплату 2 000 сом (замер + дизайн).</div></div></div>
+      <div class="calc-wrap">
+        <div class="card">
+          <div class="field"><label>Тип изделия</label><select id="cType" onchange="calc()"><option data-k="32000">Кухня (за пог. м)</option><option data-k="24000">Шкаф-купе (за пог. м)</option><option data-k="20000">Гардеробная (за пог. м)</option><option data-k="18000">Прихожая (за пог. м)</option></select></div>
+          <div class="grid2"><div class="field"><label>Длина, пог. м</label><input type="number" id="cLen" value="4.2" step="0.1" oninput="calc()"></div>
+          <div class="field"><label>Категория материала</label><select id="cMat" onchange="calc()"><option value="1">Эконом (ЛДСП)</option><option value="1.35">Стандарт (МДФ)</option><option value="1.8">Премиум (массив/акрил)</option></select></div></div>
+          <div class="field"><label>Фурнитура</label><select id="cFur" onchange="calc()"><option value="0">Базовая</option><option value="45000">Blum / доводчики</option><option value="80000">Premium + подсветка</option></select></div>
+          <div class="field" style="margin:0"><label>Доп. опции</label>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:4px">
+              <label style="display:flex;align-items:center;gap:7px;color:var(--ink);font-weight:500"><input type="checkbox" id="cLED" style="width:auto" onchange="calc()">Подсветка LED</label>
+              <label style="display:flex;align-items:center;gap:7px;color:var(--ink);font-weight:500"><input type="checkbox" id="cStone" style="width:auto" onchange="calc()">Камень/столешница</label>
+              <label style="display:flex;align-items:center;gap:7px;color:var(--ink);font-weight:500"><input type="checkbox" id="cMont" style="width:auto" checked onchange="calc()">Монтаж</label>
+            </div></div>
+        </div>
+        <div class="calc-out">
+          <div class="cl">Стоимость заказа</div>
+          <div class="ct" id="oTot">0 с</div>
+          <div class="cs" id="oMarg">маржа ~31%</div>
+          <div class="cline"><span>Корпус (материал)</span><span id="oBody">—</span></div>
+          <div class="cline"><span>Фурнитура</span><span id="oFur">—</span></div>
+          <div class="cline"><span>Опции</span><span id="oOpt">—</span></div>
+          <div class="cline"><span>Монтаж</span><span id="oMon">—</span></div>
+          <button class="btn btn-bronze" style="width:100%;margin-top:16px" onclick="alert('Предоплата 2 000 сом принята · договор сформирован (демо)')">Взять предоплату 2 000 с</button>
+          <div class="cnote">Расчёт фиксируется в карточке. Точная стоимость — после подбора материалов в офисе. Цифры демонстрационные.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="s-inbox">
+      <div class="topline"><div><div class="pt">Чаты</div><div class="psub">WhatsApp и Telegram в одном окне, привязаны к заявкам.</div></div></div>
+      <div class="grid2">
+        <div class="card"><h3>Диалоги</h3><table><tbody>
+          <tr class="clk" onclick="openDeal()"><td><span class="badge b-wa">WA</span></td><td><b>Айгерим</b><div class="note">Кухня, хочу замер</div></td><td style="text-align:right;color:var(--muted)">4 мин</td></tr>
+          <tr class="clk"><td><span class="badge b-wa">WA</span></td><td><b>Бакыт</b><div class="note">Эскиз подтверждаю ✓</div></td><td style="text-align:right;color:var(--muted)">20 мин</td></tr>
+          <tr class="clk"><td><span class="badge b-tg">TG</span></td><td><b>@aselle</b><div class="note">Когда монтаж?</div></td><td style="text-align:right;color:var(--muted)">1 ч</td></tr>
+          <tr class="clk"><td><span class="badge b-wa">WA</span></td><td><b>Нурлан</b><div class="note">Гардеробная, прайс?</div></td><td style="text-align:right;color:var(--muted)">2 ч</td></tr>
+        </tbody></table></div>
+        <div class="card"><h3>Айгерим <span class="badge b-wa" style="margin-left:6px">WhatsApp</span></h3>
+          <div class="chat">
+            <div class="bub in">Здравствуйте! Интересует кухня на заказ<span class="bt">10:02</span></div>
+            <div class="bub out">Здравствуйте! Запишем на бесплатную консультацию и замер. Выезд + дизайн-проект — 2 000 сом (входит в стоимость заказа). Когда удобно? 🙂<span class="bt">10:05</span></div>
+            <div class="bub in">Давайте в субботу<span class="bt">10:08</span></div>
+            <div class="bub out">Записали на сб 14:00 ✓ Замерщик приедет, посчитает на месте.<span class="bt">10:09</span></div>
+          </div>
+          <div class="chat-in"><input placeholder="Сообщение…"><button class="btn btn-bronze">▶</button></div></div>
+      </div>
+    </section>
+
+    <section class="section" id="s-supply">
+      <div class="topline"><div><div class="pt">Снабжение</div><div class="psub">Отдельная роль: закуп материалов и фурнитуры по заказу. Заполняется внутри портала, не в Excel.</div></div></div>
+      <div class="card" style="padding:0"><table><thead><tr><th>Заказ</th><th>Что закупить</th><th>Поставщик</th><th>Статус</th><th>Срок</th></tr></thead><tbody>
+        <tr><td>ЗАК-118 · Кухня Айгерим</td><td>ЛДСП Egger + Blum</td><td>МебельСнаб</td><td><span class="badge b-amber">заказано</span></td><td class="note">02.07</td></tr>
+        <tr><td>ЗАК-115 · Шкаф Бакыт</td><td>МДФ + зеркало</td><td>ДекорПро</td><td><span class="badge b-green">получено</span></td><td class="note">—</td></tr>
+        <tr><td>ЗАК-112 · Гардеробная</td><td>Фурнитура + штанги</td><td>Hettich KG</td><td><span class="badge b-blue">в пути</span></td><td class="note">01.07</td></tr>
+        <tr><td>ЗАК-120 · Прихожая</td><td>ЛДСП + ручки</td><td>МебельСнаб</td><td><span class="badge b-gray">черновик</span></td><td class="note">—</td></tr>
+      </tbody></table></div>
+      <div class="note" style="margin-top:12px">Снабжение видит только свои заказы; при заключении договора заявка автоматически попадает сюда.</div>
+    </section>
+
+    <section class="section" id="s-warehouse">
+      <div class="topline"><div><div class="pt">Склад материалов</div><div class="psub">Остатки ЛДСП, МДФ, фурнитуры. Приход/расход по заказам.</div></div></div>
+      <div class="card" style="padding:0"><table><thead><tr><th>Материал</th><th>Категория</th><th style="text-align:right">Остаток</th><th style="text-align:right">Резерв</th><th>Статус</th></tr></thead><tbody>
+        <tr><td>ЛДСП Egger 18 мм (дуб)</td><td>Плита</td><td style="text-align:right">42 листа</td><td style="text-align:right">12</td><td><span class="badge b-green">в норме</span></td></tr>
+        <tr><td>МДФ крашеный (белый мат)</td><td>Плита</td><td style="text-align:right">8 листов</td><td style="text-align:right">6</td><td><span class="badge b-amber">дозаказать</span></td></tr>
+        <tr><td>Петли Blum доводчик</td><td>Фурнитура</td><td style="text-align:right">240 шт</td><td style="text-align:right">80</td><td><span class="badge b-green">в норме</span></td></tr>
+        <tr><td>Направляющие Tandem</td><td>Фурнитура</td><td style="text-align:right">36 компл</td><td style="text-align:right">28</td><td><span class="badge b-red">мало</span></td></tr>
+        <tr><td>Кромка ПВХ 2 мм</td><td>Расходники</td><td style="text-align:right">14 рулонов</td><td style="text-align:right">3</td><td><span class="badge b-green">в норме</span></td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="section" id="s-production">
+      <div class="topline"><div><div class="pt">Цех и бригады</div><div class="psub">Мастер заходит, берёт проект — видно, кто за что отвечает и в каком статусе сборка.</div></div></div>
+      <div class="card" style="padding:0"><table><thead><tr><th>Заказ</th><th>Изделие</th><th>Бригада</th><th>Этап</th><th style="width:170px">Готовность</th></tr></thead><tbody>
+        <tr><td>ЗАК-115</td><td>Шкаф-купе</td><td><span class="brig">Бригада 1 · Никита</span></td><td><span class="badge b-amber">сборка</span></td><td><div class="bar"><i style="width:65%"></i></div></td></tr>
+        <tr><td>ЗАК-112</td><td>Гардеробная</td><td><span class="brig">Бригада 3 · Бек</span></td><td><span class="badge b-blue">раскрой</span></td><td><div class="bar"><i style="width:30%"></i></div></td></tr>
+        <tr><td>ЗАК-118</td><td>Кухня</td><td><span class="brig" style="color:var(--muted)">не взят</span></td><td><span class="badge b-gray">очередь</span></td><td><div class="bar"><i style="width:5%"></i></div></td></tr>
+        <tr><td>ЗАК-109</td><td>Прихожая</td><td><span class="brig">Бригада 2 · Султан</span></td><td><span class="badge b-green">готов</span></td><td><div class="bar"><i style="width:100%"></i></div></td></tr>
+      </tbody></table></div>
+      <div class="note" style="margin-top:12px">Свободный заказ мастер «берёт» кнопкой — он закрепляется за бригадой. Видно загрузку 3 бригад и кто срывает срок.</div>
+    </section>
+
+    <section class="section" id="s-install">
+      <div class="topline"><div><div class="pt">Монтаж и передача</div><div class="psub">Доставка → монтаж мастерами → приёмка технологом (акт приём-передачи) → оплата.</div></div></div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>ЗАК-109 · Прихожая · клиент Аселя</b><span class="badge b-amber">монтаж сегодня</span></div>
+        <div class="steps">
+          <div class="tstep done"><div class="dot">✓</div><div class="tl">Готов в цеху</div></div>
+          <div class="tstep done"><div class="dot">✓</div><div class="tl">Доставка</div></div>
+          <div class="tstep cur"><div class="dot">🔨</div><div class="tl">Монтаж</div></div>
+          <div class="tstep"><div class="dot"></div><div class="tl">Технолог</div></div>
+          <div class="tstep"><div class="dot"></div><div class="tl">Акт + оплата</div></div>
+        </div>
+      </div>
+      <div class="card" style="padding:0"><table><thead><tr><th>Заказ</th><th>Клиент</th><th>Этап</th><th>Технолог</th><th>Остаток оплаты</th></tr></thead><tbody>
+        <tr><td>ЗАК-109</td><td>Аселя</td><td><span class="badge b-amber">монтаж</span></td><td class="note">после монтажа</td><td>92 000 с</td></tr>
+        <tr><td>ЗАК-104</td><td>Данияр</td><td><span class="badge b-purple">технолог</span></td><td>проверка ✓</td><td>0 с</td></tr>
+        <tr><td>ЗАК-101</td><td>Гульмира</td><td><span class="badge b-green">передан</span></td><td>акт подписан</td><td><span class="badge b-green">оплачено</span></td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="section" id="s-analytics">
+      <div class="topline"><div><div class="pt">Аналитика и маржа</div><div class="psub">Отчёты для собственника: источники, конверсия, средний чек, повторные, маржа (цена − себестоимость).</div></div></div>
+      <div class="grid2">
+        <div class="card"><h3>Маржа по заказам</h3>
+          <div class="iline"><span class="l">Выручка за месяц</span><span class="v">4 800 000 с</span></div>
+          <div class="iline"><span class="l">Себестоимость (материалы + работа)</span><span class="v">3 312 000 с</span></div>
+          <div class="iline" style="border:none"><span class="l"><b>Маржа</b></span><span class="v" style="color:var(--green)"><b>1 488 000 с · 31%</b></span></div>
+          <div class="note" style="margin-top:10px">Себестоимость тянется из снабжения и склада; зарплатный/бухгалтерский блок — отдельным этапом.</div></div>
+        <div class="card"><h3>Источники лидов</h3><div id="anChannels"></div></div>
+      </div>
+      <div class="card"><h3>Показатели</h3>
+        <table><thead><tr><th>Метрика</th><th style="text-align:right">За месяц</th><th style="text-align:right">Динамика</th></tr></thead><tbody>
+          <tr><td>Лиды</td><td style="text-align:right">214</td><td style="text-align:right"><span class="badge b-green">+12%</span></td></tr>
+          <tr><td>Конверсия в договор</td><td style="text-align:right">22%</td><td style="text-align:right"><span class="badge b-green">+3 п.п.</span></td></tr>
+          <tr><td>Средний чек</td><td style="text-align:right">186 000 с</td><td style="text-align:right"><span class="badge b-green">+8%</span></td></tr>
+          <tr><td>Повторные / по рекомендации</td><td style="text-align:right">19%</td><td style="text-align:right"><span class="badge b-amber">−1 п.п.</span></td></tr>
+        </tbody></table></div>
+    </section>
+
+    <section class="section" id="s-robots">
+      <div class="topline"><div><div class="pt">Роботы</div><div class="psub">Авто-сообщения по событиям и времени: напоминания, повторные касания, рассылки. Без ИИ-продаж — продают менеджеры.</div></div></div>
+      <div class="card" id="roboList"></div>
+      <div class="note">Робот срабатывает на событие (новый лид, смена этапа, дата) и пишет в WhatsApp/Telegram или ставит задачу менеджеру. Так не теряются заявки — но переписку с клиентом ведёт человек.</div>
+    </section>
+
+    <section class="section" id="s-roles">
+      <div class="topline"><div><div class="pt">Роли и доступы</div><div class="psub">Отдельный вход для каждой роли — каждый видит только своё, в простом формате.</div></div></div>
+      <div class="card"><table class="matrix"><thead><tr><th>Раздел</th><th>Менеджер</th><th>Замерщик</th><th>Снабжение</th><th>Производство</th><th>Собственник</th></tr></thead><tbody>
+        <tr><td>Воронка / клиенты</td><td class="mk">✅</td><td class="mk">👁</td><td>—</td><td>—</td><td class="mk">✅</td></tr>
+        <tr><td>Замеры / калькулятор</td><td class="mk">👁</td><td class="mk">✅</td><td>—</td><td>—</td><td class="mk">✅</td></tr>
+        <tr><td>Снабжение / склад</td><td>—</td><td>—</td><td class="mk">✅</td><td class="mk">👁</td><td class="mk">✅</td></tr>
+        <tr><td>Цех / бригады</td><td>—</td><td>—</td><td class="mk">👁</td><td class="mk">✅</td><td class="mk">✅</td></tr>
+        <tr><td>Аналитика / маржа</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="mk">✅</td></tr>
+      </tbody></table>
+      <div class="legend"><span>✅ — редактирование</span><span>👁 — просмотр</span><span>— — нет доступа</span></div></div>
+      <div class="card"><h3>Сотрудники</h3>
+        <table><tbody>
+          <tr><td><b>Нуржан</b></td><td>Собственник</td><td style="text-align:right"><span class="badge b-bronze">Полный</span></td></tr>
+          <tr><td>Менеджер 1</td><td>Продажи</td><td style="text-align:right"><span class="badge b-blue">Продажи</span></td></tr>
+          <tr><td>Замерщик</td><td>Выезд</td><td style="text-align:right"><span class="badge b-teal">Замеры</span></td></tr>
+          <tr><td>Снабженец</td><td>Закуп</td><td style="text-align:right"><span class="badge b-wood">Снабжение</span></td></tr>
+          <tr><td>Бригады 1–3</td><td>Цех</td><td style="text-align:right"><span class="badge b-amber">Производство</span></td></tr>
+        </tbody></table></div>
+    </section>
+
+  </main>
+</div>
+
+<div class="overlay" id="ov-deal"><div class="modal" id="dealModal"></div></div>
+
+<script>
+function enter(name,role,key){document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');document.getElementById('fn').textContent=name;document.getElementById('fr').textContent=role;document.getElementById('av').textContent=name[0];window.ROLE=key;}
+const TT={dashboard:['Дашборд','Сводка по компании · июнь 2026'],funnel:['Воронка заявок','От консультации до передачи'],clients:['Клиенты','База и история заказов'],measure:['Замеры и калькулятор','Расчёт на выезде'],inbox:['Чаты','WhatsApp и Telegram'],supply:['Снабжение','Закуп по заказам'],warehouse:['Склад материалов','Остатки и резерв'],production:['Цех и бригады','Сборка и загрузка'],install:['Монтаж и передача','Доставка → акт'],analytics:['Аналитика и маржа','Отчёты собственника'],robots:['Роботы','Авто-сообщения'],roles:['Роли и доступы','Кто что видит']};
+function show(id,el){document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));document.getElementById('s-'+id).classList.add('active');document.querySelectorAll('.nav-link').forEach(n=>n.classList.remove('active'));if(el)el.classList.add('active');window.scrollTo(0,0);}
+
+const chans=[['WhatsApp',118,'var(--wa)'],['Instagram',54,'#e1306c'],['Telegram',26,'var(--tg)'],['Рекомендации',16,'var(--bronze)']];
+const cmx=Math.max(...chans.map(c=>c[1]));
+function chanHtml(){return chans.map(c=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px"><span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c[2]};margin-right:6px"></span>${c[0]}</span><span style="font-weight:600">${c[1]}</span></div><div class="bar"><i style="width:${Math.round(c[1]/cmx*100)}%;background:${c[2]}"></i></div></div>`).join('');}
+document.getElementById('dashChannels').innerHTML=chanHtml();
+document.getElementById('anChannels').innerHTML=chanHtml();
+const fun=[['Квалификация',100],['Замер',58],['Эскиз / 3D',41],['Договор',22],['Производство',17],['Сдано',13]];
+document.getElementById('dashFunnel').innerHTML=fun.map(f=>`<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px"><span>${f[0]}</span><span style="font-weight:600">${f[1]}</span></div><div class="bar"><i style="width:${f[1]}%"></i></div></div>`).join('');
+
+const stages=[['Квалификация','var(--blue)'],['Замер','var(--blue)'],['Эскиз / 3D','var(--purple)'],['Подбор / договор','var(--purple)'],['Снабжение','var(--wood)'],['Производство','var(--amber)'],['Доставка','var(--amber)'],['Монтаж','var(--teal)'],['Передача','var(--green)']];
+const deals=[
+  {s:0,t:'Айгерим',m:'кухня · WhatsApp',p:'~210 000',wa:1},
+  {s:0,t:'Нурлан',m:'гардеробная',p:'просчёт',wa:1},
+  {s:1,t:'Жанна',m:'замер сб 14:00',p:'выезд 2000',wa:1},
+  {s:2,t:'Бакыт',m:'3D на согласовании',p:'~280 000',wa:1},
+  {s:3,t:'Данара',m:'подбор материалов',p:'+ договор',wa:0},
+  {s:4,t:'Кухня Айгерим',m:'закуп ЛДСП+Blum',p:'210 000',wa:0},
+  {s:5,t:'Шкаф Бакыт',m:'Бригада 1 · сборка',p:'280 000',wa:1},
+  {s:6,t:'Гардеробная',m:'доставка завтра',p:'340 000',wa:0},
+  {s:7,t:'Прихожая Аселя',m:'монтаж сегодня',p:'164 000',wa:1},
+  {s:8,t:'Кухня Гульмира',m:'акт подписан',p:'420 000',wa:1}];
+function renderBoard(){document.getElementById('board').innerHTML=stages.map((st,i)=>{const items=deals.filter(d=>d.s===i);return `<div class="col"><div class="col-h"><span class="dot" style="background:${st[1]}"></span>${st[0]}<span class="cnt">${items.length}</span></div>${items.map(d=>`<div class="deal" style="border-left-color:${st[1]}" onclick="openDeal()"><div class="dt">${d.t}</div><div class="dm">${d.m}</div><div class="drow"><span class="dprice">${d.p}</span>${d.wa?'<span class="dwa">💬</span>':''}</div></div>`).join('')}</div>`;}).join('');}
+
+const CLIENTS=[
+  ['Айгерим','wa','Кухня','Квалификация','—'],
+  ['Бакыт','wa','Шкаф-купе','Производство','280 000 с'],
+  ['Аселя','tg','Прихожая','Монтаж','164 000 с'],
+  ['Гульмира','wa','Кухня','Передан','420 000 с'],
+  ['Данияр','wa','Гардеробная','Технолог','350 000 с']];
+document.getElementById('clientRows').innerHTML=CLIENTS.map(c=>{const cl=c[1]==='wa'?'b-wa':'b-tg';const lb=c[1]==='wa'?'WA':'TG';return `<tr class="clk" onclick="openDeal()"><td><b>${c[0]}</b></td><td><span class="badge ${cl}">${lb}</span></td><td>${c[2]}</td><td><span class="badge b-gray">${c[3]}</span></td><td style="text-align:right">${c[4]}</td></tr>`;}).join('');
+
+const ROBOTS=[
+  ['🕐 Нет ответа 15 мин','Если менеджер не ответил лиду — напомнить + авто-сообщение клиенту',1],
+  ['📅 Напоминание о замере','За день до выезда — подтверждение в WhatsApp',1],
+  ['🎨 Эскиз готов','Уведомить клиента, что 3D готов к согласованию',1],
+  ['🔁 Не дошёл до договора','Через 3 дня после замера — задача менеджеру перезвонить',1],
+  ['⭐ После передачи','Запрос отзыва + предложение по рекомендации',0]];
+document.getElementById('roboList').innerHTML=ROBOTS.map(r=>`<div class="robo"><div class="ri"><div class="rn">${r[0]}</div><div class="rd">${r[1]}</div></div><div class="toggle ${r[2]?'on':''}" onclick="this.classList.toggle('on')"><i></i></div></div>`).join('');
+
+/* calculator */
+function f(n){return Math.round(n).toLocaleString('ru')+' с';}
+function calc(){
+  const k=parseFloat(document.querySelector('#cType option:checked').dataset.k);
+  const len=parseFloat(document.getElementById('cLen').value)||0;
+  const mat=parseFloat(document.getElementById('cMat').value);
+  const fur=parseFloat(document.getElementById('cFur').value);
+  const body=Math.round(k*len*mat);
+  let opt=0; if(document.getElementById('cLED').checked)opt+=28000; if(document.getElementById('cStone').checked)opt+=65000;
+  const mon=document.getElementById('cMont').checked?Math.round(body*0.08):0;
+  const tot=body+fur+opt+mon;
+  document.getElementById('oBody').textContent=f(body);
+  document.getElementById('oFur').textContent=fur?f(fur):'—';
+  document.getElementById('oOpt').textContent=opt?f(opt):'—';
+  document.getElementById('oMon').textContent=mon?f(mon):'—';
+  document.getElementById('oTot').textContent=f(tot);
+}
+
+function openDeal(){
+  document.getElementById('dealModal').innerHTML=`
+    <div class="modal-head"><button class="x" onclick="cm()">×</button><h2>Кухня · клиент Айгерим</h2><div class="ms">WhatsApp · менеджер · ~210 000 с</div></div>
+    <div class="modal-body">
+      <div class="steps">
+        <div class="tstep done"><div class="dot">✓</div><div class="tl">Квалиф.</div></div>
+        <div class="tstep done"><div class="dot">✓</div><div class="tl">Замер</div></div>
+        <div class="tstep cur"><div class="dot">🎨</div><div class="tl">Эскиз/3D</div></div>
+        <div class="tstep"><div class="dot"></div><div class="tl">Договор</div></div>
+        <div class="tstep"><div class="dot"></div><div class="tl">Произв.</div></div>
+        <div class="tstep"><div class="dot"></div><div class="tl">Передача</div></div>
+      </div>
+      <div class="tabs"><button class="on" onclick="dt('t1',this)">Заявка</button><button onclick="dt('t2',this)">📐 Замер</button><button onclick="dt('t3',this)">💬 WhatsApp</button></div>
+      <div class="tab-pane on" id="t1">
+        <div class="iline"><span class="l">Этап</span><span class="v"><span class="badge b-purple">Эскиз / 3D</span></span></div>
+        <div class="iline"><span class="l">Изделие</span><span class="v">Кухня угловая, 4,2 пог. м</span></div>
+        <div class="iline"><span class="l">Предоплата (замер)</span><span class="v"><span class="badge b-green">2 000 с оплачено</span></span></div>
+        <div class="iline"><span class="l">Канал</span><span class="v"><span class="badge b-wa">WhatsApp</span></span></div>
+        <div class="iline"><span class="l">Менеджер</span><span class="v">Менеджер 1</span></div>
+        <div style="margin-top:14px;display:flex;gap:8px"><button class="btn btn-bronze">Сформировать КП</button><button class="btn-ghost">Передвинуть этап →</button></div>
+      </div>
+      <div class="tab-pane" id="t2">
+        <div class="iline"><span class="l">Длина</span><span class="v">4,2 пог. м</span></div>
+        <div class="iline"><span class="l">Материал</span><span class="v">МДФ крашеный</span></div>
+        <div class="iline"><span class="l">Фурнитура</span><span class="v">Blum + доводчики</span></div>
+        <div class="iline"><span class="l">Опции</span><span class="v">LED-подсветка, столешница камень</span></div>
+        <div class="iline" style="font-size:15px"><span class="l"><b>Расчёт</b></span><span class="v" style="color:var(--bronze)"><b>210 000 с</b></span></div>
+        <div class="note" style="margin-top:8px">Собран замерщиком на выезде в калькуляторе. Точная цена — после подбора материалов в офисе.</div>
+      </div>
+      <div class="tab-pane" id="t3">
+        <div class="chat"><div class="bub in">Интересует кухня на заказ<span class="bt">10:02</span></div><div class="bub out">Записали на замер, посчитаем на месте 🙂<span class="bt">10:05</span></div><div class="bub in">Эскиз красивый, нравится!<span class="bt">сб</span></div></div>
+        <div class="chat-in"><input placeholder="Сообщение…"><button class="btn btn-bronze">▶</button></div>
+      </div>
+    </div>`;
+  document.getElementById('ov-deal').classList.add('open');
+}
+function cm(){document.getElementById('ov-deal').classList.remove('open');}
+function dt(id,el){const m=document.getElementById('dealModal');m.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('on'));el.classList.add('on');m.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('on'));m.querySelector('#'+id).classList.add('on');}
+renderBoard();calc();
+</script>
+<script src="../pllato-share.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Inter';src:url('fonts/Inter-Regular.ttf');font-weight:400}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Medium.ttf');font-weight:500}
+@font-face{font-family:'Inter';src:url('fonts/Inter-SemiBold.ttf');font-weight:600}
+@font-face{font-family:'Inter';src:url('fonts/Inter-Bold.ttf');font-weight:700}
+@font-face{font-family:'Inter';src:url('fonts/Inter-ExtraBold.ttf');font-weight:800}
+:root{--navy:#0a1628;--navy3:#1d3050;--bronze:#b8895a;--bronzeL:#d4a978;--off:#f7f6f1;--line:#e6e3da;--text:#1a2230;--muted:#5d6573;--faint:#8a909c;--green:#3f7d52;--greenbg:#eaf3ed;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55}
+.page{width:210mm;min-height:297mm;position:relative;page-break-after:always;padding:20mm 18mm 16mm;display:flex;flex-direction:column}
+.page:last-child{page-break-after:auto}
+.page.cover{padding:0;color:#fff;background:radial-gradient(900px 520px at 72% -8%,#2a2418,var(--navy) 58%);justify-content:space-between}
+.foot{position:absolute;bottom:9mm;left:18mm;right:18mm;display:flex;justify-content:space-between;font-size:8.5px;color:var(--faint);border-top:1px solid var(--line);padding-top:7px}
+.cov-top{padding:22mm 18mm 0}
+.cov-brand{font-size:30px;font-weight:800}.cov-brand .d{color:var(--bronze)}
+.cov-kicker{margin-top:44mm;font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-title{font-size:38px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin-top:14px}
+.cov-sub{margin-top:18px;font-size:13.5px;color:#aebccd;max-width:138mm;line-height:1.6}
+.cov-route{margin-top:18px;font-size:11.5px;color:#86a0b6;line-height:1.6}
+.cov-band{background:rgba(255,255,255,.05);border-top:1px solid rgba(255,255,255,.12);padding:9mm 18mm;display:flex;justify-content:space-between;align-items:flex-end}
+.cov-band .pl{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--bronzeL)}
+.cov-band .pv{font-size:44px;font-weight:800;line-height:1;margin-top:6px}
+.cov-band .pm{text-align:right;font-size:12px;color:#aebccd;line-height:1.7}.cov-band .pm b{color:#fff}
+.sec{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
+.sec .num{font-size:13px;font-weight:800;color:var(--bronze)}.sec .ti{font-size:21px;font-weight:800;letter-spacing:-.01em}
+h3.sub{font-size:13px;font-weight:700;margin:14px 0 8px;color:var(--navy3)}
+p{margin-bottom:9px}p.lead{font-size:12px;color:var(--muted)}
+.bull{display:flex;gap:9px;margin-bottom:8px}.bull .bh{font-weight:700;white-space:nowrap}
+.quote{background:var(--navy);color:#fff;border-radius:12px;padding:18px 22px;margin:6px 0 18px}
+.quote .qt{font-size:13.5px;line-height:1.6;font-style:italic;color:#e7eef5}.quote .qw{margin-top:10px;font-size:11px;color:var(--bronzeL);font-weight:600}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:6px 0 4px}
+.fcard{background:var(--off);border-left:3px solid var(--bronze);border-radius:0 8px 8px 0;padding:12px 14px}
+.fcard .ft{font-weight:700;font-size:11.5px;margin-bottom:4px}.fcard .fb{font-size:9.5px;color:var(--muted);line-height:1.5}
+.shot{margin:4px 0 6px;border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 6px 20px rgba(10,22,40,.08)}.shot img{width:100%;display:block}
+.cap{font-size:9.5px;color:var(--faint);margin:0 0 16px;padding-left:2px}.cap b{color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:10.5px}
+thead th{background:var(--navy);color:#fff;text-align:left;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:9px 11px}thead th.r{text-align:right}
+tbody td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}tbody td.r{text-align:right;font-weight:700;white-space:nowrap}tbody tr:last-child td{border-bottom:none}
+.softbox{background:var(--greenbg);border-left:3px solid var(--green);border-radius:0 8px 8px 0;padding:14px 18px;margin:6px 0 14px}
+.softbox .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.softbox .sl{display:flex;justify-content:space-between;font-size:11px;padding:4px 0}
+.priceband{background:var(--navy);color:#fff;border-radius:12px;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.priceband .pl{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--bronzeL)}.priceband .pn{font-size:10px;color:#aebccd;margin-top:5px;max-width:118mm;line-height:1.5}.priceband .pv{font-size:30px;font-weight:800;white-space:nowrap}
+.kvs{margin:4px 0 10px}.kv{display:flex;gap:10px;font-size:10.5px;padding:6px 0;border-bottom:1px solid var(--line)}.kv .kk{width:42mm;color:var(--muted);flex-shrink:0}.kv .vv{font-weight:500}
+.refgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:8px}.ref{background:var(--off);border:1px solid var(--line);border-radius:8px;padding:11px 13px;font-size:10px}.ref b{display:block;margin-bottom:3px;font-size:11px}.ref span{color:var(--muted);line-height:1.45}
+.note{font-size:9.5px;color:var(--faint);margin-top:4px}.avoid{page-break-inside:avoid}
+</style></head>
+<body>
+
+<section class="page cover">
+  <div class="cov-top">
+    <div class="cov-brand">Pllato<span class="d">.</span></div>
+    <div class="cov-kicker">Коммерческое предложение · Корпус</div>
+    <div class="cov-title">CRM для мебели<br>на заказ</div>
+    <div class="cov-sub">Своя система вместо Bitrix: воронка под ваш индивидуальный процесс, замер-калькулятор с предоплатой на выезде, снабжение и цех с бригадами, дашборд и маржа, WhatsApp/Telegram. Отдельный вход для каждой роли — каждый видит только своё.</div>
+    <div class="cov-route">Консультация → замер + калькулятор → эскиз/3D → договор → снабжение → цех (бригады) → монтаж → передача</div>
+  </div>
+  <div class="cov-band">
+    <div><div class="pl">Разработка «под ключ»</div><div class="pv">$2 000</div></div>
+    <div class="pm">Вместо Bitrix ~<b>$2 000/год</b><br>В собственность · на вашем сервере<br>Предоплата <b>$200</b>, остальное — траншами</div>
+  </div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">01</span><span class="ti">Что мы услышали</span></div>
+  <p class="lead">Вы делаете корпусную мебель на заказ — процесс длинный и индивидуальный: онлайн-консультация, замер с дизайн-проектом, 3D, подбор материалов, договор, снабжение, цех и монтаж. Сейчас работаете в Bitrix, но не вся команда им пользуется: замерщикам и мастерам в нём неудобно, снабжение ведётся в Excel. Нужна своя система под ваш процесс — и без ежемесячной абонплаты.</p>
+  <div class="quote">
+    <div class="qt">«Хотела сравнить с Bitrix: чтобы было удобнее и без ежемесячной оплаты. У нас всё на индивидуальной основе — долгий процесс продажи. Нужно, чтобы замерщик, снабжение и мастера заходили каждый в своё, и чтобы можно было видеть отчётность и маржу.»</div>
+    <div class="qw">— из разговора, Нуржан</div>
+  </div>
+  <h3 class="sub">Ключевые задачи</h3>
+  <div class="bull"><span class="bh">Воронка под ваш процесс.</span><span>Все этапы индивидуального заказа — от консультации до передачи технологом, своя роль на каждом.</span></div>
+  <div class="bull"><span class="bh">Замер с калькулятором.</span><span>Замерщик считает стоимость на месте и берёт предоплату 2 000 сом — клиент не уходит «подумать».</span></div>
+  <div class="bull"><span class="bh">Отдельные входы по ролям.</span><span>Замерщик, снабжение, цех, мастера — каждый видит только своё, в простом формате.</span></div>
+  <div class="bull"><span class="bh">Цех и бригады.</span><span>Мастер «берёт» проект, видно загрузку 3 бригад и кто срывает срок.</span></div>
+  <div class="bull"><span class="bh">Дашборд, аналитика, маржа.</span><span>Лиды по каналам, конверсия, средний чек, маржа (цена − себестоимость) — без ручных отчётов.</span></div>
+  <div class="bull"><span class="bh">Каналы и роботы.</span><span>WhatsApp/Telegram в карточке; роботы (напоминания, повторные касания) — без потери заявок.</span></div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для мебели на заказ (Корпус)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">02</span><span class="ti">Воронка под ваш процесс</span></div>
+  <p class="lead">Не «коробка», а доска под вашу реальную цепочку. Цвет этапа = ответственная роль; заявка едет от продаж через дизайн и снабжение в цех, на монтаж и передачу.</p>
+  <div class="shot"><img src="../../app/korpus/shots/funnel.png"></div>
+  <div class="cap"><b>Воронка заявок.</b> Квалификация → Замер → Эскиз/3D → Договор → Снабжение → Производство → Доставка → Монтаж → Передача. Метка 💬 — переписка в WhatsApp.</div>
+  <div class="sec" style="margin-top:6px"><span class="num">03</span><span class="ti">Замер и калькулятор</span></div>
+  <div class="shot"><img src="../../app/korpus/shots/measure.png"></div>
+  <div class="cap"><b>Расчёт на выезде.</b> Тип изделия, длина, материал, фурнитура, опции и монтаж → стоимость и маржа за секунды. Кнопка «Взять предоплату 2 000 сом» — фиксируется в карточке.</div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для мебели на заказ (Корпус)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">04</span><span class="ti">Снабжение и цех</span></div>
+  <p class="lead">Снабжение — отдельная роль: при заключении договора заявка автоматически попадает в закуп (больше не в Excel). В цеху мастера «берут» проекты, видно загрузку бригад.</p>
+  <div class="shot"><img src="../../app/korpus/shots/supply.png"></div>
+  <div class="cap"><b>Снабжение.</b> Что закупить по заказу, поставщик, статус, срок — видит только снабженец.</div>
+  <div class="shot"><img src="../../app/korpus/shots/production.png"></div>
+  <div class="cap"><b>Цех и бригады.</b> Кто взял проект, этап (раскрой/сборка/готов), готовность. Видно, кто срывает срок.</div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для мебели на заказ (Корпус)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">05</span><span class="ti">Дашборд, аналитика и маржа</span></div>
+  <p class="lead">Вся картина на одном экране: лиды по каналам, конверсия, средний чек, загрузка бригад. Маржа считается из снабжения и склада — видно цену, себестоимость и прибыль.</p>
+  <div class="shot"><img src="../../app/korpus/shots/dashboard.png"></div>
+  <div class="cap"><b>Дашборд собственника.</b> Лиды, конверсия, выручка, маржа, загрузка бригад — в реальном времени.</div>
+  <div class="shot"><img src="../../app/korpus/shots/analytics.png"></div>
+  <div class="cap"><b>Аналитика и маржа.</b> Выручка − себестоимость = маржа; источники лидов, средний чек, повторные. Глубокий бухгалтерский блок — отдельным этапом.</div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для мебели на заказ (Корпус)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">06</span><span class="ti">Роли, роботы и монтаж</span></div>
+  <p class="lead">Отдельный вход для каждой роли — менеджер, замерщик, снабжение, цех, собственник. Роботы помогают не терять заявки. Монтаж и приёмка технологом — отдельный этап с актом.</p>
+  <div class="shot"><img src="../../app/korpus/shots/roles.png"></div>
+  <div class="cap"><b>Роли и доступы.</b> Каждый видит только своё. Финансы и маржа — только собственнику.</div>
+  <h3 class="sub">Роботы (не ИИ-продажи)</h3>
+  <p>Роботы шлют авто-сообщения по событию или времени: напоминание о замере, «эскиз готов», повторное касание, запрос отзыва. Так заявки не теряются — но переписку и продажу ведёт человек (ИИ-боты пока продают плохо). Службу поддержки на ИИ можно проработать позже.</p>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для мебели на заказ (Корпус)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">07</span><span class="ti">Как работаем · стоимость</span></div>
+  <p class="lead">Постоплата и удобные транши. Первую кликабельную версию даём за 10–14 дней; вы прокликиваете, вносите правки. Сдаём в 2–3 этапа.</p>
+  <div class="bull"><span class="bh">Старт.</span><span>Символическая предоплата $200 — разворачиваем ядро (воронка, замер, карточки), уже кликабельно.</span></div>
+  <div class="bull"><span class="bh">Этап 1 (≈2 недели).</span><span>Полный функционал: роли, снабжение, цех, дашборд, каналы, роботы. Согласовываем правки.</span></div>
+  <div class="bull"><span class="bh">Финал.</span><span>Полировка, интеграции (WhatsApp/Telegram), передача кода на ваш сервер.</span></div>
+  <div class="softbox avoid">
+    <div class="st">Экономия против Bitrix</div>
+    <div class="sl"><span>Bitrix + WhatsApp сейчас (~$160/мес)</span><span>~$2 000 / год · и так каждый год</span></div>
+    <div class="sl"><span>WhatsApp через нашего партнёра</span><span>~$10/мес вместо ~$80</span></div>
+    <div class="sl" style="border-top:1px solid #cfe0d4;margin-top:4px;padding-top:8px"><span><b>Своя платформа</b></span><span><b>один раз — и навсегда ваша</b></span></div>
+  </div>
+  <table class="avoid">
+    <thead><tr><th>Этап</th><th>Что включает</th><th class="r">Оплата</th></tr></thead>
+    <tbody>
+      <tr><td><b>Старт</b></td><td>Запуск ядра, кликабельный прототип</td><td class="r">$200</td></tr>
+      <tr><td><b>Этап 1</b></td><td>Воронка, замер, роли, снабжение, цех, дашборд — принято</td><td class="r">$900</td></tr>
+      <tr><td><b>Финал</b></td><td>Правки, каналы, роботы, передача кода</td><td class="r">$900</td></tr>
+    </tbody>
+  </table>
+  <div class="priceband avoid">
+    <div><div class="pl">Итого «под ключ»</div><div class="pn">В собственность, на вашем сервере (облако — на старте бесплатно). Остаток можно разбить на 3–6 месяцев. Поддержка — $20/час.</div></div>
+    <div class="pv">$2 000</div>
+  </div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для мебели на заказ (Корпус)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+<section class="page">
+  <div class="sec"><span class="num">08</span><span class="ti">Что оплачивается отдельно · О Pllato</span></div>
+  <div class="kvs">
+    <div class="kv"><span class="kk">Бухгалтерский / маржа-блок (глубокий)</span><span class="vv">$500–1 000 (до $2 000 при высокой сложности). Часть задач закроется уже в дашборде. Расчёт зарплат/ФОТ — отдельная тема.</span></div>
+    <div class="kv"><span class="kk">Хостинг</span><span class="vv">Облако; на старте бесплатно (до ~10 ГБ), далее ~$3–5/мес. Аудио WhatsApp в объём не входит.</span></div>
+    <div class="kv"><span class="kk">WhatsApp / Telegram</span><span class="vv">~$10/мес через нашего партнёра (вместо ~$80).</span></div>
+    <div class="kv"><span class="kk">Доработки после сдачи</span><span class="vv">$20/час.</span></div>
+  </div>
+  <div class="sec" style="margin-top:14px"><span class="num">09</span><span class="ti">О Pllato</span></div>
+  <p class="lead">Студия разработки в Алматы. Пишем CRM/ERP с нуля под процесс клиента, в собственность. Всё в одной системе — без сшивания разных модулей как в Bitrix. Релевантные кейсы:</p>
+  <div class="refgrid">
+    <div class="ref"><b>Производитель окон</b><span>Воронка, замер с калькулятором и предоплатой, склад, канбан производства — прямой аналог вашего процесса.</span></div>
+    <div class="ref"><b>Мебельное производство</b><span>Воронка по каналам, цех с этапами, KPI→зарплата, интеграция 1С.</span></div>
+    <div class="ref"><b>Сеть из 7 аптек</b><span>Воронки, дашборды, омни-чаты, аналитика.</span></div>
+    <div class="ref"><b>Сеть языковых школ (15+ лет)</b><span>Наш собственный бизнес, ~120 человек: роли и дисциплина внедрения.</span></div>
+  </div>
+  <h3 class="sub" style="margin-top:16px">Дальше</h3>
+  <p>Кликабельный макет под ваш процесс уже готов — посмотрите вместе с супругом. После «да» стартуем с предоплаты $200, первую версию покажем через 10–14 дней. Лучше один раз — и платформа ваша навсегда, чем каждый год платить за Bitrix.</p>
+  <div class="priceband avoid" style="margin-top:10px">
+    <div><div class="pl">Контакты</div><div class="pn">Платон Цай · +7 701 123 99 99 (тел / WhatsApp) · uurraa@gmail.com · pllato.kz</div></div>
+    <div class="pv" style="font-size:24px">Pllato<span style="color:var(--bronzeL)">.</span></div>
+  </div>
+  <div class="foot"><span>Pllato · Коммерческое предложение · CRM для мебели на заказ (Корпус)</span><span>pllato.kz · +7 701 123 99 99</span></div>
+</section>
+
+</body></html>
