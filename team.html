@@ -12950,6 +12950,166 @@ function getUsersForFilter() {
 }
 
 window.openDealCard = openDealCard;
+// ═══════════════ Форма квалификации сделки (бриф первого звонка) ═══════════════
+const QUAL_SCHEMA = [
+  { title: 'A. Контекст бизнеса', fields: [
+    { key: 'biz_what', label: 'Чем занимается компания? Что продаёт / производит?', type: 'textarea', required: true },
+    { key: 'biz_geo', label: 'Город / регионы работы', type: 'text' },
+    { key: 'biz_size', label: 'Размер команды', type: 'select', opts: ['1–5', '6–15', '16–50', '50+'] },
+    { key: 'biz_branches', label: 'Филиалы / точки / цех', type: 'text' },
+    { key: 'biz_stage', label: 'Стадия', type: 'radio', opts: ['Запускаются', 'Работают давно'] },
+  ] },
+  { title: 'B. Как работают сейчас', fields: [
+    { key: 'now_tools', label: 'В чём ведут клиентов и заказы сейчас', type: 'multiselect', opts: ['CRM (готовая)', '1С', 'Excel', 'Бумага/тетради', 'Мессенджеры', 'Ничего'] },
+    { key: 'now_tools_which', label: 'Какая именно CRM / система', type: 'text', showIf: (d) => Array.isArray(d.now_tools) && d.now_tools.some(x => /CRM/i.test(x)) },
+    { key: 'now_pain_tool', label: 'Что в текущей системе раздражает больше всего', type: 'textarea' },
+    { key: 'now_manual', label: 'Что делают вручную / дважды', type: 'textarea', hint: 'двойной ввод, расчёты на калькуляторе, переписывание' },
+  ] },
+  { title: 'C. Главная боль ★', accent: true, hint: 'Это поле определяет, какую демку соберёт производство. Чем точнее боль — тем сильнее демо.', fields: [
+    { key: 'pain_main', label: 'ГЛАВНАЯ БОЛЬ — дословно со слов клиента', type: 'textarea', required: true, accent: true, hint: 'Запишите дословно. Спросите 2–3 раза «а почему это проблема?» — настоящая боль вскрывается не с первого ответа.' },
+    { key: 'pain_money', label: 'Из-за чего теряют деньги/клиентов чаще всего', type: 'textarea' },
+    { key: 'pain_want_see', label: 'Что хотят видеть, но сейчас не видят', type: 'textarea', hint: 'прибыль, остатки, кто где, этапы' },
+    { key: 'pain_case', label: 'Недавний случай, когда из-за бардака что-то пошло не так', type: 'textarea' },
+  ] },
+  { title: 'D. Каналы и состав системы', fields: [
+    { key: 'ch_sources', label: 'Откуда приходят клиенты', type: 'multiselect', opts: ['WhatsApp', 'Instagram', 'Telegram', 'Viber', 'Сайт', 'Звонки', 'Точка/офлайн', 'Рекомендации'] },
+    { key: 'need_1c', label: 'Нужна связь с 1С', type: 'radio', opts: ['Да', 'Нет', 'Не уверены'] },
+    { key: 'need_warehouse', label: 'Нужен склад / остатки', type: 'radio', opts: ['Да', 'Нет'] },
+    { key: 'need_messengers', label: 'Мессенджеры для клиентов', type: 'multiselect', opts: ['WhatsApp', 'Telegram', 'Viber'] },
+    { key: 'users_count', label: 'Сколько человек будет работать в системе', type: 'number' },
+  ] },
+  { title: 'E. Сигналы решения', fields: [
+    { key: 'dm_who', label: 'Кто принимает решение', type: 'radio', opts: ['Сам клиент', 'Нужно согласование (партнёр/совет/инвестор)'] },
+    { key: 'dm_urgency', label: 'Срочность', type: 'radio', opts: ['Горит сейчас', 'На перспективу', 'Просто смотрят'] },
+    { key: 'dm_competitors', label: 'Смотрели другие варианты / CRM', type: 'text' },
+    { key: 'dm_budget', label: 'Бюджет в моменте', type: 'radio', opts: ['Есть', 'Нет', 'Не обсуждали'] },
+  ] },
+  { title: 'F. Договорённость о демо', fields: [
+    { key: 'demo_date', label: 'Дата и время демо-созвона', type: 'datetime', required: true, hint: 'Не «мы перезвоним», а конкретная дата. Попросите логотип+сайт в чат.' },
+    { key: 'demo_brand_received', label: 'Получены логотип + сайт для брендинга демки', type: 'checkbox' },
+    { key: 'demo_closer', label: 'Назначенный закрыватель', type: 'userselect' },
+  ] },
+];
+const QUAL_INSTRUCTION = `ЦЕЛЬ ЗВОНКА: вытащить боль и назначить демо. НЕ продавать.
+• Слушайте 80%, говорите 20%. Звонок про клиента, не про нас.
+• Заполните форму ниже — особенно «Главную боль» дословно.
+• Спросите 2–3 раза «а почему это проблема?» — настоящая боль не в первом ответе.
+• Цену НЕ называйте. Если спросят: «зависит от задач, обычно около $3 000, точнее на демо».
+• В конце: назначьте конкретную дату демо и попросите логотип+сайт в чат.`;
+
+function openQualificationForm(dealId, deal, opts) {
+  opts = opts || {};
+  const readOnly = !!opts.readOnly;
+  document.getElementById('_qual-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = '_qual-modal'; ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:640px;width:96vw">
+    <div class="qad-head"><h2>📋 Квалификация — бриф первого звонка</h2><button class="qad-btn qad-btn-ghost" id="qf-close" style="padding:4px 10px">×</button></div>
+    <div class="qad-body" id="qf-body" style="max-height:78vh;overflow-y:auto"><div style="padding:24px;color:var(--t3);text-align:center">⏳ Загрузка…</div></div>
+    ${readOnly ? '' : '<div class="qad-foot"><span id="qf-status" style="flex:1;font-size:12px;color:var(--t3)"></span><button class="qad-btn qad-btn-primary" id="qf-save">Сохранить бриф</button></div>'}
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#qf-close').onclick = () => ov.remove();
+
+  let data = {};
+  const users = (typeof orgSortedUsers === 'function') ? orgSortedUsers() : [];
+  const ER = (s) => escapeHtml(String(s == null ? '' : s));
+
+  function fieldHtml(f) {
+    const v = data[f.key];
+    const dis = readOnly ? 'disabled' : '';
+    const accent = f.accent ? 'border:2px solid var(--ac2);border-radius:8px;padding:8px;background:color-mix(in srgb,var(--ac2) 5%,transparent)' : '';
+    let input = '';
+    if (f.type === 'textarea') input = `<textarea class="qad-input" data-qk="${f.key}" rows="2" ${dis} style="resize:vertical;min-height:54px;font-family:inherit">${ER(v)}</textarea>`;
+    else if (f.type === 'number') input = `<input class="qad-input" data-qk="${f.key}" type="number" min="0" value="${ER(v)}" ${dis}>`;
+    else if (f.type === 'datetime') input = `<input class="qad-input" data-qk="${f.key}" type="datetime-local" value="${ER(v)}" ${dis}>`;
+    else if (f.type === 'checkbox') input = `<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" data-qk="${f.key}" ${v ? 'checked' : ''} ${dis}> Да</label>`;
+    else if (f.type === 'select') input = `<select class="qad-input" data-qk="${f.key}" ${dis}><option value="">—</option>${f.opts.map(o => `<option ${o === v ? 'selected' : ''}>${ER(o)}</option>`).join('')}</select>`;
+    else if (f.type === 'userselect') input = `<select class="qad-input" data-qk="${f.key}" ${dis}><option value="">—</option>${users.map(u => `<option value="${ER(u.uid)}" ${u.uid === v ? 'selected' : ''}>${ER(u.label)}</option>`).join('')}</select>`;
+    else if (f.type === 'radio') input = `<div style="display:flex;gap:14px;flex-wrap:wrap">${f.opts.map(o => `<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="qr_${f.key}" data-qk="${f.key}" value="${ER(o)}" ${o === v ? 'checked' : ''} ${dis}>${ER(o)}</label>`).join('')}</div>`;
+    else if (f.type === 'multiselect') { const arr = Array.isArray(v) ? v : []; input = `<div style="display:flex;gap:12px;flex-wrap:wrap">${f.opts.map(o => `<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" data-qk="${f.key}" data-multi value="${ER(o)}" ${arr.includes(o) ? 'checked' : ''} ${dis}>${ER(o)}</label>`).join('')}</div>`; }
+    else input = `<input class="qad-input" data-qk="${f.key}" value="${ER(v)}" ${dis}>`;
+    return `<div data-qfield="${f.key}" style="margin-bottom:11px;${f.showIf && !f.showIf(data) ? 'display:none' : ''}">
+      <div class="qad-label">${ER(f.label)}${f.required ? ' <span style="color:var(--rd)">*</span>' : ''}</div>
+      <div style="${accent}">${input}</div>
+      ${f.hint ? `<div style="font-size:11px;color:var(--t3);margin-top:3px">💡 ${ER(f.hint)}</div>` : ''}
+    </div>`;
+  }
+  function renderBody() {
+    const body = ov.querySelector('#qf-body');
+    body.innerHTML = `
+      <details ${readOnly ? '' : 'open'} style="margin-bottom:12px;background:var(--bg3);border-radius:8px;padding:10px 12px">
+        <summary style="font-weight:700;font-size:13px;cursor:pointer">❓ Как вести этот звонок</summary>
+        <div style="font-size:12.5px;color:var(--t2);white-space:pre-wrap;line-height:1.5;margin-top:8px">${ER(QUAL_INSTRUCTION)}</div>
+      </details>
+      ${QUAL_SCHEMA.map(sec => `
+        <div style="margin-top:14px;${sec.accent ? 'border-left:3px solid var(--ac2);padding-left:10px' : ''}">
+          <div style="font-weight:700;font-size:13.5px;color:var(--t1);margin-bottom:8px">${ER(sec.title)}</div>
+          ${sec.hint ? `<div style="font-size:11.5px;color:var(--ac2);margin-bottom:8px">${ER(sec.hint)}</div>` : ''}
+          ${sec.fields.map(fieldHtml).join('')}
+        </div>`).join('')}`;
+    // условные поля (now_tools_which) — перерисовываем видимость при изменении
+    body.querySelectorAll('[data-multi],[type=radio],[data-qk]').forEach(inp => {
+      inp.addEventListener('change', () => { collect(); body.querySelectorAll('[data-qfield]').forEach(el => {
+        const f = QUAL_SCHEMA.flatMap(s => s.fields).find(x => x.key === el.dataset.qfield);
+        if (f && f.showIf) el.style.display = f.showIf(data) ? '' : 'none';
+      }); });
+    });
+  }
+  function collect() {
+    const body = ov.querySelector('#qf-body');
+    const out = {};
+    QUAL_SCHEMA.flatMap(s => s.fields).forEach(f => {
+      if (f.type === 'multiselect') {
+        out[f.key] = Array.from(body.querySelectorAll(`[data-qk="${f.key}"][data-multi]:checked`)).map(x => x.value);
+      } else if (f.type === 'radio') {
+        const sel = body.querySelector(`[data-qk="${f.key}"]:checked`); out[f.key] = sel ? sel.value : '';
+      } else if (f.type === 'checkbox') {
+        const el = body.querySelector(`[data-qk="${f.key}"]`); out[f.key] = !!(el && el.checked);
+      } else {
+        const el = body.querySelector(`[data-qk="${f.key}"]`); out[f.key] = el ? el.value : '';
+      }
+    });
+    data = out; return out;
+  }
+
+  (async () => {
+    try {
+      const t = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/qualification`, { headers: { Authorization: 'Bearer ' + t } });
+      const d = await r.json();
+      if (d.ok) data = d.qualification || {};
+    } catch (e) {}
+    renderBody();
+  })();
+
+  if (!readOnly) {
+    ov.querySelector('#qf-save').onclick = async () => {
+      const q = collect();
+      const st = ov.querySelector('#qf-status');
+      const missing = [];
+      if (!q.pain_main || !q.pain_main.trim()) missing.push('Главную боль');
+      if (!q.demo_date) missing.push('Дату демо');
+      const btn = ov.querySelector('#qf-save'); btn.disabled = true; btn.textContent = '⏳…';
+      try {
+        const t = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/qualification`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t },
+          body: JSON.stringify({ qualification: q }),
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        showToast?.('Бриф сохранён ✅');
+        if (st) st.innerHTML = missing.length ? `<span style="color:#f59e0b">Сохранено. Для перехода на «Демо» заполните: ${missing.join(', ')}</span>` : '<span style="color:var(--gn)">✅ Готово к переходу на «Демо»</span>';
+        // обновим статус в карточке
+        const dcStatus = document.querySelector('#dc-qual-status');
+        if (dcStatus) dcStatus.innerHTML = (q.pain_main && q.pain_main.trim()) ? '<span style="color:var(--gn)">✅ Бриф заполнен</span>' : '<span style="color:#f59e0b">⚠ Бриф не заполнен</span>';
+        btn.disabled = false; btn.textContent = 'Сохранить бриф';
+      } catch (e) { alert('Ошибка сохранения: ' + e.message); btn.disabled = false; btn.textContent = 'Сохранить бриф'; }
+    };
+  }
+}
+
 async function openDealCard(bitrixId) {
   // 1) ищем в full kanban state — если был загружен
   let deal = dealsState.deals.find(d => d.bitrixId === bitrixId);
@@ -13091,6 +13251,11 @@ async function openDealCard(bitrixId) {
       })()}
 
       <div class="dc-stagebar">${stageBarHtml}</div>
+
+      <div style="margin:10px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="tbtn tbtn-sm tbtn-a" id="dc-qual-btn">📋 Квалификация (бриф)</button>
+        <span id="dc-qual-status" style="font-size:12px;color:var(--t3)"></span>
+      </div>
 
       <div class="dc-grid">
         <div class="dc-left">
@@ -13256,6 +13421,29 @@ async function openDealCard(bitrixId) {
   const modal = div.firstElementChild;
   document.body.appendChild(modal);
   document.body.style.overflow = 'hidden';
+
+  // Квалификация (бриф первого звонка)
+  const qualDealId = 'deal_' + deal.bitrixId;
+  const qualBtn = modal.querySelector('#dc-qual-btn');
+  if (qualBtn) {
+    qualBtn.onclick = () => openQualificationForm(qualDealId, deal, { readOnly: !canEditDeal });
+    // статус заполненности
+    (async () => {
+      try {
+        const t = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(qualDealId)}/qualification`, { headers: { Authorization: 'Bearer ' + t } });
+        const d = await r.json();
+        const st = modal.querySelector('#dc-qual-status');
+        if (st && d.ok) {
+          const q = d.qualification || {};
+          const filled = !!(q.pain && q.pain.main);
+          st.innerHTML = filled
+            ? `<span style="color:var(--gn)">✅ Бриф заполнен</span>${d.qualAt ? ' · ' + new Date(d.qualAt).toLocaleDateString('ru') : ''}`
+            : '<span style="color:var(--am, #f59e0b)">⚠ Бриф не заполнен</span>';
+        }
+      } catch (e) {}
+    })();
+  }
 
   // Stage bar — клик переносит в новую стадию
   modal.querySelectorAll('.dc-stage-btn').forEach(btn => {
