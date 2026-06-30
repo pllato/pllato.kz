@@ -200,7 +200,7 @@ label{font-size:11.5px;color:var(--muted);margin-bottom:5px;display:block;font-w
   <div class="login-logo">
     <div class="logomark">MG</div>
     <h1>MELLI<span>GRI</span></h1>
-    <p>CRM для дистрибуции косметологических препаратов. Воронки, склад, план-факт, KPI, каналы и кабинет косметолога — в одном портале.</p>
+    <p>CRM для дистрибуции косметологических препаратов. Воронки, склад, план-факт, KPI, каналы и аналитика — в одном портале.</p>
   </div>
   <div class="login-card">
     <h2>Вход в портал</h2>
@@ -246,7 +246,6 @@ label{font-size:11.5px;color:var(--muted);margin-bottom:5px;display:block;font-w
       <button class="nav-item" onclick="show('planfact',this)"><span class="ic">🎯</span>План-факт и KPI</button>
       <button class="nav-item" onclick="show('analytics',this)"><span class="ic">📈</span>Аналитика</button>
       <button class="nav-item" onclick="show('integrations',this)"><span class="ic">🔌</span>1С и интеграции</button>
-      <button class="nav-item" onclick="show('cabinet',this)"><span class="ic">💎</span>Кабинет косметолога</button>
     </nav>
     <div class="side-bottom">
       <div class="user-chip"><div class="av" id="uav">М</div>
@@ -260,7 +259,6 @@ label{font-size:11.5px;color:var(--muted);margin-bottom:5px;display:block;font-w
       <div><div class="page-title" id="pt">Дашборд</div><div class="page-sub" id="ps">Сводка по компании · июнь 2026</div></div>
       <div class="topbar-right">
         <span class="badge b-green"><span class="chan-dot" style="background:var(--green)"></span> 1С синхрон.</span>
-        <button class="portal-btn" onclick="show('cabinet',document.querySelector('[onclick*=cabinet]'))">💎 Кабинет косметолога</button>
       </div>
     </div>
     <div class="content">
@@ -511,18 +509,6 @@ label{font-size:11.5px;color:var(--muted);margin-bottom:5px;display:block;font-w
           <div class="note">Данные хранятся в 1С, но собственник и менеджеры работают только в портале. Что меняется в 1С — отражается здесь, что в портале — уходит в 1С. В 1С заходить не нужно: все цифры выведены сюда.</div></div>
       </section>
 
-      <!-- CABINET -->
-      <section class="section" id="s-cabinet">
-        <div class="card cabinet-cta"><h3>💎 Кабинет косметолога — продукт для ваших клиентов-врачей</h3>
-          <div class="note" style="margin-bottom:14px">Отдельный мини-портал, который вы дарите врачам: он привязывает их к MELLIGRI и показывает, на каких препаратах выгоднее работать (маржа у вас). Растёт LTV.</div>
-          <div class="grid3" style="margin-bottom:6px">
-            <div class="card" style="background:var(--bg2)"><b>Процедуры и записи</b><div class="note" style="margin-top:6px">Список процедур (филлеры, мезо, контурная пластика), добавление своих «+», запись клиентов, напоминания.</div></div>
-            <div class="card" style="background:var(--bg2)"><b>Мини-склад и прибыль</b><div class="note" style="margin-top:6px">Себестоимость препарата + цена процедуры → маржа врача. Видно, сколько заработала за день.</div></div>
-            <div class="card" style="background:var(--bg2)"><b>Заказ препаратов</b><div class="note" style="margin-top:6px">Кнопка «отправить заказ» — закупка у MELLIGRI в один клик прямо из кабинета.</div></div>
-          </div>
-          <a class="btn" href="mini.html" target="_blank">Открыть кабинет косметолога →</a></div>
-      </section>
-
     </div>
   </main>
 </div>
@@ -541,7 +527,7 @@ function enter(name,role,key){
   document.getElementById('uav').textContent=name[0];
   window.ROLE=key;
 }
-const TITLES={dashboard:['Дашборд','Сводка по компании · июнь 2026'],funnel:['Воронки','Продажи · повторные · семинары'],clients:['Клиенты','База врачей и клиник'],orders:['Заказы','Сборка и ведение заказов'],calls:['Звонки','Журнал и записи'],inbox:['Инбокс','Instagram · WhatsApp · Telegram'],triggers:['Триггеры','Автоматические задачи и рассылки'],catalog:['Каталоги','Электронные каталоги и отслеживание'],promo:['Блогеры и коды','Промокоды и атрибуция'],warehouse:['Склад','Остатки, серии, сроки годности'],inventory:['Инвентаризация','Сверка учёт/факт'],fulfillment:['Отгрузки','Согласование → бронь → доставка'],pricelists:['Прайс-листы','Мульти-цена по позициям'],planfact:['План-факт и KPI','Планы и зарплата от показателей'],analytics:['Аналитика','По менеджерам, воронкам, каналам'],integrations:['1С и интеграции','Каналы, телефония, учёт'],cabinet:['Кабинет косметолога','Продукт для клиентов-врачей']};
+const TITLES={dashboard:['Дашборд','Сводка по компании · июнь 2026'],funnel:['Воронки','Продажи · повторные · семинары'],clients:['Клиенты','База врачей и клиник'],orders:['Заказы','Сборка и ведение заказов'],calls:['Звонки','Журнал и записи'],inbox:['Инбокс','Instagram · WhatsApp · Telegram'],triggers:['Триггеры','Автоматические задачи и рассылки'],catalog:['Каталоги','Электронные каталоги и отслеживание'],promo:['Блогеры и коды','Промокоды и атрибуция'],warehouse:['Склад','Остатки, серии, сроки годности'],inventory:['Инвентаризация','Сверка учёт/факт'],fulfillment:['Отгрузки','Согласование → бронь → доставка'],pricelists:['Прайс-листы','Мульти-цена по позициям'],planfact:['План-факт и KPI','Планы и зарплата от показателей'],analytics:['Аналитика','По менеджерам, воронкам, каналам'],integrations:['1С и интеграции','Каналы, телефония, учёт']};
 function show(id,el){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('s-'+id).classList.add('active');
