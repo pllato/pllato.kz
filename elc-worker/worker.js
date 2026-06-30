@@ -2244,6 +2244,48 @@ async function ensureStageEventsBackfill(env) {
   } catch (e) { console.warn('[stage-events backfill]', e?.message || e); }
 }
 
+// ── Форма квалификации сделки (бриф первого звонка) ─────────────────────────
+// Хранение — одной JSON-строкой в deal_qualification.data; плюс отдельные
+// колонки meta (кто/когда квалифицировал) для аудита.
+let _qualTableEnsured = false;
+async function ensureQualificationTable(env) {
+  if (_qualTableEnsured) return;
+  try {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS deal_qualification (
+      deal_id TEXT PRIMARY KEY, data TEXT, qual_by TEXT, qual_at TEXT, updated_at TEXT
+    )`).run();
+  } catch (e) {}
+  _qualTableEnsured = true;
+}
+async function handleDealQualificationGet(request, env, dealId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureQualificationTable(env);
+  const row = await env.DB.prepare("SELECT data, qual_by, qual_at, updated_at FROM deal_qualification WHERE deal_id = ?").bind(dealId).first();
+  let data = {}; try { data = row && row.data ? JSON.parse(row.data) : {}; } catch { data = {}; }
+  return json({ ok: true, qualification: data, qualBy: row ? row.qual_by : null, qualAt: row ? row.qual_at : null }, 200, request);
+}
+async function handleDealQualificationPut(request, env, dealId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  await ensureQualificationTable(env);
+  let body; try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const data = (body && typeof body.qualification === 'object' && body.qualification) ? body.qualification : {};
+  const dataStr = JSON.stringify(data).slice(0, 60000);
+  const nowIso = new Date().toISOString();
+  const existing = await env.DB.prepare("SELECT qual_by, qual_at FROM deal_qualification WHERE deal_id = ?").bind(dealId).first();
+  // qual_by/qual_at фиксируются при ПЕРВОМ сохранении.
+  const qualBy = existing && existing.qual_by ? existing.qual_by : (me.canonicalUid || me.uid || '');
+  const qualAt = existing && existing.qual_at ? existing.qual_at : nowIso;
+  await env.DB.prepare(`
+    INSERT INTO deal_qualification (deal_id, data, qual_by, qual_at, updated_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(deal_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at
+  `).bind(dealId, dataStr, qualBy, qualAt, nowIso).run();
+  return json({ ok: true, qualBy, qualAt }, 200, request);
+}
+
 // PATCH /api/deals/{id}/stage { pipelineId, stageId }
 // Универсальный endpoint для перемещения сделки между стадиями. Если pipelineId
 // совпадает с deal.pipeline_id — обновляет основную stage_id. Иначе обновляет
@@ -8266,6 +8308,14 @@ export default {
     const dealTimelineMatch = path.match(/^\/api\/deals\/([^/]+)\/timeline$/);
     if (dealTimelineMatch && request.method === "GET") {
       return handleDealTimeline(request, env, dealTimelineMatch[1]);
+    }
+    // /api/deals/{id}/qualification — форма квалификации (бриф первого звонка)
+    const dealQualMatch = path.match(/^\/api\/deals\/([^/]+)\/qualification$/);
+    if (dealQualMatch && request.method === "GET") {
+      return handleDealQualificationGet(request, env, decodeURIComponent(dealQualMatch[1]));
+    }
+    if (dealQualMatch && request.method === "PUT") {
+      return handleDealQualificationPut(request, env, decodeURIComponent(dealQualMatch[1]));
     }
     // /api/deals/{id}/stage — менять стадию (учитывает зеркала)
     const dealStageMatch = path.match(/^\/api\/deals\/([^/]+)\/stage$/);
