@@ -498,6 +498,13 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
       <p>Все инструменты для работы команды Pllato в одном месте.</p>
     </div>
 
+    <div style="margin:20px 0 4px;position:relative">
+      <svg style="position:absolute;left:13px;top:50%;transform:translateY(-50%);pointer-events:none;opacity:.5" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="projectSearch" placeholder="Поиск по проектам..." oninput="filterProjects(this.value)"
+        style="width:100%;max-width:420px;padding:10px 14px 10px 38px;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;font-size:14px;color:var(--text-1);outline:none;font-family:inherit;transition:.15s"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--line-2)'">
+    </div>
+
     <div class="section-title">Работа с клиентами</div>
     <div class="tools-grid">
 
@@ -974,6 +981,7 @@ const APPS_CATALOG = [
   { id: "team_crm",         label: "CRM Команды (ELC)" },
   { id: "robeng_crm",       label: "RobEng CRM" },
   { id: "dentaly_crm",      label: "Dentaly CRM" },
+  { id: "sewing_crm",       label: "ШвейЦех ERP — Производство" },
   { id: "mebel_crm",        label: "Мебель ERP+CRM" },
   { id: "kosmetika_crm",    label: "MELLIGRI · Косметика CRM" },
   { id: "ohrana_crm",       label: "Охрана CRM" },
@@ -1547,6 +1555,30 @@ function applyPermissionsAndAdminUI() {
     card.style.display = allowed ? '' : 'none';
   });
   // Скрытие пустых секций
+  updateSectionVisibility();
+}
+
+function filterProjects(q){
+  const term = q.toLowerCase().trim();
+  document.querySelectorAll('.tool-card').forEach(card => {
+    const text = card.textContent.toLowerCase();
+    card.dataset.searchHidden = term && !text.includes(term) ? '1' : '';
+    if(!term) card.dataset.searchHidden = '';
+    // only hide if search says no AND access also says no (or just search)
+    const accessHidden = card.style.display === 'none';
+    if(term){
+      card.style.display = text.includes(term) ? '' : 'none';
+    } else {
+      // restore access-based visibility
+      const appId = card.dataset.appId;
+      const allowed = CURRENT?.isAdmin || CURRENT?.apps?.[appId];
+      card.style.display = allowed ? '' : 'none';
+    }
+  });
+  updateSectionVisibility();
+}
+
+function updateSectionVisibility(){
   document.querySelectorAll('.tools-grid').forEach(grid => {
     const anyVisible = Array.from(grid.querySelectorAll('.tool-card')).some(c => c.style.display !== 'none');
     grid.style.display = anyVisible ? '' : 'none';
