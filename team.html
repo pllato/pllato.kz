@@ -2182,7 +2182,17 @@ body.page-team-chat .sipc-bottombar:not([data-state="established"]):not([data-st
 @media (max-width: 900px) {
   .dc-grid { grid-template-columns: 1fr; }
 }
+/* Мобильная шапка карточки: заголовок на всю ширину, кнопки — под ним,
+   иначе actions сжимают заголовок в колонку в 1 слово. */
+@media (max-width: 640px) {
+  .dc-head { flex-direction: column; gap: 10px; }
+  .dc-head > div:first-child { width: 100%; }
+  .dc-head-actions { width: 100%; flex-wrap: wrap; }
+  .dc-head h2 { font-size: 17px; word-break: break-word; overflow-wrap: anywhere; }
+  .dc-head .modal-sub { white-space: normal; word-break: break-word; }
+}
 .dc-left, .dc-right { min-width: 0; }
+.dc-head-actions { flex-wrap: wrap; }
 .dc-section-h {
   font-size: 11px;
   color: var(--t3);
@@ -9952,6 +9962,15 @@ function renderDealsLayout(el) {
   document.getElementById('deal-search').addEventListener('input', e => {
     dealsState.search = e.target.value;
     dealsState.page = 0;
+    // Поиск по телефону — через сервер (надёжно ищет по цифрам номеров контактов,
+    // не завися от того, подгрузились ли телефоны в кеш канбана).
+    const digits = (e.target.value || '').replace(/\D/g, '');
+    clearTimeout(window._dealPhoneSearchTimer);
+    if (digits.length >= 4) {
+      window._dealPhoneSearchTimer = setTimeout(() => serverPhoneSearchDeals(e.target.value), 300);
+    } else {
+      dealsState._phoneMatchIds = null;
+    }
     updateDealsCount();
     renderDealsContent();
   });
@@ -10035,9 +10054,12 @@ function getFilteredDeals() {
   if (dealsState.search) {
     const q = dealsState.search.toLowerCase();
     const qDigits = q.replace(/\D/g, '');
-    const tail = qDigits.length >= 5 ? qDigits.slice(-10) : null; // поиск по номеру
+    const tail = qDigits.length >= 4 ? qDigits.slice(-10) : null; // поиск по номеру
+    const pm = dealsState._phoneMatchIds;
     arr = arr.filter(d => {
       if ((d.title || '').toLowerCase().includes(q)) return true;
+      // серверный матч по телефону контакта (надёжно, вся база)
+      if (pm && (pm.has(String(d.bitrixId)) || pm.has(String(d.id)) || pm.has('deal_' + d.bitrixId))) return true;
       if (!tail) return false;
       // телефон сделки: из d.phones / preload-кеша контакта
       const phones = [];
@@ -10056,6 +10078,23 @@ function getFilteredDeals() {
     arr = arr.filter(d => d.responsibleUid === dealsState.responsibleFilter);
   }
   return arr;
+}
+
+// Серверный поиск сделок по телефону (по цифрам номеров контактов). Результат —
+// множество id/bitrixId совпавших сделок; клиентский фильтр их подмешивает.
+async function serverPhoneSearchDeals(query) {
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const params = new URLSearchParams({ pageSize: '300', q: query, auth: idToken, scope: effectiveScope() });
+    if (dealsState.activePipelineId) params.set('pipeline', dealsState.activePipelineId);
+    const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
+    if (!r.ok) { dealsState._phoneMatchIds = null; return; }
+    const d = await r.json();
+    const ids = new Set();
+    for (const x of (d.items || [])) { if (x.bitrixId != null) ids.add(String(x.bitrixId)); if (x.id != null) ids.add(String(x.id)); }
+    dealsState._phoneMatchIds = ids;
+    if (dealsState.search) renderDealsContent();
+  } catch (e) { dealsState._phoneMatchIds = null; }
 }
 
 function renderDealsContent() {

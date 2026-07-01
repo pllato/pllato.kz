@@ -697,6 +697,17 @@
       .tc-tpl-del { border:none; background:none; color:var(--t3); font-size:18px; line-height:1; cursor:pointer; padding:2px 6px;
         border-radius:6px; flex-shrink:0; }
       .tc-tpl-del:hover { background:rgba(244,67,54,.15); color:#e53935; }
+      /* Эмодзи-пикер над композером */
+      .tc-emoji-pop { position:absolute; left:16px; right:16px; bottom:100%; margin-bottom:6px; background:var(--bg2);
+        border:1px solid var(--b1); border-radius:12px; box-shadow:0 6px 22px rgba(0,0,0,.2); max-height:300px; overflow-y:auto;
+        z-index:7; display:none; padding:6px 8px 10px; }
+      .tc-emoji-pop.open { display:block; }
+      .tc-emoji-cat { font-size:11px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:.03em;
+        padding:8px 4px 4px; position:sticky; top:0; background:var(--bg2); }
+      .tc-emoji-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(34px, 1fr)); gap:2px; }
+      .tc-emoji-btn { border:none; background:none; cursor:pointer; font-size:22px; line-height:1; padding:5px 0; border-radius:8px;
+        transition:.1s; }
+      .tc-emoji-btn:hover { background:var(--bg3); transform:scale(1.15); }
       /* Панель записи голосового */
       .tc-rec-bar { display:flex; align-items:center; gap:10px; padding:6px 6px; }
       .tc-rec-bar .tc-rec-cancel, .tc-rec-bar .tc-rec-send { width:42px; height:42px; border:none; border-radius:50%;
@@ -983,6 +994,13 @@
     msgsEl.querySelectorAll('[data-react-toggle]').forEach(b => {
       b.onclick = () => toggleReaction(b.dataset.reactToggle, b.dataset.emoji, b.dataset.own === '1');
     });
+    // Клик по цитате отвеченного сообщения → прокрутка к оригиналу.
+    msgsEl.querySelectorAll('.tc-msg-reply[data-scroll-to]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        jumpToMessage(state.activeChannelId, el.dataset.scrollTo);
+      });
+    });
     // Клик по аватарке/имени автора чужого сообщения → профиль сотрудника.
     msgsEl.querySelectorAll('.tc-msg-av, .tc-msg-author').forEach(elm => {
       elm.style.cursor = 'pointer';
@@ -1066,7 +1084,7 @@
     if (m.reply_to) {
       const replyTo = state.messages.find(x => x.id === m.reply_to);
       if (replyTo) {
-        body += `<div class="tc-msg-reply"><b>${escapeHtml(userLabel(replyTo.user_id))}</b><br>${escapeHtml((replyTo.text || '[медиа]').slice(0, 90))}</div>`;
+        body += `<div class="tc-msg-reply" data-scroll-to="${escapeHtml(replyTo.id)}" style="cursor:pointer" title="Перейти к сообщению"><b>${escapeHtml(userLabel(replyTo.user_id))}</b><br>${escapeHtml((replyTo.text || '[медиа]').slice(0, 90))}</div>`;
       }
     }
     if (m.text) {
@@ -1403,9 +1421,11 @@
     c.innerHTML = `${banner}
       <div class="tc-mention-pop" id="tc-mention-pop"></div>
       <div class="tc-tpl-pop" id="tc-tpl-pop"></div>
+      <div class="tc-emoji-pop" id="tc-emoji-pop"></div>
       <div class="tc-composer-row">
         <button class="tc-btn-icon" title="Прикрепить файл" id="tc-attach-btn">📎</button>
         <button class="tc-btn-icon tc-btn-tpl" title="Шаблоны сообщений" id="tc-tpl-btn">⚡</button>
+        <button class="tc-btn-icon tc-btn-emoji" title="Эмодзи" id="tc-emoji-btn">😊</button>
         <textarea id="tc-composer-input" rows="1" placeholder="Написать сообщение…">${escapeHtml(state.composerDraft)}</textarea>
         <button class="tc-btn-icon tc-btn-mic" title="Записать голосовое" id="tc-mic-btn">🎤</button>
         <button class="tc-btn-icon tc-btn-send" title="Отправить (Enter)" id="tc-send-btn">➤</button>
@@ -1449,7 +1469,8 @@
     c.querySelector('#tc-send-btn').onclick = sendCurrent;
     c.querySelector('#tc-attach-btn').onclick = () => c.querySelector('#tc-file-input').click();
     c.querySelector('#tc-file-input').onchange = onFileSelected;
-    c.querySelector('#tc-tpl-btn').onclick = (e) => { e.stopPropagation(); toggleTemplatesPop(c); };
+    c.querySelector('#tc-tpl-btn').onclick = (e) => { e.stopPropagation(); toggleEmojiPop(c, false); toggleTemplatesPop(c); };
+    c.querySelector('#tc-emoji-btn').onclick = (e) => { e.stopPropagation(); toggleEmojiPop(c); };
     wireVoiceRecorder(c);
     c.querySelectorAll('[data-banner-cancel]').forEach(b => {
       b.onclick = () => {
@@ -1633,6 +1654,68 @@
     pop.classList.remove('open');
     pop.innerHTML = '';
     if (pop._onDoc) { document.removeEventListener('mousedown', pop._onDoc); pop._onDoc = null; }
+  }
+
+  // ── Эмодзи-пикер ──────────────────────────────────────────────────────
+  // Полноценный выбор эмодзи для десктопа (на телефоне их даёт клавиатура).
+  // 😊 открывает сетку по категориям, клик — вставка в позицию курсора.
+  const EMOJI_CATS = [
+    { name: 'Часто', emojis: ['😊','😂','👍','❤️','🙏','🔥','✅','🎉','👌','😍','🤝','💪','👏','🙌','😉','😅'] },
+    { name: 'Смайлы', emojis: ['😀','😁','😃','😄','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥳','🤩','😏','😒','😞','😔','😟','😕','🙁','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕'] },
+    { name: 'Жесты', emojis: ['👍','👎','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','✋','🤚','🖐️','🖖','👋','🤝','🙏','✍️','💪','🦾','👏','🙌','👐','🤲','🤜','🤛','✊','👊'] },
+    { name: 'Сердца', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟'] },
+    { name: 'Символы', emojis: ['🔥','⭐','🌟','✨','⚡','💥','💯','✅','❌','⚠️','❓','❗','💡','🎯','🚀','🎉','🎊','🏆','🥇','💰','📈','📉','📌','📎','🔔','⏰','✔️','➡️','🆕','🆗'] },
+    { name: 'Объекты', emojis: ['📱','💻','⌨️','🖥️','📞','☎️','📧','✉️','📨','📅','📆','📊','📋','📁','📂','🗂️','📝','✏️','🖊️','🔒','🔑','🔗','💼','🎁','☕','🍕','🍔','🎂','🌹','🎈'] },
+  ];
+
+  function toggleEmojiPop(c, doToggle) {
+    const pop = c.querySelector('#tc-emoji-pop');
+    if (!pop) return;
+    if (doToggle === false) { closeEmojiPop(c); return; }
+    if (pop.classList.contains('open')) { closeEmojiPop(c); return; }
+    closeMentionPop();
+    closeTemplatesPop(c);
+    pop.classList.add('open');
+    pop.innerHTML = EMOJI_CATS.map(cat =>
+      `<div class="tc-emoji-cat">${escapeHtml(cat.name)}</div>
+       <div class="tc-emoji-grid">${cat.emojis.map(e =>
+         `<button class="tc-emoji-btn" data-emoji="${escapeHtml(e)}">${e}</button>`).join('')}</div>`
+    ).join('');
+    pop.querySelectorAll('.tc-emoji-btn').forEach(b => {
+      b.onmousedown = (e) => { e.preventDefault(); };   // не терять фокус textarea
+      b.onclick = (e) => { e.stopPropagation(); insertEmoji(c, b.dataset.emoji); };
+    });
+    setTimeout(() => {
+      const onDoc = (e) => {
+        if (!pop.contains(e.target) && !e.target.closest('#tc-emoji-btn')) {
+          closeEmojiPop(c); document.removeEventListener('mousedown', onDoc);
+        }
+      };
+      document.addEventListener('mousedown', onDoc);
+      pop._onDoc = onDoc;
+    }, 0);
+  }
+
+  function closeEmojiPop(c) {
+    const pop = c.querySelector('#tc-emoji-pop');
+    if (!pop) return;
+    pop.classList.remove('open');
+    pop.innerHTML = '';
+    if (pop._onDoc) { document.removeEventListener('mousedown', pop._onDoc); pop._onDoc = null; }
+  }
+
+  function insertEmoji(c, emoji) {
+    const ta = c.querySelector('#tc-composer-input');
+    if (!ta) return;
+    const start = ta.selectionStart != null ? ta.selectionStart : ta.value.length;
+    const end = ta.selectionEnd != null ? ta.selectionEnd : ta.value.length;
+    ta.value = ta.value.slice(0, start) + emoji + ta.value.slice(end);
+    const pos = start + emoji.length;
+    ta.selectionStart = ta.selectionEnd = pos;
+    state.composerDraft = ta.value;
+    if (!state.editingMsg) saveDraft(state.activeChannelId, ta.value);
+    autoresizeTa(ta);
+    ta.focus();
   }
 
   function renderTemplatesPop(c, items) {
