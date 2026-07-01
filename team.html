@@ -13036,6 +13036,47 @@ const QUAL_INSTRUCTION = `ЦЕЛЬ ЗВОНКА: вытащить боль и н
 • Цену НЕ называйте. Если спросят: «зависит от задач, обычно около $3 000, точнее на демо».
 • В конце: назначьте конкретную дату демо и попросите логотип+сайт в чат.`;
 
+// Собирает заполненный бриф в читабельный текст — для копирования и передачи
+// ИИ при подготовке демо. Пустые поля пропускаются, значения раскрываются
+// (списки, да/нет, дата, ответственный по имени).
+function buildQualSummary(data, deal) {
+  const fmtVal = (f, v) => {
+    if (f.type === 'multiselect') return Array.isArray(v) && v.length ? v.join(', ') : '';
+    if (f.type === 'checkbox') return v ? 'Да' : '';
+    if (f.type === 'userselect') {
+      if (!v) return '';
+      const u = (typeof getUserById === 'function') ? getUserById(v) : null;
+      return u ? `${u.lastName || ''} ${u.name || ''}`.trim() || String(v) : String(v);
+    }
+    if (f.type === 'datetime') {
+      if (!v) return '';
+      const dt = new Date(v);
+      if (isNaN(dt)) return String(v);
+      const p = (n) => String(n).padStart(2, '0');
+      return `${p(dt.getDate())}.${p(dt.getMonth() + 1)}.${dt.getFullYear()} ${p(dt.getHours())}:${p(dt.getMinutes())}`;
+    }
+    return v == null ? '' : String(v).trim();
+  };
+  const lines = [];
+  const title = deal && (deal.title || deal.name) ? (deal.title || deal.name) : '';
+  lines.push('БРИФ КВАЛИФИКАЦИИ' + (title ? ` — ${title}` : ''));
+  if (deal && deal.bitrixId) lines.push(`Сделка №${deal.bitrixId}`);
+  lines.push('');
+  for (const sec of QUAL_SCHEMA) {
+    const secLines = [];
+    for (const f of sec.fields) {
+      const val = fmtVal(f, data[f.key]);
+      if (val) secLines.push(`• ${f.label.replace(/\s*★\s*$/, '')}: ${val}`);
+    }
+    if (secLines.length) {
+      lines.push(sec.title);
+      lines.push(...secLines);
+      lines.push('');
+    }
+  }
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function openQualificationForm(dealId, deal, opts) {
   opts = opts || {};
   const readOnly = !!opts.readOnly;
@@ -13046,12 +13087,36 @@ function openQualificationForm(dealId, deal, opts) {
   ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:640px;width:96vw">
     <div class="qad-head"><h2>📋 Квалификация — бриф первого звонка</h2><button class="qad-btn qad-btn-ghost" id="qf-close" style="padding:4px 10px">×</button></div>
     <div class="qad-body" id="qf-body" style="max-height:78vh;overflow-y:auto"><div style="padding:24px;color:var(--t3);text-align:center">⏳ Загрузка…</div></div>
-    ${readOnly ? '' : '<div class="qad-foot"><span id="qf-status" style="flex:1;font-size:12px;color:var(--t3)"></span><button class="qad-btn qad-btn-primary" id="qf-save">Сохранить бриф</button></div>'}
+    <div class="qad-foot"><span id="qf-status" style="flex:1;font-size:12px;color:var(--t3)"></span><button class="qad-btn qad-btn-ghost" id="qf-copy" title="Скопировать заполненный бриф текстом">📋 Скопировать саммари</button>${readOnly ? '' : '<button class="qad-btn qad-btn-primary" id="qf-save">Сохранить бриф</button>'}</div>
   </div>`;
   document.body.appendChild(ov);
   ov.querySelector('#qf-close').onclick = () => ov.remove();
 
   let data = {};
+
+  const copyBtn = ov.querySelector('#qf-copy');
+  if (copyBtn) copyBtn.onclick = async () => {
+    if (!readOnly) collect();   // подтянуть текущие значения из полей
+    const text = buildQualSummary(data, deal);
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; }
+    catch (e) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        ok = document.execCommand('copy'); ta.remove();
+      } catch (_) {}
+    }
+    if (ok) {
+      showToast?.('Саммари скопировано ✅');
+      const st = ov.querySelector('#qf-status');
+      if (st) { st.innerHTML = '<span style="color:var(--gn)">📋 Скопировано в буфер обмена</span>'; }
+    } else {
+      // крайний случай — показать текст для ручного копирования
+      prompt('Скопируйте текст брифа:', text);
+    }
+  };
   const users = (typeof orgSortedUsers === 'function') ? orgSortedUsers() : [];
   const ER = (s) => escapeHtml(String(s == null ? '' : s));
 
