@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мобильный Агент — CRM Выпечка</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a1a0a'/%3E%3Ctext x='3' y='22' font-size='18' fill='%23f59e0b' font-family='sans-serif'%3E🍞%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1117;--bg2:#0f1520;--panel:#161b22;--panel2:#1c2333;
+  --line:#21262d;--line2:#30363d;
+  --txt:#e6edf3;--muted:#7d8590;--muted2:#484f58;
+  --accent:#f59e0b;--accent2:#d97706;--accent-soft:#f59e0b1a;
+  --green:#3fb950;--green-soft:#3fb9501a;
+  --red:#f85149;--red-soft:#f851491a;
+  --blue:#58a6ff;--blue-soft:#58a6ff1a;
+  --purple:#bc8cff;--purple-soft:#bc8cff1a;
+  --radius:14px;--radius-sm:10px;
+  --shadow:0 16px 40px -12px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit}
+a{color:inherit;text-decoration:none}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:#30363d;border-radius:6px}
+::-webkit-scrollbar-track{background:transparent}
+.hide{display:none!important}
+
+/* LOGIN */
+.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:36px;background:radial-gradient(800px 600px at 70% -10%,#2d1f00 0%,transparent 50%),radial-gradient(600px 500px at -10% 110%,#1a2500 0%,transparent 50%),var(--bg)}
+.login-logo{text-align:center}
+.login-logo .mark{display:inline-flex;align-items:center;justify-content:center;width:68px;height:68px;border-radius:16px;background:linear-gradient(135deg,#2d2200,#1a1400);border:2px solid var(--accent2);font-size:32px;margin-bottom:14px;box-shadow:0 0 40px rgba(245,158,11,.2)}
+.login-logo h1{font-size:30px;font-weight:900;letter-spacing:-1px}
+.login-logo h1 span{color:var(--accent)}
+.login-logo p{color:var(--muted);font-size:13px;margin-top:6px;max-width:360px;line-height:1.6}
+.login-card{background:var(--panel);border:1px solid var(--line2);border-radius:20px;padding:30px;width:380px;box-shadow:var(--shadow)}
+.login-card h2{font-size:15px;font-weight:700;margin-bottom:4px}
+.login-card p{font-size:12px;color:var(--muted);margin-bottom:20px}
+.role-btn{width:100%;display:flex;align-items:center;gap:13px;padding:13px 15px;border-radius:11px;border:1px solid var(--line2);margin-bottom:9px;background:var(--bg2);transition:.14s;text-align:left}
+.role-btn:hover{border-color:var(--accent);background:var(--accent-soft)}
+.role-btn:last-child{margin-bottom:0}
+.role-btn .rav{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:15px;flex:none}
+.role-btn .ri{flex:1}
+.role-btn .rn{font-size:14px;font-weight:700}
+.role-btn .rd{font-size:11px;color:var(--muted);margin-top:2px}
+.role-btn .rbadge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+
+/* SHELL */
+.shell{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+.sidebar{background:linear-gradient(180deg,#0d1117,#0a0f19);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.side-top{padding:15px 14px 13px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#2d2200,#1a1400);border:1.5px solid var(--accent2);display:grid;place-items:center;font-size:18px;flex:none}
+.brand-name{font-weight:900;font-size:16px;letter-spacing:-.4px}
+.brand-sub{font-size:10px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase}
+.nav{padding:8px 8px;flex:1}
+.nav-group{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted2);padding:11px 10px 4px;font-weight:700}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;color:var(--muted);font-size:13px;font-weight:500;transition:.12s;width:100%;text-align:left;position:relative}
+.nav-item:hover{background:var(--panel2);color:var(--txt)}
+.nav-item.active{background:linear-gradient(90deg,var(--accent-soft),transparent);color:var(--txt)}
+.nav-item.active::before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:3px;background:var(--accent)}
+.nav-item .badge{margin-left:auto;background:var(--accent);color:#0a0500;font-size:10px;font-weight:800;padding:1px 6px;border-radius:20px}
+.side-bottom{padding:10px;border-top:1px solid var(--line)}
+.user-chip{display:flex;align-items:center;gap:9px;padding:9px;border-radius:10px;background:var(--panel2);border:1px solid var(--line)}
+.user-chip .av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+.user-chip .un{font-size:13px;font-weight:600}
+.user-chip .ut{font-size:11px;color:var(--muted)}
+.logout-btn{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;font-size:12px;color:var(--muted);margin-top:7px;transition:.12s;width:100%}
+.logout-btn:hover{background:var(--red-soft);color:var(--red)}
+
+/* MAIN */
+.main{display:flex;flex-direction:column;min-width:0}
+.topbar{min-height:58px;display:flex;align-items:center;gap:12px;padding:10px 22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#0d111799;backdrop-filter:blur(10px);z-index:20}
+.page-title{font-size:16px;font-weight:700;letter-spacing:-.3px}
+.page-sub{font-size:12px;color:var(--muted);margin-top:1px}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.topbar-btn{display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--line2);color:var(--muted);background:var(--panel);transition:.13s;cursor:pointer}
+.topbar-btn:hover{border-color:var(--accent);color:var(--accent)}
+.topbar-btn.primary{background:var(--accent);border-color:var(--accent);color:#0a0500}
+.content{padding:22px;flex:1}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px}
+.kpi-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;transition:.14s;position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kc,var(--line2))}
+.kpi-card.amber::before{background:var(--accent)}
+.kpi-card.green::before{background:var(--green)}
+.kpi-card.red::before{background:var(--red)}
+.kpi-card.blue::before{background:var(--blue)}
+.kpi-card.purple::before{background:var(--purple)}
+.kpi-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+.kpi-value{font-size:24px;font-weight:800;letter-spacing:-1px;line-height:1}
+.kpi-delta{font-size:11px;font-weight:600;margin-top:5px}
+.kpi-delta.up{color:var(--green)}.kpi-delta.dn{color:var(--red)}.kpi-delta.neu{color:var(--muted)}
+
+/* SECTION */
+.sec-title{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.sec-title span{font-size:11px;color:var(--muted);font-weight:500}
+
+/* CHART */
+.chart-wrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:18px}
+.bar-chart{display:flex;align-items:flex-end;gap:8px;height:120px;margin-top:14px}
+.bar-col{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1}
+.bar{border-radius:5px 5px 0 0;width:100%;background:linear-gradient(180deg,var(--accent),var(--accent2));min-height:4px;transition:.3s}
+.bar-label{font-size:10px;color:var(--muted);white-space:nowrap}
+.bar-val{font-size:10px;color:var(--accent);font-weight:700}
+
+/* GRID */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px}
+
+/* TABLE */
+.tbl-wrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.tbl-head{display:flex;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.search-box{display:flex;align-items:center;gap:7px;background:var(--bg2);border:1px solid var(--line2);border-radius:8px;padding:7px 11px;flex:1;max-width:280px}
+.search-box input{background:none;border:none;outline:none;color:var(--txt);font-size:13px;width:100%}
+.search-box input::placeholder{color:var(--muted2)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:10px 13px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 13px;font-size:13px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:.11s;cursor:pointer}
+tbody tr:hover{background:var(--panel2)}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.pill.green{background:var(--green-soft);color:var(--green)}
+.pill.amber{background:var(--accent-soft);color:var(--accent)}
+.pill.red{background:var(--red-soft);color:var(--red)}
+.pill.blue{background:var(--blue-soft);color:var(--blue)}
+.pill.purple{background:var(--purple-soft);color:var(--purple)}
+.pill.muted{background:var(--panel2);color:var(--muted);border:1px solid var(--line2)}
+
+/* KANBAN */
+.kanban{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:start}
+.kanban-col{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:11px}
+.kanban-head{font-size:12px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.kanban-head .cnt{background:var(--panel2);border:1px solid var(--line);border-radius:20px;font-size:11px;padding:1px 7px;color:var(--muted)}
+.k-card{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:11px;margin-bottom:7px;cursor:pointer;transition:.13s}
+.k-card:hover{border-color:var(--accent);background:var(--panel2)}
+.k-card:last-child{margin-bottom:0}
+.k-name{font-size:13px;font-weight:600;margin-bottom:3px}
+.k-sub{font-size:11px;color:var(--muted);margin-bottom:7px}
+.k-amt{font-size:13px;font-weight:700;color:var(--accent)}
+
+/* CHAT */
+.chat-layout{display:grid;grid-template-columns:190px 250px 1fr;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;height:560px}
+.chat-ch{border-right:1px solid var(--line);padding:11px}
+.chat-ch h3{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);font-weight:700;margin-bottom:9px}
+.ch-item{display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:8px;cursor:pointer;margin-bottom:2px;transition:.12s}
+.ch-item:hover,.ch-item.active{background:var(--panel2)}
+.ch-dot{width:9px;height:9px;border-radius:50%;flex:none}
+.ch-name{font-size:13px;font-weight:500}
+.chat-list{border-right:1px solid var(--line);overflow-y:auto}
+.chat-list h3{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);font-weight:700;padding:11px 11px 7px}
+.dl-item{display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer;border-bottom:1px solid var(--line);transition:.11s}
+.dl-item:hover,.dl-item.active{background:var(--panel2)}
+.dl-av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+.dl-name{font-size:13px;font-weight:600}
+.dl-prev{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;max-width:160px}
+.dl-time{font-size:10px;color:var(--muted2);white-space:nowrap}
+.dl-unread{background:var(--accent);color:#0a0500;font-size:10px;font-weight:800;width:17px;height:17px;border-radius:50%;display:grid;place-items:center;margin-top:3px;flex:none}
+.chat-win{display:flex;flex-direction:column}
+.chat-win-head{padding:11px 15px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px}
+.chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:9px}
+.msg{max-width:70%}
+.msg.in{align-self:flex-start}
+.msg.out{align-self:flex-end}
+.msg-bub{padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.5}
+.msg.in .msg-bub{background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:3px}
+.msg.out .msg-bub{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0a0500;border-bottom-right-radius:3px}
+.msg-time{font-size:10px;color:var(--muted2);margin-top:3px;padding:0 3px}
+.msg.out .msg-time{text-align:right}
+.chat-inp{padding:11px;border-top:1px solid var(--line);display:flex;gap:8px}
+.chat-inp input{flex:1;background:var(--bg2);border:1px solid var(--line2);border-radius:8px;padding:8px 12px;outline:none;color:var(--txt);font-size:13px}
+.chat-inp button{background:var(--accent);color:#0a0500;border-radius:8px;padding:8px 14px;font-weight:700;font-size:13px}
+
+/* FILTERS */
+.filters{display:flex;gap:7px;margin-bottom:13px;flex-wrap:wrap}
+.filter-btn{padding:6px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--line2);color:var(--muted);background:var(--panel);cursor:pointer;transition:.11s}
+.filter-btn:hover,.filter-btn.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+
+/* TOP LIST */
+.top-list{display:flex;flex-direction:column;gap:9px}
+.top-item{display:flex;align-items:center;gap:11px}
+.top-rank{width:20px;height:20px;border-radius:50%;background:var(--panel2);font-size:11px;font-weight:700;color:var(--muted);display:grid;place-items:center;flex:none}
+.top-rank.gold{background:var(--accent-soft);color:var(--accent)}
+.top-av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:12px;flex:none}
+.top-info{flex:1;min-width:0}
+.top-name{font-size:13px;font-weight:600}
+.top-meta{font-size:11px;color:var(--muted)}
+.top-amt{font-size:13px;font-weight:700;color:var(--accent)}
+
+/* PROGRESS BAR */
+.prog-wrap{height:5px;background:var(--bg2);border-radius:3px;overflow:hidden;margin-top:6px}
+.prog-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:.4s}
+.prog-bar.green{background:linear-gradient(90deg,var(--green),#2da843)}
+.prog-bar.red{background:linear-gradient(90deg,var(--red),#d6302a)}
+
+/* CARD GRID */
+.card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+.info-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;cursor:pointer;transition:.13s}
+.info-card:hover{border-color:var(--line2)}
+.ic-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.ic-value{font-size:20px;font-weight:800;letter-spacing:-.5px}
+.ic-sub{font-size:11px;color:var(--muted);margin-top:4px}
+
+/* DZ TABLE SPECIFIC */
+.dz-bar{height:6px;background:var(--bg2);border-radius:3px;overflow:hidden;margin-top:4px}
+.dz-fill{height:100%;border-radius:3px}
+
+/* INTEGRATIONS */
+.int-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}
+.int-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;transition:.13s}
+.int-card:hover{border-color:var(--line2)}
+.int-icon{font-size:30px;margin-bottom:9px}
+.int-name{font-size:13px;font-weight:700;margin-bottom:4px}
+.int-status{font-size:11px;font-weight:600}
+.int-status.on{color:var(--green)}.int-status.off{color:var(--muted)}
+.int-btn{margin-top:11px;padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;background:var(--panel2);border:1px solid var(--line2);color:var(--muted);cursor:pointer;width:100%;transition:.11s}
+.int-btn:hover{border-color:var(--accent);color:var(--accent)}
+.int-btn.on{background:var(--green-soft);border-color:var(--green);color:var(--green)}
+
+/* TABS */
+.tabs{display:flex;gap:3px;padding:3px;background:var(--bg2);border-radius:10px;margin-bottom:16px;width:fit-content}
+.tab-btn{padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;color:var(--muted);transition:.11s;cursor:pointer;border:none;background:none}
+.tab-btn.active{background:var(--panel);color:var(--txt);box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.tab-pane{display:none}.tab-pane.active{display:block}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:#00000095;backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:var(--panel);border:1px solid var(--line2);border-radius:20px;width:100%;max-width:580px;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow)}
+.modal-head{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:13px}
+.modal-av{width:48px;height:48px;border-radius:13px;display:grid;place-items:center;font-weight:800;font-size:17px;flex:none}
+.modal-info{flex:1}
+.modal-name{font-size:17px;font-weight:800}
+.modal-sub{font-size:12px;color:var(--muted);margin-top:3px}
+.modal-close{width:30px;height:30px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;font-size:16px;color:var(--muted);cursor:pointer;flex:none;transition:.12s}
+.modal-close:hover{background:var(--red-soft);border-color:var(--red);color:var(--red)}
+.modal-body{padding:18px 22px}
+.m-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:18px}
+.m-stat{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:11px}
+.m-stat .lb{font-size:11px;color:var(--muted);margin-bottom:3px}
+.m-stat .vl{font-size:15px;font-weight:800}
+.hist-row{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--line)}
+.hist-row:last-child{border-bottom:none}
+.hist-date{font-size:11px;color:var(--muted);width:80px;flex:none}
+.hist-desc{flex:1;font-size:13px}
+.hist-amt{font-size:13px;font-weight:700;color:var(--accent)}
+.watermark{text-align:center;padding:14px;font-size:11px;color:var(--muted2)}
+</style>
+<!-- Meta Pixel -->
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init','893448113078273');fbq('track','PageView');
+</script>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-logo">
+    <div class="mark">🍞</div>
+    <h1>Мобильный <span>Агент</span></h1>
+    <p>CRM-система управления торговыми агентами, складом СГП и дебиторской задолженностью для дистрибуции выпечки</p>
+  </div>
+  <div class="login-card">
+    <h2>Выберите роль для входа</h2>
+    <p>Демо-режим — нажмите на роль</p>
+    <button class="role-btn" onclick="login('admin')">
+      <div class="rav" style="background:#f59e0b1a;color:#f59e0b">А</div>
+      <div class="ri"><div class="rn">Администратор</div><div class="rd">Полный доступ: аналитика, справочники, KPI</div></div>
+      <span class="rbadge">Владелец</span>
+    </button>
+    <button class="role-btn" onclick="login('supervisor')">
+      <div class="rav" style="background:#58a6ff1a;color:#58a6ff">С</div>
+      <div class="ri"><div class="rn">Супервизор</div><div class="rd">Агенты, маршруты, заявки, контроль</div></div>
+      <span class="rbadge" style="background:#58a6ff1a;color:#58a6ff">Супервизор</span>
+    </button>
+    <button class="role-btn" onclick="login('warehouse')">
+      <div class="rav" style="background:#3fb9501a;color:#3fb950">К</div>
+      <div class="ri"><div class="rn">Кладовщик СГП</div><div class="rd">Приемка, отгрузка, ВСА, остатки</div></div>
+      <span class="rbadge" style="background:#3fb9501a;color:#3fb950">Склад</span>
+    </button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appShell" class="shell hide">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="side-top">
+      <div class="brand">
+        <div class="brand-logo">🍞</div>
+        <div>
+          <div class="brand-name">Мобильный Агент</div>
+          <div class="brand-sub">CRM Дистрибуция</div>
+        </div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">Главное</div>
+      <button class="nav-item active" onclick="go('dashboard',this)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Дашборд
+      </button>
+      <button class="nav-item" onclick="go('agents',this)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Агенты и маршруты
+        <span class="badge">12</span>
+      </button>
+      <button class="nav-item" onclick="go('orders',this)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+        Заявки (Т-2 / Т-1)
+        <span class="badge">3</span>
+      </button>
+      <button class="nav-item" onclick="go('inbox',this)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Входящие
+        <span class="badge">5</span>
+      </button>
+      <div class="nav-group">Склад и Отгрузка</div>
+      <button class="nav-item" onclick="go('warehouse',this)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Склад СГП
+      </button>
+      <button class="nav-item" onclick="go('vsa',this)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        ВСА (виртуальный склад)
+      </button>
+      <button class="nav-item" onclick="go('tt',this)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/><path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/></svg>
+        Торговые точки
+      </button>
+      <div class="nav-group">Финансы</div>
+      <button class="nav-item" onclick="go('dz',this)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Дебиторская задолженность
+        <span class="badge" style="background:var(--red);color:#fff">!</span>
+      </button>
+      <button class="nav-item" onclick="go('shift',this)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Закрытие смены
+      </button>
+      <div class="nav-group">Аналитика</div>
+      <button class="nav-item" onclick="go('kpi',this)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+        KPI и зарплата
+      </button>
+      <button class="nav-item" onclick="go('analytics',this)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Аналитика
+      </button>
+      <button class="nav-item" onclick="go('integrations',this)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+        Интеграции
+      </button>
+    </nav>
+    <div class="side-bottom">
+      <div class="user-chip">
+        <div class="av" id="sideAv" style="background:#f59e0b1a;color:#f59e0b">А</div>
+        <div style="flex:1;min-width:0">
+          <div class="un" id="sideUser">Администратор</div>
+          <div class="ut" id="sideRole">Полный доступ</div>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="logout()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Выйти
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="page-title" id="pageTitle">Дашборд</div>
+        <div class="page-sub" id="pageSub">Сегодня, 1 июля 2026</div>
+      </div>
+      <div class="topbar-right">
+        <button class="topbar-btn" onclick="toast('GPS-трекинг: 12 агентов онлайн')">📍 GPS</button>
+        <button class="topbar-btn primary" onclick="go('orders',document.getElementById('nav-orders'))">+ Заявка</button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="sec-dashboard" class="content">
+      <div class="kpi-grid">
+        <div class="kpi-card amber"><div class="kpi-label">Агентов в поле</div><div class="kpi-value" style="color:var(--accent)">12</div><div class="kpi-delta up">↑ 2 вышли сегодня</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Выручка (сегодня)</div><div class="kpi-value" style="color:var(--green)">483 т</div><div class="kpi-delta up">↑ +14% к вчера</div></div>
+        <div class="kpi-card red"><div class="kpi-label">Дебиторка (общая)</div><div class="kpi-value" style="color:var(--red)">2.1 млн</div><div class="kpi-delta dn">↑ +80т за неделю</div></div>
+        <div class="kpi-card blue"><div class="kpi-label">Визиты (план/факт)</div><div class="kpi-value" style="color:var(--blue)">87/64</div><div class="kpi-delta neu">Strike Rate: 73%</div></div>
+        <div class="kpi-card purple"><div class="kpi-label">АКБ (июнь)</div><div class="kpi-value" style="color:var(--purple)">156</div><div class="kpi-delta up">↑ +9 ТТ за месяц</div></div>
+      </div>
+
+      <div class="chart-wrap">
+        <div class="sec-title">Выручка по дням (июнь) <span>тыс. сом</span></div>
+        <div class="bar-chart" id="revChart"></div>
+      </div>
+
+      <div class="grid2">
+        <div class="chart-wrap" style="margin-bottom:0">
+          <div class="sec-title">Топ агентов по выручке</div>
+          <div class="top-list" id="topAgents"></div>
+        </div>
+        <div class="chart-wrap" style="margin-bottom:0">
+          <div class="sec-title">Топ SKU сегодня</div>
+          <div id="topSku" style="margin-top:12px"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px" class="chart-wrap">
+        <div class="sec-title">Агенты онлайн — статус маршрутов</div>
+        <div id="agentStatus" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- AGENTS KANBAN -->
+    <div id="sec-agents" class="content hide">
+      <div class="sec-title" style="margin-bottom:14px">Маршруты агентов по статусу <span>сегодня</span></div>
+      <div class="kanban" id="agentKanban"></div>
+    </div>
+
+    <!-- ORDERS (ЗАЯВКИ) -->
+    <div id="sec-orders" class="content hide">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="oTab('t2',this)">📋 Заявки Т-2 (план)</button>
+        <button class="tab-btn" onclick="oTab('t1',this)">⚡ Корректировки Т-1</button>
+        <button class="tab-btn" onclick="oTab('today',this)">🚚 Отгрузка сегодня</button>
+      </div>
+      <div class="tab-pane active" id="o-t2">
+        <div class="tbl-wrap">
+          <div class="tbl-head">
+            <div class="search-box"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input placeholder="Поиск агента..."></div>
+            <div style="margin-left:auto;font-size:12px;color:var(--muted)">Дата отгрузки: <b style="color:var(--txt)">03.07.2026</b></div>
+          </div>
+          <table><thead><tr><th>Агент</th><th>Маршрут</th><th>SKU / Позиций</th><th>Сумма заявки</th><th>Статус</th><th>Дедлайн Т-1</th></tr></thead><tbody id="t2Tbody"></tbody></table>
+        </div>
+      </div>
+      <div class="tab-pane" id="o-t1">
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Агент</th><th>SKU</th><th>Тип</th><th>Было</th><th>Стало</th><th>Дедлайн</th><th>Статус модерации</th></tr></thead><tbody id="t1Tbody"></tbody></table>
+        </div>
+      </div>
+      <div class="tab-pane" id="o-today">
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Агент</th><th>Авто</th><th>Загружено SKU</th><th>Сумма</th><th>Старт</th><th>Статус</th></tr></thead><tbody id="todayTbody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- INBOX -->
+    <div id="sec-inbox" class="content hide" style="padding:18px">
+      <div class="chat-layout">
+        <div class="chat-ch">
+          <h3>Каналы</h3>
+          <div class="ch-item active" onclick="selCh(this)"><div class="ch-dot" style="background:#25d366"></div><span class="ch-name">WhatsApp</span></div>
+          <div class="ch-item" onclick="selCh(this)"><div class="ch-dot" style="background:#229ed9"></div><span class="ch-name">Telegram</span></div>
+          <div class="ch-item" onclick="selCh(this)"><div class="ch-dot" style="background:#4a90d9"></div><span class="ch-name">IP-телефония</span></div>
+        </div>
+        <div class="chat-list">
+          <h3>Диалоги</h3>
+          <div id="dialogList"></div>
+        </div>
+        <div class="chat-win">
+          <div class="chat-win-head">
+            <div class="dl-av" style="background:#f59e0b1a;color:#f59e0b;width:34px;height:34px;border-radius:50%;font-weight:700;display:grid;place-items:center">АМ</div>
+            <div><div style="font-size:14px;font-weight:700" id="chatName">Арстанбек Мамытов</div><div style="font-size:11px;color:var(--muted)">Агент · Маршрут №3 · WhatsApp</div></div>
+          </div>
+          <div class="chat-msgs" id="chatMsgs"></div>
+          <div class="chat-inp"><input placeholder="Написать..."><button>Отправить</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WAREHOUSE СГП -->
+    <div id="sec-warehouse" class="content hide">
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi-card green"><div class="kpi-label">SKU на складе</div><div class="kpi-value" style="color:var(--green)">18</div><div class="kpi-delta neu">позиций в справочнике</div></div>
+        <div class="kpi-card amber"><div class="kpi-label">Принято сегодня</div><div class="kpi-value" style="color:var(--accent)">2 840</div><div class="kpi-delta neu">ед. из цеха</div></div>
+        <div class="kpi-card blue"><div class="kpi-label">Отгружено</div><div class="kpi-value" style="color:var(--blue)">2 610</div><div class="kpi-delta up">↑ 92% от принятого</div></div>
+        <div class="kpi-card red"><div class="kpi-label">Брак / Возвраты</div><div class="kpi-value" style="color:var(--red)">87</div><div class="kpi-delta dn">↑ +12 ед. к вчера</div></div>
+      </div>
+      <div class="tabs" style="margin-top:4px">
+        <button class="tab-btn active" onclick="whTab('ostatki',this)">📦 Остатки</button>
+        <button class="tab-btn" onclick="whTab('priemka',this)">⬇ Приемка из цеха</button>
+        <button class="tab-btn" onclick="whTab('brak',this)">⚠ Брак / Возврат</button>
+      </div>
+      <div class="tab-pane active" id="wh-ostatki">
+        <div class="tbl-wrap">
+          <table><thead><tr><th>SKU</th><th>Категория</th><th>Принято</th><th>Отгружено</th><th>Остаток</th><th>Брак</th><th>Статус</th></tr></thead><tbody id="whTbody"></tbody></table>
+        </div>
+      </div>
+      <div class="tab-pane" id="wh-priemka">
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Время</th><th>SKU</th><th>Кол-во (план)</th><th>Принято (факт)</th><th>Отклонение</th><th>Ответственный</th></tr></thead><tbody id="priemkaTbody"></tbody></table>
+        </div>
+      </div>
+      <div class="tab-pane" id="wh-brak">
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Время</th><th>Агент</th><th>SKU</th><th>Кол-во</th><th>Причина</th><th>Статус</th></tr></thead><tbody id="brakTbody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ВСА -->
+    <div id="sec-vsa" class="content hide">
+      <div class="sec-title" style="margin-bottom:14px">Виртуальные склады агентов (ВСА) <span>текущие остатки в машинах</span></div>
+      <div class="filters">
+        <button class="filter-btn active" onclick="vsaFilter('all',this)">Все агенты</button>
+        <button class="filter-btn" onclick="vsaFilter('active',this)">На маршруте</button>
+        <button class="filter-btn" onclick="vsaFilter('closed',this)">Смена закрыта</button>
+      </div>
+      <div class="tbl-wrap">
+        <table><thead><tr><th>Агент</th><th>Маршрут</th><th>Загружено</th><th>Продано</th><th>Остаток (ВСА)</th><th>Выручка</th><th>Статус</th></tr></thead><tbody id="vsaTbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ТОРГОВЫЕ ТОЧКИ -->
+    <div id="sec-tt" class="content hide">
+      <div class="tbl-wrap">
+        <div class="tbl-head">
+          <div class="search-box"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input placeholder="Поиск торговой точки..." oninput="filterTT(this.value)"></div>
+          <div style="margin-left:auto;font-size:12px;color:var(--muted)">Всего: <b id="ttCount" style="color:var(--txt)">0</b></div>
+        </div>
+        <table><thead><tr><th>Торговая точка</th><th>Район</th><th>Агент</th><th>Оборот (мес.)</th><th>ДЗ</th><th>Последний визит</th><th>Статус</th></tr></thead><tbody id="ttTbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ДЕБИТОРКА -->
+    <div id="sec-dz" class="content hide">
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi-card red"><div class="kpi-label">Общая ДЗ</div><div class="kpi-value" style="color:var(--red)">2.1 млн</div><div class="kpi-delta dn">↑ +80т за неделю</div></div>
+        <div class="kpi-card amber"><div class="kpi-label">Просрочка 30+ дн.</div><div class="kpi-value" style="color:var(--accent)">648 т</div><div class="kpi-delta dn">14 должников</div></div>
+        <div class="kpi-card purple"><div class="kpi-label">Просрочка 60+ дн.</div><div class="kpi-value" style="color:var(--purple)">213 т</div><div class="kpi-delta dn">4 должника</div></div>
+        <div class="kpi-card blue"><div class="kpi-label">Погашено (месяц)</div><div class="kpi-value" style="color:var(--blue)">1.4 млн</div><div class="kpi-delta up">↑ +190т</div></div>
+      </div>
+      <div class="sec-title" style="margin-bottom:12px">База должников <span>FIFO-списание</span></div>
+      <div class="tbl-wrap">
+        <div class="tbl-head">
+          <div class="search-box"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input placeholder="Поиск ТТ или агента..." oninput="filterDZ(this.value)"></div>
+          <div class="filters" style="margin:0;flex-wrap:nowrap">
+            <button class="filter-btn active" onclick="dzFilter('all',this)">Все</button>
+            <button class="filter-btn" onclick="dzFilter('30',this)">30+ дн.</button>
+            <button class="filter-btn" onclick="dzFilter('60',this)">60+ дн.</button>
+          </div>
+        </div>
+        <table><thead><tr><th>Торговая точка</th><th>Агент</th><th>Сумма ДЗ</th><th>Старейший долг</th><th>Просрочка</th><th>Лимит ДЗ</th><th>Статус</th></tr></thead><tbody id="dzTbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ЗАКРЫТИЕ СМЕНЫ -->
+    <div id="sec-shift" class="content hide">
+      <div class="sec-title" style="margin-bottom:14px">Закрытие смен агентов <span>1 июля 2026</span></div>
+      <div class="tbl-wrap">
+        <table><thead><tr><th>Агент</th><th>Маршрут</th><th>Загружено</th><th>Продано</th><th>Возврат</th><th>Наличные (факт)</th><th>Отклонение кассы</th><th>Статус</th></tr></thead><tbody id="shiftTbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div id="sec-kpi" class="content hide">
+      <div class="sec-title" style="margin-bottom:14px">KPI и зарплата агентов <span>июнь 2026</span></div>
+      <div class="tbl-wrap">
+        <table><thead><tr><th>Агент</th><th>АКБ</th><th>Strike Rate</th><th>Выручка</th><th>Сред. чек</th><th>ДЗ-лимит</th><th>Бонус</th><th>Итого ЗП</th></tr></thead><tbody id="kpiTbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div id="sec-analytics" class="content hide">
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi-card amber"><div class="kpi-label">Конверсия визитов</div><div class="kpi-value" style="color:var(--accent)">73%</div><div class="kpi-delta up">↑ +4%</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Рост АКБ (мес.)</div><div class="kpi-value" style="color:var(--green)">+9</div><div class="kpi-delta up">↑ ТТ</div></div>
+        <div class="kpi-card blue"><div class="kpi-label">Средний чек</div><div class="kpi-value" style="color:var(--blue)">3 100</div><div class="kpi-delta up">↑ +7%</div></div>
+        <div class="kpi-card purple"><div class="kpi-label">Выработка цеха</div><div class="kpi-value" style="color:var(--purple)">2 840</div><div class="kpi-delta neu">ед./день</div></div>
+      </div>
+      <div class="grid2">
+        <div class="chart-wrap" style="margin-bottom:0">
+          <div class="sec-title">Выручка по маршрутам</div>
+          <div id="routeChart" style="margin-top:12px"></div>
+        </div>
+        <div class="chart-wrap" style="margin-bottom:0">
+          <div class="sec-title">Топ SKU по выручке (месяц)</div>
+          <div id="skuAnalytics" style="margin-top:12px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INTEGRATIONS -->
+    <div id="sec-integrations" class="content hide">
+      <div class="sec-title" style="margin-bottom:14px">Каналы и системы</div>
+      <div class="int-grid" id="intGrid"></div>
+    </div>
+
+    <div class="watermark">Мобильный Агент CRM · Демо · pllato.kz</div>
+  </main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay hide" id="modalOverlay" onclick="closeMo(event)">
+  <div class="modal" id="modalBox">
+    <div class="modal-head">
+      <div class="modal-av" id="mAv"></div>
+      <div class="modal-info"><div class="modal-name" id="mName"></div><div class="modal-sub" id="mSub"></div></div>
+      <button class="modal-close" onclick="closeMoDirect()">✕</button>
+    </div>
+    <div class="modal-body" id="mBody"></div>
+  </div>
+</div>
+
+<script>
+// ===== DATA =====
+const AGENTS = [
+  {id:1,name:'Арстанбек Мамытов',init:'АМ',route:'Маршрут №1 — Центр',color:'#f59e0b',stage:'На маршруте',visited:14,plan:18,revenue:48200,loaded:310,sold:274,dz:85000},
+  {id:2,name:'Бакыт Осмонов',init:'БО',route:'Маршрут №2 — Запад',color:'#3fb950',stage:'На маршруте',visited:10,plan:15,revenue:31500,loaded:280,sold:231,dz:42000},
+  {id:3,name:'Нурлан Джумалиев',init:'НД',route:'Маршрут №3 — Восток',color:'#58a6ff',stage:'На маршруте',visited:17,plan:20,revenue:56800,loaded:350,sold:318,dz:120000},
+  {id:4,name:'Канат Эргешов',init:'КЭ',route:'Маршрут №4 — Север',color:'#bc8cff',stage:'Смена закрыта',visited:16,plan:16,revenue:44100,loaded:295,sold:290,dz:18000},
+  {id:5,name:'Айбек Токтосунов',init:'АТ',route:'Маршрут №5 — Юг',color:'#f85149',stage:'На маршруте',visited:9,plan:17,revenue:27000,loaded:260,sold:198,dz:210000},
+  {id:6,name:'Марат Асанов',init:'МА',route:'Маршрут №6 — Рынок',color:'#f59e0b',stage:'На маршруте',visited:12,plan:14,revenue:39600,loaded:320,sold:284,dz:65000},
+  {id:7,name:'Бекзод Турдиев',init:'БТ',route:'Маршрут №7 — Пригород',color:'#3fb950',stage:'Не вышел',visited:0,plan:12,revenue:0,loaded:0,sold:0,dz:33000},
+  {id:8,name:'Улан Сатыбалдиев',init:'УС',route:'Маршрут №8 — ТЦ',color:'#58a6ff',stage:'Смена закрыта',visited:11,plan:11,revenue:35800,loaded:240,sold:238,dz:9000},
+];
+
+const SKU = [
+  {name:'Самса с мясом',cat:'Выпечка',price:45,plan:480,fact:465,brak:15,stock:120},
+  {name:'Пирожок с капустой',cat:'Выпечка',price:30,plan:600,fact:590,brak:10,stock:88},
+  {name:'Булочка сдобная',cat:'Хлебобулочные',price:25,plan:400,fact:390,brak:8,stock:210},
+  {name:'Лепёшка тандырная',cat:'Хлеб',price:60,plan:300,fact:298,brak:2,stock:44},
+  {name:'Пирог с яблоком',cat:'Кондитерские',price:80,plan:200,fact:195,brak:5,stock:32},
+  {name:'Слойка с сыром',cat:'Выпечка',price:55,plan:350,fact:340,brak:10,stock:67},
+  {name:'Чуду',cat:'Выпечка',price:70,plan:180,fact:175,brak:5,stock:28},
+  {name:'Хлеб пшеничный',cat:'Хлеб',price:50,plan:250,fact:245,brak:3,stock:140},
+];
+
+const TT = [
+  {id:1,name:'Магазин "Алтын"',district:'Центр',agent:'Арстанбек М.',revenue:124000,dz:42000,lastVisit:'01 июл 2026',status:'Активный'},
+  {id:2,name:'Павильон "Береке"',district:'Центр',agent:'Арстанбек М.',revenue:87000,dz:0,lastVisit:'01 июл 2026',status:'Активный'},
+  {id:3,name:'Мини-маркет "Жайнак"',district:'Запад',agent:'Бакыт О.',revenue:56000,dz:18000,lastVisit:'30 июн 2026',status:'Активный'},
+  {id:4,name:'ТС "Глобус" №4',district:'Восток',agent:'Нурлан Д.',revenue:210000,dz:85000,lastVisit:'01 июл 2026',status:'Сеть'},
+  {id:5,name:'Рынок Ош (лоток 14)',district:'Юг',agent:'Айбек Т.',revenue:34000,dz:210000,lastVisit:'28 июн 2026',status:'Должник'},
+  {id:6,name:'Кафе "Нарын"',district:'Север',agent:'Канат Э.',revenue:78000,dz:0,lastVisit:'01 июл 2026',status:'Активный'},
+  {id:7,name:'Столовая №12',district:'Рынок',agent:'Марат А.',revenue:95000,dz:65000,lastVisit:'01 июл 2026',status:'Активный'},
+  {id:8,name:'Магазин "Дастархан"',district:'Пригород',agent:'Бекзод Т.',revenue:0,dz:33000,lastVisit:'25 июн 2026',status:'Заморожен'},
+  {id:9,name:'Киоск "Самса" №7',district:'Центр',agent:'Арстанбек М.',revenue:44000,dz:0,lastVisit:'01 июл 2026',status:'Активный'},
+  {id:10,name:'ТС "Глобус" №1',district:'Восток',agent:'Нурлан Д.',revenue:188000,dz:35000,lastVisit:'01 июл 2026',status:'Сеть'},
+];
+
+const DZ = [
+  {tt:'ТС "Глобус" №4',agent:'Нурлан Д.',sum:85000,oldest:'05 июн 2026',days:26,limit:100000,pct:85},
+  {tt:'Рынок Ош (лоток 14)',agent:'Айбек Т.',sum:210000,oldest:'02 мая 2026',days:60,limit:150000,pct:140},
+  {tt:'Столовая №12',agent:'Марат А.',sum:65000,oldest:'10 июн 2026',days:21,limit:80000,pct:81},
+  {tt:'Магазин "Алтын"',agent:'Арстанбек М.',sum:42000,oldest:'15 июн 2026',days:16,limit:60000,pct:70},
+  {tt:'Мини-маркет "Жайнак"',agent:'Бакыт О.',sum:18000,oldest:'20 июн 2026',days:11,limit:50000,pct:36},
+  {tt:'Магазин "Дастархан"',agent:'Бекзод Т.',sum:33000,oldest:'28 мая 2026',days:34,limit:40000,pct:82},
+  {tt:'ТС "Глобус" №1',agent:'Нурлан Д.',sum:35000,oldest:'18 июн 2026',days:13,limit:100000,pct:35},
+];
+
+const DIALOGS = [
+  {id:1,name:'Арстанбек Мамытов',init:'АМ',color:'#f59e0b',prev:'Принял товар, выхожу',time:'08:15',unread:2,msgs:[
+    {d:'in',t:'Шеф, доброе утро! Забрал 310 ед. по заявке.',time:'07:55'},
+    {d:'out',t:'Хорошо, Арстан! Не забудь зафиксировать возвраты вечером.',time:'08:00'},
+    {d:'in',t:'Принял товар, выхожу на маршрут. Приеду около 19:00.',time:'08:15'},
+  ]},
+  {id:2,name:'Нурлан Джумалиев',init:'НД',color:'#58a6ff',prev:'Глобус дал 85т наличкой',time:'10:30',unread:1,msgs:[
+    {d:'in',t:'Шеф, Глобус №4 дал 85т наличкой в счёт долга.',time:'10:30'},
+    {d:'out',t:'Отлично, фиксируй в кассе и привези вечером.',time:'10:35'},
+  ]},
+  {id:3,name:'Айбек Токтосунов',init:'АТ',color:'#f85149',prev:'Лоток не берёт, говорит нет денег',time:'11:45',unread:3,msgs:[
+    {d:'in',t:'Шеф, лоток 14 не берёт товар. Говорит денег нет, долг 210т.',time:'11:45'},
+    {d:'out',t:'Айбек, не отгружай без оплаты! Требуй хотя бы 50% наличными.',time:'11:50'},
+    {d:'in',t:'Понял, пробую. Иду к следующей точке.',time:'11:55'},
+    {d:'in',t:'Лоток не берёт, говорит нет денег. Что делать?',time:'12:10'},
+  ]},
+];
+
+const INTEGRATIONS = [
+  {icon:'💬',name:'WhatsApp Business',status:'Подключён',on:true},
+  {icon:'✈️',name:'Telegram Bot',status:'Подключён',on:true},
+  {icon:'📞',name:'IP-Телефония',status:'Подключён',on:true},
+  {icon:'🖨️',name:'Bluetooth-Печать',status:'Настроено',on:true},
+  {icon:'📡',name:'GPS-Трекинг',status:'Подключён',on:true},
+  {icon:'📊',name:'1С Бухгалтерия',status:'Не настроено',on:false},
+  {icon:'🗺️',name:'Yandex.Maps',status:'Подключён',on:true},
+  {icon:'📱',name:'Push-уведомления',status:'Активно',on:true},
+];
+
+const MONTHS = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30'];
+const REVENUES = [38,41,35,47,52,44,49,55,51,58,63,48,54,61,57,66,59,62,70,65,68,72,75,69,74,78,71,73,77,83];
+
+// ===== STATE =====
+let CURRENT = {role:'admin'};
+let activeDialog = 1;
+
+// ===== LOGIN =====
+function login(role){
+  CURRENT.role = role;
+  document.getElementById('loginScreen').classList.add('hide');
+  document.getElementById('appShell').classList.remove('hide');
+  const cfg = {
+    admin:{name:'Администратор',role:'Полный доступ',bg:'#f59e0b1a',fg:'#f59e0b',init:'А'},
+    supervisor:{name:'Супервизор',role:'Агенты и контроль',bg:'#58a6ff1a',fg:'#58a6ff',init:'С'},
+    warehouse:{name:'Кладовщик',role:'Склад СГП',bg:'#3fb9501a',fg:'#3fb950',init:'К'},
+  }[role];
+  document.getElementById('sideUser').textContent = cfg.name;
+  document.getElementById('sideRole').textContent = cfg.role;
+  const av = document.getElementById('sideAv');
+  av.textContent = cfg.init; av.style.background = cfg.bg; av.style.color = cfg.fg;
+  initApp();
+}
+function logout(){
+  document.getElementById('appShell').classList.add('hide');
+  document.getElementById('loginScreen').classList.remove('hide');
+}
+
+// ===== NAV =====
+function go(id, btn){
+  document.querySelectorAll('[id^="sec-"]').forEach(el=>el.classList.add('hide'));
+  document.getElementById('sec-'+id).classList.remove('hide');
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const titles = {dashboard:'Дашборд',agents:'Агенты и маршруты',orders:'Заявки Т-2 / Т-1',inbox:'Входящие',warehouse:'Склад СГП',vsa:'ВСА — Виртуальные склады',tt:'Торговые точки',dz:'Дебиторская задолженность',shift:'Закрытие смен',kpi:'KPI и зарплата',analytics:'Аналитика',integrations:'Интеграции'};
+  const subs = {dashboard:'Обзор за 1 июля 2026',agents:'Канбан по статусу маршрутов',orders:'Планирование и корректировки',inbox:'WhatsApp · Telegram · Телефония',warehouse:'Приемка, остатки, брак',vsa:'Загрузка и остатки в машинах',tt:'АКБ — активная клиентская база',dz:'Контроль ДЗ и FIFO-списание',shift:'Касса и отклонения',kpi:'Бонусы и начисления за июнь',analytics:'Выработка и эффективность',integrations:'Каналы и системы'};
+  document.getElementById('pageTitle').textContent = titles[id]||id;
+  document.getElementById('pageSub').textContent = subs[id]||'';
+}
+
+// ===== INIT =====
+function initApp(){
+  buildRevChart();
+  buildTopAgents();
+  buildTopSku();
+  buildAgentStatus();
+  buildAgentKanban();
+  buildOrders();
+  buildDialogs();
+  buildWarehouse();
+  buildVSA();
+  buildTT(TT);
+  buildDZ(DZ);
+  buildShift();
+  buildKPI();
+  buildAnalytics();
+  buildIntegrations();
+}
+
+// ===== DASHBOARD =====
+function buildRevChart(){
+  const max = Math.max(...REVENUES);
+  document.getElementById('revChart').innerHTML = REVENUES.map((v,i)=>`
+    <div class="bar-col">
+      <div class="bar-val">${v}</div>
+      <div class="bar" style="height:${Math.round(v/max*100)}%"></div>
+      <div class="bar-label">${parseInt(MONTHS[i])%5===0?MONTHS[i]:''}</div>
+    </div>`).join('');
+}
+
+function buildTopAgents(){
+  const sorted = [...AGENTS].filter(a=>a.revenue>0).sort((a,b)=>b.revenue-a.revenue).slice(0,5);
+  document.getElementById('topAgents').innerHTML = sorted.map((a,i)=>`
+    <div class="top-item" style="cursor:pointer;margin-bottom:10px" onclick="openAgentModal(${a.id})">
+      <div class="top-rank${i===0?' gold':''}"> ${i+1}</div>
+      <div class="top-av" style="background:${a.color}22;color:${a.color}">${a.init}</div>
+      <div class="top-info">
+        <div class="top-name">${a.name}</div>
+        <div class="top-meta">${a.route.split('—')[0].trim()}</div>
+        <div class="prog-wrap" style="width:120px"><div class="prog-bar" style="width:${Math.round(a.visited/a.plan*100)}%"></div></div>
+      </div>
+      <div class="top-amt">${(a.revenue/1000).toFixed(0)} т</div>
+    </div>`).join('');
+}
+
+function buildTopSku(){
+  const sorted = [...SKU].sort((a,b)=>b.fact*b.price-a.fact*a.price).slice(0,5);
+  const max = sorted[0].fact*sorted[0].price;
+  document.getElementById('topSku').innerHTML = sorted.map((s,i)=>`
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px">
+      <div style="width:18px;color:var(--muted);font-size:11px;text-align:right">${i+1}</div>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:600;margin-bottom:3px">${s.name}</div>
+        <div class="prog-wrap"><div class="prog-bar" style="width:${Math.round(s.fact*s.price/max*100)}%"></div></div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent);width:55px;text-align:right">${((s.fact*s.price)/1000).toFixed(0)} т</div>
+    </div>`).join('');
+}
+
+function buildAgentStatus(){
+  const stages = {'На маршруте':'amber','Смена закрыта':'green','Не вышел':'red'};
+  document.getElementById('agentStatus').innerHTML = AGENTS.map(a=>`
+    <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;cursor:pointer" onclick="openAgentModal(${a.id})">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="width:30px;height:30px;border-radius:50%;background:${a.color}22;color:${a.color};display:grid;place-items:center;font-weight:700;font-size:11px;flex:none">${a.init}</div>
+        <div style="font-size:12px;font-weight:600;line-height:1.2">${a.name.split(' ')[0]}</div>
+        <span class="pill ${stages[a.stage]||'muted'}" style="margin-left:auto;font-size:10px">${a.stage==='На маршруте'?'🟡 Маршрут':a.stage==='Смена закрыта'?'🟢 Закрыт':'🔴 Нет'}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:5px">${a.visited}/${a.plan} визитов · ${(a.revenue/1000).toFixed(0)} т</div>
+      <div class="prog-wrap"><div class="prog-bar${a.stage==='Не вышел'?' red':''}" style="width:${a.plan?Math.round(a.visited/a.plan*100):0}%"></div></div>
+    </div>`).join('');
+}
+
+// ===== AGENT KANBAN =====
+function buildAgentKanban(){
+  const stages = ['Не вышел','Загрузка','На маршруте','Закрытие','Смена закрыта'];
+  const stageOf = a => a.stage==='Не вышел'?'Не вышел':a.visited===0&&a.loaded>0?'Загрузка':a.stage==='На маршруте'?'На маршруте':a.stage==='Смена закрыта'?'Смена закрыта':'Закрытие';
+  const colors = {'Не вышел':'#f85149','Загрузка':'#f59e0b','На маршруте':'#58a6ff','Закрытие':'#bc8cff','Смена закрыта':'#3fb950'};
+  document.getElementById('agentKanban').innerHTML = stages.map(s=>{
+    const cards = AGENTS.filter(a=>stageOf(a)===s);
+    return `<div class="kanban-col">
+      <div class="kanban-head"><span style="color:${colors[s]}">${s}</span><span class="cnt">${cards.length}</span></div>
+      ${cards.map(a=>`<div class="k-card" onclick="openAgentModal(${a.id})">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+          <div style="width:26px;height:26px;border-radius:50%;background:${a.color}22;color:${a.color};display:grid;place-items:center;font-size:10px;font-weight:700;flex:none">${a.init}</div>
+          <div class="k-name" style="font-size:12px">${a.name}</div>
+        </div>
+        <div class="k-sub">${a.route.split('—')[1]?.trim()||a.route}</div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px">
+          <span style="color:var(--muted)">${a.visited}/${a.plan} ТТ</span>
+          <span class="k-amt">${(a.revenue/1000).toFixed(0)} т</span>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+// ===== ORDERS =====
+function oTab(id, btn){
+  document.querySelectorAll('#sec-orders .tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#sec-orders .tab-pane').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('o-'+id).classList.add('active');
+}
+
+function buildOrders(){
+  // T-2
+  document.getElementById('t2Tbody').innerHTML = AGENTS.map(a=>`
+    <tr onclick="openAgentModal(${a.id})">
+      <td><div style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:50%;background:${a.color}22;color:${a.color};display:grid;place-items:center;font-size:11px;font-weight:700;flex:none">${a.init}</div><b>${a.name}</b></div></td>
+      <td style="font-size:12px;color:var(--muted)">${a.route.split('—')[1]?.trim()||a.route}</td>
+      <td>${SKU.length} / ${SKU.length} поз.</td>
+      <td style="font-weight:700;color:var(--accent)">${(a.loaded*45/1000).toFixed(0)} т</td>
+      <td><span class="pill ${a.stage==='Не вышел'?'red':a.visited>0?'green':'amber'}">${a.stage==='Не вышел'?'Не подана':a.visited>0?'Подтверждена':'В работе'}</span></td>
+      <td style="color:var(--muted);font-size:12px">02 июл 18:00</td>
+    </tr>`).join('');
+
+  // T-1 corrections
+  const corrections = [
+    {agent:'Арстанбек М.',sku:'Самса с мясом',type:'Дозаказ',was:40,now:55,deadline:'02 июл 20:00',status:'Одобрено'},
+    {agent:'Нурлан Д.',sku:'Пирог с яблоком',type:'Уменьшение',was:30,now:20,deadline:'02 июл 20:00',status:'Одобрено'},
+    {agent:'Айбек Т.',sku:'Лепёшка тандырная',type:'Отмена',was:25,now:0,deadline:'02 июл 20:00',status:'На модерации'},
+    {agent:'Марат А.',sku:'Слойка с сыром',type:'Дозаказ',was:30,now:45,deadline:'02 июл 20:00',status:'Отклонено'},
+    {agent:'Бакыт О.',sku:'Чуду',type:'Дозаказ',was:20,now:30,deadline:'02 июл 20:00',status:'На модерации'},
+  ];
+  document.getElementById('t1Tbody').innerHTML = corrections.map(c=>`
+    <tr>
+      <td><b>${c.agent}</b></td>
+      <td>${c.sku}</td>
+      <td><span class="pill ${c.type==='Дозаказ'?'green':c.type==='Отмена'?'red':'amber'}">${c.type}</span></td>
+      <td style="color:var(--muted)">${c.was} ед.</td>
+      <td style="font-weight:700">${c.now} ед.</td>
+      <td style="font-size:12px;color:var(--muted)">${c.deadline}</td>
+      <td><span class="pill ${c.status==='Одобрено'?'green':c.status==='Отклонено'?'red':'amber'}">${c.status}</span></td>
+    </tr>`).join('');
+
+  // Today shipment
+  document.getElementById('todayTbody').innerHTML = AGENTS.filter(a=>a.loaded>0).map(a=>`
+    <tr onclick="openAgentModal(${a.id})">
+      <td><b>${a.name}</b></td>
+      <td style="color:var(--muted);font-size:12px">Hyundai Porter · А ${100+a.id*11} BK</td>
+      <td>${SKU.length} SKU · ${a.loaded} ед.</td>
+      <td style="font-weight:700;color:var(--accent)">${(a.loaded*45/1000).toFixed(0)} т</td>
+      <td style="color:var(--muted);font-size:12px">07:30</td>
+      <td><span class="pill ${a.stage==='Смена закрыта'?'green':'amber'}">${a.stage}</span></td>
+    </tr>`).join('');
+}
+
+// ===== INBOX =====
+function buildDialogs(){
+  document.getElementById('dialogList').innerHTML = DIALOGS.map((d,i)=>`
+    <div class="dl-item${i===0?' active':''}" onclick="selDialog(${d.id},this)">
+      <div class="dl-av" style="background:${d.color}22;color:${d.color}">${d.init}</div>
+      <div style="flex:1;min-width:0">
+        <div class="dl-name">${d.name}</div>
+        <div class="dl-prev">${d.prev}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+        <div class="dl-time">${d.time}</div>
+        ${d.unread?`<div class="dl-unread">${d.unread}</div>`:''}
+      </div>
+    </div>`).join('');
+  selDialog(1, null);
+}
+
+function selDialog(id, el){
+  if(el){document.querySelectorAll('.dl-item').forEach(e=>e.classList.remove('active'));el.classList.add('active');}
+  const d = DIALOGS.find(x=>x.id===id); if(!d) return;
+  document.getElementById('chatName').textContent = d.name;
+  document.getElementById('chatMsgs').innerHTML = d.msgs.map(m=>`
+    <div class="msg ${m.d}">
+      <div class="msg-bub">${m.t}</div>
+      <div class="msg-time">${m.time}</div>
+    </div>`).join('');
+  const cm = document.getElementById('chatMsgs'); cm.scrollTop = cm.scrollHeight;
+}
+function selCh(el){document.querySelectorAll('.ch-item').forEach(e=>e.classList.remove('active'));el.classList.add('active');}
+
+// ===== WAREHOUSE =====
+function whTab(id, btn){
+  document.querySelectorAll('#sec-warehouse .tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#sec-warehouse .tab-pane').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active'); document.getElementById('wh-'+id).classList.add('active');
+}
+function buildWarehouse(){
+  document.getElementById('whTbody').innerHTML = SKU.map(s=>{
+    const remain = s.fact - Math.round(s.fact*0.87);
+    return `<tr onclick="openSkuModal('${s.name}')">
+      <td><b>${s.name}</b> <span class="pill muted" style="font-size:10px">${s.cat}</span></td>
+      <td style="color:var(--muted)">${s.cat}</td>
+      <td>${s.plan} ед.</td>
+      <td style="font-weight:600">${s.fact} ед.</td>
+      <td style="font-weight:700;color:${remain<30?'var(--red)':'var(--txt)'}">${remain} ед.</td>
+      <td style="color:var(--red)">${s.brak} ед.</td>
+      <td><span class="pill ${remain<30?'red':remain<60?'amber':'green'}">${remain<30?'Мало':remain<60?'Заканчивается':'OK'}</span></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('priemkaTbody').innerHTML = SKU.map((s,i)=>`
+    <tr>
+      <td style="color:var(--muted);font-size:12px">0${6+Math.floor(i/4)}:${i%4===0?'00':i%4===1?'15':i%4===2?'30':'45'}</td>
+      <td><b>${s.name}</b></td>
+      <td>${s.plan} ед.</td>
+      <td style="font-weight:700;color:${s.fact<s.plan?'var(--red)':'var(--green)'}">${s.fact} ед.</td>
+      <td style="color:${s.fact<s.plan?'var(--red)':'var(--muted)'};">${s.fact-s.plan > 0?'+':''}${s.fact-s.plan} ед.</td>
+      <td style="color:var(--muted);font-size:12px">Курманбеков А.</td>
+    </tr>`).join('');
+
+  const brakData = [
+    {time:'19:10',agent:'Арстанбек М.',sku:'Самса с мясом',qty:7,reason:'Истёк срок',status:'Списан'},
+    {time:'19:25',agent:'Нурлан Д.',sku:'Пирожок с капустой',qty:4,reason:'Помят',status:'Списан'},
+    {time:'19:40',agent:'Марат А.',sku:'Слойка с сыром',qty:5,reason:'Возврат от ТТ',status:'На проверке'},
+    {time:'19:55',agent:'Айбек Т.',sku:'Булочка сдобная',qty:3,reason:'Истёк срок',status:'Списан'},
+  ];
+  document.getElementById('brakTbody').innerHTML = brakData.map(b=>`
+    <tr>
+      <td style="color:var(--muted);font-size:12px">${b.time}</td>
+      <td><b>${b.agent}</b></td>
+      <td>${b.sku}</td>
+      <td style="font-weight:700;color:var(--red)">${b.qty} ед.</td>
+      <td style="color:var(--muted);font-size:12px">${b.reason}</td>
+      <td><span class="pill ${b.status==='Списан'?'red':'amber'}">${b.status}</span></td>
+    </tr>`).join('');
+}
+
+// ===== VSA =====
+function buildVSA(filter){
+  let list = AGENTS.filter(a=>a.loaded>0);
+  if(filter==='active') list = list.filter(a=>a.stage==='На маршруте');
+  if(filter==='closed') list = list.filter(a=>a.stage==='Смена закрыта');
+  document.getElementById('vsaTbody').innerHTML = list.map(a=>{
+    const remain = a.loaded - a.sold;
+    return `<tr onclick="openAgentModal(${a.id})">
+      <td><div style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:50%;background:${a.color}22;color:${a.color};display:grid;place-items:center;font-size:10px;font-weight:700;flex:none">${a.init}</div><b>${a.name}</b></div></td>
+      <td style="font-size:12px;color:var(--muted)">${a.route.split('—')[1]?.trim()||a.route}</td>
+      <td>${a.loaded} ед.</td>
+      <td style="color:var(--green);font-weight:600">${a.sold} ед.</td>
+      <td style="font-weight:700;color:${remain>40?'var(--red)':'var(--txt)'}">${remain} ед.</td>
+      <td style="font-weight:700;color:var(--accent)">${(a.revenue/1000).toFixed(0)} т</td>
+      <td><span class="pill ${a.stage==='Смена закрыта'?'green':'amber'}">${a.stage}</span></td>
+    </tr>`;
+  }).join('');
+}
+function vsaFilter(f, btn){
+  document.querySelectorAll('#sec-vsa .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); buildVSA(f);
+}
+
+// ===== TT =====
+function buildTT(list){
+  document.getElementById('ttCount').textContent = list.length;
+  document.getElementById('ttTbody').innerHTML = list.map(t=>`
+    <tr onclick="openTTModal(${t.id})">
+      <td><b>${t.name}</b></td>
+      <td style="color:var(--muted)">${t.district}</td>
+      <td style="font-size:12px">${t.agent}</td>
+      <td style="font-weight:700;color:var(--accent)">${(t.revenue/1000).toFixed(0)} т</td>
+      <td style="font-weight:700;color:${t.dz>50000?'var(--red)':t.dz>0?'var(--accent)':'var(--muted)'}">${t.dz>0?(t.dz/1000).toFixed(0)+' т':'—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${t.lastVisit}</td>
+      <td><span class="pill ${t.status==='Активный'?'green':t.status==='Сеть'?'blue':t.status==='Должник'?'red':'muted'}">${t.status}</span></td>
+    </tr>`).join('');
+}
+function filterTT(q){buildTT(TT.filter(t=>t.name.toLowerCase().includes(q.toLowerCase())||t.district.toLowerCase().includes(q.toLowerCase())||t.agent.toLowerCase().includes(q.toLowerCase())));}
+
+// ===== DZ =====
+function buildDZ(list){
+  document.getElementById('dzTbody').innerHTML = list.map(d=>`
+    <tr onclick="openDZModal('${d.tt}')">
+      <td><b>${d.tt}</b></td>
+      <td style="font-size:12px;color:var(--muted)">${d.agent}</td>
+      <td style="font-weight:700;color:var(--red)">${(d.sum/1000).toFixed(0)} т</td>
+      <td style="font-size:12px;color:var(--muted)">${d.oldest}</td>
+      <td><span class="pill ${d.days>=60?'red':d.days>=30?'amber':'blue'}">${d.days} дн.</span></td>
+      <td>
+        <div style="font-size:11px;color:${d.pct>100?'var(--red)':'var(--muted)'};">${(d.limit/1000).toFixed(0)} т (${d.pct}%)</div>
+        <div class="dz-bar"><div class="dz-fill" style="width:${Math.min(d.pct,100)}%;background:${d.pct>100?'var(--red)':d.pct>80?'var(--accent)':'var(--green)'}"></div></div>
+      </td>
+      <td><span class="pill ${d.pct>100?'red':d.days>=60?'red':d.days>=30?'amber':'blue'}">${d.pct>100?'⚠ Превышен лимит':d.days>=60?'Критично':d.days>=30?'Просрочка':'В норме'}</span></td>
+    </tr>`).join('');
+}
+function filterDZ(q){buildDZ(DZ.filter(d=>d.tt.toLowerCase().includes(q.toLowerCase())||d.agent.toLowerCase().includes(q.toLowerCase())));}
+function dzFilter(f, btn){
+  document.querySelectorAll('#sec-dz .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(f==='all') buildDZ(DZ);
+  else if(f==='30') buildDZ(DZ.filter(d=>d.days>=30&&d.days<60));
+  else if(f==='60') buildDZ(DZ.filter(d=>d.days>=60));
+}
+
+// ===== SHIFT =====
+function buildShift(){
+  document.getElementById('shiftTbody').innerHTML = AGENTS.map(a=>{
+    const cashExpected = a.revenue * 0.7;
+    const cashActual = cashExpected + (Math.random()>0.7 ? -500 : 0);
+    const diff = cashActual - cashExpected;
+    return `<tr onclick="openAgentModal(${a.id})">
+      <td><b>${a.name}</b></td>
+      <td style="font-size:12px;color:var(--muted)">${a.route.split('—')[1]?.trim()||a.route}</td>
+      <td>${a.loaded} ед.</td>
+      <td style="color:var(--green);font-weight:600">${a.sold} ед.</td>
+      <td style="color:var(--muted)">${a.loaded-a.sold} ед.</td>
+      <td style="font-weight:700">${(cashActual/1000).toFixed(1)} т</td>
+      <td style="font-weight:700;color:${diff<0?'var(--red)':diff>0?'var(--accent)':'var(--green)'}">${diff>=0?'+':''}${(diff/1000).toFixed(2)} т</td>
+      <td><span class="pill ${a.stage==='Смена закрыта'?'green':a.stage==='Не вышел'?'red':'amber'}">${a.stage}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ===== KPI =====
+function buildKPI(){
+  document.getElementById('kpiTbody').innerHTML = AGENTS.map(a=>{
+    const akb = Math.round(a.visited * 0.85);
+    const strike = a.plan?Math.round(a.visited/a.plan*100):0;
+    const bonus = strike>=90?15000:strike>=75?8000:strike>=60?3000:0;
+    const salary = 30000 + bonus;
+    return `<tr onclick="openAgentModal(${a.id})">
+      <td><div style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:50%;background:${a.color}22;color:${a.color};display:grid;place-items:center;font-size:10px;font-weight:700;flex:none">${a.init}</div><b>${a.name}</b></div></td>
+      <td style="font-weight:700;color:var(--accent)">${akb} ТТ</td>
+      <td><span class="pill ${strike>=90?'green':strike>=75?'amber':'red'}">${strike}%</span></td>
+      <td style="font-weight:700">${(a.revenue/1000).toFixed(0)} т</td>
+      <td style="color:var(--muted)">${a.visited>0?(a.revenue/a.visited/1000).toFixed(1)+' т':'—'}</td>
+      <td style="color:${a.dz>100000?'var(--red)':'var(--muted)'};">${(a.dz/1000).toFixed(0)} т</td>
+      <td style="font-weight:700;color:var(--green)">${bonus>0?(bonus/1000).toFixed(0)+' т':'—'}</td>
+      <td style="font-weight:800;color:var(--accent)">${(salary/1000).toFixed(0)} т</td>
+    </tr>`;
+  }).join('');
+}
+
+// ===== ANALYTICS =====
+function buildAnalytics(){
+  const routes = AGENTS.map(a=>({name:a.name.split(' ')[0],val:(a.revenue/1000).toFixed(0)}));
+  const maxR = Math.max(...routes.map(r=>parseFloat(r.val)));
+  document.getElementById('routeChart').innerHTML = routes.map(r=>`
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px">
+      <div style="font-size:12px;width:80px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}</div>
+      <div style="flex:1;height:8px;background:var(--bg2);border-radius:4px;overflow:hidden"><div style="height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:${Math.round(parseFloat(r.val)/maxR*100)}%"></div></div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent);width:45px;text-align:right">${r.val} т</div>
+    </div>`).join('');
+
+  const sorted = [...SKU].sort((a,b)=>b.fact*b.price-a.fact*a.price).slice(0,6);
+  const maxS = sorted[0].fact*sorted[0].price;
+  document.getElementById('skuAnalytics').innerHTML = sorted.map(s=>`
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px">
+      <div style="font-size:12px;width:130px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
+      <div style="flex:1;height:8px;background:var(--bg2);border-radius:4px;overflow:hidden"><div style="height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:${Math.round(s.fact*s.price/maxS*100)}%"></div></div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent);width:50px;text-align:right">${((s.fact*s.price)/1000).toFixed(0)} т</div>
+    </div>`).join('');
+}
+
+// ===== INTEGRATIONS =====
+function buildIntegrations(){
+  document.getElementById('intGrid').innerHTML = INTEGRATIONS.map(i=>`
+    <div class="int-card">
+      <div class="int-icon">${i.icon}</div>
+      <div class="int-name">${i.name}</div>
+      <div class="int-status ${i.on?'on':'off'}">${i.on?'● Активно':'○ Не настроено'}</div>
+      <button class="int-btn ${i.on?'on':''}" onclick="event.stopPropagation();toast('${i.name}: настройки')">
+        ${i.on?'Настроить':'Подключить'}
+      </button>
+    </div>`).join('');
+}
+
+// ===== MODALS =====
+function openAgentModal(id){
+  const a = AGENTS.find(x=>x.id===id); if(!a) return;
+  document.getElementById('mAv').style.cssText = `background:${a.color}22;color:${a.color}`;
+  document.getElementById('mAv').textContent = a.init;
+  document.getElementById('mName').textContent = a.name;
+  document.getElementById('mSub').textContent = a.route+' · '+a.stage;
+  const strike = a.plan?Math.round(a.visited/a.plan*100):0;
+  document.getElementById('mBody').innerHTML = `
+    <div class="m-stats">
+      <div class="m-stat"><div class="lb">Выручка</div><div class="vl" style="color:var(--accent)">${(a.revenue/1000).toFixed(0)} т</div></div>
+      <div class="m-stat"><div class="lb">Визиты</div><div class="vl">${a.visited}/${a.plan}</div></div>
+      <div class="m-stat"><div class="lb">Strike Rate</div><div class="vl" style="color:${strike>=80?'var(--green)':strike>=60?'var(--accent)':'var(--red)'}">${strike}%</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:16px">
+      <div class="m-stat"><div class="lb">Загружено ВСА</div><div class="vl">${a.loaded} ед.</div></div>
+      <div class="m-stat"><div class="lb">Продано</div><div class="vl" style="color:var(--green)">${a.sold} ед.</div></div>
+      <div class="m-stat"><div class="lb">Остаток (ВСА)</div><div class="vl" style="color:${a.loaded-a.sold>40?'var(--red)':'var(--muted)'}">${a.loaded-a.sold} ед.</div></div>
+      <div class="m-stat"><div class="lb">ДЗ агента</div><div class="vl" style="color:${a.dz>100000?'var(--red)':'var(--muted)'}">${(a.dz/1000).toFixed(0)} т</div></div>
+    </div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px">Топ ТТ агента</div>
+    ${TT.filter(t=>t.agent.includes(a.name.split(' ')[0])).slice(0,3).map(t=>`
+      <div class="hist-row">
+        <div class="hist-date">${t.district}</div>
+        <div class="hist-desc">${t.name}</div>
+        <div class="hist-amt">${(t.revenue/1000).toFixed(0)} т</div>
+      </div>`).join('')||'<div style="color:var(--muted);font-size:13px">Нет данных</div>'}`;
+  document.getElementById('modalOverlay').classList.remove('hide');
+}
+
+function openTTModal(id){
+  const t = TT.find(x=>x.id===id); if(!t) return;
+  document.getElementById('mAv').style.cssText = 'background:var(--accent-soft);color:var(--accent);font-size:20px';
+  document.getElementById('mAv').textContent = '🏪';
+  document.getElementById('mName').textContent = t.name;
+  document.getElementById('mSub').textContent = t.district+' · '+t.agent;
+  document.getElementById('mBody').innerHTML = `
+    <div class="m-stats">
+      <div class="m-stat"><div class="lb">Оборот (мес.)</div><div class="vl" style="color:var(--accent)">${(t.revenue/1000).toFixed(0)} т</div></div>
+      <div class="m-stat"><div class="lb">ДЗ</div><div class="vl" style="color:${t.dz>0?'var(--red)':'var(--green)'}">${t.dz>0?(t.dz/1000).toFixed(0)+' т':'Нет'}</div></div>
+      <div class="m-stat"><div class="lb">Статус</div><div class="vl"><span class="pill ${t.status==='Активный'?'green':t.status==='Сеть'?'blue':t.status==='Должник'?'red':'muted'}" style="font-size:12px">${t.status}</span></div></div>
+    </div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px">Последние визиты</div>
+    <div class="hist-row"><div class="hist-date">${t.lastVisit}</div><div class="hist-desc">Визит агента · ${t.agent}</div><div class="hist-amt" style="color:var(--green)">Продажа</div></div>
+    ${t.dz>0?`<div style="margin-top:14px;background:var(--red-soft);border:1px solid var(--red);border-radius:9px;padding:12px;font-size:13px;color:var(--red)">⚠ Задолженность: ${(t.dz/1000).toFixed(0)} т — требует погашения</div>`:''}`;
+  document.getElementById('modalOverlay').classList.remove('hide');
+}
+
+function openDZModal(ttName){
+  const d = DZ.find(x=>x.tt===ttName); if(!d) return;
+  document.getElementById('mAv').style.cssText = 'background:var(--red-soft);color:var(--red);font-size:20px';
+  document.getElementById('mAv').textContent = '💳';
+  document.getElementById('mName').textContent = d.tt;
+  document.getElementById('mSub').textContent = d.agent+' · Просрочка: '+d.days+' дн.';
+  document.getElementById('mBody').innerHTML = `
+    <div class="m-stats">
+      <div class="m-stat"><div class="lb">Сумма ДЗ</div><div class="vl" style="color:var(--red)">${(d.sum/1000).toFixed(0)} т</div></div>
+      <div class="m-stat"><div class="lb">Лимит</div><div class="vl">${(d.limit/1000).toFixed(0)} т</div></div>
+      <div class="m-stat"><div class="lb">Загрузка</div><div class="vl" style="color:${d.pct>100?'var(--red)':'var(--accent)'}">${d.pct}%</div></div>
+    </div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px">История долга (FIFO)</div>
+    ${[1,2,3].map(i=>`<div class="hist-row"><div class="hist-date">${i===1?d.oldest:i===2?'10 июн':'20 июн'}</div><div class="hist-desc">Отгрузка на маршруте · Накладная #${2406000+i}</div><div class="hist-amt" style="color:var(--red)">-${(d.sum/3/1000).toFixed(0)} т</div></div>`).join('')}
+    ${d.pct>100?`<div style="margin-top:14px;background:var(--red-soft);border:1px solid var(--red);border-radius:9px;padding:12px;font-size:13px;color:var(--red)">⛔ Лимит ДЗ превышен на ${d.pct-100}% — новые отгрузки заблокированы</div>`:''}`;
+  document.getElementById('modalOverlay').classList.remove('hide');
+}
+
+function openSkuModal(name){
+  const s = SKU.find(x=>x.name===name); if(!s) return;
+  document.getElementById('mAv').style.cssText = 'background:var(--accent-soft);color:var(--accent);font-size:20px';
+  document.getElementById('mAv').textContent = '🍞';
+  document.getElementById('mName').textContent = s.name;
+  document.getElementById('mSub').textContent = s.cat+' · Цена: '+s.price+' сом';
+  document.getElementById('mBody').innerHTML = `
+    <div class="m-stats">
+      <div class="m-stat"><div class="lb">Принято</div><div class="vl" style="color:var(--green)">${s.fact} ед.</div></div>
+      <div class="m-stat"><div class="lb">Брак</div><div class="vl" style="color:var(--red)">${s.brak} ед.</div></div>
+      <div class="m-stat"><div class="lb">Остаток СГП</div><div class="vl">${s.stock} ед.</div></div>
+    </div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px">Разбивка по агентам</div>
+    ${AGENTS.filter(a=>a.loaded>0).slice(0,5).map(a=>`
+      <div class="hist-row">
+        <div class="hist-date" style="display:flex;align-items:center;gap:5px"><div style="width:22px;height:22px;border-radius:50%;background:${a.color}22;color:${a.color};display:grid;place-items:center;font-size:9px;font-weight:700">${a.init}</div></div>
+        <div class="hist-desc">${a.name}</div>
+        <div class="hist-amt">${Math.round(s.fact/AGENTS.filter(x=>x.loaded>0).length)} ед.</div>
+      </div>`).join('')}`;
+  document.getElementById('modalOverlay').classList.remove('hide');
+}
+
+function closeMo(e){if(e.target===document.getElementById('modalOverlay')) closeMoDirect();}
+function closeMoDirect(){document.getElementById('modalOverlay').classList.add('hide');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape') closeMoDirect();});
+
+// ===== TOAST =====
+function toast(msg){
+  const t = document.createElement('div');
+  t.style.cssText='position:fixed;bottom:22px;right:22px;background:#1c2333;border:1px solid var(--accent2);color:var(--txt);padding:11px 18px;border-radius:11px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 10px 30px rgba(0,0,0,.6);animation:fi .2s ease';
+  t.textContent = '🍞 '+msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),3000);
+}
+const _s=document.createElement('style');
+_s.textContent='@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}';
+document.head.appendChild(_s);
+</script>
+</body>
+</html>
