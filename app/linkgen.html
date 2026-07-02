@@ -35,14 +35,29 @@ select:focus,input:focus{border-color:#d97706}
 /* Комбобокс с поиском */
 .combo{position:relative;margin-bottom:16px}
 .combo input{margin-bottom:0}
-.combo-list{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1.5px solid #e7e5e4;border-radius:12px;max-height:340px;overflow-y:auto;box-shadow:0 12px 32px rgba(28,25,23,.14);z-index:20}
+.combo-list{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1.5px solid #e7e5e4;border-radius:12px;max-height:360px;overflow-y:auto;box-shadow:0 12px 32px rgba(28,25,23,.14);z-index:20}
 .combo-list.open{display:block}
 .cl-group{font-size:11px;font-weight:800;color:#a8a29e;text-transform:uppercase;letter-spacing:.5px;padding:11px 14px 4px;position:sticky;top:0;background:#fff}
-.cl-item{padding:9px 14px;font-size:13.5px;cursor:pointer;display:flex;align-items:center;gap:8px}
-.cl-item:hover,.cl-item.active{background:#fef3c7}
-.cl-item .tag{margin-left:auto;font-size:10px;font-weight:800;color:#a8a29e;border:1px solid #e7e5e4;border-radius:6px;padding:1px 6px;flex:none}
+.cl-item{padding:8px 14px;font-size:13.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:11px}
+.cl-item:hover{background:#fef3c7}
 .cl-custom{border-top:1px solid #e7e5e4;color:#b45309;font-weight:700}
 .cl-empty{padding:14px;font-size:13px;color:#a8a29e;text-align:center}
+/* Иконки плашек — стили как на портале app.html */
+:root{
+  --blue:#2563eb;--green:#16a34a;--purple:#7c3aed;--orange:#ea580c;
+  --pink:#db2777;--teal:#0891b2;--indigo:#4f46e5;
+  --bronze-deep:#8b6740;--bronze-tint:rgba(184,137,90,.08);
+}
+.cl-item .tool-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:none;font-size:16px}
+.cl-item .tool-icon svg{width:17px;height:17px;stroke-width:2}
+.tool-icon.color-bronze{background:var(--bronze-tint);color:var(--bronze-deep)}
+.tool-icon.color-blue{background:rgba(37,99,235,.1);color:var(--blue)}
+.tool-icon.color-green{background:rgba(22,163,74,.1);color:var(--green)}
+.tool-icon.color-purple{background:rgba(124,58,237,.1);color:var(--purple)}
+.tool-icon.color-orange{background:rgba(234,88,12,.1);color:var(--orange)}
+.tool-icon.color-pink{background:rgba(219,39,119,.1);color:var(--pink)}
+.tool-icon.color-teal{background:rgba(8,145,178,.1);color:var(--teal)}
+.tool-icon.color-indigo{background:rgba(79,70,229,.1);color:var(--indigo)}
 </style>
 </head>
 <body>
@@ -78,12 +93,13 @@ select:focus,input:focus{border-color:#d97706}
     </div>
   </div>
   <div class="card howto">
-    <b>Как это работает.</b> Список берётся с портала <b>pllato.kz/app</b> автоматически: каждая
-    плашка и все документы из её выпадашки. Новая плашка на портале сразу появится и здесь.
+    <b>Как это работает.</b> В списке — плашки портала <b>pllato.kz/app</b> (главные страницы
+    проектов, подтягиваются автоматически вместе с иконками). Новая плашка на портале сразу
+    появится и здесь. Конкретный документ (КП, счёт, PDF) или любую другую страницу можно
+    вписать в то же поле путём или полным URL.<br><br>
     Срок ссылки проверяет гейт на самой странице: без свежего токена клиент попадает на
     «Срок истёк». Вход в портал автоматически открывает все такие страницы на вашем
-    устройстве — ссылки нужны только клиентам.<br><br>
-    <b>Чтобы новая страница реально закрывалась по сроку:</b> подключите первым тегом в
+    устройстве. <b>Чтобы новая страница закрывалась по сроку:</b> подключите первым тегом в
     <code>&lt;head&gt;</code> скрипт <code>&lt;script src="/app/gate.js"&gt;&lt;/script&gt;</code>.
     Для страницы без гейта ссылка тоже сгенерируется, но срок не будет ограничен —
     генератор предупредит.
@@ -96,13 +112,12 @@ function h(s){let x=7;for(let i=0;i<s.length;i++){x=((x*31)+s.charCodeAt(i))>>>0
 function makeToken(expTs){return btoa(expTs+'.'+h(expTs+SECRET)).replace(/=+$/,'')}
 let genUrl='';
 
-// ===== Каталог страниц: парсим плашки прямо с портала app.html =====
+// ===== Каталог плашек: парсим карточки прямо с портала app.html =====
 // Запасной список на случай, если портал не загрузился.
 const FALLBACK=[
-  {group:'Мобильный Агент · Выпечка',label:'🥐 Демо — вся система (4 роли)',url:location.origin+'/app/demo-bakery.html'},
-  {group:'Мобильный Агент · Выпечка',label:'📱 Мокап мобильного приложения',url:location.origin+'/app/demo-bakery-app.html'},
-  {group:'Мобильный Агент · Выпечка',label:'📄 КП — Мобильный Агент',url:location.origin+'/app/kp-bakery.html'},
-  {group:'Мобильный Агент · Выпечка',label:'🌙 CRM-демо (тёмная тема)',url:location.origin+'/app/agent/'},
+  {section:'Работа с клиентами',label:'Мобильный Агент · Выпечка',url:location.origin+'/app/agent/',icon:''},
+  {section:'Работа с клиентами',label:'Демо — Мобильный Агент (4 роли)',url:location.origin+'/app/demo-bakery.html',icon:''},
+  {section:'Работа с клиентами',label:'RL-System · Учёт проектов',url:location.origin+'/app/rl-system.html',icon:''},
 ];
 let CATALOG=[];
 
@@ -111,27 +126,19 @@ async function loadCatalog(){
     const res=await fetch('/app.html',{cache:'no-store'});
     const doc=new DOMParser().parseFromString(await res.text(),'text/html');
     const items=[];
-    doc.querySelectorAll('.tool-card').forEach(card=>{
-      if(card.dataset.appId==='linkgen')return;              // сам генератор
-      if(card.classList.contains('disabled'))return;          // «Скоро»
-      const title=(card.querySelector('h3')?.textContent||'').trim();
-      if(!title)return;
-      const seen=new Set();
-      const push=(label,href,tag)=>{
-        if(!href)return;
-        href=href.trim();
+    doc.querySelectorAll('.tools-grid').forEach(grid=>{
+      const prev=grid.previousElementSibling;
+      const section=prev&&prev.classList.contains('section-title')?prev.textContent.trim():'Портал';
+      grid.querySelectorAll('.tool-card').forEach(card=>{
+        if(card.dataset.appId==='linkgen')return;              // сам генератор
+        if(card.classList.contains('disabled'))return;          // «Скоро»
+        const label=(card.querySelector('h3')?.textContent||'').trim();
+        if(!label)return;
+        const href=card.matches('a[href]')?card.getAttribute('href'):card.querySelector('a.tool-cta')?.getAttribute('href');
         if(!href||href==='#'||href.startsWith('javascript:'))return;
-        let u;try{u=new URL(href,location.origin+'/').href}catch(e){return}
-        if(seen.has(u))return;seen.add(u);
-        items.push({group:title,label,url:u,tag});
-      };
-      const ctaEl=card.querySelector('.tool-cta');
-      const cta=(ctaEl?.textContent||'Открыть').replace(/[→↗]/g,'').trim()||'Открыть';
-      const main=card.matches('a[href]')?card.getAttribute('href'):ctaEl?.getAttribute('href');
-      push(cta,main);
-      card.querySelectorAll('.tool-dd-menu a').forEach(a=>{
-        const pdf=/\.pdf(\?|#|$)/i.test(a.getAttribute('href')||'');
-        push(a.textContent.trim(),a.getAttribute('href'),pdf?'PDF':null);
+        let url;try{url=new URL(href.trim(),location.origin+'/').href}catch(e){return}
+        const icon=card.querySelector('.tool-icon')?.outerHTML||'';
+        items.push({section,label,url,icon});
       });
     });
     if(items.length)CATALOG=items;
@@ -152,16 +159,16 @@ function renderList(q){
   q=q.trim().toLowerCase();
   const groups=new Map();
   for(const it of CATALOG){
-    if(q&&!(it.group+' '+it.label).toLowerCase().includes(q))continue;
-    if(!groups.has(it.group))groups.set(it.group,[]);
-    groups.get(it.group).push(it);
+    if(q&&!it.label.toLowerCase().includes(q))continue;
+    if(!groups.has(it.section))groups.set(it.section,[]);
+    groups.get(it.section).push(it);
   }
   let html='';
   for(const [g,arr] of groups){
     html+='<div class="cl-group">'+esc(g)+'</div>';
     for(const it of arr){
-      html+='<div class="cl-item" data-url="'+esc(it.url)+'" data-label="'+esc(it.group+' — '+it.label)+'">'
-        +esc(it.label)+(it.tag?'<span class="tag">'+esc(it.tag)+'</span>':'')+'</div>';
+      html+='<div class="cl-item" data-url="'+esc(it.url)+'" data-label="'+esc(it.label)+'">'
+        +it.icon+'<span>'+esc(it.label)+'</span></div>';
     }
   }
   if(!html&&!q)html='<div class="cl-empty">Загружаю плашки с портала…</div>';
@@ -217,7 +224,7 @@ document.getElementById('period').addEventListener('change',e=>{
 function gen(){
   let url=selected?.url;
   if(!url&&comboInput.value.trim())url=resolveTarget(comboInput.value); // вписали путь и сразу жмут кнопку
-  if(!url){alert('Выберите страницу из списка или впишите путь/URL');comboInput.focus();return}
+  if(!url){alert('Выберите плашку из списка или впишите путь/URL');comboInput.focus();return}
   const p=document.getElementById('period').value;
   let exp;
   if(p==='custom'){
