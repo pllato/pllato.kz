@@ -522,7 +522,6 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
             <a class="is-pdf" href="app/kp-bakery.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
             <a href="app/demo-bakery.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — вся система, 4 роли (врем. доступ)</a>
             <a href="app/demo-bakery-app.html" target="_blank" rel="noopener"><span class="dot"></span>Мокап — мобильное приложение агента (врем. доступ)</a>
-            <a href="app/linkgen.html" target="_blank" rel="noopener"><span class="dot"></span>🔗 Генератор временных ссылок для клиента</a>
           </div>
         </details>
         <span class="tool-badge new">Демо</span>
@@ -957,6 +956,16 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
         <span class="tool-badge new">Новое</span>
       </a>
 
+      <a href="app/linkgen.html" class="tool-card" data-app-id="linkgen">
+        <div class="tool-icon color-orange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        </div>
+        <h3>Генератор временных ссылок</h3>
+        <p>Ссылка на любое демо, КП или мокап с ограниченным сроком: 1–30 дней или до даты, после — экран «Срок истёк». Любая страница из списка или произвольный путь; копирование и отправка в WhatsApp.</p>
+        <span class="tool-cta">Открыть генератор →</span>
+        <span class="tool-badge new">Новое</span>
+      </a>
+
     </div>
 
   </div>
@@ -1020,6 +1029,7 @@ const APPS_CATALOG = [
   { id: "crm_builder",      label: "Конструктор CRM" },
   { id: "bitrix_migrator",  label: "Мигратор Bitrix" },
   { id: "contact_center",   label: "Контакт-центр" },
+  { id: "linkgen",          label: "Генератор временных ссылок" },
   { id: "offer_admin",      label: "Договоры-оферты" },
   { id: "pllato_meet",      label: "Видеовстречи" },
 ];
@@ -1640,6 +1650,24 @@ function showApp(user) {
     avatarEl.textContent = initials;
   }
   applyPermissionsAndAdminUI();
+  grantDemoAccess();
+}
+
+// Автодоступ к клиентским демо под гейтом временных ссылок (?k=...):
+// вход в портал выдаёт этому устройству токен на 180 дней (продлевается при
+// каждом входе), поэтому команда открывает все плашки без ссылок из генератора.
+// Секрет и хэш общие с app/gate.js, app/linkgen.html и инлайн-гейтами демо.
+function grantDemoAccess() {
+  try {
+    const SECRET = 'pllato-nan-dan-2026';
+    const h = (s) => { let x = 7; for (let i = 0; i < s.length; i++) { x = ((x * 31) + s.charCodeAt(i)) >>> 0; } return x.toString(36); };
+    const exp = String(Date.now() + 180 * 86400000);
+    const tok = btoa(exp + '.' + h(exp + SECRET)).replace(/=+$/, '');
+    const cur = localStorage.getItem('plk');
+    let curExp = 0;
+    if (cur) { try { curExp = parseInt(atob(cur).split('.')[0]) || 0; } catch (e) {} }
+    if (Number(exp) > curExp) localStorage.setItem('plk', tok);
+  } catch (e) {}
 }
 
 // ===== Admin Modal =====

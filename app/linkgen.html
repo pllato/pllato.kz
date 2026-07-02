@@ -14,7 +14,7 @@ h1{font-size:22px;font-weight:800;margin-bottom:6px}
 .sub{font-size:13px;color:#78716c;margin-bottom:24px}
 .card{background:#fff;border:1px solid #e7e5e4;border-radius:16px;padding:22px;margin-bottom:16px}
 label{font-size:12px;font-weight:700;color:#78716c;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
-select,input{width:100%;border:1.5px solid #e7e5e4;border-radius:10px;padding:11px 14px;font-size:14px;font-family:inherit;margin-bottom:16px;outline:none}
+select,input{width:100%;border:1.5px solid #e7e5e4;border-radius:10px;padding:11px 14px;font-size:14px;font-family:inherit;margin-bottom:16px;outline:none;background:#fff}
 select:focus,input:focus{border-color:#d97706}
 .btn{width:100%;background:#d97706;color:#fff;font-weight:800;font-size:15px;padding:13px;border-radius:12px;border:none;cursor:pointer}
 .btn:hover{background:#b45309}
@@ -25,8 +25,13 @@ select:focus,input:focus{border-color:#d97706}
 .btn2{flex:1;background:#fff;border:1.5px solid #e7e5e4;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .btn2:hover{border-color:#d97706}
 .exp-note{font-size:12.5px;color:#16a34a;font-weight:600;margin-bottom:10px}
+.gate-warn{display:none;font-size:12.5px;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;margin-bottom:10px;line-height:1.5}
+.gate-warn.show{display:block}
 .self{font-size:12px;color:#78716c;margin-top:20px;text-align:center}
 .self a{color:#d97706;font-weight:700}
+.howto{font-size:12px;color:#78716c;line-height:1.7}
+.howto b{color:#57534e}
+.howto code{background:#f5f5f4;border:1px solid #e7e5e4;border-radius:5px;padding:1px 5px;font-size:11px}
 </style>
 </head>
 <body>
@@ -35,11 +40,8 @@ select:focus,input:focus{border-color:#d97706}
   <p class="sub">Ссылка работает до указанной даты, потом клиент видит «Срок истёк». Страница-генератор непубличная — не давайте её клиентам.</p>
   <div class="card">
     <label>Страница</label>
-    <select id="target">
-      <option value="demo-bakery.html">🥐 Демо — вся система (4 роли)</option>
-      <option value="demo-bakery-app.html">📱 Мокап мобильного приложения</option>
-      <option value="kp-bakery.html">📄 КП — Мобильный Агент</option>
-    </select>
+    <select id="target" onchange="onTargetChange()"></select>
+    <input type="text" id="customTarget" style="display:none" placeholder="app/demo-xxx.html · /путь/от/корня · https://полный-адрес">
     <label>Доступ на</label>
     <select id="period">
       <option value="1">1 день</option>
@@ -53,6 +55,7 @@ select:focus,input:focus{border-color:#d97706}
     <button class="btn" onclick="gen()">Сгенерировать ссылку</button>
     <div class="result" id="result">
       <div class="exp-note" id="expNote"></div>
+      <div class="gate-warn" id="gateWarn"></div>
       <div class="link-box" id="linkBox"></div>
       <div class="row2">
         <button class="btn2" onclick="copyLink()">📋 Скопировать</button>
@@ -61,17 +64,67 @@ select:focus,input:focus{border-color:#d97706}
       </div>
     </div>
   </div>
+  <div class="card howto">
+    <b>Как это работает.</b> Срок ссылки проверяет гейт на самой странице: без свежего токена
+    клиент попадает на «Срок истёк». Вход в портал <b>pllato.kz/app</b> автоматически открывает
+    все такие страницы на вашем устройстве — ссылки нужны только клиентам.<br><br>
+    <b>Новая страница (будущая плашка):</b> подключите первым тегом в <code>&lt;head&gt;</code>
+    скрипт <code>&lt;script src="/app/gate.js"&gt;&lt;/script&gt;</code> и добавьте страницу в
+    список <code>PAGES</code> внутри этого файла (<code>app/linkgen.html</code>). Для страницы без
+    гейта ссылка тоже сгенерируется, но срок не будет ограничен — генератор предупредит.
+  </div>
   <div class="self">Для себя: <a href="#" onclick="selfAccess();return false">открыть вечный доступ на этом устройстве</a></div>
 </div>
 <script>
+// ===== Список страниц (плашек). Новые добавляй сюда — по группе на клиента. =====
+const PAGES = [
+  { group: 'Мобильный Агент · Выпечка (Бишкек)', items: [
+    { path: 'demo-bakery.html',     label: '🥐 Демо — вся система (4 роли)' },
+    { path: 'demo-bakery-app.html', label: '📱 Мокап мобильного приложения' },
+    { path: 'kp-bakery.html',       label: '📄 КП — Мобильный Агент' },
+    { path: 'agent/',               label: '🌙 CRM-демо (тёмная тема)' },
+  ]},
+];
+
 const SECRET='pllato-nan-dan-2026';
 function h(s){let x=7;for(let i=0;i<s.length;i++){x=((x*31)+s.charCodeAt(i))>>>0}return x.toString(36)}
 function makeToken(expTs){return btoa(expTs+'.'+h(expTs+SECRET)).replace(/=+$/,'')}
 let genUrl='';
+
+// Наполняем селект из PAGES + пункт «другая страница»
+(function(){
+  const sel=document.getElementById('target');
+  for(const g of PAGES){
+    const og=document.createElement('optgroup');og.label=g.group;
+    for(const p of g.items){const o=document.createElement('option');o.value=p.path;o.textContent=p.label;og.appendChild(o)}
+    sel.appendChild(og);
+  }
+  const o=document.createElement('option');o.value='__custom';o.textContent='✏️ Другая страница — путь или URL…';
+  sel.appendChild(o);
+})();
+function onTargetChange(){
+  const custom=document.getElementById('target').value==='__custom';
+  document.getElementById('customTarget').style.display=custom?'block':'none';
+  if(custom)document.getElementById('customTarget').focus();
+}
 document.getElementById('period').addEventListener('change',e=>{
   document.getElementById('customDate').style.display=e.target.value==='custom'?'block':'none';
 });
+
+// Путь → абсолютный URL: полный URL как есть, /путь — от корня сайта, иначе — от папки app/
+function resolveTarget(t){
+  t=t.trim();
+  if(!t)return null;
+  if(/^https?:\/\//i.test(t))return t;
+  if(t.startsWith('/'))return location.origin+t;
+  return location.href.replace(/linkgen\.html.*$/,'')+t;
+}
+
 function gen(){
+  let target=document.getElementById('target').value;
+  if(target==='__custom')target=document.getElementById('customTarget').value;
+  const url=resolveTarget(target);
+  if(!url){alert('Укажите страницу');return}
   const p=document.getElementById('period').value;
   let exp;
   if(p==='custom'){
@@ -82,15 +135,29 @@ function gen(){
     exp=Date.now()+parseInt(p)*86400000;
   }
   const t=makeToken(String(exp));
-  const target=document.getElementById('target').value;
-  const base=location.href.replace(/linkgen\.html.*$/,'');
-  genUrl=base+target+(target.includes('?')?'&':'?')+'k='+t;
+  genUrl=url+(url.includes('?')?'&':'?')+'k='+t;
   document.getElementById('linkBox').textContent=genUrl;
   document.getElementById('expNote').textContent='✅ Действует до: '+new Date(exp).toLocaleString('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
   document.getElementById('result').classList.add('show');
+  checkGate(url);
 }
+
+// Проверяем, есть ли на целевой странице гейт: если нет — ссылка вечная, предупреждаем
+async function checkGate(url){
+  const warn=document.getElementById('gateWarn');
+  warn.classList.remove('show');
+  if(!url.startsWith(location.origin))return; // чужой домен не проверить
+  try{
+    const html=await (await fetch(url,{cache:'no-store'})).text();
+    if(!html.includes('time-limited access gate')&&!html.includes('gate.js')){
+      warn.textContent='⚠️ На этой странице нет гейта — ссылка откроется, но срок действия ограничен не будет. Подключите /app/gate.js в <head> страницы.';
+      warn.classList.add('show');
+    }
+  }catch(e){}
+}
+
 function copyLink(){navigator.clipboard.writeText(genUrl).then(()=>alert('Скопировано!'))}
-function waLink(){window.open('https://wa.me/?text='+encodeURIComponent('Демо системы «Мобильный Агент» (доступ временный): '+genUrl),'_blank')}
+function waLink(){window.open('https://wa.me/?text='+encodeURIComponent('Ссылка на демо (доступ временный): '+genUrl),'_blank')}
 function selfAccess(){
   const exp=String(Date.now()+3650*86400000);
   localStorage.setItem('plk',makeToken(exp));
