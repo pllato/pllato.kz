@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Шахматы онлайн · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231c1917'/%3E%3Ctext x='5' y='24' font-size='20'%3E%E2%99%9E%3C/text%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Inter',sans-serif;background:#f5f5f4;color:#1c1917;min-height:100vh}
+button{font-family:inherit;cursor:pointer}
+.wrap{max-width:920px;margin:0 auto;padding:18px 14px 60px}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.top .mark{width:34px;height:34px;border-radius:9px;background:#1c1917;color:#fbbf24;display:flex;align-items:center;justify-content:center;font-size:19px;flex:none}
+.top h1{font-size:17px;font-weight:800;letter-spacing:-.3px}
+.top .sub{font-size:11.5px;color:#78716c}
+.card{background:#fff;border:1px solid #e7e5e4;border-radius:16px;padding:20px;margin-bottom:14px}
+label{font-size:11px;font-weight:700;color:#78716c;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+input{width:100%;border:1.5px solid #e7e5e4;border-radius:10px;padding:11px 14px;font-size:15px;font-family:inherit;outline:none;background:#fff}
+input:focus{border-color:#d97706}
+.btn{width:100%;background:#d97706;color:#fff;font-weight:800;font-size:15px;padding:13px;border-radius:12px;border:none;margin-top:12px}
+.btn:hover{background:#b45309}
+.btn.ghost{background:#fff;color:#1c1917;border:1.5px solid #e7e5e4;font-weight:700}
+.btn.ghost:hover{border-color:#d97706}
+.btn:disabled{opacity:.45;cursor:default}
+.home-title{font-size:15px;font-weight:800;margin-bottom:4px}
+.home-sub{font-size:12.5px;color:#78716c;margin-bottom:14px;line-height:1.5}
+/* game header */
+.ghead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.code-chip{background:#1c1917;color:#fbbf24;font-weight:800;font-size:14px;letter-spacing:2px;padding:7px 12px;border-radius:10px;font-family:monospace}
+.mini{background:#fff;border:1.5px solid #e7e5e4;border-radius:10px;padding:7px 11px;font-size:12.5px;font-weight:700;border:1.5px solid #e7e5e4}
+.mini:hover{border-color:#d97706}
+.conn{margin-left:auto;font-size:11.5px;font-weight:600;color:#78716c;display:flex;align-items:center;gap:5px}
+.dot{width:8px;height:8px;border-radius:50%;background:#dc2626;flex:none}
+.dot.on{background:#16a34a}
+/* players */
+.pl-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.pl{flex:1;display:flex;align-items:center;gap:9px;background:#fff;border:1.5px solid #e7e5e4;border-radius:12px;padding:9px 12px;min-width:0}
+.pl.turn{border-color:#d97706;box-shadow:0 0 0 3px rgba(217,119,6,.12)}
+.pl .pav{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:19px;flex:none}
+.pl .pav.w{background:#f5f5f4;border:1px solid #e7e5e4}
+.pl .pav.b{background:#1c1917;color:#fff}
+.pl .pn{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl .ps{font-size:10.5px;color:#a8a29e;font-weight:600}
+.vs{font-size:11px;font-weight:800;color:#a8a29e}
+/* status */
+.status{border-radius:12px;padding:10px 14px;font-size:13.5px;font-weight:700;margin-bottom:12px;text-align:center;background:#eff6ff;color:#2563eb;border:1px solid #dbeafe}
+.status.me{background:#f0fdf4;color:#16a34a;border-color:#dcfce7}
+.status.warn{background:#fef3c7;color:#b45309;border-color:#fde68a}
+.status.end{background:#1c1917;color:#fbbf24;border-color:#1c1917}
+/* board */
+.board-wrap{display:flex;justify-content:center}
+.board{display:grid;grid-template-columns:repeat(8,1fr);width:min(92vw,480px);aspect-ratio:1;border-radius:10px;overflow:hidden;border:3px solid #8d6e4f;user-select:none;touch-action:manipulation}
+.sq{position:relative;display:flex;align-items:center;justify-content:center;font-size:min(9vw,46px);line-height:1;cursor:pointer}
+.sq.l{background:#f0d9b5}.sq.d{background:#b58863}
+.sq .pc{pointer-events:none;transform:translateY(-2%)}
+.sq .pc.w{color:#fdfdfd;text-shadow:0 1.5px 0 #6b6b6b,0 0 2px rgba(0,0,0,.55)}
+.sq .pc.b{color:#1f1d1b;text-shadow:0 1px 1px rgba(255,255,255,.25)}
+.sq.sel{outline:3px solid #d97706;outline-offset:-3px}
+.sq.last{box-shadow:inset 0 0 0 100px rgba(217,119,6,.22)}
+.sq.chk{box-shadow:inset 0 0 0 100px rgba(220,38,38,.4)}
+.sq .hint{position:absolute;width:26%;height:26%;border-radius:50%;background:rgba(28,25,23,.25)}
+.sq .hint.cap{width:88%;height:88%;background:none;border:4px solid rgba(28,25,23,.3);border-radius:50%}
+.sq .crd{position:absolute;font-size:9px;font-weight:700;opacity:.55;pointer-events:none}
+.sq .crd.f{right:3px;bottom:2px}.sq .crd.r{left:3px;top:2px}
+/* under board */
+.caps{display:flex;justify-content:space-between;width:min(92vw,480px);margin:8px auto 0;font-size:16px;min-height:22px;color:#57534e}
+.caps .md{font-size:12px;font-weight:800;color:#78716c;align-self:center}
+.ctrl{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.moves{font-size:12.5px;color:#57534e;line-height:2;max-height:130px;overflow-y:auto;font-variant-numeric:tabular-nums}
+.moves b{color:#a8a29e;font-weight:700;margin-right:2px}
+.moves span{margin-right:9px;white-space:nowrap}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:#a8a29e;margin-bottom:8px;font-weight:800}
+/* share */
+.share-line{display:flex;gap:8px;margin-top:12px}
+.share-line .btn{margin-top:0;font-size:13px;padding:11px}
+.link-box{background:#1c1917;color:#fbbf24;font-size:11.5px;padding:12px;border-radius:10px;word-break:break-all;font-family:monospace;margin-top:12px}
+/* overlay modal */
+.modal{position:fixed;inset:0;background:rgba(28,25,23,.55);display:none;align-items:center;justify-content:center;z-index:40;padding:20px}
+.modal.show{display:flex}
+.modal .mcard{background:#fff;border-radius:18px;padding:24px;max-width:340px;width:100%;text-align:center}
+.modal .mcard h3{font-size:17px;font-weight:800;margin-bottom:8px}
+.modal .mcard p{font-size:13px;color:#78716c;margin-bottom:16px;line-height:1.5}
+.promo-row{display:flex;gap:10px;justify-content:center}
+.promo-row button{font-size:40px;background:#f5f5f4;border:2px solid #e7e5e4;border-radius:12px;width:64px;height:64px;line-height:1}
+.promo-row button:hover{border-color:#d97706}
+.hidden{display:none!important}
+@media(min-width:860px){
+  .cols{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="mark">♞</div>
+    <div><h1>Шахматы онлайн</h1><div class="sub">Pllato · двое на разных устройствах</div></div>
+  </div>
+
+  <!-- ===== HOME ===== -->
+  <div id="home">
+    <div class="card">
+      <div class="home-title">Новая партия</div>
+      <div class="home-sub">Создайте игру и отправьте сопернику ссылку или код — он подключится со своего устройства. Вы играете белыми.</div>
+      <label>Ваше имя</label>
+      <input id="nameNew" placeholder="Игрок" maxlength="24">
+      <button class="btn" onclick="createGame()">♟ Создать игру</button>
+    </div>
+    <div class="card">
+      <div class="home-title">Присоединиться</div>
+      <div class="home-sub">Введите код партии, который прислал соперник.</div>
+      <label>Код партии</label>
+      <input id="codeJoin" placeholder="Например: K7KPX" maxlength="5" style="text-transform:uppercase;letter-spacing:3px;font-family:monospace;font-weight:700">
+      <label style="margin-top:12px">Ваше имя</label>
+      <input id="nameJoin" placeholder="Игрок" maxlength="24">
+      <button class="btn" onclick="joinFromHome()">Войти в игру</button>
+    </div>
+  </div>
+
+  <!-- ===== GAME ===== -->
+  <div id="game" class="hidden">
+    <div class="ghead">
+      <div class="code-chip" id="codeChip">·····</div>
+      <button class="mini" onclick="copyLink()">🔗 Ссылка</button>
+      <button class="mini" onclick="waShare()">💬 WhatsApp</button>
+      <div class="conn"><span class="dot" id="connDot"></span><span id="connTxt">нет связи</span></div>
+    </div>
+
+    <div class="cols">
+      <div>
+        <div class="pl-row">
+          <div class="pl" id="plW"><div class="pav w">♔</div><div style="min-width:0"><div class="pn" id="pnW">Белые</div><div class="ps" id="psW">—</div></div></div>
+          <div class="vs">VS</div>
+          <div class="pl" id="plB"><div class="pav b">♚</div><div style="min-width:0"><div class="pn" id="pnB">Чёрные</div><div class="ps" id="psB">—</div></div></div>
+        </div>
+        <div class="status" id="statusBar">Подключение…</div>
+        <div class="board-wrap"><div class="board" id="board"></div></div>
+        <div class="caps"><div id="capW"></div><div class="md" id="matDiff"></div><div id="capB"></div></div>
+        <div class="ctrl" id="ctrl">
+          <button class="mini" id="btnDraw" onclick="offerDraw()">½ Предложить ничью</button>
+          <button class="mini" id="btnResign" onclick="resign()">🏳 Сдаться</button>
+          <button class="mini hidden" id="btnRematch" onclick="rematch()">🔄 Реванш</button>
+        </div>
+      </div>
+      <div>
+        <div class="card" id="waitCard" style="display:none">
+          <div class="home-title">Ждём соперника…</div>
+          <div class="home-sub">Отправьте эту ссылку — соперник откроет её на своём устройстве и сядет за чёрных.</div>
+          <div class="link-box" id="linkBox"></div>
+          <div class="share-line">
+            <button class="btn ghost" onclick="copyLink()">📋 Скопировать</button>
+            <button class="btn" onclick="waShare()">💬 WhatsApp</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Ходы</h2>
+          <div class="moves" id="movesList">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- promotion -->
+<div class="modal" id="promoModal">
+  <div class="mcard">
+    <h3>Превращение пешки</h3>
+    <p>Выберите фигуру</p>
+    <div class="promo-row" id="promoRow"></div>
+  </div>
+</div>
+<!-- draw offer -->
+<div class="modal" id="drawModal">
+  <div class="mcard">
+    <h3>Соперник предлагает ничью</h3>
+    <p>Согласиться и завершить партию миром?</p>
+    <button class="btn" onclick="answerDraw(true)">Согласиться ½–½</button>
+    <button class="btn ghost" onclick="answerDraw(false)">Играть дальше</button>
+  </div>
+</div>
+
+<script>
+/*ENGINE-START*/
+// Доска: массив 64, индекс 0 = a8 … 63 = h1. Белые фигуры — ЗАГЛАВНЫЕ (FEN-стиль).
+const FILES='abcdefgh';
+const START_FEN='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+function sqIdx(s){return (8-+s[1])*8+FILES.indexOf(s[0])}
+function sqName(i){return FILES[i%8]+(8-(i>>3))}
+const isW=p=>p===p.toUpperCase();
+const colorOf=p=>isW(p)?'w':'b';
+function parseFEN(fen){
+  const [bd,t,c,ep,h,f]=fen.split(' ');
+  const b=new Array(64).fill(null);let i=0;
+  for(const ch of bd){if(ch==='/')continue;if(ch>='1'&&ch<='8')i+=+ch;else b[i++]=ch}
+  return {b,t,c:{K:c.includes('K'),Q:c.includes('Q'),k:c.includes('k'),q:c.includes('q')},
+    ep:ep&&ep!=='-'?sqIdx(ep):-1,h:+h||0,f:+f||1};
+}
+const KN=[-17,-15,-10,-6,6,10,15,17];
+const KG=[-9,-8,-7,-1,1,7,8,9];
+const RAYS=[[-8,'RQ'],[8,'RQ'],[-1,'RQ'],[1,'RQ'],[-9,'BQ'],[-7,'BQ'],[7,'BQ'],[9,'BQ']];
+function isAttacked(b,sq,by){
+  const F=sq%8;
+  if(by==='w'){for(const d of[7,9]){const a=sq+d;if(a<64&&Math.abs(a%8-F)===1&&b[a]==='P')return true}}
+  else{for(const d of[-7,-9]){const a=sq+d;if(a>=0&&Math.abs(a%8-F)===1&&b[a]==='p')return true}}
+  for(const d of KN){const a=sq+d;if(a<0||a>63)continue;
+    const need=(d===17||d===-17||d===15||d===-15)?1:2;
+    if(Math.abs(a%8-F)!==need)continue;
+    const p=b[a];if(p&&colorOf(p)===by&&p.toUpperCase()==='N')return true}
+  for(const d of KG){const a=sq+d;if(a<0||a>63)continue;if(Math.abs(a%8-F)>1)continue;
+    const p=b[a];if(p&&colorOf(p)===by&&p.toUpperCase()==='K')return true}
+  for(const [d,types] of RAYS){
+    let cur=sq;
+    for(;;){const a=cur+d;if(a<0||a>63)break;if(Math.abs(a%8-cur%8)>1)break;
+      const p=b[a];if(p){if(colorOf(p)===by&&types.includes(p.toUpperCase()))return true;break}cur=a}
+  }
+  return false;
+}
+function kingSq(b,col){const k=col==='w'?'K':'k';for(let i=0;i<64;i++)if(b[i]===k)return i;return -1}
+function inCheck(pos,col){const k=kingSq(pos.b,col);return k>=0&&isAttacked(pos.b,k,col==='w'?'b':'w')}
+function pseudoMoves(pos,from){
+  const b=pos.b,p=b[from];if(!p)return[];
+  const col=colorOf(p),T=p.toUpperCase(),F=from%8,R=from>>3,out=[];
+  const add=(t,extra)=>out.push(Object.assign({f:from,t},extra));
+  if(T==='P'){
+    const dir=col==='w'?-8:8,startR=col==='w'?6:1,promoR=col==='w'?0:7;
+    const one=from+dir;
+    if(one>=0&&one<64&&!b[one]){
+      if((one>>3)===promoR){for(const pr of['Q','R','B','N'])add(one,{promo:pr})}
+      else{add(one);const two=from+2*dir;if(R===startR&&!b[two])add(two,{flag:'2'})}
+    }
+    for(const dd of[dir-1,dir+1]){
+      const t=from+dd;if(t<0||t>63)continue;if(Math.abs(t%8-F)!==1)continue;
+      if(b[t]&&colorOf(b[t])!==col){
+        if((t>>3)===promoR){for(const pr of['Q','R','B','N'])add(t,{promo:pr})}else add(t);
+      }else if(t===pos.ep&&!b[t])add(t,{flag:'ep'});
+    }
+  }else if(T==='N'){
+    for(const d of KN){const a=from+d;if(a<0||a>63)continue;
+      const need=(d===17||d===-17||d===15||d===-15)?1:2;
+      if(Math.abs(a%8-F)!==need)continue;
+      if(!b[a]||colorOf(b[a])!==col)add(a)}
+  }else if(T==='K'){
+    for(const d of KG){const a=from+d;if(a<0||a>63)continue;if(Math.abs(a%8-F)>1)continue;
+      if(!b[a]||colorOf(b[a])!==col)add(a)}
+    if(col==='w'&&from===60){
+      if(pos.c.K&&!b[61]&&!b[62]&&b[63]==='R'&&!isAttacked(b,60,'b')&&!isAttacked(b,61,'b')&&!isAttacked(b,62,'b'))add(62,{flag:'ck'});
+      if(pos.c.Q&&!b[59]&&!b[58]&&!b[57]&&b[56]==='R'&&!isAttacked(b,60,'b')&&!isAttacked(b,59,'b')&&!isAttacked(b,58,'b'))add(58,{flag:'cq'});
+    }
+    if(col==='b'&&from===4){
+      if(pos.c.k&&!b[5]&&!b[6]&&b[7]==='r'&&!isAttacked(b,4,'w')&&!isAttacked(b,5,'w')&&!isAttacked(b,6,'w'))add(6,{flag:'ck'});
+      if(pos.c.q&&!b[3]&&!b[2]&&!b[1]&&b[0]==='r'&&!isAttacked(b,4,'w')&&!isAttacked(b,3,'w')&&!isAttacked(b,2,'w'))add(2,{flag:'cq'});
+    }
+  }else{
+    const dirs=T==='R'?[[-8],[8],[-1],[1]]:T==='B'?[[-9],[-7],[7],[9]]:[[-8],[8],[-1],[1],[-9],[-7],[7],[9]];
+    for(const [d] of dirs){
+      let cur=from;
+      for(;;){const a=cur+d;if(a<0||a>63)break;if(Math.abs(a%8-cur%8)>1)break;
+        if(!b[a]){add(a);cur=a;continue}
+        if(colorOf(b[a])!==col)add(a);
+        break}
+    }
+  }
+  return out;
+}
+function apply(pos,m){
+  const b=pos.b.slice(),p=b[m.f],col=colorOf(p);
+  const np={b,t:col==='w'?'b':'w',c:Object.assign({},pos.c),ep:-1,h:pos.h+1,f:pos.f+(col==='b'?1:0)};
+  if(p.toUpperCase()==='P'||b[m.t])np.h=0;
+  b[m.t]=m.promo?(col==='w'?m.promo:m.promo.toLowerCase()):p;
+  b[m.f]=null;
+  if(m.flag==='ep')b[m.t+(col==='w'?8:-8)]=null;
+  if(m.flag==='2')np.ep=m.f+(col==='w'?-8:8);
+  if(m.flag==='ck'){const r=col==='w'?63:7;b[r-2]=b[r];b[r]=null}
+  if(m.flag==='cq'){const r=col==='w'?56:0;b[r+3]=b[r];b[r]=null}
+  if(p==='K'){np.c.K=false;np.c.Q=false}
+  if(p==='k'){np.c.k=false;np.c.q=false}
+  if(m.f===63||m.t===63)np.c.K=false;
+  if(m.f===56||m.t===56)np.c.Q=false;
+  if(m.f===7||m.t===7)np.c.k=false;
+  if(m.f===0||m.t===0)np.c.q=false;
+  return np;
+}
+function legalFrom(pos,from){
+  if(!pos.b[from]||colorOf(pos.b[from])!==pos.t)return[];
+  return pseudoMoves(pos,from).filter(m=>!inCheck(apply(pos,m),pos.t));
+}
+function allLegal(pos){
+  const out=[];
+  for(let i=0;i<64;i++){const p=pos.b[i];if(p&&colorOf(p)===pos.t)out.push(...legalFrom(pos,i))}
+  return out;
+}
+function insufficient(b){
+  const rest=b.filter(Boolean).map(p=>p.toUpperCase()).filter(p=>p!=='K');
+  if(!rest.length)return true;
+  if(rest.length===1&&(rest[0]==='N'||rest[0]==='B'))return true;
+  return false;
+}
+// 'play' | 'check' | 'mate' | 'stalemate' | 'draw50' | 'material'
+function gameStatus(pos){
+  if(!allLegal(pos).length)return inCheck(pos,pos.t)?'mate':'stalemate';
+  if(pos.h>=100)return 'draw50';
+  if(insufficient(pos.b))return 'material';
+  return inCheck(pos,pos.t)?'check':'play';
+}
+function perft(pos,d){
+  if(d===0)return 1;
+  let n=0;
+  for(const m of allLegal(pos))n+=perft(apply(pos,m),d-1);
+  return n;
+}
+/*ENGINE-END*/
+
+// ===== Приложение =====
+const WS_BASE='wss://pllato-meet.uurraa.workers.dev/room/chess-';
+const ALPHABET='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const GLYPH={K:'♚',Q:'♛',R:'♜',B:'♝',N:'♞',P:'♟'};
+const VAL={P:1,N:3,B:3,R:5,Q:9,K:0};
+const TOK=(()=>{let t=localStorage.getItem('chess_tok');
+  if(!t){t='t'+Array.from(crypto.getRandomValues(new Uint8Array(12))).map(x=>x.toString(36)[0]).join('')+Date.now().toString(36);
+    localStorage.setItem('chess_tok',t)}
+  return t})();
+
+let G=null;          // состояние партии {code,w:{tok,name},b:{tok,name},moves:[{f,t,p?}],rev,res,draw}
+let sel=-1, legalCache=[], pos=null, notation=[], lastMv=null, ended=null;
+let ws=null, wsOK=false, oppOnline=false, hbT=null;
+let pendingPromo=null;
+
+const $=id=>document.getElementById(id);
+const myName=()=>localStorage.getItem('chess_name')||'Игрок';
+const myColor=()=>!G?null:(G.w&&G.w.tok===TOK?'w':(G.b&&G.b.tok===TOK?'b':null));
+const oppTok=()=>{const c=myColor();return c==='w'?(G.b&&G.b.tok):c==='b'?(G.w&&G.w.tok):null};
+const gameLink=()=>location.origin+location.pathname+'?g='+G.code;
+
+function newCode(){let s='';const r=crypto.getRandomValues(new Uint8Array(5));
+  for(let i=0;i<5;i++)s+=ALPHABET[r[i]%ALPHABET.length];return s}
+
+function saveLocal(){if(G)localStorage.setItem('chess_game_'+G.code,JSON.stringify(G));
+  localStorage.setItem('chess_last',G?G.code:'')}
+
+// ===== Домашний экран =====
+function createGame(){
+  const name=($('nameNew').value||'').trim()||'Игрок';
+  localStorage.setItem('chess_name',name);
+  G={code:newCode(),w:{tok:TOK,name},b:null,moves:[],rev:1,res:null,draw:null};
+  saveLocal();
+  history.replaceState(null,'','?g='+G.code);
+  enterGame();
+}
+function joinFromHome(){
+  const code=($('codeJoin').value||'').trim().toUpperCase();
+  if(code.length!==5){alert('Код — 5 символов');return}
+  const name=($('nameJoin').value||'').trim()||'Игрок';
+  localStorage.setItem('chess_name',name);
+  location.search='?g='+code;
+}
+
+// ===== Сеть =====
+function connect(){
+  try{ws=new WebSocket(WS_BASE+G.code.toLowerCase())}catch(e){setTimeout(connect,3000);return}
+  ws.onopen=()=>{wsOK=true;renderConn();
+    ws.send(JSON.stringify({t:'join',peer:TOK,name:myName(),hostKey:TOK}));
+    clearInterval(hbT);hbT=setInterval(()=>{try{ws.send(JSON.stringify({t:'presence',patch:{}}))}catch(e){}},25000);
+  };
+  ws.onmessage=e=>{
+    let m;try{m=JSON.parse(e.data)}catch(x){return}
+    if(m.t==='welcome'){
+      oppOnline=!!(oppTok()&&m.peers.some(p=>p.peer===oppTok()));
+      // объявляемся всем в комнате — у кого партия новее, тот пришлёт состояние
+      for(const p of m.peers)sig(p.peer,{c:'hi',rev:G?G.rev:0});
+      renderAll();
+    }
+    if(m.t==='peer-join'){
+      if(oppTok()&&m.peer===oppTok())oppOnline=true;
+      sig(m.peer,{c:'hi',rev:G?G.rev:0});
+      renderConn();
+    }
+    if(m.t==='peer-leave'){if(oppTok()&&m.peer===oppTok())oppOnline=false;renderConn()}
+    if(m.t==='signal'&&m.data)onChessMsg(m.from,m.data);
+  };
+  ws.onclose=()=>{wsOK=false;oppOnline=false;renderConn();clearInterval(hbT);setTimeout(connect,2000)};
+  ws.onerror=()=>{try{ws.close()}catch(e){}};
+}
+function sig(to,data){if(ws&&wsOK&&to)try{ws.send(JSON.stringify({t:'signal',to,data}))}catch(e){}}
+function broadcastState(){
+  if(!G)return;
+  if(oppTok())sig(oppTok(),{c:'st',g:G});
+}
+function onChessMsg(from,d){
+  if(d.c==='hi'){
+    if(G&&G.rev>(d.rev||0))sig(from,{c:'st',g:G});
+    return;
+  }
+  if(d.c==='st'&&d.g&&d.g.code){
+    if(G&&d.g.code!==G.code)return;
+    if(!G||d.g.rev>G.rev){
+      G=d.g;
+      claimSeatIfFree();
+      saveLocal();rebuild();renderAll();
+    }
+    return;
+  }
+}
+function claimSeatIfFree(){
+  if(!G)return;
+  if(G.w&&G.w.tok===TOK)return;
+  if(G.b&&G.b.tok===TOK)return;
+  if(!G.b){G.b={tok:TOK,name:myName()};G.rev++;saveLocal();broadcastState()}
+}
+
+// ===== Партия: восстановление позиции из списка ходов =====
+function rebuild(){
+  pos=parseFEN(START_FEN);notation=[];lastMv=null;ended=null;
+  for(const mv of G.moves){
+    const legal=legalFrom(pos,mv.f);
+    const m=legal.find(x=>x.t===mv.t&&(x.promo||null)===(mv.p||null));
+    if(!m){ended={type:'corrupt'};return}
+    notation.push(noteFor(pos,m));
+    pos=apply(pos,m);lastMv=m;
+  }
+  const st=gameStatus(pos);
+  if(st==='mate')ended={type:'mate',winner:pos.t==='w'?'b':'w'};
+  else if(st==='stalemate')ended={type:'stalemate'};
+  else if(st==='draw50')ended={type:'draw50'};
+  else if(st==='material')ended={type:'material'};
+  if(G.res){
+    if(G.res.type==='resign')ended={type:'resign',winner:G.res.by==='w'?'b':'w'};
+    if(G.res.type==='draw')ended={type:'agreed'};
+  }
+}
+function noteFor(p0,m){
+  const p=p0.b[m.f],T=p.toUpperCase();
+  if(m.flag==='ck')return 'O-O';
+  if(m.flag==='cq')return 'O-O-O';
+  const cap=p0.b[m.t]||m.flag==='ep';
+  let s=(T==='P'?'':GLYPH[T]+' ')+sqName(m.f)+(cap?'×':'–')+sqName(m.t);
+  if(m.promo)s+='='+GLYPH[m.promo];
+  const np=apply(p0,m);
+  const st=gameStatus(np);
+  if(st==='mate')s+='#';else if(st==='check')s+='+';
+  return s;
+}
+
+// ===== Ходы игрока =====
+function onSquare(i){
+  if(!G||ended||!pos)return;
+  const mc=myColor();
+  if(!mc||pos.t!==mc)return;              // не ваш ход (или зритель)
+  if(!G.w||!G.b)return;                   // соперник ещё не сел
+  const p=pos.b[i];
+  if(sel>=0){
+    const mvs=legalCache.filter(m=>m.t===i);
+    if(mvs.length){
+      if(mvs[0].promo){showPromo(mvs)}else{makeMove(mvs[0])}
+      return;
+    }
+  }
+  if(p&&colorOf(p)===mc){sel=i;legalCache=legalFrom(pos,i)}
+  else{sel=-1;legalCache=[]}
+  renderBoard();
+}
+function makeMove(m){
+  sel=-1;legalCache=[];
+  G.moves.push({f:m.f,t:m.t,p:m.promo||undefined});
+  G.draw=null;G.rev++;
+  rebuild();saveLocal();broadcastState();renderAll();
+}
+function showPromo(mvs){
+  pendingPromo=mvs;
+  const row=$('promoRow');row.innerHTML='';
+  for(const pr of ['Q','R','B','N']){
+    const b=document.createElement('button');
+    b.textContent=GLYPH[pr];
+    b.style.color=myColor()==='w'?'#78716c':'#1c1917';
+    b.onclick=()=>{$('promoModal').classList.remove('show');
+      makeMove(pendingPromo.find(x=>x.promo===pr));pendingPromo=null};
+    row.appendChild(b);
+  }
+  $('promoModal').classList.add('show');
+}
+function resign(){
+  if(!G||ended||!myColor())return;
+  if(!confirm('Сдаться? Партия будет засчитана как поражение.'))return;
+  G.res={type:'resign',by:myColor()};G.rev++;
+  rebuild();saveLocal();broadcastState();renderAll();
+}
+function offerDraw(){
+  if(!G||ended||!myColor())return;
+  G.draw=myColor();G.rev++;
+  saveLocal();broadcastState();renderAll();
+  $('statusBar').textContent='Предложение ничьей отправлено…';
+}
+function answerDraw(yes){
+  $('drawModal').classList.remove('show');
+  if(!G)return;
+  if(yes){G.res={type:'draw'};G.draw=null}
+  else G.draw=null;
+  G.rev++;rebuild();saveLocal();broadcastState();renderAll();
+}
+function rematch(){
+  if(!G||!ended)return;
+  const w=G.b,b=G.w;             // меняемся цветами
+  G={code:G.code,w,b,moves:[],rev:G.rev+1,res:null,draw:null};
+  saveLocal();rebuild();broadcastState();renderAll();
+}
+
+// ===== Рендер =====
+function renderConn(){
+  $('connDot').className='dot'+(wsOK?' on':'');
+  $('connTxt').textContent=!wsOK?'нет связи':
+    (oppTok()?(oppOnline?'соперник в сети':'соперник не в сети'):'в сети');
+}
+function renderBoard(){
+  const flip=myColor()==='b';
+  const bd=$('board');bd.innerHTML='';
+  const mc=myColor();
+  const kSq=pos&&gameStatus(pos)!=='play'&&inCheck(pos,pos.t)?kingSq(pos.b,pos.t):-1;
+  for(let vis=0;vis<64;vis++){
+    const i=flip?63-vis:vis;
+    const cell=document.createElement('div');
+    const f=i%8,r=i>>3;
+    cell.className='sq '+(((f+r)%2===0)?'l':'d');
+    if(sel===i)cell.classList.add('sel');
+    if(lastMv&&(lastMv.f===i||lastMv.t===i))cell.classList.add('last');
+    if(kSq===i)cell.classList.add('chk');
+    const p=pos?pos.b[i]:null;
+    if(p){const sp=document.createElement('span');
+      sp.className='pc '+colorOf(p);sp.textContent=GLYPH[p.toUpperCase()];cell.appendChild(sp)}
+    if(legalCache.some(m=>m.t===i)){
+      const h=document.createElement('span');
+      h.className='hint'+(p?' cap':'');cell.appendChild(h);
+    }
+    const vf=flip?7-f:f, vr=flip?7-r:r;
+    if(vr===7){const c=document.createElement('span');c.className='crd f';c.textContent=FILES[f];cell.appendChild(c)}
+    if(vf===0){const c=document.createElement('span');c.className='crd r';c.textContent=8-r;cell.appendChild(c)}
+    cell.onclick=()=>onSquare(i);
+    bd.appendChild(cell);
+  }
+}
+function renderCaps(){
+  if(!pos){$('capW').textContent='';$('capB').textContent='';$('matDiff').textContent='';return}
+  const startCnt={P:8,N:2,B:2,R:2,Q:1,K:1};
+  const left={w:{},b:{}};
+  for(const p of pos.b)if(p)left[colorOf(p)][p.toUpperCase()]=(left[colorOf(p)][p.toUpperCase()]||0)+1;
+  let capByW='',capByB='',mw=0,mb=0;
+  for(const t of ['Q','R','B','N','P']){
+    const lostB=startCnt[t]-(left.b[t]||0);      // чёрные фигуры, съеденные белыми
+    const lostW=startCnt[t]-(left.w[t]||0);
+    capByW+=GLYPH[t].repeat(Math.max(0,lostB));
+    capByB+=GLYPH[t].repeat(Math.max(0,lostW));
+    mw+=VAL[t]*Math.max(0,lostB);mb+=VAL[t]*Math.max(0,lostW);
+  }
+  $('capW').textContent=capByW;$('capB').textContent=capByB;
+  const d=mw-mb;
+  $('matDiff').textContent=d===0?'':(d>0?'+'+d+' у белых':'+'+(-d)+' у чёрных');
+}
+function renderMoves(){
+  const el=$('movesList');
+  if(!notation.length){el.textContent='—';return}
+  let html='';
+  for(let i=0;i<notation.length;i+=2){
+    html+='<span><b>'+(i/2+1)+'.</b>'+notation[i]+(notation[i+1]?' '+notation[i+1]:'')+'</span>';
+  }
+  el.innerHTML=html;el.scrollTop=el.scrollHeight;
+}
+function resultText(){
+  if(!ended)return '';
+  const nm=c=>c==='w'?((G.w&&G.w.name)||'Белые'):((G.b&&G.b.name)||'Чёрные');
+  switch(ended.type){
+    case 'mate':return '♛ Мат! Победа: '+nm(ended.winner)+(ended.winner==='w'?' (белые)':' (чёрные)');
+    case 'resign':return '🏳 '+nm(ended.winner==='w'?'b':'w')+' сдался. Победа: '+nm(ended.winner);
+    case 'stalemate':return 'Пат — ничья';
+    case 'draw50':return 'Ничья: правило 50 ходов';
+    case 'material':return 'Ничья: недостаточно фигур для мата';
+    case 'agreed':return '½–½ Ничья по соглашению';
+    case 'corrupt':return 'Ошибка данных партии';
+  }
+  return '';
+}
+function renderAll(){
+  if(!G)return;
+  $('codeChip').textContent=G.code;
+  $('linkBox').textContent=gameLink();
+  const mc=myColor();
+  $('pnW').textContent=(G.w&&G.w.name)||'Белые';
+  $('pnB').textContent=(G.b&&G.b.name)||'— свободно —';
+  $('psW').textContent='белые'+(mc==='w'?' · вы':'');
+  $('psB').textContent=G.b?('чёрные'+(mc==='b'?' · вы':'')):'ждём…';
+  $('plW').classList.toggle('turn',!ended&&pos&&pos.t==='w');
+  $('plB').classList.toggle('turn',!ended&&pos&&pos.t==='b');
+  $('waitCard').style.display=(mc==='w'&&!G.b)?'':'none';
+
+  const sb=$('statusBar');sb.className='status';
+  if(ended){sb.classList.add('end');sb.textContent=resultText()}
+  else if(!G.w){sb.classList.add('warn');sb.textContent='Подключаемся к партии '+G.code+'… (создатель должен быть в сети)'}
+  else if(!G.b){sb.classList.add('warn');sb.textContent=myColor()==='w'?('Ждём соперника — отправьте ссылку или код '+G.code):'Подключаемся к партии…'}
+  else if(!mc){sb.textContent='Вы смотрите партию как зритель'}
+  else if(pos.t===mc){sb.classList.add('me');
+    sb.textContent=(gameStatus(pos)==='check'?'⚠️ Вам шах! ':'')+'Ваш ход ('+(mc==='w'?'белые':'чёрные')+')'}
+  else sb.textContent='Ход соперника…';
+
+  if(G.draw&&mc&&G.draw!==mc&&!ended)$('drawModal').classList.add('show');
+  else $('drawModal').classList.remove('show');
+
+  $('btnDraw').classList.toggle('hidden',!!ended||!mc||!G.b);
+  $('btnResign').classList.toggle('hidden',!!ended||!mc||!G.b);
+  $('btnRematch').classList.toggle('hidden',!ended||!mc);
+
+  renderBoard();renderCaps();renderMoves();renderConn();
+}
+function enterGame(){
+  $('home').classList.add('hidden');
+  $('game').classList.remove('hidden');
+  rebuild();renderAll();connect();
+}
+
+// ===== Шаринг =====
+function copyLink(){navigator.clipboard.writeText(gameLink()).then(()=>alert('Ссылка скопирована!'))}
+function waShare(){window.open('https://wa.me/?text='+encodeURIComponent('Сыграем в шахматы? Заходи: '+gameLink()+'  (код партии '+G.code+')'),'_blank')}
+
+// ===== Старт =====
+(function(){
+  const q=new URLSearchParams(location.search);
+  const code=(q.get('g')||'').toUpperCase();
+  if(code&&code.length===5){
+    const saved=localStorage.getItem('chess_game_'+code);
+    if(saved){try{G=JSON.parse(saved)}catch(e){G=null}}
+    if(!G){
+      // пришли по ссылке: состояние приедет от соперника по сети
+      G={code,w:null,b:null,moves:[],rev:0,res:null,draw:null};
+    }
+    enterGame();
+  }else{
+    $('nameNew').value=localStorage.getItem('chess_name')||'';
+    $('nameJoin').value=localStorage.getItem('chess_name')||'';
+  }
+})();
+</script>
+</body>
+</html>
