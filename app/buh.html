@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>БухКонтроль — CRM бухгалтерского аутсорсинга · Демо</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23064e3b'/%3E%3Ctext x='6' y='23' font-size='16' fill='%2334d399'%3E%E2%9C%93%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f6f5;--card:#fff;--line:#e4e8e6;--ink:#0f1f1a;--muted:#5f6f68;--muted2:#93a29b;
+  --acc:#059669;--acc-d:#047857;--acc-l:#d1fae5;--acc-xl:#ecfdf5;
+  --side:#0b1f18;--side2:#0e2a20;
+  --red:#dc2626;--red-l:#fee2e2;--amber:#d97706;--amber-l:#fef3c7;--blue:#2563eb;--blue-l:#dbeafe;
+  --violet:#7c3aed;--violet-l:#ede9fe;
+  --r:13px;--r-sm:9px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:13px}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#c9d4cf;border-radius:8px}
+
+.app{display:flex;min-height:100vh}
+/* ===== SIDEBAR ===== */
+.side{width:232px;background:linear-gradient(180deg,var(--side),#081712);color:#bcd0c8;flex-shrink:0;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow-y:auto}
+.logo{display:flex;align-items:center;gap:10px;padding:18px 16px 14px;border-bottom:1px solid rgba(255,255,255,.07)}
+.logo .lm{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#065f46,#022c22);border:1.5px solid #059669;display:grid;place-items:center;font-size:18px;color:#34d399;font-weight:900}
+.logo b{font-size:16px;color:#fff;letter-spacing:-.3px;display:block}
+.logo span{font-size:10px;color:#6e8a7f;letter-spacing:.6px;text-transform:uppercase}
+.nav{padding:10px 8px;flex:1}
+.ngroup{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#547065;padding:12px 10px 5px;font-weight:700}
+.nitem{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 11px;border-radius:9px;font-size:13.5px;font-weight:500;color:#a7bdb4;transition:.13s;position:relative}
+.nitem:hover{background:rgba(255,255,255,.06);color:#fff}
+.nitem.on{background:linear-gradient(90deg,rgba(5,150,105,.25),transparent);color:#fff}
+.nitem.on::before{content:'';position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:3px;background:#10b981}
+.nitem .ic{width:20px;text-align:center;font-size:15px}
+.nitem .bdg{margin-left:auto;background:#dc2626;color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:20px}
+.nitem .bdg.grn{background:#059669}
+.side-user{padding:12px;border-top:1px solid rgba(255,255,255,.07)}
+.suser{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.05);border-radius:10px;padding:9px}
+.suser .av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;flex:none;background:#065f46;color:#a7f3d0}
+.suser .un{font-size:12.5px;font-weight:700;color:#fff}
+.suser .ut{font-size:10.5px;color:#6e8a7f}
+
+/* ===== MAIN ===== */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:12px;padding:12px 24px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+.top h1{font-size:17px;font-weight:800;letter-spacing:-.3px}
+.top .tsub{font-size:11.5px;color:var(--muted2)}
+.tsearch{position:relative;margin-left:14px}
+.tsearch input{width:250px;border:1.5px solid var(--line);border-radius:9px;padding:8px 12px 8px 32px;outline:none;background:var(--bg)}
+.tsearch input:focus{border-color:var(--acc)}
+.tsearch .si{position:absolute;left:10px;top:50%;transform:translateY(-50%);opacity:.4;font-size:13px}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.role-sw{display:flex;background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:3px}
+.role-sw button{padding:6px 13px;border-radius:7px;font-size:12px;font-weight:700;color:var(--muted)}
+.role-sw button.on{background:var(--side);color:#fff}
+.tbtn{background:var(--acc);color:#fff;font-weight:700;font-size:12.5px;padding:9px 15px;border-radius:9px}
+.tbtn:hover{background:var(--acc-d)}
+.content{padding:22px 24px 70px;flex:1}
+.screen{display:none}.screen.on{display:block;animation:fd .22s}
+@keyframes fd{from{opacity:0;transform:translateY(5px)}to{opacity:1}}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--kc,var(--acc))}
+.kpi .kl{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);font-weight:700}
+.kpi .kv{font-size:23px;font-weight:800;letter-spacing:-.8px;margin-top:4px}
+.kpi .kd{font-size:11px;color:var(--muted);margin-top:2px}
+.kpi.red{--kc:var(--red)}.kpi.amber{--kc:var(--amber)}.kpi.blue{--kc:var(--blue)}.kpi.violet{--kc:var(--violet)}
+
+.grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;align-items:start}
+.grid2 .stack{display:flex;flex-direction:column;gap:14px}
+@media(max-width:1000px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-bottom:14px}
+.card h3{font-size:13px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card h3 .hl{margin-left:auto;font-size:11px;color:var(--acc);font-weight:700;cursor:pointer}
+.card h3 .hl:hover{text-decoration:underline}
+
+/* deadline rows */
+.dl{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f3f1}
+.dl:last-child{border-bottom:none}
+.dl .dd{width:52px;text-align:center;background:var(--bg);border-radius:9px;padding:6px 4px;flex:none}
+.dl .dd b{display:block;font-size:17px;letter-spacing:-.5px}
+.dl .dd span{font-size:9.5px;text-transform:uppercase;color:var(--muted2);font-weight:700}
+.dl .di{flex:1;min-width:0}
+.dl .dt{font-size:13px;font-weight:700}
+.dl .ds{font-size:11.5px;color:var(--muted)}
+.dl .prg{width:120px;flex:none}
+.bar{height:7px;background:#e8edeb;border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:6px;background:var(--acc)}
+.bar i.warn{background:var(--amber)}.bar i.bad{background:var(--red)}
+.dl .pt{font-size:10.5px;color:var(--muted);margin-top:3px;text-align:right}
+
+/* badges */
+.b{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.b.grn{background:var(--acc-l);color:var(--acc-d)}
+.b.red{background:var(--red-l);color:var(--red)}
+.b.amb{background:var(--amber-l);color:var(--amber)}
+.b.blu{background:var(--blue-l);color:var(--blue)}
+.b.vio{background:var(--violet-l);color:var(--violet)}
+.b.gry{background:#eef1f0;color:var(--muted)}
+
+/* team load */
+.tl{display:flex;align-items:center;gap:10px;padding:7px 0}
+.tl .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;flex:none;color:#fff}
+.tl .tn{width:130px;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl .bar{flex:1}
+.tl .tv{width:64px;text-align:right;font-size:11px;color:var(--muted);flex:none}
+
+/* table */
+table{width:100%;border-collapse:collapse}
+th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted2);text-align:left;padding:9px 10px;border-bottom:1.5px solid var(--line);font-weight:700;white-space:nowrap}
+td{padding:10px;border-bottom:1px solid #f0f3f1;font-size:12.5px;vertical-align:middle}
+tbody tr{cursor:pointer;transition:.1s}
+tbody tr:hover td{background:var(--acc-xl)}
+.cname{font-weight:700;font-size:13px}
+.csub{font-size:11px;color:var(--muted2)}
+.own{display:inline-flex;align-items:center;gap:6px}
+.own .av{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:9px;font-weight:800;color:#fff}
+
+/* filters */
+.frow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.chip{padding:7px 13px;border-radius:20px;font-size:12px;font-weight:600;background:#fff;border:1.5px solid var(--line);color:var(--muted)}
+.chip.on{background:var(--side);border-color:var(--side);color:#fff}
+.frow input,.frow select{border:1.5px solid var(--line);border-radius:9px;padding:8px 12px;outline:none;background:#fff}
+
+/* kanban */
+.kan{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start}
+@media(max-width:1000px){.kan{grid-template-columns:repeat(2,1fr)}}
+.kcol{background:#eef1f0;border-radius:var(--r);padding:10px}
+.kcol h4{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:2px 6px 9px;font-weight:800;display:flex;justify-content:space-between}
+.kcard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:9px;cursor:pointer;transition:.12s}
+.kcard:hover{box-shadow:0 4px 14px rgba(6,78,59,.1);transform:translateY(-1px)}
+.kcard .kt{font-size:12.5px;font-weight:700;line-height:1.35}
+.kcard .kc2{font-size:11px;color:var(--muted);margin-top:4px}
+.kcard .kf{display:flex;align-items:center;gap:6px;margin-top:8px}
+.kcard .av{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:8.5px;font-weight:800;color:#fff}
+.kcard .kdl{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--muted)}
+.kcard .kdl.hot{color:var(--red)}
+
+/* matrix */
+.mx{overflow-x:auto}
+.mx table th:first-child{position:sticky;left:0;background:#fff}
+.mx td:first-child{position:sticky;left:0;background:#fff;font-weight:700;white-space:nowrap}
+.mcell{font-size:11px;line-height:1.6}
+.mcell .b{margin:1px 2px 1px 0}
+
+/* chat */
+.chat{display:grid;grid-template-columns:280px 1fr;gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:#fff;height:560px}
+.chl{border-right:1px solid var(--line);overflow-y:auto}
+.chi{display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid #f0f3f1;cursor:pointer}
+.chi:hover,.chi.on{background:var(--acc-xl)}
+.chi .av{width:38px;height:38px;border-radius:50%;background:#d1fae5;color:#065f46;display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
+.chi .cn{font-size:13px;font-weight:700}
+.chi .cm{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+.chi .ct{margin-left:auto;font-size:10px;color:var(--muted2);flex:none}
+.chr{display:flex;flex-direction:column;background:#eae6df}
+.chh{background:#fff;padding:11px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.chh b{font-size:13.5px}
+.chh .b{margin-left:auto}
+.msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:70%;padding:8px 12px;border-radius:11px;font-size:12.5px;line-height:1.45;box-shadow:0 1px 1px rgba(0,0,0,.06)}
+.msg.in{background:#fff;align-self:flex-start;border-bottom-left-radius:3px}
+.msg.out{background:#d9fdd3;align-self:flex-end;border-bottom-right-radius:3px}
+.msg .mt{font-size:9.5px;color:var(--muted2);text-align:right;margin-top:3px}
+.chf{background:#fff;padding:10px;display:flex;gap:8px;border-top:1px solid var(--line)}
+.chf input{flex:1;border:1.5px solid var(--line);border-radius:20px;padding:9px 15px;outline:none}
+.tpl-row{background:#fff;padding:8px 10px 2px;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid #f0f3f1}
+.tpl{font-size:11px;background:var(--acc-xl);color:var(--acc-d);border:1px solid #bbe7d4;border-radius:20px;padding:5px 11px;margin-bottom:6px;font-weight:600}
+.tpl:hover{background:var(--acc-l)}
+
+/* funnel */
+.fun{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:start}
+@media(max-width:1000px){.fun{grid-template-columns:repeat(2,1fr)}}
+.fcol{background:#eef1f0;border-radius:var(--r);padding:9px}
+.fcol h4{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:2px 5px 8px;font-weight:800}
+.fcard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 11px;margin-bottom:8px;cursor:pointer}
+.fcard:hover{box-shadow:0 4px 12px rgba(6,78,59,.1)}
+.fcard .fn{font-size:12.5px;font-weight:700}
+.fcard .fs{font-size:10.5px;color:var(--muted);margin-top:3px}
+.fcard .fm{font-size:11px;font-weight:700;color:var(--acc-d);margin-top:5px}
+
+/* report tables */
+.rep-actions{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+
+/* modal */
+.ovl{position:fixed;inset:0;background:rgba(8,23,18,.5);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:30px 16px;overflow-y:auto}
+.ovl.show{display:flex}
+.mod{background:#fff;border-radius:16px;max-width:760px;width:100%;padding:0;animation:fd .18s}
+.mhead{padding:18px 22px 0;display:flex;align-items:flex-start;gap:12px}
+.mhead .mi{flex:1}
+.mhead h2{font-size:18px;font-weight:800;letter-spacing:-.3px}
+.mhead .msub{font-size:12px;color:var(--muted);margin-top:3px}
+.mx-close{font-size:22px;color:var(--muted2);padding:4px 8px}
+.mtabs{display:flex;gap:2px;padding:14px 22px 0;border-bottom:1.5px solid var(--line)}
+.mtab{padding:9px 14px;font-size:12.5px;font-weight:700;color:var(--muted);border-bottom:2.5px solid transparent;margin-bottom:-1.5px}
+.mtab.on{color:var(--acc-d);border-color:var(--acc)}
+.mbody{padding:18px 22px 22px;max-height:60vh;overflow-y:auto}
+.info-g{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px}
+.ig{padding:9px 0;border-bottom:1px solid #f0f3f1}
+.ig .il{font-size:10.5px;text-transform:uppercase;color:var(--muted2);font-weight:700;letter-spacing:.4px}
+.ig .iv{font-size:13px;font-weight:600;margin-top:3px}
+.mfoot{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap}
+.mbtn{background:var(--acc);color:#fff;font-weight:700;font-size:12.5px;padding:10px 16px;border-radius:9px}
+.mbtn.gh{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.mbtn.gh:hover{border-color:var(--acc)}
+
+/* toast */
+#toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:360px}
+.toast{background:#0b1f18;color:#e7f6ef;padding:12px 16px;border-radius:12px;font-size:12.5px;line-height:1.5;box-shadow:0 10px 30px rgba(0,0,0,.3);border-left:3px solid #10b981;animation:tin .25s}
+@keyframes tin{from{opacity:0;transform:translateX(20px)}to{opacity:1}}
+.toast b{color:#6ee7b7}
+
+/* demo note + responsive */
+.demo-note{background:linear-gradient(90deg,#064e3b,#0b1f18);color:#a7f3d0;font-size:11.5px;padding:8px 16px;text-align:center}
+.demo-note b{color:#fff}
+@media(max-width:820px){
+  .side{display:none}
+  .tsearch{display:none}
+  .content{padding:14px 12px 70px}
+  .mobile-nav{display:flex!important}
+}
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#0b1f18;z-index:50;justify-content:space-around;padding:7px 4px calc(7px + env(safe-area-inset-bottom))}
+.mobile-nav button{color:#a7bdb4;font-size:10px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 8px;border-radius:8px}
+.mobile-nav button.on{color:#34d399}
+.mobile-nav .mi2{font-size:17px}
+</style>
+</head>
+<body>
+<div class="demo-note">💼 Интерактивное демо для <b>Фазили</b> · бухгалтерский аутсорсинг, Шымкент · все данные вымышленные, всё прокликивается · <b>Pllato</b></div>
+<div class="app">
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="side">
+    <div class="logo">
+      <div class="lm">✓</div>
+      <div><b>БухКонтроль</b><span>аутсорсинг · Шымкент</span></div>
+    </div>
+    <nav class="nav">
+      <div class="ngroup">Управление</div>
+      <button class="nitem on" data-s="dash"><span class="ic">◧</span>Общая картина<span class="bdg" id="nRisk">2</span></button>
+      <button class="nitem" data-s="clients"><span class="ic">▤</span>Клиенты</button>
+      <button class="nitem" data-s="tasks"><span class="ic">☑</span>Задачи и обязанности</button>
+      <button class="nitem" data-s="cal"><span class="ic">◷</span>Календарь отчётности<span class="bdg" id="nDl">3</span></button>
+      <div class="ngroup">Работа</div>
+      <button class="nitem" data-s="wa"><span class="ic">✆</span>WhatsApp<span class="bdg grn">4</span></button>
+      <button class="nitem" data-s="leads"><span class="ic">◎</span>Заявки / воронка</button>
+      <button class="nitem" data-s="fin"><span class="ic">₸</span>Финансы · абонплата</button>
+      <div class="ngroup">Аналитика</div>
+      <button class="nitem" data-s="reports"><span class="ic">▦</span>Отчёты</button>
+    </nav>
+    <div class="side-user">
+      <div class="suser"><div class="av" id="sAv">ФА</div><div><div class="un" id="sName">Фазиля</div><div class="ut" id="sRole">Директор</div></div></div>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main">
+    <div class="top">
+      <div><h1 id="tTitle">Общая картина</h1><div class="tsub" id="tSub">Сегодня 2 июля 2026 · среда</div></div>
+      <div class="tsearch"><span class="si">⌕</span><input placeholder="Поиск клиента…" oninput="globalSearch(this.value)" id="gSearch"></div>
+      <div class="top-right">
+        <div class="role-sw">
+          <button class="on" id="rDir" onclick="setRole('dir')">👑 Директор</button>
+          <button id="rBuh" onclick="setRole('buh')">Бухгалтер Айгуль</button>
+        </div>
+        <button class="tbtn" onclick="toast('Новая задача создана и назначена. <b>Сотрудник получит уведомление</b>, задача появится в его списке и в карточке клиента.')">+ Задача</button>
+      </div>
+    </div>
+    <div class="content">
+
+      <!-- ========== DASHBOARD ========== -->
+      <section class="screen on" id="s-dash">
+        <div class="kpis" id="dashKpis"></div>
+        <div class="grid2">
+          <div class="stack">
+            <div class="card">
+              <h3>📅 Ближайшие дедлайны отчётности <span class="hl" onclick="nav('cal')">весь календарь →</span></h3>
+              <div id="dashDl"></div>
+            </div>
+            <div class="card">
+              <h3>🚦 Клиенты, требующие внимания <span class="hl" onclick="nav('clients')">все клиенты →</span></h3>
+              <div id="dashRisk"></div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h3>👥 Загрузка команды <span class="hl" onclick="nav('reports')">отчёт →</span></h3>
+              <div id="dashTeam"></div>
+            </div>
+            <div class="card">
+              <h3>⚡ Последние действия</h3>
+              <div id="dashFeed" style="font-size:12px;line-height:2;color:var(--muted)"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== CLIENTS ========== -->
+      <section class="screen" id="s-clients">
+        <div class="frow">
+          <input placeholder="Поиск по названию, БИН…" style="width:230px" oninput="F.q=this.value;renderClients()">
+          <select onchange="F.regime=this.value;renderClients()">
+            <option value="">Все режимы</option><option>Упрощёнка</option><option>ОУР</option><option>ОУР + НДС</option><option>Розничный налог</option>
+          </select>
+          <select onchange="F.owner=this.value;renderClients()" id="fOwner"><option value="">Все бухгалтеры</option></select>
+          <span class="chip" data-f="" onclick="setChip(this,'')">Все</span>
+          <span class="chip" data-f="ok" onclick="setChip(this,'ok')">🟢 В порядке</span>
+          <span class="chip" data-f="wait" onclick="setChip(this,'wait')">🟡 Ждём документы</span>
+          <span class="chip" data-f="risk" onclick="setChip(this,'risk')">🔴 Риск / просрочка</span>
+        </div>
+        <div class="card" style="padding:6px 14px">
+          <table>
+            <thead><tr><th>Клиент</th><th>Режим</th><th>Услуги</th><th>Ответственный</th><th>Отчётность</th><th>Абонплата</th><th>Статус</th></tr></thead>
+            <tbody id="cliBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ========== TASKS ========== -->
+      <section class="screen" id="s-tasks">
+        <div class="frow">
+          <span class="chip on" onclick="taskView='kan';renderTasks();this.classList.add('on');document.querySelector('[data-tv=mx]').classList.remove('on')" data-tv="kan">Доска задач</span>
+          <span class="chip" onclick="taskView='mx';renderTasks();this.classList.add('on');document.querySelector('[data-tv=kan]').classList.remove('on')" data-tv="mx">Матрица обязанностей</span>
+          <select onchange="F.tass=this.value;renderTasks()" id="fTass" style="margin-left:auto"><option value="">Все сотрудники</option></select>
+        </div>
+        <div id="taskWrap"></div>
+      </section>
+
+      <!-- ========== CALENDAR ========== -->
+      <section class="screen" id="s-cal">
+        <div class="card" style="background:linear-gradient(90deg,#ecfdf5,#fff);border-color:#bbe7d4">
+          <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+            <div style="font-size:34px">🛡️</div>
+            <div style="flex:1;min-width:200px">
+              <div style="font-weight:800;font-size:14px">Ни один срок больше не будет пропущен</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:3px">Система сама создаёт задачи по каждому клиенту к каждому дедлайну, назначает ответственного и напоминает за 10, 5 и 1 день — в системе и в WhatsApp.</div>
+            </div>
+            <button class="mbtn" onclick="toast('Задачи созданы: <b>по каждому клиенту с формой 910.00</b> появилась задача с дедлайном 15.08 и ответственным бухгалтером. За 10, 5 и 1 день — автонапоминания.')">⚙ Создать задачи по дедлайну</button>
+          </div>
+        </div>
+        <div class="card"><h3>Июль 2026</h3><div id="calJul"></div></div>
+        <div class="card"><h3>Август 2026</h3><div id="calAug"></div></div>
+      </section>
+
+      <!-- ========== WHATSAPP ========== -->
+      <section class="screen" id="s-wa">
+        <div class="chat">
+          <div class="chl" id="chList"></div>
+          <div class="chr">
+            <div class="chh"><b id="chName">—</b><span class="b grn" id="chTag">клиент</span></div>
+            <div class="msgs" id="chMsgs"></div>
+            <div class="tpl-row" id="chTpls"></div>
+            <div class="chf">
+              <input placeholder="Сообщение…" id="chInput" onkeydown="if(event.key==='Enter')sendMsg()">
+              <button class="mbtn" onclick="sendMsg()">➤</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== LEADS ========== -->
+      <section class="screen" id="s-leads">
+        <div class="kpis">
+          <div class="kpi blue"><div class="kl">Новых заявок · июль</div><div class="kv">11</div><div class="kd">WhatsApp 6 · Instagram 3 · рекомендации 2</div></div>
+          <div class="kpi"><div class="kl">Конверсия в договор</div><div class="kv">42%</div><div class="kd">выше июня на 8%</div></div>
+          <div class="kpi violet"><div class="kl">Потенциальная абонплата</div><div class="kv">640 000 ₸</div><div class="kd">по заявкам в работе</div></div>
+        </div>
+        <div class="fun" id="funWrap"></div>
+      </section>
+
+      <!-- ========== FIN ========== -->
+      <section class="screen" id="s-fin">
+        <div class="kpis" id="finKpis"></div>
+        <div class="card" style="padding:6px 14px">
+          <table>
+            <thead><tr><th>Клиент</th><th>Тариф / мес</th><th>Счёт за июль</th><th>Оплата</th><th></th></tr></thead>
+            <tbody id="finBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ========== REPORTS ========== -->
+      <section class="screen" id="s-reports">
+        <div class="rep-actions">
+          <button class="mbtn" onclick="toast('Сводка за июль сформирована. Раньше это собиралось <b>вручную из гугл-таблиц за 2–3 часа</b> — теперь один клик.')">📊 Сводка для руководителя</button>
+          <button class="mbtn gh" onclick="toast('Отчёт клиенту отправлен в WhatsApp: <b>что сдано, что в работе, какие документы нужны</b>. Клиент видит статус без звонков.')">📤 Отчёт клиенту в WhatsApp</button>
+          <button class="mbtn gh" onclick="toast('Экспорт в Excel готов — для тех, кто любит по-старому 🙂')">⬇ Excel</button>
+        </div>
+        <div class="card">
+          <h3>👥 Отчёт по сотрудникам · июль 2026</h3>
+          <table>
+            <thead><tr><th>Сотрудник</th><th>Клиентов</th><th>Задач закрыто</th><th>В работе</th><th>Просрочено</th><th>Загрузка</th></tr></thead>
+            <tbody id="repEmp"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3>🏢 Отчёт по клиентам · объём работ <span class="hl" onclick="toast('Это и есть «конечная картина»: по каждому клиенту — услуги, объём, статус отчётности и оплата. Одним экраном.')">что это? →</span></h3>
+          <table>
+            <thead><tr><th>Клиент</th><th>Услуги</th><th>Задач за месяц</th><th>Отчётность</th><th>Абонплата</th></tr></thead>
+            <tbody id="repCli"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- mobile nav -->
+<div class="mobile-nav">
+  <button class="on" data-s="dash" onclick="nav('dash')"><span class="mi2">◧</span>Обзор</button>
+  <button data-s="clients" onclick="nav('clients')"><span class="mi2">▤</span>Клиенты</button>
+  <button data-s="tasks" onclick="nav('tasks')"><span class="mi2">☑</span>Задачи</button>
+  <button data-s="cal" onclick="nav('cal')"><span class="mi2">◷</span>Сроки</button>
+  <button data-s="reports" onclick="nav('reports')"><span class="mi2">▦</span>Отчёты</button>
+</div>
+
+<!-- client modal -->
+<div class="ovl" id="cliOvl" onclick="if(event.target===this)closeCli()">
+  <div class="mod">
+    <div class="mhead">
+      <div class="mi"><h2 id="cmName">—</h2><div class="msub" id="cmSub">—</div></div>
+      <button class="mx-close" onclick="closeCli()">✕</button>
+    </div>
+    <div class="mtabs" id="cmTabs"></div>
+    <div class="mbody" id="cmBody"></div>
+    <div class="mfoot">
+      <button class="mbtn" onclick="toast('Открыт чат WhatsApp с клиентом — переписка привязана к карточке, вся история в одном месте.')">✆ Написать в WhatsApp</button>
+      <button class="mbtn gh" onclick="toast('Задача по клиенту создана и назначена ответственному бухгалтеру.')">+ Задача</button>
+      <button class="mbtn gh" onclick="toast('Счёт на абонплату за июль выставлен и отправлен клиенту в WhatsApp одной кнопкой.')">₸ Выставить счёт</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+/* ============ ДАННЫЕ (демо) ============ */
+const EMP=[
+  {id:'fa',n:'Фазиля Абдуллаева',r:'Директор',c:'#065f46'},
+  {id:'ai',n:'Айгуль Сапарова',r:'Старший бухгалтер',c:'#0d9488'},
+  {id:'ma',n:'Мадина Ержанова',r:'Бухгалтер · налоги',c:'#7c3aed'},
+  {id:'gu',n:'Гульнара Досжан',r:'Бухгалтер · зарплата',c:'#db2777'},
+  {id:'as',n:'Асель Нурланова',r:'Бухгалтер',c:'#2563eb'},
+  {id:'di',n:'Динара Калиева',r:'Бухгалтер · первичка',c:'#d97706'},
+  {id:'zh',n:'Жанар Тулегенова',r:'Бухгалтер',c:'#dc2626'},
+  {id:'sa',n:'Салтанат Омарова',r:'Ассистент',c:'#64748b'},
+  {id:'er',n:'Ерлан Куат',r:'Менеджер по клиентам',c:'#0891b2'},
+];
+const REG={u:'Упрощёнка',o:'ОУР',n:'ОУР + НДС',r:'Розничный налог'};
+// forms: {ф910:'ok'|'prog'|'todo'|'na', ...}
+const CLI=[
+  {id:1,n:'ТОО «БарсСтрой»',bin:'090440001234',reg:'n',t:180000,own:'ai',st:'risk',srv:['Налоги','Зарплата','Первичка','Отчёты'],pay:'debt',note:'Стройка. 14 сотрудников. НДС ежеквартально.',f:{['200.00']:'prog',['300.00']:'todo',['СоцОПВ']:'ok'}},
+  {id:2,n:'ИП Ахметов К.',bin:'850612300456',reg:'u',t:45000,own:'ma',st:'ok',srv:['Налоги','Отчёты'],pay:'paid',f:{['910.00']:'prog',['СоцОПВ']:'ok'}},
+  {id:3,n:'ТОО «ШымАгроТрейд»',bin:'120940002211',reg:'n',t:220000,own:'ai',st:'wait',srv:['Налоги','Зарплата','Первичка','Отчёты','Кредиты'],pay:'paid',note:'Ждём акты сверки от поставщиков.',f:{['200.00']:'ok',['300.00']:'prog',['СоцОПВ']:'ok'}},
+  {id:4,n:'ИП Салтанат (салон Aru)',bin:'910305400789',reg:'r',t:50000,own:'gu',st:'ok',srv:['Налоги','Зарплата'],pay:'paid',f:{['913.00']:'ok',['СоцОПВ']:'ok'}},
+  {id:5,n:'ТОО «Дормаш-Юг»',bin:'061140003344',reg:'n',t:250000,own:'ai',st:'ok',srv:['Налоги','Зарплата','Первичка','Отчёты'],pay:'paid',f:{['200.00']:'ok',['300.00']:'ok',['СоцОПВ']:'ok'}},
+  {id:6,n:'ИП Кайрат (грузоперевозки)',bin:'880722301122',reg:'u',t:55000,own:'ma',st:'wait',srv:['Налоги','Отчёты'],pay:'wait',note:'Не прислал путевые листы за июнь.',f:{['910.00']:'todo',['СоцОПВ']:'prog'}},
+  {id:7,n:'ТОО «MedLife Клиника»',bin:'150240005566',reg:'o',t:190000,own:'as',st:'ok',srv:['Налоги','Зарплата','Первичка','Отчёты'],pay:'paid',f:{['200.00']:'ok',['СоцОПВ']:'ok'}},
+  {id:8,n:'ИП Жанна (кондитерская)',bin:'930918400234',reg:'u',t:48000,own:'di',st:'ok',srv:['Налоги','Первичка'],pay:'paid',f:{['910.00']:'prog',['СоцОПВ']:'ok'}},
+  {id:9,n:'ТОО «TexnoPlus»',bin:'180540007788',reg:'n',t:165000,own:'ma',st:'ok',srv:['Налоги','Отчёты'],pay:'paid',f:{['200.00']:'ok',['300.00']:'prog',['СоцОПВ']:'ok'}},
+  {id:10,n:'ИП Бауыржан (СТО)',bin:'860130300987',reg:'r',t:52000,own:'gu',st:'ok',srv:['Налоги','Зарплата'],pay:'paid',f:{['913.00']:'ok',['СоцОПВ']:'ok'}},
+  {id:11,n:'ТОО «Отырар Тур»',bin:'100340009900',reg:'u',t:75000,own:'as',st:'risk',srv:['Налоги','Отчёты'],pay:'debt',note:'Долг за 2 месяца. Директор в отъезде.',f:{['910.00']:'todo',['СоцОПВ']:'todo'}},
+  {id:12,n:'ИП Гаухар (швейный цех)',bin:'890415400654',reg:'u',t:60000,own:'di',st:'ok',srv:['Налоги','Первичка','Зарплата'],pay:'paid',f:{['910.00']:'prog',['СоцОПВ']:'ok'}},
+  {id:13,n:'ТОО «ЮжПолимер»',bin:'071240001133',reg:'n',t:210000,own:'ai',st:'wait',srv:['Налоги','Зарплата','Первичка','Отчёты'],pay:'paid',note:'Ждём банковскую выписку.',f:{['200.00']:'prog',['300.00']:'todo',['СоцОПВ']:'ok'}},
+  {id:14,n:'ИП Нурлан (аптека)',bin:'840507300321',reg:'r',t:58000,own:'ma',st:'ok',srv:['Налоги','Отчёты'],pay:'paid',f:{['913.00']:'ok',['СоцОПВ']:'ok'}},
+  {id:15,n:'ТОО «Кенес Консалт»',bin:'160140002244',reg:'o',t:120000,own:'as',st:'ok',srv:['Налоги','Отчёты'],pay:'wait',f:{['200.00']:'ok',['СоцОПВ']:'ok'}},
+  {id:16,n:'ИП Айжан (фитнес-студия)',bin:'950823400111',reg:'u',t:47000,own:'gu',st:'ok',srv:['Налоги','Зарплата'],pay:'paid',f:{['910.00']:'prog',['СоцОПВ']:'ok'}},
+  {id:17,n:'ТОО «Шымкент Логистик»',bin:'130640008855',reg:'n',t:230000,own:'zh',st:'ok',srv:['Налоги','Зарплата','Первичка','Отчёты'],pay:'paid',f:{['200.00']:'ok',['300.00']:'prog',['СоцОПВ']:'ok'}},
+  {id:18,n:'ИП Ермек (кафе «Дастархан»)',bin:'870211300765',reg:'r',t:65000,own:'di',st:'wait',srv:['Налоги','Первичка','Зарплата'],pay:'paid',note:'Ждём Z-отчёты кассы за июнь.',f:{['913.00']:'prog',['СоцОПВ']:'ok'}},
+  {id:19,n:'ТОО «АкБидай Мельница»',bin:'050940004477',reg:'n',t:195000,own:'zh',st:'ok',srv:['Налоги','Зарплата','Отчёты'],pay:'paid',f:{['200.00']:'ok',['300.00']:'ok',['СоцОПВ']:'ok'}},
+  {id:20,n:'ИП Диас (автозапчасти)',bin:'920604300543',reg:'u',t:49000,own:'ma',st:'ok',srv:['Налоги'],pay:'paid',f:{['910.00']:'prog',['СоцОПВ']:'ok'}},
+  {id:21,n:'ТОО «Береке Маркет»',bin:'110240006611',reg:'r',t:140000,own:'zh',st:'ok',srv:['Налоги','Зарплата','Первичка'],pay:'paid',f:{['913.00']:'ok',['СоцОПВ']:'ok'}},
+  {id:22,n:'ИП Молдир (цветы)',bin:'970112400987',reg:'u',t:42000,own:'di',st:'ok',srv:['Налоги'],pay:'paid',f:{['910.00']:'todo',['СоцОПВ']:'ok'}},
+];
+const TASKS=[
+  {t:'Сдать 910.00 за 1П2026',c:2,a:'ma',dl:'15.08',st:'prog',tp:'Отчёт'},
+  {t:'Собрать путевые листы за июнь',c:6,a:'ma',dl:'08.07',st:'todo',tp:'Документы',hot:1},
+  {t:'Начислить зарплату · июнь',c:1,a:'gu',dl:'05.07',st:'prog',tp:'Зарплата',hot:1},
+  {t:'ОПВ/СО/ВОСМС за июнь — оплата',c:1,a:'gu',dl:'25.07',st:'todo',tp:'Платежи'},
+  {t:'Акты сверки с поставщиками',c:3,a:'ai',dl:'10.07',st:'prog',tp:'Документы'},
+  {t:'Подготовить 300.00 НДС 2кв',c:1,a:'ai',dl:'15.08',st:'todo',tp:'Отчёт'},
+  {t:'Проверить первичку за июнь',c:8,a:'di',dl:'07.07',st:'rev',tp:'Первичка'},
+  {t:'Ответ на уведомление КГД',c:11,a:'as',dl:'04.07',st:'prog',tp:'Налоги',hot:1},
+  {t:'Заявление на снижение КПН-аванса',c:5,a:'ai',dl:'20.07',st:'todo',tp:'Налоги'},
+  {t:'Z-отчёты кассы за июнь',c:18,a:'di',dl:'09.07',st:'todo',tp:'Документы'},
+  {t:'Кредитная заявка в Halyk — пакет документов',c:3,a:'ai',dl:'11.07',st:'prog',tp:'Кредиты'},
+  {t:'Сдать 913.00 за 2кв',c:4,a:'gu',dl:'15.08',st:'done',tp:'Отчёт'},
+  {t:'Банковская выписка за июнь',c:13,a:'ai',dl:'08.07',st:'todo',tp:'Документы'},
+  {t:'Сверка с КГД по сальдо',c:9,a:'ma',dl:'18.07',st:'prog',tp:'Налоги'},
+  {t:'Начислить отпускные (2 сотр.)',c:7,a:'gu',dl:'12.07',st:'done',tp:'Зарплата'},
+  {t:'Сдать статформу 1-ПФ',c:5,a:'as',dl:'25.07',st:'todo',tp:'Отчёт'},
+  {t:'Счета-фактуры в ЭСФ · июнь',c:17,a:'zh',dl:'15.07',st:'prog',tp:'Первичка'},
+  {t:'Уточнённая 200.00 за 1кв',c:11,a:'as',dl:'22.07',st:'todo',tp:'Отчёт'},
+  {t:'Инвентаризация счетов 1310',c:19,a:'zh',dl:'30.07',st:'todo',tp:'Первичка'},
+  {t:'Сдать 910.00 за 1П2026',c:22,a:'di',dl:'15.08',st:'todo',tp:'Отчёт'},
+  {t:'Договор + счёт новому клиенту',c:21,a:'er',dl:'06.07',st:'done',tp:'Документы'},
+  {t:'Патент — продление на 2П',c:14,a:'ma',dl:'28.07',st:'prog',tp:'Налоги'},
+];
+const CHATS=[
+  {c:6,unread:2,msgs:[
+    ['in','Добрый день! Какие документы нужны за июнь?','09:12'],
+    ['out','Добрый день, Кайрат! Нужны путевые листы и выписка Kaspi Business за июнь 🙏','09:15'],
+    ['in','Понял, вечером скину','09:40'],
+    ['in','А когда у меня срок по налогам?','11:02'],
+  ]},
+  {c:1,unread:1,msgs:[
+    ['out','Досжан Гульнара начислила зарплату за июнь. Ведомость во вложении, подтвердите выплату ✅','08:55'],
+    ['in','Подтверждаю. Когда платёжки по ОПВ?','10:20'],
+  ]},
+  {c:3,unread:0,msgs:[
+    ['out','Напоминаем: ждём акты сверки от 2 поставщиков, чтобы закрыть 2 квартал.','Вчера'],
+    ['in','Отправил вам на почту, проверьте пожалуйста','Вчера'],
+    ['out','Получили, спасибо! Всё в работе 👌','Вчера'],
+  ]},
+  {c:18,unread:1,msgs:[
+    ['out','Ермек, добрый день! Пришлите Z-отчёты кассы за июнь до 9 июля 🙏','10:30'],
+    ['in','Хорошо, завтра занесу','12:11'],
+  ]},
+  {c:11,unread:0,msgs:[
+    ['out','По ТОО «Отырар Тур» есть уведомление КГД, готовим ответ до 4 июля. Также напоминаем про оплату абонплаты за 2 мес.','Пн'],
+  ]},
+];
+const LEADS=[
+  {n:'ИП Асем (маникюр-студия)',src:'Instagram',m:'45 000 ₸/мес',st:0,note:'Хочет упрощёнку + зарплату'},
+  {n:'ТОО «ЮгСтройМонтаж»',src:'Рекомендация',m:'180 000 ₸/мес',st:1,note:'12 сотрудников, НДС'},
+  {n:'ИП Руслан (доставка воды)',src:'WhatsApp',m:'50 000 ₸/мес',st:0,note:'Написал после сторис'},
+  {n:'ТОО «Шымкент Пласт»',src:'WhatsApp',m:'160 000 ₸/мес',st:2,note:'Уходят от штатного бухгалтера'},
+  {n:'ИП Камила (онлайн-магазин)',src:'Instagram',m:'42 000 ₸/мес',st:1,note:'Kaspi магазин, розничный налог'},
+  {n:'ТОО «АвтоДом Юг»',src:'Рекомендация',m:'145 000 ₸/мес',st:3,note:'Договор на согласовании'},
+  {n:'ИП Тимур (barbershop)',src:'Instagram',m:'40 000 ₸/мес',st:2,note:'КП отправлено вчера'},
+  {n:'ТОО «Береке Маркет»',src:'WhatsApp',m:'140 000 ₸/мес',st:4,note:'Подписан договор 28.06 🎉'},
+];
+const FUN_COLS=['Новая заявка','Консультация','КП отправлено','Договор','На обслуживании'];
+const DLS_JUL=[
+  {d:'07',t:'ИПН и соцналог за июнь — платёж',s:'все клиенты с сотрудниками',done:14,total:16},
+  {d:'15',t:'ЭСФ и первичка за июнь — закрытие месяца',s:'внутренний срок компании',done:9,total:22},
+  {d:'21',t:'Розничный налог 913.00 — авансовые расчёты',s:'клиенты на рознице · 5 шт',done:3,total:5},
+  {d:'25',t:'ОПВ, СО, ВОСМС за июнь — платежи',s:'все клиенты с сотрудниками',done:2,total:16},
+];
+const DLS_AUG=[
+  {d:'15',t:'910.00 за 1 полугодие 2026',s:'упрощёнка · 8 клиентов',done:0,total:8},
+  {d:'15',t:'200.00 за 2 квартал 2026',s:'ОУР и НДС · 9 клиентов',done:2,total:9},
+  {d:'15',t:'300.00 НДС за 2 квартал',s:'плательщики НДС · 7 клиентов',done:1,total:7},
+  {d:'25',t:'ОПВ, СО, ВОСМС за июль — платежи',s:'все клиенты с сотрудниками',done:0,total:16},
+];
+const FEED=[
+  '<b>Айгуль</b> сдала 300.00 по ТОО «Дормаш-Юг» — статус клиента 🟢',
+  '<b>Гульнара</b> начислила зарплату ТОО «БарсСтрой» (14 сотр.)',
+  '<b>Мадина</b> получила путевые листы от ИП Кайрат через WhatsApp',
+  '<b>Система</b> создала 8 задач к дедлайну 910.00 (15.08)',
+  '<b>Ерлан</b> перевёл ТОО «АвтоДом Юг» на этап «Договор»',
+  '<b>Динара</b> закрыла первичку ИП Жанна за июнь',
+];
+
+/* ============ СОСТОЯНИЕ ============ */
+let role='dir';           // dir | buh (Айгуль)
+let F={q:'',regime:'',owner:'',st:'',tass:''};
+let taskView='kan';
+let curChat=0;
+const $=id=>document.getElementById(id);
+const emp=id=>EMP.find(e=>e.id===id);
+const cli=id=>CLI.find(c=>c.id===id);
+const money=v=>v.toLocaleString('ru-RU')+' ₸';
+const av=(e,sz)=>'<span class="av" style="background:'+e.c+';width:'+(sz||22)+'px;height:'+(sz||22)+'px">'+e.n.split(' ').map(w=>w[0]).slice(0,2).join('')+'</span>';
+const stB=s=>s==='ok'?'<span class="b grn">🟢 в порядке</span>':s==='wait'?'<span class="b amb">🟡 ждём документы</span>':'<span class="b red">🔴 требует внимания</span>';
+const fB=s=>s==='ok'?'<span class="b grn">сдано ✓</span>':s==='prog'?'<span class="b blu">в работе</span>':'<span class="b red">не начато</span>';
+
+/* ============ TOAST ============ */
+function toast(html){
+  const t=document.createElement('div');t.className='toast';t.innerHTML=html;
+  $('toasts').appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},4600);
+}
+
+/* ============ НАВИГАЦИЯ / РОЛИ ============ */
+const TITLES={dash:['Общая картина','Сегодня 2 июля 2026 · среда'],clients:['Клиенты','единая база — 22 компании на обслуживании'],
+  tasks:['Задачи и обязанности','кто что делает и по какому клиенту'],cal:['Календарь отчётности','налоговые дедлайны РК · автозадачи'],
+  wa:['WhatsApp','все переписки привязаны к клиентам'],leads:['Заявки / воронка','WhatsApp · Instagram · рекомендации'],
+  fin:['Финансы · абонплата','счета и оплаты за обслуживание'],reports:['Отчёты','по сотрудникам и клиентам — без ручного сбора']};
+function nav(s){
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
+  $('s-'+s).classList.add('on');
+  document.querySelectorAll('.nitem').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  document.querySelectorAll('.mobile-nav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  $('tTitle').textContent=TITLES[s][0];$('tSub').textContent=TITLES[s][1];
+  window.scrollTo({top:0});
+}
+document.querySelectorAll('.nitem').forEach(b=>b.onclick=()=>nav(b.dataset.s));
+function setRole(r){
+  role=r;
+  $('rDir').classList.toggle('on',r==='dir');$('rBuh').classList.toggle('on',r==='buh');
+  if(r==='buh'){$('sAv').textContent='АС';$('sAv').style.background='#0d9488';$('sName').textContent='Айгуль';$('sRole').textContent='Старший бухгалтер';
+    toast('Вы вошли как <b>бухгалтер Айгуль</b>: видны только её клиенты, задачи и дедлайны. Каждый в команде видит свой участок, директор — всё.');
+  }else{$('sAv').textContent='ФА';$('sAv').style.background='#065f46';$('sName').textContent='Фазиля';$('sRole').textContent='Директор';
+    toast('Режим <b>директора</b>: полная картина по всем клиентам, сотрудникам и деньгам.');}
+  renderAll();
+}
+function myCli(){return role==='buh'?CLI.filter(c=>c.own==='ai'):CLI}
+function myTasks(){return role==='buh'?TASKS.filter(t=>t.a==='ai'):TASKS}
+function globalSearch(q){
+  if(!q){return}
+  nav('clients');F.q=q;
+  document.querySelector('#s-clients input').value=q;
+  renderClients();
+}
+
+/* ============ DASHBOARD ============ */
+function renderDash(){
+  const cs=myCli(),ts=myTasks();
+  const risk=cs.filter(c=>c.st==='risk').length,wait=cs.filter(c=>c.st==='wait').length;
+  const open=ts.filter(t=>t.st!=='done').length,hot=ts.filter(t=>t.hot&&t.st!=='done').length;
+  const mrr=cs.reduce((s,c)=>s+c.t,0),paid=cs.filter(c=>c.pay==='paid').reduce((s,c)=>s+c.t,0);
+  $('dashKpis').innerHTML=
+    '<div class="kpi"><div class="kl">Клиентов на обслуживании</div><div class="kv">'+cs.length+'</div><div class="kd">упрощёнка 8 · ОУР/НДС 9 · розница 5</div></div>'+
+    '<div class="kpi blue"><div class="kl">Задач в работе</div><div class="kv">'+open+'</div><div class="kd">'+hot+' срочных на этой неделе</div></div>'+
+    '<div class="kpi amber"><div class="kl">Ждём документы</div><div class="kv">'+wait+'</div><div class="kd">напоминания уходят в WhatsApp сами</div></div>'+
+    '<div class="kpi red"><div class="kl">Требуют внимания</div><div class="kv">'+risk+'</div><div class="kd">уведомление КГД · долг по оплате</div></div>'+
+    (role==='dir'?'<div class="kpi violet"><div class="kl">Абонплата · июль</div><div class="kv">'+Math.round(paid/1000)+'к ₸</div><div class="kd">из '+Math.round(mrr/1000)+'к ₸ · собрано '+Math.round(paid/mrr*100)+'%</div></div>':'');
+  $('dashDl').innerHTML=[...DLS_JUL.slice(0,3),DLS_AUG[0]].map((d,i)=>dlRow(d,i<3?'июл':'авг')).join('');
+  $('dashRisk').innerHTML=cs.filter(c=>c.st!=='ok').map(c=>
+    '<div class="dl" onclick="openCli('+c.id+')" style="cursor:pointer">'+
+    '<div class="di"><div class="dt">'+c.n+'</div><div class="ds">'+(c.note||'')+'</div></div>'+stB(c.st)+'</div>').join('')||'<div style="color:var(--muted);font-size:12.5px">Все клиенты в порядке 🎉</div>';
+  const loads=EMP.filter(e=>['ai','ma','gu','as','di','zh'].includes(e.id)).map(e=>{
+    const n=TASKS.filter(t=>t.a===e.id&&t.st!=='done').length;return {e,n}});
+  const mx=Math.max(...loads.map(l=>l.n),1);
+  $('dashTeam').innerHTML=loads.map(l=>'<div class="tl">'+av(l.e,30)+'<div class="tn">'+l.e.n.split(' ')[0]+' <span style="color:var(--muted2);font-weight:400">· '+CLI.filter(c=>c.own===l.e.id).length+' кл.</span></div><div class="bar"><i style="width:'+(l.n/mx*100)+'%" class="'+(l.n>=6?'warn':'')+'"></i></div><div class="tv">'+l.n+' задач</div></div>').join('');
+  $('dashFeed').innerHTML=FEED.map(f=>'• '+f).join('<br>');
+}
+function dlRow(d,mon){
+  const p=d.done/d.total,cls=p>=.8?'':p>=.4?'warn':'bad';
+  return '<div class="dl"><div class="dd"><b>'+d.d+'</b><span>'+mon+'</span></div>'+
+    '<div class="di"><div class="dt">'+d.t+'</div><div class="ds">'+d.s+'</div></div>'+
+    '<div class="prg"><div class="bar"><i class="'+cls+'" style="width:'+(p*100)+'%"></i></div><div class="pt">'+d.done+' из '+d.total+'</div></div></div>';
+}
+
+/* ============ CLIENTS ============ */
+function setChip(el,v){F.st=v;document.querySelectorAll('#s-clients .chip').forEach(c=>c.classList.toggle('on',c===el));renderClients()}
+function renderClients(){
+  const q=(F.q||'').toLowerCase();
+  const rows=myCli().filter(c=>
+    (!q||c.n.toLowerCase().includes(q)||c.bin.includes(q))&&
+    (!F.regime||REG[c.reg]===F.regime)&&
+    (!F.owner||c.own===F.owner)&&
+    (!F.st||c.st===F.st));
+  $('cliBody').innerHTML=rows.map(c=>{
+    const e=emp(c.own);
+    const forms=Object.entries(c.f).map(([k,v])=>v==='ok'?'✅':v==='prog'?'🔵':'🔴').join(' ');
+    return '<tr onclick="openCli('+c.id+')"><td><div class="cname">'+c.n+'</div><div class="csub">БИН '+c.bin+'</div></td>'+
+    '<td><span class="b '+(c.reg==='n'?'vio':c.reg==='o'?'blu':c.reg==='r'?'amb':'gry')+'">'+REG[c.reg]+'</span></td>'+
+    '<td style="font-size:11px;color:var(--muted)">'+c.srv.join(' · ')+'</td>'+
+    '<td><span class="own">'+av(e)+' '+e.n.split(' ')[0]+'</span></td>'+
+    '<td style="font-size:13px;letter-spacing:2px">'+forms+'</td>'+
+    '<td style="font-weight:700">'+money(c.t)+(c.pay==='debt'?' <span class="b red">долг</span>':c.pay==='wait'?' <span class="b amb">счёт</span>':'')+'</td>'+
+    '<td>'+stB(c.st)+'</td></tr>';
+  }).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Ничего не найдено</td></tr>';
+}
+
+/* ============ CLIENT MODAL ============ */
+let curCli=null,curTab='o';
+function openCli(id){
+  curCli=cli(id);curTab='o';
+  $('cmName').textContent=curCli.n;
+  $('cmSub').textContent='БИН '+curCli.bin+' · '+REG[curCli.reg]+' · ответственный: '+emp(curCli.own).n;
+  renderCliTabs();
+  $('cliOvl').classList.add('show');
+}
+function closeCli(){$('cliOvl').classList.remove('show')}
+function renderCliTabs(){
+  const tabs=[['o','Обзор'],['f','Отчётность'],['t','Задачи'],['d','Документы']];
+  $('cmTabs').innerHTML=tabs.map(([k,l])=>'<button class="mtab'+(curTab===k?' on':'')+'" onclick="curTab=\''+k+'\';renderCliTabs()">'+l+'</button>').join('');
+  const c=curCli,e=emp(c.own);
+  if(curTab==='o'){
+    $('cmBody').innerHTML='<div class="info-g">'+
+      '<div class="ig"><div class="il">Режим налогообложения</div><div class="iv">'+REG[c.reg]+'</div></div>'+
+      '<div class="ig"><div class="il">Абонплата</div><div class="iv">'+money(c.t)+' / мес '+(c.pay==='debt'?'<span class="b red">долг 2 мес</span>':c.pay==='wait'?'<span class="b amb">счёт выставлен</span>':'<span class="b grn">оплачено</span>')+'</div></div>'+
+      '<div class="ig"><div class="il">Услуги по договору</div><div class="iv">'+c.srv.join(', ')+'</div></div>'+
+      '<div class="ig"><div class="il">Ответственный бухгалтер</div><div class="iv"><span class="own">'+av(e)+' '+e.n+'</span></div></div>'+
+      '<div class="ig"><div class="il">Статус</div><div class="iv">'+stB(c.st)+'</div></div>'+
+      '<div class="ig"><div class="il">Заметка</div><div class="iv" style="font-weight:400">'+(c.note||'—')+'</div></div>'+
+      '</div>'+
+      '<div style="margin-top:14px;font-size:11.5px;color:var(--muted)">💡 Вся история по клиенту — задачи, отчёты, переписка WhatsApp, счета — в одной карточке. Если бухгалтер уходит в отпуск, участок передаётся за минуту.</div>';
+  }
+  if(curTab==='f'){
+    $('cmBody').innerHTML='<table><thead><tr><th>Форма</th><th>Период</th><th>Дедлайн</th><th>Статус</th></tr></thead><tbody>'+
+      Object.entries(c.f).map(([k,v])=>{
+        const per=k==='910.00'?'1 полугодие 2026':k==='СоцОПВ'?'июнь 2026':'2 квартал 2026';
+        const dl=k==='СоцОПВ'?'25.07.2026':'15.08.2026';
+        return '<tr><td style="font-weight:700">'+(k==='СоцОПВ'?'ОПВ / СО / ВОСМС':'ФНО '+k)+'</td><td>'+per+'</td><td>'+dl+'</td><td>'+fB(v)+'</td></tr>'}).join('')+
+      '</tbody></table><div style="margin-top:12px;font-size:11.5px;color:var(--muted)">История сдачи за прошлые периоды хранится по каждому клиенту — при проверке КГД всё поднимается за секунды.</div>';
+  }
+  if(curTab==='t'){
+    const ts=TASKS.filter(t=>t.c===c.id);
+    $('cmBody').innerHTML=ts.length?'<table><thead><tr><th>Задача</th><th>Исполнитель</th><th>Срок</th><th>Статус</th></tr></thead><tbody>'+
+      ts.map(t=>'<tr><td style="font-weight:600">'+t.t+'</td><td><span class="own">'+av(emp(t.a))+' '+emp(t.a).n.split(' ')[0]+'</span></td><td>'+t.dl+'</td><td>'+
+      (t.st==='done'?'<span class="b grn">готово</span>':t.st==='rev'?'<span class="b vio">на проверке</span>':t.st==='prog'?'<span class="b blu">в работе</span>':'<span class="b gry">в очереди</span>')+'</td></tr>').join('')+'</tbody></table>'
+      :'<div style="color:var(--muted)">Активных задач нет</div>';
+  }
+  if(curTab==='d'){
+    $('cmBody').innerHTML=['Договор на обслуживание.pdf','Доверенность ЭЦП.pdf','Выписка Kaspi · июнь.xlsx','Ведомость зарплаты · июнь.xlsx','Уведомление КГД (вход.).pdf'].map(d=>
+      '<div class="dl" style="cursor:pointer" onclick="toast(\'Документ открыт. Все файлы клиента хранятся в его карточке — не в личных телефонах сотрудников.\')"><span style="font-size:18px">📄</span><div class="di"><div class="dt" style="font-weight:600">'+d+'</div></div><span class="b gry">открыть</span></div>').join('');
+  }
+}
+
+/* ============ TASKS ============ */
+function renderTasks(){
+  const ts=myTasks().filter(t=>!F.tass||t.a===F.tass);
+  if(taskView==='kan'){
+    const cols=[['todo','В очереди'],['prog','В работе'],['rev','На проверке'],['done','Готово']];
+    $('taskWrap').innerHTML='<div class="kan">'+cols.map(([k,l])=>{
+      const cc=ts.filter(t=>t.st===k);
+      return '<div class="kcol"><h4>'+l+'<span>'+cc.length+'</span></h4>'+cc.map(t=>{
+        const e=emp(t.a);
+        return '<div class="kcard" onclick="toast(\'Задачу можно перетащить в следующую колонку — <b>директор видит статус без вопросов «ну что там?»</b>. К задаче прикрепляются файлы и комментарии.\')">'+
+        '<div class="kt">'+t.t+'</div><div class="kc2">'+cli(t.c).n+' · <span class="b gry" style="font-size:9.5px">'+t.tp+'</span></div>'+
+        '<div class="kf">'+av(e,20)+'<span style="font-size:10.5px;color:var(--muted)">'+e.n.split(' ')[0]+'</span><span class="kdl'+(t.hot?' hot':'')+'">'+(t.hot?'🔥 ':'')+t.dl+'</span></div></div>'}).join('')+'</div>'}).join('')+'</div>';
+  }else{
+    const buhs=EMP.filter(e=>['ai','ma','gu','as','di','zh'].includes(e.id));
+    const types=['Отчёт','Налоги','Зарплата','Первичка','Документы','Кредиты','Платежи'];
+    $('taskWrap').innerHTML='<div class="card mx"><h3>Кто чем занимается — сотрудник × тип работ (активные задачи)</h3><table><thead><tr><th>Сотрудник</th>'+
+      types.map(t=>'<th>'+t+'</th>').join('')+'<th>Клиенты</th></tr></thead><tbody>'+
+      buhs.map(e=>{
+        const et=TASKS.filter(t=>t.a===e.id&&t.st!=='done');
+        return '<tr><td><span class="own">'+av(e)+' '+e.n.split(' ')[0]+'</span><div class="csub">'+e.r+'</div></td>'+
+        types.map(tp=>{const n=et.filter(t=>t.tp===tp);return '<td class="mcell">'+(n.length?n.map(t=>'<span class="b '+(t.hot?'red':'blu')+'" title="'+t.t+'">'+cli(t.c).n.replace(/ТОО |ИП /,'').slice(0,10)+'…</span>').join(''):'<span style="color:#d5dcd8">—</span>')+'</td>'}).join('')+
+        '<td style="font-weight:700">'+CLI.filter(c=>c.own===e.id).length+'</td></tr>'}).join('')+
+      '</tbody></table><div style="margin-top:10px;font-size:11.5px;color:var(--muted)">💡 Это ответ на вопрос «какие сотрудники что делают»: вся команда и её участки — на одном экране. Перекос загрузки виден сразу.</div></div>';
+  }
+}
+
+/* ============ CALENDAR ============ */
+function renderCal(){
+  $('calJul').innerHTML=DLS_JUL.map(d=>dlRowClickable(d,'июл')).join('');
+  $('calAug').innerHTML=DLS_AUG.map(d=>dlRowClickable(d,'авг')).join('');
+}
+function dlRowClickable(d,mon){
+  return '<div style="cursor:pointer" onclick="toast(\'Раскрывается список: <b>по каждому клиенту видно, кто сдал, кто в работе, кто не начал</b> — и ответственный бухгалтер. Один клик — задача или напоминание в WhatsApp.\')">'+dlRow(d,mon)+'</div>';
+}
+
+/* ============ WHATSAPP ============ */
+function renderChatList(){
+  $('chList').innerHTML=CHATS.map((ch,i)=>{
+    const c=cli(ch.c),last=ch.msgs[ch.msgs.length-1];
+    return '<div class="chi'+(i===curChat?' on':'')+'" onclick="curChat='+i+';renderChatList();renderChat()">'+
+    '<div class="av">'+c.n.replace(/ТОО |ИП |«/g,'')[0]+'</div><div style="min-width:0;flex:1"><div class="cn">'+c.n+'</div><div class="cm">'+last[1]+'</div></div>'+
+    '<div class="ct">'+last[2]+(ch.unread?'<div style="background:#059669;color:#fff;border-radius:50%;width:18px;height:18px;display:grid;place-items:center;font-size:10px;font-weight:800;margin-top:4px;margin-left:auto">'+ch.unread+'</div>':'')+'</div></div>';
+  }).join('');
+}
+function renderChat(){
+  const ch=CHATS[curChat],c=cli(ch.c);
+  $('chName').textContent=c.n;
+  $('chMsgs').innerHTML=ch.msgs.map(([d,t,tm])=>'<div class="msg '+d+'">'+t+'<div class="mt">'+tm+'</div></div>').join('');
+  $('chTpls').innerHTML=['📎 Пришлите выписку за месяц','✅ Отчёт сдан, всё в порядке','🔔 Напоминание про документы','₸ Счёт на абонплату'].map(t=>
+    '<button class="tpl" onclick="tplSend(\''+t.replace(/'/g,'')+'\')">'+t+'</button>').join('');
+  $('chMsgs').scrollTop=99999;
+}
+function tplSend(t){
+  CHATS[curChat].msgs.push(['out',t.slice(2).trim(),'сейчас']);
+  renderChat();
+  toast('Шаблон отправлен. Переписка сохраняется в карточке клиента — <b>даже если сотрудник уволится, история останется в компании</b>.');
+}
+function sendMsg(){
+  const v=$('chInput').value.trim();if(!v)return;
+  CHATS[curChat].msgs.push(['out',v,'сейчас']);$('chInput').value='';
+  renderChat();
+  toast('Сообщение отправлено с <b>номера компании</b>: клиенты пишут в один WhatsApp, а отвечает свободный сотрудник.');
+}
+
+/* ============ LEADS ============ */
+function renderLeads(){
+  $('funWrap').innerHTML=FUN_COLS.map((l,i)=>{
+    const ls=LEADS.filter(x=>x.st===i);
+    return '<div class="fcol"><h4>'+l+' · '+ls.length+'</h4>'+ls.map(x=>
+      '<div class="fcard" onclick="toast(\'Карточку заявки можно перетащить на следующий этап. <b>Ни одна заявка из Instagram и WhatsApp больше не теряется в личных переписках.</b>\')">'+
+      '<div class="fn">'+x.n+'</div><div class="fs">'+x.note+'</div>'+
+      '<div style="display:flex;gap:5px;margin-top:6px;align-items:center"><span class="b '+(x.src==='Instagram'?'vio':x.src==='WhatsApp'?'grn':'blu')+'">'+x.src+'</span><span class="fm">'+x.m+'</span></div></div>').join('')+'</div>';
+  }).join('');
+}
+
+/* ============ FIN ============ */
+function renderFin(){
+  const mrr=CLI.reduce((s,c)=>s+c.t,0);
+  const paid=CLI.filter(c=>c.pay==='paid'),wait=CLI.filter(c=>c.pay==='wait'),debt=CLI.filter(c=>c.pay==='debt');
+  $('finKpis').innerHTML=
+    '<div class="kpi"><div class="kl">Абонплата в месяц (MRR)</div><div class="kv">'+money(mrr)+'</div><div class="kd">22 клиента на обслуживании</div></div>'+
+    '<div class="kpi"><div class="kl">Оплачено · июль</div><div class="kv">'+money(paid.reduce((s,c)=>s+c.t,0))+'</div><div class="kd">'+paid.length+' клиентов</div></div>'+
+    '<div class="kpi amber"><div class="kl">Счета выставлены</div><div class="kv">'+money(wait.reduce((s,c)=>s+c.t,0))+'</div><div class="kd">'+wait.length+' клиента</div></div>'+
+    '<div class="kpi red"><div class="kl">Задолженность</div><div class="kv">'+money(debt.reduce((s,c)=>s+c.t*2,0))+'</div><div class="kd">'+debt.length+' клиента · 2 месяца</div></div>';
+  $('finBody').innerHTML=CLI.map(c=>'<tr onclick="openCli('+c.id+')"><td><div class="cname">'+c.n+'</div></td><td style="font-weight:700">'+money(c.t)+'</td>'+
+    '<td>'+(c.pay==='paid'?'№ '+(400+c.id)+' от 01.07':c.pay==='wait'?'№ '+(400+c.id)+' от 01.07':'не оплачены июнь, июль')+'</td>'+
+    '<td>'+(c.pay==='paid'?'<span class="b grn">оплачено</span>':c.pay==='wait'?'<span class="b amb">ждём оплату</span>':'<span class="b red">долг '+money(c.t*2)+'</span>')+'</td>'+
+    '<td>'+(c.pay!=='paid'?'<button class="b '+(c.pay==='debt'?'red':'amb')+'" onclick="event.stopPropagation();toast(\'Напоминание об оплате отправлено в WhatsApp вместе со счётом. <b>Дебиторка сокращается без неловких звонков.</b>\')">напомнить ➤</button>':'')+'</td></tr>').join('');
+}
+
+/* ============ REPORTS ============ */
+function renderReports(){
+  const buhs=EMP.filter(e=>['ai','ma','gu','as','di','zh'].includes(e.id));
+  $('repEmp').innerHTML=buhs.map(e=>{
+    const all=TASKS.filter(t=>t.a===e.id),done=all.filter(t=>t.st==='done').length,open=all.length-done;
+    const late=e.id==='as'?1:0;
+    const load=Math.min(100,Math.round(open/6*100));
+    return '<tr><td><span class="own">'+av(e)+' '+e.n+'</span><div class="csub">'+e.r+'</div></td>'+
+    '<td style="font-weight:700">'+CLI.filter(c=>c.own===e.id).length+'</td><td>'+(done+3)+'</td><td>'+open+'</td>'+
+    '<td>'+(late?'<span class="b red">'+late+'</span>':'<span class="b grn">0</span>')+'</td>'+
+    '<td><div class="bar" style="width:110px"><i class="'+(load>80?'warn':'')+'" style="width:'+load+'%"></i></div></td></tr>'}).join('');
+  $('repCli').innerHTML=CLI.slice(0,12).map(c=>{
+    const n=TASKS.filter(t=>t.c===c.id).length;
+    const forms=Object.values(c.f),ok=forms.filter(f=>f==='ok').length;
+    return '<tr onclick="openCli('+c.id+')"><td><div class="cname">'+c.n+'</div></td><td style="font-size:11px;color:var(--muted)">'+c.srv.join(' · ')+'</td>'+
+    '<td style="font-weight:700">'+(n+2)+'</td><td>'+ok+' из '+forms.length+' сдано</td><td style="font-weight:700">'+money(c.t)+'</td></tr>'}).join('')+
+    '<tr><td colspan="5" style="text-align:center;color:var(--muted2);font-size:11.5px;padding:10px">…и ещё 10 клиентов</td></tr>';
+}
+
+/* ============ INIT ============ */
+function renderAll(){
+  renderDash();renderClients();renderTasks();renderCal();renderChatList();renderChat();renderLeads();renderFin();renderReports();
+}
+$('fOwner').innerHTML='<option value="">Все бухгалтеры</option>'+EMP.filter(e=>e.id!=='fa'&&e.id!=='er'&&e.id!=='sa').map(e=>'<option value="'+e.id+'">'+e.n.split(' ')[0]+'</option>').join('');
+$('fTass').innerHTML='<option value="">Все сотрудники</option>'+EMP.map(e=>'<option value="'+e.id+'">'+e.n.split(' ')[0]+'</option>').join('');
+renderAll();
+setTimeout(()=>toast('Здравствуйте, <b>Фазиля</b>! Это интерактивное демо: нажимайте на всё — клиентов, задачи, дедлайны, чаты. Переключите роль на «Бухгалтер», чтобы увидеть систему глазами сотрудника.'),700);
+const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));
+</script>
+</body>
+</html>
