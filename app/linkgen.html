@@ -32,6 +32,17 @@ select:focus,input:focus{border-color:#d97706}
 .howto{font-size:12px;color:#78716c;line-height:1.7}
 .howto b{color:#57534e}
 .howto code{background:#f5f5f4;border:1px solid #e7e5e4;border-radius:5px;padding:1px 5px;font-size:11px}
+/* Комбобокс с поиском */
+.combo{position:relative;margin-bottom:16px}
+.combo input{margin-bottom:0}
+.combo-list{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1.5px solid #e7e5e4;border-radius:12px;max-height:340px;overflow-y:auto;box-shadow:0 12px 32px rgba(28,25,23,.14);z-index:20}
+.combo-list.open{display:block}
+.cl-group{font-size:11px;font-weight:800;color:#a8a29e;text-transform:uppercase;letter-spacing:.5px;padding:11px 14px 4px;position:sticky;top:0;background:#fff}
+.cl-item{padding:9px 14px;font-size:13.5px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.cl-item:hover,.cl-item.active{background:#fef3c7}
+.cl-item .tag{margin-left:auto;font-size:10px;font-weight:800;color:#a8a29e;border:1px solid #e7e5e4;border-radius:6px;padding:1px 6px;flex:none}
+.cl-custom{border-top:1px solid #e7e5e4;color:#b45309;font-weight:700}
+.cl-empty{padding:14px;font-size:13px;color:#a8a29e;text-align:center}
 </style>
 </head>
 <body>
@@ -40,8 +51,10 @@ select:focus,input:focus{border-color:#d97706}
   <p class="sub">Ссылка работает до указанной даты, потом клиент видит «Срок истёк». Страница-генератор непубличная — не давайте её клиентам.</p>
   <div class="card">
     <label>Страница</label>
-    <select id="target" onchange="onTargetChange()"></select>
-    <input type="text" id="customTarget" style="display:none" placeholder="app/demo-xxx.html · /путь/от/корня · https://полный-адрес">
+    <div class="combo">
+      <input id="comboInput" placeholder="Поиск по плашкам… или путь / URL" autocomplete="off">
+      <div class="combo-list" id="comboList"></div>
+    </div>
     <label>Доступ на</label>
     <select id="period">
       <option value="1">1 день</option>
@@ -65,66 +78,146 @@ select:focus,input:focus{border-color:#d97706}
     </div>
   </div>
   <div class="card howto">
-    <b>Как это работает.</b> Срок ссылки проверяет гейт на самой странице: без свежего токена
-    клиент попадает на «Срок истёк». Вход в портал <b>pllato.kz/app</b> автоматически открывает
-    все такие страницы на вашем устройстве — ссылки нужны только клиентам.<br><br>
-    <b>Новая страница (будущая плашка):</b> подключите первым тегом в <code>&lt;head&gt;</code>
-    скрипт <code>&lt;script src="/app/gate.js"&gt;&lt;/script&gt;</code> и добавьте страницу в
-    список <code>PAGES</code> внутри этого файла (<code>app/linkgen.html</code>). Для страницы без
-    гейта ссылка тоже сгенерируется, но срок не будет ограничен — генератор предупредит.
+    <b>Как это работает.</b> Список берётся с портала <b>pllato.kz/app</b> автоматически: каждая
+    плашка и все документы из её выпадашки. Новая плашка на портале сразу появится и здесь.
+    Срок ссылки проверяет гейт на самой странице: без свежего токена клиент попадает на
+    «Срок истёк». Вход в портал автоматически открывает все такие страницы на вашем
+    устройстве — ссылки нужны только клиентам.<br><br>
+    <b>Чтобы новая страница реально закрывалась по сроку:</b> подключите первым тегом в
+    <code>&lt;head&gt;</code> скрипт <code>&lt;script src="/app/gate.js"&gt;&lt;/script&gt;</code>.
+    Для страницы без гейта ссылка тоже сгенерируется, но срок не будет ограничен —
+    генератор предупредит.
   </div>
   <div class="self">Для себя: <a href="#" onclick="selfAccess();return false">открыть вечный доступ на этом устройстве</a></div>
 </div>
 <script>
-// ===== Список страниц (плашек). Новые добавляй сюда — по группе на клиента. =====
-const PAGES = [
-  { group: 'Мобильный Агент · Выпечка (Бишкек)', items: [
-    { path: 'demo-bakery.html',     label: '🥐 Демо — вся система (4 роли)' },
-    { path: 'demo-bakery-app.html', label: '📱 Мокап мобильного приложения' },
-    { path: 'kp-bakery.html',       label: '📄 КП — Мобильный Агент' },
-    { path: 'agent/',               label: '🌙 CRM-демо (тёмная тема)' },
-  ]},
-];
-
 const SECRET='pllato-nan-dan-2026';
 function h(s){let x=7;for(let i=0;i<s.length;i++){x=((x*31)+s.charCodeAt(i))>>>0}return x.toString(36)}
 function makeToken(expTs){return btoa(expTs+'.'+h(expTs+SECRET)).replace(/=+$/,'')}
 let genUrl='';
 
-// Наполняем селект из PAGES + пункт «другая страница»
-(function(){
-  const sel=document.getElementById('target');
-  for(const g of PAGES){
-    const og=document.createElement('optgroup');og.label=g.group;
-    for(const p of g.items){const o=document.createElement('option');o.value=p.path;o.textContent=p.label;og.appendChild(o)}
-    sel.appendChild(og);
-  }
-  const o=document.createElement('option');o.value='__custom';o.textContent='✏️ Другая страница — путь или URL…';
-  sel.appendChild(o);
-})();
-function onTargetChange(){
-  const custom=document.getElementById('target').value==='__custom';
-  document.getElementById('customTarget').style.display=custom?'block':'none';
-  if(custom)document.getElementById('customTarget').focus();
+// ===== Каталог страниц: парсим плашки прямо с портала app.html =====
+// Запасной список на случай, если портал не загрузился.
+const FALLBACK=[
+  {group:'Мобильный Агент · Выпечка',label:'🥐 Демо — вся система (4 роли)',url:location.origin+'/app/demo-bakery.html'},
+  {group:'Мобильный Агент · Выпечка',label:'📱 Мокап мобильного приложения',url:location.origin+'/app/demo-bakery-app.html'},
+  {group:'Мобильный Агент · Выпечка',label:'📄 КП — Мобильный Агент',url:location.origin+'/app/kp-bakery.html'},
+  {group:'Мобильный Агент · Выпечка',label:'🌙 CRM-демо (тёмная тема)',url:location.origin+'/app/agent/'},
+];
+let CATALOG=[];
+
+async function loadCatalog(){
+  try{
+    const res=await fetch('/app.html',{cache:'no-store'});
+    const doc=new DOMParser().parseFromString(await res.text(),'text/html');
+    const items=[];
+    doc.querySelectorAll('.tool-card').forEach(card=>{
+      if(card.dataset.appId==='linkgen')return;              // сам генератор
+      if(card.classList.contains('disabled'))return;          // «Скоро»
+      const title=(card.querySelector('h3')?.textContent||'').trim();
+      if(!title)return;
+      const seen=new Set();
+      const push=(label,href,tag)=>{
+        if(!href)return;
+        href=href.trim();
+        if(!href||href==='#'||href.startsWith('javascript:'))return;
+        let u;try{u=new URL(href,location.origin+'/').href}catch(e){return}
+        if(seen.has(u))return;seen.add(u);
+        items.push({group:title,label,url:u,tag});
+      };
+      const ctaEl=card.querySelector('.tool-cta');
+      const cta=(ctaEl?.textContent||'Открыть').replace(/[→↗]/g,'').trim()||'Открыть';
+      const main=card.matches('a[href]')?card.getAttribute('href'):ctaEl?.getAttribute('href');
+      push(cta,main);
+      card.querySelectorAll('.tool-dd-menu a').forEach(a=>{
+        const pdf=/\.pdf(\?|#|$)/i.test(a.getAttribute('href')||'');
+        push(a.textContent.trim(),a.getAttribute('href'),pdf?'PDF':null);
+      });
+    });
+    if(items.length)CATALOG=items;
+  }catch(e){}
+  if(!CATALOG.length)CATALOG=FALLBACK;
+  renderList('');
 }
-document.getElementById('period').addEventListener('change',e=>{
-  document.getElementById('customDate').style.display=e.target.value==='custom'?'block':'none';
+loadCatalog();
+
+// ===== Комбобокс с поиском =====
+const comboInput=document.getElementById('comboInput');
+const comboList=document.getElementById('comboList');
+let selected=null; // {label,url}
+
+function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+function renderList(q){
+  q=q.trim().toLowerCase();
+  const groups=new Map();
+  for(const it of CATALOG){
+    if(q&&!(it.group+' '+it.label).toLowerCase().includes(q))continue;
+    if(!groups.has(it.group))groups.set(it.group,[]);
+    groups.get(it.group).push(it);
+  }
+  let html='';
+  for(const [g,arr] of groups){
+    html+='<div class="cl-group">'+esc(g)+'</div>';
+    for(const it of arr){
+      html+='<div class="cl-item" data-url="'+esc(it.url)+'" data-label="'+esc(it.group+' — '+it.label)+'">'
+        +esc(it.label)+(it.tag?'<span class="tag">'+esc(it.tag)+'</span>':'')+'</div>';
+    }
+  }
+  if(!html&&!q)html='<div class="cl-empty">Загружаю плашки с портала…</div>';
+  const raw=comboInput.value.trim();
+  if(raw)html+='<div class="cl-item cl-custom" data-custom="1">✏️ Использовать как путь/URL: «'+esc(raw)+'»</div>';
+  else if(!html)html='<div class="cl-empty">Ничего не найдено — впишите путь или URL</div>';
+  comboList.innerHTML=html;
+}
+
+function openList(){comboList.classList.add('open')}
+function closeList(){comboList.classList.remove('open')}
+
+comboInput.addEventListener('focus',()=>{renderList(comboInput.value===selected?.label?'':comboInput.value);openList()});
+comboInput.addEventListener('input',()=>{selected=null;renderList(comboInput.value);openList()});
+comboInput.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){closeList();return}
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const first=comboList.querySelector('.cl-item');
+    if(first&&comboList.classList.contains('open'))pick(first);
+  }
 });
+comboList.addEventListener('mousedown',e=>{
+  const item=e.target.closest('.cl-item');
+  if(item){e.preventDefault();pick(item)}
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.combo'))closeList()});
+
+function pick(item){
+  if(item.dataset.custom){
+    const raw=comboInput.value.trim();
+    selected={label:raw,url:resolveTarget(raw),custom:true};
+  }else{
+    selected={label:item.dataset.label,url:item.dataset.url};
+    comboInput.value=item.dataset.label;
+  }
+  closeList();
+}
 
 // Путь → абсолютный URL: полный URL как есть, /путь — от корня сайта, иначе — от папки app/
 function resolveTarget(t){
-  t=t.trim();
+  t=(t||'').trim();
   if(!t)return null;
   if(/^https?:\/\//i.test(t))return t;
   if(t.startsWith('/'))return location.origin+t;
   return location.href.replace(/linkgen\.html.*$/,'')+t;
 }
 
+document.getElementById('period').addEventListener('change',e=>{
+  document.getElementById('customDate').style.display=e.target.value==='custom'?'block':'none';
+});
+
 function gen(){
-  let target=document.getElementById('target').value;
-  if(target==='__custom')target=document.getElementById('customTarget').value;
-  const url=resolveTarget(target);
-  if(!url){alert('Укажите страницу');return}
+  let url=selected?.url;
+  if(!url&&comboInput.value.trim())url=resolveTarget(comboInput.value); // вписали путь и сразу жмут кнопку
+  if(!url){alert('Выберите страницу из списка или впишите путь/URL');comboInput.focus();return}
   const p=document.getElementById('period').value;
   let exp;
   if(p==='custom'){
@@ -146,6 +239,10 @@ function gen(){
 async function checkGate(url){
   const warn=document.getElementById('gateWarn');
   warn.classList.remove('show');
+  if(/\.pdf(\?|#|$)/i.test(url)){
+    warn.textContent='⚠️ Это PDF — его нельзя закрыть гейтом, ссылка будет работать бессрочно.';
+    warn.classList.add('show');return;
+  }
   if(!url.startsWith(location.origin))return; // чужой домен не проверить
   try{
     const html=await (await fetch(url,{cache:'no-store'})).text();
