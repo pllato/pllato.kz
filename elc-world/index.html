@@ -11,146 +11,165 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html, body { width:100%; height:100%; overflow:hidden; background:#17181a; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#101223; }
   body { font-family:'Nunito', 'Segoe UI', Arial, sans-serif; user-select:none; -webkit-user-select:none; }
   #game { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; outline:none; }
 
   /* ---------- Загрузочный экран ---------- */
   #loading {
-    position:fixed; inset:0; z-index:100; background:#17181a;
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
-    transition:opacity .6s; color:#fff;
+    position:fixed; inset:0; z-index:100;
+    background:radial-gradient(120% 90% at 50% 0%, #2b3a7a 0%, #1a2150 45%, #10132e 100%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px;
+    transition:opacity .7s; color:#fff;
   }
   #loading.hidden { opacity:0; pointer-events:none; }
-  #loading .logo { font-weight:900; font-size:min(13vw, 72px); letter-spacing:2px; }
-  #loading .logo span { color:#4da3ff; }
+  #loading .logo {
+    font-weight:900; font-size:min(14vw, 78px); letter-spacing:1px;
+    background:linear-gradient(92deg, #ff8bd0 0%, #b78bff 35%, #6ea8ff 70%, #7ef0d4 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 4px 22px rgba(120,140,255,.45));
+  }
+  #loading .sub { color:#aab4e8; font-weight:800; font-size:15px; margin-top:-14px; }
   #loading .blocks { display:flex; gap:10px; }
-  #loading .blocks i { width:18px; height:18px; border-radius:4px; background:#4da3ff; animation:hop 1s infinite; }
-  #loading .blocks i:nth-child(2){ background:#ffcf3f; animation-delay:.15s }
-  #loading .blocks i:nth-child(3){ background:#57d95f; animation-delay:.3s }
+  #loading .blocks i { width:18px; height:18px; border-radius:6px; background:#6ea8ff; animation:hop 1s infinite; box-shadow:0 0 14px rgba(110,168,255,.7); }
+  #loading .blocks i:nth-child(2){ background:#ff8bd0; animation-delay:.15s; box-shadow:0 0 14px rgba(255,139,208,.7); }
+  #loading .blocks i:nth-child(3){ background:#7ef0d4; animation-delay:.3s; box-shadow:0 0 14px rgba(126,240,212,.7); }
   @keyframes hop { 0%,60%,100%{ transform:translateY(0) } 30%{ transform:translateY(-14px) } }
-  #loading .bar { width:min(70vw, 340px); height:10px; background:#2b2d31; border-radius:6px; overflow:hidden; }
-  #loading .bar i { display:block; height:100%; width:0%; background:#4da3ff; border-radius:6px; transition:width .2s; }
-  #loading .tip { color:#9aa0a8; font-weight:700; font-size:14px; }
+  #loading .bar { width:min(70vw, 340px); height:10px; background:rgba(255,255,255,.1); border-radius:6px; overflow:hidden; }
+  #loading .bar i { display:block; height:100%; width:0%; border-radius:6px; transition:width .2s;
+    background:linear-gradient(90deg, #ff8bd0, #b78bff, #6ea8ff); box-shadow:0 0 12px rgba(150,150,255,.8); }
+  #loading .tip { color:#8a93c4; font-weight:700; font-size:13px; }
 
   /* ---------- HUD ---------- */
   .hud { position:fixed; z-index:20; color:#fff; }
+  .glass {
+    background:rgba(16,20,38,.55);
+    backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,.14); border-radius:14px;
+    box-shadow:0 6px 24px rgba(0,0,20,.25);
+  }
   #topLeft { top:calc(10px + env(safe-area-inset-top)); left:12px; display:flex; align-items:center; gap:10px; }
   #menuBtn {
-    width:42px; height:42px; border:none; border-radius:10px; cursor:pointer;
-    background:rgba(0,0,0,.6); color:#fff; font-size:20px; font-weight:900;
+    width:44px; height:44px; border:1px solid rgba(255,255,255,.14); border-radius:14px; cursor:pointer;
+    background:rgba(16,20,38,.55); backdrop-filter:blur(12px); color:#fff; font-size:19px; font-weight:900;
   }
   #menuBtn:active { transform:scale(.94); }
-  #nameChip { background:rgba(0,0,0,.6); border-radius:10px; padding:8px 14px; font-weight:800; font-size:14px; }
+  #nameChip { padding:10px 15px; font-weight:800; font-size:14px; }
 
   #topRight { top:calc(10px + env(safe-area-inset-top)); right:12px; display:flex; flex-direction:column; align-items:flex-end; gap:8px; max-width:250px; }
-  #coinsChip {
-    display:flex; align-items:center; gap:8px; background:rgba(0,0,0,.6);
-    border-radius:12px; padding:8px 14px; font-weight:900; font-size:18px;
-  }
+  #coinsChip { display:flex; align-items:center; gap:9px; padding:9px 15px; font-weight:900; font-size:18px; }
   #coinsChip.bounce { animation:bounce .35s; }
-  @keyframes bounce { 30%{ transform:scale(1.25) } }
-  .coinIcon { width:20px; height:20px; border-radius:50%; background:radial-gradient(circle at 35% 35%, #ffe985, #f4b400 70%); box-shadow:inset 0 0 0 2px #c98d00; }
-
-  #playersPanel { background:rgba(0,0,0,.5); border-radius:10px; padding:8px 12px; font-size:13px; font-weight:700; min-width:150px; }
-  #playersPanel .t { color:#9fd0ff; font-weight:900; margin-bottom:4px; font-size:12px; }
+  @keyframes bounce { 30%{ transform:scale(1.22) } }
+  .coinIcon {
+    width:21px; height:21px; border-radius:50%;
+    background:radial-gradient(circle at 34% 30%, #fff3ae, #ffd34e 45%, #e79a1d 100%);
+    box-shadow:inset 0 0 0 2px rgba(180,110,0,.55), 0 0 10px rgba(255,200,60,.45);
+  }
+  #playersPanel { padding:9px 13px; font-size:13px; font-weight:700; min-width:152px; }
+  #playersPanel .t { color:#9fc3ff; font-weight:900; margin-bottom:4px; font-size:11px; letter-spacing:.6px; }
   #playersPanel div.p { padding:1px 0; }
-
-  #questPanel { background:rgba(0,0,0,.55); border-radius:10px; padding:10px 12px; font-size:13px; font-weight:800; min-width:170px; }
-  #questPanel .t { color:#ffd75e; font-weight:900; margin-bottom:5px; font-size:12px; letter-spacing:.5px; }
+  #questPanel { padding:11px 13px; font-size:13px; font-weight:800; min-width:176px; }
+  #questPanel .t { color:#ffd75e; font-weight:900; margin-bottom:5px; font-size:11px; letter-spacing:.6px; }
   #questPanel div.q { padding:2px 0; line-height:1.35; }
 
   /* ---------- Подсказка взаимодействия ---------- */
   #prompt {
     left:50%; bottom:120px; transform:translateX(-50%);
-    background:rgba(0,0,0,.65); padding:9px 18px; border-radius:10px;
-    font-weight:800; font-size:15px; display:none; white-space:nowrap;
+    padding:10px 19px; font-weight:800; font-size:15px; display:none; white-space:nowrap;
   }
-  #prompt b { color:#7fc4ff; }
+  #prompt b { color:#8cc6ff; }
 
   /* ---------- Диалог ---------- */
   #dialog {
     left:50%; bottom:calc(24px + env(safe-area-inset-bottom)); transform:translateX(-50%);
-    width:min(92vw, 520px); background:rgba(12,14,18,.92); border:2px solid rgba(255,255,255,.12);
-    border-radius:14px; padding:16px 18px; display:none; z-index:30;
+    width:min(92vw, 520px); background:rgba(13,16,32,.88);
+    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:18px; padding:17px 19px; display:none; z-index:30;
+    box-shadow:0 12px 40px rgba(0,0,20,.5);
   }
-  #dialog .npc { color:#7fc4ff; font-weight:900; font-size:15px; margin-bottom:6px; }
+  #dialog .npc { font-weight:900; font-size:15px; margin-bottom:6px;
+    background:linear-gradient(90deg, #8cc6ff, #c29bff); -webkit-background-clip:text; background-clip:text; color:transparent; }
   #dialog .text { font-weight:700; font-size:16px; line-height:1.45; min-height:44px; }
-  #dialog .choices { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+  #dialog .choices { display:flex; flex-direction:column; gap:8px; margin-top:13px; }
   #dialog button {
-    border:none; border-radius:9px; padding:10px 14px; font-family:inherit; font-weight:800; font-size:15px;
-    background:#fff; color:#17181a; cursor:pointer; text-align:left;
+    border:none; border-radius:12px; padding:11px 15px; font-family:inherit; font-weight:800; font-size:15px;
+    background:rgba(255,255,255,.94); color:#161a30; cursor:pointer; text-align:left;
   }
   #dialog button:hover { background:#dbe9ff; }
-  #dialog button:active { transform:scale(.98); }
-  #dialog button.primary { background:#3573f5; color:#fff; }
-  #dialog button.primary:hover { background:#2a5fd0; }
+  #dialog button:active { transform:scale(.985); }
+  #dialog button.primary { background:linear-gradient(92deg, #4f8cff, #7b5bf5); color:#fff; box-shadow:0 4px 16px rgba(90,110,255,.4); }
+  #dialog button.primary:hover { filter:brightness(1.08); }
 
   /* ---------- Тосты ---------- */
   #toasts { top:calc(70px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none; }
   .toast {
-    background:rgba(0,0,0,.72); color:#fff; font-weight:900; font-size:17px;
-    padding:10px 22px; border-radius:12px; animation:toastIn .3s, toastOut .5s 2.2s forwards; white-space:nowrap;
+    background:rgba(13,16,32,.82); color:#fff; font-weight:900; font-size:17px;
+    backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,.14);
+    padding:11px 24px; border-radius:14px; animation:toastIn .3s, toastOut .5s 2.2s forwards; white-space:nowrap;
   }
-  .toast.gold { color:#ffd75e; }
+  .toast.gold { color:#ffd75e; text-shadow:0 0 18px rgba(255,200,60,.45); }
   @keyframes toastIn { from{ transform:translateY(-16px); opacity:0 } }
   @keyframes toastOut { to{ transform:translateY(-10px); opacity:0 } }
 
   /* ---------- Меню / модалки ---------- */
   .overlay {
-    position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.55);
+    position:fixed; inset:0; z-index:40; background:rgba(8,10,22,.6);
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
     display:none; align-items:center; justify-content:center;
   }
   .overlay.open { display:flex; }
   .panel {
-    width:min(92vw, 440px); background:#1d2025; color:#fff; border-radius:16px; padding:24px;
-    border:2px solid rgba(255,255,255,.1); max-height:84vh; overflow:auto;
+    width:min(92vw, 440px); background:rgba(20,24,44,.92); color:#fff; border-radius:20px; padding:26px;
+    border:1px solid rgba(255,255,255,.15); max-height:84vh; overflow:auto;
+    box-shadow:0 20px 60px rgba(0,0,20,.6);
   }
-  .panel h2 { font-weight:900; font-size:22px; margin-bottom:12px; }
-  .panel h2 span { color:#4da3ff; }
-  .panel p, .panel li { font-weight:700; font-size:14px; line-height:1.55; color:#cfd4da; }
+  .panel h2 { font-weight:900; font-size:23px; margin-bottom:12px; }
+  .panel h2 span { background:linear-gradient(92deg, #ff8bd0, #b78bff, #6ea8ff); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .panel p, .panel li { font-weight:700; font-size:14px; line-height:1.55; color:#c3c9e8; }
   .panel ul { margin:8px 0 8px 18px; }
-  .panel .btnRow { display:flex; gap:10px; margin-top:16px; }
+  .panel .btnRow { display:flex; gap:10px; margin-top:18px; }
   .panel .btnRow button {
-    flex:1; border:none; border-radius:10px; padding:12px; font-family:inherit; font-weight:900; font-size:15px; cursor:pointer;
-    background:#3573f5; color:#fff;
+    flex:1; border:none; border-radius:12px; padding:13px; font-family:inherit; font-weight:900; font-size:15px; cursor:pointer;
+    background:linear-gradient(92deg, #4f8cff, #7b5bf5); color:#fff; box-shadow:0 4px 16px rgba(90,110,255,.4);
   }
   .panel table { width:100%; border-collapse:collapse; margin-top:10px; }
   .panel th, .panel td { text-align:left; padding:8px 10px; font-size:14px; font-weight:700; }
-  .panel th { color:#9fd0ff; font-weight:900; border-bottom:2px solid rgba(255,255,255,.15); }
-  .panel tr:nth-child(even) td { background:rgba(255,255,255,.04); }
-  .panel .ok { color:#57d95f; }
+  .panel th { color:#9fc3ff; font-weight:900; border-bottom:2px solid rgba(255,255,255,.14); }
+  .panel tr:nth-child(even) td { background:rgba(255,255,255,.045); }
+  .panel .ok { color:#5fe08a; }
 
   /* ---------- Подсказка управления ---------- */
   #hint {
     left:12px; bottom:calc(14px + env(safe-area-inset-bottom));
-    background:rgba(0,0,0,.55); border-radius:10px; padding:10px 14px;
-    font-weight:800; font-size:13px; line-height:1.6; transition:opacity 1s;
+    padding:11px 15px; font-weight:800; font-size:13px; line-height:1.6; transition:opacity 1s;
     pointer-events:none;
   }
-  #hint b { color:#7fc4ff; }
+  #hint b { color:#8cc6ff; }
 
-  #version { right:12px; bottom:calc(10px + env(safe-area-inset-bottom)); color:rgba(255,255,255,.4); font-weight:800; font-size:11px; }
+  #version { right:12px; bottom:calc(10px + env(safe-area-inset-bottom)); color:rgba(255,255,255,.35); font-weight:800; font-size:11px; }
 
   /* ---------- Мобильное управление ---------- */
   #joy {
     left:26px; bottom:calc(30px + env(safe-area-inset-bottom)); width:120px; height:120px;
-    border-radius:50%; background:rgba(255,255,255,.12); border:2px solid rgba(255,255,255,.25);
-    display:none; touch-action:none;
+    border-radius:50%; background:rgba(255,255,255,.1); border:2px solid rgba(255,255,255,.22);
+    backdrop-filter:blur(6px); display:none; touch-action:none;
   }
   #joyKnob {
     position:absolute; left:50%; top:50%; width:52px; height:52px; margin:-26px 0 0 -26px;
-    border-radius:50%; background:rgba(255,255,255,.55);
+    border-radius:50%; background:rgba(255,255,255,.5); box-shadow:0 2px 10px rgba(0,0,20,.3);
   }
   #jumpBtn {
     right:26px; bottom:calc(40px + env(safe-area-inset-bottom)); width:74px; height:74px; border-radius:50%;
-    border:2px solid rgba(255,255,255,.3); background:rgba(255,255,255,.15); color:#fff;
-    font-size:30px; display:none; touch-action:none; align-items:center; justify-content:center; font-weight:900;
+    border:2px solid rgba(255,255,255,.28); background:rgba(255,255,255,.13); color:#fff;
+    backdrop-filter:blur(6px); font-size:30px; display:none; touch-action:none;
+    align-items:center; justify-content:center; font-weight:900;
   }
   #actBtn {
     right:44px; bottom:calc(134px + env(safe-area-inset-bottom)); width:58px; height:58px; border-radius:50%;
-    border:2px solid rgba(255,255,255,.35); background:rgba(53,115,245,.75); color:#fff;
-    font-size:24px; display:none; touch-action:none; align-items:center; justify-content:center;
+    border:2px solid rgba(255,255,255,.3); background:linear-gradient(135deg, rgba(79,140,255,.85), rgba(123,91,245,.85));
+    color:#fff; font-size:24px; display:none; touch-action:none; align-items:center; justify-content:center;
+    box-shadow:0 4px 16px rgba(90,110,255,.5);
   }
   body.touch #joy { display:block; }
   body.touch #jumpBtn { display:flex; }
@@ -162,7 +181,8 @@
 <canvas id="game"></canvas>
 
 <div id="loading">
-  <div class="logo">ELC <span>WORLD</span></div>
+  <div class="logo">ELC WORLD</div>
+  <div class="sub">мир школы английского языка</div>
   <div class="blocks"><i></i><i></i><i></i></div>
   <div class="bar"><i id="loadBar"></i></div>
   <div class="tip">Совет: собирай монеты и выполняй задания учителей!</div>
@@ -170,24 +190,24 @@
 
 <div class="hud" id="topLeft">
   <button id="menuBtn" title="Меню">☰</button>
-  <div id="nameChip">🎮 Ученик</div>
+  <div id="nameChip" class="glass">🎮 Ученик</div>
 </div>
 
 <div class="hud" id="topRight">
-  <div id="coinsChip"><span class="coinIcon"></span><span id="coinsVal">0</span></div>
-  <div id="playersPanel">
+  <div id="coinsChip" class="glass"><span class="coinIcon"></span><span id="coinsVal">0</span></div>
+  <div id="playersPanel" class="glass">
     <div class="t">👥 ИГРОКИ — 3</div>
     <div class="p">🟦 Ученик (ты)</div>
     <div class="p">⬜ Timur</div>
     <div class="p">⬜ Aisha</div>
   </div>
-  <div id="questPanel">
+  <div id="questPanel" class="glass">
     <div class="t">📜 ЗАДАНИЯ</div>
     <div id="questList"></div>
   </div>
 </div>
 
-<div class="hud" id="prompt"></div>
+<div class="hud glass" id="prompt"></div>
 
 <div class="hud" id="dialog">
   <div class="npc" id="dlgNpc"></div>
@@ -197,12 +217,12 @@
 
 <div class="hud" id="toasts"></div>
 
-<div class="hud" id="hint">
+<div class="hud glass" id="hint">
   <b>WASD</b> — ходить &nbsp; <b>Пробел</b> — прыжок<br>
   <b>Мышь (зажать)</b> — камера &nbsp; <b>E</b> — говорить
 </div>
 
-<div class="hud" id="version">ELC World · демо 0.1</div>
+<div class="hud" id="version">ELC World · демо 0.2</div>
 
 <div class="hud" id="joy"><div id="joyKnob"></div></div>
 <button class="hud" id="jumpBtn">⬆</button>
@@ -210,7 +230,7 @@
 
 <div class="overlay" id="menuOverlay">
   <div class="panel">
-    <h2>ELC <span>WORLD</span></h2>
+    <h2><span>ELC WORLD</span></h2>
     <p>Демо-версия 3D-мира школы английского языка ELC. Гуляй по кампусу, говори с учителями, выполняй задания и собирай монеты!</p>
     <ul>
       <li><b>WASD / стрелки</b> — ходить</li>
@@ -237,61 +257,144 @@
   </div>
 </div>
 
+<script type="importmap">
+{ "imports": { "three": "./lib/three.module.min.js" } }
+</script>
 <script type="module">
-import * as THREE from './lib/three.module.min.js';
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from './lib/addons/geometries/RoundedBoxGeometry.js';
+import { RoomEnvironment } from './lib/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from './lib/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from './lib/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from './lib/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from './lib/addons/postprocessing/OutputPass.js';
 
 /* ============================================================
-   ELC WORLD — демо 3D-мира в стиле блочных игр (Roblox-like).
-   Vanilla JS + three.js, без сборки. Всё генерируется кодом.
+   ELC WORLD 0.2 — компактный, но проработанный 3D-мир
+   в стиле топовых блочных игр: скруглённые детали, ACES-свет,
+   bloom-свечение, фонтан, сакура, градиентные вывески.
+   Vanilla JS + three.js, без сборки.
    ============================================================ */
 
-// ---------- Базовая сцена ----------
+const IS_TOUCH = matchMedia('(pointer: coarse)').matches;
+
+// ---------- Рендер ----------
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_TOUCH ? 1.75 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
-scene.fog = new THREE.Fog(0xa8dcf5, 90, 260);
+scene.fog = new THREE.Fog(0xd6ecff, 70, 190);
 
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);
+const camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.1, 600);
 
-scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x7ec850, 0.95));
-const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-sun.position.set(60, 90, 40);
+// Постобработка: мягкое свечение неона, ламп и солнца
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.35, 0.5, 0.92);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+// Мягкое окружение для бликов на материалах
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+// ---------- Свет ----------
+scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x9fc27e, 0.65));
+const sun = new THREE.DirectionalLight(0xfff1da, 2.7);
+sun.position.set(45, 65, 30);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -90; sun.shadow.camera.right = 90;
-sun.shadow.camera.top = 90; sun.shadow.camera.bottom = -90;
-sun.shadow.camera.near = 10; sun.shadow.camera.far = 250;
+sun.shadow.camera.left = -55; sun.shadow.camera.right = 55;
+sun.shadow.camera.top = 55; sun.shadow.camera.bottom = -55;
+sun.shadow.camera.near = 10; sun.shadow.camera.far = 200;
+sun.shadow.bias = -0.0004;
 scene.add(sun);
+
+// ---------- Небо ----------
+const skyMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, fog: false,
+  uniforms: {
+    top: { value: new THREE.Color(0x3d95ff) },
+    mid: { value: new THREE.Color(0xa8d8ff) },
+    bot: { value: new THREE.Color(0xffeed2) },
+  },
+  vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `varying vec3 vP; uniform vec3 top; uniform vec3 mid; uniform vec3 bot;
+    void main(){
+      float h = normalize(vP).y;
+      vec3 c = h > 0.12 ? mix(mid, top, smoothstep(0.12, 0.65, h)) : mix(bot, mid, smoothstep(-0.04, 0.12, h));
+      gl_FragColor = vec4(c, 1.0);
+    }`,
+});
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(280, 32, 16), skyMat));
+// Солнце (bloom даст ему сияние)
+const sunDisc = new THREE.Mesh(
+  new THREE.CircleGeometry(14, 40),
+  new THREE.MeshBasicMaterial({ color: 0xfffbe6, fog: false })
+);
+sunDisc.position.set(140, 190, 95);
+sunDisc.lookAt(0, 0, 0);
+scene.add(sunDisc);
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_TOUCH ? 1.75 : 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
 });
 
 // ---------- Помощники ----------
-const solids = []; // AABB-коллайдеры: {minX,maxX,minY,maxY,minZ,maxZ}
+const solids = []; // AABB-коллайдеры
 
 function addSolid(cx, baseY, cz, w, h, d) {
   solids.push({ minX: cx - w / 2, maxX: cx + w / 2, minY: baseY, maxY: baseY + h, minZ: cz - d / 2, maxZ: cz + d / 2 });
 }
 
-function box(w, h, d, color, x, y, z, { solid = true, shadow = true, mat = null } = {}) {
-  const m = new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d),
-    mat || new THREE.MeshLambertMaterial({ color })
-  );
-  m.position.set(x, y + h / 2, z); // y — низ блока
+const matCache = new Map();
+function mat(color, { rough = 0.85, metal = 0, emissive = 0x000000, emissiveIntensity = 1 } = {}) {
+  const key = `${color}|${rough}|${metal}|${emissive}|${emissiveIntensity}`;
+  if (!matCache.has(key)) {
+    matCache.set(key, new THREE.MeshStandardMaterial({
+      color, roughness: rough, metalness: metal,
+      emissive, emissiveIntensity,
+      envMap: envTex, envMapIntensity: 0.4,
+    }));
+  }
+  return matCache.get(key);
+}
+
+// Скруглённый блок — главный строительный элемент «дорогой» картинки
+function rbox(w, h, d, color, x, y, z, { solid = true, shadow = true, radius = 0.1, material = null } = {}) {
+  const r = Math.min(radius, w / 2.001, h / 2.001, d / 2.001);
+  const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 2, r), material || mat(color));
+  m.position.set(x, y + h / 2, z);
   m.castShadow = shadow; m.receiveShadow = true;
   scene.add(m);
   if (solid) addSolid(x, y, z, w, h, d);
+  return m;
+}
+
+function cyl(rTop, rBot, h, color, x, y, z, { solid = false, seg = 24, material = null } = {}) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, h, seg), material || mat(color));
+  m.position.set(x, y + h / 2, z);
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m);
+  if (solid) addSolid(x, y, z, Math.max(rTop, rBot) * 2, h, Math.max(rTop, rBot) * 2);
+  return m;
+}
+
+function sph(r, color, x, y, z, { seg = 18, material = null } = {}) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, seg, seg), material || mat(color));
+  m.position.set(x, y, z);
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m);
   return m;
 }
 
@@ -301,344 +404,690 @@ function canvasTexture(w, h, draw) {
   draw(c.getContext('2d'));
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
   return t;
 }
 
-function textSprite(text, { size = 44, color = '#fff', outline = '#000' } = {}) {
-  const pad = 20;
+// Табличка-имя: текст на полупрозрачной «пилюле»
+function textSprite(text, { size = 42, color = '#fff', pill = true } = {}) {
+  const padX = 34, padY = 18;
   const c = document.createElement('canvas');
   const ctx0 = c.getContext('2d');
   ctx0.font = `900 ${size}px Nunito, Arial`;
-  const tw = Math.ceil(ctx0.measureText(text).width) + pad * 2;
-  c.width = tw; c.height = size + pad * 2;
+  const tw = Math.ceil(ctx0.measureText(text).width);
+  c.width = tw + padX * 2; c.height = size + padY * 2;
   const ctx = c.getContext('2d');
+  if (pill) {
+    ctx.fillStyle = 'rgba(10,14,28,.55)';
+    ctx.beginPath();
+    ctx.roundRect(0, 0, c.width, c.height, c.height / 2);
+    ctx.fill();
+  }
   ctx.font = `900 ${size}px Nunito, Arial`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.lineWidth = 8; ctx.strokeStyle = outline;
-  ctx.strokeText(text, c.width / 2, c.height / 2);
   ctx.fillStyle = color;
-  ctx.fillText(text, c.width / 2, c.height / 2);
+  ctx.fillText(text, c.width / 2, c.height / 2 + 2);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthWrite: false }));
-  const k = 0.02;
+  const k = 0.017;
   sp.scale.set(c.width * k, c.height * k, 1);
   return sp;
 }
 
+// Градиентный текст (стиль топовых игр)
+function gradientTextTexture(text, w, h, { colors = ['#ff8bd0', '#b78bff', '#6ea8ff', '#7ef0d4'], bg = null, fontScale = 0.52 } = {}) {
+  return canvasTexture(w, h, ctx => {
+    if (bg) {
+      ctx.fillStyle = bg;
+      ctx.beginPath(); ctx.roundRect(0, 0, w, h, h * 0.22); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = h * 0.035;
+      ctx.beginPath(); ctx.roundRect(h * 0.03, h * 0.03, w - h * 0.06, h - h * 0.06, h * 0.2); ctx.stroke();
+    }
+    const g = ctx.createLinearGradient(w * 0.12, 0, w * 0.88, 0);
+    colors.forEach((c, i) => g.addColorStop(i / (colors.length - 1), c));
+    ctx.font = `900 ${Math.round(h * fontScale)}px Nunito, Arial`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(150,150,255,.8)'; ctx.shadowBlur = h * 0.12;
+    ctx.fillStyle = g;
+    ctx.fillText(text, w / 2, h / 2 + h * 0.02);
+  });
+}
+
 // ---------- Земля ----------
-const groundTex = canvasTexture(256, 256, ctx => {
-  ctx.fillStyle = '#6faa3f'; ctx.fillRect(0, 0, 256, 256);
-  ctx.strokeStyle = 'rgba(0,0,0,.08)'; ctx.lineWidth = 3;
-  ctx.strokeRect(0, 0, 256, 256);
-  ctx.fillStyle = 'rgba(255,255,255,.07)';
-  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
-    ctx.beginPath(); ctx.arc(32 + i * 64, 32 + j * 64, 14, 0, 7); ctx.fill();
+const groundTex = canvasTexture(512, 512, ctx => {
+  ctx.fillStyle = '#79b356'; ctx.fillRect(0, 0, 512, 512);
+  // мягкая клетка двух оттенков
+  ctx.fillStyle = 'rgba(255,255,255,.045)';
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++)
+    if ((i + j) % 2 === 0) ctx.fillRect(i * 128, j * 128, 128, 128);
+  // редкие «травинки»
+  ctx.strokeStyle = 'rgba(50,110,40,.25)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  for (let n = 0; n < 90; n++) {
+    const x = (n * 73) % 512, y = (n * 149) % 512;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 3, y - 9); ctx.stroke();
   }
 });
 groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
-groundTex.repeat.set(90, 90);
+groundTex.repeat.set(20, 20);
 const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(360, 360),
-  new THREE.MeshLambertMaterial({ map: groundTex })
+  new THREE.PlaneGeometry(320, 320),
+  new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.95, envMap: envTex, envMapIntensity: 0.25 })
 );
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// ---------- Дорожки (декор) ----------
-function path(cx, cz, w, d) {
-  const p = new THREE.Mesh(
-    new THREE.BoxGeometry(w, 0.12, d),
-    new THREE.MeshLambertMaterial({ color: 0xb9b9ad })
-  );
-  p.position.set(cx, 0.06, cz);
-  p.receiveShadow = true;
-  scene.add(p);
+// ---------- Дорожки из плитки ----------
+const tileM1 = mat(0xd9d2c2, { rough: 0.9 });
+const tileM2 = mat(0xcbc4b2, { rough: 0.9 });
+function tilePath(x0, z0, x1, z1, w = 3.4) {
+  const dx = x1 - x0, dz = z1 - z0;
+  const len = Math.hypot(dx, dz);
+  const steps = Math.round(len / 1.8);
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const m = new THREE.Mesh(new RoundedBoxGeometry(w * 0.92, 0.16, 1.6, 2, 0.07), i % 2 ? tileM1 : tileM2);
+    m.position.set(x0 + dx * t, 0.08, z0 + dz * t);
+    m.rotation.y = Math.atan2(dx, dz);
+    m.receiveShadow = true; m.castShadow = false;
+    scene.add(m);
+  }
 }
-path(0, 15, 6, 36);      // от спавна к школе
-path(15, -1, 36, 5);     // к офису
-path(30, -3, 5, 9);      // подход к двери офиса
+tilePath(0, 27, 0, 16);     // от арки к площади
+tilePath(0, 4, 0, -4.4);    // от площади к школе
+tilePath(7, 10, 19, 8);     // к площадке
+tilePath(-7, 10, -18, 4);   // к паркуру
+
+// Площадь: каменный круг
+{
+  const plaza = new THREE.Mesh(new THREE.CylinderGeometry(8.6, 8.6, 0.16, 48), tileM1);
+  plaza.position.set(0, 0.08, 10);
+  plaza.receiveShadow = true;
+  scene.add(plaza);
+  const rim = new THREE.Mesh(new THREE.CylinderGeometry(9.1, 9.1, 0.12, 48), mat(0xb9b2a0));
+  rim.position.set(0, 0.06, 10);
+  rim.receiveShadow = true;
+  scene.add(rim);
+}
 
 // Спавн-площадка
-const spawnPad = new THREE.Mesh(
-  new THREE.BoxGeometry(7, 0.3, 7),
-  new THREE.MeshLambertMaterial({ color: 0x8a8f98 })
-);
-spawnPad.position.set(0, 0.15, 30); spawnPad.receiveShadow = true;
-scene.add(spawnPad);
-const spawnRing = new THREE.Mesh(
-  new THREE.CylinderGeometry(2.2, 2.2, 0.08, 32),
-  new THREE.MeshLambertMaterial({ color: 0xffffff })
-);
-spawnRing.position.set(0, 0.34, 30);
-scene.add(spawnRing);
+{
+  const pad = new THREE.Mesh(new RoundedBoxGeometry(6.4, 0.26, 6.4, 2, 0.12), mat(0x9aa2b1));
+  pad.position.set(0, 0.13, 24); pad.receiveShadow = true;
+  scene.add(pad);
+  const ring = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 0.08, 40), mat(0xb8c2d4, { rough: 0.6 }));
+  ring.position.set(0, 0.28, 24);
+  scene.add(ring);
+}
 
-// ---------- Забор по периметру ----------
-const FENCE = 58;
-const fenceColors = [0xf25f5c, 0xffcf3f, 0x57d95f, 0x4da3ff, 0xb974f5];
-for (let i = -FENCE; i < FENCE; i += 8) {
-  const c = fenceColors[(Math.abs(i / 8) | 0) % fenceColors.length];
-  box(8, 2.4, 1, c, i + 4, 0, -FENCE);
-  box(8, 2.4, 1, fenceColors[(Math.abs(i / 8) | 0 + 2) % fenceColors.length], i + 4, 0, FENCE);
-  box(1, 2.4, 8, c, -FENCE, 0, i + 4);
-  box(1, 2.4, 8, fenceColors[(Math.abs(i / 8) | 0 + 3) % fenceColors.length], FENCE, 0, i + 4);
+// ---------- Фонтан ----------
+const fountain = { drops: [] };
+{
+  const cx = 0, cz = 10;
+  // бортик
+  const rimOut = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.7, 1.1, 36), mat(0xdfd8c6));
+  rimOut.position.set(cx, 0.55, cz); rimOut.castShadow = true; rimOut.receiveShadow = true;
+  scene.add(rimOut);
+  addSolid(cx, 0, cz, 7.1, 1.1, 7.1);
+  const rimTop = new THREE.Mesh(new THREE.CylinderGeometry(3.62, 3.62, 0.22, 36), mat(0xefe9da));
+  rimTop.position.set(cx, 1.12, cz); rimTop.castShadow = true;
+  scene.add(rimTop);
+  // вода
+  const water = new THREE.Mesh(
+    new THREE.CylinderGeometry(3.28, 3.28, 0.12, 36),
+    new THREE.MeshStandardMaterial({
+      color: 0x4fb7ff, roughness: 0.08, metalness: 0,
+      transparent: true, opacity: 0.78,
+      envMap: envTex, envMapIntensity: 1.2,
+      emissive: 0x1a5f9e, emissiveIntensity: 0.25,
+    })
+  );
+  water.position.set(cx, 0.98, cz);
+  scene.add(water);
+  fountain.water = water;
+  // пьедестал и шар
+  cyl(0.5, 0.72, 1.6, 0xdfd8c6, cx, 1.0, cz);
+  sph(0.5, 0xefe9da, cx, 3.0, cz);
+  // капли
+  const dropM = new THREE.MeshStandardMaterial({
+    color: 0x9fd8ff, roughness: 0.1, transparent: true, opacity: 0.85,
+    envMap: envTex, envMapIntensity: 1.0, emissive: 0x3a7fb8, emissiveIntensity: 0.3,
+  });
+  for (let i = 0; i < 22; i++) {
+    const d = new THREE.Mesh(new THREE.SphereGeometry(0.09 + Math.random() * 0.07, 8, 8), dropM);
+    d.castShadow = false;
+    scene.add(d);
+    fountain.drops.push({
+      m: d,
+      a: Math.random() * Math.PI * 2,
+      speed: 0.9 + Math.random() * 0.5,
+      phase: Math.random(),
+    });
+  }
+}
+
+// ---------- Входная арка с градиентной вывеской и шариками ----------
+const balloons = [];
+{
+  rbox(1.1, 8.2, 1.1, 0xe9e4d8, -4, 0, 20, { radius: 0.16 });
+  rbox(1.1, 8.2, 1.1, 0xe9e4d8, 4, 0, 20, { radius: 0.16 });
+  rbox(10.4, 1.7, 1.3, 0x232a4d, 0, 8.4, 20, { radius: 0.2, solid: false }); // декор: не ловит камеру
+  const archTex = gradientTextTexture('ELC WORLD', 1024, 190, { fontScale: 0.62 });
+  [0.71, -0.71].forEach(dir => {
+    const t = new THREE.Mesh(new THREE.PlaneGeometry(9.6, 1.55), new THREE.MeshBasicMaterial({ map: archTex, transparent: true }));
+    t.position.set(0, 9.25, 20 + dir);
+    if (dir < 0) t.rotation.y = Math.PI;
+    scene.add(t);
+  });
+  // шарики на арке
+  const balloonColors = [0xff6ea8, 0x6ea8ff, 0xffd34e, 0x7ef0d4, 0xc29bff, 0xff8b66];
+  [[-4.6, 8.2, 19.6], [-3.6, 9.0, 20.4], [4.5, 8.4, 20.4], [3.7, 9.2, 19.6], [4.9, 9.6, 20.1], [-4.9, 9.7, 20.2]].forEach(([bx, by, bz], i) => {
+    const b = sph(0.55, balloonColors[i % balloonColors.length], bx, by, bz);
+    b.material = mat(balloonColors[i % balloonColors.length], { rough: 0.3 });
+    b.scale.y = 1.15;
+    balloons.push({ m: b, baseY: by, phase: i * 1.3 });
+  });
+}
+
+// ---------- Фонари ----------
+const lampGlowM = new THREE.MeshBasicMaterial({ color: 0xffe6b0 });
+function lamp(x, z) {
+  cyl(0.13, 0.2, 4.4, 0x2c3350, x, 0, z, { solid: true });
+  cyl(0.34, 0.34, 0.14, 0x2c3350, x, 4.4, z);
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 14), lampGlowM);
+  glow.position.set(x, 4.15, z);
+  scene.add(glow);
+  const pl = new THREE.PointLight(0xffd9a0, 14, 13);
+  pl.position.set(x, 4.1, z);
+  scene.add(pl);
+}
+lamp(-7.5, 17); lamp(7.5, 17); lamp(-8.5, 3); lamp(8.5, 3);
+
+// ---------- Скамейки и клумбы ----------
+function bench(x, z, ry = 0) {
+  const g = new THREE.Group();
+  const seat = new THREE.Mesh(new RoundedBoxGeometry(3, 0.24, 1, 2, 0.09), mat(0xa9713d, { rough: 0.7 }));
+  seat.position.y = 0.85; seat.castShadow = true;
+  const back = new THREE.Mesh(new RoundedBoxGeometry(3, 0.9, 0.18, 2, 0.08), mat(0xa9713d, { rough: 0.7 }));
+  back.position.set(0, 1.6, -0.42); back.castShadow = true;
+  const leg1 = new THREE.Mesh(new RoundedBoxGeometry(0.2, 0.85, 0.9, 2, 0.06), mat(0x2c3350));
+  leg1.position.set(-1.2, 0.42, 0);
+  const leg2 = leg1.clone(); leg2.position.x = 1.2;
+  g.add(seat, back, leg1, leg2);
+  g.position.set(x, 0, z); g.rotation.y = ry;
+  scene.add(g);
+  addSolid(x, 0, z, 3, 1.6, 1.1);
+}
+bench(-5.4, 16.6, 0.45); bench(5.4, 16.6, -0.45);
+
+const flowerColors = [0xff6ea8, 0xffd34e, 0xff8b66, 0xc29bff, 0xffffff];
+function flowerBed(x, z, w, d) {
+  const bed = new THREE.Mesh(new RoundedBoxGeometry(w, 0.5, d, 2, 0.14), mat(0x8a5a2b, { rough: 0.95 }));
+  bed.position.set(x, 0.25, z); bed.castShadow = true; bed.receiveShadow = true;
+  scene.add(bed);
+  addSolid(x, 0, z, w, 0.5, d);
+  const green = new THREE.Mesh(new RoundedBoxGeometry(w - 0.3, 0.2, d - 0.3, 2, 0.08), mat(0x5d9c42));
+  green.position.set(x, 0.55, z);
+  scene.add(green);
+  const n = Math.round(w * d * 1.1);
+  for (let i = 0; i < n; i++) {
+    const fx = x + (Math.random() - 0.5) * (w - 0.7);
+    const fz = z + (Math.random() - 0.5) * (d - 0.7);
+    sph(0.14, flowerColors[i % flowerColors.length], fx, 0.74, fz, { seg: 8 });
+  }
+}
+flowerBed(-5.6, -3.6, 4.6, 1.6);
+flowerBed(5.6, -3.6, 4.6, 1.6);
+flowerBed(-11, 21.5, 1.8, 4.5);
+flowerBed(11, 21.5, 1.8, 4.5);
+
+// ---------- Живая изгородь по периметру ----------
+const FENCE = 33;
+{
+  const hedgeM = mat(0x4c8f3d, { rough: 0.95 });
+  for (let i = -FENCE; i < FENCE; i += 4) {
+    [[i + 2, -FENCE], [i + 2, FENCE]].forEach(([hx, hz]) => {
+      const h = new THREE.Mesh(new RoundedBoxGeometry(4.1, 2.2, 1.6, 2, 0.45), hedgeM);
+      h.position.set(hx, 1.1, hz); h.castShadow = true; h.receiveShadow = true;
+      scene.add(h);
+    });
+    [[-FENCE, i + 2], [FENCE, i + 2]].forEach(([hx, hz]) => {
+      const h = new THREE.Mesh(new RoundedBoxGeometry(1.6, 2.2, 4.1, 2, 0.45), hedgeM);
+      h.position.set(hx, 1.1, hz); h.castShadow = true; h.receiveShadow = true;
+      scene.add(h);
+    });
+  }
+  addSolid(0, 0, -FENCE, FENCE * 2 + 2, 2.2, 1.6);
+  addSolid(0, 0, FENCE, FENCE * 2 + 2, 2.2, 1.6);
+  addSolid(-FENCE, 0, 0, 1.6, 2.2, FENCE * 2 + 2);
+  addSolid(FENCE, 0, 0, 1.6, 2.2, FENCE * 2 + 2);
 }
 
 // ---------- Деревья ----------
-function tree(x, z, s = 1) {
-  box(1.4 * s, 4 * s, 1.4 * s, 0x8a5a2b, x, 0, z);
-  box(4.6 * s, 3.4 * s, 4.6 * s, 0x3e9b3e, x, 4 * s, z, { solid: false });
-  box(3 * s, 2.2 * s, 3 * s, 0x4fb54f, x, 7.2 * s, z, { solid: false });
+function tree(x, z, s = 1, leaf = 0x4fa54f) {
+  cyl(0.32 * s, 0.45 * s, 2.6 * s, 0x7a4f26, x, 0, z, { solid: true });
+  const lm = mat(leaf, { rough: 0.9 });
+  sph(1.7 * s, leaf, x, 3.6 * s, z, { material: lm });
+  sph(1.25 * s, leaf, x - 1.1 * s, 2.9 * s, z + 0.3 * s, { material: lm });
+  sph(1.25 * s, leaf, x + 1.05 * s, 3.1 * s, z - 0.3 * s, { material: lm });
+  sph(1.0 * s, leaf, x, 4.7 * s, z, { material: lm });
 }
-tree(-15, 28); tree(-34, 18); tree(20, 26, 1.2); tree(48, 12);
-tree(-48, -22, 1.3); tree(-12, -40); tree(50, -32); tree(-50, 30);
-tree(44, 34, 0.9); tree(10, -44, 1.1);
+tree(-28, 27, 1.35); tree(28, 27, 1.2, 0x5cb554); tree(27, -27, 1.4);
+tree(-27, -27, 1.25, 0x449a4e); tree(20, 20, 0.9, 0x5cb554); tree(-24, 14, 1.0);
+tree(26, 0, 1.1, 0x449a4e); tree(-28, -10, 1.15);
 
-// ---------- Облака ----------
-const clouds = [];
-function cloud(x, y, z) {
-  const g = new THREE.Group();
-  const m = new THREE.MeshLambertMaterial({ color: 0xffffff });
-  [[0, 0, 0, 9, 3, 5], [5, 1, 1, 6, 2.4, 4], [-5, 0.8, -1, 6, 2.6, 4]].forEach(([bx, by, bz, w, h, d]) => {
-    const mm = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
-    mm.position.set(bx, by, bz);
-    g.add(mm);
-  });
-  g.position.set(x, y, z);
-  scene.add(g); clouds.push(g);
+// Сакура с лепестками
+const petals = [];
+{
+  const x = -14, z = 19;
+  cyl(0.35, 0.5, 3.0, 0x6e4522, x, 0, z, { solid: true });
+  const pm = mat(0xffb3d4, { rough: 0.85 });
+  sph(1.9, 0xffb3d4, x, 4.1, z, { material: pm });
+  sph(1.3, 0xffb3d4, x - 1.3, 3.4, z + 0.4, { material: pm });
+  sph(1.3, 0xffb3d4, x + 1.25, 3.6, z - 0.3, { material: pm });
+  sph(1.0, 0xffc7de, x + 0.3, 5.2, z + 0.2, { material: mat(0xffc7de, { rough: 0.85 }) });
+  const petalM = new THREE.MeshBasicMaterial({ color: 0xffc2da, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+  for (let i = 0; i < 26; i++) {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.16), petalM);
+    scene.add(p);
+    petals.push({
+      m: p,
+      x: x + (Math.random() - 0.5) * 7,
+      z: z + (Math.random() - 0.5) * 7,
+      y: Math.random() * 5 + 1,
+      vy: 0.5 + Math.random() * 0.5,
+      phase: Math.random() * 6,
+    });
+  }
 }
-cloud(-40, 42, -30); cloud(20, 46, -60); cloud(60, 40, 20); cloud(-70, 44, 40); cloud(0, 50, 70);
+
+// ---------- Облака (пушистые) ----------
+const clouds = [];
+{
+  const cm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: 0xffffff, emissiveIntensity: 0.18 });
+  function cloud(x, y, z, s = 1) {
+    const g = new THREE.Group();
+    [[0, 0, 0, 2.6], [2.2, 0.5, 0.4, 1.9], [-2.1, 0.4, -0.3, 1.8], [0.6, 1.1, 0.2, 1.6], [-0.9, -0.2, 0.6, 1.5]].forEach(([bx, by, bz, r]) => {
+      const mm = new THREE.Mesh(new THREE.SphereGeometry(r * s, 14, 14), cm);
+      mm.position.set(bx * s, by * s, bz * s);
+      g.add(mm);
+    });
+    g.position.set(x, y, z);
+    scene.add(g); clouds.push(g);
+  }
+  cloud(-30, 34, -28, 1.2); cloud(22, 39, -44, 1.5); cloud(48, 33, 12, 1.1);
+  cloud(-52, 37, 26, 1.4); cloud(6, 42, 52, 1.3);
+}
 
 // ---------- Школа ----------
-const SCHOOL = { x: 0, zFront: -4, zBack: -26, hw: 19, h: 10 };
+const wallM = mat(0xf6ecd8, { rough: 0.88 });
+const trimM = mat(0xffffff, { rough: 0.7 });
+const navyM = mat(0x24365e, { rough: 0.6 });
 {
-  const wallC = 0xf3e7c9, wallC2 = 0xe8d9b0;
-  const { x, zFront, zBack, hw, h } = SCHOOL;
-  // фронтальная стена с проёмом двери (проём x: -2.5..2.5, высота 6)
-  box(hw - 2.5, h, 1, wallC, x - (2.5 + hw) / 2, 0, zFront);          // слева от двери
-  box(hw - 2.5, h, 1, wallC, x + (2.5 + hw) / 2, 0, zFront);          // справа от двери
-  box(5, h - 6, 1, wallC, x, 6, zFront);                              // над дверью
-  box(hw * 2, h, 1, wallC, x, 0, zBack);                              // задняя
-  box(1, h, zFront - zBack, wallC2, x - hw, 0, (zFront + zBack) / 2); // левая
-  box(1, h, zFront - zBack, wallC2, x + hw, 0, (zFront + zBack) / 2); // правая
+  const zFront = -5, zBack = -23, hw = 16, h = 8.6;
+  const cx = 0, mid = (zFront + zBack) / 2;
+  // цоколь
+  rbox(hw * 2 + 0.6, 0.9, zFront - zBack + 0.6, 0xd9cfb4, cx, 0, mid, { solid: false, radius: 0.12 });
+  // фронтальная стена с дверным проёмом (x -2.2..2.2, h 5.4)
+  rbox(hw - 2.2, h, 1, 0xf6ecd8, cx - (2.2 + hw) / 2, 0, zFront, { material: wallM });
+  rbox(hw - 2.2, h, 1, 0xf6ecd8, cx + (2.2 + hw) / 2, 0, zFront, { material: wallM });
+  rbox(4.4, h - 5.4, 1, 0xf6ecd8, cx, 5.4, zFront, { material: wallM });
+  // остальные стены
+  rbox(hw * 2, h, 1, 0xf6ecd8, cx, 0, zBack, { material: wallM });
+  rbox(1, h, zFront - zBack, 0xf6ecd8, cx - hw, 0, mid, { material: wallM });
+  rbox(1, h, zFront - zBack, 0xf6ecd8, cx + hw, 0, mid, { material: wallM });
+  // пилястры по углам
+  [[-hw, zFront], [hw, zFront], [-hw, zBack], [hw, zBack]].forEach(([px, pz]) => {
+    rbox(1.5, h + 0.3, 1.5, 0xffffff, px, 0, pz, { solid: false, material: trimM, radius: 0.18 });
+  });
   // крыша
-  box(hw * 2 + 3, 1.4, zFront - zBack + 3, 0x1f3a63, x, h, (zFront + zBack) / 2);
-  box(10, 1.6, 10, 0x2a4e85, x, h + 1.4, (zFront + zBack) / 2, { solid: false });
-  // пол внутри
+  rbox(hw * 2 + 3.4, 1.3, zFront - zBack + 3.4, 0x24365e, cx, h, mid, { material: navyM, radius: 0.3 });
+  rbox(hw * 2 + 1.4, 1.0, zFront - zBack + 1.4, 0x2d4270, cx, h + 1.3, mid, { solid: false, radius: 0.3 });
+  rbox(7, 1.4, 7, 0x24365e, cx, h + 2.3, mid, { solid: false, material: navyM, radius: 0.3 });
+  // пол внутри (паркет)
+  const floorTex = canvasTexture(256, 256, ctx => {
+    ctx.fillStyle = '#c9a36a'; ctx.fillRect(0, 0, 256, 256);
+    ctx.strokeStyle = 'rgba(120,80,30,.35)'; ctx.lineWidth = 3;
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath(); ctx.moveTo(0, i * 64 + 32); ctx.lineTo(256, i * 64 + 32); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(((i % 2) * 128) + 64, i * 64); ctx.lineTo(((i % 2) * 128) + 64, i * 64 + 64); ctx.stroke();
+    }
+  });
+  floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
+  floorTex.repeat.set(6, 4);
   const floor = new THREE.Mesh(
-    new THREE.BoxGeometry(hw * 2 - 2, 0.14, zFront - zBack - 2),
-    new THREE.MeshLambertMaterial({ color: 0xc9a36a })
+    new THREE.BoxGeometry(hw * 2 - 1.6, 0.14, zFront - zBack - 1.6),
+    new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.75, envMap: envTex, envMapIntensity: 0.3 })
   );
-  floor.position.set(x, 0.07, (zFront + zBack) / 2); floor.receiveShadow = true;
+  floor.position.set(cx, 0.07, mid); floor.receiveShadow = true;
   scene.add(floor);
-  // вывеска
-  const signTex = canvasTexture(1024, 160, ctx => {
-    ctx.fillStyle = '#1f3a63'; ctx.fillRect(0, 0, 1024, 160);
-    ctx.strokeStyle = '#ffcf3f'; ctx.lineWidth = 10; ctx.strokeRect(8, 8, 1008, 144);
-    ctx.fillStyle = '#fff'; ctx.font = '900 92px Nunito, Arial';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('ELC SCHOOL', 512, 86);
-  });
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(16, 2.5), new THREE.MeshBasicMaterial({ map: signTex }));
-  sign.position.set(x, 8, zFront + 0.56);
-  scene.add(sign);
-  // окна на фасаде
-  const winMat = new THREE.MeshLambertMaterial({ color: 0x9fd8ff, emissive: 0x224466 });
-  [-13, -8, 8, 13].forEach(wx => {
-    const w = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2.6), winMat);
-    w.position.set(x + wx, 4.4, zFront + 0.52);
-    scene.add(w);
-    const f = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 3.0), new THREE.MeshLambertMaterial({ color: 0xffffff }));
-    f.position.set(x + wx, 4.4, zFront + 0.51);
-    scene.add(f);
-  });
-  // дверной коврик
-  const mate = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.1, 2), new THREE.MeshLambertMaterial({ color: 0xd9534f }));
-  mate.position.set(x, 0.1, zFront + 1.4); mate.receiveShadow = true;
-  scene.add(mate);
 
-  // класс внутри: доска
-  const boardTex = canvasTexture(1024, 400, ctx => {
-    ctx.fillStyle = '#20503c'; ctx.fillRect(0, 0, 1024, 400);
-    ctx.strokeStyle = '#c9a36a'; ctx.lineWidth = 18; ctx.strokeRect(9, 9, 1006, 382);
-    ctx.fillStyle = '#fff';
-    ctx.font = '900 88px Nunito, Arial'; ctx.textAlign = 'center';
+  // дверь: белая рама + навес-маркиза + фонарики
+  rbox(5.4, 0.5, 1.16, 0xffffff, cx, 5.4, zFront, { solid: false, material: trimM });
+  rbox(0.5, 5.4, 1.16, 0xffffff, cx - 2.45, 0, zFront, { solid: false, material: trimM });
+  rbox(0.5, 5.4, 1.16, 0xffffff, cx + 2.45, 0, zFront, { solid: false, material: trimM });
+  const awningTex = canvasTexture(256, 128, ctx => {
+    for (let i = 0; i < 8; i++) {
+      ctx.fillStyle = i % 2 ? '#e2543f' : '#f7f4ec';
+      ctx.fillRect(i * 32, 0, 32, 128);
+    }
+  });
+  const awning = new THREE.Mesh(
+    new THREE.BoxGeometry(6.4, 0.18, 2.2),
+    new THREE.MeshStandardMaterial({ map: awningTex, roughness: 0.9, envMap: envTex, envMapIntensity: 0.2 })
+  );
+  awning.position.set(cx, 5.9, zFront + 1.3);
+  awning.rotation.x = 0.18;
+  awning.castShadow = true;
+  scene.add(awning);
+  [[-3.1], [3.1]].forEach(([lx]) => {
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), lampGlowM);
+    glow.position.set(cx + lx, 4.3, zFront + 0.75);
+    scene.add(glow);
+    const pl = new THREE.PointLight(0xffd9a0, 3, 7);
+    pl.position.set(cx + lx, 4.3, zFront + 1);
+    scene.add(pl);
+  });
+  // коврик
+  const matDoor = new THREE.Mesh(new RoundedBoxGeometry(4.4, 0.1, 1.8, 2, 0.05), mat(0xd9534f, { rough: 0.95 }));
+  matDoor.position.set(cx, 0.1, zFront + 1.5); matDoor.receiveShadow = true;
+  scene.add(matDoor);
+
+  // вывеска — градиентный неон
+  const signTex = gradientTextTexture('ELC SCHOOL', 1024, 220, { bg: '#141a36', fontScale: 0.5 });
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(11, 2.35), new THREE.MeshBasicMaterial({ map: signTex, transparent: true }));
+  sign.position.set(cx, 7.2, zFront + 0.62);
+  scene.add(sign);
+
+  // окна с рамами и цветочными ящиками
+  const glassM = new THREE.MeshStandardMaterial({
+    color: 0xbfe3ff, roughness: 0.08, metalness: 0.1,
+    envMap: envTex, envMapIntensity: 1.4, emissive: 0x2a4a66, emissiveIntensity: 0.25,
+  });
+  [-11.5, -6.5, 6.5, 11.5].forEach(wx => {
+    rbox(3.4, 3.0, 0.24, 0xffffff, cx + wx, 2.8, zFront + 0.55, { solid: false, material: trimM, radius: 0.08 });
+    const gl = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 2.4), glassM);
+    gl.position.set(cx + wx, 4.3, zFront + 0.7);
+    scene.add(gl);
+    const wb = new THREE.Mesh(new RoundedBoxGeometry(3.0, 0.5, 0.6, 2, 0.1), mat(0x8a5a2b, { rough: 0.95 }));
+    wb.position.set(cx + wx, 2.6, zFront + 0.8); wb.castShadow = true;
+    scene.add(wb);
+    for (let i = 0; i < 4; i++) {
+      sph(0.15, flowerColors[Math.abs(i * 3 + Math.round(wx)) % flowerColors.length], cx + wx - 1.05 + i * 0.7, 2.98, zFront + 0.8, { seg: 8 });
+    }
+  });
+
+  // ---- Внутри: перегородка (класс слева, офис справа), дверной проём в перегородке
+  const divX = 5;
+  rbox(1, h - 0.2, 6.2, 0xf6ecd8, divX, 0, zBack + 3.4, { material: wallM });   // сегмент у задней стены
+  rbox(1, h - 0.2, 6.4, 0xf6ecd8, divX, 0, zFront - 3.2, { material: wallM }); // сегмент у фасада
+  rbox(1, h - 5.4 - 0.2, 5.4, 0xf6ecd8, divX, 5.4, mid - 0.1, { material: wallM }); // над проёмом
+
+  // ---- Класс (западная комната)
+  const boardTex = canvasTexture(1024, 420, ctx => {
+    ctx.fillStyle = '#24503c'; ctx.fillRect(0, 0, 1024, 420);
+    ctx.strokeStyle = '#c9a36a'; ctx.lineWidth = 20; ctx.strokeRect(10, 10, 1004, 400);
+    ctx.fillStyle = '#fff'; ctx.font = '900 82px Nunito, Arial'; ctx.textAlign = 'center';
     ctx.fillText('Welcome to ELC!', 512, 150);
-    ctx.font = '700 72px Comic Sans MS, Nunito, Arial';
-    ctx.fillStyle = '#ffe08a';
-    ctx.fillText('A  B  C  D  E  F  G', 512, 290);
+    ctx.fillStyle = '#ffe08a'; ctx.font = '700 66px Comic Sans MS, Nunito, Arial';
+    ctx.fillText('A  B  C  D  E  F  G', 512, 280);
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(880, 330, 42, 0, 6.3); ctx.stroke();
+    ctx.font = '700 52px Nunito, Arial'; ctx.fillStyle = '#9fe0ff';
+    ctx.fillText(':)', 880, 348);
   });
-  const board = new THREE.Mesh(new THREE.PlaneGeometry(13, 5), new THREE.MeshBasicMaterial({ map: boardTex }));
-  board.position.set(x, 4.6, zBack + 0.55);
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(10, 4.1), new THREE.MeshBasicMaterial({ map: boardTex }));
+  board.position.set(-6, 4.1, zBack + 0.62);
   scene.add(board);
-  // парты
-  [[-6, -12], [6, -12], [-6, -18], [6, -18]].forEach(([dx, dz]) => {
-    box(4, 2, 1.8, 0xa9713d, x + dx, 0, dz);
-    box(1.6, 1.1, 1.4, 0xd9534f, x + dx, 0, dz + 2, { solid: false, shadow: false });
+  // парты с книжками
+  const deskM = mat(0xb07a45, { rough: 0.7 });
+  [[-10.5, -13.5], [-3, -13.5], [-10.5, -18.5], [-3, -18.5]].forEach(([dx, dz], di) => {
+    const top = new THREE.Mesh(new RoundedBoxGeometry(3.4, 0.28, 1.7, 2, 0.09), deskM);
+    top.position.set(dx, 2.0, dz); top.castShadow = true;
+    scene.add(top);
+    [[-1.4, -0.6], [1.4, -0.6], [-1.4, 0.6], [1.4, 0.6]].forEach(([lx, lz]) => {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.9, 8), mat(0x3a4260));
+      leg.position.set(dx + lx, 0.95, dz + lz);
+      scene.add(leg);
+    });
+    addSolid(dx, 0, dz, 3.4, 2.1, 1.7);
+    const book = new THREE.Mesh(new RoundedBoxGeometry(0.8, 0.14, 0.6, 2, 0.04), mat([0xff6ea8, 0x6ea8ff, 0xffd34e, 0x7ef0d4][di]));
+    book.position.set(dx + 0.6, 2.2, dz);
+    book.rotation.y = 0.4 + di;
+    scene.add(book);
+    const chair = new THREE.Mesh(new RoundedBoxGeometry(1.25, 0.22, 1.15, 2, 0.09), mat(0xe2543f, { rough: 0.8 }));
+    chair.position.set(dx, 1.15, dz + 1.7); chair.castShadow = true;
+    scene.add(chair);
+    [[-0.45, -0.4], [0.45, -0.4], [-0.45, 0.4], [0.45, 0.4]].forEach(([lx, lz]) => {
+      const cl = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.05, 8), mat(0x3a4260));
+      cl.position.set(dx + lx, 0.52, dz + 1.7 + lz);
+      scene.add(cl);
+    });
   });
-  // свет внутри
-  const pl = new THREE.PointLight(0xfff3d6, 220, 60);
-  pl.position.set(x, 8, (zFront + zBack) / 2);
-  scene.add(pl);
-  const pl2 = new THREE.PointLight(0xfff3d6, 120, 40);
-  pl2.position.set(x, 7, zBack + 6);
-  scene.add(pl2);
-}
+  // постер
+  const posterTex = canvasTexture(300, 380, ctx => {
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 300, 380);
+    ctx.fillStyle = '#ff6ea8'; ctx.font = '900 56px Nunito, Arial'; ctx.textAlign = 'center';
+    ctx.fillText('ABC', 150, 90);
+    ['🍎 Apple', '🐝 Bee', '🐱 Cat'].forEach((s, i) => {
+      ctx.fillStyle = '#333'; ctx.font = '700 34px Nunito, Arial';
+      ctx.fillText(s, 150, 170 + i * 70);
+    });
+  });
+  const poster = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.1), new THREE.MeshBasicMaterial({ map: posterTex }));
+  poster.position.set(-hw + 0.62, 4, -12);
+  poster.rotation.y = Math.PI / 2;
+  scene.add(poster);
 
-// ---------- Офис ----------
-{
-  const x = 30, zFront = -6, zBack = -22, hw = 9, h = 8;
-  const wallC = 0xcfe3f5;
-  box(hw - 2, h, 1, wallC, x - (2 + hw) / 2, 0, zFront);
-  box(hw - 2, h, 1, wallC, x + (2 + hw) / 2, 0, zFront);
-  box(4, h - 6, 1, wallC, x, 6, zFront);
-  box(hw * 2, h, 1, wallC, x, 0, zBack);
-  box(1, h, zFront - zBack, wallC, x - hw, 0, (zFront + zBack) / 2);
-  box(1, h, zFront - zBack, wallC, x + hw, 0, (zFront + zBack) / 2);
-  box(hw * 2 + 2, 1.2, zFront - zBack + 2, 0xf4a825, x, h, (zFront + zBack) / 2);
-  const signTex = canvasTexture(512, 128, ctx => {
-    ctx.fillStyle = '#f4a825'; ctx.fillRect(0, 0, 512, 128);
-    ctx.fillStyle = '#17181a'; ctx.font = '900 72px Nunito, Arial';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('OFFICE', 256, 68);
+  // ---- Офис (восточная комната)
+  const deskO = new THREE.Mesh(new RoundedBoxGeometry(4.6, 0.3, 2, 2, 0.1), mat(0x8a5a2b, { rough: 0.7 }));
+  deskO.position.set(11.5, 2.05, -19); deskO.castShadow = true;
+  scene.add(deskO);
+  [[-2, -0.7], [2, -0.7], [-2, 0.7], [2, 0.7]].forEach(([lx, lz]) => {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.95, 8), mat(0x3a4260));
+    leg.position.set(11.5 + lx, 0.97, -19 + lz);
+    scene.add(leg);
   });
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(7, 1.75), new THREE.MeshBasicMaterial({ map: signTex }));
-  sign.position.set(x, 7, zFront + 0.56);
-  scene.add(sign);
-  // пол
-  const floor = new THREE.Mesh(
-    new THREE.BoxGeometry(hw * 2 - 2, 0.14, zFront - zBack - 2),
-    new THREE.MeshLambertMaterial({ color: 0xbcc4cf })
-  );
-  floor.position.set(x, 0.07, (zFront + zBack) / 2); floor.receiveShadow = true;
-  scene.add(floor);
-  // стол и компьютер
-  box(5, 2, 2, 0x8a5a2b, x + 4, 0, -16);
-  const comp = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.3, 0.24), new THREE.MeshLambertMaterial({ color: 0x22252b }));
-  comp.position.set(x + 4, 2.8, -16.2); comp.castShadow = true;
+  addSolid(11.5, 0, -19, 4.6, 2.2, 2);
+  // компьютер с глянцевым экраном
+  const comp = new THREE.Mesh(new RoundedBoxGeometry(1.9, 1.3, 0.16, 2, 0.06), mat(0x1c2030, { rough: 0.4 }));
+  comp.position.set(11.5, 3.1, -19.3); comp.castShadow = true;
   scene.add(comp);
   const screenTex = canvasTexture(256, 180, ctx => {
-    ctx.fillStyle = '#0e2a4a'; ctx.fillRect(0, 0, 256, 180);
-    ctx.fillStyle = '#7fc4ff'; ctx.font = '900 34px Nunito, Arial'; ctx.textAlign = 'center';
-    ctx.fillText('ELC CRM', 128, 60);
-    ctx.fillStyle = '#57d95f'; ctx.font = '700 24px Nunito, Arial';
-    ctx.fillText('● online', 128, 120);
+    const g = ctx.createLinearGradient(0, 0, 256, 180);
+    g.addColorStop(0, '#12294a'); g.addColorStop(1, '#1c3f6e');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 180);
+    ctx.fillStyle = '#8cc6ff'; ctx.font = '900 36px Nunito, Arial'; ctx.textAlign = 'center';
+    ctx.fillText('ELC CRM', 128, 64);
+    ctx.fillStyle = '#5fe08a'; ctx.font = '700 24px Nunito, Arial';
+    ctx.fillText('● online', 128, 118);
   });
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.1), new THREE.MeshBasicMaterial({ map: screenTex }));
-  screen.position.set(x + 4, 2.82, -16.07);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.1), new THREE.MeshBasicMaterial({ map: screenTex }));
+  screen.position.set(11.5, 3.1, -19.2);
   scene.add(screen);
-  // доска расписания на стене
+  cyl(0.3, 0.4, 0.9, 0x1c2030, 11.5, 2.2, -19.6);
+  // доска расписания
   const schedTex = canvasTexture(640, 512, ctx => {
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 640, 512);
-    ctx.strokeStyle = '#1f3a63'; ctx.lineWidth = 14; ctx.strokeRect(7, 7, 626, 498);
-    ctx.fillStyle = '#1f3a63'; ctx.font = '900 56px Nunito, Arial'; ctx.textAlign = 'center';
-    ctx.fillText('РАСПИСАНИЕ', 320, 90);
-    ctx.font = '700 44px Nunito, Arial'; ctx.textAlign = 'left'; ctx.fillStyle = '#333';
-    ctx.fillText('Starters — 15:00', 60, 200);
-    ctx.fillText('Movers — 16:30', 60, 290);
-    ctx.fillText('Flyers — 17:00', 60, 380);
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.roundRect(0, 0, 640, 512, 26); ctx.fill();
+    ctx.strokeStyle = '#24365e'; ctx.lineWidth = 14;
+    ctx.beginPath(); ctx.roundRect(7, 7, 626, 498, 22); ctx.stroke();
+    ctx.fillStyle = '#24365e'; ctx.font = '900 54px Nunito, Arial'; ctx.textAlign = 'center';
+    ctx.fillText('РАСПИСАНИЕ', 320, 88);
+    ctx.font = '700 42px Nunito, Arial'; ctx.textAlign = 'left'; ctx.fillStyle = '#333';
+    ctx.fillText('Starters — 15:00', 62, 196);
+    ctx.fillText('Movers — 16:30', 62, 286);
+    ctx.fillText('Flyers — 17:00', 62, 376);
     ctx.fillStyle = '#57a839'; ctx.font = '700 36px Nunito, Arial';
-    ctx.fillText('Мест: есть ✓', 60, 460);
+    ctx.fillText('Мест: есть ✓', 62, 458);
   });
-  const sched = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 3.5), new THREE.MeshBasicMaterial({ map: schedTex }));
-  sched.position.set(x + hw - 0.55, 3.8, -14);
+  const sched = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 3.35), new THREE.MeshBasicMaterial({ map: schedTex, transparent: true }));
+  sched.position.set(hw - 0.62, 3.9, -16);
   sched.rotation.y = -Math.PI / 2;
   scene.add(sched);
-  const pl = new THREE.PointLight(0xfff3d6, 140, 44);
-  pl.position.set(x, 6.5, -14);
-  scene.add(pl);
-}
-
-// ---------- Приветственный щит у спавна ----------
-{
-  box(0.5, 4.2, 0.5, 0x8a5a2b, -7.5, 0, 33);
-  box(0.5, 4.2, 0.5, 0x8a5a2b, -13.5, 0, 33);
-  const t = canvasTexture(768, 300, ctx => {
-    ctx.fillStyle = '#fffbe8'; ctx.fillRect(0, 0, 768, 300);
-    ctx.strokeStyle = '#f4a825'; ctx.lineWidth = 14; ctx.strokeRect(7, 7, 754, 286);
-    ctx.fillStyle = '#1f3a63'; ctx.font = '900 60px Nunito, Arial'; ctx.textAlign = 'center';
-    ctx.fillText('Добро пожаловать', 384, 100);
-    ctx.fillText('в ELC World! 🎉', 384, 175);
-    ctx.font = '700 36px Nunito, Arial'; ctx.fillStyle = '#666';
-    ctx.fillText('Говори с учителями — выполняй квесты', 384, 250);
+  // шкаф с книгами
+  const shelfTex = canvasTexture(256, 384, ctx => {
+    ctx.fillStyle = '#7a4f26'; ctx.fillRect(0, 0, 256, 384);
+    for (let row = 0; row < 3; row++) {
+      let bx = 14;
+      while (bx < 230) {
+        const bw = 18 + Math.random() * 22;
+        ctx.fillStyle = ['#ff6ea8', '#6ea8ff', '#ffd34e', '#7ef0d4', '#c29bff', '#e2543f'][(bx | 0) % 6];
+        ctx.fillRect(bx, 28 + row * 122, bw, 90);
+        bx += bw + 6;
+      }
+    }
   });
-  const p = new THREE.Mesh(new THREE.PlaneGeometry(7, 2.75), new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide }));
-  p.position.set(-10.5, 3.6, 33.05);
-  scene.add(p);
-  addSolid(-10.5, 0, 33, 7, 4.5, 0.6);
+  const shelf = new THREE.Mesh(
+    new THREE.BoxGeometry(2.6, 4, 0.9),
+    new THREE.MeshStandardMaterial({ map: shelfTex, roughness: 0.8, envMap: envTex, envMapIntensity: 0.25 })
+  );
+  shelf.position.set(13.8, 2, -6.6); shelf.castShadow = true;
+  scene.add(shelf);
+  addSolid(13.8, 0, -6.6, 2.6, 4, 0.9);
+  // растение
+  cyl(0.42, 0.32, 0.7, 0xc96a4a, 7, 0, -21.6);
+  sph(0.65, 0x4fa54f, 7, 1.3, -21.6);
+
+  // потолок, чтобы изнанка крыши не была тёмной (unlit — без зелёного отсвета)
+  const ceiling = new THREE.Mesh(
+    new THREE.BoxGeometry(hw * 2 - 1.4, 0.16, zFront - zBack - 1.4),
+    new THREE.MeshBasicMaterial({ color: 0xd8d2c2 })
+  );
+  ceiling.position.set(cx, h - 0.4, mid);
+  scene.add(ceiling);
+  // тёплый свет внутри
+  [[-6, mid], [11, mid]].forEach(([lx, lz]) => {
+    const ceil = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.7, 0.7, 0.1, 20),
+      mat(0xfff2d0, { emissive: 0xffe0a0, emissiveIntensity: 0.55, rough: 0.6 })
+    );
+    ceil.position.set(lx, h - 0.55, lz);
+    scene.add(ceil);
+    const pl = new THREE.PointLight(0xfff0d0, 30, 24);
+    pl.position.set(lx, h - 2.2, lz);
+    scene.add(pl);
+  });
 }
 
 // ---------- Детская площадка ----------
 {
-  [[-24, 12, 0xf25f5c], [-28, 8, 0xffcf3f], [-20, 8, 0x4da3ff], [-24, 4, 0x57d95f]].forEach(([px, pz, c], i) => {
-    box(3.4, 0.9 + i * 0.45, 3.4, c, px, 0, pz);
+  [[20, 9, 0xff6ea8, 0.8], [23.5, 7.5, 0xffd34e, 1.4], [20.5, 5.5, 0x6ea8ff, 2.0]].forEach(([px, pz, c, ht]) => {
+    rbox(2.9, ht, 2.9, c, px, 0, pz, { radius: 0.3 });
   });
-  // горка-декорация
-  box(2.6, 3.4, 2.6, 0xb974f5, -33, 0, 4);
-  const slide = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.3, 7), new THREE.MeshLambertMaterial({ color: 0xd9b3ff }));
-  slide.position.set(-33, 1.8, 8.6); slide.rotation.x = 0.45; slide.castShadow = true;
+  // горка
+  rbox(2.4, 3.0, 2.4, 0xc29bff, 26.5, 0, 12, { radius: 0.25 });
+  const slide = new THREE.Mesh(new RoundedBoxGeometry(1.9, 0.24, 5.6, 2, 0.1), mat(0xdcc3ff, { rough: 0.4 }));
+  slide.position.set(26.5, 1.7, 15.6); slide.rotation.x = 0.5; slide.castShadow = true;
   scene.add(slide);
+  // пружинка-качалка
+  cyl(0.5, 0.6, 0.25, 0x2c3350, 21, 0, 13.5);
+  cyl(0.14, 0.14, 0.9, 0xc9c2ae, 21, 0.25, 13.5);
+  const rider = sph(0.62, 0xffd34e, 21, 1.65, 13.5);
+  rider.scale.set(1.25, 0.9, 1);
+  sph(0.2, 0x1c2030, 20.5, 1.9, 13.9, { seg: 8 });
 }
 
 // ---------- Паркур (обби) ----------
-const OBBY_TOPS = [1, 2.4, 3.8, 5.2, 6.6, 8];
-const obbyPos = [[-40, -6], [-44, -11], [-40, -16], [-44, -21], [-40, -26], [-44, -32]];
+const OBBY_TOPS = [1, 2.4, 3.8, 5.2, 6.6];
+const obbyPos = [[-20, 2], [-24, -2], [-20, -6], [-24, -10], [-20.5, -14.5]];
+const obbyColors = [0xff6ea8, 0xffd34e, 0x7ef0d4, 0x6ea8ff, 0xc29bff];
 obbyPos.forEach(([px, pz], i) => {
-  const c = fenceColors[i % fenceColors.length];
-  const top = OBBY_TOPS[i];
-  const sz = i === obbyPos.length - 1 ? 6 : 4;
-  box(sz, 1, sz, c, px, top - 1, pz);
+  const sz = i === obbyPos.length - 1 ? 5 : 3.6;
+  rbox(sz, 1, sz, obbyColors[i], px, OBBY_TOPS[i] - 1, pz, { radius: 0.24 });
 });
 
-// ---------- Аватары (стиль R6) ----------
-function makeFaceTexture() {
-  return canvasTexture(128, 128, ctx => {
-    ctx.fillStyle = '#f6d848'; ctx.fillRect(0, 0, 128, 128);
-    ctx.fillStyle = '#111';
-    ctx.beginPath(); ctx.ellipse(43, 52, 8, 12, 0, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(85, 52, 8, 12, 0, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#111'; ctx.lineWidth = 7; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.arc(64, 74, 22, 0.25, Math.PI - 0.25); ctx.stroke();
+// ---------- Аватары ----------
+function makeFaceTexture({ girl = false } = {}) {
+  return canvasTexture(256, 256, ctx => {
+    // глаза с бликами
+    [86, 170].forEach(ex => {
+      ctx.fillStyle = '#20242e';
+      ctx.beginPath(); ctx.ellipse(ex, 108, 17, 25, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.ellipse(ex + 6, 98, 6, 8, 0, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(ex - 5, 118, 3, 4, 0, 0, 7); ctx.fill();
+    });
+    if (girl) {
+      ctx.fillStyle = 'rgba(255,120,160,.4)';
+      ctx.beginPath(); ctx.ellipse(58, 150, 14, 9, 0, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(198, 150, 14, 9, 0, 0, 7); ctx.fill();
+    }
+    ctx.strokeStyle = '#20242e'; ctx.lineWidth = 11; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(128, 138, 38, 0.35, Math.PI - 0.35); ctx.stroke();
   });
 }
-const faceTexture = makeFaceTexture();
+const faceTex = makeFaceTexture();
+const faceTexGirl = makeFaceTexture({ girl: true });
 
-function createAvatar({ name, skin = 0xf6d848, shirt = 0x2967d6, pants = 0x8bc34a, tagColor = '#fff' }) {
+function createAvatar({ name, skin = 0xf6d848, shirt = 0x2967d6, pants = 0x8bc34a, hair = null, hairStyle = 'short', girl = false, badge = false }) {
   const g = new THREE.Group();
-  const skinM = new THREE.MeshLambertMaterial({ color: skin });
-  const shirtM = new THREE.MeshLambertMaterial({ color: shirt });
-  const pantsM = new THREE.MeshLambertMaterial({ color: pants });
+  const skinM = mat(skin, { rough: 0.6 });
+  const shirtM = mat(shirt, { rough: 0.75 });
+  const pantsM = mat(pants, { rough: 0.75 });
 
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 1), shirtM);
+  const torso = new THREE.Mesh(new RoundedBoxGeometry(2, 2, 1, 2, 0.14), shirtM);
   torso.position.y = 3;
 
-  const faceM = new THREE.MeshLambertMaterial({ map: faceTexture });
-  const headMats = [skinM, skinM, skinM, skinM, faceM, skinM];
-  const head = new THREE.Mesh(new THREE.BoxGeometry(1.35, 1.25, 1.35), headMats);
-  head.position.y = 4.68;
+  const head = new THREE.Mesh(new RoundedBoxGeometry(1.4, 1.3, 1.4, 2, 0.28), skinM);
+  head.position.y = 4.72;
+  // лицо — декаль на передней грани
+  const face = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.18, 1.1),
+    new THREE.MeshStandardMaterial({ map: girl ? faceTexGirl : faceTex, transparent: true, roughness: 0.6 })
+  );
+  face.position.set(0, 4.7, 0.712);
+  g.add(face);
 
-  function limb(mat, px) {
-    const geo = new THREE.BoxGeometry(0.95, 2, 0.95);
-    geo.translate(0, -0.85, 0);
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(px, 3.85, 0);
-    return m;
+  // причёска
+  if (hair !== null) {
+    const hm = mat(hair, { rough: 0.55 });
+    const cap = new THREE.Mesh(new RoundedBoxGeometry(1.52, 0.55, 1.52, 2, 0.24), hm);
+    cap.position.y = 5.28;
+    g.add(cap);
+    const fringe = new THREE.Mesh(new RoundedBoxGeometry(1.52, 0.42, 0.24, 2, 0.1), hm);
+    fringe.position.set(0, 5.02, 0.66);
+    g.add(fringe);
+    if (hairStyle === 'long') {
+      const back = new THREE.Mesh(new RoundedBoxGeometry(1.52, 1.7, 0.3, 2, 0.14), hm);
+      back.position.set(0, 4.35, -0.64);
+      g.add(back);
+      const sideL = new THREE.Mesh(new RoundedBoxGeometry(0.28, 1.2, 1.0, 2, 0.12), hm);
+      sideL.position.set(-0.72, 4.6, -0.1);
+      g.add(sideL);
+      const sideR = sideL.clone(); sideR.position.x = 0.72;
+      g.add(sideR);
+    }
   }
-  const armL = limb(skinM, -1.5), armR = limb(skinM, 1.5);
+  // бейдж ELC на груди
+  if (badge) {
+    const bTex = gradientTextTexture('ELC', 128, 84, { fontScale: 0.62 });
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.4), new THREE.MeshBasicMaterial({ map: bTex, transparent: true }));
+    b.position.set(-0.5, 3.5, 0.53);
+    g.add(b);
+  }
+
+  function limb(m, px) {
+    const geo = new RoundedBoxGeometry(0.95, 2, 0.95, 2, 0.14);
+    geo.translate(0, -0.85, 0);
+    const mm = new THREE.Mesh(geo, m);
+    mm.position.set(px, 3.85, 0);
+    return mm;
+  }
+  const armL = limb(skinM, -1.52), armR = limb(skinM, 1.52);
   function leg(px) {
-    const geo = new THREE.BoxGeometry(0.95, 2, 0.95);
+    const geo = new RoundedBoxGeometry(0.95, 2, 0.95, 2, 0.14);
     geo.translate(0, -1, 0);
-    const m = new THREE.Mesh(geo, pantsM);
-    m.position.set(px, 2, 0);
-    return m;
+    const mm = new THREE.Mesh(geo, pantsM);
+    mm.position.set(px, 2, 0);
+    return mm;
   }
   const legL = leg(-0.52), legR = leg(0.52);
 
   [torso, head, armL, armR, legL, legR].forEach(p => { p.castShadow = true; g.add(p); });
 
-  const tag = textSprite(name, { color: tagColor });
-  tag.position.y = 6.1;
+  const tag = textSprite(name);
+  tag.position.y = 6.35;
   g.add(tag);
 
   scene.add(g);
@@ -665,8 +1114,11 @@ function animateAvatar(av, moving, onGroundFlag, t, speedK = 1) {
 }
 
 // ---------- Игрок ----------
-const player = createAvatar({ name: 'Ученик', tagColor: '#9fd0ff' });
-player.group.position.set(0, 0.3, 30);
+const player = createAvatar({
+  name: 'Ученик', skin: 0xf6d848, shirt: 0x3b78e8, pants: 0x7cb342,
+  hair: 0x5b3a1e, badge: true,
+});
+player.group.position.set(0, 0.3, 24);
 player.group.rotation.y = Math.PI;
 
 const P = {
@@ -690,7 +1142,7 @@ const state = {
   dialogOpen: false,
 };
 
-// ---------- Аудио (WebAudio-пищалки) ----------
+// ---------- Аудио ----------
 let audioCtx = null;
 function ac() {
   if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } }
@@ -737,7 +1189,7 @@ function updateQuests() {
   if (state.quest1 === 'return') list.push('🏃 Вернись к мисс Анне!');
   if (state.quest1 === 'done' && !state.quizDone) list.push('🎓 Пройди квиз мисс Эммы в школе');
   if (state.quest1 === 'done' && state.quizDone) list.push('✅ Все задания выполнены!');
-  if (!state.bigCoinTaken) list.push('🏆 Пройди паркур за площадкой');
+  if (!state.bigCoinTaken) list.push('🏆 Пройди паркур слева от школы');
   $('questList').innerHTML = list.map(q => `<div class="q">${q}</div>`).join('');
 }
 updateQuests();
@@ -774,10 +1226,10 @@ function openDialog(npcName, text, choices) {
 
 // ---------- Частицы-конфетти ----------
 const particles = [];
-function burst(pos, n = 26, colors = [0xffcf3f, 0xf25f5c, 0x57d95f, 0x4da3ff, 0xffffff]) {
+function burst(pos, n = 26, colors = [0xffd34e, 0xff6ea8, 0x7ef0d4, 0x6ea8ff, 0xffffff]) {
   for (let i = 0; i < n; i++) {
     const m = new THREE.Mesh(
-      new THREE.BoxGeometry(0.28, 0.28, 0.28),
+      new THREE.BoxGeometry(0.26, 0.26, 0.26),
       new THREE.MeshBasicMaterial({ color: colors[i % colors.length], transparent: true })
     );
     m.position.copy(pos); m.position.y += 3;
@@ -796,14 +1248,14 @@ function burst(pos, n = 26, colors = [0xffcf3f, 0xf25f5c, 0x57d95f, 0x4da3ff, 0x
 const interactables = []; // {x,z,r,label,action}
 const npcs = [];
 
-function makeNPC({ name, x, z, ry = 0, skin, shirt, pants, mark = false, wander = 0, onTalk }) {
-  const av = createAvatar({ name, skin, shirt, pants });
+function makeNPC({ name, x, z, ry = 0, skin, shirt, pants, hair, hairStyle, girl, mark = false, wander = 0, onTalk }) {
+  const av = createAvatar({ name, skin, shirt, pants, hair, hairStyle, girl });
   av.group.position.set(x, 0, z);
   av.group.rotation.y = ry;
   let markSp = null;
   if (mark) {
-    markSp = textSprite('❗', { size: 64 });
-    markSp.position.y = 7.4;
+    markSp = textSprite('❗', { size: 60, pill: false });
+    markSp.position.y = 7.5;
     av.group.add(markSp);
   }
   const npc = { av, name, home: { x, z }, wander, wt: 0, target: null, mark: markSp, baseRy: ry };
@@ -826,16 +1278,17 @@ function faceEachOther(npc) {
 
 // Мисс Анна — квест «HELLO»
 const anna = makeNPC({
-  name: 'Miss Anna ⭐', x: 6, z: 24, ry: -0.8,
-  shirt: 0xff5b93, pants: 0x7a4fd0, mark: true,
+  name: 'Miss Anna ⭐', x: 5.5, z: 12.5, ry: -0.9,
+  skin: 0xffd9b3, shirt: 0xff5b93, pants: 0xf2f2f2,
+  hair: 0x4a2c14, hairStyle: 'long', girl: true, mark: true,
   onTalk: () => {
     if (state.quest1 === 'not_started') {
-      openDialog('Miss Anna', 'Hello! Привет! Я мисс Анна 🌸 Ветер разбросал буквы слова «HELLO» по всей площадке! Поможешь мне их собрать? Их пять!', [
+      openDialog('Miss Anna', 'Hello! Привет! Я мисс Анна 🌸 Ветер разбросал буквы слова «HELLO» по всему парку! Поможешь мне их собрать? Их пять!', [
         { label: 'Конечно, помогу! 💪', primary: true, action: () => { startQuest1(); closeDialog(); } },
         { label: 'Чуть позже', action: closeDialog },
       ]);
     } else if (state.quest1 === 'active') {
-      openDialog('Miss Anna', `Ищи буквы H-E-L-L-O вокруг площадки и за школой! Осталось найти: ${5 - state.letters}.`);
+      openDialog('Miss Anna', `Ищи буквы H-E-L-L-O по всему парку — у сакуры, на площадке, у паркура! Осталось найти: ${5 - state.letters}.`);
     } else if (state.quest1 === 'return') {
       openDialog('Miss Anna', 'WOW! Ты собрал все буквы — H-E-L-L-O! Ты супер! Вот твоя награда! 🎁', [
         { label: 'Забрать награду 🎁', primary: true, action: () => { finishQuest1(); closeDialog(); } },
@@ -884,8 +1337,9 @@ function askQuiz() {
   })));
 }
 const emma = makeNPC({
-  name: 'Miss Emma 🎓', x: 0, z: -21, ry: 0,
-  shirt: 0xd9534f, pants: 0x333a45, mark: true,
+  name: 'Miss Emma 🎓', x: -6, z: -20.5, ry: 0,
+  skin: 0xffd9b3, shirt: 0xd94b5b, pants: 0x2e3652,
+  hair: 0xf0d080, hairStyle: 'long', girl: true, mark: true,
   onTalk: () => {
     if (state.quizDone) {
       openDialog('Miss Emma', 'Great job today! See you at the lesson! 👋');
@@ -900,53 +1354,59 @@ const emma = makeNPC({
 
 // Директор в офисе
 makeNPC({
-  name: 'Mr. Pllato 💼', x: 26, z: -16, ry: 0.6,
-  shirt: 0x1f3a63, pants: 0x3a3f47,
+  name: 'Mr. Pllato 💼', x: 8.5, z: -17, ry: 0.7,
+  skin: 0xf3c78a, shirt: 0x22345c, pants: 0x2a2f42,
+  hair: 0x1e1a16,
   onTalk: () => {
     openDialog('Mr. Pllato', 'Добро пожаловать в офис ELC! Здесь будет вся магия: расписание групп, запись на уроки, награды и магазин. Посмотри расписание на компьютере! 💻');
   },
 });
 
 // Ученики-болтуны (имитация других игроков)
-const chat1 = ['Привет! Я уже собрал 90 монет! 🤑', 'Ты видел паркур за площадкой? Он крутой!', 'Miss Anna даёт квест, сходи к ней!'];
-const chat2 = ['Я почти прошла квиз мисс Эммы! 🎓', 'Говорят, скоро тут откроют магазин питомцев!', 'Догоняй! Кто быстрее до школы?'];
+const chat1 = ['Привет! Я уже собрал 90 монет! 🤑', 'Ты видел паркур слева от школы? Он крутой!', 'Miss Anna даёт квест, сходи к ней!'];
+const chat2 = ['Я почти прошла квиз мисс Эммы! 🎓', 'Говорят, скоро тут откроют магазин питомцев!', 'Как тебе фонтан? Там монетки на дне!'];
 makeNPC({
-  name: 'Timur', x: -8, z: 10, wander: 7,
-  shirt: 0x57d95f, pants: 0x2b2d31,
+  name: 'Timur', x: -5, z: 7, wander: 5,
+  skin: 0xffcf9e, shirt: 0x46c46b, pants: 0x2e3b52, hair: 0x17130f,
   onTalk: n => openDialog('Timur', chat1[(Math.random() * chat1.length) | 0]),
 });
 makeNPC({
-  name: 'Aisha', x: -22, z: 18, wander: 6,
-  shirt: 0xffcf3f, pants: 0xd9538a,
+  name: 'Aisha', x: 12, z: 15, wander: 5,
+  skin: 0xd9a06b, shirt: 0xffcf3f, pants: 0xe86ca8,
+  hair: 0x17130f, hairStyle: 'long', girl: true,
   onTalk: n => openDialog('Aisha', chat2[(Math.random() * chat2.length) | 0]),
 });
 
 // Компьютер в офисе — расписание
 interactables.push({
-  x: 34, z: -16, r: 4.5, label: 'Посмотреть расписание 💻',
+  x: 11.5, z: -19, r: 4.5, label: 'Посмотреть расписание 💻',
   action: () => { $('scheduleOverlay').classList.add('open'); sfx.click(); },
 });
 $('scheduleClose').onclick = e => { $('scheduleOverlay').classList.remove('open'); e.currentTarget.blur(); };
 
 // ---------- Буквы HELLO ----------
 const letterDefs = [
-  ['H', -14, 18, 0xf25f5c],
-  ['E', -27, 3, 0xffcf3f],
-  ['L', -20, -32, 0x57d95f],
-  ['L', 18, 20, 0x4da3ff],
-  ['O', 46, -14, 0xb974f5],
+  ['H', -13, 14.5, 0xff6ea8],   // у сакуры
+  ['E', 22, 3, 0xffd34e],       // у площадки
+  ['L', -26, 8, 0x7ef0d4],      // у паркура
+  ['L', 14, 26, 0x6ea8ff],      // юго-восточный угол
+  ['O', 0, -28, 0xc29bff],      // за школой
 ];
 const letters = [];
 letterDefs.forEach(([ch, x, z, color]) => {
   const tex = canvasTexture(128, 128, ctx => {
     ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
-    ctx.fillRect(0, 0, 128, 128);
-    ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 8; ctx.strokeRect(4, 4, 120, 120);
-    ctx.fillStyle = '#fff'; ctx.font = '900 84px Nunito, Arial';
+    ctx.beginPath(); ctx.roundRect(0, 0, 128, 128, 22); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.roundRect(5, 5, 118, 118, 18); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = '900 82px Nunito, Arial';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(ch, 64, 70);
   });
-  const m = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.7, 1.7), new THREE.MeshLambertMaterial({ map: tex }));
+  const m = new THREE.Mesh(
+    new RoundedBoxGeometry(1.7, 1.7, 1.7, 2, 0.2),
+    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5, envMap: envTex, envMapIntensity: 0.5, emissive: color, emissiveIntensity: 0.12 })
+  );
   m.position.set(x, 2.4, z);
   m.visible = false;
   m.castShadow = true;
@@ -972,10 +1432,14 @@ function finishQuest1() {
 }
 
 // ---------- Монеты ----------
-const coinGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.18, 24);
-const coinMat = new THREE.MeshLambertMaterial({ color: 0xf4b400, emissive: 0x664400 });
+const coinGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.18, 28);
+const coinMat = new THREE.MeshStandardMaterial({
+  color: 0xffc93d, roughness: 0.25, metalness: 0.85,
+  envMap: envTex, envMapIntensity: 1.3,
+  emissive: 0xa06a00, emissiveIntensity: 0.35,
+});
 const coins = [];
-[[8, 12], [-8, 22], [-30, 24], [12, -32], [38, 8], [-40, 8], [0, -34], [50, 28], [-52, -40], [24, 40]].forEach(([x, z]) => {
+[[6, 5], [-8, 12], [16, 18], [-16, 24], [26, -8], [-26, -18], [0, -27.5], [24, 24]].forEach(([x, z]) => {
   const m = new THREE.Mesh(coinGeo, coinMat);
   m.rotation.x = Math.PI / 2;
   m.position.set(x, 1.6, z);
@@ -985,11 +1449,11 @@ const coins = [];
 });
 // Большая монета на вершине паркура
 {
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.3, 28), coinMat);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.3, 32), coinMat);
   m.rotation.x = Math.PI / 2;
-  m.position.set(-44, OBBY_TOPS[5] + 2.2, -32);
+  m.position.set(-20.5, OBBY_TOPS[4] + 2.2, -14.5);
   scene.add(m);
-  coins.push({ m, taken: false, big: true, baseY: OBBY_TOPS[5] + 2.2 });
+  coins.push({ m, taken: false, big: true, baseY: OBBY_TOPS[4] + 2.2 });
 }
 
 // ---------- Ввод ----------
@@ -1025,7 +1489,7 @@ $('menuBtn').onclick = e => { $('menuOverlay').classList.add('open'); sfx.click(
 $('resumeBtn').onclick = e => { $('menuOverlay').classList.remove('open'); e.currentTarget.blur(); };
 
 // Камера-орбита
-const cam = { yaw: 0, pitch: 0.36, dist: 15 };
+const cam = { yaw: 0, pitch: 0.34, dist: 14 };
 let dragging = false, lastX = 0, lastY = 0;
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('pointerdown', e => {
@@ -1041,10 +1505,10 @@ window.addEventListener('pointermove', e => {
 window.addEventListener('pointerup', () => dragging = false);
 window.addEventListener('wheel', e => {
   if (document.querySelector('.overlay.open')) return; // не зумим под модалкой
-  cam.dist = THREE.MathUtils.clamp(cam.dist + e.deltaY * 0.012, 7, 26);
+  cam.dist = THREE.MathUtils.clamp(cam.dist + e.deltaY * 0.012, 7, 24);
 }, { passive: true });
 
-// Тач: правая половина экрана — камера, джойстик — движение
+// Тач: правая часть экрана — камера, джойстик — движение
 const joy = { active: false, id: null, dx: 0, dz: 0 };
 const joyEl = $('joy'), knob = $('joyKnob');
 let camTouch = null;
@@ -1138,8 +1602,8 @@ function moveAndCollide(dt) {
     player.group.rotation.y += dr * Math.min(1, dt * 14);
   }
   // границы карты
-  P.pos.x = THREE.MathUtils.clamp(P.pos.x, -FENCE + 1.6, FENCE - 1.6);
-  P.pos.z = THREE.MathUtils.clamp(P.pos.z, -FENCE + 1.6, FENCE - 1.6);
+  P.pos.x = THREE.MathUtils.clamp(P.pos.x, -FENCE + 2, FENCE - 2);
+  P.pos.z = THREE.MathUtils.clamp(P.pos.z, -FENCE + 2, FENCE - 2);
 
   // прыжок
   const wantJump = (!blocked && (keys['Space'] || jumpQueued));
@@ -1183,7 +1647,7 @@ function moveAndCollide(dt) {
     }
   }
   P.pos.y = newY;
-  if (P.pos.y < -20) { P.pos.set(0, 0.3, 30); P.vy = 0; } // страховка
+  if (P.pos.y < -20) { P.pos.set(0, 0.3, 24); P.vy = 0; } // страховка
 
   return moving;
 }
@@ -1265,7 +1729,7 @@ function npcBlocked(px, pz) {
 function updateNPCs(dt, t) {
   for (const n of npcs) {
     if (n.mark) {
-      n.mark.position.y = 7.4 + Math.sin(t * 3) * 0.25;
+      n.mark.position.y = 7.5 + Math.sin(t * 3) * 0.25;
     }
     let moving = false;
     if (n.wander > 0 && !state.dialogOpen) {
@@ -1313,7 +1777,40 @@ function updateParticles(dt) {
     p.m.position.z += p.vz * dt;
     p.m.rotation.x += dt * 6; p.m.rotation.y += dt * 7;
     p.m.material.opacity = Math.max(0, p.life);
-    if (p.life <= 0) { scene.remove(p.m); p.m.geometry.dispose(); p.m.material.dispose(); particles.splice(i, 1); }
+    if (p.life <= 0) { scene.remove(p.m); p.m.geometry.dispose(); particles.splice(i, 1); }
+  }
+}
+
+// ---------- Окружение: лепестки, фонтан, шарики ----------
+function updateAmbient(dt, t) {
+  for (const p of petals) {
+    p.y -= p.vy * dt;
+    p.m.position.set(
+      p.x + Math.sin(t * 1.4 + p.phase) * 0.7,
+      p.y,
+      p.z + Math.cos(t * 1.1 + p.phase) * 0.5
+    );
+    p.m.rotation.set(t * 2 + p.phase, p.phase, t * 1.5);
+    if (p.y < 0.1) p.y = 4.5 + Math.random() * 2;
+  }
+  for (const d of fountain.drops) {
+    const cycle = ((t * d.speed + d.phase) % 1);
+    const h = cycle * 2.6;
+    const spread = cycle * 1.6;
+    d.m.position.set(
+      Math.cos(d.a) * spread * 0.9,
+      3.2 + h * (1 - cycle) * 2.2 - cycle * 1.6,
+      10 + Math.sin(d.a) * spread * 0.9
+    );
+    d.m.material.opacity = 0.85 * (1 - cycle * 0.5);
+  }
+  fountain.water.rotation.y = t * 0.25;
+  for (const b of balloons) {
+    b.m.position.y = b.baseY + Math.sin(t * 1.6 + b.phase) * 0.22;
+  }
+  for (const c of clouds) {
+    c.position.x += dt * 0.9;
+    if (c.position.x > 120) c.position.x = -120;
   }
 }
 
@@ -1365,15 +1862,11 @@ function tick() {
   updateNPCs(dt, elapsed);
   updatePickups(elapsed);
   updateParticles(dt);
+  updateAmbient(dt, elapsed);
   updateInteract();
   updateCamera(dt);
 
-  for (const c of clouds) {
-    c.position.x += dt * 1.2;
-    if (c.position.x > 130) c.position.x = -130;
-  }
-
-  renderer.render(scene, camera);
+  composer.render();
 }
 
 // ---------- Загрузка ----------
