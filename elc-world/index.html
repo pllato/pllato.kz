@@ -40,6 +40,51 @@
     background:linear-gradient(90deg, #ff8bd0, #b78bff, #6ea8ff); box-shadow:0 0 12px rgba(150,150,255,.8); }
   #loading .tip { color:#8a93c4; font-weight:700; font-size:13px; }
 
+  /* ---------- Экран входа ---------- */
+  #joinBox { display:none; flex-direction:column; align-items:center; gap:16px; width:min(88vw, 360px); }
+  #joinBox.show { display:flex; }
+  #joinBox label { color:#aab4e8; font-weight:800; font-size:15px; }
+  #nameInput {
+    width:100%; padding:14px 18px; border-radius:14px; border:2px solid rgba(255,255,255,.18);
+    background:rgba(255,255,255,.08); color:#fff; font-family:inherit; font-weight:900; font-size:20px;
+    text-align:center; outline:none;
+  }
+  #nameInput:focus { border-color:#6ea8ff; box-shadow:0 0 16px rgba(110,168,255,.35); }
+  #colorRow { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  #colorRow i {
+    width:34px; height:34px; border-radius:10px; cursor:pointer; border:3px solid transparent;
+    transition:transform .15s;
+  }
+  #colorRow i:hover { transform:scale(1.12); }
+  #colorRow i.sel { border-color:#fff; box-shadow:0 0 14px rgba(255,255,255,.6); transform:scale(1.12); }
+  #playBtn {
+    width:100%; border:none; border-radius:16px; padding:16px; cursor:pointer;
+    font-family:inherit; font-weight:900; font-size:22px; color:#fff; letter-spacing:1px;
+    background:linear-gradient(92deg, #4f8cff, #7b5bf5);
+    box-shadow:0 6px 26px rgba(90,110,255,.55);
+  }
+  #playBtn:active { transform:scale(.97); }
+  #joinBox .note { color:#7c86b8; font-weight:700; font-size:12px; }
+
+  /* ---------- Быстрый чат ---------- */
+  #chatBtn {
+    left:12px; bottom:calc(96px + env(safe-area-inset-bottom)); width:46px; height:46px;
+    border-radius:50%; border:1px solid rgba(255,255,255,.2); cursor:pointer;
+    background:rgba(16,20,38,.6); backdrop-filter:blur(10px); color:#fff; font-size:20px;
+  }
+  body.touch #chatBtn { left:auto; right:26px; bottom:calc(210px + env(safe-area-inset-bottom)); }
+  #chatPanel {
+    left:12px; bottom:calc(150px + env(safe-area-inset-bottom));
+    display:none; flex-direction:column; gap:6px; padding:10px;
+  }
+  body.touch #chatPanel { left:auto; right:26px; bottom:calc(266px + env(safe-area-inset-bottom)); }
+  #chatPanel.open { display:flex; }
+  #chatPanel button {
+    border:none; border-radius:10px; padding:9px 14px; cursor:pointer; text-align:left;
+    background:rgba(255,255,255,.92); color:#161a30; font-family:inherit; font-weight:800; font-size:14px;
+  }
+  #chatPanel button:hover { background:#dbe9ff; }
+
   /* ---------- HUD ---------- */
   .hud { position:fixed; z-index:20; color:#fff; }
   .glass {
@@ -190,8 +235,17 @@
 <div id="loading">
   <div class="logo">ELC WORLD</div>
   <div class="sub">мир школы английского языка</div>
-  <div class="blocks"><i></i><i></i><i></i></div>
-  <div class="bar"><i id="loadBar"></i></div>
+  <div id="loadUI">
+    <div class="blocks" style="justify-content:center"><i></i><i></i><i></i></div>
+    <div class="bar" style="margin:18px auto 0"><i id="loadBar"></i></div>
+  </div>
+  <div id="joinBox">
+    <label>Как тебя зовут?</label>
+    <input id="nameInput" maxlength="12" placeholder="Твоё имя" autocomplete="off">
+    <div id="colorRow"></div>
+    <button id="playBtn">ИГРАТЬ ▶</button>
+    <div class="note">🌐 Другие игроки онлайн увидят тебя и твоё имя</div>
+  </div>
   <div class="tip">Совет: собирай монеты и выполняй задания учителей!</div>
 </div>
 
@@ -204,10 +258,8 @@
   <div id="coinsChip" class="glass"><span class="coinIcon"></span><span id="coinsVal">0</span></div>
   <div id="fishChip" class="glass" style="padding:7px 14px; font-weight:900; font-size:15px;">🐟 <span id="fishVal">0</span></div>
   <div id="playersPanel" class="glass">
-    <div class="t">👥 ИГРОКИ — 3</div>
-    <div class="p">🟦 Ученик (ты)</div>
-    <div class="p">⬜ Timur</div>
-    <div class="p">⬜ Aisha</div>
+    <div class="t" id="playersTitle">👥 ИГРОКИ — 1</div>
+    <div id="playersList"><div class="p">🟦 Ученик (ты)</div></div>
   </div>
   <div id="questPanel" class="glass">
     <div class="t">📜 ЗАДАНИЯ</div>
@@ -230,12 +282,14 @@
   <b>Мышь (зажать)</b> — камера &nbsp; <b>E</b> — говорить
 </div>
 
-<div class="hud" id="version">ELC World · демо 0.3</div>
+<div class="hud" id="version">ELC World · демо 0.4 · онлайн</div>
 
 <div class="hud" id="joy"><div id="joyKnob"></div></div>
 <button class="hud" id="jumpBtn">⬆</button>
 <button class="hud" id="actBtn">💬</button>
 <button class="hud" id="emoteBtn">🕺</button>
+<button class="hud" id="chatBtn" title="Быстрый чат">💬</button>
+<div class="hud glass" id="chatPanel"></div>
 
 <div class="overlay" id="menuOverlay">
   <div class="panel">
@@ -246,8 +300,9 @@
       <li><b>Пробел</b> — прыжок</li>
       <li><b>Мышь (зажать и вести)</b> — камера, колесо — зум</li>
       <li><b>E</b> — поговорить / рыбачить</li>
-      <li><b>G</b> — танец, <b>M</b> — музыка</li>
+      <li><b>G</b> — танец, <b>M</b> — музыка, <b>💬</b> — фразы</li>
       <li>На телефоне — джойстик и кнопки</li>
+      <li>🌐 Игроки онлайн видят друг друга!</li>
     </ul>
     <div class="btnRow"><button id="musicBtn">🎵 Музыка: вкл</button><button id="resumeBtn">Продолжить</button></div>
   </div>
@@ -272,6 +327,7 @@
 </script>
 <script type="module">
 import * as THREE from 'three';
+import { joinRoom, selfId } from './lib/trystero-nostr.bundle.js';
 import { RoundedBoxGeometry } from './lib/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from './lib/addons/environments/RoomEnvironment.js';
 import { EffectComposer } from './lib/addons/postprocessing/EffectComposer.js';
@@ -450,7 +506,7 @@ function canvasTexture(w, h, draw) {
 }
 
 // Табличка-имя: текст на полупрозрачной «пилюле»
-function textSprite(text, { size = 42, color = '#fff', pill = true } = {}) {
+function textSprite(text, { size = 42, color = '#fff', pill = true, pillColor = 'rgba(10,14,28,.55)' } = {}) {
   const padX = 34, padY = 18;
   const c = document.createElement('canvas');
   const ctx0 = c.getContext('2d');
@@ -459,7 +515,7 @@ function textSprite(text, { size = 42, color = '#fff', pill = true } = {}) {
   c.width = tw + padX * 2; c.height = size + padY * 2;
   const ctx = c.getContext('2d');
   if (pill) {
-    ctx.fillStyle = 'rgba(10,14,28,.55)';
+    ctx.fillStyle = pillColor;
     ctx.beginPath();
     ctx.roundRect(0, 0, c.width, c.height, c.height / 2);
     ctx.fill();
@@ -1314,12 +1370,25 @@ function animateAvatar(av, moving, onGroundFlag, t, speedK = 1) {
 }
 
 // ---------- Игрок ----------
-const player = createAvatar({
-  name: 'Ученик', skin: 0xf6d848, shirt: 0x3b78e8, pants: 0x7cb342,
-  hair: 0x5b3a1e, badge: true,
-});
-player.group.position.set(0, 0.3, 24);
-player.group.rotation.y = Math.PI;
+var rodHolder = null; // удочка (создаётся ниже), переезжает при пересборке аватара
+let myName = 'Ученик';
+let myColor = 0x3b78e8;
+let player = null;
+
+function buildPlayer(name, shirtColor) {
+  const oldPos = player ? player.group.position.clone() : new THREE.Vector3(0, 0.3, 24);
+  const oldRot = player ? player.group.rotation.y : Math.PI;
+  if (player) scene.remove(player.group);
+  player = createAvatar({
+    name, skin: 0xf6d848, shirt: shirtColor, pants: 0x7cb342,
+    hair: 0x5b3a1e, badge: true,
+  });
+  player.group.position.copy(oldPos);
+  player.group.rotation.y = oldRot;
+  if (rodHolder) player.armR.add(rodHolder);
+  return player;
+}
+buildPlayer(myName, myColor);
 
 const P = {
   pos: player.group.position,
@@ -1783,6 +1852,7 @@ const rod = new THREE.Group();
   rod.rotation.x = -0.95;
   rod.visible = false;
   player.armR.add(rod);
+  rodHolder = rod;
 }
 // поплавок и леска
 const bobber = new THREE.Group();
@@ -1905,10 +1975,161 @@ function updateFishing(dt, t) {
   player.armR.rotation.x = THREE.MathUtils.lerp(player.armR.rotation.x, -1.15, 0.25);
 }
 
+// ---------- Мультиплеер (P2P WebRTC, без сервера) ----------
+const remotes = new Map(); // peerId -> данные удалённого игрока
+let room = null, sendStateFn = null, sendChatFn = null, mpStarted = false;
+let lastMoving = false;
+
+function escapeName(s) {
+  return String(s || '').replace(/[^\p{L}\p{N} _\-!?.():]/gu, '').trim().slice(0, 12) || 'Ученик';
+}
+
+function startMultiplayer() {
+  if (mpStarted) return;
+  mpStarted = true;
+  try {
+    room = joinRoom({ appId: 'pllato-elc-world' }, 'main');
+    const [sendSt, onSt] = room.makeAction('st');
+    const [sendCh, onCh] = room.makeAction('chat');
+    sendStateFn = sendSt; sendChatFn = sendCh;
+    room.onPeerJoin(() => sendNow());
+    room.onPeerLeave(id => {
+      const r = remotes.get(id);
+      if (r) toast(`👋 ${r.name} вышел`);
+      removeRemote(id);
+      updatePlayersPanel();
+    });
+    onSt((d, id) => applyRemote(d, id));
+    onCh((d, id) => {
+      const r = remotes.get(id);
+      if (r && d && typeof d.t === 'string') showBubble(r.av, d.t.slice(0, 40));
+    });
+    setInterval(sendNow, 125);
+  } catch (e) {
+    console.warn('Мультиплеер недоступен:', e);
+  }
+}
+function sendNow() {
+  if (!sendStateFn) return;
+  try {
+    sendStateFn({
+      n: myName, c: myColor,
+      x: +P.pos.x.toFixed(2), y: +P.pos.y.toFixed(2), z: +P.pos.z.toFixed(2),
+      r: +player.group.rotation.y.toFixed(2),
+      m: lastMoving ? 1 : 0, g: P.onGround ? 1 : 0,
+      d: performance.now() < danceUntil ? 1 : 0,
+    });
+  } catch (e) { /* пиров нет — не страшно */ }
+}
+function applyRemote(d, id) {
+  if (!d || typeof d.x !== 'number' || typeof d.z !== 'number') return;
+  let r = remotes.get(id);
+  const name = escapeName(d.n);
+  const color = (typeof d.c === 'number' ? d.c : 0xe2543f) & 0xffffff;
+  if (r && (r.name !== name || r.color !== color)) { removeRemote(id); r = null; }
+  if (!r) {
+    const av = createAvatar({ name, skin: 0xf6d848, shirt: color, pants: 0x5b6c8f, hair: 0x2c1d10 });
+    av.group.position.set(d.x, d.y || 0, d.z);
+    r = { av, name, color, tx: d.x, ty: d.y || 0, tz: d.z, tr: d.r || 0, m: 0, g: 1, d: 0, lastSeen: 0 };
+    remotes.set(id, r);
+    updatePlayersPanel();
+    toast(`👋 ${name} зашёл в игру!`);
+    sfx.click();
+  }
+  r.tx = d.x; r.ty = d.y || 0; r.tz = d.z; r.tr = d.r || 0;
+  r.m = d.m ? 1 : 0; r.g = d.g ? 1 : 0; r.d = d.d ? 1 : 0;
+  r.lastSeen = performance.now();
+}
+function removeRemote(id) {
+  const r = remotes.get(id);
+  if (!r) return;
+  scene.remove(r.av.group);
+  remotes.delete(id);
+}
+function updateRemotes(dt, t) {
+  const now = performance.now();
+  for (const [id, r] of remotes) {
+    if (now - r.lastSeen > 15000) {
+      removeRemote(id);
+      updatePlayersPanel();
+      continue;
+    }
+    const g = r.av.group;
+    const k = Math.min(1, dt * 10);
+    g.position.x += (r.tx - g.position.x) * k;
+    g.position.y += (r.ty - g.position.y) * k;
+    g.position.z += (r.tz - g.position.z) * k;
+    let dr = r.tr - g.rotation.y;
+    while (dr > Math.PI) dr -= Math.PI * 2;
+    while (dr < -Math.PI) dr += Math.PI * 2;
+    g.rotation.y += dr * k;
+    if (r.d) {
+      const dtn = t * 11;
+      r.av.armL.rotation.x = Math.sin(dtn) * 0.6 - 2.4;
+      r.av.armR.rotation.x = Math.sin(dtn + Math.PI) * 0.6 - 2.4;
+      g.rotation.y += dt * 5;
+    } else {
+      animateAvatar(r.av, !!r.m, !!r.g, t);
+    }
+  }
+}
+function updatePlayersPanel() {
+  $('playersTitle').textContent = `👥 ИГРОКИ — ${1 + remotes.size}`;
+  const list = $('playersList');
+  list.innerHTML = '';
+  const mkRow = (emoji, text) => {
+    const div = document.createElement('div');
+    div.className = 'p';
+    div.textContent = `${emoji} ${text}`;
+    list.appendChild(div);
+  };
+  mkRow('🟦', `${myName} (ты)`);
+  let shown = 0;
+  for (const r of remotes.values()) {
+    if (shown++ >= 7) { mkRow('▫️', `и ещё ${remotes.size - 7}…`); break; }
+    mkRow('⬜', r.name);
+  }
+}
+
+// пузырь с фразой над головой
+function showBubble(av, text) {
+  if (av.bubble) av.group.remove(av.bubble);
+  const b = textSprite(text, { size: 34, color: '#161a30', pillColor: 'rgba(255,255,255,.95)' });
+  b.position.y = 7.6;
+  av.group.add(b);
+  av.bubble = b;
+  clearTimeout(av.bubbleTimer);
+  av.bubbleTimer = setTimeout(() => { av.group.remove(b); if (av.bubble === b) av.bubble = null; }, 4200);
+}
+
+// быстрый чат (безопасные фразы)
+const CHAT_PHRASES = ['Привет! 👋', 'Как дела?', 'За мной! 🏃', 'Круто! 😎', 'Помоги! 🙏', 'Пока! 👋'];
+let lastChatAt = 0;
+{
+  const panel = $('chatPanel');
+  CHAT_PHRASES.forEach(ph => {
+    const b = document.createElement('button');
+    b.textContent = ph;
+    b.onclick = () => sendPhrase(ph);
+    panel.appendChild(b);
+  });
+  $('chatBtn').onclick = e => { panel.classList.toggle('open'); sfx.click(); e.currentTarget.blur(); };
+}
+function sendPhrase(ph) {
+  const now = performance.now();
+  if (now - lastChatAt < 800) return;
+  lastChatAt = now;
+  $('chatPanel').classList.remove('open');
+  showBubble(player, ph);
+  sfx.click();
+  if (sendChatFn) { try { sendChatFn({ t: ph }); } catch (e) { } }
+}
+
 // ---------- Ввод ----------
-// открыт ли модальный оверлей (меню/расписание) или диалог — ввод игры блокируется
+// блокируем ввод игры: диалог, модалки или экран входа
 function uiBlocked() {
-  return state.dialogOpen || !!document.querySelector('.overlay.open');
+  return state.dialogOpen || !!document.querySelector('.overlay.open') ||
+    !$('loading').classList.contains('hidden');
 }
 const keys = {};
 window.addEventListener('keydown', e => {
@@ -1919,9 +2140,11 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyM') toggleMusic();
   if (e.code === 'Escape') {
     const sched = $('scheduleOverlay');
-    if (sched.classList.contains('open')) sched.classList.remove('open');
+    const chat = $('chatPanel');
+    if (chat.classList.contains('open')) chat.classList.remove('open');
+    else if (sched.classList.contains('open')) sched.classList.remove('open');
     else if (state.dialogOpen) closeDialog();
-    else $('menuOverlay').classList.toggle('open');
+    else if ($('loading').classList.contains('hidden')) $('menuOverlay').classList.toggle('open');
   }
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
@@ -2414,6 +2637,7 @@ function tick() {
   elapsed += dt;
 
   const moving = moveAndCollide(dt);
+  lastMoving = moving;
   animateAvatar(player, moving, P.onGround, elapsed);
   // танец
   if (moving || !P.onGround) danceUntil = 0;
@@ -2432,6 +2656,7 @@ function tick() {
   }
   updatePet(dt, elapsed);
   updateFishing(dt, elapsed);
+  updateRemotes(dt, elapsed);
   updateNPCs(dt, elapsed);
   updatePickups(elapsed);
   updateParticles(dt);
@@ -2443,6 +2668,46 @@ function tick() {
   composer.render();
 }
 
+// ---------- Экран входа ----------
+const COLORS = [0x3b78e8, 0xe2543f, 0x46c46b, 0xffcf3f, 0xb974f5, 0xff6ea8, 0x22c1d8, 0xff8b45];
+let selColor = parseInt(localStorage.getItem('elcw_color') || '', 16);
+if (!COLORS.includes(selColor)) selColor = COLORS[0];
+{
+  const row = $('colorRow');
+  COLORS.forEach(c => {
+    const i = document.createElement('i');
+    i.style.background = '#' + c.toString(16).padStart(6, '0');
+    if (c === selColor) i.classList.add('sel');
+    i.onclick = () => {
+      selColor = c;
+      [...row.children].forEach(el => el.classList.remove('sel'));
+      i.classList.add('sel');
+    };
+    row.appendChild(i);
+  });
+  $('nameInput').value = localStorage.getItem('elcw_name') || '';
+  $('nameInput').addEventListener('keydown', e => {
+    e.stopPropagation(); // не двигаем персонажа, пока печатаем имя
+    if (e.key === 'Enter') $('playBtn').click();
+  });
+}
+$('playBtn').onclick = () => {
+  myName = escapeName($('nameInput').value);
+  myColor = selColor;
+  try {
+    localStorage.setItem('elcw_name', myName);
+    localStorage.setItem('elcw_color', selColor.toString(16));
+  } catch (e) { }
+  buildPlayer(myName, myColor);
+  P.pos = player.group.position;
+  $('nameChip').textContent = `🎮 ${myName}`;
+  updatePlayersPanel();
+  $('loading').classList.add('hidden');
+  setTimeout(() => { const h = $('hint'); if (h) h.style.opacity = '0'; }, 11000);
+  startMultiplayer();
+  ac(); startMusic();
+};
+
 // ---------- Загрузка ----------
 let lp = 0;
 const loadTimer = setInterval(() => {
@@ -2450,8 +2715,8 @@ const loadTimer = setInterval(() => {
   if (lp >= 100) {
     lp = 100;
     clearInterval(loadTimer);
-    setTimeout(() => $('loading').classList.add('hidden'), 250);
-    setTimeout(() => { const h = $('hint'); if (h) h.style.opacity = '0'; }, 11000);
+    $('loadUI').style.display = 'none';
+    $('joinBox').classList.add('show');
   }
   $('loadBar').style.width = lp + '%';
 }, 120);
@@ -2460,9 +2725,12 @@ tick();
 
 // Хуки для отладки/тестов
 window.__game = {
-  state, P, player, solids, fishing,
+  state, P, solids, fishing, remotes,
+  get player() { return player; },
   teleport(x, z, y = 0.3) { P.pos.set(x, y, z); P.vy = 0; },
   setTime(s) { elapsed = s; },
+  play() { $('playBtn').click(); },
+  applyRemote, sendPhrase,
   interact: tryInteract,
   THREE,
 };
