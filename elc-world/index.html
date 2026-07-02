@@ -171,8 +171,15 @@
     color:#fff; font-size:24px; display:none; touch-action:none; align-items:center; justify-content:center;
     box-shadow:0 4px 16px rgba(90,110,255,.5);
   }
+  #emoteBtn {
+    right:116px; bottom:calc(46px + env(safe-area-inset-bottom)); width:52px; height:52px; border-radius:50%;
+    border:2px solid rgba(255,255,255,.25); background:rgba(255,255,255,.12); color:#fff;
+    backdrop-filter:blur(6px); font-size:22px; display:none; touch-action:none;
+    align-items:center; justify-content:center;
+  }
   body.touch #joy { display:block; }
   body.touch #jumpBtn { display:flex; }
+  body.touch #emoteBtn { display:flex; }
   body.touch #hint { display:none; }
 </style>
 </head>
@@ -195,6 +202,7 @@
 
 <div class="hud" id="topRight">
   <div id="coinsChip" class="glass"><span class="coinIcon"></span><span id="coinsVal">0</span></div>
+  <div id="fishChip" class="glass" style="padding:7px 14px; font-weight:900; font-size:15px;">🐟 <span id="fishVal">0</span></div>
   <div id="playersPanel" class="glass">
     <div class="t">👥 ИГРОКИ — 3</div>
     <div class="p">🟦 Ученик (ты)</div>
@@ -222,11 +230,12 @@
   <b>Мышь (зажать)</b> — камера &nbsp; <b>E</b> — говорить
 </div>
 
-<div class="hud" id="version">ELC World · демо 0.2</div>
+<div class="hud" id="version">ELC World · демо 0.3</div>
 
 <div class="hud" id="joy"><div id="joyKnob"></div></div>
 <button class="hud" id="jumpBtn">⬆</button>
 <button class="hud" id="actBtn">💬</button>
+<button class="hud" id="emoteBtn">🕺</button>
 
 <div class="overlay" id="menuOverlay">
   <div class="panel">
@@ -236,10 +245,11 @@
       <li><b>WASD / стрелки</b> — ходить</li>
       <li><b>Пробел</b> — прыжок</li>
       <li><b>Мышь (зажать и вести)</b> — камера, колесо — зум</li>
-      <li><b>E</b> — поговорить / использовать</li>
+      <li><b>E</b> — поговорить / рыбачить</li>
+      <li><b>G</b> — танец, <b>M</b> — музыка</li>
       <li>На телефоне — джойстик и кнопки</li>
     </ul>
-    <div class="btnRow"><button id="resumeBtn">Продолжить</button></div>
+    <div class="btnRow"><button id="musicBtn">🎵 Музыка: вкл</button><button id="resumeBtn">Продолжить</button></div>
   </div>
 </div>
 
@@ -304,19 +314,20 @@ composer.addPass(new OutputPass());
 const pmrem = new THREE.PMREMGenerator(renderer);
 const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-// ---------- Свет ----------
-scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x9fc27e, 0.65));
+// ---------- Свет (день/ночь) ----------
+const hemi = new THREE.HemisphereLight(0xcfe0ff, 0x9fc27e, 0.65);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff1da, 2.7);
 sun.position.set(45, 65, 30);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.camera.left = -55; sun.shadow.camera.right = 55;
 sun.shadow.camera.top = 55; sun.shadow.camera.bottom = -55;
-sun.shadow.camera.near = 10; sun.shadow.camera.far = 200;
+sun.shadow.camera.near = 10; sun.shadow.camera.far = 250;
 sun.shadow.bias = -0.0004;
 scene.add(sun);
 
-// ---------- Небо ----------
+// ---------- Небо (динамическое) ----------
 const skyMat = new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
   uniforms: {
@@ -333,14 +344,44 @@ const skyMat = new THREE.ShaderMaterial({
     }`,
 });
 scene.add(new THREE.Mesh(new THREE.SphereGeometry(280, 32, 16), skyMat));
-// Солнце (bloom даст ему сияние)
+// Палитры неба: день / закат / ночь
+const SKY = {
+  day: [0x3d95ff, 0xa8d8ff, 0xffeed2],
+  set: [0x37427e, 0xff8f66, 0xffc98a],
+  night: [0x05091a, 0x0d1834, 0x1a2547],
+  fogDay: 0xd6ecff, fogSet: 0xffc9a0, fogNight: 0x0b1122,
+};
+// Солнце и луна (bloom даст сияние)
 const sunDisc = new THREE.Mesh(
   new THREE.CircleGeometry(14, 40),
   new THREE.MeshBasicMaterial({ color: 0xfffbe6, fog: false })
 );
-sunDisc.position.set(140, 190, 95);
-sunDisc.lookAt(0, 0, 0);
 scene.add(sunDisc);
+const moonDisc = new THREE.Mesh(
+  new THREE.CircleGeometry(9, 36),
+  new THREE.MeshBasicMaterial({ color: 0xdfe9ff, fog: false })
+);
+scene.add(moonDisc);
+// Звёзды
+const starGeo = new THREE.BufferGeometry();
+{
+  const pos = new Float32Array(420 * 3);
+  for (let i = 0; i < 420; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const e = Math.random() * Math.PI * 0.48 + 0.06;
+    const r = 255;
+    pos[i * 3] = Math.cos(a) * Math.cos(e) * r;
+    pos[i * 3 + 1] = Math.sin(e) * r;
+    pos[i * 3 + 2] = Math.sin(a) * Math.cos(e) * r;
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+}
+const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.7, transparent: true, opacity: 0, fog: false, depthWrite: false, sizeAttenuation: true });
+scene.add(new THREE.Points(starGeo, starMat));
+
+// Реестр ночных огней: {light, base} — intensity = base * nightF (или dayF)
+const nightLights = [];   // фонари: горят ночью
+const glassMats = [];     // стёкла окон: светятся ночью
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -598,9 +639,10 @@ function lamp(x, z) {
   const glow = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 14), lampGlowM);
   glow.position.set(x, 4.15, z);
   scene.add(glow);
-  const pl = new THREE.PointLight(0xffd9a0, 14, 13);
+  const pl = new THREE.PointLight(0xffd9a0, 4, 13);
   pl.position.set(x, 4.1, z);
   scene.add(pl);
+  nightLights.push({ light: pl, base: 16 });
 }
 lamp(-7.5, 17); lamp(7.5, 17); lamp(-8.5, 3); lamp(8.5, 3);
 
@@ -673,8 +715,8 @@ function tree(x, z, s = 1, leaf = 0x4fa54f) {
   sph(1.25 * s, leaf, x + 1.05 * s, 3.1 * s, z - 0.3 * s, { material: lm });
   sph(1.0 * s, leaf, x, 4.7 * s, z, { material: lm });
 }
-tree(-28, 27, 1.35); tree(28, 27, 1.2, 0x5cb554); tree(27, -27, 1.4);
-tree(-27, -27, 1.25, 0x449a4e); tree(20, 20, 0.9, 0x5cb554); tree(-24, 14, 1.0);
+tree(-30, 17, 1.35); tree(8, 29, 1.2, 0x5cb554); tree(27, -27, 1.4);
+tree(-27, -27, 1.25, 0x449a4e); tree(30, 14, 0.9, 0x5cb554); tree(-24, 14, 1.0);
 tree(26, 0, 1.1, 0x449a4e); tree(-28, -10, 1.15);
 
 // Сакура с лепестками
@@ -704,8 +746,9 @@ const petals = [];
 
 // ---------- Облака (пушистые) ----------
 const clouds = [];
+const cloudMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: 0xffffff, emissiveIntensity: 0.18 });
 {
-  const cm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: 0xffffff, emissiveIntensity: 0.18 });
+  const cm = cloudMat;
   function cloud(x, y, z, s = 1) {
     const g = new THREE.Group();
     [[0, 0, 0, 2.6], [2.2, 0.5, 0.4, 1.9], [-2.1, 0.4, -0.3, 1.8], [0.6, 1.1, 0.2, 1.6], [-0.9, -0.2, 0.6, 1.5]].forEach(([bx, by, bz, r]) => {
@@ -785,9 +828,10 @@ const navyM = mat(0x24365e, { rough: 0.6 });
     const glow = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), lampGlowM);
     glow.position.set(cx + lx, 4.3, zFront + 0.75);
     scene.add(glow);
-    const pl = new THREE.PointLight(0xffd9a0, 3, 7);
+    const pl = new THREE.PointLight(0xffd9a0, 1.5, 7);
     pl.position.set(cx + lx, 4.3, zFront + 1);
     scene.add(pl);
+    nightLights.push({ light: pl, base: 5 });
   });
   // коврик
   const matDoor = new THREE.Mesh(new RoundedBoxGeometry(4.4, 0.1, 1.8, 2, 0.05), mat(0xd9534f, { rough: 0.95 }));
@@ -803,8 +847,9 @@ const navyM = mat(0x24365e, { rough: 0.6 });
   // окна с рамами и цветочными ящиками
   const glassM = new THREE.MeshStandardMaterial({
     color: 0xbfe3ff, roughness: 0.08, metalness: 0.1,
-    envMap: envTex, envMapIntensity: 1.4, emissive: 0x2a4a66, emissiveIntensity: 0.25,
+    envMap: envTex, envMapIntensity: 1.4, emissive: 0xffc97a, emissiveIntensity: 0.12,
   });
+  glassMats.push(glassM);
   [-11.5, -6.5, 6.5, 11.5].forEach(wx => {
     rbox(3.4, 3.0, 0.24, 0xffffff, cx + wx, 2.8, zFront + 0.55, { solid: false, material: trimM, radius: 0.08 });
     const gl = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 2.4), glassM);
@@ -997,6 +1042,161 @@ obbyPos.forEach(([px, pz], i) => {
   rbox(sz, 1, sz, obbyColors[i], px, OBBY_TOPS[i] - 1, pz, { radius: 0.24 });
 });
 
+// ---------- Пруд с причалом (рыбалка) ----------
+const POND = { x: 23.5, z: 25.5, r: 6.2 };
+let pondWater;
+{
+  // песчаный берег
+  const sand = new THREE.Mesh(new THREE.CylinderGeometry(POND.r + 0.9, POND.r + 0.9, 0.09, 40), mat(0xd9c68f, { rough: 0.95 }));
+  sand.position.set(POND.x, 0.045, POND.z); sand.receiveShadow = true;
+  scene.add(sand);
+  // вода
+  pondWater = new THREE.Mesh(
+    new THREE.CylinderGeometry(POND.r, POND.r, 0.18, 40),
+    new THREE.MeshStandardMaterial({
+      color: 0x3fa8f5, roughness: 0.06, transparent: true, opacity: 0.8,
+      envMap: envTex, envMapIntensity: 1.3, emissive: 0x155a8f, emissiveIntensity: 0.25,
+    })
+  );
+  pondWater.position.set(POND.x, 0.2, POND.z);
+  scene.add(pondWater);
+  // кувшинки
+  [[21, 27.5], [26.5, 27], [25.5, 23]].forEach(([lx, lz], i) => {
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.06, 16), mat(0x3f8f4a, { rough: 0.8 }));
+    pad.position.set(lx, 0.33, lz);
+    scene.add(pad);
+    if (i < 2) sph(0.16, 0xffb3d4, lx + 0.1, 0.45, lz, { seg: 8 });
+  });
+  // камыши
+  [[19.5, 21], [28.5, 24], [26, 30]].forEach(([rx, rz]) => {
+    for (let i = 0; i < 3; i++) {
+      cyl(0.05, 0.07, 1.6 + Math.random(), 0x4c8f3d, rx + (Math.random() - 0.5), 0, rz + (Math.random() - 0.5), { seg: 6 });
+    }
+  });
+  // деревянный причал (тонкий — на него можно зайти без прыжка)
+  const dockTex = canvasTexture(128, 256, ctx => {
+    ctx.fillStyle = '#9a6a38'; ctx.fillRect(0, 0, 128, 256);
+    ctx.strokeStyle = 'rgba(60,35,10,.5)'; ctx.lineWidth = 4;
+    for (let i = 1; i < 6; i++) { ctx.beginPath(); ctx.moveTo(0, i * 42); ctx.lineTo(128, i * 42); ctx.stroke(); }
+  });
+  const dock = new THREE.Mesh(
+    new THREE.BoxGeometry(2.4, 0.3, 5.6),
+    new THREE.MeshStandardMaterial({ map: dockTex, roughness: 0.85, envMap: envTex, envMapIntensity: 0.25 })
+  );
+  dock.position.set(POND.x, 0.15, POND.z - 4.4); dock.castShadow = true; dock.receiveShadow = true;
+  scene.add(dock);
+  addSolid(POND.x, 0, POND.z - 4.4, 2.4, 0.3, 5.6);
+  // столбики
+  [[-1, -2.6], [1, -2.6], [-1, 2.6], [1, 2.6]].forEach(([px, pz]) => {
+    cyl(0.14, 0.14, 1.1, 0x7a4f26, POND.x + px, 0, POND.z - 4.4 + pz, { seg: 8 });
+  });
+  // табличка
+  const fsTex = gradientTextTexture('РЫБАЛКА 🎣', 512, 130, { bg: '#141a36', fontScale: 0.42 });
+  const fsign = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.86), new THREE.MeshBasicMaterial({ map: fsTex, transparent: true }));
+  cyl(0.1, 0.12, 2.6, 0x7a4f26, POND.x - 3.4, 0, POND.z - 6.8, { seg: 8 });
+  fsign.position.set(POND.x - 3.4, 2.9, POND.z - 6.8);
+  fsign.rotation.y = Math.PI;
+  scene.add(fsign);
+  const fsign2 = fsign.clone(); fsign2.rotation.y = 0; fsign2.position.z += 0.02;
+  scene.add(fsign2);
+}
+
+// ---------- Костёр (уголок отдыха) ----------
+const campfire = { flames: [], embers: [], light: null };
+{
+  const cx = -26, cz = 26;
+  // камни вокруг
+  for (let i = 0; i < 7; i++) {
+    const a = i / 7 * Math.PI * 2;
+    const st = sph(0.32 + Math.random() * 0.12, 0x8d939e, cx + Math.cos(a) * 1.25, 0.22, cz + Math.sin(a) * 1.25, { seg: 8 });
+    st.scale.y = 0.7;
+  }
+  // поленья
+  [[0.5, 0], [-0.5, 0.9], [-0.4, -0.9]].forEach(([dx, dz], i) => {
+    const log = cyl(0.16, 0.16, 1.6, 0x6e4522, cx + dx, 0.1, cz + dz, { seg: 8 });
+    log.rotation.z = Math.PI / 2;
+    log.rotation.y = i * 1.1;
+  });
+  // пламя: три «языка» + искры
+  const flameCols = [0xff6622, 0xff9933, 0xffdd55];
+  for (let i = 0; i < 3; i++) {
+    const f = new THREE.Mesh(
+      new THREE.ConeGeometry(0.52 - i * 0.13, 1.7 - i * 0.4, 8),
+      new THREE.MeshBasicMaterial({ color: flameCols[i], transparent: true, opacity: 0.95 })
+    );
+    f.position.set(cx, 0.85 + i * 0.18, cz);
+    scene.add(f);
+    campfire.flames.push({ m: f, phase: i * 2.1 });
+  }
+  const emberM = new THREE.MeshBasicMaterial({ color: 0xffaa44, transparent: true });
+  for (let i = 0; i < 8; i++) {
+    const e = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.09), emberM.clone());
+    scene.add(e);
+    campfire.embers.push({ m: e, phase: Math.random(), speed: 0.6 + Math.random() * 0.7, ox: cx, oz: cz });
+  }
+  campfire.light = new THREE.PointLight(0xff8c3f, 10, 20);
+  campfire.light.position.set(cx, 1.6, cz);
+  scene.add(campfire.light);
+  // брёвна-скамейки
+  [[-2.6, 0.6, 0.4], [2.4, 1.2, -0.5]].forEach(([dx, dz, ry]) => {
+    const b = cyl(0.32, 0.32, 2.6, 0x8a5a2b, cx + dx, 0.1, cz + dz, { seg: 10 });
+    b.rotation.z = Math.PI / 2; b.rotation.y = ry;
+    addSolid(cx + dx, 0, cz + dz, 2.2, 0.7, 1);
+  });
+}
+
+// ---------- Лавка Pet Shop (скоро) ----------
+{
+  const bx = 13.5, bz = -1;
+  rbox(4.2, 2.2, 1.6, 0xf0e6d2, bx, 0, bz, { radius: 0.14 });          // прилавок
+  rbox(0.5, 4.6, 0.5, 0x8a5a2b, bx - 1.9, 0, bz - 0.5);                 // стойки
+  rbox(0.5, 4.6, 0.5, 0x8a5a2b, bx + 1.9, 0, bz - 0.5);
+  const roofTex = canvasTexture(256, 128, ctx => {
+    for (let i = 0; i < 8; i++) {
+      ctx.fillStyle = i % 2 ? '#ff6ea8' : '#fff';
+      ctx.fillRect(i * 32, 0, 32, 128);
+    }
+  });
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(5, 0.18, 2.6),
+    new THREE.MeshStandardMaterial({ map: roofTex, roughness: 0.9, envMap: envTex, envMapIntensity: 0.2 })
+  );
+  roof.position.set(bx, 4.7, bz - 0.2); roof.rotation.x = 0.12; roof.castShadow = true;
+  scene.add(roof);
+  const signTex = gradientTextTexture('PET SHOP ✨', 512, 120, { bg: '#141a36', fontScale: 0.46 });
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.94), new THREE.MeshBasicMaterial({ map: signTex, transparent: true }));
+  sign.position.set(bx, 3.9, bz + 0.35);
+  scene.add(sign);
+  // витрина: мини-питомцы
+  sph(0.4, 0xf49f4c, bx - 1.1, 2.6, bz, { seg: 10 });
+  sph(0.34, 0x9aa2b1, bx + 1.1, 2.55, bz, { seg: 10 });
+  sph(0.42, 0xffffff, bx, 2.6, bz, { seg: 10 });
+}
+
+// ---------- Светлячки (ночью) ----------
+const fireflies = [];
+{
+  const glowTex = canvasTexture(64, 64, ctx => {
+    const g = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+    g.addColorStop(0, 'rgba(255,255,170,1)');
+    g.addColorStop(0.4, 'rgba(255,240,130,.5)');
+    g.addColorStop(1, 'rgba(255,240,130,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+  });
+  for (let i = 0; i < 16; i++) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, opacity: 0, depthWrite: false }));
+    sp.scale.set(1.1, 1.1, 1);
+    scene.add(sp);
+    fireflies.push({
+      m: sp,
+      ox: (Math.random() - 0.5) * 52,
+      oz: (Math.random() - 0.5) * 52,
+      oy: 1.2 + Math.random() * 2.2,
+      phase: Math.random() * 9,
+    });
+  }
+}
+
 // ---------- Аватары ----------
 function makeFaceTexture({ girl = false } = {}) {
   return canvasTexture(256, 256, ctx => {
@@ -1132,14 +1332,80 @@ const P = {
   gravity: -45,
 };
 
+// ---------- Питомец — кот Мурзик ----------
+const pet = (() => {
+  const g = new THREE.Group();
+  const fur = mat(0xf49f4c, { rough: 0.7 });
+  const body = new THREE.Mesh(new RoundedBoxGeometry(1.0, 0.62, 1.45, 2, 0.18), fur);
+  body.position.y = 0.62;
+  const head = new THREE.Mesh(new RoundedBoxGeometry(0.72, 0.66, 0.66, 2, 0.16), fur);
+  head.position.set(0, 1.08, 0.72);
+  const earL = new THREE.Mesh(new RoundedBoxGeometry(0.18, 0.26, 0.1, 1, 0.04), fur);
+  earL.position.set(-0.2, 1.48, 0.72);
+  const earR = earL.clone(); earR.position.x = 0.2;
+  // мордочка
+  const faceT = canvasTexture(128, 128, ctx => {
+    ctx.fillStyle = '#20242e';
+    ctx.beginPath(); ctx.ellipse(44, 58, 7, 10, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(84, 58, 7, 10, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ff8aa8';
+    ctx.beginPath(); ctx.moveTo(64, 76); ctx.lineTo(56, 68); ctx.lineTo(72, 68); ctx.fill();
+    ctx.strokeStyle = '#20242e'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(56, 84, 8, 0.3, Math.PI - 0.6); ctx.stroke();
+    ctx.beginPath(); ctx.arc(72, 84, 8, 0.5, Math.PI - 0.3); ctx.stroke();
+  });
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.58),
+    new THREE.MeshStandardMaterial({ map: faceT, transparent: true, roughness: 0.6 }));
+  face.position.set(0, 1.08, 1.06);
+  const tail = new THREE.Mesh(new RoundedBoxGeometry(0.13, 0.75, 0.13, 1, 0.05), fur);
+  tail.geometry.translate(0, 0.35, 0);
+  tail.position.set(0, 0.8, -0.72);
+  tail.rotation.x = -0.5;
+  const legs = [];
+  [[-0.3, 0.5], [0.3, 0.5], [-0.3, -0.5], [0.3, -0.5]].forEach(([lx, lz]) => {
+    const l = new THREE.Mesh(new RoundedBoxGeometry(0.2, 0.36, 0.2, 1, 0.06), fur);
+    l.position.set(lx, 0.18, lz);
+    legs.push(l); g.add(l);
+  });
+  [body, head, earL, earR, tail].forEach(p => { p.castShadow = true; g.add(p); });
+  g.add(face);
+  const tag = textSprite('Мурзик 🐾', { size: 34 });
+  tag.position.y = 2.1;
+  g.add(tag);
+  g.position.set(2.5, 0, 26);
+  scene.add(g);
+  return { g, tail, moving: false };
+})();
+
+function updatePet(dt, t) {
+  const back = player.group.rotation.y + Math.PI;
+  const tx = P.pos.x + Math.sin(back) * 2.6;
+  const tz = P.pos.z + Math.cos(back) * 2.6;
+  const dx = tx - pet.g.position.x, dz = tz - pet.g.position.z;
+  const d = Math.hypot(dx, dz);
+  pet.moving = d > 1.1;
+  if (pet.moving) {
+    const sp = Math.min(11, d * 3.2) * dt / d;
+    pet.g.position.x += dx * sp;
+    pet.g.position.z += dz * sp;
+    pet.g.rotation.y = Math.atan2(dx, dz);
+    pet.g.position.y = Math.abs(Math.sin(t * 11)) * 0.28;
+  } else {
+    pet.g.position.y = 0;
+  }
+  pet.tail.rotation.x = -0.5 + Math.sin(t * (pet.moving ? 10 : 3)) * 0.25;
+}
+
 // ---------- Состояние игры ----------
 const state = {
   coins: 0,
+  fish: 0,
   quest1: 'not_started', // not_started | active | return | done
   letters: 0,
   quizDone: false,
   bigCoinTaken: false,
   dialogOpen: false,
+  musicOn: true,
 };
 
 // ---------- Аудио ----------
@@ -1164,6 +1430,31 @@ const sfx = {
   jump: () => tone(300, 0.08, 0, 'sine', 0.06),
   wrong: () => { tone(220, 0.15, 0, 'sawtooth', 0.07); tone(180, 0.2, 0.12, 'sawtooth', 0.07); },
 };
+
+// ---------- Фоновая музыка (генеративная, WebAudio) ----------
+const PENTA = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25];
+const MELODY = [0, 2, 3, 5, 4, 2, 1, -1, 0, 2, 4, 5, 3, 2, 1, -1, 3, 4, 5, 4, 3, 1, 0, -1, 2, 3, 4, 2, 1, 0, 1, -1];
+const BASS = [130.81, 98.0, 110.0, 98.0];
+let musicStep = 0, musicTimer = null;
+function startMusic() {
+  if (musicTimer) return;
+  musicTimer = setInterval(() => {
+    if (!state.musicOn || document.hidden || !ac()) return;
+    const n = MELODY[musicStep % MELODY.length];
+    if (n >= 0) tone(PENTA[n], 0.34, 0, 'triangle', 0.028);
+    if (musicStep % 8 === 0) tone(BASS[(musicStep / 8 | 0) % BASS.length], 0.9, 0, 'sine', 0.05);
+    if (musicStep % 8 === 4) tone(PENTA[0] / 2, 0.4, 0, 'sine', 0.03);
+    musicStep++;
+  }, 300);
+}
+function toggleMusic() {
+  state.musicOn = !state.musicOn;
+  $('musicBtn').textContent = state.musicOn ? '🎵 Музыка: вкл' : '🔇 Музыка: выкл';
+}
+// звук стартует после первого действия пользователя (политика браузеров)
+['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
+  window.addEventListener(ev, () => { ac(); startMusic(); }, { once: true, passive: true })
+);
 
 // ---------- HUD ----------
 const $ = id => document.getElementById(id);
@@ -1190,6 +1481,7 @@ function updateQuests() {
   if (state.quest1 === 'done' && !state.quizDone) list.push('🎓 Пройди квиз мисс Эммы в школе');
   if (state.quest1 === 'done' && state.quizDone) list.push('✅ Все задания выполнены!');
   if (!state.bigCoinTaken) list.push('🏆 Пройди паркур слева от школы');
+  if (state.fish === 0) list.push('🎣 Полови рыбу на пруду');
   $('questList').innerHTML = list.map(q => `<div class="q">${q}</div>`).join('');
 }
 updateQuests();
@@ -1384,6 +1676,21 @@ interactables.push({
 });
 $('scheduleClose').onclick = e => { $('scheduleOverlay').classList.remove('open'); e.currentTarget.blur(); };
 
+// Лавка Pet Shop
+interactables.push({
+  x: 13.5, z: -1, r: 4.5, label: 'Pet Shop 🐾',
+  action: () => openDialog('Pet Shop', 'Скоро здесь откроется магазин питомцев! 🐾 Копи монеты — самых редких дадут за успехи в английском!'),
+});
+
+// Рыбалка на причале
+interactables.push({
+  x: POND.x, z: POND.z - 5.5, r: 3.2,
+  get label() {
+    return fishing.state === 'idle' ? 'Рыбачить 🎣' : (fishing.state === 'bite' ? 'ТЯНИ! 🎣' : 'Ждём поклёвку…');
+  },
+  action: () => fishingAction(),
+});
+
 // ---------- Буквы HELLO ----------
 const letterDefs = [
   ['H', -13, 14.5, 0xff6ea8],   // у сакуры
@@ -1439,7 +1746,7 @@ const coinMat = new THREE.MeshStandardMaterial({
   emissive: 0xa06a00, emissiveIntensity: 0.35,
 });
 const coins = [];
-[[6, 5], [-8, 12], [16, 18], [-16, 24], [26, -8], [-26, -18], [0, -27.5], [24, 24]].forEach(([x, z]) => {
+[[6, 5], [-8, 12], [16, 18], [-16, 24], [26, -8], [-26, -18], [0, -27.5], [20, -26]].forEach(([x, z]) => {
   const m = new THREE.Mesh(coinGeo, coinMat);
   m.rotation.x = Math.PI / 2;
   m.position.set(x, 1.6, z);
@@ -1456,6 +1763,148 @@ const coins = [];
   coins.push({ m, taken: false, big: true, baseY: OBBY_TOPS[4] + 2.2 });
 }
 
+// ---------- Рыбалка ----------
+const FISH_TYPES = [
+  { name: 'Карасик', rar: 'обычная', color: 0xb9c6d1, w: 40, coins: 5 },
+  { name: 'Окунь', rar: 'обычная', color: 0x7fa86e, w: 30, coins: 5 },
+  { name: 'Форель', rar: 'редкая ✨', color: 0x5e9fe0, w: 18, coins: 12 },
+  { name: 'Золотая рыбка', rar: 'эпическая 💜', color: 0xffc93d, w: 8, coins: 25 },
+  { name: 'Радужная рыба', rar: 'ЛЕГЕНДАРНАЯ 🌈', color: 0xc26bf0, w: 3, coins: 60 },
+];
+const fishing = { state: 'idle', timer: 0, biteWindow: 0, target: new THREE.Vector3() };
+
+// удочка в правой руке (видна только при рыбалке)
+const rod = new THREE.Group();
+{
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.07, 2.8, 8), mat(0x6e4522, { rough: 0.6 }));
+  stick.geometry.translate(0, 1.4, 0);
+  rod.add(stick);
+  rod.position.set(0, -1.6, 0.3);
+  rod.rotation.x = -0.95;
+  rod.visible = false;
+  player.armR.add(rod);
+}
+// поплавок и леска
+const bobber = new THREE.Group();
+{
+  const top = sph(0.14, 0xe23b4e, 0, 0.08, 0, { seg: 10 });
+  const bot = sph(0.13, 0xffffff, 0, -0.08, 0, { seg: 10 });
+  scene.remove(top); scene.remove(bot);
+  bobber.add(top, bot);
+  const mark = textSprite('❗', { size: 54, pill: false });
+  mark.position.y = 1.1;
+  mark.visible = false;
+  bobber.add(mark);
+  bobber.userData.mark = mark;
+  bobber.visible = false;
+  scene.add(bobber);
+}
+const lineGeo = new THREE.BufferGeometry();
+lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+const fishLine = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0x2a2f3a }));
+fishLine.visible = false;
+scene.add(fishLine);
+
+function pickFish() {
+  const total = FISH_TYPES.reduce((s, f) => s + f.w, 0);
+  let r = Math.random() * total;
+  for (const f of FISH_TYPES) { r -= f.w; if (r <= 0) return f; }
+  return FISH_TYPES[0];
+}
+function fishingAction() {
+  if (fishing.state === 'idle') {
+    // забросить: повернуться к воде
+    fishing.state = 'waiting';
+    fishing.timer = 1.6 + Math.random() * 2.8;
+    fishing.target.set(
+      POND.x + (Math.random() - 0.5) * 3,
+      0.42,
+      POND.z - 1 + (Math.random() - 0.5) * 2
+    );
+    const dx = fishing.target.x - P.pos.x, dz = fishing.target.z - P.pos.z;
+    player.group.rotation.y = Math.atan2(dx, dz);
+    rod.visible = true;
+    bobber.visible = true;
+    bobber.position.copy(fishing.target);
+    bobber.userData.mark.visible = false;
+    fishLine.visible = true;
+    tone(500, 0.08, 0, 'sine', 0.06); tone(700, 0.1, 0.06, 'sine', 0.06);
+  } else if (fishing.state === 'bite') {
+    // подсечка!
+    const f = pickFish();
+    state.fish++;
+    $('fishVal').textContent = state.fish;
+    const legendary = f.coins >= 60;
+    toast(`🐟 ${f.name} (${f.rar})!`);
+    addCoins(f.coins, '');
+    // рыбка выпрыгивает
+    const fm = new THREE.Mesh(new RoundedBoxGeometry(0.7, 0.34, 0.2, 1, 0.1),
+      new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.4, envMap: envTex, envMapIntensity: 0.8 }));
+    fm.position.copy(bobber.position);
+    scene.add(fm);
+    const from = bobber.position.clone();
+    const to = new THREE.Vector3(P.pos.x, P.pos.y + 4, P.pos.z);
+    let ft = 0;
+    const fly = setInterval(() => {
+      ft += 0.06;
+      if (ft >= 1) { clearInterval(fly); scene.remove(fm); return; }
+      fm.position.lerpVectors(from, to, ft);
+      fm.position.y += Math.sin(ft * Math.PI) * 2.5;
+      fm.rotation.z = ft * 9;
+    }, 16);
+    burst(bobber.position.clone(), legendary ? 36 : 10, legendary ? [0xc26bf0, 0xffd34e, 0xff6ea8, 0x7ef0d4] : [0x9fd8ff, 0xffffff]);
+    if (legendary) sfx.quest();
+    if (state.fish === 1) updateQuests();
+    stopFishing();
+  } else {
+    // дёрнул раньше времени
+    toast('Рано! Жди поклёвку 😉');
+    sfx.wrong();
+    stopFishing();
+  }
+}
+function stopFishing() {
+  fishing.state = 'idle';
+  rod.visible = false;
+  bobber.visible = false;
+  fishLine.visible = false;
+}
+const _rodTip = new THREE.Vector3();
+function updateFishing(dt, t) {
+  if (fishing.state === 'idle') return;
+  // ушёл с причала — рыбалка отменяется
+  if (Math.hypot(P.pos.x - POND.x, P.pos.z - (POND.z - 5.5)) > 4.5) { stopFishing(); return; }
+  if (fishing.state === 'waiting') {
+    fishing.timer -= dt;
+    bobber.position.y = fishing.target.y + Math.sin(t * 2.5) * 0.06;
+    if (fishing.timer <= 0) {
+      fishing.state = 'bite';
+      fishing.biteWindow = 1.4;
+      bobber.userData.mark.visible = true;
+      burst(bobber.position.clone(), 8, [0x9fd8ff, 0xffffff]);
+      tone(950, 0.09, 0, 'square', 0.12); tone(1250, 0.12, 0.08, 'square', 0.12);
+    }
+  } else if (fishing.state === 'bite') {
+    fishing.biteWindow -= dt;
+    bobber.position.y = fishing.target.y - 0.18 + Math.sin(t * 22) * 0.07;
+    if (fishing.biteWindow <= 0) {
+      toast('Сорвалась! 🐟 Попробуй ещё');
+      sfx.wrong();
+      stopFishing();
+      return;
+    }
+  }
+  // леска: от кончика удочки к поплавку
+  _rodTip.set(0, 2.8, 0);
+  rod.localToWorld(_rodTip);
+  const pos = lineGeo.attributes.position.array;
+  pos[0] = _rodTip.x; pos[1] = _rodTip.y; pos[2] = _rodTip.z;
+  pos[3] = bobber.position.x; pos[4] = bobber.position.y; pos[5] = bobber.position.z;
+  lineGeo.attributes.position.needsUpdate = true;
+  // рука с удочкой вытянута
+  player.armR.rotation.x = THREE.MathUtils.lerp(player.armR.rotation.x, -1.15, 0.25);
+}
+
 // ---------- Ввод ----------
 // открыт ли модальный оверлей (меню/расписание) или диалог — ввод игры блокируется
 function uiBlocked() {
@@ -1466,6 +1915,8 @@ window.addEventListener('keydown', e => {
   if (e.repeat) return;
   keys[e.code] = true;
   if (e.code === 'KeyE') tryInteract();
+  if (e.code === 'KeyG' && !uiBlocked()) startDance();
+  if (e.code === 'KeyM') toggleMusic();
   if (e.code === 'Escape') {
     const sched = $('scheduleOverlay');
     if (sched.classList.contains('open')) sched.classList.remove('open');
@@ -1487,6 +1938,15 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) reset
 
 $('menuBtn').onclick = e => { $('menuOverlay').classList.add('open'); sfx.click(); e.currentTarget.blur(); };
 $('resumeBtn').onclick = e => { $('menuOverlay').classList.remove('open'); e.currentTarget.blur(); };
+$('musicBtn').onclick = e => { toggleMusic(); sfx.click(); e.currentTarget.blur(); };
+
+// ---------- Танец-эмоция ----------
+let danceUntil = 0;
+function startDance() {
+  danceUntil = performance.now() + 3500;
+  sfx.click();
+}
+$('emoteBtn').addEventListener('touchstart', e => { e.preventDefault(); if (!uiBlocked()) startDance(); }, { passive: false });
 
 // Камера-орбита
 const cam = { yaw: 0, pitch: 0.34, dist: 14 };
@@ -1604,6 +2064,18 @@ function moveAndCollide(dt) {
   // границы карты
   P.pos.x = THREE.MathUtils.clamp(P.pos.x, -FENCE + 2, FENCE - 2);
   P.pos.z = THREE.MathUtils.clamp(P.pos.z, -FENCE + 2, FENCE - 2);
+
+  // авто-подъём на низкие уступы (причал, плитка)
+  if (P.onGround) {
+    let stepT = null;
+    for (const s of solids) {
+      if (P.pos.x + P.radius > s.minX && P.pos.x - P.radius < s.maxX &&
+        P.pos.z + P.radius > s.minZ && P.pos.z - P.radius < s.maxZ &&
+        s.maxY > P.pos.y && s.maxY <= P.pos.y + 0.34 &&
+        (stepT === null || s.maxY > stepT)) stepT = s.maxY;
+    }
+    if (stepT !== null) P.pos.y = stepT;
+  }
 
   // прыжок
   const wantJump = (!blocked && (keys['Space'] || jumpQueued));
@@ -1781,7 +2253,8 @@ function updateParticles(dt) {
   }
 }
 
-// ---------- Окружение: лепестки, фонтан, шарики ----------
+// ---------- Окружение: лепестки, фонтан, шарики, костёр, светлячки ----------
+let nightF = 0; // 0 — день, 1 — ночь
 function updateAmbient(dt, t) {
   for (const p of petals) {
     p.y -= p.vy * dt;
@@ -1805,6 +2278,7 @@ function updateAmbient(dt, t) {
     d.m.material.opacity = 0.85 * (1 - cycle * 0.5);
   }
   fountain.water.rotation.y = t * 0.25;
+  pondWater.rotation.y = t * 0.12;
   for (const b of balloons) {
     b.m.position.y = b.baseY + Math.sin(t * 1.6 + b.phase) * 0.22;
   }
@@ -1812,6 +2286,88 @@ function updateAmbient(dt, t) {
     c.position.x += dt * 0.9;
     if (c.position.x > 120) c.position.x = -120;
   }
+  // костёр: пламя дышит, искры летят
+  for (const f of campfire.flames) {
+    const s = 0.85 + Math.sin(t * 9 + f.phase) * 0.18 + Math.sin(t * 23 + f.phase * 2) * 0.08;
+    f.m.scale.set(s, s * (1 + Math.sin(t * 13 + f.phase) * 0.12), s);
+    f.m.rotation.y = t * 2 + f.phase;
+  }
+  for (const e of campfire.embers) {
+    const cy = ((t * e.speed + e.phase) % 1);
+    e.m.position.set(
+      e.ox + Math.sin(t * 3 + e.phase * 7) * 0.4 * cy,
+      0.5 + cy * 3.2,
+      e.oz + Math.cos(t * 2.6 + e.phase * 5) * 0.4 * cy
+    );
+    e.m.material.opacity = (1 - cy) * 0.9;
+  }
+  campfire.light.intensity = (9 + Math.sin(t * 11) * 2.2 + Math.sin(t * 27) * 1.4) * (0.55 + nightF * 0.7);
+  // светлячки — ночью
+  for (const ff of fireflies) {
+    ff.m.position.set(
+      ff.ox + Math.sin(t * 0.5 + ff.phase) * 3.2,
+      ff.oy + Math.sin(t * 0.9 + ff.phase * 2) * 0.8,
+      ff.oz + Math.cos(t * 0.4 + ff.phase) * 3.2
+    );
+    ff.m.material.opacity = nightF * (0.45 + 0.55 * Math.abs(Math.sin(t * 2.2 + ff.phase * 3)));
+  }
+}
+
+// ---------- Цикл день/ночь ----------
+const DAY_LEN = 190; // секунд на полные сутки
+const _c1 = new THREE.Color(), _c2 = new THREE.Color(), _c3 = new THREE.Color();
+function mix3(out, night, day, sunset, dayF, setF) {
+  out.set(night).lerp(_c2.set(day), dayF).lerp(_c3.set(sunset), setF);
+  return out;
+}
+function updateDayNight(t) {
+  const cycle = ((t / DAY_LEN) + 0.11) % 1;
+  const th = cycle * Math.PI * 2;
+  const s = Math.sin(th); // высота солнца -1..1
+  const dayF = THREE.MathUtils.smoothstep(s, -0.14, 0.28);
+  const setF = Math.max(0, 1 - Math.abs(s) / 0.32) * 0.85; // рассвет/закат
+  nightF = 1 - dayF;
+
+  // солнце/луна — одна directional-лампа
+  const sx = Math.cos(th) * 80, sy = s * 95, sz = 32;
+  if (s > -0.12) {
+    sun.position.set(sx, Math.max(sy, 4), sz);
+    sun.intensity = 0.25 + dayF * 2.45;
+    sun.color.set(0xfff1da).lerp(_c2.set(0xff9a55), setF);
+  } else {
+    sun.position.set(-sx, Math.max(-sy, 4), sz);
+    sun.intensity = 0.4;
+    sun.color.set(0x9db4ff);
+  }
+  hemi.intensity = 0.16 + dayF * 0.5;
+
+  // диски солнца и луны
+  sunDisc.position.set(Math.cos(th) * 230, s * 240, 90);
+  sunDisc.visible = s > -0.05;
+  sunDisc.lookAt(camera.position);
+  sunDisc.material.color.set(0xfffbe6).lerp(_c2.set(0xffb070), setF);
+  moonDisc.position.set(-Math.cos(th) * 230, -s * 240, 90);
+  moonDisc.visible = -s > -0.05;
+  moonDisc.lookAt(camera.position);
+
+  // небо и туман
+  skyMat.uniforms.top.value.copy(mix3(_c1, SKY.night[0], SKY.day[0], SKY.set[0], dayF, setF * 0.6));
+  skyMat.uniforms.mid.value.copy(mix3(_c1, SKY.night[1], SKY.day[1], SKY.set[1], dayF, setF));
+  skyMat.uniforms.bot.value.copy(mix3(_c1, SKY.night[2], SKY.day[2], SKY.set[2], dayF, setF));
+  scene.fog.color.copy(mix3(_c1, SKY.fogNight, SKY.fogDay, SKY.fogSet, dayF, setF * 0.8));
+  scene.fog.near = 40 + dayF * 30;
+  scene.fog.far = 115 + dayF * 75;
+
+  // звёзды, облака, неон ярче ночью
+  starMat.opacity = nightF * 0.9;
+  cloudMat.color.set(0xffffff).lerp(_c2.set(0x2a3352), nightF);
+  cloudMat.emissiveIntensity = 0.18 * dayF;
+  bloom.strength = 0.35 + nightF * 0.28;
+
+  // фонари и окна
+  for (const nl of nightLights) nl.light.intensity = nl.base * (0.12 + nightF * 0.88);
+  lampGlowM.color.set(0xd8c49a).lerp(_c2.set(0xffe6b0), Math.max(nightF, 0.25));
+  for (const gm of glassMats) gm.emissiveIntensity = 0.12 + nightF * 1.15;
 }
 
 // ---------- Камера ----------
@@ -1859,10 +2415,28 @@ function tick() {
 
   const moving = moveAndCollide(dt);
   animateAvatar(player, moving, P.onGround, elapsed);
+  // танец
+  if (moving || !P.onGround) danceUntil = 0;
+  if (performance.now() < danceUntil) {
+    const dtn = elapsed * 11;
+    player.armL.rotation.x = Math.sin(dtn) * 0.6 - 2.4;
+    player.armR.rotation.x = Math.sin(dtn + Math.PI) * 0.6 - 2.4;
+    player.armL.rotation.z = -0.5 - Math.sin(dtn) * 0.35;
+    player.armR.rotation.z = 0.5 + Math.sin(dtn) * 0.35;
+    player.legL.rotation.x = Math.sin(dtn) * 0.3;
+    player.legR.rotation.x = -Math.sin(dtn) * 0.3;
+    player.group.rotation.y += dt * 5;
+  } else {
+    player.armL.rotation.z = THREE.MathUtils.lerp(player.armL.rotation.z, 0, 0.2);
+    player.armR.rotation.z = THREE.MathUtils.lerp(player.armR.rotation.z, 0, 0.2);
+  }
+  updatePet(dt, elapsed);
+  updateFishing(dt, elapsed);
   updateNPCs(dt, elapsed);
   updatePickups(elapsed);
   updateParticles(dt);
   updateAmbient(dt, elapsed);
+  updateDayNight(elapsed);
   updateInteract();
   updateCamera(dt);
 
@@ -1886,8 +2460,9 @@ tick();
 
 // Хуки для отладки/тестов
 window.__game = {
-  state, P, player, solids,
+  state, P, player, solids, fishing,
   teleport(x, z, y = 0.3) { P.pos.set(x, y, z); P.vy = 0; },
+  setTime(s) { elapsed = s; },
   interact: tryInteract,
   THREE,
 };
