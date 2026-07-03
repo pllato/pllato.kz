@@ -260,6 +260,7 @@
   <div id="playersPanel" class="glass">
     <div class="t" id="playersTitle">👥 ИГРОКИ — 1</div>
     <div id="playersList"><div class="p">🟦 Ученик (ты)</div></div>
+    <div class="p" id="netStatus" style="opacity:.75; margin-top:4px;">🌐 оффлайн</div>
   </div>
   <div id="questPanel" class="glass">
     <div class="t">📜 ЗАДАНИЯ</div>
@@ -282,7 +283,7 @@
   <b>Мышь (зажать)</b> — камера &nbsp; <b>E</b> — говорить
 </div>
 
-<div class="hud" id="version">ELC World · демо 0.4 · онлайн</div>
+<div class="hud" id="version">ELC World · демо 0.4.1 · онлайн</div>
 
 <div class="hud" id="joy"><div id="joyKnob"></div></div>
 <button class="hud" id="jumpBtn">⬆</button>
@@ -327,7 +328,7 @@
 </script>
 <script type="module">
 import * as THREE from 'three';
-import { joinRoom, selfId } from './lib/trystero-nostr.bundle.js';
+import { joinRoom, selfId, getRelaySockets } from './lib/trystero-nostr.bundle.js';
 import { RoundedBoxGeometry } from './lib/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from './lib/addons/environments/RoomEnvironment.js';
 import { EffectComposer } from './lib/addons/postprocessing/EffectComposer.js';
@@ -1984,45 +1985,125 @@ function escapeName(s) {
   return String(s || '').replace(/[^\p{L}\p{N} _\-!?.():]/gu, '').trim().slice(0, 12) || 'Ученик';
 }
 
+// проверенные публичные nostr-релеи (для поиска игроков)
+const RELAYS = [
+  'wss://relay.damus.io',
+  'wss://nos.lol',
+  'wss://relay.nostr.band',
+  'wss://nostr.mom',
+  'wss://relay.primal.net',
+  'wss://offchain.pub',
+  'wss://nostr-01.yakihonne.com',
+  'wss://relay.snort.social',
+];
+// бесплатный TURN — пробивает строгие NAT (телефонные сети и т.п.)
+const TURN = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  {
+    urls: [
+      'turn:openrelay.metered.ca:80',
+      'turn:openrelay.metered.ca:443',
+      'turn:openrelay.metered.ca:443?transport=tcp',
+    ],
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  {
+    urls: [
+      'turn:staticauth.openrelay.metered.ca:80',
+      'turn:staticauth.openrelay.metered.ca:443?transport=tcp',
+    ],
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+];
+
+// локальный канал: вкладки на одном устройстве видят друг друга всегда
+let bc = null;
+try {
+  bc = new BroadcastChannel('elcw-local');
+  bc.onmessage = ev => {
+    const d = ev.data || {};
+    if (!d.id || d.id === selfId) return;
+    if (d.st) applyRemote(d.st, 'bc:' + d.id);
+    if (d.chat) {
+      const r = remotes.get('bc:' + d.id);
+      if (r) showBubble(r.av, String(d.chat).slice(0, 40));
+    }
+    if (d.bye) { removeRemote('bc:' + d.id); updatePlayersPanel(); }
+  };
+  window.addEventListener('beforeunload', () => { try { bc.postMessage({ id: selfId, bye: 1 }); } catch (e) { } });
+} catch (e) { }
+
+function updateNetStatus() {
+  const el = $('netStatus');
+  if (!el) return;
+  if (!mpStarted) { el.textContent = '🌐 оффлайн'; return; }
+  let open = 0, total = 0;
+  try {
+    const socks = getRelaySockets();
+    for (const k in socks) { total++; if (socks[k] && socks[k].readyState === 1) open++; }
+  } catch (e) { }
+  if (open > 0) el.textContent = `🌐 онлайн · сеть: ${open}/${RELAYS.length}`;
+  else if (performance.now() - mpStartedAt < 12000) el.textContent = '🌐 подключение…';
+  else el.textContent = '⚠️ сеть недоступна';
+}
+let mpStartedAt = 0;
+
+let mpError = null;
 function startMultiplayer() {
   if (mpStarted) return;
   mpStarted = true;
+  mpStartedAt = performance.now();
+  // отправка состояния и статус — независимо от relay-слоя (локальный канал работает всегда)
+  setInterval(sendNow, 125);
+  setInterval(updateNetStatus, 2000);
+  updateNetStatus();
   try {
-    room = joinRoom({ appId: 'pllato-elc-world' }, 'main');
-    const [sendSt, onSt] = room.makeAction('st');
-    const [sendCh, onCh] = room.makeAction('chat');
-    sendStateFn = sendSt; sendChatFn = sendCh;
-    room.onPeerJoin(() => sendNow());
-    room.onPeerLeave(id => {
+    room = joinRoom(
+      {
+        appId: 'pllato-elc-world',
+        relayConfig: { urls: RELAYS, redundancy: RELAYS.length },
+        turnConfig: TURN,
+      },
+      'main',
+      { onJoinError: err => { mpError = String(err && err.message || err); console.warn('MP join error:', err); } }
+    );
+    const stAction = room.makeAction('st');
+    const chatAction = room.makeAction('chat');
+    sendStateFn = p => stAction.send(p).catch(() => { });
+    sendChatFn = p => chatAction.send(p).catch(() => { });
+    room.onPeerJoin = () => sendNow();
+    room.onPeerLeave = id => {
       const r = remotes.get(id);
       if (r) toast(`👋 ${r.name} вышел`);
       removeRemote(id);
       updatePlayersPanel();
-    });
-    onSt((d, id) => applyRemote(d, id));
-    onCh((d, id) => {
-      const r = remotes.get(id);
+    };
+    stAction.onMessage = (d, meta) => applyRemote(d, meta && meta.peerId);
+    chatAction.onMessage = (d, meta) => {
+      const r = remotes.get(meta && meta.peerId);
       if (r && d && typeof d.t === 'string') showBubble(r.av, d.t.slice(0, 40));
-    });
-    setInterval(sendNow, 125);
+    };
   } catch (e) {
+    mpError = String(e && e.message || e);
     console.warn('Мультиплеер недоступен:', e);
   }
 }
 function sendNow() {
-  if (!sendStateFn) return;
-  try {
-    sendStateFn({
-      n: myName, c: myColor,
-      x: +P.pos.x.toFixed(2), y: +P.pos.y.toFixed(2), z: +P.pos.z.toFixed(2),
-      r: +player.group.rotation.y.toFixed(2),
-      m: lastMoving ? 1 : 0, g: P.onGround ? 1 : 0,
-      d: performance.now() < danceUntil ? 1 : 0,
-    });
-  } catch (e) { /* пиров нет — не страшно */ }
+  if (!mpStarted) return;
+  const st = {
+    n: myName, c: myColor,
+    x: +P.pos.x.toFixed(2), y: +P.pos.y.toFixed(2), z: +P.pos.z.toFixed(2),
+    r: +player.group.rotation.y.toFixed(2),
+    m: lastMoving ? 1 : 0, g: P.onGround ? 1 : 0,
+    d: performance.now() < danceUntil ? 1 : 0,
+  };
+  if (sendStateFn) { try { sendStateFn(st); } catch (e) { /* пиров нет — не страшно */ } }
+  if (bc) { try { bc.postMessage({ id: selfId, st }); } catch (e) { } }
 }
 function applyRemote(d, id) {
-  if (!d || typeof d.x !== 'number' || typeof d.z !== 'number') return;
+  if (!id || !d || typeof d.x !== 'number' || typeof d.z !== 'number') return;
   let r = remotes.get(id);
   const name = escapeName(d.n);
   const color = (typeof d.c === 'number' ? d.c : 0xe2543f) & 0xffffff;
@@ -2123,6 +2204,7 @@ function sendPhrase(ph) {
   showBubble(player, ph);
   sfx.click();
   if (sendChatFn) { try { sendChatFn({ t: ph }); } catch (e) { } }
+  if (bc) { try { bc.postMessage({ id: selfId, chat: ph }); } catch (e) { } }
 }
 
 // ---------- Ввод ----------
@@ -2727,10 +2809,11 @@ tick();
 window.__game = {
   state, P, solids, fishing, remotes,
   get player() { return player; },
+  get mp() { return { started: mpStarted, error: mpError, hasRoom: !!room, hasSend: !!sendStateFn, hasBC: !!bc }; },
   teleport(x, z, y = 0.3) { P.pos.set(x, y, z); P.vy = 0; },
   setTime(s) { elapsed = s; },
   play() { $('playBtn').click(); },
-  applyRemote, sendPhrase,
+  applyRemote, sendPhrase, sendNow,
   interact: tryInteract,
   THREE,
 };
