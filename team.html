@@ -15792,6 +15792,9 @@ const tasksState = {
   searchTerm: '',          // shared
   hierarchyMode: 'smart',
   view: 'list',            // 'list' (paginated) | 'kanban' (full)
+  dataset: 'current',      // 'current' (созданные в портале) | 'archive' (Битрикс Архив)
+  boardTotal: 0,           // всего задач в наборе (для kanban)
+  boardTruncated: false,   // набор обрезан до лимита (kanban)
   loading: false,
   expandedRows: new Set(),
   selected: new Set(),
@@ -16911,15 +16914,21 @@ function updateCalStatsCounterWeek(weekStart, weekEnd) {
 }
 
 async function renderTasks(el) {
+  const isArchive = tasksState.dataset === 'archive';
   el.innerHTML = `
     <div class="page-head">
-      <h1>Задачи <span class="count" id="tasks-count">загрузка…</span></h1>${scopeToggleHtml()}
+      <h1>Задачи <span class="count" id="tasks-count">загрузка…</span></h1>
+      <div class="view-toggle" id="tasks-dataset-toggle">
+        <button class="vt-btn ${!isArchive ? 'active' : ''}" data-dataset="current">📋 Текущие</button>
+        <button class="vt-btn ${isArchive ? 'active' : ''}" data-dataset="archive">🗄 Битрикс Архив</button>
+      </div>
       <div class="view-toggle">
         <button class="vt-btn ${tasksState.view === 'kanban' ? 'active' : ''}" data-view="kanban">📊 Канбан</button>
         <button class="vt-btn ${tasksState.view === 'list' ? 'active' : ''}" data-view="list">📋 Список</button>
       </div>
     </div>
     <div class="tb">
+      ${isArchive ? '' : '<button class="tbtn tbtn-a" id="tasks-create" style="white-space:nowrap">＋ Создать задачу</button>'}
       <input class="tb-search" id="tasks-search" placeholder="🔍 Поиск по названию (Enter)" autocomplete="off" value="${escapeHtml(tasksState.searchTerm)}">
       <select class="tb-select" id="tasks-status">
         <option value="all">Все статусы</option>
@@ -16987,33 +16996,43 @@ async function renderTasks(el) {
   });
 
   // View toggle
-  el.querySelectorAll('.vt-btn').forEach(btn => {
+  el.querySelectorAll('.vt-btn[data-view]').forEach(btn => {
     btn.addEventListener('click', () => {
       tasksState.view = btn.dataset.view;
       renderTasks(el); // Полная перерисовка
     });
   });
 
+  // Dataset toggle: Текущие / Битрикс Архив
+  el.querySelectorAll('.vt-btn[data-dataset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (tasksState.dataset === btn.dataset.dataset) return;
+      tasksState.dataset = btn.dataset.dataset;
+      tasksState.loaded = false;
+      renderTasks(el);
+    });
+  });
+
+  // Создать задачу (только «Текущие»)
+  const createBtn = document.getElementById('tasks-create');
+  if (createBtn) createBtn.addEventListener('click', () => openTaskCreateForm(async () => {
+    tasksState.loaded = false;
+    await renderTasks(el);
+  }));
+
   // Mark all read
   document.getElementById('tasks-mark-all-read').addEventListener('click', markAllTasksRead);
 
-  // ── Раздельный flow: list = paginated, kanban = full ────────────────────
-  // В list mode достаточно лёгкого ensureUsersLoaded + readState + первой страницы.
-  // В kanban требуются ВСЕ задачи (для группировки по статусам и smart hierarchy).
+  // ── Раздельный flow: list = paginated, kanban = набор через список-эндпоинт ──
+  // И list, и kanban теперь идут через /api/list/tasks (права «только свои» и
+  // разделение текущие/архив enforce'ятся на сервере).
   if (tasksState.view === 'list') {
     await Promise.all([ensureUsersLoaded(), ensureTaskReadState()]);
     populateTaskAssigneeFilter();
-    attachScopeToggle(el, () => renderTasks(el));
     await loadTasksPage(1);
     renderTasksLayoutPaged();
   } else {
-    // Kanban: лениво грузим full 38k tasks
-    if (!tasksState.loaded) {
-      await Promise.all([loadTasks(), ensureUsersLoaded(), ensureTaskReadState()]);
-    } else {
-      ensureUsersLoaded();
-      ensureTaskReadState();
-    }
+    await Promise.all([loadTasksBoard(), ensureUsersLoaded(), ensureTaskReadState()]);
     populateTaskAssigneeFilter();
     filterAndRenderTasks();
   }
@@ -17041,6 +17060,8 @@ async function loadTasksPage(page) {
     // Задачи = только task'и БЕЗ привязки к сделке (внутренняя работа команды).
     // Task'и с crm_links → deal_X относятся к Делам (см. renderDeeds).
     params.set('dealLinked', '0');
+    // Текущие (созданные в портале) vs Битрикс Архив (импортированные).
+    params.set('source', tasksState.dataset === 'archive' ? 'bitrix' : 'new');
 
     const r = await fetch(`${WORKER_LIST_URL}/tasks?${params}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -17056,6 +17077,131 @@ async function loadTasksPage(page) {
   } finally {
     tasksPagedState.loading = false;
   }
+}
+
+// Kanban-набор через список-эндпоинт (права + текущие/архив enforce'ятся сервером).
+// Раньше kanban грузил ВЕСЬ дамп /tasks.json (38k) — теперь только видимые задачи
+// набора, поэтому один запрос с большим pageSize достаточен.
+const TASKS_BOARD_LIMIT = 1000;
+function taskListItemToCard(t) {
+  return {
+    key: t.id,
+    bitrixId: t.bitrixId || (t.id ? String(t.id).replace(/^task_/, '') : ''),
+    title: t.title || '(без названия)',
+    status: String(t.status != null ? t.status : '1'),
+    priority: String(t.priority != null ? t.priority : '1'),
+    responsibleUid: t.responsibleUid || null,
+    createdByUid: t.createdByUid || null,
+    deadline: t.deadline || null,
+    bitrixCreated: t.bitrixCreatedDate || null,
+    bitrixDateModify: t.bitrixChangedDate || t.bitrixCreatedDate || null,
+    commentsCount: t.commentsCount || 0,
+    groupId: t.groupId || null,
+    parentId: t.parentId || null,
+    bitrixParentId: t.bitrixParentId || null,
+    crmLinks: t.crmLinks || null,
+    bitrixCrmLinks: t.bitrixCrmLinks || null,
+    searchable: (t.title || '').toLowerCase(),
+    subtasksCount: 0,
+  };
+}
+async function loadTasksBoard() {
+  tasksState.loading = true;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const params = new URLSearchParams({
+      page: '1', pageSize: String(TASKS_BOARD_LIMIT), sort: 'activity', auth: idToken,
+      scope: effectiveScope(), dealLinked: '0',
+      source: tasksState.dataset === 'archive' ? 'bitrix' : 'new',
+    });
+    const r = await fetch(`${WORKER_LIST_URL}/tasks?${params}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const items = (data.items || []).map(taskListItemToCard);
+    const sub = {};
+    for (const t of items) if (t.parentId) sub[t.parentId] = (sub[t.parentId] || 0) + 1;
+    for (const t of items) t.subtasksCount = sub[t.key] || 0;
+    tasksState.list = items;
+    tasksState.boardTotal = data.total || items.length;
+    tasksState.boardTruncated = (data.total || 0) > items.length;
+    tasksState.loaded = true;
+  } catch (e) {
+    console.error('loadTasksBoard:', e);
+    tasksState.list = []; tasksState.boardTotal = 0; tasksState.boardTruncated = false;
+  } finally {
+    tasksState.loading = false;
+  }
+}
+
+// Форма создания новой задачи (только «Текущие»). Постановщик = текущий юзер.
+function openTaskCreateForm(onDone) {
+  document.getElementById('_task-create-modal')?.remove();
+  const users = (typeof orgSortedUsers === 'function') ? orgSortedUsers() : [];
+  const myUid = window.currentUser?.canonicalUid || '';
+  const ov = document.createElement('div');
+  ov.id = '_task-create-modal'; ov.className = 'qad-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  const oneOpts = (sel) => users.map(u => `<option value="${escapeHtml(u.uid)}" ${u.uid === sel ? 'selected' : ''}>${escapeHtml(u.label)}</option>`).join('');
+  const multiOpts = users.map(u => `<option value="${escapeHtml(u.uid)}">${escapeHtml(u.label)}</option>`).join('');
+  ov.innerHTML = `<div class="qad-modal" onclick="event.stopPropagation()" style="max-width:520px;width:96vw">
+    <div class="qad-head"><h2>＋ Новая задача</h2><button class="qad-btn qad-btn-ghost" id="tc-close" style="padding:4px 10px">×</button></div>
+    <div class="qad-body" style="max-height:78vh;overflow-y:auto">
+      <div class="qad-label">Название *</div>
+      <input class="qad-input" id="tc-title" placeholder="Что нужно сделать" style="margin-bottom:11px">
+      <div class="qad-label">Ответственный</div>
+      <select class="qad-input" id="tc-resp" style="margin-bottom:11px">${oneOpts(myUid)}</select>
+      <div style="display:flex;gap:10px;margin-bottom:11px">
+        <div style="flex:1"><div class="qad-label">Срок</div><input class="qad-input" id="tc-deadline" type="datetime-local"></div>
+        <div style="flex:1"><div class="qad-label">Приоритет</div><select class="qad-input" id="tc-priority">
+          <option value="1" selected>Обычный</option><option value="2">Высокий</option><option value="3">Срочный</option><option value="0">Низкий</option>
+        </select></div>
+      </div>
+      <div class="qad-label">Соисполнители <span style="color:var(--t3);font-weight:400">(видят задачу)</span></div>
+      <select class="qad-input" id="tc-accs" multiple size="4" style="margin-bottom:11px">${multiOpts}</select>
+      <div class="qad-label">Наблюдатели <span style="color:var(--t3);font-weight:400">(видят задачу)</span></div>
+      <select class="qad-input" id="tc-auds" multiple size="4" style="margin-bottom:11px">${multiOpts}</select>
+      <div class="qad-label">Описание</div>
+      <textarea class="qad-input" id="tc-desc" rows="3" style="resize:vertical;font-family:inherit"></textarea>
+      <div id="tc-err" style="color:var(--rd);font-size:12px;min-height:16px;margin-top:6px"></div>
+    </div>
+    <div class="qad-foot"><button class="qad-btn qad-btn-ghost" id="tc-cancel">Отмена</button><button class="qad-btn qad-btn-primary" id="tc-save">Создать</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#tc-close').onclick = () => ov.remove();
+  ov.querySelector('#tc-cancel').onclick = () => ov.remove();
+  ov.querySelector('#tc-title').focus();
+  ov.querySelector('#tc-save').onclick = async () => {
+    const title = ov.querySelector('#tc-title').value.trim();
+    const err = ov.querySelector('#tc-err');
+    if (!title) { err.textContent = 'Укажите название задачи.'; return; }
+    const getMulti = (id) => Array.from(ov.querySelector(id).selectedOptions).map(o => o.value);
+    const payload = {
+      title,
+      responsibleUid: ov.querySelector('#tc-resp').value || undefined,
+      deadline: ov.querySelector('#tc-deadline').value || undefined,
+      priority: ov.querySelector('#tc-priority').value,
+      accomplices: getMulti('#tc-accs'),
+      auditors: getMulti('#tc-auds'),
+      description: ov.querySelector('#tc-desc').value.trim() || undefined,
+      status: 2,
+    };
+    const btn = ov.querySelector('#tc-save'); btn.disabled = true; btn.textContent = '⏳…';
+    try {
+      const t = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/tasks`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t },
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      showToast?.('Задача создана ✅');
+      ov.remove();
+      if (onDone) onDone();
+    } catch (e) {
+      err.textContent = 'Ошибка: ' + e.message;
+      btn.disabled = false; btn.textContent = 'Создать';
+    }
+  };
 }
 
 function renderTasksLayoutPaged() {
@@ -18066,7 +18212,11 @@ function renderTasksKanban() {
     else (byStatus['1'] = byStatus['1'] || []).push(t);
   }
 
-  let html = `<div class="kanban-wrap" id="tasks-kanban-wrap">`;
+  let html = '';
+  if (tasksState.boardTruncated) {
+    html += `<div class="kanban-trunc-banner">📋 Показаны первые ${TASKS_BOARD_LIMIT.toLocaleString('ru')} задач из ${tasksState.boardTotal.toLocaleString('ru')}. Для полного набора используйте «Список» или фильтры.</div>`;
+  }
+  html += `<div class="kanban-wrap" id="tasks-kanban-wrap">`;
   const MAX_PER_COL = 100;
   for (const col of TASK_KANBAN_COLUMNS) {
     const cards = sortTasksByActivity(byStatus[col.id] || []);
