@@ -1606,6 +1606,22 @@ async function handleList(request, env, entity) {
     const dealLinked = (url.searchParams.get("dealLinked") || "").trim();
     if (dealLinked === "1") whereParts.push("(crm_links LIKE '%deal_%' OR bitrix_crm_links LIKE '%D_%')");
     else if (dealLinked === "0") whereParts.push("(crm_links IS NULL OR crm_links NOT LIKE '%deal_%') AND (bitrix_crm_links IS NULL OR bitrix_crm_links NOT LIKE '%D_%')");
+    // Разделение «текущие» (созданные в портале, bitrix_id пуст) vs «Битрикс Архив»
+    // (импортированные из Битрикса, bitrix_id заполнен).
+    const src = (url.searchParams.get("source") || "").trim();
+    if (src === "new") whereParts.push("(bitrix_id IS NULL OR bitrix_id = '')");
+    else if (src === "bitrix") whereParts.push("(bitrix_id IS NOT NULL AND bitrix_id != '')");
+    // Видимость задач: ТОЛЬКО свои — постановщик / ответственный / изменивший /
+    // соисполнитель / наблюдатель. Без исключений (даже для админов/директоров).
+    const vuid = me.canonicalUid || '';
+    if (!vuid) {
+      whereParts.push("1 = 0");
+    } else {
+      const orC = [];
+      for (const f of (cfg.mineFields || [])) { orC.push(`${f} = ?`); whereParams.push(vuid); }
+      for (const f of (cfg.mineJsonFields || [])) { orC.push(`${f} LIKE ?`); whereParams.push(`%"${vuid}"%`); }
+      if (orC.length) whereParts.push("(" + orC.join(" OR ") + ")");
+    }
   }
 
   // archived фильтр (только для deals — у contacts/tasks колонки нет).
@@ -1631,8 +1647,10 @@ async function handleList(request, env, entity) {
   //       own  → responsible/created = uid
   //       team → responsible/created IN teamUids
   //       all  → без доп. фильтра
-  // Применяется к: deals, tasks, contacts. Не применяется к: pipelines, users (мета).
-  if (me.role !== 'admin' && me.orgPerms && (entity === 'deals' || entity === 'tasks' || entity === 'contacts')) {
+  // Применяется к: deals, contacts. Не применяется к: pipelines, users (мета).
+  // tasks — исключены: у задач своя строгая видимость «только свои» (см. блок выше),
+  // org-perms не должен ANDить её и терять соисполнителей/наблюдателей.
+  if (me.role !== 'admin' && me.orgPerms && (entity === 'deals' || entity === 'contacts')) {
     const op = me.orgPerms;
     // Pipeline whitelist (только для deals — у tasks нет pipeline_id)
     if (entity === 'deals' && Array.isArray(op.pipelineIds)) {
@@ -2263,7 +2281,8 @@ async function handleDealQualificationGet(request, env, dealId) {
   await ensureQualificationTable(env);
   const row = await env.DB.prepare("SELECT data, qual_by, qual_at, updated_at FROM deal_qualification WHERE deal_id = ?").bind(dealId).first();
   let data = {}; try { data = row && row.data ? JSON.parse(row.data) : {}; } catch { data = {}; }
-  return json({ ok: true, qualification: data, qualBy: row ? row.qual_by : null, qualAt: row ? row.qual_at : null }, 200, request);
+  const recordings = await qualRecordingsFor(env, dealId);
+  return json({ ok: true, qualification: data, qualBy: row ? row.qual_by : null, qualAt: row ? row.qual_at : null, recordings }, 200, request);
 }
 async function handleDealQualificationPut(request, env, dealId) {
   const auth = await requireAuthFlexible(request, env);
@@ -2284,6 +2303,138 @@ async function handleDealQualificationPut(request, env, dealId) {
     ON CONFLICT(deal_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at
   `).bind(dealId, dataStr, qualBy, qualAt, nowIso).run();
   return json({ ok: true, qualBy, qualAt }, 200, request);
+}
+
+// ── Записи звонков к брифу квалификации ───────────────────────────────────
+// Загрузка файла (запись звонка) с компьютера в сделку. Файл → R2, метаданные
+// → таблица deal_qual_recordings. Отдача — с авторизацией (?auth=token тоже ок).
+let _qualRecTableEnsured = false;
+async function ensureQualRecordingsTable(env) {
+  if (_qualRecTableEnsured) return;
+  try {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS deal_qual_recordings (
+      id TEXT PRIMARY KEY, deal_id TEXT, r2_key TEXT, name TEXT, size INTEGER,
+      content_type TEXT, uploaded_by TEXT, uploaded_at TEXT
+    )`).run();
+    try { await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_qual_rec_deal ON deal_qual_recordings(deal_id)`).run(); } catch {}
+  } catch (e) {}
+  _qualRecTableEnsured = true;
+}
+
+async function qualRecordingsFor(env, dealId) {
+  await ensureQualRecordingsTable(env);
+  const { results } = await env.DB.prepare(
+    "SELECT id, name, size, content_type, uploaded_by, uploaded_at FROM deal_qual_recordings WHERE deal_id = ? ORDER BY uploaded_at DESC"
+  ).bind(dealId).all();
+  return (results || []).map(r => ({
+    id: r.id, name: r.name, size: r.size, contentType: r.content_type,
+    uploadedBy: r.uploaded_by, uploadedAt: r.uploaded_at,
+    url: `/api/deals/${encodeURIComponent(dealId)}/qualification/recording/${encodeURIComponent(r.id)}`,
+  }));
+}
+
+async function handleQualRecordingUpload(request, env, dealId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  if (!env.FILES) return json({ error: "R2 binding FILES not configured" }, 500, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  await ensureQualRecordingsTable(env);
+  const contentType = request.headers.get('Content-Type') || 'application/octet-stream';
+  let fileName = 'recording';
+  const xfn = request.headers.get('X-File-Name');
+  if (xfn) { try { fileName = decodeURIComponent(xfn); } catch { fileName = xfn; } }
+  const body = await request.arrayBuffer();
+  if (!body || body.byteLength === 0) return json({ error: "empty file" }, 400, request);
+  if (body.byteLength > 200 * 1024 * 1024) return json({ error: "file too large (max 200MB)" }, 413, request);
+  const rand = Math.random().toString(36).slice(2, 10);
+  const safeName = fileName.replace(/[^\w.\-]/g, '_').slice(0, 80);
+  const r2Key = `qual-rec/${dealId}/${Date.now().toString(36)}-${rand}-${safeName}`;
+  await env.FILES.put(r2Key, body, {
+    httpMetadata: { contentType },
+    customMetadata: { kind: 'qual-recording', dealId, originalName: fileName },
+  });
+  const id = 'qr_' + Date.now().toString(36) + rand;
+  const nowIso = new Date().toISOString();
+  const by = me.canonicalUid || me.uid || '';
+  await env.DB.prepare(
+    "INSERT INTO deal_qual_recordings (id, deal_id, r2_key, name, size, content_type, uploaded_by, uploaded_at) VALUES (?,?,?,?,?,?,?,?)"
+  ).bind(id, dealId, r2Key, fileName, body.byteLength, contentType, by, nowIso).run();
+  return json({ ok: true, recording: {
+    id, name: fileName, size: body.byteLength, contentType, uploadedBy: by, uploadedAt: nowIso,
+    url: `/api/deals/${encodeURIComponent(dealId)}/qualification/recording/${encodeURIComponent(id)}`,
+  } }, 200, request);
+}
+
+async function handleQualRecordingsList(request, env, dealId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  return json({ ok: true, recordings: await qualRecordingsFor(env, dealId) }, 200, request);
+}
+
+async function handleQualRecordingServe(request, env, dealId, recId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  if (!env.FILES) return new Response('R2 not configured', { status: 500 });
+  await ensureQualRecordingsTable(env);
+  const row = await env.DB.prepare("SELECT r2_key, name, content_type FROM deal_qual_recordings WHERE id = ? AND deal_id = ?").bind(recId, dealId).first();
+  if (!row) return new Response('not found', { status: 404 });
+  const obj = await env.FILES.get(row.r2_key);
+  if (!obj) return new Response('file missing in R2', { status: 410 });
+  const headers = new Headers(corsHeaders(request));
+  const ct = row.content_type || obj.httpMetadata?.contentType || 'application/octet-stream';
+  headers.set('Content-Type', ct);
+  if (obj.size) headers.set('Content-Length', String(obj.size));
+  const safeName = encodeURIComponent(row.name || 'recording');
+  const disposition = /^(audio|video|image)\//.test(ct) ? 'inline' : 'attachment';
+  headers.set('Content-Disposition', `${disposition}; filename*=UTF-8''${safeName}`);
+  headers.set('Cache-Control', 'private, max-age=3600');
+  headers.set('Accept-Ranges', 'bytes');
+  return new Response(obj.body, { headers });
+}
+
+async function handleQualRecordingDelete(request, env, dealId, recId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureQualRecordingsTable(env);
+  const row = await env.DB.prepare("SELECT r2_key FROM deal_qual_recordings WHERE id = ? AND deal_id = ?").bind(recId, dealId).first();
+  if (!row) return json({ error: "not found" }, 404, request);
+  try { if (env.FILES) await env.FILES.delete(row.r2_key); } catch {}
+  await env.DB.prepare("DELETE FROM deal_qual_recordings WHERE id = ? AND deal_id = ?").bind(recId, dealId).run();
+  return json({ ok: true }, 200, request);
+}
+
+// POST /api/tasks — создать НОВУЮ задачу в портале (bitrix_id пуст → «текущие»,
+// не в «Битрикс Архив»). Постановщик = текущий пользователь.
+async function handleCreateTask(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const uid = me.canonicalUid || me.uid || '';
+  if (!uid) return json({ error: "no canonical user" }, 403, request);
+  let body; try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const title = String(body.title || '').trim();
+  if (!title) return json({ error: "title required" }, 400, request);
+  const status = Number.isFinite(+body.status) ? Math.max(1, Math.min(6, Math.round(+body.status))) : 2;
+  const priority = Number.isFinite(+body.priority) ? Math.max(0, Math.min(3, Math.round(+body.priority))) : 1;
+  const description = body.description != null ? String(body.description).slice(0, 20000) : null;
+  const deadline = body.deadline ? String(body.deadline) : null;
+  const responsible = body.responsibleUid ? String(body.responsibleUid) : uid;
+  const accomplices = Array.isArray(body.accomplices) ? [...new Set(body.accomplices.filter(Boolean).map(String))] : [];
+  const auditors = Array.isArray(body.auditors) ? [...new Set(body.auditors.filter(Boolean).map(String))] : [];
+  const nowIso = new Date().toISOString();
+  const id = 'task_local_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  await env.DB.prepare(`
+    INSERT INTO tasks (id, title, description, status, priority, deadline,
+      responsible_uid, created_by_uid, changed_by_uid, accomplices, auditors,
+      bitrix_created_date, bitrix_changed_date, bitrix_status_changed_date, comments_count)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)
+  `).bind(id, title, description, status, priority, deadline,
+    responsible, uid, uid, JSON.stringify(accomplices), JSON.stringify(auditors),
+    nowIso, nowIso, nowIso).run();
+  return json({ ok: true, id, task: {
+    id, title, description, status, priority, deadline,
+    responsibleUid: responsible, createdByUid: uid, accomplices, auditors,
+  } }, 200, request);
 }
 
 // PATCH /api/deals/{id}/stage { pipelineId, stageId }
@@ -8178,6 +8329,11 @@ export default {
       return handleContactsPhonesBulk(request, env);
     }
 
+    // /api/tasks — создать новую задачу в портале
+    if (path === "/api/tasks" && request.method === "POST") {
+      return handleCreateTask(request, env);
+    }
+
     // /api/tasks/by-deals — батч ближайших активных дел для канбан-плашки «📋 Дело».
     if (path === "/api/tasks/by-deals" && request.method === "POST") {
       return handleTasksByDeals(request, env);
@@ -8316,6 +8472,24 @@ export default {
     }
     if (dealQualMatch && request.method === "PUT") {
       return handleDealQualificationPut(request, env, decodeURIComponent(dealQualMatch[1]));
+    }
+    // /api/deals/{id}/qualification/recording/{recId} — отдать/удалить запись звонка
+    const qualRecOneMatch = path.match(/^\/api\/deals\/([^/]+)\/qualification\/recording\/([^/]+)$/);
+    if (qualRecOneMatch && request.method === "GET") {
+      return handleQualRecordingServe(request, env, decodeURIComponent(qualRecOneMatch[1]), decodeURIComponent(qualRecOneMatch[2]));
+    }
+    if (qualRecOneMatch && request.method === "DELETE") {
+      return handleQualRecordingDelete(request, env, decodeURIComponent(qualRecOneMatch[1]), decodeURIComponent(qualRecOneMatch[2]));
+    }
+    // /api/deals/{id}/qualification/recording — загрузить запись звонка (raw body)
+    const qualRecUpMatch = path.match(/^\/api\/deals\/([^/]+)\/qualification\/recording$/);
+    if (qualRecUpMatch && request.method === "POST") {
+      return handleQualRecordingUpload(request, env, decodeURIComponent(qualRecUpMatch[1]));
+    }
+    // /api/deals/{id}/qualification/recordings — список записей звонков
+    const qualRecListMatch = path.match(/^\/api\/deals\/([^/]+)\/qualification\/recordings$/);
+    if (qualRecListMatch && request.method === "GET") {
+      return handleQualRecordingsList(request, env, decodeURIComponent(qualRecListMatch[1]));
     }
     // /api/deals/{id}/stage — менять стадию (учитывает зеркала)
     const dealStageMatch = path.match(/^\/api\/deals\/([^/]+)\/stage$/);
