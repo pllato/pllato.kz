@@ -13093,6 +13093,8 @@ function openQualificationForm(dealId, deal, opts) {
   ov.querySelector('#qf-close').onclick = () => ov.remove();
 
   let data = {};
+  let recordings = [];      // записи звонков, привязанные к сделке
+  let qualAuthToken = '';   // токен для ?auth= при проигрывании/скачивании записей
 
   const copyBtn = ov.querySelector('#qf-copy');
   if (copyBtn) copyBtn.onclick = async () => {
@@ -13152,7 +13154,15 @@ function openQualificationForm(dealId, deal, opts) {
           <div style="font-weight:700;font-size:13.5px;color:var(--t1);margin-bottom:8px">${ER(sec.title)}</div>
           ${sec.hint ? `<div style="font-size:11.5px;color:var(--ac2);margin-bottom:8px">${ER(sec.hint)}</div>` : ''}
           ${sec.fields.map(fieldHtml).join('')}
-        </div>`).join('')}`;
+        </div>`).join('')}
+      <div style="margin-top:16px;border-top:1px solid var(--b1);padding-top:12px">
+        <div style="font-weight:700;font-size:13.5px;color:var(--t1);margin-bottom:8px">🎙 Запись звонка</div>
+        <div style="font-size:11.5px;color:var(--t3);margin-bottom:8px">Прикрепите аудио- или видеозапись звонка с компьютера — она сохранится в сделке.</div>
+        <div id="qf-recordings"></div>
+        <input type="file" id="qf-rec-file" accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.oga,.opus,.webm,.aac,.amr,.mp4" style="display:none">
+        <button type="button" class="qad-btn qad-btn-ghost" id="qf-rec-add" style="margin-top:8px">⬆️ Загрузить запись с компьютера</button>
+        <div id="qf-rec-status" style="font-size:12px;color:var(--t3);margin-top:6px"></div>
+      </div>`;
     // условные поля (now_tools_which) — перерисовываем видимость при изменении
     body.querySelectorAll('[data-multi],[type=radio],[data-qk]').forEach(inp => {
       inp.addEventListener('change', () => { collect(); body.querySelectorAll('[data-qfield]').forEach(el => {
@@ -13160,6 +13170,83 @@ function openQualificationForm(dealId, deal, opts) {
         if (f && f.showIf) el.style.display = f.showIf(data) ? '' : 'none';
       }); });
     });
+    wireRecordings();
+    renderRecordings();
+  }
+
+  function fmtRecSize(sz) {
+    if (!sz) return '';
+    return sz > 1048576 ? (sz / 1048576).toFixed(1) + ' МБ' : Math.max(1, Math.round(sz / 1024)) + ' КБ';
+  }
+  function recUrl(r) {
+    return `${WORKER_BASE_URL}${r.url}?auth=${encodeURIComponent(qualAuthToken || '')}`;
+  }
+  function renderRecordings() {
+    const box = ov.querySelector('#qf-recordings');
+    if (!box) return;
+    if (!recordings.length) { box.innerHTML = '<div style="font-size:12.5px;color:var(--t3)">Записей пока нет.</div>'; return; }
+    box.innerHTML = recordings.map(r => {
+      const ct = r.contentType || '';
+      const url = recUrl(r);
+      const player = /^audio\//.test(ct) ? `<audio controls preload="none" src="${url}" style="width:100%;margin-top:6px"></audio>`
+        : /^video\//.test(ct) ? `<video controls preload="none" src="${url}" style="width:100%;max-height:220px;margin-top:6px;border-radius:8px;background:#000"></video>` : '';
+      const meta = fmtRecSize(r.size) + (r.uploadedAt ? ' · ' + new Date(r.uploadedAt).toLocaleString('ru-RU') : '');
+      return `<div class="struct" style="margin-bottom:8px;padding:10px 12px">
+        <div style="display:flex;align-items:center;gap:8px;justify-content:space-between">
+          <div style="min-width:0">
+            <div class="s-name" style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🎧 ${ER(r.name)}</div>
+            <div class="s-sub" style="font-size:11.5px">${ER(meta)}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <a class="qad-btn qad-btn-ghost" style="padding:4px 9px;text-decoration:none" href="${url}" download="${ER(r.name)}" title="Скачать">⬇️</a>
+            <button type="button" class="qad-btn qad-btn-ghost" style="padding:4px 9px" data-rec-del="${ER(r.id)}" title="Удалить">🗑</button>
+          </div>
+        </div>
+        ${player}
+      </div>`;
+    }).join('');
+    box.querySelectorAll('[data-rec-del]').forEach(b => {
+      b.onclick = async () => {
+        if (!confirm('Удалить эту запись звонка?')) return;
+        const rid = b.dataset.recDel;
+        try {
+          const t = await fbAuth.currentUser.getIdToken();
+          const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/qualification/recording/${encodeURIComponent(rid)}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + t } });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          recordings = recordings.filter(x => x.id !== rid);
+          renderRecordings();
+        } catch (e) { alert('Не удалось удалить: ' + e.message); }
+      };
+    });
+  }
+  function wireRecordings() {
+    const addBtn = ov.querySelector('#qf-rec-add');
+    const fileInput = ov.querySelector('#qf-rec-file');
+    const status = ov.querySelector('#qf-rec-status');
+    if (!addBtn || !fileInput) return;
+    addBtn.onclick = () => fileInput.click();
+    fileInput.onchange = async () => {
+      const f = fileInput.files && fileInput.files[0];
+      if (!f) return;
+      if (f.size > 200 * 1024 * 1024) { if (status) status.innerHTML = '<span style="color:var(--rd)">Файл больше 200 МБ — слишком большой.</span>'; fileInput.value = ''; return; }
+      if (status) status.textContent = '⏳ Загрузка… ' + f.name;
+      addBtn.disabled = true;
+      try {
+        const t = await fbAuth.currentUser.getIdToken(); qualAuthToken = t;
+        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/qualification/recording`, {
+          method: 'POST',
+          headers: { 'Content-Type': f.type || 'application/octet-stream', 'X-File-Name': encodeURIComponent(f.name), Authorization: 'Bearer ' + t },
+          body: f,
+        });
+        const j = await r.json();
+        if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+        recordings.unshift(j.recording);
+        renderRecordings();
+        if (status) status.innerHTML = '<span style="color:var(--gn)">✅ Запись загружена</span>';
+      } catch (e) {
+        if (status) status.innerHTML = '<span style="color:var(--rd)">Ошибка: ' + ER(e.message) + '</span>';
+      } finally { addBtn.disabled = false; fileInput.value = ''; }
+    };
   }
   function collect() {
     const body = ov.querySelector('#qf-body');
@@ -13181,9 +13268,10 @@ function openQualificationForm(dealId, deal, opts) {
   (async () => {
     try {
       const t = await fbAuth.currentUser.getIdToken();
+      qualAuthToken = t;
       const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/qualification`, { headers: { Authorization: 'Bearer ' + t } });
       const d = await r.json();
-      if (d.ok) data = d.qualification || {};
+      if (d.ok) { data = d.qualification || {}; recordings = d.recordings || []; }
     } catch (e) {}
     renderBody();
   })();
@@ -16213,6 +16301,7 @@ async function renderCalendar(el) {
   });
   await loadCalendarEvents();
   renderCalendarView();
+  startCalendarLiveTimers();   // живая линия «сейчас» + автоподгрузка новых встреч
 }
 
 // Dispatcher: выбирает renderer по текущему view
@@ -16220,6 +16309,58 @@ function renderCalendarView() {
   if (calendarState.view === 'day') renderCalendarDayView();
   else if (calendarState.view === 'week') renderCalendarWeekView();
   else renderCalendarGrid();
+}
+
+// ── Живое обновление календаря без перезагрузки страницы ──────────────────
+// (1) красная линия «сейчас» двигается каждые 30с; (2) новые встречи
+// подтягиваются тихо каждые 90с (только при видимой вкладке) и вид
+// перерисовывается лишь если состав событий изменился.
+function calEventsSig(events) {
+  if (!Array.isArray(events)) return '';
+  return events.map(e => `${e.date ? e.date.getTime() : ''}|${e.title || ''}`).sort().join(';');
+}
+
+function updateCalNowLine() {
+  const grid = document.getElementById('cal-grid');
+  if (!grid) return;
+  const lines = grid.querySelectorAll('.cal-now-line');
+  if (!lines.length) return;
+  const HOUR_H = 44, START_H = 6, END_H = 22;
+  const now = new Date();
+  const top = (now.getHours() * 60 + now.getMinutes() - START_H * 60) / 60 * HOUR_H;
+  const maxTop = (END_H - START_H + 1) * HOUR_H;
+  lines.forEach(l => {
+    if (top >= 0 && top <= maxTop) { l.style.top = top + 'px'; l.style.display = ''; }
+    else { l.style.display = 'none'; }
+  });
+}
+
+function startCalendarLiveTimers() {
+  // Самозавершающиеся: когда пользователь уходит с календаря (#cal-grid
+  // исчезает) — таймеры очищаются сами при следующем тике.
+  if (calendarState.nowTimer) clearInterval(calendarState.nowTimer);
+  if (calendarState.reloadTimer) clearInterval(calendarState.reloadTimer);
+  calendarState._sig = calEventsSig(calendarState.events);
+
+  calendarState.nowTimer = setInterval(() => {
+    if (!document.getElementById('cal-grid')) { clearInterval(calendarState.nowTimer); calendarState.nowTimer = null; return; }
+    updateCalNowLine();
+  }, 30000);
+
+  calendarState.reloadTimer = setInterval(async () => {
+    if (!document.getElementById('cal-grid')) { clearInterval(calendarState.reloadTimer); calendarState.reloadTimer = null; return; }
+    if (document.hidden || calendarState.loading) return;   // скрытая вкладка / уже грузим — пропускаем
+    try {
+      await loadCalendarEvents({ force: true });
+      const sig = calEventsSig(calendarState.events);
+      if (sig !== calendarState._sig) {
+        calendarState._sig = sig;
+        renderCalendarView();          // появились/изменились встречи → обновляем вид
+      } else {
+        updateCalNowLine();            // нового нет — просто двигаем линию
+      }
+    } catch {}
+  }, 90000);
 }
 
 function calendarShift(delta) {
