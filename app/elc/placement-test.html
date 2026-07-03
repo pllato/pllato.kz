@@ -143,51 +143,54 @@ const SPEAK = {
 function speakFor(n){ return SPEAK[n] || SPEAK[7]; }
 
 /* ===== Банк вопросов: по нарастанию сложности, ~4 на каждый уровень =====
-   level: № уровня (1..7) ; q: предложение с пропуском ___ ; ru: подсказка-перевод ; o: варианты ; a: индекс верного (до перемешивания) */
+   Формат — ВПИСЫВАНИЕ ответа (без вариантов): студент сам печатает пропущенное
+   слово/форму. Это исключает угадывание и точнее определяет уровень.
+   level: № уровня (1..7) ; q: предложение с пропуском ___ ; ru: перевод-подсказка ;
+   accept: массив принимаемых ответов (сравнение без регистра/апострофов/точки).
+   Где рядом с пропуском стоит глагол в скобках, напр. (go) — студент вписывает его
+   в нужной форме: так проверяется грамматика, а не угадывание нужного слова. */
 const QUESTIONS = [
   /* --- 1. Beginner 1 (A1) --- */
-  {level:1, q:'I ___ a teacher.',            ru:'Я учитель.',                 o:['am','is','are','be'],           a:0},
-  {level:1, q:'This ___ my book.',           ru:'Это моя книга.',             o:['is','are','am','do'],           a:0},
-  {level:1, q:'She has ___ orange.',         ru:'У неё есть апельсин.',       o:['an','a','the','some'],          a:0},
-  {level:1, q:'They ___ my friends.',        ru:'Они мои друзья.',            o:['are','is','am','be'],           a:0},
+  {level:1, q:'I ___ a teacher.',              ru:'Я учитель.',                       accept:['am']},
+  {level:1, q:'This ___ my book.',             ru:'Это моя книга.',                   accept:['is']},
+  {level:1, q:'She has ___ orange.',           ru:'У неё есть апельсин.',             accept:['an']},
+  {level:1, q:'They ___ my friends.',          ru:'Они мои друзья.',                  accept:['are']},
   /* --- 2. Beginner 2 (A1) --- */
-  {level:2, q:'___ you like coffee?',        ru:'Ты любишь кофе?',            o:['Do','Does','Are','Is'],         a:0},
-  {level:2, q:'He ___ to school every day.', ru:'Он ходит в школу каждый день.', o:['goes','go','is going','went'], a:0},
-  {level:2, q:'___ there a bank near here?', ru:'Здесь рядом есть банк?',     o:['Is','Are','Do','Has'],          a:0},
-  {level:2, q:'I ___ swim very well.',       ru:'Я умею хорошо плавать.',     o:['can','am','do','have'],         a:0},
+  {level:2, q:'___ you like coffee?',          ru:'Ты любишь кофе?',                  accept:['do']},
+  {level:2, q:'He ___ (go) to school every day.', ru:'Он ходит в школу каждый день.', accept:['goes']},
+  {level:2, q:'___ there a bank near here?',   ru:'Здесь рядом есть банк?',           accept:['is']},
+  {level:2, q:'I ___ swim very well.',         ru:'Я умею хорошо плавать.',           accept:['can']},
   /* --- 3. Elementary (A2) --- */
-  {level:3, q:'Yesterday we ___ to the cinema.', ru:'Вчера мы ходили в кино.', o:['went','go','have gone','were going'], a:0},
-  {level:3, q:'She is ___ than her sister.', ru:'Она выше своей сестры.',     o:['taller','more tall','tallest','tall'], a:0},
-  {level:3, q:'Listen! The baby ___.',       ru:'Послушай! Малыш плачет.',    o:['is crying','cries','cry','cried'], a:0},
-  {level:3, q:'I have ___ been to Paris.',   ru:'Я никогда не был в Париже.', o:['never','ever','yet','already'], a:0},
+  {level:3, q:'Yesterday we ___ (go) to the cinema.', ru:'Вчера мы ходили в кино.',   accept:['went']},
+  {level:3, q:'She is ___ (tall) than her sister.', ru:'Она выше своей сестры.',      accept:['taller']},
+  {level:3, q:'Listen! The baby ___ (cry).',   ru:'Послушай! Малыш плачет.',          accept:['is crying',"'s crying"]},
+  {level:3, q:'I have ___ been to Paris.',     ru:'Я никогда не был в Париже.',       accept:['never']},
   /* --- 4. Pre-Intermediate (B1) --- */
-  {level:4, q:'If it rains, we ___ at home.', ru:'Если пойдёт дождь, мы останемся дома.', o:['will stay','stay','stayed','would stay'], a:0},
-  {level:4, q:'I ___ here since 2015.',      ru:'Я живу здесь с 2015 года.',  o:['have lived','live','lived','am living'], a:0},
-  {level:4, q:'While I ___, the phone rang.', ru:'Пока я готовил, зазвонил телефон.', o:['was cooking','cooked','cook','have cooked'], a:0},
-  {level:4, q:'There isn’t ___ milk in the fridge.', ru:'В холодильнике мало молока.', o:['much','many','a lot','few'], a:0},
+  {level:4, q:'If it rains, we ___ (stay) at home.', ru:'Если пойдёт дождь, мы останемся дома.', accept:['will stay',"'ll stay",'will remain',"'ll remain"]},
+  {level:4, q:'I ___ (live) here since 2015.', ru:'Я живу здесь с 2015 года.',        accept:['have lived',"'ve lived"]},
+  {level:4, q:'While I ___ (cook), the phone rang.', ru:'Пока я готовил, зазвонил телефон.', accept:['was cooking']},
+  {level:4, q:"There isn't ___ milk in the fridge.", ru:'В холодильнике мало молока.', accept:['much']},
   /* --- 5. Intermediate (B1+) --- */
-  {level:5, q:'If I ___ rich, I would travel a lot.', ru:'Если бы я был богат, я бы много путешествовал.', o:['were','am','was being','will be'], a:0},
-  {level:5, q:'I ___ for an hour and I’m still waiting.', ru:'Я жду уже час и всё ещё жду.', o:['have been waiting','have waited','am waiting','wait'], a:0},
-  {level:5, q:'When I arrived, the film ___ already started.', ru:'Когда я пришёл, фильм уже начался.', o:['had','has','was','did'], a:0},
-  {level:5, q:'I ___ play tennis when I was young.', ru:'Раньше я играл в теннис, когда был молод.', o:['used to','use to','am used to','was used to'], a:0},
+  {level:5, q:'If I ___ (be) rich, I would travel a lot.', ru:'Если бы я был богат, я бы много путешествовал.', accept:['were','was']},
+  {level:5, q:"I ___ (wait) for an hour and I'm still waiting.", ru:'Я жду уже час и всё ещё жду.', accept:['have been waiting',"'ve been waiting"]},
+  {level:5, q:'When I arrived, the film ___ already started.', ru:'Когда я пришёл, фильм уже начался.', accept:['had',"'d"]},
+  {level:5, q:'I ___ play tennis when I was young.', ru:'Раньше я играл в теннис, когда был молод.', accept:['used to']},
   /* --- 6. Upper-Intermediate 2.0 (B2) --- */
-  {level:6, q:'If he had studied, he ___ the exam.', ru:'Если бы он учился, он бы сдал экзамен.', o:['would have passed','would pass','passed','will pass'], a:0},
-  {level:6, q:'The bridge ___ in 1995.',     ru:'Мост был построен в 1995 году.', o:['was built','built','has built','is building'], a:0},
-  {level:6, q:'You’ve worked all day — you ___ be tired.', ru:'Ты работал весь день — ты, должно быть, устал.', o:['must','can','should','would'], a:0},
-  {level:6, q:'The woman ___ bag was stolen called the police.', ru:'Женщина, чью сумку украли, вызвала полицию.', o:['whose','who','which','that'], a:0},
+  {level:6, q:'If he had studied, he ___ (pass) the exam.', ru:'Если бы он учился, он бы сдал экзамен.', accept:['would have passed',"would've passed","'d have passed"]},
+  {level:6, q:'The bridge ___ (build) in 1995.', ru:'Мост был построен в 1995 году.', accept:['was built']},
+  {level:6, q:'You have worked all day — you ___ be tired.', ru:'Ты работал весь день — ты, должно быть, устал.', accept:['must']},
+  {level:6, q:'The woman ___ bag was stolen called the police.', ru:'Женщина, чью сумку украли, вызвала полицию.', accept:['whose']},
   /* --- 7. Upper-Intermediate 3.0 (B2+) --- */
-  {level:7, q:'If I had taken that job, I ___ in Paris now.', ru:'Если бы я взял ту работу, я бы сейчас жил в Париже.', o:['would be living','would have lived','will live','lived'], a:0},
-  {level:7, q:'Never ___ such a beautiful view.', ru:'Никогда я не видел такого красивого вида.', o:['have I seen','I have seen','I saw','did I see'], a:0},
-  {level:7, q:'She wishes she ___ harder at school.', ru:'Она жалеет, что не училась усерднее в школе.', o:['had studied','studied','studies','would study'], a:0},
-  {level:7, q:'The report ___ by the time the boss arrived.', ru:'Отчёт был закончен к приходу начальника.', o:['had been finished','was finished','has been finished','finished'], a:0},
+  {level:7, q:'If I had taken that job, I ___ (live) in Paris now.', ru:'Если бы я взял ту работу, я бы сейчас жил в Париже.', accept:['would be living',"'d be living"]},
+  {level:7, q:'Never ___ (see) such a beautiful view.', ru:'Никогда я не видел такого красивого вида.', accept:['have i seen']},
+  {level:7, q:'She wishes she ___ (study) harder at school.', ru:'Она жалеет, что не училась усерднее в школе.', accept:['had studied',"'d studied"]},
+  {level:7, q:'The report ___ (finish) by the time the boss arrived.', ru:'Отчёт был закончен к приходу начальника.', accept:['had been finished']},
 ];
 
 /* ===== Состояние ===== */
 const app = document.getElementById('app');
 let idx = 0;
 let answers = []; // {level, correct}
-let curCorrect = -1; // позиция верного варианта в текущем (перемешанном) показе
-const LETTERS = ['A','B','C','D'];
 let placedLevel = 1; // уровень по итогам теории — для подбора темы монолога
 let mr=null, recChunks=[], recStream=null, recBlobUrl=null, recBlob=null, recSecs=0, recTimer=null; // запись голоса
 
@@ -217,12 +220,14 @@ function renderStart(){
   app.innerHTML = `
     <h1>Тест на определение уровня</h1>
     <p class="lead">Тест из двух частей:<br>
-      <b>1. Теория</b> — адаптивный тест по грамматике (до 28 вопросов) определит, в какой из <b>7 уровней</b>
+      <b>1. Теория</b> — 28 заданий по грамматике с <b>вписыванием ответа</b> (без вариантов — нужно
+      самому напечатать пропущенное слово). Тест определит, в какой из <b>7 уровней</b>
       программы ELC посадить студента: Beginner 1, Beginner 2, Elementary, Pre-Intermediate, Intermediate,
       Upper-Intermediate 2.0 и 3.0.<br>
       <b>2. Разговор</b> — по итогам теории студент получит тему монолога под свой уровень и запишет голос,
       чтобы преподаватель прослушал речь.<br><br>
-      Вопросы идут от простого к сложному. Если вопрос слишком трудный — не угадывай, выбирай «Не знаю»:
+      Задания идут от простого к сложному. Отвечайте сами, не угадывая. Где рядом с пропуском стоит глагол
+      в скобках, напр. <b>(go)</b> — впишите его в правильной форме. Не знаете ответ — нажмите «Не знаю»:
       так система определит уровень точнее.</p>
     <button class="btn" onclick="renderSelfIdentify()">Начать тест →</button>`;
 }
@@ -287,30 +292,48 @@ function renderQuestion(){
   const lvl = levelByN(Q.level);
   const pct = Math.round((answers.length / QUESTIONS.length) * 100);
   const stem = Q.q.replace('___','<span class="blank">▁▁▁</span>');
-  // перемешиваем варианты (Fisher–Yates), чтобы верный ответ не был всегда на одном месте
-  const order = Q.o.map((text,i)=>({text, correct:i===Q.a}));
-  for(let i=order.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
-  curCorrect = order.findIndex(o=>o.correct);
-  const opts = order.map((o,i)=>`
-    <button class="opt" onclick="answer(${i})">
-      <span class="key">${LETTERS[i]}</span><span>${o.text}</span>
-    </button>`).join('');
+  const hasVerb = /\([A-Za-z/ ]+\)/.test(Q.q);
   app.innerHTML = `
-    <div class="meta"><span>Вопрос ${answers.length+1}</span><span class="badge">${lvl.name} · ${lvl.cefr}</span></div>
+    <div class="meta"><span>Вопрос ${answers.length+1} из ${QUESTIONS.length}</span><span class="badge">${lvl.name} · ${lvl.cefr}</span></div>
     <div class="progress"><i style="width:${pct}%"></i></div>
     <div class="q">${stem}</div>
-    <div class="hint">${Q.ru}</div>
+    <div class="hint">${Q.ru}${hasVerb ? ' · впишите глагол из скобок в правильной форме' : ''}</div>
     <div class="opts">
-      ${opts}
-      <button class="opt" style="opacity:.8" onclick="answer(-1)">
-        <span class="key">?</span><span>Не знаю / затрудняюсь</span>
-      </button>
+      <input id="ans" class="inp" placeholder="Впишите пропущенное слово…"
+        autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text">
+      <div class="row" style="margin-top:4px">
+        <button class="btn" onclick="submitTyped()">Ответить →</button>
+        <button class="btn ghost" onclick="skipTyped()">Не знаю</button>
+      </div>
     </div>`;
+  const inp = document.getElementById('ans');
+  if(inp){
+    inp.focus();
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); submitTyped(); } });
+  }
 }
 
-function answer(choice){
+/* Нормализация ответа: без регистра, унифицируем апострофы (’`´→'),
+   убираем конечную пунктуацию и лишние пробелы. Так «Went.», «went», «WENT»
+   и «is  crying» засчитываются одинаково. */
+function normAns(s){
+  return String(s==null?'':s)
+    .toLowerCase()
+    .replace(/[’`´]/g,"'")
+    .replace(/[.!?,;:]+$/,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function submitTyped(){
+  const inp = document.getElementById('ans');
+  gradeTyped(inp ? inp.value : '');
+}
+function skipTyped(){ gradeTyped(''); }
+function gradeTyped(val){
   const Q = QUESTIONS[idx];
-  answers.push({ level:Q.level, correct: choice===curCorrect });
+  const v = normAns(val);
+  const ok = !!v && (Q.accept||[]).some(a=>normAns(a)===v);
+  answers.push({ level:Q.level, correct: ok });
   idx++;
   renderQuestion();
 }
