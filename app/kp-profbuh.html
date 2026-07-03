@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>КП — PROFBUH · CRM бухгалтерского аутсорсинга · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23000'/%3E%3Crect x='4' y='7' width='24' height='18' rx='1' fill='none' stroke='%23f2ecdd' stroke-width='2.4'/%3E%3Ctext x='8' y='21' font-size='12' font-weight='bold' fill='%23f2ecdd' font-family='sans-serif'%3Ebp%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f1e9;--card:#fffdf8;--line:#e5dfcf;--ink:#16140f;--muted:#6b655a;--muted2:#9c958a;
+  --black:#0b0a08;--cream:#f2ecdd;--cream2:#e6dcbc;
+  --green:#0c7a4d;--green-l:#d7f2e3;--red:#b3331f;--amber:#b45309;--amber-l:#fef3c7;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.65;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.wrap{max-width:860px;margin:0 auto;padding:0 24px 80px}
+a{color:inherit}
+
+/* HERO */
+.hero{background:linear-gradient(160deg,#000 0%,#181510 70%,#241f15 100%);color:#f5f1e6;margin:0 -24px;padding:46px 40px 40px;border-radius:0 0 26px 26px}
+.hero-top{display:flex;align-items:center;gap:14px;margin-bottom:30px;flex-wrap:wrap}
+.lm{width:56px;height:42px;border:3px solid var(--cream);border-radius:2px;display:grid;place-items:center;font-size:23px;color:var(--cream);font-weight:800;letter-spacing:-1px;padding-bottom:3px;background:#000;flex:none}
+.brand-name{font-size:17px;font-weight:800;letter-spacing:4px}
+.brand-sub{font-size:11px;color:#a89f8c;letter-spacing:.8px;text-transform:uppercase}
+.hero .kp-tag{margin-left:auto;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border:1.5px solid #4a4436;border-radius:20px;padding:7px 15px;color:#c9c0aa}
+.hero h1{font-size:33px;font-weight:900;letter-spacing:-1px;line-height:1.18;margin-bottom:14px}
+.hero h1 em{font-style:normal;color:var(--cream2)}
+.hero p.lead{font-size:15.5px;color:#c9c2b0;max-width:640px}
+.hero-meta{display:flex;gap:26px;margin-top:26px;flex-wrap:wrap}
+.hm b{display:block;font-size:19px;font-weight:800;color:#fff}
+.hm span{font-size:11.5px;color:#a89f8c;text-transform:uppercase;letter-spacing:.5px}
+
+h2{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1.6px;color:var(--muted2);margin:44px 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 28px;margin-bottom:14px}
+.card h3{font-size:16.5px;font-weight:800;margin-bottom:8px}
+.card p{font-size:14px;color:var(--muted)}
+
+/* modules grid */
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.mods{grid-template-columns:1fr}}
+.mod{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.mod .mi{font-size:22px;margin-bottom:8px}
+.mod b{display:block;font-size:14.5px;font-weight:800;margin-bottom:5px}
+.mod p{font-size:12.5px;color:var(--muted);line-height:1.55}
+.mod.star{border:1.5px solid #241f15;background:linear-gradient(160deg,#fffdf8,#f6efdd)}
+.mod .tag{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;background:var(--black);color:var(--cream);border-radius:5px;padding:2px 8px;margin-bottom:8px}
+
+/* meeting list */
+.meet li{margin:9px 0 9px 4px;list-style:none;padding-left:30px;position:relative;font-size:14px}
+.meet li::before{content:'✓';position:absolute;left:0;top:0;width:20px;height:20px;background:var(--black);color:var(--cream);border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:800}
+.meet li b{font-weight:700}
+.meet li span{color:var(--muted)}
+
+/* stages */
+.stage{display:flex;gap:18px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:10px}
+.sn{width:40px;height:40px;border-radius:11px;background:var(--black);color:var(--cream);display:grid;place-items:center;font-weight:800;font-size:16px;flex:none}
+.sc b{display:block;font-size:15px;font-weight:800;margin-bottom:4px}
+.sc p{font-size:13px;color:var(--muted)}
+.sc .sd{font-size:11.5px;font-weight:700;color:var(--amber);margin-top:6px}
+
+/* price */
+.price-hero{background:linear-gradient(160deg,#000,#1c1812);color:#f5f1e6;border-radius:18px;padding:30px 32px;margin-bottom:14px}
+.price-hero .ph-row{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.price-hero .old{font-size:17px;color:#8a8070;text-decoration:line-through}
+.price-hero .big{font-size:40px;font-weight:900;letter-spacing:-1.5px}
+.price-hero .disc{background:var(--cream);color:#000;font-size:12px;font-weight:800;border-radius:20px;padding:5px 13px}
+.price-hero p{font-size:13px;color:#b5ac97;margin-top:10px;max-width:600px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+th{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);text-align:left;padding:12px 16px;border-bottom:1.5px solid var(--line);font-weight:800}
+td{padding:13px 16px;border-bottom:1px solid #efe9da;font-size:14px;vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.sum{font-weight:800;white-space:nowrap;text-align:right}
+tr.total td{background:#f6efdd;font-weight:800;font-size:15px}
+
+/* in/out */
+.io{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.io{grid-template-columns:1fr}}
+.io .card{margin:0}
+.io ul{list-style:none}
+.io li{padding:6px 0 6px 26px;position:relative;font-size:13.5px}
+.io .in li::before{content:'✓';position:absolute;left:0;color:var(--green);font-weight:800}
+.io .out li::before{content:'—';position:absolute;left:0;color:var(--muted2);font-weight:800}
+.io li span{color:var(--muted)}
+
+/* note strips */
+.strip{display:flex;gap:14px;align-items:flex-start;background:linear-gradient(90deg,#f6efdd,#fffdf8);border:1px solid #e0d8c2;border-radius:14px;padding:16px 20px;margin-bottom:12px}
+.strip .si{font-size:24px;flex:none}
+.strip b{font-size:14px}
+.strip p{font-size:12.5px;color:var(--muted);margin-top:2px}
+
+/* demo cta */
+.demo-cta{display:flex;gap:16px;align-items:center;background:var(--black);color:#f5f1e6;border-radius:16px;padding:22px 26px;flex-wrap:wrap}
+.demo-cta .dt{flex:1;min-width:220px}
+.demo-cta b{font-size:15.5px}
+.demo-cta p{font-size:12.5px;color:#b5ac97;margin-top:3px}
+.demo-btn{background:var(--cream);color:#000;font-weight:800;font-size:13.5px;padding:12px 22px;border-radius:11px;text-decoration:none;white-space:nowrap}
+
+/* footer */
+.foot{margin-top:46px;border-top:1.5px solid var(--line);padding-top:22px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.foot b{color:var(--ink)}
+.foot .pl{font-weight:900;font-size:15px;color:var(--ink)}
+
+@media print{
+  body{background:#fff;font-size:12.5px}
+  .hero{border-radius:0;margin:0 -24px;padding:34px 40px 30px}
+  .wrap{padding-bottom:20px}
+  .card,.mod,.stage{break-inside:avoid}
+  .demo-cta{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="hero-top">
+      <div class="lm">bp</div>
+      <div><div class="brand-name">PROFBUH</div><div class="brand-sub">бухгалтерский аутсорсинг · Шымкент</div></div>
+      <div class="kp-tag">Коммерческое предложение</div>
+    </div>
+    <h1>Своя CRM-система для PROFBUH:<br>клиенты, задачи, время, <em>KPI и отчёты</em> — в одном месте</h1>
+    <p class="lead">По итогам демонстрации и встречи 3 июля 2026. Дорабатываем показанную систему под ваши процессы — без ежемесячных платежей за пользователей, с передачей исходного кода и установкой на ваш сервер.</p>
+    <div class="hero-meta">
+      <div class="hm"><b>4–6 недель</b><span>срок разработки</span></div>
+      <div class="hm"><b>1 500 000 ₸</b><span>фикс за всё · оплата этапами</span></div>
+      <div class="hm"><b>10%</b><span>предоплата — старт работ</span></div>
+      <div class="hm"><b>0 ₸/мес</b><span>абонплата и сопровождение</span></div>
+    </div>
+  </div>
+
+  <h2>Что вы просили на встрече — всё войдёт в систему</h2>
+  <div class="card">
+    <ul class="meet">
+      <li><b>Время по каждой фирме:</b> <span>сколько часов команда тратит на клиента — чтобы сопоставить абонплату с реальным объёмом работы и увидеть, какие клиенты выгодны, а какие «съедают» команду.</span></li>
+      <li><b>Задачи не теряются:</b> <span>любая задача ставится в системе, а не устно. Видно, кто поставил, кто исполнитель, срок и статус. «Устно приняли — и забыли» больше не случится.</span></li>
+      <li><b>Разрез и по клиенту, и по сотруднику:</b> <span>по любой задаче — кто исполнитель; по любому сотруднику — что он делает за неделю; по любому клиенту — всё, что по нему делалось.</span></li>
+      <li><b>KPI и начисления бухгалтеров:</b> <span>оплата привязана к работе: точки/ИП на обслуживании, выполненные задачи. Задача закрыта в системе — начисление идёт; не в системе — не идёт.</span></li>
+      <li><b>Баланс рабочего времени:</b> <span>часы по рабочим дням и за месяц по каждому сотруднику — видно реальную загрузку.</span></li>
+      <li><b>Финансовый отчёт руководителя:</b> <span>раздел отчётов и аналитики; какие цифры выводить — определим вместе на этапе «скелета»: аналитика ваша, техника наша.</span></li>
+    </ul>
+  </div>
+
+  <h2>Состав системы · 12 модулей</h2>
+  <div class="mods">
+    <div class="mod star"><span class="tag">★ по итогам встречи</span><b>Учёт рабочего времени</b><p>Время по каждому клиенту и сотруднику: часы за день, неделю, месяц. Сопоставление «абонплата ↔ трудозатраты» по каждой фирме — рентабельность клиента одним взглядом.</p></div>
+    <div class="mod star"><span class="tag">★ по итогам встречи</span><b>KPI и начисления</b><p>Правила начислений под вашу модель (точки/ИП, задачи, отчётность). Начисления считаются автоматически по данным системы — прозрачно для сотрудника и руководителя.</p></div>
+    <div class="mod"><div class="mi">◧</div><b>Общая картина (дашборд)</b><p>Клиенты, задачи, дедлайны, загрузка команды, сбор абонплаты — весь бизнес на одном экране руководителя.</p></div>
+    <div class="mod"><div class="mi">▤</div><b>Единая база клиентов</b><p>Режимы налогообложения (910/ОУР/НДС/розничный), услуги по договору, ответственный бухгалтер, статусы отчётности, документы, история.</p></div>
+    <div class="mod"><div class="mi">☑</div><b>Задачи и обязанности</b><p>Доска задач + матрица «кто чем занят» по типам работ. Постановка, сроки, статусы, комментарии, файлы.</p></div>
+    <div class="mod"><div class="mi">◷</div><b>Календарь отчётности РК</b><p>Дедлайны ФНО и платежей. Система сама создаёт задачи по каждому клиенту к каждому сроку и напоминает за 10/5/1 день. Ни один срок не пропускается.</p></div>
+    <div class="mod"><div class="mi">▦</div><b>Отчёты и аналитика</b><p>По сотрудникам (клиенты, задачи, просрочки, загрузка), по клиентам (объём работ, отчётность, абонплата) и финансовый отчёт руководителя. Настроим цифры под вас.</p></div>
+    <div class="mod"><div class="mi">✆</div><b>WhatsApp внутри системы</b><p>Переписки с клиентами привязаны к карточкам, шаблоны сообщений, напоминания о документах. История остаётся в компании, а не в личных телефонах.</p></div>
+    <div class="mod"><div class="mi">◎</div><b>Заявки и воронка продаж</b><p>Новые клиенты из WhatsApp, Instagram и рекомендаций — в воронке до договора. Замена amoCRM/Битрикс без платы за каждого пользователя ежемесячно.</p></div>
+    <div class="mod"><div class="mi">₸</div><b>Финансы: абонплата и счета</b><p>Выставление счетов, статусы оплат, должники, напоминания об оплате в WhatsApp, MRR.</p></div>
+    <div class="mod"><div class="mi">⛊</div><b>Роли и доступы · 10 человек</b><p>Директор видит всё; у бухгалтеров — свой участок и урезанный функционал. Передача участка при отпуске — за минуту.</p></div>
+    <div class="mod"><div class="mi">⇄</div><b>Установка на ваш сервер</b><p>По завершении переносим систему на ваш сервер и передаём исходный код. Система полностью ваша.</p></div>
+  </div>
+
+  <div style="margin-top:14px" class="strip"><div class="si">⚖️</div><div><b>Почему не Битрикс24 / amoCRM / 1С</b><p>Готовые CRM берут плату за каждого сотрудника каждый месяц (10 человек — сотни тысяч тенге в год навсегда) и всё равно не знают, что такое ФНО 910, ВСА-дедлайны и начисления бухгалтеров. Здесь — система под ваши процессы, один раз, навсегда ваша.</p></div></div>
+
+  <h2>Демо уже работает</h2>
+  <div class="demo-cta">
+    <div class="dt"><b>Интерактивное демо PROFBUH — прокликайте сами</b>
+    <p>Общая картина · клиенты · задачи · календарь отчётности · WhatsApp · воронка · финансы · отчёты · роли. Это мокап: показывает вид и логику будущей системы, дорабатывается под вас.</p></div>
+    <a class="demo-btn" href="https://pllato.kz/app/buh.html" target="_blank" rel="noopener">Открыть демо →</a>
+  </div>
+
+  <h2>Как работаем · 3 этапа</h2>
+  <div class="stage"><div class="sn">1</div><div class="sc"><b>Скелет системы — утверждаем всё до мелочей</b><p>Старт после предоплаты 10%. Серия Zoom-встреч: проходим по каждому пункту — учёт времени, KPI-правила, цифры отчётов, поля карточек. Всё, что в голове у вас и команды, фиксируется в функционал.</p><div class="sd">неделя 1–2</div></div></div>
+  <div class="stage"><div class="sn">2</div><div class="sc"><b>Разработка с показами</b><p>Делаем модуль за модулем и регулярно показываем на созвонах. Вы вносите правки по ходу — к концу этапа вы уже свободно ориентируетесь в своей системе.</p><div class="sd">неделя 2–5</div></div></div>
+  <div class="stage"><div class="sn">3</div><div class="sc"><b>Полировка и сдача</b><p>Финальные правки, рабочие прогоны с командой, полная инструкция для бухгалтеров, перенос на ваш сервер, передача исходного кода.</p><div class="sd">неделя 5–6</div></div></div>
+
+  <h2>Стоимость</h2>
+  <div class="price-hero">
+    <div class="ph-row"><span class="big">1 500 000 ₸</span><span class="disc">−10% при ответе до 6 июля → 1 350 000 ₸</span></div>
+    <p>Фиксированная стоимость за весь объём. Оплата этапами по факту результата — основная часть после того, как вы увидели и утвердили систему. Аналогичная разработка ещё пару лет назад стоила от 10 млн ₸ и занимала полгода.</p>
+  </div>
+  <table>
+    <thead><tr><th>Платёж</th><th>Когда</th><th style="text-align:right">Сумма</th></tr></thead>
+    <tbody>
+      <tr><td><b>Предоплата 10%</b></td><td>старт работ, бронь команды</td><td class="sum">150 000 ₸</td></tr>
+      <tr><td><b>Этап 2</b></td><td>после утверждения полного функционала («скелета»)</td><td class="sum">675 000 ₸</td></tr>
+      <tr><td><b>Этап 3</b></td><td>после полной сдачи и переноса на ваш сервер</td><td class="sum">675 000 ₸</td></tr>
+      <tr class="total"><td>Итого</td><td>со скидкой −10% при ответе до 6 июля — <b>1 350 000 ₸</b></td><td class="sum">1 500 000 ₸</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Что входит и что потом</h2>
+  <div class="io">
+    <div class="card in"><h3 style="color:var(--green)">Входит в стоимость</h3><ul>
+      <li>Все 12 модулей под ваши процессы</li>
+      <li>До 10 пользователей, роли и доступы</li>
+      <li>Серия Zoom-встреч по «скелету» и показы</li>
+      <li>Рабочие прогоны с командой и инструкция</li>
+      <li>Перенос на ваш сервер + исходный код</li>
+      <li>Гарантийные правки ошибок после сдачи</li>
+    </ul></div>
+    <div class="card out"><h3 style="color:var(--muted)">После сдачи · по желанию</h3><ul>
+      <li>Ежемесячное сопровождение <span>— не требуется: система работает сама, абонплаты нет</span></li>
+      <li>Новые доработки и «хотелки» <span>— по запросу, 20 $/час (обычно 1–5 часов на доработку)</span></li>
+      <li>Хостинг вашего сервера <span>— оплачивается вами напрямую провайдеру (от ~5 000 ₸/мес)</span></li>
+    </ul></div>
+  </div>
+
+  <div style="margin-top:14px" class="strip"><div class="si">🤝</div><div><b>Договор и оплата</b><p>Работаем по публичной оферте <a href="https://pllato.kz/offer" target="_blank" rel="noopener">pllato.kz/offer</a> — оплата счёта означает принятие условий. Счёт на предоплату выставим сразу после вашего «да». Предложение действительно до 10 июля 2026; скидка −10% — при подтверждении до 6 июля 2026 включительно.</p></div></div>
+
+  <div class="foot">
+    <div><div class="pl">Pllato.</div>Custom Development · CRM/ERP<br>ИП «STUDYSTORIES.APP» · Алматы</div>
+    <div><b>Платон Цай</b><br>+7 701 123 99 99 · <a href="https://wa.me/77011239999">WhatsApp</a><br>uurraa@gmail.com · pllato.kz</div>
+    <div><b>КП № PB-2026-01</b><br>от 3 июля 2026<br>для Фазили · PROFBUH, Шымкент</div>
+  </div>
+
+</div>
+</body>
+</html>
