@@ -1606,6 +1606,22 @@ async function handleList(request, env, entity) {
     const dealLinked = (url.searchParams.get("dealLinked") || "").trim();
     if (dealLinked === "1") whereParts.push("(crm_links LIKE '%deal_%' OR bitrix_crm_links LIKE '%D_%')");
     else if (dealLinked === "0") whereParts.push("(crm_links IS NULL OR crm_links NOT LIKE '%deal_%') AND (bitrix_crm_links IS NULL OR bitrix_crm_links NOT LIKE '%D_%')");
+    // Разделение «текущие» (созданные в портале, bitrix_id пуст) vs «Битрикс Архив»
+    // (импортированные из Битрикса, bitrix_id заполнен).
+    const src = (url.searchParams.get("source") || "").trim();
+    if (src === "new") whereParts.push("(bitrix_id IS NULL OR bitrix_id = '')");
+    else if (src === "bitrix") whereParts.push("(bitrix_id IS NOT NULL AND bitrix_id != '')");
+    // Видимость задач: ТОЛЬКО свои — постановщик / ответственный / изменивший /
+    // соисполнитель / наблюдатель. Без исключений (даже для админов/директоров).
+    const vuid = me.canonicalUid || '';
+    if (!vuid) {
+      whereParts.push("1 = 0");
+    } else {
+      const orC = [];
+      for (const f of (cfg.mineFields || [])) { orC.push(`${f} = ?`); whereParams.push(vuid); }
+      for (const f of (cfg.mineJsonFields || [])) { orC.push(`${f} LIKE ?`); whereParams.push(`%"${vuid}"%`); }
+      if (orC.length) whereParts.push("(" + orC.join(" OR ") + ")");
+    }
   }
 
   // archived фильтр (только для deals — у contacts/tasks колонки нет).
@@ -1631,8 +1647,10 @@ async function handleList(request, env, entity) {
   //       own  → responsible/created = uid
   //       team → responsible/created IN teamUids
   //       all  → без доп. фильтра
-  // Применяется к: deals, tasks, contacts. Не применяется к: pipelines, users (мета).
-  if (me.role !== 'admin' && me.orgPerms && (entity === 'deals' || entity === 'tasks' || entity === 'contacts')) {
+  // Применяется к: deals, contacts. Не применяется к: pipelines, users (мета).
+  // tasks — исключены: у задач своя строгая видимость «только свои» (см. блок выше),
+  // org-perms не должен ANDить её и терять соисполнителей/наблюдателей.
+  if (me.role !== 'admin' && me.orgPerms && (entity === 'deals' || entity === 'contacts')) {
     const op = me.orgPerms;
     // Pipeline whitelist (только для deals — у tasks нет pipeline_id)
     if (entity === 'deals' && Array.isArray(op.pipelineIds)) {
@@ -2383,6 +2401,40 @@ async function handleQualRecordingDelete(request, env, dealId, recId) {
   try { if (env.FILES) await env.FILES.delete(row.r2_key); } catch {}
   await env.DB.prepare("DELETE FROM deal_qual_recordings WHERE id = ? AND deal_id = ?").bind(recId, dealId).run();
   return json({ ok: true }, 200, request);
+}
+
+// POST /api/tasks — создать НОВУЮ задачу в портале (bitrix_id пуст → «текущие»,
+// не в «Битрикс Архив»). Постановщик = текущий пользователь.
+async function handleCreateTask(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const uid = me.canonicalUid || me.uid || '';
+  if (!uid) return json({ error: "no canonical user" }, 403, request);
+  let body; try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const title = String(body.title || '').trim();
+  if (!title) return json({ error: "title required" }, 400, request);
+  const status = Number.isFinite(+body.status) ? Math.max(1, Math.min(6, Math.round(+body.status))) : 2;
+  const priority = Number.isFinite(+body.priority) ? Math.max(0, Math.min(3, Math.round(+body.priority))) : 1;
+  const description = body.description != null ? String(body.description).slice(0, 20000) : null;
+  const deadline = body.deadline ? String(body.deadline) : null;
+  const responsible = body.responsibleUid ? String(body.responsibleUid) : uid;
+  const accomplices = Array.isArray(body.accomplices) ? [...new Set(body.accomplices.filter(Boolean).map(String))] : [];
+  const auditors = Array.isArray(body.auditors) ? [...new Set(body.auditors.filter(Boolean).map(String))] : [];
+  const nowIso = new Date().toISOString();
+  const id = 'task_local_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  await env.DB.prepare(`
+    INSERT INTO tasks (id, title, description, status, priority, deadline,
+      responsible_uid, created_by_uid, changed_by_uid, accomplices, auditors,
+      bitrix_created_date, bitrix_changed_date, bitrix_status_changed_date, comments_count)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)
+  `).bind(id, title, description, status, priority, deadline,
+    responsible, uid, uid, JSON.stringify(accomplices), JSON.stringify(auditors),
+    nowIso, nowIso, nowIso).run();
+  return json({ ok: true, id, task: {
+    id, title, description, status, priority, deadline,
+    responsibleUid: responsible, createdByUid: uid, accomplices, auditors,
+  } }, 200, request);
 }
 
 // PATCH /api/deals/{id}/stage { pipelineId, stageId }
@@ -8275,6 +8327,11 @@ export default {
     // Чтобы кнопки 💬/📞 в карточках были активны сразу, без открытия деталки.
     if (path === "/api/contacts/phones" && request.method === "GET") {
       return handleContactsPhonesBulk(request, env);
+    }
+
+    // /api/tasks — создать новую задачу в портале
+    if (path === "/api/tasks" && request.method === "POST") {
+      return handleCreateTask(request, env);
     }
 
     // /api/tasks/by-deals — батч ближайших активных дел для канбан-плашки «📋 Дело».
