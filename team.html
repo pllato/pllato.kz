@@ -12883,7 +12883,12 @@ async function moveDealToStage(bitrixId, newStageId) {
       const j = await r.json().catch(() => ({}));
       throw new Error(j.error || `HTTP ${r.status}`);
     }
-    showToast(isMirror ? 'Стадия зеркала обновлена' : 'Стадия обновлена');
+    const okData = await r.json().catch(() => ({}));
+    if (okData.demoCreated) {
+      showToast('✅ Демо собрано и добавлено в App (pllato.kz/app)');
+    } else {
+      showToast(isMirror ? 'Стадия зеркала обновлена' : 'Стадия обновлена');
+    }
   } catch (e) {
     deal.stageId = oldStageId;
     if (!isMirror) deal.rejectReason = oldRejectReason;
