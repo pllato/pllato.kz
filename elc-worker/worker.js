@@ -2317,6 +2317,8 @@ async function ensureQualRecordingsTable(env) {
       content_type TEXT, uploaded_by TEXT, uploaded_at TEXT
     )`).run();
     try { await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_qual_rec_deal ON deal_qual_recordings(deal_id)`).run(); } catch {}
+    // kind: 'recording' (запись звонка) | 'logo' (логотип клиента) — материалы для демо.
+    try { await env.DB.prepare(`ALTER TABLE deal_qual_recordings ADD COLUMN kind TEXT DEFAULT 'recording'`).run(); } catch {}
   } catch (e) {}
   _qualRecTableEnsured = true;
 }
@@ -2324,11 +2326,11 @@ async function ensureQualRecordingsTable(env) {
 async function qualRecordingsFor(env, dealId) {
   await ensureQualRecordingsTable(env);
   const { results } = await env.DB.prepare(
-    "SELECT id, name, size, content_type, uploaded_by, uploaded_at FROM deal_qual_recordings WHERE deal_id = ? ORDER BY uploaded_at DESC"
+    "SELECT id, name, size, content_type, uploaded_by, uploaded_at, COALESCE(kind,'recording') AS kind FROM deal_qual_recordings WHERE deal_id = ? ORDER BY uploaded_at DESC"
   ).bind(dealId).all();
   return (results || []).map(r => ({
     id: r.id, name: r.name, size: r.size, contentType: r.content_type,
-    uploadedBy: r.uploaded_by, uploadedAt: r.uploaded_at,
+    uploadedBy: r.uploaded_by, uploadedAt: r.uploaded_at, kind: r.kind || 'recording',
     url: `/api/deals/${encodeURIComponent(dealId)}/qualification/recording/${encodeURIComponent(r.id)}`,
   }));
 }
@@ -2339,28 +2341,31 @@ async function handleQualRecordingUpload(request, env, dealId) {
   if (!env.FILES) return json({ error: "R2 binding FILES not configured" }, 500, request);
   const me = await resolveCanonicalUser(env, auth.claims);
   await ensureQualRecordingsTable(env);
+  const url = new URL(request.url);
+  const kind = (url.searchParams.get('kind') === 'logo') ? 'logo' : 'recording';
   const contentType = request.headers.get('Content-Type') || 'application/octet-stream';
-  let fileName = 'recording';
+  let fileName = kind === 'logo' ? 'logo' : 'recording';
   const xfn = request.headers.get('X-File-Name');
   if (xfn) { try { fileName = decodeURIComponent(xfn); } catch { fileName = xfn; } }
   const body = await request.arrayBuffer();
   if (!body || body.byteLength === 0) return json({ error: "empty file" }, 400, request);
-  if (body.byteLength > 200 * 1024 * 1024) return json({ error: "file too large (max 200MB)" }, 413, request);
+  const maxBytes = kind === 'logo' ? 15 * 1024 * 1024 : 200 * 1024 * 1024;
+  if (body.byteLength > maxBytes) return json({ error: `file too large (max ${Math.round(maxBytes/1024/1024)}MB)` }, 413, request);
   const rand = Math.random().toString(36).slice(2, 10);
   const safeName = fileName.replace(/[^\w.\-]/g, '_').slice(0, 80);
-  const r2Key = `qual-rec/${dealId}/${Date.now().toString(36)}-${rand}-${safeName}`;
+  const r2Key = `qual-rec/${dealId}/${kind}-${Date.now().toString(36)}-${rand}-${safeName}`;
   await env.FILES.put(r2Key, body, {
     httpMetadata: { contentType },
-    customMetadata: { kind: 'qual-recording', dealId, originalName: fileName },
+    customMetadata: { kind: 'qual-' + kind, dealId, originalName: fileName },
   });
   const id = 'qr_' + Date.now().toString(36) + rand;
   const nowIso = new Date().toISOString();
   const by = me.canonicalUid || me.uid || '';
   await env.DB.prepare(
-    "INSERT INTO deal_qual_recordings (id, deal_id, r2_key, name, size, content_type, uploaded_by, uploaded_at) VALUES (?,?,?,?,?,?,?,?)"
-  ).bind(id, dealId, r2Key, fileName, body.byteLength, contentType, by, nowIso).run();
+    "INSERT INTO deal_qual_recordings (id, deal_id, r2_key, name, size, content_type, uploaded_by, uploaded_at, kind) VALUES (?,?,?,?,?,?,?,?,?)"
+  ).bind(id, dealId, r2Key, fileName, body.byteLength, contentType, by, nowIso, kind).run();
   return json({ ok: true, recording: {
-    id, name: fileName, size: body.byteLength, contentType, uploadedBy: by, uploadedAt: nowIso,
+    id, name: fileName, size: body.byteLength, contentType, uploadedBy: by, uploadedAt: nowIso, kind,
     url: `/api/deals/${encodeURIComponent(dealId)}/qualification/recording/${encodeURIComponent(id)}`,
   } }, 200, request);
 }
