@@ -2442,6 +2442,258 @@ async function handleCreateTask(request, env) {
   } }, 200, request);
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+//  ДЕМО-КОНСТРУКТОР: авто-сборка демо при входе сделки в «Создание Демо».
+//  Плашки-демо живут на pllato.kz/app (Канбан Новые/В работе/Итоговые),
+//  доступ к демо — по временной токен-ссылке со сроком действия.
+// ═══════════════════════════════════════════════════════════════════════
+const DEMO_BUILD_STAGE_RE = /создани\w*\s*демо/i;
+const DEMO_TOKEN_TTL_DAYS = 30;
+
+let _demosTableEnsured = false;
+async function ensureDemosTable(env) {
+  if (_demosTableEnsured) return;
+  try {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS demos (
+      id TEXT PRIMARY KEY, deal_id TEXT, client_name TEXT, title TEXT,
+      status TEXT DEFAULT 'new', is_new INTEGER DEFAULT 1,
+      website TEXT, brief_snapshot TEXT, token TEXT, token_expires TEXT,
+      sort_order INTEGER DEFAULT 0, created_by TEXT, created_at TEXT, updated_at TEXT
+    )`).run();
+    try { await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_demos_deal ON demos(deal_id)`).run(); } catch {}
+    try { await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_demos_status ON demos(status)`).run(); } catch {}
+  } catch (e) {}
+  _demosTableEnsured = true;
+}
+
+function genDemoToken() {
+  const a = new Uint8Array(24);
+  crypto.getRandomValues(a);
+  return Array.from(a).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Полнота материалов для демо: логотип + запись звонка + сайт клиента.
+async function demoBriefCompleteness(env, dealId) {
+  await ensureQualificationTable(env);
+  const row = await env.DB.prepare("SELECT data FROM deal_qualification WHERE deal_id = ?").bind(dealId).first();
+  let qual = {}; try { qual = row && row.data ? JSON.parse(row.data) : {}; } catch { qual = {}; }
+  const recs = await qualRecordingsFor(env, dealId);
+  const hasLogo = recs.some(r => r.kind === 'logo');
+  const hasRecording = recs.some(r => r.kind !== 'logo');
+  const hasWebsite = !!(qual.client_website && String(qual.client_website).trim());
+  const missing = [];
+  if (!hasLogo) missing.push('логотип');
+  if (!hasRecording) missing.push('запись звонка');
+  if (!hasWebsite) missing.push('сайт клиента');
+  return { complete: missing.length === 0, missing, qual, recordings: recs };
+}
+
+// Авто-создание демо-записи из брифа (идемпотентно: один демо на сделку).
+async function createDemoForDeal(env, dealId, me) {
+  await ensureDemosTable(env);
+  const existing = await env.DB.prepare("SELECT id FROM demos WHERE deal_id = ? LIMIT 1").bind(dealId).first();
+  if (existing) {
+    // Уже есть — просто снова помечаем «новая» и обновляем срок ссылки.
+    await env.DB.prepare("UPDATE demos SET is_new = 1, updated_at = ? WHERE id = ?").bind(new Date().toISOString(), existing.id).run();
+    return existing.id;
+  }
+  const bc = await demoBriefCompleteness(env, dealId);
+  const deal = await env.DB.prepare("SELECT title FROM deals WHERE id = ? LIMIT 1").bind(dealId).first();
+  const clientName = (deal && deal.title) ? deal.title : 'Клиент';
+  const nowIso = new Date().toISOString();
+  const expIso = new Date(Date.now() + DEMO_TOKEN_TTL_DAYS * 864e5).toISOString();
+  const snapshot = { qual: bc.qual, recordings: bc.recordings.map(r => ({ id: r.id, kind: r.kind, name: r.name })) };
+  const id = 'demo_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const token = genDemoToken();
+  await env.DB.prepare(`
+    INSERT INTO demos (id, deal_id, client_name, title, status, is_new, website, brief_snapshot, token, token_expires, sort_order, created_by, created_at, updated_at)
+    VALUES (?,?,?,?,'new',1,?,?,?,?,0,?,?,?)
+  `).bind(id, dealId, clientName, clientName + ' — демо',
+    (bc.qual.client_website || ''), JSON.stringify(snapshot), token, expIso,
+    (me && (me.canonicalUid || me.uid)) || '', nowIso, nowIso).run();
+  return id;
+}
+
+// GET /api/demos — список плашек для Канбана (auth).
+async function handleDemosList(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureDemosTable(env);
+  const { results } = await env.DB.prepare(
+    "SELECT id, deal_id, client_name, title, status, is_new, website, token, token_expires, sort_order, created_at, updated_at FROM demos ORDER BY sort_order ASC, created_at DESC"
+  ).all();
+  const origin = new URL(request.url).origin;
+  const items = (results || []).map(d => ({
+    id: d.id, dealId: d.deal_id, clientName: d.client_name, title: d.title,
+    status: d.status || 'new', isNew: !!d.is_new, website: d.website,
+    tokenExpires: d.token_expires, createdAt: d.created_at, updatedAt: d.updated_at,
+    link: `${origin}/api/demo/${encodeURIComponent(d.id)}?t=${encodeURIComponent(d.token || '')}`,
+  }));
+  return json({ ok: true, items }, 200, request);
+}
+
+// PATCH /api/demos/:id — статус / метка новая / заголовок / порядок (auth).
+async function handleDemoUpdate(request, env, id) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureDemosTable(env);
+  let body; try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const sets = [], binds = [];
+  if (body.status && ['new', 'in_work', 'final'].includes(body.status)) { sets.push("status = ?"); binds.push(body.status); }
+  if (body.isNew != null) { sets.push("is_new = ?"); binds.push(body.isNew ? 1 : 0); }
+  if (typeof body.title === 'string') { sets.push("title = ?"); binds.push(body.title.slice(0, 200)); }
+  if (Number.isFinite(+body.sortOrder)) { sets.push("sort_order = ?"); binds.push(Math.round(+body.sortOrder)); }
+  if (!sets.length) return json({ error: "nothing to update" }, 400, request);
+  sets.push("updated_at = ?"); binds.push(new Date().toISOString());
+  binds.push(id);
+  await env.DB.prepare(`UPDATE demos SET ${sets.join(', ')} WHERE id = ?`).bind(...binds).run();
+  return json({ ok: true }, 200, request);
+}
+
+// POST /api/demos/:id/relink — перегенерировать токен и продлить срок (auth).
+async function handleDemoRelink(request, env, id) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureDemosTable(env);
+  const token = genDemoToken();
+  const expIso = new Date(Date.now() + DEMO_TOKEN_TTL_DAYS * 864e5).toISOString();
+  const res = await env.DB.prepare("UPDATE demos SET token = ?, token_expires = ?, updated_at = ? WHERE id = ?")
+    .bind(token, expIso, new Date().toISOString(), id).run();
+  if (!res.meta || res.meta.changes === 0) return json({ error: "not found" }, 404, request);
+  const origin = new URL(request.url).origin;
+  return json({ ok: true, link: `${origin}/api/demo/${encodeURIComponent(id)}?t=${token}`, tokenExpires: expIso }, 200, request);
+}
+
+async function handleDemoDelete(request, env, id) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureDemosTable(env);
+  await env.DB.prepare("DELETE FROM demos WHERE id = ?").bind(id).run();
+  return json({ ok: true }, 200, request);
+}
+
+// Правила сбора систем (свободный текст) — kv 'demo:rules'. Правят админы.
+async function handleDemoRulesGet(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const row = await env.DB.prepare("SELECT v FROM kv WHERE k = 'demo:rules'").first();
+  let rules = ''; try { rules = row && row.v ? JSON.parse(row.v) : ''; } catch { rules = row?.v || ''; }
+  return json({ ok: true, rules: typeof rules === 'string' ? rules : '' }, 200, request);
+}
+async function handleDemoRulesPut(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  if (me.role !== 'admin') return json({ error: "admin only" }, 403, request);
+  let body; try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400, request); }
+  const rules = String(body.rules || '').slice(0, 100000);
+  await env.DB.prepare("INSERT INTO kv (k, v) VALUES ('demo:rules', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(JSON.stringify(rules)).run();
+  return json({ ok: true }, 200, request);
+}
+
+// Публичная отдача демо по временной ссылке: /api/demo/:id?t=token
+async function handleDemoServe(request, env, id) {
+  await ensureDemosTable(env);
+  const url = new URL(request.url);
+  const token = url.searchParams.get('t') || '';
+  const d = await env.DB.prepare("SELECT * FROM demos WHERE id = ?").bind(id).first();
+  const expiredHtml = (msg) => new Response(demoStubHtml(msg), { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+  if (!d) return expiredHtml('Демо не найдено.');
+  if (!token || token !== d.token) return expiredHtml('Ссылка недействительна.');
+  if (d.token_expires && new Date(d.token_expires) < new Date()) return expiredHtml('Срок действия ссылки истёк. Запросите новую у менеджера.');
+  let snap = {}; try { snap = d.brief_snapshot ? JSON.parse(d.brief_snapshot) : {}; } catch {}
+  let rules = ''; try { const rr = await env.DB.prepare("SELECT v FROM kv WHERE k = 'demo:rules'").first(); rules = rr && rr.v ? JSON.parse(rr.v) : ''; } catch {}
+  const html = genDemoHtml(d, snap, rules, url.origin, token);
+  return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
+
+// Публичная отдача логотипа демо (в контексте валидного токена): /api/demo/:id/logo?t=
+async function handleDemoLogoServe(request, env, id) {
+  await ensureDemosTable(env);
+  const url = new URL(request.url);
+  const token = url.searchParams.get('t') || '';
+  const d = await env.DB.prepare("SELECT deal_id, token, token_expires FROM demos WHERE id = ?").bind(id).first();
+  if (!d || !token || token !== d.token) return new Response('forbidden', { status: 403 });
+  if (d.token_expires && new Date(d.token_expires) < new Date()) return new Response('expired', { status: 410 });
+  if (!env.FILES) return new Response('no storage', { status: 500 });
+  const rec = await env.DB.prepare("SELECT r2_key, content_type FROM deal_qual_recordings WHERE deal_id = ? AND kind = 'logo' ORDER BY uploaded_at DESC LIMIT 1").bind(d.deal_id).first();
+  if (!rec) return new Response('no logo', { status: 404 });
+  const obj = await env.FILES.get(rec.r2_key);
+  if (!obj) return new Response('missing', { status: 410 });
+  const headers = new Headers();
+  headers.set('Content-Type', rec.content_type || 'image/png');
+  headers.set('Cache-Control', 'public, max-age=3600');
+  return new Response(obj.body, { headers });
+}
+
+function demoStubHtml(msg) {
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Демо Pllato</title></head>
+<body style="margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1226;color:#e7ecff;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center;padding:24px">
+<div><div style="font-size:44px;margin-bottom:12px">🔒</div><h1 style="font-size:22px;margin:0 0 8px">${escapeHtml(msg)}</h1>
+<p style="color:#9aa3d0;max-width:420px;margin:0 auto">Pllato — конструктор кастомных систем.</p></div></body></html>`;
+}
+
+// Генерация полноценной демо-страницы из брифа + правил сборки.
+function genDemoHtml(demo, snap, rules, origin, token) {
+  const q = (snap && snap.qual) || {};
+  const esc = (s) => escapeHtml(String(s == null ? '' : s));
+  const client = esc(demo.client_name || 'Клиент');
+  const logoUrl = `${origin}/api/demo/${encodeURIComponent(demo.id)}/logo?t=${encodeURIComponent(token)}`;
+  const arr = (v) => Array.isArray(v) ? v : (v ? [v] : []);
+  const modules = [];
+  if (q.need_1c === 'Да') modules.push(['🔗', 'Интеграция с 1С', 'Синхронизация товаров, остатков и оплат с 1С']);
+  if (q.need_warehouse === 'Да') modules.push(['📦', 'Склад и остатки', 'Учёт остатков в реальном времени по точкам']);
+  for (const m of arr(q.need_messengers)) modules.push(['💬', m, `Общение с клиентами прямо из системы через ${esc(m)}`]);
+  for (const s of arr(q.ch_sources)) modules.push(['📥', 'Источник: ' + esc(s), `Все обращения из ${esc(s)} автоматически в воронке`]);
+  modules.push(['📊', 'Воронки и аналитика', 'Сделки по этапам, конверсия, отчёты по менеджерам']);
+  modules.push(['✅', 'Задачи команды', 'Постановка задач, дедлайны, контроль исполнения']);
+  const moduleCards = modules.slice(0, 9).map(m =>
+    `<div class="mod"><div class="mi">${m[0]}</div><div class="mt">${esc(m[1])}</div><div class="md">${esc(m[2])}</div></div>`
+  ).join('');
+  const pain = esc(q.pain_main || q.pain_money || '');
+  const bizWhat = esc(q.biz_what || '');
+  const rulesNote = rules && String(rules).trim()
+    ? `<!-- Правила сборки (внутреннее ТЗ):\n${String(rules).replace(/--+>/g, '')}\n-->` : '';
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Демо для ${client} · Pllato</title>${rulesNote}
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,Segoe UI,Roboto,Inter,sans-serif;background:#0c1030;color:#eaf0ff;line-height:1.55}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+header{padding:26px 0;display:flex;align-items:center;gap:16px;border-bottom:1px solid rgba(255,255,255,.08)}
+header img{height:52px;width:auto;max-width:180px;object-fit:contain;background:#fff;border-radius:10px;padding:6px}
+header .h-t{font-weight:800;font-size:20px}
+header .h-s{color:#9aa6e0;font-size:13px}
+.hero{padding:64px 0 40px;text-align:center}
+.hero h1{font-size:clamp(28px,5vw,46px);font-weight:850;letter-spacing:-.02em;margin-bottom:14px;background:linear-gradient(90deg,#7c9cff,#c9a6ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{color:#b9c2ee;font-size:17px;max-width:680px;margin:0 auto}
+.badge{display:inline-block;background:rgba(124,156,255,.16);border:1px solid rgba(124,156,255,.4);color:#a9beff;font-size:12px;font-weight:700;padding:5px 12px;border-radius:99px;margin-bottom:18px;text-transform:uppercase;letter-spacing:.05em}
+.pain{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:22px 24px;margin:28px 0}
+.pain .l{color:#8b95c9;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.pain .v{font-size:18px;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin:26px 0 60px}
+.mod{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:18px}
+.mod .mi{font-size:26px;margin-bottom:8px}
+.mod .mt{font-weight:700;font-size:15px;margin-bottom:4px}
+.mod .md{color:#9aa6e0;font-size:13px}
+.sec-t{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#8b95c9;margin:40px 0 6px;text-align:center}
+footer{border-top:1px solid rgba(255,255,255,.08);padding:24px 0 50px;text-align:center;color:#7a83b5;font-size:13px}
+.cta{display:inline-block;margin-top:8px;background:linear-gradient(135deg,#5b6dff,#8a5cff);color:#fff;text-decoration:none;font-weight:700;padding:13px 26px;border-radius:12px}
+</style></head>
+<body><div class="wrap">
+<header><img src="${logoUrl}" alt="logo" onerror="this.style.display='none'"><div><div class="h-t">${client}</div><div class="h-s">Кастомная система · демо от Pllato</div></div></header>
+<section class="hero"><div class="badge">Персональная демка</div>
+<h1>Система под ${client}</h1>
+<p>${bizWhat ? bizWhat + '. ' : ''}Собрано на основе вашего запроса — под ваши процессы, а не типовая коробка.</p></section>
+${pain ? `<div class="pain"><div class="l">Задача, которую решаем</div><div class="v">${pain}</div></div>` : ''}
+<div class="sec-t">Что будет в системе</div>
+<div class="grid">${moduleCards}</div>
+<div style="text-align:center;margin-bottom:50px"><a class="cta" href="#">Обсудить внедрение →</a></div>
+</div>
+<footer>Демо подготовлено Pllato · ${client}<br>Это предварительная демонстрация. Финальный состав уточняется на встрече.</footer>
+</body></html>`;
+}
+
 // PATCH /api/deals/{id}/stage { pipelineId, stageId }
 // Универсальный endpoint для перемещения сделки между стадиями. Если pipelineId
 // совпадает с deal.pipeline_id — обновляет основную stage_id. Иначе обновляет
@@ -2479,6 +2731,29 @@ async function handleDealStageChange(request, env, dealId) {
   // значение. Так «N дней на этапе» считается от момента фактического перехода.
   const stageActuallyChanged = String(deal.stage_id) !== stageId;
   const stageTs = stageActuallyChanged ? nowIso : null;
+
+  // ── Гейт «Создание Демо»: не пускаем сделку на стадию без материалов ──
+  // Определяем, называется ли целевая стадия «Создание Демо».
+  let isDemoBuildStage = false;
+  try {
+    const pipRow = await env.DB.prepare("SELECT stages FROM pipelines WHERE id = ?").bind(pipelineId).first();
+    if (pipRow && pipRow.stages) {
+      const st = JSON.parse(pipRow.stages);
+      const nm = (st && st[stageId] && st[stageId].name) || '';
+      if (DEMO_BUILD_STAGE_RE.test(nm)) isDemoBuildStage = true;
+    }
+  } catch {}
+  const isMainMove = deal.pipeline_id === pipelineId;
+  if (isDemoBuildStage && isMainMove && stageActuallyChanged) {
+    const bc = await demoBriefCompleteness(env, dealId);
+    if (!bc.complete) {
+      return json({
+        error: "Нельзя перевести на «Создание Демо»: не заполнены материалы для демо — " + bc.missing.join(', ') + ". Откройте Бриф в карточке сделки и добавьте их.",
+        demoGate: true, missing: bc.missing,
+      }, 422, request);
+    }
+  }
+
   // Логика reject_reason: при переходе в REJECT — записываем. При переходе
   // из REJECT в любую другую стадию — обнуляем (причина больше не релевантна).
   // Применяется ТОЛЬКО для основной воронки (deal.pipeline_id === pipelineId);
@@ -2510,6 +2785,15 @@ async function handleDealStageChange(request, env, dealId) {
   }
 
   await auditLog(env, me, "deal_stage_change", "deal", dealId, { pipelineId, stageId, isMirror: deal.pipeline_id !== pipelineId });
+
+  // ── Авто-сборка демо при входе в «Создание Демо» ────────────────────
+  // Гейт выше уже гарантировал полноту материалов. Создаём плашку-демо
+  // (идемпотентно) + временную токен-ссылку. Ошибку не пробрасываем, чтобы
+  // не сорвать смену стадии.
+  let demoCreatedId = null;
+  if (isDemoBuildStage && isMainMove && stageActuallyChanged) {
+    try { demoCreatedId = await createDemoForDeal(env, dealId, me); } catch (e) { console.error('createDemoForDeal:', e); }
+  }
 
   // ── Auto-mirror triggers ───────────────────────────────────────────
   // Если у стадии есть autoMirrorTo: {pipelineId, stageId} — автоматически
@@ -2555,6 +2839,7 @@ async function handleDealStageChange(request, env, dealId) {
     ok: true, dealId, pipelineId, stageId,
     isMirror: deal.pipeline_id !== pipelineId,
     autoMirrored,
+    demoCreated: demoCreatedId || null,
   }, 200, request);
 }
 
@@ -8337,6 +8622,38 @@ export default {
     // /api/tasks — создать новую задачу в портале
     if (path === "/api/tasks" && request.method === "POST") {
       return handleCreateTask(request, env);
+    }
+
+    // ── Демо-конструктор ──────────────────────────────────────────────
+    // Публичная отдача демо по временной ссылке (без auth — токен в ?t=).
+    const demoLogoMatch = path.match(/^\/api\/demo\/([^/]+)\/logo$/);
+    if (demoLogoMatch && request.method === "GET") {
+      return handleDemoLogoServe(request, env, decodeURIComponent(demoLogoMatch[1]));
+    }
+    const demoServeMatch = path.match(/^\/api\/demo\/([^/]+)$/);
+    if (demoServeMatch && request.method === "GET") {
+      return handleDemoServe(request, env, decodeURIComponent(demoServeMatch[1]));
+    }
+    // Управление демо (auth).
+    if (path === "/api/demos" && request.method === "GET") {
+      return handleDemosList(request, env);
+    }
+    if (path === "/api/demos/rules" && request.method === "GET") {
+      return handleDemoRulesGet(request, env);
+    }
+    if (path === "/api/demos/rules" && request.method === "PUT") {
+      return handleDemoRulesPut(request, env);
+    }
+    const demoRelinkMatch = path.match(/^\/api\/demos\/([^/]+)\/relink$/);
+    if (demoRelinkMatch && request.method === "POST") {
+      return handleDemoRelink(request, env, decodeURIComponent(demoRelinkMatch[1]));
+    }
+    const demoOneMatch = path.match(/^\/api\/demos\/([^/]+)$/);
+    if (demoOneMatch && request.method === "PATCH") {
+      return handleDemoUpdate(request, env, decodeURIComponent(demoOneMatch[1]));
+    }
+    if (demoOneMatch && request.method === "DELETE") {
+      return handleDemoDelete(request, env, decodeURIComponent(demoOneMatch[1]));
     }
 
     // /api/tasks/by-deals — батч ближайших активных дел для канбан-плашки «📋 Дело».

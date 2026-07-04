@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pllato App — Демо</title>
+<style>
+  :root{
+    --bg:#0c1030; --card:#151a3d; --card2:#1a2050; --line:#2a3170;
+    --txt:#eaf0ff; --muted:#9aa6e0; --accent:#5b6dff; --accent2:#8a5cff;
+    --new:#3fd88e; --work:#f5c842; --final:#7c9cff; --rd:#ff6b6b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,Segoe UI,Roboto,Inter,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#161c46,#0c1030);color:var(--txt);min-height:100vh}
+  .wrap{max-width:1240px;margin:0 auto;padding:20px 18px 60px}
+  header{display:flex;align-items:center;gap:14px;padding:6px 0 20px;flex-wrap:wrap}
+  header .logo{font-weight:850;font-size:22px;letter-spacing:.5px}
+  header .logo .c{color:var(--accent2)}
+  header .sub{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700}
+  header .sp{flex:1}
+  .btn{appearance:none;border:0;cursor:pointer;font-size:13.5px;font-weight:600;color:#fff;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));padding:10px 16px;border-radius:11px;transition:.12s}
+  .btn:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+  .board{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media (max-width:820px){.board{grid-template-columns:1fr}}
+  .col{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:16px;padding:12px;min-height:200px}
+  .col.drag-over{border-color:var(--accent);background:rgba(91,109,255,.08)}
+  .col-h{display:flex;align-items:center;justify-content:space-between;padding:4px 6px 12px}
+  .col-h .t{font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.05em}
+  .col-h .n{font-size:12px;color:var(--muted);background:rgba(255,255,255,.06);border-radius:20px;padding:2px 9px}
+  .col.new .t{color:var(--new)} .col.in_work .t{color:var(--work)} .col.final .t{color:var(--final)}
+  .card{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:13px;
+    padding:13px 14px;margin-bottom:11px;cursor:grab;transition:.12s}
+  .card:hover{border-color:#3a4290}
+  .card.dragging{opacity:.5}
+  .card .ct{font-weight:700;font-size:14.5px;margin-bottom:3px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .card .cs{font-size:12px;color:var(--muted);margin-bottom:9px;word-break:break-word}
+  .badge-new{background:rgba(63,216,142,.16);border:1px solid rgba(63,216,142,.5);color:var(--new);font-size:9.5px;
+    font-weight:800;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em}
+  .row{display:flex;gap:6px;flex-wrap:wrap}
+  .mini{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--muted);
+    font-size:12px;padding:5px 9px;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+  .mini:hover{border-color:var(--accent);color:#fff}
+  .mini.del:hover{border-color:var(--rd);color:var(--rd)}
+  .empty{color:var(--muted);font-size:12.5px;text-align:center;padding:22px 8px;opacity:.7}
+  .center{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px}
+  .modal-ov{position:fixed;inset:0;background:rgba(4,6,20,.7);display:flex;align-items:center;justify-content:center;padding:18px;z-index:50}
+  .modal{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:640px;width:100%;max-height:86vh;overflow:auto}
+  .modal h2{font-size:18px;margin-bottom:6px}
+  .modal p{color:var(--muted);font-size:13px;margin-bottom:12px}
+  textarea{width:100%;min-height:280px;background:#0e1338;border:1px solid var(--line);color:var(--txt);
+    border-radius:11px;padding:12px 14px;font-size:13.5px;font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.5;resize:vertical}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1b2150;border:1px solid var(--line);
+    color:#fff;padding:11px 18px;border-radius:12px;font-size:13.5px;z-index:60;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="logo">PLL<span class="c">A</span>TO</span>
+    <span class="sub">App · Демо-конструктор</span>
+    <span class="sp"></span>
+    <button class="btn ghost" id="rules-btn" style="display:none">⚙️ Правила сборки</button>
+    <button class="btn ghost" id="refresh-btn" style="display:none">🔄 Обновить</button>
+  </header>
+  <div id="content"><div class="center"><div style="font-size:36px">⏳</div><div class="sub">Загрузка…</div></div></div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",
+  authDomain: "pllato-crm.firebaseapp.com",
+  databaseURL: "https://pllato-crm-default-rtdb.firebaseio.com",
+  projectId: "pllato-crm",
+  storageBucket: "pllato-crm.firebasestorage.app",
+  messagingSenderId: "690738857241",
+  appId: "1:690738857241:web:2356e97c435656890ab188"
+};
+const WORKER = 'https://pllato-elc-worker.uurraa.workers.dev';
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+const COLS = [
+  { id: 'new', label: 'Новые демо' },
+  { id: 'in_work', label: 'В работе' },
+  { id: 'final', label: 'Итоговые' },
+];
+const content = document.getElementById('content');
+let demos = [];
+let dragId = null;
+
+const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2200); }
+
+async function token(){ const u=auth.currentUser; return u ? await u.getIdToken() : null; }
+async function api(path, opts={}){
+  const t = await token();
+  const r = await fetch(WORKER + path, { ...opts, headers: { 'Content-Type':'application/json', Authorization:'Bearer '+t, ...(opts.headers||{}) } });
+  if(!r.ok){ let e; try{ e=(await r.json()).error }catch{} throw new Error(e || ('HTTP '+r.status)); }
+  return r.json();
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if(!user){ renderSignIn(); return; }
+  document.getElementById('rules-btn').style.display = '';
+  document.getElementById('refresh-btn').style.display = '';
+  await loadDemos();
+});
+document.getElementById('refresh-btn').onclick = loadDemos;
+document.getElementById('rules-btn').onclick = openRules;
+
+function renderSignIn(){
+  document.getElementById('rules-btn').style.display='none';
+  document.getElementById('refresh-btn').style.display='none';
+  content.innerHTML = `<div class="center"><div style="font-size:40px">🔒</div>
+    <h2>Вход в Pllato App</h2><p class="sub">Войдите тем же аккаунтом, что и в портале</p>
+    <button class="btn" id="gsi">Войти через Google</button></div>`;
+  document.getElementById('gsi').onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e=>toast('Ошибка входа: '+e.message));
+}
+
+async function loadDemos(){
+  try{
+    const d = await api('/api/demos');
+    demos = d.items || [];
+    renderBoard();
+  }catch(e){
+    content.innerHTML = `<div class="center"><div style="font-size:36px">⚠️</div><p>Не удалось загрузить: ${esc(e.message)}</p>
+      <button class="btn ghost" onclick="location.reload()">Повторить</button></div>`;
+  }
+}
+
+function fmtDate(s){ if(!s) return ''; const d=new Date(s); return isNaN(d)?'':d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}); }
+function expLabel(s){ if(!s) return ''; const d=new Date(s); if(isNaN(d)) return ''; const days=Math.ceil((d-new Date())/864e5);
+  return days<0 ? 'ссылка истекла' : ('ссылка ещё '+days+' дн.'); }
+
+function cardHtml(dm){
+  return `<div class="card" draggable="true" data-id="${esc(dm.id)}">
+    <div class="ct">${dm.isNew?'<span class="badge-new">новая</span>':''}${esc(dm.clientName||dm.title||'Демо')}</div>
+    <div class="cs">${dm.website?esc(dm.website)+' · ':''}создана ${fmtDate(dm.createdAt)} · ${esc(expLabel(dm.tokenExpires))}</div>
+    <div class="row">
+      <a class="mini" href="${esc(dm.link)}" target="_blank" rel="noopener">🔗 Открыть</a>
+      <button class="mini" data-act="copy" data-id="${esc(dm.id)}">📋 Ссылка</button>
+      <button class="mini" data-act="relink" data-id="${esc(dm.id)}">🔄 Новая ссылка</button>
+      <button class="mini del" data-act="del" data-id="${esc(dm.id)}">🗑</button>
+    </div>
+  </div>`;
+}
+
+function renderBoard(){
+  const byCol = { new:[], in_work:[], final:[] };
+  for(const d of demos){ (byCol[d.status] || byCol.new).push(d); }
+  content.innerHTML = `<div class="board">${COLS.map(c=>`
+    <div class="col ${c.id}" data-col="${c.id}">
+      <div class="col-h"><span class="t">${c.label}</span><span class="n">${byCol[c.id].length}</span></div>
+      <div class="col-cards" data-col="${c.id}">
+        ${byCol[c.id].map(cardHtml).join('') || '<div class="empty">Пусто</div>'}
+      </div>
+    </div>`).join('')}</div>`;
+  wireDnD();
+  content.querySelectorAll('[data-act]').forEach(b => b.onclick = (e)=>{ e.stopPropagation(); onAction(b.dataset.act, b.dataset.id); });
+}
+
+function wireDnD(){
+  content.querySelectorAll('.card').forEach(card=>{
+    card.addEventListener('dragstart', ()=>{ dragId=card.dataset.id; card.classList.add('dragging'); });
+    card.addEventListener('dragend', ()=>{ dragId=null; card.classList.remove('dragging'); });
+  });
+  content.querySelectorAll('.col').forEach(col=>{
+    col.addEventListener('dragover', e=>{ e.preventDefault(); col.classList.add('drag-over'); });
+    col.addEventListener('dragleave', ()=> col.classList.remove('drag-over'));
+    col.addEventListener('drop', async e=>{
+      e.preventDefault(); col.classList.remove('drag-over');
+      const newStatus = col.dataset.col;
+      const dm = demos.find(x=>x.id===dragId);
+      if(!dm || dm.status===newStatus) return;
+      dm.status = newStatus;
+      if(newStatus!=='new') dm.isNew = false;   // вышла из «Новых» → снимаем метку
+      renderBoard();
+      try{ await api('/api/demos/'+encodeURIComponent(dm.id), { method:'PATCH', body: JSON.stringify({ status:newStatus, isNew: dm.isNew }) }); }
+      catch(err){ toast('Ошибка: '+err.message); loadDemos(); }
+    });
+  });
+}
+
+async function onAction(act, id){
+  const dm = demos.find(x=>x.id===id);
+  if(!dm) return;
+  if(act==='copy'){
+    try{ await navigator.clipboard.writeText(dm.link); toast('Ссылка скопирована'); }
+    catch{ prompt('Ссылка на демо:', dm.link); }
+  } else if(act==='relink'){
+    if(!confirm('Сгенерировать новую ссылку? Старая перестанет работать.')) return;
+    try{ const r = await api('/api/demos/'+encodeURIComponent(id)+'/relink', { method:'POST', body:'{}' });
+      dm.link=r.link; dm.tokenExpires=r.tokenExpires; toast('Новая ссылка готова (30 дней)'); renderBoard(); }
+    catch(e){ toast('Ошибка: '+e.message); }
+  } else if(act==='del'){
+    if(!confirm('Удалить эту демо-плашку?')) return;
+    try{ await api('/api/demos/'+encodeURIComponent(id), { method:'DELETE' });
+      demos = demos.filter(x=>x.id!==id); renderBoard(); toast('Удалено'); }
+    catch(e){ toast('Ошибка: '+e.message); }
+  }
+}
+
+async function openRules(){
+  let rules='';
+  try{ rules=(await api('/api/demos/rules')).rules || ''; }catch{}
+  const ov=document.createElement('div'); ov.className='modal-ov';
+  ov.onclick=(e)=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML=`<div class="modal">
+    <h2>⚙️ Правила сборки систем</h2>
+    <p>Опишите обязательный функционал и как собирать стандартные/кастомные демо под клиентов. Этот текст — ТЗ, по которому собираются авторские системы на основе брифов.</p>
+    <textarea id="rules-ta" placeholder="Например:\n— Каждая демо обязательно содержит: воронки, задачи, чат с клиентом.\n— Если у клиента розница — добавить склад и остатки.\n— Логотип клиента в шапке, фирменные цвета…">${esc(rules)}</textarea>
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn ghost" id="r-cancel">Отмена</button>
+      <button class="btn" id="r-save">Сохранить</button>
+    </div>
+    <div id="r-err" style="color:var(--rd);font-size:12px;margin-top:8px"></div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#r-cancel').onclick=()=>ov.remove();
+  ov.querySelector('#r-save').onclick=async ()=>{
+    const val=ov.querySelector('#rules-ta').value;
+    const btn=ov.querySelector('#r-save'); btn.disabled=true; btn.textContent='⏳…';
+    try{ await api('/api/demos/rules', { method:'PUT', body: JSON.stringify({ rules: val }) }); toast('Правила сохранены'); ov.remove(); }
+    catch(e){ ov.querySelector('#r-err').textContent='Ошибка: '+e.message; btn.disabled=false; btn.textContent='Сохранить'; }
+  };
+}
+</script>
+</body>
+</html>
