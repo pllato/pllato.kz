@@ -6,482 +6,443 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>BOUTIQUE — CRM магазина брендовой одежды · Демо</title>
 <meta name="robots" content="noindex,nofollow"/>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23171210'/%3E%3Ctext x='7' y='23' font-size='17'%3E%F0%9F%91%97%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f6f1e8'/%3E%3Crect x='1.5' y='1.5' width='29' height='29' fill='none' stroke='%231b1610' stroke-width='1.6'/%3E%3Ctext x='9' y='24' font-size='20' font-family='Georgia,serif' font-weight='bold' fill='%231b1610'%3EB%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,500;0,700;0,800;1,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#faf7f2;--card:#fff;--line:#ece5d8;--ink:#1c1712;--muted:#77695a;--muted2:#a89a89;
-  --gold:#a97f3e;--gold-d:#8a6428;--gold-l:#f3e8d4;--gold-xl:#f9f3e7;
-  --side:#171210;--side2:#241c17;
-  --wa:#1fa855;--wa-l:#e3f6ea;--ig1:#f58529;--ig2:#dd2a7b;--ig-l:#fdeef5;--tg:#2496c8;--tg-l:#e3f2fa;
-  --red:#c2361f;--red-l:#fbe7e2;--amber:#b45309;--amber-l:#fdf0d9;--green:#177245;--green-l:#e0f2e8;
-  --violet:#7c3aed;--violet-l:#efe9fd;
-  --r:14px;
+  --paper:#f5f0e6;--panel:#fbf8f1;--ink:#1b1610;--mut:#7a6c5b;--mut2:#a5988a;
+  --hair:rgba(27,22,16,.18);--hair2:rgba(27,22,16,.09);
+  --gold:#9a7434;--goldD:#7a5a24;--goldT:rgba(154,116,52,.1);
+  --wa:#1f9e52;--ig:#c92668;--tg:#2288b7;--ph:#6b7280;--of:#8a6d3a;
+  --red:#a83420;--grn:#1d6e46;--amb:#9c6110;--vio:#6d4fa1;
+  --serif:'Playfair Display',Georgia,serif;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
+html{background:var(--paper)}
+body{font-family:'Inter',sans-serif;background:var(--paper);color:var(--ink);font-size:13.5px;-webkit-font-smoothing:antialiased}
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
-input,select{font-family:inherit;font-size:13px}
-::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#d8cdbc;border-radius:8px}
+input,select{font-family:inherit;font-size:13px;color:var(--ink)}
+::-webkit-scrollbar{width:8px;height:6px}::-webkit-scrollbar-thumb{background:#cec2ad;border-radius:0}
+::selection{background:var(--goldT)}
 
-.app{display:flex;min-height:100vh}
-/* SIDEBAR */
-.side{width:230px;background:linear-gradient(180deg,var(--side),#0d0a08);color:#c9bda9;flex-shrink:0;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow-y:auto}
-.logo{display:flex;align-items:center;gap:11px;padding:19px 16px 15px;border-bottom:1px solid rgba(255,255,255,.08)}
-.logo .lm{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2e241c,#171210);border:1.5px solid var(--gold);display:grid;place-items:center;font-size:18px;flex:none}
-.logo b{font-family:'Playfair Display',serif;font-size:16px;color:#fff;letter-spacing:3.5px;display:block;font-weight:700}
-.logo span{font-size:9.5px;color:#8d7f6c;letter-spacing:1px;text-transform:uppercase}
-.nav{padding:10px 8px;flex:1}
-.ngroup{font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:#6d6152;padding:12px 10px 5px;font-weight:700}
-.nitem{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 11px;border-radius:9px;font-size:13.5px;font-weight:500;color:#b4a794;transition:.13s;position:relative}
-.nitem:hover{background:rgba(255,255,255,.07);color:#fff}
-.nitem.on{background:linear-gradient(90deg,rgba(169,127,62,.32),transparent);color:#fff}
-.nitem.on::before{content:'';position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:3px;background:var(--gold)}
-.nitem .ic{width:20px;text-align:center;font-size:15px}
-.nitem .bdg{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:20px}
-.nitem .bdg.gold{background:var(--gold)}
-.side-user{padding:12px;border-top:1px solid rgba(255,255,255,.08)}
-.suser{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.05);border-radius:10px;padding:9px}
-.suser .av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;flex:none;background:#3b2f22;color:#e8d8bd}
-.suser .un{font-size:12.5px;font-weight:700;color:#fff}
-.suser .ut{font-size:10.5px;color:#8d7f6c}
+/* ===== верхняя шапка ===== */
+.note{background:var(--ink);color:#cfc4b0;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;text-align:center;padding:8px 14px}
+.note b{color:#f5f0e6;font-weight:600}
+.hd{background:var(--paper);border-bottom:1px solid var(--hair);position:sticky;top:0;z-index:40}
+.hd-top{display:flex;align-items:center;gap:20px;padding:20px 34px 14px;max-width:1340px;margin:0 auto}
+.wordmark{line-height:1}
+.wordmark .wm{font-family:var(--serif);font-size:23px;font-weight:700;letter-spacing:7px;white-space:nowrap}
+.wordmark .ws{font-size:9px;letter-spacing:2.4px;text-transform:uppercase;color:var(--mut);margin-top:5px}
+.hd-date{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--mut2);margin-left:26px;padding-left:26px;border-left:1px solid var(--hair2)}
+.hd-right{margin-left:auto;display:flex;align-items:center;gap:22px}
+.roles{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);display:flex;gap:10px;align-items:center}
+.roles button{color:var(--mut2);letter-spacing:1px;text-transform:uppercase;font-size:11px;padding-bottom:2px;border-bottom:1.5px solid transparent}
+.roles button.on{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+.roles .sep{color:var(--hair)}
+.bb{background:var(--ink);color:var(--paper);font-size:10px;letter-spacing:1.8px;text-transform:uppercase;font-weight:600;padding:11px 20px;transition:.15s}
+.bb:hover{background:var(--goldD)}
+.bo{background:none;border:1px solid var(--hair);color:var(--ink);font-size:10px;letter-spacing:1.4px;text-transform:uppercase;font-weight:600;padding:8px 14px;transition:.15s}
+.bo:hover{border-color:var(--ink)}
+.hnav{display:flex;gap:30px;padding:0 34px;max-width:1340px;margin:0 auto;overflow-x:auto}
+.hnav button{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mut);padding:12px 0 13px;border-bottom:2px solid transparent;white-space:nowrap;font-weight:600}
+.hnav button:hover{color:var(--ink)}
+.hnav button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.hnav sup{color:var(--gold);font-weight:700;font-size:9.5px;margin-left:3px}
 
-/* MAIN */
-.main{flex:1;min-width:0;display:flex;flex-direction:column}
-.top{display:flex;align-items:center;gap:12px;padding:12px 24px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
-.top h1{font-family:'Playfair Display',serif;font-size:21px;font-weight:700;letter-spacing:.2px}
-.top .tsub{font-size:11.5px;color:var(--muted2)}
-.top-right{margin-left:auto;display:flex;align-items:center;gap:10px}
-.role-sw{display:flex;background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:3px}
-.role-sw button{padding:6px 13px;border-radius:7px;font-size:12px;font-weight:700;color:var(--muted)}
-.role-sw button.on{background:var(--side);color:#fff}
-.tbtn{background:var(--gold);color:#fff;font-weight:700;font-size:12.5px;padding:9px 15px;border-radius:9px}
-.tbtn:hover{background:var(--gold-d)}
-.content{padding:22px 24px 70px;flex:1}
-.screen{display:none}.screen.on{display:block;animation:fd .22s}
-@keyframes fd{from{opacity:0;transform:translateY(5px)}to{opacity:1}}
+.wrap{max-width:1340px;margin:0 auto;padding:26px 34px 90px}
+.screen{display:none}.screen.on{display:block;animation:fd .25s}
+@keyframes fd{from{opacity:0}to{opacity:1}}
+.ph{margin-bottom:20px}
+.ph h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.3px}
+.ph .ps{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--mut2);margin-top:5px}
 
-/* KPI */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px}
-.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;position:relative;overflow:hidden}
-.kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--kc,var(--gold))}
-.kpi .kl{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);font-weight:700}
-.kpi .kv{font-family:'Playfair Display',serif;font-size:25px;font-weight:700;letter-spacing:0;margin-top:4px}
-.kpi .kd{font-size:11px;color:var(--muted);margin-top:2px}
-.kpi.red{--kc:var(--red)}.kpi.amber{--kc:var(--amber)}.kpi.green{--kc:var(--green)}.kpi.violet{--kc:var(--violet)}
+/* ===== статистическая лента ===== */
+.stats{display:flex;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);margin-bottom:26px;flex-wrap:wrap}
+.st{flex:1;min-width:170px;padding:18px 24px;border-left:1px solid var(--hair2)}
+.st:first-child{border-left:none}
+.st .sl{font-size:9.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--mut2);font-weight:600}
+.st .sv{font-family:var(--serif);font-size:31px;font-weight:600;margin-top:6px;line-height:1}
+.st .sn{font-size:11px;color:var(--mut);margin-top:6px}
+.st .sv em{font-style:normal;color:var(--gold)}
 
-.grid2{display:grid;grid-template-columns:1.35fr 1fr;gap:14px;align-items:start}
-@media(max-width:1000px){.grid2{grid-template-columns:1fr}}
-.stack{display:flex;flex-direction:column;gap:14px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-bottom:14px}
-.card h3{font-size:13px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.card h3 .hl{margin-left:auto;font-size:11px;color:var(--gold-d);font-weight:700;cursor:pointer}
-.card h3 .hl:hover{text-decoration:underline}
+/* ===== рубрики и панели ===== */
+.rub{display:flex;align-items:baseline;gap:16px;margin:30px 0 14px}
+.rub .rt{font-size:11px;letter-spacing:2.2px;text-transform:uppercase;font-weight:700;white-space:nowrap}
+.rub .rl{flex:1;height:1px;background:var(--hair2);align-self:center}
+.rub .ra{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);font-weight:700;cursor:pointer;white-space:nowrap}
+.rub .ra:hover{color:var(--goldD)}
+.panel{background:var(--panel);border:1px solid var(--hair);padding:20px 24px}
+.cols2{display:grid;grid-template-columns:1.45fr 1fr;gap:22px;align-items:start}
+@media(max-width:1000px){.cols2{grid-template-columns:1fr}}
 
-/* badges */
-.b{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
-.b.gold{background:var(--gold-l);color:var(--gold-d)}
-.b.red{background:var(--red-l);color:var(--red)}
-.b.amb{background:var(--amber-l);color:var(--amber)}
-.b.grn{background:var(--green-l);color:var(--green)}
-.b.vio{background:var(--violet-l);color:var(--violet)}
-.b.gry{background:#f1ece2;color:var(--muted)}
-.ch{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;color:#fff}
-.ch.wa{background:var(--wa)}.ch.tg{background:var(--tg)}
-.ch.ig{background:linear-gradient(45deg,var(--ig1),var(--ig2))}
-.ch.ph{background:#64748b}.ch.of{background:#8a6428}
+/* прайс-лист строки (каналы, бренды) */
+.pr{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--hair2)}
+.pr:last-child{border-bottom:none}
+.pr .pn{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;font-weight:600;width:150px;display:flex;align-items:center;gap:8px}
+.pr .ln{flex:1;height:2px;background:var(--hair2);position:relative}
+.pr .ln i{position:absolute;left:0;top:0;height:2px;background:var(--ink)}
+.pr .ln i::after{content:'';position:absolute;right:-3px;top:-2px;width:6px;height:6px;background:var(--gold);transform:rotate(45deg)}
+.pr .pv{width:92px;text-align:right;font-size:11.5px;color:var(--mut);font-variant-numeric:tabular-nums}
+.sw{display:inline-block;width:8px;height:8px;flex:none}
+.sw.wa{background:var(--wa)}.sw.ig{background:var(--ig)}.sw.tg{background:var(--tg)}.sw.ph{background:var(--ph)}.sw.of{background:var(--of)}
 
-/* table */
+/* метки */
+.tag{display:inline-block;font-size:8.5px;letter-spacing:1.3px;text-transform:uppercase;font-weight:700;border:1px solid currentColor;padding:2.5px 7px;white-space:nowrap}
+.tag.gold{color:var(--goldD)}.tag.red{color:var(--red)}.tag.grn{color:var(--grn)}.tag.amb{color:var(--amb)}.tag.vio{color:var(--vio)}.tag.gry{color:var(--mut2)}
+.chn{font-size:9px;letter-spacing:1px;text-transform:uppercase;font-weight:700;display:inline-flex;align-items:center;gap:5px;color:var(--mut)}
+
+/* таблицы */
 table{width:100%;border-collapse:collapse}
-th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted2);text-align:left;padding:9px 10px;border-bottom:1.5px solid var(--line);font-weight:700;white-space:nowrap}
-td{padding:10px;border-bottom:1px solid #f4efe6;font-size:12.5px;vertical-align:middle}
-tbody tr{cursor:pointer;transition:.1s}
-tbody tr:hover td{background:var(--gold-xl)}
-.cname{font-weight:700;font-size:13px}
-.csub{font-size:11px;color:var(--muted2)}
+th{font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:var(--mut2);text-align:left;padding:10px;border-bottom:1px solid var(--hair);font-weight:700;white-space:nowrap}
+td{padding:12px 10px;border-bottom:1px solid var(--hair2);font-size:12.5px;vertical-align:middle}
+tbody tr{cursor:pointer;transition:.12s}
+tbody tr:hover td{background:rgba(154,116,52,.06)}
+.cname{font-weight:600;font-size:13px}
+.csub{font-size:10.5px;color:var(--mut2);margin-top:2px;letter-spacing:.3px}
+.thumb{width:36px;height:36px;border:1px solid var(--hair);display:grid;place-items:center;font-family:var(--serif);font-size:12px;font-weight:700;flex:none;background:var(--panel)}
 
-/* filters */
-.frow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
-.chip{padding:7px 13px;border-radius:20px;font-size:12px;font-weight:600;background:#fff;border:1.5px solid var(--line);color:var(--muted)}
-.chip.on{background:var(--side);border-color:var(--side);color:#fff}
-.frow input,.frow select{border:1.5px solid var(--line);border-radius:9px;padding:8px 12px;outline:none;background:#fff}
-.frow input:focus{border-color:var(--gold)}
+/* фильтры */
+.frow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.frow input,.frow select{border:none;border-bottom:1px solid var(--hair);background:none;padding:8px 2px;outline:none;min-width:150px}
+.frow input:focus{border-bottom-color:var(--ink)}
+.fchip{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;font-weight:600;color:var(--mut2);padding:8px 2px;border-bottom:2px solid transparent}
+.fchip.on{color:var(--ink);border-bottom-color:var(--ink)}
 
-/* inbox */
-.chat{display:grid;grid-template-columns:300px 1fr 250px;gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:#fff;height:600px}
-@media(max-width:1000px){.chat{grid-template-columns:260px 1fr}.chp{display:none}}
-.chl{border-right:1px solid var(--line);overflow-y:auto}
-.chl-f{display:flex;gap:5px;padding:10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.chl-f .chip{padding:4px 10px;font-size:10.5px}
-.chi{display:flex;gap:10px;padding:11px 13px;border-bottom:1px solid #f4efe6;cursor:pointer}
-.chi:hover,.chi.on{background:var(--gold-xl)}
-.chi .av{width:38px;height:38px;border-radius:50%;background:var(--gold-l);color:var(--gold-d);display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
-.chi .cn{font-size:12.5px;font-weight:700}
-.chi .cm{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
-.chi .ct{margin-left:auto;font-size:9.5px;color:var(--muted2);flex:none;text-align:right}
-.unr{background:var(--gold);color:#fff;border-radius:50%;width:17px;height:17px;display:grid;place-items:center;font-size:9.5px;font-weight:800;margin-top:4px;margin-left:auto}
-.chr{display:flex;flex-direction:column;background:#f5f0e6}
-.chh{background:#fff;padding:11px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
-.chh b{font-size:13.5px}
-.msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
-.msg{max-width:72%;padding:8px 12px;border-radius:11px;font-size:12.5px;line-height:1.45;box-shadow:0 1px 1px rgba(0,0,0,.05)}
-.msg.in{background:#fff;align-self:flex-start;border-bottom-left-radius:3px}
-.msg.out{background:#efe3c8;align-self:flex-end;border-bottom-right-radius:3px}
-.msg .mt{font-size:9.5px;color:var(--muted2);text-align:right;margin-top:3px}
-.chf{background:#fff;padding:10px;display:flex;gap:8px;border-top:1px solid var(--line)}
-.chf input{flex:1;border:1.5px solid var(--line);border-radius:20px;padding:9px 15px;outline:none}
-.tpl-row{background:#fff;padding:8px 10px 2px;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid #f4efe6}
-.tpl{font-size:10.5px;background:var(--gold-xl);color:var(--gold-d);border:1px solid #e6d9bd;border-radius:20px;padding:5px 11px;margin-bottom:6px;font-weight:600}
-.tpl:hover{background:var(--gold-l)}
-.chp{border-left:1px solid var(--line);padding:16px;overflow-y:auto;background:#fff}
-.chp .ig{padding:8px 0;border-bottom:1px solid #f4efe6}
-.chp .il{font-size:9.5px;text-transform:uppercase;color:var(--muted2);font-weight:800;letter-spacing:.4px}
-.chp .iv{font-size:12.5px;font-weight:600;margin-top:2px}
+/* инбокс */
+.chat{display:grid;grid-template-columns:290px 1fr 240px;border:1px solid var(--hair);background:var(--panel);height:600px}
+@media(max-width:1000px){.chat{grid-template-columns:250px 1fr}.chp{display:none}}
+.chl{border-right:1px solid var(--hair);overflow-y:auto}
+.chl-f{display:flex;gap:14px;padding:12px 16px;border-bottom:1px solid var(--hair)}
+.chl-f button{font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;font-weight:700;color:var(--mut2);padding-bottom:2px;border-bottom:1.5px solid transparent}
+.chl-f button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.chi{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid var(--hair2);cursor:pointer}
+.chi:hover,.chi.on{background:rgba(154,116,52,.07)}
+.chi .avm{width:36px;height:36px;border:1px solid var(--hair);display:grid;place-items:center;font-family:var(--serif);font-size:12px;font-weight:700;flex:none}
+.chi .cn{font-size:12.5px;font-weight:600;display:flex;gap:7px;align-items:center}
+.chi .cm{font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;margin-top:2px}
+.chi .ct{margin-left:auto;font-size:9px;color:var(--mut2);flex:none;text-align:right;letter-spacing:.5px}
+.unr{background:var(--gold);color:#fff;width:16px;height:16px;display:grid;place-items:center;font-size:9px;font-weight:700;margin-top:5px;margin-left:auto}
+.chr{display:flex;flex-direction:column;background:#efe9db}
+.chh{background:var(--panel);padding:12px 18px;border-bottom:1px solid var(--hair);display:flex;align-items:center;gap:12px}
+.chh b{font-family:var(--serif);font-size:15px;font-weight:600}
+.msgs{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:9px}
+.msg{max-width:72%;padding:9px 13px;font-size:12.5px;line-height:1.5;border:1px solid var(--hair2)}
+.msg.in{background:#fbf8f1;align-self:flex-start}
+.msg.out{background:#e9dcbf;align-self:flex-end;border-color:rgba(154,116,52,.25)}
+.msg .mt{font-size:8.5px;color:var(--mut2);text-align:right;margin-top:4px;letter-spacing:.6px}
+.chf{background:var(--panel);padding:12px;display:flex;gap:10px;border-top:1px solid var(--hair)}
+.chf input{flex:1;border:1px solid var(--hair);background:none;padding:10px 14px;outline:none}
+.chf input:focus{border-color:var(--ink)}
+.tpl-row{background:var(--panel);padding:10px 12px 4px;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--hair2)}
+.tpl{font-size:9.5px;letter-spacing:.8px;text-transform:uppercase;font-weight:600;border:1px solid var(--hair);padding:6px 11px;margin-bottom:6px;color:var(--mut)}
+.tpl:hover{border-color:var(--gold);color:var(--goldD)}
+.chp{border-left:1px solid var(--hair);padding:18px;overflow-y:auto}
+.pfield{padding:9px 0;border-bottom:1px solid var(--hair2)}
+.pfield .il{font-size:8.5px;letter-spacing:1.3px;text-transform:uppercase;color:var(--mut2);font-weight:700}
+.pfield .iv{font-size:12.5px;font-weight:600;margin-top:3px}
 
-/* kanban */
-.kan{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:start}
+/* воронка */
+.kan{display:grid;grid-template-columns:repeat(5,1fr);gap:0;border:1px solid var(--hair);background:var(--panel)}
 @media(max-width:1000px){.kan{grid-template-columns:repeat(2,1fr)}}
-.kcol{background:#f1ece0;border-radius:var(--r);padding:9px}
-.kcol h4{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:2px 6px 8px;font-weight:800;display:flex;justify-content:space-between}
-.kcard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:.12s}
-.kcard:hover{box-shadow:0 4px 14px rgba(105,75,30,.12);transform:translateY(-1px)}
-.kcard .kt{font-size:12.5px;font-weight:700}
-.kcard .kc2{font-size:11px;color:var(--muted);margin-top:3px}
-.kcard .km{font-size:12px;font-weight:800;color:var(--gold-d);margin-top:5px}
-.kcard .kf{display:flex;align-items:center;gap:6px;margin-top:6px}
+.kcol{border-left:1px solid var(--hair2);padding:14px;min-height:300px}
+.kcol:first-child{border-left:none}
+.kcol h4{font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:var(--mut2);font-weight:700;padding-bottom:10px;border-bottom:1px solid var(--hair2);margin-bottom:12px;display:flex;justify-content:space-between}
+.kcard{border:1px solid var(--hair2);background:var(--paper);padding:12px;margin-bottom:9px;cursor:pointer;transition:.12s}
+.kcard:hover{border-color:var(--gold)}
+.kcard .kt{font-size:12px;font-weight:600;line-height:1.4}
+.kcard .km{font-family:var(--serif);font-size:14px;font-weight:700;color:var(--goldD);margin-top:6px}
+.kcard .kf{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:9.5px;color:var(--mut2);letter-spacing:.6px;text-transform:uppercase}
 
-/* stock */
-.sizes{display:flex;gap:3px}
-.sz{min-width:30px;text-align:center;font-size:10px;font-weight:800;border-radius:6px;padding:3px 4px;background:#f1ece2;color:var(--muted)}
-.sz.has{background:var(--gold-l);color:var(--gold-d)}
-.sz.zero{background:var(--red-l);color:var(--red);text-decoration:line-through}
-.sync{display:flex;gap:14px;align-items:center;background:linear-gradient(90deg,#f3ecdd,#fff);border:1px solid #e2d7bf;border-radius:var(--r);padding:14px 20px;margin-bottom:14px;flex-wrap:wrap}
-.sync .si{font-size:26px}
-.sync b{font-size:13.5px}
-.sync p{font-size:11.5px;color:var(--muted)}
-.sync .mbtn{margin-left:auto}
-
-/* control screen */
-.ctl{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden}
-.ctl-h{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,var(--gold-xl),#fff)}
-.ctl-h .ci{font-size:20px}
-.ctl-h b{font-size:13.5px}
-.ctl-h .cnt{margin-left:auto;font-size:11px;font-weight:800;background:var(--side);color:#fff;border-radius:20px;padding:3px 11px}
-.ctl-r{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid #f4efe6;flex-wrap:wrap}
+/* контроль клиентов */
+.ctl{border:1px solid var(--hair);background:var(--panel);margin-bottom:18px}
+.ctl-h{display:flex;align-items:baseline;gap:14px;padding:16px 22px;border-bottom:1px solid var(--hair)}
+.ctl-h .num{font-family:var(--serif);font-style:italic;font-size:19px;color:var(--gold);width:26px}
+.ctl-h b{font-size:12px;letter-spacing:1.8px;text-transform:uppercase;font-weight:700}
+.ctl-h .cnt{margin-left:auto;font-family:var(--serif);font-size:17px;color:var(--mut)}
+.ctl-r{display:flex;align-items:center;gap:14px;padding:13px 22px;border-bottom:1px solid var(--hair2);flex-wrap:wrap}
 .ctl-r:last-child{border-bottom:none}
-.ctl-r .av{width:32px;height:32px;border-radius:50%;background:var(--gold-l);color:var(--gold-d);display:grid;place-items:center;font-weight:800;font-size:11px;flex:none}
-.ctl-r .cn{font-size:12.5px;font-weight:700}
-.ctl-r .cs{font-size:11px;color:var(--muted)}
-.ctl-r .act{margin-left:auto;display:flex;gap:6px}
-.abtn{font-size:11px;font-weight:700;border:1.5px solid var(--line);border-radius:8px;padding:6px 11px;background:#fff}
-.abtn:hover{border-color:var(--gold)}
-.abtn.pr{background:var(--gold);border-color:var(--gold);color:#fff}
+.ctl-r .avm{width:34px;height:34px;border:1px solid var(--hair);display:grid;place-items:center;font-family:var(--serif);font-size:11.5px;font-weight:700;flex:none}
+.ctl-r .cn{font-size:13px;font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ctl-r .cs{font-size:11.5px;color:var(--mut);margin-top:2px}
+.ctl-r .act{margin-left:auto;display:flex;gap:8px}
 
-/* mailing */
-.camp{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #f4efe6;flex-wrap:wrap}
+/* рассылки */
+.camp{display:flex;gap:16px;align-items:center;padding:14px 0;border-bottom:1px solid var(--hair2);flex-wrap:wrap}
 .camp:last-child{border-bottom:none}
-.camp .ci2{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:18px;background:var(--gold-xl);flex:none}
-.camp .cn{font-size:13px;font-weight:700}
-.camp .cs{font-size:11px;color:var(--muted)}
-.camp .stat{margin-left:auto;display:flex;gap:14px;font-size:11px;color:var(--muted);text-align:center}
-.camp .stat b{display:block;font-size:14px;color:var(--ink)}
+.camp .num{font-family:var(--serif);font-style:italic;font-size:20px;color:var(--gold);width:30px;flex:none}
+.camp .cn{font-size:13px;font-weight:600}
+.camp .cs{font-size:11px;color:var(--mut);margin-top:2px;letter-spacing:.3px}
+.camp .stat{margin-left:auto;display:flex;gap:22px;text-align:center}
+.camp .stat span{font-size:8.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--mut2);display:block;margin-top:3px}
+.camp .stat b{font-family:var(--serif);font-size:16px;font-weight:700}
 
-/* bars */
-.bar{height:7px;background:#eee7d8;border-radius:6px;overflow:hidden}
-.bar i{display:block;height:100%;border-radius:6px;background:var(--gold)}
-.tl{display:flex;align-items:center;gap:10px;padding:7px 0}
-.tl .tn{width:120px;font-size:12.5px;font-weight:600}
-.tl .bar{flex:1}
-.tl .tv{width:90px;text-align:right;font-size:11px;color:var(--muted);flex:none}
-
-/* modal */
-.ovl{position:fixed;inset:0;background:rgba(23,18,16,.55);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:30px 16px;overflow-y:auto}
-.ovl.show{display:flex}
-.mod{background:#fff;border-radius:18px;max-width:720px;width:100%;animation:fd .18s}
-.mhead{padding:18px 22px 0;display:flex;align-items:flex-start;gap:12px}
-.mhead h2{font-family:'Playfair Display',serif;font-size:21px;font-weight:700;letter-spacing:.2px}
-.mhead .msub{font-size:12px;color:var(--muted);margin-top:3px}
-.mx-close{font-size:22px;color:var(--muted2);padding:4px 8px;margin-left:auto}
-.mbody{padding:16px 22px 22px;max-height:62vh;overflow-y:auto}
-.info-g{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px}
-.ig2{padding:8px 0;border-bottom:1px solid #f4efe6}
-.ig2 .il{font-size:10px;text-transform:uppercase;color:var(--muted2);font-weight:800;letter-spacing:.4px}
-.ig2 .iv{font-size:13px;font-weight:600;margin-top:2px}
-.mfoot{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap}
-.mbtn{background:var(--gold);color:#fff;font-weight:700;font-size:12.5px;padding:10px 16px;border-radius:9px}
-.mbtn:hover{background:var(--gold-d)}
-.mbtn.gh{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
-.mbtn.gh:hover{border-color:var(--gold)}
-
-/* toast */
-#toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:360px}
-.toast{background:#171210;color:#f0e8d8;padding:12px 16px;border-radius:12px;font-size:12.5px;line-height:1.5;box-shadow:0 10px 30px rgba(0,0,0,.35);border-left:3px solid var(--gold);animation:tin .25s}
-@keyframes tin{from{opacity:0;transform:translateX(20px)}to{opacity:1}}
-.toast b{color:#e2c98f}
-
-/* tasks / team */
-.shift{display:flex;gap:18px;align-items:center;background:linear-gradient(120deg,#171210,#33271b);color:#efe6d2;border-radius:var(--r);padding:18px 22px;margin-bottom:14px;flex-wrap:wrap}
-.shift .sd{font-family:'Playfair Display',serif;font-size:19px;font-weight:700}
-.shift .ss{font-size:11.5px;color:#b9ac93;margin-top:2px}
+/* задачи команды */
+.shift{display:flex;gap:20px;align-items:center;border:1px solid var(--hair);background:var(--panel);padding:18px 24px;margin-bottom:22px;flex-wrap:wrap}
+.shift .sd{font-family:var(--serif);font-size:19px;font-weight:600}
+.shift .ss{font-size:10.5px;color:var(--mut);margin-top:4px;letter-spacing:.4px}
 .shift .avs{display:flex;margin-left:auto}
-.shift .avs .av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;color:#fff;border:2.5px solid #171210;margin-left:-8px}
-.shift .off{font-size:10.5px;color:#8d7f6c;margin-left:12px}
-.tcols{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;align-items:start}
+.shift .avc{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;border:2px solid var(--panel);margin-left:-8px}
+.shift .off{font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--mut2);margin-left:14px}
+.tcols{display:grid;grid-template-columns:1.5fr 1fr;gap:22px;align-items:start}
 @media(max-width:1000px){.tcols{grid-template-columns:1fr}}
-.tgroup{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 18px;margin-bottom:12px}
-.tg-h{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}
-.tg-h .av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;color:#fff;flex:none}
-.tg-h .tn2{font-size:13.5px;font-weight:800}
-.tg-h .tr2{font-size:10.5px;color:var(--muted2)}
+.tgroup{border:1px solid var(--hair);background:var(--panel);padding:16px 20px;margin-bottom:16px}
+.tg-h{display:flex;align-items:center;gap:11px;padding-bottom:12px;border-bottom:1px solid var(--hair)}
+.tg-h .avc{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;flex:none}
+.tg-h .tn2{font-family:var(--serif);font-size:15px;font-weight:600}
+.tg-h .tr2{font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);margin-top:2px}
 .ring{margin-left:auto;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;flex:none}
-.ring i{width:28px;height:28px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:10px;font-weight:800;font-style:normal;color:var(--gold-d)}
-.titem{display:flex;gap:11px;padding:10px 0;border-bottom:1px dashed #eee3cf;align-items:flex-start;cursor:pointer}
+.ring i{width:32px;height:32px;border-radius:50%;background:var(--panel);display:grid;place-items:center;font-size:9.5px;font-weight:700;font-style:normal;color:var(--goldD)}
+.titem{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--hair2);align-items:flex-start;cursor:pointer}
 .titem:last-child{border-bottom:none}
-.cbx{width:19px;height:19px;border:2px solid #cbbc9d;border-radius:6px;flex:none;margin-top:1px;display:grid;place-items:center;font-size:11px;color:#fff;transition:.15s}
-.titem.done .cbx{background:var(--gold);border-color:var(--gold)}
-.titem .tt{font-size:12.5px;font-weight:600;line-height:1.4}
-.titem.done .tt{text-decoration:line-through;color:var(--muted2);font-weight:500}
-.titem .tm2{font-size:10.5px;color:var(--muted2);margin-top:3px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.titem .hot2{color:var(--red);font-weight:800}
-.chk-note{font-size:11px;color:var(--muted);margin-top:10px}
-.assign{display:flex;gap:7px;margin-top:11px}
-.assign input{flex:1;border:1.5px solid var(--line);border-radius:9px;padding:9px 12px;outline:none}
-.assign input:focus{border-color:var(--gold)}
-.assign select{border:1.5px solid var(--line);border-radius:9px;padding:9px 8px;outline:none;background:#fff}
+.cbx{width:18px;height:18px;border:1.5px solid var(--mut2);flex:none;margin-top:1px;display:grid;place-items:center;font-size:10px;color:#fff;transition:.15s}
+.titem.done .cbx{background:var(--ink);border-color:var(--ink)}
+.titem .tt{font-size:12.5px;font-weight:500;line-height:1.45}
+.titem.done .tt{text-decoration:line-through;color:var(--mut2)}
+.titem .tm2{font-size:10px;color:var(--mut2);margin-top:4px;display:flex;gap:9px;align-items:center;flex-wrap:wrap;letter-spacing:.4px}
+.titem .hot2{color:var(--red);font-weight:700;letter-spacing:.8px;text-transform:uppercase;font-size:9px}
+.assign{display:flex;gap:10px;margin-top:12px}
+.assign input{flex:1;border:none;border-bottom:1px solid var(--hair);background:none;padding:8px 2px;outline:none}
+.assign input:focus{border-bottom-color:var(--ink)}
+.assign select{border:none;border-bottom:1px solid var(--hair);background:none;padding:8px 2px;outline:none}
+.chk-note{font-size:10.5px;color:var(--mut2);margin-top:12px;line-height:1.6;letter-spacing:.2px}
 
-.demo-note{background:linear-gradient(90deg,#171210,#2b2118);color:#e6d9c2;font-size:11.5px;padding:8px 16px;text-align:center}
-.demo-note b{color:#fff}
+/* склад */
+.sizes{display:flex;gap:4px;flex-wrap:wrap}
+.sz{min-width:32px;text-align:center;font-size:9.5px;font-weight:700;padding:4px 5px;border:1px solid var(--hair2);color:var(--mut2);letter-spacing:.5px}
+.sz.has{border-color:var(--ink);color:var(--ink)}
+.sz.zero{color:var(--red);border-color:rgba(168,52,32,.35);text-decoration:line-through}
+.sync{display:flex;gap:18px;align-items:center;border:1px solid var(--hair);background:var(--panel);padding:16px 22px;margin-bottom:18px;flex-wrap:wrap}
+.sync .s1c{font-family:var(--serif);font-size:21px;font-weight:700;border:1.5px solid var(--ink);padding:5px 10px;flex:none}
+.sync b{font-size:12px;letter-spacing:1.4px;text-transform:uppercase}
+.sync p{font-size:11.5px;color:var(--mut);margin-top:3px}
+
+/* список внимания на дашборде */
+.att{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--hair2);flex-wrap:wrap}
+.att:last-child{border-bottom:none}
+.att .mark{font-family:var(--serif);font-style:italic;font-size:17px;color:var(--gold);width:22px;flex:none}
+.att .cn{font-size:13px;font-weight:600}
+.att .cs{font-size:11px;color:var(--mut);margin-top:2px}
+.feed{font-size:12px;line-height:2.1;color:var(--mut)}
+.feed b{color:var(--ink);font-weight:600}
+.feed .fd{color:var(--gold)}
+
+/* модал */
+.ovl{position:fixed;inset:0;background:rgba(27,22,16,.5);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:36px 16px;overflow-y:auto}
+.ovl.show{display:flex}
+.mod{background:var(--panel);border:1px solid var(--hair);max-width:720px;width:100%;animation:fd .18s}
+.mhead{padding:22px 26px 0;display:flex;align-items:flex-start;gap:12px}
+.mhead h2{font-family:var(--serif);font-size:23px;font-weight:600}
+.mhead .msub{font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--mut2);margin-top:6px}
+.mx-close{font-size:20px;color:var(--mut2);padding:2px 8px;margin-left:auto}
+.mbody{padding:18px 26px 24px;max-height:60vh;overflow-y:auto}
+.info-g{display:grid;grid-template-columns:1fr 1fr;gap:6px 22px}
+.mfoot{padding:16px 26px;border-top:1px solid var(--hair);display:flex;gap:10px;flex-wrap:wrap}
+
+/* тост */
+#toasts{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:8px;width:min(480px,92vw)}
+.toast{background:var(--ink);color:#e9e1cf;padding:14px 20px;font-size:12px;line-height:1.6;animation:tin .3s;border-left:2px solid var(--gold)}
+@keyframes tin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.toast b{color:#fff;font-weight:600}
+
 @media(max-width:820px){
-  .side{display:none}
-  .content{padding:14px 12px 70px}
-  .mobile-nav{display:flex!important}
-  .top{flex-wrap:wrap}
+  .hd-top{padding:14px 16px 10px;flex-wrap:wrap;gap:10px}
+  .hd-date{display:none}
+  .hnav{padding:0 16px;gap:20px}
+  .wrap{padding:18px 14px 80px}
+  .stats .st{min-width:46%}
+  .chat{height:520px}
 }
-.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#171210;z-index:50;justify-content:space-around;padding:7px 4px calc(7px + env(safe-area-inset-bottom))}
-.mobile-nav button{color:#b4a794;font-size:10px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 8px}
-.mobile-nav button.on{color:#e2c98f}
-.mobile-nav .mi2{font-size:17px}
 </style>
 </head>
 <body>
-<div class="demo-note">👗 Интерактивное демо для <b>Натальи</b> · магазин брендовой одежды, Павлодар · все данные вымышленные, всё прокликивается · <b>Pllato</b></div>
-<div class="app">
-  <aside class="side">
-    <div class="logo">
-      <div class="lm">👗</div>
-      <div><b>BOUTIQUE</b><span>брендовая одежда · Павлодар</span></div>
-    </div>
-    <nav class="nav">
-      <div class="ngroup">Продажи</div>
-      <button class="nitem on" data-s="dash"><span class="ic">◧</span>Дашборд</button>
-      <button class="nitem" data-s="inbox"><span class="ic">✉</span>Единый инбокс<span class="bdg">5</span></button>
-      <button class="nitem" data-s="sales"><span class="ic">◎</span>Продажи / воронка</button>
-      <div class="ngroup">Клиенты</div>
-      <button class="nitem" data-s="clients"><span class="ic">▤</span>База клиентов</button>
-      <button class="nitem" data-s="control"><span class="ic">♛</span>Контроль клиентов<span class="bdg gold">9</span></button>
-      <button class="nitem" data-s="mailing"><span class="ic">➤</span>Рассылки</button>
-      <div class="ngroup">Команда</div>
-      <button class="nitem" data-s="tasks"><span class="ic">☑</span>Задачи команды<span class="bdg gold" id="tBdg">7</span></button>
-      <div class="ngroup">Товары</div>
-      <button class="nitem" data-s="stock"><span class="ic">▦</span>Склад и остатки · 1С</button>
-    </nav>
-    <div class="side-user">
-      <div class="suser"><div class="av" id="sAv">НА</div><div><div class="un" id="sName">Наталья</div><div class="ut" id="sRole">Владелец</div></div></div>
-    </div>
-  </aside>
-
-  <div class="main">
-    <div class="top">
-      <div><h1 id="tTitle">Дашборд</h1><div class="tsub" id="tSub">Сегодня 3 июля 2026 · четверг</div></div>
-      <div class="top-right">
-        <div class="role-sw">
-          <button class="on" id="rDir" onclick="setRole('dir')">👑 Владелец</button>
-          <button id="rSel" onclick="setRole('sel')">Продавец Алия</button>
-        </div>
-        <button class="tbtn" onclick="toast('Новая продажа открыта. Позиции подтянутся со склада с остатками по размерам — <b>двойного ввода с 1С больше нет</b>.')">+ Продажа</button>
+<div class="note">Интерактивное демо для <b>Натальи</b> — магазин брендовой одежды, Павлодар · данные вымышленные · <b>Pllato</b></div>
+<header class="hd">
+  <div class="hd-top">
+    <div class="wordmark"><div class="wm">BOUTIQUE</div><div class="ws">Брендовая одежда — Павлодар</div></div>
+    <div class="hd-date">Четверг, 3 июля 2026</div>
+    <div class="hd-right">
+      <div class="roles">
+        <button class="on" id="rDir" onclick="setRole('dir')">Владелец</button>
+        <span class="sep">/</span>
+        <button id="rSel" onclick="setRole('sel')">Продавец Алия</button>
       </div>
-    </div>
-    <div class="content">
-
-      <!-- DASH -->
-      <section class="screen on" id="s-dash">
-        <div class="kpis" id="dashKpis"></div>
-        <div class="grid2">
-          <div class="stack">
-            <div class="card">
-              <h3>💬 Обращения по каналам · июль <span class="hl" onclick="nav('inbox')">в инбокс →</span></h3>
-              <div id="dashCh"></div>
-            </div>
-            <div class="card">
-              <h3>♛ Контроль клиентов — требуют внимания <span class="hl" onclick="nav('control')">весь список →</span></h3>
-              <div id="dashCtl"></div>
-            </div>
-          </div>
-          <div class="stack">
-            <div class="card">
-              <h3>👜 Топ-брендов месяца</h3>
-              <div id="dashBrands"></div>
-            </div>
-            <div class="card">
-              <h3>⚡ Лента</h3>
-              <div id="dashFeed" style="font-size:12px;line-height:2;color:var(--muted)"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- INBOX -->
-      <section class="screen" id="s-inbox">
-        <div class="chat">
-          <div class="chl">
-            <div class="chl-f">
-              <span class="chip on" onclick="chFilter('',this)">Все</span>
-              <span class="chip" onclick="chFilter('wa',this)">WhatsApp</span>
-              <span class="chip" onclick="chFilter('ig',this)">Instagram</span>
-              <span class="chip" onclick="chFilter('tg',this)">Telegram</span>
-            </div>
-            <div id="chList"></div>
-          </div>
-          <div class="chr">
-            <div class="chh"><b id="chName">—</b><span id="chChan"></span></div>
-            <div class="msgs" id="chMsgs"></div>
-            <div class="tpl-row" id="chTpls"></div>
-            <div class="chf">
-              <input placeholder="Ответ уйдёт в тот же канал…" id="chInput" onkeydown="if(event.key==='Enter')sendMsg()">
-              <button class="mbtn" onclick="sendMsg()">➤</button>
-            </div>
-          </div>
-          <div class="chp" id="chProfile"></div>
-        </div>
-      </section>
-
-      <!-- SALES -->
-      <section class="screen" id="s-sales">
-        <div class="kpis">
-          <div class="kpi"><div class="kl">Сделок в работе</div><div class="kv">14</div><div class="kd">на 3 240 000 ₸</div></div>
-          <div class="kpi green"><div class="kl">Продано · июль</div><div class="kv">47</div><div class="kd">konверсия из обращения 38%</div></div>
-          <div class="kpi amber"><div class="kl">Резервы истекают</div><div class="kv">3</div><div class="kd">напоминания уйдут сами</div></div>
-        </div>
-        <div class="kan" id="salesKan"></div>
-      </section>
-
-      <!-- CLIENTS -->
-      <section class="screen" id="s-clients">
-        <div class="frow">
-          <input placeholder="Поиск: имя, телефон…" style="width:220px" oninput="F.q=this.value;renderClients()">
-          <span class="chip on" data-f="" onclick="setChip(this,'')">Все</span>
-          <span class="chip" data-f="vip" onclick="setChip(this,'vip')">♛ VIP</span>
-          <span class="chip" data-f="reg" onclick="setChip(this,'reg')">Постоянные</span>
-          <span class="chip" data-f="new" onclick="setChip(this,'new')">Новые</span>
-          <span class="chip" data-f="sleep" onclick="setChip(this,'sleep')">💤 Спящие</span>
-        </div>
-        <div class="card" style="padding:6px 14px">
-          <table>
-            <thead><tr><th>Клиент</th><th>Сегмент</th><th>Канал</th><th>Размеры</th><th>Покупок</th><th>Последняя</th><th>Бонусы</th></tr></thead>
-            <tbody id="cliBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- CONTROL -->
-      <section class="screen" id="s-control">
-        <div class="card" style="background:linear-gradient(90deg,var(--gold-xl),#fff);border-color:#e6d9bd">
-          <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
-            <div style="font-size:32px">♛</div>
-            <div style="flex:1;min-width:220px">
-              <div style="font-weight:800;font-size:14px">Ни один клиент не потеряется</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:3px">Система сама находит, кому пора написать: спящие клиенты, дни рождения, брошенные резервы, VIP без внимания. Одна кнопка — сообщение в его канал.</div>
-            </div>
-            <button class="mbtn" onclick="toast('Задачи созданы: по каждому клиенту из списков — задача продавцу с готовым шаблоном сообщения. <b>Контроль клиентов теперь системный, а не «по памяти»</b>.')">⚙ Раздать продавцам</button>
-          </div>
-        </div>
-        <div id="ctlWrap"></div>
-      </section>
-
-      <!-- MAILING -->
-      <section class="screen" id="s-mailing">
-        <div class="card">
-          <h3>➤ Новая рассылка</h3>
-          <div class="frow" style="margin-bottom:8px">
-            <select id="mSeg"><option>Сегмент: VIP (12)</option><option>Постоянные (54)</option><option>Спящие 60+ дней (23)</option><option>Все клиенты (167)</option><option>Женщины 44–46 размер (31)</option></select>
-            <select id="mCh"><option>WhatsApp + Telegram</option><option>Только WhatsApp</option><option>Только Telegram</option></select>
-            <input style="flex:1;min-width:200px" value="Новая коллекция Max Mara уже в бутике 🖤 Приходите на примерку — для вас отложим размеры">
-            <button class="mbtn" onclick="toast('Рассылка запущена по сегменту. Отправка идёт с номеров магазина, ответы падают в единый инбокс — <b>СМС и «ручная» рассылка больше не нужны</b>.')">Запустить</button>
-          </div>
-          <div style="font-size:11.5px;color:var(--muted)">💡 Instagram не даёт массовые рассылки по правилам Meta — по Instagram система отвечает в директ на входящие. Массовые — WhatsApp и Telegram.</div>
-        </div>
-        <div class="card">
-          <h3>История рассылок</h3>
-          <div id="campList"></div>
-        </div>
-      </section>
-
-      <!-- TASKS / TEAM -->
-      <section class="screen" id="s-tasks">
-        <div class="shift">
-          <div>
-            <div class="sd">Смена · четверг, 3 июля</div>
-            <div class="ss">Чек-лист открытия выполнен · вечером — чек-лист закрытия и авто-отчёт дня владельцу в WhatsApp</div>
-          </div>
-          <div class="avs" id="dutyAvs"></div>
-          <div class="off">выходной: Карина</div>
-        </div>
-        <div class="tcols">
-          <div id="tGroups"></div>
-          <div>
-            <div class="tgroup">
-              <div class="tg-h" style="border-bottom:none;padding-bottom:4px"><span style="font-size:17px">👑</span><div><div class="tn2">Поручение от владельца</div><div class="tr2">улетит продавцу пушем + появится в его списке</div></div></div>
-              <div class="assign">
-                <input id="newTask" placeholder="Например: переоформить кассовую зону…" onkeydown="if(event.key==='Enter')addTask()">
-                <select id="newTaskWho"></select>
-              </div>
-              <button class="mbtn" style="width:100%;margin-top:9px" onclick="addTask()">Поручить</button>
-            </div>
-            <div class="tgroup">
-              <div class="tg-h"><span style="font-size:17px">🌅</span><div><div class="tn2">Чек-лист открытия</div><div class="tr2">каждый день · автоматически в 09:30</div></div><span class="ring" id="openRing"></span></div>
-              <div id="openList"></div>
-            </div>
-            <div class="tgroup">
-              <div class="tg-h"><span style="font-size:17px">🌙</span><div><div class="tn2">Чек-лист закрытия</div><div class="tr2">появится у смены в 19:30</div></div><span class="ring" id="closeRing"></span></div>
-              <div id="closeList"></div>
-              <div class="chk-note">По завершении владельцу уходит отчёт дня: выручка, продажи, кто что закрыл.</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- STOCK -->
-      <section class="screen" id="s-stock">
-        <div class="sync">
-          <div class="si">🔄</div>
-          <div><b>Синхронизация с 1С — включена</b><p>Остатки и цены приходят из 1С каждые 15 минут · продажи и резервы уходят обратно в 1С · последний обмен: сегодня 14:32 ✓</p></div>
-          <button class="mbtn gh" onclick="toast('Обмен с 1С выполнен: остатки обновлены, 3 продажи выгружены. <b>Товаровед работает в 1С как раньше — продавцы в CRM видят живые остатки.</b>')">Обновить сейчас</button>
-        </div>
-        <div class="frow">
-          <input placeholder="Поиск: бренд, модель, артикул…" style="width:250px" oninput="F.sq=this.value;renderStock()">
-          <select onchange="F.sbrand=this.value;renderStock()" id="fBrand"><option value="">Все бренды</option></select>
-          <span style="margin-left:auto;font-size:11.5px;color:var(--muted)">🟡 мало · 🔴 нет размера · резерв ⏱ 48 часов</span>
-        </div>
-        <div class="card" style="padding:6px 14px">
-          <table>
-            <thead><tr><th>Товар</th><th>Бренд</th><th>Цена</th><th>Размеры и остатки</th><th>Резерв</th><th>1С</th></tr></thead>
-            <tbody id="stockBody"></tbody>
-          </table>
-        </div>
-      </section>
-
+      <button class="bb" onclick="toast('Новая продажа открыта. Позиции подтянутся со склада с остатками по размерам — <b>двойного ввода с 1С больше нет</b>.')">+ Продажа</button>
     </div>
   </div>
-</div>
+  <nav class="hnav">
+    <button class="on" data-s="dash">Дашборд</button>
+    <button data-s="inbox">Инбокс<sup>5</sup></button>
+    <button data-s="sales">Продажи</button>
+    <button data-s="clients">Клиенты</button>
+    <button data-s="control">Контроль<sup>9</sup></button>
+    <button data-s="mailing">Рассылки</button>
+    <button data-s="tasks">Задачи<sup id="tBdg">8</sup></button>
+    <button data-s="stock">Склад · 1С</button>
+  </nav>
+</header>
 
-<div class="mobile-nav">
-  <button class="on" data-s="dash" onclick="nav('dash')"><span class="mi2">◧</span>Обзор</button>
-  <button data-s="inbox" onclick="nav('inbox')"><span class="mi2">✉</span>Инбокс</button>
-  <button data-s="clients" onclick="nav('clients')"><span class="mi2">▤</span>Клиенты</button>
-  <button data-s="control" onclick="nav('control')"><span class="mi2">♛</span>Контроль</button>
-  <button data-s="tasks" onclick="nav('tasks')"><span class="mi2">☑</span>Задачи</button>
-  <button data-s="stock" onclick="nav('stock')"><span class="mi2">▦</span>Склад</button>
+<div class="wrap">
+
+  <!-- DASH -->
+  <section class="screen on" id="s-dash">
+    <div class="stats" id="dashKpis"></div>
+    <div class="cols2">
+      <div>
+        <div class="rub"><span class="rt">Обращения по каналам — июль</span><span class="rl"></span><span class="ra" onclick="nav('inbox')">в инбокс</span></div>
+        <div class="panel" id="dashCh"></div>
+        <div class="rub"><span class="rt">Контроль клиентов — требуют внимания</span><span class="rl"></span><span class="ra" onclick="nav('control')">весь список</span></div>
+        <div class="panel" id="dashCtl"></div>
+      </div>
+      <div>
+        <div class="rub"><span class="rt">Топ брендов месяца</span><span class="rl"></span></div>
+        <div class="panel" id="dashBrands"></div>
+        <div class="rub"><span class="rt">Лента</span><span class="rl"></span></div>
+        <div class="panel feed" id="dashFeed"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INBOX -->
+  <section class="screen" id="s-inbox">
+    <div class="ph"><h1>Единый инбокс</h1><div class="ps">WhatsApp · Instagram · Telegram — в одном окне, ответ уходит в канал клиента</div></div>
+    <div class="chat">
+      <div class="chl">
+        <div class="chl-f">
+          <button class="on" onclick="chFilter('',this)">Все</button>
+          <button onclick="chFilter('wa',this)">WhatsApp</button>
+          <button onclick="chFilter('ig',this)">Instagram</button>
+          <button onclick="chFilter('tg',this)">Telegram</button>
+        </div>
+        <div id="chList"></div>
+      </div>
+      <div class="chr">
+        <div class="chh"><b id="chName">—</b><span id="chChan"></span></div>
+        <div class="msgs" id="chMsgs"></div>
+        <div class="tpl-row" id="chTpls"></div>
+        <div class="chf">
+          <input placeholder="Ответ уйдёт в тот же канал…" id="chInput" onkeydown="if(event.key==='Enter')sendMsg()">
+          <button class="bb" onclick="sendMsg()">Отпр.</button>
+        </div>
+      </div>
+      <div class="chp" id="chProfile"></div>
+    </div>
+  </section>
+
+  <!-- SALES -->
+  <section class="screen" id="s-sales">
+    <div class="ph"><h1>Продажи</h1><div class="ps">от обращения до выдачи — резерв ставит таймер и метку в 1С</div></div>
+    <div class="stats">
+      <div class="st"><div class="sl">Сделок в работе</div><div class="sv">14</div><div class="sn">на 3 240 000 ₸</div></div>
+      <div class="st"><div class="sl">Продано — июль</div><div class="sv">47</div><div class="sn">конверсия из обращения 38%</div></div>
+      <div class="st"><div class="sl">Резервы истекают</div><div class="sv"><em>3</em></div><div class="sn">напоминания уйдут сами</div></div>
+    </div>
+    <div class="kan" id="salesKan"></div>
+  </section>
+
+  <!-- CLIENTS -->
+  <section class="screen" id="s-clients">
+    <div class="ph"><h1>База клиентов</h1><div class="ps">сегменты · размеры · любимые бренды · бонусы · история</div></div>
+    <div class="frow">
+      <input placeholder="Поиск: имя, телефон" oninput="F.q=this.value;renderClients()">
+      <button class="fchip on" data-f="" onclick="setChip(this,'')">Все</button>
+      <button class="fchip" data-f="vip" onclick="setChip(this,'vip')">VIP</button>
+      <button class="fchip" data-f="reg" onclick="setChip(this,'reg')">Постоянные</button>
+      <button class="fchip" data-f="new" onclick="setChip(this,'new')">Новые</button>
+      <button class="fchip" data-f="sleep" onclick="setChip(this,'sleep')">Спящие</button>
+    </div>
+    <div class="panel" style="padding:4px 20px">
+      <table>
+        <thead><tr><th>Клиент</th><th>Сегмент</th><th>Канал</th><th>Размеры</th><th>Покупок</th><th>Последняя</th><th>Бонусы</th></tr></thead>
+        <tbody id="cliBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- CONTROL -->
+  <section class="screen" id="s-control">
+    <div class="ph"><h1>Контроль клиентов</h1><div class="ps">система сама говорит, кому написать — одна кнопка, сообщение в канал клиента</div></div>
+    <div class="shift" style="margin-bottom:22px">
+      <div><div class="sd">Ни один клиент не потеряется</div>
+      <div class="ss">Спящие · дни рождения · брошенные резервы · VIP без внимания — списки собираются автоматически каждое утро</div></div>
+      <button class="bb" style="margin-left:auto" onclick="toast('Задачи созданы: по каждому клиенту из списков — задача продавцу с готовым шаблоном. <b>Контроль клиентов теперь системный, а не «по памяти»</b>.')">Раздать продавцам</button>
+    </div>
+    <div id="ctlWrap"></div>
+  </section>
+
+  <!-- MAILING -->
+  <section class="screen" id="s-mailing">
+    <div class="ph"><h1>Рассылки</h1><div class="ps">сегментные рассылки в WhatsApp и Telegram — ответы падают в единый инбокс</div></div>
+    <div class="panel">
+      <div class="rub" style="margin-top:0"><span class="rt">Новая рассылка</span><span class="rl"></span></div>
+      <div class="frow" style="margin-bottom:6px">
+        <select id="mSeg"><option>Сегмент: VIP (12)</option><option>Постоянные (54)</option><option>Спящие 60+ дней (23)</option><option>Все клиенты (167)</option><option>Женщины 44–46 размер (31)</option></select>
+        <select id="mCh"><option>WhatsApp + Telegram</option><option>Только WhatsApp</option><option>Только Telegram</option></select>
+        <input style="flex:1;min-width:220px" value="Новая коллекция Max Mara уже в бутике. Приходите на примерку — для вас отложим размеры">
+        <button class="bb" onclick="toast('Рассылка запущена по сегменту. Отправка с номеров магазина, ответы — в единый инбокс. <b>СМС и «ручная» рассылка больше не нужны</b>.')">Запустить</button>
+      </div>
+      <div class="chk-note">Instagram не разрешает массовые рассылки по правилам Meta — по Instagram система отвечает в директ на входящие. Массовые — WhatsApp и Telegram.</div>
+    </div>
+    <div class="rub"><span class="rt">История рассылок</span><span class="rl"></span></div>
+    <div class="panel" id="campList"></div>
+  </section>
+
+  <!-- TASKS -->
+  <section class="screen" id="s-tasks">
+    <div class="ph"><h1>Задачи команды</h1><div class="ps">смена · чек-листы · поручения — магазин управляется, а не «держится в голове»</div></div>
+    <div class="shift">
+      <div>
+        <div class="sd">Смена — четверг, 3 июля</div>
+        <div class="ss">Чек-лист открытия выполнен · вечером — чек-лист закрытия и авто-отчёт дня владельцу в WhatsApp</div>
+      </div>
+      <div class="avs" id="dutyAvs"></div>
+      <div class="off">Выходной — Карина</div>
+    </div>
+    <div class="tcols">
+      <div id="tGroups"></div>
+      <div>
+        <div class="tgroup">
+          <div class="tg-h" style="border-bottom:none;padding-bottom:6px"><div><div class="tn2">Поручение от владельца</div><div class="tr2">пуш продавцу + задача в его списке</div></div></div>
+          <div class="assign">
+            <input id="newTask" placeholder="Например: переоформить кассовую зону" onkeydown="if(event.key==='Enter')addTask()">
+            <select id="newTaskWho"></select>
+          </div>
+          <button class="bb" style="width:100%;margin-top:14px" onclick="addTask()">Поручить</button>
+        </div>
+        <div class="tgroup">
+          <div class="tg-h"><div><div class="tn2">Чек-лист открытия</div><div class="tr2">каждый день · автоматически в 09:30</div></div><span class="ring" id="openRing"></span></div>
+          <div id="openList"></div>
+        </div>
+        <div class="tgroup">
+          <div class="tg-h"><div><div class="tn2">Чек-лист закрытия</div><div class="tr2">появится у смены в 19:30</div></div><span class="ring" id="closeRing"></span></div>
+          <div id="closeList"></div>
+          <div class="chk-note">По завершении владельцу уходит отчёт дня: выручка, продажи, кто что закрыл.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STOCK -->
+  <section class="screen" id="s-stock">
+    <div class="ph"><h1>Склад и остатки</h1><div class="ps">размерные сетки · резервы · двусторонний обмен с 1С</div></div>
+    <div class="sync">
+      <div class="s1c">1С</div>
+      <div><b>Синхронизация включена</b><p>Остатки и цены из 1С каждые 15 минут · продажи и резервы обратно в 1С · последний обмен: сегодня 14:32</p></div>
+      <button class="bo" style="margin-left:auto" onclick="toast('Обмен с 1С выполнен: остатки обновлены, 3 продажи выгружены. <b>Товаровед работает в 1С как раньше — продавцы видят живые остатки.</b>')">Обновить сейчас</button>
+    </div>
+    <div class="frow">
+      <input placeholder="Поиск: бренд, модель, артикул" oninput="F.sq=this.value;renderStock()">
+      <select onchange="F.sbrand=this.value;renderStock()" id="fBrand"><option value="">Все бренды</option></select>
+      <span style="margin-left:auto;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2)">рамка — размер в наличии · зачёркнут — нет · резерв 48 ч</span>
+    </div>
+    <div class="panel" style="padding:4px 20px">
+      <table>
+        <thead><tr><th>Товар</th><th>Бренд</th><th>Цена</th><th>Размеры и остатки</th><th>Резерв</th><th>1С</th></tr></thead>
+        <tbody id="stockBody"></tbody>
+      </table>
+    </div>
+  </section>
+
 </div>
 
 <!-- client modal -->
@@ -490,9 +451,9 @@ tbody tr:hover td{background:var(--gold-xl)}
     <div class="mhead"><div><h2 id="cmName">—</h2><div class="msub" id="cmSub">—</div></div><button class="mx-close" onclick="closeCli()">✕</button></div>
     <div class="mbody" id="cmBody"></div>
     <div class="mfoot">
-      <button class="mbtn" onclick="toast('Чат открыт в едином инбоксе — сообщение уйдёт в канал клиента (WhatsApp/Telegram/Instagram).')">💬 Написать</button>
-      <button class="mbtn gh" onclick="toast('Товар зарезервирован под клиента на 48 часов. Остаток в 1С помечен, продавцам виден резерв.')">⏱ Резерв товара</button>
-      <button class="mbtn gh" onclick="toast('Начислено 5 000 бонусов ко дню рождения + отправлено поздравление в WhatsApp.')">🎁 Бонусы</button>
+      <button class="bb" onclick="toast('Чат открыт в едином инбоксе — сообщение уйдёт в канал клиента (WhatsApp/Telegram/Instagram).')">Написать</button>
+      <button class="bo" onclick="toast('Товар зарезервирован под клиента на 48 часов. Остаток в 1С помечен, продавцам виден резерв.')">Резерв товара</button>
+      <button class="bo" onclick="toast('Начислено 5 000 бонусов ко дню рождения + отправлено поздравление в WhatsApp.')">Бонусы</button>
     </div>
   </div>
 </div>
@@ -502,14 +463,14 @@ tbody tr:hover td{background:var(--gold-xl)}
 <script>
 /* ===== ДАННЫЕ (демо) ===== */
 const SELLERS=[
-  {id:'na',n:'Наталья',r:'Владелец',c:'#8a6428'},
-  {id:'al',n:'Алия',r:'Старший продавец',c:'#b5484d'},
-  {id:'ma',n:'Мадина',r:'Продавец',c:'#7c3aed'},
-  {id:'ka',n:'Карина',r:'Продавец',c:'#2563eb'},
-  {id:'da',n:'Дана',r:'Продавец',c:'#177245'},
-  {id:'zh',n:'Жанна',r:'Продавец-стилист',c:'#b45309'},
+  {id:'na',n:'Наталья',r:'Владелец',c:'#5c4a2e'},
+  {id:'al',n:'Алия',r:'Старший продавец',c:'#8f3a44'},
+  {id:'ma',n:'Мадина',r:'Продавец',c:'#5b4a86'},
+  {id:'ka',n:'Карина',r:'Продавец',c:'#2f5b7c'},
+  {id:'da',n:'Дана',r:'Продавец',c:'#3d6b4f'},
+  {id:'zh',n:'Жанна',r:'Продавец-стилист',c:'#96601d'},
 ];
-const SEG={vip:['♛ VIP','gold'],reg:['постоянный','grn'],new:['новый','vio'],sleep:['💤 спящий','gry']};
+const SEG={vip:['VIP','gold'],reg:['Постоянный','grn'],new:['Новый','vio'],sleep:['Спит','gry']};
 const CHN={wa:'WhatsApp',ig:'Instagram',tg:'Telegram',ph:'Звонок',of:'Магазин'};
 const CLI=[
   {id:1,n:'Гульнара Ахметова',ph:'+7 705 123-45-67',seg:'vip',ch:'wa',sz:'44 · обувь 38',spent:2840000,cnt:23,last:'28.06',bonus:41200,brands:'Max Mara · BOSS',bd:'12.07'},
@@ -528,25 +489,25 @@ const CLI=[
   {id:14,n:'Индира Мухтарова',ph:'+7 705 456-65-43',seg:'reg',ch:'wa',sz:'46 · обувь 39',spent:705000,cnt:9,last:'12.06',bonus:9100,brands:'Tommy Hilfiger'},
 ];
 const PROD=[
-  {id:1,e:'🧥',n:'Пальто Studio кашемир',b:'Max Mara',art:'MM-2417',p:890000,sz:{XS:0,S:1,M:2,L:1,XL:0},res:'Гульнара · до 04.07'},
-  {id:2,e:'👗',n:'Платье миди Cady',b:'Liu Jo',art:'LJ-8834',p:186000,sz:{XS:1,S:2,M:3,L:2,XL:1},res:''},
-  {id:3,e:'👔',n:'Пиджак slim шерсть',b:'BOSS',art:'BS-5521',p:340000,sz:{XS:0,S:1,M:2,L:2,XL:1},res:''},
-  {id:4,e:'👖',n:'Джинсы 712 high rise',b:'Guess',art:'GS-3308',p:78000,sz:{XS:2,S:4,M:5,L:3,XL:2},res:''},
-  {id:5,e:'👜',n:'Сумка Jet Set Charm',b:'Michael Kors',art:'MK-1102',p:295000,sz:{UNI:3},res:'Салтанат · до 05.07'},
-  {id:6,e:'🧶',n:'Джемпер кашемир',b:'Twinset',art:'TW-6640',p:164000,sz:{XS:1,S:0,M:2,L:1,XL:0},res:''},
-  {id:7,e:'👠',n:'Туфли лодочки 85мм',b:'BOSS',art:'BS-7719',p:225000,sz:{36:1,37:2,38:2,39:1,40:0},res:''},
-  {id:8,e:'🧥',n:'Тренч классический',b:'Tommy Hilfiger',art:'TH-4456',p:198000,sz:{XS:1,S:2,M:1,L:2,XL:1},res:''},
-  {id:9,e:'👗',n:'Костюм двойка твид',b:'Twinset',art:'TW-9012',p:276000,sz:{XS:0,S:1,M:1,L:0,XL:0},res:'Камила · до 03.07 ⚠'},
-  {id:10,e:'🧣',n:'Палантин шерсть/шёлк',b:'Max Mara',art:'MM-0087',p:96000,sz:{UNI:5},res:''},
+  {id:1,n:'Пальто Studio, кашемир',b:'Max Mara',art:'MM-2417',p:890000,sz:{XS:0,S:1,M:2,L:1,XL:0},res:'Гульнара · до 04.07'},
+  {id:2,n:'Платье миди Cady',b:'Liu Jo',art:'LJ-8834',p:186000,sz:{XS:1,S:2,M:3,L:2,XL:1},res:''},
+  {id:3,n:'Пиджак slim, шерсть',b:'BOSS',art:'BS-5521',p:340000,sz:{XS:0,S:1,M:2,L:2,XL:1},res:''},
+  {id:4,n:'Джинсы 712 high rise',b:'Guess',art:'GS-3308',p:78000,sz:{XS:2,S:4,M:5,L:3,XL:2},res:''},
+  {id:5,n:'Сумка Jet Set Charm',b:'Michael Kors',art:'MK-1102',p:295000,sz:{UNI:3},res:'Салтанат · до 05.07'},
+  {id:6,n:'Джемпер, кашемир',b:'Twinset',art:'TW-6640',p:164000,sz:{XS:1,S:0,M:2,L:1,XL:0},res:''},
+  {id:7,n:'Туфли-лодочки 85 мм',b:'BOSS',art:'BS-7719',p:225000,sz:{36:1,37:2,38:2,39:1,40:0},res:''},
+  {id:8,n:'Тренч классический',b:'Tommy Hilfiger',art:'TH-4456',p:198000,sz:{XS:1,S:2,M:1,L:2,XL:1},res:''},
+  {id:9,n:'Костюм-двойка, твид',b:'Twinset',art:'TW-9012',p:276000,sz:{XS:0,S:1,M:1,L:0,XL:0},res:'Камила · до 03.07 !'},
+  {id:10,n:'Палантин, шерсть/шёлк',b:'Max Mara',art:'MM-0087',p:96000,sz:{UNI:5},res:''},
 ];
 const CHATS=[
-  {c:2,ch:'ig',unread:2,msgs:[['in','Здравствуйте! Видела в сторис платье Liu Jo, есть 42?','11:02'],['out','Добрый день, Салтанат! Да, 42 в наличии — отложить для примерки? 🖤','11:05'],['in','Да! Приду завтра после обеда','11:40'],['in','И покажите ещё что-то к нему из обуви пожалуйста','11:41']]},
-  {c:1,ch:'wa',unread:1,msgs:[['out','Гульнара, добрый день! Пальто Max Mara из новой коллекции отложено для вас до 4 июля 🤍','09:20'],['in','Спасибо! Буду в субботу к 12:00','10:15']]},
+  {c:2,ch:'ig',unread:2,msgs:[['in','Здравствуйте! Видела в сторис платье Liu Jo, есть 42?','11:02'],['out','Добрый день, Салтанат! Да, 42 в наличии — отложить для примерки?','11:05'],['in','Да! Приду завтра после обеда','11:40'],['in','И покажите ещё что-то к нему из обуви пожалуйста','11:41']]},
+  {c:1,ch:'wa',unread:1,msgs:[['out','Гульнара, добрый день! Пальто Max Mara из новой коллекции отложено для вас до 4 июля','09:20'],['in','Спасибо! Буду в субботу к 12:00','10:15']]},
   {c:5,ch:'tg',unread:1,msgs:[['in','Добрый день! Тренч Tommy в М остался?','12:30'],['out','Здравствуйте, Мадина! Да, М есть — 198 000 ₸, по вашей карте −10%','12:33'],['in','Беру! Можно доставку?','13:05']]},
   {c:6,ch:'ig',unread:1,msgs:[['in','Здравствуйте, а у вас есть рассрочка?','13:44']]},
-  {c:7,ch:'wa',unread:0,msgs:[['out','Жанар, добрый день! Поступили пиджаки BOSS в 48 размере, как вы просили. Прислать фото?','Вчера'],['in','Да, конечно!','Вчера'],['out','📷 [3 фото] Отложить какой-то до выходных?','Вчера']]},
+  {c:7,ch:'wa',unread:0,msgs:[['out','Жанар, добрый день! Поступили пиджаки BOSS в 48 размере, как вы просили. Прислать фото?','Вчера'],['in','Да, конечно!','Вчера'],['out','[3 фото] Отложить какой-то до выходных?','Вчера']]},
 ];
-const STAGES=['Новое обращение','Консультация','Резерв / примерка','Оплата','Выдано / доставка'];
+const STAGES=['Новое обращение','Консультация','Резерв / примерка','Оплата','Выдано'];
 const DEALS=[
   {n:'Гульнара · пальто Max Mara',m:890000,st:2,ch:'wa',s:'al'},
   {n:'Салтанат · платье Liu Jo + обувь',m:411000,st:1,ch:'ig',s:'zh'},
@@ -560,9 +521,9 @@ const DEALS=[
   {n:'Звонок · спрашивали Michael Kors',m:0,st:0,ch:'ph',s:'ma'},
 ];
 const CAMPS=[
-  {e:'🖤',n:'Новая коллекция Max Mara',s:'VIP + постоянные · WhatsApp/Telegram · 66 чел · 28.06',sent:66,read:58,repl:19,sold:7},
-  {e:'🎂',n:'Дни рождения июня',s:'автоматически · WhatsApp · 14 чел · июнь',sent:14,read:14,repl:9,sold:5},
-  {e:'💤',n:'«Мы скучаем» — спящие 90+',s:'скидка 15% · WhatsApp · 31 чел · 15.06',sent:31,read:24,repl:8,sold:4},
+  {n:'Новая коллекция Max Mara',s:'VIP + постоянные · WhatsApp/Telegram · 66 адресатов · 28.06',sent:66,read:58,repl:19,sold:7},
+  {n:'Дни рождения июня',s:'автоматически · WhatsApp · 14 адресатов · июнь',sent:14,read:14,repl:9,sold:5},
+  {n:'«Мы скучаем» — спящие 90+',s:'скидка 15% · WhatsApp · 31 адресат · 15.06',sent:31,read:24,repl:8,sold:4},
 ];
 const DUTY=['al','ma','da','zh'];
 const OPENLIST=[['Открыть кассу, проверить размен',1],['Выкладка новинок из поставки Twinset',1],['Порядок в примерочных, отпарить витринные вещи',1],['Проверить ценники после переоценки',1],['Сторис «доброе утро» с образом дня',1]];
@@ -580,9 +541,9 @@ let TTASKS=[
   {id:10,a:'zh',t:'Мини-обучение команде: ткани новой коллекции BOSS',type:'Обучение',dl:'пятница',done:0},
 ];
 const FEED=[
-  '<b>Алия</b> закрыла продажу: Гульнара · Max Mara · 890 000 ₸',
+  '<b>Алия</b> закрыла продажу: Гульнара · Max Mara · <span class="fd">890 000 ₸</span>',
   '<b>Система</b> напомнила Камиле о резерве костюма (истекает сегодня)',
-  '<b>Instagram</b>: 2 новых обращения из сторис → в инбоксе',
+  '<b>Instagram</b>: 2 новых обращения из сторис — в инбоксе',
   '<b>1С</b>: обмен выполнен, остатки обновлены (14:32)',
   '<b>Жанна</b> отправила подборку обуви Салтанат в директ',
   '<b>Система</b>: 5 клиентам с ДР на след. неделе — задачи продавцам',
@@ -593,8 +554,9 @@ let role='dir',F={q:'',st:'',sq:'',sbrand:'',chf:''},curChat=0;
 const $=id=>document.getElementById(id);
 const cli=id=>CLI.find(c=>c.id===id);
 const money=v=>v.toLocaleString('ru-RU')+' ₸';
-const chB=ch=>'<span class="ch '+ch+'">'+CHN[ch]+'</span>';
-const segB=s=>'<span class="b '+SEG[s][1]+'">'+SEG[s][0]+'</span>';
+const mono=n=>n.split(' ').map(w=>w[0]).slice(0,2).join('');
+const chB=ch=>'<span class="chn"><span class="sw '+ch+'"></span>'+CHN[ch]+'</span>';
+const segB=s=>'<span class="tag '+SEG[s][1]+'">'+SEG[s][0]+'</span>';
 function toast(html){
   const t=document.createElement('div');t.className='toast';t.innerHTML=html;
   $('toasts').appendChild(t);
@@ -602,60 +564,51 @@ function toast(html){
 }
 
 /* ===== НАВИГАЦИЯ / РОЛИ ===== */
-const TITLES={dash:['Дашборд','выручка, каналы, контроль — одним экраном'],inbox:['Единый инбокс','WhatsApp + Instagram + Telegram в одном окне'],
-  sales:['Продажи / воронка','от обращения до выдачи'],clients:['База клиентов','сегменты, размеры, бонусы, история'],
-  control:['Контроль клиентов','система сама говорит, кому написать'],mailing:['Рассылки','сегментные рассылки в WhatsApp и Telegram'],
-  tasks:['Задачи команды','смена, чек-листы, поручения — магазин управляется, а не «держится в голове»'],
-  stock:['Склад и остатки','размерные сетки · синхронизация с 1С']};
 function nav(s){
   document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
   $('s-'+s).classList.add('on');
-  document.querySelectorAll('.nitem').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
-  document.querySelectorAll('.mobile-nav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
-  $('tTitle').textContent=TITLES[s][0];$('tSub').textContent=TITLES[s][1];
+  document.querySelectorAll('.hnav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
   window.scrollTo({top:0});
 }
-document.querySelectorAll('.nitem').forEach(b=>b.onclick=()=>nav(b.dataset.s));
+document.querySelectorAll('.hnav button').forEach(b=>b.onclick=()=>nav(b.dataset.s));
 function setRole(r){
   role=r;
   $('rDir').classList.toggle('on',r==='dir');$('rSel').classList.toggle('on',r==='sel');
-  if(r==='sel'){$('sAv').textContent='АЛ';$('sName').textContent='Алия';$('sRole').textContent='Старший продавец';
-    toast('Вы вошли как <b>продавец Алия</b>: свои диалоги, свои сделки и задачи по контролю клиентов. Владелец видит всё и по всем.');
-  }else{$('sAv').textContent='НА';$('sName').textContent='Наталья';$('sRole').textContent='Владелец';
-    toast('Режим <b>владельца</b>: вся картина — продажи, каналы, склад, работа каждого продавца.');}
+  if(r==='sel')toast('Вы вошли как <b>продавец Алия</b>: свои диалоги, сделки и задачи. Владелец видит всё и по всем.');
+  else toast('Режим <b>владельца</b>: вся картина — продажи, каналы, склад, работа каждого продавца.');
   renderAll();
 }
 
 /* ===== DASH ===== */
 function renderDash(){
   $('dashKpis').innerHTML=
-    '<div class="kpi"><div class="kl">Выручка · июль</div><div class="kv">4,86 млн ₸</div><div class="kd">план 12 млн · идём +8% к июню</div></div>'+
-    '<div class="kpi green"><div class="kl">Средний чек</div><div class="kv">103 400 ₸</div><div class="kd">+12% после рассылок по сегментам</div></div>'+
-    '<div class="kpi amber"><div class="kl">Ждут ответа</div><div class="kv">5</div><div class="kd">WhatsApp 2 · Instagram 2 · Telegram 1</div></div>'+
-    '<div class="kpi red"><div class="kl">Контроль клиентов</div><div class="kv">9</div><div class="kd">спящие · дни рождения · резервы</div></div>'+
-    '<div class="kpi violet"><div class="kl">Остатки · 1С</div><div class="kv">1 284</div><div class="kd">позиций · обмен 14:32 ✓</div></div>';
-  const chans=[['WhatsApp',46,'wa'],['Instagram',31,'ig'],['Telegram',12,'tg'],['Звонки',8,'ph'],['Магазин (офлайн)',21,'of']];
+    '<div class="st"><div class="sl">Выручка — июль</div><div class="sv">4,86 <em>млн ₸</em></div><div class="sn">план 12 млн · +8% к июню</div></div>'+
+    '<div class="st"><div class="sl">Средний чек</div><div class="sv">103 400</div><div class="sn">+12% после рассылок по сегментам</div></div>'+
+    '<div class="st"><div class="sl">Ждут ответа</div><div class="sv"><em>5</em></div><div class="sn">WhatsApp 2 · Instagram 2 · Telegram 1</div></div>'+
+    '<div class="st"><div class="sl">Контроль клиентов</div><div class="sv"><em>9</em></div><div class="sn">спящие · дни рождения · резервы</div></div>'+
+    '<div class="st"><div class="sl">Остатки — 1С</div><div class="sv">1 284</div><div class="sn">позиций · обмен 14:32</div></div>';
+  const chans=[['WhatsApp',46,'wa'],['Instagram',31,'ig'],['Telegram',12,'tg'],['Звонки',8,'ph'],['Магазин',21,'of']];
   const mx=Math.max(...chans.map(c=>c[1]));
-  $('dashCh').innerHTML=chans.map(c=>'<div class="tl"><div class="tn">'+chB(c[2])+'</div><div class="bar"><i style="width:'+(c[1]/mx*100)+'%"></i></div><div class="tv">'+c[1]+' обращ.</div></div>').join('')+
-    '<div style="font-size:11.5px;color:var(--muted);margin-top:8px">💡 Все каналы падают в один инбокс — клиенту отвечает свободный продавец, история сохраняется в карточке.</div>';
+  $('dashCh').innerHTML=chans.map(c=>'<div class="pr"><span class="pn"><span class="sw '+c[2]+'"></span>'+c[0]+'</span><span class="ln"><i style="width:'+(c[1]/mx*100)+'%"></i></span><span class="pv">'+c[1]+' обращ.</span></div>').join('')+
+    '<div class="chk-note">Все каналы падают в один инбокс — клиенту отвечает свободный продавец, история сохраняется в карточке.</div>';
   $('dashCtl').innerHTML=[
-    ['💤','Динара Сулейменова — не покупала 90 дней','предложить новинки её размера (44)'],
-    ['🎂','Салтанат Мукашева — день рождения 9 июля','VIP · автопоздравление + бонусы готовы'],
-    ['⏱','Камила Абишева — резерв истекает сегодня','костюм Twinset · напомнить о примерке'],
-  ].map(r=>'<div class="ctl-r" style="padding:9px 0"><span style="font-size:18px">'+r[0]+'</span><div style="flex:1;min-width:0"><div class="cn">'+r[1]+'</div><div class="cs">'+r[2]+'</div></div><button class="abtn pr" onclick="event.stopPropagation();toast(\'Сообщение отправлено в канал клиента. Такие касания возвращают 10–15% «спящих» — это и есть контроль клиентов.\')">Написать</button></div>').join('');
+    ['I','Динара Сулейменова — не покупала 90 дней','предложить новинки её размера (44)'],
+    ['II','Салтанат Мукашева — день рождения 9 июля','VIP · автопоздравление и бонусы готовы'],
+    ['III','Камила Абишева — резерв истекает сегодня','костюм Twinset · напомнить о примерке'],
+  ].map(r=>'<div class="att"><span class="mark">'+r[0]+'</span><div style="flex:1;min-width:0"><div class="cn">'+r[1]+'</div><div class="cs">'+r[2]+'</div></div><button class="bo" onclick="toast(\'Сообщение отправлено в канал клиента. Такие касания возвращают 10–15% «спящих» — это и есть контроль клиентов.\')">Написать</button></div>').join('');
   const br=[['Max Mara',1620000],['BOSS',1140000],['Liu Jo',680000],['Twinset',540000],['Tommy Hilfiger',410000]];
-  $('dashBrands').innerHTML=br.map(b=>'<div class="tl"><div class="tn" style="width:130px">'+b[0]+'</div><div class="bar"><i style="width:'+(b[1]/br[0][1]*100)+'%"></i></div><div class="tv">'+Math.round(b[1]/1000)+'к ₸</div></div>').join('');
-  $('dashFeed').innerHTML=FEED.map(f=>'• '+f).join('<br>');
+  $('dashBrands').innerHTML=br.map(b=>'<div class="pr"><span class="pn" style="text-transform:none;letter-spacing:.2px;font-size:12.5px">'+b[0]+'</span><span class="ln"><i style="width:'+(b[1]/br[0][1]*100)+'%"></i></span><span class="pv">'+Math.round(b[1]/1000)+'к ₸</span></div>').join('');
+  $('dashFeed').innerHTML=FEED.map(f=>'— '+f).join('<br>');
 }
 
 /* ===== INBOX ===== */
-function chFilter(f,el){F.chf=f;document.querySelectorAll('.chl-f .chip').forEach(c=>c.classList.toggle('on',c===el));renderChatList()}
+function chFilter(f,el){F.chf=f;document.querySelectorAll('.chl-f button').forEach(c=>c.classList.toggle('on',c===el));renderChatList()}
 function renderChatList(){
   $('chList').innerHTML=CHATS.map((ch,i)=>{
     if(F.chf&&ch.ch!==F.chf)return '';
     const c=cli(ch.c),last=ch.msgs[ch.msgs.length-1];
     return '<div class="chi'+(i===curChat?' on':'')+'" onclick="curChat='+i+';renderChatList();renderChat()">'+
-    '<div class="av">'+c.n.split(' ').map(w=>w[0]).slice(0,2).join('')+'</div>'+
+    '<div class="avm">'+mono(c.n)+'</div>'+
     '<div style="min-width:0;flex:1"><div class="cn">'+c.n.split(' ')[0]+' '+chB(ch.ch)+'</div><div class="cm">'+last[1]+'</div></div>'+
     '<div class="ct">'+last[2]+(ch.unread?'<div class="unr">'+ch.unread+'</div>':'')+'</div></div>';
   }).join('');
@@ -665,19 +618,20 @@ function renderChat(){
   $('chName').textContent=c.n;
   $('chChan').innerHTML=chB(ch.ch);
   $('chMsgs').innerHTML=ch.msgs.map(([d,t,tm])=>'<div class="msg '+d+'">'+t+'<div class="mt">'+tm+'</div></div>').join('');
-  $('chTpls').innerHTML=['🖤 Отложили для вас на 48 часов','📷 Отправить фото новинок','💳 Ссылка на оплату / рассрочку','🚚 Оформить доставку'].map(t=>
-    '<button class="tpl" onclick="tplSend(\''+t.replace(/'/g,'')+'\')">'+t+'</button>').join('');
-  $('chProfile').innerHTML='<div class="ig2"><div class="il">Клиент</div><div class="iv">'+c.n+'</div></div>'+
-    '<div class="ig2"><div class="il">Сегмент</div><div class="iv">'+segB(c.seg)+'</div></div>'+
-    '<div class="ig2"><div class="il">Размеры</div><div class="iv">'+c.sz+'</div></div>'+
-    '<div class="ig2"><div class="il">Любимые бренды</div><div class="iv">'+c.brands+'</div></div>'+
-    '<div class="ig2"><div class="il">Покупок</div><div class="iv">'+c.cnt+' на '+money(c.spent)+'</div></div>'+
-    '<div class="ig2"><div class="il">Бонусы</div><div class="iv">'+c.bonus.toLocaleString('ru-RU')+' ₸</div></div>'+
-    '<button class="abtn pr" style="width:100%;margin-top:12px" onclick="openCli('+c.id+')">Открыть карточку →</button>';
+  $('chTpls').innerHTML=['Отложили на 48 часов','Фото новинок','Оплата / рассрочка','Доставка'].map(t=>
+    '<button class="tpl" onclick="tplSend(\''+t+'\')">'+t+'</button>').join('');
+  $('chProfile').innerHTML='<div class="pfield"><div class="il">Клиент</div><div class="iv">'+c.n+'</div></div>'+
+    '<div class="pfield"><div class="il">Сегмент</div><div class="iv">'+segB(c.seg)+'</div></div>'+
+    '<div class="pfield"><div class="il">Размеры</div><div class="iv">'+c.sz+'</div></div>'+
+    '<div class="pfield"><div class="il">Любимые бренды</div><div class="iv">'+c.brands+'</div></div>'+
+    '<div class="pfield"><div class="il">Покупок</div><div class="iv">'+c.cnt+' на '+money(c.spent)+'</div></div>'+
+    '<div class="pfield"><div class="il">Бонусы</div><div class="iv">'+c.bonus.toLocaleString('ru-RU')+' ₸</div></div>'+
+    '<button class="bo" style="width:100%;margin-top:14px" onclick="openCli('+c.id+')">Открыть карточку</button>';
   $('chMsgs').scrollTop=99999;
 }
 function tplSend(t){
-  CHATS[curChat].msgs.push(['out',t.replace(/^[^ ]+ /,''),'сейчас']);
+  const full={'Отложили на 48 часов':'Отложили для вас на 48 часов','Фото новинок':'Отправляю фото новинок вашего размера','Оплата / рассрочка':'Ссылка на оплату и условия рассрочки','Доставка':'Оформляем доставку — подскажите адрес'}[t]||t;
+  CHATS[curChat].msgs.push(['out',full,'сейчас']);
   renderChat();
   toast('Отправлено в '+CHN[CHATS[curChat].ch]+'. Один инбокс — три канала: <b>продавцы не прыгают между телефонами и аккаунтами</b>.');
 }
@@ -694,40 +648,40 @@ function renderSales(){
     const ds=DEALS.filter(d=>d.st===i&&(role==='dir'||d.s==='al'));
     return '<div class="kcol"><h4>'+st+'<span>'+ds.length+'</span></h4>'+ds.map(d=>
       '<div class="kcard" onclick="toast(\'Сделку можно перетащить на следующий этап. Резерв ставит таймер 48 часов и помечает товар в 1С.\')">'+
-      '<div class="kt">'+d.n+'</div>'+(d.m?'<div class="km">'+money(d.m)+'</div>':'<div class="kc2">сумма уточняется</div>')+
-      '<div class="kf">'+chB(d.ch)+'<span style="font-size:10.5px;color:var(--muted)">'+SELLERS.find(s=>s.id===d.s).n+'</span></div></div>').join('')+'</div>';
+      '<div class="kt">'+d.n+'</div>'+(d.m?'<div class="km">'+money(d.m)+'</div>':'')+
+      '<div class="kf">'+chB(d.ch)+'<span>'+SELLERS.find(s=>s.id===d.s).n+'</span></div></div>').join('')+'</div>';
   }).join('');
 }
 
 /* ===== CLIENTS ===== */
-function setChip(el,v){F.st=v;document.querySelectorAll('#s-clients .chip').forEach(c=>c.classList.toggle('on',c===el));renderClients()}
+function setChip(el,v){F.st=v;document.querySelectorAll('#s-clients .fchip').forEach(c=>c.classList.toggle('on',c===el));renderClients()}
 function renderClients(){
   const q=(F.q||'').toLowerCase();
   $('cliBody').innerHTML=CLI.filter(c=>(!q||c.n.toLowerCase().includes(q)||c.ph.includes(q))&&(!F.st||c.seg===F.st)).map(c=>
-    '<tr onclick="openCli('+c.id+')"><td><div class="cname">'+c.n+'</div><div class="csub">'+c.ph+'</div></td>'+
+    '<tr onclick="openCli('+c.id+')"><td><div style="display:flex;gap:11px;align-items:center"><span class="thumb">'+mono(c.n)+'</span><div><div class="cname">'+c.n+'</div><div class="csub">'+c.ph+'</div></div></div></td>'+
     '<td>'+segB(c.seg)+'</td><td>'+chB(c.ch)+'</td><td style="font-size:11.5px">'+c.sz+'</td>'+
     '<td><b>'+c.cnt+'</b> · '+money(c.spent)+'</td><td>'+c.last+'</td>'+
-    '<td style="font-weight:700;color:var(--gold-d)">'+c.bonus.toLocaleString('ru-RU')+'</td></tr>').join('');
+    '<td style="font-family:var(--serif);font-weight:700;color:var(--goldD)">'+c.bonus.toLocaleString('ru-RU')+'</td></tr>').join('');
 }
 function openCli(id){
   const c=cli(id);
   $('cmName').textContent=c.n;
   $('cmSub').textContent=c.ph+' · '+CHN[c.ch]+(c.bd?' · день рождения '+c.bd:'');
   $('cmBody').innerHTML='<div class="info-g">'+
-    '<div class="ig2"><div class="il">Сегмент</div><div class="iv">'+segB(c.seg)+'</div></div>'+
-    '<div class="ig2"><div class="il">Бонусный счёт</div><div class="iv">'+c.bonus.toLocaleString('ru-RU')+' ₸</div></div>'+
-    '<div class="ig2"><div class="il">Размеры</div><div class="iv">'+c.sz+'</div></div>'+
-    '<div class="ig2"><div class="il">Любимые бренды</div><div class="iv">'+c.brands+'</div></div>'+
-    '<div class="ig2"><div class="il">Покупок всего</div><div class="iv">'+c.cnt+' на '+money(c.spent)+'</div></div>'+
-    '<div class="ig2"><div class="il">Последняя покупка</div><div class="iv">'+c.last+'</div></div>'+
+    '<div class="pfield"><div class="il">Сегмент</div><div class="iv">'+segB(c.seg)+'</div></div>'+
+    '<div class="pfield"><div class="il">Бонусный счёт</div><div class="iv">'+c.bonus.toLocaleString('ru-RU')+' ₸</div></div>'+
+    '<div class="pfield"><div class="il">Размеры</div><div class="iv">'+c.sz+'</div></div>'+
+    '<div class="pfield"><div class="il">Любимые бренды</div><div class="iv">'+c.brands+'</div></div>'+
+    '<div class="pfield"><div class="il">Покупок всего</div><div class="iv">'+c.cnt+' на '+money(c.spent)+'</div></div>'+
+    '<div class="pfield"><div class="il">Последняя покупка</div><div class="iv">'+c.last+'</div></div>'+
     '</div>'+
-    '<h3 style="font-size:12px;font-weight:800;margin:14px 0 8px;color:var(--muted)">ПОСЛЕДНИЕ ПОКУПКИ</h3>'+
+    '<div class="rub"><span class="rt">Последние покупки</span><span class="rl"></span></div>'+
     '<table><tbody>'+
-    '<tr><td>'+c.last+'</td><td>Пальто Studio · Max Mara</td><td class="sum" style="text-align:right;font-weight:700">890 000 ₸</td></tr>'+
-    '<tr><td>14.05</td><td>Джемпер кашемир · Twinset</td><td style="text-align:right;font-weight:700">164 000 ₸</td></tr>'+
-    '<tr><td>02.04</td><td>Туфли лодочки · BOSS</td><td style="text-align:right;font-weight:700">225 000 ₸</td></tr>'+
+    '<tr><td>'+c.last+'</td><td>Пальто Studio · Max Mara</td><td style="text-align:right;font-weight:600">890 000 ₸</td></tr>'+
+    '<tr><td>14.05</td><td>Джемпер, кашемир · Twinset</td><td style="text-align:right;font-weight:600">164 000 ₸</td></tr>'+
+    '<tr><td>02.04</td><td>Туфли-лодочки · BOSS</td><td style="text-align:right;font-weight:600">225 000 ₸</td></tr>'+
     '</tbody></table>'+
-    '<div style="margin-top:12px;font-size:11.5px;color:var(--muted)">💡 Продавец видит размеры и вкусы клиента до того, как тот зашёл в примерочную. Новинка её размера пришла — система предложит написать.</div>';
+    '<div class="chk-note">Продавец видит размеры и вкусы клиента до того, как тот зашёл в примерочную. Пришла новинка её размера — система предложит написать.</div>';
   $('cliOvl').classList.add('show');
 }
 function closeCli(){$('cliOvl').classList.remove('show')}
@@ -735,72 +689,57 @@ function closeCli(){$('cliOvl').classList.remove('show')}
 /* ===== CONTROL ===== */
 function renderControl(){
   const blocks=[
-    ['💤','Спящие клиенты — не покупали 60+ дней',[
-      [4,'не покупала 90 дней · раньше раз в месяц · 44 размер','Предложить новинки 44'],
-      [8,'не покупала 105 дней · Liu Jo · Telegram','Скидка −15% «мы скучаем»'],
-      [12,'VIP! не покупала 126 дней · 1,18 млн ₸ истории','Личный звонок Натальи'],
+    ['I','Спящие клиенты — не покупали 60+ дней',[
+      [4,'не покупала 90 дней · раньше раз в месяц · 44 размер','Предложить новинки'],
+      [8,'не покупала 105 дней · Liu Jo · Telegram','Скидка «мы скучаем»'],
+      [12,'VIP — не покупала 126 дней · 1,18 млн ₸ истории','Личный звонок'],
     ]],
-    ['🎂','Дни рождения на 2 недели',[
-      [2,'9 июля · VIP · автопоздравление + 5 000 бонусов','Поздравить + бонусы'],
-      [1,'12 июля · VIP · любит Max Mara','Подобрать подарок-комплимент'],
+    ['II','Дни рождения на 2 недели',[
+      [2,'9 июля · VIP · автопоздравление + 5 000 бонусов','Поздравить'],
+      [1,'12 июля · VIP · любит Max Mara','Подарок-комплимент'],
     ]],
-    ['⏱','Резервы истекают',[
-      [9,'костюм Twinset · резерв до сегодня 20:00','Напомнить о примерке'],
+    ['III','Резервы истекают',[
+      [9,'костюм Twinset · резерв до сегодня 20:00','Напомнить'],
       [1,'пальто Max Mara · резерв до 04.07','Подтвердить визит'],
       [2,'сумка Michael Kors · резерв до 05.07','Напомнить'],
     ]],
-    ['♛','VIP без внимания 30+ дней',[
-      [7,'последний контакт 18.06 · ждёт пиджаки BOSS 48','Фото новинок BOSS'],
+    ['IV','VIP без внимания 30+ дней',[
+      [7,'последний контакт 18.06 · ждёт пиджаки BOSS 48','Фото новинок'],
     ]],
   ];
-  $('ctlWrap').innerHTML=blocks.map(([ic,title,rows])=>
-    '<div class="ctl"><div class="ctl-h"><span class="ci">'+ic+'</span><b>'+title+'</b><span class="cnt">'+rows.length+'</span></div>'+
+  $('ctlWrap').innerHTML=blocks.map(([num,title,rows])=>
+    '<div class="ctl"><div class="ctl-h"><span class="num">'+num+'</span><b>'+title+'</b><span class="cnt">'+rows.length+'</span></div>'+
     rows.map(([id,sub,act])=>{const c=cli(id);
-      return '<div class="ctl-r"><div class="av">'+c.n.split(' ').map(w=>w[0]).slice(0,2).join('')+'</div>'+
+      return '<div class="ctl-r"><div class="avm">'+mono(c.n)+'</div>'+
       '<div style="flex:1;min-width:180px"><div class="cn">'+c.n+' '+segB(c.seg)+'</div><div class="cs">'+sub+'</div></div>'+
-      '<div class="act"><button class="abtn" onclick="openCli('+id+')">Карточка</button>'+
-      '<button class="abtn pr" onclick="toast(\''+act+': сообщение с шаблоном ушло в '+CHN[c.ch]+'. <b>Раньше такие клиенты просто забывались — теперь система напоминает сама.</b>\')">'+act+'</button></div></div>'}).join('')+'</div>').join('');
+      '<div class="act"><button class="bo" onclick="openCli('+id+')">Карточка</button>'+
+      '<button class="bb" onclick="toast(\''+act+': сообщение с шаблоном ушло в '+CHN[c.ch]+'. <b>Раньше такие клиенты просто забывались — теперь система напоминает сама.</b>\')" style="padding:8px 14px">'+act+'</button></div></div>'}).join('')+'</div>').join('');
 }
 
 /* ===== MAILING ===== */
 function renderMailing(){
-  $('campList').innerHTML=CAMPS.map(c=>'<div class="camp"><div class="ci2">'+c.e+'</div>'+
+  $('campList').innerHTML=CAMPS.map((c,i)=>'<div class="camp"><span class="num">'+['I','II','III'][i]+'</span>'+
     '<div style="flex:1;min-width:200px"><div class="cn">'+c.n+'</div><div class="cs">'+c.s+'</div></div>'+
-    '<div class="stat"><div><b>'+c.sent+'</b>отправлено</div><div><b>'+c.read+'</b>прочитали</div><div><b>'+c.repl+'</b>ответили</div><div><b style="color:var(--green)">'+c.sold+'</b>купили</div></div></div>').join('');
+    '<div class="stat"><div><b>'+c.sent+'</b><span>отправлено</span></div><div><b>'+c.read+'</b><span>прочитали</span></div><div><b>'+c.repl+'</b><span>ответили</span></div><div><b style="color:var(--grn)">'+c.sold+'</b><span>купили</span></div></div></div>').join('');
 }
 
-/* ===== STOCK ===== */
-function renderStock(){
-  const q=(F.sq||'').toLowerCase();
-  $('stockBody').innerHTML=PROD.filter(p=>(!q||p.n.toLowerCase().includes(q)||p.b.toLowerCase().includes(q)||p.art.toLowerCase().includes(q))&&(!F.sbrand||p.b===F.sbrand)).map(p=>{
-    const total=Object.values(p.sz).reduce((s,v)=>s+v,0);
-    const szs=Object.entries(p.sz).map(([k,v])=>'<span class="sz '+(v===0?'zero':v<=1?'':'has')+'" title="'+v+' шт">'+k+(v>0?'·'+v:'')+'</span>').join('');
-    return '<tr onclick="toast(\'Карточка товара: фото, история продаж, кто спрашивал этот товар — можно сразу написать клиентам, которые ждали поступления.\')">'+
-    '<td><span style="font-size:18px;margin-right:6px">'+p.e+'</span><span class="cname">'+p.n+'</span><div class="csub">арт. '+p.art+'</div></td>'+
-    '<td style="font-weight:700">'+p.b+'</td><td style="font-weight:700;white-space:nowrap">'+money(p.p)+'</td>'+
-    '<td><div class="sizes">'+szs+'</div></td>'+
-    '<td style="font-size:11px;'+(p.res.includes('⚠')?'color:var(--red);font-weight:700':'color:var(--muted)')+'">'+(p.res||'—')+'</td>'+
-    '<td>'+(total>0?'<span class="b grn">✓ синхр.</span>':'<span class="b red">нет остатка</span>')+'</td></tr>';
-  }).join('');
-}
-
-/* ===== TASKS / TEAM ===== */
+/* ===== TASKS ===== */
 function ringHTML(done,total){
   const p=total?Math.round(done/total*100):0;
-  return '<span class="ring" style="background:conic-gradient(var(--gold) '+p+'%, #eee7d8 0)"><i>'+done+'/'+total+'</i></span>';
+  return '<span class="ring" style="background:conic-gradient(var(--gold) '+p+'%, rgba(27,22,16,.12) 0)"><i>'+done+'/'+total+'</i></span>';
 }
 function renderTeam(){
   $('dutyAvs').innerHTML=DUTY.map(id=>{const s=SELLERS.find(x=>x.id===id);
-    return '<span class="av" style="background:'+s.c+'" title="'+s.n+'">'+s.n.slice(0,2).toUpperCase()+'</span>'}).join('');
+    return '<span class="avc" style="background:'+s.c+'" title="'+s.n+'">'+s.n.slice(0,2).toUpperCase()+'</span>'}).join('');
   const who=role==='sel'?SELLERS.filter(s=>s.id==='al'):SELLERS.filter(s=>s.id!=='na');
   $('tGroups').innerHTML=who.map(s=>{
     const ts=TTASKS.filter(t=>t.a===s.id);
     if(!ts.length)return '';
     const done=ts.filter(t=>t.done).length;
-    return '<div class="tgroup"><div class="tg-h"><span class="av" style="background:'+s.c+'">'+s.n.slice(0,2).toUpperCase()+'</span>'+
-    '<div><div class="tn2">'+s.n+'</div><div class="tr2">'+s.r+(DUTY.includes(s.id)?' · сегодня на смене':' · выходной')+'</div></div>'+ringHTML(done,ts.length)+'</div>'+
+    return '<div class="tgroup"><div class="tg-h"><span class="avc" style="background:'+s.c+'">'+s.n.slice(0,2).toUpperCase()+'</span>'+
+    '<div><div class="tn2">'+s.n+'</div><div class="tr2">'+s.r+(DUTY.includes(s.id)?' — сегодня на смене':' — выходной')+'</div></div>'+ringHTML(done,ts.length)+'</div>'+
     ts.map(t=>'<div class="titem'+(t.done?' done':'')+'" onclick="toggleTask('+t.id+')"><span class="cbx">'+(t.done?'✓':'')+'</span>'+
-      '<div><div class="tt">'+t.t+'</div><div class="tm2"><span class="b gry" style="font-size:9.5px">'+t.type+'</span><span class="'+(t.hot?'hot2':'')+'">'+(t.hot?'🔥 ':'')+t.dl+'</span></div></div></div>').join('')+
+      '<div><div class="tt">'+t.t+'</div><div class="tm2"><span class="tag gry">'+t.type+'</span><span class="'+(t.hot?'hot2':'')+'">'+(t.hot?'срочно · ':'')+t.dl+'</span></div></div></div>').join('')+
     '</div>'}).join('');
   const oD=OPENLIST.filter(x=>x[1]).length,cD=CLOSELIST.filter(x=>x[1]).length;
   $('openRing').outerHTML=ringHTML(oD,OPENLIST.length).replace('<span','<span id="openRing"');
@@ -814,7 +753,7 @@ function renderTeam(){
 function toggleTask(id){
   const t=TTASKS.find(x=>x.id===id);t.done=t.done?0:1;
   renderTeam();
-  if(t.done)toast('Задача закрыта ✓ Владелец видит выполнение в реальном времени — <b>без вопросов «ну что там?»</b> Просроченные подсвечиваются и попадают в отчёт дня.');
+  if(t.done)toast('Задача закрыта. Владелец видит выполнение в реальном времени — <b>без вопросов «ну что там?»</b> Просроченные попадают в отчёт дня.');
 }
 function toggleChk(list,i){
   const L=list?CLOSELIST:OPENLIST;L[i][1]=L[i][1]?0:1;
@@ -830,11 +769,27 @@ function addTask(){
   toast('Поручение улетело: <b>'+SELLERS.find(s=>s.id===who).n+'</b> получит пуш, задача появилась в её списке. Устные поручения больше не забываются.');
 }
 
+/* ===== STOCK ===== */
+function renderStock(){
+  const q=(F.sq||'').toLowerCase();
+  $('stockBody').innerHTML=PROD.filter(p=>(!q||p.n.toLowerCase().includes(q)||p.b.toLowerCase().includes(q)||p.art.toLowerCase().includes(q))&&(!F.sbrand||p.b===F.sbrand)).map(p=>{
+    const total=Object.values(p.sz).reduce((s,v)=>s+v,0);
+    const szs=Object.entries(p.sz).map(([k,v])=>'<span class="sz '+(v===0?'zero':v<=1?'':'has')+'" title="'+v+' шт">'+k+(v>0?' · '+v:'')+'</span>').join('');
+    const bm=p.b.split(' ').map(w=>w[0]).slice(0,2).join('');
+    return '<tr onclick="toast(\'Карточка товара: фото, история продаж, кто спрашивал этот товар — можно сразу написать клиентам, которые ждали поступления.\')">'+
+    '<td><div style="display:flex;gap:11px;align-items:center"><span class="thumb">'+bm+'</span><div><div class="cname">'+p.n+'</div><div class="csub">арт. '+p.art+'</div></div></div></td>'+
+    '<td style="font-weight:600">'+p.b+'</td><td style="font-family:var(--serif);font-weight:700;white-space:nowrap">'+money(p.p)+'</td>'+
+    '<td><div class="sizes">'+szs+'</div></td>'+
+    '<td style="font-size:11px;'+(p.res.includes('!')?'color:var(--red);font-weight:700':'color:var(--mut)')+'">'+(p.res||'—')+'</td>'+
+    '<td>'+(total>0?'<span class="tag grn">Синхр.</span>':'<span class="tag red">Нет остатка</span>')+'</td></tr>';
+  }).join('');
+}
+
 /* ===== INIT ===== */
-function renderAll(){renderDash();renderChatList();renderChat();renderSales();renderClients();renderControl();renderMailing();renderStock();renderTeam()}
+function renderAll(){renderDash();renderChatList();renderChat();renderSales();renderClients();renderControl();renderMailing();renderTeam();renderStock()}
 $('fBrand').innerHTML='<option value="">Все бренды</option>'+[...new Set(PROD.map(p=>p.b))].map(b=>'<option>'+b+'</option>').join('');
 renderAll();
-setTimeout(()=>toast('Здравствуйте, <b>Наталья</b>! Это интерактивное демо: нажимайте на всё — чаты, клиентов, товары, «Контроль клиентов». Все три канала (WhatsApp, Instagram, Telegram) — в одном инбоксе.'),700);
+setTimeout(()=>toast('Здравствуйте, <b>Наталья</b>! Это интерактивное демо: нажимайте на всё — чаты, клиентов, товары, задачи. Все три канала (WhatsApp, Instagram, Telegram) — в одном инбоксе.'),700);
 const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));
 </script>
 </body>
