@@ -2426,18 +2426,30 @@ async function handleCreateTask(request, env) {
   const responsible = body.responsibleUid ? String(body.responsibleUid) : uid;
   const accomplices = Array.isArray(body.accomplices) ? [...new Set(body.accomplices.filter(Boolean).map(String))] : [];
   const auditors = Array.isArray(body.auditors) ? [...new Set(body.auditors.filter(Boolean).map(String))] : [];
+  // Поля события календаря (mark='zoom_meeting' → показывается как встреча):
+  const mark = body.mark ? String(body.mark).slice(0, 40) : null;
+  const startDatePlan = body.startDatePlan ? String(body.startDatePlan) : null;
+  const endDatePlan = body.endDatePlan ? String(body.endDatePlan) : null;
+  // Привязка к сделке: crmLinks = ['deal_<bitrixId>'].
+  let crmLinks = null;
+  if (Array.isArray(body.crmLinks) && body.crmLinks.length) {
+    crmLinks = JSON.stringify(body.crmLinks.filter(Boolean).map(String));
+  }
   const nowIso = new Date().toISOString();
   const id = 'task_local_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   await env.DB.prepare(`
     INSERT INTO tasks (id, title, description, status, priority, deadline,
+      start_date_plan, end_date_plan, mark, crm_links,
       responsible_uid, created_by_uid, changed_by_uid, accomplices, auditors,
       bitrix_created_date, bitrix_changed_date, bitrix_status_changed_date, comments_count)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)
   `).bind(id, title, description, status, priority, deadline,
+    startDatePlan, endDatePlan, mark, crmLinks,
     responsible, uid, uid, JSON.stringify(accomplices), JSON.stringify(auditors),
     nowIso, nowIso, nowIso).run();
   return json({ ok: true, id, task: {
     id, title, description, status, priority, deadline,
+    startDatePlan, endDatePlan, mark,
     responsibleUid: responsible, createdByUid: uid, accomplices, auditors,
   } }, 200, request);
 }

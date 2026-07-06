@@ -16325,6 +16325,7 @@ async function renderCalendar(el) {
         <button class="btn btn-sm" id="cal-today">Сегодня</button>
         <button class="btn btn-sm" id="cal-next">→</button>
         <button class="btn btn-sm" id="cal-reload" title="Перезагрузить события">🔄</button>
+        <button class="btn btn-sm" id="cal-add-event" title="Создать событие" style="background:linear-gradient(135deg,#5b6dff,#8a5cff);color:#fff">➕ Событие</button>
         <span class="cal-month-label" id="cal-label"></span>
         <div class="cal-view-toggle">
           <button class="cal-view-btn ${calendarState.view === 'day' ? 'active' : ''}" data-cal-view="day">День</button>
@@ -16356,6 +16357,7 @@ async function renderCalendar(el) {
     await loadCalendarEvents({ force: true });
     renderCalendarView();
   };
+  document.getElementById('cal-add-event').onclick = () => openCalEventForm(new Date());
   // Переключатель видов
   el.querySelectorAll('.cal-view-btn').forEach(b => {
     b.addEventListener('click', () => {
@@ -16543,6 +16545,9 @@ async function loadCalendarEvents(opts = {}) {
         taskId: t.id || t.bitrixKey,
         bitrixId: t.bitrixId,
         dealBitrixId: linkedDealBitrixId,
+        source: 'task',
+        subtype: isZoom ? 'zoom' : 'deadline',
+        uid: 'task:' + (t.id || t.bitrixKey),
       });
     }
       for (const d of dealsForCalendar) {
@@ -16560,6 +16565,9 @@ async function loadCalendarEvents(opts = {}) {
               endDate: endDt,
               title: 'Zoom: ' + (d.title || d.bitrixId),
               dealBitrixId: d.bitrixId,
+              source: 'deal',
+              field: 'firstZoomAt',
+              uid: 'deal:' + d.bitrixId + ':firstZoomAt',
             });
           }
         }
@@ -16575,6 +16583,9 @@ async function loadCalendarEvents(opts = {}) {
               endDate: endDt,
               title: '📚 Пробный: ' + (d.title || d.bitrixId),
               dealBitrixId: d.bitrixId,
+              source: 'deal',
+              field: 'trialLessonAt',
+              uid: 'deal:' + d.bitrixId + ':trialLessonAt',
             });
           }
         }
@@ -16752,7 +16763,7 @@ function renderCalendarDayView() {
             <div class="dh-day">${weekdays[date.getDay()].slice(0,2)}</div>
             <div class="dh-num">${date.getDate()}</div>
           </div>
-          <div class="cal-hourly-day-body" style="height:${(END_H - START_H + 1) * HOUR_H}px">
+          <div class="cal-hourly-day-body" data-cal-date="${calYMD(date)}" style="height:${(END_H - START_H + 1) * HOUR_H}px">
             ${linesHtml}
             ${eventsHtml}
             ${nowLineHtml}
@@ -16763,6 +16774,7 @@ function renderCalendarDayView() {
     ${dayEvents.length === 0 ? '<div style="margin-top:14px;text-align:center;color:var(--t3);font-size:12px">На этот день событий нет.</div>' : ''}
   `;
   attachCalEventClickHandlers(grid);
+  attachCalDragHandlers(grid);
   updateCalStatsCounter(date, calendarState.view);
 }
 
@@ -16818,7 +16830,7 @@ function renderCalendarWeekView() {
         <div class="dh-day">${weekdayShort[i]}</div>
         <div class="dh-num">${day.getDate()}</div>
       </div>
-      <div class="cal-hourly-day-body" style="height:${(END_H - START_H + 1) * HOUR_H}px">
+      <div class="cal-hourly-day-body" data-cal-date="${calYMD(day)}" style="height:${(END_H - START_H + 1) * HOUR_H}px">
         ${linesHtml}
         ${eventsHtml}
         ${nowLineHtml}
@@ -16832,6 +16844,7 @@ function renderCalendarWeekView() {
     </div>
   `;
   attachCalEventClickHandlers(grid);
+  attachCalDragHandlers(grid);
   updateCalStatsCounterWeek(weekStart, weekEnd);
 }
 
@@ -16917,8 +16930,9 @@ function calHourlyEventHtml(ev, START_H, HOUR_H, isAlone, layout) {
     else parts.push(`data-cal-deal="${escapeHtml(ev.dealBitrixId)}"`);
   }
   const hasDealLink = !!(ev.dealBitrixId);
-  const tooltip = time + ' · ' + ev.title + (hasDealLink ? ' · 🔗 кликни → сделка' : (ev.taskId ? ' · 🔗 кликни → дело' : ''));
-  return `<div class="cal-event cal-hourly-event ${cls}" style="${styleParts.join(';')};cursor:pointer" ${parts.join(' ')} title="${escapeHtml(tooltip)}">
+  const tooltip = time + ' · ' + ev.title + (hasDealLink ? ' · 🔗 кликни → сделка' : (ev.taskId ? ' · 🔗 кликни → дело' : '')) + ' · перетащи, чтобы перенести';
+  if (ev.uid) parts.push(`data-cal-uid="${escapeHtml(ev.uid)}"`);
+  return `<div class="cal-event cal-hourly-event ${cls}" draggable="true" style="${styleParts.join(';')};cursor:grab" ${parts.join(' ')} title="${escapeHtml(tooltip)}">
     <div class="cal-hourly-event-time">${escapeHtml(time)}</div>
     <div class="cal-hourly-event-title">${escapeHtml(ev.title)}</div>
   </div>`;
@@ -16941,6 +16955,191 @@ function attachCalEventClickHandlers(grid) {
       }
     });
   });
+}
+
+function calYMD(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function calLocalDT(d) {
+  return `${calYMD(d)}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+// ── Drag&drop переноса событий по времени/дням + создание события ──────────
+let _calDragUid = null;
+function attachCalDragHandlers(grid) {
+  const HOUR_H = 44, START_H = 6, SNAP = 15;
+  grid.querySelectorAll('.cal-event[data-cal-uid]').forEach(el => {
+    el.addEventListener('dragstart', (e) => {
+      _calDragUid = el.dataset.calUid;
+      el.style.opacity = '.45';
+      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', _calDragUid); } catch {}
+      e.stopPropagation();
+    });
+    el.addEventListener('dragend', () => { el.style.opacity = ''; _calDragUid = null; });
+  });
+  grid.querySelectorAll('.cal-hourly-day-body[data-cal-date]').forEach(body => {
+    body.addEventListener('dragover', (e) => { e.preventDefault(); try { e.dataTransfer.dropEffect = 'move'; } catch {} });
+    body.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (!_calDragUid) return;
+      const rect = body.getBoundingClientRect();
+      let mins = START_H * 60 + Math.round(((e.clientY - rect.top) / HOUR_H * 60) / SNAP) * SNAP;
+      mins = Math.max(0, Math.min(24 * 60 - SNAP, mins));
+      const p = body.dataset.calDate.split('-').map(Number);
+      const newStart = new Date(p[0], p[1] - 1, p[2], Math.floor(mins / 60), mins % 60, 0, 0);
+      rescheduleEvent(_calDragUid, newStart);
+      _calDragUid = null;
+    });
+    body.addEventListener('dblclick', (e) => {
+      if (e.target.closest('.cal-event')) return;
+      const rect = body.getBoundingClientRect();
+      let mins = START_H * 60 + Math.round(((e.clientY - rect.top) / HOUR_H * 60) / SNAP) * SNAP;
+      mins = Math.max(0, Math.min(24 * 60 - SNAP, mins));
+      const p = body.dataset.calDate.split('-').map(Number);
+      openCalEventForm(new Date(p[0], p[1] - 1, p[2], Math.floor(mins / 60), mins % 60, 0, 0));
+    });
+  });
+}
+
+async function rescheduleEvent(uid, newStart) {
+  const ev = (calendarState.events || []).find(e => e.uid === uid);
+  if (!ev) return;
+  const oldDate = ev.date, oldEnd = ev.endDate;
+  const durMs = (ev.endDate && ev.date) ? (ev.endDate - ev.date) : 30 * 60000;
+  const newEnd = new Date(newStart.getTime() + durMs);
+  ev.date = newStart; if (ev.endDate) ev.endDate = newEnd;      // optimistic
+  renderCalendarView();
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    if (ev.source === 'task') {
+      const patch = ev.subtype === 'zoom'
+        ? { startDatePlan: newStart.toISOString(), endDatePlan: newEnd.toISOString(), deadline: newStart.toISOString(), bitrixChangedDate: new Date().toISOString() }
+        : { deadline: newStart.toISOString(), bitrixChangedDate: new Date().toISOString() };
+      const r = await fetch(`${WORKER_RTDB_URL}/tasks/${encodeURIComponent(ev.taskId)}.json?auth=${idToken}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+    } else if (ev.source === 'deal') {
+      const dealId = 'deal_' + ev.dealBitrixId;
+      let cf = {};
+      try {
+        const rr = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent(dealId)}.json?auth=${idToken}`);
+        if (rr.ok) { const dd = await rr.json(); cf = (dd && dd.customFields) ? dd.customFields : {}; }
+      } catch {}
+      cf[ev.field] = calLocalDT(newStart);
+      const r = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent(dealId)}.json?auth=${idToken}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customFields: cf, bitrixDateModify: new Date().toISOString() }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+    } else { throw new Error('неизвестный источник события'); }
+    if (typeof showToast === 'function') showToast('Событие перенесено');
+    calendarState._sig = calEventsSig(calendarState.events);
+  } catch (e) {
+    ev.date = oldDate; ev.endDate = oldEnd; renderCalendarView();
+    if (typeof showToast === 'function') showToast('Ошибка переноса: ' + e.message, true); else alert('Ошибка: ' + e.message);
+  }
+}
+
+// Форма создания события в календаре (встреча) с привязкой к сделке.
+function openCalEventForm(prefillDate) {
+  document.getElementById('_cal-event-modal')?.remove();
+  const start = prefillDate instanceof Date && !isNaN(prefillDate) ? prefillDate : new Date();
+  const ov = document.createElement('div');
+  ov.id = '_cal-event-modal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:var(--bg2);border-radius:14px;max-width:460px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.3);overflow:hidden" onclick="event.stopPropagation()">
+    <div style="padding:16px 18px;border-bottom:1px solid var(--b1);display:flex;justify-content:space-between;align-items:center">
+      <b style="font-size:16px">➕ Новое событие</b><button id="ce-x" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--t3)">×</button>
+    </div>
+    <div style="padding:16px 18px;max-height:76vh;overflow:auto">
+      <label style="font-size:12px;color:var(--t3)">Название события</label>
+      <input id="ce-title" placeholder="Напр. Zoom с клиентом" style="width:100%;margin:5px 0 12px;padding:10px 12px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);font-size:14px">
+      <div style="display:flex;gap:10px;margin-bottom:12px">
+        <div style="flex:1"><label style="font-size:12px;color:var(--t3)">Дата</label>
+          <input id="ce-date" type="date" value="${calYMD(start)}" style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)"></div>
+        <div style="width:100px"><label style="font-size:12px;color:var(--t3)">Время</label>
+          <input id="ce-time" type="time" value="${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}" style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)"></div>
+        <div style="width:96px"><label style="font-size:12px;color:var(--t3)">Длит.</label>
+          <select id="ce-dur" style="width:100%;margin-top:5px;padding:9px 6px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">
+            <option value="30">30 мин</option><option value="60" selected>1 час</option><option value="90">1.5 ч</option><option value="120">2 ч</option></select></div>
+      </div>
+      <label style="font-size:12px;color:var(--t3)">Сделка (необязательно)</label>
+      <input id="ce-deal-q" placeholder="Поиск сделки по названию…" autocomplete="off" style="width:100%;margin:5px 0 0;padding:10px 12px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);font-size:14px">
+      <div id="ce-deal-sel" style="font-size:12.5px;color:var(--gn);margin-top:6px"></div>
+      <div id="ce-deal-res" style="max-height:170px;overflow:auto;margin-top:6px"></div>
+      <div id="ce-err" style="color:var(--rd);font-size:12px;min-height:16px;margin-top:8px"></div>
+    </div>
+    <div style="padding:12px 18px;border-top:1px solid var(--b1);display:flex;justify-content:flex-end;gap:8px">
+      <button id="ce-cancel" class="tbtn">Отмена</button>
+      <button id="ce-save" class="tbtn tbtn-a">Создать</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#ce-x').onclick = () => ov.remove();
+  ov.querySelector('#ce-cancel').onclick = () => ov.remove();
+  ov.querySelector('#ce-title').focus();
+
+  let pickedDeal = null;
+  const qEl = ov.querySelector('#ce-deal-q'), resEl = ov.querySelector('#ce-deal-res'), selEl = ov.querySelector('#ce-deal-sel');
+  let tmr = null;
+  qEl.addEventListener('input', () => {
+    pickedDeal = null; selEl.textContent = '';
+    const term = qEl.value.trim();
+    clearTimeout(tmr);
+    if (term.length < 2) { resEl.innerHTML = ''; return; }
+    tmr = setTimeout(async () => {
+      try {
+        const idToken = await fbAuth.currentUser.getIdToken();
+        const params = new URLSearchParams({ pageSize: '15', q: term, auth: idToken, scope: effectiveScope() });
+        const r = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
+        const d = await r.json();
+        const items = d.items || [];
+        resEl.innerHTML = items.length ? items.map(it =>
+          `<div class="ce-deal-row" data-bx="${escapeHtml(it.bitrixId)}" data-t="${escapeHtml(it.title || '')}" style="padding:8px 10px;border:1px solid var(--b1);border-radius:8px;margin-bottom:5px;cursor:pointer;font-size:13px">${escapeHtml(it.title || '(без названия)')}</div>`
+        ).join('') : '<div style="font-size:12px;color:var(--t3);padding:4px">Ничего не найдено</div>';
+        resEl.querySelectorAll('.ce-deal-row').forEach(row => row.onclick = () => {
+          pickedDeal = { bitrixId: row.dataset.bx, title: row.dataset.t };
+          selEl.textContent = '✓ Привязана сделка: ' + (pickedDeal.title || pickedDeal.bitrixId);
+          qEl.value = pickedDeal.title || ''; resEl.innerHTML = '';
+        });
+      } catch (e) { resEl.innerHTML = ''; }
+    }, 300);
+  });
+
+  ov.querySelector('#ce-save').onclick = async () => {
+    const title = ov.querySelector('#ce-title').value.trim();
+    const err = ov.querySelector('#ce-err');
+    if (!title) { err.textContent = 'Укажите название события.'; return; }
+    const dv = ov.querySelector('#ce-date').value, tv = ov.querySelector('#ce-time').value;
+    if (!dv || !tv) { err.textContent = 'Укажите дату и время.'; return; }
+    const [yy, mm, dd] = dv.split('-').map(Number);
+    const [hh, mi] = tv.split(':').map(Number);
+    const startDt = new Date(yy, mm - 1, dd, hh, mi, 0, 0);
+    const dur = parseInt(ov.querySelector('#ce-dur').value) || 60;
+    const endDt = new Date(startDt.getTime() + dur * 60000);
+    const payload = {
+      title, status: 2, mark: 'zoom_meeting',
+      startDatePlan: startDt.toISOString(), endDatePlan: endDt.toISOString(),
+      deadline: startDt.toISOString(),   // календарь тянет задачи по окну deadline
+    };
+    if (pickedDeal) payload.crmLinks = ['deal_' + pickedDeal.bitrixId];
+    const btn = ov.querySelector('#ce-save'); btn.disabled = true; btn.textContent = '⏳…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/tasks`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      showToast?.('Событие создано');
+      ov.remove();
+      await loadCalendarEvents({ force: true });
+      renderCalendarView();
+    } catch (e) { err.textContent = 'Ошибка: ' + e.message; btn.disabled = false; btn.textContent = 'Создать'; }
+  };
 }
 
 function updateCalStatsCounter(date, view) {
