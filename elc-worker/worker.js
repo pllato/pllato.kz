@@ -1194,6 +1194,8 @@ async function handleRtdbWrite(env, request, parts, me) {
     const keyCol = updatableTables[head];
     const id = rest[0];
     const jsonCols = JSON_COLS[tableName] || new Set();
+    // event_public — ленивая колонка (общий календарь); гарантируем перед записью.
+    if (tableName === "tasks") await ensureEventPublicColumn(env);
 
     // Permissions:
     //   pipelines / users — только admin
@@ -1613,15 +1615,19 @@ async function handleList(request, env, entity) {
     else if (src === "bitrix") whereParts.push("(bitrix_id IS NOT NULL AND bitrix_id != '')");
     // Видимость задач: ТОЛЬКО свои — постановщик / ответственный / изменивший /
     // соисполнитель / наблюдатель. Без исключений (даже для админов/директоров).
+    // Исключение: события общего календаря (event_public=1) видны всем — но
+    // только когда явно запрошены (?includePublic=1), чтобы не засорять доски задач.
+    await ensureEventPublicColumn(env);
+    const includePublic = url.searchParams.get("includePublic") === "1";
     const vuid = me.canonicalUid || '';
-    if (!vuid) {
-      whereParts.push("1 = 0");
-    } else {
-      const orC = [];
+    const orC = [];
+    if (vuid) {
       for (const f of (cfg.mineFields || [])) { orC.push(`${f} = ?`); whereParams.push(vuid); }
       for (const f of (cfg.mineJsonFields || [])) { orC.push(`${f} LIKE ?`); whereParams.push(`%"${vuid}"%`); }
-      if (orC.length) whereParts.push("(" + orC.join(" OR ") + ")");
     }
+    if (includePublic) orC.push("event_public = 1");
+    if (orC.length) whereParts.push("(" + orC.join(" OR ") + ")");
+    else whereParts.push("1 = 0");
   }
 
   // archived фильтр (только для deals — у contacts/tasks колонки нет).
@@ -2408,6 +2414,14 @@ async function handleQualRecordingDelete(request, env, dealId, recId) {
   return json({ ok: true }, 200, request);
 }
 
+// Ленивая колонка event_public: 1 = событие видно всем (общий календарь).
+let _eventPublicColEnsured = false;
+async function ensureEventPublicColumn(env) {
+  if (_eventPublicColEnsured) return;
+  try { await env.DB.prepare("ALTER TABLE tasks ADD COLUMN event_public INTEGER DEFAULT 0").run(); } catch (e) {}
+  _eventPublicColEnsured = true;
+}
+
 // POST /api/tasks — создать НОВУЮ задачу в портале (bitrix_id пуст → «текущие»,
 // не в «Битрикс Архив»). Постановщик = текущий пользователь.
 async function handleCreateTask(request, env) {
@@ -2426,18 +2440,32 @@ async function handleCreateTask(request, env) {
   const responsible = body.responsibleUid ? String(body.responsibleUid) : uid;
   const accomplices = Array.isArray(body.accomplices) ? [...new Set(body.accomplices.filter(Boolean).map(String))] : [];
   const auditors = Array.isArray(body.auditors) ? [...new Set(body.auditors.filter(Boolean).map(String))] : [];
+  // Поля события календаря (mark='zoom_meeting' → показывается как встреча):
+  const mark = body.mark ? String(body.mark).slice(0, 40) : null;
+  const startDatePlan = body.startDatePlan ? String(body.startDatePlan) : null;
+  const endDatePlan = body.endDatePlan ? String(body.endDatePlan) : null;
+  // Привязка к сделке: crmLinks = ['deal_<bitrixId>'].
+  let crmLinks = null;
+  if (Array.isArray(body.crmLinks) && body.crmLinks.length) {
+    crmLinks = JSON.stringify(body.crmLinks.filter(Boolean).map(String));
+  }
+  const eventPublic = body.eventPublic ? 1 : 0;   // 1 = общий календарь (видно всем)
+  await ensureEventPublicColumn(env);
   const nowIso = new Date().toISOString();
   const id = 'task_local_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   await env.DB.prepare(`
     INSERT INTO tasks (id, title, description, status, priority, deadline,
+      start_date_plan, end_date_plan, mark, crm_links,
       responsible_uid, created_by_uid, changed_by_uid, accomplices, auditors,
-      bitrix_created_date, bitrix_changed_date, bitrix_status_changed_date, comments_count)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)
+      event_public, bitrix_created_date, bitrix_changed_date, bitrix_status_changed_date, comments_count)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)
   `).bind(id, title, description, status, priority, deadline,
+    startDatePlan, endDatePlan, mark, crmLinks,
     responsible, uid, uid, JSON.stringify(accomplices), JSON.stringify(auditors),
-    nowIso, nowIso, nowIso).run();
+    eventPublic, nowIso, nowIso, nowIso).run();
   return json({ ok: true, id, task: {
     id, title, description, status, priority, deadline,
+    startDatePlan, endDatePlan, mark,
     responsibleUid: responsible, createdByUid: uid, accomplices, auditors,
   } }, 200, request);
 }

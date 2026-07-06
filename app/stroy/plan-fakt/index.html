@@ -277,6 +277,16 @@ S.cat=CATS[0].k;S.penMode=false;S.printSpec=true;S.cluster=[];S.heights={socket:
 /* зоны: разные высоты выпусков/подъёмов (паркинг ≠ квартиры). S.heights/S.panelH — зеркало активной зоны */
 S.zones={apt:{name:'Квартиры',socket:0.40,switch:0.90,panel:1.50},mop:{name:'МОПы',socket:0.40,switch:0.90,panel:1.50},park:{name:'Паркинг',socket:0.50,switch:1.10,panel:1.80}};
 S.zoneByPage={};S.dark={};S.outletsPer=2;S.tailLen=0.30;S.outletCorrByPage={};
+/* освещение (правки Данияра): выключатель — стандартная длина кабеля 1.5 м; выпуск освещения — стандартной длины */
+S.lightTail=0.30;S.switchLen=1.50;
+/* каталог техники: высота розетки от пола, м. База розетки 0.40 — к длине добавляется только разница (ТВ 1.50 → +1.10) */
+S.applianceByPage={};
+const APPLIANCES=[
+  {n:'Телевизор',h:1.50},{n:'Кондиционер',h:2.20},{n:'Вытяжка',h:2.00},
+  {n:'Микроволновка',h:1.60},{n:'Бойлер/водонагрев.',h:1.80},{n:'Стиральная машина',h:0.90},
+  {n:'Холодильник',h:0.40},{n:'Посудомоечная',h:0.30},{n:'Духовой шкаф',h:0.60},
+  {n:'Варочная панель',h:0.60},{n:'Тёплый пол (терморег.)',h:0.60},{n:'Прочее',h:0.40}
+];
 const ZONE_KEYS=['apt','mop','park'];
 /* чёрный слой чертежа (рамка/выноски) — кандидаты на промоут в объект по тапу */
 function buildDark(pg,sx,sy){return (pg.dark||[]).map(o=>o.t==='line'
@@ -438,7 +448,7 @@ async function loadPdf(file){
   }catch(e){console.error(e);toast('Не удалось открыть PDF');$('spin').style.display='none';}
 }
 function initData(j){
-  S.projId=null;S.extraPos=[];S.zoneByPage={};S.dark={};S.outletCorrByPage={};
+  S.projId=null;S.extraPos=[];S.zoneByPage={};S.dark={};S.outletCorrByPage={};S.applianceByPage={};
   S.data=j;S.pageList=Object.keys(j.pages).map(Number).sort((a,b)=>a-b);
   $('docname').textContent=j.name||'План';
   $('loader').classList.add('hide');$('stage').style.display='flex';
@@ -459,7 +469,7 @@ function projThumb(){return new Promise(res=>{try{const pn=S.pageList[0];const p
   img.onload=()=>{const w=160,h=Math.max(40,Math.round(img.height/img.width*w));const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);res(c.toDataURL('image/jpeg',0.55));};
   img.onerror=()=>res(null);img.src='data:image/jpeg;base64,'+pg.u;}catch(e){res(null);}});}
 function fmtDate(ts){try{return new Date(ts).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
-function buildProj(){return {_planfakt:1,name:S.data.name||'План',data:S.data,edits:{objects:S.objects,cal:S.cal},settings:{panelH:S.panelH,slack:S.slack,importMode:S.importMode,seq:S.seq,heights:S.heights,extraPos:S.extraPos,zones:S.zones,zoneByPage:S.zoneByPage,outletsPer:S.outletsPer,tailLen:S.tailLen,outletCorrByPage:S.outletCorrByPage}};}
+function buildProj(){return {_planfakt:1,name:S.data.name||'План',data:S.data,edits:{objects:S.objects,cal:S.cal},settings:{panelH:S.panelH,slack:S.slack,importMode:S.importMode,seq:S.seq,heights:S.heights,extraPos:S.extraPos,zones:S.zones,zoneByPage:S.zoneByPage,outletsPer:S.outletsPer,tailLen:S.tailLen,outletCorrByPage:S.outletCorrByPage,lightTail:S.lightTail,switchLen:S.switchLen,applianceByPage:S.applianceByPage}};}
 function downloadProjFile(proj){try{const blob=new Blob([JSON.stringify(proj)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(proj.name||'plan').replace(/[^\wа-яёА-ЯЁ.\- ]/gi,'_')+'_проект.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),8000);}catch(e){toast('Не удалось скачать файл');}}
 /* облачный архив (R2 через воркер) + локальное зеркало (IDB) */
 const ARCH_URL=CONVERT_URL+'/projects';
@@ -512,6 +522,9 @@ function openProject(j,projId){
   if(st.outletsPer!=null)S.outletsPer=st.outletsPer;
   if(st.tailLen!=null)S.tailLen=st.tailLen;
   S.outletCorrByPage=st.outletCorrByPage||{};
+  if(st.lightTail!=null)S.lightTail=st.lightTail;
+  if(st.switchLen!=null)S.switchLen=st.switchLen;
+  S.applianceByPage=st.applianceByPage||{};
   S.extraPos=Array.isArray(st.extraPos)?st.extraPos:[];
   S.pageList=Object.keys(S.data.pages).map(Number).sort((a,b)=>a-b);
   S.history={};S.selected=null;
@@ -611,6 +624,7 @@ function renderObj(o){
     el=document.createElementNS(SVGNS,'path');
     el.setAttribute('d',dPath);
     el.setAttribute('fill','none');el.setAttribute('stroke',o.color);el.setAttribute('stroke-width',o.width);el.setAttribute('stroke-linecap','round');el.setAttribute('stroke-linejoin','round');
+    if(o.cat==='mop15')el.setAttribute('stroke-dasharray',(o.width*3.2)+' '+(o.width*2.2));
     if(ref){el.setAttribute('opacity','0.22');}
     g.appendChild(el);
     // маркеры выпусков на концах
@@ -793,12 +807,14 @@ function catBtn(c,act){return `<button class="catsw ${c.k===act?'on':''}" data-c
 function endBox(label,ek,o){const e=o[ek]||{kind:'free',h:0};const isPanel=e.kind==='panel';
   return `<div class="endgrp"><span class="et">Конец ${label}</span>`
     +`<select data-end="${ek}" data-fld="kind">${KINDS.map(x=>`<option value="${x.k}" ${x.k===e.kind?'selected':''}>${x.n}</option>`).join('')}</select>`
-    +`<input type="number" step="0.05" min="0" data-end="${ek}" data-fld="h" value="${(isPanel?S.panelH:e.h).toFixed(2)}" ${isPanel?'disabled title="высота щита — в Расчёте"':''}> м</div>`;}
+    +`<input type="number" step="0.05" min="0" data-end="${ek}" data-fld="h" value="${(isPanel?S.panelH:e.h).toFixed(2)}" ${isPanel?'disabled title="высота щита — в Расчёте"':''}> м`
+    +(e.kind==='socket'?`<select data-end="${ek}" data-fld="appl" title="высота по технике из каталога" style="font-size:11px"><option value="">техника…</option>${APPLIANCES.map((p,pi)=>`<option value="${pi}">${esc(p.n)} ${p.h.toFixed(2)}</option>`).join('')}</select>`:'')
+    +`</div>`;}
 function bindBar(){
   const bar=$('optbar');
   bar.querySelectorAll('.swatch').forEach(s=>s.onclick=()=>{const c=s.dataset.c;if(S.tool==='text')S.textColor=c;if(S.selected){const o=getObj(S.selected);if(o&&'color'in o&&o.type!=='line'){pushHistory();o.color=c;redrawOne(o);}}renderOpt();});
   bar.querySelectorAll('.catsw').forEach(b=>b.onclick=()=>{const k=b.dataset.cat;if(S.tool==='line')S.cat=k;if(S.selected){const o=getObj(S.selected);if(o&&o.type==='line'){pushHistory();o.cat=k;o.color=catC(k);redrawOne(o);renderSide();}}renderOpt();drawSelUI();});
-  bar.querySelectorAll('select[data-end],input[data-end]').forEach(ctl=>{ctl.onchange=()=>{const o=getObj(S.selected);if(!o)return;const ek=ctl.dataset.end,fld=ctl.dataset.fld;pushHistory();if(fld==='kind'){o[ek].kind=ctl.value;o[ek].h=kindDefH(ctl.value);}else{o[ek].h=Math.max(0,parseFloat(ctl.value)||0);}redrawOne(o);drawSelUI();renderOpt();renderSide();};});
+  bar.querySelectorAll('select[data-end],input[data-end]').forEach(ctl=>{ctl.onchange=()=>{const o=getObj(S.selected);if(!o)return;const ek=ctl.dataset.end,fld=ctl.dataset.fld;pushHistory();if(fld==='kind'){o[ek].kind=ctl.value;o[ek].h=kindDefH(ctl.value);}else if(fld==='appl'){if(ctl.value!==''){o[ek].kind='socket';o[ek].h=APPLIANCES[+ctl.value].h;}}else{o[ek].h=Math.max(0,parseFloat(ctl.value)||0);}redrawOne(o);drawSelUI();renderOpt();renderSide();};});
   const wr=$('wr');if(wr)wr.oninput=()=>{S.width=+wr.value;$('wv').textContent=wr.value+'px';if(S.selected){const o=getObj(S.selected);if(o&&'width'in o){o.width=S.width;redrawOne(o);}}};
   const fsr=$('fsr');if(fsr)fsr.oninput=()=>{S.fontSize=+fsr.value;$('fsv').textContent=fsr.value;};
   const syS=$('syS');if(syS)syS.oninput=()=>{const o=getObj(S.selected);if(o&&o.type==='symbol'){o.size=+syS.value;redrawOne(o);drawSelUI();}};
@@ -910,7 +926,7 @@ function center(id){const o=getObj(id);if(!o)return;const b=bbox(o);const w=$('c
 /* ---- расчёт длины кабеля и счётчики ---- */
 function planLenPx(pts){let L=0;for(let i=1;i<pts.length;i++)L+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y);return L;}
 function effH(e){if(!e||!e.kind||e.kind==='free')return 0;if(e.kind==='panel')return S.panelH;return e.h||0;}
-function calcPage(pn){const objs=S.objects[pn]||[];const mpp=S.cal[pn];const cats={};CATS.forEach(c=>cats[c.k]={len:0,n:0,drops:0});const cnt={socket:0,switch:0,light:0,panel:0};
+function calcPage(pn){const objs=S.objects[pn]||[];const mpp=S.cal[pn];const cats={};CATS.forEach(c=>cats[c.k]={len:0,n:0,drops:0});const cnt={socket:0,switch:0,light:0,panel:0,jbox:0};
   objs.forEach(o=>{if(o.type!=='line'||isRef(o)||o.nocalc)return;const c=cats[o.cat]||cats.other;c.n++;
     const drops=effH(o.ea)+effH(o.eb);c.drops+=drops;
     if(mpp)c.len+=planLenPx(o.pts)*mpp+drops;
@@ -920,12 +936,20 @@ function calcPage(pn){const objs=S.objects[pn]||[];const mpp=S.cal[pn];const cat
     if(k.indexOf('socket')===0)cnt.socket+=(k==='socket2'?2:1);
     else if(k.indexOf('switch')===0)cnt.switch++;
     else if(k.indexOf('lum')===0||k.indexOf('led')===0||k==='spot')cnt.light++;
+    else if(k==='jbox')cnt.jbox++;
     else if(k.indexOf('panel')===0)cnt.panel++;});
   // выпуски розеток (остаток): N×2 − коррекция, ×длина выпуска (в метрах, не зависит от масштаба)
   const N=cnt.socket;const corr=(S.outletCorrByPage&&S.outletCorrByPage[pn])||0;
   const tail=Math.max(0,N*(S.outletsPer||2)-corr)*(S.tailLen||0.30);
-  let raw=0;Object.values(cats).forEach(c=>raw+=c.len);raw+=tail;
-  return{cats,cnt,mpp,raw,tail,outletN:N,outletCorr:corr,total:raw*(1+S.slack/100)};}
+  // освещение (остаток): выпуски точек света стандартной длины + кабель выключателей (стандарт 1.5 м)
+  const lightTail=cnt.light*(S.lightTail||0.30)+cnt.switch*(S.switchLen||1.50);
+  // техника по каталогу: добавка = Σ кол-во × (высота техники − базовая высота розетки), только положительная разница
+  const base=(S.heights&&S.heights.socket!=null)?S.heights.socket:0.40;
+  const appl=(S.applianceByPage&&S.applianceByPage[pn])||[];
+  let applExtra=0;const applRows=[];
+  appl.forEach(a=>{const def=APPLIANCES[a.i]||APPLIANCES[APPLIANCES.length-1];const add=Math.max(0,def.h-base)*(a.n||0);applExtra+=add;applRows.push({name:def.n,h:def.h,n:a.n||0,add});});
+  let raw=0;Object.values(cats).forEach(c=>raw+=c.len);raw+=tail+lightTail+applExtra;
+  return{cats,cnt,mpp,raw,tail,lightTail,applExtra,applRows,outletN:N,outletCorr:corr,total:raw*(1+S.slack/100)};}
 function extraLen(p,r){if(!p)return null;if(p.mode==='fixed')return Math.max(0,p.meters||0);if(!r||!r.mpp)return null;const c=r.cats[p.markKey];return c?c.len*(p.coeff!=null?p.coeff:0.9):0;}
 /* поле-значение для таблицы на чертеже: авто из расчёта или вручную */
 function fieldValue(o,r){const lk=o.link;const num=v=>v!=null?String(Math.round(v)):'—';
@@ -936,6 +960,16 @@ function fieldValue(o,r){const lk=o.link;const num=v=>v!=null?String(Math.round(
   if(lk.t==='count')return r?String(r.cnt[lk.k]||0):'0';
   return o.text||'';}
 function fieldLabel(o){const lk=o.link;if(!lk||lk.t==='manual')return 'вручную';if(lk.t==='mark')return catN(lk.k);if(lk.t==='extra'){const p=S.extraPos[lk.i];return p?(p.name||'доп.'):'доп.';}if(lk.t==='total')return 'итого';if(lk.t==='count')return ({socket:'розетки',switch:'выключ.',light:'свет'}[lk.k]||'счёт');return '';}
+/* разбор по щитам: к какому щиту какие каналы (трассы) подведены концом — «как нарисовано» */
+function shieldBreakdown(pn){const objs=S.objects[pn]||[];const mpp=S.cal[pn];
+  const panels=objs.filter(o=>o.type==='symbol'&&(o.sym||'').indexOf('panel')===0);
+  if(!panels.length)return [];
+  const lines=objs.filter(o=>o.type==='line'&&!isRef(o)&&!o.nocalc);
+  const th=Math.max(12,S.W*0.04);
+  return panels.map(p=>{const conn=[];
+    lines.forEach(o=>{const a=o.pts[0],b=o.pts[o.pts.length-1];
+      if(Math.hypot(a.x-p.x,a.y-p.y)<=th||Math.hypot(b.x-p.x,b.y-p.y)<=th)conn.push({cat:o.cat,len:mpp?planLenPx(o.pts)*mpp:0});});
+    return{name:symDef(p.sym).n,lines:conn};});}
 function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPage(pn);
   let html='<div class="calc">';
   html+='<h5>Параметры</h5>';
@@ -956,6 +990,33 @@ function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPa
   html+=`<div class="field"><label>Длина выпуска, м</label><input id="fTail" type="number" step="0.05" min="0" value="${S.tailLen.toFixed(2)}"></div>`;
   html+=`<div class="field"><label>Коррекция: розеток с 1 концом</label><input id="fCorr" type="number" step="1" min="0" value="${r.outletCorr}"></div>`;
   html+=`<div class="crow" style="background:var(--panel)"><span class="nm">Выпуски розеток (остаток)<div class="sub">(${r.cnt.socket}×${S.outletsPer}−${r.outletCorr}) × ${S.tailLen.toFixed(2)} м</div></span><span class="vv">${r.tail.toFixed(1)} м</span></div>`;
+  // ---- освещение (выпуски + выключатели) ----
+  html+='<h5>Освещение (выпуски + выключатели)</h5>';
+  html+=`<div class="field"><label>Точек света / выключателей</label><span style="font-family:var(--mono);font-weight:700">${r.cnt.light} / ${r.cnt.switch}</span></div>`;
+  html+=`<div class="field"><label>Распредкоробок на листе</label><span style="font-family:var(--mono);font-weight:700">${r.cnt.jbox}</span></div>`;
+  html+=`<div class="field"><label>Длина выпуска освещения, м</label><input id="fLTail" type="number" step="0.05" min="0" value="${S.lightTail.toFixed(2)}"></div>`;
+  html+=`<div class="field"><label>Длина кабеля выключателя, м</label><input id="fSwLen" type="number" step="0.05" min="0" value="${S.switchLen.toFixed(2)}"></div>`;
+  html+=`<div class="crow" style="background:var(--panel)"><span class="nm">Освещение (остаток)<div class="sub">${r.cnt.light}×${S.lightTail.toFixed(2)} + ${r.cnt.switch}×${S.switchLen.toFixed(2)} м</div></span><span class="vv">${r.lightTail.toFixed(1)} м</span></div>`;
+  // ---- каталог техники (высоты) ----
+  html+='<h5>Техника по каталогу (высоты)</h5>';
+  const applPage=(S.applianceByPage[pn]||[]);
+  applPage.forEach((a,i)=>{const def=APPLIANCES[a.i]||APPLIANCES[APPLIANCES.length-1];const add=Math.max(0,def.h-S.heights.socket)*(a.n||0);
+    html+=`<div class="crow" style="flex-wrap:wrap;gap:5px;align-items:center">`
+      +`<select class="apK" data-i="${i}" style="flex:1;min-width:96px;font-size:12px">${APPLIANCES.map((p,pi)=>`<option value="${pi}" ${a.i===pi?'selected':''}>${esc(p.n)} (${p.h.toFixed(2)})</option>`).join('')}</select>`
+      +`<input class="apN" data-i="${i}" type="number" step="1" min="0" value="${a.n||0}" title="кол-во" style="width:54px;font-size:12px">`
+      +`<span class="vv">+${add.toFixed(1)} м</span>`
+      +`<button class="adel" data-apdel="${i}" title="Удалить" style="border:none;background:none;cursor:pointer;color:var(--gray);font-size:13px">✕</button></div>`;});
+  html+=`<button class="mini" id="addAppl" style="width:100%;margin:2px 0 4px;padding:7px">+ Добавить технику (ТВ, кондиционер…)</button>`;
+  html+=`<div class="crow" style="background:var(--panel)"><span class="nm">Техника — добавка к кабелю<div class="sub">Σ кол-во × (высота − ${S.heights.socket.toFixed(2)} м базовой)</div></span><span class="vv">${r.applExtra.toFixed(1)} м</span></div>`;
+  html+=`<div class="emptyhint" style="padding:4px 2px 6px;text-align:left">Базовая высота розетки ${S.heights.socket.toFixed(2)} м уже в расчёте. Здесь добавляется только разница на технику выше пола (напр. ТВ 1.50 → +${Math.max(0,1.50-S.heights.socket).toFixed(2)} м на каждую).</div>`;
+  // ---- разбор по щитам (какой щит какие каналы питает) ----
+  const shields=shieldBreakdown(pn);
+  if(shields.length){html+='<h5>Щиты — разбор по факту</h5>';
+    shields.forEach(sh=>{html+=`<div class="crow" style="flex-direction:column;align-items:stretch;gap:4px"><div style="display:flex;justify-content:space-between"><span class="nm">${esc(sh.name)}</span><span class="sub">каналов: ${sh.lines.length}</span></div>`;
+      sh.lines.forEach(ln=>{html+=`<div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:${catC(ln.cat)}">▪ ${esc(catN(ln.cat))}</span><span style="font-family:var(--mono)">${r.mpp?ln.len.toFixed(1)+' м':'—'}</span></div>`;});
+      html+=`</div>`;});
+    if(shields.some(s=>!s.lines.length))html+=`<div class="emptyhint" style="padding:2px 2px 6px;text-align:left">У щита без каналов — подведите трассу концом к знаку щита.</div>`;
+  }
   html+='<h5>Кабель по маркам (лист)</h5>';
   CATS.forEach(c=>{const x=r.cats[c.k];if(x.n===0)return;html+=`<div class="crow"><span class="dot" style="background:${c.c}"></span><span class="nm">${c.n}<div class="sub">${x.n} лин · выпуски ${x.drops.toFixed(2)} м</div></span><span class="vv">${r.mpp?x.len.toFixed(2)+' м':'—'}</span></div>`;});
   if(!CATS.some(c=>r.cats[c.k].n))html+=`<div class="emptyhint">Линий пока нет. Нарисуйте кабель инструментом «Линия».</div>`;
@@ -991,6 +1052,12 @@ function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPa
   const fop=$('fOPer');if(fop)fop.onchange=()=>{S.outletsPer=Math.max(0,parseInt(fop.value)||0);renderCalc();};
   const ft=$('fTail');if(ft)ft.onchange=()=>{S.tailLen=Math.max(0,parseFloat(ft.value)||0);renderCalc();};
   const fcr=$('fCorr');if(fcr)fcr.onchange=()=>{S.outletCorrByPage[pn]=Math.max(0,parseInt(fcr.value)||0);renderCalc();};
+  const flt=$('fLTail');if(flt)flt.onchange=()=>{S.lightTail=Math.max(0,parseFloat(flt.value)||0);renderCalc();};
+  const fswl=$('fSwLen');if(fswl)fswl.onchange=()=>{S.switchLen=Math.max(0,parseFloat(fswl.value)||0);renderCalc();};
+  const aappl=$('addAppl');if(aappl)aappl.onclick=()=>{(S.applianceByPage[pn]=S.applianceByPage[pn]||[]).push({i:0,n:1});renderCalc();};
+  body.querySelectorAll('.apK').forEach(el=>el.onchange=()=>{S.applianceByPage[pn][+el.dataset.i].i=+el.value;renderCalc();});
+  body.querySelectorAll('.apN').forEach(el=>el.onchange=()=>{S.applianceByPage[pn][+el.dataset.i].n=Math.max(0,parseInt(el.value)||0);renderCalc();});
+  body.querySelectorAll('[data-apdel]').forEach(el=>el.onclick=()=>{S.applianceByPage[pn].splice(+el.dataset.apdel,1);renderCalc();});
   const apos=$('addPos');if(apos)apos.onclick=()=>{S.extraPos.push({name:'Труба ПНД Ø20',mode:'mark',markKey:CATS[0].k,coeff:0.9});renderCalc();};
   body.querySelectorAll('.epn').forEach(el=>el.onchange=()=>{S.extraPos[+el.dataset.i].name=el.value;});
   body.querySelectorAll('.epm').forEach(el=>el.onchange=()=>{S.extraPos[+el.dataset.i].mode=el.value;renderCalc();});
@@ -1045,7 +1112,7 @@ $('btnExport').onclick=async()=>{
     const objs=S.objects[pn]||importObjects(pg.objs,sx,sy);
     const rPage=calcPage(pn);
     objs.forEach(o=>{cc.save();
-      if(o.type==='line'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.lineCap='round';cc.lineJoin='round';try{cc.stroke(new Path2D(smoothPath(o.pts)));}catch(e){cc.beginPath();o.pts.forEach((p,i)=>i?cc.lineTo(p.x,p.y):cc.moveTo(p.x,p.y));cc.stroke();}}
+      if(o.type==='line'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.lineCap='round';cc.lineJoin='round';if(o.cat==='mop15')cc.setLineDash([o.width*3.2,o.width*2.2]);try{cc.stroke(new Path2D(smoothPath(o.pts)));}catch(e){cc.beginPath();o.pts.forEach((p,i)=>i?cc.lineTo(p.x,p.y):cc.moveTo(p.x,p.y));cc.stroke();}}
       else if(o.type==='symbol'){drawSymbolCanvas(cc,o);}
       else if(o.type==='rect'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.strokeRect(o.x,o.y,o.w,o.h);}
       else if(o.type==='text'){cc.fillStyle=o.color;cc.font='600 '+o.size+'px Inter,sans-serif';cc.fillText(o.text,o.x,o.y);}
