@@ -163,6 +163,42 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .catnm{font-size:11px;font-weight:700;line-height:1.15;}
 .catdesc{font-size:9.5px;color:var(--gray);line-height:1.25;}
 @media(max-width:900px){.strip{width:72px;}.docname{display:none;}.side{width:212px;}.optbar .tip{display:none;}}
+/* ---- ВЕДОМОСТЬ (полноэкранный список объектов) ---- */
+.ledger{position:fixed;inset:0;z-index:150;background:var(--paper);display:flex;flex-direction:column;}
+.lg-head{display:flex;align-items:center;gap:16px;padding:12px 18px;background:var(--steel);color:#fff;flex-shrink:0;box-shadow:0 2px 12px rgba(0,0,0,.25);}
+.lg-title{font-size:16px;font-weight:700;}
+.lg-title .lg-sub{font-family:var(--mono);font-size:12px;opacity:.7;margin-left:8px;font-weight:500;}
+.lg-prog{display:flex;align-items:center;gap:9px;margin-left:auto;}
+.lg-bar{width:150px;height:8px;border-radius:5px;background:rgba(255,255,255,.18);overflow:hidden;}
+.lg-bar i{display:block;height:100%;width:0;background:var(--amber);border-radius:5px;transition:width .3s;}
+.lg-prog>span{font-family:var(--mono);font-size:12px;font-weight:600;min-width:86px;text-align:right;}
+.lg-x{border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:600;cursor:pointer;}
+.lg-x:hover{background:rgba(255,255,255,.16);}
+.lg-filters{display:flex;gap:8px;padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--line);flex-shrink:0;flex-wrap:wrap;align-items:center;}
+.lg-hint{font-size:11.5px;color:var(--gray);margin-left:auto;max-width:340px;line-height:1.4;}
+.lg-f{border:1px solid var(--line);background:var(--panel2);border-radius:20px;padding:6px 13px;font-size:12.5px;font-weight:600;color:var(--gray);cursor:pointer;}
+.lg-f.on{background:var(--steel);color:#fff;border-color:var(--steel);}
+.lg-f b{font-family:var(--mono);}
+.lg-body{flex:1;overflow-y:auto;padding:12px 18px 48px;display:flex;flex-direction:column;gap:8px;}
+.lg-row{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:10px 12px;flex-wrap:wrap;}
+.lg-row.need{border-left-color:var(--amber);background:#fffaf1;}
+.lg-row.done{border-left-color:var(--green);}
+.lg-sw{width:14px;height:14px;border-radius:4px;flex-shrink:0;}
+.lg-id{font-family:var(--mono);font-size:11px;color:var(--gray);min-width:36px;}
+.lg-cell{display:flex;flex-direction:column;gap:3px;}
+.lg-cell>label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--gray);font-weight:700;}
+.lg-cell select,.lg-cell input{font-family:var(--sans);font-size:12.5px;border:1px solid var(--line);border-radius:7px;padding:6px 7px;background:#fff;color:var(--ink);}
+.lg-ends{display:flex;gap:5px;}
+.lg-ends select{min-width:118px;}
+.lg-ends input{width:62px;text-align:right;font-family:var(--mono);}
+.lg-len span{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--steel);}
+.lg-name>span{font-size:13.5px;font-weight:600;}
+.lg-eye{margin-left:auto;border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 10px;cursor:pointer;font-size:14px;}
+.lg-eye:hover{border-color:var(--steel2);}
+.lg-rev{border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:700;color:var(--steel);cursor:pointer;white-space:nowrap;}
+.lg-row.done .lg-rev{background:var(--green);color:#fff;border-color:var(--green);}
+.lg-empty{text-align:center;color:var(--gray);font-size:13px;padding:34px 12px;line-height:1.6;}
+@media(max-width:700px){.lg-eye{margin-left:0;}.lg-hint{display:none;}}
 </style>
 </head>
 <body>
@@ -175,6 +211,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
   <button class="tbtn ghost" id="btnSaveProj" title="Сохранить проект (план + ваши правки) в файл — продолжить позже или передать">Сохранить</button>
   <button class="tbtn ghost" id="btnOpenProj" title="Открыть проект или другой план">Открыть</button>
   <button class="tbtn" id="btnUndo" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>Отменить</button>
+  <button class="tbtn" id="btnLedger" title="Ведомость: список всех объектов — выставить свойства каждого, привязать линии к щитам, довести до 100%"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Ведомость</button>
   <button class="tbtn" id="btnSpec" title="PDF-смета: длина кабеля по типам, розетки, итоги"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17V7m4 10V11m4 6V9M5 21h14a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1z"/></svg>Смета</button>
   <button class="tbtn primary" id="btnExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Чистый PDF</button>
 </div>
@@ -215,6 +252,15 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
     <div class="sidetabs"><button class="on" data-tab="obj" id="tabObj">Объекты <span id="objN">0</span></button><button data-tab="sym" id="tabSym">Знаки</button><button data-tab="calc" id="tabCalc">Расчёт</button></div>
     <div class="body" id="sideBody"></div>
   </aside>
+</div>
+<div class="ledger" id="ledger" style="display:none">
+  <div class="lg-head">
+    <div class="lg-title">Ведомость объектов<span class="lg-sub" id="lgSheet"></span></div>
+    <div class="lg-prog"><div class="lg-bar"><i id="lgFill"></i></div><span id="lgPct">0 / 0 готово</span></div>
+    <button class="lg-x" id="lgClose">✕ Закрыть</button>
+  </div>
+  <div class="lg-filters" id="lgFilters"></div>
+  <div class="lg-body" id="lgBody"></div>
 </div>
 <div class="loader" id="loader">
   <div class="dropbox" id="dropbox">
@@ -967,9 +1013,11 @@ function shieldBreakdown(pn){const objs=S.objects[pn]||[];const mpp=S.cal[pn];
   const lines=objs.filter(o=>o.type==='line'&&!isRef(o)&&!o.nocalc);
   const th=Math.max(12,S.W*0.04);
   return panels.map(p=>{const conn=[];
-    lines.forEach(o=>{const a=o.pts[0],b=o.pts[o.pts.length-1];
-      if(Math.hypot(a.x-p.x,a.y-p.y)<=th||Math.hypot(b.x-p.x,b.y-p.y)<=th)conn.push({cat:o.cat,len:mpp?planLenPx(o.pts)*mpp:0});});
-    return{name:symDef(p.sym).n,lines:conn};});}
+    lines.forEach(o=>{let attached;
+      if(o.panelId!=null&&o.panelId!=='')attached=(o.panelId===p.id);           // ручная привязка (Ведомость) приоритетнее
+      else{const a=o.pts[0],b=o.pts[o.pts.length-1];attached=Math.hypot(a.x-p.x,a.y-p.y)<=th||Math.hypot(b.x-p.x,b.y-p.y)<=th;}
+      if(attached)conn.push({id:o.id,cat:o.cat,len:mpp?planLenPx(o.pts)*mpp:0});});
+    return{id:p.id,name:symDef(p.sym).n,lines:conn};});}
 function renderCalc(){const body=$('sideBody');const pn=S.pageNum;const r=calcPage(pn);
   let html='<div class="calc">';
   html+='<h5>Параметры</h5>';
@@ -1196,6 +1244,66 @@ $('btnSpec').onclick=async()=>{
   }catch(e){console.error(e);toast('Не удалось сформировать смету');}
 };
 
+/* ==== ВЕДОМОСТЬ: построчная работа со всеми объектами листа ==== */
+let LG_FILTER='all';
+function lgPanels(){return (cur()||[]).filter(o=>o.type==='symbol'&&(o.sym||'').indexOf('panel')===0);}
+function lgNeeds(o){return o.type==='line'&&o.cat==='other';}   // «требуют внимания» — некатегоризованный кабель
+function lgVisible(o){if(LG_FILTER==='all')return true;if(LG_FILTER==='line')return o.type==='line';if(LG_FILTER==='sym')return o.type!=='line';if(LG_FILTER==='todo')return lgNeeds(o);return true;}
+function lgLineLen(o){const mpp=S.cal[S.pageNum];if(!mpp)return null;return planLenPx(o.pts)*mpp+effH(o.ea)+effH(o.eb);}
+function openLedger(){if(!S.data){toast('Сначала откройте план');return;}LG_FILTER='all';$('ledger').style.display='flex';renderLedger();}
+function closeLedger(){$('ledger').style.display='none';}
+function lgPanelOpts(sel){const ps=lgPanels();return `<option value="">— не привязан</option>`+ps.map(p=>`<option value="${p.id}" ${sel===p.id?'selected':''}>${esc(symDef(p.sym).n)} #${p.id.slice(-3)}</option>`).join('');}
+function renderLedger(){
+  const list=(cur()||[]);const pn=S.pageNum;
+  $('lgSheet').textContent=' · лист '+pn;
+  const total=list.length,done=list.filter(o=>o.reviewed).length;
+  $('lgFill').style.width=(total?done/total*100:0)+'%';
+  $('lgPct').textContent=done+' / '+total+' готово';
+  const cnt={all:list.length,line:list.filter(o=>o.type==='line').length,sym:list.filter(o=>o.type!=='line').length,todo:list.filter(lgNeeds).length};
+  $('lgFilters').innerHTML=[['all','Все'],['line','Линии'],['sym','Знаки/щиты'],['todo','Требуют внимания']].map(f=>`<button class="lg-f ${LG_FILTER===f[0]?'on':''}" data-f="${f[0]}">${f[1]} <b>${cnt[f[0]]}</b></button>`).join('')
+    +`<span class="lg-hint">Выставьте каждому объекту марку, типы концов и высоты, привяжите линии к щиту, отметьте «готово». Итоги пересчитаются в «Смете».</span>`;
+  $('lgFilters').querySelectorAll('.lg-f').forEach(b=>b.onclick=()=>{LG_FILTER=b.dataset.f;renderLedger();});
+  const vis=list.filter(lgVisible);const body=$('lgBody');
+  if(!vis.length){body.innerHTML='<div class="lg-empty">Нет объектов в этой группе.</div>';return;}
+  const CAP=400;
+  body.innerHTML=vis.slice(0,CAP).map(lgRow).join('')+(vis.length>CAP?`<div class="lg-empty">Показаны первые ${CAP} из ${vis.length}. Сузьте фильтр (напр. «Требуют внимания» или «Знаки/щиты»).</div>`:'');
+  bindLedger();
+}
+function lgRow(o){
+  const cls='lg-row'+(lgNeeds(o)?' need':'')+(o.reviewed?' done':'');
+  if(o.type==='line'){
+    const len=lgLineLen(o);
+    const endSel=ek=>{const e=o[ek]||{kind:'free',h:0};const isP=e.kind==='panel';
+      return `<select class="lg-kind" data-id="${o.id}" data-ek="${ek}">${KINDS.map(k=>`<option value="${k.k}" ${k.k===e.kind?'selected':''}>${k.n}</option>`).join('')}</select>`
+        +`<input class="lg-h" data-id="${o.id}" data-ek="${ek}" type="number" step="0.05" min="0" value="${(isP?S.panelH:(e.h||0)).toFixed(2)}" ${isP?'disabled':''}>`;};
+    return `<div class="${cls}" data-id="${o.id}">`
+      +`<span class="lg-sw" style="background:${catC(o.cat)}"></span><span class="lg-id">#${o.id.slice(-3)}</span>`
+      +`<div class="lg-cell"><label>Марка (кабель · цвет)</label><select class="lg-cat" data-id="${o.id}">${CATS.map(c=>`<option value="${c.k}" ${c.k===o.cat?'selected':''}>${c.n}</option>`).join('')}</select></div>`
+      +`<div class="lg-cell"><label>Конец A — тип · высота</label><div class="lg-ends">${endSel('ea')}</div></div>`
+      +`<div class="lg-cell"><label>Конец B — тип · высота</label><div class="lg-ends">${endSel('eb')}</div></div>`
+      +`<div class="lg-cell"><label>Щит</label><select class="lg-panel" data-id="${o.id}">${lgPanelOpts(o.panelId)}</select></div>`
+      +`<div class="lg-cell lg-len"><label>Длина</label><span>${len!=null?len.toFixed(2)+' м':'—'}</span></div>`
+      +`<button class="lg-eye" data-id="${o.id}" title="Показать на плане">👁</button>`
+      +`<button class="lg-rev" data-id="${o.id}">${o.reviewed?'✓ готово':'отметить'}</button></div>`;
+  }
+  const isPanel=o.type==='symbol'&&(o.sym||'').indexOf('panel')===0;
+  const name=o.type==='symbol'?symDef(o.sym).n:(o.type==='text'?'Подпись':o.type==='rect'?'Область':o.type==='field'?'Значение':o.type);
+  return `<div class="${cls}" data-id="${o.id}">`
+    +`<span class="lg-sw" style="background:${o.color||'#79828f'}"></span><span class="lg-id">#${o.id.slice(-3)}</span>`
+    +`<div class="lg-cell lg-name"><label>${isPanel?'Щит':'Знак / объект'}</label><span>${esc(name)}</span></div>`
+    +`<button class="lg-eye" data-id="${o.id}" title="Показать на плане">👁</button>`
+    +`<button class="lg-rev" data-id="${o.id}">${o.reviewed?'✓ готово':'отметить'}</button></div>`;
+}
+function bindLedger(){const body=$('lgBody');
+  body.querySelectorAll('.lg-cat').forEach(el=>el.onchange=()=>{const o=getObj(el.dataset.id);if(!o)return;pushHistory();o.cat=el.value;o.color=catC(el.value);redrawOne(o);renderLedger();});
+  body.querySelectorAll('.lg-kind').forEach(el=>el.onchange=()=>{const o=getObj(el.dataset.id);if(!o)return;const ek=el.dataset.ek;pushHistory();o[ek]=o[ek]||{};o[ek].kind=el.value;o[ek].h=kindDefH(el.value);redrawOne(o);renderLedger();});
+  body.querySelectorAll('.lg-h').forEach(el=>el.onchange=()=>{const o=getObj(el.dataset.id);if(!o)return;const ek=el.dataset.ek;pushHistory();o[ek]=o[ek]||{kind:'free'};o[ek].h=Math.max(0,parseFloat(el.value)||0);redrawOne(o);renderLedger();});
+  body.querySelectorAll('.lg-panel').forEach(el=>el.onchange=()=>{const o=getObj(el.dataset.id);if(!o)return;o.panelId=el.value||null;});
+  body.querySelectorAll('.lg-rev').forEach(el=>el.onclick=()=>{const o=getObj(el.dataset.id);if(!o)return;o.reviewed=!o.reviewed;renderLedger();});
+  body.querySelectorAll('.lg-eye').forEach(el=>el.onclick=()=>{const id=el.dataset.id;closeLedger();setTool('select');selectObj(id);center(id);toast('Объект #'+id.slice(-3)+' — выделен на плане');});
+}
+$('btnLedger').onclick=openLedger;
+$('lgClose').onclick=closeLedger;
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 let tt;function toast(m){const el=$('toast');el.textContent=m;el.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),2600);}
 window.addEventListener('resize',()=>{if(S.data&&S.pageNum){fitPage();applyTransform();}});
