@@ -16466,7 +16466,7 @@ async function loadCalendarEvents(opts = {}) {
       const dlFrom = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() - 90);
       const dlTo = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + 90);
       const fmtDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      const tasksP = fetch(`${WORKER_LIST_URL}/tasks?page=1&pageSize=500&status=active&sort=deadline&deadlineFrom=${fmtDate(dlFrom)}&deadlineTo=${fmtDate(dlTo)}T23:59:59&scope=${effectiveScope()}&auth=${idToken}`)
+      const tasksP = fetch(`${WORKER_LIST_URL}/tasks?page=1&pageSize=500&status=active&sort=deadline&deadlineFrom=${fmtDate(dlFrom)}&deadlineTo=${fmtDate(dlTo)}T23:59:59&scope=${effectiveScope()}&includePublic=1&auth=${idToken}`)
         .then(r => r.ok ? r.json() : { items: [] })
         .catch(() => ({ items: [] }));
       // Сделки: ВСЕГДА тянем свежие данные из ВСЕХ воронок параллельно,
@@ -16550,6 +16550,10 @@ async function loadCalendarEvents(opts = {}) {
         uid: 'task:' + (t.id || t.bitrixKey),
         rawTitle: (t.title || '(без названия)'),
         isMeeting: isZoom && t.mark === 'zoom_meeting',
+        createdByUid: t.createdByUid || null,
+        responsibleUid: t.responsibleUid || null,
+        accomplices: Array.isArray(t.accomplices) ? t.accomplices : [],
+        eventPublic: !!t.eventPublic,
       });
     }
       for (const d of dealsForCalendar) {
@@ -17033,6 +17037,8 @@ async function rescheduleEvent(uid, newStart) {
 function openCalEventForm(prefillDate) {
   document.getElementById('_cal-event-modal')?.remove();
   const start = prefillDate instanceof Date && !isNaN(prefillDate) ? prefillDate : new Date();
+  const evUsers = (typeof orgSortedUsers === 'function') ? orgSortedUsers() : [];
+  const evPeopleOpts = evUsers.map(u => `<option value="${escapeHtml(u.uid)}">${escapeHtml(u.label)}</option>`).join('');
   const ov = document.createElement('div');
   ov.id = '_cal-event-modal';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px';
@@ -17057,6 +17063,13 @@ function openCalEventForm(prefillDate) {
       <input id="ce-deal-q" placeholder="Поиск сделки по названию…" autocomplete="off" style="width:100%;margin:5px 0 0;padding:10px 12px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);font-size:14px">
       <div id="ce-deal-sel" style="font-size:12.5px;color:var(--gn);margin-top:6px"></div>
       <div id="ce-deal-res" style="max-height:170px;overflow:auto;margin-top:6px"></div>
+      <label style="font-size:12px;color:var(--t3);display:block;margin-top:12px">Кто видит событие</label>
+      <select id="ce-vis" style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">
+        <option value="me" selected>Только я</option>
+        <option value="people">Выбранные сотрудники</option>
+        <option value="all">Все (общий календарь)</option>
+      </select>
+      <select id="ce-people" multiple size="4" style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);display:none">${evPeopleOpts}</select>
       <div id="ce-err" style="color:var(--rd);font-size:12px;min-height:16px;margin-top:8px"></div>
     </div>
     <div style="padding:12px 18px;border-top:1px solid var(--b1);display:flex;justify-content:flex-end;gap:8px">
@@ -17068,6 +17081,8 @@ function openCalEventForm(prefillDate) {
   ov.querySelector('#ce-x').onclick = () => ov.remove();
   ov.querySelector('#ce-cancel').onclick = () => ov.remove();
   ov.querySelector('#ce-title').focus();
+  const visSel = ov.querySelector('#ce-vis'), peopleSel = ov.querySelector('#ce-people');
+  visSel.onchange = () => { peopleSel.style.display = visSel.value === 'people' ? '' : 'none'; };
 
   let pickedDeal = null;
   const qEl = ov.querySelector('#ce-deal-q'), resEl = ov.querySelector('#ce-deal-res'), selEl = ov.querySelector('#ce-deal-sel');
@@ -17113,6 +17128,9 @@ function openCalEventForm(prefillDate) {
       deadline: startDt.toISOString(),   // календарь тянет задачи по окну deadline
     };
     if (pickedDeal) payload.crmLinks = ['deal_' + pickedDeal.bitrixId];
+    const vis = visSel.value;
+    if (vis === 'all') payload.eventPublic = true;
+    else if (vis === 'people') payload.accomplices = Array.from(peopleSel.selectedOptions).map(o => o.value);
     const btn = ov.querySelector('#ce-save'); btn.disabled = true; btn.textContent = '⏳…';
     try {
       const idToken = await fbAuth.currentUser.getIdToken();
@@ -17146,6 +17164,14 @@ function openCalEventEdit(uid) {
   if (!durOpts.includes(durMin)) durOpts.push(durMin);
   durOpts.sort((a, b) => a - b);
   const durLabel = (m) => m === 60 ? '1 час' : m === 90 ? '1.5 ч' : m === 120 ? '2 ч' : m + ' мин';
+  const myUid = window.currentUser?.canonicalUid || '';
+  const editable = isTask
+    ? (ev.createdByUid === myUid || ev.responsibleUid === myUid || (ev.accomplices || []).includes(myUid))
+    : true;
+  const dis = editable ? '' : 'disabled';
+  const eeUsers = (typeof orgSortedUsers === 'function') ? orgSortedUsers() : [];
+  const curVis = ev.eventPublic ? 'all' : ((ev.accomplices && ev.accomplices.length) ? 'people' : 'me');
+  const eePeopleOpts = eeUsers.map(u => `<option value="${escapeHtml(u.uid)}" ${(ev.accomplices || []).includes(u.uid) ? 'selected' : ''}>${escapeHtml(u.label)}</option>`).join('');
 
   const ov = document.createElement('div');
   ov.id = '_cal-event-modal';
@@ -17167,19 +17193,27 @@ function openCalEventEdit(uid) {
         <div style="width:100px"><label style="font-size:12px;color:var(--t3)">Время</label>
           <input id="ee-time" type="time" value="${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}" style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)"></div>
         ${canDuration ? `<div style="width:96px"><label style="font-size:12px;color:var(--t3)">Длит.</label>
-          <select id="ee-dur" style="width:100%;margin-top:5px;padding:9px 6px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">
+          <select id="ee-dur" ${dis} style="width:100%;margin-top:5px;padding:9px 6px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">
             ${durOpts.map(m => `<option value="${m}" ${m === durMin ? 'selected' : ''}>${durLabel(m)}</option>`).join('')}</select></div>` : ''}
       </div>
-      <div id="ee-err" style="color:var(--rd);font-size:12px;min-height:16px"></div>
+      ${isTask ? `<label style="font-size:12px;color:var(--t3)">Кто видит событие</label>
+      <select id="ee-vis" ${dis} style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">
+        <option value="me" ${curVis === 'me' ? 'selected' : ''}>Только я</option>
+        <option value="people" ${curVis === 'people' ? 'selected' : ''}>Выбранные сотрудники</option>
+        <option value="all" ${curVis === 'all' ? 'selected' : ''}>Все (общий календарь)</option>
+      </select>
+      <select id="ee-people" multiple size="4" ${dis} style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);display:${curVis === 'people' ? '' : 'none'}">${eePeopleOpts}</select>` : ''}
+      ${editable ? '' : '<div style="font-size:12px;color:var(--yl);margin-top:10px">👁 Событие другого сотрудника — только просмотр.</div>'}
+      <div id="ee-err" style="color:var(--rd);font-size:12px;min-height:16px;margin-top:8px"></div>
     </div>
     <div style="padding:12px 18px;border-top:1px solid var(--b1);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
       <div style="display:flex;gap:8px">
         ${ev.dealBitrixId ? `<button id="ee-deal" class="tbtn">🔗 Сделка</button>` : ''}
-        ${canDelete ? `<button id="ee-del" class="tbtn" style="color:var(--rd)">🗑 Удалить</button>` : ''}
+        ${canDelete && editable ? `<button id="ee-del" class="tbtn" style="color:var(--rd)">🗑 Удалить</button>` : ''}
       </div>
       <div style="display:flex;gap:8px">
-        <button id="ee-cancel" class="tbtn">Отмена</button>
-        <button id="ee-save" class="tbtn tbtn-a">Сохранить</button>
+        <button id="ee-cancel" class="tbtn">${editable ? 'Отмена' : 'Закрыть'}</button>
+        ${editable ? '<button id="ee-save" class="tbtn tbtn-a">Сохранить</button>' : ''}
       </div>
     </div>
   </div>`;
@@ -17188,6 +17222,8 @@ function openCalEventEdit(uid) {
   ov.querySelector('#ee-cancel').onclick = () => ov.remove();
   const dealBtn = ov.querySelector('#ee-deal');
   if (dealBtn) dealBtn.onclick = () => { ov.remove(); openDealCard(ev.dealBitrixId); };
+  const eeVis = ov.querySelector('#ee-vis'), eePeople = ov.querySelector('#ee-people');
+  if (eeVis && eePeople) eeVis.onchange = () => { eePeople.style.display = eeVis.value === 'people' ? '' : 'none'; };
 
   const delBtn = ov.querySelector('#ee-del');
   if (delBtn) delBtn.onclick = async () => {
@@ -17204,7 +17240,8 @@ function openCalEventEdit(uid) {
     } catch (e) { ov.querySelector('#ee-err').textContent = 'Ошибка удаления: ' + e.message; delBtn.disabled = false; }
   };
 
-  ov.querySelector('#ee-save').onclick = async () => {
+  const saveBtn = ov.querySelector('#ee-save');
+  if (saveBtn) saveBtn.onclick = async () => {
     const err = ov.querySelector('#ee-err');
     const dv = ov.querySelector('#ee-date').value, tv = ov.querySelector('#ee-time').value;
     if (!dv || !tv) { err.textContent = 'Укажите дату и время.'; return; }
@@ -17215,7 +17252,7 @@ function openCalEventEdit(uid) {
     const endDt = new Date(startDt.getTime() + dur * 60000);
     const newTitle = canEditTitle ? ov.querySelector('#ee-title').value.trim() : null;
     if (canEditTitle && !newTitle) { err.textContent = 'Укажите название.'; return; }
-    const btn = ov.querySelector('#ee-save'); btn.disabled = true; btn.textContent = '⏳…';
+    const btn = saveBtn; btn.disabled = true; btn.textContent = '⏳…';
     try {
       const idToken = await fbAuth.currentUser.getIdToken();
       if (isTask) {
@@ -17223,6 +17260,12 @@ function openCalEventEdit(uid) {
         if (newTitle) patch.title = newTitle;
         if (isZoomTask) { patch.startDatePlan = startDt.toISOString(); patch.endDatePlan = endDt.toISOString(); patch.deadline = startDt.toISOString(); }
         else { patch.deadline = startDt.toISOString(); }
+        // Видимость события: общий календарь / выбранные / только я.
+        if (eeVis) {
+          const v = eeVis.value;
+          patch.eventPublic = v === 'all' ? 1 : 0;
+          patch.accomplices = v === 'people' ? Array.from(eePeople.selectedOptions).map(o => o.value) : [];
+        }
         const r = await fetch(`${WORKER_RTDB_URL}/tasks/${encodeURIComponent(ev.taskId)}.json?auth=${idToken}`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch),
         });
