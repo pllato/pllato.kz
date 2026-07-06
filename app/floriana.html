@@ -4,19 +4,20 @@
 <script src="/app/gate.js"></script>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Флориана — система клиники · Демо</title>
+<title>KHONA — система клиники · Демо</title>
 <meta name="robots" content="noindex,nofollow"/>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23eef6f2'/%3E%3Ccircle cx='16' cy='11' r='4.5' fill='%232f7a63'/%3E%3Ccircle cx='11' cy='18' r='4.5' fill='%235ea88f' opacity='.85'/%3E%3Ccircle cx='21' cy='18' r='4.5' fill='%235ea88f' opacity='.6'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23f6f4ef'/%3E%3Cpath d='M8 7 A8 6 0 0 0 24 7' fill='none' stroke='%23131110' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='M8 26 A8 9 0 0 1 24 26' fill='none' stroke='%23131110' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='M13 21 L17 15' stroke='%23131110' stroke-width='1.3'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#f3f7f5;--card:#fff;--line:#e2eae6;--ink:#1a2b25;--mut:#5d6f68;--mut2:#93a49d;
-  --acc:#2f7a63;--acc-d:#245e4c;--acc-l:#ddeee7;--acc-xl:#eef6f2;
+  --bg:#f6f4ef;--card:#fff;--line:#e8e2d6;--ink:#1c1915;--mut:#6b6357;--mut2:#9d9486;
+  --acc:#1d1a16;--acc-d:#000;--acc-l:#ece5d7;--acc-xl:#f4efe6;
+  --grnF:#1d6e46;--grnF-l:#e0f0e8;
   --blue:#2b6cb0;--blue-l:#e3eefa;--amber:#b4690e;--amber-l:#fdf1de;--red:#bf3b2b;--red-l:#fbe9e6;
   --violet:#6d5bb8;--violet-l:#edeafa;--pink:#b34d7e;--pink-l:#f9e9f1;
   --r:18px;--r2:12px;
-  --sh:0 6px 24px -8px rgba(26,43,37,.1);
+  --sh:0 6px 24px -8px rgba(28,25,21,.08);
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--ink);font-size:14.5px;-webkit-font-smoothing:antialiased}
@@ -31,9 +32,12 @@ input,select{font-family:inherit;font-size:14px;color:var(--ink)}
 .logo svg{flex:none}
 .logo b{font-size:19px;font-weight:800;letter-spacing:-.3px;display:block;color:var(--acc-d)}
 .logo span{font-size:11.5px;color:var(--mut2);font-weight:600}
-.mz{display:flex;align-items:center;gap:8px;background:var(--acc-xl);border:1px solid var(--acc-l);border-radius:12px;padding:9px 12px;margin-bottom:14px}
-.mz .dot{width:8px;height:8px;border-radius:50%;background:var(--acc);flex:none}
-.mz span{font-size:11.5px;font-weight:700;color:var(--acc-d);line-height:1.35}
+.km{font-family:'Playfair Display',serif;font-weight:700;font-size:23px;letter-spacing:2.5px;display:inline-flex;align-items:baseline;line-height:1;color:#131110}
+.km svg{margin:0 1px;transform:translateY(1px)}
+.km .sp{font-size:11px;transform:translateY(-11px);margin-left:-2px;letter-spacing:0}
+.mz{display:flex;align-items:center;gap:8px;background:var(--grnF-l);border:1px solid #c8e2d3;border-radius:12px;padding:9px 12px;margin-bottom:14px}
+.mz .dot{width:8px;height:8px;border-radius:50%;background:var(--grnF);flex:none}
+.mz span{font-size:11.5px;font-weight:700;color:var(--grnF);line-height:1.35}
 .nav{flex:1}
 .ngroup{font-size:11px;color:var(--mut2);padding:14px 10px 6px;font-weight:800;letter-spacing:.4px;text-transform:uppercase}
 .nitem{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:10px 12px;border-radius:13px;font-size:14.5px;font-weight:600;color:var(--mut);transition:.13s;margin-bottom:2px}
@@ -70,7 +74,7 @@ input,select{font-family:inherit;font-size:14px;color:var(--ink)}
 .kpi .kv{font-size:27px;font-weight:800;letter-spacing:-1px;margin-top:6px}
 .kpi .kv em{font-style:normal;font-size:16px;color:var(--mut2)}
 .kpi .kd{font-size:12px;color:var(--mut2);margin-top:4px;font-weight:600}
-.kpi.acc .kv{color:var(--acc)}.kpi.red .kv{color:var(--red)}.kpi.amber .kv{color:var(--amber)}.kpi.blue .kv{color:var(--blue)}
+.kpi.acc .kv{color:var(--grnF)}.kpi.red .kv{color:var(--red)}.kpi.amber .kv{color:var(--amber)}.kpi.blue .kv{color:var(--blue)}
 
 .grid2{display:grid;grid-template-columns:1.45fr 1fr;gap:16px;align-items:start}
 @media(max-width:1000px){.grid2{grid-template-columns:1fr}}
@@ -82,7 +86,7 @@ input,select{font-family:inherit;font-size:14px;color:var(--ink)}
 
 /* метки */
 .b{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 11px;border-radius:20px;white-space:nowrap}
-.b.grn{background:var(--acc-l);color:var(--acc-d)}
+.b.grn{background:var(--grnF-l);color:var(--grnF)}
 .b.red{background:var(--red-l);color:var(--red)}
 .b.amb{background:var(--amber-l);color:var(--amber)}
 .b.blu{background:var(--blue-l);color:var(--blue)}
@@ -120,7 +124,7 @@ tbody tr:hover td{background:var(--acc-xl)}
 .apt:hover{transform:translateY(-1px);box-shadow:var(--sh)}
 .apt b{display:block;font-size:12.5px}
 .apt .as{font-size:11px;opacity:.85}
-.apt.ok{background:var(--acc-l);color:var(--acc-d)}
+.apt.ok{background:var(--grnF-l);color:var(--grnF)}
 .apt.wait{background:var(--amber-l);color:var(--amber)}
 .apt.here{background:var(--blue-l);color:var(--blue)}
 .apt.miss{background:var(--red-l);color:var(--red)}
@@ -141,11 +145,11 @@ tbody tr:hover td{background:var(--acc-xl)}
 .chr{display:flex;flex-direction:column;background:#f2f0ea}
 .chh{background:#fff;padding:12px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
 .chh b{font-size:14.5px;font-weight:800}
-.chh .stable{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--acc-d);background:var(--acc-l);border-radius:20px;padding:4px 11px}
+.chh .stable{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--grnF);background:var(--grnF-l);border-radius:20px;padding:4px 11px}
 .msgs{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:9px}
 .msg{max-width:74%;padding:9px 13px;border-radius:13px;font-size:13.5px;line-height:1.5;box-shadow:0 1px 1px rgba(0,0,0,.05)}
 .msg.in{background:#fff;align-self:flex-start;border-bottom-left-radius:4px}
-.msg.out{background:#dcf2e7;align-self:flex-end;border-bottom-right-radius:4px}
+.msg.out{background:#ece4d2;align-self:flex-end;border-bottom-right-radius:4px}
 .msg .mt{font-size:10px;color:var(--mut2);text-align:right;margin-top:3px}
 .chf{background:#fff;padding:11px;display:flex;gap:9px;border-top:1px solid var(--line)}
 .chf input{flex:1;border:1px solid var(--line);border-radius:20px;padding:10px 16px;outline:none}
@@ -206,14 +210,14 @@ tbody tr:hover td{background:var(--acc-xl)}
 /* курс-прогресс */
 .course{display:flex;gap:6px;margin-top:6px}
 .course i{width:22px;height:8px;border-radius:6px;background:#e2ebe6}
-.course i.done{background:var(--acc)}
+.course i.done{background:var(--grnF)}
 
 #toasts{position:fixed;right:20px;bottom:20px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:380px}
-.toast{background:#12332a;color:#e7f4ee;padding:13px 17px;border-radius:14px;font-size:13px;line-height:1.55;box-shadow:0 12px 32px rgba(0,0,0,.3);animation:tin .25s}
+.toast{background:#1c1915;color:#f0ebe1;padding:13px 17px;border-radius:14px;font-size:13px;line-height:1.55;box-shadow:0 12px 32px rgba(0,0,0,.3);animation:tin .25s}
 @keyframes tin{from{opacity:0;transform:translateX(20px)}to{opacity:1}}
-.toast b{color:#8fd7bc}
+.toast b{color:#dcc9a4}
 
-.demo-note{background:var(--acc-d);color:#d8ece3;font-size:12.5px;padding:9px 16px;text-align:center;font-weight:600}
+.demo-note{background:#131110;color:#e3ddd0;font-size:12.5px;padding:9px 16px;text-align:center;font-weight:600}
 .demo-note b{color:#fff}
 @media(max-width:860px){
   .side{display:none}
@@ -229,12 +233,12 @@ tbody tr:hover td{background:var(--acc-xl)}
 </style>
 </head>
 <body>
-<div class="demo-note">🌿 Интерактивное демо для <b>Флорианы</b> · клиника, Астана · все данные вымышленные, всё прокликивается · <b>Pllato</b></div>
+<div class="demo-note">✦ Интерактивное демо для <b>Флорианы</b> · клиника <b>KHONA</b>, Астана · все данные вымышленные, всё прокликивается · <b>Pllato</b></div>
 <div class="app">
   <aside class="side">
-    <div class="logo">
-      <svg width="38" height="38" viewBox="0 0 38 38"><circle cx="19" cy="12" r="6.5" fill="#2f7a63"/><circle cx="12.5" cy="21.5" r="6.5" fill="#5ea88f" opacity=".85"/><circle cx="25.5" cy="21.5" r="6.5" fill="#5ea88f" opacity=".55"/><circle cx="19" cy="27" r="4" fill="#245e4c"/></svg>
-      <div><b>Флориана</b><span>клиника · Астана</span></div>
+    <div class="logo" style="display:block;padding-bottom:16px">
+      <div class="km">KH<svg width="19" height="23" viewBox="0 0 22 26"><path d="M2 2 A10 8 0 0 0 20 2" fill="none" stroke="#131110" stroke-width="2.6" stroke-linecap="round"/><path d="M2 24 A9.5 11 0 0 1 20 24" fill="none" stroke="#131110" stroke-width="2.6" stroke-linecap="round"/><path d="M9 19 L13 13 M12 20 L15 16" stroke="#131110" stroke-width="1.4" stroke-linecap="round"/></svg>N<span class="sp">✦</span>A</div>
+      <div style="font-size:11.5px;color:var(--mut2);font-weight:700;margin-top:5px;letter-spacing:.6px">клиника · Астана</div>
     </div>
     <div class="mz"><span class="dot"></span><span>Единая база пациентов МЗ РК — подключено по API ✓</span></div>
     <nav class="nav">
@@ -609,7 +613,7 @@ function renderPatTabs(){
       '<div class="ig"><div class="il">Прогресс</div><div class="iv">'+p.done+(p.total>1?' из '+p.total+' процедур':' визит')+'</div></div>'+
       '<div class="ig"><div class="il">Следующий визит</div><div class="iv">'+p.next+'</div></div>'+
       '<div class="ig"><div class="il">Аллергии</div><div class="iv" style="color:'+(p.allergy!=='—'?'var(--red)':'inherit')+'">'+p.allergy+'</div></div>'+
-      '<div class="ig"><div class="il">Единая база пациентов</div><div class="iv" style="color:var(--acc-d)">передано ✓</div></div>'+
+      '<div class="ig"><div class="il">Единая база пациентов</div><div class="iv" style="color:var(--grnF)">передано ✓</div></div>'+
       '<div class="ig"><div class="il">Согласия</div><div class="iv">подписаны · 2 док.</div></div>'+
       '</div>'+
       '<div style="margin-top:14px;font-size:13px;color:var(--mut);font-weight:600">Врач видит аллергии и историю до начала приёма. Вся коммуникация — в карточке: WhatsApp, напоминания, подтверждения.</div>';
@@ -724,7 +728,7 @@ function renderRep(){
 /* ===== init ===== */
 function renderAll(){renderDash();renderSched();renderPats();renderLeads();renderChatList();renderChat();renderStock();renderTasks();renderRep()}
 renderAll();
-setTimeout(()=>toast('Здравствуйте, <b>Флориана</b>! Это интерактивный мокап вашей системы: журнал записи, пациенты, WhatsApp без «вылетов», склад препаратов и аналитика — всё в одном месте. Нажимайте на всё.'),700);
+setTimeout(()=>toast('Здравствуйте, <b>Флориана</b>! Это интерактивный мокап системы <b>KHONA</b>: журнал записи, пациенты, WhatsApp без «вылетов», склад препаратов и аналитика — всё в одном месте. Нажимайте на всё.'),700);
 const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));
 </script>
 </body>
