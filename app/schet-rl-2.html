@@ -1,168 +1,184 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
 <script src="/app/gate.js"></script>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Счёт № RL-2 · Этап 2 · ТОО «RL-SYSTEM» · Pllato</title>
+<title>Счёт № RL-2026-002 · этап 2 · ТОО «RL-system» · Pllato</title>
 <meta name="robots" content="noindex,nofollow"/>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a1628'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Arial' font-weight='bold' font-size='15' fill='%23d4a978'%3E%E2%82%B8%3C/text%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+@font-face{font-family:'Inter';src:url('/tools/kp/fonts/Inter-Regular.ttf');font-weight:400}
+@font-face{font-family:'Inter';src:url('/tools/kp/fonts/Inter-Medium.ttf');font-weight:500}
+@font-face{font-family:'Inter';src:url('/tools/kp/fonts/Inter-SemiBold.ttf');font-weight:600}
+@font-face{font-family:'Inter';src:url('/tools/kp/fonts/Inter-Bold.ttf');font-weight:700}
+@font-face{font-family:'Inter';src:url('/tools/kp/fonts/Inter-ExtraBold.ttf');font-weight:800}
 :root{
-  --navy:#0a1628;--bronze:#b8895a;--bronze-d:#8b6740;--bronze-l:#d4a978;
-  --ink:#0f1620;--mut:#4a5163;--mut2:#8a8d96;--line:#e8e2d4;
-  --bg:#fafaf6;--surface:#fff;--surface2:#f3f0e8;
-  --mint:#16a34a;--mint-l:#e7f4ec;
+  --paper:#f0ead9;--card:#f6f1e2;--card2:#efe8d3;--line:#d8cfb4;
+  --green:#33523c;--green-d:#27402e;--ink:#20241f;--mut:#6b6a58;--faint:#98937c;
+  --black:#141511;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
-.page{max-width:820px;margin:0 auto;padding:0 24px 60px;background:var(--surface);border:1px solid var(--line);border-top:6px solid var(--navy);margin-top:24px;margin-bottom:24px;border-radius:6px;box-shadow:0 8px 24px -8px rgba(20,30,50,.08)}
-@media(max-width:880px){.page{margin-top:0;border-radius:0}}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',Arial,sans-serif;color:var(--ink);font-size:10.5px;line-height:1.5;background:#e7e0cc}
+.serif{font-family:Georgia,'Times New Roman',serif}
+.page{width:210mm;min-height:297mm;position:relative;padding:14mm 15mm 16mm;margin:0 auto;background:var(--paper);display:flex;flex-direction:column}
+.runfoot{position:absolute;left:15mm;right:15mm;bottom:8mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
 
-.toolbar{position:sticky;top:0;background:var(--navy);color:#e6e9f0;padding:10px 16px;display:flex;gap:14px;align-items:center;font-size:13px;z-index:10}
-.toolbar b{color:var(--bronze-l)}
-.toolbar button{margin-left:auto;background:var(--bronze);color:#fff;border:none;font-family:inherit;font-weight:700;font-size:13.5px;padding:9px 18px;border-radius:9px;cursor:pointer}
-.toolbar button:hover{background:var(--bronze-d)}
+header{display:flex;justify-content:space-between;align-items:flex-start}
+.brand{font-size:24px;font-weight:700;letter-spacing:-.01em}
+.brand-sub{font-size:8.5px;color:var(--mut);margin-top:1px}
+.badge{border:1.5px solid var(--green);color:var(--green);font-size:9px;font-weight:700;letter-spacing:.14em;padding:5px 12px;text-transform:uppercase}
+.numblock{text-align:right;margin-top:10px}
+.numblock .cap{font-size:9px;color:var(--mut)}
+.numblock .no{font-size:19px;font-weight:700;color:var(--green-d);margin-top:1px}
+.numblock .dt{font-size:9.5px;color:var(--mut);margin-top:3px;line-height:1.55}
 
-.warn{border:1px solid var(--line);background:var(--surface2);border-radius:8px;padding:10px 14px;font-size:11.5px;color:var(--mut);margin:22px 0 0}
+.parties{display:flex;gap:10px;margin-top:12px}
+.party{flex:1;background:var(--card);border:1px solid var(--line);padding:10px 12px}
+.party .lbl{font-size:8.5px;font-weight:700;letter-spacing:.12em;color:var(--green);margin-bottom:5px}
+.party .nm{font-weight:700;font-size:11px;margin-bottom:2px}
+.party div{color:#4a4a3c;font-size:9.5px;margin-bottom:1px}
 
-h1{font-size:21px;font-weight:800;letter-spacing:-.3px;margin:24px 0 4px;padding-bottom:14px;border-bottom:2px solid var(--navy)}
-.h-sub{font-size:12.5px;color:var(--mut2);font-weight:500;margin-top:6px}
+.accept{background:var(--green);color:#e9efe6;padding:10px 13px;margin-top:10px;font-size:9.5px;line-height:1.55}
+.accept .at{font-size:9px;font-weight:700;letter-spacing:.12em;margin-bottom:4px;color:#cfe0c8}
+.accept b{color:#fff}
+.accept a{color:#fff}
 
-.pt{margin-top:18px;width:100%;border-collapse:collapse}
-.pt td{border:1px solid var(--line);padding:9px 12px;vertical-align:top;font-size:13px}
-.pt .lbl{width:170px;background:var(--surface2);font-weight:700;font-size:12px;color:var(--mut)}
-.pt b{font-weight:700}
-.pt .sm{font-size:12px;color:var(--mut)}
+.sec-cap{font-size:9.5px;font-weight:700;letter-spacing:.1em;margin:14px 0 6px;color:var(--ink)}
+table.work{width:100%;border-collapse:collapse}
+table.work thead th{background:var(--green);color:#fff;font-size:8.5px;font-weight:700;text-align:left;padding:7px 10px;letter-spacing:.04em}
+table.work thead th.r{text-align:right}
+table.work tbody td{padding:10px;border:1px solid var(--line);border-top:none;background:var(--card);font-size:10px;vertical-align:top}
+table.work tbody td.r{text-align:right;white-space:nowrap;font-weight:700}
+table.work .num{color:var(--faint);font-weight:700}
+table.work td b{display:block;margin-bottom:2px;font-size:10.5px}
 
-[contenteditable]{outline:none}
-.fill{border-bottom:1.5px dashed var(--bronze);color:var(--bronze-d);font-weight:600;padding:0 2px;min-width:60px;display:inline-block}
-.fill:empty::before{content:'заполнить';color:#c9b18f;font-weight:500}
+.projnote{background:var(--card2);border:1px solid var(--line);border-top:none;padding:8px 11px;font-size:9.5px;color:#4a4a3c;line-height:1.6}
+.projnote b{color:var(--ink)}
+.projnote .pd{color:var(--green);font-weight:700}
 
-.items{width:100%;border-collapse:collapse;margin-top:22px}
-.items th{background:var(--navy);color:#e6e9f0;font-size:12px;font-weight:700;text-align:left;padding:9px 12px}
-.items th.r,.items td.r{text-align:right;white-space:nowrap}
-.items td{border:1px solid var(--line);padding:11px 12px;font-size:13.5px;vertical-align:top}
-.items .tot td{border:none;padding:7px 12px;font-size:13.5px}
-.items .tot .tl{text-align:right;font-weight:700;color:var(--mut)}
-.items .tot .tv{text-align:right;font-weight:800;white-space:nowrap;width:130px}
-.items .tot.grand td{font-size:15px;color:var(--ink)}
-.items .tot.grand .tv{color:var(--bronze-d)}
+.paybar{background:var(--black);color:#f2ede0;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;margin-top:12px}
+.paybar .pc{font-size:10px;font-weight:700;letter-spacing:.12em}
+.paybar .pv{font-size:21px;font-weight:800;letter-spacing:-.01em}
+.words{font-size:9.5px;color:#4a4a3c;margin-top:6px}
 
-.sum-words{margin-top:8px;font-size:13.5px}
-.sum-words b{font-weight:700}
-.nds{font-size:12.5px;color:var(--mut);margin-top:3px}
+.reqs{display:flex;gap:10px;margin-top:14px}
+.reqcol{flex:1}
+.reqcol .rc-h{font-size:9.5px;font-weight:700;margin-bottom:6px}
+.reqcol .rc-h span{color:var(--mut);font-weight:500}
+table.req{width:100%;border-collapse:collapse}
+table.req td{padding:5.5px 9px;font-size:9.5px;border:1px solid var(--line);background:var(--card)}
+table.req td.k{width:34%;color:var(--mut)}
+table.req td.v{font-weight:600}
+table.req .knp{display:inline-block;background:#fff;border:1px solid var(--line);color:var(--green-d);font-weight:700;padding:0 7px}
 
-.stages{margin-top:24px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:14px 18px}
-.stages h4{font-size:12px;font-weight:800;color:var(--mut);letter-spacing:.6px;margin-bottom:10px}
-.st-row{display:flex;gap:10px;align-items:center;padding:6px 0;font-size:13px;border-bottom:1px dashed var(--line)}
-.st-row:last-child{border-bottom:none}
-.st-row .dot{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;flex:none}
-.st-row .dot.done{background:var(--mint-l);color:var(--mint)}
-.st-row .dot.now{background:var(--bronze);color:#fff}
-.st-row .dot.next{background:#fff;border:1.5px solid var(--line);color:var(--mut2)}
-.st-row .sn{flex:1;font-weight:600}
-.st-row .sn span{display:block;font-size:11.5px;color:var(--mut2);font-weight:500}
-.st-row .sv{font-weight:800;white-space:nowrap}
-.st-row.now-row .sv{color:var(--bronze-d)}
+.purpose{margin-top:11px;font-size:9.5px;color:#4a4a3c;line-height:1.6}
+.purpose b{color:var(--ink)}
 
-.purpose{margin-top:20px;border:1px solid var(--line);border-radius:10px;padding:13px 16px;font-size:13px}
-.purpose b{display:block;font-size:11.5px;color:var(--mut);letter-spacing:.5px;margin-bottom:4px;font-weight:800}
-
-.sign{margin-top:34px;display:flex;gap:40px;align-items:flex-end;flex-wrap:wrap}
-.sign .sg{flex:1;min-width:240px}
-.sign .sg .role{font-size:12px;color:var(--mut);font-weight:600}
-.sign .sg .line{border-bottom:1.5px solid var(--ink);height:38px}
-.sign .sg .cap{font-size:11px;color:var(--mut2);margin-top:4px;display:flex;justify-content:space-between}
-
-.foot{margin-top:30px;border-top:1px solid var(--line);padding:16px 0 26px;display:flex;gap:16px;font-size:12px;color:var(--mut)}
-.foot b{color:var(--ink)}
-.foot .fr{margin-left:auto;text-align:right}
-.foot a{color:var(--bronze-d)}
-
-@media print{
-  body{background:#fff;font-size:12.5px}
-  .toolbar{display:none}
-  .page{max-width:100%;margin:0;border:none;border-radius:0;box-shadow:none;padding:0 2mm}
-  .fill{border-bottom-color:transparent;color:var(--ink)}
-  .fill:empty::before{content:'________________';color:var(--ink)}
-  .items th,.st-row .dot,.page{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-}
-</style>
-</head>
+.bottom{display:flex;justify-content:space-between;align-items:flex-end;margin-top:16px;gap:20px}
+.sign .sl{font-size:8.5px;font-weight:700;letter-spacing:.12em;color:var(--green);margin-bottom:10px}
+.sign .ln{font-size:10px;color:#4a4a3c}
+.sign .ln u{display:inline-block;width:110px;border-bottom:1px solid #a9a186;text-decoration:none}
+.pay-until{text-align:right;font-size:9.5px;color:var(--mut);line-height:1.7}
+.pay-until b{color:var(--ink);font-size:11px}
+</style></head>
 <body>
-<div class="toolbar"><span>Счёт · <b>ТОО «RL-SYSTEM»</b> · этап 2 · поля с пунктиром можно править прямо на странице</span><button onclick="window.print()">Печать / PDF</button></div>
-<div class="page">
+<section class="page">
+  <header>
+    <div>
+      <div class="brand serif">Pllato.</div>
+      <div class="brand-sub">Партнёр по операционной оцифровке · pllato.kz</div>
+    </div>
+    <div style="text-align:right">
+      <div class="badge">Этап 2 · Скелет и демо</div>
+      <div class="numblock">
+        <div class="cap">Счёт на оплату</div>
+        <div class="no serif">№ RL-2026-002</div>
+        <div class="dt">от 6 июля 2026 г.<br>Действителен 7 банковских дней</div>
+      </div>
+    </div>
+  </header>
 
-  <div class="warn">Внимание! Оплата данного счёта означает согласие с условиями выполнения работ. Счёт действителен в течение <span class="fill" contenteditable>5 (пяти)</span> банковских дней. Уведомление об оплате обязательно — по телефону или WhatsApp +7 701 123 99 99.</div>
+  <div class="parties">
+    <div class="party">
+      <div class="lbl">ПОСТАВЩИК · ПОЛУЧАТЕЛЬ</div>
+      <div class="nm">ИП «STUDYSTORIES.APP»</div>
+      <div>БИН: 880607300110 · Директор: Цай Платон</div>
+      <div>г. Алматы, мкр. Орбита-4, д. 3, оф. 2</div>
+      <div>Email: uurraa@gmail.com · +7 701 123 99 99</div>
+    </div>
+    <div class="party">
+      <div class="lbl">ПЛАТЕЛЬЩИК · ЗАКАЗЧИК</div>
+      <div class="nm">ТОО «RL-system»</div>
+      <div>БИН: 040340014374 · КБЕ 17 · РНН 600900533808</div>
+      <div>050002, г. Алматы, Медеуский р-н,</div>
+      <div>ул. Карамысова К, д. 84/2, корп. 1, кв. 55</div>
+      <div>Гос. рег. №61656-1910-ТОО от 05.03.2004</div>
+    </div>
+  </div>
 
-  <h1>Счёт на оплату № <span class="fill" contenteditable>RL-2</span> от <span class="fill" contenteditable>6 июля 2026 г.</span></h1>
+  <div class="accept">
+    <div class="at">ДОГОВОР ЗАКЛЮЧЁН · АКЦЕПТ ПУБЛИЧНОЙ ОФЕРТЫ</div>
+    Договор-оферта Pllato на кастомную разработку — <b>pllato.kz/offer/custom-development/</b> (Ред. 1.0 от 26.05.2026) — акцептован Плательщиком оплатой счёта № RL-2026-001 от 09.06.2026 (этап 1, предоплата). Настоящий счёт выставлен по <b>этапу 2</b> согласованного объёма работ по КП для ТОО «RL-system»: скелет системы продемонстрирован и утверждён Заказчиком.
+  </div>
 
-  <table class="pt">
-    <tr>
-      <td class="lbl">Поставщик<br>(Исполнитель)</td>
-      <td><b>ИП «STUDYSTORIES.APP»</b> (Цай Платон)<br>
-        <span class="sm">ИИН/БИН: <span class="fill" contenteditable></span> · г. Алматы · тел. +7 701 123 99 99 · uurraa@gmail.com</span></td>
-    </tr>
-    <tr>
-      <td class="lbl">Банковские реквизиты</td>
-      <td class="sm">ИИК: <span class="fill" contenteditable></span><br>
-        Банк: <span class="fill" contenteditable></span> · БИК: <span class="fill" contenteditable></span> · КБе: <span class="fill" contenteditable>19</span> · КНП: <span class="fill" contenteditable>859</span></td>
-    </tr>
-    <tr>
-      <td class="lbl">Покупатель<br>(Заказчик)</td>
-      <td><b>ТОО «RL-SYSTEM»</b> · снабжение строительных объектов<br>
-        <span class="sm">БИН: <span class="fill" contenteditable></span> · адрес: <span class="fill" contenteditable></span></span></td>
-    </tr>
-    <tr>
-      <td class="lbl">Основание</td>
-      <td class="sm">Коммерческое предложение Pllato для ТОО «RL-SYSTEM» — «CRM для заявок и склада» (проект под ключ 2 000 000 ₸, этапы оплаты) <span class="fill" contenteditable>· договор № ___ от ___</span></td>
-    </tr>
-  </table>
-
-  <table class="items">
-    <thead><tr><th style="width:34px">№</th><th>Наименование работ (услуг)</th><th class="r">Кол-во</th><th class="r">Ед.</th><th class="r">Цена, ₸</th><th class="r">Сумма, ₸</th></tr></thead>
+  <div class="sec-cap">НАЗНАЧЕНИЕ ПЛАТЕЖА · ЭТАП 2 ИЗ 3 (ПОСЛЕ ДЕМО СКЕЛЕТА)</div>
+  <table class="work">
+    <thead><tr><th style="width:30px">№</th><th>Наименование работ</th><th class="r" style="width:110px">Сумма, ₸</th></tr></thead>
     <tbody>
       <tr>
-        <td>1</td>
-        <td>Разработка CRM-системы «заявки и склад» для ТОО «RL-SYSTEM».<br><b>Этап 2 — скелет системы и демонстрация продукта</b> (веб-страница подачи заявок, воронка с ролями и SLA, единый справочник номенклатуры, склад: приход / расход / остатки / инвентаризация). Скелет продемонстрирован и утверждён заказчиком.</td>
-        <td class="r">1</td>
-        <td class="r">усл.</td>
-        <td class="r">925 000,00</td>
+        <td class="num">1</td>
+        <td><b>Этап 2 — Скелет системы и демонстрация продукта по разработке CRM «Заявки и склад».</b>
+        Веб-страница подачи заявок с объектов, воронка обработки с ролями и SLA, единый справочник номенклатуры, склад: приход / расход / остатки / инвентаризация. Скелет продемонстрирован и утверждён Заказчиком. Часть общей стоимости проекта по КП для ТОО «RL-system».</td>
         <td class="r">925 000,00</td>
       </tr>
     </tbody>
-    <tfoot>
-      <tr class="tot"><td colspan="5" class="tl">Итого:</td><td class="tv">925 000,00</td></tr>
-      <tr class="tot"><td colspan="5" class="tl">В том числе НДС:</td><td class="tv">без НДС</td></tr>
-      <tr class="tot grand"><td colspan="5" class="tl">Всего к оплате:</td><td class="tv">925 000,00 ₸</td></tr>
-    </tfoot>
   </table>
+  <div class="projnote"><b>Общая стоимость проекта — 2 000 000 ₸ под ключ</b> <i>(без НДС)</i>. Этапы: <b>1</b> — 150 000 ₸ <span class="pd">(оплачен)</span> · <b>2</b> — 925 000 ₸ <i>(текущий счёт, после демо скелета)</i> · <b>3</b> — 925 000 ₸ <i>(после приёмки)</i>. Срок — 4–6 недель.</div>
 
-  <div class="sum-words">Всего наименований 1, на сумму <b>925 000,00 KZT</b>.<br>Всего к оплате: <b>Девятьсот двадцать пять тысяч тенге 00 тиын</b>.</div>
-  <div class="nds">НДС не облагается: поставщик не является плательщиком НДС РК.</div>
+  <div class="paybar">
+    <span class="pc">К ОПЛАТЕ ПО ЭТАПУ 2 (ПОСЛЕ ДЕМО СКЕЛЕТА)</span>
+    <span class="pv">925 000 ₸</span>
+  </div>
+  <div class="words">Девятьсот двадцать пять тысяч тенге 00 тиын. НДС не облагается (поставщик не является плательщиком НДС РК).</div>
 
-  <div class="stages">
-    <h4>ЭТАПЫ ОПЛАТЫ ПО ПРОЕКТУ · 2 000 000 ₸ ПОД КЛЮЧ</h4>
-    <div class="st-row"><span class="dot done">✓</span><span class="sn">Старт — предоплата<span>оплачено · команда вышла на проект</span></span><span class="sv">150 000 ₸</span></div>
-    <div class="st-row now-row"><span class="dot now">2</span><span class="sn">Этап 2 — скелет и демонстрация продукта<span>выполнено и утверждено · текущий счёт</span></span><span class="sv">925 000 ₸</span></div>
-    <div class="st-row"><span class="dot next">3</span><span class="sn">Этап 3 — финальная приёмка и запуск<span>после сдачи · остаток по проекту</span></span><span class="sv">925 000 ₸</span></div>
+  <div class="reqs">
+    <div class="reqcol">
+      <div class="rc-h">Реквизиты для оплаты · <span>Kaspi</span></div>
+      <table class="req">
+        <tr><td class="k">Получатель</td><td class="v">ИП «STUDYSTORIES.APP»</td></tr>
+        <tr><td class="k">БИН</td><td class="v">880607300110</td></tr>
+        <tr><td class="k">Банк</td><td class="v">АО «Kaspi Bank»</td></tr>
+        <tr><td class="k">IBAN (KZT)</td><td class="v">KZ31722S000010366450</td></tr>
+        <tr><td class="k">БИК</td><td class="v">CASPKZKA</td></tr>
+        <tr><td class="k">КБе</td><td class="v">19</td></tr>
+        <tr><td class="k">КНП</td><td class="v"><span class="knp">851</span></td></tr>
+      </table>
+    </div>
+    <div class="reqcol">
+      <div class="rc-h">Плательщик (для справки) · <span>Halyk</span></div>
+      <table class="req">
+        <tr><td class="k">Наименование</td><td class="v">ТОО «RL-system»</td></tr>
+        <tr><td class="k">БИН · КБЕ</td><td class="v">040340014374 · 17</td></tr>
+        <tr><td class="k">РНН</td><td class="v">600900533808</td></tr>
+        <tr><td class="k">Банк</td><td class="v">АО «Народный Банк» (Halyk)</td></tr>
+        <tr><td class="k">IBAN</td><td class="v">KZ676018861000638261</td></tr>
+        <tr><td class="k">БИК</td><td class="v">HSBKKZKX</td></tr>
+      </table>
+    </div>
   </div>
 
-  <div class="purpose"><b>НАЗНАЧЕНИЕ ПЛАТЕЖА</b>Оплата по счёту № <span class="fill" contenteditable>RL-2</span> от <span class="fill" contenteditable>06.07.2026</span> за разработку программного обеспечения (этап 2 — скелет и демонстрация). Без НДС.</div>
+  <div class="purpose"><b>Назначение платежа:</b> Оплата по счёту RL-2026-002 от 06.07.2026, этап 2 (скелет и демонстрация продукта) за разработку CRM «Заявки и склад». Акцепт оферты pllato.kz/offer/custom-development/. Без НДС.</div>
 
-  <div class="sign">
-    <div class="sg"><div class="role">Исполнитель</div><div class="line"></div><div class="cap"><span>ИП «STUDYSTORIES.APP»</span><span>/ Цай П. /</span></div></div>
-    <div class="sg"><div class="role">М.П. (при наличии)</div><div class="line" style="border-bottom-style:dashed"></div><div class="cap"><span>&nbsp;</span><span>&nbsp;</span></div></div>
+  <div class="bottom">
+    <div class="sign">
+      <div class="sl">ПОСТАВЩИК</div>
+      <div class="ln">ИП «STUDYSTORIES.APP» · <u></u> / Цай П. /</div>
+    </div>
+    <div class="pay-until">
+      Выставлен 06.07.2026 · оплата до 15.07.2026<br>
+      <b>К оплате: 925 000 ₸</b> — этап 2 из 3
+    </div>
   </div>
 
-  <div class="foot">
-    <div><b>Pllato</b> · партнёр по операционной оцифровке<br>+7 701 123 99 99 · uurraa@gmail.com</div>
-    <div class="fr"><b>pllato.kz</b><br>публичная оферта: <a href="https://pllato.kz/offer">pllato.kz/offer</a></div>
-  </div>
-
-</div>
-</body>
-</html>
+  <div class="runfoot"><span>Pllato · Счёт RL-2026-002 · стр. 1</span><span>pllato.kz</span></div>
+</section>
+</body></html>
