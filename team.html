@@ -16548,6 +16548,8 @@ async function loadCalendarEvents(opts = {}) {
         source: 'task',
         subtype: isZoom ? 'zoom' : 'deadline',
         uid: 'task:' + (t.id || t.bitrixKey),
+        rawTitle: (t.title || '(без названия)'),
+        isMeeting: isZoom && t.mark === 'zoom_meeting',
       });
     }
       for (const d of dealsForCalendar) {
@@ -16697,17 +16699,10 @@ function renderCalendarGrid() {
   // Клик на событие → открыть карточку. Для Zoom-задачи открываем привязанную сделку.
   grid.querySelectorAll('.cal-event').forEach(e => {
     e.addEventListener('click', () => {
+      const uid = e.dataset.calUid;
+      if (uid) { openCalEventEdit(uid); return; }
       if (e.dataset.calDeal) { openDealCard(e.dataset.calDeal); return; }
       if (e.dataset.calLinkedDeal) { openDealCard(e.dataset.calLinkedDeal); return; }
-      if (e.dataset.calTask) {
-        // Нет привязанной сделки — мягкий тост, остаёмся на календаре.
-        // Юзер просил карточки открывались ПОВЕРХ календаря, без перехода.
-        if (typeof showToast === 'function') {
-          showToast('Эта задача не привязана к сделке', { type: 'info' });
-        } else {
-          alert('Эта задача не привязана к сделке');
-        }
-      }
     });
   });
 }
@@ -16942,17 +16937,10 @@ function calHourlyEventHtml(ev, START_H, HOUR_H, isAlone, layout) {
 function attachCalEventClickHandlers(grid) {
   grid.querySelectorAll('.cal-event').forEach(e => {
     e.addEventListener('click', () => {
+      const uid = e.dataset.calUid;
+      if (uid) { openCalEventEdit(uid); return; }
       if (e.dataset.calDeal) { openDealCard(e.dataset.calDeal); return; }
       if (e.dataset.calLinkedDeal) { openDealCard(e.dataset.calLinkedDeal); return; }
-      if (e.dataset.calTask) {
-        // Нет привязанной сделки — мягкий тост, остаёмся на календаре.
-        // Юзер просил карточки открывались ПОВЕРХ календаря, без перехода.
-        if (typeof showToast === 'function') {
-          showToast('Эта задача не привязана к сделке', { type: 'info' });
-        } else {
-          alert('Эта задача не привязана к сделке');
-        }
-      }
     });
   });
 }
@@ -17139,6 +17127,121 @@ function openCalEventForm(prefillDate) {
       await loadCalendarEvents({ force: true });
       renderCalendarView();
     } catch (e) { err.textContent = 'Ошибка: ' + e.message; btn.disabled = false; btn.textContent = 'Создать'; }
+  };
+}
+
+// Редактирование события календаря: название, дата/время, длительность, удаление.
+function openCalEventEdit(uid) {
+  const ev = (calendarState.events || []).find(e => e.uid === uid);
+  if (!ev) return;
+  const isTask = ev.source === 'task';
+  const isZoomTask = isTask && ev.subtype === 'zoom';
+  const canEditTitle = isTask;                 // у deal-событий имя = название сделки
+  const canDuration = ev.endDate != null && ev.subtype !== 'deadline';
+  const canDelete = isTask && ev.isMeeting;    // удалять можно только события-встречи, не рабочие задачи
+  const start = ev.date instanceof Date ? ev.date : new Date(ev.date);
+  const durMin = (ev.endDate && ev.date) ? Math.max(15, Math.round((ev.endDate - ev.date) / 60000)) : 60;
+  const titleVal = canEditTitle ? (ev.rawTitle || ev.title || '') : (ev.title || '');
+  const durOpts = [30, 60, 90, 120];
+  if (!durOpts.includes(durMin)) durOpts.push(durMin);
+  durOpts.sort((a, b) => a - b);
+  const durLabel = (m) => m === 60 ? '1 час' : m === 90 ? '1.5 ч' : m === 120 ? '2 ч' : m + ' мин';
+
+  const ov = document.createElement('div');
+  ov.id = '_cal-event-modal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  document.getElementById('_cal-event-modal')?.remove();
+  ov.innerHTML = `<div style="background:var(--bg2);border-radius:14px;max-width:460px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.3);overflow:hidden" onclick="event.stopPropagation()">
+    <div style="padding:16px 18px;border-bottom:1px solid var(--b1);display:flex;justify-content:space-between;align-items:center">
+      <b style="font-size:16px">✏️ Редактировать событие</b><button id="ee-x" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--t3)">×</button>
+    </div>
+    <div style="padding:16px 18px;max-height:76vh;overflow:auto">
+      <label style="font-size:12px;color:var(--t3)">Название</label>
+      ${canEditTitle
+        ? `<input id="ee-title" value="${escapeHtml(titleVal)}" style="width:100%;margin:5px 0 12px;padding:10px 12px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);font-size:14px">`
+        : `<div style="margin:5px 0 12px;padding:10px 12px;border:1px solid var(--b1);border-radius:8px;background:var(--bg3);color:var(--t2);font-size:14px">${escapeHtml(titleVal)}<div style="font-size:11px;color:var(--t3);margin-top:3px">Название берётся из сделки — измените в карточке.</div></div>`}
+      <div style="display:flex;gap:10px;margin-bottom:12px">
+        <div style="flex:1"><label style="font-size:12px;color:var(--t3)">Дата</label>
+          <input id="ee-date" type="date" value="${calYMD(start)}" style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)"></div>
+        <div style="width:100px"><label style="font-size:12px;color:var(--t3)">Время</label>
+          <input id="ee-time" type="time" value="${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}" style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)"></div>
+        ${canDuration ? `<div style="width:96px"><label style="font-size:12px;color:var(--t3)">Длит.</label>
+          <select id="ee-dur" style="width:100%;margin-top:5px;padding:9px 6px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">
+            ${durOpts.map(m => `<option value="${m}" ${m === durMin ? 'selected' : ''}>${durLabel(m)}</option>`).join('')}</select></div>` : ''}
+      </div>
+      <div id="ee-err" style="color:var(--rd);font-size:12px;min-height:16px"></div>
+    </div>
+    <div style="padding:12px 18px;border-top:1px solid var(--b1);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;gap:8px">
+        ${ev.dealBitrixId ? `<button id="ee-deal" class="tbtn">🔗 Сделка</button>` : ''}
+        ${canDelete ? `<button id="ee-del" class="tbtn" style="color:var(--rd)">🗑 Удалить</button>` : ''}
+      </div>
+      <div style="display:flex;gap:8px">
+        <button id="ee-cancel" class="tbtn">Отмена</button>
+        <button id="ee-save" class="tbtn tbtn-a">Сохранить</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#ee-x').onclick = () => ov.remove();
+  ov.querySelector('#ee-cancel').onclick = () => ov.remove();
+  const dealBtn = ov.querySelector('#ee-deal');
+  if (dealBtn) dealBtn.onclick = () => { ov.remove(); openDealCard(ev.dealBitrixId); };
+
+  const delBtn = ov.querySelector('#ee-del');
+  if (delBtn) delBtn.onclick = async () => {
+    if (!confirm('Удалить это событие из календаря?')) return;
+    delBtn.disabled = true;
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_RTDB_URL}/tasks/${encodeURIComponent(ev.taskId)}.json?auth=${idToken}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      showToast?.('Событие удалено');
+      ov.remove();
+      await loadCalendarEvents({ force: true });
+      renderCalendarView();
+    } catch (e) { ov.querySelector('#ee-err').textContent = 'Ошибка удаления: ' + e.message; delBtn.disabled = false; }
+  };
+
+  ov.querySelector('#ee-save').onclick = async () => {
+    const err = ov.querySelector('#ee-err');
+    const dv = ov.querySelector('#ee-date').value, tv = ov.querySelector('#ee-time').value;
+    if (!dv || !tv) { err.textContent = 'Укажите дату и время.'; return; }
+    const [yy, mm, dd] = dv.split('-').map(Number);
+    const [hh, mi] = tv.split(':').map(Number);
+    const startDt = new Date(yy, mm - 1, dd, hh, mi, 0, 0);
+    const dur = canDuration ? (parseInt(ov.querySelector('#ee-dur').value) || durMin) : durMin;
+    const endDt = new Date(startDt.getTime() + dur * 60000);
+    const newTitle = canEditTitle ? ov.querySelector('#ee-title').value.trim() : null;
+    if (canEditTitle && !newTitle) { err.textContent = 'Укажите название.'; return; }
+    const btn = ov.querySelector('#ee-save'); btn.disabled = true; btn.textContent = '⏳…';
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      if (isTask) {
+        const patch = { bitrixChangedDate: new Date().toISOString() };
+        if (newTitle) patch.title = newTitle;
+        if (isZoomTask) { patch.startDatePlan = startDt.toISOString(); patch.endDatePlan = endDt.toISOString(); patch.deadline = startDt.toISOString(); }
+        else { patch.deadline = startDt.toISOString(); }
+        const r = await fetch(`${WORKER_RTDB_URL}/tasks/${encodeURIComponent(ev.taskId)}.json?auth=${idToken}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch),
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+      } else if (ev.source === 'deal') {
+        const dealId = 'deal_' + ev.dealBitrixId;
+        let cf = {};
+        try { const rr = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent(dealId)}.json?auth=${idToken}`); if (rr.ok) { const dd = await rr.json(); cf = (dd && dd.customFields) ? dd.customFields : {}; } } catch {}
+        cf[ev.field] = calLocalDT(startDt);
+        const r = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent(dealId)}.json?auth=${idToken}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customFields: cf, bitrixDateModify: new Date().toISOString() }),
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+      }
+      showToast?.('Событие обновлено');
+      ov.remove();
+      await loadCalendarEvents({ force: true });
+      renderCalendarView();
+    } catch (e) { err.textContent = 'Ошибка: ' + e.message; btn.disabled = false; btn.textContent = 'Сохранить'; }
   };
 }
 
