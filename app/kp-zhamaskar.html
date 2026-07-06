@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>КП — Система мебельного производства · Алматы · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f7f6f1'/%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%231d2a3a' stroke-width='2'/%3E%3Cpath d='M16 6v20M6 16h10' stroke='%231d2a3a' stroke-width='1.6'/%3E%3Ccircle cx='12' cy='12' r='1.4' fill='%23b0703c'/%3E%3Ccircle cx='12' cy='21' r='1.4' fill='%23b0703c'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f7f6f1;--panel:#fffefb;--ink:#1d2a3a;--mut:#5c6774;--mut2:#98a1ac;
+  --line:#d9d6cb;--grid:rgba(29,42,58,.055);
+  --wood:#b0703c;--wood-d:#8f5527;--wood-l:#f4e7da;
+  --grn:#25714d;--grn-l:#e2f0e9;--red:#b23a25;--red-l:#f9e8e4;--amb:#a26a10;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Golos Text',sans-serif;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.65;-webkit-print-color-adjust:exact;print-color-adjust:exact;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:28px 28px}
+.wrap{max-width:880px;margin:0 auto;padding:0 24px 80px}
+a{color:var(--wood-d)}
+
+/* шапка-штамп */
+.hero{background:var(--ink);color:#eef1f4;margin:24px -24px 0;padding:42px 44px 36px;position:relative;border-radius:6px}
+.hero::after{content:'';position:absolute;inset:10px;border:1px dashed rgba(238,241,244,.3);pointer-events:none;border-radius:3px}
+.hero-top{display:flex;align-items:center;gap:14px;margin-bottom:26px;flex-wrap:wrap}
+.stamp{border:2px solid #eef1f4;padding:8px 14px;font-weight:900;font-size:15px;letter-spacing:1.5px;text-transform:uppercase}
+.hs{font-size:13px;color:#9db0c4;font-weight:600}
+.kp-tag{margin-left:auto;font-size:11.5px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:#c8a37e;border:1.5px solid #4a5b70;padding:8px 15px}
+.hero h1{font-size:29px;font-weight:900;letter-spacing:-.5px;line-height:1.25;margin-bottom:14px}
+.hero h1 em{font-style:normal;color:#e0b489}
+.hero p.lead{font-size:15px;color:#b6c3d2;max-width:660px}
+.hero-meta{display:flex;margin-top:26px;border-top:1px solid rgba(238,241,244,.2);flex-wrap:wrap}
+.hm{flex:1;min-width:150px;padding:16px 20px 2px;border-left:1px dashed rgba(238,241,244,.25)}
+.hm:first-child{border-left:none;padding-left:0}
+.hm b{display:block;font-size:21px;font-weight:900;color:#fff}
+.hm span{font-size:11.5px;color:#9db0c4;font-weight:600}
+
+/* размерная линия — заголовок секции */
+.dim{display:flex;align-items:center;gap:12px;margin:42px 0 16px}
+.dim::before,.dim::after{content:'';flex:1;height:1px;background:var(--ink);opacity:.35}
+.dim::before{box-shadow:2px -3px 0 -1px var(--ink)}
+.dim .dt{font-size:13px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;white-space:nowrap}
+.panel{background:var(--panel);border:1.5px solid var(--ink);padding:22px 26px;position:relative}
+.panel.dash{border-style:dashed;border-color:var(--line);border-width:1.5px}
+
+/* что просили */
+.ask li{list-style:none;padding:12px 0 12px 44px;position:relative;border-bottom:1px dashed var(--line);font-size:14.5px}
+.ask li:last-child{border-bottom:none}
+.ask li::before{content:attr(data-n);position:absolute;left:0;top:11px;width:28px;height:28px;border:1.5px solid var(--ink);display:grid;place-items:center;font-size:12.5px;font-weight:900;background:var(--panel)}
+.ask b{font-weight:800}
+.ask span{color:var(--mut)}
+
+/* модули */
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.mods{grid-template-columns:1fr}}
+.mod{background:var(--panel);border:1.5px solid var(--line);padding:18px 20px;position:relative}
+.mod.key{border-color:var(--ink)}
+.mod .num{position:absolute;top:-1.5px;right:-1.5px;background:var(--ink);color:#fff;font-size:11px;font-weight:800;padding:3px 9px}
+.mod.key .num{background:var(--wood)}
+.mod b{display:block;font-size:14.5px;font-weight:800;margin-bottom:5px;padding-right:34px}
+.mod p{font-size:13px;color:var(--mut);line-height:1.6}
+
+/* направления */
+.dirs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:700px){.dirs{grid-template-columns:1fr}}
+.dir{background:var(--panel);border:1.5px solid var(--ink);padding:16px 18px;text-align:center}
+.dir .di{font-size:26px;margin-bottom:8px}
+.dir b{display:block;font-size:14.5px;font-weight:800}
+.dir p{font-size:12.5px;color:var(--mut);margin-top:4px}
+
+/* этапы */
+.stage{display:flex;gap:18px;background:var(--panel);border:1.5px solid var(--line);padding:20px 22px;margin-bottom:10px}
+.sn{width:42px;height:42px;border:2px solid var(--ink);display:grid;place-items:center;font-weight:900;font-size:16px;flex:none;background:#fff}
+.sc b{display:block;font-size:15.5px;font-weight:800;margin-bottom:4px}
+.sc p{font-size:13.5px;color:var(--mut)}
+.sc .sd{font-size:12px;font-weight:800;color:var(--wood-d);margin-top:7px;letter-spacing:.6px;text-transform:uppercase}
+
+/* цена */
+.price{background:var(--ink);color:#eef1f4;padding:30px 34px;margin-bottom:14px;position:relative}
+.price::after{content:'';position:absolute;inset:9px;border:1px dashed rgba(238,241,244,.3);pointer-events:none}
+.price .row{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+.price .old{font-size:19px;color:#7b8da0;text-decoration:line-through;font-weight:700}
+.price .big{font-size:42px;font-weight:900;letter-spacing:-1px}
+.price .disc{background:#e0b489;color:#1d2a3a;font-size:12px;font-weight:900;padding:7px 14px;letter-spacing:.4px}
+.price p{font-size:13.5px;color:#a9b8c9;margin-top:12px;max-width:660px;position:relative;z-index:1}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1.5px solid var(--ink)}
+th{font-size:11.5px;color:var(--mut);text-align:left;padding:12px 16px;border-bottom:1.5px solid var(--ink);font-weight:800;text-transform:uppercase;letter-spacing:.6px}
+td{padding:13px 16px;border-bottom:1px dashed var(--line);font-size:14px;vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.sum{font-weight:900;white-space:nowrap;text-align:right;font-size:15px}
+tr.total td{background:var(--wood-l);font-weight:800;border-top:1.5px solid var(--ink)}
+.note{font-size:12.5px;color:var(--mut);margin-top:10px;font-weight:500}
+
+/* сравнение */
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.vs{grid-template-columns:1fr}}
+.vs>div{background:var(--panel);border:1.5px solid var(--line);padding:20px 24px}
+.vs>div.good{border-color:var(--ink)}
+.vs h3{font-size:15px;font-weight:800;margin-bottom:12px}
+.vs ul{list-style:none}
+.vs li{padding:7px 0 7px 24px;position:relative;font-size:13.5px;color:var(--mut);border-bottom:1px dashed var(--line)}
+.vs li:last-child{border-bottom:none}
+.vs li::before{content:'—';position:absolute;left:0;color:var(--mut2);font-weight:800}
+.vs .good li{color:var(--ink)}
+.vs .good li::before{content:'▸';color:var(--wood)}
+
+/* opex */
+.opex td:first-child{font-weight:700}
+.gd{color:var(--grn);font-weight:800}.bd{color:var(--red);font-weight:800}
+
+/* примеры */
+.demo-cta{display:flex;gap:16px;align-items:center;background:var(--ink);color:#eef1f4;padding:22px 26px;flex-wrap:wrap;position:relative}
+.demo-cta::after{content:'';position:absolute;inset:8px;border:1px dashed rgba(238,241,244,.3);pointer-events:none}
+.demo-cta .dt{flex:1;min-width:220px;position:relative;z-index:1}
+.demo-cta b{font-size:15.5px}
+.demo-cta p{font-size:13px;color:#a9b8c9;margin-top:3px}
+.demo-btn{background:#e0b489;color:#1d2a3a;font-weight:900;font-size:13px;padding:13px 22px;text-decoration:none;white-space:nowrap;letter-spacing:.4px;position:relative;z-index:1}
+
+/* in/out */
+.io{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.io{grid-template-columns:1fr}}
+.io>div{background:var(--panel);border:1.5px solid var(--line);padding:20px 24px}
+.io h3{font-size:13px;font-weight:800;margin-bottom:12px;letter-spacing:1px;text-transform:uppercase}
+.io ul{list-style:none}
+.io li{padding:7px 0 7px 24px;position:relative;font-size:13.5px;border-bottom:1px dashed var(--line)}
+.io li:last-child{border-bottom:none}
+.io .in li::before{content:'▣';position:absolute;left:0;color:var(--grn)}
+.io .out li::before{content:'▢';position:absolute;left:0;color:var(--mut2)}
+.io li span{color:var(--mut)}
+
+.strip{display:flex;gap:14px;align-items:flex-start;background:var(--wood-l);border:1.5px solid var(--wood);padding:17px 20px;margin-top:14px}
+.strip .si{font-weight:900;font-size:18px;color:var(--wood-d);flex:none}
+.strip b{font-size:14.5px}
+.strip p{font-size:13px;color:var(--mut);margin-top:3px}
+
+.foot{margin-top:46px;border-top:1.5px solid var(--ink);padding-top:22px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;font-size:12.5px;color:var(--mut)}
+.foot b{color:var(--ink)}
+.foot .pl{font-weight:900;font-size:15px;color:var(--ink)}
+
+@media print{
+  body{background:#fff;background-image:none;font-size:12.5px}
+  .hero{margin:0 -24px 0}
+  .panel,.mod,.stage,.strip,.demo-cta,.vs>div{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="hero-top">
+      <div class="stamp">Мебель · Алматы</div>
+      <div class="hs">корпусная мебель · услуги цеха · ремонт квартир</div>
+      <div class="kp-tag">Коммерческое предложение</div>
+    </div>
+    <h1>Одна система на все три направления: заказ виден <em>от замера до сдачи объекта</em> — ничего не теряется</h1>
+    <p class="lead">По итогам встречи 6 июля 2026. Собственная программа под ваши процессы вместо Excel, Trello и мессенджеров — и вместо арендной CRM с вечной абонплатой. Система передаётся вам полностью: сервер ваш, код ваш, платежей по подписке нет.</p>
+    <div class="hero-meta">
+      <div class="hm"><b>4–6 недель</b><span>срок разработки</span></div>
+      <div class="hm"><b>1 500 000 ₸</b><span>фикс · правки 30–40% включены</span></div>
+      <div class="hm"><b>10%</b><span>предоплата — старт</span></div>
+      <div class="hm"><b>0 ₸ / мес</b><span>абонплаты нет</span></div>
+    </div>
+  </div>
+
+  <div class="dim"><span class="dt">Что вы просили на встрече</span></div>
+  <div class="panel">
+    <ul class="ask">
+      <li data-n="01"><b>Проект не теряется:</b> <span>весь путь заказа — приём, замер, эскиз, расчёт, производство, монтаж, сдача — в одной карточке. Кто что сделал, какие файлы, какие оплаты: вся история на месте, а не в переписках.</span></li>
+      <li data-n="02"><b>Три направления без доплаты:</b> <span>корпусная мебель, услуги цеха (распил, кромка, покраска) и ремонт квартир под ключ — в одной системе. Заходите и выбираете направление: у каждого своя воронка, свои этапы и своя аналитика. Никакой «каши» из трёх разных программ.</span></li>
+      <li data-n="03"><b>Цеху — максимально просто, с телефона:</b> <span>бригадир и начальник цеха открывают систему в браузере телефона: список заказов и большие кнопки-отметки этапов. Два клика — статус обновился у всех.</span></li>
+      <li data-n="04"><b>Финансы по вашим формулам:</b> <span>приход/расход по заказу, комиссии, оплаты сотрудникам, чистая маржа — считаются автоматически из воронки. Формулы — ваши, вносим на этапе настройки.</span></li>
+      <li data-n="05"><b>WhatsApp внутри:</b> <span>переписки с клиентами прикреплены к заказам. Подключение через Green API — порядка $10/мес вместо ~$80 у интеграторов.</span></li>
+      <li data-n="06"><b>Своё, а не аренда:</b> <span>без абонентской платы. Домен покупаете свой (~$10/год), хостинг — бесплатный до 10 ГБ навсегда. Система оформляется на вас.</span></li>
+    </ul>
+  </div>
+
+  <div class="dim"><span class="dt">Три направления — один вход</span></div>
+  <div class="dirs">
+    <div class="dir"><div class="di">▣</div><b>Корпусная мебель</b><p>замер → эскиз → расчёт → договор → цех → монтаж → сдача</p></div>
+    <div class="dir"><div class="di">◫</div><b>Услуги цеха</b><p>распил · кромка · покраска: приём — выполнение — выдача</p></div>
+    <div class="dir"><div class="di">⌂</div><b>Ремонт квартир</b><p>смета → этапы работ → бригады → приёмка объекта</p></div>
+  </div>
+
+  <div class="dim"><span class="dt">Состав системы · 10 модулей</span></div>
+  <div class="mods">
+    <div class="mod key"><span class="num">01</span><b>Воронки по направлениям</b><p>Свои этапы для мебели, услуг и ремонтов. Карточка сделки с вашими полями, суммами и файлами. Сделку видно от заявки до сдачи.</p></div>
+    <div class="mod key"><span class="num">02</span><b>Карточка заказа-проекта</b><p>Замеры, эскизы и чертежи, спецификация материалов, расчёт стоимости, договор, оплаты, история изменений — всё в одном месте.</p></div>
+    <div class="mod key"><span class="num">03</span><b>Цех: производственный канбан</b><p>Распил → кромка → присадка → покраска → сборка → готово. У бригадира и начальника цеха — упрощённый мобильный вид: заказ + большая кнопка «этап выполнен».</p></div>
+    <div class="mod"><span class="num">04</span><b>Замеры и монтаж</b><p>График выездов замерщика и монтажных бригад, адреса, статусы, фото с объекта, подтверждение сдачи.</p></div>
+    <div class="mod"><span class="num">05</span><b>Снабжение и склад материалов</b><p>ЛДСП, фурнитура, краска: остатки, резерв под заказ, заявки на закупку, приход/списание по заказам.</p></div>
+    <div class="mod key"><span class="num">06</span><b>Финансы</b><p>Приход/расход по каждому заказу и направлению, комиссии, оплаты сотрудникам и бригадам, чистая маржа — по вашим формулам, автоматически из воронки.</p></div>
+    <div class="mod"><span class="num">07</span><b>WhatsApp + Telegram</b><p>Один инбокс, переписки прикреплены к заказам. История остаётся в компании, даже если менеджер ушёл.</p></div>
+    <div class="mod"><span class="num">08</span><b>Задачи</b><p>Поручения с ответственными и сроками: перезвонить, дозаказать фурнитуру, выехать на замер. Ничего не забывается.</p></div>
+    <div class="mod"><span class="num">09</span><b>Аналитика владельца</b><p>Заказы и маржа по направлениям, загрузка цеха, источники клиентов, долги по оплатам — на одном экране.</p></div>
+    <div class="mod"><span class="num">10</span><b>Роли и доступы</b><p>Отдельный вход каждому: вы, дизайнер, маркетолог, SMM, бригадир, начальник цеха. Каждый видит своё.</p></div>
+  </div>
+
+  <div class="dim"><span class="dt">Живые примеры — уже сделано для мебельщиков</span></div>
+  <div class="demo-cta">
+    <div class="dt"><b>Посмотрите наши работы по мебельному профилю</b>
+    <p>«Корпус» — CRM мебели на заказ (воронка, замеры с калькулятором, чат снабжения, склад, цех, бригады, монтаж) и «Ocean Glass» — оконное производство (замеры, склад, производственный канбан). Ваша система будет собрана под вас — эти показывают уровень.</p></div>
+    <a class="demo-btn" href="https://pllato.kz/app/korpus/" target="_blank" rel="noopener">Корпус · мебель →</a>
+    <a class="demo-btn" href="https://pllato.kz/app/okna/?owner=pllato-owner-7c" target="_blank" rel="noopener" style="background:#eef1f4">ОКНА · производство →</a>
+  </div>
+
+  <div class="dim"><span class="dt">Как работаем · постоплата</span></div>
+  <div class="stage"><div class="sn">1</div><div class="sc"><b>Ядро системы</b><p>Старт после предоплаты 10%. Разворачиваем базовый пакет: воронки трёх направлений, карточка заказа, цех, роли. Первая встреча правок — идём по каждому пункту под ваши процессы.</p><div class="sd">неделя 1–2</div></div></div>
+  <div class="stage"><div class="sn">2</div><div class="sc"><b>Доработки под вас · 30–40% уже в цене</b><p>Финансовые формулы, поля карточек, упрощённый вид цеха, WhatsApp. Показываем — вы правите. Оплата этапа — после согласования.</p><div class="sd">неделя 3–4 · платёж после этапа</div></div></div>
+  <div class="stage"><div class="sn">3</div><div class="sc"><b>Полировка и передача</b><p>Прогоны с командой и цехом, документация, перенос на ваш сервер, права на вас. Остаток — после полной сдачи.</p><div class="sd">неделя 5–6 · платёж после сдачи</div></div></div>
+
+  <div class="dim"><span class="dt">Стоимость</span></div>
+  <div class="price">
+    <div class="row"><span class="old">1 500 000 ₸</span><span class="big">1 350 000 ₸</span><span class="disc">−10% при ответе в течение суток</span></div>
+    <p>Фиксированная стоимость за все три направления, с запасом 30–40% на ваши правки в период сдачи. Для сравнения: аренда мебельной CRM ≈ 500 000 ₸ каждый год — за 3 года вы платите столько же, но программа так и не становится вашей.</p>
+  </div>
+  <table>
+    <thead><tr><th>Платёж</th><th>Когда</th><th style="text-align:right">Со скидкой −10%</th></tr></thead>
+    <tbody>
+      <tr><td><b>Предоплата 10%</b></td><td>старт работ, бронь команды</td><td class="sum">135 000 ₸</td></tr>
+      <tr><td><b>Этап 2</b></td><td>после согласования ядра и первой волны правок</td><td class="sum">607 500 ₸</td></tr>
+      <tr><td><b>Этап 3</b></td><td>после полной сдачи и переноса на ваш сервер</td><td class="sum">607 500 ₸</td></tr>
+      <tr class="total"><td>Итого</td><td>при подтверждении в течение суток после получения КП</td><td class="sum">1 350 000 ₸</td></tr>
+    </tbody>
+  </table>
+  <div class="note">Без скидки — 1 500 000 ₸ (платежи 150 000 / 675 000 / 675 000). Понимаем, что вы взяли месяц на тест арендной CRM: само предложение действительно до 6 августа 2026 — вернуться к нам можно в любой момент теста.</div>
+
+  <div class="dim"><span class="dt">Аренда CRM или своя система</span></div>
+  <div class="vs">
+    <div><h3>Арендная мебельная CRM</h3><ul>
+      <li>~500 000 ₸ абонплаты каждый год — навсегда</li>
+      <li>Заточена только под мебель: услуги цеха и ремонты — отдельные системы, учёт снова расползается</li>
+      <li>«Как у всех»: свои формулы маржи и свой процесс цеха не вставить</li>
+      <li>База заказов и клиентов — в чужом облаке; конфиденциальность — по их правилам</li>
+      <li>Экономия сейчас — переделывание всего через год (классический путь)</li>
+    </ul></div>
+    <div class="good"><h3>Своя система</h3><ul>
+      <li>Один платёж — 0 ₸/мес; окупается против аренды за ~3 года и остаётся вашей</li>
+      <li>Все три направления в одном входе, без доплат за «ещё одну систему»</li>
+      <li>Формулы финансов, этапы цеха, поля карточек — в точности ваши</li>
+      <li>Ваш сервер, ваш код, документация — конфиденциальность у вас</li>
+      <li>Доработки после сдачи — по необходимости, $20/час</li>
+    </ul></div>
+  </div>
+
+  <div class="dim"><span class="dt">Операционные расходы после запуска</span></div>
+  <div class="panel dash" style="padding:6px 16px">
+    <table class="opex" style="border:none">
+      <thead><tr><th>Статья</th><th>Через посредников</th><th>Как сделаем мы</th></tr></thead>
+      <tbody>
+        <tr><td>WhatsApp-интеграция</td><td class="bd">~$80 / мес</td><td class="gd">Green API · ~$10 / мес</td></tr>
+        <tr><td>Telegram</td><td>—</td><td class="gd">бесплатно</td></tr>
+        <tr><td>IP-телефония (по желанию)</td><td colspan="2">АТС + оператор ≈ 50 000 ₸ / мес — подключим, если решите</td></tr>
+        <tr><td>Домен</td><td>—</td><td>~$10–12 / год</td></tr>
+        <tr><td>Хостинг</td><td>—</td><td class="gd">бесплатно до 10 ГБ — навсегда, этого хватает</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="dim"><span class="dt">Что входит и что потом</span></div>
+  <div class="io">
+    <div class="in"><h3 style="color:var(--grn)">Входит в стоимость</h3><ul>
+      <li>Все 10 модулей · три направления бизнеса</li>
+      <li>Правки 30–40% в период сдачи — уже в цене</li>
+      <li>Упрощённый мобильный вид для цеха</li>
+      <li>Подключение WhatsApp (Green API) и Telegram</li>
+      <li>Роли и отдельные входы каждому сотруднику</li>
+      <li>Прогоны с командой, документация</li>
+      <li>Ваш сервер, исходный код, права на вас</li>
+      <li>Ошибки по нашей вине чиним бесплатно</li>
+    </ul></div>
+    <div class="out"><h3 style="color:var(--mut)">После сдачи · по желанию</h3><ul>
+      <li>Абонплата и сопровождение <span>— не требуются</span></li>
+      <li>Новые доработки <span>— $20/час, обычно 1–5 часов на задачу</span></li>
+      <li>IP-телефония <span>— ≈50 000 ₸/мес оператору, подключение сделаем</span></li>
+      <li>Green API <span>— ~$10/мес напрямую сервису</span></li>
+    </ul></div>
+  </div>
+
+  <div class="strip"><span class="si">§</span><div><b>Договор и оплата</b><p>Работаем по публичной оферте <a href="https://pllato.kz/offer" target="_blank" rel="noopener">pllato.kz/offer</a> — оплата счёта означает принятие условий. Счёт на предоплату выставим сразу после вашего «да». Скидка −10% — при подтверждении в течение суток после получения КП; предложение действительно до 6 августа 2026.</p></div></div>
+
+  <div class="foot">
+    <div><div class="pl">Pllato.</div>Custom Development · CRM/ERP<br>ИП «STUDYSTORIES.APP» · Алматы</div>
+    <div><b>Платон Цай</b><br>+7 701 123 99 99 · <a href="https://wa.me/77011239999">WhatsApp</a><br>uurraa@gmail.com · pllato.kz</div>
+    <div><b>КП № MB-2026-02</b><br>от 6 июля 2026<br>для Джамаскара · корпусная мебель, Алматы</div>
+  </div>
+
+</div>
+</body>
+</html>
