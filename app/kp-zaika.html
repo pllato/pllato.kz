@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>КП · Зайка — портал сети детских садов · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffd200'/%3E%3Ccircle cx='32' cy='36' r='24' fill='%23e31e24'/%3E%3Cpath d='M36 22 C38 10 47 5 52 7 C51 13 45 20 39 24 Z' fill='%23fff'/%3E%3Cpath d='M42 25 C48 16 56 14 59 16 C57 22 50 27 44 30 Z' fill='%23fff'/%3E%3Ccircle cx='29' cy='28' r='9' fill='%23fff'/%3E%3Ccircle cx='26' cy='26' r='1.6' fill='%23e31e24'/%3E%3Cellipse cx='36' cy='44' rx='12' ry='9.5' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@600;700&family=Nunito:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#241a0f;--mut:#6f6048;--mut2:#a8996f;--line:#eee1b4;
+  --red:#e31e24;--red-d:#b91318;--red-l:#fdeceb;
+  --sun:#ffd200;--sun-l:#fff6cf;--sun-t:#8f7100;
+  --mint:#25835f;--mint-l:#e4f3ec;
+  --bg:#fffdf4;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:'Comfortaa','Nunito',sans-serif;letter-spacing:-.2px}
+.page{max-width:900px;margin:0 auto;padding:0 28px 60px}
+
+/* шапка */
+.hero{border-bottom:4px solid var(--sun);padding:34px 0 26px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.hero .lm{width:84px;height:84px;flex:none;filter:drop-shadow(0 6px 14px rgba(227,30,36,.25))}
+.hero .lm svg{width:100%;height:100%}
+.hero h1{font-size:34px;font-weight:800;color:var(--red);line-height:1.1}
+.hero .hsub{font-size:15px;color:var(--mut);font-weight:700;margin-top:4px}
+.hero .meta{margin-left:auto;text-align:right;font-size:13px;color:var(--mut);font-weight:700;line-height:1.9}
+.hero .meta b{color:var(--ink)}
+.kp-num{display:inline-block;background:var(--sun);color:var(--ink);font-weight:900;font-size:12.5px;padding:3px 12px;border-radius:20px}
+
+/* секции */
+section{margin-top:34px}
+.sec-h{display:flex;align-items:center;gap:13px;margin-bottom:16px}
+.sec-h .sn{width:38px;height:38px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;font-family:'Comfortaa',sans-serif;font-weight:800;font-size:17px;flex:none}
+.sec-h h2{font-size:23px;font-weight:800}
+.sec-h .sh2{font-size:13px;color:var(--mut);font-weight:700}
+.lead{font-size:15px;color:var(--mut);font-weight:600;margin-bottom:14px}
+.lead b{color:var(--ink)}
+
+/* синопсис */
+.syn{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:720px){.syn{grid-template-columns:1fr}}
+.syn .si{background:#fff;border:1px solid var(--line);border-radius:16px;padding:13px 16px;font-size:13.5px;font-weight:600;color:var(--mut)}
+.syn .si b{color:var(--ink);display:block;font-size:14px;margin-bottom:2px}
+
+/* модули базы */
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:720px){.mods{grid-template-columns:1fr}}
+.mod{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px 18px;position:relative}
+.mod .mi{font-size:21px}
+.mod b{display:block;font-size:15px;font-weight:800;margin:6px 0 4px}
+.mod p{font-size:13.5px;color:var(--mut);font-weight:600}
+.mod .demo-b{position:absolute;top:14px;right:14px;background:var(--mint-l);color:var(--mint);font-size:11px;font-weight:900;padding:3px 10px;border-radius:20px}
+.base-total{margin-top:16px;background:var(--ink);color:#fff8dd;border-radius:20px;padding:20px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.base-total .bt1{font-size:14px;font-weight:800}
+.base-total .bt1 span{display:block;font-size:12.5px;color:#cdbd8d;font-weight:600;margin-top:2px}
+.base-total .btp{margin-left:auto;font-family:'Comfortaa',sans-serif;font-size:34px;font-weight:800;color:var(--sun)}
+.base-total .btp em{font-style:normal;font-size:16px;color:#cdbd8d;font-weight:700}
+
+/* этапы */
+.steps{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:720px){.steps{grid-template-columns:1fr}}
+.step{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px}
+.step .st-n{font-size:12px;font-weight:900;color:var(--red);letter-spacing:.5px}
+.step b{display:block;font-size:16px;margin:5px 0 3px;font-weight:800}
+.step p{font-size:13px;color:var(--mut);font-weight:600}
+.step .st-sum{margin-top:10px;font-family:'Comfortaa',sans-serif;font-size:22px;font-weight:800;color:var(--ink)}
+.step .st-sum span{font-size:12px;color:var(--mut2);font-weight:700;display:block;font-family:'Nunito',sans-serif}
+.timeline{margin-top:14px;background:var(--sun-l);border:1px solid #f0df96;border-radius:16px;padding:13px 18px;font-size:13.5px;font-weight:700;color:var(--sun-t)}
+.timeline b{color:var(--ink)}
+
+/* доп пакеты */
+.addons .mod{background:#fffbe8;border-color:#f0df96}
+.addons .mod .price-hint{display:inline-block;margin-top:8px;background:#fff;border:1px solid #f0df96;color:var(--sun-t);font-size:12px;font-weight:900;padding:3px 12px;border-radius:20px}
+
+/* таблица экономики */
+.tbl{width:100%;border-collapse:collapse;background:#fff;border-radius:18px;overflow:hidden;border:1px solid var(--line)}
+.tbl th{background:var(--ink);color:#fff8dd;font-size:12.5px;text-align:left;padding:11px 16px;font-weight:800}
+.tbl td{padding:12px 16px;border-bottom:1px dashed var(--line);font-size:14px;font-weight:600;vertical-align:top}
+.tbl tr:last-child td{border-bottom:none}
+.tbl .good{color:var(--mint);font-weight:800}
+.tbl .bad{color:var(--red-d);font-weight:800}
+
+/* гарантии */
+.gar{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:720px){.gar{grid-template-columns:1fr}}
+.gar .gi{display:flex;gap:11px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:13px 16px;font-size:13.5px;font-weight:600;color:var(--mut);align-items:flex-start}
+.gar .gi .gic{width:30px;height:30px;border-radius:10px;background:var(--mint-l);color:var(--mint);display:grid;place-items:center;font-weight:900;flex:none}
+.gar .gi b{color:var(--ink)}
+
+/* CTA */
+.cta{margin-top:36px;background:var(--sun);border-radius:24px;padding:26px 30px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.cta .ct1{font-family:'Comfortaa',sans-serif;font-size:22px;font-weight:800;color:var(--ink)}
+.cta .ct1 span{display:block;font-family:'Nunito',sans-serif;font-size:13.5px;font-weight:700;color:#7c6200;margin-top:3px}
+.cta a{margin-left:auto;background:var(--red);color:#fff;font-weight:900;font-size:15px;padding:14px 26px;border-radius:16px;text-decoration:none;box-shadow:0 8px 20px -6px rgba(227,30,36,.5)}
+.cta a:hover{background:var(--red-d)}
+
+/* фут */
+.foot{margin-top:40px;border-top:1px solid var(--line);padding-top:20px;display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--mut);font-weight:600}
+.foot b{color:var(--ink);display:block;font-size:14.5px}
+.foot .fr{margin-left:auto;text-align:right}
+.foot a{color:var(--red-d)}
+
+@media print{
+  body{background:#fff;font-size:12.5px}
+  .page{max-width:100%;padding:0 4mm}
+  .hero{padding-top:8mm}
+  section{margin-top:18px;break-inside:avoid}
+  .cta a{box-shadow:none}
+  .base-total,.tbl th,.cta,.sec-h .sn{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <div class="lm"><svg viewBox="0 0 64 64"><circle cx="32" cy="36" r="26" fill="#e31e24"/><path d="M36 22 C38 10 47 5 52 7 C51 13 45 20 39 24 Z" fill="#fff"/><path d="M42 25 C48 16 56 14 59 16 C57 22 50 27 44 30 Z" fill="#fff"/><circle cx="29" cy="28" r="9.5" fill="#fff"/><circle cx="26" cy="26" r="1.7" fill="#e31e24"/><ellipse cx="36" cy="44" rx="12.5" ry="10" fill="#fff"/><circle cx="47" cy="41" r="3.4" fill="#fff"/><circle cx="49" cy="45.5" r="3.1" fill="#fff"/><circle cx="46" cy="48.5" r="2.9" fill="#fff"/></svg></div>
+    <div>
+      <h1>Портал сети «Зайка»</h1>
+      <div class="hsub">CRM и управление сетью из 6 детских садов · вместо Битрикса и Google-таблиц</div>
+    </div>
+    <div class="meta">
+      <span class="kp-num">КП № ZK-2026-01</span><br>
+      Для: <b>Екатерины</b> · сеть детских садов «Зайка», Алматы<br>
+      Дата: <b>6 июля 2026</b> · действительно до <b>20 июля 2026</b>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-h"><span class="sn">1</span><div><h2>Что зафиксировали на встрече</h2><div class="sh2">созвон 6 июля · встреча завтра, Кофе Бум на Гоголя 15</div></div></div>
+    <div class="syn">
+      <div class="si"><b>Битрикс24 — тесен и дорог</b>Воронка продаж и кол-центр в Битриксе (~400 000 ₸/год через интегратора). Карточки остались, но диалоги старого номера потеряны.</div>
+      <div class="si"><b>Всё остальное — в Google-таблицах</b>Табель заведующих, прибывшие/убывшие, склад завхоза, KPI, отчёты маркетинга и финансиста. Столбцы «слетают», финансист чинит вручную, люди ждут.</div>
+      <div class="si"><b>WhatsApp — блокировки и дорогие диалоги</b>Серый номер блокировали 3–4 раза, потеряна история. WABA: маркетинговый диалог ~54 ₸, у других интеграторов — 26 ₸. Нужен надёжный и дешёвый канал.</div>
+      <div class="si"><b>Приложение «Растём вместе» заброшено</b>Коммьюнити родителей, расписание и видео по группам нравились — приложения больше нет, замену никто не сделал.</div>
+      <div class="si"><b>Найм — вручную с июня</b>HR-воронка есть, но ведётся руками: отклики с HeadHunter и Instagram, собеседования, стажировки, резерв.</div>
+      <div class="si"><b>Впереди — масштабирование</b>Новые точки и регионы. Google-таблицы и «человек-оркестр» это не переживут — нужен портал, который тиражируется на новые садики.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-h"><span class="sn">2</span><div><h2>Базовая разработка — что входит</h2><div class="sh2">стандартный пакет · всё, что помечено «в демо», уже можно прокликать</div></div></div>
+    <div class="lead">Переносим и объединяем всё, что сегодня разорвано между Битриксом и таблицами. <b>База — это портал без финансового контура и без приложения</b> (они идут отдельными пакетами, раздел 4 — как договорились).</div>
+    <div class="mods">
+      <div class="mod"><span class="demo-b">в демо</span><span class="mi">◎</span><b>Воронка набора детей + миграция из Битрикса</b><p>Заявка → экскурсия → пробный день → договор → зачислен. Карточки, сделки и база переезжают из Битрикса, лист ожидания по группам.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><span class="mi">🤖</span><b>Изи-бот прогрева заявок с таргета</b><p>Анкета → серия видео с интервалами → передача менеджеру уже «тёплого» клиента. Тексты, видео и интервалы меняете сами.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><span class="mi">💬</span><b>Единое окно WhatsApp + Instagram</b><p>Все диалоги в одном месте, переписка хранится в карточках — смена номера или менеджера больше не теряет историю. Автосообщения: экскурсии, напоминания, оценка качества после визита.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><span class="mi">📞</span><b>Телефония (SIPUNI)</b><p>Звонок из карточки в 1 клик, записи разговоров прикреплены к карточкам и прослушиваются в портале, пропущенный звонок создаёт задачу.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><span class="mi">🧒</span><b>Группы и дети</b><p>Карточка ребёнка: родители, аллергии, посещаемость, оплаты, вся переписка и звонки, прогресс развития. Перевод между садиками без потерь.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><span class="mi">✓</span><b>Табель заведующих</b><p>Отметки в один клик: был / болел / отпуск. Прибыло / убыло, свод на конец месяца, перерасчёт абонплаты и питания — сами. Таблица табеля переезжает целиком.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><span class="mi">✏</span><b>Обучение: расписание и программа сети</b><p>Методист задаёт программу — воспитатели отмечают проведение. Прогресс детей по навыкам, отчёты дня родителям в WhatsApp с фото.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><span class="mi">🤝</span><b>Воронка найма + онлайн-тесты</b><p>Отклики с HeadHunter/Instagram сами создают карточки, бот отправляет тест кандидату в WhatsApp, стажировки с оценкой, кадровый резерв с тегами, массовые рассылки по откликам.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><span class="mi">👥</span><b>Персонал: документы и время</b><p>Медкнижки и аттестации с напоминаниями за 30 и 7 дней. Пришёл/ушёл на планшете садика — опоздания видны, табель для зарплат готов.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><span class="mi">📦</span><b>Склад завхоза</b><p>Остатки и минимумы, заявки всех 6 садиков в одном месте, закупка одной кнопкой, выдача фиксируется по садикам. Таблица завхоза переезжает целиком.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><span class="mi">📱</span><b>Веб-кабинет родителя</b><p>Ссылка в WhatsApp, без установки: расписание группы, отчёты дня с фото, оплата по ссылке, переписка внутри кабинета — а не в личном WhatsApp воспитателя.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><span class="mi">🔑</span><b>Роли, задачи и базовая отчётность</b><p>Владелица / заведующие / кол-центр / методист — каждый видит своё. Задачи и поручения. План/факт абонплаты, долги, заполняемость по сети.</p></div>
+    </div>
+    <div class="base-total">
+      <div class="bt1">Базовая разработка · весь объём выше<span>фиксированная стоимость, без абонплаты за пользователей и лицензий</span></div>
+      <div class="btp">1 500 000 <em>₸</em></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-h"><span class="sn">3</span><div><h2>Сроки и оплата</h2><div class="sh2">работаем постоплатой — платите за принятый результат</div></div></div>
+    <div class="steps">
+      <div class="step"><div class="st-n">СТАРТ</div><b>Подтверждение намерений</b><p>Подписываем договор и NDA, фиксируем объём базы. Через ~7 дней выкатываем первую версию ядра.</p><div class="st-sum">150 000 ₸<span>10% при старте</span></div></div>
+      <div class="step"><div class="st-n">ЯДРО · ~7 ДНЕЙ</div><b>Сдача ядра с вашими правками</b><p>1–2 созвона: проходим по каждой запятой, собираем правки от вас и от команды (заведующие, кол-центр, финансист) — правки входят.</p><div class="st-sum">675 000 ₸<span>50% остатка после приёмки ядра</span></div></div>
+      <div class="step"><div class="st-n">ФИНАЛ · 4–6 НЕДЕЛЬ</div><b>Полная сдача и перенос данных</b><p>Миграция из Битрикса и таблиц, обучение команды, запуск. Финальный счёт — когда всё принято.</p><div class="st-sum">675 000 ₸<span>остаток по факту сдачи</span></div></div>
+    </div>
+    <div class="timeline">⏱ <b>Первую кликабельную версию вы видите через ~7 дней</b>, весь проект — 4–6 недель. Около 30% объёма — доработки по ходу: это нормально и уже входит в стоимость.</div>
+  </section>
+
+  <section class="addons">
+    <div class="sec-h"><span class="sn">4</span><div><h2>Дополнительная разработка</h2><div class="sh2">отдельными пакетами после сдачи ядра — как договорились на встрече</div></div></div>
+    <div class="lead">Эти блоки сознательно не в базе: по каждому нужно погружение, чтобы назвать честную цену. Оцениваем предметно после утверждения ядра — база спроектирована так, что пакеты подключаются без переделок.</div>
+    <div class="mods">
+      <div class="mod"><span class="mi">📊</span><b>Финансовый контур</b><p>То, что сейчас делает финансист в Power BI: сводные дашборды, P&L по садикам, зарплаты, план/факт по деньгам в глубину.</p><span class="price-hint">ориентир 0,3–0,4 от базы · 450–600 тыс ₸</span></div>
+      <div class="mod"><span class="mi">🧾</span><b>Интеграция 1С</b><p>Связка финансовой части с вашей 1С: выгрузки, сверки, документы.</p><span class="price-hint">оценка после погружения</span></div>
+      <div class="mod"><span class="mi">📣</span><b>Маркетинг и лояльность</b><p>Отчёты таргетолога и SMM (рилсы, лидогенерация), сводная аналитика, акции, промокоды и «приведи друга», кросс-маркетинг, аналитика по блогерам.</p><span class="price-hint">отдельный пакет · оценка после ядра</span></div>
+      <div class="mod"><span class="mi">🚀</span><b>Приложение-коммьюнити для родителей</b><p>Наследник «Растём вместе»: видео-эпизоды занятий с камер (без звука), опросы и голосования для широкой аудитории, публичные акции и промо-ссылки. Веб-кабинет из базы станет его фундаментом.</p><span class="price-hint">отдельный проект · по объёму может быть сопоставим с порталом</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-h"><span class="sn">5</span><div><h2>Экономика владения</h2><div class="sh2">что меняется в ежемесячных расходах</div></div></div>
+    <table class="tbl">
+      <thead><tr><th>Статья</th><th>Сейчас</th><th>С порталом «Зайка»</th></tr></thead>
+      <tbody>
+        <tr><td><b>Лицензия CRM</b></td><td class="bad">Битрикс ~400 000 ₸/год</td><td class="good">0 ₸ — портал ваш, без лицензий и лимитов на пользователей</td></tr>
+        <tr><td><b>WhatsApp</b></td><td class="bad">WABA: маркетинговый диалог ~54 ₸, сервисный ~12 ₸</td><td class="good">Green API ~5 000 ₸/мес ($10) без пометки диалогов + WABA только там, где она нужна</td></tr>
+        <tr><td><b>Телефония</b></td><td>SIPUNI</td><td>SIPUNI остаётся как есть — просто встраивается в портал</td></tr>
+        <tr><td><b>Хостинг и домен</b></td><td>—</td><td class="good">хостинг до 10 ГБ — бесплатно · домен ~$10/год</td></tr>
+        <tr><td><b>Неиспользованный Битрикс</b></td><td colspan="2">оплачен ~полгода назад через интегратора — можно запросить возврат за неиспользованный период (~100–150 тыс ₸); данные до миграции хранятся, потом остаются архивом</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-h"><span class="sn">6</span><div><h2>Гарантии и условия</h2><div class="sh2">чтобы спокойно масштабироваться</div></div></div>
+    <div class="gar">
+      <div class="gi"><span class="gic">✓</span><div><b>Код и данные — ваши.</b> Самописный портал принадлежит вам полностью, никакой аренды и «отключений».</div></div>
+      <div class="gi"><span class="gic">✓</span><div><b>Договор + NDA.</b> Подписываем договор о неразглашении: ваши наработки и видение — многолетний опыт, он остаётся вашим.</div></div>
+      <div class="gi"><span class="gic">✓</span><div><b>Ошибки чиним бесплатно.</b> Дебаг — всегда за наш счёт. Новые доработки после сдачи — $20/час по согласованной оценке.</div></div>
+      <div class="gi"><span class="gic">✓</span><div><b>Готов к масштабированию.</b> Новый садик или город — добавляется как филиал, без новых лицензий: портал строился для сети.</div></div>
+    </div>
+  </section>
+
+  <div class="cta">
+    <div class="ct1">Демо уже собрано по итогам встречи<span>набор с изи-ботом · чаты и звонки · табель · склад · найм с тестами · кабинет родителя</span></div>
+    <a href="/app/zaika.html">Открыть демо-портал →</a>
+  </div>
+
+  <div class="foot">
+    <div><b>Платон Цай</b>Pllato · разработка порталов и CRM<br>+7 701 123 99 99 · uurraa@gmail.com</div>
+    <div class="fr"><b>ИП «STUDYSTORIES.APP»</b>Публичная оферта: <a href="https://pllato.kz/offer">pllato.kz/offer</a><br>КП № ZK-2026-01 · действительно до 20 июля 2026</div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Зайка — портал сети детских садов · Демо</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffd200'/%3E%3Ccircle cx='32' cy='36' r='24' fill='%23e31e24'/%3E%3Cpath d='M36 22 C38 10 47 5 52 7 C51 13 45 20 39 24 Z' fill='%23fff'/%3E%3Cpath d='M42 25 C48 16 56 14 59 16 C57 22 50 27 44 30 Z' fill='%23fff'/%3E%3Ccircle cx='29' cy='28' r='9' fill='%23fff'/%3E%3Ccircle cx='26' cy='26' r='1.6' fill='%23e31e24'/%3E%3Cellipse cx='36' cy='44' rx='12' ry='9.5' fill='%23fff'/%3E%3Ccircle cx='47' cy='41' r='3.2' fill='%23fff'/%3E%3Ccircle cx='48.5' cy='45.5' r='3' fill='%23fff'/%3E%3Ccircle cx='45.5' cy='48.5' r='2.8' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@600;700&family=Nunito:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fff6d9;--card:#fff;--line:#f1e4b8;--ink:#241a0f;--mut:#7a6a4f;--mut2:#b0a17f;
+  --acc:#e31e24;--acc-d:#bb1218;--acc-l:#fde2e0;--acc-xl:#fdf2ec;
+  --sun:#ffd200;--sun-l:#fff3bd;--sun-t:#9c7c00;
+  --mint:#2f9c7a;--mint-l:#e2f4ed;--sky:#3d82c4;--sky-l:#e5f0fa;
+  --lilac:#8a63c0;--lilac-l:#f0e9fa;--rose:#d4547e;--rose-l:#fbe7ee;--red:#cf3f2b;--red-l:#fbe7e2;
+  --r:22px;--r2:14px;
+  --sh:0 8px 26px -10px rgba(90,64,10,.16);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);font-size:15px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font-family:inherit;font-size:14px;color:var(--ink)}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#e3d29b;border-radius:8px}
+h1,h2,.logo b{font-family:'Comfortaa','Nunito',sans-serif}
+
+.app{display:flex;min-height:100vh}
+/* ===== боковая навигация ===== */
+.side{width:246px;background:#fff;border-right:1px solid var(--line);flex-shrink:0;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow-y:auto;padding:18px 14px}
+.logo{display:flex;align-items:center;gap:11px;padding:4px 8px 16px}
+.logo .lm{width:48px;height:48px;flex:none;filter:drop-shadow(0 4px 10px rgba(227,30,36,.3))}
+.logo .lm svg{width:100%;height:100%}
+.logo b{font-size:26px;font-weight:800;letter-spacing:-.4px;display:block;color:var(--acc);line-height:1}
+.logo span{font-size:11.5px;color:var(--mut2);font-weight:800}
+.nav{flex:1}
+.ngroup{font-size:11.5px;color:var(--mut2);padding:13px 10px 6px;font-weight:900;letter-spacing:.6px;text-transform:uppercase}
+.nitem{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:9px 12px;border-radius:16px;font-size:14.5px;font-weight:800;color:var(--mut);transition:.13s;margin-bottom:3px}
+.nitem:hover{background:var(--bg);color:var(--ink)}
+.nitem.on{background:var(--sun);color:var(--ink)}
+.nitem .ic{width:30px;height:30px;border-radius:11px;background:var(--bg);display:grid;place-items:center;font-size:14px;flex:none}
+.nitem.on .ic{background:rgba(255,255,255,.65)}
+.nitem .bdg{margin-left:auto;background:var(--acc);color:#fff;font-size:11.5px;font-weight:900;padding:1px 8px;border-radius:20px}
+.nitem .bdg.grn{background:var(--mint)}
+.side-user{border-top:1px solid var(--line);padding-top:12px;display:flex;align-items:center;gap:10px;padding-left:8px}
+.side-user .av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:13px;flex:none;background:var(--acc-l);color:var(--acc-d)}
+.side-user .un{font-size:14.5px;font-weight:800}
+.side-user .ut{font-size:12px;color:var(--mut2);font-weight:700}
+
+/* ===== main ===== */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:14px;padding:18px 28px 10px}
+.top h1{font-size:26px;font-weight:800;letter-spacing:-.3px}
+.top .tsub{font-size:13.5px;color:var(--mut);margin-top:0;font-weight:600}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.role-sw{display:flex;background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:4px}
+.role-sw button{padding:8px 15px;border-radius:14px;font-size:13px;font-weight:800;color:var(--mut)}
+.role-sw button.on{background:var(--acc);color:#fff}
+.tbtn{background:var(--acc);color:#fff;font-weight:800;font-size:14px;padding:11px 19px;border-radius:16px;box-shadow:var(--sh)}
+.tbtn:hover{background:var(--acc-d)}
+.content{padding:10px 28px 84px;flex:1}
+.screen{display:none}.screen.on{display:block;animation:fd .22s}
+@keyframes fd{from{opacity:0;transform:translateY(5px)}to{opacity:1}}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:14px;margin-bottom:18px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh)}
+.kpi .kl{font-size:12.5px;color:var(--mut);font-weight:800}
+.kpi .kv{font-size:28px;font-weight:900;letter-spacing:-1px;margin-top:5px}
+.kpi .kv em{font-style:normal;font-size:16px;color:var(--mut2)}
+.kpi .kd{font-size:12px;color:var(--mut2);margin-top:3px;font-weight:700}
+.kpi.acc .kv{color:var(--acc-d)}.kpi.red .kv{color:var(--red)}.kpi.sun .kv{color:var(--sun-t)}.kpi.mint .kv{color:var(--mint)}.kpi.sky .kv{color:var(--sky)}
+
+.grid2{display:grid;grid-template-columns:1.45fr 1fr;gap:16px;align-items:start}
+@media(max-width:1000px){.grid2{grid-template-columns:1fr}}
+.stack{display:flex;flex-direction:column;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh);margin-bottom:16px}
+.card h3{font-size:15.5px;font-weight:900;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card h3 .hl{margin-left:auto;font-size:13px;color:var(--acc-d);font-weight:800;cursor:pointer}
+.card h3 .hl:hover{text-decoration:underline}
+.note{font-size:13px;color:var(--mut);font-weight:700}
+
+/* садики */
+.gdn{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px dashed var(--line)}
+.gdn:last-child{border-bottom:none}
+.gav{width:38px;height:38px;border-radius:14px;display:grid;place-items:center;font-weight:900;font-size:13px;color:#fff;flex:none}
+.gdn .gn{font-size:14.5px;font-weight:800;min-width:120px}
+.gdn .gs{font-size:12px;color:var(--mut);font-weight:700}
+.fillbar{flex:1;height:12px;background:#f6ecc4;border-radius:8px;overflow:hidden;min-width:80px}
+.fillbar i{display:block;height:100%;border-radius:8px}
+.gdn .gv{width:86px;text-align:right;font-size:13px;color:var(--mut);font-weight:800;flex:none}
+
+/* метки */
+.b{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;white-space:nowrap}
+.b.grn{background:var(--mint-l);color:var(--mint)}
+.b.red{background:var(--red-l);color:var(--red)}
+.b.sun{background:var(--sun-l);color:var(--sun-t)}
+.b.sky{background:var(--sky-l);color:var(--sky)}
+.b.lil{background:var(--lilac-l);color:var(--lilac)}
+.b.rose{background:var(--rose-l);color:var(--rose)}
+.b.gry{background:#f6efdb;color:var(--mut)}
+
+/* таблицы */
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;color:var(--mut2);text-align:left;padding:10px 12px;border-bottom:2px solid var(--line);font-weight:900;white-space:nowrap}
+td{padding:12px;border-bottom:1px dashed #f3e9c5;font-size:14px;vertical-align:middle;font-weight:600}
+tbody tr{cursor:pointer;transition:.1s}
+tbody tr:hover td{background:var(--acc-xl)}
+.cname{font-weight:800;font-size:14.5px}
+.csub{font-size:12px;color:var(--mut2);margin-top:2px;font-weight:700}
+
+/* фильтры */
+.frow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.chip{padding:9px 16px;border-radius:20px;font-size:13px;font-weight:800;background:#fff;border:1.5px solid var(--line);color:var(--mut)}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.frow input,.frow select{border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;outline:none;background:#fff;font-weight:700}
+.frow input:focus{border-color:var(--acc)}
+
+/* канбаны */
+.kan{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:start}
+@media(max-width:1000px){.kan{grid-template-columns:repeat(2,1fr)}}
+.kan.k4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:1000px){.kan.k4{grid-template-columns:repeat(2,1fr)}}
+.kcol{background:#f8eec6;border-radius:var(--r);padding:10px}
+.kcol h4{font-size:12.5px;color:var(--mut);padding:4px 8px 10px;font-weight:900;display:flex;justify-content:space-between}
+.kcard{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:9px;cursor:pointer;transition:.12s}
+.kcard:hover{box-shadow:var(--sh);transform:translateY(-1px)}
+.kcard .kt{font-size:14px;font-weight:800}
+.kcard .kc2{font-size:12.5px;color:var(--mut);margin-top:3px;font-weight:600}
+.kcard .kf{display:flex;align-items:center;gap:7px;margin-top:9px;flex-wrap:wrap}
+
+/* обучение: расписание и звёзды */
+.tt-row{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)}
+.tt-row:last-child{border-bottom:none}
+.tt-time{width:88px;font-size:13px;font-weight:900;color:var(--mut);flex:none}
+.tt-what{flex:1;font-size:14px;font-weight:800}
+.tt-what span{display:block;font-size:12px;color:var(--mut2);font-weight:700}
+.stars{color:#e6a912;font-size:15px;letter-spacing:1px;white-space:nowrap}
+.stars .off{color:#eee0b6}
+.skill{display:flex;align-items:center;gap:10px;padding:7px 0}
+.skill .sn2{width:150px;font-size:13.5px;font-weight:800}
+.skill .sb{flex:1;height:12px;background:#f6ecc4;border-radius:8px;overflow:hidden}
+.skill .sb i{display:block;height:100%;border-radius:8px;background:var(--mint)}
+.skill .sv{width:36px;text-align:right;font-size:13px;font-weight:900;color:var(--mint)}
+
+/* чаты */
+.chat-row{display:flex;gap:11px;align-items:center;padding:10px 6px;border-bottom:1px dashed var(--line);cursor:pointer;border-radius:12px}
+.chat-row:hover{background:var(--acc-xl)}
+.chat-row .cav{width:40px;height:40px;border-radius:50%;background:var(--sun-l);display:grid;place-items:center;font-size:17px;flex:none}
+.chat-row .cn{font-size:14px;font-weight:800}
+.chat-row .cm{font-size:12.5px;color:var(--mut);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:290px}
+.chat-row .ct{margin-left:auto;text-align:right;font-size:11.5px;color:var(--mut2);font-weight:800;flex:none}
+.dlg{background:#f7efd6;border-radius:var(--r);padding:14px;margin-top:12px}
+.msg{max-width:78%;background:#fff;border-radius:14px;padding:9px 13px;font-size:13.5px;line-height:1.55;font-weight:600;margin-bottom:8px;box-shadow:0 1px 1px rgba(0,0,0,.05)}
+.msg.out{margin-left:auto;background:#fff0f0}
+.msg .who{display:block;font-size:11px;font-weight:900;color:var(--acc-d);margin-bottom:2px}
+.msg .mt{font-size:10.5px;color:var(--mut2);text-align:right;margin-top:4px}
+.msg .vid{display:flex;align-items:center;gap:9px;background:var(--sun-l);border-radius:10px;padding:8px 11px;margin:6px 0;font-weight:800;font-size:12.5px;color:var(--sun-t)}
+.call-row{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px dashed var(--line)}
+.call-row:last-child{border-bottom:none}
+.call-row .ci{width:34px;height:34px;border-radius:12px;display:grid;place-items:center;font-size:15px;flex:none}
+.call-row .cw{flex:1;min-width:0}
+.call-row .cn2{font-size:13.5px;font-weight:800}
+.call-row .cs2{font-size:12px;color:var(--mut);font-weight:700}
+.play{background:var(--ink);color:#ffd76e;font-size:11.5px;font-weight:900;padding:6px 12px;border-radius:20px;flex:none}
+
+/* табель */
+.tab-wrap{overflow-x:auto}
+.tab-t td,.tab-t th{padding:9px 8px;text-align:center}
+.tab-t td:first-child,.tab-t th:first-child{text-align:left;white-space:nowrap}
+.tm{display:inline-grid;place-items:center;width:27px;height:27px;border-radius:9px;font-size:12px;font-weight:900}
+.tm.y{background:var(--mint-l);color:var(--mint)}
+.tm.b{background:var(--red-l);color:var(--red)}
+.tm.o{background:var(--sun-l);color:var(--sun-t)}
+.tm.e{background:#f6efdb;color:var(--mut2)}
+
+/* кабинет родителя */
+.phone{width:330px;max-width:100%;margin:0 auto;background:#fff;border:8px solid var(--ink);border-radius:38px;overflow:hidden;box-shadow:var(--sh)}
+.phone .ph-top{background:var(--sun);padding:16px 16px 12px;display:flex;align-items:center;gap:10px}
+.phone .ph-top .lm2{width:36px;height:36px;flex:none}
+.phone .ph-top b{font-family:'Comfortaa',sans-serif;font-size:19px;color:var(--acc-d);display:block;line-height:1}
+.phone .ph-top span{font-size:11px;font-weight:800;color:#7c6200}
+.ph-body{padding:14px;background:#fffaf0;max-height:520px;overflow-y:auto}
+.ph-sec{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px}
+.ph-sec h5{font-size:12px;font-weight:900;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px}
+.ph-row2{display:flex;gap:8px;align-items:center;padding:5px 0;font-size:13px;font-weight:700}
+.ph-row2 .t2{width:46px;color:var(--mut2);font-weight:900;font-size:12px;flex:none}
+.ph-pay{background:var(--acc);color:#fff;font-weight:900;border-radius:12px;padding:10px;width:100%;font-size:14px;margin-top:8px}
+
+/* модал */
+.ovl{position:fixed;inset:0;background:rgba(36,26,15,.45);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:32px 16px;overflow-y:auto}
+.ovl.show{display:flex}
+.mod{background:#fff;border-radius:26px;max-width:760px;width:100%;animation:fd .18s;overflow:hidden}
+.mhead{padding:22px 26px 0;display:flex;align-items:flex-start;gap:14px}
+.mhead h2{font-size:23px;font-weight:800;letter-spacing:-.3px}
+.mhead .msub{font-size:13.5px;color:var(--mut);margin-top:4px;font-weight:700}
+.mx-close{font-size:22px;color:var(--mut2);padding:4px 8px;margin-left:auto}
+.mbody{padding:18px 26px 24px;max-height:60vh;overflow-y:auto}
+.info-g{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px}
+.ig{padding:9px 0;border-bottom:1px dashed var(--line)}
+.ig .il{font-size:11.5px;color:var(--mut2);font-weight:900;text-transform:uppercase;letter-spacing:.3px}
+.ig .iv{font-size:14.5px;font-weight:800;margin-top:3px}
+.mfoot{padding:16px 26px;border-top:1px solid var(--line);display:flex;gap:9px;flex-wrap:wrap}
+.mbtn{background:var(--acc);color:#fff;font-weight:800;font-size:13.5px;padding:11px 18px;border-radius:14px}
+.mbtn:hover{background:var(--acc-d)}
+.mbtn.gh{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.mbtn.gh:hover{border-color:var(--acc)}
+
+#toasts{position:fixed;right:20px;bottom:20px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:390px}
+.toast{background:#241a0f;color:#f7ecd2;padding:13px 17px;border-radius:16px;font-size:13.5px;line-height:1.55;box-shadow:0 12px 32px rgba(0,0,0,.28);animation:tin .25s;font-weight:600}
+@keyframes tin{from{opacity:0;transform:translateX(20px)}to{opacity:1}}
+.toast b{color:#ffd76e}
+
+.demo-note{background:var(--sun);color:#241a0f;font-size:12.5px;padding:9px 16px;text-align:center;font-weight:800}
+.demo-note b{color:var(--acc-d)}
+@media(max-width:860px){
+  .side{display:none}
+  .content{padding:8px 14px 84px}
+  .top{padding:14px;flex-wrap:wrap}
+  .mobile-nav{display:flex!important}
+}
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);z-index:50;justify-content:space-around;padding:8px 4px calc(8px + env(safe-area-inset-bottom))}
+.mobile-nav button{color:var(--mut);font-size:11px;font-weight:800;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 8px}
+.mobile-nav button.on{color:var(--acc-d)}
+.mobile-nav .mi2{font-size:17px}
+</style>
+</head>
+<body>
+<div class="demo-note">🐰 Интерактивное демо для <b>Екатерины</b> · сеть детских садов «Зайка» · 6 филиалов · все данные вымышленные, всё прокликивается · <b>Pllato</b></div>
+<div class="app">
+  <aside class="side">
+    <div class="logo">
+      <div class="lm"><svg viewBox="0 0 64 64"><circle cx="32" cy="36" r="26" fill="#e31e24"/><path d="M36 22 C38 10 47 5 52 7 C51 13 45 20 39 24 Z" fill="#fff"/><path d="M42 25 C48 16 56 14 59 16 C57 22 50 27 44 30 Z" fill="#fff"/><circle cx="29" cy="28" r="9.5" fill="#fff"/><circle cx="26" cy="26" r="1.7" fill="#e31e24"/><ellipse cx="36" cy="44" rx="12.5" ry="10" fill="#fff"/><circle cx="47" cy="41" r="3.4" fill="#fff"/><circle cx="49" cy="45.5" r="3.1" fill="#fff"/><circle cx="46" cy="48.5" r="2.9" fill="#fff"/></svg></div>
+      <div><b>Зайка</b><span>сеть детских садов · 6</span></div>
+    </div>
+    <nav class="nav">
+      <div class="ngroup">Сеть</div>
+      <button class="nitem on" data-s="dash"><span class="ic">☀</span>Обзор сети</button>
+      <button class="nitem" data-s="fin"><span class="ic">₸</span>Финансы<span class="bdg">7</span></button>
+      <button class="nitem" data-s="stock"><span class="ic">📦</span>Склад завхоза<span class="bdg">5</span></button>
+      <div class="ngroup">Продажи</div>
+      <button class="nitem" data-s="leads"><span class="ic">◎</span>Набор детей<span class="bdg grn">12</span></button>
+      <button class="nitem" data-s="comms"><span class="ic">💬</span>Чаты и звонки<span class="bdg">3</span></button>
+      <div class="ngroup">Дети</div>
+      <button class="nitem" data-s="kids"><span class="ic">🧒</span>Группы и дети</button>
+      <button class="nitem" data-s="tab"><span class="ic">✓</span>Табель</button>
+      <button class="nitem" data-s="edu"><span class="ic">✏</span>Обучение и развитие</button>
+      <div class="ngroup">Команда</div>
+      <button class="nitem" data-s="hr"><span class="ic">🤝</span>Найм<span class="bdg">4</span></button>
+      <button class="nitem" data-s="staff"><span class="ic">👥</span>Персонал</button>
+      <div class="ngroup">Родители</div>
+      <button class="nitem" data-s="parent"><span class="ic">📱</span>Кабинет родителя</button>
+    </nav>
+    <div class="side-user"><div class="av" id="sAv">ЕК</div><div><div class="un" id="sName">Екатерина</div><div class="ut" id="sRole">Владелица сети</div></div></div>
+  </aside>
+
+  <div class="main">
+    <div class="top">
+      <div><h1 id="tTitle">Обзор сети</h1><div class="tsub" id="tSub">Понедельник, 6 июля 2026 · 6 садиков · 471 ребёнок</div></div>
+      <div class="top-right">
+        <div class="role-sw">
+          <button class="on" id="rOwn" onclick="setRole('own')">Владелица</button>
+          <button id="rZav" onclick="setRole('zav')">Заведующая «Орбита»</button>
+        </div>
+        <button class="tbtn" onclick="toast('Новая заявка от родителей заведена: система предложит ближайшую экскурсию в выбранном садике и отправит приглашение в WhatsApp.')">+ Заявка</button>
+      </div>
+    </div>
+    <div class="content">
+
+      <!-- DASH -->
+      <section class="screen on" id="s-dash">
+        <div class="kpis" id="dashKpis"></div>
+        <div class="grid2">
+          <div class="stack">
+            <div class="card">
+              <h3>🏫 Заполняемость садиков <span class="hl" onclick="nav('kids')">группы →</span></h3>
+              <div id="dashFill"></div>
+            </div>
+            <div class="card">
+              <h3>⚠ Требуют внимания владелицы</h3>
+              <div id="dashAtt"></div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h3>💰 Абонплата · июль <span class="hl" onclick="nav('fin')">финансы →</span></h3>
+              <div id="dashFin"></div>
+            </div>
+            <div class="card">
+              <h3>⚡ Лента сети</h3>
+              <div id="dashFeed" style="font-size:13px;line-height:2.1;color:var(--mut);font-weight:600"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- LEADS -->
+      <section class="screen" id="s-leads">
+        <div class="kpis">
+          <div class="kpi sky"><div class="kl">Заявок · июль</div><div class="kv">34</div><div class="kd">WhatsApp 18 · Instagram 9 · 2ГИС 4 · рекомендации 3</div></div>
+          <div class="kpi acc"><div class="kl">Экскурсий назначено</div><div class="kv">9</div><div class="kd">конверсия экскурсия → договор 61%</div></div>
+          <div class="kpi sun"><div class="kl">Изи-бот прогревает</div><div class="kv">11</div><div class="kd">анкета → видео по времени → менеджер</div></div>
+          <div class="kpi mint"><div class="kl">Лист ожидания</div><div class="kv">23</div><div class="kd">ясли — самый спрос: 14 в очереди</div></div>
+        </div>
+        <div class="kan" id="leadKan"></div>
+        <div class="note" style="margin-top:12px">Заявка сама двигается по воронке: изи-бот прогревает видео-серией, приглашение на экскурсию, напоминание, после визита — оценка качества. Родителям всё приходит в WhatsApp.</div>
+      </section>
+
+      <!-- COMMS -->
+      <section class="screen" id="s-comms">
+        <div class="kpis">
+          <div class="kpi"><div class="kl">Диалогов сегодня</div><div class="kv">47</div><div class="kd">WhatsApp 39 · Instagram 8 · одно окно</div></div>
+          <div class="kpi sky"><div class="kl">Звонков сегодня</div><div class="kv">23</div><div class="kd">записи прикреплены к карточкам</div></div>
+          <div class="kpi sun"><div class="kl">Изи-бот ведёт</div><div class="kv">11</div><div class="kd">прогрев заявок после таргета</div></div>
+          <div class="kpi red"><div class="kl">Ждут ответа</div><div class="kv">1</div><div class="kd">SLA 5 минут · напоминание ушло</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <h3>💬 Единое окно диалогов <span class="hl" onclick="toast('Все каналы в одном окне: WhatsApp (белый, через Green API — без блокировок серого номера), Instagram Direct. Переписка хранится в карточке — смена номера или сотрудника больше не теряет диалоги.')">все каналы →</span></h3>
+            <div id="chatList"></div>
+            <div class="dlg">
+              <div style="font-size:12px;font-weight:900;color:var(--mut);margin-bottom:9px">ДИАЛОГ: БАГДАТ (ТАРГЕТ → ИЗИ-БОТ) · ЯСЛИ «АКСАЙ»</div>
+              <div class="msg out"><span class="who">Изи-бот · Зайка</span>Здравствуйте! Подберём садик за 2 минуты 🐰 Сколько лет вашему ребёнку?<div class="mt">14:02</div></div>
+              <div class="msg">2 года, мы в районе Аксая<div class="mt">14:05</div></div>
+              <div class="msg out"><span class="who">Изи-бот · Зайка</span>Отлично, в «Аксае» есть места в яслях! Посмотрите знакомство с садиком:<div class="vid">▶ Видео · Экскурсия по садику «Аксай» · 1:20</div><div class="mt">14:06</div></div>
+              <div class="msg out"><span class="who">Изи-бот · Зайка · через 3 часа</span>Как мы занимаемся и чем кормим 👩‍🍳<div class="vid">▶ Видео · Программа и питание · 2:05</div><div class="mt">17:06</div></div>
+              <div class="msg out"><span class="who">Изи-бот · Зайка · вечером</span>Приглашаем на экскурсию в «Аксай» — завтра в 10:00 или 16:00. Когда вам удобно?<div class="mt">19:30</div></div>
+              <div style="text-align:center;margin-top:6px"><span class="b grn">клиент прогрет → передан менеджеру Айгерим</span></div>
+            </div>
+            <div class="note" style="margin-top:10px">Последовательности бота настраиваете сами: тексты, видео, интервалы. Менеджер получает уже тёплого клиента, который «знает её в лицо» по видео.</div>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h3>📞 Телефония <span class="hl" onclick="toast('Интеграция SIPUNI: звонки из карточки в 1 клик, все записи хранятся и прослушиваются прямо в портале. Пропущенный звонок автоматически создаёт задачу администратору.')">настройки →</span></h3>
+              <div id="callList"></div>
+              <div class="note" style="margin-top:8px">Запись прикрепляется к карточке ребёнка или заявки: открыли карточку — слышите все разговоры по ней.</div>
+            </div>
+            <div class="card">
+              <h3>🤖 Автосообщения набора</h3>
+              <div style="font-size:13.5px;line-height:2;color:var(--mut);font-weight:700">
+                • Экскурсия назначена → приглашение с адресом и датой<br>
+                • За 2 часа до экскурсии → напоминание родителям<br>
+                • После экскурсии → оценка качества от 1 до 5<br>
+                • Оценка 5 → просим отзыв в 2ГИС ссылкой 🙂<br>
+                • Должникам → напоминание об оплате со ссылкой
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- KIDS -->
+      <section class="screen" id="s-kids">
+        <div class="frow">
+          <select id="fGdn" onchange="F.g=this.value;renderKids()"><option value="">Все садики</option></select>
+          <select onchange="F.grp=this.value;renderKids()"><option value="">Все группы</option><option>Ясли</option><option>Младшая</option><option>Средняя</option><option>Старшая</option><option>Подготовительная</option></select>
+          <input placeholder="Поиск: ребёнок, родитель…" style="width:230px" oninput="F.q=this.value;renderKids()">
+        </div>
+        <div class="card" style="padding:6px 16px">
+          <table>
+            <thead><tr><th>Ребёнок</th><th>Садик · группа</th><th>Родитель</th><th>Посещаемость</th><th>Оплата · июль</th><th>Развитие</th></tr></thead>
+            <tbody id="kidBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB -->
+      <section class="screen" id="s-tab">
+        <div class="kpis">
+          <div class="kpi"><div class="kl">Детей на сегодня</div><div class="kv">471</div><div class="kd">на начало июля — 469</div></div>
+          <div class="kpi mint"><div class="kl">Прибыло · июль</div><div class="kv">+4</div><div class="kd">2 — «Самал», 1 — «Орбита», 1 — «Достык»</div></div>
+          <div class="kpi red"><div class="kl">Убыло · июль</div><div class="kv">−2</div><div class="kd">переезд · переход в школу</div></div>
+          <div class="kpi sun"><div class="kl">Посещаемость сети</div><div class="kv">87%</div><div class="kd">неделя 6–11 июля</div></div>
+        </div>
+        <div class="frow">
+          <select><option>Орбита</option><option>Самал</option><option>Аксай</option><option>Мамыр</option><option>Таугуль</option><option>Достык</option></select>
+          <select><option>Старшая группа</option><option>Ясли</option><option>Младшая</option><option>Средняя</option><option>Подготовительная</option></select>
+          <select><option>Июль 2026</option><option>Июнь 2026</option></select>
+        </div>
+        <div class="card tab-wrap" style="padding:6px 16px">
+          <table class="tab-t">
+            <thead><tr><th>Ребёнок</th><th>Пн 6</th><th>Вт 7</th><th>Ср 8</th><th>Чт 9</th><th>Пт 10</th><th>Дней в июле</th></tr></thead>
+            <tbody id="tabBody"></tbody>
+          </table>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <h3>🧮 Свод — считается сам</h3>
+            <div style="font-size:13.5px;line-height:2;color:var(--mut);font-weight:700">
+              • Перерасчёт абонплаты по факту посещения — для бухгалтера<br>
+              • Питание по фактическим дням — заявка на кухню точнее<br>
+              • Было / прибыло / убыло / на конец месяца — по каждому садику и по сети<br>
+              • Приходящие педагоги: отметки занятий → расчёт оплаты по факту
+            </div>
+            <button class="mbtn" style="margin-top:12px" onclick="toast('Свод за июль сформирован: посещаемость, перерасчёты, прибывшие и убывшие по всем 6 садикам — бухгалтеру не нужно собирать таблицы у заведующих.')">Сформировать свод за июль</button>
+          </div>
+          <div class="card">
+            <h3>📋 Было в Google-таблицах</h3>
+            <div style="font-size:13.5px;line-height:2;color:var(--mut);font-weight:700">
+              Заведующая случайно сдвинула столбец — формулы поехали, финансист чинит вручную, все ждут.<br><br>
+              <b style="color:var(--ink)">Здесь сломать нечего:</b> заведующая ставит отметки в один клик, свод собирается сам, история не теряется и не «слетает».
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- EDU -->
+      <section class="screen" id="s-edu">
+        <div class="grid2">
+          <div class="stack">
+            <div class="card">
+              <h3>📅 Расписание занятий — старшая группа, «Орбита» <span class="hl" onclick="toast('Расписания ведутся по каждой группе каждого садика. Единая программа сети: методист задаёт план — воспитатели отмечают проведение.')">все группы →</span></h3>
+              <div id="eduTT"></div>
+            </div>
+            <div class="card">
+              <h3>🌟 Прогресс ребёнка — Алихан, 5 лет <span class="hl" onclick="nav('kids')">все дети →</span></h3>
+              <div id="eduSkills"></div>
+              <div class="note" style="margin-top:10px">Воспитатель раз в месяц отмечает навыки в 2 клика — родители видят динамику, а вы видите качество работы каждой группы и каждого педагога.</div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h3>💬 Отчёт родителям — уходит сам в WhatsApp</h3>
+              <div class="dlg" style="margin-top:0">
+                <div class="msg out" style="max-width:100%">
+                  <span class="who">Зайка «Орбита» · старшая группа</span>
+                  Добрый вечер! Как прошёл день у Алихана:<br>
+                  ✏ Английский — выучили 5 новых слов<br>
+                  🔢 Математика-игра — счёт до 20<br>
+                  🎨 Творчество — рисовали космос<br>
+                  🍎 Кушал хорошо, спал 1 ч 40 мин
+                  <div style="display:flex;gap:8px;margin:10px 0"><div style="width:74px;height:74px;border-radius:12px;background:linear-gradient(150deg,#ffe89a,#ffd200);display:grid;place-items:center;font-size:26px">📷</div><div style="width:74px;height:74px;border-radius:12px;background:linear-gradient(150deg,#ffe89a,#ffd200);display:grid;place-items:center;font-size:26px">📷</div><div style="width:74px;height:74px;border-radius:12px;background:linear-gradient(150deg,#ffe89a,#ffd200);display:grid;place-items:center;font-size:26px">📷</div></div>
+                  <div class="mt">18:05 · автоматически</div>
+                </div>
+              </div>
+              <button class="mbtn" style="width:100%;margin-top:12px" onclick="toast('Отчёты дня уходят родителям всей группы одной кнопкой воспитателя. <b>Родители видят, за что платят — меньше отток, больше рекомендаций.</b>')">Отправить отчёты группы</button>
+            </div>
+            <div class="card">
+              <h3>🏆 Программа сети</h3>
+              <div id="eduProg" style="font-size:13.5px;line-height:2;color:var(--mut);font-weight:700"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- HR -->
+      <section class="screen" id="s-hr">
+        <div class="kpis">
+          <div class="kpi"><div class="kl">Открытых вакансий</div><div class="kv">4</div><div class="kd">воспитатель ×2 · логопед · повар</div></div>
+          <div class="kpi sky"><div class="kl">Кандидатов в работе</div><div class="kv">11</div><div class="kd">отклики: HeadHunter, Instagram, рекомендации</div></div>
+          <div class="kpi sun"><div class="kl">Стажировки идут</div><div class="kv">2</div><div class="kd">оплачиваемые 3 дня · оценка заведующей</div></div>
+          <div class="kpi red"><div class="kl">Текучка за год</div><div class="kv">18%</div><div class="kd">по сети · хуже всего — «Аксай»</div></div>
+        </div>
+        <div class="kan k4" id="hrKan"></div>
+        <div class="grid2" style="margin-top:16px">
+          <div class="card" style="margin-bottom:0">
+            <h3>📝 Онлайн-тест кандидата — до собеседования</h3>
+            <div id="hrTests"></div>
+            <div class="note" style="margin-top:8px">Тест уходит кандидату в WhatsApp сразу после отклика: педагогика, безопасность, ситуации с детьми. На собеседование доходят только адекватные — вы экономите часы заведующих.</div>
+          </div>
+          <div class="card" style="margin-bottom:0">
+            <h3>⚡ Отклики → в воронку сами</h3>
+            <div style="font-size:13.5px;line-height:2;color:var(--mut);font-weight:700">
+              • Отклик на HeadHunter / Instagram → карточка кандидата создаётся сама<br>
+              • Бот здоровается в WhatsApp, отправляет тест и уточняющие вопросы<br>
+              • Массовая рассылка по откликам: «вакансия ещё актуальна, придёте?»<br>
+              • Отказали — кандидат уходит в кадровый резерв с тегами
+            </div>
+          </div>
+        </div>
+        <div class="note" style="margin-top:12px">Кадровый резерв: когда воспитатель уходит, вы звоните по готовому списку, а не начинаете поиск с нуля.</div>
+      </section>
+
+      <!-- STAFF -->
+      <section class="screen" id="s-staff">
+        <div class="frow">
+          <select id="fGdn2" onchange="F.g2=this.value;renderStaff()"><option value="">Все садики</option></select>
+          <span class="chip on" data-f="" onclick="setChip2(this,'')">Все</span>
+          <span class="chip" data-f="warn" onclick="setChip2(this,'warn')">⚠ Документы истекают</span>
+        </div>
+        <div class="card" style="padding:6px 16px">
+          <table>
+            <thead><tr><th>Сотрудник</th><th>Садик</th><th>Должность</th><th>Медкнижка</th><th>Аттестация</th><th>Статус</th></tr></thead>
+            <tbody id="staffBody"></tbody>
+          </table>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <h3>🕐 Сегодня: пришёл / ушёл</h3>
+            <div id="staffTime"></div>
+            <div class="note" style="margin-top:8px">Отметка на планшете садика: опоздания и переработки видны сразу, табель персонала для расчёта зарплат собирается сам.</div>
+          </div>
+          <div class="card">
+            <h3>🔔 Напоминания</h3>
+            <div style="font-size:13.5px;line-height:2;color:var(--mut);font-weight:700">
+              Система напоминает заведующей и сотруднику за 30 и 7 дней до истечения медкнижки или аттестации — проверки больше не страшны.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STOCK -->
+      <section class="screen" id="s-stock">
+        <div class="kpis">
+          <div class="kpi"><div class="kl">Позиций на складе</div><div class="kv">214</div><div class="kd">питание · хозтовары · канцелярия</div></div>
+          <div class="kpi sky"><div class="kl">Заявки от садиков</div><div class="kv">5</div><div class="kd">2 новые · 2 в закупке · 1 к выдаче</div></div>
+          <div class="kpi red"><div class="kl">Ниже минимума</div><div class="kv">12</div><div class="kd">автоматически попали в закупку</div></div>
+          <div class="kpi sun"><div class="kl">Закупка недели</div><div class="kv">186 <em>тыс ₸</em></div><div class="kd">одной кнопкой из минимумов и заявок</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card" style="padding:6px 16px">
+            <table>
+              <thead><tr><th>Позиция</th><th>Категория</th><th>Остаток</th><th>Минимум</th><th>Статус</th></tr></thead>
+              <tbody id="stockBody"></tbody>
+            </table>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h3>📥 Заявки садиков завхозу</h3>
+              <div id="stockReq"></div>
+            </div>
+            <div class="card">
+              <h3>📋 Как это работает</h3>
+              <div style="font-size:13.5px;line-height:2;color:var(--mut);font-weight:700">
+                Завхоз видит заявки всех 6 садиков в одном месте, закупка формируется одной кнопкой, выдача фиксируется — видно, куда ушла каждая позиция.<br><br>
+                <b style="color:var(--ink)">Таблица завхоза переезжает сюда целиком</b> — остатки, закупки, выдачи по садикам.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FIN -->
+      <section class="screen" id="s-fin">
+        <div class="kpis" id="finKpis"></div>
+        <div class="card" style="padding:6px 16px">
+          <table>
+            <thead><tr><th>Садик</th><th>Детей</th><th>Абонплата / мес</th><th>Собрано · июль</th><th>Долги</th><th></th></tr></thead>
+            <tbody id="finBody"></tbody>
+          </table>
+        </div>
+        <div class="note" style="margin-top:4px">Напоминания об оплате уходят родителям в WhatsApp сами: до срока, в срок и после. Углублённый финансовый контур (P&L, зарплаты, дашборды уровня Power BI) — отдельный модуль, подключается после базы.</div>
+      </section>
+
+      <!-- PARENT -->
+      <section class="screen" id="s-parent">
+        <div class="grid2">
+          <div class="card" style="background:linear-gradient(160deg,#fff3bd,#ffe89a);border-color:#f0d879">
+            <h3>📱 Так сеть видят родители</h3>
+            <div class="phone">
+              <div class="ph-top">
+                <div class="lm2"><svg viewBox="0 0 64 64"><circle cx="32" cy="36" r="26" fill="#e31e24"/><path d="M36 22 C38 10 47 5 52 7 C51 13 45 20 39 24 Z" fill="#fff"/><path d="M42 25 C48 16 56 14 59 16 C57 22 50 27 44 30 Z" fill="#fff"/><circle cx="29" cy="28" r="9.5" fill="#fff"/><circle cx="26" cy="26" r="1.7" fill="#e31e24"/><ellipse cx="36" cy="44" rx="12.5" ry="10" fill="#fff"/><circle cx="47" cy="41" r="3.4" fill="#fff"/><circle cx="49" cy="45.5" r="3.1" fill="#fff"/><circle cx="46" cy="48.5" r="2.9" fill="#fff"/></svg></div>
+                <div><b>Зайка</b><span>Аружан · ясли · «Самал»</span></div>
+              </div>
+              <div class="ph-body">
+                <div class="ph-sec">
+                  <h5>Сегодня в группе</h5>
+                  <div class="ph-row2"><span class="t2">09:00</span>Развивающие игры</div>
+                  <div class="ph-row2"><span class="t2">10:20</span>Прогулка</div>
+                  <div class="ph-row2"><span class="t2">15:30</span>Музыка 🎵</div>
+                </div>
+                <div class="ph-sec">
+                  <h5>Отчёт дня · вчера</h5>
+                  <div style="font-size:13px;font-weight:700;line-height:1.7">Аружан хорошо кушала, спала 2 часа, играла с конструктором 🧸<div style="display:flex;gap:6px;margin-top:8px"><div style="width:58px;height:58px;border-radius:10px;background:linear-gradient(150deg,#ffe89a,#ffd200);display:grid;place-items:center;font-size:20px">📷</div><div style="width:58px;height:58px;border-radius:10px;background:linear-gradient(150deg,#ffe89a,#ffd200);display:grid;place-items:center;font-size:20px">📷</div></div></div>
+                </div>
+                <div class="ph-sec">
+                  <h5>Оплата · июль</h5>
+                  <div style="font-size:14px;font-weight:900">110 000 ₸ <span class="b sun" style="margin-left:6px">до 10 июля</span></div>
+                  <button class="ph-pay" onclick="toast('Родитель оплачивает по ссылке (Kaspi / карта) — оплата сама отмечается в портале, долг закрывается без ручной сверки.')">Оплатить</button>
+                </div>
+                <div class="ph-sec">
+                  <h5>Сообщения</h5>
+                  <div style="font-size:13px;font-weight:700;color:var(--mut)">«Добрый день! Завтра фотодень, приведите Аружан в белом верхе 🤍» — администратор</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h3>✅ Что это даёт</h3>
+              <div style="font-size:13.5px;line-height:2.1;color:var(--mut);font-weight:700">
+                • Родителю приходит <b style="color:var(--ink)">ссылка в WhatsApp</b> — ничего устанавливать не нужно<br>
+                • Переписка идёт <b style="color:var(--ink)">внутри кабинета</b>, а не в личном WhatsApp воспитателя — заведующая видит все диалоги<br>
+                • Воспитатель уволился — история и контакты остались у вас<br>
+                • Расписание, отчёты дня с фото, оплата — всё в одном месте<br>
+                • Каждая группа видит только своё — как было в «Растём вместе»
+              </div>
+            </div>
+            <div class="card" style="border-color:#f0d879;background:#fffbe8">
+              <h3>🚀 Следующий шаг — приложение-коммьюнити</h3>
+              <div style="font-size:13.5px;line-height:2;color:var(--mut);font-weight:700">
+                Отдельный этап после базы: видео-эпизоды занятий с камер (без звука), опросы и голосования для всех, акции и промо-ссылки, публичная часть для привлечения. Кабинет родителя из базы станет его фундаментом.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="mobile-nav">
+  <button class="on" data-s="dash" onclick="nav('dash')"><span class="mi2">☀</span>Сеть</button>
+  <button data-s="leads" onclick="nav('leads')"><span class="mi2">◎</span>Набор</button>
+  <button data-s="comms" onclick="nav('comms')"><span class="mi2">💬</span>Чаты</button>
+  <button data-s="kids" onclick="nav('kids')"><span class="mi2">🧒</span>Дети</button>
+  <button data-s="tab" onclick="nav('tab')"><span class="mi2">✓</span>Табель</button>
+</div>
+
+<!-- kid modal -->
+<div class="ovl" id="kidOvl" onclick="if(event.target===this)closeKid()">
+  <div class="mod">
+    <div class="mhead"><div><h2 id="kmName">—</h2><div class="msub" id="kmSub">—</div></div><button class="mx-close" onclick="closeKid()">✕</button></div>
+    <div class="mbody" id="kmBody"></div>
+    <div class="mfoot">
+      <button class="mbtn" onclick="toast('Чат с родителями открыт — вся переписка, отчёты дня и напоминания хранятся в карточке ребёнка.')">Написать родителям</button>
+      <button class="mbtn gh" onclick="toast('Звонок родителю из карточки — запись разговора сохранится здесь же.')">📞 Позвонить</button>
+      <button class="mbtn gh" onclick="toast('Счёт на абонплату выставлен и отправлен в WhatsApp с ссылкой на оплату.')">Выставить счёт</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+/* ===== данные (демо) ===== */
+const GDNS=[
+  {id:'or',n:'Орбита',c:'#e31e24',cap:85,kids:81,wait:6,fee:95000,head:'Алма Сергеевна'},
+  {id:'sa',n:'Самал',c:'#3d82c4',cap:90,kids:84,wait:5,fee:110000,head:'Гульнар Абаевна'},
+  {id:'ak',n:'Аксай',c:'#2f9c7a',cap:75,kids:62,wait:0,fee:85000,head:'Динара Муратовна'},
+  {id:'ma',n:'Мамыр',c:'#8a63c0',cap:80,kids:77,wait:4,fee:90000,head:'Сауле Ержановна'},
+  {id:'ta',n:'Таугуль',c:'#d4547e',cap:70,kids:66,wait:3,fee:88000,head:'Айгуль Кайратовна'},
+  {id:'do',n:'Достык',c:'#e8a200',cap:110,kids:101,wait:5,fee:120000,head:'Жанна Болатовна'},
+];
+const KIDS=[
+  {id:1,n:'Алихан Сериков',age:'5 лет',g:'or',grp:'Старшая',par:'Мадина (мама)',ph:'+7 701 111-22-33',att:'92%',pay:'paid',dev:4.6,allergy:'—'},
+  {id:2,n:'Амина Бекова',age:'3 года',g:'or',grp:'Младшая',par:'Салтанат (мама)',ph:'+7 705 222-33-44',att:'88%',pay:'paid',dev:4.2,allergy:'орехи'},
+  {id:3,n:'Тамерлан Ахметов',age:'6 лет',g:'sa',grp:'Подготовительная',par:'Асель (мама)',ph:'+7 777 333-44-55',att:'95%',pay:'debt',dev:4.8,allergy:'—'},
+  {id:4,n:'Аружан Касымова',age:'2 года',g:'sa',grp:'Ясли',par:'Гаухар (мама)',ph:'+7 708 444-55-66',att:'81%',pay:'paid',dev:3.9,allergy:'молоко'},
+  {id:5,n:'Санжар Оспанов',age:'4 года',g:'ak',grp:'Средняя',par:'Ерлан (папа)',ph:'+7 747 555-66-77',att:'90%',pay:'paid',dev:4.4,allergy:'—'},
+  {id:6,n:'Айлин Нурланова',age:'5 лет',g:'ma',grp:'Старшая',par:'Жанар (мама)',ph:'+7 702 666-77-88',att:'97%',pay:'paid',dev:4.9,allergy:'—'},
+  {id:7,n:'Данияр Тлеуов',age:'3 года',g:'ta',grp:'Младшая',par:'Камила (мама)',ph:'+7 775 777-88-99',att:'85%',pay:'wait',dev:4.0,allergy:'цитрус'},
+  {id:8,n:'Мирас Жумабаев',age:'6 лет',g:'do',grp:'Подготовительная',par:'Айгерим (мама)',ph:'+7 706 888-99-00',att:'93%',pay:'paid',dev:4.7,allergy:'—'},
+];
+const LSTAGES=['Новая заявка','Экскурсия назначена','Пробный день','Договор','Зачислен'];
+const LEADS=[
+  {n:'Дочь, 3 года · Инесса',s:'спросила про младшую группу «Самал»',g:'sa',st:0,ch:'WhatsApp'},
+  {n:'Сын, 2 года · Багдат',s:'изи-бот: отправлено видео 2 из 3 🤖',g:'ak',st:0,ch:'таргет'},
+  {n:'Двойняшки, 4 года · Алия',s:'экскурсия в среду 11:00',g:'do',st:1,ch:'WhatsApp'},
+  {n:'Сын, 5 лет · Тимур',s:'экскурсия завтра 10:00 · напоминание ушло',g:'ma',st:1,ch:'2ГИС'},
+  {n:'Дочь, 3 года · Салтанат',s:'пробный день в четверг',g:'or',st:2,ch:'рекомендация'},
+  {n:'Сын, 4 года · Виктория',s:'договор на подписании',g:'ta',st:3,ch:'Instagram'},
+  {n:'Дочь, 2 года · Мейрам',s:'зачислена в ясли с 1 августа 🎉',g:'sa',st:4,ch:'WhatsApp'},
+];
+const HRSTAGES=['Отклик','Собеседование','Стажировка 3 дня','Оформление'];
+const CANDS=[
+  {n:'Айнур С. — воспитатель',s:'опыт 6 лет · тест 16/18 ✓',st:0,src:'HeadHunter'},
+  {n:'Мадина К. — воспитатель',s:'опыт 3 года · Аксай · тест 12/18',st:1,src:'Instagram'},
+  {n:'Гульмира Т. — логопед',s:'на 3 садика · вт/чт',st:1,src:'рекомендация'},
+  {n:'Асем Ж. — помощник восп.',s:'стажировка в «Достык», день 2 из 3',st:2,src:'HeadHunter'},
+  {n:'Баглан О. — повар',s:'стажировка в «Самал», день 1',st:2,src:'2ГИС'},
+  {n:'Салтанат Е. — воспитатель',s:'медкнижка готова, выход 14.07',st:3,src:'резерв'},
+];
+const STAFF=[
+  {n:'Алма Сергеевна',g:'or',pos:'Заведующая',med:'11.2026',att:'05.2027',ok:1},
+  {n:'Салтанат Р.',g:'or',pos:'Воспитатель · старшая',med:'27.07.2026 ⚠',att:'09.2026',ok:0},
+  {n:'Айгерим Н.',g:'sa',pos:'Воспитатель · ясли',med:'02.2027',att:'01.2027',ok:1},
+  {n:'Баян К.',g:'ak',pos:'Воспитатель · средняя',med:'19.07.2026 ⚠',att:'11.2026',ok:0},
+  {n:'Жанат М.',g:'do',pos:'Повар',med:'10.2026',att:'—',ok:1},
+  {n:'Эльмира Д.',g:'ma',pos:'Методист сети',med:'03.2027',att:'04.2027',ok:1},
+  {n:'Карлыгаш Б.',g:'ta',pos:'Помощник воспитателя',med:'08.2026',att:'—',ok:1},
+];
+const CHATS=[
+  ['🤖','Багдат · таргет','изи-бот: видео 2 из 3 отправлено','14:06','ak'],
+  ['💬','Мадина (мама Алихана)','Спасибо за отчёт! А завтра фотодень?','13:47','or'],
+  ['📸','Instagram · @aliya_kz','Здравствуйте, есть места на 4 года?','13:12','do'],
+  ['💬','Гаухар (мама Аружан)','Оплатила по ссылке, проверьте 🙏','12:58','sa'],
+];
+const CALLS=[
+  ['📥','+7 707 214-88-31 → «Орбита»','входящий · 2:34 · вопрос про ясли','mint'],
+  ['📵','+7 702 118-40-97','пропущенный · задача администратору ⚠','red'],
+  ['📤','Айгерим → маме Тамерлана','исходящий · 1:12 · напоминание об оплате','sky'],
+];
+const TABKIDS=[
+  ['Алихан Сериков',['y','y','y','b','y'],'18 / 22'],
+  ['Амина Бекова',['y','y','o','o','y'],'15 / 22'],
+  ['Дана Ержанова',['y','y','y','y','y'],'22 / 22'],
+  ['Ерасыл Мухтаров',['b','b','y','y','y'],'16 / 22'],
+  ['Томирис Алиева',['y','y','y','y','e'],'19 / 22'],
+  ['Нурлан Сапаров',['y','o','y','y','y'],'20 / 22'],
+];
+const STOCK=[
+  ['Молоко 3,2%','питание','24 уп','40 уп',0],
+  ['Крупа гречневая','питание','56 кг','30 кг',1],
+  ['Моющее средство','хозтовары','9 шт','20 шт',0],
+  ['Бумага А4','канцелярия','14 пач','25 пач',0],
+  ['Гуашь 12 цветов','канцелярия','31 наб','15 наб',1],
+  ['Подгузники (ясли)','гигиена','18 уп','30 уп',0],
+];
+const STOCKREQ=[
+  ['Орбита','моющее средство ×6','к выдаче завтра','sun'],
+  ['Достык','канцелярия к 1 августа','в закупке','sky'],
+  ['Самал','постельное бельё ×10','новая заявка','red'],
+  ['Аксай','гуашь и альбомы ×20','выдано 04.07','grn'],
+];
+const STIME=[
+  ['Салтанат Р. · «Орбита»','пришла 07:52','на месте','grn'],
+  ['Баян К. · «Аксай»','пришла 08:24 · опоздание 24 мин','⚠','red'],
+  ['Жанат М. · «Достык»','06:58 → 15:30','смена закрыта','gry'],
+  ['Эльмира Д. · методист','сегодня в «Мамыр» и «Таугуль»','выезд','sky'],
+];
+const FEED=[
+  '<b>«Самал»</b>: договор подписан — Мейрам зачислена в ясли с 1 августа',
+  '<b>Изи-бот</b>: 11 заявок в прогреве — 3 записались на экскурсию сами',
+  '<b>Система</b>: 118 отчётов дня отправлены родителям в WhatsApp',
+  '<b>Найм</b>: Асем Ж. — 2-й день стажировки, оценка заведующей 5/5',
+  '<b>Склад</b>: закупка недели сформирована — 186 000 ₸, 12 позиций',
+  '<b>Финансы</b>: 7 напоминаний об оплате ушли родителям-должникам',
+];
+
+/* ===== состояние ===== */
+let role='own',F={q:'',g:'',grp:'',g2:'',st2:''};
+const $=id=>document.getElementById(id);
+const gdn=id=>GDNS.find(g=>g.id===id);
+const gB=g=>'<span class="gav" style="background:'+g.c+';width:26px;height:26px;border-radius:9px;font-size:11px">'+g.n[0]+'</span>';
+const money=v=>v.toLocaleString('ru-RU')+' ₸';
+function toast(html){
+  const t=document.createElement('div');t.className='toast';t.innerHTML=html;
+  $('toasts').appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},5000);
+}
+
+/* ===== навигация / роли ===== */
+const TITLES={dash:['Обзор сети','понедельник, 6 июля 2026 · 6 садиков · 471 ребёнок'],leads:['Набор детей','заявки → изи-бот → экскурсии → договоры'],
+  comms:['Чаты и звонки','WhatsApp, Instagram и телефония — одно окно'],
+  kids:['Группы и дети','карточки детей: родители, оплаты, развитие'],tab:['Табель','отметки заведующих → своды и расчёты сами'],
+  edu:['Обучение и развитие','программа сети, прогресс детей, отчёты родителям'],
+  hr:['Найм','воронка кандидатов, тесты и кадровый резерв'],staff:['Персонал','штат, документы, пришёл / ушёл'],
+  stock:['Склад завхоза','остатки, заявки садиков, закупки и выдача'],
+  fin:['Финансы сети','абонплата, сборы, долги'],parent:['Кабинет родителя','как сеть выглядит для родителей — веб-версия']};
+function nav(s){
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
+  $('s-'+s).classList.add('on');
+  document.querySelectorAll('.nitem').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  document.querySelectorAll('.mobile-nav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  $('tTitle').textContent=TITLES[s][0];$('tSub').textContent=TITLES[s][1];
+  window.scrollTo({top:0});
+}
+document.querySelectorAll('.nitem').forEach(b=>b.onclick=()=>nav(b.dataset.s));
+function setRole(r){
+  role=r;
+  $('rOwn').classList.toggle('on',r==='own');$('rZav').classList.toggle('on',r==='zav');
+  if(r==='zav'){$('sAv').textContent='АС';$('sName').textContent='Алма Сергеевна';$('sRole').textContent='Заведующая «Орбита»';
+    toast('Вы вошли как <b>заведующая «Орбиты»</b>: только свой садик — свои группы, дети, персонал и заявки. Владелица видит всю сеть.');
+  }else{$('sAv').textContent='ЕК';$('sName').textContent='Екатерина';$('sRole').textContent='Владелица сети';
+    toast('Режим <b>владелицы</b>: вся сеть из 6 садиков — заполняемость, деньги, найм и качество обучения на одном экране.');}
+  renderAll();
+}
+const myG=()=>role==='zav'?GDNS.filter(g=>g.id==='or'):GDNS;
+
+/* ===== дашборд ===== */
+function renderDash(){
+  const gs=myG();
+  const kids=gs.reduce((s,g)=>s+g.kids,0),cap=gs.reduce((s,g)=>s+g.cap,0);
+  const mrr=gs.reduce((s,g)=>s+g.kids*g.fee,0);
+  $('dashKpis').innerHTML=
+    '<div class="kpi"><div class="kl">Детей в сети</div><div class="kv">'+kids+'</div><div class="kd">из '+cap+' мест · заполняемость '+Math.round(kids/cap*100)+'%</div></div>'+
+    '<div class="kpi acc"><div class="kl">Абонплата · план июля</div><div class="kv">'+Math.round(mrr/1000000*10)/10+' <em>млн ₸</em></div><div class="kd">собрано 84% · долги по 7 детям</div></div>'+
+    '<div class="kpi sky"><div class="kl">Заявок в наборе</div><div class="kv">12</div><div class="kd">9 экскурсий на этой неделе</div></div>'+
+    '<div class="kpi sun"><div class="kl">Лист ожидания</div><div class="kv">23</div><div class="kd">пора думать о 7-м садике 🙂</div></div>'+
+    '<div class="kpi red"><div class="kl">Вакансий открыто</div><div class="kv">4</div><div class="kd">2 стажировки идут · резерв 9 человек</div></div>';
+  $('dashFill').innerHTML=gs.map(g=>{
+    const p=Math.round(g.kids/g.cap*100);
+    return '<div class="gdn"><span class="gav" style="background:'+g.c+'">'+g.n[0]+'</span>'+
+    '<div style="min-width:110px"><div class="gn">'+g.n+'</div><div class="gs">'+g.head+'</div></div>'+
+    '<div class="fillbar"><i style="width:'+p+'%;background:'+(p>=90?'var(--mint)':p>=80?'#e6a912':'var(--red)')+'"></i></div>'+
+    '<div class="gv">'+g.kids+' / '+g.cap+'</div>'+
+    (g.wait?'<span class="b sun">очередь '+g.wait+'</span>':'<span class="b gry">мест '+ (g.cap-g.kids)+'</span>')+'</div>';
+  }).join('');
+  $('dashAtt').innerHTML=[
+    ['🔴','«Аксай» заполнен на 83% — 13 свободных мест','акция «приведи друга» запущена, 4 экскурсии назначены'],
+    ['⚠','2 медкнижки истекают до конца июля','Салтанат Р. («Орбита») и Баян К. («Аксай») — напоминания ушли'],
+    ['💬','Заявка в Instagram ждёт ответа 11 минут','ясли «Орбита» — задача у администратора'],
+  ].map(r=>'<div style="display:flex;gap:12px;align-items:center;padding:11px 0;border-bottom:1px dashed var(--line)">'+
+    '<span style="font-size:17px">'+r[0]+'</span><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14px">'+r[1]+'</div><div style="font-size:12.5px;color:var(--mut);font-weight:600">'+r[2]+'</div></div>'+
+    '<button class="mbtn gh" style="padding:8px 14px;font-size:12.5px" onclick="toast(\'Открыто — по каждому сигналу есть ответственный и срок. Сеть управляется по отклонениям, а не объездом всех садиков.\')">Открыть</button></div>').join('');
+  $('dashFin').innerHTML=gs.map(g=>{
+    const plan=g.kids*g.fee,fact=Math.round(plan*(g.id==='ak'?0.74:g.id==='ta'?0.81:0.88));
+    return '<div class="gdn"><span class="gav" style="background:'+g.c+';width:30px;height:30px;font-size:11px">'+g.n[0]+'</span>'+
+    '<div class="gn" style="min-width:90px">'+g.n+'</div>'+
+    '<div class="fillbar"><i style="width:'+Math.round(fact/plan*100)+'%;background:'+g.c+'"></i></div>'+
+    '<div class="gv" style="width:110px">'+Math.round(fact/1000)+' / '+Math.round(plan/1000)+'к</div></div>';
+  }).join('');
+  $('dashFeed').innerHTML=FEED.map(f=>'• '+f).join('<br>');
+}
+
+/* ===== набор ===== */
+function renderLeads(){
+  $('leadKan').innerHTML=LSTAGES.map((st,i)=>{
+    const ls=LEADS.filter(l=>l.st===i&&(role==='own'||l.g==='or'));
+    return '<div class="kcol"><h4>'+st+'<span>'+ls.length+'</span></h4>'+ls.map(l=>{
+      const g=gdn(l.g);
+      return '<div class="kcard" onclick="toast(\'Карточка заявки: ребёнок, возраст, желаемый садик и группа, источник, вся переписка и записи звонков. Перетащили на «Экскурсию» — родителям ушло приглашение с датой и адресом.\')">'+
+      '<div class="kt">'+l.n+'</div><div class="kc2">'+l.s+'</div>'+
+      '<div class="kf">'+gB(g)+'<span style="font-size:12px;font-weight:800;color:var(--mut)">'+g.n+'</span><span class="b gry" style="margin-left:auto">'+l.ch+'</span></div></div>'}).join('')+'</div>';
+  }).join('');
+}
+
+/* ===== чаты и звонки ===== */
+function renderComms(){
+  $('chatList').innerHTML=CHATS.map(c=>{
+    const g=gdn(c[4]);
+    return '<div class="chat-row" onclick="toast(\'Диалог открыт: вся история, шаблоны ответов, файлы. Отвечать можно от имени садика — с любого устройства, любым менеджером.\')">'+
+    '<span class="cav">'+c[0]+'</span><div style="flex:1;min-width:0"><div class="cn">'+c[1]+'</div><div class="cm">'+c[2]+'</div></div>'+
+    '<div class="ct">'+c[3]+'<br>'+gB(g)+'</div></div>';
+  }).join('');
+  $('callList').innerHTML=CALLS.map(c=>
+    '<div class="call-row"><span class="ci" style="background:var(--'+c[3]+'-l)">'+c[0]+'</span>'+
+    '<div class="cw"><div class="cn2">'+c[1]+'</div><div class="cs2">'+c[2]+'</div></div>'+
+    '<button class="play" onclick="toast(\'Запись разговора воспроизводится прямо в портале. Записи хранятся в карточках — можно слушать, как менеджеры продают, и обучать новых.\')">▶ запись</button></div>').join('');
+}
+
+/* ===== дети ===== */
+function renderKids(){
+  const q=(F.q||'').toLowerCase();
+  $('kidBody').innerHTML=KIDS.filter(k=>(!q||k.n.toLowerCase().includes(q)||k.par.toLowerCase().includes(q))&&(!F.g||k.g===F.g)&&(!F.grp||k.grp===F.grp)&&(role==='own'||k.g==='or')).map(k=>{
+    const g=gdn(k.g);
+    const stars='★'.repeat(Math.round(k.dev))+'<span class="off">'+'★'.repeat(5-Math.round(k.dev))+'</span>';
+    return '<tr onclick="openKid('+k.id+')"><td><div class="cname">'+k.n+'</div><div class="csub">'+k.age+(k.allergy!=='—'?' · ⚠ '+k.allergy:'')+'</div></td>'+
+    '<td><span style="display:inline-flex;align-items:center;gap:8px">'+gB(g)+' '+g.n+' · '+k.grp+'</span></td>'+
+    '<td><div style="font-weight:700">'+k.par+'</div><div class="csub">'+k.ph+'</div></td>'+
+    '<td style="font-weight:800">'+k.att+'</td>'+
+    '<td>'+(k.pay==='paid'?'<span class="b grn">оплачено</span>':k.pay==='wait'?'<span class="b sun">счёт отправлен</span>':'<span class="b red">долг</span>')+'</td>'+
+    '<td><span class="stars">'+stars+'</span></td></tr>';
+  }).join('');
+}
+function openKid(id){
+  const k=KIDS.find(x=>x.id===id),g=gdn(k.g);
+  $('kmName').textContent=k.n;
+  $('kmSub').textContent=k.age+' · '+g.n+' · '+k.grp+' группа · родитель: '+k.par;
+  $('kmBody').innerHTML='<div class="info-g">'+
+    '<div class="ig"><div class="il">Посещаемость</div><div class="iv">'+k.att+' за июнь</div></div>'+
+    '<div class="ig"><div class="il">Оплата · июль</div><div class="iv">'+(k.pay==='paid'?'оплачено ✓':k.pay==='wait'?'счёт отправлен':'долг · напоминание ушло')+'</div></div>'+
+    '<div class="ig"><div class="il">Аллергии / особенности</div><div class="iv" style="color:'+(k.allergy!=='—'?'var(--red)':'inherit')+'">'+k.allergy+'</div></div>'+
+    '<div class="ig"><div class="il">Развитие · средняя оценка</div><div class="iv"><span class="stars">'+'★'.repeat(Math.round(k.dev))+'</span> '+k.dev+' из 5</div></div>'+
+    '</div>'+
+    '<h3 style="font-size:13px;font-weight:900;margin:14px 0 8px;color:var(--mut)">НАВЫКИ — ОТМЕЧАЕТ ВОСПИТАТЕЛЬ</h3>'+
+    [['Речь и словарный запас',92],['Счёт и логика',88],['Мелкая моторика',85],['Социализация',95],['Английский язык',78]].map(s=>
+      '<div class="skill"><span class="sn2">'+s[0]+'</span><span class="sb"><i style="width:'+s[1]+'%"></i></span><span class="sv">'+s[1]+'%</span></div>').join('')+
+    '<div class="note" style="margin-top:12px">Вся история ребёнка: посещаемость, оплаты, переписка, записи звонков, прогресс — в одной карточке. При переводе между садиками сети ничего не теряется.</div>';
+  $('kidOvl').classList.add('show');
+}
+function closeKid(){$('kidOvl').classList.remove('show')}
+
+/* ===== табель ===== */
+function renderTab(){
+  const M={'y':'✓','b':'Б','o':'О','e':'·'};
+  $('tabBody').innerHTML=TABKIDS.map(r=>
+    '<tr onclick="toast(\'Отметку ставит заведующая или воспитатель одним касанием: был / болел / отпуск. Перерасчёт абонплаты и заявка на питание пересчитываются сами.\')">'+
+    '<td><div class="cname">'+r[0]+'</div></td>'+
+    r[1].map(m=>'<td><span class="tm '+m+'">'+M[m]+'</span></td>').join('')+
+    '<td style="font-weight:900">'+r[2]+'</td></tr>').join('');
+}
+
+/* ===== обучение ===== */
+function renderEdu(){
+  $('eduTT').innerHTML=[
+    ['08:30','Утренний круг','настроение, календарь, план дня'],
+    ['09:00','Английский язык','тема недели: Space · 5 новых слов'],
+    ['09:40','Математика-игра','счёт до 20, сравнение'],
+    ['10:20','Прогулка','подвижные игры'],
+    ['12:00','Обед и сон',''],
+    ['15:30','Творчество','рисуем космос · фото в отчёт'],
+    ['16:10','Музыка','подготовка к празднику 15 июля'],
+  ].map(r=>'<div class="tt-row"><span class="tt-time">'+r[0]+'</span><div class="tt-what">'+r[1]+(r[2]?'<span>'+r[2]+'</span>':'')+'</div>'+
+    '<button class="mbtn gh" style="padding:6px 12px;font-size:12px" onclick="toast(\'Воспитатель отмечает проведение занятия одним нажатием — методист и вы видите, что программа выполняется во всех 6 садиках одинаково.\')">✓</button></div>').join('');
+  $('eduSkills').innerHTML=[['Речь и словарный запас',92],['Счёт и логика',88],['Мелкая моторика',85],['Социализация',95],['Английский язык',78]].map(s=>
+    '<div class="skill"><span class="sn2">'+s[0]+'</span><span class="sb"><i style="width:'+s[1]+'%"></i></span><span class="sv">'+s[1]+'%</span></div>').join('');
+  $('eduProg').innerHTML=['• Единая программа сети: методист задаёт план — все 6 садиков занимаются одинаково качественно',
+    '• Достижения: грамоты и «звёзды месяца» — родителям в WhatsApp',
+    '• Подготовка к школе: отдельный трек для подготовительных групп с тестами готовности',
+    '• Праздники и события: календарь сети, приглашения родителям уходят сами'].join('<br>');
+}
+
+/* ===== найм ===== */
+function renderHR(){
+  $('hrKan').innerHTML=HRSTAGES.map((st,i)=>{
+    const cs=CANDS.filter(c=>c.st===i);
+    return '<div class="kcol"><h4>'+st+'<span>'+cs.length+'</span></h4>'+cs.map(c=>
+      '<div class="kcard" onclick="toast(\'Карточка кандидата: резюме, результат онлайн-теста, заметки с собеседования, оценка стажировки заведующей. Отказали — кандидат уходит в кадровый резерв с тегом.\')">'+
+      '<div class="kt">'+c.n+'</div><div class="kc2">'+c.s+'</div>'+
+      '<div class="kf"><span class="b gry">'+c.src+'</span></div></div>').join('')+'</div>';
+  }).join('');
+  $('hrTests').innerHTML=[
+    ['Айнур С. — воспитатель','16 / 18 · рекомендуем на собеседование','grn'],
+    ['Мадина К. — воспитатель','12 / 18 · пограничный результат','sun'],
+    ['Каракоз Б. — помощник восп.','7 / 18 · отказ, в резерв не берём','red'],
+  ].map(t=>'<div class="gdn"><div style="flex:1;min-width:0"><div class="gn" style="min-width:0">'+t[0]+'</div><div class="gs">'+t[1]+'</div></div><span class="b '+t[2]+'">'+t[1].split(' ·')[0]+'</span></div>').join('');
+}
+
+/* ===== персонал ===== */
+function setChip2(el,v){F.st2=v;document.querySelectorAll('#s-staff .chip').forEach(c=>c.classList.toggle('on',c===el));renderStaff()}
+function renderStaff(){
+  $('staffBody').innerHTML=STAFF.filter(s=>(!F.g2||s.g===F.g2)&&(!F.st2||!s.ok)&&(role==='own'||s.g==='or')).map(s=>{
+    const g=gdn(s.g);
+    return '<tr onclick="toast(\'Карточка сотрудника: документы, график, история аттестаций, заметки. Напоминания о сроках уходят сами.\')">'+
+    '<td><div class="cname">'+s.n+'</div></td>'+
+    '<td><span style="display:inline-flex;align-items:center;gap:8px">'+gB(g)+' '+g.n+'</span></td>'+
+    '<td style="font-weight:700">'+s.pos+'</td>'+
+    '<td style="font-weight:800;'+(s.med.includes('⚠')?'color:var(--red)':'')+'">'+s.med+'</td>'+
+    '<td style="font-weight:800">'+s.att+'</td>'+
+    '<td>'+(s.ok?'<span class="b grn">в порядке</span>':'<span class="b red">документы ⚠</span>')+'</td></tr>';
+  }).join('');
+  $('staffTime').innerHTML=STIME.map(s=>
+    '<div class="gdn"><div style="flex:1;min-width:0"><div class="gn" style="min-width:0">'+s[0]+'</div><div class="gs">'+s[1]+'</div></div><span class="b '+s[3]+'">'+s[2]+'</span></div>').join('');
+}
+
+/* ===== склад ===== */
+function renderStock(){
+  $('stockBody').innerHTML=STOCK.map(r=>
+    '<tr onclick="toast(\'Карточка позиции: движение по складу, кто и когда получал, по какому садику списано. Ниже минимума — попадает в закупку автоматически.\')">'+
+    '<td><div class="cname">'+r[0]+'</div></td><td><span class="b gry">'+r[1]+'</span></td>'+
+    '<td style="font-weight:800">'+r[2]+'</td><td style="color:var(--mut2);font-weight:800">'+r[3]+'</td>'+
+    '<td>'+(r[4]?'<span class="b grn">достаточно</span>':'<span class="b red">докупить ⚠</span>')+'</td></tr>').join('');
+  $('stockReq').innerHTML=STOCKREQ.map(r=>{
+    const g=GDNS.find(x=>x.n===r[0]);
+    return '<div class="gdn">'+gB(g)+'<div style="flex:1;min-width:0"><div class="gn" style="min-width:0">'+r[0]+'</div><div class="gs">'+r[1]+'</div></div><span class="b '+r[3]+'">'+r[2]+'</span></div>';
+  }).join('');
+}
+
+/* ===== финансы ===== */
+function renderFin(){
+  const gs=myG();
+  const mrr=gs.reduce((s,g)=>s+g.kids*g.fee,0);
+  $('finKpis').innerHTML=
+    '<div class="kpi"><div class="kl">План · июль</div><div class="kv">'+Math.round(mrr/1000000*10)/10+' <em>млн ₸</em></div><div class="kd">'+gs.reduce((s,g)=>s+g.kids,0)+' детей × абонплата</div></div>'+
+    '<div class="kpi mint"><div class="kl">Собрано</div><div class="kv">84%</div><div class="kd">напоминания в WhatsApp работают сами</div></div>'+
+    '<div class="kpi red"><div class="kl">Долги</div><div class="kv">7 <em>детей</em></div><div class="kd">на 640 000 ₸ · худший — «Аксай»</div></div>'+
+    '<div class="kpi sky"><div class="kl">Средний чек сети</div><div class="kv">99 400 ₸</div><div class="kd">от 85к («Аксай») до 120к («Достык»)</div></div>';
+  $('finBody').innerHTML=gs.map(g=>{
+    const plan=g.kids*g.fee,fact=Math.round(plan*(g.id==='ak'?0.74:g.id==='ta'?0.81:0.88));
+    const debt=plan-fact;
+    return '<tr onclick="toast(\'Детализация по садику: кто оплатил, кому отправлены напоминания, история платежей каждого ребёнка.\')">'+
+    '<td><span style="display:inline-flex;align-items:center;gap:9px"><span class="gav" style="background:'+g.c+';width:30px;height:30px;font-size:11px">'+g.n[0]+'</span> <b>'+g.n+'</b></span></td>'+
+    '<td style="font-weight:800">'+g.kids+'</td><td style="font-weight:800">'+money(g.fee)+'</td>'+
+    '<td style="font-weight:800;color:var(--mint)">'+money(fact)+'</td>'+
+    '<td style="font-weight:800;color:'+(debt>500000?'var(--red)':'var(--mut)')+'">'+money(debt)+'</td>'+
+    '<td><button class="b '+(debt>500000?'red':'gry')+'" onclick="event.stopPropagation();toast(\'Напоминания об оплате отправлены родителям-должникам в WhatsApp со ссылкой на оплату.\')">напомнить ➤</button></td></tr>';
+  }).join('');
+}
+
+/* ===== init ===== */
+function renderAll(){renderDash();renderLeads();renderComms();renderKids();renderTab();renderEdu();renderHR();renderStaff();renderStock();renderFin()}
+$('fGdn').innerHTML='<option value="">Все садики</option>'+GDNS.map(g=>'<option value="'+g.id+'">'+g.n+'</option>').join('');
+$('fGdn2').innerHTML='<option value="">Все садики</option>'+GDNS.map(g=>'<option value="'+g.id+'">'+g.n+'</option>').join('');
+renderAll();
+setTimeout(()=>toast('Здравствуйте, <b>Екатерина</b>! Это пример портала «Зайка» для сети из 6 садиков. Всё, что обсуждали на встрече, уже здесь: набор с изи-ботом, чаты и звонки, табель, склад завхоза, найм с тестами и кабинет родителя. Нажимайте на всё.'),700);
+const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));
+</script>
+</body>
+</html>
