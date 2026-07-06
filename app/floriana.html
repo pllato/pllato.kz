@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Флориана — система клиники · Демо</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23eef6f2'/%3E%3Ccircle cx='16' cy='11' r='4.5' fill='%232f7a63'/%3E%3Ccircle cx='11' cy='18' r='4.5' fill='%235ea88f' opacity='.85'/%3E%3Ccircle cx='21' cy='18' r='4.5' fill='%235ea88f' opacity='.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f7f5;--card:#fff;--line:#e2eae6;--ink:#1a2b25;--mut:#5d6f68;--mut2:#93a49d;
+  --acc:#2f7a63;--acc-d:#245e4c;--acc-l:#ddeee7;--acc-xl:#eef6f2;
+  --blue:#2b6cb0;--blue-l:#e3eefa;--amber:#b4690e;--amber-l:#fdf1de;--red:#bf3b2b;--red-l:#fbe9e6;
+  --violet:#6d5bb8;--violet-l:#edeafa;--pink:#b34d7e;--pink-l:#f9e9f1;
+  --r:18px;--r2:12px;
+  --sh:0 6px 24px -8px rgba(26,43,37,.1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--ink);font-size:14.5px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font-family:inherit;font-size:14px;color:var(--ink)}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#c3d4cd;border-radius:8px}
+
+.app{display:flex;min-height:100vh}
+/* ===== светлая боковая навигация ===== */
+.side{width:236px;background:#fff;border-right:1px solid var(--line);flex-shrink:0;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow-y:auto;padding:18px 14px}
+.logo{display:flex;align-items:center;gap:11px;padding:4px 8px 18px}
+.logo svg{flex:none}
+.logo b{font-size:19px;font-weight:800;letter-spacing:-.3px;display:block;color:var(--acc-d)}
+.logo span{font-size:11.5px;color:var(--mut2);font-weight:600}
+.mz{display:flex;align-items:center;gap:8px;background:var(--acc-xl);border:1px solid var(--acc-l);border-radius:12px;padding:9px 12px;margin-bottom:14px}
+.mz .dot{width:8px;height:8px;border-radius:50%;background:var(--acc);flex:none}
+.mz span{font-size:11.5px;font-weight:700;color:var(--acc-d);line-height:1.35}
+.nav{flex:1}
+.ngroup{font-size:11px;color:var(--mut2);padding:14px 10px 6px;font-weight:800;letter-spacing:.4px;text-transform:uppercase}
+.nitem{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:10px 12px;border-radius:13px;font-size:14.5px;font-weight:600;color:var(--mut);transition:.13s;margin-bottom:2px}
+.nitem:hover{background:var(--bg);color:var(--ink)}
+.nitem.on{background:var(--acc-l);color:var(--acc-d)}
+.nitem .ic{width:30px;height:30px;border-radius:10px;background:var(--bg);display:grid;place-items:center;font-size:14px;flex:none;color:var(--mut)}
+.nitem.on .ic{background:#fff;color:var(--acc)}
+.nitem .bdg{margin-left:auto;background:var(--red);color:#fff;font-size:11px;font-weight:800;padding:1px 8px;border-radius:20px}
+.nitem .bdg.grn{background:var(--acc)}
+.side-user{border-top:1px solid var(--line);padding-top:12px;display:flex;align-items:center;gap:10px;padding-left:8px}
+.side-user .av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;flex:none;background:var(--acc-l);color:var(--acc-d)}
+.side-user .un{font-size:14px;font-weight:700}
+.side-user .ut{font-size:12px;color:var(--mut2)}
+
+/* ===== main ===== */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:14px;padding:16px 28px;background:transparent}
+.top h1{font-size:22px;font-weight:800;letter-spacing:-.4px}
+.top .tsub{font-size:13px;color:var(--mut);margin-top:2px}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.role-sw{display:flex;background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px}
+.role-sw button{padding:8px 15px;border-radius:10px;font-size:13px;font-weight:700;color:var(--mut)}
+.role-sw button.on{background:var(--acc);color:#fff}
+.tbtn{background:var(--acc);color:#fff;font-weight:700;font-size:13.5px;padding:11px 18px;border-radius:13px;box-shadow:var(--sh)}
+.tbtn:hover{background:var(--acc-d)}
+.content{padding:8px 28px 80px;flex:1}
+.screen{display:none}.screen.on{display:block;animation:fd .22s}
+@keyframes fd{from{opacity:0;transform:translateY(5px)}to{opacity:1}}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:14px;margin-bottom:18px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh)}
+.kpi .kl{font-size:12.5px;color:var(--mut);font-weight:700}
+.kpi .kv{font-size:27px;font-weight:800;letter-spacing:-1px;margin-top:6px}
+.kpi .kv em{font-style:normal;font-size:16px;color:var(--mut2)}
+.kpi .kd{font-size:12px;color:var(--mut2);margin-top:4px;font-weight:600}
+.kpi.acc .kv{color:var(--acc)}.kpi.red .kv{color:var(--red)}.kpi.amber .kv{color:var(--amber)}.kpi.blue .kv{color:var(--blue)}
+
+.grid2{display:grid;grid-template-columns:1.45fr 1fr;gap:16px;align-items:start}
+@media(max-width:1000px){.grid2{grid-template-columns:1fr}}
+.stack{display:flex;flex-direction:column;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh);margin-bottom:16px}
+.card h3{font-size:15px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card h3 .hl{margin-left:auto;font-size:13px;color:var(--acc);font-weight:700;cursor:pointer}
+.card h3 .hl:hover{text-decoration:underline}
+
+/* метки */
+.b{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 11px;border-radius:20px;white-space:nowrap}
+.b.grn{background:var(--acc-l);color:var(--acc-d)}
+.b.red{background:var(--red-l);color:var(--red)}
+.b.amb{background:var(--amber-l);color:var(--amber)}
+.b.blu{background:var(--blue-l);color:var(--blue)}
+.b.vio{background:var(--violet-l);color:var(--violet)}
+.b.pnk{background:var(--pink-l);color:var(--pink)}
+.b.gry{background:#eef1ef;color:var(--mut)}
+
+/* таблицы */
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;color:var(--mut2);text-align:left;padding:10px 12px;border-bottom:1.5px solid var(--line);font-weight:800;white-space:nowrap}
+td{padding:12px;border-bottom:1px solid #eef3f0;font-size:13.5px;vertical-align:middle}
+tbody tr{cursor:pointer;transition:.1s}
+tbody tr:hover td{background:var(--acc-xl)}
+.cname{font-weight:700;font-size:14px}
+.csub{font-size:12px;color:var(--mut2);margin-top:2px}
+.dav{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;color:#fff;flex:none}
+
+/* фильтры */
+.frow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.chip{padding:9px 16px;border-radius:20px;font-size:13px;font-weight:700;background:#fff;border:1px solid var(--line);color:var(--mut)}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.frow input,.frow select{border:1px solid var(--line);border-radius:12px;padding:10px 14px;outline:none;background:#fff}
+.frow input:focus{border-color:var(--acc)}
+
+/* ===== расписание (журнал) ===== */
+.sched{display:grid;grid-template-columns:64px repeat(4,1fr);gap:0;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
+.sc-h{padding:12px 10px;border-bottom:1.5px solid var(--line);background:var(--acc-xl);display:flex;align-items:center;gap:9px;border-left:1px solid var(--line)}
+.sc-h:first-child{border-left:none}
+.sc-h .dn{font-size:13.5px;font-weight:800}
+.sc-h .dr{font-size:11px;color:var(--mut);font-weight:600}
+.sc-t{border-left:none!important;justify-content:center}
+.sc-time{padding:8px 6px;border-bottom:1px solid #eef3f0;font-size:12px;color:var(--mut2);font-weight:700;text-align:center;background:#fbfdfc}
+.sc-cell{border-left:1px solid #eef3f0;border-bottom:1px solid #eef3f0;padding:4px;min-height:52px}
+.apt{border-radius:10px;padding:6px 9px;font-size:12px;line-height:1.35;cursor:pointer;margin-bottom:3px;border:1px solid transparent;transition:.12s}
+.apt:hover{transform:translateY(-1px);box-shadow:var(--sh)}
+.apt b{display:block;font-size:12.5px}
+.apt .as{font-size:11px;opacity:.85}
+.apt.ok{background:var(--acc-l);color:var(--acc-d)}
+.apt.wait{background:var(--amber-l);color:var(--amber)}
+.apt.here{background:var(--blue-l);color:var(--blue)}
+.apt.miss{background:var(--red-l);color:var(--red)}
+.apt .onl{display:block;margin-top:3px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;opacity:.75}
+
+/* инбокс */
+.chat{display:grid;grid-template-columns:290px 1fr;gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:#fff;height:580px;box-shadow:var(--sh)}
+.chl{border-right:1px solid var(--line);overflow-y:auto}
+.chi{display:flex;gap:10px;padding:13px 15px;border-bottom:1px solid #eef3f0;cursor:pointer}
+.chi:hover,.chi.on{background:var(--acc-xl)}
+.chi .av{width:40px;height:40px;border-radius:50%;background:var(--acc-l);color:var(--acc-d);display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
+.chi .cn{font-size:13.5px;font-weight:700;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.chi .cm{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;margin-top:2px}
+.chi .ct{margin-left:auto;font-size:10.5px;color:var(--mut2);flex:none;text-align:right}
+.unr{background:var(--acc);color:#fff;border-radius:50%;width:18px;height:18px;display:grid;place-items:center;font-size:10px;font-weight:800;margin-top:4px;margin-left:auto}
+.ch{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:20px;color:#fff}
+.ch.wa{background:#1fa855}.ch.ig{background:linear-gradient(45deg,#f58529,#dd2a7b)}.ch.tg{background:#2aabee}.ch.gis{background:#37a93c}
+.chr{display:flex;flex-direction:column;background:#f2f0ea}
+.chh{background:#fff;padding:12px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.chh b{font-size:14.5px;font-weight:800}
+.chh .stable{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--acc-d);background:var(--acc-l);border-radius:20px;padding:4px 11px}
+.msgs{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:9px}
+.msg{max-width:74%;padding:9px 13px;border-radius:13px;font-size:13.5px;line-height:1.5;box-shadow:0 1px 1px rgba(0,0,0,.05)}
+.msg.in{background:#fff;align-self:flex-start;border-bottom-left-radius:4px}
+.msg.out{background:#dcf2e7;align-self:flex-end;border-bottom-right-radius:4px}
+.msg .mt{font-size:10px;color:var(--mut2);text-align:right;margin-top:3px}
+.chf{background:#fff;padding:11px;display:flex;gap:9px;border-top:1px solid var(--line)}
+.chf input{flex:1;border:1px solid var(--line);border-radius:20px;padding:10px 16px;outline:none}
+.tpl-row{background:#fff;padding:9px 11px 3px;display:flex;gap:7px;flex-wrap:wrap;border-top:1px solid #eef3f0}
+.tpl{font-size:12px;background:var(--acc-xl);color:var(--acc-d);border:1px solid var(--acc-l);border-radius:20px;padding:6px 13px;margin-bottom:6px;font-weight:700}
+.tpl:hover{background:var(--acc-l)}
+.mbtn{background:var(--acc);color:#fff;font-weight:700;font-size:13px;padding:11px 18px;border-radius:12px}
+.mbtn:hover{background:var(--acc-d)}
+.mbtn.gh{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.mbtn.gh:hover{border-color:var(--acc)}
+
+/* воронка */
+.kan{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:start}
+@media(max-width:1000px){.kan{grid-template-columns:repeat(2,1fr)}}
+.kcol{background:#eaf0ed;border-radius:var(--r);padding:10px}
+.kcol h4{font-size:12px;color:var(--mut);padding:4px 8px 10px;font-weight:800;display:flex;justify-content:space-between}
+.kcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 13px;margin-bottom:9px;cursor:pointer;transition:.12s}
+.kcard:hover{box-shadow:var(--sh);transform:translateY(-1px)}
+.kcard .kt{font-size:13.5px;font-weight:700}
+.kcard .kc2{font-size:12px;color:var(--mut);margin-top:3px}
+.kcard .kf{display:flex;align-items:center;gap:7px;margin-top:8px;flex-wrap:wrap}
+
+/* склад */
+.exp{font-weight:700}
+.exp.soon{color:var(--red)}
+.stockbar{height:7px;background:#e8efeb;border-radius:6px;overflow:hidden;width:90px}
+.stockbar i{display:block;height:100%;border-radius:6px;background:var(--acc)}
+.stockbar i.low{background:var(--red)}
+
+/* аналитика */
+.pr{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #eef3f0}
+.pr:last-child{border-bottom:none}
+.pr .pn{font-size:13.5px;font-weight:700;width:170px;display:flex;align-items:center;gap:9px}
+.pr .ln{flex:1;height:9px;background:#e8efeb;border-radius:6px;overflow:hidden}
+.pr .ln i{display:block;height:100%;border-radius:6px;background:var(--acc)}
+.pr .pv{width:110px;text-align:right;font-size:13px;color:var(--mut);font-weight:700}
+
+/* модал пациента */
+.ovl{position:fixed;inset:0;background:rgba(26,43,37,.45);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:32px 16px;overflow-y:auto}
+.ovl.show{display:flex}
+.mod{background:#fff;border-radius:22px;max-width:780px;width:100%;animation:fd .18s;overflow:hidden}
+.mhead{padding:22px 26px 0;display:flex;align-items:flex-start;gap:14px}
+.mhead h2{font-size:21px;font-weight:800;letter-spacing:-.3px}
+.mhead .msub{font-size:13px;color:var(--mut);margin-top:4px}
+.mx-close{font-size:22px;color:var(--mut2);padding:4px 8px;margin-left:auto}
+.mtabs{display:flex;gap:4px;padding:16px 26px 0;border-bottom:1.5px solid var(--line)}
+.mtab{padding:10px 15px;font-size:13.5px;font-weight:700;color:var(--mut);border-bottom:2.5px solid transparent;margin-bottom:-1.5px}
+.mtab.on{color:var(--acc-d);border-color:var(--acc)}
+.mbody{padding:20px 26px 24px;max-height:58vh;overflow-y:auto}
+.info-g{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px}
+.ig{padding:9px 0;border-bottom:1px solid #eef3f0}
+.ig .il{font-size:11.5px;color:var(--mut2);font-weight:800}
+.ig .iv{font-size:14px;font-weight:700;margin-top:3px}
+.mfoot{padding:16px 26px;border-top:1px solid var(--line);display:flex;gap:9px;flex-wrap:wrap}
+.foto{display:flex;gap:12px;flex-wrap:wrap}
+.foto .ph{width:120px;height:120px;border-radius:14px;background:linear-gradient(160deg,#e8efeb,#d5e5de);display:grid;place-items:center;color:var(--mut);font-size:12px;font-weight:700;text-align:center;border:1px solid var(--line)}
+
+/* курс-прогресс */
+.course{display:flex;gap:6px;margin-top:6px}
+.course i{width:22px;height:8px;border-radius:6px;background:#e2ebe6}
+.course i.done{background:var(--acc)}
+
+#toasts{position:fixed;right:20px;bottom:20px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:380px}
+.toast{background:#12332a;color:#e7f4ee;padding:13px 17px;border-radius:14px;font-size:13px;line-height:1.55;box-shadow:0 12px 32px rgba(0,0,0,.3);animation:tin .25s}
+@keyframes tin{from{opacity:0;transform:translateX(20px)}to{opacity:1}}
+.toast b{color:#8fd7bc}
+
+.demo-note{background:var(--acc-d);color:#d8ece3;font-size:12.5px;padding:9px 16px;text-align:center;font-weight:600}
+.demo-note b{color:#fff}
+@media(max-width:860px){
+  .side{display:none}
+  .content{padding:8px 14px 80px}
+  .top{padding:14px;flex-wrap:wrap}
+  .sched{grid-template-columns:56px repeat(2,1fr);overflow-x:auto}
+  .mobile-nav{display:flex!important}
+}
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);z-index:50;justify-content:space-around;padding:8px 4px calc(8px + env(safe-area-inset-bottom))}
+.mobile-nav button{color:var(--mut);font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 8px}
+.mobile-nav button.on{color:var(--acc)}
+.mobile-nav .mi2{font-size:17px}
+</style>
+</head>
+<body>
+<div class="demo-note">🌿 Интерактивное демо для <b>Флорианы</b> · клиника, Астана · все данные вымышленные, всё прокликивается · <b>Pllato</b></div>
+<div class="app">
+  <aside class="side">
+    <div class="logo">
+      <svg width="38" height="38" viewBox="0 0 38 38"><circle cx="19" cy="12" r="6.5" fill="#2f7a63"/><circle cx="12.5" cy="21.5" r="6.5" fill="#5ea88f" opacity=".85"/><circle cx="25.5" cy="21.5" r="6.5" fill="#5ea88f" opacity=".55"/><circle cx="19" cy="27" r="4" fill="#245e4c"/></svg>
+      <div><b>Флориана</b><span>клиника · Астана</span></div>
+    </div>
+    <div class="mz"><span class="dot"></span><span>Единая база пациентов МЗ РК — подключено по API ✓</span></div>
+    <nav class="nav">
+      <div class="ngroup">Клиника</div>
+      <button class="nitem on" data-s="dash"><span class="ic">◧</span>Дашборд</button>
+      <button class="nitem" data-s="sched"><span class="ic">◷</span>Расписание<span class="bdg grn">23</span></button>
+      <button class="nitem" data-s="pats"><span class="ic">✚</span>Пациенты</button>
+      <div class="ngroup">Продажи</div>
+      <button class="nitem" data-s="leads"><span class="ic">◎</span>Заявки / воронка</button>
+      <button class="nitem" data-s="inbox"><span class="ic">✉</span>Сообщения<span class="bdg">3</span></button>
+      <div class="ngroup">Управление</div>
+      <button class="nitem" data-s="stock"><span class="ic">▦</span>Склад · препараты</button>
+      <button class="nitem" data-s="tasks"><span class="ic">☑</span>Задачи команды</button>
+      <button class="nitem" data-s="rep"><span class="ic">▤</span>Аналитика</button>
+    </nav>
+    <div class="side-user"><div class="av" id="sAv">ФЛ</div><div><div class="un" id="sName">Флориана</div><div class="ut" id="sRole">Руководитель</div></div></div>
+  </aside>
+
+  <div class="main">
+    <div class="top">
+      <div><h1 id="tTitle">Дашборд</h1><div class="tsub" id="tSub">Понедельник, 6 июля 2026</div></div>
+      <div class="top-right">
+        <div class="role-sw">
+          <button class="on" id="rDir" onclick="setRole('dir')">Руководитель</button>
+          <button id="rDoc" onclick="setRole('doc')">Врач Асель</button>
+        </div>
+        <button class="tbtn" onclick="toast('Новая запись: выберите врача, услугу и время — пациенту сразу уйдёт подтверждение в WhatsApp, а за день до визита — напоминание.')">+ Запись</button>
+      </div>
+    </div>
+    <div class="content">
+
+      <!-- DASH -->
+      <section class="screen on" id="s-dash">
+        <div class="kpis" id="dashKpis"></div>
+        <div class="grid2">
+          <div class="stack">
+            <div class="card">
+              <h3>Требуют внимания <span class="hl" onclick="nav('leads')">все заявки →</span></h3>
+              <div id="dashAtt"></div>
+            </div>
+            <div class="card">
+              <h3>Расписание сегодня — коротко <span class="hl" onclick="nav('sched')">весь журнал →</span></h3>
+              <div id="dashSched"></div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h3>Источники заявок · июль</h3>
+              <div id="dashSrc"></div>
+            </div>
+            <div class="card">
+              <h3>Лента</h3>
+              <div id="dashFeed" style="font-size:13px;line-height:2.1;color:var(--mut)"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCHED -->
+      <section class="screen" id="s-sched">
+        <div class="frow">
+          <span class="chip on">Сегодня, 6 июля</span>
+          <span class="chip" onclick="toast('Листаем дни и недели — как в привычном журнале. Запись из онлайн-виджета падает сюда сама и помечается «онлайн».')">Завтра</span>
+          <span class="chip" onclick="toast('Недельный вид: загрузка каждого врача по дням, свободные окна видны сразу.')">Неделя</span>
+          <span style="margin-left:auto;font-size:13px;color:var(--mut);font-weight:600">🟢 подтверждён · 🟡 ждёт подтверждения · 🔵 в клинике · 🔴 неявка</span>
+        </div>
+        <div class="sched" id="schedGrid"></div>
+        <div style="margin-top:12px;font-size:13px;color:var(--mut);font-weight:600">Каждая запись автоматически передаётся в единую базу пациентов МЗ РК — требование Минцифры с 12 июля выполняется само.</div>
+      </section>
+
+      <!-- PATIENTS -->
+      <section class="screen" id="s-pats">
+        <div class="frow">
+          <input placeholder="Поиск: имя, телефон…" style="width:240px" oninput="F.q=this.value;renderPats()">
+          <span class="chip on" data-f="" onclick="setChip(this,'')">Все</span>
+          <span class="chip" data-f="course" onclick="setChip(this,'course')">На курсе</span>
+          <span class="chip" data-f="done" onclick="setChip(this,'done')">Курс завершён</span>
+          <span class="chip" data-f="new" onclick="setChip(this,'new')">Новые</span>
+        </div>
+        <div class="card" style="padding:6px 16px">
+          <table>
+            <thead><tr><th>Пациент</th><th>Врач</th><th>Программа</th><th>Визитов</th><th>Следующий визит</th><th>Статус</th></tr></thead>
+            <tbody id="patBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- LEADS -->
+      <section class="screen" id="s-leads">
+        <div class="kpis">
+          <div class="kpi blue"><div class="kl">Новых заявок · июль</div><div class="kv">38</div><div class="kd">WhatsApp 21 · Instagram 11 · Telegram 4 · 2ГИС 2</div></div>
+          <div class="kpi acc"><div class="kl">Конверсия в визит</div><div class="kv">54%</div><div class="kd">ответ в первые 5 минут — главный фактор</div></div>
+          <div class="kpi red"><div class="kl">Ждут ответа</div><div class="kv">3</div><div class="kd">напоминание администратору через 5 минут</div></div>
+        </div>
+        <div class="kan" id="leadKan"></div>
+      </section>
+
+      <!-- INBOX -->
+      <section class="screen" id="s-inbox">
+        <div class="chat">
+          <div class="chl" id="chList"></div>
+          <div class="chr">
+            <div class="chh"><b id="chName">—</b><span id="chChan"></span><span class="stable">Green API · соединение стабильно ✓</span></div>
+            <div class="msgs" id="chMsgs"></div>
+            <div class="tpl-row" id="chTpls"></div>
+            <div class="chf">
+              <input placeholder="Ответ уйдёт в канал пациента…" id="chInput" onkeydown="if(event.key==='Enter')sendMsg()">
+              <button class="mbtn" onclick="sendMsg()">➤</button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-size:13px;color:var(--mut);font-weight:600">WhatsApp подключён напрямую через Green API — стабильно, как WhatsApp Web, и в 5–8 раз дешевле текущего интегратора. Больше никаких «вылетевших» диалогов и потерянных заявок.</div>
+      </section>
+
+      <!-- STOCK -->
+      <section class="screen" id="s-stock">
+        <div class="kpis">
+          <div class="kpi"><div class="kl">Позиций на складе</div><div class="kv">184</div><div class="kd">препараты и расходные материалы</div></div>
+          <div class="kpi red"><div class="kl">Ниже минимума</div><div class="kv">4</div><div class="kd">заявка на закупку — одной кнопкой</div></div>
+          <div class="kpi amber"><div class="kl">Срок годности &lt; 60 дней</div><div class="kv">3</div><div class="kd">партии подсвечены в списке</div></div>
+        </div>
+        <div class="card" style="padding:6px 16px">
+          <table>
+            <thead><tr><th>Препарат / материал</th><th>Партия · срок</th><th>Остаток</th><th>Минимум</th><th>Расход</th><th></th></tr></thead>
+            <tbody id="stockBody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;font-size:13px;color:var(--mut);font-weight:600">Списание привязано к процедурам: врач закрыл визит — препараты списались сами по норме расхода. Учёт как в Altegio, но внутри одной системы.</div>
+      </section>
+
+      <!-- TASKS -->
+      <section class="screen" id="s-tasks">
+        <div class="kan" style="grid-template-columns:repeat(3,1fr)" id="taskKan"></div>
+        <div style="margin-top:12px;font-size:13px;color:var(--mut);font-weight:600">Задачи с ответственными — то, чего не хватает в amoCRM: «кто за что отвечает» видно всегда, устные поручения не теряются.</div>
+      </section>
+
+      <!-- REPORTS -->
+      <section class="screen" id="s-rep">
+        <div class="frow">
+          <button class="mbtn" onclick="toast('Сводка сформирована. Какие показатели выводить — определим вместе: аналитика ваша, техника наша. Всё, что попадает в систему, можно вывести на дашборд.')">Сводка за месяц</button>
+          <button class="mbtn gh" onclick="toast('Экспорт в Excel готов — детальная выгрузка, как вы привыкли в Altegio.')">Выгрузить в Excel</button>
+        </div>
+        <div class="grid2">
+          <div class="stack">
+            <div class="card"><h3>Выручка по врачам · июль</h3><div id="repDoc"></div></div>
+            <div class="card"><h3>Топ услуг</h3><div id="repSrv"></div></div>
+          </div>
+          <div class="stack">
+            <div class="card"><h3>Показатели клиники</h3><div id="repKpi"></div></div>
+            <div class="card"><h3>KPI и загрузка врачей</h3>
+              <table><thead><tr><th>Врач</th><th>Приёмов</th><th>Выручка</th><th>Повторные</th><th>Загрузка</th></tr></thead><tbody id="repDocT"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="mobile-nav">
+  <button class="on" data-s="dash" onclick="nav('dash')"><span class="mi2">◧</span>Обзор</button>
+  <button data-s="sched" onclick="nav('sched')"><span class="mi2">◷</span>Журнал</button>
+  <button data-s="pats" onclick="nav('pats')"><span class="mi2">✚</span>Пациенты</button>
+  <button data-s="inbox" onclick="nav('inbox')"><span class="mi2">✉</span>Чаты</button>
+  <button data-s="rep" onclick="nav('rep')"><span class="mi2">▤</span>Отчёты</button>
+</div>
+
+<!-- patient modal -->
+<div class="ovl" id="patOvl" onclick="if(event.target===this)closePat()">
+  <div class="mod">
+    <div class="mhead"><div><h2 id="pmName">—</h2><div class="msub" id="pmSub">—</div></div><button class="mx-close" onclick="closePat()">✕</button></div>
+    <div class="mtabs" id="pmTabs"></div>
+    <div class="mbody" id="pmBody"></div>
+    <div class="mfoot">
+      <button class="mbtn" onclick="toast('Чат открыт — сообщение уйдёт в WhatsApp пациентки. Вся переписка хранится в её карточке.')">Написать в WhatsApp</button>
+      <button class="mbtn gh" onclick="toast('Запись создана: пациентка получит подтверждение и напоминание за день. Окно врача занято в журнале.')">Записать на визит</button>
+      <button class="mbtn gh" onclick="toast('Данные визита переданы в единую базу пациентов МЗ РК — требование Минцифры выполняется автоматически.')">Передать в ЕБП ✓</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+/* ===== данные (демо) ===== */
+const DOCS=[
+  {id:'as',n:'Асель Жумабаева',r:'врач-косметолог',c:'#2f7a63'},
+  {id:'di',n:'Динара Ким',r:'дерматолог',c:'#6d5bb8'},
+  {id:'gu',n:'Гульмира Ерланова',r:'косметолог-эстетист',c:'#b34d7e'},
+  {id:'ay',n:'Айгерим Садык',r:'врач-косметолог',c:'#2b6cb0'},
+];
+const PATS=[
+  {id:1,n:'Алия Нурмаганбетова',ph:'+7 701 234-56-78',doc:'as',prog:'Биоревитализация · курс 6',done:3,total:6,next:'09.07 · 14:00',st:'course',bd:'14.03.1988',allergy:'лидокаин'},
+  {id:2,n:'Жанна Ахметжанова',ph:'+7 705 345-67-89',doc:'di',prog:'Лечение акне · курс 8',done:6,total:8,next:'08.07 · 11:30',st:'course',bd:'02.11.1996',allergy:'—'},
+  {id:3,n:'Салтанат Бекова',ph:'+7 777 456-78-90',doc:'gu',prog:'Лазерная эпиляция · курс 10',done:10,total:10,next:'—',st:'done',bd:'21.07.1991',allergy:'—'},
+  {id:4,n:'Мадина Оспан',ph:'+7 708 567-89-01',doc:'as',prog:'Контурная пластика',done:1,total:1,next:'12.07 · 10:00 (осмотр)',st:'course',bd:'30.01.1985',allergy:'—'},
+  {id:5,n:'Камила Тлеубердина',ph:'+7 747 678-90-12',doc:'ay',prog:'Чистка + уход · разово',done:2,total:2,next:'—',st:'done',bd:'11.09.1999',allergy:'аскорбиновая к-та'},
+  {id:6,n:'Динара Сейтказы',ph:'+7 702 789-01-23',doc:'di',prog:'Консультация дерматолога',done:0,total:1,next:'07.07 · 16:30',st:'new',bd:'05.05.1993',allergy:'—'},
+  {id:7,n:'Асем Байтурсын',ph:'+7 775 890-12-34',doc:'gu',prog:'Массаж лица · курс 5',done:2,total:5,next:'10.07 · 12:00',st:'course',bd:'19.12.1990',allergy:'—'},
+  {id:8,n:'Гаухар Мукатаева',ph:'+7 706 901-23-45',doc:'as',prog:'Ботулинотерапия',done:1,total:1,next:'повтор ~ окт 2026',st:'done',bd:'27.04.1979',allergy:'—'},
+];
+const SLOTS=['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
+// расписание: {doc, slot, name, srv, st: ok|wait|here|miss, onl}
+const APTS=[
+  {d:'as',s:'09:00',n:'Алия Н.',srv:'Биоревитализация 4/6',st:'here'},
+  {d:'as',s:'11:00',n:'Мадина О.',srv:'Консультация',st:'ok'},
+  {d:'as',s:'14:00',n:'Гаухар М.',srv:'Ботулинотерапия',st:'ok',onl:1},
+  {d:'as',s:'16:00',n:'Новая · Дана',srv:'Первичная консультация',st:'wait',onl:1},
+  {d:'di',s:'10:00',n:'Жанна А.',srv:'Лечение акне 7/8',st:'here'},
+  {d:'di',s:'12:00',n:'Динара С.',srv:'Консультация',st:'wait'},
+  {d:'di',s:'15:00',n:'Аружан К.',srv:'Дерматоскопия',st:'ok'},
+  {d:'gu',s:'09:00',n:'Асем Б.',srv:'Массаж лица 3/5',st:'ok'},
+  {d:'gu',s:'11:00',n:'Салтанат Б.',srv:'Эпиляция — завершение',st:'miss'},
+  {d:'gu',s:'13:00',n:'Инкар Ж.',srv:'Пилинг',st:'ok',onl:1},
+  {d:'gu',s:'16:00',n:'Томирис А.',srv:'Уход SPA',st:'ok'},
+  {d:'ay',s:'10:00',n:'Камила Т.',srv:'Чистка комбинированная',st:'here'},
+  {d:'ay',s:'12:00',n:'Сабина Е.',srv:'Мезотерапия',st:'ok'},
+  {d:'ay',s:'15:00',n:'Новая · Аяулым',srv:'Консультация',st:'wait',onl:1},
+];
+const CHATS=[
+  {p:6,ch:'wa',unread:1,msgs:[['in','Здравствуйте! Хочу записаться к дерматологу на этой неделе','12:02'],['out','Добрый день, Динара! Есть окно завтра в 16:30 к Динаре Ким. Подтвердить?','12:04'],['in','Да, подходит! А сколько стоит консультация?','12:40']]},
+  {p:1,ch:'wa',unread:1,msgs:[['out','Алия, напоминаем: завтра в 14:00 — 4-я процедура биоревитализации у Асель. Ждём вас 🌿','09:00'],['in','Спасибо, буду! Можно после процедуры сразу на массаж записаться?','10:15']]},
+  {p:0,ch:'ig',unread:1,msgs:[['in','Здравствуйте! Видела ваш пост про лазерную эпиляцию. Какие цены на курс?','13:20']]},
+  {p:7,ch:'tg',unread:0,msgs:[['in','Добрый день, перенесите пожалуйста массаж с 10-го на 11-е','Вчера'],['out','Асем, перенесли на 11 июля 12:00. Напоминание придёт за день ✓','Вчера']]},
+];
+const LSTAGES=['Новая заявка','Консультация назначена','Записана на процедуру','Пришла · визит','Курс / повторная'];
+const LEADS=[
+  {n:'Дана (Instagram)',s:'спросила про биоревитализацию',m:'~180 000 ₸ курс',st:0,ch:'ig'},
+  {n:'Аяулым (WhatsApp)',s:'консультация косметолога',m:'15 000 ₸',st:1,ch:'wa'},
+  {n:'Мадина О.',s:'контурная пластика — осмотр 12.07',m:'~220 000 ₸',st:2,ch:'wa'},
+  {n:'Инкар (2ГИС)',s:'пилинг — пришла сегодня',m:'28 000 ₸',st:3,ch:'gis'},
+  {n:'Асель М. (Telegram)',s:'лазерная эпиляция, думает',m:'~240 000 ₸ курс',st:1,ch:'tg'},
+  {n:'Жанна А.',s:'курс акне 7/8 — предложить поддерживающий уход',m:'~90 000 ₸',st:4,ch:'wa'},
+  {n:'Салтанат Б.',s:'курс завершён — предложить уход/массаж',m:'~75 000 ₸',st:4,ch:'wa'},
+  {n:'Новая (WhatsApp)',s:'вопрос про мезотерапию — ждёт ответа 12 мин ⚠',m:'—',st:0,ch:'wa'},
+];
+const STOCK=[
+  {n:'Belotero Balance 1 мл',t:'филлер',lot:'B2411 · до 09.2026',have:6,min:4,use:'2 / нед'},
+  {n:'Xeomin 100 ЕД',t:'ботулотоксин',lot:'X0925 · до 08.2026 ⚠',have:3,min:4,use:'3 / нед'},
+  {n:'Гиалуроновая к-та 2% 5 мл',t:'мезо',lot:'H1207 · до 03.2027',have:12,min:6,use:'4 / нед'},
+  {n:'Пилинг PRX-T33',t:'пилинг',lot:'P0430 · до 08.2026 ⚠',have:2,min:3,use:'2 / нед'},
+  {n:'Иглы 30G × 13 мм (уп. 100)',t:'расходники',lot:'—',have:9,min:5,use:'1 уп / нед'},
+  {n:'Перчатки нитрил M (уп. 100)',t:'расходники',lot:'—',have:4,min:6,use:'2 уп / нед'},
+  {n:'Маска альгинатная 350 г',t:'уход',lot:'A1102 · до 05.2027',have:7,min:3,use:'1 / нед'},
+];
+const TASKS=[
+  {t:'Подтвердить записи на завтра (осталось 3)',a:'Администратор',st:0,hot:1},
+  {t:'Ответить Дане в Instagram — цены на эпиляцию',a:'Администратор',st:0,hot:1},
+  {t:'Заявка поставщику: Xeomin, перчатки M',a:'Старшая медсестра',st:1},
+  {t:'Салтанат Б.: курс завершён — предложить программу ухода',a:'Асель Жумабаева',st:0},
+  {t:'Съёмка сторис: процедура ухода (с согласия пациентки)',a:'Маркетолог',st:1},
+  {t:'Сверка кассы и Kaspi за неделю',a:'Администратор',st:2},
+  {t:'Обновить прайс на сайте и в 2ГИС',a:'Маркетолог',st:2},
+];
+const FEED=[
+  '<b>WhatsApp</b>: 2 новые заявки — обе в воронке, администратору поставлены задачи',
+  '<b>Система</b> отправила 18 напоминаний о завтрашних визитах',
+  '<b>Асель</b> закрыла визит Алии — препараты списаны со склада автоматически',
+  '<b>ЕБП МЗ РК</b>: данные 23 визитов переданы, ошибок нет ✓',
+  '<b>Система</b>: у Салтанат завершён курс — создана задача «предложить уход»',
+  '<b>Склад</b>: Xeomin ниже минимума — заявка на закупку сформирована',
+];
+
+/* ===== состояние ===== */
+let role='dir',F={q:'',st:''},curChat=0;
+const $=id=>document.getElementById(id);
+const doc=id=>DOCS.find(d=>d.id===id);
+const pat=id=>PATS.find(p=>p.id===id);
+const CHN={wa:'WhatsApp',ig:'Instagram',tg:'Telegram',gis:'2ГИС'};
+const chB=ch=>'<span class="ch '+ch+'">'+CHN[ch]+'</span>';
+const dav=(d,sz)=>'<span class="dav" style="background:'+d.c+';width:'+(sz||34)+'px;height:'+(sz||34)+'px">'+d.n.split(' ').map(w=>w[0]).slice(0,2).join('')+'</span>';
+function toast(html){
+  const t=document.createElement('div');t.className='toast';t.innerHTML=html;
+  $('toasts').appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},5000);
+}
+
+/* ===== навигация / роли ===== */
+const TITLES={dash:['Дашборд','вся клиника на одном экране'],sched:['Расписание','журнал записи — как в Altegio, только своё'],
+  pats:['Пациенты','карточки, курсы, фотопротокол, коммуникация'],leads:['Заявки и воронка','ни одна заявка не остаётся без ответа'],
+  inbox:['Сообщения','WhatsApp · Instagram · Telegram — в одном окне'],stock:['Склад','препараты и расходники со сроками годности'],
+  tasks:['Задачи команды','кто за что отвечает'],rep:['Аналитика','детальная — как вы привыкли, и глубже']};
+function nav(s){
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
+  $('s-'+s).classList.add('on');
+  document.querySelectorAll('.nitem').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  document.querySelectorAll('.mobile-nav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  $('tTitle').textContent=TITLES[s][0];$('tSub').textContent=TITLES[s][1];
+  window.scrollTo({top:0});
+}
+document.querySelectorAll('.nitem').forEach(b=>b.onclick=()=>nav(b.dataset.s));
+function setRole(r){
+  role=r;
+  $('rDir').classList.toggle('on',r==='dir');$('rDoc').classList.toggle('on',r==='doc');
+  if(r==='doc'){$('sAv').textContent='АЖ';$('sName').textContent='Асель';$('sRole').textContent='врач-косметолог';
+    toast('Кабинет <b>врача Асель</b>: только её расписание, её пациенты и задачи. У каждого врача — свой доступ, у ресепшн — свой.');
+  }else{$('sAv').textContent='ФЛ';$('sName').textContent='Флориана';$('sRole').textContent='Руководитель';
+    toast('Режим <b>руководителя</b>: вся клиника — запись, выручка, склад, заявки и работа команды.');}
+  renderAll();
+}
+
+/* ===== дашборд ===== */
+function renderDash(){
+  $('dashKpis').innerHTML=
+    '<div class="kpi"><div class="kl">Приёмов сегодня</div><div class="kv">23</div><div class="kd">4 врача · загрузка 78%</div></div>'+
+    '<div class="kpi acc"><div class="kl">Выручка недели</div><div class="kv">2,4 <em>млн ₸</em></div><div class="kd">+11% к прошлой неделе</div></div>'+
+    '<div class="kpi amber"><div class="kl">Завтра не подтверждено</div><div class="kv">3</div><div class="kd">напоминания уже отправлены</div></div>'+
+    '<div class="kpi red"><div class="kl">Заявки ждут ответа</div><div class="kv">3</div><div class="kd">самая старая — 12 минут</div></div>'+
+    '<div class="kpi blue"><div class="kl">Передано в ЕБП</div><div class="kv">23</div><div class="kd">визитов сегодня · ошибок 0</div></div>';
+  $('dashAtt').innerHTML=[
+    ['⚠','Заявка в WhatsApp без ответа 12 минут','вопрос про мезотерапию — конверсия падает после 5 минут','Ответить'],
+    ['◷','3 записи на завтра не подтверждены','автонапоминание ушло, можно позвонить','Открыть'],
+    ['✚','У Салтанат завершён курс эпиляции','предложить программу ухода — задача у Асель','Написать'],
+  ].map(r=>'<div style="display:flex;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid #eef3f0">'+
+    '<span style="font-size:18px">'+r[0]+'</span><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">'+r[1]+'</div><div style="font-size:12.5px;color:var(--mut)">'+r[2]+'</div></div>'+
+    '<button class="mbtn gh" style="padding:8px 14px;font-size:12.5px" onclick="toast(\'Готово — действие выполнено, ответственному ушло уведомление.\')">'+r[3]+'</button></div>').join('');
+  $('dashSched').innerHTML=DOCS.map(d=>{
+    const n=APTS.filter(a=>a.d===d.id).length;
+    return '<div class="pr"><span class="pn">'+dav(d,30)+' '+d.n.split(' ')[0]+'</span><span class="ln"><i style="width:'+(n/6*100)+'%"></i></span><span class="pv">'+n+' приёмов</span></div>'}).join('');
+  const src=[['WhatsApp',21,'#1fa855'],['Instagram',11,'#dd2a7b'],['Telegram',4,'#2aabee'],['2ГИС',2,'#37a93c']];
+  $('dashSrc').innerHTML=src.map(s=>'<div class="pr"><span class="pn" style="width:120px">'+s[0]+'</span><span class="ln"><i style="width:'+(s[1]/21*100)+'%;background:'+s[2]+'"></i></span><span class="pv">'+s[1]+' заявок</span></div>').join('');
+  $('dashFeed').innerHTML=FEED.map(f=>'• '+f).join('<br>');
+}
+
+/* ===== расписание ===== */
+function renderSched(){
+  const docs=role==='doc'?DOCS.filter(d=>d.id==='as'):DOCS;
+  let html='<div class="sc-h sc-t"><span class="dr">время</span></div>'+docs.map(d=>'<div class="sc-h">'+dav(d,30)+'<div><div class="dn">'+d.n.split(' ')[0]+'</div><div class="dr">'+d.r+'</div></div></div>').join('');
+  const grid=$('schedGrid');
+  grid.style.gridTemplateColumns='64px repeat('+docs.length+',1fr)';
+  for(const s of SLOTS){
+    html+='<div class="sc-time">'+s+'</div>';
+    for(const d of docs){
+      const a=APTS.find(x=>x.d===d.id&&x.s===s);
+      html+='<div class="sc-cell">'+(a?'<div class="apt '+a.st+'" onclick="toast(\'Карточка записи: пациент, услуга, препараты по норме, комментарий врача. Отсюда — перенос, отмена с уведомлением, отметка «пришёл».\')"><b>'+a.n+'</b><span class="as">'+a.srv+'</span>'+(a.onl?'<span class="onl">онлайн-запись</span>':'')+'</div>':'')+'</div>';
+    }
+  }
+  grid.innerHTML=html;
+}
+
+/* ===== пациенты ===== */
+function setChip(el,v){F.st=v;document.querySelectorAll('#s-pats .chip').forEach(c=>c.classList.toggle('on',c===el));renderPats()}
+function renderPats(){
+  const q=(F.q||'').toLowerCase();
+  $('patBody').innerHTML=PATS.filter(p=>(!q||p.n.toLowerCase().includes(q)||p.ph.includes(q))&&(!F.st||p.st===F.st)&&(role==='dir'||p.doc==='as')).map(p=>{
+    const d=doc(p.doc);
+    const course=p.total>1?'<div class="course">'+Array.from({length:p.total},(_,i)=>'<i class="'+(i<p.done?'done':'')+'"></i>').join('')+'</div>':'';
+    return '<tr onclick="openPat('+p.id+')"><td><div class="cname">'+p.n+'</div><div class="csub">'+p.ph+'</div></td>'+
+    '<td><span style="display:inline-flex;align-items:center;gap:8px">'+dav(d,28)+' '+d.n.split(' ')[0]+'</span></td>'+
+    '<td><div style="font-weight:600;font-size:13px">'+p.prog+'</div>'+course+'</td>'+
+    '<td style="font-weight:700">'+p.done+(p.total>1?' из '+p.total:'')+'</td><td>'+p.next+'</td>'+
+    '<td>'+(p.st==='course'?'<span class="b grn">на курсе</span>':p.st==='done'?'<span class="b gry">завершён</span>':'<span class="b vio">новый</span>')+'</td></tr>';
+  }).join('');
+}
+let curPat=null,curTab='o';
+function openPat(id){
+  curPat=pat(id);curTab='o';
+  $('pmName').textContent=curPat.n;
+  $('pmSub').textContent=curPat.ph+' · '+curPat.bd+' · врач: '+doc(curPat.doc).n;
+  renderPatTabs();
+  $('patOvl').classList.add('show');
+}
+function closePat(){$('patOvl').classList.remove('show')}
+function renderPatTabs(){
+  const tabs=[['o','Обзор'],['v','Визиты'],['f','Фотопротокол'],['d','Документы']];
+  $('pmTabs').innerHTML=tabs.map(([k,l])=>'<button class="mtab'+(curTab===k?' on':'')+'" onclick="curTab=\''+k+'\';renderPatTabs()">'+l+'</button>').join('');
+  const p=curPat;
+  if(curTab==='o'){
+    $('pmBody').innerHTML='<div class="info-g">'+
+      '<div class="ig"><div class="il">Программа</div><div class="iv">'+p.prog+'</div></div>'+
+      '<div class="ig"><div class="il">Прогресс</div><div class="iv">'+p.done+(p.total>1?' из '+p.total+' процедур':' визит')+'</div></div>'+
+      '<div class="ig"><div class="il">Следующий визит</div><div class="iv">'+p.next+'</div></div>'+
+      '<div class="ig"><div class="il">Аллергии</div><div class="iv" style="color:'+(p.allergy!=='—'?'var(--red)':'inherit')+'">'+p.allergy+'</div></div>'+
+      '<div class="ig"><div class="il">Единая база пациентов</div><div class="iv" style="color:var(--acc-d)">передано ✓</div></div>'+
+      '<div class="ig"><div class="il">Согласия</div><div class="iv">подписаны · 2 док.</div></div>'+
+      '</div>'+
+      '<div style="margin-top:14px;font-size:13px;color:var(--mut);font-weight:600">Врач видит аллергии и историю до начала приёма. Вся коммуникация — в карточке: WhatsApp, напоминания, подтверждения.</div>';
+  }
+  if(curTab==='v'){
+    $('pmBody').innerHTML='<table><thead><tr><th>Дата</th><th>Процедура</th><th>Врач</th><th>Сумма</th><th>ЕБП</th></tr></thead><tbody>'+
+      '<tr><td>28.06</td><td>Биоревитализация 3/6</td><td>Асель</td><td style="font-weight:700">30 000 ₸</td><td><span class="b grn">✓</span></td></tr>'+
+      '<tr><td>14.06</td><td>Биоревитализация 2/6</td><td>Асель</td><td style="font-weight:700">30 000 ₸</td><td><span class="b grn">✓</span></td></tr>'+
+      '<tr><td>31.05</td><td>Биоревитализация 1/6</td><td>Асель</td><td style="font-weight:700">30 000 ₸</td><td><span class="b grn">✓</span></td></tr>'+
+      '<tr><td>24.05</td><td>Консультация + план</td><td>Асель</td><td style="font-weight:700">10 000 ₸</td><td><span class="b grn">✓</span></td></tr>'+
+      '</tbody></table>';
+  }
+  if(curTab==='f'){
+    $('pmBody').innerHTML='<div class="foto">'+
+      '<div class="ph">До курса<br>24.05.2026</div><div class="ph">После 3-й процедуры<br>28.06.2026</div><div class="ph">+ добавить фото</div></div>'+
+      '<div style="margin-top:14px;font-size:13px;color:var(--mut);font-weight:600">Фотопротокол «до / после» хранится в карточке пациентки — доступ только у лечащего врача и руководителя. Это то, что вы делаете сейчас, только в одной системе.</div>';
+  }
+  if(curTab==='d'){
+    $('pmBody').innerHTML=['Информированное согласие.pdf','Договор оказания услуг.pdf','План лечения (курс 6).pdf'].map(d=>
+      '<div style="display:flex;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid #eef3f0;cursor:pointer" onclick="toast(\'Документ открыт. Шаблоны согласий и договоров — ваши, подставляются автоматически.\')"><span style="font-size:18px">▤</span><div style="font-weight:700;font-size:13.5px">'+d+'</div><span class="b gry" style="margin-left:auto">открыть</span></div>').join('');
+  }
+}
+
+/* ===== заявки ===== */
+function renderLeads(){
+  $('leadKan').innerHTML=LSTAGES.map((st,i)=>{
+    const ls=LEADS.filter(l=>l.st===i);
+    return '<div class="kcol"><h4>'+st+'<span>'+ls.length+'</span></h4>'+ls.map(l=>
+      '<div class="kcard" onclick="toast(\'Карточку можно перетащить на следующий этап. Поля карточки — ваши: источник, услуга, сумма, комментарий. Настроим вместе.\')">'+
+      '<div class="kt">'+l.n+'</div><div class="kc2">'+l.s+'</div>'+
+      '<div class="kf">'+chB(l.ch)+'<span style="font-size:12px;font-weight:700;color:var(--acc-d)">'+l.m+'</span></div></div>').join('')+'</div>';
+  }).join('');
+}
+
+/* ===== инбокс ===== */
+function renderChatList(){
+  $('chList').innerHTML=CHATS.map((ch,i)=>{
+    const name=ch.p?pat(ch.p).n:'Новая · Instagram';
+    const last=ch.msgs[ch.msgs.length-1];
+    return '<div class="chi'+(i===curChat?' on':'')+'" onclick="curChat='+i+';renderChatList();renderChat()">'+
+    '<div class="av">'+name.split(' ').map(w=>w[0]).slice(0,2).join('')+'</div>'+
+    '<div style="min-width:0;flex:1"><div class="cn">'+name.split(' ')[0]+' '+chB(ch.ch)+'</div><div class="cm">'+last[1]+'</div></div>'+
+    '<div class="ct">'+last[2]+(ch.unread?'<div class="unr">'+ch.unread+'</div>':'')+'</div></div>';
+  }).join('');
+}
+function renderChat(){
+  const ch=CHATS[curChat];
+  $('chName').textContent=ch.p?pat(ch.p).n:'Новая заявка · Instagram';
+  $('chChan').innerHTML=chB(ch.ch);
+  $('chMsgs').innerHTML=ch.msgs.map(([d,t,tm])=>'<div class="msg '+d+'">'+t+'<div class="mt">'+tm+'</div></div>').join('');
+  $('chTpls').innerHTML=['Есть окно — предложить время','Прайс на услугу','Подтвердить запись','Напомнить о визите'].map(t=>
+    '<button class="tpl" onclick="tplSend(\''+t+'\')">'+t+'</button>').join('');
+  $('chMsgs').scrollTop=99999;
+}
+function tplSend(t){
+  const full={'Есть окно — предложить время':'Есть свободное окно завтра в 15:00 — записать вас?','Прайс на услугу':'Отправляю прайс по процедуре и варианты курса','Подтвердить запись':'Ваша запись подтверждена, ждём вас!','Напомнить о визите':'Напоминаем о визите завтра. Подтвердите, пожалуйста'}[t]||t;
+  CHATS[curChat].msgs.push(['out',full,'сейчас']);
+  renderChat();
+  toast('Отправлено через Green API. Стабильно, как WhatsApp Web — <b>заявки больше не теряются из-за «вылетевшей» интеграции</b>.');
+}
+function sendMsg(){
+  const v=$('chInput').value.trim();if(!v)return;
+  CHATS[curChat].msgs.push(['out',v,'сейчас']);$('chInput').value='';
+  renderChat();
+  toast('Ответ ушёл в канал пациентки. Вся переписка — в её карточке, история не теряется.');
+}
+
+/* ===== склад ===== */
+function renderStock(){
+  $('stockBody').innerHTML=STOCK.map(s=>{
+    const low=s.have<s.min;
+    return '<tr onclick="toast(\'Карточка позиции: партии, сроки, история списаний по визитам, нормы расхода на процедуру.\')">'+
+    '<td><div class="cname">'+s.n+'</div><div class="csub">'+s.t+'</div></td>'+
+    '<td class="exp'+(s.lot.includes('⚠')?' soon':'')+'" style="font-size:12.5px">'+s.lot+'</td>'+
+    '<td style="font-weight:800">'+s.have+'</td><td style="color:var(--mut2);font-weight:700">'+s.min+'</td>'+
+    '<td><div class="stockbar"><i class="'+(low?'low':'')+'" style="width:'+Math.min(100,s.have/(s.min*2)*100)+'%"></i></div><div class="csub">'+s.use+'</div></td>'+
+    '<td>'+(low?'<button class="b red" onclick="event.stopPropagation();toast(\'Позиция добавлена в заявку поставщику — согласование у руководителя одной кнопкой.\')">в закупку ➤</button>':'<span class="b grn">ок</span>')+'</td></tr>';
+  }).join('');
+}
+
+/* ===== задачи ===== */
+function renderTasks(){
+  const cols=[['К выполнению',0],['В работе',1],['Готово',2]];
+  $('taskKan').innerHTML=cols.map(([l,i])=>{
+    const ts=TASKS.filter(t=>t.st===i);
+    return '<div class="kcol"><h4>'+l+'<span>'+ts.length+'</span></h4>'+ts.map(t=>
+      '<div class="kcard" onclick="toast(\'Задачу можно перетащить дальше. У каждой — ответственный и срок: «кто за что отвечает» видно всегда.\')">'+
+      '<div class="kt">'+(t.hot?'⚠ ':'')+t.t+'</div>'+
+      '<div class="kf"><span class="b '+(t.hot?'red':'gry')+'">'+t.a+'</span></div></div>').join('')+'</div>';
+  }).join('');
+}
+
+/* ===== аналитика ===== */
+function renderRep(){
+  const rev=[['as',1240000],['di',680000],['gu',540000],['ay',460000]];
+  $('repDoc').innerHTML=rev.map(([id,v])=>{const d=doc(id);
+    return '<div class="pr"><span class="pn">'+dav(d,30)+' '+d.n.split(' ')[0]+'</span><span class="ln"><i style="width:'+(v/1240000*100)+'%;background:'+d.c+'"></i></span><span class="pv">'+Math.round(v/1000)+' тыс ₸</span></div>'}).join('');
+  const srv=[['Биоревитализация',26],['Лазерная эпиляция',21],['Чистки и уходы',18],['Ботулинотерапия',12],['Лечение акне',9]];
+  $('repSrv').innerHTML=srv.map(s=>'<div class="pr"><span class="pn" style="width:190px">'+s[0]+'</span><span class="ln"><i style="width:'+(s[1]/26*100)+'%"></i></span><span class="pv">'+s[1]+' процедур</span></div>').join('');
+  $('repKpi').innerHTML=[
+    ['Средний чек','31 400 ₸','+6% к июню'],
+    ['Повторные визиты','63%','пациенты возвращаются'],
+    ['LTV пациентки','268 000 ₸','за 12 месяцев'],
+    ['Неявки','4,2%','напоминания снижают вдвое'],
+    ['Конверсия заявка → визит','54%','ответ в 5 минут — ключ'],
+  ].map(r=>'<div class="pr"><span class="pn" style="width:230px">'+r[0]+'</span><span style="font-weight:800;font-size:16px">'+r[1]+'</span><span class="pv" style="width:auto;margin-left:auto">'+r[2]+'</span></div>').join('');
+  $('repDocT').innerHTML=DOCS.map(d=>{
+    const n=APTS.filter(a=>a.d===d.id).length;
+    return '<tr><td><span style="display:inline-flex;align-items:center;gap:8px">'+dav(d,28)+' '+d.n.split(' ')[0]+'</span></td><td>'+ (n*22)+'</td><td style="font-weight:700">'+(d.id==='as'?'1,24':d.id==='di'?'0,68':d.id==='gu'?'0,54':'0,46')+' млн</td><td>'+(d.id==='as'?'71%':d.id==='di'?'64%':'58%')+'</td><td>'+(d.id==='as'?'86%':'74%')+'</td></tr>'}).join('');
+}
+
+/* ===== init ===== */
+function renderAll(){renderDash();renderSched();renderPats();renderLeads();renderChatList();renderChat();renderStock();renderTasks();renderRep()}
+renderAll();
+setTimeout(()=>toast('Здравствуйте, <b>Флориана</b>! Это интерактивный мокап вашей системы: журнал записи, пациенты, WhatsApp без «вылетов», склад препаратов и аналитика — всё в одном месте. Нажимайте на всё.'),700);
+const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));
+</script>
+</body>
+</html>

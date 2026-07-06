@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>КП — Флориана · система клиники · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23eef6f2'/%3E%3Ccircle cx='16' cy='11' r='4.5' fill='%232f7a63'/%3E%3Ccircle cx='11' cy='18' r='4.5' fill='%235ea88f' opacity='.85'/%3E%3Ccircle cx='21' cy='18' r='4.5' fill='%235ea88f' opacity='.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f7f5;--card:#fff;--line:#e2eae6;--ink:#1a2b25;--mut:#5d6f68;--mut2:#93a49d;
+  --acc:#2f7a63;--acc-d:#245e4c;--acc-l:#ddeee7;--acc-xl:#eef6f2;
+  --amber:#b4690e;--amber-l:#fdf1de;--red:#bf3b2b;--grn:#1d6e46;
+  --r:18px;--sh:0 6px 24px -8px rgba(26,43,37,.1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.65;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.wrap{max-width:880px;margin:0 auto;padding:0 24px 80px}
+a{color:var(--acc-d)}
+
+/* hero */
+.hero{background:linear-gradient(150deg,#12332a,#245e4c 80%,#2f7a63);color:#eaf5f0;margin:0 -24px;padding:48px 44px 40px;border-radius:0 0 30px 30px}
+.hero-top{display:flex;align-items:center;gap:14px;margin-bottom:28px;flex-wrap:wrap}
+.hero-top svg{flex:none}
+.hb{font-size:21px;font-weight:800}
+.hs{font-size:12.5px;color:#a9cbbd;font-weight:600}
+.kp-tag{margin-left:auto;font-size:12px;font-weight:800;border:1.5px solid #4d8a76;border-radius:20px;padding:8px 16px;color:#cfe7db}
+.hero h1{font-size:30px;font-weight:800;letter-spacing:-.6px;line-height:1.25;margin-bottom:14px}
+.hero h1 em{font-style:normal;color:#9fdcc2}
+.hero p.lead{font-size:15.5px;color:#c2ddd2;max-width:660px}
+.hero-meta{display:flex;gap:14px;margin-top:26px;flex-wrap:wrap}
+.hm{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:12px 18px}
+.hm b{display:block;font-size:20px;font-weight:800;color:#fff}
+.hm span{font-size:12px;color:#a9cbbd;font-weight:600}
+
+h2{font-size:14px;font-weight:800;color:var(--mut);margin:40px 0 14px;text-transform:uppercase;letter-spacing:.6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px 26px;margin-bottom:14px;box-shadow:var(--sh)}
+.card h3{font-size:16.5px;font-weight:800;margin-bottom:8px}
+.card p{font-size:14px;color:var(--mut)}
+
+/* синопсис */
+.syn li{list-style:none;padding:11px 0 11px 34px;position:relative;border-bottom:1px solid #eef3f0;font-size:14.5px}
+.syn li:last-child{border-bottom:none}
+.syn li::before{content:'✓';position:absolute;left:2px;top:12px;width:21px;height:21px;background:var(--acc-l);color:var(--acc-d);border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800}
+.syn b{font-weight:800}
+.syn span{color:var(--mut)}
+
+/* модули */
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.mods{grid-template-columns:1fr}}
+.mod{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--sh)}
+.mod b{display:block;font-size:14.5px;font-weight:800;margin-bottom:5px}
+.mod p{font-size:13px;color:var(--mut);line-height:1.55}
+.mod .tag{display:inline-block;font-size:10.5px;font-weight:800;background:var(--acc);color:#fff;border-radius:7px;padding:3px 9px;margin-bottom:9px}
+.mod.hl2{border:1.5px solid var(--acc);background:linear-gradient(160deg,#fff,var(--acc-xl))}
+
+/* этапы */
+.stage{display:flex;gap:18px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:10px;box-shadow:var(--sh)}
+.sn{width:42px;height:42px;border-radius:14px;background:var(--acc);color:#fff;display:grid;place-items:center;font-weight:800;font-size:17px;flex:none}
+.sc b{display:block;font-size:15.5px;font-weight:800;margin-bottom:4px}
+.sc p{font-size:13.5px;color:var(--mut)}
+.sc .sd{font-size:12.5px;font-weight:800;color:var(--acc-d);margin-top:7px}
+
+/* цена */
+.price{background:linear-gradient(150deg,#12332a,#245e4c);color:#eaf5f0;border-radius:20px;padding:30px 32px;margin-bottom:14px}
+.price .row{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+.price .old{font-size:19px;color:#7fa998;text-decoration:line-through;font-weight:700}
+.price .big{font-size:42px;font-weight:800;letter-spacing:-1px}
+.price .usd{font-size:16px;color:#a9cbbd;font-weight:700}
+.price .disc{background:#9fdcc2;color:#12332a;font-size:12.5px;font-weight:800;border-radius:20px;padding:6px 14px}
+.price p{font-size:13.5px;color:#b7d5c8;margin-top:12px;max-width:640px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--sh)}
+th{font-size:12px;color:var(--mut2);text-align:left;padding:13px 16px;border-bottom:1.5px solid var(--line);font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+td{padding:13px 16px;border-bottom:1px solid #eef3f0;font-size:14px;vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.sum{font-weight:800;white-space:nowrap;text-align:right;font-size:14.5px}
+tr.total td{background:var(--acc-xl);font-weight:800}
+.note{font-size:12.5px;color:var(--mut);margin-top:10px;font-weight:600}
+
+/* opex */
+.opex td:first-child{font-weight:700}
+.good{color:var(--grn);font-weight:800}
+.bad{color:var(--red);font-weight:800}
+
+/* in/out */
+.io{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.io{grid-template-columns:1fr}}
+.io .card{margin:0}
+.io ul{list-style:none}
+.io li{padding:7px 0 7px 26px;position:relative;font-size:13.5px;border-bottom:1px solid #eef3f0}
+.io li:last-child{border-bottom:none}
+.io .in li::before{content:'✓';position:absolute;left:0;color:var(--grn);font-weight:800}
+.io .out li::before{content:'—';position:absolute;left:0;color:var(--mut2);font-weight:800}
+.io li span{color:var(--mut)}
+
+/* demo cta */
+.demo-cta{display:flex;gap:16px;align-items:center;background:#12332a;color:#eaf5f0;border-radius:20px;padding:22px 26px;flex-wrap:wrap}
+.demo-cta .dt{flex:1;min-width:220px}
+.demo-cta b{font-size:15.5px}
+.demo-cta p{font-size:13px;color:#a9cbbd;margin-top:3px}
+.demo-btn{background:#9fdcc2;color:#12332a;font-weight:800;font-size:14px;padding:13px 24px;border-radius:14px;text-decoration:none;white-space:nowrap}
+
+.strip{display:flex;gap:14px;align-items:flex-start;background:linear-gradient(90deg,var(--acc-xl),#fff);border:1px solid var(--acc-l);border-radius:16px;padding:17px 20px;margin-top:14px}
+.strip .si{font-size:22px;flex:none}
+.strip b{font-size:14.5px}
+.strip p{font-size:13px;color:var(--mut);margin-top:3px}
+
+.foot{margin-top:46px;border-top:1.5px solid var(--line);padding-top:22px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;font-size:12.5px;color:var(--mut)}
+.foot b{color:var(--ink)}
+.foot .pl{font-weight:800;font-size:15px;color:var(--ink)}
+
+@media print{
+  body{background:#fff;font-size:12.5px}
+  .hero{border-radius:0;padding:34px 40px 28px}
+  .card,.mod,.stage,.strip,.demo-cta{break-inside:avoid;box-shadow:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="hero-top">
+      <svg width="44" height="44" viewBox="0 0 38 38"><circle cx="19" cy="12" r="6.5" fill="#9fdcc2"/><circle cx="12.5" cy="21.5" r="6.5" fill="#6fbfa1" opacity=".9"/><circle cx="25.5" cy="21.5" r="6.5" fill="#6fbfa1" opacity=".6"/><circle cx="19" cy="27" r="4" fill="#eaf5f0"/></svg>
+      <div><div class="hb">Флориана</div><div class="hs">клиника · Астана</div></div>
+      <div class="kp-tag">Коммерческое предложение</div>
+    </div>
+    <h1>Своя система клиники: запись как в Altegio, CRM как в amo, WhatsApp без «вылетов» — <em>в одной программе</em></h1>
+    <p class="lead">По итогам встречи 6 июля 2026. Объединяем функционал Altegio и amoCRM в собственную систему клиники с подключением к единой базе пациентов МЗ РК — требование Минцифры с 12 июля выполняется автоматически.</p>
+    <div class="hero-meta">
+      <div class="hm"><b>4–6 недель</b><span>срок разработки</span></div>
+      <div class="hm"><b>$3 000</b><span>≈ 1 500 000 ₸ · фикс</span></div>
+      <div class="hm"><b>10%</b><span>предоплата — старт</span></div>
+      <div class="hm"><b>0 ₸ / мес</b><span>подписок больше нет</span></div>
+    </div>
+  </div>
+
+  <h2>Синопсис встречи 6 июля — о чём договорились</h2>
+  <div class="card">
+    <ul class="syn">
+      <li><b>Одна система вместо двух:</b> <span>объединяем функционал amoCRM (воронка, заявки, коммуникации) и Altegio (журнал онлайн-записи, учёт препаратов и расходников, сотрудники, аналитика) в собственную программу клиники.</span></li>
+      <li><b>Единая база пациентов МЗ РК:</b> <span>с 12 июля все МИС должны передавать данные централизованно. Подключаем систему к ЕБП по API — вы высылаете доступы/регламент портала, мы делаем интеграцию. Работа клиники становится легитимной без смены привычного функционала.</span></li>
+      <li><b>WhatsApp перестаёт «вылетать»:</b> <span>уходим от российских интеграторов (LeadCenter и подобных) на Green API — стабильно, как WhatsApp Web, от $10/мес вместо $50–80/мес. Заявки больше не теряются, упущенной выручки из-за неотвеченных сообщений нет.</span></li>
+      <li><b>Вы платите только за то, чем пользуетесь:</b> <span>сейчас amoCRM + Altegio ≈ $1 000/год, при этом используется ~30% функционала. Своя система = один платёж за разработку, пользователей — сколько нужно (до 50 без доплат).</span></li>
+      <li><b>Ваше время бережём:</b> <span>ТЗ писать не нужно. Мы приносим готовые мокапы, вы правите. Всего 3 рабочие встречи по ~2 часа + одна полировочная — суммарно 6–8 часов вашего времени на весь проект.</span></li>
+      <li><b>Оплата этапами, постоплата:</b> <span>10% на старте, далее — по факту показанного результата. Основная часть — после полной сдачи.</span></li>
+    </ul>
+  </div>
+
+  <h2>Состав системы · 10 модулей</h2>
+  <div class="mods">
+    <div class="mod hl2"><span class="tag">требование Минцифры</span><b>Единая база пациентов МЗ РК</b><p>Каждый визит автоматически передаётся в ЕБП по API. Статус передачи виден в карточке пациента и в журнале. С 12 июля вы работаете легитимно.</p></div>
+    <div class="mod hl2"><span class="tag">главная боль</span><b>WhatsApp · Green API</b><p>Прямое подключение без российских посредников: стабильно, как WhatsApp Web. Instagram и Telegram — в том же окне. Заявка без ответа 5 минут — напоминание администратору.</p></div>
+    <div class="mod"><b>Журнал записи (как в Altegio)</b><p>Сетка врачи × время, онлайн-запись падает в журнал сама, статусы «подтверждён / пришёл / неявка», автонапоминания пациентам за день.</p></div>
+    <div class="mod"><b>Пациенты</b><p>Карточка: программа и курс процедур с прогрессом, визиты, аллергии, фотопротокол «до/после», согласия и договоры, вся переписка внутри.</p></div>
+    <div class="mod"><b>Заявки и воронка (как в amo)</b><p>Все источники — WhatsApp, Instagram, Telegram, 2ГИС — в одной воронке до визита и повторных курсов. Поля карточки настраиваем под вас.</p></div>
+    <div class="mod"><b>Склад: препараты и расходники</b><p>Партии и сроки годности, минимальные остатки, заявка на закупку одной кнопкой. Врач закрыл визит — списание по норме расхода произошло само.</p></div>
+    <div class="mod"><b>Аналитика — детальная</b><p>Выручка по врачам и услугам, источники заявок, повторные визиты, LTV, неявки, средний чек. Выгрузка в Excel. Какие показатели выводить — определим вместе.</p></div>
+    <div class="mod"><b>Задачи команды</b><p>Кто за что отвечает — то, чего нет в amo: задачи с ответственными и сроками, авто-задачи из событий («курс завершён — предложить продление»).</p></div>
+    <div class="mod"><b>Кабинеты врачей и роли</b><p>У врача — своё расписание, свои пациенты и задачи. У ресепшн, маркетинга и руководителя — свои доступы. До 50 пользователей без доплат.</p></div>
+    <div class="mod"><b>Ваш сервер и документация</b><p>Система разворачивается на вашем сервере и передаётся с исходным кодом и документацией, по которой разберётся любой программист среднего уровня.</p></div>
+  </div>
+
+  <h2>Демо уже готово</h2>
+  <div class="demo-cta">
+    <div class="dt"><b>Интерактивный мокап «Флориана» — прокликайте сами</b>
+    <p>Журнал записи · пациенты с курсами и фотопротоколом · воронка · WhatsApp/Instagram/Telegram · склад препаратов · задачи · аналитика · роли «руководитель / врач». Это ещё не готовый портал, но он полностью отражает функционал.</p></div>
+    <a class="demo-btn" href="https://pllato.kz/app/floriana.html" target="_blank" rel="noopener">Открыть мокап →</a>
+  </div>
+
+  <h2>Как работаем · 3 этапа и всего ~6–8 часов вашего времени</h2>
+  <div class="stage"><div class="sn">1</div><div class="sc"><b>Ядро системы</b><p>Старт после предоплаты 10%. Разворачиваем рабочий портал, подключаем WhatsApp через Green API, заводим базу. Встреча №1 (~2 часа): идём по каждому пункту, вы говорите «нравится / не нравится» — мы правим.</p><div class="sd">Неделя 1–2</div></div></div>
+  <div class="stage"><div class="sn">2</div><div class="sc"><b>Итерации правок · 2–3 выпуска</b><p>Встречи №2–3 (~по 2 часа): дашборд с вашими KPI, поля карточек, уведомления пациентам, интеграция с ЕБП по выданным доступам. Техническую часть берём на себя — от вас только решения по функционалу.</p><div class="sd">Неделя 3–5 · оплата после этапа</div></div></div>
+  <div class="stage"><div class="sn">3</div><div class="sc"><b>Полировка и передача</b><p>Полировочная встреча, прогоны с администраторами и врачами, документация, перенос на ваш сервер. Остаток оплаты — после полной сдачи.</p><div class="sd">Неделя 5–6</div></div></div>
+
+  <h2>Стоимость</h2>
+  <div class="price">
+    <div class="row"><span class="old">$3 000</span><span class="big">$2 700</span><span class="usd">≈ 1 350 000 ₸</span><span class="disc">−10% при ответе до вторника, 7 июля</span></div>
+    <p>Фиксированная стоимость за весь объём: функционал amo + Altegio + ЕБП + Green API. Оплата этапами по факту результата. Окупаемость против текущих подписок — примерно 2 года, дальше программа только экономит.</p>
+  </div>
+  <table>
+    <thead><tr><th>Платёж</th><th>Когда</th><th style="text-align:right">Со скидкой −10%</th></tr></thead>
+    <tbody>
+      <tr><td><b>Предоплата 10%</b></td><td>старт работ, бронь команды</td><td class="sum">135 000 ₸</td></tr>
+      <tr><td><b>Этап 2</b></td><td>ядро сдано, итерация правок пройдена</td><td class="sum">540 000 ₸</td></tr>
+      <tr><td><b>Финал</b></td><td>после полной сдачи и переноса на ваш сервер</td><td class="sum">675 000 ₸</td></tr>
+      <tr class="total"><td>Итого</td><td>при подтверждении до 7 июля включительно</td><td class="sum">1 350 000 ₸ ($2 700)</td></tr>
+    </tbody>
+  </table>
+  <div class="note">Без скидки (после 7 июля): $3 000 ≈ 1 500 000 ₸ — платежи 150 000 / 600 000 / 750 000. Предложение действительно до 13 июля 2026.</div>
+
+  <h2>Операционные расходы после запуска — расчёт, который вы просили</h2>
+  <div class="card" style="padding:6px 16px">
+    <table class="opex" style="box-shadow:none;border:none">
+      <thead><tr><th>Статья</th><th>Сейчас</th><th>Со своей системой</th></tr></thead>
+      <tbody>
+        <tr><td>amoCRM (2 пользователя)</td><td class="bad">~$250 / год</td><td class="good">0 ₸</td></tr>
+        <tr><td>Altegio</td><td class="bad">~$500 / год</td><td class="good">0 ₸</td></tr>
+        <tr><td>WhatsApp-интеграция</td><td class="bad">$50–80 / мес (LeadCenter) + «вылеты»</td><td class="good">Green API от $10 / мес, стабильно</td></tr>
+        <tr><td>Instagram</td><td>внутри интегратора</td><td class="good">бесплатно через верификацию Meta (1–1,5 мес) или $10–15 / мес платным путём</td></tr>
+        <tr><td>Telegram</td><td>—</td><td class="good">бесплатно</td></tr>
+        <tr><td>Домен</td><td>—</td><td>~$10–12 / год</td></tr>
+        <tr><td>Хостинг / память</td><td>—</td><td>~0 ₸: 10 ГБ бесплатно, дальше ~$5 за терабайт</td></tr>
+        <tr class="total"><td>Итого в год</td><td class="bad">~$1 350 – 1 700</td><td class="good">~$130 – 300</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note">Экономия ~$1 200–1 400 в год только на подписках и интеграциях + возвращённая выручка с заявок, которые раньше терялись при «вылете» WhatsApp.</div>
+
+  <h2>Что входит и что потом</h2>
+  <div class="io">
+    <div class="card in"><h3 style="color:var(--grn)">Входит в стоимость</h3><ul>
+      <li>Все 10 модулей под процессы клиники</li>
+      <li>Интеграция с ЕБП МЗ РК по API (после выдачи доступов порталом)</li>
+      <li>Подключение WhatsApp (Green API), Instagram, Telegram</li>
+      <li>Перенос базы пациентов из Altegio / amo</li>
+      <li>До 50 пользователей, роли и кабинеты врачей</li>
+      <li>3 рабочие встречи + полировочная, прогоны с командой</li>
+      <li>Ваш сервер, исходный код, документация</li>
+      <li>Гарантия: ошибки по нашей вине чиним бесплатно</li>
+    </ul></div>
+    <div class="card out"><h3 style="color:var(--mut)">После сдачи · по желанию</h3><ul>
+      <li>Абонплата и сопровождение <span>— не требуются: система работает сама</span></li>
+      <li>Новые доработки <span>— по запросу, $20/час (обычно 1–5 часов на задачу)</span></li>
+      <li>Green API <span>— оплачивается вами напрямую, от $10/мес за канал</span></li>
+      <li>Хостинг и домен <span>— напрямую провайдеру</span></li>
+    </ul></div>
+  </div>
+
+  <div class="strip"><div class="si">🌿</div><div><b>Договор и оплата</b><p>Работаем по публичной оферте <a href="https://pllato.kz/offer" target="_blank" rel="noopener">pllato.kz/offer</a> — оплата счёта означает принятие условий. Счёт на предоплату выставим сразу после вашего «да». Скидка −10% действует при подтверждении до вторника, 7 июля 2026 включительно.</p></div></div>
+
+  <div class="foot">
+    <div><div class="pl">Pllato.</div>Custom Development · CRM/ERP<br>ИП «STUDYSTORIES.APP» · Алматы</div>
+    <div><b>Платон Цай</b><br>+7 701 123 99 99 · <a href="https://wa.me/77011239999">WhatsApp</a><br>uurraa@gmail.com · pllato.kz</div>
+    <div><b>КП № FL-2026-01</b><br>от 6 июля 2026<br>для Флорианы · клиника, Астана</div>
+  </div>
+
+</div>
+</body>
+</html>
