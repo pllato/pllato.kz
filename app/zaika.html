@@ -8,7 +8,7 @@
 <meta name="robots" content="noindex,nofollow"/>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffd200'/%3E%3Ccircle cx='32' cy='36' r='24' fill='%23e31e24'/%3E%3Cpath d='M36 22 C38 10 47 5 52 7 C51 13 45 20 39 24 Z' fill='%23fff'/%3E%3Cpath d='M42 25 C48 16 56 14 59 16 C57 22 50 27 44 30 Z' fill='%23fff'/%3E%3Ccircle cx='29' cy='28' r='9' fill='%23fff'/%3E%3Ccircle cx='26' cy='26' r='1.6' fill='%23e31e24'/%3E%3Cellipse cx='36' cy='44' rx='12' ry='9.5' fill='%23fff'/%3E%3Ccircle cx='47' cy='41' r='3.2' fill='%23fff'/%3E%3Ccircle cx='48.5' cy='45.5' r='3' fill='%23fff'/%3E%3Ccircle cx='45.5' cy='48.5' r='2.8' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@600;700&family=Nunito:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@600;700&family=Inter:wght@500;600;700;800&family=Nunito:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#fff6d9;--card:#fff;--line:#f1e4b8;--ink:#241a0f;--mut:#7a6a4f;--mut2:#b0a17f;
@@ -224,9 +224,41 @@ tbody tr:hover td{background:var(--acc-xl)}
 .mobile-nav button{color:var(--mut);font-size:11px;font-weight:800;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 8px}
 .mobile-nav button.on{color:var(--acc-d)}
 .mobile-nav .mi2{font-size:17px}
+
+/* ===== тема Pllato (наш стиль, по умолчанию) ===== */
+body.pl{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --bg:#fafaf6;--card:#fff;--line:#e8e2d4;--ink:#0f1620;--mut:#4a5163;--mut2:#8a8d96;
+  --acc:#8b6740;--acc-d:#6f4f2e;--acc-l:#efe4d2;--acc-xl:#f8f4ec;
+  --sun:#e9dcc4;--sun-l:#f3ecdd;--sun-t:#8b6740;
+  --sh:0 8px 24px -10px rgba(20,30,50,.10);
+}
+body.pl h1,body.pl h2,body.pl .logo b,body.pl .phone .ph-top b{font-family:'Inter',sans-serif;letter-spacing:-.4px}
+body.pl .logo b{color:#0a1628;font-size:22px;font-weight:800}
+body.pl ::-webkit-scrollbar-thumb{background:#d6d0c2}
+body.pl .demo-note{background:#0a1628;color:#e6e9f0}
+body.pl .demo-note b{color:#d4a978}
+body.pl .nitem.on{background:#0a1628;color:#fff}
+body.pl .nitem.on .ic{background:rgba(255,255,255,.14)}
+body.pl .kcol{background:#efece3}
+body.pl .fillbar,body.pl .skill .sb{background:#ece8db}
+body.pl td{border-bottom-color:#eae5d8}
+body.pl .b.gry{background:#f0ede4}
+body.pl .tm.e{background:#f0ede4}
+body.pl .dlg{background:#f0ede4}
+body.pl .msg.out{background:#f5efe3}
+body.pl .play{color:#d4a978}
+body.pl .phone{border-color:#0a1628}
+body.pl .phone .ph-top{background:#0a1628}
+body.pl .phone .ph-top b{color:#fff}
+body.pl .phone .ph-top span{color:#9aa3b5}
+body.pl .ph-body{background:#f7f6f1}
+body.pl .toast{background:#0a1628;color:#e6e9f0}
+body.pl .toast b{color:#d4a978}
 </style>
 </head>
 <body>
+<script>(function(){var t=new URLSearchParams(location.search).get('t');try{t=t||localStorage.getItem('zkTheme')||'pl'}catch(e){t=t||'pl'}if(t!=='zk')document.body.classList.add('pl')})()</script>
 <div class="demo-note">🐰 Интерактивное демо для <b>Екатерины</b> · сеть детских садов «Зайка» · 6 филиалов · все данные вымышленные, всё прокликивается · <b>Pllato</b></div>
 <div class="app">
   <aside class="side">
@@ -259,6 +291,10 @@ tbody tr:hover td{background:var(--acc-xl)}
     <div class="top">
       <div><h1 id="tTitle">Обзор сети</h1><div class="tsub" id="tSub">Понедельник, 6 июля 2026 · 6 садиков · 471 ребёнок</div></div>
       <div class="top-right">
+        <div class="role-sw" title="Стиль интерфейса">
+          <button id="thP" class="on" onclick="setTheme('pl')">Pllato</button>
+          <button id="thZ" onclick="setTheme('zk')">🐰 Зайка</button>
+        </div>
         <div class="role-sw">
           <button class="on" id="rOwn" onclick="setRole('own')">Владелица</button>
           <button id="rZav" onclick="setRole('zav')">Заведующая «Орбита»</button>
@@ -955,6 +991,12 @@ function renderFin(){
 function renderAll(){renderDash();renderLeads();renderComms();renderKids();renderTab();renderEdu();renderHR();renderStaff();renderStock();renderFin()}
 $('fGdn').innerHTML='<option value="">Все садики</option>'+GDNS.map(g=>'<option value="'+g.id+'">'+g.n+'</option>').join('');
 $('fGdn2').innerHTML='<option value="">Все садики</option>'+GDNS.map(g=>'<option value="'+g.id+'">'+g.n+'</option>').join('');
+function setTheme(t){
+  document.body.classList.toggle('pl',t==='pl');
+  try{localStorage.setItem('zkTheme',t)}catch(e){}
+  $('thP').classList.toggle('on',t==='pl');$('thZ').classList.toggle('on',t!=='pl');
+}
+setTheme((function(){var t=new URLSearchParams(location.search).get('t');if(t==='zk'||t==='pl')return t;try{return localStorage.getItem('zkTheme')||'pl'}catch(e){return 'pl'}})());
 renderAll();
 setTimeout(()=>toast('Здравствуйте, <b>Екатерина</b>! Это пример портала «Зайка» для сети из 6 садиков. Всё, что обсуждали на встрече, уже здесь: набор с изи-ботом, чаты и звонки, табель, склад завхоза, найм с тестами и кабинет родителя. Нажимайте на всё.'),700);
 const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));
