@@ -270,6 +270,7 @@ body.pl .toast b{color:#d4a978}
       <div class="ngroup">Сеть</div>
       <button class="nitem on" data-s="dash"><span class="ic">☀</span>Обзор сети</button>
       <button class="nitem" data-s="fin"><span class="ic">₸</span>Финансы<span class="bdg">7</span></button>
+      <button class="nitem" data-s="pay"><span class="ic">💵</span>Касса<span class="bdg">3</span></button>
       <button class="nitem" data-s="stock"><span class="ic">📦</span>Склад завхоза<span class="bdg">5</span></button>
       <div class="ngroup">Продажи</div>
       <button class="nitem" data-s="leads"><span class="ic">◎</span>Набор детей<span class="bdg grn">12</span></button>
@@ -579,6 +580,42 @@ body.pl .toast b{color:#d4a978}
         <div class="note" style="margin-top:4px">Напоминания об оплате уходят родителям в WhatsApp сами: до срока, в срок и после. Углублённый финансовый контур (P&L, зарплаты, дашборды уровня Power BI) — отдельный модуль, подключается после базы.</div>
       </section>
 
+      <!-- PAY -->
+      <section class="screen" id="s-pay">
+        <div class="kpis">
+          <div class="kpi acc"><div class="kl">Принято сегодня</div><div class="kv">1,24 <em>млн ₸</em></div><div class="kd">32 платежа по сети</div></div>
+          <div class="kpi sky"><div class="kl">По способам</div><div class="kv">18/9/5</div><div class="kd">Kaspi · наличные · перевод</div></div>
+          <div class="kpi red"><div class="kl">Ждут подтверждения</div><div class="kv">3</div><div class="kd">наличные у заведующих</div></div>
+          <div class="kpi mint"><div class="kl">Сдано в банк · неделя</div><div class="kv">4,12 <em>млн ₸</em></div><div class="kd">сверка с бухгалтером сходится</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card" style="padding:6px 16px">
+            <h3 style="padding:12px 4px 0">💵 Журнал платежей — сегодня <span class="hl" onclick="toast('Заведующая принимает оплату в 3 клика: ребёнок → сумма → способ. Родителю сразу уходит квитанция в WhatsApp, долг закрывается, бухгалтер видит платёж мгновенно.')">+ принять оплату</span></h3>
+            <table>
+              <thead><tr><th>Время</th><th>Родитель → ребёнок</th><th>Садик</th><th>Способ</th><th>Сумма</th><th>Статус</th></tr></thead>
+              <tbody id="payBody"></tbody>
+            </table>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h3>🏦 Наличные у заведующих</h3>
+              <div id="payCash"></div>
+              <div class="note" style="margin-top:8px">Наличные фиксируются в момент приёма. Система напоминает про сдачу в банк, бухгалтер подтверждает — сверка «приняла = сдала» сходится сама.</div>
+            </div>
+            <div class="card">
+              <h3>🧾 Как устроен учёт</h3>
+              <div style="font-size:13.5px;line-height:2;color:var(--mut);font-weight:700">
+                • Каждый платёж привязан к ребёнку и месяцу — долги закрываются сами<br>
+                • Вступительный взнос при зачислении — отдельным типом платежа<br>
+                • Квитанция родителю в WhatsApp — автоматически<br>
+                • История не правится задним числом — полный аудит<br>
+                • Kaspi-платежи по ссылке отмечаются без ручной сверки
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- PARENT -->
       <section class="screen" id="s-parent">
         <div class="grid2">
@@ -741,6 +778,20 @@ const STOCKREQ=[
   ['Самал','постельное бельё ×10','новая заявка','red'],
   ['Аксай','гуашь и альбомы ×20','выдано 04.07','grn'],
 ];
+const PAYS=[
+  ['09:12','Мадина → Алихан','or','Kaspi','95 000 ₸','ok'],
+  ['09:40','Гаухар → Аружан','sa','перевод','110 000 ₸','ok'],
+  ['10:05','Ерлан → Санжар','ak','наличные','85 000 ₸','cash'],
+  ['10:31','Айгерим → Мирас','do','Kaspi','120 000 ₸','ok'],
+  ['11:02','Жанар → Айлин','ma','наличные','90 000 ₸','cash'],
+  ['11:47','Камила → Данияр','ta','Kaspi','88 000 ₸','ok'],
+  ['12:15','Салтанат → Амина (взнос)','or','наличные','50 000 ₸','wait'],
+];
+const CASH=[
+  ['or','85 000 ₸','сдача завтра','sun'],
+  ['ak','45 000 ₸','3 дня не сдано ⚠','red'],
+  ['ma','90 000 ₸','подтверждено сегодня','grn'],
+];
 const STIME=[
   ['Салтанат Р. · «Орбита»','пришла 07:52','на месте','grn'],
   ['Баян К. · «Аксай»','пришла 08:24 · опоздание 24 мин','⚠','red'],
@@ -775,7 +826,7 @@ const TITLES={dash:['Обзор сети','понедельник, 6 июля 20
   edu:['Обучение и развитие','программа сети, прогресс детей, отчёты родителям'],
   hr:['Найм','воронка кандидатов, тесты и кадровый резерв'],staff:['Персонал','штат, документы, пришёл / ушёл'],
   stock:['Склад завхоза','остатки, заявки садиков, закупки и выдача'],
-  fin:['Финансы сети','абонплата, сборы, долги'],parent:['Кабинет родителя','как сеть выглядит для родителей — веб-версия']};
+  fin:['Финансы сети','абонплата, сборы, долги'],pay:['Касса','первичный приём денег от родителей и учёт'],parent:['Кабинет родителя','как сеть выглядит для родителей — веб-версия']};
 function nav(s){
   document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
   $('s-'+s).classList.add('on');
@@ -966,6 +1017,22 @@ function renderStock(){
   }).join('');
 }
 
+/* ===== касса ===== */
+function renderPay(){
+  $('payBody').innerHTML=PAYS.filter(p=>role==='own'||p[2]==='or').map(p=>{
+    const g=gdn(p[2]);
+    const st=p[5]==='ok'?'<span class="b grn">зачислено</span>':p[5]==='cash'?'<span class="b sun">у заведующей</span>':'<span class="b red">ждёт подтверждения</span>';
+    return '<tr onclick="toast(\'Карточка платежа: кто принял, за какой месяц, квитанция родителю, привязка к ребёнку. Историю нельзя править задним числом — полный аудит.\')">'+
+    '<td style="font-weight:800">'+p[0]+'</td><td><div class="cname" style="font-size:13.5px">'+p[1]+'</div></td>'+
+    '<td><span style="display:inline-flex;align-items:center;gap:8px">'+gB(g)+' '+g.n+'</span></td>'+
+    '<td style="font-weight:700">'+p[3]+'</td><td style="font-weight:800">'+p[4]+'</td><td>'+st+'</td></tr>';
+  }).join('');
+  $('payCash').innerHTML=CASH.map(c=>{
+    const g=gdn(c[0]);
+    return '<div class="gdn">'+gB(g)+'<div style="flex:1;min-width:0"><div class="gn" style="min-width:0">'+g.n+' · '+g.head+'</div><div class="gs">наличных на руках: '+c[1]+'</div></div><span class="b '+c[3]+'">'+c[2]+'</span></div>';
+  }).join('');
+}
+
 /* ===== финансы ===== */
 function renderFin(){
   const gs=myG();
@@ -988,7 +1055,7 @@ function renderFin(){
 }
 
 /* ===== init ===== */
-function renderAll(){renderDash();renderLeads();renderComms();renderKids();renderTab();renderEdu();renderHR();renderStaff();renderStock();renderFin()}
+function renderAll(){renderDash();renderLeads();renderComms();renderKids();renderTab();renderEdu();renderHR();renderStaff();renderStock();renderPay();renderFin()}
 $('fGdn').innerHTML='<option value="">Все садики</option>'+GDNS.map(g=>'<option value="'+g.id+'">'+g.n+'</option>').join('');
 $('fGdn2').innerHTML='<option value="">Все садики</option>'+GDNS.map(g=>'<option value="'+g.id+'">'+g.n+'</option>').join('');
 function setTheme(t){

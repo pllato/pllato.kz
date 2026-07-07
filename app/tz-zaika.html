@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ТЗ · Портал сети «Зайка» · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a1628'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Arial' font-weight='bold' font-size='14' fill='%23d4a978'%3EТЗ%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0a1628;--bronze:#b8895a;--bronze-d:#8b6740;--bronze-l:#d4a978;
+  --ink:#0f1620;--mut:#4a5163;--mut2:#8a8d96;--line:#e8e2d4;
+  --bg:#fafaf6;--surface:#fff;--surface2:#f3f0e8;
+  --mint:#16a34a;--mint-l:#e7f4ec;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.62;-webkit-font-smoothing:antialiased;border-top:6px solid var(--navy)}
+.page{max-width:880px;margin:0 auto;padding:0 28px 60px}
+h1{font-size:27px;font-weight:800;letter-spacing:-.4px;line-height:1.2}
+h2{font-size:19px;font-weight:800;letter-spacing:-.2px;display:flex;align-items:center;gap:11px}
+h2 .n{width:32px;height:32px;border-radius:9px;background:var(--bronze);color:#fff;display:grid;place-items:center;font-size:14px;font-weight:800;flex:none}
+h3{font-size:14.5px;font-weight:700;margin-bottom:5px}
+section{margin-top:30px}
+.hero{border-bottom:1px solid var(--line);padding:34px 0 22px;display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+.hero .meta{margin-left:auto;text-align:right;font-size:12.5px;color:var(--mut);font-weight:500;line-height:1.85}
+.hero .meta b{color:var(--ink);font-weight:700}
+.doc-num{display:inline-block;background:var(--navy);color:#fff;font-weight:700;font-size:12px;padding:4px 12px;border-radius:8px;letter-spacing:.3px}
+.hsub{font-size:14px;color:var(--mut);font-weight:500;margin-top:6px}
+p{color:var(--mut);font-weight:500;margin:8px 0}
+p b,li b{color:var(--ink);font-weight:700}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:15px 18px;margin-top:10px;box-shadow:0 1px 2px rgba(20,30,50,.04)}
+.card ul{margin:4px 0 2px 18px;color:var(--mut);font-weight:500}
+.card ul li{margin:4px 0}
+.mod-h{display:flex;align-items:baseline;gap:9px}
+.mod-h .mn{font-size:12px;font-weight:800;color:var(--bronze-d);letter-spacing:.4px;flex:none}
+.mod-h h3{font-size:15px}
+.mod-h .demo-b{margin-left:auto;background:var(--mint-l);color:var(--mint);font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px;flex:none}
+.tbl{width:100%;border-collapse:collapse;background:var(--surface);border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-top:10px}
+.tbl th{background:var(--navy);color:#e6e9f0;font-size:12px;text-align:left;padding:10px 14px;font-weight:700}
+.tbl td{padding:11px 14px;border-bottom:1px solid var(--line);font-size:13px;font-weight:500;color:var(--mut);vertical-align:top}
+.tbl td:first-child{color:var(--ink);font-weight:700;white-space:nowrap}
+.tbl tr:last-child td{border-bottom:none}
+.warn{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:13px 17px;font-size:13px;color:var(--mut);font-weight:500;margin-top:10px}
+.warn b{color:var(--ink)}
+.foot{margin-top:44px;border-top:1px solid var(--line);padding-top:18px;display:flex;gap:20px;flex-wrap:wrap;font-size:12.5px;color:var(--mut);font-weight:500}
+.foot b{color:var(--ink);display:block;font-size:14px;font-weight:700}
+.foot .fr{margin-left:auto;text-align:right}
+.foot a{color:var(--bronze-d)}
+@media print{
+  body{background:#fff;font-size:12px;border-top-width:4px}
+  .page{max-width:100%;padding:0 4mm}
+  section{margin-top:16px}
+  .card,.tbl{break-inside:avoid}
+  body,.tbl th,h2 .n,.doc-num{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <div>
+      <h1>Техническое задание<br>Портал управления сетью детских садов «Зайка»</h1>
+      <div class="hsub">Базовая разработка (стандартный пакет) · приложение к КП № ZK-2026-01 и договору-оферте</div>
+    </div>
+    <div class="meta">
+      <span class="doc-num">ТЗ № TZ-ZK-2026-01</span><br>
+      Заказчик: <b>Екатерина</b> · сеть детских садов «Зайка», Алматы<br>
+      Исполнитель: <b>ИП «STUDYSTORIES.APP»</b> (Pllato)<br>
+      Дата: <b>7 июля 2026</b> · версия 1.0
+    </div>
+  </div>
+
+  <section>
+    <h2><span class="n">1</span>Общие сведения</h2>
+    <p><b>1.1.</b> Предмет разработки — веб-портал управления сетью из 6 детских садов (далее — Портал): набор детей, коммуникации, дети и группы, табель, обучение, найм и персонал, склад, касса, кабинет родителя, роли и отчётность.</p>
+    <p><b>1.2.</b> Портал заменяет текущий контур Заказчика: Битрикс24 (воронка, кол-центр) и Google-таблицы (табель, склад, отчёты) — с миграцией данных.</p>
+    <p><b>1.3.</b> Основание: договор-оферта Pllato (pllato.kz/offer), КП № ZK-2026-01, настоящее ТЗ. Утверждённый интерактивный макет (демо) — pllato.kz/app/zaika.html — является образцом интерфейсов и объёма базовой разработки.</p>
+    <p><b>1.4.</b> Стоимость базовой разработки — <b>1 500 000 ₸</b> (без НДС), срок — <b>4–6 недель</b>, первая версия ядра — ~7 дней. Оплата: 10% старт → 50% остатка после сдачи ядра → остаток по сдаче. Правки по ядру (1–2 согласующих созвона, ~30% объёма доработок по ходу) входят.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>Роли и права доступа</h2>
+    <table class="tbl">
+      <tr><th>Роль</th><th>Доступ</th></tr>
+      <tr><td>Владелица</td><td>вся сеть: все садики, финансовые своды, найм, отчёты, настройка ролей</td></tr>
+      <tr><td>Заведующая</td><td>только свой садик: группы, дети, табель, персонал, заявки, касса своего садика</td></tr>
+      <tr><td>Администратор / кол-центр</td><td>заявки и чаты всех садиков, телефония, запись на экскурсии</td></tr>
+      <tr><td>Методист</td><td>программа сети, расписания, контроль проведения занятий по всем садикам</td></tr>
+      <tr><td>Воспитатель</td><td>своя группа: отметки табеля, занятия, отчёты дня, навыки детей</td></tr>
+      <tr><td>Завхоз</td><td>склад: остатки, заявки садиков, закупки, выдача</td></tr>
+      <tr><td>Бухгалтер</td><td>своды табеля, перерасчёты, журнал платежей, сверка кассы (просмотр/подтверждение)</td></tr>
+      <tr><td>Родитель</td><td>веб-кабинет: только свой ребёнок и своя группа</td></tr>
+    </table>
+    <p>Каждое действие фиксируется в журнале (кто, что, когда) — история не редактируется задним числом.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>Функциональные требования — модули базовой разработки</h2>
+
+    <div class="card"><div class="mod-h"><span class="mn">М1</span><h3>Воронка набора детей + миграция из Битрикс24</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Этапы: новая заявка → экскурсия назначена → пробный день → договор → зачислен; настраиваемые</li>
+        <li>Карточка заявки: ребёнок, возраст, родитель, желаемый садик/группа, источник, переписка, звонки</li>
+        <li>Лист ожидания по группам и садикам; перевод заявки в карточку ребёнка при зачислении</li>
+        <li>Автосообщения: приглашение на экскурсию с адресом/датой, напоминание за 2 часа, после визита — оценка качества 1–5, при оценке 5 — просьба оставить отзыв в 2ГИС</li>
+        <li>Миграция из Битрикс24: контакты, сделки, стадии, история — переносим; SLA на ответ (сигнал при простое заявки)</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М2</span><h3>Изи-бот прогрева заявок с таргета</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Сценарий: анкета (возраст ребёнка, район) → серия видео/сообщений с настраиваемыми интервалами → приглашение на экскурсию → передача менеджеру</li>
+        <li>Редактор последовательностей: тексты, видео, интервалы Заказчик меняет сам, без программиста</li>
+        <li>Статус прогрева виден в карточке заявки; аналитика: сколько дошло до менеджера/экскурсии</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М3</span><h3>Единое окно коммуникаций: WhatsApp + Instagram</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>WhatsApp через Green API (белый канал без пометок), Instagram Direct — в одном окне</li>
+        <li>Переписка хранится в карточках заявок/детей — смена номера или сотрудника не теряет историю</li>
+        <li>Шаблоны ответов, файлы/фото, ответ от имени садика с любого устройства</li>
+        <li>Автонапоминания об оплате должникам со ссылкой на оплату</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М4</span><h3>Телефония (SIPUNI)</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Звонок из карточки в 1 клик; входящие определяются и прикрепляются к карточкам</li>
+        <li>Записи разговоров хранятся и прослушиваются в Портале, в карточке ребёнка/заявки</li>
+        <li>Пропущенный звонок автоматически создаёт задачу администратору</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М5</span><h3>Группы и дети</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Карточка ребёнка: родители и контакты, аллергии/особенности, посещаемость, оплаты, переписка и звонки, прогресс развития, документы</li>
+        <li>Группы по садикам (ясли → подготовительная), перевод между группами и садиками без потери истории</li>
+        <li>Поиск и фильтры по всей сети (владелица) / своему садику (заведующая)</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М6</span><h3>Табель</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Отметки в один клик: был / болел / отпуск — заведующая или воспитатель, с телефона/планшета</li>
+        <li>Свод: прибыло/убыло за месяц, на начало/конец месяца, по садику и по сети</li>
+        <li>Перерасчёт абонплаты по факту посещения — свод для бухгалтера одной кнопкой</li>
+        <li>Питание по фактическим дням; отметки занятий приходящих педагогов → расчёт их оплаты по факту</li>
+        <li>Переносит текущую Google-таблицу табеля целиком</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М7</span><h3>Обучение и развитие</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Единая программа сети: методист задаёт план — расписания по каждой группе каждого садика</li>
+        <li>Воспитатель отмечает проведение занятия одним нажатием — контроль выполнения программы</li>
+        <li>Навыки ребёнка: ежемесячные отметки воспитателя, динамика для родителей и владелицы</li>
+        <li>Отчёт дня родителям в WhatsApp с фото — одной кнопкой на группу</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М8</span><h3>Найм (HR-воронка)</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Этапы: отклик → собеседование → стажировка (3 дня, оценка заведующей) → оформление</li>
+        <li>Отклики с HeadHunter/Instagram создают карточки автоматически; бот отправляет онлайн-тест в WhatsApp</li>
+        <li>Онлайн-тесты кандидатов (педагогика, безопасность, ситуации) — результат в карточке</li>
+        <li>Массовые WhatsApp-рассылки по откликам; кадровый резерв с тегами</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М9</span><h3>Персонал</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Штат по садикам: должности, документы; медкнижки и аттестации с напоминаниями за 30 и 7 дней</li>
+        <li>Пришёл/ушёл: отметка на планшете садика; опоздания, переработки, табель для расчёта зарплат</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М10</span><h3>Склад завхоза</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Номенклатура: питание, хозтовары, канцелярия, гигиена; остатки и минимумы</li>
+        <li>Заявки садиков завхозу; закупка одной кнопкой из минимумов и заявок; выдача с фиксацией по садикам</li>
+        <li>Движение по каждой позиции: кто, когда, куда; перенос текущей таблицы завхоза целиком</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М11</span><h3>Касса: первичный приём денег и учёт</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Приём оплат на месте: Kaspi / наличные / перевод — заведующая проводит платёж в 3 клика</li>
+        <li>Типы платежей: абонплата (с привязкой к ребёнку и месяцу), вступительный взнос при зачислении, прочие</li>
+        <li>Квитанция родителю в WhatsApp автоматически; долг закрывается сразу</li>
+        <li>Наличные у заведующих: остаток на руках по каждому садику, напоминание о сдаче, подтверждение бухгалтером — сверка «приняла = сдала» сходится сама</li>
+        <li>Журнал платежей без правок задним числом (аудит); оплата по ссылке отмечается без ручной сверки</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М12</span><h3>Веб-кабинет родителя</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Доступ по ссылке из WhatsApp, без установки приложения; каждый видит только своего ребёнка и свою группу</li>
+        <li>Расписание группы, отчёты дня с фото, оплата (счёт + ссылка), переписка с садиком внутри кабинета</li>
+        <li>Переписка хранится у Заказчика: увольнение воспитателя не уносит историю и контакты</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М13</span><h3>Задачи, дашборд сети и базовая отчётность</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Задачи и поручения с ответственными и сроками; автозадачи от системы (пропущенный звонок, просроченная заявка)</li>
+        <li>Дашборд владелицы: заполняемость по садикам, план/факт абонплаты, долги, набор, найм, сигналы «требуют внимания»</li>
+        <li>Лента событий сети; базовые отчёты: посещаемость, сборы, долги, движение детей</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span>Интеграции и миграция данных</h2>
+    <table class="tbl">
+      <tr><th>Что</th><th>Как</th></tr>
+      <tr><td>WhatsApp</td><td>Green API (~$10/мес), белый канал; WABA — опционально там, где нужна</td></tr>
+      <tr><td>Instagram</td><td>Direct в едином окне коммуникаций</td></tr>
+      <tr><td>Телефония</td><td>SIPUNI — текущий договор Заказчика остаётся, встраивается в Портал</td></tr>
+      <tr><td>Оплата по ссылке</td><td>ссылка на оплату в счёте/напоминании; отметка платежа в журнале кассы</td></tr>
+      <tr><td>Битрикс24</td><td>миграция: контакты, сделки, стадии, история активности; архив сохраняется у Заказчика</td></tr>
+      <tr><td>Google-таблицы</td><td>перенос табеля и склада завхоза со структурой и историей</td></tr>
+      <tr><td>HeadHunter</td><td>отклики в HR-воронку (по email-пересылке/выгрузке — уточняется на старте)</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span>Не входит в базовую разработку</h2>
+    <div class="warn">Зафиксировано на встрече 06.07.2026: <b>база — без финансового контура и без приложения</b>. Отдельными пакетами после сдачи ядра: <b>финансовый контур</b> (дашборды уровня Power BI, P&L, зарплаты — ориентир 0,3–0,4 от базы), <b>интеграция 1С</b>, <b>маркетинг и лояльность</b> (отчёты таргетолога/SMM, акции, промокоды, «приведи друга»), <b>приложение-коммьюнити</b> (видео-эпизоды занятий с камер, опросы/голосования, публичная часть). База проектируется так, чтобы пакеты подключались без переделок.</div>
+  </section>
+
+  <section>
+    <h2><span class="n">6</span>Нефункциональные требования</h2>
+    <div class="card"><ul>
+      <li>Веб-приложение, адаптивное под телефон, планшет и компьютер; современные браузеры</li>
+      <li>Доступ по ролям (раздел 2), журнал действий, защита персональных данных согласно законодательству РК</li>
+      <li>Резервное копирование — ежедневно; хостинг до 10 ГБ — бесплатно; домен ~$10/год</li>
+      <li>Код и данные — собственность Заказчика; никакой абонплаты за пользователей и лицензий</li>
+      <li>Масштабирование: новый садик/город добавляется как филиал без доработок и лицензий</li>
+    </ul></div>
+  </section>
+
+  <section>
+    <h2><span class="n">7</span>Порядок сдачи и приёмки</h2>
+    <table class="tbl">
+      <tr><th>Шаг</th><th>Содержание</th></tr>
+      <tr><td>Старт</td><td>договор + NDA, фиксация объёма (это ТЗ), 10% — 150 000 ₸</td></tr>
+      <tr><td>Ядро · ~7 дней</td><td>первая кликабельная версия; 1–2 созвона правок «по каждой запятой» с командой Заказчика (заведующие, кол-центр, финансист) — правки входят</td></tr>
+      <tr><td>Приёмка ядра</td><td>утверждение состава экранов; оплата 50% остатка — 675 000 ₸</td></tr>
+      <tr><td>Сдача · 4–6 недель</td><td>все модули по чек-листу раздела 3, миграция данных, обучение команды, запуск; финальный счёт — 675 000 ₸</td></tr>
+      <tr><td>Поддержка</td><td>ошибки (дебаг) — бесплатно всегда; новые доработки после сдачи — $20/час по согласованной оценке</td></tr>
+    </table>
+    <p>Приёмка каждого модуля — по функциям, перечисленным в разделе 3. Замечания фиксируются списком; ~30% объёма доработок в ходе проекта — норма и входит в стоимость.</p>
+  </section>
+
+  <div class="foot">
+    <div><b>Платон Цай</b>Pllato · разработка порталов и CRM<br>+7 701 123 99 99 · uurraa@gmail.com</div>
+    <div class="fr"><b>ИП «STUDYSTORIES.APP»</b>Оферта: <a href="https://pllato.kz/offer">pllato.kz/offer</a> · демо: pllato.kz/app/zaika.html<br>ТЗ № TZ-ZK-2026-01 · версия 1.0 от 07.07.2026</div>
+  </div>
+
+</div>
+</body>
+</html>
